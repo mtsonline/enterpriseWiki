@@ -827,3 +827,48 @@ func TestExternalSearch(t *testing.T) {
 		})
 	}
 }
+
+func TestBlocks(t *testing.T) {
+	e := setup(t)
+	admin := e.client()
+	admin.login("admin", adminPW)
+	guest := e.client()
+	type rendered struct {
+		ID       int64  `json:"id"`
+		Location string `json:"location"`
+		Title    string `json:"title"`
+		Lang     string `json:"lang"`
+		HTML     string `json:"html"`
+	}
+	if got := admin.do("POST", "/api/v1/x/core.blocks/blocks", map[string]any{"name": "x", "location": "footer", "bodies": map[string]any{}}, nil); got != 400 {
+		t.Fatalf("empty block accepted: %d", got)
+	}
+	var b struct {
+		ID int64 `json:"id"`
+	}
+	admin.must("POST", "/api/v1/x/core.blocks/blocks", map[string]any{"name": "Contact", "location": "footer", "audience": "all", "enabled": true,
+		"titles": map[string]string{"de": "Kontakt", "en": "Contact"},
+		"bodies": map[string]any{"en": map[string]string{"format": "markdown", "source": "**Mail** <script>x</script>\n\n<div data-macro=\"status\" data-params='{\"text\":\"ok\"}'></div>"}}}, &b, 201)
+	admin.must("POST", "/api/v1/x/core.blocks/blocks", map[string]any{"name": "Members", "location": "sidebar", "audience": "users", "enabled": true,
+		"bodies": map[string]any{"en": map[string]string{"format": "html", "source": "<p>Hi</p>"}}}, nil, 201)
+	var list []rendered
+	guest.must("GET", "/api/v1/x/core.blocks/blocks?lang=de", nil, &list, 200)
+	if len(list) != 1 || list[0].Title != "Kontakt" || list[0].Lang != "en" || strings.Contains(list[0].HTML, "<script") ||
+		!strings.Contains(list[0].HTML, "<strong>Mail</strong>") || !strings.Contains(list[0].HTML, "ew-status") {
+		t.Fatalf("guest blocks: %+v", list)
+	}
+	admin.must("GET", "/api/v1/x/core.blocks/blocks?lang=en", nil, &list, 200)
+	if len(list) != 2 {
+		t.Fatalf("user blocks: %+v", list)
+	}
+	if got := guest.do("GET", "/api/v1/x/core.blocks/blocks?all=1", nil, nil); got != 401 {
+		t.Fatalf("guest reads sources: %d", got)
+	}
+	admin.must("PUT", fmt.Sprintf("/api/v1/x/core.blocks/blocks/%d", b.ID), map[string]any{"name": "Contact", "location": "footer", "enabled": false,
+		"bodies": map[string]any{"en": map[string]string{"source": "x"}}}, nil, 200)
+	guest.must("GET", "/api/v1/x/core.blocks/blocks", nil, &list, 200)
+	if len(list) != 0 {
+		t.Fatalf("disabled block shown: %+v", list)
+	}
+	admin.must("DELETE", fmt.Sprintf("/api/v1/x/core.blocks/blocks/%d", b.ID), nil, nil, 204)
+}

@@ -228,3 +228,11 @@ th .ew-help { font-weight: 400; }
 /* WCAG 2.2 target size: interactive targets are at least 24x24 px */
 .ew-breadcrumbs a, .ew-tags a, .ew-subnav a, .ew-tabs a { display: inline-block; min-height: 24px; min-width: 24px; }
 .ew-btn--link { min-height: 24px; }
+
+/* position preview for administrators (?positions=1) */
+.ew-show-positions .ew-pos:empty { display: block !important; }
+.ew-show-positions .ew-pos { outline: 2px dashed #c25100; outline-offset: -2px; min-height: 2.2rem; padding: .25rem; background: rgb(255 171 0 / .08); }
+.ew-show-positions .ew-pos::before { content: attr(data-label) " (" attr(data-position) ")"; display: block; flex-basis: 100%; font: 700 .75rem/1.4 var(--ew-font); color: #7a3300; background: #ffe7c7; padding: 0 .3rem; margin-bottom: .2rem; }
+.ew-positions-bar { position: fixed; bottom: 0; left: 0; right: 0; z-index: 100; background: #3d2600; color: #fff; padding: .5rem 1rem; display: flex; gap: 1rem; align-items: center; flex-wrap: wrap; }
+.ew-inline-action { font-size: .9rem; margin-left: .25rem; }
+.ew-default-element--edit { border: 1px dashed var(--ew-border); border-radius: var(--ew-radius); padding: .75rem 1rem; }

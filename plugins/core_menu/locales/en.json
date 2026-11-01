@@ -8,7 +8,7 @@
  "core.menu.add_child": "Add sub-item",
  "core.menu.label": "Label",
  "core.menu.url": "Link (URL or /path)",
- "core.menu.category": "or category id",
+ "core.menu.category": "Category",
  "core.menu.remove_item": "Remove item",
  "core.menu.move_up": "Move up",
  "core.menu.move_down": "Move down",
@@ -16,5 +16,18 @@
  "core.menu.nav_label": "Menu {name}",
  "core.menu.level": "Level",
  "core.menu.position": "Order",
- "core.menu.delete_confirm": "Delete the menu \"{name}\"?"
+ "core.menu.delete_confirm": "Delete the menu \"{name}\"?",
+ "core.menu.item": "Item",
+ "core.menu.level_help": "1 = main item, 2 = below the item above",
+ "core.menu.url_help": "Instead of a category: /path, https://… or mailto:…",
+ "core.menu.no_category": "– no category, use the link –",
+ "core.menu.location_help": "Positions of the active template ({template}).",
+ "core.menu.err_label": "Item {n}: enter a label.",
+ "core.menu.err_target": "Item {n}: choose a category or enter a link.",
+ "core.menu.saved_at": "Menu saved – shown at: {position}",
+ "core.menu.saved_empty": "Menu saved. It has no items yet and is therefore not shown.",
+ "core.menu.help": "Menus are shown at a position of the active template ({template}).",
+ "core.menu.no_items": "no items – not shown",
+ "core.menu.hidden_position": "position not in the active template",
+ "core.menu.visible": "shown"
 }

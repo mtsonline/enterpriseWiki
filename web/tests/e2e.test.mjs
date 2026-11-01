@@ -132,7 +132,7 @@ test('create, edit, translate and search a page', async () => {
 });
 
 test('administration pages are accessible', async () => {
-  for (const section of ['users', 'groups', 'roles', 'plugins', 'updates', 'settings', 'languages', 'audit', 'menus', 'ldap', 'oidc', 'shibboleth', 'shell', 'mail', 'search']) {
+  for (const section of ['users', 'groups', 'roles', 'plugins', 'updates', 'settings', 'languages', 'audit', 'menus', 'ldap', 'oidc', 'shibboleth', 'shell', 'mail', 'search', 'blocks']) {
     await page.goto(`${BASE}/admin/${section}`);
     await idle();
     await page.waitForSelector('.ew-admin-panel h1');
@@ -296,6 +296,66 @@ test('comments on a page', async () => {
   await a11y('comments');
 });
 
+test('edit category texts and the default page from the category view', async () => {
+  await page.goto(BASE + '/');
+  await idle();
+  await page.locator('.ew-tree a').first().click();
+  await idle();
+  const edit = page.locator('.ew-pos--header-tools button[aria-pressed]');
+  if ((await edit.getAttribute('aria-pressed')) !== 'true') { await edit.click(); await idle(); }
+  await page.getByRole('button', { name: /^(edit category|kategorie bearbeiten)$/i }).click();
+  const dlg = page.locator('dialog[open]');
+  await dlg.waitFor();
+  await dlg.getByLabel(/^(tags)/i).fill(`start, e2e${run}`);
+  await a11y('edit category dialog');
+  await dlg.locator('button[type=submit]').click();
+  await page.waitForSelector(`.ew-tags a[href*="e2e${run}"]`);
+  assert.ok(await page.locator('.ew-default-element').getByRole('link', { name: /^(edit page|seite bearbeiten)$/i }).count() === 1, 'edit button for the default page');
+});
+
+test('menus, blocks and positions', async () => {
+  // menu at a position of the active template, item pointing to a category
+  await page.goto(BASE + '/admin/menus');
+  await idle();
+  await page.getByRole('button', { name: /^(add menu|menü hinzufügen)$/i }).click();
+  let dlg = page.locator('dialog[open]');
+  await dlg.waitFor();
+  await dlg.getByLabel(/^(menu name|menüname)/i).fill(`Menu ${run}`);
+  await dlg.locator('select').first().selectOption('sidebar-bottom');
+  await dlg.locator('fieldset input[lang]').first().fill(`Item ${run}`);
+  await a11y('menu dialog');
+  await dlg.locator('button[type=submit]').click();
+  // a link or category is required
+  await page.waitForFunction(() => /link|kategorie|category/i.test(document.querySelector('dialog[open] .ew-form-alert')?.textContent ?? ''));
+  await dlg.locator('.ewm-row select').nth(1).selectOption({ index: 1 });
+  await dlg.locator('button[type=submit]').click();
+  await page.waitForSelector(`.ew-pos--sidebar-bottom a:has-text("Item ${run}")`);
+  await a11y('menu administration');
+  // block in the footer
+  await page.goto(BASE + '/admin/blocks');
+  await idle();
+  await page.getByRole('button', { name: /^(add block|block hinzufügen)$/i }).click();
+  dlg = page.locator('dialog[open]');
+  await dlg.waitFor();
+  await dlg.getByLabel(/^name/i).fill(`Contact ${run}`);
+  await dlg.locator('select').first().selectOption('footer');
+  await dlg.locator('textarea').first().fill(`**Contact** block${run}`);
+  await a11y('block dialog');
+  await dlg.locator('button[type=submit]').click();
+  await page.waitForSelector(`.ew-pos--footer strong:has-text("Contact")`);
+  // position preview
+  await page.goto(BASE + '/?positions=1');
+  await idle();
+  await page.waitForSelector('.ew-show-positions .ew-pos--content-top');
+  await page.getByRole('button', { name: /^(hide positions|positionen ausblenden)$/i }).click();
+  assert.equal(await page.locator('.ew-show-positions').count(), 0);
+  // the template in use is marked on the plugin page
+  await page.goto(BASE + '/admin/plugins');
+  await idle();
+  assert.ok(await page.getByText(/template in use|verwendete vorlage/i).count() >= 1);
+  assert.ok(await page.getByRole('button', { name: /use .* as template|als vorlage verwenden/i }).count() >= 1);
+});
+
 test('CMS template', async () => {
   const set = (tpl) => page.evaluate(async (tpl) => {
     const h = { 'Content-Type': 'application/json', 'X-Requested-With': 'ewiki' };
@@ -329,7 +389,7 @@ test('switch language', async () => {
   await page.locator('.ew-lang select').selectOption('de');
   await page.waitForFunction(() => document.documentElement.lang === 'de');
   assert.equal(await page.locator('a.ew-skip').textContent(), 'Zum Inhalt springen');
-  assert.ok(await page.getByRole('button', { name: 'Suchen' }).count() > 0, 'header widgets translated');
+  await page.getByRole('button', { name: 'Suchen' }).waitFor({ timeout: 5000 }).catch(() => assert.fail('header widgets translated'));
   // focus returns to the language selector once the header has been re-rendered
   await page.waitForFunction(() => document.activeElement?.closest('.ew-lang') !== null, null, { timeout: 5000 })
     .catch(() => assert.fail('focus stays on the language selector'));

@@ -16,7 +16,7 @@ Wählen Sie oben die **Sprache**. Oberfläche und Inhalte wechseln gemeinsam. Gi
 
 Solange der Bearbeitungsmodus aus ist, sieht jede Seite so aus wie für alle Leser:innen. Mit **Bearbeiten** (nur sichtbar, wenn Sie Bearbeitungsrechte haben) schalten Sie ihn ein. Dann erscheinen die Aktionen:
 
-**In einer Kategorie:** *Neue Seite*, *Neue Unterkategorie*, *Kategorie-Einstellungen*, *Verschieben*, *Duplizieren*, *Löschen* sowie Pfeile zum Sortieren der Unterkategorien.
+**In einer Kategorie:** *Neue Seite*, *Neue Unterkategorie*, *Kategorie bearbeiten* (Titel, Beschreibung und Tags in allen Sprachen), *Kategorie-Einstellungen* (Standardseite, Adresse, Berechtigungen, Verlauf), *Verschieben*, *Duplizieren*, *Löschen* sowie Pfeile zum Sortieren der Unterkategorien. Die **Standardseite** der Kategorie (der Text, der direkt in der Kategorie angezeigt wird) hat eigene Schaltflächen *Seite bearbeiten*, *Tags* und *Verlauf*; in der Liste *Seiten* führt *Bearbeiten* direkt in den Editor.
 
 **Auf einer Seite:** *Bearbeiten*, *Verlauf*, *Tags*, *Als Standardseite festlegen*, *Verschieben*, *Duplizieren*, *Löschen* und die Übersicht **Übersetzungen**.
 

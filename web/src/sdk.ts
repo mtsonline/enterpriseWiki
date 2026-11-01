@@ -6,6 +6,7 @@
 //
 // See docs/developer/plugins.md.
 import { state, onChange } from './core/state';
+import { t } from './core/i18n';
 
 export { h, mount, append, trustedHTML, uid, fmtDate, srOnly } from './core/dom';
 export type { Child } from './core/dom';
@@ -20,6 +21,7 @@ export { navigate, route, rerender } from './core/router';
 export { button, field, textInput, textArea, select, checkbox, openDialog, confirmDialog, formDialog, langFields, errorText, loading, pageHeader } from './components/ui';
 export type * from './core/types';
 export { registerWidget, hydrate } from './core/widgets';
+export type { TreeNode } from './components/widgets';
 export type { WidgetFactory } from './core/widgets';
 
 // ---------------------------------------------------------------- plugin modules
@@ -98,13 +100,44 @@ export function listTemplates(): TemplateDef[] {
   return [...templates.values()];
 }
 
+/** The template in use (with inherited positions). */
+export function activeTemplate(): ResolvedTemplate | null {
+  return resolveTemplate(state.site?.template ?? 'theme.confluence');
+}
+
+/** Human readable name of a template position (core locale "position.<name>"). */
+export function positionLabel(name: string): string {
+  const k = `position.${name}`;
+  const v = t(k);
+  return v === k ? name : v;
+}
+
+/**
+ * Choices for "where should this appear": the positions of the active
+ * template (plus the current value, marked, if the template does not offer it).
+ */
+export function positionOptions(current?: string, exclude: string[] = ['header-tools', 'cms-nav']): { value: string; label: string }[] {
+  const list = (activeTemplate()?.positions ?? ['header-nav', 'sidebar', 'footer']).filter((p) => !exclude.includes(p));
+  const opts = list.map((p) => ({ value: p, label: `${positionLabel(p)} (${p})` }));
+  if (current && !list.includes(current)) opts.unshift({ value: current, label: t('positions.not_in_template', { name: current }) });
+  return opts;
+}
+
+/** Human readable name of a template (locale "template.<id>"). */
+export function templateLabel(id: string): string {
+  const k = `template.${id}`;
+  const v = t(k);
+  return v === k ? id : v;
+}
+
 // ---------------------------------------------------------------- positions (slots)
 
 export interface SlotDef {
   id: string;
+  /** Position name, or "*" for every position (render receives the name). */
   position: string;
   order?: number;
-  render: () => Node | null | Promise<Node | null>;
+  render: (position: string) => Node | null | Promise<Node | null>;
 }
 
 const slots: SlotDef[] = [];
@@ -130,9 +163,9 @@ function pathTo(root: Node, node: Node): number[] {
 
 async function fill(el: HTMLElement, name: string): Promise<void> {
   const nodes: Node[] = [];
-  for (const s of slots.filter((x) => x.position === name)) {
+  for (const s of slots.filter((x) => x.position === name || x.position === '*')) {
     try {
-      const n = await s.render();
+      const n = await s.render(name);
       if (n) {
         slotOf.set(n, s.id);
         nodes.push(n);
@@ -163,6 +196,7 @@ export function positionContainer(name: string, tag: keyof HTMLElementTagNameMap
   const el = document.createElement(tag);
   el.className = `ew-pos ew-pos--${name}`;
   el.dataset.position = name;
+  el.dataset.label = positionLabel(name);
   if (!positionEls.has(name)) positionEls.set(name, new Set());
   positionEls.get(name)!.add(el);
   void fill(el, name);

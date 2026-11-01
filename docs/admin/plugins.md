@@ -59,6 +59,27 @@ ewiki plugin build              # Neubau, danach: systemctl restart enterprisewi
 
 Für GitHub Enterprise oder private Repositories siehe `plugins.updates` in [configuration.md](configuration.md).
 
+## Vorlagen (Templates) und Positionen
+
+Alle Vorlagen-Plugins sind „aktiv“, das heißt verfügbar. **Verwendet wird genau eine**: die unter *Administration → Einstellungen → Vorlage* gewählte (`ui.template` in `config.yaml`). Auf der Plugin-Seite ist sie als *Verwendete Vorlage* markiert; bei den anderen wechselt *Als Vorlage verwenden* direkt.
+
+Jede Vorlage bietet Positionen, an denen Menüs (`core.menu`), Blöcke (`core.blocks`) und Widgets anderer Plugins erscheinen:
+
+| Position | Wiki (`theme.confluence`) | Website (`theme.cms`) |
+|---|---|---|
+| `top-bar` | Leiste über dem Kopfbereich (z. B. Hinweise) | links in der dunklen Leiste ganz oben |
+| `header-tools` | Suche, Sprache, Bearbeiten, Benutzer | rechts in der Leiste ganz oben |
+| `header-nav` | Navigation im Kopfbereich | neben der Hauptnavigation |
+| `cms-nav` | – | Hauptnavigation (automatisch: oberste Kategorien) |
+| `hero` | – | volle Breite unter dem Kopfbereich (Banner) |
+| `sidebar` | Seitenleiste mit Seitenbaum | Bereich unter dem Inhalt |
+| `sidebar-bottom` | Seitenleiste unter dem Seitenbaum | – |
+| `content-top`, `content-bottom` | über bzw. unter dem Inhalt jeder Seite | über bzw. unter dem Inhalt jeder Seite |
+| `footer-1` … `footer-4` | – | Spalten im Fußbereich |
+| `footer` | Fußbereich | unterste Zeile des Fußbereichs |
+
+Mit `?positions=1` an einer beliebigen Adresse (oder *Positionen auf der Seite anzeigen* unter *Menüs* bzw. *Blöcke*) sehen Administratoren alle Positionen mit Namen umrahmt. Menüs und Blöcke an einer Position, die die aktive Vorlage nicht hat, werden in der Verwaltung markiert und nicht angezeigt.
+
 ## Externe Suchmaschine
 
 Für sehr große Datenbestände kann die Volltextsuche **OpenSearch/Elasticsearch** (ab 7.10 bzw. OpenSearch 1.x) oder **Meilisearch** (ab 1.3) verwenden: bessere Relevanz, Tippfehler-Toleranz, Entlastung der Datenbank. Einrichtung unter *Administration → Suchmaschine*: Suchmaschine wählen, URL, Indexname und Zugangsdaten eintragen, *Verbindung testen*.
@@ -88,7 +109,8 @@ Plugins sind vollwertiger Code mit Zugriff auf Datenbank und Server. Installiere
 | `auth.shib` | Authentifizierung | Shibboleth / SAML 2.0 |
 | `core.attachment` | Elementtyp | Dateien (PDF, Office, Bilder, Video) mit Vorschau und Volltext |
 | `core.html` | Elementtyp | Seiten mit WYSIWYG oder Markdown |
-| `core.menu` | Menü | beliebig viele Menüs an Template-Positionen (*Administration → Menüs*) |
+| `core.menu` | Menü | beliebig viele Menüs an jeder Position der Vorlage (*Administration → Menüs*) |
+| `core.blocks` | Allgemein | Textblöcke (Markdown/HTML, Makros) an jeder Position, je Sprache, für alle/Gäste/Angemeldete (*Administration → Blöcke*) |
 | `core.macros` | Makros | Inhaltsverzeichnis, Unterseiten, Zuletzt geändert, Hinweis-Boxen, Aufklappbereich, Status-Label, Spalten |
 | `core.layout` | Makros | Layout-Bausteine: Abschnitt, Hero, Karten, Button, Abstand (erbt von `core.macros`) |
 | `macro.shell` | Makro | Ausgabe eines Shell-Befehls, nur nach exakter Freigabe durch einen Superadmin, standardmäßig aus |

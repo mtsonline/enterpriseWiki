@@ -1,0 +1,11 @@
+{
+  "id": "core.blocks",
+  "name": "Content blocks",
+  "version": "1.0.0",
+  "description": "Text blocks (Markdown or HTML, with macros) at any position of the template, e.g. contact details in the footer, a notice above all pages or links in the sidebar. Per language, for everyone, only guests or only signed-in users.",
+  "author": "Enterprise Wiki",
+  "kinds": [
+    "generic"
+  ],
+  "frontend": true
+}

@@ -89,6 +89,7 @@ async function boot(): Promise<void> {
     return layout;
   };
   const layout = build();
+  showPositionsMode();
   onNavigate(() => void refreshPositions());
   start(layout.main);
   // Texts of the template itself (skip link, landmarks) follow the language.
@@ -96,6 +97,30 @@ async function boot(): Promise<void> {
     setMain(build().main);
     void rerender();
   });
+}
+
+/**
+ * Position preview for administrators: /any/page?positions=1 outlines all
+ * positions of the template with their names (until switched off).
+ */
+function showPositionsMode(): void {
+  const q = new URLSearchParams(location.search).get('positions');
+  try {
+    if (q === '1') sessionStorage.setItem('ewiki.positions', '1');
+    if (q === '0') sessionStorage.removeItem('ewiki.positions');
+  } catch { /* storage unavailable */ }
+  let on = false;
+  try { on = sessionStorage.getItem('ewiki.positions') === '1'; } catch { on = q === '1'; }
+  if (!on || !state.user?.is_admin) return;
+  document.body.classList.add('ew-show-positions');
+  const bar = h('div', { class: 'ew-positions-bar', role: 'region', 'aria-label': t('positions.preview') },
+    h('span', null, t('positions.preview_help')), ' ',
+    h('button', { type: 'button', class: 'ew-btn ew-btn--secondary', onclick: () => {
+      try { sessionStorage.removeItem('ewiki.positions'); } catch { /* ignore */ }
+      document.body.classList.remove('ew-show-positions');
+      bar.remove();
+    } }, t('positions.hide')));
+  document.body.append(bar);
 }
 
 void boot();

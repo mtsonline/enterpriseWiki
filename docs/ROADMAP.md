@@ -54,4 +54,6 @@ Offen aus diesem Bereich: Vertretungen in Workflows, automatisches Kern-Update a
 - Hintergrundjobs für Kern und Plugins (`RegisterWorker`), im Cluster koordiniert
 - `search.external`: OpenSearch/Elasticsearch oder Meilisearch mit automatischer Synchronisation über ein Änderungsprotokoll, Neuaufbau, Rückfall auf PostgreSQL, Rechteprüfung im Wiki
 
+Nachbesserungen nach dem ersten Test (v7.3.1): *Kategorie bearbeiten* und *Seite bearbeiten* direkt in der Kategorieansicht, Menü-Dialog mit Positionen der aktiven Vorlage, Kategorie-Auswahl und Prüfung der Einträge, Anzeige der verwendeten Vorlage auf der Plugin-Seite, mehr Positionen in beiden Vorlagen, Positionsvorschau, Plugin `core.blocks` für Textblöcke an jeder Position.
+
 Offen: Benachrichtigungen im Browser (ohne E-Mail), Zusammenfassungen (Digest), Vertretungsregeln, Webhooks, deren Antwort Daten in den Vorgang zurückschreibt.

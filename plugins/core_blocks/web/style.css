@@ -1,0 +1,6 @@
+.ewb-block + .ewb-block { margin-top: 1rem; }
+.ewb-title { font-size: 1rem; margin: 0 0 .35rem; }
+.ewb-content > :first-child { margin-top: 0; } .ewb-content > :last-child { margin-bottom: 0; }
+.ewb-source { font-family: var(--ew-mono); }
+.ewb-lang { border: 1px solid var(--ew-border); border-radius: var(--ew-radius); padding: .5rem .9rem; margin: .75rem 0; }
+.ewb--top-bar .ewb-content p { margin: 0; }

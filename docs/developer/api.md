@@ -206,6 +206,10 @@ curl -H "Authorization: Bearer $KEY" -H 'Content-Type: application/json' \
 | `GET` | `/api/v1/x/auth.oidc/check` |
 | `GET` | `/api/v1/x/auth.shib/metadata` |
 | `GET` | `/api/v1/x/core.attachment/elements/{id}/file` |
+| `GET` | `/api/v1/x/core.blocks/blocks` |
+| `POST` | `/api/v1/x/core.blocks/blocks` |
+| `PUT` | `/api/v1/x/core.blocks/blocks/{id}` |
+| `DELETE` | `/api/v1/x/core.blocks/blocks/{id}` |
 | `GET` | `/api/v1/x/core.comments/elements/{id}/comments` |
 | `POST` | `/api/v1/x/core.comments/elements/{id}/comments` |
 | `PUT` | `/api/v1/x/core.comments/comments/{id}` |

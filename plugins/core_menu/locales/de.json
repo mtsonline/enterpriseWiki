@@ -8,7 +8,7 @@
  "core.menu.add_child": "Untereintrag hinzufügen",
  "core.menu.label": "Bezeichnung",
  "core.menu.url": "Link (URL oder /pfad)",
- "core.menu.category": "oder Kategorie-ID",
+ "core.menu.category": "Kategorie",
  "core.menu.remove_item": "Eintrag entfernen",
  "core.menu.move_up": "Nach oben",
  "core.menu.move_down": "Nach unten",
@@ -16,5 +16,18 @@
  "core.menu.nav_label": "Menü {name}",
  "core.menu.level": "Ebene",
  "core.menu.position": "Reihenfolge",
- "core.menu.delete_confirm": "Menü „{name}“ löschen?"
+ "core.menu.delete_confirm": "Menü „{name}“ löschen?",
+ "core.menu.item": "Eintrag",
+ "core.menu.level_help": "1 = Haupteintrag, 2 = unter dem Eintrag darüber",
+ "core.menu.url_help": "Statt einer Kategorie: /pfad, https://… oder mailto:…",
+ "core.menu.no_category": "– keine Kategorie, Link verwenden –",
+ "core.menu.location_help": "Positionen der aktiven Vorlage ({template}).",
+ "core.menu.err_label": "Eintrag {n}: bitte eine Bezeichnung eingeben.",
+ "core.menu.err_target": "Eintrag {n}: bitte eine Kategorie wählen oder einen Link eingeben.",
+ "core.menu.saved_at": "Menü gespeichert – angezeigt bei: {position}",
+ "core.menu.saved_empty": "Menü gespeichert. Es hat noch keine Einträge und wird deshalb nicht angezeigt.",
+ "core.menu.help": "Menüs erscheinen an einer Position der aktiven Vorlage ({template}).",
+ "core.menu.no_items": "keine Einträge – nicht angezeigt",
+ "core.menu.hidden_position": "Position nicht in der aktiven Vorlage",
+ "core.menu.visible": "angezeigt"
 }

@@ -231,7 +231,9 @@ registerTemplate({
 });
 ```
 
-Ein eigenes Layout liefert `layout: (ctx) => ({ root, main })` und platziert Positionen mit `ctx.position('sidebar')`. Pflicht: Sprunglink zum Inhalt, Landmarken (`header`, `nav`/`aside` mit `aria-label`, `main#main[tabindex=-1]`, `footer`). Farben setzen Sie über die CSS-Variablen `--ew-*` (Kontrast ≥ 4.5:1).
+Ein eigenes Layout liefert `layout: (ctx) => ({ root, main })` und platziert Positionen mit `ctx.position('sidebar')`. Verwenden Sie nach Möglichkeit die üblichen Namen (`top-bar`, `header-nav`, `header-tools`, `sidebar`, `sidebar-bottom`, `content-top`, `content-bottom`, `footer`, `footer-1` … `footer-4`, `hero`), damit Menüs und Blöcke beim Wechsel der Vorlage an passender Stelle bleiben; lesbare Namen kommen aus den Übersetzungen `position.<name>`, der Vorlagenname aus `template.<id>`.
+
+Widgets können an einer festen Position (`registerSlot({ position: 'sidebar', … })`) oder an allen Positionen erscheinen (`position: '*'`, `render(position)` bekommt den Namen, siehe `core_menu` und `core_blocks`). Für Auswahllisten liefert `positionOptions()` die Positionen der aktiven Vorlage, `activeTemplate()` die Vorlage selbst. Pflicht: Sprunglink zum Inhalt, Landmarken (`header`, `nav`/`aside` mit `aria-label`, `main#main[tabindex=-1]`, `footer`). Farben setzen Sie über die CSS-Variablen `--ew-*` (Kontrast ≥ 4.5:1).
 
 ## UI-Texte
 

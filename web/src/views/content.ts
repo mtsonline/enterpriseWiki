@@ -95,6 +95,7 @@ export async function categoryView({ params, main }: RouteCtx): Promise<void> {
       actions.push(h('a', { href: `/c/${c.id}/new`, class: 'ew-btn ew-btn--primary' }, t('element.new')));
       actions.push(button(t('category.new_sub'), () => newCategoryDialog(c.id), { variant: 'secondary' }));
     }
+    if (can('edit')) actions.push(button(t('category.edit'), () => editCategoryDialog(c), { variant: 'secondary' }));
     if (can('edit') || can('manage')) actions.push(h('a', { href: `/c/${c.id}/settings`, class: 'ew-btn ew-btn--secondary' }, t('category.settings')));
     if (can('delete')) {
       actions.push(button(t('common.move'), () => moveCategoryDialog(c), { variant: 'secondary' }));
@@ -115,10 +116,16 @@ export async function categoryView({ params, main }: RouteCtx): Promise<void> {
   if (c.default_element_id) {
     try {
       const el = await api.get<ElementView>(`elements/${c.default_element_id}${qs({ lang: L() })}`);
-      view.append(h('section', { class: 'ew-default-element', 'aria-labelledby': 'ew-default-title' },
-        h('h2', { id: 'ew-default-title', class: el.title === title ? 'sr-only' : undefined }, el.title),
+      const elEdit = edit && el.permissions?.includes('edit');
+      view.append(h('section', { class: ['ew-default-element', elEdit && 'ew-default-element--edit'], 'aria-labelledby': 'ew-default-title' },
+        h('h2', { id: 'ew-default-title', class: el.title === title && !elEdit ? 'sr-only' : undefined }, el.title),
+        elEdit ? h('div', { class: 'ew-actions', role: 'group', 'aria-label': t('element.page_actions', { title: el.title }) },
+          h('a', { href: `/e/${el.id}/edit?lang=${L()}`, class: 'ew-btn ew-btn--primary' }, t('element.edit_page')),
+          button(t('common.tags'), () => tagsDialog(el), { variant: 'secondary' }),
+          h('a', { href: `/e/${el.id}/history`, class: 'ew-btn ew-btn--secondary' }, t('element.history'))) : null,
         fallbackNotice(el),
         trustedHTML(el.html),
+        elEdit && el.tags.length ? tagList(el.tags) : null,
         h('p', { class: 'ew-meta' },
           h('a', { href: `/e/${el.id}` }, t('element.open_page')), ' · ',
           t('element.updated', { date: fmtDate(el.updated_at, L()) }))));
@@ -131,6 +138,7 @@ export async function categoryView({ params, main }: RouteCtx): Promise<void> {
       h('h2', { id: 'ew-pages-title' }, t('category.pages')),
       h('ul', { class: 'ew-list' }, ...(edit ? data.elements : others).map((e) => h('li', null,
         h('a', { href: `/e/${e.id}` }, pick(e.titles, L(), e.original_lang)),
+        edit && can('edit') ? [' ', h('a', { href: `/e/${e.id}/edit?lang=${L()}`, class: 'ew-inline-action', 'aria-label': t('element.edit_named', { title: pick(e.titles, L(), e.original_lang) }) }, t('common.edit'))] : null,
         ' ', h('span', { class: 'ew-badge' }, typeLabel(e.type)),
         e.is_default ? h('span', { class: 'ew-badge ew-badge--info' }, t('element.default')) : null)))));
   }
@@ -184,6 +192,20 @@ export function newCategoryDialog(parent: number): void {
       navigate(`/c/${c.id}`);
     }, { wide: true });
   })();
+}
+
+/** Edits title, description and tags of a category. */
+function editCategoryDialog(c: Category): void {
+  const titles = langFields(t('common.title'), c.titles, { required: true });
+  const descs = langFields(t('common.description'), c.descriptions, { multiline: true });
+  const tags = textInput({ value: c.tags.join(', ') });
+  formDialog(t('category.edit_title', { title: pick(c.titles, L(), D()) }), [titles.el, descs.el, field(t('common.tags'), tags, { help: t('common.tags_help') }),
+    h('p', { class: 'ew-help' }, t('category.edit_more'), ' ', h('a', { href: `/c/${c.id}/settings` }, t('category.settings')))], t('common.save'), async () => {
+    await api.put(`categories/${c.id}`, { titles: titles.get(), descriptions: descs.get(), tags: splitTags(tags.value) });
+    invalidateTree();
+    toast(t('common.saved'));
+    navigate(location.pathname, { replace: true });
+  }, { wide: true });
 }
 
 export function splitTags(s: string): string[] {
@@ -299,6 +321,7 @@ export async function elementView({ params, main }: RouteCtx): Promise<void> {
 }
 
 function tagsDialog(el: ElementView): void {
+  // used on element pages and for the default page of a category
   const input = textInput({ value: el.tags.join(', ') });
   formDialog(t('common.tags'), field(t('common.tags'), input, { help: t('common.tags_help') }), t('common.save'), async () => {
     await api.patch(`elements/${el.id}`, { tags: splitTags(input.value) });

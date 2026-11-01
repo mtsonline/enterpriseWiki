@@ -8,7 +8,7 @@ import type { AuditEntry, Group, Role } from '../core/types';
 import { toast } from '../core/announce';
 import { button, checkbox, confirmDialog, errorText, field, formDialog, openDialog, pageHeader, select, textArea, textInput } from '../components/ui';
 import { langName, setContext } from '../components/widgets';
-import { listAdminPages, listTemplates } from '../sdk';
+import { listAdminPages, listTemplates, templateLabel } from '../sdk';
 import { errorPage } from './content';
 
 interface User { id: number; username: string; provider: string; handle: string; display_name: string; email: string; language: string; disabled: boolean; locked_until: string | null; created_at: string; last_login_at: string | null; groups: number[]; roles: number[]; totp_enabled: boolean }
@@ -191,6 +191,16 @@ interface PluginsResponse {
   can_build: boolean;
 }
 
+/** Makes a template the active one (ui.template in config.yaml). */
+async function useTemplate(id: string): Promise<void> {
+  try {
+    const s = await api.get<Settings>('admin/settings');
+    await api.put('admin/settings', { ui: { ...s.config.ui, template: id } });
+    toast(t('plugins.template_switched', { name: templateLabel(id) }));
+    setTimeout(() => location.reload(), 600);
+  } catch (e) { toast(errorText(e), 'error'); }
+}
+
 async function plugins(panel: HTMLElement): Promise<void> {
   const data = await api.get<PluginsResponse>('admin/plugins');
   const installedIds = new Set(data.installed.map((p) => p.id));
@@ -236,8 +246,12 @@ async function plugins(panel: HTMLElement): Promise<void> {
         h('td', null, p.version), h('td', null, p.kinds.map((k) => t(`plugins.kind.${k}`)).join(', ')),
         h('td', null, p.extends.join(', ') || '–', p.missing.length ? h('p', { class: 'ew-field-error' }, t('plugins.missing', { ids: p.missing.join(', ') })) : null),
         h('td', null, p.required ? h('span', { class: 'ew-badge ew-badge--info' }, t('plugins.required')) : null, ' ',
-          p.active ? h('span', { class: 'ew-badge ew-badge--ok' }, t('plugins.active')) : h('span', { class: 'ew-badge ew-badge--warn' }, p.enabled ? t('plugins.inactive_deps') : t('plugins.inactive'))),
+          p.active ? h('span', { class: 'ew-badge ew-badge--ok' }, t('plugins.active')) : h('span', { class: 'ew-badge ew-badge--warn' }, p.enabled ? t('plugins.inactive_deps') : t('plugins.inactive')),
+          p.kinds.includes('template') ? h('p', { class: 'ew-help' }, p.id === state.site.template
+            ? h('strong', null, t('plugins.template_in_use')) : t('plugins.template_available')) : null),
         h('td', { class: 'ew-actions' },
+          p.kinds.includes('template') && p.active && p.id !== state.site.template && listTemplates().some((x) => x.id === p.id)
+            ? button(t('plugins.use_template'), () => void useTemplate(p.id), { variant: 'link', ariaLabel: t('plugins.use_template_named', { name: p.name }) }) : null,
           p.required ? null : (p.enabled
             ? button(t('plugins.disable'), () => void toggle(p, false), { variant: 'link', ariaLabel: t('plugins.disable_named', { name: p.name }) })
             : button(t('plugins.enable'), () => void toggle(p, true), { variant: 'link', ariaLabel: t('plugins.enable_named', { name: p.name }) })),
@@ -306,7 +320,7 @@ async function settings(panel: HTMLElement): Promise<void> {
   const num = (v: number) => textInput({ type: 'number', value: String(v) });
   const siteName = textInput({ value: c.ui.site_name, required: true });
   const tpls = listTemplates().filter((x) => x.layout || x.extends);
-  const tpl = select(tpls.map((x) => ({ value: x.id, label: x.id })), c.ui.template);
+  const tpl = select(tpls.map((x) => ({ value: x.id, label: `${templateLabel(x.id)} (${x.id})` })), c.ui.template);
   const home = num(c.ui.home_category);
   const defLang = select(c.i18n.languages.map((l) => ({ value: l, label: langName(l) })), c.i18n.default_language);
   const order = textInput({ value: c.auth.order.join(', ') });
@@ -323,7 +337,7 @@ async function settings(panel: HTMLElement): Promise<void> {
   const alert = h('div', { class: 'ew-form-alert', role: 'alert' });
   const fs = (legend: string, ...kids: HTMLElement[]) => h('fieldset', null, h('legend', null, legend), ...kids);
   const form = h('form', { class: 'ew-form', novalidate: true }, alert,
-    fs(t('settings.site'), field(t('settings.site_name'), siteName, { required: true }), field(t('settings.template'), tpl), field(t('settings.home_category'), home, { help: t('settings.home_category_help') }),
+    fs(t('settings.site'), field(t('settings.site_name'), siteName, { required: true }), field(t('settings.template'), tpl, { help: t('settings.template_help') }), field(t('settings.home_category'), home, { help: t('settings.home_category_help') }),
       field(t('settings.default_language'), defLang, { help: t('settings.languages_help') })),
     fs(t('settings.auth'), field(t('settings.auth_order'), order, { help: t('settings.auth_order_help') }), field(t('settings.session_ttl'), sessionTTL, { help: t('settings.duration_help') }),
       field(t('settings.api_key_max_ttl'), keyTTL), field(t('settings.ssh_token_ttl'), sshTTL), field(t('settings.max_login_failures'), fails), field(t('settings.lockout_duration'), lockout), field(t('settings.min_password_length'), minPw)),

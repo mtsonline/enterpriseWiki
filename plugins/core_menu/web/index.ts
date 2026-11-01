@@ -1,18 +1,21 @@
 // core.menu frontend: renders menus at template positions and provides the
 // "Menus" administration page.
-import { api, button, confirmDialog, errorText, field, formDialog, h, mount, pageHeader, pick, registerAdminPage, registerSlot, rerender, select, state, t, textInput, toast } from '@ewiki/sdk';
+import { activeTemplate, api, positionOptions, button, confirmDialog, errorText, field, formDialog, h, mount, pageHeader, pick, positionLabel, refreshPositions, registerAdminPage, registerSlot, rerender, select, state, t, templateLabel, textInput, toast, type TreeNode } from '@ewiki/sdk';
 import './style.css';
 
 interface Item { label: Record<string, string>; url?: string; category_id?: number; children?: Item[] }
 interface Menu { id: number; name: string; location: string; position: number; items: Item[] }
 
 const BASE = '/api/v1/x/core.menu';
-let cache: { at: number; user: number; menus: Menu[] } | null = null;
+// one request for all positions (shared while it is running), cached 30 s
+let cache: { at: number; user: number; menus: Promise<Menu[]> } | null = null;
 
-async function menus(): Promise<Menu[]> {
+function menus(): Promise<Menu[]> {
   const uid = state.user?.id ?? 0;
   if (!cache || cache.user !== uid || Date.now() - cache.at > 30000) {
-    cache = { at: Date.now(), user: uid, menus: await api.get<Menu[]>(`${BASE}/menus`) };
+    const p = api.get<Menu[]>(`${BASE}/menus`);
+    cache = { at: Date.now(), user: uid, menus: p };
+    p.catch(() => { cache = null; });
   }
   return cache.menus;
 }
@@ -48,14 +51,17 @@ function renderItems(items: Item[], dropdown: boolean, level = 0): HTMLUListElem
   return ul;
 }
 
-function slot(location: string, dropdown: boolean) {
-  return async (): Promise<Node | null> => {
-    let ms: Menu[];
-    try { ms = (await menus()).filter((m) => m.location === location && m.items.length); } catch { return null; }
-    if (!ms.length) return null;
-    return h('div', { class: `ewm ewm--${location}` }, ...ms.map((m) => h('nav', { 'aria-label': t('core.menu.nav_label', { name: m.name }) },
-      location === 'sidebar' ? h('h2', { class: 'ew-tree-title' }, m.name) : null, renderItems(m.items, dropdown))));
-  };
+// Horizontal positions get dropdowns; vertical ones show the menu name as heading.
+const HORIZONTAL = new Set(['header-nav', 'top-bar', 'cms-nav', 'header-tools']);
+const HEADING = /^(sidebar|footer-\d)/;
+
+async function slot(location: string): Promise<Node | null> {
+  let ms: Menu[];
+  try { ms = (await menus()).filter((m) => m.location === location && m.items.length); } catch { return null; }
+  if (!ms.length) return null;
+  const dropdown = HORIZONTAL.has(location);
+  return h('div', { class: ['ewm', `ewm--${location}`, dropdown ? 'ewm--horizontal' : 'ewm--vertical'] }, ...ms.map((m) => h('nav', { 'aria-label': t('core.menu.nav_label', { name: m.name }) },
+    HEADING.test(location) ? h('h2', { class: 'ew-tree-title' }, m.name) : null, renderItems(m.items, dropdown))));
 }
 
 // ---------------------------------------------------------------- admin
@@ -86,11 +92,22 @@ function unflatten(rows: Row[]): Item[] {
   return clean(root);
 }
 
-function menuDialog(m: Menu | null): void {
+async function categoryOptions(): Promise<{ value: string; label: string }[]> {
+  try {
+    const nodes = await api.get<TreeNode[]>('categories/tree');
+    return [{ value: '', label: t('core.menu.no_category') }, ...nodes.map((n) => ({ value: String(n.id), label: `${'— '.repeat(n.depth - 1)}${pick(n.titles, state.lang, state.site.default_language)}` }))];
+  } catch {
+    return [{ value: '', label: t('core.menu.no_category') }];
+  }
+}
+
+async function menuDialog(m: Menu | null): Promise<void> {
+  const cats = await categoryOptions();
   const name = textInput({ value: m?.name ?? '', required: true });
-  const loc = select(['header-nav', 'sidebar', 'footer'].map((x) => ({ value: x, label: x })), m?.location ?? 'header-nav');
+  const loc = select(positionOptions(m?.location), m?.location ?? 'header-nav');
   const pos = textInput({ type: 'number', value: String(m?.position ?? 0) });
   const rows: Row[] = flatten(m?.items ?? []);
+  if (!rows.length) rows.push({ depth: 0, labels: {}, url: '', cat: '' });
   const list = h('div', { class: 'ewm-rows' });
   const draw = () => {
     list.replaceChildren(...rows.map((r, i) => {
@@ -99,29 +116,38 @@ function menuDialog(m: Menu | null): void {
       const labels = state.site.languages.map((l) => {
         const inp = textInput({ value: r.labels[l] ?? '', lang: l });
         inp.addEventListener('input', () => { r.labels[l] = inp.value; });
-        return field(`${t('core.menu.label')} (${l})`, inp);
+        return field(`${t('core.menu.label')} (${l})`, inp, { required: l === state.site.default_language });
       });
-      const url = textInput({ value: r.url });
+      const url = textInput({ value: r.url, placeholder: '/c/1, https://…' });
       url.addEventListener('input', () => { r.url = url.value; });
-      const cat = textInput({ value: r.cat, type: 'number' });
-      cat.addEventListener('input', () => { r.cat = cat.value; });
-      return h('fieldset', { class: 'ewm-row' }, h('legend', null, `${t('core.menu.items')} ${i + 1}`),
-        field(t('core.menu.level'), depth, { inline: true }), ...labels, field(t('core.menu.url'), url), field(t('core.menu.category'), cat),
+      const cat = select(cats, r.cat);
+      cat.addEventListener('change', () => { r.cat = cat.value; });
+      return h('fieldset', { class: 'ewm-row' }, h('legend', null, `${t('core.menu.item')} ${i + 1}`),
+        field(t('core.menu.level'), depth, { inline: true, help: t('core.menu.level_help') }), ...labels,
+        field(t('core.menu.category'), cat), field(t('core.menu.url'), url, { help: t('core.menu.url_help') }),
         h('div', { class: 'ew-actions' },
           i > 0 ? button(t('core.menu.move_up'), () => { [rows[i - 1], rows[i]] = [rows[i], rows[i - 1]]; draw(); }, { variant: 'link' }) : null,
           i < rows.length - 1 ? button(t('core.menu.move_down'), () => { [rows[i + 1], rows[i]] = [rows[i], rows[i + 1]]; draw(); }, { variant: 'link' }) : null,
-          button(t('core.menu.remove_item'), () => { rows.splice(i, 1); draw(); }, { variant: 'link' })));
+          button(t('core.menu.remove_item'), () => { rows.splice(i, 1); draw(); }, { variant: 'link', ariaLabel: `${t('core.menu.remove_item')} ${i + 1}` })));
     }));
   };
   draw();
-  formDialog(m ? m.name : t('core.menu.add_menu'), [field(t('core.menu.name'), name, { required: true }), field(t('core.menu.location'), loc), field(t('core.menu.position'), pos),
+  formDialog(m ? m.name : t('core.menu.add_menu'), [field(t('core.menu.name'), name, { required: true }),
+    field(t('core.menu.location'), loc, { help: t('core.menu.location_help', { template: templateLabel(activeTemplate()?.id ?? '') }) }), field(t('core.menu.position'), pos),
     h('h3', null, t('core.menu.items')), list,
     button(t('core.menu.add_item'), () => { rows.push({ depth: 0, labels: {}, url: '', cat: '' }); draw(); list.querySelector<HTMLInputElement>('fieldset:last-child input')?.focus(); })], t('common.save'), async () => {
-    const body = { name: name.value, location: loc.value, position: Number(pos.value) || 0, items: unflatten(rows.filter((r) => Object.values(r.labels).some((v) => v.trim()))) };
+    const def = state.site.default_language;
+    const used = rows.filter((r) => Object.values(r.labels).some((v) => v.trim()) || r.url.trim() || r.cat);
+    for (const [i, r] of used.entries()) {
+      if (!(r.labels[def] ?? '').trim() && !Object.values(r.labels).some((v) => v.trim())) throw new Error(t('core.menu.err_label', { n: i + 1 }));
+      if (!r.url.trim() && !r.cat) throw new Error(t('core.menu.err_target', { n: i + 1 }));
+    }
+    const body = { name: name.value, location: loc.value, position: Number(pos.value) || 0, items: unflatten(used) };
     if (m) await api.put(`${BASE}/menus/${m.id}`, body);
     else await api.post(`${BASE}/menus`, body);
     cache = null;
-    toast(t('common.saved'));
+    toast(used.length ? t('core.menu.saved_at', { position: positionLabel(loc.value) }) : t('core.menu.saved_empty'));
+    await refreshPositions();
     await rerender();
   }, { wide: true });
 }
@@ -129,12 +155,20 @@ function menuDialog(m: Menu | null): void {
 async function adminPage(container: HTMLElement): Promise<void> {
   let ms: Menu[];
   try { ms = await api.get<Menu[]>(`${BASE}/menus?all=1`); } catch (e) { mount(container, h('p', { role: 'alert' }, errorText(e))); return; }
-  mount(container, pageHeader(t('core.menu.admin_title'), button(t('core.menu.add_menu'), () => menuDialog(null), { variant: 'primary' })),
+  const offered = new Set(activeTemplate()?.positions ?? []);
+  const open = (m: Menu | null) => void menuDialog(m).catch((e) => toast(errorText(e), 'error'));
+  mount(container, pageHeader(t('core.menu.admin_title'), button(t('core.menu.add_menu'), () => open(null), { variant: 'primary' })),
+    h('p', null, t('core.menu.help', { template: templateLabel(activeTemplate()?.id ?? '') }), ' ',
+      h('a', { href: '/?positions=1' }, t('positions.show'))),
     ms.length ? h('table', { class: 'ew-table' }, h('caption', { class: 'sr-only' }, t('core.menu.admin_title')),
-      h('thead', null, h('tr', null, ...[t('core.menu.name'), t('core.menu.location'), t('core.menu.items'), t('common.actions')].map((x) => h('th', { scope: 'col' }, x)))),
-      h('tbody', null, ...ms.map((m) => h('tr', null, h('th', { scope: 'row' }, m.name), h('td', null, m.location), h('td', null, String(flatten(m.items).length)),
+      h('thead', null, h('tr', null, ...[t('core.menu.name'), t('core.menu.location'), t('core.menu.items'), t('common.status'), t('common.actions')].map((x) => h('th', { scope: 'col' }, x)))),
+      h('tbody', null, ...ms.map((m) => h('tr', null, h('th', { scope: 'row' }, m.name), h('td', null, positionLabel(m.location), h('br'), h('code', null, m.location)),
+        h('td', null, String(flatten(m.items).length)),
+        h('td', null, !m.items.length ? h('span', { class: 'ew-badge ew-badge--warn' }, t('core.menu.no_items'))
+          : !offered.has(m.location) ? h('span', { class: 'ew-badge ew-badge--warn' }, t('core.menu.hidden_position'))
+            : h('span', { class: 'ew-badge ew-badge--ok' }, t('core.menu.visible'))),
         h('td', { class: 'ew-actions' },
-          button(t('common.edit'), () => menuDialog(m), { variant: 'link', ariaLabel: `${t('common.edit')} ${m.name}` }),
+          button(t('common.edit'), () => open(m), { variant: 'link', ariaLabel: `${t('common.edit')} ${m.name}` }),
           button(t('common.delete'), async () => {
             if (!(await confirmDialog(t('core.menu.delete_confirm', { name: m.name }), t('common.delete'), true))) return;
             try { await api.del(`${BASE}/menus/${m.id}`); cache = null; await rerender(); } catch (e) { toast(errorText(e), 'error'); }
@@ -143,9 +177,8 @@ async function adminPage(container: HTMLElement): Promise<void> {
 }
 
 export function register(): void {
-  registerSlot({ id: 'core.menu.header', position: 'header-nav', order: 10, render: slot('header-nav', true) });
-  registerSlot({ id: 'core.menu.sidebar', position: 'sidebar', order: 20, render: slot('sidebar', false) });
-  registerSlot({ id: 'core.menu.footer', position: 'footer', order: 10, render: slot('footer', false) });
+  // menus can be placed at every position of the active template
+  registerSlot({ id: 'core.menu', position: '*', order: 20, render: slot });
   registerAdminPage({ id: 'menus', label: () => t('core.menu.admin_title'), order: 10, render: adminPage });
 }
 
