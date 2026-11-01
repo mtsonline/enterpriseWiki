@@ -26,7 +26,8 @@ const errors = [];
 
 before(async () => {
   browser = await chromium.launch();
-  page = await browser.newPage({ viewport: { width: 1280, height: 900 } });
+  // bypassCSP: the strict CSP of the wiki (script-src 'self') would block injecting axe-core
+  page = await browser.newPage({ viewport: { width: 1280, height: 900 }, bypassCSP: true });
   page.on('pageerror', (e) => errors.push(e.message));
   page.on('console', (m) => { if (m.type() === 'error' && !/status of 40[134]/.test(m.text())) errors.push(m.text()); });
 });
