@@ -61,7 +61,7 @@ export function createHtmlEditor(container: HTMLElement, body: unknown, ctx: { l
         continue;
       }
       // WCAG 2.5.3 (label in name): visible letters/digits must be part of the accessible name.
-      const name = /[A-Za-z0-9]/.test(tool.icon) && tool.icon.length > 1 ? `${t(tool.key)} (${tool.icon})` : t(tool.key);
+      const name = /[A-Za-z0-9]/.test(tool.icon) && tool.icon.length > 1 ? `${tool.icon} ${t(tool.key)}` : t(tool.key);
       const btn = h('button', { type: 'button', class: 'ewh-tool', 'aria-label': name, title: name, 'aria-pressed': tool.state ? 'false' : undefined },
         h('span', { 'aria-hidden': 'true' }, tool.icon));
       btn.addEventListener('mousedown', (ev) => ev.preventDefault()); // keep selection
