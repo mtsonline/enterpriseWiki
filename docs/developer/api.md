@@ -1,0 +1,170 @@
+# REST-API
+
+Die Weboberfläche nutzt ausschließlich diese API. Alles, was in der Oberfläche geht, geht damit auch per Skript oder über `ewiki api` (CLI).
+
+- Basis: `/api/v1`, JSON (UTF-8). Plugin-Routen liegen unter `/api/v1/x/<plugin-id>/…`.
+- Fehler: HTTP-Status plus `{"error": {"code": "not_found", "message": "…"}}`. Codes: `bad_request`, `unauthorized`, `invalid_credentials`, `forbidden`, `csrf`, `not_found`, `conflict`, `rate_limited`, `internal`.
+- Mehrsprachige Felder sind Objekte `{"de": "…", "en": "…"}`.
+- Berechtigungen als Bitmaske: 1 = Ansehen, 2 = Bearbeiten, 4 = Erstellen, 8 = Löschen/Verschieben, 16 = Berechtigungen verwalten.
+
+## Authentifizierung
+
+| Verfahren | Verwendung |
+|---|---|
+| Session-Cookie | `POST /api/v1/auth/login {"username","password"}` setzt `ewiki_session`. Schreibende Anfragen brauchen den Header `X-Requested-With: ewiki` |
+| API-Key | `Authorization: Bearer ewk_…` (unter *Mein Profil* erstellen) |
+| SSH-Schlüssel | Challenge holen, mit `ssh-keygen -Y sign -n ewiki-login` signieren, das Token als `Authorization: Bearer …` senden (siehe `scripts/ewiki-ssh-login.sh`) |
+
+```bash
+KEY=ewk_...
+curl -H "Authorization: Bearer $KEY" https://wiki.example.com/api/v1/categories?parent=0
+curl -H "Authorization: Bearer $KEY" -H 'Content-Type: application/json' \
+     -d '{"category_id": 3, "type": "core.html", "lang": "de", "title": "Neue Seite",
+          "body": {"format": "markdown", "source": "# Hallo"}}' \
+     https://wiki.example.com/api/v1/elements
+```
+
+## Wichtige Abläufe
+
+- **Seite speichern:** `PUT /api/v1/elements/{id}` mit `{"lang", "title", "body", "comment", "base_rev"}`. `base_rev` ist die Version, mit der der Editor begonnen hat (0 für eine neue Übersetzung). Wurde inzwischen eine andere Version gespeichert, kommt `409 conflict` zurück. Jede Speicherung erzeugt eine neue Version.
+- **Übersetzung:** Speichern in einer anderen Sprache als `original_lang`. Der Status je Sprache steht in `translations` (`original`, `current`, `outdated`, `missing`), der Fortschritt in `translated_percent`. Fehlt eine Sprache, liefert `GET /elements/{id}?lang=xx` die Originalsprache mit `fallback: true`.
+- **Inhalt eines Elements** (`body`) hängt vom Elementtyp ab, für `core.html` ist es `{"format": "html"|"markdown", "source": "…"}`. `GET /elements/{id}?edit=1` liefert `body` (nur mit Bearbeitungsrecht), `html` ist immer die bereinigte Darstellung.
+- **Zurücksetzen:** `POST /api/v1/categories/{id}/rollback {"at": "2026-10-01T12:00:00Z", "recursive": true}`.
+- **Suche:** `GET /api/v1/search?q=wort&tags=a,b&lang=de` liefert `snippet` als HTML-escaped Text mit `<mark>`.
+
+## Endpunkte
+
+### System
+
+| Methode | Pfad |
+|---|---|
+| `GET` | `/readyz` |
+| `GET` | `/api/v1/site` |
+| `GET` | `/healthz` |
+
+### Anmeldung
+
+| Methode | Pfad |
+|---|---|
+| `GET` | `/api/v1/auth/providers` |
+| `POST` | `/api/v1/auth/login` |
+| `POST` | `/api/v1/auth/logout` |
+| `GET` | `/api/v1/auth/me` |
+| `POST` | `/api/v1/auth/ssh/challenge` |
+| `POST` | `/api/v1/auth/ssh/verify` |
+
+### Eigenes Konto
+
+| Methode | Pfad |
+|---|---|
+| `PUT` | `/api/v1/me` |
+| `PUT` | `/api/v1/me/password` |
+| `GET` | `/api/v1/me/api-keys` |
+| `POST` | `/api/v1/me/api-keys` |
+| `DELETE` | `/api/v1/me/api-keys/{id}` |
+| `GET` | `/api/v1/me/ssh-keys` |
+| `POST` | `/api/v1/me/ssh-keys` |
+| `DELETE` | `/api/v1/me/ssh-keys/{id}` |
+
+### Benutzer, Gruppen, Rollen
+
+| Methode | Pfad |
+|---|---|
+| `GET` | `/api/v1/admin/users` |
+| `POST` | `/api/v1/admin/users` |
+| `GET` | `/api/v1/admin/users/{id}` |
+| `PUT` | `/api/v1/admin/users/{id}` |
+| `DELETE` | `/api/v1/admin/users/{id}` |
+| `GET` | `/api/v1/groups` |
+| `GET` | `/api/v1/roles` |
+| `GET` | `/api/v1/users/lookup` |
+| `POST` | `/api/v1/admin/groups` |
+| `PUT` | `/api/v1/admin/groups/{id}` |
+| `DELETE` | `/api/v1/admin/groups/{id}` |
+| `GET` | `/api/v1/admin/groups/{id}/members` |
+| `POST` | `/api/v1/admin/roles` |
+| `PUT` | `/api/v1/admin/roles/{id}` |
+| `DELETE` | `/api/v1/admin/roles/{id}` |
+
+### Kategorien & Berechtigungen
+
+| Methode | Pfad |
+|---|---|
+| `GET` | `/api/v1/categories` |
+| `GET` | `/api/v1/categories/tree` |
+| `POST` | `/api/v1/categories` |
+| `GET` | `/api/v1/categories/{id}` |
+| `PUT` | `/api/v1/categories/{id}` |
+| `DELETE` | `/api/v1/categories/{id}` |
+| `POST` | `/api/v1/categories/{id}/move` |
+| `POST` | `/api/v1/categories/{id}/duplicate` |
+| `POST` | `/api/v1/categories/{id}/reorder` |
+| `GET` | `/api/v1/categories/{id}/acl` |
+| `POST` | `/api/v1/categories/{id}/acl` |
+| `DELETE` | `/api/v1/acl/{id}` |
+| `GET` | `/api/v1/categories/{id}/history` |
+| `POST` | `/api/v1/categories/{id}/rollback` |
+
+### Elemente & Versionen
+
+| Methode | Pfad |
+|---|---|
+| `GET` | `/api/v1/element-types` |
+| `POST` | `/api/v1/elements` |
+| `POST` | `/api/v1/elements/preview` |
+| `GET` | `/api/v1/elements/{id}` |
+| `PUT` | `/api/v1/elements/{id}` |
+| `PATCH` | `/api/v1/elements/{id}` |
+| `DELETE` | `/api/v1/elements/{id}` |
+| `POST` | `/api/v1/elements/{id}/move` |
+| `POST` | `/api/v1/elements/{id}/duplicate` |
+| `GET` | `/api/v1/elements/{id}/revisions` |
+| `GET` | `/api/v1/elements/{id}/revisions/{lang}/{rev}` |
+| `POST` | `/api/v1/elements/{id}/restore` |
+
+### Papierkorb, Suche, Tags
+
+| Methode | Pfad |
+|---|---|
+| `GET` | `/api/v1/trash` |
+| `POST` | `/api/v1/trash/{type}/{id}/restore` |
+| `DELETE` | `/api/v1/trash/{type}/{id}` |
+| `GET` | `/api/v1/search` |
+| `GET` | `/api/v1/tags` |
+
+### Übersetzungen & Sprachen
+
+| Methode | Pfad |
+|---|---|
+| `GET` | `/api/v1/i18n/status` |
+| `GET` | `/api/v1/i18n/{lang}` |
+| `GET` | `/api/v1/admin/i18n/{lang}` |
+| `PUT` | `/api/v1/admin/i18n/{lang}` |
+| `POST` | `/api/v1/admin/languages` |
+| `DELETE` | `/api/v1/admin/languages/{code}` |
+
+### Administration
+
+| Methode | Pfad |
+|---|---|
+| `GET` | `/api/v1/admin/settings` |
+| `PUT` | `/api/v1/admin/settings` |
+| `GET` | `/api/v1/admin/audit` |
+| `POST` | `/api/v1/admin/retention/run` |
+| `GET` | `/api/v1/admin/plugins` |
+| `POST` | `/api/v1/admin/plugins/{id}/enable` |
+| `POST` | `/api/v1/admin/plugins/{id}/disable` |
+| `POST` | `/api/v1/admin/plugins/install` |
+| `DELETE` | `/api/v1/admin/plugins/{id}` |
+| `POST` | `/api/v1/admin/plugins/build` |
+| `POST` | `/api/v1/admin/restart` |
+
+### Plugins (Beispiele)
+
+| Methode | Pfad |
+|---|---|
+| `GET` | `/api/v1/x/core.menu/menus` |
+| `POST` | `/api/v1/x/core.menu/menus` |
+| `PUT` | `/api/v1/x/core.menu/menus/{id}` |
+| `DELETE` | `/api/v1/x/core.menu/menus/{id}` |
+| `GET` | `/api/v1/x/example.notice/tones` |

@@ -1,0 +1,7 @@
+{
+  "example.notice.tone": "Style",
+  "example.notice.tone.info": "Information",
+  "example.notice.tone.success": "Success",
+  "example.notice.tone.warning": "Warning",
+  "example.notice.tone.danger": "Important"
+}

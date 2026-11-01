@@ -1,0 +1,74 @@
+# Plugins verwalten
+
+Fast alles im Wiki ist ein Plugin: Elementtypen (z. B. Seiten), Anmeldeverfahren, Menüs, Templates, Admin-Seiten. Plugins werden **zusammen mit dem Kern kompiliert**. Das macht sie schnell und typsicher, und es gibt keine Laufzeit-Abhängigkeiten.
+
+| Aktion | Wirkung | Neubau nötig? |
+|---|---|---|
+| aktivieren / deaktivieren | sofort (API-Routen, Elementtypen, Oberflächenteile) | nein |
+| installieren / aktualisieren | Quellcode wird nach `plugins/<name>` kopiert | ja |
+| entfernen | Quellcode wird nach `plugins/.backup/` verschoben, Daten bleiben in der Datenbank | ja |
+
+## In der Oberfläche
+
+*Administration → Plugins*:
+
+- Liste aller Plugins mit Version, Art, Abhängigkeiten (*Baut auf*) und Status (aktiv / deaktiviert / inaktiv, weil ein Basis-Plugin fehlt / erforderlich),
+- **Aktivieren/Deaktivieren**: Ein Plugin, auf dem andere aktive Plugins aufbauen, muss zuletzt deaktiviert werden. Pflicht-Plugins (`auth.local`) lassen sich nicht deaktivieren,
+- **Installieren** aus
+  - GitHub: `github.com/owner/repo` (optional Tag/Branch),
+  - einer beliebigen Git-URL (`https://…`, `git@…`),
+  - einer Katalog-ID (siehe unten) oder
+  - einem Verzeichnis auf dem Server,
+- **Ausstehende Änderungen** zeigt, was nach dem nächsten Neubau aktiv wird,
+- **Jetzt neu bauen** führt `scripts/build.sh` im Hintergrund aus. Ein fehlgeschlagener Build lässt die laufende Version unverändert. Nach erfolgreichem Build schaltet **Neu starten** ohne Abbruch laufender Anfragen auf die neue Version um.
+
+Das Bauen aus der Oberfläche setzt die Quellinstallation (`scripts/install.sh`) mit Go und Node.js voraus. Bei Docker legen Sie Plugins in `plugins/` und bauen das Image neu.
+
+## Katalog (1-Klick-Installation)
+
+Plugins, die in `config.yaml` gelistet sind, erscheinen unter *Katalog* mit einem Installations-Knopf:
+
+```yaml
+plugins:
+  catalog:
+    - id: acme.kanban
+      name: Kanban board
+      repo: github.com/acme/ewiki-kanban
+      ref: v1.2.0
+      description: Agiles Board als Elementtyp
+```
+
+## Kommandozeile
+
+```bash
+ewiki plugin list
+ewiki plugin install github.com/acme/ewiki-kanban --ref v1.2.0 --build
+ewiki plugin install ./mein-plugin
+ewiki plugin enable acme.kanban
+ewiki plugin disable acme.kanban
+ewiki plugin remove acme.kanban --build
+ewiki plugin build              # Neubau, danach: systemctl restart enterprisewiki
+```
+
+## Manuelle Installation
+
+1. Plugin-Verzeichnis nach `plugins/<name>/` kopieren (es enthält `plugin.json`, Go-Dateien und optional `web/`, `locales/`, `migrations/`).
+2. `go run ./tools/genplugins` (aktualisiert `plugins/all/zz_generated.go`).
+3. `./scripts/build.sh` und den Dienst neu starten.
+
+## Sicherheit
+
+Plugins sind vollwertiger Code mit Zugriff auf Datenbank und Server. Installieren Sie nur Plugins aus vertrauenswürdigen Quellen und mit fester Version (`ref`). Jede Installation, Entfernung und (De-)Aktivierung wird protokolliert.
+
+## Mitgelieferte Plugins
+
+| ID | Art | Beschreibung |
+|---|---|---|
+| `auth.local` | Authentifizierung | lokale Konten, immer zuerst, erforderlich |
+| `core.html` | Elementtyp | Seiten mit WYSIWYG oder Markdown |
+| `core.menu` | Menü | beliebig viele Menüs an Template-Positionen (*Administration → Menüs*) |
+| `theme.confluence` | Template | Dokumentations-Layout mit Seitenbaum |
+| `theme.confluence.dark` | Template (Beispiel) | erbt von `theme.confluence`, ändert nur die Farben |
+| `example.notice` | Elementtyp (Beispiel) | Hinweisbox, erbt von `core.html` |
+
+Eigene Plugins entwickeln: [docs/developer/plugins.md](../developer/plugins.md)

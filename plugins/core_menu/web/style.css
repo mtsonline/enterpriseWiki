@@ -1,0 +1,11 @@
+.ewm ul { list-style: none; margin: 0; padding: 0; }
+.ewm--header-nav > nav > .ewm-level-0 { display: flex; gap: .25rem; flex-wrap: wrap; }
+.ewm--header-nav .ewm-item { position: relative; display: flex; align-items: center; }
+.ewm--header-nav a { display: block; padding: .4rem .6rem; border-radius: 4px; text-decoration: none; color: var(--ew-text); font-weight: 600; }
+.ewm--header-nav a:hover, .ewm--header-nav a[aria-current="page"] { background: var(--ew-bg-subtle); text-decoration: underline; }
+.ewm-toggle { border: none; background: none; color: var(--ew-text); cursor: pointer; padding: .3rem; border-radius: 4px; }
+.ewm--header-nav .ewm-level-1 { position: absolute; top: 100%; left: 0; min-width: 12rem; background: var(--ew-bg-raised); border: 1px solid var(--ew-border); border-radius: 8px; padding: .3rem; box-shadow: 0 8px 24px rgba(9,30,66,.2); z-index: 60; }
+.ewm--sidebar ul ul { padding-left: 1rem; }
+.ewm--sidebar a { display: block; padding: .2rem .4rem; color: var(--ew-text); }
+.ewm--footer > nav > ul { display: flex; gap: 1rem; flex-wrap: wrap; }
+.ewm-row { margin-bottom: .75rem; }

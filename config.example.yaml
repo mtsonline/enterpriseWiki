@@ -1,0 +1,50 @@
+# Enterprise Wiki configuration - this file is the single source of truth.
+# Settings changed in the admin UI or via "ewiki config set" are written here.
+# Values can reference environment variables (e.g. from .env): ${NAME} or ${NAME:-default}.
+# Reference: docs/admin/configuration.md
+server:
+    listen: :8080
+    base_url: https://wiki.example.com
+    secure_cookies: true          # true when served via HTTPS
+    trusted_proxies: [127.0.0.1]  # reverse proxies allowed to set X-Forwarded-For
+    max_body_mb: 64
+mode: single                      # single | cluster
+database:
+    url: ${EWIKI_DATABASE_URL}
+    max_conns: 50
+storage:
+    path: ./data
+i18n:
+    default_language: en
+    languages: [en, de]
+ui:
+    site_name: Enterprise Wiki
+    template: theme.confluence
+    home_category: 0
+auth:
+    order: [local]                # local is always tried first
+    session_ttl: 168h
+    api_key_max_ttl: 8760h
+    ssh_token_ttl: 1h
+    max_login_failures: 10
+    lockout_duration: 15m
+    min_password_length: 12
+retention:
+    revisions_keep_days: 0        # 0 = keep forever
+    revisions_keep_min: 50
+    trash_days: 30                # 0 = never purge
+    audit_days: 0
+plugins:
+    disabled: []
+    dir: ./plugins
+    # Plugins offered for one-click installation in Administration -> Plugins:
+    # catalog:
+    #     - id: acme.kanban
+    #       name: Kanban board
+    #       repo: github.com/acme/ewiki-kanban
+    #       ref: v1.2.0
+    #       description: Agile board as element type
+    catalog: []
+    macros:
+        shell_enabled: false
+        http_allow: []

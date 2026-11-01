@@ -1,0 +1,9 @@
+{
+  "id": "core.menu",
+  "name": "Menus",
+  "version": "1.0.0",
+  "description": "Any number of menus with nested items (links or categories) placed at the positions offered by the active template.",
+  "author": "Enterprise Wiki",
+  "kinds": ["menu"],
+  "frontend": true
+}

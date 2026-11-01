@@ -1,0 +1,25 @@
+/* theme.confluence */
+.ewc-header {
+  position: sticky; top: 0; z-index: 40; display: flex; align-items: center; gap: 1rem; flex-wrap: wrap;
+  min-height: var(--ew-header-h); padding: .4rem 1rem; background: var(--ew-bg-raised); border-bottom: 1px solid var(--ew-border);
+}
+.ewc-brand { display: flex; align-items: center; gap: .5rem; font-weight: 800; font-size: 1.1rem; color: var(--ew-text); text-decoration: none; }
+.ewc-logo { width: 28px; height: 28px; border-radius: 6px; background: var(--ew-primary) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cpath d='M8 9h16v3H8zm0 6h16v3H8zm0 6h10v3H8z' fill='%23fff'/%3E%3C/svg%3E") center/100% no-repeat; }
+.ewc-header .ew-pos--header-nav { flex: 1; }
+.ewc-header .ew-pos--header-tools { display: flex; align-items: center; gap: .6rem; flex-wrap: wrap; }
+.ewc-shell { display: grid; grid-template-columns: var(--ew-sidebar-w) minmax(0, 1fr); min-height: calc(100vh - var(--ew-header-h)); }
+.ewc-sidebar { background: var(--ew-bg-subtle); border-right: 1px solid var(--ew-border); padding: 1rem .75rem; min-height: calc(100vh - var(--ew-header-h)); position: sticky; top: var(--ew-header-h); align-self: start; max-height: calc(100vh - var(--ew-header-h)); overflow: auto; }
+.ewc-sidebar .ew-pos--sidebar > * + * { margin-top: 1.5rem; }
+.ewc-main { padding: 1.5rem 2.5rem 3rem; max-width: 72rem; width: 100%; }
+.ewc-main:focus { outline: none; }
+.ewc-footer { border-top: 1px solid var(--ew-border); padding: 1rem 2rem; color: var(--ew-text-muted); font-size: .9rem; background: var(--ew-bg-subtle); }
+.ewc-powered { margin: .25rem 0 0; }
+.ewc-sidebar-toggle { display: none; }
+@media (max-width: 900px) {
+  .ewc-sidebar-toggle { display: inline-flex; }
+  .ewc-shell { grid-template-columns: 1fr; }
+  .ewc-sidebar { display: none; position: static; max-height: none; border-right: none; border-bottom: 1px solid var(--ew-border); }
+  .ewc-sidebar.is-open { display: block; }
+  .ewc-main { padding: 1rem; }
+  .ew-search-input { min-width: 8rem; }
+}

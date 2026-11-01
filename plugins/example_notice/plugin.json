@@ -1,0 +1,10 @@
+{
+  "id": "example.notice",
+  "name": "Notice box (example plugin)",
+  "version": "1.0.0",
+  "description": "Example element plugin that extends core.html: a highlighted info / warning / success box. Shows type inheritance, an own API route, translations and a frontend editor that reuses the core.html editor.",
+  "author": "Enterprise Wiki",
+  "kinds": ["element"],
+  "extends": ["core.html"],
+  "frontend": true
+}

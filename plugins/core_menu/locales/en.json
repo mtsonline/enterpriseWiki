@@ -1,0 +1,20 @@
+{
+ "core.menu.admin_title": "Menus",
+ "core.menu.add_menu": "Add menu",
+ "core.menu.name": "Menu name",
+ "core.menu.location": "Position",
+ "core.menu.items": "Items",
+ "core.menu.add_item": "Add item",
+ "core.menu.add_child": "Add sub-item",
+ "core.menu.label": "Label",
+ "core.menu.url": "Link (URL or /path)",
+ "core.menu.category": "or category id",
+ "core.menu.remove_item": "Remove item",
+ "core.menu.move_up": "Move up",
+ "core.menu.move_down": "Move down",
+ "core.menu.empty": "No menus defined yet.",
+ "core.menu.nav_label": "Menu {name}",
+ "core.menu.level": "Level",
+ "core.menu.position": "Order",
+ "core.menu.delete_confirm": "Delete the menu \"{name}\"?"
+}

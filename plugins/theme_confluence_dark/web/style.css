@@ -1,0 +1,26 @@
+/* Dark variant: only color variables are overridden (contrast >= 4.5:1). */
+body.ewc-dark {
+  --ew-bg: #1d2125;
+  --ew-bg-subtle: #22272b;
+  --ew-bg-raised: #282e33;
+  --ew-text: #dee4ea;
+  --ew-text-muted: #b6c2cf;
+  --ew-border: #454f59;
+  --ew-primary: #85b8ff;
+  --ew-primary-hover: #a9cbff;
+  --ew-on-primary: #10151a;
+  --ew-link: #85b8ff;
+  --ew-danger: #ff9c8f;
+  --ew-on-danger: #10151a;
+  --ew-ok-bg: #164b35;
+  --ew-ok-text: #baf3db;
+  --ew-warn-bg: #533f04;
+  --ew-warn-text: #f8e6a0;
+  --ew-info-bg: #09326c;
+  --ew-info-text: #cce0ff;
+  --ew-focus: #85b8ff;
+  color-scheme: dark;
+}
+body.ewc-dark .ew-input { border-color: #8c9bab; }
+body.ewc-dark .ew-snippet mark { background: #7f5f01; color: #fff; }
+body.ewc-dark .ew-form-alert:not(:empty) { background: #42221f; color: #ffd5d2; }

@@ -1,0 +1,164 @@
+// Package db provides the PostgreSQL connection pool and the migration runner
+// used by the core and by plugins.
+package db
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"io/fs"
+	"path"
+	"regexp"
+	"sort"
+	"strconv"
+	"time"
+
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
+	"github.com/jackc/pgx/v5/pgxpool"
+)
+
+// Open creates a connection pool and verifies connectivity.
+func Open(ctx context.Context, url string, maxConns int) (*pgxpool.Pool, error) {
+	if url == "" {
+		return nil, errors.New("database url is empty (set database.url or EWIKI_DATABASE_URL)")
+	}
+	cfg, err := pgxpool.ParseConfig(url)
+	if err != nil {
+		return nil, fmt.Errorf("parse database url: %w", err)
+	}
+	if maxConns > 0 {
+		cfg.MaxConns = int32(maxConns)
+	}
+	cfg.MaxConnIdleTime = 5 * time.Minute
+	pool, err := pgxpool.NewWithConfig(ctx, cfg)
+	if err != nil {
+		return nil, err
+	}
+	cctx, cancel := context.WithTimeout(ctx, 10*time.Second)
+	defer cancel()
+	if err := pool.Ping(cctx); err != nil {
+		pool.Close()
+		return nil, fmt.Errorf("connect database: %w", err)
+	}
+	return pool, nil
+}
+
+// Querier is implemented by *pgxpool.Pool, *pgx.Conn and pgx.Tx.
+type Querier interface {
+	Exec(ctx context.Context, sql string, args ...any) (pgconn.CommandTag, error)
+	Query(ctx context.Context, sql string, args ...any) (pgx.Rows, error)
+	QueryRow(ctx context.Context, sql string, args ...any) pgx.Row
+}
+
+// Tx runs fn inside a transaction; it commits on nil error and rolls back otherwise.
+func Tx(ctx context.Context, pool *pgxpool.Pool, fn func(tx pgx.Tx) error) error {
+	tx, err := pool.Begin(ctx)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback(ctx) //nolint:errcheck // no-op after commit
+	if err := fn(tx); err != nil {
+		return err
+	}
+	return tx.Commit(ctx)
+}
+
+// IsUniqueViolation reports whether err is a unique constraint violation.
+func IsUniqueViolation(err error) bool {
+	var pe *pgconn.PgError
+	return errors.As(err, &pe) && pe.Code == "23505"
+}
+
+// IsForeignKeyViolation reports whether err is a foreign key violation.
+func IsForeignKeyViolation(err error) bool {
+	var pe *pgconn.PgError
+	return errors.As(err, &pe) && pe.Code == "23503"
+}
+
+// MigrationSource is a named set of migrations (core or a plugin).
+// Files must be named NNNN_description.sql and are applied in order, each in
+// its own transaction. Applied migrations are never re-run or modified.
+type MigrationSource struct {
+	Name  string
+	Files fs.FS
+}
+
+var migName = regexp.MustCompile(`^(\d{4,})_[a-z0-9_]+\.sql$`)
+
+const migrationLock = 7300417 // arbitrary advisory lock id
+
+// Migrate applies all pending migrations of the given sources.
+func Migrate(ctx context.Context, pool *pgxpool.Pool, sources []MigrationSource) ([]string, error) {
+	conn, err := pool.Acquire(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer conn.Release()
+	if _, err := conn.Exec(ctx, `SELECT pg_advisory_lock($1)`, migrationLock); err != nil {
+		return nil, err
+	}
+	defer conn.Exec(context.Background(), `SELECT pg_advisory_unlock($1)`, migrationLock) //nolint:errcheck
+	if _, err := conn.Exec(ctx, `CREATE TABLE IF NOT EXISTS schema_migrations (
+		source text NOT NULL,
+		version int NOT NULL,
+		name text NOT NULL,
+		applied_at timestamptz NOT NULL DEFAULT now(),
+		PRIMARY KEY (source, version))`); err != nil {
+		return nil, err
+	}
+	var applied []string
+	for _, src := range sources {
+		if src.Files == nil {
+			continue
+		}
+		entries, err := fs.ReadDir(src.Files, ".")
+		if err != nil {
+			return applied, fmt.Errorf("migrations %s: %w", src.Name, err)
+		}
+		type mig struct {
+			v    int
+			name string
+		}
+		var migs []mig
+		for _, e := range entries {
+			m := migName.FindStringSubmatch(e.Name())
+			if e.IsDir() || m == nil {
+				continue
+			}
+			v, _ := strconv.Atoi(m[1])
+			migs = append(migs, mig{v, e.Name()})
+		}
+		sort.Slice(migs, func(i, j int) bool { return migs[i].v < migs[j].v })
+		for _, m := range migs {
+			var exists bool
+			if err := conn.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM schema_migrations WHERE source=$1 AND version=$2)`, src.Name, m.v).Scan(&exists); err != nil {
+				return applied, err
+			}
+			if exists {
+				continue
+			}
+			sqlb, err := fs.ReadFile(src.Files, path.Clean(m.name))
+			if err != nil {
+				return applied, err
+			}
+			tx, err := conn.Begin(ctx)
+			if err != nil {
+				return applied, err
+			}
+			if _, err := tx.Exec(ctx, string(sqlb)); err != nil {
+				tx.Rollback(ctx) //nolint:errcheck
+				return applied, fmt.Errorf("migration %s/%s: %w", src.Name, m.name, err)
+			}
+			if _, err := tx.Exec(ctx, `INSERT INTO schema_migrations(source, version, name) VALUES ($1,$2,$3)`, src.Name, m.v, m.name); err != nil {
+				tx.Rollback(ctx) //nolint:errcheck
+				return applied, err
+			}
+			if err := tx.Commit(ctx); err != nil {
+				return applied, err
+			}
+			applied = append(applied, src.Name+"/"+m.name)
+		}
+	}
+	return applied, nil
+}

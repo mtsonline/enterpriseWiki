@@ -1,0 +1,9 @@
+{
+  "id": "auth.local",
+  "name": "Local authentication",
+  "version": "1.0.0",
+  "description": "Username/password accounts stored in the wiki (Argon2id). Always evaluated first so local administrators can log in when external identity providers fail.",
+  "author": "Enterprise Wiki",
+  "kinds": ["auth"],
+  "required": true
+}

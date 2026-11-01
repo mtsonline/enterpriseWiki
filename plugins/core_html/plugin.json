@@ -1,0 +1,9 @@
+{
+  "id": "core.html",
+  "name": "Rich text page (HTML / Markdown)",
+  "version": "1.0.0",
+  "description": "Wiki pages edited with an accessible WYSIWYG editor (HTML) or in Markdown. All content is sanitized on save and on render.",
+  "author": "Enterprise Wiki",
+  "kinds": ["element"],
+  "frontend": true
+}

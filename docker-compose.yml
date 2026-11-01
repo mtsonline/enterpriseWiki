@@ -1,47 +1,41 @@
+# Quick start:
+#   cp .env.example .env   # set passwords
+#   docker compose up -d --build
+#   open http://localhost:8080  (user: admin, password: EWIKI_ADMIN_PASSWORD)
 services:
   postgres:
     image: postgres:16-alpine
-    container_name: wiki-db
+    restart: unless-stopped
     environment:
-      POSTGRES_DB: enterprisewiki
-      POSTGRES_USER: wikiuser
-      POSTGRES_PASSWORD: secretpassword
-    ports:
-      - "5432:5432"
+      POSTGRES_DB: ewiki
+      POSTGRES_USER: ewiki
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U wikiuser -d enterprisewiki"]
+      test: ["CMD-SHELL", "pg_isready -U ewiki -d ewiki"]
       interval: 5s
       timeout: 5s
-      retries: 5
+      retries: 10
 
-  backend:
-    build: 
-      context: .
-      dockerfile: backend/Dockerfile
-    container_name: wiki-backend
-    ports:
-      - "8080:8080"
-    environment:
-      - DB_HOST=postgres
-      - DB_PORT=5432
-      - DB_USER=wikiuser
-      - DB_PASSWORD=secretpassword
-      - DB_NAME=enterprisewiki
+  wiki:
+    build: .
+    restart: unless-stopped
     depends_on:
       postgres:
         condition: service_healthy
-
-  frontend:
-    build:
-      context: ./frontend
-      dockerfile: Dockerfile
-    container_name: wiki-frontend
+    environment:
+      EWIKI_DATABASE_URL: postgres://ewiki:${POSTGRES_PASSWORD}@postgres:5432/ewiki?sslmode=disable
+      EWIKI_ADMIN_USER: ${EWIKI_ADMIN_USER:-admin}
+      EWIKI_ADMIN_PASSWORD: ${EWIKI_ADMIN_PASSWORD:?set EWIKI_ADMIN_PASSWORD in .env}
+      EWIKI_SITE_NAME: ${EWIKI_SITE_NAME:-Enterprise Wiki}
+      EWIKI_BASE_URL: ${EWIKI_BASE_URL:-http://localhost:8080}
+      EWIKI_LANGUAGES: ${EWIKI_LANGUAGES:-en,de}
     ports:
-      - "3000:80"
-    depends_on:
-      - backend
+      - "8080:8080"
+    volumes:
+      - wikidata:/data
 
 volumes:
   pgdata:
+  wikidata:

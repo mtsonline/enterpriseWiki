@@ -1,0 +1,9 @@
+.git
+bin
+web/node_modules
+web/dist
+web/src/generated
+config.yaml
+.env
+data
+plugins/.backup

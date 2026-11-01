@@ -1,0 +1,175 @@
+package content
+
+import (
+	"context"
+	"log/slog"
+	"regexp"
+	"strings"
+	"unicode/utf8"
+
+	"github.com/jackc/pgx/v5/pgxpool"
+
+	"github.com/mtsonline/enterprisewiki/internal/acl"
+	"github.com/mtsonline/enterprisewiki/internal/apperr"
+	"github.com/mtsonline/enterprisewiki/internal/audit"
+	"github.com/mtsonline/enterprisewiki/internal/config"
+	"github.com/mtsonline/enterprisewiki/internal/events"
+	"github.com/mtsonline/enterprisewiki/internal/identity"
+)
+
+// Hook is called after content changes (plugins may subscribe, e.g. for
+// notifications or external indexing). It must not block.
+type Hook func(ctx context.Context, event string, entityType string, id int64)
+
+// Service is the content service.
+type Service struct {
+	pool    *pgxpool.Pool
+	acl     *acl.Service
+	bus     *events.Bus
+	cfg     *config.Store
+	log     *slog.Logger
+	types   typeRegistry
+	enabled func(pluginID string) bool
+	hooks   []Hook
+}
+
+// New creates the content service.
+func New(pool *pgxpool.Pool, a *acl.Service, bus *events.Bus, cfg *config.Store, log *slog.Logger) *Service {
+	return &Service{pool: pool, acl: a, bus: bus, cfg: cfg, log: log, enabled: func(string) bool { return true }}
+}
+
+// SetEnabledFunc wires the plugin enabled check.
+func (s *Service) SetEnabledFunc(f func(string) bool) { s.enabled = f }
+
+// OnChange registers a hook.
+func (s *Service) OnChange(h Hook) { s.hooks = append(s.hooks, h) }
+
+func (s *Service) fire(ctx context.Context, event, etype string, id int64) {
+	for _, h := range s.hooks {
+		h(ctx, event, etype, id)
+	}
+}
+
+func (s *Service) aclChanged(ctx context.Context) {
+	s.acl.Invalidate()
+	s.bus.Publish(ctx, "acl", "")
+}
+
+// require checks that the caller has want on category id.
+func (s *Service) require(ctx context.Context, categoryID int64, want acl.Perm) error {
+	p := identity.From(ctx)
+	if s.acl.Can(ctx, p, categoryID, want) {
+		return nil
+	}
+	if p == nil {
+		// Guests get 401 for anything they cannot see, so the UI can offer a login.
+		return apperr.ErrUnauthorized
+	}
+	if !s.acl.Can(ctx, p, categoryID, acl.View) {
+		return apperr.NotFound("category")
+	}
+	return apperr.ErrForbidden
+}
+
+func requireAdmin(ctx context.Context) error {
+	p := identity.From(ctx)
+	if p == nil {
+		return apperr.ErrUnauthorized
+	}
+	if !p.Admin() {
+		return apperr.ErrForbidden
+	}
+	return nil
+}
+
+// Languages returns the configured content languages.
+func (s *Service) Languages() []string { return s.cfg.Get().I18n.Languages }
+
+// DefaultLanguage returns the configured default language.
+func (s *Service) DefaultLanguage() string { return s.cfg.Get().I18n.DefaultLanguage }
+
+func (s *Service) validLang(l string) bool {
+	for _, x := range s.Languages() {
+		if x == l {
+			return true
+		}
+	}
+	return false
+}
+
+// normalizeTexts validates a language map (titles, descriptions).
+func (s *Service) normalizeTexts(m map[string]string, maxLen int, required bool) (map[string]string, error) {
+	out := map[string]string{}
+	for k, v := range m {
+		v = strings.TrimSpace(v)
+		if v == "" {
+			continue
+		}
+		if !config.ValidLanguage(k) {
+			return nil, apperr.BadRequest("invalid language %q", k)
+		}
+		if utf8.RuneCountInString(v) > maxLen {
+			return nil, apperr.BadRequest("text too long (max %d characters)", maxLen)
+		}
+		out[k] = v
+	}
+	if required && len(out) == 0 {
+		return nil, apperr.BadRequest("a title in at least one language is required")
+	}
+	return out, nil
+}
+
+var tagRe = regexp.MustCompile(`^[\p{L}\p{N}_.+#-]{1,50}$`)
+
+// NormalizeTags lowercases, trims, validates and de-duplicates tags.
+func NormalizeTags(in []string) ([]string, error) {
+	seen := map[string]bool{}
+	out := []string{}
+	for _, t := range in {
+		t = strings.ToLower(strings.TrimSpace(strings.TrimPrefix(strings.TrimSpace(t), "#")))
+		if t == "" || seen[t] {
+			continue
+		}
+		if !tagRe.MatchString(t) {
+			return nil, apperr.BadRequest("invalid tag %q (letters, digits, _ . + # - ; max 50 characters)", t)
+		}
+		seen[t] = true
+		out = append(out, t)
+	}
+	if len(out) > 30 {
+		return nil, apperr.BadRequest("at most 30 tags allowed")
+	}
+	return out, nil
+}
+
+var slugRe = regexp.MustCompile(`[^a-z0-9]+`)
+
+// Slugify builds a URL slug from a title.
+func Slugify(s string) string {
+	s = strings.ToLower(s)
+	r := strings.NewReplacer("ä", "ae", "ö", "oe", "ü", "ue", "ß", "ss", "é", "e", "è", "e", "à", "a", "ç", "c")
+	s = slugRe.ReplaceAllString(r.Replace(s), "-")
+	s = strings.Trim(s, "-")
+	if len(s) > 80 {
+		s = strings.Trim(s[:80], "-")
+	}
+	return s
+}
+
+// firstText returns the text in lang, the default language or any language.
+func firstText(m map[string]string, lang, def string) string {
+	if v := m[lang]; v != "" {
+		return v
+	}
+	if v := m[def]; v != "" {
+		return v
+	}
+	for _, v := range m {
+		return v
+	}
+	return ""
+}
+
+func auditLog(ctx context.Context, s *Service, action, etype string, id int64, before, after any) error {
+	return audit.Log(ctx, s.pool, action, etype, id, before, after)
+}

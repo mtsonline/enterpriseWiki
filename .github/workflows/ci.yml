@@ -1,0 +1,96 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+env:
+  DB_URL: postgres://wiki:wiki@localhost:5432/wiki?sslmode=disable
+
+jobs:
+  backend:
+    name: Backend (lint, unit + API integration tests)
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env: { POSTGRES_USER: wiki, POSTGRES_PASSWORD: wiki, POSTGRES_DB: wiki }
+        ports: ["5432:5432"]
+        options: --health-cmd pg_isready --health-interval 5s --health-timeout 5s --health-retries 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with: { go-version-file: go.mod }
+      - name: gofmt
+        run: test -z "$(gofmt -l . | tee /dev/stderr)"
+      - name: generated plugin imports are up to date
+        run: go run ./tools/genplugins && git diff --exit-code plugins/all
+      - run: go vet ./...
+      - name: tests (race detector, real PostgreSQL)
+        run: go test -race -count=1 ./...
+        env:
+          EWIKI_TEST_DATABASE_URL: ${{ env.DB_URL }}
+
+  e2e:
+    name: Frontend build, typecheck, browser E2E + WCAG (axe)
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env: { POSTGRES_USER: wiki, POSTGRES_PASSWORD: wiki, POSTGRES_DB: wiki }
+        ports: ["5432:5432"]
+        options: --health-cmd pg_isready --health-interval 5s --health-timeout 5s --health-retries 20
+    env:
+      EWIKI_CONFIG: /tmp/wiki/config.yaml
+      EWIKI_DATABASE_URL: postgres://wiki:wiki@localhost:5432/wiki?sslmode=disable
+      EWIKI_ADMIN_PASSWORD: Admin-Passw0rd!
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with: { go-version-file: go.mod }
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
+      - name: install frontend tooling
+        working-directory: web
+        run: npm install --no-audit --no-fund
+      - name: build (frontend + single binary)
+        run: ./scripts/build.sh
+      - name: typecheck
+        working-directory: web
+        run: npm run typecheck
+      - name: setup and start the wiki
+        run: |
+          mkdir -p /tmp/wiki
+          ./bin/ewiki setup --non-interactive
+          nohup ./bin/ewiki serve > /tmp/wiki/server.log 2>&1 &
+          for i in $(seq 1 30); do curl -fs http://localhost:8080/readyz && break; sleep 1; done
+      - name: CLI smoke test
+        run: |
+          ./bin/ewiki version
+          ./bin/ewiki api GET /api/v1/categories
+          ./bin/ewiki plugin list
+          ./bin/ewiki config get ui.site_name
+      - name: install browser
+        working-directory: web
+        run: npx playwright install --with-deps chromium
+      - name: browser tests
+        working-directory: web
+        run: npm run test:e2e
+        env:
+          EWIKI_E2E_URL: http://localhost:8080
+          EWIKI_E2E_USER: admin
+          EWIKI_E2E_PASSWORD: Admin-Passw0rd!
+          EWIKI_E2E_REQUIRE_AXE: "1"
+      - name: server log
+        if: always()
+        run: cat /tmp/wiki/server.log || true
+
+  docker:
+    name: Docker image
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker build -t enterprisewiki:ci .
