@@ -15,5 +15,7 @@
  "core.comments.delete_confirm": "Diesen Kommentar löschen?",
  "core.comments.empty_error": "Bitte einen Kommentar eingeben.",
  "core.comments.login": "Zum Kommentieren anmelden",
- "core.comments.no_permission": "Sie können diese Seite nicht kommentieren."
+ "core.comments.no_permission": "Sie können diese Seite nicht kommentieren.",
+ "core.comments.mail_subject": "Neuer Kommentar zu „{page}“",
+ "core.comments.mail_body": "Hallo {name},\n\n{author} hat „{page}“ kommentiert:\n\n{text}\n\nSeite öffnen: {url}\n\nSie erhalten diese Nachricht, weil Sie die Seite erstellt haben oder an der Diskussion teilnehmen. Abschalten können Sie diese E-Mails in Ihrem Profil: {profile}\n\n{site}"
 }

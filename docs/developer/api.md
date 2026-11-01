@@ -75,6 +75,8 @@ curl -H "Authorization: Bearer $KEY" -H 'Content-Type: application/json' \
 | `POST` | `/api/v1/me/totp/setup` |
 | `POST` | `/api/v1/me/totp/enable` |
 | `POST` | `/api/v1/me/totp/disable` |
+| `GET` | `/api/v1/me/notifications` |
+| `PUT` | `/api/v1/me/notifications` |
 
 ### Benutzer, Gruppen, Rollen
 
@@ -188,6 +190,13 @@ curl -H "Authorization: Bearer $KEY" -H 'Content-Type: application/json' \
 | `DELETE` | `/api/v1/admin/plugins/{id}` |
 | `POST` | `/api/v1/admin/plugins/build` |
 | `POST` | `/api/v1/admin/restart` |
+| `GET` | `/api/v1/admin/mail` |
+| `POST` | `/api/v1/admin/mail/test` |
+| `GET` | `/api/v1/admin/mail/outbox` |
+| `POST` | `/api/v1/admin/mail/outbox/{id}/retry` |
+| `DELETE` | `/api/v1/admin/mail/outbox/{id}` |
+| `GET` | `/api/v1/admin/jobs` |
+| `POST` | `/api/v1/admin/jobs/{name}/run` |
 
 ### Plugins
 
@@ -212,6 +221,10 @@ curl -H "Authorization: Bearer $KEY" -H 'Content-Type: application/json' \
 | `DELETE` | `/api/v1/x/macro.shell/commands/{hash}` |
 | `POST` | `/api/v1/x/macro.shell/commands/{hash}/approve` |
 | `POST` | `/api/v1/x/macro.shell/commands/{hash}/revoke` |
+| `GET` | `/api/v1/x/search.external/status` |
+| `POST` | `/api/v1/x/search.external/test` |
+| `POST` | `/api/v1/x/search.external/reindex` |
+| `GET` | `/api/v1/x/workflow.process/meta` |
 | `GET` | `/api/v1/x/workflow.process/elements/{id}/instances` |
 | `POST` | `/api/v1/x/workflow.process/elements/{id}/instances` |
 | `GET` | `/api/v1/x/workflow.process/instances/{id}` |

@@ -17,6 +17,7 @@ import (
 	_ "github.com/mtsonline/enterprisewiki/plugins/example_notice"
 	_ "github.com/mtsonline/enterprisewiki/plugins/macro_http"
 	_ "github.com/mtsonline/enterprisewiki/plugins/macro_shell"
+	_ "github.com/mtsonline/enterprisewiki/plugins/search_external"
 	_ "github.com/mtsonline/enterprisewiki/plugins/theme_cms"
 	_ "github.com/mtsonline/enterprisewiki/plugins/theme_confluence"
 	_ "github.com/mtsonline/enterprisewiki/plugins/theme_confluence_dark"

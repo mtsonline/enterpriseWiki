@@ -31,11 +31,30 @@ services:
       EWIKI_SITE_NAME: ${EWIKI_SITE_NAME:-Enterprise Wiki}
       EWIKI_BASE_URL: ${EWIKI_BASE_URL:-http://localhost:8080}
       EWIKI_LANGUAGES: ${EWIKI_LANGUAGES:-en,de}
+      # outgoing e-mail (used on first setup; later in Administration -> E-mail)
+      EWIKI_MAIL_FROM: ${EWIKI_MAIL_FROM:-}
+      EWIKI_SMTP_HOST: ${EWIKI_SMTP_HOST:-}
+      EWIKI_SMTP_PORT: ${EWIKI_SMTP_PORT:-}
+      EWIKI_SMTP_SECURITY: ${EWIKI_SMTP_SECURITY:-}
+      EWIKI_SMTP_USER: ${EWIKI_SMTP_USER:-}
+      EWIKI_SMTP_PASSWORD: ${EWIKI_SMTP_PASSWORD:-}
     ports:
       - "8080:8080"
     volumes:
       - wikidata:/data
 
+  # Optional external search engine for very large wikis (plugin search.external,
+  # Administration -> Search engine: engine meilisearch, URL http://meilisearch:7700).
+  # meilisearch:
+  #   image: getmeili/meilisearch:v1.10
+  #   restart: unless-stopped
+  #   environment:
+  #     MEILI_MASTER_KEY: ${MEILI_MASTER_KEY:?set MEILI_MASTER_KEY in .env}
+  #     MEILI_ENV: production
+  #   volumes:
+  #     - meilidata:/meili_data
+
 volumes:
+  # meilidata:
   pgdata:
   wikidata:

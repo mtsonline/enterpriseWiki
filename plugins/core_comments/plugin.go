@@ -12,6 +12,7 @@ import (
 	"context"
 	"embed"
 	"errors"
+	"fmt"
 	"html"
 	"io/fs"
 	"net/http"
@@ -27,6 +28,7 @@ import (
 	"github.com/mtsonline/enterprisewiki/internal/audit"
 	h "github.com/mtsonline/enterprisewiki/internal/httpx"
 	"github.com/mtsonline/enterprisewiki/internal/identity"
+	"github.com/mtsonline/enterprisewiki/internal/mail"
 	"github.com/mtsonline/enterprisewiki/pkg/sdk"
 
 	_ "embed"
@@ -223,6 +225,9 @@ func (p *Plugin) Setup(host *sdk.Host) error {
 				&c.CreatedAt, &c.UpdatedAt, &c.Edited, &c.DeletedAt); err != nil {
 				return err
 			}
+			if err := p.notify(ctx, tx, &c, cat); err != nil {
+				return err
+			}
 			return audit.Log(ctx, tx, "comment.create", "comment", c.ID, nil, map[string]any{"element_id": id, "body": body})
 		})
 		if err != nil {
@@ -311,6 +316,72 @@ func (p *Plugin) Setup(host *sdk.Host) error {
 		}
 		return h.NoContent{}, nil
 	})
+	return nil
+}
+
+// notify e-mails the creator of the page and the participants of the thread
+// (only users who can see the page and want comment notifications).
+func (p *Plugin) notify(ctx context.Context, tx pgx.Tx, c *Comment, cat int64) error {
+	me := identity.From(ctx)
+	var creator *int64
+	var titles map[string]string
+	if err := tx.QueryRow(ctx, `SELECT created_by, titles FROM elements WHERE id=$1`, c.ElementID).Scan(&creator, &titles); err != nil {
+		return err
+	}
+	ids := map[int64]bool{}
+	if creator != nil {
+		ids[*creator] = true
+	}
+	if c.ParentID != nil {
+		rows, err := tx.Query(ctx, `SELECT DISTINCT author_id FROM plugin_comments WHERE (id=$1 OR parent_id=$1) AND author_id IS NOT NULL AND deleted_at IS NULL`, *c.ParentID)
+		if err != nil {
+			return err
+		}
+		authors, err := pgx.CollectRows(rows, pgx.RowTo[int64])
+		if err != nil {
+			return err
+		}
+		for _, a := range authors {
+			ids[a] = true
+		}
+	}
+	delete(ids, me.ID())
+	list := []int64{}
+	for id := range ids {
+		pr, err := p.host.Auth.LoadPrincipal(ctx, id)
+		if err == nil && p.host.ACL.Can(ctx, pr, cat, acl.View) {
+			list = append(list, id)
+		}
+	}
+	us, err := p.host.Mail.Users(ctx, tx, list)
+	if err != nil {
+		return err
+	}
+	cfg := p.host.Config.Get()
+	base := strings.TrimSuffix(cfg.Server.BaseURL, "/")
+	text := c.Body
+	if r := []rune(text); len(r) > 2000 {
+		text = string(r[:2000]) + "…"
+	}
+	for _, u := range us {
+		if !u.Wants("comments") {
+			continue
+		}
+		page := titles[u.Lang]
+		if page == "" {
+			for _, t := range titles {
+				page = t
+				break
+			}
+		}
+		params := map[string]string{"name": u.Name, "author": c.Author, "page": page, "text": text, "site": cfg.UI.SiteName,
+			"url": fmt.Sprintf("%s/e/%d#comment-%d", base, c.ElementID, c.ID), "profile": base + "/profile"}
+		if _, err := p.host.Mail.Enqueue(ctx, tx, mail.Message{To: []string{u.Email},
+			Subject: p.host.T(ctx, u.Lang, "core.comments.mail_subject", params), Text: p.host.T(ctx, u.Lang, "core.comments.mail_body", params),
+			Source: "core.comments", Ref: fmt.Sprintf("comment:%d", c.ID)}); err != nil {
+			p.host.Log.Warn("comment notification not queued", "user", u.ID, "err", err)
+		}
+	}
 	return nil
 }
 

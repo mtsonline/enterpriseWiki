@@ -85,6 +85,13 @@ Das Shell- und das HTTP-Makro sind die einzigen Stellen, an denen Seiteninhalte 
 - **HTTP:** nur URLs aus der Allow-Liste; Verbindungen zu Loopback-, privaten, Link-Local- (u. a. Cloud-Metadaten 169.254.169.254) und CGNAT-Adressen werden nach der DNS-Auflösung abgelehnt (Schutz gegen SSRF und DNS-Rebinding), Weiterleitungen werden gegen dieselben Regeln geprüft. Antworten sind auf 1 MB und 15 Sekunden begrenzt; HTML wird bereinigt, Text und JSON werden maskiert.
 - Makros werden bei jeder Anzeige mit den Rechten des Betrachters gerendert, z. B. listet *Unterseiten* nur sichtbare Kategorien.
 
+## E-Mail und Webhooks
+
+- Benachrichtigungen (Aufgaben, Erinnerungen, Kommentare) gehen nur an Benutzer, die die betroffene Seite sehen dürfen, und lassen sich im Profil abschalten.
+- Workflow-E-Mails dürfen nur die konfigurierte Absenderadresse oder Adressen aus `mail.allowed_from` als Absender verwenden; alles andere wird zur Antwortadresse (Schutz vor gefälschten Absendern). Kopfzeilen werden von Zeilenumbrüchen bereinigt (keine Header-Injection), Empfängeradressen geprüft, höchstens 50 Empfänger je Nachricht.
+- Webhooks von Workflows unterliegen denselben Regeln wie das HTTP-Makro (Allow-Liste `plugins.macros.http_allow`, interne Adressen gesperrt). Mit einem Geheimnis wird jede Anfrage per HMAC-SHA256 signiert (`X-Ewiki-Signature: sha256=…`), damit der Empfänger die Herkunft prüfen kann. Das Geheimnis steht im Workflow und ist für Bearbeiter des Workflows sichtbar.
+- Das SMTP-Passwort wird in der Oberfläche maskiert; empfohlen ist `${EWIKI_SMTP_PASSWORD}` mit dem Wert in `.env`.
+
 ## Workflows und Kommentare
 
 - Einen Vorgang sehen nur die Person, die ihn gestartet hat, alle, die für einen seiner bisherigen oder den aktuellen Schritt zuständig sind oder waren, Benutzer mit dem Recht *Berechtigungen verwalten* auf der Kategorie und Administratoren. Dateien aus Formularen werden nur mit dieser Prüfung ausgeliefert.

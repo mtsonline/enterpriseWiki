@@ -6,14 +6,14 @@ import { navigate, type RouteCtx } from '../core/router';
 import { isAdmin, state } from '../core/state';
 import type { AuditEntry, Group, Role } from '../core/types';
 import { toast } from '../core/announce';
-import { button, checkbox, confirmDialog, errorText, field, formDialog, openDialog, pageHeader, select, textInput } from '../components/ui';
+import { button, checkbox, confirmDialog, errorText, field, formDialog, openDialog, pageHeader, select, textArea, textInput } from '../components/ui';
 import { langName, setContext } from '../components/widgets';
 import { listAdminPages, listTemplates } from '../sdk';
 import { errorPage } from './content';
 
 interface User { id: number; username: string; provider: string; handle: string; display_name: string; email: string; language: string; disabled: boolean; locked_until: string | null; created_at: string; last_login_at: string | null; groups: number[]; roles: number[]; totp_enabled: boolean }
 
-const CORE_SECTIONS = ['users', 'groups', 'roles', 'plugins', 'updates', 'settings', 'languages', 'audit'];
+const CORE_SECTIONS = ['users', 'groups', 'roles', 'plugins', 'updates', 'settings', 'mail', 'languages', 'audit'];
 
 const reload = () => navigate(location.pathname + location.search, { replace: true });
 
@@ -42,6 +42,7 @@ export async function adminView({ params, query, main }: RouteCtx): Promise<void
       case 'plugins': await plugins(panel); break;
       case 'updates': await updates(panel, false); break;
       case 'settings': await settings(panel); break;
+      case 'mail': await mailAdmin(panel, query); break;
       case 'languages': await languages(panel, query); break;
       case 'audit': await auditLog(panel, query); break;
       default: {
@@ -349,6 +350,101 @@ async function settings(panel: HTMLElement): Promise<void> {
   mount(panel, pageHeader(t('admin.settings')), h('p', null, t('settings.file_note', { path: s.path })),
     h('dl', { class: 'ew-dl' }, h('dt', null, t('settings.mode')), h('dd', null, c.mode), h('dt', null, t('settings.listen')), h('dd', null, c.server.listen), h('dt', null, t('settings.base_url')), h('dd', null, c.server.base_url)),
     form);
+}
+
+// ---------------------------------------------------------------- e-mail
+
+interface MailConfig {
+  transport: string; from: string; from_name: string; reply_to: string; allowed_from: string[] | null; subject_prefix: string; sendmail: string;
+  smtp: { host: string; port: number; security: string; username: string; password: string; skip_verify: boolean; helo_name: string };
+}
+interface MailStatus { transport: string; from: string; counts: Record<string, number>; problem?: string }
+interface OutboxEntry { id: number; status: string; from: string; to: string[]; cc: string[]; subject: string; body: string; source: string; ref: string; attempts: number; last_error: string; created_at: string; sent_at: string | null }
+
+async function mailAdmin(panel: HTMLElement, query: URLSearchParams): Promise<void> {
+  const filter = query.get('status') ?? '';
+  const [cfg, st, outbox, jobs] = await Promise.all([
+    api.get<{ config: { mail: MailConfig } }>('admin/settings'), api.get<MailStatus>('admin/mail'),
+    api.get<OutboxEntry[]>(`admin/mail/outbox${qs({ status: filter, limit: 100 })}`), api.get<string[]>('admin/jobs')]);
+  const m = cfg.config.mail;
+  const transport = select(['auto', 'smtp', 'sendmail', 'log', 'none'].map((x) => ({ value: x, label: t(`mail.transport.${x}`) })), m.transport || 'auto');
+  const from = textInput({ value: m.from, type: 'email', placeholder: 'wiki@example.com' });
+  const fromName = textInput({ value: m.from_name });
+  const replyTo = textInput({ value: m.reply_to, type: 'email' });
+  const prefix = textInput({ value: m.subject_prefix, placeholder: '[Wiki]' });
+  const allowed = textArea({ value: (m.allowed_from ?? []).join('\n'), rows: 3 });
+  const host = textInput({ value: m.smtp.host, placeholder: 'smtp.example.com' });
+  const port = textInput({ value: m.smtp.port ? String(m.smtp.port) : '', type: 'number', placeholder: '587' });
+  const security = select(['starttls', 'tls', 'none'].map((x) => ({ value: x, label: t(`mail.security.${x}`) })), m.smtp.security || 'starttls');
+  const user = textInput({ value: m.smtp.username, autocomplete: 'off' });
+  const pw = textInput({ value: m.smtp.password, type: 'password', autocomplete: 'new-password' });
+  const skip = checkbox(t('mail.skip_verify'), m.smtp.skip_verify, { help: t('mail.skip_verify_help') });
+  const helo = textInput({ value: m.smtp.helo_name });
+  const sendmail = textInput({ value: m.sendmail, placeholder: '/usr/sbin/sendmail' });
+  const alert = h('div', { class: 'ew-form-alert', role: 'alert' });
+  const fs = (legend: string, ...kids: (HTMLElement | null)[]) => h('fieldset', null, h('legend', null, legend), ...kids);
+  const form = h('form', { class: 'ew-form', novalidate: true }, alert,
+    fs(t('mail.sender'), field(t('mail.transport'), transport, { help: t('mail.transport_help') }), field(t('mail.from'), from, { help: t('mail.from_help') }),
+      field(t('mail.from_name'), fromName), field(t('mail.reply_to'), replyTo), field(t('mail.subject_prefix'), prefix),
+      field(t('mail.allowed_from'), allowed, { help: t('mail.allowed_from_help') })),
+    fs(t('mail.smtp'), field(t('mail.host'), host), field(t('mail.port'), port, { help: t('mail.port_help') }), field(t('mail.security'), security),
+      field(t('mail.username'), user), field(t('mail.password'), pw, { help: t('mail.password_help') }), field(t('mail.helo'), helo), skip.el),
+    fs(t('mail.sendmail'), field(t('mail.sendmail_path'), sendmail, { help: t('mail.sendmail_help') })),
+    h('div', { class: 'ew-form-actions' }, button(t('common.save'), () => undefined, { type: 'submit', variant: 'primary' })));
+  form.addEventListener('submit', async (ev) => {
+    ev.preventDefault();
+    alert.textContent = '';
+    try {
+      await api.put('admin/settings', { mail: {
+        transport: transport.value, from: from.value.trim(), from_name: fromName.value.trim(), reply_to: replyTo.value.trim(), subject_prefix: prefix.value.trim(),
+        allowed_from: allowed.value.split(/[\n,;]/).map((x) => x.trim()).filter(Boolean), sendmail: sendmail.value.trim(),
+        smtp: { host: host.value.trim(), port: Number(port.value) || 0, security: security.value, username: user.value.trim(), password: pw.value, skip_verify: skip.input.checked, helo_name: helo.value.trim() },
+      } });
+      toast(t('settings.saved'));
+      reload();
+    } catch (e) { alert.textContent = errorText(e); }
+  });
+  const testTo = textInput({ type: 'email', value: state.user?.email ?? '', autocomplete: 'email' });
+  const testForm = h('form', { class: 'ew-inline-form', novalidate: true, 'aria-label': t('mail.test') }, field(t('mail.test_to'), testTo, { inline: true }),
+    button(t('mail.test_send'), () => undefined, { type: 'submit' }));
+  testForm.addEventListener('submit', async (ev) => {
+    ev.preventDefault();
+    try { await api.post('admin/mail/test', { to: testTo.value.trim() }); toast(t('mail.test_sent', { to: testTo.value })); } catch (e) { toast(errorText(e), 'error'); }
+  });
+  const statusSel = select(['', 'queued', 'held', 'failed', 'sent'].map((x) => ({ value: x, label: x ? t(`mail.status.${x}`) : t('mail.status.all') })), filter);
+  statusSel.addEventListener('change', () => navigate(`/admin/mail${qs({ status: statusSel.value })}`));
+  const badge = (x: string) => h('span', { class: ['ew-badge', x === 'sent' ? 'ew-badge--ok' : x === 'failed' || x === 'held' ? 'ew-badge--warn' : 'ew-badge--info'] }, t(`mail.status.${x}`));
+  const runJob = async (name: string) => {
+    try { await api.post(`admin/jobs/${encodeURIComponent(name)}/run`); toast(t('mail.job_done', { name })); reload(); } catch (e) { toast(errorText(e), 'error'); }
+  };
+  mount(panel, pageHeader(t('admin.mail')), h('p', null, t('mail.help')),
+    h('div', { class: ['ew-notice', st.problem ? 'ew-notice--warning' : 'ew-notice--success'], role: 'status' },
+      st.transport ? t('mail.active', { transport: t(`mail.transport.${st.transport}`) }) : t('mail.inactive'),
+      st.problem ? h('p', null, st.problem) : null),
+    h('dl', { class: 'ew-dl' }, ...['queued', 'held', 'failed', 'sent'].flatMap((k) => [h('dt', null, t(`mail.status.${k}`)), h('dd', null, String(st.counts[k] ?? 0))])),
+    testForm, form,
+    h('section', { class: 'ew-section', 'aria-labelledby': 'ob-h' }, h('h2', { id: 'ob-h' }, t('mail.outbox')),
+      h('div', { class: 'ew-actions' }, field(t('mail.filter'), statusSel, { inline: true }), button(t('mail.send_now'), () => void runJob('mail'))),
+      table(t('mail.outbox'), [t('mail.subject'), t('mail.to'), t('common.status'), t('mail.created'), t('common.actions')],
+        outbox.map((o) => h('tr', null,
+          h('th', { scope: 'row' }, button(o.subject, () => openDialog(o.subject, h('div', null,
+            h('dl', { class: 'ew-dl' }, h('dt', null, t('mail.from')), h('dd', null, o.from), h('dt', null, t('mail.to')), h('dd', null, [...o.to, ...o.cc].join(', ')),
+              h('dt', null, t('mail.source')), h('dd', null, `${o.source} ${o.ref}`)),
+            h('pre', { class: 'ew-code ew-mail-body', tabindex: '0' }, o.body)), [], { wide: true }), { variant: 'link' })),
+          h('td', null, [...o.to, ...o.cc].join(', ')),
+          h('td', null, badge(o.status), o.last_error ? h('p', { class: 'ew-help' }, `${t('mail.attempts', { n: o.attempts })}: ${o.last_error}`) : null),
+          h('td', null, fmtDate(o.sent_at ?? o.created_at, state.lang)),
+          h('td', { class: 'ew-actions' },
+            o.status === 'failed' || o.status === 'held' ? button(t('mail.retry'), async () => {
+              try { await api.post(`admin/mail/outbox/${o.id}/retry`); toast(t('mail.requeued')); reload(); } catch (e) { toast(errorText(e), 'error'); }
+            }, { variant: 'link', ariaLabel: `${t('mail.retry')}: ${o.subject}` }) : null,
+            button(t('common.delete'), async () => {
+              if (!(await confirmDialog(t('mail.delete_confirm'), t('common.delete'), true))) return;
+              try { await api.del(`admin/mail/outbox/${o.id}`); reload(); } catch (e) { toast(errorText(e), 'error'); }
+            }, { variant: 'link', ariaLabel: `${t('common.delete')}: ${o.subject}` })))), t('mail.empty'))),
+    h('section', { class: 'ew-section', 'aria-labelledby': 'jobs-h' }, h('h2', { id: 'jobs-h' }, t('jobs.title')), h('p', { class: 'ew-help' }, t('jobs.help')),
+      h('ul', { class: 'ew-list' }, ...jobs.map((j) => h('li', null, h('code', null, j), ' ',
+        button(t('jobs.run'), () => void runJob(j), { variant: 'link', ariaLabel: `${t('jobs.run')}: ${j}` }))))));
 }
 
 // ---------------------------------------------------------------- languages

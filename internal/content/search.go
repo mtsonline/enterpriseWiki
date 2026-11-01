@@ -36,6 +36,8 @@ type CategoryHit struct {
 type SearchResult struct {
 	Elements   []SearchHit   `json:"elements"`
 	Categories []CategoryHit `json:"categories"`
+	// Engine that found the elements: postgres or the name of a search backend.
+	Engine string `json:"engine"`
 }
 
 // buildTSQuery turns user input into a safe prefix tsquery: "foo ba" -> "foo:* & ba:*".
@@ -65,8 +67,17 @@ func (s *Service) Search(ctx context.Context, q string, tags []string, lang stri
 		return nil, apperr.BadRequest("enter a search term or a tag")
 	}
 	p := identity.From(ctx)
-	res := &SearchResult{Elements: []SearchHit{}, Categories: []CategoryHit{}}
+	res := &SearchResult{Elements: []SearchHit{}, Categories: []CategoryHit{}, Engine: "postgres"}
 	var rows pgx.Rows
+	if b := s.searchBackend(ctx); b != nil && strings.TrimSpace(q) != "" {
+		if err := s.searchExternal(ctx, b, q, tags, lang, limit, res); err == nil {
+			res.Engine = b.Name()
+			return s.searchCategories(ctx, q, tags, res)
+		} else {
+			s.log.Warn("external search failed, using PostgreSQL", "engine", b.Name(), "err", err)
+			res.Elements = []SearchHit{}
+		}
+	}
 	if tsq != "" {
 		rows, err = s.pool.Query(ctx, `SELECT d.element_id, d.category_id, d.lang, e.type, d.title,
 				ts_headline('simple', left(d.body_text, 20000), q, 'StartSel=⟦, StopSel=⟧, MaxFragments=2, MaxWords=24, MinWords=8, FragmentDelimiter=" … "'),
@@ -115,7 +126,12 @@ func (s *Service) Search(ctx context.Context, q string, tags []string, lang stri
 		best[h.ElementID] = len(res.Elements)
 		res.Elements = append(res.Elements, h)
 	}
-	// categories by title or tag
+	return s.searchCategories(ctx, q, tags, res)
+}
+
+// searchCategories adds categories matching by title or tag.
+func (s *Service) searchCategories(ctx context.Context, q string, tags []string, res *SearchResult) (*SearchResult, error) {
+	p := identity.From(ctx)
 	like := "%" + strings.ReplaceAll(strings.ReplaceAll(strings.TrimSpace(q), "%", ""), "_", "") + "%"
 	crow, err := s.pool.Query(ctx, `SELECT id, titles, tags FROM categories WHERE deleted_at IS NULL AND (
 			($1 <> '%%' AND EXISTS (SELECT 1 FROM jsonb_each_text(titles) t WHERE t.value ILIKE $1))
@@ -345,4 +361,80 @@ func (s *Service) Recent(ctx context.Context, category int64, limit int) ([]Rece
 		}
 	}
 	return out, nil
+}
+
+// searchExternal queries a search backend and applies tags, trash and
+// permissions like the PostgreSQL search.
+func (s *Service) searchExternal(ctx context.Context, b SearchBackend, q string, tags []string, lang string, limit int, res *SearchResult) error {
+	p := identity.From(ctx)
+	best := map[int64]int{}
+	const page = 100
+	for off := 0; off < 5*page && len(res.Elements) < limit; off += page {
+		hits, err := b.Search(ctx, SearchQuery{Q: q, Tags: tags, Lang: lang, Limit: page, Offset: off})
+		if err != nil {
+			return err
+		}
+		if len(hits) == 0 {
+			break
+		}
+		ids := make([]int64, 0, len(hits))
+		for _, h := range hits {
+			ids = append(ids, h.ElementID)
+		}
+		rows, err := s.pool.Query(ctx, `SELECT e.id, e.category_id, e.type, e.tags FROM elements e JOIN categories c ON c.id=e.category_id
+			WHERE e.id = ANY($1) AND e.deleted_at IS NULL AND c.deleted_at IS NULL AND (cardinality($2::text[]) = 0 OR e.tags @> $2)`, ids, tags)
+		if err != nil {
+			return err
+		}
+		type info struct {
+			cat  int64
+			typ  string
+			tags []string
+		}
+		known := map[int64]info{}
+		cats := []int64{}
+		for rows.Next() {
+			var id int64
+			var in info
+			if err := rows.Scan(&id, &in.cat, &in.typ, &in.tags); err != nil {
+				rows.Close()
+				return err
+			}
+			known[id] = in
+			cats = append(cats, in.cat)
+		}
+		rows.Close()
+		if err := rows.Err(); err != nil {
+			return err
+		}
+		perms, err := s.acl.PermsMap(ctx, p, cats)
+		if err != nil {
+			return err
+		}
+		mark := strings.NewReplacer("\x01", "<mark>", "\x02", "</mark>")
+		strip := strings.NewReplacer("\x01", "", "\x02", "")
+		for _, h := range hits {
+			in, ok := known[h.ElementID]
+			if !ok || perms[in.cat]&acl.View == 0 {
+				continue
+			}
+			hit := SearchHit{ElementID: h.ElementID, CategoryID: in.cat, Lang: h.Lang, Type: in.typ, Title: strip.Replace(h.Title),
+				Snippet: mark.Replace(htmlEscape(h.Snippet)), Tags: in.tags, Rank: float32(h.Score)}
+			if i, ok := best[h.ElementID]; ok {
+				if h.Lang == lang && res.Elements[i].Lang != lang {
+					res.Elements[i] = hit
+				}
+				continue
+			}
+			if len(res.Elements) >= limit {
+				continue
+			}
+			best[h.ElementID] = len(res.Elements)
+			res.Elements = append(res.Elements, hit)
+		}
+		if len(hits) < page {
+			break
+		}
+	}
+	return nil
 }

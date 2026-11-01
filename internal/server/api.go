@@ -49,6 +49,7 @@ func requireUser(r *http.Request) (*identity.Principal, error) {
 func (s *Server) routes() {
 	s.routesM2()
 	s.routesM3()
+	s.routesM4()
 	// ---------------------------------------------------------------- system
 	s.app.Mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, r *http.Request) { h.Write(w, 200, map[string]string{"status": "ok"}) })
 	s.handle("GET /readyz", func(w http.ResponseWriter, r *http.Request) (any, error) {
@@ -648,8 +649,7 @@ func (s *Server) routes() {
 			return nil, err
 		}
 		c := s.app.Config.Raw()
-		c.Database.URL = maskURL(c.Database.URL)
-		maskSecrets(c.Settings)
+		maskConfig(c)
 		return map[string]any{"config": c, "path": s.app.Config.Path()}, nil
 	})
 	s.handle("PUT /api/v1/admin/settings", s.updateSettings)
@@ -801,6 +801,7 @@ type SettingsUpdate struct {
 	Auth           *config.Auth              `json:"auth"`
 	Retention      *config.Retention         `json:"retention"`
 	Macros         *config.MacroSecurity     `json:"macros"`
+	Mail           *config.Mail              `json:"mail"`
 	Catalog        []config.CatalogEntry     `json:"catalog"`
 	PluginSettings map[string]map[string]any `json:"plugin_settings"`
 }
@@ -838,6 +839,12 @@ func (s *Server) updateSettings(w http.ResponseWriter, r *http.Request) (any, er
 		if in.Catalog != nil {
 			c.Plugins.Catalog = in.Catalog
 		}
+		if in.Mail != nil {
+			if in.Mail.SMTP.Password == secretMask {
+				in.Mail.SMTP.Password = c.Mail.SMTP.Password
+			}
+			c.Mail = *in.Mail
+		}
 		for id, m := range in.PluginSettings {
 			if c.Settings == nil {
 				c.Settings = map[string]map[string]any{}
@@ -859,11 +866,9 @@ func (s *Server) updateSettings(w http.ResponseWriter, r *http.Request) (any, er
 		}
 		return nil, err
 	}
-	before.Database.URL = maskURL(before.Database.URL)
-	maskSecrets(before.Settings)
+	maskConfig(before)
 	c := s.app.Config.Raw()
-	c.Database.URL = maskURL(c.Database.URL)
-	maskSecrets(c.Settings)
+	maskConfig(c)
 	_ = audit.Log(r.Context(), s.app.DB, "settings.update", "settings", 0, before, c)
 	return map[string]any{"config": c, "path": s.app.Config.Path()}, nil
 }

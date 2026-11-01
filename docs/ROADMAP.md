@@ -44,4 +44,14 @@ Offen aus diesem Bereich: S3-kompatibler Objektspeicher als Alternative zum Date
 - Update-Prüfung über GitHub-Releases (Kern und Plugins, auch GitHub Enterprise), Versionshinweise, 1-Klick-Update für Plugins (Oberfläche, API, `ewiki plugin updates|update`)
 - Frontend-SDK: `registerWidget` (interaktive Teile in serverseitig gerenderten Inhalten), `registerElementExtension` (Bereiche unter Seiten), Plugin-Routen über `route`
 
-Offen aus diesem Bereich: optionale Such-Anbindung (OpenSearch/Meilisearch) für sehr große Datenbestände, Benachrichtigungen (E-Mail) bei neuen Aufgaben und Kommentaren, Fristen und Vertretungen in Workflows, automatisches Kern-Update aus der Oberfläche.
+Offen aus diesem Bereich: Vertretungen in Workflows, automatisches Kern-Update aus der Oberfläche.
+
+## Meilenstein 4 – E-Mail, Workflow-Schritte, externe Suche (fertig, v7.3)
+
+- E-Mail im Kern: Postausgang in der Datenbank (transaktional), Hintergrundversand mit Wiederholungen, SMTP (STARTTLS, TLS, PLAIN/LOGIN), sendmail, Log; ohne Mailserver bleiben Nachrichten erhalten und werden nachgesendet. Verwaltung unter *Administration → E-Mail* (Einstellungen, Testnachricht, Postausgang), Einrichtung per Umgebungsvariablen im Docker-Setup
+- Benachrichtigungen: neue Workflow-Aufgaben, Erinnerungen, Abschluss/Abbruch eigener Vorgänge, Kommentare und Antworten; nur an Berechtigte, je Benutzer abschaltbar
+- Workflow-Schrittarten: Aufgabe, Freigabe (Vier-Augen, Anzahl oder alle), Bedingung (Verzweigung nach Formularangaben), E-Mail senden (Empfänger, Cc, Absender, Antwortadresse, Betreff, Text mit Platzhaltern für Formular, Antragsteller, Bearbeiter usw.), Webhook (signiert, mit Wiederholungen und Fehlerpfad), Wartezeit (fest oder bis zu einem Datum aus dem Formular), Ende; Erinnerungen nach X Tagen; Vorlagen Bewerbung, Genehmigung, Einarbeitung
+- Hintergrundjobs für Kern und Plugins (`RegisterWorker`), im Cluster koordiniert
+- `search.external`: OpenSearch/Elasticsearch oder Meilisearch mit automatischer Synchronisation über ein Änderungsprotokoll, Neuaufbau, Rückfall auf PostgreSQL, Rechteprüfung im Wiki
+
+Offen: Benachrichtigungen im Browser (ohne E-Mail), Zusammenfassungen (Digest), Vertretungsregeln, Webhooks, deren Antwort Daten in den Vorgang zurückschreibt.

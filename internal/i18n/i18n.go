@@ -273,3 +273,20 @@ func requireAdmin(ctx context.Context) error {
 	}
 	return nil
 }
+
+// T translates key into lang (falling back to the reference language) and
+// replaces {name} placeholders. Missing keys return the key itself.
+func (s *Service) T(ctx context.Context, lang, key string, params map[string]string) string {
+	msgs, err := s.Messages(ctx, lang)
+	if err != nil {
+		return key
+	}
+	v, ok := msgs[key]
+	if !ok || v == "" {
+		return key
+	}
+	for k, p := range params {
+		v = strings.ReplaceAll(v, "{"+k+"}", p)
+	}
+	return v
+}

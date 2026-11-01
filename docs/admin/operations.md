@@ -86,6 +86,18 @@ Stündlich läuft automatisch (im Cluster nur auf einer Instanz):
 - nicht mehr referenzierte Dateien entfernen (älter als ein Tag),
 - Aufbewahrungsregeln anwenden (alte Versionen, Papierkorb, Protokoll, siehe [configuration.md](configuration.md#retention)).
 
+Außerdem laufen Hintergrundjobs (Liste und „jetzt ausführen“ unter *Administration → E-Mail*, per API `GET /api/v1/admin/jobs`, `POST /api/v1/admin/jobs/{name}/run`):
+
+| Job | Intervall | Aufgabe |
+|---|---|---|
+| `mail` | 10 s | E-Mails aus dem Postausgang senden (mit Wiederholungen) |
+| `mail.cleanup` | 6 h | gesendete E-Mails nach `retention.mail_days` löschen |
+| `search.changes.cleanup` | täglich | Änderungsprotokoll für externe Suchmaschinen kürzen (30 Tage) |
+| `workflow.process.timers` | 30 s | Wartezeiten und Webhooks von Workflows fortsetzen, Erinnerungen für überfällige Aufgaben |
+| `search.external.sync` | 10 s | externen Suchindex abgleichen (nur wenn konfiguriert) |
+
+Im Cluster-Modus läuft jeder Job zur selben Zeit nur auf einer Instanz (Advisory Lock).
+
 ## Logs und Überwachung
 
 - Logs gehen nach stderr, also in systemd ins Journal (`journalctl -u enterprisewiki -f`). JSON-Format mit `EWIKI_LOG_FORMAT=json`, mehr Details mit `EWIKI_LOG_LEVEL=debug`.

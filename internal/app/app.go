@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"net/http"
 	"path/filepath"
+	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 
@@ -20,7 +21,9 @@ import (
 	"github.com/mtsonline/enterprisewiki/internal/httpx"
 	"github.com/mtsonline/enterprisewiki/internal/i18n"
 	"github.com/mtsonline/enterprisewiki/internal/kernel"
+	"github.com/mtsonline/enterprisewiki/internal/mail"
 	"github.com/mtsonline/enterprisewiki/internal/storage"
+	"github.com/mtsonline/enterprisewiki/internal/worker"
 	"github.com/mtsonline/enterprisewiki/pkg/sdk"
 )
 
@@ -34,6 +37,8 @@ type App struct {
 	Content *content.Service
 	I18n    *i18n.Service
 	Files   *storage.Store
+	Mail    *mail.Service
+	Workers *worker.Registry
 	Kernel  *kernel.Kernel
 	Log     *slog.Logger
 	// Mux receives core and plugin routes.
@@ -83,13 +88,33 @@ func New(ctx context.Context, o Options) (*App, error) {
 	a.Content = content.New(pool, a.ACL, a.Bus, cfg, log)
 	a.I18n = i18n.New(pool, cfg, a.Bus)
 	a.Files = storage.New(pool, cfg)
+	a.Mail = mail.New(pool, cfg, log)
+	a.Workers = worker.New(pool, log, func() bool { return cfg.Get().Mode == "cluster" })
+	a.Workers.Register(worker.Job{Name: "mail", Interval: 10 * time.Second, Run: func(ctx context.Context) error {
+		n, err := a.Mail.Process(ctx)
+		if n > 0 {
+			log.Info("e-mails sent", "count", n)
+		}
+		return err
+	}})
+	a.Workers.Register(worker.Job{Name: "search.changes.cleanup", Interval: 24 * time.Hour, Run: func(ctx context.Context) error {
+		// the change log only serves external search engines; they rebuild
+		// their index when they missed changes
+		_, err := pool.Exec(ctx, `DELETE FROM search_changes WHERE at < now() - interval '30 days'`)
+		return err
+	}})
+	a.Workers.Register(worker.Job{Name: "mail.cleanup", Interval: 6 * time.Hour, Run: func(ctx context.Context) error {
+		_, err := a.Mail.Cleanup(ctx, cfg.Get().Retention.MailDays)
+		return err
+	}})
 	a.Auth.SetEnabledFunc(a.Kernel.Enabled)
 	a.Content.SetEnabledFunc(a.Kernel.Enabled)
 	if err := a.I18n.Register("core", i18n.CoreLocales()); err != nil {
 		pool.Close()
 		return nil, err
 	}
-	base := sdk.Host{Config: cfg, DB: pool, ACL: a.ACL, Content: a.Content, Auth: a.Auth, I18n: a.I18n, Files: a.Files, Log: log, Mux: a.Mux, IsEnabled: a.Kernel.Enabled}
+	base := sdk.Host{Config: cfg, DB: pool, ACL: a.ACL, Content: a.Content, Auth: a.Auth, I18n: a.I18n, Files: a.Files, Mail: a.Mail, Workers: a.Workers,
+		Log: log, Mux: a.Mux, IsEnabled: a.Kernel.Enabled}
 	if err := a.Kernel.Setup(base, a.I18n); err != nil {
 		pool.Close()
 		return nil, err

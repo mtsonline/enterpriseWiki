@@ -11,6 +11,7 @@
 package sdk
 
 import (
+	"context"
 	"encoding/json"
 	"io/fs"
 	"log/slog"
@@ -18,6 +19,7 @@ import (
 	"sort"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 
@@ -29,7 +31,9 @@ import (
 	"github.com/mtsonline/enterprisewiki/internal/httpx"
 	"github.com/mtsonline/enterprisewiki/internal/i18n"
 	"github.com/mtsonline/enterprisewiki/internal/identity"
+	"github.com/mtsonline/enterprisewiki/internal/mail"
 	"github.com/mtsonline/enterprisewiki/internal/storage"
+	"github.com/mtsonline/enterprisewiki/internal/worker"
 )
 
 // Plugin kinds (informational, used by the admin UI).
@@ -127,6 +131,8 @@ type Host struct {
 	Auth     *auth.Service
 	I18n     *i18n.Service
 	Files    *storage.Store
+	Mail     *mail.Service
+	Workers  *worker.Registry
 	Log      *slog.Logger
 
 	Mux       *http.ServeMux
@@ -172,6 +178,25 @@ func (h *Host) RegisterElementType(t content.ElementType) {
 // RegisterMacro adds a macro for rich text (see content.Macro).
 func (h *Host) RegisterMacro(m content.Macro) {
 	h.Content.RegisterMacro(h.Manifest.ID, m)
+}
+
+// RegisterWorker adds a periodic background job named "<plugin-id>.<name>".
+// It only runs while the plugin is enabled. In cluster mode one node runs it
+// at a time; jobs must still tolerate concurrent runs (FOR UPDATE SKIP LOCKED).
+func (h *Host) RegisterWorker(name string, interval time.Duration, run func(ctx context.Context) error) {
+	id := h.Manifest.ID
+	h.Workers.Register(worker.Job{Name: id + "." + name, Interval: interval, Active: func() bool { return h.IsEnabled(id) }, Run: run})
+}
+
+// T translates a UI string (backend messages such as e-mails) into lang with
+// {name} placeholders. Missing keys return the key.
+func (h *Host) T(ctx context.Context, lang, key string, params map[string]string) string {
+	return h.I18n.T(ctx, lang, key, params)
+}
+
+// RegisterSearchBackend sets an external full text engine (see content.SearchBackend).
+func (h *Host) RegisterSearchBackend(b content.SearchBackend) {
+	h.Content.RegisterSearchBackend(h.Manifest.ID, b)
 }
 
 // RegisterAuthProvider adds a password authentication provider.

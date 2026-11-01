@@ -15,5 +15,7 @@
  "core.comments.delete_confirm": "Delete this comment?",
  "core.comments.empty_error": "Please enter a comment.",
  "core.comments.login": "Sign in to comment",
- "core.comments.no_permission": "You cannot comment on this page."
+ "core.comments.no_permission": "You cannot comment on this page.",
+ "core.comments.mail_subject": "New comment on \"{page}\"",
+ "core.comments.mail_body": "Hello {name},\n\n{author} commented on \"{page}\":\n\n{text}\n\nOpen the page: {url}\n\nYou receive this message because you created the page or take part in the discussion. You can switch these e-mails off in your profile: {profile}\n\n{site}"
 }

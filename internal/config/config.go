@@ -13,6 +13,7 @@ import (
 	"bufio"
 	"errors"
 	"fmt"
+	"net/mail"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -35,6 +36,7 @@ type Config struct {
 	Auth      Auth                      `yaml:"auth" json:"auth"`
 	Retention Retention                 `yaml:"retention" json:"retention"`
 	Plugins   Plugins                   `yaml:"plugins" json:"plugins"`
+	Mail      Mail                      `yaml:"mail" json:"mail"`
 	Settings  map[string]map[string]any `yaml:"plugin_settings,omitempty" json:"plugin_settings,omitempty"`
 }
 
@@ -94,6 +96,8 @@ type Retention struct {
 	RevisionsKeepMin  int `yaml:"revisions_keep_min" json:"revisions_keep_min"`
 	TrashDays         int `yaml:"trash_days" json:"trash_days"` // 0 = never purge
 	AuditDays         int `yaml:"audit_days" json:"audit_days"` // 0 = keep forever
+	// MailDays removes sent e-mails from the outbox after this many days (0 = keep).
+	MailDays int `yaml:"mail_days" json:"mail_days"`
 }
 
 // Plugins configures the plugin system.
@@ -151,6 +155,37 @@ type MacroSecurity struct {
 	HTTPAllowPrivate bool `yaml:"http_allow_private" json:"http_allow_private"`
 }
 
+// Mail configures outgoing e-mail (notifications, workflow e-mails).
+type Mail struct {
+	// Transport: auto (SMTP if a host is set, else the local sendmail
+	// binary if present, else keep messages in the outbox), smtp, sendmail,
+	// log (only write to the server log, for tests) or none (keep in the outbox).
+	Transport string `yaml:"transport" json:"transport"`
+	// From is the sender address of all messages (e.g. wiki@example.com).
+	From     string `yaml:"from" json:"from"`
+	FromName string `yaml:"from_name" json:"from_name"`
+	ReplyTo  string `yaml:"reply_to,omitempty" json:"reply_to"`
+	// AllowedFrom lists further sender addresses workflows may use
+	// (addresses or *@domain). Other requested senders become Reply-To.
+	AllowedFrom   []string `yaml:"allowed_from,omitempty" json:"allowed_from"`
+	SubjectPrefix string   `yaml:"subject_prefix,omitempty" json:"subject_prefix"`
+	SMTP          SMTP     `yaml:"smtp" json:"smtp"`
+	// Sendmail is the path of the sendmail binary (default /usr/sbin/sendmail).
+	Sendmail string `yaml:"sendmail,omitempty" json:"sendmail"`
+}
+
+// SMTP is an SMTP relay.
+type SMTP struct {
+	Host     string `yaml:"host" json:"host"`
+	Port     int    `yaml:"port" json:"port"`         // default 587 (starttls), 465 (tls), 25 (none)
+	Security string `yaml:"security" json:"security"` // starttls | tls | none
+	Username string `yaml:"username,omitempty" json:"username"`
+	// Password; use ${EWIKI_SMTP_PASSWORD} with the value in .env.
+	Password   string `yaml:"password,omitempty" json:"password"`
+	SkipVerify bool   `yaml:"skip_verify,omitempty" json:"skip_verify"`
+	HeloName   string `yaml:"helo_name,omitempty" json:"helo_name"`
+}
+
 // Defaults returns a configuration with sane defaults.
 func Defaults() *Config {
 	return &Config{
@@ -164,7 +199,8 @@ func Defaults() *Config {
 			Order: []string{"local"}, SessionTTL: "168h", APIKeyMaxTTL: "8760h", SSHTokenTTL: "1h",
 			MaxLoginFails: 10, LockoutDuration: "15m", MinPasswordLen: 12,
 		},
-		Retention: Retention{RevisionsKeepDays: 0, RevisionsKeepMin: 50, TrashDays: 30, AuditDays: 0},
+		Retention: Retention{RevisionsKeepDays: 0, RevisionsKeepMin: 50, TrashDays: 30, AuditDays: 0, MailDays: 90},
+		Mail:      Mail{Transport: "auto", FromName: "Enterprise Wiki", SMTP: SMTP{Security: "starttls"}},
 		Plugins:   Plugins{Dir: "./plugins"},
 	}
 }
@@ -444,6 +480,24 @@ func Validate(c *Config) error {
 	}
 	if c.Auth.MinPasswordLen < 8 {
 		return errors.New("auth.min_password_length must be >= 8")
+	}
+	switch c.Mail.Transport {
+	case "", "auto", "smtp", "sendmail", "log", "none":
+	default:
+		return fmt.Errorf("mail.transport must be auto, smtp, sendmail, log or none, got %q", c.Mail.Transport)
+	}
+	switch c.Mail.SMTP.Security {
+	case "", "starttls", "tls", "none":
+	default:
+		return fmt.Errorf("mail.smtp.security must be starttls, tls or none, got %q", c.Mail.SMTP.Security)
+	}
+	if c.Mail.SMTP.Port < 0 || c.Mail.SMTP.Port > 65535 {
+		return errors.New("mail.smtp.port is invalid")
+	}
+	if c.Mail.From != "" && !HasEnvRef(c.Mail.From) {
+		if a, err := mail.ParseAddress(c.Mail.From); err != nil || a.Name != "" {
+			return fmt.Errorf("mail.from must be a plain address like wiki@example.com, got %q", c.Mail.From)
+		}
 	}
 	return nil
 }

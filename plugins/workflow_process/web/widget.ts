@@ -1,13 +1,22 @@
 // Interactive part of a workflow page: start a case, list cases, act on them.
 import { api, button, checkbox, errorText, field, fmtDate, formDialog, h, humanSize, mount, openDialog, select, state, t, textArea, textInput, toast, uploadFile } from '@ewiki/sdk';
-import type { Action, Field, Instance } from './types';
+import type { Action, Event, Field, Instance } from './types';
 
 export const BASE = 'x/workflow.process';
 
 interface ListResponse { instances: Instance[]; can_start: boolean; fields: Field[]; lang: string; first_step: string; manage: boolean }
 
+/** Label of an action (approval and system actions have default labels). */
+export function actionLabel(a: Action): string {
+  if (a.label) return a.label;
+  const k: Record<string, string> = { approve: 'workflow.approve', reject: 'workflow.reject', _retry: 'workflow.retry', _skip: 'workflow.skip' };
+  return k[a.id] ? t(k[a.id]) : a.id;
+}
+
 export function statusBadge(x: Instance): HTMLElement {
-  if (x.status === 'open') return h('span', { class: 'ew-badge ew-badge--info' }, x.step_name || x.step);
+  if (x.status === 'open') {
+    return h('span', { class: ['ew-badge', x.last_error ? 'ew-badge--warn' : 'ew-badge--info'] }, x.step_name || x.step, x.progress ? ` (${x.progress})` : '');
+  }
   if (x.status === 'cancelled') return h('span', { class: 'ew-badge' }, t('workflow.status.cancelled'));
   const cls = x.outcome === 'success' ? 'ew-badge--ok' : x.outcome === 'failure' ? 'ew-badge--warn' : '';
   return h('span', { class: ['ew-badge', cls] }, x.step_name || t('workflow.status.done'));
@@ -25,6 +34,24 @@ function valueOf(x: Instance, f: Field): Node | string {
   return String(v);
 }
 
+function eventText(e: Event, stepName: (id: string | null) => string): string {
+  const step = stepName(e.to_step);
+  switch (e.action) {
+    case 'start': return t('workflow.ev.start', { step });
+    case 'cancel': return t('workflow.ev.cancel');
+    case 'approve': return e.from_step === e.to_step ? t('workflow.ev.approve') : t('workflow.ev.action', { action: e.action_label || t('workflow.approve'), step });
+    case 'reject': return t('workflow.ev.action', { action: e.action_label || t('workflow.reject'), step });
+    case 'condition': return t(e.action_label === 'true' ? 'workflow.ev.condition_true' : 'workflow.ev.condition_false', { step });
+    case 'email': return t('workflow.ev.email', { subject: e.action_label, step });
+    case 'webhook': return t('workflow.ev.webhook', { step });
+    case 'webhook_failed': return t('workflow.ev.webhook_failed');
+    case 'timer': return t('workflow.ev.timer', { step });
+    case 'retry': return t('workflow.ev.retry');
+    case '_skip': return t('workflow.ev.action', { action: t('workflow.skip'), step });
+  }
+  return t('workflow.ev.action', { action: e.action_label || e.action, step });
+}
+
 /** Opens a case in a dialog. onChange is called after an action. */
 export async function openCase(id: number, onChange?: () => void): Promise<void> {
   const x = await api.get<Instance>(`${BASE}/instances/${id}`);
@@ -32,7 +59,7 @@ export async function openCase(id: number, onChange?: () => void): Promise<void>
   const act = (a: Action | null) => {
     const note = textArea({ rows: 4 });
     const needNote = a ? a.note : 'optional';
-    const title = a ? a.label : t('workflow.cancel_case');
+    const title = a ? actionLabel(a) : t('workflow.cancel_case');
     const run = async () => {
       if (a) await api.post(`${BASE}/instances/${x.id}/actions`, { action: a.id, note: note.value });
       else await api.post(`${BASE}/instances/${x.id}/cancel`, { note: note.value });
@@ -41,7 +68,7 @@ export async function openCase(id: number, onChange?: () => void): Promise<void>
       onChange?.();
     };
     formDialog(`${title}: ${x.title}`, [
-      h('p', null, a ? t('workflow.action_confirm', { action: a.label, step: stepName(a.next) }) : t('workflow.cancel_confirm')),
+      h('p', null, a ? (a.id === '_retry' ? t('workflow.retry_confirm') : t('workflow.action_confirm', { action: actionLabel(a), step: stepName(a.next) })) : t('workflow.cancel_confirm')),
       needNote ? field(needNote === 'required' ? t('workflow.note_required') : t('workflow.note_optional'), note, { required: needNote === 'required' }) : null,
     ], title, async () => {
       if (needNote === 'required' && !note.value.trim()) throw new Error(t('workflow.note_missing'));
@@ -50,17 +77,18 @@ export async function openCase(id: number, onChange?: () => void): Promise<void>
   };
   const dlg = openDialog(x.title, h('div', { class: 'ewf-case' },
     h('p', null, t('workflow.case_meta', { id: x.id, user: x.started_by || '–', date: fmtDate(x.started_at, state.lang) }), ' ', statusBadge(x)),
+    x.progress ? h('p', null, t('workflow.progress', { progress: x.progress })) : null,
+    x.status === 'open' && x.wake_at && !x.actions.length ? h('p', null, t('workflow.waiting_until', { date: fmtDate(x.wake_at, state.lang) })) : null,
+    x.last_error ? h('p', { class: 'ew-notice ew-notice--warning', role: 'note' }, t('workflow.last_error', { error: x.last_error })) : null,
     h('h3', null, t('workflow.data')),
     h('dl', { class: 'ewf-data' }, ...x.definition.fields.flatMap((f) => [h('dt', null, f.label), h('dd', null, valueOf(x, f))])),
     h('h3', null, t('workflow.history')),
     h('ol', { class: 'ewf-history' }, ...(x.events ?? []).map((e) => h('li', null,
-      h('time', { datetime: e.at }, fmtDate(e.at, state.lang)), ' – ', h('strong', null, e.actor), ': ',
-      e.action === 'start' ? t('workflow.ev.start', { step: stepName(e.to_step) })
-        : e.action === 'cancel' ? t('workflow.ev.cancel')
-          : t('workflow.ev.action', { action: e.action_label || e.action, step: stepName(e.to_step) }),
+      h('time', { datetime: e.at }, fmtDate(e.at, state.lang)), ' – ', h('strong', null, e.actor === 'system' ? t('workflow.system') : e.actor), ': ',
+      eventText(e, stepName),
       e.note ? h('blockquote', { class: 'ewf-note' }, e.note) : null))),
   ), [
-    ...x.actions.map((a) => button(a.label, () => act(a), { variant: 'primary' })),
+    ...x.actions.map((a) => button(actionLabel(a), () => act(a), { variant: a.id === 'reject' ? 'danger' : 'primary' })),
     x.can_cancel ? button(t('workflow.cancel_case'), () => act(null), { variant: 'danger' }) : null,
   ], { wide: true });
 }
@@ -135,5 +163,6 @@ export async function workflowWidget(el: HTMLElement): Promise<void> {
         : h('p', { class: 'ew-muted' }, t('workflow.no_cases'))) : null));
     if (openId) await openCase(openId, () => void draw()).catch(() => undefined);
   };
-  await draw();
+  const wanted = Number(new URLSearchParams(location.search).get('case'));
+  await draw(wanted > 0 ? wanted : undefined);
 }

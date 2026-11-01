@@ -31,6 +31,7 @@ type Service struct {
 	log     *slog.Logger
 	types   typeRegistry
 	macros  macroRegistry
+	backend backendRegistry
 	enabled func(pluginID string) bool
 	hooks   []Hook
 }

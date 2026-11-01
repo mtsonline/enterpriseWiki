@@ -205,6 +205,7 @@ func (e *env) serve(args []string) error {
 	srv := server.New(a, web.FS(), pm)
 	go a.Bus.Run(ctx)
 	go e.jobs(ctx, a)
+	a.Workers.Start(ctx)
 	go e.watchConfig(ctx, a)
 	if err := srv.Run(ctx); err != nil {
 		return err

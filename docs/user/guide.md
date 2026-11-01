@@ -57,7 +57,23 @@ Jeder sieht in Makros nur, was er auch sonst sehen darf.
 Wählen Sie bei *Neue Seite* den Elementtyp **Workflow**. Mit *Vorlage* übernehmen Sie einen fertigen Ablauf (z. B. *Personal: Bewerbung*) und passen ihn an:
 
 - **Startformular:** Felder, die beim Start ausgefüllt werden (Text, E-Mail, Datum, Auswahl, Datei, Bestätigung …).
-- **Schritte:** wer zuständig ist (die startende Person, ein Benutzer, eine Gruppe oder Rolle) und welche **Aktionen** es gibt (z. B. *Zum Gespräch einladen*, *Absagen*). Jede Aktion führt zu einem nächsten Schritt und kann eine Notiz verlangen. Schritte ohne Aktionen sind Endzustände.
+- **Schritte:** Jeder Schritt hat eine Art:
+
+| Art | Wirkung |
+|---|---|
+| Aufgabe | Zuständige (startende Person, Benutzer, Gruppe oder Rolle) entscheiden mit einer der **Aktionen** (z. B. *Zum Gespräch einladen*, *Absagen*); jede Aktion führt zu einem nächsten Schritt und kann eine Notiz verlangen |
+| Freigabe | Vier-Augen-Prinzip: eine bestimmte Zahl von Freigaben oder alle Mitglieder einer Gruppe/Rolle müssen freigeben; eine Ablehnung (mit Begründung) beendet die Freigabe |
+| Bedingung | prüft Angaben aus dem Formular automatisch (z. B. „Betrag größer als 1000“, „Stelle ist Softwareentwicklung“) und verzweigt |
+| E-Mail senden | verschickt automatisch eine vorbereitete E-Mail (Empfänger, Cc, Absender, Antwortadresse, Betreff, Text) |
+| Webhook | übergibt den Vorgang an ein anderes System (z. B. Personalsoftware) |
+| Wartezeit | wartet Tage/Stunden oder bis zu einem Datum aus dem Formular (z. B. dem Eintrittsdatum) |
+| Ende | schließt den Vorgang mit einem Ergebnis (erfolgreich, nicht erfolgreich, neutral) |
+
+Bei Aufgaben und Freigaben kann eine **Erinnerung nach X Tagen** eingestellt werden. Zuständige erhalten bei neuen Aufgaben eine E-Mail (abschaltbar im Profil).
+
+**Platzhalter** in E-Mails: `{{field.<id>}}` (Angaben aus dem Formular, z. B. `{{field.email}}`), `{{case.title}}`, `{{case.id}}`, `{{case.url}}`, `{{case.step}}`, `{{workflow.title}}`, `{{starter.name}}`, `{{starter.email}}`, `{{actor.name}}` und `{{actor.email}}` (wer den Schritt zuletzt bearbeitet hat), `{{last.action}}`, `{{last.note}}` (Aktion und Notiz dieser Person), `{{site.name}}`, `{{date}}`. Im Editor fügt ein Klick auf einen Platzhalter ihn in das zuletzt benutzte Feld ein. Als Empfänger sind außerdem `starter`, `actor`, `user:name`, `group:name` und `role:name` möglich.
+
+Vorlagen: *Personal: Bewerbung* (mit Eingangsbestätigung und Absageschreiben per E-Mail), *Genehmigungsantrag* (Freigabe) und *Einarbeitung* (Wartezeit bis zum ersten Arbeitstag, Willkommens-E-Mail).
 
 Auf der Seite startet *Neuen Vorgang starten* einen Vorgang. Die Tabelle zeigt die Vorgänge, die Sie sehen dürfen; „Sie sind dran“ markiert, wo Sie handeln können. Ein Klick auf den Titel öffnet Angaben, Verlauf und Aktionen. **Meine Aufgaben** (Seitenleiste bzw. `/tasks`) sammelt alles, was auf Sie wartet. Laufende Vorgänge behalten den Ablauf, mit dem sie gestartet wurden, auch wenn die Seite später geändert wird.
 
@@ -72,6 +88,9 @@ Im Bearbeitungsmodus zeigt jede Seite, zu wie viel Prozent sie übersetzt ist un
 | Fehlt | noch keine Übersetzung |
 
 Mit *Übersetzen* bzw. *Bearbeiten* öffnen Sie den Editor für diese Sprache. Unter *Original anzeigen* sehen Sie den Ausgangstext.
+
+## E-Mail-Benachrichtigungen
+Unter *Mein Profil → E-Mail-Benachrichtigungen* legen Sie fest, worüber Sie per E-Mail informiert werden: neue Aufgaben und Erinnerungen, Abschluss Ihrer Vorgänge, Kommentare zu Ihren Seiten und Antworten in Diskussionen. Voraussetzung ist eine E-Mail-Adresse im Profil.
 
 ## Kommentare
 Unter jeder Seite können angemeldete Benutzer kommentieren und auf Kommentare antworten. Eigene Kommentare lassen sich bearbeiten und löschen. Links werden automatisch verlinkt.

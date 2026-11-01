@@ -132,7 +132,7 @@ test('create, edit, translate and search a page', async () => {
 });
 
 test('administration pages are accessible', async () => {
-  for (const section of ['users', 'groups', 'roles', 'plugins', 'updates', 'settings', 'languages', 'audit', 'menus', 'ldap', 'oidc', 'shibboleth', 'shell']) {
+  for (const section of ['users', 'groups', 'roles', 'plugins', 'updates', 'settings', 'languages', 'audit', 'menus', 'ldap', 'oidc', 'shibboleth', 'shell', 'mail', 'search']) {
     await page.goto(`${BASE}/admin/${section}`);
     await idle();
     await page.waitForSelector('.ew-admin-panel h1');
@@ -237,10 +237,20 @@ test('insert macros with the macro dialog', async () => {
 
 test('workflow: HR application from template, start and handle a case', async () => {
   await newPage('workflow.process', `Application ${run}`);
-  await page.locator('.ewf-template select').selectOption('hr');
+  await page.locator('.ewf-template:not(.ewf-add-step) select').selectOption('hr');
   await page.getByRole('button', { name: /use template|vorlage verwenden/i }).click();
   await page.waitForFunction(() => document.querySelectorAll('.ewf-step-row').length >= 4);
+  assert.ok(await page.locator('.ewf-step-row--email').count() >= 2, 'template contains e-mail steps');
   await a11y('workflow editor');
+  // add an approval step and change its type to a condition
+  await page.locator('.ewf-add-step select').selectOption('approval');
+  await page.getByRole('button', { name: /^(add step|schritt hinzufügen)$/i }).click();
+  await page.waitForSelector('.ewf-step-row--approval');
+  const last = page.locator('.ewf-step-row').last();
+  await last.locator('.ewf-step-type').selectOption('condition');
+  await page.waitForSelector('.ewf-step-row--condition');
+  await a11y('workflow editor with approval and condition steps');
+  await page.locator('.ewf-step-row').last().getByRole('button', { name: /^(delete|löschen)/i }).last().click();
   await page.getByRole('button', { name: /^(create|erstellen)$/i }).click();
   await page.waitForURL(/\/e\/\d+$/);
   await idle();

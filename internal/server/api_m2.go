@@ -14,6 +14,15 @@ import (
 
 const secretMask = "********"
 
+// maskConfig hides secrets of a configuration copy before it leaves the server.
+func maskConfig(c *config.Config) {
+	c.Database.URL = maskURL(c.Database.URL)
+	maskSecrets(c.Settings)
+	if p := c.Mail.SMTP.Password; p != "" && !config.HasEnvRef(p) {
+		c.Mail.SMTP.Password = secretMask
+	}
+}
+
 // maskSecrets hides plugin settings whose key looks secret (unless they are
 // ${ENV} references, which are safe to show).
 func maskSecrets(settings map[string]map[string]any) {

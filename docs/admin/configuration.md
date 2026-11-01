@@ -70,6 +70,7 @@ Sprachen werden in der Oberfläche unter *Administration → Sprachen & Überset
 | `revisions_keep_min` | je Seite und Sprache immer mindestens so viele Versionen behalten (≥ 1) | `50` |
 | `trash_days` | Papierkorb-Einträge nach so vielen Tagen endgültig löschen (`0` = nie) | `30` |
 | `audit_days` | Protokolleinträge nach so vielen Tagen löschen (`0` = nie) | `0` |
+| `mail_days` | gesendete E-Mails nach so vielen Tagen aus dem Postausgang löschen (`0` = nie) | `90` |
 
 Die jeweils aktuelle Version wird nie gelöscht. Gelöscht wird nur aus dem Papierkorb. Die Regeln laufen stündlich oder sofort über *Einstellungen → Aufbewahrung jetzt anwenden* bzw. `ewiki retention run`.
 
@@ -101,7 +102,41 @@ plugins:
 ```
 
 - **Shell-Makro:** Ein Befehl läuft erst, wenn ein Superadmin genau diesen Befehlstext freigegeben hat (gebunden an den SHA-256-Hash). Jede Änderung braucht eine neue Freigabe. Freigeben dürfen nur angemeldete Administratoren, die in `shell_approvers` stehen (nicht per API-Key), sowie die lokale Kommandozeile: `ewiki api POST /api/v1/x/macro.shell/commands '{"command":"uptime","approve":true}'`. Offene und freigegebene Befehle stehen unter *Administration → Shell-Befehle*.
-- **HTTP-Makro:** Nur URLs unter einem Präfix aus `http_allow` (gleiches Schema, gleicher Host, Pfad-Präfix). Verbindungen zu internen Adressen werden nach der DNS-Auflösung blockiert, solange `http_allow_private` nicht gesetzt ist. Mit `http_allow_private: true` gilt nur noch die Allow-Liste. Ein Proxy aus `HTTPS_PROXY` wird nur dann verwendet, wenn interne Adressen erlaubt sind (sonst ließe sich die Sperre über den Proxy umgehen).
+- **HTTP-Makro und Workflow-Webhooks:** Nur URLs unter einem Präfix aus `http_allow` (gleiches Schema, gleicher Host, Pfad-Präfix). Verbindungen zu internen Adressen werden nach der DNS-Auflösung blockiert, solange `http_allow_private` nicht gesetzt ist. Mit `http_allow_private: true` gilt nur noch die Allow-Liste. Ein Proxy aus `HTTPS_PROXY` wird nur dann verwendet, wenn interne Adressen erlaubt sind (sonst ließe sich die Sperre über den Proxy umgehen).
+
+### `mail`
+Ausgehende E-Mails (Benachrichtigungen, Workflow-E-Mails). Einstellbar auch unter *Administration → E-Mail*, dort gibt es eine Testnachricht, den Postausgang und „jetzt senden“.
+
+```yaml
+mail:
+  transport: auto            # auto | smtp | sendmail | log | none
+  from: wiki@example.com     # Absenderadresse (muss über den Mailserver senden dürfen: SPF/DKIM)
+  from_name: Enterprise Wiki
+  reply_to: ""               # optionale Antwortadresse
+  subject_prefix: "[Wiki]"   # optional
+  allowed_from:              # weitere Absender für Workflow-E-Mails
+    - "*@hr.example.com"
+  smtp:
+    host: smtp.example.com
+    port: 587                # leer: 587 (starttls), 465 (tls), 25 (none)
+    security: starttls       # starttls | tls | none
+    username: wiki@example.com
+    password: ${EWIKI_SMTP_PASSWORD}   # Wert in .env
+    skip_verify: false       # nur für interne Relays mit selbst signiertem Zertifikat
+  sendmail: /usr/sbin/sendmail
+```
+
+**Wie wird versendet?** Jede Nachricht landet zuerst im Postausgang (Tabelle `mail_outbox`), und zwar in derselben Transaktion wie die Änderung, die sie auslöst; ein Hintergrundjob versendet alle 10 Sekunden und wiederholt Fehlversuche mit wachsendem Abstand (1 min … 12 h, 8 Versuche). Mit `transport: auto` gilt:
+
+1. Ist `smtp.host` gesetzt, wird über diesen SMTP-Server versendet (empfohlen: der Mailserver bzw. Relay Ihrer Organisation, Microsoft 365, Google Workspace, Mailjet …).
+2. Sonst wird das `sendmail`-Programm des Servers verwendet, falls vorhanden (z. B. Postfix oder msmtp, das die Mails selbst weiterleitet).
+3. Sonst wird **nichts versendet**: Die Nachrichten bleiben als „zurückgehalten“ im Postausgang. Sobald ein Versandweg eingerichtet ist, werden zurückgehaltene Nachrichten der letzten 3 Tage automatisch versendet, ältere erst nach Bestätigung unter *Administration → E-Mail*. Ein direkter Versand an die Mailserver der Empfänger (ohne Relay) ist bewusst nicht eingebaut: Er landet fast immer im Spam oder wird blockiert (Port 25, fehlendes SPF/DKIM).
+
+`log` schreibt Nachrichten nur ins Server-Log (Test), `none` behält alles im Postausgang.
+
+Absender: Workflow-E-Mails dürfen nur `from` oder Adressen aus `allowed_from` als Absender verwenden; andere gewünschte Absender werden als Antwortadresse (Reply-To) gesetzt, damit keine fremden Absender gefälscht werden und SPF/DMARC nicht scheitern.
+
+Im Docker-Container werden beim ersten Start `EWIKI_MAIL_FROM`, `EWIKI_SMTP_HOST`, `EWIKI_SMTP_PORT`, `EWIKI_SMTP_SECURITY`, `EWIKI_SMTP_USER` und `EWIKI_SMTP_PASSWORD` übernommen (siehe `.env.example`).
 
 ### `plugin_settings`
 Frei strukturierte Einstellungen je Plugin, z. B.
@@ -118,6 +153,7 @@ Weitere Plugin-Einstellungen:
 
 | Plugin | Schlüssel | Bedeutung |
 |---|---|---|
+| `search.external` | `engine`, `url`, `index`, `api_key`, `username`, `password` | externe Suchmaschine, siehe [plugins.md](plugins.md#externe-suchmaschine) |
 | `core.comments` | `write_permission` | `view` (Standard): jeder angemeldete Benutzer mit Leserecht darf kommentieren; `edit`: nur mit Bearbeitungsrecht |
 
 Die Einstellungen der Anmeldeverfahren (`auth.ldap`, `auth.oidc`, `auth.shib`) sind in [authentication.md](authentication.md) beschrieben.

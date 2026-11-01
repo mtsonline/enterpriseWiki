@@ -1,0 +1,9 @@
+{
+  "id": "search.external",
+  "name": "External search engine",
+  "version": "1.0.0",
+  "description": "Uses OpenSearch/Elasticsearch or Meilisearch for the full text search of very large wikis (typo tolerance, relevance). PostgreSQL stays the source of truth: the index follows every change automatically and can be rebuilt at any time; if the engine is unavailable, the built-in search is used.",
+  "author": "Enterprise Wiki",
+  "kinds": ["generic"],
+  "frontend": true
+}

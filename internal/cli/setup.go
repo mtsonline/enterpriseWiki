@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	"github.com/mtsonline/enterprisewiki/internal/acl"
@@ -88,6 +89,19 @@ func (e *env) setup(args []string) error {
 		}
 		c.Plugins.Disabled = []string{}
 		c.Plugins.Catalog = []config.CatalogEntry{}
+		// outgoing e-mail (optional, e.g. for Docker): the password stays in the environment / .env
+		c.Mail.From = os.Getenv("EWIKI_MAIL_FROM")
+		if h := os.Getenv("EWIKI_SMTP_HOST"); h != "" {
+			c.Mail.SMTP.Host = h
+			c.Mail.SMTP.Port, _ = strconv.Atoi(os.Getenv("EWIKI_SMTP_PORT"))
+			if sec := os.Getenv("EWIKI_SMTP_SECURITY"); sec != "" {
+				c.Mail.SMTP.Security = sec
+			}
+			c.Mail.SMTP.Username = os.Getenv("EWIKI_SMTP_USER")
+			if os.Getenv("EWIKI_SMTP_PASSWORD") != "" {
+				c.Mail.SMTP.Password = "${EWIKI_SMTP_PASSWORD}"
+			}
+		}
 		if err := config.Validate(c); err != nil {
 			return err
 		}

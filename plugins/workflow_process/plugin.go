@@ -13,6 +13,7 @@ import (
 	"embed"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io/fs"
 	"net/http"
 	"net/mail"
@@ -79,6 +80,11 @@ type Instance struct {
 	ClosedAt    *time.Time        `json:"closed_at"`
 	Visited     []string          `json:"-"`
 	Actors      []int64           `json:"-"`
+	StepEntered time.Time         `json:"step_entered_at"`
+	WakeAt      *time.Time        `json:"wake_at"`
+	LastError   string            `json:"last_error,omitempty"`
+	// Progress of an approval step, e.g. "1/2".
+	Progress string `json:"progress,omitempty"`
 	// for the caller
 	Actions   []Action `json:"actions"`
 	CanCancel bool     `json:"can_cancel"`
@@ -101,15 +107,17 @@ const instCols = `i.id, i.element_id, e.category_id, e.titles, i.lang, i.title, 
 	COALESCE((SELECT u.display_name || ' (' || u.username || '@' || u.provider || ')' FROM users u WHERE u.id=i.started_by), ''),
 	i.started_at, i.updated_at, i.closed_at,
 	COALESCE((SELECT array_agg(DISTINCT x.to_step) FROM plugin_workflow_events x WHERE x.instance_id=i.id AND x.to_step IS NOT NULL), '{}'),
-	COALESCE((SELECT array_agg(DISTINCT x.actor_id) FROM plugin_workflow_events x WHERE x.instance_id=i.id AND x.actor_id IS NOT NULL), '{}')`
+	COALESCE((SELECT array_agg(DISTINCT x.actor_id) FROM plugin_workflow_events x WHERE x.instance_id=i.id AND x.actor_id IS NOT NULL), '{}'),
+	i.step_entered_at, i.wake_at, i.last_error`
 
 func scanInstance(r pgx.CollectableRow) (*Instance, error) {
 	var x Instance
 	err := r.Scan(&x.ID, &x.ElementID, &x.CategoryID, &x.Element, &x.Lang, &x.Title, &x.Data, &x.Definition, &x.Step, &x.Status,
-		&x.StartedByID, &x.StartedBy, &x.StartedAt, &x.UpdatedAt, &x.ClosedAt, &x.Visited, &x.Actors)
+		&x.StartedByID, &x.StartedBy, &x.StartedAt, &x.UpdatedAt, &x.ClosedAt, &x.Visited, &x.Actors, &x.StepEntered, &x.WakeAt, &x.LastError)
 	if err != nil {
 		return nil, err
 	}
+	x.Definition.normalizeTypes()
 	if s := x.Definition.Step(x.Step); s != nil {
 		x.StepName = s.Name
 		if x.Status == "done" {
@@ -164,7 +172,7 @@ func (pl *Plugin) caller(ctx context.Context) (*who, error) {
 
 // assigned reports whether the caller is responsible for step s of x.
 func (w *who) assigned(x *Instance, s *Step) bool {
-	if w.p == nil || w.p.ID() == 0 || s == nil || len(s.Actions) == 0 {
+	if w.p == nil || w.p.ID() == 0 || s == nil || !s.Manual() {
 		return false
 	}
 	v := strings.ToLower(s.Assignee.Value)
@@ -202,14 +210,52 @@ func (w *who) visible(x *Instance, manage bool) bool {
 	return false
 }
 
-// decorate fills the caller specific fields.
-func (w *who) decorate(x *Instance, manage bool) {
+// System actions of managers (failed webhooks).
+const (
+	ActRetry = "_retry"
+	ActSkip  = "_skip"
+)
+
+// decorate fills the caller specific fields (available actions).
+func (pl *Plugin) decorate(ctx context.Context, w *who, x *Instance, manage bool) {
 	x.Actions = []Action{}
-	if x.Status == "open" {
-		if s := x.Definition.Step(x.Step); s != nil && (w.assigned(x, s) || w.p.Admin()) {
+	x.CanCancel = false
+	if x.Status != "open" {
+		return
+	}
+	x.CanCancel = manage || w.p.Admin() || (x.StartedByID != nil && w.p != nil && *x.StartedByID == w.p.ID())
+	s := x.Definition.Step(x.Step)
+	if s == nil {
+		return
+	}
+	switch s.Type {
+	case StepTask:
+		if w.assigned(x, s) || w.p.Admin() {
 			x.Actions = s.Actions
 		}
-		x.CanCancel = manage || w.p.Admin() || (x.StartedByID != nil && *x.StartedByID == w.p.ID())
+	case StepApproval:
+		tx, err := pl.host.DB.Begin(ctx)
+		if err != nil {
+			return
+		}
+		defer tx.Rollback(ctx) //nolint:errcheck
+		voted, err := pl.voters(ctx, tx, x)
+		if err != nil {
+			return
+		}
+		need, err := pl.required(ctx, tx, x, s)
+		if err != nil {
+			return
+		}
+		x.Progress = fmt.Sprintf("%d/%d", len(voted), need)
+		if (w.assigned(x, s) || w.p.Admin()) && w.p != nil && !voted[w.p.ID()] {
+			x.Actions = []Action{{ID: "approve", Label: s.ApproveLabel, Next: s.Next, Note: "optional"},
+				{ID: "reject", Label: s.RejectLabel, Next: s.NextElse, Note: "required"}}
+		}
+	case StepWebhook:
+		if x.WakeAt == nil && (manage || w.p.Admin()) { // failed, waiting for a decision
+			x.Actions = []Action{{ID: ActRetry, Next: s.ID}, {ID: ActSkip, Next: s.Next, Note: "optional"}}
+		}
 	}
 }
 
@@ -240,7 +286,7 @@ func (pl *Plugin) load(ctx context.Context, id int64) (*Instance, *who, bool, er
 	if !w.visible(x, m) {
 		return nil, nil, false, apperr.NotFound("case")
 	}
-	w.decorate(x, m)
+	pl.decorate(ctx, w, x, m)
 	return x, w, m, nil
 }
 
@@ -368,6 +414,15 @@ func (pl *Plugin) Setup(host *sdk.Host) error {
 	pl.host = host
 	host.RegisterElementType(Type{})
 	host.Files.AddReference("plugin_workflow_instances", "data")
+	host.RegisterWorker("timers", 30*time.Second, pl.runTimers)
+
+	// GET /meta describes step types, rule operators and placeholders (editor).
+	host.Handle("GET", "/meta", func(w http.ResponseWriter, r *http.Request) (any, error) {
+		st, err := host.Mail.GetStatus(r.Context())
+		mailOK := err == nil && st.Transport != ""
+		return map[string]any{"step_types": StepTypes, "rule_ops": RuleOps, "placeholders": Placeholders,
+			"field_types": FieldTypes, "mail_configured": mailOK, "http_allow": len(host.Config.Get().Plugins.Macros.HTTPAllow) > 0}, nil
+	})
 
 	// GET /elements/{id}/instances lists the cases of a workflow the caller can see.
 	host.Handle("GET", "/elements/{id}/instances", func(w http.ResponseWriter, r *http.Request) (any, error) {
@@ -402,7 +457,7 @@ func (pl *Plugin) Setup(host *sdk.Host) error {
 		list := []*Instance{}
 		for _, x := range all {
 			if me.visible(x, m) {
-				me.decorate(x, m)
+				pl.decorate(ctx, me, x, m)
 				list = append(list, x)
 			}
 		}
@@ -457,12 +512,17 @@ func (pl *Plugin) Setup(host *sdk.Host) error {
 		var iid int64
 		err = pgx.BeginFunc(ctx, host.DB, func(tx pgx.Tx) error {
 			if err := tx.QueryRow(ctx, `INSERT INTO plugin_workflow_instances(element_id, lang, title, data, definition, step, status, started_by)
-				VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING id`, id, shown, title, data, def, first.ID,
-				map[bool]string{true: "done", false: "open"}[len(first.Actions) == 0], p.ID()).Scan(&iid); err != nil {
+				VALUES ($1,$2,$3,$4,$5,$6,'open',$7) RETURNING id`, id, shown, title, data, def, first.ID, p.ID()).Scan(&iid); err != nil {
 				return err
 			}
-			if _, err := tx.Exec(ctx, `INSERT INTO plugin_workflow_events(instance_id, from_step, to_step, action, action_label, actor_id, actor)
-				VALUES ($1, NULL, $2, 'start', '', $3, $4)`, iid, first.ID, p.ID(), p.Handle()); err != nil {
+			if err := event(ctx, tx, iid, nil, sp(first.ID), "start", "", "", actorInfo{p: p}); err != nil {
+				return err
+			}
+			x, err := pl.loadTx(ctx, tx, iid)
+			if err != nil {
+				return err
+			}
+			if err := pl.enter(ctx, tx, x, first.ID, actorInfo{p: p}); err != nil {
 				return err
 			}
 			return audit.Log(ctx, tx, "workflow.start", "workflow_case", iid, nil, map[string]any{"element_id": id, "title": title})
@@ -584,10 +644,14 @@ func (pl *Plugin) Setup(host *sdk.Host) error {
 			}
 			m := perms[x.CategoryID]&acl.Manage != 0
 			if x.Status == "open" && me.assigned(x, x.Definition.Step(x.Step)) {
-				me.decorate(x, m)
-				tasks = append(tasks, x)
-			} else if x.StartedByID != nil && *x.StartedByID == me.p.ID() && len(started) < 100 {
-				me.decorate(x, m)
+				pl.decorate(ctx, me, x, m)
+				if len(x.Actions) > 0 { // e.g. not yet voted
+					tasks = append(tasks, x)
+					continue
+				}
+			}
+			if x.StartedByID != nil && *x.StartedByID == me.p.ID() && len(started) < 100 {
+				pl.decorate(ctx, me, x, m)
 				started = append(started, x)
 			}
 		}
@@ -596,9 +660,22 @@ func (pl *Plugin) Setup(host *sdk.Host) error {
 	return nil
 }
 
+// loadTx loads a case inside a transaction and locks it.
+func (pl *Plugin) loadTx(ctx context.Context, tx pgx.Tx, id int64) (*Instance, error) {
+	rows, err := tx.Query(ctx, `SELECT `+instCols+` FROM plugin_workflow_instances i JOIN elements e ON e.id=i.element_id WHERE i.id=$1 FOR UPDATE OF i`, id)
+	if err != nil {
+		return nil, err
+	}
+	x, err := pgx.CollectExactlyOneRow(rows, scanInstance)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, apperr.NotFound("case")
+	}
+	return x, err
+}
+
 // transition performs action (or cancels the case when action is "").
 func (pl *Plugin) transition(ctx context.Context, id int64, action, note string) (*Instance, error) {
-	x, _, _, err := pl.load(ctx, id)
+	x, w, _, err := pl.load(ctx, id)
 	if err != nil {
 		return nil, err
 	}
@@ -610,13 +687,12 @@ func (pl *Plugin) transition(ctx context.Context, id int64, action, note string)
 		return nil, err
 	}
 	p := identity.From(ctx)
+	s := x.Definition.Step(x.Step)
 	var a *Action
-	to, status, label := x.Step, "open", ""
 	if action == "" {
 		if !x.CanCancel {
 			return nil, apperr.ErrForbidden
 		}
-		action, status, label = "cancel", "cancelled", ""
 	} else {
 		for i := range x.Actions {
 			if x.Actions[i].ID == action {
@@ -624,42 +700,84 @@ func (pl *Plugin) transition(ctx context.Context, id int64, action, note string)
 			}
 		}
 		if a == nil {
-			if s := x.Definition.Step(x.Step); s != nil {
-				for _, sa := range s.Actions {
-					if sa.ID == action {
-						return nil, apperr.ErrForbidden
-					}
-				}
+			if s != nil && w.assigned(x, s) && s.Type == StepApproval {
+				return nil, apperr.Conflict("you have already voted")
+			}
+			if s != nil && (s.Type == StepTask && slices.ContainsFunc(s.Actions, func(sa Action) bool { return sa.ID == action }) ||
+				s.Type == StepApproval && (action == "approve" || action == "reject")) {
+				return nil, apperr.ErrForbidden
 			}
 			return nil, apperr.BadRequest("unknown action %q", action)
 		}
 		if a.Note == "required" && note == "" {
-			return nil, apperr.BadRequest("a note is required for %q", a.Label)
-		}
-		to, label = a.Next, a.Label
-		if n := x.Definition.Step(to); n != nil && len(n.Actions) == 0 {
-			status = "done"
+			return nil, apperr.BadRequest("a note is required")
 		}
 	}
 	err = pgx.BeginFunc(ctx, pl.host.DB, func(tx pgx.Tx) error {
-		tag, err := tx.Exec(ctx, `UPDATE plugin_workflow_instances SET step=$2, status=$3, updated_at=now(),
-			closed_at=CASE WHEN $3='open' THEN NULL ELSE now() END WHERE id=$1 AND status='open' AND step=$4`, id, to, status, x.Step)
+		cur, err := pl.loadTx(ctx, tx, id)
 		if err != nil {
 			return err
 		}
-		if tag.RowsAffected() == 0 {
+		if cur.Status != "open" || cur.Step != x.Step || !cur.StepEntered.Equal(x.StepEntered) {
 			return apperr.Conflict("the case was changed by someone else, please reload")
 		}
-		var toStep *string
-		if action != "cancel" {
-			toStep = &to
+		label := ""
+		if a != nil {
+			label = a.Label
 		}
-		if _, err := tx.Exec(ctx, `INSERT INTO plugin_workflow_events(instance_id, from_step, to_step, action, action_label, note, actor_id, actor)
-			VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`, id, x.Step, toStep, action, label, note, nullID(p.ID()), p.Handle()); err != nil {
-			return err
+		ai := actorInfo{p: p, action: label, note: note}
+		before := cur.Step
+		switch {
+		case action == "":
+			if err := event(ctx, tx, id, sp(cur.Step), nil, "cancel", "", note, ai); err != nil {
+				return err
+			}
+			cur.Status = "cancelled"
+			if _, err := tx.Exec(ctx, `UPDATE plugin_workflow_instances SET status='cancelled', updated_at=now(), closed_at=now(), wake_at=NULL WHERE id=$1`, id); err != nil {
+				return err
+			}
+			if err := pl.notifyStarter(ctx, tx, cur, ai, "cancelled"); err != nil {
+				return err
+			}
+		case s.Type == StepApproval && action == "approve":
+			if a.Label == "" {
+				ai.action = "approve"
+			}
+			if err := event(ctx, tx, id, sp(cur.Step), sp(cur.Step), "approve", a.Label, note, ai); err != nil {
+				return err
+			}
+			voted, err := pl.voters(ctx, tx, cur)
+			if err != nil {
+				return err
+			}
+			need, err := pl.required(ctx, tx, cur, s)
+			if err != nil {
+				return err
+			}
+			if len(voted) >= need {
+				if err := pl.enter(ctx, tx, cur, s.Next, ai); err != nil {
+					return err
+				}
+			} else if _, err := tx.Exec(ctx, `UPDATE plugin_workflow_instances SET updated_at=now() WHERE id=$1`, id); err != nil {
+				return err
+			}
+		case action == ActRetry:
+			if err := event(ctx, tx, id, sp(cur.Step), sp(cur.Step), "retry", "", note, ai); err != nil {
+				return err
+			}
+			if _, err := tx.Exec(ctx, `UPDATE plugin_workflow_instances SET wake_at=now(), attempts=0, last_error='', updated_at=now() WHERE id=$1`, id); err != nil {
+				return err
+			}
+		default: // task action, rejection, skip
+			if err := event(ctx, tx, id, sp(cur.Step), sp(a.Next), action, a.Label, note, ai); err != nil {
+				return err
+			}
+			if err := pl.enter(ctx, tx, cur, a.Next, ai); err != nil {
+				return err
+			}
 		}
-		return audit.Log(ctx, tx, "workflow."+map[bool]string{true: "cancel", false: "action"}[action == "cancel"], "workflow_case", id,
-			map[string]string{"step": x.Step}, map[string]string{"step": to, "action": action, "status": status})
+		return audit.Log(ctx, tx, "workflow."+map[bool]string{true: "cancel", false: "action"}[action == ""], "workflow_case", id,
+			map[string]string{"step": before}, map[string]string{"step": cur.Step, "action": action, "status": cur.Status})
 	})
 	if err != nil {
 		return nil, err
@@ -667,7 +785,7 @@ func (pl *Plugin) transition(ctx context.Context, id int64, action, note string)
 	nx, _, _, err := pl.load(ctx, id)
 	if err != nil {
 		// the actor may no longer see the case (e.g. handed over to another group)
-		return &Instance{ID: id, Status: status, Step: to, Actions: []Action{}}, nil
+		return &Instance{ID: id, Status: "open", Actions: []Action{}}, nil
 	}
 	if nx.Events, err = pl.events(ctx, id); err != nil {
 		return nil, err

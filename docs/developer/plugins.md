@@ -159,6 +159,13 @@ host.RegisterMacro(&Weather{})
 
 Speichert ein Plugin Datei-Hashes außerhalb von Element-Inhalten, meldet es die Spalte an, damit die Aufräumfunktion die Dateien nicht löscht: `host.Files.AddReference("plugin_acme_items", "data")`. Ausliefern mit Rechteprüfung: `host.Files.Get` und `host.Files.Serve` (siehe `plugins/workflow_process`).
 
+### E-Mail, Hintergrundjobs, Übersetzungen im Backend
+
+- `host.Mail.Enqueue(ctx, tx, mail.Message{To, Cc, From, ReplyTo, Subject, Text, Source, Ref})` schreibt eine E-Mail in den Postausgang, am besten in derselben Transaktion wie die auslösende Änderung. Versand, Wiederholungen und der Fall „kein Mailserver“ sind Sache des Kerns. `host.Mail.Users(ctx, tx, ids)` liefert Adresse, Sprache und Benachrichtigungswünsche (`u.Wants("tasks")`).
+- `host.T(ctx, lang, "acme.mail.subject", map[string]string{"name": …})` übersetzt Texte aus den Locale-Dateien des Plugins (z. B. für E-Mails in der Sprache des Empfängers).
+- `host.RegisterWorker("sync", 30*time.Second, func(ctx) error)` registriert einen Hintergrundjob `<plugin-id>.sync`; er läuft nur, solange das Plugin aktiv ist, im Cluster auf einer Instanz zur selben Zeit. Verwenden Sie trotzdem `FOR UPDATE SKIP LOCKED`.
+- `host.RegisterSearchBackend(b)` bindet eine externe Suchmaschine an (`content.SearchBackend`, siehe `plugins/search_external`). Die Tabelle `search_changes` protokolliert jede Änderung am Suchindex.
+
 ### Rechte in Plugin-Routen
 
 `host.Content.ElementCategory(ctx, elementID, acl.View)` liefert die Kategorie eines Elements und prüft dabei das Recht (404 statt 403, wenn das Element nicht sichtbar ist). `host.Content.Require(ctx, categoryID, perm)` prüft ein Recht auf einer Kategorie.

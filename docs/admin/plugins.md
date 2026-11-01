@@ -59,6 +59,15 @@ ewiki plugin build              # Neubau, danach: systemctl restart enterprisewi
 
 Für GitHub Enterprise oder private Repositories siehe `plugins.updates` in [configuration.md](configuration.md).
 
+## Externe Suchmaschine
+
+Für sehr große Datenbestände kann die Volltextsuche **OpenSearch/Elasticsearch** (ab 7.10 bzw. OpenSearch 1.x) oder **Meilisearch** (ab 1.3) verwenden: bessere Relevanz, Tippfehler-Toleranz, Entlastung der Datenbank. Einrichtung unter *Administration → Suchmaschine*: Suchmaschine wählen, URL, Indexname und Zugangsdaten eintragen, *Verbindung testen*.
+
+- PostgreSQL bleibt die Referenz. Jede Änderung (Speichern, Verschieben, Tags, Papierkorb, Wiederherstellen, Löschen) landet über Datenbank-Trigger in einem Änderungsprotokoll; ein Hintergrundjob überträgt sie alle 10 Sekunden. Nach einer Änderung von Suchmaschine, URL oder Index sowie mit *Index neu aufbauen* wird der Index vollständig neu erstellt.
+- Gesucht wird extern erst, wenn der Index vollständig aufgebaut ist. Bis dahin, bei Fehlern der Suchmaschine und bei deaktiviertem Plugin antwortet automatisch die eingebaute Suche. Die Antwort der Such-API enthält dazu `engine`.
+- Berechtigungen, Papierkorb und Tags prüft immer das Wiki selbst; die Suchmaschine bekommt keine Rechteinformationen und muss nicht öffentlich erreichbar sein (sie sollte es auch nicht sein).
+- Getestet ist die Anbindung gegen die dokumentierten APIs mit Testservern; vor dem Produktiveinsatz bitte mit Ihrer Version prüfen (*Verbindung testen*, *Index neu aufbauen*, Anzahl der Dokumente vergleichen).
+
 ## Manuelle Installation
 
 1. Plugin-Verzeichnis nach `plugins/<name>/` kopieren (es enthält `plugin.json`, Go-Dateien und optional `web/`, `locales/`, `migrations/`).
@@ -85,7 +94,8 @@ Plugins sind vollwertiger Code mit Zugriff auf Datenbank und Server. Installiere
 | `macro.shell` | Makro | Ausgabe eines Shell-Befehls, nur nach exakter Freigabe durch einen Superadmin, standardmäßig aus |
 | `macro.http` | Makro | Ergebnis eines HTTP-Abrufs, nur Adressen aus der Allow-Liste |
 | `core.comments` | Allgemein | Kommentare und Antworten unter Seiten |
-| `workflow.process` | Elementtyp | Abläufe wie Bewerbungen oder Genehmigungen mit Formular, Schritten, Zuständigen und Verlauf |
+| `workflow.process` | Elementtyp | Abläufe wie Bewerbungen oder Genehmigungen: Formular, Aufgaben, Freigaben (Vier-Augen), Bedingungen, E-Mails, Webhooks, Wartezeiten, Erinnerungen |
+| `search.external` | Allgemein | OpenSearch/Elasticsearch oder Meilisearch für die Volltextsuche |
 | `theme.confluence` | Template | Dokumentations-Layout mit Seitenbaum |
 | `theme.cms` | Template | Website-Layout mit Hauptnavigation, Off-Canvas-Menü und Footer-Spalten |
 | `theme.confluence.dark` | Template (Beispiel) | erbt von `theme.confluence`, ändert nur die Farben |

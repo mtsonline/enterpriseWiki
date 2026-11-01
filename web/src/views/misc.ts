@@ -148,6 +148,30 @@ export async function loginView({ query, main }: RouteCtx): Promise<void> {
 interface APIKey { id: number; name: string; prefix: string; permissions: number; category_id: number | null; allow_admin: boolean; expires_at: string; created_at: string; last_used_at: string | null; revoked_at: string | null; token?: string }
 interface SSHKey { id: number; name: string; fingerprint: string; created_at: string; last_used_at: string | null }
 
+// E-mail notification preferences.
+async function notificationSection(): Promise<HTMLElement | null> {
+  let data: { email: string; prefs: Record<string, boolean>; kinds: string[] };
+  try {
+    data = await api.get('me/notifications');
+  } catch {
+    return null;
+  }
+  const boxes = data.kinds.map((k) => ({ k, c: checkbox(t(`notify.${k}`), data.prefs[k], { help: t(`notify.${k}_help`) }) }));
+  const alert = h('div', { class: 'ew-form-alert', role: 'alert' });
+  const f = h('form', { class: 'ew-form', novalidate: true }, alert,
+    h('fieldset', null, h('legend', null, t('notify.legend')), ...boxes.map((b) => b.c.el)),
+    h('div', { class: 'ew-form-actions' }, button(t('common.save'), () => undefined, { type: 'submit', variant: 'primary' })));
+  f.addEventListener('submit', async (ev) => {
+    ev.preventDefault();
+    try {
+      await api.put('me/notifications', Object.fromEntries(boxes.map((b) => [b.k, b.c.input.checked])));
+      toast(t('common.saved'));
+    } catch (e) { alert.textContent = errorText(e); }
+  });
+  return h('section', { class: 'ew-section', 'aria-labelledby': 'nt-h' }, h('h2', { id: 'nt-h' }, t('notify.title')),
+    h('p', null, data.email ? t('notify.help', { email: data.email }) : t('notify.no_email')), f);
+}
+
 export async function profileView({ main }: RouteCtx): Promise<void> {
   setContext(0, [], []);
   const u = state.user;
@@ -220,6 +244,7 @@ export async function profileView({ main }: RouteCtx): Promise<void> {
   mount(main, pageHeader(t('profile.title')),
     h('p', null, t('profile.logged_in_as', { handle: `${u.username}@${u.provider}` })),
     h('section', { class: 'ew-section', 'aria-labelledby': 'pr-h' }, h('h2', { id: 'pr-h' }, t('profile.data')), pForm),
+    await notificationSection(),
     pwSection,
     u.provider === 'local' ? await totpSection() : null,
     h('section', { class: 'ew-section', 'aria-labelledby': 'ak-h' }, h('h2', { id: 'ak-h' }, t('apikey.title')), h('p', null, t('apikey.help')),

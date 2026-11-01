@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"html"
+	"net/url"
 	"regexp"
 	"strings"
 	"unicode/utf8"
@@ -45,16 +46,88 @@ type Action struct {
 	Note  string `json:"note,omitempty"` // "" | optional | required
 }
 
-// Step is a state of the process. A step without actions ends the case.
+// Step types.
+const (
+	StepTask      = "task"      // a person decides with one of the actions
+	StepApproval  = "approval"  // one or more approvals (four-eyes principle), one rejection ends it
+	StepCondition = "condition" // automatic branch on form data
+	StepEmail     = "email"     // automatic: send a predefined e-mail
+	StepWebhook   = "webhook"   // automatic: call an external system
+	StepDelay     = "delay"     // automatic: wait for a time or a date from the form
+	StepEnd       = "end"       // closes the case
+)
+
+// StepTypes lists all step types.
+var StepTypes = []string{StepTask, StepApproval, StepCondition, StepEmail, StepWebhook, StepDelay, StepEnd}
+
+// Rule is a condition on the case data.
+type Rule struct {
+	Field string `json:"field"` // form field id or case.title
+	Op    string `json:"op"`    // equals | not_equals | contains | not_contains | empty | not_empty | gt | gte | lt | lte
+	Value string `json:"value,omitempty"`
+}
+
+// EmailSpec is the e-mail of an email step. All texts may contain placeholders.
+type EmailSpec struct {
+	To      string `json:"to"`                 // addresses, starter, actor, user:NAME, group:NAME, role:NAME, {{field.email}}
+	Cc      string `json:"cc,omitempty"`       // like To
+	From    string `json:"from,omitempty"`     // sender (must be allowed in mail.allowed_from, otherwise used as Reply-To)
+	ReplyTo string `json:"reply_to,omitempty"` // reply address
+	Subject string `json:"subject"`
+	Body    string `json:"body"`
+}
+
+// WebhookSpec calls an external system with the case as JSON.
+type WebhookSpec struct {
+	URL    string `json:"url"`
+	Method string `json:"method,omitempty"` // POST (default) or PUT
+	// Secret signs the body: header X-Ewiki-Signature: sha256=<hex HMAC>.
+	Secret string `json:"secret,omitempty"`
+}
+
+// DelaySpec waits a fixed time or until a date from the form.
+type DelaySpec struct {
+	Days  int    `json:"days,omitempty"`
+	Hours int    `json:"hours,omitempty"`
+	Until string `json:"until,omitempty"` // id of a date field: wait until that date (plus days/hours)
+}
+
+// Step is a state of the process.
 type Step struct {
 	ID          string   `json:"id"`
 	Name        string   `json:"name"`
+	Type        string   `json:"type"`
 	Description string   `json:"description,omitempty"`
 	Assignee    Assignee `json:"assignee"`
 	Actions     []Action `json:"actions"`
-	// Outcome of a final step: success | failure | neutral.
+	// Outcome of an end step: success | failure | neutral.
 	Outcome string `json:"outcome,omitempty"`
+	// DueDays sends a reminder to the assignees of a task or approval after
+	// this many days (0 = no reminder).
+	DueDays int `json:"due_days,omitempty"`
+	// Required approvals (approval steps, 0 = all members of the group/role).
+	Required     int    `json:"required,omitempty"`
+	ApproveLabel string `json:"approve_label,omitempty"`
+	RejectLabel  string `json:"reject_label,omitempty"`
+	// Next: following step of approval (approved), condition (true), email,
+	// webhook and delay steps. NextElse: approval rejected, condition false,
+	// webhook failed (optional).
+	Next     string       `json:"next,omitempty"`
+	NextElse string       `json:"next_else,omitempty"`
+	Match    string       `json:"match,omitempty"` // condition: all (default) | any
+	Rules    []Rule       `json:"rules,omitempty"`
+	Email    *EmailSpec   `json:"email,omitempty"`
+	Webhook  *WebhookSpec `json:"webhook,omitempty"`
+	Delay    *DelaySpec   `json:"delay,omitempty"`
 }
+
+// Automatic reports whether the step runs without a person.
+func (s *Step) Automatic() bool {
+	return s.Type == StepCondition || s.Type == StepEmail || s.Type == StepWebhook || s.Type == StepDelay
+}
+
+// Manual reports whether people act on the step.
+func (s *Step) Manual() bool { return s.Type == StepTask || s.Type == StepApproval }
 
 // Step returns the step with id (nil if unknown).
 func (d *Definition) Step(id string) *Step {
@@ -133,6 +206,10 @@ func (d *Definition) Validate() error {
 	if len(d.Steps) == 0 {
 		return apperr.BadRequest("a workflow needs at least one step")
 	}
+	fieldType := map[string]string{}
+	for _, f := range d.Fields {
+		fieldType[f.ID] = f.Type
+	}
 	for i := range d.Steps {
 		s := &d.Steps[i]
 		if !idRe.MatchString(s.ID) || seen["s:"+s.ID] {
@@ -145,17 +222,53 @@ func (d *Definition) Validate() error {
 		if s.Description, err = clean(s.Description, 2000); err != nil {
 			return err
 		}
-		if s.Actions == nil {
-			s.Actions = []Action{}
-		}
-		if len(s.Actions) == 0 {
-			if !in(s.Outcome, "success", "failure", "neutral") {
-				s.Outcome = "neutral"
+		if s.Type == "" { // definitions before step types existed
+			s.Type = StepTask
+			if len(s.Actions) == 0 {
+				s.Type = StepEnd
 			}
-			s.Assignee = Assignee{}
-			continue
 		}
-		s.Outcome = ""
+		if !in(s.Type, StepTypes...) {
+			return apperr.BadRequest("step %q: unknown type %q", s.ID, s.Type)
+		}
+		if err := s.validate(fieldType); err != nil {
+			return err
+		}
+	}
+	for _, s := range d.Steps {
+		for _, a := range s.Actions {
+			if d.Step(a.Next) == nil {
+				return apperr.BadRequest("step %q, action %q: next step %q does not exist", s.ID, a.ID, a.Next)
+			}
+		}
+		for _, n := range []string{s.Next, s.NextElse} {
+			if n != "" && d.Step(n) == nil {
+				return apperr.BadRequest("step %q: next step %q does not exist", s.ID, n)
+			}
+		}
+	}
+	if d.Fields == nil {
+		d.Fields = []Field{}
+	}
+	return nil
+}
+
+// RuleOps are the operators of condition rules.
+var RuleOps = []string{"equals", "not_equals", "contains", "not_contains", "empty", "not_empty", "gt", "gte", "lt", "lte"}
+
+func (s *Step) validate(fieldType map[string]string) error {
+	var err error
+	need := func(v, what string) error {
+		if v == "" {
+			return apperr.BadRequest("step %q: %s is required", s.ID, what)
+		}
+		return nil
+	}
+	reset := func() { // fields that do not apply to the type
+		s.Assignee, s.Actions, s.Outcome, s.DueDays, s.Required = Assignee{}, []Action{}, "", 0, 0
+		s.ApproveLabel, s.RejectLabel, s.Match, s.Rules = "", "", "", nil
+	}
+	assignee := func() error {
 		s.Assignee.Value = strings.TrimSpace(s.Assignee.Value)
 		if !in(s.Assignee.Type, "starter", "user", "group", "role") {
 			return apperr.BadRequest("step %q: assignee type must be starter, user, group or role", s.ID)
@@ -165,8 +278,29 @@ func (d *Definition) Validate() error {
 		} else if s.Assignee.Value == "" {
 			return apperr.BadRequest("step %q: assignee is required", s.ID)
 		}
-		if len(s.Actions) > 10 {
-			return apperr.BadRequest("step %q: at most 10 actions", s.ID)
+		if s.DueDays < 0 || s.DueDays > 365 {
+			return apperr.BadRequest("step %q: reminder after 0 to 365 days", s.ID)
+		}
+		return nil
+	}
+	email, webhook, delay := s.Email, s.Webhook, s.Delay
+	s.Email, s.Webhook, s.Delay = nil, nil, nil
+	switch s.Type {
+	case StepEnd:
+		out := s.Outcome
+		reset()
+		s.Next, s.NextElse = "", ""
+		if !in(out, "success", "failure", "neutral") {
+			out = "neutral"
+		}
+		s.Outcome = out
+	case StepTask:
+		s.Outcome, s.Required, s.ApproveLabel, s.RejectLabel, s.Next, s.NextElse, s.Match, s.Rules = "", 0, "", "", "", "", "", nil
+		if err := assignee(); err != nil {
+			return err
+		}
+		if len(s.Actions) == 0 || len(s.Actions) > 10 {
+			return apperr.BadRequest("step %q: a task needs 1 to 10 actions", s.ID)
 		}
 		aseen := map[string]bool{}
 		for j := range s.Actions {
@@ -182,16 +316,129 @@ func (d *Definition) Validate() error {
 				a.Note = ""
 			}
 		}
-	}
-	for _, s := range d.Steps {
-		for _, a := range s.Actions {
-			if d.Step(a.Next) == nil {
-				return apperr.BadRequest("step %q, action %q: next step %q does not exist", s.ID, a.ID, a.Next)
+	case StepApproval:
+		s.Actions, s.Outcome, s.Match, s.Rules = []Action{}, "", "", nil
+		if err := assignee(); err != nil {
+			return err
+		}
+		if s.Required < 0 || s.Required > 100 {
+			return apperr.BadRequest("step %q: required approvals 0 to 100", s.ID)
+		}
+		if s.ApproveLabel, err = clean(s.ApproveLabel, 100); err != nil {
+			return err
+		}
+		if s.RejectLabel, err = clean(s.RejectLabel, 100); err != nil {
+			return err
+		}
+		if err := need(s.Next, "the step after approval"); err != nil {
+			return err
+		}
+		if err := need(s.NextElse, "the step after rejection"); err != nil {
+			return err
+		}
+	case StepCondition:
+		match, rules := s.Match, s.Rules
+		reset()
+		if match != "any" {
+			match = "all"
+		}
+		s.Match = match
+		if len(rules) == 0 || len(rules) > 20 {
+			return apperr.BadRequest("step %q: a condition needs 1 to 20 rules", s.ID)
+		}
+		for j := range rules {
+			r := &rules[j]
+			if r.Field != "case.title" {
+				if _, ok := fieldType[r.Field]; !ok {
+					return apperr.BadRequest("step %q, rule %d: unknown field %q", s.ID, j+1, r.Field)
+				}
+			}
+			if !in(r.Op, RuleOps...) {
+				return apperr.BadRequest("step %q, rule %d: unknown operator %q", s.ID, j+1, r.Op)
+			}
+			if r.Value, err = clean(r.Value, 500); err != nil {
+				return err
 			}
 		}
+		s.Rules = rules
+		if err := need(s.Next, "the step if the condition is met"); err != nil {
+			return err
+		}
+		if err := need(s.NextElse, "the step if the condition is not met"); err != nil {
+			return err
+		}
+	case StepEmail:
+		reset()
+		s.NextElse = ""
+		if email == nil {
+			return apperr.BadRequest("step %q: the e-mail is missing", s.ID)
+		}
+		e := *email
+		for _, f := range []*string{&e.To, &e.Cc, &e.From, &e.ReplyTo} {
+			if *f, err = clean(*f, 1000); err != nil {
+				return err
+			}
+		}
+		if e.Subject, err = clean(e.Subject, 250); err != nil {
+			return err
+		}
+		if e.Body, err = clean(e.Body, 50000); err != nil {
+			return err
+		}
+		if e.To == "" || e.Subject == "" || e.Body == "" {
+			return apperr.BadRequest("step %q: recipient, subject and text of the e-mail are required", s.ID)
+		}
+		s.Email = &e
+		if err := need(s.Next, "the next step"); err != nil {
+			return err
+		}
+	case StepWebhook:
+		reset()
+		if webhook == nil {
+			return apperr.BadRequest("step %q: the webhook is missing", s.ID)
+		}
+		w := *webhook
+		w.URL = strings.TrimSpace(w.URL)
+		if u, err := url.Parse(w.URL); err != nil || (u.Scheme != "https" && u.Scheme != "http") || u.Host == "" {
+			return apperr.BadRequest("step %q: invalid webhook URL", s.ID)
+		}
+		w.Method = strings.ToUpper(w.Method)
+		if w.Method == "" {
+			w.Method = "POST"
+		}
+		if w.Method != "POST" && w.Method != "PUT" {
+			return apperr.BadRequest("step %q: webhook method must be POST or PUT", s.ID)
+		}
+		if len(w.Secret) > 200 {
+			return apperr.BadRequest("step %q: secret too long", s.ID)
+		}
+		s.Webhook = &w
+		if err := need(s.Next, "the next step"); err != nil {
+			return err
+		}
+	case StepDelay:
+		reset()
+		s.NextElse = ""
+		if delay == nil {
+			return apperr.BadRequest("step %q: the waiting time is missing", s.ID)
+		}
+		dl := *delay
+		if dl.Days < 0 || dl.Days > 3650 || dl.Hours < 0 || dl.Hours > 10000 {
+			return apperr.BadRequest("step %q: invalid waiting time", s.ID)
+		}
+		if dl.Until != "" && fieldType[dl.Until] != "date" {
+			return apperr.BadRequest("step %q: %q is not a date field", s.ID, dl.Until)
+		}
+		if dl.Until == "" && dl.Days == 0 && dl.Hours == 0 {
+			return apperr.BadRequest("step %q: enter a waiting time or a date field", s.ID)
+		}
+		s.Delay = &dl
+		if err := need(s.Next, "the next step"); err != nil {
+			return err
+		}
 	}
-	if d.Fields == nil {
-		d.Fields = []Field{}
+	if s.Actions == nil {
+		s.Actions = []Action{}
 	}
 	return nil
 }
@@ -252,14 +499,28 @@ func (Type) Text(raw json.RawMessage) string {
 }
 
 var msgs = map[string]map[string]string{
-	"process":  {"en": "Process", "de": "Ablauf"},
-	"assignee": {"en": "Handled by", "de": "Bearbeitet von"},
-	"starter":  {"en": "the person who started the case", "de": "die Person, die den Vorgang gestartet hat"},
-	"user":     {"en": "user %s", "de": "Benutzer %s"},
-	"group":    {"en": "group %s", "de": "Gruppe %s"},
-	"role":     {"en": "role %s", "de": "Rolle %s"},
-	"end":      {"en": "End of the process", "de": "Ende des Ablaufs"},
-	"goto":     {"en": "%s → %s", "de": "%s → %s"},
+	"process":   {"en": "Process", "de": "Ablauf"},
+	"assignee":  {"en": "Handled by", "de": "Bearbeitet von"},
+	"starter":   {"en": "the person who started the case", "de": "die Person, die den Vorgang gestartet hat"},
+	"user":      {"en": "user %s", "de": "Benutzer %s"},
+	"group":     {"en": "group %s", "de": "Gruppe %s"},
+	"role":      {"en": "role %s", "de": "Rolle %s"},
+	"end":       {"en": "End of the process", "de": "Ende des Ablaufs"},
+	"goto":      {"en": "%s → %s", "de": "%s → %s"},
+	"approval":  {"en": "Approval by %s (%s)", "de": "Freigabe durch %s (%s)"},
+	"all":       {"en": "all", "de": "alle"},
+	"n":         {"en": "%d approval(s)", "de": "%d Freigabe(n)"},
+	"approved":  {"en": "approved", "de": "freigegeben"},
+	"rejected":  {"en": "rejected", "de": "abgelehnt"},
+	"condition": {"en": "Automatic check of the details", "de": "Automatische Prüfung der Angaben"},
+	"yes":       {"en": "condition met", "de": "Bedingung erfüllt"},
+	"no":        {"en": "otherwise", "de": "sonst"},
+	"email":     {"en": "Automatic e-mail: %s", "de": "Automatische E-Mail: %s"},
+	"webhook":   {"en": "Automatic transfer to another system", "de": "Automatische Übergabe an ein anderes System"},
+	"failed":    {"en": "on error", "de": "bei Fehler"},
+	"delay":     {"en": "Waiting time", "de": "Wartezeit"},
+	"then":      {"en": "then → %s", "de": "dann → %s"},
+	"reminder":  {"en": "Reminder after %d day(s)", "de": "Erinnerung nach %d Tag(en)"},
 }
 
 func msg(lang, key string) string {
@@ -292,26 +553,58 @@ func (Type) Render(_ context.Context, rc content.RenderContext, raw json.RawMess
 	b.WriteString(`<div class="ewf">`)
 	b.WriteString(Paragraphs(d.Description))
 	fmt.Fprintf(&b, `<details class="ewf-overview"><summary>%s</summary><ol class="ewf-steps">`, esc(msg(rc.Lang, "process")))
+	name := func(id string) string {
+		if n := d.Step(id); n != nil {
+			return n.Name
+		}
+		return id
+	}
+	li := func(text string) { b.WriteString(`<li>` + esc(text) + `</li>`) }
 	for _, s := range d.Steps {
-		fmt.Fprintf(&b, `<li class="ewf-step"><strong>%s</strong>`, esc(s.Name))
+		fmt.Fprintf(&b, `<li class="ewf-step ewf-step--%s"><strong>%s</strong>`, esc(s.Type), esc(s.Name))
 		if s.Description != "" {
 			b.WriteString(`<br><span class="ewf-step-desc">` + esc(s.Description) + `</span>`)
 		}
-		if len(s.Actions) == 0 {
-			b.WriteString(`<br><span class="ewf-end ewf-end--` + esc(s.Outcome) + `">` + esc(msg(rc.Lang, "end")) + `</span></li>`)
-			continue
-		}
 		who := msg(rc.Lang, "starter")
-		if s.Assignee.Type != "starter" {
+		if s.Assignee.Type != "starter" && s.Assignee.Type != "" {
 			who = fmt.Sprintf(msg(rc.Lang, s.Assignee.Type), s.Assignee.Value)
 		}
-		fmt.Fprintf(&b, `<br><span class="ewf-assignee">%s: %s</span><ul class="ewf-actions">`, esc(msg(rc.Lang, "assignee")), esc(who))
-		for _, a := range s.Actions {
-			next := a.Next
-			if n := d.Step(a.Next); n != nil {
-				next = n.Name
+		switch s.Type {
+		case StepEnd:
+			b.WriteString(`<br><span class="ewf-end ewf-end--` + esc(s.Outcome) + `">` + esc(msg(rc.Lang, "end")) + `</span></li>`)
+			continue
+		case StepTask:
+			fmt.Fprintf(&b, `<br><span class="ewf-assignee">%s: %s</span><ul class="ewf-actions">`, esc(msg(rc.Lang, "assignee")), esc(who))
+			for _, a := range s.Actions {
+				li(fmt.Sprintf(msg(rc.Lang, "goto"), a.Label, name(a.Next)))
 			}
-			b.WriteString(`<li>` + esc(fmt.Sprintf(msg(rc.Lang, "goto"), a.Label, next)) + `</li>`)
+		case StepApproval:
+			req := msg(rc.Lang, "all")
+			if s.Required > 0 {
+				req = fmt.Sprintf(msg(rc.Lang, "n"), s.Required)
+			}
+			fmt.Fprintf(&b, `<br><span class="ewf-assignee">%s</span><ul class="ewf-actions">`, esc(fmt.Sprintf(msg(rc.Lang, "approval"), who, req)))
+			li(fmt.Sprintf(msg(rc.Lang, "goto"), msg(rc.Lang, "approved"), name(s.Next)))
+			li(fmt.Sprintf(msg(rc.Lang, "goto"), msg(rc.Lang, "rejected"), name(s.NextElse)))
+		case StepCondition:
+			fmt.Fprintf(&b, `<br><span class="ewf-assignee">%s</span><ul class="ewf-actions">`, esc(msg(rc.Lang, "condition")))
+			li(fmt.Sprintf(msg(rc.Lang, "goto"), msg(rc.Lang, "yes"), name(s.Next)))
+			li(fmt.Sprintf(msg(rc.Lang, "goto"), msg(rc.Lang, "no"), name(s.NextElse)))
+		case StepEmail:
+			fmt.Fprintf(&b, `<br><span class="ewf-assignee">%s</span><ul class="ewf-actions">`, esc(fmt.Sprintf(msg(rc.Lang, "email"), s.Email.Subject)))
+			li(fmt.Sprintf(msg(rc.Lang, "then"), name(s.Next)))
+		case StepWebhook:
+			fmt.Fprintf(&b, `<br><span class="ewf-assignee">%s</span><ul class="ewf-actions">`, esc(msg(rc.Lang, "webhook")))
+			li(fmt.Sprintf(msg(rc.Lang, "then"), name(s.Next)))
+			if s.NextElse != "" {
+				li(fmt.Sprintf(msg(rc.Lang, "goto"), msg(rc.Lang, "failed"), name(s.NextElse)))
+			}
+		case StepDelay:
+			fmt.Fprintf(&b, `<br><span class="ewf-assignee">%s</span><ul class="ewf-actions">`, esc(msg(rc.Lang, "delay")))
+			li(fmt.Sprintf(msg(rc.Lang, "then"), name(s.Next)))
+		}
+		if s.DueDays > 0 {
+			li(fmt.Sprintf(msg(rc.Lang, "reminder"), s.DueDays))
 		}
 		b.WriteString(`</ul></li>`)
 	}
