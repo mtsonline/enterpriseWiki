@@ -251,7 +251,7 @@ async function plugins(panel: HTMLElement): Promise<void> {
             ? h('strong', null, t('plugins.template_in_use')) : t('plugins.template_available')) : null),
         h('td', { class: 'ew-actions' },
           p.kinds.includes('template') && p.active && p.id !== state.site.template && listTemplates().some((x) => x.id === p.id)
-            ? button(t('plugins.use_template'), () => void useTemplate(p.id), { variant: 'link', ariaLabel: t('plugins.use_template_named', { name: p.name }) }) : null,
+            ? button(t('plugins.use_template'), () => void useTemplate(p.id), { variant: 'link', ariaLabel: `${t('plugins.use_template')}: ${p.name}` }) : null,
           p.required ? null : (p.enabled
             ? button(t('plugins.disable'), () => void toggle(p, false), { variant: 'link', ariaLabel: t('plugins.disable_named', { name: p.name }) })
             : button(t('plugins.enable'), () => void toggle(p, true), { variant: 'link', ariaLabel: t('plugins.enable_named', { name: p.name }) })),

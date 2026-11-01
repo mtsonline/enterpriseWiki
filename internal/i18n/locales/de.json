@@ -600,7 +600,6 @@
  "plugins.template_in_use": "Verwendete Vorlage",
  "plugins.template_available": "Verfügbare Vorlage – auswählbar unter Einstellungen oder hier",
  "plugins.use_template": "Als Vorlage verwenden",
- "plugins.use_template_named": "{name} als Vorlage verwenden",
  "plugins.template_switched": "Vorlage gewechselt auf {name}",
  "settings.template_help": "Welches Layout das Wiki verwendet. Alle Vorlagen-Plugins stehen zur Auswahl; angezeigt wird nur diese."
 }

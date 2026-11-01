@@ -353,7 +353,7 @@ test('menus, blocks and positions', async () => {
   await page.goto(BASE + '/admin/plugins');
   await idle();
   assert.ok(await page.getByText(/template in use|verwendete vorlage/i).count() >= 1);
-  assert.ok(await page.getByRole('button', { name: /use .* as template|als vorlage verwenden/i }).count() >= 1);
+  assert.ok(await page.getByRole('button', { name: /^(use as template|als vorlage verwenden):/i }).count() >= 1);
 });
 
 test('CMS template', async () => {

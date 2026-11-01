@@ -600,7 +600,6 @@
  "plugins.template_in_use": "Template in use",
  "plugins.template_available": "Available template – choose it under Settings or here",
  "plugins.use_template": "Use as template",
- "plugins.use_template_named": "Use {name} as template",
  "plugins.template_switched": "Template switched to {name}",
  "settings.template_help": "Which layout the wiki uses. All template plugins are available; only this one is shown."
 }
