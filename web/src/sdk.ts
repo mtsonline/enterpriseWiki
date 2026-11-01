@@ -116,17 +116,46 @@ export function registerSlot(def: SlotDef): void {
   slots.sort((a, b) => (a.order ?? 50) - (b.order ?? 50));
 }
 
+const slotOf = new WeakMap<Node, string>();
+
+/** Path of child indexes from root to node. */
+function pathTo(root: Node, node: Node): number[] {
+  const path: number[] = [];
+  for (let n: Node | null = node; n && n !== root; n = n.parentNode) {
+    if (!n.parentNode) return [];
+    path.unshift(Array.prototype.indexOf.call(n.parentNode.childNodes, n));
+  }
+  return path;
+}
+
 async function fill(el: HTMLElement, name: string): Promise<void> {
   const nodes: Node[] = [];
   for (const s of slots.filter((x) => x.position === name)) {
     try {
       const n = await s.render();
-      if (n) nodes.push(n);
+      if (n) {
+        slotOf.set(n, s.id);
+        nodes.push(n);
+      }
     } catch (e) {
       console.error(`slot ${s.id} failed`, e);
     }
   }
+  // Keep the keyboard focus on the same control when a position is
+  // re-rendered (e.g. the language selector after switching the language).
+  const active = document.activeElement;
+  let restore: { slot: string; path: number[] } | null = null;
+  if (active && el.contains(active)) {
+    const top = Array.from(el.childNodes).find((c) => c.contains(active));
+    const slot = top && slotOf.get(top);
+    if (top && slot) restore = { slot, path: pathTo(top, active) };
+  }
   el.replaceChildren(...nodes);
+  if (restore) {
+    let n: Node | undefined = nodes.find((x) => slotOf.get(x) === restore!.slot);
+    for (const i of restore.path) n = n?.childNodes[i];
+    if (n instanceof HTMLElement) n.focus();
+  }
 }
 
 /** Creates a live position container. */

@@ -320,7 +320,9 @@ test('switch language', async () => {
   await page.waitForFunction(() => document.documentElement.lang === 'de');
   assert.equal(await page.locator('a.ew-skip').textContent(), 'Zum Inhalt springen');
   assert.ok(await page.getByRole('button', { name: 'Suchen' }).count() > 0, 'header widgets translated');
-  assert.equal(await page.evaluate(() => document.activeElement?.closest('.ew-lang') !== null), true, 'focus stays on the language selector');
+  // focus returns to the language selector once the header has been re-rendered
+  await page.waitForFunction(() => document.activeElement?.closest('.ew-lang') !== null, null, { timeout: 5000 })
+    .catch(() => assert.fail('focus stays on the language selector'));
 });
 
 test('no JavaScript errors occurred', () => {
