@@ -1,0 +1,19 @@
+{
+ "core.comments.title": "Comments",
+ "core.comments.none": "No comments yet.",
+ "core.comments.new": "Your comment",
+ "core.comments.add": "Add comment",
+ "core.comments.added": "Comment added",
+ "core.comments.saved": "Comment saved",
+ "core.comments.removed": "Comment deleted",
+ "core.comments.reply": "Reply",
+ "core.comments.reply_label": "Reply to {author}",
+ "core.comments.replies": "Replies",
+ "core.comments.edit_label": "Edit comment",
+ "core.comments.edited": "edited",
+ "core.comments.deleted": "This comment was deleted.",
+ "core.comments.delete_confirm": "Delete this comment?",
+ "core.comments.empty_error": "Please enter a comment.",
+ "core.comments.login": "Sign in to comment",
+ "core.comments.no_permission": "You cannot comment on this page."
+}

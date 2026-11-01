@@ -1,0 +1,19 @@
+{
+ "core.comments.title": "Kommentare",
+ "core.comments.none": "Noch keine Kommentare.",
+ "core.comments.new": "Ihr Kommentar",
+ "core.comments.add": "Kommentar hinzufügen",
+ "core.comments.added": "Kommentar hinzugefügt",
+ "core.comments.saved": "Kommentar gespeichert",
+ "core.comments.removed": "Kommentar gelöscht",
+ "core.comments.reply": "Antworten",
+ "core.comments.reply_label": "Antwort an {author}",
+ "core.comments.replies": "Antworten",
+ "core.comments.edit_label": "Kommentar bearbeiten",
+ "core.comments.edited": "bearbeitet",
+ "core.comments.deleted": "Dieser Kommentar wurde gelöscht.",
+ "core.comments.delete_confirm": "Diesen Kommentar löschen?",
+ "core.comments.empty_error": "Bitte einen Kommentar eingeben.",
+ "core.comments.login": "Zum Kommentieren anmelden",
+ "core.comments.no_permission": "Sie können diese Seite nicht kommentieren."
+}

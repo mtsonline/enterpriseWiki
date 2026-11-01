@@ -1,0 +1,11 @@
+{
+  "id": "core.macros",
+  "name": "Standard macros",
+  "version": "1.0.0",
+  "description": "Macros for pages: table of contents, child pages, recently changed, info/note/warning/tip panels, expandable section, status label, columns.",
+  "author": "Enterprise Wiki",
+  "kinds": [
+    "macro"
+  ],
+  "frontend": true
+}

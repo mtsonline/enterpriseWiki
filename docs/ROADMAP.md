@@ -30,11 +30,18 @@ Die Umsetzung erfolgt in Meilensteinen. Jeder Meilenstein ist lauffähig und dur
 
 Offen aus diesem Bereich: S3-kompatibler Objektspeicher als Alternative zum Dateisystem, Vorschau von Office-Dokumenten (Konvertierung), Single Logout.
 
-## Meilenstein 3 – Abläufe, Makros, CMS
+## Meilenstein 3 – Abläufe, Makros, CMS (fertig, v7.2)
 
-- Elementtyp `workflow.process`: konfigurierbare Schritte (z. B. Bewerbungsverfahren) mit Rechten je Schritt, Freigaben per Klick, Notizen, Verlauf
-- Makro-System für Seiten (Plugin-basiert): Inhaltsverzeichnis, Unterseiten-Liste, Info/Warnung/Tipp, Aufklappbereich, Code-Block, Spalten/Layout, Status-Label, Ankündigung. Dazu **Shell-Befehl** (nur vom Superadmin exakt freigegebene Befehle, Freigabe über einen Hash, Timeout, unprivilegierter Benutzer, standardmäßig aus) und **HTTP-Abruf** (Allow-Liste, interne Adressen gesperrt)
-- Kommentar-Plugin für Elemente
-- CMS-/Website-Template (Sektionen, Hero, Layout-Baukasten)
-- Plugin-Marktplatz: Versionsprüfung über GitHub-Releases, Update-Hinweise und 1-Klick-Update
-- Optionale Such-Anbindung (OpenSearch/Meilisearch) für sehr große Datenbestände
+- Elementtyp `workflow.process`: Startformular (Text, E-Mail, Datum, Zahl, Auswahl, Bestätigung, Datei-Upload), Schritte mit Zuständigen (Starter, Benutzer, Gruppe, Rolle), Aktionen mit optionaler oder Pflicht-Notiz, Endzustände mit Ergebnis. Jeder Vorgang speichert eine Momentaufnahme des Ablaufs, jeder Schritt wird protokolliert. „Meine Aufgaben“ in der Seitenleiste und unter `/tasks`. Strukturierter Editor mit Vorlagen (Bewerbung, Genehmigungsantrag)
+- Makro-System (Plugin-basiert, `sdk.Host.RegisterMacro`): Makros werden bei jeder Anzeige mit den Rechten des Betrachters gerendert, Makro-Dialog im Editor (WYSIWYG und Markdown)
+  - `core.macros`: Inhaltsverzeichnis, Unterseiten, Zuletzt geändert, Hinweis-Boxen (Info, Notiz, Tipp, Warnung, Erfolg), Aufklappbereich, Status-Label, Spalten
+  - `core.layout`: Abschnitt (Hintergrund, Breite), Hero-Banner, Karten-Raster, Button-Link, Abstand
+  - `macro.shell`: Shell-Befehl; nur exakt freigegebene Befehle (SHA-256 des Befehlstexts), Freigabe nur durch Superadmins aus `config.yaml` oder die CLI, Timeout, eigene Prozessgruppe, unprivilegierter Benutzer, begrenzte Ausgabe, standardmäßig aus
+  - `macro.http`: HTTP-Abruf als Text, bereinigtes HTML oder JSON (Wert, Liste, Tabelle); Allow-Liste, interne Adressen nach der DNS-Auflösung gesperrt, Weiterleitungen geprüft, Größen- und Zeitlimits, Zwischenspeicher
+- Sicherheitseinstellungen der Makros nur in `config.yaml` (nicht über Oberfläche oder API änderbar)
+- `core.comments`: Kommentare und Antworten unter Seiten, Bearbeiten und Löschen mit Audit-Protokoll, gelöschte Kommentare bleiben als Platzhalter
+- Template `theme.cms` (Website-Layout mit Hauptnavigation, Off-Canvas-Menü, Footer-Spalten), Layout-Bausteine laufen über die volle Breite
+- Update-Prüfung über GitHub-Releases (Kern und Plugins, auch GitHub Enterprise), Versionshinweise, 1-Klick-Update für Plugins (Oberfläche, API, `ewiki plugin updates|update`)
+- Frontend-SDK: `registerWidget` (interaktive Teile in serverseitig gerenderten Inhalten), `registerElementExtension` (Bereiche unter Seiten), Plugin-Routen über `route`
+
+Offen aus diesem Bereich: optionale Such-Anbindung (OpenSearch/Meilisearch) für sehr große Datenbestände, Benachrichtigungen (E-Mail) bei neuen Aufgaben und Kommentaren, Fristen und Vertretungen in Workflows, automatisches Kern-Update aus der Oberfläche.

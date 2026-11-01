@@ -5,6 +5,7 @@ import (
 	"errors"
 	"net/http"
 	"net/url"
+	"reflect"
 	"slices"
 	"strconv"
 	"strings"
@@ -47,6 +48,7 @@ func requireUser(r *http.Request) (*identity.Principal, error) {
 
 func (s *Server) routes() {
 	s.routesM2()
+	s.routesM3()
 	// ---------------------------------------------------------------- system
 	s.app.Mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, r *http.Request) { h.Write(w, 200, map[string]string{"status": "ok"}) })
 	s.handle("GET /readyz", func(w http.ResponseWriter, r *http.Request) (any, error) {
@@ -830,8 +832,8 @@ func (s *Server) updateSettings(w http.ResponseWriter, r *http.Request) (any, er
 		if in.Retention != nil {
 			c.Retention = *in.Retention
 		}
-		if in.Macros != nil {
-			c.Plugins.Macros = *in.Macros
+		if in.Macros != nil && !reflect.DeepEqual(*in.Macros, c.Plugins.Macros) {
+			return apperr.BadRequest("macro security settings can only be changed in config.yaml")
 		}
 		if in.Catalog != nil {
 			c.Plugins.Catalog = in.Catalog

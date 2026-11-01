@@ -8,7 +8,7 @@ import type { Category, ElementSummary, ElementView, Revision } from '../core/ty
 import { toast } from '../core/announce';
 import { button, confirmDialog, errorText, field, formDialog, langFields, loading, openDialog, pageHeader, textInput, select } from '../components/ui';
 import { breadcrumbs, can, categoryPicker, ctx, invalidateTree, langName, setContext } from '../components/widgets';
-import { getEditor, typeLabel, type EditorInstance } from '../sdk';
+import { getEditor, renderElementExtensions, typeLabel, type EditorInstance } from '../sdk';
 
 const L = () => state.lang;
 const D = () => state.site.default_language;
@@ -282,6 +282,7 @@ export async function elementView({ params, main }: RouteCtx): Promise<void> {
     actions.push(button(t('common.duplicate'), () => void duplicateElement(el), { variant: 'secondary' }));
     if (can('delete')) actions.push(button(t('common.delete'), () => void deleteElement(el), { variant: 'danger' }));
   }
+  const extensions = h('div', { class: 'ew-element-extensions', lang: state.lang });
   mount(main, h('article', { class: 'ew-element', lang: el.shown_lang },
     crumbs([...cat.breadcrumbs, cat.category], { title: el.title }),
     h('div', { class: 'ew-page-header' }, h('h1', null, el.title),
@@ -292,7 +293,9 @@ export async function elementView({ params, main }: RouteCtx): Promise<void> {
     h('footer', { class: 'ew-meta' },
       tagList(el.tags),
       h('p', null, t('element.updated_by', { date: fmtDate(el.updated_at, L()), user: el.updated_by || '–' }), ' · ', t('element.revision', { rev: el.rev }), ' · ',
-        h('a', { href: `/e/${el.id}/history` }, t('element.history'))))));
+        h('a', { href: `/e/${el.id}/history` }, t('element.history')))),
+    extensions));
+  void renderElementExtensions(extensions, el);
 }
 
 function tagsDialog(el: ElementView): void {

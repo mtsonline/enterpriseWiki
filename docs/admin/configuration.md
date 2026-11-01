@@ -49,7 +49,7 @@ Sprachen werden in der Oberfläche unter *Administration → Sprachen & Überset
 | Schlüssel | Bedeutung | Standard |
 |---|---|---|
 | `site_name` | Name der Website | `Enterprise Wiki` |
-| `template` | aktives Template (Plugin-ID) | `theme.confluence` |
+| `template` | aktives Template (Plugin-ID): `theme.confluence` (Dokumentation) oder `theme.cms` (Website), auch unter *Administration → Einstellungen* | `theme.confluence` |
 | `home_category` | Kategorie-ID der Startseite (`0` = Liste der Bereiche bzw. der einzige Bereich) | `0` |
 
 ### `auth`
@@ -79,7 +79,29 @@ Die jeweils aktuelle Version wird nie gelöscht. Gelöscht wird nur aus dem Papi
 | `disabled` | deaktivierte Plugin-IDs (Pflicht-Plugins wie `auth.local` lassen sich nicht deaktivieren) |
 | `dir` | Plugin-Verzeichnis im Quellbaum |
 | `catalog` | Plugins, die unter *Plugins* mit einem Klick installiert werden können (`id`, `name`, `repo`, optional `ref`, `description`) |
-| `macros.shell_enabled`, `macros.http_allow` | Sicherheitsschalter für Makros (ab Meilenstein 3) |
+| `macros.*` | Sicherheitsschalter für Shell- und HTTP-Makro, siehe unten. **Nur in dieser Datei änderbar**, nicht über Oberfläche oder API |
+| `updates.check` | automatische Update-Prüfung beim Öffnen von *Administration → Updates* (Standard `true`) |
+| `updates.core_repo` | Repository des Kerns (Standard `github.com/mtsonline/enterpriseWiki`) |
+| `updates.api_url` | GitHub-API (Standard `https://api.github.com`, für GitHub Enterprise z. B. `https://github.example.com/api/v3`) |
+| `updates.token` | optionales GitHub-Token für private Repositories und höhere Abfragegrenzen, z. B. `${EWIKI_GITHUB_TOKEN}` |
+
+#### `plugins.macros`
+
+```yaml
+plugins:
+  macros:
+    shell_enabled: false          # Shell-Makro einschalten
+    shell_approvers:              # Superadmins, die Befehle freigeben dürfen
+      - admin@local
+    shell_timeout: 10s            # höchstens 5m
+    shell_user: nobody            # nur relevant, wenn das Wiki als root läuft
+    http_allow:                   # URL-Präfixe für das HTTP-Makro
+      - https://status.example.com/api/
+    http_allow_private: false     # interne Adressen (10.x, 192.168.x, localhost, …) erlauben
+```
+
+- **Shell-Makro:** Ein Befehl läuft erst, wenn ein Superadmin genau diesen Befehlstext freigegeben hat (gebunden an den SHA-256-Hash). Jede Änderung braucht eine neue Freigabe. Freigeben dürfen nur angemeldete Administratoren, die in `shell_approvers` stehen (nicht per API-Key), sowie die lokale Kommandozeile: `ewiki api POST /api/v1/x/macro.shell/commands '{"command":"uptime","approve":true}'`. Offene und freigegebene Befehle stehen unter *Administration → Shell-Befehle*.
+- **HTTP-Makro:** Nur URLs unter einem Präfix aus `http_allow` (gleiches Schema, gleicher Host, Pfad-Präfix). Verbindungen zu internen Adressen werden nach der DNS-Auflösung blockiert, solange `http_allow_private` nicht gesetzt ist. Mit `http_allow_private: true` gilt nur noch die Allow-Liste. Ein Proxy aus `HTTPS_PROXY` wird nur dann verwendet, wenn interne Adressen erlaubt sind (sonst ließe sich die Sperre über den Proxy umgehen).
 
 ### `plugin_settings`
 Frei strukturierte Einstellungen je Plugin, z. B.
@@ -91,6 +113,12 @@ plugin_settings:
 ```
 
 Plugins lesen sie über `Host.Settings()`. Setzen per CLI: `ewiki config set plugin_settings.acme.kanban.columns "[todo, done]"`.
+
+Weitere Plugin-Einstellungen:
+
+| Plugin | Schlüssel | Bedeutung |
+|---|---|---|
+| `core.comments` | `write_permission` | `view` (Standard): jeder angemeldete Benutzer mit Leserecht darf kommentieren; `edit`: nur mit Bearbeitungsrecht |
 
 Die Einstellungen der Anmeldeverfahren (`auth.ldap`, `auth.oidc`, `auth.shib`) sind in [authentication.md](authentication.md) beschrieben.
 

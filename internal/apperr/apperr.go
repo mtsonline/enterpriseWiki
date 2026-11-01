@@ -25,6 +25,9 @@ func BadRequest(format string, a ...any) error {
 	return newf(http.StatusBadRequest, "bad_request", format, a...)
 }
 func NotFound(what string) error { return newf(http.StatusNotFound, "not_found", "%s not found", what) }
+func Forbidden(format string, a ...any) error {
+	return newf(http.StatusForbidden, "forbidden", format, a...)
+}
 func Conflict(format string, a ...any) error {
 	return newf(http.StatusConflict, "conflict", format, a...)
 }

@@ -112,7 +112,11 @@ func (t *Type) Render(ctx context.Context, rc content.RenderContext, raw json.Ra
 	if err != nil {
 		return "", err
 	}
-	return `<aside class="ew-notice ew-notice--` + b.Tone + `" role="note">` + core_html.ToHTML(&b.Body) + `</aside>`, nil
+	inner := core_html.ToHTML(&b.Body)
+	if rc.Service != nil {
+		inner = rc.Service.RenderMacros(ctx, rc, inner)
+	}
+	return `<aside class="ew-notice ew-notice--` + b.Tone + `" role="note">` + inner + `</aside>`, nil
 }
 
 // Text reuses core.html (the inherited method works on the same fields).

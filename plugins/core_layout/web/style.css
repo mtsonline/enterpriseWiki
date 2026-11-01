@@ -1,0 +1,32 @@
+.ewl-section { padding: 2.5rem 1.25rem; border-radius: var(--ew-radius); }
+.ewl-section-inner { margin: 0 auto; max-width: 60rem; }
+.ewl-section--w-wide .ewl-section-inner { max-width: 80rem; }
+.ewl-section--w-full .ewl-section-inner { max-width: none; }
+.ewl-section--center { text-align: center; }
+.ewl-section--bg-light { background: var(--ew-bg-subtle); }
+.ewl-section--bg-dark { background: #1d2733; color: #f3f5f7; }
+.ewl-section--bg-dark a { color: #9cc8ff; }
+.ewl-section--bg-accent { background: var(--ew-primary); color: var(--ew-on-primary); }
+.ewl-section--bg-accent a { color: var(--ew-on-primary); }
+.ewl-hero { padding: 3.5rem 1.5rem; border-radius: var(--ew-radius); }
+.ewl-hero-inner { max-width: 46rem; }
+.ewl-hero--accent { background: linear-gradient(135deg, var(--ew-primary), #0f3d6e); color: #fff; }
+.ewl-hero--dark { background: #1d2733; color: #f3f5f7; }
+.ewl-hero--light { background: var(--ew-bg-subtle); }
+.ewl-hero--accent a:not(.ewl-cta), .ewl-hero--dark a:not(.ewl-cta) { color: #fff; }
+.ewl-hero-title { font-size: clamp(1.8rem, 4vw, 2.8rem); font-weight: 800; line-height: 1.15; margin: 0 0 .5rem; }
+.ewl-hero-subtitle { font-size: 1.2rem; margin: 0 0 1rem; opacity: .95; }
+.ewl-cards { display: grid; gap: 1.25rem; }
+.ewl-cards--2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.ewl-cards--3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.ewl-cards--4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+@media (max-width: 860px) { .ewl-cards { grid-template-columns: 1fr; } }
+.ewl-card { background: var(--ew-bg-raised); color: var(--ew-text); border: 1px solid var(--ew-border); border-radius: 10px; padding: 1.25rem; box-shadow: 0 2px 6px rgb(0 0 0 / .06); }
+.ewl-card > :first-child { margin-top: 0; } .ewl-card > :last-child { margin-bottom: 0; }
+.ewl-cta { display: inline-block; padding: .65rem 1.3rem; border-radius: 6px; font-weight: 700; text-decoration: none; border: 2px solid transparent; }
+.ewl-cta--primary { background: #fff; color: #0b3a6b; border-color: #0b3a6b; }
+.ewl-cta--primary:hover { background: #e9f1fb; }
+.ew-content .ewl-cta--primary:not(.ewl-hero .ewl-cta) { background: var(--ew-primary); color: var(--ew-on-primary); border-color: var(--ew-primary); }
+.ewl-cta--secondary { background: transparent; color: inherit; border-color: currentColor; }
+.ewl-cta:focus-visible { outline: 3px solid var(--ew-focus); outline-offset: 2px; }
+.ewl-spacer--small { height: 1rem; } .ewl-spacer--medium { height: 2.5rem; } .ewl-spacer--large { height: 5rem; }

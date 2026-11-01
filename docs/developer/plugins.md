@@ -137,6 +137,32 @@ func (t *Type) Render(ctx context.Context, rc content.RenderContext, raw json.Ra
 
 Tragen Sie die Basis in `extends` ein.
 
+### Makros
+
+Makros stehen im Seiteninhalt als `<div data-macro="name" data-params='{"key":"value"}'>Inhalt</div>` und werden bei jeder Anzeige mit den Rechten des Betrachters gerendert (innere Makros zuerst).
+
+```go
+type Macro interface {
+	Name() string                      // "acme.weather"
+	Labels() map[string]string         // Name im Makro-Dialog
+	Description() map[string]string
+	Params() []content.MacroParam      // Felder im Dialog: text, textarea, number, select, bool, url
+	HasBody() bool                     // umschließt Inhalt (Boxen, Abschnitte, ...)
+	Render(ctx context.Context, mc content.MacroContext) (string, error)
+}
+host.RegisterMacro(&Weather{})
+```
+
+`MacroContext` enthält den `RenderContext` (Element, Kategorie, Sprache, Betrachter, `Service` für Abfragen mit dessen Rechten), die Parameter, den **bereits bereinigten** Inhalt (`Body`) und die Überschriften der Seite (`Headings`). Alles andere, was das Makro ausgibt, muss es selbst maskieren (`html.EscapeString`). Links prüfen Sie mit `core_layout.SafeURL`. Fehler erscheinen als Hinweis auf der Seite, nicht als Fehlerseite. Der Makro-Dialog im Editor erscheint automatisch (`GET /api/v1/macros`).
+
+### Dateien in eigenen Tabellen
+
+Speichert ein Plugin Datei-Hashes außerhalb von Element-Inhalten, meldet es die Spalte an, damit die Aufräumfunktion die Dateien nicht löscht: `host.Files.AddReference("plugin_acme_items", "data")`. Ausliefern mit Rechteprüfung: `host.Files.Get` und `host.Files.Serve` (siehe `plugins/workflow_process`).
+
+### Rechte in Plugin-Routen
+
+`host.Content.ElementCategory(ctx, elementID, acl.View)` liefert die Kategorie eines Elements und prüft dabei das Recht (404 statt 403, wenn das Element nicht sichtbar ist). `host.Content.Require(ctx, categoryID, perm)` prüft ein Recht auf einer Kategorie.
+
 ### Anmeldeverfahren
 
 ```go
@@ -183,6 +209,9 @@ export function register(): void {
 - Erzeugen Sie DOM mit `h()`. Verwenden Sie `innerHTML` nie für Benutzerdaten, sondern `trustedHTML()` nur für HTML, das der Server gerendert und bereinigt hat.
 - **Barrierefreiheit:** Jedes Eingabefeld braucht ein Label (`field()`), Icon-Knöpfe ein `ariaLabel`, Dialoge über `formDialog`/`openDialog`. Die CI prüft alle Seiten mit axe-core auf WCAG 2.2 AA.
 - Editoren anderer Typen lassen sich mit `getEditor('core.html')` wiederverwenden und erweitern (siehe `example_notice/web/index.ts`).
+- **Widgets:** Ein Elementtyp kann im serverseitig gerenderten HTML einen Platzhalter `<div data-ew-widget="acme.board" data-element="42"></div>` ausgeben. `registerWidget('acme.board', async (el) => { … })` macht ihn interaktiv (siehe `workflow_process/web`).
+- **Bereiche unter Seiten:** `registerElementExtension({ id, order, render: async (element) => node })`, z. B. Kommentare.
+- **Eigene Seiten:** `route('/tasks', ({ main }) => …)` registriert eine Route im Frontend.
 - Das Frontend hängt nicht an einem Framework und hat keine Laufzeit-Abhängigkeiten. Halten Sie Plugins ebenso schlank.
 
 ### Templates

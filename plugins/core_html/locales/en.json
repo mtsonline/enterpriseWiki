@@ -29,5 +29,12 @@
  "core.html.image_file": "Image file",
  "core.html.image_alt": "Alternative text",
  "core.html.image_alt_help": "Describe the image for people who cannot see it.",
- "core.html.image_type": "Only images can be inserted here."
+ "core.html.image_type": "Only images can be inserted here.",
+ "core.html.macro": "Macro",
+ "core.html.macro_insert": "Insert macro",
+ "core.html.macro_edit": "Edit macro",
+ "core.html.macro_body": "Content",
+ "core.html.macro_none": "No macros are available (no macro plugin is active).",
+ "core.html.macro_no_params": "This macro has no settings.",
+ "core.html.macro_required": "{field} is required."
 }

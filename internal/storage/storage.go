@@ -17,6 +17,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -248,8 +249,14 @@ func (s *Store) Serve(w http.ResponseWriter, r *http.Request, f *File, downloadN
 // GC deletes files that are older than a day and no longer referenced by any
 // revision (attachments or images in rich text).
 func (s *Store) GC(ctx context.Context) (int, error) {
-	rows, err := s.pool.Query(ctx, `SELECT hash FROM files f WHERE created_at < now() - interval '1 day'
-		AND NOT EXISTS (SELECT 1 FROM element_revisions r WHERE strpos(r.body::text, f.hash) > 0)`)
+	q := `SELECT hash FROM files f WHERE created_at < now() - interval '1 day'
+		AND NOT EXISTS (SELECT 1 FROM element_revisions r WHERE strpos(r.body::text, f.hash) > 0)`
+	refMu.Lock()
+	for _, r := range extraRefs {
+		q += fmt.Sprintf(` AND NOT EXISTS (SELECT 1 FROM %s x WHERE strpos(x.%s::text, f.hash) > 0)`, r[0], r[1])
+	}
+	refMu.Unlock()
+	rows, err := s.pool.Query(ctx, q)
 	if err != nil {
 		return 0, err
 	}
@@ -268,4 +275,27 @@ func (s *Store) GC(ctx context.Context) (int, error) {
 		n++
 	}
 	return n, nil
+}
+
+var (
+	refMu     sync.Mutex
+	extraRefs [][2]string
+	identRe   = regexp.MustCompile(`^[a-z_][a-z0-9_]{0,62}$`)
+)
+
+// AddReference declares that column of table (text or jsonb) may contain
+// file hashes, so the garbage collector keeps those files (used by plugins
+// that store uploads outside of element bodies).
+func (s *Store) AddReference(table, column string) {
+	if !identRe.MatchString(table) || !identRe.MatchString(column) {
+		panic("storage.AddReference: invalid identifier")
+	}
+	refMu.Lock()
+	defer refMu.Unlock()
+	for _, r := range extraRefs {
+		if r == [2]string{table, column} {
+			return
+		}
+	}
+	extraRefs = append(extraRefs, [2]string{table, column})
 }

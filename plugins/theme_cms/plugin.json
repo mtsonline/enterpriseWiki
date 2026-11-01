@@ -1,0 +1,10 @@
+{
+  "id": "theme.cms",
+  "name": "CMS / website template",
+  "version": "1.0.0",
+  "description": "Website layout (inspired by classic business themes): large header with main navigation of the top categories, full-width content for layout builder sections (hero, sections, cards), sidebar below the content and a footer with columns. Offers the positions header-nav, header-tools, sidebar and footer.",
+  "author": "Enterprise Wiki",
+  "kinds": ["template"],
+  "extends": [],
+  "frontend": true
+}

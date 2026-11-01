@@ -1,0 +1,9 @@
+{
+  "id": "macro.shell",
+  "name": "Shell command macro",
+  "version": "1.0.0",
+  "description": "Inserts the output of a shell command into a page. Every command must be approved exactly (by its hash) by a superadmin; commands run with a timeout as an unprivileged user. Off by default (plugins.macros.shell_enabled in config.yaml).",
+  "author": "Enterprise Wiki",
+  "kinds": ["macro"],
+  "frontend": true
+}

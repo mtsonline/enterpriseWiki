@@ -1,0 +1,10 @@
+{
+  "id": "core.layout",
+  "name": "Layout builder macros",
+  "version": "1.0.0",
+  "description": "Page building blocks for website-like pages (as in the CMS template): sections with background, hero banner, cards/feature grid, call-to-action button, spacer.",
+  "author": "Enterprise Wiki",
+  "kinds": ["macro"],
+  "extends": ["core.macros"],
+  "frontend": true
+}

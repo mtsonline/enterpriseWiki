@@ -22,6 +22,8 @@ import (
 	"github.com/mtsonline/enterprisewiki/internal/identity"
 	"github.com/mtsonline/enterprisewiki/internal/pluginmgr"
 	"github.com/mtsonline/enterprisewiki/internal/server"
+	"github.com/mtsonline/enterprisewiki/internal/version"
+	"github.com/mtsonline/enterprisewiki/pkg/sdk"
 )
 
 func printJSON(w io.Writer, v any) {
@@ -274,6 +276,47 @@ func (e *env) plugin(args []string) error {
 				return errors.New("usage: ewiki plugin install SOURCE [--ref TAG] [--build]")
 			}
 			res, err := pm.Install(ctx, arg, *ref)
+			if err != nil {
+				return err
+			}
+			printJSON(e.stdout, res)
+		case "updates":
+			ms := []sdk.Manifest{}
+			for _, p := range a.Kernel.List() {
+				ms = append(ms, p.Manifest)
+			}
+			rep, err := pm.CheckUpdates(ctx, version.Version, ms, true)
+			if err != nil {
+				return err
+			}
+			tw := tabwriter.NewWriter(e.stdout, 0, 4, 2, ' ', 0)
+			fmt.Fprintln(tw, "ID\tCURRENT\tLATEST\tUPDATE\tNOTE")
+			for _, it := range rep.Items {
+				fmt.Fprintf(tw, "%s\t%s\t%s\t%v\t%s\n", it.ID, it.Current, it.Latest, it.Available, it.Error)
+			}
+			return tw.Flush()
+		case "update":
+			if arg == "" {
+				return errors.New("usage: ewiki plugin update ID [--build]")
+			}
+			ms := []sdk.Manifest{}
+			for _, p := range a.Kernel.List() {
+				ms = append(ms, p.Manifest)
+			}
+			if _, err := pm.CheckUpdates(ctx, version.Version, ms, true); err != nil {
+				return err
+			}
+			var it *pluginmgr.UpdateInfo
+			for _, x := range pm.LastUpdateReport().Items {
+				if x.ID == arg {
+					x := x
+					it = &x
+				}
+			}
+			if it == nil || !it.Available {
+				return fmt.Errorf("no update available for %s", arg)
+			}
+			res, err := pm.Install(ctx, it.Repo, it.Tag)
 			if err != nil {
 				return err
 			}

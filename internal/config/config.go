@@ -102,6 +102,22 @@ type Plugins struct {
 	Dir      string         `yaml:"dir" json:"dir"`
 	Catalog  []CatalogEntry `yaml:"catalog" json:"catalog"`
 	Macros   MacroSecurity  `yaml:"macros" json:"macros"`
+	// Updates configures the update check (GitHub releases).
+	Updates Updates `yaml:"updates" json:"updates"`
+}
+
+// Updates configures the update check against GitHub releases.
+type Updates struct {
+	// Check enables the periodic check (default true; manual checks always work).
+	Check *bool `yaml:"check,omitempty" json:"check,omitempty"`
+	// CoreRepo is the repository of the core (default github.com/mtsonline/enterpriseWiki).
+	CoreRepo string `yaml:"core_repo,omitempty" json:"core_repo,omitempty"`
+	// APIURL is the GitHub API base URL (default https://api.github.com,
+	// set it for GitHub Enterprise).
+	APIURL string `yaml:"api_url,omitempty" json:"api_url,omitempty"`
+	// Token is an optional GitHub token (use ${EWIKI_GITHUB_TOKEN}) for
+	// private repositories and higher rate limits.
+	Token string `yaml:"token,omitempty" json:"-"`
 }
 
 // CatalogEntry lists a plugin that can be installed with one click.
@@ -114,9 +130,25 @@ type CatalogEntry struct {
 }
 
 // MacroSecurity configures dangerous macros.
+//
+// These settings can only be changed in config.yaml (or with "ewiki config
+// set"), never through the web interface or the API.
 type MacroSecurity struct {
-	ShellEnabled bool     `yaml:"shell_enabled" json:"shell_enabled"`
-	HTTPAllow    []string `yaml:"http_allow" json:"http_allow"`
+	// ShellEnabled switches the shell macro on (default off).
+	ShellEnabled bool `yaml:"shell_enabled" json:"shell_enabled"`
+	// ShellApprovers are the superadmins (name@provider) who may approve
+	// shell commands. The local command line can always approve.
+	ShellApprovers []string `yaml:"shell_approvers" json:"shell_approvers"`
+	// ShellTimeout limits each command run (default 10s).
+	ShellTimeout string `yaml:"shell_timeout" json:"shell_timeout"`
+	// ShellUser is the unprivileged system user that runs the commands when
+	// the wiki runs as root (default "nobody").
+	ShellUser string `yaml:"shell_user" json:"shell_user"`
+	// HTTPAllow lists URL prefixes the HTTP macro may fetch
+	// (e.g. https://status.example.com/). Empty = HTTP macro disabled.
+	HTTPAllow []string `yaml:"http_allow" json:"http_allow"`
+	// HTTPAllowPrivate permits private/loopback addresses (intranet services).
+	HTTPAllowPrivate bool `yaml:"http_allow_private" json:"http_allow_private"`
 }
 
 // Defaults returns a configuration with sane defaults.

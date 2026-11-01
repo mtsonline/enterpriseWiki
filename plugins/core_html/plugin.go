@@ -12,12 +12,14 @@ import (
 	"errors"
 	"html"
 	"io/fs"
+	"regexp"
 	"strings"
 
 	"github.com/microcosm-cc/bluemonday"
 	"github.com/yuin/goldmark"
 	"github.com/yuin/goldmark/extension"
 	"github.com/yuin/goldmark/parser"
+	gmhtml "github.com/yuin/goldmark/renderer/html"
 
 	"github.com/mtsonline/enterprisewiki/internal/content"
 	"github.com/mtsonline/enterprisewiki/pkg/sdk"
@@ -63,6 +65,9 @@ func Policy() *bluemonday.Policy {
 	p.AllowAttrs("data-type", "data-checked").OnElements("ul", "li")
 	p.AllowAttrs("type", "checked", "disabled").OnElements("input")
 	p.AllowElements("input", "mark", "figure", "figcaption", "u", "s")
+	// macros: <div data-macro="name" data-params='{"k":"v"}'>body</div>
+	p.AllowAttrs("data-macro").Matching(regexp.MustCompile(`^[a-z0-9][a-z0-9._-]{0,63}$`)).OnElements("div")
+	p.AllowAttrs("data-params").Matching(regexp.MustCompile(`^[\s\S]*$`)).OnElements("div")
 	p.AllowAttrs("colspan", "rowspan", "scope").OnElements("td", "th")
 	p.RequireNoReferrerOnLinks(true)
 	p.AddTargetBlankToFullyQualifiedLinks(true)
@@ -74,6 +79,8 @@ var (
 	md     = goldmark.New(
 		goldmark.WithExtensions(extension.GFM),
 		goldmark.WithParserOptions(parser.WithAutoHeadingID()),
+		// raw HTML (e.g. macros) is allowed: the output is sanitized afterwards
+		goldmark.WithRendererOptions(gmhtml.WithUnsafe()),
 	)
 )
 
@@ -134,13 +141,18 @@ func ToHTML(b *Body) string {
 	return policy.Sanitize(b.Source)
 }
 
-// Render implements content.ElementType.
-func (t *Type) Render(_ context.Context, _ content.RenderContext, raw json.RawMessage) (string, error) {
+// Render implements content.ElementType. Macros are rendered with the
+// permissions of the viewer.
+func (t *Type) Render(ctx context.Context, rc content.RenderContext, raw json.RawMessage) (string, error) {
 	b, err := Decode(raw)
 	if err != nil {
 		return "", err
 	}
-	return ToHTML(b), nil
+	out := ToHTML(b)
+	if rc.Service != nil {
+		out = rc.Service.RenderMacros(ctx, rc, out)
+	}
+	return out, nil
 }
 
 var strict = bluemonday.StrictPolicy()

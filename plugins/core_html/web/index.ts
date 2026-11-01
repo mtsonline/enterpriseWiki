@@ -1,7 +1,8 @@
 // Editor for core.html: accessible WYSIWYG (contenteditable) or Markdown.
 // The server sanitizes everything on save and render, so the editor does
 // not need to be a security boundary.
-import { api, button, field, formDialog, h, registerEditor, select, t, textInput, trustedHTML, uploadFile, type EditorInstance } from '@ewiki/sdk';
+import { api, button, field, formDialog, h, registerEditor, select, t, textInput, toast, trustedHTML, uploadFile, type EditorInstance } from '@ewiki/sdk';
+import { macroAt, macroDialog, macroHTML, parseParams } from './macros';
 import './style.css';
 
 interface Body { format: 'html' | 'markdown'; source: string }
@@ -27,6 +28,7 @@ const TOOLS: (Tool | '|')[] = [
   { cmd: 'table', key: 'core.html.table', icon: '▦' },
   { cmd: 'image', key: 'core.html.image', icon: '🖼' },
   { cmd: 'insertHorizontalRule', key: 'core.html.hr', icon: '—' },
+  { cmd: 'macro', key: 'core.html.macro', icon: '⚙' },
   '|',
   { cmd: 'undo', key: 'core.html.undo', icon: '↶' },
   { cmd: 'redo', key: 'core.html.redo', icon: '↷' },
@@ -87,6 +89,7 @@ export function createHtmlEditor(container: HTMLElement, body: unknown, ctx: { l
     editable.focus();
     if (tool.cmd === 'link') return linkDialog();
     if (tool.cmd === 'image') return imageDialog();
+    if (tool.cmd === 'macro') return void openMacro();
     if (tool.cmd === 'table') {
       const cells = (tag: string) => `<tr>${[1, 2, 3].map(() => `<${tag}><br></${tag}>`).join('')}</tr>`;
       document.execCommand('insertHTML', false, `<table><thead>${cells('th')}</thead><tbody>${cells('td')}${cells('td')}</tbody></table><p><br></p>`);
@@ -96,24 +99,34 @@ export function createHtmlEditor(container: HTMLElement, body: unknown, ctx: { l
     onSel?.();
   };
 
+  // Dialogs are modal: the page behind them is inert, so changes to the
+  // editing surface are applied after the dialog has closed.
+  const afterDialog = (range: Range | null, fn: () => void) => {
+    setTimeout(() => {
+      if (!editable) return;
+      editable.focus();
+      if (range) {
+        const s = document.getSelection()!;
+        s.removeAllRanges();
+        s.addRange(range);
+      }
+      fn();
+    }, 0);
+  };
+
   const linkDialog = () => {
     const sel = document.getSelection();
     const range = sel && sel.rangeCount ? sel.getRangeAt(0).cloneRange() : null;
     const existing = (sel?.anchorNode?.parentElement?.closest('a') as HTMLAnchorElement | null)?.getAttribute('href') ?? '';
     const url = textInput({ value: existing, type: 'url', placeholder: 'https://' });
     formDialog(t('core.html.link'), field(t('core.html.link_prompt'), url), t('common.apply'), async () => {
-      editable!.focus();
-      if (range) {
-        const s = document.getSelection()!;
-        s.removeAllRanges();
-        s.addRange(range);
-      }
       const v = url.value.trim();
-      if (!v) document.execCommand('unlink');
-      else if (/^(https?:|mailto:|\/)/i.test(v)) {
-        if (range && range.collapsed) document.execCommand('insertHTML', false, `<a href="${v.replace(/"/g, '&quot;')}">${v.replace(/</g, '&lt;')}</a>`);
+      if (v && !/^(https?:|mailto:|\/)/i.test(v)) throw new Error(t('core.html.link_invalid'));
+      afterDialog(range, () => {
+        if (!v) document.execCommand('unlink');
+        else if (range && range.collapsed) document.execCommand('insertHTML', false, `<a href="${v.replace(/"/g, '&quot;')}">${v.replace(/</g, '&lt;')}</a>`);
         else document.execCommand('createLink', false, v);
-      } else throw new Error(t('core.html.link_invalid'));
+      });
     });
   };
 
@@ -129,15 +142,61 @@ export function createHtmlEditor(container: HTMLElement, body: unknown, ctx: { l
       if (!f) throw new Error(t('core.html.image_file'));
       const up = await uploadFile(f);
       if (!up.mime.startsWith('image/')) throw new Error(t('core.html.image_type'));
-      editable!.focus();
-      if (range) {
-        const s = document.getSelection()!;
-        s.removeAllRanges();
-        s.addRange(range);
-      }
       const esc = (x: string) => x.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
-      document.execCommand('insertHTML', false, `<img src="/api/v1/files/${up.hash}" alt="${esc(alt.value.trim())}">`);
+      afterDialog(range, () => document.execCommand('insertHTML', false, `<img src="/api/v1/files/${up.hash}" alt="${esc(alt.value.trim())}">`));
     });
+  };
+
+  // Macros: insert at the cursor, or edit the macro the cursor is in.
+  const openMacro = async () => {
+    const sel = document.getSelection();
+    const range = sel && sel.rangeCount ? sel.getRangeAt(0).cloneRange() : null;
+    const existing = editable ? macroAt(sel?.anchorNode ?? null, editable) : null;
+    try {
+      await macroDialog(existing ? { name: existing.dataset.macro!, params: parseParams(existing) } : null, (c) => {
+        if (existing) {
+          existing.dataset.params = JSON.stringify(c.params);
+          return;
+        }
+        // Inserted as a block next to the current paragraph (insertHTML would
+        // merge the placeholder into the paragraph).
+        afterDialog(range, () => {
+          const tpl = document.createElement('template');
+          tpl.innerHTML = macroHTML(c, `<p>${t('core.html.macro_body')}</p>`);
+          const node = tpl.content.firstElementChild!;
+          let block: Node | null = range?.startContainer ?? null;
+          while (block && block.parentNode !== editable) block = block.parentNode;
+          if (block instanceof Element && !block.textContent?.trim() && !block.querySelector('img, [data-macro]')) block.replaceWith(node);
+          else if (block) (block as ChildNode).after(node);
+          else editable!.append(node);
+          if (!node.nextSibling) node.after(h('p', null, h('br')));
+          const sel = document.getSelection()!;
+          sel.removeAllRanges();
+          const r = document.createRange();
+          r.selectNodeContents(node.querySelector('p') ?? node.nextSibling ?? node);
+          sel.addRange(r);
+          editable!.dispatchEvent(new Event('input', { bubbles: true }));
+        });
+      });
+    } catch (e) {
+      toast(String((e as Error).message ?? e), 'error');
+    }
+  };
+
+  const insertMarkdownMacro = async () => {
+    const ta = textarea!;
+    const start = ta.selectionStart, end = ta.selectionEnd;
+    try {
+      await macroDialog(null, (c) => {
+        const inner = ta.value.slice(start, end) || t('core.html.macro_body');
+        const snippet = c.hasBody
+          ? `\n${macroHTML(c, '').replace('</div>', '')}\n\n${inner}\n\n</div>\n`
+          : `\n${macroHTML(c, '')}\n`;
+        setTimeout(() => { ta.setRangeText(snippet, start, end, 'end'); ta.focus(); }, 0);
+      });
+    } catch (e) {
+      toast(String((e as Error).message ?? e), 'error');
+    }
   };
 
   const mountMarkdown = (src: string) => {
@@ -146,7 +205,8 @@ export function createHtmlEditor(container: HTMLElement, body: unknown, ctx: { l
     textarea = h('textarea', { class: 'ew-input ewh-markdown', rows: 18, 'aria-labelledby': ctx.labelId, lang: ctx.lang, spellcheck: 'true' });
     textarea.value = src;
     const preview = h('div', { class: 'ewh-preview', 'aria-live': 'polite' });
-    surface.replaceChildren(h('p', { class: 'ew-help' }, t('core.html.markdown_help')), textarea,
+    surface.replaceChildren(h('p', { class: 'ew-help' }, t('core.html.markdown_help')),
+      h('div', { class: 'ewh-toolbar' }, button(t('core.html.macro_insert'), () => void insertMarkdownMacro())), textarea,
       button(t('core.html.preview'), async () => {
         try {
           const res = await api.post<{ html: string }>('elements/preview', { type: ctx.type, lang: ctx.lang, body: { format: 'markdown', source: textarea!.value } });

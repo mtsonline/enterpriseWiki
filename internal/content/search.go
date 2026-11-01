@@ -3,6 +3,7 @@ package content
 import (
 	"context"
 	"strings"
+	"time"
 	"unicode"
 
 	"github.com/jackc/pgx/v5"
@@ -296,4 +297,52 @@ func (s *Service) DeleteRule(ctx context.Context, ruleID int64) error {
 	_ = auditLog(ctx, s, "acl.delete", "category", r.CategoryID, r, nil)
 	s.aclChanged(ctx)
 	return nil
+}
+
+// RecentItem is a recently changed element.
+type RecentItem struct {
+	ID         int64             `json:"id"`
+	CategoryID int64             `json:"category_id"`
+	Titles     map[string]string `json:"titles"`
+	UpdatedAt  time.Time         `json:"updated_at"`
+}
+
+// Recent lists recently changed elements the caller can see (optionally
+// within the subtree of category).
+func (s *Service) Recent(ctx context.Context, category int64, limit int) ([]RecentItem, error) {
+	if limit <= 0 || limit > 100 {
+		limit = 10
+	}
+	rows, err := s.pool.Query(ctx, `SELECT e.id, e.category_id, e.titles, e.updated_at FROM elements e JOIN categories c ON c.id=e.category_id
+		WHERE e.deleted_at IS NULL AND c.deleted_at IS NULL
+		AND ($1 = 0 OR c.path <@ (SELECT path FROM categories WHERE id=$1))
+		ORDER BY e.updated_at DESC LIMIT 500`, category)
+	if err != nil {
+		return nil, err
+	}
+	items, err := pgx.CollectRows(rows, func(r pgx.CollectableRow) (RecentItem, error) {
+		var x RecentItem
+		return x, r.Scan(&x.ID, &x.CategoryID, &x.Titles, &x.UpdatedAt)
+	})
+	if err != nil {
+		return nil, err
+	}
+	ids := make([]int64, len(items))
+	for i, x := range items {
+		ids[i] = x.CategoryID
+	}
+	perms, err := s.acl.PermsMap(ctx, identity.From(ctx), ids)
+	if err != nil {
+		return nil, err
+	}
+	out := []RecentItem{}
+	for _, x := range items {
+		if perms[x.CategoryID]&acl.View != 0 {
+			out = append(out, x)
+			if len(out) >= limit {
+				break
+			}
+		}
+	}
+	return out, nil
 }

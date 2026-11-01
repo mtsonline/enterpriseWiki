@@ -50,6 +50,15 @@ ewiki plugin remove acme.kanban --build
 ewiki plugin build              # Neubau, danach: systemctl restart enterprisewiki
 ```
 
+## Updates
+
+*Administration → Updates* vergleicht die installierten Versionen mit dem neuesten GitHub-Release (oder, ohne Releases, dem höchsten Versions-Tag) des Kerns und aller Plugins, die in `plugin.json` ein `repo` angeben oder im Katalog stehen. Das Ergebnis wird eine Stunde zwischengespeichert; *Nach Updates suchen* prüft sofort.
+
+- **Plugins:** *Aktualisieren* lädt das Release herunter, legt die alte Version unter `plugins/.backup` ab und baut das Wiki neu. Danach unter *Plugins* neu starten. Per CLI: `ewiki plugin updates`, `ewiki plugin update ID --build`.
+- **Kern:** wird auf dem Server mit `scripts/update.sh` (oder dem Update-Timer) aktualisiert, mit Backup und automatischem Rollback; die Oberfläche zeigt nur an, dass ein Update verfügbar ist.
+
+Für GitHub Enterprise oder private Repositories siehe `plugins.updates` in [configuration.md](configuration.md).
+
 ## Manuelle Installation
 
 1. Plugin-Verzeichnis nach `plugins/<name>/` kopieren (es enthält `plugin.json`, Go-Dateien und optional `web/`, `locales/`, `migrations/`).
@@ -71,7 +80,14 @@ Plugins sind vollwertiger Code mit Zugriff auf Datenbank und Server. Installiere
 | `core.attachment` | Elementtyp | Dateien (PDF, Office, Bilder, Video) mit Vorschau und Volltext |
 | `core.html` | Elementtyp | Seiten mit WYSIWYG oder Markdown |
 | `core.menu` | Menü | beliebig viele Menüs an Template-Positionen (*Administration → Menüs*) |
+| `core.macros` | Makros | Inhaltsverzeichnis, Unterseiten, Zuletzt geändert, Hinweis-Boxen, Aufklappbereich, Status-Label, Spalten |
+| `core.layout` | Makros | Layout-Bausteine: Abschnitt, Hero, Karten, Button, Abstand (erbt von `core.macros`) |
+| `macro.shell` | Makro | Ausgabe eines Shell-Befehls, nur nach exakter Freigabe durch einen Superadmin, standardmäßig aus |
+| `macro.http` | Makro | Ergebnis eines HTTP-Abrufs, nur Adressen aus der Allow-Liste |
+| `core.comments` | Allgemein | Kommentare und Antworten unter Seiten |
+| `workflow.process` | Elementtyp | Abläufe wie Bewerbungen oder Genehmigungen mit Formular, Schritten, Zuständigen und Verlauf |
 | `theme.confluence` | Template | Dokumentations-Layout mit Seitenbaum |
+| `theme.cms` | Template | Website-Layout mit Hauptnavigation, Off-Canvas-Menü und Footer-Spalten |
 | `theme.confluence.dark` | Template (Beispiel) | erbt von `theme.confluence`, ändert nur die Farben |
 | `example.notice` | Elementtyp (Beispiel) | Hinweisbox, erbt von `core.html` |
 

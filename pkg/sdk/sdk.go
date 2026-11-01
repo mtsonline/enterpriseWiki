@@ -169,6 +169,11 @@ func (h *Host) RegisterElementType(t content.ElementType) {
 	h.Content.RegisterType(h.Manifest.ID, t)
 }
 
+// RegisterMacro adds a macro for rich text (see content.Macro).
+func (h *Host) RegisterMacro(m content.Macro) {
+	h.Content.RegisterMacro(h.Manifest.ID, m)
+}
+
 // RegisterAuthProvider adds a password authentication provider.
 func (h *Host) RegisterAuthProvider(p auth.PasswordProvider) {
 	h.Auth.RegisterProvider(h.Manifest.ID, p)

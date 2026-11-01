@@ -29,5 +29,12 @@
  "core.html.image_file": "Bilddatei",
  "core.html.image_alt": "Alternativtext",
  "core.html.image_alt_help": "Beschreiben Sie das Bild für Menschen, die es nicht sehen können.",
- "core.html.image_type": "Hier können nur Bilder eingefügt werden."
+ "core.html.image_type": "Hier können nur Bilder eingefügt werden.",
+ "core.html.macro": "Makro",
+ "core.html.macro_insert": "Makro einfügen",
+ "core.html.macro_edit": "Makro bearbeiten",
+ "core.html.macro_body": "Inhalt",
+ "core.html.macro_none": "Keine Makros verfügbar (kein Makro-Plugin aktiv).",
+ "core.html.macro_no_params": "Dieses Makro hat keine Einstellungen.",
+ "core.html.macro_required": "{field} ist erforderlich."
 }

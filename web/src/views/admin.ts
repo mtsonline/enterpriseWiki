@@ -13,7 +13,7 @@ import { errorPage } from './content';
 
 interface User { id: number; username: string; provider: string; handle: string; display_name: string; email: string; language: string; disabled: boolean; locked_until: string | null; created_at: string; last_login_at: string | null; groups: number[]; roles: number[]; totp_enabled: boolean }
 
-const CORE_SECTIONS = ['users', 'groups', 'roles', 'plugins', 'settings', 'languages', 'audit'];
+const CORE_SECTIONS = ['users', 'groups', 'roles', 'plugins', 'updates', 'settings', 'languages', 'audit'];
 
 const reload = () => navigate(location.pathname + location.search, { replace: true });
 
@@ -40,6 +40,7 @@ export async function adminView({ params, query, main }: RouteCtx): Promise<void
       case 'groups': await groups(panel); break;
       case 'roles': await roles(panel); break;
       case 'plugins': await plugins(panel); break;
+      case 'updates': await updates(panel, false); break;
       case 'settings': await settings(panel); break;
       case 'languages': await languages(panel, query); break;
       case 'audit': await auditLog(panel, query); break;
@@ -249,6 +250,39 @@ async function plugins(panel: HTMLElement): Promise<void> {
         data.catalog.map((c) => h('tr', null, h('th', { scope: 'row' }, c.name, h('br'), h('code', null, c.id)), h('td', null, c.description ?? ''), h('td', null, c.repo),
           h('td', null, button(installedIds.has(c.id) ? t('plugins.upgrade') : t('plugins.install'), () => void install(c.id), { variant: 'link', ariaLabel: `${t('plugins.install')} ${c.name}` })))), '–')) : null,
     inf);
+}
+
+// ---------------------------------------------------------------- updates
+
+interface UpdateInfo { id: string; name: string; repo: string; current: string; latest?: string; tag?: string; url?: string; notes?: string; available: boolean; error?: string }
+
+async function updates(panel: HTMLElement, force: boolean): Promise<void> {
+  const rep = await api.get<{ checked_at: string | null; items: UpdateInfo[] }>(`admin/updates${force ? '?force=1' : ''}`);
+  const check = button(t('updates.check'), async () => {
+    check.disabled = true;
+    try { await updates(panel, true); announceDone(); } catch (e) { toast(errorText(e), 'error'); check.disabled = false; }
+  }, { variant: 'primary' });
+  const announceDone = () => toast(t('updates.checked'));
+  const update = async (it: UpdateInfo) => {
+    if (!(await confirmDialog(t('updates.confirm', { name: it.name, version: it.latest ?? '' }), t('updates.update')))) return;
+    try {
+      await api.post(`admin/updates/${encodeURIComponent(it.id)}`);
+      toast(t('updates.installing', { name: it.name }));
+      navigate('/admin/plugins');
+    } catch (e) { toast(errorText(e), 'error'); }
+  };
+  const avail = rep.items.filter((i) => i.available).length;
+  mount(panel, pageHeader(t('admin.updates'), check), h('p', null, t('updates.help')),
+    h('p', { role: 'status' }, rep.checked_at ? t('updates.checked_at', { date: fmtDate(rep.checked_at, state.lang), count: avail }) : t('updates.never')),
+    table(t('admin.updates'), [t('common.name'), t('updates.installed'), t('updates.latest'), t('common.status'), t('common.actions')],
+      rep.items.map((it) => h('tr', null,
+        h('th', { scope: 'row' }, it.name, h('br'), h('code', null, it.id === 'core' ? it.repo : it.id)),
+        h('td', null, it.current), h('td', null, it.url ? h('a', { href: it.url, rel: 'external noopener', target: '_blank' }, it.latest ?? it.tag ?? '') : (it.latest ?? '–')),
+        h('td', null, it.error ? h('span', { class: 'ew-badge ew-badge--warn' }, it.error)
+          : it.available ? h('span', { class: 'ew-badge ew-badge--info' }, t('updates.available')) : h('span', { class: 'ew-badge ew-badge--ok' }, t('updates.current')),
+          it.notes && it.available ? h('details', null, h('summary', null, t('updates.notes')), h('pre', { class: 'ew-code', tabindex: '0' }, it.notes)) : null),
+        h('td', { class: 'ew-actions' }, it.available && it.id !== 'core' ? button(t('updates.update'), () => void update(it), { variant: 'primary', ariaLabel: t('updates.update_named', { name: it.name }) })
+          : it.available ? h('span', { class: 'ew-help' }, t('updates.core_hint')) : null))), t('updates.none')));
 }
 
 // ---------------------------------------------------------------- settings

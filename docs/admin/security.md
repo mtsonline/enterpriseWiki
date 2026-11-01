@@ -75,3 +75,18 @@ Grundsätze:
 - Hochgeladene Dateien: Der Typ wird aus dem Inhalt bestimmt, nicht aus Angaben des Browsers. HTML, SVG und Skripte werden nie im Browser angezeigt, sondern nur heruntergeladen (`Content-Disposition: attachment`, `nosniff`, eigene CSP mit `sandbox`). Dateinamen werden bereinigt. Dateien eines Elements gibt es nur mit Leserecht auf das Element. Bilder sind zusätzlich über ihren nicht erratbaren SHA-256-Hash abrufbar, damit Bilder in öffentlichen Seiten auch für Gäste funktionieren.
 - Konfigurationsgeheimnisse stehen nur in der Umgebung bzw. in `.env`. Die Datenbank-URL wird in der Oberfläche maskiert.
 - Alle sicherheitsrelevanten Änderungen landen im Audit-Protokoll.
+
+## Makros mit Systemzugriff
+
+Das Shell- und das HTTP-Makro sind die einzigen Stellen, an denen Seiteninhalte etwas auf dem Server auslösen. Deshalb gilt:
+
+- Die Schalter stehen nur in `config.yaml` (`plugins.macros`). Über Oberfläche und API lassen sie sich nicht ändern, auch nicht von Administratoren.
+- **Shell:** standardmäßig aus. Redakteure können den Befehl zwar in eine Seite schreiben, er läuft aber erst nach der Freigabe genau dieses Befehlstexts (SHA-256) durch einen Superadmin aus `shell_approvers` oder die CLI. API-Keys können nie freigeben. Befehle laufen mit `/bin/sh -c` in einem leeren temporären Verzeichnis, mit minimaler Umgebung (keine Secrets aus `.env`), eigener Prozessgruppe, Zeitlimit und auf 64 KB begrenzter, maskierter Ausgabe. Läuft das Wiki als root, werden Befehle als `shell_user` (Standard `nobody`) ausgeführt. Freigaben, Sperren und Löschungen stehen im Audit-Protokoll. Freigegebene Befehle laufen mit den Rechten des Dienstbenutzers; geben Sie nur lesende, ungefährliche Befehle frei.
+- **HTTP:** nur URLs aus der Allow-Liste; Verbindungen zu Loopback-, privaten, Link-Local- (u. a. Cloud-Metadaten 169.254.169.254) und CGNAT-Adressen werden nach der DNS-Auflösung abgelehnt (Schutz gegen SSRF und DNS-Rebinding), Weiterleitungen werden gegen dieselben Regeln geprüft. Antworten sind auf 1 MB und 15 Sekunden begrenzt; HTML wird bereinigt, Text und JSON werden maskiert.
+- Makros werden bei jeder Anzeige mit den Rechten des Betrachters gerendert, z. B. listet *Unterseiten* nur sichtbare Kategorien.
+
+## Workflows und Kommentare
+
+- Einen Vorgang sehen nur die Person, die ihn gestartet hat, alle, die für einen seiner bisherigen oder den aktuellen Schritt zuständig sind oder waren, Benutzer mit dem Recht *Berechtigungen verwalten* auf der Kategorie und Administratoren. Dateien aus Formularen werden nur mit dieser Prüfung ausgeliefert.
+- Aktionen darf nur ausführen, wer für den aktuellen Schritt zuständig ist (Administratoren als Vertretung). Jede Aktion steht im Verlauf des Vorgangs und im Audit-Protokoll.
+- Kommentare: Lesen mit Leserecht, Schreiben angemeldet mit Lese- (oder, per Einstellung, Bearbeitungs-)recht; löschen dürfen Verfasser, Benutzer mit *Berechtigungen verwalten* und Administratoren. Der Text gelöschter Kommentare bleibt im Audit-Protokoll erhalten.

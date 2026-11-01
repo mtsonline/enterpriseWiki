@@ -2,6 +2,7 @@ package content
 
 import (
 	"context"
+	"errors"
 	"log/slog"
 	"regexp"
 	"strings"
@@ -29,6 +30,7 @@ type Service struct {
 	cfg     *config.Store
 	log     *slog.Logger
 	types   typeRegistry
+	macros  macroRegistry
 	enabled func(pluginID string) bool
 	hooks   []Hook
 }
@@ -69,6 +71,32 @@ func (s *Service) require(ctx context.Context, categoryID int64, want acl.Perm) 
 		return apperr.NotFound("category")
 	}
 	return apperr.ErrForbidden
+}
+
+// Require checks that the caller has want on category id (for plugins).
+func (s *Service) Require(ctx context.Context, categoryID int64, want acl.Perm) error {
+	return s.require(ctx, categoryID, want)
+}
+
+// ElementCategory returns the category of a (not deleted) element after
+// checking that the caller has want on it.
+func (s *Service) ElementCategory(ctx context.Context, elementID int64, want acl.Perm) (int64, error) {
+	var cat int64
+	err := s.pool.QueryRow(ctx, `SELECT e.category_id FROM elements e JOIN categories c ON c.id=e.category_id
+		WHERE e.id=$1 AND e.deleted_at IS NULL AND c.deleted_at IS NULL`, elementID).Scan(&cat)
+	if err != nil {
+		if identity.From(ctx) == nil {
+			return 0, apperr.ErrUnauthorized
+		}
+		return 0, apperr.NotFound("element")
+	}
+	if err := s.require(ctx, cat, want); err != nil {
+		if errors.Is(err, apperr.ErrUnauthorized) || errors.Is(err, apperr.ErrForbidden) {
+			return cat, err
+		}
+		return 0, apperr.NotFound("element")
+	}
+	return cat, nil
 }
 
 func requireAdmin(ctx context.Context) error {

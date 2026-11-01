@@ -1,0 +1,8 @@
+{
+  "id": "macro.http",
+  "name": "HTTP macro",
+  "version": "1.0.0",
+  "description": "Inserts the result of an HTTP request (text, sanitized HTML or JSON as value or table). Only URLs on the allow list in config.yaml (plugins.macros.http_allow); private and loopback addresses are blocked unless explicitly allowed.",
+  "author": "Enterprise Wiki",
+  "kinds": ["macro"]
+}

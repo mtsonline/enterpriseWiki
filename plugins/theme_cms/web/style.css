@@ -1,0 +1,40 @@
+/* theme.cms – website layout */
+.ewcms-wrap { max-width: 76rem; margin: 0 auto; padding: 0 1.25rem; }
+.ewcms-topbar { background: #16202b; color: #e9eef4; font-size: .9rem; }
+.ewcms-topbar .ew-pos--header-tools { display: flex; justify-content: flex-end; align-items: center; gap: .6rem; flex-wrap: wrap; min-height: 2.6rem; }
+.ewcms-topbar a, .ewcms-topbar .ew-btn--link { color: #e9eef4; }
+.ewcms-topbar .ew-input { background: #24313f; color: #fff; border-color: #6c7b8b; }
+.ewcms-topbar .ew-btn--subtle { color: #e9eef4; }
+.ewcms-topbar .ew-btn--subtle[aria-pressed="true"] { background: #2f4458; }
+.ewcms-header { background: var(--ew-bg-raised); border-bottom: 1px solid var(--ew-border); position: sticky; top: 0; z-index: 40; box-shadow: 0 1px 8px rgb(0 0 0 / .05); }
+.ewcms-header-inner { display: flex; align-items: center; gap: 1.5rem; min-height: 5rem; }
+.ewcms-brand { display: flex; align-items: center; gap: .6rem; font-weight: 800; font-size: 1.35rem; color: var(--ew-text); text-decoration: none; letter-spacing: -.01em; }
+.ewcms-logo { width: 36px; height: 36px; border-radius: 50%; background: var(--ew-primary) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cpath d='M7 22 16 8l9 14z' fill='%23fff'/%3E%3C/svg%3E") center/70% no-repeat; }
+.ewcms-nav { margin-left: auto; display: flex; align-items: center; gap: 1rem; }
+.ewcms-nav-list { display: flex; flex-wrap: wrap; gap: .25rem; list-style: none; margin: 0; padding: 0; }
+.ewcms-nav-list a { display: block; padding: .6rem .8rem; color: var(--ew-text); text-decoration: none; font-weight: 600; border-bottom: 3px solid transparent; }
+.ewcms-nav-list a:hover { color: var(--ew-primary); }
+.ewcms-nav-list a[aria-current="page"] { border-bottom-color: var(--ew-primary); color: var(--ew-primary); }
+.ewcms-burger { display: none; margin-left: auto; font-size: 1.3rem; }
+.ewcms-body { min-height: 60vh; }
+.ewcms-main { max-width: 76rem; margin: 0 auto; padding: 2rem 1.25rem 3rem; }
+.ewcms-main:focus { outline: none; }
+/* layout builder sections can break out of the content column */
+.ewcms .ewl-section--w-full, .ewcms .ewl-hero { border-radius: 0; margin-left: calc(50% - 50vw); margin-right: calc(50% - 50vw); padding-left: max(1.25rem, calc(50vw - 37rem)); padding-right: max(1.25rem, calc(50vw - 37rem)); }
+.ewcms .ewl-hero-title { font-size: clamp(2rem, 5vw, 3.4rem); }
+.ewcms-aside { border-top: 1px solid var(--ew-border); background: var(--ew-bg-subtle); padding: 1.5rem 0; }
+.ewcms-aside .ew-pos--sidebar { display: grid; grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr)); gap: 1.5rem; }
+.ewcms-aside .ew-pos--sidebar:empty { display: none; }
+.ewcms-footer { background: #16202b; color: #c9d3de; padding: 2rem 0 1rem; font-size: .92rem; }
+.ewcms-footer a { color: #fff; }
+.ewcms-footer .ew-pos--footer { display: grid; grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr)); gap: 1.5rem; }
+.ewcms-powered { margin: 1.5rem 0 0; color: #9fb0c2; }
+@media (max-width: 900px) {
+  .ewcms-burger { display: inline-flex; }
+  .ewcms-nav { display: none; position: absolute; left: 0; right: 0; top: 100%; flex-direction: column; align-items: stretch; background: var(--ew-bg-raised); border-bottom: 1px solid var(--ew-border); padding: .5rem 1.25rem 1rem; box-shadow: 0 8px 16px rgb(0 0 0 / .12); }
+  .ewcms-nav.is-open { display: flex; }
+  .ewcms-nav-list { flex-direction: column; }
+  .ewcms-header-inner { position: relative; min-height: 4rem; }
+  .ewcms-main { padding: 1.25rem 1rem 2rem; }
+}
+.ewcms-nav .ew-pos--cms-nav, .ewcms-nav .ew-pos--header-nav { display: flex; }

@@ -1,0 +1,24 @@
+.ewf-overview { margin: 1rem 0; border: 1px solid var(--ew-border); border-radius: var(--ew-radius); padding: .5rem .9rem; }
+.ewf-overview summary { cursor: pointer; font-weight: 600; }
+.ewf-steps { margin: .5rem 0 0; }
+.ewf-step { margin-bottom: .5rem; }
+.ewf-step-desc, .ewf-assignee { color: var(--ew-text-muted); font-size: .92rem; }
+.ewf-actions { margin: .2rem 0; font-size: .92rem; }
+.ewf-end--success { color: var(--ew-ok-text); } .ewf-end--failure { color: var(--ew-danger); }
+.ewf-cases { margin-top: 1.5rem; }
+.ewf-data { display: grid; grid-template-columns: minmax(8rem, max-content) 1fr; gap: .3rem 1rem; }
+.ewf-data dt { font-weight: 600; }
+.ewf-data dd { margin: 0; }
+.ewf-pre { white-space: pre-wrap; }
+.ewf-history { padding-left: 1.2rem; }
+.ewf-history li { margin-bottom: .4rem; }
+.ewf-note { margin: .25rem 0 0; padding: .25rem .6rem; border-left: 3px solid var(--ew-border); white-space: pre-wrap; }
+.ewf-tasks-link { margin: 0 0 .75rem; font-weight: 600; }
+.ewf-editor .ewf-row { border: 1px solid var(--ew-border); border-radius: var(--ew-radius); padding: .6rem .9rem; margin: 0 0 .75rem; }
+.ewf-editor legend { font-weight: 700; padding: 0 .3rem; }
+.ewf-step-final { background: var(--ew-bg-subtle); }
+.ewf-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr)); gap: 0 1rem; }
+.ewf-action-row { display: grid; grid-template-columns: 2fr 2fr 1.4fr auto; gap: 0 .75rem; align-items: end; border-top: 1px dashed var(--ew-border); padding-top: .4rem; }
+@media (max-width: 760px) { .ewf-action-row { grid-template-columns: 1fr; } }
+.ewf-ed-section { margin: 1.5rem 0; }
+.ewf-template { display: flex; flex-wrap: wrap; gap: .5rem; align-items: end; margin-bottom: 1rem; }

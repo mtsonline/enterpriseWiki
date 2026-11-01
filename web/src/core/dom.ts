@@ -1,5 +1,6 @@
 // Tiny DOM helpers. Everything is created with real DOM APIs (no innerHTML
 // with user data), which keeps the UI XSS-safe by construction.
+import { hydrate } from './widgets';
 
 export type Child = Node | string | number | null | undefined | false | Child[];
 export type Attrs = Record<string, unknown> & {
@@ -55,6 +56,7 @@ export function trustedHTML(html: string, cls = 'ew-content'): HTMLElement {
   const div = document.createElement('div');
   div.className = cls;
   div.innerHTML = html;
+  hydrate(div);
   return div;
 }
 

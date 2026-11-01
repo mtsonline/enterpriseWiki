@@ -40,6 +40,7 @@ type Manager struct {
 	mu      sync.Mutex
 	build   BuildStatus
 	restart func()
+	updates updateCache
 }
 
 // BuildStatus reports the last build.

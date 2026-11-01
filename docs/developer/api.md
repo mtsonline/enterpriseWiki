@@ -132,6 +132,12 @@ curl -H "Authorization: Bearer $KEY" -H 'Content-Type: application/json' \
 | `GET` | `/api/v1/elements/{id}/revisions/{lang}/{rev}` |
 | `POST` | `/api/v1/elements/{id}/restore` |
 
+### Makros
+
+| Methode | Pfad |
+|---|---|
+| `GET` | `/api/v1/macros` |
+
 ### Dateien
 
 | Methode | Pfad |
@@ -160,6 +166,13 @@ curl -H "Authorization: Bearer $KEY" -H 'Content-Type: application/json' \
 | `POST` | `/api/v1/admin/languages` |
 | `DELETE` | `/api/v1/admin/languages/{code}` |
 
+### Updates
+
+| Methode | Pfad |
+|---|---|
+| `GET` | `/api/v1/admin/updates` |
+| `POST` | `/api/v1/admin/updates/{id}` |
+
 ### Administration
 
 | Methode | Pfad |
@@ -184,8 +197,25 @@ curl -H "Authorization: Bearer $KEY" -H 'Content-Type: application/json' \
 | `GET` | `/api/v1/x/auth.oidc/check` |
 | `GET` | `/api/v1/x/auth.shib/metadata` |
 | `GET` | `/api/v1/x/core.attachment/elements/{id}/file` |
+| `GET` | `/api/v1/x/core.comments/elements/{id}/comments` |
+| `POST` | `/api/v1/x/core.comments/elements/{id}/comments` |
+| `PUT` | `/api/v1/x/core.comments/comments/{id}` |
+| `DELETE` | `/api/v1/x/core.comments/comments/{id}` |
 | `GET` | `/api/v1/x/core.menu/menus` |
 | `POST` | `/api/v1/x/core.menu/menus` |
 | `PUT` | `/api/v1/x/core.menu/menus/{id}` |
 | `DELETE` | `/api/v1/x/core.menu/menus/{id}` |
 | `GET` | `/api/v1/x/example.notice/tones` |
+| `GET` | `/api/v1/x/macro.shell/commands` |
+| `POST` | `/api/v1/x/macro.shell/commands` |
+| `POST` | `/api/v1/x/macro.shell/commands/{hash}/` |
+| `DELETE` | `/api/v1/x/macro.shell/commands/{hash}` |
+| `POST` | `/api/v1/x/macro.shell/commands/{hash}/approve` |
+| `POST` | `/api/v1/x/macro.shell/commands/{hash}/revoke` |
+| `GET` | `/api/v1/x/workflow.process/elements/{id}/instances` |
+| `POST` | `/api/v1/x/workflow.process/elements/{id}/instances` |
+| `GET` | `/api/v1/x/workflow.process/instances/{id}` |
+| `GET` | `/api/v1/x/workflow.process/instances/{id}/files/{field}` |
+| `POST` | `/api/v1/x/workflow.process/instances/{id}/actions` |
+| `POST` | `/api/v1/x/workflow.process/instances/{id}/cancel` |
+| `GET` | `/api/v1/x/workflow.process/tasks` |

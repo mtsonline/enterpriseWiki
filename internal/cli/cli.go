@@ -61,6 +61,8 @@ Plugins
   plugin install SOURCE [--ref TAG] [--build]   SOURCE: catalog id, git URL,
                                                 github.com/owner/repo or directory
   plugin remove ID [--build]
+  plugin updates                check core and plugins for new GitHub releases
+  plugin update ID [--build]    install the latest release of a plugin
   plugin generate               regenerate plugins/all/zz_generated.go
   plugin build                  rebuild the binary (scripts/build.sh)
 

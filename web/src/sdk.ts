@@ -19,6 +19,8 @@ export { toast, announce } from './core/announce';
 export { navigate, route, rerender } from './core/router';
 export { button, field, textInput, textArea, select, checkbox, openDialog, confirmDialog, formDialog, langFields, errorText, loading, pageHeader } from './components/ui';
 export type * from './core/types';
+export { registerWidget, hydrate } from './core/widgets';
+export type { WidgetFactory } from './core/widgets';
 
 // ---------------------------------------------------------------- plugin modules
 
@@ -209,4 +211,53 @@ export function listAdminPages(): AdminPage[] {
 export function typeLabel(id: string): string {
   const ti = state.site?.element_types.find((x) => x.id === id);
   return ti ? (ti.labels[state.lang] || ti.labels.en || id) : id;
+}
+
+// ---------------------------------------------------------------- element extensions
+
+export interface ElementExtension {
+  id: string;
+  order?: number;
+  /** Rendered below the content of an element page (e.g. comments). */
+  render: (el: import('./core/types').ElementView) => Node | null | Promise<Node | null>;
+}
+
+const elementExtensions: ElementExtension[] = [];
+
+/** Adds a section below every element page. */
+export function registerElementExtension(x: ElementExtension): void {
+  elementExtensions.push(x);
+  elementExtensions.sort((a, b) => (a.order ?? 50) - (b.order ?? 50));
+}
+
+/** Renders all element extensions into container. */
+export async function renderElementExtensions(container: HTMLElement, el: import('./core/types').ElementView): Promise<void> {
+  for (const x of elementExtensions) {
+    try {
+      const n = await x.render(el);
+      if (n && container.isConnected) container.append(n);
+    } catch (e) {
+      console.error(`element extension ${x.id} failed`, e);
+    }
+  }
+}
+
+// ---------------------------------------------------------------- macros (for editors)
+
+export interface MacroParam {
+  name: string;
+  labels: Record<string, string>;
+  type: 'text' | 'textarea' | 'number' | 'select' | 'bool' | 'url';
+  options?: string[];
+  default?: string;
+  required?: boolean;
+}
+
+export interface MacroInfo {
+  name: string;
+  plugin: string;
+  labels: Record<string, string>;
+  description: Record<string, string>;
+  params: MacroParam[] | null;
+  has_body: boolean;
 }
