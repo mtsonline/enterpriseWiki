@@ -11,6 +11,7 @@ internal/
   acl/                Berechtigungsprüfung (Snapshot im Speicher)
   content/            Kategorien, Elemente, Versionen, Übersetzungen, Papierkorb, Rollback, Suche, Tags
   i18n/               UI-Texte aus Kern + Plugins, Übersetzungsstand, Übersetzungen aus der Oberfläche
+  storage/            inhaltsadressierte Dateiablage, sichere Auslieferung, PDF-/Text-Extraktion
   events/             Cache-Invalidierung (in-process bzw. PostgreSQL LISTEN/NOTIFY)
   audit/              unveränderliches Änderungsprotokoll
   kernel/             Aktivierungszustand der Plugins, Abhängigkeiten
@@ -41,10 +42,12 @@ scripts/              build, install, update, SSH-Login
 | `element_revisions` | unveränderliche Versionen je Element **und Sprache** (`rev`). Übersetzungen speichern `source_rev` (auf welcher Original-Version sie beruhen) und daraus ergibt sich der Status *aktuell/veraltet* |
 | `search_docs` | Volltextindex (tsvector: Titel A, Tags B, Inhalt C) je Element und Sprache |
 | `acl_rules` | Kategorie, Subjekt (user/group/role/guest/authenticated), Rechte-Bitmaske, `inherit` |
-| `users`, `groups`, `roles`, `user_groups`, `user_roles`, `group_roles` | Identitäten (eindeutig je `provider` + `subject`) |
+| `users`, `groups`, `roles`, `user_groups`, `user_roles`, `group_roles` | Identitäten (eindeutig je `provider` + `subject`). Mitgliedschaften tragen ihre Quelle (`local` oder Anbieter), damit die Synchronisation lokale Zuweisungen nicht berührt |
 | `sessions`, `api_keys`, `ssh_keys`, `auth_challenges` | Anmeldung (Tokens nur als SHA-256) |
 | `audit_log` | jede Änderung mit Vorher/Nachher-Snapshot. Daraus werden auch Kategorien zurückgesetzt |
 | `ui_translations` | in der Oberfläche gepflegte UI-Übersetzungen |
+| `files` | hochgeladene Dateien (SHA-256, Größe, aus dem Inhalt bestimmter Typ, Name) |
+| `sso_states` | laufende SSO-Anmeldungen (State, Nonce, PKCE-Verifier, Rücksprungziel), einmal verwendbar, 10 Minuten gültig |
 | `schema_migrations` | angewendete Migrationen je Quelle (Kern bzw. `plugin:<id>`) |
 
 Die Gliederungsnummer (1.2.3) wird aus den Positionen berechnet. Die IDs bleiben dagegen beim Verschieben stabil, daher brechen Rechte, Links und API-Keys nie.

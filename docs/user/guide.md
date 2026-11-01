@@ -29,6 +29,12 @@ Die aktuell geöffnete Kategorie ist automatisch als übergeordnete Kategorie au
 - Geben Sie optional eine **Änderungsnotiz** ein. Sie erscheint im Verlauf.
 - Hat jemand die Seite gleichzeitig gespeichert, werden Sie gewarnt, statt die fremde Änderung zu überschreiben. Laden Sie dann neu und übernehmen Sie Ihre Änderungen.
 
+### Dateien
+Wählen Sie bei *Neue Seite* den Elementtyp **Datei**, laden Sie die Datei hoch und beschreiben Sie sie. PDFs, Bilder und Videos werden direkt angezeigt, andere Dateien stehen zum Herunterladen bereit. Eine neue Datei hochzuladen und zu speichern erzeugt eine neue Version. Frühere Dateien bleiben im Verlauf erhalten. Der Text von PDFs ist über die Suche auffindbar.
+
+### Bilder in Seiten
+Im Editor fügt der Knopf **Bild einfügen** ein Bild ein. Geben Sie dabei einen Alternativtext an, der das Bild für Menschen beschreibt, die es nicht sehen können.
+
 ### Übersetzen
 Im Bearbeitungsmodus zeigt jede Seite, zu wie viel Prozent sie übersetzt ist und für jede Sprache den Status:
 
@@ -60,10 +66,14 @@ Gelöschte Kategorien (mit allem Inhalt) und Seiten landen im **Papierkorb** (Be
 
 Mit dem Recht *Berechtigungen verwalten* legen Sie unter *Kategorie-Einstellungen → Berechtigungen* fest, wer was darf: Benutzer, Gruppe, Rolle, alle Angemeldeten oder Gäste, mit den Rechten Ansehen, Bearbeiten, Erstellen, Löschen/Verschieben und Verwalten. Optional gilt eine Regel auch für alle Unterkategorien. Geerbte Regeln werden mit ihrer Herkunft angezeigt. Details: [docs/admin/security.md](../admin/security.md#berechtigungen).
 
+## Anmelden
+
+Je nach Einrichtung melden Sie sich mit Benutzername und Passwort an (lokales Konto oder LDAP/Active Directory) oder mit einem Knopf **Anmelden mit …** über den zentralen Login Ihrer Organisation (OpenID Connect oder Shibboleth/SAML). Ist für Ihr Konto die Zwei-Faktor-Authentifizierung aktiv, fragt das Formular anschließend nach dem Code aus Ihrer App.
+
 ## Mein Profil
 
 - Anzeigename, E-Mail und bevorzugte Sprache,
-- Passwort ändern (lokale Konten),
+- Passwort ändern und **Zwei-Faktor-Authentifizierung** einrichten (lokale Konten),
 - **API-Keys** für Skripte: Rechte, Kategorie und Ablaufdatum wählen. Der Schlüssel wird nur einmal angezeigt,
 - **SSH-Schlüssel** für die passwortlose Anmeldung an der API.
 

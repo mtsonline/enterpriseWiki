@@ -20,6 +20,7 @@ import (
 	"github.com/mtsonline/enterprisewiki/internal/httpx"
 	"github.com/mtsonline/enterprisewiki/internal/i18n"
 	"github.com/mtsonline/enterprisewiki/internal/kernel"
+	"github.com/mtsonline/enterprisewiki/internal/storage"
 	"github.com/mtsonline/enterprisewiki/pkg/sdk"
 )
 
@@ -32,6 +33,7 @@ type App struct {
 	ACL     *acl.Service
 	Content *content.Service
 	I18n    *i18n.Service
+	Files   *storage.Store
 	Kernel  *kernel.Kernel
 	Log     *slog.Logger
 	// Mux receives core and plugin routes.
@@ -80,13 +82,14 @@ func New(ctx context.Context, o Options) (*App, error) {
 	a.Auth = auth.New(pool, cfg, a.Bus, log)
 	a.Content = content.New(pool, a.ACL, a.Bus, cfg, log)
 	a.I18n = i18n.New(pool, cfg, a.Bus)
+	a.Files = storage.New(pool, cfg)
 	a.Auth.SetEnabledFunc(a.Kernel.Enabled)
 	a.Content.SetEnabledFunc(a.Kernel.Enabled)
 	if err := a.I18n.Register("core", i18n.CoreLocales()); err != nil {
 		pool.Close()
 		return nil, err
 	}
-	base := sdk.Host{Config: cfg, DB: pool, ACL: a.ACL, Content: a.Content, Auth: a.Auth, I18n: a.I18n, Log: log, Mux: a.Mux, IsEnabled: a.Kernel.Enabled}
+	base := sdk.Host{Config: cfg, DB: pool, ACL: a.ACL, Content: a.Content, Auth: a.Auth, I18n: a.I18n, Files: a.Files, Log: log, Mux: a.Mux, IsEnabled: a.Kernel.Enabled}
 	if err := a.Kernel.Setup(base, a.I18n); err != nil {
 		pool.Close()
 		return nil, err

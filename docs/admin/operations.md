@@ -35,7 +35,7 @@ Zu sichern sind:
 |---|---|
 | Datenbank | `pg_dump --format=custom -f ewiki.dump "$EWIKI_DATABASE_URL"` |
 | Konfiguration | `config.yaml` und `.env` (enthält Geheimnisse, verschlüsselt ablegen) |
-| Binärdaten (ab Meilenstein 2) | Verzeichnis aus `storage.path` |
+| hochgeladene Dateien | Verzeichnis aus `storage.path` (inhaltsadressiert, Dateien ändern sich nie: inkrementelle Sicherung genügt) |
 | eigene Plugins | `plugins/` im Quellbaum (bzw. das Git-Repository des Plugins) |
 
 Wiederherstellen:
@@ -82,7 +82,8 @@ ewiki plugin disable example.notice
 
 Stündlich läuft automatisch (im Cluster nur auf einer Instanz):
 
-- abgelaufene Sessions und SSH-Challenges löschen,
+- abgelaufene Sessions, SSH-Challenges und SSO-Anfragen löschen,
+- nicht mehr referenzierte Dateien entfernen (älter als ein Tag),
 - Aufbewahrungsregeln anwenden (alte Versionen, Papierkorb, Protokoll, siehe [configuration.md](configuration.md#retention)).
 
 ## Logs und Überwachung

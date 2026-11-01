@@ -1,5 +1,5 @@
 // Search, login, profile and trash.
-import { api, qs } from '../core/api';
+import { api, ApiError, qs } from '../core/api';
 import { fmtDate, h, mount } from '../core/dom';
 import { loadMessages, pick, t } from '../core/i18n';
 import { navigate, type RouteCtx } from '../core/router';
@@ -85,15 +85,22 @@ export async function loginView({ query, main }: RouteCtx): Promise<void> {
     navigate(safeNext, { replace: true });
     return;
   }
+  let providers = state.site.auth_providers;
+  try { providers = await api.get<{ id: string; name: string; kind: string }[]>('auth/providers'); } catch { /* use site info */ }
+  const pwProviders = providers.filter((p) => (p as { kind?: string }).kind !== 'redirect');
+  const sso = providers.filter((p) => (p as { kind?: string }).kind === 'redirect');
   const user = textInput({ name: 'username', autocomplete: 'username', required: true });
   const pw = textInput({ name: 'password', type: 'password', autocomplete: 'current-password', required: true });
-  const alert = h('div', { class: 'ew-form-alert', role: 'alert' });
-  let providers = state.site.auth_providers;
-  try { providers = await api.get<{ id: string; name: string }[]>('auth/providers'); } catch { /* use site info */ }
+  const totp = textInput({ name: 'totp', autocomplete: 'one-time-code', maxlength: 8 });
+  totp.setAttribute('inputmode', 'numeric');
+  const totpField = field(t('auth.totp'), totp, { help: t('auth.totp_help') });
+  totpField.hidden = true;
+  const alert = h('div', { class: 'ew-form-alert', role: 'alert' }, query.get('error') ?? '');
   const form = h('form', { class: 'ew-form ew-login', novalidate: true },
     alert,
-    field(t('auth.username'), user, { required: true, help: providers.length > 1 ? t('auth.username_help', { providers: providers.map((p) => p.id).join(', ') }) : undefined }),
+    field(t('auth.username'), user, { required: true, help: pwProviders.length > 1 ? t('auth.username_help', { providers: pwProviders.map((p) => p.id).join(', ') }) : undefined }),
     field(t('auth.password'), pw, { required: true }),
+    totpField,
     h('div', { class: 'ew-form-actions' }, button(t('auth.login'), () => undefined, { type: 'submit', variant: 'primary' })));
   form.addEventListener('submit', async (ev) => {
     ev.preventDefault();
@@ -104,7 +111,7 @@ export async function loginView({ query, main }: RouteCtx): Promise<void> {
       return;
     }
     try {
-      const res = await api.post<{ user: Principal }>('auth/login', { username: user.value.trim(), password: pw.value });
+      const res = await api.post<{ user: Principal }>('auth/login', { username: user.value.trim(), password: pw.value, totp: totp.value.trim() });
       state.user = res.user;
       if (res.user.language && state.site.languages.includes(res.user.language) && res.user.language !== state.lang) {
         state.lang = res.user.language;
@@ -115,13 +122,25 @@ export async function loginView({ query, main }: RouteCtx): Promise<void> {
       announce(t('auth.logged_in', { name: res.user.display_name || res.user.username }));
       navigate(safeNext);
     } catch (e) {
+      if (e instanceof ApiError && (e.code === 'totp_required' || e.code === 'totp_invalid')) {
+        totpField.hidden = false;
+        alert.textContent = e.code === 'totp_required' ? t('auth.totp_needed') : t('auth.totp_wrong');
+        totp.value = '';
+        totp.focus();
+        return;
+      }
       alert.textContent = errorText(e);
       pw.value = '';
       pw.focus();
     }
   });
-  mount(main, h('div', { class: 'ew-narrow' }, h('h1', null, t('auth.login_title', { site: state.site.name })), form,
+  const ssoBox = sso.length ? h('section', { class: 'ew-sso', 'aria-labelledby': 'sso-h' }, h('h2', { id: 'sso-h' }, t('auth.sso_title')),
+    h('ul', { class: 'ew-sso-list' }, ...sso.map((p) => h('li', null,
+      h('a', { class: 'ew-btn ew-btn--secondary ew-sso-btn', href: `/api/v1/auth/sso/${encodeURIComponent(p.id)}/start?next=${encodeURIComponent(safeNext)}` }, t('auth.sso_with', { name: p.name })))))) : null;
+  mount(main, h('div', { class: 'ew-narrow' }, h('h1', null, t('auth.login_title', { site: state.site.name })),
+    ssoBox, sso.length ? h('h2', { class: 'ew-login-local' }, t('auth.local_title')) : null, form,
     h('p', { class: 'ew-help' }, t('auth.ssh_hint'))));
+  if (query.get('error')) alert.focus?.();
 }
 
 // ---------------------------------------------------------------- profile
@@ -202,6 +221,7 @@ export async function profileView({ main }: RouteCtx): Promise<void> {
     h('p', null, t('profile.logged_in_as', { handle: `${u.username}@${u.provider}` })),
     h('section', { class: 'ew-section', 'aria-labelledby': 'pr-h' }, h('h2', { id: 'pr-h' }, t('profile.data')), pForm),
     pwSection,
+    u.provider === 'local' ? await totpSection() : null,
     h('section', { class: 'ew-section', 'aria-labelledby': 'ak-h' }, h('h2', { id: 'ak-h' }, t('apikey.title')), h('p', null, t('apikey.help')),
       button(t('apikey.create'), () => createKeyDialog(), { variant: 'primary' }),
       h('table', { class: 'ew-table' }, h('caption', { class: 'sr-only' }, t('apikey.title')),
@@ -213,6 +233,41 @@ export async function profileView({ main }: RouteCtx): Promise<void> {
       h('table', { class: 'ew-table' }, h('caption', { class: 'sr-only' }, t('ssh.title')),
         h('thead', null, h('tr', null, ...[t('common.name'), t('ssh.fingerprint'), t('common.created'), t('apikey.last_used'), t('common.actions')].map((x) => h('th', { scope: 'col' }, x)))),
         h('tbody', null, ...(sshRows.length ? sshRows : [h('tr', null, h('td', { colspan: '5' }, t('ssh.none')))])))));
+}
+
+async function totpSection(): Promise<HTMLElement> {
+  const st = await api.get<{ enabled: boolean }>('me/totp');
+  const box = h('section', { class: 'ew-section', 'aria-labelledby': 'totp-h' }, h('h2', { id: 'totp-h' }, t('totp.title')));
+  if (st.enabled) {
+    box.append(h('p', null, h('span', { class: 'ew-badge ew-badge--ok' }, t('totp.enabled')), ' ', t('totp.enabled_help')),
+      button(t('totp.disable'), () => {
+        const code = textInput({ autocomplete: 'one-time-code', maxlength: 8 });
+        formDialog(t('totp.disable'), field(t('auth.totp'), code, { required: true }), t('totp.disable'), async () => {
+          await api.post('me/totp/disable', { code: code.value });
+          toast(t('totp.disabled'));
+          navigate('/profile', { replace: true });
+        });
+      }, { variant: 'danger' }));
+    return box;
+  }
+  box.append(h('p', null, t('totp.help')), button(t('totp.setup'), async () => {
+    try {
+      const s = await api.post<{ secret: string; uri: string }>('me/totp/setup');
+      const code = textInput({ autocomplete: 'one-time-code', maxlength: 8 });
+      formDialog(t('totp.setup'), [
+        h('ol', null,
+          h('li', null, t('totp.step1')),
+          h('li', null, t('totp.step2'), ' ', h('code', { class: 'ew-secret', tabindex: '0' }, s.secret.replace(/(.{4})/g, '$1 ').trim()), ' ',
+            h('a', { href: s.uri, rel: 'external' }, t('totp.open_app'))),
+          h('li', null, t('totp.step3'))),
+        field(t('auth.totp'), code, { required: true })], t('totp.enable'), async () => {
+        await api.post('me/totp/enable', { code: code.value });
+        toast(t('totp.enabled'));
+        navigate('/profile', { replace: true });
+      }, { wide: true });
+    } catch (e) { toast(errorText(e), 'error'); }
+  }, { variant: 'primary' }));
+  return box;
 }
 
 function createKeyDialog(): void {

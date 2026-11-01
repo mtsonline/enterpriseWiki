@@ -11,7 +11,7 @@ import { langName, setContext } from '../components/widgets';
 import { listAdminPages, listTemplates } from '../sdk';
 import { errorPage } from './content';
 
-interface User { id: number; username: string; provider: string; handle: string; display_name: string; email: string; language: string; disabled: boolean; locked_until: string | null; created_at: string; last_login_at: string | null; groups: number[]; roles: number[] }
+interface User { id: number; username: string; provider: string; handle: string; display_name: string; email: string; language: string; disabled: boolean; locked_until: string | null; created_at: string; last_login_at: string | null; groups: number[]; roles: number[]; totp_enabled: boolean }
 
 const CORE_SECTIONS = ['users', 'groups', 'roles', 'plugins', 'settings', 'languages', 'audit'];
 
@@ -72,7 +72,7 @@ async function users(panel: HTMLElement, query: URLSearchParams): Promise<void> 
   mount(panel, pageHeader(t('admin.users'), button(t('admin.user_create'), () => userDialog(null, gs, rs), { variant: 'primary' })), sf,
     table(t('admin.users'), [t('admin.handle'), t('profile.display_name'), t('admin.groups'), t('admin.roles'), t('admin.last_login'), t('common.status'), t('common.actions')],
       list.map((u) => h('tr', null,
-        h('th', { scope: 'row' }, u.handle), h('td', null, u.display_name), h('td', null, name(u.groups, gs)), h('td', null, name(u.roles, rs)),
+        h('th', { scope: 'row' }, u.handle, u.totp_enabled ? h('span', { class: 'ew-badge ew-badge--ok' }, ' 2FA') : null), h('td', null, u.display_name), h('td', null, name(u.groups, gs)), h('td', null, name(u.roles, rs)),
         h('td', null, u.last_login_at ? fmtDate(u.last_login_at, state.lang) : '–'),
         h('td', null, u.disabled ? h('span', { class: 'ew-badge ew-badge--warn' }, t('admin.disabled')) : (u.locked_until && new Date(u.locked_until) > new Date() ? h('span', { class: 'ew-badge ew-badge--warn' }, t('admin.locked')) : h('span', { class: 'ew-badge ew-badge--ok' }, t('admin.active')))),
         h('td', { class: 'ew-actions' },
@@ -99,14 +99,16 @@ function userDialog(u: User | null, gs: Group[], rs: Role[]): void {
   const r = membership(t('admin.roles'), rs, u?.roles ?? []);
   const disabled = checkbox(t('admin.disabled'), u?.disabled ?? false);
   const unlock = checkbox(t('admin.unlock'), false);
+  const resetTotp = checkbox(t('admin.reset_totp'), false, { help: t('admin.reset_totp_help') });
   const fields = u
     ? [h('p', null, h('strong', null, u.handle)), field(t('profile.display_name'), display), field(t('profile.email'), email),
-      u.provider === 'local' ? field(t('admin.new_password'), pw, { help: t('admin.new_password_help') }) : null, g.el, r.el, disabled.el, unlock.el]
+      u.provider === 'local' ? field(t('admin.new_password'), pw, { help: t('admin.new_password_help') }) : null, g.el, r.el, disabled.el, unlock.el,
+      u.totp_enabled ? resetTotp.el : null]
     : [field(t('auth.username'), username, { required: true }), field(t('profile.display_name'), display), field(t('profile.email'), email),
       field(t('auth.password'), pw, { required: true, help: t('profile.password_rules') }), g.el, r.el];
   formDialog(u ? t('admin.user_edit') : t('admin.user_create'), fields, t('common.save'), async () => {
     if (u) {
-      await api.put(`admin/users/${u.id}`, { display_name: display.value, email: email.value, groups: g.get(), roles: r.get(), disabled: disabled.input.checked, unlock: unlock.input.checked, password: pw.value || undefined });
+      await api.put(`admin/users/${u.id}`, { display_name: display.value, email: email.value, groups: g.get(), roles: r.get(), disabled: disabled.input.checked, unlock: unlock.input.checked, password: pw.value || undefined, reset_totp: resetTotp.input.checked });
     } else {
       await api.post('admin/users', { username: username.value, password: pw.value, display_name: display.value, email: email.value, groups: g.get(), roles: r.get() });
     }

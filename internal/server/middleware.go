@@ -90,7 +90,9 @@ func (s *Server) wrap(next http.Handler) http.Handler {
 			if max <= 0 {
 				max = 64
 			}
-			r.Body = http.MaxBytesReader(sw, r.Body, max<<20)
+			if r.URL.Path != "/api/v1/files" { // uploads have their own limit (storage.max_upload_mb)
+				r.Body = http.MaxBytesReader(sw, r.Body, max<<20)
+			}
 		}
 		ctx, err := s.authenticate(sw, r)
 		if err != nil {
@@ -148,4 +150,19 @@ func (s *Server) setCookie(w http.ResponseWriter, token string, exp time.Time) {
 func (s *Server) clearCookie(w http.ResponseWriter) {
 	http.SetCookie(w, &http.Cookie{Name: sessionCookie, Value: "", Path: "/", MaxAge: -1, HttpOnly: true,
 		Secure: s.app.Config.Get().Server.SecureCookies, SameSite: http.SameSiteLaxMode})
+}
+
+// peerIP returns the address of the direct peer (ignoring X-Forwarded-For).
+func (s *Server) peerIP(r *http.Request) string {
+	host, _, err := net.SplitHostPort(r.RemoteAddr)
+	if err != nil {
+		return r.RemoteAddr
+	}
+	return host
+}
+
+func ipInCIDR(ip, cidr string) bool {
+	_, n, err := net.ParseCIDR(cidr)
+	p := net.ParseIP(ip)
+	return err == nil && p != nil && n.Contains(p)
 }

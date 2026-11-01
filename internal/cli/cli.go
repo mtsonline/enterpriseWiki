@@ -268,6 +268,11 @@ func (e *env) jobs(ctx context.Context, a *app.App) {
 		if err := a.Auth.Cleanup(jctx); err != nil {
 			e.log.Error("session cleanup", "err", err)
 		}
+		if n, err := a.Files.GC(jctx); err != nil {
+			e.log.Error("file cleanup", "err", err)
+		} else if n > 0 {
+			e.log.Info("unused files removed", "count", n)
+		}
 		if res, err := a.Content.RunRetention(jctx); err != nil {
 			e.log.Error("retention", "err", err)
 		} else if res.Revisions+res.Audit > 0 || res.Trash > 0 {

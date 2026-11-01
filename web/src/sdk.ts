@@ -9,7 +9,10 @@ import { state, onChange } from './core/state';
 
 export { h, mount, append, trustedHTML, uid, fmtDate, srOnly } from './core/dom';
 export type { Child } from './core/dom';
-export { api, ApiError, qs } from './core/api';
+export { api, ApiError, qs, uploadFile, humanSize } from './core/api';
+export type { UploadedFile } from './core/api';
+export { pluginSettingsForm, MAPPING_FIELDS } from './components/settings';
+export type { SettingField } from './components/settings';
 export { t, pick, uiLang } from './core/i18n';
 export { state, onChange, isAdmin } from './core/state';
 export { toast, announce } from './core/announce';
@@ -156,6 +159,8 @@ export interface EditorContext {
   type: string;
   /** Label id to reference from the editing surface (aria-labelledby). */
   labelId: string;
+  /** Id of the element being edited (undefined while creating). */
+  elementId?: number;
 }
 
 export interface EditorInstance {

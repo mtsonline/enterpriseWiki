@@ -1,0 +1,9 @@
+{
+  "id": "core.attachment",
+  "name": "File / attachment",
+  "version": "1.0.0",
+  "description": "Files such as PDF, Office documents, images and videos as elements: preview in the browser, every upload is a new version, PDF and text content is included in the full text search.",
+  "author": "Enterprise Wiki",
+  "kinds": ["element"],
+  "frontend": true
+}

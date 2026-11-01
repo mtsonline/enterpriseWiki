@@ -1,0 +1,16 @@
+{
+  "auth.oidc.title": "OpenID Connect",
+  "auth.oidc.help": "Single sign-on with Keycloak, Microsoft Entra ID, Google, Authentik and other OpenID Connect providers. Register this redirect URI at the provider:",
+  "auth.oidc.name": "Button label",
+  "auth.oidc.issuer": "Issuer URL",
+  "auth.oidc.client_id": "Client ID",
+  "auth.oidc.client_secret": "Client secret",
+  "auth.oidc.scopes": "Scopes",
+  "auth.oidc.claim_username": "Claim: user name",
+  "auth.oidc.claim_email": "Claim: e-mail",
+  "auth.oidc.claim_display_name": "Claim: display name",
+  "auth.oidc.claim_groups": "Claim: groups",
+  "auth.oidc.check": "Check connection",
+  "auth.oidc.check_ok": "The provider was found.",
+  "auth.oidc.check_failed": "Check failed: {message}"
+}

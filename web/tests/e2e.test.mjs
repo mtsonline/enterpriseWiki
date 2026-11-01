@@ -132,7 +132,7 @@ test('create, edit, translate and search a page', async () => {
 });
 
 test('administration pages are accessible', async () => {
-  for (const section of ['users', 'groups', 'roles', 'plugins', 'settings', 'languages', 'audit', 'menus']) {
+  for (const section of ['users', 'groups', 'roles', 'plugins', 'settings', 'languages', 'audit', 'menus', 'ldap', 'oidc', 'shibboleth']) {
     await page.goto(`${BASE}/admin/${section}`);
     await idle();
     await page.waitForSelector('.ew-admin-panel h1');
@@ -144,6 +144,43 @@ test('administration pages are accessible', async () => {
   await page.goto(`${BASE}/trash`);
   await idle();
   await a11y('trash');
+});
+
+test('upload a PDF as file element and find its text', async () => {
+  await page.goto(BASE + '/');
+  await idle();
+  await page.locator('.ew-tree a').first().click();
+  await idle();
+  await page.getByRole('link', { name: /new page|neue seite/i }).click();
+  await idle();
+  await page.locator('main select').first().selectOption('core.attachment');
+  await idle();
+  await page.getByLabel(/^(title|titel)/i).fill(`File ${run}`);
+  // a tiny PDF with one line of text
+  const text = `walrus${run}`;
+  const stream = `BT /F1 18 Tf 72 720 Td (${text}) Tj ET`;
+  const pdf = `%PDF-1.4\n1 0 obj << /Type /Catalog /Pages 2 0 R >> endobj\n2 0 obj << /Type /Pages /Kids [3 0 R] /Count 1 >> endobj\n3 0 obj << /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents 4 0 R /Resources << /Font << /F1 5 0 R >> >> >> endobj\n4 0 obj << /Length ${stream.length} >> stream\n${stream}\nendstream endobj\n5 0 obj << /Type /Font /Subtype /Type1 /BaseFont /Helvetica >> endobj\ntrailer << /Root 1 0 R >>\n%%EOF\n`;
+  await page.locator('.ewa-editor input[type=file]').setInputFiles({ name: 'report.pdf', mimeType: 'application/pdf', buffer: Buffer.from(pdf) });
+  await page.waitForFunction(() => /report\.pdf/.test(document.querySelector('.ewa-status')?.textContent ?? ''));
+  await a11y('file editor');
+  await page.getByRole('button', { name: /^(create|erstellen)$/i }).click();
+  await page.waitForURL(/\/e\/\d+$/);
+  await idle();
+  assert.ok(await page.locator('iframe.ew-attachment-pdf').count() > 0, 'pdf preview shown');
+  await a11y('file element');
+  await page.goto(`${BASE}/search?q=${text}`);
+  await idle();
+  await page.waitForSelector('.ew-result');
+});
+
+test('two-factor setup dialog', async () => {
+  await page.goto(BASE + '/profile');
+  await idle();
+  await page.getByRole('button', { name: /set up two-factor|zwei-faktor-authentifizierung einrichten/i }).click();
+  await page.locator('dialog[open]').waitFor();
+  assert.match(await page.locator('dialog[open] .ew-secret').innerText(), /^[A-Z2-7 ]{20,}$/);
+  await a11y('2FA setup dialog');
+  await page.keyboard.press('Escape');
 });
 
 test('switch language', async () => {

@@ -46,6 +46,7 @@ func requireUser(r *http.Request) (*identity.Principal, error) {
 }
 
 func (s *Server) routes() {
+	s.routesM2()
 	// ---------------------------------------------------------------- system
 	s.app.Mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, r *http.Request) { h.Write(w, 200, map[string]string{"status": "ok"}) })
 	s.handle("GET /readyz", func(w http.ResponseWriter, r *http.Request) (any, error) {
@@ -646,6 +647,7 @@ func (s *Server) routes() {
 		}
 		c := s.app.Config.Raw()
 		c.Database.URL = maskURL(c.Database.URL)
+		maskSecrets(c.Settings)
 		return map[string]any{"config": c, "path": s.app.Config.Path()}, nil
 	})
 	s.handle("PUT /api/v1/admin/settings", s.updateSettings)
@@ -660,7 +662,12 @@ func (s *Server) routes() {
 		if err := requireAdmin(r); err != nil {
 			return nil, err
 		}
-		return s.app.Content.RunRetention(r.Context())
+		res, err := s.app.Content.RunRetention(r.Context())
+		if err != nil {
+			return nil, err
+		}
+		files, err := s.app.Files.GC(r.Context())
+		return map[string]any{"revisions": res.Revisions, "trash": res.Trash, "audit": res.Audit, "files": files}, err
 	})
 
 	// ---------------------------------------------------------------- plugins
@@ -770,11 +777,12 @@ func (s *Server) login(w http.ResponseWriter, r *http.Request) (any, error) {
 	var in struct {
 		Username string `json:"username"`
 		Password string `json:"password"`
+		TOTP     string `json:"totp"`
 	}
 	if err := h.Decode(r, &in); err != nil {
 		return nil, err
 	}
-	res, err := s.app.Auth.Login(r.Context(), in.Username, in.Password, s.clientIP(r), r.UserAgent())
+	res, err := s.app.Auth.Login(r.Context(), in.Username, in.Password, in.TOTP, s.clientIP(r), r.UserAgent())
 	if err != nil {
 		return nil, err
 	}
@@ -832,6 +840,12 @@ func (s *Server) updateSettings(w http.ResponseWriter, r *http.Request) (any, er
 			if c.Settings == nil {
 				c.Settings = map[string]map[string]any{}
 			}
+			// keep stored secrets the UI only saw masked
+			for k, v := range m {
+				if v == secretMask {
+					m[k] = c.Settings[id][k]
+				}
+			}
 			c.Settings[id] = m
 		}
 		return nil
@@ -844,8 +858,10 @@ func (s *Server) updateSettings(w http.ResponseWriter, r *http.Request) (any, er
 		return nil, err
 	}
 	before.Database.URL = maskURL(before.Database.URL)
+	maskSecrets(before.Settings)
 	c := s.app.Config.Raw()
 	c.Database.URL = maskURL(c.Database.URL)
+	maskSecrets(c.Settings)
 	_ = audit.Log(r.Context(), s.app.DB, "settings.update", "settings", 0, before, c)
 	return map[string]any{"config": c, "path": s.app.Config.Path()}, nil
 }

@@ -1,0 +1,9 @@
+{
+  "id": "auth.ldap",
+  "name": "LDAP / Active Directory",
+  "version": "1.0.0",
+  "description": "Sign in with LDAP or Active Directory accounts (username/password, also for the API). Groups are synchronized and mapped to local groups and roles.",
+  "author": "Enterprise Wiki",
+  "kinds": ["auth"],
+  "frontend": true
+}

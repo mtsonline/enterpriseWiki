@@ -55,7 +55,8 @@ type Database struct {
 
 // Storage configures where binary data (attachments) is stored.
 type Storage struct {
-	Path string `yaml:"path" json:"path"`
+	Path        string `yaml:"path" json:"path"`
+	MaxUploadMB int    `yaml:"max_upload_mb" json:"max_upload_mb"`
 }
 
 // I18n configures UI and content languages.
@@ -124,7 +125,7 @@ func Defaults() *Config {
 		Server:   Server{Listen: ":8080", BaseURL: "http://localhost:8080", MaxBodyMB: 64},
 		Mode:     "single",
 		Database: Database{URL: "${EWIKI_DATABASE_URL}", MaxConns: 50},
-		Storage:  Storage{Path: "./data"},
+		Storage:  Storage{Path: "./data", MaxUploadMB: 100},
 		I18n:     I18n{DefaultLanguage: "en", Languages: []string{"en", "de"}},
 		UI:       UI{SiteName: "Enterprise Wiki", Template: "theme.confluence"},
 		Auth: Auth{

@@ -24,5 +24,10 @@
  "core.html.preview": "Preview",
  "core.html.markdown_help": "Markdown syntax: # heading, **bold**, *italic*, - list, [link](url), | tables |",
  "core.html.convert_warning": "Switching the format converts the current content.",
- "core.html.link_invalid": "Only http(s), mailto and /path links are allowed."
+ "core.html.link_invalid": "Only http(s), mailto and /path links are allowed.",
+ "core.html.image": "Insert image",
+ "core.html.image_file": "Image file",
+ "core.html.image_alt": "Alternative text",
+ "core.html.image_alt_help": "Describe the image for people who cannot see it.",
+ "core.html.image_type": "Only images can be inserted here."
 }

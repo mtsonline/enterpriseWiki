@@ -30,6 +30,7 @@ type User struct {
 	LastLoginAt *time.Time `json:"last_login_at"`
 	Groups      []int64    `json:"groups"`
 	Roles       []int64    `json:"roles"`
+	TOTP        bool       `json:"totp_enabled"`
 }
 
 func requireAdmin(ctx context.Context) error {
@@ -56,7 +57,7 @@ func (s *Service) ListUsers(ctx context.Context, q string, limit, offset int) ([
 	rows, err := s.pool.Query(ctx, `SELECT u.id, u.username, u.provider, u.display_name, u.email, u.language, u.disabled, u.locked_until,
 			u.created_at, u.last_login_at,
 			COALESCE((SELECT array_agg(group_id ORDER BY group_id) FROM user_groups WHERE user_id=u.id), '{}'),
-			COALESCE((SELECT array_agg(role_id ORDER BY role_id) FROM user_roles WHERE user_id=u.id), '{}')
+			COALESCE((SELECT array_agg(role_id ORDER BY role_id) FROM user_roles WHERE user_id=u.id), '{}'), u.totp_enabled
 		FROM users u WHERE $1 = '' OR u.username ILIKE '%'||$1||'%' OR u.display_name ILIKE '%'||$1||'%' OR u.email ILIKE '%'||$1||'%'
 		ORDER BY u.username, u.provider LIMIT $2 OFFSET $3`, q, limit, offset)
 	if err != nil {
@@ -68,7 +69,7 @@ func (s *Service) ListUsers(ctx context.Context, q string, limit, offset int) ([
 func scanUser(r pgx.CollectableRow) (User, error) {
 	var u User
 	err := r.Scan(&u.ID, &u.Username, &u.Provider, &u.DisplayName, &u.Email, &u.Language, &u.Disabled, &u.LockedUntil,
-		&u.CreatedAt, &u.LastLoginAt, &u.Groups, &u.Roles)
+		&u.CreatedAt, &u.LastLoginAt, &u.Groups, &u.Roles, &u.TOTP)
 	u.Handle = u.Username + "@" + u.Provider
 	return u, err
 }
@@ -81,7 +82,7 @@ func (s *Service) GetUser(ctx context.Context, id int64) (*User, error) {
 	rows, err := s.pool.Query(ctx, `SELECT u.id, u.username, u.provider, u.display_name, u.email, u.language, u.disabled, u.locked_until,
 			u.created_at, u.last_login_at,
 			COALESCE((SELECT array_agg(group_id ORDER BY group_id) FROM user_groups WHERE user_id=u.id), '{}'),
-			COALESCE((SELECT array_agg(role_id ORDER BY role_id) FROM user_roles WHERE user_id=u.id), '{}')
+			COALESCE((SELECT array_agg(role_id ORDER BY role_id) FROM user_roles WHERE user_id=u.id), '{}'), u.totp_enabled
 		FROM users u WHERE u.id=$1`, id)
 	if err != nil {
 		return nil, err
@@ -165,7 +166,7 @@ func setMembership(ctx context.Context, tx pgx.Tx, uid int64, groups, roles []in
 		}
 	}
 	if roles != nil {
-		if _, err := tx.Exec(ctx, `DELETE FROM user_roles WHERE user_id=$1`, uid); err != nil {
+		if _, err := tx.Exec(ctx, `DELETE FROM user_roles WHERE user_id=$1 AND source='local'`, uid); err != nil {
 			return err
 		}
 		for _, r := range roles {
@@ -190,6 +191,7 @@ type UserUpdate struct {
 	Groups      []int64 `json:"groups"`
 	Roles       []int64 `json:"roles"`
 	Password    *string `json:"password"`
+	ResetTOTP   bool    `json:"reset_totp"`
 }
 
 // UpdateUser changes a user (admin only). The last active admin cannot be
@@ -221,8 +223,10 @@ func (s *Service) UpdateUser(ctx context.Context, id int64, in UserUpdate) (*Use
 				display_name = COALESCE($2, display_name), email = COALESCE($3, email), language = COALESCE($4, language),
 				disabled = COALESCE($5, disabled), password_hash = COALESCE($6, password_hash),
 				failed_logins = CASE WHEN $7 THEN 0 ELSE failed_logins END,
-				locked_until = CASE WHEN $7 THEN NULL ELSE locked_until END, updated_at = now()
-			WHERE id=$1`, id, in.DisplayName, in.Email, in.Language, in.Disabled, hash, in.Unlock); err != nil {
+				locked_until = CASE WHEN $7 THEN NULL ELSE locked_until END,
+				totp_enabled = CASE WHEN $8 THEN false ELSE totp_enabled END,
+				totp_secret = CASE WHEN $8 THEN NULL ELSE totp_secret END, updated_at = now()
+			WHERE id=$1`, id, in.DisplayName, in.Email, in.Language, in.Disabled, hash, in.Unlock, in.ResetTOTP); err != nil {
 			return err
 		}
 		if err := setMembership(ctx, tx, id, in.Groups, in.Roles); err != nil {

@@ -37,7 +37,8 @@ type ExternalIdentity struct {
 	Username    string
 	DisplayName string
 	Email       string
-	Groups      []string // group names from the provider (mapped by the provider)
+	Groups      []string // local group names (after Mapping.Apply)
+	Roles       []string // local role names (after Mapping.Apply)
 	Attributes  map[string]any
 }
 
@@ -61,6 +62,7 @@ type Service struct {
 	log       *slog.Logger
 	mu        sync.RWMutex
 	providers []registered
+	redirects []registeredRedirect
 	enabled   func(pluginID string) bool
 
 	cache   sync.Map // token hash (string) -> cachedPrincipal
@@ -96,6 +98,7 @@ func (s *Service) RegisterProvider(pluginID string, p PasswordProvider) {
 type ProviderInfo struct {
 	ID   string `json:"id"`
 	Name string `json:"name"`
+	Kind string `json:"kind"` // password | redirect
 }
 
 // Providers returns the active providers in evaluation order (local first).
@@ -133,9 +136,27 @@ func (s *Service) Providers() []PasswordProvider {
 func (s *Service) ProviderInfos() []ProviderInfo {
 	out := []ProviderInfo{}
 	for _, p := range s.Providers() {
-		out = append(out, ProviderInfo{p.ID(), p.Name()})
+		if configured(p) {
+			out = append(out, ProviderInfo{p.ID(), p.Name(), "password"})
+		}
+	}
+	for _, p := range s.RedirectProviders() {
+		if configured(p) {
+			out = append(out, ProviderInfo{p.ID(), p.Name(), "redirect"})
+		}
 	}
 	return out
+}
+
+// Configurable is implemented by providers that need settings before they
+// can be offered on the login page.
+type Configurable interface {
+	Configured() bool
+}
+
+func configured(p any) bool {
+	c, ok := p.(Configurable)
+	return !ok || c.Configured()
 }
 
 // LoginResult is returned by Login.
@@ -147,7 +168,8 @@ type LoginResult struct {
 
 // Login authenticates against the provider chain and creates a session.
 // A handle "name@provider" restricts the attempt to that provider.
-func (s *Service) Login(ctx context.Context, username, password, ip, ua string) (*LoginResult, error) {
+// totp is the two-factor code (only needed for local accounts with 2FA).
+func (s *Service) Login(ctx context.Context, username, password, totp, ip, ua string) (*LoginResult, error) {
 	username = strings.TrimSpace(username)
 	if username == "" || password == "" {
 		return nil, apperr.ErrInvalidLogin
@@ -182,6 +204,11 @@ func (s *Service) Login(ctx context.Context, username, password, ip, ua string) 
 		uid, err := s.syncIdentity(ctx, ext)
 		if err != nil {
 			return nil, err
+		}
+		if ext.Provider == "local" {
+			if err := s.checkTOTP(ctx, uid, totp); err != nil {
+				return nil, err
+			}
 		}
 		tok, exp, err := s.createSession(ctx, uid, "web", config.Duration(s.cfg.Get().Auth.SessionTTL, 7*24*time.Hour), ip, ua)
 		if err != nil {
@@ -224,6 +251,12 @@ func (s *Service) syncIdentity(ctx context.Context, ext *ExternalIdentity) (int6
 			return 0, err
 		}
 	}
+	if ext.Provider != "local" && ext.Roles != nil {
+		if err := s.syncProviderRoles(ctx, id, ext.Provider, ext.Roles); err != nil {
+			return 0, err
+		}
+	}
+	s.bump(ctx)
 	return id, nil
 }
 
@@ -243,6 +276,27 @@ func (s *Service) syncProviderGroups(ctx context.Context, uid int64, provider st
 				return err
 			}
 			if _, err := tx.Exec(ctx, `INSERT INTO user_groups(user_id, group_id, source) VALUES ($1,$2,$3) ON CONFLICT DO NOTHING`, uid, gid, provider); err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+}
+
+// syncProviderRoles replaces the provider-assigned roles of a user. Roles
+// must exist locally; unknown role names are logged and skipped.
+func (s *Service) syncProviderRoles(ctx context.Context, uid int64, provider string, names []string) error {
+	return pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
+		if _, err := tx.Exec(ctx, `DELETE FROM user_roles WHERE user_id=$1 AND source=$2`, uid, provider); err != nil {
+			return err
+		}
+		for _, n := range names {
+			var rid int64
+			if err := tx.QueryRow(ctx, `SELECT id FROM roles WHERE lower(name)=lower($1)`, n).Scan(&rid); err != nil {
+				s.log.Warn("role mapping: unknown local role", "role", n, "provider", provider)
+				continue
+			}
+			if _, err := tx.Exec(ctx, `INSERT INTO user_roles(user_id, role_id, source) VALUES ($1,$2,$3) ON CONFLICT DO NOTHING`, uid, rid, provider); err != nil {
 				return err
 			}
 		}
@@ -460,8 +514,10 @@ func (s *Service) Cleanup(ctx context.Context) error {
 	if _, err := s.pool.Exec(ctx, `DELETE FROM sessions WHERE expires_at < now()`); err != nil {
 		return err
 	}
-	_, err := s.pool.Exec(ctx, `DELETE FROM auth_challenges WHERE expires_at < now()`)
-	return err
+	if _, err := s.pool.Exec(ctx, `DELETE FROM auth_challenges WHERE expires_at < now()`); err != nil {
+		return err
+	}
+	return s.CleanupSSO(ctx)
 }
 
 // ---------------------------------------------------------------- SSH key login

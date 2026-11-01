@@ -17,15 +17,18 @@ Die Umsetzung erfolgt in Meilensteinen. Jeder Meilenstein ist lauffähig und dur
 - CLI mit Zugriff auf jede API-Funktion, Setup-Assistent, Docker, systemd-Installer, Update-Skript mit Backup und Rollback
 - Tests: Unit, API-Integration (inkl. Prüfung der Frontend-Anbindung jeder Route), Browser-E2E mit WCAG-Prüfung (axe), GitHub Actions
 
-## Meilenstein 2 – Unternehmens-Anbindung und Dateien
+## Meilenstein 2 – Unternehmens-Anbindung und Dateien (fertig, v7.1)
 
-- `auth.ldap` (LDAP/Active Directory) mit Attribut- und Gruppen-Mapping
-- `auth.oidc` (OpenID Connect: Keycloak, Entra ID, …) mit Claim- und Gruppen-Mapping
-- `auth.shib` (SAML 2.0 nativ und Header-Modus für Apache `mod_shib`)
-- Zentrales Mapping externer Gruppen/Attribute auf lokale Gruppen und Rollen
-- Elementtyp `core.attachment` (PDF, Office, Bilder) mit Vorschau, Versionierung und Volltext aus PDFs. Speicherung im Dateisystem (hash-basiert), S3-fähige Schnittstelle
-- Bilder und Anhänge direkt im Editor einfügen
-- optional 2-Faktor-Anmeldung (TOTP) für lokale Konten
+- `auth.ldap` (LDAP/Active Directory) mit Attribut- und Gruppenabfrage, Test-Login im Admin-Bereich
+- `auth.oidc` (OpenID Connect mit PKCE: Keycloak, Entra ID, …) mit Claim- und Gruppen-Mapping
+- `auth.shib` (SAML 2.0 nativer Service Provider und Header-Modus für Apache `mod_shib`)
+- Einheitliche Zuordnung externer Gruppen auf lokale Gruppen und Rollen für alle Verfahren, Synchronisation bei jeder Anmeldung
+- Elementtyp `core.attachment` (PDF, Office, Bilder, Video) mit Vorschau, Versionierung und Volltext aus PDFs/Textdateien. Inhaltsadressierte Ablage im Dateisystem, Aufräumen ungenutzter Dateien
+- Bilder im Editor einfügen (mit Pflicht-Alternativtext)
+- 2-Faktor-Anmeldung (TOTP) für lokale Konten, Rücksetzung durch Administratoren
+- generisches Einstellungsformular für Plugins (`pluginSettingsForm`) mit Maskierung von Geheimnissen
+
+Offen aus diesem Bereich: S3-kompatibler Objektspeicher als Alternative zum Dateisystem, Vorschau von Office-Dokumenten (Konvertierung), Single Logout.
 
 ## Meilenstein 3 – Abläufe, Makros, CMS
 

@@ -628,7 +628,10 @@ func checkRouteCoverage(t *testing.T) {
 		})
 	}
 	src := corpus.String()
-	exempt := map[string]bool{"/readyz": true} // used by load balancers / orchestrators
+	exempt := map[string]bool{
+		"/readyz":                              true, // used by load balancers / orchestrators
+		"/api/v1/auth/sso/{provider}/callback": true, // called by the identity provider
+	}
 	ph := regexp.MustCompile(`\\\{[a-z_]+\\\}`)
 	for _, r := range httpx.Routes() {
 		_, path, _ := strings.Cut(r, " ")

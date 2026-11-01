@@ -1,0 +1,14 @@
+{
+ "core.attachment.file": "File",
+ "core.attachment.choose": "Choose a file",
+ "core.attachment.upload": "Upload",
+ "core.attachment.uploading": "Uploading…",
+ "core.attachment.uploaded": "File uploaded: {name}",
+ "core.attachment.current": "Current file: {name} ({size})",
+ "core.attachment.none": "No file uploaded yet.",
+ "core.attachment.replace_help": "Uploading a new file creates a new version; previous files remain available in the history.",
+ "core.attachment.description": "Description",
+ "core.attachment.description_help": "Also used as alternative text for images.",
+ "core.attachment.missing": "Please upload a file.",
+ "core.attachment.download": "Download"
+}

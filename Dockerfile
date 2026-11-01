@@ -19,7 +19,7 @@ RUN CGO_ENABLED=0 go build -trimpath \
       -o /out/ewiki ./cmd/ewiki
 
 FROM alpine:3.20
-RUN apk add --no-cache ca-certificates tzdata \
+RUN apk add --no-cache ca-certificates tzdata poppler-utils \
  && adduser -D -H -u 10001 ewiki \
  && mkdir -p /data && chown ewiki /data
 COPY --from=backend /out/ewiki /usr/local/bin/ewiki

@@ -14,6 +14,8 @@ Die Weboberfläche nutzt ausschließlich diese API. Alles, was in der Oberfläch
 | Session-Cookie | `POST /api/v1/auth/login {"username","password"}` setzt `ewiki_session`. Schreibende Anfragen brauchen den Header `X-Requested-With: ewiki` |
 | API-Key | `Authorization: Bearer ewk_…` (unter *Mein Profil* erstellen) |
 | SSH-Schlüssel | Challenge holen, mit `ssh-keygen -Y sign -n ewiki-login` signieren, das Token als `Authorization: Bearer …` senden (siehe `scripts/ewiki-ssh-login.sh`) |
+| LDAP-Konten | wie lokale Konten über `POST /api/v1/auth/login` (auch für Skripte), optional `"totp"` bei lokalen Konten mit 2FA |
+| SSO (OIDC/SAML) | nur im Browser: `/api/v1/auth/sso/<id>/start?next=/pfad`. Für Skripte danach einen API-Key oder SSH-Schlüssel anlegen |
 
 ```bash
 KEY=ewk_...
@@ -30,6 +32,7 @@ curl -H "Authorization: Bearer $KEY" -H 'Content-Type: application/json' \
 - **Übersetzung:** Speichern in einer anderen Sprache als `original_lang`. Der Status je Sprache steht in `translations` (`original`, `current`, `outdated`, `missing`), der Fortschritt in `translated_percent`. Fehlt eine Sprache, liefert `GET /elements/{id}?lang=xx` die Originalsprache mit `fallback: true`.
 - **Inhalt eines Elements** (`body`) hängt vom Elementtyp ab, für `core.html` ist es `{"format": "html"|"markdown", "source": "…"}`. `GET /elements/{id}?edit=1` liefert `body` (nur mit Bearbeitungsrecht), `html` ist immer die bereinigte Darstellung.
 - **Zurücksetzen:** `POST /api/v1/categories/{id}/rollback {"at": "2026-10-01T12:00:00Z", "recursive": true}`.
+- **Dateien:** `POST /api/v1/files` (multipart, Feld `file`) liefert `{hash, name, mime, size}`. Ein Element `core.attachment` referenziert die Datei mit `{"file": {"hash": "…"}, "description": "…"}`. Heruntergeladen wird mit Rechteprüfung über `GET /api/v1/x/core.attachment/elements/{id}/file[?hash=…][&inline=1]`. Bilder sind zusätzlich unter `GET /api/v1/files/{hash}` abrufbar (für Bilder in Seiten).
 - **Suche:** `GET /api/v1/search?q=wort&tags=a,b&lang=de` liefert `snippet` als HTML-escaped Text mit `<mark>`.
 
 ## Endpunkte
@@ -42,7 +45,7 @@ curl -H "Authorization: Bearer $KEY" -H 'Content-Type: application/json' \
 | `GET` | `/api/v1/site` |
 | `GET` | `/healthz` |
 
-### Anmeldung
+### Anmeldung & Single Sign-on
 
 | Methode | Pfad |
 |---|---|
@@ -52,8 +55,11 @@ curl -H "Authorization: Bearer $KEY" -H 'Content-Type: application/json' \
 | `GET` | `/api/v1/auth/me` |
 | `POST` | `/api/v1/auth/ssh/challenge` |
 | `POST` | `/api/v1/auth/ssh/verify` |
+| `GET` | `/api/v1/auth/sso/{provider}/start` |
+| `GET` | `/api/v1/auth/sso/{provider}/callback` |
+| `POST` | `/api/v1/auth/sso/{provider}/callback` |
 
-### Eigenes Konto
+### Eigenes Konto (inkl. 2FA, API-Keys, SSH)
 
 | Methode | Pfad |
 |---|---|
@@ -65,6 +71,10 @@ curl -H "Authorization: Bearer $KEY" -H 'Content-Type: application/json' \
 | `GET` | `/api/v1/me/ssh-keys` |
 | `POST` | `/api/v1/me/ssh-keys` |
 | `DELETE` | `/api/v1/me/ssh-keys/{id}` |
+| `GET` | `/api/v1/me/totp` |
+| `POST` | `/api/v1/me/totp/setup` |
+| `POST` | `/api/v1/me/totp/enable` |
+| `POST` | `/api/v1/me/totp/disable` |
 
 ### Benutzer, Gruppen, Rollen
 
@@ -122,6 +132,13 @@ curl -H "Authorization: Bearer $KEY" -H 'Content-Type: application/json' \
 | `GET` | `/api/v1/elements/{id}/revisions/{lang}/{rev}` |
 | `POST` | `/api/v1/elements/{id}/restore` |
 
+### Dateien
+
+| Methode | Pfad |
+|---|---|
+| `POST` | `/api/v1/files` |
+| `GET` | `/api/v1/files/{hash}` |
+
 ### Papierkorb, Suche, Tags
 
 | Methode | Pfad |
@@ -159,10 +176,14 @@ curl -H "Authorization: Bearer $KEY" -H 'Content-Type: application/json' \
 | `POST` | `/api/v1/admin/plugins/build` |
 | `POST` | `/api/v1/admin/restart` |
 
-### Plugins (Beispiele)
+### Plugins
 
 | Methode | Pfad |
 |---|---|
+| `POST` | `/api/v1/x/auth.ldap/test` |
+| `GET` | `/api/v1/x/auth.oidc/check` |
+| `GET` | `/api/v1/x/auth.shib/metadata` |
+| `GET` | `/api/v1/x/core.attachment/elements/{id}/file` |
 | `GET` | `/api/v1/x/core.menu/menus` |
 | `POST` | `/api/v1/x/core.menu/menus` |
 | `PUT` | `/api/v1/x/core.menu/menus/{id}` |

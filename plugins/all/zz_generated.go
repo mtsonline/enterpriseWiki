@@ -4,7 +4,11 @@
 package all
 
 import (
+	_ "github.com/mtsonline/enterprisewiki/plugins/auth_ldap"
 	_ "github.com/mtsonline/enterprisewiki/plugins/auth_local"
+	_ "github.com/mtsonline/enterprisewiki/plugins/auth_oidc"
+	_ "github.com/mtsonline/enterprisewiki/plugins/auth_shib"
+	_ "github.com/mtsonline/enterprisewiki/plugins/core_attachment"
 	_ "github.com/mtsonline/enterprisewiki/plugins/core_html"
 	_ "github.com/mtsonline/enterprisewiki/plugins/core_menu"
 	_ "github.com/mtsonline/enterprisewiki/plugins/example_notice"

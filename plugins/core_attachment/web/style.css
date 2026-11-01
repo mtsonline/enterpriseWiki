@@ -1,0 +1,7 @@
+.ew-attachment { margin: 0 0 1rem; }
+.ew-attachment-pdf { width: 100%; height: 75vh; min-height: 24rem; border: 1px solid var(--ew-border); border-radius: var(--ew-radius); }
+.ew-attachment-img { max-width: 100%; height: auto; border-radius: var(--ew-radius); }
+.ew-attachment-media { max-width: 100%; }
+.ew-attachment-meta { display: flex; gap: .75rem; align-items: center; flex-wrap: wrap; color: var(--ew-text-muted); }
+.ewa-editor { display: grid; gap: .5rem; border: 1px solid #767e8a; border-radius: var(--ew-radius); padding: .75rem; }
+.ewa-status { margin: 0; font-weight: 600; }

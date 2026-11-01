@@ -65,6 +65,10 @@ Plugins sind vollwertiger Code mit Zugriff auf Datenbank und Server. Installiere
 | ID | Art | Beschreibung |
 |---|---|---|
 | `auth.local` | Authentifizierung | lokale Konten, immer zuerst, erforderlich |
+| `auth.ldap` | Authentifizierung | LDAP / Active Directory |
+| `auth.oidc` | Authentifizierung | OpenID Connect (Keycloak, Entra ID, …) |
+| `auth.shib` | Authentifizierung | Shibboleth / SAML 2.0 |
+| `core.attachment` | Elementtyp | Dateien (PDF, Office, Bilder, Video) mit Vorschau und Volltext |
 | `core.html` | Elementtyp | Seiten mit WYSIWYG oder Markdown |
 | `core.menu` | Menü | beliebig viele Menüs an Template-Positionen (*Administration → Menüs*) |
 | `theme.confluence` | Template | Dokumentations-Layout mit Seitenbaum |

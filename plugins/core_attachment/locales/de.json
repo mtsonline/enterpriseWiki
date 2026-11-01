@@ -1,0 +1,14 @@
+{
+ "core.attachment.file": "Datei",
+ "core.attachment.choose": "Datei auswählen",
+ "core.attachment.upload": "Hochladen",
+ "core.attachment.uploading": "Wird hochgeladen …",
+ "core.attachment.uploaded": "Datei hochgeladen: {name}",
+ "core.attachment.current": "Aktuelle Datei: {name} ({size})",
+ "core.attachment.none": "Noch keine Datei hochgeladen.",
+ "core.attachment.replace_help": "Eine neue Datei erzeugt eine neue Version; frühere Dateien bleiben im Verlauf verfügbar.",
+ "core.attachment.description": "Beschreibung",
+ "core.attachment.description_help": "Wird bei Bildern auch als Alternativtext verwendet.",
+ "core.attachment.missing": "Bitte eine Datei hochladen.",
+ "core.attachment.download": "Herunterladen"
+}

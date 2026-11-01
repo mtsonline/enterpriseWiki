@@ -30,7 +30,12 @@ Vollständiges Beispiel: [config.example.yaml](../../config.example.yaml)
 | `max_conns` | maximale Verbindungen dieser Instanz | `50` |
 
 ### `storage`
-`path`: Verzeichnis für Binärdaten (Anhänge, ab Meilenstein 2).
+| Schlüssel | Bedeutung | Standard |
+|---|---|---|
+| `path` | Verzeichnis für hochgeladene Dateien (`<path>/files/ab/cd/<sha256>`). Im Cluster-Modus ein gemeinsames Volume | `./data` |
+| `max_upload_mb` | maximale Größe einer hochgeladenen Datei | `100` |
+
+Für die beste PDF-Texterkennung installieren Sie `pdftotext` (Paket `poppler-utils`, im Docker-Image enthalten). Ohne das Tool greift ein eingebauter Extraktor für einfache PDFs. Dateien, die keine Version mehr referenziert, werden nach einem Tag automatisch gelöscht.
 
 ### `i18n`
 | Schlüssel | Bedeutung |
@@ -86,6 +91,8 @@ plugin_settings:
 ```
 
 Plugins lesen sie über `Host.Settings()`. Setzen per CLI: `ewiki config set plugin_settings.acme.kanban.columns "[todo, done]"`.
+
+Die Einstellungen der Anmeldeverfahren (`auth.ldap`, `auth.oidc`, `auth.shib`) sind in [authentication.md](authentication.md) beschrieben.
 
 ## Kommandozeile
 

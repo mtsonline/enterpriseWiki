@@ -51,3 +51,34 @@ export function qs(params: Record<string, string | number | undefined | null>): 
   const s = u.toString();
   return s ? `?${s}` : '';
 }
+
+export interface UploadedFile {
+  hash: string;
+  name: string;
+  mime: string;
+  size: number;
+}
+
+/** Uploads a file (multipart) to /api/v1/files. */
+export async function uploadFile(file: File): Promise<UploadedFile> {
+  const fd = new FormData();
+  fd.append('file', file, file.name);
+  let res: Response;
+  try {
+    res = await fetch('/api/v1/files', { method: 'POST', body: fd, credentials: 'same-origin', headers: { 'X-Requested-With': 'ewiki' } });
+  } catch {
+    throw new ApiError(0, 'network', 'network error');
+  }
+  const data = await res.json().catch(() => null);
+  if (!res.ok) throw new ApiError(res.status, data?.error?.code ?? 'error', data?.error?.message ?? res.statusText);
+  return data as UploadedFile;
+}
+
+/** Formats a byte count. */
+export function humanSize(n: number): string {
+  const u = ['B', 'KB', 'MB', 'GB', 'TB'];
+  let i = 0;
+  let v = n;
+  while (v >= 1024 && i < u.length - 1) { v /= 1024; i++; }
+  return `${i ? v.toFixed(1) : v} ${u[i]}`;
+}

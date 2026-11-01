@@ -1,0 +1,9 @@
+{
+  "id": "auth.shib",
+  "name": "Shibboleth / SAML 2.0",
+  "version": "1.0.0",
+  "description": "Single sign-on with SAML 2.0 identity providers (Shibboleth IdP, ADFS, Entra ID, eduGAIN). Native SAML service provider or header mode behind Apache mod_shib. Attributes and groups are mapped to the local user, groups and roles.",
+  "author": "Enterprise Wiki",
+  "kinds": ["auth"],
+  "frontend": true
+}

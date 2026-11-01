@@ -29,6 +29,7 @@ import (
 	"github.com/mtsonline/enterprisewiki/internal/httpx"
 	"github.com/mtsonline/enterprisewiki/internal/i18n"
 	"github.com/mtsonline/enterprisewiki/internal/identity"
+	"github.com/mtsonline/enterprisewiki/internal/storage"
 )
 
 // Plugin kinds (informational, used by the admin UI).
@@ -125,6 +126,7 @@ type Host struct {
 	Content  *content.Service
 	Auth     *auth.Service
 	I18n     *i18n.Service
+	Files    *storage.Store
 	Log      *slog.Logger
 
 	Mux       *http.ServeMux
@@ -170,6 +172,12 @@ func (h *Host) RegisterElementType(t content.ElementType) {
 // RegisterAuthProvider adds a password authentication provider.
 func (h *Host) RegisterAuthProvider(p auth.PasswordProvider) {
 	h.Auth.RegisterProvider(h.Manifest.ID, p)
+}
+
+// RegisterRedirectProvider adds a browser based sign-in method (OIDC, SAML, ...).
+// Its endpoints are /api/v1/auth/sso/<id>/start and /api/v1/auth/sso/<id>/callback.
+func (h *Host) RegisterRedirectProvider(p auth.RedirectProvider) {
+	h.Auth.RegisterRedirectProvider(h.Manifest.ID, p)
 }
 
 // RequireAdmin returns an error unless the caller of r is an administrator.

@@ -24,6 +24,10 @@ type NoContent struct{}
 // Created wraps a value to send 201.
 type Created struct{ V any }
 
+// Handled is returned by handlers that wrote the response themselves
+// (files, XML, redirects).
+type Handled struct{}
+
 // Logger is used for internal errors.
 var Logger = slog.Default()
 
@@ -36,6 +40,7 @@ func JSON(h Handler) http.HandlerFunc {
 			return
 		}
 		switch x := v.(type) {
+		case Handled:
 		case NoContent:
 			w.WriteHeader(http.StatusNoContent)
 		case Created:

@@ -5,6 +5,8 @@
 ### Reihenfolge der Anmeldeverfahren
 Anmeldeverfahren sind Plugins. Beim Login werden sie in der Reihenfolge `auth.order` geprüft. **Lokale Konten (`auth.local`) werden immer zuerst geprüft** und lassen sich nicht deaktivieren. Ein lokaler Administrator kommt also auch dann ins System, wenn LDAP, OIDC oder Shibboleth ausfallen.
 
+LDAP, OpenID Connect und Shibboleth/SAML sowie die Zuordnung externer Gruppen zu lokalen Gruppen und Rollen sind in [authentication.md](authentication.md) beschrieben.
+
 Jede Identität ist intern eindeutig als `name@anbieter` gespeichert (`admin@local`, `max@ldap`). Gleichnamige Konten verschiedener Anbieter kollidieren nicht. Mit `name@anbieter` im Login-Feld wählt man gezielt ein Verfahren.
 
 ### Lokale Konten
@@ -12,6 +14,7 @@ Jede Identität ist intern eindeutig als `name@anbieter` gespeichert (`admin@loc
 - Passwortregel: Mindestlänge `auth.min_password_length`, mindestens drei von vier Zeichenklassen.
 - Nach `auth.max_login_failures` Fehlversuchen ist das Konto für `auth.lockout_duration` gesperrt. Zusätzlich gibt es ein Rate-Limit je IP und je Benutzername.
 - Antwortzeiten verraten nicht, ob ein Konto existiert.
+- Optional zweiter Faktor (TOTP) je Konto, siehe [authentication.md](authentication.md#zwei-faktor-authentifizierung-totp).
 - Setzt ein Administrator ein Passwort neu oder deaktiviert ein Konto, werden alle Sitzungen dieses Kontos beendet.
 - Das System verhindert, dass der letzte aktive Administrator gelöscht, deaktiviert oder herabgestuft wird.
 
@@ -69,5 +72,6 @@ Grundsätze:
 - Die Oberfläche erzeugt alle Elemente über DOM-APIs, nicht über `innerHTML` mit Benutzerdaten. Ausnahme ist der bereits bereinigte Seiteninhalt.
 - Strikte Content Security Policy (`script-src 'self'`, kein Inline-JavaScript, `frame-ancestors 'self'`, `object-src 'none'`), dazu `X-Content-Type-Options`, `Referrer-Policy`, `X-Frame-Options`, `Permissions-Policy` und HSTS (mit `secure_cookies`).
 - Menülinks erlauben nur `http(s)`, `mailto` und relative Pfade.
+- Hochgeladene Dateien: Der Typ wird aus dem Inhalt bestimmt, nicht aus Angaben des Browsers. HTML, SVG und Skripte werden nie im Browser angezeigt, sondern nur heruntergeladen (`Content-Disposition: attachment`, `nosniff`, eigene CSP mit `sandbox`). Dateinamen werden bereinigt. Dateien eines Elements gibt es nur mit Leserecht auf das Element. Bilder sind zusätzlich über ihren nicht erratbaren SHA-256-Hash abrufbar, damit Bilder in öffentlichen Seiten auch für Gäste funktionieren.
 - Konfigurationsgeheimnisse stehen nur in der Umgebung bzw. in `.env`. Die Datenbank-URL wird in der Oberfläche maskiert.
 - Alle sicherheitsrelevanten Änderungen landen im Audit-Protokoll.

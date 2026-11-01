@@ -358,9 +358,9 @@ function jsonEditor(container: HTMLElement, body: unknown, labelId: string): Edi
   };
 }
 
-function mountEditor(container: HTMLElement, type: string, body: unknown, lang: string, labelId: string): EditorInstance {
+function mountEditor(container: HTMLElement, type: string, body: unknown, lang: string, labelId: string, elementId?: number): EditorInstance {
   const f = getEditor(type);
-  return f ? f(container, body, { lang, type, labelId }) : jsonEditor(container, body, labelId);
+  return f ? f(container, body, { lang, type, labelId, elementId }) : jsonEditor(container, body, labelId);
 }
 
 export async function editElementView({ params, query, main }: RouteCtx): Promise<void> {
@@ -397,7 +397,7 @@ export async function editElementView({ params, query, main }: RouteCtx): Promis
       button(t('common.save'), () => undefined, { type: 'submit', variant: 'primary' }),
       h('a', { href: `/e/${id}`, class: 'ew-btn ew-btn--secondary' }, t('common.cancel'))));
   mount(main, form);
-  const editor = mountEditor(editorBox, el.type, el.body, lang, labelId);
+  const editor = mountEditor(editorBox, el.type, el.body, lang, labelId, el.id);
   const orig = form.querySelector<HTMLElement>('[data-original]');
   if (orig) {
     api.get<ElementView>(`elements/${id}${qs({ lang: el.original_lang })}`).then((o) => mount(orig, h('h2', null, o.title), trustedHTML(o.html))).catch(() => mount(orig, ''));

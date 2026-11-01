@@ -7,21 +7,22 @@ Ein selbst gehosteter, modularer Ersatz für Confluence: Wissensdatenbank mit be
 - **Barrierefrei:** Ziel WCAG 2.2 AA, automatisch mit axe-core in der CI geprüft
 - **Config-first:** `config.yaml` ist die einzige maßgebliche Quelle. Admin-Oberfläche und CLI schreiben in diese Datei.
 
-> Status: **Version 7, Meilenstein 1.** Was bereits enthalten ist und was noch folgt, steht in [docs/ROADMAP.md](docs/ROADMAP.md).
+> Status: **Version 7, Meilensteine 1 und 2.** Was bereits enthalten ist und was noch folgt, steht in [docs/ROADMAP.md](docs/ROADMAP.md).
 
-## Funktionen (Meilenstein 1)
+## Funktionen
 
 | Bereich | Enthalten |
 |---|---|
 | Inhalte | Kategorien mit unbegrenzter Tiefe (stabile IDs, Gliederungsnummern 1.2.3), Standardseite je Kategorie, Elemente als Plugin-Typen, verschieben, duplizieren, sortieren, Papierkorb |
-| Seiten | Elementtyp `core.html`: WYSIWYG-Editor oder Markdown, serverseitige HTML-Bereinigung (XSS-Schutz), Vorschau |
+| Seiten | Elementtyp `core.html`: WYSIWYG-Editor oder Markdown, Bilder mit Pflicht-Alternativtext, serverseitige HTML-Bereinigung (XSS-Schutz), Vorschau |
+| Dateien | Elementtyp `core.attachment`: PDF, Office, Bilder, Video. Vorschau im Browser, jede neue Datei ist eine Version, PDF- und Textinhalt in der Volltextsuche, inhaltsadressierte Ablage (SHA-256) |
 | Versionierung | Jede Änderung ist eine unveränderliche Version, Wiederherstellen einzelner Versionen, Zurücksetzen ganzer Kategorien (mit/ohne Unterkategorien) auf einen Zeitpunkt, Audit-Protokoll, konfigurierbare Aufbewahrung |
 | Mehrsprachigkeit | Inhalte je Sprache versioniert, Übersetzungsstatus (aktuell / veraltet / fehlt) mit Prozentanzeige, Fallback auf die Originalsprache; UI-Texte von Kern und Plugins im Admin-Bereich übersetzbar mit Fortschrittsanzeige |
 | Berechtigungen | Regeln je Kategorie für Benutzer, Gruppen, Rollen, Gäste und angemeldete Benutzer, optional vererbt. Ohne Regel ist nichts erlaubt, Gäste sehen nur die erste Ebene. Prüfung im Backend bei jeder Anfrage, im Speicher gecacht |
-| Anmeldung | Lokale Konten (Argon2id, Sperre nach Fehlversuchen) werden immer zuerst geprüft. Anmeldeverfahren als Plugins, API-Keys (Ablaufdatum, Rechte-Maske, Kategorie-Beschränkung), SSH-Schlüssel-Login wie bei GitHub |
+| Anmeldung | Lokale Konten (Argon2id, Sperre nach Fehlversuchen, optional 2FA per TOTP) werden immer zuerst geprüft. **LDAP/Active Directory**, **OpenID Connect** (Keycloak, Entra ID, …) und **Shibboleth/SAML 2.0** (nativ oder über mod_shib) als Plugins, mit einheitlicher Zuordnung externer Gruppen zu lokalen Gruppen und Rollen. API-Keys (Ablaufdatum, Rechte-Maske, Kategorie-Beschränkung), SSH-Schlüssel-Login wie bei GitHub |
 | Suche | Volltextsuche über alle Sprachen mit Hervorhebung, Tags auf Kategorien und Seiten, Tag-Wolke |
 | Plugins | Werden mit dem Kern kompiliert, sofort aktivier- und deaktivierbar, Installation aus GitHub, Git oder lokalem Ordner per Oberfläche, API oder CLI, Neubau und Neustart aus der Oberfläche, Vererbung (`extends`) |
-| Mitgeliefert | `auth.local`, `core.html`, `core.menu` (Menüs an Template-Positionen), `theme.confluence`, Beispiele: `theme.confluence.dark` (erbt von einem Template), `example.notice` (erbt von einem Elementtyp) |
+| Mitgeliefert | `auth.local`, `auth.ldap`, `auth.oidc`, `auth.shib`, `core.html`, `core.attachment`, `core.menu` (Menüs an Template-Positionen), `theme.confluence`, Beispiele: `theme.confluence.dark` (erbt von einem Template), `example.notice` (erbt von einem Elementtyp) |
 | Betrieb | Setup-Assistent (interaktiv oder headless), Docker/Compose, systemd-Installation, sicheres Update-Skript mit Backup und automatischem Rollback, Single- und Cluster-Modus |
 | CLI | Jede API-Funktion über `ewiki api`, dazu Befehle für Benutzer, Plugins und Konfiguration |
 | Tests | Unit-Tests, API-Integrationstest gegen PostgreSQL (prüft auch, dass jede API-Route eine Frontend-Anbindung hat), Browser-E2E-Tests mit WCAG-Prüfung, alles in GitHub Actions |
@@ -61,6 +62,6 @@ EWIKI_TEST_DATABASE_URL=postgres://…/wiki_test go test ./...   # löscht die T
 | Für | Dokument |
 |---|---|
 | Benutzer:innen | [Benutzerhandbuch](docs/user/guide.md) |
-| Administration | [Installation](docs/admin/installation.md) · [Konfiguration](docs/admin/configuration.md) · [Betrieb, Updates, Backup, CLI](docs/admin/operations.md) · [Sicherheit & Berechtigungen](docs/admin/security.md) · [Plugins verwalten](docs/admin/plugins.md) |
+| Administration | [Installation](docs/admin/installation.md) · [Konfiguration](docs/admin/configuration.md) · [Anmeldung: LDAP, OIDC, SAML, 2FA](docs/admin/authentication.md) · [Betrieb, Updates, Backup, CLI](docs/admin/operations.md) · [Sicherheit & Berechtigungen](docs/admin/security.md) · [Plugins verwalten](docs/admin/plugins.md) |
 | Entwicklung | [Architektur](docs/developer/architecture.md) · [Plugins entwickeln](docs/developer/plugins.md) · [REST-API](docs/developer/api.md) |
 | Planung | [Roadmap](docs/ROADMAP.md) |

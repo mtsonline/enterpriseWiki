@@ -1,7 +1,7 @@
 // Editor for core.html: accessible WYSIWYG (contenteditable) or Markdown.
 // The server sanitizes everything on save and render, so the editor does
 // not need to be a security boundary.
-import { api, button, field, formDialog, h, registerEditor, select, t, textInput, trustedHTML, type EditorInstance } from '@ewiki/sdk';
+import { api, button, field, formDialog, h, registerEditor, select, t, textInput, trustedHTML, uploadFile, type EditorInstance } from '@ewiki/sdk';
 import './style.css';
 
 interface Body { format: 'html' | 'markdown'; source: string }
@@ -25,6 +25,7 @@ const TOOLS: (Tool | '|')[] = [
   '|',
   { cmd: 'link', key: 'core.html.link', icon: '🔗' },
   { cmd: 'table', key: 'core.html.table', icon: '▦' },
+  { cmd: 'image', key: 'core.html.image', icon: '🖼' },
   { cmd: 'insertHorizontalRule', key: 'core.html.hr', icon: '—' },
   '|',
   { cmd: 'undo', key: 'core.html.undo', icon: '↶' },
@@ -85,6 +86,7 @@ export function createHtmlEditor(container: HTMLElement, body: unknown, ctx: { l
     if (!editable) return;
     editable.focus();
     if (tool.cmd === 'link') return linkDialog();
+    if (tool.cmd === 'image') return imageDialog();
     if (tool.cmd === 'table') {
       const cells = (tag: string) => `<tr>${[1, 2, 3].map(() => `<${tag}><br></${tag}>`).join('')}</tr>`;
       document.execCommand('insertHTML', false, `<table><thead>${cells('th')}</thead><tbody>${cells('td')}${cells('td')}</tbody></table><p><br></p>`);
@@ -112,6 +114,29 @@ export function createHtmlEditor(container: HTMLElement, body: unknown, ctx: { l
         if (range && range.collapsed) document.execCommand('insertHTML', false, `<a href="${v.replace(/"/g, '&quot;')}">${v.replace(/</g, '&lt;')}</a>`);
         else document.execCommand('createLink', false, v);
       } else throw new Error(t('core.html.link_invalid'));
+    });
+  };
+
+  // Images: upload, then insert with a mandatory alternative text (WCAG 1.1.1).
+  const imageDialog = () => {
+    const sel = document.getSelection();
+    const range = sel && sel.rangeCount ? sel.getRangeAt(0).cloneRange() : null;
+    const file = h('input', { type: 'file', accept: 'image/png,image/jpeg,image/gif,image/webp', class: 'ew-input' });
+    const alt = textInput({ maxlength: 300 });
+    formDialog(t('core.html.image'), [field(t('core.html.image_file'), file, { required: true }),
+      field(t('core.html.image_alt'), alt, { required: true, help: t('core.html.image_alt_help') })], t('common.apply'), async () => {
+      const f = file.files?.[0];
+      if (!f) throw new Error(t('core.html.image_file'));
+      const up = await uploadFile(f);
+      if (!up.mime.startsWith('image/')) throw new Error(t('core.html.image_type'));
+      editable!.focus();
+      if (range) {
+        const s = document.getSelection()!;
+        s.removeAllRanges();
+        s.addRange(range);
+      }
+      const esc = (x: string) => x.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
+      document.execCommand('insertHTML', false, `<img src="/api/v1/files/${up.hash}" alt="${esc(alt.value.trim())}">`);
     });
   };
 

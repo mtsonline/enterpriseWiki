@@ -148,6 +148,8 @@ type PasswordProvider interface {
 host.RegisterAuthProvider(&MyProvider{})
 ```
 
+Für Browser-Verfahren (OAuth, SAML, …) implementieren Sie `auth.RedirectProvider` (`Start`, `Callback`) und registrieren ihn mit `host.RegisterRedirectProvider`. Der Kern kümmert sich um State, Nonce und PKCE-Verifier (serverseitig gespeichert), um die Einmalverwendung, die Sitzung und den Rücksprung. Mit `Configured() bool` blenden Sie ein unkonfiguriertes Verfahren auf der Login-Seite aus. Gruppen und Rollen ordnen Sie mit `auth.MappingFromSettings(settings).Apply(identity)` zu (siehe `plugins/auth_oidc`).
+
 Geben Sie `auth.ErrUnknownUser` zurück, wenn der Benutzer unbekannt ist (dann wird das nächste Verfahren geprüft), und `auth.ErrBadCredentials` bei falschem Passwort. `ExternalIdentity.Groups` wird bei jedem Login als Gruppenmitgliedschaft synchronisiert.
 
 ## Frontend-Teil (`web/index.ts`)
@@ -175,6 +177,8 @@ export function register(): void {
 }
 ```
 
+- Einstellungsseiten: `pluginSettingsForm('acme.kanban', [{ key: 'url', label: t('…') }, …])` erzeugt ein barrierefreies Formular, das in `config.yaml` speichert (Typen `text`, `secret`, `bool`, `number`, `list`, `map`, `select`, `textarea`). `MAPPING_FIELDS()` ergänzt die Gruppen- und Rollen-Zuordnung.
+- Dateien hochladen: `uploadFile(file)` liefert `{hash, name, mime, size}`.
 - Das SDK (`web/src/sdk.ts`) stellt DOM-Helfer (`h`), API-Client (`api` mit CSRF-Header), Übersetzungen (`t`, `pick`), barrierefreie Bausteine (`field`, `textInput`, `select`, `checkbox`, `button`, `formDialog`, `confirmDialog`, `openDialog`), `toast`/`announce` und `navigate` bereit.
 - Erzeugen Sie DOM mit `h()`. Verwenden Sie `innerHTML` nie für Benutzerdaten, sondern `trustedHTML()` nur für HTML, das der Server gerendert und bereinigt hat.
 - **Barrierefreiheit:** Jedes Eingabefeld braucht ein Label (`field()`), Icon-Knöpfe ein `ariaLabel`, Dialoge über `formDialog`/`openDialog`. Die CI prüft alle Seiten mit axe-core auf WCAG 2.2 AA.

@@ -1,0 +1,21 @@
+{
+  "auth.shib.title": "Shibboleth / SAML",
+  "auth.shib.help": "Single Sign-on mit SAML-2.0-Identity-Providern. Nativer Modus: dem Identity Provider die Metadaten-URL unten übergeben. Header-Modus: Apache mit mod_shib vor das Wiki schalten, /api/v1/auth/sso/shib/start schützen und Apache in server.trusted_proxies eintragen.",
+  "auth.shib.metadata": "Metadaten des Service Providers",
+  "auth.shib.mode": "Modus",
+  "auth.shib.mode.saml": "Nativer SAML Service Provider",
+  "auth.shib.mode.header": "Header von Apache mod_shib",
+  "auth.shib.name": "Beschriftung des Knopfs",
+  "auth.shib.idp_metadata_url": "Metadaten-URL des IdP",
+  "auth.shib.idp_metadata": "Metadaten des IdP (XML, statt URL)",
+  "auth.shib.entity_id": "Entity-ID dieses Dienstes (optional)",
+  "auth.shib.attr_username": "Attribut: Benutzername",
+  "auth.shib.attr_email": "Attribut: E-Mail",
+  "auth.shib.attr_display_name": "Attribut: Anzeigename",
+  "auth.shib.attr_groups": "Attribut: Gruppen",
+  "auth.shib.header_username": "Header: Benutzername",
+  "auth.shib.header_email": "Header: E-Mail",
+  "auth.shib.header_display_name": "Header: Anzeigename",
+  "auth.shib.header_groups": "Header: Gruppen",
+  "auth.shib.header_separator": "Trennzeichen mehrerer Werte"
+}
