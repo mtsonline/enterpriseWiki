@@ -64,7 +64,6 @@
  "workflow.outcome.failure": "nicht erfolgreich",
  "workflow.outcome.neutral": "neutral",
  "workflow.process": "Ablauf",
- "workflow.remove": "{what} entfernen",
  "workflow.required": "Pflichtfeld",
  "workflow.start": "Neuen Vorgang starten",
  "workflow.start_help": "Nach dem Absenden geht der Vorgang zum ersten Schritt: {step}.",

@@ -64,7 +64,6 @@
  "workflow.outcome.failure": "unsuccessful",
  "workflow.outcome.neutral": "neutral",
  "workflow.process": "Process",
- "workflow.remove": "Remove {what}",
  "workflow.required": "Required",
  "workflow.start": "Start new case",
  "workflow.start_help": "After submitting, the case goes to the first step: {step}.",

@@ -63,7 +63,7 @@ export function createWorkflowEditor(container: HTMLElement, body: unknown, ctx:
       { variant: 'subtle', ariaLabel: t('workflow.move_up', { what }), disabled: i === 0 }),
     button(h('span', { 'aria-hidden': 'true' }, '↓'), () => { [list[i + 1], list[i]] = [list[i], list[i + 1]]; draw(); refocus(i + 1); },
       { variant: 'subtle', ariaLabel: t('workflow.move_down', { what }), disabled: i === list.length - 1 }),
-    button(t('common.delete'), () => { list.splice(i, 1); draw(); refocus(Math.min(i, list.length - 1)); }, { variant: 'danger', ariaLabel: t('workflow.remove', { what }) }),
+    button(t('common.delete'), () => { list.splice(i, 1); draw(); refocus(Math.min(i, list.length - 1)); }, { variant: 'danger', ariaLabel: `${t('common.delete')}: ${what}` }),
   ];
   const focusIn = (sel: string) => (i: number) => root.querySelectorAll<HTMLElement>(sel)[i]?.querySelector<HTMLElement>('input, select, textarea')?.focus();
 
@@ -97,7 +97,7 @@ export function createWorkflowEditor(container: HTMLElement, body: unknown, ctx:
     note.addEventListener('change', () => { a.note = note.value as EAction['note']; });
     return h('div', { class: 'ewf-action-row', role: 'group', 'aria-label': t('workflow.action_n', { n: j + 1 }) },
       field(t('workflow.action_label'), label, { required: true }), field(t('workflow.next'), next, { required: true }), field(t('workflow.note'), note),
-      button(t('common.delete'), () => { s.actions.splice(j, 1); draw(); }, { variant: 'link', ariaLabel: t('workflow.remove', { what: a.label || t('workflow.action_n', { n: j + 1 }) }) }));
+      button(t('common.delete'), () => { s.actions.splice(j, 1); draw(); }, { variant: 'link', ariaLabel: `${t('common.delete')}: ${a.label || t('workflow.action_n', { n: j + 1 })}` }));
   };
 
   const stepRow = (s: EStep, i: number): HTMLElement => {
