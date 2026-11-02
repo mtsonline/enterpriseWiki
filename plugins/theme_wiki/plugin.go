@@ -1,6 +1,6 @@
-// Package theme_confluence registers the "theme.confluence" template. The template itself is
+// Package theme_wiki registers the "theme.wiki" template. The template itself is
 // implemented in web/index.ts (frontend).
-package theme_confluence
+package theme_wiki
 
 import (
 	_ "embed"

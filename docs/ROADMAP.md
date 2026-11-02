@@ -12,7 +12,7 @@ Die Umsetzung erfolgt in Meilensteinen. Jeder Meilenstein ist lauffähig und dur
 - Berechtigungen für Benutzer, Gruppen, Rollen, Gäste und Angemeldete mit Vererbung
 - Lokale Anmeldung (immer zuerst), Sessions, API-Keys, SSH-Schlüssel-Login
 - Volltextsuche, Tags
-- Menüs (`core.menu`), Template `theme.confluence` (+ Beispiel `theme.confluence.dark`)
+- Menüs (`core.menu`), Template `theme.wiki` (+ Beispiel `theme.wiki.dark`)
 - Admin-Bereich: Benutzer, Gruppen, Rollen, Plugins, Einstellungen (in `config.yaml`), Sprachen, Protokoll, Menüs
 - CLI mit Zugriff auf jede API-Funktion, Setup-Assistent, Docker, systemd-Installer, Update-Skript mit Backup und Rollback
 - Tests: Unit, API-Integration (inkl. Prüfung der Frontend-Anbindung jeder Route), Browser-E2E mit WCAG-Prüfung (axe), GitHub Actions
@@ -78,6 +78,10 @@ Offen / Vorschläge:
 ## Nachbesserungen v7.4.1
 
 Administration → Elemente (alle Elemente suchen, filtern, bearbeiten, verschieben, löschen); Element-Auswahl mit Suche über alle Kategorien (Kategorie nur als Filter), filterbare Kategorie-Auswahl; „Neues Element“ fragt nur Typ und Titel, Blog/FAQ legen ohne Quelle eine Kategorie an; Kurz-URLs (`/kalender`) für Elemente und Kategorien; Startseite wählbar (Übersicht, Kategorie, Element) und Elementtyp `content.catlist` (Kategorieübersicht).
+
+## Nachbesserungen v7.4.2
+
+Menü-Editor zeigt nur die Liste der Einträge, „Bearbeiten“ öffnet einen einzelnen Eintrag (inkl. übergeordnetem Eintrag); Wiki-Vorlage heißt jetzt `theme.wiki`/`theme.wiki.dark` (alte IDs werden beim Start automatisch übernommen), schmalere und ein-/ausblendbare Seitenleiste; Website-Vorlage `theme.cms` neu gestaltet (transparenter Kopfbereich über dem Startbild, Titel-Banner auf Unterseiten, Footer-Spalten, „Nach oben“-Knopf, Schrift Source Sans 3) mit eigener Einstellungsseite *Administration → Website-Vorlage*; Einstellungsformulare kennen Bild- und Farbfelder.
 
 ## Meilenstein 6 – geplant
 

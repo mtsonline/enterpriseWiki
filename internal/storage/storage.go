@@ -264,8 +264,12 @@ func (s *Store) GC(ctx context.Context) (int, error) {
 	if err != nil {
 		return 0, err
 	}
+	keep := s.configHashes()
 	n := 0
 	for _, h := range hashes {
+		if keep[h] {
+			continue // e.g. logo or hero image of a template (plugin settings)
+		}
 		if _, err := s.pool.Exec(ctx, `DELETE FROM files WHERE hash=$1`, h); err != nil {
 			return n, err
 		}
@@ -275,6 +279,37 @@ func (s *Store) GC(ctx context.Context) (int, error) {
 		n++
 	}
 	return n, nil
+}
+
+// configHashes returns file hashes used in plugin settings (config.yaml).
+func (s *Store) configHashes() map[string]bool {
+	out := map[string]bool{}
+	if s.cfg == nil {
+		return out
+	}
+	var walk func(v any)
+	walk = func(v any) {
+		switch x := v.(type) {
+		case string:
+			if hashRe.MatchString(x) {
+				out[x] = true
+			}
+		case map[string]any:
+			for _, y := range x {
+				walk(y)
+			}
+		case []any:
+			for _, y := range x {
+				walk(y)
+			}
+		}
+	}
+	for _, m := range s.cfg.Get().Settings {
+		for _, v := range m {
+			walk(v)
+		}
+	}
+	return out
 }
 
 var (

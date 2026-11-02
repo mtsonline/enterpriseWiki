@@ -65,7 +65,7 @@ Alle Vorlagen-Plugins sind „aktiv“, das heißt verfügbar. **Verwendet wird 
 
 Jede Vorlage bietet Positionen, an denen Menüs (`core.menu`), Blöcke (`core.blocks`) und Widgets anderer Plugins erscheinen:
 
-| Position | Wiki (`theme.confluence`) | Website (`theme.cms`) |
+| Position | Wiki (`theme.wiki`) | Website (`theme.cms`) |
 |---|---|---|
 | `top-bar` | Leiste über dem Kopfbereich (z. B. Hinweise) | links in der dunklen Leiste ganz oben |
 | `header-tools` | Suche, Sprache, Bearbeiten, Benutzer | rechts in der Leiste ganz oben |
@@ -77,6 +77,24 @@ Jede Vorlage bietet Positionen, an denen Menüs (`core.menu`), Blöcke (`core.bl
 | `content-top`, `content-bottom` | über bzw. unter dem Inhalt jeder Seite | über bzw. unter dem Inhalt jeder Seite |
 | `footer-1` … `footer-4` | – | Spalten im Fußbereich |
 | `footer` | Fußbereich | unterste Zeile des Fußbereichs |
+
+Die Wiki-Vorlage hieß bis v7.4.1 `theme.confluence` bzw. `theme.confluence.dark`. Beim Start werden `ui.template`, `plugins.disabled` und `plugin_settings` automatisch auf `theme.wiki` bzw. `theme.wiki.dark` umgestellt. Ihre Seitenleiste lässt sich auf allen Bildschirmgrößen über den Knopf im Kopfbereich ausblenden; der Zustand wird im Browser gemerkt.
+
+### Website-Vorlage einrichten
+
+*Administration → Website-Vorlage* (oder `plugin_settings.theme.cms` in `config.yaml`, API `PUT /api/v1/admin/settings`):
+
+| Einstellung | Bedeutung |
+|---|---|
+| `logo`, `logo_light`, `logo_height` | Logo (hochgeladenes Bild) und helle Variante für den transparenten Kopfbereich über dem Startbild; Höhe in Pixel |
+| `primary_color`, `accent_color` | Hauptfarbe (Links, Schaltflächen, aktive Navigation) und Akzentfarbe, `#rrggbb` |
+| `header` | `overlay`: Kopfbereich liegt transparent über dem Startbild und wird beim Scrollen weiß; `solid`: immer weiß |
+| `hero_image`, `hero_title`, `hero_subtitle`, `hero_button_label`, `hero_button_link`, `hero_size` | Startbild nur auf der Startseite; Größe `large` oder `medium` |
+| `banner`, `banner_image` | Seitentitel auf Unterseiten in einem Bild-Banner (ohne eigenes Bild wird ein Farbverlauf verwendet) |
+| `copyright` | Text in der untersten Zeile, `{year}` wird durch das aktuelle Jahr ersetzt |
+| `back_to_top` | „Nach oben“-Knopf beim Scrollen |
+
+Bilder werden wie Anhänge gespeichert und bei der Speicherbereinigung nicht gelöscht, solange eine Einstellung auf sie verweist. Die öffentlichen Werte liefert `GET /api/v1/x/theme.cms/config`. Menüs legen Sie unter *Administration → Menüs* an: Hauptnavigation an `header-nav` (ersetzt dann die automatische Navigation), Quicklinks an `top-bar`, Footer-Spalten mit Blöcken oder Menüs an `footer-1` … `footer-4`, rechtliche Links an `footer`.
 
 Mit `?positions=1` an einer beliebigen Adresse (oder *Positionen auf der Seite anzeigen* unter *Menüs* bzw. *Blöcke*) sehen Administratoren alle Positionen mit Namen umrahmt. Menüs und Blöcke an einer Position, die die aktive Vorlage nicht hat, werden in der Verwaltung markiert und nicht angezeigt.
 
@@ -125,9 +143,9 @@ Plugins sind vollwertiger Code mit Zugriff auf Datenbank und Server. Installiere
 | `content.catlist` | Elementtyp | Kategorieübersicht: Unterkategorien einer Kategorie oder der obersten Ebene als Karten oder Liste, optional mit Seiten (z. B. als Startseite) |
 | `content.team` | Elementtyp | Team-Seite aus Gruppen mit wählbaren Angaben aus der Visitenkarte bzw. dem Identity Provider |
 | `search.external` | Allgemein | OpenSearch/Elasticsearch oder Meilisearch für die Volltextsuche |
-| `theme.confluence` | Template | Dokumentations-Layout mit Seitenbaum |
+| `theme.wiki` | Template | Dokumentations-Layout mit Seitenbaum |
 | `theme.cms` | Template | Website-Layout mit Hauptnavigation, Off-Canvas-Menü und Footer-Spalten |
-| `theme.confluence.dark` | Template (Beispiel) | erbt von `theme.confluence`, ändert nur die Farben |
+| `theme.wiki.dark` | Template (Beispiel) | erbt von `theme.wiki`, ändert nur die Farben |
 | `example.notice` | Elementtyp (Beispiel) | Hinweisbox, erbt von `core.html` |
 
 Eigene Plugins entwickeln: [docs/developer/plugins.md](../developer/plugins.md)

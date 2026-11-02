@@ -1,4 +1,4 @@
-// theme.confluence: documentation layout with header, page tree sidebar,
+// theme.wiki: documentation layout with header, page tree sidebar,
 // content area and footer.
 //
 // Positions (for menus, blocks and plugin widgets):
@@ -17,7 +17,7 @@ export const POSITIONS = ['top-bar', 'header-nav', 'header-tools', 'sidebar', 's
 
 export function register(): void {
   registerTemplate({
-    id: 'theme.confluence',
+    id: 'theme.wiki',
     className: 'ewc',
     positions: POSITIONS,
     layout: (ctx) => {
@@ -25,11 +25,29 @@ export function register(): void {
       const sidebar = h('aside', { id: 'ewc-sidebar', class: 'ewc-sidebar', 'aria-label': t('nav.sidebar') }, ctx.position('sidebar'), ctx.position('sidebar-bottom'));
       const toggle = h('button', { type: 'button', class: 'ewc-sidebar-toggle ew-btn ew-btn--subtle', 'aria-expanded': 'false', 'aria-controls': 'ewc-sidebar' },
         h('span', { 'aria-hidden': 'true' }, '☰'), h('span', { class: 'sr-only' }, t('nav.sidebar_toggle')));
-      toggle.addEventListener('click', () => {
-        const open = toggle.getAttribute('aria-expanded') !== 'true';
+      // small screens: the sidebar opens over the content (closed at first);
+      // large screens: it can be hidden for more reading width (remembered)
+      const small = () => window.matchMedia?.('(max-width: 900px)').matches ?? false;
+      let hidden = false;
+      try { hidden = localStorage.getItem('ewc-sidebar') === 'hidden'; } catch { /* storage not available */ }
+      const apply = () => {
+        const open = small() ? sidebar.classList.contains('is-open') : !hidden;
         toggle.setAttribute('aria-expanded', String(open));
-        sidebar.classList.toggle('is-open', open);
+        shell.classList.toggle('ewc-shell--collapsed', !small() && hidden);
+      };
+      toggle.addEventListener('click', () => {
+        if (small()) {
+          sidebar.classList.toggle('is-open');
+        } else {
+          hidden = !hidden;
+          try { localStorage.setItem('ewc-sidebar', hidden ? 'hidden' : 'shown'); } catch { /* ignore */ }
+        }
+        apply();
       });
+      window.matchMedia?.('(max-width: 900px)').addEventListener?.('change', apply);
+      const shell = h('div', { class: 'ewc-shell' }, sidebar,
+        h('div', { class: 'ewc-content' }, ctx.position('content-top'), main, ctx.position('content-bottom')));
+      apply();
       const root = h('div', { class: 'ewc-app' },
         h('a', { href: '#main', class: 'ew-skip' }, t('nav.skip')),
         ctx.position('top-bar'),
@@ -40,8 +58,7 @@ export function register(): void {
             h('span', null, state.site.name)),
           ctx.position('header-nav', 'div'),
           ctx.position('header-tools')),
-        h('div', { class: 'ewc-shell' }, sidebar,
-          h('div', { class: 'ewc-content' }, ctx.position('content-top'), main, ctx.position('content-bottom'))),
+        shell,
         h('footer', { class: 'ewc-footer' }, ctx.position('footer'),
           h('p', { class: 'ewc-powered' }, t('footer.powered', { version: state.site.version }))));
       return { root, main };

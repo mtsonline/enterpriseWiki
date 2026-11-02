@@ -60,8 +60,12 @@
   .ewm--dropdown .ewm-row > a { flex: 1; }
 }
 
-/* ---------- admin editor */
-.ewm-row-edit { margin: 0 0 .75rem calc(var(--ewm-depth, 0) * 1.5rem); border-left: 4px solid var(--ew-border); }
-.ewm-row-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr)); gap: 0 1rem; }
-.ewm-labels { margin: .25rem 0 .5rem; }
-.ewm-labels summary { cursor: pointer; font-weight: 600; }
+/* ---------- admin editor: overview list, one item edited at a time */
+.ewm-edit { margin-bottom: .75rem; }
+.ewm-edit-list { list-style: none; margin: 0; padding: 0; }
+.ewm-edit-list .ewm-edit-list { margin-left: 1.5rem; border-left: 2px solid var(--ew-border); padding-left: .5rem; }
+.ewm-edit-row { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .25rem 1rem; padding: .45rem .6rem; border: 1px solid var(--ew-border); border-radius: 6px; margin: .3rem 0; background: var(--ew-bg-raised); }
+.ewm-edit-text { display: flex; flex-direction: column; min-width: 0; }
+.ewm-edit-title { overflow-wrap: anywhere; }
+.ewm-edit-target { color: var(--ew-text-muted); font-size: .85rem; overflow-wrap: anywhere; }
+.ewm-edit-row .ew-actions { gap: .25rem .75rem; }

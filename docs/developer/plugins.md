@@ -17,7 +17,7 @@ Vollständige Beispiele im Repository:
 | Beispiel | zeigt |
 |---|---|
 | `plugins/example_notice` | Elementtyp, der von `core.html` erbt, eigene API-Route, Übersetzungen, Frontend-Editor, der den Basis-Editor wiederverwendet |
-| `plugins/theme_confluence_dark` | Template, das von einem anderen Template erbt |
+| `plugins/theme_wiki_dark` | Template, das von einem anderen Template erbt |
 | `plugins/core_menu` | Migrationen, CRUD-API mit Admin-Prüfung, Widgets an Template-Positionen, eigene Admin-Seite |
 | `plugins/auth_local` | Anmeldeverfahren |
 
@@ -219,7 +219,7 @@ export function register(): void {
 }
 ```
 
-- Einstellungsseiten: `pluginSettingsForm('acme.kanban', [{ key: 'url', label: t('…') }, …])` erzeugt ein barrierefreies Formular, das in `config.yaml` speichert (Typen `text`, `secret`, `bool`, `number`, `list`, `map`, `select`, `textarea`). `MAPPING_FIELDS()` ergänzt die Gruppen- und Rollen-Zuordnung.
+- Einstellungsseiten: `pluginSettingsForm('acme.kanban', [{ key: 'url', label: t('…') }, …])` erzeugt ein barrierefreies Formular, das in `config.yaml` speichert (Typen `text`, `secret`, `bool`, `number`, `list`, `map`, `select`, `textarea`, `image` – Upload, gespeichert wird der SHA-256-Hash, ausgeliefert unter `/api/v1/files/{hash}` –, `color` – `#rrggbb`). `MAPPING_FIELDS()` ergänzt die Gruppen- und Rollen-Zuordnung.
 - Dateien hochladen: `uploadFile(file)` liefert `{hash, name, mime, size}`.
 - Auswahl von Kategorien und Elementen mit „Neu anlegen“: `categorySelect({ selected, perm, noneLabel, allowCreate, onChange })` (`.field(label)` liefert das beschriftete Feld), `elementSelect({ selected, allowCreate, type, onChange })` (Suche über alle Kategorien), `newCategory(parent, done)`, `newElement(category, done)`.
 - `watchButton(type, id, title)` (Beobachten), `feedButton(apiPath, title)` (Feed-Dialog mit persönlichem Link) und `feedURL(path, format)` für eigene Feeds bzw. Abos.
@@ -237,7 +237,7 @@ export function register(): void {
 ```ts
 registerTemplate({
   id: 'acme.theme',
-  extends: 'theme.confluence',      // Layout erben ...
+  extends: 'theme.wiki',      // Layout erben ...
   className: 'acme-theme',          // ... und nur per CSS anpassen
 });
 ```

@@ -51,5 +51,13 @@
  "core.menu.saved_submenu": "Gespeichert. Das Menü ist nur als Untermenü sichtbar.",
  "core.menu.used_as_submenu": "Als Untermenü verwendet",
  "core.menu.unused_submenu": "Nicht verwendet",
- "core.menu.submenu_of": "Untermenü {title}"
+ "core.menu.submenu_of": "Untermenü {title}",
+ "core.menu.top_level": "– Oberste Ebene –",
+ "core.menu.edit_item": "Menüeintrag bearbeiten",
+ "core.menu.parent": "Übergeordneter Eintrag",
+ "core.menu.parent_help": "Für Unterpunkte (Ausklapp-Menü) den Eintrag wählen, unter dem dieser erscheinen soll.",
+ "core.menu.err_item_label": "Bitte eine Beschriftung eingeben (für freie Links und Überschriften erforderlich).",
+ "core.menu.err_item_target": "Bitte das Ziel wählen bzw. die Adresse eingeben.",
+ "core.menu.remove_with_children": "Dieser Eintrag hat {n} Unterpunkte, die mit entfernt werden. Fortfahren?",
+ "core.menu.no_items_yet": "Noch keine Einträge. Mit „Eintrag hinzufügen“ beginnen."
 }

@@ -1,6 +1,6 @@
 // Generic settings form for plugins: values live in config.yaml under
 // plugin_settings.<plugin-id> and are saved through PUT /api/v1/admin/settings.
-import { api } from '../core/api';
+import { api, uploadFile } from '../core/api';
 import { h } from '../core/dom';
 import { t } from '../core/i18n';
 import { toast } from '../core/announce';
@@ -9,7 +9,9 @@ import { button, checkbox, errorText, field, select, textArea, textInput } from 
 export interface SettingField {
   key: string;
   label: string;
-  type?: 'text' | 'secret' | 'bool' | 'list' | 'map' | 'select' | 'textarea' | 'number';
+  type?: 'text' | 'secret' | 'bool' | 'list' | 'map' | 'select' | 'textarea' | 'number' | 'image' | 'color';
+  /** Default for color fields. */
+  default?: string;
   help?: string;
   placeholder?: string;
   options?: { value: string; label: string }[];
@@ -85,6 +87,29 @@ export async function pluginSettingsForm(pluginId: string, fields: SettingField[
         const ta = textArea({ value: String(v ?? ''), rows: 6 });
         getters[f.key] = () => ta.value.trim();
         el = field(f.label, ta, { help: f.help });
+        break;
+      }
+      case 'color': {
+        const inp = h('input', { type: 'color', class: 'ew-input ew-color-input', value: String(v ?? f.default ?? '#0a3760') }) as HTMLInputElement;
+        getters[f.key] = () => inp.value;
+        el = field(f.label, inp, { help: f.help });
+        break;
+      }
+      case 'image': {
+        // an uploaded image, stored as its SHA-256 (served at /api/v1/files/{hash})
+        let hash = typeof v === 'string' ? v : '';
+        const preview = h('div', { class: 'ew-image-preview' });
+        const draw = () => preview.replaceChildren(hash ? h('img', { src: `/api/v1/files/${hash}`, alt: '' }) : h('span', { class: 'ew-help' }, t('settings.no_image')));
+        draw();
+        const file = h('input', { type: 'file', accept: 'image/png,image/jpeg,image/gif,image/webp', class: 'ew-input' }) as HTMLInputElement;
+        file.addEventListener('change', async () => {
+          const fl = file.files?.[0];
+          if (!fl) return;
+          try { hash = (await uploadFile(fl)).hash; draw(); toast(t('settings.image_uploaded')); } catch (e) { toast(errorText(e), 'error'); }
+        });
+        getters[f.key] = () => hash;
+        el = h('div', null, field(f.label, file, { help: f.help }), preview,
+          button(t('settings.remove_image'), () => { hash = ''; file.value = ''; draw(); }, { variant: 'link', ariaLabel: `${t('settings.remove_image')}: ${f.label}` }));
         break;
       }
       case 'number': {

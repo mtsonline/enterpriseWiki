@@ -583,8 +583,8 @@
  "position.footer-2": "Fußbereich Spalte 2",
  "position.footer-3": "Fußbereich Spalte 3",
  "position.footer-4": "Fußbereich Spalte 4",
- "template.theme.confluence": "Wiki / Dokumentation (Confluence-Stil)",
- "template.theme.confluence.dark": "Wiki, dunkel",
+ "template.theme.wiki": "Wiki / Dokumentation",
+ "template.theme.wiki.dark": "Wiki, dunkel",
  "template.theme.cms": "Website (CMS)",
  "positions.show": "Positionen auf der Seite anzeigen",
  "positions.preview": "Positionsvorschau",
@@ -775,5 +775,8 @@
  "settings.home": "Startseite",
  "settings.home_help": "Was unter / angezeigt wird. Für eine Übersicht mit Auswahl der Bereiche eignet sich ein Element vom Typ „Kategorieübersicht“.",
  "settings.home_overview": "Übersicht der obersten Kategorien",
- "settings.home_element": "Ein Element (Seite, Übersicht, Blog …)"
+ "settings.home_element": "Ein Element (Seite, Übersicht, Blog …)",
+ "settings.no_image": "Kein Bild",
+ "settings.image_uploaded": "Bild hochgeladen – zum Übernehmen speichern",
+ "settings.remove_image": "Bild entfernen"
 }

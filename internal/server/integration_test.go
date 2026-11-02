@@ -525,7 +525,7 @@ func TestAPI(t *testing.T) {
 	}
 	var settings map[string]any
 	admin.must("GET", "/api/v1/admin/settings", nil, &settings, 200)
-	ui := map[string]any{"site_name": "Test Wiki", "template": "theme.confluence", "home_category": 0}
+	ui := map[string]any{"site_name": "Test Wiki", "template": "theme.wiki", "home_category": 0}
 	admin.must("PUT", "/api/v1/admin/settings", map[string]any{"ui": ui}, nil, 200)
 	raw, _ := os.ReadFile(e.cfg)
 	if !strings.Contains(string(raw), "site_name: Test Wiki") || !strings.Contains(string(raw), "${EWIKI_TEST_DATABASE_URL}") {

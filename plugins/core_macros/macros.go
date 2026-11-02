@@ -1,4 +1,4 @@
-// Package core_macros provides the standard macros (similar to Confluence).
+// Package core_macros provides the standard macros (table of contents, child pages, panels, …).
 package core_macros
 
 import (

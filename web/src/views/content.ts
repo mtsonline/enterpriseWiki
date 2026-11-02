@@ -116,7 +116,7 @@ export async function categoryView({ params, main }: RouteCtx): Promise<void> {
   if (watchC) actions.push(watchC);
   if (c.feed && c.feed !== 'off') actions.push(feedButton(`/api/v1/feeds/categories/${c.id}`, title));
   const view = h('article', { class: 'ew-category' },
-    crumbs(data.breadcrumbs),
+    crumbs(data.breadcrumbs, { title }),
     h('div', { class: 'ew-page-header' },
       h('h1', null, edit ? h('span', { class: 'ew-num' }, `${c.number} `) : null, title),
       actions.length ? h('div', { class: 'ew-actions', role: 'group', 'aria-label': t('common.actions') }, ...actions) : null),

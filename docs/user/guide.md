@@ -124,6 +124,8 @@ Unter *Administration → Menüs* (Administratoren) bestehen Menüs aus Einträg
 
 Kategorien und Elemente wählen Sie aus den vorhandenen aus: Kategorien über eine filterbare Liste, Elemente über eine Suche nach Titel oder Kurz-URL in allen Kategorien. Die Kategorie dient dabei nur als optionaler Filter. Über **Neue Kategorie** bzw. **Neues Element** legen Sie Ziele direkt an. Beim neuen Element sind nur Typ und Titel nötig. Die vorgeschlagene Ablage-Kategorie bestimmt nur, wer es sehen und bearbeiten darf. Bei Blog und FAQ wird ohne Auswahl einer Quelle automatisch eine Kategorie mit dem Titel angelegt. Bleibt die Beschriftung leer, erscheint der Titel des Ziels in der jeweiligen Sprache. Einträge, die jemand nicht sehen darf, werden ihm nicht angezeigt.
 
+Beim Bearbeiten eines Menüs sehen Sie nur die Liste der Einträge mit Ziel. **Bearbeiten** öffnet genau einen Eintrag (Ziel, Beschriftungen, übergeordneter Eintrag bis zu vier Ebenen), **Nach oben**/**Nach unten** ändern die Reihenfolge, **Eintrag hinzufügen** legt einen neuen an. Erst **Speichern** im Menü-Dialog übernimmt die Änderungen.
+
 Menüs ohne Platz („nur als Untermenü“) können in mehreren Menüs eingehängt werden. In der Kopfzeile öffnen sich Untermenüs als Ausklapp-Menüs (per Maus, Tastatur, Esc schließt), in der Seitenleiste als aufklappbarer Baum, im Fußbereich vollständig.
 
 ## Beobachten

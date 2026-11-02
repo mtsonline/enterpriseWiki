@@ -1,6 +1,6 @@
 {
-  "id": "theme.confluence",
-  "name": "Confluence-style template",
+  "id": "theme.wiki",
+  "name": "Wiki template",
   "version": "1.0.0",
   "description": "Documentation layout with page tree sidebar, breadcrumbs and a clean reading view. Offers the positions header, sidebar, content and footer.",
   "author": "Enterprise Wiki",

@@ -28,7 +28,7 @@ func TestGenerateAndManifest(t *testing.T) {
 	if !strings.Contains(s, "plugins/good_one") || strings.Contains(s, "no_go") || strings.Contains(s, "bad_id") {
 		t.Fatalf("generated:\n%s", s)
 	}
-	if DirName("theme.confluence.dark") != "theme_confluence_dark" {
+	if DirName("theme.wiki.dark") != "theme_wiki_dark" {
 		t.Fatal("dirname")
 	}
 }

@@ -100,3 +100,14 @@ func TestDotEnv(t *testing.T) {
 		t.Fatal("dotenv not loaded")
 	}
 }
+
+func TestMigrateLegacyPluginIDs(t *testing.T) {
+	c := Defaults()
+	c.UI.Template = "theme.confluence.dark"
+	c.Plugins.Disabled = []string{"theme.confluence", "example.notice"}
+	c.Settings = map[string]map[string]any{"theme.confluence": {"x": 1}}
+	migrateLegacy(c)
+	if c.UI.Template != "theme.wiki.dark" || c.Plugins.Disabled[0] != "theme.wiki" || c.Plugins.Disabled[1] != "example.notice" || c.Settings["theme.wiki"]["x"] != 1 {
+		t.Fatalf("migration: %+v %+v %+v", c.UI.Template, c.Plugins.Disabled, c.Settings)
+	}
+}

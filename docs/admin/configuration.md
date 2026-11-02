@@ -49,7 +49,7 @@ Sprachen werden in der Oberfläche unter *Administration → Sprachen & Überset
 | Schlüssel | Bedeutung | Standard |
 |---|---|---|
 | `site_name` | Name der Website | `Enterprise Wiki` |
-| `template` | aktives Template (Plugin-ID): `theme.confluence` (Dokumentation) oder `theme.cms` (Website), auch unter *Administration → Einstellungen* | `theme.confluence` |
+| `template` | aktives Template (Plugin-ID): `theme.wiki` (Dokumentation) oder `theme.cms` (Website), auch unter *Administration → Einstellungen* | `theme.wiki` |
 | `home_element` | Element-ID der Startseite (z. B. eine Seite oder eine Kategorieübersicht), hat Vorrang vor `home_category`. Neue Installationen: die Willkommensseite. | `0` |
 | `home_category` | Kategorie-ID der Startseite (`0` = Liste der Bereiche bzw. der einzige Bereich) | `0` |
 

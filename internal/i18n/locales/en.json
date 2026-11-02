@@ -583,8 +583,8 @@
  "position.footer-2": "Footer column 2",
  "position.footer-3": "Footer column 3",
  "position.footer-4": "Footer column 4",
- "template.theme.confluence": "Wiki / documentation (Confluence style)",
- "template.theme.confluence.dark": "Wiki, dark",
+ "template.theme.wiki": "Wiki / documentation",
+ "template.theme.wiki.dark": "Wiki, dark",
  "template.theme.cms": "Website (CMS)",
  "positions.show": "Show the positions on the page",
  "positions.preview": "Position preview",
@@ -775,5 +775,8 @@
  "settings.home": "Start page",
  "settings.home_help": "What is shown at /. For an overview of the areas use an element of the type “Category overview”.",
  "settings.home_overview": "Overview of the top-level categories",
- "settings.home_element": "An element (page, overview, blog …)"
+ "settings.home_element": "An element (page, overview, blog …)",
+ "settings.no_image": "No image",
+ "settings.image_uploaded": "Image uploaded – save to apply",
+ "settings.remove_image": "Remove image"
 }

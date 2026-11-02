@@ -273,6 +273,7 @@ curl -H "Authorization: Bearer $KEY" -H 'Content-Type: application/json' \
 | `GET` | `/api/v1/x/search.external/status` |
 | `POST` | `/api/v1/x/search.external/test` |
 | `POST` | `/api/v1/x/search.external/reindex` |
+| `GET` | `/api/v1/x/theme.cms/config` |
 | `GET` | `/api/v1/x/workflow.process/meta` |
 | `GET` | `/api/v1/x/workflow.process/elements/{id}/instances` |
 | `POST` | `/api/v1/x/workflow.process/elements/{id}/instances` |

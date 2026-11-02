@@ -1,6 +1,6 @@
 # Enterprise Wiki
 
-Ein selbst gehosteter, modularer Ersatz für Confluence: Wissensdatenbank mit beliebig tief verschachtelten Kategorien, versionierten und mehrsprachigen Seiten, fein granularen Berechtigungen und einem Plugin-System, über das praktisch alles erweitert werden kann (Elementtypen, Anmeldeverfahren, Menüs, Templates, Admin-Seiten, API-Endpunkte).
+Ein selbst gehostetes, modulares Wiki und CMS: Wissensdatenbank mit beliebig tief verschachtelten Kategorien, versionierten und mehrsprachigen Seiten, fein granularen Berechtigungen und einem Plugin-System, über das praktisch alles erweitert werden kann (Elementtypen, Anmeldeverfahren, Menüs, Templates, Admin-Seiten, API-Endpunkte).
 
 - **Backend:** Go, eine einzige statisch gelinkte Binärdatei (Server + CLI), PostgreSQL
 - **Frontend:** TypeScript ohne Framework und **ohne Laufzeit-Abhängigkeiten**, in die Binärdatei eingebettet
@@ -26,7 +26,7 @@ Ein selbst gehosteter, modularer Ersatz für Confluence: Wissensdatenbank mit be
 | Zusammenarbeit | Kommentare und Antworten unter Seiten (`core.comments`), Änderungen im Audit-Protokoll |
 | Suche | Volltextsuche über alle Sprachen mit Hervorhebung, Tags auf Kategorien und Seiten, Tag-Wolke; optional OpenSearch/Elasticsearch oder Meilisearch (`search.external`) für sehr große Wikis |
 | Plugins | Werden mit dem Kern kompiliert, sofort aktivier- und deaktivierbar, Installation aus GitHub, Git oder lokalem Ordner per Oberfläche, API oder CLI, Neubau und Neustart aus der Oberfläche, Vererbung (`extends`), Update-Prüfung über GitHub-Releases mit 1-Klick-Update |
-| Mitgeliefert | `auth.local`, `auth.ldap`, `auth.oidc`, `auth.shib`, `core.html`, `core.attachment`, `core.menu` (Menüs an Template-Positionen), `core.macros`, `core.layout`, `macro.shell`, `macro.http`, `core.comments`, `workflow.process`, `search.external`, die Templates `theme.confluence` (Dokumentation) und `theme.cms` (Website), Beispiele: `theme.confluence.dark` (erbt von einem Template), `example.notice` (erbt von einem Elementtyp) |
+| Mitgeliefert | `auth.local`, `auth.ldap`, `auth.oidc`, `auth.shib`, `core.html`, `core.attachment`, `core.menu` (Menüs an Template-Positionen), `core.macros`, `core.layout`, `macro.shell`, `macro.http`, `core.comments`, `workflow.process`, `search.external`, die Templates `theme.wiki` (Dokumentation) und `theme.cms` (Website), Beispiele: `theme.wiki.dark` (erbt von einem Template), `example.notice` (erbt von einem Elementtyp) |
 | Betrieb | Setup-Assistent (interaktiv oder headless), Docker/Compose, systemd-Installation, sicheres Update-Skript mit Backup und automatischem Rollback, Single- und Cluster-Modus |
 | CLI | Jede API-Funktion über `ewiki api`, dazu Befehle für Benutzer, Plugins und Konfiguration |
 | Tests | Unit-Tests, API-Integrationstest gegen PostgreSQL (prüft auch, dass jede API-Route eine Frontend-Anbindung hat), Browser-E2E-Tests mit WCAG-Prüfung, alles in GitHub Actions |

@@ -318,18 +318,23 @@ test('menus, blocks and positions', async () => {
   await page.goto(BASE + '/admin/menus');
   await idle();
   await page.getByRole('button', { name: /^(add menu|menü hinzufügen)$/i }).click();
-  let dlg = page.locator('dialog[open]');
+  let dlg = page.locator('dialog[open]').first();
   await dlg.waitFor();
   await dlg.getByLabel(/^(menu name|menüname)/i).fill(`Menu ${run}`);
   await dlg.locator('select').first().selectOption('sidebar-bottom');
-  await dlg.locator('.ewm-labels summary').first().click();
-  await dlg.locator('fieldset input[lang]').first().fill(`Item ${run}`);
-  await a11y('menu dialog');
-  await dlg.locator('button[type=submit]').click();
+  // items are listed; one item is edited at a time in its own dialog
+  await dlg.getByRole('button', { name: /^(add item|eintrag hinzufügen)$/i }).click();
+  const item = page.locator('dialog[open]').last();
+  await item.getByLabel(/^(label|beschriftung) \(en\)/i).fill(`Item ${run}`);
+  await a11y('menu item dialog');
+  await item.locator('button[type=submit]').click();
   // a target is required
-  await page.waitForFunction(() => /target|ziel/i.test(document.querySelector('dialog[open] .ew-form-alert')?.textContent ?? ''));
-  await dlg.locator('.ewm-target select').first().selectOption({ index: 1 });
-  await dlg.locator('button[type=submit]').click();
+  await page.waitForFunction(() => /target|ziel/i.test([...document.querySelectorAll('dialog[open] .ew-form-alert')].pop()?.textContent ?? ''));
+  await item.locator('.ewm-target select').first().selectOption({ index: 1 });
+  await item.locator('button[type=submit]').click();
+  await dlg.locator('.ewm-edit-title', { hasText: `Item ${run}` }).waitFor();
+  await a11y('menu dialog');
+  await dlg.locator('button[type=submit]').last().click();
   await page.waitForSelector(`.ew-pos--sidebar-bottom a:has-text("Item ${run}")`);
   await a11y('menu administration');
   // block in the footer
@@ -380,7 +385,7 @@ test('CMS template', async () => {
     assert.equal(await burger.getAttribute('aria-expanded'), 'false');
   } finally {
     await page.setViewportSize({ width: 1280, height: 900 });
-    await set('theme.confluence');
+    await set('theme.wiki');
   }
 });
 
@@ -560,24 +565,28 @@ test('menu item pointing to an existing element; new blog from the menu dialog',
   await page.goto(BASE + '/admin/menus');
   await idle();
   await page.getByRole('button', { name: /^(add menu|menü hinzufügen)$/i }).click();
-  const dlg = page.locator('dialog[open]');
+  const dlg = page.locator('dialog[open]').first();
   await dlg.getByLabel(/^(menu name|menüname)/i).fill(`Picker ${run}`);
   await dlg.locator('select').first().selectOption('sidebar-bottom');
-  await dlg.getByLabel(/^(target|ziel)$/i).selectOption('element');
+  await dlg.getByRole('button', { name: /^(add item|eintrag hinzufügen)$/i }).click();
+  const item = page.locator('dialog[open]').last();
+  await item.getByLabel(/^(target|ziel)$/i).selectOption('element');
   // existing elements are listed without choosing a category first
-  await dlg.getByLabel(/^(search element|element suchen)/i).fill(`Pickable ${run}`);
+  await item.getByLabel(/^(search element|element suchen)/i).fill(`Pickable ${run}`);
   await page.waitForFunction((n) => [...document.querySelectorAll('dialog[open] .ew-picker-list option')].some((o) => o.textContent.includes(n)), `Pickable ${run}`);
-  await dlg.locator('.ew-picker-list').selectOption({ index: 0 });
-  await a11y('menu dialog with element picker');
+  await item.locator('.ew-picker-list').selectOption({ index: 0 });
+  await a11y('menu item dialog with element picker');
   // a blog can be created right here: without a source a category is created
-  await dlg.getByRole('button', { name: /^(new element|neues element)$/i }).click();
+  await item.getByRole('button', { name: /^(new element|neues element)$/i }).click();
   const nd = page.locator('dialog[open]').last();
   await nd.getByLabel(/^(element type|elementtyp)/i).selectOption('content.blog');
   await nd.getByLabel(/^(title|titel)/i).fill(`Quickblog ${run}`);
   await a11y('new element dialog');
   await nd.locator('button[type=submit]').click();
   await page.waitForFunction((n) => [...document.querySelectorAll('dialog[open] .ew-picker-list option:checked')].some((o) => o.textContent.includes(n)), `Quickblog ${run}`);
-  await dlg.locator('button[type=submit]').first().click();
+  await item.locator('button[type=submit]').click();
+  await dlg.locator('.ewm-edit-title', { hasText: `Quickblog ${run}` }).waitFor();
+  await dlg.locator('button[type=submit]').last().click();
   await page.waitForSelector(`.ew-pos--sidebar-bottom a:has-text("Quickblog ${run}")`);
 });
 

@@ -43,6 +43,9 @@ const options = {
   entryNames: 'app',
   alias: { '@ewiki/sdk': path.join(here, 'src', 'sdk.ts') },
   legalComments: 'none',
+  // fonts referenced from CSS (e.g. the website template) are copied with a content hash
+  loader: { '.woff2': 'file' },
+  assetNames: '[name]-[hash]',
   logLevel: 'info',
   metafile: true,
 };

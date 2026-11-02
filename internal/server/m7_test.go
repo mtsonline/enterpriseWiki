@@ -128,7 +128,7 @@ func TestShortURLsListingAndOverview(t *testing.T) {
 	if !strings.Contains(view.HTML, `href="/team/events"`) || !strings.Contains(view.HTML, `href="/mein-kalender"`) || strings.Contains(view.HTML, "Board") {
 		t.Fatalf("overview: %s", view.HTML)
 	}
-	admin.must("PUT", "/api/v1/admin/settings", map[string]any{"ui": map[string]any{"site_name": "Wiki", "template": "theme.confluence", "home_element": ov.ID}}, nil, 200)
+	admin.must("PUT", "/api/v1/admin/settings", map[string]any{"ui": map[string]any{"site_name": "Wiki", "template": "theme.wiki", "home_element": ov.ID}}, nil, 200)
 	var site struct {
 		HomeElement int64 `json:"home_element"`
 	}

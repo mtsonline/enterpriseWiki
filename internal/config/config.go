@@ -237,7 +237,7 @@ func Defaults() *Config {
 		Database: Database{URL: "${EWIKI_DATABASE_URL}", MaxConns: 50},
 		Storage:  Storage{Path: "./data", MaxUploadMB: 100},
 		I18n:     I18n{DefaultLanguage: "en", Languages: []string{"en", "de"}},
-		UI:       UI{SiteName: "Enterprise Wiki", Template: "theme.confluence"},
+		UI:       UI{SiteName: "Enterprise Wiki", Template: "theme.wiki"},
 		Auth: Auth{
 			Order: []string{"local"}, SessionTTL: "168h", APIKeyMaxTTL: "8760h", SSHTokenTTL: "1h",
 			MaxLoginFails: 10, LockoutDuration: "15m", MinPasswordLen: 12,
@@ -379,6 +379,7 @@ func (s *Store) Reload() error {
 		if err := yaml.Unmarshal(b, raw); err != nil {
 			return fmt.Errorf("config %s: %w", s.path, err)
 		}
+		migrateLegacy(raw)
 		if st, err := os.Stat(s.path); err == nil {
 			mt = st.ModTime()
 		}
@@ -560,6 +561,30 @@ func Validate(c *Config) error {
 		}
 	}
 	return nil
+}
+
+// renamedPlugins maps former plugin ids to their current ids.
+var renamedPlugins = map[string]string{"theme.confluence": "theme.wiki", "theme.confluence.dark": "theme.wiki.dark"}
+
+// migrateLegacy updates settings written by older versions (renamed plugins).
+// The file is rewritten with the new ids on the next save.
+func migrateLegacy(c *Config) {
+	if n, ok := renamedPlugins[c.UI.Template]; ok {
+		c.UI.Template = n
+	}
+	for i, id := range c.Plugins.Disabled {
+		if n, ok := renamedPlugins[id]; ok {
+			c.Plugins.Disabled[i] = n
+		}
+	}
+	for old, n := range renamedPlugins {
+		if v, ok := c.Settings[old]; ok {
+			if _, exists := c.Settings[n]; !exists {
+				c.Settings[n] = v
+			}
+			delete(c.Settings, old)
+		}
+	}
 }
 
 func clone(c *Config) (*Config, error) {

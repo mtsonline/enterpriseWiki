@@ -81,7 +81,7 @@ export interface ResolvedTemplate {
 }
 
 /** Resolves a template with its inheritance chain. */
-export function resolveTemplate(id: string, fallback = 'theme.confluence'): ResolvedTemplate | null {
+export function resolveTemplate(id: string, fallback = 'theme.wiki'): ResolvedTemplate | null {
   const chain: TemplateDef[] = [];
   let cur = templates.get(id) ?? templates.get(fallback);
   const seen = new Set<string>();
@@ -106,7 +106,7 @@ export function listTemplates(): TemplateDef[] {
 
 /** The template in use (with inherited positions). */
 export function activeTemplate(): ResolvedTemplate | null {
-  return resolveTemplate(state.site?.template ?? 'theme.confluence');
+  return resolveTemplate(state.site?.template ?? 'theme.wiki');
 }
 
 /** Human readable name of a template position (core locale "position.<name>"). */

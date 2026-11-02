@@ -19,7 +19,7 @@ i18n:
     languages: [en, de]
 ui:
     site_name: Enterprise Wiki
-    template: theme.confluence
+    template: theme.wiki
     home_category: 0
 auth:
     order: [local]                # local is always tried first

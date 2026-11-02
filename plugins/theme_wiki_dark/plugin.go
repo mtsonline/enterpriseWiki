@@ -1,6 +1,6 @@
-// Package theme_confluence_dark registers the "theme.confluence.dark" template. The template itself is
+// Package theme_wiki_dark registers the "theme.wiki.dark" template. The template itself is
 // implemented in web/index.ts (frontend).
-package theme_confluence_dark
+package theme_wiki_dark
 
 import (
 	_ "embed"

@@ -1,4 +1,4 @@
-/* theme.confluence */
+/* theme.wiki */
 .ewc-header {
   position: sticky; top: 0; z-index: 40; display: flex; align-items: center; gap: 1rem; flex-wrap: wrap;
   min-height: var(--ew-header-h); padding: .4rem 1rem; background: var(--ew-bg-raised); border-bottom: 1px solid var(--ew-border);
@@ -20,9 +20,11 @@
 .ewc-main:focus { outline: none; }
 .ewc-footer { border-top: 1px solid var(--ew-border); padding: 1rem 2rem; color: var(--ew-text-muted); font-size: .9rem; background: var(--ew-bg-subtle); }
 .ewc-powered { margin: .25rem 0 0; }
-.ewc-sidebar-toggle { display: none; }
+.ewc-sidebar-toggle { display: inline-flex; }
+.ewc-shell--collapsed { grid-template-columns: minmax(0, 1fr); }
+.ewc-shell--collapsed .ewc-sidebar { display: none; }
+@media (min-width: 1600px) { .ewc-app { --ew-sidebar-w: 272px; } }
 @media (max-width: 900px) {
-  .ewc-sidebar-toggle { display: inline-flex; }
   .ewc-shell { grid-template-columns: 1fr; }
   .ewc-sidebar { display: none; position: static; max-height: none; border-right: none; border-bottom: 1px solid var(--ew-border); }
   .ewc-sidebar.is-open { display: block; }
