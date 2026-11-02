@@ -1,11 +1,65 @@
+/* core.menu – multilevel menus. Templates can adjust the look with these
+   custom properties on .ewm or a position container:
+   --ewm-link, --ewm-link-hover-bg, --ewm-panel-bg, --ewm-panel-border, --ewm-accent */
+.ewm { --ewm-link: var(--ew-text); --ewm-link-hover-bg: var(--ew-bg-subtle); --ewm-panel-bg: var(--ew-bg-raised); --ewm-panel-border: var(--ew-border); --ewm-accent: var(--ew-primary); }
 .ewm ul { list-style: none; margin: 0; padding: 0; }
-.ewm--header-nav > nav > .ewm-level-0 { display: flex; gap: .25rem; flex-wrap: wrap; }
-.ewm--header-nav .ewm-item { position: relative; display: flex; align-items: center; }
-.ewm--header-nav a { display: block; padding: .4rem .6rem; border-radius: 4px; text-decoration: none; color: var(--ew-text); font-weight: 600; }
-.ewm--header-nav a:hover, .ewm--header-nav a[aria-current="page"] { background: var(--ew-bg-subtle); text-decoration: underline; }
-.ewm-toggle { border: none; background: none; color: var(--ew-text); cursor: pointer; padding: .3rem; border-radius: 4px; }
-.ewm--header-nav .ewm-level-1 { position: absolute; top: 100%; left: 0; min-width: 12rem; background: var(--ew-bg-raised); border: 1px solid var(--ew-border); border-radius: 8px; padding: .3rem; box-shadow: 0 8px 24px rgba(9,30,66,.2); z-index: 60; }
-.ewm--sidebar ul ul { padding-left: 1rem; }
-.ewm--sidebar a { display: block; padding: .2rem .4rem; color: var(--ew-text); }
+.ewm a, .ewm .ewm-label, .ewm-toggle--label { color: var(--ewm-link); }
+.ewm-row { display: flex; align-items: center; }
+.ewm-toggle { border: none; background: none; color: var(--ewm-link); cursor: pointer; padding: .35rem; border-radius: 4px; font: inherit; line-height: 1; }
+.ewm-toggle:hover { background: var(--ewm-link-hover-bg); }
+.ewm-toggle--label { display: flex; align-items: center; gap: .35rem; font-weight: 600; text-align: left; width: 100%; padding: .4rem .6rem; }
+.ewm-caret { display: inline-block; width: .5rem; height: .5rem; border-right: 2px solid currentColor; border-bottom: 2px solid currentColor; transform: rotate(45deg) translate(-2px, -2px); transition: transform .15s; }
+.is-open > .ewm-row .ewm-caret, .is-open > .ewm-toggle .ewm-caret { transform: rotate(-135deg) translate(-2px, -2px); }
+@media (prefers-reduced-motion: reduce) { .ewm-caret { transition: none; } }
+
+/* ---------- horizontal: dropdowns, nested levels as flyouts */
+.ewm--dropdown > nav > .ewm-level-0 { display: flex; gap: .25rem; flex-wrap: wrap; align-items: center; }
+.ewm--dropdown .ewm-item { position: relative; }
+.ewm--dropdown .ewm-level-0 > .ewm-item > a, .ewm--dropdown .ewm-level-0 > .ewm-item > .ewm-row > a,
+.ewm--dropdown .ewm-level-0 > .ewm-item > .ewm-toggle--label { display: block; width: auto; padding: .4rem .6rem; border-radius: 4px; text-decoration: none; font-weight: 600; white-space: nowrap; }
+.ewm--dropdown a:hover, .ewm--dropdown a[aria-current="page"] { background: var(--ewm-link-hover-bg); text-decoration: underline; }
+.ewm--dropdown .ewm-level-0 > .ewm-item.is-open > .ewm-row > a, .ewm--dropdown .ewm-level-0 > .ewm-item.is-open > .ewm-toggle--label { background: var(--ewm-link-hover-bg); }
+.ewm--dropdown .ewm-level:not(.ewm-level-0) {
+  position: absolute; top: 100%; left: 0; min-width: 14rem; max-width: 22rem; background: var(--ewm-panel-bg); border: 1px solid var(--ewm-panel-border);
+  border-radius: 8px; padding: .3rem; box-shadow: 0 8px 24px rgba(9, 30, 66, .2); z-index: 60;
+}
+/* flyouts of level 2+ open to the side */
+.ewm--dropdown .ewm-level:not(.ewm-level-0):not(.ewm-level-1) { top: -.35rem; left: 100%; margin-left: .15rem; }
+.ewm--dropdown .ewm-level-1.ewm-flip { left: auto; right: 0; }
+.ewm--dropdown .ewm-level.ewm-flip:not(.ewm-level-1) { left: auto; right: 100%; margin: 0 .15rem 0 0; }
+.ewm--dropdown .ewm-level:not(.ewm-level-0) a, .ewm--dropdown .ewm-level:not(.ewm-level-0) .ewm-toggle--label { display: block; padding: .45rem .6rem; border-radius: 4px; text-decoration: none; font-weight: 500; white-space: normal; }
+.ewm--dropdown .ewm-level:not(.ewm-level-0) .ewm-row > a { flex: 1; }
+.ewm--dropdown .ewm-level:not(.ewm-level-0) .ewm-caret { transform: rotate(-45deg); }
+.ewm--dropdown .ewm-level:not(.ewm-level-0) .ewm-toggle--label { justify-content: space-between; }
+.ewm--dropdown .ewm-heading > .ewm-label { display: block; padding: .45rem .6rem .2rem; font-size: .8rem; text-transform: uppercase; letter-spacing: .04em; color: var(--ew-text-muted); }
+
+/* ---------- vertical: collapsible tree */
+.ewm--tree ul ul { padding-left: .9rem; border-left: 1px solid var(--ewm-panel-border); margin-left: .55rem; }
+.ewm--tree a, .ewm--tree .ewm-label { display: block; padding: .25rem .4rem; border-radius: 4px; flex: 1; }
+.ewm--tree a:hover { background: var(--ewm-link-hover-bg); }
+.ewm--tree a[aria-current="page"] { background: var(--ewm-link-hover-bg); font-weight: 600; box-shadow: inset 3px 0 0 var(--ewm-accent); }
+.ewm--tree .ewm-toggle--label { padding: .25rem .4rem; }
+.ewm--tree .ewm-row .ewm-toggle { order: -1; }
+.ewm--tree .ewm-caret { transform: rotate(-45deg) translate(-1px, -1px); }
+.ewm--tree .is-open > .ewm-row .ewm-caret, .ewm--tree .is-open > .ewm-toggle .ewm-caret { transform: rotate(45deg) translate(-2px, -2px); }
+
+/* ---------- footer: everything visible */
 .ewm--footer > nav > ul { display: flex; gap: 1rem; flex-wrap: wrap; }
-.ewm-row { margin-bottom: .75rem; }
+.ewm--static ul ul { padding-left: .75rem; font-size: .95em; }
+.ewm--static .ewm-label { font-weight: 600; }
+
+/* ---------- small screens: dropdowns become collapsible lists */
+@media (max-width: 48rem) {
+  .ewm--dropdown > nav > .ewm-level-0 { flex-direction: column; align-items: stretch; }
+  .ewm--dropdown .ewm-level:not(.ewm-level-0), .ewm--dropdown .ewm-level:not(.ewm-level-0):not(.ewm-level-1) {
+    position: static; min-width: 0; max-width: none; box-shadow: none; border: none; border-left: 1px solid var(--ewm-panel-border); border-radius: 0; margin: 0 0 0 .6rem; padding: 0 0 0 .4rem;
+  }
+  .ewm--dropdown .ewm-level:not(.ewm-level-0) .ewm-caret { transform: rotate(45deg) translate(-2px, -2px); }
+  .ewm--dropdown .ewm-row > a { flex: 1; }
+}
+
+/* ---------- admin editor */
+.ewm-row-edit { margin: 0 0 .75rem calc(var(--ewm-depth, 0) * 1.5rem); border-left: 4px solid var(--ew-border); }
+.ewm-row-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr)); gap: 0 1rem; }
+.ewm-labels { margin: .25rem 0 .5rem; }
+.ewm-labels summary { cursor: pointer; font-weight: 600; }

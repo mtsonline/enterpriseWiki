@@ -672,5 +672,12 @@
  "watch.type.element": "Page",
  "watch.deleted": "(deleted)",
  "watch.mail_disabled": "Sending e-mail is switched off – watches are saved but not sent at the moment.",
- "watch.type_col": "Type"
+ "watch.type_col": "Type",
+ "picker.new_category": "New category",
+ "picker.new_element": "New element",
+ "picker.choose_element": "– choose element –",
+ "picker.choose_category": "– choose category –",
+ "picker.category": "Category",
+ "picker.element": "Element",
+ "picker.new_element_help": "The element is created empty in {lang}; add content later with “Edit”."
 }

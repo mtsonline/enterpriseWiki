@@ -84,6 +84,10 @@ img { max-width: 100%; height: auto; }
 textarea.ew-input { resize: vertical; }
 .ew-help { color: var(--ew-text-muted); font-size: .9rem; margin: 0; }
 .ew-field-error { color: var(--ew-danger); font-weight: 600; margin: 0; }
+.ew-picker { display: flex; gap: .5rem; flex-wrap: wrap; align-items: center; }
+.ew-picker:empty { display: none; }
+.ew-picker > .ew-input { flex: 1 1 16rem; }
+.ew-picker--element { display: grid; gap: .25rem; align-items: start; }
 .ew-field-error:empty { display: none; }
 .ew-req { color: var(--ew-danger); }
 .ew-form-alert:not(:empty) {

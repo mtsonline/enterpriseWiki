@@ -672,5 +672,12 @@
  "watch.type.element": "Seite",
  "watch.deleted": "(gelöscht)",
  "watch.mail_disabled": "Der E-Mail-Versand ist abgeschaltet – Beobachtungen werden gespeichert, aber derzeit nicht verschickt.",
- "watch.type_col": "Art"
+ "watch.type_col": "Art",
+ "picker.new_category": "Neue Kategorie",
+ "picker.new_element": "Neues Element",
+ "picker.choose_element": "– Element wählen –",
+ "picker.choose_category": "– Kategorie wählen –",
+ "picker.category": "Kategorie",
+ "picker.element": "Element",
+ "picker.new_element_help": "Das Element wird leer in {lang} angelegt; Inhalt danach über „Bearbeiten“ ergänzen."
 }

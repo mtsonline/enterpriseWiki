@@ -22,6 +22,9 @@ export { button, field, textInput, textArea, select, checkbox, openDialog, confi
 export type * from './core/types';
 export { registerWidget, hydrate } from './core/widgets';
 export type { TreeNode } from './components/widgets';
+export { categorySelect, elementSelect, newCategory, newElement } from './components/pickers';
+export type { CategorySelect, ElementSelect } from './components/pickers';
+export { watchButton } from './components/watch';
 export type { WidgetFactory } from './core/widgets';
 
 // ---------------------------------------------------------------- plugin modules

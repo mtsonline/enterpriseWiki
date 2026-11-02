@@ -30,3 +30,8 @@
   .ewc-content > .ew-pos--content-top:not(:empty), .ewc-content > .ew-pos--content-bottom:not(:empty) { padding: 1rem 1rem 0; }
   .ew-search-input { min-width: 8rem; }
 }
+
+/* core.menu: menus in the header (dropdowns) and the sidebar (collapsible tree) */
+.ewc-header .ewm--dropdown .ewm-level-0 > .ewm-item > a, .ewc-header .ewm--dropdown .ewm-level-0 > .ewm-item > .ewm-row > a { color: var(--ew-text); }
+.ewc-sidebar .ewm { margin-bottom: 1rem; }
+.ewc-sidebar .ewm--tree ul ul { margin-left: .45rem; }

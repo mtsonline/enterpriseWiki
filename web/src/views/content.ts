@@ -476,7 +476,7 @@ export async function newElementView({ params, query, main }: RouteCtx): Promise
   try { types = await api.get<typeof types>('element-types'); } catch { /* use site info */ }
   const typeId = query.get('type') && types.some((x) => x.id === query.get('type')) ? query.get('type')! : (types.find((x) => x.id === 'core.html')?.id ?? types[0]?.id);
   const typeSel = select(types.map((x) => ({ value: x.id, label: typeLabel(x.id) })), typeId);
-  typeSel.addEventListener('change', () => navigate(`/c/${catId}/new?type=${encodeURIComponent(typeSel.value)}`, { replace: true }));
+  typeSel.addEventListener('change', () => navigate(`/c/${catId}/new${qs({ type: typeSel.value, return: query.get('return') ?? undefined })}`, { replace: true }));
   const title = textInput({ required: true, maxlength: 250 });
   const tags = textInput();
   const labelId = uid('content');
@@ -492,7 +492,7 @@ export async function newElementView({ params, query, main }: RouteCtx): Promise
     field(t('common.tags'), tags, { help: t('common.tags_help') }),
     h('div', { class: 'ew-form-actions' },
       button(t('common.create'), () => undefined, { type: 'submit', variant: 'primary' }),
-      h('a', { href: `/c/${catId}`, class: 'ew-btn ew-btn--secondary' }, t('common.cancel'))));
+      h('a', { href: query.get('return')?.startsWith('/') && !query.get('return')!.startsWith('//') ? query.get('return')! : `/c/${catId}`, class: 'ew-btn ew-btn--secondary' }, t('common.cancel'))));
   mount(main, form);
   const empty = types.find((x) => x.id === typeId)?.empty_body ?? {};
   const editor = mountEditor(editorBox, typeId, empty, L(), labelId);
@@ -514,7 +514,8 @@ export async function newElementView({ params, query, main }: RouteCtx): Promise
       editor.destroy?.();
       invalidateTree();
       toast(t('element.created'));
-      navigate(`/e/${el.id}`);
+      const ret = query.get('return');
+      navigate(ret && ret.startsWith('/') && !ret.startsWith('//') ? ret : `/e/${el.id}`);
     } catch (e) {
       alert.textContent = errorText(e);
     }
