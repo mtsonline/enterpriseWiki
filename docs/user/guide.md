@@ -89,8 +89,45 @@ Im Bearbeitungsmodus zeigt jede Seite, zu wie viel Prozent sie übersetzt ist un
 
 Mit *Übersetzen* bzw. *Bearbeiten* öffnen Sie den Editor für diese Sprache. Unter *Original anzeigen* sehen Sie den Ausgangstext.
 
+### Blog, FAQ, Veranstaltungskalender und Team
+
+Beim Anlegen eines Elements (*Neues Element*) wählen Sie den Typ:
+
+- **Blog**: zeigt die Seiten einer Kategorie (optional mit Unterkategorien) als Beiträge, die neuesten zuerst. Es gibt Anrisstext, Autor und Datum sowie die Layouts Liste, Karten und Kompakt, dazu Blättern, Schlagwort-Filter (Klick auf einen Tag) und eine **Suche nur im Blog**. Die Beiträge sind normale Seiten: **Neuer Beitrag** öffnet den Editor in der Blog-Kategorie, **Neue Unterkategorie** legt z. B. „Veranstaltungen“ an. Im Editor des Blogs wählen Sie die Kategorie aus oder legen sie mit **Neue Kategorie** an.
+- **FAQ**: Unterkategorien werden zu aufklappbaren Abschnitten, Seiten zu aufklappbaren Fragen (Titel = Frage, Inhalt = Antwort). Das Suchfeld filtert sofort, *Alle aufklappen/zuklappen* hilft beim Lesen. **Neue Frage** legt Frage und Antwort direkt im Dialog an (Markdown), **Neuer Abschnitt** eine Unterkategorie. Jede Frage hat einen eigenen Link (`#q-123`).
+- **Veranstaltungskalender**:
+  - Ansichten Monat, Woche und Liste, Kategorien mit Farben, Suche.
+  - Wiederkehrende Termine: täglich, wöchentlich an bestimmten Tagen, monatlich am Tag X oder z. B. „am letzten Freitag“, jährlich; mit Ende nach Datum oder Anzahl. Einzelne Termine einer Serie lassen sich absagen.
+  - **Anmeldung** mit Platzzahl, Warteliste und Anmeldeschluss. Bestätigungen kommen per E-Mail; wird ein Platz frei, rückt automatisch die erste Person der Warteliste nach und wird informiert.
+  - **Erinnerungen per E-Mail** (z. B. 1 Tag vorher) an Angemeldete und alle, die „Erinnern“ gewählt haben.
+  - **In meinen Kalender (.ics)** für einen Termin und **Abonnieren** des ganzen Kalenders in Outlook, Google oder Apple Kalender (persönlicher Link). Organisatoren sehen die Teilnehmenden und können sie als CSV exportieren.
+  - Das Makro **Nächste Termine** zeigt kommende Termine auf jeder Seite.
+- **Team**: Name und Beschreibung (Markdown/HTML), eine oder mehrere Gruppen, deren Mitglieder angezeigt werden, und die Auswahl der Angaben: Foto, Funktion, Abteilung, E-Mail, Telefon, Mobil, Büro, „Über mich“, Gruppen oder Attribute aus LDAP/OIDC/SAML. Darstellung als Karten, Liste oder Tabelle, auf Wunsch nach Gruppen gegliedert, mit Filter und CSV-Export. Die Angaben pflegt jede Person unter *Mein Profil → Visitenkarte*, Administratoren unter *Administration → Benutzer*.
+
+### Menüs
+
+Unter *Administration → Menüs* (Administratoren) bestehen Menüs aus Einträgen mit einem Ziel:
+
+- eine **Kategorie**,
+- ein **Element** jeden Typs (Seite, Blog, FAQ, Kalender …),
+- ein **freier Link**,
+- ein **anderes Menü** als aufklappbares Untermenü (für mehrstufige Menüs),
+- eine **Überschrift**, die nur die eingerückten Einträge darunter gruppiert.
+
+Kategorien und Elemente wählen Sie aus den vorhandenen aus oder legen sie über **Neue Kategorie** bzw. **Neues Element** direkt an. Bleibt die Beschriftung leer, erscheint der Titel des Ziels in der jeweiligen Sprache. Einträge, die jemand nicht sehen darf, werden ihm nicht angezeigt.
+
+Menüs ohne Platz („nur als Untermenü“) können in mehreren Menüs eingehängt werden. In der Kopfzeile öffnen sich Untermenüs als Ausklapp-Menüs (per Maus, Tastatur, Esc schließt), in der Seitenleiste als aufklappbarer Baum, im Fußbereich vollständig.
+
+## Beobachten
+
+Mit **Beobachten** (auf jeder Seite und Kategorie, für angemeldete Personen) erhalten Sie eine E-Mail, wenn sich etwas ändert, bei Kategorien auf Wunsch auch für alle Unterkategorien. Sie wählen, ob die E-Mail **nur den Link** oder **Link und neuen Inhalt** enthält. Mehrere Änderungen kurz hintereinander kommen gesammelt in einer E-Mail. Eigene Änderungen werden nicht gemeldet, und es werden nur Inhalte gemeldet, die Sie sehen dürfen. Ihre Beobachtungen verwalten Sie unter *Mein Profil → Beobachtungen*.
+
+## Feeds (Atom/RSS)
+
+In den *Kategorie-Einstellungen* lässt sich ein **Atom/RSS-Feed** einschalten (nur diese Kategorie oder mit Unterkategorien). Blogs und FAQs haben eigene Feeds. Der Knopf **Feed** zeigt die Adressen für Feed-Reader. Angemeldete Personen bekommen einen **persönlichen Link** mit Schlüssel, damit der Feed-Reader auch geschützte Inhalte lesen kann. Unter *Mein Profil → Feed- und Kalender-Links* erneuern oder löschen Sie den Schlüssel, falls ein Link weitergegeben wurde.
+
 ## E-Mail-Benachrichtigungen
-Unter *Mein Profil → E-Mail-Benachrichtigungen* legen Sie fest, worüber Sie per E-Mail informiert werden: neue Aufgaben und Erinnerungen, Abschluss Ihrer Vorgänge, Kommentare zu Ihren Seiten und Antworten in Diskussionen. Voraussetzung ist eine E-Mail-Adresse im Profil.
+Unter *Mein Profil → E-Mail-Benachrichtigungen* legen Sie fest, worüber Sie per E-Mail informiert werden: neue Aufgaben und Erinnerungen, Abschluss Ihrer Vorgänge, Kommentare zu Ihren Seiten und Antworten in Diskussionen sowie Änderungen an beobachteten Inhalten. Voraussetzung ist eine E-Mail-Adresse im Profil. Ist der E-Mail-Versand vom Betrieb abgeschaltet, weist das Profil darauf hin.
 
 ## Kommentare
 Unter jeder Seite können angemeldete Benutzer kommentieren und auf Kommentare antworten. Eigene Kommentare lassen sich bearbeiten und löschen. Links werden automatisch verlinkt.
@@ -123,7 +160,9 @@ Je nach Einrichtung melden Sie sich mit Benutzername und Passwort an (lokales Ko
 - Anzeigename, E-Mail und bevorzugte Sprache,
 - Passwort ändern und **Zwei-Faktor-Authentifizierung** einrichten (lokale Konten),
 - **API-Keys** für Skripte: Rechte, Kategorie und Ablaufdatum wählen. Der Schlüssel wird nur einmal angezeigt,
-- **SSH-Schlüssel** für die passwortlose Anmeldung an der API.
+- **SSH-Schlüssel** für die passwortlose Anmeldung an der API,
+- **Visitenkarte** (Foto, Funktion, Abteilung, Telefon, Büro, „Über mich“) für Team-Seiten,
+- **Beobachtungen** und **Feed- und Kalender-Links**.
 
 ## Barrierefreiheit
 

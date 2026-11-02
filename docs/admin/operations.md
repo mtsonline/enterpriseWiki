@@ -57,6 +57,10 @@ ewiki user list|create|passwd|disable|enable|unlock ...
 ewiki plugin list|enable|disable|install|remove|generate|build ...
 ewiki config show|path|validate|get|set ...
 ewiki retention run
+ewiki mail status|list|show|retry|delete|test|send|bounces ...
+ewiki jobs list | ewiki jobs run NAME
+ewiki cache status|clear
+ewiki watch list|add|remove ... --as BENUTZER
 ```
 
 **Jede API-Funktion** steht über `ewiki api` zur Verfügung, auch die von Plugins:
@@ -76,6 +80,13 @@ echo 'Neues-Passwort-42' | ewiki user passwd admin --password-stdin
 ewiki user create notfall --admin --password-stdin < pw.txt   # lokaler Notfall-Admin
 ewiki user unlock anna
 ewiki plugin disable example.notice
+ewiki mail status                       # Warteschlange: wartend, versendet, fehlgeschlagen, älteste wartende Nachricht
+ewiki mail list --status failed         # fehlgeschlagene Nachrichten (mit Empfängern)
+ewiki mail retry 123                    # fehlgeschlagene Empfänger erneut versuchen
+ewiki mail bounces                      # Bounce-Postfach jetzt abrufen
+ewiki cache clear                       # Gäste-Cache auf allen Servern leeren
+ewiki watch add category 12 --mode content --as anna   # anna beobachtet Kategorie 12 (mit Inhalt)
+ewiki api GET /api/v1/x/content.events/upcoming        # nächste Termine aller Kalender
 ```
 
 ## Wartungsaufgaben
@@ -90,7 +101,10 @@ Außerdem laufen Hintergrundjobs (Liste und „jetzt ausführen“ unter *Admini
 
 | Job | Intervall | Aufgabe |
 |---|---|---|
-| `mail` | 10 s | E-Mails aus dem Postausgang senden (mit Wiederholungen) |
+| `mail` | 10 s (und sofort bei neuen Nachrichten) | E-Mails aus dem Postausgang senden: pro Empfänger, vorübergehende Fehler ohne Limit wiederholen |
+| `mail.bounces` | 5 min | Bounce-Postfach per IMAP lesen und Rückläufer zuordnen (nur wenn `mail.bounce` eingerichtet) |
+| `watch` | 30 s | gesammelte Änderungen an beobachteten Kategorien und Seiten als eine E-Mail pro Person versenden (nach 2 Minuten Ruhe) |
+| `content.events.reminders` | 1 min | Termin-Erinnerungen an angemeldete und interessierte Personen |
 | `mail.cleanup` | 6 h | gesendete E-Mails nach `retention.mail_days` löschen |
 | `search.changes.cleanup` | täglich | Änderungsprotokoll für externe Suchmaschinen kürzen (30 Tage) |
 | `workflow.process.timers` | 30 s | Wartezeiten und Webhooks von Workflows fortsetzen, Erinnerungen für überfällige Aufgaben |
@@ -110,3 +124,5 @@ Im Cluster-Modus läuft jeder Job zur selben Zeit nur auf einer Instanz (Advisor
 - Sessions und API-Keys werden 30 Sekunden im Speicher gehalten. Logout und Rechteänderungen leeren den Cache sofort, auch auf allen Cluster-Instanzen.
 - Statische Dateien haben Content-Hashes im Namen und werden ein Jahr lang gecacht. Sie können über ein CDN ausgeliefert werden.
 - Horizontal skalieren: weitere Instanzen im Modus `cluster`, PostgreSQL mit PgBouncer bzw. Read-Replicas.
+- Öffentliche Wikis/Websites: den Gäste-Cache einschalten (`cache.enabled`, siehe [configuration.md](configuration.md#cache)). Seiten kommen dann für Gäste aus dem Speicher, ohne Datenbankzugriff.
+- E-Mail in großen Mengen: Mehrere hundert Benachrichtigungen an jeweils tausende Empfänger pro Tag sind kein Problem. Gemessen wurden rund 1.000 Empfänger pro Sekunde gegen einen lokalen SMTP-Server bei 4 Verbindungen. In der Praxis begrenzt der Mailserver bzw. Provider, daher `mail.concurrency` und ggf. `mail.rate_per_minute` an dessen Limits anpassen. Beobachten: `ewiki mail status` (Feld `oldest_pending`) bzw. die Warnung unter *Administration → E-Mail*.

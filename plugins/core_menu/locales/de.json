@@ -23,7 +23,7 @@
  "core.menu.no_category": "– keine Kategorie, Link verwenden –",
  "core.menu.location_help": "Positionen der aktiven Vorlage ({template}).",
  "core.menu.err_label": "Eintrag {n}: bitte eine Bezeichnung eingeben.",
- "core.menu.err_target": "Eintrag {n}: bitte eine Kategorie wählen oder einen Link eingeben.",
+ "core.menu.err_target": "Eintrag {n}: Ziel wählen (Kategorie, Element, Link oder Menü).",
  "core.menu.saved_at": "Menü gespeichert – angezeigt bei: {position}",
  "core.menu.saved_empty": "Menü gespeichert. Es hat noch keine Einträge und wird deshalb nicht angezeigt.",
  "core.menu.help": "Menüs erscheinen an einer Position der aktiven Vorlage ({template}).",

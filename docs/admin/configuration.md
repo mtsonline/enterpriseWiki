@@ -109,6 +109,7 @@ Ausgehende E-Mails (Benachrichtigungen, Workflow-E-Mails). Einstellbar auch unte
 
 ```yaml
 mail:
+  enabled: true              # false: E-Mail komplett abgeschaltet (Tests, Installationen ohne Mailversand)
   transport: auto            # auto | smtp | sendmail | log | none
   from: wiki@example.com     # Absenderadresse (muss über den Mailserver senden dürfen: SPF/DKIM)
   from_name: Enterprise Wiki
@@ -116,6 +117,8 @@ mail:
   subject_prefix: "[Wiki]"   # optional
   allowed_from:              # weitere Absender für Workflow-E-Mails
     - "*@hr.example.com"
+  concurrency: 4             # parallele SMTP-Verbindungen (1–64)
+  rate_per_minute: 0         # Obergrenze Empfänger pro Minute (0 = unbegrenzt), falls der Provider drosselt
   smtp:
     host: smtp.example.com
     port: 587                # leer: 587 (starttls), 465 (tls), 25 (none)
@@ -124,19 +127,56 @@ mail:
     password: ${EWIKI_SMTP_PASSWORD}   # Wert in .env
     skip_verify: false       # nur für interne Relays mit selbst signiertem Zertifikat
   sendmail: /usr/sbin/sendmail
+  bounce:                    # optional: Rückläufer-Postfach (siehe unten)
+    address: bounces@example.com
+    verp: true               # bounces+m12r34@example.com: ordnet Rückläufer eindeutig zu
+    imap_host: imap.example.com
+    imap_port: 993
+    security: tls            # tls | starttls | none
+    username: bounces@example.com
+    password: ${EWIKI_BOUNCE_PASSWORD}
+    folder: INBOX
+    delete_processed: false  # verarbeitete Rückläufer löschen statt nur als gelesen markieren
 ```
 
-**Wie wird versendet?** Jede Nachricht landet zuerst im Postausgang (Tabelle `mail_outbox`), und zwar in derselben Transaktion wie die Änderung, die sie auslöst; ein Hintergrundjob versendet alle 10 Sekunden und wiederholt Fehlversuche mit wachsendem Abstand (1 min … 12 h, 8 Versuche). Mit `transport: auto` gilt:
+**Zuverlässiger Versand (Warteschlange).** Jede Nachricht landet zuerst im Postausgang, und zwar in derselben Transaktion wie die Änderung, die sie auslöst. Es geht also nichts verloren, auch nicht bei einem Absturz. Pro Empfänger gibt es eine eigene Zeile (`mail_recipients`) mit Status, Versuchen und letzter Antwort des Mailservers:
+
+- Ein Empfänger gilt erst als *versendet*, wenn der Mailserver ihn mit `250` angenommen hat.
+- **Vorübergehende Fehler** (4xx, Verbindungsabbruch, Zeitüberschreitung, Server nicht erreichbar) werden **ohne Limit** wiederholt: nach 1, 2, 5, 15 und 30 Minuten, danach stündlich. Die Nachricht bleibt so lange im Postausgang.
+- **Endgültige Fehler** (5xx, z. B. „Postfach existiert nicht“) und Rückläufer aus dem Bounce-Postfach markieren nur diesen Empfänger als *fehlgeschlagen*. Der Absender bzw. die auslösende Person (z. B. wer eine Seite geändert oder einen Workflow-Schritt ausgeführt hat) bekommt eine Meldung mit den betroffenen Adressen und dem Grund.
+- Mehrere Server-Instanzen können gleichzeitig senden: Nachrichten werden mit `FOR UPDATE SKIP LOCKED` und einer Lease reserviert. Bricht ein Prozess ab, übernimmt nach Ablauf der Lease ein anderer.
+- Der Versand nutzt eine SMTP-Verbindung für viele Nachrichten und `concurrency` parallele Verbindungen. Neue Nachrichten werden sofort angestoßen, ein Hintergrundjob prüft zusätzlich alle 10 Sekunden.
+
+Mit `transport: auto` gilt:
 
 1. Ist `smtp.host` gesetzt, wird über diesen SMTP-Server versendet (empfohlen: der Mailserver bzw. Relay Ihrer Organisation, Microsoft 365, Google Workspace, Mailjet …).
 2. Sonst wird das `sendmail`-Programm des Servers verwendet, falls vorhanden (z. B. Postfix oder msmtp, das die Mails selbst weiterleitet).
 3. Sonst wird **nichts versendet**: Die Nachrichten bleiben als „zurückgehalten“ im Postausgang. Sobald ein Versandweg eingerichtet ist, werden zurückgehaltene Nachrichten der letzten 3 Tage automatisch versendet, ältere erst nach Bestätigung unter *Administration → E-Mail*. Ein direkter Versand an die Mailserver der Empfänger (ohne Relay) ist bewusst nicht eingebaut: Er landet fast immer im Spam oder wird blockiert (Port 25, fehlendes SPF/DKIM).
 
-`log` schreibt Nachrichten nur ins Server-Log (Test), `none` behält alles im Postausgang.
+`log` schreibt Nachrichten nur ins Server-Log (Test), `none` behält alles im Postausgang. Mit `enabled: false` werden **keine** Nachrichten erzeugt (auch nicht im Postausgang). Benachrichtigungen, Beobachtungen und Workflow-E-Mails entfallen dann, und die Oberfläche weist darauf hin.
+
+**Rückläufer (Bounces).** Viele Mailserver nehmen eine Nachricht zuerst an und melden erst später per E-Mail, dass sie nicht zustellbar war. Mit `bounce` wird als Absender im Umschlag (Return-Path) die Bounce-Adresse verwendet, mit `verp: true` je Empfänger eindeutig (`bounces+m<Nachricht>r<Empfänger>@…`). Das Wiki liest das Postfach alle 5 Minuten per IMAP, erkennt Zustellberichte (DSN, RFC 3464) und markiert den Empfänger als fehlgeschlagen; der Absender wird wie bei 5xx informiert. Die Bounce-Adresse muss beim Mailserver als Absender erlaubt sein (bei VERP: Plus-Adressen bzw. Catch-all für `bounces+*`).
 
 Absender: Workflow-E-Mails dürfen nur `from` oder Adressen aus `allowed_from` als Absender verwenden; andere gewünschte Absender werden als Antwortadresse (Reply-To) gesetzt, damit keine fremden Absender gefälscht werden und SPF/DMARC nicht scheitern.
 
 Im Docker-Container werden beim ersten Start `EWIKI_MAIL_FROM`, `EWIKI_SMTP_HOST`, `EWIKI_SMTP_PORT`, `EWIKI_SMTP_SECURITY`, `EWIKI_SMTP_USER` und `EWIKI_SMTP_PASSWORD` übernommen (siehe `.env.example`).
+
+### `cache`
+Optionaler Cache für Gäste (nicht angemeldete Besucher). Einstellbar auch unter *Administration → Cache*.
+
+```yaml
+cache:
+  enabled: false     # einschalten für öffentliche Wikis/Websites mit vielen Gästen
+  ttl_seconds: 300   # Höchstalter eines Eintrags (0 = bis zur nächsten Änderung)
+  max_entries: 5000  # 0 = unbegrenzt
+  max_mb: 128        # Speicherobergrenze (0 = unbegrenzt)
+```
+
+Für Gäste werden die API-Antworten im Arbeitsspeicher gehalten. Beim Aufruf einer Seite bettet der Server die Daten ein, die diese Seite beim letzten Mal gebraucht hat. Die Seite erscheint dann mit **einer** Anfrage und ohne Datenbankzugriff. Angemeldete Personen sehen immer die aktuellen Daten.
+
+**Jede Änderung leert den Cache**: Seiten, Kategorien, Menüs, Blöcke, Rechte, Benutzer und Gruppen, Einstellungen, Plugins, Übersetzungen, Termine. Grund sind Makros: Eine Seite kann Listen anderer Seiten, Termine oder Teammitglieder zeigen, darum wäre ein teilweises Leeren unsicher. Im Cluster und bei Änderungen über die Kommandozeile sorgt ein Zähler in der Datenbank (`cache_state`) dafür, dass alle Server ihren Cache innerhalb von 3 Sekunden leeren. Dieser Zähler wird unabhängig vom Besucheraufkommen abgefragt. `ttl_seconds` begrenzt zeitabhängige Inhalte wie „Nächste Termine“.
+
+Kommandozeile: `ewiki cache status`, `ewiki cache clear`. API: `GET/DELETE /api/v1/admin/cache`.
 
 ### `plugin_settings`
 Frei strukturierte Einstellungen je Plugin, z. B.

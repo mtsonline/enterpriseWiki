@@ -12,7 +12,7 @@
 .ewb-summary { margin: .25rem 0; }
 .ewb-readmore { margin: .25rem 0 0; font-weight: 600; }
 .ewb-tags { display: flex; flex-wrap: wrap; gap: .35rem; list-style: none; padding: 0; margin: .5rem 0 0; }
-.ewb-tags .ew-btn--link, .ewb-tags .ew-tag { font-size: .8rem; padding: .1rem .5rem; border-radius: 999px; background: var(--ew-bg-subtle); border: 1px solid var(--ew-border); }
+.ewb-tags .ew-btn--link, .ewb-tags .ew-tag { font-size: .8rem; min-height: 24px; padding: .1rem .5rem; border-radius: 999px; background: var(--ew-bg-subtle); border: 1px solid var(--ew-border); }
 .ewb-pager { display: flex; gap: .75rem; align-items: center; justify-content: center; margin: 1.5rem 0 0; }
 .ewb-pager:empty { display: none; }
 .ewb-edit { margin: .25rem 0 0; font-size: .9rem; }

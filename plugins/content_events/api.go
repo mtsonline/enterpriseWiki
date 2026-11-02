@@ -627,7 +627,7 @@ func (p *Plugin) mailUser(ctx context.Context, q db.Querier, uid int64, e *Event
 	link := fmt.Sprintf("%s/e/%d#event-%d-%s", base, e.CalendarID, e.ID, start.In(e.Loc()).Format("2006-01-02"))
 	params := map[string]string{"name": u.Name, "title": e.Title, "when": when, "location": e.Location, "calendar": cal.Title, "link": link}
 	t := func(key string) string { return p.host.T(ctx, u.Lang, "content.events."+key, params) }
-	body := t(kind+"_body")
+	body := t(kind + "_body")
 	if e.Location != "" {
 		body += "\n\n" + t("mail_location")
 	}

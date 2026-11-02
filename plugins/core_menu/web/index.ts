@@ -87,7 +87,8 @@ function renderItems(items: Item[], mode: 'dropdown' | 'tree' | 'static', level 
     };
     (li as HTMLElement & { ewmClose?: () => void }).ewmClose = () => set(false);
     li.classList.toggle('is-open', open);
-    toggle.addEventListener('click', () => set(Boolean(sub.hidden)));
+    let hoverAt = 0; // a click right after hover-open keeps the panel open
+    toggle.addEventListener('click', () => set(Date.now() - hoverAt < 600 ? true : Boolean(sub.hidden)));
     if (mode === 'dropdown') {
       li.addEventListener('keydown', (ev) => {
         if (ev.key === 'Escape' && !sub.hidden) {
@@ -99,7 +100,7 @@ function renderItems(items: Item[], mode: 'dropdown' | 'tree' | 'static', level 
       li.addEventListener('focusout', (ev) => { if (!li.contains(ev.relatedTarget as Node)) set(false); });
       if (window.matchMedia?.('(hover: hover)').matches) {
         let timer = 0;
-        li.addEventListener('mouseenter', () => { clearTimeout(timer); set(true); });
+        li.addEventListener('mouseenter', () => { clearTimeout(timer); if (sub.hidden) { hoverAt = Date.now(); set(true); } });
         li.addEventListener('mouseleave', () => { timer = window.setTimeout(() => set(false), 250); });
       }
     }

@@ -161,7 +161,7 @@ Speichert ein Plugin Datei-Hashes außerhalb von Element-Inhalten, meldet es die
 
 ### E-Mail, Hintergrundjobs, Übersetzungen im Backend
 
-- `host.Mail.Enqueue(ctx, tx, mail.Message{To, Cc, From, ReplyTo, Subject, Text, Source, Ref})` schreibt eine E-Mail in den Postausgang, am besten in derselben Transaktion wie die auslösende Änderung. Versand, Wiederholungen und der Fall „kein Mailserver“ sind Sache des Kerns. `host.Mail.Users(ctx, tx, ids)` liefert Adresse, Sprache und Benachrichtigungswünsche (`u.Wants("tasks")`).
+- `host.Mail.Enqueue(ctx, tx, mail.Message{To, Cc, From, ReplyTo, Subject, Text, HTML, Source, Ref, Owner})` schreibt eine E-Mail in den Postausgang, am besten in derselben Transaktion wie die auslösende Änderung. Versand pro Empfänger, Wiederholungen ohne Limit bei vorübergehenden Fehlern, Rückläufer und der Fall „kein Mailserver“ sind Sache des Kerns. `Owner` bestimmt, wer bei endgültigen Fehlern informiert wird: 0 = die angemeldete Person, die die Nachricht auslöst, -1 = niemand (z. B. für Erinnerungen). Ist E-Mail abgeschaltet (`host.Mail.Enabled()` = false), wird nichts erzeugt. `host.Mail.Users(ctx, tx, ids)` liefert Adresse, Sprache und Benachrichtigungswünsche (`u.Wants("tasks")`).
 - `host.T(ctx, lang, "acme.mail.subject", map[string]string{"name": …})` übersetzt Texte aus den Locale-Dateien des Plugins (z. B. für E-Mails in der Sprache des Empfängers).
 - `host.RegisterWorker("sync", 30*time.Second, func(ctx) error)` registriert einen Hintergrundjob `<plugin-id>.sync`; er läuft nur, solange das Plugin aktiv ist, im Cluster auf einer Instanz zur selben Zeit. Verwenden Sie trotzdem `FOR UPDATE SKIP LOCKED`.
 - `host.RegisterSearchBackend(b)` bindet eine externe Suchmaschine an (`content.SearchBackend`, siehe `plugins/search_external`). Die Tabelle `search_changes` protokolliert jede Änderung am Suchindex.
@@ -169,6 +169,14 @@ Speichert ein Plugin Datei-Hashes außerhalb von Element-Inhalten, meldet es die
 ### Rechte in Plugin-Routen
 
 `host.Content.ElementCategory(ctx, elementID, acl.View)` liefert die Kategorie eines Elements und prüft dabei das Recht (404 statt 403, wenn das Element nicht sichtbar ist). `host.Content.Require(ctx, categoryID, perm)` prüft ein Recht auf einer Kategorie.
+
+### Inhalte auflisten, Feeds, eigene Daten eines Elements
+
+- `host.Content.ElementBody(ctx, id, lang)` liefert Typ, gespeicherten Inhalt und Kategorie eines Elements für alle, die es sehen dürfen. So lesen Elementtypen ihre Einstellungen in eigenen API-Routen.
+- `host.Content.Scope(ctx, categoryID, recursive)` liefert die Kategorie und (mit `recursive`) die sichtbaren Unterkategorien. `host.Content.ListIn(ctx, content.ListOptions{Categories, Lang, Order, Tag, Limit, Offset, WithContent, Exclude})` listet deren Elemente mit Titel, Anrisstext, Autor und optional gerendertem Inhalt. `host.Content.SearchIn(ctx, q, tags, lang, limit, scope)` sucht nur in diesen Kategorien.
+- Das Paket `internal/feed` schreibt Atom und RSS (`feed.Write` mit ETag und 304) und baut Einträge aus Listen (`feed.FromListing`). Persönliche Feed-Links: `host.Auth.FeedContext(r)` wertet `?token=` aus (nur für Feed- und Kalender-Routen verwenden).
+- `pkg/catlist` bündelt, was kategoriebasierte Elementtypen brauchen (Konfiguration mit Kategorie und Einleitung, Rechte im Bereich, Routen zum Anlegen von Einträgen und Unterkategorien, Feed). Beispiele sind `plugins/content_blog` und `plugins/content_faq`.
+- Speichert ein Elementtyp Daten außerhalb seiner Versionen (z. B. Termine eines Kalenders), meldet er Änderungen mit `host.Content.Touch(ctx, elementID)`. Dann werden Beobachter informiert und der Gäste-Cache geleert. Änderungen über die API (POST/PUT/DELETE) leeren den Cache ohnehin.
 
 ### Anmeldeverfahren
 
@@ -212,6 +220,8 @@ export function register(): void {
 
 - Einstellungsseiten: `pluginSettingsForm('acme.kanban', [{ key: 'url', label: t('…') }, …])` erzeugt ein barrierefreies Formular, das in `config.yaml` speichert (Typen `text`, `secret`, `bool`, `number`, `list`, `map`, `select`, `textarea`). `MAPPING_FIELDS()` ergänzt die Gruppen- und Rollen-Zuordnung.
 - Dateien hochladen: `uploadFile(file)` liefert `{hash, name, mime, size}`.
+- Auswahl von Kategorien und Elementen mit „Neu anlegen“: `categorySelect({ selected, perm, noneLabel, allowCreate, onChange })` (`.field(label)` liefert das beschriftete Feld), `elementSelect({ selected, allowCreate, onChange })`, `newCategory(parent, done)`, `newElement(category, done)`.
+- `watchButton(type, id, title)` (Beobachten), `feedButton(apiPath, title)` (Feed-Dialog mit persönlichem Link) und `feedURL(path, format)` für eigene Feeds bzw. Abos.
 - Das SDK (`web/src/sdk.ts`) stellt DOM-Helfer (`h`), API-Client (`api` mit CSRF-Header), Übersetzungen (`t`, `pick`), barrierefreie Bausteine (`field`, `textInput`, `select`, `checkbox`, `button`, `formDialog`, `confirmDialog`, `openDialog`), `toast`/`announce` und `navigate` bereit.
 - Erzeugen Sie DOM mit `h()`. Verwenden Sie `innerHTML` nie für Benutzerdaten, sondern `trustedHTML()` nur für HTML, das der Server gerendert und bereinigt hat.
 - **Barrierefreiheit:** Jedes Eingabefeld braucht ein Label (`field()`), Icon-Knöpfe ein `ariaLabel`, Dialoge über `formDialog`/`openDialog`. Die CI prüft alle Seiten mit axe-core auf WCAG 2.2 AA.

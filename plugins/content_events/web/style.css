@@ -17,13 +17,15 @@
 .ewe-day--today .ewe-day-num { background: var(--ew-primary); color: var(--ew-primary-text, #fff); border-radius: 999px; padding: 0 .4rem; }
 .ewe-day-head { display: flex; justify-content: space-between; align-items: center; min-height: 1.6rem; }
 .ewe-day-num { font-weight: 600; font-size: .9rem; }
-.ewe-day-head .ew-btn { padding: 0 .45rem; min-height: 0; line-height: 1.4; opacity: 0; }
+.ewe-day-head .ew-btn { padding: 0 .45rem; min-height: 24px; min-width: 24px; justify-content: center; line-height: 1.4; opacity: 0; }
 .ewe-day:hover .ewe-day-head .ew-btn, .ewe-day-head .ew-btn:focus-visible { opacity: 1; }
 @media (hover: none) { .ewe-day-head .ew-btn { opacity: 1; } }
-.ewe-day-list { list-style: none; margin: .15rem 0 0; padding: 0; display: grid; gap: .15rem; }
-.ewe-chip { display: block; width: 100%; text-align: left; font-size: .8rem; line-height: 1.3; padding: .1rem .35rem; border-radius: 4px;
+.ewe-day-list { list-style: none; margin: .15rem 0 0; padding: 0; display: grid; grid-template-columns: minmax(0, 1fr); gap: .15rem; min-width: 0; }
+.ewe-day-list > li { min-width: 0; }
+.ewe-day { overflow: hidden; }
+.ewe-day-list .ewe-chip { display: block; width: 100%; max-width: 100%; box-sizing: border-box; text-align: left; font-size: .8rem; line-height: 1.3; padding: .1rem .35rem; border-radius: 4px;
   border-left: 3px solid var(--ewe-color); background: color-mix(in srgb, var(--ewe-color) 12%, var(--ew-bg-raised)); color: var(--ew-text);
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-height: 0; }
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-height: 24px; }
 .ewe-chip--allday { background: var(--ewe-color); color: #fff; font-weight: 600; }
 .ewe-chip--mine { box-shadow: inset 0 0 0 1px var(--ewe-color); font-weight: 600; }
 /* week */
@@ -40,7 +42,8 @@
 .ewe-list-item { display: flex; gap: 1rem; padding: .45rem .5rem; border-left: 4px solid var(--ewe-color); margin-bottom: .3rem; background: var(--ew-bg-raised); border-radius: 0 6px 6px 0; }
 .ewe-list-time { flex: 0 0 7.5rem; font-variant-numeric: tabular-nums; color: var(--ew-text-muted); }
 .ewe-list-main { display: flex; flex-wrap: wrap; gap: .25rem .75rem; align-items: baseline; }
-.ewe-list-main .ew-btn--link { font-weight: 600; padding: 0; }
+.ewe-list-main .ew-btn--link { font-weight: 600; padding: 0; min-height: 24px; }
+.ewe-day .ew-btn--link, .ewe-wday > .ew-btn { min-height: 24px; min-width: 24px; }
 .ewe-list-loc, .ewe-list-reg { color: var(--ew-text-muted); font-size: .9rem; }
 .ewe-badge { font-size: .75rem; padding: 0 .45rem; border-radius: 999px; background: color-mix(in srgb, var(--ewe-color) 15%, transparent); border: 1px solid var(--ewe-color); }
 /* details */
@@ -69,6 +72,6 @@
   .ewe-week { grid-template-columns: 1fr; }
   .ewe-wday { min-height: 0; }
   .ewe-day { height: 4.5rem; }
-  .ewe-chip { font-size: .7rem; padding: .05rem .2rem; }
+  .ewe-chip { font-size: .7rem; padding: .05rem .2rem; min-height: 24px; }
   .ewe-title { order: -1; flex-basis: 100%; }
 }

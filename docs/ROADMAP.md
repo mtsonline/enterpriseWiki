@@ -57,3 +57,20 @@ Offen aus diesem Bereich: Vertretungen in Workflows, automatisches Kern-Update a
 Nachbesserungen nach dem ersten Test (v7.3.1): *Kategorie bearbeiten* und *Seite bearbeiten* direkt in der Kategorieansicht, Menü-Dialog mit Positionen der aktiven Vorlage, Kategorie-Auswahl und Prüfung der Einträge, Anzeige der verwendeten Vorlage auf der Plugin-Seite, mehr Positionen in beiden Vorlagen, Positionsvorschau, Plugin `core.blocks` für Textblöcke an jeder Position.
 
 Offen: Benachrichtigungen im Browser (ohne E-Mail), Zusammenfassungen (Digest), Vertretungsregeln, Webhooks, deren Antwort Daten in den Vorgang zurückschreibt.
+
+## Meilenstein 5 – Zuverlässige E-Mail, Beobachten, Feeds, neue Elementtypen, Gäste-Cache (fertig, v7.4)
+
+- E-Mail-Warteschlange für große Mengen: Status pro Empfänger, Annahme erst mit `250`, vorübergehende Fehler (4xx, Netzwerk) ohne Limit wiederholt, endgültige Fehler (5xx) und Rückläufer pro Empfänger mit Meldung an den Absender bzw. die auslösende Person. Mehrere Instanzen senden parallel (Lease, `SKIP LOCKED`), wiederverwendete SMTP-Verbindungen, `concurrency` und `rate_per_minute`. Bounce-Postfach per IMAP mit VERP und DSN-Auswertung. `mail.enabled` schaltet E-Mail ganz ab. API und CLI: `ewiki mail status|list|show|retry|delete|bounces`, `ewiki jobs`.
+- Beobachten von Kategorien (optional mit Unterkategorien) und Seiten: E-Mail mit Link oder neuem Inhalt, gesammelt nach 2 Minuten Ruhe, nur Inhalte, die die Person sehen darf. API `me/watches`, CLI `ewiki watch`.
+- Menüs: Ziele Kategorie, Element (jeder Typ), freier Link, anderes Menü (mehrstufig) und Überschrift. Auswahl vorhandener Inhalte oder „Neu anlegen“, Titel des Ziels als Beschriftung, Schutz vor Schleifen. Darstellung als Ausklapp-Menüs mit Flyouts, als Baum in der Seitenleiste und mobil, in beiden Vorlagen.
+- Atom/RSS: Feed je Kategorie (Einstellung), für Blog und FAQ; persönliche Feed- und Kalender-Links mit erneuerbarem Schlüssel. Suche innerhalb einer Kategorie (`/api/v1/search?category=`).
+- Elementtypen `content.blog`, `content.faq`, `content.events` (Veranstaltungskalender mit Serien, Anmeldung, Warteliste, Erinnerungen, iCal, Makro „Nächste Termine“), `content.team` mit der neuen Visitenkarte im Profil.
+- Optionaler Gäste-Cache: API-Antworten im Speicher, Seiten mit eingebetteten Daten (eine Anfrage, keine Datenbank). Jede Änderung leert den Cache, über die Datenbank auch im Cluster und von der Kommandozeile aus. *Administration → Cache*, `ewiki cache`.
+
+Offen / Vorschläge:
+
+- Serverseitiges Vorrendern des Seiteninhalts für Gäste: Suchmaschinen und Besucher ohne JavaScript sehen dann den vollen Text, nicht nur die Vorab-Daten.
+- E-Mail-Einladungen (iTIP, `METHOD:REQUEST`) für Termine und VTIMEZONE-Blöcke im iCal-Export für ältere Outlook-Versionen.
+- Ausnahmen in Serien bearbeiten („nur diesen Termin ändern“), nicht nur absagen.
+- Tägliche oder wöchentliche Zusammenfassung statt sofortiger Beobachtungs-E-Mails, wählbar je Beobachtung.
+- Webhooks für Ereignisse (Seite geändert, Anmeldung zu einem Termin) für Teams/Slack.

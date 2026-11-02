@@ -96,8 +96,8 @@ func decodeConfig(raw []byte) (*Config, error) {
 	if c.View != "week" && c.View != "list" {
 		c.View = "month"
 	}
-	if c.WeekStart != 0 {
-		c.WeekStart = 1
+	if c.WeekStart != 0 || !strings.Contains(string(raw), `"week_start"`) {
+		c.WeekStart = 1 // Monday unless Sunday (0) is chosen explicitly
 	}
 	if c.ListDays <= 0 || c.ListDays > 730 {
 		c.ListDays = 90

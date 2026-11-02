@@ -322,12 +322,13 @@ test('menus, blocks and positions', async () => {
   await dlg.waitFor();
   await dlg.getByLabel(/^(menu name|menüname)/i).fill(`Menu ${run}`);
   await dlg.locator('select').first().selectOption('sidebar-bottom');
+  await dlg.locator('.ewm-labels summary').first().click();
   await dlg.locator('fieldset input[lang]').first().fill(`Item ${run}`);
   await a11y('menu dialog');
   await dlg.locator('button[type=submit]').click();
-  // a link or category is required
-  await page.waitForFunction(() => /link|kategorie|category/i.test(document.querySelector('dialog[open] .ew-form-alert')?.textContent ?? ''));
-  await dlg.locator('.ewm-row select').nth(1).selectOption({ index: 1 });
+  // a target is required
+  await page.waitForFunction(() => /target|ziel/i.test(document.querySelector('dialog[open] .ew-form-alert')?.textContent ?? ''));
+  await dlg.locator('.ewm-target select').first().selectOption({ index: 1 });
   await dlg.locator('button[type=submit]').click();
   await page.waitForSelector(`.ew-pos--sidebar-bottom a:has-text("Item ${run}")`);
   await a11y('menu administration');
@@ -381,6 +382,183 @@ test('CMS template', async () => {
     await page.setViewportSize({ width: 1280, height: 900 });
     await set('theme.confluence');
   }
+});
+
+/** Calls the API with the browser session (the page must be on the wiki). */
+const call = (method, path, body) => page.evaluate(async ([method, path, body]) => {
+  const res = await fetch(path, { method, headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'ewiki' }, body: body === undefined ? undefined : JSON.stringify(body) });
+  const text = await res.text();
+  if (!res.ok) throw new Error(`${method} ${path}: ${res.status} ${text}`);
+  return text ? JSON.parse(text) : null;
+}, [method, path, body]);
+
+let m6Cat = 0;
+async function m6Category() {
+  if (!m6Cat) {
+    await page.goto(BASE + '/');
+    await idle();
+    const c = await call('POST', '/api/v1/categories', { titles: { en: `M6 ${run}` } });
+    m6Cat = c.id;
+  }
+  return m6Cat;
+}
+
+test('multilevel menu: dropdown with a submenu', async () => {
+  const cat = await m6Category();
+  const sub = await call('POST', '/api/v1/x/core.menu/menus', { name: `Sub ${run}`, location: '', items: [
+    { type: 'category', category_id: cat }, { type: 'url', label: { en: `Deep ${run}` }, url: '/search' }] });
+  await call('POST', '/api/v1/x/core.menu/menus', { name: `Main ${run}`, location: 'header-nav', items: [
+    { type: 'heading', label: { en: `Group ${run}` }, children: [{ type: 'menu', menu_id: sub.id, label: { en: `More ${run}` } }] }] });
+  await page.goto(BASE + '/');
+  await idle();
+  const toggle = page.getByRole('button', { name: `Group ${run}` });
+  await toggle.waitFor();
+  assert.equal(await toggle.getAttribute('aria-expanded'), 'false');
+  await toggle.click();
+  assert.equal(await toggle.getAttribute('aria-expanded'), 'true');
+  const more = page.getByRole('button', { name: `More ${run}` });
+  await more.click();
+  await page.getByRole('link', { name: `Deep ${run}` }).waitFor();
+  await a11y('open multilevel menu');
+  await page.keyboard.press('Escape');
+  assert.equal(await more.getAttribute('aria-expanded'), 'false');
+});
+
+test('watch a page and subscribe to a category feed', async () => {
+  const cat = await m6Category();
+  await call('PUT', `/api/v1/categories/${cat}`, { feed: 'recursive' });
+  const el = await call('POST', '/api/v1/elements', { category_id: cat, type: 'core.html', title: `Watched ${run}`, body: { format: 'html', source: '<p>x</p>' } });
+  await page.goto(BASE + `/e/${el.id}`);
+  await idle();
+  await page.getByRole('button', { name: /^(watch|beobachten)$/i }).click();
+  const dlg = page.locator('dialog[open]');
+  await dlg.getByLabel(/new content|neuer inhalt/i).check();
+  await a11y('watch dialog');
+  await dlg.locator('button[type=submit]').click();
+  await page.getByRole('button', { name: /^(watching|beobachtet)$/i }).waitFor();
+  await page.goto(BASE + `/c/${cat}`);
+  await idle();
+  assert.equal(await page.locator('link[rel=alternate][type="application/atom+xml"]').count(), 1);
+  await page.getByRole('button', { name: /^feed:/i }).click();
+  await page.locator('dialog[open] input[readonly]').first().waitFor();
+  assert.match(await page.locator('dialog[open] input[readonly]').first().inputValue(), /token=ft_/);
+  await a11y('feed dialog');
+  await page.keyboard.press('Escape');
+});
+
+test('blog: posts, search and new post', async () => {
+  const cat = await m6Category();
+  const blogCat = await call('POST', '/api/v1/categories', { parent_id: cat, titles: { en: `News ${run}` } });
+  const blog = await call('POST', '/api/v1/elements', { category_id: cat, type: 'content.blog', title: `Blog ${run}`,
+    body: { category_id: blogCat.id, recursive: true, per_page: 2, layout: 'cards', feed: true, show_date: true, show_author: true, intro: { format: 'markdown', source: 'Our **news**' } } });
+  for (const n of [1, 2, 3]) {
+    await call('POST', `/api/v1/x/content.blog/elements/${blog.id}/posts`, { title: `Post ${n} ${run}`, body: { format: 'html', source: `<p>About giraffes ${n}</p>` }, tags: [`tag${n % 2}`] });
+  }
+  await page.goto(BASE + `/e/${blog.id}`);
+  await idle();
+  await page.locator('.ewb-toolbar').waitFor();
+  assert.equal(await page.locator('.ewb-post').count(), 2);
+  await a11y('blog');
+  await page.getByRole('button', { name: /older posts|ältere beiträge/i }).click();
+  await page.waitForFunction(() => document.querySelectorAll('.ewb-post').length === 1);
+  await page.getByRole('searchbox', { name: /search the blog|im blog suchen/i }).fill('giraffes');
+  await page.locator('.ewb-search button[type=submit]').click();
+  await page.waitForFunction(() => document.querySelectorAll('.ewb-hit').length === 3);
+  await page.getByRole('button', { name: /^(new post|neuer beitrag)$/i }).click();
+  await page.waitForURL(/\/c\/\d+\/new\?type=core\.html&return=/);
+});
+
+test('FAQ: sections, questions, filter and quick add', async () => {
+  const cat = await m6Category();
+  const faqCat = await call('POST', '/api/v1/categories', { parent_id: cat, titles: { en: `Help ${run}` } });
+  const faq = await call('POST', '/api/v1/elements', { category_id: cat, type: 'content.faq', title: `FAQ ${run}`,
+    body: { category_id: faqCat.id, recursive: true, search: true, feed: true } });
+  const sec = await call('POST', `/api/v1/x/content.faq/elements/${faq.id}/categories`, { titles: { en: `Accounts ${run}` } });
+  await call('POST', `/api/v1/x/content.faq/elements/${faq.id}/questions`, { title: 'How do I reset my password?', category_id: sec.id, body: { format: 'markdown', source: 'Use the **reset** link.' } });
+  await call('POST', `/api/v1/x/content.faq/elements/${faq.id}/questions`, { title: 'Who helps me?', body: { format: 'markdown', source: 'The help desk.' } });
+  await page.goto(BASE + `/e/${faq.id}`);
+  await idle();
+  await page.locator('.ewq-toolbar').waitFor();
+  await a11y('faq');
+  await page.getByRole('searchbox', { name: /search the faq|faq durchsuchen/i }).fill('password');
+  await page.waitForFunction(() => /1/.test(document.querySelector('.ewq-status')?.textContent ?? ''));
+  assert.ok(await page.getByText('Use the').isVisible(), 'matching answer opened');
+  assert.equal(await page.locator('details.ewq-q:not([hidden])').count(), 1);
+  await page.getByRole('searchbox', { name: /search the faq|faq durchsuchen/i }).fill('');
+  await page.getByRole('button', { name: /^(new question|neue frage)$/i }).click();
+  const dlg = page.locator('dialog[open]');
+  await dlg.getByLabel(/^(question|frage)/i).fill(`Quick ${run}?`);
+  await dlg.getByLabel(/^(answer|antwort)/i).fill('Yes.');
+  await a11y('faq question dialog');
+  await dlg.locator('button[type=submit]').click();
+  await page.locator(`summary:has-text("Quick ${run}?")`).waitFor();
+});
+
+test('event calendar: views, details and registration', async () => {
+  const cat = await m6Category();
+  const cal = await call('POST', '/api/v1/elements', { category_id: cat, type: 'content.events', title: `Calendar ${run}`,
+    body: { view: 'month', ical: true, categories: [{ label: 'Training', color: '#1f845a' }] } });
+  const start = new Date();
+  start.setDate(start.getDate() + 2);
+  start.setHours(10, 0, 0, 0);
+  await call('POST', `/api/v1/x/content.events/calendars/${cal.id}/events`, { title: `Workshop ${run}`, starts_at: start.toISOString(),
+    ends_at: new Date(start.getTime() + 7200000).toISOString(), tz: 'Europe/Vienna', category: 'training', registration: true, capacity: 10, reminders: [1440], location: 'Room 1' });
+  await call('POST', `/api/v1/x/content.events/calendars/${cal.id}/events`, { title: `Stand-up ${run}`, starts_at: start.toISOString(), tz: 'Europe/Vienna', rrule: 'FREQ=WEEKLY;COUNT=6' });
+  await page.goto(BASE + `/e/${cal.id}`);
+  await idle();
+  await page.evaluate(() => sessionStorage.clear());
+  await page.reload();
+  await idle();
+  await page.locator('.ewe-month').waitFor();
+  await a11y('calendar month');
+  await page.getByRole('button', { name: new RegExp(`Workshop ${run}`) }).first().click();
+  const dlg = page.locator('dialog[open]');
+  await dlg.getByText('Room 1').waitFor();
+  await a11y('event details');
+  await dlg.getByRole('button', { name: /^(register|anmelden)$/i }).click();
+  const reg = page.locator('dialog[open]').last();
+  await reg.locator('button[type=submit]').click();
+  await page.waitForFunction(() => !document.querySelector('dialog[open]'));
+  await page.getByRole('button', { name: /^(week|woche)$/i }).click();
+  await page.locator('.ewe-week').waitFor();
+  await a11y('calendar week');
+  await page.getByRole('button', { name: /^(list|liste)$/i }).click();
+  await page.locator('.ewe-list').waitFor();
+  assert.ok(await page.locator('.ewe-list .ew-badge--ok').count() >= 1, 'own registration shown');
+  await a11y('calendar list');
+  await page.getByRole('button', { name: /^(new event|neuer termin)$/i }).click();
+  const form = page.locator('dialog[open]');
+  await form.getByLabel(/^(title|titel)/i).fill(`New ${run}`);
+  await form.getByLabel(/^(repeat|wiederholen)/i).selectOption('WEEKLY');
+  await a11y('event form');
+  await form.locator('button[type=submit]').click();
+  await page.getByRole('button', { name: new RegExp(`New ${run}`) }).first().waitFor();
+});
+
+test('team page and business card', async () => {
+  await page.goto(BASE + '/profile');
+  await idle();
+  await page.getByLabel(/^(job title|funktion)/i).fill('Wiki gardener');
+  await page.locator('#card button[type=submit]').click();
+  await page.waitForTimeout(300);
+  await a11y('profile with business card');
+  const cat = await m6Category();
+  const g = await call('POST', '/api/v1/admin/groups', { name: `Team ${run}` });
+  const me = (await call('GET', '/api/v1/auth/me')).user;
+  await call('PUT', `/api/v1/admin/users/${me.id}`, { groups: [...(me.groups ?? []), g.id] });
+  const team = await call('POST', '/api/v1/elements', { category_id: cat, type: 'content.team', title: `Team ${run}`,
+    body: { groups: [g.id], fields: ['photo', 'job_title', 'email'], layout: 'cards' } });
+  await page.goto(BASE + `/e/${team.id}`);
+  await idle();
+  await page.getByText('Wiki gardener').waitFor();
+  await a11y('team page');
+});
+
+test('guest cache administration', async () => {
+  await page.goto(BASE + '/admin/cache');
+  await idle();
+  await page.getByRole('button', { name: /clear cache|cache leeren/i }).waitFor();
+  await a11y('cache administration');
 });
 
 test('switch language', async () => {

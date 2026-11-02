@@ -33,7 +33,11 @@ curl -H "Authorization: Bearer $KEY" -H 'Content-Type: application/json' \
 - **Inhalt eines Elements** (`body`) hängt vom Elementtyp ab, für `core.html` ist es `{"format": "html"|"markdown", "source": "…"}`. `GET /elements/{id}?edit=1` liefert `body` (nur mit Bearbeitungsrecht), `html` ist immer die bereinigte Darstellung.
 - **Zurücksetzen:** `POST /api/v1/categories/{id}/rollback {"at": "2026-10-01T12:00:00Z", "recursive": true}`.
 - **Dateien:** `POST /api/v1/files` (multipart, Feld `file`) liefert `{hash, name, mime, size}`. Ein Element `core.attachment` referenziert die Datei mit `{"file": {"hash": "…"}, "description": "…"}`. Heruntergeladen wird mit Rechteprüfung über `GET /api/v1/x/core.attachment/elements/{id}/file[?hash=…][&inline=1]`. Bilder sind zusätzlich unter `GET /api/v1/files/{hash}` abrufbar (für Bilder in Seiten).
-- **Suche:** `GET /api/v1/search?q=wort&tags=a,b&lang=de` liefert `snippet` als HTML-escaped Text mit `<mark>`.
+- **Suche:** `GET /api/v1/search?q=wort&tags=a,b&lang=de` liefert `snippet` als HTML-escaped Text mit `<mark>`. Mit `category=ID` wird nur in dieser Kategorie und ihren Unterkategorien gesucht (`recursive=0`: nur in der Kategorie).
+- **Beobachten:** `PUT /api/v1/me/watches {"target_type": "category"|"element", "target_id": 12, "mode": "link"|"content", "recursive": true}`; Status für ein Ziel: `GET /api/v1/me/watches?target_type=element&target_id=5`.
+- **Feeds:** `GET /api/v1/feeds/categories/{id}?format=atom|rss&lang=de[&content=1]` (wenn in der Kategorie eingeschaltet), Blog/FAQ unter `/api/v1/x/content.blog|content.faq/elements/{id}/feed`. Feed-Reader ohne Anmeldung verwenden den persönlichen Schlüssel aus `GET /api/v1/me/feed-token` als `&token=…`. Er gilt nur für Feed- und Kalender-Routen und lässt sich mit `POST` erneuern bzw. mit `DELETE` löschen.
+- **Termine:** `POST /api/v1/x/content.events/calendars/{id}/events {"title", "starts_at", "ends_at", "all_day", "tz": "Europe/Vienna", "rrule": "FREQ=WEEKLY;BYDAY=MO", "registration": true, "capacity": 20, "reminders": [1440]}`; Termine eines Zeitraums mit `GET …/calendars/{id}/events?from=…&to=…` (Serien sind aufgelöst, `occurrences[].date` ist der Schlüssel für Anmeldungen). Anmelden: `POST …/events/{id}/registrations {"occurrence": "2026-11-23"}` (`interested: true` nur für Erinnerungen).
+- **E-Mail-Warteschlange (Admin):** `GET /api/v1/admin/mail` (Status mit Zählern pro Empfänger), `GET /api/v1/admin/mail/outbox?status=failed&q=…`, `GET /api/v1/admin/mail/outbox/{id}` (mit Empfängern und letzter Serverantwort).
 
 ## Endpunkte
 
@@ -77,6 +81,14 @@ curl -H "Authorization: Bearer $KEY" -H 'Content-Type: application/json' \
 | `POST` | `/api/v1/me/totp/disable` |
 | `GET` | `/api/v1/me/notifications` |
 | `PUT` | `/api/v1/me/notifications` |
+| `GET` | `/api/v1/me/watches` |
+| `PUT` | `/api/v1/me/watches` |
+| `DELETE` | `/api/v1/me/watches/{id}` |
+| `GET` | `/api/v1/me/feed-token` |
+| `POST` | `/api/v1/me/feed-token` |
+| `DELETE` | `/api/v1/me/feed-token` |
+| `GET` | `/api/v1/me/profile` |
+| `PUT` | `/api/v1/me/profile` |
 
 ### Benutzer, Gruppen, Rollen
 
@@ -97,6 +109,8 @@ curl -H "Authorization: Bearer $KEY" -H 'Content-Type: application/json' \
 | `POST` | `/api/v1/admin/roles` |
 | `PUT` | `/api/v1/admin/roles/{id}` |
 | `DELETE` | `/api/v1/admin/roles/{id}` |
+| `GET` | `/api/v1/admin/users/{id}/profile` |
+| `PUT` | `/api/v1/admin/users/{id}/profile` |
 
 ### Kategorien & Berechtigungen
 
@@ -193,10 +207,13 @@ curl -H "Authorization: Bearer $KEY" -H 'Content-Type: application/json' \
 | `GET` | `/api/v1/admin/mail` |
 | `POST` | `/api/v1/admin/mail/test` |
 | `GET` | `/api/v1/admin/mail/outbox` |
+| `GET` | `/api/v1/admin/mail/outbox/{id}` |
 | `POST` | `/api/v1/admin/mail/outbox/{id}/retry` |
 | `DELETE` | `/api/v1/admin/mail/outbox/{id}` |
 | `GET` | `/api/v1/admin/jobs` |
 | `POST` | `/api/v1/admin/jobs/{name}/run` |
+| `GET` | `/api/v1/admin/cache` |
+| `DELETE` | `/api/v1/admin/cache` |
 
 ### Plugins
 
@@ -205,6 +222,30 @@ curl -H "Authorization: Bearer $KEY" -H 'Content-Type: application/json' \
 | `POST` | `/api/v1/x/auth.ldap/test` |
 | `GET` | `/api/v1/x/auth.oidc/check` |
 | `GET` | `/api/v1/x/auth.shib/metadata` |
+| `GET` | `/api/v1/x/content.blog/elements/{id}/posts` |
+| `GET` | `/api/v1/x/content.blog/elements/{id}/feed` |
+| `POST` | `/api/v1/x/content.blog/elements/{id}/posts` |
+| `POST` | `/api/v1/x/content.blog/elements/{id}/categories` |
+| `GET` | `/api/v1/x/content.events/calendars/{id}/events` |
+| `POST` | `/api/v1/x/content.events/calendars/{id}/events` |
+| `GET` | `/api/v1/x/content.events/events/{id}` |
+| `PUT` | `/api/v1/x/content.events/events/{id}` |
+| `DELETE` | `/api/v1/x/content.events/events/{id}` |
+| `POST` | `/api/v1/x/content.events/events/{id}/registrations` |
+| `DELETE` | `/api/v1/x/content.events/events/{id}/registrations` |
+| `GET` | `/api/v1/x/content.events/events/{id}/registrations` |
+| `DELETE` | `/api/v1/x/content.events/events/{id}/registrations/{rid}` |
+| `GET` | `/api/v1/x/content.events/me/registrations` |
+| `GET` | `/api/v1/x/content.events/upcoming` |
+| `GET` | `/api/v1/x/content.events/calendars/{id}/ical` |
+| `GET` | `/api/v1/x/content.events/events/{id}/ical` |
+| `GET` | `/api/v1/x/content.faq/elements/{id}/questions` |
+| `GET` | `/api/v1/x/content.faq/elements/{id}/feed` |
+| `POST` | `/api/v1/x/content.faq/elements/{id}/questions` |
+| `POST` | `/api/v1/x/content.faq/elements/{id}/categories` |
+| `GET` | `/api/v1/x/content.team/groups` |
+| `GET` | `/api/v1/x/content.team/fields` |
+| `GET` | `/api/v1/x/content.team/elements/{id}/members` |
 | `GET` | `/api/v1/x/core.attachment/elements/{id}/file` |
 | `GET` | `/api/v1/x/core.blocks/blocks` |
 | `POST` | `/api/v1/x/core.blocks/blocks` |
@@ -215,6 +256,7 @@ curl -H "Authorization: Bearer $KEY" -H 'Content-Type: application/json' \
 | `PUT` | `/api/v1/x/core.comments/comments/{id}` |
 | `DELETE` | `/api/v1/x/core.comments/comments/{id}` |
 | `GET` | `/api/v1/x/core.menu/menus` |
+| `GET` | `/api/v1/x/core.menu/menus/{id}` |
 | `POST` | `/api/v1/x/core.menu/menus` |
 | `PUT` | `/api/v1/x/core.menu/menus/{id}` |
 | `DELETE` | `/api/v1/x/core.menu/menus/{id}` |
@@ -236,3 +278,9 @@ curl -H "Authorization: Bearer $KEY" -H 'Content-Type: application/json' \
 | `POST` | `/api/v1/x/workflow.process/instances/{id}/actions` |
 | `POST` | `/api/v1/x/workflow.process/instances/{id}/cancel` |
 | `GET` | `/api/v1/x/workflow.process/tasks` |
+
+### Sonstige
+
+| Methode | Pfad |
+|---|---|
+| `GET` | `/api/v1/feeds/categories/{id}` |

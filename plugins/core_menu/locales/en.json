@@ -23,7 +23,7 @@
  "core.menu.no_category": "– no category, use the link –",
  "core.menu.location_help": "Positions of the active template ({template}).",
  "core.menu.err_label": "Item {n}: enter a label.",
- "core.menu.err_target": "Item {n}: choose a category or enter a link.",
+ "core.menu.err_target": "Item {n}: choose the target (category, element, link or menu).",
  "core.menu.saved_at": "Menu saved – shown at: {position}",
  "core.menu.saved_empty": "Menu saved. It has no items yet and is therefore not shown.",
  "core.menu.help": "Menus are shown at a position of the active template ({template}).",

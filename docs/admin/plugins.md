@@ -80,6 +80,8 @@ Jede Vorlage bietet Positionen, an denen Menüs (`core.menu`), Blöcke (`core.bl
 
 Mit `?positions=1` an einer beliebigen Adresse (oder *Positionen auf der Seite anzeigen* unter *Menüs* bzw. *Blöcke*) sehen Administratoren alle Positionen mit Namen umrahmt. Menüs und Blöcke an einer Position, die die aktive Vorlage nicht hat, werden in der Verwaltung markiert und nicht angezeigt.
 
+Mehrstufige Menüs: In horizontalen Positionen (`header-nav`, `top-bar`, `cms-nav`, `header-tools`) öffnen sich Untermenüs als Ausklapp-Menüs mit seitlichen Flyouts. In der Seitenleiste werden sie als aufklappbarer Baum gezeigt, im Fußbereich vollständig. Auf schmalen Bildschirmen und im Off-Canvas-Menü des CMS-Templates klappen sie untereinander auf. Templates passen das Aussehen über CSS-Variablen an: `--ewm-link`, `--ewm-link-hover-bg`, `--ewm-panel-bg`, `--ewm-panel-border`, `--ewm-accent`.
+
 ## Externe Suchmaschine
 
 Für sehr große Datenbestände kann die Volltextsuche **OpenSearch/Elasticsearch** (ab 7.10 bzw. OpenSearch 1.x) oder **Meilisearch** (ab 1.3) verwenden: bessere Relevanz, Tippfehler-Toleranz, Entlastung der Datenbank. Einrichtung unter *Administration → Suchmaschine*: Suchmaschine wählen, URL, Indexname und Zugangsdaten eintragen, *Verbindung testen*.
@@ -109,7 +111,7 @@ Plugins sind vollwertiger Code mit Zugriff auf Datenbank und Server. Installiere
 | `auth.shib` | Authentifizierung | Shibboleth / SAML 2.0 |
 | `core.attachment` | Elementtyp | Dateien (PDF, Office, Bilder, Video) mit Vorschau und Volltext |
 | `core.html` | Elementtyp | Seiten mit WYSIWYG oder Markdown |
-| `core.menu` | Menü | beliebig viele Menüs an jeder Position der Vorlage (*Administration → Menüs*) |
+| `core.menu` | Menü | beliebig viele, auch mehrstufige Menüs an jeder Position der Vorlage. Ziele sind Kategorien, Elemente, Links oder andere Menüs (*Administration → Menüs*). |
 | `core.blocks` | Allgemein | Textblöcke (Markdown/HTML, Makros) an jeder Position, je Sprache, für alle/Gäste/Angemeldete (*Administration → Blöcke*) |
 | `core.macros` | Makros | Inhaltsverzeichnis, Unterseiten, Zuletzt geändert, Hinweis-Boxen, Aufklappbereich, Status-Label, Spalten |
 | `core.layout` | Makros | Layout-Bausteine: Abschnitt, Hero, Karten, Button, Abstand (erbt von `core.macros`) |
@@ -117,6 +119,10 @@ Plugins sind vollwertiger Code mit Zugriff auf Datenbank und Server. Installiere
 | `macro.http` | Makro | Ergebnis eines HTTP-Abrufs, nur Adressen aus der Allow-Liste |
 | `core.comments` | Allgemein | Kommentare und Antworten unter Seiten |
 | `workflow.process` | Elementtyp | Abläufe wie Bewerbungen oder Genehmigungen: Formular, Aufgaben, Freigaben (Vier-Augen), Bedingungen, E-Mails, Webhooks, Wartezeiten, Erinnerungen |
+| `content.blog` | Elementtyp | Blog aus den Seiten einer Kategorie: Anrisstexte, Layouts, Suche im Blog, Tags, Atom/RSS |
+| `content.faq` | Elementtyp | FAQ aus Kategorien und Seiten: aufklappbare Abschnitte und Fragen, Sofort-Filter, Atom/RSS |
+| `content.events` | Elementtyp | Veranstaltungskalender: Monat/Woche/Liste, Serien, Anmeldung mit Warteliste, E-Mail-Erinnerungen, iCal-Abo, Makro „Nächste Termine“ |
+| `content.team` | Elementtyp | Team-Seite aus Gruppen mit wählbaren Angaben aus der Visitenkarte bzw. dem Identity Provider |
 | `search.external` | Allgemein | OpenSearch/Elasticsearch oder Meilisearch für die Volltextsuche |
 | `theme.confluence` | Template | Dokumentations-Layout mit Seitenbaum |
 | `theme.cms` | Template | Website-Layout mit Hauptnavigation, Off-Canvas-Menü und Footer-Spalten |
