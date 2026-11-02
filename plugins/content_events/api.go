@@ -7,6 +7,7 @@ import (
 	"net/url"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"github.com/jackc/pgx/v5"
 
@@ -383,16 +384,140 @@ func (p *Plugin) Setup(hs *sdk.Host) error {
 			Start      time.Time `json:"start"`
 			End        time.Time `json:"end"`
 			AllDay     bool      `json:"all_day"`
+			Date       string    `json:"date"` // occurrence key
 		}
 		out := []item{}
 		for _, x := range list {
-			out = append(out, item{x.Event.ID, x.Event.CalendarID, x.Cal, x.Event.Title, x.Event.Location, x.Occ, x.End, x.Event.AllDay})
+			out = append(out, item{x.Event.ID, x.Event.CalendarID, x.Cal, x.Event.Title, x.Event.Location, x.Occ, x.End, x.Event.AllDay, x.Date})
 		}
 		return out, nil
 	})
 
+	// PUT /events/{id}/occurrences/{date} changes one occurrence of a series
+	// (title, description, location, start and end; empty = as the series).
+	// DELETE resets it to the series.
+	hs.Handle("PUT", "/events/{id}/occurrences/{date}", func(w http.ResponseWriter, r *http.Request) (any, error) {
+		var ov Override
+		if err := h.Decode(r, &ov); err != nil {
+			return nil, err
+		}
+		return p.setOverride(r.Context(), r, &ov, r.URL.Query().Get("notify") != "0")
+	})
+	hs.Handle("DELETE", "/events/{id}/occurrences/{date}", func(w http.ResponseWriter, r *http.Request) (any, error) {
+		if _, err := p.setOverride(r.Context(), r, nil, r.URL.Query().Get("notify") != "0"); err != nil {
+			return nil, err
+		}
+		return h.NoContent{}, nil
+	})
+
 	p.icalRoutes(hs)
 	return nil
+}
+
+// setOverride stores (ov != nil) or removes the change of one occurrence.
+func (p *Plugin) setOverride(ctx context.Context, r *http.Request, ov *Override, notify bool) (any, error) {
+	id, err := h.PathID(r, "id")
+	if err != nil {
+		return nil, err
+	}
+	date := r.PathValue("date")
+	before, cal, err := p.event(ctx, id, "")
+	if err != nil {
+		return nil, err
+	}
+	if !before.CanEdit {
+		return nil, apperr.ErrForbidden
+	}
+	if before.RRule == "" {
+		return nil, apperr.BadRequest("only occurrences of a series can be changed one by one; change the event itself")
+	}
+	old, ok := before.InstanceAt(date)
+	if !ok {
+		return nil, apperr.NotFound("occurrence")
+	}
+	if ov != nil {
+		ov.Title, ov.Location = strings.TrimSpace(ov.Title), strings.TrimSpace(ov.Location)
+		if utf8.RuneCountInString(ov.Title) > 200 || utf8.RuneCountInString(ov.Location) > 300 || len(ov.Description) > 50000 {
+			return nil, apperr.BadRequest("title, location or description too long")
+		}
+		if (ov.StartsAt == nil) != (ov.EndsAt == nil) {
+			return nil, apperr.BadRequest("set start and end together")
+		}
+		if ov.StartsAt != nil {
+			if ov.EndsAt.Before(*ov.StartsAt) {
+				return nil, apperr.BadRequest("the end must not be before the start")
+			}
+			if d := ov.StartsAt.Sub(old.Original); d > MaxShift || d < -MaxShift {
+				return nil, apperr.BadRequest("an occurrence can be moved by at most 31 days")
+			}
+			if ov.StartsAt.Equal(old.Original) && ov.EndsAt.Equal(old.Original.Add(before.EndsAt.Sub(before.StartsAt))) {
+				ov.StartsAt, ov.EndsAt = nil, nil // unchanged
+			}
+		}
+		if ov.Title == before.Title {
+			ov.Title = ""
+		}
+		if ov.Location == before.Location {
+			ov.Location = ""
+		}
+		if ov.Description == before.Description {
+			ov.Description = ""
+		}
+		if *ov == (Override{}) {
+			ov = nil
+		}
+	}
+	uid := identity.From(ctx).ID()
+	err = pgx.BeginFunc(ctx, p.host.DB, func(tx pgx.Tx) error {
+		var q string
+		args := []any{id, date, nullID(uid)}
+		if ov == nil {
+			q = `UPDATE plugin_events SET overrides = overrides - $2, updated_by=$3, updated_at=now(), sequence=sequence+1 WHERE id=$1`
+		} else {
+			q = `UPDATE plugin_events SET overrides = jsonb_set(overrides, ARRAY[$2::text], $4::jsonb), updated_by=$3, updated_at=now(), sequence=sequence+1 WHERE id=$1`
+			args = append(args, ov)
+		}
+		if _, err := tx.Exec(ctx, q, args...); err != nil {
+			return err
+		}
+		after, err := p.eventTx(ctx, tx, id)
+		if err != nil {
+			return err
+		}
+		now, _ := after.InstanceAt(date)
+		// people registered for this occurrence learn about a new time or place
+		if notify && now.Start.After(time.Now()) && (!now.Start.Equal(old.Start) || !now.End.Equal(old.End) || after.instLocation(now) != before.instLocation(old)) {
+			rows, err := tx.Query(ctx, `SELECT user_id FROM plugin_event_registrations WHERE event_id=$1 AND occurrence=$2 AND status IN ('registered', 'waitlist', 'interested')`, id, date)
+			if err != nil {
+				return err
+			}
+			users, err := pgx.CollectRows(rows, pgx.RowTo[int64])
+			if err != nil {
+				return err
+			}
+			for _, u := range users {
+				if err := p.mailUser(ctx, tx, u, after, cal, now.Start, "mail_occurrence_changed"); err != nil {
+					return err
+				}
+			}
+		}
+		return audit.Log(ctx, tx, "event.occurrence", "event", id, map[string]any{"date": date, "override": old.Override}, map[string]any{"date": date, "override": ov})
+	})
+	if err != nil {
+		return nil, err
+	}
+	p.changed(ctx, cal.ID)
+	e, _, err := p.event(ctx, id, "")
+	return e, err
+}
+
+// eventTx loads an event inside a transaction (no permission check).
+func (p *Plugin) eventTx(ctx context.Context, tx pgx.Tx, id int64) (*Event, error) {
+	rows, err := tx.Query(ctx, `SELECT `+eventCols+eventFrom+` WHERE e.id=$1`, id)
+	if err != nil {
+		return nil, err
+	}
+	return pgx.CollectExactlyOneRow(rows, scanEvent)
 }
 
 func nullID(id int64) *int64 {
@@ -623,12 +748,20 @@ func (p *Plugin) mailUser(ctx context.Context, q db.Querier, uid int64, e *Event
 	}
 	u := us[0]
 	base := strings.TrimSuffix(p.host.Config.Get().Server.BaseURL, "/")
-	when := FormatWhen(start, start.Add(e.EndsAt.Sub(e.StartsAt)), e.AllDay, e.Loc(), u.Lang)
-	link := fmt.Sprintf("%s/e/%d#event-%d-%s", base, e.CalendarID, e.ID, start.In(e.Loc()).Format("2006-01-02"))
-	params := map[string]string{"name": u.Name, "title": e.Title, "when": when, "location": e.Location, "calendar": cal.Title, "link": link}
+	in := e.instanceByStart(start)
+	when := FormatWhen(in.Start, in.End, e.AllDay, e.Loc(), u.Lang)
+	link := fmt.Sprintf("%s/e/%d#event-%d-%s", base, e.CalendarID, e.ID, in.Date)
+	location := e.instLocation(in)
+	params := map[string]string{"name": u.Name, "title": e.instTitle(in), "when": when, "location": location, "calendar": cal.Title, "link": link}
+	if in.Override != nil && in.Override.StartsAt != nil {
+		params["was"] = FormatWhen(in.Original, in.Original.Add(e.EndsAt.Sub(e.StartsAt)), e.AllDay, e.Loc(), u.Lang)
+	}
 	t := func(key string) string { return p.host.T(ctx, u.Lang, "content.events."+key, params) }
 	body := t(kind + "_body")
-	if e.Location != "" {
+	if params["was"] != "" {
+		body += "\n" + t("mail_was")
+	}
+	if location != "" {
 		body += "\n\n" + t("mail_location")
 	}
 	body += "\n\n" + link + "\n"
@@ -655,11 +788,11 @@ func (p *Plugin) sendReminders(ctx context.Context) error {
 	now := time.Now()
 	for _, e := range events {
 		max := e.Reminders[0] // sorted descending
-		for _, start := range e.Occurrences(now, now.Add(time.Duration(max+1)*time.Minute)) {
+		for _, in := range e.Instances(now, now.Add(time.Duration(max+1)*time.Minute)) {
+			start, date := in.Start, in.Date
 			if !start.After(now) {
 				continue
 			}
-			date := start.In(e.Loc()).Format("2006-01-02")
 			for _, m := range e.Reminders {
 				if now.Before(start.Add(-time.Duration(m) * time.Minute)) {
 					continue

@@ -169,30 +169,32 @@ func slug(s string) string {
 
 // Event is a single event or a series.
 type Event struct {
-	ID           int64     `json:"id"`
-	CalendarID   int64     `json:"calendar_id"`
-	UID          string    `json:"uid"`
-	Sequence     int       `json:"sequence"`
-	Title        string    `json:"title"`
-	Description  string    `json:"description"`
-	Location     string    `json:"location"`
-	URL          string    `json:"url"`
-	Category     string    `json:"category"`
-	StartsAt     time.Time `json:"starts_at"`
-	EndsAt       time.Time `json:"ends_at"`
-	AllDay       bool      `json:"all_day"`
-	TZ           string    `json:"tz"`
-	RRule        string    `json:"rrule"`
-	ExDates      []string  `json:"exdates"`
-	Registration bool      `json:"registration"`
-	Capacity     int       `json:"capacity"`
-	Waitlist     bool      `json:"waitlist"`
-	RegDeadline  int       `json:"reg_deadline"`
-	Reminders    []int     `json:"reminders"`
-	CreatedBy    *int64    `json:"created_by"`
-	Author       string    `json:"author"`
-	CreatedAt    time.Time `json:"created_at"`
-	UpdatedAt    time.Time `json:"updated_at"`
+	ID          int64     `json:"id"`
+	CalendarID  int64     `json:"calendar_id"`
+	UID         string    `json:"uid"`
+	Sequence    int       `json:"sequence"`
+	Title       string    `json:"title"`
+	Description string    `json:"description"`
+	Location    string    `json:"location"`
+	URL         string    `json:"url"`
+	Category    string    `json:"category"`
+	StartsAt    time.Time `json:"starts_at"`
+	EndsAt      time.Time `json:"ends_at"`
+	AllDay      bool      `json:"all_day"`
+	TZ          string    `json:"tz"`
+	RRule       string    `json:"rrule"`
+	ExDates     []string  `json:"exdates"`
+	// Overrides changes single occurrences (key: original local date).
+	Overrides    map[string]Override `json:"overrides"`
+	Registration bool                `json:"registration"`
+	Capacity     int                 `json:"capacity"`
+	Waitlist     bool                `json:"waitlist"`
+	RegDeadline  int                 `json:"reg_deadline"`
+	Reminders    []int               `json:"reminders"`
+	CreatedBy    *int64              `json:"created_by"`
+	Author       string              `json:"author"`
+	CreatedAt    time.Time           `json:"created_at"`
+	UpdatedAt    time.Time           `json:"updated_at"`
 	// computed for the caller
 	DescriptionHTML string `json:"description_html"`
 	CanEdit         bool   `json:"can_edit"`
@@ -200,7 +202,7 @@ type Event struct {
 }
 
 const eventCols = `e.id, e.calendar_id, e.uid, e.sequence, e.title, e.description, e.location, e.url, e.category, e.starts_at, e.ends_at,
-	e.all_day, e.tz, e.rrule, e.exdates::text[], e.registration, e.capacity, e.waitlist, e.reg_deadline, e.reminders, e.created_by,
+	e.all_day, e.tz, e.rrule, e.exdates::text[], e.overrides, e.registration, e.capacity, e.waitlist, e.reg_deadline, e.reminders, e.created_by,
 	COALESCE(NULLIF(u.display_name, ''), u.username, ''), e.created_at, e.updated_at`
 
 const eventFrom = ` FROM plugin_events e LEFT JOIN users u ON u.id = e.created_by`
@@ -208,13 +210,16 @@ const eventFrom = ` FROM plugin_events e LEFT JOIN users u ON u.id = e.created_b
 func scanEvent(r pgx.CollectableRow) (*Event, error) {
 	var e Event
 	err := r.Scan(&e.ID, &e.CalendarID, &e.UID, &e.Sequence, &e.Title, &e.Description, &e.Location, &e.URL, &e.Category, &e.StartsAt, &e.EndsAt,
-		&e.AllDay, &e.TZ, &e.RRule, &e.ExDates, &e.Registration, &e.Capacity, &e.Waitlist, &e.RegDeadline, &e.Reminders, &e.CreatedBy,
+		&e.AllDay, &e.TZ, &e.RRule, &e.ExDates, &e.Overrides, &e.Registration, &e.Capacity, &e.Waitlist, &e.RegDeadline, &e.Reminders, &e.CreatedBy,
 		&e.Author, &e.CreatedAt, &e.UpdatedAt)
 	if e.ExDates == nil {
 		e.ExDates = []string{}
 	}
 	if e.Reminders == nil {
 		e.Reminders = []int{}
+	}
+	if e.Overrides == nil {
+		e.Overrides = map[string]Override{}
 	}
 	return &e, err
 }
@@ -241,24 +246,116 @@ func (e *Event) exdateSet() map[string]bool {
 	return m
 }
 
-// Occurrences returns the starts of occurrences overlapping [from, to).
-func (e *Event) Occurrences(from, to time.Time) []time.Time {
-	return e.Rule().Expand(e.StartsAt, e.EndsAt.Sub(e.StartsAt), e.Loc(), from, to, e.exdateSet())
+// Override changes one occurrence of a series. Empty fields keep the value
+// of the series; StartsAt and EndsAt are set together.
+type Override struct {
+	Title       string     `json:"title,omitempty"`
+	Description string     `json:"description,omitempty"`
+	Location    string     `json:"location,omitempty"`
+	StartsAt    *time.Time `json:"starts_at,omitempty"`
+	EndsAt      *time.Time `json:"ends_at,omitempty"`
 }
 
-// OccurrenceAt returns the start of the occurrence on a local date.
-func (e *Event) OccurrenceAt(date string) (time.Time, bool) {
+// MaxShift is how far a single occurrence may be moved.
+const MaxShift = 31 * 24 * time.Hour
+
+// Instance is one occurrence with its changes applied.
+type Instance struct {
+	Date     string    // original local date (key for registrations and overrides)
+	Original time.Time // start according to the rule
+	Start    time.Time
+	End      time.Time
+	Override *Override
+}
+
+// Title, Location and Description of an instance.
+func (e *Event) instTitle(in Instance) string {
+	if in.Override != nil && in.Override.Title != "" {
+		return in.Override.Title
+	}
+	return e.Title
+}
+
+func (e *Event) instLocation(in Instance) string {
+	if in.Override != nil && in.Override.Location != "" {
+		return in.Override.Location
+	}
+	return e.Location
+}
+
+// Instances returns the occurrences overlapping [from, to) with their
+// changes applied (moved occurrences are found up to MaxShift away).
+func (e *Event) Instances(from, to time.Time) []Instance {
+	loc := e.Loc()
+	dur := e.EndsAt.Sub(e.StartsAt)
+	pad := time.Duration(0)
+	if len(e.Overrides) > 0 {
+		pad = MaxShift
+	}
+	var out []Instance
+	for _, s := range e.Rule().Expand(e.StartsAt, dur, loc, from.Add(-pad), to.Add(pad), e.exdateSet()) {
+		in := Instance{Date: s.In(loc).Format("2006-01-02"), Original: s, Start: s, End: s.Add(dur)}
+		if ov, ok := e.Overrides[in.Date]; ok {
+			o := ov
+			in.Override = &o
+			if o.StartsAt != nil && o.EndsAt != nil {
+				in.Start, in.End = *o.StartsAt, *o.EndsAt
+			}
+		}
+		if in.Start.Before(to) && (in.End.After(from) || (dur == 0 && !in.Start.Before(from))) {
+			out = append(out, in)
+		}
+	}
+	return out
+}
+
+// Occurrences returns the starts of occurrences overlapping [from, to).
+func (e *Event) Occurrences(from, to time.Time) []time.Time {
+	var out []time.Time
+	for _, in := range e.Instances(from, to) {
+		out = append(out, in.Start)
+	}
+	return out
+}
+
+// InstanceAt returns the occurrence with the original local date.
+func (e *Event) InstanceAt(date string) (Instance, bool) {
 	loc := e.Loc()
 	d, err := time.ParseInLocation("2006-01-02", date, loc)
 	if err != nil {
-		return time.Time{}, false
+		return Instance{}, false
 	}
+	dur := e.EndsAt.Sub(e.StartsAt)
 	for _, t := range e.Rule().Expand(e.StartsAt, 0, loc, d.Add(-time.Second), d.AddDate(0, 0, 1), e.exdateSet()) {
 		if t.Format("2006-01-02") == date {
-			return t, true
+			in := Instance{Date: date, Original: t, Start: t, End: t.Add(dur)}
+			if ov, ok := e.Overrides[date]; ok {
+				o := ov
+				in.Override = &o
+				if o.StartsAt != nil && o.EndsAt != nil {
+					in.Start, in.End = *o.StartsAt, *o.EndsAt
+				}
+			}
+			return in, true
 		}
 	}
-	return time.Time{}, false
+	return Instance{}, false
+}
+
+// OccurrenceAt returns the (possibly moved) start of the occurrence on a local date.
+func (e *Event) OccurrenceAt(date string) (time.Time, bool) {
+	in, ok := e.InstanceAt(date)
+	return in.Start, ok
+}
+
+// instanceByStart finds the occurrence starting at start (for e-mails).
+func (e *Event) instanceByStart(start time.Time) Instance {
+	for _, in := range e.Instances(start.Add(-time.Second), start.Add(time.Second)) {
+		if in.Start.Equal(start) {
+			return in
+		}
+	}
+	return Instance{Date: start.In(e.Loc()).Format("2006-01-02"), Original: start, Start: start, End: start.Add(e.EndsAt.Sub(e.StartsAt))}
 }
 
 // Input creates or changes an event.
@@ -473,6 +570,12 @@ type Occurrence struct {
 	MyStatus   string    `json:"my_status,omitempty"` // registered | waitlist | interested
 	Full       bool      `json:"full"`
 	RegOpen    bool      `json:"registration_open"`
+	// changed single occurrence (empty fields: as the series)
+	Changed         bool       `json:"changed,omitempty"`
+	Title           string     `json:"title,omitempty"`
+	Location        string     `json:"location,omitempty"`
+	DescriptionHTML string     `json:"description_html,omitempty"`
+	OriginalStart   *time.Time `json:"original_start,omitempty"` // when moved
 }
 
 func (e *Event) regOpen(start, now time.Time) bool {
@@ -484,9 +587,19 @@ func (p *Plugin) occurrences(ctx context.Context, events []*Event, from, to time
 	var out []Occurrence
 	ids := []int64{}
 	for _, e := range events {
-		dur := e.EndsAt.Sub(e.StartsAt)
-		for _, s := range e.Occurrences(from, to) {
-			out = append(out, Occurrence{EventID: e.ID, Date: s.Format("2006-01-02"), Start: s, End: s.Add(dur)})
+		for _, in := range e.Instances(from, to) {
+			o := Occurrence{EventID: e.ID, Date: in.Date, Start: in.Start, End: in.End}
+			if in.Override != nil {
+				o.Changed = true
+				o.Title, o.Location = in.Override.Title, in.Override.Location
+				if in.Override.Description != "" {
+					o.DescriptionHTML = core_html.ToHTML(&core_html.Body{Format: "markdown", Source: in.Override.Description})
+				}
+				if in.Override.StartsAt != nil {
+					o.OriginalStart = &in.Original
+				}
+			}
+			out = append(out, o)
 			if len(out) > 5000 {
 				return nil, apperr.BadRequest("too many events in this range, choose a shorter one")
 			}
@@ -655,6 +768,7 @@ type upcomingItem struct {
 	Occ   time.Time
 	End   time.Time
 	Cal   string
+	Date  string // original local date
 }
 
 func (p *Plugin) upcoming(ctx context.Context, calendars []int64, from time.Time, days, limit int) ([]upcomingItem, error) {
@@ -673,9 +787,14 @@ func (p *Plugin) upcoming(ctx context.Context, calendars []int64, from time.Time
 	}
 	var out []upcomingItem
 	for _, e := range events {
-		dur := e.EndsAt.Sub(e.StartsAt)
-		for _, s := range e.Occurrences(from, to) {
-			out = append(out, upcomingItem{Event: e, Occ: s, End: s.Add(dur), Cal: vis[e.CalendarID]})
+		for _, in := range e.Instances(from, to) {
+			ev := e
+			if in.Override != nil {
+				c := *e
+				c.Title, c.Location = e.instTitle(in), e.instLocation(in)
+				ev = &c
+			}
+			out = append(out, upcomingItem{Event: ev, Occ: in.Start, End: in.End, Cal: vis[e.CalendarID], Date: in.Date})
 		}
 	}
 	sort.SliceStable(out, func(a, b int) bool { return out[a].Occ.Before(out[b].Occ) })
@@ -740,7 +859,7 @@ func renderUpcoming(list []upcomingItem, lang string, withCal bool) string {
 	b.WriteString(`<ul class="ewe-upcoming">`)
 	for _, it := range list {
 		e := it.Event
-		date := it.Occ.Format("2006-01-02")
+		date := it.Date
 		fmt.Fprintf(&b, `<li class="ewe-up"><a href="/e/%d#event-%d-%s"><time datetime="%s">%s</time> <strong>%s</strong></a>`,
 			e.CalendarID, e.ID, date, it.Occ.UTC().Format(time.RFC3339), esc(FormatWhen(it.Occ, it.End, e.AllDay, e.Loc(), lang)), esc(e.Title))
 		if e.Location != "" {

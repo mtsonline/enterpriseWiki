@@ -75,3 +75,4 @@
   .ewe-chip { font-size: .7rem; padding: .05rem .2rem; min-height: 24px; }
   .ewe-title { order: -1; flex-basis: 100%; }
 }
+.ewe-changed { margin: .5rem 0; padding: .4rem .7rem; border-left: 3px solid var(--ew-warning, #b65c00); background: var(--ew-bg-subtle); font-size: .92rem; }

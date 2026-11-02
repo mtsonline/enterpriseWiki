@@ -161,5 +161,19 @@
  "content.events.mail_event_cancelled_body": "Hello {name},\n\nthe event “{title}” ({calendar}) has been cancelled.\n\nWhen: {when}",
  "content.events.mail_reminder_subject": "Reminder: {title} – {when}",
  "content.events.mail_reminder_body": "Hello {name},\n\na reminder: “{title}” ({calendar}).\n\nWhen: {when}",
- "content.events.upcoming_all": "Next events in all calendars"
+ "content.events.upcoming_all": "Next events in all calendars",
+ "content.events.mail_occurrence_changed_subject": "Changed: {title} – {when}",
+ "content.events.mail_occurrence_changed_body": "Hello {name},\n\nan occurrence of “{title}” ({calendar}) you signed up for has been changed.\n\nNow: {when}",
+ "content.events.mail_was": "Before: {was}",
+ "content.events.edit_occurrence": "Edit this occurrence only",
+ "content.events.edit_series": "Edit series",
+ "content.events.edit_occurrence_title": "Change the occurrence on {date}",
+ "content.events.edit_occurrence_help": "The changes apply to this occurrence of the series only. Registrations are kept; registered people are told by e-mail about a new time or place.",
+ "content.events.occurrence_description": "Description for this occurrence",
+ "content.events.occurrence_description_help": "Leave empty to show the description of the series. Markdown is supported.",
+ "content.events.reset_occurrence": "Reset changes",
+ "content.events.reset_occurrence_confirm": "Show this occurrence like the series again (time, title, location and description)?",
+ "content.events.occurrence_reset": "The occurrence follows the series again",
+ "content.events.originally": "Originally",
+ "content.events.occurrence_changed_note": "This occurrence differs from the series."
 }

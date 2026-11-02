@@ -17,8 +17,14 @@ interface Ev {
   id: number; calendar_id: number; title: string; description: string; description_html: string; location: string; url: string; category: string;
   starts_at: string; ends_at: string; all_day: boolean; tz: string; rrule: string; exdates: string[]; registration: boolean; capacity: number;
   waitlist: boolean; reg_deadline: number; reminders: number[]; author: string; can_edit: boolean; can_manage: boolean;
+  overrides?: Record<string, Override>;
 }
-interface Occ { event_id: number; date: string; start: string; end: string; registered: number; waiting: number; my_status?: string; full: boolean; registration_open: boolean }
+interface Occ {
+  event_id: number; date: string; start: string; end: string; registered: number; waiting: number; my_status?: string; full: boolean; registration_open: boolean;
+  // a single changed occurrence of a series
+  changed?: boolean; title?: string; location?: string; description_html?: string; original_start?: string;
+}
+interface Override { title?: string; description?: string; location?: string; starts_at?: string; ends_at?: string }
 interface Data { calendar: { id: number; title: string; config: Config; can_create: boolean; signed_in: boolean }; events: Ev[]; occurrences: Occ[] }
 
 const L = () => state.lang;
@@ -70,6 +76,12 @@ function createEditor(container: HTMLElement, raw: unknown): EditorInstance {
 
 // ---------------------------------------------------------------- helpers
 
+/** The event as shown for one occurrence (changes of single occurrences applied). */
+function eff(e: Ev, o: Occ): Ev {
+  if (!o.changed) return e;
+  return { ...e, title: o.title || e.title, location: o.location || e.location, description_html: o.description_html || e.description_html };
+}
+
 function catOf(cfg: Config, id: string): Cat | undefined { return cfg.categories.find((c) => c.id === id); }
 
 function whenText(e: Ev, o: Occ): string {
@@ -116,7 +128,8 @@ function statusText(e: Ev, o: Occ): string {
 
 // ---------------------------------------------------------------- event details
 
-async function showEvent(e: Ev, o: Occ, cfg: Config, reload: () => Promise<void>): Promise<void> {
+async function showEvent(series: Ev, o: Occ, cfg: Config, reload: () => Promise<void>): Promise<void> {
+  const e = eff(series, o);
   const cat = catOf(cfg, e.category);
   const signedIn = !!state.user;
   const close = () => d.close();
@@ -153,11 +166,20 @@ async function showEvent(e: Ev, o: Occ, cfg: Config, reload: () => Promise<void>
   actions.push(h('a', { href: `${BASE}/events/${e.id}/ical`, class: 'ew-btn ew-btn--secondary', download: '' }, t('content.events.add_to_calendar')));
   if (e.can_manage && e.registration) actions.push(button(t('content.events.participants'), () => void participants(e, o), { variant: 'secondary' }));
   if (e.can_edit) {
-    actions.push(button(t('common.edit'), () => { close(); void eventForm(e.calendar_id, cfg, e, null, reload); }, { variant: 'secondary' }));
+    if (e.rrule) {
+      actions.push(button(t('content.events.edit_occurrence'), () => { close(); occurrenceForm(series, o, reload); }, { variant: 'secondary' }));
+      if (o.changed) {
+        actions.push(button(t('content.events.reset_occurrence'), async () => {
+          if (!(await confirmDialog(t('content.events.reset_occurrence_confirm'), t('content.events.reset_occurrence')))) return;
+          await act(() => api.del(`${BASE}/events/${e.id}/occurrences/${o.date}`), t('content.events.occurrence_reset'));
+        }, { variant: 'secondary' }));
+      }
+    }
+    actions.push(button(e.rrule ? t('content.events.edit_series') : t('common.edit'), () => { close(); void eventForm(e.calendar_id, cfg, series, null, reload); }, { variant: 'secondary' }));
     if (e.rrule) {
       actions.push(button(t('content.events.cancel_occurrence'), async () => {
         if (!(await confirmDialog(t('content.events.cancel_occurrence_confirm', { date: new Date(o.start).toLocaleDateString(L()) }), t('content.events.cancel_occurrence'), true))) return;
-        await act(() => api.put(`${BASE}/events/${e.id}`, { ...toInput(e), exdates: [...e.exdates, o.date] }), t('content.events.occurrence_cancelled'));
+        await act(() => api.put(`${BASE}/events/${e.id}`, { ...toInput(series), exdates: [...series.exdates, o.date] }), t('content.events.occurrence_cancelled'));
       }, { variant: 'danger' }));
     }
     actions.push(button(t('common.delete'), async () => {
@@ -170,11 +192,13 @@ async function showEvent(e: Ev, o: Occ, cfg: Config, reload: () => Promise<void>
     h('dl', { class: 'ewe-facts' },
       h('dt', null, t('content.events.when')), h('dd', null, whenText(e, o), e.tz && e.tz !== browserTZ() && !e.all_day ? h('span', { class: 'ewe-tz' }, ` (${t('content.events.your_time')})`) : null),
       e.rrule ? [h('dt', null, t('content.events.repeats')), h('dd', null, ruleText(e.rrule))] : null,
+      o.original_start ? [h('dt', null, t('content.events.originally')), h('dd', null, whenText(series, { ...o, start: o.original_start, end: new Date(new Date(o.original_start).getTime() + new Date(series.ends_at).getTime() - new Date(series.starts_at).getTime()).toISOString() }))] : null,
       e.location ? [h('dt', null, t('content.events.location')), h('dd', null, e.location)] : null,
       e.url ? [h('dt', null, t('content.events.link')), h('dd', null, h('a', { href: e.url, rel: 'noopener noreferrer', target: '_blank' }, e.url))] : null,
       cat ? [h('dt', null, t('content.events.category')), h('dd', null, h('span', { class: 'ewe-dot', style: `background:${cat.color}`, 'aria-hidden': 'true' }), ' ', cat.label)] : null,
       e.registration ? [h('dt', null, t('content.events.registration')), h('dd', null, statusText(e, o), !o.registration_open && !started ? ` · ${t('content.events.reg_closed')}` : null)] : null,
       e.author ? [h('dt', null, t('content.events.organizer')), h('dd', null, e.author)] : null),
+    o.changed ? h('p', { class: 'ewe-changed', role: 'note' }, t('content.events.occurrence_changed_note')) : null,
     myStatus,
     e.description_html ? h('div', { class: 'ewe-desc' }, trustedHTML(e.description_html)) : null,
     !signedIn && (e.registration || e.reminders.length) ? h('p', { class: 'ew-help' }, h('a', { href: `/login?next=${encodeURIComponent(location.pathname + `#event-${e.id}-${o.date}`)}` }, t('content.events.login_to_register'))) : null,
@@ -214,6 +238,38 @@ function toInput(e: Ev): Record<string, unknown> {
 
 const REMINDERS = [10080, 1440, 120, 15];
 const DEADLINES = [0, 60, 1440, 2880, 10080];
+
+/** Changes one occurrence of a series (empty fields: as the series). */
+function occurrenceForm(e: Ev, o: Occ, reload: () => Promise<void>): void {
+  const s0 = new Date(o.start);
+  const e0 = new Date(o.end);
+  const title = textInput({ value: o.title || e.title, required: true, maxlength: 200 });
+  const sd = h('input', { type: 'date', class: 'ew-input', value: ymd(s0), required: true }) as HTMLInputElement;
+  const st = h('input', { type: 'time', class: 'ew-input', value: hm(s0) }) as HTMLInputElement;
+  const et = h('input', { type: 'time', class: 'ew-input', value: hm(e0) }) as HTMLInputElement;
+  const loc = textInput({ value: o.location || e.location, maxlength: 300 });
+  const desc = textArea({ value: e.overrides?.[o.date]?.description ?? '', rows: 4 });
+  const when = e.all_day
+    ? field(t('content.events.start_date'), sd, { required: true })
+    : h('div', { class: 'ewe-when' }, field(t('content.events.start_date'), sd, { required: true }), field(t('content.events.start_time'), st), field(t('content.events.end_time'), et));
+  formDialog(t('content.events.edit_occurrence_title', { date: s0.toLocaleDateString(L()) }), [
+    h('p', { class: 'ew-help' }, t('content.events.edit_occurrence_help')),
+    field(t('content.events.title'), title, { required: true }),
+    when,
+    field(t('content.events.location'), loc),
+    field(t('content.events.occurrence_description'), desc, { help: t('content.events.occurrence_description_help') }),
+  ], t('common.save'), async () => {
+    if (!sd.value) throw new Error(t('content.events.err_start'));
+    const dur = e0.getTime() - s0.getTime();
+    const s = new Date(`${sd.value}T${e.all_day ? '00:00' : st.value || hm(s0)}`);
+    let en = e.all_day ? new Date(s.getTime() + dur) : new Date(`${sd.value}T${et.value || hm(e0)}`);
+    if (!e.all_day && en < s) en = new Date(en.getTime() + 86400000); // ends after midnight
+    const body: Override = { title: title.value.trim(), location: loc.value.trim(), description: desc.value, starts_at: s.toISOString(), ends_at: en.toISOString() };
+    await api.put(`${BASE}/events/${e.id}/occurrences/${o.date}`, body);
+    toast(t('content.events.saved'));
+    await reload();
+  }, { wide: true });
+}
 
 async function eventForm(calendar: number, cfg: Config, e: Ev | null, day: Date | null, reload: () => Promise<void>): Promise<void> {
   const start = e ? new Date(e.starts_at) : new Date((day ?? new Date()).getFullYear(), (day ?? new Date()).getMonth(), (day ?? new Date()).getDate(), day ? 10 : new Date().getHours() + 1, 0);
@@ -366,7 +422,8 @@ async function subscribe(id: number, title: string): Promise<void> {
 
 // ---------------------------------------------------------------- views
 
-function chip(e: Ev, o: Occ, cfg: Config, open: () => void, withTime = true): HTMLElement {
+function chip(series: Ev, o: Occ, cfg: Config, open: () => void, withTime = true): HTMLElement {
+  const e = eff(series, o);
   const cat = catOf(cfg, e.category);
   const s = new Date(o.start);
   const label = `${withTime && !e.all_day ? `${fmt(s, { hour: '2-digit', minute: '2-digit' })} ` : ''}${e.title}`;
@@ -497,7 +554,7 @@ async function eventsWidget(root: HTMLElement): Promise<void> {
         const d = new Date(`${k}T00:00`);
         return h('section', { class: 'ewe-list-day' }, h('h3', null, fmt(d, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })),
           h('ul', null, ...sortDay(list, byId).map((o) => {
-            const e = byId.get(o.event_id)!;
+            const e = eff(byId.get(o.event_id)!, o);
             const cat = catOf(cfg, e.category);
             const s = new Date(o.start);
             return h('li', { class: 'ewe-list-item', style: `--ewe-color:${cat?.color ?? 'var(--ew-primary)'}` },

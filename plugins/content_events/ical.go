@@ -3,6 +3,7 @@ package content_events
 import (
 	"fmt"
 	"net/http"
+	"sort"
 	"strings"
 	"time"
 
@@ -30,6 +31,10 @@ func fold(b *strings.Builder, line string) {
 	b.WriteString(line + "\r\n")
 }
 
+// usesTZID reports whether the event is written in local time with TZID
+// (series keep their wall time across daylight saving changes).
+func usesTZID(e *Event) bool { return !e.AllDay && e.RRule != "" && e.TZ != "" && e.TZ != "UTC" }
+
 // VEvent writes an event (a series with RRULE/EXDATE in its time zone).
 func VEvent(b *strings.Builder, e *Event, link string, now time.Time) {
 	utc := func(t time.Time) string { return t.UTC().Format("20060102T150405Z") }
@@ -44,7 +49,7 @@ func VEvent(b *strings.Builder, e *Event, link string, now time.Time) {
 	case e.AllDay:
 		fold(b, "DTSTART;VALUE=DATE:"+e.StartsAt.In(loc).Format("20060102"))
 		fold(b, "DTEND;VALUE=DATE:"+e.EndsAt.In(loc).Format("20060102"))
-	case e.RRule != "" && e.TZ != "UTC":
+	case usesTZID(e):
 		// series keep their wall time across daylight saving changes
 		fold(b, "DTSTART;TZID="+e.TZ+":"+e.StartsAt.In(loc).Format("20060102T150405"))
 		fold(b, "DTEND;TZID="+e.TZ+":"+e.EndsAt.In(loc).Format("20060102T150405"))
@@ -72,12 +77,58 @@ func VEvent(b *strings.Builder, e *Event, link string, now time.Time) {
 			}
 		}
 	}
-	fold(b, "SUMMARY:"+icalEscape(e.Title))
-	if e.Description != "" {
-		fold(b, "DESCRIPTION:"+icalEscape(e.Description))
+	e.writeDetails(b, e.Title, e.Description, e.Location, link)
+	fold(b, "END:VEVENT")
+	// changed occurrences: same UID with RECURRENCE-ID (RFC 5545 3.8.4.4)
+	if e.RRule == "" || len(e.Overrides) == 0 {
+		return
 	}
-	if e.Location != "" {
-		fold(b, "LOCATION:"+icalEscape(e.Location))
+	dates := make([]string, 0, len(e.Overrides))
+	for d := range e.Overrides {
+		dates = append(dates, d)
+	}
+	sort.Strings(dates)
+	for _, d := range dates {
+		in, ok := e.InstanceAt(d)
+		if !ok || in.Override == nil {
+			continue
+		}
+		ov := in.Override
+		fold(b, "BEGIN:VEVENT")
+		fold(b, "UID:"+e.UID)
+		fold(b, fmt.Sprintf("SEQUENCE:%d", e.Sequence))
+		fold(b, "DTSTAMP:"+utc(now))
+		fold(b, "LAST-MODIFIED:"+utc(e.UpdatedAt))
+		switch {
+		case e.AllDay:
+			fold(b, "RECURRENCE-ID;VALUE=DATE:"+in.Original.In(loc).Format("20060102"))
+			fold(b, "DTSTART;VALUE=DATE:"+in.Start.In(loc).Format("20060102"))
+			fold(b, "DTEND;VALUE=DATE:"+in.End.In(loc).Format("20060102"))
+		case usesTZID(e):
+			fold(b, "RECURRENCE-ID;TZID="+e.TZ+":"+in.Original.In(loc).Format("20060102T150405"))
+			fold(b, "DTSTART;TZID="+e.TZ+":"+in.Start.In(loc).Format("20060102T150405"))
+			fold(b, "DTEND;TZID="+e.TZ+":"+in.End.In(loc).Format("20060102T150405"))
+		default:
+			fold(b, "RECURRENCE-ID:"+utc(in.Original))
+			fold(b, "DTSTART:"+utc(in.Start))
+			fold(b, "DTEND:"+utc(in.End))
+		}
+		desc := e.Description
+		if ov.Description != "" {
+			desc = ov.Description
+		}
+		e.writeDetails(b, e.instTitle(in), desc, e.instLocation(in), link)
+		fold(b, "END:VEVENT")
+	}
+}
+
+func (e *Event) writeDetails(b *strings.Builder, title, desc, location, link string) {
+	fold(b, "SUMMARY:"+icalEscape(title))
+	if desc != "" {
+		fold(b, "DESCRIPTION:"+icalEscape(desc))
+	}
+	if location != "" {
+		fold(b, "LOCATION:"+icalEscape(location))
 	}
 	if e.Category != "" {
 		fold(b, "CATEGORIES:"+icalEscape(e.Category))
@@ -85,7 +136,6 @@ func VEvent(b *strings.Builder, e *Event, link string, now time.Time) {
 	if link != "" {
 		fold(b, "URL:"+link)
 	}
-	fold(b, "END:VEVENT")
 }
 
 // Calendar renders a VCALENDAR.
@@ -100,6 +150,14 @@ func Calendar(name string, events []*Event, linkOf func(*Event) string) string {
 	}
 	fold(&b, "REFRESH-INTERVAL;VALUE=DURATION:PT1H")
 	fold(&b, "X-PUBLISHED-TTL:PT1H")
+	// definitions of the time zones referenced with TZID (older Outlook versions need them)
+	seen := map[string]bool{}
+	for _, e := range events {
+		if usesTZID(e) && !seen[e.TZ] {
+			seen[e.TZ] = true
+			VTimezone(&b, e.TZ, now)
+		}
+	}
 	for _, e := range events {
 		VEvent(&b, e, linkOf(e), now)
 	}

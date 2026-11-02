@@ -161,5 +161,19 @@
  "content.events.mail_event_cancelled_body": "Hallo {name},\n\nder Termin „{title}“ ({calendar}) wurde abgesagt.\n\nWann: {when}",
  "content.events.mail_reminder_subject": "Erinnerung: {title} – {when}",
  "content.events.mail_reminder_body": "Hallo {name},\n\nzur Erinnerung: „{title}“ ({calendar}).\n\nWann: {when}",
- "content.events.upcoming_all": "Nächste Termine in allen Kalendern"
+ "content.events.upcoming_all": "Nächste Termine in allen Kalendern",
+ "content.events.mail_occurrence_changed_subject": "Geändert: {title} – {when}",
+ "content.events.mail_occurrence_changed_body": "Hallo {name},\n\nein Termin von „{title}“ ({calendar}), für den Sie angemeldet sind, wurde geändert.\n\nNeu: {when}",
+ "content.events.mail_was": "Bisher: {was}",
+ "content.events.edit_occurrence": "Nur diesen Termin bearbeiten",
+ "content.events.edit_series": "Serie bearbeiten",
+ "content.events.edit_occurrence_title": "Termin am {date} ändern",
+ "content.events.edit_occurrence_help": "Die Änderungen gelten nur für diesen Termin der Serie. Anmeldungen bleiben erhalten; angemeldete Personen werden bei neuer Zeit oder neuem Ort per E-Mail informiert.",
+ "content.events.occurrence_description": "Beschreibung für diesen Termin",
+ "content.events.occurrence_description_help": "Leer lassen, um die Beschreibung der Serie zu zeigen. Markdown ist möglich.",
+ "content.events.reset_occurrence": "Änderung zurücksetzen",
+ "content.events.reset_occurrence_confirm": "Diesen Termin wieder wie die Serie anzeigen (Zeit, Titel, Ort und Beschreibung)?",
+ "content.events.occurrence_reset": "Termin entspricht wieder der Serie",
+ "content.events.originally": "Ursprünglich",
+ "content.events.occurrence_changed_note": "Dieser Termin weicht von der Serie ab."
 }
