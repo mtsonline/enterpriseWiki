@@ -33,6 +33,7 @@ import (
 	"github.com/mtsonline/enterprisewiki/internal/identity"
 	"github.com/mtsonline/enterprisewiki/internal/mail"
 	"github.com/mtsonline/enterprisewiki/internal/storage"
+	"github.com/mtsonline/enterprisewiki/internal/webhook"
 	"github.com/mtsonline/enterprisewiki/internal/worker"
 )
 
@@ -133,6 +134,8 @@ type Host struct {
 	Files    *storage.Store
 	Mail     *mail.Service
 	Workers  *worker.Registry
+	// Webhooks queues HTTP notifications (Emit) for events of the plugin.
+	Webhooks *webhook.Service
 	Log      *slog.Logger
 
 	Mux       *http.ServeMux

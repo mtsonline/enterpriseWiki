@@ -82,7 +82,7 @@ Die Wiki-Vorlage hieß bis v7.4.1 `theme.confluence` bzw. `theme.confluence.dark
 
 ### Website-Vorlage einrichten
 
-*Administration → Website-Vorlage* (oder `plugin_settings.theme.cms` in `config.yaml`, API `PUT /api/v1/admin/settings`):
+*Administration → Website-Vorlage* (gilt für beide Website-Vorlagen; oder `plugin_settings.theme.cms` in `config.yaml`, API `PUT /api/v1/admin/settings`):
 
 | Einstellung | Bedeutung |
 |---|---|
@@ -144,7 +144,8 @@ Plugins sind vollwertiger Code mit Zugriff auf Datenbank und Server. Installiere
 | `content.team` | Elementtyp | Team-Seite aus Gruppen mit wählbaren Angaben aus der Visitenkarte bzw. dem Identity Provider |
 | `search.external` | Allgemein | OpenSearch/Elasticsearch oder Meilisearch für die Volltextsuche |
 | `theme.wiki` | Template | Dokumentations-Layout mit Seitenbaum |
-| `theme.cms` | Template | Website-Layout mit Hauptnavigation, Off-Canvas-Menü und Footer-Spalten |
+| `theme.cms` | Template | Website, klassisch (Hochschule, Organisation): Hauptnavigation, transparenter Kopfbereich über dem Startbild, Titel-Banner, Footer-Spalten |
+| `theme.cms.modern` | Template | Website, modern und neutral: erbt Aufbau, Positionen und Einstellungen von `theme.cms`, eigene Gestaltung (Schrift Inter, Glas-Kopfbereich, linksbündiges Startbild, abgerundete Karten) |
 | `theme.wiki.dark` | Template (Beispiel) | erbt von `theme.wiki`, ändert nur die Farben |
 | `example.notice` | Elementtyp (Beispiel) | Hinweisbox, erbt von `core.html` |
 

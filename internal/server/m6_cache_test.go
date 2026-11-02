@@ -35,7 +35,7 @@ func TestGuestCache(t *testing.T) {
 	// the page HTML embeds what the page needed
 	hr, html := guest.raw(fmt.Sprintf("/e/%d", page.ID), map[string]string{"Accept-Language": "en"})
 	if hr.Header.Get("X-Cache") != "PRELOAD" || !strings.Contains(html, `<script type="application/json" id="ew-preload">`) || !strings.Contains(html, `Version 1`) ||
-		strings.Contains(strings.SplitN(html, `id="ew-preload">`, 2)[1], "</p>") {
+		strings.Contains(strings.SplitN(strings.SplitN(html, `id="ew-preload">`, 2)[1], "</script>", 2)[0], "</p>") {
 		t.Fatalf("preload: %s", html)
 	}
 	// a change through the API clears the cache

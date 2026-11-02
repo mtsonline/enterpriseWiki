@@ -17,6 +17,7 @@ import (
 	h "github.com/mtsonline/enterprisewiki/internal/httpx"
 	"github.com/mtsonline/enterprisewiki/internal/identity"
 	"github.com/mtsonline/enterprisewiki/internal/mail"
+	"github.com/mtsonline/enterprisewiki/internal/webhook"
 	"github.com/mtsonline/enterprisewiki/pkg/sdk"
 )
 
@@ -508,6 +509,9 @@ func (p *Plugin) setOverride(ctx context.Context, r *http.Request, ov *Override,
 	}
 	p.changed(ctx, cal.ID)
 	e, _, err := p.event(ctx, id, "")
+	if err == nil {
+		p.emit(ctx, "event.occurrence_changed", e, cal, date, map[string]any{"reset": ov == nil})
+	}
 	return e, err
 }
 
@@ -604,7 +608,45 @@ func (p *Plugin) register(ctx context.Context, id int64, occurrence, note string
 	if err != nil {
 		return nil, err
 	}
+	if status != "interested" {
+		p.emit(ctx, "event.registration", e, cal, occurrence, map[string]any{"status": status, "participant": userName(ctx)})
+	}
 	return map[string]string{"status": status}, nil
+}
+
+func userName(ctx context.Context) string {
+	pr := identity.From(ctx)
+	if pr == nil {
+		return ""
+	}
+	if pr.DisplayName != "" {
+		return pr.DisplayName
+	}
+	return pr.Username
+}
+
+// emit queues a webhook event about an occurrence.
+func (p *Plugin) emit(ctx context.Context, name string, e *Event, cal *calendar, date string, data map[string]any) {
+	if p.host.Webhooks == nil {
+		return
+	}
+	in, ok := e.InstanceAt(date)
+	if !ok {
+		in = Instance{Date: date, Start: e.StartsAt, End: e.EndsAt}
+	}
+	lang := p.host.Config.Get().I18n.DefaultLanguage
+	if data == nil {
+		data = map[string]any{}
+	}
+	data["occurrence"] = date
+	data["start"] = in.Start.UTC().Format(time.RFC3339)
+	data["when"] = FormatWhen(in.Start, in.End, e.AllDay, e.Loc(), lang)
+	data["calendar"] = cal.Title
+	if l := e.instLocation(in); l != "" {
+		data["location"] = l
+	}
+	p.host.Webhooks.Emit(ctx, webhook.Event{Name: name, CategoryID: cal.Category, Data: data,
+		Object: webhook.Object{Type: "event", ID: e.ID, Title: e.instTitle(in), URL: fmt.Sprintf("/e/%d#event-%d-%s", cal.ID, e.ID, date)}})
 }
 
 // cancel removes a registration and moves the first person of the waiting list up.
@@ -616,11 +658,11 @@ func (p *Plugin) cancel(ctx context.Context, id int64, occurrence string, uid in
 	if _, err := time.Parse("2006-01-02", occurrence); err != nil {
 		return apperr.BadRequest("occurrence (YYYY-MM-DD) is required")
 	}
-	return pgx.BeginFunc(ctx, p.host.DB, func(tx pgx.Tx) error {
+	var was string
+	err = pgx.BeginFunc(ctx, p.host.DB, func(tx pgx.Tx) error {
 		if _, err := tx.Exec(ctx, `SELECT 1 FROM plugin_events WHERE id=$1 FOR UPDATE`, id); err != nil {
 			return err
 		}
-		var was string
 		if err := tx.QueryRow(ctx, `SELECT status FROM plugin_event_registrations WHERE event_id=$1 AND occurrence=$2 AND user_id=$3
 			AND status <> 'cancelled' FOR UPDATE`, id, occurrence, uid).Scan(&was); err != nil {
 			if err == pgx.ErrNoRows {
@@ -640,6 +682,18 @@ func (p *Plugin) cancel(ctx context.Context, id int64, occurrence string, uid in
 		}
 		return nil
 	})
+	if err == nil && was != "interested" {
+		data := map[string]any{"previous_status": was}
+		if uid == identity.From(ctx).ID() {
+			data["participant"] = userName(ctx)
+		} else {
+			var name string
+			_ = p.host.DB.QueryRow(ctx, `SELECT CASE WHEN display_name='' THEN username ELSE display_name END FROM users WHERE id=$1`, uid).Scan(&name)
+			data["participant"] = name
+		}
+		p.emit(ctx, "event.registration_cancelled", e, cal, occurrence, data)
+	}
+	return err
 }
 
 // promote moves people from the waiting list into free places of an occurrence.

@@ -97,7 +97,7 @@ Beim Anlegen eines Elements (*Neues Element*) wählen Sie den Typ:
 - **FAQ**: Unterkategorien werden zu aufklappbaren Abschnitten, Seiten zu aufklappbaren Fragen (Titel = Frage, Inhalt = Antwort). Das Suchfeld filtert sofort, *Alle aufklappen/zuklappen* hilft beim Lesen. **Neue Frage** legt Frage und Antwort direkt im Dialog an (Markdown), **Neuer Abschnitt** eine Unterkategorie. Jede Frage hat einen eigenen Link (`#q-123`).
 - **Veranstaltungskalender**:
   - Ansichten Monat, Woche und Liste, Kategorien mit Farben, Suche.
-  - Wiederkehrende Termine: täglich, wöchentlich an bestimmten Tagen, monatlich am Tag X oder z. B. „am letzten Freitag“, jährlich; mit Ende nach Datum oder Anzahl. Einzelne Termine einer Serie lassen sich absagen.
+  - Wiederkehrende Termine: täglich, wöchentlich an bestimmten Tagen, monatlich am Tag X oder z. B. „am letzten Freitag“, jährlich; mit Ende nach Datum oder Anzahl. Einzelne Termine einer Serie lassen sich absagen oder mit **Nur diesen Termin bearbeiten** ändern (Titel, Ort, Beschreibung, Datum und Uhrzeit). Geänderte Termine sind gekennzeichnet, Anmeldungen bleiben erhalten, und Angemeldete erhalten bei neuer Zeit oder neuem Ort eine E-Mail. **Änderung zurücksetzen** stellt den Termin wie in der Serie wieder her; **Serie bearbeiten** ändert alle Termine.
   - **Anmeldung** mit Platzzahl, Warteliste und Anmeldeschluss. Bestätigungen kommen per E-Mail; wird ein Platz frei, rückt automatisch die erste Person der Warteliste nach und wird informiert.
   - **Erinnerungen per E-Mail** (z. B. 1 Tag vorher) an Angemeldete und alle, die „Erinnern“ gewählt haben.
   - **In meinen Kalender (.ics)** für einen Termin und **Abonnieren** des ganzen Kalenders in Outlook, Google oder Apple Kalender (persönlicher Link). Organisatoren sehen die Teilnehmenden und können sie als CSV exportieren.
@@ -130,7 +130,7 @@ Menüs ohne Platz („nur als Untermenü“) können in mehreren Menüs eingehä
 
 ## Beobachten
 
-Mit **Beobachten** (auf jeder Seite und Kategorie, für angemeldete Personen) erhalten Sie eine E-Mail, wenn sich etwas ändert, bei Kategorien auf Wunsch auch für alle Unterkategorien. Sie wählen, ob die E-Mail **nur den Link** oder **Link und neuen Inhalt** enthält. Mehrere Änderungen kurz hintereinander kommen gesammelt in einer E-Mail. Eigene Änderungen werden nicht gemeldet, und es werden nur Inhalte gemeldet, die Sie sehen dürfen. Ihre Beobachtungen verwalten Sie unter *Mein Profil → Beobachtungen*.
+Mit **Beobachten** (auf jeder Seite und Kategorie, für angemeldete Personen) erhalten Sie eine E-Mail, wenn sich etwas ändert, bei Kategorien auf Wunsch auch für alle Unterkategorien. Sie wählen, ob die E-Mail **nur den Link** oder **Link und neuen Inhalt** enthält. Mehrere Änderungen kurz hintereinander kommen gesammelt in einer E-Mail. Statt **sofort** können Sie eine **tägliche** oder **wöchentliche Zusammenfassung** wählen; sie kommt zur von der Administration eingestellten Uhrzeit (Standard 7 Uhr, wöchentlich montags). Eigene Änderungen werden nicht gemeldet, und es werden nur Inhalte gemeldet, die Sie sehen dürfen. Ihre Beobachtungen verwalten Sie unter *Mein Profil → Beobachtungen*.
 
 ## Feeds (Atom/RSS)
 

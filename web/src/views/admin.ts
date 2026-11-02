@@ -1,6 +1,7 @@
 // Administration: users, groups, roles, plugins, settings, languages, audit.
 import { profileCardForm } from '../components/profilecard';
 import { elementsAdmin } from './adminElements';
+import { webhooksAdmin } from './adminWebhooks';
 import { categorySelect, elementSelect } from '../components/pickers';
 import { api, qs } from '../core/api';
 import { fmtDate, h, mount } from '../core/dom';
@@ -16,7 +17,7 @@ import { errorPage } from './content';
 
 interface User { id: number; username: string; provider: string; handle: string; display_name: string; email: string; language: string; disabled: boolean; locked_until: string | null; created_at: string; last_login_at: string | null; groups: number[]; roles: number[]; totp_enabled: boolean }
 
-const CORE_SECTIONS = ['users', 'groups', 'roles', 'elements', 'plugins', 'updates', 'settings', 'mail', 'cache', 'languages', 'audit'];
+const CORE_SECTIONS = ['users', 'groups', 'roles', 'elements', 'plugins', 'updates', 'settings', 'mail', 'webhooks', 'cache', 'languages', 'audit'];
 
 const reload = () => navigate(location.pathname + location.search, { replace: true });
 
@@ -47,6 +48,7 @@ export async function adminView({ params, query, main }: RouteCtx): Promise<void
       case 'settings': await settings(panel); break;
       case 'mail': await mailAdmin(panel, query); break;
       case 'elements': await elementsAdmin(panel); break;
+      case 'webhooks': await webhooksAdmin(panel); break;
       case 'cache': await cacheAdmin(panel); break;
       case 'languages': await languages(panel, query); break;
       case 'audit': await auditLog(panel, query); break;

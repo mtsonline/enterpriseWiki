@@ -52,6 +52,7 @@ Sprachen werden in der Oberfläche unter *Administration → Sprachen & Überset
 | `template` | aktives Template (Plugin-ID): `theme.wiki` (Dokumentation) oder `theme.cms` (Website), auch unter *Administration → Einstellungen* | `theme.wiki` |
 | `home_element` | Element-ID der Startseite (z. B. eine Seite oder eine Kategorieübersicht), hat Vorrang vor `home_category`. Neue Installationen: die Willkommensseite. | `0` |
 | `home_category` | Kategorie-ID der Startseite (`0` = Liste der Bereiche bzw. der einzige Bereich) | `0` |
+| `prerender` | Seiten für Gäste (Suchmaschinen, Link-Vorschauen, Besucher ohne JavaScript) mit Titel, Beschreibung, kanonischer Adresse, Open-Graph-Angaben und dem Inhalt als HTML ausliefern. Immer aus Sicht eines Gastes; mit eingeschaltetem `cache` ohne Datenbankzugriff. Prüfen: *Administration → Einstellungen → Gast-Ansicht anzeigen* oder `ewiki api GET "/api/v1/prerender?path=/kalender"`. | `true` |
 
 ### `auth`
 | Schlüssel | Bedeutung | Standard |
@@ -160,6 +161,15 @@ Mit `transport: auto` gilt:
 
 Absender: Workflow-E-Mails dürfen nur `from` oder Adressen aus `allowed_from` als Absender verwenden; andere gewünschte Absender werden als Antwortadresse (Reply-To) gesetzt, damit keine fremden Absender gefälscht werden und SPF/DMARC nicht scheitern.
 
+**Zusammenfassungen von Beobachtungen.** Beobachtungen mit `frequency: daily` bzw. `weekly` werden einmal täglich um `digest_hour` Uhr bzw. wöchentlich am `digest_weekday` (0 = Sonntag, 1 = Montag …) verschickt, in der Zeitzone `digest_timezone` (IANA-Name, leer = Zeitzone des Servers). Standard: 7 Uhr, Montag.
+
+```yaml
+mail:
+  digest_hour: 7
+  digest_weekday: 1
+  digest_timezone: Europe/Vienna
+```
+
 Im Docker-Container werden beim ersten Start `EWIKI_MAIL_FROM`, `EWIKI_SMTP_HOST`, `EWIKI_SMTP_PORT`, `EWIKI_SMTP_SECURITY`, `EWIKI_SMTP_USER` und `EWIKI_SMTP_PASSWORD` übernommen (siehe `.env.example`).
 
 ### `cache`
@@ -178,6 +188,24 @@ Für Gäste werden die API-Antworten im Arbeitsspeicher gehalten. Beim Aufruf ei
 **Jede Änderung leert den Cache**: Seiten, Kategorien, Menüs, Blöcke, Rechte, Benutzer und Gruppen, Einstellungen, Plugins, Übersetzungen, Termine. Grund sind Makros: Eine Seite kann Listen anderer Seiten, Termine oder Teammitglieder zeigen, darum wäre ein teilweises Leeren unsicher. Im Cluster und bei Änderungen über die Kommandozeile sorgt ein Zähler in der Datenbank (`cache_state`) dafür, dass alle Server ihren Cache innerhalb von 3 Sekunden leeren. Dieser Zähler wird unabhängig vom Besucheraufkommen abgefragt. `ttl_seconds` begrenzt zeitabhängige Inhalte wie „Nächste Termine“.
 
 Kommandozeile: `ewiki cache status`, `ewiki cache clear`. API: `GET/DELETE /api/v1/admin/cache`.
+
+### `webhooks`
+Webhooks selbst werden unter *Administration → Webhooks* (API `/api/v1/admin/webhooks`) angelegt. In `config.yaml` stehen nur:
+
+```yaml
+webhooks:
+  allow_private: false  # true erlaubt Ziele im internen Netz (10.x, 192.168.x, localhost …)
+  keep_days: 30         # zugestellte und fehlgeschlagene Zustellungen so lange aufbewahren
+```
+
+Formate: **Teams** (Adaptive Card; in Teams einen Workflow „Bei Empfang einer Teams-Webhookanforderung in einem Kanal posten“ anlegen), **Slack** (Incoming Webhook) und **JSON** für eigene Systeme:
+
+```json
+{"event": "element.update", "occurred_at": "2026-11-02T16:30:00Z", "site": "Intranet", "actor": "Anna Muster",
+ "object": {"type": "element", "id": 12, "title": "Reisekosten", "url": "https://wiki.example.com/reisekosten"}, "data": {}}
+```
+
+Kopfzeilen: `X-Ewiki-Event`, `X-Ewiki-Delivery` und mit Signaturschlüssel `X-Ewiki-Signature: sha256=<HMAC-SHA256 des Inhalts>`. Ereignisse: `element.create|update|delete|move|restore|rollback`, `category.create|update|delete|move|restore`, `event.registration`, `event.registration_cancelled`, `event.occurrence_changed` (Daten: `occurrence`, `start`, `when`, `calendar`, `location`, `status`, `participant`). Zustellungen laufen über eine Warteschlange; bei Fehlern wird nach 1, 5, 30 Minuten, 2 und 12 Stunden erneut versucht. Ziele im internen Netz sind ohne `allow_private` gesperrt (Schutz vor SSRF), Umleitungen nur innerhalb der Webhook-Adresse.
 
 ### `plugin_settings`
 Frei strukturierte Einstellungen je Plugin, z. B.

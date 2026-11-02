@@ -38,7 +38,18 @@ type Config struct {
 	Plugins   Plugins                   `yaml:"plugins" json:"plugins"`
 	Mail      Mail                      `yaml:"mail" json:"mail"`
 	Cache     Cache                     `yaml:"cache" json:"cache"`
+	Webhooks  Webhooks                  `yaml:"webhooks" json:"webhooks"`
 	Settings  map[string]map[string]any `yaml:"plugin_settings,omitempty" json:"plugin_settings,omitempty"`
+}
+
+// Webhooks configures HTTP notifications (the webhooks themselves are
+// managed under Administration → Webhooks).
+type Webhooks struct {
+	// AllowPrivate allows webhook URLs on internal addresses (10.x, 192.168.x,
+	// localhost …), e.g. an on-premises chat server. Default false.
+	AllowPrivate bool `yaml:"allow_private,omitempty" json:"allow_private"`
+	// KeepDays is how long sent and failed deliveries are kept (default 30).
+	KeepDays int `yaml:"keep_days,omitempty" json:"keep_days"`
 }
 
 // Cache configures the optional cache for guests (see package pagecache).

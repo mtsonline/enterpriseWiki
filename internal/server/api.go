@@ -52,6 +52,7 @@ func (s *Server) routes() {
 	s.routesM4()
 	s.routesM6()
 	s.routesM7()
+	s.routesM8()
 	// ---------------------------------------------------------------- system
 	s.app.Mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, r *http.Request) { h.Write(w, 200, map[string]string{"status": "ok"}) })
 	s.handle("GET /readyz", func(w http.ResponseWriter, r *http.Request) (any, error) {
@@ -464,7 +465,6 @@ func (s *Server) routes() {
 		html, err := s.app.Content.Preview(r.Context(), in.Type, in.Lang, in.Body)
 		return map[string]string{"html": html}, err
 	})
-	s.handle("GET /api/v1/prerender", s.prerenderAPI)
 	s.handle("GET /api/v1/elements/{id}", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		id, err := h.PathID(r, "id")
 		if err != nil {

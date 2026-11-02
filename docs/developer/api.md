@@ -217,6 +217,13 @@ curl -H "Authorization: Bearer $KEY" -H 'Content-Type: application/json' \
 | `POST` | `/api/v1/admin/jobs/{name}/run` |
 | `GET` | `/api/v1/admin/cache` |
 | `DELETE` | `/api/v1/admin/cache` |
+| `GET` | `/api/v1/admin/webhooks` |
+| `POST` | `/api/v1/admin/webhooks` |
+| `GET` | `/api/v1/admin/webhooks/{id}` |
+| `PUT` | `/api/v1/admin/webhooks/{id}` |
+| `DELETE` | `/api/v1/admin/webhooks/{id}` |
+| `POST` | `/api/v1/admin/webhooks/{id}/test` |
+| `POST` | `/api/v1/admin/webhooks/{id}/deliveries/{did}/retry` |
 
 ### Plugins
 
@@ -240,6 +247,8 @@ curl -H "Authorization: Bearer $KEY" -H 'Content-Type: application/json' \
 | `DELETE` | `/api/v1/x/content.events/events/{id}/registrations/{rid}` |
 | `GET` | `/api/v1/x/content.events/me/registrations` |
 | `GET` | `/api/v1/x/content.events/upcoming` |
+| `PUT` | `/api/v1/x/content.events/events/{id}/occurrences/{date}` |
+| `DELETE` | `/api/v1/x/content.events/events/{id}/occurrences/{date}` |
 | `GET` | `/api/v1/x/content.events/calendars/{id}/ical` |
 | `GET` | `/api/v1/x/content.events/events/{id}/ical` |
 | `GET` | `/api/v1/x/content.faq/elements/{id}/questions` |
@@ -289,3 +298,4 @@ curl -H "Authorization: Bearer $KEY" -H 'Content-Type: application/json' \
 |---|---|
 | `GET` | `/api/v1/feeds/categories/{id}` |
 | `GET` | `/api/v1/resolve` |
+| `GET` | `/api/v1/prerender` |

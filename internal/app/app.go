@@ -25,6 +25,7 @@ import (
 	"github.com/mtsonline/enterprisewiki/internal/pagecache"
 	"github.com/mtsonline/enterprisewiki/internal/storage"
 	"github.com/mtsonline/enterprisewiki/internal/watch"
+	"github.com/mtsonline/enterprisewiki/internal/webhook"
 	"github.com/mtsonline/enterprisewiki/internal/worker"
 	"github.com/mtsonline/enterprisewiki/pkg/sdk"
 )
@@ -41,10 +42,12 @@ type App struct {
 	Files   *storage.Store
 	Mail    *mail.Service
 	Watch   *watch.Service
-	Cache   *pagecache.Cache
-	Workers *worker.Registry
-	Kernel  *kernel.Kernel
-	Log     *slog.Logger
+	// Webhooks sends HTTP notifications about events.
+	Webhooks *webhook.Service
+	Cache    *pagecache.Cache
+	Workers  *worker.Registry
+	Kernel   *kernel.Kernel
+	Log      *slog.Logger
 	// Mux receives core and plugin routes.
 	Mux *http.ServeMux
 	// Root is the source directory (for plugin installation / rebuilds).
@@ -136,13 +139,25 @@ func New(ctx context.Context, o Options) (*App, error) {
 		}
 		return err
 	}})
+	// webhooks: content changes here, other events from plugins (Host.Webhooks)
+	a.Webhooks = webhook.New(pool, cfg, log)
+	a.Webhooks.T = a.I18n.T
+	a.Webhooks.Kick = func() { time.AfterFunc(300*time.Millisecond, func() { a.Workers.Trigger("webhooks") }) }
+	a.Content.OnChange(func(ctx context.Context, event, etype string, id int64) { a.emitContent(ctx, event, etype, id) })
+	a.Workers.Register(worker.Job{Name: "webhooks", Interval: 30 * time.Second, Run: func(ctx context.Context) error {
+		_, err := a.Webhooks.Deliver(ctx)
+		return err
+	}})
+	a.Workers.Register(worker.Job{Name: "webhooks.cleanup", Interval: 24 * time.Hour, Run: func(ctx context.Context) error {
+		return a.Webhooks.Cleanup(ctx, cfg.Get().Webhooks.KeepDays)
+	}})
 	a.Auth.SetEnabledFunc(a.Kernel.Enabled)
 	a.Content.SetEnabledFunc(a.Kernel.Enabled)
 	if err := a.I18n.Register("core", i18n.CoreLocales()); err != nil {
 		pool.Close()
 		return nil, err
 	}
-	base := sdk.Host{Config: cfg, DB: pool, ACL: a.ACL, Content: a.Content, Auth: a.Auth, I18n: a.I18n, Files: a.Files, Mail: a.Mail, Workers: a.Workers,
+	base := sdk.Host{Webhooks: a.Webhooks, Config: cfg, DB: pool, ACL: a.ACL, Content: a.Content, Auth: a.Auth, I18n: a.I18n, Files: a.Files, Mail: a.Mail, Workers: a.Workers,
 		Log: log, Mux: a.Mux, IsEnabled: a.Kernel.Enabled}
 	if err := a.Kernel.Setup(base, a.I18n); err != nil {
 		pool.Close()
@@ -166,3 +181,40 @@ func (a *App) MigrateDB(ctx context.Context) error {
 
 // Close releases resources.
 func (a *App) Close() { a.DB.Close() }
+
+// emitContent turns a content change into a webhook event.
+func (a *App) emitContent(ctx context.Context, event, etype string, id int64) {
+	ev := webhook.Event{Name: etype + "." + event, Object: webhook.Object{Type: etype, ID: id}}
+	def := a.Config.Get().I18n.DefaultLanguage
+	var titles map[string]string
+	switch etype {
+	case "element":
+		var short string
+		if err := a.DB.QueryRow(context.WithoutCancel(ctx), `SELECT titles, category_id, COALESCE(short_url, '') FROM elements WHERE id=$1`, id).Scan(&titles, &ev.CategoryID, &short); err != nil {
+			return
+		}
+		ev.Object.URL = fmt.Sprintf("/e/%d", id)
+		if short != "" {
+			ev.Object.URL = "/" + short
+		}
+	case "category":
+		if err := a.DB.QueryRow(context.WithoutCancel(ctx), `SELECT titles FROM categories WHERE id=$1`, id).Scan(&titles); err != nil {
+			return
+		}
+		ev.CategoryID = id
+		ev.Object.URL = fmt.Sprintf("/c/%d", id)
+	default:
+		return
+	}
+	ev.Object.Title = titles[def]
+	if ev.Object.Title == "" {
+		for _, t := range titles {
+			ev.Object.Title = t
+			break
+		}
+	}
+	if event == "delete" {
+		ev.Object.URL = ""
+	}
+	a.Webhooks.Emit(ctx, ev)
+}

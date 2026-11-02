@@ -83,10 +83,17 @@ Administration → Elemente (alle Elemente suchen, filtern, bearbeiten, verschie
 
 Menü-Editor zeigt nur die Liste der Einträge, „Bearbeiten“ öffnet einen einzelnen Eintrag (inkl. übergeordnetem Eintrag); Wiki-Vorlage heißt jetzt `theme.wiki`/`theme.wiki.dark` (alte IDs werden beim Start automatisch übernommen), schmalere und ein-/ausblendbare Seitenleiste; Website-Vorlage `theme.cms` neu gestaltet (transparenter Kopfbereich über dem Startbild, Titel-Banner auf Unterseiten, Footer-Spalten, „Nach oben“-Knopf, Schrift Source Sans 3) mit eigener Einstellungsseite *Administration → Website-Vorlage*; Einstellungsformulare kennen Bild- und Farbfelder.
 
-## Meilenstein 6 – geplant
+## Meilenstein 6 – Gäste und Suchmaschinen, Kalender, Zusammenfassungen, Webhooks (fertig, v7.5)
 
-1. Serverseitiges Vorrendern des Seiteninhalts für Gäste (Suchmaschinen, Besucher ohne JavaScript).
-2. VTIMEZONE-Blöcke im iCal-Export (ältere Outlook-Versionen, Serien über die Sommerzeit-Umstellung).
-3. Einzelne Termine einer Serie ändern, nicht nur absagen.
-4. Beobachtungen wahlweise als tägliche oder wöchentliche Zusammenfassung.
-5. Webhooks für Teams/Slack (z. B. Seitenänderungen, Anmeldungen).
+- **Vorrendern für Gäste** (`ui.prerender`, Standard an): Seiten, Kategorien, Startseite und Kurz-URLs kommen mit Titel, Beschreibung, kanonischer Adresse, Open-Graph-Angaben, Sprache und dem Inhalt als HTML; die App ersetzt ihn beim Start. Immer aus Sicht eines Gastes, im Gäste-Cache gehalten. Prüfen unter *Administration → Einstellungen → Gast-Ansicht anzeigen* bzw. `GET /api/v1/prerender?path=`.
+- **iCal**: VTIMEZONE-Definitionen für alle Zeitzonen von Serien (jährliche Regeln, bei unregelmäßigen Zonen einzelne Daten), geänderte Einzeltermine als `RECURRENCE-ID`.
+- **Einzelne Termine einer Serie ändern** (Titel, Ort, Beschreibung, Zeit, bis 31 Tage verschoben) und zurücksetzen; Anmeldungen bleiben, Angemeldete erhalten bei neuer Zeit oder neuem Ort eine E-Mail. API `PUT/DELETE …/events/{id}/occurrences/{datum}`.
+- **Beobachtungen als tägliche oder wöchentliche Zusammenfassung** (`frequency`), Uhrzeit, Wochentag und Zeitzone unter *Administration → E-Mail*; CLI `ewiki watch add … --frequency daily`.
+- **Webhooks** für Microsoft Teams (Adaptive Card für Workflows), Slack und JSON (HMAC-signiert): Seiten- und Kategorieänderungen, Anmeldungen und Abmeldungen, geänderte Termine; Filter nach Ereignis und Kategorie, Warteschlange mit Wiederholungen, Zustellprotokoll, Test und „Erneut senden“. *Administration → Webhooks*, API `/api/v1/admin/webhooks`, Plugins über `host.Webhooks.Emit`.
+- Zweite Website-Vorlage `theme.cms.modern` (neutral, modern), die bisherige heißt „Website – klassisch (Hochschule, Organisation)“.
+
+Offen / Vorschläge:
+
+- E-Mail-Einladungen (iTIP, `METHOD:REQUEST`) für Termine, damit sie direkt im Outlook-Kalender landen.
+- Webhooks auch für Kommentare und abgeschlossene Workflows.
+- Open-Graph-Bild je Seite (erstes Bild oder Startbild der Website-Vorlage) für schönere Link-Vorschauen.
