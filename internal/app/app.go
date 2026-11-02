@@ -90,6 +90,7 @@ func New(ctx context.Context, o Options) (*App, error) {
 	a.Content = content.New(pool, a.ACL, a.Bus, cfg, log)
 	a.I18n = i18n.New(pool, cfg, a.Bus)
 	a.Files = storage.New(pool, cfg)
+	a.Files.AddReference("users", "profile") // profile photos
 	a.Mail = mail.New(pool, cfg, log)
 	a.Workers = worker.New(pool, log, func() bool { return cfg.Get().Mode == "cluster" })
 	a.Workers.Register(worker.Job{Name: "mail", Interval: 10 * time.Second, Run: func(ctx context.Context) error {

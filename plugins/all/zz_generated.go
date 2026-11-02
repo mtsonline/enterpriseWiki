@@ -11,6 +11,7 @@ import (
 	_ "github.com/mtsonline/enterprisewiki/plugins/content_blog"
 	_ "github.com/mtsonline/enterprisewiki/plugins/content_events"
 	_ "github.com/mtsonline/enterprisewiki/plugins/content_faq"
+	_ "github.com/mtsonline/enterprisewiki/plugins/content_team"
 	_ "github.com/mtsonline/enterprisewiki/plugins/core_attachment"
 	_ "github.com/mtsonline/enterprisewiki/plugins/core_blocks"
 	_ "github.com/mtsonline/enterprisewiki/plugins/core_comments"

@@ -700,5 +700,19 @@
  "feed.setting_help": "Offers a feed of the elements of this category (readers only see what they may read).",
  "feed.setting_off": "Off",
  "feed.setting_on": "On – elements of this category",
- "feed.setting_recursive": "On – including subcategories"
+ "feed.setting_recursive": "On – including subcategories",
+ "profile.card_title": "Business card",
+ "profile.card_help": "These details appear on team pages that show your groups – only the fields chosen there.",
+ "profile.card_job_title": "Job title",
+ "profile.card_department": "Department",
+ "profile.card_phone": "Phone",
+ "profile.card_mobile": "Mobile",
+ "profile.card_office": "Office / location",
+ "profile.card_about": "About me",
+ "profile.card_about_help": "Short, Markdown allowed.",
+ "profile.photo_choose": "Upload photo",
+ "profile.photo_remove": "Remove photo",
+ "profile.photo_help": "PNG, JPEG, GIF or WebP. Square images look best.",
+ "profile.photo_uploaded": "Photo uploaded – save to apply",
+ "profile.photo_of": "Photo of {name}"
 }

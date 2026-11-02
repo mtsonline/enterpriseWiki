@@ -240,3 +240,7 @@ th .ew-help { font-weight: 400; }
 .ew-positions-bar { position: fixed; bottom: 0; left: 0; right: 0; z-index: 100; background: #3d2600; color: #fff; padding: .5rem 1rem; display: flex; gap: 1rem; align-items: center; flex-wrap: wrap; }
 .ew-inline-action { font-size: .9rem; margin-left: .25rem; }
 .ew-default-element--edit { border: 1px dashed var(--ew-border); border-radius: var(--ew-radius); padding: .75rem 1rem; }
+/* business card */
+.ew-card-photo-row { display: flex; gap: 1rem; align-items: center; flex-wrap: wrap; margin-bottom: 1rem; }
+.ew-card-photo img, .ew-avatar--large { width: 5.5rem; height: 5.5rem; border-radius: 50%; object-fit: cover; font-size: 2rem; }
+.ew-card-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr)); gap: 0 1rem; }

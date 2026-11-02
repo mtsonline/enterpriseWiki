@@ -6,6 +6,7 @@ import (
 	"strconv"
 
 	"github.com/mtsonline/enterprisewiki/internal/apperr"
+	"github.com/mtsonline/enterprisewiki/internal/auth"
 	"github.com/mtsonline/enterprisewiki/internal/content"
 	"github.com/mtsonline/enterprisewiki/internal/feed"
 	h "github.com/mtsonline/enterprisewiki/internal/httpx"
@@ -109,5 +110,51 @@ func (s *Server) routesM6() {
 			return nil, apperr.BadRequest("%v", err)
 		}
 		return h.Handled{}, nil
+	})
+
+	// ---------------------------------------------------------------- profile (business card)
+	s.handle("GET /api/v1/me/profile", func(w http.ResponseWriter, r *http.Request) (any, error) {
+		p, err := requireUser(r)
+		if err != nil {
+			return nil, err
+		}
+		prof, err := s.app.Auth.Profile(r.Context(), p.ID())
+		return map[string]any{"profile": prof, "fields": auth.ProfileFields}, err
+	})
+	s.handle("PUT /api/v1/me/profile", func(w http.ResponseWriter, r *http.Request) (any, error) {
+		p, err := requireUser(r)
+		if err != nil {
+			return nil, err
+		}
+		var in map[string]string
+		if err := h.Decode(r, &in); err != nil {
+			return nil, err
+		}
+		return s.app.Auth.SetProfile(r.Context(), p.ID(), in)
+	})
+	s.handle("GET /api/v1/admin/users/{id}/profile", func(w http.ResponseWriter, r *http.Request) (any, error) {
+		if err := requireAdmin(r); err != nil {
+			return nil, err
+		}
+		id, err := h.PathID(r, "id")
+		if err != nil {
+			return nil, err
+		}
+		prof, err := s.app.Auth.Profile(r.Context(), id)
+		return map[string]any{"profile": prof, "fields": auth.ProfileFields}, err
+	})
+	s.handle("PUT /api/v1/admin/users/{id}/profile", func(w http.ResponseWriter, r *http.Request) (any, error) {
+		if err := requireAdmin(r); err != nil {
+			return nil, err
+		}
+		id, err := h.PathID(r, "id")
+		if err != nil {
+			return nil, err
+		}
+		var in map[string]string
+		if err := h.Decode(r, &in); err != nil {
+			return nil, err
+		}
+		return s.app.Auth.SetProfile(r.Context(), id, in)
 	})
 }

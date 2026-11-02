@@ -1,0 +1,9 @@
+{
+  "id": "content.team",
+  "name": "Team",
+  "version": "1.0.0",
+  "description": "Element type that shows the members of one or more groups as a team page: name, description (Markdown/HTML), choice of the attributes shown (photo, job title, department, e-mail, phone, office, about, groups or attributes from the identity provider), as cards, list or table.",
+  "author": "Enterprise Wiki",
+  "kinds": ["element"],
+  "frontend": true
+}

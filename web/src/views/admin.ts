@@ -1,4 +1,5 @@
 // Administration: users, groups, roles, plugins, settings, languages, audit.
+import { profileCardForm } from '../components/profilecard';
 import { api, qs } from '../core/api';
 import { fmtDate, h, mount } from '../core/dom';
 import { t } from '../core/i18n';
@@ -81,6 +82,11 @@ async function users(panel: HTMLElement, query: URLSearchParams): Promise<void> 
           button(t('common.edit'), async () => {
             try { userDialog(await api.get<User>(`admin/users/${u.id}`), gs, rs); } catch (e) { toast(errorText(e), 'error'); }
           }, { variant: 'link', ariaLabel: t('admin.edit_named', { name: u.handle }) }),
+          button(t('profile.card_title'), async () => {
+            try {
+              openDialog(`${t('profile.card_title')}: ${u.display_name || u.handle}`, await profileCardForm(`admin/users/${u.id}/profile`, u.display_name || u.handle), [], { wide: true });
+            } catch (e) { toast(errorText(e), 'error'); }
+          }, { variant: 'link', ariaLabel: `${t('profile.card_title')}: ${u.handle}` }),
           u.id !== state.user?.id ? button(t('common.delete'), async () => {
             if (!(await confirmDialog(t('admin.user_delete_confirm', { name: u.handle }), t('common.delete'), true))) return;
             try { await api.del(`admin/users/${u.id}`); toast(t('admin.deleted')); reload(); } catch (e) { toast(errorText(e), 'error'); }

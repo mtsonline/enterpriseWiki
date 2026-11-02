@@ -68,3 +68,7 @@ ALTER TABLE users ADD COLUMN feed_token text UNIQUE;
 
 -- Atom/RSS feed of a category (and optionally its subcategories).
 ALTER TABLE categories ADD COLUMN feed text NOT NULL DEFAULT 'off' CHECK (feed IN ('off', 'on', 'recursive'));
+
+-- Profile ("business card") maintained by the user or admins; not
+-- overwritten by identity providers (unlike attributes).
+ALTER TABLE users ADD COLUMN profile jsonb NOT NULL DEFAULT '{}';

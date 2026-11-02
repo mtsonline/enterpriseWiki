@@ -12,6 +12,7 @@ import { typeLabel } from '../sdk';
 import { errorPage } from './content';
 import { watchDialog, type Watch } from '../components/watch';
 import { feedTokenSection } from '../components/feeds';
+import { profileCardForm } from '../components/profilecard';
 
 // ---------------------------------------------------------------- search
 
@@ -177,6 +178,16 @@ async function notificationSection(): Promise<HTMLElement | null> {
     h('p', null, data.email ? t('notify.help', { email: data.email }) : t('notify.no_email')), f);
 }
 
+// Business card (shown on team pages).
+async function cardSection(name: string): Promise<HTMLElement | null> {
+  try {
+    return h('section', { class: 'ew-section', id: 'card', 'aria-labelledby': 'card-h' }, h('h2', { id: 'card-h' }, t('profile.card_title')),
+      h('p', null, t('profile.card_help')), await profileCardForm('me/profile', name));
+  } catch {
+    return null;
+  }
+}
+
 // Watched categories and elements.
 async function watchesSection(): Promise<HTMLElement | null> {
   let data: { items: Watch[]; enabled: boolean };
@@ -289,6 +300,7 @@ export async function profileView({ main }: RouteCtx): Promise<void> {
     h('p', null, t('profile.logged_in_as', { handle: `${u.username}@${u.provider}` })),
     h('section', { class: 'ew-section', 'aria-labelledby': 'pr-h' }, h('h2', { id: 'pr-h' }, t('profile.data')), pForm),
     await notificationSection(),
+    await cardSection(u.display_name || u.username),
     await watchesSection(),
     feedTokenSection(),
     pwSection,

@@ -1,0 +1,30 @@
+.ewt-desc { margin-bottom: 1.25rem; }
+.ewt-tools { display: flex; flex-wrap: wrap; gap: .75rem; justify-content: space-between; align-items: center; margin-bottom: .75rem; }
+.ewt-filter { display: flex; flex: 1 1 18rem; max-width: 28rem; }
+.ewt-filter input { flex: 1; }
+.ewt-status:empty { display: none; }
+.ewt-group { margin-bottom: 1.5rem; }
+.ewt-group-name { margin-bottom: .25rem; }
+.ewt-group-desc { color: var(--ew-text-muted); margin-top: 0; }
+.ewt-members { list-style: none; padding: 0; margin: 0; }
+.ewt-members--cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(15rem, 1fr)); gap: 1rem; }
+.ewt-members--cards .ewt-member { border: 1px solid var(--ew-border); border-radius: 10px; padding: 1.1rem; background: var(--ew-bg-raised); text-align: center; box-shadow: 0 1px 2px rgba(9, 30, 66, .08); }
+.ewt-members--cards .ewt-photo { margin: 0 auto .6rem; }
+.ewt-members--cards .ewt-fields { text-align: left; }
+.ewt-members--list .ewt-member { display: flex; gap: 1rem; align-items: flex-start; padding: .8rem 0; border-bottom: 1px solid var(--ew-border); }
+.ewt-photo { display: block; width: 5.5rem; height: 5.5rem; border-radius: 50%; object-fit: cover; flex: none; background: var(--ew-bg-subtle); }
+.ewt-photo--small { display: inline-grid; width: 2rem; height: 2rem; margin-right: .5rem; vertical-align: middle; font-size: .75rem; }
+.ewt-initials { display: grid; place-items: center; background: var(--ew-primary); color: var(--ew-on-primary, #fff); font-weight: 700; font-size: 1.6rem; }
+.ewt-photo--small.ewt-initials { font-size: .75rem; }
+.ewt-name { margin: 0; font-size: 1.1rem; }
+.ewt-title { margin: .1rem 0 .5rem; color: var(--ew-text-muted); }
+.ewt-fields { margin: 0; display: grid; gap: .2rem; font-size: .92rem; }
+.ewt-field { display: grid; grid-template-columns: minmax(5.5rem, max-content) 1fr; gap: .5rem; }
+.ewt-field dt { color: var(--ew-text-muted); }
+.ewt-field dd { margin: 0; overflow-wrap: anywhere; }
+.ewt-field--about { grid-template-columns: 1fr; }
+.ewt-field--about dt { display: none; }
+.ewt-field--about dd > :first-child { margin-top: .25rem; }
+.ewt-table th[scope="row"] { white-space: nowrap; }
+.ewt-choice { max-height: 22rem; overflow: auto; }
+.ewt-attr { display: grid; grid-template-columns: 1fr 1fr; gap: .5rem; align-items: center; }

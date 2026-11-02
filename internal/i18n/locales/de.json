@@ -700,5 +700,19 @@
  "feed.setting_help": "Bietet einen Feed der Elemente dieser Kategorie an (Leser sehen nur, was sie lesen dürfen).",
  "feed.setting_off": "Aus",
  "feed.setting_on": "Ein – Elemente dieser Kategorie",
- "feed.setting_recursive": "Ein – inklusive Unterkategorien"
+ "feed.setting_recursive": "Ein – inklusive Unterkategorien",
+ "profile.card_title": "Visitenkarte",
+ "profile.card_help": "Diese Angaben erscheinen auf Team-Seiten, auf denen Ihre Gruppen angezeigt werden – nur die dort gewählten Felder.",
+ "profile.card_job_title": "Funktion",
+ "profile.card_department": "Abteilung",
+ "profile.card_phone": "Telefon",
+ "profile.card_mobile": "Mobil",
+ "profile.card_office": "Büro / Standort",
+ "profile.card_about": "Über mich",
+ "profile.card_about_help": "Kurz, Markdown möglich.",
+ "profile.photo_choose": "Foto hochladen",
+ "profile.photo_remove": "Foto entfernen",
+ "profile.photo_help": "PNG, JPEG, GIF oder WebP. Quadratische Bilder wirken am besten.",
+ "profile.photo_uploaded": "Foto hochgeladen – zum Übernehmen speichern",
+ "profile.photo_of": "Foto von {name}"
 }
