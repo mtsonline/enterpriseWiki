@@ -31,6 +31,7 @@ type Element struct {
 	UpdatedBy    string            `json:"updated_by"`
 	DeletedAt    *time.Time        `json:"deleted_at,omitempty"`
 	IsDefault    bool              `json:"is_default"`
+	ShortURL     string            `json:"short_url"`
 }
 
 // LangStatus is the translation state of one language.
@@ -61,12 +62,12 @@ type ElementView struct {
 
 const elemCols = `e.id, e.category_id, e.type, e.position, e.original_lang, e.titles, e.tags, e.created_at, e.updated_at,
 	COALESCE((SELECT u.display_name || ' (' || u.username || '@' || u.provider || ')' FROM users u WHERE u.id = e.updated_by), ''),
-	e.deleted_at, EXISTS (SELECT 1 FROM categories c WHERE c.id = e.category_id AND c.default_element_id = e.id)`
+	e.deleted_at, EXISTS (SELECT 1 FROM categories c WHERE c.id = e.category_id AND c.default_element_id = e.id), COALESCE(e.short_url, '')`
 
 func scanElement(r pgx.CollectableRow) (Element, error) {
 	var e Element
 	err := r.Scan(&e.ID, &e.CategoryID, &e.Type, &e.Position, &e.OriginalLang, &e.Titles, &e.Tags, &e.CreatedAt, &e.UpdatedAt,
-		&e.UpdatedBy, &e.DeletedAt, &e.IsDefault)
+		&e.UpdatedBy, &e.DeletedAt, &e.IsDefault, &e.ShortURL)
 	return e, err
 }
 
@@ -215,6 +216,7 @@ type ElementInput struct {
 	Tags       []string        `json:"tags"`
 	Position   *int            `json:"position"`
 	Comment    string          `json:"comment"`
+	ShortURL   string          `json:"short_url"`
 }
 
 func cleanTitle(t string) (string, error) {
@@ -250,11 +252,20 @@ func (s *Service) CreateElement(ctx context.Context, in ElementInput) (*ElementV
 	if len(in.Body) == 0 {
 		in.Body = t.EmptyBody()
 	}
+	if p, ok := t.(Preparer); ok {
+		if in.Body, err = p.Prepare(ctx, s, in.CategoryID, in.Lang, title, in.Body); err != nil {
+			return nil, err
+		}
+	}
 	body, err := t.Normalize(in.Body)
 	if err != nil {
 		return nil, apperr.BadRequest("invalid body: %v", err)
 	}
 	tags, err := NormalizeTags(in.Tags)
+	if err != nil {
+		return nil, err
+	}
+	short, err := NormalizeShortURL(in.ShortURL)
 	if err != nil {
 		return nil, err
 	}
@@ -281,6 +292,11 @@ func (s *Service) CreateElement(ctx context.Context, in ElementInput) (*ElementV
 		}
 		if err := s.index(ctx, tx, id, in.CategoryID, in.Lang, title, t.Text(body), tags); err != nil {
 			return err
+		}
+		if short != "" {
+			if err := s.setShortURL(ctx, tx, "element", id, short); err != nil {
+				return err
+			}
 		}
 		// Make the first element the category default.
 		if _, err := tx.Exec(ctx, `UPDATE categories SET default_element_id=$2 WHERE id=$1 AND default_element_id IS NULL`, in.CategoryID, id); err != nil {
@@ -346,6 +362,11 @@ func (s *Service) SaveElement(ctx context.Context, id int64, in SaveInput) (*Ele
 	if err != nil {
 		return nil, err
 	}
+	if p, ok := t.(Preparer); ok {
+		if in.Body, err = p.Prepare(ctx, s, e.CategoryID, in.Lang, title, in.Body); err != nil {
+			return nil, err
+		}
+	}
 	body, err := t.Normalize(in.Body)
 	if err != nil {
 		return nil, apperr.BadRequest("invalid body: %v", err)
@@ -397,6 +418,7 @@ func (s *Service) SaveElement(ctx context.Context, id int64, in SaveInput) (*Ele
 type MetaInput struct {
 	Tags     []string `json:"tags"`
 	Position *int     `json:"position"`
+	ShortURL *string  `json:"short_url"` // "" removes it
 }
 
 // UpdateElementMeta changes tags and position.
@@ -409,6 +431,14 @@ func (s *Service) UpdateElementMeta(ctx context.Context, id int64, in MetaInput)
 		return nil, err
 	}
 	tags, pos := e.Tags, e.Position
+	var short *string
+	if in.ShortURL != nil {
+		v, err := NormalizeShortURL(*in.ShortURL)
+		if err != nil {
+			return nil, err
+		}
+		short = &v
+	}
 	if in.Tags != nil {
 		if tags, err = NormalizeTags(in.Tags); err != nil {
 			return nil, err
@@ -420,6 +450,11 @@ func (s *Service) UpdateElementMeta(ctx context.Context, id int64, in MetaInput)
 	err = db.Tx(ctx, s.pool, func(tx pgx.Tx) error {
 		if _, err := tx.Exec(ctx, `UPDATE elements SET tags=$2, position=$3, updated_at=now(), updated_by=$4 WHERE id=$1`, id, tags, pos, nullID(ctx)); err != nil {
 			return err
+		}
+		if short != nil {
+			if err := s.setShortURL(ctx, tx, "element", id, *short); err != nil {
+				return err
+			}
 		}
 		if _, err := tx.Exec(ctx, `UPDATE search_docs SET tags=$2, tsv=setweight(to_tsvector('simple', title), 'A') ||
 			setweight(to_tsvector('simple', array_to_string($2::text[], ' ')), 'B') || setweight(to_tsvector('simple', body_text), 'C')

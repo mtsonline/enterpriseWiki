@@ -1,7 +1,7 @@
 {
  "content.faq.choose_category": "– Kategorie wählen –",
  "content.faq.category": "Kategorie der Fragen",
- "content.faq.category_help": "Unterkategorien werden zu aufklappbaren Abschnitten, Seiten zu Fragen (Titel = Frage, Inhalt = Antwort).",
+ "content.faq.category_help": "Die Einträge sind normale Seiten dieser Kategorie. Ohne Auswahl wird beim Speichern eine neue Kategorie mit dem Titel angelegt.",
  "content.faq.recursive": "Unterkategorien als Abschnitte anzeigen",
  "content.faq.source": "Fragen",
  "content.faq.intro": "Einleitung",
@@ -32,5 +32,6 @@
  "content.faq.parent_section": "Übergeordneter Abschnitt",
  "content.faq.top": "(oberste Ebene)",
  "content.faq.empty": "Noch keine Fragen.",
- "content.faq.open_editor": "Im Editor anlegen"
+ "content.faq.open_editor": "Im Editor anlegen",
+ "content.faq.new_source": "– Neue Kategorie mit dem Titel anlegen –"
 }

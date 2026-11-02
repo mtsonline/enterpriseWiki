@@ -247,3 +247,15 @@ th .ew-help { font-weight: 400; }
 .ew-facts { display: grid; grid-template-columns: max-content 1fr; gap: .35rem 1.25rem; margin: 0 0 1rem; }
 .ew-facts dt { font-weight: 600; }
 .ew-facts dd { margin: 0; }
+/* pickers, filters */
+.ew-picker-filter { flex: 1 1 100%; margin-bottom: .25rem; }
+.ew-picker-list { min-height: 10rem; }
+.ew-picker--element { border: 1px solid var(--ew-border); border-radius: 8px; padding: .75rem; }
+.ew-subfield { border: 1px solid var(--ew-border); border-radius: 8px; padding: .5rem .75rem; margin-bottom: .75rem; }
+.ew-filters { display: grid; grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr)); gap: 0 1rem; align-items: start; margin-bottom: .5rem; }
+.ew-pager { display: flex; gap: .75rem; justify-content: center; margin: 1rem 0; }
+.ew-table-wrap { overflow-x: auto; }
+.ew-table--compact td, .ew-table--compact th { vertical-align: top; }
+.ew-table--compact td.ew-actions { white-space: normal; min-width: 8rem; line-height: 1.9; }
+.ew-nowrap { white-space: nowrap; }
+.ew-table--compact td.ew-actions > * { margin: 0 .6rem 0 0; }

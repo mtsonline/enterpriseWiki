@@ -554,6 +554,53 @@ test('team page and business card', async () => {
   await a11y('team page');
 });
 
+test('menu item pointing to an existing element; new blog from the menu dialog', async () => {
+  const cat = await m6Category();
+  await call('POST', '/api/v1/elements', { category_id: cat, type: 'core.html', title: `Pickable ${run}`, body: { format: 'html', source: '<p>x</p>' } });
+  await page.goto(BASE + '/admin/menus');
+  await idle();
+  await page.getByRole('button', { name: /^(add menu|menü hinzufügen)$/i }).click();
+  const dlg = page.locator('dialog[open]');
+  await dlg.getByLabel(/^(menu name|menüname)/i).fill(`Picker ${run}`);
+  await dlg.locator('select').first().selectOption('sidebar-bottom');
+  await dlg.getByLabel(/^(target|ziel)$/i).selectOption('element');
+  // existing elements are listed without choosing a category first
+  await dlg.getByLabel(/^(search element|element suchen)/i).fill(`Pickable ${run}`);
+  await page.waitForFunction((n) => [...document.querySelectorAll('dialog[open] .ew-picker-list option')].some((o) => o.textContent.includes(n)), `Pickable ${run}`);
+  await dlg.locator('.ew-picker-list').selectOption({ index: 0 });
+  await a11y('menu dialog with element picker');
+  // a blog can be created right here: without a source a category is created
+  await dlg.getByRole('button', { name: /^(new element|neues element)$/i }).click();
+  const nd = page.locator('dialog[open]').last();
+  await nd.getByLabel(/^(element type|elementtyp)/i).selectOption('content.blog');
+  await nd.getByLabel(/^(title|titel)/i).fill(`Quickblog ${run}`);
+  await a11y('new element dialog');
+  await nd.locator('button[type=submit]').click();
+  await page.waitForFunction((n) => [...document.querySelectorAll('dialog[open] .ew-picker-list option:checked')].some((o) => o.textContent.includes(n)), `Quickblog ${run}`);
+  await dlg.locator('button[type=submit]').first().click();
+  await page.waitForSelector(`.ew-pos--sidebar-bottom a:has-text("Quickblog ${run}")`);
+});
+
+test('short URL and the elements administration', async () => {
+  const cat = await m6Category();
+  const el = await call('POST', '/api/v1/elements', { category_id: cat, type: 'core.html', title: `Shorty ${run}`, body: { format: 'html', source: '<p>short</p>' } });
+  await page.goto(BASE + '/admin/elements');
+  await idle();
+  await page.getByRole('searchbox', { name: /search element|element suchen/i }).fill(`Shorty ${run}`);
+  await page.waitForFunction((n) => document.querySelectorAll('.ew-admin-results tbody tr').length === 1 && document.querySelector('.ew-admin-results tbody')?.textContent?.includes(n), `Shorty ${run}`);
+  await a11y('elements administration');
+  await page.getByRole('button', { name: new RegExp(`^(properties|eigenschaften): Shorty ${run}`, 'i') }).click();
+  const dlg = page.locator('dialog[open]');
+  await dlg.getByLabel(/^(short url|kurz-url)/i).fill(`Kurz ${run}`);
+  await dlg.locator('button[type=submit]').click();
+  await page.waitForSelector(`.ew-admin-results code:has-text("/kurz-${run}")`);
+  await page.goto(BASE + `/kurz-${run}`);
+  await idle();
+  await page.locator('h1', { hasText: `Shorty ${run}` }).waitFor();
+  assert.equal(new URL(page.url()).pathname, `/kurz-${run}`);
+  assert.ok(el.id > 0);
+});
+
 test('guest cache administration', async () => {
   await page.goto(BASE + '/admin/cache');
   await idle();

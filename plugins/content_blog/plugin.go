@@ -301,3 +301,9 @@ func (p *Plugin) Setup(hs *sdk.Host) error {
 	})
 	return nil
 }
+
+// Prepare implements content.Preparer: without a chosen category a new one
+// (named like the element) is created for the entries.
+func (Type) Prepare(ctx context.Context, svc *content.Service, categoryID int64, lang, title string, body json.RawMessage) (json.RawMessage, error) {
+	return catlist.PrepareSource(ctx, svc, categoryID, lang, title, body)
+}

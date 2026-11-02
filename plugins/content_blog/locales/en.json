@@ -1,7 +1,7 @@
 {
  "content.blog.choose_category": "– choose category –",
  "content.blog.category": "Category of the posts",
- "content.blog.category_help": "Posts are normal pages of this category. Choose an existing one or create a new one.",
+ "content.blog.category_help": "The entries are normal pages of this category. Without a choice a new category with the title is created when saving.",
  "content.blog.recursive": "Include posts from subcategories",
  "content.blog.source": "Posts",
  "content.blog.intro": "Introduction",
@@ -39,5 +39,6 @@
  "content.blog.page_of": "Page {page} of {pages}",
  "content.blog.clear_filter": "Clear filter",
  "content.blog.search": "Search the blog",
- "content.blog.search_placeholder": "Search term …"
+ "content.blog.search_placeholder": "Search term …",
+ "content.blog.new_source": "– Create a new category with the title –"
 }

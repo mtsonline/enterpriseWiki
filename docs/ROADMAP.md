@@ -74,3 +74,15 @@ Offen / Vorschläge:
 - Ausnahmen in Serien bearbeiten („nur diesen Termin ändern“), nicht nur absagen.
 - Tägliche oder wöchentliche Zusammenfassung statt sofortiger Beobachtungs-E-Mails, wählbar je Beobachtung.
 - Webhooks für Ereignisse (Seite geändert, Anmeldung zu einem Termin) für Teams/Slack.
+
+## Nachbesserungen v7.4.1
+
+Administration → Elemente (alle Elemente suchen, filtern, bearbeiten, verschieben, löschen); Element-Auswahl mit Suche über alle Kategorien (Kategorie nur als Filter), filterbare Kategorie-Auswahl; „Neues Element“ fragt nur Typ und Titel, Blog/FAQ legen ohne Quelle eine Kategorie an; Kurz-URLs (`/kalender`) für Elemente und Kategorien; Startseite wählbar (Übersicht, Kategorie, Element) und Elementtyp `content.catlist` (Kategorieübersicht).
+
+## Meilenstein 6 – geplant
+
+1. Serverseitiges Vorrendern des Seiteninhalts für Gäste (Suchmaschinen, Besucher ohne JavaScript).
+2. VTIMEZONE-Blöcke im iCal-Export (ältere Outlook-Versionen, Serien über die Sommerzeit-Umstellung).
+3. Einzelne Termine einer Serie ändern, nicht nur absagen.
+4. Beobachtungen wahlweise als tägliche oder wöchentliche Zusammenfassung.
+5. Webhooks für Teams/Slack (z. B. Seitenänderungen, Anmeldungen).

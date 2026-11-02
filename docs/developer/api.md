@@ -34,6 +34,8 @@ curl -H "Authorization: Bearer $KEY" -H 'Content-Type: application/json' \
 - **Zurücksetzen:** `POST /api/v1/categories/{id}/rollback {"at": "2026-10-01T12:00:00Z", "recursive": true}`.
 - **Dateien:** `POST /api/v1/files` (multipart, Feld `file`) liefert `{hash, name, mime, size}`. Ein Element `core.attachment` referenziert die Datei mit `{"file": {"hash": "…"}, "description": "…"}`. Heruntergeladen wird mit Rechteprüfung über `GET /api/v1/x/core.attachment/elements/{id}/file[?hash=…][&inline=1]`. Bilder sind zusätzlich unter `GET /api/v1/files/{hash}` abrufbar (für Bilder in Seiten).
 - **Suche:** `GET /api/v1/search?q=wort&tags=a,b&lang=de` liefert `snippet` als HTML-escaped Text mit `<mark>`. Mit `category=ID` wird nur in dieser Kategorie und ihren Unterkategorien gesucht (`recursive=0`: nur in der Kategorie).
+- **Elemente auflisten:** `GET /api/v1/elements?q=&type=&category=&recursive=1&sort=title|updated|created|type&limit=&offset=` liefert `{items, total}` mit `category_path` (nur sichtbare Elemente, für Administratoren alle).
+- **Kurz-URLs:** `short_url` bei `POST /elements`, `PATCH /elements/{id}`, `POST/PUT /categories` (leer = entfernen). `GET /api/v1/resolve?path=kalender` liefert `{type, id}`.
 - **Beobachten:** `PUT /api/v1/me/watches {"target_type": "category"|"element", "target_id": 12, "mode": "link"|"content", "recursive": true}`; Status für ein Ziel: `GET /api/v1/me/watches?target_type=element&target_id=5`.
 - **Feeds:** `GET /api/v1/feeds/categories/{id}?format=atom|rss&lang=de[&content=1]` (wenn in der Kategorie eingeschaltet), Blog/FAQ unter `/api/v1/x/content.blog|content.faq/elements/{id}/feed`. Feed-Reader ohne Anmeldung verwenden den persönlichen Schlüssel aus `GET /api/v1/me/feed-token` als `&token=…`. Er gilt nur für Feed- und Kalender-Routen und lässt sich mit `POST` erneuern bzw. mit `DELETE` löschen.
 - **Termine:** `POST /api/v1/x/content.events/calendars/{id}/events {"title", "starts_at", "ends_at", "all_day", "tz": "Europe/Vienna", "rrule": "FREQ=WEEKLY;BYDAY=MO", "registration": true, "capacity": 20, "reminders": [1440]}`; Termine eines Zeitraums mit `GET …/calendars/{id}/events?from=…&to=…` (Serien sind aufgelöst, `occurrences[].date` ist der Schlüssel für Anmeldungen). Anmelden: `POST …/events/{id}/registrations {"occurrence": "2026-11-23"}` (`interested: true` nur für Erinnerungen).
@@ -147,6 +149,7 @@ curl -H "Authorization: Bearer $KEY" -H 'Content-Type: application/json' \
 | `GET` | `/api/v1/elements/{id}/revisions` |
 | `GET` | `/api/v1/elements/{id}/revisions/{lang}/{rev}` |
 | `POST` | `/api/v1/elements/{id}/restore` |
+| `GET` | `/api/v1/elements` |
 
 ### Makros
 
@@ -284,3 +287,4 @@ curl -H "Authorization: Bearer $KEY" -H 'Content-Type: application/json' \
 | Methode | Pfad |
 |---|---|
 | `GET` | `/api/v1/feeds/categories/{id}` |
+| `GET` | `/api/v1/resolve` |

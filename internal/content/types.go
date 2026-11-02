@@ -42,6 +42,14 @@ type ElementType interface {
 	EmptyBody() json.RawMessage
 }
 
+// Preparer is implemented by element types that complete a body before it
+// is validated, with the permissions of the caller: e.g. the blog creates a
+// category for its posts when none was chosen. categoryID is the category
+// of the element.
+type Preparer interface {
+	Prepare(ctx context.Context, svc *Service, categoryID int64, lang, title string, body json.RawMessage) (json.RawMessage, error)
+}
+
 // TypeInfo describes a registered element type.
 type TypeInfo struct {
 	ID       string            `json:"id"`

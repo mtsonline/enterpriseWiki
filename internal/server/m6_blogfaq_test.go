@@ -18,8 +18,9 @@ func TestBlogAndFAQ(t *testing.T) {
 	admin.must("POST", "/api/v1/categories", map[string]any{"parent_id": site.ID, "titles": map[string]string{"en": "News"}}, &blogCat, 201)
 
 	// ------------------------------------------------------------ blog
-	if code := admin.do("POST", "/api/v1/elements", map[string]any{"category_id": site.ID, "type": "content.blog", "title": "Blog"}, nil); code != 400 {
-		t.Fatalf("blog without category accepted: %d", code)
+	// without a source a category named like the blog is created (see TestShortURLsListingAndOverview)
+	if code := admin.do("POST", "/api/v1/elements", map[string]any{"category_id": site.ID, "type": "content.blog", "title": "Blog"}, nil); code != 201 {
+		t.Fatalf("blog without category: %d", code)
 	}
 	var blog elem
 	admin.must("POST", "/api/v1/elements", map[string]any{"category_id": blogCat.ID, "type": "content.blog", "title": "Our blog",

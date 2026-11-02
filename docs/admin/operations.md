@@ -87,6 +87,9 @@ ewiki mail bounces                      # Bounce-Postfach jetzt abrufen
 ewiki cache clear                       # Gäste-Cache auf allen Servern leeren
 ewiki watch add category 12 --mode content --as anna   # anna beobachtet Kategorie 12 (mit Inhalt)
 ewiki api GET /api/v1/x/content.events/upcoming        # nächste Termine aller Kalender
+ewiki api GET '/api/v1/elements?q=kalender&type=core.html'   # Elemente suchen (wie Administration → Elemente)
+ewiki api PATCH /api/v1/elements/12 '{"short_url":"kalender"}' # Kurz-URL setzen
+ewiki config set ui.home_element 12                    # Element 12 als Startseite
 ```
 
 ## Wartungsaufgaben

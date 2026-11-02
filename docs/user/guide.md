@@ -104,6 +104,14 @@ Beim Anlegen eines Elements (*Neues Element*) wählen Sie den Typ:
   - Das Makro **Nächste Termine** zeigt kommende Termine auf jeder Seite.
 - **Team**: Name und Beschreibung (Markdown/HTML), eine oder mehrere Gruppen, deren Mitglieder angezeigt werden, und die Auswahl der Angaben: Foto, Funktion, Abteilung, E-Mail, Telefon, Mobil, Büro, „Über mich“, Gruppen oder Attribute aus LDAP/OIDC/SAML. Darstellung als Karten, Liste oder Tabelle, auf Wunsch nach Gruppen gegliedert, mit Filter und CSV-Export. Die Angaben pflegt jede Person unter *Mein Profil → Visitenkarte*, Administratoren unter *Administration → Benutzer*.
 
+### Kurz-URLs
+
+Elemente und Kategorien können eine **Kurz-URL** bekommen: Seiten über *Eigenschaften*, Kategorien über *Kategorie bearbeiten* bzw. die Einstellungen. Mit `kalender` ist das Element dann unter `https://ihr-wiki/kalender` erreichbar. Unterebenen wie `team/hr` sind möglich. Jede Kurz-URL gibt es nur einmal; Wörter, die das Wiki selbst verwendet (`admin`, `login`, `search`, …), sind gesperrt. Menüs und Übersichten verlinken automatisch die Kurz-URL.
+
+### Startseite und Kategorieübersicht
+
+Unter *Administration → Einstellungen → Startseite* wählen Administratoren, was unter `/` erscheint: die Übersicht der obersten Kategorien, eine Kategorie oder ein Element. Neue Installationen zeigen die Willkommensseite. Für eine Übersicht von Bereichen eignet sich der Elementtyp **Kategorieübersicht**: eine Kategorie oder die oberste Ebene, mit 1–5 Ebenen Unterkategorien, als Karten oder Liste, auf Wunsch mit Beschreibungen und den Seiten jeder Kategorie.
+
 ### Menüs
 
 Unter *Administration → Menüs* (Administratoren) bestehen Menüs aus Einträgen mit einem Ziel:
@@ -114,7 +122,7 @@ Unter *Administration → Menüs* (Administratoren) bestehen Menüs aus Einträg
 - ein **anderes Menü** als aufklappbares Untermenü (für mehrstufige Menüs),
 - eine **Überschrift**, die nur die eingerückten Einträge darunter gruppiert.
 
-Kategorien und Elemente wählen Sie aus den vorhandenen aus oder legen sie über **Neue Kategorie** bzw. **Neues Element** direkt an. Bleibt die Beschriftung leer, erscheint der Titel des Ziels in der jeweiligen Sprache. Einträge, die jemand nicht sehen darf, werden ihm nicht angezeigt.
+Kategorien und Elemente wählen Sie aus den vorhandenen aus: Kategorien über eine filterbare Liste, Elemente über eine Suche nach Titel oder Kurz-URL in allen Kategorien. Die Kategorie dient dabei nur als optionaler Filter. Über **Neue Kategorie** bzw. **Neues Element** legen Sie Ziele direkt an. Beim neuen Element sind nur Typ und Titel nötig. Die vorgeschlagene Ablage-Kategorie bestimmt nur, wer es sehen und bearbeiten darf. Bei Blog und FAQ wird ohne Auswahl einer Quelle automatisch eine Kategorie mit dem Titel angelegt. Bleibt die Beschriftung leer, erscheint der Titel des Ziels in der jeweiligen Sprache. Einträge, die jemand nicht sehen darf, werden ihm nicht angezeigt.
 
 Menüs ohne Platz („nur als Untermenü“) können in mehreren Menüs eingehängt werden. In der Kopfzeile öffnen sich Untermenüs als Ausklapp-Menüs (per Maus, Tastatur, Esc schließt), in der Seitenleiste als aufklappbarer Baum, im Fußbereich vollständig.
 

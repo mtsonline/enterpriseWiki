@@ -230,6 +230,10 @@ func (e *env) seed(ctx context.Context, a *app.App, editors int64) error {
 			return err
 		}
 	}
+	// the welcome page is the start page of new installations
+	if a.Config.Get().UI.HomeElement == 0 && a.Config.Get().UI.HomeCategory == 0 {
+		return a.Config.Update(func(c *config.Config) error { c.UI.HomeElement = el.ID; return nil })
+	}
 	return nil
 }
 

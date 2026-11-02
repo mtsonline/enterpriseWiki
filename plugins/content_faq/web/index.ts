@@ -23,8 +23,8 @@ function createEditor(container: HTMLElement, raw: unknown): EditorInstance {
   const err = h('p', { class: 'ew-field-error', role: 'alert' });
   const catBox = h('div');
   let cats: Awaited<ReturnType<typeof categorySelect>> | null = null;
-  void categorySelect({ selected: b.category_id, perm: 'view', noneLabel: t('content.faq.choose_category'), allowCreate: true })
-    .then((cs) => { cats = cs; catBox.append(cs.field(t('content.faq.category'), { help: t('content.faq.category_help'), required: true })); });
+  void categorySelect({ selected: b.category_id, perm: 'view', noneLabel: t('content.faq.new_source'), allowCreate: true })
+    .then((cs) => { cats = cs; catBox.append(cs.field(t('content.faq.category'), { help: t('content.faq.category_help') })); });
   const rec = checkbox(t('content.faq.recursive'), b.recursive);
   const fmt = select([{ value: 'markdown', label: 'Markdown' }, { value: 'html', label: 'HTML' }], b.intro.format);
   const intro = textArea({ value: b.intro.source, rows: 4 });
@@ -42,11 +42,6 @@ function createEditor(container: HTMLElement, raw: unknown): EditorInstance {
       category_id: cats?.value() ?? b.category_id, recursive: rec.input.checked, intro: { format: fmt.value, source: intro.value },
       feed: feed.input.checked, open_sections: open.input.checked, numbering: num.input.checked, search: search.input.checked,
     }),
-    validate: () => {
-      const ok = (cats?.value() ?? b.category_id) > 0;
-      err.textContent = ok ? '' : t('content.faq.err_category');
-      return ok ? null : t('content.faq.err_category');
-    },
   };
 }
 

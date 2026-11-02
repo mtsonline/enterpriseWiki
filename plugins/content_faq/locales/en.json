@@ -1,7 +1,7 @@
 {
  "content.faq.choose_category": "– choose category –",
  "content.faq.category": "Category of the questions",
- "content.faq.category_help": "Subcategories become collapsible sections, pages become questions (title = question, content = answer).",
+ "content.faq.category_help": "The entries are normal pages of this category. Without a choice a new category with the title is created when saving.",
  "content.faq.recursive": "Show subcategories as sections",
  "content.faq.source": "Questions",
  "content.faq.intro": "Introduction",
@@ -32,5 +32,6 @@
  "content.faq.parent_section": "Parent section",
  "content.faq.top": "(top level)",
  "content.faq.empty": "No questions yet.",
- "content.faq.open_editor": "Create in the editor"
+ "content.faq.open_editor": "Create in the editor",
+ "content.faq.new_source": "– Create a new category with the title –"
 }

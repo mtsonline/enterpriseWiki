@@ -82,6 +82,8 @@ type UI struct {
 	Template string `yaml:"template" json:"template"`
 	// HomeCategory is shown on the start page (0 = first root category).
 	HomeCategory int64 `yaml:"home_category" json:"home_category"`
+	// HomeElement is shown as start page (wins over HomeCategory; 0 = none).
+	HomeElement int64 `yaml:"home_element" json:"home_element"`
 }
 
 // Auth configures authentication.

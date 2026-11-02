@@ -1,0 +1,18 @@
+{
+ "content.catlist.top_level": "– Oberste Ebene (alle Bereiche) –",
+ "content.catlist.category": "Kategorie",
+ "content.catlist.category_help": "Ihre Unterkategorien werden aufgelistet. Ohne Auswahl: die obersten Kategorien.",
+ "content.catlist.source": "Inhalt",
+ "content.catlist.depth": "Ebenen",
+ "content.catlist.depth_help": "Wie viele Ebenen von Unterkategorien gezeigt werden.",
+ "content.catlist.display": "Darstellung",
+ "content.catlist.layout": "Layout",
+ "content.catlist.layout_cards": "Karten",
+ "content.catlist.layout_list": "Liste",
+ "content.catlist.descriptions": "Beschreibungen anzeigen",
+ "content.catlist.elements": "Seiten der Kategorien auflisten",
+ "content.catlist.max_elements": "Höchstens Seiten je Kategorie",
+ "content.catlist.intro": "Einleitung",
+ "content.catlist.format": "Format",
+ "content.catlist.intro_text": "Text über der Übersicht"
+}

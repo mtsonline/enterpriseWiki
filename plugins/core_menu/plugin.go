@@ -225,6 +225,7 @@ type resolver struct {
 	acl      *acl.Service
 	menus    map[int64]Menu
 	cats     map[int64]map[string]string
+	short    map[string]string // "c12" / "e5" -> short URL
 	elements map[int64]struct {
 		cat    int64
 		titles map[string]string
@@ -244,7 +245,7 @@ func collect(items []Item, cats, els map[int64]bool) {
 }
 
 func newResolver(ctx context.Context, hs *sdk.Host, all []Menu) (*resolver, error) {
-	r := &resolver{ctx: ctx, acl: hs.ACL, menus: map[int64]Menu{}, cats: map[int64]map[string]string{}, elements: map[int64]struct {
+	r := &resolver{ctx: ctx, acl: hs.ACL, menus: map[int64]Menu{}, cats: map[int64]map[string]string{}, short: map[string]string{}, elements: map[int64]struct {
 		cat    int64
 		titles map[string]string
 	}{}}
@@ -261,14 +262,15 @@ func newResolver(ctx context.Context, hs *sdk.Host, all []Menu) (*resolver, erro
 		return out
 	}
 	if len(els) > 0 {
-		rows, err := hs.DB.Query(ctx, `SELECT id, category_id, titles FROM elements WHERE id = ANY($1) AND deleted_at IS NULL`, ids(els))
+		rows, err := hs.DB.Query(ctx, `SELECT id, category_id, titles, COALESCE(short_url, '') FROM elements WHERE id = ANY($1) AND deleted_at IS NULL`, ids(els))
 		if err != nil {
 			return nil, err
 		}
 		for rows.Next() {
 			var id, cat int64
 			var t map[string]string
-			if err := rows.Scan(&id, &cat, &t); err != nil {
+			var short string
+			if err := rows.Scan(&id, &cat, &t, &short); err != nil {
 				rows.Close()
 				return nil, err
 			}
@@ -276,26 +278,41 @@ func newResolver(ctx context.Context, hs *sdk.Host, all []Menu) (*resolver, erro
 				cat    int64
 				titles map[string]string
 			}{cat, t}
+			if short != "" {
+				r.short[fmt.Sprintf("e%d", id)] = short
+			}
 		}
 		rows.Close()
 	}
 	if len(cats) > 0 {
-		rows, err := hs.DB.Query(ctx, `SELECT id, titles FROM categories WHERE id = ANY($1) AND deleted_at IS NULL`, ids(cats))
+		rows, err := hs.DB.Query(ctx, `SELECT id, titles, COALESCE(short_url, '') FROM categories WHERE id = ANY($1) AND deleted_at IS NULL`, ids(cats))
 		if err != nil {
 			return nil, err
 		}
 		for rows.Next() {
 			var id int64
 			var t map[string]string
-			if err := rows.Scan(&id, &t); err != nil {
+			var short string
+			if err := rows.Scan(&id, &t, &short); err != nil {
 				rows.Close()
 				return nil, err
 			}
 			r.cats[id] = t
+			if short != "" {
+				r.short[fmt.Sprintf("c%d", id)] = short
+			}
 		}
 		rows.Close()
 	}
 	return r, nil
+}
+
+// href is the short URL of a target or /c/ID, /e/ID.
+func (r *resolver) href(kind string, id int64) string {
+	if s := r.short[fmt.Sprintf("%s%d", kind, id)]; s != "" {
+		return "/" + s
+	}
+	return fmt.Sprintf("/%s/%d", kind, id)
 }
 
 func (r *resolver) can(cat int64) bool {
@@ -318,13 +335,13 @@ func (r *resolver) resolve(items []Item, depth int, visited map[int64]bool) []It
 			if !ok || !r.can(it.CategoryID) {
 				continue
 			}
-			it.Href, title = fmt.Sprintf("/c/%d", it.CategoryID), t
+			it.Href, title = r.href("c", it.CategoryID), t
 		case it.Type == "element" || (it.Type == "" && it.ElementID != 0):
 			e, ok := r.elements[it.ElementID]
 			if !ok || !r.can(e.cat) {
 				continue
 			}
-			it.Href, title = fmt.Sprintf("/e/%d", it.ElementID), e.titles
+			it.Href, title = r.href("e", it.ElementID), e.titles
 		case it.Type == "menu" || (it.Type == "" && it.MenuID != 0):
 			m, ok := r.menus[it.MenuID]
 			if !ok || visited[it.MenuID] {

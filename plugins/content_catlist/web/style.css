@@ -1,0 +1,12 @@
+.ewo-intro { margin-bottom: 1rem; }
+.ewo-cards { margin-top: .5rem; }
+.ewo-cards .ewo-title { font-size: 1.15rem; margin: 0 0 .25rem; }
+.ewo-desc { color: var(--ew-text-muted); margin: .25rem 0 .5rem; }
+.ewo-list { list-style: none; padding: 0; margin: 0; }
+.ewo-list .ewo-item { padding: .5rem 0; border-bottom: 1px solid var(--ew-border); }
+.ewo-list .ewo-title { font-size: 1.05rem; margin: 0; }
+.ewo-item .ewo-list { padding-left: 1rem; margin-top: .35rem; border-left: 2px solid var(--ew-border); }
+.ewo-item .ewo-list .ewo-item { border-bottom: none; padding: .2rem 0; }
+.ewo-elements { margin: .35rem 0 0; padding-left: 1.1rem; }
+.ewo-elements li { margin: .1rem 0; }
+.ewo-more a { color: var(--ew-text-muted); }

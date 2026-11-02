@@ -2,7 +2,7 @@
 package version
 
 // Version is the core version.
-var Version = "7.4.0-dev"
+var Version = "7.4.1-dev"
 
 // Commit is the git commit the binary was built from.
 var Commit = "unknown"

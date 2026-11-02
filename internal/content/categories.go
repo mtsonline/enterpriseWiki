@@ -31,6 +31,7 @@ type Category struct {
 	DefaultElementID *int64            `json:"default_element_id"`
 	// Feed: off | on (elements of this category) | recursive (with subcategories)
 	Feed         string     `json:"feed"`
+	ShortURL     string     `json:"short_url"`
 	CreatedAt    time.Time  `json:"created_at"`
 	UpdatedAt    time.Time  `json:"updated_at"`
 	DeletedAt    *time.Time `json:"deleted_at,omitempty"`
@@ -39,7 +40,7 @@ type Category struct {
 	Permissions  []string   `json:"permissions"`
 }
 
-const catCols = `c.id, c.parent_id, c.path::text, c.position, c.slug, c.titles, c.descriptions, c.tags, c.default_element_id, c.feed,
+const catCols = `c.id, c.parent_id, c.path::text, c.position, c.slug, c.titles, c.descriptions, c.tags, c.default_element_id, c.feed, COALESCE(c.short_url, ''),
 	c.created_at, c.updated_at, c.deleted_at,
 	EXISTS (SELECT 1 FROM categories x WHERE x.parent_id=c.id AND x.deleted_at IS NULL),
 	(SELECT count(*) FROM elements e WHERE e.category_id=c.id AND e.deleted_at IS NULL)`
@@ -47,7 +48,7 @@ const catCols = `c.id, c.parent_id, c.path::text, c.position, c.slug, c.titles, 
 func scanCategory(r pgx.CollectableRow) (Category, error) {
 	var c Category
 	var path string
-	err := r.Scan(&c.ID, &c.ParentID, &path, &c.Position, &c.Slug, &c.Titles, &c.Descriptions, &c.Tags, &c.DefaultElementID, &c.Feed,
+	err := r.Scan(&c.ID, &c.ParentID, &path, &c.Position, &c.Slug, &c.Titles, &c.Descriptions, &c.Tags, &c.DefaultElementID, &c.Feed, &c.ShortURL,
 		&c.CreatedAt, &c.UpdatedAt, &c.DeletedAt, &c.HasChildren, &c.ElementCount)
 	c.Path = parsePath(path)
 	return c, err
@@ -272,7 +273,9 @@ type CategoryInput struct {
 	Position         *int              `json:"position"`
 	DefaultElementID *int64            `json:"default_element_id"`
 	// Feed switches the Atom/RSS feed of the category: off, on, recursive.
-	Feed *string `json:"feed"`
+	// ShortURL is an additional address such as /kalender ("" removes it).
+	ShortURL *string `json:"short_url"`
+	Feed     *string `json:"feed"`
 	// GuestVisible applies to new root categories (default true: the first
 	// level is visible to guests unless disabled).
 	GuestVisible *bool `json:"guest_visible"`
@@ -332,6 +335,15 @@ func (s *Service) CreateCategory(ctx context.Context, in CategoryInput) (*Catego
 		if in.ParentID == nil && (in.GuestVisible == nil || *in.GuestVisible) {
 			if _, err := tx.Exec(ctx, `INSERT INTO acl_rules(category_id, subject_type, permissions, inherit, created_by)
 				VALUES ($1,'guest',$2,false,$3)`, id, acl.View, nullID(ctx)); err != nil {
+				return err
+			}
+		}
+		if in.ShortURL != nil {
+			short, err := NormalizeShortURL(*in.ShortURL)
+			if err != nil {
+				return err
+			}
+			if err := s.setShortURL(ctx, tx, "category", id, short); err != nil {
 				return err
 			}
 		}
@@ -410,6 +422,15 @@ func (s *Service) UpdateCategory(ctx context.Context, id int64, in CategoryInput
 		if _, err := tx.Exec(ctx, `UPDATE categories SET titles=$2, descriptions=$3, tags=$4, slug=$5, position=$6, default_element_id=$7, feed=$8, updated_at=now()
 			WHERE id=$1`, id, titles, descs, tags, slug, pos, def, feed); err != nil {
 			return err
+		}
+		if in.ShortURL != nil {
+			short, err := NormalizeShortURL(*in.ShortURL)
+			if err != nil {
+				return err
+			}
+			if err := s.setShortURL(ctx, tx, "category", id, short); err != nil {
+				return err
+			}
 		}
 		return audit.Log(ctx, tx, "category.update", "category", id,
 			snapshotOf(before.Titles, before.Descriptions, before.Tags, before.Slug, before.ParentID, before.Position, before.DefaultElementID),

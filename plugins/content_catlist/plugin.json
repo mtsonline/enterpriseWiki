@@ -1,0 +1,9 @@
+{
+  "id": "content.catlist",
+  "name": "Category overview",
+  "version": "1.0.0",
+  "description": "Element type that lists a category (or the top level) with its subcategories as cards or a list, optionally with the pages in each category – e.g. as start page or overview of a section.",
+  "author": "Enterprise Wiki",
+  "kinds": ["element"],
+  "frontend": true
+}

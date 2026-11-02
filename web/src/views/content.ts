@@ -9,6 +9,7 @@ import { toast } from '../core/announce';
 import { button, confirmDialog, errorText, field, formDialog, langFields, loading, openDialog, pageHeader, textInput, select } from '../components/ui';
 import { breadcrumbs, can, categoryPicker, ctx, invalidateTree, langName, setContext } from '../components/widgets';
 import { watchButton } from '../components/watch';
+import { shortURLInput } from '../components/shorturl';
 import { feedButton } from '../components/feeds';
 import { getEditor, renderElementExtensions, typeLabel, type EditorInstance } from '../sdk';
 
@@ -37,8 +38,14 @@ function tagList(tags: string[]): HTMLElement | null {
 
 // ---------------------------------------------------------------- home
 
-export async function homeView({ main }: RouteCtx): Promise<void> {
+export async function homeView(ctx: RouteCtx): Promise<void> {
+  const { main } = ctx;
   setContext(0, [], []);
+  if (state.site.home_element) {
+    // the start page shows an element (e.g. a welcome page or a category overview)
+    await elementView({ ...ctx, params: { id: String(state.site.home_element) } });
+    return;
+  }
   if (state.site.home_category) {
     navigate(`/c/${state.site.home_category}`, { replace: true });
     return;
@@ -126,7 +133,7 @@ export async function categoryView({ params, main }: RouteCtx): Promise<void> {
         h('h2', { id: 'ew-default-title', class: el.title === title && !elEdit ? 'sr-only' : undefined }, el.title),
         elEdit ? h('div', { class: 'ew-actions', role: 'group', 'aria-label': t('element.page_actions', { title: el.title }) },
           h('a', { href: `/e/${el.id}/edit?lang=${L()}`, class: 'ew-btn ew-btn--primary' }, t('element.edit_page')),
-          button(t('common.tags'), () => tagsDialog(el), { variant: 'secondary' }),
+          button(t('element.properties'), () => tagsDialog(el), { variant: 'secondary' }),
           h('a', { href: `/e/${el.id}/history`, class: 'ew-btn ew-btn--secondary' }, t('element.history'))) : null,
         fallbackNotice(el),
         trustedHTML(el.html),
@@ -204,9 +211,11 @@ function editCategoryDialog(c: Category): void {
   const titles = langFields(t('common.title'), c.titles, { required: true });
   const descs = langFields(t('common.description'), c.descriptions, { multiline: true });
   const tags = textInput({ value: c.tags.join(', ') });
+  const short = shortURLInput(c.short_url);
   formDialog(t('category.edit_title', { title: pick(c.titles, L(), D()) }), [titles.el, descs.el, field(t('common.tags'), tags, { help: t('common.tags_help') }),
+    field(t('shorturl.label'), short, { help: t('shorturl.help', { origin: location.origin }) }),
     h('p', { class: 'ew-help' }, t('category.edit_more'), ' ', h('a', { href: `/c/${c.id}/settings` }, t('category.settings')))], t('common.save'), async () => {
-    await api.put(`categories/${c.id}`, { titles: titles.get(), descriptions: descs.get(), tags: splitTags(tags.value) });
+    await api.put(`categories/${c.id}`, { titles: titles.get(), descriptions: descs.get(), tags: splitTags(tags.value), short_url: short.value });
     invalidateTree();
     toast(t('common.saved'));
     navigate(location.pathname, { replace: true });
@@ -303,7 +312,7 @@ export async function elementView({ params, main }: RouteCtx): Promise<void> {
   if (edit) {
     if (can('edit')) actions.push(h('a', { href: `/e/${el.id}/edit?lang=${L()}`, class: 'ew-btn ew-btn--primary' }, t('common.edit')));
     actions.push(h('a', { href: `/e/${el.id}/history`, class: 'ew-btn ew-btn--secondary' }, t('element.history')));
-    if (can('edit')) actions.push(button(t('common.tags'), () => tagsDialog(el), { variant: 'secondary' }));
+    if (can('edit')) actions.push(button(t('element.properties'), () => tagsDialog(el), { variant: 'secondary' }));
     if (can('edit') && !el.is_default) actions.push(button(t('element.make_default'), () => void makeDefault(el), { variant: 'secondary' }));
     if (can('delete')) actions.push(button(t('common.move'), () => moveElementDialog(el), { variant: 'secondary' }));
     actions.push(button(t('common.duplicate'), () => void duplicateElement(el), { variant: 'secondary' }));
@@ -321,6 +330,7 @@ export async function elementView({ params, main }: RouteCtx): Promise<void> {
     trustedHTML(el.html),
     h('footer', { class: 'ew-meta' },
       tagList(el.tags),
+      el.short_url ? h('p', null, t('shorturl.label'), ': ', h('a', { href: `/${el.short_url}` }, `${location.host}/${el.short_url}`)) : null,
       h('p', null, t('element.updated_by', { date: fmtDate(el.updated_at, L()), user: el.updated_by || '–' }), ' · ', t('element.revision', { rev: el.rev }), ' · ',
         h('a', { href: `/e/${el.id}/history` }, t('element.history')))),
     extensions));
@@ -328,10 +338,12 @@ export async function elementView({ params, main }: RouteCtx): Promise<void> {
 }
 
 function tagsDialog(el: ElementView): void {
-  // used on element pages and for the default page of a category
+  // properties of an element: tags and short URL (element pages and the default page of a category)
   const input = textInput({ value: el.tags.join(', ') });
-  formDialog(t('common.tags'), field(t('common.tags'), input, { help: t('common.tags_help') }), t('common.save'), async () => {
-    await api.patch(`elements/${el.id}`, { tags: splitTags(input.value) });
+  const short = shortURLInput(el.short_url);
+  formDialog(t('element.properties'), [field(t('common.tags'), input, { help: t('common.tags_help') }),
+    field(t('shorturl.label'), short, { help: t('shorturl.help', { origin: location.origin }) })], t('common.save'), async () => {
+    await api.patch(`elements/${el.id}`, { tags: splitTags(input.value), short_url: short.value });
     toast(t('common.saved'));
     navigate(location.pathname, { replace: true });
   });

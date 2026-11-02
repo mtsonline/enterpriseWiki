@@ -26,6 +26,7 @@ export interface Site {
   name: string;
   template: string;
   home_category: number;
+  home_element: number;
   languages: string[];
   default_language: string;
   plugins: string[] | null;
@@ -46,6 +47,7 @@ export interface Category {
   tags: string[];
   default_element_id: number | null;
   feed: 'off' | 'on' | 'recursive';
+  short_url: string;
   created_at: string;
   updated_at: string;
   has_children: boolean;
@@ -65,6 +67,7 @@ export interface ElementSummary {
   updated_at: string;
   updated_by: string;
   is_default: boolean;
+  short_url: string;
 }
 
 export interface LangStatus {

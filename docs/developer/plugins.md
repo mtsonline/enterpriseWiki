@@ -176,6 +176,7 @@ Speichert ein Plugin Datei-Hashes außerhalb von Element-Inhalten, meldet es die
 - `host.Content.Scope(ctx, categoryID, recursive)` liefert die Kategorie und (mit `recursive`) die sichtbaren Unterkategorien. `host.Content.ListIn(ctx, content.ListOptions{Categories, Lang, Order, Tag, Limit, Offset, WithContent, Exclude})` listet deren Elemente mit Titel, Anrisstext, Autor und optional gerendertem Inhalt. `host.Content.SearchIn(ctx, q, tags, lang, limit, scope)` sucht nur in diesen Kategorien.
 - Das Paket `internal/feed` schreibt Atom und RSS (`feed.Write` mit ETag und 304) und baut Einträge aus Listen (`feed.FromListing`). Persönliche Feed-Links: `host.Auth.FeedContext(r)` wertet `?token=` aus (nur für Feed- und Kalender-Routen verwenden).
 - `pkg/catlist` bündelt, was kategoriebasierte Elementtypen brauchen (Konfiguration mit Kategorie und Einleitung, Rechte im Bereich, Routen zum Anlegen von Einträgen und Unterkategorien, Feed). Beispiele sind `plugins/content_blog` und `plugins/content_faq`.
+- Ein Elementtyp kann `content.Preparer` implementieren (`Prepare(ctx, svc, categoryID, lang, title, body)`), um einen Inhalt vor der Prüfung mit den Rechten des Aufrufers zu ergänzen. Blog und FAQ legen so die Quell-Kategorie an, wenn keine gewählt wurde (`catlist.PrepareSource`).
 - Speichert ein Elementtyp Daten außerhalb seiner Versionen (z. B. Termine eines Kalenders), meldet er Änderungen mit `host.Content.Touch(ctx, elementID)`. Dann werden Beobachter informiert und der Gäste-Cache geleert. Änderungen über die API (POST/PUT/DELETE) leeren den Cache ohnehin.
 
 ### Anmeldeverfahren
@@ -220,7 +221,7 @@ export function register(): void {
 
 - Einstellungsseiten: `pluginSettingsForm('acme.kanban', [{ key: 'url', label: t('…') }, …])` erzeugt ein barrierefreies Formular, das in `config.yaml` speichert (Typen `text`, `secret`, `bool`, `number`, `list`, `map`, `select`, `textarea`). `MAPPING_FIELDS()` ergänzt die Gruppen- und Rollen-Zuordnung.
 - Dateien hochladen: `uploadFile(file)` liefert `{hash, name, mime, size}`.
-- Auswahl von Kategorien und Elementen mit „Neu anlegen“: `categorySelect({ selected, perm, noneLabel, allowCreate, onChange })` (`.field(label)` liefert das beschriftete Feld), `elementSelect({ selected, allowCreate, onChange })`, `newCategory(parent, done)`, `newElement(category, done)`.
+- Auswahl von Kategorien und Elementen mit „Neu anlegen“: `categorySelect({ selected, perm, noneLabel, allowCreate, onChange })` (`.field(label)` liefert das beschriftete Feld), `elementSelect({ selected, allowCreate, type, onChange })` (Suche über alle Kategorien), `newCategory(parent, done)`, `newElement(category, done)`.
 - `watchButton(type, id, title)` (Beobachten), `feedButton(apiPath, title)` (Feed-Dialog mit persönlichem Link) und `feedURL(path, format)` für eigene Feeds bzw. Abos.
 - Das SDK (`web/src/sdk.ts`) stellt DOM-Helfer (`h`), API-Client (`api` mit CSRF-Header), Übersetzungen (`t`, `pick`), barrierefreie Bausteine (`field`, `textInput`, `select`, `checkbox`, `button`, `formDialog`, `confirmDialog`, `openDialog`), `toast`/`announce` und `navigate` bereit.
 - Erzeugen Sie DOM mit `h()`. Verwenden Sie `innerHTML` nie für Benutzerdaten, sondern `trustedHTML()` nur für HTML, das der Server gerendert und bereinigt hat.

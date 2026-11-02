@@ -9,7 +9,7 @@ import { announce, toast } from '../core/announce';
 import { button, checkbox, confirmDialog, errorText, field, formDialog, openDialog, pageHeader, select, textArea, textInput } from '../components/ui';
 import { invalidateTree, langName, setContext } from '../components/widgets';
 import { typeLabel } from '../sdk';
-import { errorPage } from './content';
+import { categoryView, elementView, errorPage } from './content';
 import { watchDialog, type Watch } from '../components/watch';
 import { feedTokenSection } from '../components/feeds';
 import { profileCardForm } from '../components/profilecard';
@@ -418,7 +418,23 @@ export async function trashView({ main }: RouteCtx): Promise<void> {
           }, { variant: 'link', ariaLabel: t('trash.purge_named', { title: title(it) }) }) : null))) : [h('tr', null, h('td', { colspan: '6' }, t('trash.empty')))]))));
 }
 
-export function notFoundView({ main }: RouteCtx): void {
+/** Unknown paths: short URLs of elements and categories (/kalender), else 404. */
+export async function notFoundView(ctx: RouteCtx): Promise<void> {
+  const path = ctx.path.replace(/^\/+|\/+$/g, '');
+  if (path && !path.startsWith('api/')) {
+    try {
+      const r = await api.get<{ type: 'element' | 'category'; id: number }>(`resolve${qs({ path })}`);
+      const params = { ...ctx.params, id: String(r.id) };
+      if (r.type === 'element') await elementView({ ...ctx, params });
+      else await categoryView({ ...ctx, params });
+      return;
+    } catch (e) {
+      if (e instanceof ApiError && e.status === 401) {
+        errorPage(ctx.main, e);
+        return;
+      }
+    }
+  }
   setContext(0, [], []);
-  mount(main, h('h1', null, t('error.not_found')), h('p', null, h('a', { href: '/' }, t('nav.home'))));
+  mount(ctx.main, h('h1', null, t('error.not_found')), h('p', null, h('a', { href: '/' }, t('nav.home'))));
 }

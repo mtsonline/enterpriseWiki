@@ -1,0 +1,18 @@
+{
+ "content.catlist.top_level": "– Top level (all areas) –",
+ "content.catlist.category": "Category",
+ "content.catlist.category_help": "Its subcategories are listed. Without a choice: the top-level categories.",
+ "content.catlist.source": "Content",
+ "content.catlist.depth": "Levels",
+ "content.catlist.depth_help": "How many levels of subcategories are shown.",
+ "content.catlist.display": "Display",
+ "content.catlist.layout": "Layout",
+ "content.catlist.layout_cards": "Cards",
+ "content.catlist.layout_list": "List",
+ "content.catlist.descriptions": "Show descriptions",
+ "content.catlist.elements": "List the pages of the categories",
+ "content.catlist.max_elements": "At most pages per category",
+ "content.catlist.intro": "Introduction",
+ "content.catlist.format": "Format",
+ "content.catlist.intro_text": "Text above the overview"
+}

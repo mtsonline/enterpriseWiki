@@ -1,5 +1,7 @@
 // Administration: users, groups, roles, plugins, settings, languages, audit.
 import { profileCardForm } from '../components/profilecard';
+import { elementsAdmin } from './adminElements';
+import { categorySelect, elementSelect } from '../components/pickers';
 import { api, qs } from '../core/api';
 import { fmtDate, h, mount } from '../core/dom';
 import { t } from '../core/i18n';
@@ -14,7 +16,7 @@ import { errorPage } from './content';
 
 interface User { id: number; username: string; provider: string; handle: string; display_name: string; email: string; language: string; disabled: boolean; locked_until: string | null; created_at: string; last_login_at: string | null; groups: number[]; roles: number[]; totp_enabled: boolean }
 
-const CORE_SECTIONS = ['users', 'groups', 'roles', 'plugins', 'updates', 'settings', 'mail', 'cache', 'languages', 'audit'];
+const CORE_SECTIONS = ['users', 'groups', 'roles', 'elements', 'plugins', 'updates', 'settings', 'mail', 'cache', 'languages', 'audit'];
 
 const reload = () => navigate(location.pathname + location.search, { replace: true });
 
@@ -44,6 +46,7 @@ export async function adminView({ params, query, main }: RouteCtx): Promise<void
       case 'updates': await updates(panel, false); break;
       case 'settings': await settings(panel); break;
       case 'mail': await mailAdmin(panel, query); break;
+      case 'elements': await elementsAdmin(panel); break;
       case 'cache': await cacheAdmin(panel); break;
       case 'languages': await languages(panel, query); break;
       case 'audit': await auditLog(panel, query); break;
@@ -311,7 +314,7 @@ async function updates(panel: HTMLElement, force: boolean): Promise<void> {
 
 interface Settings {
   config: {
-    ui: { site_name: string; template: string; home_category: number };
+    ui: { site_name: string; template: string; home_category: number; home_element: number };
     i18n: { default_language: string; languages: string[] };
     auth: { order: string[]; session_ttl: string; api_key_max_ttl: string; ssh_token_ttl: string; max_login_failures: number; lockout_duration: string; min_password_length: number };
     retention: { revisions_keep_days: number; revisions_keep_min: number; trash_days: number; audit_days: number };
@@ -328,7 +331,15 @@ async function settings(panel: HTMLElement): Promise<void> {
   const siteName = textInput({ value: c.ui.site_name, required: true });
   const tpls = listTemplates().filter((x) => x.layout || x.extends);
   const tpl = select(tpls.map((x) => ({ value: x.id, label: `${templateLabel(x.id)} (${x.id})` })), c.ui.template);
-  const home = num(c.ui.home_category);
+  const homeMode = select(['overview', 'category', 'element'].map((v) => ({ value: v, label: t(`settings.home_${v}`) })),
+    c.ui.home_element ? 'element' : c.ui.home_category ? 'category' : 'overview');
+  const homeCat = await categorySelect({ selected: c.ui.home_category, perm: 'view' });
+  const homeEl = await elementSelect({ selected: c.ui.home_element, allowCreate: true });
+  const fHomeCat = homeCat.field(t('settings.home_category'));
+  const fHomeEl = h('fieldset', { class: 'ew-subfield' }, h('legend', null, t('settings.home_element')), homeEl.el);
+  const syncHome = () => { fHomeCat.hidden = homeMode.value !== 'category'; fHomeEl.hidden = homeMode.value !== 'element'; };
+  homeMode.addEventListener('change', syncHome);
+  syncHome();
   const defLang = select(c.i18n.languages.map((l) => ({ value: l, label: langName(l) })), c.i18n.default_language);
   const order = textInput({ value: c.auth.order.join(', ') });
   const sessionTTL = textInput({ value: c.auth.session_ttl });
@@ -344,7 +355,7 @@ async function settings(panel: HTMLElement): Promise<void> {
   const alert = h('div', { class: 'ew-form-alert', role: 'alert' });
   const fs = (legend: string, ...kids: HTMLElement[]) => h('fieldset', null, h('legend', null, legend), ...kids);
   const form = h('form', { class: 'ew-form', novalidate: true }, alert,
-    fs(t('settings.site'), field(t('settings.site_name'), siteName, { required: true }), field(t('settings.template'), tpl, { help: t('settings.template_help') }), field(t('settings.home_category'), home, { help: t('settings.home_category_help') }),
+    fs(t('settings.site'), field(t('settings.site_name'), siteName, { required: true }), field(t('settings.template'), tpl, { help: t('settings.template_help') }), field(t('settings.home'), homeMode, { help: t('settings.home_help') }), fHomeCat, fHomeEl,
       field(t('settings.default_language'), defLang, { help: t('settings.languages_help') })),
     fs(t('settings.auth'), field(t('settings.auth_order'), order, { help: t('settings.auth_order_help') }), field(t('settings.session_ttl'), sessionTTL, { help: t('settings.duration_help') }),
       field(t('settings.api_key_max_ttl'), keyTTL), field(t('settings.ssh_token_ttl'), sshTTL), field(t('settings.max_login_failures'), fails), field(t('settings.lockout_duration'), lockout), field(t('settings.min_password_length'), minPw)),
@@ -359,7 +370,7 @@ async function settings(panel: HTMLElement): Promise<void> {
     alert.textContent = '';
     try {
       await api.put('admin/settings', {
-        ui: { site_name: siteName.value, template: tpl.value, home_category: Number(home.value) || 0 },
+        ui: { site_name: siteName.value, template: tpl.value, home_category: homeMode.value === 'category' ? homeCat.value() : 0, home_element: homeMode.value === 'element' ? homeEl.value() : 0 },
         i18n: { default_language: defLang.value, languages: c.i18n.languages },
         auth: { order: order.value.split(',').map((x) => x.trim()).filter(Boolean), session_ttl: sessionTTL.value, api_key_max_ttl: keyTTL.value, ssh_token_ttl: sshTTL.value, max_login_failures: Number(fails.value), lockout_duration: lockout.value, min_password_length: Number(minPw.value) },
         retention: { revisions_keep_days: Number(keepDays.value), revisions_keep_min: Number(keepMin.value), trash_days: Number(trashDays.value), audit_days: Number(auditDays.value) },

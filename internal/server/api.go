@@ -51,6 +51,7 @@ func (s *Server) routes() {
 	s.routesM3()
 	s.routesM4()
 	s.routesM6()
+	s.routesM7()
 	// ---------------------------------------------------------------- system
 	s.app.Mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, r *http.Request) { h.Write(w, 200, map[string]string{"status": "ok"}) })
 	s.handle("GET /readyz", func(w http.ResponseWriter, r *http.Request) (any, error) {
@@ -780,7 +781,7 @@ func (s *Server) site(w http.ResponseWriter, r *http.Request) (any, error) {
 	}
 	home := c.UI.HomeCategory
 	return map[string]any{
-		"name": c.UI.SiteName, "template": c.UI.Template, "home_category": home,
+		"name": c.UI.SiteName, "template": c.UI.Template, "home_category": home, "home_element": c.UI.HomeElement,
 		"languages": c.I18n.Languages, "default_language": c.I18n.DefaultLanguage,
 		"plugins": frontend, "element_types": s.app.Content.Types(), "auth_providers": s.app.Auth.ProviderInfos(),
 		"version": version.Version, "permissions": acl.Names,

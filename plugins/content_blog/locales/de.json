@@ -1,7 +1,7 @@
 {
  "content.blog.choose_category": "– Kategorie wählen –",
  "content.blog.category": "Kategorie der Beiträge",
- "content.blog.category_help": "Die Beiträge sind normale Seiten dieser Kategorie. Wählen Sie eine bestehende oder legen Sie eine neue an.",
+ "content.blog.category_help": "Die Einträge sind normale Seiten dieser Kategorie. Ohne Auswahl wird beim Speichern eine neue Kategorie mit dem Titel angelegt.",
  "content.blog.recursive": "Beiträge aus Unterkategorien einbeziehen",
  "content.blog.source": "Beiträge",
  "content.blog.intro": "Einleitung",
@@ -39,5 +39,6 @@
  "content.blog.page_of": "Seite {page} von {pages}",
  "content.blog.clear_filter": "Filter aufheben",
  "content.blog.search": "Im Blog suchen",
- "content.blog.search_placeholder": "Suchbegriff …"
+ "content.blog.search_placeholder": "Suchbegriff …",
+ "content.blog.new_source": "– Neue Kategorie mit dem Titel anlegen –"
 }

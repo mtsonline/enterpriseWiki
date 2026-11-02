@@ -256,3 +256,22 @@ func FeedContext(hs *sdk.Host, r *http.Request) (*http.Request, error) {
 	}
 	return r.WithContext(ctx), nil
 }
+
+// PrepareSource completes a body without a source category: it creates a
+// subcategory (named like the element) below the element's category, with
+// the caller's permissions. Used by the content.Preparer of blog and FAQ.
+func PrepareSource(ctx context.Context, svc *content.Service, parent int64, lang, title string, body json.RawMessage) (json.RawMessage, error) {
+	m := map[string]any{}
+	if err := json.Unmarshal(body, &m); err != nil {
+		return body, nil // Normalize reports the error
+	}
+	if id, ok := m["category_id"].(float64); ok && id > 0 {
+		return body, nil
+	}
+	c, err := svc.CreateCategory(ctx, content.CategoryInput{ParentID: &parent, Titles: map[string]string{lang: title}})
+	if err != nil {
+		return nil, err
+	}
+	m["category_id"] = c.ID
+	return json.Marshal(m)
+}
