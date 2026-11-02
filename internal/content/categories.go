@@ -29,15 +29,17 @@ type Category struct {
 	Descriptions     map[string]string `json:"descriptions"`
 	Tags             []string          `json:"tags"`
 	DefaultElementID *int64            `json:"default_element_id"`
-	CreatedAt        time.Time         `json:"created_at"`
-	UpdatedAt        time.Time         `json:"updated_at"`
-	DeletedAt        *time.Time        `json:"deleted_at,omitempty"`
-	HasChildren      bool              `json:"has_children"`
-	ElementCount     int               `json:"element_count"`
-	Permissions      []string          `json:"permissions"`
+	// Feed: off | on (elements of this category) | recursive (with subcategories)
+	Feed         string     `json:"feed"`
+	CreatedAt    time.Time  `json:"created_at"`
+	UpdatedAt    time.Time  `json:"updated_at"`
+	DeletedAt    *time.Time `json:"deleted_at,omitempty"`
+	HasChildren  bool       `json:"has_children"`
+	ElementCount int        `json:"element_count"`
+	Permissions  []string   `json:"permissions"`
 }
 
-const catCols = `c.id, c.parent_id, c.path::text, c.position, c.slug, c.titles, c.descriptions, c.tags, c.default_element_id,
+const catCols = `c.id, c.parent_id, c.path::text, c.position, c.slug, c.titles, c.descriptions, c.tags, c.default_element_id, c.feed,
 	c.created_at, c.updated_at, c.deleted_at,
 	EXISTS (SELECT 1 FROM categories x WHERE x.parent_id=c.id AND x.deleted_at IS NULL),
 	(SELECT count(*) FROM elements e WHERE e.category_id=c.id AND e.deleted_at IS NULL)`
@@ -45,7 +47,7 @@ const catCols = `c.id, c.parent_id, c.path::text, c.position, c.slug, c.titles, 
 func scanCategory(r pgx.CollectableRow) (Category, error) {
 	var c Category
 	var path string
-	err := r.Scan(&c.ID, &c.ParentID, &path, &c.Position, &c.Slug, &c.Titles, &c.Descriptions, &c.Tags, &c.DefaultElementID,
+	err := r.Scan(&c.ID, &c.ParentID, &path, &c.Position, &c.Slug, &c.Titles, &c.Descriptions, &c.Tags, &c.DefaultElementID, &c.Feed,
 		&c.CreatedAt, &c.UpdatedAt, &c.DeletedAt, &c.HasChildren, &c.ElementCount)
 	c.Path = parsePath(path)
 	return c, err
@@ -269,6 +271,8 @@ type CategoryInput struct {
 	Slug             *string           `json:"slug"`
 	Position         *int              `json:"position"`
 	DefaultElementID *int64            `json:"default_element_id"`
+	// Feed switches the Atom/RSS feed of the category: off, on, recursive.
+	Feed *string `json:"feed"`
 	// GuestVisible applies to new root categories (default true: the first
 	// level is visible to guests unless disabled).
 	GuestVisible *bool `json:"guest_visible"`
@@ -361,7 +365,15 @@ func (s *Service) UpdateCategory(ctx context.Context, id int64, in CategoryInput
 	if err != nil {
 		return nil, err
 	}
-	titles, descs, tags, slug, pos, def := before.Titles, before.Descriptions, before.Tags, before.Slug, before.Position, before.DefaultElementID
+	titles, descs, tags, slug, pos, def, feed := before.Titles, before.Descriptions, before.Tags, before.Slug, before.Position, before.DefaultElementID, before.Feed
+	if in.Feed != nil {
+		switch *in.Feed {
+		case "off", "on", "recursive":
+			feed = *in.Feed
+		default:
+			return nil, apperr.BadRequest("feed must be off, on or recursive")
+		}
+	}
 	if in.Titles != nil {
 		if titles, err = s.normalizeTexts(in.Titles, 200, true); err != nil {
 			return nil, err
@@ -395,8 +407,8 @@ func (s *Service) UpdateCategory(ctx context.Context, id int64, in CategoryInput
 		}
 	}
 	err = db.Tx(ctx, s.pool, func(tx pgx.Tx) error {
-		if _, err := tx.Exec(ctx, `UPDATE categories SET titles=$2, descriptions=$3, tags=$4, slug=$5, position=$6, default_element_id=$7, updated_at=now()
-			WHERE id=$1`, id, titles, descs, tags, slug, pos, def); err != nil {
+		if _, err := tx.Exec(ctx, `UPDATE categories SET titles=$2, descriptions=$3, tags=$4, slug=$5, position=$6, default_element_id=$7, feed=$8, updated_at=now()
+			WHERE id=$1`, id, titles, descs, tags, slug, pos, def, feed); err != nil {
 			return err
 		}
 		return audit.Log(ctx, tx, "category.update", "category", id,

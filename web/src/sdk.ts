@@ -25,6 +25,7 @@ export type { TreeNode } from './components/widgets';
 export { categorySelect, elementSelect, newCategory, newElement } from './components/pickers';
 export type { CategorySelect, ElementSelect } from './components/pickers';
 export { watchButton } from './components/watch';
+export { feedButton, feedURL, feedToken, advertiseFeed } from './components/feeds';
 export type { WidgetFactory } from './core/widgets';
 
 // ---------------------------------------------------------------- plugin modules

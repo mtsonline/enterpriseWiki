@@ -49,17 +49,19 @@ function general(panel: HTMLElement, c: Category, elements: ElementSummary[]): v
   const tags = textInput({ value: c.tags.join(', ') });
   const slug = textInput({ value: c.slug });
   const def = select([{ value: '0', label: t('category.no_default') }, ...elements.map((e) => ({ value: String(e.id), label: pick(e.titles, state.lang, e.original_lang) }))], String(c.default_element_id ?? 0));
+  const feed = select(['off', 'on', 'recursive'].map((v) => ({ value: v, label: t(`feed.setting_${v}`) })), c.feed ?? 'off');
   const alert = h('div', { class: 'ew-form-alert', role: 'alert' });
   const form = h('form', { class: 'ew-form', novalidate: true }, alert, titles.el, descs.el,
     field(t('common.tags'), tags, { help: t('common.tags_help') }),
     field(t('category.slug'), slug, { help: t('category.slug_help') }),
     field(t('category.default_page'), def, { help: t('category.default_page_help') }),
+    field(t('feed.setting'), feed, { help: t('feed.setting_help') }),
     h('div', { class: 'ew-form-actions' }, button(t('common.save'), () => undefined, { type: 'submit', variant: 'primary' })));
   form.addEventListener('submit', async (ev) => {
     ev.preventDefault();
     alert.textContent = '';
     try {
-      await api.put(`categories/${c.id}`, { titles: titles.get(), descriptions: descs.get(), tags: splitTags(tags.value), slug: slug.value, default_element_id: Number(def.value) });
+      await api.put(`categories/${c.id}`, { titles: titles.get(), descriptions: descs.get(), tags: splitTags(tags.value), slug: slug.value, default_element_id: Number(def.value), feed: feed.value });
       invalidateTree();
       toast(t('common.saved'));
     } catch (e) {

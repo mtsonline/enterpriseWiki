@@ -69,6 +69,8 @@ export function setMain(main: HTMLElement): void { mainEl = main; }
 async function render(keepFocus = false): Promise<void> {
   if (!mainEl) return;
   const seq = ++renderSeq;
+  // feed links (<link rel="alternate">) belong to the page that added them
+  document.querySelectorAll('link[data-ew-feed]').forEach((l) => l.remove());
   const path = location.pathname;
   const query = new URLSearchParams(location.search);
   let view: View | null = notFound;

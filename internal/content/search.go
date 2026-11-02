@@ -55,6 +55,12 @@ func buildTSQuery(q string) string {
 // Search runs a full text search over all element languages plus category
 // titles, filtered by tags and by the caller's view permission.
 func (s *Service) Search(ctx context.Context, q string, tags []string, lang string, limit int) (*SearchResult, error) {
+	return s.SearchIn(ctx, q, tags, lang, limit, nil)
+}
+
+// SearchIn is Search limited to the given categories (nil = everywhere).
+// Scoped searches always use PostgreSQL.
+func (s *Service) SearchIn(ctx context.Context, q string, tags []string, lang string, limit int, scope []int64) (*SearchResult, error) {
 	if limit <= 0 || limit > 100 {
 		limit = 30
 	}
@@ -69,10 +75,10 @@ func (s *Service) Search(ctx context.Context, q string, tags []string, lang stri
 	p := identity.From(ctx)
 	res := &SearchResult{Elements: []SearchHit{}, Categories: []CategoryHit{}, Engine: "postgres"}
 	var rows pgx.Rows
-	if b := s.searchBackend(ctx); b != nil && strings.TrimSpace(q) != "" {
+	if b := s.searchBackend(ctx); b != nil && strings.TrimSpace(q) != "" && scope == nil {
 		if err := s.searchExternal(ctx, b, q, tags, lang, limit, res); err == nil {
 			res.Engine = b.Name()
-			return s.searchCategories(ctx, q, tags, res)
+			return s.searchCategories(ctx, q, tags, res, nil)
 		} else {
 			s.log.Warn("external search failed, using PostgreSQL", "engine", b.Name(), "err", err)
 			res.Elements = []SearchHit{}
@@ -84,11 +90,13 @@ func (s *Service) Search(ctx context.Context, q string, tags []string, lang stri
 				e.tags, ts_rank(d.tsv, q)
 			FROM search_docs d JOIN elements e ON e.id = d.element_id, to_tsquery('simple', $1) q
 			WHERE d.tsv @@ q AND e.deleted_at IS NULL AND (cardinality($2::text[]) = 0 OR e.tags @> $2)
-			ORDER BY ts_rank(d.tsv, q) DESC, (d.lang = $3) DESC LIMIT 1000`, tsq, tags, lang)
+				AND ($4::bigint[] IS NULL OR d.category_id = ANY($4))
+			ORDER BY ts_rank(d.tsv, q) DESC, (d.lang = $3) DESC LIMIT 1000`, tsq, tags, lang, scope)
 	} else {
 		rows, err = s.pool.Query(ctx, `SELECT d.element_id, d.category_id, d.lang, e.type, d.title, left(d.body_text, 200), e.tags, 1::real
 			FROM search_docs d JOIN elements e ON e.id = d.element_id
-			WHERE e.deleted_at IS NULL AND e.tags @> $1 ORDER BY e.updated_at DESC, (d.lang = $2) DESC LIMIT 1000`, tags, lang)
+			WHERE e.deleted_at IS NULL AND e.tags @> $1 AND ($3::bigint[] IS NULL OR d.category_id = ANY($3))
+			ORDER BY e.updated_at DESC, (d.lang = $2) DESC LIMIT 1000`, tags, lang, scope)
 	}
 	if err != nil {
 		return nil, err
@@ -126,16 +134,17 @@ func (s *Service) Search(ctx context.Context, q string, tags []string, lang stri
 		best[h.ElementID] = len(res.Elements)
 		res.Elements = append(res.Elements, h)
 	}
-	return s.searchCategories(ctx, q, tags, res)
+	return s.searchCategories(ctx, q, tags, res, scope)
 }
 
 // searchCategories adds categories matching by title or tag.
-func (s *Service) searchCategories(ctx context.Context, q string, tags []string, res *SearchResult) (*SearchResult, error) {
+func (s *Service) searchCategories(ctx context.Context, q string, tags []string, res *SearchResult, scope []int64) (*SearchResult, error) {
 	p := identity.From(ctx)
 	like := "%" + strings.ReplaceAll(strings.ReplaceAll(strings.TrimSpace(q), "%", ""), "_", "") + "%"
 	crow, err := s.pool.Query(ctx, `SELECT id, titles, tags FROM categories WHERE deleted_at IS NULL AND (
 			($1 <> '%%' AND EXISTS (SELECT 1 FROM jsonb_each_text(titles) t WHERE t.value ILIKE $1))
-			OR (cardinality($2::text[]) > 0 AND tags @> $2)) ORDER BY nlevel(path), position LIMIT 200`, like, tags)
+			OR (cardinality($2::text[]) > 0 AND tags @> $2)) AND ($3::bigint[] IS NULL OR id = ANY($3))
+			ORDER BY nlevel(path), position LIMIT 200`, like, tags, scope)
 	if err != nil {
 		return nil, err
 	}

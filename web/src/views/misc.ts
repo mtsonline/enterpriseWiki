@@ -11,6 +11,7 @@ import { invalidateTree, langName, setContext } from '../components/widgets';
 import { typeLabel } from '../sdk';
 import { errorPage } from './content';
 import { watchDialog, type Watch } from '../components/watch';
+import { feedTokenSection } from '../components/feeds';
 
 // ---------------------------------------------------------------- search
 
@@ -289,6 +290,7 @@ export async function profileView({ main }: RouteCtx): Promise<void> {
     h('section', { class: 'ew-section', 'aria-labelledby': 'pr-h' }, h('h2', { id: 'pr-h' }, t('profile.data')), pForm),
     await notificationSection(),
     await watchesSection(),
+    feedTokenSection(),
     pwSection,
     u.provider === 'local' ? await totpSection() : null,
     h('section', { class: 'ew-section', 'aria-labelledby': 'ak-h' }, h('h2', { id: 'ak-h' }, t('apikey.title')), h('p', null, t('apikey.help')),

@@ -9,6 +9,7 @@ import { toast } from '../core/announce';
 import { button, confirmDialog, errorText, field, formDialog, langFields, loading, openDialog, pageHeader, textInput, select } from '../components/ui';
 import { breadcrumbs, can, categoryPicker, ctx, invalidateTree, langName, setContext } from '../components/widgets';
 import { watchButton } from '../components/watch';
+import { feedButton } from '../components/feeds';
 import { getEditor, renderElementExtensions, typeLabel, type EditorInstance } from '../sdk';
 
 const L = () => state.lang;
@@ -106,6 +107,7 @@ export async function categoryView({ params, main }: RouteCtx): Promise<void> {
   }
   const watchC = watchButton('category', c.id, title);
   if (watchC) actions.push(watchC);
+  if (c.feed && c.feed !== 'off') actions.push(feedButton(`/api/v1/feeds/categories/${c.id}`, title));
   const view = h('article', { class: 'ew-category' },
     crumbs(data.breadcrumbs),
     h('div', { class: 'ew-page-header' },

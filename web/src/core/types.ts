@@ -45,6 +45,7 @@ export interface Category {
   descriptions: LangMap;
   tags: string[];
   default_element_id: number | null;
+  feed: 'off' | 'on' | 'recursive';
   created_at: string;
   updated_at: string;
   has_children: boolean;

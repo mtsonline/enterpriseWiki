@@ -577,7 +577,18 @@ func (s *Server) routes() {
 	})
 	s.handle("GET /api/v1/search", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		q := r.URL.Query()
-		return s.app.Content.Search(r.Context(), q.Get("q"), h.QueryList(r, "tags"), q.Get("lang"), h.QueryInt(r, "limit", 30))
+		var scope []int64
+		if c := q.Get("category"); c != "" {
+			id, err := strconv.ParseInt(c, 10, 64)
+			if err != nil {
+				return nil, apperr.BadRequest("invalid category")
+			}
+			// category=ID searches in the category and its subcategories (recursive=0: only the category)
+			if scope, err = s.app.Content.Scope(r.Context(), id, q.Get("recursive") != "0"); err != nil {
+				return nil, err
+			}
+		}
+		return s.app.Content.SearchIn(r.Context(), q.Get("q"), h.QueryList(r, "tags"), q.Get("lang"), h.QueryInt(r, "limit", 30), scope)
 	})
 	s.handle("GET /api/v1/tags", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		return s.app.Content.Tags(r.Context(), r.URL.Query().Get("prefix"), h.QueryInt(r, "limit", 50))
