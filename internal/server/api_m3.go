@@ -99,7 +99,18 @@ func (s *Server) routesM4() {
 		if err := requireAdmin(r); err != nil {
 			return nil, err
 		}
-		return s.app.Mail.Outbox(r.Context(), r.URL.Query().Get("status"), h.QueryInt(r, "limit", 100), h.QueryInt(r, "offset", 0))
+		return s.app.Mail.Outbox(r.Context(), r.URL.Query().Get("status"), r.URL.Query().Get("q"), h.QueryInt(r, "limit", 100), h.QueryInt(r, "offset", 0))
+	})
+	// GET /api/v1/admin/mail/outbox/{id} returns a message with the delivery state of every recipient.
+	s.handle("GET /api/v1/admin/mail/outbox/{id}", func(w http.ResponseWriter, r *http.Request) (any, error) {
+		if err := requireAdmin(r); err != nil {
+			return nil, err
+		}
+		id, err := h.PathID(r, "id")
+		if err != nil {
+			return nil, err
+		}
+		return s.app.Mail.Get(r.Context(), id)
 	})
 	s.handle("POST /api/v1/admin/mail/outbox/{id}/retry", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		if err := requireAdmin(r); err != nil {
@@ -157,7 +168,7 @@ func (s *Server) routesM4() {
 			v, ok := us[0].Notify[k]
 			prefs[k] = !ok || v
 		}
-		return map[string]any{"email": us[0].Email, "prefs": prefs, "kinds": mail.NotificationKinds}, nil
+		return map[string]any{"email": us[0].Email, "prefs": prefs, "kinds": mail.NotificationKinds, "enabled": s.app.Mail.Enabled()}, nil
 	})
 	s.handle("PUT /api/v1/me/notifications", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		p, err := requireUser(r)

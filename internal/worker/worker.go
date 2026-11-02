@@ -37,11 +37,12 @@ type Registry struct {
 	log     *slog.Logger
 	cluster func() bool
 	running map[string]*sync.Mutex
+	kick    map[string]chan struct{}
 }
 
 // New creates a registry.
 func New(pool *pgxpool.Pool, log *slog.Logger, cluster func() bool) *Registry {
-	return &Registry{jobs: map[string]*Job{}, pool: pool, log: log, cluster: cluster, running: map[string]*sync.Mutex{}}
+	return &Registry{jobs: map[string]*Job{}, pool: pool, log: log, cluster: cluster, running: map[string]*sync.Mutex{}, kick: map[string]chan struct{}{}}
 }
 
 // Register adds a job (the name must be unique).
@@ -56,6 +57,22 @@ func (r *Registry) Register(j Job) {
 	}
 	r.jobs[j.Name] = &j
 	r.running[j.Name] = &sync.Mutex{}
+	r.kick[j.Name] = make(chan struct{}, 1)
+}
+
+// Trigger asks a job to run as soon as possible (no-op if unknown or
+// already triggered). Used e.g. to send e-mail right after it was queued.
+func (r *Registry) Trigger(name string) {
+	r.mu.Lock()
+	ch := r.kick[name]
+	r.mu.Unlock()
+	if ch == nil {
+		return
+	}
+	select {
+	case ch <- struct{}{}:
+	default:
+	}
 }
 
 // Names lists the registered jobs.
@@ -115,6 +132,9 @@ func (r *Registry) Start(ctx context.Context) {
 	}
 	r.mu.Unlock()
 	for _, j := range jobs {
+		r.mu.Lock()
+		kick := r.kick[j.Name]
+		r.mu.Unlock()
 		go func(j *Job) {
 			// small initial delay so the server is up first
 			select {
@@ -132,6 +152,7 @@ func (r *Registry) Start(ctx context.Context) {
 				case <-ctx.Done():
 					return
 				case <-t.C:
+				case <-kick:
 				}
 			}
 		}(j)

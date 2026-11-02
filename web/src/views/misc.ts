@@ -10,6 +10,7 @@ import { button, checkbox, confirmDialog, errorText, field, formDialog, openDial
 import { invalidateTree, langName, setContext } from '../components/widgets';
 import { typeLabel } from '../sdk';
 import { errorPage } from './content';
+import { watchDialog, type Watch } from '../components/watch';
 
 // ---------------------------------------------------------------- search
 
@@ -150,11 +151,14 @@ interface SSHKey { id: number; name: string; fingerprint: string; created_at: st
 
 // E-mail notification preferences.
 async function notificationSection(): Promise<HTMLElement | null> {
-  let data: { email: string; prefs: Record<string, boolean>; kinds: string[] };
+  let data: { email: string; prefs: Record<string, boolean>; kinds: string[]; enabled: boolean };
   try {
     data = await api.get('me/notifications');
   } catch {
     return null;
+  }
+  if (!data.enabled) {
+    return h('section', { class: 'ew-section', 'aria-labelledby': 'nt-h' }, h('h2', { id: 'nt-h' }, t('notify.title')), h('p', null, t('notify.disabled')));
   }
   const boxes = data.kinds.map((k) => ({ k, c: checkbox(t(`notify.${k}`), data.prefs[k], { help: t(`notify.${k}_help`) }) }));
   const alert = h('div', { class: 'ew-form-alert', role: 'alert' });
@@ -170,6 +174,45 @@ async function notificationSection(): Promise<HTMLElement | null> {
   });
   return h('section', { class: 'ew-section', 'aria-labelledby': 'nt-h' }, h('h2', { id: 'nt-h' }, t('notify.title')),
     h('p', null, data.email ? t('notify.help', { email: data.email }) : t('notify.no_email')), f);
+}
+
+// Watched categories and elements.
+async function watchesSection(): Promise<HTMLElement | null> {
+  let data: { items: Watch[]; enabled: boolean };
+  try {
+    data = await api.get('me/watches');
+  } catch {
+    return null;
+  }
+  const sec = h('section', { class: 'ew-section', 'aria-labelledby': 'wt-h' });
+  const render = () => {
+    const rows = data.items.map((w) => {
+      const title = pick(w.titles, state.lang, state.site.default_language);
+      const href = w.target_type === 'category' ? `/c/${w.target_id}` : `/e/${w.target_id}`;
+      return h('tr', null,
+        h('th', { scope: 'row' }, title ? h('a', { href }, title) : t('watch.deleted')),
+        h('td', null, t(`watch.type.${w.target_type}`)),
+        h('td', null, t(w.mode === 'content' ? 'watch.mode_content' : 'watch.mode_link')),
+        h('td', { class: 'ew-actions' },
+          button(t('common.edit'), () => watchDialog(w.target_type, w.target_id, title, w, data.enabled, (n) => {
+            data.items = n ? data.items.map((x) => (x.id === w.id ? n : x)) : data.items.filter((x) => x.id !== w.id);
+            render();
+          }), { variant: 'link', ariaLabel: `${t('common.edit')}: ${title}` }),
+          button(t('watch.stop'), () => void api.del(`me/watches/${w.id}`).then(() => {
+            data.items = data.items.filter((x) => x.id !== w.id);
+            toast(t('watch.removed'));
+            render();
+          }), { variant: 'link', ariaLabel: `${t('watch.stop')}: ${title}` })));
+    });
+    mount(sec, h('h2', { id: 'wt-h' }, t('watch.list_title')),
+      data.enabled ? null : h('p', { role: 'note' }, t('watch.mail_disabled')),
+      rows.length ? h('table', { class: 'ew-table' },
+        h('caption', { class: 'sr-only' }, t('watch.list_title')),
+        h('thead', null, h('tr', null, ...[t('common.title'), t('watch.type_col'), t('watch.mode'), t('common.actions')].map((x) => h('th', { scope: 'col' }, x)))),
+        h('tbody', null, ...rows)) : h('p', null, t('watch.none')));
+  };
+  render();
+  return sec;
 }
 
 export async function profileView({ main }: RouteCtx): Promise<void> {
@@ -245,6 +288,7 @@ export async function profileView({ main }: RouteCtx): Promise<void> {
     h('p', null, t('profile.logged_in_as', { handle: `${u.username}@${u.provider}` })),
     h('section', { class: 'ew-section', 'aria-labelledby': 'pr-h' }, h('h2', { id: 'pr-h' }, t('profile.data')), pForm),
     await notificationSection(),
+    await watchesSection(),
     pwSection,
     u.provider === 'local' ? await totpSection() : null,
     h('section', { class: 'ew-section', 'aria-labelledby': 'ak-h' }, h('h2', { id: 'ak-h' }, t('apikey.title')), h('p', null, t('apikey.help')),

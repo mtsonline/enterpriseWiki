@@ -21,6 +21,9 @@ func maskConfig(c *config.Config) {
 	if p := c.Mail.SMTP.Password; p != "" && !config.HasEnvRef(p) {
 		c.Mail.SMTP.Password = secretMask
 	}
+	if p := c.Mail.Bounce.Password; p != "" && !config.HasEnvRef(p) {
+		c.Mail.Bounce.Password = secretMask
+	}
 }
 
 // maskSecrets hides plugin settings whose key looks secret (unless they are

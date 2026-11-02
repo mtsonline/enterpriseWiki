@@ -405,6 +405,9 @@ func (pl *Plugin) recipients(ctx context.Context, tx pgx.Tx, x *Instance, spec s
 
 // sendStepEmail queues the e-mail of an email step.
 func (pl *Plugin) sendStepEmail(ctx context.Context, tx pgx.Tx, x *Instance, s *Step, a actorInfo) error {
+	if !pl.host.Mail.Enabled() {
+		return fmt.Errorf("e-mail is switched off (mail.enabled: false)")
+	}
 	vars := pl.vars(ctx, tx, x, a)
 	to, err := pl.recipients(ctx, tx, x, s.Email.To, vars, a)
 	if err != nil {

@@ -50,6 +50,7 @@ func (s *Server) routes() {
 	s.routesM2()
 	s.routesM3()
 	s.routesM4()
+	s.routesM6()
 	// ---------------------------------------------------------------- system
 	s.app.Mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, r *http.Request) { h.Write(w, 200, map[string]string{"status": "ok"}) })
 	s.handle("GET /readyz", func(w http.ResponseWriter, r *http.Request) (any, error) {
@@ -842,6 +843,9 @@ func (s *Server) updateSettings(w http.ResponseWriter, r *http.Request) (any, er
 		if in.Mail != nil {
 			if in.Mail.SMTP.Password == secretMask {
 				in.Mail.SMTP.Password = c.Mail.SMTP.Password
+			}
+			if in.Mail.Bounce.Password == secretMask {
+				in.Mail.Bounce.Password = c.Mail.Bounce.Password
 			}
 			c.Mail = *in.Mail
 		}

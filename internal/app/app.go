@@ -23,6 +23,7 @@ import (
 	"github.com/mtsonline/enterprisewiki/internal/kernel"
 	"github.com/mtsonline/enterprisewiki/internal/mail"
 	"github.com/mtsonline/enterprisewiki/internal/storage"
+	"github.com/mtsonline/enterprisewiki/internal/watch"
 	"github.com/mtsonline/enterprisewiki/internal/worker"
 	"github.com/mtsonline/enterprisewiki/pkg/sdk"
 )
@@ -38,6 +39,7 @@ type App struct {
 	I18n    *i18n.Service
 	Files   *storage.Store
 	Mail    *mail.Service
+	Watch   *watch.Service
 	Workers *worker.Registry
 	Kernel  *kernel.Kernel
 	Log     *slog.Logger
@@ -93,7 +95,15 @@ func New(ctx context.Context, o Options) (*App, error) {
 	a.Workers.Register(worker.Job{Name: "mail", Interval: 10 * time.Second, Run: func(ctx context.Context) error {
 		n, err := a.Mail.Process(ctx)
 		if n > 0 {
-			log.Info("e-mails sent", "count", n)
+			log.Info("e-mails delivered", "recipients", n)
+		}
+		return err
+	}})
+	a.Mail.Kick = func() { time.AfterFunc(300*time.Millisecond, func() { a.Workers.Trigger("mail") }) } // after the commit
+	a.Workers.Register(worker.Job{Name: "mail.bounces", Interval: 5 * time.Minute, Run: func(ctx context.Context) error {
+		n, err := a.Mail.ProcessBounces(ctx)
+		if n > 0 {
+			log.Info("bounces processed", "failed_recipients", n)
 		}
 		return err
 	}})
@@ -105,6 +115,16 @@ func New(ctx context.Context, o Options) (*App, error) {
 	}})
 	a.Workers.Register(worker.Job{Name: "mail.cleanup", Interval: 6 * time.Hour, Run: func(ctx context.Context) error {
 		_, err := a.Mail.Cleanup(ctx, cfg.Get().Retention.MailDays)
+		return err
+	}})
+	a.Mail.T = a.I18n.T
+	a.Watch = watch.New(pool, cfg, a.ACL, a.Auth, a.Content, a.Mail, a.I18n, log)
+	a.Workers.Register(worker.Job{Name: "watch", Interval: 30 * time.Second, Run: func(ctx context.Context) error {
+		n, err := a.Watch.Send(ctx)
+		if n > 0 {
+			log.Info("watch notifications queued", "users", n)
+			a.Mail.Kick()
+		}
 		return err
 	}})
 	a.Auth.SetEnabledFunc(a.Kernel.Enabled)

@@ -157,6 +157,9 @@ type MacroSecurity struct {
 
 // Mail configures outgoing e-mail (notifications, workflow e-mails).
 type Mail struct {
+	// Enabled switches all e-mail off when false (nothing is queued or sent;
+	// for test systems or installations without e-mail). Default true.
+	Enabled *bool `yaml:"enabled,omitempty" json:"enabled"`
 	// Transport: auto (SMTP if a host is set, else the local sendmail
 	// binary if present, else keep messages in the outbox), smtp, sendmail,
 	// log (only write to the server log, for tests) or none (keep in the outbox).
@@ -172,6 +175,35 @@ type Mail struct {
 	SMTP          SMTP     `yaml:"smtp" json:"smtp"`
 	// Sendmail is the path of the sendmail binary (default /usr/sbin/sendmail).
 	Sendmail string `yaml:"sendmail,omitempty" json:"sendmail"`
+	// Concurrency is the number of parallel SMTP connections (default 4).
+	Concurrency int `yaml:"concurrency,omitempty" json:"concurrency"`
+	// RatePerMinute limits messages per minute (0 = unlimited), e.g. 30 for
+	// Microsoft 365 mailboxes.
+	RatePerMinute int `yaml:"rate_per_minute,omitempty" json:"rate_per_minute"`
+	// Bounce processes delivery failures that arrive later as bounce mails.
+	Bounce Bounce `yaml:"bounce" json:"bounce"`
+}
+
+// IsEnabled reports whether e-mail is switched on.
+func (m Mail) IsEnabled() bool { return m.Enabled == nil || *m.Enabled }
+
+// Bounce configures the bounce mailbox: the envelope sender (Return-Path)
+// of all messages is Address (with +tokens when VERP is on); the wiki reads
+// the mailbox via IMAP and reports failed recipients.
+type Bounce struct {
+	Address string `yaml:"address,omitempty" json:"address"` // e.g. bounces@example.com
+	// VERP adds +m<message>r<recipient> to the address (the mailbox must
+	// accept sub-addresses); each recipient then gets its own SMTP transaction.
+	VERP     bool   `yaml:"verp,omitempty" json:"verp"`
+	IMAPHost string `yaml:"imap_host,omitempty" json:"imap_host"`
+	IMAPPort int    `yaml:"imap_port,omitempty" json:"imap_port"`         // default 993
+	Security string `yaml:"imap_security,omitempty" json:"imap_security"` // tls (default) | starttls | none
+	Username string `yaml:"imap_username,omitempty" json:"imap_username"`
+	Password string `yaml:"imap_password,omitempty" json:"imap_password"` // ${EWIKI_BOUNCE_PASSWORD}
+	Folder   string `yaml:"imap_folder,omitempty" json:"imap_folder"`     // default INBOX
+	// Delete processed bounce mails (default: only mark them as read).
+	Delete     bool `yaml:"delete_processed,omitempty" json:"delete_processed"`
+	SkipVerify bool `yaml:"skip_verify,omitempty" json:"skip_verify"`
 }
 
 // SMTP is an SMTP relay.
@@ -490,6 +522,19 @@ func Validate(c *Config) error {
 	case "", "starttls", "tls", "none":
 	default:
 		return fmt.Errorf("mail.smtp.security must be starttls, tls or none, got %q", c.Mail.SMTP.Security)
+	}
+	if c.Mail.Concurrency < 0 || c.Mail.Concurrency > 64 || c.Mail.RatePerMinute < 0 {
+		return errors.New("mail.concurrency must be 0..64 and mail.rate_per_minute >= 0")
+	}
+	switch c.Mail.Bounce.Security {
+	case "", "tls", "starttls", "none":
+	default:
+		return fmt.Errorf("mail.bounce.imap_security must be tls, starttls or none, got %q", c.Mail.Bounce.Security)
+	}
+	if a := c.Mail.Bounce.Address; a != "" && !HasEnvRef(a) {
+		if x, err := mail.ParseAddress(a); err != nil || x.Name != "" {
+			return fmt.Errorf("mail.bounce.address must be a plain address, got %q", a)
+		}
 	}
 	if c.Mail.SMTP.Port < 0 || c.Mail.SMTP.Port > 65535 {
 		return errors.New("mail.smtp.port is invalid")

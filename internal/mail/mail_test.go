@@ -65,3 +65,49 @@ func TestAddresses(t *testing.T) {
 		}
 	}
 }
+
+func TestParseBounce(t *testing.T) {
+	// no VERP: the X-Ewiki-Message header of the returned message and the DSN recipient
+	raw := strings.ReplaceAll(`From: postmaster@example.net
+To: bounces@example.com
+Subject: Delivery Status Notification (Failure)
+Content-Type: multipart/report; report-type=delivery-status; boundary="X"
+
+--X
+Content-Type: message/delivery-status
+
+Reporting-MTA: dns; mx
+
+Final-Recipient: rfc822;<a@example.com>
+Action: failed
+Status: 5.2.2
+Diagnostic-Code: smtp; 552 mailbox full,
+  please try again
+
+Final-Recipient: rfc822; b@example.com
+Action: delivered
+Status: 2.0.0
+
+--X
+Content-Type: message/rfc822
+
+X-Ewiki-Message: 77
+Subject: Hi
+
+body
+--X--
+`, "\n", "\r\n")
+	bs := ParseBounce([]byte(raw))
+	if len(bs) != 1 || bs[0].Addr != "a@example.com" || bs[0].MessageID != 77 || bs[0].Status != "5.2.2" || !strings.Contains(bs[0].Diagnosis, "please try again") {
+		t.Fatalf("%+v", bs)
+	}
+	// VERP only, plain text bounce
+	raw = "From: x@y\r\nTo: bounces+m5r9@example.com\r\nSubject: Undeliverable: Hi\r\n\r\nsorry\r\n"
+	bs = ParseBounce([]byte(raw))
+	if len(bs) != 1 || bs[0].MessageID != 5 || bs[0].RcptID != 9 {
+		t.Fatalf("%+v", bs)
+	}
+	if len(ParseBounce([]byte("From: a@b\r\nSubject: Hello\r\n\r\nnot a bounce"))) != 0 {
+		t.Fatal("normal mail treated as bounce")
+	}
+}

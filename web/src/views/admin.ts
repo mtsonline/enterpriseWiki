@@ -369,24 +369,55 @@ async function settings(panel: HTMLElement): Promise<void> {
 // ---------------------------------------------------------------- e-mail
 
 interface MailConfig {
-  transport: string; from: string; from_name: string; reply_to: string; allowed_from: string[] | null; subject_prefix: string; sendmail: string;
+  enabled: boolean | null; transport: string; from: string; from_name: string; reply_to: string; allowed_from: string[] | null; subject_prefix: string; sendmail: string;
+  concurrency: number; rate_per_minute: number;
   smtp: { host: string; port: number; security: string; username: string; password: string; skip_verify: boolean; helo_name: string };
+  bounce: { address: string; verp: boolean; imap_host: string; imap_port: number; imap_security: string; imap_username: string; imap_password: string; imap_folder: string; delete_processed: boolean; skip_verify: boolean };
 }
-interface MailStatus { transport: string; from: string; counts: Record<string, number>; problem?: string }
-interface OutboxEntry { id: number; status: string; from: string; to: string[]; cc: string[]; subject: string; body: string; source: string; ref: string; attempts: number; last_error: string; created_at: string; sent_at: string | null }
+interface MailStatus { enabled: boolean; transport: string; from: string; counts: Record<string, number>; recipients: Record<string, number>; oldest_pending: string | null; bounces: boolean; problem?: string }
+interface MailRecipient { id: number; addr: string; kind: string; status: string; attempts: number; last_code: number; last_error: string; next_attempt_at: string; sent_at: string | null; failed_at: string | null; bounced: boolean }
+interface OutboxEntry {
+  id: number; status: string; from: string; to: string[]; cc: string[]; subject: string; body: string; source: string; ref: string; attempts: number; last_error: string;
+  created_at: string; sent_at: string | null; next_attempt_at: string; owner: string | null; pending: number; delivered: number; failed: number; recipients?: MailRecipient[];
+}
+
+const mailBadge = (x: string) => h('span', { class: ['ew-badge', x === 'sent' ? 'ew-badge--ok' : x === 'failed' || x === 'held' || x === 'partial' ? 'ew-badge--warn' : 'ew-badge--info'] }, t(`mail.status.${x}`));
+
+async function mailMessageDialog(id: number, reload: () => void): Promise<void> {
+  const o = await api.get<OutboxEntry>(`admin/mail/outbox/${id}`);
+  const d = openDialog(o.subject, h('div', null,
+    h('dl', { class: 'ew-dl' }, h('dt', null, t('mail.from')), h('dd', null, o.from), h('dt', null, t('common.status')), h('dd', null, mailBadge(o.status)),
+      h('dt', null, t('mail.source')), h('dd', null, `${o.source} ${o.ref}`), h('dt', null, t('mail.owner')), h('dd', null, o.owner ?? '–'),
+      h('dt', null, t('mail.created')), h('dd', null, fmtDate(o.created_at, state.lang))),
+    table(t('mail.recipients'), [t('mail.to'), t('common.status'), t('mail.attempts_col'), t('mail.last_answer')],
+      (o.recipients ?? []).map((r) => h('tr', null, h('th', { scope: 'row' }, r.addr, r.kind === 'cc' ? ' (Cc)' : ''),
+        h('td', null, h('span', { class: ['ew-badge', r.status === 'sent' ? 'ew-badge--ok' : r.status === 'failed' ? 'ew-badge--warn' : 'ew-badge--info'] }, t(`mail.rstatus.${r.status}`)),
+          r.bounced ? ` (${t('mail.bounced')})` : ''),
+        h('td', null, String(r.attempts), r.status === 'pending' ? h('div', { class: 'ew-help' }, t('mail.next_try', { date: fmtDate(r.next_attempt_at, state.lang) })) : null),
+        h('td', null, r.last_code ? `${r.last_code} ` : '', r.last_error || (r.sent_at ? fmtDate(r.sent_at, state.lang) : '–')))), '–'),
+    h('h3', null, t('mail.body')), h('pre', { class: 'ew-code ew-mail-body', tabindex: '0' }, o.body)), [
+    o.failed > 0 || o.status === 'held' || o.pending > 0 ? button(t('mail.retry'), async () => {
+      try { await api.post(`admin/mail/outbox/${o.id}/retry`); toast(t('mail.requeued')); d.close(); reload(); } catch (e) { toast(errorText(e), 'error'); }
+    }, { variant: 'primary' }) : null,
+  ], { wide: true });
+}
 
 async function mailAdmin(panel: HTMLElement, query: URLSearchParams): Promise<void> {
   const filter = query.get('status') ?? '';
+  const q = query.get('q') ?? '';
   const [cfg, st, outbox, jobs] = await Promise.all([
     api.get<{ config: { mail: MailConfig } }>('admin/settings'), api.get<MailStatus>('admin/mail'),
-    api.get<OutboxEntry[]>(`admin/mail/outbox${qs({ status: filter, limit: 100 })}`), api.get<string[]>('admin/jobs')]);
+    api.get<OutboxEntry[]>(`admin/mail/outbox${qs({ status: filter, q, limit: 100 })}`), api.get<string[]>('admin/jobs')]);
   const m = cfg.config.mail;
+  const enabled = checkbox(t('mail.enabled'), m.enabled !== false, { help: t('mail.enabled_help') });
   const transport = select(['auto', 'smtp', 'sendmail', 'log', 'none'].map((x) => ({ value: x, label: t(`mail.transport.${x}`) })), m.transport || 'auto');
   const from = textInput({ value: m.from, type: 'email', placeholder: 'wiki@example.com' });
   const fromName = textInput({ value: m.from_name });
   const replyTo = textInput({ value: m.reply_to, type: 'email' });
   const prefix = textInput({ value: m.subject_prefix, placeholder: '[Wiki]' });
   const allowed = textArea({ value: (m.allowed_from ?? []).join('\n'), rows: 3 });
+  const conc = textInput({ value: m.concurrency ? String(m.concurrency) : '', type: 'number', placeholder: '4' });
+  const rate = textInput({ value: m.rate_per_minute ? String(m.rate_per_minute) : '', type: 'number', placeholder: '0' });
   const host = textInput({ value: m.smtp.host, placeholder: 'smtp.example.com' });
   const port = textInput({ value: m.smtp.port ? String(m.smtp.port) : '', type: 'number', placeholder: '587' });
   const security = select(['starttls', 'tls', 'none'].map((x) => ({ value: x, label: t(`mail.security.${x}`) })), m.smtp.security || 'starttls');
@@ -395,24 +426,42 @@ async function mailAdmin(panel: HTMLElement, query: URLSearchParams): Promise<vo
   const skip = checkbox(t('mail.skip_verify'), m.smtp.skip_verify, { help: t('mail.skip_verify_help') });
   const helo = textInput({ value: m.smtp.helo_name });
   const sendmail = textInput({ value: m.sendmail, placeholder: '/usr/sbin/sendmail' });
+  const b = m.bounce ?? { address: '', verp: false, imap_host: '', imap_port: 0, imap_security: 'tls', imap_username: '', imap_password: '', imap_folder: '', delete_processed: false, skip_verify: false };
+  const bAddr = textInput({ value: b.address, type: 'email', placeholder: 'bounces@example.com' });
+  const bVerp = checkbox(t('mail.bounce_verp'), b.verp, { help: t('mail.bounce_verp_help') });
+  const bHost = textInput({ value: b.imap_host, placeholder: 'imap.example.com' });
+  const bPort = textInput({ value: b.imap_port ? String(b.imap_port) : '', type: 'number', placeholder: '993' });
+  const bSec = select(['tls', 'starttls', 'none'].map((x) => ({ value: x, label: t(`mail.security.${x}`) })), b.imap_security || 'tls');
+  const bUser = textInput({ value: b.imap_username, autocomplete: 'off' });
+  const bPw = textInput({ value: b.imap_password, type: 'password', autocomplete: 'new-password' });
+  const bFolder = textInput({ value: b.imap_folder, placeholder: 'INBOX' });
+  const bDel = checkbox(t('mail.bounce_delete'), b.delete_processed);
   const alert = h('div', { class: 'ew-form-alert', role: 'alert' });
   const fs = (legend: string, ...kids: (HTMLElement | null)[]) => h('fieldset', null, h('legend', null, legend), ...kids);
   const form = h('form', { class: 'ew-form', novalidate: true }, alert,
-    fs(t('mail.sender'), field(t('mail.transport'), transport, { help: t('mail.transport_help') }), field(t('mail.from'), from, { help: t('mail.from_help') }),
+    fs(t('mail.sender'), enabled.el, field(t('mail.transport'), transport, { help: t('mail.transport_help') }), field(t('mail.from'), from, { help: t('mail.from_help') }),
       field(t('mail.from_name'), fromName), field(t('mail.reply_to'), replyTo), field(t('mail.subject_prefix'), prefix),
       field(t('mail.allowed_from'), allowed, { help: t('mail.allowed_from_help') })),
     fs(t('mail.smtp'), field(t('mail.host'), host), field(t('mail.port'), port, { help: t('mail.port_help') }), field(t('mail.security'), security),
-      field(t('mail.username'), user), field(t('mail.password'), pw, { help: t('mail.password_help') }), field(t('mail.helo'), helo), skip.el),
+      field(t('mail.username'), user), field(t('mail.password'), pw, { help: t('mail.password_help') }), field(t('mail.helo'), helo), skip.el,
+      field(t('mail.concurrency'), conc, { help: t('mail.concurrency_help') }), field(t('mail.rate'), rate, { help: t('mail.rate_help') })),
     fs(t('mail.sendmail'), field(t('mail.sendmail_path'), sendmail, { help: t('mail.sendmail_help') })),
+    fs(t('mail.bounce'), h('p', { class: 'ew-help' }, t('mail.bounce_help')), field(t('mail.bounce_address'), bAddr), bVerp.el,
+      field(t('mail.imap_host'), bHost), field(t('mail.port'), bPort), field(t('mail.security'), bSec), field(t('mail.username'), bUser),
+      field(t('mail.password'), bPw), field(t('mail.imap_folder'), bFolder), bDel.el),
     h('div', { class: 'ew-form-actions' }, button(t('common.save'), () => undefined, { type: 'submit', variant: 'primary' })));
   form.addEventListener('submit', async (ev) => {
     ev.preventDefault();
     alert.textContent = '';
     try {
       await api.put('admin/settings', { mail: {
+        enabled: enabled.input.checked ? null : false,
         transport: transport.value, from: from.value.trim(), from_name: fromName.value.trim(), reply_to: replyTo.value.trim(), subject_prefix: prefix.value.trim(),
         allowed_from: allowed.value.split(/[\n,;]/).map((x) => x.trim()).filter(Boolean), sendmail: sendmail.value.trim(),
+        concurrency: Number(conc.value) || 0, rate_per_minute: Number(rate.value) || 0,
         smtp: { host: host.value.trim(), port: Number(port.value) || 0, security: security.value, username: user.value.trim(), password: pw.value, skip_verify: skip.input.checked, helo_name: helo.value.trim() },
+        bounce: { address: bAddr.value.trim(), verp: bVerp.input.checked, imap_host: bHost.value.trim(), imap_port: Number(bPort.value) || 0, imap_security: bSec.value,
+          imap_username: bUser.value.trim(), imap_password: bPw.value, imap_folder: bFolder.value.trim(), delete_processed: bDel.input.checked, skip_verify: b.skip_verify },
       } });
       toast(t('settings.saved'));
       reload();
@@ -425,31 +474,37 @@ async function mailAdmin(panel: HTMLElement, query: URLSearchParams): Promise<vo
     ev.preventDefault();
     try { await api.post('admin/mail/test', { to: testTo.value.trim() }); toast(t('mail.test_sent', { to: testTo.value })); } catch (e) { toast(errorText(e), 'error'); }
   });
-  const statusSel = select(['', 'queued', 'held', 'failed', 'sent'].map((x) => ({ value: x, label: x ? t(`mail.status.${x}`) : t('mail.status.all') })), filter);
-  statusSel.addEventListener('change', () => navigate(`/admin/mail${qs({ status: statusSel.value })}`));
-  const badge = (x: string) => h('span', { class: ['ew-badge', x === 'sent' ? 'ew-badge--ok' : x === 'failed' || x === 'held' ? 'ew-badge--warn' : 'ew-badge--info'] }, t(`mail.status.${x}`));
+  const statusSel = select(['', 'queued', 'held', 'partial', 'failed', 'sent'].map((x) => ({ value: x, label: x ? t(`mail.status.${x}`) : t('mail.status.all') })), filter);
+  const search = textInput({ value: q, type: 'search' });
+  const filterForm = h('form', { class: 'ew-inline-form', role: 'search', 'aria-label': t('mail.filter') }, field(t('mail.filter'), statusSel, { inline: true }),
+    field(t('mail.search'), search, { inline: true }), button(t('search.submit'), () => undefined, { type: 'submit' }));
+  filterForm.addEventListener('submit', (ev) => { ev.preventDefault(); navigate(`/admin/mail${qs({ status: statusSel.value, q: search.value })}`); });
+  statusSel.addEventListener('change', () => navigate(`/admin/mail${qs({ status: statusSel.value, q: search.value })}`));
   const runJob = async (name: string) => {
     try { await api.post(`admin/jobs/${encodeURIComponent(name)}/run`); toast(t('mail.job_done', { name })); reload(); } catch (e) { toast(errorText(e), 'error'); }
   };
+  const old = st.oldest_pending ? (Date.now() - new Date(st.oldest_pending).getTime()) / 3600000 : 0;
   mount(panel, pageHeader(t('admin.mail')), h('p', null, t('mail.help')),
     h('div', { class: ['ew-notice', st.problem ? 'ew-notice--warning' : 'ew-notice--success'], role: 'status' },
-      st.transport ? t('mail.active', { transport: t(`mail.transport.${st.transport}`) }) : t('mail.inactive'),
-      st.problem ? h('p', null, st.problem) : null),
-    h('dl', { class: 'ew-dl' }, ...['queued', 'held', 'failed', 'sent'].flatMap((k) => [h('dt', null, t(`mail.status.${k}`)), h('dd', null, String(st.counts[k] ?? 0))])),
+      !st.enabled ? t('mail.disabled') : st.transport ? t('mail.active', { transport: t(`mail.transport.${st.transport}`) }) : t('mail.inactive'),
+      st.problem ? h('p', null, st.problem) : null,
+      old > 24 ? h('p', null, t('mail.old_pending', { hours: Math.round(old) })) : null),
+    h('dl', { class: 'ew-dl' },
+      ...['pending', 'sent', 'failed'].flatMap((k) => [h('dt', null, t(`mail.rcount.${k}`)), h('dd', null, String(st.recipients[k] ?? 0))]),
+      h('dt', null, t('mail.held_messages')), h('dd', null, String(st.counts.held ?? 0)),
+      h('dt', null, t('mail.bounce')), h('dd', null, st.bounces ? t('mail.bounce_on') : t('mail.bounce_off'))),
     testForm, form,
     h('section', { class: 'ew-section', 'aria-labelledby': 'ob-h' }, h('h2', { id: 'ob-h' }, t('mail.outbox')),
-      h('div', { class: 'ew-actions' }, field(t('mail.filter'), statusSel, { inline: true }), button(t('mail.send_now'), () => void runJob('mail'))),
+      filterForm, h('div', { class: 'ew-actions' }, button(t('mail.send_now'), () => void runJob('mail')), st.bounces ? button(t('mail.bounces_now'), () => void runJob('mail.bounces')) : null),
       table(t('mail.outbox'), [t('mail.subject'), t('mail.to'), t('common.status'), t('mail.created'), t('common.actions')],
         outbox.map((o) => h('tr', null,
-          h('th', { scope: 'row' }, button(o.subject, () => openDialog(o.subject, h('div', null,
-            h('dl', { class: 'ew-dl' }, h('dt', null, t('mail.from')), h('dd', null, o.from), h('dt', null, t('mail.to')), h('dd', null, [...o.to, ...o.cc].join(', ')),
-              h('dt', null, t('mail.source')), h('dd', null, `${o.source} ${o.ref}`)),
-            h('pre', { class: 'ew-code ew-mail-body', tabindex: '0' }, o.body)), [], { wide: true }), { variant: 'link' })),
-          h('td', null, [...o.to, ...o.cc].join(', ')),
-          h('td', null, badge(o.status), o.last_error ? h('p', { class: 'ew-help' }, `${t('mail.attempts', { n: o.attempts })}: ${o.last_error}`) : null),
+          h('th', { scope: 'row' }, button(o.subject, () => void mailMessageDialog(o.id, reload).catch((e) => toast(errorText(e), 'error')), { variant: 'link' })),
+          h('td', null, [...o.to, ...o.cc].slice(0, 3).join(', '), o.to.length + o.cc.length > 3 ? ` +${o.to.length + o.cc.length - 3}` : ''),
+          h('td', null, mailBadge(o.status), h('div', { class: 'ew-help' }, t('mail.counts', { sent: o.delivered, pending: o.pending, failed: o.failed })),
+            o.last_error && o.status !== 'sent' ? h('p', { class: 'ew-help' }, o.last_error) : null),
           h('td', null, fmtDate(o.sent_at ?? o.created_at, state.lang)),
           h('td', { class: 'ew-actions' },
-            o.status === 'failed' || o.status === 'held' ? button(t('mail.retry'), async () => {
+            o.failed > 0 || o.status === 'held' || o.pending > 0 ? button(t('mail.retry'), async () => {
               try { await api.post(`admin/mail/outbox/${o.id}/retry`); toast(t('mail.requeued')); reload(); } catch (e) { toast(errorText(e), 'error'); }
             }, { variant: 'link', ariaLabel: `${t('mail.retry')}: ${o.subject}` }) : null,
             button(t('common.delete'), async () => {

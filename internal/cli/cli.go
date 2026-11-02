@@ -55,6 +55,11 @@ Users
   user passwd NAME [--password-stdin]
   user disable NAME | user enable NAME | user unlock NAME
 
+Watches (e-mail on changes)
+  watch list --as USER
+  watch add category|element ID [--mode link|content] [--no-recursive] --as USER
+  watch remove WATCH_ID --as USER
+
 Plugins
   plugin list
   plugin enable ID | plugin disable ID
@@ -71,8 +76,18 @@ Configuration (config.yaml is the single source of truth)
   config get KEY                e.g. ewiki config get ui.site_name
   config set KEY VALUE          e.g. ewiki config set retention.trash_days 60
 
+E-mail queue
+  mail status                   transport, queue counts, oldest undelivered message
+  mail list [--status S] [--q TEXT] [--limit N]
+  mail show ID                  message with the delivery state of every recipient
+  mail retry ID | mail delete ID
+  mail test ADDRESS             send a test message now
+  mail send                     deliver queued messages now
+  mail bounces                  read the bounce mailbox now
+
 Maintenance
   retention run                 apply retention rules now
+  jobs list | jobs run NAME     background jobs (mail, workflow timers, ...)
 
 Environment: EWIKI_CONFIG (config path), EWIKI_LOG_LEVEL (debug|info|warn|error),
 EWIKI_LOG_FORMAT (text|json). Variables from .env next to config.yaml are loaded.
@@ -126,6 +141,12 @@ func Main(args []string) int {
 		err = e.plugin(args[1:])
 	case "config":
 		err = e.config(args[1:])
+	case "mail":
+		err = e.mailCmd(args[1:])
+	case "jobs":
+		err = e.jobsCmd(args[1:])
+	case "watch":
+		err = e.watchCmd(args[1:])
 	case "retention":
 		err = e.withApp(false, func(ctx context.Context, a *app.App) error {
 			res, err := a.Content.RunRetention(ctx)

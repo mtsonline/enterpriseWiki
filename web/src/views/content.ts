@@ -8,6 +8,7 @@ import type { Category, ElementSummary, ElementView, Revision } from '../core/ty
 import { toast } from '../core/announce';
 import { button, confirmDialog, errorText, field, formDialog, langFields, loading, openDialog, pageHeader, textInput, select } from '../components/ui';
 import { breadcrumbs, can, categoryPicker, ctx, invalidateTree, langName, setContext } from '../components/widgets';
+import { watchButton } from '../components/watch';
 import { getEditor, renderElementExtensions, typeLabel, type EditorInstance } from '../sdk';
 
 const L = () => state.lang;
@@ -103,6 +104,8 @@ export async function categoryView({ params, main }: RouteCtx): Promise<void> {
     }
     actions.push(button(t('common.duplicate'), () => duplicateCategoryDialog(c), { variant: 'secondary' }));
   }
+  const watchC = watchButton('category', c.id, title);
+  if (watchC) actions.push(watchC);
   const view = h('article', { class: 'ew-category' },
     crumbs(data.breadcrumbs),
     h('div', { class: 'ew-page-header' },
@@ -304,6 +307,8 @@ export async function elementView({ params, main }: RouteCtx): Promise<void> {
     actions.push(button(t('common.duplicate'), () => void duplicateElement(el), { variant: 'secondary' }));
     if (can('delete')) actions.push(button(t('common.delete'), () => void deleteElement(el), { variant: 'danger' }));
   }
+  const watchE = watchButton('element', el.id, el.title);
+  if (watchE) actions.push(watchE);
   const extensions = h('div', { class: 'ew-element-extensions', lang: state.lang });
   mount(main, h('article', { class: 'ew-element', lang: el.shown_lang },
     crumbs([...cat.breadcrumbs, cat.category], { title: el.title }),

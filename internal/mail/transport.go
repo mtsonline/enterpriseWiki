@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"net"
 	"net/smtp"
+	"net/textproto"
 	"os"
 	"os/exec"
 	"strconv"
@@ -24,11 +25,66 @@ type Envelope struct {
 	Data       []byte
 }
 
-// Transport delivers messages.
+// Transport delivers messages. Send returns a *PermanentError for
+// message-level permanent failures (5xx); every other error is temporary.
 type Transport interface {
 	Name() string
 	Send(ctx context.Context, e Envelope) error
 }
+
+// PermanentError is a permanent (5xx) failure of a whole message.
+type PermanentError struct {
+	Code int
+	Msg  string
+}
+
+func (e *PermanentError) Error() string { return fmt.Sprintf("%d %s", e.Code, e.Msg) }
+
+// RcptResult is the outcome for one recipient: Code 2xx delivered,
+// 4xx (or 0) temporary, 5xx permanent.
+type RcptResult struct {
+	Addr string
+	Code int
+	Msg  string
+}
+
+// Session delivers several messages over one connection.
+type Session interface {
+	// Deliver sends one message. An error means the whole message failed
+	// (temporary unless *PermanentError) and the session should be closed.
+	Deliver(ctx context.Context, e Envelope) ([]RcptResult, error)
+	Close() error
+}
+
+// SessionTransport can reuse connections and report per recipient.
+type SessionTransport interface {
+	Transport
+	Open(ctx context.Context) (Session, error)
+}
+
+// open returns a session for any transport.
+func open(ctx context.Context, t Transport) (Session, error) {
+	if st, ok := t.(SessionTransport); ok {
+		return st.Open(ctx)
+	}
+	return &simpleSession{t}, nil
+}
+
+// simpleSession adapts a plain Transport: all recipients share the result.
+type simpleSession struct{ t Transport }
+
+func (s *simpleSession) Deliver(ctx context.Context, e Envelope) ([]RcptResult, error) {
+	if err := s.t.Send(ctx, e); err != nil {
+		return nil, err
+	}
+	out := make([]RcptResult, len(e.Recipients))
+	for i, r := range e.Recipients {
+		out[i] = RcptResult{Addr: r, Code: 250}
+	}
+	return out, nil
+}
+
+func (s *simpleSession) Close() error { return nil }
 
 // ---------------------------------------------------------------- SMTP
 
@@ -64,7 +120,31 @@ func isLocal(host string) bool {
 	return host == "localhost" || host == "127.0.0.1" || host == "::1"
 }
 
-func (t smtpTransport) Send(ctx context.Context, e Envelope) error {
+// smtpCode extracts the reply code of an SMTP error (0 if none).
+func smtpCode(err error) (int, string) {
+	var te *textproto.Error
+	if errors.As(err, &te) {
+		return te.Code, te.Msg
+	}
+	return 0, err.Error()
+}
+
+// classify turns an SMTP error into a permanent error (5xx) or keeps it.
+func classify(err error, what string) error {
+	code, msg := smtpCode(err)
+	if code >= 500 {
+		return &PermanentError{Code: code, Msg: what + ": " + msg}
+	}
+	return fmt.Errorf("%s: %w", what, err)
+}
+
+type smtpSession struct {
+	c    *smtp.Client
+	conn net.Conn
+}
+
+// Open connects, says hello, starts TLS and authenticates.
+func (t smtpTransport) Open(ctx context.Context) (Session, error) {
 	port := t.c.Port
 	sec := t.c.Security
 	if sec == "" {
@@ -74,10 +154,6 @@ func (t smtpTransport) Send(ctx context.Context, e Envelope) error {
 		port = map[string]int{"starttls": 587, "tls": 465, "none": 25}[sec]
 	}
 	addr := net.JoinHostPort(t.c.Host, strconv.Itoa(port))
-	deadline := time.Now().Add(60 * time.Second)
-	if d, ok := ctx.Deadline(); ok && d.Before(deadline) {
-		deadline = d
-	}
 	dialer := &net.Dialer{Timeout: 15 * time.Second}
 	tlsCfg := &tls.Config{ServerName: t.c.Host, InsecureSkipVerify: t.c.SkipVerify, MinVersion: tls.VersionTLS12} //nolint:gosec // opt-in for self-signed relays
 	var conn net.Conn
@@ -88,15 +164,15 @@ func (t smtpTransport) Send(ctx context.Context, e Envelope) error {
 		conn, err = dialer.DialContext(ctx, "tcp", addr)
 	}
 	if err != nil {
-		return fmt.Errorf("connect %s: %w", addr, err)
+		return nil, fmt.Errorf("connect %s: %w", addr, err)
 	}
-	_ = conn.SetDeadline(deadline)
+	_ = conn.SetDeadline(time.Now().Add(2 * time.Minute))
 	c, err := smtp.NewClient(conn, t.c.Host)
 	if err != nil {
 		conn.Close()
-		return fmt.Errorf("smtp greeting: %w", err)
+		return nil, classify(err, "smtp greeting")
 	}
-	defer c.Close()
+	fail := func(e error) (Session, error) { c.Close(); return nil, e }
 	helo := t.c.HeloName
 	if helo == "" {
 		if h, err := os.Hostname(); err == nil && strings.Contains(h, ".") {
@@ -106,48 +182,97 @@ func (t smtpTransport) Send(ctx context.Context, e Envelope) error {
 		}
 	}
 	if err := c.Hello(helo); err != nil {
-		return fmt.Errorf("HELO: %w", err)
+		return fail(classify(err, "HELO"))
 	}
 	if sec == "starttls" {
 		if ok, _ := c.Extension("STARTTLS"); !ok {
-			return errors.New("the server does not offer STARTTLS (set mail.smtp.security to tls or none)")
+			return fail(errors.New("the server does not offer STARTTLS (set mail.smtp.security to tls or none)"))
 		}
 		if err := c.StartTLS(tlsCfg); err != nil {
-			return fmt.Errorf("STARTTLS: %w", err)
+			return fail(fmt.Errorf("STARTTLS: %w", err))
 		}
 	}
 	if t.c.Username != "" {
 		ok, mechs := c.Extension("AUTH")
 		if !ok {
-			return errors.New("the server does not offer authentication")
+			return fail(errors.New("the server does not offer authentication"))
 		}
 		var auth smtp.Auth = smtp.PlainAuth("", t.c.Username, t.c.Password, t.c.Host)
 		if !strings.Contains(" "+strings.ToUpper(mechs)+" ", " PLAIN ") && strings.Contains(strings.ToUpper(mechs), "LOGIN") {
 			auth = loginAuth{t.c.Username, t.c.Password}
 		}
 		if err := c.Auth(auth); err != nil {
-			return fmt.Errorf("authentication: %w", err)
+			// wrong credentials are a configuration problem: retry later
+			code, msg := smtpCode(err)
+			return fail(fmt.Errorf("authentication failed: %d %s", code, msg))
 		}
 	}
-	if err := c.Mail(e.From); err != nil {
-		return fmt.Errorf("MAIL FROM: %w", err)
+	return &smtpSession{c: c, conn: conn}, nil
+}
+
+// Deliver sends one message; recipients rejected with 4xx/5xx are reported
+// individually, the others receive the message.
+func (s *smtpSession) Deliver(ctx context.Context, e Envelope) ([]RcptResult, error) {
+	_ = s.conn.SetDeadline(time.Now().Add(2 * time.Minute))
+	if err := s.c.Mail(e.From); err != nil {
+		return nil, classify(err, "MAIL FROM")
 	}
+	res := make([]RcptResult, 0, len(e.Recipients))
+	accepted := 0
 	for _, r := range e.Recipients {
-		if err := c.Rcpt(r); err != nil {
-			return fmt.Errorf("RCPT TO %s: %w", r, err)
+		if err := s.c.Rcpt(r); err != nil {
+			code, msg := smtpCode(err)
+			if code == 0 { // connection problem
+				return nil, err
+			}
+			res = append(res, RcptResult{Addr: r, Code: code, Msg: msg})
+			continue
 		}
+		accepted++
+		res = append(res, RcptResult{Addr: r, Code: 250})
 	}
-	w, err := c.Data()
+	if accepted == 0 {
+		_ = s.c.Reset()
+		return res, nil
+	}
+	w, err := s.c.Data()
 	if err != nil {
-		return fmt.Errorf("DATA: %w", err)
+		return nil, classify(err, "DATA")
 	}
 	if _, err := w.Write(e.Data); err != nil {
-		return err
+		return nil, err
 	}
 	if err := w.Close(); err != nil {
-		return fmt.Errorf("DATA: %w", err)
+		return nil, classify(err, "DATA")
 	}
-	return c.Quit()
+	return res, nil
+}
+
+func (s *smtpSession) Close() error {
+	_ = s.c.Quit()
+	return s.c.Close()
+}
+
+// Send delivers one message over a new connection (tests, single sends).
+func (t smtpTransport) Send(ctx context.Context, e Envelope) error {
+	sess, err := t.Open(ctx)
+	if err != nil {
+		return err
+	}
+	defer sess.Close()
+	res, err := sess.Deliver(ctx, e)
+	if err != nil {
+		return err
+	}
+	for _, r := range res {
+		if r.Code >= 500 {
+			return &PermanentError{Code: r.Code, Msg: r.Addr + ": " + r.Msg}
+		}
+		if r.Code < 200 || r.Code > 299 {
+			return fmt.Errorf("%s: %d %s", r.Addr, r.Code, r.Msg)
+		}
+	}
+	return nil
 }
 
 // ---------------------------------------------------------------- sendmail
@@ -164,7 +289,13 @@ func (t sendmailTransport) Send(ctx context.Context, e Envelope) error {
 	cmd.Stdin = bytes.NewReader(bytes.ReplaceAll(e.Data, []byte("\r\n"), []byte("\n")))
 	out, err := cmd.CombinedOutput()
 	if err != nil {
-		return fmt.Errorf("%s: %v %s", t.path, err, strings.TrimSpace(string(out)))
+		msg := fmt.Sprintf("%s: %v %s", t.path, err, strings.TrimSpace(string(out)))
+		var ee *exec.ExitError
+		// sysexits: EX_USAGE, EX_DATAERR, EX_NOUSER, EX_NOHOST are permanent
+		if errors.As(err, &ee) && (ee.ExitCode() == 64 || ee.ExitCode() == 65 || ee.ExitCode() == 67 || ee.ExitCode() == 68) {
+			return &PermanentError{Code: 550, Msg: msg}
+		}
+		return errors.New(msg)
 	}
 	return nil
 }

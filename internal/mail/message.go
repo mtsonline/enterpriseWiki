@@ -13,6 +13,7 @@ import (
 	"mime/quotedprintable"
 	"net/mail"
 	"regexp"
+	"sort"
 	"strings"
 	"time"
 )
@@ -28,6 +29,12 @@ type Message struct {
 	Text     string // plain text body; an HTML alternative is generated
 	Source   string // who created it (plugin id, "test", ...)
 	Ref      string // reference, e.g. "case:42"
+	HTML     string // optional HTML part (sanitized by the caller); generated from Text if empty
+	// Owner gets a report about permanently failed recipients (0 = the
+	// current user of the context, -1 = nobody).
+	Owner    int64
+	NoReport bool
+	Priority int // higher first
 }
 
 // MaxRecipients limits To + Cc of one message.
@@ -101,6 +108,21 @@ func qp(s string) string {
 
 // Build renders the RFC 5322 message (CRLF line endings).
 func Build(from, fromName, replyTo string, to, cc []string, subject, text string, now time.Time) []byte {
+	return BuildMessage(BuildInput{From: from, FromName: fromName, ReplyTo: replyTo, To: to, Cc: cc, Subject: subject, Text: text, Now: now})
+}
+
+// BuildInput is the input of BuildMessage.
+type BuildInput struct {
+	From, FromName, ReplyTo string
+	To, Cc                  []string
+	Subject, Text, HTML     string // HTML optional (generated from Text if empty)
+	Headers                 map[string]string
+	Now                     time.Time
+}
+
+// BuildMessage renders the RFC 5322 message (CRLF line endings).
+func BuildMessage(in BuildInput) []byte {
+	from, fromName, replyTo, to, cc, subject, text, now := in.From, in.FromName, in.ReplyTo, in.To, in.Cc, in.Subject, in.Text, in.Now
 	rnd := make([]byte, 12)
 	_, _ = rand.Read(rnd)
 	boundary := "ewiki-" + hex.EncodeToString(rnd)
@@ -130,12 +152,24 @@ func Build(from, fromName, replyTo string, to, cc []string, subject, text string
 	h("Message-ID", "<"+hex.EncodeToString(rnd)+"@"+domain+">")
 	h("MIME-Version", "1.0")
 	h("Auto-Submitted", "auto-generated")
+	keys := make([]string, 0, len(in.Headers))
+	for k := range in.Headers {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	for _, k := range keys {
+		h(CleanHeader(k), CleanHeader(in.Headers[k]))
+	}
 	h("Content-Type", `multipart/alternative; boundary="`+boundary+`"`)
 	b.WriteString("\r\n")
 	b.WriteString("--" + boundary + "\r\nContent-Type: text/plain; charset=utf-8\r\nContent-Transfer-Encoding: quoted-printable\r\n\r\n")
 	b.WriteString(qp(text) + "\r\n")
 	b.WriteString("--" + boundary + "\r\nContent-Type: text/html; charset=utf-8\r\nContent-Transfer-Encoding: quoted-printable\r\n\r\n")
-	b.WriteString(qp(TextToHTML(text)) + "\r\n")
+	htmlBody := in.HTML
+	if htmlBody == "" {
+		htmlBody = TextToHTML(text)
+	}
+	b.WriteString(qp(htmlBody) + "\r\n")
 	b.WriteString("--" + boundary + "--\r\n")
 	return []byte(b.String())
 }
