@@ -84,6 +84,9 @@ type UI struct {
 	HomeCategory int64 `yaml:"home_category" json:"home_category"`
 	// HomeElement is shown as start page (wins over HomeCategory; 0 = none).
 	HomeElement int64 `yaml:"home_element" json:"home_element"`
+	// Prerender embeds the content of a page as plain HTML for guests
+	// (search engines, visitors without JavaScript). Default true.
+	Prerender bool `yaml:"prerender" json:"prerender"`
 }
 
 // Auth configures authentication.
@@ -237,7 +240,7 @@ func Defaults() *Config {
 		Database: Database{URL: "${EWIKI_DATABASE_URL}", MaxConns: 50},
 		Storage:  Storage{Path: "./data", MaxUploadMB: 100},
 		I18n:     I18n{DefaultLanguage: "en", Languages: []string{"en", "de"}},
-		UI:       UI{SiteName: "Enterprise Wiki", Template: "theme.wiki"},
+		UI:       UI{SiteName: "Enterprise Wiki", Template: "theme.wiki", Prerender: true},
 		Auth: Auth{
 			Order: []string{"local"}, SessionTTL: "168h", APIKeyMaxTTL: "8760h", SSHTokenTTL: "1h",
 			MaxLoginFails: 10, LockoutDuration: "15m", MinPasswordLen: 12,

@@ -314,7 +314,7 @@ async function updates(panel: HTMLElement, force: boolean): Promise<void> {
 
 interface Settings {
   config: {
-    ui: { site_name: string; template: string; home_category: number; home_element: number };
+    ui: { site_name: string; template: string; home_category: number; home_element: number; prerender: boolean };
     i18n: { default_language: string; languages: string[] };
     auth: { order: string[]; session_ttl: string; api_key_max_ttl: string; ssh_token_ttl: string; max_login_failures: number; lockout_duration: string; min_password_length: number };
     retention: { revisions_keep_days: number; revisions_keep_min: number; trash_days: number; audit_days: number };
@@ -340,6 +340,20 @@ async function settings(panel: HTMLElement): Promise<void> {
   const syncHome = () => { fHomeCat.hidden = homeMode.value !== 'category'; fHomeEl.hidden = homeMode.value !== 'element'; };
   homeMode.addEventListener('change', syncHome);
   syncHome();
+  const prerender = checkbox(t('settings.prerender'), c.ui.prerender, { help: t('settings.prerender_help') });
+  const guestPath = textInput({ value: '/' });
+  const guestView = h('div', null, button(t('settings.guest_view'), async () => {
+    try {
+      const r = await api.get<{ available: boolean; page?: { title: string; description: string; canonical: string; lang: string; html: string } }>(`prerender?path=${encodeURIComponent(guestPath.value || '/')}`);
+      const p = r.page;
+      openDialog(t('settings.guest_view'), p
+        ? h('div', null,
+          h('dl', { class: 'ew-dl' }, h('dt', null, t('settings.guest_title')), h('dd', null, p.title || state.site.name), h('dt', null, t('settings.guest_description')), h('dd', null, p.description || '–'),
+            h('dt', null, t('settings.guest_canonical')), h('dd', null, p.canonical), h('dt', null, t('lang.label')), h('dd', null, langName(p.lang))),
+          h('pre', { class: 'ew-code', tabindex: '0' }, p.html))
+        : h('p', null, t('settings.guest_unavailable')), [], { wide: true });
+    } catch (e) { toast(errorText(e), 'error'); }
+  }));
   const defLang = select(c.i18n.languages.map((l) => ({ value: l, label: langName(l) })), c.i18n.default_language);
   const order = textInput({ value: c.auth.order.join(', ') });
   const sessionTTL = textInput({ value: c.auth.session_ttl });
@@ -356,7 +370,7 @@ async function settings(panel: HTMLElement): Promise<void> {
   const fs = (legend: string, ...kids: HTMLElement[]) => h('fieldset', null, h('legend', null, legend), ...kids);
   const form = h('form', { class: 'ew-form', novalidate: true }, alert,
     fs(t('settings.site'), field(t('settings.site_name'), siteName, { required: true }), field(t('settings.template'), tpl, { help: t('settings.template_help') }), field(t('settings.home'), homeMode, { help: t('settings.home_help') }), fHomeCat, fHomeEl,
-      field(t('settings.default_language'), defLang, { help: t('settings.languages_help') })),
+      field(t('settings.default_language'), defLang, { help: t('settings.languages_help') }), prerender.el, field(t('settings.guest_view_path'), guestPath, { help: t('settings.guest_view_help') }), guestView),
     fs(t('settings.auth'), field(t('settings.auth_order'), order, { help: t('settings.auth_order_help') }), field(t('settings.session_ttl'), sessionTTL, { help: t('settings.duration_help') }),
       field(t('settings.api_key_max_ttl'), keyTTL), field(t('settings.ssh_token_ttl'), sshTTL), field(t('settings.max_login_failures'), fails), field(t('settings.lockout_duration'), lockout), field(t('settings.min_password_length'), minPw)),
     fs(t('settings.retention'), h('p', { class: 'ew-help' }, t('settings.retention_help')), field(t('settings.revisions_keep_days'), keepDays, { help: t('settings.zero_forever') }), field(t('settings.revisions_keep_min'), keepMin),
@@ -370,7 +384,7 @@ async function settings(panel: HTMLElement): Promise<void> {
     alert.textContent = '';
     try {
       await api.put('admin/settings', {
-        ui: { site_name: siteName.value, template: tpl.value, home_category: homeMode.value === 'category' ? homeCat.value() : 0, home_element: homeMode.value === 'element' ? homeEl.value() : 0 },
+        ui: { site_name: siteName.value, template: tpl.value, home_category: homeMode.value === 'category' ? homeCat.value() : 0, home_element: homeMode.value === 'element' ? homeEl.value() : 0, prerender: prerender.input.checked },
         i18n: { default_language: defLang.value, languages: c.i18n.languages },
         auth: { order: order.value.split(',').map((x) => x.trim()).filter(Boolean), session_ttl: sessionTTL.value, api_key_max_ttl: keyTTL.value, ssh_token_ttl: sshTTL.value, max_login_failures: Number(fails.value), lockout_duration: lockout.value, min_password_length: Number(minPw.value) },
         retention: { revisions_keep_days: Number(keepDays.value), revisions_keep_min: Number(keepMin.value), trash_days: Number(trashDays.value), audit_days: Number(auditDays.value) },

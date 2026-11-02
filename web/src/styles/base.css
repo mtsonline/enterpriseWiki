@@ -261,3 +261,10 @@ th .ew-help { font-weight: 400; }
 .ew-table--compact td.ew-actions > * { margin: 0 .6rem 0 0; }
 .ew-image-preview img { max-width: 16rem; max-height: 8rem; border: 1px solid var(--ew-border); border-radius: 6px; margin: .25rem 0; background: repeating-conic-gradient(#eee 0 25%, #fff 0 50%) 0 0/16px 16px; }
 .ew-color-input { width: 4rem; height: 2.4rem; padding: .15rem; }
+
+/* server-rendered content for guests until the app has started (and without JavaScript) */
+.ew-prerender { max-width: 52rem; margin: 0 auto; padding: 1rem 1.25rem 3rem; font-family: system-ui, sans-serif; line-height: 1.6; }
+.ew-prerender-head { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem 1.5rem; padding: .75rem 0 1rem; border-bottom: 1px solid #ddd; margin-bottom: 1.5rem; }
+.ew-prerender-site { font-weight: 700; font-size: 1.2rem; text-decoration: none; }
+.ew-prerender-head ul { display: flex; flex-wrap: wrap; gap: .25rem 1rem; list-style: none; margin: 0; padding: 0; }
+.ew-prerender img { max-width: 100%; height: auto; }

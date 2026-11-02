@@ -383,6 +383,13 @@ test('CMS template', async () => {
     await a11y('cms template mobile navigation');
     await page.keyboard.press('Escape');
     assert.equal(await burger.getAttribute('aria-expanded'), 'false');
+    // the modern variant inherits layout and settings and only restyles
+    await page.setViewportSize({ width: 1280, height: 900 });
+    await set('theme.cms.modern');
+    await page.goto(BASE + '/');
+    await idle();
+    await page.waitForSelector('body.ewcms.ewcms-modern .ewcms-header .ewcms-nav-list a');
+    await a11y('cms modern template');
   } finally {
     await page.setViewportSize({ width: 1280, height: 900 });
     await set('theme.wiki');

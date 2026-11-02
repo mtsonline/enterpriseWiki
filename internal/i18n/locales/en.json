@@ -585,7 +585,8 @@
  "position.footer-4": "Footer column 4",
  "template.theme.wiki": "Wiki / documentation",
  "template.theme.wiki.dark": "Wiki, dark",
- "template.theme.cms": "Website (CMS)",
+ "template.theme.cms": "Website – classic (university, organisation)",
+ "template.theme.cms.modern": "Website – modern (neutral)",
  "positions.show": "Show the positions on the page",
  "positions.preview": "Position preview",
  "positions.preview_help": "All positions of the template are outlined with their names.",
@@ -778,5 +779,14 @@
  "settings.home_element": "An element (page, overview, blog …)",
  "settings.no_image": "No image",
  "settings.image_uploaded": "Image uploaded – save to apply",
- "settings.remove_image": "Remove image"
+ "settings.remove_image": "Remove image",
+ "settings.prerender": "Prerender content for guests on the server",
+ "settings.prerender_help": "Search engines, link previews and visitors without JavaScript get the title, description and page content directly in the HTML.",
+ "settings.guest_view_path": "Check guest view for path",
+ "settings.guest_view_help": "e.g. /, /e/12, /c/3 or a short URL like /calendar",
+ "settings.guest_view": "Show guest view",
+ "settings.guest_title": "Title",
+ "settings.guest_description": "Description",
+ "settings.guest_canonical": "Canonical address",
+ "settings.guest_unavailable": "There is no guest view for this path (unknown page or not visible to guests)."
 }

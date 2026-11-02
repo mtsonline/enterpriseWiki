@@ -107,6 +107,13 @@ func (s *Server) serveFrontend(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.Header().Set("Cache-Control", "no-cache")
 	if identity.From(r.Context()) == nil {
+		// guests: the content as plain HTML (search engines, no JavaScript)
+		if c := s.app.Config.Get(); c.UI.Prerender {
+			if p := s.prerenderCached(r); p != nil {
+				b = injectPrerender(b, p, c.UI.SiteName)
+				w.Header().Set("Content-Language", p.Lang)
+			}
+		}
 		// guests: embed the API responses this page needed before
 		if pre := s.app.Cache.Preload(r); pre != nil {
 			b = bytes.Replace(b, []byte("</head>"), append(append([]byte(`<script type="application/json" id="ew-preload">`), pre...), []byte("</script></head>")...), 1)

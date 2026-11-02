@@ -393,3 +393,35 @@ func (c *Cache) Preload(r *http.Request) []byte {
 	// safe inside <script type="application/json">
 	return bytes.ReplaceAll(b, []byte("</"), []byte(`<\/`))
 }
+
+// Fragment returns a server-rendered fragment for guests from the cache or
+// builds it (build reports whether the result may be cached). Fragments are
+// cleared together with all other entries.
+func (c *Cache) Fragment(key string, build func() ([]byte, bool)) []byte {
+	if !c.Enabled() {
+		b, _ := build()
+		return b
+	}
+	key = "frag|" + key
+	c.mu.Lock()
+	e := c.entries[key]
+	if e != nil && !c.fresh(e) {
+		c.remove(e)
+		e = nil
+	}
+	if e != nil {
+		c.lru.MoveToFront(e.el)
+	}
+	gen := c.gen
+	c.mu.Unlock()
+	if e != nil {
+		c.hits.Add(1)
+		return e.body
+	}
+	c.misses.Add(1)
+	b, ok := build()
+	if ok && len(b) <= MaxBody {
+		c.store(gen, key, "", "", http.Header{"Content-Type": {"text/html"}}, b)
+	}
+	return b
+}

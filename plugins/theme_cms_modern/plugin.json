@@ -1,0 +1,10 @@
+{
+  "id": "theme.cms.modern",
+  "name": "Website template – modern",
+  "version": "1.0.0",
+  "description": "Neutral, modern website look: light header with glass effect, left-aligned start page hero, rounded cards, title banner as image card, calm dark footer. Reuses layout, positions and settings (Administration → Website template) of theme.cms and only changes the styling.",
+  "author": "Enterprise Wiki",
+  "kinds": ["template"],
+  "extends": ["theme.cms"],
+  "frontend": true
+}

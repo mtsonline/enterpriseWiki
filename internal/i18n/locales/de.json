@@ -585,7 +585,8 @@
  "position.footer-4": "Fußbereich Spalte 4",
  "template.theme.wiki": "Wiki / Dokumentation",
  "template.theme.wiki.dark": "Wiki, dunkel",
- "template.theme.cms": "Website (CMS)",
+ "template.theme.cms": "Website – klassisch (Hochschule, Organisation)",
+ "template.theme.cms.modern": "Website – modern (neutral)",
  "positions.show": "Positionen auf der Seite anzeigen",
  "positions.preview": "Positionsvorschau",
  "positions.preview_help": "Alle Positionen der Vorlage sind mit ihrem Namen umrahmt.",
@@ -778,5 +779,14 @@
  "settings.home_element": "Ein Element (Seite, Übersicht, Blog …)",
  "settings.no_image": "Kein Bild",
  "settings.image_uploaded": "Bild hochgeladen – zum Übernehmen speichern",
- "settings.remove_image": "Bild entfernen"
+ "settings.remove_image": "Bild entfernen",
+ "settings.prerender": "Inhalte für Gäste vorab auf dem Server erzeugen",
+ "settings.prerender_help": "Suchmaschinen, Link-Vorschauen und Besucher ohne JavaScript erhalten Titel, Beschreibung und den Seiteninhalt direkt im HTML.",
+ "settings.guest_view_path": "Gast-Ansicht prüfen für Pfad",
+ "settings.guest_view_help": "z. B. /, /e/12, /c/3 oder eine Kurz-URL wie /kalender",
+ "settings.guest_view": "Gast-Ansicht anzeigen",
+ "settings.guest_title": "Titel",
+ "settings.guest_description": "Beschreibung",
+ "settings.guest_canonical": "Kanonische Adresse",
+ "settings.guest_unavailable": "Für diesen Pfad gibt es keine Gast-Ansicht (unbekannte Seite oder für Gäste nicht sichtbar)."
 }
