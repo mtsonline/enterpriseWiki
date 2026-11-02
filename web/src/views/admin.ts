@@ -402,7 +402,7 @@ async function settings(panel: HTMLElement): Promise<void> {
 
 interface MailConfig {
   enabled: boolean | null; transport: string; from: string; from_name: string; reply_to: string; allowed_from: string[] | null; subject_prefix: string; sendmail: string;
-  concurrency: number; rate_per_minute: number;
+  concurrency: number; rate_per_minute: number; digest_hour: number; digest_weekday: number; digest_timezone: string;
   smtp: { host: string; port: number; security: string; username: string; password: string; skip_verify: boolean; helo_name: string };
   bounce: { address: string; verp: boolean; imap_host: string; imap_port: number; imap_security: string; imap_username: string; imap_password: string; imap_folder: string; delete_processed: boolean; skip_verify: boolean };
 }
@@ -468,6 +468,9 @@ async function mailAdmin(panel: HTMLElement, query: URLSearchParams): Promise<vo
   const bPw = textInput({ value: b.imap_password, type: 'password', autocomplete: 'new-password' });
   const bFolder = textInput({ value: b.imap_folder, placeholder: 'INBOX' });
   const bDel = checkbox(t('mail.bounce_delete'), b.delete_processed);
+  const dHour = select(Array.from({ length: 24 }, (_, i) => ({ value: String(i), label: `${String(i).padStart(2, '0')}:00` })), String(m.digest_hour ?? 7));
+  const dDay = select([1, 2, 3, 4, 5, 6, 0].map((d) => ({ value: String(d), label: new Date(2024, 0, 7 + d).toLocaleDateString(state.lang, { weekday: 'long' }) })), String(m.digest_weekday ?? 1));
+  const dTZ = textInput({ value: m.digest_timezone ?? '', placeholder: Intl.DateTimeFormat().resolvedOptions().timeZone });
   const alert = h('div', { class: 'ew-form-alert', role: 'alert' });
   const fs = (legend: string, ...kids: (HTMLElement | null)[]) => h('fieldset', null, h('legend', null, legend), ...kids);
   const form = h('form', { class: 'ew-form', novalidate: true }, alert,
@@ -481,6 +484,8 @@ async function mailAdmin(panel: HTMLElement, query: URLSearchParams): Promise<vo
     fs(t('mail.bounce'), h('p', { class: 'ew-help' }, t('mail.bounce_help')), field(t('mail.bounce_address'), bAddr), bVerp.el,
       field(t('mail.imap_host'), bHost), field(t('mail.port'), bPort), field(t('mail.security'), bSec), field(t('mail.username'), bUser),
       field(t('mail.password'), bPw), field(t('mail.imap_folder'), bFolder), bDel.el),
+    fs(t('mail.digest'), h('p', { class: 'ew-help' }, t('mail.digest_help')), field(t('mail.digest_hour'), dHour), field(t('mail.digest_weekday'), dDay),
+      field(t('mail.digest_timezone'), dTZ, { help: t('mail.digest_timezone_help') })),
     h('div', { class: 'ew-form-actions' }, button(t('common.save'), () => undefined, { type: 'submit', variant: 'primary' })));
   form.addEventListener('submit', async (ev) => {
     ev.preventDefault();
@@ -491,6 +496,7 @@ async function mailAdmin(panel: HTMLElement, query: URLSearchParams): Promise<vo
         transport: transport.value, from: from.value.trim(), from_name: fromName.value.trim(), reply_to: replyTo.value.trim(), subject_prefix: prefix.value.trim(),
         allowed_from: allowed.value.split(/[\n,;]/).map((x) => x.trim()).filter(Boolean), sendmail: sendmail.value.trim(),
         concurrency: Number(conc.value) || 0, rate_per_minute: Number(rate.value) || 0,
+        digest_hour: Number(dHour.value), digest_weekday: Number(dDay.value), digest_timezone: dTZ.value.trim(),
         smtp: { host: host.value.trim(), port: Number(port.value) || 0, security: security.value, username: user.value.trim(), password: pw.value, skip_verify: skip.input.checked, helo_name: helo.value.trim() },
         bounce: { address: bAddr.value.trim(), verp: bVerp.input.checked, imap_host: bHost.value.trim(), imap_port: Number(bPort.value) || 0, imap_security: bSec.value,
           imap_username: bUser.value.trim(), imap_password: bPw.value, imap_folder: bFolder.value.trim(), delete_processed: bDel.input.checked, skip_verify: b.skip_verify },

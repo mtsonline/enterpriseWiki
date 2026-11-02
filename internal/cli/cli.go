@@ -60,7 +60,8 @@ Guest cache
 
 Watches (e-mail on changes)
   watch list --as USER
-  watch add category|element ID [--mode link|content] [--no-recursive] --as USER
+  watch add category|element ID [--mode link|content] [--frequency instant|daily|weekly]
+            [--no-recursive] --as USER
   watch remove WATCH_ID --as USER
 
 Plugins

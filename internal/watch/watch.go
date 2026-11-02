@@ -60,6 +60,7 @@ type Watch struct {
 	Recursive  bool              `json:"recursive"`
 	CreatedAt  time.Time         `json:"created_at"`
 	Titles     map[string]string `json:"titles"`
+	Frequency  string            `json:"frequency"` // instant | daily | weekly
 }
 
 // Input creates or changes a watch.
@@ -68,6 +69,7 @@ type Input struct {
 	TargetID   int64  `json:"target_id"`
 	Mode       string `json:"mode"`
 	Recursive  *bool  `json:"recursive"`
+	Frequency  string `json:"frequency"` // instant (default) | daily | weekly
 }
 
 func me(ctx context.Context) (int64, error) {
@@ -100,7 +102,7 @@ func (s *Service) List(ctx context.Context) ([]Watch, error) {
 	}
 	rows, err := s.pool.Query(ctx, `SELECT w.id, w.target_type, w.target_id, w.mode, w.recursive, w.created_at,
 		COALESCE(CASE w.target_type WHEN 'category' THEN (SELECT titles FROM categories WHERE id=w.target_id AND deleted_at IS NULL)
-			ELSE (SELECT titles FROM elements WHERE id=w.target_id AND deleted_at IS NULL) END, '{}')
+			ELSE (SELECT titles FROM elements WHERE id=w.target_id AND deleted_at IS NULL) END, '{}'), w.frequency
 		FROM watches w WHERE w.user_id=$1 ORDER BY w.created_at DESC`, uid)
 	if err != nil {
 		return nil, err
@@ -135,9 +137,16 @@ func (s *Service) Set(ctx context.Context, in Input) (*Watch, error) {
 		in.Mode = "link"
 	}
 	rec := in.Recursive == nil || *in.Recursive
-	if _, err := s.pool.Exec(ctx, `INSERT INTO watches(user_id, target_type, target_id, mode, recursive) VALUES ($1,$2,$3,$4,$5)
-		ON CONFLICT (user_id, target_type, target_id) DO UPDATE SET mode=EXCLUDED.mode, recursive=EXCLUDED.recursive`,
-		uid, in.TargetType, in.TargetID, in.Mode, rec); err != nil {
+	switch in.Frequency {
+	case "":
+		in.Frequency = "instant"
+	case "instant", "daily", "weekly":
+	default:
+		return nil, apperr.BadRequest("frequency must be instant, daily or weekly")
+	}
+	if _, err := s.pool.Exec(ctx, `INSERT INTO watches(user_id, target_type, target_id, mode, recursive, frequency) VALUES ($1,$2,$3,$4,$5,$6)
+		ON CONFLICT (user_id, target_type, target_id) DO UPDATE SET mode=EXCLUDED.mode, recursive=EXCLUDED.recursive, frequency=EXCLUDED.frequency`,
+		uid, in.TargetType, in.TargetID, in.Mode, rec, in.Frequency); err != nil {
 		return nil, err
 	}
 	return s.Get(ctx, in.TargetType, in.TargetID)
@@ -169,26 +178,44 @@ func (s *Service) onChange(ctx context.Context, event, etype string, id int64) {
 	var err error
 	switch etype {
 	case "element":
-		_, err = s.pool.Exec(ctx, `INSERT INTO watch_events(user_id, entity_type, entity_id, event, actor_id, mode)
-			SELECT w.user_id, 'element', $1::bigint, $2::text, $3::bigint, max(w.mode) FROM watches w
+		_, err = s.pool.Exec(ctx, `INSERT INTO watch_events(user_id, entity_type, entity_id, event, actor_id, mode, freq)
+			SELECT w.user_id, 'element', $1::bigint, $2::text, $3::bigint, max(w.mode), `+freqSQL+` FROM watches w
 			WHERE w.user_id <> COALESCE($3::bigint, 0) AND ((w.target_type='element' AND w.target_id=$1) OR (w.target_type='category' AND (
 				w.target_id = (SELECT category_id FROM elements WHERE id=$1) OR (w.recursive AND w.target_id IN (
 					SELECT a.id FROM categories a, categories c WHERE c.id=(SELECT category_id FROM elements WHERE id=$1) AND a.path @> c.path)))))
 			GROUP BY w.user_id
 			ON CONFLICT (user_id, entity_type, entity_id) DO UPDATE SET event = CASE WHEN watch_events.event='create' AND EXCLUDED.event='update' THEN 'create' ELSE EXCLUDED.event END,
-				actor_id=EXCLUDED.actor_id, last_at=now(), mode = GREATEST(watch_events.mode, EXCLUDED.mode)`, id, event, nullID(actor))
+				actor_id=EXCLUDED.actor_id, last_at=now(), mode = GREATEST(watch_events.mode, EXCLUDED.mode), freq = LEAST(watch_events.freq, EXCLUDED.freq)`, id, event, nullID(actor))
 	case "category":
 		// a new, changed or deleted category is reported to watchers of the category itself and of its parents
-		_, err = s.pool.Exec(ctx, `INSERT INTO watch_events(user_id, entity_type, entity_id, event, actor_id, mode)
-			SELECT w.user_id, 'category', $1::bigint, $2::text, $3::bigint, 'link' FROM watches w, categories c
+		_, err = s.pool.Exec(ctx, `INSERT INTO watch_events(user_id, entity_type, entity_id, event, actor_id, mode, freq)
+			SELECT w.user_id, 'category', $1::bigint, $2::text, $3::bigint, 'link', `+freqSQL+` FROM watches w, categories c
 			WHERE c.id=$1 AND w.user_id <> COALESCE($3::bigint, 0) AND w.target_type='category' AND (w.target_id=$1
 				OR (w.target_id = c.parent_id) OR (w.recursive AND w.target_id IN (SELECT a.id FROM categories a WHERE a.path @> c.path)))
 			GROUP BY w.user_id
-			ON CONFLICT (user_id, entity_type, entity_id) DO UPDATE SET event=EXCLUDED.event, actor_id=EXCLUDED.actor_id, last_at=now()`, id, event, nullID(actor))
+			ON CONFLICT (user_id, entity_type, entity_id) DO UPDATE SET event=EXCLUDED.event, actor_id=EXCLUDED.actor_id, last_at=now(), freq = LEAST(watch_events.freq, EXCLUDED.freq)`, id, event, nullID(actor))
 	}
 	if err != nil {
 		s.log.Error("recording a change for watchers failed", "type", etype, "id", id, "err", err)
 	}
+}
+
+// freqSQL is the most urgent frequency of the matching watches (0 instant, 1 daily, 2 weekly).
+const freqSQL = `min(CASE w.frequency WHEN 'daily' THEN 1 WHEN 'weekly' THEN 2 ELSE 0 END)::smallint`
+
+// DigestBoundaries returns the last daily and weekly digest times at or before now.
+func DigestBoundaries(m config.Mail, now time.Time) (daily, weekly time.Time) {
+	loc := m.DigestLocation()
+	n := now.In(loc)
+	daily = time.Date(n.Year(), n.Month(), n.Day(), m.DigestHour, 0, 0, 0, loc)
+	if daily.After(n) {
+		daily = daily.AddDate(0, 0, -1)
+	}
+	weekly = daily
+	for int(weekly.Weekday()) != m.DigestWeekday {
+		weekly = weekly.AddDate(0, 0, -1)
+	}
+	return daily, weekly
 }
 
 func nullID(id int64) *int64 {
@@ -206,6 +233,7 @@ type pending struct {
 	actorID    *int64
 	mode       string
 	at         time.Time
+	freq       int16
 }
 
 // item is one change in a notification.
@@ -230,15 +258,21 @@ func (s *Service) sendBatch(ctx context.Context) (int, bool, error) {
 	sent := 0
 	done := false
 	err := pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
-		rows, err := tx.Query(ctx, `SELECT user_id, entity_type, entity_id, event, actor_id, mode, last_at FROM watch_events
-			WHERE user_id IN (SELECT user_id FROM watch_events GROUP BY user_id HAVING max(last_at) < now() - make_interval(secs => $1) LIMIT 50)
-			ORDER BY user_id, last_at FOR UPDATE SKIP LOCKED`, Delay.Seconds())
+		// due: instant changes after a quiet period of the user, digests
+		// with changes recorded before the last digest time
+		daily, weekly := DigestBoundaries(s.cfg.Get().Mail, time.Now())
+		rows, err := tx.Query(ctx, `SELECT user_id, entity_type, entity_id, event, actor_id, mode, last_at, freq FROM watch_events
+			WHERE user_id IN (SELECT user_id FROM watch_events GROUP BY user_id
+				HAVING max(last_at) FILTER (WHERE freq = 0) < now() - make_interval(secs => $1)
+					OR min(first_at) FILTER (WHERE freq = 1) < $2 OR min(first_at) FILTER (WHERE freq = 2) < $3 LIMIT 50)
+			AND ((freq = 0 AND last_at < now() - make_interval(secs => $1)) OR (freq = 1 AND first_at < $2) OR (freq = 2 AND first_at < $3))
+			ORDER BY user_id, last_at FOR UPDATE SKIP LOCKED`, Delay.Seconds(), daily, weekly)
 		if err != nil {
 			return err
 		}
 		list, err := pgx.CollectRows(rows, func(r pgx.CollectableRow) (pending, error) {
 			var p pending
-			return p, r.Scan(&p.userID, &p.entityType, &p.entityID, &p.event, &p.actorID, &p.mode, &p.at)
+			return p, r.Scan(&p.userID, &p.entityType, &p.entityID, &p.event, &p.actorID, &p.mode, &p.at, &p.freq)
 		})
 		if err != nil {
 			return err
@@ -259,8 +293,11 @@ func (s *Service) sendBatch(ctx context.Context) (int, bool, error) {
 			if err := s.notify(ctx, tx, uid, byUser[uid]); err != nil {
 				return err
 			}
-			if _, err := tx.Exec(ctx, `DELETE FROM watch_events WHERE user_id=$1 AND last_at <= $2`, uid, byUser[uid][len(byUser[uid])-1].at); err != nil {
-				return err
+			for _, p := range byUser[uid] {
+				if _, err := tx.Exec(ctx, `DELETE FROM watch_events WHERE user_id=$1 AND entity_type=$2 AND entity_id=$3 AND last_at <= $4`,
+					uid, p.entityType, p.entityID, p.at); err != nil {
+					return err
+				}
 			}
 			sent++
 		}
@@ -298,6 +335,18 @@ func (s *Service) notify(ctx context.Context, tx pgx.Tx, uid int64, changes []pe
 	subject := tr("watch.mail_subject_one", map[string]string{"title": items[0].title, "event": items[0].event})
 	if len(items) > 1 {
 		subject = tr("watch.mail_subject_many", map[string]string{"count": fmt.Sprint(len(items)), "site": cfg.UI.SiteName})
+	}
+	var digest int16
+	for _, c := range changes {
+		if c.freq > digest {
+			digest = c.freq
+		}
+	}
+	switch digest {
+	case 1:
+		subject = tr("watch.mail_subject_daily", map[string]string{"count": fmt.Sprint(len(items)), "site": cfg.UI.SiteName})
+	case 2:
+		subject = tr("watch.mail_subject_weekly", map[string]string{"count": fmt.Sprint(len(items)), "site": cfg.UI.SiteName})
 	}
 	var text, htm strings.Builder
 	text.WriteString(tr("watch.mail_intro", map[string]string{"name": u.Name}) + "\n\n")

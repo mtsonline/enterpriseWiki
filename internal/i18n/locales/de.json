@@ -788,5 +788,18 @@
  "settings.guest_title": "Titel",
  "settings.guest_description": "Beschreibung",
  "settings.guest_canonical": "Kanonische Adresse",
- "settings.guest_unavailable": "Für diesen Pfad gibt es keine Gast-Ansicht (unbekannte Seite oder für Gäste nicht sichtbar)."
+ "settings.guest_unavailable": "Für diesen Pfad gibt es keine Gast-Ansicht (unbekannte Seite oder für Gäste nicht sichtbar).",
+ "watch.frequency": "Wann benachrichtigen",
+ "watch.frequency_help": "Zusammenfassungen kommen einmal am Tag bzw. einmal pro Woche zur eingestellten Uhrzeit.",
+ "watch.freq_instant": "Sofort (wenige Minuten nach der Änderung)",
+ "watch.freq_daily": "Tägliche Zusammenfassung",
+ "watch.freq_weekly": "Wöchentliche Zusammenfassung",
+ "watch.mail_subject_daily": "Tägliche Zusammenfassung: {count} Änderungen in {site}",
+ "watch.mail_subject_weekly": "Wöchentliche Zusammenfassung: {count} Änderungen in {site}",
+ "mail.digest": "Zusammenfassungen von Beobachtungen",
+ "mail.digest_help": "Für Beobachtungen mit täglicher oder wöchentlicher Zusammenfassung.",
+ "mail.digest_hour": "Uhrzeit",
+ "mail.digest_weekday": "Wochentag der wöchentlichen Zusammenfassung",
+ "mail.digest_timezone": "Zeitzone",
+ "mail.digest_timezone_help": "IANA-Name, z. B. Europe/Vienna. Leer: Zeitzone des Servers."
 }

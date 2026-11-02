@@ -9,11 +9,11 @@ import (
 // watchCmd manages the watches of a user (wrapper around the API).
 //
 //	ewiki watch list --as USER
-//	ewiki watch add category|element ID [--mode link|content] [--no-recursive] --as USER
+//	ewiki watch add category|element ID [--mode link|content] [--frequency instant|daily|weekly] [--no-recursive] --as USER
 //	ewiki watch remove WATCH_ID --as USER
 func (e *env) watchCmd(args []string) error {
-	usage := errors.New("usage: ewiki watch list|add TYPE ID [--mode link|content] [--no-recursive]|remove ID --as USER")
-	as, mode, rec := "", "link", true
+	usage := errors.New("usage: ewiki watch list|add TYPE ID [--mode link|content] [--frequency instant|daily|weekly] [--no-recursive]|remove ID --as USER")
+	as, mode, freq, rec := "", "link", "instant", true
 	var pos []string
 	for i := 0; i < len(args); i++ {
 		switch args[i] {
@@ -29,6 +29,12 @@ func (e *env) watchCmd(args []string) error {
 			}
 			i++
 			mode = args[i]
+		case "--frequency":
+			if i+1 >= len(args) {
+				return usage
+			}
+			i++
+			freq = args[i]
 		case "--no-recursive":
 			rec = false
 		default:
@@ -50,7 +56,7 @@ func (e *env) watchCmd(args []string) error {
 		if err != nil {
 			return usage
 		}
-		body, _ := json.Marshal(map[string]any{"target_type": pos[1], "target_id": id, "mode": mode, "recursive": rec})
+		body, _ := json.Marshal(map[string]any{"target_type": pos[1], "target_id": id, "mode": mode, "frequency": freq, "recursive": rec})
 		return e.api(append([]string{"PUT", "/api/v1/me/watches", string(body)}, asArgs...))
 	case "remove":
 		if len(pos) != 2 {

@@ -204,7 +204,7 @@ async function watchesSection(): Promise<HTMLElement | null> {
       return h('tr', null,
         h('th', { scope: 'row' }, title ? h('a', { href }, title) : t('watch.deleted')),
         h('td', null, t(`watch.type.${w.target_type}`)),
-        h('td', null, t(w.mode === 'content' ? 'watch.mode_content' : 'watch.mode_link')),
+        h('td', null, t(w.mode === 'content' ? 'watch.mode_content' : 'watch.mode_link'), ' · ', t(`watch.freq_${w.frequency ?? 'instant'}`)),
         h('td', { class: 'ew-actions' },
           button(t('common.edit'), () => watchDialog(w.target_type, w.target_id, title, w, data.enabled, (n) => {
             data.items = n ? data.items.map((x) => (x.id === w.id ? n : x)) : data.items.filter((x) => x.id !== w.id);

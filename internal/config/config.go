@@ -196,6 +196,22 @@ type Mail struct {
 	RatePerMinute int `yaml:"rate_per_minute,omitempty" json:"rate_per_minute"`
 	// Bounce processes delivery failures that arrive later as bounce mails.
 	Bounce Bounce `yaml:"bounce" json:"bounce"`
+	// Digests of watches: daily at DigestHour (0–23), weekly on
+	// DigestWeekday (0 = Sunday … 6 = Saturday) at that hour, in
+	// DigestTimezone (IANA name, default: time zone of the server).
+	DigestHour     int    `yaml:"digest_hour" json:"digest_hour"`
+	DigestWeekday  int    `yaml:"digest_weekday" json:"digest_weekday"`
+	DigestTimezone string `yaml:"digest_timezone,omitempty" json:"digest_timezone"`
+}
+
+// DigestLocation returns the time zone of watch digests.
+func (m Mail) DigestLocation() *time.Location {
+	if m.DigestTimezone != "" {
+		if l, err := time.LoadLocation(m.DigestTimezone); err == nil {
+			return l
+		}
+	}
+	return time.Local
 }
 
 // IsEnabled reports whether e-mail is switched on.
@@ -246,7 +262,7 @@ func Defaults() *Config {
 			MaxLoginFails: 10, LockoutDuration: "15m", MinPasswordLen: 12,
 		},
 		Retention: Retention{RevisionsKeepDays: 0, RevisionsKeepMin: 50, TrashDays: 30, AuditDays: 0, MailDays: 90},
-		Mail:      Mail{Transport: "auto", FromName: "Enterprise Wiki", SMTP: SMTP{Security: "starttls"}},
+		Mail:      Mail{Transport: "auto", FromName: "Enterprise Wiki", SMTP: SMTP{Security: "starttls"}, DigestHour: 7, DigestWeekday: 1},
 		Plugins:   Plugins{Dir: "./plugins"},
 		Cache:     Cache{Enabled: false, TTLSeconds: 300, MaxEntries: 5000, MaxMB: 128},
 	}
@@ -538,6 +554,14 @@ func Validate(c *Config) error {
 	case "", "starttls", "tls", "none":
 	default:
 		return fmt.Errorf("mail.smtp.security must be starttls, tls or none, got %q", c.Mail.SMTP.Security)
+	}
+	if c.Mail.DigestHour < 0 || c.Mail.DigestHour > 23 || c.Mail.DigestWeekday < 0 || c.Mail.DigestWeekday > 6 {
+		return errors.New("mail.digest_hour must be 0–23 and mail.digest_weekday 0–6 (0 = Sunday)")
+	}
+	if c.Mail.DigestTimezone != "" {
+		if _, err := time.LoadLocation(c.Mail.DigestTimezone); err != nil {
+			return fmt.Errorf("mail.digest_timezone: unknown time zone %q", c.Mail.DigestTimezone)
+		}
 	}
 	if c.Cache.TTLSeconds < 0 || c.Cache.MaxEntries < 0 || c.Cache.MaxMB < 0 || c.Cache.MaxMB > 16384 {
 		return fmt.Errorf("cache: ttl_seconds, max_entries and max_mb must be 0 or positive (max_mb at most 16384)")

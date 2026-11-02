@@ -1,12 +1,16 @@
 package server_test
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"net/http"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/mtsonline/enterprisewiki/internal/config"
+	"github.com/mtsonline/enterprisewiki/internal/watch"
 )
 
 func (e *env) guestPage(path, lang string) (string, http.Header) {
@@ -185,5 +189,61 @@ func TestEventOccurrenceOverrides(t *testing.T) {
 	admin.must("GET", base+"/events"+q, nil, &list, 200)
 	if list.Occurrences[1].Changed || !list.Occurrences[1].Start.Equal(second) {
 		t.Fatalf("reset: %+v", list.Occurrences[1])
+	}
+}
+
+func TestWatchDigests(t *testing.T) {
+	e := setup(t)
+	old := watch.Delay
+	watch.Delay = 0
+	t.Cleanup(func() { watch.Delay = old })
+	c := &capture{}
+	e.app.Mail.SetTransport(c)
+	admin := e.client()
+	admin.login("admin", adminPW)
+	var root cat
+	admin.must("POST", "/api/v1/categories", map[string]any{"titles": map[string]string{"en": "News"}}, &root, 201)
+	admin.must("POST", fmt.Sprintf("/api/v1/categories/%d/acl", root.ID), map[string]any{"subject_type": "authenticated", "permissions": 1, "inherit": true}, nil, 201)
+	for _, n := range []string{"dora", "ivo"} {
+		admin.must("POST", "/api/v1/admin/users", map[string]any{"username": n, "password": "Passw0rd!Passw0rd", "display_name": n, "email": n + "@example.com"}, nil, 201)
+	}
+	dora, ivo := e.client(), e.client()
+	dora.login("dora", "Passw0rd!Passw0rd")
+	ivo.login("ivo", "Passw0rd!Passw0rd")
+	if code := dora.do("PUT", "/api/v1/me/watches", map[string]any{"target_type": "category", "target_id": root.ID, "frequency": "hourly"}, nil); code != 400 {
+		t.Fatalf("invalid frequency: %d", code)
+	}
+	var w struct {
+		Frequency string `json:"frequency"`
+	}
+	dora.must("PUT", "/api/v1/me/watches", map[string]any{"target_type": "category", "target_id": root.ID, "frequency": "daily"}, &w, 200)
+	if w.Frequency != "daily" {
+		t.Fatalf("watch: %+v", w)
+	}
+	ivo.must("PUT", "/api/v1/me/watches", map[string]any{"target_type": "category", "target_id": root.ID}, nil, 200)
+	var p1 elem
+	admin.must("POST", "/api/v1/elements", map[string]any{"category_id": root.ID, "type": "core.html", "title": "Menu of the week", "body": htmlBody("<p>Soup</p>")}, &p1, 201)
+	e.flushWatches(t)
+	if !c.find("ivo@example.com", "Menu of the week") {
+		t.Error("instant watcher got no e-mail")
+	}
+	if c.find("dora@example.com", "Menu of the week") {
+		t.Fatal("daily watcher got an e-mail right away")
+	}
+	// the change was recorded before the last digest time → part of the daily digest
+	if _, err := e.app.DB.Exec(context.Background(), `UPDATE watch_events SET first_at = first_at - interval '2 days'`); err != nil {
+		t.Fatal(err)
+	}
+	e.flushWatches(t)
+	if !c.find("dora@example.com", "Menu of the week") || !c.find("dora@example.com", "Daily digest") {
+		t.Error("daily digest missing")
+	}
+	// boundaries
+	m := config.Defaults().Mail
+	m.DigestTimezone = "Europe/Vienna"
+	vie := mustLoc("Europe/Vienna")
+	d, wk := watch.DigestBoundaries(m, time.Date(2026, 11, 4, 6, 30, 0, 0, vie)) // Wednesday before 7:00
+	if !d.Equal(time.Date(2026, 11, 3, 7, 0, 0, 0, vie)) || !wk.Equal(time.Date(2026, 11, 2, 7, 0, 0, 0, vie)) {
+		t.Errorf("boundaries: %v %v", d, wk)
 	}
 }

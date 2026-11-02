@@ -788,5 +788,18 @@
  "settings.guest_title": "Title",
  "settings.guest_description": "Description",
  "settings.guest_canonical": "Canonical address",
- "settings.guest_unavailable": "There is no guest view for this path (unknown page or not visible to guests)."
+ "settings.guest_unavailable": "There is no guest view for this path (unknown page or not visible to guests).",
+ "watch.frequency": "When to notify",
+ "watch.frequency_help": "Digests arrive once a day or once a week at the configured time.",
+ "watch.freq_instant": "Immediately (a few minutes after the change)",
+ "watch.freq_daily": "Daily digest",
+ "watch.freq_weekly": "Weekly digest",
+ "watch.mail_subject_daily": "Daily digest: {count} changes in {site}",
+ "watch.mail_subject_weekly": "Weekly digest: {count} changes in {site}",
+ "mail.digest": "Watch digests",
+ "mail.digest_help": "For watches with a daily or weekly digest.",
+ "mail.digest_hour": "Time",
+ "mail.digest_weekday": "Day of the weekly digest",
+ "mail.digest_timezone": "Time zone",
+ "mail.digest_timezone_help": "IANA name, e.g. Europe/Vienna. Empty: time zone of the server."
 }
