@@ -2,7 +2,7 @@
 .ewe-toolbar { display: flex; flex-wrap: wrap; gap: .75rem; align-items: center; justify-content: space-between; margin-bottom: .5rem; }
 .ewe-title { margin: 0; font-size: 1.3rem; flex: 1 1 auto; text-align: center; }
 .ewe-nav, .ewe-views { display: flex; gap: .25rem; }
-.ewe-views [aria-pressed="true"] { background: var(--ew-primary); color: var(--ew-primary-text, #fff); border-color: var(--ew-primary); }
+.ewe-views .ew-btn[aria-pressed="true"], .ewe-views .ew-btn[aria-pressed="true"]:hover:not(:disabled) { background: var(--ew-primary); color: var(--ew-on-primary); border-color: var(--ew-primary); }
 .ewe-bar { display: flex; flex-wrap: wrap; gap: .5rem 1rem; align-items: center; justify-content: space-between; margin-bottom: .75rem; padding: .5rem .75rem; background: var(--ew-bg-subtle); border-radius: 8px; }
 .ewe-filters { display: flex; flex-wrap: wrap; gap: .5rem; flex: 1 1 18rem; }
 .ewe-filters input { flex: 1 1 12rem; }
@@ -14,7 +14,7 @@
 .ewe-day { border: 1px solid var(--ew-border); vertical-align: top; height: 7.5rem; padding: .25rem; background: var(--ew-bg-raised); }
 .ewe-day--other { background: var(--ew-bg-subtle); }
 .ewe-day--other .ewe-day-num { color: var(--ew-text-muted); }
-.ewe-day--today .ewe-day-num { background: var(--ew-primary); color: var(--ew-primary-text, #fff); border-radius: 999px; padding: 0 .4rem; }
+.ewe-day--today .ewe-day-num { background: var(--ew-primary); color: var(--ew-on-primary); border-radius: 999px; padding: 0 .4rem; }
 .ewe-day-head { display: flex; justify-content: space-between; align-items: center; min-height: 1.6rem; }
 .ewe-day-num { font-weight: 600; font-size: .9rem; }
 .ewe-day-head .ew-btn { padding: 0 .45rem; min-height: 24px; min-width: 24px; justify-content: center; line-height: 1.4; opacity: 0; }
