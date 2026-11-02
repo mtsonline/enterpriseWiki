@@ -202,3 +202,10 @@ func firstText(m map[string]string, lang, def string) string {
 func auditLog(ctx context.Context, s *Service, action, etype string, id int64, before, after any) error {
 	return audit.Log(ctx, s.pool, action, etype, id, before, after)
 }
+
+// Touch reports a change of an element that is stored outside its
+// revisions (e.g. events of a calendar): watchers are notified and caches
+// invalidated, no revision is created.
+func (s *Service) Touch(ctx context.Context, elementID int64) {
+	s.fire(ctx, "update", "element", elementID)
+}
