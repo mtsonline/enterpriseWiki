@@ -126,3 +126,28 @@ func (e *env) jobsCmd(args []string) error {
 		return errors.New("usage: ewiki jobs list | ewiki jobs run NAME")
 	})
 }
+
+// cacheCmd: ewiki cache status|clear
+func (e *env) cacheCmd(args []string) error {
+	if len(args) != 1 || (args[0] != "status" && args[0] != "clear") {
+		return errors.New("usage: ewiki cache status|clear")
+	}
+	return e.withApp(false, func(ctx context.Context, a *app.App) error {
+		c := a.Config.Get().Cache
+		if args[0] == "clear" {
+			if !c.Enabled {
+				fmt.Fprintln(e.stdout, "the guest cache is switched off (cache.enabled: false)")
+				return nil
+			}
+			a.Cache.Invalidate(ctx, "cli")
+			fmt.Fprintln(e.stdout, "guest cache cleared on all servers (within a few seconds)")
+			return nil
+		}
+		var gen int64
+		_ = a.DB.QueryRow(ctx, `SELECT generation FROM cache_state WHERE id = 1`).Scan(&gen)
+		fmt.Fprintf(e.stdout, "enabled:     %v\nttl:         %ds (0 = until the next change)\nmax entries: %d\nmax size:    %d MB\ngeneration:  %d\n",
+			c.Enabled, c.TTLSeconds, c.MaxEntries, c.MaxMB, gen)
+		fmt.Fprintln(e.stdout, "hit statistics are kept per server process: GET /api/v1/admin/cache on the running server")
+		return nil
+	})
+}

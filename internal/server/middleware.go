@@ -99,7 +99,17 @@ func (s *Server) wrap(next http.Handler) http.Handler {
 			httpx.WriteError(sw, r, err)
 			return
 		}
-		next.ServeHTTP(sw, r.WithContext(ctx))
+		r = r.WithContext(ctx)
+		// guests: answer from the cache (or fill it)
+		if identity.From(ctx) == nil && s.app.Cache.ServeAPI(sw, r, next) {
+			return
+		}
+		next.ServeHTTP(sw, r)
+		// any successful change invalidates the guest cache
+		if r.Method != http.MethodGet && r.Method != http.MethodHead && r.Method != http.MethodOptions &&
+			strings.HasPrefix(r.URL.Path, "/api/") && sw.status < 400 && !noInvalidate(r.URL.Path) {
+			s.app.Cache.Invalidate(ctx, r.Method+" "+r.URL.Path)
+		}
 	})
 }
 
@@ -165,4 +175,15 @@ func ipInCIDR(ip, cidr string) bool {
 	_, n, err := net.ParseCIDR(cidr)
 	p := net.ParseIP(ip)
 	return err == nil && p != nil && n.Contains(p)
+}
+
+// noInvalidate lists write requests that do not change what guests see.
+func noInvalidate(p string) bool {
+	for _, x := range []string{"/api/v1/auth/", "/api/v1/me/password", "/api/v1/me/api-keys", "/api/v1/me/ssh-keys", "/api/v1/me/feed-token",
+		"/api/v1/me/watches", "/api/v1/me/notifications", "/api/v1/elements/preview", "/api/v1/files"} {
+		if strings.HasPrefix(p, x) {
+			return true
+		}
+	}
+	return false
 }

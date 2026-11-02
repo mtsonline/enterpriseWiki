@@ -6,7 +6,37 @@ export class ApiError extends Error {
   }
 }
 
+// Responses embedded by the guest cache into the page (<script id="ew-preload">):
+// used once each, only right after the page was loaded.
+let preload: Record<string, unknown> | null = null;
+const loadedAt = Date.now();
+try {
+  const el = typeof document !== 'undefined' ? document.getElementById('ew-preload') : null;
+  if (el?.textContent) preload = JSON.parse(el.textContent) as Record<string, unknown>;
+  el?.remove();
+} catch {
+  preload = null;
+}
+
+function fromPreload(url: string): { hit: boolean; data?: unknown } {
+  if (!preload || Date.now() - loadedAt > 15000) {
+    preload = null;
+    return { hit: false };
+  }
+  const u = new URL(url, location.origin);
+  const key = u.pathname + u.search;
+  if (!(key in preload)) return { hit: false };
+  const data = preload[key];
+  delete preload[key];
+  return { hit: true, data };
+}
+
 async function request<T>(method: string, path: string, body?: unknown): Promise<T> {
+  const url = path.startsWith('/') ? path : `/api/v1/${path}`;
+  if (method === 'GET') {
+    const p = fromPreload(url);
+    if (p.hit) return p.data as T;
+  }
   const headers: Record<string, string> = { 'X-Requested-With': 'ewiki', Accept: 'application/json' };
   const init: RequestInit = { method, headers, credentials: 'same-origin' };
   if (body !== undefined) {
@@ -15,7 +45,7 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
   }
   let res: Response;
   try {
-    res = await fetch(path.startsWith('/') ? path : `/api/v1/${path}`, init);
+    res = await fetch(url, init);
   } catch {
     throw new ApiError(0, 'network', 'network error');
   }

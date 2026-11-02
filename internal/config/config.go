@@ -37,7 +37,16 @@ type Config struct {
 	Retention Retention                 `yaml:"retention" json:"retention"`
 	Plugins   Plugins                   `yaml:"plugins" json:"plugins"`
 	Mail      Mail                      `yaml:"mail" json:"mail"`
+	Cache     Cache                     `yaml:"cache" json:"cache"`
 	Settings  map[string]map[string]any `yaml:"plugin_settings,omitempty" json:"plugin_settings,omitempty"`
+}
+
+// Cache configures the optional cache for guests (see package pagecache).
+type Cache struct {
+	Enabled    bool `yaml:"enabled" json:"enabled"`
+	TTLSeconds int  `yaml:"ttl_seconds" json:"ttl_seconds"` // 0 = until the next change
+	MaxEntries int  `yaml:"max_entries" json:"max_entries"`
+	MaxMB      int  `yaml:"max_mb" json:"max_mb"`
 }
 
 // Server holds HTTP settings.
@@ -234,6 +243,7 @@ func Defaults() *Config {
 		Retention: Retention{RevisionsKeepDays: 0, RevisionsKeepMin: 50, TrashDays: 30, AuditDays: 0, MailDays: 90},
 		Mail:      Mail{Transport: "auto", FromName: "Enterprise Wiki", SMTP: SMTP{Security: "starttls"}},
 		Plugins:   Plugins{Dir: "./plugins"},
+		Cache:     Cache{Enabled: false, TTLSeconds: 300, MaxEntries: 5000, MaxMB: 128},
 	}
 }
 
@@ -522,6 +532,9 @@ func Validate(c *Config) error {
 	case "", "starttls", "tls", "none":
 	default:
 		return fmt.Errorf("mail.smtp.security must be starttls, tls or none, got %q", c.Mail.SMTP.Security)
+	}
+	if c.Cache.TTLSeconds < 0 || c.Cache.MaxEntries < 0 || c.Cache.MaxMB < 0 || c.Cache.MaxMB > 16384 {
+		return fmt.Errorf("cache: ttl_seconds, max_entries and max_mb must be 0 or positive (max_mb at most 16384)")
 	}
 	if c.Mail.Concurrency < 0 || c.Mail.Concurrency > 64 || c.Mail.RatePerMinute < 0 {
 		return errors.New("mail.concurrency must be 0..64 and mail.rate_per_minute >= 0")

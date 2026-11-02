@@ -157,4 +157,19 @@ func (s *Server) routesM6() {
 		}
 		return s.app.Auth.SetProfile(r.Context(), id, in)
 	})
+
+	// ---------------------------------------------------------------- guest cache
+	s.handle("GET /api/v1/admin/cache", func(w http.ResponseWriter, r *http.Request) (any, error) {
+		if err := requireAdmin(r); err != nil {
+			return nil, err
+		}
+		return s.app.Cache.GetStatus(), nil
+	})
+	s.handle("DELETE /api/v1/admin/cache", func(w http.ResponseWriter, r *http.Request) (any, error) {
+		if err := requireAdmin(r); err != nil {
+			return nil, err
+		}
+		s.app.Cache.Invalidate(r.Context(), "admin")
+		return h.NoContent{}, nil
+	})
 }

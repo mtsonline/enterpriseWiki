@@ -3,6 +3,7 @@
 package server
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"io/fs"
@@ -13,6 +14,7 @@ import (
 	"time"
 
 	"github.com/mtsonline/enterprisewiki/internal/app"
+	"github.com/mtsonline/enterprisewiki/internal/identity"
 	"github.com/mtsonline/enterprisewiki/internal/pluginmgr"
 )
 
@@ -50,6 +52,7 @@ func (s *Server) Run(ctx context.Context) error {
 		MaxHeaderBytes:    1 << 20,
 	}
 	errc := make(chan error, 1)
+	go s.app.Cache.Poll(ctx)
 	go func() {
 		s.log.Info("listening", "addr", srv.Addr)
 		errc <- srv.ListenAndServe()
@@ -103,5 +106,12 @@ func (s *Server) serveFrontend(w http.ResponseWriter, r *http.Request) {
 	}
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.Header().Set("Cache-Control", "no-cache")
+	if identity.From(r.Context()) == nil {
+		// guests: embed the API responses this page needed before
+		if pre := s.app.Cache.Preload(r); pre != nil {
+			b = bytes.Replace(b, []byte("</head>"), append(append([]byte(`<script type="application/json" id="ew-preload">`), pre...), []byte("</script></head>")...), 1)
+			w.Header().Set("X-Cache", "PRELOAD")
+		}
+	}
 	_, _ = w.Write(b)
 }

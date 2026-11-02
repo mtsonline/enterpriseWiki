@@ -26,6 +26,7 @@ import (
 	"regexp"
 	"strings"
 	"testing"
+	"testing/fstest"
 	"time"
 
 	"golang.org/x/crypto/ssh"
@@ -99,7 +100,8 @@ func setup(t *testing.T) *env {
 	if _, err := a.Auth.CreateLocalUserUnchecked(cctx, auth.NewUser{Username: "admin", Password: adminPW, DisplayName: "Admin", Roles: []int64{rid}}); err != nil {
 		t.Fatal(err)
 	}
-	srv := server.New(a, nil, pluginmgr.New(dir, a.Config, nil))
+	web := fstest.MapFS{"index.html": {Data: []byte("<!DOCTYPE html><html><head><title>test</title></head><body><main id=\"app\"></main></body></html>")}}
+	srv := server.New(a, web, pluginmgr.New(dir, a.Config, nil))
 	ts := httptest.NewServer(srv.Handler())
 	t.Cleanup(ts.Close)
 	return &env{t: t, srv: ts, app: a, cfg: cfgPath}

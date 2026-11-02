@@ -244,3 +244,6 @@ th .ew-help { font-weight: 400; }
 .ew-card-photo-row { display: flex; gap: 1rem; align-items: center; flex-wrap: wrap; margin-bottom: 1rem; }
 .ew-card-photo img, .ew-avatar--large { width: 5.5rem; height: 5.5rem; border-radius: 50%; object-fit: cover; font-size: 2rem; }
 .ew-card-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr)); gap: 0 1rem; }
+.ew-facts { display: grid; grid-template-columns: max-content 1fr; gap: .35rem 1.25rem; margin: 0 0 1rem; }
+.ew-facts dt { font-weight: 600; }
+.ew-facts dd { margin: 0; }

@@ -23,6 +23,7 @@ import (
 	"github.com/mtsonline/enterprisewiki/internal/kernel"
 	"github.com/mtsonline/enterprisewiki/internal/mail"
 	"github.com/mtsonline/enterprisewiki/internal/storage"
+	"github.com/mtsonline/enterprisewiki/internal/pagecache"
 	"github.com/mtsonline/enterprisewiki/internal/watch"
 	"github.com/mtsonline/enterprisewiki/internal/worker"
 	"github.com/mtsonline/enterprisewiki/pkg/sdk"
@@ -40,6 +41,7 @@ type App struct {
 	Files   *storage.Store
 	Mail    *mail.Service
 	Watch   *watch.Service
+	Cache   *pagecache.Cache
 	Workers *worker.Registry
 	Kernel  *kernel.Kernel
 	Log     *slog.Logger
@@ -120,6 +122,12 @@ func New(ctx context.Context, o Options) (*App, error) {
 	}})
 	a.Mail.T = a.I18n.T
 	a.Watch = watch.New(pool, cfg, a.ACL, a.Auth, a.Content, a.Mail, a.I18n, log)
+	// guest cache: every change invalidates it (here, on other nodes and from CLI processes)
+	a.Cache = pagecache.New(pool, cfg, log)
+	a.Content.OnChange(func(ctx context.Context, event, etype string, id int64) { a.Cache.Invalidate(ctx, etype+"."+event) })
+	for _, topic := range []string{"auth", "acl", "i18n"} {
+		a.Bus.Subscribe(topic, func(string) { a.Cache.Invalidate(context.Background(), topic) })
+	}
 	a.Workers.Register(worker.Job{Name: "watch", Interval: 30 * time.Second, Run: func(ctx context.Context) error {
 		n, err := a.Watch.Send(ctx)
 		if n > 0 {

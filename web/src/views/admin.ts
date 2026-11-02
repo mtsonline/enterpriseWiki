@@ -14,7 +14,7 @@ import { errorPage } from './content';
 
 interface User { id: number; username: string; provider: string; handle: string; display_name: string; email: string; language: string; disabled: boolean; locked_until: string | null; created_at: string; last_login_at: string | null; groups: number[]; roles: number[]; totp_enabled: boolean }
 
-const CORE_SECTIONS = ['users', 'groups', 'roles', 'plugins', 'updates', 'settings', 'mail', 'languages', 'audit'];
+const CORE_SECTIONS = ['users', 'groups', 'roles', 'plugins', 'updates', 'settings', 'mail', 'cache', 'languages', 'audit'];
 
 const reload = () => navigate(location.pathname + location.search, { replace: true });
 
@@ -44,6 +44,7 @@ export async function adminView({ params, query, main }: RouteCtx): Promise<void
       case 'updates': await updates(panel, false); break;
       case 'settings': await settings(panel); break;
       case 'mail': await mailAdmin(panel, query); break;
+      case 'cache': await cacheAdmin(panel); break;
       case 'languages': await languages(panel, query); break;
       case 'audit': await auditLog(panel, query); break;
       default: {
@@ -587,4 +588,45 @@ async function auditLog(panel: HTMLElement, query: URLSearchParams): Promise<voi
     h('div', { class: 'ew-actions' },
       offset > 0 ? h('a', { href: `/admin/audit${qs({ entity_type: type, offset: Math.max(0, offset - 100) })}` }, t('common.previous')) : null,
       entries.length === 100 ? h('a', { href: `/admin/audit${qs({ entity_type: type, offset: offset + 100 })}` }, t('common.next')) : null));
+}
+
+// ---------------------------------------------------------------- guest cache
+
+interface CacheStatus { enabled: boolean; ttl_seconds: number; entries: number; pages: number; bytes: number; max_entries: number; max_bytes: number; hits: number; misses: number; hit_rate: number; stores: number; clears: number; generation: number }
+
+async function cacheAdmin(panel: HTMLElement): Promise<void> {
+  const [st, s] = await Promise.all([api.get<CacheStatus>('admin/cache'), api.get<Settings>('admin/settings')]);
+  const c = (s.config as unknown as { cache: { enabled: boolean; ttl_seconds: number; max_entries: number; max_mb: number } }).cache;
+  const enabled = checkbox(t('cache.enabled'), c.enabled, { help: t('cache.enabled_help') });
+  const ttl = textInput({ type: 'number', value: String(c.ttl_seconds) });
+  const maxE = textInput({ type: 'number', value: String(c.max_entries) });
+  const maxMB = textInput({ type: 'number', value: String(c.max_mb) });
+  const alert = h('div', { class: 'ew-form-alert', role: 'alert' });
+  const form = h('form', { class: 'ew-form', novalidate: true }, alert, enabled.el,
+    field(t('cache.ttl'), ttl, { help: t('cache.ttl_help') }), field(t('cache.max_entries'), maxE), field(t('cache.max_mb'), maxMB),
+    h('div', { class: 'ew-form-actions' }, button(t('common.save'), () => undefined, { type: 'submit', variant: 'primary' })));
+  form.addEventListener('submit', async (ev) => {
+    ev.preventDefault();
+    alert.textContent = '';
+    try {
+      await api.put('admin/settings', { cache: { enabled: enabled.input.checked, ttl_seconds: Number(ttl.value) || 0, max_entries: Number(maxE.value) || 0, max_mb: Number(maxMB.value) || 0 } });
+      toast(t('common.saved'));
+      reload();
+    } catch (e) { alert.textContent = errorText(e); }
+  });
+  const mb = (n: number) => `${(n / 1048576).toFixed(1)} MB`;
+  const rows: [string, string][] = [
+    [t('cache.state'), st.enabled ? t('cache.on') : t('cache.off')], [t('cache.entries'), `${st.entries} / ${st.max_entries || '∞'}`],
+    [t('cache.pages'), String(st.pages)], [t('cache.size'), `${mb(st.bytes)} / ${st.max_bytes ? mb(st.max_bytes) : '∞'}`],
+    [t('cache.hit_rate'), `${Math.round(st.hit_rate * 100)} % (${st.hits} / ${st.hits + st.misses})`], [t('cache.clears'), String(st.clears)],
+  ];
+  mount(panel, pageHeader(t('admin.cache')),
+    h('p', null, t('cache.help')),
+    h('section', { class: 'ew-section', 'aria-labelledby': 'cs-h' }, h('h2', { id: 'cs-h' }, t('cache.status')),
+      h('dl', { class: 'ew-facts' }, ...rows.flatMap(([k, v]) => [h('dt', null, k), h('dd', null, v)])),
+      h('p', { class: 'ew-help' }, t('cache.per_process')),
+      h('div', { class: 'ew-actions' }, button(t('cache.clear'), async () => {
+        try { await api.del('admin/cache'); toast(t('cache.cleared')); reload(); } catch (e) { toast(errorText(e), 'error'); }
+      }, { variant: 'secondary' }), button(t('cache.refresh'), () => reload(), { variant: 'subtle' }))),
+    h('section', { class: 'ew-section', 'aria-labelledby': 'cc-h' }, h('h2', { id: 'cc-h' }, t('cache.settings')), form));
 }

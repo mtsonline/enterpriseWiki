@@ -72,3 +72,11 @@ ALTER TABLE categories ADD COLUMN feed text NOT NULL DEFAULT 'off' CHECK (feed I
 -- Profile ("business card") maintained by the user or admins; not
 -- overwritten by identity providers (unlike attributes).
 ALTER TABLE users ADD COLUMN profile jsonb NOT NULL DEFAULT '{}';
+
+-- Generation of the guest cache: incremented on every change so all nodes
+-- (and changes made by CLI processes) invalidate their in-memory caches.
+CREATE TABLE cache_state (
+    id          int PRIMARY KEY DEFAULT 1 CHECK (id = 1),
+    generation  bigint NOT NULL DEFAULT 0
+);
+INSERT INTO cache_state DEFAULT VALUES;

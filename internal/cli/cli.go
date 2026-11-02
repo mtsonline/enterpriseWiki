@@ -55,6 +55,9 @@ Users
   user passwd NAME [--password-stdin]
   user disable NAME | user enable NAME | user unlock NAME
 
+Guest cache
+  cache status | cache clear
+
 Watches (e-mail on changes)
   watch list --as USER
   watch add category|element ID [--mode link|content] [--no-recursive] --as USER
@@ -147,6 +150,8 @@ func Main(args []string) int {
 		err = e.jobsCmd(args[1:])
 	case "watch":
 		err = e.watchCmd(args[1:])
+	case "cache":
+		err = e.cacheCmd(args[1:])
 	case "retention":
 		err = e.withApp(false, func(ctx context.Context, a *app.App) error {
 			res, err := a.Content.RunRetention(ctx)
