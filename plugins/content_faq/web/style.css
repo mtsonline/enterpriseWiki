@@ -1,0 +1,30 @@
+.ewq-intro { margin-bottom: 1.25rem; }
+.ewq-toolbar { display: flex; flex-wrap: wrap; gap: .75rem; align-items: center; justify-content: space-between; margin: 0 0 1rem; padding: .75rem; background: var(--ew-bg-subtle); border-radius: 8px; }
+.ewq-search { flex: 1 1 18rem; display: flex; }
+.ewq-search input { flex: 1; }
+.ewq-status:empty { display: none; }
+.ewq details > summary { cursor: pointer; list-style: none; display: flex; align-items: baseline; gap: .6rem; }
+.ewq details > summary::-webkit-details-marker { display: none; }
+.ewq details > summary::before { content: ""; flex: none; width: .55rem; height: .55rem; border-right: 2px solid currentColor; border-bottom: 2px solid currentColor; transform: rotate(-45deg); transition: transform .15s; margin-right: .1rem; position: relative; top: -.1rem; }
+.ewq details[open] > summary::before { transform: rotate(45deg); }
+@media (prefers-reduced-motion: reduce) { .ewq details > summary::before { transition: none; } }
+.ewq details > summary:focus-visible { outline: 3px solid var(--ew-focus, var(--ew-primary)); outline-offset: 2px; border-radius: 4px; }
+/* sections */
+.ewq-section { border: 1px solid var(--ew-border); border-radius: 8px; margin: 0 0 .75rem; background: var(--ew-bg-raised); }
+.ewq-section > summary { padding: .7rem 1rem; }
+.ewq-section > summary :is(h2, h3, h4, h5, h6) { display: inline; margin: 0; font-size: 1.15rem; }
+.ewq-section .ewq-section > summary :is(h2, h3, h4, h5, h6) { font-size: 1.02rem; }
+.ewq-section[open] > summary { border-bottom: 1px solid var(--ew-border); }
+.ewq-section-body { padding: .5rem 1rem .75rem; }
+.ewq-section .ewq-section { background: var(--ew-bg); }
+.ewq-section-desc { color: var(--ew-text-muted); margin: .25rem 0 .5rem; }
+/* questions */
+.ewq-q { border-bottom: 1px solid var(--ew-border); }
+.ewq-q:last-child { border-bottom: none; }
+.ewq-question { padding: .6rem .25rem; font-weight: 600; }
+.ewq-question:hover { color: var(--ew-primary); }
+.ewq-answer { padding: 0 .25rem .9rem 1.45rem; }
+.ewq-answer > :first-child { margin-top: 0; }
+.ewq-num { color: var(--ew-text-muted); font-variant-numeric: tabular-nums; }
+.ewq-edit { font-size: .9rem; margin: .5rem 0 0; }
+.ewq-q:target > summary { background: var(--ew-bg-subtle); }

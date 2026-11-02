@@ -81,6 +81,7 @@ type ListOptions struct {
 	Offset      int
 	SummaryLen  int // characters of the summary (default 300)
 	WithContent bool
+	Exclude     int64 // e.g. the blog element itself
 }
 
 // ListIn returns elements of the given categories in the caller's
@@ -104,7 +105,7 @@ func (s *Service) ListIn(ctx context.Context, o ListOptions) ([]ListedElement, i
 	}
 	var total int
 	if err := s.pool.QueryRow(ctx, `SELECT count(*) FROM elements e WHERE e.deleted_at IS NULL AND e.category_id = ANY($1)
-		AND ($2 = '' OR $2 = ANY(e.tags))`, o.Categories, o.Tag).Scan(&total); err != nil {
+		AND ($2 = '' OR $2 = ANY(e.tags)) AND e.id <> $3`, o.Categories, o.Tag, o.Exclude).Scan(&total); err != nil {
 		return nil, 0, err
 	}
 	rows, err := s.pool.Query(ctx, `SELECT e.id, e.category_id, e.type, d.lang, d.title, left(d.body_text, $3), e.tags, e.position,
@@ -113,8 +114,8 @@ func (s *Service) ListIn(ctx context.Context, o ListOptions) ([]ListedElement, i
 		JOIN LATERAL (SELECT lang, title, body_text FROM search_docs WHERE element_id = e.id AND lang IN ($2, e.original_lang)
 			ORDER BY (lang = $2) DESC LIMIT 1) d ON true
 		LEFT JOIN users u ON u.id = e.created_by
-		WHERE e.deleted_at IS NULL AND e.category_id = ANY($1) AND ($4 = '' OR $4 = ANY(e.tags))
-		ORDER BY `+order+` LIMIT $5 OFFSET $6`, o.Categories, o.Lang, o.SummaryLen+1, o.Tag, o.Limit, o.Offset)
+		WHERE e.deleted_at IS NULL AND e.category_id = ANY($1) AND ($4 = '' OR $4 = ANY(e.tags)) AND e.id <> $7
+		ORDER BY `+order+` LIMIT $5 OFFSET $6`, o.Categories, o.Lang, o.SummaryLen+1, o.Tag, o.Limit, o.Offset, o.Exclude)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -138,4 +139,27 @@ func (s *Service) ListIn(ctx context.Context, o ListOptions) ([]ListedElement, i
 		}
 	}
 	return list, total, nil
+}
+
+// ElementBody returns type, stored body and category of an element in lang
+// (falling back to the original language) for callers who may view it.
+// Element type plugins use it to read their configuration.
+func (s *Service) ElementBody(ctx context.Context, id int64, lang string) (typ string, body []byte, shown string, cat int64, err error) {
+	if cat, err = s.ElementCategory(ctx, id, acl.View); err != nil {
+		return
+	}
+	err = s.pool.QueryRow(ctx, `SELECT e.type, r.body, r.lang FROM element_revisions r JOIN elements e ON e.id = r.element_id
+		WHERE r.element_id = $1 AND e.deleted_at IS NULL ORDER BY (r.lang = $2) DESC, (r.lang = e.original_lang) DESC, r.rev DESC LIMIT 1`, id, lang).
+		Scan(&typ, &body, &shown)
+	return
+}
+
+// CategoriesByID loads categories in tree order (no permission check:
+// pass ids from Scope).
+func (s *Service) CategoriesByID(ctx context.Context, ids []int64) ([]Category, error) {
+	rows, err := s.pool.Query(ctx, `SELECT `+catCols+` FROM categories c WHERE c.id = ANY($1) AND c.deleted_at IS NULL ORDER BY c.path`, ids)
+	if err != nil {
+		return nil, err
+	}
+	return pgx.CollectRows(rows, scanCategory)
 }

@@ -8,6 +8,8 @@ import (
 	_ "github.com/mtsonline/enterprisewiki/plugins/auth_local"
 	_ "github.com/mtsonline/enterprisewiki/plugins/auth_oidc"
 	_ "github.com/mtsonline/enterprisewiki/plugins/auth_shib"
+	_ "github.com/mtsonline/enterprisewiki/plugins/content_blog"
+	_ "github.com/mtsonline/enterprisewiki/plugins/content_faq"
 	_ "github.com/mtsonline/enterprisewiki/plugins/core_attachment"
 	_ "github.com/mtsonline/enterprisewiki/plugins/core_blocks"
 	_ "github.com/mtsonline/enterprisewiki/plugins/core_comments"
