@@ -132,9 +132,15 @@ jobs:
         if: ${{ inputs.latest }}
         run: sed -i -E 's#^FROM (--platform=\S+ )?(node|golang|alpine):\S+#FROM \1\2:latest#' Dockerfile && grep ^FROM Dockerfile
       - run: docker build -t enterprisewiki:ci .
-      - name: PostgreSQL image with automatic major upgrades
-        run: |
-          ${{ inputs.latest && 'sed -i -E "s#^FROM postgres:\\S+#FROM postgres:alpine#" docker/postgres/Dockerfile' || 'true' }}
-          docker build -t enterprisewiki-postgres:ci docker/postgres
-      - name: upgrade test (every older major version in the image → new version)
-        run: docker/postgres/test-upgrade.sh enterprisewiki-postgres:ci
+
+  compose:
+    name: Docker Compose – setup, non-root, PostgreSQL upgrade ${{ matrix.from }} → recommended
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        from: ["16", "17"]
+    steps:
+      - uses: actions/checkout@v4
+      - name: upgrade test with the official images (copy and --link)
+        run: scripts/test-docker-postgres.sh ${{ matrix.from }} ${{ matrix.from == '16' && '--full' || '' }}

@@ -1,0 +1,69 @@
+# Enterprise Wiki built locally from this directory (e.g. with own plugins in
+# plugins/), instead of the published image.
+#
+#   ./docker-setup.sh
+#   docker compose -f docker-compose.build.yml up -d --build
+#
+# Same layout as docker-compose.yml: data in ./data, containers run as your user.
+# Tip: "export COMPOSE_FILE=docker-compose.build.yml" saves the -f option
+# (./docker-postgres-upgrade.sh respects COMPOSE_FILE as well).
+services:
+  postgres:
+    # the official PostgreSQL image; major upgrades with ./docker-postgres-upgrade.sh
+    image: postgres:${POSTGRES_VERSION:-18}
+    user: "${EWIKI_UID:?run ./docker-setup.sh}:${EWIKI_GID:?run ./docker-setup.sh}"
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ewiki
+      POSTGRES_USER: ewiki
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+      # one directory per major version (data/postgres/18/docker, …/19/docker)
+      PGDATA: /var/lib/postgresql/${POSTGRES_VERSION:-18}/docker
+    volumes:
+      - ./data/postgres:/var/lib/postgresql
+    stop_grace_period: 2m
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U ewiki -d ewiki"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 2m
+      start_interval: 5s
+
+  wiki:
+    build: .
+    user: "${EWIKI_UID:?run ./docker-setup.sh}:${EWIKI_GID:?run ./docker-setup.sh}"
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      EWIKI_DATABASE_URL: postgres://ewiki:${POSTGRES_PASSWORD}@postgres:5432/ewiki?sslmode=disable
+      EWIKI_ADMIN_USER: ${EWIKI_ADMIN_USER:-admin}
+      EWIKI_ADMIN_PASSWORD: ${EWIKI_ADMIN_PASSWORD:?set EWIKI_ADMIN_PASSWORD in .env}
+      EWIKI_SITE_NAME: ${EWIKI_SITE_NAME:-Enterprise Wiki}
+      EWIKI_BASE_URL: ${EWIKI_BASE_URL:-http://localhost:8080}
+      EWIKI_LANGUAGES: ${EWIKI_LANGUAGES:-en,de}
+      # outgoing e-mail (used on first setup; later in Administration -> E-mail)
+      EWIKI_MAIL_FROM: ${EWIKI_MAIL_FROM:-}
+      EWIKI_SMTP_HOST: ${EWIKI_SMTP_HOST:-}
+      EWIKI_SMTP_PORT: ${EWIKI_SMTP_PORT:-}
+      EWIKI_SMTP_SECURITY: ${EWIKI_SMTP_SECURITY:-}
+      EWIKI_SMTP_USER: ${EWIKI_SMTP_USER:-}
+      EWIKI_SMTP_PASSWORD: ${EWIKI_SMTP_PASSWORD:-}
+    ports:
+      - "${EWIKI_PORT:-8080}:8080"
+    volumes:
+      - ./data/wiki:/data
+
+  # Optional external search engine for very large wikis (plugin search.external,
+  # Administration -> Search engine: engine meilisearch, URL http://meilisearch:7700).
+  # meilisearch:
+  #   image: getmeili/meilisearch:v1.10
+  #   user: "${EWIKI_UID}:${EWIKI_GID}"
+  #   restart: unless-stopped
+  #   environment:
+  #     MEILI_MASTER_KEY: ${MEILI_MASTER_KEY:?set MEILI_MASTER_KEY in .env}
+  #     MEILI_ENV: production
+  #   volumes:
+  #     - ./data/meilisearch:/meili_data
