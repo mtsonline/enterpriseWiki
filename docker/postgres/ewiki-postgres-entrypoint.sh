@@ -36,7 +36,12 @@ inventory() { # socket dir
   done
 }
 
-as_pg() { su-exec postgres "$@"; }
+# run as the postgres user (the official images use gosu, older Alpine images su-exec)
+if command -v gosu >/dev/null 2>&1; then
+  as_pg() { gosu postgres "$@"; }
+else
+  as_pg() { su-exec postgres "$@"; }
+fi
 
 upgrade() {
   oldv="$1"; old="$2"
