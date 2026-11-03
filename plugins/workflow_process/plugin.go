@@ -522,6 +522,7 @@ func (pl *Plugin) Setup(host *sdk.Host) error {
 			if err != nil {
 				return err
 			}
+			pl.emit(ctx, tx, "workflow.started", x, actorInfo{p: p})
 			if err := pl.enter(ctx, tx, x, first.ID, actorInfo{p: p}); err != nil {
 				return err
 			}
@@ -736,6 +737,7 @@ func (pl *Plugin) transition(ctx context.Context, id int64, action, note string)
 			if _, err := tx.Exec(ctx, `UPDATE plugin_workflow_instances SET status='cancelled', updated_at=now(), closed_at=now(), wake_at=NULL WHERE id=$1`, id); err != nil {
 				return err
 			}
+			pl.emit(ctx, tx, "workflow.cancelled", cur, ai)
 			if err := pl.notifyStarter(ctx, tx, cur, ai, "cancelled"); err != nil {
 				return err
 			}

@@ -204,6 +204,10 @@ func (p *Plugin) Setup(hs *sdk.Host) error {
 					return err
 				}
 			}
+			// registered people: new time or place of their occurrence (updated invitation)
+			if err := p.notifyChanged(ctx, tx, before, cal); err != nil {
+				return err
+			}
 			return audit.Log(ctx, tx, "event.update", "event", id, before, in)
 		})
 		if err != nil {
@@ -515,6 +519,45 @@ func (p *Plugin) setOverride(ctx context.Context, r *http.Request, ov *Override,
 	return e, err
 }
 
+// notifyChanged tells registered people about a new time or place of their
+// (future) occurrence after the event was changed, with an updated invitation.
+func (p *Plugin) notifyChanged(ctx context.Context, tx pgx.Tx, before *Event, cal *calendar) error {
+	after, err := p.eventTx(ctx, tx, before.ID)
+	if err != nil {
+		return err
+	}
+	rows, err := tx.Query(ctx, `SELECT user_id, occurrence::text FROM plugin_event_registrations
+		WHERE event_id=$1 AND status IN ('registered', 'waitlist') AND occurrence >= current_date`, before.ID)
+	if err != nil {
+		return err
+	}
+	type reg struct {
+		uid int64
+		occ string
+	}
+	list, err := pgx.CollectRows(rows, func(r pgx.CollectableRow) (reg, error) {
+		var x reg
+		return x, r.Scan(&x.uid, &x.occ)
+	})
+	if err != nil {
+		return err
+	}
+	for _, x := range list {
+		old, ok1 := before.InstanceAt(x.occ)
+		now, ok2 := after.InstanceAt(x.occ)
+		if !ok1 || !ok2 || !now.Start.After(time.Now()) {
+			continue // occurrence no longer exists (e.g. rule changed) or is over
+		}
+		if now.Start.Equal(old.Start) && now.End.Equal(old.End) && after.instLocation(now) == before.instLocation(old) && after.instTitle(now) == before.instTitle(old) {
+			continue
+		}
+		if err := p.mailUser(ctx, tx, x.uid, after, cal, now.Start, "mail_occurrence_changed"); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 // eventTx loads an event inside a transaction (no permission check).
 func (p *Plugin) eventTx(ctx context.Context, tx pgx.Tx, id int64) (*Event, error) {
 	rows, err := tx.Query(ctx, `SELECT `+eventCols+eventFrom+` WHERE e.id=$1`, id)
@@ -820,6 +863,14 @@ func (p *Plugin) mailUser(ctx context.Context, q db.Querier, uid int64, e *Event
 	}
 	body += "\n\n" + link + "\n"
 	m := mail.Message{To: []string{u.Email}, Subject: t(kind + "_subject"), Text: body, Source: "events", Ref: fmt.Sprintf("event:%d", e.ID), Owner: -1}
+	// calendar invitation (accept into Outlook & co.), unless switched off for the calendar
+	if method, ok := invitationKinds[kind]; ok && !cal.Config.NoInvitations {
+		if org := p.host.Config.Get().Mail.From; org != "" {
+			m.Calendar = Invitation(e, in, method, cal.Title, org, u.Email, u.Name, link, time.Now())
+			body += "\n" + t("mail_invitation_hint") + "\n"
+			m.Text = body
+		}
+	}
 	_, err = p.host.Mail.Enqueue(ctx, q, m)
 	return err
 }

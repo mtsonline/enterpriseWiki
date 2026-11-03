@@ -30,6 +30,29 @@ type Prerendered struct {
 	Canonical   string `json:"canonical"`   // absolute URL
 	Type        string `json:"type"`        // element | category | home
 	HTML        string `json:"html"`        // content of #app
+	Image       string `json:"image"`       // absolute URL of the preview image ("" = none)
+}
+
+var imgSrcRe = regexp.MustCompile(`(?i)<img\b[^>]*?\ssrc="([^"]+)"`)
+
+// firstImage returns the first image of a page that link previews can load
+// (files of the wiki or http(s) images; no data: URLs).
+func firstImage(htmlSrc string) string {
+	for _, m := range imgSrcRe.FindAllStringSubmatch(htmlSrc, 8) {
+		src := html.UnescapeString(m[1])
+		if strings.HasPrefix(src, "/") && !strings.HasPrefix(src, "//") || strings.HasPrefix(src, "https://") || strings.HasPrefix(src, "http://") {
+			return src
+		}
+	}
+	return ""
+}
+
+// absURL makes a site path absolute.
+func absURL(base, u string) string {
+	if u == "" || strings.HasPrefix(u, "http://") || strings.HasPrefix(u, "https://") {
+		return u
+	}
+	return strings.TrimRight(base, "/") + u
 }
 
 // paths of the single page app that are not content pages
@@ -124,6 +147,10 @@ func (s *Server) Prerender(ctx context.Context, urlPath, lang string) *Prerender
 	if err != nil {
 		return nil
 	}
+	if p.Image == "" {
+		p.Image = c.UI.PreviewImage
+	}
+	p.Image = absURL(c.Server.BaseURL, p.Image)
 	nav := s.prerenderNav(ctx, lang)
 	var b strings.Builder
 	b.WriteString(`<div class="ew-prerender"><header class="ew-prerender-head"><a class="ew-prerender-site" href="/">`)
@@ -188,6 +215,7 @@ func (s *Server) prerenderElement(ctx context.Context, p *Prerendered, id int64,
 	}
 	p.Type, p.Title, p.Lang = "element", v.Title, v.ShownLang
 	p.Description = plainSummary(v.HTML, 160)
+	p.Image = firstNonEmpty(v.PreviewImage, firstImage(v.HTML))
 	return `<article><h1>` + html.EscapeString(v.Title) + `</h1>` + v.HTML + `</article>`, nil
 }
 
@@ -209,6 +237,7 @@ func (s *Server) prerenderCategory(ctx context.Context, p *Prerendered, id int64
 		if v, err := s.app.Content.GetElement(ctx, *c.DefaultElementID, lang, false); err == nil {
 			skip = v.ID
 			b.WriteString(v.HTML)
+			p.Image = firstNonEmpty(v.PreviewImage, firstImage(v.HTML))
 			if desc == "" {
 				desc = plainSummary(v.HTML, 160)
 			}
@@ -297,6 +326,13 @@ func injectPrerender(page []byte, p *Prerendered, site string) []byte {
 		ogType = "article"
 	}
 	head.WriteString(`<meta property="og:type" content="` + ogType + `">`)
+	if p.Image != "" {
+		head.WriteString(`<meta property="og:image" content="` + esc(p.Image) + `">`)
+		head.WriteString(`<meta name="twitter:card" content="summary_large_image">`)
+		head.WriteString(`<meta name="twitter:image" content="` + esc(p.Image) + `">`)
+	} else {
+		head.WriteString(`<meta name="twitter:card" content="summary">`)
+	}
 	page = replaceTag(page, "<title>", "</title>", head.String())
 	page = htmlTagRe.ReplaceAll(page, []byte(`<html lang="`+esc(p.Lang)+`">`))
 	if i := bytes.Index(page, []byte(`id="app"`)); i >= 0 {

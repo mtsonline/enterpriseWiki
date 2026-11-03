@@ -23,6 +23,7 @@ import (
 	"github.com/mtsonline/enterprisewiki/internal/identity"
 	"github.com/mtsonline/enterprisewiki/internal/mail"
 	"github.com/mtsonline/enterprisewiki/internal/netguard"
+	"github.com/mtsonline/enterprisewiki/internal/webhook"
 )
 
 // normalizeTypes gives steps of definitions saved before step types existed
@@ -92,6 +93,7 @@ func (pl *Plugin) enter(ctx context.Context, tx pgx.Tx, x *Instance, id string, 
 			if err := pl.setStep(ctx, tx, x, nil); err != nil {
 				return err
 			}
+			pl.emit(ctx, tx, "workflow.completed", x, a)
 			return pl.notifyStarter(ctx, tx, x, a, "done")
 		case StepTask, StepApproval:
 			x.Status = "open"
@@ -583,4 +585,21 @@ func asURLError(err error, target **url.Error) bool {
 		*target = ue
 	}
 	return ok
+}
+
+// emit reports a case event to the webhooks (in the transaction of the change).
+func (pl *Plugin) emit(ctx context.Context, tx pgx.Tx, name string, x *Instance, a actorInfo) {
+	if pl.host.Webhooks == nil {
+		return
+	}
+	actor := ""
+	if a.p != nil {
+		actor = a.p.DisplayName
+		if actor == "" {
+			actor = a.p.Username
+		}
+	}
+	pl.host.Webhooks.EmitTx(ctx, tx, webhook.Event{Name: name, CategoryID: x.CategoryID, Actor: actor,
+		Object: webhook.Object{Type: "workflow_case", ID: x.ID, Title: x.Title, URL: fmt.Sprintf("/e/%d?case=%d", x.ElementID, x.ID)},
+		Data:   map[string]any{"workflow": pickTitle(x.Element, x.Lang), "status": x.Status, "outcome": x.Outcome, "step": x.StepName}})
 }

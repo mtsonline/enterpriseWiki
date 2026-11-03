@@ -53,6 +53,7 @@ Sprachen werden in der Oberfläche unter *Administration → Sprachen & Überset
 | `home_element` | Element-ID der Startseite (z. B. eine Seite oder eine Kategorieübersicht), hat Vorrang vor `home_category`. Neue Installationen: die Willkommensseite. | `0` |
 | `home_category` | Kategorie-ID der Startseite (`0` = Liste der Bereiche bzw. der einzige Bereich) | `0` |
 | `prerender` | Seiten für Gäste (Suchmaschinen, Link-Vorschauen, Besucher ohne JavaScript) mit Titel, Beschreibung, kanonischer Adresse, Open-Graph-Angaben und dem Inhalt als HTML ausliefern. Immer aus Sicht eines Gastes; mit eingeschaltetem `cache` ohne Datenbankzugriff. Prüfen: *Administration → Einstellungen → Gast-Ansicht anzeigen* oder `ewiki api GET "/api/v1/prerender?path=/kalender"`. | `true` |
+| `preview_image` | Vorschaubild für Link-Vorschauen (`og:image`) von Seiten ohne eigenes Bild: Pfad wie `/api/v1/files/<hash>` oder http(s)-Adresse, auch unter *Administration → Einstellungen* hochladbar. Seiten verwenden zuerst ihr eigenes Vorschaubild (*Eigenschaften*), dann ihr erstes Bild. | leer |
 
 ### `auth`
 | Schlüssel | Bedeutung | Standard |
@@ -214,7 +215,7 @@ Formate: **Teams** (Adaptive Card; in Teams einen Workflow „Bei Empfang einer 
  "object": {"type": "element", "id": 12, "title": "Reisekosten", "url": "https://wiki.example.com/reisekosten"}, "data": {}}
 ```
 
-Kopfzeilen: `X-Ewiki-Event`, `X-Ewiki-Delivery` und mit Signaturschlüssel `X-Ewiki-Signature: sha256=<HMAC-SHA256 des Inhalts>`. Ereignisse: `element.create|update|delete|move|restore|rollback`, `category.create|update|delete|move|restore`, `event.registration`, `event.registration_cancelled`, `event.occurrence_changed` (Daten: `occurrence`, `start`, `when`, `calendar`, `location`, `status`, `participant`). Zustellungen laufen über eine Warteschlange; bei Fehlern wird nach 1, 5, 30 Minuten, 2 und 12 Stunden erneut versucht. Ziele im internen Netz sind ohne `allow_private` gesperrt (Schutz vor SSRF), Umleitungen nur innerhalb der Webhook-Adresse.
+Kopfzeilen: `X-Ewiki-Event`, `X-Ewiki-Delivery` und mit Signaturschlüssel `X-Ewiki-Signature: sha256=<HMAC-SHA256 des Inhalts>`. Ereignisse: `element.create|update|delete|move|restore|rollback`, `category.create|update|delete|move|restore`, `event.registration`, `event.registration_cancelled`, `event.occurrence_changed` (Daten: `occurrence`, `start`, `when`, `calendar`, `location`, `status`, `participant`), `comment.create` (Daten: `author`, `excerpt`, `reply`, `element_id`), `workflow.started`, `workflow.completed`, `workflow.cancelled` (Daten: `workflow`, `status`, `outcome`, `step`). Zustellungen laufen über eine Warteschlange; bei Fehlern wird nach 1, 5, 30 Minuten, 2 und 12 Stunden erneut versucht. Ziele im internen Netz sind ohne `allow_private` gesperrt (Schutz vor SSRF), Umleitungen nur innerhalb der Webhook-Adresse.
 
 ### `plugin_settings`
 Frei strukturierte Einstellungen je Plugin, z. B.

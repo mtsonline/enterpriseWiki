@@ -106,6 +106,9 @@ type UI struct {
 	// Prerender embeds the content of a page as plain HTML for guests
 	// (search engines, visitors without JavaScript). Default true.
 	Prerender bool `yaml:"prerender" json:"prerender"`
+	// PreviewImage is the image for link previews of pages without an own
+	// image (path like /api/v1/files/… or http(s) URL; "" = none).
+	PreviewImage string `yaml:"preview_image" json:"preview_image"`
 }
 
 // Auth configures authentication.
@@ -554,6 +557,10 @@ func Validate(c *Config) error {
 			return fmt.Errorf("duplicate language %q", l)
 		}
 		seen[l] = true
+	}
+	if p := c.UI.PreviewImage; p != "" && (strings.ContainsAny(p, " \t\r\n\"'<>\\") ||
+		!(strings.HasPrefix(p, "/") && !strings.HasPrefix(p, "//") || strings.HasPrefix(p, "https://") || strings.HasPrefix(p, "http://"))) {
+		return fmt.Errorf("ui.preview_image must be a path like /api/v1/files/… or an http(s) URL")
 	}
 	if !seen[c.I18n.DefaultLanguage] {
 		return fmt.Errorf("i18n.default_language %q must be listed in i18n.languages", c.I18n.DefaultLanguage)

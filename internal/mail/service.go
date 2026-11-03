@@ -266,9 +266,9 @@ func (s *Service) Enqueue(ctx context.Context, q db.Querier, m Message) (int64, 
 		ownerID = &owner
 	}
 	var id int64
-	err := q.QueryRow(ctx, `INSERT INTO mail_outbox(status, from_addr, from_name, reply_to, to_addrs, cc_addrs, subject, body_text, body_html, source, ref, owner_id, report, priority)
-		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14) RETURNING id`, status, m.From, m.FromName, m.ReplyTo, m.To, m.Cc, m.Subject, m.Text, m.HTML,
-		m.Source, m.Ref, ownerID, !m.NoReport, m.Priority).Scan(&id)
+	err := q.QueryRow(ctx, `INSERT INTO mail_outbox(status, from_addr, from_name, reply_to, to_addrs, cc_addrs, subject, body_text, body_html, source, ref, owner_id, report, priority, body_calendar)
+		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15) RETURNING id`, status, m.From, m.FromName, m.ReplyTo, m.To, m.Cc, m.Subject, m.Text, m.HTML,
+		m.Source, m.Ref, ownerID, !m.NoReport, m.Priority, m.Calendar).Scan(&id)
 	if err != nil {
 		return 0, err
 	}
@@ -295,7 +295,7 @@ func (s *Service) SendNow(ctx context.Context, m Message) error {
 		return apperr.BadRequest("no mail server is configured (mail.transport / mail.smtp.host) and no sendmail binary was found")
 	}
 	return t.Send(ctx, Envelope{From: s.envelopeFrom(m.From, 0, 0), Recipients: append(append([]string{}, m.To...), m.Cc...),
-		Data: BuildMessage(BuildInput{From: m.From, FromName: m.FromName, ReplyTo: m.ReplyTo, To: m.To, Cc: m.Cc, Subject: m.Subject, Text: m.Text, HTML: m.HTML, Now: time.Now()})})
+		Data: BuildMessage(BuildInput{From: m.From, FromName: m.FromName, ReplyTo: m.ReplyTo, To: m.To, Cc: m.Cc, Subject: m.Subject, Text: m.Text, HTML: m.HTML, Calendar: m.Calendar, Now: time.Now()})})
 }
 
 // envelopeFrom is the SMTP envelope sender (Return-Path): the bounce
@@ -329,6 +329,7 @@ type claimed struct {
 	from, fromName, replyTo string
 	to, cc                  []string
 	subject, text, html     string
+	calendar                string
 	ownerID                 *int64
 	report                  bool
 }
@@ -466,14 +467,14 @@ func (s *Service) claim(ctx context.Context, n int) ([]claimed, error) {
 	rows, err := s.pool.Query(ctx, `UPDATE mail_outbox o SET lease_until = now() + $2::interval
 		WHERE o.id IN (SELECT id FROM mail_outbox WHERE status='queued' AND next_attempt_at <= now()
 			AND (lease_until IS NULL OR lease_until < now()) ORDER BY priority DESC, id LIMIT $1 FOR UPDATE SKIP LOCKED)
-		RETURNING o.id, o.from_addr, o.from_name, o.reply_to, o.to_addrs, o.cc_addrs, o.subject, o.body_text, o.body_html, o.owner_id, o.report`,
+		RETURNING o.id, o.from_addr, o.from_name, o.reply_to, o.to_addrs, o.cc_addrs, o.subject, o.body_text, o.body_html, o.owner_id, o.report, o.body_calendar`,
 		n, fmt.Sprintf("%d seconds", int(LeaseTime.Seconds())))
 	if err != nil {
 		return nil, err
 	}
 	return pgx.CollectRows(rows, func(r pgx.CollectableRow) (claimed, error) {
 		var c claimed
-		return c, r.Scan(&c.id, &c.from, &c.fromName, &c.replyTo, &c.to, &c.cc, &c.subject, &c.text, &c.html, &c.ownerID, &c.report)
+		return c, r.Scan(&c.id, &c.from, &c.fromName, &c.replyTo, &c.to, &c.cc, &c.subject, &c.text, &c.html, &c.ownerID, &c.report, &c.calendar)
 	})
 }
 
@@ -509,7 +510,7 @@ func (s *Service) deliver(ctx context.Context, sess Session, m claimed) (sent in
 	if err != nil {
 		return 0, false, err
 	}
-	data := BuildMessage(BuildInput{From: m.from, FromName: m.fromName, ReplyTo: m.replyTo, To: m.to, Cc: m.cc, Subject: m.subject, Text: m.text, HTML: m.html,
+	data := BuildMessage(BuildInput{From: m.from, FromName: m.fromName, ReplyTo: m.replyTo, To: m.to, Cc: m.cc, Subject: m.subject, Text: m.text, HTML: m.html, Calendar: m.calendar,
 		Headers: map[string]string{"X-Ewiki-Message": strconv.FormatInt(m.id, 10)}, Now: time.Now()})
 	// one SMTP transaction for all recipients, or one per recipient with VERP
 	groups := [][]rcpt{rcpts}

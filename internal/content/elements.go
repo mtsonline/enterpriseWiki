@@ -32,6 +32,8 @@ type Element struct {
 	DeletedAt    *time.Time        `json:"deleted_at,omitempty"`
 	IsDefault    bool              `json:"is_default"`
 	ShortURL     string            `json:"short_url"`
+	// PreviewImage is shown in link previews (Open Graph); "" = first image of the page.
+	PreviewImage string `json:"preview_image"`
 }
 
 // LangStatus is the translation state of one language.
@@ -62,12 +64,12 @@ type ElementView struct {
 
 const elemCols = `e.id, e.category_id, e.type, e.position, e.original_lang, e.titles, e.tags, e.created_at, e.updated_at,
 	COALESCE((SELECT u.display_name || ' (' || u.username || '@' || u.provider || ')' FROM users u WHERE u.id = e.updated_by), ''),
-	e.deleted_at, EXISTS (SELECT 1 FROM categories c WHERE c.id = e.category_id AND c.default_element_id = e.id), COALESCE(e.short_url, '')`
+	e.deleted_at, EXISTS (SELECT 1 FROM categories c WHERE c.id = e.category_id AND c.default_element_id = e.id), COALESCE(e.short_url, ''), e.preview_image`
 
 func scanElement(r pgx.CollectableRow) (Element, error) {
 	var e Element
 	err := r.Scan(&e.ID, &e.CategoryID, &e.Type, &e.Position, &e.OriginalLang, &e.Titles, &e.Tags, &e.CreatedAt, &e.UpdatedAt,
-		&e.UpdatedBy, &e.DeletedAt, &e.IsDefault, &e.ShortURL)
+		&e.UpdatedBy, &e.DeletedAt, &e.IsDefault, &e.ShortURL, &e.PreviewImage)
 	return e, err
 }
 
@@ -419,6 +421,8 @@ type MetaInput struct {
 	Tags     []string `json:"tags"`
 	Position *int     `json:"position"`
 	ShortURL *string  `json:"short_url"` // "" removes it
+	// PreviewImage: image for link previews (path like /api/v1/files/… or https URL; "" = automatic)
+	PreviewImage *string `json:"preview_image"`
 }
 
 // UpdateElementMeta changes tags and position.
@@ -430,7 +434,12 @@ func (s *Service) UpdateElementMeta(ctx context.Context, id int64, in MetaInput)
 	if err := s.require(ctx, e.CategoryID, acl.Edit); err != nil {
 		return nil, err
 	}
-	tags, pos := e.Tags, e.Position
+	tags, pos, preview := e.Tags, e.Position, e.PreviewImage
+	if in.PreviewImage != nil {
+		if preview, err = NormalizeImageURL(*in.PreviewImage); err != nil {
+			return nil, err
+		}
+	}
 	var short *string
 	if in.ShortURL != nil {
 		v, err := NormalizeShortURL(*in.ShortURL)
@@ -448,7 +457,7 @@ func (s *Service) UpdateElementMeta(ctx context.Context, id int64, in MetaInput)
 		pos = *in.Position
 	}
 	err = db.Tx(ctx, s.pool, func(tx pgx.Tx) error {
-		if _, err := tx.Exec(ctx, `UPDATE elements SET tags=$2, position=$3, updated_at=now(), updated_by=$4 WHERE id=$1`, id, tags, pos, nullID(ctx)); err != nil {
+		if _, err := tx.Exec(ctx, `UPDATE elements SET tags=$2, position=$3, preview_image=$5, updated_at=now(), updated_by=$4 WHERE id=$1`, id, tags, pos, nullID(ctx), preview); err != nil {
 			return err
 		}
 		if short != nil {
@@ -461,7 +470,8 @@ func (s *Service) UpdateElementMeta(ctx context.Context, id int64, in MetaInput)
 			WHERE element_id=$1`, id, tags); err != nil {
 			return err
 		}
-		return audit.Log(ctx, tx, "element.meta", "element", id, map[string]any{"tags": e.Tags, "position": e.Position}, map[string]any{"tags": tags, "position": pos})
+		return audit.Log(ctx, tx, "element.meta", "element", id, map[string]any{"tags": e.Tags, "position": e.Position, "preview_image": e.PreviewImage},
+			map[string]any{"tags": tags, "position": pos, "preview_image": preview})
 	})
 	if err != nil {
 		return nil, err

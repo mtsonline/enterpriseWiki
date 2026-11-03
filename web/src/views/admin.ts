@@ -14,6 +14,7 @@ import type { AuditEntry, Group, Role } from '../core/types';
 import { toast } from '../core/announce';
 import { button, checkbox, confirmDialog, errorText, field, formDialog, openDialog, pageHeader, select, textArea, textInput } from '../components/ui';
 import { langName, setContext } from '../components/widgets';
+import { previewImageInput } from '../components/previewimage';
 import { listAdminPages, listTemplates, templateLabel } from '../sdk';
 import { errorPage } from './content';
 
@@ -329,7 +330,7 @@ async function updates(panel: HTMLElement, force: boolean): Promise<void> {
 
 interface Settings {
   config: {
-    ui: { site_name: string; template: string; home_category: number; home_element: number; prerender: boolean };
+    ui: { site_name: string; template: string; home_category: number; home_element: number; prerender: boolean; preview_image: string };
     i18n: { default_language: string; languages: string[] };
     auth: { order: string[]; session_ttl: string; api_key_max_ttl: string; ssh_token_ttl: string; max_login_failures: number; lockout_duration: string; min_password_length: number };
     retention: { revisions_keep_days: number; revisions_keep_min: number; trash_days: number; audit_days: number };
@@ -356,6 +357,7 @@ async function settings(panel: HTMLElement): Promise<void> {
   homeMode.addEventListener('change', syncHome);
   syncHome();
   const prerender = checkbox(t('settings.prerender'), c.ui.prerender, { help: t('settings.prerender_help') });
+  const sitePreview = previewImageInput(c.ui.preview_image ?? '', { label: t('settings.preview_image'), help: t('settings.preview_image_help') });
   const guestPath = textInput({ value: '/' });
   const guestView = h('div', null, button(t('settings.guest_view'), async () => {
     try {
@@ -385,7 +387,7 @@ async function settings(panel: HTMLElement): Promise<void> {
   const fs = (legend: string, ...kids: HTMLElement[]) => h('fieldset', null, h('legend', null, legend), ...kids);
   const form = h('form', { class: 'ew-form', novalidate: true }, alert,
     fs(t('settings.site'), field(t('settings.site_name'), siteName, { required: true }), field(t('settings.template'), tpl, { help: t('settings.template_help') }), field(t('settings.home'), homeMode, { help: t('settings.home_help') }), fHomeCat, fHomeEl,
-      field(t('settings.default_language'), defLang, { help: t('settings.languages_help') }), prerender.el, field(t('settings.guest_view_path'), guestPath, { help: t('settings.guest_view_help') }), guestView),
+      field(t('settings.default_language'), defLang, { help: t('settings.languages_help') }), prerender.el, sitePreview.el, field(t('settings.guest_view_path'), guestPath, { help: t('settings.guest_view_help') }), guestView),
     fs(t('settings.auth'), field(t('settings.auth_order'), order, { help: t('settings.auth_order_help') }), field(t('settings.session_ttl'), sessionTTL, { help: t('settings.duration_help') }),
       field(t('settings.api_key_max_ttl'), keyTTL), field(t('settings.ssh_token_ttl'), sshTTL), field(t('settings.max_login_failures'), fails), field(t('settings.lockout_duration'), lockout), field(t('settings.min_password_length'), minPw)),
     fs(t('settings.retention'), h('p', { class: 'ew-help' }, t('settings.retention_help')), field(t('settings.revisions_keep_days'), keepDays, { help: t('settings.zero_forever') }), field(t('settings.revisions_keep_min'), keepMin),
@@ -399,7 +401,7 @@ async function settings(panel: HTMLElement): Promise<void> {
     alert.textContent = '';
     try {
       await api.put('admin/settings', {
-        ui: { site_name: siteName.value, template: tpl.value, home_category: homeMode.value === 'category' ? homeCat.value() : 0, home_element: homeMode.value === 'element' ? homeEl.value() : 0, prerender: prerender.input.checked },
+        ui: { site_name: siteName.value, template: tpl.value, home_category: homeMode.value === 'category' ? homeCat.value() : 0, home_element: homeMode.value === 'element' ? homeEl.value() : 0, prerender: prerender.input.checked, preview_image: sitePreview.value() },
         i18n: { default_language: defLang.value, languages: c.i18n.languages },
         auth: { order: order.value.split(',').map((x) => x.trim()).filter(Boolean), session_ttl: sessionTTL.value, api_key_max_ttl: keyTTL.value, ssh_token_ttl: sshTTL.value, max_login_failures: Number(fails.value), lockout_duration: lockout.value, min_password_length: Number(minPw.value) },
         retention: { revisions_keep_days: Number(keepDays.value), revisions_keep_min: Number(keepMin.value), trash_days: Number(trashDays.value), audit_days: Number(auditDays.value) },

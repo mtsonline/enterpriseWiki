@@ -180,7 +180,8 @@ type elem struct {
 		Lang   string `json:"lang"`
 		Status string `json:"status"`
 	} `json:"translations"`
-	Body json.RawMessage `json:"body"`
+	Body         json.RawMessage `json:"body"`
+	PreviewImage string          `json:"preview_image"`
 }
 
 func htmlBody(s string) map[string]string { return map[string]string{"format": "html", "source": s} }

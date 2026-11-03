@@ -8,10 +8,11 @@ import { button, confirmDialog, errorText, field, formDialog, pageHeader, select
 import { categorySelect, newElement } from '../components/pickers';
 import { shortURLInput, hrefOf } from '../components/shorturl';
 import { invalidateTree } from '../components/widgets';
+import { previewImageInput } from '../components/previewimage';
 import { typeLabel } from '../sdk';
 
 interface Found {
-  id: number; title: string; type: string; category_id: number; category_path: string[]; short_url: string; tags: string[];
+  id: number; title: string; type: string; category_id: number; category_path: string[]; short_url: string; preview_image: string; tags: string[];
   updated_at: string; updated_by: string; is_default: boolean;
 }
 
@@ -58,9 +59,10 @@ export async function elementsAdmin(panel: HTMLElement): Promise<void> {
   const properties = (x: Found) => {
     const tags = textInput({ value: x.tags.join(', ') });
     const short = shortURLInput(x.short_url);
+    const img = previewImageInput(x.preview_image ?? '');
     formDialog(`${t('element.properties')}: ${x.title}`, [field(t('common.tags'), tags, { help: t('common.tags_help') }),
-      field(t('shorturl.label'), short, { help: t('shorturl.help', { origin: location.origin }) })], t('common.save'), async () => {
-      await api.patch(`elements/${x.id}`, { tags: tags.value.split(/[,\s]+/).filter(Boolean), short_url: short.value });
+      field(t('shorturl.label'), short, { help: t('shorturl.help', { origin: location.origin }) }), img.el], t('common.save'), async () => {
+      await api.patch(`elements/${x.id}`, { tags: tags.value.split(/[,\s]+/).filter(Boolean), short_url: short.value, preview_image: img.value() });
       toast(t('common.saved'));
       void load();
     });

@@ -6,6 +6,7 @@ package mail
 import (
 	"bytes"
 	"crypto/rand"
+	"encoding/base64"
 	"encoding/hex"
 	"fmt"
 	"html"
@@ -30,6 +31,10 @@ type Message struct {
 	Source   string // who created it (plugin id, "test", ...)
 	Ref      string // reference, e.g. "case:42"
 	HTML     string // optional HTML part (sanitized by the caller); generated from Text if empty
+	// Calendar is an iCalendar object with METHOD (REQUEST, CANCEL …): sent as
+	// text/calendar part, so mail clients show it as an invitation
+	// (Outlook: accept/decline, entry in the calendar).
+	Calendar string
 	// Owner gets a report about permanently failed recipients (0 = the
 	// current user of the context, -1 = nobody).
 	Owner    int64
@@ -116,6 +121,7 @@ type BuildInput struct {
 	From, FromName, ReplyTo string
 	To, Cc                  []string
 	Subject, Text, HTML     string // HTML optional (generated from Text if empty)
+	Calendar                string // optional iCalendar invitation (see Message.Calendar)
 	Headers                 map[string]string
 	Now                     time.Time
 }
@@ -170,6 +176,23 @@ func BuildMessage(in BuildInput) []byte {
 		htmlBody = TextToHTML(text)
 	}
 	b.WriteString(qp(htmlBody) + "\r\n")
+	if in.Calendar != "" {
+		// invitation as the last (preferred) alternative, as Outlook and Gmail expect it
+		method := "PUBLISH"
+		for _, l := range strings.Split(in.Calendar, "\n") {
+			if strings.HasPrefix(l, "METHOD:") {
+				method = strings.TrimSpace(strings.TrimPrefix(l, "METHOD:"))
+				break
+			}
+		}
+		b.WriteString("--" + boundary + "\r\nContent-Type: text/calendar; charset=utf-8; method=" + CleanHeader(method) + "\r\nContent-Transfer-Encoding: base64\r\n\r\n")
+		enc := base64.StdEncoding.EncodeToString([]byte(in.Calendar))
+		for len(enc) > 76 {
+			b.WriteString(enc[:76] + "\r\n")
+			enc = enc[76:]
+		}
+		b.WriteString(enc + "\r\n")
+	}
 	b.WriteString("--" + boundary + "--\r\n")
 	return []byte(b.String())
 }

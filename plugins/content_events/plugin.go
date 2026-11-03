@@ -79,8 +79,10 @@ type Config struct {
 	View       string         `json:"view"`       // month | week | list
 	WeekStart  int            `json:"week_start"` // 1 = Monday, 0 = Sunday
 	Categories []Category     `json:"categories"`
-	ICal       bool           `json:"ical"`      // offer iCal subscription
-	ListDays   int            `json:"list_days"` // range of the list view
+	ICal       bool           `json:"ical"` // offer iCal subscription
+	// NoInvitations: registration e-mails without calendar invitation (iTIP)
+	NoInvitations bool `json:"no_invitations"`
+	ListDays      int  `json:"list_days"` // range of the list view
 }
 
 var (

@@ -68,6 +68,7 @@ export interface ElementSummary {
   updated_by: string;
   is_default: boolean;
   short_url: string;
+  preview_image: string;
 }
 
 export interface LangStatus {

@@ -96,8 +96,8 @@ Business Source License 1.1 mit kostenloser privater Nutzung durch natürliche P
 - **Webhooks** für Microsoft Teams (Adaptive Card für Workflows), Slack und JSON (HMAC-signiert): Seiten- und Kategorieänderungen, Anmeldungen und Abmeldungen, geänderte Termine; Filter nach Ereignis und Kategorie, Warteschlange mit Wiederholungen, Zustellprotokoll, Test und „Erneut senden“. *Administration → Webhooks*, API `/api/v1/admin/webhooks`, Plugins über `host.Webhooks.Emit`.
 - Zweite Website-Vorlage `theme.cms.modern` (neutral, modern), die bisherige heißt „Website – klassisch (Hochschule, Organisation)“.
 
-Offen / Vorschläge:
+## Meilenstein 7 – Termineinladungen, mehr Webhooks, Vorschaubilder
 
-- E-Mail-Einladungen (iTIP, `METHOD:REQUEST`) für Termine, damit sie direkt im Outlook-Kalender landen.
-- Webhooks auch für Kommentare und abgeschlossene Workflows.
-- Open-Graph-Bild je Seite (erstes Bild oder Startbild der Website-Vorlage) für schönere Link-Vorschauen.
+- **Termineinladungen** (iTIP, RFC 5546): Anmelde-, Nachrücker- und Änderungs-Mails enthalten eine Kalendereinladung (`METHOD:REQUEST`), Abmeldung und Absage eine Stornierung (`METHOD:CANCEL`). Outlook, Google und Apple Kalender tragen den Termin direkt ein bzw. aktualisieren oder entfernen ihn; jeder Termin einer Serie hat eine eigene UID. Abschaltbar je Kalender (*Keine Kalendereinladungen anhängen*). Wird eine Serie verschoben oder ihr Ort geändert, erhalten Angemeldete künftiger Termine eine aktualisierte Einladung.
+- **Webhooks** für neue Kommentare (`comment.create`: Autor, Textanfang, Antwort ja/nein) und Abläufe (`workflow.started`, `workflow.completed` mit Ergebnis, `workflow.cancelled`); Kategoriefilter wie bei Seiten. Ablauf-Ereignisse werden in derselben Transaktion wie die Änderung eingereiht.
+- **Vorschaubild je Seite** für Link-Vorschauen (`og:image`, `twitter:card`): unter *Eigenschaften* hochladen, aus den Bildern der Seite wählen oder eine Adresse angeben; sonst das erste Bild der Seite, sonst das Vorschaubild der Website (`ui.preview_image`). API `PATCH /api/v1/elements/{id}` mit `preview_image`.

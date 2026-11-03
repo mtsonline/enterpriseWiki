@@ -98,7 +98,7 @@ Beim Anlegen eines Elements (*Neues Element*) wählen Sie den Typ:
 - **Veranstaltungskalender**:
   - Ansichten Monat, Woche und Liste, Kategorien mit Farben, Suche.
   - Wiederkehrende Termine: täglich, wöchentlich an bestimmten Tagen, monatlich am Tag X oder z. B. „am letzten Freitag“, jährlich; mit Ende nach Datum oder Anzahl. Einzelne Termine einer Serie lassen sich absagen oder mit **Nur diesen Termin bearbeiten** ändern (Titel, Ort, Beschreibung, Datum und Uhrzeit). Geänderte Termine sind gekennzeichnet, Anmeldungen bleiben erhalten, und Angemeldete erhalten bei neuer Zeit oder neuem Ort eine E-Mail. **Änderung zurücksetzen** stellt den Termin wie in der Serie wieder her; **Serie bearbeiten** ändert alle Termine.
-  - **Anmeldung** mit Platzzahl, Warteliste und Anmeldeschluss. Bestätigungen kommen per E-Mail; wird ein Platz frei, rückt automatisch die erste Person der Warteliste nach und wird informiert.
+  - **Anmeldung** mit Platzzahl, Warteliste und Anmeldeschluss. Bestätigungen kommen per E-Mail mit einer **Kalendereinladung**: Outlook, Google oder Apple Kalender tragen den Termin direkt ein, aktualisieren ihn bei Änderungen und entfernen ihn bei Abmeldung oder Absage (je Kalender abschaltbar). Wird ein Platz frei, rückt automatisch die erste Person der Warteliste nach und wird informiert.
   - **Erinnerungen per E-Mail** (z. B. 1 Tag vorher) an Angemeldete und alle, die „Erinnern“ gewählt haben.
   - **In meinen Kalender (.ics)** für einen Termin und **Abonnieren** des ganzen Kalenders in Outlook, Google oder Apple Kalender (persönlicher Link). Organisatoren sehen die Teilnehmenden und können sie als CSV exportieren.
   - Das Makro **Nächste Termine** zeigt kommende Termine auf jeder Seite.
@@ -106,7 +106,7 @@ Beim Anlegen eines Elements (*Neues Element*) wählen Sie den Typ:
 
 ### Kurz-URLs
 
-Elemente und Kategorien können eine **Kurz-URL** bekommen: Seiten über *Eigenschaften*, Kategorien über *Kategorie bearbeiten* bzw. die Einstellungen. Mit `kalender` ist das Element dann unter `https://ihr-wiki/kalender` erreichbar. Unterebenen wie `team/hr` sind möglich. Jede Kurz-URL gibt es nur einmal; Wörter, die das Wiki selbst verwendet (`admin`, `login`, `search`, …), sind gesperrt. Menüs und Übersichten verlinken automatisch die Kurz-URL.
+Elemente und Kategorien können eine **Kurz-URL** bekommen: Seiten über *Eigenschaften* (dort auch das **Vorschaubild**, das beim Teilen eines Links in Teams, Slack oder Outlook erscheint – ohne Angabe das erste Bild der Seite), Kategorien über *Kategorie bearbeiten* bzw. die Einstellungen. Mit `kalender` ist das Element dann unter `https://ihr-wiki/kalender` erreichbar. Unterebenen wie `team/hr` sind möglich. Jede Kurz-URL gibt es nur einmal; Wörter, die das Wiki selbst verwendet (`admin`, `login`, `search`, …), sind gesperrt. Menüs und Übersichten verlinken automatisch die Kurz-URL.
 
 ### Startseite und Kategorieübersicht
 

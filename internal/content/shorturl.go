@@ -3,6 +3,7 @@ package content
 import (
 	"context"
 	"errors"
+	"net/url"
 	"strings"
 
 	"github.com/jackc/pgx/v5"
@@ -134,4 +135,23 @@ func (s *Service) Resolve(ctx context.Context, raw string) (*Resolved, error) {
 		return nil, apperr.NotFound("page")
 	}
 	return r, nil
+}
+
+// NormalizeImageURL checks an image address for link previews: a path on this
+// site (/api/v1/files/…, /assets/…) or an http(s) URL. "" is allowed.
+func NormalizeImageURL(raw string) (string, error) {
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		return "", nil
+	}
+	if len(raw) > 2048 || strings.ContainsAny(raw, " \t\r\n\"'<>\\") {
+		return "", apperr.BadRequest("invalid image address")
+	}
+	if strings.HasPrefix(raw, "/") && !strings.HasPrefix(raw, "//") {
+		return raw, nil
+	}
+	if u, err := url.Parse(raw); err == nil && (u.Scheme == "https" || u.Scheme == "http") && u.Host != "" {
+		return raw, nil
+	}
+	return "", apperr.BadRequest("invalid image address: use a path like /api/v1/files/… or an http(s) URL")
 }

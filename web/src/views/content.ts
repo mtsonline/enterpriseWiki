@@ -10,6 +10,7 @@ import { button, confirmDialog, errorText, field, formDialog, langFields, loadin
 import { breadcrumbs, can, categoryPicker, ctx, invalidateTree, langName, setContext } from '../components/widgets';
 import { watchButton } from '../components/watch';
 import { shortURLInput } from '../components/shorturl';
+import { imagesOf, previewImageInput } from '../components/previewimage';
 import { feedButton } from '../components/feeds';
 import { getEditor, renderElementExtensions, typeLabel, type EditorInstance } from '../sdk';
 
@@ -341,9 +342,10 @@ function tagsDialog(el: ElementView): void {
   // properties of an element: tags and short URL (element pages and the default page of a category)
   const input = textInput({ value: el.tags.join(', ') });
   const short = shortURLInput(el.short_url);
+  const img = previewImageInput(el.preview_image ?? '', { candidates: imagesOf(el.html) });
   formDialog(t('element.properties'), [field(t('common.tags'), input, { help: t('common.tags_help') }),
-    field(t('shorturl.label'), short, { help: t('shorturl.help', { origin: location.origin }) })], t('common.save'), async () => {
-    await api.patch(`elements/${el.id}`, { tags: splitTags(input.value), short_url: short.value });
+    field(t('shorturl.label'), short, { help: t('shorturl.help', { origin: location.origin }) }), img.el], t('common.save'), async () => {
+    await api.patch(`elements/${el.id}`, { tags: splitTags(input.value), short_url: short.value, preview_image: img.value() });
     toast(t('common.saved'));
     navigate(location.pathname, { replace: true });
   });

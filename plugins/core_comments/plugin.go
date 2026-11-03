@@ -29,6 +29,7 @@ import (
 	h "github.com/mtsonline/enterprisewiki/internal/httpx"
 	"github.com/mtsonline/enterprisewiki/internal/identity"
 	"github.com/mtsonline/enterprisewiki/internal/mail"
+	"github.com/mtsonline/enterprisewiki/internal/webhook"
 	"github.com/mtsonline/enterprisewiki/pkg/sdk"
 
 	_ "embed"
@@ -235,6 +236,7 @@ func (p *Plugin) Setup(host *sdk.Host) error {
 		}
 		perms, _ := host.ACL.Perms(ctx, me, cat)
 		p.decorate(ctx, &c, perms)
+		p.emitComment(ctx, &c, cat, body)
 		return h.Created{V: &c}, nil
 	})
 
@@ -390,4 +392,28 @@ func displayName(p *identity.Principal) string {
 		return p.DisplayName + " (" + p.Handle() + ")"
 	}
 	return p.Handle()
+}
+
+// emitComment reports a new comment to the webhooks (title of the page, author, beginning of the text).
+func (p *Plugin) emitComment(ctx context.Context, c *Comment, cat int64, body string) {
+	host := p.host
+	if host.Webhooks == nil {
+		return
+	}
+	var titles map[string]string
+	_ = host.DB.QueryRow(ctx, `SELECT titles FROM elements WHERE id=$1`, c.ElementID).Scan(&titles)
+	title := titles[host.Config.Get().I18n.DefaultLanguage]
+	if title == "" {
+		for _, t := range titles {
+			title = t
+			break
+		}
+	}
+	excerpt := strings.Join(strings.Fields(body), " ")
+	if r := []rune(excerpt); len(r) > 200 {
+		excerpt = string(r[:200]) + " …"
+	}
+	host.Webhooks.Emit(ctx, webhook.Event{Name: "comment.create", CategoryID: cat, Actor: c.Author,
+		Object: webhook.Object{Type: "comment", ID: c.ID, Title: title, URL: fmt.Sprintf("/e/%d#comment-%d", c.ElementID, c.ID)},
+		Data:   map[string]any{"author": c.Author, "excerpt": excerpt, "reply": c.ParentID != nil, "element_id": c.ElementID}})
 }

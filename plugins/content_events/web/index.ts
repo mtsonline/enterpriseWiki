@@ -11,7 +11,7 @@ import './style.css';
 const BASE = '/api/v1/x/content.events';
 
 interface Cat { id: string; label: string; color: string }
-interface Config { intro: { format: string; source: string }; view: View; week_start: number; categories: Cat[]; ical: boolean; list_days: number }
+interface Config { intro: { format: string; source: string }; view: View; week_start: number; categories: Cat[]; ical: boolean; list_days: number; no_invitations?: boolean }
 type View = 'month' | 'week' | 'list';
 interface Ev {
   id: number; calendar_id: number; title: string; description: string; description_html: string; location: string; url: string; category: string;
@@ -48,6 +48,7 @@ function createEditor(container: HTMLElement, raw: unknown): EditorInstance {
   const ws = select([{ value: '1', label: t('content.events.monday') }, { value: '0', label: t('content.events.sunday') }], String(c.week_start ?? 1));
   const days = textInput({ type: 'number', value: String(c.list_days || 90) });
   const ical = checkbox(t('content.events.ical_opt'), c.ical !== false);
+  const noInv = checkbox(t('content.events.no_invitations'), !!c.no_invitations);
   const list = h('div', { class: 'ewe-cat-rows' });
   const draw = () => {
     mount(list, ...cats.map((k, i) => {
@@ -63,13 +64,13 @@ function createEditor(container: HTMLElement, raw: unknown): EditorInstance {
   mount(container, h('div', { class: 'ewe-editor' },
     h('fieldset', null, h('legend', null, t('content.events.intro')), field(t('content.events.intro_format'), fmtSel), field(t('content.events.intro_text'), intro)),
     h('fieldset', null, h('legend', null, t('content.events.display')), field(t('content.events.default_view'), view), field(t('content.events.week_start'), ws),
-      field(t('content.events.list_days'), days, { help: t('content.events.list_days_help') }), ical.el),
+      field(t('content.events.list_days'), days, { help: t('content.events.list_days_help') }), ical.el, noInv.el),
     h('fieldset', null, h('legend', null, t('content.events.categories')), h('p', { class: 'ew-help' }, t('content.events.categories_help')), list,
       button(t('content.events.add_category'), () => { cats.push({ id: '', label: '', color: '#0c66e4' }); draw(); list.querySelector<HTMLInputElement>('.ewe-cat-row:last-child input')?.focus(); }, { variant: 'secondary' }))));
   return {
     getBody: () => ({
       intro: { format: fmtSel.value, source: intro.value }, view: view.value, week_start: Number(ws.value), list_days: Number(days.value) || 90,
-      ical: ical.input.checked, categories: cats.filter((k) => k.label.trim()),
+      ical: ical.input.checked, no_invitations: noInv.input.checked, categories: cats.filter((k) => k.label.trim()),
     }),
   };
 }
