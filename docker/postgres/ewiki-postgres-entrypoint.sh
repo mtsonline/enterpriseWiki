@@ -71,7 +71,7 @@ upgrade() {
   # 2. new cluster in a temporary directory, restore, compare
   mkdir -p "$tmp" && chown postgres "$tmp" && chmod 700 "$tmp"
   as_pg initdb -D "$tmp" -U "$USER_" --auth-local=trust --auth-host=scram-sha-256 ${POSTGRES_INITDB_ARGS:-} >/dev/null
-  cp "$old/pg_hba.conf" "$tmp/pg_hba.conf"
+  cp "$old/pg_hba.conf" "$tmp/pg_hba.conf" && chown postgres:postgres "$tmp/pg_hba.conf" && chmod 600 "$tmp/pg_hba.conf"
   echo "listen_addresses = '*'" >> "$tmp/postgresql.auto.conf"
   as_pg pg_ctl -D "$tmp" -o "-c listen_addresses='' -k $newsock" -w -t 300 start
   trap 'as_pg pg_ctl -D "$tmp" -m fast -w stop >/dev/null 2>&1 || true' EXIT
