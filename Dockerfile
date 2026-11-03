@@ -18,7 +18,7 @@ RUN CGO_ENABLED=0 go build -trimpath \
       -ldflags "-s -w -X github.com/mtsonline/enterprisewiki/internal/version.Version=${VERSION}" \
       -o /out/ewiki ./cmd/ewiki
 
-FROM alpine:3.20
+FROM alpine:3.24
 RUN apk add --no-cache ca-certificates tzdata poppler-utils \
  && adduser -D -H -u 10001 ewiki \
  && mkdir -p /data && chown ewiki /data
