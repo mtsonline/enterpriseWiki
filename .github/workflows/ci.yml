@@ -21,7 +21,7 @@ jobs:
         ports: ["5432:5432"]
         options: --health-cmd pg_isready --health-interval 5s --health-timeout 5s --health-retries 20
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: actions/setup-go@v5
         with: { go-version-file: go.mod }
       - name: gofmt
@@ -48,7 +48,7 @@ jobs:
       EWIKI_DATABASE_URL: postgres://wiki:wiki@localhost:5432/wiki?sslmode=disable
       EWIKI_ADMIN_PASSWORD: Admin-Passw0rd!
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: actions/setup-go@v5
         with: { go-version-file: go.mod }
       - uses: actions/setup-node@v4
@@ -92,5 +92,5 @@ jobs:
     name: Docker image
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - run: docker build -t enterprisewiki:ci .
