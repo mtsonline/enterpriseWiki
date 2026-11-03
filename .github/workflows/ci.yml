@@ -23,7 +23,7 @@ jobs:
     runs-on: ubuntu-latest
     services:
       postgres:
-        image: postgres:${{ inputs.latest && 'latest' || '16' }}
+        image: postgres:${{ inputs.latest && 'latest' || '18' }} # renovate: postgres 18
         env: { POSTGRES_USER: wiki, POSTGRES_PASSWORD: wiki, POSTGRES_DB: wiki }
         ports: ["5432:5432"]
         options: --health-cmd pg_isready --health-interval 5s --health-timeout 5s --health-retries 20
@@ -59,7 +59,7 @@ jobs:
     runs-on: ubuntu-latest
     services:
       postgres:
-        image: postgres:${{ inputs.latest && 'latest' || '16' }}
+        image: postgres:${{ inputs.latest && 'latest' || '18' }} # renovate: postgres 18
         env: { POSTGRES_USER: wiki, POSTGRES_PASSWORD: wiki, POSTGRES_DB: wiki }
         ports: ["5432:5432"]
         options: --health-cmd pg_isready --health-interval 5s --health-timeout 5s --health-retries 20
@@ -132,3 +132,9 @@ jobs:
         if: ${{ inputs.latest }}
         run: sed -i -E 's#^FROM (--platform=\S+ )?(node|golang|alpine):\S+#FROM \1\2:latest#' Dockerfile && grep ^FROM Dockerfile
       - run: docker build -t enterprisewiki:ci .
+      - name: PostgreSQL image with automatic major upgrades
+        run: |
+          ${{ inputs.latest && 'sed -i -E "s#^FROM postgres:\\S+#FROM postgres:alpine#" docker/postgres/Dockerfile' || 'true' }}
+          docker build -t enterprisewiki-postgres:ci docker/postgres
+      - name: upgrade test (every older major version in the image → new version)
+        run: docker/postgres/test-upgrade.sh enterprisewiki-postgres:ci
