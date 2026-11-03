@@ -14,7 +14,8 @@ ARG TARGETOS=linux
 ARG TARGETARCH
 WORKDIR /src
 COPY go.mod go.sum ./
-RUN go mod download
+# retried: the module proxy occasionally drops connections
+RUN for i in 1 2 3; do go mod download && exit 0; sleep 10; done; exit 1
 COPY . .
 COPY --from=web /src/web/dist web/dist
 RUN go run ./tools/notices
