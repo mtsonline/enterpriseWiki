@@ -1,5 +1,5 @@
 # Enterprise Wiki - multi-stage build producing a small, non-root image.
-FROM node:22-alpine AS web
+FROM node:26-alpine AS web
 WORKDIR /src
 COPY web/package.json web/package-lock.json web/
 RUN cd web && npm ci --no-audit --no-fund
