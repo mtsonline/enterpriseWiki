@@ -20,6 +20,9 @@ echo "==> building frontend"
   node build.mjs
 )
 
+echo "==> collecting third-party licenses"
+go run ./tools/notices
+
 echo "==> building backend ($VERSION)"
 mkdir -p "$(dirname "$OUT")"
 CGO_ENABLED=0 go build -trimpath \

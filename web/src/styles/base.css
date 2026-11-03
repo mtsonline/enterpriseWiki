@@ -268,3 +268,8 @@ th .ew-help { font-weight: 400; }
 .ew-prerender-site { font-weight: 700; font-size: 1.2rem; text-decoration: none; }
 .ew-prerender-head ul { display: flex; flex-wrap: wrap; gap: .25rem 1rem; list-style: none; margin: 0; padding: 0; }
 .ew-prerender img { max-width: 100%; height: auto; }
+
+/* license notices (administration) */
+.ew-license-notice { margin: 0 0 1rem; padding: .6rem .9rem; border-left: 4px solid var(--ew-primary); background: var(--ew-bg-subtle); border-radius: 4px; }
+.ew-license-notice--warning { border-left-color: #b65c00; }
+.ew-license-notice--error { border-left-color: var(--ew-danger, #c9372c); }

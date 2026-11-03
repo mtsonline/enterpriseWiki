@@ -71,3 +71,10 @@ EWIKI_TEST_DATABASE_URL=postgres://…/wiki_test go test ./...   # löscht die T
 | Administration | [Installation](docs/admin/installation.md) · [Konfiguration](docs/admin/configuration.md) · [Anmeldung: LDAP, OIDC, SAML, 2FA](docs/admin/authentication.md) · [Betrieb, Updates, Backup, CLI](docs/admin/operations.md) · [Sicherheit & Berechtigungen](docs/admin/security.md) · [Plugins verwalten](docs/admin/plugins.md) |
 | Entwicklung | [Architektur](docs/developer/architecture.md) · [Plugins entwickeln](docs/developer/plugins.md) · [REST-API](docs/developer/api.md) |
 | Planung | [Roadmap](docs/ROADMAP.md) |
+
+## Lizenz
+
+Enterprise Wiki steht unter der **Business Source License 1.1** ([LICENSE](LICENSE)): kostenlos für die private Nutzung
+durch natürliche Personen, für Unternehmen, öffentliche Einrichtungen, Bildungseinrichtungen und Vereine mit
+(vergünstigter) Lizenz. Jede Version wird vier Jahre nach Erscheinen zusätzlich unter der AGPL-3.0 frei.
+Details, Lizenzschlüssel und enthaltene Komponenten: [LICENSING.md](LICENSING.md). Mitwirken: [CONTRIBUTING.md](CONTRIBUTING.md), [CLA.md](CLA.md).

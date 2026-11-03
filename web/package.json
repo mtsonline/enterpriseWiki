@@ -1,6 +1,7 @@
 {
   "name": "enterprisewiki-web",
   "private": true,
+  "license": "BUSL-1.1",
   "version": "7.0.0",
   "description": "Enterprise Wiki frontend: framework-free TypeScript, bundled with esbuild. No runtime dependencies.",
   "type": "module",

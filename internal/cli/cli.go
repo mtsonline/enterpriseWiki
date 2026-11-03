@@ -58,6 +58,10 @@ Users
 Guest cache
   cache status | cache clear
 
+License (Business Source License 1.1, free for private use of natural persons)
+  license show | install KEY|@file|- | remove
+  license notices               licenses of the third-party components
+
 Watches (e-mail on changes)
   watch list --as USER
   watch add category|element ID [--mode link|content] [--frequency instant|daily|weekly]
@@ -153,6 +157,8 @@ func Main(args []string) int {
 		err = e.watchCmd(args[1:])
 	case "cache":
 		err = e.cacheCmd(args[1:])
+	case "license":
+		err = e.licenseCmd(args[1:])
 	case "retention":
 		err = e.withApp(false, func(ctx context.Context, a *app.App) error {
 			res, err := a.Content.RunRetention(ctx)

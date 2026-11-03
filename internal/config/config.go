@@ -39,7 +39,15 @@ type Config struct {
 	Mail      Mail                      `yaml:"mail" json:"mail"`
 	Cache     Cache                     `yaml:"cache" json:"cache"`
 	Webhooks  Webhooks                  `yaml:"webhooks" json:"webhooks"`
+	License   License                   `yaml:"license" json:"license"`
 	Settings  map[string]map[string]any `yaml:"plugin_settings,omitempty" json:"plugin_settings,omitempty"`
+}
+
+// License holds the license key of the organisation (Administration →
+// License, "ewiki license install"). Without a key the use is only allowed
+// for private purposes of natural persons (see LICENSE).
+type License struct {
+	Key string `yaml:"key,omitempty" json:"key"`
 }
 
 // Webhooks configures HTTP notifications (the webhooks themselves are

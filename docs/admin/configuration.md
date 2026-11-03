@@ -189,6 +189,15 @@ Für Gäste werden die API-Antworten im Arbeitsspeicher gehalten. Beim Aufruf ei
 
 Kommandozeile: `ewiki cache status`, `ewiki cache clear`. API: `GET/DELETE /api/v1/admin/cache`.
 
+### `license`
+Lizenzschlüssel der Organisation (siehe [LICENSING.md](../../LICENSING.md)). Am einfachsten unter *Administration → Lizenz*
+oder mit `ewiki license install KEY` einspielen; die Prüfung erfolgt offline.
+
+```yaml
+license:
+  key: EWL1.eyJpZCI6…   # oder ${EWIKI_LICENSE} mit dem Wert in .env
+```
+
 ### `webhooks`
 Webhooks selbst werden unter *Administration → Webhooks* (API `/api/v1/admin/webhooks`) angelegt. In `config.yaml` stehen nur:
 

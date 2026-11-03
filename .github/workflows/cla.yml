@@ -1,0 +1,27 @@
+# Pull requests from outside need the agreement to CLA.md (checkbox in the
+# pull request description). Pull requests of the maintainers and of bots
+# (Dependabot) are exempt.
+name: CLA
+on:
+  pull_request_target:
+    types: [opened, edited, reopened, synchronize]
+permissions:
+  pull-requests: read
+jobs:
+  cla:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check agreement
+        env:
+          BODY: ${{ github.event.pull_request.body }}
+          AUTHOR: ${{ github.event.pull_request.user.login }}
+          ASSOC: ${{ github.event.pull_request.author_association }}
+        run: |
+          case "$ASSOC" in OWNER|MEMBER|COLLABORATOR) echo "maintainer: $AUTHOR"; exit 0;; esac
+          case "$AUTHOR" in *"[bot]") echo "bot: $AUTHOR"; exit 0;; esac
+          if printf '%s' "$BODY" | grep -Eiq '\[[xX]\] *Ich stimme der Beitragsvereinbarung|\[[xX]\] *I agree to the Contributor License Agreement'; then
+            echo "CLA accepted by $AUTHOR"
+          else
+            echo "::error::Bitte im Pull Request das Kästchen zur Beitragsvereinbarung (CLA.md) ankreuzen."
+            exit 1
+          fi

@@ -108,6 +108,9 @@ ewiki mail list --status failed         # fehlgeschlagene Nachrichten (mit Empf�
 ewiki mail retry 123                    # fehlgeschlagene Empf채nger erneut versuchen
 ewiki mail bounces                      # Bounce-Postfach jetzt abrufen
 ewiki cache clear                       # G채ste-Cache auf allen Servern leeren
+ewiki license install @lizenz.txt       # Lizenzschl체ssel einspielen (offline gepr체ft)
+ewiki license show                      # Lizenznehmer, Benutzer, Laufzeit
+ewiki license notices                   # Lizenzen der enthaltenen Komponenten
 ewiki watch add category 12 --mode content --as anna   # anna beobachtet Kategorie 12 (mit Inhalt)
 ewiki watch add category 12 --frequency daily --as anna    # t채gliche Zusammenfassung statt sofortiger E-Mails
 ewiki api GET /api/v1/admin/webhooks                      # Webhooks und Ereignisse

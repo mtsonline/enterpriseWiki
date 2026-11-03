@@ -43,6 +43,8 @@ jobs:
       - name: generated plugin imports are up to date
         run: go run ./tools/genplugins && git diff --exit-code plugins/all
       - run: go vet ./...
+      - name: licenses of all linked modules are allowed (LICENSING.md)
+        run: go run ./tools/notices -check
       - name: tests (race detector, real PostgreSQL)
         run: go test -race -count=1 ./...
         env:

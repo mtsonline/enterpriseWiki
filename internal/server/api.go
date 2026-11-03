@@ -53,6 +53,7 @@ func (s *Server) routes() {
 	s.routesM6()
 	s.routesM7()
 	s.routesM8()
+	s.routesM9()
 	// ---------------------------------------------------------------- system
 	s.app.Mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, r *http.Request) { h.Write(w, 200, map[string]string{"status": "ok"}) })
 	s.handle("GET /readyz", func(w http.ResponseWriter, r *http.Request) (any, error) {

@@ -83,6 +83,10 @@ Administration → Elemente (alle Elemente suchen, filtern, bearbeiten, verschie
 
 Menü-Editor zeigt nur die Liste der Einträge, „Bearbeiten“ öffnet einen einzelnen Eintrag (inkl. übergeordnetem Eintrag); Wiki-Vorlage heißt jetzt `theme.wiki`/`theme.wiki.dark` (alte IDs werden beim Start automatisch übernommen), schmalere und ein-/ausblendbare Seitenleiste; Website-Vorlage `theme.cms` neu gestaltet (transparenter Kopfbereich über dem Startbild, Titel-Banner auf Unterseiten, Footer-Spalten, „Nach oben“-Knopf, Schrift Source Sans 3) mit eigener Einstellungsseite *Administration → Website-Vorlage*; Einstellungsformulare kennen Bild- und Farbfelder.
 
+## Lizenzierung (v7.5)
+
+Business Source License 1.1 mit kostenloser privater Nutzung durch natürliche Personen, Lizenzschlüssel mit Offline-Prüfung (*Administration → Lizenz*, `ewiki license`), Beitragsvereinbarung (CLA) für Mitwirkende und Katalog-Plugins, Lizenzliste der enthaltenen Komponenten (`/licenses.txt`) und Lizenzprüfung neuer Abhängigkeiten in der CI.
+
 ## Meilenstein 6 – Gäste und Suchmaschinen, Kalender, Zusammenfassungen, Webhooks (fertig, v7.5)
 
 - **Vorrendern für Gäste** (`ui.prerender`, Standard an): Seiten, Kategorien, Startseite und Kurz-URLs kommen mit Titel, Beschreibung, kanonischer Adresse, Open-Graph-Angaben, Sprache und dem Inhalt als HTML; die App ersetzt ihn beim Start. Immer aus Sicht eines Gastes, im Gäste-Cache gehalten. Prüfen unter *Administration → Einstellungen → Gast-Ansicht anzeigen* bzw. `GET /api/v1/prerender?path=`.
