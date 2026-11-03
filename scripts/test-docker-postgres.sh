@@ -53,7 +53,7 @@ verify() { # mode
 	[ "$(docker compose exec -T postgres id -u)" = "$(id -u)" ] || fail "postgres does not run as the user of .env"
 	[ -s "data/postgres/$from/docker/PG_VERSION" ] || fail "old data not kept"
 	[ -e "data/postgres/$to/docker/.ewiki-upgraded" ] || fail "marker missing"
-	other="$(find data \( ! -uid "$(id -u)" -o ! -gid "$(id -g)" \) -printf "%p %u:%g\n" | head -5)"; [ -z "$other" ] || fail "files in ./data with another owner: $other"
+	other="$(find data -path data/postgres/data -prune -o \( ! -uid "$(id -u)" -o ! -gid "$(id -g)" \) -printf "%p %u:%g\n" | head -5)"; [ -z "$other" ] || fail "files in ./data with another owner: $other"
 	./docker-postgres-upgrade.sh --yes | grep -q "up to date" || fail "second run"
 	./docker-postgres-upgrade.sh --check >/dev/null || fail "--check after the upgrade"
 	echo "ok: PostgreSQL $from → $to ($1)"

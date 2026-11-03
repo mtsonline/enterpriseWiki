@@ -7,18 +7,25 @@ Es gibt drei Wege. Alle verwenden denselben, beliebig oft wiederholbaren Setup-B
 ## 1. Docker Compose (empfohlen für den Einstieg)
 
 ```bash
-cp .env.example .env     # POSTGRES_PASSWORD und EWIKI_ADMIN_PASSWORD setzen
-docker compose up -d
+./docker-setup.sh        # einmalig, als der Benutzer, unter dem das Wiki laufen soll (nicht root)
+docker compose up -d     # starten – und für Updates
 ```
 
-- Verwendet wird das fertige Image `ghcr.io/mtsonline/enterprisewiki:latest` (amd64 und arm64). `docker compose up -d` lädt bei jedem Aufruf die neueste Version. Wer eine Version festhalten will, trägt z. B. `:7.5` statt `:latest` ein.
-
-- Die Konfiguration liegt im Volume `wikidata` unter `/data/config.yaml`.
+- `./docker-setup.sh` legt `.env` mit zufälligen Passwörtern an, trägt die Benutzer- und Gruppen-ID des aufrufenden
+  Benutzers ein (`EWIKI_UID`, `EWIKI_GID`) und legt `./data/postgres` und `./data/wiki` an. Es kann jederzeit erneut
+  ausgeführt werden und erledigt nur, was fehlt (z. B. Besitzer korrigieren, falls nötig mit `sudo`).
+- **Alle Daten liegen im Ordner der Installation:** `./data/postgres` (Datenbank, je Hauptversion ein Ordner),
+  `./data/wiki` (`config.yaml`, hochgeladene Dateien). Andere Orte: Pfade in `docker-compose.yml` ändern.
+- **Kein Container läuft als root:** Wiki und PostgreSQL laufen als `EWIKI_UID:EWIKI_GID`.
+- Verwendet werden das fertige Image `ghcr.io/mtsonline/enterprisewiki:latest` (amd64 und arm64, bei jedem
+  `docker compose up -d` die neueste Version; festhalten z. B. mit `:7.5`) und das offizielle Image
+  `postgres:${POSTGRES_VERSION}`. Neue PostgreSQL-Hauptversionen: `./docker-postgres-upgrade.sh`
+  (siehe [operations.md](operations.md#postgresql-upgrades-docker)).
 - Beim Start führt der Container automatisch `ewiki setup --non-interactive` aus und startet danach den Server.
 - Der Administrator heißt `EWIKI_ADMIN_USER` (Standard `admin`), das Passwort ist `EWIKI_ADMIN_PASSWORD`. Es wird nur verwendet, solange noch kein Administrator existiert.
 - CLI im Container: `docker compose exec wiki ewiki plugin list`
 
-Plugins werden bei Docker installiert, indem man sie in das Verzeichnis `plugins/` legt und das Image selbst baut: in `docker-compose.yml` `image` und `pull_policy` auskommentieren, `build: .` aktivieren und `docker compose up -d --build` ausführen. Das Bauen aus der Oberfläche heraus braucht die Quellinstallation (Weg 2).
+Plugins werden bei Docker installiert, indem man sie in das Verzeichnis `plugins/` legt und das Image selbst baut: `docker compose -f docker-compose.build.yml up -d --build` (gleicher Aufbau, `build: .` statt des fertigen Images; mit `export COMPOSE_FILE=docker-compose.build.yml` entfällt `-f`). Das Bauen aus der Oberfläche heraus braucht die Quellinstallation (Weg 2).
 
 ## 2. Linux-Server mit systemd
 

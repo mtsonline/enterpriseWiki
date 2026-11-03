@@ -36,7 +36,7 @@ Ein selbst gehostetes, modulares Wiki und CMS: Wissensdatenbank mit beliebig tie
 ## Schnellstart mit Docker
 
 ```bash
-cp .env.example .env        # Passwörter setzen
+./docker-setup.sh           # .env mit Passwörtern, Ordner ./data, eigener Benutzer statt root
 docker compose up -d        # lädt das aktuelle Image (ghcr.io/mtsonline/enterprisewiki)
 # http://localhost:8080 – Anmeldung mit admin / EWIKI_ADMIN_PASSWORD
 ```

@@ -173,6 +173,8 @@ as "$NEWB/vacuumdb" -h "$sock" -p 50433 -U "$PGUSER_NAME" --all "${stats[@]}" >/
 as "$NEWB/pg_ctl" -D "$NEWD" -m fast -w stop >/dev/null
 echo "upgraded from PostgreSQL $OLD on $(date -u +%Y-%m-%dT%H:%M:%SZ) ($(wc -l < /tmp/work/before) tables verified)" > "$NEWD/.ewiki-upgraded"
 chown postgres:postgres "$NEWD/.ewiki-upgraded"
+# empty mount point Docker created for the images up to PostgreSQL 17
+rmdir /var/lib/postgresql/data 2>/dev/null || true
 trap - EXIT
 log "done: $(wc -l < /tmp/work/after) tables, row counts identical"
 INNER

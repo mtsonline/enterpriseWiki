@@ -908,5 +908,21 @@
  "license.terms": "Enterprise Wiki is licensed under the Business Source License 1.1. Private use by natural persons is free; any other use requires a license. Each version additionally becomes available under the AGPL-3.0 four years after its release.",
  "license.third_party": "Included components",
  "license.third_party_help": "Enterprise Wiki contains third-party components under their own (permissive) licenses.",
- "license.third_party_link": "Show license texts"
+ "license.third_party_link": "Show license texts",
+ "pgversion.title": "Database",
+ "pgversion.running": "In use",
+ "pgversion.recommended_label": "Recommended",
+ "pgversion.support_until": "Supported until",
+ "pgversion.recommended": "PostgreSQL {recommended} is available and recommended (in use: {version}, supported until {eol}).",
+ "pgversion.ends_soon": "Support of PostgreSQL {major} by the PostgreSQL project ends on {eol} (in {days} days). Please upgrade to PostgreSQL {recommended}.",
+ "pgversion.ended": "PostgreSQL {major} no longer receives security updates since {eol}. Please upgrade to PostgreSQL {recommended}.",
+ "pgversion.howto_docker": "Upgrade on the server in the folder of the installation with",
+ "pgversion.howto_other": "Upgrade with the procedure of your PostgreSQL installation (pg_upgrade).",
+ "pgversion.mail_recommended_subject": "{site}: PostgreSQL {recommended} is available",
+ "pgversion.mail_recommended_body": "Hello {name},\n\nPostgreSQL {recommended} is now recommended for {site}. In use is PostgreSQL {version}, supported until {eol}. The upgrade is not urgent but can be done at any time.",
+ "pgversion.mail_eol_subject": "{site}: support of PostgreSQL {major} ends on {eol}",
+ "pgversion.mail_eol_body": "Hello {name},\n\nsupport of PostgreSQL {major} by the PostgreSQL project ends on {eol} (in {days} days). There will be no security updates afterwards. Please upgrade to PostgreSQL {recommended}.",
+ "pgversion.mail_ended_subject": "{site}: PostgreSQL {major} is no longer supported",
+ "pgversion.mail_ended_body": "Hello {name},\n\nPostgreSQL {major} no longer receives security updates since {eol}. Please upgrade to PostgreSQL {recommended} soon.",
+ "pgversion.mail_howto": "Docker installations: run \"{command}\" on the server in the folder of the installation (the old data is kept). Other installations: the upgrade procedure of your PostgreSQL installation (pg_upgrade)."
 }

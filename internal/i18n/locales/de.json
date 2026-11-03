@@ -908,5 +908,21 @@
  "license.terms": "Enterprise Wiki steht unter der Business Source License 1.1. Die private Nutzung durch natürliche Personen ist kostenlos; jede andere Nutzung erfordert eine Lizenz. Jede Version wird vier Jahre nach ihrer Veröffentlichung zusätzlich unter der AGPL-3.0 frei.",
  "license.third_party": "Enthaltene Komponenten",
  "license.third_party_help": "Enterprise Wiki enthält Komponenten Dritter unter deren eigenen (freizügigen) Lizenzen.",
- "license.third_party_link": "Lizenztexte anzeigen"
+ "license.third_party_link": "Lizenztexte anzeigen",
+ "pgversion.title": "Datenbank",
+ "pgversion.running": "Verwendet",
+ "pgversion.recommended_label": "Empfohlen",
+ "pgversion.support_until": "Unterstützt bis",
+ "pgversion.recommended": "PostgreSQL {recommended} ist verfügbar und empfohlen (verwendet: {version}, unterstützt bis {eol}).",
+ "pgversion.ends_soon": "Die Unterstützung von PostgreSQL {major} durch das PostgreSQL-Projekt endet am {eol} (in {days} Tagen). Bitte auf PostgreSQL {recommended} aktualisieren.",
+ "pgversion.ended": "PostgreSQL {major} wird seit {eol} nicht mehr mit Sicherheitsupdates versorgt. Bitte auf PostgreSQL {recommended} aktualisieren.",
+ "pgversion.howto_docker": "Aktualisieren auf dem Server im Ordner der Installation mit",
+ "pgversion.howto_other": "Aktualisieren mit dem Upgrade-Verfahren Ihrer PostgreSQL-Installation (pg_upgrade).",
+ "pgversion.mail_recommended_subject": "{site}: PostgreSQL {recommended} ist verfügbar",
+ "pgversion.mail_recommended_body": "Hallo {name},\n\nfür {site} wird jetzt PostgreSQL {recommended} empfohlen. Verwendet wird PostgreSQL {version}, das noch bis {eol} unterstützt wird. Das Upgrade ist nicht dringend, kann aber jederzeit erfolgen.",
+ "pgversion.mail_eol_subject": "{site}: Unterstützung von PostgreSQL {major} endet am {eol}",
+ "pgversion.mail_eol_body": "Hallo {name},\n\ndie Unterstützung von PostgreSQL {major} durch das PostgreSQL-Projekt endet am {eol} (in {days} Tagen). Danach gibt es keine Sicherheitsupdates mehr. Bitte aktualisieren Sie auf PostgreSQL {recommended}.",
+ "pgversion.mail_ended_subject": "{site}: PostgreSQL {major} wird nicht mehr unterstützt",
+ "pgversion.mail_ended_body": "Hallo {name},\n\nPostgreSQL {major} wird seit {eol} nicht mehr mit Sicherheitsupdates versorgt. Bitte aktualisieren Sie möglichst bald auf PostgreSQL {recommended}.",
+ "pgversion.mail_howto": "Docker-Installationen: auf dem Server im Ordner der Installation „{command}“ ausführen (die alten Daten bleiben erhalten). Andere Installationen: Upgrade-Verfahren der PostgreSQL-Installation (pg_upgrade)."
 }

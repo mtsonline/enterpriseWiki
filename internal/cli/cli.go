@@ -236,6 +236,7 @@ func (e *env) serve(args []string) error {
 		stop()
 	})
 	srv := server.New(a, web.FS(), pm)
+	a.PGVersion.LogStatus(ctx)
 	go a.Bus.Run(ctx)
 	go e.jobs(ctx, a)
 	a.Workers.Start(ctx)

@@ -10,6 +10,7 @@ import (
 	"github.com/mtsonline/enterprisewiki/internal/config"
 	h "github.com/mtsonline/enterprisewiki/internal/httpx"
 	"github.com/mtsonline/enterprisewiki/internal/license"
+	"github.com/mtsonline/enterprisewiki/internal/pgversion"
 )
 
 // LicenseStatus evaluates the configured license key.
@@ -20,6 +21,13 @@ func (s *Server) LicenseStatus(ctx context.Context) license.Status {
 }
 
 func (s *Server) routesM9() {
+	// GET /api/v1/admin/database – PostgreSQL version, recommended version, end of support
+	s.handle("GET /api/v1/admin/database", func(w http.ResponseWriter, r *http.Request) (any, error) {
+		if err := requireAdmin(r); err != nil {
+			return nil, err
+		}
+		return pgversion.Check(r.Context(), s.app.DB, time.Now())
+	})
 	// GET /api/v1/admin/license – license state (offline check of the key)
 	s.handle("GET /api/v1/admin/license", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		if err := requireAdmin(r); err != nil {

@@ -77,11 +77,13 @@
       "versioning": "node"
     },
     {
-      "description": "PostgreSQL: major versions too – the image docker/postgres upgrades the data automatically (dump, restore, verification), CI tests the upgrade from every older version before the merge",
+      "description": "PostgreSQL: the recommended version in docker-compose*.yml, .env.example, internal/pgversion and the CI database – one pull request, merged when CI is green (also the upgrade test from older versions). Existing installations switch with ./docker-postgres-upgrade.sh.",
       "matchPackageNames": [
         "postgres"
       ],
-      "automerge": true
+      "automerge": true,
+      "groupName": "PostgreSQL",
+      "groupSlug": "postgres"
     }
   ],
   "customManagers": [
@@ -93,6 +95,45 @@
       ],
       "matchStrings": [
         "'(?<currentValue>\\d+)' \\}\\} # renovate: postgres"
+      ],
+      "depNameTemplate": "postgres",
+      "datasourceTemplate": "docker",
+      "versioningTemplate": "docker"
+    },
+    {
+      "customType": "regex",
+      "description": "recommended PostgreSQL version of the Docker Compose files",
+      "managerFilePatterns": [
+        "/^docker-compose(\\.build)?\\.yml$/"
+      ],
+      "matchStrings": [
+        "\\$\\{POSTGRES_VERSION:-(?<currentValue>\\d+)\\}"
+      ],
+      "depNameTemplate": "postgres",
+      "datasourceTemplate": "docker",
+      "versioningTemplate": "docker"
+    },
+    {
+      "customType": "regex",
+      "description": "default PostgreSQL version of new installations",
+      "managerFilePatterns": [
+        "/^\\.env\\.example$/"
+      ],
+      "matchStrings": [
+        "POSTGRES_VERSION=(?<currentValue>\\d+)"
+      ],
+      "depNameTemplate": "postgres",
+      "datasourceTemplate": "docker",
+      "versioningTemplate": "docker"
+    },
+    {
+      "customType": "regex",
+      "description": "recommended PostgreSQL version shown to administrators",
+      "managerFilePatterns": [
+        "/^internal/pgversion/pgversion\\.go$/"
+      ],
+      "matchStrings": [
+        "RecommendedMajor = (?<currentValue>\\d+) // renovate: postgres"
       ],
       "depNameTemplate": "postgres",
       "datasourceTemplate": "docker",

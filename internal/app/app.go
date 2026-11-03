@@ -23,6 +23,7 @@ import (
 	"github.com/mtsonline/enterprisewiki/internal/kernel"
 	"github.com/mtsonline/enterprisewiki/internal/mail"
 	"github.com/mtsonline/enterprisewiki/internal/pagecache"
+	"github.com/mtsonline/enterprisewiki/internal/pgversion"
 	"github.com/mtsonline/enterprisewiki/internal/storage"
 	"github.com/mtsonline/enterprisewiki/internal/watch"
 	"github.com/mtsonline/enterprisewiki/internal/webhook"
@@ -43,11 +44,13 @@ type App struct {
 	Mail    *mail.Service
 	Watch   *watch.Service
 	// Webhooks sends HTTP notifications about events.
-	Webhooks *webhook.Service
-	Cache    *pagecache.Cache
-	Workers  *worker.Registry
-	Kernel   *kernel.Kernel
-	Log      *slog.Logger
+	// PGVersion checks the PostgreSQL version (log, e-mails).
+	PGVersion *pgversion.Notifier
+	Webhooks  *webhook.Service
+	Cache     *pagecache.Cache
+	Workers   *worker.Registry
+	Kernel    *kernel.Kernel
+	Log       *slog.Logger
 	// Mux receives core and plugin routes.
 	Mux *http.ServeMux
 	// Root is the source directory (for plugin installation / rebuilds).
@@ -139,6 +142,9 @@ func New(ctx context.Context, o Options) (*App, error) {
 		}
 		return err
 	}})
+	// PostgreSQL version: log at start, e-mails to administrators (recommended version, end of support)
+	a.PGVersion = &pgversion.Notifier{Pool: pool, Cfg: cfg, Mail: a.Mail, Log: log, T: a.I18n.T}
+	a.Workers.Register(worker.Job{Name: "pgversion", Interval: 24 * time.Hour, Run: a.PGVersion.Run})
 	// webhooks: content changes here, other events from plugins (Host.Webhooks)
 	a.Webhooks = webhook.New(pool, cfg, log)
 	a.Webhooks.T = a.I18n.T

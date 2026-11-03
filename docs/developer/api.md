@@ -224,6 +224,7 @@ curl -H "Authorization: Bearer $KEY" -H 'Content-Type: application/json' \
 | `DELETE` | `/api/v1/admin/webhooks/{id}` |
 | `POST` | `/api/v1/admin/webhooks/{id}/test` |
 | `POST` | `/api/v1/admin/webhooks/{id}/deliveries/{did}/retry` |
+| `GET` | `/api/v1/admin/database` |
 | `GET` | `/api/v1/admin/license` |
 | `PUT` | `/api/v1/admin/license` |
 | `DELETE` | `/api/v1/admin/license` |

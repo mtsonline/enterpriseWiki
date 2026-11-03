@@ -3,6 +3,7 @@ import { profileCardForm } from '../components/profilecard';
 import { elementsAdmin } from './adminElements';
 import { webhooksAdmin } from './adminWebhooks';
 import { licenseAdmin, licenseNotice, type LicenseStatus } from './adminLicense';
+import { databaseFacts, databaseNotice, type DatabaseStatus } from './adminDatabase';
 import { categorySelect, elementSelect } from '../components/pickers';
 import { api, qs } from '../core/api';
 import { fmtDate, h, mount } from '../core/dom';
@@ -41,12 +42,14 @@ export async function adminView({ params, query, main }: RouteCtx): Promise<void
       h('ul', null, ...pages.map((p) => h('li', null, h('a', { href: `/admin/${p.id}`, 'aria-current': p.id === section ? 'page' : undefined }, p.label))))),
     h('div', { class: 'ew-admin-panel' }, notice, panel)));
   // problems with the license on every administration page (not on the license page itself)
-  if (section !== 'license') {
-    void api.get<LicenseStatus>('admin/license').then((st) => {
-      const n = st.level === 'warning' || st.level === 'error' ? licenseNotice(st) : null;
-      if (n) mount(notice, n);
-    }).catch(() => undefined);
-  }
+  // and problems with the PostgreSQL version (end of support)
+  void Promise.all([
+    section === 'license' ? null : api.get<LicenseStatus>('admin/license').catch(() => null),
+    section === 'settings' ? null : api.get<DatabaseStatus>('admin/database').catch(() => null),
+  ]).then(([lic, db]) => {
+    const items = [lic && (lic.level === 'warning' || lic.level === 'error') ? licenseNotice(lic) : null, db ? databaseNotice(db) : null].filter(Boolean) as HTMLElement[];
+    if (items.length) mount(notice, ...items);
+  });
   try {
     switch (section) {
       case 'users': await users(panel, query); break;
@@ -405,7 +408,9 @@ async function settings(panel: HTMLElement): Promise<void> {
       setTimeout(() => location.reload(), 800);
     } catch (e) { alert.textContent = errorText(e); }
   });
+  const db = await api.get<DatabaseStatus>('admin/database').catch(() => null);
   mount(panel, pageHeader(t('admin.settings')), h('p', null, t('settings.file_note', { path: s.path })),
+    db ? databaseFacts(db) : null,
     h('dl', { class: 'ew-dl' }, h('dt', null, t('settings.mode')), h('dd', null, c.mode), h('dt', null, t('settings.listen')), h('dd', null, c.server.listen), h('dt', null, t('settings.base_url')), h('dd', null, c.server.base_url)),
     form);
 }

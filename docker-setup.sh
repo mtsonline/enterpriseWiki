@@ -62,7 +62,8 @@ for d in "${dirs[@]}"; do
 	[ -d "$d" ] || { mkdir -p "$d"; say "created $d"; }
 done
 # everything below ./data must belong to the user (e.g. after a move, or files of older containers)
-foreign="$(find data \( ! -uid "$uid" -o ! -gid "$gid" \) -print -quit 2>/dev/null || true)"
+# (data/postgres/data: empty mount point that Docker creates for the images up to PostgreSQL 17)
+foreign="$(find data -path data/postgres/data -prune -o \( ! -uid "$uid" -o ! -gid "$gid" \) -print -quit 2>/dev/null || true)"
 if [ -n "$foreign" ]; then
 	say "files in ./data belong to another user (e.g. $foreign) – changing the owner to $owner"
 	if [ "$(id -u)" = 0 ]; then
