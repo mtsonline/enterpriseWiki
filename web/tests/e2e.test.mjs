@@ -608,7 +608,7 @@ test('short URL and the elements administration', async () => {
   await page.getByRole('button', { name: new RegExp(`^(properties|eigenschaften): Shorty ${run}`, 'i') }).click();
   const dlg = page.locator('dialog[open]');
   await dlg.getByLabel(/^(short url|kurz-url)/i).fill(`Kurz ${run}`);
-  await dlg.getByLabel(/^(preview image|vorschaubild)/i).fill('https://cdn.example.com/cover.jpg');
+  await dlg.getByLabel(/^(preview image|vorschaubild)/i).fill('/favicon.svg');
   await a11y('element properties');
   await dlg.locator('button[type=submit]').click();
   await page.waitForSelector(`.ew-admin-results code:has-text("/kurz-${run}")`);
@@ -619,7 +619,7 @@ test('short URL and the elements administration', async () => {
   assert.ok(el.id > 0);
   // preview image for link previews (set in the properties dialog above)
   const saved = await call('GET', `/api/v1/elements/${el.id}`);
-  assert.equal(saved.preview_image, 'https://cdn.example.com/cover.jpg');
+  assert.equal(saved.preview_image, '/favicon.svg');
 });
 
 test('guest cache administration', async () => {
