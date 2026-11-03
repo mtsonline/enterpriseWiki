@@ -1,0 +1,22 @@
+# Weekly update proposals as pull requests; CI (build, tests, E2E + axe)
+# decides whether an update can be merged. Major versions come as separate PRs.
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /web
+    schedule: { interval: weekly }
+    groups:
+      tooling:
+        update-types: [minor, patch]
+  - package-ecosystem: gomod
+    directory: /
+    schedule: { interval: weekly }
+    groups:
+      go-modules:
+        update-types: [minor, patch]
+  - package-ecosystem: docker
+    directory: /
+    schedule: { interval: weekly }
+  - package-ecosystem: github-actions
+    directory: /
+    schedule: { interval: monthly }

@@ -55,7 +55,7 @@ jobs:
         with: { node-version: 22 }
       - name: install frontend tooling
         working-directory: web
-        run: npm install --no-audit --no-fund
+        run: npm ci --no-audit --no-fund
       - name: build (frontend + single binary)
         run: ./scripts/build.sh
       - name: typecheck
