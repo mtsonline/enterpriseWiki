@@ -46,9 +46,43 @@ npm-Pakete, Docker-Basis-Images, GitHub Actions):
 4. Der nächtliche **Canary**-Lauf baut und testet mit den allerneuesten Versionen (ohne Wartezeit, ohne etwas zu
    übernehmen) als Frühwarnung.
 
-Ausnahme: **PostgreSQL-Hauptversionen** (z. B. 16 → 18) brauchen eine Datenmigration (`pg_upgrade` oder Dump/Restore) und
-werden nur nach Freigabe im Dependency Dashboard vorgeschlagen. Die `go`-Zeile in `go.mod` bleibt die
+**PostgreSQL-Hauptversionen** (z. B. 16 → 18) werden ebenfalls automatisch übernommen, siehe nächster Abschnitt. Die `go`-Zeile in `go.mod` bleibt die
 Mindestversion zum Bauen; verwendet wird immer die Go-Version aus der `toolchain`-Zeile.
+
+## PostgreSQL-Upgrades (Docker)
+
+Docker Compose verwendet das Image `ghcr.io/mtsonline/enterprisewiki-postgres` (offizielles PostgreSQL-Image plus
+automatisches Upgrade). Erscheint eine neue Hauptversion, läuft beim nächsten `docker compose up -d` ohne Zutun:
+
+1. Der Container findet die Daten der älteren Version im Volume `pgdata` und startet sie lokal (ohne Netzwerk) mit den
+   mitgelieferten Programmen dieser Version.
+2. Er schreibt eine **vollständige Sicherung** (`pg_dumpall`) ins Volume `pgbackup`:
+   `/backups/pg16-before-pg18-<Zeitpunkt>.sql.gz`.
+3. Er legt einen neuen Datenbestand der neuen Version an, spielt die Sicherung ein und **vergleicht jede Tabelle aller
+   Datenbanken** (Zeilenanzahl) mit dem Stand vorher.
+4. Nur wenn alles übereinstimmt, wird umgeschaltet. Bei einer Abweichung bleibt die alte Version unverändert in
+   Betrieb-fähigem Zustand, der Container meldet den Fehler im Log (`docker compose logs postgres`) und versucht es beim
+   nächsten Start erneut.
+
+Die Daten der alten Version bleiben unverändert im Volume erhalten (Rückweg: altes Image angeben). Die Daten jeder
+Version liegen in einem eigenen Verzeichnis (`/var/lib/postgresql/ewiki/pg18`). Platz: Während des Upgrades wird etwa
+das Doppelte der Datenbankgröße plus die (komprimierte) Sicherung benötigt. Alte Daten und Sicherungen nach einiger Zeit
+löschen:
+
+```bash
+docker compose exec postgres sh -c 'ls -la /var/lib/postgresql/ewiki /backups'
+```
+
+Das Wiki wartet währenddessen (Healthcheck mit langer Startphase) und startet danach automatisch. Vor jeder Übernahme
+eines Updates prüft die CI das Upgrade von **jeder** im Image enthaltenen älteren Version auf die neue (Testdaten,
+Erweiterung `ltree`, mehrere Datenbanken, Rollen und Passwörter, Neustart ohne erneutes Upgrade).
+
+**Umstieg bestehender Installationen** (bisher `postgres:16-alpine` mit `pgdata:/var/lib/postgresql/data`): die neue
+`docker-compose.yml` übernehmen – sie hängt dasselbe Volume unter `/var/lib/postgresql/ewiki` ein – und
+`docker compose up -d` ausführen; das Upgrade auf die aktuelle Version läuft dabei wie oben beschrieben.
+
+Bei Installationen ohne Docker (systemd) betreibt die Organisation PostgreSQL selbst; dort gilt das Upgrade-Verfahren der
+jeweiligen Distribution (z. B. `pg_upgradecluster`).
 
 ## Backup und Wiederherstellung
 

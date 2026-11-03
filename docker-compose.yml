@@ -8,19 +8,26 @@
 # "docker compose up -d --build".
 services:
   postgres:
-    image: postgres:16-alpine
+    # PostgreSQL with automatic, verified major version upgrades (dump in the
+    # pgbackup volume, old data kept); see docs/admin/operations.md
+    image: ghcr.io/mtsonline/enterprisewiki-postgres:latest
+    pull_policy: always
     restart: unless-stopped
     environment:
       POSTGRES_DB: ewiki
       POSTGRES_USER: ewiki
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
     volumes:
-      - pgdata:/var/lib/postgresql/data
+      - pgdata:/var/lib/postgresql/ewiki
+      - pgbackup:/backups
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ewiki -d ewiki"]
-      interval: 5s
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U ewiki -d ewiki"]
+      interval: 10s
       timeout: 5s
       retries: 10
+      # an upgrade to a new major version (dump and restore) may take a while
+      start_period: 6h
+      start_interval: 5s
 
   wiki:
     image: ghcr.io/mtsonline/enterprisewiki:latest   # or a fixed version, e.g. :7.5
@@ -63,4 +70,5 @@ services:
 volumes:
   # meilidata:
   pgdata:
+  pgbackup:
   wikidata:
