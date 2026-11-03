@@ -2,7 +2,7 @@
 
 Version 1.0 – gültig für Beiträge zu Enterprise Wiki und für Plugins im offiziellen Plugin-Katalog.
 
-Diese Vereinbarung wird geschlossen zwischen **[LIZENZGEBER]** („Lizenzgeber“) und der Person oder Organisation, die
+Diese Vereinbarung wird geschlossen zwischen **thinking systems, Inh. Martin Thomas Schrott, Höhenweg 114, 9073 Klagenfurt am Wörthersee, Österreich** („Lizenzgeber“) und der Person oder Organisation, die
 einen Beitrag einreicht („Sie“). Sie stimmen ihr zu, indem Sie in einem Pull Request das Kästchen „Ich stimme der
 Beitragsvereinbarung (CLA.md) zu“ ankreuzen oder dem Lizenzgeber die Zustimmung schriftlich (auch per E-Mail) erklären.
 Die Zustimmung gilt für alle Ihre künftigen Beiträge, bis Sie sie schriftlich für künftige Beiträge widerrufen.

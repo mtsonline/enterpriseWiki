@@ -92,7 +92,10 @@ Lizenzgeber an jedem Beitrag die nötigen Rechte. Deshalb gilt:
 | Verein / gemeinnützig | Vereine, Stiftungen, NGOs | `nonprofit` |
 | Testlizenz | befristete Evaluierung mit Produktivdaten | `trial` |
 
-Preise und Anfragen: [LIZENZGEBER, Kontakt]
+Lizenzgeber, Preise und Anfragen:
+
+**thinking systems**, Inh. Martin Thomas Schrott
+Höhenweg 114, 9073 Klagenfurt am Wörthersee, Österreich
 
 ## Häufige Fragen
 
