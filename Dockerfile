@@ -7,7 +7,7 @@ COPY web web
 COPY plugins plugins
 RUN cd web && node build.mjs
 
-FROM golang:1.24-alpine AS backend
+FROM golang:1.27-alpine AS backend
 WORKDIR /src
 COPY go.mod go.sum ./
 RUN go mod download
