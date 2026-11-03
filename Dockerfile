@@ -1,5 +1,7 @@
 # Enterprise Wiki - multi-stage build producing a small, non-root image.
-FROM node:22-alpine AS web
+# The build stages run on the build machine (BUILDPLATFORM) and cross-compile
+# for the target (multi-arch images: linux/amd64, linux/arm64).
+FROM --platform=$BUILDPLATFORM node:26-alpine AS web
 WORKDIR /src
 COPY web/package.json web/package-lock.json web/
 RUN cd web && npm ci --no-audit --no-fund
@@ -7,18 +9,20 @@ COPY web web
 COPY plugins plugins
 RUN cd web && node build.mjs
 
-FROM golang:1.24-alpine AS backend
+FROM --platform=$BUILDPLATFORM golang:1.27-alpine AS backend
+ARG TARGETOS=linux
+ARG TARGETARCH
 WORKDIR /src
 COPY go.mod go.sum ./
 RUN go mod download
 COPY . .
 COPY --from=web /src/web/dist web/dist
 ARG VERSION=dev
-RUN CGO_ENABLED=0 go build -trimpath \
+RUN CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH go build -trimpath \
       -ldflags "-s -w -X github.com/mtsonline/enterprisewiki/internal/version.Version=${VERSION}" \
       -o /out/ewiki ./cmd/ewiki
 
-FROM alpine:3.20
+FROM alpine:3.24
 RUN apk add --no-cache ca-certificates tzdata poppler-utils \
  && adduser -D -H -u 10001 ewiki \
  && mkdir -p /data && chown ewiki /data

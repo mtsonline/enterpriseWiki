@@ -24,8 +24,31 @@ Datenbank-Migrationen laufen beim Start automatisch, einmalig und in Transaktion
 ### Docker
 
 ```bash
-git pull && docker compose up -d --build
+docker compose up -d          # lädt das neueste Image und startet neu (Migrationen laufen automatisch)
 ```
+
+Mit selbst gebautem Image (eigene Plugins): `git pull && docker compose up -d --build`.
+
+## Automatische Updates der Komponenten
+
+Enterprise Wiki bleibt ohne manuelles Eingreifen auf dem neuesten Stand aller Komponenten (Go, Go-Module, Node.js,
+npm-Pakete, Docker-Basis-Images, GitHub Actions):
+
+1. **Renovate** (`renovate.json`) prüft täglich vor 6 Uhr und öffnet Pull Requests: kleinere Updates gesammelt in einem,
+   große Versionssprünge einzeln. Neue Versionen werden erst nach **3 Tagen** übernommen (zurückgezogene oder
+   kompromittierte Pakete erreichen das Produkt so nicht), **Sicherheitsupdates sofort**.
+2. Die **CI** prüft jeden Pull Request vollständig: Build, Go-Tests mit PostgreSQL, Browser-Tests mit
+   Barrierefreiheitsprüfung, Docker-Build und Lizenzprüfung der Abhängigkeiten. Nur wenn alles grün ist, führt
+   Renovate den Pull Request **automatisch** zusammen – auch bei großen Versionssprüngen. Rote Pull Requests bleiben
+   offen; GitHub meldet das per E-Mail. Die Übersicht aller offenen Updates steht im Issue „Dependency Dashboard“.
+3. Nach jeder Änderung auf `main` baut **docker-publish** das Image `ghcr.io/mtsonline/enterprisewiki:latest` (amd64,
+   arm64) neu; Versions-Tags `v7.5.0` ergeben zusätzlich `:7.5.0`, `:7.5` und `:7`.
+4. Der nächtliche **Canary**-Lauf baut und testet mit den allerneuesten Versionen (ohne Wartezeit, ohne etwas zu
+   übernehmen) als Frühwarnung.
+
+Ausnahme: **PostgreSQL-Hauptversionen** (z. B. 16 → 18) brauchen eine Datenmigration (`pg_upgrade` oder Dump/Restore) und
+werden nur nach Freigabe im Dependency Dashboard vorgeschlagen. Die `go`-Zeile in `go.mod` bleibt die
+Mindestversion zum Bauen; verwendet wird immer die Go-Version aus der `toolchain`-Zeile.
 
 ## Backup und Wiederherstellung
 

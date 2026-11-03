@@ -1,7 +1,11 @@
 # Quick start:
 #   cp .env.example .env   # set passwords
-#   docker compose up -d --build
+#   docker compose up -d
 #   open http://localhost:8080  (user: admin, password: EWIKI_ADMIN_PASSWORD)
+# Updates: "docker compose up -d" pulls the newest image every time
+# (pull_policy: always). With own plugins in plugins/ build the image locally
+# instead: comment out "image" and "pull_policy", uncomment "build" and run
+# "docker compose up -d --build".
 services:
   postgres:
     image: postgres:16-alpine
@@ -19,7 +23,9 @@ services:
       retries: 10
 
   wiki:
-    build: .
+    image: ghcr.io/mtsonline/enterprisewiki:latest   # or a fixed version, e.g. :7.5
+    pull_policy: always
+    # build: .
     restart: unless-stopped
     depends_on:
       postgres:

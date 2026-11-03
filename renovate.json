@@ -1,0 +1,59 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "description": "Stay on the newest versions without manual work: daily updates, merged automatically when CI (build, Go tests, browser tests with axe, Docker build, license check) is green. See docs/admin/operations.md#automatische-updates.",
+  "extends": ["config:recommended", ":dependencyDashboard"],
+  "timezone": "Europe/Vienna",
+  "schedule": ["before 6am"],
+  "minimumReleaseAge": "3 days",
+  "internalChecksFilter": "strict",
+  "automerge": true,
+  "automergeType": "pr",
+  "platformAutomerge": false,
+  "automergeStrategy": "squash",
+  "rebaseWhen": "behind-base-branch",
+  "prHourlyLimit": 0,
+  "prConcurrentLimit": 10,
+  "labels": ["dependencies"],
+  "postUpdateOptions": ["gomodTidy", "npmDedupe"],
+  "lockFileMaintenance": {
+    "enabled": true,
+    "schedule": ["before 6am on monday"]
+  },
+  "vulnerabilityAlerts": {
+    "enabled": true,
+    "minimumReleaseAge": null,
+    "schedule": ["at any time"],
+    "labels": ["security"]
+  },
+  "packageRules": [
+    {
+      "description": "Minor and patch updates of everything as one pull request per day",
+      "matchUpdateTypes": ["minor", "patch", "digest"],
+      "groupName": "all non-major dependencies",
+      "groupSlug": "all-minor-patch"
+    },
+    {
+      "description": "Major updates: one pull request each, also merged automatically when CI is green",
+      "matchUpdateTypes": ["major"],
+      "automerge": true
+    },
+    {
+      "description": "Keep the minimum language version ('go' directive) so the module still builds with older local Go versions; the toolchain line, the Dockerfile and CI always get the newest Go",
+      "matchManagers": ["gomod"],
+      "matchDepTypes": ["golang"],
+      "enabled": false
+    },
+    {
+      "description": "Node.js (only used to build the frontend): LTS versions only",
+      "matchPackageNames": ["node"],
+      "versioning": "node"
+    },
+    {
+      "description": "PostgreSQL major versions need a data migration (pg_upgrade or dump/restore) – proposed on the dependency dashboard, never automatic",
+      "matchPackageNames": ["postgres"],
+      "matchUpdateTypes": ["major"],
+      "automerge": false,
+      "dependencyDashboardApproval": true
+    }
+  ]
+}

@@ -37,7 +37,7 @@ Ein selbst gehostetes, modulares Wiki und CMS: Wissensdatenbank mit beliebig tie
 
 ```bash
 cp .env.example .env        # Passwörter setzen
-docker compose up -d --build
+docker compose up -d        # lädt das aktuelle Image (ghcr.io/mtsonline/enterprisewiki)
 # http://localhost:8080 – Anmeldung mit admin / EWIKI_ADMIN_PASSWORD
 ```
 

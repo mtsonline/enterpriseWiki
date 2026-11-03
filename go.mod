@@ -2,6 +2,8 @@ module github.com/mtsonline/enterprisewiki
 
 go 1.24.7
 
+toolchain go1.27.1
+
 require (
 	github.com/coreos/go-oidc/v3 v3.17.0
 	github.com/crewjam/saml v0.5.1

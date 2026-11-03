@@ -8,19 +8,21 @@ Es gibt drei Wege. Alle verwenden denselben, beliebig oft wiederholbaren Setup-B
 
 ```bash
 cp .env.example .env     # POSTGRES_PASSWORD und EWIKI_ADMIN_PASSWORD setzen
-docker compose up -d --build
+docker compose up -d
 ```
+
+- Verwendet wird das fertige Image `ghcr.io/mtsonline/enterprisewiki:latest` (amd64 und arm64). `docker compose up -d` lädt bei jedem Aufruf die neueste Version. Wer eine Version festhalten will, trägt z. B. `:7.5` statt `:latest` ein.
 
 - Die Konfiguration liegt im Volume `wikidata` unter `/data/config.yaml`.
 - Beim Start führt der Container automatisch `ewiki setup --non-interactive` aus und startet danach den Server.
 - Der Administrator heißt `EWIKI_ADMIN_USER` (Standard `admin`), das Passwort ist `EWIKI_ADMIN_PASSWORD`. Es wird nur verwendet, solange noch kein Administrator existiert.
 - CLI im Container: `docker compose exec wiki ewiki plugin list`
 
-Plugins werden bei Docker installiert, indem man sie in das Verzeichnis `plugins/` legt und das Image neu baut (`docker compose up -d --build`). Das Bauen aus der Oberfläche heraus braucht die Quellinstallation (Weg 2).
+Plugins werden bei Docker installiert, indem man sie in das Verzeichnis `plugins/` legt und das Image selbst baut: in `docker-compose.yml` `image` und `pull_policy` auskommentieren, `build: .` aktivieren und `docker compose up -d --build` ausführen. Das Bauen aus der Oberfläche heraus braucht die Quellinstallation (Weg 2).
 
 ## 2. Linux-Server mit systemd
 
-Voraussetzungen: git, Go ≥ 1.24, Node.js ≥ 20 mit npm, eine erreichbare PostgreSQL-Datenbank.
+Voraussetzungen: git, Go ≥ 1.24 (empfohlen: aktuelle Version), Node.js ≥ 22 mit npm (empfohlen: aktuelle LTS), eine erreichbare PostgreSQL-Datenbank.
 
 ```bash
 sudo -u postgres createuser -P ewiki

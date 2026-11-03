@@ -3,6 +3,13 @@ name: CI
 on:
   push:
   pull_request:
+  # canary.yml calls this workflow nightly with latest: true – everything is
+  # upgraded to the newest versions first (without committing) as an early warning
+  workflow_call:
+    inputs:
+      latest:
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -16,14 +23,21 @@ jobs:
     runs-on: ubuntu-latest
     services:
       postgres:
-        image: postgres:16
+        image: postgres:${{ inputs.latest && 'latest' || '16' }}
         env: { POSTGRES_USER: wiki, POSTGRES_PASSWORD: wiki, POSTGRES_DB: wiki }
         ports: ["5432:5432"]
         options: --health-cmd pg_isready --health-interval 5s --health-timeout 5s --health-retries 20
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
+        if: ${{ !inputs.latest }}
         with: { go-version-file: go.mod }
+      - uses: actions/setup-go@v5
+        if: ${{ inputs.latest }}
+        with: { go-version: stable, check-latest: true }
+      - name: upgrade all Go modules to the newest versions (canary)
+        if: ${{ inputs.latest }}
+        run: go get -u -t ./... && go mod tidy && git diff --stat go.mod
       - name: gofmt
         run: test -z "$(gofmt -l . | tee /dev/stderr)"
       - name: generated plugin imports are up to date
@@ -39,7 +53,7 @@ jobs:
     runs-on: ubuntu-latest
     services:
       postgres:
-        image: postgres:16
+        image: postgres:${{ inputs.latest && 'latest' || '16' }}
         env: { POSTGRES_USER: wiki, POSTGRES_PASSWORD: wiki, POSTGRES_DB: wiki }
         ports: ["5432:5432"]
         options: --health-cmd pg_isready --health-interval 5s --health-timeout 5s --health-retries 20
@@ -50,9 +64,20 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
+        if: ${{ !inputs.latest }}
         with: { go-version-file: go.mod }
+      - uses: actions/setup-go@v5
+        if: ${{ inputs.latest }}
+        with: { go-version: stable, check-latest: true }
+      - name: upgrade all Go modules to the newest versions (canary)
+        if: ${{ inputs.latest }}
+        run: go get -u -t ./... && go mod tidy && git diff --stat go.mod
       - uses: actions/setup-node@v4
-        with: { node-version: 22 }
+        with: { node-version: "${{ inputs.latest && 'latest' || '26' }}" }
+      - name: upgrade all npm packages to the newest versions (canary)
+        if: ${{ inputs.latest }}
+        working-directory: web
+        run: npx --yes npm-check-updates@latest -u && npm install --no-audit --no-fund && git diff --stat package.json
       - name: install frontend tooling
         working-directory: web
         run: npm ci --no-audit --no-fund
@@ -93,4 +118,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - name: newest base images (canary)
+        if: ${{ inputs.latest }}
+        run: sed -i -E 's#^FROM (--platform=\S+ )?(node|golang|alpine):\S+#FROM \1\2:latest#' Dockerfile && grep ^FROM Dockerfile
       - run: docker build -t enterprisewiki:ci .

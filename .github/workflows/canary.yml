@@ -1,0 +1,16 @@
+# Nightly early warning: builds and tests with the newest version of every
+# component (Go, Go modules, Node, npm packages, PostgreSQL, base images) –
+# also versions Renovate does not propose yet (waiting period of 3 days).
+# Nothing is committed; a failure shows what the next updates will need.
+name: Canary (newest versions)
+on:
+  schedule:
+    - cron: "17 2 * * *"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  ci:
+    uses: ./.github/workflows/ci.yml
+    with:
+      latest: true
