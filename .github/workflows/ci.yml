@@ -124,14 +124,16 @@ jobs:
         run: cat /tmp/wiki/server.log || true
 
   docker:
-    name: Docker image
+    name: Docker images (lite, full and plugin builds)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
       - name: newest base images (canary)
         if: ${{ inputs.latest }}
         run: sed -i -E 's#^FROM (--platform=\S+ )?(node|golang|alpine):\S+#FROM \1\2:latest#' Dockerfile && grep ^FROM Dockerfile
-      - run: docker build -t enterprisewiki:ci .
+      - run: docker build --target lite -t enterprisewiki:ci .
+      - name: plugins in the full and lite images (build at start, restart, dropped plugin)
+        run: scripts/test-docker-plugins.sh
 
   compose:
     name: Docker Compose – setup, non-root, PostgreSQL upgrade ${{ matrix.from }} → recommended

@@ -9,7 +9,11 @@
 # ./docker-setup.sh (EWIKI_UID/EWIKI_GID in .env), not as root.
 # New PostgreSQL major versions: ./docker-postgres-upgrade.sh (the
 # administration shows when one is recommended).
-# Own plugins: use docker-compose.build.yml instead (builds the image locally).
+# Plugins: with EWIKI_IMAGE_TAG=full in .env (full image) plugins can be
+# installed in the administration or copied into ./data/wiki/plugins; the
+# wiki builds and keeps them in ./data/wiki (also across updates). The default
+# lite image (latest) only enables and disables the included plugins.
+# Building the image locally: docker-compose.build.yml.
 services:
   postgres:
     # the official PostgreSQL image; major upgrades with ./docker-postgres-upgrade.sh
@@ -34,7 +38,8 @@ services:
       start_interval: 5s
 
   wiki:
-    image: ghcr.io/mtsonline/enterprisewiki:latest   # or a fixed version, e.g. :7.5
+    # latest (lite) or full; or a fixed version, e.g. 7.5 / 7.5-full (EWIKI_IMAGE_TAG in .env)
+    image: ghcr.io/mtsonline/enterprisewiki:${EWIKI_IMAGE_TAG:-latest}
     pull_policy: always
     user: "${EWIKI_UID:?run ./docker-setup.sh}:${EWIKI_GID:?run ./docker-setup.sh}"
     restart: unless-stopped

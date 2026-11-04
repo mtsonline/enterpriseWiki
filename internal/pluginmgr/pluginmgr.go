@@ -14,6 +14,7 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
+	"log/slog"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -41,6 +42,13 @@ type Manager struct {
 	build   BuildStatus
 	restart func()
 	updates updateCache
+	layout  Layout
+	cluster Cluster
+	log     *slog.Logger
+	// restartPending: a build finished but the server still runs the old binary
+	restartPending bool
+	trigger        string // trigger of the running build
+	fp             string // fingerprint of the plugin folder (watch)
 }
 
 // BuildStatus reports the last build.
@@ -50,26 +58,56 @@ type BuildStatus struct {
 	StartedAt  *time.Time `json:"started_at"`
 	FinishedAt *time.Time `json:"finished_at"`
 	Log        string     `json:"log"`
+	Trigger    string     `json:"trigger,omitempty"`
 }
 
 // New creates a manager. restart is called to restart the process.
+// The layout is read from the environment (Docker images, see LayoutFromEnv).
 func New(root string, cfg *config.Store, restart func()) *Manager {
-	return &Manager{root: root, cfg: cfg, restart: restart}
+	m := &Manager{root: root, cfg: cfg, restart: restart, layout: LayoutFromEnv(), log: slog.Default()}
+	if m.layout.Image() {
+		if st := loadLastBuild(m.layout); st != nil {
+			m.build = st.BuildStatus
+		}
+	}
+	return m
 }
 
-// PluginsDir returns the plugin source directory.
-func (m *Manager) PluginsDir() string { return filepath.Join(m.root, "plugins") }
+// SetLayout overrides the layout (tests).
+func (m *Manager) SetLayout(l Layout) { m.layout = l }
+
+// Mode returns source, full or lite.
+func (m *Manager) Mode() string { return m.layout.Mode }
+
+// PluginsDir returns the directory new plugins are installed into (and
+// watched for plugins copied there): plugins/ of the source tree, or
+// <data>/plugins in the Docker images.
+func (m *Manager) PluginsDir() string {
+	if m.layout.Image() {
+		return m.layout.Extra
+	}
+	return filepath.Join(m.root, "plugins")
+}
 
 // CanBuild reports whether the source tree and toolchains are available.
-func (m *Manager) CanBuild() bool {
+func (m *Manager) CanBuild() bool { return m.BuildUnavailable() == "" }
+
+// BuildUnavailable explains why plugins cannot be built here ("" = they can):
+// lite (lite image) or toolchain (no source tree, go or npm).
+func (m *Manager) BuildUnavailable() string {
+	if m.layout.Mode == ModeLite {
+		return "lite"
+	}
 	if _, err := os.Stat(filepath.Join(m.root, "go.mod")); err != nil {
-		return false
+		return "toolchain"
 	}
 	if _, err := exec.LookPath("go"); err != nil {
-		return false
+		return "toolchain"
 	}
-	_, err := exec.LookPath("npm")
-	return err == nil
+	if _, err := exec.LookPath("npm"); err != nil {
+		return "toolchain"
+	}
+	return ""
 }
 
 // ReadManifest reads plugin.json of a plugin directory.
@@ -95,23 +133,40 @@ func ReadManifest(dir string) (*sdk.Manifest, error) {
 func DirName(id string) string { return strings.NewReplacer(".", "_", "-", "_").Replace(id) }
 
 // OnDisk lists the plugins present in the source tree.
+// In the Docker images these are the bundled plugins of the image plus the
+// additional ones in <data>/plugins (which win); dirs then only lists the
+// additional ones.
 func (m *Manager) OnDisk() (map[string]*sdk.Manifest, map[string]string, error) {
-	entries, err := os.ReadDir(m.PluginsDir())
-	if err != nil {
-		return nil, nil, err
-	}
 	mans := map[string]*sdk.Manifest{}
 	dirs := map[string]string{}
-	for _, e := range entries {
-		if !e.IsDir() || strings.HasPrefix(e.Name(), ".") || e.Name() == "all" {
-			continue
+	if m.layout.Image() {
+		bundled := filepath.Join(m.root, "plugins")
+		for _, d := range pluginDirs(bundled) {
+			if mf, err := ReadManifest(filepath.Join(bundled, d)); err == nil {
+				mans[mf.ID] = mf
+			}
 		}
-		mf, err := ReadManifest(filepath.Join(m.PluginsDir(), e.Name()))
+		if len(mans) == 0 { // no source in the image (lite): the compiled plugins are the bundled ones
+			for _, p := range sdk.Registered() {
+				mf := p.Manifest()
+				mans[mf.ID] = &mf
+			}
+		}
+	}
+	dir := m.PluginsDir()
+	if _, err := os.Stat(dir); err != nil {
+		if m.layout.Image() && errors.Is(err, os.ErrNotExist) {
+			return mans, dirs, nil
+		}
+		return nil, nil, err
+	}
+	for id, d := range pluginDirs(dir) {
+		mf, err := ReadManifest(filepath.Join(dir, d))
 		if err != nil {
 			continue
 		}
-		mans[mf.ID] = mf
-		dirs[mf.ID] = e.Name()
+		mans[id] = mf
+		dirs[id] = d
 	}
 	return mans, dirs, nil
 }
@@ -189,8 +244,14 @@ func (m *Manager) resolve(source, ref string) (gitURL, localDir, outRef string, 
 // Install installs or upgrades a plugin from source (catalog id, git URL,
 // github.com/owner/repo or local directory). A rebuild is required afterwards.
 func (m *Manager) Install(ctx context.Context, source, ref string) (*InstallResult, error) {
+	if m.layout.Mode == ModeLite {
+		return nil, apperr.BadRequest("the lite image cannot install plugins: use the full image (ghcr.io/mtsonline/enterprisewiki:full) or your own build")
+	}
 	m.mu.Lock()
 	defer m.mu.Unlock()
+	if err := os.MkdirAll(m.PluginsDir(), 0o755); err != nil {
+		return nil, err
+	}
 	gitURL, local, ref, err := m.resolve(source, ref)
 	if err != nil {
 		return nil, err
@@ -244,10 +305,29 @@ func (m *Manager) Install(ctx context.Context, source, ref string) (*InstallResu
 	if err := copyDir(src, target); err != nil {
 		return nil, err
 	}
-	if err := Generate(m.root); err != nil {
-		return nil, err
+	if !m.layout.Image() {
+		if err := Generate(m.root); err != nil {
+			return nil, err
+		}
 	}
+	m.markTrigger("install")
 	return res, nil
+}
+
+// markTrigger notes why the plugin folder changed, for the server watching
+// it (e.g. after "ewiki plugin install" in another process).
+func (m *Manager) markTrigger(trigger string) {
+	_ = os.WriteFile(filepath.Join(m.PluginsDir(), ".trigger"), []byte(trigger), 0o644)
+}
+
+func (m *Manager) takeTrigger() string {
+	p := filepath.Join(m.PluginsDir(), ".trigger")
+	b, err := os.ReadFile(p)
+	if err != nil {
+		return ""
+	}
+	_ = os.Remove(p)
+	return strings.TrimSpace(string(b))
 }
 
 func (m *Manager) backup(dirName string) error {
@@ -271,6 +351,9 @@ func (m *Manager) Remove(_ context.Context, id string) error {
 	if !ok {
 		return apperr.NotFound("plugin source " + id)
 	}
+	if _, extra := dirs[id]; !extra {
+		return apperr.BadRequest("plugin %s is part of the image and can only be disabled", id)
+	}
 	if mf.Required {
 		return apperr.BadRequest("plugin %s is required and cannot be removed", id)
 	}
@@ -284,27 +367,49 @@ func (m *Manager) Remove(_ context.Context, id string) error {
 	if err := m.backup(dirs[id]); err != nil {
 		return err
 	}
+	m.markTrigger("remove")
+	if m.layout.Image() {
+		return nil
+	}
 	return Generate(m.root)
 }
 
 // StartBuild runs scripts/build.sh in the background. On success the new
 // binary replaces the running executable; call ScheduleRestart to activate it.
-func (m *Manager) StartBuild(_ context.Context) (*BuildStatus, error) {
+//
+// trigger says why (install, remove, update, drop, manual) and decides what
+// happens afterwards: install, remove and update restart automatically
+// (one node after the other in a cluster); after plugins were copied into
+// the folder (drop) only with plugins.auto_restart_on_drop, otherwise the
+// administration offers "Restart now".
+func (m *Manager) StartBuild(_ context.Context, trigger string) (*BuildStatus, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	if m.build.Running {
 		return nil, apperr.Conflict("a build is already running")
 	}
-	if !m.CanBuild() {
+	switch m.BuildUnavailable() {
+	case "lite":
+		return nil, apperr.BadRequest("the lite image cannot build plugins: use the full image (ghcr.io/mtsonline/enterprisewiki:full) or your own build")
+	case "toolchain":
 		return nil, apperr.BadRequest("building requires the source tree with go.mod and the go and npm toolchains on this server")
+	}
+	if trigger == "" {
+		trigger = "manual"
 	}
 	exe, err := os.Executable()
 	if err != nil {
 		return nil, err
 	}
 	now := time.Now()
-	m.build = BuildStatus{Running: true, StartedAt: &now}
-	go m.runBuild(exe)
+	m.build = BuildStatus{Running: true, StartedAt: &now, Trigger: trigger}
+	m.takeTrigger()
+	m.fp = fingerprint(m.PluginsDir())
+	if m.layout.Image() {
+		go m.runImageBuild(trigger)
+	} else {
+		go m.runBuild(exe, trigger)
+	}
 	st := m.build
 	return &st, nil
 }
@@ -320,7 +425,13 @@ func (l *lockedBuffer) Write(p []byte) (int, error) {
 	return l.b.Write(p)
 }
 
-func (m *Manager) runBuild(exe string) {
+func (l *lockedBuffer) String() string {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	return l.b.String()
+}
+
+func (m *Manager) runBuild(exe, trigger string) {
 	out := exe + ".new"
 	var buf lockedBuffer
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Minute)
@@ -338,20 +449,69 @@ func (m *Manager) runBuild(exe string) {
 			err = os.Rename(out, exe)
 		}
 	}
+	m.finishBuild(&buf, err, trigger)
+}
+
+// runImageBuild builds into the data directory (full image); the restart
+// hands over to the new binary.
+func (m *Manager) runImageBuild(trigger string) {
+	var buf lockedBuffer
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Minute)
+	defer cancel()
+	hash, ok, err := SourceHash(m.layout)
+	var meta *BuildMeta
+	switch {
+	case err != nil:
+	case !ok:
+		// all additional plugins removed: the image binary is the right one
+		fmt.Fprintln(&buf, "No additional plugins: the image binary is used.")
+	default:
+		var built bool
+		_, meta, built, err = BuildImage(ctx, m.root, m.layout, trigger, &buf)
+		if err == nil && !built {
+			fmt.Fprintln(&buf, "Already built (by "+metaBy(meta)+").")
+			if meta != nil && meta.Trigger != "" && meta.Trigger != "start" {
+				trigger = meta.Trigger // e.g. installed on another node: restart like there
+			}
+		}
+	}
+	start := *m.BuildStatus().StartedAt
+	saveLastBuild(m.layout, hash, start, &buf, err)
+	m.finishBuild(&buf, err, trigger)
+}
+
+func metaBy(meta *BuildMeta) string {
+	if meta == nil || meta.By == "" {
+		return "another node"
+	}
+	return meta.By
+}
+
+func (m *Manager) finishBuild(buf *lockedBuffer, err error, trigger string) {
 	m.mu.Lock()
-	defer m.mu.Unlock()
 	now := time.Now()
 	m.build.Running, m.build.FinishedAt, m.build.OK = false, &now, err == nil
-	log := buf.b.String()
+	m.build.Log = tail(buf.String(), err)
+	auto := false
+	if err == nil {
+		m.restartPending = true
+		auto = trigger == "install" || trigger == "remove" || trigger == "update" ||
+			(trigger == "drop" && m.cfg.Get().Plugins.AutoRestartOnDrop)
+		if auto {
+			m.build.Log += " The server restarts automatically."
+		} else {
+			m.build.Log += " Restart to activate the new version."
+		}
+	}
+	m.mu.Unlock()
 	if err != nil {
-		log += "\nBUILD FAILED: " + err.Error()
-	} else {
-		log += "\nBuild successful. Restart to activate the new version."
+		m.log.Error("plugin build failed", "trigger", trigger, "err", err)
+		return
 	}
-	if len(log) > 20000 {
-		log = log[len(log)-20000:]
+	m.log.Info("plugin build finished", "trigger", trigger, "restart", auto)
+	if auto {
+		m.RestartAll(context.Background())
 	}
-	m.build.Log = log
 }
 
 // BuildStatus returns the state of the last build.

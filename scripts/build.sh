@@ -2,14 +2,21 @@
 # Builds frontend and backend into a single binary.
 #   EWIKI_BUILD_OUT   output path (default: bin/ewiki)
 #   EWIKI_VERSION     version string (default: git describe)
+#   EWIKI_COMMIT      commit (default: git rev-parse)
+#   EWIKI_GO_TIDY=1   run "go mod tidy" (new plugins may need further modules)
 set -euo pipefail
 cd "$(dirname "$0")/.."
 OUT="${EWIKI_BUILD_OUT:-bin/ewiki}"
 VERSION="${EWIKI_VERSION:-$(git describe --tags --always --dirty 2>/dev/null || echo dev)}"
-COMMIT="$(git rev-parse --short HEAD 2>/dev/null || echo unknown)"
+COMMIT="${EWIKI_COMMIT:-$(git rev-parse --short HEAD 2>/dev/null || echo unknown)}"
 
 echo "==> generating plugin imports"
 go run ./tools/genplugins
+if [ "${EWIKI_GO_TIDY:-}" = 1 ]; then
+  # additional plugins (full Docker image) may need modules the core does not use
+  echo "==> resolving Go modules"
+  go mod tidy
+fi
 
 echo "==> building frontend"
 (

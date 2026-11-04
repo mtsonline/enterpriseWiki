@@ -244,6 +244,9 @@ func (e *env) plugin(args []string) error {
 		fmt.Fprintln(e.stdout, "plugins/all/zz_generated.go updated")
 		return nil
 	case "build":
+		if l := pluginmgr.LayoutFromEnv(); l.Image() {
+			return imageBuild(sourceRoot(root), l, "manual", e.stdout)
+		}
 		return runBuild(sourceRoot(root), e.stdout, e.stderr)
 	}
 	return e.withApp(false, func(ctx context.Context, a *app.App) error {
@@ -332,6 +335,15 @@ func (e *env) plugin(args []string) error {
 		default:
 			return fmt.Errorf("unknown plugin command %q", sub)
 		}
+		if l := pluginmgr.LayoutFromEnv(); l.Image() {
+			if *build {
+				if err := imageBuild(sourceRoot(a.Root), l, sub, e.stdout); err != nil {
+					return err
+				}
+			}
+			fmt.Fprintln(e.stdout, "the running server notices the change, builds and restarts automatically (within about 30 seconds)")
+			return nil
+		}
 		if *build {
 			return runBuild(sourceRoot(a.Root), e.stdout, e.stderr)
 		}
@@ -359,3 +371,25 @@ func runBuild(root string, stdout, stderr io.Writer) error {
 }
 
 var _ = http.MethodGet
+
+// imageBuild builds the binary with the additional plugins in the full image.
+func imageBuild(root string, l pluginmgr.Layout, trigger string, w io.Writer) error {
+	if l.Mode == pluginmgr.ModeLite {
+		return errors.New("the lite image cannot build plugins: use the full image (ghcr.io/mtsonline/enterprisewiki:full)")
+	}
+	if _, ok, err := pluginmgr.SourceHash(l); err != nil || !ok {
+		if err != nil {
+			return err
+		}
+		fmt.Fprintln(w, "no additional plugins in", l.Extra)
+		return nil
+	}
+	p, _, built, err := pluginmgr.BuildImage(context.Background(), root, l, trigger, w)
+	if err != nil {
+		return err
+	}
+	if !built {
+		fmt.Fprintln(w, "already built:", p)
+	}
+	return nil
+}

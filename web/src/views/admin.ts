@@ -215,6 +215,41 @@ interface PluginsResponse {
   pending: { id: string; action: string; version: string }[];
   build: { running: boolean; ok: boolean; started_at: string | null; finished_at: string | null; log: string };
   can_build: boolean;
+  build_unavailable: '' | 'lite' | 'toolchain';
+  mode: 'source' | 'full' | 'lite';
+  plugins_dir: string;
+  restart_pending: boolean;
+  auto_restart_on_drop: boolean;
+  cluster: boolean;
+  removable: string[];
+}
+
+/** waitForRestart reloads the page once the server answers again after a restart. */
+function waitForRestart(): void {
+  let seenDown = false;
+  const tick = async () => {
+    try {
+      const r = await fetch('/readyz', { cache: 'no-store' });
+      if (r.ok && seenDown) { location.reload(); return; }
+      if (!r.ok) seenDown = true;
+    } catch { seenDown = true; }
+    setTimeout(() => void tick(), 2000);
+  };
+  setTimeout(() => void tick(), 1000);
+}
+
+/** followBuild polls the build of a plugin change; it restarts automatically when it succeeded. */
+function followBuild(reload: () => void): void {
+  const tick = async () => {
+    try {
+      const d = await api.get<PluginsResponse>('admin/plugins');
+      if (d.build.running) { setTimeout(() => void tick(), 3000); return; }
+      if (!d.build.ok) { toast(t('plugins.build_failed'), 'error'); reload(); return; }
+      toast(t('plugins.restarting'));
+      waitForRestart();
+    } catch { waitForRestart(); } // the server is already restarting
+  };
+  setTimeout(() => void tick(), 2000);
 }
 
 /** Makes a template the active one (ui.template in config.yaml). */
@@ -241,28 +276,47 @@ async function plugins(panel: HTMLElement): Promise<void> {
   };
   const install = async (source: string, ref = '') => {
     try {
-      const res = await api.post<{ id: string; version: string; upgrade: boolean }>('admin/plugins/install', { source, ref });
+      const res = await api.post<{ id: string; version: string; upgrade: boolean; building: boolean }>('admin/plugins/install', { source, ref });
+      if (res.building) {
+        toast(t(res.upgrade ? 'plugins.upgraded_building' : 'plugins.installed_building', { id: res.id, version: res.version }));
+        followBuild(reload);
+        reload();
+        return;
+      }
       toast(t(res.upgrade ? 'plugins.upgraded' : 'plugins.installed', { id: res.id, version: res.version }));
       reload();
     } catch (e) { toast(errorText(e), 'error'); }
   };
+  const lite = data.build_unavailable === 'lite';
+  const removable = new Set(data.removable);
   const src = textInput({ placeholder: 'github.com/owner/repo' });
   const ref = textInput({ placeholder: 'v1.0.0' });
-  const inf = h('form', { class: 'ew-form ew-panel', novalidate: true }, h('h2', null, t('plugins.install_title')), h('p', null, t('plugins.install_help')),
-    field(t('plugins.source'), src, { required: true, help: t('plugins.source_help') }), field(t('plugins.ref'), ref),
-    h('div', { class: 'ew-form-actions' }, button(t('plugins.install'), () => undefined, { type: 'submit', variant: 'primary' })));
+  const inf = h('form', { class: 'ew-form ew-panel', novalidate: true }, h('h2', null, t('plugins.install_title')),
+    lite ? h('p', { class: 'ew-notice ew-notice--info', id: 'lite-hint' }, t('plugins.lite_hint')) : h('p', null, t('plugins.install_help')),
+    h('fieldset', { class: 'ew-fieldset-plain', disabled: lite, 'aria-describedby': lite ? 'lite-hint' : undefined },
+      h('legend', { class: 'sr-only' }, t('plugins.install_title')),
+      field(t('plugins.source'), src, { required: true, help: t('plugins.source_help') }), field(t('plugins.ref'), ref),
+      h('div', { class: 'ew-form-actions' }, button(t('plugins.install'), () => undefined, { type: 'submit', variant: 'primary' }))));
   inf.addEventListener('submit', (ev) => { ev.preventDefault(); if (src.value.trim()) void install(src.value.trim(), ref.value.trim()); });
   const b = data.build;
+  const autoDrop = checkbox(t('plugins.auto_restart_on_drop'), data.auto_restart_on_drop, { help: t('plugins.auto_restart_on_drop_help') });
+  autoDrop.input.addEventListener('change', async () => {
+    try { await api.put('admin/plugins/options', { auto_restart_on_drop: autoDrop.input.checked }); toast(t('common.saved')); } catch (e) { toast(errorText(e), 'error'); }
+  });
+  const restartBtn = () => button(t('plugins.restart'), async () => {
+    if (!(await confirmDialog(t(data.cluster ? 'plugins.restart_confirm_cluster' : 'plugins.restart_confirm'), t('plugins.restart')))) return;
+    try { await api.post('admin/restart'); toast(t('plugins.restarting')); waitForRestart(); } catch (e) { toast(errorText(e), 'error'); }
+  }, { variant: data.restart_pending ? 'primary' : 'secondary' });
   const buildBox = h('section', { class: 'ew-panel', 'aria-labelledby': 'build-h' }, h('h2', { id: 'build-h' }, t('plugins.build_title')),
+    data.can_build ? h('p', { class: 'ew-help' }, t(`plugins.mode.${data.mode}`), data.cluster && data.mode === 'full' ? ' ' + t('plugins.mode_cluster') : '') : null,
+    data.restart_pending && !b.running ? h('p', { class: 'ew-notice ew-notice--warning', role: 'status' }, t('plugins.restart_pending')) : null,
     data.pending.length ? h('div', null, h('p', null, t('plugins.pending')), h('ul', null, ...data.pending.map((c) => h('li', null, `${t('plugins.action.' + c.action)}: ${c.id} ${c.version}`)))) : h('p', null, t('plugins.no_pending')),
     data.can_build
       ? h('div', { class: 'ew-actions' },
-        button(t('plugins.build'), async () => { try { await api.post('admin/plugins/build'); toast(t('plugins.build_started')); setTimeout(reload, 1500); } catch (e) { toast(errorText(e), 'error'); } }, { variant: 'primary', disabled: b.running }),
-        b.ok ? button(t('plugins.restart'), async () => {
-          if (!(await confirmDialog(t('plugins.restart_confirm'), t('plugins.restart')))) return;
-          try { await api.post('admin/restart'); toast(t('plugins.restarting')); setTimeout(() => location.reload(), 4000); } catch (e) { toast(errorText(e), 'error'); }
-        }) : null)
-      : h('p', { class: 'ew-help' }, t('plugins.cannot_build')),
+        button(t('plugins.build'), async () => { try { await api.post('admin/plugins/build'); toast(t('plugins.build_started')); setTimeout(reload, 1500); } catch (e) { toast(errorText(e), 'error'); } }, { variant: data.restart_pending ? 'secondary' : 'primary', disabled: b.running }),
+        data.restart_pending || b.ok ? restartBtn() : null)
+      : h('p', { class: 'ew-help' }, t(lite ? 'plugins.lite_hint' : 'plugins.cannot_build')),
+    data.can_build ? h('div', null, autoDrop.el, h('p', { class: 'ew-help' }, t('plugins.drop_help', { dir: data.plugins_dir }))) : null,
     b.started_at ? h('p', { role: 'status' }, b.running ? t('plugins.build_running') : (b.ok ? t('plugins.build_ok') : t('plugins.build_failed'))) : null,
     b.log ? h('details', null, h('summary', null, t('plugins.build_log')), h('pre', { class: 'ew-code', tabindex: '0' }, b.log)) : null);
   mount(panel, pageHeader(t('admin.plugins')), h('p', null, t('plugins.help')),
@@ -281,15 +335,19 @@ async function plugins(panel: HTMLElement): Promise<void> {
           p.required ? null : (p.enabled
             ? button(t('plugins.disable'), () => void toggle(p, false), { variant: 'link', ariaLabel: t('plugins.disable_named', { name: p.name }) })
             : button(t('plugins.enable'), () => void toggle(p, true), { variant: 'link', ariaLabel: t('plugins.enable_named', { name: p.name }) })),
-          p.required ? null : button(t('plugins.remove'), async () => {
+          p.required || !removable.has(p.id) ? null : button(t('plugins.remove'), async () => {
             if (!(await confirmDialog(t('plugins.remove_confirm', { name: p.name }), t('plugins.remove'), true))) return;
-            try { await api.del(`admin/plugins/${encodeURIComponent(p.id)}`); toast(t('plugins.removed')); reload(); } catch (e) { toast(errorText(e), 'error'); }
+            try {
+              const res = await api.del<{ building?: boolean }>(`admin/plugins/${encodeURIComponent(p.id)}`);
+              if (res?.building) { toast(t('plugins.removed_building')); followBuild(reload); } else toast(t('plugins.removed'));
+              reload();
+            } catch (e) { toast(errorText(e), 'error'); }
           }, { variant: 'link', ariaLabel: t('plugins.remove_named', { name: p.name }) })))), '–'),
     buildBox,
     data.catalog.length ? h('section', { class: 'ew-section', 'aria-labelledby': 'cat-h' }, h('h2', { id: 'cat-h' }, t('plugins.catalog')),
       table(t('plugins.catalog'), [t('common.name'), t('common.description'), t('plugins.source'), t('common.actions')],
         data.catalog.map((c) => h('tr', null, h('th', { scope: 'row' }, c.name, h('br'), h('code', null, c.id)), h('td', null, c.description ?? ''), h('td', null, c.repo),
-          h('td', null, button(installedIds.has(c.id) ? t('plugins.upgrade') : t('plugins.install'), () => void install(c.id), { variant: 'link', ariaLabel: `${t('plugins.install')} ${c.name}` })))), '–')) : null,
+          h('td', null, button(installedIds.has(c.id) ? t('plugins.upgrade') : t('plugins.install'), () => void install(c.id), { variant: 'link', ariaLabel: `${t('plugins.install')} ${c.name}`, disabled: lite })))), '–')) : null,
     inf);
 }
 

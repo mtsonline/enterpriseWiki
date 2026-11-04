@@ -215,7 +215,7 @@ func (m *Manager) UpdatePlugin(ctx context.Context, id string) (*InstallResult, 
 			return nil, apperr.BadRequest("repository %s contains plugin %s, not %s", it.Repo, res.ID, id)
 		}
 		if m.CanBuild() {
-			if _, err := m.StartBuild(ctx); err != nil {
+			if _, err := m.StartBuild(ctx, "update"); err != nil {
 				return res, err
 			}
 			res.RebuildRequired = false

@@ -144,6 +144,9 @@ type Plugins struct {
 	Macros   MacroSecurity  `yaml:"macros" json:"macros"`
 	// Updates configures the update check (GitHub releases).
 	Updates Updates `yaml:"updates" json:"updates"`
+	// AutoRestartOnDrop restarts automatically after plugins copied into the
+	// plugin folder were built (default: the administration offers "Restart now").
+	AutoRestartOnDrop bool `yaml:"auto_restart_on_drop" json:"auto_restart_on_drop"`
 }
 
 // Updates configures the update check against GitHub releases.

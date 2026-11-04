@@ -1,8 +1,10 @@
-# Publishes the Docker image after CI passed on main (also after automatic
-# updates by Renovate) and for version tags:
-#   ghcr.io/<owner>/enterprisewiki:latest     newest main
-#   ghcr.io/<owner>/enterprisewiki:7.5.0      release tags v7.5.0 (plus 7.5 and 7)
-#   ghcr.io/<owner>/enterprisewiki:sha-abc1234
+# Publishes the Docker images after CI passed on main (also after automatic
+# updates by Renovate) and for version tags. Two variants:
+#   lite (only the binary)        full (plus source and toolchains: builds plugins)
+#   …/enterprisewiki:latest       …/enterprisewiki:full          newest main
+#   …/enterprisewiki:7.5.0        …/enterprisewiki:7.5.0-full    release tags v7.5.0 (plus 7.5, 7)
+#   …/enterprisewiki:sha-abc1234  …/enterprisewiki:sha-abc1234-full
+# The package stays private until its visibility is changed on GitHub.
 name: Docker image
 on:
   workflow_run:
@@ -15,6 +17,10 @@ permissions:
   packages: write
 jobs:
   publish:
+    strategy:
+      fail-fast: false
+      matrix:
+        variant: [lite, full]
     if: >-
       github.event_name == 'push' ||
       (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push' && github.event.workflow_run.head_branch == 'main')
@@ -40,8 +46,12 @@ jobs:
         with:
           context: git
           images: ${{ steps.image.outputs.name }}
+          flavor: |
+            latest=false
+            suffix=${{ matrix.variant == 'full' && '-full' || '' }},onlatest=false
           tags: |
-            type=raw,value=latest,enable=${{ github.event_name == 'workflow_run' }}
+            type=raw,value=latest,suffix=,enable=${{ github.event_name == 'workflow_run' && matrix.variant == 'lite' }}
+            type=raw,value=full,suffix=,enable=${{ github.event_name == 'workflow_run' && matrix.variant == 'full' }}
             type=sha,format=short
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
@@ -49,10 +59,11 @@ jobs:
       - uses: docker/build-push-action@v7
         with:
           context: .
+          target: ${{ matrix.variant }}
           platforms: linux/amd64,linux/arm64
           push: true
           build-args: VERSION=${{ steps.version.outputs.version }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          cache-from: type=gha,scope=${{ matrix.variant }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.variant }}

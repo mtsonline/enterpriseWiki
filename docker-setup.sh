@@ -8,6 +8,7 @@
 # - creates .env from .env.example (random passwords) if it does not exist
 # - writes EWIKI_UID / EWIKI_GID of the calling user into .env
 # - sets POSTGRES_VERSION to the version of existing data (if not set yet)
+# - asks for the image variant (lite or full) on a new installation
 # - creates ./data/postgres and ./data/wiki and gives them to
 #   that user (asks for sudo only if files belong to someone else)
 set -euo pipefail
@@ -32,7 +33,9 @@ setvar() { # NAME VALUE – set or replace a line in .env
 getvar() { sed -n "s/^$1=//p" .env | tail -n 1; }
 random() { LC_ALL=C tr -dc 'A-Za-z0-9' < /dev/urandom | head -c "$1"; }
 
+fresh=
 if [ ! -f .env ]; then
+	fresh=1
 	[ -f .env.example ] || die ".env.example is missing"
 	cp .env.example .env
 	chmod 600 .env
@@ -53,6 +56,17 @@ if [ -z "$(getvar POSTGRES_VERSION)" ]; then
 	recommended="$(sed -nE 's/.*image: postgres:\$\{POSTGRES_VERSION:-([0-9]+)\}.*/\1/p' docker-compose.yml | head -n 1)"
 	setvar POSTGRES_VERSION "${have:-${recommended:-18}}"
 	say "POSTGRES_VERSION=$(getvar POSTGRES_VERSION)"
+fi
+# image variant (asked once; non-interactive: lite)
+if [ -z "$(getvar EWIKI_IMAGE_TAG)" ] || [ -n "$fresh" ]; then
+	tag=latest
+	if [ -t 0 ]; then
+		printf 'Image: [l]ite (small, no plugin installation) or [f]ull (installs and builds plugins)? [l] '
+		read -r answer || answer=
+		case "$answer" in f|F|full) tag=full ;; esac
+	fi
+	setvar EWIKI_IMAGE_TAG "$tag"
+	say "EWIKI_IMAGE_TAG=$tag"
 fi
 if [ -n "${SUDO_UID:-}" ]; then chown "$uid:$gid" .env; fi
 

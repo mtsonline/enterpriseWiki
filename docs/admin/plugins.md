@@ -5,8 +5,11 @@ Fast alles im Wiki ist ein Plugin: Elementtypen (z. B. Seiten), Anmeldeverfahren
 | Aktion | Wirkung | Neubau nötig? |
 |---|---|---|
 | aktivieren / deaktivieren | sofort (API-Routen, Elementtypen, Oberflächenteile) | nein |
-| installieren / aktualisieren | Quellcode wird nach `plugins/<name>` kopiert | ja |
-| entfernen | Quellcode wird nach `plugins/.backup/` verschoben, Daten bleiben in der Datenbank | ja |
+| installieren / aktualisieren | Quellcode wird in den Plugin-Ordner kopiert, das Wiki baut sich neu und startet danach automatisch neu | ja (automatisch) |
+| entfernen | Quellcode wird nach `.backup/` im Plugin-Ordner verschoben, Daten bleiben in der Datenbank; Neubau und Neustart automatisch | ja (automatisch) |
+| in den Plugin-Ordner kopieren | wird nach etwa 20 Sekunden ohne weitere Änderungen erkannt und gebaut; aktiv nach **Neu starten** (oder automatisch mit `plugins.auto_restart_on_drop: true`) | ja (automatisch) |
+
+Plugin-Ordner: bei der Quellinstallation `plugins/`, im Docker-Full-Image `./data/wiki/plugins` (im Container `/data/plugins`).
 
 ## In der Oberfläche
 
@@ -20,9 +23,27 @@ Fast alles im Wiki ist ein Plugin: Elementtypen (z. B. Seiten), Anmeldeverfahren
   - einer Katalog-ID (siehe unten) oder
   - einem Verzeichnis auf dem Server,
 - **Ausstehende Änderungen** zeigt, was nach dem nächsten Neubau aktiv wird,
-- **Jetzt neu bauen** führt `scripts/build.sh` im Hintergrund aus. Ein fehlgeschlagener Build lässt die laufende Version unverändert. Nach erfolgreichem Build schaltet **Neu starten** ohne Abbruch laufender Anfragen auf die neue Version um.
+- nach dem Installieren, Aktualisieren oder Entfernen baut das Wiki im Hintergrund neu und startet danach automatisch neu; die Seite lädt sich selbst neu, sobald das Wiki wieder antwortet. Ein fehlgeschlagener Build lässt die laufende Version unverändert (Protokoll unter *Build-Protokoll*),
+- **Jetzt neu bauen** startet einen Build von Hand, **Neu starten** schaltet ohne Abbruch laufender Anfragen auf den neuen Build um (im Cluster ein Knoten nach dem anderen),
+- **Nach abgelegten Plugins automatisch neu starten** (`plugins.auto_restart_on_drop`): sonst wartet ein Build aus dem Plugin-Ordner auf **Neu starten**, damit nicht mitten im Kopieren neu gestartet wird.
 
-Das Bauen aus der Oberfläche setzt die Quellinstallation (`scripts/install.sh`) mit Go und Node.js voraus. Bei Docker legen Sie Plugins in `plugins/` und bauen das Image neu.
+Bauen setzt eine der folgenden Varianten voraus:
+
+| Variante | Plugins installieren | Gebaut wird … |
+|---|---|---|
+| Quellinstallation (`scripts/install.sh`) | ja | im Quellbaum, das Programm wird ersetzt |
+| Docker **Full-Image** (`ghcr.io/mtsonline/enterprisewiki:full`, `EWIKI_IMAGE_TAG=full`) | ja | in `./data/wiki/build`, Ergebnis in `./data/wiki/bin/ewiki-<Kennung>` |
+| eigenes Image (`docker-compose.build.yml`, Ziel `full`) | ja | wie beim Full-Image; Plugins in `plugins/` sind bereits eingebaut |
+| Docker **Lite-Image** (`:latest`, Standard) | nein (Hinweis in der Oberfläche) | – nur aktivieren und deaktivieren |
+
+### Docker-Full-Image im Detail
+
+- Das Image enthält zusätzlich den Quellcode des Kerns, Go, Node.js sowie alle Go-Module und npm-Pakete des Kerns. Plugins ohne weitere Abhängigkeiten werden daher auch **ohne Internet** gebaut; braucht ein Plugin weitere Go-Module, werden sie beim Bau geladen.
+- Alles Veränderliche liegt im Datenordner und übersteht Updates und neu angelegte Container: `plugins/` (zusätzliche Plugins), `build/cache/` (Build-Cache), `bin/` (gebaute Programme, die letzten drei bleiben erhalten).
+- **Beim Start** sucht das Image-Programm ein gebautes Programm passend zu Kernversion, Architektur und Plugin-Quellen und übergibt an dieses. Gibt es keines (erster Start, neues Image), baut es zuerst; das dauert beim ersten Mal einige Minuten, danach dank Cache deutlich kürzer. Währenddessen zeigt das Wiki eine Seite „Das Wiki wird aktualisiert“ (HTTP 503). Schlägt der Bau fehl, startet das Wiki ohne die zusätzlichen Plugins, und *Administration → Plugins* zeigt das Protokoll.
+- Ein Plugin mit derselben ID wie ein mitgeliefertes ersetzt dieses (neuere Version). Mitgelieferte Plugins lassen sich nur deaktivieren, nicht entfernen.
+- Gebaut wird als der Benutzer aus `.env`, nicht als root.
+- **Cluster**: Alle Knoten teilen den Datenordner. Es baut immer nur ein Knoten (Dateisperre in `bin/`), die anderen warten und übernehmen das Ergebnis. Neu gestartet wird ein Knoten nach dem anderen; der nächste erst, wenn der vorige wieder Anfragen annimmt (Abstimmung über die Datenbank), so bleibt das Wiki erreichbar.
 
 ## Katalog (1-Klick-Installation)
 
@@ -111,9 +132,10 @@ Für sehr große Datenbestände kann die Volltextsuche **OpenSearch/Elasticsearc
 
 ## Manuelle Installation
 
-1. Plugin-Verzeichnis nach `plugins/<name>/` kopieren (es enthält `plugin.json`, Go-Dateien und optional `web/`, `locales/`, `migrations/`).
-2. `go run ./tools/genplugins` (aktualisiert `plugins/all/zz_generated.go`).
-3. `./scripts/build.sh` und den Dienst neu starten.
+Plugin-Verzeichnis (mit `plugin.json`, Go-Dateien und optional `web/`, `locales/`, `migrations/`) in den Plugin-Ordner kopieren – der laufende Server baut es automatisch (siehe oben). Ohne laufenden Server:
+
+- Quellinstallation: `go run ./tools/genplugins` und `./scripts/build.sh`, dann den Dienst neu starten.
+- Full-Image: `docker compose exec wiki ewiki plugin build` (oder einfach `docker compose restart wiki`, dann wird beim Start gebaut).
 
 ## Sicherheit
 

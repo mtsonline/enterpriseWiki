@@ -1,12 +1,15 @@
 package server
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"net/url"
 	"reflect"
 	"slices"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -19,6 +22,7 @@ import (
 	"github.com/mtsonline/enterprisewiki/internal/content"
 	h "github.com/mtsonline/enterprisewiki/internal/httpx"
 	"github.com/mtsonline/enterprisewiki/internal/identity"
+	"github.com/mtsonline/enterprisewiki/internal/pluginmgr"
 	"github.com/mtsonline/enterprisewiki/internal/version"
 )
 
@@ -693,7 +697,26 @@ func (s *Server) routes() {
 			return nil, err
 		}
 		return map[string]any{"installed": s.app.Kernel.List(), "catalog": s.app.Config.Get().Plugins.Catalog,
-			"pending": s.plugins.Pending(), "build": s.plugins.BuildStatus(), "can_build": s.plugins.CanBuild()}, nil
+			"pending": s.plugins.Pending(), "build": s.plugins.BuildStatus(), "can_build": s.plugins.CanBuild(),
+			"build_unavailable": s.plugins.BuildUnavailable(), "mode": s.plugins.Mode(), "plugins_dir": s.plugins.PluginsDir(),
+			"restart_pending": s.plugins.RestartPending(), "auto_restart_on_drop": s.app.Config.Get().Plugins.AutoRestartOnDrop,
+			"cluster": s.app.Config.Get().Mode == "cluster", "removable": s.removablePlugins()}, nil
+	})
+	s.handle("PUT /api/v1/admin/plugins/options", func(w http.ResponseWriter, r *http.Request) (any, error) {
+		if err := requireAdmin(r); err != nil {
+			return nil, err
+		}
+		var in struct {
+			AutoRestartOnDrop bool `json:"auto_restart_on_drop"`
+		}
+		if err := h.Decode(r, &in); err != nil {
+			return nil, err
+		}
+		if err := s.app.Config.Update(func(c *config.Config) error { c.Plugins.AutoRestartOnDrop = in.AutoRestartOnDrop; return nil }); err != nil {
+			return nil, err
+		}
+		s.auditSettings(r, "plugin.options", fmt.Sprintf("auto_restart_on_drop=%v", in.AutoRestartOnDrop))
+		return in, nil
 	})
 	s.handle("POST /api/v1/admin/plugins/{id}/enable", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		if err := requireAdmin(r); err != nil {
@@ -724,32 +747,60 @@ func (s *Server) routes() {
 		}
 		res, err := s.plugins.Install(r.Context(), in.Source, in.Ref)
 		s.auditSettings(r, "plugin.install", in.Source)
-		return res, err
+		if err != nil {
+			return nil, err
+		}
+		return s.buildAfterChange(r.Context(), res, "install"), nil
 	})
 	s.handle("DELETE /api/v1/admin/plugins/{id}", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		if err := requireAdmin(r); err != nil {
 			return nil, err
 		}
-		err := s.plugins.Remove(r.Context(), r.PathValue("id"))
+		if err := s.plugins.Remove(r.Context(), r.PathValue("id")); err != nil {
+			return nil, err
+		}
 		s.auditSettings(r, "plugin.remove", r.PathValue("id"))
-		return h.NoContent{}, err
+		return s.buildAfterChange(r.Context(), nil, "remove"), nil
 	})
 	s.handle("POST /api/v1/admin/plugins/build", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		if err := requireAdmin(r); err != nil {
 			return nil, err
 		}
-		return s.plugins.StartBuild(r.Context())
+		return s.plugins.StartBuild(r.Context(), "manual")
 	})
 	s.handle("POST /api/v1/admin/restart", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		if err := requireAdmin(r); err != nil {
 			return nil, err
 		}
-		if err := s.plugins.ScheduleRestart(); err != nil {
-			return nil, err
+		if s.app.Config.Get().Mode != "cluster" {
+			if err := s.plugins.ScheduleRestart(); err != nil {
+				return nil, err
+			}
+		} else {
+			s.plugins.RestartAll(r.Context()) // one node after the other
 		}
 		s.auditSettings(r, "system.restart", "")
 		return map[string]string{"status": "restarting"}, nil
 	})
+}
+
+// buildAfterChange starts the build after an installation or removal; the
+// server restarts automatically when it succeeded.
+func (s *Server) buildAfterChange(ctx context.Context, res *pluginmgr.InstallResult, trigger string) map[string]any {
+	out := map[string]any{"building": false}
+	if res != nil {
+		out["id"], out["name"], out["version"], out["dir"], out["upgrade"] = res.ID, res.Name, res.Version, res.Dir, res.Upgrade
+	}
+	if !s.plugins.CanBuild() {
+		out["rebuild_required"] = true
+		return out
+	}
+	if _, err := s.plugins.StartBuild(ctx, trigger); err != nil {
+		out["rebuild_required"], out["error"] = true, err.Error()
+		return out
+	}
+	out["building"] = true
+	return out
 }
 
 func (s *Server) auditSettings(r *http.Request, action, detail string) {
@@ -889,4 +940,21 @@ func (s *Server) updateSettings(w http.ResponseWriter, r *http.Request) (any, er
 	maskConfig(c)
 	_ = audit.Log(r.Context(), s.app.DB, "settings.update", "settings", 0, before, c)
 	return map[string]any{"config": c, "path": s.app.Config.Path()}, nil
+}
+
+// removablePlugins lists plugins whose source can be removed (Docker images:
+// only the additional ones in the data directory).
+func (s *Server) removablePlugins() []string {
+	out := []string{}
+	disk, dirs, err := s.plugins.OnDisk()
+	if err != nil {
+		return out
+	}
+	for id := range dirs {
+		if mf := disk[id]; mf != nil && !mf.Required {
+			out = append(out, id)
+		}
+	}
+	sort.Strings(out)
+	return out
 }

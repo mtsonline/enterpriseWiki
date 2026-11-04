@@ -17,15 +17,24 @@ docker compose up -d     # starten – und für Updates
 - **Alle Daten liegen im Ordner der Installation:** `./data/postgres` (Datenbank, je Hauptversion ein Ordner),
   `./data/wiki` (`config.yaml`, hochgeladene Dateien). Andere Orte: Pfade in `docker-compose.yml` ändern.
 - **Kein Container läuft als root:** Wiki und PostgreSQL laufen als `EWIKI_UID:EWIKI_GID`.
-- Verwendet werden das fertige Image `ghcr.io/mtsonline/enterprisewiki:latest` (amd64 und arm64, bei jedem
-  `docker compose up -d` die neueste Version; festhalten z. B. mit `:7.5`) und das offizielle Image
+- Verwendet werden das fertige Image `ghcr.io/mtsonline/enterprisewiki:${EWIKI_IMAGE_TAG}` (amd64 und arm64, bei jedem
+  `docker compose up -d` die neueste Version) und das offizielle Image
   `postgres:${POSTGRES_VERSION}`. Neue PostgreSQL-Hauptversionen: `./docker-postgres-upgrade.sh`
   (siehe [operations.md](operations.md#postgresql-upgrades-docker)).
 - Beim Start führt der Container automatisch `ewiki setup --non-interactive` aus und startet danach den Server.
 - Der Administrator heißt `EWIKI_ADMIN_USER` (Standard `admin`), das Passwort ist `EWIKI_ADMIN_PASSWORD`. Es wird nur verwendet, solange noch kein Administrator existiert.
 - CLI im Container: `docker compose exec wiki ewiki plugin list`
 
-Plugins werden bei Docker installiert, indem man sie in das Verzeichnis `plugins/` legt und das Image selbst baut: `docker compose -f docker-compose.build.yml up -d --build` (gleicher Aufbau, `build: .` statt des fertigen Images; mit `export COMPOSE_FILE=docker-compose.build.yml` entfällt `-f`). Das Bauen aus der Oberfläche heraus braucht die Quellinstallation (Weg 2).
+**Image-Varianten** (`EWIKI_IMAGE_TAG` in `.env`, `./docker-setup.sh` fragt bei neuen Installationen danach):
+
+| Tag | Größe | Plugins |
+|---|---|---|
+| `latest` bzw. `7.5` (**Lite**) | ca. 40 MB | mitgelieferte Plugins aktivieren und deaktivieren |
+| `full` bzw. `7.5-full` (**Full**) | ca. 700 MB | zusätzlich Plugins installieren (Oberfläche, CLI) oder nach `./data/wiki/plugins` kopieren; das Wiki baut sie selbst und behält sie über Updates |
+
+Wechsel jederzeit: `EWIKI_IMAGE_TAG` ändern und `docker compose up -d`. Details: [plugins.md](plugins.md#docker-full-image-im-detail).
+
+Eigenes Image (z. B. mit eigenen Plugins in `plugins/`): `docker compose -f docker-compose.build.yml up -d --build` (gleicher Aufbau, baut die Full-Variante; mit `export COMPOSE_FILE=docker-compose.build.yml` entfällt `-f`).
 
 ## 2. Linux-Server mit systemd
 
@@ -117,5 +126,6 @@ mode: cluster
 - Wartungsaufgaben (Aufbewahrung, Aufräumen abgelaufener Sessions) laufen nur auf der Instanz, die die Datenbank-Sperre hält.
 - Verwenden Sie PgBouncer (Transaktionsmodus) oder passen Sie `database.max_conns` je Instanz an.
 - Im Modus `single` entfallen Benachrichtigungen und Sperren, ohne Performance-Overhead.
+- Plugins im Cluster: Full-Image mit gemeinsamem Datenordner verwenden. Gebaut wird auf einem Knoten, neu gestartet nacheinander (siehe [plugins.md](plugins.md#docker-full-image-im-detail)).
 
 Health-Checks: `GET /healthz` (Prozess läuft) und `GET /readyz` (Datenbank erreichbar).

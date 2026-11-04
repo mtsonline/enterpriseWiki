@@ -101,3 +101,11 @@ Business Source License 1.1 mit kostenloser privater Nutzung durch natürliche P
 - **Termineinladungen** (iTIP, RFC 5546): Anmelde-, Nachrücker- und Änderungs-Mails enthalten eine Kalendereinladung (`METHOD:REQUEST`), Abmeldung und Absage eine Stornierung (`METHOD:CANCEL`). Outlook, Google und Apple Kalender tragen den Termin direkt ein bzw. aktualisieren oder entfernen ihn; jeder Termin einer Serie hat eine eigene UID. Abschaltbar je Kalender (*Keine Kalendereinladungen anhängen*). Wird eine Serie verschoben oder ihr Ort geändert, erhalten Angemeldete künftiger Termine eine aktualisierte Einladung.
 - **Webhooks** für neue Kommentare (`comment.create`: Autor, Textanfang, Antwort ja/nein) und Abläufe (`workflow.started`, `workflow.completed` mit Ergebnis, `workflow.cancelled`); Kategoriefilter wie bei Seiten. Ablauf-Ereignisse werden in derselben Transaktion wie die Änderung eingereiht.
 - **Vorschaubild je Seite** für Link-Vorschauen (`og:image`, `twitter:card`): unter *Eigenschaften* hochladen, aus den Bildern der Seite wählen oder eine Adresse angeben; sonst das erste Bild der Seite, sonst das Vorschaubild der Website (`ui.preview_image`). API `PATCH /api/v1/elements/{id}` mit `preview_image`.
+
+## Meilenstein 8 – Plugins in den Docker-Images
+
+- Zwei Images: **Lite** (`latest`, `7.5`; nur das Programm) und **Full** (`full`, `7.5-full`; zusätzlich Quellcode, Go, Node.js und alle Module des Kerns für Builds ohne Internet). Beide vorerst privat.
+- Full-Image: Plugins aus Oberfläche, CLI, API oder dem Ordner `./data/wiki/plugins` werden im Datenordner gebaut (`bin/ewiki-<Kennung>`) und überstehen Updates und neue Container; nach einem Image-Update wird beim Start automatisch neu gebaut (Wartungsseite währenddessen, bei Fehlern Start ohne die Zusatz-Plugins).
+- Installieren, Aktualisieren und Entfernen bauen und starten automatisch neu; in den Ordner kopierte Plugins werden automatisch gebaut und nach **Neu starten** aktiv (oder automatisch mit `plugins.auto_restart_on_drop`).
+- Cluster: ein Knoten baut (Dateisperre), die anderen übernehmen das Ergebnis; Neustart nacheinander (Datenbank-Lease `cluster_lease`), das Wiki bleibt erreichbar.
+- Lite-Image: Installieren ist in der Oberfläche deaktiviert, mit Hinweis auf das Full-Image.

@@ -13,6 +13,7 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"slices"
 	"strings"
 	"syscall"
 	"time"
@@ -129,6 +130,14 @@ func Main(args []string) int {
 	if len(args) == 0 {
 		args = []string{"help"}
 	}
+	// Docker images: hand over to the binary built with additional plugins
+	if exe := pluginmgr.Launch(context.Background(), sourceRoot(filepath.Dir(e.configPath)), e.configPath, args[0] == "serve", e.log); exe != "" {
+		self, _ := os.Executable()
+		env := append(withoutEnv(os.Environ(), "EWIKI_CHILD", "EWIKI_LAUNCHER"), "EWIKI_CHILD=1", "EWIKI_LAUNCHER="+self)
+		if err := syscall.Exec(exe, append([]string{exe}, args...), env); err != nil {
+			e.log.Error("starting the binary with the additional plugins failed; continuing without them", "exe", exe, "err", err)
+		}
+	}
 	var err error
 	switch args[0] {
 	case "help":
@@ -235,8 +244,12 @@ func (e *env) serve(args []string) error {
 		}
 		stop()
 	})
+	pm.Attach(pluginmgr.Cluster{Enabled: func() bool { return a.Config.Get().Mode == "cluster" }, DB: a.DB,
+		Publish: a.Bus.Publish, Subscribe: a.Bus.Subscribe}, e.log)
 	srv := server.New(a, web.FS(), pm)
 	a.PGVersion.LogStatus(ctx)
+	go pluginmgr.ReleaseRestartLease(ctx, a.DB, a.Config.Get().Server.Listen)
+	go pm.Watch(ctx, 10*time.Second)
 	go a.Bus.Run(ctx)
 	go e.jobs(ctx, a)
 	a.Workers.Start(ctx)
@@ -250,9 +263,14 @@ func (e *env) serve(args []string) error {
 		if err != nil {
 			return err
 		}
+		env := os.Environ()
+		if l := os.Getenv("EWIKI_LAUNCHER"); l != "" {
+			// Docker image: the image binary decides again which binary to run
+			exe, env = l, withoutEnv(env, "EWIKI_CHILD", "EWIKI_LAUNCHER")
+		}
 		a.Close()
 		e.log.Info("restarting", "exe", exe)
-		return syscall.Exec(exe, os.Args, os.Environ())
+		return syscall.Exec(exe, append([]string{exe}, os.Args[1:]...), env)
 	default:
 	}
 	return nil
@@ -384,4 +402,16 @@ func (e *env) config(args []string) error {
 		return nil
 	}
 	return fmt.Errorf("unknown config command %q", args[0])
+}
+
+// withoutEnv removes variables from an environment list.
+func withoutEnv(env []string, keys ...string) []string {
+	out := env[:0:0]
+	for _, kv := range env {
+		k, _, _ := strings.Cut(kv, "=")
+		if !slices.Contains(keys, k) {
+			out = append(out, kv)
+		}
+	}
+	return out
 }

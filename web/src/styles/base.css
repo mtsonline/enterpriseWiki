@@ -98,6 +98,7 @@ textarea.ew-input { resize: vertical; }
 .ew-check { display: flex; gap: .5rem; align-items: baseline; flex-wrap: wrap; margin: .25rem 0; }
 .ew-check input { width: 1.5rem; height: 1.5rem; margin: 0; align-self: center; }
 fieldset { border: 1px solid var(--ew-border); border-radius: var(--ew-radius); padding: .75rem 1rem; margin: 0 0 1rem; }
+fieldset.ew-fieldset-plain { border: 0; padding: 0; margin: 0; min-width: 0; }
 legend { font-weight: 700; padding: 0 .25rem; }
 .ew-inline-form { display: flex; gap: .5rem; align-items: flex-end; flex-wrap: wrap; margin-bottom: 1rem; }
 .ew-code { font-family: var(--ew-mono); background: var(--ew-bg-subtle); padding: .75rem; border-radius: var(--ew-radius); overflow: auto; white-space: pre-wrap; word-break: break-all; }

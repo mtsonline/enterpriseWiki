@@ -84,6 +84,7 @@ Die jeweils aktuelle Version wird nie gelöscht. Gelöscht wird nur aus dem Papi
 | `dir` | Plugin-Verzeichnis im Quellbaum |
 | `catalog` | Plugins, die unter *Plugins* mit einem Klick installiert werden können (`id`, `name`, `repo`, optional `ref`, `description`) |
 | `macros.*` | Sicherheitsschalter für Shell- und HTTP-Makro, siehe unten. **Nur in dieser Datei änderbar**, nicht über Oberfläche oder API |
+| `auto_restart_on_drop` | nach dem automatischen Bau von Plugins, die in den Plugin-Ordner kopiert wurden, sofort neu starten (Standard `false`: *Administration → Plugins* bietet **Neu starten** an); auch unter *Administration → Plugins* einstellbar |
 | `updates.check` | automatische Update-Prüfung beim Öffnen von *Administration → Updates* (Standard `true`) |
 | `updates.core_repo` | Repository des Kerns (Standard `github.com/mtsonline/enterpriseWiki`) |
 | `updates.api_url` | GitHub-API (Standard `https://api.github.com`, für GitHub Enterprise z. B. `https://github.example.com/api/v3`) |

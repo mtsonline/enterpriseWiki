@@ -201,6 +201,7 @@ curl -H "Authorization: Bearer $KEY" -H 'Content-Type: application/json' \
 | `GET` | `/api/v1/admin/audit` |
 | `POST` | `/api/v1/admin/retention/run` |
 | `GET` | `/api/v1/admin/plugins` |
+| `PUT` | `/api/v1/admin/plugins/options` |
 | `POST` | `/api/v1/admin/plugins/{id}/enable` |
 | `POST` | `/api/v1/admin/plugins/{id}/disable` |
 | `POST` | `/api/v1/admin/plugins/install` |

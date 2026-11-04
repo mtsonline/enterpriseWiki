@@ -85,7 +85,8 @@ if [ "$full" = --full ]; then
 	echo "== wiki on the upgraded database (docker-compose.build.yml, own user)"
 	prepare full docker-compose.build.yml
 	# the build context is the repository
-	sed "s|build: \.|build: $src|" "$src/docker-compose.build.yml" > docker-compose.build.yml
+	sed "s|context: \.$|context: $src|" "$src/docker-compose.build.yml" > docker-compose.build.yml
+	grep -q "context: $src" docker-compose.build.yml || fail "build context not replaced"
 	setv POSTGRES_VERSION "$from"
 	docker compose up -d --build
 	wait_db
