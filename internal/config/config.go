@@ -39,6 +39,7 @@ type Config struct {
 	Mail      Mail                      `yaml:"mail" json:"mail"`
 	Cache     Cache                     `yaml:"cache" json:"cache"`
 	Webhooks  Webhooks                  `yaml:"webhooks" json:"webhooks"`
+	Audit     Audit                     `yaml:"audit" json:"audit"`
 	License   License                   `yaml:"license" json:"license"`
 	Settings  map[string]map[string]any `yaml:"plugin_settings,omitempty" json:"plugin_settings,omitempty"`
 }
@@ -52,6 +53,45 @@ type License struct {
 
 // Webhooks configures HTTP notifications (the webhooks themselves are
 // managed under Administration → Webhooks).
+// Audit configures the audit log (Administration → Audit log → Settings).
+// Security relevant areas (users, roles, permissions, sign-in, settings …)
+// are always logged.
+type Audit struct {
+	// Disabled lists areas (the part of the action before the first dot,
+	// e.g. "comment") that are not logged.
+	Disabled []string `yaml:"disabled" json:"disabled"`
+	// LogLogins records sign-ins, sign-outs and failed attempts (default true).
+	LogLogins *bool `yaml:"log_logins,omitempty" json:"log_logins"`
+	// LogDenied records requests refused for missing permissions (403).
+	LogDenied bool `yaml:"log_denied" json:"log_denied"`
+	// LogViews records who opened which page (off by default: much data,
+	// personal data – check the data protection rules first).
+	LogViews bool `yaml:"log_views" json:"log_views"`
+	// Forward sends the entries to other systems.
+	Forward []AuditForward `yaml:"forward" json:"forward"`
+}
+
+// Logins reports whether sign-ins are logged.
+func (a Audit) Logins() bool { return a.LogLogins == nil || *a.LogLogins }
+
+// AuditForward is a destination for the audit log.
+type AuditForward struct {
+	ID      string `yaml:"id" json:"id"`
+	Name    string `yaml:"name" json:"name"`
+	Enabled bool   `yaml:"enabled" json:"enabled"`
+	// Type: syslog (RFC 5424 over udp, tcp or tls), webhook (JSON, HMAC
+	// signed), otlp (OpenTelemetry logs over HTTP), file (JSON lines below
+	// <data>/logs) or stdout (JSON lines in the server log, for log drivers).
+	Type     string `yaml:"type" json:"type"`
+	Address  string `yaml:"address" json:"address"`   // host:port, URL or file name
+	Protocol string `yaml:"protocol" json:"protocol"` // syslog: udp | tcp | tls
+	Secret   string `yaml:"secret,omitempty" json:"secret"`
+	// Headers are added to webhook and OTLP requests (e.g. Authorization).
+	Headers map[string]string `yaml:"headers,omitempty" json:"headers"`
+	// Areas limits the forwarded entries (empty = all).
+	Areas []string `yaml:"areas,omitempty" json:"areas"`
+}
+
 type Webhooks struct {
 	// AllowPrivate allows webhook URLs on internal addresses (10.x, 192.168.x,
 	// localhost …), e.g. an on-premises chat server. Default false.

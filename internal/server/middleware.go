@@ -3,6 +3,7 @@ package server
 import (
 	"context"
 	"fmt"
+	"github.com/mtsonline/enterprisewiki/internal/audit"
 	"net"
 	"net/http"
 	"runtime/debug"
@@ -94,6 +95,7 @@ func (s *Server) wrap(next http.Handler) http.Handler {
 				r.Body = http.MaxBytesReader(sw, r.Body, max<<20)
 			}
 		}
+		r = r.WithContext(audit.WithRequest(r.Context(), s.clientIP(r), r.UserAgent()))
 		ctx, err := s.authenticate(sw, r)
 		if err != nil {
 			httpx.WriteError(sw, r, err)
@@ -105,6 +107,10 @@ func (s *Server) wrap(next http.Handler) http.Handler {
 			return
 		}
 		next.ServeHTTP(sw, r)
+		// requests refused for missing permissions (audit.log_denied)
+		if sw.status == http.StatusForbidden && cfg.Audit.LogDenied && strings.HasPrefix(r.URL.Path, "/api/") {
+			_ = audit.Log(ctx, s.app.DB, "access.denied", "request", 0, nil, map[string]string{"method": r.Method, "path": r.URL.Path})
+		}
 		// any successful change invalidates the guest cache
 		if r.Method != http.MethodGet && r.Method != http.MethodHead && r.Method != http.MethodOptions &&
 			strings.HasPrefix(r.URL.Path, "/api/") && sw.status < 400 && !noInvalidate(r.URL.Path) {

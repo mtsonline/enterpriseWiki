@@ -12,7 +12,8 @@ import { navigate, type RouteCtx } from '../core/router';
 import { hasPerm, isAdmin, state } from '../core/state';
 import { globalEditor, loadCatalog, permLabel } from '../components/permissions';
 import { permissionsAdmin } from './adminPermissions';
-import type { AuditEntry, Group, Role } from '../core/types';
+import { auditAdmin } from './adminAudit';
+import type { Group, Role } from '../core/types';
 import { toast } from '../core/announce';
 import { button, checkbox, confirmDialog, errorText, field, formDialog, openDialog, pageHeader, select, textArea, textInput } from '../components/ui';
 import { langName, setContext } from '../components/widgets';
@@ -85,7 +86,7 @@ export async function adminView({ params, query, main }: RouteCtx): Promise<void
       case 'webhooks': await webhooksAdmin(panel); break;
       case 'cache': await cacheAdmin(panel); break;
       case 'languages': await languages(panel, query); break;
-      case 'audit': await auditLog(panel, query); break;
+      case 'audit': await auditAdmin(panel, query); break;
       case 'license': await licenseAdmin(panel); break;
       default: {
         const p = listAdminPages().find((x) => x.id === section);
@@ -725,20 +726,6 @@ async function translationEditor(panel: HTMLElement, lang: string, filter: strin
 }
 
 // ---------------------------------------------------------------- audit
-
-async function auditLog(panel: HTMLElement, query: URLSearchParams): Promise<void> {
-  const type = query.get('entity_type') ?? '';
-  const offset = Number(query.get('offset') ?? 0);
-  const entries = await api.get<AuditEntry[]>(`admin/audit${qs({ entity_type: type, limit: 100, offset })}`);
-  const sel = select(['', 'category', 'element', 'user', 'group', 'role', 'apikey', 'sshkey', 'settings', 'menu'].map((x) => ({ value: x, label: x ? x : t('audit.all') })), type);
-  sel.addEventListener('change', () => navigate(`/admin/audit${qs({ entity_type: sel.value })}`));
-  mount(panel, pageHeader(t('admin.audit')), field(t('audit.object'), sel, { inline: true }),
-    table(t('admin.audit'), [t('common.date'), t('common.author'), t('audit.action'), t('audit.object')],
-      entries.map((e) => h('tr', null, h('td', null, fmtDate(e.at, state.lang)), h('td', null, e.actor), h('td', null, h('code', null, e.action)), h('td', null, `${e.entity_type} ${e.entity_id ?? ''}`))), '–'),
-    h('div', { class: 'ew-actions' },
-      offset > 0 ? h('a', { href: `/admin/audit${qs({ entity_type: type, offset: Math.max(0, offset - 100) })}` }, t('common.previous')) : null,
-      entries.length === 100 ? h('a', { href: `/admin/audit${qs({ entity_type: type, offset: offset + 100 })}` }, t('common.next')) : null));
-}
 
 // ---------------------------------------------------------------- guest cache
 

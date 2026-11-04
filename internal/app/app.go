@@ -4,9 +4,12 @@ package app
 import (
 	"context"
 	"fmt"
+	"github.com/mtsonline/enterprisewiki/internal/audit"
 	"log/slog"
 	"net/http"
 	"path/filepath"
+	"slices"
+	"strings"
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -47,10 +50,12 @@ type App struct {
 	// PGVersion checks the PostgreSQL version (log, e-mails).
 	PGVersion *pgversion.Notifier
 	Webhooks  *webhook.Service
-	Cache     *pagecache.Cache
-	Workers   *worker.Registry
-	Kernel    *kernel.Kernel
-	Log       *slog.Logger
+	// AuditForward sends the audit log to other systems.
+	AuditForward *audit.Forwarder
+	Cache        *pagecache.Cache
+	Workers      *worker.Registry
+	Kernel       *kernel.Kernel
+	Log          *slog.Logger
 	// Mux receives core and plugin routes.
 	Mux *http.ServeMux
 	// Root is the source directory (for plugin installation / rebuilds).
@@ -157,6 +162,19 @@ func New(ctx context.Context, o Options) (*App, error) {
 	a.Workers.Register(worker.Job{Name: "webhooks.cleanup", Interval: 24 * time.Hour, Run: func(ctx context.Context) error {
 		return a.Webhooks.Cleanup(ctx, cfg.Get().Webhooks.KeepDays)
 	}})
+	// audit log: areas switched off in the settings, forwarding to other systems
+	audit.SetFilter(func(action string) bool {
+		c := cfg.Get().Audit
+		switch {
+		case strings.HasPrefix(action, "auth.login") || action == "auth.logout":
+			return c.Logins()
+		case action == "element.view":
+			return c.LogViews
+		}
+		return !slices.Contains(c.Disabled, audit.Area(action))
+	})
+	a.AuditForward = &audit.Forwarder{Pool: pool, Cfg: cfg, DataDir: filepath.Dir(cfg.Path()), Site: func() string { return cfg.Get().UI.SiteName }}
+	a.Workers.Register(worker.Job{Name: "audit.forward", Interval: 15 * time.Second, Active: func() bool { return len(cfg.Get().Audit.Forward) > 0 }, Run: a.AuditForward.Run})
 	a.Auth.SetEnabledFunc(a.Kernel.Enabled)
 	a.Content.SetEnabledFunc(a.Kernel.Enabled)
 	if err := a.I18n.Register("core", i18n.CoreLocales()); err != nil {

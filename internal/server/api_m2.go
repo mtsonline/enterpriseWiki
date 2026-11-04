@@ -68,6 +68,7 @@ func (s *Server) routesM2() {
 			return
 		}
 		if res != nil {
+			s.auditLogin(r, res.Principal, "sso:"+r.PathValue("provider"), "", nil)
 			s.setCookie(w, res.Token, res.ExpiresAt)
 			http.Redirect(w, r, res.Next, http.StatusSeeOther)
 			return
@@ -77,9 +78,11 @@ func (s *Server) routesM2() {
 	callback := func(w http.ResponseWriter, r *http.Request) {
 		res, err := s.app.Auth.SSOCallback(r.Context(), r.PathValue("provider"), r, s.isTrustedProxy(r), s.clientIP(r), r.UserAgent())
 		if err != nil {
+			s.auditLogin(r, nil, "sso:"+r.PathValue("provider"), "", err)
 			s.ssoError(w, r, err)
 			return
 		}
+		s.auditLogin(r, res.Principal, "sso:"+r.PathValue("provider"), "", nil)
 		s.setCookie(w, res.Token, res.ExpiresAt)
 		http.Redirect(w, r, res.Next, http.StatusSeeOther)
 	}

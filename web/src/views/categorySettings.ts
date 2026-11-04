@@ -42,7 +42,7 @@ export async function categorySettingsView({ params, query, main }: RouteCtx): P
 }
 
 function general(panel: HTMLElement, c: Category, elements: ElementSummary[]): void {
-  if (!can('edit')) {
+  if (!can('manage')) {
     panel.append(h('p', null, t('error.forbidden')));
     return;
   }

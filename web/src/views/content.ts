@@ -101,17 +101,16 @@ export async function categoryView({ params, main }: RouteCtx): Promise<void> {
   const edit = state.editMode;
   const actions: HTMLElement[] = [];
   if (edit) {
-    if (can('create')) {
-      actions.push(h('a', { href: `/c/${c.id}/new`, class: 'ew-btn ew-btn--primary' }, t('element.new')));
+    // editors work with elements, managers (and category administrators) with the category itself
+    if (can('create')) actions.push(h('a', { href: `/c/${c.id}/new`, class: 'ew-btn ew-btn--primary' }, t('element.new')));
+    if (can('manage')) {
       actions.push(button(t('category.new_sub'), () => newCategoryDialog(c.id), { variant: 'secondary' }));
-    }
-    if (can('edit')) actions.push(button(t('category.edit'), () => editCategoryDialog(c), { variant: 'secondary' }));
-    if (can('edit') || can('manage')) actions.push(h('a', { href: `/c/${c.id}/settings`, class: 'ew-btn ew-btn--secondary' }, t('category.settings')));
-    if (can('delete')) {
+      actions.push(button(t('category.edit'), () => editCategoryDialog(c), { variant: 'secondary' }));
+      actions.push(h('a', { href: `/c/${c.id}/settings`, class: 'ew-btn ew-btn--secondary' }, t('category.settings')));
       actions.push(button(t('common.move'), () => moveCategoryDialog(c), { variant: 'secondary' }));
       actions.push(button(t('common.delete'), () => void deleteCategory(c), { variant: 'danger' }));
+      actions.push(button(t('common.duplicate'), () => duplicateCategoryDialog(c), { variant: 'secondary' }));
     }
-    actions.push(button(t('common.duplicate'), () => duplicateCategoryDialog(c), { variant: 'secondary' }));
   }
   const watchC = watchButton('category', c.id, title);
   if (watchC) actions.push(watchC);
@@ -162,7 +161,7 @@ export async function categoryView({ params, main }: RouteCtx): Promise<void> {
         h('h3', null, h('a', { href: `/c/${s.id}` }, pick(s.titles, L(), D()))),
         pick(s.descriptions, L(), D()) ? h('p', null, pick(s.descriptions, L(), D())) : null,
         h('p', { class: 'ew-meta' }, t('category.counts', { pages: s.element_count })),
-        edit && can('edit') ? reorderButtons(c.id, subs, i) : null)))));
+        edit && can('manage') ? reorderButtons(c.id, subs, i) : null)))));
   }
   if (!c.default_element_id && !data.elements.length && !subs.length) {
     view.append(h('p', { class: 'ew-muted' }, can('create') ? t('category.empty_editor') : t('category.empty')));

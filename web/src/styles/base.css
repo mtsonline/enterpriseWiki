@@ -280,3 +280,7 @@ th .ew-help { font-weight: 400; }
 .ew-indent-4 { padding-inline-start: 4rem; } .ew-indent-5 { padding-inline-start: 5rem; } .ew-indent-6 { padding-inline-start: 6rem; }
 .ew-indent-7 { padding-inline-start: 7rem; } .ew-indent-8 { padding-inline-start: 8rem; }
 .ew-perm-editor fieldset { margin-block: .5rem; }
+/* audit log filters and settings */
+.ew-filter-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(13rem, 1fr)); gap: 0 1rem; }
+.ew-check-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(14rem, 1fr)); gap: 0 1rem; }
+.ew-audit-table pre { max-height: 20rem; overflow: auto; max-width: 40rem; }

@@ -43,6 +43,7 @@ var adminPerms = []struct{ prefix, perm string }{
 	{"/api/v1/admin/languages", "core.settings.manage"},
 	{"/api/v1/admin/retention", "core.settings.manage"},
 	{"/api/v1/admin/audit/settings", "core.audit.manage"},
+	{"/api/v1/admin/audit/forward", "core.audit.manage"},
 	{"/api/v1/admin/audit", "core.audit.view"},
 	{"/api/v1/admin/plugins", "core.plugins.manage"},
 	{"/api/v1/admin/restart", "core.plugins.manage"},
@@ -103,6 +104,7 @@ func (s *Server) routes() {
 	s.routesM8()
 	s.routesM9()
 	s.routesM15()
+	s.routesAudit()
 	// ---------------------------------------------------------------- system
 	s.app.Mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, r *http.Request) { h.Write(w, 200, map[string]string{"status": "ok"}) })
 	s.handle("GET /readyz", func(w http.ResponseWriter, r *http.Request) (any, error) {
@@ -119,6 +121,9 @@ func (s *Server) routes() {
 	})
 	s.handle("POST /api/v1/auth/login", s.login)
 	s.handle("POST /api/v1/auth/logout", func(w http.ResponseWriter, r *http.Request) (any, error) {
+		if p := identity.From(r.Context()); p != nil {
+			_ = audit.Log(r.Context(), s.app.DB, "auth.logout", "user", p.ID(), nil, nil)
+		}
 		if c, err := r.Cookie(sessionCookie); err == nil {
 			_ = s.app.Auth.Logout(r.Context(), c.Value)
 		}
@@ -399,9 +404,11 @@ func (s *Server) routes() {
 		if err != nil {
 			return nil, err
 		}
-		els, err := s.app.Content.ListElements(r.Context(), id)
-		if err != nil {
-			return nil, err
+		els := []content.Element{}
+		if slices.Contains(c.Permissions, "view") { // category administrators: structure only
+			if els, err = s.app.Content.ListElements(r.Context(), id); err != nil {
+				return nil, err
+			}
 		}
 		return map[string]any{"category": c, "breadcrumbs": bc, "elements": els}, nil
 	})
@@ -536,7 +543,11 @@ func (s *Server) routes() {
 		if err != nil {
 			return nil, err
 		}
-		return s.app.Content.GetElement(r.Context(), id, r.URL.Query().Get("lang"), r.URL.Query().Get("edit") == "1")
+		v, err := s.app.Content.GetElement(r.Context(), id, r.URL.Query().Get("lang"), r.URL.Query().Get("edit") == "1")
+		if err == nil && s.app.Config.Get().Audit.LogViews {
+			_ = audit.Log(r.Context(), s.app.DB, "element.view", "element", id, nil, map[string]string{"lang": v.ShownLang})
+		}
+		return v, err
 	})
 	s.handle("PUT /api/v1/elements/{id}", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		id, err := h.PathID(r, "id")
@@ -737,8 +748,8 @@ func (s *Server) routes() {
 		if err := requireAdmin(r); err != nil {
 			return nil, err
 		}
-		id, _ := strconv.ParseInt(r.URL.Query().Get("entity_id"), 10, 64)
-		return audit.Query(r.Context(), s.app.DB, r.URL.Query().Get("entity_type"), id, h.QueryInt(r, "limit", 100), h.QueryInt(r, "offset", 0))
+		entries, _, err := audit.Find(r.Context(), s.app.DB, auditSearch(r))
+		return entries, err
 	})
 	s.handle("POST /api/v1/admin/retention/run", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		if err := requireAdmin(r); err != nil {
@@ -913,8 +924,10 @@ func (s *Server) login(w http.ResponseWriter, r *http.Request) (any, error) {
 	}
 	res, err := s.app.Auth.Login(r.Context(), in.Username, in.Password, in.TOTP, s.clientIP(r), r.UserAgent())
 	if err != nil {
+		s.auditLogin(r, nil, "password", in.Username, err)
 		return nil, err
 	}
+	s.auditLogin(r, res.Principal, "password", in.Username, nil)
 	s.setCookie(w, res.Token, res.ExpiresAt)
 	return map[string]any{"user": res.Principal, "expires_at": res.ExpiresAt}, nil
 }
@@ -1018,4 +1031,19 @@ func (s *Server) removablePlugins() []string {
 	}
 	sort.Strings(out)
 	return out
+}
+
+// auditLogin records a sign-in or a failed attempt (audit.log_logins).
+func (s *Server) auditLogin(r *http.Request, p *identity.Principal, method, username string, err error) {
+	ctx := audit.WithRequest(r.Context(), s.clientIP(r), r.UserAgent())
+	if err != nil {
+		reason := "error"
+		var ae *apperr.Error
+		if errors.As(err, &ae) {
+			reason = ae.Code
+		}
+		_ = audit.Log(ctx, s.app.DB, "auth.login_failed", "user", 0, nil, map[string]string{"username": username, "method": method, "reason": reason})
+		return
+	}
+	_ = audit.Log(identity.With(ctx, p), s.app.DB, "auth.login", "user", p.ID(), nil, map[string]string{"method": method})
 }
