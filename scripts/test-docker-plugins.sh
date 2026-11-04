@@ -81,7 +81,7 @@ for _ in $(seq 1 600); do
 	sleep 2
 done
 docker compose exec -T wiki ewiki plugin list | grep -q '^test.second' || fail "dropped plugin not built"
-grep -q '"trigger":"drop"' data/wiki/bin/ewiki-*.json || fail "trigger drop not recorded"
+grep -Eq '"trigger": *"drop"' data/wiki/bin/ewiki-*.json || fail "trigger drop not recorded"
 curl -fs http://localhost:8080/readyz >/dev/null || fail "restarted automatically after a dropped plugin"
 echo "ok: dropped plugin built, no automatic restart"
 docker compose down >/dev/null 2>&1
