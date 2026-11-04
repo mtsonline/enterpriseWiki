@@ -6,7 +6,7 @@ import { navigate, type RouteCtx } from '../core/router';
 import { hasPerm, state } from '../core/state';
 import type { Category, ElementSummary, ElementView, Revision } from '../core/types';
 import { toast } from '../core/announce';
-import { button, confirmDialog, errorText, field, formDialog, langFields, loading, openDialog, pageHeader, textInput, select } from '../components/ui';
+import { button, confirmDialog, errorText, field, formDialog, langFields, loading, openDialog, pageHeader, textArea, textInput, select } from '../components/ui';
 import { breadcrumbs, can, categoryPicker, ctx, invalidateTree, langName, setContext } from '../components/widgets';
 import { watchButton } from '../components/watch';
 import { shortURLInput } from '../components/shorturl';
@@ -107,6 +107,10 @@ export async function categoryView({ params, main }: RouteCtx): Promise<void> {
     if (can('manage')) {
       actions.push(button(t('category.new_sub'), () => newCategoryDialog(c.id), { variant: 'secondary' }));
       actions.push(button(t('category.edit'), () => editCategoryDialog(c), { variant: 'secondary' }));
+      if (state.site.languages.length > 1) {
+        actions.push(button([t('translation.title'), c.translations_up_to_date ? null : h('span', { class: 'ew-badge ew-badge--warn' }, ` ${c.translated_percent} %`)],
+          () => categoryTranslationsDialog(c), { variant: 'secondary', ariaLabel: `${t('translation.title')}: ${c.translated_percent} %` }));
+      }
       actions.push(h('a', { href: `/c/${c.id}/settings`, class: 'ew-btn ew-btn--secondary' }, t('category.settings')));
       actions.push(button(t('common.move'), () => moveCategoryDialog(c), { variant: 'secondary' }));
       actions.push(button(t('common.delete'), () => void deleteCategory(c), { variant: 'danger' }));
@@ -212,7 +216,7 @@ export function newCategoryDialog(parent: number): void {
     const tags = textInput({ name: 'tags' });
     formDialog(t('category.new'), [field(t('category.parent'), parentSel), titles.el, descs.el, field(t('common.tags'), tags, { help: t('common.tags_help') })], t('common.create'), async () => {
       const c = await api.post<Category>('categories', {
-        parent_id: Number(parentSel.value) || null, titles: titles.get(), descriptions: descs.get(), tags: splitTags(tags.value),
+        parent_id: Number(parentSel.value) || null, titles: titles.get(), descriptions: descs.get(), tags: splitTags(tags.value), original_lang: L(),
       });
       invalidateTree();
       toast(t('category.created'));
@@ -227,13 +231,60 @@ function editCategoryDialog(c: Category): void {
   const descs = langFields(t('common.description'), c.descriptions, { multiline: true });
   const tags = textInput({ value: c.tags.join(', ') });
   const short = shortURLInput(c.short_url);
-  formDialog(t('category.edit_title', { title: pick(c.titles, L(), D()) }), [titles.el, descs.el, field(t('common.tags'), tags, { help: t('common.tags_help') }),
+  const orig = select(state.site.languages.map((l) => ({ value: l, label: langName(l) })), c.original_lang || D());
+  formDialog(t('category.edit_title', { title: pick(c.titles, L(), D()) }), [titles.el, descs.el,
+    state.site.languages.length > 1 ? field(t('translation.original_lang'), orig, { help: t('translation.original_lang_help') }) : null,
+    field(t('common.tags'), tags, { help: t('common.tags_help') }),
     field(t('shorturl.label'), short, { help: t('shorturl.help', { origin: location.origin }) }),
     h('p', { class: 'ew-help' }, t('category.edit_more'), ' ', h('a', { href: `/c/${c.id}/settings` }, t('category.settings')))], t('common.save'), async () => {
-    await api.put(`categories/${c.id}`, { titles: titles.get(), descriptions: descs.get(), tags: splitTags(tags.value), short_url: short.value });
+    await api.put(`categories/${c.id}`, { titles: titles.get(), descriptions: descs.get(), tags: splitTags(tags.value), short_url: short.value, original_lang: orig.value });
     invalidateTree();
     toast(t('common.saved'));
     navigate(location.pathname, { replace: true });
+  }, { wide: true });
+}
+
+/** Translation state of a category: progress per language, translate, confirm. */
+function categoryTranslationsDialog(c: Category): void {
+  const name = pick(c.titles, L(), D());
+  const after = () => { invalidateTree(); navigate(location.pathname, { replace: true }); };
+  const rows = c.translations.map((tr) => h('tr', null,
+    h('th', { scope: 'row' }, langName(tr.lang)),
+    h('td', null, h('span', { class: ['ew-badge', `ew-badge--${tr.status}`] }, t(`translation.${tr.status}`)),
+      tr.status === 'outdated' ? h('span', { class: 'ew-help' }, ' ', t('translation.based_on', { rev: tr.based_on ?? 0 })) : null),
+    h('td', { lang: tr.lang }, c.titles[tr.lang] || '–'),
+    h('td', { class: 'ew-actions' },
+      button(tr.status === 'missing' ? t('translation.create') : t('common.edit'), () => { dlg.close(); translateCategoryDialog(c, tr.lang, after); },
+        { variant: 'link', ariaLabel: `${tr.status === 'missing' ? t('translation.create') : t('common.edit')}: ${langName(tr.lang)}` }),
+      tr.status === 'outdated' ? button(t('languages.confirm'), async () => {
+        try { await api.put(`categories/${c.id}/translations/${tr.lang}`, { confirm: true }); toast(t('languages.confirmed')); dlg.close(); after(); } catch (e) { toast(errorText(e), 'error'); }
+      }, { variant: 'link', ariaLabel: `${t('languages.confirm')}: ${langName(tr.lang)}` }) : null)));
+  const dlg = openDialog(t('translation.category_title', { title: name }), h('div', null,
+    h('p', null, h('progress', { max: '100', value: String(c.translated_percent), 'aria-label': t('translation.progress') }), ' ',
+      t('translation.percent', { percent: c.translated_percent }), ' ',
+      c.translations_up_to_date ? h('span', { class: 'ew-badge ew-badge--ok' }, t('translation.all_current')) : h('span', { class: 'ew-badge ew-badge--warn' }, t('translation.needs_work'))),
+    h('p', { class: 'ew-help' }, t('translation.category_help')),
+    h('table', { class: 'ew-table' }, h('caption', { class: 'sr-only' }, t('translation.title')),
+      h('thead', null, h('tr', null, ...[t('common.language'), t('common.status'), t('common.title'), t('common.actions')].map((x) => h('th', { scope: 'col' }, x)))),
+      h('tbody', null, ...rows))), [], { wide: true });
+}
+
+/** Translates title and description of a category into one language (original shown for reference). */
+function translateCategoryDialog(c: Category, lang: string, done: () => void): void {
+  const orig = c.original_lang || D();
+  const title = textInput({ value: c.titles[lang] ?? '', lang, maxlength: 200 });
+  const desc = textArea({ value: c.descriptions[lang] ?? '', rows: 4, lang });
+  const isOrig = lang === orig;
+  formDialog(t('translation.category_translate', { lang: langName(lang) }), [
+    isOrig ? null : h('dl', { class: 'ew-facts' },
+      h('dt', null, t('translation.original_in', { lang: langName(orig) })), h('dd', { lang: orig }, c.titles[orig] ?? ''),
+      c.descriptions[orig] ? h('dt', null, t('common.description')) : null, c.descriptions[orig] ? h('dd', { lang: orig }, c.descriptions[orig]) : null),
+    field(t('common.title'), title, { required: isOrig, help: isOrig ? undefined : t('translation.empty_removes') }),
+    field(t('common.description'), desc),
+  ], t('common.save'), async () => {
+    await api.put(`categories/${c.id}/translations/${lang}`, { title: title.value, description: desc.value });
+    toast(t('common.saved'));
+    done();
   }, { wide: true });
 }
 

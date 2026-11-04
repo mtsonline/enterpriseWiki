@@ -7,7 +7,8 @@
  "content.team.sort_department": "Abteilung",
  "content.team.by_group": "Nach Gruppen gliedern (Überschrift je Gruppe)",
  "content.team.groups": "Gruppen",
- "content.team.members_n": "{n} Mitglieder",
+ "content.team.members_n_one": "{n} Mitglied",
+ "content.team.members_n_other": "{n} Mitglieder",
  "content.team.no_groups": "Es gibt noch keine Gruppen. Gruppen legt die Administration unter Benutzer & Gruppen an.",
  "content.team.groups_error": "Gruppen konnten nicht geladen werden.",
  "content.team.fields": "Angezeigte Angaben",
@@ -33,7 +34,8 @@
  "content.team.err_groups": "Bitte mindestens eine Gruppe wählen.",
  "content.team.filter": "Personen filtern",
  "content.team.filter_placeholder": "Name, Abteilung …",
- "content.team.found": "{n} Personen gefunden",
+ "content.team.found_one": "{n} Person gefunden",
+ "content.team.found_other": "{n} Personen gefunden",
  "content.team.export": "Kontakte als CSV",
  "content.team.name": "Name"
 }

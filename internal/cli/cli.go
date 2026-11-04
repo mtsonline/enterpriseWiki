@@ -87,6 +87,16 @@ Permissions, audit log, drafts, notifications
   draft publish ID [--at RFC3339] [--category ID] [--silent] --as USER
   inbox [list] [--limit N] | inbox read [ID...] --as USER
 
+Translations of the user interface
+  i18n status                   progress of every language
+  i18n strings LANG [--filter todo|missing|outdated|custom|all] [--source ID]
+  i18n set LANG KEY TEXT        e.g. i18n set de inbox.new_one "{n} neue Nachricht"
+  i18n export LANG [--format json|xliff|po] [--source ID] [--filter all|missing|custom] > FILE
+  i18n import LANG FILE|- [--format json|xliff|po]
+  i18n add LANG | i18n remove LANG
+  category translations ID      translation state of a category per language
+  category translate ID LANG [--title T] [--description D] [--confirm] [--as USER]
+
 Plugins
   plugin list
   plugin enable ID | plugin disable ID
@@ -190,6 +200,10 @@ func Main(args []string) int {
 		err = e.draftCmd(args[1:])
 	case "inbox":
 		err = e.inboxCmd(args[1:])
+	case "i18n":
+		err = e.i18nCmd(args[1:])
+	case "category":
+		err = e.categoryCmd(args[1:])
 	case "cache":
 		err = e.cacheCmd(args[1:])
 	case "license":

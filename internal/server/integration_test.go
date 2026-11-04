@@ -545,7 +545,7 @@ func TestAPI(t *testing.T) {
 	if len(st) != 3 || st[0].Percent != 100 {
 		t.Fatalf("i18n status %+v", st)
 	}
-	admin.must("PUT", "/api/v1/admin/i18n/fr", map[string]string{"common.save": "Enregistrer"}, nil, 204)
+	admin.must("PUT", "/api/v1/admin/i18n/fr", map[string]string{"common.save": "Enregistrer"}, nil, 200)
 	var msgs map[string]string
 	guest.must("GET", "/api/v1/i18n/fr", nil, &msgs, 200)
 	if msgs["common.save"] != "Enregistrer" || msgs["common.cancel"] != "Cancel" {

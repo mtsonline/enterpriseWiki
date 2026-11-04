@@ -14,7 +14,7 @@ export { api, ApiError, qs, uploadFile, humanSize } from './core/api';
 export type { UploadedFile } from './core/api';
 export { pluginSettingsForm, MAPPING_FIELDS } from './components/settings';
 export type { SettingField } from './components/settings';
-export { t, pick, uiLang } from './core/i18n';
+export { t, pick, uiLang, pluralForm } from './core/i18n';
 export { state, onChange, isAdmin, hasPerm } from './core/state';
 export { toast, announce } from './core/announce';
 export { navigate, route, rerender } from './core/router';

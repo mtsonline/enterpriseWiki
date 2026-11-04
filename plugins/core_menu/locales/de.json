@@ -58,7 +58,8 @@
  "core.menu.parent_help": "Für Unterpunkte (Ausklapp-Menü) den Eintrag wählen, unter dem dieser erscheinen soll.",
  "core.menu.err_item_label": "Bitte eine Beschriftung eingeben (für freie Links und Überschriften erforderlich).",
  "core.menu.err_item_target": "Bitte das Ziel wählen bzw. die Adresse eingeben.",
- "core.menu.remove_with_children": "Dieser Eintrag hat {n} Unterpunkte, die mit entfernt werden. Fortfahren?",
+ "core.menu.remove_with_children_one": "Dieser Eintrag hat {n} Unterpunkt, der mit entfernt wird. Fortfahren?",
+ "core.menu.remove_with_children_other": "Dieser Eintrag hat {n} Unterpunkte, die mit entfernt werden. Fortfahren?",
  "core.menu.no_items_yet": "Noch keine Einträge. Mit „Eintrag hinzufügen“ beginnen.",
  "perm.core.menu.edit": "Menüs bearbeiten",
  "perm.core.menu.edit_help": "Menüs und ihre Einträge anlegen und ändern."

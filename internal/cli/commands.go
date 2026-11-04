@@ -73,10 +73,49 @@ func (e *env) api(args []string) error {
 			body = []byte(pos[2])
 		}
 	}
-	return e.withApp(false, func(ctx context.Context, a *app.App) error {
+	return e.apiBody(method, path, body, *as)
+}
+
+// apiBody calls the API in-process (as the CLI superuser or as USER) and
+// prints the answer (JSON indented).
+func (e *env) apiBody(method, path string, body []byte, as string) error {
+	code, out, err := e.call(method, path, body, as)
+	if err != nil {
+		return err
+	}
+	var pretty bytes.Buffer
+	if json.Indent(&pretty, out, "", "  ") == nil {
+		out = append(pretty.Bytes(), '\n')
+	}
+	if code >= 400 {
+		e.stderr.Write(out) //nolint:errcheck
+		return fmt.Errorf("HTTP %d", code)
+	}
+	_, err = e.stdout.Write(out)
+	return err
+}
+
+// apiJSON calls the API and hands a successful answer to fn.
+func (e *env) apiJSON(method, path, as string, fn func([]byte) error) error {
+	code, out, err := e.call(method, path, nil, as)
+	if err != nil {
+		return err
+	}
+	if code >= 400 {
+		e.stderr.Write(out) //nolint:errcheck
+		return fmt.Errorf("HTTP %d", code)
+	}
+	return fn(out)
+}
+
+// call runs one API request in-process.
+func (e *env) call(method, path string, body []byte, as string) (int, []byte, error) {
+	var code int
+	var out []byte
+	err := e.withApp(false, func(ctx context.Context, a *app.App) error {
 		p := identity.CLI()
-		if *as != "" {
-			name, prov, _ := strings.Cut(*as, "@")
+		if as != "" {
+			name, prov, _ := strings.Cut(as, "@")
 			if prov == "" {
 				prov = "local"
 			}
@@ -96,18 +135,10 @@ func (e *env) api(args []string) error {
 		req.Header.Set("Content-Type", "application/json")
 		rec := httptest.NewRecorder()
 		srv.Handler().ServeHTTP(rec, req)
-		out := rec.Body.Bytes()
-		var pretty bytes.Buffer
-		if json.Indent(&pretty, out, "", "  ") == nil {
-			out = append(pretty.Bytes(), '\n')
-		}
-		if rec.Code >= 400 {
-			e.stderr.Write(out) //nolint:errcheck
-			return fmt.Errorf("HTTP %d", rec.Code)
-		}
-		_, err := e.stdout.Write(out)
-		return err
+		code, out = rec.Code, rec.Body.Bytes()
+		return nil
 	})
+	return code, out, err
 }
 
 func (e *env) readPassword(fromStdin bool, prompt string) (string, error) {

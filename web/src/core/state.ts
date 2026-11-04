@@ -69,6 +69,21 @@ export function isAdmin(): boolean {
 }
 
 /** hasPerm reports whether the user has a global permission (administrators have all). */
+/** translatePerm is the permission to translate the user interface into lang. */
+export function translatePerm(lang: string): string {
+  return `core.i18n.translate.${lang.toLowerCase().replace(/-/g, '_')}`;
+}
+
+/** canTranslate: the user may translate the user interface into lang. */
+export function canTranslate(lang: string): boolean {
+  return hasPerm('core.i18n.manage') || hasPerm(translatePerm(lang));
+}
+
+/** canTranslateAny: the user may translate at least one language. */
+export function canTranslateAny(): boolean {
+  return hasPerm('core.i18n.manage') || state.site.languages.some((l) => hasPerm(translatePerm(l)));
+}
+
 export function hasPerm(key: string): boolean {
   return isAdmin() || !!state.user?.permissions?.includes(key);
 }

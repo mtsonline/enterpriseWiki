@@ -303,3 +303,10 @@ th .ew-help { font-weight: 400; }
 .ew-chips li { display: inline-flex; align-items: center; gap: .25rem; padding: .1rem .5rem; border: 1px solid var(--ew-border); border-radius: 999px; }
 /* focused controls scrolled into view stay below a sticky header (WCAG 2.4.11) */
 html { scroll-padding-top: calc(var(--ew-sticky-top, var(--ew-header-h)) + .5rem); }
+/* translation editor */
+.ew-tr-table td { vertical-align: top; }
+.ew-tr-form { display: grid; gap: .2rem; margin-bottom: .5rem; }
+.ew-tr-form label { font-weight: 600; font-size: .9rem; }
+.ew-tr-form .ew-input, .ew-tr-form textarea { width: 100%; }
+.ew-plain-list { list-style: none; margin: 0; padding: 0; }
+.ew-table--compact th, .ew-table--compact td { padding: .3rem .6rem; }

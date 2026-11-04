@@ -139,7 +139,13 @@ CREATE TABLE categories (
     deleted_by         bigint REFERENCES users(id) ON DELETE SET NULL,
     trash_root         boolean NOT NULL DEFAULT false, -- the object the user deleted
     feed               text NOT NULL DEFAULT 'off' CHECK (feed IN ('off', 'on', 'recursive')), -- Atom/RSS feed
-    short_url          text                           -- e.g. /kalender; unique with elements.short_url (checked by the application)
+    short_url          text,                          -- e.g. /kalender; unique with elements.short_url (checked by the application)
+    -- translations of title and description (like elements): the original
+    -- language, its revision (incremented when its texts change) and the
+    -- revision of the original each translation is based on
+    original_lang      text NOT NULL DEFAULT '',
+    text_rev           int NOT NULL DEFAULT 1,
+    translation_revs   jsonb NOT NULL DEFAULT '{}'    -- {"de": 3, "fr": 2}
 );
 CREATE INDEX categories_path ON categories USING gist(path);
 CREATE INDEX categories_parent ON categories(parent_id, position);
@@ -348,11 +354,13 @@ CREATE TABLE audit_forward_state (
     errors     int NOT NULL DEFAULT 0
 );
 
+-- UI texts translated in the administration (override the shipped files)
 CREATE TABLE ui_translations (
-    lang       text NOT NULL,
-    key        text NOT NULL,
-    value      text NOT NULL,
-    updated_by bigint REFERENCES users(id) ON DELETE SET NULL,
+    lang        text NOT NULL,
+    key         text NOT NULL,
+    value       text NOT NULL,
+    source_hash text NOT NULL DEFAULT '',  -- hash of the English text it translates (changed = outdated)
+    updated_by  bigint REFERENCES users(id) ON DELETE SET NULL,
     updated_at timestamptz NOT NULL DEFAULT now(),
     PRIMARY KEY (lang, key)
 );

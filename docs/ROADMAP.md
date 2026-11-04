@@ -124,9 +124,18 @@ Business Source License 1.1 mit kostenloser privater Nutzung durch natürliche P
 
 **Verhaltensänderungen:** Nur-„Erstellen“ erlaubt keine Unterkategorien mehr (dafür *Verwalten*). Neue Kategorien der obersten Ebene sind nicht mehr automatisch für Gäste sichtbar. Administratoren führen Workflow-Schritte nur aus, wenn sie zuständig sind.
 
+## Meilenstein 10 – Übersetzungen
+
+- **Pluralformen** nach CLDR (`key_one`, `key_other`, `key_few` …), gewählt über `count`/`n` – im Frontend mit `Intl.PluralRules`, im Backend mit `golang.org/x/text`. Kern und Plugins sind umgestellt.
+- **Rechte je Sprache:** für jede konfigurierte Sprache `core.i18n.translate.<code>`; `core.i18n.manage` erlaubt alle Sprachen und das Hinzufügen/Entfernen.
+- **Übersetzungsseite:** Fortschritt je Sprache und Komponente, Filter fehlend/veraltet/hier übersetzt, Suche, Seiten, Felder je Pluralform mit Beispielzahlen, *Weiterhin korrekt*.
+- **Veraltete Übersetzungen:** eigene Übersetzungen merken sich den englischen Text; ändert er sich (z. B. durch ein Plugin-Update), gelten sie als veraltet.
+- **Import/Export:** JSON, XLIFF 2.0 und PO, je Sprache und optional je Komponente (UI, API, `ewiki i18n`).
+- **Kategorie-Übersetzungen** wie bei Seiten: Originalsprache, Status aktuell/veraltet/fehlt, Fortschritt, Knopf *Übersetzungen* in der Kategorie, API `PUT /api/v1/categories/{id}/translations/{lang}`, CLI `ewiki category translations|translate`.
+- Sprachnamen für neue Sprachen kommen aus dem Browser (`Intl.DisplayNames`).
+
 ## Geplant
 
-- **Meilenstein 10 – Übersetzungen:** Pluralformen, Übersetzungsseite im Admin-Bereich mit eigenem Recht, Import/Export der Locale-Dateien, Kategorie-Übersetzungen wie bei Elementen.
 - **Meilenstein 11 – Komponenten:** Mega-Menü (eigenes Plugin), Karussell mit externen RSS-Feeds, Favoriten, Seiteneigenschaften u. a.
 - **Meilenstein 12 – Vorlage „Wiki (Intranet/Hochschule)“.**
 - **Meilenstein 13 – Werkzeug für Plugin-Entwickler** (Gerüst, Lint, Tests).

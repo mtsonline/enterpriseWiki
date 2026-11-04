@@ -74,7 +74,12 @@ export async function setLanguage(lang: string): Promise<void> {
 export function langName(code: string): string {
   const k = `lang.${code}`;
   const v = t(k);
-  return v === k ? code.toUpperCase() : v;
+  if (v !== k) return v;
+  try {
+    const n = new Intl.DisplayNames([state.lang || 'en'], { type: 'language' }).of(code);
+    if (n && n !== code) return n.charAt(0).toLocaleUpperCase(state.lang) + n.slice(1);
+  } catch { /* unknown code */ }
+  return code.toUpperCase();
 }
 
 export function languageSwitcher(): HTMLElement | null {

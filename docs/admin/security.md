@@ -90,6 +90,18 @@ Workflows ändern und löschen nur ihr **Ersteller** (Recht *Workflows anlegen*)
 
 Entwürfe sehen ihr Autor und die Editoren der Kategorie (Recht *Bearbeiten*). Veröffentlicht werden kann nur dort, wo man *Erstellen* (neue Seite) bzw. *Bearbeiten* (bestehende Seite) hat. Geplante Veröffentlichungen laufen mit den Rechten des Autors zum Zeitpunkt der Veröffentlichung.
 
+## Übersetzungen der Oberfläche
+
+*Administration → Sprachen* zeigt je Sprache, wie viel übersetzt ist, wie viele Texte fehlen und wie viele **veraltet** sind (der englische Text hat sich seit der Übersetzung geändert, z. B. durch ein Plugin-Update).
+
+- **Rechte:** *Sprachen verwalten und Oberfläche übersetzen* (`core.i18n.manage`) erlaubt alles: Sprachen hinzufügen/entfernen und alle Sprachen übersetzen. *Oberfläche übersetzen: <Sprache>* (`core.i18n.translate.<code>`, je konfigurierter Sprache) erlaubt nur das Übersetzen, Importieren und Exportieren dieser einen Sprache. Wer eines der Rechte hat, sieht die Seite *Sprachen*; die Übersetzungsseite anderer Sprachen bleibt gesperrt (auch in der API).
+- **Übersetzungsseite:** Fortschritt je Komponente (Kern und jedes Plugin), Filter *Zu erledigen*, *Fehlend*, *Veraltet*, *Hier übersetzt*, *Alle*, Suche in Schlüsseln und Texten, 100 Einträge je Seite. Veraltete Übersetzungen bestätigen Sie mit *Weiterhin korrekt*. Ein geleertes Feld entfernt die eigene Übersetzung, dann gilt wieder der mitgelieferte Text.
+- **Pluralformen:** Texte mit Anzahl haben je Pluralform ein Feld (nach CLDR: Deutsch und Englisch *eins*/*andere*, Polnisch *eins*/*wenige*/*viele*/*andere*, Arabisch sechs Formen). Neben jedem Feld stehen Beispielzahlen.
+- **Import und Export** (unter *Import und Export*): **JSON** (wie die Locale-Dateien), **XLIFF 2.0** (Übersetzungswerkzeuge wie Trados, memoQ, Phrase; je Komponente eine `<file>`) und **PO** (gettext, z. B. Poedit, Weblate; `msgctxt` = Schlüssel, jede Pluralform als eigener Eintrag). Exportieren lassen sich alle, nur fehlende/veraltete oder nur hier übersetzte Texte, auf Wunsch nur einer Komponente. Beim Import wird das Format erkannt; unbekannte Schlüssel, leere Texte und als unfertig markierte Einträge (PO `fuzzy`, XLIFF `state="initial"`) werden übersprungen, der Rest gilt als hier übersetzt. Veraltete Texte werden als `fuzzy` bzw. `initial` exportiert.
+- Jede Änderung und jeder Import wird protokolliert (`i18n.translate`, `i18n.import`).
+
+API: `GET|PUT /api/v1/admin/i18n/{lang}`, `GET /api/v1/admin/i18n/{lang}/export?format=json|xliff|po&source=&filter=all|missing|custom`, `POST /api/v1/admin/i18n/{lang}/import?format=` (Datei als Body). CLI: `ewiki i18n status|strings|set|export|import|add|remove`.
+
 ## Protokoll (Audit-Log)
 
 *Administration → Protokoll* (Recht *Protokoll ansehen*) listet alle Änderungen mit Zeitpunkt, Person, IP-Adresse, Browser und Kanal (Oberfläche, API, CLI, Hintergrundjob). Filter: Freitext, Bereich, Aktion, Person, IP, Zeitraum, Objekt; Details zeigen den Zustand vorher und nachher. Export als CSV oder JSON Lines.

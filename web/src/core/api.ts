@@ -104,6 +104,20 @@ export async function uploadFile(file: File): Promise<UploadedFile> {
   return data as UploadedFile;
 }
 
+/** Sends a file as the raw request body (e.g. translation imports); returns the JSON answer. */
+export async function postRaw<T>(path: string, body: Blob, contentType = 'application/octet-stream'): Promise<T> {
+  const url = path.startsWith('/') ? path : `/api/v1/${path}`;
+  let res: Response;
+  try {
+    res = await fetch(url, { method: 'POST', body, credentials: 'same-origin', headers: { 'X-Requested-With': 'ewiki', 'Content-Type': contentType, Accept: 'application/json' } });
+  } catch {
+    throw new ApiError(0, 'network', 'network error');
+  }
+  const data = await res.json().catch(() => null);
+  if (!res.ok) throw new ApiError(res.status, data?.error?.code ?? 'error', data?.error?.message ?? res.statusText);
+  return data as T;
+}
+
 /** Formats a byte count. */
 export function humanSize(n: number): string {
   const u = ['B', 'KB', 'MB', 'GB', 'TB'];

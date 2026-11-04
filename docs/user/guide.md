@@ -94,6 +94,8 @@ Im Bearbeitungsmodus zeigt jede Seite, zu wie viel Prozent sie übersetzt ist un
 
 Mit *Übersetzen* bzw. *Bearbeiten* öffnen Sie den Editor für diese Sprache. Unter *Original anzeigen* sehen Sie den Ausgangstext.
 
+**Kategorien** übersetzen Sie genauso: Im Bearbeitungsmodus zeigt der Knopf **Übersetzungen** (mit dem Recht *Verwalten*) den Status von Titel und Beschreibung je Sprache und den Fortschritt. *Übersetzen* zeigt das Original zum Vergleich; ein leerer Titel entfernt die Übersetzung. Hat sich das Original geändert, ist die Übersetzung *veraltet*, bis Sie sie überarbeiten oder mit *Weiterhin korrekt* bestätigen. Die **Originalsprache** einer Kategorie ist die Sprache, in der Sie sie angelegt haben; ändern lässt sie sich unter *Kategorie bearbeiten*.
+
 ### Blog, FAQ, Veranstaltungskalender und Team
 
 Beim Anlegen eines Elements (*Neues Element*) wählen Sie den Typ:

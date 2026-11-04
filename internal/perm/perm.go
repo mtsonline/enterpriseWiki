@@ -99,6 +99,20 @@ func Register(group string, list ...Def) error {
 	return nil
 }
 
+// Replace sets the permissions of a group whose keys start with prefix
+// (e.g. one permission per configured language): existing ones with the
+// prefix are removed first. Used for permissions that depend on settings.
+func Replace(group, prefix string, list ...Def) error {
+	mu.Lock()
+	for k, d := range defs {
+		if d.Group == group && strings.HasPrefix(k, prefix) {
+			delete(defs, k)
+		}
+	}
+	mu.Unlock()
+	return Register(group, list...)
+}
+
 // MustRegister is Register for the core (panics on errors).
 func MustRegister(group string, list ...Def) {
 	if err := Register(group, list...); err != nil {

@@ -7,7 +7,8 @@
  "content.team.sort_department": "Department",
  "content.team.by_group": "Group by group (one heading per group)",
  "content.team.groups": "Groups",
- "content.team.members_n": "{n} members",
+ "content.team.members_n_one": "{n} member",
+ "content.team.members_n_other": "{n} members",
  "content.team.no_groups": "There are no groups yet. Administrators create them under Users & groups.",
  "content.team.groups_error": "Groups could not be loaded.",
  "content.team.fields": "Shown details",
@@ -33,7 +34,8 @@
  "content.team.err_groups": "Please choose at least one group.",
  "content.team.filter": "Filter people",
  "content.team.filter_placeholder": "Name, department …",
- "content.team.found": "{n} people found",
+ "content.team.found_one": "{n} person found",
+ "content.team.found_other": "{n} people found",
  "content.team.export": "Contacts as CSV",
  "content.team.name": "Name"
 }

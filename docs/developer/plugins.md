@@ -308,7 +308,25 @@ Widgets können an einer festen Position (`registerSlot({ position: 'sidebar', �
 { "acme.kanban.hello": "Hello {name}" }
 ```
 
-Im Code: `t('acme.kanban.hello', { name })`. **`en.json` ist Pflicht**, sobald ein Plugin Locale-Dateien mitbringt (sonst startet es nicht); weitere Sprachen dürfen nur Schlüssel enthalten, die es in `en.json` gibt. Kern und mitgelieferte Plugins liefern Englisch und Deutsch. Fehlende Übersetzungen erscheinen im Admin-Bereich mit Fortschrittsanzeige und können dort ergänzt werden.
+Im Code: `t('acme.kanban.hello', { name })`.
+
+**Pluralformen:** Texte mit Anzahl bekommen je CLDR-Pluralform einen Schlüssel mit Endung `_zero`, `_one`, `_two`, `_few`, `_many` oder `_other` (`_other` ist Pflicht). Englisch und Deutsch brauchen `_one` und `_other`, andere Sprachen ergänzen ihre Formen (Polnisch `_few`, `_many`). Der Parameter `count` (oder `n`) wählt die Form – im Frontend über `Intl.PluralRules`, im Backend über die CLDR-Regeln von `golang.org/x/text`:
+
+```json
+{ "acme.kanban.cards_one": "{n} card", "acme.kanban.cards_other": "{n} cards" }
+```
+
+```ts
+t('acme.kanban.cards', { n: list.length })          // "1 card", "3 cards"
+```
+
+```go
+host.T(ctx, lang, "acme.kanban.cards", map[string]string{"n": strconv.Itoa(n)})
+```
+
+Verwenden Sie diese Endungen nicht für andere Zwecke (`…_other` würde als Pluralform gelesen). Für Ordnungszahlen wie „Schritt {n}“ genügt ein einfacher Schlüssel.
+
+**`en.json` ist Pflicht**, sobald ein Plugin Locale-Dateien mitbringt (sonst startet es nicht); weitere Sprachen dürfen nur Schlüssel enthalten, die es in `en.json` gibt. Kern und mitgelieferte Plugins liefern Englisch und Deutsch. Fehlende Übersetzungen erscheinen im Admin-Bereich mit Fortschrittsanzeige (auch je Plugin) und können dort ergänzt oder als JSON, XLIFF 2.0 oder PO exportiert und wieder importiert werden. Ändern Sie in einem Update einen englischen Text, werden die in der Administration gemachten Übersetzungen dieses Textes als *veraltet* markiert.
 
 ## Bauen, testen, veröffentlichen
 

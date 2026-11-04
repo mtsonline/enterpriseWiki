@@ -39,18 +39,26 @@ type Category struct {
 	HasChildren  bool       `json:"has_children"`
 	ElementCount int        `json:"element_count"`
 	Permissions  []string   `json:"permissions"`
+	// translations of title and description (see cattrans.go)
+	OriginalLang         string           `json:"original_lang"`
+	TextRev              int              `json:"text_rev"`
+	TranslationRevs      map[string]int   `json:"-"`
+	Translations         []CatTranslation `json:"translations"`
+	TranslatedPercent    int              `json:"translated_percent"`
+	TranslationsUpToDate bool             `json:"translations_up_to_date"`
 }
 
 const catCols = `c.id, c.parent_id, c.path::text, c.position, c.slug, c.titles, c.descriptions, c.tags, c.default_element_id, c.feed, COALESCE(c.short_url, ''),
 	c.created_at, c.updated_at, c.deleted_at,
 	EXISTS (SELECT 1 FROM categories x WHERE x.parent_id=c.id AND x.deleted_at IS NULL),
-	(SELECT count(*) FROM elements e WHERE e.category_id=c.id AND e.deleted_at IS NULL)`
+	(SELECT count(*) FROM elements e WHERE e.category_id=c.id AND e.deleted_at IS NULL),
+	c.original_lang, c.text_rev, c.translation_revs`
 
 func scanCategory(r pgx.CollectableRow) (Category, error) {
 	var c Category
 	var path string
 	err := r.Scan(&c.ID, &c.ParentID, &path, &c.Position, &c.Slug, &c.Titles, &c.Descriptions, &c.Tags, &c.DefaultElementID, &c.Feed, &c.ShortURL,
-		&c.CreatedAt, &c.UpdatedAt, &c.DeletedAt, &c.HasChildren, &c.ElementCount)
+		&c.CreatedAt, &c.UpdatedAt, &c.DeletedAt, &c.HasChildren, &c.ElementCount, &c.OriginalLang, &c.TextRev, &c.TranslationRevs)
 	c.Path = parsePath(path)
 	return c, err
 }
@@ -104,6 +112,7 @@ func (s *Service) decorate(ctx context.Context, cats []Category) ([]Category, er
 			continue
 		}
 		c.Permissions = p.Strings()
+		s.catTranslations(&c)
 		out = append(out, c)
 	}
 	return out, nil
@@ -280,6 +289,9 @@ type CategoryInput struct {
 	// GuestVisible applies to new top-level categories: true makes them
 	// visible to guests (default: only the creator has permissions).
 	GuestVisible *bool `json:"guest_visible"`
+	// OriginalLang is the language the texts were written in (default: the
+	// default language if it has a title); translations are compared with it.
+	OriginalLang *string `json:"original_lang"`
 }
 
 // CreateCategory creates a category below in.ParentID (nil = root, admin only).
@@ -329,8 +341,19 @@ func (s *Service) CreateCategory(ctx context.Context, in CategoryInput) (*Catego
 		} else if err := tx.QueryRow(ctx, `SELECT COALESCE(max(position)+1, 0) FROM categories WHERE parent_id IS NOT DISTINCT FROM $1`, in.ParentID).Scan(&pos); err != nil {
 			return err
 		}
-		if _, err := tx.Exec(ctx, `INSERT INTO categories(id, parent_id, path, position, slug, titles, descriptions, tags, created_by)
-			VALUES ($1,$2,$3::ltree,$4,$5,$6,$7,$8,$9)`, id, in.ParentID, path, pos, slug, titles, descs, tags, nullID(ctx)); err != nil {
+		want := ""
+		if in.OriginalLang != nil {
+			want = *in.OriginalLang
+		}
+		orig := s.originalOf(titles, want)
+		revs := map[string]int{}
+		for l, v := range titles {
+			if l != orig && v != "" {
+				revs[l] = 1 // written together with the original
+			}
+		}
+		if _, err := tx.Exec(ctx, `INSERT INTO categories(id, parent_id, path, position, slug, titles, descriptions, tags, created_by, original_lang, translation_revs)
+			VALUES ($1,$2,$3::ltree,$4,$5,$6,$7,$8,$9,$10,$11)`, id, in.ParentID, path, pos, slug, titles, descs, tags, nullID(ctx), orig, revs); err != nil {
 			return err
 		}
 		if in.ParentID == nil {
@@ -429,9 +452,34 @@ func (s *Service) UpdateCategory(ctx context.Context, id int64, in CategoryInput
 			def = in.DefaultElementID
 		}
 	}
+	orig := before.OriginalLang
+	if orig == "" {
+		orig = s.originalOf(before.Titles, "")
+	}
+	if in.OriginalLang != nil && *in.OriginalLang != orig {
+		if titles[*in.OriginalLang] == "" {
+			return nil, apperr.BadRequest("the original language needs a title")
+		}
+		orig = *in.OriginalLang
+	}
+	if titles[orig] == "" {
+		return nil, apperr.BadRequest("the original language (%s) needs a title", orig)
+	}
+	rev, revs := nextRevs(orig, before.TextRev, before.TranslationRevs, before.Titles, before.Descriptions, titles, descs)
+	if orig != before.OriginalLang && before.OriginalLang != "" {
+		// a new original: the other languages count as based on it
+		rev++
+		revs = map[string]int{}
+		for l, v := range titles {
+			if l != orig && v != "" {
+				revs[l] = rev
+			}
+		}
+	}
 	err = db.Tx(ctx, s.pool, func(tx pgx.Tx) error {
-		if _, err := tx.Exec(ctx, `UPDATE categories SET titles=$2, descriptions=$3, tags=$4, slug=$5, position=$6, default_element_id=$7, feed=$8, updated_at=now()
-			WHERE id=$1`, id, titles, descs, tags, slug, pos, def, feed); err != nil {
+		if _, err := tx.Exec(ctx, `UPDATE categories SET titles=$2, descriptions=$3, tags=$4, slug=$5, position=$6, default_element_id=$7, feed=$8,
+			original_lang=$9, text_rev=$10, translation_revs=$11, updated_at=now()
+			WHERE id=$1`, id, titles, descs, tags, slug, pos, def, feed, orig, rev, revs); err != nil {
 			return err
 		}
 		if in.ShortURL != nil {
@@ -619,8 +667,9 @@ func (s *Service) DuplicateCategory(ctx context.Context, id, targetParent int64)
 					return err
 				}
 			}
-			if _, err := tx.Exec(ctx, `INSERT INTO categories(id, parent_id, path, position, slug, titles, descriptions, tags, created_by)
-				VALUES ($1,$2,$3::ltree,$4,$5,$6,$7,$8,$9)`, nid, parent, path, pos, c.Slug, titles, c.Descriptions, c.Tags, nullID(ctx)); err != nil {
+			if _, err := tx.Exec(ctx, `INSERT INTO categories(id, parent_id, path, position, slug, titles, descriptions, tags, created_by, original_lang, text_rev, translation_revs)
+				VALUES ($1,$2,$3::ltree,$4,$5,$6,$7,$8,$9,$10,$11,$12)`, nid, parent, path, pos, c.Slug, titles, c.Descriptions, c.Tags, nullID(ctx),
+				c.OriginalLang, c.TextRev, c.TranslationRevs); err != nil {
 				return err
 			}
 			if _, err := tx.Exec(ctx, `INSERT INTO acl_rules(category_id, subject_type, subject_id, permissions, inherit, created_by)

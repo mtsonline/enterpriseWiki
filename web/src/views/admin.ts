@@ -9,7 +9,7 @@ import { api, qs } from '../core/api';
 import { fmtDate, h, mount } from '../core/dom';
 import { t } from '../core/i18n';
 import { navigate, type RouteCtx } from '../core/router';
-import { hasPerm, isAdmin, state } from '../core/state';
+import { canTranslateAny, hasPerm, isAdmin, state } from '../core/state';
 import { globalEditor, loadCatalog, permLabel } from '../components/permissions';
 import { permissionsAdmin } from './adminPermissions';
 import { auditAdmin } from './adminAudit';
@@ -21,6 +21,7 @@ import { previewImageInput } from '../components/previewimage';
 import { listAdminPages, listTemplates, templateLabel } from '../sdk';
 import { errorPage } from './content';
 import { watchesAdmin } from './adminWatches';
+import { languagesAdmin } from './adminLanguages';
 
 interface User { id: number; username: string; provider: string; handle: string; display_name: string; email: string; language: string; disabled: boolean; locked_until: string | null; created_at: string; last_login_at: string | null; groups: number[]; roles: number[]; totp_enabled: boolean }
 
@@ -38,6 +39,7 @@ const SECTION_PERMS: Record<string, string> = {
 export function adminSections(): { id: string; label: string }[] {
   const core = CORE_SECTIONS.filter((s) => {
     const k = SECTION_PERMS[s];
+    if (s === 'languages') return canTranslateAny();
     return k === '' ? !!state.user && (isAdmin() || hasPerm('core.categories.admin') || state.managesCategories) : hasPerm(k);
   }).map((s) => ({ id: s, label: t(`admin.${s}`) }));
   const plugin = listAdminPages().filter((p) => (p.permission ? hasPerm(p.permission) : isAdmin())).map((p) => ({ id: p.id, label: p.label() }));
@@ -86,7 +88,7 @@ export async function adminView({ params, query, main }: RouteCtx): Promise<void
       case 'elements': await elementsAdmin(panel); break;
       case 'webhooks': await webhooksAdmin(panel); break;
       case 'cache': await cacheAdmin(panel); break;
-      case 'languages': await languages(panel, query); break;
+      case 'languages': await languagesAdmin(panel, query); break;
       case 'audit': await auditAdmin(panel, query); break;
       case 'watches': await watchesAdmin(panel); break;
       case 'license': await licenseAdmin(panel); break;
@@ -677,55 +679,6 @@ async function mailAdmin(panel: HTMLElement, query: URLSearchParams): Promise<vo
 }
 
 // ---------------------------------------------------------------- languages
-
-interface LangStatus { lang: string; total: number; translated: number; percent: number; default: boolean }
-interface UIString { key: string; source: string; reference: string; value: string; origin: string }
-
-async function languages(panel: HTMLElement, query: URLSearchParams): Promise<void> {
-  const edit = query.get('edit');
-  if (edit) return translationEditor(panel, edit, query.get('filter') ?? 'missing');
-  const st = await api.get<LangStatus[]>('i18n/status');
-  const code = textInput({ placeholder: 'fr', maxlength: 8 });
-  const add = h('form', { class: 'ew-inline-form', novalidate: true }, field(t('languages.code'), code, { inline: true, help: t('languages.code_help') }), button(t('languages.add'), () => undefined, { type: 'submit', variant: 'primary' }));
-  add.addEventListener('submit', async (ev) => {
-    ev.preventDefault();
-    try { await api.post('admin/languages', { code: code.value.trim() }); toast(t('languages.added')); setTimeout(() => location.reload(), 600); } catch (e) { toast(errorText(e), 'error'); }
-  });
-  mount(panel, pageHeader(t('admin.languages')), h('p', null, t('languages.help')),
-    table(t('admin.languages'), [t('common.language'), t('languages.progress'), t('common.actions')],
-      st.map((l) => h('tr', null,
-        h('th', { scope: 'row' }, langName(l.lang), ' ', h('code', null, l.lang), l.default ? h('span', { class: 'ew-badge ew-badge--info' }, ` ${t('languages.default')}`) : null),
-        h('td', null, h('progress', { max: '100', value: String(l.percent), 'aria-label': t('languages.progress_of', { lang: langName(l.lang) }) }), ` ${t('languages.percent', { percent: l.percent, translated: l.translated, total: l.total })}`),
-        h('td', { class: 'ew-actions' },
-          h('a', { href: `/admin/languages?edit=${l.lang}` }, t('languages.translate'), h('span', { class: 'sr-only' }, ` ${langName(l.lang)}`)),
-          l.default ? null : button(t('common.remove'), async () => {
-            if (!(await confirmDialog(t('languages.remove_confirm', { lang: langName(l.lang) }), t('common.remove'), true))) return;
-            try { await api.del(`admin/languages/${l.lang}`); setTimeout(() => location.reload(), 300); } catch (e) { toast(errorText(e), 'error'); }
-          }, { variant: 'link', ariaLabel: `${t('common.remove')} ${langName(l.lang)}` })))), '–'),
-    h('h2', null, t('languages.add_title')), add);
-}
-
-async function translationEditor(panel: HTMLElement, lang: string, filter: string): Promise<void> {
-  const strings = await api.get<UIString[]>(`admin/i18n/${encodeURIComponent(lang)}`);
-  const shown = strings.filter((s) => filter === 'all' || (filter === 'missing' ? s.origin === 'missing' : s.origin === 'custom'));
-  const changedVals = new Map<string, string>();
-  const filterSel = select(['missing', 'custom', 'all'].map((f) => ({ value: f, label: t(`languages.filter.${f}`) })), filter);
-  filterSel.addEventListener('change', () => navigate(`/admin/languages${qs({ edit: lang, filter: filterSel.value })}`, { replace: true }));
-  const rows = shown.slice(0, 500).map((s) => {
-    const inp = textInput({ value: s.origin === 'custom' || s.origin === 'file' ? s.value : '', lang });
-    inp.setAttribute('aria-label', `${t('languages.translation_of')} ${s.reference}`);
-    inp.addEventListener('input', () => changedVals.set(s.key, inp.value));
-    return h('tr', null, h('td', null, h('code', null, s.key), h('br'), h('span', { class: 'ew-help' }, s.source)), h('td', { lang: 'en' }, s.reference), h('td', null, inp));
-  });
-  const save = button(t('common.save'), async () => {
-    if (!changedVals.size) return;
-    try { await api.put(`admin/i18n/${encodeURIComponent(lang)}`, Object.fromEntries(changedVals)); toast(t('common.saved')); reload(); } catch (e) { toast(errorText(e), 'error'); }
-  }, { variant: 'primary' });
-  mount(panel, pageHeader(t('languages.editor_title', { lang: langName(lang) }), save),
-    h('p', null, h('a', { href: '/admin/languages' }, t('languages.back'))), field(t('languages.filter'), filterSel, { inline: true }),
-    table(t('languages.editor_title', { lang: langName(lang) }), [t('languages.key'), t('languages.reference'), t('languages.translation')], rows, t('languages.nothing')),
-    shown.length > 500 ? h('p', null, t('languages.truncated')) : null);
-}
 
 // ---------------------------------------------------------------- audit
 

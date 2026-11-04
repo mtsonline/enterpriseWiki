@@ -17,9 +17,31 @@ export function uiLang(): string {
   return current;
 }
 
-/** Translates key, replacing {name} placeholders. Missing keys show the key. */
+const rules = new Map<string, Intl.PluralRules>();
+
+/** The plural form (CLDR category) of n in the UI language. */
+export function pluralForm(n: number, lang = current): string {
+  let r = rules.get(lang);
+  if (!r) {
+    try { r = new Intl.PluralRules(lang); } catch { r = new Intl.PluralRules('en'); }
+    rules.set(lang, r);
+  }
+  return r.select(n);
+}
+
+/**
+ * Translates key, replacing {name} placeholders. Plural texts have one key
+ * per form (key_one, key_other, key_few …); the parameter count (or n)
+ * selects the form. Missing keys show the key.
+ */
 export function t(key: string, params?: Record<string, string | number>): string {
-  let s = messages[key] ?? key;
+  let s = messages[key];
+  const n = params?.count ?? params?.n;
+  if (messages[`${key}_other`] !== undefined) {
+    const num = typeof n === 'number' ? n : Number(n);
+    s = n !== undefined && !Number.isNaN(num) ? (messages[`${key}_${pluralForm(num)}`] ?? messages[`${key}_other`]) : (s ?? messages[`${key}_other`]);
+  }
+  s ??= key;
   if (params) for (const [k, v] of Object.entries(params)) s = s.split(`{${k}}`).join(String(v));
   return s;
 }

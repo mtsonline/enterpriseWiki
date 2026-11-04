@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
+	"maps"
 	"net/http"
 	"net/url"
 	"reflect"
@@ -21,6 +23,7 @@ import (
 	"github.com/mtsonline/enterprisewiki/internal/config"
 	"github.com/mtsonline/enterprisewiki/internal/content"
 	h "github.com/mtsonline/enterprisewiki/internal/httpx"
+	"github.com/mtsonline/enterprisewiki/internal/i18n"
 	"github.com/mtsonline/enterprisewiki/internal/identity"
 	"github.com/mtsonline/enterprisewiki/internal/perm"
 	"github.com/mtsonline/enterprisewiki/internal/pluginmgr"
@@ -40,7 +43,7 @@ var adminPerms = []struct{ prefix, perm string }{
 	{"/api/v1/admin/roles", "core.roles.manage"},
 	{"/api/v1/admin/permissions", "core.roles.manage"},
 	{"/api/v1/admin/settings", "core.settings.manage"},
-	{"/api/v1/admin/languages", "core.settings.manage"},
+	{"/api/v1/admin/languages", "core.i18n.manage"},
 	{"/api/v1/admin/retention", "core.settings.manage"},
 	{"/api/v1/admin/audit/settings", "core.audit.manage"},
 	{"/api/v1/admin/audit/forward", "core.audit.manage"},
@@ -55,7 +58,7 @@ var adminPerms = []struct{ prefix, perm string }{
 	{"/api/v1/admin/license", "core.license.manage"},
 	{"/api/v1/admin/cache", "core.system.manage"},
 	{"/api/v1/admin/database", "core.system.manage"},
-	{"/api/v1/admin/i18n", "core.i18n.manage"},
+	// /api/v1/admin/i18n: checked per language by the i18n service (core.i18n.manage or core.i18n.translate.<lang>)
 	{"/api/v1/prerender", "core.settings.manage"},
 }
 
@@ -427,6 +430,18 @@ func (s *Server) routes() {
 		}
 		return s.app.Content.UpdateCategory(r.Context(), id, in)
 	})
+	// PUT {"title": "…", "description": "…"} translates the category into lang; {"confirm": true} marks an outdated translation as current
+	s.handle("PUT /api/v1/categories/{id}/translations/{lang}", func(w http.ResponseWriter, r *http.Request) (any, error) {
+		id, err := h.PathID(r, "id")
+		if err != nil {
+			return nil, err
+		}
+		var in content.CatTranslationInput
+		if err := h.Decode(r, &in); err != nil {
+			return nil, err
+		}
+		return s.app.Content.TranslateCategory(r.Context(), id, r.PathValue("lang"), in)
+	})
 	s.handle("DELETE /api/v1/categories/{id}", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		id, err := h.PathID(r, "id")
 		if err != nil {
@@ -689,12 +704,44 @@ func (s *Server) routes() {
 	s.handle("GET /api/v1/admin/i18n/{lang}", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		return s.app.I18n.Strings(r.Context(), r.PathValue("lang"))
 	})
+	// PUT {"key": "text", "plural.key_few": "…"}: translations; "" removes a custom text
 	s.handle("PUT /api/v1/admin/i18n/{lang}", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		var in map[string]string
 		if err := h.Decode(r, &in); err != nil {
 			return nil, err
 		}
-		return h.NoContent{}, s.app.I18n.SetStrings(r.Context(), r.PathValue("lang"), in)
+		lang := r.PathValue("lang")
+		res, err := s.app.I18n.SetStrings(r.Context(), lang, in)
+		if err == nil && res.Written+res.Removed > 0 {
+			_ = audit.Log(r.Context(), s.app.DB, "i18n.translate", "language", 0, nil, map[string]any{"lang": lang, "keys": slices.Sorted(maps.Keys(in)), "written": res.Written, "removed": res.Removed})
+		}
+		return res, err
+	})
+	// GET …/export?format=json|xliff|po&source=core&filter=all|missing|custom
+	h.RecordRoute("GET /api/v1/admin/i18n/{lang}/export")
+	s.app.Mux.HandleFunc("GET /api/v1/admin/i18n/{lang}/export", func(w http.ResponseWriter, r *http.Request) {
+		q := r.URL.Query()
+		data, ctype, name, err := s.app.I18n.Export(r.Context(), r.PathValue("lang"), i18n.ExportOptions{Format: q.Get("format"), Source: q.Get("source"), Filter: q.Get("filter")})
+		if err != nil {
+			h.WriteError(w, r, err)
+			return
+		}
+		w.Header().Set("Content-Type", ctype)
+		w.Header().Set("Content-Disposition", `attachment; filename="`+name+`"`)
+		_, _ = w.Write(data)
+	})
+	// POST …/import?format=json|xliff|po (body: the file; format detected when omitted)
+	s.handle("POST /api/v1/admin/i18n/{lang}/import", func(w http.ResponseWriter, r *http.Request) (any, error) {
+		data, err := io.ReadAll(http.MaxBytesReader(w, r.Body, 20<<20))
+		if err != nil {
+			return nil, apperr.BadRequest("file too large (max. 20 MB)")
+		}
+		lang := r.PathValue("lang")
+		res, err := s.app.I18n.Import(r.Context(), lang, r.URL.Query().Get("format"), data)
+		if err == nil {
+			_ = audit.Log(r.Context(), s.app.DB, "i18n.import", "language", 0, nil, map[string]any{"lang": lang, "written": res.Written, "unchanged": res.Unchanged, "unknown": len(res.Unknown)})
+		}
+		return res, err
 	})
 	s.handle("POST /api/v1/admin/languages", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		if err := requireAdmin(r); err != nil {

@@ -54,6 +54,11 @@ export interface Category {
   has_children: boolean;
   element_count: number;
   permissions: string[] | null;
+  original_lang: string;
+  text_rev: number;
+  translations: { lang: string; status: 'original' | 'current' | 'outdated' | 'missing'; based_on?: number }[];
+  translated_percent: number;
+  translations_up_to_date: boolean;
 }
 
 export interface ElementSummary {

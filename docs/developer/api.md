@@ -128,6 +128,7 @@ curl -H "Authorization: Bearer $KEY" -H 'Content-Type: application/json' \
 | `POST` | `/api/v1/categories` |
 | `GET` | `/api/v1/categories/{id}` |
 | `PUT` | `/api/v1/categories/{id}` |
+| `PUT` | `/api/v1/categories/{id}/translations/{lang}` |
 | `DELETE` | `/api/v1/categories/{id}` |
 | `POST` | `/api/v1/categories/{id}/move` |
 | `POST` | `/api/v1/categories/{id}/duplicate` |
@@ -188,6 +189,8 @@ curl -H "Authorization: Bearer $KEY" -H 'Content-Type: application/json' \
 | `GET` | `/api/v1/i18n/{lang}` |
 | `GET` | `/api/v1/admin/i18n/{lang}` |
 | `PUT` | `/api/v1/admin/i18n/{lang}` |
+| `GET` | `/api/v1/admin/i18n/{lang}/export` |
+| `POST` | `/api/v1/admin/i18n/{lang}/import` |
 | `POST` | `/api/v1/admin/languages` |
 | `DELETE` | `/api/v1/admin/languages/{code}` |
 

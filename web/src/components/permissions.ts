@@ -5,6 +5,8 @@ import { api } from '../core/api';
 import { h, uid } from '../core/dom';
 import { t } from '../core/i18n';
 import { PERMS } from '../core/types';
+import { state, translatePerm } from '../core/state';
+import { langName } from './widgets';
 import { checkbox, field, select } from './ui';
 
 export interface PermDef { key: string; scope: 'global' | 'category'; label: string; description?: string; presets?: string[]; group: string; implies?: string[] }
@@ -22,12 +24,17 @@ export function loadCatalog(): Promise<Catalog> {
 
 /** permLabel is the translated label of a declared permission (English label as fallback). */
 export function permLabel(d: PermDef): string {
+  // one permission per configured language (core.i18n.translate.<lang>)
+  const lang = state.site.languages.find((l) => translatePerm(l) === d.key);
+  if (lang) return t('perm.core.i18n.translate', { lang: langName(lang) });
   const k = `perm.${d.key}`;
   const v = t(k);
   return v === k ? d.label : v;
 }
 
 function permHelp(d: PermDef): string | undefined {
+  const lang = state.site.languages.find((l) => translatePerm(l) === d.key);
+  if (lang) return t('perm.core.i18n.translate_help', { lang: langName(lang) });
   const k = `perm.${d.key}_help`;
   const v = t(k);
   return v === k ? d.description : v;

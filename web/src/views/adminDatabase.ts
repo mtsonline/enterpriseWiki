@@ -11,7 +11,7 @@ const params = (st: DatabaseStatus) => ({ version: st.version, major: st.major, 
 function howto(st: DatabaseStatus): HTMLElement {
   return h('span', null, ' ', st.docker
     ? [t('pgversion.howto_docker'), ' ', h('code', null, './docker-postgres-upgrade.sh')]
-    : t('pgversion.howto_other'));
+    : t('pgversion.howto_manual'));
 }
 
 /** Notice for administration pages (null when nothing needs attention). */

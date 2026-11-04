@@ -43,7 +43,7 @@ Für die beste PDF-Texterkennung installieren Sie `pdftotext` (Paket `poppler-ut
 | `languages` | aktive Sprachen (Codes wie `de`, `en`, `pt-BR`). Gilt für Oberfläche und Inhalte |
 | `default_language` | Standardsprache, muss in `languages` enthalten sein |
 
-Sprachen werden in der Oberfläche unter *Administration → Sprachen & Übersetzungen* hinzugefügt oder entfernt.
+Sprachen werden in der Oberfläche unter *Administration → Sprachen* hinzugefügt oder entfernt (Recht *Sprachen verwalten und Oberfläche übersetzen*) oder mit `ewiki i18n add|remove CODE`. Für jede konfigurierte Sprache gibt es automatisch das Recht *Oberfläche übersetzen: <Sprache>* (`core.i18n.translate.<code>`, z. B. `core.i18n.translate.pt_br`), das Sie Rollen zuweisen, siehe [Übersetzungen der Oberfläche](security.md#übersetzungen-der-oberfläche).
 
 ### `ui`
 | Schlüssel | Bedeutung | Standard |

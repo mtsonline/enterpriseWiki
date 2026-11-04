@@ -736,6 +736,48 @@ test('guest cache administration', async () => {
   await a11y('cache administration');
 });
 
+test('translate the interface: plural forms, filters, import and export', async () => {
+  await page.goto(`${BASE}/admin/languages?edit=de&filter=all&q=inbox.new`);
+  await idle();
+  await page.locator('.ew-tr-table tbody tr').first().waitFor();
+  await a11y('translation editor');
+  const one = page.locator('.ew-tr-table input').first();
+  await one.fill(`{n} neue Nachricht ${run}`);
+  await page.getByRole('button', { name: /^(save|speichern)$/i }).first().click();
+  await idle();
+  await page.goto(`${BASE}/admin/languages?edit=de&filter=custom`);
+  await idle();
+  assert.equal(await page.locator('.ew-tr-table input').first().inputValue(), `{n} neue Nachricht ${run}`);
+  // import and export
+  await page.locator('details.ew-panel summary').click();
+  const href = await page.getByRole('link', { name: /^(export|exportieren)$/i }).getAttribute('href');
+  assert.match(href, /\/api\/v1\/admin\/i18n\/de\/export\?format=xliff/);
+  await a11y('translation import and export');
+  const msgs = await call('GET', '/api/v1/i18n/de');
+  assert.equal(msgs['inbox.new_one'], `{n} neue Nachricht ${run}`);
+  await call('PUT', '/api/v1/admin/i18n/de', { 'inbox.new_one': '' });
+});
+
+test('translate a category', async () => {
+  const cat = await m6Category();
+  await page.goto(`${BASE}/c/${cat}`);
+  await idle();
+  const edit = page.locator('.ew-pos--header-tools button[aria-pressed]');
+  if ((await edit.getAttribute('aria-pressed')) !== 'true') { await edit.click(); await idle(); }
+  await page.getByRole('button', { name: /^(translations|übersetzungen)/i }).click();
+  const dlg = page.locator('dialog[open]');
+  await dlg.locator('table').waitFor();
+  await a11y('category translations');
+  await dlg.getByRole('button', { name: /^(translate|übersetzen):/i }).first().click();
+  const tr = page.locator('dialog[open]');
+  await tr.getByLabel(/^(title|titel)/i).fill(`M6 übersetzt ${run}`);
+  await a11y('translate category dialog');
+  await tr.locator('button[type=submit]').click();
+  await idle();
+  const c = await call('GET', `/api/v1/categories/${cat}`);
+  assert.ok(c.category.translations.every((x) => x.status === 'original' || x.status === 'current'), JSON.stringify(c.category.translations));
+});
+
 test('switch language', async () => {
   await page.goto(BASE + '/');
   await idle();
