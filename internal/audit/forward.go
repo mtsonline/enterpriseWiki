@@ -266,7 +266,9 @@ func (f *Forwarder) post(ctx context.Context, d config.AuditForward, body []byte
 
 // otlp encodes a batch as OpenTelemetry logs (OTLP/HTTP JSON).
 func (f *Forwarder) otlp(batch []Entry) []byte {
-	str := func(k, v string) map[string]any { return map[string]any{"key": k, "value": map[string]any{"stringValue": v}} }
+	str := func(k, v string) map[string]any {
+		return map[string]any{"key": k, "value": map[string]any{"stringValue": v}}
+	}
 	recs := make([]map[string]any, len(batch))
 	for i, e := range batch {
 		attrs := []map[string]any{str("ewiki.action", e.Action), str("ewiki.area", Area(e.Action)), str("enduser.id", e.Actor),
