@@ -170,7 +170,7 @@ func (s *Service) Delete(ctx context.Context, id int64) error {
 
 // onChange records a change for all watchers (except the person who made it).
 func (s *Service) onChange(ctx context.Context, event, etype string, id int64) {
-	if !s.mail.Enabled() {
+	if !s.mail.Enabled() || content.IsSilent(ctx) {
 		return
 	}
 	ctx = context.WithoutCancel(ctx)

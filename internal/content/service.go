@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"regexp"
 	"strings"
+	"sync"
 	"unicode/utf8"
 
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -34,6 +35,9 @@ type Service struct {
 	backend backendRegistry
 	enabled func(pluginID string) bool
 	hooks   []Hook
+
+	mu             sync.Mutex
+	publishOptions map[string]publishOption
 }
 
 // New creates the content service.

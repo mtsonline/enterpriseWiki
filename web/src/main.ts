@@ -11,7 +11,7 @@ import { pluginModules } from './generated/plugins';
 import { positionContainer, refreshPositions, registerSlot, registerTemplate, resolveTemplate } from './sdk';
 import { adminView } from './views/admin';
 import { categorySettingsView } from './views/categorySettings';
-import { categoryView, editElementView, elementView, historyView, homeView, newElementView } from './views/content';
+import { categoryView, editElementView, elementView, draftEditView, historyView, homeView, newElementView } from './views/content';
 import { loginView, notFoundView, profileView, searchView, trashView } from './views/misc';
 
 function pickLanguage(site: Site, user: Principal | null): string {
@@ -27,6 +27,7 @@ function registerCore(): void {
   route('/e/:id', elementView);
   route('/e/:id/edit', editElementView);
   route('/e/:id/history', historyView);
+  route('/d/:id/edit', draftEditView);
   route('/search', searchView);
   route('/login', loginView);
   route('/profile', profileView);

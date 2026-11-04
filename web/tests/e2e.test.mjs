@@ -101,7 +101,7 @@ test('create, edit, translate and search a page', async () => {
   await page.getByRole('button', { name: /^bold$|^fett$/i }).click();
   await page.keyboard.type(' bold');
   await a11y('page editor');
-  await page.getByRole('button', { name: /^(create|erstellen)$/i }).click();
+  await page.getByRole('button', { name: /^(publish|veröffentlichen)$/i }).click();
   await page.waitForURL(/\/e\/\d+$/);
   await idle();
   assert.match(await page.locator('.ew-content').innerText(), new RegExp(`quokka${run}`));
@@ -113,7 +113,7 @@ test('create, edit, translate and search a page', async () => {
   await idle();
   await page.getByLabel(/^(title|titel)/i).fill(`Seite ${run}`);
   await page.locator('.ewh-editable').fill(`Hallo quokka${run} Welt`);
-  await page.getByRole('button', { name: /^(save|speichern)$/i }).click();
+  await page.getByRole('button', { name: /^(publish|veröffentlichen)$/i }).click();
   await page.waitForURL(/\/e\/\d+$/);
   await idle();
   // search
@@ -163,7 +163,7 @@ test('upload a PDF as file element and find its text', async () => {
   await page.locator('.ewa-editor input[type=file]').setInputFiles({ name: 'report.pdf', mimeType: 'application/pdf', buffer: Buffer.from(pdf) });
   await page.waitForFunction(() => /report\.pdf/.test(document.querySelector('.ewa-status')?.textContent ?? ''));
   await a11y('file editor');
-  await page.getByRole('button', { name: /^(create|erstellen)$/i }).click();
+  await page.getByRole('button', { name: /^(publish|veröffentlichen)$/i }).click();
   await page.waitForURL(/\/e\/\d+$/);
   await idle();
   assert.ok(await page.locator('iframe.ew-attachment-pdf').count() > 0, 'pdf preview shown');
@@ -226,7 +226,7 @@ test('insert macros with the macro dialog', async () => {
   await page.locator('dialog[open] select').first().selectOption('toc');
   await page.locator('dialog[open] button[type=submit]').click();
   await page.waitForSelector('.ewh-editable [data-macro="toc"]');
-  await page.getByRole('button', { name: /^(create|erstellen)$/i }).click();
+  await page.getByRole('button', { name: /^(publish|veröffentlichen)$/i }).click();
   await page.waitForURL(/\/e\/\d+$/);
   await idle();
   assert.ok(await page.locator('.ew-content .ew-macro-panel--warning').count() === 1, 'panel rendered');
@@ -251,11 +251,17 @@ test('workflow: HR application from template, start and handle a case', async ()
   await page.waitForSelector('.ewf-step-row--condition');
   await a11y('workflow editor with approval and condition steps');
   await page.locator('.ewf-step-row').last().getByRole('button', { name: /^(delete|löschen)/i }).last().click();
-  await page.getByRole('button', { name: /^(create|erstellen)$/i }).click();
+  await page.getByRole('button', { name: /^(publish|veröffentlichen)$/i }).click();
   await page.waitForURL(/\/e\/\d+$/);
   await idle();
   await page.waitForSelector('.ewf-cases');
   await a11y('workflow page');
+  // only the assignees of a step carry it out: make the test user a member of the group hr
+  const me = await call('GET', '/api/v1/auth/me');
+  const groups = await call('GET', '/api/v1/groups');
+  let hr = groups.find((g) => g.name === 'hr');
+  if (!hr) hr = { id: (await call('POST', '/api/v1/admin/groups', { name: 'hr' })).id };
+  if (!me.user.groups.includes(hr.id)) await call('PUT', `/api/v1/admin/users/${me.user.id}`, { groups: [...me.user.groups, hr.id] });
   await page.getByRole('button', { name: /start new case|neuen vorgang starten/i }).click();
   const form = page.locator('dialog[open]');
   await form.waitFor();
@@ -278,6 +284,49 @@ test('workflow: HR application from template, start and handle a case', async ()
   await idle();
   await page.waitForSelector('main h1');
   await a11y('my tasks');
+});
+
+test('drafts, preview, templates and publishing with options', async () => {
+  const cat = await m6Category();
+  await page.goto(`${BASE}/c/${cat}/new`);
+  await idle();
+  await page.getByLabel(/^(title|titel)/i).fill(`Draft ${run}`);
+  await page.locator('.ewh-editable').click();
+  await page.keyboard.type(`Draft text wombat${run}`);
+  // preview without saving
+  await page.getByRole('button', { name: /^(preview|vorschau)$/i }).click();
+  await page.locator('dialog[open]').getByText(`wombat${run}`).waitFor();
+  await a11y('preview dialog');
+  await page.locator('dialog[open]').getByRole('button', { name: /close|schließen/i }).click();
+  // save as draft: listed in the category, not published
+  await page.getByRole('button', { name: /^(save as draft|als entwurf speichern)$/i }).click();
+  await page.waitForURL(/\/d\/\d+\/edit$/);
+  await page.goto(`${BASE}/c/${cat}`);
+  await idle();
+  await page.locator('.ew-drafts a', { hasText: `Draft ${run}` }).click();
+  await page.waitForURL(/\/d\/\d+\/edit$/);
+  await idle();
+  // save as template
+  await page.getByRole('button', { name: /^(save as template|als vorlage speichern)$/i }).click();
+  await page.locator('dialog[open]').getByLabel(/^(name)/i).fill(`Template ${run}`);
+  await page.locator('dialog[open] button[type=submit]').click();
+  await page.locator('dialog[open]').waitFor({ state: 'detached' });
+  // publish with options
+  await page.getByRole('button', { name: /publish with options|veröffentlichen mit optionen/i }).click();
+  const dlg = page.locator('dialog[open]');
+  await dlg.getByLabel(/notify watchers|beobachter benachrichtigen/i).waitFor();
+  await a11y('publish dialog');
+  await dlg.locator('button[type=submit]').click();
+  await page.waitForURL(/\/e\/\d+$/);
+  await idle();
+  assert.match(await page.locator('main').innerText(), new RegExp(`wombat${run}`));
+  // the template is offered for new pages
+  await page.goto(`${BASE}/c/${cat}/new`);
+  await idle();
+  const tpl = page.getByLabel(/^(template|vorlage)$/i);
+  await tpl.waitFor();
+  await tpl.selectOption({ label: `Template ${run}` });
+  await page.waitForFunction((n) => document.querySelector('.ewh-editable')?.textContent?.includes(n), `wombat${run}`);
 });
 
 test('comments on a page', async () => {

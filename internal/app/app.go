@@ -175,6 +175,11 @@ func New(ctx context.Context, o Options) (*App, error) {
 	})
 	a.AuditForward = &audit.Forwarder{Pool: pool, Cfg: cfg, DataDir: filepath.Dir(cfg.Path()), Site: func() string { return cfg.Get().UI.SiteName }}
 	a.Workers.Register(worker.Job{Name: "audit.forward", Interval: 15 * time.Second, Active: func() bool { return len(cfg.Get().Audit.Forward) > 0 }, Run: a.AuditForward.Run})
+	// scheduled publication of drafts (with the permissions of who scheduled it)
+	a.Workers.Register(worker.Job{Name: "drafts.publish", Interval: time.Minute, Run: func(ctx context.Context) error {
+		_, err := a.Content.PublishDue(ctx, a.Auth.LoadPrincipal)
+		return err
+	}})
 	a.Auth.SetEnabledFunc(a.Kernel.Enabled)
 	a.Content.SetEnabledFunc(a.Kernel.Enabled)
 	if err := a.I18n.Register("core", i18n.CoreLocales()); err != nil {

@@ -330,3 +330,23 @@ export interface MacroInfo {
   params: MacroParam[] | null;
   has_body: boolean;
 }
+
+// ---------------------------------------------------------------- publish options
+
+/** PublishOption adds a choice to the publish dialog (e.g. "show as news").
+ * render returns null when the option does not apply; the value is sent to
+ * the server as options[id] and applied by the plugin's content.PublishOption. */
+export interface PublishOption {
+  id: string;
+  render: (ctx: { categoryId: number; type: string; elementId: number | null; lang: string }) => Promise<{ el: HTMLElement; value: () => unknown } | null>;
+}
+
+const publishOptions: PublishOption[] = [];
+
+export function registerPublishOption(o: PublishOption): void {
+  publishOptions.push(o);
+}
+
+export function listPublishOptions(): PublishOption[] {
+  return publishOptions;
+}

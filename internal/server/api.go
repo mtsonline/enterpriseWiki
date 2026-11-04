@@ -105,6 +105,7 @@ func (s *Server) routes() {
 	s.routesM9()
 	s.routesM15()
 	s.routesAudit()
+	s.routesDrafts()
 	// ---------------------------------------------------------------- system
 	s.app.Mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, r *http.Request) { h.Write(w, 200, map[string]string{"status": "ok"}) })
 	s.handle("GET /readyz", func(w http.ResponseWriter, r *http.Request) (any, error) {

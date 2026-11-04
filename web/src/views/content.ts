@@ -13,6 +13,7 @@ import { shortURLInput } from '../components/shorturl';
 import { imagesOf, previewImageInput } from '../components/previewimage';
 import { feedButton } from '../components/feeds';
 import { getEditor, renderElementExtensions, typeLabel, type EditorInstance } from '../sdk';
+import { draftNotice, publishDialog, publishVia, saveDraft, saveTemplateDialog, showPreview, templatePicker, type Draft, type EditorState } from '../components/publishing';
 
 const L = () => state.lang;
 const D = () => state.site.default_language;
@@ -167,6 +168,19 @@ export async function categoryView({ params, main }: RouteCtx): Promise<void> {
     view.append(h('p', { class: 'ew-muted' }, can('create') ? t('category.empty_editor') : t('category.empty')));
   }
   mount(main, view);
+  // drafts of new elements and unpublished changes (editors)
+  if (state.user && (can('create') || can('edit'))) {
+    void api.get<Draft[]>(`drafts${qs({ category: c.id })}`).then((ds) => {
+      if (!ds.length) return;
+      view.append(h('section', { class: 'ew-section ew-drafts', 'aria-labelledby': 'ew-drafts-title' },
+        h('h2', { id: 'ew-drafts-title' }, t('draft.list_title')),
+        h('ul', { class: 'ew-plain-list' }, ...ds.map((d) => h('li', null,
+          h('a', { href: d.element_id ? `/e/${d.element_id}/edit${qs({ lang: d.lang })}` : `/d/${d.id}/edit` }, d.title || t('element.untitled')),
+          ' ', h('span', { class: 'ew-badge' }, d.element_id ? t('draft.changes') : t('draft.new')),
+          d.publish_at ? h('span', { class: 'ew-badge ew-badge--info' }, ' ', t('draft.scheduled_for', { date: fmtDate(d.publish_at, state.lang) })) : null,
+          h('span', { class: 'ew-meta' }, ' ', t('draft.updated', { user: d.updated_by || d.created_by || '–', date: fmtDate(d.updated_at, state.lang) })))))));
+    }).catch(() => undefined);
+  }
 }
 
 /** Up/down buttons that change the order of sibling categories. */
@@ -191,7 +205,7 @@ export function reorderButtons(parent: number, siblings: Category[], i: number):
 
 export function newCategoryDialog(parent: number): void {
   void (async () => {
-    const parentSel = await categoryPicker('create', parent, { allowRoot: true });
+    const parentSel = await categoryPicker('manage', parent, { allowRoot: true });
     const titles = langFields(t('common.title'), {}, { required: true });
     const descs = langFields(t('common.description'), {}, { multiline: true });
     const tags = textInput({ name: 'tags' });
@@ -409,6 +423,17 @@ function mountEditor(container: HTMLElement, type: string, body: unknown, lang: 
   return f ? f(container, body, { lang, type, labelId, elementId }) : jsonEditor(container, body, labelId);
 }
 
+/** editorActions are the buttons of the element editors. */
+function editorActions(opts: { cancelHref: string; publishLabel: string; onDraft: () => void; onPreview: () => void; onTemplate: () => void; onOptions: () => void }): HTMLElement {
+  return h('div', { class: 'ew-form-actions' },
+    button(opts.publishLabel, () => undefined, { type: 'submit', variant: 'primary' }),
+    button(t('publish.with_options'), opts.onOptions, { variant: 'secondary' }),
+    button(t('draft.save'), opts.onDraft, { variant: 'secondary' }),
+    button(t('draft.preview'), opts.onPreview, { variant: 'secondary' }),
+    button(t('template.save'), opts.onTemplate, { variant: 'secondary' }),
+    h('a', { href: opts.cancelHref, class: 'ew-btn ew-btn--subtle' }, t('common.cancel')));
+}
+
 export async function editElementView({ params, query, main }: RouteCtx): Promise<void> {
   const id = Number(params.id);
   const lang = query.get('lang') || L();
@@ -431,49 +456,92 @@ export async function editElementView({ params, query, main }: RouteCtx): Promis
   const labelId = uid('content');
   const editorBox = h('div', { class: 'ew-editor-box', lang });
   const alert = h('div', { class: 'ew-form-alert', role: 'alert' });
+  const notices = h('div');
+  let draftId: number | null = null;
+  let editor: EditorInstance;
+  const current = (): EditorState => ({ type: el.type, lang, title: title.value, body: editor.getBody(), comment: comment.value, baseRev, elementId: id, categoryId: el.category_id });
+  const valid = (): boolean => {
+    alert.textContent = '';
+    const err = editor.validate?.();
+    if (err) { alert.textContent = err; return false; }
+    if (!title.value.trim()) { alert.textContent = t('error.title_required'); title.focus(); return false; }
+    return true;
+  };
+  const run = async (fn: () => Promise<void>) => { try { await fn(); } catch (e) { alert.textContent = errorText(e); alert.focus?.(); } };
   const form = h('form', { class: 'ew-form ew-edit-form', novalidate: true },
     h('div', { class: 'ew-page-header' }, h('h1', null, t(isNewTranslation ? 'element.translate_title' : 'element.edit_title', { title: el.title, lang: langName(lang) }))),
     isNewTranslation ? h('p', { class: 'ew-notice-inline', role: 'note' }, t('element.translation_start', { lang: langName(el.shown_lang) })) : null,
-    alert,
+    notices, alert,
     field(t('common.title'), title, { required: true }),
     h('div', { class: 'ew-field' }, h('span', { class: 'ew-label', id: labelId }, t('core.html.content')), editorBox),
     el.original_lang !== lang ? h('details', { class: 'ew-original' }, h('summary', null, t('element.show_original', { lang: langName(el.original_lang) })), h('div', { 'data-original': '1' }, loading())) : null,
     field(t('element.comment'), comment, { help: t('element.comment_help') }),
-    h('div', { class: 'ew-form-actions' },
-      button(t('common.save'), () => undefined, { type: 'submit', variant: 'primary' }),
-      h('a', { href: `/e/${id}`, class: 'ew-btn ew-btn--secondary' }, t('common.cancel'))));
+    editorActions({
+      cancelHref: `/e/${id}`, publishLabel: t('publish.now_button'),
+      onDraft: () => { if (valid()) void run(async () => { draftId = (await saveDraft(draftId, current())).id; }); },
+      onPreview: () => { if (valid()) void run(() => showPreview(current())); },
+      onTemplate: () => { if (valid()) saveTemplateDialog(current()); },
+      onOptions: () => {
+        if (!valid()) return;
+        void run(async () => {
+          const c = await publishDialog(current(), false);
+          if (!c) return;
+          const res = await publishVia(draftId, current(), c);
+          editor.destroy?.();
+          if (!res.scheduled) toast(t('common.saved'));
+          navigate(`/e/${id}`);
+        });
+      },
+    }));
   mount(main, form);
-  const editor = mountEditor(editorBox, el.type, el.body, lang, labelId, el.id);
+  editor = mountEditor(editorBox, el.type, el.body, lang, labelId, el.id);
+  void draftNotice(id, lang, (d) => {
+    draftId = d.id;
+    title.value = d.title;
+    comment.value = d.comment;
+    editor.destroy?.();
+    editorBox.replaceChildren();
+    editor = mountEditor(editorBox, el.type, d.body, lang, labelId, el.id);
+    toast(t('draft.loaded'));
+  }).then((n) => { if (n) notices.append(n); });
   const orig = form.querySelector<HTMLElement>('[data-original]');
   if (orig) {
     api.get<ElementView>(`elements/${id}${qs({ lang: el.original_lang })}`).then((o) => mount(orig, h('h2', null, o.title), trustedHTML(o.html))).catch(() => mount(orig, ''));
   }
-  form.addEventListener('submit', async (ev) => {
+  form.addEventListener('submit', (ev) => {
     ev.preventDefault();
-    alert.textContent = '';
-    const err = editor.validate?.();
-    if (err) {
-      alert.textContent = err;
-      return;
-    }
-    if (!title.value.trim()) {
-      alert.textContent = t('error.title_required');
-      title.focus();
-      return;
-    }
-    try {
+    if (!valid()) return;
+    void run(async () => {
       await api.put(`elements/${id}`, { lang, title: title.value, body: editor.getBody(), comment: comment.value, base_rev: baseRev });
+      if (draftId) await api.del(`drafts/${draftId}`).catch(() => undefined); // published directly: the draft is obsolete
       editor.destroy?.();
       toast(t('common.saved'));
       navigate(`/e/${id}`);
-    } catch (e) {
-      alert.textContent = errorText(e);
-      alert.focus?.();
-    }
+    });
   });
 }
 
-export async function newElementView({ params, query, main }: RouteCtx): Promise<void> {
+export async function newElementView(rc: RouteCtx): Promise<void> {
+  await newOrDraftView(rc, null);
+}
+
+/** draftEditView edits the draft of a new element (/d/:id/edit). */
+export async function draftEditView(rc: RouteCtx): Promise<void> {
+  let d: Draft;
+  try {
+    d = await api.get<Draft>(`drafts/${rc.params.id}`);
+  } catch (e) {
+    errorPage(rc.main, e);
+    return;
+  }
+  if (d.element_id) {
+    navigate(`/e/${d.element_id}/edit${qs({ lang: d.lang })}`, { replace: true });
+    return;
+  }
+  await newOrDraftView({ ...rc, params: { id: String(d.category_id) } }, d);
+}
+
+async function newOrDraftView({ params, query, main }: RouteCtx, draft: Draft | null): Promise<void> {
   const catId = Number(params.id);
   let cat: CategoryResponse;
   try {
@@ -483,57 +551,105 @@ export async function newElementView({ params, query, main }: RouteCtx): Promise
     return;
   }
   setContext(catId, cat.category.path, cat.category.permissions);
-  if (!can('create')) {
+  if (!can('create') && !draft) {
     errorPage(main, new ApiError(403, 'forbidden', t('error.forbidden')));
     return;
   }
   let types = state.site.element_types;
   try { types = await api.get<typeof types>('element-types'); } catch { /* use site info */ }
-  const typeId = query.get('type') && types.some((x) => x.id === query.get('type')) ? query.get('type')! : (types.find((x) => x.id === 'core.html')?.id ?? types[0]?.id);
+  const typeId = draft?.type ?? (query.get('type') && types.some((x) => x.id === query.get('type')) ? query.get('type')! : (types.find((x) => x.id === 'core.html')?.id ?? types[0]?.id));
   const typeSel = select(types.map((x) => ({ value: x.id, label: typeLabel(x.id) })), typeId);
+  if (draft) typeSel.disabled = true;
   typeSel.addEventListener('change', () => navigate(`/c/${catId}/new${qs({ type: typeSel.value, return: query.get('return') ?? undefined })}`, { replace: true }));
-  const title = textInput({ required: true, maxlength: 250 });
-  const tags = textInput();
+  const lang = draft?.lang ?? L();
+  const title = textInput({ required: true, maxlength: 250, value: draft?.title ?? '' });
+  const tags = textInput({ value: draft?.tags.join(', ') ?? '' });
   const labelId = uid('content');
   const editorBox = h('div', { class: 'ew-editor-box' });
   const alert = h('div', { class: 'ew-form-alert', role: 'alert' });
+  const tplBox = h('div');
+  let draftId: number | null = draft?.id ?? null;
+  let editor: EditorInstance;
+  const ret = query.get('return');
+  const back = ret?.startsWith('/') && !ret.startsWith('//') ? ret : `/c/${catId}`;
+  const current = (): EditorState => ({ type: typeId, lang, title: title.value, body: editor.getBody(), tags: splitTags(tags.value), categoryId: catId });
+  const valid = (): boolean => {
+    alert.textContent = '';
+    if (!title.value.trim()) { alert.textContent = t('error.title_required'); title.focus(); return false; }
+    const err = editor.validate?.();
+    if (err) { alert.textContent = err; return false; }
+    return true;
+  };
+  const run = async (fn: () => Promise<void>) => { try { await fn(); } catch (e) { alert.textContent = errorText(e); } };
+  const finish = (elementId?: number, scheduled?: string) => {
+    editor.destroy?.();
+    invalidateTree();
+    if (scheduled) { navigate(`/c/${catId}`); return; }
+    toast(t('element.created'));
+    navigate(ret && ret.startsWith('/') && !ret.startsWith('//') ? ret : `/e/${elementId}`);
+  };
   const form = h('form', { class: 'ew-form ew-edit-form', novalidate: true },
-    crumbs([...cat.breadcrumbs, cat.category], { title: t('element.new') }),
-    h('div', { class: 'ew-page-header' }, h('h1', null, t('element.new_in', { title: pick(cat.category.titles, L(), D()) }))),
+    crumbs([...cat.breadcrumbs, cat.category], { title: draft ? t('draft.label') : t('element.new') }),
+    h('div', { class: 'ew-page-header' }, h('h1', null, draft ? t('draft.edit_new', { title: draft.title }) : t('element.new_in', { title: pick(cat.category.titles, L(), D()) }))),
+    draft?.publish_at ? h('p', { class: 'ew-notice ew-notice--info' }, t('draft.scheduled_for', { date: fmtDate(draft.publish_at, state.lang) }), ' ',
+      button(t('draft.unschedule'), async () => { await api.del(`drafts/${draft.id}/schedule`); toast(t('draft.unscheduled')); navigate(location.pathname, { replace: true }); }, { variant: 'link' })) : null,
     alert,
     field(t('element.type'), typeSel),
+    tplBox,
     field(t('common.title'), title, { required: true }),
     h('div', { class: 'ew-field' }, h('span', { class: 'ew-label', id: labelId }, t('core.html.content')), editorBox),
     field(t('common.tags'), tags, { help: t('common.tags_help') }),
-    h('div', { class: 'ew-form-actions' },
-      button(t('common.create'), () => undefined, { type: 'submit', variant: 'primary' }),
-      h('a', { href: query.get('return')?.startsWith('/') && !query.get('return')!.startsWith('//') ? query.get('return')! : `/c/${catId}`, class: 'ew-btn ew-btn--secondary' }, t('common.cancel'))));
+    editorActions({
+      cancelHref: back, publishLabel: t('publish.now_button'),
+      onDraft: () => {
+        if (!valid()) return;
+        void run(async () => {
+          const d = await saveDraft(draftId, current());
+          if (!draftId) history.replaceState(null, '', `/d/${d.id}/edit`);
+          draftId = d.id;
+        });
+      },
+      onPreview: () => { if (valid()) void run(() => showPreview(current())); },
+      onTemplate: () => { if (valid()) saveTemplateDialog(current()); },
+      onOptions: () => {
+        if (!valid()) return;
+        void run(async () => {
+          const c = await publishDialog(current(), true);
+          if (!c) return;
+          const res = await publishVia(draftId, current(), c);
+          finish(res.elementId, res.scheduled);
+        });
+      },
+    }),
+    draft ? h('p', null, button(t('draft.discard'), async () => {
+      await api.del(`drafts/${draft.id}`);
+      toast(t('draft.discarded'));
+      navigate(back);
+    }, { variant: 'danger' })) : null);
   mount(main, form);
-  const empty = types.find((x) => x.id === typeId)?.empty_body ?? {};
-  const editor = mountEditor(editorBox, typeId, empty, L(), labelId);
-  form.addEventListener('submit', async (ev) => {
-    ev.preventDefault();
-    alert.textContent = '';
-    if (!title.value.trim()) {
-      alert.textContent = t('error.title_required');
-      title.focus();
-      return;
-    }
-    const err = editor.validate?.();
-    if (err) {
-      alert.textContent = err;
-      return;
-    }
-    try {
-      const el = await api.post<ElementView>('elements', { category_id: catId, type: typeId, lang: L(), title: title.value, body: editor.getBody(), tags: splitTags(tags.value) });
+  const empty = draft?.body ?? types.find((x) => x.id === typeId)?.empty_body ?? {};
+  editor = mountEditor(editorBox, typeId, empty, lang, labelId);
+  if (!draft) {
+    void templatePicker(typeId, (tpl) => {
+      if (!title.value.trim()) title.value = tpl.title;
+      if (!tags.value.trim()) tags.value = tpl.tags.join(', ');
       editor.destroy?.();
-      invalidateTree();
-      toast(t('element.created'));
-      const ret = query.get('return');
-      navigate(ret && ret.startsWith('/') && !ret.startsWith('//') ? ret : `/e/${el.id}`);
-    } catch (e) {
-      alert.textContent = errorText(e);
-    }
+      editorBox.replaceChildren();
+      editor = mountEditor(editorBox, typeId, tpl.body, lang, labelId);
+    }).then((p) => { if (p) tplBox.append(p); });
+  }
+  form.addEventListener('submit', (ev) => {
+    ev.preventDefault();
+    if (!valid()) return;
+    void run(async () => {
+      if (draftId) {
+        const res = await publishVia(draftId, current(), { categoryId: catId, at: null, notify: true, options: {} });
+        finish(res.elementId);
+        return;
+      }
+      const el = await api.post<ElementView>('elements', { category_id: catId, type: typeId, lang, title: title.value, body: editor.getBody(), tags: splitTags(tags.value) });
+      finish(el.id);
+    });
   });
 }
 
