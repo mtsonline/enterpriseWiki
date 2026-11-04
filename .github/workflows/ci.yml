@@ -33,10 +33,10 @@ jobs:
       - name: Go version from go.mod
         id: gover
         run: echo "version=$(sed -n 's/^toolchain go//p' go.mod | grep . || sed -n 's/^go //p' go.mod)" >> "$GITHUB_OUTPUT"
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@v7
         if: ${{ !inputs.latest }}
         with: { go-version: "${{ steps.gover.outputs.version }}" }
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@v7
         if: ${{ inputs.latest }}
         with: { go-version: stable, check-latest: true }
       - name: upgrade all Go modules to the newest versions (canary)
@@ -73,10 +73,10 @@ jobs:
       - name: Go version from go.mod
         id: gover
         run: echo "version=$(sed -n 's/^toolchain go//p' go.mod | grep . || sed -n 's/^go //p' go.mod)" >> "$GITHUB_OUTPUT"
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@v7
         if: ${{ !inputs.latest }}
         with: { go-version: "${{ steps.gover.outputs.version }}" }
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@v7
         if: ${{ inputs.latest }}
         with: { go-version: stable, check-latest: true }
       - name: upgrade all Go modules to the newest versions (canary)
