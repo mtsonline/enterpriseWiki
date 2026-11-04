@@ -386,7 +386,9 @@ func (s *Service) PublishDue(ctx context.Context, load func(context.Context, int
 type silentKey struct{}
 
 // WithSilent marks changes that should not notify watchers.
-func WithSilent(ctx context.Context) context.Context { return context.WithValue(ctx, silentKey{}, true) }
+func WithSilent(ctx context.Context) context.Context {
+	return context.WithValue(ctx, silentKey{}, true)
+}
 
 // IsSilent reports whether watchers should not be notified.
 func IsSilent(ctx context.Context) bool { v, _ := ctx.Value(silentKey{}).(bool); return v }
