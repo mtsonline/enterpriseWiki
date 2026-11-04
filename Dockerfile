@@ -34,7 +34,7 @@ RUN CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH go build -trimpath \
 FROM node:26-alpine AS node
 
 FROM golang:1.27-alpine AS full
-RUN apk add --no-cache ca-certificates tzdata poppler-utils git bash libstdc++ \
+RUN apk add --no-cache ca-certificates tzdata poppler-utils git bash libstdc++ libgcc libatomic \
  && adduser -D -H -u 10001 ewiki \
  && mkdir -p /data && chown ewiki /data
 COPY --from=node /usr/local/bin/node /usr/local/bin/node
