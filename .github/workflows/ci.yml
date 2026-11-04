@@ -28,7 +28,7 @@ jobs:
         ports: ["5432:5432"]
         options: --health-cmd pg_isready --health-interval 5s --health-timeout 5s --health-retries 20
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       # the toolchain line of go.mod is the Go version to use (the go line is only the minimum)
       - name: Go version from go.mod
         id: gover
@@ -68,7 +68,7 @@ jobs:
       EWIKI_DATABASE_URL: postgres://wiki:wiki@localhost:5432/wiki?sslmode=disable
       EWIKI_ADMIN_PASSWORD: Admin-Passw0rd!
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       # the toolchain line of go.mod is the Go version to use (the go line is only the minimum)
       - name: Go version from go.mod
         id: gover
@@ -127,7 +127,7 @@ jobs:
     name: Docker image
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: newest base images (canary)
         if: ${{ inputs.latest }}
         run: sed -i -E 's#^FROM (--platform=\S+ )?(node|golang|alpine):\S+#FROM \1\2:latest#' Dockerfile && grep ^FROM Dockerfile
@@ -141,6 +141,6 @@ jobs:
       matrix:
         from: ["16", "17"]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: upgrade test with the official images (copy and --link)
         run: scripts/test-docker-postgres.sh ${{ matrix.from }} ${{ matrix.from == '16' && '--full' || '' }}
