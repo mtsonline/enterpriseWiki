@@ -98,7 +98,7 @@ func CanApprove(p *identity.Principal, approvers []string) bool {
 	if p.Via == "cli" {
 		return true
 	}
-	return perm.HasP(p, "macro.shell.manage") && p.Via != "apikey" && slices.Contains(approvers, p.Handle())
+	return (p.Admin() || perm.HasP(p, "macro.shell.manage")) && p.Via != "apikey" && slices.Contains(approvers, p.Handle())
 }
 
 // Setup registers the macro and the approval API.
