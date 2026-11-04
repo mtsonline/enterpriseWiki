@@ -38,9 +38,20 @@ async function a11y(name) {
   // transient toasts (fixed, bottom right) may cover controls: wait until they are gone
   await page.waitForFunction(() => !document.querySelector('.ew-toasts > *'), null, { timeout: 15000 }).catch(() => undefined);
   await page.addScriptTag({ content: axeSource });
-  const res = await page.evaluate(async () => await globalThis.axe.run(document, { runOnly: ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'] }));
+  const res = await page.evaluate(async () => {
+    const r = await globalThis.axe.run(document, { runOnly: ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'] });
+    // details for the report: what axe says and which element is on top of the node
+    for (const v of r.violations) for (const n of v.nodes) {
+      const el = document.querySelector(n.target.join(' '));
+      const b = el?.getBoundingClientRect();
+      const top = b ? document.elementFromPoint(b.x + b.width / 2, b.y + b.height / 2) : null;
+      n.detail = `${(n.failureSummary ?? '').replace(/\s+/g, ' ').slice(0, 300)}${b ? ` [box ${Math.round(b.x)},${Math.round(b.y)} ${Math.round(b.width)}x${Math.round(b.height)}, on top: ${top?.outerHTML.slice(0, 120) ?? '-'}]` : ''}`;
+    }
+    return r;
+  });
   const v = res.violations.map((x) => `${x.id} (${x.impact}): ${x.nodes.slice(0, 3).map((n) => n.target.join(' ')).join(', ')}`);
-  assert.deepEqual(v, [], `accessibility violations on ${name}:\n${v.join('\n')}`);
+  const details = res.violations.flatMap((x) => x.nodes.slice(0, 3).map((n) => `  ${n.target.join(' ')}: ${n.detail}`));
+  assert.deepEqual(v, [], `accessibility violations on ${name}:\n${v.join('\n')}\n${details.join('\n')}`);
 }
 
 async function idle() {
