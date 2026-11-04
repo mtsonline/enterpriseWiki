@@ -1,0 +1,549 @@
+-- Enterprise Wiki core schema
+--
+-- The whole schema of a new installation. Later changes are added as
+-- further migrations (NNNN_name.sql) once installations are in use.
+CREATE EXTENSION IF NOT EXISTS ltree;
+
+-- ---------------------------------------------------------------- identities
+CREATE TABLE users (
+    id             bigserial PRIMARY KEY,
+    username       text NOT NULL,                 -- login name inside its provider
+    provider       text NOT NULL DEFAULT 'local', -- auth provider id (local, ldap, oidc, ...)
+    subject        text NOT NULL,                 -- stable id inside the provider
+    display_name   text NOT NULL DEFAULT '',
+    email          text NOT NULL DEFAULT '',
+    password_hash  text,                          -- only for provider 'local'
+    language       text NOT NULL DEFAULT '',
+    disabled       boolean NOT NULL DEFAULT false,
+    failed_logins  int NOT NULL DEFAULT 0,
+    locked_until   timestamptz,
+    attributes     jsonb NOT NULL DEFAULT '{}',
+    created_at     timestamptz NOT NULL DEFAULT now(),
+    updated_at     timestamptz NOT NULL DEFAULT now(),
+    last_login_at  timestamptz,
+    -- TOTP two-factor authentication (local accounts)
+    totp_secret    text,
+    totp_enabled   boolean NOT NULL DEFAULT false,
+    totp_last_step bigint NOT NULL DEFAULT 0,
+    -- e-mail preferences per kind, e.g. {"tasks": true, "comments": false}; missing keys mean "on"
+    notify         jsonb NOT NULL DEFAULT '{}',
+    feed_token     text UNIQUE,                   -- personal feed links (feed readers cannot sign in)
+    -- profile ("business card") maintained by the user or admins; not
+    -- overwritten by identity providers (unlike attributes)
+    profile        jsonb NOT NULL DEFAULT '{}',
+    UNIQUE (provider, subject),
+    UNIQUE (provider, username),
+    CHECK (username ~ '^[A-Za-z0-9._@+-]{1,128}$')
+);
+
+CREATE TABLE groups (
+    id          bigserial PRIMARY KEY,
+    name        text NOT NULL UNIQUE,
+    description text NOT NULL DEFAULT '',
+    source      text NOT NULL DEFAULT 'local',
+    created_at  timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE TABLE roles (
+    id          bigserial PRIMARY KEY,
+    name        text NOT NULL UNIQUE,
+    description text NOT NULL DEFAULT '',
+    is_admin    boolean NOT NULL DEFAULT false,   -- superadmin: bypasses all ACL checks
+    created_at  timestamptz NOT NULL DEFAULT now(),
+    permissions text[] NOT NULL DEFAULT '{}'      -- global permissions (package perm)
+);
+
+CREATE TABLE user_groups (
+    user_id  bigint NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    group_id bigint NOT NULL REFERENCES groups(id) ON DELETE CASCADE,
+    source   text NOT NULL DEFAULT 'local',
+    PRIMARY KEY (user_id, group_id)
+);
+CREATE INDEX user_groups_group ON user_groups(group_id);
+
+CREATE TABLE user_roles (
+    user_id bigint NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    role_id bigint NOT NULL REFERENCES roles(id) ON DELETE CASCADE,
+    source  text NOT NULL DEFAULT 'local',       -- synchronized from an identity provider
+    PRIMARY KEY (user_id, role_id)
+);
+
+CREATE TABLE group_roles (
+    group_id bigint NOT NULL REFERENCES groups(id) ON DELETE CASCADE,
+    role_id  bigint NOT NULL REFERENCES roles(id) ON DELETE CASCADE,
+    PRIMARY KEY (group_id, role_id)
+);
+
+CREATE TABLE sessions (
+    token_hash   bytea PRIMARY KEY,
+    user_id      bigint NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    kind         text NOT NULL DEFAULT 'web',      -- web | ssh
+    created_at   timestamptz NOT NULL DEFAULT now(),
+    expires_at   timestamptz NOT NULL,
+    last_seen_at timestamptz NOT NULL DEFAULT now(),
+    ip           text NOT NULL DEFAULT '',
+    user_agent   text NOT NULL DEFAULT ''
+);
+CREATE INDEX sessions_user ON sessions(user_id);
+CREATE INDEX sessions_expires ON sessions(expires_at);
+
+CREATE TABLE ssh_keys (
+    id           bigserial PRIMARY KEY,
+    user_id      bigint NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    name         text NOT NULL,
+    public_key   text NOT NULL,
+    fingerprint  text NOT NULL UNIQUE,
+    created_at   timestamptz NOT NULL DEFAULT now(),
+    last_used_at timestamptz
+);
+
+CREATE TABLE auth_challenges (
+    nonce      text PRIMARY KEY,
+    user_id    bigint NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    expires_at timestamptz NOT NULL
+);
+
+-- Pending single sign-on logins (OIDC, SAML): state, nonce, PKCE verifier.
+CREATE TABLE sso_states (
+    state      text PRIMARY KEY,
+    provider   text NOT NULL,
+    nonce      text NOT NULL,
+    verifier   text NOT NULL,
+    next       text NOT NULL DEFAULT '/',
+    data       jsonb NOT NULL DEFAULT '{}',
+    expires_at timestamptz NOT NULL
+);
+
+-- global permissions of every signed-in user (no row = the declared defaults)
+CREATE TABLE permission_defaults (
+    subject     text PRIMARY KEY CHECK (subject IN ('authenticated')),
+    permissions text[] NOT NULL,
+    updated_at  timestamptz NOT NULL DEFAULT now()
+);
+
+-- ---------------------------------------------------------------- content
+CREATE TABLE categories (
+    id                 bigserial PRIMARY KEY,
+    parent_id          bigint REFERENCES categories(id) ON DELETE RESTRICT,
+    path               ltree NOT NULL,              -- ancestor ids incl. self, e.g. 1.7.42
+    position           int NOT NULL DEFAULT 0,
+    slug               text NOT NULL DEFAULT '',
+    titles             jsonb NOT NULL DEFAULT '{}', -- {"en": "...", "de": "..."}
+    descriptions       jsonb NOT NULL DEFAULT '{}',
+    tags               text[] NOT NULL DEFAULT '{}',
+    default_element_id bigint,
+    created_by         bigint REFERENCES users(id) ON DELETE SET NULL,
+    created_at         timestamptz NOT NULL DEFAULT now(),
+    updated_at         timestamptz NOT NULL DEFAULT now(),
+    deleted_at         timestamptz,
+    deleted_by         bigint REFERENCES users(id) ON DELETE SET NULL,
+    trash_root         boolean NOT NULL DEFAULT false, -- the object the user deleted
+    feed               text NOT NULL DEFAULT 'off' CHECK (feed IN ('off', 'on', 'recursive')), -- Atom/RSS feed
+    short_url          text                           -- e.g. /kalender; unique with elements.short_url (checked by the application)
+);
+CREATE INDEX categories_path ON categories USING gist(path);
+CREATE INDEX categories_parent ON categories(parent_id, position);
+CREATE INDEX categories_tags ON categories USING gin(tags);
+CREATE UNIQUE INDEX categories_short_url ON categories(short_url) WHERE short_url IS NOT NULL;
+
+CREATE TABLE elements (
+    id            bigserial PRIMARY KEY,
+    category_id   bigint NOT NULL REFERENCES categories(id) ON DELETE RESTRICT,
+    type          text NOT NULL,
+    position      int NOT NULL DEFAULT 0,
+    original_lang text NOT NULL,
+    titles        jsonb NOT NULL DEFAULT '{}',      -- cache of the latest title per language
+    tags          text[] NOT NULL DEFAULT '{}',
+    created_by    bigint REFERENCES users(id) ON DELETE SET NULL,
+    created_at    timestamptz NOT NULL DEFAULT now(),
+    updated_by    bigint REFERENCES users(id) ON DELETE SET NULL,
+    updated_at    timestamptz NOT NULL DEFAULT now(),
+    deleted_at    timestamptz,
+    deleted_by    bigint REFERENCES users(id) ON DELETE SET NULL,
+    trash_root    boolean NOT NULL DEFAULT false,
+    short_url     text,
+    preview_image text NOT NULL DEFAULT ''           -- og:image for link previews (file hash or URL; empty = automatic)
+);
+CREATE INDEX elements_category ON elements(category_id, position);
+CREATE INDEX elements_tags ON elements USING gin(tags);
+CREATE UNIQUE INDEX elements_short_url ON elements(short_url) WHERE short_url IS NOT NULL;
+
+ALTER TABLE categories ADD CONSTRAINT categories_default_element
+    FOREIGN KEY (default_element_id) REFERENCES elements(id) ON DELETE SET NULL;
+
+-- Every save creates a new immutable revision per language.
+CREATE TABLE element_revisions (
+    id          bigserial PRIMARY KEY,
+    element_id  bigint NOT NULL REFERENCES elements(id) ON DELETE CASCADE,
+    lang        text NOT NULL,
+    rev         int NOT NULL,
+    source_rev  int,          -- translations: revision of the original language this is based on
+    title       text NOT NULL,
+    body        jsonb NOT NULL,
+    comment     text NOT NULL DEFAULT '',
+    restored_from int,
+    created_by  bigint REFERENCES users(id) ON DELETE SET NULL,
+    created_at  timestamptz NOT NULL DEFAULT now(),
+    UNIQUE (element_id, lang, rev)
+);
+CREATE INDEX element_revisions_time ON element_revisions(element_id, created_at);
+
+-- Full text index, one row per element and language (latest revision).
+CREATE TABLE search_docs (
+    element_id  bigint NOT NULL REFERENCES elements(id) ON DELETE CASCADE,
+    lang        text NOT NULL,
+    category_id bigint NOT NULL,
+    title       text NOT NULL,
+    body_text   text NOT NULL,
+    tags        text[] NOT NULL DEFAULT '{}',
+    tsv         tsvector NOT NULL, -- title (A), tags (B), body (C); maintained by the application
+    PRIMARY KEY (element_id, lang)
+);
+CREATE INDEX search_docs_tsv ON search_docs USING gin(tsv);
+
+-- Change log of the search index. External search engines (plugins) follow
+-- it to stay in sync with search_docs; PostgreSQL stays the source of truth.
+CREATE TABLE search_changes (
+    seq        bigserial PRIMARY KEY,
+    element_id bigint NOT NULL,
+    at         timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE FUNCTION search_changes_docs() RETURNS trigger LANGUAGE plpgsql AS $$
+BEGIN
+    IF TG_OP = 'DELETE' THEN
+        INSERT INTO search_changes(element_id) VALUES (OLD.element_id);
+    ELSE
+        INSERT INTO search_changes(element_id) VALUES (NEW.element_id);
+    END IF;
+    RETURN NULL;
+END $$;
+CREATE TRIGGER search_docs_changed AFTER INSERT OR UPDATE OR DELETE ON search_docs
+    FOR EACH ROW EXECUTE FUNCTION search_changes_docs();
+
+CREATE FUNCTION search_changes_elements() RETURNS trigger LANGUAGE plpgsql AS $$
+BEGIN
+    IF TG_OP = 'DELETE' THEN
+        INSERT INTO search_changes(element_id) VALUES (OLD.id);
+    ELSIF NEW.deleted_at IS DISTINCT FROM OLD.deleted_at OR NEW.tags IS DISTINCT FROM OLD.tags
+          OR NEW.type IS DISTINCT FROM OLD.type OR NEW.category_id IS DISTINCT FROM OLD.category_id THEN
+        INSERT INTO search_changes(element_id) VALUES (NEW.id);
+    END IF;
+    RETURN NULL;
+END $$;
+CREATE TRIGGER elements_search_changed AFTER UPDATE OR DELETE ON elements
+    FOR EACH ROW EXECUTE FUNCTION search_changes_elements();
+
+-- drafts: changes of an element (one per language, shared by all who may
+-- edit it) or a new element (element_id NULL) that is not published yet
+CREATE TABLE element_drafts (
+    id              bigserial PRIMARY KEY,
+    element_id      bigint REFERENCES elements(id) ON DELETE CASCADE,
+    category_id     bigint NOT NULL REFERENCES categories(id) ON DELETE CASCADE,
+    type            text NOT NULL,
+    lang            text NOT NULL,
+    title           text NOT NULL,
+    body            jsonb NOT NULL,
+    tags            text[] NOT NULL DEFAULT '{}',
+    comment         text NOT NULL DEFAULT '',
+    base_rev        int NOT NULL DEFAULT 0,
+    created_by      bigint REFERENCES users(id) ON DELETE SET NULL,
+    updated_by      bigint REFERENCES users(id) ON DELETE SET NULL,
+    created_at      timestamptz NOT NULL DEFAULT now(),
+    updated_at      timestamptz NOT NULL DEFAULT now(),
+    publish_at      timestamptz,                   -- scheduled publication
+    publish_by      bigint REFERENCES users(id) ON DELETE SET NULL,
+    publish_options jsonb NOT NULL DEFAULT '{}'
+);
+CREATE UNIQUE INDEX element_drafts_element ON element_drafts(element_id, lang) WHERE element_id IS NOT NULL;
+CREATE INDEX element_drafts_category ON element_drafts(category_id);
+CREATE INDEX element_drafts_due ON element_drafts(publish_at) WHERE publish_at IS NOT NULL;
+
+-- templates for new elements: personal (owner_id) or for everybody (NULL)
+CREATE TABLE element_templates (
+    id          bigserial PRIMARY KEY,
+    name        text NOT NULL,
+    description text NOT NULL DEFAULT '',
+    type        text NOT NULL,
+    lang        text NOT NULL,
+    title       text NOT NULL DEFAULT '',
+    body        jsonb NOT NULL,
+    tags        text[] NOT NULL DEFAULT '{}',
+    owner_id    bigint REFERENCES users(id) ON DELETE CASCADE,
+    created_by  bigint REFERENCES users(id) ON DELETE SET NULL,
+    created_at  timestamptz NOT NULL DEFAULT now(),
+    updated_at  timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX element_templates_owner ON element_templates(owner_id);
+
+-- Uploaded files (content addressed: the SHA-256 is the key and the storage name).
+CREATE TABLE files (
+    hash       text PRIMARY KEY,
+    size       bigint NOT NULL,
+    mime       text NOT NULL,
+    name       text NOT NULL,
+    created_by bigint REFERENCES users(id) ON DELETE SET NULL,
+    created_at timestamptz NOT NULL DEFAULT now()
+);
+
+-- ---------------------------------------------------------------- permissions
+CREATE TABLE acl_rules (
+    id           bigserial PRIMARY KEY,
+    category_id  bigint NOT NULL REFERENCES categories(id) ON DELETE CASCADE,
+    subject_type text NOT NULL CHECK (subject_type IN ('user','group','role','guest','authenticated')),
+    subject_id   bigint,
+    permissions  int NOT NULL CHECK (permissions > 0),
+    inherit      boolean NOT NULL DEFAULT true,     -- also applies to all subcategories
+    created_by   bigint REFERENCES users(id) ON DELETE SET NULL,
+    created_at   timestamptz NOT NULL DEFAULT now(),
+    actions      text[] NOT NULL DEFAULT '{}',      -- named category permissions of plugins (in addition to the bits)
+    CHECK ((subject_type IN ('guest','authenticated')) = (subject_id IS NULL))
+);
+CREATE INDEX acl_rules_category ON acl_rules(category_id);
+
+CREATE TABLE api_keys (
+    id           bigserial PRIMARY KEY,
+    user_id      bigint NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    name         text NOT NULL,
+    prefix       text NOT NULL,
+    token_hash   bytea NOT NULL UNIQUE,
+    permissions  int NOT NULL,                     -- upper bound of category permissions
+    category_id  bigint REFERENCES categories(id) ON DELETE CASCADE, -- optional subtree restriction
+    allow_admin  boolean NOT NULL DEFAULT false,
+    expires_at   timestamptz NOT NULL,
+    created_at   timestamptz NOT NULL DEFAULT now(),
+    last_used_at timestamptz,
+    revoked_at   timestamptz
+);
+CREATE INDEX api_keys_user ON api_keys(user_id);
+
+-- ---------------------------------------------------------------- history / i18n
+CREATE TABLE audit_log (
+    id          bigserial PRIMARY KEY,
+    at          timestamptz NOT NULL DEFAULT now(),
+    user_id     bigint REFERENCES users(id) ON DELETE SET NULL,
+    actor       text NOT NULL DEFAULT '',
+    action      text NOT NULL,
+    entity_type text NOT NULL,
+    entity_id   bigint,
+    before      jsonb,
+    after       jsonb,
+    -- who: IP address, browser, channel (session, api, cli, worker, ...)
+    ip          text,
+    user_agent  text,
+    via         text
+);
+CREATE INDEX audit_entity ON audit_log(entity_type, entity_id, at);
+CREATE INDEX audit_at ON audit_log(at);
+CREATE INDEX audit_action ON audit_log(action, at);
+CREATE INDEX audit_user ON audit_log(user_id, at);
+
+-- position of each forwarding destination (Administration → Audit log → Forwarding)
+CREATE TABLE audit_forward_state (
+    id         text PRIMARY KEY,
+    last_id    bigint NOT NULL DEFAULT 0,
+    last_at    timestamptz,
+    last_error text NOT NULL DEFAULT '',
+    error_at   timestamptz,
+    errors     int NOT NULL DEFAULT 0
+);
+
+CREATE TABLE ui_translations (
+    lang       text NOT NULL,
+    key        text NOT NULL,
+    value      text NOT NULL,
+    updated_by bigint REFERENCES users(id) ON DELETE SET NULL,
+    updated_at timestamptz NOT NULL DEFAULT now(),
+    PRIMARY KEY (lang, key)
+);
+
+-- ---------------------------------------------------------------- e-mail
+-- Outgoing e-mail. Messages are written in the same transaction as the change
+-- that causes them and sent by a background worker with retries.
+CREATE TABLE mail_outbox (
+    id              bigserial PRIMARY KEY,
+    status          text NOT NULL DEFAULT 'queued' CHECK (status IN ('queued', 'sent', 'failed', 'partial', 'held')),
+    from_addr       text NOT NULL,
+    from_name       text NOT NULL DEFAULT '',
+    reply_to        text NOT NULL DEFAULT '',
+    to_addrs        text[] NOT NULL,
+    cc_addrs        text[] NOT NULL DEFAULT '{}',
+    subject         text NOT NULL,
+    body_text       text NOT NULL,
+    body_html       text NOT NULL DEFAULT '',      -- optional HTML part
+    body_calendar   text NOT NULL DEFAULT '',      -- calendar invitation (iTIP) as text/calendar part
+    source          text NOT NULL DEFAULT '',      -- e.g. workflow.process, core.comments, test
+    ref             text NOT NULL DEFAULT '',      -- e.g. case:42
+    attempts        int NOT NULL DEFAULT 0,
+    last_error      text NOT NULL DEFAULT '',
+    next_attempt_at timestamptz NOT NULL DEFAULT now(),
+    created_at      timestamptz NOT NULL DEFAULT now(),
+    sent_at         timestamptz,
+    owner_id        bigint REFERENCES users(id) ON DELETE SET NULL, -- who caused it (gets failure reports)
+    report          boolean NOT NULL DEFAULT true,  -- send failure reports
+    lease_until     timestamptz,                    -- claimed by a worker until
+    priority        int NOT NULL DEFAULT 0
+);
+CREATE INDEX mail_outbox_due ON mail_outbox(next_attempt_at) WHERE status = 'queued';
+CREATE INDEX mail_outbox_created ON mail_outbox(created_at DESC);
+
+-- One row per recipient: delivered, still pending (temporary errors are
+-- retried without limit) or failed permanently (5xx or bounce).
+CREATE TABLE mail_recipients (
+    id              bigserial PRIMARY KEY,
+    message_id      bigint NOT NULL REFERENCES mail_outbox(id) ON DELETE CASCADE,
+    addr            text NOT NULL,
+    kind            text NOT NULL DEFAULT 'to' CHECK (kind IN ('to', 'cc')),
+    status          text NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'sent', 'failed')),
+    attempts        int NOT NULL DEFAULT 0,
+    last_code       int NOT NULL DEFAULT 0,
+    last_error      text NOT NULL DEFAULT '',
+    next_attempt_at timestamptz NOT NULL DEFAULT now(),
+    sent_at         timestamptz,
+    failed_at       timestamptz,
+    bounced         boolean NOT NULL DEFAULT false
+);
+CREATE INDEX mail_recipients_message ON mail_recipients(message_id);
+CREATE INDEX mail_recipients_pending ON mail_recipients(next_attempt_at) WHERE status = 'pending';
+CREATE INDEX mail_recipients_addr ON mail_recipients(lower(addr));
+
+-- ---------------------------------------------------------------- watches and notifications
+-- Watches: users follow categories (optionally with subcategories) or elements.
+CREATE TABLE watches (
+    id          bigserial PRIMARY KEY,
+    user_id     bigint NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    target_type text NOT NULL CHECK (target_type IN ('category', 'element')),
+    target_id   bigint NOT NULL,
+    mode        text NOT NULL DEFAULT 'link' CHECK (mode IN ('link', 'content')),
+    recursive   boolean NOT NULL DEFAULT true,
+    created_at  timestamptz NOT NULL DEFAULT now(),
+    frequency   text NOT NULL DEFAULT 'instant' CHECK (frequency IN ('instant', 'daily', 'weekly')), -- e-mail or digest
+    UNIQUE (user_id, target_type, target_id)
+);
+CREATE INDEX watches_target ON watches(target_type, target_id);
+
+-- Changes waiting to be sent to watchers (coalesced per user and object;
+-- sent as one e-mail per user after a quiet period).
+CREATE TABLE watch_events (
+    user_id     bigint NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    entity_type text NOT NULL CHECK (entity_type IN ('category', 'element')),
+    entity_id   bigint NOT NULL,
+    event       text NOT NULL,
+    actor_id    bigint,
+    mode        text NOT NULL,
+    first_at    timestamptz NOT NULL DEFAULT now(),
+    last_at     timestamptz NOT NULL DEFAULT now(),
+    freq        smallint NOT NULL DEFAULT 0,       -- 0 = instant, 1 = daily, 2 = weekly (the most urgent watch of a user wins)
+    PRIMARY KEY (user_id, entity_type, entity_id)
+);
+CREATE INDEX watch_events_due ON watch_events(last_at);
+
+-- watches assigned centrally to users, groups or roles (dynamic: later
+-- members watch too); optional ones can be unsubscribed per user
+CREATE TABLE watch_assignments (
+    id           bigserial PRIMARY KEY,
+    subject_type text NOT NULL CHECK (subject_type IN ('user', 'group', 'role')),
+    subject_id   bigint NOT NULL,
+    target_type  text NOT NULL CHECK (target_type IN ('category', 'element')),
+    target_id    bigint NOT NULL,
+    mode         text NOT NULL DEFAULT 'link' CHECK (mode IN ('link', 'content')),
+    recursive    boolean NOT NULL DEFAULT true,
+    frequency    text NOT NULL DEFAULT 'instant' CHECK (frequency IN ('instant', 'daily', 'weekly')),
+    mandatory    boolean NOT NULL DEFAULT false,
+    note         text NOT NULL DEFAULT '',
+    created_by   bigint REFERENCES users(id) ON DELETE SET NULL,
+    created_at   timestamptz NOT NULL DEFAULT now(),
+    UNIQUE (subject_type, subject_id, target_type, target_id)
+);
+CREATE TABLE watch_optouts (
+    assignment_id bigint NOT NULL REFERENCES watch_assignments(id) ON DELETE CASCADE,
+    user_id       bigint NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    PRIMARY KEY (assignment_id, user_id)
+);
+-- own watches plus assigned ones (without unsubscribed optional ones)
+CREATE VIEW watch_effective AS
+    SELECT w.user_id, w.target_type, w.target_id, w.mode, w.recursive, w.frequency, NULL::bigint AS assignment_id FROM watches w
+    UNION ALL
+    SELECT m.user_id, a.target_type, a.target_id, a.mode, a.recursive, a.frequency, a.id FROM watch_assignments a
+    JOIN LATERAL (
+        SELECT a.subject_id AS user_id WHERE a.subject_type = 'user'
+        UNION SELECT ug.user_id FROM user_groups ug WHERE a.subject_type = 'group' AND ug.group_id = a.subject_id
+        UNION SELECT ur.user_id FROM user_roles ur WHERE a.subject_type = 'role' AND ur.role_id = a.subject_id
+        UNION SELECT ug.user_id FROM group_roles gr JOIN user_groups ug ON ug.group_id = gr.group_id WHERE a.subject_type = 'role' AND gr.role_id = a.subject_id
+    ) m ON true
+    WHERE a.mandatory OR NOT EXISTS (SELECT 1 FROM watch_optouts o WHERE o.assignment_id = a.id AND o.user_id = m.user_id);
+
+-- notifications in the wiki (bell); e-mails per kind as set in the profile (users.notify)
+CREATE TABLE notifications (
+    id          bigserial PRIMARY KEY,
+    user_id     bigint NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    kind        text NOT NULL,
+    title       text NOT NULL,
+    body        text NOT NULL DEFAULT '',
+    link        text NOT NULL DEFAULT '',
+    actor_id    bigint REFERENCES users(id) ON DELETE SET NULL,
+    entity_type text NOT NULL DEFAULT '',
+    entity_id   bigint,
+    created_at  timestamptz NOT NULL DEFAULT now(),
+    read_at     timestamptz
+);
+CREATE INDEX notifications_user ON notifications(user_id, created_at DESC);
+CREATE INDEX notifications_unread ON notifications(user_id) WHERE read_at IS NULL;
+
+-- ---------------------------------------------------------------- webhooks
+-- HTTP notifications about events (Teams, Slack, generic JSON).
+CREATE TABLE webhooks (
+    id           bigserial PRIMARY KEY,
+    name         text NOT NULL,
+    url          text NOT NULL,
+    format       text NOT NULL DEFAULT 'json' CHECK (format IN ('json', 'slack', 'teams')),
+    secret       text NOT NULL DEFAULT '',          -- HMAC-SHA256 signing key (json format)
+    events       text[] NOT NULL DEFAULT '{}',      -- e.g. element.update, event.registration; empty = all
+    category_id  bigint REFERENCES categories(id) ON DELETE CASCADE, -- only changes below this category
+    enabled      boolean NOT NULL DEFAULT true,
+    created_at   timestamptz NOT NULL DEFAULT now(),
+    updated_at   timestamptz NOT NULL DEFAULT now(),
+    last_status  int NOT NULL DEFAULT 0,
+    last_error   text NOT NULL DEFAULT '',
+    last_at      timestamptz
+);
+
+-- Deliveries waiting or retried (oldest first).
+CREATE TABLE webhook_deliveries (
+    id           bigserial PRIMARY KEY,
+    webhook_id   bigint NOT NULL REFERENCES webhooks(id) ON DELETE CASCADE,
+    event        text NOT NULL,
+    payload      jsonb NOT NULL,
+    status       text NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'delivered', 'failed')),
+    attempts     int NOT NULL DEFAULT 0,
+    next_at      timestamptz NOT NULL DEFAULT now(),
+    last_status  int NOT NULL DEFAULT 0,
+    last_error   text NOT NULL DEFAULT '',
+    created_at   timestamptz NOT NULL DEFAULT now(),
+    delivered_at timestamptz
+);
+CREATE INDEX webhook_deliveries_due ON webhook_deliveries(next_at) WHERE status = 'pending';
+CREATE INDEX webhook_deliveries_hook ON webhook_deliveries(webhook_id, created_at DESC);
+
+-- ---------------------------------------------------------------- system
+-- Generation of the guest cache: incremented on every change so all nodes
+-- (and changes made by CLI processes) invalidate their in-memory caches.
+CREATE TABLE cache_state (
+    id          int PRIMARY KEY DEFAULT 1 CHECK (id = 1),
+    generation  bigint NOT NULL DEFAULT 0
+);
+INSERT INTO cache_state DEFAULT VALUES;
+
+-- One-time notifications already sent (e.g. "PostgreSQL 19 recommended",
+-- "PostgreSQL 18 support ends in 30 days").
+CREATE TABLE system_notices (
+    key      text PRIMARY KEY,
+    sent_at  timestamptz NOT NULL DEFAULT now()
+);
+
+-- one node of a cluster restarts at a time (rolling restart after plugin builds)
+CREATE TABLE cluster_lease (
+    name   text PRIMARY KEY,
+    holder text NOT NULL,
+    until  timestamptz NOT NULL
+);

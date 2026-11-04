@@ -135,14 +135,33 @@ jobs:
       - name: plugins in the full and lite images (build at start, restart, dropped plugin)
         run: scripts/test-docker-plugins.sh
 
+  pg-versions:
+    name: PostgreSQL versions for the upgrade test
+    runs-on: ubuntu-latest
+    outputs:
+      from: ${{ steps.v.outputs.from }}
+      oldest: ${{ steps.v.outputs.oldest }}
+    steps:
+      - uses: actions/checkout@v7
+      # the two major versions before the recommended one (internal/pgversion,
+      # updated by Renovate): with 19 recommended the test runs 17 → 19 and 18 → 19
+      - id: v
+        run: |
+          r=$(sed -nE 's/^const RecommendedMajor = ([0-9]+).*/\1/p' internal/pgversion/pgversion.go)
+          [ -n "$r" ] || { echo "RecommendedMajor not found"; exit 1; }
+          echo "from=[\"$((r-2))\",\"$((r-1))\"]" >> "$GITHUB_OUTPUT"
+          echo "oldest=$((r-2))" >> "$GITHUB_OUTPUT"
+          echo "recommended $r, upgrade test from $((r-2)) and $((r-1))"
+
   compose:
     name: Docker Compose – setup, non-root, PostgreSQL upgrade ${{ matrix.from }} → recommended
+    needs: pg-versions
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        from: ["16", "17"]
+        from: ${{ fromJSON(needs.pg-versions.outputs.from) }}
     steps:
       - uses: actions/checkout@v7
       - name: upgrade test with the official images (copy and --link)
-        run: scripts/test-docker-postgres.sh ${{ matrix.from }} ${{ matrix.from == '16' && '--full' || '' }}
+        run: scripts/test-docker-postgres.sh ${{ matrix.from }} ${{ matrix.from == needs.pg-versions.outputs.oldest && '--full' || '' }}

@@ -24,6 +24,9 @@ CREATE TABLE plugin_events (
     updated_by      bigint REFERENCES users(id) ON DELETE SET NULL,
     created_at      timestamptz NOT NULL DEFAULT now(),
     updated_at      timestamptz NOT NULL DEFAULT now(),
+    -- changed single occurrences of a series, keyed by the original local date
+    -- ({"2026-05-04": {"title": "…", "location": "…", "starts_at": "…", "ends_at": "…"}})
+    overrides       jsonb NOT NULL DEFAULT '{}',
     CHECK (ends_at >= starts_at)
 );
 CREATE INDEX plugin_events_calendar ON plugin_events(calendar_id, starts_at);

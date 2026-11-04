@@ -13,10 +13,17 @@ CREATE TABLE plugin_workflow_instances (
     started_by  bigint REFERENCES users(id) ON DELETE SET NULL,
     started_at  timestamptz NOT NULL DEFAULT now(),
     updated_at  timestamptz NOT NULL DEFAULT now(),
-    closed_at   timestamptz
+    closed_at   timestamptz,
+    -- step types: timers, reminders, webhooks
+    step_entered_at timestamptz NOT NULL DEFAULT now(),
+    wake_at         timestamptz,
+    reminded_at     timestamptz,
+    attempts        int NOT NULL DEFAULT 0,
+    last_error      text NOT NULL DEFAULT ''
 );
 CREATE INDEX plugin_workflow_instances_element ON plugin_workflow_instances(element_id, started_at DESC);
 CREATE INDEX plugin_workflow_instances_open ON plugin_workflow_instances(status) WHERE status = 'open';
+CREATE INDEX plugin_workflow_instances_wake ON plugin_workflow_instances(wake_at) WHERE status = 'open' AND wake_at IS NOT NULL;
 
 -- Every transition of a case (never deleted).
 CREATE TABLE plugin_workflow_events (
@@ -32,3 +39,5 @@ CREATE TABLE plugin_workflow_events (
     at           timestamptz NOT NULL DEFAULT now()
 );
 CREATE INDEX plugin_workflow_events_instance ON plugin_workflow_events(instance_id, id);
+-- votes of approval steps are events with from_step = to_step
+CREATE INDEX plugin_workflow_events_votes ON plugin_workflow_events(instance_id, from_step, action);
