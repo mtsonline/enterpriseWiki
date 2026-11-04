@@ -82,7 +82,7 @@ jobs:
       - name: upgrade all Go modules to the newest versions (canary)
         if: ${{ inputs.latest }}
         run: go get -u -t ./... && go mod tidy && git diff --stat go.mod
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with: { node-version: "${{ inputs.latest && 'latest' || '26' }}" }
       - name: upgrade all npm packages to the newest versions (canary)
         if: ${{ inputs.latest }}
