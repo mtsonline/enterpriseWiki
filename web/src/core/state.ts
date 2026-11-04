@@ -8,6 +8,8 @@ export const state = {
   user: null as Principal | null,
   lang: 'en',
   editMode: false,
+  /** the user manages at least one category (central permissions page) */
+  managesCategories: false,
 };
 
 const listeners = new Set<Listener>();
@@ -64,4 +66,9 @@ export function rememberedLang(): string | null {
 
 export function isAdmin(): boolean {
   return !!state.user?.is_admin;
+}
+
+/** hasPerm reports whether the user has a global permission (administrators have all). */
+export function hasPerm(key: string): boolean {
+  return isAdmin() || !!state.user?.permissions?.includes(key);
 }

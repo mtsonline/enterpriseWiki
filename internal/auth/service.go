@@ -8,6 +8,7 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
+	"github.com/mtsonline/enterprisewiki/internal/perm"
 	"log/slog"
 	"strings"
 	"sync"
@@ -403,23 +404,53 @@ func (s *Service) LoadPrincipal(ctx context.Context, uid int64) (*identity.Princ
 	if err != nil {
 		return nil, err
 	}
-	rows, err = s.pool.Query(ctx, `SELECT r.id, r.is_admin FROM roles r WHERE r.id IN (
+	rows, err = s.pool.Query(ctx, `SELECT r.id, r.is_admin, r.permissions FROM roles r WHERE r.id IN (
 			SELECT role_id FROM user_roles WHERE user_id=$1
 			UNION SELECT gr.role_id FROM group_roles gr JOIN user_groups ug ON ug.group_id=gr.group_id WHERE ug.user_id=$1)`, uid)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
+	set := map[string]bool{}
 	for rows.Next() {
 		var id int64
 		var admin bool
-		if err := rows.Scan(&id, &admin); err != nil {
+		var perms []string
+		if err := rows.Scan(&id, &admin, &perms); err != nil {
 			return nil, err
 		}
 		p.Roles = append(p.Roles, id)
 		p.IsAdmin = p.IsAdmin || admin
+		for _, k := range perms {
+			set[k] = true
+		}
 	}
-	return p, rows.Err()
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	defaults, err := s.DefaultPermissions(ctx)
+	if err != nil {
+		return nil, err
+	}
+	for _, k := range defaults {
+		set[k] = true
+	}
+	for k := range set {
+		p.Perms = append(p.Perms, k)
+	}
+	p.Perms = perm.Expand(p.Perms)
+	return p, nil
+}
+
+// DefaultPermissions returns the global permissions of every signed-in user
+// (Administration → Roles; without a setting the declared defaults).
+func (s *Service) DefaultPermissions(ctx context.Context) ([]string, error) {
+	var out []string
+	err := s.pool.QueryRow(ctx, `SELECT permissions FROM permission_defaults WHERE subject='authenticated'`).Scan(&out)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return perm.DefaultAuthenticated(), nil
+	}
+	return out, err
 }
 
 // ---------------------------------------------------------------- local provider

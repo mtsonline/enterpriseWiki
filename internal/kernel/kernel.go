@@ -5,6 +5,7 @@ package kernel
 import (
 	"context"
 	"fmt"
+	"github.com/mtsonline/enterprisewiki/internal/perm"
 	"log/slog"
 	"slices"
 	"sort"
@@ -168,6 +169,9 @@ func (k *Kernel) Migrations() []db.MigrationSource {
 func (k *Kernel) Setup(base sdk.Host, tr *i18n.Service) error {
 	for _, p := range sdk.Registered() {
 		m := p.Manifest()
+		if err := perm.Register(m.ID, m.Permissions...); err != nil {
+			return fmt.Errorf("plugin %s: %w", m.ID, err)
+		}
 		if l, ok := p.(sdk.LocalesPlugin); ok {
 			if err := tr.Register(m.ID, l.Locales()); err != nil {
 				return fmt.Errorf("plugin %s locales: %w", m.ID, err)

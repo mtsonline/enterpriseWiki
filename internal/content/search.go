@@ -2,6 +2,8 @@ package content
 
 import (
 	"context"
+	"github.com/mtsonline/enterprisewiki/internal/perm"
+	"slices"
 	"strings"
 	"time"
 	"unicode"
@@ -250,12 +252,66 @@ func (s *Service) GetACL(ctx context.Context, id int64) (*ACLView, error) {
 	return &ACLView{own, inh}, nil
 }
 
-// RuleInput adds a rule.
+// RuleInput adds or changes a rule.
 type RuleInput struct {
 	SubjectType string   `json:"subject_type"`
 	SubjectID   *int64   `json:"subject_id"`
 	Permissions acl.Perm `json:"permissions"`
-	Inherit     *bool    `json:"inherit"`
+	// Actions are named category permissions of plugins.
+	Actions []string `json:"actions"`
+	// Preset (reader, editor, manager) sets permissions and actions.
+	Preset  string `json:"preset"`
+	Inherit *bool  `json:"inherit"`
+}
+
+// PresetPerms returns the core bits and named actions of a preset.
+func PresetPerms(name string) (acl.Perm, []string, bool) {
+	switch name {
+	case perm.Reader:
+		return acl.View, perm.Preset(perm.Reader), true
+	case perm.Editor:
+		return acl.View | acl.Edit | acl.Create | acl.Delete, perm.Preset(perm.Editor), true
+	case perm.Manager:
+		return acl.All, perm.Preset(perm.Manager), true
+	}
+	return 0, nil, false
+}
+
+// checkGrant validates permissions a caller wants to grant on a category.
+// Who is neither administrator nor category administrator cannot grant
+// more than they have themselves.
+func (s *Service) checkGrant(ctx context.Context, categoryID int64, in *RuleInput) error {
+	if in.Preset != "" {
+		bits, acts, ok := PresetPerms(in.Preset)
+		if !ok {
+			return apperr.BadRequest("preset must be reader, editor or manager")
+		}
+		in.Permissions, in.Actions = bits, acts
+	}
+	if in.Actions == nil {
+		in.Actions = []string{}
+	}
+	if in.Permissions < 0 || in.Permissions > acl.All || (in.Permissions == 0 && len(in.Actions) == 0) {
+		return apperr.BadRequest("permissions must be between 1 and %d", acl.All)
+	}
+	if err := perm.Validate(perm.Category, in.Actions); err != nil {
+		return err
+	}
+	p := identity.From(ctx)
+	if p.Admin() || perm.HasP(p, "core.categories.admin") {
+		return nil
+	}
+	mine, _ := s.acl.Perms(ctx, p, categoryID)
+	if in.Permissions&^mine != 0 {
+		return apperr.BadRequest("you cannot grant permissions you do not have")
+	}
+	acts, _ := s.acl.Actions(ctx, p, categoryID)
+	for _, a := range in.Actions {
+		if !slices.Contains(acts, a) {
+			return apperr.BadRequest("you cannot grant the permission %s, which you do not have", a)
+		}
+	}
+	return nil
 }
 
 // AddRule adds a permission rule to a category (requires manage). Users
@@ -264,13 +320,8 @@ func (s *Service) AddRule(ctx context.Context, categoryID int64, in RuleInput) (
 	if err := s.require(ctx, categoryID, acl.Manage); err != nil {
 		return nil, err
 	}
-	p := identity.From(ctx)
-	mine, _ := s.acl.Perms(ctx, p, categoryID)
-	if in.Permissions <= 0 || in.Permissions > acl.All {
-		return nil, apperr.BadRequest("permissions must be between 1 and %d", acl.All)
-	}
-	if in.Permissions&^mine != 0 {
-		return nil, apperr.BadRequest("you cannot grant permissions you do not have")
+	if err := s.checkGrant(ctx, categoryID, &in); err != nil {
+		return nil, err
 	}
 	switch in.SubjectType {
 	case "guest", "authenticated":
@@ -287,16 +338,16 @@ func (s *Service) AddRule(ctx context.Context, categoryID int64, in RuleInput) (
 	default:
 		return nil, apperr.BadRequest("subject_type must be user, group, role, guest or authenticated")
 	}
-	if in.SubjectType == "guest" && in.Permissions&^acl.View != 0 {
+	if in.SubjectType == "guest" && (in.Permissions&^acl.View != 0 || len(in.Actions) > 0) {
 		return nil, apperr.BadRequest("guests can only be granted view permission")
 	}
 	inherit := true
 	if in.Inherit != nil {
 		inherit = *in.Inherit
 	}
-	r := &acl.Rule{CategoryID: categoryID, SubjectType: in.SubjectType, SubjectID: in.SubjectID, Permissions: in.Permissions, Inherit: inherit}
-	err := s.pool.QueryRow(ctx, `INSERT INTO acl_rules(category_id, subject_type, subject_id, permissions, inherit, created_by)
-		VALUES ($1,$2,$3,$4,$5,$6) RETURNING id`, categoryID, r.SubjectType, r.SubjectID, r.Permissions, r.Inherit, nullID(ctx)).Scan(&r.ID)
+	r := &acl.Rule{CategoryID: categoryID, SubjectType: in.SubjectType, SubjectID: in.SubjectID, Permissions: in.Permissions, Actions: in.Actions, Inherit: inherit}
+	err := s.pool.QueryRow(ctx, `INSERT INTO acl_rules(category_id, subject_type, subject_id, permissions, actions, inherit, created_by)
+		VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING id`, categoryID, r.SubjectType, r.SubjectID, r.Permissions, r.Actions, r.Inherit, nullID(ctx)).Scan(&r.ID)
 	if err != nil {
 		return nil, err
 	}
@@ -305,11 +356,41 @@ func (s *Service) AddRule(ctx context.Context, categoryID int64, in RuleInput) (
 	return r, nil
 }
 
+// UpdateRule changes the permissions of a rule (requires manage).
+func (s *Service) UpdateRule(ctx context.Context, ruleID int64, in RuleInput) (*acl.Rule, error) {
+	var r acl.Rule
+	err := s.pool.QueryRow(ctx, `SELECT id, category_id, subject_type, subject_id, permissions, actions, inherit FROM acl_rules WHERE id=$1`, ruleID).
+		Scan(&r.ID, &r.CategoryID, &r.SubjectType, &r.SubjectID, &r.Permissions, &r.Actions, &r.Inherit)
+	if err != nil {
+		return nil, apperr.NotFound("rule")
+	}
+	if err := s.require(ctx, r.CategoryID, acl.Manage); err != nil {
+		return nil, err
+	}
+	if err := s.checkGrant(ctx, r.CategoryID, &in); err != nil {
+		return nil, err
+	}
+	if r.SubjectType == "guest" && (in.Permissions&^acl.View != 0 || len(in.Actions) > 0) {
+		return nil, apperr.BadRequest("guests can only be granted view permission")
+	}
+	before := r
+	r.Permissions, r.Actions = in.Permissions, in.Actions
+	if in.Inherit != nil {
+		r.Inherit = *in.Inherit
+	}
+	if _, err := s.pool.Exec(ctx, `UPDATE acl_rules SET permissions=$2, actions=$3, inherit=$4 WHERE id=$1`, r.ID, r.Permissions, r.Actions, r.Inherit); err != nil {
+		return nil, err
+	}
+	_ = auditLog(ctx, s, "acl.update", "category", r.CategoryID, before, r)
+	s.aclChanged(ctx)
+	return &r, nil
+}
+
 // DeleteRule removes a rule (requires manage on its category).
 func (s *Service) DeleteRule(ctx context.Context, ruleID int64) error {
 	var r acl.Rule
-	err := s.pool.QueryRow(ctx, `SELECT id, category_id, subject_type, subject_id, permissions, inherit FROM acl_rules WHERE id=$1`, ruleID).
-		Scan(&r.ID, &r.CategoryID, &r.SubjectType, &r.SubjectID, &r.Permissions, &r.Inherit)
+	err := s.pool.QueryRow(ctx, `SELECT id, category_id, subject_type, subject_id, permissions, actions, inherit FROM acl_rules WHERE id=$1`, ruleID).
+		Scan(&r.ID, &r.CategoryID, &r.SubjectType, &r.SubjectID, &r.Permissions, &r.Actions, &r.Inherit)
 	if err != nil {
 		return apperr.NotFound("rule")
 	}

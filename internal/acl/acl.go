@@ -13,8 +13,11 @@
 package acl
 
 import (
+	"slices"
+
 	"context"
 	"fmt"
+	"github.com/mtsonline/enterprisewiki/internal/perm"
 	"log/slog"
 	"strconv"
 	"strings"
@@ -33,10 +36,10 @@ type Perm int
 // Permission bits.
 const (
 	View   Perm = 1 << iota // read the category and its elements
-	Edit                    // edit elements and category texts
-	Create                  // create elements and subcategories
-	Delete                  // delete / move away elements and subcategories
-	Manage                  // manage permissions and category settings
+	Edit                    // edit elements (and their drafts)
+	Create                  // create, duplicate and publish elements
+	Delete                  // delete / move away elements
+	Manage                  // the category itself: texts, settings, subcategories, permissions
 	None   Perm = 0
 	All         = View | Edit | Create | Delete | Manage
 )
@@ -62,7 +65,9 @@ type Rule struct {
 	SubjectType string `json:"subject_type"`
 	SubjectID   *int64 `json:"subject_id"`
 	Permissions Perm   `json:"permissions"`
-	Inherit     bool   `json:"inherit"`
+	// Actions are named category permissions of plugins (package perm).
+	Actions []string `json:"actions"`
+	Inherit bool     `json:"inherit"`
 }
 
 type snapshot struct {
@@ -128,14 +133,14 @@ func (s *Service) load(ctx context.Context) (*snapshot, error) {
 	if err := rows.Err(); err != nil {
 		return nil, err
 	}
-	rows, err = s.pool.Query(ctx, `SELECT id, category_id, subject_type, subject_id, permissions, inherit FROM acl_rules`)
+	rows, err = s.pool.Query(ctx, `SELECT id, category_id, subject_type, subject_id, permissions, actions, inherit FROM acl_rules`)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
 	for rows.Next() {
 		var r Rule
-		if err := rows.Scan(&r.ID, &r.CategoryID, &r.SubjectType, &r.SubjectID, &r.Permissions, &r.Inherit); err != nil {
+		if err := rows.Scan(&r.ID, &r.CategoryID, &r.SubjectType, &r.SubjectID, &r.Permissions, &r.Actions, &r.Inherit); err != nil {
 			return nil, err
 		}
 		sn.rules[r.CategoryID] = append(sn.rules[r.CategoryID], r)
@@ -207,6 +212,12 @@ func (s *Service) perms(sn *snapshot, p *identity.Principal, categoryID int64) P
 				return None
 			}
 		}
+		// category administrators manage the structure of every category
+		// (texts, settings, subcategories, permissions) – content only with
+		// editor permissions
+		if perm.HasP(p, "core.categories.admin") {
+			out |= Manage
+		}
 	}
 	// API keys narrow permissions.
 	if p != nil && p.Via == "apikey" {
@@ -226,6 +237,125 @@ func (s *Service) Can(ctx context.Context, p *identity.Principal, categoryID int
 		return false
 	}
 	return got&want == want
+}
+
+// Actions returns the named category permissions of p on category id.
+func (s *Service) Actions(ctx context.Context, p *identity.Principal, categoryID int64) ([]string, error) {
+	sn, err := s.load(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return s.actions(sn, p, categoryID), nil
+}
+
+func (s *Service) actions(sn *snapshot, p *identity.Principal, categoryID int64) []string {
+	anc, ok := sn.ancestors[categoryID]
+	if !ok {
+		return nil
+	}
+	if p != nil && p.IsAdmin {
+		if p.Via == "apikey" && Perm(p.KeyPerms)&Edit == 0 {
+			return nil
+		}
+		return perm.Keys(perm.Category)
+	}
+	for _, cid := range anc {
+		if sn.deleted[cid] {
+			return nil
+		}
+	}
+	if p != nil && p.Via == "apikey" && (Perm(p.KeyPerms)&Edit == 0 || (p.KeyCategory != 0 && !contains(anc, p.KeyCategory))) {
+		return nil // API keys need edit permission for named actions
+	}
+	set := map[string]bool{}
+	for i, cid := range anc {
+		self := i == len(anc)-1
+		for _, r := range sn.rules[cid] {
+			if (self || r.Inherit) && matches(r, p) {
+				for _, a := range r.Actions {
+					set[a] = true
+				}
+			}
+		}
+	}
+	out := make([]string, 0, len(set))
+	for a := range set {
+		out = append(out, a)
+	}
+	return perm.Expand(out)
+}
+
+// CanAction reports whether p has the named category permission action
+// (declared with scope category) on category id.
+func (s *Service) CanAction(ctx context.Context, p *identity.Principal, categoryID int64, action string) bool {
+	if d, ok := perm.Lookup(action); !ok || d.Scope != perm.Category {
+		s.log.Error("permission check for an undeclared category permission – declare it in plugin.json", "permission", action)
+		return false
+	}
+	acts, err := s.Actions(ctx, p, categoryID)
+	if err != nil {
+		s.log.Error("acl check failed", "err", err)
+		return false
+	}
+	return slices.Contains(acts, action)
+}
+
+// Source is a rule that contributes to the permissions on a category.
+type Source struct {
+	Rule
+	// FromCategory is the category the rule is attached to (an ancestor
+	// for inherited rules).
+	Inherited bool `json:"inherited"`
+}
+
+// Explain lists the rules that give p permissions on category id.
+func (s *Service) Explain(ctx context.Context, p *identity.Principal, categoryID int64) ([]Source, error) {
+	sn, err := s.load(ctx)
+	if err != nil {
+		return nil, err
+	}
+	anc := sn.ancestors[categoryID]
+	out := []Source{}
+	for i, cid := range anc {
+		self := i == len(anc)-1
+		for _, r := range sn.rules[cid] {
+			if (self || r.Inherit) && matches(r, p) {
+				out = append(out, Source{Rule: r, Inherited: !self})
+			}
+		}
+	}
+	return out, nil
+}
+
+// RulesOf returns all rules of one subject (user, group, role, guest, authenticated).
+func (s *Service) RulesOf(ctx context.Context, subjectType string, subjectID *int64) ([]Rule, error) {
+	sn, err := s.load(ctx)
+	if err != nil {
+		return nil, err
+	}
+	out := []Rule{}
+	for _, rules := range sn.rules {
+		for _, r := range rules {
+			if r.SubjectType == subjectType && (subjectID == nil || (r.SubjectID != nil && *r.SubjectID == *subjectID)) {
+				out = append(out, r)
+			}
+		}
+	}
+	return out, nil
+}
+
+// Any reports whether p has want on at least one category.
+func (s *Service) Any(ctx context.Context, p *identity.Principal, want Perm) bool {
+	sn, err := s.load(ctx)
+	if err != nil {
+		return false
+	}
+	for id := range sn.ancestors {
+		if s.perms(sn, p, id)&want == want {
+			return true
+		}
+	}
+	return false
 }
 
 // Filter returns the subset of ids on which p has want.

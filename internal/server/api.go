@@ -22,6 +22,7 @@ import (
 	"github.com/mtsonline/enterprisewiki/internal/content"
 	h "github.com/mtsonline/enterprisewiki/internal/httpx"
 	"github.com/mtsonline/enterprisewiki/internal/identity"
+	"github.com/mtsonline/enterprisewiki/internal/perm"
 	"github.com/mtsonline/enterprisewiki/internal/pluginmgr"
 	"github.com/mtsonline/enterprisewiki/internal/version"
 )
@@ -31,10 +32,53 @@ func (s *Server) handle(pattern string, fn h.Handler) {
 	s.app.Mux.HandleFunc(pattern, h.JSON(fn))
 }
 
+// adminPerms maps administrative routes to the global permission they need
+// (longest prefix wins). Routes without an entry are for administrators only.
+var adminPerms = []struct{ prefix, perm string }{
+	{"/api/v1/admin/users", "core.users.manage"},
+	{"/api/v1/admin/groups", "core.groups.manage"},
+	{"/api/v1/admin/roles", "core.roles.manage"},
+	{"/api/v1/admin/permissions", "core.roles.manage"},
+	{"/api/v1/admin/settings", "core.settings.manage"},
+	{"/api/v1/admin/languages", "core.settings.manage"},
+	{"/api/v1/admin/retention", "core.settings.manage"},
+	{"/api/v1/admin/audit/settings", "core.audit.manage"},
+	{"/api/v1/admin/audit", "core.audit.view"},
+	{"/api/v1/admin/plugins", "core.plugins.manage"},
+	{"/api/v1/admin/restart", "core.plugins.manage"},
+	{"/api/v1/admin/updates", "core.plugins.manage"},
+	{"/api/v1/admin/jobs", "core.plugins.manage"},
+	{"/api/v1/admin/mail", "core.mail.manage"},
+	{"/api/v1/admin/webhooks", "core.webhooks.manage"},
+	{"/api/v1/admin/license", "core.license.manage"},
+	{"/api/v1/admin/cache", "core.system.manage"},
+	{"/api/v1/admin/database", "core.system.manage"},
+	{"/api/v1/admin/i18n", "core.i18n.manage"},
+	{"/api/v1/prerender", "core.settings.manage"},
+}
+
+// routePerm returns the permission of an administrative route pattern.
+func routePerm(pattern string) string {
+	_, path, _ := strings.Cut(pattern, " ")
+	best := ""
+	key := ""
+	for _, e := range adminPerms {
+		if strings.HasPrefix(path, e.prefix) && len(e.prefix) > len(best) {
+			best, key = e.prefix, e.perm
+		}
+	}
+	return key
+}
+
+// requireAdmin checks the permission of the requested administrative route
+// (see adminPerms); administrators may use all of them.
 func requireAdmin(r *http.Request) error {
 	p := identity.From(r.Context())
 	if p == nil {
 		return apperr.ErrUnauthorized
+	}
+	if key := routePerm(r.Pattern); key != "" {
+		return perm.Require(r.Context(), key)
 	}
 	if !p.Admin() {
 		return apperr.ErrForbidden
@@ -58,6 +102,7 @@ func (s *Server) routes() {
 	s.routesM7()
 	s.routesM8()
 	s.routesM9()
+	s.routesM15()
 	// ---------------------------------------------------------------- system
 	s.app.Mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, r *http.Request) { h.Write(w, 200, map[string]string{"status": "ok"}) })
 	s.handle("GET /readyz", func(w http.ResponseWriter, r *http.Request) (any, error) {
@@ -88,7 +133,7 @@ func (s *Server) routes() {
 		if p == nil {
 			return map[string]any{"user": nil}, nil
 		}
-		return map[string]any{"user": p, "handle": p.Handle()}, nil
+		return map[string]any{"user": p, "handle": p.Handle(), "manages_categories": s.app.ACL.Any(r.Context(), p, acl.Manage)}, nil
 	})
 	s.handle("POST /api/v1/auth/ssh/challenge", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		var in struct {
@@ -288,17 +333,33 @@ func (s *Server) routes() {
 				return nil, err
 			}
 		}
+		var in auth.RoleInput
+		if err := h.Decode(r, &in); err != nil {
+			return nil, err
+		}
+		nid, err := s.app.Auth.SaveRole(r.Context(), id, in)
+		return map[string]int64{"id": nid}, err
+	}
+	// global permissions: the declared permissions and the defaults of every signed-in user
+	s.handle("GET /api/v1/admin/permissions", func(w http.ResponseWriter, r *http.Request) (any, error) {
+		if err := requireAdmin(r); err != nil {
+			return nil, err
+		}
+		defaults, err := s.app.Auth.DefaultPermissions(r.Context())
+		return map[string]any{"permissions": perm.All(), "authenticated": defaults}, err
+	})
+	s.handle("PUT /api/v1/admin/permissions/authenticated", func(w http.ResponseWriter, r *http.Request) (any, error) {
+		if err := requireAdmin(r); err != nil {
+			return nil, err
+		}
 		var in struct {
-			Name        string `json:"name"`
-			Description string `json:"description"`
-			IsAdmin     bool   `json:"is_admin"`
+			Permissions []string `json:"permissions"`
 		}
 		if err := h.Decode(r, &in); err != nil {
 			return nil, err
 		}
-		nid, err := s.app.Auth.SaveRole(r.Context(), id, in.Name, in.Description, in.IsAdmin)
-		return map[string]int64{"id": nid}, err
-	}
+		return h.NoContent{}, s.app.Auth.SetDefaultPermissions(r.Context(), in.Permissions)
+	})
 	s.handle("POST /api/v1/admin/roles", roleSave)
 	s.handle("PUT /api/v1/admin/roles/{id}", roleSave)
 	s.handle("DELETE /api/v1/admin/roles/{id}", func(w http.ResponseWriter, r *http.Request) (any, error) {

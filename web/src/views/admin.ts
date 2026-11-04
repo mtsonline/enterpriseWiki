@@ -9,7 +9,9 @@ import { api, qs } from '../core/api';
 import { fmtDate, h, mount } from '../core/dom';
 import { t } from '../core/i18n';
 import { navigate, type RouteCtx } from '../core/router';
-import { isAdmin, state } from '../core/state';
+import { hasPerm, isAdmin, state } from '../core/state';
+import { globalEditor, loadCatalog, permLabel } from '../components/permissions';
+import { permissionsAdmin } from './adminPermissions';
 import type { AuditEntry, Group, Role } from '../core/types';
 import { toast } from '../core/announce';
 import { button, checkbox, confirmDialog, errorText, field, formDialog, openDialog, pageHeader, select, textArea, textInput } from '../components/ui';
@@ -20,7 +22,25 @@ import { errorPage } from './content';
 
 interface User { id: number; username: string; provider: string; handle: string; display_name: string; email: string; language: string; disabled: boolean; locked_until: string | null; created_at: string; last_login_at: string | null; groups: number[]; roles: number[]; totp_enabled: boolean }
 
-const CORE_SECTIONS = ['users', 'groups', 'roles', 'elements', 'plugins', 'updates', 'settings', 'mail', 'webhooks', 'cache', 'languages', 'audit', 'license'];
+const CORE_SECTIONS = ['users', 'groups', 'roles', 'permissions', 'elements', 'plugins', 'updates', 'settings', 'mail', 'webhooks', 'cache', 'languages', 'audit', 'license'];
+
+/** global permission of each administration page ('' = category managers too) */
+const SECTION_PERMS: Record<string, string> = {
+  users: 'core.users.manage', groups: 'core.groups.manage', roles: 'core.roles.manage', permissions: '',
+  elements: 'core.elements.admin', plugins: 'core.plugins.manage', updates: 'core.plugins.manage', settings: 'core.settings.manage',
+  mail: 'core.mail.manage', webhooks: 'core.webhooks.manage', cache: 'core.system.manage', languages: 'core.i18n.manage',
+  audit: 'core.audit.view', license: 'core.license.manage',
+};
+
+/** adminSections lists the administration pages the user may open. */
+export function adminSections(): { id: string; label: string }[] {
+  const core = CORE_SECTIONS.filter((s) => {
+    const k = SECTION_PERMS[s];
+    return k === '' ? !!state.user && (isAdmin() || hasPerm('core.categories.admin') || state.managesCategories) : hasPerm(k);
+  }).map((s) => ({ id: s, label: t(`admin.${s}`) }));
+  const plugin = listAdminPages().filter((p) => (p.permission ? hasPerm(p.permission) : isAdmin())).map((p) => ({ id: p.id, label: p.label() }));
+  return [...core, ...plugin];
+}
 
 const reload = () => navigate(location.pathname + location.search, { replace: true });
 
@@ -30,12 +50,12 @@ export async function adminView({ params, query, main }: RouteCtx): Promise<void
     navigate(`/login?next=${encodeURIComponent(location.pathname)}`, { replace: true });
     return;
   }
-  if (!isAdmin()) {
+  const pages = adminSections();
+  const section = params.section ?? pages[0]?.id ?? 'users';
+  if (!pages.some((p) => p.id === section)) {
     mount(main, h('h1', null, t('error.forbidden')));
     return;
   }
-  const section = params.section ?? 'users';
-  const pages = [...CORE_SECTIONS.map((s) => ({ id: s, label: t(`admin.${s}`) })), ...listAdminPages().map((p) => ({ id: p.id, label: p.label() }))];
   const panel = h('div');
   const notice = h('div');
   mount(main, h('div', { class: 'ew-admin' },
@@ -45,8 +65,8 @@ export async function adminView({ params, query, main }: RouteCtx): Promise<void
   // problems with the license on every administration page (not on the license page itself)
   // and problems with the PostgreSQL version (end of support)
   void Promise.all([
-    section === 'license' ? null : api.get<LicenseStatus>('admin/license').catch(() => null),
-    section === 'settings' ? null : api.get<DatabaseStatus>('admin/database').catch(() => null),
+    section === 'license' || !hasPerm('core.license.manage') ? null : api.get<LicenseStatus>('admin/license').catch(() => null),
+    section === 'settings' || !hasPerm('core.system.manage') ? null : api.get<DatabaseStatus>('admin/database').catch(() => null),
   ]).then(([lic, db]) => {
     const items = [lic && (lic.level === 'warning' || lic.level === 'error') ? licenseNotice(lic) : null, db ? databaseNotice(db) : null].filter(Boolean) as HTMLElement[];
     if (items.length) mount(notice, ...items);
@@ -56,6 +76,7 @@ export async function adminView({ params, query, main }: RouteCtx): Promise<void
       case 'users': await users(panel, query); break;
       case 'groups': await groups(panel); break;
       case 'roles': await roles(panel); break;
+      case 'permissions': await permissionsAdmin(panel, query); break;
       case 'plugins': await plugins(panel); break;
       case 'updates': await updates(panel, false); break;
       case 'settings': await settings(panel); break;
@@ -182,28 +203,49 @@ async function groups(panel: HTMLElement): Promise<void> {
 }
 
 async function roles(panel: HTMLElement): Promise<void> {
-  const rs = await api.get<Role[]>('roles');
-  const dialog = (r: Role | null) => {
+  const [rs, cat, defs] = await Promise.all([api.get<Role[]>('roles'), loadCatalog(), api.get<{ authenticated: string[] }>('admin/permissions')]);
+  const mine = isAdmin() ? null : (state.user?.permissions ?? []);
+  const label = (k: string) => { const d = cat.permissions.find((x) => x.key === k); return d ? permLabel(d) : k; };
+  const dialog = async (r: Role | null) => {
     const name = textInput({ value: r?.name ?? '', required: true });
     const desc = textInput({ value: r?.description ?? '' });
     const adm = checkbox(t('admin.is_admin'), r?.is_admin ?? false, { help: t('admin.is_admin_help') });
-    formDialog(r ? t('admin.role_edit') : t('admin.role_create'), [field(t('common.name'), name, { required: true }), field(t('common.description'), desc), adm.el], t('common.save'), async () => {
-      const body = { name: name.value, description: desc.value, is_admin: adm.input.checked };
+    if (!isAdmin()) adm.input.disabled = true;
+    const perms = await globalEditor(r?.permissions ?? [], mine);
+    const permBox = h('fieldset', null, h('legend', null, t('admin.role_permissions')), h('p', { class: 'ew-help' }, t('admin.role_permissions_help')), perms.el);
+    const sync = () => { permBox.hidden = adm.input.checked; };
+    adm.input.addEventListener('change', sync);
+    sync();
+    formDialog(r ? t('admin.role_edit') : t('admin.role_create'), [field(t('common.name'), name, { required: true }), field(t('common.description'), desc), adm.el, permBox], t('common.save'), async () => {
+      const body = { name: name.value, description: desc.value, is_admin: adm.input.checked, permissions: perms.value() };
       if (r) await api.put(`admin/roles/${r.id}`, body);
       else await api.post('admin/roles', body);
       toast(t('common.saved'));
       reload();
     });
   };
-  mount(panel, pageHeader(t('admin.roles'), button(t('admin.role_create'), () => dialog(null), { variant: 'primary' })), h('p', null, t('admin.roles_help')),
-    table(t('admin.roles'), [t('common.name'), t('common.description'), t('admin.is_admin'), t('admin.members'), t('common.actions')],
-      rs.map((r) => h('tr', null, h('th', { scope: 'row' }, r.name), h('td', null, r.description), h('td', null, r.is_admin ? t('common.yes') : t('common.no')), h('td', null, String(r.members)),
+  const defaultsDialog = async () => {
+    const ed = await globalEditor(defs.authenticated, mine);
+    formDialog(t('admin.default_permissions'), [h('p', null, t('admin.default_permissions_help')), ed.el], t('common.save'), async () => {
+      await api.put('admin/permissions/authenticated', { permissions: ed.value() });
+      toast(t('common.saved'));
+      reload();
+    });
+  };
+  mount(panel, pageHeader(t('admin.roles'), button(t('admin.role_create'), () => void dialog(null), { variant: 'primary' })), h('p', null, t('admin.roles_help')),
+    table(t('admin.roles'), [t('common.name'), t('common.description'), t('admin.role_permissions'), t('admin.members'), t('common.actions')],
+      rs.map((r) => h('tr', null, h('th', { scope: 'row' }, r.name), h('td', null, r.description),
+        h('td', null, r.is_admin ? h('strong', null, t('admin.is_admin')) : (r.permissions.map(label).join(', ') || '–')), h('td', null, String(r.members)),
         h('td', { class: 'ew-actions' },
-          button(t('common.edit'), () => dialog(r), { variant: 'link', ariaLabel: t('admin.edit_named', { name: r.name }) }),
+          button(t('common.edit'), () => void dialog(r), { variant: 'link', ariaLabel: t('admin.edit_named', { name: r.name }) }),
           button(t('common.delete'), async () => {
             if (!(await confirmDialog(t('admin.role_delete_confirm', { name: r.name }), t('common.delete'), true))) return;
             try { await api.del(`admin/roles/${r.id}`); reload(); } catch (e) { toast(errorText(e), 'error'); }
-          }, { variant: 'link', ariaLabel: t('admin.delete_named', { name: r.name }) })))), t('admin.no_roles')));
+          }, { variant: 'link', ariaLabel: t('admin.delete_named', { name: r.name }) })))), t('admin.no_roles')),
+    h('section', { class: 'ew-panel', 'aria-labelledby': 'defperm-h' }, h('h2', { id: 'defperm-h' }, t('admin.default_permissions')),
+      h('p', null, t('admin.default_permissions_help')),
+      h('p', null, defs.authenticated.map(label).join(', ') || '–'),
+      button(t('common.edit'), () => void defaultsDialog(), { variant: 'secondary', ariaLabel: `${t('common.edit')}: ${t('admin.default_permissions')}` })));
 }
 
 // ---------------------------------------------------------------- plugins

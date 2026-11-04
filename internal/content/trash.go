@@ -3,6 +3,7 @@ package content
 import (
 	"context"
 	"encoding/json"
+	"github.com/mtsonline/enterprisewiki/internal/perm"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -55,7 +56,11 @@ func (s *Service) Trash(ctx context.Context) ([]TrashItem, error) {
 	}
 	out := []TrashItem{}
 	for _, it := range items {
-		if it.ParentID != nil && s.acl.Can(ctx, p, *it.ParentID, acl.Delete) {
+		need := acl.Delete // elements: delete permission in their category
+		if it.Type == "category" {
+			need = acl.Manage // categories: manage the parent
+		}
+		if it.ParentID != nil && s.acl.Can(ctx, p, *it.ParentID, need) {
 			out = append(out, it)
 		}
 	}
@@ -75,7 +80,7 @@ func (s *Service) Restore(ctx context.Context, typ string, id int64) error {
 			return apperr.BadRequest("category is not in the trash")
 		}
 		if c.ParentID == nil {
-			if err := requireAdmin(ctx); err != nil {
+			if err := perm.Require(ctx, "core.categories.admin"); err != nil {
 				return err
 			}
 		} else {
@@ -86,7 +91,7 @@ func (s *Service) Restore(ctx context.Context, typ string, id int64) error {
 			if parentDeleted {
 				return apperr.Conflict("the parent category is in the trash; restore it first")
 			}
-			if !s.acl.Can(ctx, identity.From(ctx), *c.ParentID, acl.Delete) {
+			if !s.acl.Can(ctx, identity.From(ctx), *c.ParentID, acl.Manage) {
 				return apperr.ErrForbidden
 			}
 		}
@@ -140,7 +145,7 @@ func (s *Service) Restore(ctx context.Context, typ string, id int64) error {
 
 // Purge permanently deletes a trashed object (admin only).
 func (s *Service) Purge(ctx context.Context, typ string, id int64) error {
-	if err := requireAdmin(ctx); err != nil {
+	if err := perm.Require(ctx, "core.trash.manage"); err != nil {
 		return err
 	}
 	return s.purge(ctx, typ, id)

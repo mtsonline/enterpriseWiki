@@ -15,6 +15,9 @@ type Principal struct {
 	Groups      []int64 `json:"groups"`
 	Roles       []int64 `json:"roles"`
 	IsAdmin     bool    `json:"is_admin"`
+	// Perms are the global permissions (from roles and the defaults for
+	// signed-in users); see package perm. Administrators have all.
+	Perms []string `json:"permissions"`
 	// Via is how the caller authenticated: session, apikey, ssh, cli.
 	Via string `json:"via"`
 	// API key restrictions (Via == "apikey").

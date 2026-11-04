@@ -3,6 +3,7 @@ package content
 import (
 	"context"
 	"errors"
+	"github.com/mtsonline/enterprisewiki/internal/perm"
 	"sort"
 	"strconv"
 	"strings"
@@ -285,10 +286,10 @@ type CategoryInput struct {
 func (s *Service) CreateCategory(ctx context.Context, in CategoryInput) (*Category, error) {
 	if in.ParentID == nil || *in.ParentID == 0 {
 		in.ParentID = nil
-		if err := requireAdmin(ctx); err != nil {
+		if err := perm.Require(ctx, "core.categories.admin"); err != nil {
 			return nil, err
 		}
-	} else if err := s.require(ctx, *in.ParentID, acl.Create); err != nil {
+	} else if err := s.require(ctx, *in.ParentID, acl.Manage); err != nil {
 		return nil, err
 	}
 	titles, err := s.normalizeTexts(in.Titles, 200, true)
@@ -370,7 +371,7 @@ func snapshotOf(titles, descs map[string]string, tags []string, slug string, par
 
 // UpdateCategory changes texts, tags, slug, position and default element.
 func (s *Service) UpdateCategory(ctx context.Context, id int64, in CategoryInput) (*Category, error) {
-	if err := s.require(ctx, id, acl.Edit); err != nil {
+	if err := s.require(ctx, id, acl.Manage); err != nil {
 		return nil, err
 	}
 	before, err := s.loadCategory(ctx, s.pool, id, false)
@@ -445,14 +446,14 @@ func (s *Service) UpdateCategory(ctx context.Context, id int64, in CategoryInput
 
 // MoveCategory moves a category (with its subtree) below newParent (0 = root).
 func (s *Service) MoveCategory(ctx context.Context, id, newParent int64, position *int) (*Category, error) {
-	if err := s.require(ctx, id, acl.Delete); err != nil {
+	if err := s.require(ctx, id, acl.Manage); err != nil {
 		return nil, err
 	}
 	if newParent == 0 {
-		if err := requireAdmin(ctx); err != nil {
+		if err := perm.Require(ctx, "core.categories.admin"); err != nil {
 			return nil, err
 		}
-	} else if err := s.require(ctx, newParent, acl.Create); err != nil {
+	} else if err := s.require(ctx, newParent, acl.Manage); err != nil {
 		return nil, err
 	}
 	err := db.Tx(ctx, s.pool, func(tx pgx.Tx) error {
@@ -507,10 +508,10 @@ func (s *Service) MoveCategory(ctx context.Context, id, newParent int64, positio
 // Reorder sets the order of the given sibling categories.
 func (s *Service) Reorder(ctx context.Context, parent int64, ids []int64) error {
 	if parent == 0 {
-		if err := requireAdmin(ctx); err != nil {
+		if err := perm.Require(ctx, "core.categories.admin"); err != nil {
 			return err
 		}
-	} else if err := s.require(ctx, parent, acl.Edit); err != nil {
+	} else if err := s.require(ctx, parent, acl.Manage); err != nil {
 		return err
 	}
 	return db.Tx(ctx, s.pool, func(tx pgx.Tx) error {
@@ -537,10 +538,10 @@ func (s *Service) DuplicateCategory(ctx context.Context, id, targetParent int64)
 		return nil, err
 	}
 	if targetParent == 0 {
-		if err := requireAdmin(ctx); err != nil {
+		if err := perm.Require(ctx, "core.categories.admin"); err != nil {
 			return nil, err
 		}
-	} else if err := s.require(ctx, targetParent, acl.Create); err != nil {
+	} else if err := s.require(ctx, targetParent, acl.Manage); err != nil {
 		return nil, err
 	}
 	src, err := s.loadCategory(ctx, s.pool, id, false)
@@ -675,7 +676,7 @@ func copyElement(ctx context.Context, tx pgx.Tx, eid, to int64, titleSuffix stri
 
 // DeleteCategory moves a category, its subcategories and their elements to the trash.
 func (s *Service) DeleteCategory(ctx context.Context, id int64) error {
-	if err := s.require(ctx, id, acl.Delete); err != nil {
+	if err := s.require(ctx, id, acl.Manage); err != nil {
 		return err
 	}
 	c, err := s.loadCategory(ctx, s.pool, id, false)
@@ -683,7 +684,7 @@ func (s *Service) DeleteCategory(ctx context.Context, id int64) error {
 		return err
 	}
 	if c.ParentID == nil {
-		if err := requireAdmin(ctx); err != nil {
+		if err := perm.Require(ctx, "core.categories.admin"); err != nil {
 			return err
 		}
 	}

@@ -3,7 +3,7 @@ import { api } from '../core/api';
 import { h, uid } from '../core/dom';
 import { loadMessages, pick, t } from '../core/i18n';
 import { navigate, rerender } from '../core/router';
-import { changed, isAdmin, rememberLang, setEditMode, state } from '../core/state';
+import { changed, isAdmin, hasPerm, rememberLang, setEditMode, state } from '../core/state';
 import type { Category } from '../core/types';
 import { announce, toast } from '../core/announce';
 import { refreshPositions } from '../sdk';
@@ -109,7 +109,7 @@ export function userMenu(): HTMLElement {
     h('li', null, h('a', { href: '/profile' }, t('nav.profile'))),
     h('li', null, h('a', { href: '/trash' }, t('nav.trash'))),
   ];
-  if (isAdmin()) items.push(h('li', null, h('a', { href: '/admin' }, t('nav.admin'))));
+  if (canOpenAdmin()) items.push(h('li', null, h('a', { href: '/admin' }, t('nav.admin'))));
   items.push(h('li', null, button(t('auth.logout'), () => void logout(), { variant: 'link' })));
   const list = h('ul', { id: menuId, class: 'ew-menu-list', hidden: true }, ...items);
   const name = state.user.display_name || state.user.username;
@@ -228,7 +228,7 @@ export interface TreeNode { id: number; parent_id: number | null; depth: number;
 export async function categoryPicker(perm: string, selected: number, opts: { allowRoot?: boolean; exclude?: number } = {}): Promise<HTMLSelectElement> {
   const nodes = await api.get<TreeNode[]>('categories/tree');
   const sel = h('select', { class: 'ew-input' });
-  if (opts.allowRoot && isAdmin()) sel.append(h('option', { value: '0', selected: selected === 0 }, t('category.top_level')));
+  if (opts.allowRoot && hasPerm('core.categories.admin')) sel.append(h('option', { value: '0', selected: selected === 0 }, t('category.top_level')));
   let skipDepth = 0;
   for (const n of nodes) {
     if (skipDepth && n.depth > skipDepth) continue;
@@ -242,4 +242,10 @@ export async function categoryPicker(perm: string, selected: number, opts: { all
       `${'— '.repeat(n.depth - 1)}${pick(n.titles, state.lang, state.site.default_language)}`));
   }
   return sel;
+}
+
+/** canOpenAdmin reports whether the user may open any administration page. */
+export function canOpenAdmin(): boolean {
+  if (!state.user) return false;
+  return isAdmin() || state.managesCategories || (state.user.permissions ?? []).some((k) => !['core.share', 'core.mention'].includes(k));
 }

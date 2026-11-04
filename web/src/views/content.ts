@@ -3,7 +3,7 @@ import { api, ApiError, qs } from '../core/api';
 import { h, mount, trustedHTML, fmtDate, uid } from '../core/dom';
 import { pick, t } from '../core/i18n';
 import { navigate, type RouteCtx } from '../core/router';
-import { isAdmin, state } from '../core/state';
+import { hasPerm, state } from '../core/state';
 import type { Category, ElementSummary, ElementView, Revision } from '../core/types';
 import { toast } from '../core/announce';
 import { button, confirmDialog, errorText, field, formDialog, langFields, loading, openDialog, pageHeader, textInput, select } from '../components/ui';
@@ -58,12 +58,12 @@ export async function homeView(ctx: RouteCtx): Promise<void> {
       return;
     }
     mount(main,
-      pageHeader(state.site.name, isAdmin() ? button(t('category.new_root'), () => newCategoryDialog(0), { variant: 'primary' }) : null),
+      pageHeader(state.site.name, hasPerm('core.categories.admin') ? button(t('category.new_root'), () => newCategoryDialog(0), { variant: 'primary' }) : null),
       roots.length
         ? h('ul', { class: 'ew-cards' }, ...roots.map((c, i) => h('li', { class: 'ew-card' },
           h('h2', null, h('a', { href: `/c/${c.id}` }, pick(c.titles, L(), D()))),
           h('p', null, pick(c.descriptions, L(), D())),
-          state.editMode && isAdmin() ? reorderButtons(0, roots, i) : null)))
+          state.editMode && hasPerm('core.categories.admin') ? reorderButtons(0, roots, i) : null)))
         : h('p', null, state.user ? t('home.empty') : t('home.empty_guest')));
   } catch (e) {
     errorPage(main, e);

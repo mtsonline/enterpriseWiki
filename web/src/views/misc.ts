@@ -3,7 +3,7 @@ import { api, ApiError, qs } from '../core/api';
 import { fmtDate, h, mount } from '../core/dom';
 import { loadMessages, pick, t } from '../core/i18n';
 import { navigate, type RouteCtx } from '../core/router';
-import { changed, isAdmin, state } from '../core/state';
+import { changed, isAdmin, hasPerm, state } from '../core/state';
 import { PERMS, type Principal } from '../core/types';
 import { announce, toast } from '../core/announce';
 import { button, checkbox, confirmDialog, errorText, field, formDialog, openDialog, pageHeader, select, textArea, textInput } from '../components/ui';
@@ -116,6 +116,7 @@ export async function loginView({ query, main }: RouteCtx): Promise<void> {
     try {
       const res = await api.post<{ user: Principal }>('auth/login', { username: user.value.trim(), password: pw.value, totp: totp.value.trim() });
       state.user = res.user;
+      void api.get<{ manages_categories?: boolean }>('auth/me').then((m) => { state.managesCategories = !!m.manages_categories; changed(); }).catch(() => undefined);
       if (res.user.language && state.site.languages.includes(res.user.language) && res.user.language !== state.lang) {
         state.lang = res.user.language;
         await loadMessages(state.lang);
@@ -412,7 +413,7 @@ export async function trashView({ main }: RouteCtx): Promise<void> {
           button(t('trash.restore'), async () => {
             try { await api.post(`trash/${it.type}/${it.id}/restore`); invalidateTree(); toast(t('trash.restored')); navigate('/trash', { replace: true }); } catch (e) { toast(errorText(e), 'error'); }
           }, { variant: 'link', ariaLabel: t('trash.restore_named', { title: title(it) }) }),
-          isAdmin() ? button(t('trash.purge'), async () => {
+          hasPerm('core.trash.manage') ? button(t('trash.purge'), async () => {
             if (!(await confirmDialog(t('trash.purge_confirm', { title: title(it) }), t('trash.purge'), true))) return;
             try { await api.del(`trash/${it.type}/${it.id}`); toast(t('trash.purged')); navigate('/trash', { replace: true }); } catch (e) { toast(errorText(e), 'error'); }
           }, { variant: 'link', ariaLabel: t('trash.purge_named', { title: title(it) }) }) : null))) : [h('tr', null, h('td', { colspan: '6' }, t('trash.empty')))]))));

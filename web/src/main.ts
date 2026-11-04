@@ -60,9 +60,10 @@ function registerCore(): void {
 async function boot(): Promise<void> {
   const app = document.getElementById('app')!;
   try {
-    const [site, me] = await Promise.all([api.get<Site>('site'), api.get<{ user: Principal | null }>('auth/me')]);
+    const [site, me] = await Promise.all([api.get<Site>('site'), api.get<{ user: Principal | null; manages_categories?: boolean }>('auth/me')]);
     state.site = site;
     state.user = me.user;
+    state.managesCategories = !!me.manages_categories;
     state.lang = pickLanguage(site, me.user);
     state.editMode = !!me.user && stored('ewiki.edit') === '1';
     await loadMessages(state.lang);

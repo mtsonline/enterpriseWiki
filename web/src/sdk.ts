@@ -259,6 +259,8 @@ export interface AdminPage {
   id: string;
   label: () => string;
   order?: number;
+  /** global permission needed for the page (declared in plugin.json); default: administrators only */
+  permission?: string;
   render: (container: HTMLElement) => Promise<void> | void;
 }
 

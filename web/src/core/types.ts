@@ -12,6 +12,7 @@ export interface Principal {
   groups: number[] | null;
   roles: number[] | null;
   is_admin: boolean;
+  permissions: string[];
   via: string;
 }
 
@@ -113,11 +114,12 @@ export interface Rule {
   subject_type: 'user' | 'group' | 'role' | 'guest' | 'authenticated';
   subject_id: number | null;
   permissions: number;
+  actions: string[];
   inherit: boolean;
 }
 
 export interface Group { id: number; name: string; description: string; source: string; members: number; roles: number[] }
-export interface Role { id: number; name: string; description: string; is_admin: boolean; members: number }
+export interface Role { id: number; name: string; description: string; is_admin: boolean; members: number; permissions: string[] }
 
 export interface AuditEntry {
   id: number;

@@ -5,7 +5,8 @@ import { fmtDate, h, mount, uid } from '../core/dom';
 import { pick, t } from '../core/i18n';
 import { navigate, type RouteCtx } from '../core/router';
 import { state } from '../core/state';
-import { PERMS, type AuditEntry, type Category, type ElementSummary, type Group, type Role, type Rule } from '../core/types';
+import { loadCatalog, ruleEditor, summary, type PermDef } from '../components/permissions';
+import { type AuditEntry, type Category, type ElementSummary, type Group, type Role, type Rule } from '../core/types';
 import { toast } from '../core/announce';
 import { button, checkbox, confirmDialog, errorText, field, formDialog, langFields, select, textInput } from '../components/ui';
 import { breadcrumbs, can, invalidateTree, setContext } from '../components/widgets';
@@ -72,9 +73,6 @@ function general(panel: HTMLElement, c: Category, elements: ElementSummary[]): v
   panel.append(form);
 }
 
-function permNames(bits: number): string {
-  return PERMS.filter((p) => bits & p.bit).map((p) => t(`perm.${p.key}`)).join(', ');
-}
 
 async function permissions(panel: HTMLElement, c: Category): Promise<void> {
   if (!can('manage')) {
@@ -84,8 +82,11 @@ async function permissions(panel: HTMLElement, c: Category): Promise<void> {
   let acl: { own: Rule[]; inherited: Rule[] };
   let groups: Group[] = [];
   let roles: Role[] = [];
+  let defs: PermDef[] = [];
   try {
-    [acl, groups, roles] = await Promise.all([api.get<{ own: Rule[]; inherited: Rule[] }>(`categories/${c.id}/acl`), api.get<Group[]>('groups'), api.get<Role[]>('roles')]);
+    let catalog;
+    [acl, groups, roles, catalog] = await Promise.all([api.get<{ own: Rule[]; inherited: Rule[] }>(`categories/${c.id}/acl`), api.get<Group[]>('groups'), api.get<Role[]>('roles'), loadCatalog()]);
+    defs = catalog.permissions;
   } catch (e) {
     panel.append(h('p', { role: 'alert' }, errorText(e)));
     return;
@@ -106,9 +107,9 @@ async function permissions(panel: HTMLElement, c: Category): Promise<void> {
       own ? h('th', { scope: 'col' }, h('span', { class: 'sr-only' }, t('common.actions'))) : h('th', { scope: 'col' }, t('acl.from')))),
     h('tbody', null, ...(rules.length ? rules.map((r) => h('tr', null,
       h('th', { scope: 'row' }, subject(r)),
-      h('td', null, permNames(r.permissions)),
+      h('td', null, summary(r.permissions, r.actions ?? [], defs)),
       h('td', null, r.inherit ? t('common.yes') : t('common.no')),
-      own ? h('td', null, button(t('common.remove'), async () => {
+      own ? h('td', { class: 'ew-actions' }, button(t('common.edit'), () => void editRuleDialog(r, subject(r)), { variant: 'link', ariaLabel: t('acl.edit_rule', { subject: subject(r) }) }), button(t('common.remove'), async () => {
         if (!(await confirmDialog(t('acl.remove_confirm', { subject: subject(r) }), t('common.remove'), true))) return;
         try {
           await api.del(`acl/${r.id}`);
@@ -119,12 +120,25 @@ async function permissions(panel: HTMLElement, c: Category): Promise<void> {
         : h('td', null, h('a', { href: `/c/${r.category_id}/settings?tab=permissions` }, `#${r.category_id}`)))) : [h('tr', null, h('td', { colspan: '4' }, t('acl.none')))])));
   panel.append(
     h('p', null, t('acl.help')),
-    button(t('acl.add'), () => addRuleDialog(c, groups, roles), { variant: 'primary' }),
+    button(t('acl.add'), () => void addRuleDialog(c, groups, roles), { variant: 'primary' }),
     table(acl.own, true, t('acl.own_rules')),
     table(acl.inherited, false, t('acl.inherited_rules')));
 }
 
-function addRuleDialog(c: Category, groups: Group[], roles: Role[]): void {
+/** editRuleDialog changes the permissions of a rule. */
+export async function editRuleDialog(r: Rule, subjectName: string, done?: () => void): Promise<void> {
+  const ed = await ruleEditor(r.permissions, r.actions ?? [], { guest: r.subject_type === 'guest' });
+  const inherit = checkbox(t('acl.inherit_label'), r.inherit);
+  formDialog(t('acl.edit_title', { subject: subjectName }), [ed.el, inherit.el], t('common.save'), async () => {
+    const v = ed.value();
+    if (!v.permissions && !v.actions.length) throw new Error(t('acl.choose_perm'));
+    await api.put(`acl/${r.id}`, { ...v, inherit: inherit.input.checked });
+    toast(t('common.saved'));
+    if (done) done(); else navigate(location.pathname + location.search, { replace: true });
+  });
+}
+
+async function addRuleDialog(c: Category, groups: Group[], roles: Role[]): Promise<void> {
   const type = select(['group', 'role', 'user', 'authenticated', 'guest'].map((x) => ({ value: x, label: t(`acl.${x}`) })), 'group');
   const groupSel = select(groups.map((g) => ({ value: String(g.id), label: g.name })));
   const roleSel = select(roles.map((r) => ({ value: String(r.id), label: r.name })));
@@ -145,10 +159,9 @@ function addRuleDialog(c: Category, groups: Group[], roles: Role[]): void {
   };
   type.addEventListener('change', showSubject);
   showSubject();
-  const boxes = PERMS.map((p) => ({ p, cb: checkbox(t(`perm.${p.key}`), p.key === 'view', { help: t(`perm.${p.key}_help`) }) }));
+  const ed = await ruleEditor(1, []);
   const inherit = checkbox(t('acl.inherit_label'), true);
-  formDialog(t('acl.add'), [field(t('acl.subject_type'), type), subjectWrap,
-    h('fieldset', null, h('legend', null, t('acl.permissions')), ...boxes.map((b) => b.cb.el)), inherit.el], t('acl.add'), async () => {
+  formDialog(t('acl.add'), [field(t('acl.subject_type'), type), subjectWrap, ed.el, inherit.el], t('acl.add'), async () => {
     let subjectId: number | null = null;
     if (type.value === 'group') subjectId = Number(groupSel.value);
     if (type.value === 'role') subjectId = Number(roleSel.value);
@@ -156,9 +169,10 @@ function addRuleDialog(c: Category, groups: Group[], roles: Role[]): void {
       subjectId = userMap.get(userInput.value) ?? null;
       if (!subjectId) throw new Error(t('acl.user_not_found'));
     }
-    const permsBits = boxes.filter((b) => b.cb.input.checked).reduce((a, b) => a | b.p.bit, 0);
-    if (!permsBits) throw new Error(t('acl.choose_perm'));
-    await api.post(`categories/${c.id}/acl`, { subject_type: type.value, subject_id: subjectId, permissions: permsBits, inherit: inherit.input.checked });
+    const v = ed.value();
+    if (!v.permissions && !v.actions.length) throw new Error(t('acl.choose_perm'));
+    if (type.value === 'guest' && (v.permissions & ~1 || v.actions.length)) throw new Error(t('acl.guest_view_only'));
+    await api.post(`categories/${c.id}/acl`, { subject_type: type.value, subject_id: subjectId, ...v, inherit: inherit.input.checked });
     toast(t('acl.added'));
     navigate(location.pathname + location.search, { replace: true });
   });

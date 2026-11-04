@@ -3,6 +3,8 @@ package auth
 import (
 	"context"
 	"errors"
+	"github.com/mtsonline/enterprisewiki/internal/perm"
+	"slices"
 	"strings"
 	"time"
 
@@ -46,9 +48,59 @@ func requireAdmin(ctx context.Context) error {
 
 func (s *Service) bump(ctx context.Context) { s.bus.Publish(ctx, "auth", "") }
 
+// guardRoles prevents privilege escalation: who is not an administrator can
+// only assign roles (directly or through groups) without the admin flag and
+// with permissions they have themselves.
+func guardRoles(ctx context.Context, q db.Querier, roles, groups []int64) error {
+	p := identity.From(ctx)
+	if p.Admin() || (len(roles) == 0 && len(groups) == 0) {
+		return nil
+	}
+	rows, err := q.Query(ctx, `SELECT r.name, r.is_admin, r.permissions FROM roles r
+		WHERE r.id = ANY($1) OR r.id IN (SELECT role_id FROM group_roles WHERE group_id = ANY($2))`, roles, groups)
+	if err != nil {
+		return err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var name string
+		var admin bool
+		var perms []string
+		if err := rows.Scan(&name, &admin, &perms); err != nil {
+			return err
+		}
+		if admin {
+			return apperr.Forbidden("only administrators can assign the administrator role %q", name)
+		}
+		for _, k := range perms {
+			if !perm.HasP(p, k) {
+				return apperr.Forbidden("role %q includes the permission %s, which you do not have", name, k)
+			}
+		}
+	}
+	return rows.Err()
+}
+
+// guardTarget prevents changes to administrators by non-administrators.
+func guardTarget(ctx context.Context, q db.Querier, uid int64) error {
+	if identity.From(ctx).Admin() {
+		return nil
+	}
+	var admin bool
+	if err := q.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM roles r WHERE r.is_admin AND (
+			r.id IN (SELECT role_id FROM user_roles WHERE user_id=$1) OR
+			r.id IN (SELECT gr.role_id FROM group_roles gr JOIN user_groups ug ON ug.group_id=gr.group_id WHERE ug.user_id=$1)))`, uid).Scan(&admin); err != nil {
+		return err
+	}
+	if admin {
+		return apperr.Forbidden("only administrators can change administrators")
+	}
+	return nil
+}
+
 // ListUsers lists users matching q (admin only).
 func (s *Service) ListUsers(ctx context.Context, q string, limit, offset int) ([]User, error) {
-	if err := requireAdmin(ctx); err != nil {
+	if err := perm.Require(ctx, "core.users.manage"); err != nil {
 		return nil, err
 	}
 	if limit <= 0 || limit > 500 {
@@ -76,7 +128,7 @@ func scanUser(r pgx.CollectableRow) (User, error) {
 
 // GetUser returns one user (admin only).
 func (s *Service) GetUser(ctx context.Context, id int64) (*User, error) {
-	if err := requireAdmin(ctx); err != nil {
+	if err := perm.Require(ctx, "core.users.manage"); err != nil {
 		return nil, err
 	}
 	rows, err := s.pool.Query(ctx, `SELECT u.id, u.username, u.provider, u.display_name, u.email, u.language, u.disabled, u.locked_until,
@@ -107,7 +159,7 @@ type NewUser struct {
 
 // CreateLocalUser creates a local account (admin only).
 func (s *Service) CreateLocalUser(ctx context.Context, in NewUser) (*User, error) {
-	if err := requireAdmin(ctx); err != nil {
+	if err := perm.Require(ctx, "core.users.manage"); err != nil {
 		return nil, err
 	}
 	return s.createLocalUser(ctx, in)
@@ -139,6 +191,9 @@ func (s *Service) createLocalUser(ctx context.Context, in NewUser) (*User, error
 		}
 		if err != nil {
 			return apperr.BadRequest("invalid user: %v", err)
+		}
+		if err := guardRoles(ctx, tx, in.Roles, in.Groups); err != nil {
+			return err
 		}
 		if err := setMembership(ctx, tx, id, in.Groups, in.Roles); err != nil {
 			return err
@@ -197,7 +252,7 @@ type UserUpdate struct {
 // UpdateUser changes a user (admin only). The last active admin cannot be
 // disabled or stripped of the admin role.
 func (s *Service) UpdateUser(ctx context.Context, id int64, in UserUpdate) (*User, error) {
-	if err := requireAdmin(ctx); err != nil {
+	if err := perm.Require(ctx, "core.users.manage"); err != nil {
 		return nil, err
 	}
 	before, err := s.GetUser(ctx, id)
@@ -227,6 +282,12 @@ func (s *Service) UpdateUser(ctx context.Context, id int64, in UserUpdate) (*Use
 				totp_enabled = CASE WHEN $8 THEN false ELSE totp_enabled END,
 				totp_secret = CASE WHEN $8 THEN NULL ELSE totp_secret END, updated_at = now()
 			WHERE id=$1`, id, in.DisplayName, in.Email, in.Language, in.Disabled, hash, in.Unlock, in.ResetTOTP); err != nil {
+			return err
+		}
+		if err := guardTarget(ctx, tx, id); err != nil {
+			return err
+		}
+		if err := guardRoles(ctx, tx, in.Roles, in.Groups); err != nil {
 			return err
 		}
 		if err := setMembership(ctx, tx, id, in.Groups, in.Roles); err != nil {
@@ -267,7 +328,7 @@ func ensureAdminRemains(ctx context.Context, tx pgx.Tx) error {
 
 // DeleteUser deletes a user (admin only). Content stays; authorship is cleared.
 func (s *Service) DeleteUser(ctx context.Context, id int64) error {
-	if err := requireAdmin(ctx); err != nil {
+	if err := perm.Require(ctx, "core.users.manage"); err != nil {
 		return err
 	}
 	before, err := s.GetUser(ctx, id)
@@ -275,6 +336,9 @@ func (s *Service) DeleteUser(ctx context.Context, id int64) error {
 		return err
 	}
 	err = db.Tx(ctx, s.pool, func(tx pgx.Tx) error {
+		if err := guardTarget(ctx, tx, id); err != nil {
+			return err
+		}
 		if _, err := tx.Exec(ctx, `DELETE FROM acl_rules WHERE subject_type='user' AND subject_id=$1`, id); err != nil {
 			return err
 		}
@@ -350,11 +414,12 @@ type Group struct {
 
 // Role is a role; admin roles bypass ACL checks.
 type Role struct {
-	ID          int64  `json:"id"`
-	Name        string `json:"name"`
-	Description string `json:"description"`
-	IsAdmin     bool   `json:"is_admin"`
-	Members     int    `json:"members"`
+	ID          int64    `json:"id"`
+	Name        string   `json:"name"`
+	Description string   `json:"description"`
+	IsAdmin     bool     `json:"is_admin"`
+	Members     int      `json:"members"`
+	Permissions []string `json:"permissions"`
 }
 
 // ListGroups lists all groups (any authenticated user, needed for ACL editing).
@@ -377,7 +442,7 @@ func (s *Service) ListGroups(ctx context.Context) ([]Group, error) {
 
 // SaveGroup creates (id==0) or updates a group (admin only).
 func (s *Service) SaveGroup(ctx context.Context, id int64, name, description string, roles []int64) (int64, error) {
-	if err := requireAdmin(ctx); err != nil {
+	if err := perm.Require(ctx, "core.groups.manage"); err != nil {
 		return 0, err
 	}
 	name = strings.TrimSpace(name)
@@ -385,6 +450,14 @@ func (s *Service) SaveGroup(ctx context.Context, id int64, name, description str
 		return 0, apperr.BadRequest("name is required")
 	}
 	err := db.Tx(ctx, s.pool, func(tx pgx.Tx) error {
+		if err := guardRoles(ctx, tx, roles, nil); err != nil {
+			return err
+		}
+		if id != 0 {
+			if err := guardRoles(ctx, tx, nil, []int64{id}); err != nil {
+				return err
+			}
+		}
 		var err error
 		if id == 0 {
 			err = tx.QueryRow(ctx, `INSERT INTO groups(name, description) VALUES ($1,$2) RETURNING id`, name, description).Scan(&id)
@@ -422,7 +495,7 @@ func (s *Service) SaveGroup(ctx context.Context, id int64, name, description str
 
 // DeleteGroup deletes a group and its ACL rules (admin only).
 func (s *Service) DeleteGroup(ctx context.Context, id int64) error {
-	if err := requireAdmin(ctx); err != nil {
+	if err := perm.Require(ctx, "core.groups.manage"); err != nil {
 		return err
 	}
 	err := db.Tx(ctx, s.pool, func(tx pgx.Tx) error {
@@ -450,7 +523,7 @@ func (s *Service) DeleteGroup(ctx context.Context, id int64) error {
 
 // GroupMembers lists the user ids of a group.
 func (s *Service) GroupMembers(ctx context.Context, id int64) ([]int64, error) {
-	if err := requireAdmin(ctx); err != nil {
+	if err := perm.Require(ctx, "core.groups.manage"); err != nil {
 		return nil, err
 	}
 	rows, err := s.pool.Query(ctx, `SELECT user_id FROM user_groups WHERE group_id=$1 ORDER BY user_id`, id)
@@ -465,33 +538,78 @@ func (s *Service) ListRoles(ctx context.Context) ([]Role, error) {
 	if identity.From(ctx) == nil {
 		return nil, apperr.ErrUnauthorized
 	}
-	rows, err := s.pool.Query(ctx, `SELECT r.id, r.name, r.description, r.is_admin, (SELECT count(*) FROM user_roles WHERE role_id=r.id)
+	rows, err := s.pool.Query(ctx, `SELECT r.id, r.name, r.description, r.is_admin, (SELECT count(*) FROM user_roles WHERE role_id=r.id), r.permissions
 		FROM roles r ORDER BY r.name`)
 	if err != nil {
 		return nil, err
 	}
 	return pgx.CollectRows(rows, func(r pgx.CollectableRow) (Role, error) {
 		var x Role
-		return x, r.Scan(&x.ID, &x.Name, &x.Description, &x.IsAdmin, &x.Members)
+		return x, r.Scan(&x.ID, &x.Name, &x.Description, &x.IsAdmin, &x.Members, &x.Permissions)
 	})
 }
 
-// SaveRole creates (id==0) or updates a role (admin only).
-func (s *Service) SaveRole(ctx context.Context, id int64, name, description string, isAdmin bool) (int64, error) {
-	if err := requireAdmin(ctx); err != nil {
+// RoleInput creates or changes a role.
+type RoleInput struct {
+	Name        string   `json:"name"`
+	Description string   `json:"description"`
+	IsAdmin     bool     `json:"is_admin"`
+	Permissions []string `json:"permissions"` // global permissions (package perm)
+}
+
+// SaveRole creates (id==0) or updates a role (core.roles.manage). Who is not
+// an administrator cannot touch administrator roles and can only grant
+// permissions they have themselves.
+func (s *Service) SaveRole(ctx context.Context, id int64, in RoleInput) (int64, error) {
+	if err := perm.Require(ctx, "core.roles.manage"); err != nil {
 		return 0, err
 	}
-	name = strings.TrimSpace(name)
+	name, description, isAdmin := strings.TrimSpace(in.Name), in.Description, in.IsAdmin
 	if name == "" {
 		return 0, apperr.BadRequest("name is required")
 	}
+	if in.Permissions == nil {
+		in.Permissions = []string{}
+	}
+	if err := perm.Validate(perm.Global, in.Permissions); err != nil {
+		return 0, err
+	}
+	p := identity.From(ctx)
+	if !p.Admin() {
+		if isAdmin {
+			return 0, apperr.Forbidden("only administrators can create administrator roles")
+		}
+		for _, k := range in.Permissions {
+			if !perm.HasP(p, k) {
+				return 0, apperr.Forbidden("you cannot grant the permission %s, which you do not have", k)
+			}
+		}
+	}
+	var before *Role
 	err := db.Tx(ctx, s.pool, func(tx pgx.Tx) error {
+		if id != 0 {
+			before = &Role{ID: id}
+			if err := tx.QueryRow(ctx, `SELECT name, description, is_admin, permissions FROM roles WHERE id=$1`, id).
+				Scan(&before.Name, &before.Description, &before.IsAdmin, &before.Permissions); err != nil {
+				return apperr.NotFound("role")
+			}
+			if !p.Admin() {
+				if before.IsAdmin {
+					return apperr.Forbidden("only administrators can change administrator roles")
+				}
+				for _, k := range before.Permissions { // nor remove permissions they cannot grant
+					if !perm.HasP(p, k) && !slices.Contains(in.Permissions, k) {
+						return apperr.Forbidden("you cannot remove the permission %s, which you do not have", k)
+					}
+				}
+			}
+		}
 		var err error
 		if id == 0 {
-			err = tx.QueryRow(ctx, `INSERT INTO roles(name, description, is_admin) VALUES ($1,$2,$3) RETURNING id`, name, description, isAdmin).Scan(&id)
+			err = tx.QueryRow(ctx, `INSERT INTO roles(name, description, is_admin, permissions) VALUES ($1,$2,$3,$4) RETURNING id`, name, description, isAdmin, in.Permissions).Scan(&id)
 		} else {
 			var tag interface{ RowsAffected() int64 }
-			tag, err = tx.Exec(ctx, `UPDATE roles SET name=$2, description=$3, is_admin=$4 WHERE id=$1`, id, name, description, isAdmin)
+			tag, err = tx.Exec(ctx, `UPDATE roles SET name=$2, description=$3, is_admin=$4, permissions=$5 WHERE id=$1`, id, name, description, isAdmin, in.Permissions)
 			if err == nil && tag.RowsAffected() == 0 {
 				return apperr.NotFound("role")
 			}
@@ -505,18 +623,64 @@ func (s *Service) SaveRole(ctx context.Context, id int64, name, description stri
 		if err := ensureAdminRemains(ctx, tx); err != nil {
 			return err
 		}
-		return audit.Log(ctx, tx, "role.save", "role", id, nil, map[string]any{"name": name, "is_admin": isAdmin})
+		return audit.Log(ctx, tx, "role.save", "role", id, before, map[string]any{"name": name, "description": description, "is_admin": isAdmin, "permissions": in.Permissions})
 	})
 	s.bump(ctx)
 	return id, err
 }
 
+// SetDefaultPermissions sets the global permissions of every signed-in user.
+func (s *Service) SetDefaultPermissions(ctx context.Context, perms []string) error {
+	if err := perm.Require(ctx, "core.roles.manage"); err != nil {
+		return err
+	}
+	if perms == nil {
+		perms = []string{}
+	}
+	if err := perm.Validate(perm.Global, perms); err != nil {
+		return err
+	}
+	p := identity.From(ctx)
+	before, err := s.DefaultPermissions(ctx)
+	if err != nil {
+		return err
+	}
+	if !p.Admin() {
+		for _, k := range append(slices.Clone(perms), before...) {
+			if !perm.HasP(p, k) && slices.Contains(perms, k) != slices.Contains(before, k) {
+				return apperr.Forbidden("you cannot change the permission %s, which you do not have", k)
+			}
+		}
+	}
+	err = db.Tx(ctx, s.pool, func(tx pgx.Tx) error {
+		if _, err := tx.Exec(ctx, `INSERT INTO permission_defaults(subject, permissions) VALUES ('authenticated', $1)
+			ON CONFLICT (subject) DO UPDATE SET permissions=EXCLUDED.permissions, updated_at=now()`, perms); err != nil {
+			return err
+		}
+		return audit.Log(ctx, tx, "permissions.defaults", "role", 0, before, perms)
+	})
+	if err == nil {
+		s.bump(ctx)
+	}
+	return err
+}
+
 // DeleteRole deletes a role (admin only).
 func (s *Service) DeleteRole(ctx context.Context, id int64) error {
-	if err := requireAdmin(ctx); err != nil {
+	if err := perm.Require(ctx, "core.roles.manage"); err != nil {
 		return err
 	}
 	err := db.Tx(ctx, s.pool, func(tx pgx.Tx) error {
+		if !identity.From(ctx).Admin() {
+			var admin bool
+			var perms []string
+			if err := tx.QueryRow(ctx, `SELECT is_admin, permissions FROM roles WHERE id=$1`, id).Scan(&admin, &perms); err != nil {
+				return apperr.NotFound("role")
+			}
+			if err := guardRoles(ctx, tx, []int64{id}, nil); err != nil {
+				return err
+			}
+		}
 		if _, err := tx.Exec(ctx, `DELETE FROM acl_rules WHERE subject_type='role' AND subject_id=$1`, id); err != nil {
 			return err
 		}

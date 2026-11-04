@@ -32,6 +32,7 @@ import (
 	"github.com/mtsonline/enterprisewiki/internal/i18n"
 	"github.com/mtsonline/enterprisewiki/internal/identity"
 	"github.com/mtsonline/enterprisewiki/internal/mail"
+	"github.com/mtsonline/enterprisewiki/internal/perm"
 	"github.com/mtsonline/enterprisewiki/internal/storage"
 	"github.com/mtsonline/enterprisewiki/internal/webhook"
 	"github.com/mtsonline/enterprisewiki/internal/worker"
@@ -66,6 +67,10 @@ type Manifest struct {
 	MinCore string `json:"min_core"`
 	// Frontend is true if plugins/<dir>/web/index.ts exists.
 	Frontend bool `json:"frontend"`
+	// Permissions the plugin checks (see docs/developer/plugins.md#permissions).
+	// Every permission a plugin uses must be declared here; keys start with
+	// the plugin id. Labels are English (translations: UI key perm.<key>).
+	Permissions []perm.Def `json:"permissions,omitempty"`
 }
 
 // Plugin is implemented by every plugin.
@@ -213,7 +218,23 @@ func (h *Host) RegisterRedirectProvider(p auth.RedirectProvider) {
 	h.Auth.RegisterRedirectProvider(h.Manifest.ID, p)
 }
 
+// RequirePerm returns 401/403 unless the caller of r has the global
+// permission key (declared in plugin.json; administrators have all).
+func (h *Host) RequirePerm(r *http.Request, key string) error {
+	return perm.Require(r.Context(), key)
+}
+
+// HasPerm reports whether the caller has the global permission key.
+func (h *Host) HasPerm(ctx context.Context, key string) bool { return perm.Has(ctx, key) }
+
+// Can reports whether the caller has the category permission action (a key
+// declared in plugin.json with scope "category") on a category.
+func (h *Host) Can(ctx context.Context, categoryID int64, action string) bool {
+	return h.ACL.CanAction(ctx, identity.From(ctx), categoryID, action)
+}
+
 // RequireAdmin returns an error unless the caller of r is an administrator.
+// Prefer RequirePerm with a declared permission.
 func RequireAdmin(r *http.Request) error {
 	p := identity.From(r.Context())
 	if p == nil {

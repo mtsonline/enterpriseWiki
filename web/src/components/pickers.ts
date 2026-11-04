@@ -4,7 +4,7 @@
 import { api, qs } from '../core/api';
 import { h, uid } from '../core/dom';
 import { pick, t } from '../core/i18n';
-import { isAdmin, state } from '../core/state';
+import { isAdmin, hasPerm, state } from '../core/state';
 import type { ElementView } from '../core/types';
 import { toast } from '../core/announce';
 import { button, field, formDialog, langFields, select, textInput } from './ui';
@@ -127,7 +127,7 @@ export async function categorySelect(opts: { selected?: number; perm?: string; n
 /** Dialog: creates a category (parent preselected) and calls done with its id. */
 export function newCategory(parent: number, done: (id: number) => void | Promise<void>): void {
   void (async () => {
-    const parentSel = await categorySelect({ selected: parent, perm: 'create', noneLabel: isAdmin() ? t('category.top_level') : undefined });
+    const parentSel = await categorySelect({ selected: parent, perm: 'manage', noneLabel: hasPerm('core.categories.admin') ? t('category.top_level') : undefined });
     const titles = langFields(t('common.title'), {}, { required: true });
     formDialog(t('category.new'), [parentSel.field(t('category.parent')), titles.el], t('common.create'), async () => {
       const c = await api.post<{ id: number }>('categories', { parent_id: parentSel.value() || null, titles: titles.get() });

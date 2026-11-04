@@ -10,6 +10,7 @@ package i18n
 import (
 	"context"
 	"encoding/json"
+	"github.com/mtsonline/enterprisewiki/internal/perm"
 	"io/fs"
 	"sort"
 	"strings"
@@ -263,16 +264,7 @@ func (s *Service) SetStrings(ctx context.Context, lang string, values map[string
 	return nil
 }
 
-func requireAdmin(ctx context.Context) error {
-	p := identity.From(ctx)
-	if p == nil {
-		return apperr.ErrUnauthorized
-	}
-	if !p.Admin() {
-		return apperr.ErrForbidden
-	}
-	return nil
-}
+func requireAdmin(ctx context.Context) error { return perm.Require(ctx, "core.i18n.manage") }
 
 // T translates key into lang (falling back to the reference language) and
 // replaces {name} placeholders. Missing keys return the key itself.

@@ -274,3 +274,9 @@ th .ew-help { font-weight: 400; }
 .ew-license-notice { margin: 0 0 1rem; padding: .6rem .9rem; border-left: 4px solid var(--ew-primary); background: var(--ew-bg-subtle); border-radius: 4px; }
 .ew-license-notice--warning { border-left-color: #b65c00; }
 .ew-license-notice--error { border-left-color: var(--ew-danger, #c9372c); }
+/* central permissions: category tree indentation */
+.ew-perm-overview .ew-indent { display: inline-block; }
+.ew-indent-1 { padding-inline-start: 1rem; } .ew-indent-2 { padding-inline-start: 2rem; } .ew-indent-3 { padding-inline-start: 3rem; }
+.ew-indent-4 { padding-inline-start: 4rem; } .ew-indent-5 { padding-inline-start: 5rem; } .ew-indent-6 { padding-inline-start: 6rem; }
+.ew-indent-7 { padding-inline-start: 7rem; } .ew-indent-8 { padding-inline-start: 8rem; }
+.ew-perm-editor fieldset { margin-block: .5rem; }
