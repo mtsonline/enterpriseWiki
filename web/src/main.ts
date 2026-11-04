@@ -88,6 +88,7 @@ async function boot(): Promise<void> {
   const build = () => {
     const layout = tpl.layout({ position: (name, tag) => positionContainer(name, tag) });
     mount(app, layout.root);
+    trackStickyHeader(layout.root);
     return layout;
   };
   const layout = build();
@@ -99,6 +100,28 @@ async function boot(): Promise<void> {
     setMain(build().main);
     void rerender();
   });
+}
+
+let headerObserver: ResizeObserver | null = null;
+
+/**
+ * Keeps --ew-sticky-top at the height of a sticky or fixed page header, so that
+ * focused controls scrolled into view are not hidden below it (WCAG 2.4.11,
+ * via scroll-padding-top) and sticky toolbars sit right under it.
+ */
+function trackStickyHeader(root: HTMLElement): void {
+  headerObserver?.disconnect();
+  const header = root.querySelector<HTMLElement>('header');
+  const set = () => {
+    const pos = header ? getComputedStyle(header).position : '';
+    const hgt = header && (pos === 'sticky' || pos === 'fixed') ? Math.ceil(header.getBoundingClientRect().height) : 0;
+    document.documentElement.style.setProperty('--ew-sticky-top', `${hgt}px`);
+  };
+  set();
+  if (header && 'ResizeObserver' in window) {
+    headerObserver = new ResizeObserver(set);
+    headerObserver.observe(header);
+  }
 }
 
 /**

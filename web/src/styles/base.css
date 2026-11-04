@@ -301,3 +301,5 @@ th .ew-help { font-weight: 400; }
 .ew-inbox-list li:not(:has(a)) { padding: .75rem; }
 .ew-chips { list-style: none; display: flex; flex-wrap: wrap; gap: .25rem; padding: 0; }
 .ew-chips li { display: inline-flex; align-items: center; gap: .25rem; padding: .1rem .5rem; border: 1px solid var(--ew-border); border-radius: 999px; }
+/* focused controls scrolled into view stay below a sticky header (WCAG 2.4.11) */
+html { scroll-padding-top: calc(var(--ew-sticky-top, var(--ew-header-h)) + .5rem); }

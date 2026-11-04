@@ -8,7 +8,7 @@
 .ewc-header .ew-pos--header-nav { flex: 1; }
 .ewc-header .ew-pos--header-tools { display: flex; align-items: center; gap: .6rem; flex-wrap: wrap; }
 .ewc-shell { display: grid; grid-template-columns: var(--ew-sidebar-w) minmax(0, 1fr); min-height: calc(100vh - var(--ew-header-h)); }
-.ewc-sidebar { background: var(--ew-bg-subtle); border-right: 1px solid var(--ew-border); padding: 1rem .75rem; min-height: calc(100vh - var(--ew-header-h)); position: sticky; top: var(--ew-header-h); align-self: start; max-height: calc(100vh - var(--ew-header-h)); overflow: auto; }
+.ewc-sidebar { background: var(--ew-bg-subtle); border-right: 1px solid var(--ew-border); padding: 1rem .75rem; min-height: calc(100vh - var(--ew-header-h)); position: sticky; top: var(--ew-sticky-top, var(--ew-header-h)); align-self: start; max-height: calc(100vh - var(--ew-sticky-top, var(--ew-header-h))); overflow: auto; }
 .ewc-sidebar .ew-pos--sidebar > * + * { margin-top: 1.5rem; }
 .ewc-content { min-width: 0; display: flex; flex-direction: column; }
 .ewc-main { padding: 1.5rem 2.5rem 3rem; max-width: 72rem; width: 100%; }
