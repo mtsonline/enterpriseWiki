@@ -35,6 +35,8 @@ after(async () => { await browser?.close(); });
 
 async function a11y(name) {
   if (!axeSource) return;
+  // transient toasts (fixed, bottom right) may cover controls: wait until they are gone
+  await page.waitForFunction(() => !document.querySelector('.ew-toasts > *'), null, { timeout: 15000 }).catch(() => undefined);
   await page.addScriptTag({ content: axeSource });
   const res = await page.evaluate(async () => await globalThis.axe.run(document, { runOnly: ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'] }));
   const v = res.violations.map((x) => `${x.id} (${x.impact}): ${x.nodes.slice(0, 3).map((n) => n.target.join(' ')).join(', ')}`);
@@ -331,6 +333,11 @@ test('drafts, preview, templates and publishing with options', async () => {
 
 test('share a page, notification bell, assigned watches', async () => {
   const cat = await m6Category();
+  // the test user is a member of the group hr (also when the workflow test did not get that far)
+  const me = await call('GET', '/api/v1/auth/me');
+  let hr = (await call('GET', '/api/v1/groups')).find((g) => g.name === 'hr');
+  if (!hr) hr = { id: (await call('POST', '/api/v1/admin/groups', { name: 'hr' })).id };
+  if (!me.user.groups.includes(hr.id)) await call('PUT', `/api/v1/admin/users/${me.user.id}`, { groups: [...me.user.groups, hr.id] });
   // share dialog on a page (does not change permissions; checks recipients)
   await page.goto(`${BASE}/search?q=wombat${run}`);
   await idle();
@@ -349,8 +356,6 @@ test('share a page, notification bell, assigned watches', async () => {
   await a11y('notification panel');
   await page.keyboard.press('Escape');
   // assign a watch to the group hr (the test user is a member) and see it in the profile
-  const groups = await call('GET', '/api/v1/groups');
-  const hr = groups.find((g) => g.name === 'hr');
   const a = await call('POST', '/api/v1/admin/watch-assignments', { subject_type: 'group', subject_id: hr.id, target_type: 'category', target_id: cat, mode: 'link', frequency: 'daily', mandatory: false, note: `note ${run}` });
   await page.goto(`${BASE}/admin/watches`);
   await idle();
