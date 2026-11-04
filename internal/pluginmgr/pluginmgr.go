@@ -13,6 +13,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"io/fs"
 	"log/slog"
 	"os"
@@ -467,7 +468,8 @@ func (m *Manager) runImageBuild(trigger string) {
 		fmt.Fprintln(&buf, "No additional plugins: the image binary is used.")
 	default:
 		var built bool
-		_, meta, built, err = BuildImage(ctx, m.root, m.layout, trigger, &buf)
+		// the build output also goes to the server log (docker compose logs)
+		_, meta, built, err = BuildImage(ctx, m.root, m.layout, trigger, io.MultiWriter(&buf, os.Stderr))
 		if err == nil && !built {
 			fmt.Fprintln(&buf, "Already built (by "+metaBy(meta)+").")
 			if meta != nil && meta.Trigger != "" && meta.Trigger != "start" {

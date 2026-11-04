@@ -9,7 +9,16 @@
 #   scripts/test-docker-plugins.sh
 set -euo pipefail
 src="$(cd "$(dirname "$0")/.." && pwd)"
-fail() { echo "FAIL: $*" >&2; docker compose logs --no-color --tail 120 >&2 || true; exit 1; }
+fail() {
+	echo "FAIL: $*" >&2
+	ls -la data/wiki/bin data/wiki/plugins >&2 2>/dev/null || true
+	cat data/wiki/bin/last-build.json >&2 2>/dev/null || true
+	docker compose logs --no-color --tail 200 >&2 || true
+	exit 1
+}
+# plugin IDs compiled into the binary the CLI runs (no pipes: SIGPIPE with pipefail)
+compiled() { docker compose exec -T wiki ewiki plugin list 2>/dev/null | awk '{print $1}' || true; }
+has() { case " $(compiled | tr '\n' ' ') " in *" $1 "*) return 0 ;; esac; return 1; }
 
 docker build -q --target full -t ewiki-test:full "$src" >/dev/null
 docker build -q --target lite -t ewiki-test:lite "$src" >/dev/null
@@ -62,7 +71,7 @@ for _ in $(seq 1 900); do
 done
 ready 5 || fail "wiki not ready after the build"
 [ "$placeholder" = yes ] || fail "no placeholder page during the build"
-docker compose exec -T wiki ewiki plugin list | grep -q '^test.hello' || fail "test.hello not compiled in"
+has test.hello || fail "test.hello not compiled in"
 ls data/wiki/bin/ewiki-* >/dev/null || fail "no built binary in ./data/wiki/bin"
 [ "$(docker compose exec -T wiki id -u)" = "$(id -u)" ] || fail "wiki does not run as the user of .env"
 other="$(find data/wiki \( ! -uid "$(id -u)" \) -print | head -3)"; [ -z "$other" ] || fail "files of another user: $other"
@@ -77,10 +86,10 @@ echo "ok: no second build"
 echo "== plugin copied into the folder while running"
 plugin data/wiki/plugins/test_second test.second
 for _ in $(seq 1 600); do
-	docker compose exec -T wiki ewiki plugin list 2>/dev/null | grep -q '^test.second' && break
+	has test.second && break
 	sleep 2
 done
-docker compose exec -T wiki ewiki plugin list | grep -q '^test.second' || fail "dropped plugin not built"
+has test.second || fail "dropped plugin not built"
 grep -Eq '"trigger": *"drop"' data/wiki/bin/ewiki-*.json || fail "trigger drop not recorded"
 curl -fs http://localhost:8080/readyz >/dev/null || fail "restarted automatically after a dropped plugin"
 echo "ok: dropped plugin built, no automatic restart"
@@ -92,7 +101,7 @@ plugin data/wiki/plugins/test_hello test.hello
 docker compose up -d
 ready 120 || fail "lite image not ready"
 docker compose logs wiki | grep -q 'ignored in the lite image' || fail "no hint about ignored plugins"
-if docker compose exec -T wiki ewiki plugin list | grep -q '^test.hello'; then fail "lite image runs the additional plugin"; fi
+if has test.hello; then fail "lite image runs the additional plugin"; fi
 if docker compose exec -T wiki ewiki plugin install /data/plugins/test_hello >/dev/null 2>&1; then fail "lite image installed a plugin"; fi
 [ ! -e data/wiki/bin ] || [ -z "$(ls data/wiki/bin)" ] || fail "lite image built something"
 docker compose down >/dev/null 2>&1
