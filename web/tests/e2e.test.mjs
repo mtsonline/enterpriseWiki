@@ -37,6 +37,9 @@ async function a11y(name) {
   if (!axeSource) return;
   // transient toasts (fixed, bottom right) may cover controls: wait until they are gone
   await page.waitForFunction(() => !document.querySelector('.ew-toasts > *'), null, { timeout: 15000 }).catch(() => undefined);
+  // Playwright scrolls controls into view without scroll-padding, which can leave
+  // content half below the sticky header in the snapshot: check from the top
+  await page.evaluate(() => window.scrollTo(0, 0));
   await page.addScriptTag({ content: axeSource });
   const res = await page.evaluate(async () => {
     const r = await globalThis.axe.run(document, { runOnly: ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'] });
