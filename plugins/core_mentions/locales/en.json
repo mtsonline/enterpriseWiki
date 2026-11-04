@@ -1,0 +1,8 @@
+{
+ "core.mentions.kind": "Mentions",
+ "core.mentions.suggestions": "People",
+ "core.mentions.mail_subject": "{by} mentioned you in “{title}”",
+ "core.mentions.mail_body": "{by} mentioned you in “{title}”:\n\n{excerpt}",
+ "perm.core.mentions.use": "Mention people",
+ "perm.core.mentions.use_help": "Notify people with @name in a page or comment."
+}

@@ -186,7 +186,7 @@ func ipInCIDR(ip, cidr string) bool {
 // noInvalidate lists write requests that do not change what guests see.
 func noInvalidate(p string) bool {
 	for _, x := range []string{"/api/v1/auth/", "/api/v1/me/password", "/api/v1/me/api-keys", "/api/v1/me/ssh-keys", "/api/v1/me/feed-token",
-		"/api/v1/me/watches", "/api/v1/me/notifications", "/api/v1/elements/preview", "/api/v1/files"} {
+		"/api/v1/me/watches", "/api/v1/me/notifications", "/api/v1/me/inbox", "/api/v1/elements/preview", "/api/v1/files"} {
 		if strings.HasPrefix(p, x) {
 			return true
 		}

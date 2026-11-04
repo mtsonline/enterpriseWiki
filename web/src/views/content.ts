@@ -12,7 +12,7 @@ import { watchButton } from '../components/watch';
 import { shortURLInput } from '../components/shorturl';
 import { imagesOf, previewImageInput } from '../components/previewimage';
 import { feedButton } from '../components/feeds';
-import { getEditor, renderElementExtensions, typeLabel, type EditorInstance } from '../sdk';
+import { getEditor, pageActionButtons, renderElementExtensions, typeLabel, type EditorInstance } from '../sdk';
 import { draftNotice, publishDialog, publishVia, saveDraft, saveTemplateDialog, showPreview, templatePicker, type Draft, type EditorState } from '../components/publishing';
 
 const L = () => state.lang;
@@ -115,6 +115,7 @@ export async function categoryView({ params, main }: RouteCtx): Promise<void> {
   }
   const watchC = watchButton('category', c.id, title);
   if (watchC) actions.push(watchC);
+  actions.push(...pageActionButtons({ type: 'category', id: c.id, title, categoryId: c.id }));
   if (c.feed && c.feed !== 'off') actions.push(feedButton(`/api/v1/feeds/categories/${c.id}`, title));
   const view = h('article', { class: 'ew-category' },
     crumbs(data.breadcrumbs, { title }),
@@ -294,7 +295,7 @@ function translationPanel(el: ElementView): HTMLElement {
   const canEdit = el.permissions?.includes('edit');
   return h('section', { class: 'ew-panel', 'aria-labelledby': 'ew-tr-title' },
     h('h2', { id: 'ew-tr-title' }, t('translation.title')),
-    h('p', null, h('progress', { max: '100', value: String(el.translated_percent), 'aria-label': t('translation.progress') }), ' ',
+    el.translations.length < 2 ? null : h('p', null, h('progress', { max: '100', value: String(el.translated_percent), 'aria-label': t('translation.progress') }), ' ',
       t('translation.percent', { percent: el.translated_percent }), ' ',
       el.up_to_date ? h('span', { class: 'ew-badge ew-badge--ok' }, t('translation.all_current')) : h('span', { class: 'ew-badge ew-badge--warn' }, t('translation.needs_work'))),
     h('table', { class: 'ew-table' },
@@ -334,6 +335,7 @@ export async function elementView({ params, main }: RouteCtx): Promise<void> {
   }
   const watchE = watchButton('element', el.id, el.title);
   if (watchE) actions.push(watchE);
+  actions.push(...pageActionButtons({ type: 'element', id: el.id, title: el.title, categoryId: el.category_id }));
   const extensions = h('div', { class: 'ew-element-extensions', lang: state.lang });
   mount(main, h('article', { class: 'ew-element', lang: el.shown_lang },
     crumbs([...cat.breadcrumbs, cat.category], { title: el.title }),

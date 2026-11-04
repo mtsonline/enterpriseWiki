@@ -77,6 +77,11 @@ curl -H "Authorization: Bearer $KEY" -H 'Content-Type: application/json' \
 | `GET` | `/api/v1/me/ssh-keys` |
 | `POST` | `/api/v1/me/ssh-keys` |
 | `DELETE` | `/api/v1/me/ssh-keys/{id}` |
+| `GET` | `/api/v1/me/inbox` |
+| `POST` | `/api/v1/me/inbox/read` |
+| `DELETE` | `/api/v1/me/inbox/{id}` |
+| `GET` | `/api/v1/me/watch-assignments` |
+| `PUT` | `/api/v1/me/watch-assignments/{id}` |
 | `GET` | `/api/v1/me/totp` |
 | `POST` | `/api/v1/me/totp/setup` |
 | `POST` | `/api/v1/me/totp/enable` |
@@ -132,6 +137,7 @@ curl -H "Authorization: Bearer $KEY" -H 'Content-Type: application/json' \
 | `DELETE` | `/api/v1/acl/{id}` |
 | `GET` | `/api/v1/categories/{id}/history` |
 | `POST` | `/api/v1/categories/{id}/rollback` |
+| `PUT` | `/api/v1/acl/{id}` |
 
 ### Elemente & Versionen
 
@@ -196,6 +202,8 @@ curl -H "Authorization: Bearer $KEY" -H 'Content-Type: application/json' \
 
 | Methode | Pfad |
 |---|---|
+| `GET` | `/api/v1/admin/permissions` |
+| `PUT` | `/api/v1/admin/permissions/authenticated` |
 | `GET` | `/api/v1/admin/settings` |
 | `PUT` | `/api/v1/admin/settings` |
 | `GET` | `/api/v1/admin/audit` |
@@ -208,6 +216,15 @@ curl -H "Authorization: Bearer $KEY" -H 'Content-Type: application/json' \
 | `DELETE` | `/api/v1/admin/plugins/{id}` |
 | `POST` | `/api/v1/admin/plugins/build` |
 | `POST` | `/api/v1/admin/restart` |
+| `GET` | `/api/v1/admin/audit/search` |
+| `GET` | `/api/v1/admin/audit/export` |
+| `GET` | `/api/v1/admin/audit/settings` |
+| `PUT` | `/api/v1/admin/audit/settings` |
+| `POST` | `/api/v1/admin/audit/forward/test` |
+| `GET` | `/api/v1/admin/watch-assignments` |
+| `POST` | `/api/v1/admin/watch-assignments` |
+| `PUT` | `/api/v1/admin/watch-assignments/{id}` |
+| `DELETE` | `/api/v1/admin/watch-assignments/{id}` |
 | `GET` | `/api/v1/admin/mail` |
 | `POST` | `/api/v1/admin/mail/test` |
 | `GET` | `/api/v1/admin/mail/outbox` |
@@ -277,6 +294,8 @@ curl -H "Authorization: Bearer $KEY" -H 'Content-Type: application/json' \
 | `POST` | `/api/v1/x/core.menu/menus` |
 | `PUT` | `/api/v1/x/core.menu/menus/{id}` |
 | `DELETE` | `/api/v1/x/core.menu/menus/{id}` |
+| `POST` | `/api/v1/x/core.share/check` |
+| `POST` | `/api/v1/x/core.share/share` |
 | `GET` | `/api/v1/x/example.notice/tones` |
 | `GET` | `/api/v1/x/macro.shell/commands` |
 | `POST` | `/api/v1/x/macro.shell/commands` |
@@ -301,6 +320,20 @@ curl -H "Authorization: Bearer $KEY" -H 'Content-Type: application/json' \
 
 | Methode | Pfad |
 |---|---|
+| `GET` | `/api/v1/drafts` |
+| `POST` | `/api/v1/drafts` |
+| `GET` | `/api/v1/drafts/{id}` |
+| `PUT` | `/api/v1/drafts/{id}` |
+| `DELETE` | `/api/v1/drafts/{id}` |
+| `POST` | `/api/v1/drafts/{id}/publish` |
+| `DELETE` | `/api/v1/drafts/{id}/schedule` |
+| `GET` | `/api/v1/templates` |
+| `GET` | `/api/v1/templates/{id}` |
+| `POST` | `/api/v1/templates` |
+| `PUT` | `/api/v1/templates/{id}` |
+| `DELETE` | `/api/v1/templates/{id}` |
+| `GET` | `/api/v1/permissions` |
+| `GET` | `/api/v1/permissions/overview` |
 | `GET` | `/api/v1/feeds/categories/{id}` |
 | `GET` | `/api/v1/resolve` |
 | `GET` | `/api/v1/prerender` |

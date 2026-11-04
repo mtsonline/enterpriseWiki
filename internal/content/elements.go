@@ -141,7 +141,7 @@ func (s *Service) translations(ctx context.Context, e *Element) ([]LangStatus, i
 		default:
 			l.Status = "outdated"
 		}
-		if l.Status == "original" || l.Status == "current" {
+		if l.Status == "current" {
 			done++
 		}
 		out = append(out, l)
@@ -150,11 +150,13 @@ func (s *Service) translations(ctx context.Context, e *Element) ([]LangStatus, i
 	for _, l := range langs {
 		add(l)
 	}
+	// the original language is not counted: with only the original the
+	// element is 0 % translated, with one of two translations 50 %
 	pct := 100
-	if len(out) > 0 {
-		pct = done * 100 / len(out)
+	if n := len(out) - 1; n > 0 {
+		pct = done * 100 / n
 	}
-	return out, pct, done == len(out), rows.Err()
+	return out, pct, done == len(out)-1, rows.Err()
 }
 
 // GetElement returns an element rendered in lang. If the language has no

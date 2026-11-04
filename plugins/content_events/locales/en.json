@@ -177,5 +177,7 @@
  "content.events.originally": "Originally",
  "content.events.occurrence_changed_note": "This occurrence differs from the series.",
  "content.events.mail_invitation_hint": "The occurrence is attached as calendar invitation (Outlook, Apple, Google, Thunderbird).",
- "content.events.no_invitations": "No calendar invitations in e-mails (otherwise registered occurrences go straight into the calendar of Outlook & co.)"
+ "content.events.no_invitations": "No calendar invitations in e-mails (otherwise registered occurrences go straight into the calendar of Outlook & co.)",
+ "perm.content.events.attendees": "See participants",
+ "perm.content.events.attendees_help": "See and export the participants of all events of the calendars in the category (organizers always see the participants of their own events)."
 }

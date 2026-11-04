@@ -23,5 +23,7 @@
  "search.external.test_ok": "Connection works",
  "search.external.reindex": "Rebuild index",
  "search.external.reindex_started": "The index is being rebuilt",
- "search.external.refresh": "Refresh"
+ "search.external.refresh": "Refresh",
+ "perm.search.external.manage": "Manage the search engine",
+ "perm.search.external.manage_help": "Settings, connection test and rebuilding the index of the external search engine."
 }

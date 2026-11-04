@@ -179,7 +179,7 @@ func (s *Service) onChange(ctx context.Context, event, etype string, id int64) {
 	switch etype {
 	case "element":
 		_, err = s.pool.Exec(ctx, `INSERT INTO watch_events(user_id, entity_type, entity_id, event, actor_id, mode, freq)
-			SELECT w.user_id, 'element', $1::bigint, $2::text, $3::bigint, max(w.mode), `+freqSQL+` FROM watches w
+			SELECT w.user_id, 'element', $1::bigint, $2::text, $3::bigint, max(w.mode), `+freqSQL+` FROM watch_effective w
 			WHERE w.user_id <> COALESCE($3::bigint, 0) AND ((w.target_type='element' AND w.target_id=$1) OR (w.target_type='category' AND (
 				w.target_id = (SELECT category_id FROM elements WHERE id=$1) OR (w.recursive AND w.target_id IN (
 					SELECT a.id FROM categories a, categories c WHERE c.id=(SELECT category_id FROM elements WHERE id=$1) AND a.path @> c.path)))))
@@ -189,7 +189,7 @@ func (s *Service) onChange(ctx context.Context, event, etype string, id int64) {
 	case "category":
 		// a new, changed or deleted category is reported to watchers of the category itself and of its parents
 		_, err = s.pool.Exec(ctx, `INSERT INTO watch_events(user_id, entity_type, entity_id, event, actor_id, mode, freq)
-			SELECT w.user_id, 'category', $1::bigint, $2::text, $3::bigint, 'link', `+freqSQL+` FROM watches w, categories c
+			SELECT w.user_id, 'category', $1::bigint, $2::text, $3::bigint, 'link', `+freqSQL+` FROM watch_effective w, categories c
 			WHERE c.id=$1 AND w.user_id <> COALESCE($3::bigint, 0) AND w.target_type='category' AND (w.target_id=$1
 				OR (w.target_id = c.parent_id) OR (w.recursive AND w.target_id IN (SELECT a.id FROM categories a WHERE a.path @> c.path)))
 			GROUP BY w.user_id

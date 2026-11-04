@@ -263,8 +263,8 @@ func TestAPI(t *testing.T) {
 	}
 	var de elem
 	admin.must("PUT", fmt.Sprintf("/api/v1/elements/%d", page.ID), map[string]any{"lang": "de", "title": "Einarbeitung", "body": htmlBody("<p>Version zwei</p>"), "base_rev": 0}, &de, 200)
-	if de.Translated != 66 || de.UpToDate {
-		t.Fatalf("translation status (en+de of en,de,fr): %d%% up_to_date=%v", de.Translated, de.UpToDate)
+	if de.Translated != 50 || de.UpToDate {
+		t.Fatalf("translation status (original en, de translated, fr missing → 50 %%): %d%% up_to_date=%v", de.Translated, de.UpToDate)
 	}
 	var fr elem
 	admin.must("GET", fmt.Sprintf("/api/v1/elements/%d?lang=fr", page.ID), nil, &fr, 200)

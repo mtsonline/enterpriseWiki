@@ -64,3 +64,55 @@ CREATE TABLE element_templates (
 	updated_at  timestamptz NOT NULL DEFAULT now()
 );
 CREATE INDEX element_templates_owner ON element_templates(owner_id);
+
+-- notifications in the wiki (bell); e-mails per kind as set in the profile (users.notify)
+CREATE TABLE notifications (
+	id          bigserial PRIMARY KEY,
+	user_id     bigint NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+	kind        text NOT NULL,
+	title       text NOT NULL,
+	body        text NOT NULL DEFAULT '',
+	link        text NOT NULL DEFAULT '',
+	actor_id    bigint REFERENCES users(id) ON DELETE SET NULL,
+	entity_type text NOT NULL DEFAULT '',
+	entity_id   bigint,
+	created_at  timestamptz NOT NULL DEFAULT now(),
+	read_at     timestamptz
+);
+CREATE INDEX notifications_user ON notifications(user_id, created_at DESC);
+CREATE INDEX notifications_unread ON notifications(user_id) WHERE read_at IS NULL;
+
+-- watches assigned centrally to users, groups or roles (dynamic: later
+-- members watch too); optional ones can be unsubscribed per user
+CREATE TABLE watch_assignments (
+	id           bigserial PRIMARY KEY,
+	subject_type text NOT NULL CHECK (subject_type IN ('user', 'group', 'role')),
+	subject_id   bigint NOT NULL,
+	target_type  text NOT NULL CHECK (target_type IN ('category', 'element')),
+	target_id    bigint NOT NULL,
+	mode         text NOT NULL DEFAULT 'link' CHECK (mode IN ('link', 'content')),
+	recursive    boolean NOT NULL DEFAULT true,
+	frequency    text NOT NULL DEFAULT 'instant' CHECK (frequency IN ('instant', 'daily', 'weekly')),
+	mandatory    boolean NOT NULL DEFAULT false,
+	note         text NOT NULL DEFAULT '',
+	created_by   bigint REFERENCES users(id) ON DELETE SET NULL,
+	created_at   timestamptz NOT NULL DEFAULT now(),
+	UNIQUE (subject_type, subject_id, target_type, target_id)
+);
+CREATE TABLE watch_optouts (
+	assignment_id bigint NOT NULL REFERENCES watch_assignments(id) ON DELETE CASCADE,
+	user_id       bigint NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+	PRIMARY KEY (assignment_id, user_id)
+);
+-- own watches plus assigned ones (without unsubscribed optional ones)
+CREATE VIEW watch_effective AS
+	SELECT w.user_id, w.target_type, w.target_id, w.mode, w.recursive, w.frequency, NULL::bigint AS assignment_id FROM watches w
+	UNION ALL
+	SELECT m.user_id, a.target_type, a.target_id, a.mode, a.recursive, a.frequency, a.id FROM watch_assignments a
+	JOIN LATERAL (
+		SELECT a.subject_id AS user_id WHERE a.subject_type = 'user'
+		UNION SELECT ug.user_id FROM user_groups ug WHERE a.subject_type = 'group' AND ug.group_id = a.subject_id
+		UNION SELECT ur.user_id FROM user_roles ur WHERE a.subject_type = 'role' AND ur.role_id = a.subject_id
+		UNION SELECT ug.user_id FROM group_roles gr JOIN user_groups ug ON ug.group_id = gr.group_id WHERE a.subject_type = 'role' AND gr.role_id = a.subject_id
+	) m ON true
+	WHERE a.mandatory OR NOT EXISTS (SELECT 1 FROM watch_optouts o WHERE o.assignment_id = a.id AND o.user_id = m.user_id);

@@ -20,6 +20,11 @@ Solange der Bearbeitungsmodus aus ist, sieht jede Seite so aus wie für alle Les
 
 **Auf einer Seite:** *Bearbeiten*, *Verlauf*, *Tags*, *Als Standardseite festlegen*, *Verschieben*, *Duplizieren*, *Löschen* und die Übersicht **Übersetzungen**.
 
+### Entwürfe, Vorschau, Vorlagen und Veröffentlichen
+Im Editor speichert **Als Entwurf speichern** den Stand, ohne ihn zu veröffentlichen. Entwürfe sehen nur Sie und die Editoren der Kategorie; sie stehen in der Kategorie unter *Entwürfe*. **Vorschau** zeigt die Seite so, wie Leser:innen sie sehen werden. **Als Vorlage speichern** legt den Inhalt als Vorlage ab (für Sie, die Kategorie oder – mit dem Recht dazu – für alle); bei *Neue Seite* wählen Sie eine Vorlage aus.
+
+**Veröffentlichen** übernimmt die Änderung sofort. **Veröffentlichen mit Optionen** fragt nach der Zielkategorie (nur Kategorien, in denen Sie anlegen dürfen), einem Zeitpunkt (geplante Veröffentlichung) und ob Beobachter:innen benachrichtigt werden. Plugins können weitere Optionen ergänzen, z. B. „als Neuigkeit“ in einem Karussell.
+
 ### Neue Unterkategorie
 Die aktuell geöffnete Kategorie ist automatisch als übergeordnete Kategorie ausgewählt. Titel und Beschreibung können Sie für jede Sprache eingeben.
 
@@ -132,6 +137,17 @@ Menüs ohne Platz („nur als Untermenü“) können in mehreren Menüs eingehä
 
 Mit **Beobachten** (auf jeder Seite und Kategorie, für angemeldete Personen) erhalten Sie eine E-Mail, wenn sich etwas ändert, bei Kategorien auf Wunsch auch für alle Unterkategorien. Sie wählen, ob die E-Mail **nur den Link** oder **Link und neuen Inhalt** enthält. Mehrere Änderungen kurz hintereinander kommen gesammelt in einer E-Mail. Statt **sofort** können Sie eine **tägliche** oder **wöchentliche Zusammenfassung** wählen; sie kommt zur von der Administration eingestellten Uhrzeit (Standard 7 Uhr, wöchentlich montags). Eigene Änderungen werden nicht gemeldet, und es werden nur Inhalte gemeldet, die Sie sehen dürfen. Ihre Beobachtungen verwalten Sie unter *Mein Profil → Beobachtungen*.
 
+Die Administration kann Ihnen Beobachtungen auch **zuweisen** (z. B. für eine Abteilung). Sie stehen unter *Mein Profil → Zugewiesene Beobachtungen*; optionale können Sie dort abbestellen, verpflichtende nicht.
+
+## Benachrichtigungen, Teilen und @Erwähnungen
+
+Die **Glocke** neben Ihrem Namen zeigt Benachrichtigungen im Wiki, die Zahl ungelesener steht daneben. Ein Klick auf eine Benachrichtigung öffnet das Ziel und markiert sie als gelesen; *Alle als gelesen markieren* leert die Liste der ungelesenen.
+
+- **Teilen** (Knopf auf jeder Seite) weist Personen, Gruppen oder Rollen mit einer optionalen Nachricht auf die Seite hin. Teilen gibt **keine Rechte**: Wer die Seite nicht sehen darf, wird nicht benachrichtigt – *Empfänger prüfen* zeigt das vorher.
+- **@Erwähnungen:** Tippen Sie in einer Seite oder einem Kommentar `@` und den Namen; die erwähnte Person erhält eine Benachrichtigung, wenn sie die Seite sehen darf.
+
+Zusätzlich kommt jeweils eine E-Mail, solange Sie sie unter *Mein Profil → E-Mail-Benachrichtigungen* nicht abschalten.
+
 ## Feeds (Atom/RSS)
 
 In den *Kategorie-Einstellungen* lässt sich ein **Atom/RSS-Feed** einschalten (nur diese Kategorie oder mit Unterkategorien). Blogs und FAQs haben eigene Feeds. Der Knopf **Feed** zeigt die Adressen für Feed-Reader. Angemeldete Personen bekommen einen **persönlichen Link** mit Schlüssel, damit der Feed-Reader auch geschützte Inhalte lesen kann. Unter *Mein Profil → Feed- und Kalender-Links* erneuern oder löschen Sie den Schlüssel, falls ein Link weitergegeben wurde.
@@ -159,7 +175,7 @@ Gelöschte Kategorien (mit allem Inhalt) und Seiten landen im **Papierkorb** (Be
 
 ## Berechtigungen einer Kategorie
 
-Mit dem Recht *Berechtigungen verwalten* legen Sie unter *Kategorie-Einstellungen → Berechtigungen* fest, wer was darf: Benutzer, Gruppe, Rolle, alle Angemeldeten oder Gäste, mit den Rechten Ansehen, Bearbeiten, Erstellen, Löschen/Verschieben und Verwalten. Optional gilt eine Regel auch für alle Unterkategorien. Geerbte Regeln werden mit ihrer Herkunft angezeigt. Details: [docs/admin/security.md](../admin/security.md#berechtigungen).
+Mit dem Recht *Verwalten* legen Sie unter *Kategorie-Einstellungen → Berechtigungen* fest, wer was darf: Benutzer, Gruppe, Rolle, alle Angemeldeten oder Gäste. Wählen Sie eine Vorlage (**Leser**, **Kategorie-Editor**, **Kategorie-Manager**) oder einzelne Rechte, auch die Rechte von Plugins (z. B. *Workflows anlegen*). Optional gilt eine Regel auch für alle Unterkategorien. Geerbte Regeln werden mit ihrer Herkunft angezeigt. Details: [docs/admin/security.md](../admin/security.md#berechtigungen).
 
 ## Anmelden
 
@@ -172,7 +188,8 @@ Je nach Einrichtung melden Sie sich mit Benutzername und Passwort an (lokales Ko
 - **API-Keys** für Skripte: Rechte, Kategorie und Ablaufdatum wählen. Der Schlüssel wird nur einmal angezeigt,
 - **SSH-Schlüssel** für die passwortlose Anmeldung an der API,
 - **Visitenkarte** (Foto, Funktion, Abteilung, Telefon, Büro, „Über mich“) für Team-Seiten,
-- **Beobachtungen** und **Feed- und Kalender-Links**.
+- **Beobachtungen**, **zugewiesene Beobachtungen** und **Feed- und Kalender-Links**,
+- **E-Mail-Benachrichtigungen** (auch für Erwähnungen und geteilte Seiten).
 
 ## Barrierefreiheit
 

@@ -1,4 +1,5 @@
 // Core widgets placed into template positions.
+import { notificationBell } from './bell';
 import { api } from '../core/api';
 import { h, uid } from '../core/dom';
 import { loadMessages, pick, t } from '../core/i18n';
@@ -117,6 +118,7 @@ export function userMenu(): HTMLElement {
     h('span', { class: 'ew-avatar', 'aria-hidden': 'true' }, name.slice(0, 1).toUpperCase()),
     h('span', null, name));
   const wrap = h('div', { class: 'ew-user-menu' }, toggle, list);
+  const bell = notificationBell();
   const setOpen = (open: boolean) => {
     list.hidden = !open;
     toggle.setAttribute('aria-expanded', String(open));
@@ -134,7 +136,7 @@ export function userMenu(): HTMLElement {
   list.addEventListener('click', (ev) => {
     if ((ev.target as Element).closest('a,button')) setOpen(false);
   });
-  return wrap;
+  return bell ? h('div', { class: 'ew-user-tools' }, bell, wrap) : wrap;
 }
 
 export async function logout(): Promise<void> {
@@ -247,5 +249,5 @@ export async function categoryPicker(perm: string, selected: number, opts: { all
 /** canOpenAdmin reports whether the user may open any administration page. */
 export function canOpenAdmin(): boolean {
   if (!state.user) return false;
-  return isAdmin() || state.managesCategories || (state.user.permissions ?? []).some((k) => !['core.share', 'core.mention'].includes(k));
+  return isAdmin() || state.managesCategories || (state.user.permissions ?? []).some((k) => !['core.share.use', 'core.mentions.use'].includes(k));
 }

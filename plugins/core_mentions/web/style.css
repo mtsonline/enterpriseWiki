@@ -1,0 +1,6 @@
+.ewmn-popup { position: absolute; z-index: 1000; list-style: none; margin: 0; padding: .25rem 0; min-width: 14rem; max-width: 24rem;
+  background: var(--ew-surface, #fff); color: var(--ew-text); border: 1px solid var(--ew-border); border-radius: 6px; box-shadow: 0 6px 18px rgb(0 0 0 / .15); }
+.ewmn-popup li { padding: .35rem .75rem; cursor: pointer; }
+.ewmn-popup li span { color: var(--ew-muted, #555); }
+.ewmn-popup li.is-active, .ewmn-popup li:hover { background: var(--ew-primary); color: #fff; }
+.ewmn-popup li.is-active span, .ewmn-popup li:hover span { color: #fff; }

@@ -132,7 +132,7 @@ test('create, edit, translate and search a page', async () => {
 });
 
 test('administration pages are accessible', async () => {
-  for (const section of ['users', 'groups', 'roles', 'plugins', 'updates', 'settings', 'languages', 'audit', 'menus', 'ldap', 'oidc', 'shibboleth', 'shell', 'mail', 'search', 'blocks']) {
+  for (const section of ['users', 'groups', 'roles', 'plugins', 'updates', 'settings', 'languages', 'audit', 'permissions', 'watches', 'menus', 'ldap', 'oidc', 'shibboleth', 'shell', 'mail', 'search', 'blocks']) {
     await page.goto(`${BASE}/admin/${section}`);
     await idle();
     await page.waitForSelector('.ew-admin-panel h1');
@@ -327,6 +327,45 @@ test('drafts, preview, templates and publishing with options', async () => {
   await tpl.waitFor();
   await tpl.selectOption({ label: `Template ${run}` });
   await page.waitForFunction((n) => document.querySelector('.ewh-editable')?.textContent?.includes(n), `wombat${run}`);
+});
+
+test('share a page, notification bell, assigned watches', async () => {
+  const cat = await m6Category();
+  // share dialog on a page (does not change permissions; checks recipients)
+  await page.goto(`${BASE}/search?q=wombat${run}`);
+  await idle();
+  await page.locator('.ew-result a').first().click();
+  await idle();
+  await page.getByRole('button', { name: /^(share|teilen):/i }).click();
+  const dlg = page.locator('dialog[open]');
+  await dlg.getByRole('checkbox', { name: 'hr' }).check();
+  await dlg.getByRole('button', { name: /^(check recipients|empfänger prüfen)$/i }).click();
+  await dlg.getByText(/recipient|empfänger/i).first().waitFor();
+  await a11y('share dialog');
+  await dlg.getByRole('button', { name: /close|schließen/i }).first().click();
+  // the bell opens the notification panel
+  await page.getByRole('button', { name: /^(notifications|benachrichtigungen)/i }).click();
+  await page.locator('.ew-inbox').waitFor();
+  await a11y('notification panel');
+  await page.keyboard.press('Escape');
+  // assign a watch to the group hr (the test user is a member) and see it in the profile
+  const groups = await call('GET', '/api/v1/groups');
+  const hr = groups.find((g) => g.name === 'hr');
+  const a = await call('POST', '/api/v1/admin/watch-assignments', { subject_type: 'group', subject_id: hr.id, target_type: 'category', target_id: cat, mode: 'link', frequency: 'daily', mandatory: false, note: `note ${run}` });
+  await page.goto(`${BASE}/admin/watches`);
+  await idle();
+  await page.getByRole('button', { name: /^(assign watch|beobachtung zuweisen)$/i }).click();
+  await page.locator('dialog[open]').getByLabel(/^(note|hinweis)/i).waitFor();
+  await a11y('watch assignment dialog');
+  await page.locator('dialog[open]').getByRole('button', { name: /cancel|abbrechen/i }).click();
+  await page.goto(`${BASE}/profile`);
+  await idle();
+  const sec = page.locator('section[aria-labelledby=wa-h]');
+  await sec.getByText(`note ${run}`).waitFor();
+  const box = sec.getByRole('checkbox').first();
+  await box.uncheck();
+  await page.waitForFunction(() => document.querySelector('[role=status]')?.textContent?.length);
+  await call('DELETE', `/api/v1/admin/watch-assignments/${a.id}`);
 });
 
 test('comments on a page', async () => {

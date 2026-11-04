@@ -350,3 +350,32 @@ export function registerPublishOption(o: PublishOption): void {
 export function listPublishOptions(): PublishOption[] {
   return publishOptions;
 }
+
+// ---------------------------------------------------------------- page actions
+
+/** PageAction adds a button to the actions of element and category pages
+ * (e.g. "Share"); render returns null when it does not apply. */
+export interface PageAction {
+  id: string;
+  order?: number;
+  render: (target: { type: 'element' | 'category'; id: number; title: string; categoryId: number }) => HTMLElement | null;
+}
+
+const pageActions: PageAction[] = [];
+
+export function registerPageAction(a: PageAction): void {
+  pageActions.push(a);
+  pageActions.sort((x, y) => (x.order ?? 50) - (y.order ?? 50));
+}
+
+/** pageActionButtons renders the registered page actions for a target. */
+export function pageActionButtons(target: { type: 'element' | 'category'; id: number; title: string; categoryId: number }): HTMLElement[] {
+  const out: HTMLElement[] = [];
+  for (const a of pageActions) {
+    try {
+      const el = a.render(target);
+      if (el) out.push(el);
+    } catch { /* a broken plugin must not break the page */ }
+  }
+  return out;
+}

@@ -197,5 +197,11 @@
  "workflow.webhook_url": "URL",
  "workflow.template.onboarding": "Onboarding (with waiting time and welcome e-mail)",
  "workflow.mail_admin_change_subject": "Your workflow “{title}” was changed by {by}",
- "workflow.mail_admin_change_body": "Hello {name},\n\n{by} changed your workflow “{title}” as workflow administrator:\n\n{changes}"
+ "workflow.mail_admin_change_body": "Hello {name},\n\n{by} changed your workflow “{title}” as workflow administrator:\n\n{changes}",
+ "perm.workflow.process.create": "Create workflows",
+ "perm.workflow.process.create_help": "Create workflows and change or delete your own ones (with their steps and assignees).",
+ "perm.workflow.process.admin": "Workflow administrator",
+ "perm.workflow.process.admin_help": "Change and delete all workflows of the category. Every change is logged in detail and the creator is notified.",
+ "perm.workflow.process.cases": "Manage cases",
+ "perm.workflow.process.cases_help": "See all cases of the workflows, cancel them and decide about failed steps. Who carries out a step is defined only by its assignee."
 }

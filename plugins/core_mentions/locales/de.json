@@ -1,0 +1,8 @@
+{
+ "core.mentions.kind": "Erwähnungen",
+ "core.mentions.suggestions": "Personen",
+ "core.mentions.mail_subject": "{by} hat Sie in „{title}“ erwähnt",
+ "core.mentions.mail_body": "{by} hat Sie in „{title}“ erwähnt:\n\n{excerpt}",
+ "perm.core.mentions.use": "Personen erwähnen",
+ "perm.core.mentions.use_help": "Mit @Name in einer Seite oder einem Kommentar benachrichtigen."
+}

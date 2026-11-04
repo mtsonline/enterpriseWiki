@@ -812,6 +812,10 @@ func (s *Service) Users(ctx context.Context, q db.Querier, ids []int64) ([]User,
 // NotificationKinds are the kinds users can switch on and off.
 var NotificationKinds = []string{"tasks", "cases", "comments", "watches"}
 
+// KindLabels maps kinds registered by plugins to their UI label keys
+// (core kinds: notify.kind.<kind>).
+var KindLabels = map[string]string{}
+
 // SetPreferences stores the notification preferences of a user.
 func (s *Service) SetPreferences(ctx context.Context, uid int64, prefs map[string]bool) error {
 	clean := map[string]bool{}

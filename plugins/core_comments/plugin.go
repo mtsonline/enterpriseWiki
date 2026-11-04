@@ -31,6 +31,7 @@ import (
 	"github.com/mtsonline/enterprisewiki/internal/mail"
 	"github.com/mtsonline/enterprisewiki/internal/webhook"
 	"github.com/mtsonline/enterprisewiki/pkg/sdk"
+	"github.com/mtsonline/enterprisewiki/plugins/core_mentions"
 
 	_ "embed"
 )
@@ -237,6 +238,15 @@ func (p *Plugin) Setup(host *sdk.Host) error {
 		perms, _ := host.ACL.Perms(ctx, me, cat)
 		p.decorate(ctx, &c, perms, cat)
 		p.emitComment(ctx, &c, cat, body)
+		var titles map[string]string
+		_ = host.DB.QueryRow(ctx, `SELECT titles FROM elements WHERE id=$1`, c.ElementID).Scan(&titles)
+		title := titles[host.Config.Get().I18n.DefaultLanguage]
+		for _, t := range titles {
+			if title == "" {
+				title = t
+			}
+		}
+		core_mentions.Notify(ctx, "comment", c.ID, cat, title, fmt.Sprintf("/e/%d#comment-%d", c.ElementID, c.ID), body)
 		return h.Created{V: &c}, nil
 	})
 

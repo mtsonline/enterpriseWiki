@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/mtsonline/enterprisewiki/internal/audit"
+	"github.com/mtsonline/enterprisewiki/internal/notify"
 	"log/slog"
 	"net/http"
 	"path/filepath"
@@ -50,6 +51,8 @@ type App struct {
 	// PGVersion checks the PostgreSQL version (log, e-mails).
 	PGVersion *pgversion.Notifier
 	Webhooks  *webhook.Service
+	// Notify stores notifications (bell) and e-mails them.
+	Notify *notify.Service
 	// AuditForward sends the audit log to other systems.
 	AuditForward *audit.Forwarder
 	Cache        *pagecache.Cache
@@ -175,6 +178,8 @@ func New(ctx context.Context, o Options) (*App, error) {
 	})
 	a.AuditForward = &audit.Forwarder{Pool: pool, Cfg: cfg, DataDir: filepath.Dir(cfg.Path()), Site: func() string { return cfg.Get().UI.SiteName }}
 	a.Workers.Register(worker.Job{Name: "audit.forward", Interval: 15 * time.Second, Active: func() bool { return len(cfg.Get().Audit.Forward) > 0 }, Run: a.AuditForward.Run})
+	a.Notify = notify.New(pool, cfg, a.Mail)
+	a.Workers.Register(worker.Job{Name: "notifications.cleanup", Interval: 24 * time.Hour, Run: func(ctx context.Context) error { return a.Notify.Cleanup(ctx, 90) }})
 	// scheduled publication of drafts (with the permissions of who scheduled it)
 	a.Workers.Register(worker.Job{Name: "drafts.publish", Interval: time.Minute, Run: func(ctx context.Context) error {
 		_, err := a.Content.PublishDue(ctx, a.Auth.LoadPrincipal)
@@ -186,7 +191,7 @@ func New(ctx context.Context, o Options) (*App, error) {
 		pool.Close()
 		return nil, err
 	}
-	base := sdk.Host{Webhooks: a.Webhooks, Config: cfg, DB: pool, ACL: a.ACL, Content: a.Content, Auth: a.Auth, I18n: a.I18n, Files: a.Files, Mail: a.Mail, Workers: a.Workers,
+	base := sdk.Host{Notify: a.Notify, Webhooks: a.Webhooks, Config: cfg, DB: pool, ACL: a.ACL, Content: a.Content, Auth: a.Auth, I18n: a.I18n, Files: a.Files, Mail: a.Mail, Workers: a.Workers,
 		Log: log, Mux: a.Mux, IsEnabled: a.Kernel.Enabled}
 	if err := a.Kernel.Setup(base, a.I18n); err != nil {
 		pool.Close()

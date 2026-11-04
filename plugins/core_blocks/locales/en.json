@@ -22,5 +22,7 @@
  "core.blocks.disabled": "hidden",
  "core.blocks.hidden_position": "position not in the active template",
  "core.blocks.delete_confirm": "Delete the block \"{name}\"?",
- "core.blocks.empty": "No blocks yet."
+ "core.blocks.empty": "No blocks yet.",
+ "perm.core.blocks.edit": "Edit blocks",
+ "perm.core.blocks.edit_help": "Place and change blocks in the positions of the template (header, sidebar, footer …)."
 }

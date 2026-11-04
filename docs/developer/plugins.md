@@ -43,6 +43,59 @@ Vollständige Beispiele im Repository:
 - `required`: kann nicht deaktiviert werden (nur für Kern-Plugins).
 - `frontend`: `true`, wenn `web/index.ts` existiert.
 
+## Rechte (Pflicht)
+
+Jedes Plugin, das etwas erlaubt oder verbietet, **deklariert seine Rechte im Manifest**. Nicht deklarierte Schlüssel lehnt der Kern ab (`HasPerm` liefert `false` und schreibt einen Fehler ins Log), damit Administratoren alle Rechte zentral sehen und vergeben können (*Administration → Rollen* und *→ Berechtigungen*, Kategorie-Einstellungen).
+
+```json
+"permissions": [
+  { "key": "acme.kanban.create", "scope": "category", "label": "Create boards",
+    "description": "Create boards and change or delete your own ones.", "presets": ["editor"] },
+  { "key": "acme.kanban.admin", "scope": "category", "label": "Board administrator",
+    "description": "Change and delete all boards of the category.", "presets": ["manager"],
+    "implies": ["acme.kanban.create"] },
+  { "key": "acme.kanban.export", "scope": "global", "label": "Export all boards", "presets": ["authenticated"] }
+]
+```
+
+- `key`: beginnt mit der Plugin-ID (`acme.kanban.…`), Kleinbuchstaben, Punkte. Ein umbenannter Schlüssel ist ein neues Recht – bestehende Zuweisungen gehen verloren.
+- `scope`: `category` – wird in Kategorie-Regeln vergeben und vererbt; `global` – wird Rollen zugewiesen (Administration → Rollen).
+- `label`, `description`: **nur Englisch** im Manifest. Übersetzungen liefern Sie in den Locale-Dateien als `perm.<key>` und `perm.<key>_help` (siehe *UI-Texte*). `en.json` muss alle Schlüssel enthalten, die andere Sprachen übersetzen (der Test `plugins/all` prüft das).
+- `presets`: in welchen Vorlagen das Recht enthalten ist. Kategorie: `reader` ⊂ `editor` ⊂ `manager` (ein Recht im Editor-Preset ist auch im Manager-Preset). Global: `authenticated` = alle angemeldeten Benutzer haben es standardmäßig (in der Administration änderbar).
+- `implies`: wer dieses Recht hat, hat auch die genannten (z. B. *admin* → *create*).
+- `group` (optional): Überschrift in der Rechte-Auswahl; Standard ist der Plugin-Name.
+
+Die fünf Grundrechte einer Kategorie bleiben im Kern: `view`, `edit`, `create`, `delete` (für **Elemente**) und `manage` (die **Kategorie selbst**: Texte, Einstellungen, Unterkategorien, Berechtigungen). Kategorie-Administratoren (`core.categories.admin`) haben überall `manage`, sehen aber Inhalte nur mit `view`.
+
+**Eigenes oder alles:** Bewährt ist ein Recht zum Anlegen, mit dem man nur *eigene* Objekte ändert und löscht, und ein Admin-Recht für alle Objekte. Ändert ein Admin fremde Objekte, protokollieren Sie die Änderung ausführlich (`audit.Log(ctx, host.DB, action, entityType, id, before, after)`) und benachrichtigen den Ersteller (`host.Notify`). Vorbild: `plugins/workflow_process` (`guard.go`).
+
+Prüfen im Go-Teil:
+
+```go
+// global
+if err := host.RequirePerm(r, "acme.kanban.export"); err != nil { return nil, err } // 403
+if host.HasPerm(ctx, "acme.kanban.export") { … }
+// in einer Kategorie (benanntes Recht oder Grundrecht "edit")
+if !host.Can(ctx, categoryID, "acme.kanban.create") { return nil, apperr.Forbidden() }
+// für einen anderen Benutzer (z. B. vor einer Benachrichtigung)
+host.UserCan(ctx, uid, categoryID, acl.View)
+// Benutzer aus Benutzern, Gruppen und Rollen auflösen
+ids, _ := host.Members(ctx, users, groups, roles)
+```
+
+Elementtypen können zusätzlich `content.Guard` implementieren: `CheckCreate(ctx, svc, categoryID)` wird vor dem Anlegen, `CheckChange(ctx, svc, el, oldBody, newBody)` vor dem Speichern, Verschieben, Duplizieren und Löschen aufgerufen (`newBody == nil` bei Löschen/Verschieben). `el.CreatedByID` ist der Ersteller.
+
+Im Frontend: `hasPerm('acme.kanban.export')` für globale Rechte, `el.permissions` / `category.permissions` enthält die Grundrechte und benannten Rechte der aktuellen Kategorie. Die Oberfläche blendet nur aus – entscheidend ist immer die Prüfung im Backend.
+
+Admin-Seiten (`registerAdminPage`) geben mit `permission: 'acme.kanban.export'` an, wer sie sieht; ohne Angabe nur Administratoren.
+
+### Benachrichtigungen, Veröffentlichen-Optionen, Seitenaktionen
+
+- `notify.RegisterKind("acme.kanban.assigned", "acme.kanban.kind")` deklariert eine Art von Benachrichtigung (Benutzer schalten die E-Mail dazu im Profil ab). Senden: `host.Notify.Send(ctx, userIDs, notify.Message{Kind: …, EntityType: "element", EntityID: id, Link: "/e/12", Text: func(lang string) (string, string) { … }})`. Der Absender selbst wird nie benachrichtigt; prüfen Sie vorher mit `UserCan`, ob der Empfänger das Ziel sehen darf.
+- `@Erwähnungen` in eigenen Texten: `core_mentions.Notify(ctx, "acme.card", id, categoryID, title, link, text)` (tut nichts, wenn das Plugin deaktiviert ist).
+- `registerPublishOption({ id, render })` fügt dem Dialog *Veröffentlichen mit Optionen* ein Feld hinzu; der Wert kommt im Backend über `content.RegisterPublishOption` an (Beispiel folgt mit dem Karussell in Meilenstein 11).
+- `registerPageAction({ id, order, render(target) })` fügt einen Knopf in die Aktionen einer Seite oder Kategorie ein (Beispiel: `plugins/core_share`).
+
 ## Go-Teil
 
 ```go
@@ -255,7 +308,7 @@ Widgets können an einer festen Position (`registerSlot({ position: 'sidebar', �
 { "acme.kanban.hello": "Hello {name}" }
 ```
 
-Im Code: `t('acme.kanban.hello', { name })`. Fehlende Übersetzungen erscheinen im Admin-Bereich mit Fortschrittsanzeige und können dort ergänzt werden.
+Im Code: `t('acme.kanban.hello', { name })`. **`en.json` ist Pflicht**, sobald ein Plugin Locale-Dateien mitbringt (sonst startet es nicht); weitere Sprachen dürfen nur Schlüssel enthalten, die es in `en.json` gibt. Kern und mitgelieferte Plugins liefern Englisch und Deutsch. Fehlende Übersetzungen erscheinen im Admin-Bereich mit Fortschrittsanzeige und können dort ergänzt werden.
 
 ## Bauen, testen, veröffentlichen
 

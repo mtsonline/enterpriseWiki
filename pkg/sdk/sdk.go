@@ -32,6 +32,7 @@ import (
 	"github.com/mtsonline/enterprisewiki/internal/i18n"
 	"github.com/mtsonline/enterprisewiki/internal/identity"
 	"github.com/mtsonline/enterprisewiki/internal/mail"
+	"github.com/mtsonline/enterprisewiki/internal/notify"
 	"github.com/mtsonline/enterprisewiki/internal/perm"
 	"github.com/mtsonline/enterprisewiki/internal/storage"
 	"github.com/mtsonline/enterprisewiki/internal/webhook"
@@ -141,7 +142,10 @@ type Host struct {
 	Workers  *worker.Registry
 	// Webhooks queues HTTP notifications (Emit) for events of the plugin.
 	Webhooks *webhook.Service
-	Log      *slog.Logger
+	// Notify sends notifications in the wiki (bell) and by e-mail; declare
+	// the kinds with notify.RegisterKind so users can configure the e-mails.
+	Notify *notify.Service
+	Log    *slog.Logger
 
 	Mux       *http.ServeMux
 	IsEnabled func(pluginID string) bool
@@ -231,6 +235,37 @@ func (h *Host) HasPerm(ctx context.Context, key string) bool { return perm.Has(c
 // declared in plugin.json with scope "category") on a category.
 func (h *Host) Can(ctx context.Context, categoryID int64, action string) bool {
 	return h.ACL.CanAction(ctx, identity.From(ctx), categoryID, action)
+}
+
+// Members returns the (active) users among users and in groups and roles.
+func (h *Host) Members(ctx context.Context, users, groups, roles []int64) ([]int64, error) {
+	rows, err := h.DB.Query(ctx, `SELECT DISTINCT u.id FROM users u WHERE NOT u.disabled AND (u.id = ANY($1)
+		OR u.id IN (SELECT user_id FROM user_groups WHERE group_id = ANY($2))
+		OR u.id IN (SELECT user_id FROM user_roles WHERE role_id = ANY($3))
+		OR u.id IN (SELECT ug.user_id FROM group_roles gr JOIN user_groups ug ON ug.group_id = gr.group_id WHERE gr.role_id = ANY($3)))`, users, groups, roles)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	out := []int64{}
+	for rows.Next() {
+		var id int64
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		out = append(out, id)
+	}
+	return out, rows.Err()
+}
+
+// UserCan reports whether user uid has want on a category (e.g. to notify
+// only people who may see a page).
+func (h *Host) UserCan(ctx context.Context, uid, categoryID int64, want acl.Perm) bool {
+	p, err := h.Auth.LoadPrincipal(ctx, uid)
+	if err != nil {
+		return false
+	}
+	return h.ACL.Can(ctx, p, categoryID, want)
 }
 
 // RequireAdmin returns an error unless the caller of r is an administrator.

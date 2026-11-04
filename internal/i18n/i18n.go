@@ -54,6 +54,18 @@ func (s *Service) Register(source string, files fs.FS) error {
 	if err != nil {
 		return err
 	}
+	// every locale set must contain the reference language (English): it is
+	// the fallback and the base for translations done in the admin area
+	hasRef, hasAny := false, false
+	for _, e := range entries {
+		if !e.IsDir() && strings.HasSuffix(e.Name(), ".json") {
+			hasAny = true
+			hasRef = hasRef || e.Name() == Reference+".json"
+		}
+	}
+	if hasAny && !hasRef {
+		return apperr.BadRequest("%s: locales must include %s.json", source, Reference)
+	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	for _, e := range entries {

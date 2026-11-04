@@ -126,6 +126,11 @@ ewiki mail status|list|show|retry|delete|test|send|bounces ...
 ewiki jobs list | ewiki jobs run NAME
 ewiki cache status|clear
 ewiki watch list|add|remove ... --as BENUTZER
+ewiki watch assign list|add|remove ...
+ewiki perm list | overview TYP [ID] | defaults set RECHT...
+ewiki audit search|export [Filter] | settings [set @datei] | forward-test @ziel.json
+ewiki draft list|show|publish|delete ... --as BENUTZER
+ewiki inbox [list] | read [ID...] --as BENUTZER
 ```
 
 **Jede API-Funktion** steht über `ewiki api` zur Verfügung, auch die von Plugins:
@@ -155,6 +160,12 @@ ewiki license show                      # Lizenznehmer, Benutzer, Laufzeit
 ewiki license notices                   # Lizenzen der enthaltenen Komponenten
 ewiki watch add category 12 --mode content --as anna   # anna beobachtet Kategorie 12 (mit Inhalt)
 ewiki watch add category 12 --frequency daily --as anna    # tägliche Zusammenfassung statt sofortiger E-Mails
+ewiki watch assign add group 4 category 12 --mandatory --frequency weekly --note "Pflicht für das Team"
+ewiki perm overview group 4             # direkte und wirksame Rechte der Gruppe 4 je Kategorie
+ewiki perm defaults set core.share.use core.mentions.use   # Standardrechte aller Angemeldeten
+ewiki audit search --actor anna --from 2026-11-01 --area acl   # Rechteänderungen von anna seit 1.11.
+ewiki audit export --format csv --area auth > anmeldungen.csv
+ewiki draft publish 7 --at 2026-12-01T08:00:00+01:00 --as anna   # Entwurf geplant veröffentlichen
 ewiki api GET /api/v1/admin/webhooks                      # Webhooks und Ereignisse
 ewiki api POST /api/v1/admin/webhooks/3/test              # Testnachricht senden
 ewiki api GET /api/v1/x/content.events/upcoming        # nächste Termine aller Kalender

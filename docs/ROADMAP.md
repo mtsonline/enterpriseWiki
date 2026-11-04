@@ -109,3 +109,24 @@ Business Source License 1.1 mit kostenloser privater Nutzung durch natürliche P
 - Installieren, Aktualisieren und Entfernen bauen und starten automatisch neu; in den Ordner kopierte Plugins werden automatisch gebaut und nach **Neu starten** aktiv (oder automatisch mit `plugins.auto_restart_on_drop`).
 - Cluster: ein Knoten baut (Dateisperre), die anderen übernehmen das Ergebnis; Neustart nacheinander (Datenbank-Lease `cluster_lease`), das Wiki bleibt erreichbar.
 - Lite-Image: Installieren ist in der Oberfläche deaktiviert, mit Hinweis auf das Full-Image.
+
+## Meilenstein 9 – Rechte, Protokoll, Entwürfe, Benachrichtigungen
+
+- **Granulare Rechte:** globale Rechte für Rollen (Benutzer, Gruppen, Rollen, Einstellungen, Plugins, E-Mail, Webhooks, Lizenz, System, Protokoll, Übersetzungen, Papierkorb, Elementübersicht, Beobachtungen zuweisen, globale Vorlagen) und Standardrechte aller Angemeldeten; Kategorierechte mit Vorlagen **Leser**, **Kategorie-Editor**, **Kategorie-Manager**; globales Recht **Kategorie-Administrator** (oberste Ebene, Struktur und Rechte aller Kategorien, Inhalte nur mit Ansehen).
+- **Plugins deklarieren ihre Rechte** im Manifest (`permissions`: Schlüssel, Bereich, englische Bezeichnung, Vorlagen, `implies`); undeklarierte Rechte werden abgelehnt. Mitgeliefert: Workflows (anlegen/eigene ändern, Workflow-Administrator mit detaillierter Protokollierung und Benachrichtigung des Erstellers, Vorgänge verwalten), Teilnehmerlisten, Kommentar-Moderation, Menüs, Blöcke, Shell-Makros, externe Suche.
+- **Zentrale Rechtevergabe** unter *Administration → Berechtigungen* (direkte und wirksame Rechte je Benutzer, Gruppe, Rolle mit Herkunft). Standard: Unterkategorien erben, neue Kategorien der obersten Ebene gehören nur ihrem Ersteller.
+- **Workflow-Schritte** führen nur die eingetragenen Zuständigen aus.
+- **Entwürfe, Vorschau, Vorlagen, Veröffentlichen mit Optionen** (Zielkategorie, Zeitpunkt, Beobachter benachrichtigen, Erweiterungspunkt für Plugins wie „als Neuigkeit“ in M11).
+- **Benachrichtigungen im Wiki** (Glocke) und per E-Mail, **Teilen** (Plugin `core.share`, ändert keine Rechte), **@Erwähnungen** (Plugin `core.mentions`), **zugewiesene Beobachtungen** (verpflichtend oder optional).
+- **Protokoll:** IP, Browser, Kanal; Anmeldungen, abgewiesene Zugriffe, optional Seitenaufrufe; einstellbar, was protokolliert wird; Weiterleitung an Syslog, Webhook, OpenTelemetry, Datei; Such- und Filterseite mit Export.
+- **Übersetzungsfortschritt** zählt die Originalsprache nicht mehr mit; Plugins müssen `locales/en.json` mitliefern.
+- CLI: `ewiki perm`, `ewiki audit`, `ewiki draft`, `ewiki inbox`, `ewiki watch assign`.
+
+**Verhaltensänderungen:** Nur-„Erstellen“ erlaubt keine Unterkategorien mehr (dafür *Verwalten*). Neue Kategorien der obersten Ebene sind nicht mehr automatisch für Gäste sichtbar. Administratoren führen Workflow-Schritte nur aus, wenn sie zuständig sind.
+
+## Geplant
+
+- **Meilenstein 10 – Übersetzungen:** Pluralformen, Übersetzungsseite im Admin-Bereich mit eigenem Recht, Import/Export der Locale-Dateien, Kategorie-Übersetzungen wie bei Elementen.
+- **Meilenstein 11 – Komponenten:** Mega-Menü (eigenes Plugin), Karussell mit externen RSS-Feeds, Favoriten, Seiteneigenschaften u. a.
+- **Meilenstein 12 – Vorlage „Wiki (Intranet/Hochschule)“.**
+- **Meilenstein 13 – Werkzeug für Plugin-Entwickler** (Gerüst, Lint, Tests).

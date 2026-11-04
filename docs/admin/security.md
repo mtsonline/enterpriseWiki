@@ -46,25 +46,68 @@ Die lokale CLI hat ohne Anmeldung volle Rechte. Schützen Sie Binärdatei, `conf
 
 ## Berechtigungen
 
-Inhalte sind in **Kategorien** organisiert. Rechte werden je Kategorie vergeben (*Kategorie → Einstellungen → Berechtigungen*):
+Es gibt zwei Arten von Rechten:
+
+- **Globale Rechte** erhalten **Rollen** (*Administration → Rollen*), z. B. *Benutzer verwalten*, *Protokoll ansehen*, *Kategorie-Administrator*. Rechte, die alle angemeldeten Benutzer standardmäßig haben (z. B. *Seiten teilen*, *Personen erwähnen*), stellen Sie unter *Administration → Rollen → Standardrechte* ein. Rollen mit „Administratorrolle“ haben alle Rechte.
+- **Kategorierechte** werden in Regeln je Kategorie vergeben (*Kategorie → Einstellungen → Berechtigungen* oder zentral unter *Administration → Berechtigungen*).
+
+Plugins bringen eigene Rechte mit (z. B. *Workflows anlegen*, *Kommentare moderieren*); sie erscheinen automatisch in beiden Auswahllisten, gruppiert nach Plugin.
+
+### Kategorierechte
 
 | Recht | erlaubt |
 |---|---|
 | Ansehen | Kategorie und Seiten lesen |
-| Bearbeiten | Seiten und Kategorietexte ändern, Versionen wiederherstellen |
-| Erstellen | Seiten und Unterkategorien anlegen |
-| Löschen / verschieben | in den Papierkorb legen, verschieben, zurücksetzen |
-| Berechtigungen verwalten | Regeln dieser Kategorie ändern (nur Rechte, die man selbst hat) |
+| Bearbeiten | Seiten ändern, Versionen wiederherstellen |
+| Erstellen | Seiten anlegen |
+| Löschen / verschieben | Seiten in den Papierkorb legen, verschieben, zurücksetzen |
+| Verwalten | die **Kategorie selbst**: Texte, Einstellungen, Unterkategorien anlegen/verschieben/löschen, Berechtigungen (nur Rechte, die man selbst hat) |
+| Plugin-Rechte | z. B. *Workflows anlegen*, *Workflow-Administrator*, *Teilnehmerlisten sehen* |
 
-Regeln gelten für einen **Benutzer**, eine **Gruppe**, eine **Rolle**, **alle angemeldeten Benutzer** oder **Gäste**. Mit „gilt auch für Unterkategorien“ wird eine Regel vererbt. Die wirksamen Rechte sind die Vereinigung aller passenden Regeln der Kategorie und ihrer Vorfahren. Es gibt beliebig viele Regeln.
+Für die Vergabe gibt es Vorlagen:
+
+- **Leser** – Ansehen.
+- **Kategorie-Editor** – arbeitet *in* der Kategorie (Seiten anlegen, bearbeiten, löschen und die Plugin-Rechte für Editoren), ändert aber die Kategorie nicht.
+- **Kategorie-Manager** – zusätzlich *Verwalten* und die Plugin-Rechte für Manager.
+- **Kategorie-Administrator** ist ein globales Recht: Nur wer es hat, legt Kategorien der obersten Ebene an und verschiebt Kategorien in die oberste Ebene. Er verwaltet Struktur, Einstellungen und Berechtigungen aller Kategorien, **sieht Inhalte aber nur mit dem Recht Ansehen**.
+
+Regeln gelten für einen **Benutzer**, eine **Gruppe**, eine **Rolle**, **alle angemeldeten Benutzer** oder **Gäste**. Mit „gilt auch für Unterkategorien“ wird eine Regel vererbt. Die wirksamen Rechte sind die Vereinigung aller passenden Regeln der Kategorie und ihrer Vorfahren.
 
 Grundsätze:
-- **Ohne Regel ist nichts erlaubt.** Nicht angemeldete Besucher haben keine Rechte. Ausnahme: Neue Kategorien der obersten Ebene erhalten automatisch „Gäste dürfen ansehen“ (ohne Vererbung). Diese Regel lässt sich entfernen.
-- Rollen mit „Administratorrolle“ haben überall vollen Zugriff.
-- Rechte hängen an der stabilen Kategorie-ID. Verschieben oder Umbenennen ändert die Regeln nicht, die angezeigte Gliederungsnummer (1.2.3) passt sich an.
-- Gelöschte Kategorien (Papierkorb) sind für niemanden außer Administratoren erreichbar.
+- **Ohne Regel ist nichts erlaubt.** Eine neue Unterkategorie erbt die Rechte der übergeordneten Kategorie. Eine neue Kategorie der obersten Ebene erhält nur eine Regel für ihren Ersteller (Kategorie-Manager); Gäste sehen sie erst, wenn Sie es erlauben.
+- *Administration → Berechtigungen* zeigt für einen Benutzer, eine Gruppe oder Rolle alle Kategorien mit direkten und wirksamen Rechten und ihrer Herkunft; Regeln lassen sich dort ändern.
+- Rechte hängen an der stabilen Kategorie-ID. Verschieben oder Umbenennen ändert die Regeln nicht.
+- Gelöschte Kategorien (Papierkorb) sind nur für Administratoren erreichbar.
 - Jede API-Anfrage wird im Backend geprüft. Die Oberfläche blendet nur aus, was ohnehin verboten ist.
-- Gruppen können Rollen erhalten. Gruppen externer Anbieter (LDAP/OIDC, ab Meilenstein 2) werden beim Login synchronisiert.
+- API-Schlüssel tragen globale Rechte nur, wenn sie mit „Administratorrechte“ erstellt wurden.
+- Gruppen können Rollen erhalten. Gruppen externer Anbieter (LDAP/OIDC/SAML) werden beim Login synchronisiert.
+
+### Workflows
+
+Workflows ändern und löschen nur ihr **Ersteller** (Recht *Workflows anlegen*) und **Workflow-Administratoren**. Ändert ein Administrator einen fremden Workflow, wird jede Änderung ausführlich protokolliert und der Ersteller benachrichtigt. Schritte eines Vorgangs führen **nur die beim Schritt eingetragenen Zuständigen** aus – auch Administratoren nicht, solange sie nicht zuständig sind. *Vorgänge verwalten* erlaubt, alle Vorgänge zu sehen, abzubrechen und über fehlgeschlagene Schritte zu entscheiden.
+
+### Entwürfe
+
+Entwürfe sehen ihr Autor und die Editoren der Kategorie (Recht *Bearbeiten*). Veröffentlicht werden kann nur dort, wo man *Erstellen* (neue Seite) bzw. *Bearbeiten* (bestehende Seite) hat. Geplante Veröffentlichungen laufen mit den Rechten des Autors zum Zeitpunkt der Veröffentlichung.
+
+## Protokoll (Audit-Log)
+
+*Administration → Protokoll* (Recht *Protokoll ansehen*) listet alle Änderungen mit Zeitpunkt, Person, IP-Adresse, Browser und Kanal (Oberfläche, API, CLI, Hintergrundjob). Filter: Freitext, Bereich, Aktion, Person, IP, Zeitraum, Objekt; Details zeigen den Zustand vorher und nachher. Export als CSV oder JSON Lines.
+
+Mit *Protokoll konfigurieren* legen Sie fest, was protokolliert wird:
+
+- Bereiche lassen sich abschalten – außer sicherheitsrelevanten (Rechte, Rollen, Benutzer, Anmeldung, Protokoll-Einstellungen), die immer protokolliert werden.
+- Anmeldungen (erfolgreich und fehlgeschlagen), abgewiesene Zugriffe (403) und auf Wunsch Seitenaufrufe.
+- **Weiterleitung** an andere Systeme: Syslog (UDP/TCP/TLS, RFC 5424), Webhook (JSON, HMAC-signiert, eigene Header), OpenTelemetry-Logs (OTLP/HTTP), Datei (JSON Lines) oder Standardausgabe. Je Ziel wählen Sie die Bereiche; jedes Ziel merkt sich die letzte gesendete Zeile und holt bei Ausfällen nach. *Test* sendet einen Probe-Eintrag, die Übersicht zeigt Rückstand und letzten Fehler.
+
+API: `GET /api/v1/admin/audit/search`, `/admin/audit/export`, `GET|PUT /admin/audit/settings`, `POST /admin/audit/forward/{id}/test`. CLI: `ewiki audit search …`.
+
+## Benachrichtigungen, Teilen, Erwähnungen, zugewiesene Beobachtungen
+
+- Die **Glocke** neben dem Benutzermenü zeigt Benachrichtigungen im Wiki (Erwähnungen, geteilte Seiten, Änderungen an Workflows). Zusätzlich gehen E-Mails, soweit der Benutzer sie im Profil nicht abgeschaltet hat (Standard: an).
+- **Teilen** (Plugin `core.share`, Recht *Seiten teilen*) weist Personen, Gruppen oder Rollen auf eine Seite hin. Teilen **ändert keine Rechte**: Wer die Seite nicht sehen darf, wird nicht benachrichtigt; der Dialog zeigt das vorher an.
+- **@Erwähnungen** (Plugin `core.mentions`, Recht *Personen erwähnen*) in Seiten und Kommentaren benachrichtigen die genannten Personen – ebenfalls nur, wenn sie die Seite sehen dürfen.
+- **Zugewiesene Beobachtungen** (*Administration → Zugewiesene Beobachtungen*, Recht *Beobachtungen zuweisen*): Benutzer, Gruppen oder Rollen beobachten eine Kategorie (optional mit Unterkategorien) oder Seite. Beim Zuweisen wählen Sie **verpflichtend** (nicht abbestellbar) oder **optional** (im Profil abbestellbar), dazu Inhalt der E-Mail, Häufigkeit und einen Hinweis für die Benutzer.
 
 ## Schutz der Weboberfläche
 

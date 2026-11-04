@@ -168,7 +168,7 @@ func (s *Server) routesM4() {
 			v, ok := us[0].Notify[k]
 			prefs[k] = !ok || v
 		}
-		return map[string]any{"email": us[0].Email, "prefs": prefs, "kinds": mail.NotificationKinds, "enabled": s.app.Mail.Enabled()}, nil
+		return map[string]any{"email": us[0].Email, "prefs": prefs, "kinds": mail.NotificationKinds, "labels": mail.KindLabels, "enabled": s.app.Mail.Enabled()}, nil
 	})
 	s.handle("PUT /api/v1/me/notifications", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		p, err := requireUser(r)

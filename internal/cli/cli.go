@@ -68,6 +68,24 @@ Watches (e-mail on changes)
   watch add category|element ID [--mode link|content] [--frequency instant|daily|weekly]
             [--no-recursive] --as USER
   watch remove WATCH_ID --as USER
+  watch assign list | remove ID
+  watch assign add user|group|role SUBJECT_ID category|element TARGET_ID
+            [--mode link|content] [--frequency instant|daily|weekly] [--no-recursive]
+            [--mandatory] [--note TEXT]       centrally assigned watches
+
+Permissions, audit log, drafts, notifications
+  perm list                     all permissions (core and plugins)
+  perm overview user|group|role|authenticated|guest [ID]
+                                direct and effective permissions per category
+  perm defaults set KEY...      global permissions of every signed-in user
+  audit search [--q T] [--area A] [--action A] [--actor N] [--ip IP] [--from T] [--to T]
+               [--entity-type T --entity-id ID] [--limit N]
+  audit export [--format csv|jsonl] [filters]
+  audit settings | audit settings set @file|-
+  audit forward-test @file|-    send a test entry to a forwarding target (JSON as in settings)
+  draft list | show ID | delete ID --as USER
+  draft publish ID [--at RFC3339] [--category ID] [--silent] --as USER
+  inbox [list] [--limit N] | inbox read [ID...] --as USER
 
 Plugins
   plugin list
@@ -164,6 +182,14 @@ func Main(args []string) int {
 		err = e.jobsCmd(args[1:])
 	case "watch":
 		err = e.watchCmd(args[1:])
+	case "audit":
+		err = e.auditCmd(args[1:])
+	case "perm":
+		err = e.permCmd(args[1:])
+	case "draft":
+		err = e.draftCmd(args[1:])
+	case "inbox":
+		err = e.inboxCmd(args[1:])
 	case "cache":
 		err = e.cacheCmd(args[1:])
 	case "license":

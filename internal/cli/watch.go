@@ -12,6 +12,9 @@ import (
 //	ewiki watch add category|element ID [--mode link|content] [--frequency instant|daily|weekly] [--no-recursive] --as USER
 //	ewiki watch remove WATCH_ID --as USER
 func (e *env) watchCmd(args []string) error {
+	if len(args) > 0 && args[0] == "assign" {
+		return e.watchAssignCmd(args[1:])
+	}
 	usage := errors.New("usage: ewiki watch list|add TYPE ID [--mode link|content] [--frequency instant|daily|weekly] [--no-recursive]|remove ID --as USER")
 	as, mode, freq, rec := "", "link", "instant", true
 	var pos []string

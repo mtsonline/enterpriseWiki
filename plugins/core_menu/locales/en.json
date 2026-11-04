@@ -59,5 +59,7 @@
  "core.menu.err_item_label": "Please enter a label (required for free links and headings).",
  "core.menu.err_item_target": "Please choose the target or enter the address.",
  "core.menu.remove_with_children": "This item has {n} sub-items that are removed as well. Continue?",
- "core.menu.no_items_yet": "No items yet. Start with “Add item”."
+ "core.menu.no_items_yet": "No items yet. Start with “Add item”.",
+ "perm.core.menu.edit": "Edit menus",
+ "perm.core.menu.edit_help": "Create and change menus and their entries."
 }

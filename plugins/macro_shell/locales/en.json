@@ -21,5 +21,7 @@
  "macro.shell.requested": "Requested",
  "macro.shell.page": "Page",
  "macro.shell.last_run": "Last run",
- "macro.shell.empty": "No commands yet. They appear here as soon as a page uses the shell macro."
+ "macro.shell.empty": "No commands yet. They appear here as soon as a page uses the shell macro.",
+ "perm.macro.shell.manage": "Manage shell commands",
+ "perm.macro.shell.manage_help": "Define and approve the commands of the shell macro (approvers must also be listed in config.yaml)."
 }

@@ -20,17 +20,18 @@ import { langName, setContext } from '../components/widgets';
 import { previewImageInput } from '../components/previewimage';
 import { listAdminPages, listTemplates, templateLabel } from '../sdk';
 import { errorPage } from './content';
+import { watchesAdmin } from './adminWatches';
 
 interface User { id: number; username: string; provider: string; handle: string; display_name: string; email: string; language: string; disabled: boolean; locked_until: string | null; created_at: string; last_login_at: string | null; groups: number[]; roles: number[]; totp_enabled: boolean }
 
-const CORE_SECTIONS = ['users', 'groups', 'roles', 'permissions', 'elements', 'plugins', 'updates', 'settings', 'mail', 'webhooks', 'cache', 'languages', 'audit', 'license'];
+const CORE_SECTIONS = ['users', 'groups', 'roles', 'permissions', 'elements', 'plugins', 'updates', 'settings', 'mail', 'webhooks', 'cache', 'languages', 'audit', 'watches', 'license'];
 
 /** global permission of each administration page ('' = category managers too) */
 const SECTION_PERMS: Record<string, string> = {
   users: 'core.users.manage', groups: 'core.groups.manage', roles: 'core.roles.manage', permissions: '',
   elements: 'core.elements.admin', plugins: 'core.plugins.manage', updates: 'core.plugins.manage', settings: 'core.settings.manage',
   mail: 'core.mail.manage', webhooks: 'core.webhooks.manage', cache: 'core.system.manage', languages: 'core.i18n.manage',
-  audit: 'core.audit.view', license: 'core.license.manage',
+  audit: 'core.audit.view', watches: 'core.watches.assign', license: 'core.license.manage',
 };
 
 /** adminSections lists the administration pages the user may open. */
@@ -87,6 +88,7 @@ export async function adminView({ params, query, main }: RouteCtx): Promise<void
       case 'cache': await cacheAdmin(panel); break;
       case 'languages': await languages(panel, query); break;
       case 'audit': await auditAdmin(panel, query); break;
+      case 'watches': await watchesAdmin(panel); break;
       case 'license': await licenseAdmin(panel); break;
       default: {
         const p = listAdminPages().find((x) => x.id === section);

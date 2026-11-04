@@ -51,6 +51,7 @@ var adminPerms = []struct{ prefix, perm string }{
 	{"/api/v1/admin/jobs", "core.plugins.manage"},
 	{"/api/v1/admin/mail", "core.mail.manage"},
 	{"/api/v1/admin/webhooks", "core.webhooks.manage"},
+	{"/api/v1/admin/watch-assignments", "core.watches.assign"},
 	{"/api/v1/admin/license", "core.license.manage"},
 	{"/api/v1/admin/cache", "core.system.manage"},
 	{"/api/v1/admin/database", "core.system.manage"},
@@ -106,6 +107,8 @@ func (s *Server) routes() {
 	s.routesM15()
 	s.routesAudit()
 	s.routesDrafts()
+	s.routesNotifications()
+	s.routesWatchAssignments()
 	// ---------------------------------------------------------------- system
 	s.app.Mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, r *http.Request) { h.Write(w, 200, map[string]string{"status": "ok"}) })
 	s.handle("GET /readyz", func(w http.ResponseWriter, r *http.Request) (any, error) {

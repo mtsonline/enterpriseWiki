@@ -24,9 +24,5 @@ func init() {
 		Def{Key: "core.elements.admin", Scope: Global, Label: "Element overview", Description: "List all elements with their short URLs and tags in the administration."},
 		Def{Key: "core.watches.assign", Scope: Global, Label: "Assign watches", Description: "Make users, groups and roles watch categories and elements (mandatory or optional)."},
 		Def{Key: "core.templates.global", Scope: Global, Label: "Save templates for everybody"},
-		Def{Key: "core.share", Scope: Global, Label: "Share pages", Description: "Notify users, groups and roles about a page they may see.",
-			Presets: []string{"authenticated"}},
-		Def{Key: "core.mention", Scope: Global, Label: "Mention people", Description: "Notify people with @name in a text.",
-			Presets: []string{"authenticated"}},
 	)
 }
