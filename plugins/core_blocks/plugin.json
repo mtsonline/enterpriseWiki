@@ -7,5 +7,13 @@
   "kinds": [
     "generic"
   ],
-  "frontend": true
+  "frontend": true,
+  "permissions": [
+    {
+      "key": "core.blocks.edit",
+      "scope": "global",
+      "label": "Edit blocks",
+      "description": "Place and change blocks in the positions of the template (header, sidebar, footer …)."
+    }
+  ]
 }

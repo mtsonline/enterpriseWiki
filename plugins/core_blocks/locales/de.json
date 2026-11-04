@@ -22,5 +22,7 @@
  "core.blocks.disabled": "ausgeblendet",
  "core.blocks.hidden_position": "Position nicht in der aktiven Vorlage",
  "core.blocks.delete_confirm": "Den Block „{name}“ löschen?",
- "core.blocks.empty": "Noch keine Blöcke."
+ "core.blocks.empty": "Noch keine Blöcke.",
+ "perm.core.blocks.edit": "Blöcke bearbeiten",
+ "perm.core.blocks.edit_help": "Blöcke in den Positionen der Vorlage (Kopf, Seitenleiste, Fuß …) platzieren und ändern."
 }

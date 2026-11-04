@@ -1,0 +1,239 @@
+package server_test
+
+import (
+	"fmt"
+	"slices"
+	"testing"
+)
+
+// TestPermissionModel covers global permissions of roles, category
+// administrators, managers and editors, presets, named actions of plugins
+// (workflows) and the central overview.
+func TestPermissionModel(t *testing.T) {
+	e := setup(t)
+	admin := e.client()
+	admin.login("admin", adminPW)
+	pw := "Passw0rd!Passw0rd"
+	role := func(name string, perms ...string) int64 {
+		var r struct {
+			ID int64 `json:"id"`
+		}
+		admin.must("POST", "/api/v1/admin/roles", map[string]any{"name": name, "permissions": perms}, &r, 200)
+		return r.ID
+	}
+	user := func(name string, roles ...int64) (*client, int64) {
+		var u struct {
+			ID int64 `json:"id"`
+		}
+		if roles == nil {
+			roles = []int64{}
+		}
+		admin.must("POST", "/api/v1/admin/users", map[string]any{"username": name, "password": pw, "display_name": name, "roles": roles}, &u, 201)
+		c := e.client()
+		c.login(name, pw)
+		return c, u.ID
+	}
+	if code := admin.do("POST", "/api/v1/admin/roles", map[string]any{"name": "x", "permissions": []string{"core.nope"}}, nil); code != 400 {
+		t.Fatalf("unknown permission accepted: %d", code)
+	}
+	usermgr := role("User managers", "core.users.manage")
+	rolemgr := role("Role managers", "core.roles.manage", "core.users.manage")
+	catadmin := role("Category admins", "core.categories.admin")
+	var adminRole int64
+	var roles []struct {
+		ID      int64  `json:"id"`
+		IsAdmin bool   `json:"is_admin"`
+		Name    string `json:"name"`
+	}
+	admin.must("GET", "/api/v1/roles", nil, &roles, 200)
+	for _, r := range roles {
+		if r.IsAdmin {
+			adminRole = r.ID
+		}
+	}
+
+	// global permission: user management only
+	bob, _ := user("bob", usermgr)
+	bob.must("GET", "/api/v1/admin/users", nil, nil, 200)
+	if code := bob.do("GET", "/api/v1/admin/settings", nil, nil); code != 403 {
+		t.Fatalf("settings without permission: %d", code)
+	}
+	if code := bob.do("POST", "/api/v1/admin/roles", map[string]any{"name": "y"}, nil); code != 403 {
+		t.Fatalf("roles without permission: %d", code)
+	}
+	if code := bob.do("POST", "/api/v1/admin/users", map[string]any{"username": "evil", "password": pw, "roles": []int64{adminRole}}, nil); code != 403 {
+		t.Fatalf("user manager assigned the admin role: %d", code)
+	}
+	var adminUser []struct {
+		ID       int64  `json:"id"`
+		Username string `json:"username"`
+	}
+	admin.must("GET", "/api/v1/admin/users?q=admin", nil, &adminUser, 200)
+	if code := bob.do("PUT", fmt.Sprintf("/api/v1/admin/users/%d", adminUser[0].ID), map[string]any{"password": "Other-Passw0rd!x"}, nil); code != 403 {
+		t.Fatalf("user manager changed an administrator: %d", code)
+	}
+	// role manager cannot grant what they do not have
+	carol, _ := user("carol", rolemgr)
+	carol.must("POST", "/api/v1/admin/roles", map[string]any{"name": "Helpers", "permissions": []string{"core.users.manage"}}, nil, 200)
+	if code := carol.do("POST", "/api/v1/admin/roles", map[string]any{"name": "Too much", "permissions": []string{"core.settings.manage"}}, nil); code != 403 {
+		t.Fatalf("role manager granted a permission they do not have: %d", code)
+	}
+	if code := carol.do("POST", "/api/v1/admin/roles", map[string]any{"name": "Admins 2", "is_admin": true}, nil); code != 403 {
+		t.Fatalf("role manager created an admin role: %d", code)
+	}
+	// defaults of every signed-in user
+	var me struct {
+		User struct {
+			Permissions []string `json:"permissions"`
+		} `json:"user"`
+	}
+	bob.must("GET", "/api/v1/auth/me", nil, &me, 200)
+	if !slices.Contains(me.User.Permissions, "core.share") || !slices.Contains(me.User.Permissions, "core.users.manage") {
+		t.Fatalf("permissions of bob: %v", me.User.Permissions)
+	}
+
+	// category administrator: top level and structure, no content
+	dave, _ := user("dave", catadmin)
+	var top, sub cat
+	dave.must("POST", "/api/v1/categories", map[string]any{"titles": map[string]string{"en": "Faculty"}}, &top, 201)
+	dave.must("POST", "/api/v1/categories", map[string]any{"parent_id": top.ID, "titles": map[string]string{"en": "Institute"}}, &sub, 201)
+	// the creator of a top-level category has all permissions on it; in other
+	// categories a category admin manages the structure, but not the content
+	var other, otherSub cat
+	admin.must("POST", "/api/v1/categories", map[string]any{"titles": map[string]string{"en": "Administration"}}, &other, 201)
+	dave.must("POST", "/api/v1/categories", map[string]any{"parent_id": other.ID, "titles": map[string]string{"en": "Finance"}}, &otherSub, 201)
+	if code := dave.do("POST", "/api/v1/elements", map[string]any{"category_id": otherSub.ID, "type": "core.html", "title": "x", "body": htmlBody("<p>x</p>")}, nil); code != 403 {
+		t.Fatalf("category admin created content: %d", code)
+	}
+	var acl struct {
+		Own []struct {
+			SubjectType string `json:"subject_type"`
+			SubjectID   *int64 `json:"subject_id"`
+		} `json:"own"`
+	}
+	dave.must("GET", fmt.Sprintf("/api/v1/categories/%d/acl", top.ID), nil, &acl, 200)
+	if len(acl.Own) != 1 || acl.Own[0].SubjectType != "user" {
+		t.Fatalf("rules of a new top-level category: %+v", acl.Own)
+	}
+	erin, erinID := user("erin")
+	frank, frankID := user("frank")
+	gina, ginaID := user("gina")
+	harry, harryID := user("harry")
+	grant := func(c *client, catID, uid int64, preset string) {
+		c.must("POST", fmt.Sprintf("/api/v1/categories/%d/acl", catID), map[string]any{"subject_type": "user", "subject_id": uid, "preset": preset}, nil, 201)
+	}
+	grant(dave, top.ID, erinID, "manager")
+	grant(dave, sub.ID, frankID, "editor")
+	grant(dave, sub.ID, ginaID, "editor")
+	grant(dave, sub.ID, harryID, "manager")
+
+	// manager: subcategories, but not on the top level
+	var sub2 cat
+	erin.must("POST", "/api/v1/categories", map[string]any{"parent_id": top.ID, "titles": map[string]string{"en": "Office"}}, &sub2, 201)
+	if code := erin.do("POST", "/api/v1/categories", map[string]any{"titles": map[string]string{"en": "Other faculty"}}, nil); code != 403 {
+		t.Fatalf("manager created a top-level category: %d", code)
+	}
+	if code := erin.do("POST", fmt.Sprintf("/api/v1/categories/%d/move", sub2.ID), map[string]any{"parent_id": 0}, nil); code != 403 && code != 400 {
+		t.Fatalf("manager moved a category to the top level: %d", code)
+	}
+	// editor: content, but not the category
+	var page elem
+	frank.must("POST", "/api/v1/elements", map[string]any{"category_id": sub.ID, "type": "core.html", "title": "Rules", "body": htmlBody("<p>x</p>")}, &page, 201)
+	if code := frank.do("POST", "/api/v1/categories", map[string]any{"parent_id": sub.ID, "titles": map[string]string{"en": "Mine"}}, nil); code != 403 {
+		t.Fatalf("editor created a subcategory: %d", code)
+	}
+	if code := frank.do("PUT", fmt.Sprintf("/api/v1/categories/%d", sub.ID), map[string]any{"titles": map[string]string{"en": "Renamed"}}, nil); code != 403 {
+		t.Fatalf("editor renamed the category: %d", code)
+	}
+
+	// workflows: the creator (editor preset) or a workflow administrator (manager preset)
+	def := map[string]any{"description": "", "fields": []any{}, "steps": []map[string]any{
+		{"id": "check", "name": "Check", "assignee": map[string]string{"type": "user", "value": "gina"}, "actions": []map[string]any{{"id": "ok", "label": "OK", "next": "done"}}},
+		{"id": "done", "name": "Done", "actions": []any{}, "outcome": "success"}}}
+	var wf elem
+	frank.must("POST", "/api/v1/elements", map[string]any{"category_id": sub.ID, "type": "workflow.process", "title": "Request", "body": def}, &wf, 201)
+	def2 := map[string]any{"description": "", "fields": []any{}, "steps": []map[string]any{
+		{"id": "check", "name": "Check", "assignee": map[string]string{"type": "user", "value": "harry"}, "actions": []map[string]any{{"id": "ok", "label": "OK", "next": "done"}}},
+		{"id": "done", "name": "Done", "actions": []any{}, "outcome": "success"}}}
+	save := func(c *client, body any) int {
+		return c.do("PUT", fmt.Sprintf("/api/v1/elements/%d", wf.ID), map[string]any{"lang": "en", "title": "Request", "body": body}, nil)
+	}
+	if code := save(gina, def2); code != 403 {
+		t.Fatalf("another editor changed the workflow: %d", code)
+	}
+	if code := save(frank, def); code != 200 {
+		t.Fatalf("creator changed the workflow: %d", code)
+	}
+	if code := save(harry, def2); code != 200 {
+		t.Fatalf("workflow admin changed the workflow: %d", code)
+	}
+	var log []struct {
+		Action string `json:"action"`
+	}
+	admin.must("GET", "/api/v1/admin/audit?action=workflow.admin_change", nil, &log, 200)
+	found := false
+	for _, l := range log {
+		found = found || l.Action == "workflow.admin_change"
+	}
+	if !found {
+		t.Fatalf("admin change of the workflow not logged: %+v", log)
+	}
+	// only the assignee carries out a step – not even administrators
+	var x struct {
+		ID      int64 `json:"id"`
+		Actions []struct {
+			ID string `json:"id"`
+		} `json:"actions"`
+	}
+	frank.must("POST", fmt.Sprintf("/api/v1/x/workflow.process/elements/%d/instances", wf.ID), map[string]any{"data": map[string]any{}}, &x, 201)
+	if code := admin.do("POST", fmt.Sprintf("/api/v1/x/workflow.process/instances/%d/actions", x.ID), map[string]any{"action": "ok"}, nil); code == 200 {
+		t.Fatal("administrator carried out a step assigned to someone else")
+	}
+	harry.must("POST", fmt.Sprintf("/api/v1/x/workflow.process/instances/%d/actions", x.ID), map[string]any{"action": "ok"}, nil, 200)
+
+	// central overview: effective permissions with their origin
+	var rows []struct {
+		ID        int64    `json:"id"`
+		Effective []string `json:"effective"`
+		Sources   []struct {
+			Inherited bool `json:"inherited"`
+		} `json:"sources"`
+	}
+	dave.must("GET", fmt.Sprintf("/api/v1/permissions/overview?subject_type=user&subject_id=%d", frankID), nil, &rows, 200)
+	var subRow *struct {
+		ID        int64    `json:"id"`
+		Effective []string `json:"effective"`
+		Sources   []struct {
+			Inherited bool `json:"inherited"`
+		} `json:"sources"`
+	}
+	for i := range rows {
+		if rows[i].ID == sub.ID {
+			subRow = &rows[i]
+		}
+	}
+	if subRow == nil || !slices.Contains(subRow.Effective, "edit") || !slices.Contains(subRow.Effective, "workflow.process.create") || slices.Contains(subRow.Effective, "manage") || len(subRow.Sources) != 1 {
+		t.Fatalf("overview of frank: %+v", subRow)
+	}
+	// an editor does not see the overview of categories they cannot manage
+	frank.must("GET", fmt.Sprintf("/api/v1/permissions/overview?subject_type=user&subject_id=%d", frankID), nil, &rows, 200)
+	if len(rows) != 0 {
+		t.Fatalf("editor sees categories in the overview: %+v", rows)
+	}
+	var catalog struct {
+		Permissions []struct {
+			Key   string `json:"key"`
+			Scope string `json:"scope"`
+		} `json:"permissions"`
+	}
+	frank.must("GET", "/api/v1/permissions", nil, &catalog, 200)
+	keys := []string{}
+	for _, p := range catalog.Permissions {
+		keys = append(keys, p.Key)
+	}
+	for _, k := range []string{"core.categories.admin", "workflow.process.admin", "content.events.attendees", "core.comments.moderate", "core.menu.edit"} {
+		if !slices.Contains(keys, k) {
+			t.Fatalf("permission %s not declared: %v", k, keys)
+		}
+	}
+}

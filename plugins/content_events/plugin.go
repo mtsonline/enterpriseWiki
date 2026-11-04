@@ -490,6 +490,8 @@ type calendar struct {
 	Title    string
 	Config   *Config
 	Perms    acl.Perm
+	// Attendees: the caller may see and export the participants of all events
+	Attendees bool
 }
 
 // loadCalendar reads a calendar element for the caller (View required).
@@ -511,7 +513,8 @@ func (p *Plugin) loadCalendar(ctx context.Context, id int64, lang string) (*cale
 	}
 	var titles map[string]string
 	_ = p.host.DB.QueryRow(ctx, `SELECT titles FROM elements WHERE id=$1`, id).Scan(&titles)
-	return &calendar{ID: id, Category: cat, Title: pickText(titles, lang), Config: cfg, Perms: perms}, nil
+	return &calendar{ID: id, Category: cat, Title: pickText(titles, lang), Config: cfg, Perms: perms,
+		Attendees: p.host.Can(ctx, cat, "content.events.attendees")}, nil
 }
 
 func pickText(m map[string]string, lang string) string {
@@ -531,8 +534,10 @@ func (c *calendar) canCreate() bool { return c.Perms&acl.Create != 0 && c.Perms&
 // decorate fills computed fields of an event for the caller.
 func (c *calendar) decorate(ctx context.Context, e *Event) {
 	uid := identity.From(ctx).ID()
-	e.CanManage = c.Perms&acl.Edit != 0 || (uid != 0 && e.CreatedBy != nil && *e.CreatedBy == uid && c.canCreate())
-	e.CanEdit = e.CanManage
+	own := uid != 0 && e.CreatedBy != nil && *e.CreatedBy == uid && c.canCreate()
+	e.CanEdit = c.Perms&acl.Edit != 0 || own
+	// participants: own events, or the permission content.events.attendees
+	e.CanManage = own || c.Attendees
 	if strings.TrimSpace(e.Description) != "" {
 		e.DescriptionHTML = core_html.ToHTML(&core_html.Body{Format: "markdown", Source: e.Description})
 	}

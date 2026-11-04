@@ -12,6 +12,7 @@ import (
 	"embed"
 	"errors"
 	"fmt"
+	"github.com/mtsonline/enterprisewiki/internal/perm"
 	"io/fs"
 	"net/http"
 	"strings"
@@ -274,7 +275,7 @@ func (p *Plugin) Setup(host *sdk.Host) error {
 
 	// GET /status: configuration, synchronization state and pending changes.
 	host.Handle("GET", "/status", func(w http.ResponseWriter, r *http.Request) (any, error) {
-		if err := sdk.RequireAdmin(r); err != nil {
+		if err := perm.Require(r.Context(), "search.external.manage"); err != nil {
 			return nil, err
 		}
 		ctx := r.Context()
@@ -305,7 +306,7 @@ func (p *Plugin) Setup(host *sdk.Host) error {
 	})
 	// POST /test checks the connection.
 	host.Handle("POST", "/test", func(w http.ResponseWriter, r *http.Request) (any, error) {
-		if err := sdk.RequireAdmin(r); err != nil {
+		if err := perm.Require(r.Context(), "search.external.manage"); err != nil {
 			return nil, err
 		}
 		s := p.settings()
@@ -321,7 +322,7 @@ func (p *Plugin) Setup(host *sdk.Host) error {
 	})
 	// POST /reindex rebuilds the index (in the background).
 	host.Handle("POST", "/reindex", func(w http.ResponseWriter, r *http.Request) (any, error) {
-		if err := sdk.RequireAdmin(r); err != nil {
+		if err := perm.Require(r.Context(), "search.external.manage"); err != nil {
 			return nil, err
 		}
 		if !p.settings().Configured() {

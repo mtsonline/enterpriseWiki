@@ -21,5 +21,7 @@
  "macro.shell.requested": "Angefordert",
  "macro.shell.page": "Seite",
  "macro.shell.last_run": "Letzter Lauf",
- "macro.shell.empty": "Noch keine Befehle. Sie erscheinen hier, sobald eine Seite das Shell-Makro verwendet."
+ "macro.shell.empty": "Noch keine Befehle. Sie erscheinen hier, sobald eine Seite das Shell-Makro verwendet.",
+ "perm.macro.shell.manage": "Shell-Befehle verwalten",
+ "perm.macro.shell.manage_help": "Befehle des Shell-Makros anlegen und freigeben (Freigebende müssen zusätzlich in config.yaml stehen)."
 }

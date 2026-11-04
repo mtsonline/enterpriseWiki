@@ -744,7 +744,7 @@ func TestExternalSearch(t *testing.T) {
 			defer srv.Close()
 			settings["url"] = srv.URL
 			var root, hidden cat
-			admin.must("POST", "/api/v1/categories", map[string]any{"titles": map[string]string{"en": "Docs"}}, &root, 201)
+			admin.must("POST", "/api/v1/categories", map[string]any{"guest_visible": true, "titles": map[string]string{"en": "Docs"}}, &root, 201)
 			admin.must("POST", "/api/v1/categories", map[string]any{"parent_id": root.ID, "titles": map[string]string{"en": "Hidden"}}, &hidden, 201)
 			var e1, e2 elem
 			admin.must("POST", "/api/v1/elements", map[string]any{"category_id": root.ID, "type": "core.html", "title": "Zebra guide", "tags": []string{"animals"}, "body": htmlBody("<p>All about zebras</p>")}, &e1, 201)

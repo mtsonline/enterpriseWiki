@@ -230,7 +230,7 @@ func (pl *Plugin) decorate(ctx context.Context, w *who, x *Instance, manage bool
 	}
 	switch s.Type {
 	case StepTask:
-		if w.assigned(x, s) || w.p.Admin() {
+		if w.assigned(x, s) { // only the assignees of the step (also not administrators)
 			x.Actions = s.Actions
 		}
 	case StepApproval:
@@ -248,7 +248,7 @@ func (pl *Plugin) decorate(ctx context.Context, w *who, x *Instance, manage bool
 			return
 		}
 		x.Progress = fmt.Sprintf("%d/%d", len(voted), need)
-		if (w.assigned(x, s) || w.p.Admin()) && w.p != nil && !voted[w.p.ID()] {
+		if w.assigned(x, s) && w.p != nil && !voted[w.p.ID()] {
 			x.Actions = []Action{{ID: "approve", Label: s.ApproveLabel, Next: s.Next, Note: "optional"},
 				{ID: "reject", Label: s.RejectLabel, Next: s.NextElse, Note: "required"}}
 		}
@@ -259,8 +259,10 @@ func (pl *Plugin) decorate(ctx context.Context, w *who, x *Instance, manage bool
 	}
 }
 
+// manage reports whether the caller manages the cases of a category
+// (permission workflow.process.cases or workflow administrator).
 func (pl *Plugin) manage(ctx context.Context, category int64) bool {
-	return pl.host.ACL.Can(ctx, identity.From(ctx), category, acl.Manage)
+	return pl.host.Can(ctx, category, permCases)
 }
 
 func (pl *Plugin) load(ctx context.Context, id int64) (*Instance, *who, bool, error) {
@@ -412,6 +414,7 @@ func titleFrom(fields []Field, data map[string]any) string {
 // Setup registers the element type and the API.
 func (pl *Plugin) Setup(host *sdk.Host) error {
 	pl.host = host
+	guardHost = host
 	host.RegisterElementType(Type{})
 	host.Files.AddReference("plugin_workflow_instances", "data")
 	host.RegisterWorker("timers", 30*time.Second, pl.runTimers)
@@ -643,7 +646,7 @@ func (pl *Plugin) Setup(host *sdk.Host) error {
 			if perms[x.CategoryID]&acl.View == 0 {
 				continue
 			}
-			m := perms[x.CategoryID]&acl.Manage != 0
+			m := pl.host.Can(ctx, x.CategoryID, permCases)
 			if x.Status == "open" && me.assigned(x, x.Definition.Step(x.Step)) {
 				pl.decorate(ctx, me, x, m)
 				if len(x.Actions) > 0 { // e.g. not yet voted

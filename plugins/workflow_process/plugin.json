@@ -4,6 +4,41 @@
   "version": "1.0.0",
   "description": "Element type for processes with steps, assignees and actions (e.g. an HR application process): a form starts a case, each step is handled by a user, group or role, every decision is recorded.",
   "author": "Enterprise Wiki",
-  "kinds": ["element"],
-  "frontend": true
+  "kinds": [
+    "element"
+  ],
+  "frontend": true,
+  "permissions": [
+    {
+      "key": "workflow.process.create",
+      "scope": "category",
+      "label": "Create workflows",
+      "description": "Create workflows and change or delete your own ones (with their steps and assignees).",
+      "presets": [
+        "editor"
+      ]
+    },
+    {
+      "key": "workflow.process.admin",
+      "scope": "category",
+      "label": "Workflow administrator",
+      "description": "Change and delete all workflows of the category. Every change is logged in detail and the creator is notified.",
+      "presets": [
+        "manager"
+      ],
+      "implies": [
+        "workflow.process.create",
+        "workflow.process.cases"
+      ]
+    },
+    {
+      "key": "workflow.process.cases",
+      "scope": "category",
+      "label": "Manage cases",
+      "description": "See all cases of the workflows, cancel them and decide about failed steps. Who carries out a step is defined only by its assignee.",
+      "presets": [
+        "manager"
+      ]
+    }
+  ]
 }

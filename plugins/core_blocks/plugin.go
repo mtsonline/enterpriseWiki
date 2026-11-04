@@ -7,6 +7,7 @@ import (
 	"context"
 	"embed"
 	"errors"
+	"github.com/mtsonline/enterprisewiki/internal/perm"
 	"io/fs"
 	"net/http"
 	"regexp"
@@ -141,7 +142,7 @@ func (p *Plugin) Setup(host *sdk.Host) error {
 			return nil, err
 		}
 		if r.URL.Query().Get("all") == "1" {
-			if err := sdk.RequireAdmin(r); err != nil {
+			if err := perm.Require(r.Context(), "core.blocks.edit"); err != nil {
 				return nil, err
 			}
 			return bs, nil
@@ -176,7 +177,7 @@ func (p *Plugin) Setup(host *sdk.Host) error {
 		return out, nil
 	})
 	save := func(w http.ResponseWriter, r *http.Request) (any, error) {
-		if err := sdk.RequireAdmin(r); err != nil {
+		if err := perm.Require(r.Context(), "core.blocks.edit"); err != nil {
 			return nil, err
 		}
 		var in Block
@@ -214,7 +215,7 @@ func (p *Plugin) Setup(host *sdk.Host) error {
 	host.Handle("POST", "/blocks", save)
 	host.Handle("PUT", "/blocks/{id}", save)
 	host.Handle("DELETE", "/blocks/{id}", func(w http.ResponseWriter, r *http.Request) (any, error) {
-		if err := sdk.RequireAdmin(r); err != nil {
+		if err := perm.Require(r.Context(), "core.blocks.edit"); err != nil {
 			return nil, err
 		}
 		id, err := h.PathID(r, "id")

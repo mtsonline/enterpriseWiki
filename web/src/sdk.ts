@@ -15,7 +15,7 @@ export type { UploadedFile } from './core/api';
 export { pluginSettingsForm, MAPPING_FIELDS } from './components/settings';
 export type { SettingField } from './components/settings';
 export { t, pick, uiLang } from './core/i18n';
-export { state, onChange, isAdmin } from './core/state';
+export { state, onChange, isAdmin, hasPerm } from './core/state';
 export { toast, announce } from './core/announce';
 export { navigate, route, rerender } from './core/router';
 export { button, field, textInput, textArea, select, checkbox, openDialog, confirmDialog, formDialog, langFields, errorText, loading, pageHeader } from './components/ui';

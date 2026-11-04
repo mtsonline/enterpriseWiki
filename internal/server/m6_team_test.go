@@ -64,7 +64,7 @@ func TestTeamAndProfile(t *testing.T) {
 
 	// team page
 	var c cat
-	admin.must("POST", "/api/v1/categories", map[string]any{"titles": map[string]string{"en": "About us"}}, &c, 201)
+	admin.must("POST", "/api/v1/categories", map[string]any{"guest_visible": true, "titles": map[string]string{"en": "About us"}}, &c, 201)
 	var team elem
 	admin.must("POST", "/api/v1/elements", map[string]any{"category_id": c.ID, "type": "content.team", "title": "Our team",
 		"body": map[string]any{"groups": []int64{sales.ID, it.ID}, "fields": []string{"photo", "job_title", "phone", "about", "groups"}, "layout": "cards", "by_group": true,

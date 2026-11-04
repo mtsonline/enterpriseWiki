@@ -22,6 +22,7 @@ import (
 	"embed"
 	"errors"
 	"fmt"
+	"github.com/mtsonline/enterprisewiki/internal/perm"
 	"io/fs"
 	"net/http"
 	"strings"
@@ -58,7 +59,7 @@ func (p *Plugin) Setup(host *sdk.Host) error {
 	prov := &Provider{settings: host.Settings}
 	host.RegisterRedirectProvider(prov)
 	host.Handle("GET", "/check", func(w http.ResponseWriter, r *http.Request) (any, error) {
-		if err := sdk.RequireAdmin(r); err != nil {
+		if err := perm.Require(r.Context(), "core.settings.manage"); err != nil {
 			return nil, err
 		}
 		s := host.Settings()

@@ -19,6 +19,7 @@ import (
 	"embed"
 	"encoding/hex"
 	"errors"
+	"github.com/mtsonline/enterprisewiki/internal/perm"
 	"html"
 	"io/fs"
 	"net/http"
@@ -97,7 +98,7 @@ func CanApprove(p *identity.Principal, approvers []string) bool {
 	if p.Via == "cli" {
 		return true
 	}
-	return p.Admin() && p.Via != "apikey" && slices.Contains(approvers, p.Handle())
+	return perm.HasP(p, "macro.shell.manage") && p.Via != "apikey" && slices.Contains(approvers, p.Handle())
 }
 
 // Setup registers the macro and the approval API.
@@ -107,7 +108,7 @@ func (p *Plugin) Setup(host *sdk.Host) error {
 
 	approvers := func() []string { return host.Config.Get().Plugins.Macros.ShellApprovers }
 	requireSuper := func(r *http.Request) error {
-		if err := sdk.RequireAdmin(r); err != nil {
+		if err := perm.Require(r.Context(), "macro.shell.manage"); err != nil {
 			return err
 		}
 		if !CanApprove(identity.From(r.Context()), approvers()) {
@@ -118,7 +119,7 @@ func (p *Plugin) Setup(host *sdk.Host) error {
 
 	// GET /commands lists all known commands (admins).
 	host.Handle("GET", "/commands", func(w http.ResponseWriter, r *http.Request) (any, error) {
-		if err := sdk.RequireAdmin(r); err != nil {
+		if err := perm.Require(r.Context(), "macro.shell.manage"); err != nil {
 			return nil, err
 		}
 		rows, err := host.DB.Query(r.Context(), `SELECT hash, command, status, element_id, u.username || '@' || u.provider, requested_at,
@@ -137,7 +138,7 @@ func (p *Plugin) Setup(host *sdk.Host) error {
 	})
 	// POST /commands registers a command ({"command": "...", "approve": true}).
 	host.Handle("POST", "/commands", func(w http.ResponseWriter, r *http.Request) (any, error) {
-		if err := sdk.RequireAdmin(r); err != nil {
+		if err := perm.Require(r.Context(), "macro.shell.manage"); err != nil {
 			return nil, err
 		}
 		var in struct {

@@ -100,7 +100,7 @@ func (s *Service) decorate(ctx context.Context, cats []Category) ([]Category, er
 	out := cats[:0]
 	for _, c := range cats {
 		p := pm[c.ID]
-		if p&acl.View == 0 {
+		if p&(acl.View|acl.Manage) == 0 { // category administrators see the structure
 			continue
 		}
 		c.Permissions = p.Strings()
@@ -137,7 +137,7 @@ func (s *Service) numbers(ctx context.Context, path []int64) (string, error) {
 
 // GetCategory returns a category the caller may view, with outline number.
 func (s *Service) GetCategory(ctx context.Context, id int64) (*Category, error) {
-	if err := s.require(ctx, id, acl.View); err != nil {
+	if err := s.requireCategory(ctx, id); err != nil {
 		return nil, err
 	}
 	c, err := s.loadCategory(ctx, s.pool, id, false)
@@ -158,7 +158,7 @@ func (s *Service) GetCategory(ctx context.Context, id int64) (*Category, error) 
 // Children lists visible subcategories of parent (0 = root level).
 func (s *Service) Children(ctx context.Context, parent int64) ([]Category, error) {
 	if parent != 0 {
-		if err := s.require(ctx, parent, acl.View); err != nil {
+		if err := s.requireCategory(ctx, parent); err != nil {
 			return nil, err
 		}
 	}
@@ -228,7 +228,7 @@ func (s *Service) visibleChildren(ctx context.Context, cats []Category) error {
 	}
 	visible := map[int64]bool{}
 	for _, k := range kids {
-		if perms[k.id]&acl.View != 0 {
+		if perms[k.id]&(acl.View|acl.Manage) != 0 {
 			visible[k.parent] = true
 		}
 	}
@@ -277,8 +277,8 @@ type CategoryInput struct {
 	// ShortURL is an additional address such as /kalender ("" removes it).
 	ShortURL *string `json:"short_url"`
 	Feed     *string `json:"feed"`
-	// GuestVisible applies to new root categories (default true: the first
-	// level is visible to guests unless disabled).
+	// GuestVisible applies to new top-level categories: true makes them
+	// visible to guests (default: only the creator has permissions).
 	GuestVisible *bool `json:"guest_visible"`
 }
 
@@ -333,10 +333,20 @@ func (s *Service) CreateCategory(ctx context.Context, in CategoryInput) (*Catego
 			VALUES ($1,$2,$3::ltree,$4,$5,$6,$7,$8,$9)`, id, in.ParentID, path, pos, slug, titles, descs, tags, nullID(ctx)); err != nil {
 			return err
 		}
-		if in.ParentID == nil && (in.GuestVisible == nil || *in.GuestVisible) {
-			if _, err := tx.Exec(ctx, `INSERT INTO acl_rules(category_id, subject_type, permissions, inherit, created_by)
-				VALUES ($1,'guest',$2,false,$3)`, id, acl.View, nullID(ctx)); err != nil {
-				return err
+		if in.ParentID == nil {
+			// a new top-level category belongs to its creator (all permissions,
+			// inherited by the subcategories); guests only if asked for
+			if uid := identity.From(ctx).ID(); uid > 0 {
+				if _, err := tx.Exec(ctx, `INSERT INTO acl_rules(category_id, subject_type, subject_id, permissions, actions, inherit, created_by)
+					VALUES ($1,'user',$2,$3,$4,true,$2)`, id, uid, acl.All, perm.Preset(perm.Manager)); err != nil {
+					return err
+				}
+			}
+			if in.GuestVisible != nil && *in.GuestVisible {
+				if _, err := tx.Exec(ctx, `INSERT INTO acl_rules(category_id, subject_type, permissions, inherit, created_by)
+					VALUES ($1,'guest',$2,false,$3)`, id, acl.View, nullID(ctx)); err != nil {
+					return err
+				}
 			}
 		}
 		if in.ShortURL != nil {
@@ -795,7 +805,7 @@ func (s *Service) Tree(ctx context.Context, limit int) ([]TreeNode, error) {
 		x := all[i]
 		visible := true
 		for _, a := range x.path {
-			if perms[a]&acl.View == 0 {
+			if perms[a]&(acl.View|acl.Manage) == 0 {
 				visible = false
 				break
 			}
@@ -810,4 +820,13 @@ func (s *Service) Tree(ctx context.Context, limit int) ([]TreeNode, error) {
 		}
 	}
 	return out, nil
+}
+
+// requireCategory checks that the caller may see a category: view, or
+// manage (category administrators see the structure, not the content).
+func (s *Service) requireCategory(ctx context.Context, id int64) error {
+	if s.acl.Can(ctx, identity.From(ctx), id, acl.Manage) {
+		return nil
+	}
+	return s.require(ctx, id, acl.View)
 }

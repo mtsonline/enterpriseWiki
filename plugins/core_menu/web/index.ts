@@ -372,5 +372,5 @@ async function adminPage(container: HTMLElement): Promise<void> {
 export function register(): void {
   // menus can be placed at every position of the active template
   registerSlot({ id: 'core.menu', position: '*', order: 20, render: slot });
-  registerAdminPage({ id: 'menus', label: () => t('core.menu.admin_title'), order: 10, render: adminPage });
+  registerAdminPage({ id: 'menus', permission: 'core.menu.edit', label: () => t('core.menu.admin_title'), order: 10, render: adminPage });
 }

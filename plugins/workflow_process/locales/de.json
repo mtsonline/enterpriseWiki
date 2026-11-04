@@ -195,5 +195,13 @@
  "workflow.webhook_secret": "Geheimnis (optional)",
  "workflow.webhook_secret_help": "Signiert die Anfrage: Header X-Ewiki-Signature: sha256=…",
  "workflow.webhook_url": "URL",
- "workflow.template.onboarding": "Einarbeitung (mit Wartezeit und Willkommens-E-Mail)"
+ "workflow.template.onboarding": "Einarbeitung (mit Wartezeit und Willkommens-E-Mail)",
+ "workflow.mail_admin_change_subject": "Ihr Workflow „{title}“ wurde von {by} geändert",
+ "workflow.mail_admin_change_body": "Hallo {name},\n\n{by} hat Ihren Workflow „{title}“ als Workflow-Admin geändert:\n\n{changes}",
+ "perm.workflow.process.create": "Workflows anlegen",
+ "perm.workflow.process.create_help": "Workflows anlegen und die eigenen (mit Schritten und Zuständigkeiten) ändern oder löschen.",
+ "perm.workflow.process.admin": "Workflow-Admin",
+ "perm.workflow.process.admin_help": "Alle Workflows der Kategorie ändern und löschen. Jede Änderung wird genau protokolliert, und der Ersteller wird benachrichtigt.",
+ "perm.workflow.process.cases": "Vorgänge verwalten",
+ "perm.workflow.process.cases_help": "Alle Vorgänge sehen, abbrechen und über fehlgeschlagene Schritte entscheiden. Wer einen Schritt erledigt, legt nur die Zuständigkeit im Schritt fest."
 }

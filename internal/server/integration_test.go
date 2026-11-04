@@ -213,7 +213,7 @@ func TestAPI(t *testing.T) {
 
 	// ------------------------------------------------------------ categories
 	var root, sub, sub2 cat
-	admin.must("POST", "/api/v1/categories", map[string]any{"titles": map[string]string{"en": "Handbook", "de": "Handbuch"}, "tags": []string{"Docs", "#docs", "hr"}}, &root, 201)
+	admin.must("POST", "/api/v1/categories", map[string]any{"guest_visible": true, "titles": map[string]string{"en": "Handbook", "de": "Handbuch"}, "tags": []string{"Docs", "#docs", "hr"}}, &root, 201)
 	admin.must("POST", "/api/v1/categories", map[string]any{"parent_id": root.ID, "titles": map[string]string{"en": "Internal"}}, &sub, 201)
 	admin.must("POST", "/api/v1/categories", map[string]any{"parent_id": root.ID, "titles": map[string]string{"en": "Second"}}, &sub2, 201)
 	if sub.Number != "1.1" || sub2.Number != "1.2" {
@@ -374,7 +374,7 @@ func TestAPI(t *testing.T) {
 		} `json:"inherited"`
 	}
 	admin.must("GET", fmt.Sprintf("/api/v1/categories/%d/acl", sub.ID), nil, &acl, 200)
-	if len(acl.Inherited) != 1 {
+	if len(acl.Inherited) != 2 { // the rule of the creator of the top-level category and the group
 		t.Fatalf("inherited rules %+v", acl)
 	}
 	admin.must("POST", fmt.Sprintf("/api/v1/categories/%d/acl", sub.ID), map[string]any{"subject_type": "user", "subject_id": bob.ID, "permissions": 3, "inherit": false}, nil, 201)

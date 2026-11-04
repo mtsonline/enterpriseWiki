@@ -68,7 +68,7 @@ func (s *Service) require(ctx context.Context, categoryID int64, want acl.Perm) 
 		// Guests get 401 for anything they cannot see, so the UI can offer a login.
 		return apperr.ErrUnauthorized
 	}
-	if !s.acl.Can(ctx, p, categoryID, acl.View) {
+	if !s.acl.Can(ctx, p, categoryID, acl.View) && !s.acl.Can(ctx, p, categoryID, acl.Manage) {
 		return apperr.NotFound("category")
 	}
 	return apperr.ErrForbidden

@@ -4,6 +4,19 @@
   "version": "1.0.0",
   "description": "Element type for an event calendar: month, week and list views, recurring events, categories with colours, registration with capacity and waiting list, e-mail confirmations and reminders, iCal export and subscription, and a macro for upcoming events.",
   "author": "Enterprise Wiki",
-  "kinds": ["element"],
-  "frontend": true
+  "kinds": [
+    "element"
+  ],
+  "frontend": true,
+  "permissions": [
+    {
+      "key": "content.events.attendees",
+      "scope": "category",
+      "label": "See participants",
+      "description": "See and export the participants of all events of the calendars in the category (organizers always see the participants of their own events).",
+      "presets": [
+        "editor"
+      ]
+    }
+  ]
 }

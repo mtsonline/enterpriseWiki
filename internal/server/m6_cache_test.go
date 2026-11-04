@@ -17,7 +17,7 @@ func TestGuestCache(t *testing.T) {
 	admin := e.client()
 	admin.login("admin", adminPW)
 	var c cat
-	admin.must("POST", "/api/v1/categories", map[string]any{"titles": map[string]string{"en": "Public"}}, &c, 201)
+	admin.must("POST", "/api/v1/categories", map[string]any{"guest_visible": true, "titles": map[string]string{"en": "Public"}}, &c, 201)
 	var page elem
 	admin.must("POST", "/api/v1/elements", map[string]any{"category_id": c.ID, "type": "core.html", "title": "Hello", "body": htmlBody("<p>Version 1</p>")}, &page, 201)
 	guest := e.client()

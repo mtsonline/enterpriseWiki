@@ -120,7 +120,7 @@ func (p *Plugin) get(ctx context.Context, id int64) (*Comment, int64, error) {
 	return &c, cat, nil
 }
 
-func (p *Plugin) decorate(ctx context.Context, c *Comment, perms acl.Perm) {
+func (p *Plugin) decorate(ctx context.Context, c *Comment, perms acl.Perm, cat int64) {
 	me := identity.From(ctx)
 	own := me != nil && c.AuthorID != nil && *c.AuthorID == me.ID()
 	if c.DeletedAt != nil {
@@ -129,7 +129,7 @@ func (p *Plugin) decorate(ctx context.Context, c *Comment, perms acl.Perm) {
 	}
 	c.HTML = Format(c.Body)
 	c.CanEdit = own && perms&p.minPerm() != 0
-	c.CanDelete = own || perms&acl.Manage != 0 || me.Admin()
+	c.CanDelete = own || p.host.Can(ctx, cat, "core.comments.moderate")
 }
 
 func validBody(s string) (string, error) {
@@ -175,7 +175,7 @@ func (p *Plugin) Setup(host *sdk.Host) error {
 			return nil, err
 		}
 		for _, c := range list {
-			p.decorate(ctx, c, perms)
+			p.decorate(ctx, c, perms, cat)
 		}
 		me := identity.From(ctx)
 		return map[string]any{"comments": list, "can_comment": me != nil && me.ID() != 0 && perms&p.minPerm() != 0}, nil
@@ -235,7 +235,7 @@ func (p *Plugin) Setup(host *sdk.Host) error {
 			return nil, err
 		}
 		perms, _ := host.ACL.Perms(ctx, me, cat)
-		p.decorate(ctx, &c, perms)
+		p.decorate(ctx, &c, perms, cat)
 		p.emitComment(ctx, &c, cat, body)
 		return h.Created{V: &c}, nil
 	})
@@ -255,7 +255,7 @@ func (p *Plugin) Setup(host *sdk.Host) error {
 		if err != nil {
 			return nil, err
 		}
-		p.decorate(ctx, c, perms)
+		p.decorate(ctx, c, perms, cat)
 		if !c.CanEdit {
 			return nil, apperr.ErrForbidden
 		}
@@ -280,7 +280,7 @@ func (p *Plugin) Setup(host *sdk.Host) error {
 			return nil, err
 		}
 		c.Body, c.Edited = body, true
-		p.decorate(ctx, c, perms)
+		p.decorate(ctx, c, perms, cat)
 		return c, nil
 	})
 
@@ -303,7 +303,7 @@ func (p *Plugin) Setup(host *sdk.Host) error {
 			return nil, err
 		}
 		body := c.Body
-		p.decorate(ctx, c, perms)
+		p.decorate(ctx, c, perms, cat)
 		if !c.CanDelete {
 			return nil, apperr.ErrForbidden
 		}

@@ -25,6 +25,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"github.com/mtsonline/enterprisewiki/internal/perm"
 	"io/fs"
 	"net/http"
 	"strconv"
@@ -63,7 +64,7 @@ func (p *Plugin) Setup(host *sdk.Host) error {
 	host.RegisterAuthProvider(prov)
 	// Admin: test a login with the current settings without creating a session.
 	host.Handle("POST", "/test", func(w http.ResponseWriter, r *http.Request) (any, error) {
-		if err := sdk.RequireAdmin(r); err != nil {
+		if err := perm.Require(r.Context(), "core.settings.manage"); err != nil {
 			return nil, err
 		}
 		var in struct {

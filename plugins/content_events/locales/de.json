@@ -177,5 +177,7 @@
  "content.events.originally": "Ursprünglich",
  "content.events.occurrence_changed_note": "Dieser Termin weicht von der Serie ab.",
  "content.events.mail_invitation_hint": "Der Termin ist als Kalendereinladung angehängt (Outlook, Apple, Google, Thunderbird).",
- "content.events.no_invitations": "Keine Kalendereinladungen in E-Mails (sonst landen angemeldete Termine direkt im Kalender von Outlook & Co.)"
+ "content.events.no_invitations": "Keine Kalendereinladungen in E-Mails (sonst landen angemeldete Termine direkt im Kalender von Outlook & Co.)",
+ "perm.content.events.attendees": "Teilnehmende sehen",
+ "perm.content.events.attendees_help": "Teilnehmende aller Termine der Kalender in der Kategorie sehen und exportieren (Organisatoren sehen die ihrer eigenen Termine immer)."
 }

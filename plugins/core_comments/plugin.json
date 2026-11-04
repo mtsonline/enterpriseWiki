@@ -4,6 +4,19 @@
   "version": "1.0.0",
   "description": "Comments and replies below pages. Edits and deletions are recorded in the audit log; deleted comments remain as placeholders so threads stay intact.",
   "author": "Enterprise Wiki",
-  "kinds": ["generic"],
-  "frontend": true
+  "kinds": [
+    "generic"
+  ],
+  "frontend": true,
+  "permissions": [
+    {
+      "key": "core.comments.moderate",
+      "scope": "category",
+      "label": "Moderate comments",
+      "description": "Delete comments of others in the category.",
+      "presets": [
+        "manager"
+      ]
+    }
+  ]
 }

@@ -195,5 +195,7 @@
  "workflow.webhook_secret": "Secret (optional)",
  "workflow.webhook_secret_help": "Signs the request: header X-Ewiki-Signature: sha256=…",
  "workflow.webhook_url": "URL",
- "workflow.template.onboarding": "Onboarding (with waiting time and welcome e-mail)"
+ "workflow.template.onboarding": "Onboarding (with waiting time and welcome e-mail)",
+ "workflow.mail_admin_change_subject": "Your workflow “{title}” was changed by {by}",
+ "workflow.mail_admin_change_body": "Hello {name},\n\n{by} changed your workflow “{title}” as workflow administrator:\n\n{changes}"
 }

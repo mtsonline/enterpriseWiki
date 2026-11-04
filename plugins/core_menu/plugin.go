@@ -10,6 +10,7 @@ import (
 	"embed"
 	"encoding/json"
 	"fmt"
+	"github.com/mtsonline/enterprisewiki/internal/perm"
 	"io/fs"
 	"net/http"
 	"net/url"
@@ -407,7 +408,7 @@ func (p *Plugin) Setup(hs *sdk.Host) error {
 			return nil, err
 		}
 		if r.URL.Query().Get("all") == "1" {
-			if err := sdk.RequireAdmin(r); err != nil {
+			if err := perm.Require(r.Context(), "core.menu.edit"); err != nil {
 				return nil, err
 			}
 			for i := range all {
@@ -431,7 +432,7 @@ func (p *Plugin) Setup(hs *sdk.Host) error {
 		return out, nil
 	})
 	hs.Handle("GET", "/menus/{id}", func(w http.ResponseWriter, r *http.Request) (any, error) {
-		if err := sdk.RequireAdmin(r); err != nil {
+		if err := perm.Require(r.Context(), "core.menu.edit"); err != nil {
 			return nil, err
 		}
 		id, err := h.PathID(r, "id")
@@ -451,7 +452,7 @@ func (p *Plugin) Setup(hs *sdk.Host) error {
 		return nil, apperr.NotFound("menu")
 	})
 	save := func(w http.ResponseWriter, r *http.Request) (any, error) {
-		if err := sdk.RequireAdmin(r); err != nil {
+		if err := perm.Require(r.Context(), "core.menu.edit"); err != nil {
 			return nil, err
 		}
 		var in Menu
@@ -500,7 +501,7 @@ func (p *Plugin) Setup(hs *sdk.Host) error {
 	hs.Handle("POST", "/menus", save)
 	hs.Handle("PUT", "/menus/{id}", save)
 	hs.Handle("DELETE", "/menus/{id}", func(w http.ResponseWriter, r *http.Request) (any, error) {
-		if err := sdk.RequireAdmin(r); err != nil {
+		if err := perm.Require(r.Context(), "core.menu.edit"); err != nil {
 			return nil, err
 		}
 		id, err := h.PathID(r, "id")

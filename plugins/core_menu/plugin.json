@@ -4,6 +4,16 @@
   "version": "1.0.0",
   "description": "Any number of menus with nested items (links or categories) placed at the positions offered by the active template.",
   "author": "Enterprise Wiki",
-  "kinds": ["menu"],
-  "frontend": true
+  "kinds": [
+    "menu"
+  ],
+  "frontend": true,
+  "permissions": [
+    {
+      "key": "core.menu.edit",
+      "scope": "global",
+      "label": "Edit menus",
+      "description": "Create and change menus and their entries."
+    }
+  ]
 }

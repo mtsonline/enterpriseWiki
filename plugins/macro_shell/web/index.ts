@@ -56,5 +56,5 @@ async function render(el: HTMLElement): Promise<void> {
 }
 
 export function register(): void {
-  registerAdminPage({ id: 'shell', label: () => t('macro.shell.title'), order: 60, render });
+  registerAdminPage({ id: 'shell', permission: 'macro.shell.manage', label: () => t('macro.shell.title'), order: 60, render });
 }

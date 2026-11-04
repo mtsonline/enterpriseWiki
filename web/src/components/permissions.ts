@@ -8,13 +8,15 @@ import { PERMS } from '../core/types';
 import { checkbox, field, select } from './ui';
 
 export interface PermDef { key: string; scope: 'global' | 'category'; label: string; description?: string; presets?: string[]; group: string; implies?: string[] }
-interface Catalog { permissions: PermDef[]; presets: Record<string, { permissions: number; actions: string[] }> }
+interface Catalog { permissions: PermDef[]; presets: Record<string, { permissions: number; actions: string[] }>; groups: Record<string, string> }
+
+let groupNames: Record<string, string> = {};
 
 let catalog: Promise<Catalog> | null = null;
 
 /** loadCatalog returns the declared permissions (cached). */
 export function loadCatalog(): Promise<Catalog> {
-  catalog ??= api.get<Catalog>('permissions').catch((e) => { catalog = null; throw e; });
+  catalog ??= api.get<Catalog>('permissions').then((c) => { groupNames = c.groups ?? {}; return c; }).catch((e) => { catalog = null; throw e; });
   return catalog;
 }
 
@@ -35,7 +37,7 @@ function permHelp(d: PermDef): string | undefined {
 export function groupLabel(group: string): string {
   const k = `perm.group.${group}`;
   const v = t(k);
-  return v === k ? group : v;
+  return v === k ? (groupNames[group] ?? group) : v;
 }
 
 /** summary describes core bits and actions in words. */

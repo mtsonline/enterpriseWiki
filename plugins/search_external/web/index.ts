@@ -45,5 +45,5 @@ async function render(el: HTMLElement): Promise<void> {
 }
 
 export function register(): void {
-  registerAdminPage({ id: 'search', label: () => t('search.external.title'), order: 65, render });
+  registerAdminPage({ id: 'search', permission: 'search.external.manage', label: () => t('search.external.title'), order: 65, render });
 }

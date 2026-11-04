@@ -3,6 +3,7 @@ import { api, button, errorText, h, MAPPING_FIELDS, mount, pageHeader, pluginSet
 
 export function register(): void {
   registerAdminPage({
+    permission: 'core.settings.manage',
     id: 'oidc', label: () => t('auth.oidc.title'), order: 21,
     render: async (el) => {
       const form = await pluginSettingsForm('auth.oidc', [

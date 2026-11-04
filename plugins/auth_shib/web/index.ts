@@ -3,6 +3,7 @@ import { h, MAPPING_FIELDS, mount, pageHeader, pluginSettingsForm, registerAdmin
 
 export function register(): void {
   registerAdminPage({
+    permission: 'core.settings.manage',
     id: 'shibboleth', label: () => t('auth.shib.title'), order: 22,
     render: async (el) => {
       const saml = (v: Record<string, unknown>) => (v.mode ?? 'saml') === 'saml';

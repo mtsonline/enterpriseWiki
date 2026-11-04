@@ -34,6 +34,7 @@ type Element struct {
 	ShortURL     string            `json:"short_url"`
 	// PreviewImage is shown in link previews (Open Graph); "" = first image of the page.
 	PreviewImage string `json:"preview_image"`
+	CreatedByID  *int64 `json:"created_by_id"`
 }
 
 // LangStatus is the translation state of one language.
@@ -64,12 +65,12 @@ type ElementView struct {
 
 const elemCols = `e.id, e.category_id, e.type, e.position, e.original_lang, e.titles, e.tags, e.created_at, e.updated_at,
 	COALESCE((SELECT u.display_name || ' (' || u.username || '@' || u.provider || ')' FROM users u WHERE u.id = e.updated_by), ''),
-	e.deleted_at, EXISTS (SELECT 1 FROM categories c WHERE c.id = e.category_id AND c.default_element_id = e.id), COALESCE(e.short_url, ''), e.preview_image`
+	e.deleted_at, EXISTS (SELECT 1 FROM categories c WHERE c.id = e.category_id AND c.default_element_id = e.id), COALESCE(e.short_url, ''), e.preview_image, e.created_by`
 
 func scanElement(r pgx.CollectableRow) (Element, error) {
 	var e Element
 	err := r.Scan(&e.ID, &e.CategoryID, &e.Type, &e.Position, &e.OriginalLang, &e.Titles, &e.Tags, &e.CreatedAt, &e.UpdatedAt,
-		&e.UpdatedBy, &e.DeletedAt, &e.IsDefault, &e.ShortURL, &e.PreviewImage)
+		&e.UpdatedBy, &e.DeletedAt, &e.IsDefault, &e.ShortURL, &e.PreviewImage, &e.CreatedByID)
 	return e, err
 }
 
@@ -254,6 +255,11 @@ func (s *Service) CreateElement(ctx context.Context, in ElementInput) (*ElementV
 	if len(in.Body) == 0 {
 		in.Body = t.EmptyBody()
 	}
+	if g, ok := t.(Guard); ok {
+		if err := g.CheckCreate(ctx, s, in.CategoryID); err != nil {
+			return nil, err
+		}
+	}
 	if p, ok := t.(Preparer); ok {
 		if in.Body, err = p.Prepare(ctx, s, in.CategoryID, in.Lang, title, in.Body); err != nil {
 			return nil, err
@@ -373,6 +379,13 @@ func (s *Service) SaveElement(ctx context.Context, id int64, in SaveInput) (*Ele
 	if err != nil {
 		return nil, apperr.BadRequest("invalid body: %v", err)
 	}
+	if g, ok := t.(Guard); ok {
+		var old json.RawMessage
+		_ = s.pool.QueryRow(ctx, `SELECT body FROM element_revisions WHERE element_id=$1 AND lang=$2 ORDER BY rev DESC LIMIT 1`, id, in.Lang).Scan(&old)
+		if err := g.CheckChange(ctx, s, e, old, body); err != nil {
+			return nil, err
+		}
+	}
 	err = db.Tx(ctx, s.pool, func(tx pgx.Tx) error {
 		if _, err := tx.Exec(ctx, `SELECT 1 FROM elements WHERE id=$1 FOR UPDATE`, id); err != nil {
 			return err
@@ -491,6 +504,12 @@ func (s *Service) MoveElement(ctx context.Context, id, categoryID int64) (*Eleme
 	if err := s.require(ctx, categoryID, acl.Create); err != nil {
 		return nil, err
 	}
+	if err := s.guardChange(ctx, e); err != nil {
+		return nil, err
+	}
+	if err := s.guardCreate(ctx, e.Type, categoryID); err != nil {
+		return nil, err
+	}
 	err = db.Tx(ctx, s.pool, func(tx pgx.Tx) error {
 		var ok bool
 		if err := tx.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM categories WHERE id=$1 AND deleted_at IS NULL)`, categoryID).Scan(&ok); err != nil || !ok {
@@ -530,6 +549,9 @@ func (s *Service) DuplicateElement(ctx context.Context, id, categoryID int64) (*
 	if err := s.require(ctx, categoryID, acl.Create); err != nil {
 		return nil, err
 	}
+	if err := s.guardCreate(ctx, e.Type, categoryID); err != nil {
+		return nil, err
+	}
 	var nid int64
 	err = db.Tx(ctx, s.pool, func(tx pgx.Tx) error {
 		suffix := ""
@@ -558,6 +580,9 @@ func (s *Service) DeleteElement(ctx context.Context, id int64) error {
 		return err
 	}
 	if err := s.require(ctx, e.CategoryID, acl.Delete); err != nil {
+		return err
+	}
+	if err := s.guardChange(ctx, e); err != nil {
 		return err
 	}
 	err = db.Tx(ctx, s.pool, func(tx pgx.Tx) error {
@@ -711,4 +736,21 @@ func (s *Service) Preview(ctx context.Context, typ, lang string, body json.RawMe
 		return "", apperr.BadRequest("invalid body: %v", err)
 	}
 	return t.Render(ctx, RenderContext{Lang: lang, Principal: identity.From(ctx), Service: s}, norm)
+}
+
+// guardChange asks the element type whether the element may be deleted or
+// moved away (Guard).
+func (s *Service) guardChange(ctx context.Context, e *Element) error {
+	if g, ok := s.Type(e.Type).(Guard); ok {
+		return g.CheckChange(ctx, s, e, nil, nil)
+	}
+	return nil
+}
+
+// guardCreate asks the element type whether an element may be created in categoryID.
+func (s *Service) guardCreate(ctx context.Context, typ string, categoryID int64) error {
+	if g, ok := s.Type(typ).(Guard); ok {
+		return g.CheckCreate(ctx, s, categoryID)
+	}
+	return nil
 }

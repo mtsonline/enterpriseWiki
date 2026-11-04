@@ -97,5 +97,5 @@ async function adminPage(el: HTMLElement): Promise<void> {
 
 export function register(): void {
   registerSlot({ id: 'core.blocks', position: '*', order: 30, render: slot });
-  registerAdminPage({ id: 'blocks', label: () => t('core.blocks.title_admin'), order: 11, render: adminPage });
+  registerAdminPage({ id: 'blocks', permission: 'core.blocks.edit', label: () => t('core.blocks.title_admin'), order: 11, render: adminPage });
 }

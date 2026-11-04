@@ -37,7 +37,11 @@ func (s *Server) routesM15() {
 			bits, acts, _ := content.PresetPerms(name)
 			presets[name] = map[string]any{"permissions": bits, "actions": acts}
 		}
-		return map[string]any{"permissions": perm.All(), "presets": presets, "bits": acl.Names}, nil
+		groups := map[string]string{"core": "Core"}
+		for _, p := range s.app.Kernel.List() {
+			groups[p.ID] = p.Name
+		}
+		return map[string]any{"permissions": perm.All(), "presets": presets, "bits": acl.Names, "groups": groups}, nil
 	})
 	s.handle("PUT /api/v1/acl/{id}", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		id, err := h.PathID(r, "id")

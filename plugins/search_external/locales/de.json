@@ -23,5 +23,7 @@
  "search.external.test_ok": "Verbindung funktioniert",
  "search.external.reindex": "Index neu aufbauen",
  "search.external.reindex_started": "Der Index wird neu aufgebaut",
- "search.external.refresh": "Aktualisieren"
+ "search.external.refresh": "Aktualisieren",
+ "perm.search.external.manage": "Suchmaschine verwalten",
+ "perm.search.external.manage_help": "Einstellungen, Verbindungstest und Neuaufbau des Index der externen Suchmaschine."
 }

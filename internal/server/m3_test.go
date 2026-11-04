@@ -198,7 +198,7 @@ func TestComments(t *testing.T) {
 	admin := e.client()
 	admin.login("admin", adminPW)
 	var root cat
-	admin.must("POST", "/api/v1/categories", map[string]any{"titles": map[string]string{"en": "Team"}}, &root, 201)
+	admin.must("POST", "/api/v1/categories", map[string]any{"guest_visible": true, "titles": map[string]string{"en": "Team"}}, &root, 201)
 	var el elem
 	admin.must("POST", "/api/v1/elements", map[string]any{"category_id": root.ID, "type": "core.html", "title": "Plan", "body": htmlBody("<p>x</p>")}, &el, 201)
 	admin.must("POST", fmt.Sprintf("/api/v1/categories/%d/acl", root.ID), map[string]any{"subject_type": "authenticated", "permissions": 1, "inherit": true}, nil, 201)

@@ -3,6 +3,7 @@ import { api, button, errorText, field, h, MAPPING_FIELDS, mount, pageHeader, pl
 
 export function register(): void {
   registerAdminPage({
+    permission: 'core.settings.manage',
     id: 'ldap', label: () => t('auth.ldap.title'), order: 20,
     render: async (el) => {
       const form = await pluginSettingsForm('auth.ldap', [
