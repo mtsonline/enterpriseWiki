@@ -30,12 +30,10 @@ var migrations embed.FS
 // Plugin is the mentions plugin.
 type Plugin struct{ host *sdk.Host }
 
-var instance *Plugin
+// instances holds the plugin instance of each site (for Notify).
+var instances sdk.PerSite[*Plugin]
 
-func init() {
-	instance = &Plugin{}
-	sdk.Register(instance)
-}
+func init() { sdk.Register(&Plugin{}) }
 
 // Manifest implements sdk.Plugin.
 func (p *Plugin) Manifest() sdk.Manifest { return sdk.ParseManifest(manifest) }
@@ -48,6 +46,7 @@ func (p *Plugin) Migrations() fs.FS { s, _ := fs.Sub(migrations, "migrations"); 
 
 // Setup implements sdk.SetupPlugin.
 func (p *Plugin) Setup(host *sdk.Host) error {
+	instances.Set(host.Site, p)
 	p.host = host
 	notify.RegisterKind("mention", "core.mentions.kind")
 	host.Content.OnChange(func(ctx context.Context, event, etype string, id int64) {
@@ -113,6 +112,7 @@ func (p *Plugin) element(ctx context.Context, id int64) {
 // entity; it is used by other plugins and does nothing while this plugin is
 // disabled.
 func Notify(ctx context.Context, entityType string, entityID, categoryID int64, title, link, text string) {
+	instance := instances.Get(ctx)
 	if instance == nil || instance.host == nil || !instance.host.Active() {
 		return
 	}

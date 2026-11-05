@@ -24,12 +24,33 @@ type Kernel struct {
 	log     *slog.Logger
 	plugins map[string]sdk.Plugin
 	active  atomic.Pointer[map[string]bool]
+	site    string
 }
 
-// New creates a kernel for all plugins registered via sdk.Register.
+// sorted returns the plugins of this kernel ordered by id.
+func (k *Kernel) sorted() []sdk.Plugin {
+	out := make([]sdk.Plugin, 0, len(k.plugins))
+	for _, p := range k.plugins {
+		out = append(out, p)
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i].Manifest().ID < out[j].Manifest().ID })
+	return out
+}
+
+// New creates a kernel for all plugins registered via sdk.Register (site
+// "main": the registered instances).
 func New(cfg *config.Store, log *slog.Logger) *Kernel {
-	k := &Kernel{cfg: cfg, log: log, plugins: map[string]sdk.Plugin{}}
+	return NewSite(cfg, log, "main")
+}
+
+// NewSite creates the kernel of a site; further sites get fresh plugin
+// instances (sdk.NewInstance).
+func NewSite(cfg *config.Store, log *slog.Logger, site string) *Kernel {
+	k := &Kernel{cfg: cfg, log: log, plugins: map[string]sdk.Plugin{}, site: site}
 	for _, p := range sdk.Registered() {
+		if site != "main" {
+			p = sdk.NewInstance(p)
+		}
 		k.plugins[p.Manifest().ID] = p
 	}
 	k.recompute(cfg.Get())
@@ -157,7 +178,7 @@ func (k *Kernel) SetEnabled(_ context.Context, id string, on bool) error {
 // Migrations returns the migration sources of all compiled plugins.
 func (k *Kernel) Migrations() []db.MigrationSource {
 	var out []db.MigrationSource
-	for _, p := range sdk.Registered() {
+	for _, p := range k.sorted() {
 		if m, ok := p.(sdk.MigrationsPlugin); ok {
 			out = append(out, db.MigrationSource{Name: "plugin:" + p.Manifest().ID, Files: m.Migrations()})
 		}
@@ -167,7 +188,8 @@ func (k *Kernel) Migrations() []db.MigrationSource {
 
 // Setup calls Setup on every compiled plugin and loads their locales.
 func (k *Kernel) Setup(base sdk.Host, tr *i18n.Service) error {
-	for _, p := range sdk.Registered() {
+	base.Site = k.site
+	for _, p := range k.sorted() {
 		m := p.Manifest()
 		if err := perm.Register(m.ID, m.Permissions...); err != nil {
 			return fmt.Errorf("plugin %s: %w", m.ID, err)

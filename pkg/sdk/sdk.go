@@ -16,6 +16,7 @@ import (
 	"io/fs"
 	"log/slog"
 	"net/http"
+	"reflect"
 	"sort"
 	"strings"
 	"sync"
@@ -149,6 +150,9 @@ type Host struct {
 
 	Mux       *http.ServeMux
 	IsEnabled func(pluginID string) bool
+	// Site is the name of the site this host belongs to ("main" for the
+	// first site). Each site gets its own plugin instance and host.
+	Site string
 }
 
 // Active reports whether this plugin is currently enabled.
@@ -289,4 +293,44 @@ func ParseManifest(b []byte) Manifest {
 		panic("invalid plugin.json: " + err.Error())
 	}
 	return m
+}
+
+// Factory is implemented by plugins whose zero value is not ready to use:
+// NewInstance returns a fresh instance for a further site. Other plugins
+// get a new zero value of their type.
+type Factory interface {
+	NewInstance() Plugin
+}
+
+// NewInstance returns a fresh instance of p for a further site.
+func NewInstance(p Plugin) Plugin {
+	if f, ok := p.(Factory); ok {
+		return f.NewInstance()
+	}
+	t := reflect.TypeOf(p)
+	if t.Kind() == reflect.Pointer && t.Elem().Kind() == reflect.Struct {
+		return reflect.New(t.Elem()).Interface().(Plugin)
+	}
+	return p
+}
+
+// SiteOf returns the site of a request or job context ("main" if unset).
+func SiteOf(ctx context.Context) string { return identity.Site(ctx) }
+
+// PerSite keeps one value per site, for package-level state that code
+// without access to the plugin instance needs (renderers, hooks).
+type PerSite[T any] struct {
+	m sync.Map
+}
+
+// Set stores the value of a site.
+func (p *PerSite[T]) Set(site string, v T) { p.m.Store(site, v) }
+
+// Get returns the value of the site of ctx (zero value if none).
+func (p *PerSite[T]) Get(ctx context.Context) T {
+	if v, ok := p.m.Load(SiteOf(ctx)); ok {
+		return v.(T)
+	}
+	var zero T
+	return zero
 }

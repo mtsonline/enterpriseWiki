@@ -1,0 +1,433 @@
+package app
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"log/slog"
+	"net"
+	"path/filepath"
+	"slices"
+	"sort"
+	"strings"
+	"sync"
+	"time"
+
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
+
+	"github.com/mtsonline/enterprisewiki/internal/apperr"
+	"github.com/mtsonline/enterprisewiki/internal/config"
+	"github.com/mtsonline/enterprisewiki/internal/db"
+	"github.com/mtsonline/enterprisewiki/internal/db/migrations"
+	"github.com/mtsonline/enterprisewiki/internal/httpx"
+)
+
+// Instance holds the resources shared by all sites (instance settings,
+// shared schema) and the sites themselves. Every site is a complete wiki
+// with its own schema, settings overrides, services and plugin instances.
+type Instance struct {
+	// Config holds the instance settings; they are also the settings of
+	// the site "main" and the defaults of all other sites.
+	Config *config.Store
+	// Shared is a pool for the shared schema (users, groups, roles, sites).
+	Shared *pgxpool.Pool
+	Log    *slog.Logger
+	Root   string
+
+	mu    sync.RWMutex
+	sites map[string]*App
+	// OnSite is called for every site opened after start (the server
+	// attaches its handler and starts the site's jobs).
+	OnSite func(*App)
+}
+
+// InstanceOptions configures OpenInstance.
+type InstanceOptions struct {
+	ConfigPath string
+	Log        *slog.Logger
+	Migrate    bool
+	// Sites limits the opened sites (nil: all enabled sites).
+	Sites []string
+}
+
+// SiteInfo describes a site.
+type SiteInfo struct {
+	Name      string    `json:"name"`
+	Title     string    `json:"title"`
+	Hostnames []string  `json:"hostnames"`
+	Disabled  bool      `json:"disabled"`
+	CreatedAt time.Time `json:"created_at"`
+	// Running reports whether the site is open in this process.
+	Running bool `json:"running"`
+}
+
+// OpenInstance loads the instance settings, connects to the database,
+// applies the shared migrations and opens the sites.
+func OpenInstance(ctx context.Context, o InstanceOptions) (*Instance, error) {
+	log := o.Log
+	if log == nil {
+		log = slog.Default()
+	}
+	httpx.Logger = log
+	root := filepath.Dir(o.ConfigPath)
+	_ = config.LoadDotEnv(filepath.Join(root, ".env"))
+	cfg, err := config.Open(o.ConfigPath)
+	if err != nil {
+		return nil, err
+	}
+	c := cfg.Get()
+	shared, err := db.Open(ctx, c.Database.URL, 4)
+	if err != nil {
+		return nil, err
+	}
+	in := &Instance{Config: cfg, Shared: shared, Log: log, Root: root, sites: map[string]*App{}}
+	if o.Migrate {
+		applied, err := db.Migrate(ctx, shared, []db.MigrationSource{{Name: "core", Files: migrations.Shared}})
+		for _, m := range applied {
+			log.Info("migration applied", "migration", "shared/"+m)
+		}
+		if err != nil {
+			shared.Close()
+			return nil, fmt.Errorf("migrate shared schema: %w", err)
+		}
+	}
+	list, err := in.ListSites(ctx)
+	if err != nil {
+		shared.Close()
+		return nil, err
+	}
+	for _, s := range list {
+		if s.Disabled || (o.Sites != nil && !slices.Contains(o.Sites, s.Name)) {
+			continue
+		}
+		a, err := newSite(ctx, in, s.Name, o.Migrate)
+		if err != nil {
+			in.Close()
+			return nil, fmt.Errorf("site %s: %w", s.Name, err)
+		}
+		in.sites[s.Name] = a
+	}
+	if _, err := in.ListSites(ctx); err != nil { // host names of the open sites
+		in.Close()
+		return nil, err
+	}
+	return in, nil
+}
+
+// Close releases all sites and the shared pool.
+func (in *Instance) Close() {
+	in.mu.Lock()
+	defer in.mu.Unlock()
+	for _, a := range in.sites {
+		a.close()
+	}
+	in.sites = map[string]*App{}
+	in.Shared.Close()
+}
+
+// Site returns an open site (nil if unknown or not open).
+func (in *Instance) Site(name string) *App {
+	in.mu.RLock()
+	defer in.mu.RUnlock()
+	return in.sites[name]
+}
+
+// Sites returns the open sites ordered by name ("main" first).
+func (in *Instance) Sites() []*App {
+	in.mu.RLock()
+	defer in.mu.RUnlock()
+	out := make([]*App, 0, len(in.sites))
+	for _, a := range in.sites {
+		out = append(out, a)
+	}
+	sort.Slice(out, func(i, j int) bool {
+		if (out[i].Site == "main") != (out[j].Site == "main") {
+			return out[i].Site == "main"
+		}
+		return out[i].Site < out[j].Site
+	})
+	return out
+}
+
+// normHost lowercases a host and removes the port.
+func normHost(h string) string {
+	h = strings.ToLower(strings.TrimSpace(h))
+	if host, _, err := net.SplitHostPort(h); err == nil {
+		h = host
+	}
+	return strings.TrimSuffix(h, ".")
+}
+
+// ForHost returns the site serving a host name; unknown hosts are served by
+// the site "main".
+func (in *Instance) ForHost(ctx context.Context, host string) *App {
+	h := normHost(host)
+	in.mu.RLock()
+	defer in.mu.RUnlock()
+	for _, a := range in.sites {
+		for _, n := range a.hostnames {
+			if n == h {
+				return a
+			}
+		}
+	}
+	return in.sites["main"]
+}
+
+// ListSites returns all sites from the database.
+func (in *Instance) ListSites(ctx context.Context) ([]SiteInfo, error) {
+	rows, err := in.Shared.Query(ctx, `SELECT name, title, hostnames, disabled, created_at FROM sites ORDER BY name <> 'main', name`)
+	if err != nil {
+		return nil, err
+	}
+	list, err := pgx.CollectRows(rows, func(r pgx.CollectableRow) (SiteInfo, error) {
+		var s SiteInfo
+		err := r.Scan(&s.Name, &s.Title, &s.Hostnames, &s.Disabled, &s.CreatedAt)
+		return s, err
+	})
+	if err != nil {
+		return nil, err
+	}
+	in.mu.Lock()
+	for i := range list {
+		if a := in.sites[list[i].Name]; a != nil {
+			list[i].Running = true
+			a.hostnames = normHosts(list[i].Hostnames)
+		}
+	}
+	in.mu.Unlock()
+	return list, nil
+}
+
+// GetSite returns one site.
+func (in *Instance) GetSite(ctx context.Context, name string) (SiteInfo, error) {
+	list, err := in.ListSites(ctx)
+	if err != nil {
+		return SiteInfo{}, err
+	}
+	for _, s := range list {
+		if s.Name == name {
+			return s, nil
+		}
+	}
+	return SiteInfo{}, apperr.NotFound("site " + name)
+}
+
+func normHosts(list []string) []string {
+	out := []string{}
+	for _, h := range list {
+		if h = normHost(h); h != "" && !slices.Contains(out, h) {
+			out = append(out, h)
+		}
+	}
+	return out
+}
+
+func (in *Instance) checkHosts(ctx context.Context, name string, hosts []string) ([]string, error) {
+	hosts = normHosts(hosts)
+	for _, h := range hosts {
+		if strings.ContainsAny(h, "/ :@") || len(h) > 253 {
+			return nil, apperr.BadRequest("invalid host name %q", h)
+		}
+	}
+	var other string
+	err := in.Shared.QueryRow(ctx, `SELECT name FROM sites WHERE name <> $1 AND hostnames && $2 LIMIT 1`, name, hosts).Scan(&other)
+	if err == nil {
+		return nil, apperr.Conflict("a host name is already used by the site %s", other)
+	}
+	if !errors.Is(err, pgx.ErrNoRows) {
+		return nil, err
+	}
+	return hosts, nil
+}
+
+// SiteInput creates or changes a site.
+type SiteInput struct {
+	Name      string    `json:"name"`
+	Title     *string   `json:"title"`
+	Hostnames *[]string `json:"hostnames"`
+	Disabled  *bool     `json:"disabled"`
+}
+
+// CreateSite adds a site: its schema with all tables and its settings file
+// (base URL from the first host name). The site is opened right away.
+func (in *Instance) CreateSite(ctx context.Context, s SiteInput) (SiteInfo, error) {
+	if !db.ValidSiteName(s.Name) {
+		return SiteInfo{}, apperr.BadRequest("invalid site name %q (lowercase letters, digits and _, starting with a letter, at most 31)", s.Name)
+	}
+	hosts := []string{}
+	if s.Hostnames != nil {
+		var err error
+		if hosts, err = in.checkHosts(ctx, s.Name, *s.Hostnames); err != nil {
+			return SiteInfo{}, err
+		}
+	}
+	if len(hosts) == 0 {
+		return SiteInfo{}, apperr.BadRequest("a further site needs at least one host name")
+	}
+	title := ""
+	if s.Title != nil {
+		title = strings.TrimSpace(*s.Title)
+	}
+	if _, err := in.Shared.Exec(ctx, `INSERT INTO sites(name, title, hostnames) VALUES ($1,$2,$3)`, s.Name, title, hosts); err != nil {
+		if db.IsUniqueViolation(err) {
+			return SiteInfo{}, apperr.Conflict("the site %s already exists", s.Name)
+		}
+		return SiteInfo{}, err
+	}
+	st, err := config.OpenSite(in.Config, s.Name)
+	if err == nil {
+		err = st.Update(func(c *config.Config) error {
+			scheme := "https"
+			if strings.HasPrefix(in.Config.Get().Server.BaseURL, "http://") {
+				scheme = "http"
+			}
+			c.Server.BaseURL = scheme + "://" + hosts[0]
+			if title != "" {
+				c.UI.SiteName = title
+			}
+			return nil
+		})
+	}
+	if err != nil {
+		_, _ = in.Shared.Exec(ctx, `DELETE FROM sites WHERE name=$1`, s.Name)
+		return SiteInfo{}, err
+	}
+	if err := in.open(ctx, s.Name); err != nil {
+		return SiteInfo{}, err
+	}
+	return in.GetSite(ctx, s.Name)
+}
+
+func (in *Instance) open(ctx context.Context, name string) error {
+	if in.Site(name) != nil {
+		return nil
+	}
+	a, err := newSite(ctx, in, name, true)
+	if err != nil {
+		return err
+	}
+	in.mu.Lock()
+	in.sites[name] = a
+	in.mu.Unlock()
+	if _, err := in.ListSites(ctx); err != nil { // host names
+		return err
+	}
+	if in.OnSite != nil {
+		in.OnSite(a)
+	}
+	return nil
+}
+
+func (in *Instance) closeSite(name string) {
+	in.mu.Lock()
+	a := in.sites[name]
+	delete(in.sites, name)
+	in.mu.Unlock()
+	if a != nil {
+		if a.stop != nil {
+			a.stop()
+		}
+		a.close()
+	}
+}
+
+// UpdateSite changes title, host names or the disabled flag. A disabled
+// site is closed; its data stays.
+func (in *Instance) UpdateSite(ctx context.Context, s SiteInput) (SiteInfo, error) {
+	cur, err := in.GetSite(ctx, s.Name)
+	if err != nil {
+		return SiteInfo{}, err
+	}
+	if s.Title != nil {
+		cur.Title = strings.TrimSpace(*s.Title)
+	}
+	if s.Hostnames != nil {
+		if cur.Hostnames, err = in.checkHosts(ctx, s.Name, *s.Hostnames); err != nil {
+			return SiteInfo{}, err
+		}
+		if s.Name != "main" && len(cur.Hostnames) == 0 {
+			return SiteInfo{}, apperr.BadRequest("a further site needs at least one host name")
+		}
+	}
+	if s.Disabled != nil {
+		if *s.Disabled && s.Name == "main" {
+			return SiteInfo{}, apperr.BadRequest("the site main cannot be disabled")
+		}
+		cur.Disabled = *s.Disabled
+	}
+	if _, err := in.Shared.Exec(ctx, `UPDATE sites SET title=$2, hostnames=$3, disabled=$4 WHERE name=$1`, s.Name, cur.Title, cur.Hostnames, cur.Disabled); err != nil {
+		return SiteInfo{}, err
+	}
+	if cur.Disabled {
+		in.closeSite(s.Name)
+	} else if err := in.open(ctx, s.Name); err != nil {
+		return SiteInfo{}, err
+	}
+	return in.GetSite(ctx, s.Name)
+}
+
+// DeleteSite removes a site with all its data (schema and settings file;
+// files in the storage directory are left for the administrator).
+func (in *Instance) DeleteSite(ctx context.Context, name string) error {
+	if name == "main" {
+		return apperr.BadRequest("the site main cannot be deleted")
+	}
+	if _, err := in.GetSite(ctx, name); err != nil {
+		return err
+	}
+	in.closeSite(name)
+	if err := db.DropSite(ctx, in.Shared, name); err != nil {
+		return err
+	}
+	if _, err := in.Shared.Exec(ctx, `DELETE FROM sites WHERE name=$1`, name); err != nil {
+		return err
+	}
+	return config.RemoveSite(in.Config, name)
+}
+
+// Sync opens sites that were created or enabled elsewhere (CLI, other
+// nodes) and closes deleted or disabled ones.
+func (in *Instance) Sync(ctx context.Context) error {
+	list, err := in.ListSites(ctx)
+	if err != nil {
+		return err
+	}
+	want := map[string]bool{}
+	for _, s := range list {
+		if !s.Disabled {
+			want[s.Name] = true
+			if !s.Running {
+				if err := in.open(ctx, s.Name); err != nil {
+					in.Log.Error("open site", "site", s.Name, "err", err)
+				} else {
+					in.Log.Info("site opened", "site", s.Name)
+				}
+			}
+		}
+	}
+	for _, a := range in.Sites() {
+		if !want[a.Site] {
+			in.closeSite(a.Site)
+			in.Log.Info("site closed", "site", a.Site)
+		}
+	}
+	return nil
+}
+
+// RunSync calls Sync periodically until ctx is done.
+func (in *Instance) RunSync(ctx context.Context, every time.Duration) {
+	t := time.NewTicker(every)
+	defer t.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-t.C:
+			if err := in.Sync(ctx); err != nil && ctx.Err() == nil {
+				in.Log.Error("site sync", "err", err)
+			}
+		}
+	}
+}

@@ -72,10 +72,31 @@ func New(pool *pgxpool.Pool, cfg *config.Store, bus *events.Bus) *Service {
 	return s
 }
 
-// syncPerms declares one translate permission per configured language.
+var (
+	siteLangsMu sync.Mutex
+	siteLangs   = map[string][]string{}
+)
+
+// syncPerms declares one translate permission per configured language (of
+// all sites: the permission list is shared).
 func (s *Service) syncPerms(langs []string) {
-	defs := make([]perm.Def, 0, len(langs))
-	for _, l := range langs {
+	site := s.cfg.Site()
+	siteLangsMu.Lock()
+	siteLangs[site] = langs
+	all := []string{}
+	seen := map[string]bool{}
+	for _, ls := range siteLangs {
+		for _, l := range ls {
+			if !seen[l] {
+				seen[l] = true
+				all = append(all, l)
+			}
+		}
+	}
+	siteLangsMu.Unlock()
+	sort.Strings(all)
+	defs := make([]perm.Def, 0, len(all))
+	for _, l := range all {
 		name := l
 		if tag, err := language.Parse(l); err == nil {
 			if n := display.English.Tags().Name(tag); n != "" {

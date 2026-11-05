@@ -18,8 +18,36 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-// Open creates a connection pool and verifies connectivity.
+// SharedSchema holds the tables used by all sites (users, groups, roles,
+// sessions, sites).
+const SharedSchema = "public"
+
+var siteNameRe = regexp.MustCompile(`^[a-z][a-z0-9_]{0,30}$`)
+
+// ValidSiteName reports whether name can be used as a site name.
+func ValidSiteName(name string) bool { return siteNameRe.MatchString(name) }
+
+// SiteSchema returns the schema of a site.
+func SiteSchema(site string) string { return "site_" + site }
+
+// Open creates a connection pool for the shared schema and verifies
+// connectivity.
 func Open(ctx context.Context, url string, maxConns int) (*pgxpool.Pool, error) {
+	return OpenSchema(ctx, url, maxConns, "")
+}
+
+// OpenSite creates a connection pool for a site: its schema comes first in
+// the search path, the shared schema second. The schema is created if needed.
+func OpenSite(ctx context.Context, url string, maxConns int, site string) (*pgxpool.Pool, error) {
+	if !ValidSiteName(site) {
+		return nil, fmt.Errorf("invalid site name %q", site)
+	}
+	return OpenSchema(ctx, url, maxConns, SiteSchema(site))
+}
+
+// OpenSchema creates a connection pool whose search path starts with schema
+// (empty: shared schema only).
+func OpenSchema(ctx context.Context, url string, maxConns int, schema string) (*pgxpool.Pool, error) {
 	if url == "" {
 		return nil, errors.New("database url is empty (set database.url or EWIKI_DATABASE_URL)")
 	}
@@ -31,6 +59,11 @@ func Open(ctx context.Context, url string, maxConns int) (*pgxpool.Pool, error) 
 		cfg.MaxConns = int32(maxConns)
 	}
 	cfg.MaxConnIdleTime = 5 * time.Minute
+	if schema != "" {
+		cfg.ConnConfig.RuntimeParams["search_path"] = schema + ", " + SharedSchema
+	} else {
+		cfg.ConnConfig.RuntimeParams["search_path"] = SharedSchema
+	}
 	pool, err := pgxpool.NewWithConfig(ctx, cfg)
 	if err != nil {
 		return nil, err
@@ -41,7 +74,54 @@ func Open(ctx context.Context, url string, maxConns int) (*pgxpool.Pool, error) 
 		pool.Close()
 		return nil, fmt.Errorf("connect database: %w", err)
 	}
+	if schema != "" {
+		if _, err := pool.Exec(cctx, `CREATE SCHEMA IF NOT EXISTS `+pgx.Identifier{schema}.Sanitize()); err != nil {
+			pool.Close()
+			return nil, fmt.Errorf("create schema %s: %w", schema, err)
+		}
+	}
 	return pool, nil
+}
+
+// DropSite removes the schema of a site with all its data.
+func DropSite(ctx context.Context, q Querier, site string) error {
+	if !ValidSiteName(site) {
+		return fmt.Errorf("invalid site name %q", site)
+	}
+	_, err := q.Exec(ctx, `DROP SCHEMA IF EXISTS `+pgx.Identifier{SiteSchema(site)}.Sanitize()+` CASCADE`)
+	return err
+}
+
+// Schema returns the first schema of the connection's search path.
+func Schema(ctx context.Context, q Querier) (string, error) {
+	var s string
+	err := q.QueryRow(ctx, `SELECT current_schema()`).Scan(&s)
+	return s, err
+}
+
+// ResetForTests drops the shared schema and all site schemas (tests only).
+func ResetForTests(ctx context.Context, q Querier) error {
+	rows, err := q.Query(ctx, `SELECT nspname FROM pg_namespace WHERE nspname LIKE 'site\_%'`)
+	if err != nil {
+		return err
+	}
+	var names []string
+	for rows.Next() {
+		var n string
+		if err := rows.Scan(&n); err != nil {
+			rows.Close()
+			return err
+		}
+		names = append(names, n)
+	}
+	rows.Close()
+	for _, n := range names {
+		if _, err := q.Exec(ctx, `DROP SCHEMA `+pgx.Identifier{n}.Sanitize()+` CASCADE`); err != nil {
+			return err
+		}
+	}
+	_, err = q.Exec(ctx, `DROP SCHEMA public CASCADE; CREATE SCHEMA public;`)
+	return err
 }
 
 // Querier is implemented by *pgxpool.Pool, *pgx.Conn and pgx.Tx.

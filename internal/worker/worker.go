@@ -38,6 +38,8 @@ type Registry struct {
 	cluster func() bool
 	running map[string]*sync.Mutex
 	kick    map[string]chan struct{}
+	// Site separates the cluster locks of the sites of an instance.
+	Site string
 }
 
 // New creates a registry.
@@ -87,14 +89,21 @@ func (r *Registry) Names() []string {
 	return out
 }
 
-func lockID(name string) int64 {
+func (r *Registry) lockID(name string) int64 {
 	h := fnv.New64a()
-	_, _ = h.Write([]byte("ewiki-job:" + name))
+	key := "ewiki-job:" + name
+	if r.Site != "" && r.Site != "main" {
+		key = "ewiki-job:" + r.Site + ":" + name
+	}
+	_, _ = h.Write([]byte(key))
 	return int64(h.Sum64() >> 1)
 }
 
 // RunOnce runs a job now (also used by tests and the admin "run now").
 func (r *Registry) RunOnce(ctx context.Context, name string) error {
+	if r.Site != "" {
+		ctx = identity.WithSite(ctx, r.Site)
+	}
 	r.mu.Lock()
 	j, ok := r.jobs[name]
 	mu := r.running[name]
@@ -115,16 +124,19 @@ func (r *Registry) RunOnce(ctx context.Context, name string) error {
 		}
 		defer conn.Release()
 		var got bool
-		if err := conn.QueryRow(ctx, `SELECT pg_try_advisory_lock($1)`, lockID(name)).Scan(&got); err != nil || !got {
+		if err := conn.QueryRow(ctx, `SELECT pg_try_advisory_lock($1)`, r.lockID(name)).Scan(&got); err != nil || !got {
 			return err
 		}
-		defer conn.Exec(context.Background(), `SELECT pg_advisory_unlock($1)`, lockID(name)) //nolint:errcheck
+		defer conn.Exec(context.Background(), `SELECT pg_advisory_unlock($1)`, r.lockID(name)) //nolint:errcheck
 	}
 	return j.Run(ctx)
 }
 
 // Start runs all jobs periodically until ctx is cancelled.
 func (r *Registry) Start(ctx context.Context) {
+	if r.Site != "" {
+		ctx = identity.WithSite(ctx, r.Site)
+	}
 	r.mu.Lock()
 	jobs := make([]*Job, 0, len(r.jobs))
 	for _, j := range r.jobs {

@@ -1,79 +1,11 @@
--- Enterprise Wiki core schema
+-- Enterprise Wiki site schema (site_<name>)
 --
--- The whole schema of a new installation. Later changes are added as
--- further migrations (NNNN_name.sql) once installations are in use.
-CREATE EXTENSION IF NOT EXISTS ltree;
+-- All tables of one site. Created in the site schema; shared tables
+-- (users, groups, roles, sessions) are found through the search path.
+-- Later changes are added as further migrations (NNNN_name.sql) once
+-- installations are in use.
 
--- ---------------------------------------------------------------- identities
-CREATE TABLE users (
-    id             bigserial PRIMARY KEY,
-    username       text NOT NULL,                 -- login name inside its provider
-    provider       text NOT NULL DEFAULT 'local', -- auth provider id (local, ldap, oidc, ...)
-    subject        text NOT NULL,                 -- stable id inside the provider
-    display_name   text NOT NULL DEFAULT '',
-    email          text NOT NULL DEFAULT '',
-    password_hash  text,                          -- only for provider 'local'
-    language       text NOT NULL DEFAULT '',
-    disabled       boolean NOT NULL DEFAULT false,
-    failed_logins  int NOT NULL DEFAULT 0,
-    locked_until   timestamptz,
-    attributes     jsonb NOT NULL DEFAULT '{}',
-    created_at     timestamptz NOT NULL DEFAULT now(),
-    updated_at     timestamptz NOT NULL DEFAULT now(),
-    last_login_at  timestamptz,
-    -- TOTP two-factor authentication (local accounts)
-    totp_secret    text,
-    totp_enabled   boolean NOT NULL DEFAULT false,
-    totp_last_step bigint NOT NULL DEFAULT 0,
-    -- e-mail preferences per kind, e.g. {"tasks": true, "comments": false}; missing keys mean "on"
-    notify         jsonb NOT NULL DEFAULT '{}',
-    feed_token     text UNIQUE,                   -- personal feed links (feed readers cannot sign in)
-    -- profile ("business card") maintained by the user or admins; not
-    -- overwritten by identity providers (unlike attributes)
-    profile        jsonb NOT NULL DEFAULT '{}',
-    UNIQUE (provider, subject),
-    UNIQUE (provider, username),
-    CHECK (username ~ '^[A-Za-z0-9._@+-]{1,128}$')
-);
-
-CREATE TABLE groups (
-    id          bigserial PRIMARY KEY,
-    name        text NOT NULL UNIQUE,
-    description text NOT NULL DEFAULT '',
-    source      text NOT NULL DEFAULT 'local',
-    created_at  timestamptz NOT NULL DEFAULT now()
-);
-
-CREATE TABLE roles (
-    id          bigserial PRIMARY KEY,
-    name        text NOT NULL UNIQUE,
-    description text NOT NULL DEFAULT '',
-    is_admin    boolean NOT NULL DEFAULT false,   -- superadmin: bypasses all ACL checks
-    created_at  timestamptz NOT NULL DEFAULT now(),
-    permissions text[] NOT NULL DEFAULT '{}'      -- global permissions (package perm)
-);
-
-CREATE TABLE user_groups (
-    user_id  bigint NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    group_id bigint NOT NULL REFERENCES groups(id) ON DELETE CASCADE,
-    source   text NOT NULL DEFAULT 'local',
-    PRIMARY KEY (user_id, group_id)
-);
-CREATE INDEX user_groups_group ON user_groups(group_id);
-
-CREATE TABLE user_roles (
-    user_id bigint NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    role_id bigint NOT NULL REFERENCES roles(id) ON DELETE CASCADE,
-    source  text NOT NULL DEFAULT 'local',       -- synchronized from an identity provider
-    PRIMARY KEY (user_id, role_id)
-);
-
-CREATE TABLE group_roles (
-    group_id bigint NOT NULL REFERENCES groups(id) ON DELETE CASCADE,
-    role_id  bigint NOT NULL REFERENCES roles(id) ON DELETE CASCADE,
-    PRIMARY KEY (group_id, role_id)
-);
-
+-- ---------------------------------------------------------------- sign-in (per site)
 CREATE TABLE sessions (
     token_hash   bytea PRIMARY KEY,
     user_id      bigint NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -86,16 +18,6 @@ CREATE TABLE sessions (
 );
 CREATE INDEX sessions_user ON sessions(user_id);
 CREATE INDEX sessions_expires ON sessions(expires_at);
-
-CREATE TABLE ssh_keys (
-    id           bigserial PRIMARY KEY,
-    user_id      bigint NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    name         text NOT NULL,
-    public_key   text NOT NULL,
-    fingerprint  text NOT NULL UNIQUE,
-    created_at   timestamptz NOT NULL DEFAULT now(),
-    last_used_at timestamptz
-);
 
 CREATE TABLE auth_challenges (
     nonce      text PRIMARY KEY,
@@ -112,6 +34,20 @@ CREATE TABLE sso_states (
     next       text NOT NULL DEFAULT '/',
     data       jsonb NOT NULL DEFAULT '{}',
     expires_at timestamptz NOT NULL
+);
+
+-- ---------------------------------------------------------------- role assignments (per site)
+CREATE TABLE user_roles (
+    user_id bigint NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    role_id bigint NOT NULL REFERENCES roles(id) ON DELETE CASCADE,
+    source  text NOT NULL DEFAULT 'local',       -- synchronized from an identity provider
+    PRIMARY KEY (user_id, role_id)
+);
+
+CREATE TABLE group_roles (
+    group_id bigint NOT NULL REFERENCES groups(id) ON DELETE CASCADE,
+    role_id  bigint NOT NULL REFERENCES roles(id) ON DELETE CASCADE,
+    PRIMARY KEY (group_id, role_id)
 );
 
 -- global permissions of every signed-in user (no row = the declared defaults)

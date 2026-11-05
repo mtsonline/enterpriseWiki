@@ -40,6 +40,9 @@ func (s *Server) routesM9() {
 		if err := requireAdmin(r); err != nil {
 			return nil, err
 		}
+		if err := requireInstance(r); err != nil {
+			return nil, err
+		}
 		var in struct {
 			Key string `json:"key"`
 		}
@@ -50,7 +53,7 @@ func (s *Server) routesM9() {
 		if err != nil {
 			return nil, apperr.BadRequest("%s", err.Error())
 		}
-		if err := s.app.Config.Update(func(c *config.Config) error { c.License.Key = in.Key; return nil }); err != nil {
+		if err := s.app.Config.Base().Update(func(c *config.Config) error { c.License.Key = in.Key; return nil }); err != nil {
 			return nil, err
 		}
 		_ = audit.Log(r.Context(), s.app.DB, "license.install", "license", 0, nil, l)
@@ -60,7 +63,10 @@ func (s *Server) routesM9() {
 		if err := requireAdmin(r); err != nil {
 			return nil, err
 		}
-		if err := s.app.Config.Update(func(c *config.Config) error { c.License.Key = ""; return nil }); err != nil {
+		if err := requireInstance(r); err != nil {
+			return nil, err
+		}
+		if err := s.app.Config.Base().Update(func(c *config.Config) error { c.License.Key = ""; return nil }); err != nil {
 			return nil, err
 		}
 		_ = audit.Log(r.Context(), s.app.DB, "license.remove", "license", 0, nil, nil)

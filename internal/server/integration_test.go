@@ -54,6 +54,7 @@ type client struct {
 	http  *http.Client
 	token string // bearer token (API key / SSH token)
 	csrf  bool
+	host  string // Host header (selects the site)
 }
 
 const adminPW = "Admin-Passw0rd!"
@@ -69,7 +70,7 @@ func setup(t *testing.T) *env {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := pool.Exec(ctx, `DROP SCHEMA public CASCADE; CREATE SCHEMA public;`); err != nil {
+	if err := db.ResetForTests(ctx, pool); err != nil {
 		t.Fatal(err)
 	}
 	pool.Close()
@@ -101,7 +102,7 @@ func setup(t *testing.T) *env {
 		t.Fatal(err)
 	}
 	web := fstest.MapFS{"index.html": {Data: []byte("<!DOCTYPE html><html><head><title>test</title></head><body><main id=\"app\"></main></body></html>")}}
-	srv := server.New(a, web, pluginmgr.New(dir, a.Config, nil))
+	srv := server.NewInstance(a.Instance, web, pluginmgr.New(dir, a.Config, nil))
 	ts := httptest.NewServer(srv.Handler())
 	t.Cleanup(ts.Close)
 	return &env{t: t, srv: ts, app: a, cfg: cfgPath}
@@ -124,6 +125,9 @@ func (c *client) do(method, path string, body any, out any) int {
 	req.Header.Set("Content-Type", "application/json")
 	if c.csrf {
 		req.Header.Set("X-Requested-With", "ewiki")
+	}
+	if c.host != "" {
+		req.Host = c.host
 	}
 	if c.token != "" {
 		req.Header.Set("Authorization", "Bearer "+c.token)

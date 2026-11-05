@@ -51,9 +51,10 @@ const TypeID = "content.events"
 // Plugin is the event calendar plugin.
 type Plugin struct{ host *sdk.Host }
 
-var plugin = &Plugin{}
+// plugins holds the plugin instance of each site (for renderers).
+var plugins sdk.PerSite[*Plugin]
 
-func init() { sdk.Register(plugin) }
+func init() { sdk.Register(&Plugin{}) }
 
 // Manifest implements sdk.Plugin.
 func (p *Plugin) Manifest() sdk.Manifest { return sdk.ParseManifest(manifest) }
@@ -760,7 +761,7 @@ func (Type) Render(ctx context.Context, rc content.RenderContext, raw json.RawMe
 	if strings.TrimSpace(c.Intro.Source) != "" {
 		b.WriteString(`<div class="ewe-intro">` + core_html.ToHTML(&c.Intro) + `</div>`)
 	}
-	list, err := plugin.upcoming(ctx, []int64{rc.ElementID}, time.Now(), c.ListDays, 30)
+	list, err := plugins.Get(ctx).upcoming(ctx, []int64{rc.ElementID}, time.Now(), c.ListDays, 30)
 	if err != nil {
 		return "", err
 	}
@@ -929,7 +930,7 @@ func (UpcomingMacro) Render(ctx context.Context, mc content.MacroContext) (strin
 	if days < 1 || days > 730 {
 		days = 60
 	}
-	list, err := plugin.upcoming(ctx, cals, time.Now(), days, limit)
+	list, err := plugins.Get(ctx).upcoming(ctx, cals, time.Now(), days, limit)
 	if err != nil {
 		return "", err
 	}

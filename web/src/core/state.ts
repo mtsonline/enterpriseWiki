@@ -68,6 +68,11 @@ export function isAdmin(): boolean {
   return !!state.user?.is_admin;
 }
 
+/** isInstanceAdmin: may manage sites, users, groups, roles and the license. */
+export function isInstanceAdmin(): boolean {
+  return !!state.user?.instance_admin;
+}
+
 /** hasPerm reports whether the user has a global permission (administrators have all). */
 /** translatePerm is the permission to translate the user interface into lang. */
 export function translatePerm(lang: string): string {

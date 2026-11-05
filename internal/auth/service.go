@@ -428,6 +428,14 @@ func (s *Service) LoadPrincipal(ctx context.Context, uid int64) (*identity.Princ
 	if err := rows.Err(); err != nil {
 		return nil, err
 	}
+	if err := s.pool.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM public.instance_admins WHERE user_id=$1)
+		OR EXISTS(SELECT 1 FROM public.roles r WHERE r.is_admin AND (
+			r.id IN (SELECT role_id FROM site_main.user_roles WHERE user_id=$1) OR
+			r.id IN (SELECT gr.role_id FROM site_main.group_roles gr JOIN public.user_groups ug ON ug.group_id=gr.group_id WHERE ug.user_id=$1)))`, uid).
+		Scan(&p.InstanceAdmin); err != nil {
+		return nil, err
+	}
+	p.IsAdmin = p.IsAdmin || p.InstanceAdmin
 	defaults, err := s.DefaultPermissions(ctx)
 	if err != nil {
 		return nil, err

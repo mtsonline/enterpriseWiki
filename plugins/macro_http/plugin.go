@@ -51,7 +51,12 @@ type entry struct {
 	expires time.Time
 }
 
-func init() { sdk.Register(&Plugin{cache: map[string]entry{}}) }
+func init() { sdk.Register(newPlugin()) }
+
+func newPlugin() *Plugin { return &Plugin{cache: map[string]entry{}} }
+
+// NewInstance implements sdk.Factory (one cache per site).
+func (p *Plugin) NewInstance() sdk.Plugin { return newPlugin() }
 
 // Manifest implements sdk.Plugin.
 func (p *Plugin) Manifest() sdk.Manifest { return sdk.ParseManifest(manifest) }

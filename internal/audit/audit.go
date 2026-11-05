@@ -14,7 +14,7 @@ import (
 	"fmt"
 	"slices"
 	"strings"
-	"sync/atomic"
+	"sync"
 	"time"
 
 	"github.com/mtsonline/enterprisewiki/internal/db"
@@ -44,24 +44,30 @@ func Area(action string) string {
 }
 
 // Always are areas that cannot be switched off.
-var Always = []string{"auth", "user", "group", "role", "permissions", "acl", "apikey", "sshkey", "settings", "plugin", "system", "license", "audit", "webhook", "mail"}
+var Always = []string{"auth", "site", "instance", "user", "group", "role", "permissions", "acl", "apikey", "sshkey", "settings", "plugin", "system", "license", "audit", "webhook", "mail"}
 
 // Filter decides whether an action is logged (set by the application from
 // the configuration; nil = everything).
 type Filter func(action string) bool
 
-var filter atomic.Pointer[Filter]
+var filters sync.Map // site -> Filter
 
-// SetFilter installs the filter.
-func SetFilter(f Filter) { filter.Store(&f) }
+// SetFilter installs the filter of the site "main".
+func SetFilter(f Filter) { SetSiteFilter("main", f) }
 
-// Enabled reports whether an action is logged.
-func Enabled(action string) bool {
+// SetSiteFilter installs the filter of a site.
+func SetSiteFilter(site string, f Filter) { filters.Store(site, f) }
+
+// Enabled reports whether an action is logged on the site "main".
+func Enabled(action string) bool { return SiteEnabled("main", action) }
+
+// SiteEnabled reports whether an action is logged on a site.
+func SiteEnabled(site, action string) bool {
 	if slices.Contains(Always, Area(action)) {
 		return true
 	}
-	if f := filter.Load(); f != nil && *f != nil {
-		return (*f)(action)
+	if f, ok := filters.Load(site); ok && f.(Filter) != nil {
+		return f.(Filter)(action)
 	}
 	return true
 }
@@ -99,7 +105,7 @@ func toJSON(v any) any {
 // Log appends an audit record using q (pass the transaction so the record is
 // committed atomically with the change).
 func Log(ctx context.Context, q db.Querier, action, entityType string, entityID int64, before, after any) error {
-	if !Enabled(action) {
+	if !SiteEnabled(identity.Site(ctx), action) {
 		return nil
 	}
 	p := identity.From(ctx)

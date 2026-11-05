@@ -12,6 +12,8 @@ export interface Principal {
   groups: number[] | null;
   roles: number[] | null;
   is_admin: boolean;
+  /** manages sites, users, groups, roles and the license */
+  instance_admin?: boolean;
   permissions: string[];
   via: string;
 }
@@ -25,6 +27,10 @@ export interface ElementTypeInfo {
 
 export interface Site {
   name: string;
+  /** name of this site of the instance ("main" for the first one) */
+  site: string;
+  /** settings only instance administrators change */
+  instance_only: string[];
   template: string;
   home_category: number;
   home_element: number;

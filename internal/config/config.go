@@ -441,6 +441,9 @@ type Store struct {
 	effective *Config
 	modTime   time.Time
 	listeners []func(*Config)
+	// base and site are set for the settings of a further site (see OpenSite).
+	base *Store
+	site string
 }
 
 // Open loads the config file. If it does not exist, defaults are used and
@@ -458,6 +461,9 @@ func (s *Store) Path() string { return s.path }
 
 // Reload re-reads the file from disk.
 func (s *Store) Reload() error {
+	if s.base != nil {
+		return s.reloadSite()
+	}
 	raw := Defaults()
 	var mt time.Time
 	b, err := os.ReadFile(s.path)
@@ -524,6 +530,12 @@ func (s *Store) Update(fn func(c *Config) error) error {
 	if err := Validate(c); err != nil {
 		return err
 	}
+	if s.base != nil {
+		if err := s.writeSite(c); err != nil {
+			return err
+		}
+		return s.Reload()
+	}
 	if err := WriteFile(s.path, c); err != nil {
 		return err
 	}
@@ -534,7 +546,7 @@ func (s *Store) Update(fn func(c *Config) error) error {
 func (s *Store) Changed() bool {
 	st, err := os.Stat(s.path)
 	if err != nil {
-		return false
+		return s.base != nil && !s.modTime.IsZero()
 	}
 	s.mu.RLock()
 	defer s.mu.RUnlock()

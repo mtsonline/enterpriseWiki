@@ -37,9 +37,10 @@ const TypeID = "content.team"
 // Plugin is the team plugin.
 type Plugin struct{ host *sdk.Host }
 
-var plugin = &Plugin{}
+// plugins holds the plugin instance of each site (for renderers).
+var plugins sdk.PerSite[*Plugin]
 
-func init() { sdk.Register(plugin) }
+func init() { sdk.Register(&Plugin{}) }
 
 // Manifest implements sdk.Plugin.
 func (p *Plugin) Manifest() sdk.Manifest { return sdk.ParseManifest(manifest) }
@@ -453,7 +454,7 @@ func (Type) Render(ctx context.Context, rc content.RenderContext, raw json.RawMe
 	if err != nil {
 		return "", err
 	}
-	secs, err := members(ctx, plugin.host.DB, c)
+	secs, err := members(ctx, plugins.Get(ctx).host.DB, c)
 	if err != nil {
 		return "", err
 	}
@@ -469,6 +470,7 @@ func (Type) Render(ctx context.Context, rc content.RenderContext, raw json.RawMe
 // Setup registers the element type and the API.
 func (p *Plugin) Setup(hs *sdk.Host) error {
 	p.host = hs
+	plugins.Set(hs.Site, p)
 	hs.RegisterElementType(Type{})
 
 	// GET /groups – groups to choose from (signed-in users; editors are not always admins)

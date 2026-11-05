@@ -35,6 +35,11 @@ func (s *Service) SetProfile(ctx context.Context, uid int64, in map[string]strin
 	if p == nil || (p.UserID != uid && !p.Admin()) {
 		return nil, apperr.ErrForbidden
 	}
+	if p.UserID != uid {
+		if err := requireShared(ctx); err != nil {
+			return nil, err
+		}
+	}
 	cur, err := s.Profile(ctx, uid)
 	if err != nil {
 		return nil, err

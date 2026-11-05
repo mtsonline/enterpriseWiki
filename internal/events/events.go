@@ -15,20 +15,61 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-const channel = "ewiki_events"
+const sharedChannel = "ewiki_events"
 
-// Bus dispatches events to subscribers.
+// SharedTopics concern data of the shared schema (users, groups, roles):
+// they reach the buses of all sites.
+var SharedTopics = map[string]bool{"auth": true}
+
+// Bus dispatches events to subscribers. Each site has its own bus.
 type Bus struct {
 	mu      sync.RWMutex
 	subs    map[string][]func(payload string)
 	pool    *pgxpool.Pool
 	cluster bool
 	log     *slog.Logger
+	channel string
 }
 
-// New creates a bus. If cluster is true, events are sent via NOTIFY.
+var (
+	busesMu sync.RWMutex
+	buses   []*Bus
+)
+
+// New creates a bus for the site "main". If cluster is true, events are
+// sent via NOTIFY.
 func New(pool *pgxpool.Pool, cluster bool, log *slog.Logger) *Bus {
-	return &Bus{subs: map[string][]func(string){}, pool: pool, cluster: cluster, log: log}
+	return NewSite(pool, cluster, log, "main")
+}
+
+// NewSite creates the bus of a site.
+func NewSite(pool *pgxpool.Pool, cluster bool, log *slog.Logger, site string) *Bus {
+	b := &Bus{subs: map[string][]func(string){}, pool: pool, cluster: cluster, log: log, channel: sharedChannel + "_" + site}
+	busesMu.Lock()
+	buses = append(buses, b)
+	busesMu.Unlock()
+	return b
+}
+
+// Close stops delivering shared events to this bus.
+func (b *Bus) Close() {
+	busesMu.Lock()
+	defer busesMu.Unlock()
+	for i, x := range buses {
+		if x == b {
+			buses = append(buses[:i], buses[i+1:]...)
+			return
+		}
+	}
+}
+
+func dispatchAll(topic, payload string) {
+	busesMu.RLock()
+	all := append([]*Bus{}, buses...)
+	busesMu.RUnlock()
+	for _, b := range all {
+		b.dispatch(topic, payload)
+	}
 }
 
 // Subscribe registers fn for topic.
@@ -49,13 +90,26 @@ func (b *Bus) dispatch(topic, payload string) {
 
 // Publish sends an event to all nodes (including this one).
 func (b *Bus) Publish(ctx context.Context, topic, payload string) {
+	shared := SharedTopics[topic]
 	if !b.cluster || b.pool == nil {
-		b.dispatch(topic, payload)
+		if shared {
+			dispatchAll(topic, payload)
+		} else {
+			b.dispatch(topic, payload)
+		}
 		return
 	}
-	if _, err := b.pool.Exec(ctx, `SELECT pg_notify($1, $2)`, channel, topic+"|"+payload); err != nil {
+	ch := b.channel
+	if shared {
+		ch = sharedChannel
+	}
+	if _, err := b.pool.Exec(ctx, `SELECT pg_notify($1, $2)`, ch, topic+"|"+payload); err != nil {
 		b.log.Error("notify failed, dispatching locally", "err", err)
-		b.dispatch(topic, payload)
+		if shared {
+			dispatchAll(topic, payload)
+		} else {
+			b.dispatch(topic, payload)
+		}
 	}
 }
 
@@ -80,7 +134,7 @@ func (b *Bus) listen(ctx context.Context) error {
 		return err
 	}
 	defer conn.Release()
-	if _, err := conn.Exec(ctx, "LISTEN "+channel); err != nil {
+	if _, err := conn.Exec(ctx, "LISTEN "+sharedChannel+"; LISTEN "+b.channel); err != nil {
 		return err
 	}
 	b.dispatch("*", "")

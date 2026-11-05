@@ -155,12 +155,26 @@ func (s *Server) routesM2() {
 	// only delivered through the element they belong to (permission checked).
 	h.RecordRoute("GET /api/v1/files/{hash}")
 	s.app.Mux.HandleFunc("GET /api/v1/files/{hash}", func(w http.ResponseWriter, r *http.Request) {
-		f, err := s.app.Files.Get(r.Context(), r.PathValue("hash"))
+		store := s.app.Files
+		f, err := store.Get(r.Context(), r.PathValue("hash"))
+		if err != nil && s.app.Instance != nil {
+			// profile photos belong to the shared user account: they may
+			// have been uploaded on another site
+			for _, o := range s.app.Instance.Sites() {
+				if o == s.app {
+					continue
+				}
+				if of, oerr := o.Files.Get(r.Context(), r.PathValue("hash")); oerr == nil {
+					store, f, err = o.Files, of, nil
+					break
+				}
+			}
+		}
 		if err != nil || !strings.HasPrefix(f.Mime, "image/") || strings.Contains(f.Mime, "svg") {
 			h.WriteError(w, r, apperr.NotFound("image"))
 			return
 		}
-		s.app.Files.Serve(w, r, f, "", true)
+		store.Serve(w, r, f, "", true)
 	})
 	_ = storage.ValidHash
 }

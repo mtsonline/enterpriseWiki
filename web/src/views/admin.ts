@@ -9,7 +9,7 @@ import { api, qs } from '../core/api';
 import { fmtDate, h, mount } from '../core/dom';
 import { t } from '../core/i18n';
 import { navigate, type RouteCtx } from '../core/router';
-import { canTranslateAny, hasPerm, isAdmin, state } from '../core/state';
+import { canTranslateAny, hasPerm, isAdmin, isInstanceAdmin, state } from '../core/state';
 import { globalEditor, loadCatalog, permLabel } from '../components/permissions';
 import { permissionsAdmin } from './adminPermissions';
 import { auditAdmin } from './adminAudit';
@@ -22,10 +22,11 @@ import { listAdminPages, listTemplates, templateLabel } from '../sdk';
 import { errorPage } from './content';
 import { watchesAdmin } from './adminWatches';
 import { languagesAdmin } from './adminLanguages';
+import { sitesAdmin } from './adminSites';
 
 interface User { id: number; username: string; provider: string; handle: string; display_name: string; email: string; language: string; disabled: boolean; locked_until: string | null; created_at: string; last_login_at: string | null; groups: number[]; roles: number[]; totp_enabled: boolean }
 
-const CORE_SECTIONS = ['users', 'groups', 'roles', 'permissions', 'elements', 'plugins', 'updates', 'settings', 'mail', 'webhooks', 'cache', 'languages', 'audit', 'watches', 'license'];
+const CORE_SECTIONS = ['users', 'groups', 'roles', 'permissions', 'elements', 'plugins', 'updates', 'settings', 'mail', 'webhooks', 'cache', 'languages', 'audit', 'watches', 'license', 'sites'];
 
 /** global permission of each administration page ('' = category managers too) */
 const SECTION_PERMS: Record<string, string> = {
@@ -40,6 +41,9 @@ export function adminSections(): { id: string; label: string }[] {
   const core = CORE_SECTIONS.filter((s) => {
     const k = SECTION_PERMS[s];
     if (s === 'languages') return canTranslateAny();
+    if (s === 'sites') return isInstanceAdmin();
+    // license and plugin installation concern the whole instance
+    if (s === 'license' || s === 'updates') return hasPerm(k) && (state.site.site === 'main' || isInstanceAdmin());
     return k === '' ? !!state.user && (isAdmin() || hasPerm('core.categories.admin') || state.managesCategories) : hasPerm(k);
   }).map((s) => ({ id: s, label: t(`admin.${s}`) }));
   const plugin = listAdminPages().filter((p) => (p.permission ? hasPerm(p.permission) : isAdmin())).map((p) => ({ id: p.id, label: p.label() }));
@@ -92,6 +96,7 @@ export async function adminView({ params, query, main }: RouteCtx): Promise<void
       case 'audit': await auditAdmin(panel, query); break;
       case 'watches': await watchesAdmin(panel); break;
       case 'license': await licenseAdmin(panel); break;
+      case 'sites': await sitesAdmin(panel); break;
       default: {
         const p = listAdminPages().find((x) => x.id === section);
         if (p) await p.render(panel);
@@ -101,6 +106,16 @@ export async function adminView({ params, query, main }: RouteCtx): Promise<void
   } catch (e) {
     errorPage(panel, e);
   }
+}
+
+/** sharedEditable: users, groups and role definitions are shared by all
+ * sites; on further sites only instance administrators change them. */
+function sharedEditable(): boolean {
+  return state.site.site === 'main' || isInstanceAdmin();
+}
+
+function sharedNotice(): HTMLElement | null {
+  return sharedEditable() ? null : h('p', { class: 'ew-notice' }, t('sites.shared_notice'));
 }
 
 function table(caption: string, headers: string[], rows: HTMLElement[], emptyText: string): HTMLElement {
@@ -118,7 +133,7 @@ async function users(panel: HTMLElement, query: URLSearchParams): Promise<void> 
   const sf = h('form', { role: 'search', class: 'ew-inline-form', 'aria-label': t('admin.user_search') }, field(t('admin.user_search'), search, { inline: true }), button(t('search.submit'), () => undefined, { type: 'submit' }));
   sf.addEventListener('submit', (ev) => { ev.preventDefault(); navigate(`/admin/users${qs({ q: search.value })}`); });
   const name = (ids: number[], all: { id: number; name: string }[]) => ids.map((id) => all.find((x) => x.id === id)?.name ?? `#${id}`).join(', ');
-  mount(panel, pageHeader(t('admin.users'), button(t('admin.user_create'), () => userDialog(null, gs, rs), { variant: 'primary' })), sf,
+  mount(panel, pageHeader(t('admin.users'), sharedEditable() ? button(t('admin.user_create'), () => userDialog(null, gs, rs), { variant: 'primary' }) : null), sharedNotice(), sf,
     table(t('admin.users'), [t('admin.handle'), t('profile.display_name'), t('admin.groups'), t('admin.roles'), t('admin.last_login'), t('common.status'), t('common.actions')],
       list.map((u) => h('tr', null,
         h('th', { scope: 'row' }, u.handle, u.totp_enabled ? h('span', { class: 'ew-badge ew-badge--ok' }, ' 2FA') : null), h('td', null, u.display_name), h('td', null, name(u.groups, gs)), h('td', null, name(u.roles, rs)),
@@ -187,7 +202,7 @@ async function groups(panel: HTMLElement): Promise<void> {
       reload();
     });
   };
-  mount(panel, pageHeader(t('admin.groups'), button(t('admin.group_create'), () => dialog(null), { variant: 'primary' })), h('p', null, t('admin.groups_help')),
+  mount(panel, pageHeader(t('admin.groups'), sharedEditable() ? button(t('admin.group_create'), () => dialog(null), { variant: 'primary' }) : null), sharedNotice(), h('p', null, t('admin.groups_help')),
     table(t('admin.groups'), [t('common.name'), t('common.description'), t('admin.source'), t('admin.members'), t('admin.roles'), t('common.actions')],
       gs.map((g) => h('tr', null, h('th', { scope: 'row' }, g.name), h('td', null, g.description), h('td', null, g.source), h('td', null, String(g.members)),
         h('td', null, g.roles.map((id) => rs.find((r) => r.id === id)?.name ?? id).join(', ')),
@@ -237,7 +252,7 @@ async function roles(panel: HTMLElement): Promise<void> {
       reload();
     });
   };
-  mount(panel, pageHeader(t('admin.roles'), button(t('admin.role_create'), () => void dialog(null), { variant: 'primary' })), h('p', null, t('admin.roles_help')),
+  mount(panel, pageHeader(t('admin.roles'), sharedEditable() ? button(t('admin.role_create'), () => void dialog(null), { variant: 'primary' }) : null), sharedNotice(), h('p', null, t('admin.roles_help')),
     table(t('admin.roles'), [t('common.name'), t('common.description'), t('admin.role_permissions'), t('admin.members'), t('common.actions')],
       rs.map((r) => h('tr', null, h('th', { scope: 'row' }, r.name), h('td', null, r.description),
         h('td', null, r.is_admin ? h('strong', null, t('admin.is_admin')) : (r.permissions.map(label).join(', ') || '–')), h('td', null, String(r.members)),

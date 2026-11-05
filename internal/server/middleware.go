@@ -74,6 +74,7 @@ func (s *Server) wrap(next http.Handler) http.Handler {
 				s.log.Debug("request", "method", r.Method, "path", r.URL.Path, "status", sw.status, "dur", time.Since(start))
 			}
 		}()
+		r = r.WithContext(identity.WithSite(r.Context(), s.app.Site))
 		cfg := s.app.Config.Get()
 		h := sw.Header()
 		h.Set("X-Content-Type-Options", "nosniff")

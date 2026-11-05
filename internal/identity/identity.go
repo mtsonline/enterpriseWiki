@@ -15,6 +15,10 @@ type Principal struct {
 	Groups      []int64 `json:"groups"`
 	Roles       []int64 `json:"roles"`
 	IsAdmin     bool    `json:"is_admin"`
+	// InstanceAdmin manages sites, users, groups, roles and the license
+	// (instance_admins or administrator of the site "main"); such users
+	// are administrators on every site.
+	InstanceAdmin bool `json:"instance_admin"`
 	// Perms are the global permissions (from roles and the defaults for
 	// signed-in users); see package perm. Administrators have all.
 	Perms []string `json:"permissions"`
@@ -60,7 +64,13 @@ func (p *Principal) Admin() bool {
 // CLI returns the principal used by local command line invocations
 // (whoever can run the binary as the service user is a superadmin).
 func CLI() *Principal {
-	return &Principal{Username: "cli", Provider: "local", DisplayName: "Command line", IsAdmin: true, Via: "cli"}
+	return &Principal{Username: "cli", Provider: "local", DisplayName: "Command line", IsAdmin: true, InstanceAdmin: true, Via: "cli"}
+}
+
+// Instance reports whether the principal may change data shared by all
+// sites (API keys need allow_admin).
+func (p *Principal) Instance() bool {
+	return p != nil && p.InstanceAdmin && p.Admin()
 }
 
 type ctxKey struct{}
@@ -74,4 +84,19 @@ func With(ctx context.Context, p *Principal) context.Context {
 func From(ctx context.Context) *Principal {
 	p, _ := ctx.Value(ctxKey{}).(*Principal)
 	return p
+}
+
+type siteKey struct{}
+
+// WithSite stores the site a request or job belongs to.
+func WithSite(ctx context.Context, site string) context.Context {
+	return context.WithValue(ctx, siteKey{}, site)
+}
+
+// Site returns the site of ctx ("main" if none is set).
+func Site(ctx context.Context) string {
+	if s, ok := ctx.Value(siteKey{}).(string); ok && s != "" {
+		return s
+	}
+	return "main"
 }

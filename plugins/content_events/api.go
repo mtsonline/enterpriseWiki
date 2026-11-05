@@ -55,6 +55,7 @@ func parseTime(v string) (time.Time, error) {
 // Setup registers the element type, macro, worker and API.
 func (p *Plugin) Setup(hs *sdk.Host) error {
 	p.host = hs
+	plugins.Set(hs.Site, p)
 	hs.RegisterElementType(Type{})
 	hs.RegisterMacro(UpcomingMacro{})
 	hs.RegisterWorker("reminders", time.Minute, p.sendReminders)

@@ -106,6 +106,7 @@ func (s *Server) routes() {
 	s.routesM6()
 	s.routesM7()
 	s.routesM8()
+	s.routesSites()
 	s.routesM9()
 	s.routesM15()
 	s.routesAudit()
@@ -826,7 +827,7 @@ func (s *Server) routes() {
 			"cluster": s.app.Config.Get().Mode == "cluster", "removable": s.removablePlugins()}, nil
 	})
 	s.handle("PUT /api/v1/admin/plugins/options", func(w http.ResponseWriter, r *http.Request) (any, error) {
-		if err := requireAdmin(r); err != nil {
+		if err := requireInstance(r); err != nil { // installed plugins and the process are shared by all sites
 			return nil, err
 		}
 		var in struct {
@@ -835,7 +836,7 @@ func (s *Server) routes() {
 		if err := h.Decode(r, &in); err != nil {
 			return nil, err
 		}
-		if err := s.app.Config.Update(func(c *config.Config) error { c.Plugins.AutoRestartOnDrop = in.AutoRestartOnDrop; return nil }); err != nil {
+		if err := s.app.Config.Base().Update(func(c *config.Config) error { c.Plugins.AutoRestartOnDrop = in.AutoRestartOnDrop; return nil }); err != nil {
 			return nil, err
 		}
 		s.auditSettings(r, "plugin.options", fmt.Sprintf("auto_restart_on_drop=%v", in.AutoRestartOnDrop))
@@ -858,7 +859,7 @@ func (s *Server) routes() {
 		return h.NoContent{}, err
 	})
 	s.handle("POST /api/v1/admin/plugins/install", func(w http.ResponseWriter, r *http.Request) (any, error) {
-		if err := requireAdmin(r); err != nil {
+		if err := requireInstance(r); err != nil { // installed plugins and the process are shared by all sites
 			return nil, err
 		}
 		var in struct {
@@ -876,7 +877,7 @@ func (s *Server) routes() {
 		return s.buildAfterChange(r.Context(), res, "install"), nil
 	})
 	s.handle("DELETE /api/v1/admin/plugins/{id}", func(w http.ResponseWriter, r *http.Request) (any, error) {
-		if err := requireAdmin(r); err != nil {
+		if err := requireInstance(r); err != nil { // installed plugins and the process are shared by all sites
 			return nil, err
 		}
 		if err := s.plugins.Remove(r.Context(), r.PathValue("id")); err != nil {
@@ -886,13 +887,13 @@ func (s *Server) routes() {
 		return s.buildAfterChange(r.Context(), nil, "remove"), nil
 	})
 	s.handle("POST /api/v1/admin/plugins/build", func(w http.ResponseWriter, r *http.Request) (any, error) {
-		if err := requireAdmin(r); err != nil {
+		if err := requireInstance(r); err != nil { // installed plugins and the process are shared by all sites
 			return nil, err
 		}
 		return s.plugins.StartBuild(r.Context(), "manual")
 	})
 	s.handle("POST /api/v1/admin/restart", func(w http.ResponseWriter, r *http.Request) (any, error) {
-		if err := requireAdmin(r); err != nil {
+		if err := requireInstance(r); err != nil { // installed plugins and the process are shared by all sites
 			return nil, err
 		}
 		if s.app.Config.Get().Mode != "cluster" {
@@ -961,6 +962,9 @@ func (s *Server) site(w http.ResponseWriter, r *http.Request) (any, error) {
 		"languages": c.I18n.Languages, "default_language": c.I18n.DefaultLanguage,
 		"plugins": frontend, "element_types": s.app.Content.Types(), "auth_providers": s.app.Auth.ProviderInfos(),
 		"version": version.Version, "permissions": acl.Names,
+		// site: the site of this host; instance_only: settings only
+		// instance administrators change (in config.yaml of the instance)
+		"site": s.app.Site, "instance_only": config.InstanceOnly,
 	}, nil
 }
 

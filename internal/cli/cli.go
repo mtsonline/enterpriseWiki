@@ -30,6 +30,7 @@ import (
 
 type env struct {
 	configPath string
+	site       string // --site / EWIKI_SITE (default main)
 	stdout     io.Writer
 	stderr     io.Writer
 	stdin      io.Reader
@@ -38,7 +39,7 @@ type env struct {
 
 const usage = `Enterprise Wiki %s
 
-Usage: ewiki [--config FILE] <command> [arguments]
+Usage: ewiki [--config FILE] [--site NAME] <command> [arguments]
 
 Server
   serve                         start the HTTP server (applies migrations)
@@ -60,6 +61,8 @@ Guest cache
   cache status | cache clear
 
 License (Business Source License 1.1, free for private use of natural persons)
+  site list | create NAME --host H[,H] [--title T] | update NAME [...] | delete NAME --yes
+  site admins | site admins add|remove USER_ID     instance administrators
   license show | install KEY|@file|- | remove
   license notices               licenses of the third-party components
 
@@ -143,6 +146,10 @@ func Main(args []string) int {
 			e.configPath, args = args[1], args[2:]
 		case strings.HasPrefix(args[0], "--config="):
 			e.configPath, args = strings.TrimPrefix(args[0], "--config="), args[1:]
+		case args[0] == "--site" && len(args) > 1:
+			e.site, args = args[1], args[2:]
+		case strings.HasPrefix(args[0], "--site="):
+			e.site, args = strings.TrimPrefix(args[0], "--site="), args[1:]
 		case args[0] == "-h" || args[0] == "--help":
 			args = []string{"help"}
 		default:
@@ -206,6 +213,8 @@ func Main(args []string) int {
 		err = e.categoryCmd(args[1:])
 	case "cache":
 		err = e.cacheCmd(args[1:])
+	case "site":
+		err = e.siteCmd(args[1:])
 	case "license":
 		err = e.licenseCmd(args[1:])
 	case "retention":
@@ -250,8 +259,8 @@ func newLogger() *slog.Logger {
 }
 
 func (e *env) withApp(migrate bool, fn func(ctx context.Context, a *app.App) error) error {
-	ctx := identity.With(context.Background(), identity.CLI())
-	a, err := app.New(ctx, app.Options{ConfigPath: e.configPath, Log: e.log, Migrate: migrate})
+	ctx := identity.WithSite(identity.With(context.Background(), identity.CLI()), e.siteName())
+	a, err := app.New(ctx, app.Options{ConfigPath: e.configPath, Log: e.log, Migrate: migrate, Site: e.siteName()})
 	if err != nil {
 		return err
 	}
@@ -271,11 +280,15 @@ func (e *env) serve(args []string) error {
 	}
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
-	a, err := app.New(ctx, app.Options{ConfigPath: e.configPath, Log: e.log, Migrate: !*noMigrate})
+	in, err := app.OpenInstance(ctx, app.InstanceOptions{ConfigPath: e.configPath, Log: e.log, Migrate: !*noMigrate})
 	if err != nil {
 		return err
 	}
-	defer a.Close()
+	defer in.Close()
+	a := in.Site("main")
+	if a == nil {
+		return errors.New("site main is not available")
+	}
 	restart := make(chan struct{}, 1)
 	pm := pluginmgr.New(sourceRoot(a.Root), a.Config, func() {
 		select {
@@ -286,14 +299,20 @@ func (e *env) serve(args []string) error {
 	})
 	pm.Attach(pluginmgr.Cluster{Enabled: func() bool { return a.Config.Get().Mode == "cluster" }, DB: a.DB,
 		Publish: a.Bus.Publish, Subscribe: a.Bus.Subscribe}, e.log)
-	srv := server.New(a, web.FS(), pm)
+	srv := server.NewInstance(in, web.FS(), pm)
+	srv.Background = func(ctx context.Context, a *app.App) {
+		go a.Bus.Run(ctx)
+		go e.jobs(ctx, a)
+		a.Workers.Start(ctx)
+		if a.Site != "main" {
+			go e.watchConfig(ctx, a)
+		}
+	}
 	a.PGVersion.LogStatus(ctx)
 	go pluginmgr.ReleaseRestartLease(ctx, a.DB, a.Config.Get().Server.Listen)
 	go pm.Watch(ctx, 10*time.Second)
-	go a.Bus.Run(ctx)
-	go e.jobs(ctx, a)
-	a.Workers.Start(ctx)
 	go e.watchConfig(ctx, a)
+	go in.RunSync(ctx, 15*time.Second)
 	if err := srv.Run(ctx); err != nil {
 		return err
 	}
@@ -308,7 +327,7 @@ func (e *env) serve(args []string) error {
 			// Docker image: the image binary decides again which binary to run
 			exe, env = l, withoutEnv(env, "EWIKI_CHILD", "EWIKI_LAUNCHER")
 		}
-		a.Close()
+		in.Close()
 		e.log.Info("restarting", "exe", exe)
 		return syscall.Exec(exe, append([]string{exe}, os.Args[1:]...), env)
 	default:
@@ -347,7 +366,7 @@ func (e *env) jobs(ctx context.Context, a *app.App) {
 	t := time.NewTicker(time.Hour)
 	defer t.Stop()
 	run := func() {
-		jctx := identity.With(ctx, identity.CLI())
+		jctx := identity.WithSite(identity.With(ctx, identity.CLI()), a.Site)
 		if a.Config.Get().Mode == "cluster" {
 			conn, err := a.DB.Acquire(jctx)
 			if err != nil {
@@ -355,10 +374,11 @@ func (e *env) jobs(ctx context.Context, a *app.App) {
 			}
 			defer conn.Release()
 			var ok bool
-			if err := conn.QueryRow(jctx, `SELECT pg_try_advisory_lock(7300418)`).Scan(&ok); err != nil || !ok {
+			lock := "ewiki.maintenance." + a.Site
+			if err := conn.QueryRow(jctx, `SELECT pg_try_advisory_lock(hashtext($1))`, lock).Scan(&ok); err != nil || !ok {
 				return
 			}
-			defer conn.Exec(context.Background(), `SELECT pg_advisory_unlock(7300418)`) //nolint:errcheck
+			defer conn.Exec(context.Background(), `SELECT pg_advisory_unlock(hashtext($1))`, lock) //nolint:errcheck
 		}
 		if err := a.Auth.Cleanup(jctx); err != nil {
 			e.log.Error("session cleanup", "err", err)
@@ -454,4 +474,15 @@ func withoutEnv(env []string, keys ...string) []string {
 		}
 	}
 	return out
+}
+
+// siteName returns the site local commands work on (--site, EWIKI_SITE).
+func (e *env) siteName() string {
+	if e.site != "" {
+		return e.site
+	}
+	if s := os.Getenv("EWIKI_SITE"); s != "" {
+		return s
+	}
+	return "main"
 }

@@ -22,7 +22,6 @@ import (
 	"github.com/mtsonline/enterprisewiki/internal/db"
 	"github.com/mtsonline/enterprisewiki/internal/db/migrations"
 	"github.com/mtsonline/enterprisewiki/internal/events"
-	"github.com/mtsonline/enterprisewiki/internal/httpx"
 	"github.com/mtsonline/enterprisewiki/internal/i18n"
 	"github.com/mtsonline/enterprisewiki/internal/kernel"
 	"github.com/mtsonline/enterprisewiki/internal/mail"
@@ -63,7 +62,20 @@ type App struct {
 	Mux *http.ServeMux
 	// Root is the source directory (for plugin installation / rebuilds).
 	Root string
+	// Site is the name of this site ("main" for the first one); Instance
+	// holds the shared resources and the other sites.
+	Site     string
+	Instance *Instance
+	owner    bool // Close also closes the instance (opened by New)
+	// hostnames served by this site (normalized)
+	hostnames []string
+	// stop cancels the site's background work (set by the server)
+	stop func()
 }
+
+// SetStop registers the function that stops the site's background work
+// (called when the site is disabled or deleted).
+func (a *App) SetStop(f func()) { a.stop = f }
 
 // Options configures New.
 type Options struct {
@@ -71,36 +83,57 @@ type Options struct {
 	Log        *slog.Logger
 	// Migrate applies pending migrations on start.
 	Migrate bool
+	// Site selects the site (default "main").
+	Site string
 }
 
 // New loads the configuration, connects to the database and initializes all
-// services and plugins.
+// services and plugins of one site (default "main").
 func New(ctx context.Context, o Options) (*App, error) {
-	log := o.Log
-	if log == nil {
-		log = slog.Default()
+	site := o.Site
+	if site == "" {
+		site = "main"
 	}
-	httpx.Logger = log
-	root := filepath.Dir(o.ConfigPath)
-	_ = config.LoadDotEnv(filepath.Join(root, ".env"))
-	cfg, err := config.Open(o.ConfigPath)
+	in, err := OpenInstance(ctx, InstanceOptions{ConfigPath: o.ConfigPath, Log: o.Log, Migrate: o.Migrate, Sites: []string{site}})
 	if err != nil {
 		return nil, err
+	}
+	a := in.Site(site)
+	if a == nil {
+		in.Close()
+		return nil, fmt.Errorf("site %q not found or disabled", site)
+	}
+	a.owner = true
+	return a, nil
+}
+
+// newSite initializes the services and plugins of a site.
+func newSite(ctx context.Context, in *Instance, site string, migrate bool) (*App, error) {
+	log := in.Log.With("site", site)
+	if site == "main" {
+		log = in.Log
+	}
+	cfg := in.Config
+	if site != "main" {
+		var err error
+		if cfg, err = config.OpenSite(in.Config, site); err != nil {
+			return nil, err
+		}
 	}
 	c := cfg.Get()
-	pool, err := db.Open(ctx, c.Database.URL, c.Database.MaxConns)
+	pool, err := db.OpenSite(ctx, c.Database.URL, c.Database.MaxConns, site)
 	if err != nil {
 		return nil, err
 	}
-	a := &App{Config: cfg, DB: pool, Log: log, Mux: http.NewServeMux(), Root: root}
-	a.Kernel = kernel.New(cfg, log)
-	if o.Migrate {
+	a := &App{Config: cfg, DB: pool, Log: log, Mux: http.NewServeMux(), Root: in.Root, Site: site, Instance: in}
+	a.Kernel = kernel.NewSite(cfg, log, site)
+	if migrate {
 		if err := a.MigrateDB(ctx); err != nil {
 			pool.Close()
 			return nil, err
 		}
 	}
-	a.Bus = events.New(pool, c.Mode == "cluster", log)
+	a.Bus = events.NewSite(pool, c.Mode == "cluster", log, site)
 	a.ACL = acl.New(pool, a.Bus, log)
 	a.Auth = auth.New(pool, cfg, a.Bus, log)
 	a.Content = content.New(pool, a.ACL, a.Bus, cfg, log)
@@ -109,6 +142,7 @@ func New(ctx context.Context, o Options) (*App, error) {
 	a.Files.AddReference("users", "profile") // profile photos
 	a.Mail = mail.New(pool, cfg, log)
 	a.Workers = worker.New(pool, log, func() bool { return cfg.Get().Mode == "cluster" })
+	a.Workers.Site = site
 	a.Workers.Register(worker.Job{Name: "mail", Interval: 10 * time.Second, Run: func(ctx context.Context) error {
 		n, err := a.Mail.Process(ctx)
 		if n > 0 {
@@ -166,7 +200,7 @@ func New(ctx context.Context, o Options) (*App, error) {
 		return a.Webhooks.Cleanup(ctx, cfg.Get().Webhooks.KeepDays)
 	}})
 	// audit log: areas switched off in the settings, forwarding to other systems
-	audit.SetFilter(func(action string) bool {
+	audit.SetSiteFilter(site, func(action string) bool {
 		c := cfg.Get().Audit
 		switch {
 		case strings.HasPrefix(action, "auth.login") || action == "auth.logout":
@@ -188,13 +222,13 @@ func New(ctx context.Context, o Options) (*App, error) {
 	a.Auth.SetEnabledFunc(a.Kernel.Enabled)
 	a.Content.SetEnabledFunc(a.Kernel.Enabled)
 	if err := a.I18n.Register("core", i18n.CoreLocales()); err != nil {
-		pool.Close()
+		a.close()
 		return nil, err
 	}
 	base := sdk.Host{Notify: a.Notify, Webhooks: a.Webhooks, Config: cfg, DB: pool, ACL: a.ACL, Content: a.Content, Auth: a.Auth, I18n: a.I18n, Files: a.Files, Mail: a.Mail, Workers: a.Workers,
 		Log: log, Mux: a.Mux, IsEnabled: a.Kernel.Enabled}
 	if err := a.Kernel.Setup(base, a.I18n); err != nil {
-		pool.Close()
+		a.close()
 		return nil, err
 	}
 	return a, nil
@@ -213,8 +247,21 @@ func (a *App) MigrateDB(ctx context.Context) error {
 	return nil
 }
 
-// Close releases resources.
-func (a *App) Close() { a.DB.Close() }
+// Close releases resources (with New: also the instance).
+func (a *App) Close() {
+	if a.owner {
+		a.Instance.Close()
+		return
+	}
+	a.close()
+}
+
+func (a *App) close() {
+	if a.Bus != nil {
+		a.Bus.Close()
+	}
+	a.DB.Close()
+}
 
 // emitContent turns a content change into a webhook event.
 func (a *App) emitContent(ctx context.Context, event, etype string, id int64) {

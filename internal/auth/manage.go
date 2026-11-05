@@ -48,6 +48,20 @@ func requireAdmin(ctx context.Context) error {
 
 func (s *Service) bump(ctx context.Context) { s.bus.Publish(ctx, "auth", "") }
 
+// ErrInstanceOnly is returned when someone who is not an instance
+// administrator changes shared data on a further site.
+var ErrInstanceOnly = apperr.Forbidden("users, groups and roles are shared by all sites: only instance administrators can change them here (or use the site main)")
+
+// requireShared allows changes to users, groups and role definitions: on the
+// site "main" with the normal permissions, elsewhere only for instance
+// administrators.
+func requireShared(ctx context.Context) error {
+	if identity.Site(ctx) == "main" || identity.From(ctx).Instance() {
+		return nil
+	}
+	return ErrInstanceOnly
+}
+
 // guardRoles prevents privilege escalation: who is not an administrator can
 // only assign roles (directly or through groups) without the admin flag and
 // with permissions they have themselves.
@@ -162,6 +176,9 @@ func (s *Service) CreateLocalUser(ctx context.Context, in NewUser) (*User, error
 	if err := perm.Require(ctx, "core.users.manage"); err != nil {
 		return nil, err
 	}
+	if err := requireShared(ctx); err != nil {
+		return nil, err
+	}
 	return s.createLocalUser(ctx, in)
 }
 
@@ -255,6 +272,13 @@ func (s *Service) UpdateUser(ctx context.Context, id int64, in UserUpdate) (*Use
 	if err := perm.Require(ctx, "core.users.manage"); err != nil {
 		return nil, err
 	}
+	// role assignments belong to the site; everything else is shared
+	if in.DisplayName != nil || in.Email != nil || in.Language != nil || in.Disabled != nil || in.Unlock ||
+		in.Groups != nil || in.Password != nil || in.ResetTOTP {
+		if err := requireShared(ctx); err != nil {
+			return nil, err
+		}
+	}
 	before, err := s.GetUser(ctx, id)
 	if err != nil {
 		return nil, err
@@ -329,6 +353,9 @@ func ensureAdminRemains(ctx context.Context, tx pgx.Tx) error {
 // DeleteUser deletes a user (admin only). Content stays; authorship is cleared.
 func (s *Service) DeleteUser(ctx context.Context, id int64) error {
 	if err := perm.Require(ctx, "core.users.manage"); err != nil {
+		return err
+	}
+	if err := requireShared(ctx); err != nil {
 		return err
 	}
 	before, err := s.GetUser(ctx, id)
@@ -449,6 +476,13 @@ func (s *Service) SaveGroup(ctx context.Context, id int64, name, description str
 	if name == "" {
 		return 0, apperr.BadRequest("name is required")
 	}
+	if requireShared(ctx) != nil { // site administrators only assign roles to existing groups
+		var curName, curDesc string
+		if id == 0 || s.pool.QueryRow(ctx, `SELECT name, description FROM groups WHERE id=$1`, id).Scan(&curName, &curDesc) != nil ||
+			curName != name || curDesc != description {
+			return 0, ErrInstanceOnly
+		}
+	}
 	err := db.Tx(ctx, s.pool, func(tx pgx.Tx) error {
 		if err := guardRoles(ctx, tx, roles, nil); err != nil {
 			return err
@@ -496,6 +530,9 @@ func (s *Service) SaveGroup(ctx context.Context, id int64, name, description str
 // DeleteGroup deletes a group and its ACL rules (admin only).
 func (s *Service) DeleteGroup(ctx context.Context, id int64) error {
 	if err := perm.Require(ctx, "core.groups.manage"); err != nil {
+		return err
+	}
+	if err := requireShared(ctx); err != nil {
 		return err
 	}
 	err := db.Tx(ctx, s.pool, func(tx pgx.Tx) error {
@@ -562,6 +599,9 @@ type RoleInput struct {
 // permissions they have themselves.
 func (s *Service) SaveRole(ctx context.Context, id int64, in RoleInput) (int64, error) {
 	if err := perm.Require(ctx, "core.roles.manage"); err != nil {
+		return 0, err
+	}
+	if err := requireShared(ctx); err != nil {
 		return 0, err
 	}
 	name, description, isAdmin := strings.TrimSpace(in.Name), in.Description, in.IsAdmin
@@ -668,6 +708,9 @@ func (s *Service) SetDefaultPermissions(ctx context.Context, perms []string) err
 // DeleteRole deletes a role (admin only).
 func (s *Service) DeleteRole(ctx context.Context, id int64) error {
 	if err := perm.Require(ctx, "core.roles.manage"); err != nil {
+		return err
+	}
+	if err := requireShared(ctx); err != nil {
 		return err
 	}
 	err := db.Tx(ctx, s.pool, func(tx pgx.Tx) error {
