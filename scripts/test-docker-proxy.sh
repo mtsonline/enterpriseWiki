@@ -92,7 +92,7 @@ docker inspect -f '{{.HostConfig.CapDrop}}' "$pid" | grep -q ALL || fail "capabi
 loc="$(curl -s -o /dev/null -w '%{redirect_url}' -H 'Host: wiki.example.com' http://127.0.0.1:18081/some/page)"
 [ "$loc" = https://wiki.example.com/some/page ] || fail "HTTP redirect: '$loc'"
 # certificates only for the wiki's own host names (asked by Caddy)
-code() { docker compose exec -T proxy wget -q -S -O /dev/null "http://wiki:8080/tls-allowed?domain=$1" 2>&1 | awk '/HTTP\//{print $2}' | tail -n 1; }
+code() { docker compose exec -T proxy wget -q -S -O /dev/null "http://wiki:8080/tls-allowed?domain=$1" 2>&1 | grep -o 'HTTP/[0-9.]* [0-9][0-9][0-9]' | head -n 1 | awk '{print $2}'; }
 [ "$(code wiki.example.com)" = 200 ] || fail "own host not allowed"
 [ "$(code evil.example.org)" = 404 ] || fail "foreign host allowed"
 # the wiki is not reachable from outside the host (127.0.0.1 only)
