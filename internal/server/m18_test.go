@@ -1,7 +1,11 @@
 package server_test
 
 import (
+	"bytes"
 	"fmt"
+	"image"
+	"image/color"
+	"image/png"
 	"regexp"
 	"testing"
 )
@@ -331,4 +335,32 @@ func TestSeparateAccounts(t *testing.T) {
 	}
 
 	admin.must("DELETE", "/api/v1/instance/sites/intra", nil, nil, 204)
+}
+
+// TestCrossSiteImages: only profile photos of shared accounts are served
+// across sites; other images stay on their site.
+func TestCrossSiteImages(t *testing.T) {
+	e := setup(t)
+	admin := e.client()
+	admin.login("admin", adminPW)
+	admin.must("POST", "/api/v1/instance/sites", map[string]any{"name": "docs", "hostnames": []string{"docs.test"}}, nil, 201)
+	d := e.client()
+	d.host = "docs.test"
+	d.login("admin", adminPW)
+	pic := func(c color.RGBA) []byte {
+		img := image.NewRGBA(image.Rect(0, 0, 3, 3))
+		img.Set(1, 1, c)
+		var b bytes.Buffer
+		_ = png.Encode(&b, img)
+		return b.Bytes()
+	}
+	_, secret := d.upload(t, "secret.png", pic(color.RGBA{200, 1, 1, 255}))
+	_, photo := d.upload(t, "me.png", pic(color.RGBA{1, 200, 1, 255}))
+	if secret.Hash == "" || photo.Hash == "" {
+		t.Fatal("upload failed")
+	}
+	d.must("GET", "/api/v1/files/"+secret.Hash, nil, nil, 200)
+	admin.must("GET", "/api/v1/files/"+secret.Hash, nil, nil, 404) // an image of docs is not served by main
+	d.must("PUT", "/api/v1/me/profile", map[string]string{"photo": photo.Hash}, nil, 200)
+	admin.must("GET", "/api/v1/files/"+photo.Hash, nil, nil, 200) // the profile photo of the shared account is
 }

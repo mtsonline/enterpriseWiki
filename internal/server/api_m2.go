@@ -1,6 +1,7 @@
 package server
 
 import (
+	"context"
 	"net/http"
 	"net/url"
 	"strings"
@@ -187,11 +188,13 @@ func (s *Server) routesM2() {
 	s.app.Mux.HandleFunc("GET /api/v1/files/{hash}", func(w http.ResponseWriter, r *http.Request) {
 		store := s.app.Files
 		f, err := store.Get(r.Context(), r.PathValue("hash"))
-		if err != nil && s.app.Instance != nil {
+		if err != nil && s.app.Instance != nil && !s.app.SeparateAccounts && s.sharedProfilePhoto(r.Context(), r.PathValue("hash")) {
 			// profile photos belong to the shared user account: they may
-			// have been uploaded on another site
+			// have been uploaded on another site with shared accounts. Only
+			// these images are looked up elsewhere - never other files of
+			// another site.
 			for _, o := range s.app.Instance.Sites() {
-				if o == s.app {
+				if o == s.app || o.SeparateAccounts {
 					continue
 				}
 				if of, oerr := o.Files.Get(r.Context(), r.PathValue("hash")); oerr == nil {
@@ -206,7 +209,6 @@ func (s *Server) routesM2() {
 		}
 		store.Serve(w, r, f, "", true)
 	})
-	_ = storage.ValidHash
 }
 
 // ssoError sends the browser back to the login page with a message.
@@ -216,4 +218,15 @@ func (s *Server) ssoError(w http.ResponseWriter, r *http.Request, err error) {
 		s.log.Error("sso failed", "err", err)
 	}
 	http.Redirect(w, r, "/login?error="+url.QueryEscape(msg), http.StatusSeeOther)
+}
+
+// sharedProfilePhoto reports whether hash is the profile photo of a shared
+// (instance) account.
+func (s *Server) sharedProfilePhoto(ctx context.Context, hash string) bool {
+	if !storage.ValidHash(hash) {
+		return false
+	}
+	var ok bool
+	err := s.app.Instance.Shared.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM users WHERE profile->>'photo' = $1)`, hash).Scan(&ok)
+	return err == nil && ok
 }

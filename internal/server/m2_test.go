@@ -62,6 +62,9 @@ func (c *client) upload(t *testing.T, name string, data []byte) (int, fileResp) 
 	req, _ := http.NewRequest("POST", c.e.srv.URL+"/api/v1/files", &buf)
 	req.Header.Set("Content-Type", mw.FormDataContentType())
 	req.Header.Set("X-Requested-With", "ewiki")
+	if c.host != "" {
+		req.Host = c.host
+	}
 	res, err := c.http.Do(req)
 	if err != nil {
 		t.Fatal(err)
