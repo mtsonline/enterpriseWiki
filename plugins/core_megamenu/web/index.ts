@@ -45,7 +45,7 @@ function render(menu: { id: number; name: string; items: MenuItem[] }, x: { labe
     };
     const close = () => set(false);
     closers.push(close);
-    btn.addEventListener('click', () => set(panel.hidden));
+    btn.addEventListener('click', () => set(panel.hidden === true));
     li.addEventListener('keydown', (ev) => {
       if (ev.key === 'Escape' && !panel.hidden) { ev.stopPropagation(); set(false); btn.focus(); }
     });
