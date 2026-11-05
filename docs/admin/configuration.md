@@ -248,3 +248,5 @@ ewiki config set retention.trash_days 60
 ewiki config set i18n.languages "[de, en, fr]"
 ewiki config validate
 ```
+
+Weitere Sites einer Instanz haben eigene Einstellungsdateien (`sites/<name>.yaml`), siehe [sites.md](sites.md).

@@ -21,6 +21,7 @@ import (
 	"github.com/mtsonline/enterprisewiki/internal/app"
 	"github.com/mtsonline/enterprisewiki/internal/apperr"
 	"github.com/mtsonline/enterprisewiki/internal/config"
+	"github.com/mtsonline/enterprisewiki/internal/db"
 	"github.com/mtsonline/enterprisewiki/internal/identity"
 	"github.com/mtsonline/enterprisewiki/internal/pluginmgr"
 	"github.com/mtsonline/enterprisewiki/internal/server"
@@ -420,17 +421,28 @@ func (e *env) config(args []string) error {
 	}
 	switch args[0] {
 	case "path":
-		fmt.Fprintln(e.stdout, e.configPath)
+		st, err := e.configStore()
+		if err != nil {
+			return err
+		}
+		fmt.Fprintln(e.stdout, st.Path())
 		return nil
 	case "show":
-		b, err := os.ReadFile(e.configPath)
+		st, err := e.configStore()
+		if err != nil {
+			return err
+		}
+		b, err := os.ReadFile(st.Path()) // #nosec G304 -- configuration file of the installation
+		if errors.Is(err, os.ErrNotExist) && st.Site() != "" {
+			b, err = []byte("# no differences to the instance settings\n"), nil
+		}
 		if err != nil {
 			return err
 		}
 		_, err = e.stdout.Write(b)
 		return err
 	case "validate":
-		if _, err := config.Open(e.configPath); err != nil {
+		if _, err := e.configStore(); err != nil {
 			return err
 		}
 		fmt.Fprintln(e.stdout, "configuration is valid")
@@ -439,7 +451,7 @@ func (e *env) config(args []string) error {
 		if len(args) != 2 {
 			return errors.New("usage: ewiki config get KEY")
 		}
-		st, err := config.Open(e.configPath)
+		st, err := e.configStore()
 		if err != nil {
 			return err
 		}
@@ -453,9 +465,12 @@ func (e *env) config(args []string) error {
 		if len(args) != 3 {
 			return errors.New("usage: ewiki config set KEY VALUE")
 		}
-		st, err := config.Open(e.configPath)
+		st, err := e.configStore()
 		if err != nil {
 			return err
+		}
+		if st.Site() != "" && config.IsInstanceOnly(args[1]) {
+			return fmt.Errorf("%s applies to the whole instance: set it without --site", args[1])
 		}
 		if err := st.Update(func(c *config.Config) error { return config.SetKey(c, args[1], args[2]) }); err != nil {
 			return err
@@ -464,6 +479,19 @@ func (e *env) config(args []string) error {
 		return nil
 	}
 	return fmt.Errorf("unknown config command %q", args[0])
+}
+
+// configStore returns the settings of the selected site (--site): the
+// instance settings for "main", otherwise the site's own file on top.
+func (e *env) configStore() (*config.Store, error) {
+	base, err := config.Open(e.configPath)
+	if err != nil || e.siteName() == "main" {
+		return base, err
+	}
+	if !db.ValidSiteName(e.siteName()) {
+		return nil, fmt.Errorf("invalid site name %q", e.siteName())
+	}
+	return config.OpenSite(base, e.siteName())
 }
 
 // withoutEnv removes variables from an environment list.

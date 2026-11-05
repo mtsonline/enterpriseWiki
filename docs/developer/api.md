@@ -351,6 +351,7 @@ curl -H "Authorization: Bearer $KEY" -H 'Content-Type: application/json' \
 
 | Methode | Pfad |
 |---|---|
+| `GET` | `/tls-allowed` |
 | `GET` | `/api/v1/drafts` |
 | `POST` | `/api/v1/drafts` |
 | `GET` | `/api/v1/drafts/{id}` |

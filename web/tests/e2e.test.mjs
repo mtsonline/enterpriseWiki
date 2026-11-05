@@ -148,7 +148,7 @@ test('create, edit, translate and search a page', async () => {
 });
 
 test('administration pages are accessible', async () => {
-  for (const section of ['users', 'groups', 'roles', 'plugins', 'updates', 'settings', 'languages', 'audit', 'permissions', 'watches', 'menus', 'ldap', 'oidc', 'shibboleth', 'shell', 'mail', 'search', 'blocks']) {
+  for (const section of ['users', 'groups', 'roles', 'plugins', 'updates', 'settings', 'languages', 'audit', 'permissions', 'watches', 'menus', 'ldap', 'oidc', 'shibboleth', 'shell', 'mail', 'search', 'blocks', 'sites']) {
     await page.goto(`${BASE}/admin/${section}`);
     await idle();
     await page.waitForSelector('.ew-admin-panel h1');
@@ -866,6 +866,42 @@ test('switch language', async () => {
   // focus returns to the language selector once the header has been re-rendered
   await page.waitForFunction(() => document.activeElement?.closest('.ew-lang') !== null, null, { timeout: 5000 })
     .catch(() => assert.fail('focus stays on the language selector'));
+});
+
+test('a further site on its own host name: separate content, shared account', async () => {
+  const name = `e2e${run}`.replace(/[^a-z0-9]/g, '');
+  const host = `${name}.localhost`;
+  const other = new URL(BASE);
+  other.hostname = host;
+  await page.goto(`${BASE}/admin/sites`);
+  await idle();
+  await page.getByRole('button', { name: /^(New site|Neue Site)$/ }).click();
+  const dlg = page.getByRole('dialog');
+  await dlg.getByLabel(/^Name/).fill(name);
+  await dlg.getByLabel(/^(Title|Titel)/).fill(`E2E ${run}`);
+  await dlg.getByLabel(/^(Host names|Hostnamen)/).fill(host);
+  await a11y('new site dialog');
+  await dlg.getByRole('button', { name: /^(Save|Speichern)$/ }).click();
+  await page.getByRole('cell', { name: host }).waitFor();
+  // the new site answers on its host name, as a separate wiki (no session yet)
+  await page.goto(other.origin + '/login');
+  await idle();
+  await page.getByLabel(/user ?name|benutzername/i).fill(USER);
+  await page.getByLabel(/^(password|passwort)/i).fill(PASSWORD);
+  await page.locator('form.ew-login button[type=submit]').click();
+  await page.waitForSelector('.ew-user-menu');
+  const site = await page.evaluate(async () => (await fetch('/api/v1/site')).json());
+  assert.equal(site.site, name, 'site of the host name');
+  // pages of the main site do not exist here
+  const hits = async (origin) => page.evaluate(async (u) => (await (await fetch(u, { credentials: 'include' })).json()).elements?.length ?? 0, `${origin}/api/v1/search?q=quokka${run}`);
+  assert.equal(await hits(other.origin), 0, 'content of another site is not visible');
+  await a11y('further site');
+  // back on the main site: delete it
+  await page.goto(`${BASE}/admin/sites`);
+  await idle();
+  await page.getByRole('button', { name: new RegExp(`^(Delete|Löschen): E2E ${run}$`) }).click();
+  await page.getByRole('dialog').getByRole('button', { name: /^(Delete|Löschen)$/ }).click();
+  await page.getByRole('cell', { name: host }).waitFor({ state: 'detached' });
 });
 
 test('no JavaScript errors occurred', () => {
