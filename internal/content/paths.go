@@ -14,11 +14,12 @@ import (
 	"github.com/mtsonline/enterprisewiki/internal/identity"
 )
 
-// Readable paths: every category and element has a slug (from its title in
-// the original or default language), unique among the children of its
-// parent category (subcategories and elements share the namespace). The
-// path of an element is /wiki/<category slugs>/<element slug>, of a
-// category /wiki/<category slugs>.
+// Readable paths: every category and element has a segment per language
+// (from its title in that language; the original language where a
+// translation is missing), unique among the children of its parent category
+// (subcategories and elements share the namespace, across all languages).
+// The path of an element is /wiki/<category segments>/<element segment>, of
+// a category /wiki/<category segments>. Paths in every language resolve.
 //
 // When a slug changes (new title) or something moves, the old segment is
 // kept as an alias (url_aliases, scope "path": parent + slug), so old links
@@ -28,21 +29,23 @@ import (
 // PathPrefix is the first segment of readable paths.
 const PathPrefix = "/wiki/"
 
-// baseSlug is the slug wanted for a title (fallback: type and id).
-func baseSlug(titles map[string]string, orig, def, fallback string) string {
-	s := Slugify(firstText(titles, orig, def))
-	if s == "" {
-		s = fallback
+// slugFor is the segment of a title (fallback: type and id).
+func slugFor(title, fallback string) string {
+	if s := Slugify(title); s != "" {
+		return s
 	}
-	return s
+	return fallback
 }
 
-// slugTaken reports whether slug is used by another child of parent.
+// slugTaken reports whether slug is used by another target among the
+// children of parent (in any language; deleted targets free their segments).
 func slugTaken(ctx context.Context, q db.Querier, parent int64, slug, selfType string, selfID int64) (bool, error) {
 	var n int
-	err := q.QueryRow(ctx, `SELECT count(*) FROM (
-		SELECT 1 FROM categories WHERE parent_id IS NOT DISTINCT FROM NULLIF($1, 0) AND slug=$2 AND deleted_at IS NULL AND NOT ($3 = 'category' AND id = $4)
-		UNION ALL SELECT 1 FROM elements WHERE $1 <> 0 AND category_id=$1 AND slug=$2 AND deleted_at IS NULL AND NOT ($3 = 'element' AND id = $4)) x`,
+	err := q.QueryRow(ctx, `SELECT count(*) FROM path_slugs p
+		LEFT JOIN elements e ON p.target_type='element' AND e.id=p.target_id
+		LEFT JOIN categories c ON p.target_type='category' AND c.id=p.target_id
+		WHERE p.parent_id=$1 AND p.slug=$2 AND NOT (p.target_type=$3 AND p.target_id=$4)
+		  AND COALESCE(e.deleted_at, c.deleted_at) IS NULL AND (e.id IS NOT NULL OR c.id IS NOT NULL)`,
 		parent, slug, selfType, selfID).Scan(&n)
 	return n > 0, err
 }
@@ -82,7 +85,6 @@ func sameBase(slug, base string) bool {
 
 type slugState struct {
 	parent  int64 // parent category (0 = top level)
-	slug    string
 	titles  map[string]string
 	orig    string
 	deleted bool
@@ -92,12 +94,12 @@ func (s *Service) slugState(ctx context.Context, q db.Querier, etype string, id 
 	st := &slugState{}
 	var err error
 	if etype == "element" {
-		err = q.QueryRow(ctx, `SELECT category_id, slug, titles, original_lang, deleted_at IS NOT NULL FROM elements WHERE id=$1`, id).
-			Scan(&st.parent, &st.slug, &st.titles, &st.orig, &st.deleted)
+		err = q.QueryRow(ctx, `SELECT category_id, titles, original_lang, deleted_at IS NOT NULL FROM elements WHERE id=$1`, id).
+			Scan(&st.parent, &st.titles, &st.orig, &st.deleted)
 	} else {
 		var parent *int64
-		err = q.QueryRow(ctx, `SELECT parent_id, slug, titles, original_lang, deleted_at IS NOT NULL FROM categories WHERE id=$1`, id).
-			Scan(&parent, &st.slug, &st.titles, &st.orig, &st.deleted)
+		err = q.QueryRow(ctx, `SELECT parent_id, titles, original_lang, deleted_at IS NOT NULL FROM categories WHERE id=$1`, id).
+			Scan(&parent, &st.titles, &st.orig, &st.deleted)
 		if parent != nil {
 			st.parent = *parent
 		}
@@ -105,12 +107,15 @@ func (s *Service) slugState(ctx context.Context, q db.Querier, etype string, id 
 	if err != nil {
 		return nil, err
 	}
+	if st.orig == "" || st.titles[st.orig] == "" {
+		st.orig = s.originalOf(st.titles, st.orig)
+	}
 	return st, nil
 }
 
-// syncSlug updates the slug of an element or category after a change. The
-// former segment (old parent and slug) becomes an alias. oldParent is the
-// parent before a move (-1 = unchanged).
+// syncSlug updates the path segments (one per language) of an element or
+// category after a change. Former segments (old parent and slug) become
+// aliases. oldParent is the parent before a move (-1 = unchanged).
 func (s *Service) syncSlug(ctx context.Context, etype string, id int64, oldParent int64) error {
 	return db.Tx(ctx, s.pool, func(tx pgx.Tx) error {
 		if _, err := tx.Exec(ctx, `SELECT pg_advisory_xact_lock(hashtext('ewiki.slugs'))`); err != nil {
@@ -120,42 +125,73 @@ func (s *Service) syncSlug(ctx context.Context, etype string, id int64, oldParen
 		if err != nil || st.deleted {
 			return err
 		}
-		base := baseSlug(st.titles, st.orig, s.DefaultLanguage(), fmt.Sprintf("%s-%d", etype[:1], id))
-		moved := oldParent >= 0 && oldParent != st.parent
-		if st.slug != "" && sameBase(st.slug, base) && !moved {
-			if taken, err := slugTaken(ctx, tx, st.parent, st.slug, etype, id); err != nil || !taken {
+		cur := map[string]string{}
+		curParent := map[string]int64{}
+		rows, err := tx.Query(ctx, `SELECT lang, slug, parent_id FROM path_slugs WHERE target_type=$1 AND target_id=$2`, etype, id)
+		if err != nil {
+			return err
+		}
+		for rows.Next() {
+			var l, sl string
+			var par int64
+			if err := rows.Scan(&l, &sl, &par); err != nil {
+				rows.Close()
+				return err
+			}
+			cur[l], curParent[l] = sl, par
+		}
+		rows.Close()
+		fallback := fmt.Sprintf("%s-%d", etype[:1], id)
+		want := map[string]string{} // lang -> base slug
+		for _, l := range s.Languages() {
+			if t := strings.TrimSpace(st.titles[l]); t != "" {
+				want[l] = slugFor(t, fallback)
+			}
+		}
+		if _, ok := want[st.orig]; !ok {
+			want[st.orig] = slugFor(firstText(st.titles, st.orig, s.DefaultLanguage()), fallback)
+		}
+		for l, base := range want {
+			old, had := cur[l]
+			moved := had && curParent[l] != st.parent
+			slug := old
+			if !had || !sameBase(old, base) || moved {
+				slug = base
+			}
+			// the same segment as another language of this target is fine
+			if slug, err = uniqueSlug(ctx, tx, st.parent, slug, etype, id); err != nil {
+				return err
+			}
+			if had && slug == old && !moved {
+				continue
+			}
+			if had && old != "" {
+				if err := addAlias(ctx, tx, "path", curParent[l], old, etype, id); err != nil {
+					return err
+				}
+			}
+			if _, err := tx.Exec(ctx, `DELETE FROM url_aliases WHERE scope='path' AND parent_id=$1 AND slug=$2`, st.parent, slug); err != nil {
+				return err
+			}
+			if _, err := tx.Exec(ctx, `INSERT INTO path_slugs(target_type, target_id, lang, parent_id, slug) VALUES ($1,$2,$3,$4,$5)
+				ON CONFLICT (target_type, target_id, lang) DO UPDATE SET parent_id=EXCLUDED.parent_id, slug=EXCLUDED.slug`, etype, id, l, st.parent, slug); err != nil {
 				return err
 			}
 		}
-		slug := st.slug
-		if slug == "" || !sameBase(slug, base) {
-			slug = base
-		}
-		if slug, err = uniqueSlug(ctx, tx, st.parent, slug, etype, id); err != nil {
-			return err
-		}
-		if slug == st.slug && !moved {
-			return nil
-		}
-		if st.slug != "" {
-			from := st.parent
-			if moved {
-				from = oldParent
+		// languages without a title any more: their segment becomes an alias
+		for l, old := range cur {
+			if _, ok := want[l]; ok {
+				continue
 			}
-			if err := addAlias(ctx, tx, "path", from, st.slug, etype, id); err != nil {
+			if err := addAlias(ctx, tx, "path", curParent[l], old, etype, id); err != nil {
+				return err
+			}
+			if _, err := tx.Exec(ctx, `DELETE FROM path_slugs WHERE target_type=$1 AND target_id=$2 AND lang=$3`, etype, id, l); err != nil {
 				return err
 			}
 		}
-		// the new address replaces an alias pointing elsewhere
-		if _, err := tx.Exec(ctx, `DELETE FROM url_aliases WHERE scope='path' AND parent_id=$1 AND slug=$2`, st.parent, slug); err != nil {
-			return err
-		}
-		table := "elements"
-		if etype == "category" {
-			table = "categories"
-		}
-		_, err = tx.Exec(ctx, `UPDATE `+table+` SET slug=$2 WHERE id=$1`, id, slug)
-		return err
+		_ = oldParent
+		return nil
 	})
 }
 
@@ -166,7 +202,7 @@ func addAlias(ctx context.Context, tx pgx.Tx, scope string, parent int64, slug, 
 	return err
 }
 
-// onChangeSlugs is a content hook keeping slugs current.
+// onChangeSlugs is a content hook keeping path segments current.
 func (s *Service) onChangeSlugs(ctx context.Context, event, etype string, id int64) {
 	if etype != "element" && etype != "category" {
 		return
@@ -177,94 +213,176 @@ func (s *Service) onChangeSlugs(ctx context.Context, event, etype string, id int
 	}
 }
 
-// Path returns the readable path of an element or category ("" if it has
-// no slug yet; assigned on the next change).
-func (s *Service) Path(ctx context.Context, etype string, id int64) string {
-	var cat int64
-	var last string
-	if etype == "element" {
-		if err := s.pool.QueryRow(ctx, `SELECT category_id, slug FROM elements WHERE id=$1`, id).Scan(&cat, &last); err != nil {
-			return ""
+// slugsOf returns the segments of a target per language (assigned when missing).
+func (s *Service) slugsOf(ctx context.Context, etype string, id int64) (map[string]string, error) {
+	load := func() (map[string]string, error) {
+		rows, err := s.pool.Query(ctx, `SELECT lang, slug FROM path_slugs WHERE target_type=$1 AND target_id=$2`, etype, id)
+		if err != nil {
+			return nil, err
 		}
-		if last == "" {
-			if s.syncSlug(ctx, etype, id, -1) != nil {
-				return ""
+		defer rows.Close()
+		m := map[string]string{}
+		for rows.Next() {
+			var l, sl string
+			if err := rows.Scan(&l, &sl); err != nil {
+				return nil, err
 			}
-			_ = s.pool.QueryRow(ctx, `SELECT slug FROM elements WHERE id=$1`, id).Scan(&last)
+			m[l] = sl
+		}
+		return m, rows.Err()
+	}
+	m, err := load()
+	if err != nil || len(m) > 0 {
+		return m, err
+	}
+	if err := s.syncSlug(ctx, etype, id, -1); err != nil {
+		return nil, err
+	}
+	return load()
+}
+
+// shortOnly returns the short URL of a target that may only be reached by it.
+func (s *Service) shortOnly(ctx context.Context, etype string, id int64) string {
+	table := "elements"
+	if etype == "category" {
+		table = "categories"
+	}
+	var short *string
+	var only bool
+	if s.pool.QueryRow(ctx, `SELECT short_url, short_only FROM `+table+` WHERE id=$1`, id).Scan(&short, &only) != nil || !only || short == nil || *short == "" {
+		return ""
+	}
+	return "/" + *short
+}
+
+// Path returns the readable path of an element or category in lang (the
+// original language where a translation is missing). "" if readable paths
+// are switched off; the short URL if the target only allows that.
+func (s *Service) Path(ctx context.Context, etype string, id int64, lang string) string {
+	return s.Paths(ctx, etype, id)[lang]
+}
+
+// Paths returns the readable path of a target for every configured language.
+func (s *Service) Paths(ctx context.Context, etype string, id int64) map[string]string {
+	out := map[string]string{}
+	if !s.cfg.Get().UI.ReadableURLs {
+		if short := s.shortOnly(ctx, etype, id); short != "" {
+			for _, l := range s.Languages() {
+				out[l] = short
+			}
+		}
+		return out
+	}
+	if short := s.shortOnly(ctx, etype, id); short != "" {
+		for _, l := range s.Languages() {
+			out[l] = short
+		}
+		return out
+	}
+	var cat int64
+	if etype == "element" {
+		if s.pool.QueryRow(ctx, `SELECT category_id FROM elements WHERE id=$1`, id).Scan(&cat) != nil {
+			return out
 		}
 	} else {
 		cat = id
 	}
-	rows, err := s.pool.Query(ctx, `SELECT c.id, c.slug FROM categories c, categories t
-		WHERE t.id=$1 AND c.path @> t.path ORDER BY nlevel(c.path)`, cat)
+	rows, err := s.pool.Query(ctx, `SELECT c.id, c.original_lang FROM categories c, categories t WHERE t.id=$1 AND c.path @> t.path ORDER BY nlevel(c.path)`, cat)
 	if err != nil {
-		return ""
+		return out
 	}
-	var segs []string
-	var missing []int64
+	type node struct {
+		id   int64
+		orig string
+	}
+	var chain []node
 	for rows.Next() {
-		var cid int64
-		var slug string
-		if rows.Scan(&cid, &slug) != nil {
+		var n node
+		if rows.Scan(&n.id, &n.orig) != nil {
 			rows.Close()
-			return ""
+			return out
 		}
-		if slug == "" {
-			missing = append(missing, cid)
-		}
-		segs = append(segs, slug)
+		chain = append(chain, n)
 	}
 	rows.Close()
-	if len(missing) > 0 {
-		for _, cid := range missing {
-			if s.syncSlug(ctx, "category", cid, -1) != nil {
-				return ""
-			}
+	segs := make([]map[string]string, 0, len(chain)+1)
+	origs := make([]string, 0, len(chain)+1)
+	for _, n := range chain {
+		m, err := s.slugsOf(ctx, "category", n.id)
+		if err != nil {
+			return out
 		}
-		return s.Path(ctx, etype, id)
+		segs, origs = append(segs, m), append(origs, n.orig)
 	}
 	if etype == "element" {
-		segs = append(segs, last)
+		m, err := s.slugsOf(ctx, "element", id)
+		if err != nil {
+			return out
+		}
+		var orig string
+		_ = s.pool.QueryRow(ctx, `SELECT original_lang FROM elements WHERE id=$1`, id).Scan(&orig)
+		segs, origs = append(segs, m), append(origs, orig)
 	}
-	if len(segs) == 0 {
-		return ""
+	for _, l := range s.Languages() {
+		parts := make([]string, 0, len(segs))
+		for i, m := range segs {
+			sl := m[l]
+			if sl == "" {
+				sl = m[origs[i]]
+			}
+			if sl == "" {
+				for _, v := range m { // any language
+					sl = v
+					break
+				}
+			}
+			if sl == "" {
+				parts = nil
+				break
+			}
+			parts = append(parts, sl)
+		}
+		if len(parts) > 0 {
+			out[l] = PathPrefix + strings.Join(parts, "/")
+		}
 	}
-	return PathPrefix + strings.Join(segs, "/")
+	return out
 }
 
-// resolvePath finds the target of /wiki/a/b/c (with former segments).
-func (s *Service) resolvePath(ctx context.Context, segs []string) (*Resolved, bool, error) {
+// resolvePath finds the target of /wiki/a/b/c (segments in any language,
+// former segments too). lang is the language of the last matched segment.
+func (s *Service) resolvePath(ctx context.Context, segs []string) (*Resolved, bool, string, error) {
 	parent := int64(0)
 	var res *Resolved
 	aliased := false
+	lang := ""
 	for i, seg := range segs {
 		if res != nil && res.Type == "element" {
-			return nil, false, apperr.NotFound("page")
+			return nil, false, "", apperr.NotFound("page")
 		}
 		last := i == len(segs)-1
+		var t, l string
 		var id int64
-		err := s.pool.QueryRow(ctx, `SELECT id FROM categories WHERE parent_id IS NOT DISTINCT FROM NULLIF($1, 0) AND slug=$2 AND deleted_at IS NULL ORDER BY id LIMIT 1`, parent, seg).Scan(&id)
+		err := s.pool.QueryRow(ctx, `SELECT p.target_type, p.target_id, p.lang FROM path_slugs p
+			LEFT JOIN elements e ON p.target_type='element' AND e.id=p.target_id
+			LEFT JOIN categories c ON p.target_type='category' AND c.id=p.target_id
+			WHERE p.parent_id=$1 AND p.slug=$2 AND ($3 OR p.target_type='category')
+			  AND COALESCE(e.deleted_at, c.deleted_at) IS NULL AND (e.id IS NOT NULL OR c.id IS NOT NULL)
+			  AND NOT COALESCE(e.short_only AND e.short_url IS NOT NULL, c.short_only AND c.short_url IS NOT NULL, false)
+			ORDER BY (p.target_type='category') DESC, p.target_id LIMIT 1`, parent, seg, last && parent != 0).Scan(&t, &id, &l)
 		if err == nil {
-			res, parent = &Resolved{Type: "category", ID: id}, id
+			res, lang = &Resolved{Type: t, ID: id}, l
+			if t == "category" {
+				parent = id
+			}
 			continue
 		}
 		if !errors.Is(err, pgx.ErrNoRows) {
-			return nil, false, err
+			return nil, false, "", err
 		}
-		if last && parent != 0 {
-			err = s.pool.QueryRow(ctx, `SELECT id FROM elements WHERE category_id=$1 AND slug=$2 AND deleted_at IS NULL ORDER BY id LIMIT 1`, parent, seg).Scan(&id)
-			if err == nil {
-				res = &Resolved{Type: "element", ID: id}
-				continue
-			}
-			if !errors.Is(err, pgx.ErrNoRows) {
-				return nil, false, err
-			}
-		}
-		var t string
 		err = s.pool.QueryRow(ctx, `SELECT target_type, target_id FROM url_aliases WHERE scope='path' AND parent_id=$1 AND slug=$2`, parent, seg).Scan(&t, &id)
 		if err != nil {
-			return nil, false, apperr.NotFound("page")
+			return nil, false, "", apperr.NotFound("page")
 		}
 		aliased = true
 		res = &Resolved{Type: t, ID: id}
@@ -273,9 +391,12 @@ func (s *Service) resolvePath(ctx context.Context, segs []string) (*Resolved, bo
 		}
 	}
 	if res == nil {
-		return nil, false, apperr.NotFound("page")
+		return nil, false, "", apperr.NotFound("page")
 	}
-	return res, aliased, nil
+	if aliased && s.shortOnly(ctx, res.Type, res.ID) != "" {
+		return nil, false, "", apperr.NotFound("page")
+	}
+	return res, aliased, lang, nil
 }
 
 // checkVisible returns the target if the caller may view it.
@@ -367,8 +488,10 @@ func (s *Service) NotFound(ctx context.Context, path, etype string, id int64, la
 		var tid int64
 		last := segs[len(segs)-1]
 		err := s.pool.QueryRow(ctx, `SELECT t, id FROM (
-			SELECT 'element' AS t, id, deleted_at AS at FROM elements WHERE slug=$1 AND deleted_at IS NOT NULL
-			UNION ALL SELECT 'category', id, deleted_at FROM categories WHERE slug=$1 AND deleted_at IS NOT NULL
+			SELECT p.target_type AS t, p.target_id AS id, COALESCE(e.deleted_at, c.deleted_at) AS at FROM path_slugs p
+				LEFT JOIN elements e ON p.target_type='element' AND e.id=p.target_id
+				LEFT JOIN categories c ON p.target_type='category' AND c.id=p.target_id
+				WHERE p.slug=$1 AND COALESCE(e.deleted_at, c.deleted_at) IS NOT NULL
 			UNION ALL SELECT a.target_type, a.target_id, a.created_at FROM url_aliases a WHERE a.scope='path' AND a.slug=$1) x
 			ORDER BY at DESC LIMIT 1`, last).Scan(&t, &tid)
 		if err == nil {
@@ -393,7 +516,7 @@ func (s *Service) NotFound(ctx context.Context, path, etype string, id int64, la
 		key := fmt.Sprintf("c%d", c.ID)
 		if !seen[key] && !(etype == "category" && c.ID == id) {
 			seen[key] = true
-			out.Suggestions = append(out.Suggestions, Suggestion{Type: "category", ID: c.ID, Title: firstText(c.Titles, lang, s.DefaultLanguage()), Path: s.Path(ctx, "category", c.ID)})
+			out.Suggestions = append(out.Suggestions, Suggestion{Type: "category", ID: c.ID, Title: firstText(c.Titles, lang, s.DefaultLanguage()), Path: s.Path(ctx, "category", c.ID, lang)})
 		}
 	}
 	for _, h := range res.Elements {
@@ -403,7 +526,7 @@ func (s *Service) NotFound(ctx context.Context, path, etype string, id int64, la
 		key := fmt.Sprintf("e%d", h.ElementID)
 		if !seen[key] && !(etype == "element" && h.ElementID == id) {
 			seen[key] = true
-			out.Suggestions = append(out.Suggestions, Suggestion{Type: "element", ID: h.ElementID, Title: h.Title, Path: s.Path(ctx, "element", h.ElementID)})
+			out.Suggestions = append(out.Suggestions, Suggestion{Type: "element", ID: h.ElementID, Title: h.Title, Path: s.Path(ctx, "element", h.ElementID, lang)})
 		}
 	}
 	return out, nil

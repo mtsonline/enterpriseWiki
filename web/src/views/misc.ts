@@ -428,8 +428,8 @@ export async function notFoundView(ctx: RouteCtx): Promise<void> {
   const path = ctx.path.replace(/^\/+|\/+$/g, '');
   if (path && !path.startsWith('api/')) {
     try {
-      const r = await api.get<{ type: 'element' | 'category'; id: number; path: string; redirect: boolean }>(`resolve${qs({ path })}`);
-      // a former address: show the current one
+      const r = await api.get<{ type: 'element' | 'category'; id: number; path: string; redirect: boolean; paths?: Record<string, string> }>(`resolve${qs({ path })}`);
+      // a former address: show the current one (the views show the path in the language of the user)
       if (r.redirect && r.path) history.replaceState(history.state, '', r.path + location.search + location.hash);
       const params = { ...ctx.params, id: String(r.id) };
       if (r.type === 'element') await elementView({ ...ctx, params });

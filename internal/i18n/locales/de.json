@@ -1284,5 +1284,9 @@
  "notfound.to_trash": "Papierkorb öffnen",
  "notfound.suggestions": "Meinten Sie?",
  "notfound.search_hint": "Versuchen Sie die Suche:",
- "notfound.search": "Nach ähnlichen Seiten suchen"
+ "notfound.search": "Nach ähnlichen Seiten suchen",
+ "settings.readable_urls": "Sprechende Adressen",
+ "settings.readable_urls_help": "Seiten und Kategorien erhalten Adressen wie /wiki/team/ueber-mich, je Sprache eine (frühere Adressen funktionieren weiter). Aus: nur /e/12 und Kurz-URLs.",
+ "shorturl.only": "Nur diese Kurz-URL",
+ "shorturl.only_help": "Die sprechenden Adressen /wiki/… dieser Seite funktionieren nicht; angezeigt und geteilt wird die Kurz-URL."
 }

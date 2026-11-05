@@ -1,5 +1,11 @@
 // Input for short URLs (/kalender) with the site address as visible prefix.
-import { textInput } from './ui';
+import { t } from '../core/i18n';
+import { checkbox, textInput } from './ui';
+
+/** The option "only this short URL" (readable paths /wiki/… switched off for the target). */
+export function shortOnlyBox(checked: boolean): { el: HTMLElement; input: HTMLInputElement } {
+  return checkbox(t('shorturl.only'), checked, { help: t('shorturl.only_help') });
+}
 
 /** Returns the input for a short URL (normalized when leaving the field). */
 export function shortURLInput(value: string): HTMLInputElement {

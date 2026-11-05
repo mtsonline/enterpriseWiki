@@ -127,10 +127,14 @@ func (s *Service) SetShortURL(ctx context.Context, etype string, id int64, raw s
 type Resolved struct {
 	Type string `json:"type"` // element | category
 	ID   int64  `json:"id"`
-	// Path is the current readable path; Redirect is set when the address
-	// was a former one (old path or short URL): show Path instead.
-	Path     string `json:"path"`
-	Redirect bool   `json:"redirect"`
+	// Path is the current address (readable path in the language of the
+	// address, or the short URL); Redirect is set when the address was a
+	// former one (old path or short URL): show Path instead. Paths holds the
+	// readable path per language.
+	Path     string            `json:"path"`
+	Redirect bool              `json:"redirect"`
+	Lang     string            `json:"lang,omitempty"` // language of the readable path
+	Paths    map[string]string `json:"paths"`
 }
 
 // Resolve finds the element or category of an address the caller may view:
@@ -138,6 +142,9 @@ type Resolved struct {
 func (s *Service) Resolve(ctx context.Context, raw string) (*Resolved, error) {
 	raw = strings.Trim(strings.TrimSpace(raw), "/")
 	if rest, ok := strings.CutPrefix(raw, strings.Trim(PathPrefix, "/")+"/"); ok {
+		if !s.cfg.Get().UI.ReadableURLs {
+			return nil, apperr.NotFound("page")
+		}
 		var segs []string
 		for _, seg := range strings.Split(rest, "/") {
 			if seg, err := url.PathUnescape(seg); err == nil && seg != "" {
@@ -147,15 +154,24 @@ func (s *Service) Resolve(ctx context.Context, raw string) (*Resolved, error) {
 		if len(segs) == 0 || len(segs) > 30 {
 			return nil, apperr.NotFound("page")
 		}
-		r, aliased, err := s.resolvePath(ctx, segs)
+		r, aliased, lang, err := s.resolvePath(ctx, segs)
 		if err != nil {
 			return nil, err
 		}
 		if err := s.checkVisible(ctx, r); err != nil {
 			return nil, err
 		}
-		r.Path = s.Path(ctx, r.Type, r.ID)
-		r.Redirect = aliased || (r.Path != "" && r.Path != "/"+strings.ToLower(raw))
+		r.Paths = s.Paths(ctx, r.Type, r.ID)
+		if lang == "" || r.Paths[lang] == "" {
+			lang = s.DefaultLanguage()
+		}
+		r.Lang, r.Path = lang, r.Paths[lang]
+		// former segments or segments of several languages mixed: to the path of one language
+		valid := false
+		for _, p := range r.Paths {
+			valid = valid || p == "/"+strings.ToLower(raw)
+		}
+		r.Redirect = aliased || (r.Path != "" && !valid)
 		return r, nil
 	}
 	short, err := NormalizeShortURL(raw)
@@ -188,8 +204,9 @@ func (s *Service) Resolve(ctx context.Context, raw string) (*Resolved, error) {
 			r.Path = "/" + *cur
 		}
 	}
+	r.Paths = s.Paths(ctx, r.Type, r.ID)
 	if r.Path == "" {
-		r.Path = s.Path(ctx, r.Type, r.ID)
+		r.Path = r.Paths[s.DefaultLanguage()]
 	}
 	return r, nil
 }

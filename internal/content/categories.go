@@ -33,6 +33,7 @@ type Category struct {
 	// Feed: off | on (elements of this category) | recursive (with subcategories)
 	Feed         string     `json:"feed"`
 	ShortURL     string     `json:"short_url"`
+	ShortOnly    bool       `json:"short_only"`
 	CreatedAt    time.Time  `json:"created_at"`
 	UpdatedAt    time.Time  `json:"updated_at"`
 	DeletedAt    *time.Time `json:"deleted_at,omitempty"`
@@ -40,26 +41,27 @@ type Category struct {
 	ElementCount int        `json:"element_count"`
 	Permissions  []string   `json:"permissions"`
 	// translations of title and description (see cattrans.go)
-	OriginalLang         string           `json:"original_lang"`
-	TextRev              int              `json:"text_rev"`
-	TranslationRevs      map[string]int   `json:"-"`
-	Translations         []CatTranslation `json:"translations"`
-	TranslatedPercent    int              `json:"translated_percent"`
-	TranslationsUpToDate bool             `json:"translations_up_to_date"`
-	URL                  string           `json:"url,omitempty"` // readable path (/wiki/…), single categories only
+	OriginalLang         string            `json:"original_lang"`
+	TextRev              int               `json:"text_rev"`
+	TranslationRevs      map[string]int    `json:"-"`
+	Translations         []CatTranslation  `json:"translations"`
+	TranslatedPercent    int               `json:"translated_percent"`
+	TranslationsUpToDate bool              `json:"translations_up_to_date"`
+	URL                  string            `json:"url,omitempty"`  // readable path (/wiki/…) in the default language, single categories only
+	URLs                 map[string]string `json:"urls,omitempty"` // readable path per language
 }
 
 const catCols = `c.id, c.parent_id, c.path::text, c.position, c.slug, c.titles, c.descriptions, c.tags, c.default_element_id, c.feed, COALESCE(c.short_url, ''),
 	c.created_at, c.updated_at, c.deleted_at,
 	EXISTS (SELECT 1 FROM categories x WHERE x.parent_id=c.id AND x.deleted_at IS NULL),
 	(SELECT count(*) FROM elements e WHERE e.category_id=c.id AND e.deleted_at IS NULL),
-	c.original_lang, c.text_rev, c.translation_revs`
+	c.original_lang, c.text_rev, c.translation_revs, c.short_only`
 
 func scanCategory(r pgx.CollectableRow) (Category, error) {
 	var c Category
 	var path string
 	err := r.Scan(&c.ID, &c.ParentID, &path, &c.Position, &c.Slug, &c.Titles, &c.Descriptions, &c.Tags, &c.DefaultElementID, &c.Feed, &c.ShortURL,
-		&c.CreatedAt, &c.UpdatedAt, &c.DeletedAt, &c.HasChildren, &c.ElementCount, &c.OriginalLang, &c.TextRev, &c.TranslationRevs)
+		&c.CreatedAt, &c.UpdatedAt, &c.DeletedAt, &c.HasChildren, &c.ElementCount, &c.OriginalLang, &c.TextRev, &c.TranslationRevs, &c.ShortOnly)
 	c.Path = parsePath(path)
 	return c, err
 }
@@ -162,7 +164,8 @@ func (s *Service) GetCategory(ctx context.Context, id int64) (*Category, error) 
 	if err != nil {
 		return nil, err
 	}
-	cs[0].URL = s.Path(ctx, "category", id)
+	cs[0].URLs = s.Paths(ctx, "category", id)
+	cs[0].URL = cs[0].URLs[s.DefaultLanguage()]
 	return &cs[0], s.visibleChildren(ctx, cs)
 }
 
@@ -287,7 +290,9 @@ type CategoryInput struct {
 	// Feed switches the Atom/RSS feed of the category: off, on, recursive.
 	// ShortURL is an additional address such as /kalender ("" removes it).
 	ShortURL *string `json:"short_url"`
-	Feed     *string `json:"feed"`
+	// ShortOnly: only the short URL reaches the category (no readable path)
+	ShortOnly *bool   `json:"short_only"`
+	Feed      *string `json:"feed"`
 	// GuestVisible applies to new top-level categories: true makes them
 	// visible to guests (default: only the creator has permissions).
 	GuestVisible *bool `json:"guest_visible"`
@@ -490,6 +495,11 @@ func (s *Service) UpdateCategory(ctx context.Context, id int64, in CategoryInput
 				return err
 			}
 			if err := s.setShortURL(ctx, tx, "category", id, short); err != nil {
+				return err
+			}
+		}
+		if in.ShortOnly != nil {
+			if _, err := tx.Exec(ctx, `UPDATE categories SET short_only=$2 WHERE id=$1`, id, *in.ShortOnly); err != nil {
 				return err
 			}
 		}

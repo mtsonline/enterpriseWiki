@@ -137,7 +137,7 @@ Business Source License 1.1 mit kostenloser privater Nutzung durch natürliche P
 ## Meilenstein 11 – Komponenten
 
 - **Reaktionen** (`core.reactions`): Emojis auf Seiten, Kategorien und Kommentaren, freie Auswahl mit Sperrliste, wer reagiert hat, Benachrichtigung des Autors (E-Mail standardmäßig aus), Verwaltung der Reaktionen anderer.
-- **Lesbare Adressen** `/wiki/<Kategorien>/<Seite>` mit Verlauf: umbenannte und verschobene Seiten und geänderte Kurz-URLs leiten dauerhaft (301) weiter; die Adresszeile zeigt die lesbare Adresse.
+- **Lesbare Adressen** `/wiki/<Kategorien>/<Seite>` **je Sprache** mit Verlauf: umbenannte und verschobene Seiten und geänderte Kurz-URLs leiten dauerhaft (301) weiter; die Adresszeile zeigt die Adresse in der Sprache des Benutzers. Abschaltbar (`ui.readable_urls`), je Seite „Nur diese Kurz-URL“.
 - **„Seite nicht gefunden“** zeigt gelöschte Seiten (mit Papierkorb-Link) und „Meinten Sie?“-Vorschläge.
 - **Favoriten** (`core.favorites`): Stern, Liste an einer Position der Vorlage und im Profil.
 - **Seiteneigenschaften** (`core.properties`) mit Makro „Seiteneigenschaften-Bericht“.

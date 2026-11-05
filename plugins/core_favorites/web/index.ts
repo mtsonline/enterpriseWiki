@@ -6,7 +6,7 @@ import './style.css';
 
 const BASE = 'x/core.favorites';
 
-interface Favorite { type: 'element' | 'category'; id: number; titles: Record<string, string>; url: string }
+interface Favorite { type: 'element' | 'category'; id: number; titles: Record<string, string>; url: string; urls?: Record<string, string> }
 interface List { items: Favorite[]; position: string }
 
 let data: List | null = null;
@@ -26,6 +26,7 @@ function set(l: List): void {
 }
 
 const title = (f: Favorite) => pick(f.titles, state.lang, state.site.default_language);
+const href = (f: Favorite) => f.urls?.[state.lang] || f.url;
 const isFav = (type: string, id: number) => !!data?.items.some((f) => f.type === type && f.id === id);
 
 async function toggle(type: 'element' | 'category', id: number, name: string): Promise<void> {
@@ -66,7 +67,7 @@ async function widget(position: string): Promise<HTMLElement | null> {
     nav.hidden = false;
     nav.replaceChildren(h('h2', { id: `ewfav-${position}`, class: 'ewfav-title' }, t('core.favorites.title')),
       data.items.length
-        ? h('ul', { class: 'ewfav-list' }, ...data.items.map((f) => h('li', null, h('a', { href: f.url, 'aria-current': location.pathname === f.url ? 'page' : undefined }, title(f)))))
+        ? h('ul', { class: 'ewfav-list' }, ...data.items.map((f) => h('li', null, h('a', { href: href(f), 'aria-current': location.pathname === href(f) ? 'page' : undefined }, title(f)))))
         : h('p', { class: 'ew-muted' }, t('core.favorites.empty')));
   };
   listeners.add(draw);
@@ -90,7 +91,7 @@ async function profile(): Promise<HTMLElement | null> {
     const items = data?.items ?? [];
     sec.replaceChildren(h('h2', { id: 'fav-h' }, t('core.favorites.title')), h('p', null, t('core.favorites.help')),
       items.length ? h('ol', { class: 'ewfav-manage' }, ...items.map((f, i) => h('li', { class: 'ewfav-row' },
-        h('a', { href: f.url }, title(f)), ' ', h('span', { class: 'ew-badge' }, t(`core.favorites.type.${f.type}`)),
+        h('a', { href: href(f) }, title(f)), ' ', h('span', { class: 'ew-badge' }, t(`core.favorites.type.${f.type}`)),
         h('span', { class: 'ew-actions' },
           i > 0 ? button(t('category.move_up'), () => void move(i, -1), { variant: 'link', ariaLabel: `${t('category.move_up')}: ${title(f)}` }) : null,
           i < items.length - 1 ? button(t('category.move_down'), () => void move(i, 1), { variant: 'link', ariaLabel: `${t('category.move_down')}: ${title(f)}` }) : null,

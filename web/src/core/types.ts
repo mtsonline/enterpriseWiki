@@ -61,6 +61,9 @@ export interface Category {
   translations_up_to_date: boolean;
   /** readable path (/wiki/…), single categories only */
   url?: string;
+  /** readable path per language */
+  urls?: Record<string, string>;
+  short_only?: boolean;
 }
 
 export interface ElementSummary {
@@ -76,6 +79,7 @@ export interface ElementSummary {
   updated_by: string;
   is_default: boolean;
   short_url: string;
+  short_only?: boolean;
   preview_image: string;
 }
 
@@ -88,8 +92,10 @@ export interface LangStatus {
 }
 
 export interface ElementView extends ElementSummary {
-  /** readable path (/wiki/…) */
+  /** readable path (/wiki/…) in the requested language */
   url?: string;
+  /** readable path per language */
+  urls?: Record<string, string>;
   lang: string;
   shown_lang: string;
   fallback: boolean;

@@ -32,6 +32,7 @@ type Element struct {
 	DeletedAt    *time.Time        `json:"deleted_at,omitempty"`
 	IsDefault    bool              `json:"is_default"`
 	ShortURL     string            `json:"short_url"`
+	ShortOnly    bool              `json:"short_only"` // only the short URL (no readable paths)
 	// PreviewImage is shown in link previews (Open Graph); "" = first image of the page.
 	PreviewImage string `json:"preview_image"`
 	CreatedByID  *int64 `json:"created_by_id"`
@@ -49,29 +50,30 @@ type LangStatus struct {
 // ElementView is an element rendered in one language.
 type ElementView struct {
 	Element
-	Lang         string          `json:"lang"`       // language requested
-	ShownLang    string          `json:"shown_lang"` // language actually shown
-	Fallback     bool            `json:"fallback"`
-	Rev          int             `json:"rev"`
-	Title        string          `json:"title"`
-	URL          string          `json:"url"`            // readable path (/wiki/…)
-	Body         json.RawMessage `json:"body,omitempty"` // only for editors
-	HTML         string          `json:"html"`
-	Translations []LangStatus    `json:"translations"`
-	Translated   int             `json:"translated_percent"`
-	UpToDate     bool            `json:"up_to_date"`
-	Permissions  []string        `json:"permissions"`
-	TypeActive   bool            `json:"type_active"`
+	Lang         string            `json:"lang"`       // language requested
+	ShownLang    string            `json:"shown_lang"` // language actually shown
+	Fallback     bool              `json:"fallback"`
+	Rev          int               `json:"rev"`
+	Title        string            `json:"title"`
+	URL          string            `json:"url"`            // readable path (/wiki/…) in the requested language
+	URLs         map[string]string `json:"urls"`           // readable path per language
+	Body         json.RawMessage   `json:"body,omitempty"` // only for editors
+	HTML         string            `json:"html"`
+	Translations []LangStatus      `json:"translations"`
+	Translated   int               `json:"translated_percent"`
+	UpToDate     bool              `json:"up_to_date"`
+	Permissions  []string          `json:"permissions"`
+	TypeActive   bool              `json:"type_active"`
 }
 
 const elemCols = `e.id, e.category_id, e.type, e.position, e.original_lang, e.titles, e.tags, e.created_at, e.updated_at,
 	COALESCE((SELECT u.display_name || ' (' || u.username || '@' || u.provider || ')' FROM users u WHERE u.id = e.updated_by), ''),
-	e.deleted_at, EXISTS (SELECT 1 FROM categories c WHERE c.id = e.category_id AND c.default_element_id = e.id), COALESCE(e.short_url, ''), e.preview_image, e.created_by`
+	e.deleted_at, EXISTS (SELECT 1 FROM categories c WHERE c.id = e.category_id AND c.default_element_id = e.id), COALESCE(e.short_url, ''), e.preview_image, e.created_by, e.short_only`
 
 func scanElement(r pgx.CollectableRow) (Element, error) {
 	var e Element
 	err := r.Scan(&e.ID, &e.CategoryID, &e.Type, &e.Position, &e.OriginalLang, &e.Titles, &e.Tags, &e.CreatedAt, &e.UpdatedAt,
-		&e.UpdatedBy, &e.DeletedAt, &e.IsDefault, &e.ShortURL, &e.PreviewImage, &e.CreatedByID)
+		&e.UpdatedBy, &e.DeletedAt, &e.IsDefault, &e.ShortURL, &e.PreviewImage, &e.CreatedByID, &e.ShortOnly)
 	return e, err
 }
 
@@ -205,7 +207,11 @@ func (s *Service) GetElement(ctx context.Context, id int64, lang string, withBod
 	if withBody && perms&acl.Edit != 0 {
 		v.Body = body
 	}
-	v.URL = s.Path(ctx, "element", e.ID)
+	v.URLs = s.Paths(ctx, "element", e.ID)
+	v.URL = v.URLs[v.Lang]
+	if v.URL == "" {
+		v.URL = v.URLs[s.DefaultLanguage()]
+	}
 	return v, nil
 }
 
@@ -438,6 +444,8 @@ type MetaInput struct {
 	Tags     []string `json:"tags"`
 	Position *int     `json:"position"`
 	ShortURL *string  `json:"short_url"` // "" removes it
+	// ShortOnly: only the short URL reaches the element (no readable paths)
+	ShortOnly *bool `json:"short_only"`
 	// PreviewImage: image for link previews (path like /api/v1/files/… or https URL; "" = automatic)
 	PreviewImage *string `json:"preview_image"`
 }
@@ -479,6 +487,11 @@ func (s *Service) UpdateElementMeta(ctx context.Context, id int64, in MetaInput)
 		}
 		if short != nil {
 			if err := s.setShortURL(ctx, tx, "element", id, *short); err != nil {
+				return err
+			}
+		}
+		if in.ShortOnly != nil {
+			if _, err := tx.Exec(ctx, `UPDATE elements SET short_only=$2 WHERE id=$1`, id, *in.ShortOnly); err != nil {
 				return err
 			}
 		}

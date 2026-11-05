@@ -50,7 +50,8 @@ type Favorite struct {
 	Type   string            `json:"type"` // element | category
 	ID     int64             `json:"id"`
 	Titles map[string]string `json:"titles"`
-	URL    string            `json:"url"`
+	URL    string            `json:"url"`  // readable path in the default language (or /e/12)
+	URLs   map[string]string `json:"urls"` // readable path per language
 }
 
 type item struct {
@@ -124,7 +125,8 @@ func (p *Plugin) items(ctx context.Context, uid int64) ([]Favorite, error) {
 		if f.Titles == nil || p.visible(ctx, f.Type, f.ID) != nil {
 			continue // deleted or no longer visible (kept, it may come back)
 		}
-		f.URL = p.host.Content.Path(ctx, f.Type, f.ID)
+		f.URLs = p.host.Content.Paths(ctx, f.Type, f.ID)
+		f.URL = f.URLs[p.host.Config.Get().I18n.DefaultLanguage]
 		if f.URL == "" {
 			f.URL = fmt.Sprintf("/%s/%d", f.Type[:1], f.ID)
 		}

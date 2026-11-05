@@ -53,6 +53,7 @@ Sprachen werden in der Oberfläche unter *Administration → Sprachen* hinzugef�
 | `home_element` | Element-ID der Startseite (z. B. eine Seite oder eine Kategorieübersicht), hat Vorrang vor `home_category`. Neue Installationen: die Willkommensseite. | `0` |
 | `home_category` | Kategorie-ID der Startseite (`0` = Liste der Bereiche bzw. der einzige Bereich) | `0` |
 | `prerender` | Seiten für Gäste (Suchmaschinen, Link-Vorschauen, Besucher ohne JavaScript) mit Titel, Beschreibung, kanonischer Adresse, Open-Graph-Angaben und dem Inhalt als HTML ausliefern. Immer aus Sicht eines Gastes; mit eingeschaltetem `cache` ohne Datenbankzugriff. Prüfen: *Administration → Einstellungen → Gast-Ansicht anzeigen* oder `ewiki api GET "/api/v1/prerender?path=/kalender"`. | `true` |
+| `readable_urls` | sprechende Adressen `/wiki/<Kategorien>/<Seite>`, je Sprache eine; frühere Adressen leiten weiter (301). `false`: nur `/e/12`, `/c/7` und Kurz-URLs | `true` |
 | `preview_image` | Vorschaubild für Link-Vorschauen (`og:image`) von Seiten ohne eigenes Bild: Pfad wie `/api/v1/files/<hash>` oder http(s)-Adresse, auch unter *Administration → Einstellungen* hochladbar. Seiten verwenden zuerst ihr eigenes Vorschaubild (*Eigenschaften*), dann ihr erstes Bild. | leer |
 
 ### `auth`

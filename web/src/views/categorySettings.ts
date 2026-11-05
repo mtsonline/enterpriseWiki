@@ -1,5 +1,5 @@
 // Category settings: texts, default page, permissions, history and rollback.
-import { shortURLInput } from '../components/shorturl';
+import { shortOnlyBox, shortURLInput } from '../components/shorturl';
 import { api } from '../core/api';
 import { fmtDate, h, mount, uid } from '../core/dom';
 import { pick, t } from '../core/i18n';
@@ -50,12 +50,13 @@ function general(panel: HTMLElement, c: Category, elements: ElementSummary[]): v
   const descs = langFields(t('common.description'), c.descriptions, { multiline: true });
   const tags = textInput({ value: c.tags.join(', ') });
   const short = shortURLInput(c.short_url);
+  const only = shortOnlyBox(!!c.short_only);
   const def = select([{ value: '0', label: t('category.no_default') }, ...elements.map((e) => ({ value: String(e.id), label: pick(e.titles, state.lang, e.original_lang) }))], String(c.default_element_id ?? 0));
   const feed = select(['off', 'on', 'recursive'].map((v) => ({ value: v, label: t(`feed.setting_${v}`) })), c.feed ?? 'off');
   const alert = h('div', { class: 'ew-form-alert', role: 'alert' });
   const form = h('form', { class: 'ew-form', novalidate: true }, alert, titles.el, descs.el,
     field(t('common.tags'), tags, { help: t('common.tags_help') }),
-    field(t('shorturl.label'), short, { help: t('shorturl.help', { origin: location.origin }) }),
+    field(t('shorturl.label'), short, { help: t('shorturl.help', { origin: location.origin }) }), only.el,
     field(t('category.default_page'), def, { help: t('category.default_page_help') }),
     field(t('feed.setting'), feed, { help: t('feed.setting_help') }),
     h('div', { class: 'ew-form-actions' }, button(t('common.save'), () => undefined, { type: 'submit', variant: 'primary' })));
@@ -63,7 +64,7 @@ function general(panel: HTMLElement, c: Category, elements: ElementSummary[]): v
     ev.preventDefault();
     alert.textContent = '';
     try {
-      await api.put(`categories/${c.id}`, { titles: titles.get(), descriptions: descs.get(), tags: splitTags(tags.value), short_url: short.value, default_element_id: Number(def.value), feed: feed.value });
+      await api.put(`categories/${c.id}`, { titles: titles.get(), descriptions: descs.get(), tags: splitTags(tags.value), short_url: short.value, short_only: only.input.checked, default_element_id: Number(def.value), feed: feed.value });
       invalidateTree();
       toast(t('common.saved'));
     } catch (e) {

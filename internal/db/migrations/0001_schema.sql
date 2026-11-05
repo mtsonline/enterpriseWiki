@@ -140,6 +140,7 @@ CREATE TABLE categories (
     trash_root         boolean NOT NULL DEFAULT false, -- the object the user deleted
     feed               text NOT NULL DEFAULT 'off' CHECK (feed IN ('off', 'on', 'recursive')), -- Atom/RSS feed
     short_url          text,                          -- e.g. /kalender; unique with elements.short_url (checked by the application)
+    short_only         boolean NOT NULL DEFAULT false, -- only the short URL (no readable path /wiki/… for this category)
     -- translations of title and description (like elements): the original
     -- language, its revision (incremented when its texts change) and the
     -- revision of the original each translation is based on
@@ -149,7 +150,6 @@ CREATE TABLE categories (
 );
 CREATE INDEX categories_path ON categories USING gist(path);
 CREATE INDEX categories_parent ON categories(parent_id, position);
-CREATE INDEX categories_slug ON categories(parent_id, slug);
 CREATE INDEX categories_tags ON categories USING gin(tags);
 CREATE UNIQUE INDEX categories_short_url ON categories(short_url) WHERE short_url IS NOT NULL;
 
@@ -170,12 +170,26 @@ CREATE TABLE elements (
     trash_root    boolean NOT NULL DEFAULT false,
     short_url     text,
     preview_image text NOT NULL DEFAULT '',          -- og:image for link previews (file hash or URL; empty = automatic)
-    slug          text NOT NULL DEFAULT ''           -- last segment of the readable path /wiki/…/<slug> (unique among the children of the category)
+    short_only    boolean NOT NULL DEFAULT false     -- only the short URL (no readable paths /wiki/…)
 );
 CREATE INDEX elements_category ON elements(category_id, position);
 CREATE INDEX elements_tags ON elements USING gin(tags);
 CREATE UNIQUE INDEX elements_short_url ON elements(short_url) WHERE short_url IS NOT NULL;
-CREATE INDEX elements_slug ON elements(category_id, slug);
+
+-- Segments of readable paths /wiki/<categories>/<page>, one per language
+-- (from the title in that language; the original language is always
+-- there). A segment belongs to one target among the children of a parent
+-- category (0 = top level); a target may use the same segment in several
+-- languages.
+CREATE TABLE path_slugs (
+    target_type text NOT NULL CHECK (target_type IN ('element', 'category')),
+    target_id   bigint NOT NULL,
+    lang        text NOT NULL,
+    parent_id   bigint NOT NULL DEFAULT 0,
+    slug        text NOT NULL,
+    PRIMARY KEY (target_type, target_id, lang)
+);
+CREATE INDEX path_slugs_lookup ON path_slugs(parent_id, slug);
 
 -- Former addresses: readable path segments (scope "path": slug below a
 -- parent category, 0 = top level) and short URLs (scope "short"). Old links

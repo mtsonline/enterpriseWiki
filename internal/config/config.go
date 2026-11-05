@@ -149,6 +149,9 @@ type UI struct {
 	// PreviewImage is the image for link previews of pages without an own
 	// image (path like /api/v1/files/… or http(s) URL; "" = none).
 	PreviewImage string `yaml:"preview_image" json:"preview_image"`
+	// ReadableURLs shows readable paths (/wiki/<categories>/<page>, one per
+	// language) instead of /e/12 and /c/7. Default true.
+	ReadableURLs bool `yaml:"readable_urls" json:"readable_urls"`
 }
 
 // Auth configures authentication.
@@ -321,7 +324,7 @@ func Defaults() *Config {
 		Database: Database{URL: "${EWIKI_DATABASE_URL}", MaxConns: 50},
 		Storage:  Storage{Path: "./data", MaxUploadMB: 100},
 		I18n:     I18n{DefaultLanguage: "en", Languages: []string{"en", "de"}},
-		UI:       UI{SiteName: "Enterprise Wiki", Template: "theme.wiki", Prerender: true},
+		UI:       UI{SiteName: "Enterprise Wiki", Template: "theme.wiki", Prerender: true, ReadableURLs: true},
 		Auth: Auth{
 			Order: []string{"local"}, SessionTTL: "168h", APIKeyMaxTTL: "8760h", SSHTokenTTL: "1h",
 			MaxLoginFails: 10, LockoutDuration: "15m", MinPasswordLen: 12,

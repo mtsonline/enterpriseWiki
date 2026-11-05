@@ -1234,5 +1234,9 @@
  "notfound.to_trash": "Open the trash",
  "notfound.suggestions": "Were you looking for?",
  "notfound.search_hint": "Try the search:",
- "notfound.search": "Search for similar pages"
+ "notfound.search": "Search for similar pages",
+ "settings.readable_urls": "Readable addresses",
+ "settings.readable_urls_help": "Pages and categories get addresses like /wiki/team/about-me, one per language (former addresses keep working). Off: /e/12 and short URLs only.",
+ "shorturl.only": "Only this short URL",
+ "shorturl.only_help": "The readable addresses /wiki/… of this page do not work; the short URL is shown and shared."
 }

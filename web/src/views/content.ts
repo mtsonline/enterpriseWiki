@@ -9,7 +9,7 @@ import { toast } from '../core/announce';
 import { button, confirmDialog, errorText, field, formDialog, langFields, loading, openDialog, pageHeader, textArea, textInput, select } from '../components/ui';
 import { breadcrumbs, can, categoryPicker, ctx, invalidateTree, langName, setContext } from '../components/widgets';
 import { watchButton } from '../components/watch';
-import { shortURLInput } from '../components/shorturl';
+import { shortOnlyBox, shortURLInput } from '../components/shorturl';
 import { imagesOf, previewImageInput } from '../components/previewimage';
 import { feedButton } from '../components/feeds';
 import { getEditor, pageActionButtons, renderCategoryExtensions, renderElementExtensions, typeLabel, type EditorInstance } from '../sdk';
@@ -23,8 +23,11 @@ const D = () => state.site.default_language;
  * Shows the readable path (/wiki/…) in the address bar instead of /e/12 or
  * /c/7, so copied links are readable (the page is not reloaded).
  */
-export function showReadableURL(url: string | undefined): void {
-  if (!url || !/^\/(e|c)\/\d+\/?$/.test(location.pathname)) return;
+export function showReadableURL(urls: Record<string, string> | undefined, fallback?: string): void {
+  const url = urls?.[L()] || fallback;
+  if (!url || url === location.pathname) return;
+  // only technical addresses and readable paths (e.g. after switching the language), never a chosen short URL
+  if (!/^\/(e|c)\/\d+\/?$/.test(location.pathname) && !location.pathname.startsWith('/wiki/')) return;
   history.replaceState(history.state, '', url + location.search + location.hash);
 }
 
@@ -134,7 +137,7 @@ export async function categoryView({ params, main }: RouteCtx): Promise<void> {
   }
   const c = data.category;
   setContext(c.id, c.path, c.permissions);
-  showReadableURL(c.url);
+  showReadableURL(c.urls, c.url);
   const title = pick(c.titles, L(), D());
   const edit = state.editMode;
   const actions: HTMLElement[] = [];
@@ -271,13 +274,14 @@ function editCategoryDialog(c: Category): void {
   const descs = langFields(t('common.description'), c.descriptions, { multiline: true });
   const tags = textInput({ value: c.tags.join(', ') });
   const short = shortURLInput(c.short_url);
+  const only = shortOnlyBox(!!c.short_only);
   const orig = select(state.site.languages.map((l) => ({ value: l, label: langName(l) })), c.original_lang || D());
   formDialog(t('category.edit_title', { title: pick(c.titles, L(), D()) }), [titles.el, descs.el,
     state.site.languages.length > 1 ? field(t('translation.original_lang'), orig, { help: t('translation.original_lang_help') }) : null,
     field(t('common.tags'), tags, { help: t('common.tags_help') }),
-    field(t('shorturl.label'), short, { help: t('shorturl.help', { origin: location.origin }) }),
+    field(t('shorturl.label'), short, { help: t('shorturl.help', { origin: location.origin }) }), only.el,
     h('p', { class: 'ew-help' }, t('category.edit_more'), ' ', h('a', { href: `/c/${c.id}/settings` }, t('category.settings')))], t('common.save'), async () => {
-    await api.put(`categories/${c.id}`, { titles: titles.get(), descriptions: descs.get(), tags: splitTags(tags.value), short_url: short.value, original_lang: orig.value });
+    await api.put(`categories/${c.id}`, { titles: titles.get(), descriptions: descs.get(), tags: splitTags(tags.value), short_url: short.value, short_only: only.input.checked, original_lang: orig.value });
     invalidateTree();
     toast(t('common.saved'));
     navigate(location.pathname, { replace: true });
@@ -413,7 +417,7 @@ export async function elementView({ params, main }: RouteCtx): Promise<void> {
     return;
   }
   setContext(el.category_id, cat.category.path, el.permissions);
-  showReadableURL(el.url);
+  showReadableURL(el.urls, el.url);
   const edit = state.editMode;
   const actions: HTMLElement[] = [];
   if (edit) {
@@ -451,10 +455,11 @@ function tagsDialog(el: ElementView): void {
   // properties of an element: tags and short URL (element pages and the default page of a category)
   const input = textInput({ value: el.tags.join(', ') });
   const short = shortURLInput(el.short_url);
+  const only = shortOnlyBox(!!el.short_only);
   const img = previewImageInput(el.preview_image ?? '', { candidates: imagesOf(el.html) });
   formDialog(t('element.properties'), [field(t('common.tags'), input, { help: t('common.tags_help') }),
-    field(t('shorturl.label'), short, { help: t('shorturl.help', { origin: location.origin }) }), img.el], t('common.save'), async () => {
-    await api.patch(`elements/${el.id}`, { tags: splitTags(input.value), short_url: short.value, preview_image: img.value() });
+    field(t('shorturl.label'), short, { help: t('shorturl.help', { origin: location.origin }) }), only.el, img.el], t('common.save'), async () => {
+    await api.patch(`elements/${el.id}`, { tags: splitTags(input.value), short_url: short.value, short_only: only.input.checked, preview_image: img.value() });
     toast(t('common.saved'));
     navigate(location.pathname, { replace: true });
   });

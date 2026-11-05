@@ -417,7 +417,7 @@ func (r report) Render(ctx context.Context, mc content.MacroContext) (string, er
 	b.WriteString(`</tr></thead><tbody>`)
 	for _, id := range rows {
 		e := byID[id]
-		href := mc.Service.Path(ctx, "element", id)
+		href := mc.Service.Path(ctx, "element", id, mc.Lang)
 		if href == "" {
 			href = fmt.Sprintf("/e/%d", id)
 		}
