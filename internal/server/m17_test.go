@@ -228,3 +228,119 @@ func TestReadablePaths(t *testing.T) {
 		t.Fatalf("guest not-found info: %+v", gnf)
 	}
 }
+
+// TestFavorites covers adding, ordering, removing and the visibility rule.
+func TestFavorites(t *testing.T) {
+	e := setup(t)
+	admin := e.client()
+	admin.login("admin", adminPW)
+	var a, b cat
+	admin.must("POST", "/api/v1/categories", map[string]any{"titles": map[string]string{"en": "Fav A"}}, &a, 201)
+	admin.must("POST", "/api/v1/categories", map[string]any{"titles": map[string]string{"en": "Fav B"}}, &b, 201)
+	var page elem
+	admin.must("POST", "/api/v1/elements", map[string]any{"category_id": a.ID, "type": "core.html", "title": "Fav page", "body": htmlBody("<p>x</p>")}, &page, 201)
+	type list struct {
+		Items []struct {
+			Type string `json:"type"`
+			ID   int64  `json:"id"`
+			URL  string `json:"url"`
+		} `json:"items"`
+		Position string `json:"position"`
+	}
+	var l list
+	admin.must("POST", "/api/v1/x/core.favorites/", map[string]any{"type": "element", "id": page.ID}, &l, 200)
+	admin.must("POST", "/api/v1/x/core.favorites/", map[string]any{"type": "category", "id": b.ID}, &l, 200)
+	if len(l.Items) != 2 || l.Items[0].ID != page.ID || l.Items[0].URL != "/wiki/fav-a/fav-page" || l.Position != "sidebar" {
+		t.Fatalf("favorites: %+v", l)
+	}
+	admin.must("PUT", "/api/v1/x/core.favorites/order", map[string]any{"items": []map[string]any{{"type": "category", "id": b.ID}, {"type": "element", "id": page.ID}}}, &l, 200)
+	if l.Items[0].ID != b.ID {
+		t.Fatalf("order: %+v", l)
+	}
+	// deleted pages disappear from the list
+	admin.must("DELETE", fmt.Sprintf("/api/v1/elements/%d", page.ID), nil, nil, 204)
+	admin.must("GET", "/api/v1/x/core.favorites/", nil, &l, 200)
+	if len(l.Items) != 1 {
+		t.Fatalf("deleted favorite listed: %+v", l)
+	}
+	admin.must("DELETE", fmt.Sprintf("/api/v1/x/core.favorites/category/%d", b.ID), nil, &l, 200)
+	if len(l.Items) != 0 {
+		t.Fatalf("after removing: %+v", l)
+	}
+	// invisible targets cannot be added; guests have no favorites
+	pw := "Passw0rd!Passw0rd"
+	admin.must("POST", "/api/v1/admin/users", map[string]any{"username": "fav", "password": pw, "display_name": "Fav", "roles": []int64{}}, nil, 201)
+	u := e.client()
+	u.login("fav", pw)
+	if code := u.do("POST", "/api/v1/x/core.favorites/", map[string]any{"type": "category", "id": a.ID}, nil); code != 404 && code != 403 {
+		t.Fatalf("invisible favorite: %d", code)
+	}
+	if code := e.client().do("GET", "/api/v1/x/core.favorites/", nil, nil); code != 401 {
+		t.Fatalf("guest favorites: %d", code)
+	}
+}
+
+// TestPageProperties covers properties, validation and the report macro.
+func TestPageProperties(t *testing.T) {
+	e := setup(t)
+	admin := e.client()
+	admin.login("admin", adminPW)
+	var c, sub cat
+	admin.must("POST", "/api/v1/categories", map[string]any{"titles": map[string]string{"en": "Projects"}}, &c, 201)
+	admin.must("POST", "/api/v1/categories", map[string]any{"parent_id": c.ID, "titles": map[string]string{"en": "Active"}}, &sub, 201)
+	var p1, p2, rep elem
+	admin.must("POST", "/api/v1/elements", map[string]any{"category_id": c.ID, "type": "core.html", "title": "Alpha", "body": htmlBody("<p>a</p>")}, &p1, 201)
+	admin.must("POST", "/api/v1/elements", map[string]any{"category_id": sub.ID, "type": "core.html", "title": "Beta", "body": htmlBody("<p>b</p>")}, &p2, 201)
+	set := func(id int64, items []map[string]string, want int) {
+		admin.must("PUT", fmt.Sprintf("/api/v1/x/core.properties/elements/%d", id), map[string]any{"items": items}, nil, want)
+	}
+	set(p1.ID, []map[string]string{{"key": "Owner", "value": "Ada <b>"}, {"key": "Status", "value": "Active", "type": "status"}, {"key": "Review", "value": "2026-12-01", "type": "date"}, {"key": "Budget", "value": "300", "type": "number"}}, 200)
+	set(p2.ID, []map[string]string{{"key": "Owner", "value": "Bob"}, {"key": "Status", "value": "Done", "type": "status"}, {"key": "Budget", "value": "20", "type": "number"}}, 200)
+	set(p1.ID, []map[string]string{{"key": "Review", "value": "tomorrow", "type": "date"}}, 400)
+	set(p1.ID, []map[string]string{{"key": "Link", "value": "javascript:alert(1)", "type": "url"}}, 400)
+	set(p1.ID, []map[string]string{{"key": "A", "value": "1"}, {"key": "a", "value": "2"}}, 400)
+	var props struct {
+		Items []struct{ Key, Value, Type string } `json:"items"`
+	}
+	admin.must("GET", fmt.Sprintf("/api/v1/x/core.properties/elements/%d", p1.ID), nil, &props, 200)
+	if len(props.Items) != 4 || props.Items[0].Key != "Owner" {
+		t.Fatalf("props: %+v", props)
+	}
+	var keys []struct{ Key string }
+	admin.must("GET", fmt.Sprintf("/api/v1/x/core.properties/keys?category=%d", c.ID), nil, &keys, 200)
+	if len(keys) != 4 {
+		t.Fatalf("keys: %+v", keys)
+	}
+	// report: all pages below Projects, sorted by budget (number); filter
+	body := `<p>Report</p><div data-macro="properties" data-params='{"columns":"Owner,Status,Budget","sort":"Budget"}'></div>`
+	admin.must("POST", "/api/v1/elements", map[string]any{"category_id": c.ID, "type": "core.html", "title": "Report", "body": htmlBody(body)}, &rep, 201)
+	var v struct {
+		HTML string `json:"html"`
+	}
+	admin.must("GET", fmt.Sprintf("/api/v1/elements/%d", rep.ID), nil, &v, 200)
+	if !strings.Contains(v.HTML, "Ada &lt;b&gt;") || strings.Contains(v.HTML, "Ada <b>") {
+		t.Fatalf("report not escaped: %s", v.HTML)
+	}
+	if i, j := strings.Index(v.HTML, "Beta"), strings.Index(v.HTML, "Alpha"); i < 0 || j < 0 || i > j {
+		t.Fatalf("report order (Budget 20 before 300): %s", v.HTML)
+	}
+	if !strings.Contains(v.HTML, `href="/wiki/projects/active/beta"`) {
+		t.Fatalf("report links: %s", v.HTML)
+	}
+	body = `<div data-macro="properties" data-params='{"filter":"Status=Done"}'></div>`
+	admin.must("PUT", fmt.Sprintf("/api/v1/elements/%d", rep.ID), map[string]any{"lang": "en", "title": "Report", "body": htmlBody(body), "base_rev": 1}, nil, 200)
+	admin.must("GET", fmt.Sprintf("/api/v1/elements/%d", rep.ID), nil, &v, 200)
+	if strings.Contains(v.HTML, "Alpha") || !strings.Contains(v.HTML, "Beta") {
+		t.Fatalf("filter: %s", v.HTML)
+	}
+	// readers cannot change properties
+	pw := "Passw0rd!Passw0rd"
+	admin.must("POST", fmt.Sprintf("/api/v1/categories/%d/acl", c.ID), map[string]any{"subject_type": "authenticated", "permissions": 1, "inherit": true}, nil, 201)
+	admin.must("POST", "/api/v1/admin/users", map[string]any{"username": "reader", "password": pw, "display_name": "Reader", "roles": []int64{}}, nil, 201)
+	r := e.client()
+	r.login("reader", pw)
+	r.must("GET", fmt.Sprintf("/api/v1/x/core.properties/elements/%d", p1.ID), nil, nil, 200)
+	if code := r.do("PUT", fmt.Sprintf("/api/v1/x/core.properties/elements/%d", p1.ID), map[string]any{"items": []any{}}, nil); code != 403 {
+		t.Fatalf("reader changed properties: %d", code)
+	}
+}

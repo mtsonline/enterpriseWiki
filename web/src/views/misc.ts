@@ -1,4 +1,5 @@
 // Search, login, profile and trash.
+import { renderProfileSections } from '../sdk';
 import { assignedWatchesSection } from './adminWatches';
 import { api, ApiError, qs } from '../core/api';
 import { fmtDate, h, mount } from '../core/dom';
@@ -304,6 +305,7 @@ export async function profileView({ main }: RouteCtx): Promise<void> {
     await notificationSection(),
     await cardSection(u.display_name || u.username),
     await watchesSection(),
+    ...(await renderProfileSections()),
     await assignedWatchesSection(),
     feedTokenSection(),
     pwSection,

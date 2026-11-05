@@ -429,12 +429,14 @@ export async function elementView({ params, main }: RouteCtx): Promise<void> {
   if (watchE) actions.push(watchE);
   actions.push(...pageActionButtons({ type: 'element', id: el.id, title: el.title, categoryId: el.category_id }));
   const extensions = h('div', { class: 'ew-element-extensions', lang: state.lang });
+  const topExtensions = h('div', { class: 'ew-element-extensions ew-element-extensions--top', lang: state.lang });
   mount(main, h('article', { class: 'ew-element', lang: el.shown_lang },
     crumbs([...cat.breadcrumbs, cat.category], { title: el.title }),
     h('div', { class: 'ew-page-header' }, h('h1', null, el.title),
       actions.length ? h('div', { class: 'ew-actions', role: 'group', 'aria-label': t('common.actions') }, ...actions) : null),
     fallbackNotice(el),
     edit ? translationPanel(el) : null,
+    topExtensions,
     trustedHTML(el.html),
     h('footer', { class: 'ew-meta' },
       tagList(el.tags),
@@ -442,7 +444,7 @@ export async function elementView({ params, main }: RouteCtx): Promise<void> {
       h('p', null, t('element.updated_by', { date: fmtDate(el.updated_at, L()), user: el.updated_by || '–' }), ' · ', t('element.revision', { rev: el.rev }), ' · ',
         h('a', { href: `/e/${el.id}/history` }, t('element.history')))),
     extensions));
-  void renderElementExtensions(extensions, el);
+  void renderElementExtensions(extensions, el, topExtensions);
 }
 
 function tagsDialog(el: ElementView): void {

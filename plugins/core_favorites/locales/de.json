@@ -1,0 +1,21 @@
+{
+ "core.favorites.button": "Favorit",
+ "core.favorites.add_hint": "Zu meinen Favoriten hinzufügen",
+ "core.favorites.remove_hint": "Aus meinen Favoriten entfernen",
+ "core.favorites.added": "„{title}“ zu Ihren Favoriten hinzugefügt.",
+ "core.favorites.removed": "„{title}“ aus Ihren Favoriten entfernt.",
+ "core.favorites.title": "Meine Favoriten",
+ "core.favorites.empty": "Noch keine Favoriten. Nutzen Sie „Favorit“ auf einer Seite oder Kategorie.",
+ "core.favorites.help": "Nur Sie sehen Ihre Favoriten. Seiten, die Sie nicht mehr sehen dürfen, werden ausgeblendet.",
+ "core.favorites.type.element": "Seite",
+ "core.favorites.type.category": "Kategorie",
+ "core.favorites.admin": "Favoriten",
+ "core.favorites.admin_help": "Wo die Favoritenliste für angemeldete Personen angezeigt wird. Im Profil ist sie immer verfügbar.",
+ "core.favorites.position": "Position",
+ "core.favorites.position_help": "Eine Position der aktiven Vorlage.",
+ "core.favorites.default_position": "Seitenleiste (Standard)",
+ "core.favorites.only_profile": "Nur im Profil",
+ "perm.core.favorites.use": "Favoriten nutzen",
+ "perm.core.favorites.use_help": "Seiten und Kategorien als persönliche Favoriten markieren.",
+ "perm.group.core.favorites": "Favoriten"
+}

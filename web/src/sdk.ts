@@ -287,8 +287,9 @@ export function typeLabel(id: string): string {
 export interface ElementExtension {
   id: string;
   order?: number;
-  /** Rendered below the content of an element page (e.g. comments). */
+  /** Rendered below the content of an element page (e.g. comments), or above it with placement "top" (e.g. page properties). */
   render: (el: import('./core/types').ElementView) => Node | null | Promise<Node | null>;
+  placement?: 'top' | 'bottom';
 }
 
 const elementExtensions: ElementExtension[] = [];
@@ -300,11 +301,12 @@ export function registerElementExtension(x: ElementExtension): void {
 }
 
 /** Renders all element extensions into container. */
-export async function renderElementExtensions(container: HTMLElement, el: import('./core/types').ElementView): Promise<void> {
+export async function renderElementExtensions(container: HTMLElement, el: import('./core/types').ElementView, top?: HTMLElement): Promise<void> {
   for (const x of elementExtensions) {
     try {
       const n = await x.render(el);
-      if (n && container.isConnected) container.append(n);
+      const target = x.placement === 'top' && top ? top : container;
+      if (n && target.isConnected) target.append(n);
     } catch (e) {
       console.error(`element extension ${x.id} failed`, e);
     }
@@ -338,6 +340,37 @@ export async function renderCategoryExtensions(container: HTMLElement, c: import
       console.error(`category extension ${x.id} failed`, e);
     }
   }
+}
+
+// ---------------------------------------------------------------- profile sections
+
+export interface ProfileSection {
+  id: string;
+  order?: number;
+  /** A section of "My profile" (e.g. favorites); null hides it. */
+  render: () => Node | null | Promise<Node | null>;
+}
+
+const profileSections: ProfileSection[] = [];
+
+/** Adds a section to the profile page. */
+export function registerProfileSection(x: ProfileSection): void {
+  profileSections.push(x);
+  profileSections.sort((a, b) => (a.order ?? 50) - (b.order ?? 50));
+}
+
+/** Renders the profile sections of plugins. */
+export async function renderProfileSections(): Promise<Node[]> {
+  const out: Node[] = [];
+  for (const x of profileSections) {
+    try {
+      const n = await x.render();
+      if (n) out.push(n);
+    } catch (e) {
+      console.error(`profile section ${x.id} failed`, e);
+    }
+  }
+  return out;
 }
 
 // ---------------------------------------------------------------- reactions (provided by a plugin)

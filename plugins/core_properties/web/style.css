@@ -1,0 +1,9 @@
+.ewprop { margin: .5rem 0 1rem; }
+.ewprop-title { font-size: 1rem; }
+.ewprop-table { width: auto; min-width: min(28rem, 100%); }
+.ewprop-table th { width: 12rem; font-weight: 600; }
+.ewprop-head, .ewprop-row { display: grid; grid-template-columns: minmax(8rem, 1fr) 9rem minmax(10rem, 2fr) auto; gap: .4rem; align-items: center; }
+.ewprop-head { font-weight: 600; font-size: .9rem; }
+.ewprop-row { margin: .25rem 0; }
+.ewprop-status { background: var(--ew-info-bg, #e0ecff); color: var(--ew-info-text, #1e3a8a); }
+@media (max-width: 40rem) { .ewprop-head { display: none; } .ewprop-row { grid-template-columns: 1fr; } }

@@ -1,0 +1,9 @@
+{
+  "id": "core.properties",
+  "name": "Page properties",
+  "version": "1.0.0",
+  "description": "Structured properties of pages (owner, status, review date, …) shown as a table on the page, and the macro “Page properties report” listing the pages of a category with their properties.",
+  "author": "Enterprise Wiki",
+  "kinds": ["generic", "macro"],
+  "frontend": true
+}

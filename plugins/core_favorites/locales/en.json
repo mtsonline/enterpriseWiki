@@ -1,0 +1,21 @@
+{
+ "core.favorites.button": "Favorite",
+ "core.favorites.add_hint": "Add to my favorites",
+ "core.favorites.remove_hint": "Remove from my favorites",
+ "core.favorites.added": "“{title}” added to your favorites.",
+ "core.favorites.removed": "“{title}” removed from your favorites.",
+ "core.favorites.title": "My favorites",
+ "core.favorites.empty": "No favorites yet. Use “Favorite” on a page or category.",
+ "core.favorites.help": "Only you see your favorites. Pages you may no longer see are hidden.",
+ "core.favorites.type.element": "Page",
+ "core.favorites.type.category": "Category",
+ "core.favorites.admin": "Favorites",
+ "core.favorites.admin_help": "Where the list of favorites is shown for signed-in users. It is always available in the profile.",
+ "core.favorites.position": "Position",
+ "core.favorites.position_help": "A position of the active template.",
+ "core.favorites.default_position": "Sidebar (default)",
+ "core.favorites.only_profile": "Only in the profile",
+ "perm.core.favorites.use": "Use favorites",
+ "perm.core.favorites.use_help": "Mark pages and categories as personal favorites.",
+ "perm.group.core.favorites": "Favorites"
+}
