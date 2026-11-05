@@ -10,7 +10,7 @@ import { announce, toast } from '../core/announce';
 import { button, checkbox, confirmDialog, errorText, field, formDialog, openDialog, pageHeader, select, textArea, textInput } from '../components/ui';
 import { invalidateTree, langName, setContext } from '../components/widgets';
 import { typeLabel } from '../sdk';
-import { categoryView, elementView, errorPage } from './content';
+import { categoryView, elementView, errorPage, notFoundPage } from './content';
 import { watchDialog, type Watch } from '../components/watch';
 import { feedTokenSection } from '../components/feeds';
 import { profileCardForm } from '../components/profilecard';
@@ -426,7 +426,9 @@ export async function notFoundView(ctx: RouteCtx): Promise<void> {
   const path = ctx.path.replace(/^\/+|\/+$/g, '');
   if (path && !path.startsWith('api/')) {
     try {
-      const r = await api.get<{ type: 'element' | 'category'; id: number }>(`resolve${qs({ path })}`);
+      const r = await api.get<{ type: 'element' | 'category'; id: number; path: string; redirect: boolean }>(`resolve${qs({ path })}`);
+      // a former address: show the current one
+      if (r.redirect && r.path) history.replaceState(history.state, '', r.path + location.search + location.hash);
       const params = { ...ctx.params, id: String(r.id) };
       if (r.type === 'element') await elementView({ ...ctx, params });
       else await categoryView({ ...ctx, params });
@@ -439,5 +441,5 @@ export async function notFoundView(ctx: RouteCtx): Promise<void> {
     }
   }
   setContext(0, [], []);
-  mount(ctx.main, h('h1', null, t('error.not_found')), h('p', null, h('a', { href: '/' }, t('nav.home'))));
+  notFoundPage(ctx.main, { path });
 }

@@ -54,6 +54,7 @@ type ElementView struct {
 	Fallback     bool            `json:"fallback"`
 	Rev          int             `json:"rev"`
 	Title        string          `json:"title"`
+	URL          string          `json:"url"`            // readable path (/wiki/…)
 	Body         json.RawMessage `json:"body,omitempty"` // only for editors
 	HTML         string          `json:"html"`
 	Translations []LangStatus    `json:"translations"`
@@ -204,6 +205,7 @@ func (s *Service) GetElement(ctx context.Context, id int64, lang string, withBod
 	if withBody && perms&acl.Edit != 0 {
 		v.Body = body
 	}
+	v.URL = s.Path(ctx, "element", e.ID)
 	return v, nil
 }
 
@@ -532,6 +534,7 @@ func (s *Service) MoveElement(ctx context.Context, id, categoryID int64) (*Eleme
 	if err != nil {
 		return nil, err
 	}
+	_ = s.syncSlug(ctx, "element", id, e.CategoryID)
 	s.fire(ctx, "move", "element", id)
 	return s.loadElement(ctx, s.pool, id, false)
 }

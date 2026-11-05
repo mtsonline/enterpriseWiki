@@ -12,18 +12,54 @@ import { watchButton } from '../components/watch';
 import { shortURLInput } from '../components/shorturl';
 import { imagesOf, previewImageInput } from '../components/previewimage';
 import { feedButton } from '../components/feeds';
-import { getEditor, pageActionButtons, renderElementExtensions, typeLabel, type EditorInstance } from '../sdk';
+import { getEditor, pageActionButtons, renderCategoryExtensions, renderElementExtensions, typeLabel, type EditorInstance } from '../sdk';
 import { draftNotice, publishDialog, publishVia, saveDraft, saveTemplateDialog, showPreview, templatePicker, type Draft, type EditorState } from '../components/publishing';
 
 const L = () => state.lang;
 const D = () => state.site.default_language;
 
 /** Shows an error page for API errors (401 offers login). */
-export function errorPage(main: HTMLElement, e: unknown): void {
+/**
+ * Shows the readable path (/wiki/…) in the address bar instead of /e/12 or
+ * /c/7, so copied links are readable (the page is not reloaded).
+ */
+export function showReadableURL(url: string | undefined): void {
+  if (!url || !/^\/(e|c)\/\d+\/?$/.test(location.pathname)) return;
+  history.replaceState(history.state, '', url + location.search + location.hash);
+}
+
+interface NotFoundInfo { deleted: { type: string; id: number; title: string; can_restore: boolean } | null; suggestions: { type: string; id: number; title: string; path: string }[] }
+
+/** "Page not found" with a deleted page and probable pages (by address or former title). */
+export function notFoundPage(main: HTMLElement, q: { path?: string; type?: string; id?: number }): void {
+  const box = h('div');
+  mount(main, h('h1', null, t('error.not_found')), box, h('p', null, h('a', { href: '/' }, t('nav.home'))));
+  void api.get<NotFoundInfo>(`not-found${qs({ path: q.path, type: q.type, id: q.id, lang: L() })}`).then((info) => {
+    const parts: HTMLElement[] = [];
+    if (info.deleted) {
+      parts.push(h('div', { class: 'ew-notice ew-notice--warning', role: 'status' },
+        h('p', null, t('notfound.deleted', { title: info.deleted.title || '–' })),
+        info.deleted.can_restore ? h('p', null, h('a', { href: '/trash', class: 'ew-btn ew-btn--secondary' }, t('notfound.to_trash'))) : null));
+    }
+    if (info.suggestions.length) {
+      parts.push(h('section', { 'aria-labelledby': 'ew-nf-sugg' }, h('h2', { id: 'ew-nf-sugg' }, t('notfound.suggestions')),
+        h('ul', { class: 'ew-list' }, ...info.suggestions.map((s) => h('li', null, h('a', { href: s.path || `/${s.type === 'element' ? 'e' : 'c'}/${s.id}` }, s.title))))));
+    } else if (!info.deleted) {
+      parts.push(h('p', null, t('notfound.search_hint'), ' ', h('a', { href: `/search${qs({ q: (q.path ?? '').split('/').pop()?.replace(/-/g, ' ') })}` }, t('notfound.search'))));
+    }
+    box.replaceChildren(...parts);
+  }).catch(() => undefined);
+}
+
+export function errorPage(main: HTMLElement, e: unknown, target?: { type: string; id: number }): void {
   if (e instanceof ApiError && e.status === 401) {
     const next = encodeURIComponent(location.pathname + location.search);
     mount(main, h('h1', null, t('error.login_required')), h('p', null, t('error.login_required_text')),
       h('a', { href: `/login?next=${next}`, class: 'ew-btn ew-btn--primary' }, t('auth.login')));
+    return;
+  }
+  if (e instanceof ApiError && e.status === 404 && target) {
+    notFoundPage(main, target);
     return;
   }
   if (e instanceof ApiError && (e.status === 404 || e.status === 403)) {
@@ -93,11 +129,12 @@ export async function categoryView({ params, main }: RouteCtx): Promise<void> {
     [data, subs] = await Promise.all([api.get<CategoryResponse>(`categories/${id}`), api.get<Category[]>(`categories?parent=${id}`)]);
   } catch (e) {
     setContext(0, [], []);
-    errorPage(main, e);
+    errorPage(main, e, { type: 'category', id });
     return;
   }
   const c = data.category;
   setContext(c.id, c.path, c.permissions);
+  showReadableURL(c.url);
   const title = pick(c.titles, L(), D());
   const edit = state.editMode;
   const actions: HTMLElement[] = [];
@@ -172,7 +209,10 @@ export async function categoryView({ params, main }: RouteCtx): Promise<void> {
   if (!c.default_element_id && !data.elements.length && !subs.length) {
     view.append(h('p', { class: 'ew-muted' }, can('create') ? t('category.empty_editor') : t('category.empty')));
   }
+  const extensions = h('div', { class: 'ew-extensions' });
+  view.append(extensions);
   mount(main, view);
+  void renderCategoryExtensions(extensions, c);
   // drafts of new elements and unpublished changes (editors)
   if (state.user && (can('create') || can('edit'))) {
     void api.get<Draft[]>(`drafts${qs({ category: c.id })}`).then((ds) => {
@@ -369,10 +409,11 @@ export async function elementView({ params, main }: RouteCtx): Promise<void> {
     cat = await api.get<CategoryResponse>(`categories/${el.category_id}`);
   } catch (e) {
     setContext(0, [], []);
-    errorPage(main, e);
+    errorPage(main, e, { type: 'element', id });
     return;
   }
   setContext(el.category_id, cat.category.path, el.permissions);
+  showReadableURL(el.url);
   const edit = state.editMode;
   const actions: HTMLElement[] = [];
   if (edit) {

@@ -99,6 +99,17 @@ func (s *Server) serveFrontend(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
+	// former readable paths and short URLs: permanent redirect to the current address
+	if p != "" && !reservedPaths[strings.SplitN(p, "/", 2)[0]] && !strings.Contains(p, ".") {
+		if res, err := s.app.Content.Resolve(r.Context(), p); err == nil && res.Redirect && res.Path != "" && res.Path != "/"+p {
+			target := res.Path
+			if r.URL.RawQuery != "" {
+				target += "?" + r.URL.RawQuery
+			}
+			http.Redirect(w, r, target, http.StatusMovedPermanently)
+			return
+		}
+	}
 	b, err := fs.ReadFile(s.web, "index.html")
 	if err != nil {
 		http.Error(w, "frontend not built (run scripts/build.sh)", http.StatusNotFound)

@@ -47,7 +47,14 @@ type Message struct {
 // RegisterKind declares a kind of notification; users can switch its
 // e-mails on and off in the profile (UI string notify.kind.<kind>, or the
 // key labelKey of the plugin).
-func RegisterKind(kind, labelKey string) {
+func RegisterKind(kind, labelKey string) { registerKind(kind, labelKey, true) }
+
+// RegisterKindOff declares a kind whose e-mails are off until a user
+// switches them on (notifications in the wiki are always shown).
+func RegisterKindOff(kind, labelKey string) { registerKind(kind, labelKey, false) }
+
+func registerKind(kind, labelKey string, on bool) {
+	mail.KindsOffByDefault[kind] = !on
 	if !slices.Contains(mail.NotificationKinds, kind) {
 		mail.NotificationKinds = append(mail.NotificationKinds, kind)
 	}
@@ -103,8 +110,7 @@ func (s *Service) Send(ctx context.Context, userIDs []int64, m Message) (int, er
 				return err
 			}
 			n++
-			wantMail, set := u.Notify[m.Kind]
-			if (set && !wantMail) || u.Email == "" || !s.mail.Enabled() {
+			if !u.Wants(m.Kind) || !s.mail.Enabled() {
 				continue
 			}
 			text := body

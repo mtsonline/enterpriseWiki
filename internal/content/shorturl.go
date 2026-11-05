@@ -11,7 +11,6 @@ import (
 	"github.com/mtsonline/enterprisewiki/internal/acl"
 	"github.com/mtsonline/enterprisewiki/internal/apperr"
 	"github.com/mtsonline/enterprisewiki/internal/db"
-	"github.com/mtsonline/enterprisewiki/internal/identity"
 )
 
 // ReservedShortURLs are first path segments used by the application.
@@ -19,7 +18,7 @@ var ReservedShortURLs = map[string]bool{
 	"api": true, "assets": true, "admin": true, "c": true, "e": true, "login": true, "logout": true, "search": true,
 	"profile": true, "trash": true, "tasks": true, "tags": true, "healthz": true, "readyz": true, "favicon.ico": true,
 	"robots.txt": true, "index.html": true, "sso": true, "auth": true, "files": true, "x": true, "feeds": true,
-	"static": true, "plugins": true, "setup": true, "help": true, "sitemap.xml": true,
+	"static": true, "plugins": true, "setup": true, "help": true, "sitemap.xml": true, "wiki": true, "d": true,
 }
 
 // NormalizeShortURL cleans a short URL ("Mein Kalender" -> "mein-kalender",
@@ -72,6 +71,21 @@ func (s *Service) setShortURL(ctx context.Context, tx pgx.Tx, etype string, id i
 	if etype == "category" {
 		table = "categories"
 	}
+	var old *string
+	if err := tx.QueryRow(ctx, `SELECT short_url FROM `+table+` WHERE id=$1`, id).Scan(&old); err != nil {
+		return err
+	}
+	if old != nil && *old != "" && *old != short {
+		// the former short URL keeps working (redirect) until it is used again
+		if err := addAlias(ctx, tx, "short", 0, *old, etype, id); err != nil {
+			return err
+		}
+	}
+	if short != "" {
+		if _, err := tx.Exec(ctx, `DELETE FROM url_aliases WHERE scope='short' AND slug=$1`, short); err != nil {
+			return err
+		}
+	}
 	_, err := tx.Exec(ctx, `UPDATE `+table+` SET short_url=NULLIF($2, '') WHERE id=$1`, id, short)
 	return err
 }
@@ -113,26 +127,69 @@ func (s *Service) SetShortURL(ctx context.Context, etype string, id int64, raw s
 type Resolved struct {
 	Type string `json:"type"` // element | category
 	ID   int64  `json:"id"`
+	// Path is the current readable path; Redirect is set when the address
+	// was a former one (old path or short URL): show Path instead.
+	Path     string `json:"path"`
+	Redirect bool   `json:"redirect"`
 }
 
-// Resolve finds the element or category of a short URL the caller may view.
+// Resolve finds the element or category of an address the caller may view:
+// a readable path (/wiki/…), a short URL or a former one of both.
 func (s *Service) Resolve(ctx context.Context, raw string) (*Resolved, error) {
+	raw = strings.Trim(strings.TrimSpace(raw), "/")
+	if rest, ok := strings.CutPrefix(raw, strings.Trim(PathPrefix, "/")+"/"); ok {
+		var segs []string
+		for _, seg := range strings.Split(rest, "/") {
+			if seg, err := url.PathUnescape(seg); err == nil && seg != "" {
+				segs = append(segs, strings.ToLower(seg))
+			}
+		}
+		if len(segs) == 0 || len(segs) > 30 {
+			return nil, apperr.NotFound("page")
+		}
+		r, aliased, err := s.resolvePath(ctx, segs)
+		if err != nil {
+			return nil, err
+		}
+		if err := s.checkVisible(ctx, r); err != nil {
+			return nil, err
+		}
+		r.Path = s.Path(ctx, r.Type, r.ID)
+		r.Redirect = aliased || (r.Path != "" && r.Path != "/"+strings.ToLower(raw))
+		return r, nil
+	}
 	short, err := NormalizeShortURL(raw)
 	if err != nil || short == "" {
 		return nil, apperr.NotFound("page")
 	}
 	r := &Resolved{}
-	var cat int64
-	err = s.pool.QueryRow(ctx, `SELECT 'element', e.id, e.category_id FROM elements e WHERE e.short_url=$1 AND e.deleted_at IS NULL
-		UNION ALL SELECT 'category', c.id, c.id FROM categories c WHERE c.short_url=$1 AND c.deleted_at IS NULL LIMIT 1`, short).Scan(&r.Type, &r.ID, &cat)
+	err = s.pool.QueryRow(ctx, `SELECT 'element', e.id FROM elements e WHERE e.short_url=$1 AND e.deleted_at IS NULL
+		UNION ALL SELECT 'category', c.id FROM categories c WHERE c.short_url=$1 AND c.deleted_at IS NULL LIMIT 1`, short).Scan(&r.Type, &r.ID)
+	if errors.Is(err, pgx.ErrNoRows) {
+		// a former short URL
+		err = s.pool.QueryRow(ctx, `SELECT target_type, target_id FROM url_aliases WHERE scope='short' AND slug=$1`, short).Scan(&r.Type, &r.ID)
+		r.Redirect = err == nil
+	}
 	if err != nil {
 		return nil, apperr.NotFound("page")
 	}
-	if !s.acl.Can(ctx, identity.From(ctx), cat, acl.View) {
-		if identity.From(ctx) == nil {
-			return nil, apperr.ErrUnauthorized
+	if err := s.checkVisible(ctx, r); err != nil {
+		return nil, err
+	}
+	if r.Redirect {
+		// to the current short URL, or else the readable path
+		var cur *string
+		table := "elements"
+		if r.Type == "category" {
+			table = "categories"
 		}
-		return nil, apperr.NotFound("page")
+		_ = s.pool.QueryRow(ctx, `SELECT short_url FROM `+table+` WHERE id=$1`, r.ID).Scan(&cur)
+		if cur != nil && *cur != "" {
+			r.Path = "/" + *cur
+		}
+	}
+	if r.Path == "" {
+		r.Path = s.Path(ctx, r.Type, r.ID)
 	}
 	return r, nil
 }

@@ -128,11 +128,17 @@ func (s *Server) Prerender(ctx context.Context, urlPath, lang string) *Prerender
 		}
 		if segs[0] == "e" {
 			main, err = s.prerenderElement(ctx, p, id, lang)
+			if u := s.app.Content.Path(ctx, "element", id); u != "" {
+				p.Canonical = strings.TrimRight(c.Server.BaseURL, "/") + u
+			}
 		} else {
 			main, err = s.prerenderCategory(ctx, p, id, lang)
+			if u := s.app.Content.Path(ctx, "category", id); u != "" {
+				p.Canonical = strings.TrimRight(c.Server.BaseURL, "/") + u
+			}
 		}
-	case len(segs) == 1 && !reservedPaths[segs[0]] && !strings.Contains(segs[0], "."):
-		res, rerr := s.app.Content.Resolve(ctx, segs[0])
+	case !reservedPaths[segs[0]] && !strings.Contains(urlPath, "."):
+		res, rerr := s.app.Content.Resolve(ctx, strings.Trim(urlPath, "/"))
 		if rerr != nil {
 			return nil
 		}

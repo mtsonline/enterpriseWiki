@@ -19,5 +19,6 @@
  "core.comments.mail_subject": "New comment on \"{page}\"",
  "core.comments.mail_body": "Hello {name},\n\n{author} commented on \"{page}\":\n\n{text}\n\nOpen the page: {url}\n\nYou receive this message because you created the page or take part in the discussion. You can switch these e-mails off in your profile: {profile}\n\n{site}",
  "perm.core.comments.moderate": "Moderate comments",
- "perm.core.comments.moderate_help": "Delete comments of others in the category."
+ "perm.core.comments.moderate_help": "Delete comments of others in the category.",
+ "core.comments.reaction_target": "Comment by {author}"
 }

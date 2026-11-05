@@ -166,7 +166,10 @@ func (s *Server) routesM4() {
 		prefs := map[string]bool{}
 		for _, k := range mail.NotificationKinds {
 			v, ok := us[0].Notify[k]
-			prefs[k] = !ok || v
+			if !ok {
+				v = mail.DefaultOn(k)
+			}
+			prefs[k] = v
 		}
 		return map[string]any{"email": us[0].Email, "prefs": prefs, "kinds": mail.NotificationKinds, "labels": mail.KindLabels, "enabled": s.app.Mail.Enabled()}, nil
 	})

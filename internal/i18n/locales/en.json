@@ -1229,5 +1229,10 @@
  "translation.category_help": "Title and description of the category in each language. When the original changes, translations are marked as outdated until they are revised or confirmed with “Still correct”.",
  "translation.category_translate": "Translate the category: {lang}",
  "translation.original_in": "Original ({lang})",
- "translation.empty_removes": "Leave empty to remove the translation (the original is shown instead)."
+ "translation.empty_removes": "Leave empty to remove the translation (the original is shown instead).",
+ "notfound.deleted": "The page “{title}” was deleted.",
+ "notfound.to_trash": "Open the trash",
+ "notfound.suggestions": "Were you looking for?",
+ "notfound.search_hint": "Try the search:",
+ "notfound.search": "Search for similar pages"
 }

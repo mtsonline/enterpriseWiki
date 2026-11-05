@@ -42,7 +42,9 @@ type Service struct {
 
 // New creates the content service.
 func New(pool *pgxpool.Pool, a *acl.Service, bus *events.Bus, cfg *config.Store, log *slog.Logger) *Service {
-	return &Service{pool: pool, acl: a, bus: bus, cfg: cfg, log: log, enabled: func(string) bool { return true }}
+	s := &Service{pool: pool, acl: a, bus: bus, cfg: cfg, log: log, enabled: func(string) bool { return true }}
+	s.OnChange(s.onChangeSlugs)
+	return s
 }
 
 // SetEnabledFunc wires the plugin enabled check.

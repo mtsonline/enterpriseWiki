@@ -21,6 +21,7 @@ import (
 	_ "github.com/mtsonline/enterprisewiki/plugins/core_macros"
 	_ "github.com/mtsonline/enterprisewiki/plugins/core_mentions"
 	_ "github.com/mtsonline/enterprisewiki/plugins/core_menu"
+	_ "github.com/mtsonline/enterprisewiki/plugins/core_reactions"
 	_ "github.com/mtsonline/enterprisewiki/plugins/core_share"
 	_ "github.com/mtsonline/enterprisewiki/plugins/example_notice"
 	_ "github.com/mtsonline/enterprisewiki/plugins/macro_http"

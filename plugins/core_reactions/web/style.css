@@ -1,0 +1,16 @@
+.ewre-section { margin: 1rem 0; }
+.ewre { display: flex; flex-wrap: wrap; align-items: center; gap: .35rem; position: relative; }
+.ewre-btn, .ewre-add { display: inline-flex; align-items: center; gap: .25rem; min-height: 2rem; min-width: 2.75rem; padding: .15rem .6rem; border-radius: 999px;
+  border: 1px solid var(--ew-border); background: var(--ew-bg-raised, #fff); color: var(--ew-text); font: inherit; cursor: pointer; }
+.ewre-btn.is-mine { border-color: var(--ew-primary); background: color-mix(in srgb, var(--ew-primary) 14%, transparent); font-weight: 600; }
+.ewre-btn:hover, .ewre-add:hover { border-color: var(--ew-primary); }
+.ewre-static { cursor: default; }
+.ewre-count { font-variant-numeric: tabular-nums; }
+.ewre-picker { position: absolute; z-index: 800; top: calc(100% + 4px); left: 0; width: min(22rem, 92vw); max-height: 60vh; overflow: auto; padding: .5rem .75rem;
+  background: var(--ew-bg-raised, #fff); color: var(--ew-text); border: 1px solid var(--ew-border); border-radius: 8px; box-shadow: 0 10px 30px rgb(0 0 0 / .18); }
+.ewre-group-title { font-size: .85rem; margin: .5rem 0 .25rem; }
+.ewre-grid { display: grid; grid-template-columns: repeat(8, 1fr); gap: 2px; }
+.ewre-emoji { font-size: 1.3rem; min-width: 2.25rem; min-height: 2.25rem; border: 0; background: transparent; border-radius: 6px; cursor: pointer; }
+.ewre-emoji:hover, .ewre-emoji:focus-visible { background: var(--ew-hover, rgb(0 0 0 / .07)); }
+.ewre-other { margin-top: .5rem; display: grid; gap: .25rem; }
+.ewcm-actions .ewre { margin-left: .5rem; }

@@ -1,0 +1,13 @@
+{
+  "id": "core.reactions",
+  "name": "Reactions",
+  "version": "1.0.0",
+  "description": "Emoji reactions on pages, categories and comments: any emoji (administrators can block some), shows who reacted, optional notification of the author.",
+  "author": "Enterprise Wiki",
+  "kinds": ["generic"],
+  "frontend": true,
+  "permissions": [
+    {"key": "core.reactions.use", "scope": "global", "label": "React with emojis", "description": "Add and remove own reactions on pages, categories and comments one may see.", "presets": ["authenticated"]},
+    {"key": "core.reactions.manage", "scope": "global", "label": "Manage reactions", "description": "Block emojis and remove reactions of others."}
+  ]
+}

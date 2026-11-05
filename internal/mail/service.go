@@ -789,7 +789,10 @@ type User struct {
 // Wants reports whether the user receives notifications of kind (default on).
 func (u User) Wants(kind string) bool {
 	v, ok := u.Notify[kind]
-	return u.Email != "" && (!ok || v)
+	if !ok {
+		v = DefaultOn(kind)
+	}
+	return u.Email != "" && v
 }
 
 // Users loads active users with their address, language and preferences.
@@ -815,6 +818,13 @@ var NotificationKinds = []string{"tasks", "cases", "comments", "watches"}
 // KindLabels maps kinds registered by plugins to their UI label keys
 // (core kinds: notify.kind.<kind>).
 var KindLabels = map[string]string{}
+
+// KindsOffByDefault lists kinds whose e-mails users have to switch on
+// (e.g. reactions); all other kinds are on until switched off.
+var KindsOffByDefault = map[string]bool{}
+
+// DefaultOn reports whether e-mails of kind are on without a preference.
+func DefaultOn(kind string) bool { return !KindsOffByDefault[kind] }
 
 // SetPreferences stores the notification preferences of a user.
 func (s *Service) SetPreferences(ctx context.Context, uid int64, prefs map[string]bool) error {

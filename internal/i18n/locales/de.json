@@ -1279,5 +1279,10 @@
  "translation.category_help": "Titel und Beschreibung der Kategorie in jeder Sprache. Ändert sich das Original, gelten die Übersetzungen als veraltet, bis sie überarbeitet oder mit „Weiterhin korrekt“ bestätigt werden.",
  "translation.category_translate": "Kategorie übersetzen: {lang}",
  "translation.original_in": "Original ({lang})",
- "translation.empty_removes": "Leer lassen, um die Übersetzung zu entfernen (dann wird das Original angezeigt)."
+ "translation.empty_removes": "Leer lassen, um die Übersetzung zu entfernen (dann wird das Original angezeigt).",
+ "notfound.deleted": "Die Seite „{title}“ wurde gelöscht.",
+ "notfound.to_trash": "Papierkorb öffnen",
+ "notfound.suggestions": "Meinten Sie?",
+ "notfound.search_hint": "Versuchen Sie die Suche:",
+ "notfound.search": "Nach ähnlichen Seiten suchen"
 }

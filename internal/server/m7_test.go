@@ -57,8 +57,15 @@ func TestShortURLsListingAndOverview(t *testing.T) {
 	}
 	// removing
 	admin.must("PATCH", fmt.Sprintf("/api/v1/elements/%d", secret.ID), map[string]any{"short_url": ""}, nil, 200)
-	if code := admin.do("GET", "/api/v1/resolve?path=protokoll", nil, nil); code != 404 {
-		t.Fatalf("removed short url: %d", code)
+	// a removed short URL keeps working: it redirects to the readable path
+	var rr struct {
+		ID       int64  `json:"id"`
+		Path     string `json:"path"`
+		Redirect bool   `json:"redirect"`
+	}
+	admin.must("GET", "/api/v1/resolve?path=protokoll", nil, &rr, 200)
+	if rr.ID != secret.ID || !rr.Redirect || !strings.HasPrefix(rr.Path, "/wiki/") {
+		t.Fatalf("removed short url: %+v", rr)
 	}
 	// menus link to short URLs
 	admin.must("POST", "/api/v1/x/core.menu/menus", map[string]any{"name": "Main", "location": "header-nav", "items": []map[string]any{

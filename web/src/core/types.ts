@@ -59,6 +59,8 @@ export interface Category {
   translations: { lang: string; status: 'original' | 'current' | 'outdated' | 'missing'; based_on?: number }[];
   translated_percent: number;
   translations_up_to_date: boolean;
+  /** readable path (/wiki/…), single categories only */
+  url?: string;
 }
 
 export interface ElementSummary {
@@ -86,6 +88,8 @@ export interface LangStatus {
 }
 
 export interface ElementView extends ElementSummary {
+  /** readable path (/wiki/…) */
+  url?: string;
   lang: string;
   shown_lang: string;
   fallback: boolean;

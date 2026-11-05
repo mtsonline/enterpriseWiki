@@ -311,6 +311,61 @@ export async function renderElementExtensions(container: HTMLElement, el: import
   }
 }
 
+// ---------------------------------------------------------------- category extensions
+
+export interface CategoryExtension {
+  id: string;
+  order?: number;
+  /** Rendered below the content of a category page (e.g. reactions). */
+  render: (c: import('./core/types').Category) => Node | null | Promise<Node | null>;
+}
+
+const categoryExtensions: CategoryExtension[] = [];
+
+/** Adds a section below every category page. */
+export function registerCategoryExtension(x: CategoryExtension): void {
+  categoryExtensions.push(x);
+  categoryExtensions.sort((a, b) => (a.order ?? 50) - (b.order ?? 50));
+}
+
+/** Renders all category extensions into container. */
+export async function renderCategoryExtensions(container: HTMLElement, c: import('./core/types').Category): Promise<void> {
+  for (const x of categoryExtensions) {
+    try {
+      const n = await x.render(c);
+      if (n && container.isConnected) container.append(n);
+    } catch (e) {
+      console.error(`category extension ${x.id} failed`, e);
+    }
+  }
+}
+
+// ---------------------------------------------------------------- reactions (provided by a plugin)
+
+/** A plugin that shows reactions (e.g. core.reactions) on pages, categories and comments. */
+export interface ReactionsProvider {
+  /** loads the reactions of many targets at once (e.g. all comments of a page) */
+  prefetch: (type: string, ids: number[]) => Promise<void>;
+  /** the reaction bar of a target, or null */
+  render: (type: string, id: number, title: string) => HTMLElement | null;
+}
+
+let reactionsProvider: ReactionsProvider | null = null;
+
+export function registerReactions(p: ReactionsProvider): void {
+  reactionsProvider = p;
+}
+
+/** Reaction bar of a target (null without a reactions plugin). */
+export function reactionBar(type: string, id: number, title: string): HTMLElement | null {
+  return reactionsProvider?.render(type, id, title) ?? null;
+}
+
+/** Loads the reactions of many targets before reactionBar is called for them. */
+export async function prefetchReactions(type: string, ids: number[]): Promise<void> {
+  if (reactionsProvider && ids.length) await reactionsProvider.prefetch(type, ids).catch(() => undefined);
+}
+
 // ---------------------------------------------------------------- macros (for editors)
 
 export interface MacroParam {

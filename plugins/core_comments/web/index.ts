@@ -1,5 +1,5 @@
 // Comments below element pages.
-import { api, ApiError, button, confirmDialog, errorText, field, fmtDate, h, registerElementExtension, state, t, textArea, toast, trustedHTML, type ElementView } from '@ewiki/sdk';
+import { api, ApiError, button, prefetchReactions, reactionBar, confirmDialog, errorText, field, fmtDate, h, registerElementExtension, state, t, textArea, toast, trustedHTML, type ElementView } from '@ewiki/sdk';
 import './style.css';
 
 const BASE = 'x/core.comments';
@@ -38,6 +38,7 @@ async function section(el: ElementView): Promise<Node | null> {
   const root = h('section', { class: 'ewcm', 'aria-labelledby': 'ewcm-title' });
   const reload = async (focusId?: number) => {
     data = await api.get<ListResponse>(`${BASE}/elements/${el.id}/comments`);
+    await prefetchReactions('comment', data.comments.filter((c) => !c.deleted_at).map((c) => c.id));
     draw();
     if (focusId) root.querySelector<HTMLElement>(`#comment-${focusId}`)?.focus();
   };
@@ -74,7 +75,7 @@ async function section(el: ElementView): Promise<Node | null> {
       h('header', { class: 'ewcm-head', id: `comment-${c.id}-h` }, h('strong', null, c.author), ' ',
         h('time', { datetime: c.created_at, class: 'ew-muted' }, fmtDate(c.created_at, state.lang)),
         c.edited && !c.deleted_at ? h('span', { class: 'ew-muted' }, ` · ${t('core.comments.edited')}`) : null),
-      body, actions);
+      body, actions, c.deleted_at ? null : reactionBar('comment', c.id, t('core.comments.reaction_target', { author: c.author })));
     return art;
   };
   const draw = () => {
@@ -94,6 +95,7 @@ async function section(el: ElementView): Promise<Node | null> {
         })
         : h('p', { class: 'ew-muted' }, state.user ? t('core.comments.no_permission') : h('a', { href: `/login?next=${encodeURIComponent(location.pathname)}` }, t('core.comments.login'))));
   };
+  await prefetchReactions('comment', data.comments.filter((c) => !c.deleted_at).map((c) => c.id));
   draw();
   return root;
 }

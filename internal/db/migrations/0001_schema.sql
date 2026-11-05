@@ -149,6 +149,7 @@ CREATE TABLE categories (
 );
 CREATE INDEX categories_path ON categories USING gist(path);
 CREATE INDEX categories_parent ON categories(parent_id, position);
+CREATE INDEX categories_slug ON categories(parent_id, slug);
 CREATE INDEX categories_tags ON categories USING gin(tags);
 CREATE UNIQUE INDEX categories_short_url ON categories(short_url) WHERE short_url IS NOT NULL;
 
@@ -168,11 +169,27 @@ CREATE TABLE elements (
     deleted_by    bigint REFERENCES users(id) ON DELETE SET NULL,
     trash_root    boolean NOT NULL DEFAULT false,
     short_url     text,
-    preview_image text NOT NULL DEFAULT ''           -- og:image for link previews (file hash or URL; empty = automatic)
+    preview_image text NOT NULL DEFAULT '',          -- og:image for link previews (file hash or URL; empty = automatic)
+    slug          text NOT NULL DEFAULT ''           -- last segment of the readable path /wiki/…/<slug> (unique among the children of the category)
 );
 CREATE INDEX elements_category ON elements(category_id, position);
 CREATE INDEX elements_tags ON elements USING gin(tags);
 CREATE UNIQUE INDEX elements_short_url ON elements(short_url) WHERE short_url IS NOT NULL;
+CREATE INDEX elements_slug ON elements(category_id, slug);
+
+-- Former addresses: readable path segments (scope "path": slug below a
+-- parent category, 0 = top level) and short URLs (scope "short"). Old links
+-- are redirected to the current address of the target.
+CREATE TABLE url_aliases (
+    scope       text NOT NULL CHECK (scope IN ('path', 'short')),
+    parent_id   bigint NOT NULL DEFAULT 0,
+    slug        text NOT NULL,
+    target_type text NOT NULL CHECK (target_type IN ('element', 'category')),
+    target_id   bigint NOT NULL,
+    created_at  timestamptz NOT NULL DEFAULT now(),
+    PRIMARY KEY (scope, parent_id, slug)
+);
+CREATE INDEX url_aliases_target ON url_aliases(target_type, target_id);
 
 ALTER TABLE categories ADD CONSTRAINT categories_default_element
     FOREIGN KEY (default_element_id) REFERENCES elements(id) ON DELETE SET NULL;

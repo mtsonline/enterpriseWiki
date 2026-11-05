@@ -46,6 +46,7 @@ type Category struct {
 	Translations         []CatTranslation `json:"translations"`
 	TranslatedPercent    int              `json:"translated_percent"`
 	TranslationsUpToDate bool             `json:"translations_up_to_date"`
+	URL                  string           `json:"url,omitempty"` // readable path (/wiki/…), single categories only
 }
 
 const catCols = `c.id, c.parent_id, c.path::text, c.position, c.slug, c.titles, c.descriptions, c.tags, c.default_element_id, c.feed, COALESCE(c.short_url, ''),
@@ -161,6 +162,7 @@ func (s *Service) GetCategory(ctx context.Context, id int64) (*Category, error) 
 	if err != nil {
 		return nil, err
 	}
+	cs[0].URL = s.Path(ctx, "category", id)
 	return &cs[0], s.visibleChildren(ctx, cs)
 }
 
@@ -514,6 +516,8 @@ func (s *Service) MoveCategory(ctx context.Context, id, newParent int64, positio
 	} else if err := s.require(ctx, newParent, acl.Manage); err != nil {
 		return nil, err
 	}
+	var fromParent int64
+	_ = s.pool.QueryRow(ctx, `SELECT COALESCE(parent_id, 0) FROM categories WHERE id=$1`, id).Scan(&fromParent)
 	err := db.Tx(ctx, s.pool, func(tx pgx.Tx) error {
 		var oldPath string
 		var oldParent *int64
@@ -559,6 +563,7 @@ func (s *Service) MoveCategory(ctx context.Context, id, newParent int64, positio
 		return nil, err
 	}
 	s.aclChanged(ctx)
+	_ = s.syncSlug(ctx, "category", id, fromParent)
 	s.fire(ctx, "move", "category", id)
 	return s.GetCategory(ctx, id)
 }
