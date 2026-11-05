@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/mtsonline/enterprisewiki/internal/config"
+	"github.com/mtsonline/enterprisewiki/internal/tlsutil"
 )
 
 // Envelope is a rendered message with its SMTP envelope.
@@ -155,9 +156,11 @@ func (t smtpTransport) Open(ctx context.Context) (Session, error) {
 	}
 	addr := net.JoinHostPort(t.c.Host, strconv.Itoa(port))
 	dialer := &net.Dialer{Timeout: 15 * time.Second}
-	tlsCfg := &tls.Config{ServerName: t.c.Host, InsecureSkipVerify: t.c.SkipVerify, MinVersion: tls.VersionTLS12} //nolint:gosec // opt-in for self-signed relays
+	tlsCfg, err := tlsutil.Client(t.c.Host, t.c.CA, t.c.SkipVerify)
+	if err != nil {
+		return nil, err
+	}
 	var conn net.Conn
-	var err error
 	if sec == "tls" {
 		conn, err = tls.DialWithDialer(dialer, "tcp", addr, tlsCfg)
 	} else {
@@ -284,8 +287,14 @@ func (t sendmailTransport) Name() string { return "sendmail" }
 func (t sendmailTransport) Send(ctx context.Context, e Envelope) error {
 	ctx, cancel := context.WithTimeout(ctx, 60*time.Second)
 	defer cancel()
-	args := append([]string{"-i", "-f", e.From}, e.Recipients...) // addresses are validated and never start with "-"
-	cmd := exec.CommandContext(ctx, t.path, args...)
+	// addresses are validated; never pass anything that sendmail would read as an option
+	for _, a := range append([]string{e.From}, e.Recipients...) {
+		if a == "" || strings.HasPrefix(a, "-") || strings.ContainsAny(a, "\r\n\x00 ") {
+			return fmt.Errorf("sendmail: refusing address %q", a)
+		}
+	}
+	args := append([]string{"-i", "-f", e.From}, e.Recipients...)
+	cmd := exec.CommandContext(ctx, t.path, args...) // #nosec G204 -- sendmail path from the instance settings, arguments checked above
 	cmd.Stdin = bytes.NewReader(bytes.ReplaceAll(e.Data, []byte("\r\n"), []byte("\n")))
 	out, err := cmd.CombinedOutput()
 	if err != nil {

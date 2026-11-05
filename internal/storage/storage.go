@@ -168,7 +168,7 @@ func (s *Store) Put(ctx context.Context, r io.Reader, name string) (*File, error
 		if err := os.Rename(tmp.Name(), dst); err != nil {
 			return nil, err
 		}
-		_ = os.Chmod(dst, 0o440)
+		_ = os.Chmod(dst, 0o400)
 	}
 	var uid *int64
 	if id := identity.From(ctx).ID(); id != 0 {

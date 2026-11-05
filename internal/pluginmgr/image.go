@@ -128,7 +128,7 @@ func SourceHash(l Layout) (hash string, ok bool, err error) {
 			if !d.Type().IsRegular() {
 				return nil
 			}
-			b, err := os.ReadFile(p)
+			b, err := os.ReadFile(p) // #nosec G304 G122 -- plugin sources of the administrator; only regular files
 			if err != nil {
 				return err
 			}
@@ -168,7 +168,7 @@ func fingerprint(dir string) string {
 func (l Layout) BinaryPath(hash string) string { return filepath.Join(l.Bin, "ewiki-"+hash) }
 
 func readMeta(path string) *BuildMeta {
-	b, err := os.ReadFile(path + ".json")
+	b, err := os.ReadFile(path + ".json") // #nosec G304 -- build metadata next to the binary
 	if err != nil {
 		return nil
 	}
@@ -182,10 +182,10 @@ func readMeta(path string) *BuildMeta {
 // fileLock is an exclusive lock on a file (shared data directory: one build
 // at a time, also across containers).
 func fileLock(ctx context.Context, path string) (func(), error) {
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(path), 0o750); err != nil {
 		return nil, err
 	}
-	f, err := os.OpenFile(path, os.O_CREATE|os.O_RDWR, 0o644)
+	f, err := os.OpenFile(path, os.O_CREATE|os.O_RDWR, 0o640)
 	if err != nil {
 		return nil, err
 	}
@@ -261,7 +261,7 @@ func BuildImage(ctx context.Context, root string, l Layout, trigger string, w io
 	env := buildEnv(l)
 	tmp := final + ".tmp"
 	run := func(name string, args ...string) error {
-		cmd := exec.CommandContext(ctx, name, args...)
+		cmd := exec.CommandContext(ctx, name, args...) // #nosec G204 -- go toolchain with fixed arguments
 		cmd.Dir = l.Work
 		cmd.Env = append(env, "EWIKI_BUILD_OUT="+tmp)
 		cmd.Stdout, cmd.Stderr = w, w
@@ -271,14 +271,14 @@ func BuildImage(ctx context.Context, root string, l Layout, trigger string, w io
 		_ = os.Remove(tmp)
 		return "", nil, false, fmt.Errorf("build failed: %w", err)
 	}
-	if out, err := exec.CommandContext(ctx, tmp, "version").CombinedOutput(); err != nil {
+	if out, err := exec.CommandContext(ctx, tmp, "version").CombinedOutput(); err != nil { // #nosec G204 -- self-test of the binary just built
 		_ = os.Remove(tmp)
 		return "", nil, false, fmt.Errorf("new binary failed self-test: %v: %s", err, out)
 	}
 	host, _ := os.Hostname()
 	meta = &BuildMeta{Hash: hash, Version: version.Version, Plugins: ids, Trigger: trigger, BuiltAt: time.Now().UTC(), By: host}
 	b, _ := json.MarshalIndent(meta, "", "  ")
-	if err := os.WriteFile(final+".json", b, 0o644); err != nil {
+	if err := os.WriteFile(final+".json", b, 0o640); err != nil {
 		return "", nil, false, err
 	}
 	if err := os.Rename(tmp, final); err != nil {
@@ -337,7 +337,7 @@ func modTime(p string) time.Time {
 	return time.Time{}
 }
 
-func exists(p string) bool { _, err := os.Stat(p); return err == nil }
+func exists(p string) bool { _, err := os.Stat(p); return err == nil } // #nosec G703 -- internal paths
 
 // copyTree copies the core source tree for a build (without dependencies,
 // build results and backups).
@@ -353,7 +353,7 @@ func copyTree(src, dst string) error {
 			case ".git", "web/node_modules", "web/dist", "bin", "plugins/.backup", "data":
 				return filepath.SkipDir
 			}
-			return os.MkdirAll(filepath.Join(dst, rel), 0o755)
+			return os.MkdirAll(filepath.Join(dst, rel), 0o750)
 		}
 		if !d.Type().IsRegular() {
 			return nil
@@ -362,11 +362,11 @@ func copyTree(src, dst string) error {
 		if err != nil {
 			return err
 		}
-		b, err := os.ReadFile(p)
+		b, err := os.ReadFile(p) // #nosec G304 G122 -- plugin sources of the administrator; only regular files
 		if err != nil {
 			return err
 		}
-		return os.WriteFile(filepath.Join(dst, rel), b, info.Mode().Perm()|0o200)
+		return os.WriteFile(filepath.Join(dst, rel), b, info.Mode().Perm()|0o200) // #nosec G703 G306 -- copy of the source tree for the build (relative path from WalkDir)
 	})
 }
 
@@ -456,8 +456,8 @@ func saveLastBuild(l Layout, hash string, start time.Time, buf *lockedBuffer, er
 	now := time.Now()
 	st := lastBuild{BuildStatus: BuildStatus{OK: err == nil, StartedAt: &start, FinishedAt: &now, Log: tail(buf.String(), err)}, Hash: hash}
 	b, _ := json.Marshal(st)
-	_ = os.MkdirAll(l.Bin, 0o755)
-	_ = os.WriteFile(filepath.Join(l.Bin, "last-build.json"), b, 0o644)
+	_ = os.MkdirAll(l.Bin, 0o750)
+	_ = os.WriteFile(filepath.Join(l.Bin, "last-build.json"), b, 0o640)
 }
 
 func loadLastBuild(l Layout) *lastBuild {

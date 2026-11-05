@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"maps"
+	"mime"
 	"net/http"
 	"net/url"
 	"reflect"
@@ -741,8 +742,8 @@ func (s *Server) routes() {
 			return
 		}
 		w.Header().Set("Content-Type", ctype)
-		w.Header().Set("Content-Disposition", `attachment; filename="`+name+`"`)
-		_, _ = w.Write(data)
+		w.Header().Set("Content-Disposition", mime.FormatMediaType("attachment", map[string]string{"filename": safeFileName(name)}))
+		_, _ = w.Write(data) // #nosec G705 -- download (attachment, nosniff), not rendered
 	})
 	// POST …/import?format=json|xliff|po (body: the file; format detected when omitted)
 	s.handle("POST /api/v1/admin/i18n/{lang}/import", func(w http.ResponseWriter, r *http.Request) (any, error) {
@@ -1116,4 +1117,19 @@ func (s *Server) auditLogin(r *http.Request, p *identity.Principal, method, user
 		return
 	}
 	_ = audit.Log(identity.With(ctx, p), s.app.DB, "auth.login", "user", p.ID(), nil, map[string]string{"method": method})
+}
+
+// safeFileName keeps letters, digits, dot, dash and underscore of a
+// download name (no quotes, separators or control characters).
+func safeFileName(name string) string {
+	b := []rune{}
+	for _, r := range name {
+		if r < 128 && (r == '.' || r == '-' || r == '_' || r >= '0' && r <= '9' || r >= 'a' && r <= 'z' || r >= 'A' && r <= 'Z') {
+			b = append(b, r)
+		}
+	}
+	if len(b) == 0 || len(b) > 120 {
+		return "download"
+	}
+	return string(b)
 }

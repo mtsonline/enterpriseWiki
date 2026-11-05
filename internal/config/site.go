@@ -200,11 +200,11 @@ func (s *Store) writeSite(c *Config) error {
 	if len(d) == 0 {
 		b = nil
 	}
-	if err := os.MkdirAll(filepath.Dir(s.path), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(s.path), 0o750); err != nil {
 		return err
 	}
 	tmp := s.path + ".tmp"
-	if err := os.WriteFile(tmp, append([]byte(siteHeader), b...), 0o640); err != nil {
+	if err := os.WriteFile(tmp, append([]byte(siteHeader), b...), 0o600); err != nil {
 		return err
 	}
 	return os.Rename(tmp, s.path)

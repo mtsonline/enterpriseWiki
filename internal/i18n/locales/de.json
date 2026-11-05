@@ -1342,5 +1342,7 @@
  "mfa.mail_subject_login": "Ihr Anmeldecode für {site}: {code}",
  "mfa.mail_text_login": "Ihr Anmeldecode für {site} lautet: {code}\n\nEr gilt {minutes} Minuten. Falls Sie sich nicht anmelden wollten, ändern Sie bitte Ihr Passwort.",
  "mfa.mail_subject_setup": "Ihr Bestätigungscode für {site}: {code}",
- "mfa.mail_text_setup": "Ihr Code zum Ändern des zweiten Faktors bei {site} lautet: {code}\n\nEr gilt {minutes} Minuten."
+ "mfa.mail_text_setup": "Ihr Code zum Ändern des zweiten Faktors bei {site} lautet: {code}\n\nEr gilt {minutes} Minuten.",
+ "mail.ca_cert": "CA-Zertifikat (PEM, optional)",
+ "mail.ca_cert_help": "Zertifikat einer internen Zertifizierungsstelle, die das Zertifikat des Relays ausgestellt hat (PEM-Text oder Dateipfad) – sicherer, als die Prüfung abzuschalten."
 }

@@ -20,7 +20,6 @@ package auth_ldap
 
 import (
 	"context"
-	"crypto/tls"
 	"embed"
 	"encoding/hex"
 	"errors"
@@ -28,6 +27,7 @@ import (
 	"github.com/mtsonline/enterprisewiki/internal/perm"
 	"io/fs"
 	"net/http"
+	neturl "net/url"
 	"strconv"
 	"strings"
 	"time"
@@ -38,6 +38,7 @@ import (
 	"github.com/mtsonline/enterprisewiki/internal/apperr"
 	"github.com/mtsonline/enterprisewiki/internal/auth"
 	h "github.com/mtsonline/enterprisewiki/internal/httpx"
+	"github.com/mtsonline/enterprisewiki/internal/tlsutil"
 	"github.com/mtsonline/enterprisewiki/pkg/sdk"
 )
 
@@ -111,7 +112,14 @@ func (p *Provider) dial(s map[string]any) (*ldap.Conn, error) {
 	if v, err := strconv.Atoi(auth.Setting(s, "timeout_seconds", "")); err == nil && v > 0 {
 		timeout = time.Duration(v) * time.Second
 	}
-	tlsConf := &tls.Config{InsecureSkipVerify: auth.BoolSetting(s, "insecure_skip_verify", false), MinVersion: tls.VersionTLS12} //nolint:gosec // opt-in for test setups
+	host := ""
+	if u, err := neturl.Parse(url); err == nil {
+		host = u.Hostname()
+	}
+	tlsConf, err := tlsutil.Client(host, auth.Setting(s, "ca_cert", ""), auth.BoolSetting(s, "insecure_skip_verify", false))
+	if err != nil {
+		return nil, err
+	}
 	conn, err := ldap.DialURL(url, ldap.DialWithTLSConfig(tlsConf), ldap.DialWithDialer(dialer(timeout)))
 	if err != nil {
 		return nil, fmt.Errorf("connect %s: %w", url, err)

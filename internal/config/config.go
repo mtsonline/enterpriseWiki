@@ -23,6 +23,8 @@ import (
 	"time"
 
 	"gopkg.in/yaml.v3"
+
+	"github.com/mtsonline/enterprisewiki/internal/tlsutil"
 )
 
 // Config is the complete configuration document.
@@ -302,6 +304,8 @@ type Bounce struct {
 	// Delete processed bounce mails (default: only mark them as read).
 	Delete     bool `yaml:"delete_processed,omitempty" json:"delete_processed"`
 	SkipVerify bool `yaml:"skip_verify,omitempty" json:"skip_verify"`
+	// CA certificate (PEM or file path) trusted for the IMAP server.
+	CA string `yaml:"ca_cert,omitempty" json:"ca_cert"`
 }
 
 // SMTP is an SMTP relay.
@@ -314,6 +318,9 @@ type SMTP struct {
 	Password   string `yaml:"password,omitempty" json:"password"`
 	SkipVerify bool   `yaml:"skip_verify,omitempty" json:"skip_verify"`
 	HeloName   string `yaml:"helo_name,omitempty" json:"helo_name"`
+	// CA certificate (PEM or file path) trusted for the relay, e.g. an
+	// internal certificate authority (instead of skip_verify).
+	CA string `yaml:"ca_cert,omitempty" json:"ca_cert"`
 }
 
 // Defaults returns a configuration with sane defaults.
@@ -401,7 +408,7 @@ func expandAll(v reflect.Value) {
 // LoadDotEnv loads KEY=VALUE lines from path into the process environment.
 // Existing environment variables win. A missing file is not an error.
 func LoadDotEnv(path string) error {
-	f, err := os.Open(path)
+	f, err := os.Open(path) // #nosec G304 -- .env next to the configuration
 	if errors.Is(err, os.ErrNotExist) {
 		return nil
 	}
@@ -466,7 +473,7 @@ func (s *Store) Reload() error {
 	}
 	raw := Defaults()
 	var mt time.Time
-	b, err := os.ReadFile(s.path)
+	b, err := os.ReadFile(s.path) // #nosec G304 -- the configuration file
 	switch {
 	case err == nil:
 		if err := yaml.Unmarshal(b, raw); err != nil {
@@ -567,7 +574,7 @@ func WriteFile(path string, c *Config) error {
 		return err
 	}
 	dir := filepath.Dir(path)
-	if err := os.MkdirAll(dir, 0o755); err != nil {
+	if err := os.MkdirAll(dir, 0o750); err != nil {
 		return err
 	}
 	tmp, err := os.CreateTemp(dir, ".config-*.yaml")
@@ -589,7 +596,7 @@ func WriteFile(path string, c *Config) error {
 	if st, err := os.Stat(path); err == nil {
 		_ = os.Chmod(tmp.Name(), st.Mode().Perm())
 	} else {
-		_ = os.Chmod(tmp.Name(), 0o640)
+		_ = os.Chmod(tmp.Name(), 0o600)
 	}
 	return os.Rename(tmp.Name(), path)
 }
@@ -601,6 +608,9 @@ func ValidLanguage(code string) bool { return langRe.MatchString(code) }
 
 // Validate checks a configuration document.
 func Validate(c *Config) error {
+	if err := tlsutil.Validate(c.Mail.SMTP.CA); err != nil && !strings.Contains(c.Mail.SMTP.CA, "${") {
+		return fmt.Errorf("mail.smtp.ca_cert: %w", err)
+	}
 	if c.Mode != "single" && c.Mode != "cluster" {
 		return fmt.Errorf("mode must be 'single' or 'cluster', got %q", c.Mode)
 	}

@@ -172,11 +172,13 @@ func (s *Server) authenticate(w http.ResponseWriter, r *http.Request) (context.C
 }
 
 func (s *Server) setCookie(w http.ResponseWriter, token string, exp time.Time) {
+	// #nosec G124 -- HttpOnly, SameSite=Lax; Secure follows server.secure_cookies (set for HTTPS base URLs)
 	http.SetCookie(w, &http.Cookie{Name: sessionCookie, Value: token, Path: "/", Expires: exp, HttpOnly: true,
 		Secure: s.app.Config.Get().Server.SecureCookies, SameSite: http.SameSiteLaxMode})
 }
 
 func (s *Server) clearCookie(w http.ResponseWriter) {
+	// #nosec G124 -- deletes the cookie
 	http.SetCookie(w, &http.Cookie{Name: sessionCookie, Value: "", Path: "/", MaxAge: -1, HttpOnly: true,
 		Secure: s.app.Config.Get().Server.SecureCookies, SameSite: http.SameSiteLaxMode})
 }

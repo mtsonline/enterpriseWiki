@@ -551,8 +551,8 @@ async function settings(panel: HTMLElement): Promise<void> {
 interface MailConfig {
   enabled: boolean | null; transport: string; from: string; from_name: string; reply_to: string; allowed_from: string[] | null; subject_prefix: string; sendmail: string;
   concurrency: number; rate_per_minute: number; digest_hour: number; digest_weekday: number; digest_timezone: string;
-  smtp: { host: string; port: number; security: string; username: string; password: string; skip_verify: boolean; helo_name: string };
-  bounce: { address: string; verp: boolean; imap_host: string; imap_port: number; imap_security: string; imap_username: string; imap_password: string; imap_folder: string; delete_processed: boolean; skip_verify: boolean };
+  smtp: { host: string; port: number; security: string; username: string; password: string; skip_verify: boolean; helo_name: string; ca_cert?: string };
+  bounce: { address: string; verp: boolean; imap_host: string; imap_port: number; imap_security: string; imap_username: string; imap_password: string; imap_folder: string; delete_processed: boolean; skip_verify: boolean; ca_cert?: string };
 }
 interface MailStatus { enabled: boolean; transport: string; from: string; counts: Record<string, number>; recipients: Record<string, number>; oldest_pending: string | null; bounces: boolean; problem?: string }
 interface MailRecipient { id: number; addr: string; kind: string; status: string; attempts: number; last_code: number; last_error: string; next_attempt_at: string; sent_at: string | null; failed_at: string | null; bounced: boolean }
@@ -604,6 +604,7 @@ async function mailAdmin(panel: HTMLElement, query: URLSearchParams): Promise<vo
   const user = textInput({ value: m.smtp.username, autocomplete: 'off' });
   const pw = textInput({ value: m.smtp.password, type: 'password', autocomplete: 'new-password' });
   const skip = checkbox(t('mail.skip_verify'), m.smtp.skip_verify, { help: t('mail.skip_verify_help') });
+  const ca = textArea({ value: m.smtp.ca_cert ?? '', rows: 3 });
   const helo = textInput({ value: m.smtp.helo_name });
   const sendmail = textInput({ value: m.sendmail, placeholder: '/usr/sbin/sendmail' });
   const b = m.bounce ?? { address: '', verp: false, imap_host: '', imap_port: 0, imap_security: 'tls', imap_username: '', imap_password: '', imap_folder: '', delete_processed: false, skip_verify: false };
@@ -626,7 +627,7 @@ async function mailAdmin(panel: HTMLElement, query: URLSearchParams): Promise<vo
       field(t('mail.from_name'), fromName), field(t('mail.reply_to'), replyTo), field(t('mail.subject_prefix'), prefix),
       field(t('mail.allowed_from'), allowed, { help: t('mail.allowed_from_help') })),
     fs(t('mail.smtp'), field(t('mail.host'), host), field(t('mail.port'), port, { help: t('mail.port_help') }), field(t('mail.security'), security),
-      field(t('mail.username'), user), field(t('mail.password'), pw, { help: t('mail.password_help') }), field(t('mail.helo'), helo), skip.el,
+      field(t('mail.username'), user), field(t('mail.password'), pw, { help: t('mail.password_help') }), field(t('mail.helo'), helo), field(t('mail.ca_cert'), ca, { help: t('mail.ca_cert_help') }), skip.el,
       field(t('mail.concurrency'), conc, { help: t('mail.concurrency_help') }), field(t('mail.rate'), rate, { help: t('mail.rate_help') })),
     fs(t('mail.sendmail'), field(t('mail.sendmail_path'), sendmail, { help: t('mail.sendmail_help') })),
     fs(t('mail.bounce'), h('p', { class: 'ew-help' }, t('mail.bounce_help')), field(t('mail.bounce_address'), bAddr), bVerp.el,
@@ -645,9 +646,9 @@ async function mailAdmin(panel: HTMLElement, query: URLSearchParams): Promise<vo
         allowed_from: allowed.value.split(/[\n,;]/).map((x) => x.trim()).filter(Boolean), sendmail: sendmail.value.trim(),
         concurrency: Number(conc.value) || 0, rate_per_minute: Number(rate.value) || 0,
         digest_hour: Number(dHour.value), digest_weekday: Number(dDay.value), digest_timezone: dTZ.value.trim(),
-        smtp: { host: host.value.trim(), port: Number(port.value) || 0, security: security.value, username: user.value.trim(), password: pw.value, skip_verify: skip.input.checked, helo_name: helo.value.trim() },
+        smtp: { host: host.value.trim(), port: Number(port.value) || 0, security: security.value, username: user.value.trim(), password: pw.value, skip_verify: skip.input.checked, helo_name: helo.value.trim(), ca_cert: ca.value.trim() },
         bounce: { address: bAddr.value.trim(), verp: bVerp.input.checked, imap_host: bHost.value.trim(), imap_port: Number(bPort.value) || 0, imap_security: bSec.value,
-          imap_username: bUser.value.trim(), imap_password: bPw.value, imap_folder: bFolder.value.trim(), delete_processed: bDel.input.checked, skip_verify: b.skip_verify },
+          imap_username: bUser.value.trim(), imap_password: bPw.value, imap_folder: bFolder.value.trim(), delete_processed: bDel.input.checked, skip_verify: b.skip_verify, ca_cert: b.ca_cert },
       } });
       toast(t('settings.saved'));
       reload();

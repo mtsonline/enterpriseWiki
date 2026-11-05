@@ -67,7 +67,7 @@ func pdftotext(ctx context.Context, path string) string {
 	}
 	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
-	out, err := exec.CommandContext(ctx, bin, "-q", "-enc", "UTF-8", path, "-").Output()
+	out, err := exec.CommandContext(ctx, bin, "-q", "-enc", "UTF-8", path, "-").Output() // #nosec G204 -- path of a stored file (generated, never starts with "-")
 	if err != nil {
 		return ""
 	}

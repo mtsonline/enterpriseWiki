@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/mtsonline/enterprisewiki/internal/apperr"
+	"github.com/mtsonline/enterprisewiki/internal/auth"
 	"github.com/mtsonline/enterprisewiki/internal/config"
 	h "github.com/mtsonline/enterprisewiki/internal/httpx"
 	"github.com/mtsonline/enterprisewiki/internal/identity"
@@ -64,10 +65,10 @@ func (s *Server) routesM2() {
 		if res != nil {
 			s.auditLogin(r, res.Principal, "sso:"+r.PathValue("provider"), "", nil)
 			s.setCookie(w, res.Token, res.ExpiresAt)
-			http.Redirect(w, r, res.Next, http.StatusSeeOther)
+			http.Redirect(w, r, auth.SafeNext(res.Next), http.StatusSeeOther)
 			return
 		}
-		http.Redirect(w, r, redirect, http.StatusFound)
+		http.Redirect(w, r, redirect, http.StatusFound) // #nosec G710 -- URL of the configured identity provider, not from the request
 	})
 	callback := func(w http.ResponseWriter, r *http.Request) {
 		res, err := s.app.Auth.SSOCallback(r.Context(), r.PathValue("provider"), r, s.isTrustedProxy(r), s.clientIP(r), r.UserAgent())
@@ -78,7 +79,7 @@ func (s *Server) routesM2() {
 		}
 		s.auditLogin(r, res.Principal, "sso:"+r.PathValue("provider"), "", nil)
 		s.setCookie(w, res.Token, res.ExpiresAt)
-		http.Redirect(w, r, res.Next, http.StatusSeeOther)
+		http.Redirect(w, r, auth.SafeNext(res.Next), http.StatusSeeOther)
 	}
 	// Called by the identity provider (redirect or HTTP-POST binding).
 	h.RecordRoute("GET /api/v1/auth/sso/{provider}/callback")

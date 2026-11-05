@@ -417,7 +417,7 @@ func sourceRoot(dir string) string {
 }
 
 func runBuild(root string, stdout, stderr io.Writer) error {
-	cmd := exec.Command("bash", filepath.Join(root, "scripts", "build.sh"))
+	cmd := exec.Command("bash", filepath.Join(root, "scripts", "build.sh")) // #nosec G204 -- build script of the installation
 	cmd.Dir = root
 	cmd.Stdout, cmd.Stderr = stdout, stderr
 	if err := cmd.Run(); err != nil {

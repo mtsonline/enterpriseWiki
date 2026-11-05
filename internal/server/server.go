@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/mtsonline/enterprisewiki/internal/app"
+	"github.com/mtsonline/enterprisewiki/internal/auth"
 	"github.com/mtsonline/enterprisewiki/internal/identity"
 	"github.com/mtsonline/enterprisewiki/internal/pluginmgr"
 )
@@ -91,7 +92,7 @@ func (s *Server) serveFrontend(w http.ResponseWriter, r *http.Request) {
 			if strings.HasPrefix(p, "assets/") {
 				w.Header().Set("Cache-Control", "public, max-age=31536000, immutable")
 			}
-			http.ServeFileFS(w, r, s.web, p)
+			http.ServeFileFS(w, r, s.web, p) // #nosec G703 -- embedded frontend (fs.FS cannot leave its root), path cleaned
 			return
 		}
 		if strings.HasPrefix(p, "assets/") {
@@ -106,7 +107,7 @@ func (s *Server) serveFrontend(w http.ResponseWriter, r *http.Request) {
 			if r.URL.RawQuery != "" {
 				target += "?" + r.URL.RawQuery
 			}
-			http.Redirect(w, r, target, http.StatusMovedPermanently)
+			http.Redirect(w, r, auth.SafeNext(target), http.StatusMovedPermanently)
 			return
 		}
 	}

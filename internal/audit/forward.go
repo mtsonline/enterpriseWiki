@@ -305,7 +305,7 @@ func (f *Forwarder) sendFile(d config.AuditForward, batch []Entry) error {
 		}
 		_ = os.Rename(path, path+".1")
 	}
-	fh, err := os.OpenFile(path, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0o640)
+	fh, err := os.OpenFile(path, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0o600) // #nosec G304 -- file destination set by an administrator
 	if err != nil {
 		return err
 	}

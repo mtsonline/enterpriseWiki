@@ -12,7 +12,7 @@ src="$(cd "$(dirname "$0")/.." && pwd)"
 image="${1:-}"
 fail() {
 	echo "FAIL: $*" >&2
-	cat .env >&2 2>/dev/null || true
+	grep -v -i 'password\|secret\|token' .env >&2 2>/dev/null || true # never print secrets into (public) CI logs
 	docker compose logs --no-color --tail 100 >&2 2>/dev/null || true
 	exit 1
 }
@@ -74,9 +74,12 @@ EWIKI_ACME=letsencrypt-staging
 EWIKI_ACME_EMAIL=ci@example.com
 EWIKI_HTTP_PORT=8081
 EWIKI_HTTPS_PORT=8443
+EWIKI_SUBNET=172.30.90.0/24
+EWIKI_PROXY_IP=172.30.90.2
+EWIKI_TRUSTED_PROXIES=172.30.90.2
 EOF
 sed -i 's#^EWIKI_BASE_URL=.*#EWIKI_BASE_URL=https://wiki.example.com#' .env
-docker compose up -d >/dev/null 2>&1 || fail "compose up"
+docker compose up -d >up.log 2>&1 || { cat up.log >&2; fail "compose up"; }
 trap 'docker compose down -v >/dev/null 2>&1 || true' EXIT
 for _ in $(seq 1 120); do curl -fs http://127.0.0.1:8080/readyz >/dev/null && break; sleep 1; done
 curl -fs http://127.0.0.1:8080/readyz >/dev/null || fail "wiki not ready"

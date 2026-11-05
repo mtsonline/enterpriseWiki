@@ -107,10 +107,10 @@ func run(out string, check bool) error {
 		t, _ := static.ReadFile(f.file)
 		section(f.name, string(t))
 	}
-	if err := os.MkdirAll(filepath.Dir(out), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(out), 0o755); err != nil { // #nosec G301 -- repository directory, must be readable
 		return err
 	}
-	return os.WriteFile(out, w.Bytes(), 0o644)
+	return os.WriteFile(out, w.Bytes(), 0o644) // #nosec G306 -- repository file (third-party notices), must be readable
 }
 
 // licenseFiles returns LICENSE, COPYING and NOTICE files of a module directory.
@@ -125,7 +125,7 @@ func licenseFiles(dir string) []string {
 		if e.IsDir() || !(strings.HasPrefix(n, "LICENSE") || strings.HasPrefix(n, "LICENCE") || strings.HasPrefix(n, "COPYING") || strings.HasPrefix(n, "NOTICE")) {
 			continue
 		}
-		if b, err := os.ReadFile(filepath.Join(dir, e.Name())); err == nil {
+		if b, err := os.ReadFile(filepath.Join(dir, e.Name())); err == nil { // #nosec G304 -- license files of Go modules (build tool)
 			out = append(out, string(b))
 		}
 	}
@@ -138,7 +138,7 @@ var testOnly = map[string]bool{"axe-core": true, "playwright": true, "playwright
 // checkNPM checks the licenses of all npm packages of the lock file. Fonts
 // (SIL Open Font License) are allowed; their texts are added from static/.
 func checkNPM(lock string, verbose bool) ([]string, error) {
-	b, err := os.ReadFile(lock)
+	b, err := os.ReadFile(lock) // #nosec G304 -- package-lock.json of the repository (build tool)
 	if os.IsNotExist(err) {
 		return nil, nil
 	}

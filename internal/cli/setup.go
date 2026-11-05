@@ -108,7 +108,7 @@ func (e *env) setup(args []string) error {
 		// secrets go to .env, the config references them
 		envPath := filepath.Join(dir, ".env")
 		if !dbFromEnv {
-			f, err := os.OpenFile(envPath, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0o600)
+			f, err := os.OpenFile(envPath, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0o600) // #nosec G304 -- .env of the installation
 			if err != nil {
 				return err
 			}

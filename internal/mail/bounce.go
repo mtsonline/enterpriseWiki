@@ -198,7 +198,7 @@ func (s *Service) ProcessBounces(ctx context.Context) (int, error) {
 	if b.IMAPHost == "" || !s.Enabled() {
 		return 0, nil
 	}
-	c, err := dialIMAP(b.IMAPHost, b.IMAPPort, b.Security, b.SkipVerify, 20*time.Second)
+	c, err := dialIMAP(b.IMAPHost, b.IMAPPort, b.Security, b.CA, b.SkipVerify, 20*time.Second)
 	if err != nil {
 		return 0, err
 	}

@@ -44,7 +44,7 @@ func readString(b []byte) ([]byte, []byte, error) {
 		return nil, nil, errors.New("short buffer")
 	}
 	n := binary.BigEndian.Uint32(b)
-	if uint32(len(b)-4) < n {
+	if uint64(len(b)-4) < uint64(n) {
 		return nil, nil, errors.New("short buffer")
 	}
 	return b[4 : 4+n], b[4+n:], nil
@@ -52,7 +52,7 @@ func readString(b []byte) ([]byte, []byte, error) {
 
 func writeString(buf *bytes.Buffer, s []byte) {
 	var l [4]byte
-	binary.BigEndian.PutUint32(l[:], uint32(len(s)))
+	binary.BigEndian.PutUint32(l[:], uint32(len(s))) // #nosec G115 -- SSH signature fields are far below 4 GiB
 	buf.Write(l[:])
 	buf.Write(s)
 }

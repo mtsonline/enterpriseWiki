@@ -1292,5 +1292,7 @@
  "mfa.mail_subject_login": "Your sign-in code for {site}: {code}",
  "mfa.mail_text_login": "Your sign-in code for {site} is: {code}\n\nIt is valid for {minutes} minutes. If you did not try to sign in, change your password.",
  "mfa.mail_subject_setup": "Your confirmation code for {site}: {code}",
- "mfa.mail_text_setup": "Your code to change the second factor at {site} is: {code}\n\nIt is valid for {minutes} minutes."
+ "mfa.mail_text_setup": "Your code to change the second factor at {site} is: {code}\n\nIt is valid for {minutes} minutes.",
+ "mail.ca_cert": "CA certificate (PEM, optional)",
+ "mail.ca_cert_help": "Certificate of an internal certificate authority that signed the relay's certificate (PEM text or a file path) – safer than switching the check off."
 }

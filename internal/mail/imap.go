@@ -10,6 +10,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/mtsonline/enterprisewiki/internal/tlsutil"
 )
 
 // imapClient is a minimal IMAP4rev1 client for reading the bounce mailbox
@@ -20,7 +22,7 @@ type imapClient struct {
 	tag  int
 }
 
-func dialIMAP(host string, port int, security string, skipVerify bool, timeout time.Duration) (*imapClient, error) {
+func dialIMAP(host string, port int, security, ca string, skipVerify bool, timeout time.Duration) (*imapClient, error) {
 	if security == "" {
 		security = "tls"
 	}
@@ -32,9 +34,11 @@ func dialIMAP(host string, port int, security string, skipVerify bool, timeout t
 	}
 	addr := net.JoinHostPort(host, strconv.Itoa(port))
 	d := &net.Dialer{Timeout: timeout}
-	tlsCfg := &tls.Config{ServerName: host, InsecureSkipVerify: skipVerify, MinVersion: tls.VersionTLS12} //nolint:gosec // opt-in
+	tlsCfg, err := tlsutil.Client(host, ca, skipVerify)
+	if err != nil {
+		return nil, err
+	}
 	var conn net.Conn
-	var err error
 	if security == "tls" {
 		conn, err = tls.DialWithDialer(d, "tcp", addr, tlsCfg)
 	} else {
@@ -69,9 +73,10 @@ func dialIMAP(host string, port int, security string, skipVerify bool, timeout t
 	return c, nil
 }
 
-// quote returns an IMAP quoted string.
+// quote returns an IMAP quoted string; line breaks and NUL are removed so a
+// value cannot end the command and inject another one.
 func quote(s string) string {
-	return `"` + strings.NewReplacer(`\`, `\\`, `"`, `\"`).Replace(s) + `"`
+	return `"` + strings.NewReplacer(`\`, `\\`, `"`, `\"`, "\r", "", "\n", "", "\x00", "").Replace(s) + `"`
 }
 
 // response is an untagged response with its literals.

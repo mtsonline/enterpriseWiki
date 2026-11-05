@@ -74,7 +74,7 @@ func maskForward(fs []config.AuditForward) []config.AuditForward {
 
 // keepSecrets restores masked secrets and headers from the stored destinations.
 func keepSecrets(in, stored []config.AuditForward) {
-	for i := range in {
+	for i := range in { // #nosec G602 -- i ranges over in
 		for _, o := range stored {
 			if o.ID != in[i].ID {
 				continue

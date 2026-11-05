@@ -56,7 +56,7 @@ func OpenSchema(ctx context.Context, url string, maxConns int, schema string) (*
 		return nil, fmt.Errorf("parse database url: %w", err)
 	}
 	if maxConns > 0 {
-		cfg.MaxConns = int32(maxConns)
+		cfg.MaxConns = int32(min(maxConns, 10000)) // #nosec G115 -- bounded
 	}
 	cfg.MaxConnIdleTime = 5 * time.Minute
 	if schema != "" {

@@ -46,10 +46,11 @@ func VerifyPassword(hash, pw string) bool {
 	b64 := base64.RawStdEncoding
 	salt, err1 := b64.DecodeString(parts[4])
 	want, err2 := b64.DecodeString(parts[5])
-	if err1 != nil || err2 != nil || len(want) == 0 {
+	// bounds: a manipulated hash must not exhaust memory or CPU
+	if err1 != nil || err2 != nil || len(want) < 16 || len(want) > 128 || m == 0 || m > 1<<20 || t == 0 || t > 16 || p == 0 || p > 64 {
 		return false
 	}
-	got := argon2.IDKey([]byte(pw), salt, t, m, p, uint32(len(want)))
+	got := argon2.IDKey([]byte(pw), salt, t, m, p, uint32(len(want))) // #nosec G115 -- len(want) <= 128 (checked above)
 	return subtle.ConstantTimeCompare(got, want) == 1
 }
 

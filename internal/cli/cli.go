@@ -171,7 +171,7 @@ func Main(args []string) int {
 	if exe := pluginmgr.Launch(context.Background(), sourceRoot(filepath.Dir(e.configPath)), e.configPath, args[0] == "serve", e.log); exe != "" {
 		self, _ := os.Executable()
 		env := append(withoutEnv(os.Environ(), "EWIKI_CHILD", "EWIKI_LAUNCHER"), "EWIKI_CHILD=1", "EWIKI_LAUNCHER="+self)
-		if err := syscall.Exec(exe, append([]string{exe}, args...), env); err != nil {
+		if err := syscall.Exec(exe, append([]string{exe}, args...), env); err != nil { // #nosec G204 G702 -- the binary built for this installation
 			e.log.Error("starting the binary with the additional plugins failed; continuing without them", "exe", exe, "err", err)
 		}
 	}
@@ -331,7 +331,7 @@ func (e *env) serve(args []string) error {
 		}
 		in.Close()
 		e.log.Info("restarting", "exe", exe)
-		return syscall.Exec(exe, append([]string{exe}, os.Args[1:]...), env)
+		return syscall.Exec(exe, append([]string{exe}, os.Args[1:]...), env) // #nosec G204 G702 -- restart of the own binary
 	default:
 	}
 	return nil
