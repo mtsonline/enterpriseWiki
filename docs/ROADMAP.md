@@ -147,7 +147,11 @@ Business Source License 1.1 mit kostenloser privater Nutzung durch natürliche P
 
 ## Geplant
 
-- **Meilenstein 12 – Medien:** Medienbibliothek mit Rechten und Einsatzbereichen, Einfügen im Editor, „Herunterladen oder nur anzeigen“, Wasserzeichen.
-- **Meilenstein 13 – Office:** WOPI (Collabora, OnlyOffice, Microsoft 365) und OnlyOffice-Schnittstelle.
-- **Meilenstein 14 – Live-Bearbeitung:** neuer Editor (TipTap/ProseMirror, CodeMirror für Markdown), Yjs-Zusammenarbeit mit Cursorn.
-- **Meilenstein 15 – Vorlage „Wiki (Intranet/Hochschule)“**, danach das Werkzeug für Plugin-Entwickler (Gerüst, Lint, Tests).
+- **Meilenstein 12 – Multi-Site:** mehrere Sites in einer Instanz mit eigenen Inhalten und Einstellungen (Hostname, Theme, Speicher, Anmeldung, Editor-Standards); Benutzer, Gruppen und Rollen gemeinsam, Rechte pro Site. Die Lizenz zählt die Benutzer der ganzen Instanz.
+- **Meilenstein 13 – Medien:** Medienbibliothek mit Rechten und Einsatzbereichen, Einfügen im Editor, „Herunterladen oder nur anzeigen“, Wasserzeichen, Bildeditor (Zuschneiden, Skalieren, Drehen, Farben, Weichzeichnen), Galerie-Makro.
+- **Meilenstein 14 – Office:** WOPI (Collabora, OnlyOffice, Microsoft 365) und OnlyOffice-Schnittstelle.
+- **Meilenstein 15 – Neuer Editor und Live-Bearbeitung:** visueller und Markdown-Modus speichern immer Markdown (GitHub-Markdown); was Markdown nicht kann (z. B. Schriftfarben, verbundene Zellen), speichert der visuelle Editor als Makro in lesbarer Schreibweise (`::: toc{levels=3}`); Makros sind in beiden Modi editierbar. Bestehende HTML-Inhalte werden einmalig umgewandelt. Yjs-Zusammenarbeit mit Cursorn, Notizen-Plugin (live gemeinsam). Demo-Inhalte mit allen Core-Plugins und Makros.
+- **Meilenstein 16 – Freigabe und Lebenszyklus:** Recht „Änderungen vorschlagen“, Prüfer mit frei wählbarer Zahl nötiger Freigaben pro Kategorie, geplante Veröffentlichung, Anmerkungen zu Textstellen (erledigt markierbar); Feld „Verantwortliche“ (Personen/Gruppen, Standard Ersteller, von Kategorien vererbbar); Lebenszyklus-Regeln mit wählbarem Auslöser (nicht aktualisiert seit X Monaten oder Prüfdatum) und pro Seite/Kategorie wählbaren Aktionen (Banner „veraltet“, Verantwortliche benachrichtigen, Status „Prüfung nötig“, ins Archiv verschieben, aus der Suche nehmen, nach Y Monaten in den Papierkorb).
+- **Meilenstein 17 – Zeichnen, Diagramme, Karten:** Excalidraw-Plugin (Elementtyp „Zeichnung“, Makro zum Einbetten, „Zeichnung einfügen“ im Editor, nachträglich bearbeitbar, SVG mit Alternativtext, eigene Rechte, wird nur beim Zeichnen geladen), Diagramm-Makro, interaktive Karten.
+- **Meilenstein 18 – Umfragen, Feedback, Kalender:** Umfragen und Terminfindung mit Benachrichtigungen und Kalendereinträgen, Feedback-Plugin (Ideen, Kommentare, Abstimmungen), persönliche Kalenderverbindung (Google und Microsoft 365 per Anmeldung, iCloud und Nextcloud per CalDAV) für sofortige Übertragung unter Beachtung der Rechte.
+- Danach: **Vorlage „Wiki (Intranet/Hochschule)“** und das Werkzeug für Plugin-Entwickler (Gerüst, Lint, Tests).
