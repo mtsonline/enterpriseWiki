@@ -192,15 +192,15 @@ func fileLock(ctx context.Context, path string) (func(), error) {
 	for {
 		err := syscall.Flock(int(f.Fd()), syscall.LOCK_EX|syscall.LOCK_NB)
 		if err == nil {
-			return func() { _ = syscall.Flock(int(f.Fd()), syscall.LOCK_UN); f.Close() }, nil
+			return func() { _ = syscall.Flock(int(f.Fd()), syscall.LOCK_UN); _ = f.Close() }, nil
 		}
 		if !errors.Is(err, syscall.EWOULDBLOCK) {
-			f.Close()
+			_ = f.Close()
 			return nil, err
 		}
 		select {
 		case <-ctx.Done():
-			f.Close()
+			_ = f.Close()
 			return nil, ctx.Err()
 		case <-time.After(time.Second):
 		}
@@ -230,7 +230,7 @@ func BuildImage(ctx context.Context, root string, l Layout, trigger string, w io
 	if _, err := os.Stat(final); err == nil {
 		return final, readMeta(final), false, nil
 	}
-	fmt.Fprintf(w, "==> preparing build tree %s\n", l.Work)
+	_, _ = fmt.Fprintf(w, "==> preparing build tree %s\n", l.Work)
 	if err := os.RemoveAll(l.Work); err != nil {
 		return "", nil, false, err
 	}
@@ -257,7 +257,7 @@ func BuildImage(ctx context.Context, root string, l Layout, trigger string, w io
 		ids = append(ids, id)
 	}
 	sort.Strings(ids)
-	fmt.Fprintf(w, "==> plugins: %s\n", strings.Join(ids, ", "))
+	_, _ = fmt.Fprintf(w, "==> plugins: %s\n", strings.Join(ids, ", "))
 	env := buildEnv(l)
 	tmp := final + ".tmp"
 	run := func(name string, args ...string) error {
@@ -286,7 +286,7 @@ func BuildImage(ctx context.Context, root string, l Layout, trigger string, w io
 	}
 	pruneBinaries(l, 3)
 	_ = os.RemoveAll(l.Work) // the tree is rebuilt for every build; keep the data directory small
-	fmt.Fprintf(w, "==> done: %s\n", final)
+	_, _ = fmt.Fprintf(w, "==> done: %s\n", final)
 	return final, meta, true, nil
 }
 

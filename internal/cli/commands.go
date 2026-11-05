@@ -88,7 +88,7 @@ func (e *env) apiBody(method, path string, body []byte, as string) error {
 		out = append(pretty.Bytes(), '\n')
 	}
 	if code >= 400 {
-		e.stderr.Write(out) //nolint:errcheck
+		e.ewrite(out) //nolint:errcheck
 		return fmt.Errorf("HTTP %d", code)
 	}
 	_, err = e.stdout.Write(out)
@@ -102,7 +102,7 @@ func (e *env) apiJSON(method, path, as string, fn func([]byte) error) error {
 		return err
 	}
 	if code >= 400 {
-		e.stderr.Write(out) //nolint:errcheck
+		e.ewrite(out) //nolint:errcheck
 		return fmt.Errorf("HTTP %d", code)
 	}
 	return fn(out)
@@ -144,7 +144,7 @@ func (e *env) call(method, path string, body []byte, as string) (int, []byte, er
 func (e *env) readPassword(fromStdin bool, prompt string) (string, error) {
 	r := bufio.NewReader(e.stdin)
 	if !fromStdin {
-		fmt.Fprint(e.stderr, prompt)
+		e.eprint(prompt)
 	}
 	line, err := r.ReadString('\n')
 	if err != nil && !(errors.Is(err, io.EOF) && line != "") {
@@ -190,9 +190,9 @@ func (e *env) user(args []string) error {
 				return err
 			}
 			tw := tabwriter.NewWriter(e.stdout, 0, 4, 2, ' ', 0)
-			fmt.Fprintln(tw, "ID\tHANDLE\tNAME\tE-MAIL\tDISABLED")
+			rowln(tw, "ID\tHANDLE\tNAME\tE-MAIL\tDISABLED")
 			for _, u := range us {
-				fmt.Fprintf(tw, "%d\t%s\t%s\t%s\t%v\n", u.ID, u.Handle, u.DisplayName, u.Email, u.Disabled)
+				row(tw, "%d\t%s\t%s\t%s\t%v\n", u.ID, u.Handle, u.DisplayName, u.Email, u.Disabled)
 			}
 			return tw.Flush()
 		case "create":
@@ -215,7 +215,7 @@ func (e *env) user(args []string) error {
 			if err != nil {
 				return err
 			}
-			fmt.Fprintf(e.stdout, "created %s (id %d)\n", u.Handle, u.ID)
+			e.printf("created %s (id %d)\n", u.Handle, u.ID)
 			return nil
 		case "passwd":
 			id, err := findID()
@@ -228,7 +228,7 @@ func (e *env) user(args []string) error {
 			}
 			_, err = a.Auth.UpdateUser(ctx, id, auth.UserUpdate{Password: &pw, Unlock: true})
 			if err == nil {
-				fmt.Fprintln(e.stdout, "password changed, sessions revoked")
+				e.println("password changed, sessions revoked")
 			}
 			return err
 		case "disable", "enable":
@@ -265,10 +265,10 @@ func (e *env) user(args []string) error {
 				return err
 			}
 			if len(u.Networks) == 0 {
-				fmt.Fprintln(e.stdout, "no network restriction")
+				e.println("no network restriction")
 			}
 			for _, n := range u.Networks {
-				fmt.Fprintln(e.stdout, n)
+				e.println(n)
 			}
 			return nil
 		}
@@ -297,7 +297,7 @@ func (e *env) plugin(args []string) error {
 		if err := pluginmgr.Generate(sourceRoot(root)); err != nil {
 			return err
 		}
-		fmt.Fprintln(e.stdout, "plugins/all/zz_generated.go updated")
+		e.println("plugins/all/zz_generated.go updated")
 		return nil
 	case "build":
 		if l := pluginmgr.LayoutFromEnv(); l.Image() {
@@ -310,15 +310,15 @@ func (e *env) plugin(args []string) error {
 		switch sub {
 		case "list":
 			tw := tabwriter.NewWriter(e.stdout, 0, 4, 2, ' ', 0)
-			fmt.Fprintln(tw, "ID\tVERSION\tACTIVE\tKINDS\tEXTENDS\tNAME")
+			rowln(tw, "ID\tVERSION\tACTIVE\tKINDS\tEXTENDS\tNAME")
 			for _, p := range a.Kernel.List() {
-				fmt.Fprintf(tw, "%s\t%s\t%v\t%s\t%s\t%s\n", p.ID, p.Version, p.Active, strings.Join(p.Kinds, ","), strings.Join(p.Extends, ","), p.Name)
+				row(tw, "%s\t%s\t%v\t%s\t%s\t%s\n", p.ID, p.Version, p.Active, strings.Join(p.Kinds, ","), strings.Join(p.Extends, ","), p.Name)
 			}
 			if err := tw.Flush(); err != nil {
 				return err
 			}
 			for _, c := range pm.Pending() {
-				fmt.Fprintf(e.stdout, "pending %s: %s %s (run: ewiki plugin build)\n", c.Action, c.ID, c.Version)
+				e.printf("pending %s: %s %s (run: ewiki plugin build)\n", c.Action, c.ID, c.Version)
 			}
 			return nil
 		case "enable", "disable":
@@ -328,7 +328,7 @@ func (e *env) plugin(args []string) error {
 			if err := a.Kernel.SetEnabled(ctx, arg, sub == "enable"); err != nil {
 				return err
 			}
-			fmt.Fprintf(e.stdout, "%s %sd (takes effect immediately)\n", arg, sub)
+			e.printf("%s %sd (takes effect immediately)\n", arg, sub)
 			return nil
 		case "install":
 			if arg == "" {
@@ -349,9 +349,9 @@ func (e *env) plugin(args []string) error {
 				return err
 			}
 			tw := tabwriter.NewWriter(e.stdout, 0, 4, 2, ' ', 0)
-			fmt.Fprintln(tw, "ID\tCURRENT\tLATEST\tUPDATE\tNOTE")
+			rowln(tw, "ID\tCURRENT\tLATEST\tUPDATE\tNOTE")
 			for _, it := range rep.Items {
-				fmt.Fprintf(tw, "%s\t%s\t%s\t%v\t%s\n", it.ID, it.Current, it.Latest, it.Available, it.Error)
+				row(tw, "%s\t%s\t%s\t%v\t%s\n", it.ID, it.Current, it.Latest, it.Available, it.Error)
 			}
 			return tw.Flush()
 		case "update":
@@ -387,7 +387,7 @@ func (e *env) plugin(args []string) error {
 			if err := pm.Remove(ctx, arg); err != nil {
 				return err
 			}
-			fmt.Fprintf(e.stdout, "%s removed from the source tree (backup in plugins/.backup)\n", arg)
+			e.printf("%s removed from the source tree (backup in plugins/.backup)\n", arg)
 		default:
 			return fmt.Errorf("unknown plugin command %q", sub)
 		}
@@ -397,13 +397,13 @@ func (e *env) plugin(args []string) error {
 					return err
 				}
 			}
-			fmt.Fprintln(e.stdout, "the running server notices the change, builds and restarts automatically (within about 30 seconds)")
+			e.println("the running server notices the change, builds and restarts automatically (within about 30 seconds)")
 			return nil
 		}
 		if *build {
 			return runBuild(sourceRoot(a.Root), e.stdout, e.stderr)
 		}
-		fmt.Fprintln(e.stdout, "rebuild required: ewiki plugin build (then restart the service)")
+		e.println("rebuild required: ewiki plugin build (then restart the service)")
 		return nil
 	})
 }
@@ -437,15 +437,15 @@ func imageBuild(root string, l pluginmgr.Layout, trigger string, w io.Writer) er
 		if err != nil {
 			return err
 		}
-		fmt.Fprintln(w, "no additional plugins in", l.Extra)
-		return nil
+		_, err := fmt.Fprintln(w, "no additional plugins in", l.Extra)
+		return err
 	}
 	p, _, built, err := pluginmgr.BuildImage(context.Background(), root, l, trigger, w)
 	if err != nil {
 		return err
 	}
 	if !built {
-		fmt.Fprintln(w, "already built:", p)
+		_, err = fmt.Fprintln(w, "already built:", p)
 	}
-	return nil
+	return err
 }

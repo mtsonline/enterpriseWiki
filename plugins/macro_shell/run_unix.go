@@ -46,7 +46,7 @@ func run(ctx context.Context, cmd string, timeout time.Duration, runAs string) (
 	if err != nil {
 		return "", -1, err
 	}
-	defer os.RemoveAll(dir)
+	defer func() { _ = os.RemoveAll(dir) }()
 	c := exec.CommandContext(ctx, "/bin/sh", "-c", cmd) // #nosec G204 -- commands defined by administrators (plugin purpose); users only pick them
 	c.Dir = dir
 	c.Env = []string{"PATH=/usr/local/bin:/usr/bin:/bin", "LANG=C.UTF-8", "HOME=" + dir, "TMPDIR=" + dir}

@@ -12,7 +12,7 @@ import (
 
 func main() {
 	if err := pluginmgr.Generate("."); err != nil {
-		fmt.Fprintln(os.Stderr, err)
+		_, _ = fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
 	fmt.Println("plugins/all/zz_generated.go updated")

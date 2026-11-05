@@ -169,11 +169,11 @@ func (s *Server) routesM2() {
 				return nil, apperr.BadRequest("no field \"file\" in the upload")
 			}
 			if part.FormName() != "file" {
-				part.Close()
+				_ = part.Close()
 				continue
 			}
 			f, err := s.app.Files.Put(r.Context(), part, part.FileName())
-			part.Close()
+			_ = part.Close()
 			if err != nil {
 				return nil, err
 			}

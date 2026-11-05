@@ -243,3 +243,92 @@ func TestMFAEmailAndNetworks(t *testing.T) {
 	admin.must("PUT", fmt.Sprintf("/api/v1/admin/users/%d", u.ID), map[string]any{"networks": []string{}, "reset_totp": true}, nil, 200)
 	b4.must("POST", "/api/v1/auth/login", map[string]string{"username": "bob", "password": "Bob-Passw0rd-1!"}, nil, 200)
 }
+
+// TestSeparateAccounts: a site with its own users, groups and roles is
+// isolated from the accounts of the instance.
+func TestSeparateAccounts(t *testing.T) {
+	e := setup(t)
+	admin := e.client()
+	admin.login("admin", adminPW)
+
+	// a first administrator is required
+	admin.must("POST", "/api/v1/instance/sites", map[string]any{"name": "intra", "hostnames": []string{"intra.test"}, "accounts": "separate"}, nil, 400)
+	admin.must("POST", "/api/v1/instance/sites", map[string]any{"name": "intra", "hostnames": []string{"intra.test"}, "accounts": "bogus",
+		"admin": map[string]string{"username": "boss", "password": "Intra-Passw0rd!"}}, nil, 400)
+	// weak password: rejected, no site left behind
+	admin.must("POST", "/api/v1/instance/sites", map[string]any{"name": "intra", "hostnames": []string{"intra.test"}, "accounts": "separate",
+		"admin": map[string]string{"username": "admin", "password": "short"}}, nil, 400)
+	var sites []struct {
+		Name     string `json:"name"`
+		Accounts string `json:"accounts"`
+	}
+	admin.must("GET", "/api/v1/instance/sites", nil, &sites, 200)
+	if len(sites) != 1 {
+		t.Fatalf("failed creation left a site: %+v", sites)
+	}
+	// same user name as the instance administrator, but another account
+	var si struct {
+		Accounts string `json:"accounts"`
+	}
+	admin.must("POST", "/api/v1/instance/sites", map[string]any{"name": "intra", "hostnames": []string{"intra.test"}, "accounts": "separate",
+		"admin": map[string]string{"username": "admin", "password": "Intra-Passw0rd!"}}, &si, 201)
+	if si.Accounts != "separate" {
+		t.Fatalf("accounts: %+v", si)
+	}
+	admin.must("PATCH", "/api/v1/instance/sites/intra", map[string]any{"accounts": "shared"}, nil, 400)
+
+	in := e.client()
+	in.host = "intra.test"
+	// the password of the instance account does not work here
+	in.must("POST", "/api/v1/auth/login", map[string]string{"username": "admin", "password": adminPW}, nil, 401)
+	in.login("admin", "Intra-Passw0rd!")
+	var me struct {
+		User struct {
+			ID            int64 `json:"id"`
+			IsAdmin       bool  `json:"is_admin"`
+			InstanceAdmin bool  `json:"instance_admin"`
+		} `json:"user"`
+	}
+	in.must("GET", "/api/v1/auth/me", nil, &me, 200)
+	// the ID of the site account may equal that of an instance administrator:
+	// it must never grant instance rights
+	if !me.User.IsAdmin || me.User.InstanceAdmin {
+		t.Fatalf("site administrator: %+v", me.User)
+	}
+	in.must("GET", "/api/v1/instance/sites", nil, nil, 403)
+	in.must("POST", "/api/v1/instance/admins", map[string]any{"user_id": me.User.ID}, nil, 403)
+
+	// the site manages its own accounts; the instance's are invisible
+	in.must("POST", "/api/v1/admin/users", map[string]any{"username": "erika", "password": "Erika-Passw0rd!", "display_name": "Erika"}, nil, 201)
+	var users []struct {
+		Username string `json:"username"`
+	}
+	in.must("GET", "/api/v1/admin/users", nil, &users, 200)
+	if len(users) != 2 {
+		t.Fatalf("site users: %+v", users)
+	}
+	admin.must("GET", "/api/v1/admin/users", nil, &users, 200)
+	for _, u := range users {
+		if u.Username == "erika" {
+			t.Fatal("account of the separate site visible on main")
+		}
+	}
+	var look []struct {
+		Handle string `json:"handle"`
+	}
+	in.must("GET", "/api/v1/users/lookup?q=adm", nil, &look, 200)
+	if len(look) != 1 {
+		t.Fatalf("lookup on the site sees other accounts: %+v", look)
+	}
+
+	// the license counts the accounts of all sites
+	var lic struct {
+		ActiveUsers int `json:"active_users"`
+	}
+	admin.must("GET", "/api/v1/admin/license", nil, &lic, 200)
+	if lic.ActiveUsers != 3 { // admin (main) + admin and erika (intra)
+		t.Fatalf("licensed users: %d", lic.ActiveUsers)
+	}
+
+	admin.must("DELETE", "/api/v1/instance/sites/intra", nil, nil, 204)
+}

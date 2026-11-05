@@ -42,9 +42,9 @@ func (e *env) setup(args []string) error {
 			return def, nil
 		}
 		if def != "" && !secret {
-			fmt.Fprintf(e.stdout, "%s [%s]: ", prompt, def)
+			e.printf("%s [%s]: ", prompt, def)
 		} else {
-			fmt.Fprintf(e.stdout, "%s: ", prompt)
+			e.printf("%s: ", prompt)
 		}
 		line, err := in.ReadString('\n')
 		if err != nil && line == "" {
@@ -60,8 +60,8 @@ func (e *env) setup(args []string) error {
 		return line, nil
 	}
 
-	fmt.Fprintln(e.stdout, "Enterprise Wiki setup")
-	fmt.Fprintln(e.stdout, "=====================")
+	e.println("Enterprise Wiki setup")
+	e.println("=====================")
 	if _, err := os.Stat(e.configPath); errors.Is(err, os.ErrNotExist) {
 		dbFromEnv := os.Getenv("EWIKI_DATABASE_URL") != ""
 		dbURL, err := ask("PostgreSQL URL (postgres://user:pass@host:5432/db)", "EWIKI_DATABASE_URL", "", false)
@@ -112,21 +112,28 @@ func (e *env) setup(args []string) error {
 			if err != nil {
 				return err
 			}
-			fmt.Fprintf(f, "# Secrets for Enterprise Wiki (referenced from config.yaml). Keep this file private.\nEWIKI_DATABASE_URL=%s\n", dbURL)
-			f.Close()
-			os.Setenv("EWIKI_DATABASE_URL", dbURL)
-			fmt.Fprintf(e.stdout, "wrote %s (mode 0600)\n", envPath)
+			_, werr := fmt.Fprintf(f, "# Secrets for Enterprise Wiki (referenced from config.yaml). Keep this file private.\nEWIKI_DATABASE_URL=%s\n", dbURL)
+			if cerr := f.Close(); werr == nil {
+				werr = cerr
+			}
+			if werr != nil {
+				return fmt.Errorf("write %s: %w", envPath, werr)
+			}
+			if err := os.Setenv("EWIKI_DATABASE_URL", dbURL); err != nil {
+				return err
+			}
+			e.printf("wrote %s (mode 0600)\n", envPath)
 		}
 		if err := config.WriteFile(e.configPath, c); err != nil {
 			return err
 		}
-		fmt.Fprintf(e.stdout, "wrote %s\n", e.configPath)
+		e.printf("wrote %s\n", e.configPath)
 	} else {
-		fmt.Fprintf(e.stdout, "using existing %s\n", e.configPath)
+		e.printf("using existing %s\n", e.configPath)
 	}
 
 	return e.withApp(true, func(ctx context.Context, a *app.App) error {
-		fmt.Fprintln(e.stdout, "database migrations applied")
+		e.println("database migrations applied")
 		adminRole, err := a.Auth.EnsureRole(ctx, "Administrators", "Full access to everything", true)
 		if err != nil {
 			return err
@@ -158,7 +165,7 @@ func (e *env) setup(args []string) error {
 					if *nonInteractive || os.Getenv("EWIKI_ADMIN_PASSWORD") != "" {
 						return perr
 					}
-					fmt.Fprintln(e.stdout, perr)
+					e.println(perr)
 					continue
 				}
 				break
@@ -167,9 +174,9 @@ func (e *env) setup(args []string) error {
 			if err != nil {
 				return err
 			}
-			fmt.Fprintf(e.stdout, "created administrator %s\n", u.Handle)
+			e.printf("created administrator %s\n", u.Handle)
 		} else {
-			fmt.Fprintln(e.stdout, "an administrator already exists")
+			e.println("an administrator already exists")
 		}
 		var cats int
 		if err := a.DB.QueryRow(ctx, `SELECT count(*) FROM categories`).Scan(&cats); err != nil {
@@ -179,9 +186,9 @@ func (e *env) setup(args []string) error {
 			if err := e.seed(ctx, a, editors); err != nil {
 				return err
 			}
-			fmt.Fprintln(e.stdout, "created the welcome space")
+			e.println("created the welcome space")
 		}
-		fmt.Fprintln(e.stdout, "\nSetup complete. Start the server with: ewiki serve")
+		e.println("\nSetup complete. Start the server with: ewiki serve")
 		return nil
 	})
 }

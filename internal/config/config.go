@@ -44,6 +44,15 @@ type Config struct {
 	Audit     Audit                     `yaml:"audit" json:"audit"`
 	License   License                   `yaml:"license" json:"license"`
 	Settings  map[string]map[string]any `yaml:"plugin_settings,omitempty" json:"plugin_settings,omitempty"`
+	Sites     Sites                     `yaml:"sites" json:"sites"`
+}
+
+// Sites holds defaults for further sites of the instance.
+type Sites struct {
+	// Accounts of new sites: shared (the accounts of the instance) or
+	// separate (own users, groups and roles per site). Each site keeps the
+	// choice made when it was created.
+	Accounts string `yaml:"accounts" json:"accounts"`
 }
 
 // License holds the license key of the organisation (Administration →
@@ -339,6 +348,7 @@ func Defaults() *Config {
 		Retention: Retention{RevisionsKeepDays: 0, RevisionsKeepMin: 50, TrashDays: 30, AuditDays: 0, MailDays: 90},
 		Mail:      Mail{Transport: "auto", FromName: "Enterprise Wiki", SMTP: SMTP{Security: "starttls"}, DigestHour: 7, DigestWeekday: 1},
 		Plugins:   Plugins{Dir: "./plugins"},
+		Sites:     Sites{Accounts: "shared"},
 		Cache:     Cache{Enabled: false, TTLSeconds: 300, MaxEntries: 5000, MaxMB: 128},
 	}
 }
@@ -415,7 +425,7 @@ func LoadDotEnv(path string) error {
 	if err != nil {
 		return err
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 	sc := bufio.NewScanner(f)
 	for sc.Scan() {
 		line := strings.TrimSpace(sc.Text())
@@ -433,7 +443,9 @@ func LoadDotEnv(path string) error {
 			v = v[1 : len(v)-1]
 		}
 		if _, exists := os.LookupEnv(k); !exists {
-			os.Setenv(k, v)
+			if err := os.Setenv(k, v); err != nil {
+				return fmt.Errorf("%s: %s: %w", path, k, err)
+			}
 		}
 	}
 	return sc.Err()
@@ -581,13 +593,13 @@ func WriteFile(path string, c *Config) error {
 	if err != nil {
 		return err
 	}
-	defer os.Remove(tmp.Name())
+	defer func() { _ = os.Remove(tmp.Name()) }()
 	if _, err := tmp.WriteString(header + string(b)); err != nil {
-		tmp.Close()
+		_ = tmp.Close()
 		return err
 	}
 	if err := tmp.Sync(); err != nil {
-		tmp.Close()
+		_ = tmp.Close()
 		return err
 	}
 	if err := tmp.Close(); err != nil {
@@ -608,6 +620,9 @@ func ValidLanguage(code string) bool { return langRe.MatchString(code) }
 
 // Validate checks a configuration document.
 func Validate(c *Config) error {
+	if c.Sites.Accounts != "" && c.Sites.Accounts != "shared" && c.Sites.Accounts != "separate" {
+		return fmt.Errorf("sites.accounts must be 'shared' or 'separate', got %q", c.Sites.Accounts)
+	}
 	if err := tlsutil.Validate(c.Mail.SMTP.CA); err != nil && !strings.Contains(c.Mail.SMTP.CA, "${") {
 		return fmt.Errorf("mail.smtp.ca_cert: %w", err)
 	}

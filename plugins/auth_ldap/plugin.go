@@ -127,7 +127,7 @@ func (p *Provider) dial(s map[string]any) (*ldap.Conn, error) {
 	conn.SetTimeout(timeout)
 	if auth.BoolSetting(s, "start_tls", false) {
 		if err := conn.StartTLS(tlsConf); err != nil {
-			conn.Close()
+			_ = conn.Close()
 			return nil, fmt.Errorf("starttls: %w", err)
 		}
 	}
@@ -153,7 +153,7 @@ func (p *Provider) Authenticate(ctx context.Context, username, password string) 
 	if err != nil {
 		return nil, err
 	}
-	defer conn.Close()
+	defer func() { _ = conn.Close() }()
 	if err := p.serviceBind(conn, s); err != nil {
 		return nil, err
 	}

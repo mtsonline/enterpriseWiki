@@ -303,7 +303,7 @@ func (p *Provider) idpMetadata(ctx context.Context, s map[string]any) (*saml.Ent
 		if err != nil {
 			return nil, fmt.Errorf("fetch IdP metadata: %w", err)
 		}
-		defer res.Body.Close()
+		defer func() { _ = res.Body.Close() }()
 		if res.StatusCode != 200 {
 			return nil, fmt.Errorf("fetch IdP metadata: HTTP %d", res.StatusCode)
 		}

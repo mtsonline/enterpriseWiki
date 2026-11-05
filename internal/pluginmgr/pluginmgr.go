@@ -261,7 +261,7 @@ func (m *Manager) Install(ctx context.Context, source, ref string) (*InstallResu
 	if err != nil {
 		return nil, err
 	}
-	defer os.RemoveAll(tmp)
+	defer func() { _ = os.RemoveAll(tmp) }()
 	src := filepath.Join(tmp, "src")
 	if gitURL != "" {
 		args := []string{"clone", "--depth", "1"}
@@ -465,13 +465,13 @@ func (m *Manager) runImageBuild(trigger string) {
 	case err != nil:
 	case !ok:
 		// all additional plugins removed: the image binary is the right one
-		fmt.Fprintln(&buf, "No additional plugins: the image binary is used.")
+		_, _ = fmt.Fprintln(&buf, "No additional plugins: the image binary is used.")
 	default:
 		var built bool
 		// the build output also goes to the server log (docker compose logs)
 		_, meta, built, err = BuildImage(ctx, m.root, m.layout, trigger, io.MultiWriter(&buf, os.Stderr))
 		if err == nil && !built {
-			fmt.Fprintln(&buf, "Already built (by "+metaBy(meta)+").")
+			_, _ = fmt.Fprintln(&buf, "Already built (by "+metaBy(meta)+").")
 			if meta != nil && meta.Trigger != "" && meta.Trigger != "start" {
 				trigger = meta.Trigger // e.g. installed on another node: restart like there
 			}

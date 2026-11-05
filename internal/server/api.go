@@ -978,7 +978,8 @@ func (s *Server) site(w http.ResponseWriter, r *http.Request) (any, error) {
 		"version": version.Version, "permissions": acl.Names,
 		// site: the site of this host; instance_only: settings only
 		// instance administrators change (in config.yaml of the instance)
-		"site": s.app.Site, "instance_only": config.InstanceOnly,
+		"site": s.app.Site, "instance_only": config.InstanceOnly, "sites_accounts": s.app.Config.Get().Sites.Accounts,
+		"separate_accounts": s.app.SeparateAccounts,
 	}, nil
 }
 

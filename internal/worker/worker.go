@@ -127,7 +127,7 @@ func (r *Registry) RunOnce(ctx context.Context, name string) error {
 		if err := conn.QueryRow(ctx, `SELECT pg_try_advisory_lock($1)`, r.lockID(name)).Scan(&got); err != nil || !got {
 			return err
 		}
-		defer conn.Exec(context.Background(), `SELECT pg_advisory_unlock($1)`, r.lockID(name)) //nolint:errcheck
+		defer func() { _, _ = conn.Exec(context.Background(), `SELECT pg_advisory_unlock($1)`, r.lockID(name)) }() // also released with the connection
 	}
 	return j.Run(ctx)
 }

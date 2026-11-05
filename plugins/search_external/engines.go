@@ -123,7 +123,7 @@ func (c *client) do(ctx context.Context, method, path string, body any, contentT
 	if err != nil {
 		return err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	data, _ := io.ReadAll(io.LimitReader(resp.Body, 32<<20))
 	if resp.StatusCode >= 300 {
 		msg := string(data)

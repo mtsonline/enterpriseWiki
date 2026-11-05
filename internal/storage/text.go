@@ -28,7 +28,7 @@ func (s *Store) ExtractText(ctx context.Context, f *File) string {
 		if err != nil {
 			return ""
 		}
-		defer fh.Close()
+		defer func() { _ = fh.Close() }()
 		b, err := io.ReadAll(io.LimitReader(fh, 64<<20))
 		if err != nil {
 			return ""
@@ -39,7 +39,7 @@ func (s *Store) ExtractText(ctx context.Context, f *File) string {
 		if err != nil {
 			return ""
 		}
-		defer fh.Close()
+		defer func() { _ = fh.Close() }()
 		b, _ := io.ReadAll(io.LimitReader(fh, MaxText))
 		if !utf8.Valid(b) {
 			b = bytes.ToValidUTF8(b, []byte(" "))
@@ -100,7 +100,7 @@ func PDFText(b []byte) string {
 				continue
 			}
 			dec, _ := io.ReadAll(io.LimitReader(zr, 32<<20))
-			zr.Close()
+			_ = zr.Close()
 			data = dec
 		} else if strings.Contains(dict, "/Filter") {
 			continue // other filters (images etc.) are not text

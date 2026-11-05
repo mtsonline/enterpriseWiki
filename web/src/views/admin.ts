@@ -109,9 +109,10 @@ export async function adminView({ params, query, main }: RouteCtx): Promise<void
 }
 
 /** sharedEditable: users, groups and role definitions are shared by all
- * sites; on further sites only instance administrators change them. */
+ * sites; on further sites only instance administrators change them (sites
+ * with own accounts manage them themselves). */
 function sharedEditable(): boolean {
-  return state.site.site === 'main' || isInstanceAdmin();
+  return state.site.site === 'main' || state.site.separate_accounts === true || isInstanceAdmin();
 }
 
 function sharedNotice(): HTMLElement | null {

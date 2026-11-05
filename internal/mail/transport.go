@@ -172,10 +172,10 @@ func (t smtpTransport) Open(ctx context.Context) (Session, error) {
 	_ = conn.SetDeadline(time.Now().Add(2 * time.Minute))
 	c, err := smtp.NewClient(conn, t.c.Host)
 	if err != nil {
-		conn.Close()
+		_ = conn.Close()
 		return nil, classify(err, "smtp greeting")
 	}
-	fail := func(e error) (Session, error) { c.Close(); return nil, e }
+	fail := func(e error) (Session, error) { _ = c.Close(); return nil, e } // the first error is the one to report
 	helo := t.c.HeloName
 	if helo == "" {
 		if h, err := os.Hostname(); err == nil && strings.Contains(h, ".") {
@@ -262,7 +262,7 @@ func (t smtpTransport) Send(ctx context.Context, e Envelope) error {
 	if err != nil {
 		return err
 	}
-	defer sess.Close()
+	defer func() { _ = sess.Close() }()
 	res, err := sess.Deliver(ctx, e)
 	if err != nil {
 		return err

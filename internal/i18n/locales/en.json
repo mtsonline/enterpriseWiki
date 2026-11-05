@@ -1294,5 +1294,12 @@
  "mfa.mail_subject_setup": "Your confirmation code for {site}: {code}",
  "mfa.mail_text_setup": "Your code to change the second factor at {site} is: {code}\n\nIt is valid for {minutes} minutes.",
  "mail.ca_cert": "CA certificate (PEM, optional)",
- "mail.ca_cert_help": "Certificate of an internal certificate authority that signed the relay's certificate (PEM text or a file path) – safer than switching the check off."
+ "mail.ca_cert_help": "Certificate of an internal certificate authority that signed the relay's certificate (PEM text or a file path) – safer than switching the check off.",
+ "sites.accounts": "Accounts",
+ "sites.accounts_shared": "Shared with the instance",
+ "sites.accounts_separate": "Own accounts of the site",
+ "sites.accounts_help": "Shared: the users, groups and roles of the instance (rights per site). Own accounts: the site has its own users, groups and roles and does not see the others – for strictly separated groups of people. Cannot be changed later.",
+ "sites.first_admin": "First administrator",
+ "sites.first_admin_help": "A site with own accounts starts without users: this local account becomes its administrator.",
+ "sites.first_admin_pw_help": "Password rules of the site apply."
 }

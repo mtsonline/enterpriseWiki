@@ -94,7 +94,7 @@ func ReleaseRestartLease(ctx context.Context, db *pgxpool.Pool, addr string) {
 		}
 		for i := 0; i < 120; i++ {
 			if c, err := net.DialTimeout("tcp", net.JoinHostPort(host, port), time.Second); err == nil {
-				c.Close()
+				_ = c.Close()
 				break
 			}
 			select {

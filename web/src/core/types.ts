@@ -31,6 +31,9 @@ export interface Site {
   site: string;
   /** settings only instance administrators change */
   instance_only: string[];
+  /** default accounts of new sites (shared | separate) and whether this site has its own */
+  sites_accounts?: 'shared' | 'separate';
+  separate_accounts?: boolean;
   template: string;
   home_category: number;
   home_element: number;

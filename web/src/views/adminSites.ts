@@ -6,9 +6,9 @@ import { t } from '../core/i18n';
 import { toast } from '../core/announce';
 import { navigate } from '../core/router';
 import { state } from '../core/state';
-import { button, checkbox, confirmDialog, errorText, field, formDialog, pageHeader, textInput } from '../components/ui';
+import { button, checkbox, confirmDialog, errorText, field, formDialog, pageHeader, select, textInput } from '../components/ui';
 
-interface Site { name: string; title: string; hostnames: string[]; disabled: boolean; running: boolean; created_at: string }
+interface Site { name: string; title: string; hostnames: string[]; disabled: boolean; running: boolean; accounts: 'shared' | 'separate'; created_at: string }
 interface InstanceAdmin { user_id: number; username: string; display_name: string; implicit: boolean }
 
 const reload = () => navigate(location.pathname + location.search, { replace: true });
@@ -18,6 +18,7 @@ export async function sitesAdmin(panel: HTMLElement): Promise<void> {
   const rows = sites.map((s) => h('tr', null,
     h('th', { scope: 'row' }, s.title || s.name, h('br'), h('small', { class: 'ew-muted' }, s.name)),
     h('td', null, s.hostnames.length ? h('ul', { class: 'ew-plain-list' }, ...s.hostnames.map((n) => h('li', null, h('a', { href: `${location.protocol}//${n}${location.port ? `:${location.port}` : ''}/` }, n)))) : t('sites.any_host')),
+    h('td', null, s.accounts === 'separate' ? t('sites.accounts_separate') : t('sites.accounts_shared')),
     h('td', null, s.disabled ? t('sites.disabled') : s.running ? t('sites.running') : t('sites.starting')),
     h('td', null, fmtDate(s.created_at, state.lang)),
     h('td', null, h('div', { class: 'ew-actions' },
@@ -35,7 +36,7 @@ export async function sitesAdmin(panel: HTMLElement): Promise<void> {
   mount(panel, pageHeader(t('admin.sites'), button(t('sites.new'), () => siteDialog(null), { variant: 'primary' })),
     h('p', null, t('sites.help')),
     h('table', { class: 'ew-table' }, h('caption', { class: 'sr-only' }, t('admin.sites')),
-      h('thead', null, h('tr', null, ...[t('sites.site'), t('sites.hostnames'), t('sites.status'), t('sites.created'), t('common.actions')].map((x) => h('th', { scope: 'col' }, x)))),
+      h('thead', null, h('tr', null, ...[t('sites.site'), t('sites.hostnames'), t('sites.accounts'), t('sites.status'), t('sites.created'), t('common.actions')].map((x) => h('th', { scope: 'col' }, x)))),
       h('tbody', null, ...rows)),
     h('h2', null, t('sites.admins')),
     h('p', null, t('sites.admins_help')),
@@ -52,15 +53,32 @@ function siteDialog(s: Site | null): void {
   const title = textInput({ value: s?.title ?? '', maxlength: 100 });
   const hosts = textInput({ value: s?.hostnames.join(', ') ?? '', required: s?.name !== 'main', placeholder: 'docs.example.org' });
   const disabled = checkbox(t('sites.disable'), s?.disabled ?? false, { help: t('sites.disable_help') });
+  // accounts: chosen once when the site is created
+  const accounts = select([{ value: 'shared', label: t('sites.accounts_shared') }, { value: 'separate', label: t('sites.accounts_separate') }], state.site.sites_accounts ?? 'shared');
+  const admUser = textInput({ autocomplete: 'off', maxlength: 128 });
+  const admPw = textInput({ type: 'password', autocomplete: 'new-password' });
+  const admBox = h('fieldset', { class: 'ew-fieldset' }, h('legend', null, t('sites.first_admin')),
+    h('p', { class: 'ew-help' }, t('sites.first_admin_help')),
+    field(t('auth.username'), admUser, { required: true }), field(t('auth.password'), admPw, { required: true, help: t('sites.first_admin_pw_help') }));
+  const sync = () => { admBox.hidden = accounts.value !== 'separate'; admUser.required = admPw.required = !admBox.hidden; };
+  accounts.addEventListener('change', sync);
+  sync();
   const fields = [
     field(t('sites.name'), name, { required: true, help: t('sites.name_help') }),
     field(t('sites.title'), title),
     field(t('sites.hostnames'), hosts, { required: s?.name !== 'main', help: t('sites.hostnames_help') }),
+    s ? h('p', null, h('strong', null, t('sites.accounts')), ': ', s.accounts === 'separate' ? t('sites.accounts_separate') : t('sites.accounts_shared'))
+      : field(t('sites.accounts'), accounts, { help: t('sites.accounts_help') }),
+    s ? null : admBox,
     s && s.name !== 'main' ? disabled.el : null,
   ];
   formDialog(s ? t('sites.edit') : t('sites.new'), fields, t('common.save'), async () => {
     const body: Record<string, unknown> = { name: name.value.trim(), title: title.value, hostnames: hosts.value.split(/[\s,]+/).filter(Boolean) };
     if (s && s.name !== 'main') body.disabled = disabled.input.checked;
+    if (!s) {
+      body.accounts = accounts.value;
+      if (accounts.value === 'separate') body.admin = { username: admUser.value.trim(), password: admPw.value };
+    }
     if (s) await api.patch(`instance/sites/${encodeURIComponent(s.name)}`, body);
     else await api.post('instance/sites', body);
     toast(t('sites.saved'));

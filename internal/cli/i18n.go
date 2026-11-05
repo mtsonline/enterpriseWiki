@@ -3,7 +3,6 @@ package cli
 import (
 	"encoding/json"
 	"errors"
-	"fmt"
 	"io"
 	"os"
 )
@@ -95,7 +94,7 @@ func (e *env) i18nStrings(lang string, flags map[string]string) error {
 				if f != "" {
 					k += "_" + f
 				}
-				fmt.Fprintf(e.stdout, "%s\t%s\t%s\t%q\t%q\n", k, s.Source, s.Status, s.Reference[f], s.Value[f])
+				e.printf("%s\t%s\t%s\t%q\t%q\n", k, s.Source, s.Status, s.Reference[f], s.Value[f])
 			}
 		}
 		return nil
@@ -131,9 +130,9 @@ func (e *env) categoryCmd(args []string) error {
 				return err
 			}
 			c := r.Category
-			fmt.Fprintf(e.stdout, "original %s (revision %d), %d %% translated\n", c.OriginalLang, c.TextRev, c.TranslatedPercent)
+			e.printf("original %s (revision %d), %d %% translated\n", c.OriginalLang, c.TextRev, c.TranslatedPercent)
 			for _, t := range c.Translations {
-				fmt.Fprintf(e.stdout, "%s\t%s\t%d\t%q\n", t.Lang, t.Status, t.BasedOn, c.Titles[t.Lang])
+				e.printf("%s\t%s\t%d\t%q\n", t.Lang, t.Status, t.BasedOn, c.Titles[t.Lang])
 			}
 			return nil
 		})

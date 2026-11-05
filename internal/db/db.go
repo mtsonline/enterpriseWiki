@@ -137,7 +137,7 @@ func Tx(ctx context.Context, pool *pgxpool.Pool, fn func(tx pgx.Tx) error) error
 	if err != nil {
 		return err
 	}
-	defer tx.Rollback(ctx) //nolint:errcheck // no-op after commit
+	defer func() { _ = tx.Rollback(ctx) }() // no-op after commit
 	if err := fn(tx); err != nil {
 		return err
 	}
@@ -178,7 +178,7 @@ func Migrate(ctx context.Context, pool *pgxpool.Pool, sources []MigrationSource)
 	if _, err := conn.Exec(ctx, `SELECT pg_advisory_lock($1)`, migrationLock); err != nil {
 		return nil, err
 	}
-	defer conn.Exec(context.Background(), `SELECT pg_advisory_unlock($1)`, migrationLock) //nolint:errcheck
+	defer func() { _, _ = conn.Exec(context.Background(), `SELECT pg_advisory_unlock($1)`, migrationLock) }() // also released with the connection
 	if _, err := conn.Exec(ctx, `CREATE TABLE IF NOT EXISTS schema_migrations (
 		source text NOT NULL,
 		version int NOT NULL,
@@ -227,11 +227,11 @@ func Migrate(ctx context.Context, pool *pgxpool.Pool, sources []MigrationSource)
 				return applied, err
 			}
 			if _, err := tx.Exec(ctx, string(sqlb)); err != nil {
-				tx.Rollback(ctx) //nolint:errcheck
+				_ = tx.Rollback(ctx)
 				return applied, fmt.Errorf("migration %s/%s: %w", src.Name, m.name, err)
 			}
 			if _, err := tx.Exec(ctx, `INSERT INTO schema_migrations(source, version, name) VALUES ($1,$2,$3)`, src.Name, m.v, m.name); err != nil {
-				tx.Rollback(ctx) //nolint:errcheck
+				_ = tx.Rollback(ctx)
 				return applied, err
 			}
 			if err := tx.Commit(ctx); err != nil {
@@ -241,4 +241,33 @@ func Migrate(ctx context.Context, pool *pgxpool.Pool, sources []MigrationSource)
 		}
 	}
 	return applied, nil
+}
+
+// CountActiveAccounts counts the enabled accounts of the whole instance: the
+// shared accounts plus the own accounts of sites with separate accounts.
+func CountActiveAccounts(ctx context.Context, q Querier) (int, error) {
+	rows, err := q.Query(ctx, `SELECT n.nspname FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
+		WHERE c.relname = 'users' AND c.relkind = 'r' AND (n.nspname = 'public' OR n.nspname LIKE 'site\_%')`)
+	if err != nil {
+		return 0, err
+	}
+	var schemas []string
+	for rows.Next() {
+		var s string
+		if err := rows.Scan(&s); err != nil {
+			rows.Close()
+			return 0, err
+		}
+		schemas = append(schemas, s)
+	}
+	rows.Close()
+	total := 0
+	for _, s := range schemas {
+		var n int
+		if err := q.QueryRow(ctx, `SELECT count(*) FROM `+pgx.Identifier{s, "users"}.Sanitize()+` WHERE NOT disabled`).Scan(&n); err != nil {
+			return 0, err
+		}
+		total += n
+	}
+	return total, nil
 }

@@ -83,7 +83,7 @@ func (m *Manager) latestRelease(ctx context.Context, ownerRepo string) (tag, url
 		if err != nil {
 			return 0, err
 		}
-		defer resp.Body.Close()
+		defer func() { _ = resp.Body.Close() }()
 		if resp.StatusCode != 200 {
 			return resp.StatusCode, nil
 		}

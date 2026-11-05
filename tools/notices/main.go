@@ -35,7 +35,7 @@ func main() {
 	check := flag.Bool("check", false, "only check that all licenses are allowed")
 	flag.Parse()
 	if err := run(*out, *check); err != nil {
-		fmt.Fprintln(os.Stderr, "notices:", err)
+		_, _ = fmt.Fprintln(os.Stderr, "notices:", err)
 		os.Exit(1)
 	}
 }

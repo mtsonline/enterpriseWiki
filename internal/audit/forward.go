@@ -256,7 +256,7 @@ func (f *Forwarder) post(ctx context.Context, d config.AuditForward, body []byte
 	if err != nil {
 		return err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	_, _ = io.Copy(io.Discard, io.LimitReader(resp.Body, 1<<16))
 	if resp.StatusCode >= 300 {
 		return fmt.Errorf("HTTP %d", resp.StatusCode)
@@ -309,7 +309,6 @@ func (f *Forwarder) sendFile(d config.AuditForward, batch []Entry) error {
 	if err != nil {
 		return err
 	}
-	defer fh.Close()
 	var buf bytes.Buffer
 	for _, e := range batch {
 		b, _ := json.Marshal(f.record(e))
@@ -317,6 +316,9 @@ func (f *Forwarder) sendFile(d config.AuditForward, batch []Entry) error {
 		buf.WriteByte('\n')
 	}
 	_, err = fh.Write(buf.Bytes())
+	if cerr := fh.Close(); err == nil {
+		err = cerr // a failed close can mean lost entries
+	}
 	return err
 }
 
@@ -338,7 +340,7 @@ func (f *Forwarder) sendSyslog(ctx context.Context, d config.AuditForward, batch
 	if err != nil {
 		return err
 	}
-	defer conn.Close()
+	defer func() { _ = conn.Close() }()
 	_ = conn.SetDeadline(time.Now().Add(30 * time.Second))
 	host, _ := os.Hostname()
 	if host == "" {

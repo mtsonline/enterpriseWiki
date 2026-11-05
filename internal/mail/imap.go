@@ -51,21 +51,21 @@ func dialIMAP(host string, port int, security, ca string, skipVerify bool, timeo
 	c := &imapClient{conn: conn, r: bufio.NewReader(conn)}
 	line, err := c.r.ReadString('\n')
 	if err != nil {
-		conn.Close()
+		_ = conn.Close()
 		return nil, err
 	}
 	if !strings.HasPrefix(line, "* OK") {
-		conn.Close()
+		_ = conn.Close()
 		return nil, fmt.Errorf("unexpected IMAP greeting %q", strings.TrimSpace(line))
 	}
 	if security == "starttls" {
 		if _, err := c.cmd("STARTTLS"); err != nil {
-			conn.Close()
+			_ = conn.Close()
 			return nil, err
 		}
 		tc := tls.Client(conn, tlsCfg)
 		if err := tc.Handshake(); err != nil {
-			conn.Close()
+			_ = conn.Close()
 			return nil, err
 		}
 		c.conn, c.r = tc, bufio.NewReader(tc)
@@ -198,5 +198,5 @@ func (c *imapClient) expunge() error {
 
 func (c *imapClient) logout() {
 	_, _ = c.cmd("LOGOUT")
-	c.conn.Close()
+	_ = c.conn.Close()
 }

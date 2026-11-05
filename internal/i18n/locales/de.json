@@ -1344,5 +1344,12 @@
  "mfa.mail_subject_setup": "Ihr Bestätigungscode für {site}: {code}",
  "mfa.mail_text_setup": "Ihr Code zum Ändern des zweiten Faktors bei {site} lautet: {code}\n\nEr gilt {minutes} Minuten.",
  "mail.ca_cert": "CA-Zertifikat (PEM, optional)",
- "mail.ca_cert_help": "Zertifikat einer internen Zertifizierungsstelle, die das Zertifikat des Relays ausgestellt hat (PEM-Text oder Dateipfad) – sicherer, als die Prüfung abzuschalten."
+ "mail.ca_cert_help": "Zertifikat einer internen Zertifizierungsstelle, die das Zertifikat des Relays ausgestellt hat (PEM-Text oder Dateipfad) – sicherer, als die Prüfung abzuschalten.",
+ "sites.accounts": "Konten",
+ "sites.accounts_shared": "Gemeinsam mit der Instanz",
+ "sites.accounts_separate": "Eigene Konten der Site",
+ "sites.accounts_help": "Gemeinsam: die Benutzer, Gruppen und Rollen der Instanz (Rechte pro Site). Eigene Konten: Die Site hat eigene Benutzer, Gruppen und Rollen und sieht die anderen nicht – für strikt getrennte Personenkreise. Lässt sich später nicht ändern.",
+ "sites.first_admin": "Erster Administrator",
+ "sites.first_admin_help": "Eine Site mit eigenen Konten beginnt ohne Benutzer: Dieses lokale Konto wird ihr Administrator.",
+ "sites.first_admin_pw_help": "Es gelten die Passwortregeln der Site."
 }

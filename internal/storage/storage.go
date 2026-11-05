@@ -119,7 +119,7 @@ func (s *Store) Put(ctx context.Context, r io.Reader, name string) (*File, error
 	if err != nil {
 		return nil, err
 	}
-	defer os.Remove(tmp.Name())
+	defer func() { _ = os.Remove(tmp.Name()) }()
 	h := sha256.New()
 	head := make([]byte, 0, 512)
 	limit := s.MaxBytes()
@@ -130,7 +130,7 @@ func (s *Store) Put(ctx context.Context, r io.Reader, name string) (*File, error
 		if n > 0 {
 			size += int64(n)
 			if size > limit {
-				tmp.Close()
+				_ = tmp.Close()
 				return nil, apperr.BadRequest("file too large (max %d MB)", limit>>20)
 			}
 			if len(head) < 512 {
@@ -138,7 +138,7 @@ func (s *Store) Put(ctx context.Context, r io.Reader, name string) (*File, error
 			}
 			h.Write(buf[:n])
 			if _, err := tmp.Write(buf[:n]); err != nil {
-				tmp.Close()
+				_ = tmp.Close()
 				return nil, err
 			}
 		}
@@ -146,15 +146,17 @@ func (s *Store) Put(ctx context.Context, r io.Reader, name string) (*File, error
 			break
 		}
 		if rerr != nil {
-			tmp.Close()
+			_ = tmp.Close()
 			return nil, rerr
 		}
 	}
 	if err := tmp.Sync(); err != nil {
-		tmp.Close()
+		_ = tmp.Close()
 		return nil, err
 	}
-	tmp.Close()
+	if err := tmp.Close(); err != nil {
+		return nil, err
+	}
 	if size == 0 {
 		return nil, apperr.BadRequest("the file is empty")
 	}
@@ -222,7 +224,7 @@ func (s *Store) Serve(w http.ResponseWriter, r *http.Request, f *File, downloadN
 		http.Error(w, "file not found", http.StatusNotFound)
 		return
 	}
-	defer fh.Close()
+	defer func() { _ = fh.Close() }()
 	if downloadName == "" {
 		downloadName = f.Name
 	}

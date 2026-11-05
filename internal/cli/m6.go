@@ -53,9 +53,9 @@ func (e *env) mailCmd(args []string) error {
 				return err
 			}
 			tw := tabwriter.NewWriter(e.stdout, 0, 4, 2, ' ', 0)
-			fmt.Fprintln(tw, "ID\tSTATUS\tDELIVERED\tPENDING\tFAILED\tCREATED\tSUBJECT")
+			rowln(tw, "ID\tSTATUS\tDELIVERED\tPENDING\tFAILED\tCREATED\tSUBJECT")
 			for _, o := range list {
-				fmt.Fprintf(tw, "%d\t%s\t%d\t%d\t%d\t%s\t%s\n", o.ID, o.Status, o.Delivered, o.Pending, o.Failed, o.CreatedAt.Format("2006-01-02 15:04"), o.Subject)
+				row(tw, "%d\t%s\t%d\t%d\t%d\t%s\t%s\n", o.ID, o.Status, o.Delivered, o.Pending, o.Failed, o.CreatedAt.Format("2006-01-02 15:04"), o.Subject)
 			}
 			return tw.Flush()
 		case "show":
@@ -76,7 +76,7 @@ func (e *env) mailCmd(args []string) error {
 			if err := a.Mail.Retry(ctx, n); err != nil {
 				return err
 			}
-			fmt.Fprintf(e.stdout, "message %d queued again\n", n)
+			e.printf("message %d queued again\n", n)
 			return nil
 		case "delete":
 			n, err := id()
@@ -92,15 +92,15 @@ func (e *env) mailCmd(args []string) error {
 			if err := a.Mail.SendNow(ctx, mail.Message{To: []string{pos[0]}, Subject: site + ": test message", Text: "Outgoing e-mail works.", Source: "test"}); err != nil {
 				return err
 			}
-			fmt.Fprintln(e.stdout, "test message sent")
+			e.println("test message sent")
 			return nil
 		case "send":
 			n, err := a.Mail.Process(ctx)
-			fmt.Fprintf(e.stdout, "%d recipients delivered\n", n)
+			e.printf("%d recipients delivered\n", n)
 			return err
 		case "bounces":
 			n, err := a.Mail.ProcessBounces(ctx)
-			fmt.Fprintf(e.stdout, "%d failed recipients found in bounces\n", n)
+			e.printf("%d failed recipients found in bounces\n", n)
 			return err
 		}
 		return fmt.Errorf("unknown mail command %q", sub)
@@ -112,7 +112,7 @@ func (e *env) jobsCmd(args []string) error {
 	return e.withApp(false, func(ctx context.Context, a *app.App) error {
 		if len(args) == 0 || args[0] == "list" {
 			for _, n := range a.Workers.Names() {
-				fmt.Fprintln(e.stdout, n)
+				e.println(n)
 			}
 			return nil
 		}
@@ -120,7 +120,7 @@ func (e *env) jobsCmd(args []string) error {
 			if err := a.Workers.RunOnce(ctx, args[1]); err != nil {
 				return err
 			}
-			fmt.Fprintf(e.stdout, "%s finished\n", args[1])
+			e.printf("%s finished\n", args[1])
 			return nil
 		}
 		return errors.New("usage: ewiki jobs list | ewiki jobs run NAME")
@@ -136,18 +136,18 @@ func (e *env) cacheCmd(args []string) error {
 		c := a.Config.Get().Cache
 		if args[0] == "clear" {
 			if !c.Enabled {
-				fmt.Fprintln(e.stdout, "the guest cache is switched off (cache.enabled: false)")
+				e.println("the guest cache is switched off (cache.enabled: false)")
 				return nil
 			}
 			a.Cache.Invalidate(ctx, "cli")
-			fmt.Fprintln(e.stdout, "guest cache cleared on all servers (within a few seconds)")
+			e.println("guest cache cleared on all servers (within a few seconds)")
 			return nil
 		}
 		var gen int64
 		_ = a.DB.QueryRow(ctx, `SELECT generation FROM cache_state WHERE id = 1`).Scan(&gen)
-		fmt.Fprintf(e.stdout, "enabled:     %v\nttl:         %ds (0 = until the next change)\nmax entries: %d\nmax size:    %d MB\ngeneration:  %d\n",
+		e.printf("enabled:     %v\nttl:         %ds (0 = until the next change)\nmax entries: %d\nmax size:    %d MB\ngeneration:  %d\n",
 			c.Enabled, c.TTLSeconds, c.MaxEntries, c.MaxMB, gen)
-		fmt.Fprintln(e.stdout, "hit statistics are kept per server process: GET /api/v1/admin/cache on the running server")
+		e.println("hit statistics are kept per server process: GET /api/v1/admin/cache on the running server")
 		return nil
 	})
 }

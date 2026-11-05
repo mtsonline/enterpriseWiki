@@ -159,6 +159,7 @@ export function formDialog(title: string, fields: Child, submitLabel: string, on
     ev.preventDefault();
     alert.textContent = '';
     for (const el of Array.from(form.querySelectorAll<HTMLInputElement>('[aria-required="true"]'))) {
+      if (el.closest('[hidden]')) continue; // fields that do not apply right now
       if (!el.value.trim()) {
         setFieldError(el, t('error.required'));
         el.focus();

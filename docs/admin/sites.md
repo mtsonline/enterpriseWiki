@@ -15,6 +15,22 @@ Eine Instanz kann mehrere Sites betreiben, z. B. ein Intranet, eine öffentliche
 
 Die Anmeldung ist pro Site getrennt: Eine Sitzung von Site A gilt nicht auf Site B. Jede Site legt selbst fest, welche Anmeldearten sie anbietet (lokal, LDAP, OIDC, SAML). Ist derselbe Anbieter auf zwei Sites eingerichtet, ist es dasselbe Konto. Wer beim Identity Provider schon angemeldet ist, kommt ohne erneute Passworteingabe durch.
 
+## Gemeinsame oder eigene Konten
+
+Beim Anlegen einer Site wird festgelegt, woher ihre Konten kommen; später lässt sich das nicht mehr ändern:
+
+- **Gemeinsam mit der Instanz** (Standard): Benutzer, Gruppen und Rollen-Definitionen der Instanz, Rechte pro Site (siehe Tabelle oben).
+- **Eigene Konten der Site**: Die Site hat eigene Benutzer, Gruppen, Rollen und SSH-Schlüssel in ihrem Schema. Sie sieht die Konten der Instanz nicht und umgekehrt – für strikt getrennte Personenkreise (z. B. eine Kunden- oder Partner-Site). Beim Anlegen wird ihr erster Administrator (lokales Konto) angegeben; danach verwalten ihre Administratoren die Konten selbst. Auf solchen Sites gibt es keine Instanz-Admins: Konten-IDs gehören dort zur Site, nicht zur Instanz.
+
+Die Vorgabe für neue Sites steht in `config.yaml`:
+
+```yaml
+sites:
+  accounts: shared   # oder separate
+```
+
+Die Lizenz zählt die aktiven Konten aller Sites zusammen (gemeinsame und eigene). Startet eine Site, prüft das Wiki, dass die Konten-Tabellen dort liegen, wo die Einstellung der Site sie erwartet, und verweigert sonst den Start – so können Abfragen nie versehentlich Konten einer anderen Site verwenden.
+
 ## Admin-Ebenen
 
 - **Instanz-Admins** verwalten Sites, Benutzer, Gruppen, Rollen-Definitionen, die Lizenz und die Plugin-Installation. Instanz-Admin ist, wer auf der Site `main` Administrator ist oder unter *Administration → Sites → Instanz-Administratoren* eingetragen wurde.
@@ -26,6 +42,7 @@ In der Oberfläche unter *Administration → Sites → Neue Site* oder per CLI:
 
 ```bash
 ewiki site create docs --host docs.example.org --title "Dokumentation"
+ewiki site create partner --host partner.example.org --accounts separate --admin chef   # fragt nach dem Passwort
 ewiki site list
 ewiki site update docs --host docs.example.org,doku.example.org
 ewiki site update docs --disable        # Site anhalten, Daten bleiben
@@ -57,5 +74,5 @@ EWIKI_SITE=docs ewiki plugin disable content.blog
 ## Hinweise
 
 - Plugins sind für die ganze Instanz einkompiliert; jede Site schaltet sie einzeln ein und aus. Plugin-Tabellen werden in jeder Site angelegt, auch wenn das Plugin dort aus ist.
-- Die Benutzersuche zeigt auf jeder Site alle Konten der Instanz (die Konten sind gemeinsam). Wer Sites für getrennte Personenkreise braucht, sollte getrennte Instanzen betreiben.
+- Auf Sites mit gemeinsamen Konten zeigt die Benutzersuche alle Konten der Instanz. Für getrennte Personenkreise gibt es Sites mit eigenen Konten.
 - Backups: Ein `pg_dump` der Datenbank enthält alle Sites; eine einzelne Site lässt sich mit `pg_dump --schema=site_<name>` sichern.

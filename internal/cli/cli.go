@@ -16,6 +16,7 @@ import (
 	"slices"
 	"strings"
 	"syscall"
+	"text/tabwriter"
 	"time"
 
 	"github.com/mtsonline/enterprisewiki/internal/app"
@@ -32,6 +33,7 @@ import (
 type env struct {
 	configPath string
 	site       string // --site / EWIKI_SITE (default main)
+	outErr     error  // first failed write to stdout (e.g. a closed pipe)
 	stdout     io.Writer
 	stderr     io.Writer
 	stdin      io.Reader
@@ -156,7 +158,7 @@ func Main(args []string) int {
 		case args[0] == "-h" || args[0] == "--help":
 			args = []string{"help"}
 		default:
-			fmt.Fprintf(e.stderr, "unknown option %s\n", args[0])
+			e.eprintf("unknown option %s\n", args[0])
 			return 2
 		}
 	}
@@ -179,9 +181,9 @@ func Main(args []string) int {
 	var err error
 	switch args[0] {
 	case "help":
-		fmt.Fprintf(e.stdout, usage, version.Version)
+		e.printf(usage, version.Version)
 	case "version":
-		fmt.Fprintf(e.stdout, "ewiki %s (%s)\n", version.Version, version.Commit)
+		e.printf("ewiki %s (%s)\n", version.Version, version.Commit)
 	case "serve":
 		err = e.serve(args[1:])
 	case "setup":
@@ -229,8 +231,11 @@ func Main(args []string) int {
 			return err
 		})
 	default:
-		fmt.Fprintf(e.stderr, "unknown command %q (see ewiki help)\n", args[0])
+		e.eprintf("unknown command %q (see ewiki help)\n", args[0])
 		return 2
+	}
+	if err == nil && e.outErr != nil {
+		err = fmt.Errorf("writing the output: %w", e.outErr)
 	}
 	if err != nil {
 		_, _, msg := apperr.Status(err)
@@ -238,7 +243,7 @@ func Main(args []string) int {
 		if !errors.As(err, &ae) {
 			msg = err.Error()
 		}
-		fmt.Fprintln(e.stderr, "error:", msg)
+		e.eprintln("error:", msg)
 		return 1
 	}
 	return 0
@@ -381,7 +386,7 @@ func (e *env) jobs(ctx context.Context, a *app.App) {
 			if err := conn.QueryRow(jctx, `SELECT pg_try_advisory_lock(hashtext($1))`, lock).Scan(&ok); err != nil || !ok {
 				return
 			}
-			defer conn.Exec(context.Background(), `SELECT pg_advisory_unlock(hashtext($1))`, lock) //nolint:errcheck
+			defer func() { _, _ = conn.Exec(context.Background(), `SELECT pg_advisory_unlock(hashtext($1))`, lock) }() // released with the connection anyway
 		}
 		if err := a.Auth.Cleanup(jctx); err != nil {
 			e.log.Error("session cleanup", "err", err)
@@ -425,7 +430,7 @@ func (e *env) config(args []string) error {
 		if err != nil {
 			return err
 		}
-		fmt.Fprintln(e.stdout, st.Path())
+		e.println(st.Path())
 		return nil
 	case "show":
 		st, err := e.configStore()
@@ -445,7 +450,7 @@ func (e *env) config(args []string) error {
 		if _, err := e.configStore(); err != nil {
 			return err
 		}
-		fmt.Fprintln(e.stdout, "configuration is valid")
+		e.println("configuration is valid")
 		return nil
 	case "get":
 		if len(args) != 2 {
@@ -459,7 +464,7 @@ func (e *env) config(args []string) error {
 		if err != nil {
 			return err
 		}
-		fmt.Fprintln(e.stdout, v)
+		e.println(v)
 		return nil
 	case "set":
 		if len(args) != 3 {
@@ -475,7 +480,7 @@ func (e *env) config(args []string) error {
 		if err := st.Update(func(c *config.Config) error { return config.SetKey(c, args[1], args[2]) }); err != nil {
 			return err
 		}
-		fmt.Fprintf(e.stdout, "%s updated (running servers reload it automatically)\n", args[1])
+		e.printf("%s updated (running servers reload it automatically)\n", args[1])
 		return nil
 	}
 	return fmt.Errorf("unknown config command %q", args[0])
@@ -516,3 +521,27 @@ func (e *env) siteName() string {
 	}
 	return "main"
 }
+
+// printf, println and print write command output to stdout; the first
+// failed write makes the command fail at the end.
+func (e *env) printf(format string, a ...any) { e.keep(fmt.Fprintf(e.stdout, format, a...)) }
+func (e *env) println(a ...any)               { e.keep(fmt.Fprintln(e.stdout, a...)) }
+func (e *env) print(a ...any)                 { e.keep(fmt.Fprint(e.stdout, a...)) }
+
+func (e *env) keep(_ int, err error) {
+	if err != nil && e.outErr == nil {
+		e.outErr = err
+	}
+}
+
+// eprintf, eprintln, eprint and ewrite write messages to stderr; there is
+// nowhere left to report a failure of these writes.
+func (e *env) eprintf(format string, a ...any) { _, _ = fmt.Fprintf(e.stderr, format, a...) }
+func (e *env) eprintln(a ...any)               { _, _ = fmt.Fprintln(e.stderr, a...) }
+func (e *env) eprint(a ...any)                 { _, _ = fmt.Fprint(e.stderr, a...) }
+func (e *env) ewrite(b []byte)                 { _, _ = e.stderr.Write(b) }
+
+// row and rowln write a line of a table; write errors of a tabwriter are
+// reported by its Flush, which every caller checks.
+func row(tw *tabwriter.Writer, format string, a ...any) { _, _ = fmt.Fprintf(tw, format, a...) }
+func rowln(tw *tabwriter.Writer, a ...any)              { _, _ = fmt.Fprintln(tw, a...) }

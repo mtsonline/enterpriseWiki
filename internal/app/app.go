@@ -66,7 +66,10 @@ type App struct {
 	// holds the shared resources and the other sites.
 	Site     string
 	Instance *Instance
-	owner    bool // Close also closes the instance (opened by New)
+	// SeparateAccounts: the site has its own users, groups and roles in its
+	// schema instead of the shared accounts of the instance.
+	SeparateAccounts bool
+	owner            bool // Close also closes the instance (opened by New)
 	// hostnames served by this site (normalized)
 	hostnames []string
 	// stop cancels the site's background work (set by the server)
@@ -126,6 +129,12 @@ func newSite(ctx context.Context, in *Instance, site string, migrate bool) (*App
 		return nil, err
 	}
 	a := &App{Config: cfg, DB: pool, Log: log, Mux: http.NewServeMux(), Root: in.Root, Site: site, Instance: in}
+	if site != "main" {
+		if err := in.Shared.QueryRow(ctx, `SELECT accounts = 'separate' FROM sites WHERE name=$1`, site).Scan(&a.SeparateAccounts); err != nil {
+			pool.Close()
+			return nil, fmt.Errorf("site %s: %w", site, err)
+		}
+	}
 	a.Kernel = kernel.NewSite(cfg, log, site)
 	if migrate {
 		if err := a.MigrateDB(ctx); err != nil {
@@ -133,9 +142,16 @@ func newSite(ctx context.Context, in *Instance, site string, migrate bool) (*App
 			return nil, err
 		}
 	}
+	// the accounts must be where the site expects them; otherwise queries
+	// would silently use the accounts of another schema
+	if err := a.checkAccounts(ctx); err != nil {
+		pool.Close()
+		return nil, err
+	}
 	a.Bus = events.NewSite(pool, c.Mode == "cluster", log, site)
 	a.ACL = acl.New(pool, a.Bus, log)
 	a.Auth = auth.New(pool, cfg, a.Bus, log)
+	a.Auth.SeparateAccounts = a.SeparateAccounts
 	a.Content = content.New(pool, a.ACL, a.Bus, cfg, log)
 	a.I18n = i18n.New(pool, cfg, a.Bus)
 	a.Files = storage.New(pool, cfg)
@@ -252,13 +268,30 @@ func newSite(ctx context.Context, in *Instance, site string, migrate bool) (*App
 
 // MigrateDB applies core and plugin migrations.
 func (a *App) MigrateDB(ctx context.Context) error {
-	sources := append([]db.MigrationSource{{Name: "core", Files: migrations.FS}}, a.Kernel.Migrations()...)
+	sources := []db.MigrationSource{{Name: "core", Files: migrations.FS}}
+	if a.SeparateAccounts { // own accounts first: the site tables refer to them
+		sources = append([]db.MigrationSource{{Name: "identity", Files: migrations.Identity}}, sources...)
+	}
+	sources = append(sources, a.Kernel.Migrations()...)
 	applied, err := db.Migrate(ctx, a.DB, sources)
 	for _, m := range applied {
 		a.Log.Info("migration applied", "migration", m)
 	}
 	if err != nil {
 		return fmt.Errorf("migrate: %w", err)
+	}
+	return nil
+}
+
+// checkAccounts verifies that the account tables are in the site schema for
+// separate accounts and only in the shared schema otherwise.
+func (a *App) checkAccounts(ctx context.Context) error {
+	var own bool
+	if err := a.DB.QueryRow(ctx, `SELECT to_regclass(quote_ident(current_schema()) || '.users') IS NOT NULL`).Scan(&own); err != nil {
+		return err
+	}
+	if own != a.SeparateAccounts {
+		return fmt.Errorf("site %s: accounts are configured as separate=%v, but the schema says %v (refusing to start)", a.Site, a.SeparateAccounts, own)
 	}
 	return nil
 }

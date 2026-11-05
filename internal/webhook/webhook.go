@@ -482,7 +482,7 @@ func (s *Service) send(ctx context.Context, d due) (int, string) {
 		}
 		return 0, msg
 	}
-	defer res.Body.Close()
+	defer func() { _ = res.Body.Close() }()
 	snippet, _ := io.ReadAll(io.LimitReader(res.Body, 300))
 	if res.StatusCode >= 300 {
 		return res.StatusCode, strings.TrimSpace(string(snippet))

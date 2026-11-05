@@ -8,6 +8,7 @@ import (
 	"github.com/mtsonline/enterprisewiki/internal/apperr"
 	"github.com/mtsonline/enterprisewiki/internal/audit"
 	"github.com/mtsonline/enterprisewiki/internal/config"
+	"github.com/mtsonline/enterprisewiki/internal/db"
 	h "github.com/mtsonline/enterprisewiki/internal/httpx"
 	"github.com/mtsonline/enterprisewiki/internal/license"
 	"github.com/mtsonline/enterprisewiki/internal/pgversion"
@@ -16,7 +17,7 @@ import (
 // LicenseStatus evaluates the configured license key.
 func (s *Server) LicenseStatus(ctx context.Context) license.Status {
 	var users int
-	_ = s.app.DB.QueryRow(ctx, `SELECT count(*) FROM users WHERE NOT disabled`).Scan(&users)
+	users, _ = db.CountActiveAccounts(ctx, s.app.DB) // all sites of the instance
 	return license.Evaluate(s.app.Config.Get().License.Key, users, time.Now())
 }
 

@@ -5,7 +5,7 @@ Security first: Eine Version wird nur veröffentlicht, wenn alle Prüfungen grü
 | Prüfung | Was sie findet | Wo |
 |---|---|---|
 | `govulncheck` | bekannte Schwachstellen in Go und allen Modulen, die der Code tatsächlich aufruft | Job *Security* |
-| `gosec` | unsichere Muster (Injection, Pfade, TLS, Rechte, Redirects …); jede Ausnahme steht als `#nosec Gxxx -- Begründung` im Code | Job *Security* |
+| `gosec` | unsichere Muster (Injection, Pfade, TLS, Rechte, Redirects …) und nicht ausgewertete Fehler (alle Regeln); jede Ausnahme steht als `#nosec Gxxx -- Begründung` im Code | Job *Security* |
 | `npm audit` | bekannte Schwachstellen in allen npm-Paketen, auch Build-Werkzeugen | Job *Security* |
 | Trivy (Image) | Schwachstellen (HIGH/CRITICAL mit verfügbarem Fix) und Geheimnisse im Docker-Image | Job *Docker images* |
 | Trivy (Konfiguration) | Fehlkonfigurationen in Dockerfile und Compose-Dateien | Job *Docker images* |

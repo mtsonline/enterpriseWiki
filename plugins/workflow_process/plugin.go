@@ -238,7 +238,7 @@ func (pl *Plugin) decorate(ctx context.Context, w *who, x *Instance, manage bool
 		if err != nil {
 			return
 		}
-		defer tx.Rollback(ctx) //nolint:errcheck
+		defer func() { _ = tx.Rollback(ctx) }() // no-op after commit
 		voted, err := pl.voters(ctx, tx, x)
 		if err != nil {
 			return

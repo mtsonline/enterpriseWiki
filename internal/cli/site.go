@@ -11,6 +11,7 @@ import (
 func (e *env) siteCmd(args []string) error {
 	usage := errors.New(`usage: ewiki site list
        ewiki site create NAME --host HOST[,HOST...] [--title T]
+                         [--accounts shared|separate --admin USER [--password-stdin]]
        ewiki site update NAME [--host HOST[,HOST...]] [--title T] [--disable|--enable]
        ewiki site delete NAME --yes
        ewiki site admins | site admins add USER_ID | site admins remove USER_ID`)
@@ -46,6 +47,9 @@ func (e *env) siteCmd(args []string) error {
 	disable := fs.Bool("disable", false, "disable the site (data is kept)")
 	enable := fs.Bool("enable", false, "enable the site")
 	yes := fs.Bool("yes", false, "confirm deleting the site with all its data")
+	accounts := fs.String("accounts", "", "shared (accounts of the instance) or separate (own accounts); default: sites.accounts")
+	admin := fs.String("admin", "", "first administrator of a site with separate accounts")
+	pwStdin := fs.Bool("password-stdin", false, "read the administrator password from stdin")
 	if err := fs.Parse(args[2:]); err != nil {
 		return err
 	}
@@ -72,6 +76,16 @@ func (e *env) siteCmd(args []string) error {
 	}
 	if *disable || *enable {
 		body["disabled"] = *disable
+	}
+	if set["accounts"] {
+		body["accounts"] = *accounts
+	}
+	if set["admin"] {
+		pw, err := e.readPassword(*pwStdin, "Password of "+*admin+": ")
+		if err != nil {
+			return err
+		}
+		body["admin"] = map[string]string{"username": *admin, "password": pw}
 	}
 	b, _ := json.Marshal(body)
 	if sub == "create" {

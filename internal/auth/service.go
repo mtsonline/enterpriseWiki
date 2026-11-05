@@ -69,6 +69,11 @@ type Service struct {
 	cache   sync.Map // token hash (string) -> cachedPrincipal
 	limiter *limiter
 
+	// SeparateAccounts: the site has its own accounts (users, groups,
+	// roles) - its administrators manage them, and nobody there is an
+	// instance administrator (user IDs belong to the site, not the instance).
+	SeparateAccounts bool
+
 	// SendCode e-mails a one-time code (second factor); set by the
 	// application. purpose is "login" or "setup".
 	SendCode func(ctx context.Context, uid int64, purpose, code string) error
@@ -447,7 +452,10 @@ func (s *Service) LoadPrincipal(ctx context.Context, uid int64) (*identity.Princ
 	if err := rows.Err(); err != nil {
 		return nil, err
 	}
-	if err := s.pool.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM public.instance_admins WHERE user_id=$1)
+	if s.SeparateAccounts {
+		// IDs of own accounts must never be looked up in the instance tables
+		p.InstanceAdmin = false
+	} else if err := s.pool.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM public.instance_admins WHERE user_id=$1)
 		OR EXISTS(SELECT 1 FROM public.roles r WHERE r.is_admin AND (
 			r.id IN (SELECT role_id FROM site_main.user_roles WHERE user_id=$1) OR
 			r.id IN (SELECT gr.role_id FROM site_main.group_roles gr JOIN public.user_groups ug ON ug.group_id=gr.group_id WHERE ug.user_id=$1)))`, uid).
