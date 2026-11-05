@@ -147,7 +147,7 @@ Business Source License 1.1 mit kostenloser privater Nutzung durch natürliche P
 
 ## Geplant
 
-- **Meilenstein 12 – Multi-Site:** mehrere Sites in einer Instanz mit eigenen Inhalten und Einstellungen (Hostname, Theme, Speicher, Anmeldung, Editor-Standards); Benutzer, Gruppen und Rollen gemeinsam, Rechte pro Site. Die Lizenz zählt die Benutzer der ganzen Instanz.
+- **Meilenstein 12 – Multi-Site:** mehrere Sites in einer Instanz mit eigenen Inhalten und Einstellungen (Hostname, Theme, Speicher, Anmeldung, Editor-Standards); Jede Site hat ein eigenes PostgreSQL-Schema mit allen Tabellen; Benutzer, Gruppen, Rollen, Sitzungen und Lizenz liegen in einem gemeinsamen Schema. Rechte pro Site, einmal anmelden für alle Sites über einen zentralen Login-Host, Instanz-Admins (Sites, Benutzer, Lizenz) und Site-Admins (nur ihre Site), Plugins pro Site ein- und ausschaltbar. Die Lizenz zählt die Benutzer der ganzen Instanz.
 - **Meilenstein 13 – Medien:** Medienbibliothek mit Rechten und Einsatzbereichen, Einfügen im Editor, „Herunterladen oder nur anzeigen“, Wasserzeichen, Bildeditor (Zuschneiden, Skalieren, Drehen, Farben, Weichzeichnen), Galerie-Makro.
 - **Meilenstein 14 – Office:** WOPI (Collabora, OnlyOffice, Microsoft 365) und OnlyOffice-Schnittstelle.
 - **Meilenstein 15 – Neuer Editor und Live-Bearbeitung:** visueller und Markdown-Modus speichern immer Markdown (GitHub-Markdown); was Markdown nicht kann (z. B. Schriftfarben, verbundene Zellen), speichert der visuelle Editor als Makro in lesbarer Schreibweise (`::: toc{levels=3}`); Makros sind in beiden Modi editierbar. Bestehende HTML-Inhalte werden einmalig umgewandelt. Yjs-Zusammenarbeit mit Cursorn, Notizen-Plugin (live gemeinsam). Demo-Inhalte mit allen Core-Plugins und Makros.
