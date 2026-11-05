@@ -48,5 +48,14 @@ func Status(err error) (int, string, string) {
 	if errors.As(err, &e) {
 		return e.Status, e.Code, e.Msg
 	}
+	// invalid input that only the database noticed (e.g. NUL characters,
+	// invalid UTF-8): a client error, not an internal one
+	var sc interface{ SQLState() string }
+	if errors.As(err, &sc) {
+		switch sc.SQLState() {
+		case "22021", "22P05", "22001", "22003", "22007", "22008", "2201B", "22023", "22P02":
+			return http.StatusBadRequest, "bad_request", "invalid characters or values in the request"
+		}
+	}
 	return http.StatusInternalServerError, "internal", "internal server error"
 }

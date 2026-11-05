@@ -71,6 +71,12 @@ services:
     image: caddy:2
     profiles: [proxy]
     restart: unless-stopped
+    # unprivileged: ports below 1024 need no capability inside containers
+    user: "${EWIKI_UID:?run ./docker-setup.sh}:${EWIKI_GID:?run ./docker-setup.sh}"
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    read_only: true
+    tmpfs: [/tmp]
     depends_on: [wiki]
     environment:
       EWIKI_ACME: ${EWIKI_ACME:-letsencrypt}

@@ -73,12 +73,20 @@ func (s *Service) redirectProvider(id string) RedirectProvider {
 	return nil
 }
 
-// SafeNext returns next if it is a local path, otherwise "/".
+// SafeNext returns next if it is a local path, otherwise "/". Browsers
+// ignore tabs and line breaks in URLs and treat "\\" like "/", so
+// "/\t/evil.example" or "/\\evil.example" would lead to another site: any
+// control character, space or backslash makes next unsafe.
 func SafeNext(next string) string {
-	if strings.HasPrefix(next, "/") && !strings.HasPrefix(next, "//") && !strings.HasPrefix(next, "/\\") {
-		return next
+	if !strings.HasPrefix(next, "/") || strings.HasPrefix(next, "//") || len(next) > 2048 {
+		return "/"
 	}
-	return "/"
+	for _, r := range next {
+		if r < 0x21 || r == 0x7f || r == '\\' || (r >= 0x80 && r <= 0x9f) || r == '\u2028' || r == '\u2029' {
+			return "/"
+		}
+	}
+	return next
 }
 
 // SSOResult is returned when a single sign-on login completes.

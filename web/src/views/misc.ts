@@ -82,10 +82,18 @@ export async function searchView({ query, main }: RouteCtx): Promise<void> {
 
 // ---------------------------------------------------------------- login
 
+/** Returns path if it stays on this site (same rules as the server's SafeNext), otherwise "/". */
+export function safeLocalPath(path: string): string {
+  // browsers drop tabs/line breaks and treat "\\" like "/": "/\t/evil.example" would leave the site
+  // eslint-disable-next-line no-control-regex
+  if (!path.startsWith('/') || path.startsWith('//') || path.length > 2048 || /[\u0000-\u0020\u007f-\u009f\\\u2028\u2029]/.test(path)) return '/';
+  return path;
+}
+
 export async function loginView({ query, main }: RouteCtx): Promise<void> {
   setContext(0, [], []);
   const next = query.get('next') ?? '/';
-  const safeNext = next.startsWith('/') && !next.startsWith('//') ? next : '/';
+  const safeNext = safeLocalPath(next);
   if (state.user) {
     navigate(safeNext, { replace: true });
     return;

@@ -54,6 +54,26 @@ jobs:
         env:
           EWIKI_TEST_DATABASE_URL: ${{ env.DB_URL }}
 
+  security:
+    name: Security (govulncheck, gosec, npm audit, security tests)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Go version from go.mod
+        id: gover
+        run: echo "version=$(sed -n 's/^toolchain go//p' go.mod | grep . || sed -n 's/^go //p' go.mod)" >> "$GITHUB_OUTPUT"
+      - uses: actions/setup-go@v7
+        with: { go-version: "${{ steps.gover.outputs.version }}" }
+      - name: known vulnerabilities in Go code and modules (govulncheck)
+        run: go run golang.org/x/vuln/cmd/govulncheck@latest ./...
+      - name: static security analysis (gosec)
+        run: go run github.com/securego/gosec/v2/cmd/gosec@latest -quiet -exclude-generated -exclude-dir=web -conf .gosec.json ./...
+      - name: known vulnerabilities in npm packages (all, incl. build tools)
+        working-directory: web
+        run: npm ci --ignore-scripts && npm audit --audit-level=low
+      - name: open redirect and input checks (unit)
+        run: go test -count=1 -run 'SafeNext|Networks|IPAllowed|TrustedProxies' ./internal/...
+
   e2e:
     name: Frontend build, typecheck, browser E2E + WCAG (axe)
     runs-on: ubuntu-latest
@@ -132,8 +152,17 @@ jobs:
         if: ${{ inputs.latest }}
         run: sed -i -E 's#^FROM (--platform=\S+ )?(node|golang|alpine):\S+#FROM \1\2:latest#' Dockerfile && grep ^FROM Dockerfile
       - run: docker build --target lite -t enterprisewiki:ci .
+      - name: image scan (known vulnerabilities HIGH/CRITICAL with a fix, secrets)
+        run: |
+          docker run --rm -v /var/run/docker.sock:/var/run/docker.sock aquasec/trivy:latest image \
+            --exit-code 1 --severity HIGH,CRITICAL --ignore-unfixed --scanners vuln,secret enterprisewiki:ci
+      - name: Dockerfile and compose misconfigurations (HIGH/CRITICAL)
+        run: |
+          docker run --rm -v "$PWD:/src:ro" aquasec/trivy:latest config --exit-code 1 --severity HIGH,CRITICAL /src
       - name: plugins in the full and lite images (build at start, restart, dropped plugin)
         run: scripts/test-docker-plugins.sh
+      - name: access setup and bundled reverse proxy (docker-setup.sh questions, unprivileged Caddy)
+        run: scripts/test-docker-proxy.sh enterprisewiki:ci
       - name: bundled reverse proxy (Caddyfile for every CA, compose profile)
         run: |
           for ca in letsencrypt letsencrypt-staging zerossl; do
