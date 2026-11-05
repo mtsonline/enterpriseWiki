@@ -635,4 +635,3 @@ func firstImage(src string) string {
 }
 
 var errNoFeed = errors.New("not an RSS or Atom feed")
-
