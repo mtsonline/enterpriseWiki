@@ -1,0 +1,6 @@
+{
+ "core.megamenu.style": "Mega menu (wide panels with columns)",
+ "core.megamenu.overview": "Overview: {title}",
+ "core.megamenu.close": "Close",
+ "core.megamenu.open": "Open {title}"
+}

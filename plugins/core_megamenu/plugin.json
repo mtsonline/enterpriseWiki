@@ -1,0 +1,10 @@
+{
+  "id": "core.megamenu",
+  "name": "Mega menu",
+  "version": "1.0.0",
+  "description": "Optional display for menus in horizontal positions: each top entry opens a wide panel with its entries in columns, headings and short descriptions. Accessible (disclosure buttons, Escape, keyboard, hover with delay).",
+  "author": "Enterprise Wiki",
+  "kinds": ["menu"],
+  "extends": ["core.menu"],
+  "frontend": true
+}

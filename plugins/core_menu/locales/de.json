@@ -62,5 +62,11 @@
  "core.menu.remove_with_children_other": "Dieser Eintrag hat {n} Unterpunkte, die mit entfernt werden. Fortfahren?",
  "core.menu.no_items_yet": "Noch keine Einträge. Mit „Eintrag hinzufügen“ beginnen.",
  "perm.core.menu.edit": "Menüs bearbeiten",
- "perm.core.menu.edit_help": "Menüs und ihre Einträge anlegen und ändern."
+ "perm.core.menu.edit_help": "Menüs und ihre Einträge anlegen und ändern.",
+ "core.menu.descriptions": "Beschreibungen",
+ "core.menu.description": "Beschreibung",
+ "core.menu.description_help": "Ein kurzer Text unter dem Eintrag (wird im Mega-Menü angezeigt).",
+ "core.menu.style": "Darstellung",
+ "core.menu.style_default": "Ausklappmenüs (Standard)",
+ "core.menu.style_help": "Für waagrechte Positionen wie die Hauptnavigation."
 }

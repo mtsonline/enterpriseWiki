@@ -62,5 +62,11 @@
  "core.menu.remove_with_children_other": "This item has {n} sub-items that are removed as well. Continue?",
  "core.menu.no_items_yet": "No items yet. Start with “Add item”.",
  "perm.core.menu.edit": "Edit menus",
- "perm.core.menu.edit_help": "Create and change menus and their entries."
+ "perm.core.menu.edit_help": "Create and change menus and their entries.",
+ "core.menu.descriptions": "Descriptions",
+ "core.menu.description": "Description",
+ "core.menu.description_help": "A short text below the entry (shown by the mega menu).",
+ "core.menu.style": "Display",
+ "core.menu.style_default": "Dropdown menus (default)",
+ "core.menu.style_help": "For horizontal positions such as the main navigation."
 }

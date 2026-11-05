@@ -69,8 +69,10 @@ async function section(el: ElementView): Promise<Node | null> {
       h('h2', { id: `ewprop-${el.id}`, class: data.items.length ? 'sr-only' : 'ewprop-title' }, t('core.properties.title')),
       data.items.length ? h('table', { class: 'ew-table ewprop-table' }, h('caption', { class: 'sr-only' }, t('core.properties.title')),
         h('tbody', null, ...data.items.map((p) => h('tr', null, h('th', { scope: 'row' }, p.key), h('td', null, valueNode(p)))))) : null,
-      data.can_edit && state.editMode ? button(data.items.length ? t('core.properties.edit') : t('core.properties.add_first'),
-        () => editor(el, data, (n) => { data = n; draw(); }), { variant: 'secondary', ariaLabel: `${t('core.properties.edit')}: ${el.title}` }) : null,
+      data.can_edit && state.editMode ? (() => {
+        const text = data.items.length ? t('core.properties.edit') : t('core.properties.add_first');
+        return button(text, () => editor(el, data, (n) => { data = n; draw(); }), { variant: 'secondary', ariaLabel: `${text}: ${el.title}` });
+      })() : null,
     ].filter((x) => x !== null) as HTMLElement[]);
   };
   draw();

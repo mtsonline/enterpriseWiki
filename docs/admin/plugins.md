@@ -158,6 +158,13 @@ Plugins sind vollwertiger Code mit Zugriff auf Datenbank und Server. Installiere
 | `macro.shell` | Makro | Ausgabe eines Shell-Befehls, nur nach exakter Freigabe durch einen Superadmin, standardmäßig aus |
 | `macro.http` | Makro | Ergebnis eines HTTP-Abrufs, nur Adressen aus der Allow-Liste |
 | `core.comments` | Allgemein | Kommentare und Antworten unter Seiten |
+| `core.share` | Allgemein | Seiten und Kategorien mit Personen, Gruppen und Rollen teilen (ändert keine Rechte) |
+| `core.mentions` | Allgemein | @Erwähnungen in Seiten und Kommentaren mit Vorschlägen beim Tippen |
+| `core.reactions` | Allgemein | Emoji-Reaktionen auf Seiten, Kategorien und Kommentare; jedes Emoji, Sperrliste unter *Administration → Reaktionen*; Benachrichtigung des Autors (E-Mail standardmäßig aus) |
+| `core.favorites` | Allgemein | persönliche Favoriten (Stern bei Seiten und Kategorien), Liste an einer Position der Vorlage (*Administration → Favoriten*) und im Profil |
+| `core.properties` | Allgemein, Makro | Seiteneigenschaften (Text, Datum, Zahl, Link, Status, Person) über dem Inhalt; Makro „Seiteneigenschaften-Bericht“ mit Spalten, Filter, Tags und Sortierung |
+| `core.carousel` | Allgemein | Karussells an Positionen der Vorlage: Neuigkeiten (Option „Als Neuigkeit“ beim Veröffentlichen), eigene Folien, externe RSS/Atom-Feeds (*Administration → Karussells*) |
+| `core.megamenu` | Menü (optional) | Darstellung „Mega-Menü“ für waagrechte Menüs: breite Panels mit Spalten, Überschriften und Beschreibungen (Auswahl im Menü unter *Darstellung*) |
 | `workflow.process` | Elementtyp | Abläufe wie Bewerbungen oder Genehmigungen: Formular, Aufgaben, Freigaben (Vier-Augen), Bedingungen, E-Mails, Webhooks, Wartezeiten, Erinnerungen |
 | `content.blog` | Elementtyp | Blog aus den Seiten einer Kategorie: Anrisstexte, Layouts, Suche im Blog, Tags, Atom/RSS |
 | `content.faq` | Elementtyp | FAQ aus Kategorien und Seiten: aufklappbare Abschnitte und Fragen, Sofort-Filter, Atom/RSS |

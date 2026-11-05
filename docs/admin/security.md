@@ -102,6 +102,12 @@ Entwürfe sehen ihr Autor und die Editoren der Kategorie (Recht *Bearbeiten*). V
 
 API: `GET|PUT /api/v1/admin/i18n/{lang}`, `GET /api/v1/admin/i18n/{lang}/export?format=json|xliff|po&source=&filter=all|missing|custom`, `POST /api/v1/admin/i18n/{lang}/import?format=` (Datei als Body). CLI: `ewiki i18n status|strings|set|export|import|add|remove`.
 
+## Reaktionen, Karussells, Seiteneigenschaften
+
+- **Reaktionen** (`core.reactions.use`, standardmäßig alle Angemeldeten): nur auf sichtbare Inhalte. `core.reactions.manage` sperrt Emojis (*Administration → Reaktionen*, gilt für alle Hauttöne; vorhandene Reaktionen damit werden ausgeblendet) und entfernt Reaktionen anderer.
+- **Karussells:** `core.carousel.manage` legt Karussells an und bearbeitet Folien und Feeds, `core.carousel.publish` erlaubt „Als Neuigkeit“ beim Veröffentlichen. Externe Feeds werden über den SSRF-Schutz abgerufen: interne Adressen nur mit der Plugin-Einstellung *Feeds auf internen Adressen erlauben*. Links und Bilder eigener Folien müssen Pfade der Website oder http(s)-Adressen sein, Bilder brauchen einen Alternativtext.
+- **Seiteneigenschaften:** lesen mit *Ansehen*, ändern mit *Bearbeiten* der Kategorie; Änderungen werden protokolliert (`element.properties`).
+
 ## Protokoll (Audit-Log)
 
 *Administration → Protokoll* (Recht *Protokoll ansehen*) listet alle Änderungen mit Zeitpunkt, Person, IP-Adresse, Browser und Kanal (Oberfläche, API, CLI, Hintergrundjob). Filter: Freitext, Bereich, Aktion, Person, IP, Zeitraum, Objekt; Details zeigen den Zustand vorher und nachher. Export als CSV oder JSON Lines.

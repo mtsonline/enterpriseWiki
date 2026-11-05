@@ -89,9 +89,24 @@ Im Frontend: `hasPerm('acme.kanban.export')` für globale Rechte, `el.permission
 
 Admin-Seiten (`registerAdminPage`) geben mit `permission: 'acme.kanban.export'` an, wer sie sieht; ohne Angabe nur Administratoren.
 
+### Erweiterungspunkte im Frontend
+
+| Funktion | Wofür |
+|---|---|
+| `registerElementExtension({ id, order, placement: 'top' \| 'bottom', render(el) })` | Bereich unter (oder mit `top` über) dem Inhalt einer Seite, z. B. Kommentare, Seiteneigenschaften |
+| `registerCategoryExtension({ id, order, render(category) })` | Bereich unter dem Inhalt einer Kategorie |
+| `registerPageAction({ id, order, render(target) })` | Knopf in den Aktionen einer Seite oder Kategorie (Teilen, Favorit) |
+| `registerSlot({ id, position, render(position) })` | Widget an einer Position der Vorlage; `position: '*'` für alle, `render` darf ein Promise liefern – `null` lässt die Position leer (wichtig, damit leere Positionen ausgeblendet bleiben) |
+| `registerProfileSection({ id, order, render() })` | Abschnitt in „Mein Profil“ |
+| `registerPublishOption({ id, render(ctx) })` | Feld im Dialog „Veröffentlichen mit Optionen“; im Backend `host.Content.RegisterPublishOption(id, option)` mit `Apply(ctx, svc, el, value)` |
+| `registerReactions(provider)` / `reactionBar(type, id, title)` / `prefetchReactions(type, ids)` | Reaktionsleiste eines Plugins (z. B. `core.reactions`) an eigenen Objekten anzeigen; ohne Plugin liefert `reactionBar` `null` |
+| `registerMenuStyle({ id, label, itemFields, render(menu, helpers) })` | eigene Darstellung waagrechter Menüs (Beispiel `core.megamenu`); `itemFields: ['description']` blendet Beschreibungsfelder in der Menüverwaltung ein |
+
+Im Backend liefert `host.Content.Path(ctx, "element"|"category", id)` die lesbare Adresse (`/wiki/…`), `host.Content.Resolve(ctx, path)` löst Adressen, Kurz-URLs und frühere Adressen auf.
+
 ### Benachrichtigungen, Veröffentlichen-Optionen, Seitenaktionen
 
-- `notify.RegisterKind("acme.kanban.assigned", "acme.kanban.kind")` deklariert eine Art von Benachrichtigung (Benutzer schalten die E-Mail dazu im Profil ab). Senden: `host.Notify.Send(ctx, userIDs, notify.Message{Kind: …, EntityType: "element", EntityID: id, Link: "/e/12", Text: func(lang string) (string, string) { … }})`. Der Absender selbst wird nie benachrichtigt; prüfen Sie vorher mit `UserCan`, ob der Empfänger das Ziel sehen darf.
+- `notify.RegisterKind("acme.kanban.assigned", "acme.kanban.kind")` deklariert eine Art von Benachrichtigung (Benutzer schalten die E-Mail dazu im Profil ab); `notify.RegisterKindOff(…)` für Arten, deren E-Mails erst eingeschaltet werden müssen (z. B. Reaktionen). Senden: `host.Notify.Send(ctx, userIDs, notify.Message{Kind: …, EntityType: "element", EntityID: id, Link: "/e/12", Text: func(lang string) (string, string) { … }})`. Der Absender selbst wird nie benachrichtigt; prüfen Sie vorher mit `UserCan`, ob der Empfänger das Ziel sehen darf.
 - `@Erwähnungen` in eigenen Texten: `core_mentions.Notify(ctx, "acme.card", id, categoryID, title, link, text)` (tut nichts, wenn das Plugin deaktiviert ist).
 - `registerPublishOption({ id, render })` fügt dem Dialog *Veröffentlichen mit Optionen* ein Feld hinzu; der Wert kommt im Backend über `content.RegisterPublishOption` an (Beispiel folgt mit dem Karussell in Meilenstein 11).
 - `registerPageAction({ id, order, render(target) })` fügt einen Knopf in die Aktionen einer Seite oder Kategorie ein (Beispiel: `plugins/core_share`).

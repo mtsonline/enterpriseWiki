@@ -60,7 +60,8 @@ stellt Alpine Linux bereit (<https://pkgs.alpinelinux.org>).
 
 ### Regeln für neue Abhängigkeiten
 
-Die CI prüft bei jedem Build mit `go run ./tools/notices -check`, dass alle eingebauten Go-Module eine erlaubte Lizenz
+Die CI prüft bei jedem Build mit `go run ./tools/notices -check`, dass alle eingebauten Go-Module und alle npm-Pakete
+des Frontends (`web/package-lock.json`; ausgenommen reine Testwerkzeuge wie axe-core und Playwright) eine erlaubte Lizenz
 haben:
 
 - **Erlaubt**: MIT, BSD-2-Clause, BSD-3-Clause, Apache-2.0, ISC, Zlib, Unlicense/CC0; Schriften unter OFL-1.1.

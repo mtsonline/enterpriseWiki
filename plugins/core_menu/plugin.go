@@ -17,6 +17,7 @@ import (
 	"regexp"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"github.com/jackc/pgx/v5"
 
@@ -69,7 +70,9 @@ type Item struct {
 	ElementID  int64             `json:"element_id,omitempty"`
 	MenuID     int64             `json:"menu_id,omitempty"`
 	NewTab     bool              `json:"new_tab,omitempty"`
-	Children   []Item            `json:"children,omitempty"`
+	// Description is a short text per language (shown by styles such as the mega menu)
+	Description map[string]string `json:"description,omitempty"`
+	Children    []Item            `json:"children,omitempty"`
 	// resolved for display (GET /menus without all=1)
 	Href    string `json:"href,omitempty"`
 	Submenu bool   `json:"submenu,omitempty"`
@@ -78,9 +81,11 @@ type Item struct {
 // Menu is a menu. Menus with an empty location are not placed anywhere;
 // they are used as submenus of other menus.
 type Menu struct {
-	ID        int64     `json:"id"`
-	Name      string    `json:"name"`
-	Location  string    `json:"location"`
+	ID       int64  `json:"id"`
+	Name     string `json:"name"`
+	Location string `json:"location"`
+	// Style of horizontal menus: "" (dropdowns) or a style of a plugin (e.g. "mega")
+	Style     string    `json:"style"`
 	Position  int       `json:"position"`
 	Items     []Item    `json:"items"`
 	UpdatedAt time.Time `json:"updated_at"`
@@ -90,6 +95,8 @@ type Menu struct {
 const MaxDepth = 6
 
 var locRe = regexp.MustCompile(`^([a-z][a-z0-9_-]{0,40})?$`)
+
+var styleRe = regexp.MustCompile(`^([a-z][a-z0-9_-]{0,20})?$`)
 
 func hasLabel(l map[string]string) bool {
 	for _, v := range l {
@@ -123,6 +130,15 @@ func normalize(items []Item, depth int) error {
 		}
 		it.Href, it.Submenu = "", false
 		n := i + 1
+		for l, d := range it.Description {
+			if d = strings.TrimSpace(d); d == "" {
+				delete(it.Description, l)
+			} else if utf8.RuneCountInString(d) > 300 {
+				return apperr.BadRequest("item %d: description too long (max. 300 characters)", n)
+			} else {
+				it.Description[l] = d
+			}
+		}
 		switch it.Type {
 		case "url":
 			u, err := url.Parse(it.URL)
@@ -385,14 +401,14 @@ type querier interface {
 }
 
 func list(ctx context.Context, q querier, location string) ([]Menu, error) {
-	rows, err := q.Query(ctx, `SELECT id, name, location, position, items, updated_at FROM plugin_menus
+	rows, err := q.Query(ctx, `SELECT id, name, location, style, position, items, updated_at FROM plugin_menus
 		WHERE $1 = '*' OR location = $1 OR ($1 = '' AND location <> '') ORDER BY location, position, id`, location)
 	if err != nil {
 		return nil, err
 	}
 	return pgx.CollectRows(rows, func(r pgx.CollectableRow) (Menu, error) {
 		var m Menu
-		return m, r.Scan(&m.ID, &m.Name, &m.Location, &m.Position, &m.Items, &m.UpdatedAt)
+		return m, r.Scan(&m.ID, &m.Name, &m.Location, &m.Style, &m.Position, &m.Items, &m.UpdatedAt)
 	})
 }
 
@@ -463,6 +479,9 @@ func (p *Plugin) Setup(hs *sdk.Host) error {
 		if in.Name == "" || !locRe.MatchString(in.Location) {
 			return nil, apperr.BadRequest("a name and a valid location (e.g. header-nav, sidebar; empty for a submenu) are required")
 		}
+		if !styleRe.MatchString(in.Style) {
+			return nil, apperr.BadRequest("invalid style")
+		}
 		if in.Items == nil {
 			in.Items = []Item{}
 		}
@@ -482,8 +501,8 @@ func (p *Plugin) Setup(hs *sdk.Host) error {
 		}
 		items, _ := json.Marshal(in.Items)
 		if mid != 0 {
-			tag, err := hs.DB.Exec(ctx, `UPDATE plugin_menus SET name=$2, location=$3, position=$4, items=$5, updated_at=now() WHERE id=$1`,
-				mid, in.Name, in.Location, in.Position, items)
+			tag, err := hs.DB.Exec(ctx, `UPDATE plugin_menus SET name=$2, location=$3, position=$4, items=$5, style=$6, updated_at=now() WHERE id=$1`,
+				mid, in.Name, in.Location, in.Position, items, in.Style)
 			if err != nil {
 				return nil, err
 			}
@@ -491,8 +510,8 @@ func (p *Plugin) Setup(hs *sdk.Host) error {
 				return nil, apperr.NotFound("menu")
 			}
 			in.ID = mid
-		} else if err := hs.DB.QueryRow(ctx, `INSERT INTO plugin_menus(name, location, position, items) VALUES ($1,$2,$3,$4) RETURNING id`,
-			in.Name, in.Location, in.Position, items).Scan(&in.ID); err != nil {
+		} else if err := hs.DB.QueryRow(ctx, `INSERT INTO plugin_menus(name, location, position, items, style) VALUES ($1,$2,$3,$4,$5) RETURNING id`,
+			in.Name, in.Location, in.Position, items, in.Style).Scan(&in.ID); err != nil {
 			return nil, err
 		}
 		_ = audit.Log(ctx, hs.DB, "menu.save", "menu", in.ID, nil, in)

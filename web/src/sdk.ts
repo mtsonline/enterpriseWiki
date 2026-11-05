@@ -373,6 +373,38 @@ export async function renderProfileSections(): Promise<Node[]> {
   return out;
 }
 
+// ---------------------------------------------------------------- menu styles (e.g. mega menu)
+
+/** A menu item as given to menu styles (resolved for the viewer). */
+export interface MenuItem {
+  label: Record<string, string>;
+  description?: Record<string, string>;
+  href?: string;
+  new_tab?: boolean;
+  submenu?: boolean;
+  children?: MenuItem[];
+}
+
+export interface MenuStyle {
+  id: string;
+  label: () => string;
+  /** extra item fields the administration offers for this style */
+  itemFields?: ('description')[];
+  /** renders a menu (horizontal positions); link() renders an item link like the default menus */
+  render: (menu: { id: number; name: string; items: MenuItem[] }, helpers: { label: (it: MenuItem) => string; link: (it: MenuItem) => HTMLElement }) => HTMLElement;
+}
+
+const menuStyles = new Map<string, MenuStyle>();
+
+/** Registers a style for horizontal menus (plugins such as core.megamenu). */
+export function registerMenuStyle(s: MenuStyle): void {
+  menuStyles.set(s.id, s);
+}
+
+export function listMenuStyles(): MenuStyle[] {
+  return [...menuStyles.values()];
+}
+
 // ---------------------------------------------------------------- reactions (provided by a plugin)
 
 /** A plugin that shows reactions (e.g. core.reactions) on pages, categories and comments. */

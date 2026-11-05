@@ -134,8 +134,20 @@ Business Source License 1.1 mit kostenloser privater Nutzung durch natürliche P
 - **Kategorie-Übersetzungen** wie bei Seiten: Originalsprache, Status aktuell/veraltet/fehlt, Fortschritt, Knopf *Übersetzungen* in der Kategorie, API `PUT /api/v1/categories/{id}/translations/{lang}`, CLI `ewiki category translations|translate`.
 - Sprachnamen für neue Sprachen kommen aus dem Browser (`Intl.DisplayNames`).
 
+## Meilenstein 11 – Komponenten
+
+- **Reaktionen** (`core.reactions`): Emojis auf Seiten, Kategorien und Kommentaren, freie Auswahl mit Sperrliste, wer reagiert hat, Benachrichtigung des Autors (E-Mail standardmäßig aus), Verwaltung der Reaktionen anderer.
+- **Lesbare Adressen** `/wiki/<Kategorien>/<Seite>` mit Verlauf: umbenannte und verschobene Seiten und geänderte Kurz-URLs leiten dauerhaft (301) weiter; die Adresszeile zeigt die lesbare Adresse.
+- **„Seite nicht gefunden“** zeigt gelöschte Seiten (mit Papierkorb-Link) und „Meinten Sie?“-Vorschläge.
+- **Favoriten** (`core.favorites`): Stern, Liste an einer Position der Vorlage und im Profil.
+- **Seiteneigenschaften** (`core.properties`) mit Makro „Seiteneigenschaften-Bericht“.
+- **Karussell** (`core.carousel`): Neuigkeiten über „Als Neuigkeit“ beim Veröffentlichen, eigene Folien, externe RSS/Atom-Feeds; barrierefrei (Pause, Tastatur, reduzierte Bewegung).
+- **Mega-Menü** (`core.megamenu`, optional) als Darstellung für Menüs; Menüeinträge haben Beschreibungen.
+- SDK: Kategorie- und Profil-Erweiterungen, Bereiche über dem Seiteninhalt, Reaktionsleisten, Menü-Darstellungen; Benachrichtigungsarten mit E-Mail standardmäßig aus.
+
 ## Geplant
 
-- **Meilenstein 11 – Komponenten:** Mega-Menü (eigenes Plugin), Karussell mit externen RSS-Feeds, Favoriten, Seiteneigenschaften u. a.
-- **Meilenstein 12 – Vorlage „Wiki (Intranet/Hochschule)“.**
-- **Meilenstein 13 – Werkzeug für Plugin-Entwickler** (Gerüst, Lint, Tests).
+- **Meilenstein 12 – Medien:** Medienbibliothek mit Rechten und Einsatzbereichen, Einfügen im Editor, „Herunterladen oder nur anzeigen“, Wasserzeichen.
+- **Meilenstein 13 – Office:** WOPI (Collabora, OnlyOffice, Microsoft 365) und OnlyOffice-Schnittstelle.
+- **Meilenstein 14 – Live-Bearbeitung:** neuer Editor (TipTap/ProseMirror, CodeMirror für Markdown), Yjs-Zusammenarbeit mit Cursorn.
+- **Meilenstein 15 – Vorlage „Wiki (Intranet/Hochschule)“**, danach das Werkzeug für Plugin-Entwickler (Gerüst, Lint, Tests).

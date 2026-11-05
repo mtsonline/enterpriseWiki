@@ -3,16 +3,16 @@
 // vertical ones) and provides the "Menus" administration page.
 import {
   activeTemplate, api, button, categorySelect, checkbox, confirmDialog, elementSelect, errorText, field, formDialog, h, mount, pageHeader, pick,
-  positionLabel, positionOptions, refreshPositions, registerAdminPage, registerSlot, rerender, select, state, t, templateLabel, textInput, toast, type TreeNode,
+  listMenuStyles, positionLabel, positionOptions, refreshPositions, registerAdminPage, registerSlot, rerender, select, state, t, templateLabel, textInput, toast, type TreeNode,
 } from '@ewiki/sdk';
 import './style.css';
 
 type ItemType = 'url' | 'category' | 'element' | 'menu' | 'heading';
 interface Item {
   label: Record<string, string>; type?: ItemType; url?: string; category_id?: number; element_id?: number; menu_id?: number; new_tab?: boolean;
-  children?: Item[]; href?: string; submenu?: boolean;
+  description?: Record<string, string>; children?: Item[]; href?: string; submenu?: boolean;
 }
-interface Menu { id: number; name: string; location: string; position: number; items: Item[] }
+interface Menu { id: number; name: string; location: string; style?: string; position: number; items: Item[] }
 
 const BASE = '/api/v1/x/core.menu';
 // one request for all positions (shared while it is running), cached 30 s
@@ -120,24 +120,32 @@ async function slot(location: string): Promise<Node | null> {
   if (!ms.length) return null;
   const mode = HORIZONTAL.has(location) ? 'dropdown' : location.startsWith('footer') ? 'static' : 'tree';
   return h('div', { class: ['ewm', `ewm--${location}`, mode === 'dropdown' ? 'ewm--horizontal' : 'ewm--vertical', `ewm--${mode}`] },
-    ...ms.map((m) => h('nav', { 'aria-label': t('core.menu.nav_label', { name: m.name }) },
-      HEADING.test(location) ? h('h2', { class: 'ew-tree-title' }, m.name) : null, renderItems(m.items, mode))));
+    ...ms.map((m) => {
+      const style = mode === 'dropdown' && m.style ? listMenuStyles().find((s) => s.id === m.style) : undefined;
+      if (style) {
+        try {
+          return h('nav', { 'aria-label': t('core.menu.nav_label', { name: m.name }), class: `ewm-style-${style.id}` }, style.render(m, { label, link }));
+        } catch (e) { console.error(`menu style ${style.id} failed`, e); }
+      }
+      return h('nav', { 'aria-label': t('core.menu.nav_label', { name: m.name }) },
+        HEADING.test(location) ? h('h2', { class: 'ew-tree-title' }, m.name) : null, renderItems(m.items, mode));
+    }));
 }
 
 // ---------------------------------------------------------------- admin
 
 /** Editable state of one item (children are kept in the tree). */
-interface Draft { labels: Record<string, string>; type: ItemType; url: string; cat: number; el: number; menu: number; newTab: boolean }
+interface Draft { labels: Record<string, string>; descs: Record<string, string>; type: ItemType; url: string; cat: number; el: number; menu: number; newTab: boolean }
 interface MNode { d: Draft; children: MNode[] }
 
 const TYPES: ItemType[] = ['category', 'element', 'url', 'menu', 'heading'];
 const MAX_DEPTH = 4;
-const blank = (): Draft => ({ labels: {}, type: 'category', url: '', cat: 0, el: 0, menu: 0, newTab: false });
+const blank = (): Draft => ({ labels: {}, descs: {}, type: 'category', url: '', cat: 0, el: 0, menu: 0, newTab: false });
 
 function toNodes(items: Item[]): MNode[] {
   return items.map((it) => ({
     d: {
-      labels: { ...it.label }, type: it.type ?? (it.category_id ? 'category' : it.element_id ? 'element' : it.menu_id ? 'menu' : it.url ? 'url' : 'heading'),
+      labels: { ...it.label }, descs: { ...(it.description ?? {}) }, type: it.type ?? (it.category_id ? 'category' : it.element_id ? 'element' : it.menu_id ? 'menu' : it.url ? 'url' : 'heading'),
       url: it.url ?? '', cat: it.category_id ?? 0, el: it.element_id ?? 0, menu: it.menu_id ?? 0, newTab: !!it.new_tab,
     },
     children: toNodes(it.children ?? []),
@@ -147,6 +155,8 @@ function toNodes(items: Item[]): MNode[] {
 function toItems(nodes: MNode[]): Item[] {
   return nodes.map(({ d, children }) => {
     const it: Item = { label: Object.fromEntries(Object.entries(d.labels).filter(([, v]) => v.trim())), type: d.type };
+    const desc = Object.fromEntries(Object.entries(d.descs ?? {}).filter(([, v]) => v.trim()));
+    if (Object.keys(desc).length) it.description = desc;
     if (d.type === 'url') { it.url = d.url.trim(); if (d.newTab) it.new_tab = true; }
     if (d.type === 'category') it.category_id = d.cat;
     if (d.type === 'element') it.element_id = d.el;
@@ -233,7 +243,7 @@ async function targetControls(r: Draft, all: Menu[], self: number | undefined, b
 
 /** Dialog for one item: target, labels and the parent item. */
 async function itemDialog(tree: MNode[], node: MNode | null, all: Menu[], self: number | undefined, titles: Titles, done: () => void): Promise<void> {
-  const d: Draft = node ? { ...node.d, labels: { ...node.d.labels } } : blank();
+  const d: Draft = node ? { ...node.d, labels: { ...node.d.labels }, descs: { ...node.d.descs } } : blank();
   // possible parents: every item that is not the item itself or below it, within the depth limit
   const own = node ? height(node) : 1;
   const parents: { value: string; label: string; node: MNode | null }[] = [{ value: '', label: t('core.menu.top_level'), node: null }];
@@ -257,9 +267,18 @@ async function itemDialog(tree: MNode[], node: MNode | null, all: Menu[], self: 
     inp.addEventListener('input', () => { d.labels[l] = inp.value; });
     return field(`${t('core.menu.label')} (${l})`, inp);
   });
+  // descriptions, if a menu style (e.g. the mega menu) shows them
+  const descs = listMenuStyles().some((s) => s.itemFields?.includes('description'))
+    ? h('fieldset', null, h('legend', null, t('core.menu.descriptions')), h('p', { class: 'ew-help' }, t('core.menu.description_help')),
+      ...state.site.languages.map((l) => {
+        const inp = textInput({ value: d.descs[l] ?? '', lang: l, maxlength: 300 });
+        inp.addEventListener('input', () => { d.descs[l] = inp.value; });
+        return field(`${t('core.menu.description')} (${l})`, inp);
+      }))
+    : null;
   formDialog(node ? t('core.menu.edit_item') : t('core.menu.add_item'), [
     field(t('core.menu.type'), type), target,
-    h('fieldset', null, h('legend', null, t('core.menu.labels')), h('p', { class: 'ew-help' }, t('core.menu.label_help')), ...labels),
+    h('fieldset', null, h('legend', null, t('core.menu.labels')), h('p', { class: 'ew-help' }, t('core.menu.label_help')), ...labels), descs,
     field(t('core.menu.parent'), parent, { help: t('core.menu.parent_help') }),
   ], node ? t('common.save') : t('core.menu.add_item'), async () => {
     const hasLabel = Object.values(d.labels).some((v) => v.trim());
@@ -319,15 +338,18 @@ async function menuDialog(m: Menu | null, all: Menu[]): Promise<void> {
   const locs = [...positionOptions(m?.location), { value: '', label: t('core.menu.no_location') }];
   const loc = select(locs, m ? m.location : 'header-nav');
   const pos = textInput({ type: 'number', value: String(m?.position ?? 0) });
+  const styles = listMenuStyles();
+  const style = select([{ value: '', label: t('core.menu.style_default') }, ...styles.map((s) => ({ value: s.id, label: s.label() }))], m?.style ?? '');
   const tree = toNodes(m?.items ?? []);
   const titles = new Titles(all);
   const box = h('div', { class: 'ewm-edit' });
   itemList(tree, all, m?.id, titles, box);
   formDialog(m ? m.name : t('core.menu.add_menu'), [field(t('core.menu.name'), name, { required: true }),
     field(t('core.menu.location'), loc, { help: t('core.menu.location_help', { template: templateLabel(activeTemplate()?.id ?? '') }) }), field(t('core.menu.position'), pos),
+    styles.length ? field(t('core.menu.style'), style, { help: t('core.menu.style_help') }) : null,
     h('h3', null, t('core.menu.items')), box,
     button(t('core.menu.add_item'), () => void itemDialog(tree, null, all, m?.id, titles, () => itemList(tree, all, m?.id, titles, box)), { variant: 'secondary' })], t('common.save'), async () => {
-    const body = { name: name.value, location: loc.value, position: Number(pos.value) || 0, items: toItems(tree) };
+    const body = { name: name.value, location: loc.value, position: Number(pos.value) || 0, items: toItems(tree), style: style.value };
     if (m) await api.put(`${BASE}/menus/${m.id}`, body);
     else await api.post(`${BASE}/menus`, body);
     cache = null;

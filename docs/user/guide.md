@@ -111,6 +111,14 @@ Beim Anlegen eines Elements (*Neues Element*) wählen Sie den Typ:
   - Das Makro **Nächste Termine** zeigt kommende Termine auf jeder Seite.
 - **Team**: Name und Beschreibung (Markdown/HTML), eine oder mehrere Gruppen, deren Mitglieder angezeigt werden, und die Auswahl der Angaben: Foto, Funktion, Abteilung, E-Mail, Telefon, Mobil, Büro, „Über mich“, Gruppen oder Attribute aus LDAP/OIDC/SAML. Darstellung als Karten, Liste oder Tabelle, auf Wunsch nach Gruppen gegliedert, mit Filter und CSV-Export. Die Angaben pflegt jede Person unter *Mein Profil → Visitenkarte*, Administratoren unter *Administration → Benutzer*.
 
+### Reaktionen, Favoriten und Seiteneigenschaften
+- **Reaktionen:** Unter Seiten und Kategorien sowie an Kommentaren reagieren Sie mit einem Emoji. *Reaktion hinzufügen* öffnet eine Auswahl gängiger Emojis (Pfeiltasten wählen, Esc schließt); über *Anderes Emoji* geht jedes Emoji. Ein Klick auf eine Reaktion schaltet Ihre eigene ein oder aus; wer reagiert hat, steht im Tooltip und wird von Screenreadern vorgelesen. Der Autor erfährt im Wiki davon (per E-Mail nur, wenn er das im Profil einschaltet).
+- **Favoriten:** *Favorit* bei einer Seite oder Kategorie merkt sie vor. Die Liste *Meine Favoriten* steht in der Seitenleiste (oder an der von der Administration gewählten Position) und im Profil, dort auch zum Sortieren und Entfernen.
+- **Seiteneigenschaften:** Im Bearbeitungsmodus legen Sie mit *Seiteneigenschaften hinzufügen* Angaben wie Verantwortliche, Status oder Prüfdatum an; sie erscheinen als Tabelle über dem Inhalt. Das Makro **Seiteneigenschaften-Bericht** listet die Seiten einer Kategorie (optional mit Unterkategorien und Tags) mit ausgewählten Eigenschaften, gefiltert (z. B. `Status=Aktiv`) und sortiert.
+
+### Adressen und „Seite nicht gefunden“
+Jede Seite und Kategorie hat eine **lesbare Adresse** wie `/wiki/personal/urlaub/antrag-stellen`; sie steht in der Adresszeile und lässt sich so weitergeben. Wird eine Seite umbenannt oder verschoben oder eine Kurz-URL geändert, führen die **alten Adressen weiterhin zum Ziel** (dauerhafte Weiterleitung). Führt eine Adresse ins Leere, zeigt das Wiki, ob die Seite gelöscht wurde (mit Link zum Papierkorb für alle, die wiederherstellen dürfen), und schlägt passende Seiten vor („Meinten Sie?“) – nur solche, die Sie sehen dürfen.
+
 ### Kurz-URLs
 
 Elemente und Kategorien können eine **Kurz-URL** bekommen: Seiten über *Eigenschaften* (dort auch das **Vorschaubild**, das beim Teilen eines Links in Teams, Slack oder Outlook erscheint – ohne Angabe das erste Bild der Seite), Kategorien über *Kategorie bearbeiten* bzw. die Einstellungen. Mit `kalender` ist das Element dann unter `https://ihr-wiki/kalender` erreichbar. Unterebenen wie `team/hr` sind möglich. Jede Kurz-URL gibt es nur einmal; Wörter, die das Wiki selbst verwendet (`admin`, `login`, `search`, …), sind gesperrt. Menüs und Übersichten verlinken automatisch die Kurz-URL.
@@ -118,6 +126,9 @@ Elemente und Kategorien können eine **Kurz-URL** bekommen: Seiten über *Eigens
 ### Startseite und Kategorieübersicht
 
 Unter *Administration → Einstellungen → Startseite* wählen Administratoren, was unter `/` erscheint: die Übersicht der obersten Kategorien, eine Kategorie oder ein Element. Neue Installationen zeigen die Willkommensseite. Für eine Übersicht von Bereichen eignet sich der Elementtyp **Kategorieübersicht**: eine Kategorie oder die oberste Ebene, mit 1–5 Ebenen Unterkategorien, als Karten oder Liste, auf Wunsch mit Beschreibungen und den Seiten jeder Kategorie.
+
+### Karussells
+Karussells zeigen an einer Position der Vorlage (z. B. über dem Inhalt) Neuigkeiten, eigene Folien und Einträge externer Feeds. Beim **Veröffentlichen mit Optionen** wählen Sie mit dem Recht *Neuigkeiten in Karussells veröffentlichen* „Als Neuigkeit in …“ und optional ein Enddatum; Neuigkeiten sehen nur Personen, die die Seite sehen dürfen. Mit *‹* und *›* oder den Punkten wechseln Sie die Folie; läuft das Karussell automatisch, hält *Pause* es an (es hält auch an, solange Maus oder Fokus darin sind, und läuft gar nicht, wenn Ihr System reduzierte Bewegung wünscht).
 
 ### Menüs
 

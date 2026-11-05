@@ -7,12 +7,15 @@
 //
 // With -check it only verifies that every linked module has a license that
 // is allowed in the product (see LICENSING.md) and fails otherwise (CI).
+// The check also covers the npm packages of the frontend (web/package-lock.json,
+// "license" of each package); packages only used for tests are listed in testOnly.
 package main
 
 import (
 	"bufio"
 	"bytes"
 	"embed"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"os"
@@ -86,6 +89,11 @@ func run(out string, check bool) error {
 		}
 		section(m.path+" "+m.version+" ("+kind+")", strings.Join(texts, "\n\n"))
 	}
+	npmBad, err := checkNPM("web/package-lock.json", check)
+	if err != nil {
+		return err
+	}
+	bad = append(bad, npmBad...)
 	if len(bad) > 0 {
 		return fmt.Errorf("licenses not allowed in the product (see LICENSING.md):\n  %s", strings.Join(bad, "\n  "))
 	}
@@ -122,6 +130,57 @@ func licenseFiles(dir string) []string {
 		}
 	}
 	return out
+}
+
+// testOnly are npm packages used only by the tests (never bundled).
+var testOnly = map[string]bool{"axe-core": true, "playwright": true, "playwright-core": true}
+
+// checkNPM checks the licenses of all npm packages of the lock file. Fonts
+// (SIL Open Font License) are allowed; their texts are added from static/.
+func checkNPM(lock string, verbose bool) ([]string, error) {
+	b, err := os.ReadFile(lock)
+	if os.IsNotExist(err) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	var l struct {
+		Packages map[string]struct {
+			Version string `json:"version"`
+			License any    `json:"license"`
+		} `json:"packages"`
+	}
+	if err := json.Unmarshal(b, &l); err != nil {
+		return nil, fmt.Errorf("%s: %w", lock, err)
+	}
+	var bad []string
+	names := make([]string, 0, len(l.Packages))
+	for k := range l.Packages {
+		names = append(names, k)
+	}
+	sort.Strings(names)
+	for _, k := range names {
+		if k == "" {
+			continue
+		}
+		name := k[strings.LastIndex(k, "node_modules/")+len("node_modules/"):]
+		p := l.Packages[k]
+		lic, _ := p.License.(string)
+		ok := allowed[lic] || lic == "OFL-1.1" || testOnly[name]
+		// simple SPDX expressions: "MIT OR Apache-2.0"
+		if !ok && strings.Contains(lic, " OR ") {
+			for _, x := range strings.Split(strings.Trim(lic, "()"), " OR ") {
+				ok = ok || allowed[strings.TrimSpace(x)]
+			}
+		}
+		if !ok {
+			bad = append(bad, fmt.Sprintf("npm %s %s: %q", name, p.Version, lic))
+		} else if verbose {
+			fmt.Printf("%-12s npm %s %s\n", lic, name, p.Version)
+		}
+	}
+	return bad, nil
 }
 
 var allowed = map[string]bool{"MIT": true, "BSD-2-Clause": true, "BSD-3-Clause": true, "Apache-2.0": true, "ISC": true, "Zlib": true, "Unlicense": true, "CC0-1.0": true}

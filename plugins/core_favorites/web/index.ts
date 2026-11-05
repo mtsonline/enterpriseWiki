@@ -56,8 +56,10 @@ function starButton(target: { type: 'element' | 'category'; id: number; title: s
   return b;
 }
 
-function widget(position: string): HTMLElement | null {
+async function widget(position: string): Promise<HTMLElement | null> {
   if (!state.user) return null;
+  const l = await load();
+  if (!l || l.position !== position) return null; // other positions stay empty
   const nav = h('nav', { class: 'ewfav', 'aria-labelledby': `ewfav-${position}` });
   const draw = () => {
     if (!data || data.position !== position) { nav.hidden = true; return; }
@@ -67,9 +69,8 @@ function widget(position: string): HTMLElement | null {
         ? h('ul', { class: 'ewfav-list' }, ...data.items.map((f) => h('li', null, h('a', { href: f.url, 'aria-current': location.pathname === f.url ? 'page' : undefined }, title(f)))))
         : h('p', { class: 'ew-muted' }, t('core.favorites.empty')));
   };
-  nav.hidden = true;
   listeners.add(draw);
-  void load().then(draw);
+  draw();
   return nav;
 }
 

@@ -52,8 +52,9 @@ function bar(type: string, id: number, title: string): HTMLElement {
     } catch (e) { toast(errorText(e), 'error'); }
   };
   const closePicker = (focus = true) => {
-    picker?.remove();
-    picker = null;
+    const pk = picker;
+    picker = null; // first: removing it moves the focus (focusout calls closePicker again)
+    pk?.remove();
     addBtn?.setAttribute('aria-expanded', 'false');
     if (focus) addBtn?.focus();
   };

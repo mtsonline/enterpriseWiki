@@ -778,6 +778,78 @@ test('translate a category', async () => {
   assert.ok(c.category.translations.every((x) => x.status === 'original' || x.status === 'current'), JSON.stringify(c.category.translations));
 });
 
+test('reactions, favorites and page properties', async () => {
+  const cat = await m6Category();
+  const el = await call('POST', '/api/v1/elements', { category_id: cat, type: 'core.html', title: `M11 page ${run}`, body: { format: 'html', source: '<p>m11</p>' } });
+  await page.goto(`${BASE}/e/${el.id}`);
+  await idle();
+  // the address bar shows the readable path
+  await page.waitForFunction(() => location.pathname.startsWith('/wiki/'));
+  // reactions: picker, keyboard, toggle
+  await page.getByRole('button', { name: /^(add reaction|reaktion hinzufügen)/i }).first().click();
+  const picker = page.locator('.ewre-picker');
+  await picker.waitFor();
+  await a11y('reaction picker');
+  await page.keyboard.press('ArrowRight');
+  await page.keyboard.press('Enter');
+  await page.locator('.ewre-btn[aria-pressed="true"]').first().waitFor();
+  // favorites: star in the actions, list in the sidebar
+  await page.getByRole('button', { name: /^(☆|★)?\s*(favorite|favorit)$/i }).click();
+  await page.locator('.ewfav a', { hasText: `M11 page ${run}` }).waitFor();
+  // page properties: editor in edit mode
+  const edit = page.locator('.ew-pos--header-tools button[aria-pressed]');
+  if ((await edit.getAttribute('aria-pressed')) !== 'true') { await edit.click(); await idle(); }
+  await page.getByRole('button', { name: /^(add page properties|seiteneigenschaften hinzufügen)/i }).click();
+  const dlg = page.locator('dialog[open]');
+  await dlg.getByLabel(/^(property|eigenschaft) 1$/i).fill('Owner');
+  await dlg.getByLabel(/^(value of property|wert von eigenschaft) 1$/i).fill(`Ada ${run}`);
+  await a11y('page properties dialog');
+  await dlg.locator('button[type=submit]').click();
+  await page.locator('.ewprop-table', { hasText: `Ada ${run}` }).waitFor();
+  await a11y('page with reactions, favorites and properties');
+  await page.getByRole('button', { name: /^(☆|★)?\s*(favorite|favorit)$/i }).click(); // remove again
+});
+
+test('carousel and mega menu', async () => {
+  const cat = await m6Category();
+  const c = await call('POST', '/api/v1/x/core.carousel/carousels', { name: `News ${run}`, position: 'content-top', autoplay: 5, enabled: true });
+  await call('POST', `/api/v1/x/core.carousel/carousels/${c.id}/slides`, { title: `Slide A ${run}`, text: 'First', link: '/search' });
+  await call('POST', `/api/v1/x/core.carousel/carousels/${c.id}/slides`, { title: `Slide B ${run}`, text: 'Second' });
+  const m = await call('POST', '/api/v1/x/core.menu/menus', { name: `Mega ${run}`, location: 'header-nav', style: 'mega', items: [
+    { label: { en: `Mega ${run}`, de: `Mega ${run}` }, type: 'heading', children: [
+      { label: { en: 'Column', de: 'Spalte' }, type: 'heading', children: [{ type: 'category', category_id: cat, description: { en: 'Where to start', de: 'Hier anfangen' } }] }] }] });
+  await page.goto(BASE + '/');
+  await idle();
+  const car = page.locator('.ewcar', { hasText: `Slide A ${run}` });
+  await car.waitFor();
+  await car.getByRole('button', { name: /^(next slide|nächste folie)$/i }).click();
+  await car.locator('.ewcar-slide:not([hidden])', { hasText: `Slide B ${run}` }).waitFor();
+  await a11y('carousel');
+  const btn = page.getByRole('button', { name: `Mega ${run}` });
+  await btn.click();
+  await page.locator('.ewmm-panel:not([hidden])').waitFor();
+  assert.equal(await btn.getAttribute('aria-expanded'), 'true');
+  await a11y('mega menu');
+  await page.keyboard.press('Escape');
+  await page.waitForFunction(() => !document.querySelector('.ewmm-panel:not([hidden])'));
+  await call('DELETE', `/api/v1/x/core.menu/menus/${m.id}`);
+  await call('DELETE', `/api/v1/x/core.carousel/carousels/${c.id}`);
+  // administration pages
+  for (const section of ['carousels', 'reactions', 'favorites']) {
+    await page.goto(`${BASE}/admin/${section}`);
+    await idle();
+    await page.waitForSelector('.ew-admin-panel h1');
+    await a11y(`admin/${section}`);
+  }
+});
+
+test('page not found: suggestions', async () => {
+  await page.goto(`${BASE}/wiki/nowhere/m11-page-${run}`);
+  await idle();
+  await page.locator('#ew-nf-sugg').waitFor();
+  await a11y('page not found with suggestions');
+});
+
 test('switch language', async () => {
   await page.goto(BASE + '/');
   await idle();

@@ -73,16 +73,12 @@ function carousel(c: Shown): HTMLElement {
 
 const cache = new Map<string, Promise<Shown[]>>();
 
-function widget(position: string): HTMLElement | null {
-  const box = h('div', { class: 'ewcar-pos', hidden: true });
+// positions without carousels stay empty (the template may hide empty positions)
+async function widget(position: string): Promise<HTMLElement | null> {
   const key = `${position}|${state.lang}|${state.user?.id ?? 0}`;
   if (!cache.has(key)) cache.set(key, api.get<Shown[]>(`${BASE}/position/${encodeURIComponent(position)}?lang=${encodeURIComponent(state.lang)}`).catch(() => []));
-  void cache.get(key)!.then((list) => {
-    if (!list.length) return;
-    box.replaceChildren(...list.map(carousel));
-    box.hidden = false;
-  });
-  return box;
+  const list = await cache.get(key)!;
+  return list.length ? h('div', { class: 'ewcar-pos' }, ...list.map(carousel)) : null;
 }
 
 // ---------------------------------------------------------------- administration
