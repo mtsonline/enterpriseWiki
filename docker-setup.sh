@@ -123,7 +123,7 @@ if [ -z "$(getvar EWIKI_HTTPS)" ] || [ -n "$fresh" ]; then
 		setvar EWIKI_ACME_EMAIL "$email"
 		# the wiki itself is only reachable through the proxy
 		setvar EWIKI_PORT "127.0.0.1:$port"
-		setvar EWIKI_TRUSTED_PROXIES 172.30.80.2
+		setvar EWIKI_TRUSTED_PROXIES 172.30.80.250
 		say "HTTPS via the bundled proxy: https://$domain ($acme); ports 80 and 443 must be reachable from the internet"
 	else
 		ip=127.0.0.1

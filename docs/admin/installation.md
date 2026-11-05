@@ -108,12 +108,12 @@ Das Wiki nimmt die Client-Adresse aus `X-Forwarded-For` nur von vertrauenswürdi
 
 | Aufbau | `EWIKI_TRUSTED_PROXIES` |
 |---|---|
-| Docker Compose mit mitgeliefertem Proxy | `172.30.80.2` (Standard in `docker-compose.yml`) |
+| Docker Compose mit mitgeliefertem Proxy | `172.30.80.250` (Standard in `docker-compose.yml`) |
 | Docker Compose, nginx/Apache auf dem Host | `172.30.80.1` (Gateway des Docker-Netzes) |
 | ohne Docker, nginx auf demselben Server | `127.0.0.1,::1` |
 | Proxy/Load-Balancer auf anderen Rechnern | deren Adressen, z. B. `10.0.5.10,10.0.5.11` |
 
-Der Header wird von rechts gelesen: Die erste Adresse, die kein vertrauenswürdiger Proxy ist, gilt als Client. Vom Client selbst gesetzte Werte weiter links werden ignoriert. Das Docker-Netz hat ein festes Subnetz (`EWIKI_SUBNET`, Standard `172.30.80.0/24`); wer es ändert, setzt auch `EWIKI_PROXY_IP` und `EWIKI_TRUSTED_PROXIES`.
+Der Header wird von rechts gelesen: Die erste Adresse, die kein vertrauenswürdiger Proxy ist, gilt als Client. Vom Client selbst gesetzte Werte weiter links werden ignoriert. Das Docker-Netz hat ein festes Subnetz (`EWIKI_SUBNET`, Standard `172.30.80.0/24`); wer es ändert, setzt auch `EWIKI_IP_RANGE` (Bereich für die Container), `EWIKI_PROXY_IP` (feste Adresse des Proxys außerhalb dieses Bereichs) und `EWIKI_TRUSTED_PROXIES`. Mehrere Installationen auf demselben Host brauchen je ein eigenes Subnetz.
 
 ### Eigener Proxy
 

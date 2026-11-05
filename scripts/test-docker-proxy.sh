@@ -38,7 +38,7 @@ expect EWIKI_BASE_URL https://wiki.example.com
 expect EWIKI_ACME zerossl
 expect EWIKI_ACME_EMAIL it@example.com
 expect EWIKI_PORT 127.0.0.1:8080
-expect EWIKI_TRUSTED_PROXIES 172.30.80.2
+expect EWIKI_TRUSTED_PROXIES 172.30.80.250
 grep -q 'rm -rf' .env && fail "malicious input reached .env"
 [ "$(stat -c %a .env)" = 600 ] || fail ".env is not private"
 
@@ -75,8 +75,9 @@ EWIKI_ACME_EMAIL=ci@example.com
 EWIKI_HTTP_PORT=18081
 EWIKI_HTTPS_PORT=18443
 EWIKI_SUBNET=172.30.90.0/24
-EWIKI_PROXY_IP=172.30.90.2
-EWIKI_TRUSTED_PROXIES=172.30.90.2
+EWIKI_IP_RANGE=172.30.90.0/25
+EWIKI_PROXY_IP=172.30.90.250
+EWIKI_TRUSTED_PROXIES=172.30.90.250
 EOF
 sed -i 's#^EWIKI_BASE_URL=.*#EWIKI_BASE_URL=https://wiki.example.com#; s#^EWIKI_PORT=.*#EWIKI_PORT=127.0.0.1:18080#' .env
 docker compose up -d >up.log 2>&1 || { cat up.log >&2; fail "compose up"; }

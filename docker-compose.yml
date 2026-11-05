@@ -65,9 +65,9 @@ services:
       EWIKI_SMTP_PASSWORD: ${EWIKI_SMTP_PASSWORD:-}
       # reverse proxies whose X-Forwarded-For is trusted (client addresses
       # for logs, rate limits and allowed networks of accounts):
-      # 172.30.80.2 = the bundled proxy, 172.30.80.1 = a proxy on the host
+      # 172.30.80.250 = the bundled proxy, 172.30.80.1 = a proxy on the host
       # (nginx, Apache) that connects to EWIKI_PORT
-      EWIKI_TRUSTED_PROXIES: ${EWIKI_TRUSTED_PROXIES:-172.30.80.2}
+      EWIKI_TRUSTED_PROXIES: ${EWIKI_TRUSTED_PROXIES:-172.30.80.250}
     ports:
       - "${EWIKI_PORT:-8080}:8080"
     volumes:
@@ -103,7 +103,7 @@ services:
       - ./data/caddy/config:/config
     networks:
       ewiki:
-        ipv4_address: ${EWIKI_PROXY_IP:-172.30.80.2}
+        ipv4_address: ${EWIKI_PROXY_IP:-172.30.80.250}
 
   # Optional external search engine for very large wikis (plugin search.external,
   # Administration -> Search engine: engine meilisearch, URL http://meilisearch:7700).
@@ -124,3 +124,6 @@ networks:
         # fixed, so the proxy address in EWIKI_TRUSTED_PROXIES stays valid
         # (when changing it, set EWIKI_PROXY_IP and EWIKI_TRUSTED_PROXIES too)
         - subnet: ${EWIKI_SUBNET:-172.30.80.0/24}
+          # containers get addresses from the lower half; the proxy has a
+          # fixed one in the upper half (EWIKI_PROXY_IP), so they never collide
+          ip_range: ${EWIKI_IP_RANGE:-172.30.80.0/25}

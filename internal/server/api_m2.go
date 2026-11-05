@@ -65,7 +65,7 @@ func (s *Server) routesM2() {
 		if res != nil {
 			s.auditLogin(r, res.Principal, "sso:"+r.PathValue("provider"), "", nil)
 			s.setCookie(w, res.Token, res.ExpiresAt)
-			http.Redirect(w, r, auth.SafeNext(res.Next), http.StatusSeeOther)
+			http.Redirect(w, r, auth.SafeNext(res.Next), http.StatusSeeOther) // #nosec G710 -- SafeNext allows local paths only
 			return
 		}
 		http.Redirect(w, r, redirect, http.StatusFound) // #nosec G710 -- URL of the configured identity provider, not from the request
@@ -79,7 +79,7 @@ func (s *Server) routesM2() {
 		}
 		s.auditLogin(r, res.Principal, "sso:"+r.PathValue("provider"), "", nil)
 		s.setCookie(w, res.Token, res.ExpiresAt)
-		http.Redirect(w, r, auth.SafeNext(res.Next), http.StatusSeeOther)
+		http.Redirect(w, r, auth.SafeNext(res.Next), http.StatusSeeOther) // #nosec G710 -- SafeNext allows local paths only
 	}
 	// Called by the identity provider (redirect or HTTP-POST binding).
 	h.RecordRoute("GET /api/v1/auth/sso/{provider}/callback")

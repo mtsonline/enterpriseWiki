@@ -7,7 +7,7 @@ import (
 )
 
 // EnvTrustedProxies overrides server.trusted_proxies: IP addresses and CIDR
-// networks separated by commas or spaces (e.g. "172.30.80.2" for the proxy
+// networks separated by commas or spaces (e.g. "172.30.80.250" for the proxy
 // container of docker-compose.yml, "127.0.0.1,::1" for a local nginx).
 const EnvTrustedProxies = "EWIKI_TRUSTED_PROXIES"
 

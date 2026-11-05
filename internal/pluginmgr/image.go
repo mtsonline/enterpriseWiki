@@ -185,7 +185,7 @@ func fileLock(ctx context.Context, path string) (func(), error) {
 	if err := os.MkdirAll(filepath.Dir(path), 0o750); err != nil {
 		return nil, err
 	}
-	f, err := os.OpenFile(path, os.O_CREATE|os.O_RDWR, 0o640)
+	f, err := os.OpenFile(path, os.O_CREATE|os.O_RDWR, 0o600) // #nosec G304 -- lock file of the build directory
 	if err != nil {
 		return nil, err
 	}
@@ -278,7 +278,7 @@ func BuildImage(ctx context.Context, root string, l Layout, trigger string, w io
 	host, _ := os.Hostname()
 	meta = &BuildMeta{Hash: hash, Version: version.Version, Plugins: ids, Trigger: trigger, BuiltAt: time.Now().UTC(), By: host}
 	b, _ := json.MarshalIndent(meta, "", "  ")
-	if err := os.WriteFile(final+".json", b, 0o640); err != nil {
+	if err := os.WriteFile(final+".json", b, 0o600); err != nil {
 		return "", nil, false, err
 	}
 	if err := os.Rename(tmp, final); err != nil {
@@ -457,7 +457,7 @@ func saveLastBuild(l Layout, hash string, start time.Time, buf *lockedBuffer, er
 	st := lastBuild{BuildStatus: BuildStatus{OK: err == nil, StartedAt: &start, FinishedAt: &now, Log: tail(buf.String(), err)}, Hash: hash}
 	b, _ := json.Marshal(st)
 	_ = os.MkdirAll(l.Bin, 0o750)
-	_ = os.WriteFile(filepath.Join(l.Bin, "last-build.json"), b, 0o640)
+	_ = os.WriteFile(filepath.Join(l.Bin, "last-build.json"), b, 0o600)
 }
 
 func loadLastBuild(l Layout) *lastBuild {

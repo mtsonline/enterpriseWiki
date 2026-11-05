@@ -318,7 +318,7 @@ func (m *Manager) Install(ctx context.Context, source, ref string) (*InstallResu
 // markTrigger notes why the plugin folder changed, for the server watching
 // it (e.g. after "ewiki plugin install" in another process).
 func (m *Manager) markTrigger(trigger string) {
-	_ = os.WriteFile(filepath.Join(m.PluginsDir(), ".trigger"), []byte(trigger), 0o640)
+	_ = os.WriteFile(filepath.Join(m.PluginsDir(), ".trigger"), []byte(trigger), 0o600)
 }
 
 func (m *Manager) takeTrigger() string {
@@ -563,7 +563,7 @@ func copyDir(src, dst string) error {
 		if err != nil {
 			return err
 		}
-		return os.WriteFile(t, b, 0o640) // #nosec G703 -- target below the build directory (relative path from WalkDir)
+		return os.WriteFile(t, b, 0o600) // #nosec G703 -- target below the build directory (relative path from WalkDir)
 	})
 }
 
@@ -595,5 +595,5 @@ func Generate(root string) error {
 	if err := os.MkdirAll(filepath.Join(pdir, "all"), 0o750); err != nil {
 		return err
 	}
-	return os.WriteFile(filepath.Join(pdir, "all", "zz_generated.go"), []byte(src), 0o640)
+	return os.WriteFile(filepath.Join(pdir, "all", "zz_generated.go"), []byte(src), 0o600)
 }

@@ -44,7 +44,7 @@ func readString(b []byte) ([]byte, []byte, error) {
 		return nil, nil, errors.New("short buffer")
 	}
 	n := binary.BigEndian.Uint32(b)
-	if uint64(len(b)-4) < uint64(n) {
+	if uint64(len(b)-4) < uint64(n) { // #nosec G115 -- len(b) >= 4 checked above
 		return nil, nil, errors.New("short buffer")
 	}
 	return b[4 : 4+n], b[4+n:], nil

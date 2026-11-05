@@ -107,7 +107,7 @@ func (s *Server) serveFrontend(w http.ResponseWriter, r *http.Request) {
 			if r.URL.RawQuery != "" {
 				target += "?" + r.URL.RawQuery
 			}
-			http.Redirect(w, r, auth.SafeNext(target), http.StatusMovedPermanently)
+			http.Redirect(w, r, auth.SafeNext(target), http.StatusMovedPermanently) // #nosec G710 -- SafeNext allows local paths only
 			return
 		}
 	}
