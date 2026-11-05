@@ -241,8 +241,10 @@ type report struct{ p *Plugin }
 
 func lm(en, de string) map[string]string { return map[string]string{"en": en, "de": de} }
 
-func (report) Name() string              { return "properties" }
-func (report) Labels() map[string]string { return lm("Page properties report", "Seiteneigenschaften-Bericht") }
+func (report) Name() string { return "properties" }
+func (report) Labels() map[string]string {
+	return lm("Page properties report", "Seiteneigenschaften-Bericht")
+}
 func (report) Description() map[string]string {
 	return lm("Lists the pages of a category with their properties as a table.", "Listet die Seiten einer Kategorie mit ihren Eigenschaften als Tabelle.")
 }
