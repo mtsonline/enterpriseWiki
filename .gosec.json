@@ -1,7 +1,5 @@
 {
   "global": {
-    "nosec": "enabled",
     "show-ignored": "enabled"
-  },
-  "G104": {}
+  }
 }

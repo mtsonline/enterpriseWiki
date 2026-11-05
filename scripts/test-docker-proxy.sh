@@ -72,23 +72,23 @@ cat >> .env <<'EOF'
 COMPOSE_PROFILES=proxy
 EWIKI_ACME=letsencrypt-staging
 EWIKI_ACME_EMAIL=ci@example.com
-EWIKI_HTTP_PORT=8081
-EWIKI_HTTPS_PORT=8443
+EWIKI_HTTP_PORT=18081
+EWIKI_HTTPS_PORT=18443
 EWIKI_SUBNET=172.30.90.0/24
 EWIKI_PROXY_IP=172.30.90.2
 EWIKI_TRUSTED_PROXIES=172.30.90.2
 EOF
-sed -i 's#^EWIKI_BASE_URL=.*#EWIKI_BASE_URL=https://wiki.example.com#' .env
+sed -i 's#^EWIKI_BASE_URL=.*#EWIKI_BASE_URL=https://wiki.example.com#; s#^EWIKI_PORT=.*#EWIKI_PORT=127.0.0.1:18080#' .env
 docker compose up -d >up.log 2>&1 || { cat up.log >&2; fail "compose up"; }
 trap 'docker compose down -v >/dev/null 2>&1 || true' EXIT
-for _ in $(seq 1 120); do curl -fs http://127.0.0.1:8080/readyz >/dev/null && break; sleep 1; done
-curl -fs http://127.0.0.1:8080/readyz >/dev/null || fail "wiki not ready"
+for _ in $(seq 1 120); do curl -fs http://127.0.0.1:18080/readyz >/dev/null && break; sleep 1; done
+curl -fs http://127.0.0.1:18080/readyz >/dev/null || fail "wiki not ready"
 pid="$(docker compose ps -q proxy)"
 [ -n "$pid" ] && [ "$(docker inspect -f '{{.State.Running}}' "$pid")" = true ] || fail "proxy not running"
 [ "$(docker inspect -f '{{.Config.User}}' "$pid")" = "$(id -u):$(id -g)" ] || fail "proxy runs as $(docker inspect -f '{{.Config.User}}' "$pid")"
 [ "$(docker inspect -f '{{.HostConfig.ReadonlyRootfs}}' "$pid")" = true ] || fail "proxy root file system writable"
 docker inspect -f '{{.HostConfig.CapDrop}}' "$pid" | grep -q ALL || fail "capabilities not dropped"
-loc="$(curl -s -o /dev/null -w '%{redirect_url}' -H 'Host: wiki.example.com' http://127.0.0.1:8081/some/page)"
+loc="$(curl -s -o /dev/null -w '%{redirect_url}' -H 'Host: wiki.example.com' http://127.0.0.1:18081/some/page)"
 [ "$loc" = https://wiki.example.com/some/page ] || fail "HTTP redirect: '$loc'"
 # certificates only for the wiki's own host names (asked by Caddy)
 code() { docker compose exec -T proxy wget -q -S -O /dev/null "http://wiki:8080/tls-allowed?domain=$1" 2>&1 | awk '/HTTP\//{print $2}' | tail -n 1; }
