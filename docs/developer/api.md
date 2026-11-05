@@ -86,6 +86,11 @@ curl -H "Authorization: Bearer $KEY" -H 'Content-Type: application/json' \
 | `POST` | `/api/v1/me/totp/setup` |
 | `POST` | `/api/v1/me/totp/enable` |
 | `POST` | `/api/v1/me/totp/disable` |
+| `GET` | `/api/v1/me/mfa` |
+| `POST` | `/api/v1/me/mfa/email/code` |
+| `POST` | `/api/v1/me/mfa/email/enable` |
+| `POST` | `/api/v1/me/mfa/email/disable` |
+| `PUT` | `/api/v1/me/mfa/networks` |
 | `GET` | `/api/v1/me/notifications` |
 | `PUT` | `/api/v1/me/notifications` |
 | `GET` | `/api/v1/me/watches` |
@@ -364,3 +369,10 @@ curl -H "Authorization: Bearer $KEY" -H 'Content-Type: application/json' \
 | `GET` | `/api/v1/resolve` |
 | `GET` | `/api/v1/not-found` |
 | `GET` | `/api/v1/prerender` |
+| `GET` | `/api/v1/instance/sites` |
+| `POST` | `/api/v1/instance/sites` |
+| `PATCH` | `/api/v1/instance/sites/{name}` |
+| `DELETE` | `/api/v1/instance/sites/{name}` |
+| `GET` | `/api/v1/instance/admins` |
+| `POST` | `/api/v1/instance/admins` |
+| `DELETE` | `/api/v1/instance/admins/{id}` |

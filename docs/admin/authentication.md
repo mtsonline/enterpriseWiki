@@ -154,9 +154,17 @@ ProxyPass / http://127.0.0.1:8080/
 RequestHeader unset eppn early      # Header von außen verwerfen
 ```
 
-## Zwei-Faktor-Authentifizierung (TOTP)
+## Zwei-Faktor-Authentifizierung (App oder E-Mail) und erlaubte Netze
 
 Lokale Konten können unter *Mein Profil → Zwei-Faktor-Authentifizierung* eine Authenticator-App einrichten (RFC 6238, 6 Ziffern, 30 Sekunden). Danach verlangt das Login zusätzlich den Code. Jeder Code ist nur einmal gültig. Bei verlorenem Telefon setzt ein Administrator die 2FA unter *Benutzer → Bearbeiten → Zwei-Faktor-Authentifizierung zurücksetzen* zurück. Für LDAP-, OIDC- und SAML-Konten regelt der jeweilige Anbieter die Mehrfaktor-Anmeldung.
+
+### Code per E-Mail
+
+Statt oder zusätzlich zur App können lokale Konten unter *Mein Profil → Code per E-Mail* einen Code per E-Mail als zweiten Faktor wählen (bestätigt mit einem Code an die hinterlegte Adresse). Beim Login wird dann ein sechsstelliger Code geschickt; er gilt 10 Minuten, nur einmal und für höchstens 5 Versuche. Sind App und E-Mail eingerichtet, fragt das Login nach dem App-Code und bietet „Code per E-Mail senden“ an. Voraussetzung ist ein funktionierender Mailversand (`mail`). „Zwei-Faktor-Authentifizierung zurücksetzen“ entfernt beide Faktoren; per CLI: `ewiki user mfa-reset NAME`.
+
+### Einschränkung auf Netze
+
+Unter *Mein Profil → Erlaubte Netze* oder von Administratoren unter *Benutzer → Bearbeiten → Erlaubte Netze* lässt sich ein Konto auf IP-Adressen und Netze (CIDR, IPv4 und IPv6, z. B. `10.0.0.0/8`, `192.0.2.7`, `2001:db8::/32`) beschränken. Leer bedeutet: überall. Die Einschränkung gilt für alle Anmeldearten des Kontos (lokal, LDAP, OIDC, SAML, SSH) und für bestehende Sitzungen, API-Keys und Feed-Links; Anfragen von außerhalb erhalten `403 network_denied` und werden protokolliert (`auth.network_denied`). Wer die eigene Einschränkung setzt, muss die aktuelle Adresse einschließen. Hinter einem Reverse Proxy muss `server.trusted_proxies` gesetzt sein, damit die echte Client-Adresse zählt. Per CLI: `ewiki user networks NAME [NETZ ...]` (ohne Netze wird die Einschränkung aufgehoben).
 
 ## Skripte und API
 

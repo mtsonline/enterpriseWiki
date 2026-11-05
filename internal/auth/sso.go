@@ -170,6 +170,9 @@ func (s *Service) completeSSO(ctx context.Context, ext *ExternalIdentity, ip, ua
 	if err != nil {
 		return nil, err
 	}
+	if err := s.checkNetwork(ctx, uid, ip); err != nil {
+		return nil, err
+	}
 	tok, exp, err := s.createSession(ctx, uid, "web", config.Duration(s.cfg.Get().Auth.SessionTTL, 7*24*time.Hour), ip, ua)
 	if err != nil {
 		return nil, err

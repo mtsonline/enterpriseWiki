@@ -169,6 +169,22 @@ func newSite(ctx context.Context, in *Instance, site string, migrate bool) (*App
 		return err
 	}})
 	a.Mail.T = a.I18n.T
+	// one-time codes (second factor by e-mail) are sent directly, not kept in the outbox
+	a.Auth.SendCode = func(ctx context.Context, uid int64, purpose, code string) error {
+		var addr, lang string
+		if err := pool.QueryRow(ctx, `SELECT email, language FROM users WHERE id=$1`, uid).Scan(&addr, &lang); err != nil {
+			return err
+		}
+		if addr == "" {
+			return fmt.Errorf("user %d has no e-mail address", uid)
+		}
+		if lang == "" {
+			lang = cfg.Get().I18n.DefaultLanguage
+		}
+		p := map[string]string{"code": code, "site": cfg.Get().UI.SiteName, "minutes": "10"}
+		return a.Mail.SendNow(ctx, mail.Message{To: []string{addr}, Subject: a.I18n.T(ctx, lang, "mfa.mail_subject_"+purpose, p),
+			Text: a.I18n.T(ctx, lang, "mfa.mail_text_"+purpose, p), Source: "auth", NoReport: true})
+	}
 	a.Watch = watch.New(pool, cfg, a.ACL, a.Auth, a.Content, a.Mail, a.I18n, log)
 	// guest cache: every change invalidates it (here, on other nodes and from CLI processes)
 	a.Cache = pagecache.New(pool, cfg, log)

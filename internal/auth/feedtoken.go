@@ -70,5 +70,8 @@ func (s *Service) FeedContext(r *http.Request) (context.Context, bool, error) {
 		return nil, false, apperr.ErrUnauthorized
 	}
 	p.Via = "feed"
+	if err := checkPrincipalNetwork(ctx, p); err != nil {
+		return nil, false, err
+	}
 	return identity.With(ctx, p), true, nil
 }

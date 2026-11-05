@@ -77,6 +77,12 @@ type request struct{ ip, ua string }
 
 type reqKey struct{}
 
+// ClientIP returns the client's IP address stored by WithRequest ("" if none).
+func ClientIP(ctx context.Context) string {
+	r, _ := ctx.Value(reqKey{}).(request)
+	return r.ip
+}
+
 // WithRequest stores the client's IP address and browser in ctx.
 func WithRequest(ctx context.Context, ip, userAgent string) context.Context {
 	if len(userAgent) > 300 {

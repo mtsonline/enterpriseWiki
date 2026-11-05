@@ -33,6 +33,9 @@ type User struct {
 	Groups      []int64    `json:"groups"`
 	Roles       []int64    `json:"roles"`
 	TOTP        bool       `json:"totp_enabled"`
+	MFAEmail    bool       `json:"mfa_email"`
+	// Networks the account may be used from (empty = anywhere).
+	Networks []string `json:"networks"`
 }
 
 func requireAdmin(ctx context.Context) error {
@@ -123,7 +126,7 @@ func (s *Service) ListUsers(ctx context.Context, q string, limit, offset int) ([
 	rows, err := s.pool.Query(ctx, `SELECT u.id, u.username, u.provider, u.display_name, u.email, u.language, u.disabled, u.locked_until,
 			u.created_at, u.last_login_at,
 			COALESCE((SELECT array_agg(group_id ORDER BY group_id) FROM user_groups WHERE user_id=u.id), '{}'),
-			COALESCE((SELECT array_agg(role_id ORDER BY role_id) FROM user_roles WHERE user_id=u.id), '{}'), u.totp_enabled
+			COALESCE((SELECT array_agg(role_id ORDER BY role_id) FROM user_roles WHERE user_id=u.id), '{}'), u.totp_enabled, u.mfa_email, u.allowed_networks
 		FROM users u WHERE $1 = '' OR u.username ILIKE '%'||$1||'%' OR u.display_name ILIKE '%'||$1||'%' OR u.email ILIKE '%'||$1||'%'
 		ORDER BY u.username, u.provider LIMIT $2 OFFSET $3`, q, limit, offset)
 	if err != nil {
@@ -135,7 +138,7 @@ func (s *Service) ListUsers(ctx context.Context, q string, limit, offset int) ([
 func scanUser(r pgx.CollectableRow) (User, error) {
 	var u User
 	err := r.Scan(&u.ID, &u.Username, &u.Provider, &u.DisplayName, &u.Email, &u.Language, &u.Disabled, &u.LockedUntil,
-		&u.CreatedAt, &u.LastLoginAt, &u.Groups, &u.Roles, &u.TOTP)
+		&u.CreatedAt, &u.LastLoginAt, &u.Groups, &u.Roles, &u.TOTP, &u.MFAEmail, &u.Networks)
 	u.Handle = u.Username + "@" + u.Provider
 	return u, err
 }
@@ -148,7 +151,7 @@ func (s *Service) GetUser(ctx context.Context, id int64) (*User, error) {
 	rows, err := s.pool.Query(ctx, `SELECT u.id, u.username, u.provider, u.display_name, u.email, u.language, u.disabled, u.locked_until,
 			u.created_at, u.last_login_at,
 			COALESCE((SELECT array_agg(group_id ORDER BY group_id) FROM user_groups WHERE user_id=u.id), '{}'),
-			COALESCE((SELECT array_agg(role_id ORDER BY role_id) FROM user_roles WHERE user_id=u.id), '{}'), u.totp_enabled
+			COALESCE((SELECT array_agg(role_id ORDER BY role_id) FROM user_roles WHERE user_id=u.id), '{}'), u.totp_enabled, u.mfa_email, u.allowed_networks
 		FROM users u WHERE u.id=$1`, id)
 	if err != nil {
 		return nil, err
@@ -263,7 +266,9 @@ type UserUpdate struct {
 	Groups      []int64 `json:"groups"`
 	Roles       []int64 `json:"roles"`
 	Password    *string `json:"password"`
-	ResetTOTP   bool    `json:"reset_totp"`
+	ResetTOTP   bool    `json:"reset_totp"` // removes all second factors (app and e-mail)
+	// Networks restricts the account to IP addresses / CIDR networks ([] = anywhere).
+	Networks *[]string `json:"networks"`
 }
 
 // UpdateUser changes a user (admin only). The last active admin cannot be
@@ -274,7 +279,7 @@ func (s *Service) UpdateUser(ctx context.Context, id int64, in UserUpdate) (*Use
 	}
 	// role assignments belong to the site; everything else is shared
 	if in.DisplayName != nil || in.Email != nil || in.Language != nil || in.Disabled != nil || in.Unlock ||
-		in.Groups != nil || in.Password != nil || in.ResetTOTP {
+		in.Groups != nil || in.Password != nil || in.ResetTOTP || in.Networks != nil {
 		if err := requireShared(ctx); err != nil {
 			return nil, err
 		}
@@ -297,6 +302,12 @@ func (s *Service) UpdateUser(ctx context.Context, id int64, in UserUpdate) (*Use
 		}
 		hash = &h
 	}
+	var nets []string
+	if in.Networks != nil {
+		if nets, err = ParseNetworks(*in.Networks); err != nil {
+			return nil, err
+		}
+	}
 	err = db.Tx(ctx, s.pool, func(tx pgx.Tx) error {
 		if _, err := tx.Exec(ctx, `UPDATE users SET
 				display_name = COALESCE($2, display_name), email = COALESCE($3, email), language = COALESCE($4, language),
@@ -304,8 +315,10 @@ func (s *Service) UpdateUser(ctx context.Context, id int64, in UserUpdate) (*Use
 				failed_logins = CASE WHEN $7 THEN 0 ELSE failed_logins END,
 				locked_until = CASE WHEN $7 THEN NULL ELSE locked_until END,
 				totp_enabled = CASE WHEN $8 THEN false ELSE totp_enabled END,
-				totp_secret = CASE WHEN $8 THEN NULL ELSE totp_secret END, updated_at = now()
-			WHERE id=$1`, id, in.DisplayName, in.Email, in.Language, in.Disabled, hash, in.Unlock, in.ResetTOTP); err != nil {
+				totp_secret = CASE WHEN $8 THEN NULL ELSE totp_secret END,
+				mfa_email = CASE WHEN $8 THEN false ELSE mfa_email END,
+				allowed_networks = COALESCE($9, allowed_networks), updated_at = now()
+			WHERE id=$1`, id, in.DisplayName, in.Email, in.Language, in.Disabled, hash, in.Unlock, in.ResetTOTP, nets); err != nil {
 			return err
 		}
 		if err := guardTarget(ctx, tx, id); err != nil {

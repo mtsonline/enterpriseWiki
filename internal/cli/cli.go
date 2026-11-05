@@ -56,6 +56,8 @@ Users
   user create NAME [--admin] [--display-name N] [--email E] [--password-stdin]
   user passwd NAME [--password-stdin]
   user disable NAME | user enable NAME | user unlock NAME
+  user mfa-reset NAME           remove the second factors (app and e-mail)
+  user networks NAME [NET...]   allowed IP addresses / CIDR networks (none: everywhere)
 
 Guest cache
   cache status | cache clear

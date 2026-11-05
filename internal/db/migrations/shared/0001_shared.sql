@@ -26,6 +26,10 @@ CREATE TABLE users (
     totp_secret    text,
     totp_enabled   boolean NOT NULL DEFAULT false,
     totp_last_step bigint NOT NULL DEFAULT 0,
+    -- second factor by e-mail (local accounts): a code is sent at sign-in
+    mfa_email      boolean NOT NULL DEFAULT false,
+    -- sign-in and use only from these IP addresses / networks (CIDR); empty = anywhere
+    allowed_networks text[] NOT NULL DEFAULT '{}',
     -- e-mail preferences per kind, e.g. {"tasks": true, "comments": false}; missing keys mean "on"
     notify         jsonb NOT NULL DEFAULT '{}',
     feed_token     text UNIQUE,                   -- personal feed links (feed readers cannot sign in)

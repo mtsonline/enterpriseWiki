@@ -100,12 +100,17 @@ export async function loginView({ query, main }: RouteCtx): Promise<void> {
   totp.setAttribute('inputmode', 'numeric');
   const totpField = field(t('auth.totp'), totp, { help: t('auth.totp_help') });
   totpField.hidden = true;
+  // second factor by e-mail: instead of the authenticator app on request
+  let mfa = '';
+  const emailBtn = button(t('auth.mfa_email_send'), () => { mfa = 'email'; totp.value = ''; form.requestSubmit(); }, { variant: 'link' });
+  emailBtn.hidden = true;
   const alert = h('div', { class: 'ew-form-alert', role: 'alert' }, query.get('error') ?? '');
   const form = h('form', { class: 'ew-form ew-login', novalidate: true },
     alert,
     field(t('auth.username'), user, { required: true, help: pwProviders.length > 1 ? t('auth.username_help', { providers: pwProviders.map((p) => p.id).join(', ') }) : undefined }),
     field(t('auth.password'), pw, { required: true }),
     totpField,
+    emailBtn,
     h('div', { class: 'ew-form-actions' }, button(t('auth.login'), () => undefined, { type: 'submit', variant: 'primary' })));
   form.addEventListener('submit', async (ev) => {
     ev.preventDefault();
@@ -116,7 +121,7 @@ export async function loginView({ query, main }: RouteCtx): Promise<void> {
       return;
     }
     try {
-      const res = await api.post<{ user: Principal }>('auth/login', { username: user.value.trim(), password: pw.value, totp: totp.value.trim() });
+      const res = await api.post<{ user: Principal }>('auth/login', { username: user.value.trim(), password: pw.value, totp: totp.value.trim(), mfa: mfa || undefined });
       state.user = res.user;
       void api.get<{ manages_categories?: boolean }>('auth/me').then((m) => { state.managesCategories = !!m.manages_categories; changed(); }).catch(() => undefined);
       if (res.user.language && state.site.languages.includes(res.user.language) && res.user.language !== state.lang) {
@@ -128,9 +133,11 @@ export async function loginView({ query, main }: RouteCtx): Promise<void> {
       announce(t('auth.logged_in', { name: res.user.display_name || res.user.username }));
       navigate(safeNext);
     } catch (e) {
-      if (e instanceof ApiError && (e.code === 'totp_required' || e.code === 'totp_invalid')) {
+      if (e instanceof ApiError && ['totp_required', 'totp_required_email', 'totp_invalid', 'mfa_email_sent'].includes(e.code)) {
         totpField.hidden = false;
-        alert.textContent = e.code === 'totp_required' ? t('auth.totp_needed') : t('auth.totp_wrong');
+        if (e.code === 'totp_required_email') emailBtn.hidden = false;
+        if (e.code === 'mfa_email_sent') { emailBtn.hidden = true; mfa = 'email'; }
+        alert.textContent = e.code === 'mfa_email_sent' ? t('auth.mfa_email_sent') : e.code === 'totp_invalid' ? t('auth.totp_wrong') : t('auth.totp_needed');
         totp.value = '';
         totp.focus();
         return;
@@ -310,6 +317,8 @@ export async function profileView({ main }: RouteCtx): Promise<void> {
     feedTokenSection(),
     pwSection,
     u.provider === 'local' ? await totpSection() : null,
+    u.provider === 'local' ? await emailMFASection() : null,
+    await networksSection(),
     h('section', { class: 'ew-section', 'aria-labelledby': 'ak-h' }, h('h2', { id: 'ak-h' }, t('apikey.title')), h('p', null, t('apikey.help')),
       button(t('apikey.create'), () => createKeyDialog(), { variant: 'primary' }),
       h('table', { class: 'ew-table' }, h('caption', { class: 'sr-only' }, t('apikey.title')),
@@ -356,6 +365,57 @@ async function totpSection(): Promise<HTMLElement> {
     } catch (e) { toast(errorText(e), 'error'); }
   }, { variant: 'primary' }));
   return box;
+}
+
+interface MFAInfo { totp: boolean; email: boolean; email_address: string; local: boolean; networks: string[]; current_ip: string }
+
+// Second factor by e-mail: a code is sent at every sign-in.
+async function emailMFASection(): Promise<HTMLElement> {
+  const st = await api.get<MFAInfo>('me/mfa');
+  const box = h('section', { class: 'ew-section', 'aria-labelledby': 'mfam-h' }, h('h2', { id: 'mfam-h' }, t('mfa.email_title')));
+  const confirm = (on: boolean) => async () => {
+    try {
+      await api.post('me/mfa/email/code');
+    } catch (e) { toast(errorText(e), 'error'); return; }
+    const code = textInput({ autocomplete: 'one-time-code', maxlength: 8 });
+    code.setAttribute('inputmode', 'numeric');
+    formDialog(on ? t('mfa.email_enable') : t('mfa.email_disable'), [
+      h('p', null, t('mfa.email_code_sent', { address: st.email_address })),
+      field(t('mfa.code'), code, { required: true })], on ? t('mfa.email_enable') : t('mfa.email_disable'), async () => {
+      await api.post(on ? 'me/mfa/email/enable' : 'me/mfa/email/disable', { code: code.value.trim() });
+      toast(on ? t('mfa.email_enabled') : t('mfa.email_disabled'));
+      navigate('/profile', { replace: true });
+    });
+  };
+  if (st.email) {
+    box.append(h('p', null, h('span', { class: 'ew-badge ew-badge--ok' }, t('mfa.email_on')), ' ', t('mfa.email_on_help', { address: st.email_address })),
+      button(t('mfa.email_disable'), confirm(false), { variant: 'danger' }));
+  } else if (!st.email_address) {
+    box.append(h('p', null, t('mfa.email_no_address')));
+  } else {
+    box.append(h('p', null, t('mfa.email_help', { address: st.email_address })), button(t('mfa.email_enable'), confirm(true), { variant: 'primary' }));
+  }
+  return box;
+}
+
+// Networks the own account may be used from.
+async function networksSection(): Promise<HTMLElement> {
+  const st = await api.get<MFAInfo>('me/mfa');
+  const input = textArea({ value: st.networks.join('\n'), rows: 3 });
+  const alert = h('div', { class: 'ew-form-alert', role: 'alert' });
+  const f = h('form', { class: 'ew-form', novalidate: true }, alert,
+    field(t('mfa.networks'), input, { help: t('mfa.networks_help', { ip: st.current_ip || '–' }) }),
+    h('div', { class: 'ew-form-actions' }, button(t('common.save'), () => undefined, { type: 'submit', variant: 'primary' })));
+  f.addEventListener('submit', async (ev) => {
+    ev.preventDefault();
+    alert.textContent = '';
+    try {
+      const r = await api.put<{ networks: string[] }>('me/mfa/networks', { networks: input.value.split(/[\s,;]+/).filter(Boolean) });
+      input.value = r.networks.join('\n');
+      toast(t('mfa.networks_saved'));
+    } catch (e) { alert.textContent = errorText(e); }
+  });
+  return h('section', { class: 'ew-section', 'aria-labelledby': 'mfan-h' }, h('h2', { id: 'mfan-h' }, t('mfa.networks_title')), f);
 }
 
 function createKeyDialog(): void {

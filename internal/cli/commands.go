@@ -155,7 +155,7 @@ func (e *env) readPassword(fromStdin bool, prompt string) (string, error) {
 
 func (e *env) user(args []string) error {
 	if len(args) == 0 {
-		return errors.New("usage: ewiki user list|create|passwd|disable|enable|unlock")
+		return errors.New("usage: ewiki user list|create|passwd|disable|enable|unlock|mfa-reset|networks")
 	}
 	sub, args := args[0], args[1:]
 	fs := flag.NewFlagSet("user", flag.ContinueOnError)
@@ -246,6 +246,31 @@ func (e *env) user(args []string) error {
 			}
 			_, err = a.Auth.UpdateUser(ctx, id, auth.UserUpdate{Unlock: true})
 			return err
+		case "mfa-reset":
+			id, err := findID()
+			if err != nil {
+				return err
+			}
+			_, err = a.Auth.UpdateUser(ctx, id, auth.UserUpdate{ResetTOTP: true})
+			return err
+		case "networks":
+			// ewiki user networks NAME [NET...]: without networks the restriction is removed
+			id, err := findID()
+			if err != nil {
+				return err
+			}
+			nets := fs.Args()
+			u, err := a.Auth.UpdateUser(ctx, id, auth.UserUpdate{Networks: &nets})
+			if err != nil {
+				return err
+			}
+			if len(u.Networks) == 0 {
+				fmt.Fprintln(e.stdout, "no network restriction")
+			}
+			for _, n := range u.Networks {
+				fmt.Fprintln(e.stdout, n)
+			}
+			return nil
 		}
 		return fmt.Errorf("unknown user command %q", sub)
 	})

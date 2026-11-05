@@ -2,6 +2,7 @@ package server_test
 
 import (
 	"fmt"
+	"regexp"
 	"testing"
 )
 
@@ -165,4 +166,80 @@ func TestMultiSite(t *testing.T) {
 	if len(list) != 1 {
 		t.Fatalf("sites after delete: %+v", list)
 	}
+}
+
+// lastCode returns the six-digit code of the latest e-mail to addr.
+func (c *capture) lastCode(t *testing.T, addr string) string {
+	t.Helper()
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	re := regexp.MustCompile(`\b(\d{6})\b`)
+	for i := len(c.msgs) - 1; i >= 0; i-- {
+		for _, r := range c.msgs[i].Recipients {
+			if r == addr {
+				if m := re.FindStringSubmatch(decodeQP(string(c.msgs[i].Data))); m != nil {
+					return m[1]
+				}
+			}
+		}
+	}
+	t.Fatalf("no code mailed to %s", addr)
+	return ""
+}
+
+// TestMFAEmailAndNetworks: second factor by e-mail, allowed networks.
+func TestMFAEmailAndNetworks(t *testing.T) {
+	e := setup(t)
+	cp := &capture{}
+	e.app.Mail.SetTransport(cp)
+	admin := e.client()
+	admin.login("admin", adminPW)
+	var u struct {
+		ID int64 `json:"id"`
+	}
+	admin.must("POST", "/api/v1/admin/users", map[string]any{"username": "bob", "password": "Bob-Passw0rd-1!", "email": "bob@example.com"}, &u, 201)
+	bob := e.client()
+	bob.login("bob", "Bob-Passw0rd-1!")
+
+	// enable codes by e-mail (confirmed with a code)
+	bob.must("POST", "/api/v1/me/mfa/email/code", nil, nil, 204)
+	bob.must("POST", "/api/v1/me/mfa/email/enable", map[string]string{"code": "000000x"}, nil, 401)
+	bob.must("POST", "/api/v1/me/mfa/email/code", nil, nil, 204)
+	bob.must("POST", "/api/v1/me/mfa/email/enable", map[string]string{"code": cp.lastCode(t, "bob@example.com")}, nil, 204)
+	var st struct {
+		Email bool `json:"email"`
+	}
+	bob.must("GET", "/api/v1/me/mfa", nil, &st, 200)
+	if !st.Email {
+		t.Fatal("e-mail factor not enabled")
+	}
+
+	// sign-in: password, then the mailed code
+	b2 := e.client()
+	b2.must("POST", "/api/v1/auth/login", map[string]string{"username": "bob", "password": "Bob-Passw0rd-1!"}, nil, 401)
+	code := cp.lastCode(t, "bob@example.com")
+	b2.must("POST", "/api/v1/auth/login", map[string]string{"username": "bob", "password": "Bob-Passw0rd-1!", "totp": "123"}, nil, 401)
+	b2.must("POST", "/api/v1/auth/login", map[string]string{"username": "bob", "password": "Bob-Passw0rd-1!", "totp": code}, nil, 200)
+	// a code works once
+	b3 := e.client()
+	b3.must("POST", "/api/v1/auth/login", map[string]string{"username": "bob", "password": "Bob-Passw0rd-1!", "totp": code}, nil, 401)
+
+	// allowed networks: the own address must be included
+	bob.must("PUT", "/api/v1/me/mfa/networks", map[string]any{"networks": []string{"10.0.0.0/8"}}, nil, 400)
+	bob.must("PUT", "/api/v1/me/mfa/networks", map[string]any{"networks": []string{"bad"}}, nil, 400)
+	var nets struct {
+		Networks []string `json:"networks"`
+	}
+	bob.must("PUT", "/api/v1/me/mfa/networks", map[string]any{"networks": []string{"127.0.0.0/8", "10.1.2.3", "2001:db8::1/32"}}, &nets, 200)
+	if fmt.Sprint(nets.Networks) != "[127.0.0.0/8 10.1.2.3/32 2001:db8::/32]" {
+		t.Fatalf("networks: %v", nets.Networks)
+	}
+	bob.must("GET", "/api/v1/me/mfa", nil, nil, 200)
+	// an administrator restricts bob to another network: sessions stop working
+	admin.must("PUT", fmt.Sprintf("/api/v1/admin/users/%d", u.ID), map[string]any{"networks": []string{"10.0.0.0/8"}}, nil, 200)
+	bob.must("GET", "/api/v1/me/mfa", nil, nil, 403)
+	b4 := e.client()
+	b4.must("POST", "/api/v1/auth/login", map[string]string{"username": "bob", "password": "Bob-Passw0rd-1!"}, nil, 403)
+	admin.must("PUT", fmt.Sprintf("/api/v1/admin/users/%d", u.ID), map[string]any{"networks": []string{}, "reset_totp": true}, nil, 200)
+	b4.must("POST", "/api/v1/auth/login", map[string]string{"username": "bob", "password": "Bob-Passw0rd-1!"}, nil, 200)
 }

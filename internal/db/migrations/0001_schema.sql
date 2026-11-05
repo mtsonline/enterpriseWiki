@@ -19,6 +19,16 @@ CREATE TABLE sessions (
 CREATE INDEX sessions_user ON sessions(user_id);
 CREATE INDEX sessions_expires ON sessions(expires_at);
 
+-- One-time codes sent by e-mail (second factor at sign-in, enabling it).
+CREATE TABLE mfa_codes (
+    user_id    bigint NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    purpose    text NOT NULL CHECK (purpose IN ('login', 'setup')),
+    code_hash  bytea NOT NULL,
+    attempts   int NOT NULL DEFAULT 0,
+    expires_at timestamptz NOT NULL,
+    PRIMARY KEY (user_id, purpose)
+);
+
 CREATE TABLE auth_challenges (
     nonce      text PRIMARY KEY,
     user_id    bigint NOT NULL REFERENCES users(id) ON DELETE CASCADE,

@@ -28,6 +28,8 @@ type Principal struct {
 	KeyPerms      int   `json:"-"`
 	KeyCategory   int64 `json:"-"`
 	KeyAllowAdmin bool  `json:"-"`
+	// Networks restricts where the account may be used (CIDR; empty = anywhere).
+	Networks []string `json:"-"`
 }
 
 // Handle returns the unique login handle name@provider.

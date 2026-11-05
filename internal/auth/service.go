@@ -68,6 +68,10 @@ type Service struct {
 
 	cache   sync.Map // token hash (string) -> cachedPrincipal
 	limiter *limiter
+
+	// SendCode e-mails a one-time code (second factor); set by the
+	// application. purpose is "login" or "setup".
+	SendCode func(ctx context.Context, uid int64, purpose, code string) error
 }
 
 type cachedPrincipal struct {
@@ -171,6 +175,12 @@ type LoginResult struct {
 // A handle "name@provider" restricts the attempt to that provider.
 // totp is the two-factor code (only needed for local accounts with 2FA).
 func (s *Service) Login(ctx context.Context, username, password, totp, ip, ua string) (*LoginResult, error) {
+	return s.LoginMFA(ctx, username, password, totp, "", ip, ua)
+}
+
+// LoginMFA signs in like Login; method "email" asks for the second factor
+// by e-mail although an authenticator app is set up as well.
+func (s *Service) LoginMFA(ctx context.Context, username, password, totp, method, ip, ua string) (*LoginResult, error) {
 	username = strings.TrimSpace(username)
 	if username == "" || password == "" {
 		return nil, apperr.ErrInvalidLogin
@@ -206,8 +216,11 @@ func (s *Service) Login(ctx context.Context, username, password, totp, ip, ua st
 		if err != nil {
 			return nil, err
 		}
+		if err := s.checkNetwork(ctx, uid, ip); err != nil {
+			return nil, err
+		}
 		if ext.Provider == "local" {
-			if err := s.checkTOTP(ctx, uid, totp); err != nil {
+			if err := s.checkSecondFactor(ctx, uid, totp, method == "email"); err != nil {
 				return nil, err
 			}
 		}
@@ -338,6 +351,9 @@ func (s *Service) Authenticate(ctx context.Context, token string) (*identity.Pri
 	if c, ok := s.cache.Load(string(h)); ok {
 		cp := c.(cachedPrincipal)
 		if time.Now().Before(cp.expires) {
+			if err := checkPrincipalNetwork(ctx, cp.p); err != nil {
+				return nil, err
+			}
 			return cp.p, nil
 		}
 		s.cache.Delete(string(h))
@@ -381,6 +397,9 @@ func (s *Service) Authenticate(ctx context.Context, token string) (*identity.Pri
 		}
 	}
 	s.cache.Store(string(h), cachedPrincipal{p, time.Now().Add(principalCacheTTL)})
+	if err := checkPrincipalNetwork(ctx, p); err != nil {
+		return nil, err
+	}
 	return p, nil
 }
 
@@ -388,8 +407,8 @@ func (s *Service) Authenticate(ctx context.Context, token string) (*identity.Pri
 func (s *Service) LoadPrincipal(ctx context.Context, uid int64) (*identity.Principal, error) {
 	p := &identity.Principal{UserID: uid}
 	var disabled bool
-	err := s.pool.QueryRow(ctx, `SELECT username, provider, display_name, email, language, disabled FROM users WHERE id=$1`, uid).
-		Scan(&p.Username, &p.Provider, &p.DisplayName, &p.Email, &p.Language, &disabled)
+	err := s.pool.QueryRow(ctx, `SELECT username, provider, display_name, email, language, disabled, allowed_networks FROM users WHERE id=$1`, uid).
+		Scan(&p.Username, &p.Provider, &p.DisplayName, &p.Email, &p.Language, &disabled, &p.Networks)
 	if err != nil {
 		return nil, apperr.NotFound("user")
 	}
@@ -607,6 +626,9 @@ func (s *Service) SSHLogin(ctx context.Context, challenge, signature, ip, ua str
 		}
 		if VerifySSHSignature(pk, signature, SSHNamespace, []byte(challenge)) == nil {
 			_, _ = s.pool.Exec(ctx, `UPDATE ssh_keys SET last_used_at=now() WHERE id=$1`, key.id)
+			if err := s.checkNetwork(ctx, uid, ip); err != nil {
+				return nil, err
+			}
 			tok, exp, err := s.createSession(ctx, uid, "ssh", config.Duration(s.cfg.Get().Auth.SSHTokenTTL, time.Hour), ip, ua)
 			if err != nil {
 				return nil, err

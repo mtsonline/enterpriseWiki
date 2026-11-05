@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"github.com/mtsonline/enterprisewiki/internal/audit"
 	"net"
@@ -11,6 +12,7 @@ import (
 	"time"
 
 	"github.com/mtsonline/enterprisewiki/internal/apperr"
+	"github.com/mtsonline/enterprisewiki/internal/auth"
 	"github.com/mtsonline/enterprisewiki/internal/httpx"
 	"github.com/mtsonline/enterprisewiki/internal/identity"
 )
@@ -145,6 +147,9 @@ func (s *Server) authenticate(w http.ResponseWriter, r *http.Request) (context.C
 		return ctx, nil
 	}
 	p, err := s.app.Auth.Authenticate(ctx, c.Value)
+	if errors.Is(err, auth.ErrNetworkDenied) {
+		return ctx, err // the session stays valid in the allowed networks
+	}
 	if err != nil {
 		s.clearCookie(w)
 		return ctx, nil
