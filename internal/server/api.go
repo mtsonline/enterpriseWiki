@@ -115,6 +115,19 @@ func (s *Server) routes() {
 	s.routesWatchAssignments()
 	// ---------------------------------------------------------------- system
 	s.app.Mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, r *http.Request) { h.Write(w, 200, map[string]string{"status": "ok"}) })
+	// on-demand TLS of the bundled reverse proxy (Caddy "ask"): 200 only for
+	// the wiki's own host names, so no certificates are requested for others
+	s.app.Mux.HandleFunc("GET /tls-allowed", func(w http.ResponseWriter, r *http.Request) {
+		ok, err := s.app.Instance.AllowedHost(r.Context(), r.URL.Query().Get("domain"))
+		switch {
+		case err != nil:
+			http.Error(w, "error", http.StatusInternalServerError)
+		case ok:
+			w.WriteHeader(http.StatusOK)
+		default:
+			http.Error(w, "unknown host", http.StatusNotFound)
+		}
+	})
 	s.handle("GET /readyz", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		if err := s.app.DB.Ping(r.Context()); err != nil {
 			return nil, &apperr.Error{Status: 503, Code: "db_unavailable", Msg: "database unavailable"}

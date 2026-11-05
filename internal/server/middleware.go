@@ -35,31 +35,38 @@ func (w *statusWriter) WriteHeader(s int) {
 
 func (w *statusWriter) Unwrap() http.ResponseWriter { return w.ResponseWriter }
 
-// clientIP returns the caller IP, honouring X-Forwarded-For only from trusted proxies.
+// clientIP returns the caller IP. X-Forwarded-For is only honoured when the
+// direct peer is a trusted proxy; the header is read from the right and the
+// first address that is not a trusted proxy is the client (addresses further
+// left were set by the client and could be forged).
 func (s *Server) clientIP(r *http.Request) string {
-	host, _, err := net.SplitHostPort(r.RemoteAddr)
-	if err != nil {
-		host = r.RemoteAddr
-	}
+	host := s.peerIP(r)
 	trusted := s.app.Config.Get().Server.TrustedProxies
-	if len(trusted) == 0 {
+	if len(trusted) == 0 || !isTrusted(trusted, host) {
 		return host
 	}
-	ip := net.ParseIP(host)
-	ok := false
-	for _, t := range trusted {
-		if _, n, err := net.ParseCIDR(t); err == nil && ip != nil && n.Contains(ip) {
-			ok = true
-		} else if t == host {
-			ok = true
+	parts := strings.Split(strings.Join(r.Header.Values("X-Forwarded-For"), ","), ",")
+	for i := len(parts) - 1; i >= 0; i-- {
+		ip := strings.TrimSpace(parts[i])
+		if net.ParseIP(ip) == nil {
+			break // garbage: stop at the last valid hop
 		}
-	}
-	if ok {
-		if xff := r.Header.Get("X-Forwarded-For"); xff != "" {
-			return strings.TrimSpace(strings.Split(xff, ",")[0])
+		host = ip
+		if !isTrusted(trusted, ip) {
+			break
 		}
 	}
 	return host
+}
+
+// isTrusted reports whether ip is one of the trusted proxies (IPs or CIDRs).
+func isTrusted(trusted []string, ip string) bool {
+	for _, t := range trusted {
+		if t == ip || ipInCIDR(ip, t) {
+			return true
+		}
+	}
+	return false
 }
 
 // wrap applies recovery, logging, security headers, body limits and authentication.

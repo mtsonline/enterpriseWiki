@@ -1,0 +1,2 @@
+# ZeroSSL (https://zerossl.com): the account is created from EWIKI_ACME_EMAIL
+acme_ca https://acme.zerossl.com/v2/DV90

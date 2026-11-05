@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net"
+	"net/url"
 	"path/filepath"
 	"slices"
 	"sort"
@@ -430,4 +431,33 @@ func (in *Instance) RunSync(ctx context.Context, every time.Duration) {
 			}
 		}
 	}
+}
+
+// AllowedHost reports whether a certificate may be requested for host: a
+// host name of an enabled site or the host of a site's base URL. Used by the
+// bundled reverse proxy (on-demand TLS) so it only fetches certificates for
+// the wiki's own addresses.
+func (in *Instance) AllowedHost(ctx context.Context, host string) (bool, error) {
+	h := normHost(host)
+	if h == "" {
+		return false, nil
+	}
+	list, err := in.ListSites(ctx)
+	if err != nil {
+		return false, err
+	}
+	for _, s := range list {
+		if s.Disabled {
+			continue
+		}
+		if slices.Contains(normHosts(s.Hostnames), h) {
+			return true, nil
+		}
+	}
+	for _, a := range in.Sites() {
+		if u, err := url.Parse(a.Config.Get().Server.BaseURL); err == nil && normHost(u.Host) == h {
+			return true, nil
+		}
+	}
+	return false, nil
 }

@@ -134,6 +134,14 @@ jobs:
       - run: docker build --target lite -t enterprisewiki:ci .
       - name: plugins in the full and lite images (build at start, restart, dropped plugin)
         run: scripts/test-docker-plugins.sh
+      - name: bundled reverse proxy (Caddyfile for every CA, compose profile)
+        run: |
+          for ca in letsencrypt letsencrypt-staging zerossl; do
+            docker run --rm -e EWIKI_ACME_EMAIL=ci@example.com -e EWIKI_ACME=$ca -v "$PWD/docker/caddy:/etc/caddy:ro" caddy:2 caddy validate --config /etc/caddy/Caddyfile
+          done
+          cp .env.example .env && sed -i 's/^EWIKI_UID=.*/EWIKI_UID=1000/; s/^EWIKI_GID=.*/EWIKI_GID=1000/' .env
+          COMPOSE_PROFILES=proxy docker compose config -q
+          docker compose config -q
 
   pg-versions:
     name: PostgreSQL versions for the upgrade test

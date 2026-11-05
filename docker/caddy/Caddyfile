@@ -1,0 +1,37 @@
+# Reverse proxy with automatic HTTPS for Enterprise Wiki (docker compose
+# profile "proxy", see docs/admin/installation.md).
+#
+# Certificates are requested on the first visit of a host name ("on-demand
+# TLS") - but only for host names the wiki knows: the base URL and the host
+# names of its sites (the wiki answers at /tls-allowed). New sites therefore
+# get their certificates without changing this file.
+{
+	email {$EWIKI_ACME_EMAIL}
+	# certificate authority: letsencrypt (default), letsencrypt-staging or zerossl
+	import /etc/caddy/acme-{$EWIKI_ACME:letsencrypt}.caddy
+	on_demand_tls {
+		ask http://wiki:8080/tls-allowed
+	}
+	servers {
+		# HTTP/3 needs UDP 443 (published in docker-compose.yml)
+		protocols h1 h2 h3
+	}
+}
+
+https:// {
+	tls {
+		on_demand
+	}
+	encode zstd gzip
+	reverse_proxy wiki:8080 {
+		# the wiki trusts X-Forwarded-For from this container only
+		# (EWIKI_TRUSTED_PROXIES); Caddy replaces client-sent values
+		header_up X-Forwarded-Proto {scheme}
+	}
+}
+
+# plain HTTP: ACME challenges are answered by Caddy, everything else is
+# redirected to HTTPS
+http:// {
+	redir https://{host}{uri} permanent
+}

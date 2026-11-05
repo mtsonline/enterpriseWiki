@@ -18,7 +18,7 @@ var ReservedShortURLs = map[string]bool{
 	"api": true, "assets": true, "admin": true, "c": true, "e": true, "login": true, "logout": true, "search": true,
 	"profile": true, "trash": true, "tasks": true, "tags": true, "healthz": true, "readyz": true, "favicon.ico": true,
 	"robots.txt": true, "index.html": true, "sso": true, "auth": true, "files": true, "x": true, "feeds": true,
-	"static": true, "plugins": true, "setup": true, "help": true, "sitemap.xml": true, "wiki": true, "d": true,
+	"static": true, "plugins": true, "setup": true, "help": true, "sitemap.xml": true, "wiki": true, "d": true, "tls-allowed": true,
 }
 
 // NormalizeShortURL cleans a short URL ("Mein Kalender" -> "mein-kalender",

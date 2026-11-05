@@ -1,0 +1,2 @@
+# Let's Encrypt test environment: untrusted certificates, high limits (for trying out)
+acme_ca https://acme-staging-v02.api.letsencrypt.org/directory

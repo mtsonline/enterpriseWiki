@@ -48,13 +48,7 @@ func (s *Server) isTrustedProxy(r *http.Request) bool {
 	if len(trusted) == 0 {
 		return false
 	}
-	ip := s.peerIP(r)
-	for _, t := range trusted {
-		if t == ip || ipInCIDR(ip, t) {
-			return true
-		}
-	}
-	return false
+	return isTrusted(trusted, s.peerIP(r))
 }
 
 func (s *Server) routesM2() {

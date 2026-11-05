@@ -88,7 +88,36 @@ EWIKI_BASE_URL='https://wiki.example.com' \
 
 ## Reverse Proxy und HTTPS
 
-Betreiben Sie das Wiki hinter einem Reverse Proxy mit TLS und setzen Sie in `config.yaml`:
+### Mitgelieferter Proxy (Docker Compose, Caddy)
+
+Für Docker Compose ist ein Reverse Proxy mit automatischem HTTPS dabei ([Caddy](https://caddyserver.com), Apache-2.0). Er wird in `.env` eingeschaltet:
+
+```dotenv
+COMPOSE_PROFILES=proxy
+EWIKI_BASE_URL=https://wiki.example.com
+EWIKI_ACME=letsencrypt          # letsencrypt, letsencrypt-staging (zum Ausprobieren) oder zerossl
+EWIKI_ACME_EMAIL=it@example.com # Pflicht: Konto bei der Zertifizierungsstelle
+EWIKI_PORT=127.0.0.1:8080       # Wiki nur noch über den Proxy erreichbar
+```
+
+Danach `docker compose up -d`. Die Ports 80 und 443 (TCP, für HTTP/3 auch UDP 443) müssen aus dem Internet erreichbar sein und die DNS-Einträge auf den Server zeigen. Caddy holt das Zertifikat beim ersten Aufruf eines Hostnamens und erneuert es selbst. Zertifikate gibt es nur für Hostnamen, die das Wiki kennt: die Basis-URL und die Hostnamen aller Sites (Abfrage an `/tls-allowed`). Neue Sites brauchen also keine Änderung am Proxy. HTTP wird auf HTTPS umgeleitet. Zertifikate und ACME-Konten liegen in `./data/caddy`; die Konfiguration in `docker/caddy/Caddyfile`. Bei *ZeroSSL* wird das Konto über `EWIKI_ACME_EMAIL` angelegt (EAB automatisch). Beim Einrichten neuer Server empfiehlt sich zuerst `letsencrypt-staging`, um nicht in die Limits von Let's Encrypt zu laufen.
+
+### Vertrauenswürdige Proxys (`EWIKI_TRUSTED_PROXIES`)
+
+Das Wiki nimmt die Client-Adresse aus `X-Forwarded-For` nur von vertrauenswürdigen Proxys an (für Protokoll, Login-Sperren und die erlaubten Netze von Konten). Die Umgebungsvariable `EWIKI_TRUSTED_PROXIES` (IP-Adressen und CIDR-Netze, durch Komma getrennt) überschreibt `server.trusted_proxies` aus `config.yaml`:
+
+| Aufbau | `EWIKI_TRUSTED_PROXIES` |
+|---|---|
+| Docker Compose mit mitgeliefertem Proxy | `172.30.80.2` (Standard in `docker-compose.yml`) |
+| Docker Compose, nginx/Apache auf dem Host | `172.30.80.1` (Gateway des Docker-Netzes) |
+| ohne Docker, nginx auf demselben Server | `127.0.0.1,::1` |
+| Proxy/Load-Balancer auf anderen Rechnern | deren Adressen, z. B. `10.0.5.10,10.0.5.11` |
+
+Der Header wird von rechts gelesen: Die erste Adresse, die kein vertrauenswürdiger Proxy ist, gilt als Client. Vom Client selbst gesetzte Werte weiter links werden ignoriert. Das Docker-Netz hat ein festes Subnetz (`EWIKI_SUBNET`, Standard `172.30.80.0/24`); wer es ändert, setzt auch `EWIKI_PROXY_IP` und `EWIKI_TRUSTED_PROXIES`.
+
+### Eigener Proxy
+
+Ohne den mitgelieferten Proxy betreiben Sie das Wiki hinter einem eigenen Reverse Proxy mit TLS und setzen in `config.yaml` (oder per `EWIKI_TRUSTED_PROXIES`):
 
 ```yaml
 server:
@@ -107,11 +136,13 @@ server {
   location / {
     proxy_pass http://127.0.0.1:8080;
     proxy_set_header Host $host;
-    proxy_set_header X-Forwarded-For $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
     proxy_set_header X-Forwarded-Proto https;
   }
 }
 ```
+
+Bei mehreren Sites müssen alle Hostnamen der Sites auf das Wiki zeigen und der Proxy den `Host`-Header unverändert weitergeben.
 
 ## Mehrere Instanzen (Cluster-Modus)
 

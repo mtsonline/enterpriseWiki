@@ -17,7 +17,7 @@ Vollständiges Beispiel: [config.example.yaml](../../config.example.yaml)
 | `listen` | Adresse/Port | `:8080` |
 | `base_url` | öffentliche URL | `http://localhost:8080` |
 | `secure_cookies` | Cookies nur über HTTPS und HSTS-Header senden | `false` |
-| `trusted_proxies` | IPs/CIDRs, deren `X-Forwarded-For` vertraut wird (für Rate-Limits und Logs) | `[]` |
+| `trusted_proxies` | IPs/CIDRs, deren `X-Forwarded-For` vertraut wird (für Rate-Limits, Logs, erlaubte Netze); `EWIKI_TRUSTED_PROXIES` überschreibt den Wert | `[]` |
 | `max_body_mb` | maximale Größe einer API-Anfrage | `64` |
 
 ### `mode`

@@ -14,12 +14,15 @@
 # wiki builds and keeps them in ./data/wiki (also across updates). The default
 # lite image (latest) only enables and disables the included plugins.
 # Building the image locally: docker-compose.build.yml.
+# HTTPS: COMPOSE_PROFILES=proxy in .env starts the bundled reverse proxy
+# (Caddy) with certificates from Let's Encrypt or ZeroSSL (EWIKI_ACME).
 services:
   postgres:
     # the official PostgreSQL image; major upgrades with ./docker-postgres-upgrade.sh
     image: postgres:${POSTGRES_VERSION:-18}
     user: "${EWIKI_UID:?run ./docker-setup.sh}:${EWIKI_GID:?run ./docker-setup.sh}"
     restart: unless-stopped
+    networks: [ewiki]
     environment:
       POSTGRES_DB: ewiki
       POSTGRES_USER: ewiki
@@ -60,10 +63,41 @@ services:
       EWIKI_SMTP_SECURITY: ${EWIKI_SMTP_SECURITY:-}
       EWIKI_SMTP_USER: ${EWIKI_SMTP_USER:-}
       EWIKI_SMTP_PASSWORD: ${EWIKI_SMTP_PASSWORD:-}
+      # reverse proxies whose X-Forwarded-For is trusted (client addresses
+      # for logs, rate limits and allowed networks of accounts):
+      # 172.30.80.2 = the bundled proxy, 172.30.80.1 = a proxy on the host
+      # (nginx, Apache) that connects to EWIKI_PORT
+      EWIKI_TRUSTED_PROXIES: ${EWIKI_TRUSTED_PROXIES:-172.30.80.2}
     ports:
       - "${EWIKI_PORT:-8080}:8080"
     volumes:
       - ./data/wiki:/data
+    networks: [ewiki]
+
+  # Optional reverse proxy with automatic HTTPS (COMPOSE_PROFILES=proxy in
+  # .env). It gets certificates for the base URL and the host names of all
+  # sites on their first visit and renews them; ports 80 and 443 must be
+  # reachable from the internet (HTTP-01 / TLS-ALPN-01 challenges).
+  proxy:
+    image: caddy:2
+    profiles: [proxy]
+    restart: unless-stopped
+    depends_on: [wiki]
+    environment:
+      EWIKI_ACME: ${EWIKI_ACME:-letsencrypt}
+      EWIKI_ACME_EMAIL: ${EWIKI_ACME_EMAIL:-}
+    command: ["sh", "-c", "[ -n \"$$EWIKI_ACME_EMAIL\" ] || { echo 'set EWIKI_ACME_EMAIL in .env (needed for certificates)' >&2; exit 1; }; exec caddy run --config /etc/caddy/Caddyfile --adapter caddyfile"]
+    ports:
+      - "${EWIKI_HTTP_PORT:-80}:80"
+      - "${EWIKI_HTTPS_PORT:-443}:443"
+      - "${EWIKI_HTTPS_PORT:-443}:443/udp"
+    volumes:
+      - ./docker/caddy:/etc/caddy:ro
+      - ./data/caddy/data:/data
+      - ./data/caddy/config:/config
+    networks:
+      ewiki:
+        ipv4_address: ${EWIKI_PROXY_IP:-172.30.80.2}
 
   # Optional external search engine for very large wikis (plugin search.external,
   # Administration -> Search engine: engine meilisearch, URL http://meilisearch:7700).
@@ -76,3 +110,11 @@ services:
   #     MEILI_ENV: production
   #   volumes:
   #     - ./data/meilisearch:/meili_data
+
+networks:
+  ewiki:
+    ipam:
+      config:
+        # fixed, so the proxy address in EWIKI_TRUSTED_PROXIES stays valid
+        # (when changing it, set EWIKI_PROXY_IP and EWIKI_TRUSTED_PROXIES too)
+        - subnet: ${EWIKI_SUBNET:-172.30.80.0/24}

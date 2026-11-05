@@ -488,6 +488,7 @@ func (s *Store) Reload() error {
 		return err
 	}
 	expandAll(reflect.ValueOf(eff))
+	applyEnv(eff)
 	s.mu.Lock()
 	s.raw, s.effective, s.modTime = raw, eff, mt
 	ls := append([]func(*Config){}, s.listeners...)
