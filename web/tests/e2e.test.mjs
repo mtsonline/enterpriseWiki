@@ -773,8 +773,14 @@ test('translate a category', async () => {
   await tr.getByLabel(/^(title|titel)/i).fill(`M6 übersetzt ${run}`);
   await a11y('translate category dialog');
   await tr.locator('button[type=submit]').click();
-  await idle();
-  const c = await call('GET', `/api/v1/categories/${cat}`);
+  await page.locator('dialog[open]').waitFor({ state: 'detached' });
+  // the save may still be on its way: poll the API
+  let c;
+  for (let i = 0; i < 20; i++) {
+    c = await call('GET', `/api/v1/categories/${cat}`);
+    if (c.category.translations.every((x) => x.status === 'original' || x.status === 'current')) break;
+    await page.waitForTimeout(250);
+  }
   assert.ok(c.category.translations.every((x) => x.status === 'original' || x.status === 'current'), JSON.stringify(c.category.translations));
 });
 
