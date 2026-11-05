@@ -15,6 +15,7 @@ import (
 	_ "github.com/mtsonline/enterprisewiki/plugins/content_team"
 	_ "github.com/mtsonline/enterprisewiki/plugins/core_attachment"
 	_ "github.com/mtsonline/enterprisewiki/plugins/core_blocks"
+	_ "github.com/mtsonline/enterprisewiki/plugins/core_carousel"
 	_ "github.com/mtsonline/enterprisewiki/plugins/core_comments"
 	_ "github.com/mtsonline/enterprisewiki/plugins/core_favorites"
 	_ "github.com/mtsonline/enterprisewiki/plugins/core_html"

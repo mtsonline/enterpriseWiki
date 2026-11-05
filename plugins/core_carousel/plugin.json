@@ -1,0 +1,13 @@
+{
+  "id": "core.carousel",
+  "name": "Carousel",
+  "version": "1.0.0",
+  "description": "Carousels at positions of the template: news published with “as news” when publishing a page, own slides and items of external RSS/Atom feeds. Accessible: pause, keyboard, no automatic rotation with reduced motion.",
+  "author": "Enterprise Wiki",
+  "kinds": ["generic"],
+  "frontend": true,
+  "permissions": [
+    {"key": "core.carousel.manage", "scope": "global", "label": "Manage carousels", "description": "Create carousels, place them, edit slides and external feeds."},
+    {"key": "core.carousel.publish", "scope": "global", "label": "Publish news in carousels", "description": "Show a published page as news in a carousel (option when publishing)."}
+  ]
+}
