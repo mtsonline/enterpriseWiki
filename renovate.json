@@ -23,6 +23,7 @@
   ],
   "postUpdateOptions": [
     "gomodTidy",
+    "gomodUpdateImportPaths",
     "npmDedupe"
   ],
   "lockFileMaintenance": {
