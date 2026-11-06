@@ -326,6 +326,29 @@ func (s *Server) removeDemo(ctx context.Context) error {
 		return out
 	}
 	err = pgx.BeginFunc(ctx, s.app.DB, func(tx pgx.Tx) error {
+		// the whole demo area: also what others added inside it
+		if cats := ids("category"); len(cats) > 0 {
+			tree := `WITH RECURSIVE t AS (SELECT id FROM categories WHERE id = ANY($1)
+				UNION SELECT c.id FROM categories c JOIN t ON c.parent_id = t.id) `
+			for _, q := range []struct{ kind, sql string }{
+				{"category", tree + `SELECT id::text FROM t`},
+				{"element", tree + `SELECT e.id::text FROM elements e WHERE e.category_id IN (SELECT id FROM t)`},
+			} {
+				rows, err := tx.Query(ctx, q.sql, cats)
+				if err != nil {
+					return err
+				}
+				more, err := pgx.CollectRows(rows, pgx.RowTo[string])
+				if err != nil {
+					return err
+				}
+				for _, m := range more {
+					if !slices.Contains(refs[q.kind], m) {
+						refs[q.kind] = append(refs[q.kind], m)
+					}
+				}
+			}
+		}
 		for _, t := range demoTables {
 			list := ids(t.kind)
 			if len(list) == 0 {
@@ -333,12 +356,13 @@ func (s *Server) removeDemo(ctx context.Context) error {
 			}
 			if t.kind == "category" {
 				// children first; the whole subtree belongs to the demo
-				if _, err := tx.Exec(ctx, `DELETE FROM elements WHERE category_id = ANY($1)`, list); err != nil {
+				// (also what others added inside the demo area)
+				tree := `WITH RECURSIVE t AS (SELECT id FROM categories WHERE id = ANY($1)
+					UNION SELECT c.id FROM categories c JOIN t ON c.parent_id = t.id) `
+				if _, err := tx.Exec(ctx, tree+`DELETE FROM elements WHERE category_id IN (SELECT id FROM t)`, list); err != nil {
 					return fmt.Errorf("demo elements of categories: %w", err)
 				}
-				if _, err := tx.Exec(ctx, `WITH RECURSIVE t AS (SELECT id, 0 AS d FROM categories WHERE id = ANY($1)
-					UNION ALL SELECT c.id, t.d+1 FROM categories c JOIN t ON c.parent_id = t.id)
-					DELETE FROM categories WHERE id IN (SELECT id FROM t)`, list); err != nil {
+				if _, err := tx.Exec(ctx, tree+`DELETE FROM categories WHERE id IN (SELECT id FROM t)`, list); err != nil {
 					return fmt.Errorf("demo categories: %w", err)
 				}
 				continue

@@ -143,6 +143,12 @@ func TestDemo(t *testing.T) {
 		if seats, _ := db.CountActiveAccounts(context.Background(), e.app.Instance.Shared); seats != seats0+1 {
 			t.Fatalf("license seats %d, want %d", seats, seats0+1)
 		}
+		// a page somebody added inside the demo area goes with it
+		var demoCat int64
+		if err := e.app.DB.QueryRow(context.Background(), `SELECT min(ref::bigint) FROM demo_objects WHERE kind='category'`).Scan(&demoCat); err != nil {
+			t.Fatal(err)
+		}
+		admin.must("POST", "/api/v1/elements", map[string]any{"category_id": demoCat, "type": "core.html", "title": "Added", "body": htmlBody("<p>x</p>")}, nil, 201)
 		admin.must("DELETE", "/api/v1/admin/demo", nil, &st, 200)
 		if st.Installed {
 			t.Fatalf("still installed: %+v", st)
