@@ -50,6 +50,23 @@ auf eine passende Datei öffnet sie sofort dort. Die anderen Programme bietet di
   der OnlyOffice-API als Skriptquelle (`script-src`) – sonst nichts.
 - Jede Speicherung steht im Audit-Log (`media.office_save`, `via = office`).
 
+## Mit Docker Compose
+
+`./docker-setup.sh` fragt bei HTTPS über den mitgelieferten Proxy nach einem Office-Server (keiner, Collabora oder
+OnlyOffice) und seinem **eigenen Host-Namen** (z. B. `office.example.com`, DNS auf diesen Server). Ein eigener Name
+heißt eigene Herkunft (Origin): Das Office-Programm teilt keine Cookies mit dem Wiki. Das Skript setzt das Profil
+(`COMPOSE_PROFILES=proxy,collabora` bzw. `proxy,onlyoffice`), die Adressen und bei OnlyOffice ein zufälliges
+JWT-Geheimnis; das Wiki übernimmt sie als Vorgabe der Plugin-Einstellungen und wählt das Programm als
+Standard-Anzeige (beides in der Administration änderbar). Caddy holt die Zertifikate auch für den Office-Host.
+
+- Collabora (`collabora/code`, `COLLABORA_VERSION`) läuft als eigener unprivilegierter Benutzer mit nur den
+  Fähigkeiten, die die Dokument-Käfige brauchen; die Admin-Konsole ist aus.
+- OnlyOffice (`onlyoffice/documentserver`, `ONLYOFFICE_VERSION`) braucht etwa 4 GB RAM und startet seine Dienste im
+  Container als root; es ist nur über den Proxy erreichbar und verlangt JWT bei jeder Anfrage.
+- Office-Server und Wiki erreichen einander über den Proxy im Docker-Netz (ohne Umweg über das Internet).
+- Die CI startet beide echten Server und öffnet, bearbeitet und speichert in einem echten Browser je ein Dokument
+  (`scripts/test-docker-office.sh`).
+
 ## Collabora Online
 
 ```yaml

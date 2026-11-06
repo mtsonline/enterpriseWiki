@@ -270,6 +270,10 @@ curl -H "Authorization: Bearer $KEY" -H 'Content-Type: application/json' \
 | `GET` | `/api/v1/admin/license` |
 | `PUT` | `/api/v1/admin/license` |
 | `DELETE` | `/api/v1/admin/license` |
+| `GET` | `/api/v1/admin/demo` |
+| `POST` | `/api/v1/admin/demo` |
+| `DELETE` | `/api/v1/admin/demo` |
+| `POST` | `/api/v1/admin/reset` |
 
 ### Plugins
 

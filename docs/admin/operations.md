@@ -182,6 +182,38 @@ ewiki api PATCH /api/v1/elements/12 '{"short_url":"kalender"}' # Kurz-URL setzen
 ewiki config set ui.home_element 12                    # Element 12 als Startseite
 ```
 
+## Demo-Inhalte und Zurücksetzen
+
+Unter *Administration → Demo* (nur Administratoren) legt **Demo anlegen** einen Bereich „Demo: Enterprise Wiki“ an,
+der möglichst alle Funktionen zeigt: Rundgang-Seite mit Makros (Inhaltsverzeichnis, Hinweis-Boxen, Status-Labels,
+Spalten, Aufklappbereiche, Galerie, Unterseiten, zuletzt geändert, nächste Termine), Seiteneigenschaften, Kommentare
+mit @Erwähnungen, Reaktionen und Favorit, Markdown-Seite, Website-Bausteine, Blog, FAQ, Veranstaltungskalender mit
+Serie und Anmeldung, Teamseite, Medien (unsichtbare Kategorie als Ordner, Bilder, PDF nur zur Ansicht mit
+Wasserzeichen, Word-Datei für das Office-Programm), Datei-Element, Ablauf, Eigenschaften-Bericht,
+Kategorieübersicht, Kurz-URL `/demo`, ein Menü, ein Textblock und ein Karussell (nur für angemeldete Benutzer). Was
+ein deaktiviertes Plugin braucht, wird ausgelassen.
+
+- Die **Demo-Konten** (`demo-anna`, `demo-ben`, …) haben keine Anmeldung (Anbieter `demo`), keine E-Mail-Adresse
+  und zählen nicht zur Lizenz.
+- Alles, was die Demo anlegt, wird in `demo_objects` vermerkt. **Demo entfernen** löscht genau das restlos:
+  Inhalte samt Versionen, Übersetzungen, Adressen, Kommentaren, Reaktionen, Favoriten, Benachrichtigungen,
+  Medien und gespeicherten Dateien, Konten und Gruppen der Demo sowie ihre Einträge im Audit-Log. Eigene Inhalte
+  bleiben unberührt – auch eigene Seiten, die du in Demo-Kategorien angelegt hast, verschwinden mit ihnen.
+
+**Site auf den ersten Start zurücksetzen** (auf derselben Seite) löscht alle Inhalte, Medien, Dateien, Versionen, den
+Papierkorb, das Audit-Log und die Einstellungen der Site. Übrig bleiben dein Administratorkonto, die Rollen und die
+Willkommensseite – wie nach `ewiki setup`. Instanz-Einstellungen, Adresse, Sprachen, E-Mail-Versand, Name der Site und
+Lizenz bleiben. Bei mehreren Sites mit gemeinsamen Konten bleiben die Konten erhalten (sie gehören allen Sites).
+Bestätigung: Name der Site eintippen und (bei lokalem Konto) das eigene Passwort; mit API-Schlüsseln ist das nicht
+möglich. Danach meldest du dich neu an. Vorher eine Sicherung machen!
+
+```bash
+ewiki demo status
+ewiki demo create --as admin
+ewiki demo remove
+ewiki demo reset-site --as admin --confirm "Enterprise Wiki"
+```
+
 ## Wartungsaufgaben
 
 Stündlich läuft automatisch (im Cluster nur auf einer Instanz):
