@@ -25,6 +25,7 @@ import (
 	"github.com/mtsonline/enterprisewiki/internal/audit"
 	"github.com/mtsonline/enterprisewiki/internal/auth"
 	"github.com/mtsonline/enterprisewiki/internal/config"
+	"github.com/mtsonline/enterprisewiki/internal/content"
 	h "github.com/mtsonline/enterprisewiki/internal/httpx"
 	"github.com/mtsonline/enterprisewiki/internal/identity"
 )
@@ -42,20 +43,6 @@ var demoTables = []struct{ kind, table string }{
 	{"category", "categories"},
 	{"group", "groups"},
 	{"user", "users"},
-}
-
-// demoPoly are tables that reference elements, categories and comments by
-// type and id.
-var demoPoly = []struct{ table, typ, id string }{
-	{"path_slugs", "target_type", "target_id"},
-	{"url_aliases", "target_type", "target_id"},
-	{"watches", "target_type", "target_id"},
-	{"watch_events", "entity_type", "entity_id"},
-	{"watch_assignments", "target_type", "target_id"},
-	{"notifications", "entity_type", "entity_id"},
-	{"plugin_mentions", "entity_type", "entity_id"},
-	{"plugin_favorites", "target_type", "target_id"},
-	{"plugin_reactions", "target_type", "target_id"},
 }
 
 // demoEntity maps kinds to the entity types of the audit log.
@@ -349,6 +336,10 @@ func (s *Server) removeDemo(ctx context.Context) error {
 				}
 			}
 		}
+		// references by type and id (no foreign keys)
+		if err := content.RemoveRefs(ctx, tx, ids("element"), ids("category")); err != nil {
+			return err
+		}
 		for _, t := range demoTables {
 			list := ids(t.kind)
 			if len(list) == 0 {
@@ -373,24 +364,6 @@ func (s *Server) removeDemo(ctx context.Context) error {
 			}
 			if _, err := tx.Exec(ctx, q, list); err != nil {
 				return fmt.Errorf("demo %s: %w", t.kind, err)
-			}
-		}
-		// references by type and id (no foreign keys): addresses, watches,
-		// notifications, mentions, favorites, reactions
-		for _, pr := range demoPoly {
-			var exists bool
-			if err := tx.QueryRow(ctx, `SELECT to_regclass($1) IS NOT NULL`, pr.table).Scan(&exists); err != nil {
-				return err
-			}
-			if !exists {
-				continue // plugin not installed
-			}
-			for _, kind := range []string{"element", "category", "comment"} {
-				if list := ids(kind); len(list) > 0 {
-					if _, err := tx.Exec(ctx, `DELETE FROM `+pgx.Identifier{pr.table}.Sanitize()+` WHERE `+pr.typ+` = $1 AND `+pr.id+` = ANY($2)`, kind, list); err != nil {
-						return fmt.Errorf("demo %s: %w", pr.table, err)
-					}
-				}
 			}
 		}
 		// the change log of the search: one entry per removed element, so an

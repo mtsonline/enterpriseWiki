@@ -155,6 +155,9 @@ func (s *Service) purge(ctx context.Context, typ string, id int64) error {
 	return db.Tx(ctx, s.pool, func(tx pgx.Tx) error {
 		switch typ {
 		case "element":
+			if err := RemoveRefs(ctx, tx, []int64{id}, nil); err != nil {
+				return err
+			}
 			tag, err := tx.Exec(ctx, `DELETE FROM elements WHERE id=$1 AND deleted_at IS NOT NULL`, id)
 			if err != nil {
 				return err
@@ -182,6 +185,24 @@ func (s *Service) purge(ctx context.Context, typ string, id int64) error {
 				return apperr.Conflict("category still contains restored elements")
 			}
 			if _, err := tx.Exec(ctx, `UPDATE categories SET default_element_id=NULL WHERE path <@ $1::ltree`, path); err != nil {
+				return err
+			}
+			var cats, elems []int64
+			rows, err := tx.Query(ctx, `SELECT id FROM categories WHERE path <@ $1::ltree`, path)
+			if err != nil {
+				return err
+			}
+			if cats, err = pgx.CollectRows(rows, pgx.RowTo[int64]); err != nil {
+				return err
+			}
+			rows, err = tx.Query(ctx, `SELECT id FROM elements WHERE category_id = ANY($1)`, cats)
+			if err != nil {
+				return err
+			}
+			if elems, err = pgx.CollectRows(rows, pgx.RowTo[int64]); err != nil {
+				return err
+			}
+			if err := RemoveRefs(ctx, tx, elems, cats); err != nil {
 				return err
 			}
 			if _, err := tx.Exec(ctx, `DELETE FROM elements WHERE category_id IN (SELECT id FROM categories WHERE path <@ $1::ltree)`, path); err != nil {
