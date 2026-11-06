@@ -242,3 +242,46 @@ func TestSiteReset(t *testing.T) {
 		t.Fatal("deleted account signed in")
 	}
 }
+
+// Resetting one site of several with shared accounts keeps the accounts and
+// never touches the other sites.
+func TestSiteResetSharedAccounts(t *testing.T) {
+	e := setup(t)
+	admin := e.client()
+	admin.login("admin", adminPW)
+	var mainCat struct {
+		ID int64 `json:"id"`
+	}
+	admin.must("POST", "/api/v1/categories", map[string]any{"titles": map[string]string{"en": "Main stuff"}}, &mainCat, 201)
+	admin.must("POST", "/api/v1/admin/users", map[string]any{"username": "eve", "password": "Eve-Passw0rd!x", "display_name": "Eve"}, nil, 201)
+	admin.must("POST", "/api/v1/instance/sites", map[string]any{"name": "docs", "title": "Docs", "hostnames": []string{"docs.example.test"}}, nil, 201)
+	sa := e.client()
+	sa.host = "docs.example.test"
+	sa.login("admin", adminPW)
+	sa.must("POST", "/api/v1/categories", map[string]any{"titles": map[string]string{"en": "Docs stuff"}}, nil, 201)
+	sa.must("POST", "/api/v1/admin/demo", nil, nil, 200)
+	var st struct {
+		SiteName string `json:"site_name"`
+	}
+	sa.must("GET", "/api/v1/admin/demo", nil, &st, 200)
+	sa.must("POST", "/api/v1/admin/reset", map[string]string{"confirm": st.SiteName, "password": adminPW}, nil, 200)
+
+	// the main site and the shared accounts are untouched
+	admin.must("GET", "/api/v1/categories/"+strconv.FormatInt(mainCat.ID, 10), nil, nil, 200)
+	if c := e.client().do("POST", "/api/v1/auth/login", map[string]string{"username": "eve", "password": "Eve-Passw0rd!x"}, nil); c != 200 {
+		t.Fatalf("shared account gone after resetting another site: %d", c)
+	}
+	var demoUsers int
+	_ = e.app.DB.QueryRow(context.Background(), `SELECT count(*) FROM users WHERE provider='demo'`).Scan(&demoUsers)
+	if demoUsers != 0 {
+		t.Fatalf("demo accounts of the reset site survived: %d", demoUsers)
+	}
+	again := e.client()
+	again.host = "docs.example.test"
+	again.login("admin", adminPW)
+	var cats []map[string]any
+	again.must("GET", "/api/v1/categories", nil, &cats, 200)
+	if len(cats) != 1 {
+		t.Fatalf("docs site after reset: %d top categories", len(cats))
+	}
+}

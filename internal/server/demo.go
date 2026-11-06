@@ -462,6 +462,10 @@ func (s *Server) resetSite(ctx context.Context, confirm, password string) error 
 			return apperr.New(http.StatusForbidden, "wrong_password", "wrong password")
 		}
 	}
+	// the demo first: its accounts may live in the shared schema
+	if err := s.removeDemo(ctx); err != nil {
+		return err
+	}
 	shared := !s.app.SeparateAccounts
 	var others int
 	if err := s.app.Instance.Shared.QueryRow(ctx, `SELECT count(*) FROM sites WHERE name <> $1`, s.app.Site).Scan(&others); err != nil {
