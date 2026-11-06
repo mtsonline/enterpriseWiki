@@ -12,6 +12,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"mime"
 	"net/http"
 	"os"
@@ -363,15 +364,21 @@ func (s *Store) cachePath(key string) string {
 	return filepath.Join(s.root(), ".cache", h[:2], h)
 }
 
-// PruneCache removes derived files older than maxAge.
+// PruneCache removes derived files older than maxAge. Works inside an
+// os.Root, so symbolic links cannot lead outside the cache directory.
 func (s *Store) PruneCache(maxAge time.Duration) int {
+	root, err := os.OpenRoot(filepath.Join(s.root(), ".cache"))
+	if err != nil {
+		return 0
+	}
+	defer func() { _ = root.Close() }()
 	n := 0
-	_ = filepath.WalkDir(filepath.Join(s.root(), ".cache"), func(p string, d os.DirEntry, err error) error {
+	_ = fs.WalkDir(root.FS(), ".", func(p string, d fs.DirEntry, err error) error {
 		if err != nil || d.IsDir() {
 			return nil //nolint:nilerr // best effort
 		}
 		if info, err := d.Info(); err == nil && time.Since(info.ModTime()) > maxAge {
-			if os.Remove(p) == nil {
+			if root.Remove(p) == nil {
 				n++
 			}
 		}
