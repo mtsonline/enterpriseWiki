@@ -116,6 +116,10 @@ export async function officeView({ main, params, query }: RouteCtx): Promise<voi
     stage.append(h('p', { class: 'ew-notice ew-notice--warning', role: 'alert' }, t('office.no_renderer')));
     return;
   }
+  // the router attaches the view after it returned: the program needs the
+  // container in the document (form target, element ids)
+  for (let i = 0; i < 100 && !stage.isConnected; i++) await new Promise((r) => requestAnimationFrame(() => r(undefined)));
+  if (!stage.isConnected) return; // navigated away meanwhile
   const cleanup = await fn(stage, res.action, back);
   if (cleanup) {
     const stop = () => { cleanup(); window.removeEventListener('popstate', stop); };
