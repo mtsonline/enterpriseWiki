@@ -15,9 +15,12 @@ import (
 	"golang.org/x/net/html/atom"
 )
 
-// Macros are dynamic blocks inside rich text, stored as
+// Macros are dynamic blocks inside rich text, written in Markdown as
+// directives (::toc{levels=3}, :::panel{...} ... :::, :status[OK]{...}) and
+// rendered to
 //
 //	<div data-macro="toc" data-params='{"levels":"3"}'>optional body</div>
+//	<span data-macro="status" ...>label</span>   (inline)
 //
 // They are provided by plugins and rendered on every view with the
 // permissions of the viewer. Macros run after sanitizing; a macro must
@@ -230,7 +233,7 @@ func (s *Service) RenderMacros(ctx context.Context, rc RenderContext, src string
 			walk(c) // inner macros first
 			c = next
 		}
-		if n.Type != nethtml.ElementNode || n.DataAtom != atom.Div {
+		if n.Type != nethtml.ElementNode || (n.DataAtom != atom.Div && n.DataAtom != atom.Span) {
 			return
 		}
 		name := attr(n, "data-macro")
@@ -247,11 +250,19 @@ func (s *Service) RenderMacros(ctx context.Context, rc RenderContext, src string
 			out = macroNote(fmt.Sprintf("macro %q is not available", name))
 		default:
 			body := renderChildren(n)
-			res, err := m.Render(ctx, MacroContext{RenderContext: rc, Params: ParseMacroParams(attr(n, "data-params")), Body: body, Headings: headings})
+			params := ParseMacroParams(attr(n, "data-params"))
+			if _, ok := params["text"]; !ok && n.DataAtom == atom.Span {
+				params["text"] = textOf(n) // :status[DONE]: the label is the text
+			}
+			res, err := m.Render(ctx, MacroContext{RenderContext: rc, Params: params, Body: body, Headings: headings})
 			if err != nil {
 				out = macroNote(fmt.Sprintf("macro %s: %s", name, err.Error()))
 			} else {
-				out = `<div class="ew-macro ew-macro--` + html.EscapeString(name) + `">` + res + `</div>`
+				tag := "div"
+				if n.DataAtom == atom.Span {
+					tag = "span" // inline macro
+				}
+				out = `<` + tag + ` class="ew-macro ew-macro--` + html.EscapeString(name) + `">` + res + `</` + tag + `>`
 			}
 		}
 		repl, err := nethtml.ParseFragment(strings.NewReader(out), ctxNode)

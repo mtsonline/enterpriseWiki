@@ -16,11 +16,9 @@ import (
 	"strings"
 
 	"github.com/microcosm-cc/bluemonday"
-	"github.com/yuin/goldmark/v2/extension"
-	"github.com/yuin/goldmark/v2/parser"
-	gmhtml "github.com/yuin/goldmark/v2/renderer/html"
 
 	"github.com/mtsonline/enterprisewiki/internal/content"
+	"github.com/mtsonline/enterprisewiki/internal/markdown"
 	"github.com/mtsonline/enterprisewiki/pkg/sdk"
 )
 
@@ -44,6 +42,9 @@ func (p *Plugin) Locales() fs.FS { sub, _ := fs.Sub(locales, "locales"); return 
 // Setup registers the element type.
 func (p *Plugin) Setup(h *sdk.Host) error {
 	h.RegisterElementType(&Type{})
+	if h.DB != nil && h.Content != nil {
+		convertInBackground(h)
+	}
 	return nil
 }
 
@@ -65,28 +66,15 @@ func Policy() *bluemonday.Policy {
 	p.AllowAttrs("type", "checked", "disabled").OnElements("input")
 	p.AllowElements("input", "mark", "figure", "figcaption", "u", "s")
 	// macros: <div data-macro="name" data-params='{"k":"v"}'>body</div>
-	p.AllowAttrs("data-macro").Matching(regexp.MustCompile(`^[a-z0-9][a-z0-9._-]{0,63}$`)).OnElements("div")
-	p.AllowAttrs("data-params").Matching(regexp.MustCompile(`^[\s\S]*$`)).OnElements("div")
+	p.AllowAttrs("data-macro").Matching(regexp.MustCompile(`^[a-z0-9][a-z0-9._-]{0,63}$`)).OnElements("div", "span")
+	p.AllowAttrs("data-params").Matching(regexp.MustCompile(`^[\s\S]*$`)).OnElements("div", "span")
 	p.AllowAttrs("colspan", "rowspan", "scope").OnElements("td", "th")
 	p.RequireNoReferrerOnLinks(true)
 	p.AddTargetBlankToFullyQualifiedLinks(true)
 	return p
 }
 
-var (
-	policy = Policy()
-	// goldmark v2 has no combined converter: parser and HTML renderer are
-	// configured separately, each with its half of the GFM extension.
-	mdParser = parser.New(
-		parser.WithExtensions(extension.NewGFMParser()),
-		parser.WithAutoHeadingID(),
-	)
-	mdRenderer = gmhtml.New(
-		gmhtml.WithExtensions(extension.NewGFMHTMLRenderer()),
-		// raw HTML (e.g. macros) is allowed: the output is sanitized afterwards
-		gmhtml.WithUnsafe(),
-	)
-)
+var policy = Policy()
 
 // Type implements content.ElementType for rich text.
 type Type struct{}
@@ -100,7 +88,9 @@ func (t *Type) Labels() map[string]string {
 }
 
 // EmptyBody implements content.ElementType.
-func (t *Type) EmptyBody() json.RawMessage { return json.RawMessage(`{"format":"html","source":""}`) }
+func (t *Type) EmptyBody() json.RawMessage {
+	return json.RawMessage(`{"format":"markdown","source":""}`)
+}
 
 // Decode parses and validates a body.
 func Decode(raw json.RawMessage) (*Body, error) {
@@ -121,14 +111,18 @@ func Decode(raw json.RawMessage) (*Body, error) {
 	return &b, nil
 }
 
-// Normalize implements content.ElementType: HTML is sanitized before storing.
+// Normalize implements content.ElementType: pages are always stored as
+// Markdown; HTML (old editor, API clients) is sanitized and converted.
 func (t *Type) Normalize(raw json.RawMessage) (json.RawMessage, error) {
 	b, err := Decode(raw)
 	if err != nil {
 		return nil, err
 	}
 	if b.Format == "html" {
-		b.Source = policy.Sanitize(b.Source)
+		b.Source, b.Format = markdown.FromHTML(policy.Sanitize(b.Source)), "markdown"
+		if len(b.Source) > MaxSize {
+			return nil, errors.New("content too large (max 2 MB)")
+		}
 	}
 	return json.Marshal(b)
 }
@@ -136,12 +130,11 @@ func (t *Type) Normalize(raw json.RawMessage) (json.RawMessage, error) {
 // ToHTML converts a body to sanitized HTML.
 func ToHTML(b *Body) string {
 	if b.Format == "markdown" {
-		var buf bytes.Buffer
-		src := []byte(b.Source)
-		if err := mdRenderer.Render(&buf, src, mdParser.Parse(src)); err != nil {
+		out, err := markdown.ToHTML(b.Source)
+		if err != nil {
 			return "<pre>" + html.EscapeString(b.Source) + "</pre>"
 		}
-		return policy.Sanitize(buf.String())
+		return policy.Sanitize(out)
 	}
 	return policy.Sanitize(b.Source)
 }

@@ -80,7 +80,7 @@ func TestFeeds(t *testing.T) {
 			} `xml:"item"`
 		} `xml:"channel"`
 	}
-	if resp.StatusCode != 200 || xml.Unmarshal([]byte(body), &rss) != nil || len(rss.Channel.Items) != 2 || !strings.Contains(body, "<![CDATA[<p>We launch <b>today</b></p>]]>") {
+	if resp.StatusCode != 200 || xml.Unmarshal([]byte(body), &rss) != nil || len(rss.Channel.Items) != 2 || !strings.Contains(body, "<![CDATA[<p>We launch <strong>today</strong></p>") {
 		t.Fatalf("rss: %d %s", resp.StatusCode, body)
 	}
 	// personal feed link: sees what the user sees, without a session
