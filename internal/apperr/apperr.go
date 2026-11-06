@@ -21,6 +21,9 @@ func newf(status int, code, format string, a ...any) *Error {
 }
 
 // Constructors.
+// New returns an error with a status and code.
+func New(status int, code, msg string) error { return newf(status, code, "%s", msg) }
+
 func BadRequest(format string, a ...any) error {
 	return newf(http.StatusBadRequest, "bad_request", format, a...)
 }

@@ -25,6 +25,7 @@ import (
 	"github.com/mtsonline/enterprisewiki/internal/i18n"
 	"github.com/mtsonline/enterprisewiki/internal/kernel"
 	"github.com/mtsonline/enterprisewiki/internal/mail"
+	"github.com/mtsonline/enterprisewiki/internal/media"
 	"github.com/mtsonline/enterprisewiki/internal/pagecache"
 	"github.com/mtsonline/enterprisewiki/internal/pgversion"
 	"github.com/mtsonline/enterprisewiki/internal/storage"
@@ -44,6 +45,7 @@ type App struct {
 	Content *content.Service
 	I18n    *i18n.Service
 	Files   *storage.Store
+	Media   *media.Service
 	Mail    *mail.Service
 	Watch   *watch.Service
 	// Webhooks sends HTTP notifications about events.
@@ -205,6 +207,19 @@ func newSite(ctx context.Context, in *Instance, site string, migrate bool) (*App
 	// guest cache: every change invalidates it (here, on other nodes and from CLI processes)
 	a.Cache = pagecache.New(pool, cfg, log)
 	a.Content.OnChange(func(ctx context.Context, event, etype string, id int64) { a.Cache.Invalidate(ctx, etype+"."+event) })
+	a.Media = media.New(pool, a.ACL, a.Files, log)
+	a.Media.UserName = func(ctx context.Context, id int64) string {
+		var n string
+		_ = pool.QueryRow(ctx, `SELECT coalesce(nullif(display_name, ''), username) FROM users WHERE id=$1`, id).Scan(&n)
+		return n
+	}
+	a.Content.OnChange(func(ctx context.Context, event, etype string, id int64) {
+		if etype == "element" && event != "delete" {
+			if err := a.Media.RefreshUsage(ctx, id); err != nil {
+				log.Warn("media usage", "element", id, "err", err)
+			}
+		}
+	})
 	for _, topic := range []string{"auth", "acl", "i18n"} {
 		a.Bus.Subscribe(topic, func(string) { a.Cache.Invalidate(context.Background(), topic) })
 	}

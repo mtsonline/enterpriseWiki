@@ -181,9 +181,10 @@ func (s *Server) routesM2() {
 			return h.Created{V: f}, nil
 		}
 	})
-	// Images are served to anybody who knows the (unguessable) SHA-256, so
-	// pictures embedded in public pages work for guests. Other file types are
-	// only delivered through the element they belong to (permission checked).
+	// Images by hash: only settings assets, profile photos, files of media
+	// the caller may see and images embedded in elements the caller may see
+	// (content from before the media library). Other file types are only
+	// delivered through their medium or element (permission checked).
 	h.RecordRoute("GET /api/v1/files/{hash}")
 	s.app.Mux.HandleFunc("GET /api/v1/files/{hash}", func(w http.ResponseWriter, r *http.Request) {
 		store := s.app.Files
@@ -203,7 +204,7 @@ func (s *Server) routesM2() {
 				}
 			}
 		}
-		if err != nil || !strings.HasPrefix(f.Mime, "image/") || strings.Contains(f.Mime, "svg") {
+		if err != nil || !strings.HasPrefix(f.Mime, "image/") || strings.Contains(f.Mime, "svg") || !s.fileVisible(r, f.Hash) {
 			h.WriteError(w, r, apperr.NotFound("image"))
 			return
 		}

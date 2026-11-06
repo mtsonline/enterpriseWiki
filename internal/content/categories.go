@@ -34,6 +34,8 @@ type Category struct {
 	Feed         string     `json:"feed"`
 	ShortURL     string     `json:"short_url"`
 	ShortOnly    bool       `json:"short_only"`
+	// Hidden: not in navigation, menus, listings and search (folders for media)
+	Hidden bool `json:"hidden"`
 	CreatedAt    time.Time  `json:"created_at"`
 	UpdatedAt    time.Time  `json:"updated_at"`
 	DeletedAt    *time.Time `json:"deleted_at,omitempty"`
@@ -55,13 +57,13 @@ const catCols = `c.id, c.parent_id, c.path::text, c.position, c.slug, c.titles, 
 	c.created_at, c.updated_at, c.deleted_at,
 	EXISTS (SELECT 1 FROM categories x WHERE x.parent_id=c.id AND x.deleted_at IS NULL),
 	(SELECT count(*) FROM elements e WHERE e.category_id=c.id AND e.deleted_at IS NULL),
-	c.original_lang, c.text_rev, c.translation_revs, c.short_only`
+	c.original_lang, c.text_rev, c.translation_revs, c.short_only, c.hidden`
 
 func scanCategory(r pgx.CollectableRow) (Category, error) {
 	var c Category
 	var path string
 	err := r.Scan(&c.ID, &c.ParentID, &path, &c.Position, &c.Slug, &c.Titles, &c.Descriptions, &c.Tags, &c.DefaultElementID, &c.Feed, &c.ShortURL,
-		&c.CreatedAt, &c.UpdatedAt, &c.DeletedAt, &c.HasChildren, &c.ElementCount, &c.OriginalLang, &c.TextRev, &c.TranslationRevs, &c.ShortOnly)
+		&c.CreatedAt, &c.UpdatedAt, &c.DeletedAt, &c.HasChildren, &c.ElementCount, &c.OriginalLang, &c.TextRev, &c.TranslationRevs, &c.ShortOnly, &c.Hidden)
 	c.Path = parsePath(path)
 	return c, err
 }
@@ -171,14 +173,19 @@ func (s *Service) GetCategory(ctx context.Context, id int64) (*Category, error) 
 
 // Children lists visible subcategories of parent (0 = root level).
 func (s *Service) Children(ctx context.Context, parent int64) ([]Category, error) {
+	return s.ChildrenOpt(ctx, parent, false)
+}
+
+// ChildrenOpt lists the subcategories; hidden ones only with withHidden.
+func (s *Service) ChildrenOpt(ctx context.Context, parent int64, withHidden bool) ([]Category, error) {
 	if parent != 0 {
 		if err := s.requireCategory(ctx, parent); err != nil {
 			return nil, err
 		}
 	}
 	rows, err := s.pool.Query(ctx, `SELECT `+catCols+` FROM categories c
-		WHERE c.deleted_at IS NULL AND (($1 = 0 AND c.parent_id IS NULL) OR c.parent_id = $1)
-		ORDER BY c.position, c.id`, parent)
+		WHERE c.deleted_at IS NULL AND (($1 = 0 AND c.parent_id IS NULL) OR c.parent_id = $1) AND ($2 OR NOT c.hidden)
+		ORDER BY c.position, c.id`, parent, withHidden)
 	if err != nil {
 		return nil, err
 	}
@@ -292,6 +299,8 @@ type CategoryInput struct {
 	ShortURL *string `json:"short_url"`
 	// ShortOnly: only the short URL reaches the category (no readable path)
 	ShortOnly *bool   `json:"short_only"`
+	// Hidden: not in navigation, menus, listings and search
+	Hidden *bool `json:"hidden"`
 	Feed      *string `json:"feed"`
 	// GuestVisible applies to new top-level categories: true makes them
 	// visible to guests (default: only the creator has permissions).
@@ -385,6 +394,16 @@ func (s *Service) CreateCategory(ctx context.Context, in CategoryInput) (*Catego
 				return err
 			}
 			if err := s.setShortURL(ctx, tx, "category", id, short); err != nil {
+				return err
+			}
+		}
+		if in.Hidden != nil && *in.Hidden {
+			if _, err := tx.Exec(ctx, `UPDATE categories SET hidden=true WHERE id=$1`, id); err != nil {
+				return err
+			}
+		}
+		if in.ShortOnly != nil && *in.ShortOnly {
+			if _, err := tx.Exec(ctx, `UPDATE categories SET short_only=true WHERE id=$1`, id); err != nil {
 				return err
 			}
 		}
@@ -495,6 +514,11 @@ func (s *Service) UpdateCategory(ctx context.Context, id int64, in CategoryInput
 				return err
 			}
 			if err := s.setShortURL(ctx, tx, "category", id, short); err != nil {
+				return err
+			}
+		}
+		if in.Hidden != nil {
+			if _, err := tx.Exec(ctx, `UPDATE categories SET hidden=$2 WHERE id=$1`, id, *in.Hidden); err != nil {
 				return err
 			}
 		}
@@ -791,6 +815,7 @@ type TreeNode struct {
 	Depth    int               `json:"depth"`
 	Titles   map[string]string `json:"titles"`
 	Perms    []string          `json:"permissions"`
+	Hidden   bool              `json:"hidden"`
 }
 
 // Tree returns all visible categories in tree order (depth first), at most limit.
@@ -798,7 +823,7 @@ func (s *Service) Tree(ctx context.Context, limit int) ([]TreeNode, error) {
 	if limit <= 0 || limit > 20000 {
 		limit = 5000
 	}
-	rows, err := s.pool.Query(ctx, `SELECT id, parent_id, nlevel(path), titles, path::text FROM categories WHERE deleted_at IS NULL`)
+	rows, err := s.pool.Query(ctx, `SELECT id, parent_id, nlevel(path), titles, path::text, hidden FROM categories WHERE deleted_at IS NULL`)
 	if err != nil {
 		return nil, err
 	}
@@ -809,7 +834,7 @@ func (s *Service) Tree(ctx context.Context, limit int) ([]TreeNode, error) {
 	all, err := pgx.CollectRows(rows, func(r pgx.CollectableRow) (row, error) {
 		var x row
 		var p string
-		err := r.Scan(&x.n.ID, &x.n.ParentID, &x.n.Depth, &x.n.Titles, &p)
+		err := r.Scan(&x.n.ID, &x.n.ParentID, &x.n.Depth, &x.n.Titles, &p, &x.n.Hidden)
 		x.path = parsePath(p)
 		return x, err
 	})

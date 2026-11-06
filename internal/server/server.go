@@ -27,6 +27,7 @@ type Server struct {
 	plugins *pluginmgr.Manager
 	handler http.Handler
 	started time.Time
+	legacy  legacyRefs // file hashes in element content (GET /api/v1/files)
 }
 
 // New creates the server. web contains the built frontend (may be nil).

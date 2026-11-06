@@ -396,6 +396,9 @@ func (e *env) jobs(ctx context.Context, a *app.App) {
 		} else if n > 0 {
 			e.log.Info("unused files removed", "count", n)
 		}
+		if n := a.Files.PruneCache(7 * 24 * time.Hour); n > 0 {
+			e.log.Info("cached derived files removed", "count", n)
+		}
 		if res, err := a.Content.RunRetention(jctx); err != nil {
 			e.log.Error("retention", "err", err)
 		} else if res.Revisions+res.Audit > 0 || res.Trash > 0 {

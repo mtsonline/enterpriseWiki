@@ -87,6 +87,7 @@ CREATE TABLE categories (
     feed               text NOT NULL DEFAULT 'off' CHECK (feed IN ('off', 'on', 'recursive')), -- Atom/RSS feed
     short_url          text,                          -- e.g. /kalender; unique with elements.short_url (checked by the application)
     short_only         boolean NOT NULL DEFAULT false, -- only the short URL (no readable path /wiki/… for this category)
+    hidden             boolean NOT NULL DEFAULT false, -- not in navigation, menus, listings and search (e.g. folders for media)
     -- translations of title and description (like elements): the original
     -- language, its revision (incremented when its texts change) and the
     -- revision of the original each translation is based on
@@ -268,6 +269,64 @@ CREATE TABLE files (
     created_by bigint REFERENCES users(id) ON DELETE SET NULL,
     created_at timestamptz NOT NULL DEFAULT now()
 );
+
+-- ---------------------------------------------------------------- media library
+-- A medium is a file in a category with versions (image editor, new uploads),
+-- its own rights (optional), a download switch and a watermark mode.
+-- See docs/developer/media.md.
+CREATE TABLE media (
+    id          bigserial PRIMARY KEY,
+    category_id bigint NOT NULL REFERENCES categories(id) ON DELETE CASCADE,
+    name        text NOT NULL,                       -- file name
+    title       text NOT NULL DEFAULT '',
+    alt         text NOT NULL DEFAULT '',            -- alternative text for images
+    description text NOT NULL DEFAULT '',
+    current     int NOT NULL DEFAULT 1,              -- current version
+    download    boolean NOT NULL DEFAULT true,       -- false: view only (also for users with the right)
+    own_acl     boolean NOT NULL DEFAULT false,      -- only media_acl counts (not category / embedding elements)
+    watermark   jsonb NOT NULL DEFAULT '{"mode":"none"}',
+    created_by  bigint REFERENCES users(id) ON DELETE SET NULL,
+    created_at  timestamptz NOT NULL DEFAULT now(),
+    updated_at  timestamptz NOT NULL DEFAULT now(),
+    deleted_at  timestamptz,
+    deleted_by  bigint REFERENCES users(id) ON DELETE SET NULL
+);
+CREATE INDEX media_category ON media(category_id) WHERE deleted_at IS NULL;
+
+CREATE TABLE media_versions (
+    media_id   bigint NOT NULL REFERENCES media(id) ON DELETE CASCADE,
+    version    int NOT NULL,
+    hash       text NOT NULL REFERENCES files(hash),
+    mime       text NOT NULL,
+    size       bigint NOT NULL,
+    width      int NOT NULL DEFAULT 0,
+    height     int NOT NULL DEFAULT 0,
+    ops        jsonb NOT NULL DEFAULT '[]',          -- image editor steps that produced this version
+    note       text NOT NULL DEFAULT '',
+    created_by bigint REFERENCES users(id) ON DELETE SET NULL,
+    created_at timestamptz NOT NULL DEFAULT now(),
+    PRIMARY KEY (media_id, version)
+);
+CREATE INDEX media_versions_hash ON media_versions(hash);
+
+-- own rights of a medium (media.own_acl): bits view 1, download 2, edit 4, manage 8
+CREATE TABLE media_acl (
+    id           bigserial PRIMARY KEY,
+    media_id     bigint NOT NULL REFERENCES media(id) ON DELETE CASCADE,
+    subject_type text NOT NULL CHECK (subject_type IN ('user','group','role','guest','authenticated')),
+    subject_id   bigint,
+    perms        int NOT NULL CHECK (perms > 0 AND perms < 16),
+    CHECK ((subject_type IN ('guest','authenticated')) = (subject_id IS NULL))
+);
+CREATE INDEX media_acl_media ON media_acl(media_id);
+
+-- elements that embed a medium (derived from their content on every change)
+CREATE TABLE media_usage (
+    media_id   bigint NOT NULL REFERENCES media(id) ON DELETE CASCADE,
+    element_id bigint NOT NULL REFERENCES elements(id) ON DELETE CASCADE,
+    PRIMARY KEY (media_id, element_id)
+);
+CREATE INDEX media_usage_element ON media_usage(element_id);
 
 -- ---------------------------------------------------------------- permissions
 CREATE TABLE acl_rules (

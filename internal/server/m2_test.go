@@ -141,11 +141,16 @@ func TestAttachments(t *testing.T) {
 	if res.StatusCode != 404 {
 		t.Fatal("foreign hash served")
 	}
-	// images: public by hash (for pages), active content never inline
+	// images by hash: not for everybody who knows the hash - only for the
+	// uploader until it is embedded somewhere the caller may see
 	_, img := admin.upload(t, "pic.png", pngData)
 	res, _ = guest.http.Get(e.srv.URL + "/api/v1/files/" + img.Hash)
+	if res.StatusCode != 404 {
+		t.Fatalf("unreferenced image served to a guest: %d", res.StatusCode)
+	}
+	res, _ = admin.http.Get(e.srv.URL + "/api/v1/files/" + img.Hash)
 	if res.StatusCode != 200 || res.Header.Get("Content-Type") != "image/png" {
-		t.Fatalf("image %d %s", res.StatusCode, res.Header.Get("Content-Type"))
+		t.Fatalf("own image %d %s", res.StatusCode, res.Header.Get("Content-Type"))
 	}
 	_, svg := admin.upload(t, "evil.svg", []byte(`<svg xmlns="http://www.w3.org/2000/svg"><script>alert(1)</script></svg>`))
 	if strings.Contains(svg.Mime, "svg") {

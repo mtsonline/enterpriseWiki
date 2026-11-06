@@ -5,6 +5,7 @@
 package storage
 
 import (
+	"bytes"
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
@@ -335,4 +336,74 @@ func (s *Store) AddReference(table, column string) {
 		}
 	}
 	extraRefs = append(extraRefs, [2]string{table, column})
+}
+
+// CacheGet returns a derived file (e.g. an image with a watermark) from the
+// cache; key is any string (hashed). ok is false if it is missing.
+func (s *Store) CacheGet(key string) ([]byte, bool) {
+	b, err := os.ReadFile(s.cachePath(key)) // #nosec G304 -- path from a SHA-256 of the key
+	return b, err == nil
+}
+
+// CachePut stores a derived file; failures only cost a recomputation.
+func (s *Store) CachePut(key string, data []byte) {
+	p := s.cachePath(key)
+	if os.MkdirAll(filepath.Dir(p), 0o750) != nil {
+		return
+	}
+	tmp := p + ".tmp"
+	if os.WriteFile(tmp, data, 0o600) == nil {
+		_ = os.Rename(tmp, p)
+	}
+}
+
+func (s *Store) cachePath(key string) string {
+	sum := sha256.Sum256([]byte(key))
+	h := hex.EncodeToString(sum[:])
+	return filepath.Join(s.root(), ".cache", h[:2], h)
+}
+
+// PruneCache removes derived files older than maxAge.
+func (s *Store) PruneCache(maxAge time.Duration) int {
+	n := 0
+	_ = filepath.WalkDir(filepath.Join(s.root(), ".cache"), func(p string, d os.DirEntry, err error) error {
+		if err != nil || d.IsDir() {
+			return nil //nolint:nilerr // best effort
+		}
+		if info, err := d.Info(); err == nil && time.Since(info.ModTime()) > maxAge {
+			if os.Remove(p) == nil {
+				n++
+			}
+		}
+		return nil
+	})
+	return n
+}
+
+// IsConfigAsset reports whether hash is used in the settings (logos,
+// background images of plugins and themes): such files are public.
+func (s *Store) IsConfigAsset(hash string) bool { return s.configHashes()[hash] }
+
+// ServeBytes sends derived content (e.g. an image with a watermark) with
+// the same safety headers as Serve; cacheable=false forbids any caching.
+func ServeBytes(w http.ResponseWriter, r *http.Request, data []byte, mimeType, name string, inline, cacheable bool) {
+	disp := "attachment"
+	if inline && Inline(mimeType) {
+		disp = "inline"
+	}
+	h := w.Header()
+	h.Set("Content-Type", mimeType)
+	h.Set("Content-Disposition", mime.FormatMediaType(disp, map[string]string{"filename": name}))
+	h.Set("X-Content-Type-Options", "nosniff")
+	if disp == "inline" && mimeType == "application/pdf" {
+		h.Set("Content-Security-Policy", "object-src 'self'; frame-ancestors 'self'")
+	} else {
+		h.Set("Content-Security-Policy", "default-src 'none'; img-src 'self'; media-src 'self'; style-src 'unsafe-inline'; frame-ancestors 'self'; sandbox")
+	}
+	if cacheable {
+		h.Set("Cache-Control", "private, max-age=300")
+	} else {
+		h.Set("Cache-Control", "private, no-store")
+	}
+	http.ServeContent(w, r, "", time.Time{}, bytes.NewReader(data))
 }

@@ -102,6 +102,7 @@ func requireUser(r *http.Request) (*identity.Principal, error) {
 
 func (s *Server) routes() {
 	s.routesM2()
+	s.routesMedia()
 	s.routesM3()
 	s.routesM4()
 	s.routesM6()
@@ -400,7 +401,7 @@ func (s *Server) routes() {
 	// ---------------------------------------------------------------- categories
 	s.handle("GET /api/v1/categories", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		parent, _ := strconv.ParseInt(r.URL.Query().Get("parent"), 10, 64)
-		return s.app.Content.Children(r.Context(), parent)
+		return s.app.Content.ChildrenOpt(r.Context(), parent, r.URL.Query().Get("hidden") == "1")
 	})
 	s.handle("GET /api/v1/categories/tree", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		return s.app.Content.Tree(r.Context(), h.QueryInt(r, "limit", 5000))
