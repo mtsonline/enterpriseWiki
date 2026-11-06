@@ -69,6 +69,16 @@ async function waitVersion(id, want, seconds) {
   throw new Error(`medium ${id} has no version ${want} after ${seconds}s`);
 }
 
+// on failure: a screenshot for the CI artifacts
+async function shot(name, fn) {
+  try {
+    await fn();
+  } catch (e) {
+    await page.screenshot({ path: `/tmp/office-${name}.png`, fullPage: true }).catch(() => undefined);
+    throw e;
+  }
+}
+
 before(async () => {
   browser = await chromium.launch({ args: ['--host-resolver-rules=MAP wiki.test 127.0.0.1, MAP office.test 127.0.0.1, MAP docs.test 127.0.0.1'] });
   page = await browser.newPage({ viewport: { width: 1400, height: 1000 } });
@@ -94,16 +104,7 @@ test('Collabora: open, save through WOPI (proof keys), new version', async () =>
   await page.goto(`${BASE}/office/${id}?viewer=office.collabora&mode=edit`);
   const frame = page.locator('iframe.ew-office-frame');
   await frame.waitFor();
-  const loaded = await page.evaluate(() => new Promise((resolve) => {
-    const t = setTimeout(() => resolve(false), 120000);
-    window.addEventListener('message', (ev) => {
-      try {
-        const m = typeof ev.data === 'string' ? JSON.parse(ev.data) : ev.data;
-        if (m?.MessageId === 'App_LoadingStatus' && m.Values?.Status === 'Document_Loaded') { clearTimeout(t); resolve(true); }
-      } catch { /* other messages */ }
-    });
-  }));
-  assert.ok(loaded, 'Collabora did not load the document (CheckFileInfo/GetFile)');
+  await shot('collabora', () => page.locator('html[data-office-ready]').waitFor({ state: 'attached', timeout: 120000 }));
   // save as the host page would (PostMessage API), also without changes
   await page.evaluate(() => {
     const f = document.querySelector('iframe.ew-office-frame');
@@ -119,13 +120,13 @@ test('Collabora: open, save through WOPI (proof keys), new version', async () =>
 test('OnlyOffice: open with the API (JWT), edit, close, saved by the callback', async () => {
   const id = await upload('onlyoffice');
   await page.goto(`${BASE}/office/${id}?viewer=office.onlyoffice&mode=edit`);
-  const editor = page.frameLocator('iframe[name=frameEditor]');
-  // the document is open when the editor's input area exists
-  await editor.locator('#area_id').waitFor({ state: 'attached', timeout: 180000 });
-  await page.waitForTimeout(3000);
-  await editor.locator('#area_id').focus();
+  await shot('onlyoffice', () => page.locator('html[data-office-ready]').waitFor({ state: 'attached', timeout: 240000 }));
+  // type into the document: click into the editor, then write
+  const box = await page.locator('iframe[name=frameEditor]').boundingBox();
+  await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
+  await page.waitForTimeout(1000);
   await page.keyboard.type(' edited in OnlyOffice');
-  await page.waitForTimeout(3000);
+  await page.waitForTimeout(5000);
   // leaving the editor: the Document Server saves ~10 s after the last user left
   await page.goto(`${BASE}/media`);
   const m = await waitVersion(id, 2, 120);

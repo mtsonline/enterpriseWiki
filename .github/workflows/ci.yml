@@ -189,6 +189,15 @@ jobs:
           # the test host names (browser and test client)
           echo "127.0.0.1 wiki.test office.test docs.test" | sudo tee -a /etc/hosts
           scripts/test-docker-office.sh
+      - name: screenshots and logs of a failed office test
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: office-test
+          path: |
+            /tmp/office-*.png
+            /tmp/office-logs/
+          retention-days: 7
 
   pg-versions:
     name: PostgreSQL versions for the upgrade test

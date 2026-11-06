@@ -26,7 +26,7 @@ export { categorySelect, elementSelect, newCategory, newElement } from './compon
 export type { CategorySelect, ElementSelect } from './components/pickers';
 export { watchButton } from './components/watch';
 export { pickMedium, uploadDialog, uploadMedium, mediaURL, mediaViewer, mediaThumb, mediaDetails, openMedium, isImage } from './components/media';
-export { registerOfficeRenderer, officeButtons, officeURL, openOptions, officeAdminRender } from './components/office';
+export { registerOfficeRenderer, officeButtons, officeURL, openOptions, officeAdminRender, officeReady } from './components/office';
 export type { OfficeRenderer } from './components/office';
 export { feedButton, feedURL, feedToken, advertiseFeed } from './components/feeds';
 export type { WidgetFactory } from './core/widgets';

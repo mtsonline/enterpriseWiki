@@ -115,6 +115,9 @@ services:
   collabora:
     image: collabora/code:${COLLABORA_VERSION:-25.04.9.4.1}
     profiles: [collabora]
+    # the image ships without proof key: create one at the start, so the
+    # wiki can verify that WOPI requests come from this server
+    entrypoint: ["/bin/sh", "-c", "[ -s /etc/coolwsd/proof_key ] || coolconfig generate-proof-key; exec /start-collabora-online.sh"]
     restart: unless-stopped
     # the image runs as its own unprivileged user "cool"; the document jails
     # need these capabilities (no other ones)

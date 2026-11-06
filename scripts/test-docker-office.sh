@@ -20,10 +20,17 @@ cp -r "$src"/{docker-compose.yml,.env.example,docker-setup.sh,docker} "$work/"
 cd "$work"
 fail() {
 	echo "FAIL: $*" >&2
-	for s in wiki collabora onlyoffice; do
-		echo "---- $s" >&2
-		docker compose logs --no-color --tail 80 "$s" 2>&1 | grep -v -i 'password\|secret' >&2 || true
-	done
+	mkdir -p /tmp/office-logs
+	docker compose logs --no-color wiki 2>&1 | grep -v -i 'password\|secret' >/tmp/office-logs/wiki.log || true
+	docker compose logs --no-color collabora >/tmp/office-logs/collabora.log 2>&1 || true
+	docker compose logs --no-color onlyoffice >/tmp/office-logs/onlyoffice.log 2>&1 || true
+	docker compose exec -T onlyoffice sh -c 'tail -n 300 /var/log/onlyoffice/documentserver/docservice/out.log /var/log/onlyoffice/documentserver/converter/out.log' >/tmp/office-logs/onlyoffice-docservice.log 2>&1 || true
+	echo "---- wiki (office)" >&2
+	grep -i 'wopi\|office\|level=WARN\|level=ERROR' /tmp/office-logs/wiki.log | tail -40 >&2 || true
+	echo "---- collabora (wopi, proof, errors)" >&2
+	grep -iE 'wopi|proof|checkfileinfo| ERR | WRN ' /tmp/office-logs/collabora.log | grep -v 'systemplate' | tail -40 | cut -c1-400 >&2 || true
+	echo "---- onlyoffice docservice" >&2
+	grep -iE 'error|warn|callback|jwt' /tmp/office-logs/onlyoffice-docservice.log | tail -40 | cut -c1-400 >&2 || true
 	exit 1
 }
 trap 'docker compose down -v >/dev/null 2>&1 || true' EXIT
@@ -75,6 +82,7 @@ wait_for() { # NAME URL PATTERN SECONDS
 echo "== waiting for the wiki, Collabora and OnlyOffice"
 wait_for wiki http://127.0.0.1:8080/healthz ok 180
 wait_for collabora http://127.0.0.1:9980/hosting/discovery wopi-discovery 300
+curl -fsS http://127.0.0.1:9980/hosting/discovery | grep -q '<proof-key' || fail "Collabora publishes no proof key"
 wait_for onlyoffice http://127.0.0.1:8090/healthcheck true 420
 
 echo "== browser: open, edit and save in both programs"

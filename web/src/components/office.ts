@@ -11,6 +11,11 @@ import { toast } from '../core/announce';
 import { pluginSettingsForm, type SettingField } from './settings';
 import { button, errorText, pageHeader } from './ui';
 
+/** Marks the page when the document is open in the office program (tests, assistive status). */
+export function officeReady(): void {
+  document.documentElement.dataset.officeReady = '1';
+}
+
 /** Starts an office program in container (returns a cleanup function). */
 export type OfficeRenderer = (container: HTMLElement, action: OfficeAction, close: () => void) => (() => void) | void | Promise<(() => void) | void>;
 
@@ -40,6 +45,7 @@ registerOfficeRenderer('wopi', (container, a, close) => {
     try { msg = typeof ev.data === 'string' ? JSON.parse(ev.data) : ev.data; } catch { return; }
     if (msg?.MessageId === 'App_LoadingStatus') {
       frame.contentWindow?.postMessage(JSON.stringify({ MessageId: 'Host_PostmessageReady', SendTime: Date.now(), Values: {} }), a.origin);
+      if ((msg as { Values?: { Status?: string } }).Values?.Status === 'Document_Loaded') officeReady();
     } else if (msg?.MessageId === 'UI_Close') {
       close();
     }
@@ -98,6 +104,7 @@ export async function officeView({ main, params, query }: RouteCtx): Promise<voi
     navigate(`/media${qs({ open: id })}`, { replace: true });
     return;
   }
+  delete document.documentElement.dataset.officeReady;
   const fn = renderers.get(res.action.kind);
   const stage = h('div', { class: 'ew-office-stage' });
   const bar = h('div', { class: 'ew-office-bar' },

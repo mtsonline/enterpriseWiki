@@ -1,5 +1,5 @@
 // OnlyOffice Docs: administration and the editor of the OnlyOffice API.
-import { officeAdminRender, registerAdminPage, registerOfficeRenderer, t } from '@ewiki/sdk';
+import { officeAdminRender, officeReady, registerAdminPage, registerOfficeRenderer, t } from '@ewiki/sdk';
 
 const ID = 'office.onlyoffice';
 
@@ -34,7 +34,13 @@ export function register(): void {
     holder.id = `ew-onlyoffice-${Date.now()}`;
     holder.className = 'ew-office-frame';
     container.append(holder);
-    const cfg = { ...(action.config as Record<string, unknown>), width: '100%', height: '100%', type: 'desktop' };
+    const cfg = {
+      ...(action.config as Record<string, unknown>), width: '100%', height: '100%', type: 'desktop',
+      events: {
+        onDocumentReady: () => officeReady(),
+        onError: (e: { data?: unknown }) => console.warn('OnlyOffice', e.data),
+      },
+    };
     const ed = new api.DocEditor(holder.id, cfg);
     return () => ed.destroyEditor?.();
   });
