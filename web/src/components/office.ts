@@ -105,7 +105,8 @@ export async function officeView({ main, params, query }: RouteCtx): Promise<voi
     return;
   }
   delete document.documentElement.dataset.officeReady;
-  const fn = renderers.get(res.action.kind);
+  const action = res.action;
+  const fn = renderers.get(action.kind);
   const stage = h('div', { class: 'ew-office-stage' });
   const bar = h('div', { class: 'ew-office-bar' },
     h('h1', { class: 'ew-office-title' }, m.title || m.name),
@@ -116,15 +117,22 @@ export async function officeView({ main, params, query }: RouteCtx): Promise<voi
     stage.append(h('p', { class: 'ew-notice ew-notice--warning', role: 'alert' }, t('office.no_renderer')));
     return;
   }
-  // the router attaches the view after it returned: the program needs the
-  // container in the document (form target, element ids)
-  for (let i = 0; i < 100 && !stage.isConnected; i++) await new Promise((r) => requestAnimationFrame(() => r(undefined)));
-  if (!stage.isConnected) return; // navigated away meanwhile
-  const cleanup = await fn(stage, res.action, back);
-  if (cleanup) {
-    const stop = () => { cleanup(); window.removeEventListener('popstate', stop); };
-    window.addEventListener('popstate', stop);
-  }
+  // the router attaches the view after it returned, and the program needs
+  // the container in the document (form target, element ids): start it
+  // after this function returned
+  void (async () => {
+    for (let i = 0; i < 100 && !stage.isConnected; i++) await new Promise((r) => requestAnimationFrame(() => r(undefined)));
+    if (!stage.isConnected) return; // navigated away meanwhile
+    try {
+      const cleanup = await fn(stage, action, back);
+      if (cleanup) {
+        const stop = () => { cleanup(); window.removeEventListener('popstate', stop); };
+        window.addEventListener('popstate', stop);
+      }
+    } catch (e) {
+      stage.replaceChildren(h('p', { class: 'ew-notice ew-notice--warning', role: 'alert' }, errorText(e)));
+    }
+  })();
 }
 
 // ---------------------------------------------------------------- administration of office plugins
