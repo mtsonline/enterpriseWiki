@@ -612,3 +612,16 @@ CREATE TABLE cluster_lease (
     holder text NOT NULL,
     until  timestamptz NOT NULL
 );
+
+-- ---------------------------------------------------------------- demo content
+-- everything the demo created (Administration -> Demo), removed without a
+-- trace by "remove demo"; kind: category, element, medium, user, group,
+-- menu, block, carousel, event, comment, file (ref = hash) ...
+CREATE TABLE demo_objects (
+    seq        bigserial PRIMARY KEY,
+    kind       text NOT NULL,
+    ref        text NOT NULL,
+    created_at timestamptz NOT NULL DEFAULT now(),
+    UNIQUE (kind, ref)
+);
+

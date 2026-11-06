@@ -67,6 +67,7 @@ Guest cache
 
 Media library
   media list|upload|info|update|replace|edit|versions|restore|usage|acl|download|delete   (ewiki media for details)
+  demo status|create|remove|reset-site   demo content of all features; reset the site to its first start
 
 License (Business Source License 1.1, free for private use of natural persons)
   site list | create NAME --host H[,H] [--title T] | update NAME [...] | delete NAME --yes
@@ -223,6 +224,8 @@ func Main(args []string) int {
 		err = e.cacheCmd(args[1:])
 	case "media":
 		err = e.media(args[1:])
+	case "demo":
+		err = e.demoCmd(args[1:])
 	case "site":
 		err = e.siteCmd(args[1:])
 	case "license":

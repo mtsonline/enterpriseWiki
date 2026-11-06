@@ -185,7 +185,10 @@ jobs:
         working-directory: web
         run: npm ci --no-audit --no-fund && npx playwright install --with-deps chromium
       - name: open, edit and save documents in both office servers
-        run: scripts/test-docker-office.sh
+        run: |
+          # the test host names (browser and test client)
+          echo "127.0.0.1 wiki.test office.test docs.test" | sudo tee -a /etc/hosts
+          scripts/test-docker-office.sh
 
   pg-versions:
     name: PostgreSQL versions for the upgrade test

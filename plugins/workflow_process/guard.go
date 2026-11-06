@@ -18,6 +18,7 @@ import (
 	"fmt"
 	"reflect"
 	"strings"
+	"sync"
 
 	"github.com/mtsonline/enterprisewiki/internal/apperr"
 	"github.com/mtsonline/enterprisewiki/internal/audit"
@@ -33,15 +34,25 @@ const (
 	permCases  = "workflow.process.cases"
 )
 
-// guardHost is set in Setup (the element type has no state of its own).
-var guardHost *sdk.Host
+// guardHosts are the hosts of the sites, set in Setup (the element type is
+// registered once per process, the plugin once per site).
+var guardHosts sync.Map // site name -> *sdk.Host
+
+// guardHost returns the host of the site of ctx (nil before Setup).
+func guardHost(ctx context.Context) *sdk.Host {
+	if h, ok := guardHosts.Load(sdk.SiteOf(ctx)); ok {
+		return h.(*sdk.Host)
+	}
+	return nil
+}
 
 // CheckCreate implements content.Guard.
 func (Type) CheckCreate(ctx context.Context, _ *content.Service, categoryID int64) error {
-	if guardHost == nil {
+	gh := guardHost(ctx)
+	if gh == nil {
 		return nil
 	}
-	if guardHost.Can(ctx, categoryID, permCreate) || guardHost.Can(ctx, categoryID, permAdmin) {
+	if gh.Can(ctx, categoryID, permCreate) || gh.Can(ctx, categoryID, permAdmin) {
 		return nil
 	}
 	return apperr.Forbidden("creating workflows needs the permission %q in this category", "Create workflows")
@@ -50,15 +61,16 @@ func (Type) CheckCreate(ctx context.Context, _ *content.Service, categoryID int6
 // CheckChange implements content.Guard: the creator (with permCreate) or a
 // workflow administrator (permAdmin; logged in detail, creator notified).
 func (Type) CheckChange(ctx context.Context, _ *content.Service, el *content.Element, oldBody, newBody json.RawMessage) error {
-	if guardHost == nil {
+	gh := guardHost(ctx)
+	if gh == nil {
 		return nil
 	}
 	p := identity.From(ctx)
 	own := p != nil && el.CreatedByID != nil && *el.CreatedByID == p.ID()
-	if own && (guardHost.Can(ctx, el.CategoryID, permCreate) || guardHost.Can(ctx, el.CategoryID, permAdmin)) {
+	if own && (gh.Can(ctx, el.CategoryID, permCreate) || gh.Can(ctx, el.CategoryID, permAdmin)) {
 		return nil
 	}
-	if !guardHost.Can(ctx, el.CategoryID, permAdmin) {
+	if !gh.Can(ctx, el.CategoryID, permAdmin) {
 		return apperr.Forbidden("only the creator of the workflow or a workflow administrator may change it")
 	}
 	// workflow administrator changes a workflow of someone else
@@ -67,7 +79,7 @@ func (Type) CheckChange(ctx context.Context, _ *content.Service, el *content.Ele
 	if newBody == nil {
 		action, changes = "workflow.admin_delete", []string{"deleted or moved"}
 	}
-	if err := audit.Log(ctx, guardHost.DB, action, "element", el.ID, map[string]any{"creator": el.CreatedByID}, map[string]any{"changes": changes}); err != nil {
+	if err := audit.Log(ctx, gh.DB, action, "element", el.ID, map[string]any{"creator": el.CreatedByID}, map[string]any{"changes": changes}); err != nil {
 		return err
 	}
 	if el.CreatedByID != nil && len(changes) > 0 {
@@ -125,8 +137,8 @@ func assigneeText(a Assignee) string {
 
 // notifyCreator tells the creator of a workflow that an administrator changed it.
 func notifyCreator(ctx context.Context, el *content.Element, by *identity.Principal, changes []string) {
-	h := guardHost
-	if h.Mail == nil || !h.Mail.Enabled() {
+	h := guardHost(ctx)
+	if h == nil || h.Mail == nil || !h.Mail.Enabled() {
 		return
 	}
 	us, err := h.Mail.Users(ctx, h.DB, []int64{*el.CreatedByID})

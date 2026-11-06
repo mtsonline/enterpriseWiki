@@ -414,7 +414,7 @@ func titleFrom(fields []Field, data map[string]any) string {
 // Setup registers the element type and the API.
 func (pl *Plugin) Setup(host *sdk.Host) error {
 	pl.host = host
-	guardHost = host
+	guardHosts.Store(host.Site, host)
 	host.RegisterElementType(Type{})
 	host.Files.AddReference("plugin_workflow_instances", "data")
 	host.RegisterWorker("timers", 30*time.Second, pl.runTimers)

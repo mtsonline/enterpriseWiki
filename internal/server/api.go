@@ -105,6 +105,7 @@ func (s *Server) routes() {
 	s.routesM2()
 	s.routesMedia()
 	s.routesOffice()
+	s.routesDemo()
 	s.routesM3()
 	s.routesM4()
 	s.routesM6()

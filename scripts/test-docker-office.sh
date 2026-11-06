@@ -7,6 +7,7 @@
 #   scripts/test-docker-office.sh [IMAGE]   (default: builds the lite image)
 #
 # Host names: wiki.test, office.test (Collabora) and docs.test (OnlyOffice)
+# (in /etc/hosts of the computer running the test, see the CI job)
 # all point to this computer; the containers reach each other through the
 # published ports (host-gateway), like through the proxy in production.
 set -euo pipefail

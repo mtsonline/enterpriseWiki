@@ -26,7 +26,7 @@ import { sitesAdmin } from './adminSites';
 
 interface User { id: number; username: string; provider: string; handle: string; display_name: string; email: string; language: string; disabled: boolean; locked_until: string | null; created_at: string; last_login_at: string | null; groups: number[]; roles: number[]; totp_enabled: boolean; mfa_email: boolean; networks: string[] }
 
-const CORE_SECTIONS = ['users', 'groups', 'roles', 'permissions', 'elements', 'plugins', 'updates', 'settings', 'mail', 'webhooks', 'cache', 'languages', 'audit', 'watches', 'license', 'sites'];
+const CORE_SECTIONS = ['users', 'groups', 'roles', 'permissions', 'elements', 'plugins', 'updates', 'settings', 'mail', 'webhooks', 'cache', 'languages', 'audit', 'watches', 'license', 'sites', 'demo'];
 
 /** global permission of each administration page ('' = category managers too) */
 const SECTION_PERMS: Record<string, string> = {
@@ -42,6 +42,7 @@ export function adminSections(): { id: string; label: string }[] {
     const k = SECTION_PERMS[s];
     if (s === 'languages') return canTranslateAny();
     if (s === 'sites') return isInstanceAdmin();
+    if (s === 'demo') return isAdmin();
     // license and plugin installation concern the whole instance
     if (s === 'license' || s === 'updates') return hasPerm(k) && (state.site.site === 'main' || isInstanceAdmin());
     return k === '' ? !!state.user && (isAdmin() || hasPerm('core.categories.admin') || state.managesCategories) : hasPerm(k);
@@ -97,6 +98,7 @@ export async function adminView({ params, query, main }: RouteCtx): Promise<void
       case 'watches': await watchesAdmin(panel); break;
       case 'license': await licenseAdmin(panel); break;
       case 'sites': await sitesAdmin(panel); break;
+      case 'demo': await demoAdmin(panel); break;
       default: {
         const p = listAdminPages().find((x) => x.id === section);
         if (p) await p.render(panel);
@@ -763,4 +765,64 @@ async function cacheAdmin(panel: HTMLElement): Promise<void> {
         try { await api.del('admin/cache'); toast(t('cache.cleared')); reload(); } catch (e) { toast(errorText(e), 'error'); }
       }, { variant: 'secondary' }), button(t('cache.refresh'), () => reload(), { variant: 'subtle' }))),
     h('section', { class: 'ew-section', 'aria-labelledby': 'cc-h' }, h('h2', { id: 'cc-h' }, t('cache.settings')), form));
+}
+
+interface DemoStatus { installed: boolean; created_at?: string; objects: Record<string, number>; site_name: string }
+
+/** Demo content of all features, and the reset of the site to its first start. */
+async function demoAdmin(panel: HTMLElement): Promise<void> {
+  const st = await api.get<DemoStatus>('admin/demo');
+  const status = h('p', { role: 'status' }, st.installed
+    ? t('demo.installed', { date: fmtDate(st.created_at ?? '', state.lang), count: String(Object.values(st.objects).reduce((a, b) => a + b, 0)) })
+    : t('demo.not_installed'));
+  const create = button(t('demo.create'), async () => {
+    create.disabled = true;
+    create.setAttribute('aria-busy', 'true');
+    try {
+      await api.post('admin/demo');
+      toast(t('demo.created'));
+      navigate(state.site.site === 'main' ? '/demo' : `/demo-${state.site.site}`);
+    } catch (e) {
+      toast(errorText(e), 'error');
+      create.disabled = false;
+      create.removeAttribute('aria-busy');
+    }
+  }, { variant: 'primary' });
+  const remove = button(t('demo.remove'), async () => {
+    if (!(await confirmDialog(t('demo.remove_confirm'), t('demo.remove'), true))) return;
+    try {
+      await api.del('admin/demo');
+      toast(t('demo.removed'));
+      reload();
+    } catch (e) { toast(errorText(e), 'error'); }
+  }, { variant: 'danger' });
+  const confirmName = textInput({ autocomplete: 'off' });
+  const password = textInput({ type: 'password', autocomplete: 'current-password' });
+  const alert = h('div', { class: 'ew-form-alert', role: 'alert' });
+  const resetForm = h('form', { class: 'ew-form', novalidate: true }, alert,
+    h('p', { class: 'ew-notice ew-notice--warning' }, t('demo.reset_warning')),
+    field(t('demo.reset_confirm', { name: st.site_name }), confirmName),
+    state.user?.provider === 'local' ? field(t('demo.reset_password'), password) : h('span'),
+    h('div', { class: 'ew-form-actions' }, button(t('demo.reset'), () => undefined, { type: 'submit', variant: 'danger' })));
+  resetForm.addEventListener('submit', async (ev) => {
+    ev.preventDefault();
+    alert.textContent = '';
+    if (confirmName.value.trim() !== st.site_name) {
+      alert.textContent = t('demo.reset_mismatch');
+      confirmName.focus();
+      return;
+    }
+    if (!(await confirmDialog(t('demo.reset_last'), t('demo.reset'), true))) return;
+    try {
+      await api.post('admin/reset', { confirm: confirmName.value.trim(), password: password.value });
+      location.assign('/login');
+    } catch (e) {
+      alert.textContent = errorText(e);
+    }
+  });
+  mount(panel, pageHeader(t('admin.demo')),
+    h('section', { class: 'ew-section', 'aria-labelledby': 'demo-h' }, h('h2', { id: 'demo-h' }, t('demo.title')),
+      h('p', null, t('demo.help')), status, h('div', { class: 'ew-actions' }, st.installed ? remove : create)),
+    h('section', { class: 'ew-section', 'aria-labelledby': 'reset-h' }, h('h2', { id: 'reset-h' }, t('demo.reset_title')),
+      h('p', null, t('demo.reset_help')), resetForm));
 }

@@ -414,3 +414,58 @@ func ServeBytes(w http.ResponseWriter, r *http.Request, data []byte, mimeType, n
 	}
 	http.ServeContent(w, r, "", time.Time{}, bytes.NewReader(data))
 }
+
+// RemoveUnreferenced deletes the given files at once (no grace period) if
+// nothing references them any more (demo content). It returns the number
+// of removed files.
+func (s *Store) RemoveUnreferenced(ctx context.Context, hashes []string) (int, error) {
+	if len(hashes) == 0 {
+		return 0, nil
+	}
+	q := `SELECT hash FROM files f WHERE hash = ANY($1)
+		AND NOT EXISTS (SELECT 1 FROM element_revisions r WHERE strpos(r.body::text, f.hash) > 0)`
+	refMu.Lock()
+	for _, r := range extraRefs {
+		q += fmt.Sprintf(` AND NOT EXISTS (SELECT 1 FROM %s x WHERE strpos(x.%s::text, f.hash) > 0)`, r[0], r[1])
+	}
+	refMu.Unlock()
+	rows, err := s.pool.Query(ctx, q, hashes)
+	if err != nil {
+		return 0, err
+	}
+	list, err := pgx.CollectRows(rows, pgx.RowTo[string])
+	if err != nil {
+		return 0, err
+	}
+	keep := s.configHashes()
+	n := 0
+	for _, h := range list {
+		if keep[h] || !hashRe.MatchString(h) {
+			continue
+		}
+		if _, err := s.pool.Exec(ctx, `DELETE FROM files WHERE hash=$1`, h); err != nil {
+			return n, err
+		}
+		if err := os.Remove(s.Path(h)); err != nil && !errors.Is(err, os.ErrNotExist) {
+			return n, fmt.Errorf("remove %s: %w", h, err)
+		}
+		n++
+	}
+	if n > 0 {
+		s.PruneCache(0) // derived files (watermarks, previews) of removed files
+	}
+	return n, nil
+}
+
+// Wipe removes all stored files and derived files of this site (site
+// reset). The database rows must already be gone.
+func (s *Store) Wipe() error {
+	root := s.root()
+	if filepath.Base(root) != "files" {
+		return fmt.Errorf("refusing to wipe %s", root)
+	}
+	if err := os.RemoveAll(root); err != nil {
+		return err
+	}
+	return os.MkdirAll(root, 0o750)
+}

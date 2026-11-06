@@ -973,6 +973,32 @@ test('office programs: default viewer setting, refusal without a configured serv
   await page.getByRole('button', { name: /^(Back|Zurück)$/ }).click();
 });
 
+test('demo content: create, browse accessibly, remove', async () => {
+  await page.goto(`${BASE}/admin/demo`);
+  await idle();
+  await a11y('demo administration');
+  await page.getByRole('button', { name: /^(Create demo|Demo anlegen)$/ }).click();
+  await page.waitForURL(/\/demo$/, { timeout: 60000 });
+  await idle();
+  await page.locator('.ew-macro--toc').first().waitFor();
+  await a11y('demo tour page');
+  // the overview of the demo area and the team page
+  for (const name of [/^(Team)$/, /^(News|Neuigkeiten)$/]) {
+    await page.goto(`${BASE}/demo`);
+    await idle();
+    await page.getByRole('navigation').getByRole('link', { name }).first().click();
+    await idle();
+    await a11y(`demo ${name}`);
+  }
+  await page.goto(`${BASE}/admin/demo`);
+  await idle();
+  await page.getByRole('button', { name: /^(Remove demo|Demo entfernen)$/ }).click();
+  await page.getByRole('dialog').getByRole('button', { name: /^(Remove demo|Demo entfernen)$/ }).click();
+  await page.getByRole('button', { name: /^(Create demo|Demo anlegen)$/ }).waitFor();
+  const res = await page.evaluate(async () => (await fetch('/api/v1/resolve?path=/demo')).status);
+  assert.equal(res, 404);
+});
+
 test('no JavaScript errors occurred', () => {
   assert.deepEqual(errors, []);
 });

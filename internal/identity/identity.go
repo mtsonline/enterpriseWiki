@@ -23,8 +23,9 @@ type Principal struct {
 	// signed-in users); see package perm. Administrators have all.
 	Perms []string `json:"permissions"`
 	// Via is how the caller authenticated: session, apikey, ssh, feed, cli
-	// (the local superuser) or cli-as (local CLI acting as a user via --as;
-	// carries exactly that user's rights, never more).
+	// (the local superuser), cli-as (local CLI acting as a user via --as;
+	// carries exactly that user's rights, never more) or demo (the demo
+	// content created in-process with the rights of the administrator).
 	Via string `json:"via"`
 	// API key restrictions (Via == "apikey").
 	KeyPerms      int   `json:"-"`
@@ -74,7 +75,7 @@ func (p *Principal) IsCLI() bool {
 // InProcess reports whether p was created by the local CLI (superuser or
 // --as USER); such requests never pass through HTTP authentication.
 func (p *Principal) InProcess() bool {
-	return p != nil && (p.IsCLI() || p.Via == "cli-as")
+	return p != nil && (p.IsCLI() || p.Via == "cli-as" || p.Via == "demo")
 }
 
 // CLI returns the principal used by local command line invocations
