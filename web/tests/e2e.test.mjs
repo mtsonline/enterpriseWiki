@@ -743,7 +743,11 @@ test('translate the interface: plural forms, filters, import and export', async 
   await a11y('translation editor');
   const one = page.locator('.ew-tr-table input').first();
   await one.fill(`{n} neue Nachricht ${run}`);
-  await page.getByRole('button', { name: /^(save|speichern)$/i }).first().click();
+  // wait for the save itself (navigating away earlier would cancel it)
+  await Promise.all([
+    page.waitForResponse((r) => r.url().includes('/api/v1/admin/i18n/de') && r.request().method() === 'PUT'),
+    page.getByRole('button', { name: /^(save|speichern)$/i }).first().click(),
+  ]);
   await idle();
   await page.goto(`${BASE}/admin/languages?edit=de&filter=custom`);
   await idle();
