@@ -102,7 +102,7 @@ func CanApprove(p *identity.Principal, approvers []string) bool {
 	if p == nil {
 		return false
 	}
-	if p.Via == "cli" {
+	if p.IsCLI() { // not --as USER: that carries only the user's rights
 		return true
 	}
 	return (p.Admin() || perm.HasP(p, "macro.shell.manage")) && p.Via != "apikey" && slices.Contains(approvers, p.Handle())

@@ -135,7 +135,7 @@ func (s *Server) wrap(next http.Handler) http.Handler {
 // custom headers cross-site without a CORS preflight, which is never allowed).
 func (s *Server) authenticate(w http.ResponseWriter, r *http.Request) (context.Context, error) {
 	ctx := r.Context()
-	if p := identity.From(ctx); p != nil && p.Via == "cli" {
+	if p := identity.From(ctx); p.InProcess() {
 		return ctx, nil // in-process CLI call
 	}
 	if a := r.Header.Get("Authorization"); a != "" {

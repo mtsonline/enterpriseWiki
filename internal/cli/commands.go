@@ -135,7 +135,8 @@ func (e *env) callType(method, path string, body []byte, contentType, as string)
 			if err != nil {
 				return err
 			}
-			up.Via = "cli"
+			// Exactly the user's rights: never the CLI superuser's.
+			up.Via = "cli-as"
 			p = up
 		}
 		srv := server.New(a, nil, pluginmgr.New(a.Root, a.Config, nil))

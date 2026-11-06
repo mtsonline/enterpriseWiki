@@ -22,7 +22,9 @@ type Principal struct {
 	// Perms are the global permissions (from roles and the defaults for
 	// signed-in users); see package perm. Administrators have all.
 	Perms []string `json:"permissions"`
-	// Via is how the caller authenticated: session, apikey, ssh, cli.
+	// Via is how the caller authenticated: session, apikey, ssh, feed, cli
+	// (the local superuser) or cli-as (local CLI acting as a user via --as;
+	// carries exactly that user's rights, never more).
 	Via string `json:"via"`
 	// API key restrictions (Via == "apikey").
 	KeyPerms      int   `json:"-"`
@@ -37,7 +39,7 @@ func (p *Principal) Handle() string {
 	if p == nil {
 		return "guest"
 	}
-	if p.Via == "cli" && p.UserID == 0 {
+	if p.IsCLI() {
 		return "cli"
 	}
 	return p.Username + "@" + p.Provider
@@ -61,6 +63,18 @@ func (p *Principal) Admin() bool {
 		return false
 	}
 	return true
+}
+
+// IsCLI reports whether p is the local command line superuser. A user
+// impersonated with --as (Via "cli-as") is not.
+func (p *Principal) IsCLI() bool {
+	return p != nil && p.Via == "cli" && p.UserID == 0
+}
+
+// InProcess reports whether p was created by the local CLI (superuser or
+// --as USER); such requests never pass through HTTP authentication.
+func (p *Principal) InProcess() bool {
+	return p != nil && (p.IsCLI() || p.Via == "cli-as")
 }
 
 // CLI returns the principal used by local command line invocations

@@ -142,6 +142,14 @@ ewiki api GET /api/v1/x/core.menu/menus
 ewiki api GET /api/v1/categories/1 --as anna        # mit den Rechten von anna@local
 ```
 
+`--as BENUTZER` arbeitet **genau** mit den Rechten dieses Benutzers, nie mit
+mehr: Die Sonderrechte der Kommandozeile (z. B. Shell-Befehle freigeben)
+gelten dabei nicht, auch nicht mit `--as admin`. Die Option gibt es nur in
+der lokalen Kommandozeile, die ohnehin Zugriff auf Konfiguration und
+Datenbank hat; über HTTP, API-Schlüssel oder SSH-Token kann man sich nicht
+als anderer Benutzer ausgeben. Im Audit-Log erscheinen solche Aufrufe mit
+`via = cli-as`.
+
 Typische Aufgaben:
 
 ```bash
