@@ -275,9 +275,13 @@ func (p *Plugin) file(w http.ResponseWriter, r *http.Request) (any, error) {
 	if err != nil {
 		return nil, err
 	}
-	w.Header().Set("Content-Type", "application/octet-stream")
-	w.Header().Set("Content-Length", strconv.Itoa(len(data)))
-	_, _ = w.Write(data) // the Document Server retries on a broken connection
+	hd := w.Header()
+	hd.Set("Content-Type", "application/octet-stream")
+	hd.Set("Content-Disposition", "attachment")
+	hd.Set("Content-Security-Policy", "default-src 'none'; sandbox")
+	hd.Set("Content-Length", strconv.Itoa(len(data)))
+	// the Document Server retries on a broken connection
+	_, _ = w.Write(data) // #nosec G705 -- file for the Document Server: attachment, octet-stream, nosniff, sandboxed
 	return h.Handled{}, nil
 }
 

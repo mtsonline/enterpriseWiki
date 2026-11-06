@@ -217,10 +217,13 @@ func (s *Server) wopiGetFile(w http.ResponseWriter, r *http.Request, q *wopiReq)
 			return nil
 		}
 	}
-	w.Header().Set("Content-Type", "application/octet-stream")
-	w.Header().Set("X-WOPI-ItemVersion", media.ItemVersion(q.m))
-	w.Header().Set("Content-Length", strconv.Itoa(len(data)))
-	_, err = w.Write(data)
+	hd := w.Header()
+	hd.Set("Content-Type", "application/octet-stream")
+	hd.Set("Content-Disposition", "attachment")
+	hd.Set("Content-Security-Policy", "default-src 'none'; sandbox")
+	hd.Set("X-WOPI-ItemVersion", media.ItemVersion(q.m))
+	hd.Set("Content-Length", strconv.Itoa(len(data)))
+	_, err = w.Write(data) // #nosec G705 -- file for the office server: attachment, octet-stream, nosniff, sandboxed
 	return err
 }
 
