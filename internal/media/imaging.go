@@ -222,7 +222,7 @@ func boxBlur(src *image.RGBA, r int, horizontal bool) *image.RGBA {
 		for pos := 0; pos < n; pos++ {
 			o := idx(line, pos)
 			for c := 0; c < 4; c++ {
-				out.Pix[o+c] = uint8(sum[c] / (2*r + 1))
+				out.Pix[o+c] = uint8(min(sum[c]/(2*r+1), 255)) // #nosec G115 -- average of bytes, at most 255
 			}
 			add, rem := idx(line, min(pos+r+1, n-1)), idx(line, max(pos-r, 0))
 			for c := 0; c < 4; c++ {

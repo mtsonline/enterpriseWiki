@@ -100,7 +100,7 @@ prepare lite ewiki-test:lite
 plugin data/wiki/plugins/test_hello test.hello
 docker compose up -d
 ready 120 || fail "lite image not ready"
-docker compose logs wiki | grep -q 'ignored in the lite image' || fail "no hint about ignored plugins"
+grep -q 'ignored in the lite image' <<<"$(docker compose logs wiki)" || fail "no hint about ignored plugins"
 if has test.hello; then fail "lite image runs the additional plugin"; fi
 if docker compose exec -T wiki ewiki plugin install /data/plugins/test_hello >/dev/null 2>&1; then fail "lite image installed a plugin"; fi
 [ ! -e data/wiki/bin ] || [ -z "$(ls data/wiki/bin)" ] || fail "lite image built something"

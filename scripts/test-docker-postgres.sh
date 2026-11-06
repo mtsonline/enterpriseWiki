@@ -23,7 +23,7 @@ prepare() { # name compose-file
 	export COMPOSE_PROJECT_NAME="ewtest$1" COMPOSE_FILE="$2"
 	./docker-setup.sh >/dev/null
 	grep -q "^EWIKI_UID=$(id -u)$" .env || fail "EWIKI_UID not set"
-	./docker-setup.sh | grep -q ready || fail "second setup run"
+	grep -q ready <<<"$(./docker-setup.sh)" || fail "second setup run"
 }
 setv() { sed -i "s|^$1=.*|$1=$2|" .env; }
 wait_db() {
@@ -54,7 +54,7 @@ verify() { # mode
 	[ -s "data/postgres/$from/docker/PG_VERSION" ] || fail "old data not kept"
 	[ -e "data/postgres/$to/docker/.ewiki-upgraded" ] || fail "marker missing"
 	other="$(find data -path data/postgres/data -prune -o \( ! -uid "$(id -u)" -o ! -gid "$(id -g)" \) -printf "%p %u:%g\n" | head -5)"; [ -z "$other" ] || fail "files in ./data with another owner: $other"
-	./docker-postgres-upgrade.sh --yes | grep -q "up to date" || fail "second run"
+	grep -q "up to date" <<<"$(./docker-postgres-upgrade.sh --yes)" || fail "second run"
 	./docker-postgres-upgrade.sh --check >/dev/null || fail "--check after the upgrade"
 	echo "ok: PostgreSQL $from → $to ($1)"
 }
@@ -97,7 +97,7 @@ if [ "$full" = --full ]; then
 	unset PG_UPGRADE_SERVICES
 	./docker-postgres-upgrade.sh --yes
 	for _ in $(seq 1 90); do curl -fs http://localhost:8080/readyz >/dev/null && break; sleep 2; done
-	curl -fs http://localhost:8080/api/v1/site | grep -q '"name"' || fail "wiki after the upgrade"
+	grep -q '"name"' <<<"$(curl -fs http://localhost:8080/api/v1/site)" || fail "wiki after the upgrade"
 	[ "$(q 'SHOW server_version_num' | cut -c1-2)" = "$to" ] || fail "wiki stack not on $to"
 	docker compose down >/dev/null 2>&1
 	echo "ok: wiki on PostgreSQL $from → $to"

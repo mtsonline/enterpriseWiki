@@ -88,7 +88,7 @@ pid="$(docker compose ps -q proxy)"
 [ -n "$pid" ] && [ "$(docker inspect -f '{{.State.Running}}' "$pid")" = true ] || fail "proxy not running"
 [ "$(docker inspect -f '{{.Config.User}}' "$pid")" = "$(id -u):$(id -g)" ] || fail "proxy runs as $(docker inspect -f '{{.Config.User}}' "$pid")"
 [ "$(docker inspect -f '{{.HostConfig.ReadonlyRootfs}}' "$pid")" = true ] || fail "proxy root file system writable"
-docker inspect -f '{{.HostConfig.CapDrop}}' "$pid" | grep -q ALL || fail "capabilities not dropped"
+grep -q ALL <<<"$(docker inspect -f '{{.HostConfig.CapDrop}}' "$pid")" || fail "capabilities not dropped"
 loc="$(curl -s -o /dev/null -w '%{redirect_url}' -H 'Host: wiki.example.com' http://127.0.0.1:18081/some/page)"
 [ "$loc" = https://wiki.example.com/some/page ] || fail "HTTP redirect: '$loc'"
 # certificates only for the wiki's own host names (asked by Caddy)
@@ -96,5 +96,5 @@ code() { docker compose exec -T proxy wget -q -S -O /dev/null "http://wiki:8080/
 [ "$(code wiki.example.com)" = 200 ] || fail "own host not allowed"
 [ "$(code evil.example.org)" = 404 ] || fail "foreign host allowed"
 # the wiki is not reachable from outside the host (127.0.0.1 only)
-docker compose port wiki 8080 | grep -q '^127.0.0.1:' || fail "wiki port not bound to 127.0.0.1"
+grep -q '^127.0.0.1:' <<<"$(docker compose port wiki 8080)" || fail "wiki port not bound to 127.0.0.1"
 echo "OK"
