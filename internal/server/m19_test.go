@@ -253,3 +253,34 @@ func TestMediaLibrary(t *testing.T) {
 	admin.must("GET", fmt.Sprintf("/api/v1/media/%d", wm.ID), nil, nil, 404)
 	bc.must("DELETE", fmt.Sprintf("/api/v1/media/%d", img.ID), nil, nil, 403)
 }
+
+// TestHiddenCategorySearch: pages in hidden categories (and below) are not
+// found by the general search, only when searching in that category.
+func TestHiddenCategorySearch(t *testing.T) {
+	e := setup(t)
+	admin := e.client()
+	admin.login("admin", adminPW)
+	var folder, sub struct {
+		ID int64 `json:"id"`
+	}
+	admin.must("POST", "/api/v1/categories", map[string]any{"titles": map[string]string{"en": "Hidden stuff"}, "hidden": true}, &folder, 201)
+	admin.must("POST", "/api/v1/categories", map[string]any{"parent_id": folder.ID, "titles": map[string]string{"en": "Deeper"}}, &sub, 201)
+	admin.must("POST", "/api/v1/elements", map[string]any{"category_id": sub.ID, "type": "core.html", "lang": "en", "title": "Wombat notes",
+		"body": htmlBody(`<p>wombat</p>`)}, nil, 201)
+	var res struct {
+		Elements   []any `json:"elements"`
+		Categories []any `json:"categories"`
+	}
+	admin.must("GET", "/api/v1/search?q=wombat", nil, &res, 200)
+	if len(res.Elements) != 0 {
+		t.Fatalf("page of a hidden category found: %+v", res.Elements)
+	}
+	admin.must("GET", "/api/v1/search?q=Hidden", nil, &res, 200)
+	if len(res.Categories) != 0 {
+		t.Fatalf("hidden category found: %+v", res.Categories)
+	}
+	admin.must("GET", fmt.Sprintf("/api/v1/search?q=wombat&category=%d", folder.ID), nil, &res, 200)
+	if len(res.Elements) != 1 {
+		t.Fatalf("search inside the hidden category: %+v", res.Elements)
+	}
+}
