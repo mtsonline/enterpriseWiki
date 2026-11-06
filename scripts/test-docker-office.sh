@@ -33,7 +33,7 @@ if [ -z "$image" ]; then
 fi
 ./docker-setup.sh </dev/null >/dev/null
 sed -i -E "s#^(\s+image:) ghcr.io/mtsonline/enterprisewiki:.*#\1 $image#; s#pull_policy: always#pull_policy: never#" docker-compose.yml
-secret="$(LC_ALL=C tr -dc 'A-Za-z0-9' </dev/urandom | head -c 40)"
+secret="$(od -An -N24 -tx1 /dev/urandom | tr -d ' \n')"
 cat >>.env <<EOF
 COMPOSE_PROFILES=collabora,onlyoffice
 EWIKI_PORT=0.0.0.0:8080
