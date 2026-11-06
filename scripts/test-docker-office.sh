@@ -46,7 +46,6 @@ cat >>.env <<EOF
 COMPOSE_PROFILES=collabora,onlyoffice
 EWIKI_PORT=0.0.0.0:8080
 EWIKI_BASE_URL=http://wiki.test:8080
-EWIKI_DOMAIN=wiki.test
 EWIKI_COLLABORA_HOST=office.test:9980
 EWIKI_COLLABORA_URL=http://office.test:9980
 EWIKI_COLLABORA_TLS_TERMINATION=false
@@ -57,7 +56,8 @@ EWIKI_SUBNET=172.30.91.0/24
 EWIKI_IP_RANGE=172.30.91.0/25
 EWIKI_PROXY_IP=172.30.91.250
 EOF
-# CI only: everything through the host's published ports
+# CI only: everything through the host's published ports (no EWIKI_DOMAIN:
+# without the proxy, the wiki is reached through the host as well)
 cat >docker-compose.override.yml <<'EOF'
 services:
   wiki:

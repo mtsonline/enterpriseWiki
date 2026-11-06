@@ -142,6 +142,7 @@ services:
         --o:ssl.enable=false --o:ssl.termination=${EWIKI_COLLABORA_TLS_TERMINATION:-true}
         --o:admin_console.enable=false --o:welcome.enable=false
         --o:remote_font_config.url= --o:home_mode.enable=true
+        --o:mount_jail_tree=false
     extra_hosts:
       - "${EWIKI_DOMAIN:-wiki.invalid}:${EWIKI_PROXY_IP:-172.30.80.250}"
     networks: [ewiki]
