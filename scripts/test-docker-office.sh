@@ -25,8 +25,8 @@ fail() {
 	docker compose logs --no-color collabora >/tmp/office-logs/collabora.log 2>&1 || true
 	docker compose logs --no-color onlyoffice >/tmp/office-logs/onlyoffice.log 2>&1 || true
 	docker compose exec -T onlyoffice sh -c 'tail -n 300 /var/log/onlyoffice/documentserver/docservice/out.log /var/log/onlyoffice/documentserver/converter/out.log' >/tmp/office-logs/onlyoffice-docservice.log 2>&1 || true
-	echo "---- wiki (office)" >&2
-	grep -i 'wopi\|office\|level=WARN\|level=ERROR' /tmp/office-logs/wiki.log | tail -40 >&2 || true
+	echo "---- wiki" >&2
+	tail -n 60 /tmp/office-logs/wiki.log | cut -c1-400 >&2 || true
 	echo "---- collabora (wopi, proof, errors)" >&2
 	grep -iE 'wopi|proof|checkfileinfo| ERR | WRN ' /tmp/office-logs/collabora.log | grep -v 'systemplate' | tail -40 | cut -c1-400 >&2 || true
 	echo "---- onlyoffice docservice" >&2

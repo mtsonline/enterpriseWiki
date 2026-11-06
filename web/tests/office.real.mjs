@@ -11,6 +11,7 @@ const PASSWORD = process.env.EWIKI_OFFICE_PASSWORD ?? '';
 
 let browser, page;
 const errors = [];
+const consoleLog = [];
 
 // ---------------------------------------------------------------- a minimal .docx (stored zip)
 const crcTable = Array.from({ length: 256 }, (_, n) => {
@@ -75,6 +76,9 @@ async function shot(name, fn) {
     await fn();
   } catch (e) {
     await page.screenshot({ path: `/tmp/office-${name}.png`, fullPage: true }).catch(() => undefined);
+    const text = await page.locator('main').innerText().catch(() => '');
+    const frames = page.frames().map((f) => f.url()).join('\n  ');
+    console.log(`---- ${name}: page ${page.url()}\n${text.slice(0, 1500)}\n---- frames:\n  ${frames}\n---- console:\n${consoleLog.slice(-40).join('\n')}`);
     throw e;
   }
 }
@@ -83,6 +87,8 @@ before(async () => {
   browser = await chromium.launch({ args: ['--host-resolver-rules=MAP wiki.test 127.0.0.1, MAP office.test 127.0.0.1, MAP docs.test 127.0.0.1'] });
   page = await browser.newPage({ viewport: { width: 1400, height: 1000 } });
   page.on('pageerror', (e) => errors.push(e.message));
+  page.on('console', (m) => consoleLog.push(`[${m.type()}] ${m.text()}`));
+  page.on('requestfailed', (r) => consoleLog.push(`[requestfailed] ${r.url()} ${r.failure()?.errorText}`));
   await page.goto(BASE + '/login');
   await page.getByLabel(/user ?name|benutzername/i).fill(USER);
   await page.getByLabel(/^(password|passwort)/i).fill(PASSWORD);
