@@ -4,7 +4,7 @@ Security first: Eine Version wird nur veröffentlicht, wenn alle Prüfungen grü
 
 | Prüfung | Was sie findet | Wo |
 |---|---|---|
-| `govulncheck` | bekannte Schwachstellen in Go und allen Modulen, die der Code tatsächlich aufruft | Job *Security* |
+| `govulncheck` | bekannte Schwachstellen in Go und allen Modulen, die der Code tatsächlich aufruft. Gibt es noch keine korrigierte Version, wird die Lücke im eigenen Code abgefangen und mit Ablaufdatum in `.govulncheck-allow` eingetragen (danach schlägt die Prüfung wieder an) | Job *Security* (`scripts/govulncheck.sh`) |
 | `gosec` | unsichere Muster (Injection, Pfade, TLS, Rechte, Redirects …) und nicht ausgewertete Fehler (alle Regeln); jede Ausnahme steht als `#nosec Gxxx -- Begründung` im Code | Job *Security* |
 | `npm audit` | bekannte Schwachstellen in allen npm-Paketen, auch Build-Werkzeugen | Job *Security* |
 | Trivy (Image) | Schwachstellen (HIGH/CRITICAL mit verfügbarem Fix) und Geheimnisse im Docker-Image | Job *Docker images* |
@@ -16,3 +16,9 @@ Security first: Eine Version wird nur veröffentlicht, wenn alle Prüfungen grü
 Bei neuen Funktionen gehört ein Test für die Rechteprüfung dazu (wer darf es, wer nicht – auch über API-Keys und auf anderen Sites). Neue `#nosec`-Ausnahmen brauchen eine Begründung, warum kein Risiko besteht.
 
 Sicherheitslücken bitte nicht öffentlich melden, sondern wie in `SECURITY.md` beschrieben (GitHub: *Security → Report a vulnerability*).
+
+## Abgefangene Lücken in Abhängigkeiten
+
+| Lücke | Betroffen | Abfangen im Code | geprüft bis |
+|---|---|---|---|
+| GO-2026-6909 | `crewjam/saml` v0.5.1 (SAML-Anmeldung): Absturz bei Assertions ohne Subject/Conditions; `NameID` und Attribute werden ohne Namespace gelesen, ein fremdes `<NameID>` in einer signierten Assertion könnte den Benutzer festlegen | `plugins/auth_shib/guard.go`: Vorprüfung jeder (auch verschlüsselten) Assertion vor der Bibliothek – genau ein Issuer, Subject, Conditions, SubjectConfirmationData; alle SAML-Elemente im SAML-Namespace; Absturz der Bibliothek wird zum Fehler | 2026-12-31 |

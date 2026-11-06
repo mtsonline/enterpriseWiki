@@ -65,7 +65,7 @@ jobs:
       - uses: actions/setup-go@v7
         with: { go-version: "${{ steps.gover.outputs.version }}" }
       - name: known vulnerabilities in Go code and modules (govulncheck)
-        run: go run golang.org/x/vuln/cmd/govulncheck@latest ./...
+        run: scripts/govulncheck.sh
       # all rules, including G104 (unchecked errors); every finding is fixed or
       # justified in the code (#nosec Gxxx -- reason)
       - name: static security analysis (gosec)

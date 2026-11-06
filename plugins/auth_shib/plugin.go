@@ -168,7 +168,7 @@ func (p *Provider) Callback(ctx context.Context, r *http.Request, req *auth.SSOR
 	if err != nil {
 		return nil, err
 	}
-	a, err := sp.ParseResponse(r, []string{req.Data["request_id"]})
+	a, err := parseResponse(sp, r, []string{req.Data["request_id"]})
 	if err != nil {
 		var ire *saml.InvalidResponseError
 		if errors.As(err, &ire) {

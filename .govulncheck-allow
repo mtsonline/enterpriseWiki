@@ -1,0 +1,4 @@
+# Known vulnerabilities without a fixed release that are mitigated in our code.
+# Format: ID  UNTIL(YYYY-MM-DD)  reason
+# After UNTIL the finding fails CI again, so it is reviewed regularly.
+GO-2026-6909  2026-12-31  crewjam/saml v0.5.1 nil-pointer panic and namespace-blind NameID; mitigated by plugins/auth_shib/guard.go (pre-check of every assertion, recover around the library)
