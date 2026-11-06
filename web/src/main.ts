@@ -1,5 +1,6 @@
 // Application bootstrap.
 import './styles/base.css';
+import { mediaView } from './views/media';
 import { api } from './core/api';
 import { h, mount } from './core/dom';
 import { loadMessages, t } from './core/i18n';
@@ -32,6 +33,7 @@ function registerCore(): void {
   route('/login', loginView);
   route('/profile', profileView);
   route('/trash', trashView);
+  route('/media', mediaView);
   route('/admin', adminView);
   route('/admin/:section', adminView);
   setNotFound(notFoundView);

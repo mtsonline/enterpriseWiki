@@ -34,3 +34,13 @@
 .ew-http-object { display: grid; grid-template-columns: max-content 1fr; gap: .2rem 1rem; }
 .ew-http-object dt { font-weight: 600; }
 .ew-table-wrap { overflow-x: auto; }
+
+/* image gallery */
+.ew-gallery { list-style: none; padding: 0; margin: 1rem 0; display: grid; grid-template-columns: repeat(var(--ew-gallery-cols, 4), minmax(0, 1fr)); gap: .5rem; }
+.ew-gallery-item a { display: block; }
+.ew-gallery-item img { width: 100%; aspect-ratio: 4 / 3; object-fit: cover; border-radius: var(--ew-radius, 6px); display: block; }
+.ew-gallery-caption { display: block; font-size: .875rem; margin-top: .25rem; }
+.ew-protected img { user-select: none; -webkit-user-drag: none; }
+@media (max-width: 40rem) { .ew-gallery { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.ew-lightbox { text-align: center; }
+.ew-lightbox-img { max-width: 100%; max-height: 75vh; }

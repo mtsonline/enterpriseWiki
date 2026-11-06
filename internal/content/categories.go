@@ -31,11 +31,11 @@ type Category struct {
 	Tags             []string          `json:"tags"`
 	DefaultElementID *int64            `json:"default_element_id"`
 	// Feed: off | on (elements of this category) | recursive (with subcategories)
-	Feed         string     `json:"feed"`
-	ShortURL     string     `json:"short_url"`
-	ShortOnly    bool       `json:"short_only"`
+	Feed      string `json:"feed"`
+	ShortURL  string `json:"short_url"`
+	ShortOnly bool   `json:"short_only"`
 	// Hidden: not in navigation, menus, listings and search (folders for media)
-	Hidden bool `json:"hidden"`
+	Hidden       bool       `json:"hidden"`
 	CreatedAt    time.Time  `json:"created_at"`
 	UpdatedAt    time.Time  `json:"updated_at"`
 	DeletedAt    *time.Time `json:"deleted_at,omitempty"`
@@ -298,10 +298,10 @@ type CategoryInput struct {
 	// ShortURL is an additional address such as /kalender ("" removes it).
 	ShortURL *string `json:"short_url"`
 	// ShortOnly: only the short URL reaches the category (no readable path)
-	ShortOnly *bool   `json:"short_only"`
+	ShortOnly *bool `json:"short_only"`
 	// Hidden: not in navigation, menus, listings and search
-	Hidden *bool `json:"hidden"`
-	Feed      *string `json:"feed"`
+	Hidden *bool   `json:"hidden"`
+	Feed   *string `json:"feed"`
 	// GuestVisible applies to new top-level categories: true makes them
 	// visible to guests (default: only the creator has permissions).
 	GuestVisible *bool `json:"guest_visible"`

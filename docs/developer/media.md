@@ -1,6 +1,6 @@
 # Medien (M13) – Entwurf
 
-Stand der Umsetzung: `internal/media/imaging.go` (Bildbearbeitung, Wasserzeichen) ist fertig; alles Weitere folgt diesem Entwurf.
+Umgesetzt in `internal/media` (Dienst, Rechte, Auslieferung, Bildbearbeitung, Wasserzeichen), `internal/server/api_media.go`, `internal/cli/media.go`, `web/src/components/media.ts` (Bibliothek, Hochladen, Details, Bildeditor, Anzeige, Auswahl) und dem Makro `gallery` (`plugins/core_macros`). Plugins erreichen den Dienst über `sdk.Host.Media`, im Frontend über `pickMedium`, `uploadDialog`, `mediaURL`, `mediaViewer` aus `@ewiki/sdk`. Offen: Registrierung von Anzeigeprogrammen (mit M14).
 
 ## Datenmodell (Site-Schema)
 

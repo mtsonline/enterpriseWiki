@@ -150,7 +150,7 @@ export function confirmDialog(message: string, confirmLabel = t('common.confirm'
  * A dialog with a form. onSubmit may throw; the error is shown inside the
  * dialog (role=alert) and the dialog stays open.
  */
-export function formDialog(title: string, fields: Child, submitLabel: string, onSubmit: (form: HTMLFormElement) => Promise<void>, opts: { wide?: boolean } = {}): DialogHandle {
+export function formDialog(title: string, fields: Child, submitLabel: string, onSubmit: (form: HTMLFormElement) => Promise<void>, opts: { wide?: boolean; onClose?: () => void } = {}): DialogHandle {
   const alert = h('div', { class: 'ew-form-alert', role: 'alert' });
   const submit = button(submitLabel, () => undefined, { variant: 'primary', type: 'submit' });
   const form = h('form', { class: 'ew-form', novalidate: true }, alert, fields, h('div', { class: 'ew-dialog-actions' }, button(t('common.cancel'), () => handle.close()), submit));

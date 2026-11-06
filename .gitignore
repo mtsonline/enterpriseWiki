@@ -11,3 +11,6 @@
 /plugins/.backup/
 *.new
 .DS_Store
+# test runs (storage below the package directory)
+/internal/**/data/
+/plugins/**/data/

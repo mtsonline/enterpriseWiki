@@ -28,7 +28,7 @@ func (p *Plugin) Manifest() sdk.Manifest { return sdk.ParseManifest(manifest) }
 
 // Setup registers the macros.
 func (p *Plugin) Setup(h *sdk.Host) error {
-	for _, m := range []content.Macro{toc{}, children{}, recent{}, panel{}, expand{}, status{}, columns{}} {
+	for _, m := range []content.Macro{toc{}, children{}, recent{}, panel{}, expand{}, status{}, columns{}, gallery{svc: h.Media}} {
 		h.RegisterMacro(m)
 	}
 	return nil

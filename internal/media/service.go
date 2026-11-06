@@ -906,7 +906,11 @@ func (s *Service) Usage(ctx context.Context, id int64) ([]int64, error) {
 	return out, rows.Err()
 }
 
-var refRe = regexp.MustCompile(`/api/v1/media/(\d+)|\bmedia[=:]\s*"?(\d+)`)
+var (
+	refRe  = regexp.MustCompile(`/api/v1/media/(\d+)`)
+	listRe = regexp.MustCompile(`\\?"media\\?"\s*:\s*\\?"([\d,\s]+)\\?"`) // macro parameter media="1,2,3" (also JSON-escaped)
+	numRe  = regexp.MustCompile(`\d+`)
+)
 
 // RefreshUsage recomputes which media an element embeds (all languages,
 // latest revisions). Called on every change of an element.
@@ -923,12 +927,15 @@ func (s *Service) RefreshUsage(ctx context.Context, elementID int64) error {
 			return err
 		}
 		for _, m := range refRe.FindAllStringSubmatch(body, -1) {
-			v := m[1]
-			if v == "" {
-				v = m[2]
-			}
-			if id, err := strconv.ParseInt(v, 10, 64); err == nil {
+			if id, err := strconv.ParseInt(m[1], 10, 64); err == nil {
 				ids[id] = true
+			}
+		}
+		for _, m := range listRe.FindAllStringSubmatch(body, -1) {
+			for _, v := range numRe.FindAllString(m[1], 100) {
+				if id, err := strconv.ParseInt(v, 10, 64); err == nil {
+					ids[id] = true
+				}
 			}
 		}
 	}

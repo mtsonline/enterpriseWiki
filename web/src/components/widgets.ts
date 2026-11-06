@@ -113,6 +113,7 @@ export function userMenu(): HTMLElement {
   const menuId = uid('menu');
   const items: HTMLElement[] = [
     h('li', null, h('a', { href: '/profile' }, t('nav.profile'))),
+    h('li', null, h('a', { href: '/media' }, t('media.library'))),
     h('li', null, h('a', { href: '/trash' }, t('nav.trash'))),
   ];
   if (canOpenAdmin()) items.push(h('li', null, h('a', { href: '/admin' }, t('nav.admin'))));

@@ -101,6 +101,19 @@ curl -H "Authorization: Bearer $KEY" -H 'Content-Type: application/json' \
 | `DELETE` | `/api/v1/me/feed-token` |
 | `GET` | `/api/v1/me/profile` |
 | `PUT` | `/api/v1/me/profile` |
+| `GET` | `/api/v1/media` |
+| `POST` | `/api/v1/media` |
+| `GET` | `/api/v1/media/{id}` |
+| `PATCH` | `/api/v1/media/{id}` |
+| `DELETE` | `/api/v1/media/{id}` |
+| `POST` | `/api/v1/media/{id}/file` |
+| `POST` | `/api/v1/media/{id}/edit` |
+| `GET` | `/api/v1/media/{id}/versions` |
+| `POST` | `/api/v1/media/{id}/versions/{v}/restore` |
+| `GET` | `/api/v1/media/{id}/usage` |
+| `GET` | `/api/v1/media/{id}/acl` |
+| `GET` | `/api/v1/media/{id}/view` |
+| `GET` | `/api/v1/media/{id}/download` |
 
 ### Benutzer, Gruppen, Rollen
 

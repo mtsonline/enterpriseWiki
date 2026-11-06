@@ -904,6 +904,40 @@ test('a further site on its own host name: separate content, shared account', as
   await page.getByRole('cell', { name: host }).waitFor({ state: 'detached' });
 });
 
+test('media library: upload with rights options, details, image editor', async () => {
+  const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAgAAAAGCAIAAABxZ0isAAAAXUlEQVR4nAXBMQEAMAgEsVfCjIiKYK6SV3IzIiqCGUVNJBHiiCssEE+skJJITnITJyQv2UQqojjFLVxQvGILyYQ55hobzDNrpCaa09zGDc1rtpGGGM5wBw8Mb9jhA/3OQpEMoO8GAAAAAElFTkSuQmCC', 'base64');
+  await page.goto(`${BASE}/media`);
+  await idle();
+  await a11y('media library');
+  await page.locator('.ew-media-toolbar').getByRole('button', { name: /^(Upload|Hochladen)$/ }).click();
+  const dlg = page.getByRole('dialog');
+  await dlg.locator('input[type=file]').setInputFiles({ name: `pic-${run}.png`, mimeType: 'image/png', buffer: png });
+  // first category the user may add files to
+  const cat = dlg.locator('select').first();
+  const values = await cat.locator('option').evaluateAll((os) => os.map((o) => o.value).filter((v) => v && v !== '0'));
+  await cat.selectOption(values[0]);
+  await dlg.getByLabel(/^(Title|Titel)/).fill(`Pic ${run}`);
+  await dlg.getByLabel(/^(Alternative text|Alternativtext)/).fill('Coloured test pattern');
+  await dlg.getByLabel(/^(Watermark|Wasserzeichen)$/).selectOption('viewer_view');
+  await a11y('upload dialog');
+  await dlg.locator('form').getByRole('button', { name: /^(Upload|Hochladen)$/ }).click();
+  const tile = page.getByRole('button', { name: new RegExp(`^Pic ${run}`) });
+  await tile.waitFor();
+  await tile.click();
+  const details = page.getByRole('dialog', { name: `Pic ${run}` });
+  await details.getByRole('button', { name: /^(Edit image|Bild bearbeiten)$/ }).waitFor();
+  await a11y('media details');
+  await details.getByRole('button', { name: /^(Edit image|Bild bearbeiten)$/ }).click();
+  const editor = page.getByRole('dialog', { name: /(Edit image|Bild bearbeiten):/ });
+  await editor.getByRole('button', { name: /^(Rotate right|Nach rechts drehen)$/ }).click();
+  await a11y('image editor');
+  await editor.getByRole('button', { name: /^(Save as new version|Als neue Version speichern)$/ }).click();
+  await editor.waitFor({ state: 'detached' });
+  // version 2, now 6×8
+  await details.getByText(/6×8/).first().waitFor();
+  await details.getByRole('button', { name: /^(Close|Schließen)$/ }).first().click();
+});
+
 test('no JavaScript errors occurred', () => {
   assert.deepEqual(errors, []);
 });

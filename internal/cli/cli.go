@@ -65,6 +65,9 @@ Users
 Guest cache
   cache status | cache clear
 
+Media library
+  media list|upload|info|update|replace|edit|versions|restore|usage|acl|download|delete   (ewiki media for details)
+
 License (Business Source License 1.1, free for private use of natural persons)
   site list | create NAME --host H[,H] [--title T] | update NAME [...] | delete NAME --yes
   site admins | site admins add|remove USER_ID     instance administrators
@@ -218,6 +221,8 @@ func Main(args []string) int {
 		err = e.categoryCmd(args[1:])
 	case "cache":
 		err = e.cacheCmd(args[1:])
+	case "media":
+		err = e.media(args[1:])
 	case "site":
 		err = e.siteCmd(args[1:])
 	case "license":

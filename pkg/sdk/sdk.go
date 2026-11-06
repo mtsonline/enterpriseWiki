@@ -33,6 +33,7 @@ import (
 	"github.com/mtsonline/enterprisewiki/internal/i18n"
 	"github.com/mtsonline/enterprisewiki/internal/identity"
 	"github.com/mtsonline/enterprisewiki/internal/mail"
+	"github.com/mtsonline/enterprisewiki/internal/media"
 	"github.com/mtsonline/enterprisewiki/internal/notify"
 	"github.com/mtsonline/enterprisewiki/internal/perm"
 	"github.com/mtsonline/enterprisewiki/internal/storage"
@@ -139,6 +140,7 @@ type Host struct {
 	Auth     *auth.Service
 	I18n     *i18n.Service
 	Files    *storage.Store
+	Media    *media.Service
 	Mail     *mail.Service
 	Workers  *worker.Registry
 	// Webhooks queues HTTP notifications (Emit) for events of the plugin.

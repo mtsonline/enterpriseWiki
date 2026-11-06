@@ -272,7 +272,7 @@ func newSite(ctx context.Context, in *Instance, site string, migrate bool) (*App
 		a.close()
 		return nil, err
 	}
-	base := sdk.Host{Notify: a.Notify, Webhooks: a.Webhooks, Config: cfg, DB: pool, ACL: a.ACL, Content: a.Content, Auth: a.Auth, I18n: a.I18n, Files: a.Files, Mail: a.Mail, Workers: a.Workers,
+	base := sdk.Host{Notify: a.Notify, Webhooks: a.Webhooks, Config: cfg, DB: pool, ACL: a.ACL, Content: a.Content, Auth: a.Auth, I18n: a.I18n, Files: a.Files, Media: a.Media, Mail: a.Mail, Workers: a.Workers,
 		Log: log, Mux: a.Mux, IsEnabled: a.Kernel.Enabled}
 	if err := a.Kernel.Setup(base, a.I18n); err != nil {
 		a.close()

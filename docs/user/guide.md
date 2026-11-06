@@ -37,8 +37,19 @@ Die aktuell geöffnete Kategorie ist automatisch als übergeordnete Kategorie au
 ### Dateien
 Wählen Sie bei *Neue Seite* den Elementtyp **Datei**, laden Sie die Datei hoch und beschreiben Sie sie. PDFs, Bilder und Videos werden direkt angezeigt, andere Dateien stehen zum Herunterladen bereit. Eine neue Datei hochzuladen und zu speichern erzeugt eine neue Version. Frühere Dateien bleiben im Verlauf erhalten. Der Text von PDFs ist über die Suche auffindbar.
 
+### Medienbibliothek
+Unter *Benutzermenü → Medien* (`/media`) liegen alle Bilder, Dokumente und anderen Dateien der Site. Jede Datei gehört zu einer Kategorie und hat deren Rechte. Als „Ordner“ für Medien eignen sich **unsichtbare Kategorien** (*Kategorie-Einstellungen → Unsichtbare Kategorie*): Sie erscheinen nicht in Navigation, Menüs, Listen und Suche, haben aber ganz normale Rechte.
+
+Beim **Hochladen** legen Sie fest:
+- **Kategorie** – bestimmt die Rechte. Wer eine Seite sehen darf, in der die Datei eingebunden ist, sieht sie dort ebenfalls.
+- **Herunterladen erlaubt** – ausgeschaltet kann die Datei nur angesehen werden: kein Download-Knopf, kein direkter Link, das Kontextmenü ist gesperrt. PDFs werden dann seitenweise als Bilder gezeigt. (Bildschirmfotos lassen sich technisch nie verhindern – dafür gibt es Wasserzeichen.)
+- **Wasserzeichen** – keins; *Original nicht speichern* (nur die Fassung mit Ihrem Namen); *mit Ihrem Wasserzeichen anzeigen, Original zum Herunterladen*; *Namen des Betrachters beim Anzeigen einbrennen*; *beim Anzeigen und Herunterladen*. Name und Datum sind vorausgewählt, beides abwählbar, dazu ein optionaler Kommentar. Gilt für Bilder und PDFs.
+- **Eigene Rechte** – ersetzen die Rechte der Kategorie und der Seiten, die die Datei zeigen (Ansehen, Herunterladen, Bearbeiten, Verwalten für Personen, Gruppen, Rollen, angemeldete Benutzer oder Gäste). Sie können nur Rechte vergeben, die Sie selbst haben.
+
+In der **Detailansicht** sehen Sie Größe, Versionen und auf welchen Seiten die Datei verwendet wird; mit Bearbeitungsrecht ändern Sie Texte, laden eine neue Version hoch oder öffnen den **Bildeditor** (Zuschneiden, Drehen, Spiegeln, Skalieren, Helligkeit/Kontrast/Sättigung, Graustufen, Weichzeichnen). Jede Bearbeitung ist eine neue Version; alle Seiten zeigen automatisch die neueste, frühere Versionen lassen sich wiederherstellen.
+
 ### Bilder in Seiten
-Im Editor fügt der Knopf **Bild einfügen** ein Bild ein. Geben Sie dabei einen Alternativtext an, der das Bild für Menschen beschreibt, die es nicht sehen können.
+Im Editor öffnet der Knopf **Bild einfügen** die Medienbibliothek: Bild auswählen oder neu hochladen (Standard: Kategorie der Seite) und einen Alternativtext angeben, der das Bild für Menschen beschreibt, die es nicht sehen können. Andere Dateien werden als Link eingefügt. Das Makro **Bildergalerie** zeigt ausgewählte Bilder (`media="12,13,14"`) oder alle Bilder einer Kategorie als Raster; ein Klick öffnet das Bild groß, mit den Pfeiltasten blättern Sie weiter.
 
 ### Makros
 Makros sind Bausteine, die beim Anzeigen der Seite ausgefüllt werden. Im Editor fügt der Knopf **Makro** (⚙) eines ein; steht der Cursor in einem Makro, bearbeitet derselbe Knopf dessen Einstellungen. Im Markdown-Modus gibt es dafür *Makro einfügen* über dem Textfeld.

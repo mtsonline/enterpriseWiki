@@ -110,6 +110,14 @@ func (e *env) apiJSON(method, path, as string, fn func([]byte) error) error {
 
 // call runs one API request in-process.
 func (e *env) call(method, path string, body []byte, as string) (int, []byte, error) {
+	code, out, _, err := e.callType(method, path, body, "application/json", as)
+	return code, out, err
+}
+
+// callType runs one API request in-process with a content type (uploads)
+// and returns the response headers too (downloads).
+func (e *env) callType(method, path string, body []byte, contentType, as string) (int, []byte, http.Header, error) {
+	var hdr http.Header
 	var code int
 	var out []byte
 	err := e.withApp(false, func(ctx context.Context, a *app.App) error {
@@ -132,13 +140,13 @@ func (e *env) call(method, path string, body []byte, as string) (int, []byte, er
 		}
 		srv := server.New(a, nil, pluginmgr.New(a.Root, a.Config, nil))
 		req := httptest.NewRequest(method, path, bytes.NewReader(body)).WithContext(identity.With(ctx, p))
-		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("Content-Type", contentType)
 		rec := httptest.NewRecorder()
 		srv.Handler().ServeHTTP(rec, req)
-		code, out = rec.Code, rec.Body.Bytes()
+		code, out, hdr = rec.Code, rec.Body.Bytes(), rec.Header()
 		return nil
 	})
-	return code, out, err
+	return code, out, hdr, err
 }
 
 func (e *env) readPassword(fromStdin bool, prompt string) (string, error) {

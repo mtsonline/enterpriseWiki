@@ -1,7 +1,7 @@
 // Editor for core.html: accessible WYSIWYG (contenteditable) or Markdown.
 // The server sanitizes everything on save and render, so the editor does
 // not need to be a security boundary.
-import { api, button, field, formDialog, h, registerEditor, select, t, textInput, toast, trustedHTML, uploadFile, type EditorInstance } from '@ewiki/sdk';
+import { api, button, field, formDialog, h, isImage, mediaURL, pickMedium, registerEditor, select, t, textInput, toast, trustedHTML, type EditorInstance } from '@ewiki/sdk';
 import { macroAt, macroDialog, macroHTML, parseParams } from './macros';
 import './style.css';
 
@@ -88,7 +88,7 @@ export function createHtmlEditor(container: HTMLElement, body: unknown, ctx: { l
     if (!editable) return;
     editable.focus();
     if (tool.cmd === 'link') return linkDialog();
-    if (tool.cmd === 'image') return imageDialog();
+    if (tool.cmd === 'image') return void imageDialog();
     if (tool.cmd === 'macro') return void openMacro();
     if (tool.cmd === 'table') {
       const cells = (tag: string) => `<tr>${[1, 2, 3].map(() => `<${tag}><br></${tag}>`).join('')}</tr>`;
@@ -130,20 +130,21 @@ export function createHtmlEditor(container: HTMLElement, body: unknown, ctx: { l
     });
   };
 
-  // Images: upload, then insert with a mandatory alternative text (WCAG 1.1.1).
-  const imageDialog = () => {
+  // Images: chosen from (or uploaded to) the media library, inserted with a
+  // mandatory alternative text (WCAG 1.1.1). Other files are inserted as link.
+  const imageDialog = async () => {
     const sel = document.getSelection();
     const range = sel && sel.rangeCount ? sel.getRangeAt(0).cloneRange() : null;
-    const file = h('input', { type: 'file', accept: 'image/png,image/jpeg,image/gif,image/webp', class: 'ew-input' });
-    const alt = textInput({ maxlength: 300 });
-    formDialog(t('core.html.image'), [field(t('core.html.image_file'), file, { required: true }),
-      field(t('core.html.image_alt'), alt, { required: true, help: t('core.html.image_alt_help') })], t('common.apply'), async () => {
-      const f = file.files?.[0];
-      if (!f) throw new Error(t('core.html.image_file'));
-      const up = await uploadFile(f);
-      if (!up.mime.startsWith('image/')) throw new Error(t('core.html.image_type'));
-      const esc = (x: string) => x.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
-      afterDialog(range, () => document.execCommand('insertHTML', false, `<img src="/api/v1/files/${up.hash}" alt="${esc(alt.value.trim())}">`));
+    const m = await pickMedium();
+    if (!m) return;
+    const esc = (x: string) => x.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
+    if (!isImage(m)) {
+      afterDialog(range, () => document.execCommand('insertHTML', false, `<a href="/api/v1/media/${m.id}/view">${esc(m.title || m.name)}</a>`));
+      return;
+    }
+    const alt = textInput({ maxlength: 300, value: m.alt });
+    formDialog(t('core.html.image'), [field(t('core.html.image_alt'), alt, { required: true, help: t('core.html.image_alt_help') })], t('common.apply'), async () => {
+      afterDialog(range, () => document.execCommand('insertHTML', false, `<img src="${mediaURL(m)}" alt="${esc(alt.value.trim())}">`));
     });
   };
 

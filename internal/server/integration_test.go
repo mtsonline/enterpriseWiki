@@ -77,6 +77,7 @@ func setup(t *testing.T) *env {
 	dir := t.TempDir()
 	c := config.Defaults()
 	c.Database.URL = "${EWIKI_TEST_DATABASE_URL}"
+	c.Storage.Path = filepath.Join(dir, "data") // never inside the source tree
 	c.I18n.Languages = []string{"en", "de", "fr"}
 	c.Plugins.Disabled = []string{}
 	cfgPath := filepath.Join(dir, "config.yaml")

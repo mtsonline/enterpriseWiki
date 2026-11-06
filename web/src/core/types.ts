@@ -73,7 +73,38 @@ export interface Category {
   /** readable path per language */
   urls?: Record<string, string>;
   short_only?: boolean;
+  /** not in navigation, menus, listings and search (e.g. folders for media) */
+  hidden?: boolean;
 }
+
+/** A file of the media library (GET /api/v1/media/{id}). */
+export interface Medium {
+  id: number;
+  category_id: number;
+  name: string;
+  title: string;
+  alt: string;
+  description: string;
+  version: number;
+  mime: string;
+  size: number;
+  width: number;
+  height: number;
+  download: boolean;
+  own_acl: boolean;
+  watermark: Watermark;
+  created_by?: number;
+  created_at: string;
+  updated_at: string;
+  permissions: string[];
+  view_only: boolean;
+  url: string;
+}
+
+export type WatermarkMode = 'none' | 'uploader_only' | 'uploader_view' | 'viewer_view' | 'viewer_all';
+export interface Watermark { mode: WatermarkMode; user: boolean; date: boolean; comment: string }
+export interface MediaRule { subject_type: string; subject_id?: number | null; perms: string[] }
+export interface MediaVersion { version: number; mime: string; size: number; width: number; height: number; ops: unknown[]; note: string; created_by?: number; created_at: string }
 
 export interface ElementSummary {
   id: number;
