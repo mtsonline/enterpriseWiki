@@ -10,8 +10,8 @@ export interface SettingField {
   key: string;
   label: string;
   type?: 'text' | 'secret' | 'bool' | 'list' | 'map' | 'select' | 'textarea' | 'number' | 'image' | 'color';
-  /** Default for color fields. */
-  default?: string;
+  /** Default for color fields (string) and bool fields (boolean). */
+  default?: string | boolean;
   help?: string;
   placeholder?: string;
   options?: { value: string; label: string }[];
@@ -59,7 +59,7 @@ export async function pluginSettingsForm(pluginId: string, fields: SettingField[
     let el: HTMLElement;
     switch (f.type ?? 'text') {
       case 'bool': {
-        const cb = checkbox(f.label, v === undefined ? f.key === 'keep_unmapped_groups' : v === true, { help: f.help });
+        const cb = checkbox(f.label, v === undefined ? f.default === true || f.key === 'keep_unmapped_groups' : v === true, { help: f.help });
         getters[f.key] = () => cb.input.checked;
         el = cb.el;
         break;
@@ -90,7 +90,7 @@ export async function pluginSettingsForm(pluginId: string, fields: SettingField[
         break;
       }
       case 'color': {
-        const inp = h('input', { type: 'color', class: 'ew-input ew-color-input', value: String(v ?? f.default ?? '#0a3760') }) as HTMLInputElement;
+        const inp = h('input', { type: 'color', class: 'ew-input ew-color-input', value: String(v ?? (typeof f.default === 'string' ? f.default : '#0a3760')) }) as HTMLInputElement;
         getters[f.key] = () => inp.value;
         el = field(f.label, inp, { help: f.help });
         break;

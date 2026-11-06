@@ -25,6 +25,9 @@ const mediaUsage = `usage: ewiki media list [--category ID] [--recursive] [--q T
        ewiki media edit ID OPS [--note TEXT] (OPS: JSON list, e.g. [{"type":"rotate","deg":90}])
        ewiki media restore ID VERSION
        ewiki media download ID [--version N] [-o FILE]
+       ewiki media viewers                  (programs: browser and active office plugins)
+       ewiki media programs ID              (how the user may open the file)
+       ewiki media open ID --as USER [--viewer PLUGIN] [--mode edit|view]
   --as USER acts as this user (rights, watermark with the viewer's name)`
 
 func (e *env) media(args []string) error {
@@ -51,6 +54,8 @@ func (e *env) media(args []string) error {
 	note := fs.String("note", "", "note on the new version")
 	version := fs.Int("version", 0, "version")
 	out := fs.String("o", "", "output file")
+	viewer := fs.String("viewer", "", "office program (plugin id)")
+	mode := fs.String("mode", "", "edit or view")
 	var pos []string
 	for len(args) > 0 {
 		if err := fs.Parse(args); err != nil {
@@ -98,6 +103,21 @@ func (e *env) media(args []string) error {
 			path += "/" + sub
 		}
 		return e.apiBody("GET", path, nil, *as)
+	case "viewers":
+		return e.apiBody("GET", "/api/v1/media/viewers", nil, *as)
+	case "programs":
+		i, err := id()
+		if err != nil {
+			return err
+		}
+		return e.apiBody("GET", "/api/v1/media/"+i+"/open", nil, *as)
+	case "open":
+		i, err := id()
+		if err != nil {
+			return err
+		}
+		body, _ := json.Marshal(map[string]string{"viewer": *viewer, "mode": *mode})
+		return e.apiBody("POST", "/api/v1/media/"+i+"/open", body, *as)
 	case "delete":
 		i, err := id()
 		if err != nil {

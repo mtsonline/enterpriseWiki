@@ -139,6 +139,11 @@ type Service struct {
 	log   *slog.Logger
 	// UserName returns the display name of a user (watermarks).
 	UserName func(ctx context.Context, id int64) string
+	// LoadPrincipal loads a user with groups and roles (access tokens).
+	LoadPrincipal func(ctx context.Context, id int64) (*identity.Principal, error)
+	// Enabled reports whether a plugin is active on this site (openers).
+	Enabled func(pluginID string) bool
+	op      openers
 }
 
 // New creates the media service.

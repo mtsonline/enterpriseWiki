@@ -33,6 +33,7 @@ type Config struct {
 	Mode      string                    `yaml:"mode" json:"mode"` // single | cluster
 	Database  Database                  `yaml:"database" json:"database"`
 	Storage   Storage                   `yaml:"storage" json:"storage"`
+	Media     Media                     `yaml:"media" json:"media"`
 	I18n      I18n                      `yaml:"i18n" json:"i18n"`
 	UI        UI                        `yaml:"ui" json:"ui"`
 	Auth      Auth                      `yaml:"auth" json:"auth"`
@@ -138,6 +139,21 @@ type Database struct {
 type Storage struct {
 	Path        string `yaml:"path" json:"path"`
 	MaxUploadMB int    `yaml:"max_upload_mb" json:"max_upload_mb"`
+}
+
+// Media configures how files of the media library are opened.
+type Media struct {
+	// Viewer is the default program for files: "internal" (the browser) or
+	// the id of an active office plugin (e.g. office.collabora). Files the
+	// program cannot open are shown internally.
+	Viewer string `yaml:"viewer,omitempty" json:"viewer,omitempty"`
+	// OpenExternal opens files the default program supports there right
+	// away (instead of the preview with "Open in ..."). Only possible for
+	// one program: the default viewer.
+	OpenExternal bool `yaml:"open_external,omitempty" json:"open_external,omitempty"`
+	// TokenTTL is the lifetime of the access token an office program gets
+	// for one file (default 10h, at most 24h).
+	TokenTTL string `yaml:"token_ttl,omitempty" json:"token_ttl,omitempty"`
 }
 
 // I18n configures UI and content languages.
@@ -613,6 +629,8 @@ func WriteFile(path string, c *Config) error {
 	return os.Rename(tmp.Name(), path)
 }
 
+var pluginIDRe = regexp.MustCompile(`^[a-z][a-z0-9_]*(\.[a-z][a-z0-9_]*)+$`)
+
 var langRe = regexp.MustCompile(`^[a-z]{2,3}(-[A-Z]{2})?$`)
 
 // ValidLanguage reports whether code is an accepted language tag (en, de, de-AT).
@@ -625,6 +643,17 @@ func Validate(c *Config) error {
 	}
 	if err := tlsutil.Validate(c.Mail.SMTP.CA); err != nil && !strings.Contains(c.Mail.SMTP.CA, "${") {
 		return fmt.Errorf("mail.smtp.ca_cert: %w", err)
+	}
+	if v := c.Media.Viewer; v != "" && v != "internal" && !pluginIDRe.MatchString(v) {
+		return fmt.Errorf("media.viewer must be 'internal' or a plugin id, got %q", v)
+	}
+	if c.Media.OpenExternal && (c.Media.Viewer == "" || c.Media.Viewer == "internal") {
+		return errors.New("media.open_external needs an office plugin as media.viewer")
+	}
+	if t := c.Media.TokenTTL; t != "" {
+		if d, err := time.ParseDuration(t); err != nil || d < time.Minute || d > 24*time.Hour {
+			return fmt.Errorf("media.token_ttl must be a duration between 1m and 24h, got %q", t)
+		}
 	}
 	if c.Mode != "single" && c.Mode != "cluster" {
 		return fmt.Errorf("mode must be 'single' or 'cluster', got %q", c.Mode)

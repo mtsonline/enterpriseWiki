@@ -13,7 +13,7 @@ import { canTranslateAny, hasPerm, isAdmin, isInstanceAdmin, state } from '../co
 import { globalEditor, loadCatalog, permLabel } from '../components/permissions';
 import { permissionsAdmin } from './adminPermissions';
 import { auditAdmin } from './adminAudit';
-import type { Group, Role } from '../core/types';
+import type { Group, MediaViewers, Role } from '../core/types';
 import { toast } from '../core/announce';
 import { button, checkbox, confirmDialog, errorText, field, formDialog, openDialog, pageHeader, select, textArea, textInput } from '../components/ui';
 import { langName, setContext } from '../components/widgets';
@@ -463,6 +463,7 @@ interface Settings {
     i18n: { default_language: string; languages: string[] };
     auth: { order: string[]; session_ttl: string; api_key_max_ttl: string; ssh_token_ttl: string; max_login_failures: number; lockout_duration: string; min_password_length: number };
     retention: { revisions_keep_days: number; revisions_keep_min: number; trash_days: number; audit_days: number };
+    media?: { viewer?: string; open_external?: boolean; token_ttl?: string };
     mode: string;
     server: { listen: string; base_url: string };
   };
@@ -513,6 +514,18 @@ async function settings(panel: HTMLElement): Promise<void> {
   const keepMin = num(c.retention.revisions_keep_min);
   const trashDays = num(c.retention.trash_days);
   const auditDays = num(c.retention.audit_days);
+  const viewers = await api.get<MediaViewers>('/api/v1/media/viewers').catch(() => null);
+  const mediaCfg = c.media ?? {};
+  const viewer = select((viewers?.viewers ?? [{ id: 'internal', label: 'Browser', restrict: false }]).map((v) => ({ value: v.id, label: v.id === 'internal' ? t('settings.viewer_internal') : v.label })),
+    mediaCfg.viewer || 'internal');
+  const openExternal = checkbox(t('settings.open_external'), !!mediaCfg.open_external, { help: t('settings.open_external_help') });
+  const syncExternal = () => {
+    openExternal.input.disabled = viewer.value === 'internal';
+    if (openExternal.input.disabled) openExternal.input.checked = false;
+  };
+  viewer.addEventListener('change', syncExternal);
+  syncExternal();
+  const tokenTTL = textInput({ value: mediaCfg.token_ttl ?? '', placeholder: '10h' });
   const alert = h('div', { class: 'ew-form-alert', role: 'alert' });
   const fs = (legend: string, ...kids: HTMLElement[]) => h('fieldset', null, h('legend', null, legend), ...kids);
   const form = h('form', { class: 'ew-form', novalidate: true }, alert,
@@ -520,6 +533,8 @@ async function settings(panel: HTMLElement): Promise<void> {
       field(t('settings.default_language'), defLang, { help: t('settings.languages_help') }), prerender.el, readable.el, sitePreview.el, field(t('settings.guest_view_path'), guestPath, { help: t('settings.guest_view_help') }), guestView),
     fs(t('settings.auth'), field(t('settings.auth_order'), order, { help: t('settings.auth_order_help') }), field(t('settings.session_ttl'), sessionTTL, { help: t('settings.duration_help') }),
       field(t('settings.api_key_max_ttl'), keyTTL), field(t('settings.ssh_token_ttl'), sshTTL), field(t('settings.max_login_failures'), fails), field(t('settings.lockout_duration'), lockout), field(t('settings.min_password_length'), minPw)),
+    fs(t('settings.media'), field(t('settings.viewer'), viewer, { help: t('settings.viewer_help') }), openExternal.el,
+      field(t('settings.office_token_ttl'), tokenTTL, { help: t('settings.office_token_ttl_help') })),
     fs(t('settings.retention'), h('p', { class: 'ew-help' }, t('settings.retention_help')), field(t('settings.revisions_keep_days'), keepDays, { help: t('settings.zero_forever') }), field(t('settings.revisions_keep_min'), keepMin),
       field(t('settings.trash_days'), trashDays, { help: t('settings.zero_never') }), field(t('settings.audit_days'), auditDays, { help: t('settings.zero_forever') })),
     h('div', { class: 'ew-form-actions' }, button(t('common.save'), () => undefined, { type: 'submit', variant: 'primary' }),
@@ -535,6 +550,7 @@ async function settings(panel: HTMLElement): Promise<void> {
         i18n: { default_language: defLang.value, languages: c.i18n.languages },
         auth: { order: order.value.split(',').map((x) => x.trim()).filter(Boolean), session_ttl: sessionTTL.value, api_key_max_ttl: keyTTL.value, ssh_token_ttl: sshTTL.value, max_login_failures: Number(fails.value), lockout_duration: lockout.value, min_password_length: Number(minPw.value) },
         retention: { revisions_keep_days: Number(keepDays.value), revisions_keep_min: Number(keepMin.value), trash_days: Number(trashDays.value), audit_days: Number(auditDays.value) },
+        media: { viewer: viewer.value === 'internal' ? '' : viewer.value, open_external: openExternal.input.checked, token_ttl: tokenTTL.value.trim() },
       });
       toast(t('settings.saved'));
       setTimeout(() => location.reload(), 800);

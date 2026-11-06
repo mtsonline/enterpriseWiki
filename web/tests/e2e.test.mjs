@@ -938,6 +938,37 @@ test('media library: upload with rights options, details, image editor', async (
   await details.getByRole('button', { name: /^(Close|Schließen)$/ }).first().click();
 });
 
+test('office programs: default viewer setting, refusal without a configured server', async () => {
+  await page.goto(`${BASE}/admin/settings`);
+  await idle();
+  const viewer = page.getByLabel(/^(Default viewer for files|Standard-Anzeige für Dateien)/);
+  await viewer.waitFor();
+  const options = await viewer.locator('option').evaluateAll((os) => os.map((o) => o.value));
+  assert.ok(options.includes('internal') && options.includes('office.collabora'), `viewer options: ${options}`);
+  // "always open externally" needs an office program as default
+  const ext = page.getByLabel(/^(Always open files directly|Dateien immer direkt)/);
+  assert.equal(await ext.isDisabled(), true);
+  await viewer.selectOption('office.collabora');
+  assert.equal(await ext.isDisabled(), false);
+  await viewer.selectOption('internal');
+  await a11y('settings with media');
+  // a document; Collabora is active but has no server: the office page refuses with a message
+  const id = await page.evaluate(async (name) => {
+    const cats = await (await fetch('/api/v1/categories')).json();
+    const fd = new FormData();
+    fd.append('meta', JSON.stringify({ category_id: cats[0].id, title: name }));
+    fd.append('file', new File(['PK not really a docx'], `${name}.docx`));
+    const r = await fetch('/api/v1/media', { method: 'POST', body: fd, headers: { 'X-Requested-With': 'ewiki' } });
+    return (await r.json()).id;
+  }, `doc-${run}`);
+  assert.ok(id > 0);
+  await page.goto(`${BASE}/office/${id}?viewer=office.collabora`);
+  await idle();
+  await page.getByRole('alert').filter({ hasText: /./ }).first().waitFor();
+  await a11y('office page refusal');
+  await page.getByRole('button', { name: /^(Back|Zurück)$/ }).click();
+});
+
 test('no JavaScript errors occurred', () => {
   assert.deepEqual(errors, []);
 });

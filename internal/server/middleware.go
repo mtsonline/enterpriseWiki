@@ -91,7 +91,8 @@ func (s *Server) wrap(next http.Handler) http.Handler {
 		h.Set("X-Frame-Options", "SAMEORIGIN")
 		h.Set("Permissions-Policy", "camera=(), microphone=(), geolocation=()")
 		h.Set("Cross-Origin-Opener-Policy", "same-origin")
-		h.Set("Content-Security-Policy", "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self'; object-src 'none'; frame-ancestors 'self'; base-uri 'self'; form-action 'self'")
+		frame, script := s.officeCSP() // origins of active office programs
+		h.Set("Content-Security-Policy", "default-src 'self'; script-src 'self'"+script+"; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self'; frame-src 'self'"+frame+"; object-src 'none'; frame-ancestors 'self'; base-uri 'self'; form-action 'self'"+frame)
 		if cfg.Server.SecureCookies {
 			h.Set("Strict-Transport-Security", "max-age=31536000; includeSubDomains")
 		}
@@ -137,6 +138,11 @@ func (s *Server) authenticate(w http.ResponseWriter, r *http.Request) (context.C
 	ctx := r.Context()
 	if p := identity.From(ctx); p.InProcess() {
 		return ctx, nil // in-process CLI call
+	}
+	if s.app.Media.TokenPath(r.URL.Path) {
+		// office servers authenticate with the access token of one file
+		// (checked by the WOPI handlers); sessions and API keys never count
+		return ctx, nil
 	}
 	if a := r.Header.Get("Authorization"); a != "" {
 		tok, ok := strings.CutPrefix(a, "Bearer ")

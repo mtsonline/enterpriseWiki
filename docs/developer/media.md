@@ -30,13 +30,31 @@ Umgesetzt in `internal/media` (Dienst, Rechte, Auslieferung, Bildbearbeitung, Wa
   - `viewer_all` – beim Anzeigen und Herunterladen
   Bilder: eingebrannt (`media.Watermark`); PDFs: Seiten als Bilder mit Wasserzeichen, Download als PDF aus diesen Seiten. Fassungen pro Betrachter werden zwischengespeichert (Schlüssel: Version, Benutzer, Tag).
 
-## Anzeigeprogramme
+## Anzeigeprogramme (Office)
 
-Plugins registrieren Anzeige-/Bearbeitungsprogramme (`sdk.RegisterViewer`: id, Name, MIME-Typen, kann bearbeiten, kann schreibgeschützt anzeigen). In den Einstellungen wird die Standard-Anzeige gewählt (`media.viewer`: `internal` oder Plugin); „immer extern öffnen“ nur für eines. Office-Plugins folgen in M14.
+Office-Plugins registrieren in `Setup` ein `media.Opener` (`host.Media.RegisterOpener`): `ID`, `Label`, `Caps`
+(`Restrict`: kann Download/Druck/Kopieren sperren, `Watermark`: blendet Text ein, `Script`: Frontend lädt ein Skript),
+`Supports(name, mime)` → ansehen/bearbeiten, `Launch` → `media.Action` (wie der Browser startet) und `Origins` (für die
+CSP). Optional: `OptionsProvider` (z. B. schreibgeschützt ohne Download), `ProofVerifier` (WOPI-Proof-Keys),
+`FileInfoExtender` (eigene CheckFileInfo-Felder).
+
+Für WOPI-Programme gibt es `pkg/wopi`: Discovery (Cache, Schlüsselwechsel), Proof-Key-Prüfung und `wopi.Opener`,
+der ein vollständiges `media.Opener` ist – ein WOPI-Plugin braucht nur Einstellungen und Namen (siehe
+`plugins/office_collabora`). Den WOPI-Host (`/api/v1/wopi/files/{id}`: CheckFileInfo, GetFile, PutFile, Lock,
+GetLock, RefreshLock, Unlock) stellt der Kern.
+
+Eigene Endpunkte für Office-Server (z. B. OnlyOffice-API) meldet das Plugin mit `host.Media.RegisterTokenPath`
+an: Dort wertet der Kern keine Sitzungen aus; der Handler ruft `host.Media.TokenContext(ctx, id, token)` (prüft
+Schlüssel und Rechte) und dann `Content` bzw. `SaveFromOffice`.
+
+Der Kern entscheidet Programm und Betriebsart (`modesFor`): nie mehr als die Rechte der Datei, Wasserzeichen nur
+geschützt, ohne Download nur mit `Restrict` und Option. Zugangsschlüssel: `media_access_tokens` (SHA-256),
+Sperren: `media_locks`. Im Browser startet `registerOfficeRenderer(kind, fn)` das Programm (`wopi` im Kern,
+`onlyoffice` im Plugin), die Seite `/office/{id}?viewer=…&mode=…` zeigt es.
 
 ## Oberfläche, CLI, API
 
 - Medienbibliothek (Kategorien-Baum inkl. unsichtbarer, Raster/Liste, Suche, Filter nach Typ), Hochladen mit Rechten, Download-Schalter und Wasserzeichen-Optionen, Detailansicht mit Versionen und Verwendungen, Bildeditor.
 - Einfügen im Editor über die Medienbibliothek (auch Hochladen direkt dorthin, Standard: Kategorie der Seite).
 - Makro `gallery` (Medien einer Kategorie oder ausgewählte, Lightbox, Tastatur, barrierefrei).
-- CLI: `ewiki media list|upload|info|versions|edit|delete|acl`.
+- CLI: `ewiki media list|upload|info|versions|edit|delete|acl|viewers|programs|open`.

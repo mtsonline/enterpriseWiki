@@ -170,10 +170,10 @@ func (c *Cache) GetStatus() Status {
 // cacheable reports whether a guest GET to this API URL may be cached.
 func cacheable(r *http.Request) bool {
 	p := r.URL.Path
-	if r.Method != http.MethodGet || !strings.HasPrefix(p, "/api/v1/") || r.URL.Query().Has("token") {
+	if r.Method != http.MethodGet || !strings.HasPrefix(p, "/api/v1/") || r.URL.Query().Has("token") || r.URL.Query().Has("access_token") {
 		return false
 	}
-	for _, x := range []string{"/api/v1/auth/", "/api/v1/me", "/api/v1/admin/", "/api/v1/files/", "/api/v1/health"} {
+	for _, x := range []string{"/api/v1/auth/", "/api/v1/me", "/api/v1/admin/", "/api/v1/files/", "/api/v1/health", "/api/v1/wopi/"} {
 		if strings.HasPrefix(p, x) {
 			return false
 		}

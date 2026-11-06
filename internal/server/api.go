@@ -26,6 +26,7 @@ import (
 	h "github.com/mtsonline/enterprisewiki/internal/httpx"
 	"github.com/mtsonline/enterprisewiki/internal/i18n"
 	"github.com/mtsonline/enterprisewiki/internal/identity"
+	"github.com/mtsonline/enterprisewiki/internal/media"
 	"github.com/mtsonline/enterprisewiki/internal/perm"
 	"github.com/mtsonline/enterprisewiki/internal/pluginmgr"
 	"github.com/mtsonline/enterprisewiki/internal/version"
@@ -103,6 +104,7 @@ func requireUser(r *http.Request) (*identity.Principal, error) {
 func (s *Server) routes() {
 	s.routesM2()
 	s.routesMedia()
+	s.routesOffice()
 	s.routesM3()
 	s.routesM4()
 	s.routesM6()
@@ -1013,6 +1015,7 @@ type SettingsUpdate struct {
 	I18n           *config.I18n              `json:"i18n"`
 	Auth           *config.Auth              `json:"auth"`
 	Retention      *config.Retention         `json:"retention"`
+	Media          *config.Media             `json:"media"`
 	Macros         *config.MacroSecurity     `json:"macros"`
 	Mail           *config.Mail              `json:"mail"`
 	Catalog        []config.CatalogEntry     `json:"catalog"`
@@ -1045,6 +1048,12 @@ func (s *Server) updateSettings(w http.ResponseWriter, r *http.Request) (any, er
 		}
 		if in.Retention != nil {
 			c.Retention = *in.Retention
+		}
+		if in.Media != nil {
+			if v := in.Media.Viewer; v != "" && v != media.Internal && s.app.Media.Opener(v) == nil {
+				return apperr.BadRequest("unknown or inactive program %q", v)
+			}
+			c.Media = *in.Media
 		}
 		if in.Macros != nil && !reflect.DeepEqual(*in.Macros, c.Plugins.Macros) {
 			return apperr.BadRequest("macro security settings can only be changed in config.yaml")

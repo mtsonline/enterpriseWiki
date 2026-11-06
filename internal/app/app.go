@@ -268,6 +268,8 @@ func newSite(ctx context.Context, in *Instance, site string, migrate bool) (*App
 	}})
 	a.Auth.SetEnabledFunc(a.Kernel.Enabled)
 	a.Content.SetEnabledFunc(a.Kernel.Enabled)
+	a.Media.Enabled = a.Kernel.Enabled
+	a.Media.LoadPrincipal = a.Auth.LoadPrincipal
 	if err := a.I18n.Register("core", i18n.CoreLocales()); err != nil {
 		a.close()
 		return nil, err

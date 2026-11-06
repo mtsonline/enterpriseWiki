@@ -68,7 +68,7 @@ EWIKI_TEST_DATABASE_URL=postgres://…/wiki_test go test ./...   # löscht die T
 | Für | Dokument |
 |---|---|
 | Benutzer:innen | [Benutzerhandbuch](docs/user/guide.md) |
-| Administration | [Installation](docs/admin/installation.md) · [Konfiguration](docs/admin/configuration.md) · [Anmeldung: LDAP, OIDC, SAML, 2FA](docs/admin/authentication.md) · [Betrieb, Updates, Backup, CLI](docs/admin/operations.md) · [Sicherheit & Berechtigungen](docs/admin/security.md) · [Plugins verwalten](docs/admin/plugins.md) |
+| Administration | [Installation](docs/admin/installation.md) · [Konfiguration](docs/admin/configuration.md) · [Anmeldung: LDAP, OIDC, SAML, 2FA](docs/admin/authentication.md) · [Betrieb, Updates, Backup, CLI](docs/admin/operations.md) · [Sicherheit & Berechtigungen](docs/admin/security.md) · [Plugins verwalten](docs/admin/plugins.md) · [Office-Programme](docs/admin/office.md) |
 | Entwicklung | [Architektur](docs/developer/architecture.md) · [Plugins entwickeln](docs/developer/plugins.md) · [REST-API](docs/developer/api.md) |
 | Planung | [Roadmap](docs/ROADMAP.md) |
 

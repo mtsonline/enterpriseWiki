@@ -22,3 +22,14 @@ Sicherheitslücken bitte nicht öffentlich melden, sondern wie in `SECURITY.md` 
 | Lücke | Betroffen | Abfangen im Code | geprüft bis |
 |---|---|---|---|
 | GO-2026-6909 | `crewjam/saml` v0.5.1 (SAML-Anmeldung): Absturz bei Assertions ohne Subject/Conditions; `NameID` und Attribute werden ohne Namespace gelesen, ein fremdes `<NameID>` in einer signierten Assertion könnte den Benutzer festlegen | `plugins/auth_shib/guard.go`: Vorprüfung jeder (auch verschlüsselten) Assertion vor der Bibliothek – genau ein Issuer, Subject, Conditions, SubjectConfirmationData; alle SAML-Elemente im SAML-Namespace; Absturz der Bibliothek wird zum Fehler | 2026-12-31 |
+
+## Office-Programme (M14)
+
+`TestOfficeWOPI` und `TestOfficeOnlyOfficeAPI` (internal/server) prüfen mit einem nachgebauten Office-Server:
+Proof-Key-Pflicht (unsigniert, fremder Schlüssel, alter Zeitstempel), Schlüssel nur für eine Datei, Sitzungs-Cookies
+zählen am WOPI-Endpunkt nicht, Ansehen-Schlüssel können weder speichern noch sperren, Sperrkonflikte, Rechteentzug
+und deaktiviertes Plugin machen Schlüssel sofort ungültig, ohne Download nur geschützt, Wasserzeichen-Originale nur
+für Verwalter, API-Schlüssel und CLI ohne `--as` erzeugen keine Office-Schlüssel, CSP enthält nur aktive Programme,
+OnlyOffice nur mit gültigem JWT und Downloads nur vom eingestellten Server (SSRF). `pkg/wopi` testet Discovery und
+Proof-Keys (inkl. Schlüsselwechsel, Überlauf, zu kurze Schlüssel), `internal/pagecache` dass Token-URLs nie im
+Gast-Cache landen.

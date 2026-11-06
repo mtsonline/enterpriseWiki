@@ -1,0 +1,14 @@
+{
+ "office.collabora.title": "Collabora Online",
+ "office.collabora.help": "Open and edit files of the media library in Collabora Online. Users who may edit edit there; users who may only download see the file read-only. Changes are saved as a new version.",
+ "office.collabora.url": "Server address",
+ "office.collabora.url_help": "Address of the office server, e.g. https://office.example.com. The server must reach the wiki at its public address (server.base_url).",
+ "office.collabora.verify_proof": "Verify the signature of every request (proof key, recommended)",
+ "office.collabora.verify_proof_help": "The wiki only accepts requests signed by the office server.",
+ "office.collabora.readonly": "Users without the right to download may view the file there read-only",
+ "office.collabora.readonly_help": "Download, print, export and copy are switched off. Otherwise they see the file in the browser only.",
+ "office.collabora.test": "Test connection",
+ "office.collabora.test_ok": "Connected: {view} file types to view, {edit} to edit",
+ "office.collabora.proof_missing": "The server publishes no proof key: switch the check off or update the server.",
+ "office.collabora.default_hint": "Choose the program as default viewer in the general settings (media)."
+}

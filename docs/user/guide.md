@@ -48,6 +48,12 @@ Beim **Hochladen** legen Sie fest:
 
 In der **Detailansicht** sehen Sie Größe, Versionen und auf welchen Seiten die Datei verwendet wird; mit Bearbeitungsrecht ändern Sie Texte, laden eine neue Version hoch oder öffnen den **Bildeditor** (Zuschneiden, Drehen, Spiegeln, Skalieren, Helligkeit/Kontrast/Sättigung, Graustufen, Weichzeichnen). Jede Bearbeitung ist eine neue Version; alle Seiten zeigen automatisch die neueste, frühere Versionen lassen sich wiederherstellen.
 
+**Office-Dateien** (Texte, Tabellen, Präsentationen) öffnen sich, wenn die Administration ein Office-Programm
+eingerichtet hat (Collabora, OnlyOffice oder Microsoft 365), mit *In … bearbeiten* oder *In … ansehen* direkt im
+Browser. Mit Bearbeitungsrecht wird jedes Speichern eine neue Version; ohne Download-Recht sehen Sie die Datei
+schreibgeschützt, ohne Herunterladen, Drucken und Kopieren. Ist „immer direkt öffnen“ eingestellt, startet ein Klick
+auf die Datei das Programm sofort. *Schließen* führt zurück ins Wiki.
+
 ### Bilder in Seiten
 Im Editor öffnet der Knopf **Bild einfügen** die Medienbibliothek: Bild auswählen oder neu hochladen (Standard: Kategorie der Seite) und einen Alternativtext angeben, der das Bild für Menschen beschreibt, die es nicht sehen können. Andere Dateien werden als Link eingefügt. Das Makro **Bildergalerie** zeigt ausgewählte Bilder (`media="12,13,14"`) oder alle Bilder einer Kategorie als Raster; ein Klick öffnet das Bild groß, mit den Pfeiltasten blättern Sie weiter.
 

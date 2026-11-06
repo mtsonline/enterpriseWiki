@@ -1,0 +1,14 @@
+{
+ "office.m365.title": "Microsoft 365",
+ "office.m365.help": "Dateien der Medienbibliothek in Microsoft 365 für das Web (Word, Excel, PowerPoint) öffnen und bearbeiten. Voraussetzung ist die Teilnahme am Microsoft-Programm für Cloud-Speicher-Partner (CSPP); Microsoft schaltet die Adresse des Wikis frei. Benutzer ohne Download-Recht sehen Dateien nur im Browser, weil Microsoft das Herunterladen nicht verlässlich sperrt.",
+ "office.m365.url": "Discovery-Adresse",
+ "office.m365.url_help": "Leer lassen für die Produktivumgebung (https://onenote.officeapps.live.com/hosting/discovery); für Tests die Adresse aus dem CSPP-Programm.",
+ "office.m365.verify_proof": "Signatur jeder Anfrage prüfen (Proof-Key, empfohlen)",
+ "office.m365.verify_proof_help": "Das Wiki nimmt nur Anfragen an, die der Office-Server signiert hat.",
+ "office.m365.test": "Verbindung testen",
+ "office.m365.test_ok": "Verbunden: {view} Dateitypen ansehen, {edit} bearbeiten",
+ "office.m365.proof_missing": "Der Server veröffentlicht keinen Proof-Key: Prüfung abschalten oder Server aktualisieren.",
+ "office.m365.default_hint": "Als Standard-Anzeige wählst du das Programm in den allgemeinen Einstellungen (Medien).",
+ "office.m365.enabled": "Microsoft 365 verwenden",
+ "office.m365.enabled_help": "Erst wenn das eingeschaltet ist, ruft das Wiki Microsoft-Server auf."
+}

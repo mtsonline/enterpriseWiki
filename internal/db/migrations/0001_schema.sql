@@ -328,6 +328,27 @@ CREATE TABLE media_usage (
 );
 CREATE INDEX media_usage_element ON media_usage(element_id);
 
+-- access tokens for office programs (WOPI / OnlyOffice): one file, one
+-- user, one mode; only the SHA-256 of the token is stored
+CREATE TABLE media_access_tokens (
+    token_hash bytea PRIMARY KEY,
+    media_id   bigint NOT NULL REFERENCES media(id) ON DELETE CASCADE,
+    user_id    bigint REFERENCES users(id) ON DELETE CASCADE,  -- NULL: guest
+    viewer     text NOT NULL,                                  -- plugin id
+    mode       text NOT NULL CHECK (mode IN ('edit','view')),
+    restricted boolean NOT NULL DEFAULT false,                 -- no download, print or copy
+    expires_at timestamptz NOT NULL,
+    created_at timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX media_access_tokens_expiry ON media_access_tokens(expires_at);
+
+-- WOPI locks (one per medium)
+CREATE TABLE media_locks (
+    media_id   bigint PRIMARY KEY REFERENCES media(id) ON DELETE CASCADE,
+    lock_id    text NOT NULL CHECK (length(lock_id) <= 1024),
+    expires_at timestamptz NOT NULL
+);
+
 -- ---------------------------------------------------------------- permissions
 CREATE TABLE acl_rules (
     id           bigserial PRIMARY KEY,

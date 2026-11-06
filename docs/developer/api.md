@@ -114,6 +114,9 @@ curl -H "Authorization: Bearer $KEY" -H 'Content-Type: application/json' \
 | `GET` | `/api/v1/media/{id}/acl` |
 | `GET` | `/api/v1/media/{id}/view` |
 | `GET` | `/api/v1/media/{id}/download` |
+| `GET` | `/api/v1/media/viewers` |
+| `GET` | `/api/v1/media/{id}/open` |
+| `POST` | `/api/v1/media/{id}/open` |
 
 ### Benutzer, Gruppen, Rollen
 
@@ -347,6 +350,11 @@ curl -H "Authorization: Bearer $KEY" -H 'Content-Type: application/json' \
 | `DELETE` | `/api/v1/x/macro.shell/commands/{hash}` |
 | `POST` | `/api/v1/x/macro.shell/commands/{hash}/approve` |
 | `POST` | `/api/v1/x/macro.shell/commands/{hash}/revoke` |
+| `POST` | `/api/v1/x/office.collabora/test` |
+| `POST` | `/api/v1/x/office.m365/test` |
+| `GET` | `/api/v1/x/office.onlyoffice/file/{id}` |
+| `POST` | `/api/v1/x/office.onlyoffice/callback/{id}` |
+| `POST` | `/api/v1/x/office.onlyoffice/test` |
 | `GET` | `/api/v1/x/search.external/status` |
 | `POST` | `/api/v1/x/search.external/test` |
 | `POST` | `/api/v1/x/search.external/reindex` |
@@ -383,6 +391,10 @@ curl -H "Authorization: Bearer $KEY" -H 'Content-Type: application/json' \
 | `GET` | `/api/v1/resolve` |
 | `GET` | `/api/v1/not-found` |
 | `GET` | `/api/v1/prerender` |
+| `GET` | `/api/v1/wopi/files/{id}` |
+| `POST` | `/api/v1/wopi/files/{id}` |
+| `GET` | `/api/v1/wopi/files/{id}/contents` |
+| `POST` | `/api/v1/wopi/files/{id}/contents` |
 | `GET` | `/api/v1/instance/sites` |
 | `POST` | `/api/v1/instance/sites` |
 | `PATCH` | `/api/v1/instance/sites/{name}` |

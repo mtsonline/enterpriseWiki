@@ -78,6 +78,39 @@ export interface Category {
 }
 
 /** A file of the media library (GET /api/v1/media/{id}). */
+/** How the browser starts an office program (see POST /api/v1/media/{id}/open). */
+export interface OfficeAction {
+  kind: string;
+  url: string;
+  form?: Record<string, string>;
+  script?: string;
+  config?: unknown;
+  origin: string;
+}
+
+/** One way to open a medium (internal viewer or an office program). */
+export interface OpenOption {
+  viewer: string;
+  label: string;
+  modes: ('edit' | 'view')[];
+  restricted: boolean;
+  default: boolean;
+  external: boolean;
+}
+
+export interface OpenResult {
+  viewer: string;
+  mode: 'edit' | 'view';
+  restricted: boolean;
+  action?: OfficeAction;
+}
+
+export interface MediaViewers {
+  viewers: { id: string; label: string; restrict: boolean }[];
+  default: string;
+  open_external: boolean;
+}
+
 export interface Medium {
   id: number;
   category_id: number;

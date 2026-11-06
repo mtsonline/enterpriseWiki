@@ -4,10 +4,12 @@
 import { api, ApiError, humanSize, qs } from '../core/api';
 import { append, fmtDate, h, uid, type Child } from '../core/dom';
 import { t } from '../core/i18n';
+import { navigate } from '../core/router';
 import { state } from '../core/state';
 import { toast } from '../core/announce';
 import type { Group, MediaRule, MediaVersion, Medium, Role, Watermark, WatermarkMode } from '../core/types';
 import { categorySelect } from './pickers';
+import { externalDefault, officeButtons, officeURL } from './office';
 import { ctx } from './widgets';
 import { button, checkbox, confirmDialog, errorText, field, formDialog, openDialog, select, textArea, textInput } from './ui';
 
@@ -358,6 +360,16 @@ export function imageEditor(m: Medium, done: (m: Medium) => void): void {
 // ---------------------------------------------------------------- details
 
 /** Details dialog: preview, texts, versions, usage, rights, delete. */
+/** Opens a medium: in the default office program when the settings say "always open there", else the details. */
+export async function openMedium(m: Medium, changed: () => void = () => undefined): Promise<void> {
+  const ext = await externalDefault(m);
+  if (ext) {
+    navigate(officeURL(m.id, ext.viewer));
+    return;
+  }
+  await mediaDetails(m.id, changed);
+}
+
 export async function mediaDetails(id: number, changed: () => void): Promise<void> {
   let m = await api.get<Medium>(`media/${id}`);
   const body = h('div', { class: 'ew-media-details' });
@@ -373,6 +385,7 @@ export async function mediaDetails(id: number, changed: () => void): Promise<voi
       h('dt', null, t('media.access')), h('dd', null, m.view_only ? t('media.view_only') : t('media.downloadable')));
     parts.push(meta);
     const actions = h('div', { class: 'ew-form-actions' });
+    actions.append(...await officeButtons(m));
     if (!m.view_only) actions.append(h('a', { href: mediaURL(m, { download: true }), class: 'ew-btn', download: '' }, t('media.download')));
     if (has(m, 'edit')) {
       actions.append(button(t('media.edit_texts'), () => void editTexts()));
@@ -462,7 +475,7 @@ export async function mediaBrowser(opts: { categoryId?: number; type?: string; o
           mediaThumb(m), h('span', { class: 'ew-media-name' }, m.title || m.name)))));
       grid.querySelectorAll<HTMLButtonElement>('.ew-media-tile').forEach((b, i) => b.addEventListener('click', () => {
         const m = list[i];
-        if (opts.onPick) opts.onPick(m); else void mediaDetails(m.id, () => void load());
+        if (opts.onPick) opts.onPick(m); else void openMedium(m, () => void load());
       }));
       status.textContent = list.length ? t('media.count', { n: String(list.length) }) : t('media.none');
     } catch (e) {

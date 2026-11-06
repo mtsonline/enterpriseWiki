@@ -37,6 +37,15 @@ Vollständiges Beispiel: [config.example.yaml](../../config.example.yaml)
 
 Für die beste PDF-Texterkennung installieren Sie `pdftotext` (Paket `poppler-utils`, im Docker-Image enthalten). Ohne das Tool greift ein eingebauter Extraktor für einfache PDFs. Dateien, die keine Version mehr referenziert, werden nach einem Tag automatisch gelöscht.
 
+### `media`
+| Schlüssel | Bedeutung | Standard |
+|---|---|---|
+| `viewer` | Standard-Anzeige für Dateien: `internal` (Browser) oder ein aktives Office-Plugin (`office.collabora`, `office.onlyoffice`, `office.m365`) | `internal` |
+| `open_external` | Dateien, die das Standard-Programm kann, sofort dort öffnen (nur mit einem Office-Plugin als `viewer`) | `false` |
+| `token_ttl` | Gültigkeit des Zugangsschlüssels eines Office-Programms für eine Datei (1m–24h) | `10h` |
+
+Details: [Office-Programme](office.md).
+
 ### `i18n`
 | Schlüssel | Bedeutung |
 |---|---|

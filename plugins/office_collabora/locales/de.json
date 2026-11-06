@@ -1,0 +1,14 @@
+{
+ "office.collabora.title": "Collabora Online",
+ "office.collabora.help": "Dateien der Medienbibliothek in Collabora Online öffnen und bearbeiten. Wer bearbeiten darf, bearbeitet dort; wer nur herunterladen darf, sieht die Datei schreibgeschützt. Änderungen werden als neue Version gespeichert.",
+ "office.collabora.url": "Server-Adresse",
+ "office.collabora.url_help": "Adresse des Office-Servers, z. B. https://office.example.com. Der Server muss das Wiki unter seiner öffentlichen Adresse (server.base_url) erreichen.",
+ "office.collabora.verify_proof": "Signatur jeder Anfrage prüfen (Proof-Key, empfohlen)",
+ "office.collabora.verify_proof_help": "Das Wiki nimmt nur Anfragen an, die der Office-Server signiert hat.",
+ "office.collabora.readonly": "Benutzer ohne Download-Recht dürfen die Datei dort schreibgeschützt ansehen",
+ "office.collabora.readonly_help": "Herunterladen, Drucken, Exportieren und Kopieren sind dabei abgeschaltet. Sonst sehen sie die Datei nur im Browser.",
+ "office.collabora.test": "Verbindung testen",
+ "office.collabora.test_ok": "Verbunden: {view} Dateitypen ansehen, {edit} bearbeiten",
+ "office.collabora.proof_missing": "Der Server veröffentlicht keinen Proof-Key: Prüfung abschalten oder Server aktualisieren.",
+ "office.collabora.default_hint": "Als Standard-Anzeige wählst du das Programm in den allgemeinen Einstellungen (Medien)."
+}
