@@ -1423,5 +1423,6 @@
  "settings.open_external": "Always open files directly in the default program",
  "settings.open_external_help": "A click on a suitable file opens it there right away instead of the details. Only possible for the default program.",
  "settings.office_token_ttl": "Access lifetime for office programs",
- "settings.office_token_ttl_help": "How long an opened document can be saved (default 10h, at most 24h). Rights are checked again on every access."
+ "settings.office_token_ttl_help": "How long an opened document can be saved (default 10h, at most 24h). Rights are checked again on every access.",
+ "office.using": "Connected via {url} (empty field: preset from the environment, e.g. Docker Compose)."
 }

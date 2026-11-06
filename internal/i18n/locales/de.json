@@ -1473,5 +1473,6 @@
  "settings.open_external": "Dateien immer direkt im Standard-Programm öffnen",
  "settings.open_external_help": "Ein Klick auf eine passende Datei öffnet sie sofort dort statt der Detailansicht. Nur für das Standard-Programm möglich.",
  "settings.office_token_ttl": "Gültigkeit des Zugangs für Office-Programme",
- "settings.office_token_ttl_help": "Wie lange ein geöffnetes Dokument gespeichert werden kann (Standard 10h, höchstens 24h). Die Rechte werden bei jedem Zugriff neu geprüft."
+ "settings.office_token_ttl_help": "Wie lange ein geöffnetes Dokument gespeichert werden kann (Standard 10h, höchstens 24h). Die Rechte werden bei jedem Zugriff neu geprüft.",
+ "office.using": "Verbunden über {url} (leeres Feld: Vorgabe aus der Umgebung, z. B. Docker Compose)."
 }

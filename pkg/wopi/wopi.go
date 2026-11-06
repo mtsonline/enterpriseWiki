@@ -234,6 +234,17 @@ func (c *Client) Refresh(ctx context.Context) (*Discovery, error) {
 	return c.fetchLocked(ctx)
 }
 
+// fetchNow fetches now (locking) and reports the error of this fetch.
+func (c *Client) fetchNow(ctx context.Context) (*Discovery, error) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if d := c.d; d != nil && time.Since(d.Fetched) < time.Minute {
+		return d, nil
+	}
+	_, _ = c.fetchLocked(ctx)
+	return c.d, c.lastError
+}
+
 func (c *Client) fetchLocked(ctx context.Context) (*Discovery, error) {
 	c.lastTry = time.Now()
 	d, err := c.fetch(ctx)

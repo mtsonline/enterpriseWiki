@@ -11,6 +11,8 @@
 # - asks for the image variant (lite or full) on a new installation
 # - asks how the wiki is reached: HTTPS through the bundled proxy (domain,
 #   certificate authority, e-mail) or plain HTTP on an IP address
+# - with HTTPS: asks for an office server (Collabora or OnlyOffice) on its
+#   own host name
 # - creates ./data/postgres and ./data/wiki and gives them to
 #   that user (asks for sudo only if files belong to someone else)
 set -euo pipefail
@@ -118,6 +120,7 @@ if [ -z "$(getvar EWIKI_HTTPS)" ] || [ -n "$fresh" ]; then
 		done
 		setvar EWIKI_HTTPS proxy
 		setvar COMPOSE_PROFILES proxy
+		setvar EWIKI_DOMAIN "$domain"
 		setvar EWIKI_BASE_URL "https://$domain"
 		setvar EWIKI_ACME "$acme"
 		setvar EWIKI_ACME_EMAIL "$email"
@@ -157,6 +160,49 @@ if [ -z "$(getvar EWIKI_HTTPS)" ] || [ -n "$fresh" ]; then
 		fi
 		say "HTTP on $bind:$port ($base)"
 	fi
+fi
+# office server (asked once, only with the bundled proxy; non-interactive: none)
+if [ "$(getvar EWIKI_HTTPS)" = proxy ] && { [ -z "$(getvar EWIKI_OFFICE)" ] || [ -n "$fresh" ]; }; then
+	office=none
+	if [ -t 0 ]; then
+		say "Office server for documents, spreadsheets and presentations:"
+		say "  1) none"
+		say "  2) Collabora Online (CODE)"
+		say "  3) OnlyOffice Docs (needs about 4 GB RAM)"
+		while :; do
+			case "$(ask 'Choice' 1)" in
+				1) break ;;
+				2) office=collabora; break ;;
+				3) office=onlyoffice; break ;;
+			esac
+		done
+	fi
+	if [ "$office" != none ]; then
+		domain="$(getvar EWIKI_DOMAIN)"
+		parent="${domain#*.}"
+		def=office
+		[ "$office" = onlyoffice ] && def=docs
+		while :; do
+			ohost="$(ask "Host name of the office server (own DNS name pointing to this server):" "$def.$parent")"
+			ohost="${ohost,,}"
+			if ! valid_domain "$ohost"; then say "  not a valid domain name"; continue; fi
+			[ "$ohost" != "$domain" ] && break
+			say "  must differ from the wiki's domain (an own origin keeps the wiki's cookies safe)"
+		done
+		setvar COMPOSE_PROFILES "proxy,$office"
+		setvar EWIKI_MEDIA_VIEWER "office.$office"
+		if [ "$office" = collabora ]; then
+			setvar EWIKI_COLLABORA_HOST "$ohost"
+			setvar EWIKI_COLLABORA_URL http://collabora:9980
+		else
+			setvar EWIKI_ONLYOFFICE_HOST "$ohost"
+			setvar EWIKI_ONLYOFFICE_URL "https://$ohost"
+			setvar EWIKI_ONLYOFFICE_INTERNAL_URL http://onlyoffice
+			[ -n "$(getvar EWIKI_ONLYOFFICE_JWT_SECRET)" ] || setvar EWIKI_ONLYOFFICE_JWT_SECRET "$(random 48)"
+		fi
+		say "office: $office at https://$ohost (default viewer for office files)"
+	fi
+	setvar EWIKI_OFFICE "$office"
 fi
 if [ -n "${SUDO_UID:-}" ]; then chown "$uid:$gid" .env; fi
 

@@ -22,11 +22,25 @@ https:// {
 	tls {
 		on_demand
 	}
-	encode zstd gzip
-	reverse_proxy wiki:8080 {
-		# the wiki trusts X-Forwarded-For from this container only
-		# (EWIKI_TRUSTED_PROXIES); Caddy replaces client-sent values
-		header_up X-Forwarded-Proto {scheme}
+	# bundled office servers (profiles collabora / onlyoffice) on their own
+	# host names: an own origin, so they never share cookies with the wiki
+	@collabora host {$EWIKI_COLLABORA_HOST:collabora.invalid}
+	handle @collabora {
+		reverse_proxy collabora:9980
+	}
+	@onlyoffice host {$EWIKI_ONLYOFFICE_HOST:onlyoffice.invalid}
+	handle @onlyoffice {
+		reverse_proxy onlyoffice:80 {
+			header_up X-Forwarded-Proto https
+		}
+	}
+	handle {
+		encode zstd gzip
+		reverse_proxy wiki:8080 {
+			# the wiki trusts X-Forwarded-For from this container only
+			# (EWIKI_TRUSTED_PROXIES); Caddy replaces client-sent values
+			header_up X-Forwarded-Proto {scheme}
+		}
 	}
 }
 

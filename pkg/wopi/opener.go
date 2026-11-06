@@ -168,12 +168,23 @@ func (o *Opener) VerifyProof(ctx context.Context, r *http.Request, token, fullUR
 }
 
 // Warm fetches the discovery in the background (so the page header knows
-// all hosts of the program before the first file is opened).
+// all hosts of the program before the first file is opened). Office
+// servers often start after the wiki: it retries for ten minutes.
 func (o *Opener) Warm() {
 	go func() {
-		ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
-		defer cancel()
-		_ = o.discovery(ctx)
+		for i := 0; i < 40; i++ {
+			ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+			c := o.Client()
+			var err error
+			if c != nil {
+				_, err = c.fetchNow(ctx)
+			}
+			cancel()
+			if c == nil || err == nil {
+				return
+			}
+			time.Sleep(15 * time.Second)
+		}
 	}()
 }
 

@@ -503,6 +503,9 @@ func (in *Instance) AllowedHost(ctx context.Context, host string) (bool, error) 
 	if h == "" {
 		return false, nil
 	}
+	if slices.Contains(config.ExtraTLSHosts(), h) {
+		return true, nil // bundled office servers
+	}
 	list, err := in.ListSites(ctx)
 	if err != nil {
 		return false, err

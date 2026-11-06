@@ -31,9 +31,17 @@ echo "== setup: HTTPS via the bundled proxy (ZeroSSL), invalid input rejected"
 prepare https
 # image: lite; HTTPS: yes; domains: two invalid (injection attempts), then valid;
 # CA: invalid, then 2 (ZeroSSL); e-mail: invalid, then valid
-interactive l y 'evil.com|x' 'a.com;rm -rf /' Wiki.Example.COM 9 2 'x@y' 'it@example.com'
+# office: invalid choice, then 3 (OnlyOffice); host: the wiki's own domain and an
+# injection attempt are rejected, then the default (docs.example.com)
+interactive l y 'evil.com|x' 'a.com;rm -rf /' Wiki.Example.COM 9 2 'x@y' 'it@example.com' 7 3 wiki.example.com 'x.com$(id)' ''
 expect EWIKI_HTTPS proxy
-expect COMPOSE_PROFILES proxy
+expect COMPOSE_PROFILES proxy,onlyoffice
+expect EWIKI_DOMAIN wiki.example.com
+expect EWIKI_ONLYOFFICE_HOST docs.example.com
+expect EWIKI_ONLYOFFICE_URL https://docs.example.com
+expect EWIKI_MEDIA_VIEWER office.onlyoffice
+[ "$(val EWIKI_ONLYOFFICE_JWT_SECRET | wc -c)" -ge 40 ] || fail "no JWT secret generated"
+grep -q 'id)' .env && fail "malicious office host reached .env"
 expect EWIKI_BASE_URL https://wiki.example.com
 expect EWIKI_ACME zerossl
 expect EWIKI_ACME_EMAIL it@example.com
@@ -41,6 +49,14 @@ expect EWIKI_PORT 127.0.0.1:8080
 expect EWIKI_TRUSTED_PROXIES 172.30.80.250
 grep -q 'rm -rf' .env && fail "malicious input reached .env"
 [ "$(stat -c %a .env)" = 600 ] || fail ".env is not private"
+
+echo "== setup: HTTPS with Collabora"
+prepare collabora
+interactive l y wiki.example.org 1 it@example.org 2 ''
+expect COMPOSE_PROFILES proxy,collabora
+expect EWIKI_COLLABORA_HOST office.example.org
+expect EWIKI_COLLABORA_URL http://collabora:9980
+expect EWIKI_MEDIA_VIEWER office.collabora
 
 echo "== setup: plain HTTP, default 127.0.0.1, then an explicit IP"
 prepare http

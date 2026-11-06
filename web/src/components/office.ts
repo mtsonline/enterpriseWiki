@@ -138,6 +138,7 @@ export function officeAdminRender(pluginId: string, fields: SettingField[], opts
         return;
       }
       const kids: HTMLElement[] = [h('p', null, t(`${pluginId}.test_ok`, { view: String(st.view.length), edit: String(st.edit.length) }))];
+      if (st.discovery) kids.push(h('p', { class: 'ew-help' }, t('office.using', { url: st.discovery })));
       if (st.edit.length) kids.push(h('p', { class: 'ew-help' }, t('office.edit_types', { types: st.edit.join(', ') })));
       if (opts.proof && !st.proof_key && form.values().verify_proof !== false) kids.push(h('p', { class: 'ew-notice ew-notice--warning' }, t(`${pluginId}.proof_missing`)));
       if (st.mode === 'api' && !st.secret) kids.push(h('p', { class: 'ew-notice ew-notice--warning' }, t(`${pluginId}.jwt_missing`)));

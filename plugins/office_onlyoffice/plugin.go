@@ -396,7 +396,7 @@ func (p *Plugin) test(ctx context.Context) testResult {
 	if s.URL == "" {
 		return res
 	}
-	res.Configured = true
+	res.Configured, res.Discovery = true, s.URL
 	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, s.URL+"/healthcheck", nil)
