@@ -16,10 +16,9 @@ import (
 	"strings"
 
 	"github.com/microcosm-cc/bluemonday"
-	"github.com/yuin/goldmark"
-	"github.com/yuin/goldmark/extension"
-	"github.com/yuin/goldmark/parser"
-	gmhtml "github.com/yuin/goldmark/renderer/html"
+	"github.com/yuin/goldmark/v2/extension"
+	"github.com/yuin/goldmark/v2/parser"
+	gmhtml "github.com/yuin/goldmark/v2/renderer/html"
 
 	"github.com/mtsonline/enterprisewiki/internal/content"
 	"github.com/mtsonline/enterprisewiki/pkg/sdk"
@@ -76,11 +75,16 @@ func Policy() *bluemonday.Policy {
 
 var (
 	policy = Policy()
-	md     = goldmark.New(
-		goldmark.WithExtensions(extension.GFM),
-		goldmark.WithParserOptions(parser.WithAutoHeadingID()),
+	// goldmark v2 has no combined converter: parser and HTML renderer are
+	// configured separately, each with its half of the GFM extension.
+	mdParser = parser.New(
+		parser.WithExtensions(extension.NewGFMParser()),
+		parser.WithAutoHeadingID(),
+	)
+	mdRenderer = gmhtml.New(
+		gmhtml.WithExtensions(extension.NewGFMHTMLRenderer()),
 		// raw HTML (e.g. macros) is allowed: the output is sanitized afterwards
-		goldmark.WithRendererOptions(gmhtml.WithUnsafe()),
+		gmhtml.WithUnsafe(),
 	)
 )
 
@@ -133,7 +137,8 @@ func (t *Type) Normalize(raw json.RawMessage) (json.RawMessage, error) {
 func ToHTML(b *Body) string {
 	if b.Format == "markdown" {
 		var buf bytes.Buffer
-		if err := md.Convert([]byte(b.Source), &buf); err != nil {
+		src := []byte(b.Source)
+		if err := mdRenderer.Render(&buf, src, mdParser.Parse(src)); err != nil {
 			return "<pre>" + html.EscapeString(b.Source) + "</pre>"
 		}
 		return policy.Sanitize(buf.String())
