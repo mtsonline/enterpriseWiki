@@ -50,6 +50,19 @@ const options = {
   metafile: true,
 };
 
+// The npm packages that end up in the bundle (for the third-party notices:
+// tools/notices includes exactly their license texts).
+function writeBundledPackages(meta) {
+  const pkgs = new Set();
+  for (const input of Object.keys(meta.inputs)) {
+    const m = /node_modules\/((?:@[^/]+\/)?[^/]+)\//.exec(input.slice(input.lastIndexOf('node_modules/')));
+    if (m) pkgs.add(input.slice(0, input.lastIndexOf('node_modules/')) + 'node_modules/' + m[1]);
+  }
+  const list = [...pkgs].map((p) => path.relative(here, path.resolve(here, p))).sort();
+  fs.mkdirSync(path.join(here, '.build'), { recursive: true });
+  fs.writeFileSync(path.join(here, '.build', 'bundled-packages.json'), JSON.stringify(list, null, 1) + '\n');
+}
+
 function writeIndex() {
   const js = fs.readFileSync(path.join(dist, 'assets', 'app.js'));
   const css = fs.existsSync(path.join(dist, 'assets', 'app.css')) ? fs.readFileSync(path.join(dist, 'assets', 'app.css')) : Buffer.from('');
@@ -76,7 +89,8 @@ if (watch) {
   await ctx.watch();
   console.log('watching for changes...');
 } else {
-  await esbuild.build(options);
+  const result = await esbuild.build(options);
+  writeBundledPackages(result.metafile);
   writeIndex();
   console.log('frontend built into web/dist');
 }

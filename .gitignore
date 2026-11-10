@@ -4,6 +4,7 @@
 /web/dist/*
 !/web/dist/.gitkeep
 /web/src/generated/
+/web/.build/
 # local installation data (never commit secrets)
 /config.yaml
 /.env

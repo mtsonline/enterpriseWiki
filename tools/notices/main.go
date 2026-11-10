@@ -89,8 +89,29 @@ func run(out string, check bool) error {
 		}
 		section(m.path+" "+m.version+" ("+kind+")", strings.Join(texts, "\n\n"))
 	}
-	npmBad, err := checkNPM("web/package-lock.json", check)
-	if err != nil {
+	// npm: exactly the packages in the frontend bundle (written by
+	// web/build.mjs); without a build, all packages of the lock file are checked
+	var npmBad []string
+	if bundled, ok := bundledNPM("web/.build/bundled-packages.json"); ok {
+		for _, dir := range bundled {
+			name, version, lic := npmMeta(filepath.Join("web", dir))
+			if strings.HasPrefix(name, "@fontsource") {
+				continue // font licenses (OFL) are added below
+			}
+			if !licenseAllowed(lic) {
+				npmBad = append(npmBad, fmt.Sprintf("npm %s %s: %q", name, version, lic))
+				continue
+			}
+			texts := licenseFiles(filepath.Join("web", dir))
+			if len(texts) == 0 {
+				return fmt.Errorf("no license file found for npm %s %s", name, version)
+			}
+			if check {
+				fmt.Printf("%-12s npm %s %s (bundled)\n", lic, name, version)
+			}
+			section("npm "+name+" "+version+" ("+lic+")", strings.Join(texts, "\n\n"))
+		}
+	} else if npmBad, err = checkNPM("web/package-lock.json", check); err != nil {
 		return err
 	}
 	bad = append(bad, npmBad...)
@@ -132,9 +153,9 @@ func licenseFiles(dir string) []string {
 	return out
 }
 
-// testOnly are npm packages used only by the tests (never bundled), and
-// packages only used by command line tools of dependencies: argparse is the
-// option parser of the markdown-it CLI, which the frontend never imports.
+// testOnly are npm packages that are never bundled (used when no build list
+// exists, e.g. the license check of the backend CI job): the test tools and
+// argparse, the option parser of the markdown-it command line tool.
 var testOnly = map[string]bool{"axe-core": true, "playwright": true, "playwright-core": true, "argparse": true}
 
 // checkNPM checks the licenses of all npm packages of the lock file. Fonts
@@ -169,13 +190,7 @@ func checkNPM(lock string, verbose bool) ([]string, error) {
 		name := k[strings.LastIndex(k, "node_modules/")+len("node_modules/"):]
 		p := l.Packages[k]
 		lic, _ := p.License.(string)
-		ok := allowed[lic] || lic == "OFL-1.1" || testOnly[name]
-		// simple SPDX expressions: "MIT OR Apache-2.0"
-		if !ok && strings.Contains(lic, " OR ") {
-			for _, x := range strings.Split(strings.Trim(lic, "()"), " OR ") {
-				ok = ok || allowed[strings.TrimSpace(x)]
-			}
-		}
+		ok := licenseAllowed(lic) || testOnly[name]
 		if !ok {
 			bad = append(bad, fmt.Sprintf("npm %s %s: %q", name, p.Version, lic))
 		} else if verbose {
@@ -183,6 +198,51 @@ func checkNPM(lock string, verbose bool) ([]string, error) {
 		}
 	}
 	return bad, nil
+}
+
+// licenseAllowed accepts allowed licenses, OFL for fonts and simple SPDX
+// expressions like "MIT OR Apache-2.0".
+func licenseAllowed(lic string) bool {
+	if allowed[lic] || lic == "OFL-1.1" {
+		return true
+	}
+	if strings.Contains(lic, " OR ") {
+		for _, x := range strings.Split(strings.Trim(lic, "()"), " OR ") {
+			if allowed[strings.TrimSpace(x)] {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// bundledNPM reads the list of bundled npm package directories (relative to web/).
+func bundledNPM(file string) ([]string, bool) {
+	b, err := os.ReadFile(file) // #nosec G304 -- build output of the repository
+	if err != nil {
+		return nil, false
+	}
+	var list []string
+	if json.Unmarshal(b, &list) != nil {
+		return nil, false
+	}
+	return list, true
+}
+
+// npmMeta reads name, version and license of an npm package directory.
+func npmMeta(dir string) (name, version, license string) {
+	b, err := os.ReadFile(filepath.Join(dir, "package.json")) // #nosec G304 -- package of the repository's node_modules
+	if err != nil {
+		return filepath.Base(dir), "", ""
+	}
+	var p struct {
+		Name    string `json:"name"`
+		Version string `json:"version"`
+		License any    `json:"license"`
+	}
+	_ = json.Unmarshal(b, &p)
+	license, _ = p.License.(string)
+	return p.Name, p.Version, license
 }
 
 var allowed = map[string]bool{"MIT": true, "BSD-2-Clause": true, "BSD-3-Clause": true, "Apache-2.0": true, "ISC": true, "Zlib": true, "Unlicense": true, "CC0-1.0": true}
