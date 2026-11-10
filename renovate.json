@@ -1,8 +1,8 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
-  "description": "Stay on the newest versions without manual work: daily updates, merged automatically when CI (build, Go tests, browser tests with axe, Docker build, license check) is green. See docs/admin/operations.md#automatische-updates.",
+  "description": "Stay on the newest versions without manual work: daily updates, merged automatically when CI (build, Go tests, browser tests with axe, Docker build, license check) is green. See docs/admin/operations.md#automatische-updates. config:best-practices pins GitHub Actions and Docker images to digests (supply chain).",
   "extends": [
-    "config:recommended",
+    "config:best-practices",
     ":dependencyDashboard"
   ],
   "timezone": "Europe/Vienna",

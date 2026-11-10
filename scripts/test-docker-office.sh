@@ -33,7 +33,18 @@ fail() {
 	grep -iE 'error|warn|callback|jwt' /tmp/office-logs/onlyoffice-docservice.log | tail -40 | cut -c1-400 >&2 || true
 	exit 1
 }
-trap 'docker compose down -v >/dev/null 2>&1 || true' EXIT
+# on every failed exit (also early ones): logs for the CI artifacts
+cleanup() {
+	code=$?
+	if [ "$code" -ne 0 ] && [ ! -d /tmp/office-logs ]; then
+		mkdir -p /tmp/office-logs
+		for s in wiki collabora onlyoffice; do docker compose logs --no-color "$s" >"/tmp/office-logs/$s.log" 2>&1 || true; done
+		docker compose ps -a >/tmp/office-logs/ps.txt 2>&1 || true
+	fi
+	docker compose down -v >/dev/null 2>&1 || true
+	exit "$code"
+}
+trap cleanup EXIT
 
 if [ -z "$image" ]; then
 	docker build -q --target lite -t ewiki-test:lite "$src" >/dev/null

@@ -132,8 +132,10 @@ func licenseFiles(dir string) []string {
 	return out
 }
 
-// testOnly are npm packages used only by the tests (never bundled).
-var testOnly = map[string]bool{"axe-core": true, "playwright": true, "playwright-core": true}
+// testOnly are npm packages used only by the tests (never bundled), and
+// packages only used by command line tools of dependencies: argparse is the
+// option parser of the markdown-it CLI, which the frontend never imports.
+var testOnly = map[string]bool{"axe-core": true, "playwright": true, "playwright-core": true, "argparse": true}
 
 // checkNPM checks the licenses of all npm packages of the lock file. Fonts
 // (SIL Open Font License) are allowed; their texts are added from static/.

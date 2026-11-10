@@ -3,6 +3,7 @@ package config
 import (
 	"net"
 	"os"
+	"path/filepath"
 	"regexp"
 	"strings"
 )
@@ -84,4 +85,18 @@ func applyEnv(c *Config) {
 	if v := strings.TrimSpace(os.Getenv("EWIKI_MEDIA_VIEWER")); v != "" && c.Media.Viewer == "" && pluginIDRe.MatchString(v) {
 		c.Media.Viewer = v
 	}
+}
+
+// resolvePaths makes relative paths of the effective configuration relative
+// to the directory of the config file (not to the working directory, which
+// differs between the service, the CLI and scripts).
+func (s *Store) resolvePaths(c *Config) {
+	file := s.path
+	if s.base != nil {
+		file = s.base.path
+	}
+	if file == "" || c.Storage.Path == "" || filepath.IsAbs(c.Storage.Path) {
+		return
+	}
+	c.Storage.Path = filepath.Join(filepath.Dir(file), c.Storage.Path)
 }
