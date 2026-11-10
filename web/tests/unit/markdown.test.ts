@@ -20,6 +20,8 @@ const same = [
   '<figure><img src="/a.png" alt="A"><figcaption>Cap</figcaption></figure>\n',
   'line one\\\nline two\n',
   'at 10:30 see \\:note and ::x\n',
+  'Intro text\n\n| A | B |\n| --- | --- |\n| 1 | 2 |\n\nAfter\n',
+  '- [ ] task\n\n  | A |\n  | --- |\n  | 1 |\n',
 ];
 
 for (const src of same) {

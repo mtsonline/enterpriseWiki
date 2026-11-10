@@ -3,6 +3,7 @@ package core_html
 import (
 	"context"
 	"encoding/json"
+	"sync/atomic"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -92,16 +93,23 @@ func ConvertAll(ctx context.Context, h *sdk.Host) (int, error) {
 	return n, nil
 }
 
-// convertInBackground runs ConvertAll shortly after the start.
-func convertInBackground(h *sdk.Host) {
-	go func() {
-		time.Sleep(2 * time.Second)
-		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Minute)
-		defer cancel()
-		if n, err := ConvertAll(ctx, h); err != nil {
-			h.Log.Error("markdown conversion", "err", err)
-		} else if n > 0 {
+// registerConversion runs ConvertAll as a background job (cancelled on
+// shutdown, one node at a time in a cluster) until nothing is left to
+// convert; afterwards the job does nothing.
+func registerConversion(h *sdk.Host) {
+	var done atomic.Bool
+	h.RegisterWorker("convert-markdown", 10*time.Minute, func(ctx context.Context) error {
+		if done.Load() {
+			return nil
+		}
+		n, err := ConvertAll(ctx, h)
+		if err != nil {
+			return err
+		}
+		if n > 0 {
 			h.Log.Info("pages converted to Markdown", "count", n)
 		}
-	}()
+		done.Store(true)
+		return nil
+	})
 }

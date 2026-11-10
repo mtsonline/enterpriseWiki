@@ -1,0 +1,84 @@
+/* The visual Markdown editor (web/src/editor/editor.ts). */
+@import 'prosemirror-view/style/prosemirror.css';
+@import 'prosemirror-gapcursor/style/gapcursor.css';
+
+.ewe-editor { border: 1px solid #767e8a; border-radius: var(--ew-radius); background: var(--ew-bg-raised); }
+.ewe-toolbar {
+  display: flex; flex-wrap: wrap; gap: .2rem; align-items: center; padding: .3rem;
+  border-bottom: 1px solid var(--ew-border); position: sticky; top: var(--ew-sticky-top, var(--ew-header-h));
+  background: var(--ew-bg-raised); z-index: 5; border-radius: var(--ew-radius) var(--ew-radius) 0 0;
+}
+.ewe-tool {
+  min-width: 2.25rem; height: 2.25rem; padding: 0 .4rem; border: 1px solid transparent; border-radius: 4px;
+  background: none; color: var(--ew-text); font: inherit; font-weight: 700; cursor: pointer;
+}
+.ewe-tool:hover:not(:disabled) { background: var(--ew-bg-subtle); border-color: var(--ew-border); }
+.ewe-tool:focus-visible, .ewe-block:focus-visible { outline: 3px solid var(--ew-focus); outline-offset: 1px; }
+.ewe-tool[aria-pressed="true"] { background: var(--ew-info-bg); color: var(--ew-info-text); border-color: var(--ew-primary); }
+.ewe-tool:disabled { opacity: .45; cursor: default; }
+.ewe-tool[hidden], .ewe-sep[hidden] { display: none; }
+.ewe-mode { font-weight: 600; }
+.ewe-block { width: auto; min-width: 9rem; height: 2.25rem; padding-block: 0; }
+.ewe-sep { width: 1px; height: 1.6rem; background: var(--ew-border); margin: 0 .25rem; }
+.ewe-spacer { flex: 1; }
+.ewe-surface { padding: .25rem .5rem; }
+.ewe-prose { min-height: 18rem; padding: .5rem .75rem; outline: none; border-radius: 4px; }
+.ewe-prose:focus-visible, .ewe-prose.ProseMirror-focused { box-shadow: 0 0 0 3px var(--ew-focus); }
+.ewe-markdown { display: block; width: calc(100% - 1rem); margin: .5rem; font-family: var(--ew-mono); min-height: 18rem; }
+.ewe-markdown[hidden], .ewe-surface[hidden] { display: none; }
+.ewe-help { margin: 0; padding: .3rem .75rem .5rem; font-size: .85rem; }
+.ewe-mono { font-family: var(--ew-mono); }
+
+/* selected nodes and table cells */
+.ewe-prose .ProseMirror-selectednode { outline: 3px solid var(--ew-focus); outline-offset: 1px; }
+.ewe-prose .selectedCell::after {
+  content: ""; position: absolute; inset: 0; background: var(--ew-focus); opacity: .25; pointer-events: none;
+}
+.ewe-prose table { border-collapse: collapse; width: 100%; }
+.ewe-prose td, .ewe-prose th { border: 1px solid var(--ew-border); padding: .3rem .5rem; position: relative; vertical-align: top; min-width: 3rem; }
+.ewe-prose th { background: var(--ew-bg-subtle); }
+.ewe-prose pre { background: var(--ew-bg-subtle); padding: .5rem .75rem; border-radius: 4px; font-family: var(--ew-mono); }
+.ewe-prose .ProseMirror-gapcursor::after { border-top-color: var(--ew-text); }
+
+/* macros */
+.ewe-macro { border: 2px dashed var(--ew-primary); border-radius: 6px; margin: .6rem 0; background: var(--ew-bg-subtle); }
+.ewe-macro-head {
+  display: flex; align-items: center; gap: .35rem; padding: .2rem .25rem .2rem .6rem; font-size: .85rem;
+  border-bottom: 1px dashed var(--ew-border); user-select: none;
+}
+.ewe-macro--leaf .ewe-macro-head { border-bottom: 0; }
+.ewe-macro-name { font-weight: 700; }
+.ewe-macro-params { flex: 1; font-family: var(--ew-mono); color: var(--ew-text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ewe-macro-body { padding: .25rem .75rem; min-height: 1.5rem; }
+.ewe-ctl-btn {
+  min-width: 2rem; height: 2rem; border: 1px solid transparent; border-radius: 4px; background: none;
+  color: var(--ew-text); font: inherit; cursor: pointer;
+}
+.ewe-ctl-btn:hover { background: var(--ew-bg-raised); border-color: var(--ew-border); }
+.ewe-ctl-btn:focus-visible { outline: 3px solid var(--ew-focus); }
+.ewe-chip {
+  display: inline-flex; align-items: center; gap: .2rem; max-width: 100%; padding: 0 0 0 .4rem; border: 1px dashed var(--ew-primary);
+  border-radius: 4px; background: var(--ew-bg-subtle); font-size: .9em; vertical-align: baseline;
+}
+.ewe-chip--block { display: flex; margin: .5rem 0; align-items: flex-start; }
+.ewe-chip-text { margin: 0; font-family: var(--ew-mono); white-space: pre-wrap; overflow: hidden; text-overflow: ellipsis; }
+.ewe-chip--block .ewe-chip-text { flex: 1; max-height: 12rem; overflow: auto; padding: .3rem 0; }
+.ewe-macro_inline .ewe-chip-text { font-family: inherit; white-space: nowrap; }
+
+/* lists: tight like the rendered page */
+.ewe-prose li > p { margin: .15em 0; }
+
+/* task lists */
+.ewe-prose li.ewe-task { list-style: none; display: flex; gap: .5rem; align-items: flex-start; margin-left: -1.4rem; }
+.ewe-task-box { display: inline-flex; padding-top: .3em; }
+.ewe-task-box input { width: 1.1rem; height: 1.1rem; margin: 0; cursor: pointer; }
+.ewe-task-body { flex: 1; min-width: 0; }
+.ewe-prose li.ewe-task[data-checked="true"] > .ewe-task-body > p { text-decoration: line-through; color: var(--ew-text-muted); }
+
+@media (forced-colors: active) {
+  .ewe-tool[aria-pressed="true"] { forced-color-adjust: none; background: Highlight; color: HighlightText; }
+  .ewe-macro, .ewe-chip { border-color: CanvasText; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ewe-prose .ProseMirror-gapcursor::after { animation: none; }
+}

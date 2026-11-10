@@ -29,6 +29,8 @@ CREATE TABLE users (
     mfa_email      boolean NOT NULL DEFAULT false,
     -- sign-in and use only from these IP addresses / networks (CIDR); empty = anywhere
     allowed_networks text[] NOT NULL DEFAULT '{}',
+    -- personal settings of the user interface (keys see auth.Prefs)
+    prefs          jsonb NOT NULL DEFAULT '{}',
     -- e-mail preferences per kind, e.g. {"tasks": true, "comments": false}; missing keys mean "on"
     notify         jsonb NOT NULL DEFAULT '{}',
     feed_token     text UNIQUE,                   -- personal feed links (feed readers cannot sign in)

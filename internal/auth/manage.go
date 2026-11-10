@@ -2,10 +2,11 @@ package auth
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
-	"github.com/mtsonline/enterprisewiki/internal/perm"
 	"slices"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -15,6 +16,7 @@ import (
 	"github.com/mtsonline/enterprisewiki/internal/config"
 	"github.com/mtsonline/enterprisewiki/internal/db"
 	"github.com/mtsonline/enterprisewiki/internal/identity"
+	"github.com/mtsonline/enterprisewiki/internal/perm"
 )
 
 // User is the administrative view of a user.
@@ -436,6 +438,71 @@ func (s *Service) UpdateProfile(ctx context.Context, displayName, email, languag
 	}
 	_, err := s.pool.Exec(ctx, `UPDATE users SET display_name=COALESCE($2,display_name), email=COALESCE($3,email),
 		language=COALESCE($4,language), updated_at=now() WHERE id=$1`, p.UserID, displayName, email, language)
+	s.bump(ctx)
+	return err
+}
+
+// Prefs are the personal settings a user may store, with their allowed
+// values. Plugins and the core register them (RegisterPref).
+var (
+	prefsMu sync.RWMutex
+	prefs   = map[string][]string{}
+)
+
+// RegisterPref allows a personal setting with the given values ("" always
+// removes the setting).
+func RegisterPref(key string, values ...string) {
+	prefsMu.Lock()
+	defer prefsMu.Unlock()
+	prefs[key] = values
+}
+
+func init() {
+	RegisterPref("editor", "visual", "simple")
+}
+
+// PrefOptions returns the personal settings and their allowed values.
+func PrefOptions() map[string][]string {
+	prefsMu.RLock()
+	defer prefsMu.RUnlock()
+	out := make(map[string][]string, len(prefs))
+	for k, v := range prefs {
+		out[k] = slices.Clone(v)
+	}
+	return out
+}
+
+// SetPrefs changes personal settings of the signed-in user; "" removes one.
+func (s *Service) SetPrefs(ctx context.Context, in map[string]string) error {
+	p := identity.From(ctx)
+	if p == nil || p.UserID == 0 {
+		return apperr.ErrUnauthorized
+	}
+	patch := map[string]any{}
+	prefsMu.RLock()
+	for k, v := range in {
+		allowed, ok := prefs[k]
+		if !ok {
+			prefsMu.RUnlock()
+			return apperr.BadRequest("unknown setting %q", k)
+		}
+		if v == "" {
+			patch[k] = nil
+			continue
+		}
+		if !slices.Contains(allowed, v) {
+			prefsMu.RUnlock()
+			return apperr.BadRequest("invalid value %q for %s (allowed: %s)", v, k, strings.Join(allowed, ", "))
+		}
+		patch[k] = v
+	}
+	prefsMu.RUnlock()
+	b, err := json.Marshal(patch)
+	if err != nil {
+		return err
+	}
+	// jsonb_strip_nulls removes the settings set to "" (null in the patch)
+	_, err = s.pool.Exec(ctx, `UPDATE users SET prefs=jsonb_strip_nulls(prefs || $2::jsonb), updated_at=now() WHERE id=$1`, p.UserID, b)
 	s.bump(ctx)
 	return err
 }

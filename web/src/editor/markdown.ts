@@ -195,12 +195,15 @@ function macroDepth(n: PMNode): number {
 }
 
 function inlineOf(state: MarkdownSerializerState, node: PMNode): string {
-  const s = state as unknown as { out: string };
-  const saved = s.out;
+  // renders into a scratch buffer; the pending block separator is kept
+  const s = state as unknown as { out: string; closed: unknown };
+  const saved = s.out, closed = s.closed;
   s.out = '';
+  s.closed = null;
   state.renderInline(node);
   const out = s.out;
   s.out = saved;
+  s.closed = closed;
   return out;
 }
 

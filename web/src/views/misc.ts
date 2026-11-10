@@ -254,8 +254,9 @@ export async function profileView({ main }: RouteCtx): Promise<void> {
   }
   let keys: APIKey[] = [];
   let ssh: SSHKey[] = [];
+  let prefs: { prefs: Record<string, string>; options: Record<string, string[]> } = { prefs: {}, options: {} };
   try {
-    [keys, ssh] = await Promise.all([api.get<APIKey[]>('me/api-keys'), api.get<SSHKey[]>('me/ssh-keys')]);
+    [keys, ssh, prefs] = await Promise.all([api.get<APIKey[]>('me/api-keys'), api.get<SSHKey[]>('me/ssh-keys'), api.get<typeof prefs>('me/prefs')]);
   } catch (e) {
     errorPage(main, e);
     return;
@@ -264,14 +265,20 @@ export async function profileView({ main }: RouteCtx): Promise<void> {
   const name = textInput({ value: u.display_name, autocomplete: 'name' });
   const email = textInput({ value: u.email, type: 'email', autocomplete: 'email' });
   const lang = select([{ value: '', label: t('profile.lang_auto') }, ...state.site.languages.map((l) => ({ value: l, label: langName(l) }))], u.language);
+  const editorSel = select([{ value: '', label: t('profile.editor_default', { name: t(`editor.kind.${state.site.editor ?? 'visual'}`) }) },
+    ...(prefs.options.editor ?? []).map((v) => ({ value: v, label: t(`editor.kind.${v}`) }))], prefs.prefs.editor ?? '');
   const pAlert = h('div', { class: 'ew-form-alert', role: 'alert' });
   const pForm = h('form', { class: 'ew-form', novalidate: true }, pAlert, field(t('profile.display_name'), name), field(t('profile.email'), email), field(t('profile.language'), lang),
+    field(t('profile.editor'), editorSel, { help: t('profile.editor_help') }),
     h('div', { class: 'ew-form-actions' }, button(t('common.save'), () => undefined, { type: 'submit', variant: 'primary' })));
   pForm.addEventListener('submit', async (ev) => {
     ev.preventDefault();
     try {
-      await api.put('me', { display_name: name.value, email: email.value, language: lang.value });
-      Object.assign(u, { display_name: name.value, email: email.value, language: lang.value });
+      await api.put('me', { display_name: name.value, email: email.value, language: lang.value, prefs: { editor: editorSel.value } });
+      const prefs = { ...(u.prefs ?? {}) };
+      if (editorSel.value) prefs.editor = editorSel.value;
+      else delete prefs.editor;
+      Object.assign(u, { display_name: name.value, email: email.value, language: lang.value, prefs });
       changed();
       toast(t('common.saved'));
     } catch (e) { pAlert.textContent = errorText(e); }

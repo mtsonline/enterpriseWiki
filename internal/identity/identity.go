@@ -6,15 +6,17 @@ import "context"
 
 // Principal is the caller of an operation. A nil *Principal is a guest.
 type Principal struct {
-	UserID      int64   `json:"id"`
-	Username    string  `json:"username"`
-	Provider    string  `json:"provider"`
-	DisplayName string  `json:"display_name"`
-	Email       string  `json:"email"`
-	Language    string  `json:"language"`
-	Groups      []int64 `json:"groups"`
-	Roles       []int64 `json:"roles"`
-	IsAdmin     bool    `json:"is_admin"`
+	UserID      int64  `json:"id"`
+	Username    string `json:"username"`
+	Provider    string `json:"provider"`
+	DisplayName string `json:"display_name"`
+	Email       string `json:"email"`
+	Language    string `json:"language"`
+	// Prefs are personal settings of the user interface (e.g. editor).
+	Prefs   map[string]string `json:"prefs"`
+	Groups  []int64           `json:"groups"`
+	Roles   []int64           `json:"roles"`
+	IsAdmin bool              `json:"is_admin"`
 	// InstanceAdmin manages sites, users, groups, roles and the license
 	// (instance_admins or administrator of the site "main"); such users
 	// are administrators on every site.

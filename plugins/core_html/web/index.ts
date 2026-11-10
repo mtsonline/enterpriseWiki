@@ -1,8 +1,12 @@
-// Editor for core.html: accessible WYSIWYG (contenteditable) or Markdown.
-// The server sanitizes everything on save and render, so the editor does
-// not need to be a security boundary.
-import { api, button, field, formDialog, h, isImage, mediaURL, pickMedium, registerEditor, select, t, textInput, toast, trustedHTML, type EditorInstance } from '@ewiki/sdk';
-import { macroAt, macroDialog, macroHTML, parseParams } from './macros';
+// Editors for core.html. Pages are stored as Markdown (with macro
+// directives); two editors are available (site default, own choice in the
+// profile):
+//   visual  the ProseMirror editor of the core (loaded on first use)
+//   simple  a minimal contenteditable editor (HTML, converted on save)
+// The server sanitizes everything on save and render, so the editors are not
+// a security boundary; HTML for editing comes sanitized from the server.
+import { api, button, editorKind, errorText, formatAttrs, macroDialog, field, formDialog, h, isImage, loadMarkdownEditor, loading, mediaURL, pickMedium, registerEditor, select, t, textInput, toast, trustedHTML, type EditorContext, type EditorInstance, type MarkdownEditor } from '@ewiki/sdk';
+import { macroAt, macroHTML, parseParams } from './macros';
 import './style.css';
 
 interface Body { format: 'html' | 'markdown'; source: string }
@@ -39,10 +43,59 @@ function decode(body: unknown): Body {
   return { format: b.format === 'markdown' ? 'markdown' : 'html', source: typeof b.source === 'string' ? b.source : '' };
 }
 
-/** Creates the core.html editor. Exported so other plugins can reuse it. */
-export function createHtmlEditor(container: HTMLElement, body: unknown, ctx: { lang: string; type: string; labelId: string }): EditorInstance {
-  let cur = decode(body);
-  const formatSel = select([{ value: 'html', label: t('core.html.format.html') }, { value: 'markdown', label: t('core.html.format.markdown') }], cur.format);
+const BASE = '/api/v1/x/core.html/';
+
+/** Markdown -> HTML with macro placeholders (sanitized, no macro executed). */
+async function editHTML(markdown: string): Promise<string> {
+  if (!markdown.trim()) return '';
+  return (await api.post<{ html: string }>(BASE + 'edit-html', { source: markdown })).html;
+}
+
+/** HTML (with macro placeholders) -> Markdown. */
+async function toMarkdown(html: string): Promise<string> {
+  if (!html.trim()) return '';
+  return (await api.post<{ markdown: string }>(BASE + 'to-markdown', { source: html })).markdown;
+}
+
+type Ctx = Pick<EditorContext, 'lang' | 'type' | 'labelId'>;
+
+/** Creates the core.html editor (the user's choice). Exported so other plugins can reuse it. */
+export function createHtmlEditor(container: HTMLElement, body: unknown, ctx: Ctx): EditorInstance {
+  return editorKind() === 'simple' ? createSimpleEditor(container, body, ctx) : createVisualEditor(container, body, ctx);
+}
+
+/** The visual editor of the core (separate file, loaded on first use). */
+export function createVisualEditor(container: HTMLElement, body: unknown, ctx: Ctx): EditorInstance {
+  const b = decode(body);
+  const box = h('div', { class: 'ewh-host' }, loading());
+  container.append(box);
+  let ed: MarkdownEditor | null = null;
+  let gone = false;
+  let fallback: EditorInstance | null = null;
+  (async () => {
+    const md = b.format === 'html' ? await toMarkdown(b.source) : b.source;
+    const mod = await loadMarkdownEditor();
+    if (gone) return;
+    box.replaceChildren();
+    ed = mod.createMarkdownEditor(box, { markdown: md, lang: ctx.lang, labelId: ctx.labelId });
+  })().catch((e: unknown) => {
+    if (gone) return;
+    // e.g. the editor file could not be loaded: the simple editor still works
+    box.replaceChildren(h('p', { class: 'ew-form-alert', role: 'alert' }, t('core.html.editor_failed', { error: errorText(e) })),
+      button(t('core.html.use_simple'), () => { box.replaceChildren(); fallback = createSimpleEditor(box, body, ctx); }));
+  });
+  return {
+    getBody: () => (ed ? { format: 'markdown', source: ed.getMarkdown() } : fallback ? fallback.getBody() : b),
+    destroy: () => { gone = true; ed?.destroy(); fallback?.destroy?.(); },
+  };
+}
+
+/** The minimal editor: contenteditable (or the Markdown source). */
+export function createSimpleEditor(container: HTMLElement, body: unknown, ctx: Ctx): EditorInstance {
+  const stored = decode(body);
+  let cur: Body = { format: 'html', source: '' };
+  let ready = false;
+  const formatSel = select([{ value: 'html', label: t('core.html.format.html') }, { value: 'markdown', label: t('core.html.format.markdown') }], 'html');
   const surface = h('div', { class: 'ewh-surface' });
   container.append(h('div', { class: 'ewh-editor' }, field(t('core.html.format'), formatSel, { inline: true, help: t('core.html.convert_warning') }), surface));
 
@@ -154,7 +207,8 @@ export function createHtmlEditor(container: HTMLElement, body: unknown, ctx: { l
     const range = sel && sel.rangeCount ? sel.getRangeAt(0).cloneRange() : null;
     const existing = editable ? macroAt(sel?.anchorNode ?? null, editable) : null;
     try {
-      await macroDialog(existing ? { name: existing.dataset.macro!, params: parseParams(existing) } : null, (c) => {
+      const c = await macroDialog(existing ? { name: existing.dataset.macro!, params: parseParams(existing) } : null);
+      if (c) {
         if (existing) {
           existing.dataset.params = JSON.stringify(c.params);
           return;
@@ -178,7 +232,7 @@ export function createHtmlEditor(container: HTMLElement, body: unknown, ctx: { l
           sel.addRange(r);
           editable!.dispatchEvent(new Event('input', { bubbles: true }));
         });
-      });
+      }
     } catch (e) {
       toast(String((e as Error).message ?? e), 'error');
     }
@@ -188,13 +242,13 @@ export function createHtmlEditor(container: HTMLElement, body: unknown, ctx: { l
     const ta = textarea!;
     const start = ta.selectionStart, end = ta.selectionEnd;
     try {
-      await macroDialog(null, (c) => {
-        const inner = ta.value.slice(start, end) || t('core.html.macro_body');
-        const snippet = c.hasBody
-          ? `\n${macroHTML(c, '').replace('</div>', '')}\n\n${inner}\n\n</div>\n`
-          : `\n${macroHTML(c, '')}\n`;
-        setTimeout(() => { ta.setRangeText(snippet, start, end, 'end'); ta.focus(); }, 0);
-      });
+      const c = await macroDialog(null);
+      if (!c) return;
+      const inner = ta.value.slice(start, end).trim() || t('core.html.macro_body');
+      const head = c.name + formatAttrs(c.params);
+      const snippet = c.hasBody ? `\n:::${head}\n${inner}\n:::\n` : `\n::${head}\n`;
+      ta.setRangeText(snippet, start, end, 'end');
+      ta.focus();
     } catch (e) {
       toast(String((e as Error).message ?? e), 'error');
     }
@@ -220,25 +274,43 @@ export function createHtmlEditor(container: HTMLElement, body: unknown, ctx: { l
 
   formatSel.addEventListener('change', async () => {
     const before = current();
-    if (formatSel.value === 'markdown') {
-      // Markdown may contain HTML, so the HTML source is kept as is.
-      cur = { format: 'markdown', source: before.source };
-      mountMarkdown(cur.source);
-    } else {
-      let html = before.source;
-      try {
-        html = (await api.post<{ html: string }>('elements/preview', { type: 'core.html', lang: ctx.lang, body: before })).html;
-      } catch { /* keep source */ }
-      cur = { format: 'html', source: html };
-      mountHtml(html);
+    formatSel.disabled = true;
+    try {
+      if (formatSel.value === 'markdown') {
+        cur = { format: 'markdown', source: before.source && before.format === 'html' ? await toMarkdown(before.source) : before.source };
+        mountMarkdown(cur.source);
+      } else {
+        cur = { format: 'html', source: await editHTML(before.source) };
+        mountHtml(cur.source);
+      }
+    } catch (e) {
+      formatSel.value = before.format;
+      toast(errorText(e), 'error');
+    } finally {
+      formatSel.disabled = false;
     }
   });
 
-  if (cur.format === 'markdown') mountMarkdown(cur.source);
-  else mountHtml(cur.source);
+  surface.replaceChildren(loading());
+  formatSel.disabled = true;
+  (async () => {
+    const html = stored.format === 'html' ? stored.source : await editHTML(stored.source);
+    cur = { format: 'html', source: html };
+    mountHtml(html);
+    ready = true;
+    formatSel.disabled = false;
+  })().catch((e: unknown) => {
+    // fall back to the Markdown source
+    cur = { format: 'markdown', source: stored.source };
+    formatSel.value = 'markdown';
+    mountMarkdown(stored.source);
+    ready = true;
+    formatSel.disabled = false;
+    toast(errorText(e), 'error');
+  });
 
   return {
-    getBody: () => current(),
+    getBody: () => (ready ? current() : stored),
     destroy: () => { if (onSel) document.removeEventListener('selectionchange', onSel); },
   };
 }

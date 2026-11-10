@@ -1,5 +1,6 @@
 // Application bootstrap.
 import './styles/base.css';
+import './editor/editor.css';
 import { mediaView } from './views/media';
 import { officeView } from './components/office';
 import { api } from './core/api';

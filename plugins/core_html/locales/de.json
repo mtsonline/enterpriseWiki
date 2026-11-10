@@ -32,9 +32,7 @@
  "core.html.image_type": "Hier können nur Bilder eingefügt werden.",
  "core.html.macro": "Makro",
  "core.html.macro_insert": "Makro einfügen",
- "core.html.macro_edit": "Makro bearbeiten",
  "core.html.macro_body": "Inhalt",
- "core.html.macro_none": "Keine Makros verfügbar (kein Makro-Plugin aktiv).",
- "core.html.macro_no_params": "Dieses Makro hat keine Einstellungen.",
- "core.html.macro_required": "{field} ist erforderlich."
+ "core.html.editor_failed": "Der Editor konnte nicht geladen werden: {error}",
+ "core.html.use_simple": "Einfachen Editor verwenden"
 }

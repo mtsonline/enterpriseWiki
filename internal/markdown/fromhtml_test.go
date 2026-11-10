@@ -20,6 +20,8 @@ func TestFromHTML(t *testing.T) {
 		{`<p>5 * 3 = 15 [x] #tag :note</p>`, "5 \\* 3 = 15 \\[x\\] #tag \\:note\n"},
 		{`<p># not a heading</p><p>- not a list</p>`, "\\# not a heading\n\n\\- not a list\n"},
 		{`<p>line<br>break <u>under</u></p>`, "line\\\nbreak <u>under</u>\n"},
+		{`<ul><li data-checked="true">done</li><li data-checked="false">open</li></ul>`, "- [x] done\n- [ ] open\n"},
+		{`<ul><li><input checked="" disabled="" type="checkbox"> done</li><li><input disabled="" type="checkbox"> open</li></ul>`, "- [x] done\n- [ ] open\n"},
 		{`<figure><img src="/a.png" alt="A"><figcaption>Cap</figcaption></figure>`, `<figure><img src="/a.png" alt="A"/><figcaption>Cap</figcaption></figure>`},
 	}
 	for _, c := range cases {

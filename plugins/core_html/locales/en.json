@@ -32,9 +32,7 @@
  "core.html.image_type": "Only images can be inserted here.",
  "core.html.macro": "Macro",
  "core.html.macro_insert": "Insert macro",
- "core.html.macro_edit": "Edit macro",
  "core.html.macro_body": "Content",
- "core.html.macro_none": "No macros are available (no macro plugin is active).",
- "core.html.macro_no_params": "This macro has no settings.",
- "core.html.macro_required": "{field} is required."
+ "core.html.editor_failed": "The editor could not be loaded: {error}",
+ "core.html.use_simple": "Use the simple editor"
 }

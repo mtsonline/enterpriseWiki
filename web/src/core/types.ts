@@ -9,6 +9,8 @@ export interface Principal {
   display_name: string;
   email: string;
   language: string;
+  /** personal settings of the user interface (e.g. editor) */
+  prefs?: Record<string, string> | null;
   groups: number[] | null;
   roles: number[] | null;
   is_admin: boolean;
@@ -37,6 +39,8 @@ export interface Site {
   template: string;
   home_category: number;
   home_element: number;
+  /** default editor of text pages */
+  editor?: 'visual' | 'simple';
   languages: string[];
   default_language: string;
   plugins: string[] | null;

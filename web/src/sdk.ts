@@ -30,6 +30,22 @@ export { registerOfficeRenderer, officeButtons, officeURL, openOptions, officeAd
 export type { OfficeRenderer } from './components/office';
 export { feedButton, feedURL, feedToken, advertiseFeed } from './components/feeds';
 export type { WidgetFactory } from './core/widgets';
+export type { MarkdownEditor, MarkdownEditorOptions, EditorMode } from './editor/editor';
+export { formatAttrs, parseAttrs } from './editor/attrs';
+export { macroDialog, loadMacros } from './editor/macros';
+export type { MacroChoice } from './editor/macros';
+
+/** Loads the visual Markdown editor (a separate file, loaded on first use). */
+export function loadMarkdownEditor(): Promise<typeof import('./editor/editor')> {
+  return import('./editor/editor');
+}
+
+/** The editor of text pages for the signed-in user: own choice, else the site default. */
+export function editorKind(): 'visual' | 'simple' {
+  const own = state.user?.prefs?.editor;
+  if (own === 'visual' || own === 'simple') return own;
+  return state.site?.editor === 'simple' ? 'simple' : 'visual';
+}
 
 // ---------------------------------------------------------------- plugin modules
 

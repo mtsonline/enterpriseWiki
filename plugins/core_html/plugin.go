@@ -12,12 +12,16 @@ import (
 	"errors"
 	"html"
 	"io/fs"
+	"net/http"
 	"regexp"
 	"strings"
 
 	"github.com/microcosm-cc/bluemonday"
 
+	"github.com/mtsonline/enterprisewiki/internal/apperr"
 	"github.com/mtsonline/enterprisewiki/internal/content"
+	"github.com/mtsonline/enterprisewiki/internal/httpx"
+	"github.com/mtsonline/enterprisewiki/internal/identity"
 	"github.com/mtsonline/enterprisewiki/internal/markdown"
 	"github.com/mtsonline/enterprisewiki/pkg/sdk"
 )
@@ -42,10 +46,42 @@ func (p *Plugin) Locales() fs.FS { sub, _ := fs.Sub(locales, "locales"); return 
 // Setup registers the element type.
 func (p *Plugin) Setup(h *sdk.Host) error {
 	h.RegisterElementType(&Type{})
-	if h.DB != nil && h.Content != nil {
-		convertInBackground(h)
+	// Conversions for the editors (no macro is executed): the simple editor
+	// edits HTML with macro placeholders, both save Markdown.
+	h.Handle("POST", "/edit-html", func(w http.ResponseWriter, r *http.Request) (any, error) {
+		src, err := convertInput(r)
+		if err != nil {
+			return nil, err
+		}
+		return map[string]string{"html": ToHTML(&Body{Format: "markdown", Source: src})}, nil
+	})
+	h.Handle("POST", "/to-markdown", func(w http.ResponseWriter, r *http.Request) (any, error) {
+		src, err := convertInput(r)
+		if err != nil {
+			return nil, err
+		}
+		return map[string]string{"markdown": markdown.FromHTML(policy.Sanitize(src))}, nil
+	})
+	if h.DB != nil && h.Content != nil && h.Workers != nil {
+		registerConversion(h)
 	}
 	return nil
+}
+
+// convertInput reads {"source": "..."} of a conversion request (signed-in
+// users only, at most MaxSize).
+func convertInput(r *http.Request) (string, error) {
+	if p := identity.From(r.Context()); p == nil || p.UserID == 0 && !p.InProcess() {
+		return "", apperr.ErrUnauthorized
+	}
+	r.Body = http.MaxBytesReader(nil, r.Body, MaxSize+4096)
+	var in struct {
+		Source string `json:"source"`
+	}
+	if err := httpx.Decode(r, &in); err != nil {
+		return "", err
+	}
+	return in.Source, nil
 }
 
 // Body is the stored content of a core.html element.

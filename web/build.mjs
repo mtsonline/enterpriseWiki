@@ -38,6 +38,9 @@ const options = {
   minify: !watch,
   sourcemap: watch ? 'inline' : false,
   format: 'esm',
+  // rarely used, large parts (the visual editor) are loaded on first use
+  splitting: true,
+  chunkNames: 'chunks/[name]-[hash]',
   target: ['es2022', 'chrome111', 'firefox115', 'safari16'],
   outdir: path.join(dist, 'assets'),
   entryNames: 'app',
@@ -63,7 +66,7 @@ function writeBundledPackages(meta) {
   fs.writeFileSync(path.join(here, '.build', 'bundled-packages.json'), JSON.stringify(list, null, 1) + '\n');
 }
 
-function writeIndex() {
+function writeIndex(meta) {
   const js = fs.readFileSync(path.join(dist, 'assets', 'app.js'));
   const css = fs.existsSync(path.join(dist, 'assets', 'app.css')) ? fs.readFileSync(path.join(dist, 'assets', 'app.css')) : Buffer.from('');
   const h = (b) => createHash('sha256').update(b).digest('hex').slice(0, 10);
@@ -73,8 +76,13 @@ function writeIndex() {
   }
   fs.renameSync(path.join(dist, 'assets', 'app.js'), path.join(dist, 'assets', jsName));
   if (css.length) fs.renameSync(path.join(dist, 'assets', 'app.css'), path.join(dist, 'assets', cssName));
+  // chunks app.js imports directly are preloaded (no request waterfall)
+  const entry = meta && Object.entries(meta.outputs).find(([, o]) => o.entryPoint && o.entryPoint.endsWith('src/main.ts'));
+  const preload = (entry ? entry[1].imports : []).filter((i) => i.kind === 'import-statement')
+    .map((i) => `<link rel="modulepreload" href="/assets/${path.relative(path.join(dist, 'assets'), path.resolve(i.path)).split(path.sep).join('/')}">`).join('\n  ');
   const html = fs.readFileSync(path.join(here, 'index.html'), 'utf8')
-    .replace('%CSS%', `/assets/${cssName}`).replace('%JS%', `/assets/${jsName}`);
+    .replace('%CSS%', `/assets/${cssName}`).replace('%JS%', `/assets/${jsName}`)
+    .replace('%PRELOAD%', preload);
   fs.writeFileSync(path.join(dist, 'index.html'), html);
   fs.writeFileSync(path.join(dist, '.gitkeep'), '');
 }
@@ -91,6 +99,6 @@ if (watch) {
 } else {
   const result = await esbuild.build(options);
   writeBundledPackages(result.metafile);
-  writeIndex();
+  writeIndex(result.metafile);
   console.log('frontend built into web/dist');
 }

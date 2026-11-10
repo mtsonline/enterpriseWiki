@@ -2,6 +2,19 @@
 // directives and raw HTML (kept as it is).
 import { Schema, type NodeSpec, type MarkSpec } from 'prosemirror-model';
 import { tableNodes } from 'prosemirror-tables';
+import { NAME } from './attrs';
+
+/** Reads data-macro / data-params of a macro placeholder (pasted HTML). */
+function macroAttrs(d: HTMLElement): { name: string; params: Record<string, string> } | false {
+  const name = d.getAttribute('data-macro') ?? '';
+  if (NAME.exec(name)?.[0] !== name) return false;
+  const params: Record<string, string> = {};
+  try {
+    const v = JSON.parse(d.getAttribute('data-params') || '{}') as unknown;
+    if (v && typeof v === 'object') for (const [k, x] of Object.entries(v)) if (typeof x === 'string' || typeof x === 'number' || typeof x === 'boolean') params[k] = String(x);
+  } catch { /* no parameters */ }
+  return { name, params };
+}
 
 const cellAttrs = { align: { default: null as string | null } };
 
@@ -28,7 +41,7 @@ const nodes: Record<string, NodeSpec> = {
   },
   list_item: {
     content: 'paragraph block*', defining: true, attrs: { checked: { default: null as boolean | null } },
-    parseDOM: [{ tag: 'li' }],
+    parseDOM: [{ tag: 'li', getAttrs: (d) => { const c = (d as HTMLElement).getAttribute('data-checked'); return { checked: c === 'true' ? true : c === 'false' ? false : null }; } }],
     toDOM: (n) => ['li', n.attrs.checked === null ? {} : { class: 'ewe-task', 'data-checked': String(n.attrs.checked) }, 0],
   },
   // raw HTML that Markdown cannot express (merged cells, figures ...)
@@ -40,6 +53,7 @@ const nodes: Record<string, NodeSpec> = {
   macro: {
     group: 'block', content: 'block*', defining: true, isolating: true,
     attrs: { name: { default: '' }, params: { default: {} as Record<string, string> }, leaf: { default: false } },
+    parseDOM: [{ tag: 'div[data-macro]', priority: 60, getAttrs: (d) => { const a = macroAttrs(d as HTMLElement); return a && { ...a, leaf: !(d as HTMLElement).textContent?.trim() && !(d as HTMLElement).querySelector('img') }; } }],
     toDOM: (n) => ['div', { class: 'ewe-macro', 'data-macro': n.attrs.name }, 0],
   },
   text: { group: 'inline' },
@@ -57,6 +71,7 @@ const nodes: Record<string, NodeSpec> = {
   macro_inline: {
     inline: true, group: 'inline', atom: true,
     attrs: { name: { default: '' }, params: { default: {} as Record<string, string> }, label: { default: '' } },
+    parseDOM: [{ tag: 'span[data-macro]', priority: 60, getAttrs: (d) => { const a = macroAttrs(d as HTMLElement); return a && { ...a, label: (d as HTMLElement).textContent ?? '' }; } }],
     toDOM: (n) => ['span', { class: 'ewe-macro-inline', 'data-macro': n.attrs.name }, `${n.attrs.name}: ${n.attrs.label}`],
   },
   ...tableNodes({

@@ -70,6 +70,7 @@ curl -H "Authorization: Bearer $KEY" -H 'Content-Type: application/json' \
 | Methode | Pfad |
 |---|---|
 | `PUT` | `/api/v1/me` |
+| `GET` | `/api/v1/me/prefs` |
 | `PUT` | `/api/v1/me/password` |
 | `GET` | `/api/v1/me/api-keys` |
 | `POST` | `/api/v1/me/api-keys` |
@@ -331,6 +332,8 @@ curl -H "Authorization: Bearer $KEY" -H 'Content-Type: application/json' \
 | `DELETE` | `/api/v1/x/core.comments/comments/{id}` |
 | `DELETE` | `/api/v1/x/core.favorites/{type}/{id}` |
 | `PUT` | `/api/v1/x/core.favorites/order` |
+| `POST` | `/api/v1/x/core.html/edit-html` |
+| `POST` | `/api/v1/x/core.html/to-markdown` |
 | `GET` | `/api/v1/x/core.menu/menus` |
 | `GET` | `/api/v1/x/core.menu/menus/{id}` |
 | `POST` | `/api/v1/x/core.menu/menus` |

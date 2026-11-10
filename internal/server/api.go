@@ -1,6 +1,7 @@
 package server
 
 import (
+	"cmp"
 	"context"
 	"encoding/json"
 	"errors"
@@ -201,11 +202,32 @@ func (s *Server) routes() {
 			DisplayName *string `json:"display_name"`
 			Email       *string `json:"email"`
 			Language    *string `json:"language"`
+			// Prefs changes personal settings ("" removes one).
+			Prefs map[string]string `json:"prefs"`
 		}
 		if err := h.Decode(r, &in); err != nil {
 			return nil, err
 		}
-		return h.NoContent{}, s.app.Auth.UpdateProfile(r.Context(), in.DisplayName, in.Email, in.Language)
+		if err := s.app.Auth.UpdateProfile(r.Context(), in.DisplayName, in.Email, in.Language); err != nil {
+			return nil, err
+		}
+		if in.Prefs != nil {
+			if err := s.app.Auth.SetPrefs(r.Context(), in.Prefs); err != nil {
+				return nil, err
+			}
+		}
+		return h.NoContent{}, nil
+	})
+	s.handle("GET /api/v1/me/prefs", func(w http.ResponseWriter, r *http.Request) (any, error) {
+		p := identity.From(r.Context())
+		if p == nil || p.UserID == 0 {
+			return nil, apperr.ErrUnauthorized
+		}
+		cur := p.Prefs
+		if cur == nil {
+			cur = map[string]string{}
+		}
+		return map[string]any{"prefs": cur, "options": auth.PrefOptions()}, nil
 	})
 	s.handle("PUT /api/v1/me/password", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		var in struct {
@@ -976,7 +998,7 @@ func (s *Server) site(w http.ResponseWriter, r *http.Request) (any, error) {
 	}
 	home := c.UI.HomeCategory
 	return map[string]any{
-		"name": c.UI.SiteName, "template": c.UI.Template, "home_category": home, "home_element": c.UI.HomeElement,
+		"name": c.UI.SiteName, "template": c.UI.Template, "home_category": home, "home_element": c.UI.HomeElement, "editor": cmp.Or(c.UI.Editor, "visual"),
 		"languages": c.I18n.Languages, "default_language": c.I18n.DefaultLanguage,
 		"plugins": frontend, "element_types": s.app.Content.Types(), "auth_providers": s.app.Auth.ProviderInfos(),
 		"version": version.Version, "permissions": acl.Names,

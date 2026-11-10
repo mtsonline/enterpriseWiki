@@ -179,6 +179,10 @@ type UI struct {
 	// ReadableURLs shows readable paths (/wiki/<categories>/<page>, one per
 	// language) instead of /e/12 and /c/7. Default true.
 	ReadableURLs bool `yaml:"readable_urls" json:"readable_urls"`
+	// Editor is the default editor of text pages: "visual" (ProseMirror,
+	// default) or "simple" (plain contenteditable). Users may choose their
+	// own in the profile; both save Markdown.
+	Editor string `yaml:"editor" json:"editor"`
 }
 
 // Auth configures authentication.
@@ -671,6 +675,9 @@ func Validate(c *Config) error {
 			return fmt.Errorf("duplicate language %q", l)
 		}
 		seen[l] = true
+	}
+	if e := c.UI.Editor; e != "" && e != "visual" && e != "simple" {
+		return fmt.Errorf("ui.editor must be 'visual' or 'simple', got %q", e)
 	}
 	if p := c.UI.PreviewImage; p != "" && (strings.ContainsAny(p, " \t\r\n\"'<>\\") ||
 		!(strings.HasPrefix(p, "/") && !strings.HasPrefix(p, "//") || strings.HasPrefix(p, "https://") || strings.HasPrefix(p, "http://"))) {

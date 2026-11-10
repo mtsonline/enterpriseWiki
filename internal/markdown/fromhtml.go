@@ -164,11 +164,52 @@ func (c *conv) list(n *html.Node, colons int) string {
 			marker = strconv.Itoa(i) + ". "
 			i++
 		}
+		task := taskMarker(li)
 		body := strings.TrimSpace(c.blocks(li, colons))
 		body = strings.ReplaceAll(body, "\n\n", "\n")
-		b.WriteString(marker + indentRest(body, strings.Repeat(" ", len(marker))) + "\n")
+		b.WriteString(marker + task + indentRest(body, strings.Repeat(" ", len(marker))) + "\n")
 	}
 	return b.String()
+}
+
+// taskMarker returns "[ ] " or "[x] " for items of task lists: data-checked
+// (editor) or a leading checkbox (rendered Markdown, which is removed).
+func taskMarker(li *html.Node) string {
+	mark := func(on bool) string {
+		if on {
+			return "[x] "
+		}
+		return "[ ] "
+	}
+	switch attr(li, "data-checked") {
+	case "true":
+		return mark(true)
+	case "false":
+		return mark(false)
+	}
+	in := li.FirstChild
+	for in != nil && in.Type == html.TextNode && strings.TrimSpace(in.Data) == "" {
+		in = in.NextSibling
+	}
+	if in != nil && in.Type == html.ElementNode && in.DataAtom == atom.P {
+		// loose lists: <li><p><input ...> text</p></li>
+		in = in.FirstChild
+	}
+	if in == nil || in.Type != html.ElementNode || in.DataAtom != atom.Input || attr(in, "type") != "checkbox" {
+		return ""
+	}
+	_, checked := attrOK(in, "checked")
+	in.Parent.RemoveChild(in)
+	return mark(checked)
+}
+
+func attrOK(n *html.Node, k string) (string, bool) {
+	for _, a := range n.Attr {
+		if a.Key == k {
+			return a.Val, true
+		}
+	}
+	return "", false
 }
 
 // table converts a simple table to GFM (no merged cells, no blocks inside).

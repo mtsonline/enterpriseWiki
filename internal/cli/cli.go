@@ -99,6 +99,10 @@ Permissions, audit log, drafts, notifications
   draft publish ID [--at RFC3339] [--category ID] [--silent] --as USER
   inbox [list] [--limit N] | inbox read [ID...] --as USER
 
+Personal settings
+  pref list --as USER           settings of the user and their allowed values
+  pref set KEY VALUE --as USER  e.g. pref set editor simple ("" removes it)
+
 Translations of the user interface
   i18n status                   progress of every language
   i18n strings LANG [--filter todo|missing|outdated|custom|all] [--source ID]
@@ -218,6 +222,8 @@ func Main(args []string) int {
 		err = e.inboxCmd(args[1:])
 	case "i18n":
 		err = e.i18nCmd(args[1:])
+	case "pref":
+		err = e.prefCmd(args[1:])
 	case "category":
 		err = e.categoryCmd(args[1:])
 	case "cache":

@@ -111,7 +111,7 @@ test('create, edit, translate and search a page', async () => {
   await page.getByRole('link', { name: /new page|neue seite/i }).click();
   await idle();
   await page.getByLabel(/^(title|titel)/i).fill(`Page ${run}`);
-  const ed = page.locator('.ewh-editable');
+  const ed = page.locator('.ewe-prose');
   await ed.click();
   await page.keyboard.type(`Hello quokka${run} world`);
   await page.getByRole('button', { name: /^bold$|^fett$/i }).click();
@@ -128,7 +128,7 @@ test('create, edit, translate and search a page', async () => {
   await translate.click();
   await idle();
   await page.getByLabel(/^(title|titel)/i).fill(`Seite ${run}`);
-  await page.locator('.ewh-editable').fill(`Hallo quokka${run} Welt`);
+  await page.locator('.ewe-prose').fill(`Hallo quokka${run} Welt`);
   await page.getByRole('button', { name: /^(publish|veröffentlichen)$/i }).click();
   await page.waitForURL(/\/e\/\d+$/);
   await idle();
@@ -217,10 +217,10 @@ async function newPage(type, title) {
 
 test('insert macros with the macro dialog', async () => {
   await newPage('core.html', `Macros ${run}`);
-  const ed = page.locator('.ewh-editable');
+  const ed = page.locator('.ewe-prose');
   await ed.click();
   await page.keyboard.type('Intro text');
-  await page.getByRole('button', { name: /^(macro|makro)$/i }).click();
+  await page.getByRole('button', { name: /^(insert macro|makro einfügen)$/i }).click();
   const dialog = page.locator('dialog[open]');
   await dialog.waitFor();
   await dialog.locator('select').first().selectOption('panel');
@@ -228,27 +228,115 @@ test('insert macros with the macro dialog', async () => {
   await dialog.getByLabel(/^(title|titel)/i).fill('Careful');
   await a11y('macro dialog');
   await dialog.locator('button[type=submit]').click();
-  await page.waitForSelector('.ewh-editable [data-macro="panel"]');
-  // with the cursor inside the panel, the dialog edits the panel
-  await page.getByRole('button', { name: /^(macro|makro)$/i }).click();
+  await page.waitForSelector('.ewe-prose .ewe-macro[data-macro="panel"]');
+  // the placeholder text of the body is selected: typing replaces it
+  await page.keyboard.type('Panel body');
+  // the edit button of the macro opens the dialog for this macro
+  await page.locator('.ewe-macro[data-macro="panel"]').getByRole('button', { name: /^(edit macro|makro bearbeiten)/i }).click();
   assert.ok(await page.locator('dialog[open] select').first().isDisabled(), 'existing macro is edited');
   await page.locator('dialog[open]').getByLabel(/^(title|titel)/i).fill('Very careful');
   await page.locator('dialog[open] button[type=submit]').click();
   await page.locator('dialog[open]').waitFor({ state: 'detached' });
   // below the panel: insert a second macro
-  await page.locator('.ewh-editable').click();
+  await page.locator('.ewe-prose > p').first().click();
   await page.keyboard.press('Control+End');
-  await page.getByRole('button', { name: /^(macro|makro)$/i }).click();
+  await page.getByRole('button', { name: /^(insert macro|makro einfügen)$/i }).click();
   await page.locator('dialog[open] select').first().selectOption('toc');
   await page.locator('dialog[open] button[type=submit]').click();
-  await page.waitForSelector('.ewh-editable [data-macro="toc"]');
+  await page.waitForSelector('.ewe-prose .ewe-macro[data-macro="toc"]');
+  await a11y('visual editor with macros');
   await page.getByRole('button', { name: /^(publish|veröffentlichen)$/i }).click();
   await page.waitForURL(/\/e\/\d+$/);
   await idle();
   assert.ok(await page.locator('.ew-content .ew-macro-panel--warning').count() === 1, 'panel rendered');
   assert.match(await page.locator('.ew-macro-panel').innerText(), /Very careful/);
+  assert.match(await page.locator('.ew-macro-panel').innerText(), /Panel body/);
   assert.ok(await page.locator('.ew-content .ew-toc, .ew-content .ew-macro--toc').count() === 1, 'toc rendered');
   await a11y('page with macros');
+});
+
+test('visual editor: Markdown input, tables, Markdown mode, keyboard', async () => {
+  await newPage('core.html', `Visual ${run}`);
+  const ed = page.locator('.ewe-prose');
+  await ed.click();
+  // Markdown typed in the visual editor becomes formatting
+  await page.keyboard.type('## Section\nSome **strong** and `code` text\n- [ ] open task\nsecond\n\n');
+  assert.equal(await ed.locator('h2').innerText(), 'Section');
+  assert.ok(await ed.locator('strong').count() === 1 && await ed.locator('code').count() === 1, 'inline marks from Markdown');
+  assert.equal(await ed.locator('li.ewe-task').count(), 2, 'task list items');
+  await ed.locator('li.ewe-task input[type=checkbox]').first().check();
+  // a table; the table tools appear inside it, Tab moves to the next cell
+  await page.getByRole('button', { name: /^(insert table|tabelle einfügen)$/i }).click();
+  await page.keyboard.type('Head');
+  await page.keyboard.press('Tab');
+  await page.keyboard.type('Second');
+  await page.getByRole('button', { name: /^(insert row below|zeile unterhalb einfügen)$/i }).click();
+  assert.equal(await ed.locator('table tr').count(), 4, 'row added');
+  await a11y('visual editor in a table');
+  // toolbar: Alt+F10 from the text, arrow keys inside, Escape back to the text
+  await page.keyboard.press('Alt+F10');
+  assert.equal(await page.evaluate(() => document.activeElement?.closest('[role=toolbar]') !== null), true, 'Alt+F10 focuses the toolbar');
+  await page.keyboard.press('ArrowRight');
+  assert.equal(await page.evaluate(() => document.activeElement?.getAttribute('tabindex')), '0', 'roving tab index');
+  await page.keyboard.press('Escape');
+  assert.equal(await page.evaluate(() => document.activeElement?.classList.contains('ewe-prose')), true, 'Escape returns to the text');
+  // Escape, then Tab leaves the editor (no keyboard trap) also inside a table
+  // (controls inside the text, like task checkboxes, come first)
+  await page.keyboard.press('Escape');
+  let left = false;
+  for (let i = 0; i < 10 && !left; i++) {
+    await page.keyboard.press('Tab');
+    left = await page.evaluate(() => !document.activeElement?.closest('.ewe-prose'));
+  }
+  assert.ok(left, 'Esc + Tab leaves the editor');
+  // Markdown mode shows the source and keeps changes made there
+  await page.getByRole('button', { name: /^markdown$/i }).click();
+  const src = page.locator('textarea.ewe-markdown');
+  const md = await src.inputValue();
+  assert.match(md, /## Section/);
+  assert.match(md, /- \[x\] open task\n- \[ \] second/);
+  assert.match(md, /\| Head \| Second \|/);
+  await src.fill(md + '\nAdded in *Markdown*\n');
+  await a11y('editor in Markdown mode');
+  await page.getByRole('button', { name: /^markdown$/i }).click();
+  await ed.locator('em', { hasText: 'Markdown' }).waitFor();
+  await page.getByRole('button', { name: /^(publish|veröffentlichen)$/i }).click();
+  await page.waitForURL(/\/e\/\d+$/);
+  await idle();
+  const content = page.locator('.ew-content').first();
+  assert.equal(await content.locator('input[type=checkbox][checked]').count(), 1, 'checked task saved');
+  assert.match(await content.locator('table').innerText(), /Head/);
+  assert.equal(await content.locator('em', { hasText: 'Markdown' }).count(), 1);
+});
+
+test('the simple editor as personal choice', async () => {
+  await call('PUT', '/api/v1/me', { prefs: { editor: 'simple' } });
+  try {
+    const prefs = await call('GET', '/api/v1/me/prefs');
+    assert.equal(prefs.prefs.editor, 'simple');
+    await newPage('core.html', `Simple ${run}`);
+    const ed = page.locator('.ewh-editable');
+    await ed.click();
+    await page.keyboard.type(`Simple text koala${run}`);
+    await page.getByRole('button', { name: /^bold$|^fett$/i }).click();
+    await page.keyboard.type(' bold');
+    await a11y('simple editor');
+    await page.getByRole('button', { name: /^(publish|veröffentlichen)$/i }).click();
+    await page.waitForURL(/\/e\/\d+$/);
+    const id = Number(/\/e\/(\d+)$/.exec(page.url())[1]);
+    await idle();
+    assert.match(await page.locator('.ew-content').first().innerText(), new RegExp(`koala${run}`));
+    // saved as Markdown, whichever editor was used
+    const el = await call('GET', `/api/v1/elements/${id}?edit=1`);
+    assert.equal(el.body.format, 'markdown');
+    assert.match(el.body.source, new RegExp(`koala${run}`));
+    assert.match(el.body.source, /\*\*\s*bold\s*\*\*/);
+    // unknown settings and values are refused
+    await assert.rejects(call('PUT', '/api/v1/me', { prefs: { editor: 'fancy' } }));
+    await assert.rejects(call('PUT', '/api/v1/me', { prefs: { nope: 'x' } }));
+  } finally {
+    await call('PUT', '/api/v1/me', { prefs: { editor: '' } });
+  }
 });
 
 test('workflow: HR application from template, start and handle a case', async () => {
@@ -307,7 +395,7 @@ test('drafts, preview, templates and publishing with options', async () => {
   await page.goto(`${BASE}/c/${cat}/new`);
   await idle();
   await page.getByLabel(/^(title|titel)/i).fill(`Draft ${run}`);
-  await page.locator('.ewh-editable').click();
+  await page.locator('.ewe-prose').click();
   await page.keyboard.type(`Draft text wombat${run}`);
   // preview without saving
   await page.getByRole('button', { name: /^(preview|vorschau)$/i }).click();
@@ -342,7 +430,7 @@ test('drafts, preview, templates and publishing with options', async () => {
   const tpl = page.getByLabel(/^(template|vorlage)$/i);
   await tpl.waitFor();
   await tpl.selectOption({ label: `Template ${run}` });
-  await page.waitForFunction((n) => document.querySelector('.ewh-editable')?.textContent?.includes(n), `wombat${run}`);
+  await page.waitForFunction((n) => document.querySelector('.ewe-prose')?.textContent?.includes(n), `wombat${run}`);
 });
 
 test('share a page, notification bell, assigned watches', async () => {

@@ -412,8 +412,8 @@ func (s *Service) Authenticate(ctx context.Context, token string) (*identity.Pri
 func (s *Service) LoadPrincipal(ctx context.Context, uid int64) (*identity.Principal, error) {
 	p := &identity.Principal{UserID: uid}
 	var disabled bool
-	err := s.pool.QueryRow(ctx, `SELECT username, provider, display_name, email, language, disabled, allowed_networks FROM users WHERE id=$1`, uid).
-		Scan(&p.Username, &p.Provider, &p.DisplayName, &p.Email, &p.Language, &disabled, &p.Networks)
+	err := s.pool.QueryRow(ctx, `SELECT username, provider, display_name, email, language, disabled, allowed_networks, prefs FROM users WHERE id=$1`, uid).
+		Scan(&p.Username, &p.Provider, &p.DisplayName, &p.Email, &p.Language, &disabled, &p.Networks, &p.Prefs)
 	if err != nil {
 		return nil, apperr.NotFound("user")
 	}
