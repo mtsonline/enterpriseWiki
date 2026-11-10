@@ -118,6 +118,9 @@ jobs:
       - name: typecheck
         working-directory: web
         run: npm run typecheck
+      - name: unit tests (editor Markdown)
+        working-directory: web
+        run: npm run test:unit
       - name: setup and start the wiki
         run: |
           mkdir -p /tmp/wiki

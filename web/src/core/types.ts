@@ -228,3 +228,24 @@ export const PERMS = [
   { bit: 8, key: 'delete' },
   { bit: 16, key: 'manage' },
 ] as const;
+
+/** A parameter of a macro (for editors). */
+export interface MacroParam {
+  name: string;
+  labels: Record<string, string>;
+  type: 'text' | 'textarea' | 'number' | 'select' | 'bool' | 'url';
+  options?: string[];
+  default?: string;
+  required?: boolean;
+}
+
+/** A macro of an active plugin (GET /api/v1/macros). */
+export interface MacroInfo {
+  name: string;
+  plugin: string;
+  labels: Record<string, string>;
+  description: Record<string, string>;
+  params: MacroParam[] | null;
+  has_body: boolean;
+}
+

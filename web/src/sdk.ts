@@ -436,23 +436,7 @@ export async function prefetchReactions(type: string, ids: number[]): Promise<vo
 
 // ---------------------------------------------------------------- macros (for editors)
 
-export interface MacroParam {
-  name: string;
-  labels: Record<string, string>;
-  type: 'text' | 'textarea' | 'number' | 'select' | 'bool' | 'url';
-  options?: string[];
-  default?: string;
-  required?: boolean;
-}
-
-export interface MacroInfo {
-  name: string;
-  plugin: string;
-  labels: Record<string, string>;
-  description: Record<string, string>;
-  params: MacroParam[] | null;
-  has_body: boolean;
-}
+export type { MacroParam, MacroInfo } from './core/types';
 
 // ---------------------------------------------------------------- publish options
 
