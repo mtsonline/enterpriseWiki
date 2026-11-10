@@ -17,7 +17,7 @@ export function loadMacros(): Promise<MacroInfo[]> {
 /** The label of a localized map in the UI language. */
 export const label = (m: Record<string, string> | undefined): string => (m ? m[uiLang()] || m.en || Object.values(m)[0] || '' : '');
 
-export interface MacroChoice { name: string; params: Record<string, string>; hasBody: boolean }
+export interface MacroChoice { name: string; params: Record<string, string>; hasBody: boolean; inline: boolean }
 
 function paramControl(p: MacroParam, value: string): { el: HTMLElement; get: () => string } {
   const name = label(p.labels) || p.name;
@@ -44,10 +44,11 @@ function paramControl(p: MacroParam, value: string): { el: HTMLElement; get: () 
 
 /**
  * Opens the macro dialog. existing pre-fills it for editing; only (pre-)
- * selects a macro for new insertions (toolbar buttons of macro plugins).
+ * selects a macro for new insertions (toolbar buttons of macro plugins);
+ * preset pre-fills parameters of a new macro (e.g. the selected text).
  * Resolves with the choice, or null if the dialog was cancelled.
  */
-export async function macroDialog(existing: { name: string; params: Record<string, string> } | null, only?: string): Promise<MacroChoice | null> {
+export async function macroDialog(existing: { name: string; params: Record<string, string> } | null, only?: string, preset: Record<string, string> = {}): Promise<MacroChoice | null> {
   const macros = (await loadMacros()).slice().sort((a, b) => label(a.labels).localeCompare(label(b.labels)));
   if (!macros.length) throw new Error(t('editor.macro_none'));
   const initial = existing?.name ?? only ?? macros[0].name;
@@ -63,7 +64,7 @@ export async function macroDialog(existing: { name: string; params: Record<strin
     desc.textContent = label(m.description);
     getters = [];
     paramBox.replaceChildren(...(m.params ?? []).map((p) => {
-      const c = paramControl(p, existing?.name === m.name ? (existing.params[p.name] ?? '') : (p.default ?? ''));
+      const c = paramControl(p, existing?.name === m.name ? (existing.params[p.name] ?? '') : (preset[p.name] ?? p.default ?? ''));
       getters.push({ name: p.name, get: c.get, required: p.required, label: label(p.labels) || p.name });
       return c.el;
     }));
@@ -82,7 +83,7 @@ export async function macroDialog(existing: { name: string; params: Record<strin
           if (g.required && !v) throw new Error(t('editor.macro_required', { field: g.label }));
           if (v) params[g.name] = v;
         }
-        result = { name: m.name, params, hasBody: m.has_body };
+        result = { name: m.name, params, hasBody: m.has_body, inline: !!m.inline };
       }, { wide: true, onClose: () => resolve(result) });
   });
 }

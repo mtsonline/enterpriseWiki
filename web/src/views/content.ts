@@ -553,6 +553,8 @@ export async function editElementView({ params, query, main }: RouteCtx): Promis
   const isNewTranslation = el.fallback;
   const baseRev = isNewTranslation ? 0 : el.rev;
   const title = textInput({ value: el.title, required: true, maxlength: 250, lang });
+  // tags belong to the element (all languages)
+  const tags = textInput({ value: el.tags.join(', ') });
   const comment = textInput({ maxlength: 500 });
   const labelId = uid('content');
   const editorBox = h('div', { class: 'ew-editor-box', lang });
@@ -560,7 +562,7 @@ export async function editElementView({ params, query, main }: RouteCtx): Promis
   const notices = h('div');
   let draftId: number | null = null;
   let editor: EditorInstance;
-  const current = (): EditorState => ({ type: el.type, lang, title: title.value, body: editor.getBody(), comment: comment.value, baseRev, elementId: id, categoryId: el.category_id });
+  const current = (): EditorState => ({ type: el.type, lang, title: title.value, body: editor.getBody(), tags: splitTags(tags.value), comment: comment.value, baseRev, elementId: id, categoryId: el.category_id });
   const valid = (): boolean => {
     alert.textContent = '';
     const err = editor.validate?.();
@@ -575,6 +577,7 @@ export async function editElementView({ params, query, main }: RouteCtx): Promis
     notices, alert,
     field(t('common.title'), title, { required: true }),
     h('div', { class: 'ew-field' }, h('span', { class: 'ew-label', id: labelId }, t('core.html.content')), editorBox),
+    field(t('common.tags'), tags, { help: t('common.tags_help') }),
     el.original_lang !== lang ? h('details', { class: 'ew-original' }, h('summary', null, t('element.show_original', { lang: langName(el.original_lang) })), h('div', { 'data-original': '1' }, loading())) : null,
     field(t('element.comment'), comment, { help: t('element.comment_help') }),
     editorActions({
@@ -600,6 +603,7 @@ export async function editElementView({ params, query, main }: RouteCtx): Promis
     draftId = d.id;
     title.value = d.title;
     comment.value = d.comment;
+    if (d.tags) tags.value = d.tags.join(', ');
     editor.destroy?.();
     editorBox.replaceChildren();
     editor = mountEditor(editorBox, el.type, d.body, lang, labelId, el.id);
@@ -613,7 +617,7 @@ export async function editElementView({ params, query, main }: RouteCtx): Promis
     ev.preventDefault();
     if (!valid()) return;
     void run(async () => {
-      await api.put(`elements/${id}`, { lang, title: title.value, body: editor.getBody(), comment: comment.value, base_rev: baseRev });
+      await api.put(`elements/${id}`, { lang, title: title.value, body: editor.getBody(), tags: splitTags(tags.value), comment: comment.value, base_rev: baseRev });
       if (draftId) await api.del(`drafts/${draftId}`).catch(() => undefined); // published directly: the draft is obsolete
       editor.destroy?.();
       toast(t('common.saved'));
@@ -664,7 +668,7 @@ async function newOrDraftView({ params, query, main }: RouteCtx, draft: Draft | 
   typeSel.addEventListener('change', () => navigate(`/c/${catId}/new${qs({ type: typeSel.value, return: query.get('return') ?? undefined })}`, { replace: true }));
   const lang = draft?.lang ?? L();
   const title = textInput({ required: true, maxlength: 250, value: draft?.title ?? '' });
-  const tags = textInput({ value: draft?.tags.join(', ') ?? '' });
+  const tags = textInput({ value: draft?.tags?.join(', ') ?? '' });
   const labelId = uid('content');
   const editorBox = h('div', { class: 'ew-editor-box' });
   const alert = h('div', { class: 'ew-form-alert', role: 'alert' });

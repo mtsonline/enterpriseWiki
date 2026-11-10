@@ -32,17 +32,18 @@ type Draft struct {
 	Lang       string          `json:"lang"`
 	Title      string          `json:"title"`
 	Body       json.RawMessage `json:"body,omitempty"`
-	Tags       []string        `json:"tags"`
-	Comment    string          `json:"comment"`
-	BaseRev    int             `json:"base_rev"`
-	CreatedBy  string          `json:"created_by"`
-	UpdatedBy  string          `json:"updated_by"`
-	CreatedAt  time.Time       `json:"created_at"`
-	UpdatedAt  time.Time       `json:"updated_at"`
-	PublishAt  *time.Time      `json:"publish_at"`
-	Options    json.RawMessage `json:"publish_options"`
-	createdBy  *int64
-	publishBy  *int64
+	// Tags replace the tags of the element on publishing (null: keep them).
+	Tags      []string        `json:"tags"`
+	Comment   string          `json:"comment"`
+	BaseRev   int             `json:"base_rev"`
+	CreatedBy string          `json:"created_by"`
+	UpdatedBy string          `json:"updated_by"`
+	CreatedAt time.Time       `json:"created_at"`
+	UpdatedAt time.Time       `json:"updated_at"`
+	PublishAt *time.Time      `json:"publish_at"`
+	Options   json.RawMessage `json:"publish_options"`
+	createdBy *int64
+	publishBy *int64
 }
 
 const draftCols = `d.id, d.element_id, d.category_id, d.type, d.lang, d.title, d.body, d.tags, d.comment, d.base_rev,
@@ -64,9 +65,10 @@ type DraftInput struct {
 	Lang       string          `json:"lang"`
 	Title      string          `json:"title"`
 	Body       json.RawMessage `json:"body"`
-	Tags       []string        `json:"tags"`
-	Comment    string          `json:"comment"`
-	BaseRev    int             `json:"base_rev"`
+	// Tags of the element; null or missing keeps them, [] removes all.
+	Tags    []string `json:"tags"`
+	Comment string   `json:"comment"`
+	BaseRev int      `json:"base_rev"`
 }
 
 // canSeeDraft: the author, or edit permission in the category.
@@ -135,12 +137,11 @@ func (s *Service) SaveDraft(ctx context.Context, id int64, in DraftInput) (*Draf
 	if err != nil {
 		return nil, apperr.BadRequest("invalid body: %v", err)
 	}
-	tags, err := NormalizeTags(in.Tags)
-	if err != nil {
-		return nil, err
-	}
-	if tags == nil {
-		tags = []string{}
+	var tags []string // nil (NULL): keep the tags of the element
+	if in.Tags != nil {
+		if tags, err = NormalizeTags(in.Tags); err != nil {
+			return nil, err
+		}
 	}
 	uid := nullID(ctx)
 	switch {
@@ -310,7 +311,7 @@ func (s *Service) publish(ctx context.Context, d *Draft, target int64, in Publis
 	if d.ElementID != nil {
 		base := d.BaseRev
 		el, err = s.SaveElement(ctx, *d.ElementID, SaveInput{Lang: d.Lang, Title: d.Title, Body: d.Body, Comment: d.Comment, BaseRev: baseRev(base)})
-		if err == nil && len(d.Tags) > 0 {
+		if err == nil && d.Tags != nil {
 			_, err = s.UpdateElementMeta(ctx, *d.ElementID, MetaInput{Tags: d.Tags})
 		}
 	} else {

@@ -449,8 +449,22 @@ func buildDemo(d *demoRun) {
 
 	// ---- outside the tree: a menu, a text block and a carousel
 	d.optional("menu", func() {
-		d.create("menu", "/api/v1/x/core.menu/menus", map[string]any{"name": "Demo", "location": "header-nav", "items": []map[string]any{
-			{"label": d.tr("Demo tour", "Demo-Rundgang"), "element_id": overview},
+		// shown as mega menu (wide panels with groups and descriptions) while
+		// the plugin core.megamenu is active, otherwise as dropdowns
+		entry := func(en, de string, key string, id int64, descEN, descDE string) map[string]any {
+			return map[string]any{"label": d.tr(en, de), key: id, "description": d.tr(descEN, descDE)}
+		}
+		d.create("menu", "/api/v1/x/core.menu/menus", map[string]any{"name": "Demo", "location": "header-nav", "style": "mega", "items": []map[string]any{
+			{"label": d.tr("Demo tour", "Demo-Rundgang"), "element_id": overview, "children": []map[string]any{
+				{"label": d.tr("Read", "Lesen"), "type": "heading", "children": []map[string]any{
+					entry("News", "Neuigkeiten", "category_id", news, "Blog with posts and a feed", "Blog mit Beiträgen und Feed"),
+					entry("FAQ", "FAQ", "category_id", faq, "Questions in sections, instant search", "Fragen in Abschnitten, Sofortsuche"),
+				}},
+				{"label": d.tr("Take part", "Mitmachen"), "type": "heading", "children": []map[string]any{
+					entry("Events", "Termine", "category_id", evCat, "Calendar with registration", "Kalender mit Anmeldung"),
+					entry("Team", "Team", "category_id", team, "People and business cards", "Personen und Visitenkarten"),
+				}},
+			}},
 			{"label": d.tr("News", "Neuigkeiten"), "category_id": news},
 			{"label": d.tr("FAQ", "FAQ"), "category_id": faq},
 			{"label": d.tr("Events", "Termine"), "category_id": evCat},

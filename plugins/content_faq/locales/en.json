@@ -34,5 +34,8 @@
  "content.faq.top": "(top level)",
  "content.faq.empty": "No questions yet.",
  "content.faq.open_editor": "Create in the editor",
- "content.faq.new_source": "– Create a new category with the title –"
+ "content.faq.new_source": "– Create a new category with the title –",
+ "content.faq.edit_question_title": "Edit question",
+ "content.faq.delete_confirm": "Move the question “{title}” to the trash?",
+ "content.faq.deleted": "Question moved to the trash."
 }

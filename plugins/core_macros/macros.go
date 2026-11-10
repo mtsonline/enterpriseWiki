@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"html"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -28,7 +29,7 @@ func (p *Plugin) Manifest() sdk.Manifest { return sdk.ParseManifest(manifest) }
 
 // Setup registers the macros.
 func (p *Plugin) Setup(h *sdk.Host) error {
-	for _, m := range []content.Macro{toc{}, children{}, recent{}, panel{}, expand{}, status{}, columns{}, gallery{svc: h.Media}} {
+	for _, m := range []content.Macro{toc{}, children{}, recent{}, panel{}, expand{}, status{}, textStyle{}, columns{}, gallery{svc: h.Media}} {
 		h.RegisterMacro(m)
 	}
 	return nil
@@ -263,6 +264,57 @@ func (status) Render(_ context.Context, mc content.MacroContext) (string, error)
 		c = "grey"
 	}
 	return `<span class="ew-status ew-status--` + c + `">` + esc(strings.ToUpper(strings.TrimSpace(mc.Params["text"]))) + `</span>`, nil
+}
+
+func (status) Inline() bool    { return true }
+func (status) Toolbar() string { return "◉" }
+
+// ---------------------------------------------------------------- text style
+
+// textStyle colors and styles text from a fixed palette (no free colors, so
+// every combination keeps the contrast of WCAG 2.2 AA; templates may change
+// the palette with the --ew-style-* custom properties).
+type textStyle struct{}
+
+var (
+	styleColors      = []string{"red", "orange", "green", "blue", "purple", "grey"}
+	styleBackgrounds = []string{"yellow", "green", "blue", "red", "grey"}
+	styleFonts       = []string{"serif", "mono"}
+	styleSizes       = []string{"small", "large"}
+)
+
+func (textStyle) Name() string { return "style" }
+func (textStyle) Labels() map[string]string {
+	return lm("Text color and font", "Textfarbe und Schrift")
+}
+func (textStyle) Description() map[string]string {
+	return lm("Colors, highlights or changes the font of a text (from the palette of the site).",
+		"Färbt, markiert oder ändert die Schrift eines Textes (aus der Palette der Site).")
+}
+func (textStyle) HasBody() bool   { return false }
+func (textStyle) Inline() bool    { return true }
+func (textStyle) Toolbar() string { return "A" }
+func (textStyle) Params() []content.MacroParam {
+	opt := func(v []string) []string { return append([]string{""}, v...) }
+	return []content.MacroParam{
+		{Name: "text", Labels: lm("Text", "Text"), Type: "text", Required: true},
+		{Name: "color", Labels: lm("Text color", "Textfarbe"), Type: "select", Options: opt(styleColors)},
+		{Name: "background", Labels: lm("Highlight", "Hervorhebung"), Type: "select", Options: opt(styleBackgrounds)},
+		{Name: "font", Labels: lm("Font", "Schrift"), Type: "select", Options: opt(styleFonts)},
+		{Name: "size", Labels: lm("Size", "Größe"), Type: "select", Options: opt(styleSizes)},
+	}
+}
+func (textStyle) Render(_ context.Context, mc content.MacroContext) (string, error) {
+	cls := []string{"ew-style"}
+	for _, p := range []struct {
+		key, prefix string
+		allowed     []string
+	}{{"color", "ew-fg-", styleColors}, {"background", "ew-bg-", styleBackgrounds}, {"font", "ew-font-", styleFonts}, {"size", "ew-size-", styleSizes}} {
+		if v := mc.Params[p.key]; slices.Contains(p.allowed, v) {
+			cls = append(cls, p.prefix+v)
+		}
+	}
+	return `<span class="` + strings.Join(cls, " ") + `">` + esc(mc.Params["text"]) + `</span>`, nil
 }
 
 // ---------------------------------------------------------------- columns

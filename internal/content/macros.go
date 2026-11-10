@@ -61,6 +61,18 @@ type Macro interface {
 	Render(ctx context.Context, mc MacroContext) (string, error)
 }
 
+// InlineMacro is implemented by macros that are used inside a line of text
+// (:name[label]{...}); the label is the parameter "text".
+type InlineMacro interface {
+	Inline() bool
+}
+
+// ToolbarMacro is implemented by macros that get an own button in the
+// toolbar of the editor; Toolbar returns its icon (a short text or emoji).
+type ToolbarMacro interface {
+	Toolbar() string
+}
+
 // MacroInfo describes a macro for the editor.
 type MacroInfo struct {
 	Name        string            `json:"name"`
@@ -69,6 +81,9 @@ type MacroInfo struct {
 	Description map[string]string `json:"description"`
 	Params      []MacroParam      `json:"params"`
 	HasBody     bool              `json:"has_body"`
+	Inline      bool              `json:"inline"`
+	// Toolbar is the icon of the own toolbar button ("" = none).
+	Toolbar string `json:"toolbar,omitempty"`
 }
 
 type macroRegistry struct {
@@ -117,7 +132,14 @@ func (s *Service) Macros() []MacroInfo {
 			if p == nil {
 				p = []MacroParam{}
 			}
-			out = append(out, MacroInfo{Name: name, Plugin: r.pluginID, Labels: r.m.Labels(), Description: r.m.Description(), Params: p, HasBody: r.m.HasBody()})
+			info := MacroInfo{Name: name, Plugin: r.pluginID, Labels: r.m.Labels(), Description: r.m.Description(), Params: p, HasBody: r.m.HasBody()}
+			if im, ok := r.m.(InlineMacro); ok {
+				info.Inline = im.Inline() && !info.HasBody
+			}
+			if tm, ok := r.m.(ToolbarMacro); ok {
+				info.Toolbar = tm.Toolbar()
+			}
+			out = append(out, info)
 		}
 	}
 	sort.Slice(out, func(i, j int) bool { return out[i].Name < out[j].Name })

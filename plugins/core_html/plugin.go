@@ -182,11 +182,31 @@ func (t *Type) Render(ctx context.Context, rc content.RenderContext, raw json.Ra
 	if err != nil {
 		return "", err
 	}
-	out := ToHTML(b)
+	out := labelTasks(ToHTML(b), rc.Lang)
 	if rc.Service != nil {
 		out = rc.Service.RenderMacros(ctx, rc, out)
 	}
 	return out, nil
+}
+
+// checkboxes of task lists as rendered and sanitized (GFM: "- [x] done")
+var taskBox = regexp.MustCompile(`<input( checked="")? disabled="" type="checkbox"/?>`)
+
+var taskLabels = map[string][2]string{"en": {"Not done", "Done"}, "de": {"Offen", "Erledigt"}}
+
+// labelTasks gives the checkboxes of task lists an accessible name (WCAG
+// 4.1.2); they are read-only.
+func labelTasks(s, lang string) string {
+	l, ok := taskLabels[lang]
+	if !ok {
+		l = taskLabels["en"]
+	}
+	return taskBox.ReplaceAllStringFunc(s, func(m string) string {
+		if strings.Contains(m, "checked") {
+			return `<input checked="" disabled="" type="checkbox" aria-label="` + l[1] + `">`
+		}
+		return `<input disabled="" type="checkbox" aria-label="` + l[0] + `">`
+	})
 }
 
 var strict = bluemonday.StrictPolicy()

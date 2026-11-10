@@ -251,5 +251,9 @@ export interface MacroInfo {
   description: Record<string, string>;
   params: MacroParam[] | null;
   has_body: boolean;
+  /** used inside a line of text (:name[text]{...}) */
+  inline?: boolean;
+  /** icon of an own toolbar button */
+  toolbar?: string;
 }
 

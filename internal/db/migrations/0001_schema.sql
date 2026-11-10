@@ -228,7 +228,7 @@ CREATE TABLE element_drafts (
     lang            text NOT NULL,
     title           text NOT NULL,
     body            jsonb NOT NULL,
-    tags            text[] NOT NULL DEFAULT '{}',
+    tags            text[],                       -- NULL: keep the tags of the element
     comment         text NOT NULL DEFAULT '',
     base_rev        int NOT NULL DEFAULT 0,
     created_by      bigint REFERENCES users(id) ON DELETE SET NULL,

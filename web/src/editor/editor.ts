@@ -23,7 +23,7 @@ import { t } from '../core/i18n';
 import { field, formDialog, select, textArea, textInput } from '../components/ui';
 import { isImage, mediaURL, pickMedium } from '../components/media';
 import { formatAttrs } from './attrs';
-import { label as macroLabel, loadMacros, macroDialog } from './macros';
+import { label as macroLabel, loadMacros, macroDialog, type MacroChoice } from './macros';
 import { parse, serialize } from './markdown';
 import { schema } from './schema';
 
@@ -37,8 +37,6 @@ export interface MarkdownEditorOptions {
   labelId: string;
   /** Initial mode (default: the user's last choice, else visual). */
   mode?: EditorMode;
-  /** Extra toolbar buttons that insert a given macro (from plugin manifests). */
-  macroButtons?: { macro: string; label: string; icon: string }[];
   /** Called after every change of the content. */
   onChange?: () => void;
 }
@@ -188,6 +186,13 @@ function inserted(tr: Transaction, state: EditorState, type: NodeType): number {
 
 /** Markdown-looking plain text (pasted text is parsed as Markdown then). */
 const MD_HINT = /(^|\n)(#{1,6} |[-*+] |\d+[.)] |> |```|~~~|\|.*\||:{2,}[a-z])|\*\*\S|__\S|\[[^\]\n]+\]\([^)\n]+\)|~~\S/;
+
+/** Attributes of an inline macro: the parameter text becomes the label. */
+function inlineAttrs(c: MacroChoice, inline: boolean): { params: Record<string, string>; label?: string } {
+  if (!inline) return { params: c.params };
+  const { text = '', ...params } = c.params;
+  return { params, label: text };
+}
 
 // ---------------------------------------------------------------- node views
 
@@ -341,6 +346,8 @@ interface Tool {
   id: string;
   icon: string;
   key: string;
+  /** label (instead of the translation of key) */
+  label?: string;
   shortcut?: string;
   run: (v: EditorView) => void;
   active?: (s: EditorState) => boolean;
@@ -440,11 +447,13 @@ export function createMarkdownEditor(container: HTMLElement, opts: MarkdownEdito
   const macroEdit = async (v: EditorView, pos: number) => {
     const node = v.state.doc.nodeAt(pos);
     if (!node) return;
+    const inline = node.type === nodes.macro_inline;
+    const params = node.attrs.params as Record<string, string>;
     try {
-      const c = await macroDialog({ name: node.attrs.name as string, params: node.attrs.params as Record<string, string> });
+      const c = await macroDialog({ name: node.attrs.name as string, params: inline ? { ...params, text: node.attrs.label as string } : params });
       if (c) {
         const cur = v.state.doc.nodeAt(pos);
-        if (cur && cur.type === node.type) v.dispatch(v.state.tr.setNodeMarkup(pos, undefined, { ...cur.attrs, params: c.params }));
+        if (cur && cur.type === node.type) v.dispatch(v.state.tr.setNodeMarkup(pos, undefined, { ...cur.attrs, ...inlineAttrs(c, inline) }));
       }
     } catch (e) {
       toast(String((e as Error).message ?? e), 'error');
@@ -455,8 +464,11 @@ export function createMarkdownEditor(container: HTMLElement, opts: MarkdownEdito
   /** Inserts a macro (wrapping the selected blocks for macros with a body). */
   const macroInsert = async (v: EditorView, only?: string) => {
     let c;
+    const selected = mode === 'markdown'
+      ? textarea.value.slice(textarea.selectionStart, textarea.selectionEnd)
+      : v.state.doc.textBetween(v.state.selection.from, v.state.selection.to, ' ');
     try {
-      c = await macroDialog(null, only);
+      c = await macroDialog(null, only, selected.trim() && !selected.includes('\n') ? { text: selected.trim() } : {});
     } catch (e) {
       toast(String((e as Error).message ?? e), 'error');
       return;
@@ -466,13 +478,22 @@ export function createMarkdownEditor(container: HTMLElement, opts: MarkdownEdito
       const start = textarea.selectionStart, end = textarea.selectionEnd;
       const inner = textarea.value.slice(start, end).trim() || t('editor.macro_body');
       const head = c.name + formatAttrs(c.params);
-      const snippet = c.hasBody ? `\n:::${head}\n${inner}\n:::\n` : `\n::${head}\n`;
+      let snippet = c.hasBody ? `\n:::${head}\n${inner}\n:::\n` : `\n::${head}\n`;
+      if (c.inline) {
+        const { label, params } = inlineAttrs(c, true);
+        snippet = `:${c.name}[${(label as string).replace(/\]/g, '\\]')}]${formatAttrs(params as Record<string, string>)}`;
+      }
       textarea.setRangeText(snippet, start, end, 'end');
       textarea.focus();
       opts.onChange?.();
       return;
     }
     const { state } = v;
+    if (c.inline && state.selection.$from.parent.inlineContent) {
+      v.dispatch(state.tr.replaceSelectionWith(nodes.macro_inline.create({ name: c.name, ...inlineAttrs(c, true) }), false).scrollIntoView());
+      v.focus();
+      return;
+    }
     const attrs = { name: c.name, params: c.params, leaf: !c.hasBody };
     let tr: Transaction;
     const range = c.hasBody && !state.selection.empty ? state.selection.$from.blockRange(state.selection.$to) : null;
@@ -528,7 +549,6 @@ export function createMarkdownEditor(container: HTMLElement, opts: MarkdownEdito
     { id: 'image', icon: '🖼', key: 'editor.image', run: (v) => void imageDialog(v) },
     { id: 'hr', icon: '—', key: 'editor.hr', run: cmdTool(insertHr) },
     { id: 'macro', icon: '⚙', key: 'editor.macro_insert', run: (v) => void macroInsert(v), markdown: true },
-    ...(opts.macroButtons ?? []).map((b): Tool => ({ id: `macro:${b.macro}`, icon: b.icon, key: '', shortcut: b.label, run: (v) => void macroInsert(v, b.macro), markdown: true })),
     '|',
     { id: 'row_before', icon: '⤒', key: 'editor.row_before', run: cmdTool(addRowBefore), when: isInTable },
     { id: 'row_after', icon: '⤓', key: 'editor.row_after', run: cmdTool(addRowAfter), when: isInTable },
@@ -565,20 +585,34 @@ export function createMarkdownEditor(container: HTMLElement, opts: MarkdownEdito
   const toolbar = h('div', { class: 'ewe-toolbar', role: 'toolbar', 'aria-label': t('editor.toolbar') });
   const buttons: { tool: Tool; btn: HTMLButtonElement }[] = [];
   toolbar.append(blockSel);
-  for (const tool of tools) {
-    if (tool === '|') { toolbar.append(h('span', { class: 'ewe-sep', 'aria-hidden': 'true' })); continue; }
-    const text = tool.key ? t(tool.key) : (tool.shortcut ?? tool.id);
+  function makeButton(tool: Tool): HTMLButtonElement {
+    const text = tool.label ?? t(tool.key);
     // WCAG 2.5.3 (label in name): visible letters must be part of the accessible name
-    const name = /[A-Za-z0-9]/.test(tool.icon) && tool.icon.length > 1 ? `${tool.icon} ${text}` : text;
-    const tip = tool.key && tool.shortcut ? `${name} (${tool.shortcut})` : name;
-    const btn = h('button', { type: 'button', class: 'ewe-tool', 'aria-label': name, title: tip, 'aria-keyshortcuts': tool.key && tool.shortcut ? tool.shortcut.replace('⌘', 'Meta').replace('Ctrl', 'Control') : undefined, 'aria-pressed': tool.active ? 'false' : undefined },
+    const name = /[A-Za-z0-9]/.test(tool.icon) && (tool.icon.length > 1 || !text.toLowerCase().includes(tool.icon.toLowerCase())) ? `${tool.icon} ${text}` : text;
+    const tip = tool.shortcut ? `${name} (${tool.shortcut})` : name;
+    const btn = h('button', { type: 'button', class: 'ewe-tool', 'aria-label': name, title: tip, 'aria-keyshortcuts': tool.shortcut ? tool.shortcut.replace('⌘', 'Meta').replace('Ctrl', 'Control') : undefined, 'aria-pressed': tool.active ? 'false' : undefined },
       h('span', { 'aria-hidden': 'true' }, tool.icon));
     btn.addEventListener('mousedown', (e) => e.preventDefault()); // keep the selection
     btn.addEventListener('click', () => tool.run(view));
     buttons.push({ tool, btn });
-    toolbar.append(btn);
+    return btn;
+  }
+  for (const tool of tools) {
+    if (tool === '|') { toolbar.append(h('span', { class: 'ewe-sep', 'aria-hidden': 'true' })); continue; }
+    toolbar.append(makeButton(tool));
   }
   toolbar.append(h('span', { class: 'ewe-spacer' }), modeBtn);
+
+  // own buttons of macros (plugins declare them), after the macro button
+  void loadMacros().then((ms) => {
+    let after = buttons.find((b) => b.tool.id === 'macro')?.btn;
+    for (const m of ms.filter((x) => x.toolbar)) {
+      const btn = makeButton({ id: `macro:${m.name}`, icon: m.toolbar!, key: '', label: macroLabel(m.labels) || m.name, run: (v) => void macroInsert(v, m.name), markdown: true });
+      after?.after(btn);
+      after = btn;
+    }
+    updateToolbar(view.state);
+  }).catch(() => undefined);
 
   // roving tab index: one tab stop, arrow keys move inside the toolbar
   const controls = () => Array.from(toolbar.querySelectorAll<HTMLElement>('button, select')).filter((b) => !b.hidden && !(b as HTMLButtonElement).disabled);

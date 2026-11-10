@@ -34,5 +34,8 @@
  "content.faq.top": "(oberste Ebene)",
  "content.faq.empty": "Noch keine Fragen.",
  "content.faq.open_editor": "Im Editor anlegen",
- "content.faq.new_source": "– Neue Kategorie mit dem Titel anlegen –"
+ "content.faq.new_source": "– Neue Kategorie mit dem Titel anlegen –",
+ "content.faq.edit_question_title": "Frage bearbeiten",
+ "content.faq.delete_confirm": "Die Frage „{title}“ in den Papierkorb verschieben?",
+ "content.faq.deleted": "Frage in den Papierkorb verschoben."
 }

@@ -1,7 +1,7 @@
 // FAQ element: editor and the "faq" widget (instant search, expand/collapse
 // all, quick adding of questions and sections, feed, deep links #q-ID).
 import {
-  announce, api, button, categorySelect, checkbox, feedButton, field, formDialog, h, langFields, mount, pick,
+  announce, api, button, categorySelect, checkbox, confirmDialog, errorText, feedButton, field, formDialog, h, langFields, mount, pick,
   registerEditor, registerWidget, rerender, select, state, t, textArea, textInput, toast, type EditorInstance,
 } from '@ewiki/sdk';
 import './style.css';
@@ -76,6 +76,43 @@ function newSection(id: number, info: Info): void {
   }, { wide: true });
 }
 
+/** Quick editing of a question: title and answer (Markdown) in a dialog. */
+async function editQuestion(qid: number): Promise<void> {
+  let el: { title: string; rev: number; type: string; body: { format?: string; source?: string } };
+  try {
+    el = await api.get(`/api/v1/elements/${qid}?lang=${L()}&edit=1`);
+  } catch (e) {
+    toast(errorText(e), 'error');
+    return;
+  }
+  if (el.type !== 'core.html' || (el.body.format ?? 'markdown') !== 'markdown') {
+    location.assign(`/e/${qid}/edit?lang=${L()}`); // other page types: the full editor
+    return;
+  }
+  const q = textInput({ required: true, maxlength: 250, value: el.title });
+  const a = textArea({ rows: 10, value: el.body.source ?? '' });
+  formDialog(t('content.faq.edit_question_title'), [
+    field(t('content.faq.question'), q, { required: true }),
+    field(t('content.faq.answer'), a, { help: t('content.faq.answer_help') }),
+    h('p', { class: 'ew-help' }, h('a', { href: `/e/${qid}/edit?lang=${L()}` }, t('content.faq.open_editor'))),
+  ], t('common.save'), async () => {
+    await api.put(`/api/v1/elements/${qid}`, { lang: L(), title: q.value, body: { format: 'markdown', source: a.value }, base_rev: el.rev });
+    toast(t('common.saved'));
+    await rerender();
+  }, { wide: true });
+}
+
+async function deleteQuestion(qid: number, title: string): Promise<void> {
+  if (!await confirmDialog(t('content.faq.delete_confirm', { title }), t('common.delete'), true)) return;
+  try {
+    await api.del(`/api/v1/elements/${qid}`);
+    toast(t('content.faq.deleted'));
+    await rerender();
+  } catch (e) {
+    toast(errorText(e), 'error');
+  }
+}
+
 const norm = (s: string) => s.toLocaleLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
 
 async function faqWidget(root: HTMLElement): Promise<void> {
@@ -134,11 +171,14 @@ async function faqWidget(root: HTMLElement): Promise<void> {
       c.feed ? feedButton(`${BASE}/elements/${id}/feed`, title) : null));
   body.before(toolbar, status);
 
-  // edit links in edit mode
-  if (state.editMode) {
+  // edit and delete in edit mode (the server checks the permissions)
+  if (state.editMode && data.info.can_create) {
     for (const d of questions) {
-      d.querySelector('.ewq-answer')?.append(h('p', { class: 'ewq-edit' },
-        h('a', { href: `/e/${d.dataset.id}/edit?lang=${L()}` }, t('content.faq.edit_question'), h('span', { class: 'sr-only' }, `: ${d.querySelector('summary')?.textContent ?? ''}`))));
+      const qid = Number(d.dataset.id);
+      const name = d.querySelector('.ewq-question')?.textContent?.replace(/^[\d.]+\s*/, '') ?? '';
+      d.querySelector('.ewq-answer')?.append(h('div', { class: 'ewq-edit ew-actions' },
+        button(t('content.faq.edit_question'), () => void editQuestion(qid), { variant: 'secondary', ariaLabel: `${t('content.faq.edit_question')}: ${name}` }),
+        button(t('common.delete'), () => void deleteQuestion(qid, name), { variant: 'danger', ariaLabel: `${t('common.delete')}: ${name}` })));
     }
   }
   // deep link: /e/ID#q-123 opens the question

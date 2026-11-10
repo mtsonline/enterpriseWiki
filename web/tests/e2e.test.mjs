@@ -300,13 +300,21 @@ test('visual editor: Markdown input, tables, Markdown mode, keyboard', async () 
   await a11y('editor in Markdown mode');
   await page.getByRole('button', { name: /^markdown$/i }).click();
   await ed.locator('em', { hasText: 'Markdown' }).waitFor();
+  // inline macro from its own toolbar button: the selected text becomes its text
+  await ed.locator('em', { hasText: 'Markdown' }).dblclick();
+  await page.getByRole('button', { name: /^(text color and font|textfarbe und schrift)$/i }).click();
+  const sd = page.locator('dialog[open]');
+  assert.equal(await sd.getByLabel(/^text\b(?! ?colou?r)/i).first().inputValue(), 'Markdown');
+  await sd.getByLabel(/^(text color|textfarbe)$/i).selectOption('red');
+  await sd.locator('button[type=submit]').click();
+  await ed.locator('.ewe-macro_inline[data-macro="style"]').waitFor();
   await page.getByRole('button', { name: /^(publish|veröffentlichen)$/i }).click();
   await page.waitForURL(/\/e\/\d+$/);
   await idle();
   const content = page.locator('.ew-content').first();
   assert.equal(await content.locator('input[type=checkbox][checked]').count(), 1, 'checked task saved');
   assert.match(await content.locator('table').innerText(), /Head/);
-  assert.equal(await content.locator('em', { hasText: 'Markdown' }).count(), 1);
+  assert.equal(await content.locator('.ew-style.ew-fg-red', { hasText: 'Markdown' }).count(), 1, 'styled text');
 });
 
 test('the simple editor as personal choice', async () => {
@@ -331,9 +339,12 @@ test('the simple editor as personal choice', async () => {
     assert.equal(el.body.format, 'markdown');
     assert.match(el.body.source, new RegExp(`koala${run}`));
     assert.match(el.body.source, /\*\*\s*bold\s*\*\*/);
-    // unknown settings and values are refused
+    // unknown settings and values are refused (the browser logs the 400 responses)
+    const logged = errors.length;
     await assert.rejects(call('PUT', '/api/v1/me', { prefs: { editor: 'fancy' } }));
     await assert.rejects(call('PUT', '/api/v1/me', { prefs: { nope: 'x' } }));
+    await page.waitForTimeout(100);
+    errors.splice(logged, errors.length - logged, ...errors.slice(logged).filter((e) => !/status of 400/.test(e)));
   } finally {
     await call('PUT', '/api/v1/me', { prefs: { editor: '' } });
   }
@@ -699,6 +710,27 @@ test('FAQ: sections, questions, filter and quick add', async () => {
   await a11y('faq question dialog');
   await dlg.locator('button[type=submit]').click();
   await page.locator(`summary:has-text("Quick ${run}?")`).waitFor();
+  // edit mode: edit and delete a question directly in the FAQ
+  const edit = page.locator('.ew-pos--header-tools button[aria-pressed]');
+  if ((await edit.getAttribute('aria-pressed')) !== 'true') { await edit.click(); await idle(); }
+  await page.locator('.ewq-edit').first().waitFor({ state: 'attached' });
+  const quick = page.locator('details.ewq-q', { hasText: `Quick ${run}?` });
+  await quick.evaluate((d) => { d.open = true; });
+  await quick.getByRole('button', { name: /^(edit|bearbeiten):/i }).click();
+  const ed = page.locator('dialog[open]');
+  await ed.getByLabel(/^(question|frage)/i).fill(`Quicker ${run}?`);
+  await a11y('faq edit question dialog');
+  await ed.locator('button[type=submit]').click();
+  await page.locator(`summary:has-text("Quicker ${run}?")`).waitFor();
+  const quicker = page.locator('details.ewq-q', { hasText: `Quicker ${run}?` });
+  // (the edited question is open again: its address is #q-ID)
+  await quicker.locator('.ewq-edit').waitFor({ state: 'attached' });
+  await quicker.evaluate((d) => { d.open = true; });
+  await quicker.getByRole('button', { name: /^(delete|löschen):/i }).click();
+  await page.locator('dialog[open]').getByRole('button', { name: /^(delete|löschen)$/i }).click();
+  await page.locator(`summary:has-text("Quicker ${run}?")`).waitFor({ state: 'detached' });
+  await edit.click();
+  await idle();
 });
 
 test('event calendar: views, details and registration', async () => {
@@ -1078,6 +1110,38 @@ test('demo content: create, browse accessibly, remove', async () => {
     await idle();
     await a11y(`demo ${name}`);
   }
+  // as administrator, every page of the demo opens without an error, is
+  // accessible, and its editor opens (no "access denied" anywhere)
+  const failed = [];
+  const seen = new Set();
+  const queue = ['/demo'];
+  const editors = new Set();
+  const inDemo = (p) => /^\/(demo|wiki\/demo)(\/|$|\?)|^\/(e|c)\/\d+$/.test(p);
+  const errorTitle = /^(access denied|not found|something went wrong|zugriff verweigert|nicht gefunden|etwas ist schiefgelaufen)/i;
+  while (queue.length && seen.size < 60) {
+    const p = queue.shift();
+    if (seen.has(p)) continue;
+    seen.add(p);
+    await page.goto(BASE + p);
+    await idle();
+    const h1 = (await page.locator('main h1').first().textContent().catch(() => '')) ?? '';
+    if (errorTitle.test(h1.trim())) { failed.push(`${p}: ${h1}`); continue; }
+    await a11y(`demo page ${p}`);
+    const links = await page.$$eval('main a[href^="/"], header nav a[href^="/"]', (as) => as.map((a) => a.getAttribute('href') ?? ''));
+    for (const l of links) {
+      const path = l.split('#')[0];
+      if (/\/edit(\?|$)/.test(path)) editors.add(path);
+      else if (inDemo(path) && !seen.has(path)) queue.push(path);
+    }
+  }
+  assert.ok(seen.size > 10, `demo pages visited: ${seen.size}`);
+  for (const p of [...editors].slice(0, 25)) {
+    await page.goto(BASE + p);
+    await idle();
+    const h1 = (await page.locator('main h1').first().textContent().catch(() => '')) ?? '';
+    if (errorTitle.test(h1.trim())) failed.push(`${p}: ${h1}`);
+  }
+  assert.deepEqual(failed, [], 'demo pages with errors');
   await page.goto(`${BASE}/admin/demo`);
   await idle();
   await page.getByRole('button', { name: /^(Remove demo|Demo entfernen)$/ }).click();

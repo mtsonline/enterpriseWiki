@@ -51,3 +51,19 @@ func TestDecodeValidation(t *testing.T) {
 		t.Fatal("invalid format accepted")
 	}
 }
+
+// Task list checkboxes get an accessible name in the language of the page.
+func TestTaskLabels(t *testing.T) {
+	ty := &Type{}
+	raw, _ := json.Marshal(Body{Format: "markdown", Source: "- [x] done\n- [ ] open\n"})
+	html, err := ty.Render(context.Background(), content.RenderContext{Lang: "de"}, raw)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(html, `checked="" disabled="" type="checkbox" aria-label="Erledigt"`) || !strings.Contains(html, `type="checkbox" aria-label="Offen"`) {
+		t.Fatalf("%s", html)
+	}
+	if html, _ = ty.Render(context.Background(), content.RenderContext{Lang: "fr"}, raw); !strings.Contains(html, `aria-label="Done"`) {
+		t.Fatalf("fallback: %s", html)
+	}
+}

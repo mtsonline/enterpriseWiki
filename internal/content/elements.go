@@ -355,6 +355,8 @@ type SaveInput struct {
 	// SourceRev marks which revision of the original language a translation is
 	// based on; defaults to the current original revision.
 	SourceRev *int `json:"source_rev"`
+	// Tags of the element (all languages); null or missing keeps them.
+	Tags []string `json:"tags"`
 }
 
 // SaveElement stores a new revision. Nothing is ever overwritten.
@@ -365,6 +367,11 @@ func (s *Service) SaveElement(ctx context.Context, id int64, in SaveInput) (*Ele
 	}
 	if err := s.require(ctx, e.CategoryID, acl.Edit); err != nil {
 		return nil, err
+	}
+	if in.Tags != nil {
+		if _, err := NormalizeTags(in.Tags); err != nil {
+			return nil, err
+		}
 	}
 	t := s.Type(e.Type)
 	if t == nil {
@@ -434,6 +441,11 @@ func (s *Service) SaveElement(ctx context.Context, id int64, in SaveInput) (*Ele
 	})
 	if err != nil {
 		return nil, err
+	}
+	if in.Tags != nil {
+		if _, err := s.UpdateElementMeta(ctx, id, MetaInput{Tags: in.Tags}); err != nil {
+			return nil, err
+		}
 	}
 	s.fire(ctx, "update", "element", id)
 	return s.GetElement(ctx, id, in.Lang, true)
