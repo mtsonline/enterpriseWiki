@@ -24,7 +24,8 @@ import { field, formDialog, select, textArea, textInput } from '../components/ui
 import { isImage, mediaURL, pickMedium } from '../components/media';
 import { prosemirrorToYXmlFragment, redo as yRedo, undo as yUndo, yCursorPlugin, ySyncPlugin, yUndoPlugin, yUndoPluginKey } from 'y-prosemirror';
 import { formatAttrs } from './attrs';
-import { Collab, collabURL, colorOf, type Peer } from './collab';
+import { Collab, collabURL, colorOf, markerOf, type Peer } from './collab';
+import { TextareaBinding } from './mdlive';
 import { label as macroLabel, loadMacros, macroDialog, type MacroChoice } from './macros';
 import { parse, serialize } from './markdown';
 import { schema } from './schema';
@@ -513,6 +514,7 @@ export function createMarkdownEditor(container: HTMLElement, opts: MarkdownEdito
         snippet = `:${c.name}[${(label as string).replace(/\]/g, '\\]')}]${formatAttrs(params as Record<string, string>)}`;
       }
       textarea.setRangeText(snippet, start, end, 'end');
+      binding?.changed();
       textarea.focus();
       opts.onChange?.();
       return;
@@ -688,8 +690,7 @@ export function createMarkdownEditor(container: HTMLElement, opts: MarkdownEdito
       sep.hidden = !prev || prev.classList.contains('ewe-sep');
     }
     blockSel.disabled = md;
-    modeBtn.disabled = liveOn && livePeers.length > 0;
-    modeBtn.title = modeBtn.disabled ? t('editor.markdown_shared') : '';
+    modeBtn.title = liveOn && livePeers.length ? t('editor.mode_shared') : '';
     const p = s.selection.$from.parent;
     blockSel.value = p.type === nodes.paragraph ? 'p' : p.type === nodes.heading && (p.attrs.level as number) <= 4 ? `h${p.attrs.level as number}` : p.type === nodes.code_block ? 'code' : '';
     rove();
@@ -768,11 +769,12 @@ export function createMarkdownEditor(container: HTMLElement, opts: MarkdownEdito
   // ------------------------------------------------ DOM
 
   const surface = h('div', { class: 'ewe-surface' });
-  const textarea = h('textarea', { class: 'ew-input ewe-markdown', rows: 20, 'aria-labelledby': opts.labelId, 'aria-describedby': helpId, lang: opts.lang, spellcheck: 'true', hidden: true });
+  const textarea = h('textarea', { class: 'ew-input ewe-markdown', rows: 20, 'aria-labelledby': opts.labelId, 'aria-describedby': helpId, lang: opts.lang, spellcheck: 'true' });
   textarea.addEventListener('input', () => opts.onChange?.());
+  const mdWrap = h('div', { class: 'ewe-md-wrap', hidden: true }, textarea);
   const help = h('p', { class: 'ew-help ewe-help', id: helpId });
-  const liveBox = h('p', { class: 'ewe-live', hidden: true });
-  const root = h('div', { class: 'ewe-editor' }, toolbar, liveBox, surface, textarea, help);
+  const liveBox = h('div', { class: 'ewe-live', hidden: true });
+  const root = h('div', { class: 'ewe-editor' }, toolbar, liveBox, surface, mdWrap, help);
   container.append(root);
 
   const view: EditorView = new EditorView(surface, {
@@ -814,12 +816,26 @@ export function createMarkdownEditor(container: HTMLElement, opts: MarkdownEdito
   // ------------------------------------------------ live editing
 
   let livePeers: Peer[] = [];
+  let binding: TextareaBinding | null = null;
+  const chip = (id: number, name: string) => {
+    const mk = markerOf(id);
+    const sym = h('span', { class: 'ewe-peer-mark', 'aria-hidden': 'true' }, mk.shape);
+    sym.style.color = mk.color;
+    return h('li', { class: 'ewe-peer' }, sym, name);
+  };
   function showLive() {
     if (!liveOn) return;
     liveBox.hidden = false;
+    // everyone with the color and shape of the cursor (own one first)
+    const me = opts.collab ? chip(opts.collab.userId, t('editor.live_you')) : null;
     liveBox.replaceChildren(h('span', { class: 'ewe-live-dot', 'aria-hidden': 'true' }),
-      livePeers.length ? t('editor.live_with', { names: livePeers.map((p) => p.name).join(', ') }) : t('editor.live_alone'));
+      h('span', {}, livePeers.length ? t('editor.live_editing') : t('editor.live_alone')),
+      h('ul', { class: 'ewe-peers', 'aria-label': t('editor.live_editors') }, me, ...livePeers.map((p) => chip(p.id, p.name))));
   }
+  const bindMd = () => {
+    if (live && liveOn && mode === 'markdown' && !binding) binding = new TextareaBinding(textarea, live.text, live.awareness, () => opts.onChange?.());
+  };
+  const unbindMd = () => { binding?.destroy(); binding = null; };
   if (opts.collab) {
     const c = new Collab(collabURL(opts.collab.elementId, opts.lang), {
       onPeers: (peers) => {
@@ -829,13 +845,12 @@ export function createMarkdownEditor(container: HTMLElement, opts: MarkdownEdito
         for (const p of livePeers) if (!now.has(p.id)) announce(t('editor.live_left', { name: p.name }));
         livePeers = peers;
         showLive();
-        // the Markdown source is not shared: back to the visual editor
-        if (peers.length && mode === 'markdown') setMode('visual');
         updateToolbar(view.state);
       },
       onSaved: (rev, by) => opts.collab?.onSaved?.(rev, by),
       onClosed: () => {
         // keep editing alone with the current content
+        unbindMd();
         liveOn = false;
         livePeers = [];
         live = null;
@@ -851,12 +866,29 @@ export function createMarkdownEditor(container: HTMLElement, opts: MarkdownEdito
     // while live editing connects, typing goes into the local document (it
     // becomes the shared one if this editor is the first)
     const initial = view.state.doc;
+    const initialMd = textarea.value;
     c.ready.then((start) => {
       const first = start === 'first' || c.fragment.length === 0;
-      if (first) prosemirrorToYXmlFragment(view.state.doc, c.fragment);
-      else if (!view.state.doc.eq(initial)) toast(t('editor.live_replaced'), 'error');
+      if (first) {
+        // this editor starts the shared document, in its current mode
+        const md = mode === 'markdown' ? textarea.value : null;
+        prosemirrorToYXmlFragment(md === null ? view.state.doc : docOf(md), c.fragment);
+        c.doc.transact(() => {
+          if (md !== null) c.text.insert(0, md);
+          c.meta.set('mode', mode);
+        });
+      } else if (!view.state.doc.eq(initial) || textarea.value !== initialMd) toast(t('editor.live_replaced'), 'error');
       liveOn = true;
       view.updateState(EditorState.create({ schema, plugins: livePlugins(c) }));
+      // the mode is shared: whoever switches, switches for everyone
+      const shared = () => (c.meta.get('mode') === 'markdown' ? 'markdown' : 'visual');
+      if (shared() !== mode) setMode(shared(), true);
+      else if (mode === 'markdown') { textarea.value = c.text.toString(); bindMd(); }
+      c.meta.observe((ev) => {
+        if (ev.transaction.local || shared() === mode) return;
+        const by = livePeers.find((p) => p.id === c.meta.get('by'));
+        setMode(shared(), true, by?.name);
+      });
       updateToolbar(view.state);
       // the shared document is drawn by the sync plugin after this tick
       window.setTimeout(() => { showLive(); updateToolbar(view.state); }, 50);
@@ -869,23 +901,53 @@ export function createMarkdownEditor(container: HTMLElement, opts: MarkdownEdito
 
   // ------------------------------------------------ modes
 
-  function setMode(m: EditorMode) {
+  /**
+   * Switches between the visual editor and the Markdown source. With live
+   * editing the mode is shared: a switch converts the shared document and
+   * the others follow (remote: only the view changes).
+   */
+  function setMode(m: EditorMode, remote = false, by?: string) {
     if (m === mode) return;
-    if (m === 'markdown' && liveOn && livePeers.length) return; // shared: visual only
+    const c = liveOn ? live : null;
     if (m === 'markdown') {
-      textarea.value = serialize(view.state.doc);
+      if (c && remote) {
+        textarea.value = c.text.toString();
+      } else {
+        const md = serialize(view.state.doc);
+        textarea.value = md;
+        c?.doc.transact(() => {
+          c.text.delete(0, c.text.length);
+          c.text.insert(0, md);
+          c.meta.set('by', opts.collab?.userId ?? 0);
+          c.meta.set('mode', 'markdown');
+        });
+      }
     } else {
-      const doc = docOf(textarea.value);
-      view.dispatch(view.state.tr.replaceWith(0, view.state.doc.content.size, doc.content));
+      unbindMd();
+      if (!remote) {
+        // (with live editing the sync plugin passes this on to the others)
+        const doc = docOf(c ? c.text.toString() : textarea.value);
+        view.dispatch(view.state.tr.replaceWith(0, view.state.doc.content.size, doc.content));
+        c?.doc.transact(() => {
+          c.meta.set('by', opts.collab?.userId ?? 0);
+          c.meta.set('mode', 'visual');
+        });
+      }
     }
     mode = m;
+    if (m === 'markdown') bindMd();
     try { localStorage.setItem(MODE_KEY, m); } catch { /* storage unavailable */ }
     surface.hidden = m === 'markdown';
-    textarea.hidden = m !== 'markdown';
+    mdWrap.hidden = m !== 'markdown';
     modeBtn.setAttribute('aria-pressed', String(m === 'markdown'));
     help.textContent = m === 'markdown' ? t('editor.help_markdown') : t('editor.help_visual');
     updateToolbar(view.state);
-    announce(m === 'markdown' ? t('editor.mode_markdown') : t('editor.mode_visual'));
+    const what = m === 'markdown' ? t('editor.mode_markdown') : t('editor.mode_visual');
+    if (remote) {
+      if (by) announce(t('editor.mode_switched_by', { name: by, mode: what }));
+      return; // the focus stays where the user is
+    }
+    announce(what);
     focus();
   }
 
@@ -903,7 +965,7 @@ export function createMarkdownEditor(container: HTMLElement, opts: MarkdownEdito
     textarea.value = serialize(view.state.doc);
     mode = 'markdown';
     surface.hidden = true;
-    textarea.hidden = false;
+    mdWrap.hidden = false;
     modeBtn.setAttribute('aria-pressed', 'true');
     help.textContent = t('editor.help_markdown');
     updateToolbar(view.state);
@@ -913,8 +975,7 @@ export function createMarkdownEditor(container: HTMLElement, opts: MarkdownEdito
     view,
     getMarkdown: () => (mode === 'markdown' ? textarea.value.replace(/\r\n?/g, '\n') : serialize(view.state.doc)),
     setMarkdown: (src: string) => {
-      if (mode === 'markdown') textarea.value = src;
-      else view.dispatch(view.state.tr.replaceWith(0, view.state.doc.content.size, docOf(src).content));
+      if (mode === 'markdown') { textarea.value = src; binding?.changed(); } else view.dispatch(view.state.tr.replaceWith(0, view.state.doc.content.size, docOf(src).content));
     },
     getMode: () => mode,
     setMode,
@@ -922,14 +983,14 @@ export function createMarkdownEditor(container: HTMLElement, opts: MarkdownEdito
     saved: (rev: number) => { if (liveOn && opts.collab) live?.saved(rev, opts.collab.userId); },
     live: () => ({ on: liveOn, leader: liveOn && !!live?.leader, peers: livePeers }),
     // the view first: its plugins stop listening to the shared document
-    destroy: () => { view.destroy(); live?.destroy(); root.remove(); },
+    destroy: () => { unbindMd(); view.destroy(); live?.destroy(); root.remove(); },
   };
 }
 
 /** The cursor of another editor: a colored line with the name. */
 function cursorBuilder(user: { id?: number; name?: string }): HTMLElement {
   const color = colorOf(user.id ?? 0);
-  const label = h('span', { class: 'ewe-cursor-label' }, user.name ?? '');
+  const label = h('span', { class: 'ewe-cursor-label' }, `${markerOf(user.id ?? 0).shape} ${user.name ?? ''}`);
   label.style.backgroundColor = color;
   const el = h('span', { class: 'ewe-cursor', 'aria-hidden': 'true' }, '\u2060', label, '\u2060');
   el.style.borderColor = color;

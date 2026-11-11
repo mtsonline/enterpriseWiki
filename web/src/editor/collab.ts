@@ -29,11 +29,28 @@ export type Start = 'first' | 'synced';
 
 /** Accessible colors for the cursors of others (white text >= 4.5:1). */
 const COLORS = ['#0b5cad', '#a61f17', '#17602d', '#6b2fb3', '#8f3f00', '#005f73', '#7a1f5c', '#3b4048'];
-export const colorOf = (id: number): string => COLORS[Math.abs(id) % COLORS.length];
+/** Shapes in addition to the colors (WCAG 1.4.1: not by color alone). */
+const SHAPES = ['●', '■', '▲', '◆'];
+
+export interface Marker { color: string; shape: string }
+
+/**
+ * The marker of a user: color and shape, the same in the list of editors
+ * and at the cursor. 32 users get different combinations.
+ */
+export function markerOf(id: number): Marker {
+  const n = Math.abs(id);
+  return { color: COLORS[n % COLORS.length], shape: SHAPES[(n + Math.floor(n / COLORS.length)) % SHAPES.length] };
+}
+export const colorOf = (id: number): string => markerOf(id).color;
 
 export class Collab {
   readonly doc = new Y.Doc();
   readonly fragment = this.doc.getXmlFragment('prosemirror');
+  /** the Markdown source while the shared mode is "markdown" */
+  readonly text = this.doc.getText('markdown');
+  /** shared settings: mode ("visual" | "markdown"), by (user id of the last switch) */
+  readonly meta = this.doc.getMap<string | number>('meta');
   readonly awareness = new Awareness(this.doc);
   peers: Peer[] = [];
   leader = false;

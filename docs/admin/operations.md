@@ -45,6 +45,10 @@ npm-Pakete, Docker-Basis-Images, GitHub Actions):
    arm64) neu; Versions-Tags `v7.5.0` ergeben zusätzlich `:7.5.0`, `:7.5` und `:7`.
 4. Der nächtliche **Canary**-Lauf baut und testet mit den allerneuesten Versionen (ohne Wartezeit, ohne etwas zu
    übernehmen) als Frühwarnung.
+5. Die tägliche Prüfung **Outdated components** (`.github/workflows/outdated.yml`, lokal `go run ./tools/outdated`)
+   vergleicht Go-Toolchain, direkte Go-Module, npm-Pakete und die Node.js-LTS mit der jeweils neuesten stabilen
+   Version. Ist ein Update länger als 7 Tage offen (z. B. Renovate-PR mit roter CI), schlägt sie fehl – so bleibt
+   nichts unbemerkt veraltet.
 
 **PostgreSQL-Hauptversionen:** Renovate hebt die *empfohlene* Version an (`docker-compose*.yml`, `.env.example`,
 Hinweis in der Administration), die CI testet sie und das Upgrade von den älteren Versionen. Bestehende Installationen

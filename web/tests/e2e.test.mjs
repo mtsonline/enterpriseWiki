@@ -333,7 +333,7 @@ test('live editing: two editors see each other', async () => {
     await page.goto(`${BASE}/e/${el.id}/edit`);
     await page.waitForFunction(() => /nobody|niemand/i.test(document.querySelector('.ewe-live')?.textContent ?? ''), null, { timeout: 15000 });
     await p2.goto(`${BASE}/e/${el.id}/edit`);
-    await p2.waitForFunction(() => /^live editing with|^live-bearbeitung mit/i.test(document.querySelector('.ewe-live')?.textContent?.trim() ?? ''), null, { timeout: 15000 });
+    await p2.waitForFunction(() => document.querySelectorAll('.ewe-live .ewe-peers li').length === 2, null, { timeout: 15000 });
     await a11y('live editing with another editor');
     // typing in one editor appears in the other, with the cursor of the writer
     await page.locator('.ewe-prose h2').click();
@@ -343,7 +343,26 @@ test('live editing: two editors see each other', async () => {
     await p2.locator('.ewe-prose .ewe-cursor').waitFor();
     // the shared document is not duplicated when the second editor joins
     assert.equal(await p2.locator('.ewe-prose h2').count(), 1);
-    assert.ok(await p2.getByRole('button', { name: /^markdown$/i }).isDisabled(), 'no Markdown source while others edit');
+    // everybody is listed with the color and shape of the cursor
+    assert.equal(await p2.locator('.ewe-peers li').count(), 2);
+    const shape = await p2.locator('.ewe-peers li').nth(1).locator('.ewe-peer-mark').innerText();
+    assert.ok((await p2.locator('.ewe-prose .ewe-cursor-label').innerText()).startsWith(shape), 'cursor shows the shape of the list');
+    // Markdown source live: one switches, both are in the source and see each other
+    await page.getByRole('button', { name: /^markdown$/i }).click();
+    const src1 = page.locator('textarea.ewe-markdown'), src2 = p2.locator('textarea.ewe-markdown');
+    await src2.waitFor();
+    assert.match(await src2.inputValue(), new RegExp(`## Shared live${run}`));
+    await src2.click();
+    await p2.keyboard.press('Control+End');
+    await p2.keyboard.type(`\nsource${run}`);
+    await page.waitForFunction((x) => document.querySelector('textarea.ewe-markdown')?.value.includes(x), `source${run}`, { timeout: 10000 });
+    await page.locator('.ewe-md-mirror .ewe-md-caret').waitFor({ state: 'attached' });
+    await a11y('live editing in the Markdown source');
+    // back to the visual editor for everybody, with the text from the source
+    await p2.getByRole('button', { name: /^markdown$/i }).click();
+    await page.locator('.ewe-prose').waitFor();
+    await page.waitForFunction((x) => document.querySelector('.ewe-prose')?.textContent?.includes(x), `source${run}`, { timeout: 10000 });
+    assert.ok(await src1.isHidden(), 'the first editor followed back to the visual editor');
     // saving in one editor: the other continues on the new revision without conflict
     await page.getByRole('button', { name: /^(publish|veröffentlichen)$/i }).click();
     await page.waitForURL(/\/e\/\d+$/);
@@ -376,7 +395,7 @@ test('shared notes: write together in the page view, saved automatically', async
     await page.locator('.ewn .ewe-prose').waitFor();
     await page.waitForFunction(() => /nobody|niemand/i.test(document.querySelector('.ewn .ewe-live')?.textContent ?? ''), null, { timeout: 15000 });
     await p2.goto(`${BASE}/e/${el.id}`);
-    await p2.waitForFunction(() => /^live editing with|^live-bearbeitung mit/i.test(document.querySelector('.ewn .ewe-live')?.textContent?.trim() ?? ''), null, { timeout: 15000 });
+    await p2.waitForFunction(() => document.querySelectorAll('.ewn .ewe-live .ewe-peers li').length === 2, null, { timeout: 15000 });
     await a11y('shared notes');
     // the second person writes, the first sees it; the first one (leader) saves
     await p2.locator('.ewn .ewe-prose li p').first().click();

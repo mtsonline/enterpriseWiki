@@ -93,3 +93,17 @@
   font: 600 .72rem/1.4 var(--ew-font); white-space: nowrap; user-select: none; pointer-events: none;
 }
 @media (forced-colors: active) { .ewe-cursor { border-left-color: Highlight !important; } .ewe-cursor-label { forced-color-adjust: none; } }
+.ewe-peers { display: flex; flex-wrap: wrap; gap: .3rem .8rem; margin: 0; padding: 0; list-style: none; }
+.ewe-peer { display: inline-flex; align-items: center; gap: .25rem; font-weight: 600; }
+.ewe-peer-mark { font-size: 1rem; line-height: 1; }
+.ewe-live { flex-wrap: wrap; }
+
+/* Markdown source with the cursors of others (mirror over the textarea) */
+.ewe-md-wrap { position: relative; }
+.ewe-md-wrap[hidden] { display: none; }
+.ewe-md-mirror {
+  position: absolute; overflow: hidden; pointer-events: none; color: transparent; white-space: pre-wrap;
+  overflow-wrap: break-word; border-style: solid; border-color: transparent; z-index: 1;
+}
+.ewe-md-caret { display: inline; }
+.ewe-md-caret .ewe-cursor-label { top: -1.25em; }
