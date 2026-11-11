@@ -276,7 +276,8 @@ CREATE TABLE element_drafts (
     updated_at      timestamptz NOT NULL DEFAULT now(),
     publish_at      timestamptz,                   -- scheduled publication
     publish_by      bigint REFERENCES users(id) ON DELETE SET NULL,
-    publish_options jsonb NOT NULL DEFAULT '{}'
+    publish_options jsonb NOT NULL DEFAULT '{}',
+    fields          jsonb NOT NULL DEFAULT '{}'    -- fields of plugins (e.g. properties) to store on publishing
 );
 CREATE UNIQUE INDEX element_drafts_element ON element_drafts(element_id, lang) WHERE element_id IS NOT NULL;
 CREATE INDEX element_drafts_category ON element_drafts(category_id);

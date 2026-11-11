@@ -230,6 +230,8 @@ type ElementInput struct {
 	Position   *int            `json:"position"`
 	Comment    string          `json:"comment"`
 	ShortURL   string          `json:"short_url"`
+	// Fields of plugins (e.g. properties), by field id
+	Fields map[string]json.RawMessage `json:"fields"`
 }
 
 func cleanTitle(t string) (string, error) {
@@ -287,6 +289,10 @@ func (s *Service) CreateElement(ctx context.Context, in ElementInput) (*ElementV
 	if err != nil {
 		return nil, err
 	}
+	fields, err := s.checkFields(ctx, 0, in.CategoryID, in.Type, in.Fields, true)
+	if err != nil {
+		return nil, err
+	}
 	var id int64
 	err = db.Tx(ctx, s.pool, func(tx pgx.Tx) error {
 		var catPath string
@@ -315,6 +321,9 @@ func (s *Service) CreateElement(ctx context.Context, in ElementInput) (*ElementV
 			if err := s.setShortURL(ctx, tx, "element", id, short); err != nil {
 				return err
 			}
+		}
+		if err := s.storeFields(ctx, tx, id, fields); err != nil {
+			return err
 		}
 		// Make the first element the category default.
 		if _, err := tx.Exec(ctx, `UPDATE categories SET default_element_id=$2 WHERE id=$1 AND default_element_id IS NULL`, in.CategoryID, id); err != nil {
@@ -357,6 +366,8 @@ type SaveInput struct {
 	SourceRev *int `json:"source_rev"`
 	// Tags of the element (all languages); null or missing keeps them.
 	Tags []string `json:"tags"`
+	// Fields of plugins (e.g. properties); missing ones are kept.
+	Fields map[string]json.RawMessage `json:"fields"`
 }
 
 // SaveElement stores a new revision. Nothing is ever overwritten.
@@ -403,6 +414,10 @@ func (s *Service) SaveElement(ctx context.Context, id int64, in SaveInput) (*Ele
 			return nil, err
 		}
 	}
+	fields, err := s.checkFields(ctx, id, e.CategoryID, e.Type, in.Fields, true)
+	if err != nil {
+		return nil, err
+	}
 	err = db.Tx(ctx, s.pool, func(tx pgx.Tx) error {
 		if _, err := tx.Exec(ctx, `SELECT 1 FROM elements WHERE id=$1 FOR UPDATE`, id); err != nil {
 			return err
@@ -435,6 +450,9 @@ func (s *Service) SaveElement(ctx context.Context, id int64, in SaveInput) (*Ele
 			return err
 		}
 		if err := s.index(ctx, tx, id, e.CategoryID, in.Lang, title, t.Text(body), e.Tags); err != nil {
+			return err
+		}
+		if err := s.storeFields(ctx, tx, id, fields); err != nil {
 			return err
 		}
 		return audit.Log(ctx, tx, "element.save", "element", id, map[string]any{"lang": in.Lang, "rev": cur}, map[string]any{"lang": in.Lang, "rev": cur + 1, "title": title})

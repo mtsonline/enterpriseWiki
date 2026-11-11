@@ -502,6 +502,31 @@ export function listPublishOptions(): PublishOption[] {
   return publishOptions;
 }
 
+// ---------------------------------------------------------------- edit fields
+
+/** EditField adds a part to the editing of elements of every type (e.g.
+ * properties). Its value is sent as fields[id] when saving, publishing and
+ * in drafts, and stored by the plugin's content.ElementField in the
+ * transaction of the element. render returns null when it does not apply;
+ * initial is the value of a draft (if any). */
+export interface EditFieldContext { type: string; categoryId: number; elementId: number | null; lang: string; initial?: unknown }
+export interface EditField {
+  id: string;
+  order?: number;
+  render: (ctx: EditFieldContext) => Promise<{ el: HTMLElement; value: () => unknown; validate?: () => string | null } | null>;
+}
+
+const editFields: EditField[] = [];
+
+export function registerEditField(f: EditField): void {
+  editFields.push(f);
+  editFields.sort((a, b) => (a.order ?? 50) - (b.order ?? 50));
+}
+
+export function listEditFields(): EditField[] {
+  return editFields;
+}
+
 // ---------------------------------------------------------------- page actions
 
 /** PageAction adds a button to the actions of element and category pages

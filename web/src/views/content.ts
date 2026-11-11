@@ -15,6 +15,7 @@ import { feedButton } from '../components/feeds';
 import { getEditor, pageActionButtons, renderCategoryExtensions, renderElementExtensions, typeLabel, type EditorInstance } from '../sdk';
 import { draftNotice, publishDialog, publishVia, saveDraft, saveTemplateDialog, showPreview, templatePicker, type Draft, type EditorState } from '../components/publishing';
 import { tagInput } from '../components/tags';
+import { editFields } from '../components/editfields';
 
 const L = () => state.lang;
 const D = () => state.site.default_language;
@@ -570,10 +571,11 @@ export async function editElementView({ params, query, main }: RouteCtx): Promis
   const notices = h('div');
   let draftId: number | null = null;
   let editor: EditorInstance;
-  const current = (): EditorState => ({ type: el.type, lang, title: title.value, body: editor.getBody(), tags: splitTags(tags.value), comment: comment.value, baseRev, elementId: id, categoryId: el.category_id });
+  const fields = editFields({ type: el.type, categoryId: el.category_id, elementId: id, lang });
+  const current = (): EditorState => ({ type: el.type, lang, title: title.value, body: editor.getBody(), tags: splitTags(tags.value), comment: comment.value, baseRev, elementId: id, categoryId: el.category_id, fields: fields.values() });
   const valid = (): boolean => {
     alert.textContent = '';
-    const err = editor.validate?.();
+    const err = editor.validate?.() ?? fields.validate();
     if (err) { alert.textContent = err; return false; }
     if (!title.value.trim()) { alert.textContent = t('error.title_required'); title.focus(); return false; }
     return true;
@@ -586,6 +588,7 @@ export async function editElementView({ params, query, main }: RouteCtx): Promis
     field(t('common.title'), title, { required: true }),
     h('div', { class: 'ew-field' }, h('span', { class: 'ew-label', id: labelId }, t('core.html.content')), editorBox),
     field(t('common.tags'), tags, { help: t('common.tags_help') }),
+    fields.el,
     el.original_lang !== lang ? h('details', { class: 'ew-original' }, h('summary', null, t('element.show_original', { lang: langName(el.original_lang) })), h('div', { 'data-original': '1' }, loading())) : null,
     field(t('element.comment'), comment, { help: t('element.comment_help') }),
     editorActions({
@@ -612,6 +615,7 @@ export async function editElementView({ params, query, main }: RouteCtx): Promis
     title.value = d.title;
     comment.value = d.comment;
     if (d.tags) tags.value = d.tags.join(', ');
+    if (d.fields && Object.keys(d.fields).length) fields.reload(d.fields);
     editor.destroy?.();
     editorBox.replaceChildren();
     editor = mountEditor(editorBox, el.type, d.body, lang, labelId, el.id, remoteSave);
@@ -625,7 +629,7 @@ export async function editElementView({ params, query, main }: RouteCtx): Promis
     ev.preventDefault();
     if (!valid()) return;
     void run(async () => {
-      const saved = await api.put<ElementView>(`elements/${id}`, { lang, title: title.value, body: editor.getBody(), tags: splitTags(tags.value), comment: comment.value, base_rev: baseRev });
+      const saved = await api.put<ElementView>(`elements/${id}`, { lang, title: title.value, body: editor.getBody(), tags: splitTags(tags.value), comment: comment.value, base_rev: baseRev, fields: fields.values() });
       editor.saved?.(saved.rev);
       if (draftId) await api.del(`drafts/${draftId}`).catch(() => undefined); // published directly: the draft is obsolete
       editor.destroy?.();
@@ -686,11 +690,12 @@ async function newOrDraftView({ params, query, main }: RouteCtx, draft: Draft | 
   let editor: EditorInstance;
   const ret = query.get('return');
   const back = ret?.startsWith('/') && !ret.startsWith('//') ? ret : `/c/${catId}`;
-  const current = (): EditorState => ({ type: typeId, lang, title: title.value, body: editor.getBody(), tags: splitTags(tags.value), categoryId: catId });
+  const fields = editFields({ type: typeId, categoryId: catId, elementId: null, lang }, draft?.fields);
+  const current = (): EditorState => ({ type: typeId, lang, title: title.value, body: editor.getBody(), tags: splitTags(tags.value), categoryId: catId, fields: fields.values() });
   const valid = (): boolean => {
     alert.textContent = '';
     if (!title.value.trim()) { alert.textContent = t('error.title_required'); title.focus(); return false; }
-    const err = editor.validate?.();
+    const err = editor.validate?.() ?? fields.validate();
     if (err) { alert.textContent = err; return false; }
     return true;
   };
@@ -713,6 +718,7 @@ async function newOrDraftView({ params, query, main }: RouteCtx, draft: Draft | 
     field(t('common.title'), title, { required: true }),
     h('div', { class: 'ew-field' }, h('span', { class: 'ew-label', id: labelId }, t('core.html.content')), editorBox),
     field(t('common.tags'), tags, { help: t('common.tags_help') }),
+    fields.el,
     editorActions({
       cancelHref: back, publishLabel: t('publish.now_button'),
       onDraft: () => {
@@ -761,7 +767,7 @@ async function newOrDraftView({ params, query, main }: RouteCtx, draft: Draft | 
         finish(res.elementId);
         return;
       }
-      const el = await api.post<ElementView>('elements', { category_id: catId, type: typeId, lang, title: title.value, body: editor.getBody(), tags: splitTags(tags.value) });
+      const el = await api.post<ElementView>('elements', { category_id: catId, type: typeId, lang, title: title.value, body: editor.getBody(), tags: splitTags(tags.value), fields: fields.values() });
       finish(el.id);
     });
   });

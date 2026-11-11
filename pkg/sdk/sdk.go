@@ -211,6 +211,12 @@ func (h *Host) RegisterMacro(m content.Macro) {
 	h.Content.RegisterMacro(h.Manifest.ID, m)
 }
 
+// RegisterElementField adds data edited and saved together with elements
+// of every type (see content.ElementField).
+func (h *Host) RegisterElementField(f content.ElementField) {
+	h.Content.RegisterElementField(h.Manifest.ID, f)
+}
+
 // RegisterWorker adds a periodic background job named "<plugin-id>.<name>".
 // It only runs while the plugin is enabled. In cluster mode one node runs it
 // at a time; jobs must still tolerate concurrent runs (FOR UPDATE SKIP LOCKED).

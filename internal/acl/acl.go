@@ -177,6 +177,38 @@ func matches(r Rule, p *identity.Principal) bool {
 	return false
 }
 
+// Subject is someone permissions are given to: a user, group or role
+// (with ID), all signed-in people ("authenticated") or everybody ("guest").
+type Subject struct {
+	Type string `json:"type"`
+	ID   *int64 `json:"id,omitempty"`
+}
+
+// Valid reports whether a subject is well-formed.
+func (s Subject) Valid() bool {
+	switch s.Type {
+	case "user", "group", "role":
+		return s.ID != nil && *s.ID > 0
+	case "guest", "authenticated":
+		return s.ID == nil
+	}
+	return false
+}
+
+// MatchesAny reports whether p is one of the subjects (administrators
+// always are). Used by plugins for permissions on parts (e.g. a property).
+func MatchesAny(subjects []Subject, p *identity.Principal) bool {
+	if p != nil && p.IsAdmin {
+		return true
+	}
+	for _, s := range subjects {
+		if matches(Rule{SubjectType: s.Type, SubjectID: s.ID}, p) {
+			return true
+		}
+	}
+	return false
+}
+
 // Perms returns the effective permissions of p on category id.
 // Deleted (trashed) categories grant nothing except to admins.
 func (s *Service) Perms(ctx context.Context, p *identity.Principal, categoryID int64) (Perm, error) {

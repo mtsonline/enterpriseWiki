@@ -38,6 +38,7 @@ type Service struct {
 
 	mu             sync.Mutex
 	publishOptions map[string]publishOption
+	fields         map[string]elementField
 }
 
 // New creates the content service.

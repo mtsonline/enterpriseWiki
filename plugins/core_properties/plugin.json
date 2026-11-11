@@ -1,9 +1,14 @@
 {
   "id": "core.properties",
-  "name": "Page properties",
-  "version": "1.0.0",
-  "description": "Structured properties of pages (owner, status, review date, …) shown as a table on the page, and the macro “Page properties report” listing the pages of a category with their properties.",
+  "name": "Properties",
+  "version": "2.0.0",
+  "description": "Structured properties for elements of every type: definitions (global or per category, inherited) with more than 30 types such as text, numbers, currency, percent, dates, choices, status, people, links, location, automatic numbers and formulas; free properties; tags as built-in property. Edited with the element, searchable and filterable, shown in the macro “Property report” as table, cards, board, calendar, timeline, charts, key figures or pivot table.",
   "author": "Enterprise Wiki",
   "kinds": ["general", "macro"],
-  "frontend": true
+  "frontend": true,
+  "permissions": [
+    {"key": "core.properties.admin", "scope": "global", "label": "Define global properties", "description": "Create, change and remove the definitions of properties that apply everywhere, and in every category."},
+    {"key": "core.properties.define", "scope": "category", "label": "Define properties", "description": "Create, change and remove the definitions of properties of this category (inherited by subcategories) and allow or forbid free properties.", "presets": ["manager"]},
+    {"key": "core.properties.free", "scope": "category", "label": "Add free properties", "description": "Add properties without a definition (a name and a type) to elements one may edit.", "presets": ["editor", "manager"]}
+  ]
 }

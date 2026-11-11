@@ -42,18 +42,20 @@ type Draft struct {
 	UpdatedAt time.Time       `json:"updated_at"`
 	PublishAt *time.Time      `json:"publish_at"`
 	Options   json.RawMessage `json:"publish_options"`
+	// Fields of plugins (e.g. properties) to store on publishing.
+	Fields    map[string]json.RawMessage `json:"fields"`
 	createdBy *int64
 	publishBy *int64
 }
 
 const draftCols = `d.id, d.element_id, d.category_id, d.type, d.lang, d.title, d.body, d.tags, d.comment, d.base_rev,
 	COALESCE((SELECT u.display_name FROM users u WHERE u.id = d.created_by), ''), COALESCE((SELECT u.display_name FROM users u WHERE u.id = d.updated_by), ''),
-	d.created_at, d.updated_at, d.publish_at, d.publish_options, d.created_by, d.publish_by`
+	d.created_at, d.updated_at, d.publish_at, d.publish_options, d.fields, d.created_by, d.publish_by`
 
 func scanDraft(r pgx.CollectableRow) (Draft, error) {
 	var d Draft
 	err := r.Scan(&d.ID, &d.ElementID, &d.CategoryID, &d.Type, &d.Lang, &d.Title, &d.Body, &d.Tags, &d.Comment, &d.BaseRev,
-		&d.CreatedBy, &d.UpdatedBy, &d.CreatedAt, &d.UpdatedAt, &d.PublishAt, &d.Options, &d.createdBy, &d.publishBy)
+		&d.CreatedBy, &d.UpdatedBy, &d.CreatedAt, &d.UpdatedAt, &d.PublishAt, &d.Options, &d.Fields, &d.createdBy, &d.publishBy)
 	return d, err
 }
 
@@ -69,6 +71,8 @@ type DraftInput struct {
 	Tags    []string `json:"tags"`
 	Comment string   `json:"comment"`
 	BaseRev int      `json:"base_rev"`
+	// Fields of plugins (e.g. properties); null or missing keeps them.
+	Fields map[string]json.RawMessage `json:"fields"`
 }
 
 // canSeeDraft: the author, or edit permission in the category.
@@ -137,6 +141,14 @@ func (s *Service) SaveDraft(ctx context.Context, id int64, in DraftInput) (*Draf
 	if err != nil {
 		return nil, apperr.BadRequest("invalid body: %v", err)
 	}
+	var eid int64
+	if in.ElementID != nil {
+		eid = *in.ElementID
+	}
+	checked, err := s.checkFields(ctx, eid, in.CategoryID, in.Type, in.Fields, false)
+	if err != nil {
+		return nil, err
+	}
 	var tags []string // nil (NULL): keep the tags of the element
 	if in.Tags != nil {
 		if tags, err = NormalizeTags(in.Tags); err != nil {
@@ -146,17 +158,19 @@ func (s *Service) SaveDraft(ctx context.Context, id int64, in DraftInput) (*Draf
 	uid := nullID(ctx)
 	switch {
 	case id != 0:
-		_, err = s.pool.Exec(ctx, `UPDATE element_drafts SET title=$2, body=$3, tags=$4, comment=$5, base_rev=GREATEST(base_rev, $6), lang=$7, updated_by=$8, updated_at=now() WHERE id=$1`,
-			id, in.Title, body, tags, in.Comment, in.BaseRev, in.Lang, uid)
+		_, err = s.pool.Exec(ctx, `UPDATE element_drafts SET title=$2, body=$3, tags=$4, comment=$5, base_rev=GREATEST(base_rev, $6), lang=$7, updated_by=$8, updated_at=now(),
+			fields = CASE WHEN $9::jsonb IS NULL THEN fields ELSE fields || $9::jsonb END WHERE id=$1`,
+			id, in.Title, body, tags, in.Comment, in.BaseRev, in.Lang, uid, draftFields(in.Fields, checked))
 	case in.ElementID != nil:
-		err = s.pool.QueryRow(ctx, `INSERT INTO element_drafts(element_id, category_id, type, lang, title, body, tags, comment, base_rev, created_by, updated_by)
-			VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$10)
+		err = s.pool.QueryRow(ctx, `INSERT INTO element_drafts(element_id, category_id, type, lang, title, body, tags, comment, base_rev, created_by, updated_by, fields)
+			VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$10,COALESCE($11::jsonb, '{}'))
 			ON CONFLICT (element_id, lang) WHERE element_id IS NOT NULL DO UPDATE SET title=EXCLUDED.title, body=EXCLUDED.body, tags=EXCLUDED.tags,
-				comment=EXCLUDED.comment, updated_by=EXCLUDED.updated_by, updated_at=now()
-			RETURNING id`, *in.ElementID, in.CategoryID, in.Type, in.Lang, in.Title, body, tags, in.Comment, in.BaseRev, uid).Scan(&id)
+				comment=EXCLUDED.comment, updated_by=EXCLUDED.updated_by, updated_at=now(),
+				fields = CASE WHEN $11::jsonb IS NULL THEN element_drafts.fields ELSE element_drafts.fields || $11::jsonb END
+			RETURNING id`, *in.ElementID, in.CategoryID, in.Type, in.Lang, in.Title, body, tags, in.Comment, in.BaseRev, uid, draftFields(in.Fields, checked)).Scan(&id)
 	default:
-		err = s.pool.QueryRow(ctx, `INSERT INTO element_drafts(category_id, type, lang, title, body, tags, comment, created_by, updated_by)
-			VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$8) RETURNING id`, in.CategoryID, in.Type, in.Lang, in.Title, body, tags, in.Comment, uid).Scan(&id)
+		err = s.pool.QueryRow(ctx, `INSERT INTO element_drafts(category_id, type, lang, title, body, tags, comment, created_by, updated_by, fields)
+			VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$8,COALESCE($9::jsonb, '{}')) RETURNING id`, in.CategoryID, in.Type, in.Lang, in.Title, body, tags, in.Comment, uid, draftFields(in.Fields, checked)).Scan(&id)
 	}
 	if err != nil {
 		return nil, err
@@ -310,12 +324,12 @@ func (s *Service) publish(ctx context.Context, d *Draft, target int64, in Publis
 	var err error
 	if d.ElementID != nil {
 		base := d.BaseRev
-		el, err = s.SaveElement(ctx, *d.ElementID, SaveInput{Lang: d.Lang, Title: d.Title, Body: d.Body, Comment: d.Comment, BaseRev: baseRev(base)})
+		el, err = s.SaveElement(ctx, *d.ElementID, SaveInput{Lang: d.Lang, Title: d.Title, Body: d.Body, Comment: d.Comment, BaseRev: baseRev(base), Fields: d.Fields})
 		if err == nil && d.Tags != nil {
 			_, err = s.UpdateElementMeta(ctx, *d.ElementID, MetaInput{Tags: d.Tags})
 		}
 	} else {
-		el, err = s.CreateElement(ctx, ElementInput{CategoryID: target, Type: d.Type, Lang: d.Lang, Title: d.Title, Body: d.Body, Tags: d.Tags, Comment: d.Comment})
+		el, err = s.CreateElement(ctx, ElementInput{CategoryID: target, Type: d.Type, Lang: d.Lang, Title: d.Title, Body: d.Body, Tags: d.Tags, Comment: d.Comment, Fields: d.Fields})
 	}
 	if err != nil {
 		return nil, err

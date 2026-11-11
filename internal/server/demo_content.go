@@ -321,11 +321,13 @@ func buildDemo(d *demoRun) {
 		`<p>Personen erwähnst du mit @: @` + handles["anna"] + ` bekommt eine Benachrichtigung.</p>`
 	overview := d.page(start, "Tour of the features", "Rundgang durch die Funktionen", overviewEN, overviewDE, map[string]any{"short_url": "demo" + suffix})
 	d.optional("properties", func() {
-		d.call(http.MethodPut, fmt.Sprintf("/api/v1/x/core.properties/elements/%d", overview), map[string]any{"items": []map[string]string{
-			{"key": "Verantwortlich", "value": "Anna Berger", "type": "text"},
-			{"key": "Status", "value": "Aktiv", "type": "status"},
-			{"key": "Prüfdatum", "value": time.Now().AddDate(0, 6, 0).Format("2006-01-02"), "type": "date"},
-		}}, nil)
+		d.call(http.MethodPut, fmt.Sprintf("/api/v1/x/core.properties/elements/%d", overview), map[string]any{
+			"values": map[string]any{"responsible": "Anna Berger", "state": "Aktiv", "review": time.Now().AddDate(0, 6, 0).Format("2006-01-02")},
+			"free": map[string]any{
+				"responsible": map[string]string{"type": "text", "label": "Verantwortlich"},
+				"state":       map[string]string{"type": "status", "label": "Status"},
+				"review":      map[string]string{"type": "date", "label": "Prüfdatum"},
+			}}, nil)
 	})
 	// comments with a mention, reactions and a favorite of the administrator
 	d.optional("comments", func() {
@@ -446,8 +448,8 @@ func buildDemo(d *demoRun) {
 		d.element(docs, "content.notes", d.tr("Meeting notes (shared)", "Besprechungsnotizen (gemeinsam)"), bodies, nil)
 	})
 	d.page(docs, "Report: page properties", "Bericht: Seiteneigenschaften",
-		"<p>All pages of the demo with their properties:</p>"+macro("properties", map[string]string{"category": strconv.FormatInt(root, 10), "recursive": "true", "limit": "50"}, ""),
-		"<p>Alle Seiten der Demo mit ihren Eigenschaften:</p>"+macro("properties", map[string]string{"category": strconv.FormatInt(root, 10), "recursive": "true", "limit": "50"}, ""), nil)
+		"<p>All pages of the demo with their properties:</p>"+macro("properties", map[string]string{"source": "category:" + strconv.FormatInt(root, 10) + "+sub", "filter": "responsible notempty", "columns": "responsible,state,review", "limit": "50"}, ""),
+		"<p>Alle Seiten der Demo mit ihren Eigenschaften:</p>"+macro("properties", map[string]string{"source": "category:" + strconv.FormatInt(root, 10) + "+sub", "filter": "responsible notempty", "columns": "responsible,state,review", "limit": "50"}, ""), nil)
 
 	// ---- overview of the demo area (first element = default of the category)
 	d.optional("overview", func() {
