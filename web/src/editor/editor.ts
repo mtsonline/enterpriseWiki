@@ -195,6 +195,24 @@ function inserted(tr: Transaction, state: EditorState, type: NodeType): number {
   return found;
 }
 
+/**
+ * Takes over a collapsed DOM selection the editor has not read yet (a key
+ * pressed right after End/Home or a click: the selectionchange event comes
+ * later, keyboard commands would act at the old position).
+ */
+function syncSelection(v: EditorView): void {
+  if (v.composing) return;
+  const sel = v.dom.ownerDocument.getSelection();
+  if (!sel || !sel.isCollapsed || !sel.anchorNode || !v.dom.contains(sel.anchorNode)) return;
+  let pos: number;
+  try { pos = v.posAtDOM(sel.anchorNode, sel.anchorOffset); } catch { return; }
+  const cur = v.state.selection;
+  if (pos < 0 || pos > v.state.doc.content.size || (cur.empty && cur.from === pos) || cur instanceof NodeSelection) return;
+  const $pos = v.state.doc.resolve(pos);
+  if (!$pos.parent.inlineContent) return;
+  v.dispatch(v.state.tr.setSelection(TextSelection.create(v.state.doc, pos)));
+}
+
 /** Markdown-looking plain text (pasted text is parsed as Markdown then). */
 const MD_HINT = /(^|\n)(#{1,6} |[-*+] |\d+[.)] |> |```|~~~|\|.*\||:{2,}[a-z])|\*\*\S|__\S|\[[^\]\n]+\]\([^)\n]+\)|~~\S/;
 
@@ -722,9 +740,10 @@ export function createMarkdownEditor(container: HTMLElement, opts: MarkdownEdito
 
   const escapePlugin = new Plugin({
     props: {
-      handleKeyDown(_v, e) {
+      handleKeyDown(v, e) {
         if (e.key === 'Escape') escaped = true;
         else if (e.key !== 'Tab' && e.key !== 'Shift') escaped = false;
+        syncSelection(v);
         return false;
       },
     },
@@ -838,8 +857,9 @@ export function createMarkdownEditor(container: HTMLElement, opts: MarkdownEdito
       else if (!view.state.doc.eq(initial)) toast(t('editor.live_replaced'), 'error');
       liveOn = true;
       view.updateState(EditorState.create({ schema, plugins: livePlugins(c) }));
-      showLive();
       updateToolbar(view.state);
+      // the shared document is drawn by the sync plugin after this tick
+      window.setTimeout(() => { showLive(); updateToolbar(view.state); }, 50);
     }).catch(() => {
       // no live editing (not reachable, too many editors): edit alone
       live = null;

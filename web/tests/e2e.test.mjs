@@ -382,6 +382,7 @@ test('shared notes: write together in the page view, saved automatically', async
     await p2.locator('.ewn .ewe-prose li p').first().click();
     await p2.keyboard.press('End');
     await p2.keyboard.press('Enter');
+    await p2.locator('.ewn .ewe-prose li').nth(1).waitFor();
     await p2.keyboard.type(`minutes${run}`);
     await page.waitForFunction((x) => document.querySelector('.ewn .ewe-prose')?.textContent?.includes(x), `minutes${run}`, { timeout: 10000 });
     await p2.waitForFunction(() => /saved|gespeichert/i.test(document.querySelector('.ewn-status')?.textContent ?? ''), null, { timeout: 20000 });
