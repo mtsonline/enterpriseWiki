@@ -504,10 +504,16 @@ func TestAPI(t *testing.T) {
 	if got := admin.do("GET", "/api/v1/x/example.notice/tones", nil, nil); got != 404 {
 		t.Fatalf("route of disabled plugin reachable: %d", got)
 	}
+	// core.html is still needed by content.notes (extends it)
+	if got := admin.do("POST", "/api/v1/admin/plugins/core.html/disable", nil, nil); got != 409 {
+		t.Fatalf("disable core.html with an active dependent: %d", got)
+	}
+	admin.must("POST", "/api/v1/admin/plugins/content.notes/disable", nil, nil, 204)
 	if got := admin.do("POST", "/api/v1/admin/plugins/core.html/disable", nil, nil); got != 204 {
 		t.Fatalf("disable core.html: %d", got)
 	}
 	admin.must("POST", "/api/v1/admin/plugins/core.html/enable", nil, nil, 204)
+	admin.must("POST", "/api/v1/admin/plugins/content.notes/enable", nil, nil, 204)
 	admin.must("POST", "/api/v1/admin/plugins/example.notice/enable", nil, nil, 204)
 	admin.must("GET", "/api/v1/x/example.notice/tones", nil, nil, 200)
 	if got := admin.do("POST", "/api/v1/admin/plugins/auth.local/disable", nil, nil); got != 400 {

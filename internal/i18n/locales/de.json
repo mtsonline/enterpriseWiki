@@ -1552,5 +1552,18 @@
  "profile.editor_default": "Standard der Site ({name})",
  "profile.editor_help": "Beide Editoren speichern Markdown; Sie können jederzeit wechseln.",
  "settings.editor": "Standard-Editor für Seiten",
- "settings.editor_help": "Benutzer können im Profil ihren eigenen Editor wählen."
+ "settings.editor_help": "Benutzer können im Profil ihren eigenen Editor wählen.",
+ "editor.live_connecting": "Live-Bearbeitung wird verbunden …",
+ "editor.live_alone": "Live-Bearbeitung: Gerade bearbeitet niemand sonst diese Seite.",
+ "editor.live_with": "Live-Bearbeitung mit {names}.",
+ "editor.live_joined": "{name} bearbeitet diese Seite jetzt mit.",
+ "editor.live_left": "{name} bearbeitet diese Seite nicht mehr.",
+ "editor.live_lost": "Die Verbindung zur Live-Bearbeitung ist beendet. Sie bearbeiten allein weiter; Änderungen anderer werden nicht mehr angezeigt.",
+ "editor.live_unavailable": "Live-Bearbeitung ist gerade nicht verfügbar. Sie bearbeiten allein.",
+ "editor.live_saved": "Version {rev} wurde von jemand anderem gespeichert. Ihr nächstes Speichern baut darauf auf.",
+ "editor.live_saved_by": "{name} hat Version {rev} gespeichert. Ihr nächstes Speichern baut darauf auf.",
+ "editor.markdown_shared": "Der Markdown-Quelltext ist nicht verfügbar, solange andere mitbearbeiten.",
+ "settings.collaboration": "Live-Bearbeitung (mehrere gleichzeitig)",
+ "settings.collaboration_help": "Wer eine Seite bearbeitet, sieht im visuellen Editor die Änderungen und Cursor der anderen.",
+ "editor.live_replaced": "Andere haben diese Seite bereits bearbeitet: Ihre Eingaben vor dem Verbinden wurden durch den gemeinsamen Stand ersetzt."
 }

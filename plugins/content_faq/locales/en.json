@@ -37,5 +37,9 @@
  "content.faq.new_source": "– Create a new category with the title –",
  "content.faq.edit_question_title": "Edit question",
  "content.faq.delete_confirm": "Move the question “{title}” to the trash?",
- "content.faq.deleted": "Question moved to the trash."
+ "content.faq.deleted": "Question moved to the trash.",
+ "content.faq.edit_section": "Edit section",
+ "content.faq.delete_section": "Delete section",
+ "content.faq.delete_section_confirm": "Move the section “{title}” with all its questions to the trash?",
+ "content.faq.section_deleted": "Section moved to the trash."
 }

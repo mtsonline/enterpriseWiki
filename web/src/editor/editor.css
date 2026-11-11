@@ -82,3 +82,14 @@
 @media (prefers-reduced-motion: reduce) {
   .ewe-prose .ProseMirror-gapcursor::after { animation: none; }
 }
+
+/* live editing: status and the cursors of others */
+.ewe-live { display: flex; align-items: center; gap: .4rem; margin: 0; padding: .3rem .75rem; font-size: .85rem; border-bottom: 1px solid var(--ew-border); background: var(--ew-bg-subtle); }
+.ewe-live[hidden] { display: none; }
+.ewe-live-dot { width: .6rem; height: .6rem; border-radius: 50%; background: #17602d; flex: none; }
+.ewe-cursor { position: relative; margin-left: -1px; margin-right: -1px; border-left: 2px solid; word-break: normal; pointer-events: none; }
+.ewe-cursor-label {
+  position: absolute; top: -1.35em; left: -2px; padding: 0 .3rem; border-radius: 3px 3px 3px 0; color: #fff;
+  font: 600 .72rem/1.4 var(--ew-font); white-space: nowrap; user-select: none; pointer-events: none;
+}
+@media (forced-colors: active) { .ewe-cursor { border-left-color: Highlight !important; } .ewe-cursor-label { forced-color-adjust: none; } }

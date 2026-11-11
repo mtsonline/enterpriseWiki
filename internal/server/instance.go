@@ -52,6 +52,7 @@ func (si *Instance) start(ctx context.Context, s *Server) {
 	sctx, cancel := context.WithCancel(ctx)
 	s.app.SetStop(func() {
 		cancel()
+		s.Close()
 		si.mu.Lock()
 		delete(si.servers, s.app.Site)
 		si.mu.Unlock()
@@ -120,6 +121,11 @@ func (si *Instance) Run(ctx context.Context) error {
 	sctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 	si.in.Log.Info("shutting down")
+	si.mu.Lock()
+	for _, s := range si.servers {
+		s.Close()
+	}
+	si.mu.Unlock()
 	if err := srv.Shutdown(sctx); err != nil && !errors.Is(err, http.ErrServerClosed) {
 		return err
 	}

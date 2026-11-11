@@ -37,5 +37,9 @@
  "content.faq.new_source": "– Neue Kategorie mit dem Titel anlegen –",
  "content.faq.edit_question_title": "Frage bearbeiten",
  "content.faq.delete_confirm": "Die Frage „{title}“ in den Papierkorb verschieben?",
- "content.faq.deleted": "Frage in den Papierkorb verschoben."
+ "content.faq.deleted": "Frage in den Papierkorb verschoben.",
+ "content.faq.edit_section": "Abschnitt bearbeiten",
+ "content.faq.delete_section": "Abschnitt löschen",
+ "content.faq.delete_section_confirm": "Den Abschnitt „{title}“ mit allen Fragen in den Papierkorb verschieben?",
+ "content.faq.section_deleted": "Abschnitt in den Papierkorb verschoben."
 }

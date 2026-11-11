@@ -29,10 +29,20 @@ Im Editor speichert **Als Entwurf speichern** den Stand, ohne ihn zu veröffentl
 Die aktuell geöffnete Kategorie ist automatisch als übergeordnete Kategorie ausgewählt. Titel und Beschreibung können Sie für jede Sprache eingeben.
 
 ### Seiten bearbeiten
-- **Formatierter Text:** Die Werkzeugleiste bietet Absatz, Überschriften, fett, kursiv, unterstrichen, durchgestrichen, Listen, Zitat, Code, Link, Tabelle und Trennlinie. Tastenkürzel: Strg+B / Strg+I / Strg+U, Strg+Z rückgängig.
-- **Markdown:** Format auf *Markdown* umstellen. Mit *Vorschau* sehen Sie das Ergebnis.
+Seiten werden als **Markdown** gespeichert (GitHub-Markdown). Es gibt zwei Editoren; welchen Sie verwenden, legen Sie im **Profil** fest (*Editor für Seiten*), sonst gilt die Vorgabe der Site.
+
+**Visueller Editor** (Standard):
+- Werkzeugleiste: Absatzformat (Absatz, Überschrift 1–4, Codeblock), fett, kursiv, durchgestrichen, Code, Link, Aufzählung, nummerierte Liste, **Aufgabenliste**, Zitat, Tabelle, Bild, Trennlinie, Makro, Rückgängig/Wiederholen. In einer Tabelle erscheinen zusätzlich Knöpfe für Zeilen und Spalten.
+- Markdown beim Tippen: `# ` bis `###### ` → Überschrift, `- ` → Liste, `1. ` → nummerierte Liste, `> ` → Zitat, ` ``` ` → Codeblock, `---` → Trennlinie, `[ ] ` am Anfang eines Listenpunkts → Aufgabe, `**fett**`, `*kursiv*`, `~~durchgestrichen~~`, `` `Code` ``. Eingefügter Markdown-Text wird umgewandelt.
+- Tastatur: Strg+B/I/E/K (fett, kursiv, Code, Link), Strg+Umschalt+X (durchgestrichen), Strg+Umschalt+7/8/9 (Listen), Strg+Alt+0…4 (Absatz, Überschriften), Strg+Z/Strg+Y. **Alt+F10** springt in die Werkzeugleiste (Pfeiltasten wählen, Escape zurück in den Text). **Tab** rückt in Listen ein und springt in Tabellen zur nächsten Zelle; **Escape, dann Tab** verlässt den Editor immer. **Enter** auf einem ausgewählten Makro oder Bild öffnet dessen Einstellungen.
+- **Markdown** (rechts in der Werkzeugleiste) zeigt den Quelltext; ein zweiter Klick wechselt zurück.
+- **Live-Bearbeitung:** Bearbeiten mehrere Personen dieselbe Seite, sehen alle die Änderungen und Cursor der anderen sofort. Über dem Text steht, wer mitbearbeitet; Kommen und Gehen wird für Screenreader angesagt. Rückgängig betrifft nur die eigenen Änderungen. Speichert jemand, bekommen die anderen einen Hinweis und speichern ohne Konflikt weiter. Solange andere mitbearbeiten, ist der Markdown-Quelltext nicht verfügbar.
+
+**Einfacher Editor:** ein schlankes Eingabefeld (formatiert oder Markdown) ohne Live-Bearbeitung, z. B. für ältere Geräte.
+
+- **Tags** stehen direkt unter dem Inhalt (durch Komma getrennt); sie gelten für alle Sprachen der Seite.
 - Geben Sie optional eine **Änderungsnotiz** ein. Sie erscheint im Verlauf.
-- Hat jemand die Seite gleichzeitig gespeichert, werden Sie gewarnt, statt die fremde Änderung zu überschreiben. Laden Sie dann neu und übernehmen Sie Ihre Änderungen.
+- Hat jemand die Seite gleichzeitig gespeichert (ohne Live-Bearbeitung), werden Sie gewarnt, statt die fremde Änderung zu überschreiben. Laden Sie dann neu und übernehmen Sie Ihre Änderungen.
 
 ### Dateien
 Wählen Sie bei *Neue Seite* den Elementtyp **Datei**, laden Sie die Datei hoch und beschreiben Sie sie. PDFs, Bilder und Videos werden direkt angezeigt, andere Dateien stehen zum Herunterladen bereit. Eine neue Datei hochzuladen und zu speichern erzeugt eine neue Version. Frühere Dateien bleiben im Verlauf erhalten. Der Text von PDFs ist über die Suche auffindbar.
@@ -58,7 +68,9 @@ auf die Datei das Programm sofort. *Schließen* führt zurück ins Wiki.
 Im Editor öffnet der Knopf **Bild einfügen** die Medienbibliothek: Bild auswählen oder neu hochladen (Standard: Kategorie der Seite) und einen Alternativtext angeben, der das Bild für Menschen beschreibt, die es nicht sehen können. Andere Dateien werden als Link eingefügt. Das Makro **Bildergalerie** zeigt ausgewählte Bilder (`media="12,13,14"`) oder alle Bilder einer Kategorie als Raster; ein Klick öffnet das Bild groß, mit den Pfeiltasten blättern Sie weiter.
 
 ### Makros
-Makros sind Bausteine, die beim Anzeigen der Seite ausgefüllt werden. Im Editor fügt der Knopf **Makro** (⚙) eines ein; steht der Cursor in einem Makro, bearbeitet derselbe Knopf dessen Einstellungen. Im Markdown-Modus gibt es dafür *Makro einfügen* über dem Textfeld.
+Makros sind Bausteine, die beim Anzeigen der Seite ausgefüllt werden. Im visuellen Editor fügt der Knopf **Makro einfügen** (⚙) eines ein; Makros mit Inhalt (z. B. Hinweis-Box) umschließen markierte Absätze. Ein eingefügtes Makro erscheint als gestrichelter Kasten mit Name, Einstellungen sowie den Knöpfen *Makro bearbeiten* (✎) und *Makro entfernen* (×); Makros im Text (z. B. Status-Label, Textfarbe) als kleiner Baustein. Manche Makros haben einen eigenen Knopf in der Werkzeugleiste (◉ Status-Label, **A** Textfarbe und Schrift); der markierte Text wird dabei übernommen.
+
+Im Markdown-Quelltext stehen Makros als Direktiven: `::toc{levels=3}` (ohne Inhalt), `:::panel{type=info title="Achtung"}` … `:::` (mit Inhalt; verschachtelte Makros außen mit mehr Doppelpunkten) und `:status[ERLEDIGT]{color=green}` (im Text).
 
 | Makro | Wirkung |
 |---|---|
@@ -68,6 +80,7 @@ Makros sind Bausteine, die beim Anzeigen der Seite ausgefüllt werden. Im Editor
 | Hinweis-Box | Info, Notiz, Tipp, Warnung oder Erfolg, mit Titel |
 | Aufklappbereich | Inhalt, der erst nach einem Klick erscheint |
 | Status-Label | farbiges Label wie ERLEDIGT |
+| Textfarbe und Schrift | Textfarbe, Hervorhebung, Schriftart und -größe aus der Palette der Site (alle Kombinationen gut lesbar) |
 | Spalten / Karten | Inhalt nebeneinander; Spalten bzw. Karten mit einer Trennlinie trennen |
 | Abschnitt, Hero-Banner, Button-Link, Abstand | Bausteine für Website-Seiten (besonders mit der Vorlage *CMS*) |
 | Shell-Befehl | Ausgabe eines Befehls auf dem Server; läuft erst, wenn ein Superadmin genau diesen Befehl freigegeben hat |
@@ -118,6 +131,7 @@ Mit *Übersetzen* bzw. *Bearbeiten* öffnen Sie den Editor für diese Sprache. U
 Beim Anlegen eines Elements (*Neues Element*) wählen Sie den Typ:
 
 - **Blog**: zeigt die Seiten einer Kategorie (optional mit Unterkategorien) als Beiträge, die neuesten zuerst. Es gibt Anrisstext, Autor und Datum sowie die Layouts Liste, Karten und Kompakt, dazu Blättern, Schlagwort-Filter (Klick auf einen Tag) und eine **Suche nur im Blog**. Die Beiträge sind normale Seiten: **Neuer Beitrag** öffnet den Editor in der Blog-Kategorie, **Neue Unterkategorie** legt z. B. „Veranstaltungen“ an. Im Editor des Blogs wählen Sie die Kategorie aus oder legen sie mit **Neue Kategorie** an.
+- **Gemeinsame Notizen**: eine Seite, auf der alle mit Bearbeitungsrecht direkt in der Ansicht schreiben – gleichzeitig, mit den Cursorn der anderen (Live-Bearbeitung). Gespeichert wird automatisch wenige Sekunden nach einer Änderung (höchstens alle 30 Sekunden eine neue Version, im Verlauf als „Notizen automatisch gespeichert“). Leser:innen sehen die Notizen als normale Seite. Ideal für Besprechungsprotokolle und gemeinsame Aufgabenlisten.
 - **FAQ**: Unterkategorien werden zu aufklappbaren Abschnitten, Seiten zu aufklappbaren Fragen (Titel = Frage, Inhalt = Antwort). Das Suchfeld filtert sofort, *Alle aufklappen/zuklappen* hilft beim Lesen. **Neue Frage** legt Frage und Antwort direkt im Dialog an (Markdown), **Neuer Abschnitt** eine Unterkategorie. Jede Frage hat einen eigenen Link (`#q-123`).
 - **Veranstaltungskalender**:
   - Ansichten Monat, Woche und Liste, Kategorien mit Farben, Suche.

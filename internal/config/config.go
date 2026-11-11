@@ -183,6 +183,9 @@ type UI struct {
 	// default) or "simple" (plain contenteditable). Users may choose their
 	// own in the profile; both save Markdown.
 	Editor string `yaml:"editor" json:"editor"`
+	// Collaboration lets several users edit a page at the same time in the
+	// visual editor (live, with their cursors). Default true.
+	Collaboration bool `yaml:"collaboration" json:"collaboration"`
 }
 
 // Auth configures authentication.
@@ -360,7 +363,7 @@ func Defaults() *Config {
 		Database: Database{URL: "${EWIKI_DATABASE_URL}", MaxConns: 50},
 		Storage:  Storage{Path: "./data", MaxUploadMB: 100},
 		I18n:     I18n{DefaultLanguage: "en", Languages: []string{"en", "de"}},
-		UI:       UI{SiteName: "Enterprise Wiki", Template: "theme.wiki", Prerender: true, ReadableURLs: true},
+		UI:       UI{SiteName: "Enterprise Wiki", Template: "theme.wiki", Prerender: true, ReadableURLs: true, Collaboration: true},
 		Auth: Auth{
 			Order: []string{"local"}, SessionTTL: "168h", APIKeyMaxTTL: "8760h", SSHTokenTTL: "1h",
 			MaxLoginFails: 10, LockoutDuration: "15m", MinPasswordLen: 12,

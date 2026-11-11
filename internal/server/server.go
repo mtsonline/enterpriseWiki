@@ -15,6 +15,7 @@ import (
 
 	"github.com/mtsonline/enterprisewiki/internal/app"
 	"github.com/mtsonline/enterprisewiki/internal/auth"
+	"github.com/mtsonline/enterprisewiki/internal/collab"
 	"github.com/mtsonline/enterprisewiki/internal/identity"
 	"github.com/mtsonline/enterprisewiki/internal/pluginmgr"
 )
@@ -28,16 +29,25 @@ type Server struct {
 	handler http.Handler
 	started time.Time
 	legacy  legacyRefs // file hashes in element content (GET /api/v1/files)
+	// live editing: the relay and its end (Close: shutdown)
+	collab     *collab.Hub
+	collabDone context.Context
+	closeLive  context.CancelFunc
 }
 
 // New creates the server. web contains the built frontend (may be nil).
 func New(a *app.App, web fs.FS, pm *pluginmgr.Manager) *Server {
-	s := &Server{app: a, log: a.Log, web: web, plugins: pm, started: time.Now()}
+	s := &Server{app: a, log: a.Log, web: web, plugins: pm, started: time.Now(), collab: collab.NewHub()}
+	s.collabDone, s.closeLive = context.WithCancel(context.Background())
 	s.routes()
 	a.Mux.HandleFunc("/", s.serveFrontend)
 	s.handler = s.wrap(a.Mux)
 	return s
 }
+
+// Close ends the long-lived connections (live editing); http.Server.Shutdown
+// does not wait for them.
+func (s *Server) Close() { s.closeLive() }
 
 // Handler returns the root handler.
 func (s *Server) Handler() http.Handler { return s.handler }
@@ -67,6 +77,7 @@ func (s *Server) Run(ctx context.Context) error {
 	sctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 	s.log.Info("shutting down")
+	s.Close()
 	if err := srv.Shutdown(sctx); err != nil && !errors.Is(err, http.ErrServerClosed) {
 		return err
 	}

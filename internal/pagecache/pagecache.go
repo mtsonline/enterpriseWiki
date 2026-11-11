@@ -173,7 +173,7 @@ func cacheable(r *http.Request) bool {
 	if r.Method != http.MethodGet || !strings.HasPrefix(p, "/api/v1/") || r.URL.Query().Has("token") || r.URL.Query().Has("access_token") {
 		return false
 	}
-	for _, x := range []string{"/api/v1/auth/", "/api/v1/me", "/api/v1/admin/", "/api/v1/files/", "/api/v1/health", "/api/v1/wopi/"} {
+	for _, x := range []string{"/api/v1/auth/", "/api/v1/me", "/api/v1/admin/", "/api/v1/files/", "/api/v1/health", "/api/v1/wopi/", "/api/v1/collab/"} {
 		if strings.HasPrefix(p, x) {
 			return false
 		}

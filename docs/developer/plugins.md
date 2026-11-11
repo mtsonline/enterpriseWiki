@@ -221,6 +221,15 @@ type Macro interface {
 host.RegisterMacro(&Weather{})
 ```
 
+Optionale Schnittstellen:
+
+```go
+func (Weather) Inline() bool    { return true } // im Text: :acme.weather[Wien]{days=3}; der Text ist der Parameter "text"
+func (Weather) Toolbar() string { return "☀" }  // eigener Knopf in der Werkzeugleiste des Editors (Symbol)
+```
+
+In Markdown steht ein Makro als Direktive: `::name{a=b}` (ohne Inhalt), `:::name{a=b}` … `:::` (mit Inhalt) oder `:name[Text]{a=b}` (im Text); gerendert wird daraus der obige Platzhalter.
+
 `MacroContext` enthält den `RenderContext` (Element, Kategorie, Sprache, Betrachter, `Service` für Abfragen mit dessen Rechten), die Parameter, den **bereits bereinigten** Inhalt (`Body`) und die Überschriften der Seite (`Headings`). Alles andere, was das Makro ausgibt, muss es selbst maskieren (`html.EscapeString`). Links prüfen Sie mit `core_layout.SafeURL`. Fehler erscheinen als Hinweis auf der Seite, nicht als Fehlerseite. Der Makro-Dialog im Editor erscheint automatisch (`GET /api/v1/macros`).
 
 ### Dateien in eigenen Tabellen

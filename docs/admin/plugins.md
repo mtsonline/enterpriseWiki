@@ -171,6 +171,7 @@ Plugins sind vollwertiger Code mit Zugriff auf Datenbank und Server. Installiere
 | `content.events` | Elementtyp | Veranstaltungskalender: Monat/Woche/Liste, Serien, Anmeldung mit Warteliste, E-Mail-Erinnerungen, iCal-Abo, Makro „Nächste Termine“ |
 | `content.catlist` | Elementtyp | Kategorieübersicht: Unterkategorien einer Kategorie oder der obersten Ebene als Karten oder Liste, optional mit Seiten (z. B. als Startseite) |
 | `content.team` | Elementtyp | Team-Seite aus Gruppen mit wählbaren Angaben aus der Visitenkarte bzw. dem Identity Provider |
+| `content.notes` | Elementtyp | Gemeinsame Notizen: direkt in der Seitenansicht live gemeinsam schreiben, automatisch gespeichert (Besprechungen, Brainstorming, Aufgabenlisten) |
 | `search.external` | Allgemein | OpenSearch/Elasticsearch oder Meilisearch für die Volltextsuche |
 | `theme.wiki` | Template | Dokumentations-Layout mit Seitenbaum |
 | `theme.cms` | Template | Website, klassisch (Hochschule, Organisation): Hauptnavigation, transparenter Kopfbereich über dem Startbild, Titel-Banner, Footer-Spalten |

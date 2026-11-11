@@ -25,12 +25,14 @@ export type { TreeNode } from './components/widgets';
 export { categorySelect, elementSelect, newCategory, newElement } from './components/pickers';
 export type { CategorySelect, ElementSelect } from './components/pickers';
 export { watchButton } from './components/watch';
+export { tagInput } from './components/tags';
 export { pickMedium, uploadDialog, uploadMedium, mediaURL, mediaViewer, mediaThumb, mediaDetails, openMedium, isImage } from './components/media';
 export { registerOfficeRenderer, officeButtons, officeURL, openOptions, officeAdminRender, officeReady } from './components/office';
 export type { OfficeRenderer } from './components/office';
 export { feedButton, feedURL, feedToken, advertiseFeed } from './components/feeds';
 export type { WidgetFactory } from './core/widgets';
 export type { MarkdownEditor, MarkdownEditorOptions, EditorMode } from './editor/editor';
+export type { Peer } from './editor/collab';
 export { formatAttrs, parseAttrs } from './editor/attrs';
 export { macroDialog, loadMacros } from './editor/macros';
 export type { MacroChoice } from './editor/macros';
@@ -249,12 +251,16 @@ export interface EditorContext {
   labelId: string;
   /** Id of the element being edited (undefined while creating). */
   elementId?: number;
+  /** Live editing: another editor saved revision rev (the base of the next save). */
+  onRemoteSave?: (rev: number, by?: string) => void;
 }
 
 export interface EditorInstance {
   getBody(): unknown;
   /** Returns an error message if the content is invalid. */
   validate?(): string | null;
+  /** The host saved revision rev (live editing tells the other editors). */
+  saved?(rev: number): void;
   destroy?(): void;
 }
 

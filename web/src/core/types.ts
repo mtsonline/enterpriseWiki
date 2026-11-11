@@ -41,6 +41,8 @@ export interface Site {
   home_element: number;
   /** default editor of text pages */
   editor?: 'visual' | 'simple';
+  /** live editing of pages (several editors at the same time) */
+  collaboration?: boolean;
   languages: string[];
   default_language: string;
   plugins: string[] | null;

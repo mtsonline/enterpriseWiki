@@ -1,0 +1,10 @@
+{
+  "id": "content.notes",
+  "name": "Shared notes",
+  "version": "1.0.0",
+  "description": "A page that everybody with the right to edit writes on directly in the page view, together and live (cursors of the others), saved automatically – for meeting notes, brainstorming and to-do lists. Builds on core.html (Markdown, macros, task lists).",
+  "author": "Enterprise Wiki",
+  "kinds": ["element"],
+  "extends": ["core.html"],
+  "frontend": true
+}

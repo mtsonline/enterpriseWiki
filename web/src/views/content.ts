@@ -14,6 +14,7 @@ import { imagesOf, previewImageInput } from '../components/previewimage';
 import { feedButton } from '../components/feeds';
 import { getEditor, pageActionButtons, renderCategoryExtensions, renderElementExtensions, typeLabel, type EditorInstance } from '../sdk';
 import { draftNotice, publishDialog, publishVia, saveDraft, saveTemplateDialog, showPreview, templatePicker, type Draft, type EditorState } from '../components/publishing';
+import { tagInput } from '../components/tags';
 
 const L = () => state.lang;
 const D = () => state.site.default_language;
@@ -453,7 +454,7 @@ export async function elementView({ params, main }: RouteCtx): Promise<void> {
 
 function tagsDialog(el: ElementView): void {
   // properties of an element: tags and short URL (element pages and the default page of a category)
-  const input = textInput({ value: el.tags.join(', ') });
+  const input = tagInput(el.tags.join(', '));
   const short = shortURLInput(el.short_url);
   const only = shortOnlyBox(!!el.short_only);
   const img = previewImageInput(el.preview_image ?? '', { candidates: imagesOf(el.html) });
@@ -519,9 +520,9 @@ function jsonEditor(container: HTMLElement, body: unknown, labelId: string): Edi
   };
 }
 
-function mountEditor(container: HTMLElement, type: string, body: unknown, lang: string, labelId: string, elementId?: number): EditorInstance {
+function mountEditor(container: HTMLElement, type: string, body: unknown, lang: string, labelId: string, elementId?: number, onRemoteSave?: (rev: number, by?: string) => void): EditorInstance {
   const f = getEditor(type);
-  return f ? f(container, body, { lang, type, labelId, elementId }) : jsonEditor(container, body, labelId);
+  return f ? f(container, body, { lang, type, labelId, elementId, onRemoteSave }) : jsonEditor(container, body, labelId);
 }
 
 /** editorActions are the buttons of the element editors. */
@@ -551,10 +552,17 @@ export async function editElementView({ params, query, main }: RouteCtx): Promis
   }
   setContext(el.category_id, ctx.path, el.permissions);
   const isNewTranslation = el.fallback;
-  const baseRev = isNewTranslation ? 0 : el.rev;
+  let baseRev = isNewTranslation ? 0 : el.rev;
+  // live editing: the others saved, the next save builds on that revision
+  const liveNote = h('p', { class: 'ew-notice ew-notice--info', role: 'status' });
+  const remoteSave = (rev: number, by?: string) => {
+    baseRev = rev;
+    liveNote.textContent = by ? t('editor.live_saved_by', { name: by, rev }) : t('editor.live_saved', { rev });
+    if (!liveNote.isConnected) notices.append(liveNote);
+  };
   const title = textInput({ value: el.title, required: true, maxlength: 250, lang });
   // tags belong to the element (all languages)
-  const tags = textInput({ value: el.tags.join(', ') });
+  const tags = tagInput(el.tags.join(', '));
   const comment = textInput({ maxlength: 500 });
   const labelId = uid('content');
   const editorBox = h('div', { class: 'ew-editor-box', lang });
@@ -598,7 +606,7 @@ export async function editElementView({ params, query, main }: RouteCtx): Promis
       },
     }));
   mount(main, form);
-  editor = mountEditor(editorBox, el.type, el.body, lang, labelId, el.id);
+  editor = mountEditor(editorBox, el.type, el.body, lang, labelId, el.id, remoteSave);
   void draftNotice(id, lang, (d) => {
     draftId = d.id;
     title.value = d.title;
@@ -606,7 +614,7 @@ export async function editElementView({ params, query, main }: RouteCtx): Promis
     if (d.tags) tags.value = d.tags.join(', ');
     editor.destroy?.();
     editorBox.replaceChildren();
-    editor = mountEditor(editorBox, el.type, d.body, lang, labelId, el.id);
+    editor = mountEditor(editorBox, el.type, d.body, lang, labelId, el.id, remoteSave);
     toast(t('draft.loaded'));
   }).then((n) => { if (n) notices.append(n); });
   const orig = form.querySelector<HTMLElement>('[data-original]');
@@ -617,7 +625,8 @@ export async function editElementView({ params, query, main }: RouteCtx): Promis
     ev.preventDefault();
     if (!valid()) return;
     void run(async () => {
-      await api.put(`elements/${id}`, { lang, title: title.value, body: editor.getBody(), tags: splitTags(tags.value), comment: comment.value, base_rev: baseRev });
+      const saved = await api.put<ElementView>(`elements/${id}`, { lang, title: title.value, body: editor.getBody(), tags: splitTags(tags.value), comment: comment.value, base_rev: baseRev });
+      editor.saved?.(saved.rev);
       if (draftId) await api.del(`drafts/${draftId}`).catch(() => undefined); // published directly: the draft is obsolete
       editor.destroy?.();
       toast(t('common.saved'));
@@ -668,7 +677,7 @@ async function newOrDraftView({ params, query, main }: RouteCtx, draft: Draft | 
   typeSel.addEventListener('change', () => navigate(`/c/${catId}/new${qs({ type: typeSel.value, return: query.get('return') ?? undefined })}`, { replace: true }));
   const lang = draft?.lang ?? L();
   const title = textInput({ required: true, maxlength: 250, value: draft?.title ?? '' });
-  const tags = textInput({ value: draft?.tags?.join(', ') ?? '' });
+  const tags = tagInput(draft?.tags?.join(', ') ?? '');
   const labelId = uid('content');
   const editorBox = h('div', { class: 'ew-editor-box' });
   const alert = h('div', { class: 'ew-form-alert', role: 'alert' });

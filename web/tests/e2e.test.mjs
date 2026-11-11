@@ -317,6 +317,81 @@ test('visual editor: Markdown input, tables, Markdown mode, keyboard', async () 
   assert.equal(await content.locator('.ew-style.ew-fg-red', { hasText: 'Markdown' }).count(), 1, 'styled text');
 });
 
+test('live editing: two editors see each other', async () => {
+  const cat = await m6Category();
+  const el = await call('POST', '/api/v1/elements', { category_id: cat, type: 'core.html', title: `Live ${run}`, body: { format: 'markdown', source: '## Shared\n\nStart text.\n' } });
+  // a second editor in its own browser context (own session)
+  const ctx2 = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+  const p2 = await ctx2.newPage();
+  p2.on('pageerror', (e) => errors.push(`second editor: ${e.message}`));
+  try {
+    await p2.goto(BASE + '/login');
+    await p2.getByLabel(/user ?name|benutzername/i).fill(USER);
+    await p2.getByLabel(/^(password|passwort)/i).fill(PASSWORD);
+    await p2.keyboard.press('Enter');
+    await p2.waitForURL((u) => !u.pathname.startsWith('/login'));
+    await page.goto(`${BASE}/e/${el.id}/edit`);
+    await page.waitForFunction(() => /nobody|niemand/i.test(document.querySelector('.ewe-live')?.textContent ?? ''), null, { timeout: 15000 });
+    await p2.goto(`${BASE}/e/${el.id}/edit`);
+    await p2.waitForFunction(() => /^live editing with|^live-bearbeitung mit/i.test(document.querySelector('.ewe-live')?.textContent?.trim() ?? ''), null, { timeout: 15000 });
+    await a11y('live editing with another editor');
+    // typing in one editor appears in the other, with the cursor of the writer
+    await page.locator('.ewe-prose h2').click();
+    await page.keyboard.press('End');
+    await page.keyboard.type(` live${run}`);
+    await p2.waitForFunction((x) => document.querySelector('.ewe-prose')?.textContent?.includes(x), `live${run}`, { timeout: 10000 });
+    await p2.locator('.ewe-prose .ewe-cursor').waitFor();
+    // the shared document is not duplicated when the second editor joins
+    assert.equal(await p2.locator('.ewe-prose h2').count(), 1);
+    assert.ok(await p2.getByRole('button', { name: /^markdown$/i }).isDisabled(), 'no Markdown source while others edit');
+    // saving in one editor: the other continues on the new revision without conflict
+    await page.getByRole('button', { name: /^(publish|veröffentlichen)$/i }).click();
+    await page.waitForURL(/\/e\/\d+$/);
+    await p2.locator('.ew-notice--info[role=status]').waitFor();
+    await p2.locator('.ewe-prose h2').click();
+    await p2.keyboard.press('End');
+    await p2.keyboard.type('!');
+    await p2.getByRole('button', { name: /^(publish|veröffentlichen)$/i }).click();
+    await p2.waitForURL(/\/e\/\d+$/);
+    const saved = await call('GET', `/api/v1/elements/${el.id}?edit=1`);
+    assert.match(saved.body.source, new RegExp(`## Shared live${run}!`));
+  } finally {
+    await ctx2.close();
+  }
+});
+
+test('shared notes: write together in the page view, saved automatically', async () => {
+  const cat = await m6Category();
+  const el = await call('POST', '/api/v1/elements', { category_id: cat, type: 'content.notes', title: `Notes ${run}`, body: { format: 'markdown', source: '- [ ] agenda\n' } });
+  const ctx2 = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+  const p2 = await ctx2.newPage();
+  p2.on('pageerror', (e) => errors.push(`second editor: ${e.message}`));
+  try {
+    await p2.goto(BASE + '/login');
+    await p2.getByLabel(/user ?name|benutzername/i).fill(USER);
+    await p2.getByLabel(/^(password|passwort)/i).fill(PASSWORD);
+    await p2.keyboard.press('Enter');
+    await p2.waitForURL((u) => !u.pathname.startsWith('/login'));
+    await page.goto(`${BASE}/e/${el.id}`);
+    await page.locator('.ewn .ewe-prose').waitFor();
+    await page.waitForFunction(() => /nobody|niemand/i.test(document.querySelector('.ewn .ewe-live')?.textContent ?? ''), null, { timeout: 15000 });
+    await p2.goto(`${BASE}/e/${el.id}`);
+    await p2.waitForFunction(() => /^live editing with|^live-bearbeitung mit/i.test(document.querySelector('.ewn .ewe-live')?.textContent?.trim() ?? ''), null, { timeout: 15000 });
+    await a11y('shared notes');
+    // the second person writes, the first sees it; the first one (leader) saves
+    await p2.locator('.ewn .ewe-prose li p').first().click();
+    await p2.keyboard.press('End');
+    await p2.keyboard.press('Enter');
+    await p2.keyboard.type(`minutes${run}`);
+    await page.waitForFunction((x) => document.querySelector('.ewn .ewe-prose')?.textContent?.includes(x), `minutes${run}`, { timeout: 10000 });
+    await p2.waitForFunction(() => /saved|gespeichert/i.test(document.querySelector('.ewn-status')?.textContent ?? ''), null, { timeout: 20000 });
+    const saved = await call('GET', `/api/v1/elements/${el.id}?edit=1`);
+    assert.match(saved.body.source, new RegExp(`- \\[ \\] agenda\\n- \\[ \\] minutes${run}`));
+  } finally {
+    await ctx2.close();
+  }
+});
+
 test('the simple editor as personal choice', async () => {
   await call('PUT', '/api/v1/me', { prefs: { editor: 'simple' } });
   try {
@@ -729,6 +804,19 @@ test('FAQ: sections, questions, filter and quick add', async () => {
   await quicker.getByRole('button', { name: /^(delete|löschen):/i }).click();
   await page.locator('dialog[open]').getByRole('button', { name: /^(delete|löschen)$/i }).click();
   await page.locator(`summary:has-text("Quicker ${run}?")`).waitFor({ state: 'detached' });
+  // sections: rename and delete
+  const section = page.locator('details.ewq-section', { hasText: `Accounts ${run}` });
+  await section.locator(':scope > .ewq-section-body > .ewq-edit').waitFor({ state: 'attached' });
+  await section.evaluate((d) => { d.open = true; });
+  await section.getByRole('button', { name: /^(edit section|abschnitt bearbeiten):/i }).click();
+  await page.locator('dialog[open] input[lang="en"]').fill(`Logins ${run}`);
+  await page.locator('dialog[open] button[type=submit]').click();
+  const renamed = page.locator('details.ewq-section', { hasText: `Logins ${run}` });
+  await renamed.locator(':scope > .ewq-section-body > .ewq-edit').waitFor({ state: 'attached' });
+  await renamed.evaluate((d) => { d.open = true; });
+  await renamed.getByRole('button', { name: /^(delete section|abschnitt löschen):/i }).click();
+  await page.locator('dialog[open]').getByRole('button', { name: /^(delete|löschen)$/i }).click();
+  await page.locator('details.ewq-section', { hasText: `Logins ${run}` }).waitFor({ state: 'detached' });
   await edit.click();
   await idle();
 });

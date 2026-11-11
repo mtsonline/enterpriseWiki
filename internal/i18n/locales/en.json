@@ -1502,5 +1502,18 @@
  "profile.editor_default": "Site default ({name})",
  "profile.editor_help": "Both editors save Markdown; you can switch at any time.",
  "settings.editor": "Default editor for pages",
- "settings.editor_help": "Users can choose their own editor in their profile."
+ "settings.editor_help": "Users can choose their own editor in their profile.",
+ "editor.live_connecting": "Connecting live editing …",
+ "editor.live_alone": "Live editing: nobody else is editing this page right now.",
+ "editor.live_with": "Live editing with {names}.",
+ "editor.live_joined": "{name} is now editing this page too.",
+ "editor.live_left": "{name} stopped editing this page.",
+ "editor.live_lost": "The connection for live editing ended. You keep editing alone; changes of others are no longer shown.",
+ "editor.live_unavailable": "Live editing is not available right now. You are editing alone.",
+ "editor.live_saved": "Revision {rev} was saved by another editor. Your next save builds on it.",
+ "editor.live_saved_by": "{name} saved revision {rev}. Your next save builds on it.",
+ "editor.markdown_shared": "The Markdown source is not available while others are editing.",
+ "settings.collaboration": "Live editing (several editors at the same time)",
+ "settings.collaboration_help": "Editors of a page see each other's changes and cursors in the visual editor.",
+ "editor.live_replaced": "Others were already editing this page: what you typed before the connection was replaced by the shared state."
 }

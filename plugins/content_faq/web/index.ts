@@ -113,6 +113,27 @@ async function deleteQuestion(qid: number, title: string): Promise<void> {
   }
 }
 
+function editSection(cat: Cat): void {
+  const titles = langFields(t('common.title'), cat.titles, { required: true });
+  formDialog(t('content.faq.edit_section'), [titles.el], t('common.save'), async () => {
+    await api.put(`/api/v1/categories/${cat.id}`, { titles: titles.get() });
+    toast(t('common.saved'));
+    await rerender();
+  }, { wide: true });
+}
+
+async function deleteSection(cat: Cat): Promise<void> {
+  const title = pick(cat.titles, L(), D());
+  if (!await confirmDialog(t('content.faq.delete_section_confirm', { title }), t('common.delete'), true)) return;
+  try {
+    await api.del(`/api/v1/categories/${cat.id}`);
+    toast(t('content.faq.section_deleted'));
+    await rerender();
+  } catch (e) {
+    toast(errorText(e), 'error');
+  }
+}
+
 const norm = (s: string) => s.toLocaleLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
 
 async function faqWidget(root: HTMLElement): Promise<void> {
@@ -172,6 +193,16 @@ async function faqWidget(root: HTMLElement): Promise<void> {
   body.before(toolbar, status);
 
   // edit and delete in edit mode (the server checks the permissions)
+  if (state.editMode && data.info.can_manage) {
+    for (const sec of sections) {
+      const cat = data.info.categories.find((x) => x.id === Number(sec.dataset.id));
+      if (!cat || cat.depth === 0) continue;
+      const name = pick(cat.titles, L(), D());
+      sec.querySelector(':scope > .ewq-section-body')?.prepend(h('div', { class: 'ewq-edit ew-actions' },
+        button(t('content.faq.edit_section'), () => editSection(cat), { variant: 'secondary', ariaLabel: `${t('content.faq.edit_section')}: ${name}` }),
+        button(t('content.faq.delete_section'), () => void deleteSection(cat), { variant: 'danger', ariaLabel: `${t('content.faq.delete_section')}: ${name}` })));
+    }
+  }
   if (state.editMode && data.info.can_create) {
     for (const d of questions) {
       const qid = Number(d.dataset.id);

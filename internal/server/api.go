@@ -107,6 +107,7 @@ func (s *Server) routes() {
 	s.routesMedia()
 	s.routesOffice()
 	s.routesDemo()
+	s.routesCollab()
 	s.routesM3()
 	s.routesM4()
 	s.routesM6()
@@ -998,7 +999,7 @@ func (s *Server) site(w http.ResponseWriter, r *http.Request) (any, error) {
 	}
 	home := c.UI.HomeCategory
 	return map[string]any{
-		"name": c.UI.SiteName, "template": c.UI.Template, "home_category": home, "home_element": c.UI.HomeElement, "editor": cmp.Or(c.UI.Editor, "visual"),
+		"name": c.UI.SiteName, "template": c.UI.Template, "home_category": home, "home_element": c.UI.HomeElement, "editor": cmp.Or(c.UI.Editor, "visual"), "collaboration": c.UI.Collaboration,
 		"languages": c.I18n.Languages, "default_language": c.I18n.DefaultLanguage,
 		"plugins": frontend, "element_types": s.app.Content.Types(), "auth_providers": s.app.Auth.ProviderInfos(),
 		"version": version.Version, "permissions": acl.Names,

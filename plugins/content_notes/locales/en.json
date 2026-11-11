@@ -1,0 +1,11 @@
+{
+ "content.notes.editor": "Notes",
+ "content.notes.hint": "Everybody who may edit this page writes here together; changes are saved automatically.",
+ "content.notes.saving": "Saving …",
+ "content.notes.saved": "Saved at {time}.",
+ "content.notes.saved_by": "Saved by {name} at {time}.",
+ "content.notes.unsaved": "Not saved yet.",
+ "content.notes.failed": "Saving failed: {error}. It is tried again.",
+ "content.notes.autosave": "Notes saved automatically",
+ "content.notes.other_lang": "These notes are shown in another language; open the editor to write them in yours."
+}

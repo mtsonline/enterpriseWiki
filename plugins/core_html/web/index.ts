@@ -5,7 +5,7 @@
 //   simple  a minimal contenteditable editor (HTML, converted on save)
 // The server sanitizes everything on save and render, so the editors are not
 // a security boundary; HTML for editing comes sanitized from the server.
-import { api, button, editorKind, errorText, formatAttrs, macroDialog, field, formDialog, h, isImage, loadMarkdownEditor, loading, mediaURL, pickMedium, registerEditor, select, t, textInput, toast, trustedHTML, type EditorContext, type EditorInstance, type MarkdownEditor } from '@ewiki/sdk';
+import { api, button, editorKind, state, errorText, formatAttrs, macroDialog, field, formDialog, h, isImage, loadMarkdownEditor, loading, mediaURL, pickMedium, registerEditor, select, t, textInput, toast, trustedHTML, type EditorContext, type EditorInstance, type MarkdownEditor } from '@ewiki/sdk';
 import { macroAt, macroHTML, parseParams } from './macros';
 import './style.css';
 
@@ -57,7 +57,7 @@ async function toMarkdown(html: string): Promise<string> {
   return (await api.post<{ markdown: string }>(BASE + 'to-markdown', { source: html })).markdown;
 }
 
-type Ctx = Pick<EditorContext, 'lang' | 'type' | 'labelId'>;
+type Ctx = Pick<EditorContext, 'lang' | 'type' | 'labelId' | 'elementId' | 'onRemoteSave'>;
 
 /** Creates the core.html editor (the user's choice). Exported so other plugins can reuse it. */
 export function createHtmlEditor(container: HTMLElement, body: unknown, ctx: Ctx): EditorInstance {
@@ -77,7 +77,11 @@ export function createVisualEditor(container: HTMLElement, body: unknown, ctx: C
     const mod = await loadMarkdownEditor();
     if (gone) return;
     box.replaceChildren();
-    ed = mod.createMarkdownEditor(box, { markdown: md, lang: ctx.lang, labelId: ctx.labelId });
+    // live editing of existing pages (if the site allows it)
+    const collab = ctx.elementId && state.user && state.site.collaboration !== false
+      ? { elementId: ctx.elementId, userId: state.user.id, onSaved: (rev: number, by?: { name: string }) => ctx.onRemoteSave?.(rev, by?.name) }
+      : undefined;
+    ed = mod.createMarkdownEditor(box, { markdown: md, lang: ctx.lang, labelId: ctx.labelId, collab });
   })().catch((e: unknown) => {
     if (gone) return;
     // e.g. the editor file could not be loaded: the simple editor still works
@@ -86,6 +90,7 @@ export function createVisualEditor(container: HTMLElement, body: unknown, ctx: C
   });
   return {
     getBody: () => (ed ? { format: 'markdown', source: ed.getMarkdown() } : fallback ? fallback.getBody() : b),
+    saved: (rev: number) => ed?.saved(rev),
     destroy: () => { gone = true; ed?.destroy(); fallback?.destroy?.(); },
   };
 }

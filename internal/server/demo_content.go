@@ -437,6 +437,14 @@ func buildDemo(d *demoRun) {
 			{"id": "check", "name": "Prüfen", "assignee": map[string]string{"type": "group", "value": strconv.FormatInt(editorsGroup, 10)}, "actions": []map[string]any{{"id": "ok", "label": "Genehmigen", "next": "done"}}},
 			{"id": "done", "name": "Erledigt", "actions": []any{}, "outcome": "success"}}}), nil)
 	})
+	d.optional("notes", func() {
+		bodies := map[string]any{}
+		for l, src := range d.tr("## Agenda\n\n- [x] Welcome\n- [ ] Demo of the wiki\n- [ ] Next steps\n\nWrite here together: everybody who may edit sees the others live.\n",
+			"## Tagesordnung\n\n- [x] Begrüßung\n- [ ] Vorführung des Wikis\n- [ ] Nächste Schritte\n\nHier gemeinsam schreiben: Alle mit Bearbeitungsrecht sehen die anderen live.\n") {
+			bodies[l] = map[string]string{"format": "markdown", "source": src}
+		}
+		d.element(docs, "content.notes", d.tr("Meeting notes (shared)", "Besprechungsnotizen (gemeinsam)"), bodies, nil)
+	})
 	d.page(docs, "Report: page properties", "Bericht: Seiteneigenschaften",
 		"<p>All pages of the demo with their properties:</p>"+macro("properties", map[string]string{"category": strconv.FormatInt(root, 10), "recursive": "true", "limit": "50"}, ""),
 		"<p>Alle Seiten der Demo mit ihren Eigenschaften:</p>"+macro("properties", map[string]string{"category": strconv.FormatInt(root, 10), "recursive": "true", "limit": "50"}, ""), nil)
