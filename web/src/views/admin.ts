@@ -25,7 +25,7 @@ import { watchesAdmin } from './adminWatches';
 import { languagesAdmin } from './adminLanguages';
 import { sitesAdmin } from './adminSites';
 
-interface User { id: number; username: string; provider: string; handle: string; display_name: string; email: string; language: string; disabled: boolean; locked_until: string | null; created_at: string; last_login_at: string | null; groups: number[]; roles: number[]; totp_enabled: boolean; mfa_email: boolean; networks: string[] }
+interface User { id: number; username: string; provider: string; handle: string; display_name: string; email: string; language: string; disabled: boolean; locked_until: string | null; created_at: string; last_login_at: string | null; groups: number[]; roles: number[]; alias: string | null; alias_source: string; mfa: boolean; networks: string[] }
 
 const CORE_SECTIONS = ['users', 'scim', 'groups', 'roles', 'permissions', 'elements', 'plugins', 'updates', 'settings', 'mail', 'webhooks', 'cache', 'languages', 'audit', 'watches', 'license', 'sites', 'demo'];
 
@@ -143,7 +143,7 @@ async function users(panel: HTMLElement, query: URLSearchParams): Promise<void> 
     sharedEditable() ? button(t('invite.title'), () => inviteDialog(gs, rs, reload), { variant: 'secondary' }) : null), sharedNotice(), sf,
     table(t('admin.users'), [t('admin.handle'), t('profile.display_name'), t('admin.groups'), t('admin.roles'), t('admin.last_login'), t('common.status'), t('common.actions')],
       list.map((u) => h('tr', null,
-        h('th', { scope: 'row' }, u.handle, u.totp_enabled || u.mfa_email ? h('span', { class: 'ew-badge ew-badge--ok' }, ' 2FA') : null), h('td', null, u.display_name), h('td', null, name(u.groups, gs)), h('td', null, name(u.roles, rs)),
+        h('th', { scope: 'row' }, u.handle, u.alias ? h('span', { class: 'ew-muted' }, ` (${u.alias})`) : null, u.mfa ? h('span', { class: 'ew-badge ew-badge--ok' }, ' MFA') : null), h('td', null, u.display_name), h('td', null, name(u.groups, gs)), h('td', null, name(u.roles, rs)),
         h('td', null, u.last_login_at ? fmtDate(u.last_login_at, state.lang) : '–'),
         h('td', null, u.provider === 'invite' ? h('span', { class: 'ew-badge ew-badge--info' }, t('invite.pending')) : u.disabled ? h('span', { class: 'ew-badge ew-badge--warn' }, t('admin.disabled')) : (u.locked_until && new Date(u.locked_until) > new Date() ? h('span', { class: 'ew-badge ew-badge--warn' }, t('admin.locked')) : h('span', { class: 'ew-badge ew-badge--ok' }, t('admin.active')))),
         h('td', { class: 'ew-actions' },
@@ -171,6 +171,7 @@ function membership(label: string, all: { id: number; name: string }[], selected
 function userDialog(u: User | null, gs: Group[], rs: Role[]): void {
   const username = textInput({ value: u?.username ?? '', required: true, autocomplete: 'off' });
   const display = textInput({ value: u?.display_name ?? '' });
+  const alias = textInput({ value: u?.alias ?? '', autocomplete: 'off', maxlength: 64 });
   const email = textInput({ value: u?.email ?? '', type: 'email' });
   const pw = textInput({ type: 'password', autocomplete: 'new-password' });
   const g = membership(t('admin.groups'), gs, u?.groups ?? []);
@@ -183,9 +184,10 @@ function userDialog(u: User | null, gs: Group[], rs: Role[]): void {
   const fields = u && !shared
     ? [h('p', null, h('strong', null, u.handle), ' – ', u.display_name), sharedNotice(), r.el]
     : u
-    ? [h('p', null, h('strong', null, u.handle)), field(t('profile.display_name'), display), field(t('profile.email'), email),
+    ? [h('p', null, h('strong', null, u.handle)), field(t('profile.display_name'), display),
+      field(t('alias.label'), alias, { help: u.alias_source ? t('alias.managed', { provider: u.alias_source }) : t('alias.help') }), field(t('profile.email'), email),
       u.provider === 'local' ? field(t('admin.new_password'), pw, { help: t('admin.new_password_help') }) : null, g.el, r.el, disabled.el, unlock.el,
-      u.totp_enabled || u.mfa_email ? resetTotp.el : null,
+      u.mfa ? resetTotp.el : null,
       field(t('mfa.networks'), nets, { help: t('mfa.networks_admin_help') })]
     : [field(t('auth.username'), username, { required: true }), field(t('profile.display_name'), display), field(t('profile.email'), email),
       field(t('auth.password'), pw, { required: true, help: t('profile.password_rules') }), g.el, r.el];
@@ -193,6 +195,7 @@ function userDialog(u: User | null, gs: Group[], rs: Role[]): void {
     if (u && !shared) {
       await api.put(`admin/users/${u.id}`, { roles: r.get() });
     } else if (u) {
+      if (alias.value.trim() !== (u.alias ?? '')) await api.put(`admin/users/${u.id}/alias`, { alias: alias.value.trim() });
       await api.put(`admin/users/${u.id}`, { display_name: display.value, email: email.value, groups: g.get(), roles: r.get(), disabled: disabled.input.checked, unlock: unlock.input.checked, password: pw.value || undefined, reset_totp: resetTotp.input.checked,
         networks: nets.value.split(/[\s,;]+/).filter(Boolean) });
     } else {
@@ -521,7 +524,7 @@ async function settings(panel: HTMLElement): Promise<void> {
   const order = textInput({ value: c.auth.order.join(', ') });
   const sessionTTL = textInput({ value: c.auth.session_ttl });
   const sessionIdle = textInput({ value: c.auth.session_idle ?? '', placeholder: '12h' });
-  const levels = () => ['private', 'users', 'public'].map((v) => ({ value: v, label: t(`photo.vis.${v}`) }));
+  const levels = () => ['nobody', 'users', 'public'].map((v) => ({ value: v, label: t(`photo.vis.${v}`) }));
   const photoDef = select(levels(), c.auth.photo_visibility || 'users');
   const photoMax = select(levels(), c.auth.photo_visibility_max || 'public');
   const photoFixed = checkbox(t('settings.photo_fixed'), !!c.auth.photo_visibility_fixed, { help: t('settings.photo_fixed_help') });

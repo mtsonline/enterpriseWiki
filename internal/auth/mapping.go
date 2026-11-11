@@ -30,13 +30,17 @@ type Mapping struct {
 	// JIT: accounts at the first sign-in; EmailVerified: the provider
 	// confirms all its addresses; TrustEmail: see ExternalIdentity.
 	JIT, EmailVerified, TrustEmail bool
+	// AliasFrom names the attribute (LDAP uid/cn, OIDC claim, SAML
+	// attribute) that becomes the wiki user name (setting username_from).
+	AliasFrom string
 }
 
 // MappingFromSettings reads the mapping keys of a plugin_settings section.
 func MappingFromSettings(s map[string]any) Mapping {
 	m := Mapping{GroupMapping: StringMap(s["group_mapping"]), RoleMapping: StringMap(s["role_mapping"]),
 		DefaultGroups: StringList(s["default_groups"]), DefaultRoles: StringList(s["default_roles"]), KeepUnmappedGroups: true,
-		JIT: BoolSetting(s, "jit", true), EmailVerified: BoolSetting(s, "email_verified", false), TrustEmail: BoolSetting(s, "trust_email", false)}
+		JIT: BoolSetting(s, "jit", true), EmailVerified: BoolSetting(s, "email_verified", false), TrustEmail: BoolSetting(s, "trust_email", false),
+		AliasFrom: Setting(s, "username_from", "")}
 	if v, ok := s["keep_unmapped_groups"].(bool); ok {
 		m.KeepUnmappedGroups = v
 	}
@@ -46,6 +50,20 @@ func MappingFromSettings(s map[string]any) Mapping {
 // Apply maps the external groups of id (id.Groups) to local groups and roles.
 func (m Mapping) Apply(id *ExternalIdentity) {
 	id.NoJIT = !m.JIT
+	if m.AliasFrom != "" {
+		switch v := id.Attributes[m.AliasFrom].(type) {
+		case string:
+			id.Alias = strings.TrimSpace(v)
+		case []string:
+			if len(v) > 0 {
+				id.Alias = strings.TrimSpace(v[0])
+			}
+		case []any:
+			if len(v) > 0 {
+				id.Alias = strings.TrimSpace(fmt.Sprint(v[0]))
+			}
+		}
+	}
 	id.TrustEmail = m.TrustEmail
 	if m.EmailVerified {
 		id.EmailVerified = true

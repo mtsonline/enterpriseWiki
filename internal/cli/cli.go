@@ -61,6 +61,7 @@ Users
   user emails NAME | user email-add NAME ADDRESS [--unconfirmed]
   user email-primary NAME ADDRESS | user email-remove NAME ADDRESS
   user identities NAME | user unlink NAME PROVIDER SUBJECT
+  user alias NAME [ALIAS]       wiki user name (sign-in with it); without ALIAS: remove
   user sessions NAME | user logout NAME [SESSION-ID]   sessions; sign out one or all
   scim list | scim create NAME --provider P [--subject-from userName|externalId] [--on-delete disable|delete]
   scim token ID | scim delete ID   SCIM 2.0 provisioning clients (Entra ID, Okta, ...)

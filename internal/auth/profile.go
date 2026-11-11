@@ -18,12 +18,14 @@ import (
 // photo_visibility is the person's choice who sees it (see PhotoPolicy).
 var ProfileFields = []string{"job_title", "department", "phone", "mobile", "office", "about", "photo", "photo_visibility"}
 
-// Visibility levels of profile photos, narrowest first.
-var photoLevels = map[string]int{"private": 0, "users": 1, "public": 2}
+// Visibility levels of profile photos, narrowest first: nobody (only the
+// person), signed-in people, everybody. People with the permission
+// core.photos.view see every photo.
+var photoLevels = map[string]int{"nobody": 0, "users": 1, "public": 2}
 
 // PhotoPolicy is the administrators' rule for profile photos.
 type PhotoPolicy struct {
-	Default string `json:"default"` // private | users | public
+	Default string `json:"default"` // nobody | users | public
 	Max     string `json:"max"`     // widest a person may choose
 	Fixed   bool   `json:"fixed"`   // no choice: always Default
 }
@@ -60,14 +62,16 @@ func (p PhotoPolicy) Effective(choice string) string {
 // person uid whose own choice is choice.
 func (s *Service) PhotoVisible(ctx context.Context, uid int64, choice string) bool {
 	p := identity.From(ctx)
+	if p != nil && p.UserID > 0 && (p.UserID == uid || perm.Has(ctx, "core.photos.view")) {
+		return true
+	}
 	switch s.PhotoPolicy().Effective(choice) {
 	case "public":
 		return true
 	case "users":
 		return p != nil && p.UserID > 0
-	default:
-		return p != nil && p.UserID > 0 && (p.UserID == uid || p.Admin() || perm.Has(ctx, "core.users.manage"))
 	}
+	return false
 }
 
 // PhotoHashVisible reports whether the caller may see the image hash as the
@@ -139,7 +143,7 @@ func (s *Service) SetProfile(ctx context.Context, uid int64, in map[string]strin
 		if k == "photo_visibility" && v != "" {
 			pol := s.PhotoPolicy()
 			if _, ok := photoLevels[v]; !ok {
-				return nil, apperr.BadRequest("photo_visibility must be private, users or public")
+				return nil, apperr.BadRequest("photo_visibility must be nobody, users or public")
 			}
 			if pol.Fixed && v != pol.Default {
 				return nil, apperr.BadRequest("the visibility of profile photos is fixed (%s)", pol.Default)

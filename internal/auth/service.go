@@ -52,6 +52,8 @@ type ExternalIdentity struct {
 	Groups     []string // local group names (after Mapping.Apply)
 	Roles      []string // local role names (after Mapping.Apply)
 	Attributes map[string]any
+	// Alias is the wiki user name the provider maps (see Mapping.AliasFrom).
+	Alias string
 	// SessionID and LogoutHint let the provider end the session later
 	// (single logout): OIDC sid and id token, SAML SessionIndex and NameID.
 	SessionID, LogoutHint string
@@ -234,6 +236,16 @@ func (s *Service) LoginMFA(ctx context.Context, username, password, totp, method
 		return nil, apperr.TooMany("too many login attempts, try again later")
 	}
 	providers := s.Providers()
+	// the wiki user name (alias): signs in with the account's own method;
+	// a local account with that user name always wins
+	if !strings.Contains(username, "@") {
+		var local bool
+		_ = s.pool.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM users WHERE provider='local' AND lower(username)=lower($1))`, username).Scan(&local)
+		if _, prov, uname, ok := s.userByAlias(ctx, username); ok && !local {
+			providers = slices.DeleteFunc(slices.Clone(providers), func(p PasswordProvider) bool { return p.ID() != prov })
+			username = uname
+		}
+	}
 	if i := strings.LastIndex(username, "@"); i > 0 {
 		forced := username[i+1:]
 		for _, p := range providers {
@@ -300,6 +312,7 @@ func (s *Service) syncIdentity(ctx context.Context, ext *ExternalIdentity) (int6
 			return 0, err
 		}
 		if linked {
+			s.syncAlias(ctx, uid, ext)
 			return uid, s.syncMemberships(ctx, uid, ext)
 		}
 	}
@@ -327,6 +340,9 @@ func (s *Service) syncIdentity(ctx context.Context, ext *ExternalIdentity) (int6
 		if _, err := adoptEmail(ctx, s.pool, id, ext.Email, ext.TrustEmail && ext.EmailVerified); err != nil {
 			s.log.Warn("e-mail of identity provider not taken over", "provider", ext.Provider, "err", err)
 		}
+	}
+	if ext.Provider != "local" {
+		s.syncAlias(ctx, id, ext)
 	}
 	return id, s.syncMemberships(ctx, id, ext)
 }
@@ -494,8 +510,8 @@ func (s *Service) Authenticate(ctx context.Context, token string) (*identity.Pri
 func (s *Service) LoadPrincipal(ctx context.Context, uid int64) (*identity.Principal, error) {
 	p := &identity.Principal{UserID: uid}
 	var disabled bool
-	err := s.pool.QueryRow(ctx, `SELECT username, provider, display_name, email, language, disabled, allowed_networks, prefs FROM users WHERE id=$1`, uid).
-		Scan(&p.Username, &p.Provider, &p.DisplayName, &p.Email, &p.Language, &disabled, &p.Networks, &p.Prefs)
+	err := s.pool.QueryRow(ctx, `SELECT username, COALESCE(alias, ''), alias_source, provider, display_name, email, language, disabled, allowed_networks, prefs FROM users WHERE id=$1`, uid).
+		Scan(&p.Username, &p.Alias, &p.AliasSource, &p.Provider, &p.DisplayName, &p.Email, &p.Language, &disabled, &p.Networks, &p.Prefs)
 	if err != nil {
 		return nil, apperr.NotFound("user")
 	}

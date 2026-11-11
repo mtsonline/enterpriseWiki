@@ -34,8 +34,12 @@ type User struct {
 	LastLoginAt *time.Time `json:"last_login_at"`
 	Groups      []int64    `json:"groups"`
 	Roles       []int64    `json:"roles"`
-	TOTP        bool       `json:"totp_enabled"`
-	MFAEmail    bool       `json:"mfa_email"`
+	// Alias is the optional wiki user name; AliasSource the provider that
+	// manages it ("" = set in the wiki).
+	Alias       *string `json:"alias"`
+	AliasSource string  `json:"alias_source"`
+	// MFA: the person has set up a second factor.
+	MFA bool `json:"mfa"`
 	// Networks the account may be used from (empty = anywhere).
 	Networks []string `json:"networks"`
 }
@@ -128,19 +132,32 @@ func (s *Service) ListUsers(ctx context.Context, q string, limit, offset int) ([
 	rows, err := s.pool.Query(ctx, `SELECT u.id, u.username, u.provider, u.display_name, u.email, u.language, u.disabled, u.locked_until,
 			u.created_at, u.last_login_at,
 			COALESCE((SELECT array_agg(group_id ORDER BY group_id) FROM user_groups WHERE user_id=u.id), '{}'),
-			COALESCE((SELECT array_agg(role_id ORDER BY role_id) FROM user_roles WHERE user_id=u.id), '{}'), u.totp_enabled, u.mfa_email, u.allowed_networks
+			COALESCE((SELECT array_agg(role_id ORDER BY role_id) FROM user_roles WHERE user_id=u.id), '{}'), u.alias, u.alias_source, u.allowed_networks
 		FROM users u WHERE $1 = '' OR u.username ILIKE '%'||$1||'%' OR u.display_name ILIKE '%'||$1||'%' OR u.email ILIKE '%'||$1||'%'
+			OR u.alias ILIKE '%'||$1||'%'
 		ORDER BY u.username, u.provider LIMIT $2 OFFSET $3`, q, limit, offset)
 	if err != nil {
 		return nil, err
 	}
-	return pgx.CollectRows(rows, scanUser)
+	list, err := pgx.CollectRows(rows, scanUser)
+	if err != nil {
+		return nil, err
+	}
+	ids := make([]int64, len(list))
+	for i := range list {
+		ids[i] = list[i].ID
+	}
+	on := s.mfaAmong(ctx, ids)
+	for i := range list {
+		list[i].MFA = on[list[i].ID]
+	}
+	return list, nil
 }
 
 func scanUser(r pgx.CollectableRow) (User, error) {
 	var u User
 	err := r.Scan(&u.ID, &u.Username, &u.Provider, &u.DisplayName, &u.Email, &u.Language, &u.Disabled, &u.LockedUntil,
-		&u.CreatedAt, &u.LastLoginAt, &u.Groups, &u.Roles, &u.TOTP, &u.MFAEmail, &u.Networks)
+		&u.CreatedAt, &u.LastLoginAt, &u.Groups, &u.Roles, &u.Alias, &u.AliasSource, &u.Networks)
 	u.Handle = u.Username + "@" + u.Provider
 	return u, err
 }
@@ -153,7 +170,7 @@ func (s *Service) GetUser(ctx context.Context, id int64) (*User, error) {
 	rows, err := s.pool.Query(ctx, `SELECT u.id, u.username, u.provider, u.display_name, u.email, u.language, u.disabled, u.locked_until,
 			u.created_at, u.last_login_at,
 			COALESCE((SELECT array_agg(group_id ORDER BY group_id) FROM user_groups WHERE user_id=u.id), '{}'),
-			COALESCE((SELECT array_agg(role_id ORDER BY role_id) FROM user_roles WHERE user_id=u.id), '{}'), u.totp_enabled, u.mfa_email, u.allowed_networks
+			COALESCE((SELECT array_agg(role_id ORDER BY role_id) FROM user_roles WHERE user_id=u.id), '{}'), u.alias, u.alias_source, u.allowed_networks
 		FROM users u WHERE u.id=$1`, id)
 	if err != nil {
 		return nil, err
@@ -162,6 +179,7 @@ func (s *Service) GetUser(ctx context.Context, id int64) (*User, error) {
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, apperr.NotFound("user")
 	}
+	u.MFA = len(s.EnrolledMFA(ctx, u.ID)) > 0
 	return &u, err
 }
 
@@ -206,6 +224,14 @@ func (s *Service) createLocalUser(ctx context.Context, in NewUser) (*User, error
 	}
 	var id int64
 	err = db.Tx(ctx, s.pool, func(tx pgx.Tx) error {
+		// a local user name never equals somebody's wiki user name
+		var alias bool
+		if err := tx.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM users WHERE lower(alias)=lower($1))`, in.Username).Scan(&alias); err != nil {
+			return err
+		}
+		if alias {
+			return apperr.Conflict("%s is the user name of another account", in.Username)
+		}
 		err := tx.QueryRow(ctx, `INSERT INTO users(username, provider, subject, display_name, language, password_hash)
 			VALUES ($1,'local',$1,$2,$3,$4) RETURNING id`, in.Username, in.DisplayName, in.Language, hash).Scan(&id)
 		if db.IsUniqueViolation(err) {

@@ -50,6 +50,10 @@ CREATE TABLE users (
     -- profile ("business card") maintained by the user or admins; not
     -- overwritten by identity providers (unlike attributes)
     profile        jsonb NOT NULL DEFAULT '{}',
+    -- optional wiki user name (unique, also for signing in); set by the
+    -- person, an administrator or a sign-in provider (alias_source)
+    alias          text CHECK (alias ~ '^[A-Za-z0-9][A-Za-z0-9._-]{1,63}$'),
+    alias_source   text NOT NULL DEFAULT '',
     -- provisioned by a SCIM client (and its id for the person)
     scim_client    bigint REFERENCES scim_clients(id) ON DELETE SET NULL,
     external_id    text NOT NULL DEFAULT '',
@@ -57,6 +61,8 @@ CREATE TABLE users (
     UNIQUE (provider, username),
     CHECK (username ~ '^[A-Za-z0-9._@+-]{1,128}$')
 );
+
+CREATE UNIQUE INDEX users_alias ON users(lower(alias)) WHERE alias IS NOT NULL;
 
 CREATE TABLE groups (
     id          bigserial PRIMARY KEY,

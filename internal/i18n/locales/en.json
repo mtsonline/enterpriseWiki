@@ -1682,7 +1682,6 @@
  "auth.webauthn_use": "Use security key",
  "mapping.mfa": "Ask for the second factor in the wiki",
  "mapping.mfa_help": "For people who set up a second factor. Off if the provider requires MFA itself (e.g. Entra ID with conditional access).",
- "photo.vis.private": "only me (and the administrators)",
  "photo.vis.users": "signed-in people",
  "photo.vis.public": "everybody, guests too",
  "photo.vis.default": "Default ({level})",
@@ -1696,5 +1695,15 @@
  "settings.photo_max": "Profile photos at most for",
  "settings.photo_max_help": "Nobody can share their photo more widely. More narrowly is always possible.",
  "settings.photo_fixed": "Default is fixed (no choice)",
- "settings.photo_fixed_help": "All photos are then visible exactly as the default says."
+ "settings.photo_fixed_help": "All photos are then visible exactly as the default says.",
+ "photo.vis.nobody": "nobody (only me)",
+ "perm.core.photos.view": "See all profile photos",
+ "perm.core.photos.view_help": "See every profile photo, also those their owners show to nobody (e.g. for identity checks).",
+ "alias.label": "User name (optional)",
+ "alias.help": "Unique name in the wiki; signing in with it is possible too.",
+ "alias.help_self": "Unique name in the wiki. You can sign in with it as well.",
+ "alias.managed": "Comes from the sign-in method {provider} and is set again at the next sign-in.",
+ "alias.managed_self": "Comes from your sign-in method and cannot be changed here.",
+ "mapping.username_from": "User name from attribute",
+ "mapping.username_from_help": "Attribute, claim or SAML attribute that becomes the user name in the wiki (e.g. uid, cn, preferred_username). Updated at every sign-in; if the name is taken, the previous one stays."
 }

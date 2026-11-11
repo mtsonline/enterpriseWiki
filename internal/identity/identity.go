@@ -11,6 +11,9 @@ import (
 type Principal struct {
 	UserID      int64  `json:"id"`
 	Username    string `json:"username"`
+	// Alias is the optional wiki user name (sign-in with it is possible).
+	Alias       string `json:"alias,omitempty"`
+	AliasSource string `json:"alias_source,omitempty"`
 	Provider    string `json:"provider"`
 	DisplayName string `json:"display_name"`
 	Email       string `json:"email"`

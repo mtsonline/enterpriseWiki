@@ -165,6 +165,31 @@ func (s *Service) mfaMethod(id string) MFAMethod {
 	return nil
 }
 
+// MFABulk is implemented by factors that can tell for many users at once
+// who has set them up (user lists).
+type MFABulk interface {
+	EnrolledAmong(ctx context.Context, ids []int64) map[int64]bool
+}
+
+// mfaAmong reports for each of ids whether the user has any factor.
+func (s *Service) mfaAmong(ctx context.Context, ids []int64) map[int64]bool {
+	out := map[int64]bool{}
+	for _, m := range s.MFAMethods() {
+		if b, ok := m.(MFABulk); ok {
+			for id, on := range b.EnrolledAmong(ctx, ids) {
+				out[id] = out[id] || on
+			}
+			continue
+		}
+		for _, id := range ids {
+			if !out[id] && m.Enrolled(ctx, id) {
+				out[id] = true
+			}
+		}
+	}
+	return out
+}
+
 // EnrolledMFA lists the second factors user uid has set up.
 func (s *Service) EnrolledMFA(ctx context.Context, uid int64) []string {
 	out := []string{}

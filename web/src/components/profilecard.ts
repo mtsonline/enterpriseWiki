@@ -12,7 +12,7 @@ const TEXT = ['job_title', 'department', 'phone', 'mobile', 'office'];
 export async function profileCardForm(path: string, name: string): Promise<HTMLElement> {
   const data = await api.get<{ profile: Record<string, string>; photo_policy?: { default: string; max: string; fixed: boolean } }>(path);
   const pol = data.photo_policy ?? { default: 'users', max: 'public', fixed: false };
-  const order = ['private', 'users', 'public'];
+  const order = ['nobody', 'users', 'public'];
   const vis = select([{ value: '', label: t('photo.vis.default', { level: t(`photo.vis.${pol.default}`) }) },
     ...order.filter((v) => order.indexOf(v) <= order.indexOf(pol.max)).map((v) => ({ value: v, label: t(`photo.vis.${v}`) }))], data.profile.photo_visibility ?? '');
   vis.disabled = pol.fixed;

@@ -169,3 +169,29 @@ func (s *Server) routesIdentity() {
 		return h.Created{V: u}, nil
 	})
 }
+
+// routesAlias: the optional wiki user name.
+func (s *Server) routesAlias() {
+	s.handle("PUT /api/v1/me/alias", func(w http.ResponseWriter, r *http.Request) (any, error) {
+		var in struct {
+			Alias string `json:"alias"`
+		}
+		if err := h.Decode(r, &in); err != nil {
+			return nil, err
+		}
+		return h.NoContent{}, s.app.Auth.SetMyAlias(r.Context(), in.Alias)
+	})
+	s.handle("PUT /api/v1/admin/users/{id}/alias", func(w http.ResponseWriter, r *http.Request) (any, error) {
+		id, err := h.PathID(r, "id")
+		if err != nil {
+			return nil, err
+		}
+		var in struct {
+			Alias string `json:"alias"`
+		}
+		if err := h.Decode(r, &in); err != nil {
+			return nil, err
+		}
+		return h.NoContent{}, s.app.Auth.SetUserAlias(r.Context(), id, in.Alias)
+	})
+}

@@ -166,7 +166,7 @@ func (e *env) readPassword(fromStdin bool, prompt string) (string, error) {
 
 func (e *env) user(args []string) error {
 	if len(args) == 0 {
-		return errors.New("usage: ewiki user list|create|invite|emails|email-add|email-primary|email-remove|identities|unlink|sessions|logout|signin-preview|passwd|disable|enable|unlock|mfa-reset|networks")
+		return errors.New("usage: ewiki user list|create|invite|emails|email-add|email-primary|email-remove|identities|unlink|alias|sessions|logout|signin-preview|passwd|disable|enable|unlock|mfa-reset|networks")
 	}
 	sub, args := args[0], args[1:]
 	fs := flag.NewFlagSet("user", flag.ContinueOnError)
@@ -194,8 +194,11 @@ func (e *env) user(args []string) error {
 			var id int64
 			err := a.DB.QueryRow(ctx, `SELECT id FROM users WHERE lower(username)=lower($1) AND provider=$2`, n, prov).Scan(&id)
 			if err != nil {
-				// NAME may also be an e-mail address of the user
+				// NAME may also be an e-mail address or the wiki user name
 				err = a.DB.QueryRow(ctx, `SELECT user_id FROM user_emails WHERE email=lower($1) ORDER BY verified DESC LIMIT 1`, name).Scan(&id)
+			}
+			if err != nil {
+				err = a.DB.QueryRow(ctx, `SELECT id FROM users WHERE lower(alias)=lower($1)`, name).Scan(&id)
 			}
 			if err != nil {
 				return 0, fmt.Errorf("user %s not found", name)
@@ -343,6 +346,13 @@ func (e *env) user(args []string) error {
 			b, _ := json.MarshalIndent(pv, "", "  ")
 			e.println(string(b))
 			return nil
+		case "alias":
+			// ewiki user alias NAME [ALIAS]: set or (without ALIAS) remove the wiki user name
+			id, err := findID()
+			if err != nil {
+				return err
+			}
+			return a.Auth.SetUserAlias(ctx, id, strings.Join(fs.Args(), ""))
 		case "sessions":
 			id, err := findID()
 			if err != nil {

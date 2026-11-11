@@ -179,6 +179,10 @@ func (p *Provider) Authenticate(ctx context.Context, username, password string) 
 	if attrSubject != "" {
 		attrs = append(attrs, attrSubject)
 	}
+	attrAlias := auth.Setting(s, "username_from", "")
+	if attrAlias != "" {
+		attrs = append(attrs, attrAlias)
+	}
 	res, err := conn.Search(ldap.NewSearchRequest(auth.Setting(s, "base_dn", ""), ldap.ScopeWholeSubtree, ldap.NeverDerefAliases,
 		2, 10, false, filter, attrs, nil))
 	if err != nil && !ldap.IsErrorWithCode(err, ldap.LDAPResultNoSuchObject) {
@@ -203,6 +207,9 @@ func (p *Provider) Authenticate(ctx context.Context, username, password string) 
 	id := &auth.ExternalIdentity{Provider: p.id, Subject: e.DN, Username: e.GetAttributeValue(attrUser),
 		Email: e.GetAttributeValue(attrMail), DisplayName: e.GetAttributeValue(attrName),
 		Attributes: map[string]any{"dn": e.DN}}
+	if attrAlias != "" {
+		id.Attributes[attrAlias] = e.GetAttributeValue(attrAlias)
+	}
 	if id.Username == "" {
 		id.Username = username
 	}

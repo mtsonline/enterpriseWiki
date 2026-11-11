@@ -326,12 +326,20 @@ export async function profileView({ main }: RouteCtx): Promise<void> {
   const editorSel = select([{ value: '', label: t('profile.editor_default', { name: t(`editor.kind.${state.site.editor ?? 'visual'}`) }) },
     ...(prefs.options.editor ?? []).map((v) => ({ value: v, label: t(`editor.kind.${v}`) }))], prefs.prefs.editor ?? '');
   const pAlert = h('div', { class: 'ew-form-alert', role: 'alert' });
-  const pForm = h('form', { class: 'ew-form', novalidate: true }, pAlert, field(t('profile.display_name'), name), field(t('profile.language'), lang),
+  const alias = textInput({ value: u.alias ?? '', autocomplete: 'username', maxlength: 64 });
+  const aliasManaged = !!u.alias_source;
+  if (aliasManaged) alias.readOnly = true;
+  const pForm = h('form', { class: 'ew-form', novalidate: true }, pAlert, field(t('profile.display_name'), name),
+    field(t('alias.label'), alias, { help: aliasManaged ? t('alias.managed_self') : t('alias.help_self') }), field(t('profile.language'), lang),
     field(t('profile.editor'), editorSel, { help: t('profile.editor_help') }),
     h('div', { class: 'ew-form-actions' }, button(t('common.save'), () => undefined, { type: 'submit', variant: 'primary' })));
   pForm.addEventListener('submit', async (ev) => {
     ev.preventDefault();
     try {
+      if (!aliasManaged && alias.value.trim() !== (u.alias ?? '')) {
+        await api.put('me/alias', { alias: alias.value.trim() });
+        u.alias = alias.value.trim() || undefined;
+      }
       await api.put('me', { display_name: name.value, language: lang.value, prefs: { editor: editorSel.value } });
       const prefs = { ...(u.prefs ?? {}) };
       if (editorSel.value) prefs.editor = editorSel.value;

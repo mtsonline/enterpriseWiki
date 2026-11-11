@@ -65,10 +65,23 @@ func TestPhotoVisibility(t *testing.T) {
 	// the person's choice within the limits
 	pia.must("PUT", "/api/v1/me/profile", map[string]string{"photo_visibility": "public"}, nil, 200)
 	check("public", guest, 200)
-	pia.must("PUT", "/api/v1/me/profile", map[string]string{"photo_visibility": "private"}, nil, 200)
-	check("private", olaf, 404)
-	check("private", pia, 200)
-	check("private", admin, 200)
+	pia.must("PUT", "/api/v1/me/profile", map[string]string{"photo_visibility": "nobody"}, nil, 200)
+	check("nobody", olaf, 404)
+	check("nobody", guest, 404)
+	check("nobody", pia, 200)
+	check("nobody", admin, 200) // administrators have every permission
+	// the permission "see all profile photos", granted through a role
+	var role struct {
+		ID int64 `json:"id"`
+	}
+	admin.must("POST", "/api/v1/admin/roles", map[string]any{"name": "Identity check", "permissions": []string{"core.photos.view"}}, &role, 200)
+	var ida struct {
+		ID int64 `json:"id"`
+	}
+	admin.must("POST", "/api/v1/admin/users", map[string]any{"username": "ida", "password": "Ida-Passw0rd!xy", "display_name": "Ida", "roles": []int64{role.ID}}, &ida, 201)
+	idaC := e.client()
+	idaC.login("ida", "Ida-Passw0rd!xy")
+	check("permission", idaC, 200)
 	if got := pia.do("PUT", "/api/v1/me/profile", map[string]string{"photo_visibility": "everyone"}, nil); got != 400 {
 		t.Fatalf("invalid choice: %d", got)
 	}
@@ -91,11 +104,11 @@ func TestPhotoVisibility(t *testing.T) {
 	if prof.Policy.Max != "users" || prof.Policy.Default != "users" {
 		t.Fatalf("policy %+v", prof.Policy)
 	}
-	// fixed: no choice, the own private choice no longer applies
-	pia.must("PUT", "/api/v1/me/profile", map[string]string{"photo_visibility": "private"}, nil, 200)
+	// fixed: no choice, the own choice "nobody" no longer applies
+	pia.must("PUT", "/api/v1/me/profile", map[string]string{"photo_visibility": "nobody"}, nil, 200)
 	setPhotoPolicy(t, e, "users", "public", true)
 	check("fixed", olaf, 200)
-	if got := pia.do("PUT", "/api/v1/me/profile", map[string]string{"photo_visibility": "private"}, nil); got != 400 {
+	if got := pia.do("PUT", "/api/v1/me/profile", map[string]string{"photo_visibility": "nobody"}, nil); got != 400 {
 		t.Fatalf("choice although fixed: %d", got)
 	}
 	// settings: invalid idle durations are refused

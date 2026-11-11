@@ -109,6 +109,7 @@ func (s *Server) routes() {
 	s.routesDemo()
 	s.routesCollab()
 	s.routesIdentity()
+	s.routesAlias()
 	s.routesSessions()
 	s.routesProviderAdmin()
 	s.routesSCIM()

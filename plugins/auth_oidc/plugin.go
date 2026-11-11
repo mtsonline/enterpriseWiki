@@ -326,7 +326,7 @@ func MapClaims(s map[string]any, provider, subject string, claims map[string]any
 		id.Username = subject
 	}
 	id.Username = sanitize(id.Username)
-	for _, k := range []string{"email", "name", "preferred_username", "given_name", "family_name"} {
+	for _, k := range []string{"email", "name", "preferred_username", "given_name", "family_name", auth.Setting(s, "username_from", "")} {
 		if v, ok := claims[k]; ok {
 			id.Attributes[k] = v
 		}

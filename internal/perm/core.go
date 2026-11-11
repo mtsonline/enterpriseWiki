@@ -7,6 +7,8 @@ func init() {
 		Def{Key: "core.categories.admin", Scope: Global, Label: "Category administrator",
 			Description: "Create top-level categories, move categories to the top level and manage the structure, settings and permissions of all categories (content only with editor permissions)."},
 		Def{Key: "core.users.manage", Scope: Global, Label: "Manage users", Description: "Create, edit, disable and delete users, including their profiles."},
+		Def{Key: "core.photos.view", Scope: Global, Label: "See all profile photos",
+			Description: "See every profile photo, also those their owners show to nobody (e.g. for identity checks)."},
 		Def{Key: "core.groups.manage", Scope: Global, Label: "Manage groups", Description: "Create and edit groups and their members."},
 		Def{Key: "core.roles.manage", Scope: Global, Label: "Manage roles and their permissions",
 			Description: "Create and edit roles, assign global permissions. Only administrators may grant permissions they do not have themselves."},

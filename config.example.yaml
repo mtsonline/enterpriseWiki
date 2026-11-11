@@ -25,7 +25,7 @@ auth:
     order: [local]                # local is always tried first
     session_ttl: 168h
     session_idle: 12h             # ends a browser session after this long without activity (0: off)
-    photo_visibility: users       # profile photos: private | users | public (default for people who did not choose)
+    photo_visibility: users       # profile photos: nobody | users | public (default for people who did not choose)
     photo_visibility_max: public  # the widest a person may choose
     photo_visibility_fixed: false # true: no choice
     api_key_max_ttl: 8760h

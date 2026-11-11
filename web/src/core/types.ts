@@ -5,6 +5,9 @@ export type LangMap = Record<string, string>;
 export interface Principal {
   id: number;
   username: string;
+  /** optional wiki user name; alias_source: provider that manages it */
+  alias?: string;
+  alias_source?: string;
   provider: string;
   display_name: string;
   email: string;

@@ -1732,7 +1732,6 @@
  "auth.webauthn_use": "Sicherheitsschlüssel verwenden",
  "mapping.mfa": "Zweiten Faktor im Wiki abfragen",
  "mapping.mfa_help": "Für Personen, die einen zweiten Faktor eingerichtet haben. Aus, wenn der Anbieter selbst MFA verlangt (z. B. Entra ID mit bedingtem Zugriff).",
- "photo.vis.private": "nur ich (und die Administration)",
  "photo.vis.users": "angemeldete Personen",
  "photo.vis.public": "alle, auch Gäste",
  "photo.vis.default": "Vorgabe ({level})",
@@ -1746,5 +1745,15 @@
  "settings.photo_max": "Profilfotos höchstens für",
  "settings.photo_max_help": "Weiter darf niemand sein Foto freigeben. Enger geht immer.",
  "settings.photo_fixed": "Vorgabe fest (keine Wahl)",
- "settings.photo_fixed_help": "Alle Fotos sind dann genau so sichtbar wie die Vorgabe."
+ "settings.photo_fixed_help": "Alle Fotos sind dann genau so sichtbar wie die Vorgabe.",
+ "photo.vis.nobody": "niemand (nur ich)",
+ "perm.core.photos.view": "Alle Profilfotos sehen",
+ "perm.core.photos.view_help": "Jedes Profilfoto sehen, auch wenn die Person es niemandem zeigt (z. B. für Identitätsprüfungen).",
+ "alias.label": "Benutzername (optional)",
+ "alias.help": "Eindeutiger Name im Wiki; damit ist auch die Anmeldung möglich.",
+ "alias.help_self": "Eindeutiger Name im Wiki. Sie können sich damit auch anmelden.",
+ "alias.managed": "Kommt vom Anmeldeverfahren {provider} und wird bei der nächsten Anmeldung wieder gesetzt.",
+ "alias.managed_self": "Kommt von Ihrem Anmeldeverfahren und kann hier nicht geändert werden.",
+ "mapping.username_from": "Benutzername aus Attribut",
+ "mapping.username_from_help": "Attribut, Claim oder SAML-Attribut, das zum Benutzernamen im Wiki wird (z. B. uid, cn, preferred_username). Wird bei jeder Anmeldung aktualisiert; ist der Name vergeben, bleibt der bisherige."
 }
