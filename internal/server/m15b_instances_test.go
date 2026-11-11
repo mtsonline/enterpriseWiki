@@ -32,7 +32,9 @@ func TestProviderInstances(t *testing.T) {
 	e.client().must("GET", "/api/v1/auth/providers", nil, &providers, 200)
 	names := map[string]string{}
 	for _, p := range providers {
-		names[p["id"]] = p["name"]
+		if p["kind"] != "passwordless" {
+			names[p["id"]] = p["name"]
+		}
 	}
 	if names["oidc"] != "Staff" || names["oidc-partner"] != "Partner" || len(names) != 3 {
 		t.Fatalf("providers %v", providers)

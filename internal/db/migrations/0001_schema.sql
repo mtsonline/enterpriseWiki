@@ -43,6 +43,27 @@ CREATE TABLE auth_challenges (
     expires_at timestamptz NOT NULL
 );
 
+-- Sign-ins waiting for the second factor (only the hash of the token is
+-- stored); sso keeps what the session needs for single logout, data the
+-- challenge state of the factors (e.g. WebAuthn session data)
+CREATE TABLE mfa_pending (
+    token_hash bytea PRIMARY KEY,
+    user_id    bigint NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    sso        jsonb NOT NULL DEFAULT '{}',
+    next       text NOT NULL DEFAULT '/',
+    data       jsonb NOT NULL DEFAULT '{}',
+    attempts   int NOT NULL DEFAULT 0,
+    expires_at timestamptz NOT NULL
+);
+
+-- Password-less sign-ins in progress (passkeys): state of the method
+CREATE TABLE passwordless_pending (
+    token_hash bytea PRIMARY KEY,
+    method     text NOT NULL,
+    state      text NOT NULL,
+    expires_at timestamptz NOT NULL
+);
+
 -- IDs of single-use messages of identity providers (OIDC logout token jti,
 -- SAML LogoutRequest IDs): each is accepted once, on every instance
 CREATE TABLE sso_replay (

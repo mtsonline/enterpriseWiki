@@ -1,0 +1,9 @@
+{
+  "id": "mfa.webauthn",
+  "name": "Security keys and passkeys (WebAuthn)",
+  "version": "1.0.0",
+  "description": "Second factor with security keys (FIDO2, e.g. YubiKey) and the authenticators of devices (Windows Hello, Touch ID, Android), and sign-in without password with passkeys. Works after every sign-in method.",
+  "author": "Enterprise Wiki",
+  "kinds": ["mfa"],
+  "frontend": true
+}

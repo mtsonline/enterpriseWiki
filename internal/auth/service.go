@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"github.com/mtsonline/enterprisewiki/internal/perm"
 	"log/slog"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -71,14 +72,16 @@ type registered struct {
 
 // Service is the authentication service.
 type Service struct {
-	pool      *pgxpool.Pool
-	cfg       *config.Store
-	bus       *events.Bus
-	log       *slog.Logger
-	mu        sync.RWMutex
-	providers []registered
-	redirects []registeredRedirect
-	enabled   func(pluginID string) bool
+	pool         *pgxpool.Pool
+	cfg          *config.Store
+	bus          *events.Bus
+	log          *slog.Logger
+	mu           sync.RWMutex
+	providers    []registered
+	redirects    []registeredRedirect
+	mfa          []registeredMFA
+	passwordless []registeredPasswordless
+	enabled      func(pluginID string) bool
 
 	cache   sync.Map // token hash (string) -> cachedPrincipal
 	limiter *limiter
@@ -107,6 +110,9 @@ const principalCacheTTL = 30 * time.Second
 // New creates the auth service.
 func New(pool *pgxpool.Pool, cfg *config.Store, bus *events.Bus, log *slog.Logger) *Service {
 	s := &Service{pool: pool, cfg: cfg, bus: bus, log: log, enabled: func(string) bool { return true }, limiter: newLimiter()}
+	// built-in second factors; plugins add more (WebAuthn)
+	s.RegisterMFAMethod("", totpMethod{s})
+	s.RegisterMFAMethod("", emailMethod{s})
 	bus.Subscribe("auth", func(string) { s.flushCache() })
 	bus.Subscribe("*", func(string) { s.flushCache() })
 	return s
@@ -134,7 +140,7 @@ func (s *Service) RegisterProviderSource(pluginID string, src func() []PasswordP
 type ProviderInfo struct {
 	ID   string `json:"id"`
 	Name string `json:"name"`
-	Kind string `json:"kind"` // password | redirect
+	Kind string `json:"kind"` // password | redirect | passwordless
 }
 
 // Providers returns the active providers in evaluation order (local first).
@@ -185,6 +191,9 @@ func (s *Service) ProviderInfos() []ProviderInfo {
 		if configured(p) {
 			out = append(out, ProviderInfo{p.ID(), p.Name(), "redirect"})
 		}
+	}
+	for _, id := range s.PasswordlessMethods() {
+		out = append(out, ProviderInfo{id, id, "passwordless"})
 	}
 	return out
 }
@@ -255,22 +264,27 @@ func (s *Service) LoginMFA(ctx context.Context, username, password, totp, method
 		if err := s.checkNetwork(ctx, uid, ip); err != nil {
 			return nil, err
 		}
-		if ext.Provider == "local" {
-			if err := s.checkSecondFactor(ctx, uid, totp, method == "email"); err != nil {
-				return nil, err
+		if s.mfaApplies(ext.Provider) {
+			enrolled := s.EnrolledMFA(ctx, uid)
+			if strings.TrimSpace(totp) != "" && (slices.Contains(enrolled, "totp") || slices.Contains(enrolled, "email")) {
+				// a code given with the password (authenticator app or e-mail)
+				if err := s.checkSecondFactor(ctx, uid, totp, method == "email"); err != nil {
+					return nil, err
+				}
+			} else if len(enrolled) > 0 {
+				tok, err := s.pendingMFA(ctx, uid, ext, "")
+				if err != nil {
+					return nil, err
+				}
+				return nil, errMFARequired(tok)
 			}
 		}
-		tok, exp, err := s.createSession(ctx, uid, "web", config.Duration(s.cfg.Get().Auth.SessionTTL, 7*24*time.Hour), ip, ua, ext)
+		res, err := s.newSession(ctx, uid, ext, ip, ua)
 		if err != nil {
 			return nil, err
 		}
-		pr, err := s.LoadPrincipal(ctx, uid)
-		if err != nil {
-			return nil, err
-		}
-		pr.Via = "session"
-		s.log.Info("login", "user", pr.Handle(), "ip", ip)
-		return &LoginResult{tok, exp, pr}, nil
+		s.log.Info("login", "user", res.Principal.Handle(), "ip", ip)
+		return res, nil
 	}
 	return nil, apperr.ErrInvalidLogin
 }
@@ -450,12 +464,13 @@ func (s *Service) Authenticate(ctx context.Context, token string) (*identity.Pri
 	} else {
 		var uid int64
 		var kind string
+		var created time.Time
 		// idle sessions end (browser sessions only; SSH tokens are short-lived);
 		// automatic requests (Background) do not count as activity
 		idle := config.Duration(s.cfg.Get().Auth.SessionIdle, 0)
 		err := s.pool.QueryRow(ctx, `UPDATE sessions SET last_seen_at = CASE WHEN $3 THEN last_seen_at ELSE now() END
 			WHERE token_hash=$1 AND expires_at > now() AND (kind <> 'web' OR $2::float8 <= 0 OR last_seen_at > now() - make_interval(secs => $2))
-			RETURNING user_id, kind`, h, idle.Seconds(), Background(ctx)).Scan(&uid, &kind)
+			RETURNING user_id, kind, created_at`, h, idle.Seconds(), Background(ctx)).Scan(&uid, &kind, &created)
 		if err != nil {
 			return nil, apperr.ErrUnauthorized
 		}
@@ -463,7 +478,7 @@ func (s *Service) Authenticate(ctx context.Context, token string) (*identity.Pri
 		if err != nil {
 			return nil, apperr.ErrUnauthorized
 		}
-		p.Via = "session"
+		p.Via, p.SignedIn = "session", created
 		if kind == "ssh" {
 			p.Via = "ssh"
 		}
@@ -664,6 +679,12 @@ func (s *Service) Cleanup(ctx context.Context) error {
 		return err
 	}
 	if _, err := s.pool.Exec(ctx, `DELETE FROM auth_challenges WHERE expires_at < now()`); err != nil {
+		return err
+	}
+	if _, err := s.pool.Exec(ctx, `DELETE FROM mfa_pending WHERE expires_at < now()`); err != nil {
+		return err
+	}
+	if _, err := s.pool.Exec(ctx, `DELETE FROM passwordless_pending WHERE expires_at < now()`); err != nil {
 		return err
 	}
 	return s.CleanupSSO(ctx)

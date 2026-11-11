@@ -1,0 +1,22 @@
+{
+ "webauthn.title": "Sicherheitsschlüssel und Passkeys",
+ "webauthn.help": "Ein Sicherheitsschlüssel (z. B. YubiKey) oder der Authenticator Ihres Geräts (Windows Hello, Touch ID, Android) als zweiter Faktor. Mit einem Passkey melden Sie sich auch ohne Passwort an.",
+ "webauthn.add_key": "Sicherheitsschlüssel hinzufügen",
+ "webauthn.add_passkey": "Passkey hinzufügen",
+ "webauthn.name": "Name",
+ "webauthn.name_help": "Damit Sie ihn später erkennen, z. B. „YubiKey blau“ oder „Laptop“.",
+ "webauthn.kind": "Art",
+ "webauthn.kind_key": "Sicherheitsschlüssel",
+ "webauthn.kind_passkey": "Passkey",
+ "webauthn.created": "Hinzugefügt",
+ "webauthn.last_used": "Zuletzt verwendet",
+ "webauthn.never": "noch nie",
+ "webauthn.none": "Noch keine Sicherheitsschlüssel.",
+ "webauthn.remove": "Entfernen",
+ "webauthn.remove_confirm": "„{name}“ entfernen? Damit ist dann keine Anmeldung mehr möglich.",
+ "webauthn.removed": "Sicherheitsschlüssel entfernt.",
+ "webauthn.added": "„{name}“ hinzugefügt.",
+ "webauthn.unsupported": "Dieser Browser unterstützt keine Sicherheitsschlüssel.",
+ "webauthn.cancelled": "Der Sicherheitsschlüssel wurde nicht verwendet (abgebrochen oder Zeit abgelaufen).",
+ "webauthn.reauth": "Zu Ihrer Sicherheit: Bitte melden Sie sich ab und wieder an und fügen Sie Schlüssel dann innerhalb von 15 Minuten hinzu oder entfernen Sie sie."
+}

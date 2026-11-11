@@ -272,7 +272,7 @@ type UserUpdate struct {
 	Groups      []int64 `json:"groups"`
 	Roles       []int64 `json:"roles"`
 	Password    *string `json:"password"`
-	ResetTOTP   bool    `json:"reset_totp"` // removes all second factors (app and e-mail)
+	ResetTOTP   bool    `json:"reset_totp"` // removes all second factors (app, e-mail, security keys)
 	// Networks restricts the account to IP addresses / CIDR networks ([] = anywhere).
 	Networks *[]string `json:"networks"`
 }
@@ -356,6 +356,16 @@ func (s *Service) UpdateUser(ctx context.Context, id int64, in UserUpdate) (*Use
 	})
 	if err != nil {
 		return nil, err
+	}
+	if in.ResetTOTP {
+		// second factors of plugins too (security keys, passkeys)
+		for _, m := range s.MFAMethods() {
+			if r, ok := m.(MFAResetter); ok {
+				if err := r.ResetMFA(ctx, id); err != nil {
+					return nil, err
+				}
+			}
+		}
 	}
 	s.bump(ctx)
 	return s.GetUser(ctx, id)

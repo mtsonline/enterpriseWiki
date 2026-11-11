@@ -150,9 +150,7 @@ func (s *Server) routesM2() {
 			return
 		}
 		if res != nil {
-			s.auditLogin(r, res.Principal, "sso:"+r.PathValue("provider"), "", nil)
-			s.setCookie(w, res.Token, res.ExpiresAt)
-			http.Redirect(w, r, auth.SafeNext(res.Next), http.StatusSeeOther) // #nosec G710 -- SafeNext allows local paths only
+			s.finishSSO(w, r, res)
 			return
 		}
 		http.Redirect(w, r, redirect, http.StatusFound) // #nosec G710 -- URL of the configured identity provider, not from the request
@@ -164,9 +162,7 @@ func (s *Server) routesM2() {
 			s.ssoError(w, r, err)
 			return
 		}
-		s.auditLogin(r, res.Principal, "sso:"+r.PathValue("provider"), "", nil)
-		s.setCookie(w, res.Token, res.ExpiresAt)
-		http.Redirect(w, r, auth.SafeNext(res.Next), http.StatusSeeOther) // #nosec G710 -- SafeNext allows local paths only
+		s.finishSSO(w, r, res)
 	}
 	// Called by the identity provider (redirect or HTTP-POST binding).
 	h.RecordRoute("GET /api/v1/auth/sso/{provider}/callback")
@@ -207,7 +203,7 @@ func (s *Server) routesM2() {
 			return nil, err
 		}
 		return map[string]any{"totp": st.TOTP, "email": st.Email, "email_address": st.Address, "local": st.Local,
-			"networks": st.Networks, "current_ip": s.clientIP(r)}, nil
+			"applies": st.Applies, "methods": st.Methods, "networks": st.Networks, "current_ip": s.clientIP(r)}, nil
 	})
 	s.handle("POST /api/v1/me/mfa/email/code", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		return h.NoContent{}, s.app.Auth.BeginEmailMFA(r.Context())

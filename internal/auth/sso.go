@@ -11,7 +11,6 @@ import (
 	"github.com/jackc/pgx/v5"
 
 	"github.com/mtsonline/enterprisewiki/internal/apperr"
-	"github.com/mtsonline/enterprisewiki/internal/config"
 )
 
 // SSORequest carries the state of a single sign-on login between Start and
@@ -102,10 +101,12 @@ func SafeNext(next string) string {
 	return next
 }
 
-// SSOResult is returned when a single sign-on login completes.
+// SSOResult is returned when a single sign-on login completes: a session,
+// or (MFAToken) a pending sign-in waiting for the second factor.
 type SSOResult struct {
 	*LoginResult
-	Next string
+	Next     string
+	MFAToken string
 }
 
 // SSOStart begins a browser login. It returns the URL to redirect to, or a
@@ -126,11 +127,8 @@ func (s *Service) SSOStart(ctx context.Context, provider string, r *http.Request
 	}
 	next = SafeNext(next)
 	if ext != nil {
-		res, err := s.completeSSO(ctx, ext, ip, ua)
-		if err != nil {
-			return "", nil, err
-		}
-		return "", &SSOResult{res, next}, nil
+		res, err := s.completeSSO(ctx, ext, next, ip, ua)
+		return "", res, err
 	}
 	data, _ := json.Marshal(req.Data)
 	if _, err := s.pool.Exec(ctx, `INSERT INTO sso_states(state, provider, nonce, verifier, next, data, expires_at)
@@ -176,14 +174,10 @@ func (s *Service) SSOCallback(ctx context.Context, provider string, r *http.Requ
 		}
 		return nil, apperr.ErrInvalidLogin
 	}
-	res, err := s.completeSSO(ctx, ext, ip, ua)
-	if err != nil {
-		return nil, err
-	}
-	return &SSOResult{res, next}, nil
+	return s.completeSSO(ctx, ext, next, ip, ua)
 }
 
-func (s *Service) completeSSO(ctx context.Context, ext *ExternalIdentity, ip, ua string) (*LoginResult, error) {
+func (s *Service) completeSSO(ctx context.Context, ext *ExternalIdentity, next, ip, ua string) (*SSOResult, error) {
 	if ext.Subject == "" || ext.Username == "" {
 		return nil, apperr.BadRequest("the identity provider did not return a user name")
 	}
@@ -194,17 +188,18 @@ func (s *Service) completeSSO(ctx context.Context, ext *ExternalIdentity, ip, ua
 	if err := s.checkNetwork(ctx, uid, ip); err != nil {
 		return nil, err
 	}
-	tok, exp, err := s.createSession(ctx, uid, "web", config.Duration(s.cfg.Get().Auth.SessionTTL, 7*24*time.Hour), ip, ua, ext)
+	// second factor of the wiki (unless the provider does it: mfa false)
+	if tok, _, err := s.requireMFA(ctx, uid, ext, next); err != nil {
+		return nil, err
+	} else if tok != "" {
+		return &SSOResult{Next: next, MFAToken: tok}, nil
+	}
+	res, err := s.newSession(ctx, uid, ext, ip, ua)
 	if err != nil {
 		return nil, err
 	}
-	pr, err := s.LoadPrincipal(ctx, uid)
-	if err != nil {
-		return nil, err
-	}
-	pr.Via = "session"
-	s.log.Info("sso login", "user", pr.Handle(), "ip", ip)
-	return &LoginResult{tok, exp, pr}, nil
+	s.log.Info("sso login", "user", res.Principal.Handle(), "ip", ip)
+	return &SSOResult{LoginResult: res, Next: next}, nil
 }
 
 // CleanupSSO removes expired SSO states.

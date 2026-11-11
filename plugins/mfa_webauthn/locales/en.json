@@ -1,0 +1,22 @@
+{
+ "webauthn.title": "Security keys and passkeys",
+ "webauthn.help": "A security key (e.g. YubiKey) or the authenticator of your device (Windows Hello, Touch ID, Android) as second factor. A passkey also signs you in without password.",
+ "webauthn.add_key": "Add security key",
+ "webauthn.add_passkey": "Add passkey",
+ "webauthn.name": "Name",
+ "webauthn.name_help": "So you recognise it later, e.g. “YubiKey blue” or “Laptop”.",
+ "webauthn.kind": "Kind",
+ "webauthn.kind_key": "Security key",
+ "webauthn.kind_passkey": "Passkey",
+ "webauthn.created": "Added",
+ "webauthn.last_used": "Last used",
+ "webauthn.never": "never",
+ "webauthn.none": "No security keys yet.",
+ "webauthn.remove": "Remove",
+ "webauthn.remove_confirm": "Remove “{name}”? It can no longer be used to sign in.",
+ "webauthn.removed": "Security key removed.",
+ "webauthn.added": "“{name}” added.",
+ "webauthn.unsupported": "This browser does not support security keys.",
+ "webauthn.cancelled": "The security key was not used (cancelled or timed out).",
+ "webauthn.reauth": "For your security: please sign out and in again, then add or remove keys within 15 minutes."
+}

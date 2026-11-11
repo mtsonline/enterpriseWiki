@@ -73,7 +73,7 @@ var ErrTOTPRequired = &apperr.Error{Status: 401, Code: "totp_required", Msg: "tw
 // ErrTOTPInvalid is returned for a wrong two-factor code.
 var ErrTOTPInvalid = &apperr.Error{Status: 401, Code: "totp_invalid", Msg: "invalid two-factor code"}
 
-// checkTOTP verifies the second factor of a local account (if enabled).
+// checkTOTP verifies the authenticator code of an account (if enabled).
 func (s *Service) checkTOTP(ctx context.Context, uid int64, code string) error {
 	var secret *string
 	var enabled bool
@@ -112,13 +112,14 @@ func (s *Service) TOTPStatus(ctx context.Context) (bool, error) {
 	return on, err
 }
 
-// BeginTOTP creates a new (not yet active) secret for the caller's local account.
+// BeginTOTP creates a new (not yet active) secret for the caller (any
+// sign-in method whose second factor the wiki asks for).
 func (s *Service) BeginTOTP(ctx context.Context, issuer string) (*TOTPSetup, error) {
 	p := identity.From(ctx)
 	if p == nil || p.UserID == 0 {
 		return nil, apperr.ErrUnauthorized
 	}
-	if p.Provider != "local" {
+	if !s.mfaApplies(p.Provider) {
 		return nil, apperr.BadRequest("two-factor authentication is managed by %s", p.Provider)
 	}
 	var on bool
@@ -145,7 +146,7 @@ func (s *Service) EnableTOTP(ctx context.Context, code string) error {
 	}
 	var secret *string
 	var last int64
-	if err := s.pool.QueryRow(ctx, `SELECT totp_secret, totp_last_step FROM users WHERE id=$1 AND provider='local'`, p.UserID).Scan(&secret, &last); err != nil || secret == nil {
+	if err := s.pool.QueryRow(ctx, `SELECT totp_secret, totp_last_step FROM users WHERE id=$1`, p.UserID).Scan(&secret, &last); err != nil || secret == nil {
 		return apperr.BadRequest("start the setup first")
 	}
 	step, ok := VerifyTOTP(*secret, code, time.Now(), last)

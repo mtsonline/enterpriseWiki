@@ -31,6 +31,7 @@ import (
 	_ "github.com/mtsonline/enterprisewiki/plugins/example_notice"
 	_ "github.com/mtsonline/enterprisewiki/plugins/macro_http"
 	_ "github.com/mtsonline/enterprisewiki/plugins/macro_shell"
+	_ "github.com/mtsonline/enterprisewiki/plugins/mfa_webauthn"
 	_ "github.com/mtsonline/enterprisewiki/plugins/office_collabora"
 	_ "github.com/mtsonline/enterprisewiki/plugins/office_m365"
 	_ "github.com/mtsonline/enterprisewiki/plugins/office_onlyoffice"

@@ -66,6 +66,11 @@ curl -H "Authorization: Bearer $KEY" -H 'Content-Type: application/json' \
 | `GET` | `/api/v1/auth/sso/{provider}/start` |
 | `GET` | `/api/v1/auth/sso/{provider}/callback` |
 | `POST` | `/api/v1/auth/sso/{provider}/callback` |
+| `POST` | `/api/v1/auth/mfa/info` |
+| `POST` | `/api/v1/auth/mfa/challenge` |
+| `POST` | `/api/v1/auth/mfa/verify` |
+| `POST` | `/api/v1/auth/passwordless/{method}/begin` |
+| `POST` | `/api/v1/auth/passwordless/{method}/finish` |
 | `GET` | `/api/v1/auth/sso/{provider}/logout` |
 | `POST` | `/api/v1/auth/sso/{provider}/logout` |
 
@@ -387,6 +392,10 @@ curl -H "Authorization: Bearer $KEY" -H 'Content-Type: application/json' \
 | `DELETE` | `/api/v1/x/macro.shell/commands/{hash}` |
 | `POST` | `/api/v1/x/macro.shell/commands/{hash}/approve` |
 | `POST` | `/api/v1/x/macro.shell/commands/{hash}/revoke` |
+| `GET` | `/api/v1/x/mfa.webauthn/credentials` |
+| `POST` | `/api/v1/x/mfa.webauthn/register/begin` |
+| `POST` | `/api/v1/x/mfa.webauthn/register/finish` |
+| `DELETE` | `/api/v1/x/mfa.webauthn/credentials/{id}` |
 | `POST` | `/api/v1/x/office.collabora/test` |
 | `POST` | `/api/v1/x/office.m365/test` |
 | `GET` | `/api/v1/x/office.onlyoffice/file/{id}` |

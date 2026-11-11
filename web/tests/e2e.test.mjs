@@ -7,6 +7,7 @@
 import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { chromium } from 'playwright';
+import { createHmac } from 'node:crypto';
 
 const BASE = process.env.EWIKI_E2E_URL ?? 'http://localhost:8080';
 const USER = process.env.EWIKI_E2E_USER ?? 'admin';
@@ -33,15 +34,15 @@ before(async () => {
 });
 after(async () => { await browser?.close(); });
 
-async function a11y(name) {
+async function a11y(name, pg = page) {
   if (!axeSource) return;
   // transient toasts (fixed, bottom right) may cover controls: wait until they are gone
-  await page.waitForFunction(() => !document.querySelector('.ew-toasts > *'), null, { timeout: 15000 }).catch(() => undefined);
+  await pg.waitForFunction(() => !document.querySelector('.ew-toasts > *'), null, { timeout: 15000 }).catch(() => undefined);
   // Playwright scrolls controls into view without scroll-padding, which can leave
   // content half below the sticky header in the snapshot: check from the top
-  await page.evaluate(() => window.scrollTo(0, 0));
-  await page.addScriptTag({ content: axeSource });
-  const res = await page.evaluate(async () => {
+  await pg.evaluate(() => window.scrollTo(0, 0));
+  await pg.addScriptTag({ content: axeSource });
+  const res = await pg.evaluate(async () => {
     const r = await globalThis.axe.run(document, { runOnly: ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'] });
     // details for the report: what axe says and which element is on top of the node
     for (const v of r.violations) for (const n of v.nodes) {
@@ -534,6 +535,76 @@ test('SCIM provisioning clients', async () => {
     await row.waitFor({ state: 'detached' });
   } finally {
     await call('PUT', '/api/v1/admin/settings', { plugin_settings: { 'auth.oidc': oidc } });
+  }
+});
+
+// TOTP code of a base32 secret (RFC 6238) for the second-factor tests
+function totpCode(secret, offset = 0) {
+  const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
+  let bits = '';
+  for (const ch of secret.replace(/[\s=]/g, '').toUpperCase()) bits += alphabet.indexOf(ch).toString(2).padStart(5, '0');
+  const key = Buffer.from(bits.match(/.{8}/g).map((b) => parseInt(b, 2)));
+  const counter = Buffer.alloc(8);
+  counter.writeBigUInt64BE(BigInt(Math.floor(Date.now() / 30000) + offset));
+  const mac = createHmac('sha1', key).update(counter).digest();
+  const o = mac[mac.length - 1] & 0xf;
+  return String((mac.readUInt32BE(o) & 0x7fffffff) % 1000000).padStart(6, '0');
+}
+
+test('second factor at sign-in and passkeys', async () => {
+  const name = `mfa${run}`;
+  const pw = 'Mfa-Passw0rd-1!';
+  await call('POST', '/api/v1/admin/users', { username: name, password: pw, display_name: `MFA ${run}` });
+  const ctx2 = await browser.newContext({ viewport: { width: 1280, height: 900 }, bypassCSP: true });
+  const p2 = await ctx2.newPage();
+  p2.on('pageerror', (e) => errors.push(`mfa user: ${e.message}`));
+  const login = async () => {
+    await p2.goto(BASE + '/login');
+    await p2.getByLabel(/user ?name|benutzername/i).fill(name);
+    await p2.getByLabel(/^(password|passwort)/i).fill(pw);
+    await p2.keyboard.press('Enter');
+  };
+  try {
+    await login();
+    await p2.waitForURL((u) => !u.pathname.startsWith('/login'));
+    // the authenticator app (set up through the API of the signed-in browser)
+    const secret = await p2.evaluate(async () => {
+      const r = await fetch('/api/v1/me/totp/setup', { method: 'POST', headers: { 'X-Requested-With': 'ewiki' } });
+      return (await r.json()).secret;
+    });
+    const enabled = await p2.evaluate(async (code) => (await fetch('/api/v1/me/totp/enable', { method: 'POST', headers: { 'X-Requested-With': 'ewiki', 'Content-Type': 'application/json' }, body: JSON.stringify({ code }) })).status, totpCode(secret));
+    assert.equal(enabled, 204);
+    // a passkey with a virtual authenticator of the browser
+    const cdp = await ctx2.newCDPSession(p2);
+    await cdp.send('WebAuthn.enable');
+    await cdp.send('WebAuthn.addVirtualAuthenticator', { options: { protocol: 'ctap2', transport: 'internal', hasResidentKey: true, hasUserVerification: true, isUserVerified: true, automaticPresenceSimulation: true } });
+    await p2.goto(BASE + '/profile');
+    await p2.locator('#wa-h').waitFor();
+    await p2.getByRole('button', { name: /^(add passkey|passkey hinzufügen)$/i }).click();
+    const dlg = p2.locator('dialog[open]');
+    await dlg.getByLabel(/^name/i).fill('Virtual');
+    await dlg.locator('button[type=submit]').click();
+    await dlg.waitFor({ state: 'detached' });
+    await p2.locator('#wa-h ~ table th', { hasText: 'Virtual' }).waitFor();
+    // sign out: the password alone is not enough any more
+    await p2.evaluate(() => fetch('/api/v1/auth/logout', { method: 'POST', headers: { 'X-Requested-With': 'ewiki' } }));
+    await login();
+    await p2.getByRole('heading', { name: /second factor|zweiter faktor/i }).waitFor();
+    await a11y('second factor step', p2);
+    // the authenticator app
+    await p2.getByLabel(/^(authenticator app|authenticator-app)$/i).check();
+    await p2.getByLabel(/code/i).first().fill(totpCode(secret, 1));
+    await p2.keyboard.press('Enter');
+    await p2.waitForURL((u) => !u.pathname.startsWith('/login'));
+    // the passkey: sign-in without password
+    await p2.evaluate(() => fetch('/api/v1/auth/logout', { method: 'POST', headers: { 'X-Requested-With': 'ewiki' } }));
+    await p2.goto(BASE + '/login');
+    await p2.getByRole('button', { name: /^(sign in with a passkey|mit passkey anmelden)$/i }).click();
+    await p2.waitForURL((u) => !u.pathname.startsWith('/login'));
+    const me = await p2.evaluate(async () => (await (await fetch('/api/v1/auth/me')).json()).user?.username);
+    assert.equal(me, name);
+  } finally {
+    await ctx2.close();
   }
 });
 

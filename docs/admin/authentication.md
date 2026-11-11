@@ -257,13 +257,26 @@ ewiki user logout anna              # alle Sitzungen beenden
 ewiki api GET /api/v1/me/sessions --as anna
 ```
 
-## Zwei-Faktor-Authentifizierung (App oder E-Mail) und erlaubte Netze
+## Zweiter Faktor (App, E-Mail, Sicherheitsschlüssel, Passkeys) und erlaubte Netze
 
-Lokale Konten können unter *Mein Profil → Zwei-Faktor-Authentifizierung* eine Authenticator-App einrichten (RFC 6238, 6 Ziffern, 30 Sekunden). Danach verlangt das Login zusätzlich den Code. Jeder Code ist nur einmal gültig. Bei verlorenem Telefon setzt ein Administrator die 2FA unter *Benutzer → Bearbeiten → Zwei-Faktor-Authentifizierung zurücksetzen* zurück. Für LDAP-, OIDC- und SAML-Konten regelt der jeweilige Anbieter die Mehrfaktor-Anmeldung.
+Der zweite Faktor gilt für **alle Anmeldearten**: lokale Konten, LDAP, OpenID Connect und SAML. Zuerst prüft das Anmeldeverfahren die Person. Hat sie einen zweiten Faktor eingerichtet, entsteht noch keine Sitzung, sondern eine Anmeldung, die auf den zweiten Faktor wartet: 10 Minuten gültig, höchstens 5 Versuche, nur einmal verwendbar. Erst der zweite Faktor erzeugt die Sitzung. Bei Single Sign-on schickt das Wiki den Browser dafür auf `/login?mfa=1`. Die wartende Anmeldung steckt dann in einem kurzlebigen HttpOnly-Cookie, nicht in der Adresse.
 
-### Code per E-Mail
+Verlangt der Identity Provider selbst MFA (z. B. Entra ID mit bedingtem Zugriff), schalten Sie beim Anbieter **„Zweiten Faktor im Wiki abfragen“** (`mfa: false`) aus. Dann fragt das Wiki nicht noch einmal, und die Personen dieses Anbieters richten im Wiki keinen zweiten Faktor ein.
 
-Statt oder zusätzlich zur App können lokale Konten unter *Mein Profil → Code per E-Mail* einen Code per E-Mail als zweiten Faktor wählen (bestätigt mit einem Code an die hinterlegte Adresse). Beim Login wird dann ein sechsstelliger Code geschickt; er gilt 10 Minuten, nur einmal und für höchstens 5 Versuche. Sind App und E-Mail eingerichtet, fragt das Login nach dem App-Code und bietet „Code per E-Mail senden“ an. Voraussetzung ist ein funktionierender Mailversand (`mail`). „Zwei-Faktor-Authentifizierung zurücksetzen“ entfernt beide Faktoren; per CLI: `ewiki user mfa-reset NAME`.
+Die Faktoren sind MFA-Plugins:
+
+| Faktor | Einrichten unter *Mein Profil* | Hinweise |
+|---|---|---|
+| Authenticator-App (eingebaut) | Zwei-Faktor-Authentifizierung | RFC 6238, 6 Ziffern, 30 Sekunden, jeder Code nur einmal |
+| Code per E-Mail (eingebaut) | Code per E-Mail | 6 Ziffern, 10 Minuten, höchstens 5 Versuche. Braucht funktionierenden Mailversand |
+| Sicherheitsschlüssel und Passkeys (`mfa.webauthn`) | Sicherheitsschlüssel und Passkeys | FIDO2/WebAuthn: YubiKey, Windows Hello, Touch ID, Android. Ein **Passkey** meldet zusätzlich ganz ohne Passwort an („Mit Passkey anmelden“); dafür ist die Benutzerprüfung (PIN, Biometrie) Pflicht |
+
+Sind mehrere Faktoren eingerichtet, wählt die Person bei der Anmeldung einen davon.
+
+- **Sicherheit bei Sicherheitsschlüsseln:** Signatur, Herkunft (Origin) und Relying-Party-ID werden geprüft. Ein Schlüssel, dessen Zähler zurückspringt (Hinweis auf eine Kopie), wird abgewiesen und protokolliert. Einen Schlüssel hinzufügen oder entfernen kann man nur im Browser (nicht mit einem API-Key) und nur bis 15 Minuten nach der Anmeldung.
+- **Relying Party:** WebAuthn braucht einen Domainnamen (keine IP-Adresse). Standard ist der Host von `server.base_url`. Abweichend: `plugin_settings."mfa.webauthn".rp_id` und `origins`. Mit `passkeys: false` wird die Anmeldung ohne Passwort abgeschaltet; Sicherheitsschlüssel bleiben als zweiter Faktor nutzbar.
+- **Zurücksetzen:** Bei verlorenem Gerät entfernt ein Administrator unter *Benutzer → Bearbeiten → Zwei-Faktor-Authentifizierung zurücksetzen* alle Faktoren (App, E-Mail, Sicherheitsschlüssel). Per CLI: `ewiki user mfa-reset NAME`.
+- **API:** `POST /api/v1/auth/login` antwortet bei eingerichtetem Faktor mit `401 mfa_required`. Das Feld `detail` enthält das Token der wartenden Anmeldung. Danach folgen `POST /api/v1/auth/mfa/info`, `…/mfa/challenge` (E-Mail-Code senden, WebAuthn-Optionen) und `…/mfa/verify`. Der Code der App oder der zuvor gesendete E-Mail-Code kann wie bisher auch gleich als `totp` mit dem Passwort geschickt werden.
 
 ### Einschränkung auf Netze
 

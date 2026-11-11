@@ -269,6 +269,18 @@ func RegisterRedirectInstances[T auth.RedirectProvider](h *Host, set *auth.Insta
 	})
 }
 
+// RegisterMFAMethod adds a second factor (see auth.MFAMethod); it is asked
+// after every sign-in of people who set it up.
+func (h *Host) RegisterMFAMethod(m auth.MFAMethod) {
+	h.Auth.RegisterMFAMethod(h.Manifest.ID, m)
+}
+
+// RegisterPasswordless adds a sign-in without password (see
+// auth.PasswordlessMethod) at /api/v1/auth/passwordless/<id>/begin|finish.
+func (h *Host) RegisterPasswordless(m auth.PasswordlessMethod) {
+	h.Auth.RegisterPasswordless(h.Manifest.ID, m)
+}
+
 // RequirePerm returns 401/403 unless the caller of r has the global
 // permission key (declared in plugin.json; administrators have all).
 func (h *Host) RequirePerm(r *http.Request, key string) error {

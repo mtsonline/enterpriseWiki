@@ -18,6 +18,7 @@ import (
 	"net/url"
 	"os"
 	"regexp"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -116,6 +117,7 @@ func TestLDAPLogin(t *testing.T) {
 	e.client().login("admin", adminPW)
 	var providers []map[string]string
 	e.client().must("GET", "/api/v1/auth/providers", nil, &providers, 200)
+	providers = slices.DeleteFunc(providers, func(p map[string]string) bool { return p["kind"] == "passwordless" })
 	if len(providers) != 2 {
 		t.Fatalf("providers %v", providers)
 	}

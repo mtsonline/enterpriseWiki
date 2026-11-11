@@ -2,10 +2,12 @@ package server_test
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"image"
 	"image/color"
 	"image/png"
+	"net/http"
 	"regexp"
 	"testing"
 )
@@ -218,15 +220,45 @@ func TestMFAEmailAndNetworks(t *testing.T) {
 		t.Fatal("e-mail factor not enabled")
 	}
 
-	// sign-in: password, then the mailed code
+	// sign-in: password, then the second step with the mailed code
 	b2 := e.client()
-	b2.must("POST", "/api/v1/auth/login", map[string]string{"username": "bob", "password": "Bob-Passw0rd-1!"}, nil, 401)
+	tok := b2.pendingMFA("bob", "Bob-Passw0rd-1!")
+	var info struct {
+		Methods []string `json:"methods"`
+	}
+	b2.must("POST", "/api/v1/auth/mfa/info", map[string]string{"token": tok}, &info, 200)
+	if fmt.Sprint(info.Methods) != "[email]" {
+		t.Fatalf("methods %v", info.Methods)
+	}
+	b2.must("POST", "/api/v1/auth/mfa/verify", map[string]string{"token": tok, "method": "totp", "code": "123456"}, nil, 400)
+	var sent struct {
+		Address string `json:"address"`
+	}
+	b2.must("POST", "/api/v1/auth/mfa/challenge", map[string]string{"token": tok, "method": "email"}, &sent, 200)
+	if sent.Address != "b***@example.com" {
+		t.Fatalf("masked address %q", sent.Address)
+	}
 	code := cp.lastCode(t, "bob@example.com")
-	b2.must("POST", "/api/v1/auth/login", map[string]string{"username": "bob", "password": "Bob-Passw0rd-1!", "totp": "123"}, nil, 401)
-	b2.must("POST", "/api/v1/auth/login", map[string]string{"username": "bob", "password": "Bob-Passw0rd-1!", "totp": code}, nil, 200)
-	// a code works once
+	b2.must("POST", "/api/v1/auth/mfa/verify", map[string]string{"token": tok, "method": "email", "code": "000000"}, nil, 401)
+	b2.must("POST", "/api/v1/auth/mfa/verify", map[string]string{"token": tok, "method": "email", "code": code}, nil, 200)
+	if !signedIn(b2) {
+		t.Fatal("not signed in after the second factor")
+	}
+	// a pending sign-in and a code work once
+	b2.must("POST", "/api/v1/auth/mfa/verify", map[string]string{"token": tok, "method": "email", "code": code}, nil, 401)
 	b3 := e.client()
 	b3.must("POST", "/api/v1/auth/login", map[string]string{"username": "bob", "password": "Bob-Passw0rd-1!", "totp": code}, nil, 401)
+	// five wrong answers end the pending sign-in
+	tok = b3.pendingMFA("bob", "Bob-Passw0rd-1!")
+	b3.must("POST", "/api/v1/auth/mfa/challenge", map[string]string{"token": tok, "method": "email"}, nil, 200)
+	code = cp.lastCode(t, "bob@example.com")
+	for range 5 {
+		b3.must("POST", "/api/v1/auth/mfa/verify", map[string]string{"token": tok, "method": "email", "code": "999999"}, nil, 401)
+	}
+	b3.must("POST", "/api/v1/auth/mfa/verify", map[string]string{"token": tok, "method": "email", "code": code}, nil, 401)
+	if signedIn(b3) {
+		t.Fatal("signed in after too many attempts")
+	}
 
 	// allowed networks: the own address must be included
 	bob.must("PUT", "/api/v1/me/mfa/networks", map[string]any{"networks": []string{"10.0.0.0/8"}}, nil, 400)
@@ -246,6 +278,32 @@ func TestMFAEmailAndNetworks(t *testing.T) {
 	b4.must("POST", "/api/v1/auth/login", map[string]string{"username": "bob", "password": "Bob-Passw0rd-1!"}, nil, 403)
 	admin.must("PUT", fmt.Sprintf("/api/v1/admin/users/%d", u.ID), map[string]any{"networks": []string{}, "reset_totp": true}, nil, 200)
 	b4.must("POST", "/api/v1/auth/login", map[string]string{"username": "bob", "password": "Bob-Passw0rd-1!"}, nil, 200)
+}
+
+// pendingMFA signs in with a password and returns the token of the pending
+// sign-in (the second factor is still missing).
+func (c *client) pendingMFA(user, pw string) string {
+	c.e.t.Helper()
+	b, _ := json.Marshal(map[string]string{"username": user, "password": pw})
+	req, _ := http.NewRequest("POST", c.e.srv.URL+"/api/v1/auth/login", bytes.NewReader(b))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("X-Requested-With", "ewiki")
+	res, err := c.http.Do(req)
+	if err != nil {
+		c.e.t.Fatal(err)
+	}
+	defer res.Body.Close()
+	var out struct {
+		Error struct {
+			Code   string `json:"code"`
+			Detail string `json:"detail"`
+		} `json:"error"`
+	}
+	_ = json.NewDecoder(res.Body).Decode(&out)
+	if res.StatusCode != 401 || out.Error.Code != "mfa_required" || out.Error.Detail == "" {
+		c.e.t.Fatalf("login of %s: %d %+v", user, res.StatusCode, out)
+	}
+	return out.Error.Detail
 }
 
 // TestSeparateAccounts: a site with its own users, groups and roles is

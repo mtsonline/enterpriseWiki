@@ -112,6 +112,8 @@ func (s *Server) routes() {
 	s.routesSessions()
 	s.routesProviderAdmin()
 	s.routesSCIM()
+	s.routesMFA()
+	s.routesPasswordless()
 	s.routesScimAdmin()
 	s.routesM3()
 	s.routesM4()
@@ -1073,6 +1075,11 @@ func (s *Server) updateSettings(w http.ResponseWriter, r *http.Request) (any, er
 			c.I18n = *in.I18n
 		}
 		if in.Auth != nil {
+			if in.Auth.SessionIdle != "" && in.Auth.SessionIdle != "0" {
+				if _, err := time.ParseDuration(in.Auth.SessionIdle); err != nil {
+					return apperr.BadRequest("invalid duration %q (use e.g. 12h, 30m, or 0)", in.Auth.SessionIdle)
+				}
+			}
 			for _, d := range []string{in.Auth.SessionTTL, in.Auth.APIKeyMaxTTL, in.Auth.SSHTokenTTL, in.Auth.LockoutDuration} {
 				if _, err := time.ParseDuration(d); err != nil {
 					return apperr.BadRequest("invalid duration %q (use e.g. 24h, 30m)", d)

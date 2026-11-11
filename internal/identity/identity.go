@@ -2,7 +2,10 @@
 // every request (HTTP, API key, SSH token or CLI).
 package identity
 
-import "context"
+import (
+	"context"
+	"time"
+)
 
 // Principal is the caller of an operation. A nil *Principal is a guest.
 type Principal struct {
@@ -29,6 +32,9 @@ type Principal struct {
 	// carries exactly that user's rights, never more) or demo (the demo
 	// content created in-process with the rights of the administrator).
 	Via string `json:"via"`
+	// SignedIn is when the session was created (Via "session"): some
+	// changes need a recent sign-in (e.g. adding a passkey).
+	SignedIn time.Time `json:"-"`
 	// API key restrictions (Via == "apikey").
 	KeyPerms      int   `json:"-"`
 	KeyCategory   int64 `json:"-"`

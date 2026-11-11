@@ -174,7 +174,7 @@ func (s *Service) verifyCode(ctx context.Context, uid int64, purpose, code strin
 	return err == nil, err
 }
 
-// checkSecondFactor verifies TOTP or the e-mail code of a local account.
+// checkSecondFactor verifies TOTP or the e-mail code given with the password.
 // With e-mail as (only or chosen) factor and no code, a code is sent.
 func (s *Service) checkSecondFactor(ctx context.Context, uid int64, code string, emailCode bool) error {
 	var totpOn, mailOn bool
@@ -209,10 +209,14 @@ func (s *Service) checkSecondFactor(ctx context.Context, uid int64, code string,
 // MFAStatus describes the second factors and network restriction of the
 // signed-in user.
 type MFAStatus struct {
-	TOTP     bool     `json:"totp"`
-	Email    bool     `json:"email"`
-	Address  string   `json:"email_address"`
-	Local    bool     `json:"local"`
+	TOTP    bool   `json:"totp"`
+	Email   bool   `json:"email"`
+	Address string `json:"email_address"`
+	Local   bool   `json:"local"`
+	// Applies: the wiki asks for the second factor at this account's
+	// sign-in (false: the identity provider does, setting "mfa: false")
+	Applies  bool     `json:"applies"`
+	Methods  []string `json:"methods"` // factors set up
 	Networks []string `json:"networks"`
 }
 
@@ -225,6 +229,8 @@ func (s *Service) MFA(ctx context.Context) (*MFAStatus, error) {
 	st := &MFAStatus{}
 	err := s.pool.QueryRow(ctx, `SELECT totp_enabled, mfa_email, email, provider='local', allowed_networks FROM users WHERE id=$1`, p.UserID).
 		Scan(&st.TOTP, &st.Email, &st.Address, &st.Local, &st.Networks)
+	st.Applies = s.mfaApplies(p.Provider)
+	st.Methods = s.EnrolledMFA(ctx, p.UserID)
 	return st, err
 }
 
@@ -235,7 +241,7 @@ func (s *Service) BeginEmailMFA(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	if !st.Local {
+	if !st.Applies {
 		return apperr.BadRequest("the second factor of this account is managed by its identity provider")
 	}
 	if st.Address == "" {
@@ -258,7 +264,7 @@ func (s *Service) SetEmailMFA(ctx context.Context, on bool, code string) error {
 	if !ok {
 		return ErrTOTPInvalid
 	}
-	if _, err := s.pool.Exec(ctx, `UPDATE users SET mfa_email=$2, updated_at=now() WHERE id=$1 AND provider='local'`, p.UserID, on); err != nil {
+	if _, err := s.pool.Exec(ctx, `UPDATE users SET mfa_email=$2, updated_at=now() WHERE id=$1`, p.UserID, on); err != nil {
 		return err
 	}
 	action := "user.mfa_email_disable"

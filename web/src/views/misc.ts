@@ -16,6 +16,8 @@ import { watchDialog, type Watch } from '../components/watch';
 import { feedTokenSection } from '../components/feeds';
 import { profileCardForm } from '../components/profilecard';
 import { goLink, linkNotice, profileIdentitySections } from './identity';
+import { mfaApi, mfaMethodUI } from '../core/mfa';
+import { webauthnCancelled, webauthnGet, webauthnSupported } from '../core/webauthn';
 
 // ---------------------------------------------------------------- search
 
@@ -101,18 +103,12 @@ export async function loginView({ query, main }: RouteCtx): Promise<void> {
   }
   let providers = state.site.auth_providers;
   try { providers = await api.get<{ id: string; name: string; kind: string }[]>('auth/providers'); } catch { /* use site info */ }
-  const pwProviders = providers.filter((p) => (p as { kind?: string }).kind !== 'redirect');
-  const sso = providers.filter((p) => (p as { kind?: string }).kind === 'redirect');
+  const kind = (p: { id: string }) => (p as { kind?: string }).kind ?? 'password';
+  const pwProviders = providers.filter((p) => kind(p) === 'password');
+  const sso = providers.filter((p) => kind(p) === 'redirect');
+  const passkey = providers.some((p) => kind(p) === 'passwordless' && p.id === 'passkey') && webauthnSupported();
   const user = textInput({ name: 'username', autocomplete: 'username', required: true });
   const pw = textInput({ name: 'password', type: 'password', autocomplete: 'current-password', required: true });
-  const totp = textInput({ name: 'totp', autocomplete: 'one-time-code', maxlength: 8 });
-  totp.setAttribute('inputmode', 'numeric');
-  const totpField = field(t('auth.totp'), totp, { help: t('auth.totp_help') });
-  totpField.hidden = true;
-  // second factor by e-mail: instead of the authenticator app on request
-  let mfa = '';
-  const emailBtn = button(t('auth.mfa_email_send'), () => { mfa = 'email'; totp.value = ''; form.requestSubmit(); }, { variant: 'link' });
-  emailBtn.hidden = true;
   const alert = h('div', { class: 'ew-form-alert', role: 'alert' }, query.get('error') ?? '');
   // a sign-in waits to be linked to the account the person signs in with now
   const linkToken = query.get('link') ?? '';
@@ -121,8 +117,6 @@ export async function loginView({ query, main }: RouteCtx): Promise<void> {
     alert,
     field(t('auth.username'), user, { required: true, help: pwProviders.length > 1 ? t('auth.username_help', { providers: pwProviders.map((p) => p.id).join(', ') }) : undefined }),
     field(t('auth.password'), pw, { required: true }),
-    totpField,
-    emailBtn,
     h('div', { class: 'ew-form-actions' }, button(t('auth.login'), () => undefined, { type: 'submit', variant: 'primary' })));
   form.addEventListener('submit', async (ev) => {
     ev.preventDefault();
@@ -133,26 +127,12 @@ export async function loginView({ query, main }: RouteCtx): Promise<void> {
       return;
     }
     try {
-      const res = await api.post<{ user: Principal }>('auth/login', { username: user.value.trim(), password: pw.value, totp: totp.value.trim(), mfa: mfa || undefined });
-      state.user = res.user;
-      void api.get<{ manages_categories?: boolean }>('auth/me').then((m) => { state.managesCategories = !!m.manages_categories; changed(); }).catch(() => undefined);
-      if (res.user.language && state.site.languages.includes(res.user.language) && res.user.language !== state.lang) {
-        state.lang = res.user.language;
-        await loadMessages(state.lang);
-      }
-      invalidateTree();
-      changed();
-      announce(t('auth.logged_in', { name: res.user.display_name || res.user.username }));
-      if (link) await link.confirm();
-      navigate(safeNext);
+      const res = await api.post<{ user: Principal }>('auth/login', { username: user.value.trim(), password: pw.value });
+      await signedIn(res.user, safeNext, link);
     } catch (e) {
-      if (e instanceof ApiError && ['totp_required', 'totp_required_email', 'totp_invalid', 'mfa_email_sent'].includes(e.code)) {
-        totpField.hidden = false;
-        if (e.code === 'totp_required_email') emailBtn.hidden = false;
-        if (e.code === 'mfa_email_sent') { emailBtn.hidden = true; mfa = 'email'; }
-        alert.textContent = e.code === 'mfa_email_sent' ? t('auth.mfa_email_sent') : e.code === 'totp_invalid' ? t('auth.totp_wrong') : t('auth.totp_needed');
-        totp.value = '';
-        totp.focus();
+      if (e instanceof ApiError && e.code === 'mfa_required' && e.detail) {
+        // the password was right: now the second factor
+        await mfaStep(main, e.detail, safeNext, link);
         return;
       }
       if (e instanceof ApiError && e.code === 'link_required' && e.detail) {
@@ -168,11 +148,79 @@ export async function loginView({ query, main }: RouteCtx): Promise<void> {
   const ssoBox = sso.length ? h('section', { class: 'ew-sso', 'aria-labelledby': 'sso-h' }, h('h2', { id: 'sso-h' }, t('auth.sso_title')),
     h('ul', { class: 'ew-sso-list' }, ...sso.map((p) => h('li', null,
       h('a', { class: 'ew-btn ew-btn--secondary ew-sso-btn', href: `/api/v1/auth/sso/${encodeURIComponent(p.id)}/start?next=${encodeURIComponent(safeNext)}` }, t('auth.sso_with', { name: p.name })))))) : null;
+  const passkeyBox = passkey ? h('section', { class: 'ew-sso', 'aria-labelledby': 'pk-h' }, h('h2', { id: 'pk-h', class: 'sr-only' }, t('auth.passkey_title')),
+    button(t('auth.passkey_login'), async () => {
+      alert.textContent = '';
+      try {
+        const b = await api.post<{ token: string; options: Record<string, unknown> }>('auth/passwordless/passkey/begin');
+        const credential = await webauthnGet(b.options);
+        const res = await api.post<{ user: Principal }>('auth/passwordless/passkey/finish', { token: b.token, credential });
+        await signedIn(res.user, safeNext, link);
+      } catch (e) { alert.textContent = webauthnCancelled(e) ? t('auth.passkey_cancelled') : errorText(e); }
+    }, { variant: 'secondary' })) : null;
   mount(main, h('div', { class: 'ew-narrow' }, h('h1', null, t('auth.login_title', { site: state.site.name })),
     query.get('logged_out') ? h('p', { class: 'ew-notice ew-notice--info', role: 'status' }, t('auth.logged_out')) : null,
-    link?.el ?? null, ssoBox, sso.length ? h('h2', { class: 'ew-login-local' }, t('auth.local_title')) : null, form,
+    link?.el ?? null, ssoBox, passkeyBox, sso.length || passkeyBox ? h('h2', { class: 'ew-login-local' }, t('auth.local_title')) : null, form,
     h('p', { class: 'ew-help' }, t('auth.ssh_hint'))));
   if (query.get('error')) alert.focus?.();
+  // single sign-on that waits for the second factor (token in a cookie)
+  if (query.get('mfa')) await mfaStep(main, '', safeNext, link);
+}
+
+/** After a complete sign-in: user state, language, announcement, next page. */
+async function signedIn(u: Principal, next: string, link: { confirm: () => Promise<void> } | null): Promise<void> {
+  state.user = u;
+  void api.get<{ manages_categories?: boolean }>('auth/me').then((m) => { state.managesCategories = !!m.manages_categories; changed(); }).catch(() => undefined);
+  if (u.language && state.site.languages.includes(u.language) && u.language !== state.lang) {
+    state.lang = u.language;
+    await loadMessages(state.lang);
+  }
+  invalidateTree();
+  changed();
+  announce(t('auth.logged_in', { name: u.display_name || u.username }));
+  if (link) await link.confirm();
+  navigate(next);
+}
+
+/** The second step of a sign-in: one of the person's second factors. */
+async function mfaStep(main: HTMLElement, token: string, next: string, link: { confirm: () => Promise<void> } | null): Promise<void> {
+  const mfa = mfaApi(token);
+  const alert = h('div', { class: 'ew-form-alert', role: 'alert' });
+  const heading = h('h1', { tabindex: '-1' }, t('mfa.step_title'));
+  let methods: string[];
+  try {
+    methods = (await mfa.info()).methods.filter((m) => !!mfaMethodUI(m));
+  } catch (e) {
+    mount(main, h('div', { class: 'ew-narrow' }, heading, h('p', { class: 'ew-notice ew-notice--error', role: 'alert' }, errorText(e)),
+      h('p', null, h('a', { href: '/login' }, t('mfa.again')))));
+    heading.focus();
+    return;
+  }
+  const body = h('div');
+  const show = (id: string) => {
+    alert.textContent = '';
+    const ui = mfaMethodUI(id);
+    if (!ui) return;
+    body.replaceChildren(ui.render({
+      challenge: () => mfa.challenge(id),
+      verify: async (answer) => {
+        const res = await mfa.verify<{ user: Principal; next?: string }>(id, answer);
+        await signedIn(res.user, token ? next : safeLocalPath(res.next ?? next), link);
+      },
+      fail: (msg) => { alert.textContent = msg; },
+    }));
+  };
+  const choice = methods.length > 1 ? h('fieldset', { class: 'ew-choice' }, h('legend', null, t('mfa.choose')),
+    ...methods.map((id, i) => {
+      const r = h('input', { type: 'radio', name: 'mfa-method', value: id, id: `mfa-${id}`, checked: i === 0 }) as HTMLInputElement;
+      r.addEventListener('change', () => { if (r.checked) show(id); });
+      return h('div', { class: 'ew-check' }, r, h('label', { for: `mfa-${id}` }, mfaMethodUI(id)!.label()));
+    })) : null;
+  mount(main, h('div', { class: 'ew-narrow' }, heading, h('p', null, t('mfa.step_help')), alert, choice, body,
+    h('p', { class: 'ew-help' }, h('a', { href: '/login' }, t('mfa.cancel')))));
+  if (methods.length) show(methods[0]);
+  else alert.textContent = t('mfa.none');
+  heading.focus();
 }
 
 // ---------------------------------------------------------------- profile
@@ -342,8 +390,7 @@ export async function profileView({ main }: RouteCtx): Promise<void> {
     await assignedWatchesSection(),
     feedTokenSection(),
     pwSection,
-    u.provider === 'local' ? await totpSection() : null,
-    u.provider === 'local' ? await emailMFASection() : null,
+    ...(await mfaSections()),
     await networksSection(),
     h('section', { class: 'ew-section', 'aria-labelledby': 'ak-h' }, h('h2', { id: 'ak-h' }, t('apikey.title')), h('p', null, t('apikey.help')),
       button(t('apikey.create'), () => createKeyDialog(), { variant: 'primary' }),
@@ -393,7 +440,16 @@ async function totpSection(): Promise<HTMLElement> {
   return box;
 }
 
-interface MFAInfo { totp: boolean; email: boolean; email_address: string; local: boolean; networks: string[]; current_ip: string }
+interface MFAInfo { totp: boolean; email: boolean; email_address: string; local: boolean; applies: boolean; methods: string[]; networks: string[]; current_ip: string }
+
+/** Second factors (app, e-mail); not when the identity provider does it. */
+async function mfaSections(): Promise<HTMLElement[]> {
+  const st = await api.get<MFAInfo>('me/mfa');
+  if (!st.applies) {
+    return [h('section', { class: 'ew-section', 'aria-labelledby': 'mfax-h' }, h('h2', { id: 'mfax-h' }, t('totp.title')), h('p', null, t('mfa.by_provider')))];
+  }
+  return [await totpSection(), await emailMFASection()];
+}
 
 // Second factor by e-mail: a code is sent at every sign-in.
 async function emailMFASection(): Promise<HTMLElement> {
