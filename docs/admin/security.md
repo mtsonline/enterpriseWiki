@@ -14,7 +14,7 @@ Jede Identität ist intern eindeutig als `name@anbieter` gespeichert (`admin@loc
 - Passwortregel: Mindestlänge `auth.min_password_length`, mindestens drei von vier Zeichenklassen.
 - Nach `auth.max_login_failures` Fehlversuchen ist das Konto für `auth.lockout_duration` gesperrt. Zusätzlich gibt es ein Rate-Limit je IP und je Benutzername.
 - Antwortzeiten verraten nicht, ob ein Konto existiert.
-- Optional zweiter Faktor (TOTP) je Konto, siehe [authentication.md](authentication.md#zwei-faktor-authentifizierung-totp).
+- Mehrere Faktoren als Plugins (Authenticator-App, Code per E-Mail, Sicherheitsschlüssel/Passkeys, erlaubte Netze) in einer frei wählbaren Kette pro Anmeldeverfahren, siehe [authentication.md](authentication.md#mehrere-faktoren-die-faktorkette).
 - Setzt ein Administrator ein Passwort neu oder deaktiviert ein Konto, werden alle Sitzungen dieses Kontos beendet.
 - Das System verhindert, dass der letzte aktive Administrator gelöscht, deaktiviert oder herabgestuft wird.
 

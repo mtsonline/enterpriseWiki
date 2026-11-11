@@ -1,4 +1,4 @@
-# Anmeldung einrichten: LDAP, OpenID Connect, Shibboleth/SAML, 2FA
+# Anmeldung einrichten: LDAP, OpenID Connect, Shibboleth/SAML, Mehrfaktor
 
 Alle Anmeldeverfahren sind Plugins. Konfiguriert werden sie unter *Administration → LDAP / Active Directory*, *OpenID Connect* bzw. *Shibboleth / SAML* oder direkt in `config.yaml` unter `plugin_settings`. Ein Verfahren erscheint erst auf der Login-Seite, wenn es konfiguriert ist.
 
@@ -59,6 +59,8 @@ plugin_settings:
     default_roles: []
     keep_unmapped_groups: true      # nicht zugeordnete Gruppen als gleichnamige lokale Gruppen übernehmen
 ```
+
+**Benutzername aus dem Verzeichnis.** Mit `username_from` übernimmt das Wiki bei jeder Anmeldung ein Attribut bzw. einen Claim als Benutzernamen (Alias), z. B. `username_from: uid` oder `cn` bei LDAP, `preferred_username` bei OpenID Connect. Ohne `username_from` können Personen einen Benutzernamen optional im Profil eintragen (Administratoren unter *Benutzer → Bearbeiten*; CLI `ewiki user alias NAME [ALIAS]`). Ein Benutzername ist eindeutig (ohne Beachtung der Groß-/Kleinschreibung), 2–64 Zeichen aus Buchstaben, Ziffern, `.`, `_` und `-`. Mit ihm kann man sich auch anmelden, außer ein lokales Konto heißt genauso; ein neues lokales Konto darf nicht wie ein bestehender Benutzername heißen.
 
 Externe Gruppen werden ohne Beachtung der Groß-/Kleinschreibung verglichen, entweder mit dem vollen Wert (z. B. DN) oder mit dem Kurznamen (`cn=HR,ou=…` passt auch auf den Schlüssel `hr`). Berechtigungen vergeben Sie dann wie gewohnt an die lokalen Gruppen und Rollen.
 
@@ -257,30 +259,53 @@ ewiki user logout anna              # alle Sitzungen beenden
 ewiki api GET /api/v1/me/sessions --as anna
 ```
 
-## Zweiter Faktor (App, E-Mail, Sicherheitsschlüssel, Passkeys) und erlaubte Netze
+## Mehrere Faktoren: die Faktorkette
 
-Der zweite Faktor gilt für **alle Anmeldearten**: lokale Konten, LDAP, OpenID Connect und SAML. Zuerst prüft das Anmeldeverfahren die Person. Hat sie einen zweiten Faktor eingerichtet, entsteht noch keine Sitzung, sondern eine Anmeldung, die auf den zweiten Faktor wartet: 10 Minuten gültig, höchstens 5 Versuche, nur einmal verwendbar. Erst der zweite Faktor erzeugt die Sitzung. Bei Single Sign-on schickt das Wiki den Browser dafür auf `/login?mfa=1`. Die wartende Anmeldung steckt dann in einem kurzlebigen HttpOnly-Cookie, nicht in der Adresse.
+Jeder weitere Faktor der Anmeldung ist ein **MFA-Plugin**. Die Kette gilt für **alle Anmeldearten**: lokale Konten, LDAP, OpenID Connect und SAML.
 
-Verlangt der Identity Provider selbst MFA (z. B. Entra ID mit bedingtem Zugriff), schalten Sie beim Anbieter **„Zweiten Faktor im Wiki abfragen“** (`mfa: false`) aus. Dann fragt das Wiki nicht noch einmal, und die Personen dieses Anbieters richten im Wiki keinen zweiten Faktor ein.
+| Plugin | Faktor | Standard-Nummer | Hinweise |
+|---|---|---|---|
+| `mfa.webauthn` | Sicherheitsschlüssel oder Passkey | 1 | FIDO2/WebAuthn: YubiKey, Windows Hello, Touch ID, Android. Als Faktor 1 ist jeder Schlüssel ein **Passkey** (Benutzerprüfung mit PIN oder Biometrie ist Pflicht) und ersetzt das Passwort („Mit Passkey anmelden“) |
+| `mfa.totp` | Authenticator-App | 2 | RFC 6238, 6 Ziffern, 30 Sekunden, jeder Code nur einmal |
+| `mfa.email` | Code per E-Mail | 2 | 6 Ziffern, 10 Minuten, höchstens 5 Versuche, höchstens 5 Codes in 15 Minuten. Braucht funktionierenden Mailversand |
+| `mfa.network` | Erlaubte Netze | 2 | Ohne Abfrage: erfüllt, wenn die Anmeldung aus einem erlaubten Netz der Person kommt (siehe unten) |
 
-Die Faktoren sind MFA-Plugins:
+**Faktornummern.** Beim Einschalten eines MFA-Plugins fragt die Administration, als wievielter Faktor es abgefragt wird (1–9). Unter *Administration → Anmeldefaktoren* lässt sich die Nummer jederzeit ändern.
 
-| Faktor | Einrichten unter *Mein Profil* | Hinweise |
-|---|---|---|
-| Authenticator-App (eingebaut) | Zwei-Faktor-Authentifizierung | RFC 6238, 6 Ziffern, 30 Sekunden, jeder Code nur einmal |
-| Code per E-Mail (eingebaut) | Code per E-Mail | 6 Ziffern, 10 Minuten, höchstens 5 Versuche. Braucht funktionierenden Mailversand |
-| Sicherheitsschlüssel und Passkeys (`mfa.webauthn`) | Sicherheitsschlüssel und Passkeys | FIDO2/WebAuthn: YubiKey, Windows Hello, Touch ID, Android. Ein **Passkey** meldet zusätzlich ganz ohne Passwort an („Mit Passkey anmelden“); dafür ist die Benutzerprüfung (PIN, Biometrie) Pflicht |
+- Faktoren mit **derselben Nummer** sind Alternativen: Die Person wählt einen davon.
+- **Höhere Nummern** werden danach abgefragt, aufsteigend. So entstehen beliebig lange Ketten, z. B. Passwort → App oder E-Mail (2) → Sicherheitsschlüssel (3).
+- **Faktor 1** steht neben dem Passwort bzw. dem Anmeldeverfahren und ist nur für Plugins erlaubt, die selbst die Person feststellen (Passkeys). Ein Passkey gilt nur, wenn Faktor 1 in der Kette des Anmeldeverfahrens seines Kontos enthalten ist.
 
-Sind mehrere Faktoren eingerichtet, wählt die Person bei der Anmeldung einen davon.
+**Pro Anmeldeverfahren (Instanz).** Unter *Administration → Anmeldefaktoren* wählen Sie für jede Instanz (z. B. `local`, `oidc-1`, `ldap-2`):
 
-- **Sicherheit bei Sicherheitsschlüsseln:** Signatur, Herkunft (Origin) und Relying-Party-ID werden geprüft. Ein Schlüssel, dessen Zähler zurückspringt (Hinweis auf eine Kopie), wird abgewiesen und protokolliert. Einen Schlüssel hinzufügen oder entfernen kann man nur im Browser (nicht mit einem API-Key) und nur bis 15 Minuten nach der Anmeldung.
-- **Relying Party:** WebAuthn braucht einen Domainnamen (keine IP-Adresse). Standard ist der Host von `server.base_url`. Abweichend: `plugin_settings."mfa.webauthn".rp_id` und `origins`. Mit `passkeys: false` wird die Anmeldung ohne Passwort abgeschaltet; Sicherheitsschlüssel bleiben als zweiter Faktor nutzbar.
-- **Zurücksetzen:** Bei verlorenem Gerät entfernt ein Administrator unter *Benutzer → Bearbeiten → Zwei-Faktor-Authentifizierung zurücksetzen* alle Faktoren (App, E-Mail, Sicherheitsschlüssel). Per CLI: `ewiki user mfa-reset NAME`.
-- **API:** `POST /api/v1/auth/login` antwortet bei eingerichtetem Faktor mit `401 mfa_required`. Das Feld `detail` enthält das Token der wartenden Anmeldung. Danach folgen `POST /api/v1/auth/mfa/info`, `…/mfa/challenge` (E-Mail-Code senden, WebAuthn-Optionen) und `…/mfa/verify`. Der Code der App oder der zuvor gesendete E-Mail-Code kann wie bisher auch gleich als `totp` mit dem Passwort geschickt werden.
+- **Welche Faktoren gelten:** alle aktiven (auch später eingeschaltete) oder genau die gewählten. Ohne Faktoren fragt das Wiki nach dieser Anmeldung nichts weiter, z. B. wenn der Identity Provider selbst MFA verlangt (Entra ID mit bedingtem Zugriff).
+- **Wie viele Faktoren eine Anmeldung braucht** (`mfa_required`, Standard 1). Bei 1 werden weitere Faktoren nur abgefragt, wenn die Person sie eingerichtet hat. Bei 2 oder mehr richtet jemand mit zu wenigen Faktoren während der Anmeldung einen ein, bevor eine Sitzung entsteht.
 
-### Einschränkung auf Netze
+In der Konfiguration stehen die Werte in den Plugin-Einstellungen: `factor` beim MFA-Plugin, `mfa_methods` (Liste; fehlt = alle) und `mfa_required` beim Anmelde-Plugin bzw. in dessen Instanz.
 
-Unter *Mein Profil → Erlaubte Netze* oder von Administratoren unter *Benutzer → Bearbeiten → Erlaubte Netze* lässt sich ein Konto auf IP-Adressen und Netze (CIDR, IPv4 und IPv6, z. B. `10.0.0.0/8`, `192.0.2.7`, `2001:db8::/32`) beschränken. Leer bedeutet: überall. Die Einschränkung gilt für alle Anmeldearten des Kontos (lokal, LDAP, OIDC, SAML, SSH) und für bestehende Sitzungen, API-Keys und Feed-Links; Anfragen von außerhalb erhalten `403 network_denied` und werden protokolliert (`auth.network_denied`). Wer die eigene Einschränkung setzt, muss die aktuelle Adresse einschließen. Hinter einem Reverse Proxy muss `server.trusted_proxies` gesetzt sein, damit die echte Client-Adresse zählt. Per CLI: `ewiki user networks NAME [NETZ ...]` (ohne Netze wird die Einschränkung aufgehoben).
+```yaml
+plugin_settings:
+  mfa.totp:   { factor: 2 }
+  mfa.email:  { factor: 2 }
+  mfa.webauthn: { factor: 1 }
+  auth.local: { mfa_methods: [totp, webauthn], mfa_required: 2 }
+  auth.oidc:  { mfa_methods: [] }   # der Identity Provider macht MFA
+```
+
+**Ablauf.** Zuerst prüft das Anmeldeverfahren die Person (oder ein Passkey als Faktor 1). Braucht die Anmeldung weitere Faktoren, entsteht noch keine Sitzung, sondern eine wartende Anmeldung: 10 Minuten gültig, höchstens 5 Versuche, nur einmal verwendbar. Erst der letzte Faktor erzeugt die Sitzung. Bei Single Sign-on schickt das Wiki den Browser dafür auf `/login?mfa=1`; die wartende Anmeldung steckt in einem kurzlebigen HttpOnly-Cookie, nicht in der Adresse. Hat eine Person für eine Stufe keinen Faktor eingerichtet, entfällt diese Stufe – außer `mfa_required` verlangt mehr.
+
+- **Einrichten:** *Mein Profil → Anmeldefaktoren* zeigt die eigene Kette und die Faktoren zum Einrichten. Einrichten und Entfernen geht nur im Browser (nicht mit einem API-Key) und nur bis 15 Minuten nach der Anmeldung, und nur für Faktoren der eigenen Kette.
+- **Sicherheitsschlüssel:** Signatur, Herkunft (Origin) und Relying-Party-ID werden geprüft. Ein Schlüssel, dessen Zähler zurückspringt (Hinweis auf eine Kopie), wird abgewiesen und protokolliert. WebAuthn braucht einen Domainnamen (keine IP-Adresse); Standard ist der Host von `server.base_url`, abweichend `plugin_settings."mfa.webauthn".rp_id` und `origins`.
+- **Zurücksetzen:** Bei verlorenem Gerät entfernt ein Administrator unter *Benutzer → Bearbeiten → Alle Faktoren zurücksetzen* App, E-Mail-Codes und Sicherheitsschlüssel. Per CLI: `ewiki user mfa-reset NAME`.
+- **API:** `POST /api/v1/auth/login` antwortet bei weiteren Faktoren mit `401 mfa_required`; `detail` enthält das Token der wartenden Anmeldung. Danach `POST /api/v1/auth/mfa/info` (aktuelle Stufe: `verify` oder `enroll`, Faktornummer, Alternativen), `…/mfa/challenge` (E-Mail-Code senden, WebAuthn-Optionen), `…/mfa/verify` bzw. `…/mfa/enroll/begin` und `…/enroll/finish`. Jede Antwort ist entweder die nächste Stufe (`done: false`) oder die Sitzung (`done: true`). Die Kette verwalten `GET`/`PUT /api/v1/admin/mfa`, die eigenen Faktoren `GET /api/v1/me/mfa` und `POST /api/v1/me/mfa/{faktor}/begin|finish`.
+
+### Erlaubte Netze (`mfa.network`)
+
+Unter *Mein Profil → Anmeldefaktoren → Erlaubte Netze* oder von Administratoren unter *Benutzer → Bearbeiten → Erlaubte Netze* lässt sich ein Konto auf IP-Adressen und Netze (CIDR, IPv4 und IPv6, z. B. `10.0.0.0/8`, `192.0.2.7`, `2001:db8::/32`) beschränken. Leer bedeutet: überall.
+
+- **Als Faktor** gilt die Stufe als erfüllt, wenn die Anmeldung aus einem erlaubten Netz kommt. Steht ein anderer Faktor mit derselben Nummer daneben (z. B. die App), ist er von außerhalb die Alternative; sonst wird die Anmeldung von außerhalb abgewiesen (`403 network_denied`, protokolliert als `auth.network_denied`).
+- **Immer durchsetzen** (`plugin_settings."mfa.network".enforce_always`, Standard `true`): Die Netze gelten zusätzlich für alle Anmeldearten (auch SSH) und für bestehende Sitzungen, API-Keys und Feed-Links.
+- Wer die eigene Einschränkung setzt, muss die aktuelle Adresse einschließen. Hinter einem Reverse Proxy muss `server.trusted_proxies` gesetzt sein, damit die echte Client-Adresse zählt. Per CLI: `ewiki user networks NAME [NETZ ...]` (ohne Netze wird die Einschränkung aufgehoben); per API `GET`/`PUT /api/v1/x/mfa.network/me` bzw. `…/users/{id}`.
 
 ## Skripte und API
 

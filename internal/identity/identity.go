@@ -9,8 +9,8 @@ import (
 
 // Principal is the caller of an operation. A nil *Principal is a guest.
 type Principal struct {
-	UserID      int64  `json:"id"`
-	Username    string `json:"username"`
+	UserID   int64  `json:"id"`
+	Username string `json:"username"`
 	// Alias is the optional wiki user name (sign-in with it is possible).
 	Alias       string `json:"alias,omitempty"`
 	AliasSource string `json:"alias_source,omitempty"`
@@ -42,8 +42,6 @@ type Principal struct {
 	KeyPerms      int   `json:"-"`
 	KeyCategory   int64 `json:"-"`
 	KeyAllowAdmin bool  `json:"-"`
-	// Networks restricts where the account may be used (CIDR; empty = anywhere).
-	Networks []string `json:"-"`
 }
 
 // Handle returns the unique login handle name@provider.

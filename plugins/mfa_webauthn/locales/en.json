@@ -1,8 +1,6 @@
 {
  "webauthn.title": "Security keys and passkeys",
- "webauthn.help": "A security key (e.g. YubiKey) or the authenticator of your device (Windows Hello, Touch ID, Android) as second factor. A passkey also signs you in without password.",
- "webauthn.add_key": "Add security key",
- "webauthn.add_passkey": "Add passkey",
+ "webauthn.help": "A security key (e.g. YubiKey) or the authenticator of your device (Windows Hello, Touch ID, Android) as additional factor.",
  "webauthn.name": "Name",
  "webauthn.name_help": "So you recognise it later, e.g. “YubiKey blue” or “Laptop”.",
  "webauthn.kind": "Kind",
@@ -18,5 +16,11 @@
  "webauthn.added": "“{name}” added.",
  "webauthn.unsupported": "This browser does not support security keys.",
  "webauthn.cancelled": "The security key was not used (cancelled or timed out).",
- "webauthn.reauth": "For your security: please sign out and in again, then add or remove keys within 15 minutes."
+ "webauthn.reauth": "For your security: please sign out and in again, then add or remove keys within 15 minutes.",
+ "mfa.method.webauthn": "Security key or passkey",
+ "webauthn.add": "Add security key",
+ "webauthn.as_passkey": "As passkey",
+ "webauthn.as_passkey_help": "Stored on the key or device; signs in without password where the administration allows it.",
+ "webauthn.name_needed": "Please enter a name.",
+ "webauthn.help_first": "With a passkey you sign in without password: your device or security key confirms it is you (PIN, fingerprint, face)."
 }

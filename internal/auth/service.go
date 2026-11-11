@@ -74,16 +74,16 @@ type registered struct {
 
 // Service is the authentication service.
 type Service struct {
-	pool         *pgxpool.Pool
-	cfg          *config.Store
-	bus          *events.Bus
-	log          *slog.Logger
-	mu           sync.RWMutex
-	providers    []registered
-	redirects    []registeredRedirect
-	mfa          []registeredMFA
-	passwordless []registeredPasswordless
-	enabled      func(pluginID string) bool
+	pool      *pgxpool.Pool
+	cfg       *config.Store
+	bus       *events.Bus
+	log       *slog.Logger
+	mu        sync.RWMutex
+	providers []registered
+	redirects []registeredRedirect
+	mfa       []registeredMFA
+	guards    []registeredGuard
+	enabled   func(pluginID string) bool
 
 	cache   sync.Map // token hash (string) -> cachedPrincipal
 	limiter *limiter
@@ -93,9 +93,6 @@ type Service struct {
 	// instance administrator (user IDs belong to the site, not the instance).
 	SeparateAccounts bool
 
-	// SendCode e-mails a one-time code (second factor); set by the
-	// application. purpose is "login" or "setup".
-	SendCode func(ctx context.Context, uid int64, purpose, code string) error
 	// SendConfirmation e-mails the confirmation link of an address;
 	// MailReady reports whether e-mails can be sent at all.
 	SendConfirmation func(ctx context.Context, uid int64, addr, link string) error
@@ -112,9 +109,6 @@ const principalCacheTTL = 30 * time.Second
 // New creates the auth service.
 func New(pool *pgxpool.Pool, cfg *config.Store, bus *events.Bus, log *slog.Logger) *Service {
 	s := &Service{pool: pool, cfg: cfg, bus: bus, log: log, enabled: func(string) bool { return true }, limiter: newLimiter()}
-	// built-in second factors; plugins add more (WebAuthn)
-	s.RegisterMFAMethod("", totpMethod{s})
-	s.RegisterMFAMethod("", emailMethod{s})
 	bus.Subscribe("auth", func(string) { s.flushCache() })
 	bus.Subscribe("*", func(string) { s.flushCache() })
 	return s
@@ -218,16 +212,12 @@ type LoginResult struct {
 	Principal *identity.Principal
 }
 
-// Login authenticates against the provider chain and creates a session.
-// A handle "name@provider" restricts the attempt to that provider.
-// totp is the two-factor code (only needed for local accounts with 2FA).
-func (s *Service) Login(ctx context.Context, username, password, totp, ip, ua string) (*LoginResult, error) {
-	return s.LoginMFA(ctx, username, password, totp, "", ip, ua)
-}
-
-// LoginMFA signs in like Login; method "email" asks for the second factor
-// by e-mail although an authenticator app is set up as well.
-func (s *Service) LoginMFA(ctx context.Context, username, password, totp, method, ip, ua string) (*LoginResult, error) {
+// Login checks factor 1 with a password against the provider chain. A
+// handle "name@provider" restricts the attempt to that provider; the wiki
+// user name (alias) signs in with the account's own method. If further
+// factors are needed, the error is "mfa_required" with the token of the
+// pending sign-in (see mfaflow.go).
+func (s *Service) Login(ctx context.Context, username, password, ip, ua string) (*LoginResult, error) {
 	username = strings.TrimSpace(username)
 	if username == "" || password == "" {
 		return nil, apperr.ErrInvalidLogin
@@ -273,30 +263,18 @@ func (s *Service) LoginMFA(ctx context.Context, username, password, totp, method
 		if err != nil {
 			return nil, err
 		}
-		if err := s.checkNetwork(ctx, uid, ip); err != nil {
+		if err := s.checkSignIn(ctx, uid, ip); err != nil {
 			return nil, err
 		}
-		if s.mfaApplies(ext.Provider) {
-			enrolled := s.EnrolledMFA(ctx, uid)
-			if strings.TrimSpace(totp) != "" && (slices.Contains(enrolled, "totp") || slices.Contains(enrolled, "email")) {
-				// a code given with the password (authenticator app or e-mail)
-				if err := s.checkSecondFactor(ctx, uid, totp, method == "email"); err != nil {
-					return nil, err
-				}
-			} else if len(enrolled) > 0 {
-				tok, err := s.pendingMFA(ctx, uid, ext, "")
-				if err != nil {
-					return nil, err
-				}
-				return nil, errMFARequired(tok)
-			}
-		}
-		res, err := s.newSession(ctx, uid, ext, ip, ua)
+		res, err := s.afterFirstFactor(ctx, uid, ext.Provider, ext, "", ip, ua)
 		if err != nil {
 			return nil, err
 		}
+		if res.MFAToken != "" {
+			return nil, errMFARequired(res.MFAToken)
+		}
 		s.log.Info("login", "user", res.Principal.Handle(), "ip", ip)
-		return res, nil
+		return res.LoginResult, nil
 	}
 	return nil, apperr.ErrInvalidLogin
 }
@@ -449,7 +427,7 @@ func (s *Service) Authenticate(ctx context.Context, token string) (*identity.Pri
 	if c, ok := s.cache.Load(string(h)); ok {
 		cp := c.(cachedPrincipal)
 		if time.Now().Before(cp.expires) {
-			if err := checkPrincipalNetwork(ctx, cp.p); err != nil {
+			if err := s.checkRequest(ctx, cp.p); err != nil {
 				return nil, err
 			}
 			return cp.p, nil
@@ -500,7 +478,7 @@ func (s *Service) Authenticate(ctx context.Context, token string) (*identity.Pri
 		}
 	}
 	s.cache.Store(string(h), cachedPrincipal{p, time.Now().Add(principalCacheTTL)})
-	if err := checkPrincipalNetwork(ctx, p); err != nil {
+	if err := s.checkRequest(ctx, p); err != nil {
 		return nil, err
 	}
 	return p, nil
@@ -510,8 +488,8 @@ func (s *Service) Authenticate(ctx context.Context, token string) (*identity.Pri
 func (s *Service) LoadPrincipal(ctx context.Context, uid int64) (*identity.Principal, error) {
 	p := &identity.Principal{UserID: uid}
 	var disabled bool
-	err := s.pool.QueryRow(ctx, `SELECT username, COALESCE(alias, ''), alias_source, provider, display_name, email, language, disabled, allowed_networks, prefs FROM users WHERE id=$1`, uid).
-		Scan(&p.Username, &p.Alias, &p.AliasSource, &p.Provider, &p.DisplayName, &p.Email, &p.Language, &disabled, &p.Networks, &p.Prefs)
+	err := s.pool.QueryRow(ctx, `SELECT username, COALESCE(alias, ''), alias_source, provider, display_name, email, language, disabled, prefs FROM users WHERE id=$1`, uid).
+		Scan(&p.Username, &p.Alias, &p.AliasSource, &p.Provider, &p.DisplayName, &p.Email, &p.Language, &disabled, &p.Prefs)
 	if err != nil {
 		return nil, apperr.NotFound("user")
 	}
@@ -591,10 +569,22 @@ func (s *Service) DefaultPermissions(ctx context.Context) ([]string, error) {
 // LocalProvider authenticates users stored in the wiki database. It is always
 // evaluated first so local (break-glass) admins can log in when external
 // identity providers fail.
-type LocalProvider struct{ s *Service }
+type LocalProvider struct {
+	s        *Service
+	settings func() map[string]any
+}
 
-// NewLocalProvider returns the local provider.
-func (s *Service) NewLocalProvider() *LocalProvider { return &LocalProvider{s} }
+// NewLocalProvider returns the local provider; settings are those of the
+// plugin auth.local (factor chain: mfa_methods, mfa_required).
+func (s *Service) NewLocalProvider(settings func() map[string]any) *LocalProvider {
+	if settings == nil {
+		settings = func() map[string]any { return nil }
+	}
+	return &LocalProvider{s, settings}
+}
+
+// Settings implements SettingsProvider.
+func (l *LocalProvider) Settings() map[string]any { return l.settings() }
 
 func (l *LocalProvider) ID() string   { return "local" }
 func (l *LocalProvider) Name() string { return "Local account" }
@@ -754,7 +744,7 @@ func (s *Service) SSHLogin(ctx context.Context, challenge, signature, ip, ua str
 		}
 		if VerifySSHSignature(pk, signature, SSHNamespace, []byte(challenge)) == nil {
 			_, _ = s.pool.Exec(ctx, `UPDATE ssh_keys SET last_used_at=now() WHERE id=$1`, key.id)
-			if err := s.checkNetwork(ctx, uid, ip); err != nil {
+			if err := s.checkSignIn(ctx, uid, ip); err != nil {
 				return nil, err
 			}
 			tok, exp, err := s.createSession(ctx, uid, "ssh", config.Duration(s.cfg.Get().Auth.SSHTokenTTL, time.Hour), ip, ua, nil)

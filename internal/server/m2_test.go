@@ -10,9 +10,6 @@ import (
 	"net/http"
 	"strings"
 	"testing"
-	"time"
-
-	"github.com/mtsonline/enterprisewiki/internal/auth"
 )
 
 // MinimalPDF builds a small valid PDF with one line of text in a Flate stream.
@@ -169,42 +166,6 @@ func TestAttachments(t *testing.T) {
 	}
 	var gc map[string]int
 	admin.must("POST", "/api/v1/admin/retention/run", nil, &gc, 200)
-}
-
-func TestTOTP(t *testing.T) {
-	e := setup(t)
-	c := e.client()
-	c.login("admin", adminPW)
-	var st struct {
-		Enabled bool `json:"enabled"`
-	}
-	c.must("GET", "/api/v1/me/totp", nil, &st, 200)
-	var setupRes auth.TOTPSetup
-	c.must("POST", "/api/v1/me/totp/setup", nil, &setupRes, 200)
-	if !strings.HasPrefix(setupRes.URI, "otpauth://totp/") {
-		t.Fatal(setupRes.URI)
-	}
-	if got := c.do("POST", "/api/v1/me/totp/enable", map[string]string{"code": "000000"}, nil); got != 401 {
-		t.Fatalf("wrong code accepted: %d", got)
-	}
-	code, _ := auth.TOTPCode(setupRes.Secret, time.Now().Unix()/30)
-	c.must("POST", "/api/v1/me/totp/enable", map[string]string{"code": code}, nil, 204)
-	// login now needs the second factor
-	d := e.client()
-	if got := d.do("POST", "/api/v1/auth/login", map[string]string{"username": "admin", "password": adminPW}, nil); got != 401 {
-		t.Fatalf("login without code: %d", got)
-	}
-	if got := d.do("POST", "/api/v1/auth/login", map[string]string{"username": "admin", "password": adminPW, "totp": code}, nil); got != 401 {
-		t.Fatalf("replayed code accepted: %d", got)
-	}
-	next, _ := auth.TOTPCode(setupRes.Secret, time.Now().Unix()/30+1)
-	d.must("POST", "/api/v1/auth/login", map[string]string{"username": "admin", "password": adminPW, "totp": next}, nil, 200)
-	// admin reset
-	var id int64
-	e.app.DB.QueryRow(t.Context(), `SELECT id FROM users WHERE username='admin'`).Scan(&id)
-	d.must("PUT", fmt.Sprintf("/api/v1/admin/users/%d", id), map[string]any{"reset_totp": true}, nil, 200)
-	e.client().login("admin", adminPW)
-	c.must("POST", "/api/v1/me/totp/disable", map[string]string{"code": ""}, nil, 204)
 }
 
 func jsonUnmarshal(b []byte, v any) error { return json.Unmarshal(b, v) }

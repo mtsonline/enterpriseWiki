@@ -1,0 +1,9 @@
+{
+  "id": "mfa.email",
+  "name": "Code by e-mail",
+  "version": "1.0.0",
+  "description": "Factor with a one-time code sent to the primary e-mail address (6 digits, 10 minutes, 5 attempts). Needs working e-mail delivery.",
+  "author": "Enterprise Wiki",
+  "kinds": ["mfa"],
+  "frontend": true
+}

@@ -185,21 +185,19 @@ func (s *Service) completeSSO(ctx context.Context, ext *ExternalIdentity, next, 
 	if err != nil {
 		return nil, err
 	}
-	if err := s.checkNetwork(ctx, uid, ip); err != nil {
+	if err := s.checkSignIn(ctx, uid, ip); err != nil {
 		return nil, err
 	}
-	// second factor of the wiki (unless the provider does it: mfa false)
-	if tok, _, err := s.requireMFA(ctx, uid, ext, next); err != nil {
-		return nil, err
-	} else if tok != "" {
-		return &SSOResult{Next: next, MFAToken: tok}, nil
-	}
-	res, err := s.newSession(ctx, uid, ext, ip, ua)
+	// further factors of this provider's chain
+	res, err := s.afterFirstFactor(ctx, uid, ext.Provider, ext, next, ip, ua)
 	if err != nil {
 		return nil, err
 	}
+	if res.MFAToken != "" {
+		return &SSOResult{Next: next, MFAToken: res.MFAToken}, nil
+	}
 	s.log.Info("sso login", "user", res.Principal.Handle(), "ip", ip)
-	return &SSOResult{LoginResult: res, Next: next}, nil
+	return &SSOResult{LoginResult: res.LoginResult, Next: next}, nil
 }
 
 // CleanupSSO removes expired SSO states.

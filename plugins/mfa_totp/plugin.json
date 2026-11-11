@@ -1,0 +1,9 @@
+{
+  "id": "mfa.totp",
+  "name": "Authenticator app (TOTP)",
+  "version": "1.0.0",
+  "description": "Factor with a code of an authenticator app (RFC 6238: 6 digits, 30 seconds), e.g. FreeOTP, Aegis, Google or Microsoft Authenticator.",
+  "author": "Enterprise Wiki",
+  "kinds": ["mfa"],
+  "frontend": true
+}

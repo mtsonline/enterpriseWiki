@@ -1,0 +1,10 @@
+{
+ "mfa.method.network": "Allowed networks",
+ "mnet.title": "Allowed networks",
+ "mnet.help": "Sign-ins only from these IP addresses and networks (one per line, e.g. 10.0.0.0/8 or 192.0.2.7). Empty: everywhere.",
+ "mnet.help_always": "Sessions, API keys and feed links of your account only work from these networks too.",
+ "mnet.current": "Your current address: {ip}",
+ "mnet.saved": "Networks saved.",
+ "mnet.label": "Networks",
+ "mnet.admin_help": "IP addresses or networks (CIDR), one per line; empty: everywhere."
+}

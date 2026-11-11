@@ -223,12 +223,12 @@ Mit dem Recht *Verwalten* legen Sie unter *Kategorie-Einstellungen → Berechtig
 
 ## Anmelden
 
-Je nach Einrichtung melden Sie sich mit Benutzername und Passwort an (lokales Konto oder LDAP/Active Directory) oder mit einem Knopf **Anmelden mit …** über den zentralen Login Ihrer Organisation (OpenID Connect oder Shibboleth/SAML). Ist für Ihr Konto die Zwei-Faktor-Authentifizierung aktiv, fragt das Formular anschließend nach dem Code aus Ihrer App.
+Je nach Einrichtung melden Sie sich mit Benutzername und Passwort an (lokales Konto oder LDAP/Active Directory) oder mit einem Knopf **Anmelden mit …** über den zentralen Login Ihrer Organisation (OpenID Connect oder Shibboleth/SAML). Haben Sie weitere Faktoren eingerichtet (oder verlangt die Administration sie), fragt das Formular danach Schritt für Schritt nach ihnen, z. B. nach dem Code aus Ihrer App; fehlt Ihnen ein verlangter Faktor, richten Sie ihn gleich dort ein. Mit einem **Passkey** melden Sie sich, wo erlaubt, ganz ohne Passwort an.
 
 ## Mein Profil
 
 - Anzeigename und bevorzugte Sprache, **E-Mail-Adressen** (mehrere möglich, eine davon die Hauptadresse) und **verknüpfte Anmeldungen**,
-- Passwort ändern (lokale Konten) und einen **zweiten Faktor** einrichten: Authenticator-App, Code per E-Mail, **Sicherheitsschlüssel** oder **Passkey** (damit auch Anmeldung ohne Passwort),
+- Passwort ändern (lokale Konten), optional einen **Benutzernamen** eintragen und unter **Anmeldefaktoren** die eigene Faktorkette sehen und Faktoren einrichten: Authenticator-App, Code per E-Mail, **Sicherheitsschlüssel** oder **Passkey**, **erlaubte Netze**,
 - **Sitzungen**: wo Sie angemeldet sind; einzelne Sitzungen beenden oder „Überall sonst abmelden“,
 - **API-Keys** für Skripte: Rechte, Kategorie und Ablaufdatum wählen. Der Schlüssel wird nur einmal angezeigt,
 - **SSH-Schlüssel** für die passwortlose Anmeldung an der API,

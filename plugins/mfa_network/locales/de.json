@@ -1,0 +1,10 @@
+{
+ "mfa.method.network": "Erlaubte Netze",
+ "mnet.title": "Erlaubte Netze",
+ "mnet.help": "Anmeldungen nur aus diesen IP-Adressen und Netzen (eine pro Zeile, z. B. 10.0.0.0/8 oder 192.0.2.7). Leer: überall.",
+ "mnet.help_always": "Auch Sitzungen, API-Keys und Feed-Links Ihres Kontos gelten dann nur aus diesen Netzen.",
+ "mnet.current": "Ihre aktuelle Adresse: {ip}",
+ "mnet.saved": "Netze gespeichert.",
+ "mnet.label": "Netze",
+ "mnet.admin_help": "IP-Adressen oder Netze (CIDR), eine pro Zeile; leer: überall."
+}

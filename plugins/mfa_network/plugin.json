@@ -1,0 +1,9 @@
+{
+  "id": "mfa.network",
+  "name": "Allowed networks",
+  "version": "1.0.0",
+  "description": "Factor from where a person signs in: their own list of IP addresses and networks (CIDR). Passes without any action inside the networks; optionally also restricts sessions, API keys and feed links to them.",
+  "author": "Enterprise Wiki",
+  "kinds": ["mfa"],
+  "frontend": true
+}

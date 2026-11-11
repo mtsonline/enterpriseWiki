@@ -20,6 +20,6 @@ func (p *Plugin) Manifest() sdk.Manifest { return sdk.ParseManifest(manifest) }
 
 // Setup registers the provider.
 func (p *Plugin) Setup(h *sdk.Host) error {
-	h.RegisterAuthProvider(h.Auth.NewLocalProvider())
+	h.RegisterAuthProvider(h.Auth.NewLocalProvider(h.Settings))
 	return nil
 }

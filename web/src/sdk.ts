@@ -14,8 +14,8 @@ export { api, ApiError, qs, uploadFile, humanSize } from './core/api';
 export type { UploadedFile } from './core/api';
 export { pluginSettingsForm, loadPluginSettings, savePluginSettings, MAPPING_FIELDS } from './components/settings';
 export { renderAuthProviderPage } from './components/authadmin';
-export { registerMFAMethodUI } from './core/mfa';
-export type { MFAMethodUI, MFAStepContext } from './core/mfa';
+export { registerMFAMethodUI, mfaCodeForm, enrollFactor } from './core/mfa';
+export type { MFAMethodUI, MFAStepContext, MFAEnrollContext } from './core/mfa';
 export { webauthnSupported, webauthnCreate, webauthnGet, webauthnCancelled } from './core/webauthn';
 export type { AuthProviderPage } from './components/authadmin';
 export type { SettingField } from './components/settings';
@@ -295,6 +295,23 @@ export interface AdminPage {
 }
 
 const adminPages: AdminPage[] = [];
+
+export interface UserAdminField {
+  id: string;
+  /** A part of the dialog "edit user" (administrators); save runs after the core data was saved. */
+  render: (userID: number) => { el: HTMLElement; save: () => Promise<void> };
+}
+
+const userAdminFields: UserAdminField[] = [];
+
+/** Adds a part to the dialog "edit user" (e.g. allowed networks). */
+export function registerUserAdminField(f: UserAdminField): void {
+  userAdminFields.push(f);
+}
+
+export function listUserAdminFields(): UserAdminField[] {
+  return userAdminFields;
+}
 
 /** Adds a page to the administration area (/admin/<id>). */
 export function registerAdminPage(p: AdminPage): void {

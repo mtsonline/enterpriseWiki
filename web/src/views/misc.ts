@@ -16,7 +16,7 @@ import { watchDialog, type Watch } from '../components/watch';
 import { feedTokenSection } from '../components/feeds';
 import { profileCardForm } from '../components/profilecard';
 import { goLink, linkNotice, profileIdentitySections } from './identity';
-import { mfaApi, mfaMethodUI } from '../core/mfa';
+import { mfaApi, mfaMethodUI, type MFAAnswer, type MFAStep } from '../core/mfa';
 import { webauthnCancelled, webauthnGet, webauthnSupported } from '../core/webauthn';
 
 // ---------------------------------------------------------------- search
@@ -106,7 +106,7 @@ export async function loginView({ query, main }: RouteCtx): Promise<void> {
   const kind = (p: { id: string }) => (p as { kind?: string }).kind ?? 'password';
   const pwProviders = providers.filter((p) => kind(p) === 'password');
   const sso = providers.filter((p) => kind(p) === 'redirect');
-  const passkey = providers.some((p) => kind(p) === 'passwordless' && p.id === 'passkey') && webauthnSupported();
+  const passkey = providers.some((p) => kind(p) === 'passwordless' && p.id === 'webauthn') && webauthnSupported();
   const user = textInput({ name: 'username', autocomplete: 'username', required: true });
   const pw = textInput({ name: 'password', type: 'password', autocomplete: 'current-password', required: true });
   const alert = h('div', { class: 'ew-form-alert', role: 'alert' }, query.get('error') ?? '');
@@ -131,7 +131,7 @@ export async function loginView({ query, main }: RouteCtx): Promise<void> {
       await signedIn(res.user, safeNext, link);
     } catch (e) {
       if (e instanceof ApiError && e.code === 'mfa_required' && e.detail) {
-        // the password was right: now the second factor
+        // factor 1 was right: now the further factors
         await mfaStep(main, e.detail, safeNext, link);
         return;
       }
@@ -152,11 +152,15 @@ export async function loginView({ query, main }: RouteCtx): Promise<void> {
     button(t('auth.passkey_login'), async () => {
       alert.textContent = '';
       try {
-        const b = await api.post<{ token: string; options: Record<string, unknown> }>('auth/passwordless/passkey/begin');
+        const b = await api.post<{ token: string; options: Record<string, unknown> }>('auth/passwordless/webauthn/begin');
         const credential = await webauthnGet(b.options);
-        const res = await api.post<{ user: Principal }>('auth/passwordless/passkey/finish', { token: b.token, credential });
+        const res = await api.post<{ user: Principal }>('auth/passwordless/webauthn/finish', { token: b.token, credential });
         await signedIn(res.user, safeNext, link);
-      } catch (e) { alert.textContent = webauthnCancelled(e) ? t('auth.passkey_cancelled') : errorText(e); }
+      } catch (e) {
+        // the passkey was right: the account's further factors follow
+        if (e instanceof ApiError && e.code === 'mfa_required' && e.detail) { await mfaStep(main, e.detail, safeNext, link); return; }
+        alert.textContent = webauthnCancelled(e) ? t('auth.passkey_cancelled') : errorText(e);
+      }
     }, { variant: 'secondary' })) : null;
   mount(main, h('div', { class: 'ew-narrow' }, h('h1', null, t('auth.login_title', { site: state.site.name })),
     query.get('logged_out') ? h('p', { class: 'ew-notice ew-notice--info', role: 'status' }, t('auth.logged_out')) : null,
@@ -182,41 +186,51 @@ async function signedIn(u: Principal, next: string, link: { confirm: () => Promi
   navigate(next);
 }
 
-/** The second step of a sign-in: one of the person's second factors. */
-async function mfaStep(main: HTMLElement, token: string, next: string, link: { confirm: () => Promise<void> } | null): Promise<void> {
+/**
+ * The further factors of a sign-in, one step after the other: answer one of
+ * the factors of the step (alternatives), or set one up when the sign-in
+ * needs more factors than the person has.
+ */
+async function mfaStep(main: HTMLElement, token: string, next: string, link: { confirm: () => Promise<void> } | null, step?: MFAStep): Promise<void> {
   const mfa = mfaApi(token);
   const alert = h('div', { class: 'ew-form-alert', role: 'alert' });
   const heading = h('h1', { tabindex: '-1' }, t('mfa.step_title'));
-  let methods: string[];
   try {
-    methods = (await mfa.info()).methods.filter((m) => !!mfaMethodUI(m));
+    step ??= await mfa.info();
   } catch (e) {
     mount(main, h('div', { class: 'ew-narrow' }, heading, h('p', { class: 'ew-notice ew-notice--error', role: 'alert' }, errorText(e)),
       h('div', { class: 'ew-form-actions' }, h('a', { href: '/login', class: 'ew-btn ew-btn--secondary' }, t('mfa.again')))));
     heading.focus();
     return;
   }
+  const enroll = step.kind === 'enroll';
+  const methods = step.methods.filter((m) => enroll ? !!mfaMethodUI(m)?.enroll : !!mfaMethodUI(m));
+  // the answer of a step: signed in, or the next step
+  const after = async (res: MFAAnswer) => {
+    if (res.done && res.user) {
+      await signedIn(res.user as Principal, token ? next : safeLocalPath(res.next ?? next), link);
+      return;
+    }
+    await mfaStep(main, token, next, link, res.step);
+  };
   const body = h('div');
   const show = (id: string) => {
     alert.textContent = '';
     const ui = mfaMethodUI(id);
     if (!ui) return;
-    body.replaceChildren(ui.render({
-      challenge: () => mfa.challenge(id),
-      verify: async (answer) => {
-        const res = await mfa.verify<{ user: Principal; next?: string }>(id, answer);
-        await signedIn(res.user, token ? next : safeLocalPath(res.next ?? next), link);
-      },
-      fail: (msg) => { alert.textContent = msg; },
-    }));
+    const fail = (msg: string) => { alert.textContent = msg; };
+    body.replaceChildren(enroll && ui.enroll
+      ? ui.enroll({ begin: (o = {}) => mfa.enrollBegin(id, o), finish: async (answer) => after(await mfa.enrollFinish(id, answer)), fail })
+      : ui.render({ challenge: () => mfa.challenge(id), verify: async (answer) => after(await mfa.verify(id, answer)), fail }));
   };
-  const choice = methods.length > 1 ? h('fieldset', { class: 'ew-choice' }, h('legend', null, t('mfa.choose')),
+  const choice = methods.length > 1 ? h('fieldset', { class: 'ew-choice' }, h('legend', null, enroll ? t('mfa.choose_setup') : t('mfa.choose')),
     ...methods.map((id, i) => {
       const r = h('input', { type: 'radio', name: 'mfa-method', value: id, id: `mfa-${id}`, checked: i === 0 }) as HTMLInputElement;
       r.addEventListener('change', () => { if (r.checked) show(id); });
       return h('div', { class: 'ew-check' }, r, h('label', { for: `mfa-${id}` }, mfaMethodUI(id)!.label()));
     })) : null;
-  mount(main, h('div', { class: 'ew-narrow' }, heading, h('p', null, t('mfa.step_help')), alert, choice, body,
+  const intro = enroll ? t('mfa.enroll_help', { required: step.required, passed: step.passed }) : t('mfa.step_help', { factor: step.factor });
+  mount(main, h('div', { class: 'ew-narrow' }, heading, h('p', null, intro), alert, choice, body,
     h('div', { class: 'ew-form-actions' }, h('a', { href: '/login', class: 'ew-btn ew-btn--secondary' }, t('mfa.cancel')))));
   if (methods.length) show(methods[0]);
   else alert.textContent = t('mfa.none');
@@ -399,7 +413,6 @@ export async function profileView({ main }: RouteCtx): Promise<void> {
     feedTokenSection(),
     pwSection,
     ...(await mfaSections()),
-    await networksSection(),
     h('section', { class: 'ew-section', 'aria-labelledby': 'ak-h' }, h('h2', { id: 'ak-h' }, t('apikey.title')), h('p', null, t('apikey.help')),
       button(t('apikey.create'), () => createKeyDialog(), { variant: 'primary' }),
       h('table', { class: 'ew-table' }, h('caption', { class: 'sr-only' }, t('apikey.title')),
@@ -413,99 +426,31 @@ export async function profileView({ main }: RouteCtx): Promise<void> {
         h('tbody', null, ...(sshRows.length ? sshRows : [h('tr', null, h('td', { colspan: '5' }, t('ssh.none')))])))));
 }
 
-async function totpSection(): Promise<HTMLElement> {
-  const st = await api.get<{ enabled: boolean }>('me/totp');
-  const box = h('section', { class: 'ew-section', 'aria-labelledby': 'totp-h' }, h('h2', { id: 'totp-h' }, t('totp.title')));
-  if (st.enabled) {
-    box.append(h('p', null, h('span', { class: 'ew-badge ew-badge--ok' }, t('totp.enabled')), ' ', t('totp.enabled_help')),
-      button(t('totp.disable'), () => {
-        const code = textInput({ autocomplete: 'one-time-code', maxlength: 8 });
-        formDialog(t('totp.disable'), field(t('auth.totp'), code, { required: true }), t('totp.disable'), async () => {
-          await api.post('me/totp/disable', { code: code.value });
-          toast(t('totp.disabled'));
-          navigate('/profile', { replace: true });
-        });
-      }, { variant: 'danger' }));
-    return box;
-  }
-  box.append(h('p', null, t('totp.help')), button(t('totp.setup'), async () => {
-    try {
-      const s = await api.post<{ secret: string; uri: string }>('me/totp/setup');
-      const code = textInput({ autocomplete: 'one-time-code', maxlength: 8 });
-      formDialog(t('totp.setup'), [
-        h('ol', null,
-          h('li', null, t('totp.step1')),
-          h('li', null, t('totp.step2'), ' ', h('code', { class: 'ew-secret', tabindex: '0' }, s.secret.replace(/(.{4})/g, '$1 ').trim()), ' ',
-            h('a', { href: s.uri, rel: 'external' }, t('totp.open_app'))),
-          h('li', null, t('totp.step3'))),
-        field(t('auth.totp'), code, { required: true })], t('totp.enable'), async () => {
-        await api.post('me/totp/enable', { code: code.value });
-        toast(t('totp.enabled'));
-        navigate('/profile', { replace: true });
-      }, { wide: true });
-    } catch (e) { toast(errorText(e), 'error'); }
-  }, { variant: 'primary' }));
-  return box;
-}
+interface MFAChainFactor { id: string; factor: number; passwordless: boolean; silent: boolean }
 
-interface MFAInfo { totp: boolean; email: boolean; email_address: string; local: boolean; applies: boolean; methods: string[]; networks: string[]; current_ip: string }
-
-/** Second factors (app, e-mail); not when the identity provider does it. */
+/** The factors of the own sign-in: overview and the part of each factor. */
 async function mfaSections(): Promise<HTMLElement[]> {
-  const st = await api.get<MFAInfo>('me/mfa');
-  if (!st.applies) {
-    return [h('section', { class: 'ew-section', 'aria-labelledby': 'mfax-h' }, h('h2', { id: 'mfax-h' }, t('totp.title')), h('p', null, t('mfa.by_provider')))];
-  }
-  return [await totpSection(), await emailMFASection()];
-}
-
-// Second factor by e-mail: a code is sent at every sign-in.
-async function emailMFASection(): Promise<HTMLElement> {
-  const st = await api.get<MFAInfo>('me/mfa');
-  const box = h('section', { class: 'ew-section', 'aria-labelledby': 'mfam-h' }, h('h2', { id: 'mfam-h' }, t('mfa.email_title')));
-  const confirm = (on: boolean) => async () => {
+  const st = await api.get<{ applies: boolean; methods: string[]; chain: MFAChainFactor[]; required: number }>('me/mfa');
+  const head = h('h2', { id: 'mfa-h' }, t('mfa.title'));
+  if (!st.applies) return [h('section', { class: 'ew-section', 'aria-labelledby': 'mfa-h' }, head, h('p', null, t('mfa.by_provider')))];
+  const numbers = [...new Set([1, ...st.chain.map((f) => f.factor)])].sort((a, b) => a - b);
+  const name = (f: MFAChainFactor) => mfaMethodUI(f.id)?.label() ?? f.id;
+  const overview = h('ol', { class: 'ew-mfa-chain' }, ...numbers.map((n) => {
+    const fs = st.chain.filter((f) => f.factor === n);
+    const names = [...(n === 1 ? [t('mfa.first_factor')] : []), ...fs.map((f) => name(f) + (st.methods.includes(f.id) ? ` (${t('mfa.set_up')})` : ''))];
+    return h('li', null, h('strong', null, t('mfa.factor_n', { n })), ' ', names.join(` ${t('mfa.or')} `));
+  }));
+  const parts: HTMLElement[] = [];
+  for (const f of st.chain) {
+    const ui = mfaMethodUI(f.id);
+    if (!ui?.profile) continue;
     try {
-      await api.post('me/mfa/email/code');
-    } catch (e) { toast(errorText(e), 'error'); return; }
-    const code = textInput({ autocomplete: 'one-time-code', maxlength: 8 });
-    code.setAttribute('inputmode', 'numeric');
-    formDialog(on ? t('mfa.email_enable') : t('mfa.email_disable'), [
-      h('p', null, t('mfa.email_code_sent', { address: st.email_address })),
-      field(t('mfa.code'), code, { required: true })], on ? t('mfa.email_enable') : t('mfa.email_disable'), async () => {
-      await api.post(on ? 'me/mfa/email/enable' : 'me/mfa/email/disable', { code: code.value.trim() });
-      toast(on ? t('mfa.email_enabled') : t('mfa.email_disabled'));
-      navigate('/profile', { replace: true });
-    });
-  };
-  if (st.email) {
-    box.append(h('p', null, h('span', { class: 'ew-badge ew-badge--ok' }, t('mfa.email_on')), ' ', t('mfa.email_on_help', { address: st.email_address })),
-      button(t('mfa.email_disable'), confirm(false), { variant: 'danger' }));
-  } else if (!st.email_address) {
-    box.append(h('p', null, t('mfa.email_no_address')));
-  } else {
-    box.append(h('p', null, t('mfa.email_help', { address: st.email_address })), button(t('mfa.email_enable'), confirm(true), { variant: 'primary' }));
+      const el = await ui.profile({ factor: f.factor });
+      if (el) parts.push(el);
+    } catch (e) { parts.push(h('p', { role: 'alert' }, errorText(e))); }
   }
-  return box;
-}
-
-// Networks the own account may be used from.
-async function networksSection(): Promise<HTMLElement> {
-  const st = await api.get<MFAInfo>('me/mfa');
-  const input = textArea({ value: st.networks.join('\n'), rows: 3 });
-  const alert = h('div', { class: 'ew-form-alert', role: 'alert' });
-  const f = h('form', { class: 'ew-form', novalidate: true }, alert,
-    field(t('mfa.networks'), input, { help: t('mfa.networks_help', { ip: st.current_ip || '–' }) }),
-    h('div', { class: 'ew-form-actions' }, button(t('common.save'), () => undefined, { type: 'submit', variant: 'primary' })));
-  f.addEventListener('submit', async (ev) => {
-    ev.preventDefault();
-    alert.textContent = '';
-    try {
-      const r = await api.put<{ networks: string[] }>('me/mfa/networks', { networks: input.value.split(/[\s,;]+/).filter(Boolean) });
-      input.value = r.networks.join('\n');
-      toast(t('mfa.networks_saved'));
-    } catch (e) { alert.textContent = errorText(e); }
-  });
-  return h('section', { class: 'ew-section', 'aria-labelledby': 'mfan-h' }, h('h2', { id: 'mfan-h' }, t('mfa.networks_title')), f);
+  return [h('section', { class: 'ew-section', 'aria-labelledby': 'mfa-h' }, head,
+    h('p', null, t('mfa.chain_help', { required: st.required })), overview, ...parts)];
 }
 
 function createKeyDialog(): void {

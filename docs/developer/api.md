@@ -14,7 +14,7 @@ Die Weboberfläche nutzt ausschließlich diese API. Alles, was in der Oberfläch
 | Session-Cookie | `POST /api/v1/auth/login {"username","password"}` setzt `ewiki_session`. Schreibende Anfragen brauchen den Header `X-Requested-With: ewiki` |
 | API-Key | `Authorization: Bearer ewk_…` (unter *Mein Profil* erstellen) |
 | SSH-Schlüssel | Challenge holen, mit `ssh-keygen -Y sign -n ewiki-login` signieren, das Token als `Authorization: Bearer …` senden (siehe `scripts/ewiki-ssh-login.sh`) |
-| LDAP-Konten | wie lokale Konten über `POST /api/v1/auth/login` (auch für Skripte), optional `"totp"` bei lokalen Konten mit 2FA |
+| LDAP-Konten | wie lokale Konten über `POST /api/v1/auth/login` (auch für Skripte); weitere Faktoren danach über `/api/v1/auth/mfa/…` |
 | SSO (OIDC/SAML) | nur im Browser: `/api/v1/auth/sso/<id>/start?next=/pfad`. Für Skripte danach einen API-Key oder SSH-Schlüssel anlegen |
 
 ```bash
@@ -69,6 +69,8 @@ curl -H "Authorization: Bearer $KEY" -H 'Content-Type: application/json' \
 | `POST` | `/api/v1/auth/mfa/info` |
 | `POST` | `/api/v1/auth/mfa/challenge` |
 | `POST` | `/api/v1/auth/mfa/verify` |
+| `POST` | `/api/v1/auth/mfa/enroll/begin` |
+| `POST` | `/api/v1/auth/mfa/enroll/finish` |
 | `POST` | `/api/v1/auth/passwordless/{method}/begin` |
 | `POST` | `/api/v1/auth/passwordless/{method}/finish` |
 | `GET` | `/api/v1/auth/sso/{provider}/logout` |
@@ -100,15 +102,7 @@ curl -H "Authorization: Bearer $KEY" -H 'Content-Type: application/json' \
 | `GET` | `/api/v1/me/identities` |
 | `DELETE` | `/api/v1/me/identities` |
 | `POST` | `/api/v1/me/identities/link` |
-| `GET` | `/api/v1/me/totp` |
-| `POST` | `/api/v1/me/totp/setup` |
-| `POST` | `/api/v1/me/totp/enable` |
-| `POST` | `/api/v1/me/totp/disable` |
-| `GET` | `/api/v1/me/mfa` |
-| `POST` | `/api/v1/me/mfa/email/code` |
-| `POST` | `/api/v1/me/mfa/email/enable` |
-| `POST` | `/api/v1/me/mfa/email/disable` |
-| `PUT` | `/api/v1/me/mfa/networks` |
+| `PUT` | `/api/v1/me/alias` |
 | `GET` | `/api/v1/me/notifications` |
 | `PUT` | `/api/v1/me/notifications` |
 | `GET` | `/api/v1/me/watches` |
@@ -132,6 +126,9 @@ curl -H "Authorization: Bearer $KEY" -H 'Content-Type: application/json' \
 | `GET` | `/api/v1/media/{id}/acl` |
 | `GET` | `/api/v1/media/{id}/view` |
 | `GET` | `/api/v1/media/{id}/download` |
+| `GET` | `/api/v1/me/mfa` |
+| `POST` | `/api/v1/me/mfa/{method}/begin` |
+| `POST` | `/api/v1/me/mfa/{method}/finish` |
 | `GET` | `/api/v1/media/viewers` |
 | `GET` | `/api/v1/media/{id}/open` |
 | `POST` | `/api/v1/media/{id}/open` |
@@ -165,6 +162,7 @@ curl -H "Authorization: Bearer $KEY" -H 'Content-Type: application/json' \
 | `GET` | `/api/v1/admin/users/{id}/identities` |
 | `DELETE` | `/api/v1/admin/users/{id}/identities` |
 | `POST` | `/api/v1/admin/users/invite` |
+| `PUT` | `/api/v1/admin/users/{id}/alias` |
 | `GET` | `/api/v1/admin/users/{id}/profile` |
 | `PUT` | `/api/v1/admin/users/{id}/profile` |
 | `GET` | `/api/v1/admin/users/{id}/sessions` |
@@ -301,6 +299,8 @@ curl -H "Authorization: Bearer $KEY" -H 'Content-Type: application/json' \
 | `GET` | `/api/v1/admin/license` |
 | `PUT` | `/api/v1/admin/license` |
 | `DELETE` | `/api/v1/admin/license` |
+| `GET` | `/api/v1/admin/mfa` |
+| `PUT` | `/api/v1/admin/mfa` |
 | `POST` | `/api/v1/admin/auth/providers/{id}/preview` |
 | `GET` | `/api/v1/admin/scim/clients` |
 | `POST` | `/api/v1/admin/scim/clients` |
@@ -392,9 +392,15 @@ curl -H "Authorization: Bearer $KEY" -H 'Content-Type: application/json' \
 | `DELETE` | `/api/v1/x/macro.shell/commands/{hash}` |
 | `POST` | `/api/v1/x/macro.shell/commands/{hash}/approve` |
 | `POST` | `/api/v1/x/macro.shell/commands/{hash}/revoke` |
+| `GET` | `/api/v1/x/mfa.email/me` |
+| `DELETE` | `/api/v1/x/mfa.email/me` |
+| `GET` | `/api/v1/x/mfa.network/me` |
+| `PUT` | `/api/v1/x/mfa.network/me` |
+| `GET` | `/api/v1/x/mfa.network/users/{id}` |
+| `PUT` | `/api/v1/x/mfa.network/users/{id}` |
+| `GET` | `/api/v1/x/mfa.totp/me` |
+| `DELETE` | `/api/v1/x/mfa.totp/me` |
 | `GET` | `/api/v1/x/mfa.webauthn/credentials` |
-| `POST` | `/api/v1/x/mfa.webauthn/register/begin` |
-| `POST` | `/api/v1/x/mfa.webauthn/register/finish` |
 | `DELETE` | `/api/v1/x/mfa.webauthn/credentials/{id}` |
 | `POST` | `/api/v1/x/office.collabora/test` |
 | `POST` | `/api/v1/x/office.m365/test` |

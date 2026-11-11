@@ -27,7 +27,6 @@ export const MAPPING_FIELDS = (): SettingField[] => [
   { key: 'keep_unmapped_groups', label: t('mapping.keep_unmapped'), type: 'bool', help: t('mapping.keep_unmapped_help') },
   { key: 'username_from', label: t('mapping.username_from'), help: t('mapping.username_from_help'), placeholder: 'uid' },
   { key: 'jit', label: t('mapping.jit'), type: 'bool', default: true, help: t('mapping.jit_help') },
-  { key: 'mfa', label: t('mapping.mfa'), type: 'bool', default: true, help: t('mapping.mfa_help') },
   { key: 'trust_email', label: t('mapping.trust_email'), type: 'bool', help: t('mapping.trust_email_help') },
   { key: 'email_verified', label: t('mapping.email_verified'), type: 'bool', help: t('mapping.email_verified_help') },
 ];

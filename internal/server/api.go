@@ -1027,14 +1027,11 @@ func (s *Server) login(w http.ResponseWriter, r *http.Request) (any, error) {
 	var in struct {
 		Username string `json:"username"`
 		Password string `json:"password"`
-		TOTP     string `json:"totp"`
-		// MFA "email" asks for a code by e-mail instead of the authenticator app
-		MFA string `json:"mfa"`
 	}
 	if err := h.Decode(r, &in); err != nil {
 		return nil, err
 	}
-	res, err := s.app.Auth.LoginMFA(r.Context(), in.Username, in.Password, in.TOTP, in.MFA, s.clientIP(r), r.UserAgent())
+	res, err := s.app.Auth.Login(r.Context(), in.Username, in.Password, s.clientIP(r), r.UserAgent())
 	if err != nil {
 		s.auditLogin(r, nil, "password", in.Username, err)
 		return nil, err

@@ -1,0 +1,21 @@
+{
+ "mfa.method.email": "Code by e-mail",
+ "memail.title": "Code by e-mail",
+ "memail.help": "A code to your address {address} at every sign-in.",
+ "memail.no_address": "Add an e-mail address to your profile first.",
+ "memail.no_mail": "E-mail delivery is not set up in this wiki.",
+ "memail.on": "On",
+ "memail.enable": "Switch on codes by e-mail",
+ "memail.send": "Send a code",
+ "memail.sent": "A code was sent to {address}.",
+ "memail.code": "Code from the e-mail",
+ "memail.code_help": "The code is valid for 10 minutes.",
+ "memail.disable": "Switch off codes by e-mail",
+ "memail.disable_confirm": "Switch off codes by e-mail?",
+ "memail.enabled": "Codes by e-mail are on.",
+ "memail.disabled": "Codes by e-mail are off.",
+ "mfa.mail_subject_login": "Your sign-in code for {site}: {code}",
+ "mfa.mail_text_login": "Your sign-in code for {site} is: {code}\n\nIt is valid for {minutes} minutes. If you did not try to sign in, change your password.",
+ "mfa.mail_subject_setup": "Your confirmation code for {site}: {code}",
+ "mfa.mail_text_setup": "Your code to change the second factor at {site} is: {code}\n\nIt is valid for {minutes} minutes."
+}

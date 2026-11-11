@@ -1,13 +1,13 @@
-// Package mfa_webauthn adds security keys and passkeys (WebAuthn/FIDO2):
-// as second factor after every sign-in method (see auth.MFAMethod) and,
-// for passkeys, as sign-in without password (auth.PasswordlessMethod).
+// Package mfa_webauthn adds security keys and passkeys (WebAuthn/FIDO2).
+// As factor 1 (default) a passkey is an alternative to the password and
+// signs in by itself (auth.PasswordlessMethod); as a later factor security
+// keys and passkeys confirm a sign-in (auth.MFAMethod).
 //
-// Configuration (config.yaml -> plugin_settings."mfa.webauthn"), usually
-// not needed:
+// Configuration (config.yaml -> plugin_settings."mfa.webauthn"):
 //
+//	factor: 1                          # place in the chain
 //	rp_id: wiki.example.com            # default: host of server.base_url
 //	origins: [https://wiki.example.com] # default: origin of server.base_url
-//	passkeys: true                     # sign-in without password with passkeys
 //
 // Security: user verification is required for passkey sign-ins; a
 // credential that looks cloned (sign counter went backwards) is refused;
@@ -63,56 +63,25 @@ func (p *Plugin) Migrations() fs.FS { s, _ := fs.Sub(migrations, "migrations"); 
 // Locales implements sdk.LocalesPlugin.
 func (p *Plugin) Locales() fs.FS { s, _ := fs.Sub(locales, "locales"); return s }
 
-// recentSignIn: adding or removing a key needs a fresh sign-in.
-const recentSignIn = 15 * time.Minute
-
-// Setup registers the second factor, the passkey sign-in and the endpoints
-// to manage the own keys.
+// Setup registers the factor (also the sign-in with passkeys when it is
+// factor 1) and the endpoints to list and remove the own keys; keys are
+// set up through the generic factor setup of the core (MFAEnroller).
 func (p *Plugin) Setup(host *sdk.Host) error {
 	wa := &WebAuthn{pool: host.DB, cfg: host.Config, settings: host.Settings, site: host.Site}
 	host.RegisterMFAMethod(wa)
-	host.RegisterPasswordless(passkeys{wa})
 
 	host.Handle("GET", "/credentials", func(w http.ResponseWriter, r *http.Request) (any, error) {
-		uid, err := signedIn(r, false)
-		if err != nil {
-			return nil, err
+		pr := identity.From(r.Context())
+		if pr == nil || pr.UserID == 0 {
+			return nil, apperr.ErrUnauthorized
 		}
-		return wa.list(r.Context(), uid)
-	})
-	host.Handle("POST", "/register/begin", func(w http.ResponseWriter, r *http.Request) (any, error) {
-		uid, err := signedIn(r, true)
-		if err != nil {
-			return nil, err
+		if pr.Via != "session" {
+			return nil, apperr.Forbidden("security keys can only be managed in the browser")
 		}
-		var in struct {
-			Passkey bool `json:"passkey"`
-		}
-		if err := h.Decode(r, &in); err != nil {
-			return nil, err
-		}
-		return wa.beginRegistration(r.Context(), uid, in.Passkey)
-	})
-	host.Handle("POST", "/register/finish", func(w http.ResponseWriter, r *http.Request) (any, error) {
-		uid, err := signedIn(r, true)
-		if err != nil {
-			return nil, err
-		}
-		var in struct {
-			Name       string          `json:"name"`
-			Credential json.RawMessage `json:"credential"`
-		}
-		if err := h.Decode(r, &in); err != nil {
-			return nil, err
-		}
-		c, err := wa.finishRegistration(r.Context(), uid, in.Name, in.Credential)
-		if err != nil {
-			return nil, err
-		}
-		return h.Created{V: c}, nil
+		return wa.list(r.Context(), pr.UserID)
 	})
 	host.Handle("DELETE", "/credentials/{id}", func(w http.ResponseWriter, r *http.Request) (any, error) {
-		uid, err := signedIn(r, true)
+		uid, err := auth.RequireRecentSignIn(r.Context())
 		if err != nil {
 			return nil, err
 		}
@@ -123,22 +92,6 @@ func (p *Plugin) Setup(host *sdk.Host) error {
 		return h.NoContent{}, wa.remove(r.Context(), uid, id)
 	})
 	return nil
-}
-
-// signedIn returns the user of a browser session; recent requires a
-// sign-in in the last 15 minutes. API keys and SSH tokens cannot manage keys.
-func signedIn(r *http.Request, recent bool) (int64, error) {
-	p := identity.From(r.Context())
-	if p == nil || p.UserID == 0 {
-		return 0, apperr.ErrUnauthorized
-	}
-	if p.Via != "session" {
-		return 0, apperr.Forbidden("security keys can only be managed in the browser")
-	}
-	if recent && time.Since(p.SignedIn) > recentSignIn {
-		return 0, &apperr.Error{Status: 403, Code: "reauth_required", Msg: "please sign in again to change your security keys"}
-	}
-	return p.UserID, nil
 }
 
 // WebAuthn is the second factor and the store of the credentials.
@@ -225,6 +178,26 @@ func (wa *WebAuthn) loadUser(ctx context.Context, uid int64, create bool) (*user
 // ID implements auth.MFAMethod.
 func (wa *WebAuthn) ID() string { return "webauthn" }
 
+// DefaultFactor implements auth.MFAMethod: a passkey replaces the password.
+func (wa *WebAuthn) DefaultFactor() int { return 1 }
+
+// firstFactor reports whether the method is factor 1 (passkeys only).
+func (wa *WebAuthn) firstFactor() bool { return auth.Setting(wa.settings(), "factor", "1") == "1" }
+
+// EnrolledAmong implements auth.MFABulk.
+func (wa *WebAuthn) EnrolledAmong(ctx context.Context, ids []int64) map[int64]bool {
+	out := map[int64]bool{}
+	rows, err := wa.pool.Query(ctx, `SELECT DISTINCT user_id FROM plugin_webauthn_credentials WHERE user_id = ANY($1)`, ids)
+	if err != nil {
+		return out
+	}
+	list, _ := pgx.CollectRows(rows, pgx.RowTo[int64])
+	for _, id := range list {
+		out[id] = true
+	}
+	return out
+}
+
 // Enrolled implements auth.MFAMethod.
 func (wa *WebAuthn) Enrolled(ctx context.Context, uid int64) bool {
 	var n int
@@ -276,11 +249,11 @@ func (wa *WebAuthn) Verify(ctx context.Context, uid int64, state string, answer 
 	}
 	parsed, err := protocol.ParseCredentialRequestResponseBytes(in.Credential)
 	if err != nil {
-		return auth.ErrTOTPInvalid
+		return auth.ErrMFAInvalid
 	}
 	cred, err := rp.ValidateLogin(u, sess, parsed)
 	if err != nil {
-		return auth.ErrTOTPInvalid
+		return auth.ErrMFAInvalid
 	}
 	return wa.used(ctx, uid, cred)
 }
@@ -290,7 +263,7 @@ func (wa *WebAuthn) Verify(ctx context.Context, uid int64, state string, answer 
 func (wa *WebAuthn) used(ctx context.Context, uid int64, cred *webauthn.Credential) error {
 	if cred.Authenticator.CloneWarning {
 		_ = audit.Log(ctx, wa.pool, "webauthn.clone_warning", "user", uid, nil, nil)
-		return &apperr.Error{Status: 401, Code: "totp_invalid", Msg: "this security key may have been copied: it was refused"}
+		return &apperr.Error{Status: 401, Code: "mfa_invalid", Msg: "this security key may have been copied: it was refused"}
 	}
 	_, err := wa.pool.Exec(ctx, `UPDATE plugin_webauthn_credentials SET credential=$3, last_used_at=now() WHERE user_id=$1 AND cred_id=$2`,
 		uid, cred.ID, cred)
@@ -305,18 +278,10 @@ func (wa *WebAuthn) ResetMFA(ctx context.Context, uid int64) error {
 
 // ---------------------------------------------------------------- passkeys
 
-type passkeys struct{ wa *WebAuthn }
-
-// ID implements auth.PasswordlessMethod.
-func (p passkeys) ID() string { return "passkey" }
-
 // Begin implements auth.PasswordlessMethod: options for a discoverable
 // credential, user verification required.
-func (p passkeys) Begin(context.Context) (any, string, error) {
-	if !auth.BoolSetting(p.wa.settings(), "passkeys", true) {
-		return nil, "", apperr.NotFound("passkey sign-in")
-	}
-	rp, err := p.wa.relyingParty()
+func (wa *WebAuthn) Begin(context.Context) (any, string, error) {
+	rp, err := wa.relyingParty()
 	if err != nil {
 		return nil, "", err
 	}
@@ -329,7 +294,8 @@ func (p passkeys) Begin(context.Context) (any, string, error) {
 }
 
 // Finish implements auth.PasswordlessMethod.
-func (p passkeys) Finish(ctx context.Context, state string, answer json.RawMessage) (int64, error) {
+func (wa *WebAuthn) Finish(ctx context.Context, state string, answer json.RawMessage) (int64, error) {
+	p := struct{ wa *WebAuthn }{wa}
 	var sess webauthn.SessionData
 	if err := json.Unmarshal([]byte(state), &sess); err != nil {
 		return 0, err
@@ -384,17 +350,31 @@ func (wa *WebAuthn) list(ctx context.Context, uid int64) ([]Credential, error) {
 	return pgx.CollectRows(rows, pgx.RowToStructByPos[Credential])
 }
 
-func (wa *WebAuthn) beginRegistration(ctx context.Context, uid int64, passkey bool) (any, error) {
+type enrollState struct {
+	Passkey bool                 `json:"passkey"`
+	Session webauthn.SessionData `json:"session"`
+}
+
+// BeginEnroll implements auth.MFAEnroller: options for
+// navigator.credentials.create. options {"passkey": true} asks for a
+// passkey (discoverable, user verification required); as factor 1 every
+// key is a passkey.
+func (wa *WebAuthn) BeginEnroll(ctx context.Context, uid int64, options json.RawMessage) (any, string, error) {
+	var in struct {
+		Passkey bool `json:"passkey"`
+	}
+	_ = json.Unmarshal(options, &in)
+	passkey := in.Passkey || wa.firstFactor()
 	rp, err := wa.relyingParty()
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
 	u, err := wa.loadUser(ctx, uid, true)
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
 	if len(u.creds) >= 20 {
-		return nil, apperr.BadRequest("at most 20 security keys")
+		return nil, "", apperr.BadRequest("at most 20 security keys")
 	}
 	exclude := make([]protocol.CredentialDescriptor, len(u.creds))
 	for i := range u.creds {
@@ -406,55 +386,54 @@ func (wa *WebAuthn) beginRegistration(ctx context.Context, uid int64, passkey bo
 	}
 	opts, sess, err := rp.BeginRegistration(u, webauthn.WithExclusions(exclude), webauthn.WithAuthenticatorSelection(sel))
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
-	if _, err := wa.pool.Exec(ctx, `INSERT INTO plugin_webauthn_registrations(user_id, passkey, session, expires_at) VALUES ($1,$2,$3, now() + interval '5 minutes')
-		ON CONFLICT (user_id) DO UPDATE SET passkey=EXCLUDED.passkey, session=EXCLUDED.session, expires_at=EXCLUDED.expires_at`, uid, passkey, sess); err != nil {
-		return nil, err
-	}
-	return opts, nil
+	state, err := json.Marshal(enrollState{passkey, *sess})
+	return opts, string(state), err
 }
 
-func (wa *WebAuthn) finishRegistration(ctx context.Context, uid int64, name string, raw json.RawMessage) (*Credential, error) {
-	name = strings.TrimSpace(name)
-	if name == "" || len([]rune(name)) > 100 {
-		return nil, apperr.BadRequest("a name (at most 100 characters) is required")
+// FinishEnroll implements auth.MFAEnroller: answer {"name", "credential"}.
+func (wa *WebAuthn) FinishEnroll(ctx context.Context, uid int64, state string, answer json.RawMessage) error {
+	var in struct {
+		Name       string          `json:"name"`
+		Credential json.RawMessage `json:"credential"`
 	}
-	var passkey bool
-	var sess webauthn.SessionData
-	err := wa.pool.QueryRow(ctx, `DELETE FROM plugin_webauthn_registrations WHERE user_id=$1 AND expires_at > now() RETURNING passkey, session`, uid).
-		Scan(&passkey, &sess)
-	if err != nil {
-		return nil, apperr.BadRequest("the registration has expired: please start again")
+	if err := json.Unmarshal(answer, &in); err != nil {
+		return apperr.BadRequest("invalid answer")
+	}
+	name := strings.TrimSpace(in.Name)
+	if name == "" || len([]rune(name)) > 100 {
+		return apperr.BadRequest("a name (at most 100 characters) is required")
+	}
+	var st enrollState
+	if err := json.Unmarshal([]byte(state), &st); err != nil {
+		return apperr.BadRequest("start the setup first")
 	}
 	rp, err := wa.relyingParty()
 	if err != nil {
-		return nil, err
+		return err
 	}
 	u, err := wa.loadUser(ctx, uid, false)
 	if err != nil {
-		return nil, err
+		return err
 	}
-	parsed, err := protocol.ParseCredentialCreationResponseBytes(raw)
+	parsed, err := protocol.ParseCredentialCreationResponseBytes(in.Credential)
 	if err != nil {
-		return nil, apperr.BadRequest("invalid security key response")
+		return apperr.BadRequest("invalid security key response")
 	}
-	cred, err := rp.CreateCredential(u, sess, parsed)
+	cred, err := rp.CreateCredential(u, st.Session, parsed)
 	if err != nil {
-		return nil, apperr.BadRequest("the security key could not be registered: %v", err)
+		return apperr.BadRequest("the security key could not be registered: %v", err)
 	}
-	c := &Credential{Name: name, Passkey: passkey}
-	err = wa.pool.QueryRow(ctx, `INSERT INTO plugin_webauthn_credentials(user_id, cred_id, name, passkey, credential) VALUES ($1,$2,$3,$4,$5)
-		RETURNING id, created_at`, uid, cred.ID, name, passkey, cred).Scan(&c.ID, &c.CreatedAt)
-	if err != nil {
+	if _, err := wa.pool.Exec(ctx, `INSERT INTO plugin_webauthn_credentials(user_id, cred_id, name, passkey, credential) VALUES ($1,$2,$3,$4,$5)`,
+		uid, cred.ID, name, st.Passkey, cred); err != nil {
 		var unique interface{ SQLState() string }
 		if errors.As(err, &unique) && unique.SQLState() == "23505" {
-			return nil, apperr.Conflict("this security key is already registered")
+			return apperr.Conflict("this security key is already registered")
 		}
-		return nil, err
+		return err
 	}
-	_ = audit.Log(ctx, wa.pool, "webauthn.add", "user", uid, nil, map[string]any{"name": name, "passkey": passkey})
-	return c, nil
+	return audit.Log(ctx, wa.pool, "webauthn.add", "user", uid, nil, map[string]any{"name": name, "passkey": st.Passkey})
 }
 
 func (wa *WebAuthn) remove(ctx context.Context, uid, id int64) error {

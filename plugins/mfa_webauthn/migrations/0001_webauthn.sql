@@ -18,11 +18,3 @@ CREATE TABLE plugin_webauthn_credentials (
     last_used_at timestamptz
 );
 CREATE INDEX plugin_webauthn_credentials_user ON plugin_webauthn_credentials(user_id);
-
--- registrations in progress (one per user, 5 minutes)
-CREATE TABLE plugin_webauthn_registrations (
-    user_id    bigint PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
-    passkey    boolean NOT NULL,
-    session    jsonb NOT NULL,
-    expires_at timestamptz NOT NULL
-);

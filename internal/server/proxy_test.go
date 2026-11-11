@@ -13,7 +13,7 @@ func TestTrustedProxiesAndTLSAllowed(t *testing.T) {
 	admin.login("admin", adminPW)
 	ip := func(xff ...string) string {
 		t.Helper()
-		req, _ := http.NewRequest("GET", e.srv.URL+"/api/v1/me/mfa", nil)
+		req, _ := http.NewRequest("GET", e.srv.URL+"/api/v1/x/mfa.network/me", nil)
 		for _, x := range xff {
 			req.Header.Add("X-Forwarded-For", x)
 		}

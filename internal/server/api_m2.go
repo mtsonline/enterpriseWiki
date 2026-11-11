@@ -170,68 +170,6 @@ func (s *Server) routesM2() {
 	s.app.Mux.HandleFunc("GET /api/v1/auth/sso/{provider}/callback", callback)
 	s.app.Mux.HandleFunc("POST /api/v1/auth/sso/{provider}/callback", callback)
 
-	// ---------------------------------------------------------------- two-factor authentication
-	s.handle("GET /api/v1/me/totp", func(w http.ResponseWriter, r *http.Request) (any, error) {
-		on, err := s.app.Auth.TOTPStatus(r.Context())
-		return map[string]bool{"enabled": on}, err
-	})
-	s.handle("POST /api/v1/me/totp/setup", func(w http.ResponseWriter, r *http.Request) (any, error) {
-		return s.app.Auth.BeginTOTP(r.Context(), s.app.Config.Get().UI.SiteName)
-	})
-	s.handle("POST /api/v1/me/totp/enable", func(w http.ResponseWriter, r *http.Request) (any, error) {
-		var in struct {
-			Code string `json:"code"`
-		}
-		if err := h.Decode(r, &in); err != nil {
-			return nil, err
-		}
-		return h.NoContent{}, s.app.Auth.EnableTOTP(r.Context(), in.Code)
-	})
-	s.handle("POST /api/v1/me/totp/disable", func(w http.ResponseWriter, r *http.Request) (any, error) {
-		var in struct {
-			Code string `json:"code"`
-		}
-		if err := h.Decode(r, &in); err != nil {
-			return nil, err
-		}
-		return h.NoContent{}, s.app.Auth.DisableTOTP(r.Context(), in.Code)
-	})
-	// second factor by e-mail and network restriction of the own account
-	s.handle("GET /api/v1/me/mfa", func(w http.ResponseWriter, r *http.Request) (any, error) {
-		st, err := s.app.Auth.MFA(r.Context())
-		if err != nil {
-			return nil, err
-		}
-		return map[string]any{"totp": st.TOTP, "email": st.Email, "email_address": st.Address, "local": st.Local,
-			"applies": st.Applies, "methods": st.Methods, "networks": st.Networks, "current_ip": s.clientIP(r)}, nil
-	})
-	s.handle("POST /api/v1/me/mfa/email/code", func(w http.ResponseWriter, r *http.Request) (any, error) {
-		return h.NoContent{}, s.app.Auth.BeginEmailMFA(r.Context())
-	})
-	mfaEmail := func(on bool) func(w http.ResponseWriter, r *http.Request) (any, error) {
-		return func(w http.ResponseWriter, r *http.Request) (any, error) {
-			var in struct {
-				Code string `json:"code"`
-			}
-			if err := h.Decode(r, &in); err != nil {
-				return nil, err
-			}
-			return h.NoContent{}, s.app.Auth.SetEmailMFA(r.Context(), on, in.Code)
-		}
-	}
-	s.handle("POST /api/v1/me/mfa/email/enable", mfaEmail(true))
-	s.handle("POST /api/v1/me/mfa/email/disable", mfaEmail(false))
-	s.handle("PUT /api/v1/me/mfa/networks", func(w http.ResponseWriter, r *http.Request) (any, error) {
-		var in struct {
-			Networks []string `json:"networks"`
-		}
-		if err := h.Decode(r, &in); err != nil {
-			return nil, err
-		}
-		nets, err := s.app.Auth.SetOwnNetworks(r.Context(), in.Networks)
-		return map[string]any{"networks": nets}, err
-	})
-
 	// ---------------------------------------------------------------- files
 	s.handle("POST /api/v1/files", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		p := identity.From(r.Context())

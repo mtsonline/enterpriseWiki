@@ -193,11 +193,25 @@ test('upload a PDF as file element and find its text', async () => {
 test('two-factor setup dialog', async () => {
   await page.goto(BASE + '/profile');
   await idle();
-  await page.getByRole('button', { name: /set up two-factor|zwei-faktor-authentifizierung einrichten/i }).click();
-  await page.locator('dialog[open]').waitFor();
+  await page.getByRole('button', { name: /^(set up the authenticator app|authenticator-app einrichten)$/i }).click();
+  await page.locator('dialog[open] .ew-secret').waitFor();
   assert.match(await page.locator('dialog[open] .ew-secret').innerText(), /^[A-Z2-7 ]{20,}$/);
-  await a11y('2FA setup dialog');
+  await a11y('authenticator app setup dialog');
   await page.keyboard.press('Escape');
+});
+
+test('administration of the sign-in factors', async () => {
+  await page.goto(BASE + '/admin/mfa');
+  await idle();
+  await page.getByRole('heading', { name: /^(sign-in factors|anmeldefaktoren)$/i, level: 1 }).waitFor();
+  const cfg = await call('GET', '/api/v1/admin/mfa');
+  assert.ok(cfg.factors.some((f) => f.id === 'webauthn' && f.factor === 1), 'passkeys are factor 1');
+  assert.ok(cfg.factors.some((f) => f.id === 'totp' && f.factor === 2), 'authenticator app is factor 2');
+  await a11y('sign-in factors administration');
+  // saving without changes keeps the configuration
+  await page.getByRole('button', { name: /^(save|speichern)$/i }).last().click();
+  await page.getByText(/^(saved\.|gespeichert\.)$/i).first().waitFor();
+  assert.deepEqual(await call('GET', '/api/v1/admin/mfa'), cfg);
 });
 
 async function newPage(type, title) {
@@ -569,33 +583,41 @@ test('second factor at sign-in and passkeys', async () => {
     await p2.waitForURL((u) => !u.pathname.startsWith('/login'));
     // the authenticator app (set up through the API of the signed-in browser)
     const secret = await p2.evaluate(async () => {
-      const r = await fetch('/api/v1/me/totp/setup', { method: 'POST', headers: { 'X-Requested-With': 'ewiki' } });
+      const r = await fetch('/api/v1/me/mfa/totp/begin', { method: 'POST', headers: { 'X-Requested-With': 'ewiki', 'Content-Type': 'application/json' }, body: '{}' });
       return (await r.json()).secret;
     });
-    const enabled = await p2.evaluate(async (code) => (await fetch('/api/v1/me/totp/enable', { method: 'POST', headers: { 'X-Requested-With': 'ewiki', 'Content-Type': 'application/json' }, body: JSON.stringify({ code }) })).status, totpCode(secret));
+    const enabled = await p2.evaluate(async (code) => (await fetch('/api/v1/me/mfa/totp/finish', { method: 'POST', headers: { 'X-Requested-With': 'ewiki', 'Content-Type': 'application/json' }, body: JSON.stringify({ code }) })).status, totpCode(secret));
     assert.equal(enabled, 204);
     // a passkey with a virtual authenticator of the browser
     const cdp = await ctx2.newCDPSession(p2);
     await cdp.send('WebAuthn.enable');
     await cdp.send('WebAuthn.addVirtualAuthenticator', { options: { protocol: 'ctap2', transport: 'internal', hasResidentKey: true, hasUserVerification: true, isUserVerified: true, automaticPresenceSimulation: true } });
     await p2.goto(BASE + '/profile');
-    await p2.locator('#wa-h').waitFor();
-    await p2.getByRole('button', { name: /^(add passkey|passkey hinzufügen)$/i }).click();
+    await p2.locator('#mfa-h').waitFor();
+    await a11y('sign-in factors in the profile', p2);
+    await p2.getByRole('button', { name: /^(add security key|sicherheitsschlüssel hinzufügen)$/i }).click();
     const dlg = p2.locator('dialog[open]');
     await dlg.getByLabel(/^name/i).fill('Virtual');
+    // passkeys are factor 1 here: every key is a passkey
+    assert.ok(await dlg.getByLabel(/^(as passkey|als passkey)$/i).isChecked());
     await dlg.locator('button[type=submit]').click();
     await dlg.waitFor({ state: 'detached' });
-    await p2.locator('#wa-h ~ table th', { hasText: 'Virtual' }).waitFor();
+    await p2.locator('.ew-subsection table th', { hasText: 'Virtual' }).waitFor();
     // sign out: the password alone is not enough any more
     await p2.evaluate(() => fetch('/api/v1/auth/logout', { method: 'POST', headers: { 'X-Requested-With': 'ewiki' } }));
     await login();
-    await p2.getByRole('heading', { name: /second factor|zweiter faktor/i }).waitFor();
+    await p2.getByRole('heading', { name: /^(confirm sign-in|anmeldung bestätigen)$/i }).waitFor();
     await a11y('second factor step', p2);
-    // the authenticator app
-    await p2.getByLabel(/^(authenticator app|authenticator-app)$/i).check();
+    // the authenticator app (the only factor 2 of this account)
+    assert.equal(await p2.locator('input[name=mfa-method]').count(), 0);
     await p2.getByLabel(/code/i).first().fill(totpCode(secret, 1));
     await p2.keyboard.press('Enter');
     await p2.waitForURL((u) => !u.pathname.startsWith('/login'));
+    // remove the authenticator app in the profile (the chain would ask it after the passkey too)
+    await p2.goto(BASE + '/profile');
+    await p2.getByRole('button', { name: /^(remove the authenticator app|authenticator-app entfernen)$/i }).click();
+    await p2.locator('dialog[open]').getByRole('button', { name: /^(remove the authenticator app|authenticator-app entfernen)$/i }).click();
+    await p2.getByRole('button', { name: /^(set up the authenticator app|authenticator-app einrichten)$/i }).waitFor();
     // the passkey: sign-in without password
     await p2.evaluate(() => fetch('/api/v1/auth/logout', { method: 'POST', headers: { 'X-Requested-With': 'ewiki' } }));
     await p2.goto(BASE + '/login');

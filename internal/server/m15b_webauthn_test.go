@@ -16,8 +16,6 @@ import (
 	"time"
 
 	"github.com/fxamacker/cbor/v2"
-
-	"github.com/mtsonline/enterprisewiki/internal/auth"
 )
 
 // authenticator is a software WebAuthn authenticator (attestation "none",
@@ -125,6 +123,20 @@ func (c *client) rawJSON(method, path string, body any) (int, map[string]any) {
 	return res.StatusCode, out
 }
 
+// enrollWebAuthn registers key for c through the generic factor setup.
+func enrollWebAuthn(t *testing.T, c *client, key *authenticator, name string, passkey bool) map[string]any {
+	t.Helper()
+	var opts map[string]any
+	c.must("POST", "/api/v1/me/mfa/webauthn/begin", map[string]any{"passkey": passkey}, &opts, 200)
+	c.must("POST", "/api/v1/me/mfa/webauthn/finish", map[string]any{"name": name, "credential": key.create(opts)}, nil, 204)
+	return opts
+}
+
+func setFactor(t *testing.T, admin *client, plugin string, n int) {
+	t.Helper()
+	admin.must("PUT", "/api/v1/admin/mfa", map[string]any{"factors": map[string]int{plugin: n}}, nil, 200)
+}
+
 func TestWebAuthn(t *testing.T) {
 	e := setup(t)
 	// WebAuthn needs a domain: the test server is reached as localhost
@@ -140,17 +152,15 @@ func TestWebAuthn(t *testing.T) {
 	w.login("wendy", "Wendy-Passw0rd!")
 	key := newAuthenticator(t, origin)
 
-	// register a passkey (user verification required)
-	var opts map[string]any
-	w.must("POST", "/api/v1/x/mfa.webauthn/register/begin", map[string]any{"passkey": true}, &opts, 200)
+	// as factor 1 (default) every key is a passkey: user verification required
+	opts := enrollWebAuthn(t, w, key, "Laptop", false)
 	sel := opts["publicKey"].(map[string]any)["authenticatorSelection"].(map[string]any)
 	if sel["residentKey"] != "required" || sel["userVerification"] != "required" {
 		t.Fatalf("passkey options %v", sel)
 	}
-	w.must("POST", "/api/v1/x/mfa.webauthn/register/finish", map[string]any{"name": "Laptop", "credential": key.create(opts)}, nil, 201)
-	// the same registration cannot be finished twice; the same key not registered twice
-	if got := w.do("POST", "/api/v1/x/mfa.webauthn/register/finish", map[string]any{"name": "Again", "credential": key.create(opts)}, nil); got != 400 {
-		t.Fatalf("registration reused: %d", got)
+	// a setup is used once
+	if got := w.do("POST", "/api/v1/me/mfa/webauthn/finish", map[string]any{"name": "Again", "credential": key.create(opts)}, nil); got != 400 {
+		t.Fatalf("setup reused: %d", got)
 	}
 	var list []map[string]any
 	w.must("GET", "/api/v1/x/mfa.webauthn/credentials", nil, &list, 200)
@@ -158,83 +168,91 @@ func TestWebAuthn(t *testing.T) {
 		t.Fatalf("credentials %v", list)
 	}
 
-	// password sign-in now needs the key; a code given with the password does not replace it
-	d := e.client()
-	if st, out := d.rawJSON("POST", "/api/v1/auth/login", map[string]string{"username": "wendy", "password": "Wendy-Passw0rd!", "totp": "123456"}); st != 401 ||
-		out["error"].(map[string]any)["code"] != "mfa_required" {
-		t.Fatalf("inline code instead of the key: %d %v", st, out)
+	// passkey: sign-in without password (factor 1 alternative)
+	p := e.client()
+	var begin struct {
+		Token   string         `json:"token"`
+		Options map[string]any `json:"options"`
 	}
+	p.must("POST", "/api/v1/auth/passwordless/webauthn/begin", nil, &begin, 200)
+	p.must("POST", "/api/v1/auth/passwordless/webauthn/finish", map[string]any{"token": begin.Token, "credential": key.get(begin.Options)}, nil, 200)
+	if !signedIn(p) {
+		t.Fatal("not signed in with the passkey")
+	}
+	// the password alone works too (factor 1 alternatives)
+	e.client().login("wendy", "Wendy-Passw0rd!")
+	// without user verification the passkey is refused
+	q := e.client()
+	q.must("POST", "/api/v1/auth/passwordless/webauthn/begin", nil, &begin, 200)
+	key.flags = flagUP
+	if got := q.do("POST", "/api/v1/auth/passwordless/webauthn/finish", map[string]any{"token": begin.Token, "credential": key.get(begin.Options)}, nil); got != 401 || signedIn(q) {
+		t.Fatalf("passkey without user verification: %d", got)
+	}
+	key.flags = flagUP | flagUV
+	// a signature from another origin is refused
+	q.must("POST", "/api/v1/auth/passwordless/webauthn/begin", nil, &begin, 200)
+	key.origin = "https://evil.example"
+	if got := q.do("POST", "/api/v1/auth/passwordless/webauthn/finish", map[string]any{"token": begin.Token, "credential": key.get(begin.Options)}, nil); got != 401 {
+		t.Fatalf("other origin: %d", got)
+	}
+	key.origin = origin
+
+	// as factor 2 the key confirms a password sign-in; no passkey sign-in then
+	setFactor(t, admin, "mfa.webauthn", 2)
+	if got := e.client().do("POST", "/api/v1/auth/passwordless/webauthn/begin", nil, nil); got != 404 {
+		t.Fatalf("passkey sign-in as factor 2: %d", got)
+	}
+	d := e.client()
 	tok := d.pendingMFA("wendy", "Wendy-Passw0rd!")
 	var ch map[string]any
 	d.must("POST", "/api/v1/auth/mfa/challenge", map[string]any{"token": tok, "method": "webauthn"}, &ch, 200)
 	if allow := ch["publicKey"].(map[string]any)["allowCredentials"].([]any); len(allow) != 1 {
 		t.Fatalf("allowCredentials %v", allow)
 	}
-	// a signature by another key is refused
 	other := newAuthenticator(t, origin)
 	other.credID = key.credID
 	if got := d.do("POST", "/api/v1/auth/mfa/verify", map[string]any{"token": tok, "method": "webauthn", "credential": other.get(ch)}, nil); got != 401 {
 		t.Fatalf("foreign signature: %d", got)
 	}
-	d.must("POST", "/api/v1/auth/mfa/verify", map[string]any{"token": tok, "method": "webauthn", "credential": key.get(ch)}, nil, 200)
-	if !signedIn(d) {
+	var done struct {
+		Done bool `json:"done"`
+	}
+	d.must("POST", "/api/v1/auth/mfa/verify", map[string]any{"token": tok, "method": "webauthn", "credential": key.get(ch)}, &done, 200)
+	if !done.Done || !signedIn(d) {
 		t.Fatal("not signed in with the security key")
 	}
-
-	// passkey: sign-in without password
-	p := e.client()
-	var begin struct {
-		Token   string         `json:"token"`
-		Options map[string]any `json:"options"`
-	}
-	p.must("POST", "/api/v1/auth/passwordless/passkey/begin", nil, &begin, 200)
-	p.must("POST", "/api/v1/auth/passwordless/passkey/finish", map[string]any{"token": begin.Token, "credential": key.get(begin.Options)}, nil, 200)
-	if !signedIn(p) {
-		t.Fatal("not signed in with the passkey")
-	}
-	// without user verification the passkey is refused
-	q := e.client()
-	q.must("POST", "/api/v1/auth/passwordless/passkey/begin", nil, &begin, 200)
-	key.flags = flagUP
-	if got := q.do("POST", "/api/v1/auth/passwordless/passkey/finish", map[string]any{"token": begin.Token, "credential": key.get(begin.Options)}, nil); got != 401 || signedIn(q) {
-		t.Fatalf("passkey without user verification: %d", got)
-	}
-	key.flags = flagUP | flagUV
-	// a signature from another origin is refused
-	q.must("POST", "/api/v1/auth/passwordless/passkey/begin", nil, &begin, 200)
-	key.origin = "https://evil.example"
-	if got := q.do("POST", "/api/v1/auth/passwordless/passkey/finish", map[string]any{"token": begin.Token, "credential": key.get(begin.Options)}, nil); got != 401 {
-		t.Fatalf("other origin: %d", got)
-	}
-	key.origin = origin
 	// a counter going backwards (cloned key) is refused
-	q.must("POST", "/api/v1/auth/passwordless/passkey/begin", nil, &begin, 200)
+	tok = d.pendingMFA("wendy", "Wendy-Passw0rd!")
+	d.must("POST", "/api/v1/auth/mfa/challenge", map[string]any{"token": tok, "method": "webauthn"}, &ch, 200)
 	key.counter = 0
-	if got := q.do("POST", "/api/v1/auth/passwordless/passkey/finish", map[string]any{"token": begin.Token, "credential": key.get(begin.Options)}, nil); got != 401 || signedIn(q) {
+	if got := d.do("POST", "/api/v1/auth/mfa/verify", map[string]any{"token": tok, "method": "webauthn", "credential": key.get(ch)}, nil); got != 401 {
 		t.Fatalf("cloned key: %d", got)
 	}
 
-	// changing keys needs a recent sign-in
+	// changing factors needs a recent sign-in
 	if _, err := e.app.DB.Exec(t.Context(), `UPDATE sessions SET created_at = now() - interval '1 hour' WHERE user_id=$1`, u.ID); err != nil {
 		t.Fatal(err)
 	}
 	e.app.Bus.Publish(t.Context(), "auth", "")
-	if st, out := w.rawJSON("POST", "/api/v1/x/mfa.webauthn/register/begin", map[string]any{"passkey": false}); st != 403 || out["error"].(map[string]any)["code"] != "reauth_required" {
+	if st, out := w.rawJSON("POST", "/api/v1/me/mfa/webauthn/begin", map[string]any{"passkey": false}); st != 403 || out["error"].(map[string]any)["code"] != "reauth_required" {
 		t.Fatalf("old session adds a key: %d %v", st, out)
 	}
 	// API keys cannot manage keys
 	var apikey struct {
 		Token string `json:"token"`
 	}
-	d.must("POST", "/api/v1/me/api-keys", map[string]any{"name": "k", "permissions": 15, "expires_at": time.Now().Add(time.Hour)}, &apikey, 201)
+	p.must("POST", "/api/v1/me/api-keys", map[string]any{"name": "k", "permissions": 15, "expires_at": time.Now().Add(time.Hour)}, &apikey, 201)
 	kc := e.client()
 	kc.token = apikey.Token
 	if got := kc.do("GET", "/api/v1/x/mfa.webauthn/credentials", nil, nil); got != 403 {
 		t.Fatalf("API key lists keys: %d", got)
 	}
+	if got := kc.do("POST", "/api/v1/me/mfa/webauthn/begin", map[string]any{}, nil); got != 403 {
+		t.Fatalf("API key adds a key: %d", got)
+	}
 
-	// administrators reset all second factors: the password alone works again
-	admin.must("PUT", "/api/v1/admin/users/"+itoa(u.ID), map[string]any{"reset_totp": true}, nil, 200)
+	// administrators reset all factors: the password alone works again
+	admin.must("PUT", "/api/v1/admin/users/"+itoa(u.ID), map[string]any{"reset_mfa": true}, nil, 200)
 	e.client().login("wendy", "Wendy-Passw0rd!")
 }
 
@@ -244,71 +262,3 @@ func mustPort(raw string) string {
 }
 
 func itoa(n int64) string { b, _ := json.Marshal(n); return string(b) }
-
-// TestMFAAfterSSO: the second factor of the wiki also after single
-// sign-on, unless the provider does it (mfa: false).
-func TestMFAAfterSSO(t *testing.T) {
-	e := setup(t)
-	idp := newFakeOIDC(t)
-	e.setPluginSettings(t, "auth.oidc", map[string]any{"issuer": idp.srv.URL, "client_id": "wiki", "client_secret": "s3cret"})
-	c := e.client()
-	idp.login(t, e, c)
-	// carol sets up the authenticator app
-	var setupRes struct {
-		Secret string `json:"secret"`
-	}
-	c.must("POST", "/api/v1/me/totp/setup", nil, &setupRes, 200)
-	code, _ := auth.TOTPCode(setupRes.Secret, time.Now().Unix()/30)
-	c.must("POST", "/api/v1/me/totp/enable", map[string]string{"code": code}, nil, 204)
-
-	var st struct {
-		Applies bool     `json:"applies"`
-		Methods []string `json:"methods"`
-	}
-	c.must("GET", "/api/v1/me/mfa", nil, &st, 200)
-	if !st.Applies || len(st.Methods) != 1 || st.Methods[0] != "totp" {
-		t.Fatalf("mfa status %+v", st)
-	}
-
-	// the next single sign-on waits for the code
-	d := e.client()
-	if loc := idp.loginAt(t, e, d, "oidc"); loc != "/login?mfa=1" {
-		t.Fatalf("after SSO: %s", loc)
-	}
-	if signedIn(d) {
-		t.Fatal("signed in without the second factor")
-	}
-	var info struct {
-		Methods []string `json:"methods"`
-	}
-	d.must("POST", "/api/v1/auth/mfa/info", map[string]string{}, &info, 200) // token from the cookie
-	if len(info.Methods) != 1 || info.Methods[0] != "totp" {
-		t.Fatalf("methods %v", info.Methods)
-	}
-	next, _ := auth.TOTPCode(setupRes.Secret, time.Now().Unix()/30+1)
-	var done struct {
-		Next string `json:"next"`
-	}
-	d.must("POST", "/api/v1/auth/mfa/verify", map[string]string{"method": "totp", "code": next}, &done, 200)
-	if !signedIn(d) || done.Next != "/" {
-		t.Fatalf("after the second factor: %v %+v", signedIn(d), done)
-	}
-	// another browser without the cookie has no pending sign-in
-	if got := e.client().do("POST", "/api/v1/auth/mfa/info", map[string]string{}, nil); got != 401 {
-		t.Fatalf("pending sign-in without the cookie: %d", got)
-	}
-
-	// the provider does the second factor: the wiki does not ask
-	e.setPluginSettings(t, "auth.oidc", map[string]any{"issuer": idp.srv.URL, "client_id": "wiki", "client_secret": "s3cret", "mfa": false})
-	f := e.client()
-	if loc := idp.loginAt(t, e, f, "oidc"); loc != "/" || !signedIn(f) {
-		t.Fatalf("mfa false: %s", loc)
-	}
-	f.must("GET", "/api/v1/me/mfa", nil, &st, 200)
-	if st.Applies {
-		t.Fatal("factor offered although the provider does it")
-	}
-	if got := f.do("POST", "/api/v1/me/totp/setup", nil, nil); got != 400 {
-		t.Fatalf("setup with mfa false: %d", got)
-	}
-}

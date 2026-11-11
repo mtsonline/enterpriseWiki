@@ -34,14 +34,6 @@ CREATE TABLE users (
     created_at     timestamptz NOT NULL DEFAULT now(),
     updated_at     timestamptz NOT NULL DEFAULT now(),
     last_login_at  timestamptz,
-    -- TOTP two-factor authentication (local accounts)
-    totp_secret    text,
-    totp_enabled   boolean NOT NULL DEFAULT false,
-    totp_last_step bigint NOT NULL DEFAULT 0,
-    -- second factor by e-mail (local accounts): a code is sent at sign-in
-    mfa_email      boolean NOT NULL DEFAULT false,
-    -- sign-in and use only from these IP addresses / networks (CIDR); empty = anywhere
-    allowed_networks text[] NOT NULL DEFAULT '{}',
     -- personal settings of the user interface (keys see auth.Prefs)
     prefs          jsonb NOT NULL DEFAULT '{}',
     -- e-mail preferences per kind, e.g. {"tasks": true, "comments": false}; missing keys mean "on"

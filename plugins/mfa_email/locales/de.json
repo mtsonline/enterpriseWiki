@@ -1,0 +1,21 @@
+{
+ "mfa.method.email": "Code per E-Mail",
+ "memail.title": "Code per E-Mail",
+ "memail.help": "Ein Code an Ihre Adresse {address} bei jeder Anmeldung.",
+ "memail.no_address": "Hinterlegen Sie zuerst eine E-Mail-Adresse im Profil.",
+ "memail.no_mail": "In diesem Wiki ist kein E-Mail-Versand eingerichtet.",
+ "memail.on": "Ein",
+ "memail.enable": "Codes per E-Mail einschalten",
+ "memail.send": "Code senden",
+ "memail.sent": "Ein Code wurde an {address} gesendet.",
+ "memail.code": "Code aus der E-Mail",
+ "memail.code_help": "Der Code gilt 10 Minuten.",
+ "memail.disable": "Codes per E-Mail ausschalten",
+ "memail.disable_confirm": "Codes per E-Mail ausschalten?",
+ "memail.enabled": "Codes per E-Mail sind eingeschaltet.",
+ "memail.disabled": "Codes per E-Mail sind ausgeschaltet.",
+ "mfa.mail_subject_login": "Ihr Anmeldecode für {site}: {code}",
+ "mfa.mail_text_login": "Ihr Anmeldecode für {site} lautet: {code}\n\nEr gilt {minutes} Minuten. Falls Sie sich nicht anmelden wollten, ändern Sie bitte Ihr Passwort.",
+ "mfa.mail_subject_setup": "Ihr Bestätigungscode für {site}: {code}",
+ "mfa.mail_text_setup": "Ihr Code zum Ändern des zweiten Faktors bei {site} lautet: {code}\n\nEr gilt {minutes} Minuten."
+}

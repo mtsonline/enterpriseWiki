@@ -116,6 +116,16 @@ func (e *env) call(method, path string, body []byte, as string) (int, []byte, er
 	return code, out, err
 }
 
+// serveInProcess runs one API request against the app as principal p.
+func serveInProcess(ctx context.Context, a *app.App, p *identity.Principal, method, path string, body []byte, contentType string) (int, []byte, http.Header) {
+	srv := server.New(a, nil, pluginmgr.New(a.Root, a.Config, nil))
+	req := httptest.NewRequest(method, path, bytes.NewReader(body)).WithContext(identity.With(ctx, p))
+	req.Header.Set("Content-Type", contentType)
+	rec := httptest.NewRecorder()
+	srv.Handler().ServeHTTP(rec, req)
+	return rec.Code, rec.Body.Bytes(), rec.Header()
+}
+
 // callType runs one API request in-process with a content type (uploads)
 // and returns the response headers too (downloads).
 func (e *env) callType(method, path string, body []byte, contentType, as string) (int, []byte, http.Header, error) {
@@ -141,12 +151,7 @@ func (e *env) callType(method, path string, body []byte, contentType, as string)
 			up.Via = "cli-as"
 			p = up
 		}
-		srv := server.New(a, nil, pluginmgr.New(a.Root, a.Config, nil))
-		req := httptest.NewRequest(method, path, bytes.NewReader(body)).WithContext(identity.With(ctx, p))
-		req.Header.Set("Content-Type", contentType)
-		rec := httptest.NewRecorder()
-		srv.Handler().ServeHTTP(rec, req)
-		code, out, hdr = rec.Code, rec.Body.Bytes(), rec.Header()
+		code, out, hdr = serveInProcess(ctx, a, p, method, path, body, contentType)
 		return nil
 	})
 	return code, out, hdr, err
@@ -419,7 +424,7 @@ func (e *env) user(args []string) error {
 			if err != nil {
 				return err
 			}
-			_, err = a.Auth.UpdateUser(ctx, id, auth.UserUpdate{ResetTOTP: true})
+			_, err = a.Auth.UpdateUser(ctx, id, auth.UserUpdate{ResetMFA: true})
 			return err
 		case "networks":
 			// ewiki user networks NAME [NET...]: without networks the restriction is removed
@@ -427,15 +432,20 @@ func (e *env) user(args []string) error {
 			if err != nil {
 				return err
 			}
-			nets := fs.Args()
-			u, err := a.Auth.UpdateUser(ctx, id, auth.UserUpdate{Networks: &nets})
-			if err != nil {
-				return err
+			// stored by the plugin mfa.network
+			body, _ := json.Marshal(map[string]any{"networks": fs.Args()})
+			code, out, _ := serveInProcess(ctx, a, identity.CLI(), "PUT", "/api/v1/x/mfa.network/users/"+strconv.FormatInt(id, 10), body, "application/json")
+			if code >= 300 {
+				return fmt.Errorf("%s", strings.TrimSpace(string(out)))
 			}
-			if len(u.Networks) == 0 {
+			var res struct {
+				Networks []string `json:"networks"`
+			}
+			_ = json.Unmarshal(out, &res)
+			if len(res.Networks) == 0 {
 				e.println("no network restriction")
 			}
-			for _, n := range u.Networks {
+			for _, n := range res.Networks {
 				e.println(n)
 			}
 			return nil

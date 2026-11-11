@@ -27,14 +27,13 @@ CREATE INDEX sessions_sso ON sessions(sso_provider, sso_session) WHERE sso_provi
 CREATE INDEX sessions_user ON sessions(user_id);
 CREATE INDEX sessions_expires ON sessions(expires_at);
 
--- One-time codes sent by e-mail (second factor at sign-in, enabling it).
-CREATE TABLE mfa_codes (
+-- Factors being set up in the profile (state of the MFA plugin, 10 minutes)
+CREATE TABLE mfa_enroll (
     user_id    bigint NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    purpose    text NOT NULL CHECK (purpose IN ('login', 'setup')),
-    code_hash  bytea NOT NULL,
-    attempts   int NOT NULL DEFAULT 0,
+    method     text NOT NULL,
+    state      text NOT NULL,
     expires_at timestamptz NOT NULL,
-    PRIMARY KEY (user_id, purpose)
+    PRIMARY KEY (user_id, method)
 );
 
 CREATE TABLE auth_challenges (
@@ -49,6 +48,9 @@ CREATE TABLE auth_challenges (
 CREATE TABLE mfa_pending (
     token_hash bytea PRIMARY KEY,
     user_id    bigint NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    chain      text NOT NULL,                     -- sign-in provider whose factors apply
+    passed     int NOT NULL DEFAULT 1,            -- factors passed (factor 1 included)
+    last_factor int NOT NULL DEFAULT 1,           -- number of the last factor passed
     sso        jsonb NOT NULL DEFAULT '{}',
     next       text NOT NULL DEFAULT '/',
     data       jsonb NOT NULL DEFAULT '{}',

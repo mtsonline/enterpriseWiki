@@ -1,0 +1,17 @@
+{
+ "mfa.method.totp": "Authenticator-App",
+ "totp.title": "Authenticator-App",
+ "totp.help": "Ein Code einer App wie FreeOTP, Aegis, Google oder Microsoft Authenticator.",
+ "totp.on": "Eingerichtet",
+ "totp.setup": "Authenticator-App einrichten",
+ "totp.step1": "Öffnen Sie Ihre Authenticator-App und fügen Sie ein Konto hinzu.",
+ "totp.step2": "Scannen Sie den Link oder geben Sie diesen Schlüssel ein:",
+ "totp.step3": "Geben Sie den Code ein, den die App anzeigt.",
+ "totp.open_app": "in der App öffnen",
+ "totp.remove": "Authenticator-App entfernen",
+ "totp.remove_confirm": "Authenticator-App entfernen? Ihre Codes gelten dann nicht mehr.",
+ "totp.removed": "Authenticator-App entfernt.",
+ "totp.code": "Code aus der App",
+ "totp.code_help": "6 Ziffern; alle 30 Sekunden ein neuer Code.",
+ "totp.enabled": "Authenticator-App eingerichtet."
+}

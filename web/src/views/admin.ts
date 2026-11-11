@@ -19,19 +19,20 @@ import { toast } from '../core/announce';
 import { button, checkbox, confirmDialog, errorText, field, formDialog, openDialog, pageHeader, select, textArea, textInput } from '../components/ui';
 import { langName, setContext } from '../components/widgets';
 import { previewImageInput } from '../components/previewimage';
-import { listAdminPages, listTemplates, templateLabel } from '../sdk';
+import { listAdminPages, listTemplates, listUserAdminFields, templateLabel } from '../sdk';
 import { errorPage } from './content';
 import { watchesAdmin } from './adminWatches';
 import { languagesAdmin } from './adminLanguages';
 import { sitesAdmin } from './adminSites';
+import { askFactor, mfaAdmin } from './adminMFA';
 
-interface User { id: number; username: string; provider: string; handle: string; display_name: string; email: string; language: string; disabled: boolean; locked_until: string | null; created_at: string; last_login_at: string | null; groups: number[]; roles: number[]; alias: string | null; alias_source: string; mfa: boolean; networks: string[] }
+interface User { id: number; username: string; provider: string; handle: string; display_name: string; email: string; language: string; disabled: boolean; locked_until: string | null; created_at: string; last_login_at: string | null; groups: number[]; roles: number[]; alias: string | null; alias_source: string; mfa: boolean }
 
-const CORE_SECTIONS = ['users', 'scim', 'groups', 'roles', 'permissions', 'elements', 'plugins', 'updates', 'settings', 'mail', 'webhooks', 'cache', 'languages', 'audit', 'watches', 'license', 'sites', 'demo'];
+const CORE_SECTIONS = ['users', 'scim', 'mfa', 'groups', 'roles', 'permissions', 'elements', 'plugins', 'updates', 'settings', 'mail', 'webhooks', 'cache', 'languages', 'audit', 'watches', 'license', 'sites', 'demo'];
 
 /** global permission of each administration page ('' = category managers too) */
 const SECTION_PERMS: Record<string, string> = {
-  users: 'core.users.manage', scim: 'core.users.manage', groups: 'core.groups.manage', roles: 'core.roles.manage', permissions: '',
+  users: 'core.users.manage', scim: 'core.users.manage', mfa: 'core.settings.manage', groups: 'core.groups.manage', roles: 'core.roles.manage', permissions: '',
   elements: 'core.elements.admin', plugins: 'core.plugins.manage', updates: 'core.plugins.manage', settings: 'core.settings.manage',
   mail: 'core.mail.manage', webhooks: 'core.webhooks.manage', cache: 'core.system.manage', languages: 'core.i18n.manage',
   audit: 'core.audit.view', watches: 'core.watches.assign', license: 'core.license.manage',
@@ -86,6 +87,7 @@ export async function adminView({ params, query, main }: RouteCtx): Promise<void
     switch (section) {
       case 'users': await users(panel, query); break;
       case 'scim': await scimAdmin(panel); break;
+      case 'mfa': await mfaAdmin(panel); break;
       case 'groups': await groups(panel); break;
       case 'roles': await roles(panel); break;
       case 'permissions': await permissionsAdmin(panel, query); break;
@@ -178,8 +180,9 @@ function userDialog(u: User | null, gs: Group[], rs: Role[]): void {
   const r = membership(t('admin.roles'), rs, u?.roles ?? []);
   const disabled = checkbox(t('admin.disabled'), u?.disabled ?? false);
   const unlock = checkbox(t('admin.unlock'), false);
-  const resetTotp = checkbox(t('admin.reset_totp'), false, { help: t('admin.reset_totp_help') });
-  const nets = textArea({ value: u?.networks.join('\n') ?? '', rows: 2 });
+  const resetMFA = checkbox(t('admin.reset_mfa'), false, { help: t('admin.reset_mfa_help') });
+  // parts of plugins (e.g. allowed networks)
+  const extra = u ? listUserAdminFields().map((f) => f.render(u.id)) : [];
   const shared = sharedEditable();
   const fields = u && !shared
     ? [h('p', null, h('strong', null, u.handle), ' – ', u.display_name), sharedNotice(), r.el]
@@ -187,8 +190,7 @@ function userDialog(u: User | null, gs: Group[], rs: Role[]): void {
     ? [h('p', null, h('strong', null, u.handle)), field(t('profile.display_name'), display),
       field(t('alias.label'), alias, { help: u.alias_source ? t('alias.managed', { provider: u.alias_source }) : t('alias.help') }), field(t('profile.email'), email),
       u.provider === 'local' ? field(t('admin.new_password'), pw, { help: t('admin.new_password_help') }) : null, g.el, r.el, disabled.el, unlock.el,
-      u.mfa ? resetTotp.el : null,
-      field(t('mfa.networks'), nets, { help: t('mfa.networks_admin_help') })]
+      u.mfa ? resetMFA.el : null, ...extra.map((x) => x.el)]
     : [field(t('auth.username'), username, { required: true }), field(t('profile.display_name'), display), field(t('profile.email'), email),
       field(t('auth.password'), pw, { required: true, help: t('profile.password_rules') }), g.el, r.el];
   formDialog(u ? t('admin.user_edit') : t('admin.user_create'), fields, t('common.save'), async () => {
@@ -196,8 +198,8 @@ function userDialog(u: User | null, gs: Group[], rs: Role[]): void {
       await api.put(`admin/users/${u.id}`, { roles: r.get() });
     } else if (u) {
       if (alias.value.trim() !== (u.alias ?? '')) await api.put(`admin/users/${u.id}/alias`, { alias: alias.value.trim() });
-      await api.put(`admin/users/${u.id}`, { display_name: display.value, email: email.value, groups: g.get(), roles: r.get(), disabled: disabled.input.checked, unlock: unlock.input.checked, password: pw.value || undefined, reset_totp: resetTotp.input.checked,
-        networks: nets.value.split(/[\s,;]+/).filter(Boolean) });
+      await api.put(`admin/users/${u.id}`, { display_name: display.value, email: email.value, groups: g.get(), roles: r.get(), disabled: disabled.input.checked, unlock: unlock.input.checked, password: pw.value || undefined, reset_mfa: resetMFA.input.checked });
+      for (const x of extra) await x.save();
     } else {
       await api.post('admin/users', { username: username.value, password: pw.value, display_name: display.value, email: email.value, groups: g.get(), roles: r.get() });
     }
@@ -352,6 +354,8 @@ async function plugins(panel: HTMLElement): Promise<void> {
   const toggle = async (p: PluginInfo, on: boolean) => {
     try {
       const id = encodeURIComponent(p.id);
+      // a factor of the sign-in: as which factor it is asked
+      if (on && p.kinds.includes('mfa') && !(await askFactor(p.id))) return;
       if (on) await api.post(`admin/plugins/${id}/enable`);
       else await api.post(`admin/plugins/${id}/disable`);
       toast(t(on ? 'plugins.enabled_msg' : 'plugins.disabled_msg', { name: p.name }));
