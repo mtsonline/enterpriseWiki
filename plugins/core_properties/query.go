@@ -93,10 +93,10 @@ type Column struct {
 
 // Group is one group of a grouped query.
 type Group struct {
-	Key    json.RawMessage `json:"key"`
-	Key2   json.RawMessage `json:"key2,omitempty"`
-	Value  float64         `json:"value"`
-	Count  int             `json:"count"`
+	Key   json.RawMessage `json:"key"`
+	Key2  json.RawMessage `json:"key2,omitempty"`
+	Value float64         `json:"value"`
+	Count int             `json:"count"`
 }
 
 // Result of a query.
@@ -130,10 +130,10 @@ func (b *qb) arg(v any) string {
 
 // scope is what a caller may see for a query.
 type scope struct {
-	cats   []int64             // categories of the sources the caller may view
-	defs   map[string][]*Def   // definitions by key (all categories)
-	vis    []int64             // definitions the caller may see
-	hidden map[string]bool     // keys whose every definition is hidden
+	cats   []int64           // categories of the sources the caller may view
+	defs   map[string][]*Def // definitions by key (all categories)
+	vis    []int64           // definitions the caller may see
+	hidden map[string]bool   // keys whose every definition is hidden
 }
 
 func (p *Plugin) scope(ctx context.Context, q *Query) (*scope, error) {

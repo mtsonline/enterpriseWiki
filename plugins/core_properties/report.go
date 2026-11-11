@@ -38,8 +38,8 @@ func (report) Description() map[string]string {
 	return lm("Elements with their properties from several sources: filtered, sorted and grouped as a table, cards, board, calendar, timeline, chart, key figures or pivot table.",
 		"Elemente mit ihren Eigenschaften aus mehreren Quellen: gefiltert, sortiert und gruppiert als Tabelle, Karten, Board, Kalender, Zeitleiste, Diagramm, Kennzahlen oder Pivot-Tabelle.")
 }
-func (report) HasBody() bool    { return false }
-func (report) Toolbar() string  { return "▦" }
+func (report) HasBody() bool   { return false }
+func (report) Toolbar() string { return "▦" }
 func (report) Params() []content.MacroParam {
 	opt := func(list []string) []string { return append([]string{}, list...) }
 	return []content.MacroParam{
