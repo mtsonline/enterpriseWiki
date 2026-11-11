@@ -80,7 +80,12 @@ services:
     ports: ["0.0.0.0:8090:80"]
     extra_hosts: ["wiki.test:host-gateway"]
 EOF
-docker compose up -d --quiet-pull >/dev/null 2>&1 || fail "compose up"
+# pulls fail now and then on the runners (network): up to three tries, the output of the last one is shown
+for try in 1 2 3; do
+  if docker compose up -d --quiet-pull >/tmp/compose-up.log 2>&1; then break; fi
+  [ "$try" = 3 ] && { cat /tmp/compose-up.log; fail "compose up"; }
+  sleep $((try * 20))
+done
 
 wait_for() { # NAME URL PATTERN SECONDS
 	local i

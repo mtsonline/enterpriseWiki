@@ -135,7 +135,8 @@ jobs:
           ./bin/ewiki config get ui.site_name
       - name: install browser
         working-directory: web
-        run: npx playwright install --with-deps chromium
+        # the package mirrors fail now and then: up to three tries
+        run: for try in 1 2 3; do npx playwright install --with-deps chromium && break; [ "$try" = 3 ] && exit 1; sleep $((try * 30)); done
       - name: browser tests
         working-directory: web
         run: npm run test:e2e
@@ -192,7 +193,10 @@ jobs:
         with: { node-version: "26" }
       - name: install browser tooling
         working-directory: web
-        run: npm ci --no-audit --no-fund && npx playwright install --with-deps chromium
+        # the package mirrors fail now and then: up to three tries
+        run: |
+          npm ci --no-audit --no-fund
+          for try in 1 2 3; do npx playwright install --with-deps chromium && break; [ "$try" = 3 ] && exit 1; sleep $((try * 30)); done
       - name: open, edit and save documents in both office servers
         run: |
           # the test host names (browser and test client)
