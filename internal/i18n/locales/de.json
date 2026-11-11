@@ -1897,5 +1897,14 @@
  "space.logo_help": "Bild aus dem Wiki (hochladen oder Adresse /api/v1/files/… bzw. /api/v1/media/…); erscheint in der Navigation und im Verzeichnis.",
  "space.accent_use": "Eigene Akzentfarbe",
  "space.accent": "Akzentfarbe",
- "space.accent_help": "Farbe für Links und Knöpfe im Bereich. Sie muss mit Weiß einen Kontrast von mindestens 4,5:1 haben (WCAG); zu helle Farben werden abgelehnt."
+ "space.accent_help": "Farbe für Links und Knöpfe im Bereich. Sie muss mit Weiß einen Kontrast von mindestens 4,5:1 haben (WCAG); zu helle Farben werden abgelehnt.",
+ "protect.inherit": "Wie darüber",
+ "protect.wm": "Wasserzeichen für Dateien",
+ "protect.wm_auto": "Automatisch: ab „Vertraulich“ mit Name und Zeit",
+ "protect.wm_off": "Aus: immer das Original zeigen",
+ "protect.wm_help": "Gilt für Bilder und PDFs der Medienbibliothek und Bilder in Seiten dieser Kategorie und darunter (die nächste Einstellung darüber zählt).",
+ "protect.dl": "Herunterladen von Dateien",
+ "protect.dl_auto": "Automatisch: bei „Streng vertraulich“ nur ansehen",
+ "protect.dl_allow": "Erlaubt: Original herunterladen",
+ "protect.dl_help": "Gilt für Medien und Datei-Elemente. Mit Verwaltungsrecht ist das Herunterladen immer möglich."
 }

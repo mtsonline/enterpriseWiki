@@ -1181,3 +1181,90 @@ func TestReportSubscriptions(t *testing.T) {
 	}
 	sue.must("DELETE", fmt.Sprintf("/api/v1/x/core.properties/subscriptions/%d", sub.ID), nil, nil, 204)
 }
+
+// TestProtectionOptions: the original instead of watermarks and blocked
+// downloads, and formulas in downloads, when chosen.
+func TestProtectionOptions(t *testing.T) {
+	e := setup(t)
+	admin := e.client()
+	admin.login("admin", adminPW)
+	var folder, sub cat
+	admin.must("POST", "/api/v1/categories", map[string]any{"titles": map[string]string{"en": "Design"}}, &folder, 201)
+	admin.must("POST", "/api/v1/categories", map[string]any{"parent_id": folder.ID, "titles": map[string]string{"en": "Drafts"}}, &sub, 201)
+	var bob struct {
+		ID int64 `json:"id"`
+	}
+	admin.must("POST", "/api/v1/admin/users", map[string]any{"username": "bob", "password": "Bob-Passw0rd!x", "display_name": "Bob"}, &bob, 201)
+	admin.must("POST", fmt.Sprintf("/api/v1/categories/%d/acl", folder.ID), map[string]any{"subject_type": "user", "subject_id": bob.ID, "permissions": 1, "inherit": true}, nil, 201)
+	bc := e.client()
+	bc.login("bob", "Bob-Passw0rd!x")
+	_, img := admin.uploadMedium(t, "/api/v1/media", map[string]any{"category_id": sub.ID, "title": "Logo", "alt": "Logo"}, "logo.png", testPNG(120, 80))
+	_, orig, _ := admin.fetch(t, fmt.Sprintf("/api/v1/media/%d/download", img.ID))
+	admin.must("PUT", fmt.Sprintf("/api/v1/categories/%d", folder.ID), map[string]any{"classification": 3}, nil, 200)
+	if code := admin.do("PUT", fmt.Sprintf("/api/v1/categories/%d", folder.ID), map[string]any{"watermark": "maybe"}, nil); code != 400 {
+		t.Fatalf("invalid watermark setting: %d", code)
+	}
+	if _, marked, _ := bc.fetch(t, fmt.Sprintf("/api/v1/media/%d/view", img.ID)); bytes.Equal(marked, orig) {
+		t.Fatal("no watermark by default")
+	}
+	if c, _, _ := bc.fetch(t, fmt.Sprintf("/api/v1/media/%d/download", img.ID)); c != 403 {
+		t.Fatalf("download by default: %d", c)
+	}
+	// the original: set on the space, applies below
+	var cv struct {
+		Watermark *string `json:"watermark"`
+	}
+	admin.must("PUT", fmt.Sprintf("/api/v1/categories/%d", folder.ID), map[string]any{"watermark": "off", "downloads": "allow"}, &cv, 200)
+	if cv.Watermark == nil || *cv.Watermark != "off" {
+		t.Fatalf("setting: %+v", cv)
+	}
+	if c, plain, _ := bc.fetch(t, fmt.Sprintf("/api/v1/media/%d/view", img.ID)); c != 200 || !bytes.Equal(plain, orig) {
+		t.Fatalf("original view: %d", c)
+	}
+	if c, _, _ := bc.fetch(t, fmt.Sprintf("/api/v1/media/%d/download", img.ID)); c != 200 {
+		t.Fatalf("original download: %d", c)
+	}
+	// a subcategory can switch protection on again
+	admin.must("PUT", fmt.Sprintf("/api/v1/categories/%d", sub.ID), map[string]any{"watermark": "auto", "downloads": "auto"}, nil, 200)
+	if c, _, _ := bc.fetch(t, fmt.Sprintf("/api/v1/media/%d/download", img.ID)); c != 403 {
+		t.Fatalf("protection below: %d", c)
+	}
+	admin.must("PUT", fmt.Sprintf("/api/v1/categories/%d", sub.ID), map[string]any{"watermark": "", "downloads": ""}, nil, 200)
+	if c, _, _ := bc.fetch(t, fmt.Sprintf("/api/v1/media/%d/download", img.ID)); c != 200 {
+		t.Fatalf("as above again: %d", c)
+	}
+
+	// downloads of reports: safe by default, formulas only when chosen
+	admin.must("POST", "/api/v1/elements", map[string]any{"category_id": sub.ID, "type": "core.html", "title": "=1+1", "body": htmlBody("<p>a</p>")}, nil, 201)
+	admin.must("PUT", fmt.Sprintf("/api/v1/categories/%d", folder.ID), map[string]any{"classification": 0}, nil, 200)
+	q := func(mode string) string {
+		return `{"sources":[{"kind":"category","id":` + fmt.Sprint(sub.ID) + `}],"export_mode":"` + mode + `"}`
+	}
+	sheet := func(x string) string {
+		z, err := zip.NewReader(strings.NewReader(x), int64(len(x)))
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, f := range z.File {
+			if f.Name == "xl/worksheets/sheet1.xml" {
+				r, _ := f.Open()
+				b, _ := io.ReadAll(r)
+				return string(b)
+			}
+		}
+		return ""
+	}
+	_, x := admin.rawBody("POST", "/api/v1/x/core.properties/query.xlsx", q("safe"))
+	if s := sheet(x); strings.Contains(s, "<f>") || !strings.Contains(s, "=1+1") {
+		t.Fatalf("safe sheet: %s", s)
+	}
+	_, x = admin.rawBody("POST", "/api/v1/x/core.properties/query.xlsx", q("original"))
+	if s := sheet(x); !strings.Contains(s, "<f>1+1</f>") {
+		t.Fatalf("original sheet: %s", s)
+	}
+	_, c1 := admin.rawBody("POST", "/api/v1/x/core.properties/query.csv", q("safe"))
+	_, c2 := admin.rawBody("POST", "/api/v1/x/core.properties/query.csv", q("original"))
+	if !strings.Contains(c1, "'=1+1") || strings.Contains(c2, "'=1+1") || !strings.Contains(c2, "=1+1") {
+		t.Fatalf("csv: %q / %q", c1, c2)
+	}
+}

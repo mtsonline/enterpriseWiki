@@ -79,7 +79,7 @@ func (p *Plugin) Setup(host *sdk.Host) error {
 			return nil, apperr.NotFound("file")
 		}
 		// strictly confidential: no downloads without the permission to manage
-		if host.ACL.Classification(ctx, view.CategoryID) >= acl.StrictConfidential && !host.ACL.Can(ctx, identity.From(ctx), view.CategoryID, acl.Manage) {
+		if _, noDL := host.ACL.FileProtection(ctx, view.CategoryID); noDL && !host.ACL.Can(ctx, identity.From(ctx), view.CategoryID, acl.Manage) {
 			return nil, apperr.Forbidden("strictly confidential files cannot be downloaded")
 		}
 		hash := r.URL.Query().Get("hash")

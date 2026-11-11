@@ -15,5 +15,9 @@
  "content.propdb.new_category_help": "Empty: the category of the database.",
  "content.propdb.same_category": "(the category of the database)",
  "content.propdb.intro": "Introduction (Markdown)",
- "content.propdb.intro_help": "Shown above the database."
+ "content.propdb.intro_help": "Shown above the database.",
+ "content.propdb.export_mode": "Downloads (CSV/Excel)",
+ "content.propdb.export_safe": "Safe: values starting with = stay text",
+ "content.propdb.export_original": "Original: such values become formulas",
+ "content.propdb.export_mode_help": "“Safe” protects against formulas that run unexpectedly when the file is opened in Excel. Choose “Original” only for trusted content."
 }

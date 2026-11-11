@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"github.com/mtsonline/enterprisewiki/internal/acl"
 	"image"
 	"image/jpeg"
 	"os"
@@ -114,7 +113,7 @@ func (s *Service) Deliver(ctx context.Context, id int64, in DeliverInput) (*Deli
 	mode, spec := m.Watermark.Mode, m.Watermark
 	// confidential and above: the viewer's name and the time on every picture and PDF page
 	if (mode == "" || mode == WMNone || mode == WMUploaderView) && (mime == "application/pdf" || editable(mime)) &&
-		s.acl.Classification(ctx, m.CategoryID) >= acl.Confidential {
+		s.marked(ctx, m.CategoryID) {
 		mode = WMViewerAll
 		spec = WatermarkSpec{Mode: mode, User: true, Date: true, Comment: spec.Comment}
 	}
@@ -437,4 +436,10 @@ func imagesToPDF(pages [][]byte, sizes [][2]int, dpi int) []byte {
 	}
 	fmt.Fprintf(&b, "trailer\n<< /Size %d /Root 1 0 R >>\nstartxref\n%d\n%%%%EOF\n", len(offsets)+1, xref)
 	return b.Bytes()
+}
+
+// marked reports whether files of a category get the viewer's watermark.
+func (s *Service) marked(ctx context.Context, categoryID int64) bool {
+	wm, _ := s.acl.FileProtection(ctx, categoryID)
+	return wm
 }

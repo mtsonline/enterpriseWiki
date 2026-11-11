@@ -33,6 +33,20 @@ func TestWrite(t *testing.T) {
 	if strings.Contains(sheet, "<f>") {
 		t.Error("formula written")
 	}
+	buf.Reset()
+	if err := Write(&buf, "x", []string{"a"}, [][]Cell{{Formula("SUM(1,2)")}}); err != nil {
+		t.Fatal(err)
+	}
+	z, _ = zip.NewReader(bytes.NewReader(buf.Bytes()), int64(buf.Len()))
+	for _, f := range z.File {
+		if f.Name == "xl/worksheets/sheet1.xml" {
+			r, _ := f.Open()
+			b, _ := io.ReadAll(r)
+			if !strings.Contains(string(b), "<f>SUM(1,2)</f>") {
+				t.Errorf("formula: %s", b)
+			}
+		}
+	}
 	if !strings.Contains(files["xl/workbook.xml"], `name="Report   1 "`) {
 		t.Errorf("sheet name: %s", files["xl/workbook.xml"])
 	}

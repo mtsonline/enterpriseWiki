@@ -1,7 +1,7 @@
 // Package xlsx writes simple spreadsheets (one sheet, a bold header row,
-// text and number cells) in the Office Open XML format – without
-// dependencies. Text is always written as text (no formulas), so cells
-// starting with "=" are never evaluated.
+// text, number and formula cells) in the Office Open XML format – without
+// dependencies. Text is always written as text, so cells starting with "="
+// are only evaluated when the caller explicitly makes them formulas.
 package xlsx
 
 import (
@@ -14,11 +14,15 @@ import (
 	"unicode/utf8"
 )
 
-// Cell is a text or a number.
+// Cell is a text, a number or (only when asked for) a formula.
 type Cell struct {
-	Text   string
-	Number *float64
+	Text    string
+	Number  *float64
+	Formula string // without the leading "="
 }
+
+// Formula returns a formula cell (spreadsheets calculate it when opened).
+func Formula(f string) Cell { return Cell{Formula: f} }
 
 // Text returns a text cell.
 func Text(s string) Cell { return Cell{Text: s} }
@@ -73,7 +77,9 @@ func Write(w io.Writer, sheet string, header []string, rows [][]Cell) error {
 		fmt.Fprintf(&b, `<row r="%d">`, r+2)
 		for i, c := range row {
 			ref := col(i) + strconv.Itoa(r+2)
-			if c.Number != nil {
+			if c.Formula != "" {
+				fmt.Fprintf(&b, `<c r="%s"><f>%s</f></c>`, ref, esc(clip(c.Formula)))
+			} else if c.Number != nil {
 				fmt.Fprintf(&b, `<c r="%s"><v>%s</v></c>`, ref, strconv.FormatFloat(*c.Number, 'g', -1, 64))
 			} else if c.Text != "" {
 				fmt.Fprintf(&b, `<c r="%s" t="inlineStr"><is><t xml:space="preserve">%s</t></is></c>`, ref, esc(clip(c.Text)))

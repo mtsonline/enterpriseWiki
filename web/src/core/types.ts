@@ -98,6 +98,9 @@ export interface Category {
   /** classification set here (null = as above) and the one that applies: 0 public … 3 strictly confidential */
   classification?: number | null;
   effective_classification?: number;
+  /** files: watermark (auto|off) and downloads (auto|allow) set here (null = as above) */
+  watermark?: string | null;
+  downloads?: string | null;
 }
 
 /** A space: a top-level category with settings for its whole subtree. */

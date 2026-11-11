@@ -132,6 +132,8 @@ CREATE TABLE categories (
     space              jsonb NOT NULL DEFAULT '{}',    -- top level: settings of the space (see content.Space)
     archived_at        timestamptz,                    -- archived: read-only for everybody, out of navigation and search
     classification     smallint CHECK (classification BETWEEN 0 AND 3), -- 0 public, 1 internal, 2 confidential, 3 strictly confidential; NULL = as above (the strictest above applies)
+    watermark          text CHECK (watermark IN ('auto', 'off')),     -- files of confidential content: 'auto' viewer watermark, 'off' original; NULL = as above
+    downloads          text CHECK (downloads IN ('auto', 'allow')),   -- strictly confidential files: 'auto' no download, 'allow' original download; NULL = as above
     -- translations of title and description (like elements): the original
     -- language, its revision (incremented when its texts change) and the
     -- revision of the original each translation is based on

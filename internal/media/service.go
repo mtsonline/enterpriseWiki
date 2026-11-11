@@ -298,7 +298,7 @@ func (s *Service) Perms(ctx context.Context, m *Medium) (Perm, error) {
 		out &^= Download
 	}
 	// strictly confidential: shown only (with the viewer's name), no downloads
-	if out&Manage == 0 && s.acl.Classification(ctx, m.CategoryID) >= acl.StrictConfidential {
+	if _, noDL := s.acl.FileProtection(ctx, m.CategoryID); out&Manage == 0 && noDL {
 		out &^= Download
 	}
 	return out, nil
@@ -998,7 +998,7 @@ func (s *Service) HashVisible(ctx context.Context, hash string) bool {
 		}
 		// a file with a watermark for viewers or no download is never served raw
 		if m.Watermark.Mode == WMViewerView || m.Watermark.Mode == WMViewerAll || m.Watermark.Mode == WMUploaderView ||
-			s.acl.Classification(ctx, m.CategoryID) >= acl.Confidential { // confidential: watermarked by Deliver
+			s.marked(ctx, m.CategoryID) { // confidential: watermarked by Deliver
 			if perms&Manage == 0 {
 				continue
 			}

@@ -15,5 +15,9 @@
  "content.propdb.new_category_help": "Leer: die Kategorie der Datenbank.",
  "content.propdb.same_category": "(die Kategorie der Datenbank)",
  "content.propdb.intro": "Einleitung (Markdown)",
- "content.propdb.intro_help": "Wird über der Datenbank angezeigt."
+ "content.propdb.intro_help": "Wird über der Datenbank angezeigt.",
+ "content.propdb.export_mode": "Downloads (CSV/Excel)",
+ "content.propdb.export_safe": "Sicher: Werte mit = am Anfang bleiben Text",
+ "content.propdb.export_original": "Original: solche Werte werden zu Formeln",
+ "content.propdb.export_mode_help": "„Sicher“ schützt vor Formeln, die beim Öffnen in Excel unerwartet etwas ausführen. „Original“ nur wählen, wenn die Inhalte vertrauenswürdig sind."
 }

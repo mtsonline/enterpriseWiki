@@ -1847,5 +1847,14 @@
  "space.logo_help": "Picture of the wiki (upload or address /api/v1/files/… or /api/v1/media/…); shown in the navigation and the directory.",
  "space.accent_use": "Own accent color",
  "space.accent": "Accent color",
- "space.accent_help": "Color of links and buttons in the space. It needs a contrast of at least 4.5:1 with white (WCAG); too light colors are refused."
+ "space.accent_help": "Color of links and buttons in the space. It needs a contrast of at least 4.5:1 with white (WCAG); too light colors are refused.",
+ "protect.inherit": "As above",
+ "protect.wm": "Watermark of files",
+ "protect.wm_auto": "Automatic: from “Confidential” with name and time",
+ "protect.wm_off": "Off: always show the original",
+ "protect.wm_help": "Applies to pictures and PDFs of the media library and pictures in pages of this category and below (the nearest setting above counts).",
+ "protect.dl": "Downloading files",
+ "protect.dl_auto": "Automatic: “Strictly confidential” view only",
+ "protect.dl_allow": "Allowed: download the original",
+ "protect.dl_help": "Applies to media and file elements. With the permission to manage, downloading is always possible."
 }

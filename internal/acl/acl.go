@@ -75,6 +75,8 @@ type snapshot struct {
 	deleted   map[int64]bool
 	archived  map[int64]bool // archived categories: read-only below them
 	class     map[int64]int  // classification set on a category (strictest above applies)
+	watermark map[int64]string
+	downloads map[int64]string
 	rules     map[int64][]Rule
 }
 
@@ -107,8 +109,8 @@ func (s *Service) load(ctx context.Context) (*snapshot, error) {
 	if sn := s.snap.Load(); sn != nil {
 		return sn, nil
 	}
-	sn := &snapshot{ancestors: map[int64][]int64{}, deleted: map[int64]bool{}, archived: map[int64]bool{}, class: map[int64]int{}, rules: map[int64][]Rule{}}
-	rows, err := s.pool.Query(ctx, `SELECT id, path::text, deleted_at IS NOT NULL, archived_at IS NOT NULL, COALESCE(classification, 0) FROM categories`)
+	sn := &snapshot{ancestors: map[int64][]int64{}, deleted: map[int64]bool{}, archived: map[int64]bool{}, class: map[int64]int{}, watermark: map[int64]string{}, downloads: map[int64]string{}, rules: map[int64][]Rule{}}
+	rows, err := s.pool.Query(ctx, `SELECT id, path::text, deleted_at IS NOT NULL, archived_at IS NOT NULL, COALESCE(classification, 0), COALESCE(watermark, ''), COALESCE(downloads, '') FROM categories`)
 	if err != nil {
 		return nil, err
 	}
@@ -117,7 +119,8 @@ func (s *Service) load(ctx context.Context) (*snapshot, error) {
 		var path string
 		var del, arch bool
 		var class int
-		if err := rows.Scan(&id, &path, &del, &arch, &class); err != nil {
+		var wm, dl string
+		if err := rows.Scan(&id, &path, &del, &arch, &class, &wm, &dl); err != nil {
 			rows.Close()
 			return nil, err
 		}
@@ -136,6 +139,12 @@ func (s *Service) load(ctx context.Context) (*snapshot, error) {
 		}
 		if class > 0 {
 			sn.class[id] = class
+		}
+		if wm != "" {
+			sn.watermark[id] = wm
+		}
+		if dl != "" {
+			sn.downloads[id] = dl
 		}
 	}
 	rows.Close()
@@ -187,6 +196,30 @@ func (s *Service) Classification(ctx context.Context, categoryID int64) int {
 		return StrictConfidential // fail closed
 	}
 	return sn.level(sn.ancestors[categoryID])
+}
+
+// nearest returns the setting on the category or the nearest one above.
+func nearest(m map[int64]string, anc []int64) string {
+	for i := len(anc) - 1; i >= 0; i-- {
+		if v, ok := m[anc[i]]; ok {
+			return v
+		}
+	}
+	return ""
+}
+
+// FileProtection says how files of a category are delivered: with the
+// viewer's watermark (confidential and above, unless switched to the
+// original) and whether downloads are blocked (strictly confidential,
+// unless downloads are allowed).
+func (s *Service) FileProtection(ctx context.Context, categoryID int64) (watermark, noDownload bool) {
+	sn, err := s.load(ctx)
+	if err != nil {
+		return true, true // fail closed
+	}
+	anc := sn.ancestors[categoryID]
+	l := sn.level(anc)
+	return l >= Confidential && nearest(sn.watermark, anc) != "off", l >= StrictConfidential && nearest(sn.downloads, anc) != "allow"
 }
 
 func (sn *snapshot) isArchived(anc []int64) bool {

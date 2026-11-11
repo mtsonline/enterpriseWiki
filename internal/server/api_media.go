@@ -276,17 +276,23 @@ func (s *Server) fileVisible(r *http.Request, hash string) (bool, int) {
 		rows.Close()
 		s.legacy.put(s.app.Site+"|"+hash, cats)
 	}
-	visible, level := false, acl.StrictConfidential
+	// watermarked only when every place the caller sees it from asks for it
+	visible, marked := false, true
 	for _, c := range cats {
 		if s.app.ACL.Can(ctx, p, c, acl.View) {
 			visible = true
-			level = min(level, s.app.ACL.Classification(ctx, c))
+			if wm, _ := s.app.ACL.FileProtection(ctx, c); !wm {
+				marked = false
+			}
 		}
 	}
 	if !visible {
 		return false, 0
 	}
-	return true, level
+	if marked {
+		return true, acl.Confidential
+	}
+	return true, 0
 }
 
 // profilePhoto reports whether hash is a profile photo the caller may see

@@ -72,6 +72,9 @@ type Config struct {
 	NewType     string `json:"new_type"`
 	NewCategory int64  `json:"new_category"`
 	PerPage     int    `json:"per_page"`
+	// ExportMode of downloads: safe (default: values starting with = stay
+	// text) or original (they become formulas)
+	ExportMode string `json:"export_mode"`
 }
 
 var keyRe = func(s string) bool {
@@ -147,6 +150,9 @@ func decode(raw []byte) (*Config, error) {
 	if c.PerPage <= 0 || c.PerPage > 500 {
 		c.PerPage = 50
 	}
+	if c.ExportMode != "original" {
+		c.ExportMode = "safe"
+	}
 	if c.NewCategory < 0 {
 		c.NewCategory = 0
 	}
@@ -193,7 +199,7 @@ func (Type) Labels() map[string]string {
 
 // EmptyBody implements content.ElementType.
 func (Type) EmptyBody() json.RawMessage {
-	return json.RawMessage(`{"intro":{"format":"markdown","source":""},"source":"","filter":"","columns_text":"","sort_text":"","sources":[],"filters":[],"columns":[],"sort":[],"view":"table","group":"","date":"","new_type":"core.html","new_category":0,"per_page":50}`)
+	return json.RawMessage(`{"intro":{"format":"markdown","source":""},"source":"","filter":"","columns_text":"","sort_text":"","sources":[],"filters":[],"columns":[],"sort":[],"view":"table","group":"","date":"","new_type":"core.html","new_category":0,"per_page":50,"export_mode":"safe"}`)
 }
 
 // Normalize implements content.ElementType.

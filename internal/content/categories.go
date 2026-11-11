@@ -48,14 +48,17 @@ type Category struct {
 	// Classification set here (nil = as above); EffectiveClassification is
 	// the strictest on it or above: 0 public, 1 internal, 2 confidential,
 	// 3 strictly confidential
-	Classification          *int       `json:"classification"`
-	EffectiveClassification int        `json:"effective_classification"`
-	CreatedAt               time.Time  `json:"created_at"`
-	UpdatedAt               time.Time  `json:"updated_at"`
-	DeletedAt               *time.Time `json:"deleted_at,omitempty"`
-	HasChildren             bool       `json:"has_children"`
-	ElementCount            int        `json:"element_count"`
-	Permissions             []string   `json:"permissions"`
+	Classification          *int `json:"classification"`
+	EffectiveClassification int  `json:"effective_classification"`
+	// Watermark (auto|off) and Downloads (auto|allow) of files set here (nil = as above)
+	Watermark    *string    `json:"watermark"`
+	Downloads    *string    `json:"downloads"`
+	CreatedAt    time.Time  `json:"created_at"`
+	UpdatedAt    time.Time  `json:"updated_at"`
+	DeletedAt    *time.Time `json:"deleted_at,omitempty"`
+	HasChildren  bool       `json:"has_children"`
+	ElementCount int        `json:"element_count"`
+	Permissions  []string   `json:"permissions"`
 	// translations of title and description (see cattrans.go)
 	OriginalLang         string            `json:"original_lang"`
 	TextRev              int               `json:"text_rev"`
@@ -73,14 +76,14 @@ const catCols = `c.id, c.parent_id, c.path::text, c.position, c.slug, c.titles, 
 	(SELECT count(*) FROM elements e WHERE e.category_id=c.id AND e.deleted_at IS NULL),
 	c.original_lang, c.text_rev, c.translation_revs, c.short_only, c.hidden, c.template, COALESCE(c.space_key, ''), c.archived_at,
 	EXISTS (SELECT 1 FROM categories a WHERE a.path @> c.path AND a.archived_at IS NOT NULL),
-	c.classification, (SELECT COALESCE(max(a.classification), 0) FROM categories a WHERE a.path @> c.path),
+	c.classification, (SELECT COALESCE(max(a.classification), 0) FROM categories a WHERE a.path @> c.path), c.watermark, c.downloads,
 	COALESCE((SELECT t.template FROM categories t WHERE t.path @> c.path AND t.template <> '' ORDER BY nlevel(t.path) DESC LIMIT 1), '')`
 
 func scanCategory(r pgx.CollectableRow) (Category, error) {
 	var c Category
 	var path string
 	err := r.Scan(&c.ID, &c.ParentID, &path, &c.Position, &c.Slug, &c.Titles, &c.Descriptions, &c.Tags, &c.DefaultElementID, &c.Feed, &c.ShortURL,
-		&c.CreatedAt, &c.UpdatedAt, &c.DeletedAt, &c.HasChildren, &c.ElementCount, &c.OriginalLang, &c.TextRev, &c.TranslationRevs, &c.ShortOnly, &c.Hidden, &c.Template, &c.SpaceKey, &c.ArchivedAt, &c.Archived, &c.Classification, &c.EffectiveClassification, &c.EffectiveTemplate)
+		&c.CreatedAt, &c.UpdatedAt, &c.DeletedAt, &c.HasChildren, &c.ElementCount, &c.OriginalLang, &c.TextRev, &c.TranslationRevs, &c.ShortOnly, &c.Hidden, &c.Template, &c.SpaceKey, &c.ArchivedAt, &c.Archived, &c.Classification, &c.EffectiveClassification, &c.Watermark, &c.Downloads, &c.EffectiveTemplate)
 	c.Path = parsePath(path)
 	return c, err
 }
@@ -323,6 +326,11 @@ type CategoryInput struct {
 	Template *string `json:"template"`
 	// Classification 0–3; -1 = as above (only a stricter one than above has an effect)
 	Classification *int `json:"classification"`
+	// Watermark: auto (viewer's name on files of confidential content) or off
+	// (original); Downloads: auto (none for strictly confidential) or allow;
+	// "" = as above
+	Watermark *string `json:"watermark"`
+	Downloads *string `json:"downloads"`
 	// GuestVisible applies to new top-level categories: true makes them
 	// visible to guests (default: only the creator has permissions).
 	GuestVisible *bool `json:"guest_visible"`
@@ -490,6 +498,12 @@ func (s *Service) UpdateCategory(ctx context.Context, id int64, in CategoryInput
 	if in.Classification != nil && (*in.Classification < -1 || *in.Classification > 3) {
 		return nil, apperr.BadRequest("classification: -1 (as above) or 0–3")
 	}
+	if in.Watermark != nil && *in.Watermark != "" && *in.Watermark != "auto" && *in.Watermark != "off" {
+		return nil, apperr.BadRequest("watermark: auto, off or empty (as above)")
+	}
+	if in.Downloads != nil && *in.Downloads != "" && *in.Downloads != "auto" && *in.Downloads != "allow" {
+		return nil, apperr.BadRequest("downloads: auto, allow or empty (as above)")
+	}
 	before, err := s.loadCategory(ctx, s.pool, id, false)
 	if err != nil {
 		return nil, err
@@ -579,6 +593,29 @@ func (s *Service) UpdateCategory(ctx context.Context, id int64, in CategoryInput
 			if _, err := tx.Exec(ctx, `UPDATE categories SET hidden=$2 WHERE id=$1`, id, *in.Hidden); err != nil {
 				return err
 			}
+		}
+		for _, x := range []struct {
+			col string
+			in  *string
+			old *string
+		}{{"watermark", in.Watermark, before.Watermark}, {"downloads", in.Downloads, before.Downloads}} {
+			if x.in == nil {
+				continue
+			}
+			var v *string
+			if *x.in != "" {
+				v = x.in
+			}
+			if (v == nil) == (x.old == nil) && (v == nil || *v == *x.old) {
+				continue
+			}
+			if _, err := tx.Exec(ctx, `UPDATE categories SET `+x.col+`=$2 WHERE id=$1`, id, v); err != nil {
+				return err
+			}
+			if err := audit.Log(ctx, tx, "category."+x.col, "category", id, map[string]any{x.col: x.old}, map[string]any{x.col: v}); err != nil {
+				return err
+			}
+			classChanged = true
 		}
 		if in.Classification != nil {
 			var v *int

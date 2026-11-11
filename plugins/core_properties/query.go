@@ -976,7 +976,8 @@ func (p *Plugin) routesQuery() {
 			}
 			q := &Query{}
 			var probe struct {
-				Params map[string]string `json:"params"`
+				Params     map[string]string `json:"params"`
+				ExportMode string            `json:"export_mode"`
 			}
 			_ = json.Unmarshal(raw, &probe)
 			if probe.Params != nil {
@@ -998,6 +999,10 @@ func (p *Plugin) routesQuery() {
 				h.WriteError(w, r, apperr.BadRequest("invalid query"))
 				return
 			}
+			// safe (default): no formulas, CSV cells protected against formula
+			// injection; original: values as they are (chosen when creating the
+			// report or database)
+			original := probe.ExportMode == "original" || probe.Params["export_mode"] == "original"
 			q.Group, q.Group2, q.Limit, q.Offset = "", "", maxRows, 0
 			res, err := p.Run(r.Context(), q)
 			if err != nil {
@@ -1017,14 +1022,20 @@ func (p *Plugin) routesQuery() {
 			if format == "xlsx" {
 				out := make([][]xlsx.Cell, 0, len(rows))
 				for _, row := range rows {
-					rec := []xlsx.Cell{xlsx.Num(float64(row.ID)), xlsx.Text(row.Title), xlsx.Text(row.Link)}
+					text := func(v string) xlsx.Cell {
+						if original && len(v) > 1 && v[0] == '=' {
+							return xlsx.Formula(v[1:])
+						}
+						return xlsx.Text(v)
+					}
+					rec := []xlsx.Cell{xlsx.Num(float64(row.ID)), text(row.Title), xlsx.Text(row.Link)}
 					for _, c := range res.Columns {
 						raw := builtinValue(row, c.Key)
 						var f float64
 						if t, ok := TypeByID(c.Type); ok && t.Group == "number" && json.Unmarshal(raw, &f) == nil {
 							rec = append(rec, xlsx.Num(f))
 						} else {
-							rec = append(rec, xlsx.Text(plain(raw, c.Type, res.Refs)))
+							rec = append(rec, text(plain(raw, c.Type, res.Refs)))
 						}
 					}
 					out = append(out, rec)
@@ -1038,14 +1049,18 @@ func (p *Plugin) routesQuery() {
 			w.Header().Set("Content-Disposition", `attachment; filename="properties.csv"`)
 			_, _ = w.Write([]byte("\xef\xbb\xbf"))
 			cw := csv.NewWriter(w)
+			safe := csvSafe
+			if original {
+				safe = func(s string) string { return s }
+			}
 			for i := range head {
-				head[i] = csvSafe(head[i])
+				head[i] = safe(head[i])
 			}
 			_ = cw.Write(head)
 			for _, row := range rows {
-				rec := []string{strconv.FormatInt(row.ID, 10), csvSafe(row.Title), row.Link}
+				rec := []string{strconv.FormatInt(row.ID, 10), safe(row.Title), row.Link}
 				for _, c := range res.Columns {
-					rec = append(rec, csvSafe(plain(builtinValue(row, c.Key), c.Type, res.Refs)))
+					rec = append(rec, safe(plain(builtinValue(row, c.Key), c.Type, res.Refs)))
 				}
 				_ = cw.Write(rec)
 			}

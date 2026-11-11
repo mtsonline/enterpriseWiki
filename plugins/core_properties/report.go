@@ -73,6 +73,9 @@ func (report) Params() []content.MacroParam {
 		{Name: "sort", Labels: lm("Sort by (- before a key: descending)", "Sortieren nach (- vor dem Schlüssel: absteigend)"), Type: "custom:properties.sort"},
 		{Name: "group", Labels: lm("Group by (board columns, chart categories, pivot rows)", "Gruppieren nach (Board-Spalten, Diagramm-Kategorien, Pivot-Zeilen)"), Type: "custom:properties.key"},
 		{Name: "group2", Labels: lm("Second grouping (series of stacked charts, pivot columns)", "Zweite Gruppierung (Reihen gestapelter Diagramme, Pivot-Spalten)"), Type: "custom:properties.key"},
+		{Name: "export_mode", Labels: lm("Downloads (CSV/Excel)", "Downloads (CSV/Excel)"), Type: "select", Options: []string{"safe", "original"}, Default: "safe",
+			OptionLabels: map[string]map[string]string{"safe": lm("Safe: values starting with = stay text", "Sicher: Werte mit = am Anfang bleiben Text"),
+				"original": lm("Original: such values become formulas", "Original: solche Werte werden zu Formeln")}},
 		{Name: "weeks", Labels: lm("Trend: number of weeks", "Verlauf: Anzahl Wochen"), Type: "number", Default: "12"},
 		{Name: "bucket", Labels: lm("Dates grouped by", "Datumswerte zusammenfassen nach"), Type: "select", Options: []string{"day", "week", "month", "quarter", "year"}, OptionLabels: labelsFor([]string{"day", "week", "month", "quarter", "year"}), Default: "month"},
 		{Name: "agg", Labels: lm("Value", "Wert"), Type: "select", Options: []string{"count", "sum", "avg", "min", "max"}, OptionLabels: labelsFor([]string{"count", "sum", "avg", "min", "max"}), Default: "count"},
@@ -81,7 +84,7 @@ func (report) Params() []content.MacroParam {
 		{Name: "date", Labels: lm("Date property (calendar, timeline, overdue)", "Datums-Eigenschaft (Kalender, Zeitleiste, überfällig)"), Type: "custom:properties.key"},
 		{Name: "live_filters", Labels: lm("Filters for readers (properties)", "Filter für Lesende (Eigenschaften)"), Type: "custom:properties.columns"},
 		{Name: "totals", Labels: lm("Show totals", "Summen anzeigen"), Type: "bool"},
-		{Name: "export", Labels: lm("Offer CSV download", "CSV-Download anbieten"), Type: "bool", Default: "true"},
+		{Name: "export", Labels: lm("Offer downloads (CSV, Excel)", "Downloads anbieten (CSV, Excel)"), Type: "bool", Default: "true"},
 		{Name: "limit", Labels: lm("Maximum number of elements", "Höchstzahl der Elemente"), Type: "number", Default: "100"},
 		{Name: "title", Labels: lm("Heading (also the name for screen readers)", "Überschrift (auch der Name für Screenreader)"), Type: "text"},
 	}

@@ -75,6 +75,9 @@ function general(panel: HTMLElement, c: Category, elements: ElementSummary[]): v
   const eff = c.effective_classification ?? 0;
   const cls = select([{ value: '-1', label: c.classification == null ? t('class.inherit', { level: t(`class.level.${eff}`) }) : t('class.inherit_plain') },
     ...[0, 1, 2, 3].map((l) => ({ value: String(l), label: t(`class.level.${l}`) }))], c.classification == null ? '-1' : String(c.classification));
+  // files of confidential content: watermark and downloads (the original is always available as choice)
+  const wm = select([{ value: '', label: t('protect.inherit') }, { value: 'auto', label: t('protect.wm_auto') }, { value: 'off', label: t('protect.wm_off') }], c.watermark ?? '');
+  const dl = select([{ value: '', label: t('protect.inherit') }, { value: 'auto', label: t('protect.dl_auto') }, { value: 'allow', label: t('protect.dl_allow') }], c.downloads ?? '');
   // website template: inherited ('' = from above or the site template) or one of the active templates
   const tpls = state.site.templates ?? [];
   const tplName = (id: string) => pluginName(id, tpls.find((x) => x.id === id)?.name ?? id);
@@ -90,12 +93,14 @@ function general(panel: HTMLElement, c: Category, elements: ElementSummary[]): v
     field(t('feed.setting'), feed, { help: t('feed.setting_help') }),
     field(t('category.template'), tpl, { help: t('category.template_help') }),
     field(t('class.label'), cls, { help: t('class.help') }),
+    field(t('protect.wm'), wm, { help: t('protect.wm_help') }),
+    field(t('protect.dl'), dl, { help: t('protect.dl_help') }),
     h('div', { class: 'ew-form-actions' }, button(t('common.save'), () => undefined, { type: 'submit', variant: 'primary' })));
   form.addEventListener('submit', async (ev) => {
     ev.preventDefault();
     alert.textContent = '';
     try {
-      const saved = await api.put<Category>(`categories/${c.id}`, { titles: titles.get(), descriptions: descs.get(), tags: splitTags(tags.value), short_url: short.value, short_only: only.input.checked, hidden: hidden.input.checked, default_element_id: Number(def.value), feed: feed.value, template: tpl.value, classification: Number(cls.value) });
+      const saved = await api.put<Category>(`categories/${c.id}`, { titles: titles.get(), descriptions: descs.get(), tags: splitTags(tags.value), short_url: short.value, short_only: only.input.checked, hidden: hidden.input.checked, default_element_id: Number(def.value), feed: feed.value, template: tpl.value, classification: Number(cls.value), watermark: wm.value, downloads: dl.value });
       invalidateTree();
       c.template = saved.template;
       ctx.template = saved.effective_template ?? '';

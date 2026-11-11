@@ -9,7 +9,7 @@ import { calendarView, cardsView, chartData, colLabel, downloadButtons, kanbanVi
 
 interface Source { kind: string; id?: number; sub?: boolean; tag?: string; type?: string; ids?: number[] }
 interface Config {
-  sources: Source[]; filters: Filter[]; columns: string[]; sort: SortKey[]; view: string; group: string; date: string;
+  sources: Source[]; filters: Filter[]; columns: string[]; sort: SortKey[]; view: string; group: string; date: string; export_mode?: string;
   new_type: string; new_category: number; per_page: number;
 }
 
@@ -204,7 +204,7 @@ export async function databaseWidget(el: HTMLElement): Promise<void> {
   const tools = h('div', { class: 'ewprop-tools ewdb-tools' }, q, viewSel, groupSel,
     elementId && state.user ? savedSel : '', elementId && state.user ? saveView : '', elementId && state.user ? delSaved : '',
     button(t('props.db.add_filter'), addFilter, { variant: 'secondary' }),
-    downloadButtons(() => ({ ...query(false), limit: 1000, offset: 0 }), () => 'database'),
+    downloadButtons(() => ({ ...query(false), limit: 1000, offset: 0, export_mode: cfg.export_mode }), () => 'database'),
     canCreate ? h('a', { class: 'ew-btn ew-btn--primary', href: `/c/${target}/new${qs({ type: cfg.new_type || undefined, return: location.pathname })}` }, t('props.db.new')) : '',
     canManage ? h('a', { class: 'ew-btn ew-btn--subtle', href: `/c/${categoryId}/settings?tab=properties` }, t('props.db.manage')) : '');
   el.prepend(tools, chips, count);
