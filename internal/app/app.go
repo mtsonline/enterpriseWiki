@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/mtsonline/enterprisewiki/internal/audit"
+	"github.com/mtsonline/enterprisewiki/internal/feedfetch"
 	"github.com/mtsonline/enterprisewiki/internal/notify"
 	"log/slog"
 	"net/http"
@@ -47,6 +48,7 @@ type App struct {
 	Files   *storage.Store
 	Media   *media.Service
 	Mail    *mail.Service
+	Feeds   *feedfetch.Cache
 	Watch   *watch.Service
 	// Webhooks sends HTTP notifications about events.
 	// PGVersion checks the PostgreSQL version (log, e-mails).
@@ -159,6 +161,7 @@ func newSite(ctx context.Context, in *Instance, site string, migrate bool) (*App
 	a.Files = storage.New(pool, cfg)
 	a.Files.AddReference("users", "profile") // profile photos
 	a.Mail = mail.New(pool, cfg, log)
+	a.Feeds = feedfetch.NewCache(pool, log, func() bool { return cfg.Get().Feeds.AllowPrivate })
 	a.Workers = worker.New(pool, log, func() bool { return cfg.Get().Mode == "cluster" })
 	a.Workers.Site = site
 	a.Workers.Register(worker.Job{Name: "mail", Interval: 10 * time.Second, Run: func(ctx context.Context) error {
@@ -175,6 +178,9 @@ func newSite(ctx context.Context, in *Instance, site string, migrate bool) (*App
 			log.Info("bounces processed", "failed_recipients", n)
 		}
 		return err
+	}})
+	a.Workers.Register(worker.Job{Name: "feeds", Interval: 10 * time.Minute, Run: func(ctx context.Context) error {
+		return a.Feeds.RefreshAll(ctx)
 	}})
 	a.Workers.Register(worker.Job{Name: "search.changes.cleanup", Interval: 24 * time.Hour, Run: func(ctx context.Context) error {
 		// the change log only serves external search engines; they rebuild
@@ -280,7 +286,7 @@ func newSite(ctx context.Context, in *Instance, site string, migrate bool) (*App
 		a.close()
 		return nil, err
 	}
-	base := sdk.Host{Notify: a.Notify, Webhooks: a.Webhooks, Config: cfg, DB: pool, ACL: a.ACL, Content: a.Content, Auth: a.Auth, I18n: a.I18n, Files: a.Files, Media: a.Media, Mail: a.Mail, Workers: a.Workers,
+	base := sdk.Host{Notify: a.Notify, Webhooks: a.Webhooks, Config: cfg, DB: pool, ACL: a.ACL, Content: a.Content, Auth: a.Auth, I18n: a.I18n, Files: a.Files, Media: a.Media, Mail: a.Mail, Feeds: a.Feeds, Workers: a.Workers,
 		Log: log, Mux: a.Mux, IsEnabled: a.Kernel.Enabled}
 	if err := a.Kernel.Setup(base, a.I18n); err != nil {
 		a.close()

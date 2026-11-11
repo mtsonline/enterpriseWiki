@@ -28,12 +28,19 @@ type Source struct {
 	Recursive  bool           `json:"recursive"`
 	Intro      core_html.Body `json:"intro"`
 	Feed       bool           `json:"feed"`
+	// More are further sources whose elements are shown too (text form of
+	// content.Source, e.g. "category:7+sub; tag:hr"); new entries still go
+	// into the own category.
+	More string `json:"more_sources"`
 }
 
 // Check validates the source and sanitizes the intro text.
 func (s *Source) Check() error {
 	if s.CategoryID <= 0 {
 		return apperr.BadRequest("choose the category whose elements are shown (category_id)")
+	}
+	if _, err := content.ParseSources(s.More); err != nil {
+		return err
 	}
 	if s.Intro.Format == "" {
 		s.Intro.Format = "markdown"
@@ -52,6 +59,19 @@ func (s *Source) IntroHTML() string {
 		return ""
 	}
 	return core_html.ToHTML(&s.Intro)
+}
+
+// Sources resolves the own category (scope) and the further sources for
+// the caller; nil when there are no further sources (list by Categories).
+func (s *Source) Sources(ctx context.Context, svc *content.Service) (*content.SourceSet, error) {
+	if strings.TrimSpace(s.More) == "" {
+		return nil, nil
+	}
+	more, err := content.ParseSources(s.More)
+	if err != nil {
+		return nil, err
+	}
+	return svc.ResolveSources(ctx, append([]content.Source{{Kind: "category", ID: s.CategoryID, Sub: s.Recursive}}, more...))
 }
 
 // Load reads the configuration of element id (of type typeID) into dst for
@@ -234,7 +254,11 @@ func WriteFeed(w http.ResponseWriter, r *http.Request, hs *sdk.Host, id int64, s
 	if o.Limit == 0 {
 		o.Limit = 30
 	}
-	list, _, err := hs.Content.ListIn(ctx, content.ListOptions{Categories: scope, Lang: lang, Order: o.Order, Limit: o.Limit, WithContent: o.WithContent, Exclude: o.Exclude})
+	set, err := src.Sources(ctx, hs.Content)
+	if err != nil {
+		return nil, err
+	}
+	list, _, err := hs.Content.ListIn(ctx, content.ListOptions{Categories: scope, Sources: set, Lang: lang, Order: o.Order, Limit: o.Limit, WithContent: o.WithContent, Exclude: o.Exclude})
 	if err != nil {
 		return nil, err
 	}

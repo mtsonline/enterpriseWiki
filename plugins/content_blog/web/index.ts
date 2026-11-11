@@ -2,14 +2,14 @@
 // (search within the blog, paging, tag filter, new post / subcategory, feed).
 import {
   announce, api, button, categorySelect, checkbox, errorText, feedButton, field, formDialog, h, langFields, mount, navigate, pick,
-  registerEditor, registerWidget, select, state, t, textArea, textInput, toast, trustedHTML, type EditorInstance,
+  registerEditor, registerWidget, select, state, t, textArea, textInput, toast, trustedHTML, type EditorInstance, sourcesEditor,
 } from '@ewiki/sdk';
 import './style.css';
 
 const BASE = '/api/v1/x/content.blog';
 
 interface Body {
-  category_id: number; recursive: boolean; intro: { format: string; source: string }; feed: boolean;
+  category_id: number; recursive: boolean; more_sources?: string; intro: { format: string; source: string }; feed: boolean;
   per_page: number; layout: string; show_author: boolean; show_date: boolean; full_content: boolean; summary_length: number; order: string;
 }
 interface Post { id: number; category_id: number; lang: string; title: string; summary: string; tags: string[]; author: string; created_at: string; updated_at: string; html?: string }
@@ -32,6 +32,7 @@ function createEditor(container: HTMLElement, raw: unknown): EditorInstance {
   void categorySelect({ selected: b.category_id, perm: 'view', noneLabel: t('content.blog.new_source'), allowCreate: true })
     .then((cs) => { cats = cs; catBox.append(cs.field(t('content.blog.category'), { help: t('content.blog.category_help') })); });
   const rec = checkbox(t('content.blog.recursive'), b.recursive);
+  const more = sourcesEditor(t('content.blog.more_sources'), b.more_sources ?? '', { help: t('content.blog.more_sources_help') });
   const fmt = select([{ value: 'markdown', label: 'Markdown' }, { value: 'html', label: 'HTML' }], b.intro.format);
   const intro = textArea({ value: b.intro.source, rows: 4 });
   const layout = select(['list', 'cards', 'compact'].map((v) => ({ value: v, label: t(`content.blog.layout_${v}`) })), b.layout);
@@ -43,7 +44,7 @@ function createEditor(container: HTMLElement, raw: unknown): EditorInstance {
   const full = checkbox(t('content.blog.full_content'), b.full_content);
   const feed = checkbox(t('content.blog.feed'), b.feed);
   mount(container, h('div', { class: 'ewb-editor' },
-    h('fieldset', null, h('legend', null, t('content.blog.source')), catBox, rec.el),
+    h('fieldset', null, h('legend', null, t('content.blog.source')), catBox, rec.el, more.el),
     h('fieldset', null, h('legend', null, t('content.blog.intro')), field(t('content.blog.intro_format'), fmt), field(t('content.blog.intro_text'), intro, { help: t('content.blog.intro_help') })),
     h('fieldset', null, h('legend', null, t('content.blog.display')),
       h('div', { class: 'ewb-editor-grid' }, field(t('content.blog.layout'), layout), field(t('content.blog.order'), order),
@@ -52,7 +53,7 @@ function createEditor(container: HTMLElement, raw: unknown): EditorInstance {
     err));
   return {
     getBody: () => ({
-      category_id: cats?.value() ?? b.category_id, recursive: rec.input.checked, intro: { format: fmt.value, source: intro.value }, feed: feed.input.checked,
+      category_id: cats?.value() ?? b.category_id, recursive: rec.input.checked, more_sources: more.get(), intro: { format: fmt.value, source: intro.value }, feed: feed.input.checked,
       per_page: Number(per.value) || 10, layout: layout.value, order: order.value, show_author: author.input.checked, show_date: date.input.checked,
       full_content: full.input.checked, summary_length: Number(sum.value) || 280,
     }),

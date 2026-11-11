@@ -14,6 +14,7 @@ import { categoryTree, editToggle, languageSwitcher, searchBox, userMenu } from 
 import { pluginModules } from './generated/plugins';
 import { positionContainer, refreshPositions, registerSlot, registerTemplate, resolveTemplate } from './sdk';
 import { adminView } from './views/admin';
+import { registerSourceControls } from './components/sources';
 import { categorySettingsView } from './views/categorySettings';
 import { categoryView, editElementView, elementView, draftEditView, historyView, homeView, newElementView } from './views/content';
 import { loginView, notFoundView, profileView, searchView, trashView } from './views/misc';
@@ -24,6 +25,7 @@ function pickLanguage(site: Site, user: Principal | null): string {
 }
 
 function registerCore(): void {
+  registerSourceControls();
   route('/', homeView);
   route('/c/:id', categoryView);
   route('/c/:id/new', newElementView);

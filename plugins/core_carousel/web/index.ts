@@ -3,14 +3,14 @@
 // region with aria-roledescription, previous/next and slide buttons, a
 // pause button for automatic rotation (which also stops on hover, focus and
 // with prefers-reduced-motion), live announcements only when not rotating.
-import { activeTemplate, api, button, checkbox, confirmDialog, errorText, field, fmtDate, formDialog, h, pageHeader, pluginSettingsForm, positionOptions, registerAdminPage, registerPublishOption, registerSlot, select, state, t, textArea, textInput, toast, uid, uploadFile } from '@ewiki/sdk';
+import { activeTemplate, api, button, checkbox, confirmDialog, errorText, field, fmtDate, formDialog, h, pageHeader, pluginSettingsForm, positionOptions, registerAdminPage, registerPublishOption, registerSlot, select, state, t, textArea, textInput, toast, uid, uploadFile, sourcesEditor } from '@ewiki/sdk';
 import './style.css';
 
 const BASE = 'x/core.carousel';
 
 interface Slide { id?: number; kind: 'manual' | 'news' | 'feed'; element_id?: number; title: string; text: string; link: string; image: string; image_alt: string; starts_at?: string | null; ends_at?: string | null; date?: string | null; source?: string }
 interface Shown { id: number; name: string; autoplay: number; slides: Slide[] }
-interface Carousel { id: number; name: string; position: string; audience: 'all' | 'guests' | 'users'; autoplay: number; max_slides: number; feeds: string[]; feed_items: number; enabled: boolean; order: number }
+interface Carousel { id: number; name: string; position: string; audience: 'all' | 'guests' | 'users'; autoplay: number; max_slides: number; feeds: string[]; sources: string; feed_items: number; enabled: boolean; order: number }
 
 const reduced = () => window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
 
@@ -93,6 +93,7 @@ function carouselDialog(c: Carousel | null, done: () => void): void {
   const auto = textInput({ type: 'number', value: String(c?.autoplay ?? 0) });
   const max = textInput({ type: 'number', value: String(c?.max_slides ?? 10) });
   const feeds = textArea({ value: (c?.feeds ?? []).join('\n'), rows: 3 });
+  const srcs = sourcesEditor(t('core.carousel.sources'), c?.sources ?? '', { help: t('core.carousel.sources_help') });
   const per = textInput({ type: 'number', value: String(c?.feed_items ?? 5) });
   const enabled = checkbox(t('core.carousel.enabled'), c?.enabled ?? true);
   formDialog(c ? t('core.carousel.edit') : t('core.carousel.create'), [
@@ -101,10 +102,11 @@ function carouselDialog(c: Carousel | null, done: () => void): void {
     field(t('core.carousel.autoplay'), auto, { help: t('core.carousel.autoplay_help') }),
     field(t('core.carousel.max_slides'), max),
     field(t('core.carousel.feeds'), feeds, { help: t('core.carousel.feeds_help') }),
-    field(t('core.carousel.feed_items'), per), enabled.el,
+    srcs.el,
+    field(t('core.carousel.feed_items'), per, { help: t('core.carousel.feed_items_help') }), enabled.el,
   ], t('common.save'), async () => {
     const body = { name: name.value, position: pos.value, audience: aud.value, autoplay: Number(auto.value) || 0, max_slides: Number(max.value) || 10,
-      feeds: feeds.value.split('\n').map((x) => x.trim()).filter(Boolean), feed_items: Number(per.value) || 5, enabled: enabled.input.checked, order: c?.order ?? 0 };
+      feeds: feeds.value.split('\n').map((x) => x.trim()).filter(Boolean), sources: srcs.get(), feed_items: Number(per.value) || 5, enabled: enabled.input.checked, order: c?.order ?? 0 };
     if (c) await api.put(`${BASE}/carousels/${c.id}`, body); else await api.post(`${BASE}/carousels`, body);
     cache.clear();
     toast(t('common.saved'));

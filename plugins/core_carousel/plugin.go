@@ -12,8 +12,8 @@ import (
 	"context"
 	"embed"
 	"encoding/json"
-	"errors"
 	"fmt"
+	"github.com/mtsonline/enterprisewiki/internal/feedfetch"
 	"io/fs"
 	"net/http"
 	"net/url"
@@ -23,7 +23,6 @@ import (
 	"unicode/utf8"
 
 	"github.com/jackc/pgx/v5"
-	nethtml "golang.org/x/net/html"
 
 	"github.com/mtsonline/enterprisewiki/internal/apperr"
 	"github.com/mtsonline/enterprisewiki/internal/audit"
@@ -66,9 +65,11 @@ type Carousel struct {
 	Autoplay  int      `json:"autoplay"` // seconds, 0 = off
 	MaxSlides int      `json:"max_slides"`
 	Feeds     []string `json:"feeds"`
-	FeedItems int      `json:"feed_items"`
-	Enabled   bool     `json:"enabled"`
-	Order     int      `json:"order"`
+	// Sources: the newest elements of these sources become slides
+	Sources   string `json:"sources"`
+	FeedItems int    `json:"feed_items"`
+	Enabled   bool   `json:"enabled"`
+	Order     int    `json:"order"`
 }
 
 // Slide is one slide as shown.
@@ -87,11 +88,11 @@ type Slide struct {
 	Source    string     `json:"source,omitempty"` // feed: host of the feed
 }
 
-const carCols = `id, name, position, audience, autoplay, max_slides, feeds, feed_items, enabled, position_order`
+const carCols = `id, name, position, audience, autoplay, max_slides, feeds, feed_items, enabled, position_order, sources`
 
 func scanCarousel(r pgx.CollectableRow) (Carousel, error) {
 	var c Carousel
-	err := r.Scan(&c.ID, &c.Name, &c.Position, &c.Audience, &c.Autoplay, &c.MaxSlides, &c.Feeds, &c.FeedItems, &c.Enabled, &c.Order)
+	err := r.Scan(&c.ID, &c.Name, &c.Position, &c.Audience, &c.Autoplay, &c.MaxSlides, &c.Feeds, &c.FeedItems, &c.Enabled, &c.Order, &c.Sources)
 	return c, err
 }
 
@@ -122,6 +123,9 @@ func (c *Carousel) validate() error {
 	}
 	if c.FeedItems <= 0 || c.FeedItems > 20 {
 		c.FeedItems = 5
+	}
+	if _, err := content.ParseSources(c.Sources); err != nil {
+		return err
 	}
 	feeds := []string{}
 	for _, f := range c.Feeds {
@@ -219,13 +223,13 @@ func (p *Plugin) Setup(host *sdk.Host) error {
 		}
 		var err error
 		if id == 0 {
-			err = host.DB.QueryRow(ctx, `INSERT INTO plugin_carousels(name, position, audience, autoplay, max_slides, feeds, feed_items, enabled, position_order)
-				VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING id`, c.Name, c.Position, c.Audience, c.Autoplay, c.MaxSlides, c.Feeds, c.FeedItems, c.Enabled, c.Order).Scan(&c.ID)
+			err = host.DB.QueryRow(ctx, `INSERT INTO plugin_carousels(name, position, audience, autoplay, max_slides, feeds, feed_items, enabled, position_order, sources)
+				VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING id`, c.Name, c.Position, c.Audience, c.Autoplay, c.MaxSlides, c.Feeds, c.FeedItems, c.Enabled, c.Order, c.Sources).Scan(&c.ID)
 		} else {
 			c.ID = id
 			var tag interface{ RowsAffected() int64 }
 			tag, err = host.DB.Exec(ctx, `UPDATE plugin_carousels SET name=$2, position=$3, audience=$4, autoplay=$5, max_slides=$6, feeds=$7, feed_items=$8, enabled=$9,
-				position_order=$10, updated_at=now() WHERE id=$1`, id, c.Name, c.Position, c.Audience, c.Autoplay, c.MaxSlides, c.Feeds, c.FeedItems, c.Enabled, c.Order)
+				position_order=$10, sources=$11, updated_at=now() WHERE id=$1`, id, c.Name, c.Position, c.Audience, c.Autoplay, c.MaxSlides, c.Feeds, c.FeedItems, c.Enabled, c.Order, c.Sources)
 			if err == nil && tag.RowsAffected() == 0 {
 				err = apperr.NotFound("carousel")
 			}
@@ -492,6 +496,11 @@ func (p *Plugin) atPosition(ctx context.Context, position, lang string) ([]map[s
 			return nil, err
 		}
 		visible = append(visible, items...)
+		els, err := p.sourceSlides(ctx, c, lang, visible)
+		if err != nil {
+			return nil, err
+		}
+		visible = append(visible, els...)
 		if len(visible) > c.MaxSlides {
 			visible = visible[:c.MaxSlides]
 		}
@@ -499,6 +508,52 @@ func (p *Plugin) atPosition(ctx context.Context, position, lang string) ([]map[s
 			continue
 		}
 		out = append(out, map[string]any{"id": c.ID, "name": c.Name, "autoplay": c.Autoplay, "slides": visible})
+	}
+	return out, nil
+}
+
+// sourceSlides are the newest elements of the carousel's sources the
+// viewer may see (title, summary, preview image).
+func (p *Plugin) sourceSlides(ctx context.Context, c Carousel, lang string, have []Slide) ([]Slide, error) {
+	srcs, err := content.ParseSources(c.Sources)
+	if err != nil || len(srcs) == 0 {
+		return nil, nil
+	}
+	set, err := p.host.Content.ResolveSources(ctx, srcs)
+	if err != nil || set.Empty() {
+		return nil, err
+	}
+	list, _, err := p.host.Content.ListIn(ctx, content.ListOptions{Sources: set, Lang: lang, Order: "created", Limit: c.FeedItems, SummaryLen: 200, SkipListings: true})
+	if err != nil {
+		return nil, err
+	}
+	seen := map[int64]bool{}
+	for _, s := range have {
+		if s.ElementID != nil {
+			seen[*s.ElementID] = true
+		}
+	}
+	out := make([]Slide, 0, len(list))
+	for _, e := range list {
+		if seen[e.ID] {
+			continue // already a news slide
+		}
+		id, created := e.ID, e.CreatedAt
+		s := Slide{Kind: "news", ElementID: &id, Title: e.Title, Text: e.Summary, Link: fmt.Sprintf("/e/%d", e.ID), Date: &created, ImageAlt: e.Title}
+		if v, err := p.host.Content.GetElement(ctx, e.ID, lang, true); err == nil {
+			if v.URL != "" {
+				s.Link = v.URL
+			}
+			if v.PreviewImage != "" {
+				s.Image = v.PreviewImage
+				if !strings.Contains(s.Image, "/") {
+					s.Image = "/api/v1/files/" + s.Image
+				}
+			} else {
+				s.Image = firstImage(v.HTML)
+			}
+		}
+		out = append(out, s)
 	}
 	return out, nil
 }
@@ -583,55 +638,5 @@ func (o publishOption) Apply(ctx context.Context, svc *content.Service, el *cont
 	return nil
 }
 
-// summary returns the first characters of the text of an HTML fragment.
-func summary(src string, max int) string {
-	var b strings.Builder
-	z := nethtml.NewTokenizer(strings.NewReader(src))
-	skip := 0
-	for {
-		tt := z.Next()
-		switch tt {
-		case nethtml.ErrorToken:
-			return cut(b.String(), max)
-		case nethtml.StartTagToken:
-			if n, _ := z.TagName(); string(n) == "script" || string(n) == "style" || string(n) == "nav" {
-				skip++
-			}
-		case nethtml.EndTagToken:
-			if n, _ := z.TagName(); (string(n) == "script" || string(n) == "style" || string(n) == "nav") && skip > 0 {
-				skip--
-			}
-			b.WriteByte(' ')
-		case nethtml.TextToken:
-			if skip == 0 {
-				b.Write(z.Text())
-			}
-		}
-		if b.Len() > max*4 {
-			return cut(b.String(), max)
-		}
-	}
-}
-
-func cut(s string, max int) string {
-	s = strings.Join(strings.Fields(s), " ")
-	if utf8.RuneCountInString(s) <= max {
-		return s
-	}
-	r := []rune(s)[:max]
-	if i := strings.LastIndexByte(string(r), ' '); i > max/2 {
-		return string(r)[:i] + " …"
-	}
-	return string(r) + " …"
-}
-
-var imgRe = regexp.MustCompile(`(?i)<img\b[^>]*?\ssrc="([^"]+)"`)
-
-func firstImage(src string) string {
-	if m := imgRe.FindStringSubmatch(src); m != nil && (strings.HasPrefix(m[1], "/") || strings.HasPrefix(m[1], "https://")) {
-		return m[1]
-	}
-	return ""
-}
-
-var errNoFeed = errors.New("not an RSS or Atom feed")
+func summary(src string, max int) string { return feedfetch.Summary(src, max) }
+func firstImage(src string) string       { return feedfetch.FirstImage(src) }

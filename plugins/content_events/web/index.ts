@@ -3,20 +3,19 @@
 // .ics), the event form (series, registration, reminders) and iCal
 // subscription.
 import {
-  announce, api, button, checkbox, confirmDialog, errorText, feedURL, field, formDialog, h, mount, openDialog, qs,
-  registerEditor, registerWidget, select, state, t, textArea, textInput, toast, trustedHTML, uid, type EditorInstance,
+  announce, api, button, checkbox, confirmDialog, errorText, feedURL, field, formDialog, h, mount, openDialog, qs, registerEditor, registerWidget, select, state, t, textArea, textInput, toast, trustedHTML, uid, type EditorInstance, sourcesEditor, registerSourceKind, registerMacroParamControl, elementSelect,
 } from '@ewiki/sdk';
 import './style.css';
 
 const BASE = '/api/v1/x/content.events';
 
 interface Cat { id: string; label: string; color: string }
-interface Config { intro: { format: string; source: string }; view: View; week_start: number; categories: Cat[]; ical: boolean; list_days: number; no_invitations?: boolean }
+interface Config { intro: { format: string; source: string }; view: View; week_start: number; categories: Cat[]; ical: boolean; list_days: number; no_invitations?: boolean; more_sources?: string }
 type View = 'month' | 'week' | 'list';
 interface Ev {
   id: number; calendar_id: number; title: string; description: string; description_html: string; location: string; url: string; category: string;
   starts_at: string; ends_at: string; all_day: boolean; tz: string; rrule: string; exdates: string[]; registration: boolean; capacity: number;
-  waitlist: boolean; reg_deadline: number; reminders: number[]; author: string; can_edit: boolean; can_manage: boolean;
+  waitlist: boolean; reg_deadline: number; reminders: number[]; author: string; can_edit: boolean; can_manage: boolean; external?: boolean; source?: string;
   overrides?: Record<string, Override>;
 }
 interface Occ {
@@ -25,7 +24,11 @@ interface Occ {
   changed?: boolean; title?: string; location?: string; description_html?: string; original_start?: string;
 }
 interface Override { title?: string; description?: string; location?: string; starts_at?: string; ends_at?: string }
-interface Data { calendar: { id: number; title: string; config: Config; can_create: boolean; signed_in: boolean }; events: Ev[]; occurrences: Occ[] }
+interface Data { calendar: { id: number; title: string; config: Config; can_create: boolean; signed_in: boolean }; events: Ev[]; occurrences: Occ[]; calendars?: Record<string, string> }
+
+// names of the further sources of the calendar shown (other calendars)
+let sourceNames: Record<string, string> = {};
+const hostOf = (u: string) => { try { return new URL(u).host.replace(/^www\./, ''); } catch { return u; } };
 
 const L = () => state.lang;
 const browserTZ = () => Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
@@ -49,6 +52,7 @@ function createEditor(container: HTMLElement, raw: unknown): EditorInstance {
   const days = textInput({ type: 'number', value: String(c.list_days || 90) });
   const ical = checkbox(t('content.events.ical_opt'), c.ical !== false);
   const noInv = checkbox(t('content.events.no_invitations'), !!c.no_invitations);
+  const more = sourcesEditor(t('content.events.more_sources'), c.more_sources ?? '', { kinds: ['calendar', 'ical'], help: t('content.events.more_sources_help') });
   const list = h('div', { class: 'ewe-cat-rows' });
   const draw = () => {
     mount(list, ...cats.map((k, i) => {
@@ -65,12 +69,13 @@ function createEditor(container: HTMLElement, raw: unknown): EditorInstance {
     h('fieldset', null, h('legend', null, t('content.events.intro')), field(t('content.events.intro_format'), fmtSel), field(t('content.events.intro_text'), intro)),
     h('fieldset', null, h('legend', null, t('content.events.display')), field(t('content.events.default_view'), view), field(t('content.events.week_start'), ws),
       field(t('content.events.list_days'), days, { help: t('content.events.list_days_help') }), ical.el, noInv.el),
+    more.el,
     h('fieldset', null, h('legend', null, t('content.events.categories')), h('p', { class: 'ew-help' }, t('content.events.categories_help')), list,
       button(t('content.events.add_category'), () => { cats.push({ id: '', label: '', color: '#0c66e4' }); draw(); list.querySelector<HTMLInputElement>('.ewe-cat-row:last-child input')?.focus(); }, { variant: 'secondary' }))));
   return {
     getBody: () => ({
       intro: { format: fmtSel.value, source: intro.value }, view: view.value, week_start: Number(ws.value), list_days: Number(days.value) || 90,
-      ical: ical.input.checked, no_invitations: noInv.input.checked, categories: cats.filter((k) => k.label.trim()),
+      ical: ical.input.checked, no_invitations: noInv.input.checked, categories: cats.filter((k) => k.label.trim()), more_sources: more.get(),
     }),
   };
 }
@@ -164,7 +169,7 @@ async function showEvent(series: Ev, o: Occ, cfg: Config, reload: () => Promise<
       actions.push(button(t('content.events.stop_remind'), () => void act(() => api.del(`${reg}${qs({ occurrence: o.date })}`), t('content.events.unregistered')), { variant: 'secondary' }));
     }
   }
-  actions.push(h('a', { href: `${BASE}/events/${e.id}/ical`, class: 'ew-btn ew-btn--secondary', download: '' }, t('content.events.add_to_calendar')));
+  if (!e.external) actions.push(h('a', { href: `${BASE}/events/${e.id}/ical`, class: 'ew-btn ew-btn--secondary', download: '' }, t('content.events.add_to_calendar')));
   if (e.can_manage && e.registration) actions.push(button(t('content.events.participants'), () => void participants(e, o), { variant: 'secondary' }));
   if (e.can_edit) {
     if (e.rrule) {
@@ -198,7 +203,8 @@ async function showEvent(series: Ev, o: Occ, cfg: Config, reload: () => Promise<
       e.url ? [h('dt', null, t('content.events.link')), h('dd', null, h('a', { href: e.url, rel: 'noopener noreferrer', target: '_blank' }, e.url))] : null,
       cat ? [h('dt', null, t('content.events.category')), h('dd', null, h('span', { class: 'ewe-dot', style: `background:${cat.color}`, 'aria-hidden': 'true' }), ' ', cat.label)] : null,
       e.registration ? [h('dt', null, t('content.events.registration')), h('dd', null, statusText(e, o), !o.registration_open && !started ? ` · ${t('content.events.reg_closed')}` : null)] : null,
-      e.author ? [h('dt', null, t('content.events.organizer')), h('dd', null, e.author)] : null),
+      e.author ? [h('dt', null, t('content.events.organizer')), h('dd', null, e.author)] : null,
+      e.external || sourceNames[String(e.calendar_id)] ? [h('dt', null, t('content.events.from_source')), h('dd', null, e.external ? hostOf(e.source ?? '') : sourceNames[String(e.calendar_id)])] : null),
     o.changed ? h('p', { class: 'ewe-changed', role: 'note' }, t('content.events.occurrence_changed_note')) : null,
     myStatus,
     e.description_html ? h('div', { class: 'ewe-desc' }, trustedHTML(e.description_html)) : null,
@@ -586,6 +592,7 @@ async function eventsWidget(root: HTMLElement): Promise<void> {
         data = await api.get<Data>(`${BASE}/calendars/${id}/events${qs({ from: f2.toISOString(), to: t2.toISOString(), category, q, lang: L() })}`);
       }
     }
+    sourceNames = data.calendars ?? {};
     render();
     announce(title.textContent ?? '');
   };
@@ -640,6 +647,23 @@ async function myRegistrations(): Promise<void> {
 }
 
 export function register(): void {
+  // further sources of calendars: other calendars and subscribed iCalendar addresses
+  registerSourceKind({
+    kind: 'calendar', label: () => t('content.events.src_calendar'),
+    render: async (v) => {
+      const p = await elementSelect({ selected: Number(v) || undefined, type: 'content.events' });
+      return { el: p.el, get: () => (p.value() > 0 ? String(p.value()) : '') };
+    },
+  });
+  registerSourceKind({
+    kind: 'ical', label: () => t('content.events.src_ical'),
+    render: (v) => {
+      const i = textInput({ value: v, type: 'url', placeholder: 'https://example.org/calendar.ics' });
+      i.setAttribute('aria-label', t('content.events.src_ical'));
+      return { el: i, get: () => (/^https?:\/\//.test(i.value.trim()) ? i.value.trim() : '') };
+    },
+  });
+  registerMacroParamControl('events.sources', (value, ctx) => sourcesEditor(ctx.label, value, { kinds: ['calendar', 'ical'], help: t('content.events.more_sources_help') }));
   registerEditor('content.events', createEditor);
   registerWidget('events', eventsWidget);
 }

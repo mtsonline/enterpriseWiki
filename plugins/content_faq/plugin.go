@@ -12,6 +12,7 @@ import (
 	"html"
 	"io/fs"
 	"net/http"
+	"slices"
 	"strings"
 	"time"
 
@@ -99,10 +100,15 @@ func pick(m map[string]string, lang string) string {
 }
 
 // sections loads sections and questions (only ids in only, if not nil).
-func sections(ctx context.Context, svc *content.Service, info *catlist.Info, lang string, exclude int64, only map[int64]bool) ([]Section, error) {
+func sections(ctx context.Context, svc *content.Service, info *catlist.Info, src *catlist.Source, lang string, exclude int64, only map[int64]bool) ([]Section, error) {
+	// further sources: their questions come in sections of their categories
+	set, err := src.Sources(ctx, svc)
+	if err != nil {
+		return nil, err
+	}
 	var list []content.ListedElement
 	for off := 0; off < MaxQuestions; off += 200 {
-		part, total, err := svc.ListIn(ctx, content.ListOptions{Categories: info.Scope, Lang: lang, Order: "position", Limit: 200, Offset: off, Exclude: exclude})
+		part, total, err := svc.ListIn(ctx, content.ListOptions{Categories: info.Scope, Sources: set, Lang: lang, Order: "position", Limit: 200, Offset: off, Exclude: exclude})
 		if err != nil {
 			return nil, err
 		}
@@ -141,6 +147,32 @@ func sections(ctx context.Context, svc *content.Service, info *catlist.Info, lan
 		}
 		out = append(out, s)
 	}
+	// sections of the categories of further sources (in the order they appear)
+	own := map[int64]bool{}
+	for _, c := range info.Categories {
+		own[c.ID] = true
+	}
+	var foreign []int64
+	for _, e := range list {
+		if !own[e.CategoryID] && len(byCat[e.CategoryID]) > 0 && !slices.Contains(foreign, e.CategoryID) {
+			foreign = append(foreign, e.CategoryID)
+		}
+	}
+	if len(foreign) > 0 {
+		cats, err := svc.CategoriesByID(ctx, foreign)
+		if err != nil {
+			return nil, err
+		}
+		// below the FAQ's own section (a second depth-0 section would replace it)
+		var root *int64
+		if len(info.Categories) > 0 {
+			id := info.Categories[0].ID
+			root = &id
+		}
+		for _, c := range cats {
+			out = append(out, Section{ID: c.ID, ParentID: root, Depth: 1, Title: pick(c.Titles, lang), Description: pick(c.Descriptions, lang), Questions: byCat[c.ID]})
+		}
+	}
 	if only != nil {
 		// keep sections with hits and their ancestors
 		keep := map[int64]bool{}
@@ -171,6 +203,9 @@ type Type struct{}
 
 // TypeID implements content.ElementType.
 func (Type) TypeID() string { return TypeID }
+
+// ListsElements implements content.Listing (left out of lists of several sources).
+func (Type) ListsElements() bool { return true }
 
 // Labels implements content.ElementType.
 func (Type) Labels() map[string]string { return map[string]string{"en": "FAQ", "de": "FAQ"} }
@@ -299,7 +334,7 @@ func (Type) Render(ctx context.Context, rc content.RenderContext, raw json.RawMe
 		depth := len(x.Path) - len(cats[0].Path)
 		info.Categories = append(info.Categories, catlist.Cat{ID: x.ID, ParentID: x.ParentID, Depth: depth, Titles: x.Titles, Descriptions: x.Descriptions})
 	}
-	secs, err := sections(ctx, rc.Service, info, rc.Lang, rc.ElementID, nil)
+	secs, err := sections(ctx, rc.Service, info, &c.Source, rc.Lang, rc.ElementID, nil)
 	if err != nil {
 		return "", err
 	}
@@ -330,6 +365,7 @@ func (p *Plugin) load(ctx context.Context, id int64, lang string) (*Config, stri
 func (p *Plugin) Setup(hs *sdk.Host) error {
 	p.host = hs
 	hs.RegisterElementType(Type{})
+	hs.RegisterMacro(faqMacro{})
 	catlist.Routes(hs, "FAQ", "questions", func(ctx context.Context, id int64, lang string) (*catlist.Source, string, error) {
 		c, shown, err := p.load(ctx, id, lang)
 		if err != nil {
@@ -365,7 +401,11 @@ func (p *Plugin) Setup(hs *sdk.Host) error {
 		}
 		var only map[int64]bool
 		if term := strings.TrimSpace(q.Get("q")); term != "" {
-			res, err := hs.Content.SearchIn(ctx, term, nil, lang, 100, info.Scope)
+			scope := info.Scope
+			if set, err := c.Sources(ctx, hs.Content); err == nil && set != nil {
+				scope = set.Categories
+			}
+			res, err := hs.Content.SearchIn(ctx, term, nil, lang, 100, scope)
 			if err != nil {
 				return nil, err
 			}
@@ -374,7 +414,7 @@ func (p *Plugin) Setup(hs *sdk.Host) error {
 				only[x.ElementID] = true
 			}
 		}
-		secs, err := sections(ctx, hs.Content, info, lang, id, only)
+		secs, err := sections(ctx, hs.Content, info, &c.Source, lang, id, only)
 		if err != nil {
 			return nil, err
 		}

@@ -180,5 +180,10 @@
  "content.events.mail_invitation_hint": "The occurrence is attached as calendar invitation (Outlook, Apple, Google, Thunderbird).",
  "content.events.no_invitations": "No calendar invitations in e-mails (otherwise registered occurrences go straight into the calendar of Outlook & co.)",
  "perm.content.events.attendees": "See participants",
- "perm.content.events.attendees_help": "See and export the participants of all events of the calendars in the category (organizers always see the participants of their own events)."
+ "perm.content.events.attendees_help": "See and export the participants of all events of the calendars in the category (organizers always see the participants of their own events).",
+ "content.events.more_sources": "Further sources",
+ "content.events.more_sources_help": "Show the events of other calendars (only to readers who may see them) and of subscribed calendars (iCalendar address, read-only, refreshed every 10 minutes).",
+ "content.events.src_calendar": "Calendar of the wiki",
+ "content.events.src_ical": "Subscribed calendar (iCal address)",
+ "content.events.from_source": "From"
 }

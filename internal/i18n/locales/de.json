@@ -1759,5 +1759,15 @@
  "mfa.counts_two": "zählt als zwei Faktoren",
  "common.remove_item": "{name} entfernen",
  "common.added_item": "{name} hinzugefügt.",
- "acl.add_subject": "Person, Gruppe oder Rolle hinzufügen"
+ "acl.add_subject": "Person, Gruppe oder Rolle hinzufügen",
+ "sources.category": "Kategorie",
+ "sources.sub": "mit Unterkategorien",
+ "sources.tag": "Schlagwort",
+ "sources.type": "Elementtyp",
+ "sources.elements": "Elemente (IDs)",
+ "sources.feed": "Externer Feed (RSS/Atom)",
+ "sources.kind": "Art der Quelle",
+ "sources.add": "Quelle hinzufügen",
+ "sources.remove": "Quelle entfernen",
+ "sources.help": "Die Elemente aller Quellen werden gemeinsam angezeigt, jedes einmal und nur für Lesende, die sie sehen dürfen. Ohne Quelle: diese Kategorie mit Unterkategorien."
 }

@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/mtsonline/enterprisewiki/pkg/sdk"
 	"html"
 	"math"
 	"strconv"
@@ -86,49 +87,7 @@ func (report) Params() []content.MacroParam {
 }
 
 // ParseSources reads "category:12+sub; category:7; tag:hr; type:core.html; elements:1,2".
-func ParseSources(s string) ([]Source, error) {
-	var out []Source
-	for _, part := range strings.Split(s, ";") {
-		part = strings.TrimSpace(part)
-		if part == "" {
-			continue
-		}
-		kind, val, ok := strings.Cut(part, ":")
-		if !ok {
-			return nil, apperr.BadRequest("source %q: kind:value", part)
-		}
-		kind, val = strings.TrimSpace(kind), strings.TrimSpace(val)
-		switch kind {
-		case "category":
-			sub := strings.HasSuffix(val, "+sub")
-			id, err := strconv.ParseInt(strings.TrimSuffix(val, "+sub"), 10, 64)
-			if err != nil || id <= 0 {
-				return nil, apperr.BadRequest("source %q: category id", part)
-			}
-			out = append(out, Source{Kind: "category", ID: id, Sub: sub})
-		case "tag":
-			out = append(out, Source{Kind: "tag", Tag: val})
-		case "type":
-			out = append(out, Source{Kind: "type", Type: val})
-		case "elements":
-			var ids []int64
-			for _, x := range strings.Split(val, ",") {
-				id, err := strconv.ParseInt(strings.TrimSpace(x), 10, 64)
-				if err != nil || id <= 0 {
-					return nil, apperr.BadRequest("source %q: element ids", part)
-				}
-				ids = append(ids, id)
-			}
-			out = append(out, Source{Kind: "elements", IDs: ids})
-		default:
-			return nil, apperr.BadRequest("unknown source %q", kind)
-		}
-		if len(out) > 50 {
-			return nil, apperr.BadRequest("at most 50 sources")
-		}
-	}
-	return out, nil
-}
+func ParseSources(s string) ([]Source, error) { return content.ParseSources(s) }
 
 // filter operators in the order they are looked for (longer first)
 var filterOps = []struct{ tok, op string }{
@@ -305,12 +264,13 @@ func (r report) Render(ctx context.Context, mc content.MacroContext) (string, er
 	return b.String(), nil
 }
 
-// the running plugin (for other plugins rendering property tables)
-var instance *Plugin
+// the plugin of each site (for other plugins rendering property tables)
+var instances sdk.PerSite[*Plugin]
 
 // RenderTable renders the rows of a query as an accessible table with the
 // rights of the caller (e.g. the fallback of the property database).
 func RenderTable(ctx context.Context, q *Query) (string, error) {
+	instance := instances.Get(ctx)
 	if instance == nil {
 		return "", apperr.NotFound("plugin core.properties")
 	}

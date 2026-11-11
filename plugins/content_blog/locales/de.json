@@ -42,5 +42,7 @@
  "content.blog.clear_filter": "Filter aufheben",
  "content.blog.search": "Im Blog suchen",
  "content.blog.search_placeholder": "Suchbegriff …",
- "content.blog.new_source": "– Neue Kategorie mit dem Titel anlegen –"
+ "content.blog.new_source": "– Neue Kategorie mit dem Titel anlegen –",
+ "content.blog.more_sources": "Weitere Quellen",
+ "content.blog.more_sources_help": "Auch die Beiträge weiterer Kategorien, Schlagwörter oder Elementtypen zeigen (nur für Lesende, die sie sehen dürfen). Neue Beiträge kommen weiterhin in die Kategorie oben."
 }

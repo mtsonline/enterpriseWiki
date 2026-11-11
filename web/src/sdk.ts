@@ -42,6 +42,8 @@ export { formatAttrs, parseAttrs } from './editor/attrs';
 export { macroDialog, loadMacros, registerMacroParamControl, getMacroParamControl } from './editor/macros';
 export type { MacroParamContext, MacroParamControl } from './editor/macros';
 export { currentCategory } from './components/widgets';
+export { sourcesEditor, registerSourceKind } from './components/sources';
+export type { SourceKind } from './components/sources';
 export { subjectsEditor, userPicker, groupPicker } from './components/subjects';
 export type { Subject } from './components/subjects';
 export type { MacroChoice } from './editor/macros';

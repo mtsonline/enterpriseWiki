@@ -396,10 +396,12 @@ func buildDemo(d *demoRun) {
 
 	// ---- 4. events
 	evCat := d.category(root, "Events", "Termine", "An event calendar with recurring events and registration.", "Ein Veranstaltungskalender mit Serien und Anmeldung.", nil)
+	var calID int64
 	d.optional("events", func() {
 		cal := d.element(evCat, "content.events", d.tr("Event calendar", "Veranstaltungskalender"), d.same(map[string]any{"intro": htmlBodyOf(""), "view": "month", "week_start": 1,
 			"categories": []map[string]string{{"id": "training", "label": "Schulung", "color": "#2e7d32"}, {"id": "meeting", "label": "Besprechung", "color": "#1565c0"}},
 			"ical":       true, "list_days": 90}), nil)
+		calID = cal
 		if d.err == nil {
 			day := time.Now().AddDate(0, 0, 7).Truncate(24 * time.Hour).Add(9 * time.Hour)
 			d.create("event", fmt.Sprintf("/api/v1/x/content.events/calendars/%d/events", cal), map[string]any{"title": "Wiki-Schulung für Einsteiger", "description": "Grundlagen: Seiten, Kategorien, Rechte.",
@@ -409,6 +411,26 @@ func buildDemo(d *demoRun) {
 				"location": "Online", "category": "meeting", "starts_at": day.AddDate(0, 0, -int(day.Weekday())+1).Add(time.Hour), "ends_at": day.AddDate(0, 0, -int(day.Weekday())+1).Add(90 * time.Minute),
 				"tz": "Europe/Vienna", "rrule": "FREQ=WEEKLY;BYDAY=MO;COUNT=10"})
 		}
+	})
+
+	// ---- 4b. several sources together: news, blog and FAQ macros, a calendar with further calendars
+	srcCat := d.category(root, "Sources combined", "Quellen kombiniert", "Macros and elements that show several categories, tags and calendars together.",
+		"Makros und Elemente, die mehrere Kategorien, Schlagwörter und Kalender gemeinsam zeigen.", nil)
+	both := fmt.Sprintf("category:%d; category:%d+sub", news, faq)
+	d.page(srcCat, "Everything new", "Alles Neue",
+		"<p>The newest pages of <em>News</em> and <em>Questions</em> together (macro <code>news</code>):</p>"+macro("news", map[string]string{"source": both, "layout": "cards", "limit": "6"}, "")+
+			"<h2>As blog</h2>"+macro("blog", map[string]string{"source": both, "layout": "compact", "limit": "4"}, ""),
+		"<p>Die neuesten Seiten aus <em>Neuigkeiten</em> und <em>Häufige Fragen</em> gemeinsam (Makro <code>news</code>):</p>"+macro("news", map[string]string{"source": both, "layout": "cards", "limit": "6"}, "")+
+			"<h2>Als Blog</h2>"+macro("blog", map[string]string{"source": both, "layout": "compact", "limit": "4"}, ""), nil)
+	d.page(srcCat, "Help from all sections", "Hilfe aus allen Bereichen",
+		"<p>Questions of several categories as one FAQ (macro <code>faq</code>):</p>"+macro("faq", map[string]string{"source": fmt.Sprintf("category:%d+sub; category:%d", faq, news), "open": "no", "numbering": "yes"}, ""),
+		"<p>Fragen mehrerer Kategorien als eine FAQ (Makro <code>faq</code>):</p>"+macro("faq", map[string]string{"source": fmt.Sprintf("category:%d+sub; category:%d", faq, news), "open": "no", "numbering": "yes"}, ""), nil)
+	d.optional("events-sources", func() {
+		if calID == 0 {
+			return
+		}
+		d.element(srcCat, "content.events", d.tr("All dates", "Alle Termine"), d.same(map[string]any{"intro": htmlBodyOf(""), "view": "list", "week_start": 1, "list_days": 90,
+			"more_sources": fmt.Sprintf("calendar:%d", calID)}), nil)
 	})
 
 	// ---- 5. team
@@ -590,7 +612,9 @@ func buildDemo(d *demoRun) {
 			"titles": d.tr("Contact", "Kontakt"), "bodies": bodies})
 	})
 	d.optional("carousel", func() {
-		car := d.create("carousel", "/api/v1/x/core.carousel/carousels", map[string]any{"name": "Demo", "position": "content-top", "audience": "users", "autoplay": 0, "max_slides": 5, "enabled": true})
+		// the manual slides plus the newest posts of the news category
+		car := d.create("carousel", "/api/v1/x/core.carousel/carousels", map[string]any{"name": "Demo", "position": "content-top", "audience": "users", "autoplay": 0, "max_slides": 8, "enabled": true,
+			"sources": fmt.Sprintf("category:%d", news), "feed_items": 3})
 		for i, pc := range pics {
 			if d.err != nil {
 				break

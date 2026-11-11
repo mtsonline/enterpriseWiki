@@ -153,7 +153,7 @@ Plugins sind vollwertiger Code mit Zugriff auf Datenbank und Server. Installiere
 | `core.html` | Elementtyp | Seiten mit WYSIWYG oder Markdown |
 | `core.menu` | Menü | beliebig viele, auch mehrstufige Menüs an jeder Position der Vorlage. Ziele sind Kategorien, Elemente, Links oder andere Menüs (*Administration → Menüs*). |
 | `core.blocks` | Allgemein | Textblöcke (Markdown/HTML, Makros) an jeder Position, je Sprache, für alle/Gäste/Angemeldete (*Administration → Blöcke*) |
-| `core.macros` | Makros | Inhaltsverzeichnis, Unterseiten, Zuletzt geändert, Hinweis-Boxen, Aufklappbereich, Status-Label, Spalten |
+| `core.macros` | Makros | Inhaltsverzeichnis, Unterseiten, Zuletzt geändert (mit Quellen), Neuigkeiten aus mehreren Quellen und RSS/Atom-Feeds, Hinweis-Boxen, Aufklappbereich, Status-Label, Spalten |
 | `core.layout` | Makros | Layout-Bausteine: Abschnitt, Hero, Karten, Button, Abstand (erbt von `core.macros`) |
 | `macro.shell` | Makro | Ausgabe eines Shell-Befehls, nur nach exakter Freigabe durch einen Superadmin, standardmäßig aus |
 | `macro.http` | Makro | Ergebnis eines HTTP-Abrufs, nur Adressen aus der Allow-Liste |
@@ -164,12 +164,12 @@ Plugins sind vollwertiger Code mit Zugriff auf Datenbank und Server. Installiere
 | `core.favorites` | Allgemein | persönliche Favoriten (Stern bei Seiten und Kategorien), Liste an einer Position der Vorlage (*Administration → Favoriten*) und im Profil |
 | `core.properties` | Allgemein, Makro | Eigenschaften für Elemente jedes Typs: Definitionen global und pro Kategorie (vererbt) mit über 30 Typen, Pflicht, Vorgabe, Elementtypen, Rechten (wer sieht, wer ändert); freie Eigenschaften (pro Kategorie erlaub- oder verbietbar, Plugin-Einstellung `free`); laufende Nummern und Formeln; Verlauf; Makro „Eigenschaften-Bericht“ mit 13 Darstellungen. Rechte: `core.properties.admin` (global), `core.properties.define` und `core.properties.free` (Kategorie) |
 | `content.propdb` | Element | Eigenschaften-Datenbank: Elemente aus Quellen interaktiv als Tabelle, Karten, Board, Kalender, Zeitleiste oder Diagramm, mit Filtern, Bearbeiten und neuen Einträgen (braucht `core.properties`) |
-| `core.carousel` | Allgemein | Karussells an Positionen der Vorlage: Neuigkeiten (Option „Als Neuigkeit“ beim Veröffentlichen), eigene Folien, externe RSS/Atom-Feeds (*Administration → Karussells*) |
+| `core.carousel` | Allgemein | Karussells an Positionen der Vorlage: Neuigkeiten (Option „Als Neuigkeit“ beim Veröffentlichen), eigene Folien, externe RSS/Atom-Feeds, Elemente beliebiger Quellen (*Administration → Karussells*) |
 | `core.megamenu` | Menü (optional) | Darstellung „Mega-Menü“ für waagrechte Menüs: breite Panels mit Spalten, Überschriften und Beschreibungen (Auswahl im Menü unter *Darstellung*) |
 | `workflow.process` | Elementtyp | Abläufe wie Bewerbungen oder Genehmigungen: Formular, Aufgaben, Freigaben (Vier-Augen), Bedingungen, E-Mails, Webhooks, Wartezeiten, Erinnerungen |
-| `content.blog` | Elementtyp | Blog aus den Seiten einer Kategorie: Anrisstexte, Layouts, Suche im Blog, Tags, Atom/RSS |
-| `content.faq` | Elementtyp | FAQ aus Kategorien und Seiten: aufklappbare Abschnitte und Fragen, Sofort-Filter, Atom/RSS |
-| `content.events` | Elementtyp | Veranstaltungskalender: Monat/Woche/Liste, Serien, Anmeldung mit Warteliste, E-Mail-Erinnerungen, iCal-Abo, Makro „Nächste Termine“ |
+| `content.blog` | Elementtyp, Makro | Blog aus den Seiten einer Kategorie und weiteren Quellen: Anrisstexte, Layouts, Suche im Blog, Tags, Atom/RSS; Makro „Blogbeiträge aus mehreren Quellen“ |
+| `content.faq` | Elementtyp, Makro | FAQ aus Kategorien und Seiten (plus weitere Quellen): aufklappbare Abschnitte und Fragen, Sofort-Filter, Atom/RSS; Makro „FAQ aus mehreren Quellen“ |
+| `content.events` | Elementtyp | Veranstaltungskalender: Monat/Woche/Liste, Serien, Anmeldung mit Warteliste, E-Mail-Erinnerungen, iCal-Abo, weitere Kalender und iCal-Abonnements als Quellen, Makro „Nächste Termine“ |
 | `content.catlist` | Elementtyp | Kategorieübersicht: Unterkategorien einer Kategorie oder der obersten Ebene als Karten oder Liste, optional mit Seiten (z. B. als Startseite) |
 | `content.team` | Elementtyp | Team-Seite aus Gruppen mit wählbaren Angaben aus der Visitenkarte bzw. dem Identity Provider |
 | `content.notes` | Elementtyp | Gemeinsame Notizen: direkt in der Seitenansicht live gemeinsam schreiben, automatisch gespeichert (Besprechungen, Brainstorming, Aufgabenlisten) |

@@ -1709,5 +1709,15 @@
  "mfa.counts_two": "counts as two factors",
  "common.remove_item": "Remove {name}",
  "common.added_item": "{name} added.",
- "acl.add_subject": "Add person, group or role"
+ "acl.add_subject": "Add person, group or role",
+ "sources.category": "Category",
+ "sources.sub": "with subcategories",
+ "sources.tag": "Tag",
+ "sources.type": "Element type",
+ "sources.elements": "Elements (ids)",
+ "sources.feed": "External feed (RSS/Atom)",
+ "sources.kind": "Kind of source",
+ "sources.add": "Add source",
+ "sources.remove": "Remove source",
+ "sources.help": "Elements of all sources are shown together, each once, and only to readers who may see them. Without a source: this category with its subcategories."
 }

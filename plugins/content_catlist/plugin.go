@@ -90,6 +90,9 @@ type Type struct{}
 // TypeID implements content.ElementType.
 func (Type) TypeID() string { return TypeID }
 
+// ListsElements implements content.Listing (left out of lists of several sources).
+func (Type) ListsElements() bool { return true }
+
 // Labels implements content.ElementType.
 func (Type) Labels() map[string]string {
 	return map[string]string{"en": "Category overview", "de": "Kategorieübersicht"}

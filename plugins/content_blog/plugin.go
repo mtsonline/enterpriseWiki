@@ -83,6 +83,9 @@ type Type struct{}
 // TypeID implements content.ElementType.
 func (Type) TypeID() string { return TypeID }
 
+// ListsElements implements content.Listing (left out of lists of several sources).
+func (Type) ListsElements() bool { return true }
+
 // Labels implements content.ElementType.
 func (Type) Labels() map[string]string { return map[string]string{"en": "Blog", "de": "Blog"} }
 
@@ -109,8 +112,8 @@ func (Type) Text(raw json.RawMessage) string {
 }
 
 var msgs = map[string]map[string]string{
-	"en": {"by": "by", "more": "Read more", "empty": "No posts yet.", "missing": "The category of this blog no longer exists or you may not see it.", "older": "More posts"},
-	"de": {"by": "von", "more": "Weiterlesen", "empty": "Noch keine Beiträge.", "missing": "Die Kategorie dieses Blogs existiert nicht mehr oder ist für Sie nicht sichtbar.", "older": "Weitere Beiträge"},
+	"en": {"by": "by", "more": "Read more", "empty": "No posts yet.", "missing": "The category of this blog no longer exists or you may not see it.", "older": "More posts", "posts": "Blog posts"},
+	"de": {"by": "von", "more": "Weiterlesen", "empty": "Noch keine Beiträge.", "missing": "Die Kategorie dieses Blogs existiert nicht mehr oder ist für Sie nicht sichtbar.", "older": "Weitere Beiträge", "posts": "Blogbeiträge"},
 }
 
 func msg(lang, key string) string {
@@ -146,7 +149,11 @@ func (Type) Render(ctx context.Context, rc content.RenderContext, raw json.RawMe
 		b.WriteString(`<p class="ewb-missing" role="note">` + esc(msg(rc.Lang, "missing")) + `</p></div>`)
 		return b.String(), nil
 	}
-	list, total, err := rc.Service.ListIn(ctx, content.ListOptions{Categories: scope, Lang: rc.Lang, Order: c.Order, Limit: c.PerPage,
+	set, err := c.Sources(ctx, rc.Service)
+	if err != nil {
+		return "", err
+	}
+	list, total, err := rc.Service.ListIn(ctx, content.ListOptions{Categories: scope, Sources: set, Lang: rc.Lang, Order: c.Order, Limit: c.PerPage,
 		SummaryLen: c.SummaryLength, WithContent: c.FullContent, Exclude: rc.ElementID})
 	if err != nil {
 		return "", err
@@ -220,6 +227,7 @@ func (p *Plugin) load(ctx context.Context, id int64, lang string) (*Config, stri
 func (p *Plugin) Setup(hs *sdk.Host) error {
 	p.host = hs
 	hs.RegisterElementType(Type{})
+	hs.RegisterMacro(postsMacro{})
 	catlist.Routes(hs, "blog", "posts", func(ctx context.Context, id int64, lang string) (*catlist.Source, string, error) {
 		c, shown, err := p.load(ctx, id, lang)
 		if err != nil {
@@ -256,8 +264,16 @@ func (p *Plugin) Setup(hs *sdk.Host) error {
 		if page < 1 {
 			page = 1
 		}
+		set, err := c.Sources(ctx, hs.Content)
+		if err != nil {
+			return nil, err
+		}
 		if term := strings.TrimSpace(q.Get("q")); term != "" {
-			res, err := hs.Content.SearchIn(ctx, term, h.QueryList(r, "tags"), lang, 50, info.Scope)
+			scope := info.Scope
+			if set != nil {
+				scope = set.Categories
+			}
+			res, err := hs.Content.SearchIn(ctx, term, h.QueryList(r, "tags"), lang, 50, scope)
 			if err != nil {
 				return nil, err
 			}
@@ -271,7 +287,7 @@ func (p *Plugin) Setup(hs *sdk.Host) error {
 			out["total"] = len(hits)
 			return out, nil
 		}
-		list, total, err := hs.Content.ListIn(ctx, content.ListOptions{Categories: info.Scope, Lang: lang, Order: c.Order, Tag: q.Get("tag"),
+		list, total, err := hs.Content.ListIn(ctx, content.ListOptions{Categories: info.Scope, Sources: set, Lang: lang, Order: c.Order, Tag: q.Get("tag"),
 			Limit: c.PerPage, Offset: (page - 1) * c.PerPage, SummaryLen: c.SummaryLength, WithContent: c.FullContent, Exclude: id})
 		if err != nil {
 			return nil, err

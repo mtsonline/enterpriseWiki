@@ -1,7 +1,7 @@
 // Controls of the macro dialog for the property report: sources, filters
 // with operators fitting the type, columns, sorting and keys. They write the
 // short text parameters of the macro (readable in Markdown).
-import { api, button, categorySelect, checkbox, field, h, qs, registerMacroParamControl, select, state, t, textArea, textInput, uid, type MacroParamContext } from '@ewiki/sdk';
+import { api, button, checkbox, field, h, qs, registerMacroParamControl, select, sourcesEditor, state, t, textArea, textInput, uid, type MacroParamContext } from '@ewiki/sdk';
 import { BASE, builtinLabel, type Def } from './model';
 
 interface Key { key: string; label: string; type: string }
@@ -47,54 +47,6 @@ function parseFilter(s: string): { key: string; op: string; value: string } | nu
   let op = Object.entries(opText).find(([, v]) => v === m[2].trim())?.[0] ?? 'eq';
   if (op === 'eq' && m[3].trim() === 'me') op = 'me';
   return { key: m[1], op, value: op === 'me' ? '' : m[3].trim() };
-}
-
-function sourceControl(value: string, ctx: MacroParamContext): { el: HTMLElement; get: () => string } {
-  const list = h('ol', { class: 'ewprop-cfg-list' });
-  const rows: { get: () => string }[] = [];
-  const add = async (src: string) => {
-    const [kind0, val0 = ''] = src.split(':');
-    const kind = select(['category', 'tag', 'type', 'elements'].map((k) => ({ value: k, label: t(`props.src.${k}`) })), kind0 || 'category');
-    kind.setAttribute('aria-label', t('props.src.kind'));
-    const box = h('span', { class: 'ewprop-cfg-src' });
-    let get = () => '';
-    const draw = async (v: string) => {
-      box.replaceChildren();
-      switch (kind.value) {
-        case 'category': {
-          const c = await categorySelect({ selected: Number(v.replace('+sub', '')) || ctx.categoryId || undefined });
-          c.select.setAttribute('aria-label', t('props.src.category'));
-          const sub = checkbox(t('props.src.sub'), v === '' || v.endsWith('+sub'));
-          box.append(c.el, sub.el);
-          get = () => (c.value() > 0 ? `category:${c.value()}${sub.input.checked ? '+sub' : ''}` : '');
-          break;
-        }
-        case 'type': {
-          const s = select(state.site.element_types.map((x) => ({ value: x.id, label: x.id })), v);
-          s.setAttribute('aria-label', t('props.src.type'));
-          box.append(s);
-          get = () => `type:${s.value}`;
-          break;
-        }
-        default: {
-          const i = textInput({ value: v, placeholder: kind.value === 'tag' ? 'hr' : '12, 15' });
-          i.setAttribute('aria-label', t(`props.src.${kind.value}`));
-          box.append(i);
-          get = () => (i.value.trim() ? `${kind.value}:${i.value.trim().replace(/\s+/g, '')}` : '');
-        }
-      }
-    };
-    kind.addEventListener('change', () => void draw(''));
-    await draw(val0);
-    const entry = { get: () => get() };
-    const li: HTMLElement = h('li', null, kind, box, button(t('common.remove'), () => { li.remove(); rows.splice(rows.indexOf(entry), 1); }, { variant: 'subtle', ariaLabel: t('props.src.remove') }));
-    rows.push(entry);
-    list.append(li);
-  };
-  for (const s of value.split(';').map((x) => x.trim()).filter(Boolean)) void add(s);
-  const el = h('fieldset', { class: 'ew-fieldset' }, h('legend', null, ctx.label), h('p', { class: 'ew-help' }, t('props.src.help')), list,
-    button(t('props.src.add'), () => void add(''), { variant: 'secondary' }));
-  return { el, get: () => rows.map((r) => r.get()).filter(Boolean).join('; ') };
 }
 
 function filterControl(value: string, ctx: MacroParamContext): { el: HTMLElement; get: () => string } {
@@ -189,7 +141,7 @@ function keyControl(value: string, ctx: MacroParamContext): { el: HTMLElement; g
 }
 
 export function registerControls(): void {
-  registerMacroParamControl('properties.source', sourceControl);
+  registerMacroParamControl('properties.source', (value, ctx) => sourcesEditor(ctx.label, value, { categoryId: ctx.categoryId }));
   registerMacroParamControl('properties.filter', filterControl);
   registerMacroParamControl('properties.columns', columnsControl);
   registerMacroParamControl('properties.sort', sortControl);

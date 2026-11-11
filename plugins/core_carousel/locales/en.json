@@ -73,5 +73,8 @@
  "perm.core.carousel.manage_help": "Create carousels, place them, edit slides and external feeds.",
  "perm.core.carousel.publish": "Publish news in carousels",
  "perm.core.carousel.publish_help": "Show a published page as news in a carousel (option when publishing).",
- "perm.group.core.carousel": "Carousel"
+ "perm.group.core.carousel": "Carousel",
+ "core.carousel.sources": "Elements from sources",
+ "core.carousel.sources_help": "The newest elements of these sources become slides (title, summary, preview image). Only elements the viewer may read are shown.",
+ "core.carousel.feed_items_help": "Per feed, and for all sources together."
 }

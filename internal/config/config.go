@@ -42,6 +42,7 @@ type Config struct {
 	Mail      Mail                      `yaml:"mail" json:"mail"`
 	Cache     Cache                     `yaml:"cache" json:"cache"`
 	Webhooks  Webhooks                  `yaml:"webhooks" json:"webhooks"`
+	Feeds     Feeds                     `yaml:"feeds" json:"feeds"`
 	Audit     Audit                     `yaml:"audit" json:"audit"`
 	License   License                   `yaml:"license" json:"license"`
 	Settings  map[string]map[string]any `yaml:"plugin_settings,omitempty" json:"plugin_settings,omitempty"`
@@ -102,6 +103,12 @@ type AuditForward struct {
 	Headers map[string]string `yaml:"headers,omitempty" json:"headers"`
 	// Areas limits the forwarded entries (empty = all).
 	Areas []string `yaml:"areas,omitempty" json:"areas"`
+}
+
+// Feeds configures reading external RSS/Atom feeds (news, lists, carousel).
+type Feeds struct {
+	// AllowPrivate allows feeds on internal addresses (intranet servers).
+	AllowPrivate bool `yaml:"allow_private,omitempty" json:"allow_private"`
 }
 
 type Webhooks struct {

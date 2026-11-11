@@ -2,13 +2,13 @@
 // all, quick adding of questions and sections, feed, deep links #q-ID).
 import {
   announce, api, button, categorySelect, checkbox, confirmDialog, errorText, feedButton, field, formDialog, h, langFields, mount, pick,
-  registerEditor, registerWidget, rerender, select, state, t, textArea, textInput, toast, type EditorInstance,
+  registerEditor, registerWidget, rerender, select, state, t, textArea, textInput, toast, type EditorInstance, sourcesEditor,
 } from '@ewiki/sdk';
 import './style.css';
 
 const BASE = '/api/v1/x/content.faq';
 
-interface Body { category_id: number; recursive: boolean; intro: { format: string; source: string }; feed: boolean; open_sections: boolean; numbering: boolean; search: boolean }
+interface Body { category_id: number; recursive: boolean; more_sources?: string; intro: { format: string; source: string }; feed: boolean; open_sections: boolean; numbering: boolean; search: boolean }
 interface Cat { id: number; depth: number; titles: Record<string, string>; can_create: boolean }
 interface Info { categories: Cat[]; can_create: boolean; can_manage: boolean; missing: boolean }
 
@@ -26,6 +26,7 @@ function createEditor(container: HTMLElement, raw: unknown): EditorInstance {
   void categorySelect({ selected: b.category_id, perm: 'view', noneLabel: t('content.faq.new_source'), allowCreate: true })
     .then((cs) => { cats = cs; catBox.append(cs.field(t('content.faq.category'), { help: t('content.faq.category_help') })); });
   const rec = checkbox(t('content.faq.recursive'), b.recursive);
+  const more = sourcesEditor(t('content.faq.more_sources'), b.more_sources ?? '', { help: t('content.faq.more_sources_help') });
   const fmt = select([{ value: 'markdown', label: 'Markdown' }, { value: 'html', label: 'HTML' }], b.intro.format);
   const intro = textArea({ value: b.intro.source, rows: 4 });
   const open = checkbox(t('content.faq.open_sections'), b.open_sections);
@@ -33,13 +34,13 @@ function createEditor(container: HTMLElement, raw: unknown): EditorInstance {
   const search = checkbox(t('content.faq.search_opt'), b.search);
   const feed = checkbox(t('content.faq.feed'), b.feed);
   mount(container, h('div', { class: 'ewq-editor' },
-    h('fieldset', null, h('legend', null, t('content.faq.source')), catBox, rec.el),
+    h('fieldset', null, h('legend', null, t('content.faq.source')), catBox, rec.el, more.el),
     h('fieldset', null, h('legend', null, t('content.faq.intro')), field(t('content.faq.intro_format'), fmt), field(t('content.faq.intro_text'), intro, { help: t('content.faq.intro_help') })),
     h('fieldset', null, h('legend', null, t('content.faq.display')), open.el, num.el, search.el, feed.el),
     err));
   return {
     getBody: () => ({
-      category_id: cats?.value() ?? b.category_id, recursive: rec.input.checked, intro: { format: fmt.value, source: intro.value },
+      category_id: cats?.value() ?? b.category_id, recursive: rec.input.checked, more_sources: more.get(), intro: { format: fmt.value, source: intro.value },
       feed: feed.input.checked, open_sections: open.input.checked, numbering: num.input.checked, search: search.input.checked,
     }),
   };

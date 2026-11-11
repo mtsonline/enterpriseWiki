@@ -216,6 +216,16 @@ license:
   key: EWL1.eyJpZCI6…   # oder ${EWIKI_LICENSE} mit dem Wert in .env
 ```
 
+### `feeds`
+Externe RSS/Atom-Feeds (Makro „Neuigkeiten aus mehreren Quellen“) und iCal-Abonnements (weitere Quellen eines Kalenders, Makro „Nächste Termine“) werden im Hintergrund alle 10 Minuten abgerufen und in der Datenbank zwischengespeichert; Seiten warten nie auf eine fremde Adresse. Höchstens 2 MB je Abruf, nur `http(s)`, Umleitungen nur auf öffentliche Adressen, Abrufe, die 30 Tage niemand mehr gebraucht hat, werden vergessen.
+
+```yaml
+feeds:
+  allow_private: false  # true erlaubt Feeds und Kalender im internen Netz (10.x, 192.168.x, localhost …)
+```
+
+Die Feeds des Karussells haben eine eigene Einstellung im Plugin (*Administration → Plugins → Karussell*).
+
 ### `webhooks`
 Webhooks selbst werden unter *Administration → Webhooks* (API `/api/v1/admin/webhooks`) angelegt. In `config.yaml` stehen nur:
 

@@ -5,6 +5,7 @@ import (
 	"encoding/csv"
 	"encoding/json"
 	"fmt"
+	"github.com/mtsonline/enterprisewiki/internal/content"
 	"net/http"
 	"regexp"
 	"slices"
@@ -44,15 +45,8 @@ type Query struct {
 	Exclude int64 `json:"exclude"`
 }
 
-// Source is where elements come from (several are combined).
-type Source struct {
-	Kind string  `json:"kind"` // category | tag | type | elements
-	ID   int64   `json:"id,omitempty"`
-	Sub  bool    `json:"sub,omitempty"` // category: with subcategories
-	Tag  string  `json:"tag,omitempty"`
-	Type string  `json:"type,omitempty"`
-	IDs  []int64 `json:"ids,omitempty"`
-}
+// Source is where elements come from (several are combined; see content.Source).
+type Source = content.Source
 
 // Filter is a condition on a property.
 type Filter struct {

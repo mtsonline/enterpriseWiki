@@ -68,7 +68,7 @@ func (p *Plugin) Locales() fs.FS { s, _ := fs.Sub(locales, "locales"); return s 
 // Setup implements sdk.SetupPlugin.
 func (p *Plugin) Setup(host *sdk.Host) error {
 	p.host = host
-	instance = p
+	instances.Set(host.Site, p)
 	p.formulas = map[string]*Formula{}
 	host.RegisterElementField(field{p})
 	host.RegisterMacro(report{p})

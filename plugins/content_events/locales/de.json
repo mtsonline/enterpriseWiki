@@ -180,5 +180,10 @@
  "content.events.mail_invitation_hint": "Der Termin ist als Kalendereinladung angehängt (Outlook, Apple, Google, Thunderbird).",
  "content.events.no_invitations": "Keine Kalendereinladungen in E-Mails (sonst landen angemeldete Termine direkt im Kalender von Outlook & Co.)",
  "perm.content.events.attendees": "Teilnehmende sehen",
- "perm.content.events.attendees_help": "Teilnehmende aller Termine der Kalender in der Kategorie sehen und exportieren (Organisatoren sehen die ihrer eigenen Termine immer)."
+ "perm.content.events.attendees_help": "Teilnehmende aller Termine der Kalender in der Kategorie sehen und exportieren (Organisatoren sehen die ihrer eigenen Termine immer).",
+ "content.events.more_sources": "Weitere Quellen",
+ "content.events.more_sources_help": "Auch die Termine anderer Kalender (nur für Lesende, die sie sehen dürfen) und abonnierter Kalender zeigen (iCalendar-Adresse, nur lesend, alle 10 Minuten aktualisiert).",
+ "content.events.src_calendar": "Kalender des Wikis",
+ "content.events.src_ical": "Abonnierter Kalender (iCal-Adresse)",
+ "content.events.from_source": "Aus"
 }

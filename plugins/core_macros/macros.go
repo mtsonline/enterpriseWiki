@@ -29,7 +29,7 @@ func (p *Plugin) Manifest() sdk.Manifest { return sdk.ParseManifest(manifest) }
 
 // Setup registers the macros.
 func (p *Plugin) Setup(h *sdk.Host) error {
-	for _, m := range []content.Macro{toc{}, children{}, recent{}, panel{}, expand{}, status{}, textStyle{}, columns{}, gallery{svc: h.Media}} {
+	for _, m := range []content.Macro{toc{}, children{}, recent{}, panel{}, expand{}, status{}, textStyle{}, columns{}, gallery{svc: h.Media}, news{feeds: h.Feeds}} {
 		h.RegisterMacro(m)
 	}
 	return nil
@@ -154,7 +154,9 @@ func (recent) HasBody() bool { return false }
 func (recent) Params() []content.MacroParam {
 	return []content.MacroParam{
 		{Name: "count", Labels: lm("Number of entries", "Anzahl Einträge"), Type: "number", Default: "10"},
-		{Name: "scope", Labels: lm("Scope", "Bereich"), Type: "select", Options: []string{"category", "all"}, Default: "category"},
+		{Name: "scope", Labels: lm("Scope", "Bereich"), Type: "select", Options: []string{"category", "all"}, Default: "category",
+			OptionLabels: map[string]map[string]string{"category": lm("This category", "Diese Kategorie"), "all": lm("Everything", "Alles")}},
+		{Name: "source", Labels: lm("Sources (instead of the scope)", "Quellen (statt des Bereichs)"), Type: "custom:sources"},
 	}
 }
 func (recent) Render(ctx context.Context, mc content.MacroContext) (string, error) {
@@ -165,7 +167,11 @@ func (recent) Render(ctx context.Context, mc content.MacroContext) (string, erro
 	if mc.Params["scope"] == "all" {
 		cat = 0
 	}
-	items, err := mc.Service.Recent(ctx, cat, intParam(mc.Params, "count", 10, 1, 50))
+	n := intParam(mc.Params, "count", 10, 1, 50)
+	if strings.TrimSpace(mc.Params["source"]) != "" {
+		return recentFrom(ctx, mc, n)
+	}
+	items, err := mc.Service.Recent(ctx, cat, n)
 	if err != nil {
 		return "", err
 	}
@@ -174,6 +180,32 @@ func (recent) Render(ctx context.Context, mc content.MacroContext) (string, erro
 	for _, it := range items {
 		fmt.Fprintf(&b, `<li><a href="/e/%d">%s</a> <time datetime="%s">%s</time></li>`, it.ID, esc(pick(it.Titles, mc.Lang)),
 			it.UpdatedAt.UTC().Format("2006-01-02T15:04:05Z"), it.UpdatedAt.Format("2006-01-02"))
+	}
+	b.WriteString(`</ul>`)
+	return b.String(), nil
+}
+
+// recentFrom lists the elements of sources changed most recently.
+func recentFrom(ctx context.Context, mc content.MacroContext, n int) (string, error) {
+	srcs, err := content.ParseSources(mc.Params["source"])
+	if err != nil {
+		return `<p class="ew-notice ew-notice--warning" role="note">` + esc(err.Error()) + `</p>`, nil
+	}
+	set, err := mc.Service.ResolveSources(ctx, srcs)
+	if err != nil {
+		return "", err
+	}
+	var b strings.Builder
+	b.WriteString(`<ul class="ew-recent">`)
+	if !set.Empty() {
+		list, _, err := mc.Service.ListIn(ctx, content.ListOptions{Sources: set, Lang: mc.Lang, Order: "updated", Limit: n, SummaryLen: 1, Exclude: mc.ElementID})
+		if err != nil {
+			return "", err
+		}
+		for _, it := range list {
+			fmt.Fprintf(&b, `<li><a href="/e/%d">%s</a> <time datetime="%s">%s</time></li>`, it.ID, esc(it.Title),
+				it.UpdatedAt.UTC().Format("2006-01-02T15:04:05Z"), it.UpdatedAt.Format("2006-01-02"))
+		}
 	}
 	b.WriteString(`</ul>`)
 	return b.String(), nil

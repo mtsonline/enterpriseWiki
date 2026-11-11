@@ -3,6 +3,7 @@ package content_events
 import (
 	"context"
 	"fmt"
+	"github.com/mtsonline/enterprisewiki/plugins/core_html"
 	"net/http"
 	"net/url"
 	"strings"
@@ -76,9 +77,36 @@ func (p *Plugin) Setup(hs *sdk.Host) error {
 		if err != nil {
 			return nil, err
 		}
-		events, err := p.eventsOf(ctx, []int64{id}, from, to, q.Get("category"), strings.TrimSpace(q.Get("q")))
+		// further sources: other calendars the reader may view, subscribed calendars
+		ids := []int64{id}
+		others := map[int64]string{}
+		var ical []string
+		if more, err := parseEventSources(cal.Config.More); err == nil && (len(more.Calendars) > 0 || len(more.ICal) > 0) {
+			if len(more.Calendars) > 0 {
+				vis, err := p.visibleCalendars(ctx, more.Calendars)
+				if err != nil {
+					return nil, err
+				}
+				for cid, title := range vis {
+					if cid != id {
+						ids = append(ids, cid)
+						others[cid] = title
+					}
+				}
+			}
+			ical = more.ICal
+		}
+		events, err := p.eventsOf(ctx, ids, from, to, q.Get("category"), strings.TrimSpace(q.Get("q")))
 		if err != nil {
 			return nil, err
+		}
+		if q.Get("category") == "" {
+			term := strings.ToLower(strings.TrimSpace(q.Get("q")))
+			for _, e := range p.externalEvents(ctx, ical, from, to) {
+				if term == "" || strings.Contains(strings.ToLower(e.Title+" "+e.Description+" "+e.Location), term) {
+					events = append(events, e)
+				}
+			}
 		}
 		occ, err := p.occurrences(ctx, events, from, to)
 		if err != nil {
@@ -90,13 +118,26 @@ func (p *Plugin) Setup(hs *sdk.Host) error {
 		}
 		list := []*Event{}
 		for _, e := range events {
-			if used[e.ID] {
-				cal.decorate(ctx, e)
-				list = append(list, e)
+			if !used[e.ID] {
+				continue
 			}
+			switch {
+			case e.External:
+				// text of a foreign calendar: never interpreted as markup
+				// (no external images or links that load or track)
+				e.DescriptionHTML = plainHTML(e.Description)
+			case e.CalendarID == id:
+				cal.decorate(ctx, e)
+			default:
+				// events of another calendar: read-only here (changed in their calendar)
+				if strings.TrimSpace(e.Description) != "" {
+					e.DescriptionHTML = core_html.ToHTML(&core_html.Body{Format: "markdown", Source: e.Description})
+				}
+			}
+			list = append(list, e)
 		}
 		return map[string]any{"calendar": map[string]any{"id": cal.ID, "title": cal.Title, "config": cal.Config, "can_create": cal.canCreate(),
-			"signed_in": identity.From(ctx).ID() != 0}, "events": list, "occurrences": occ, "from": from, "to": to}, nil
+			"signed_in": identity.From(ctx).ID() != 0}, "events": list, "occurrences": occ, "from": from, "to": to, "calendars": others}, nil
 	})
 
 	// POST /calendars/{id}/events creates an event (Create permission).
@@ -377,7 +418,7 @@ func (p *Plugin) Setup(hs *sdk.Host) error {
 		if c := h.QueryInt(r, "calendar", 0); c > 0 {
 			cals = []int64{int64(c)}
 		}
-		list, err := p.upcoming(r.Context(), cals, time.Now(), h.QueryInt(r, "days", 60), h.QueryInt(r, "limit", 10))
+		list, err := p.upcoming(r.Context(), cals, nil, time.Now(), h.QueryInt(r, "days", 60), h.QueryInt(r, "limit", 10))
 		if err != nil {
 			return nil, err
 		}

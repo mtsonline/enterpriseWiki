@@ -85,6 +85,12 @@ Im Markdown-Quelltext stehen Makros als Direktiven: `::toc{levels=3}` (ohne Inha
 | Abschnitt, Hero-Banner, Button-Link, Abstand | Bausteine für Website-Seiten (besonders mit der Vorlage *CMS*) |
 | Shell-Befehl | Ausgabe eines Befehls auf dem Server; läuft erst, wenn ein Superadmin genau diesen Befehl freigegeben hat |
 | HTTP-Abruf | Ergebnis einer Web-Adresse (Text, HTML, JSON als Tabelle); nur freigegebene Adressen |
+| Neuigkeiten aus mehreren Quellen | die neuesten Elemente beliebig vieler Quellen und Einträge externer RSS/Atom-Feeds gemeinsam, als Karten, Liste oder Schlagzeilen |
+| Blogbeiträge aus mehreren Quellen | Beiträge mehrerer Quellen im Aussehen des Blogs (Liste, Karten, Kompakt) |
+| FAQ aus mehreren Quellen | Fragen mehrerer Quellen als eine FAQ, ein aufklappbarer Abschnitt je Kategorie |
+| Zuletzt geändert, Nächste Termine | ebenfalls mit frei wählbaren Quellen |
+
+**Quellen** wählen Sie in Makros, Blog, FAQ, Kalender, Karussell und Eigenschaften-Berichten gleich: *Quelle hinzufügen* fügt beliebig viele hinzu – eine **Kategorie** (mit oder ohne Unterkategorien), ein **Schlagwort**, einen **Elementtyp**, **einzelne Elemente**, je nach Stelle auch einen **externen Feed** (RSS/Atom), einen **anderen Kalender** oder ein **iCal-Abonnement**. Im Markdown-Quelltext stehen Quellen durch Strichpunkte getrennt, z. B. `::news{source="category:12+sub; tag:hr; feed:https://example.org/rss"}`. Ohne Quelle gilt die aktuelle Kategorie mit Unterkategorien.
 
 Jeder sieht in Makros nur, was er auch sonst sehen darf.
 
@@ -130,16 +136,17 @@ Mit *Übersetzen* bzw. *Bearbeiten* öffnen Sie den Editor für diese Sprache. U
 
 Beim Anlegen eines Elements (*Neues Element*) wählen Sie den Typ:
 
-- **Blog**: zeigt die Seiten einer Kategorie (optional mit Unterkategorien) als Beiträge, die neuesten zuerst. Es gibt Anrisstext, Autor und Datum sowie die Layouts Liste, Karten und Kompakt, dazu Blättern, Schlagwort-Filter (Klick auf einen Tag) und eine **Suche nur im Blog**. Die Beiträge sind normale Seiten: **Neuer Beitrag** öffnet den Editor in der Blog-Kategorie, **Neue Unterkategorie** legt z. B. „Veranstaltungen“ an. Im Editor des Blogs wählen Sie die Kategorie aus oder legen sie mit **Neue Kategorie** an.
+- **Blog**: zeigt die Seiten einer Kategorie (optional mit Unterkategorien) als Beiträge, die neuesten zuerst. Es gibt Anrisstext, Autor und Datum sowie die Layouts Liste, Karten und Kompakt, dazu Blättern, Schlagwort-Filter (Klick auf einen Tag) und eine **Suche nur im Blog**. Die Beiträge sind normale Seiten: **Neuer Beitrag** öffnet den Editor in der Blog-Kategorie, **Neue Unterkategorie** legt z. B. „Veranstaltungen“ an. Im Editor des Blogs wählen Sie die Kategorie aus oder legen sie mit **Neue Kategorie** an. Unter **Weitere Quellen** kommen Beiträge anderer Kategorien, Schlagwörter oder Elementtypen dazu (auch im Feed und in der Suche des Blogs).
 - **Gemeinsame Notizen**: eine Seite, auf der alle mit Bearbeitungsrecht direkt in der Ansicht schreiben – gleichzeitig, mit den Cursorn der anderen (Live-Bearbeitung). Gespeichert wird automatisch wenige Sekunden nach einer Änderung (höchstens alle 30 Sekunden eine neue Version, im Verlauf als „Notizen automatisch gespeichert“). Leser:innen sehen die Notizen als normale Seite. Ideal für Besprechungsprotokolle und gemeinsame Aufgabenlisten.
-- **FAQ**: Unterkategorien werden zu aufklappbaren Abschnitten, Seiten zu aufklappbaren Fragen (Titel = Frage, Inhalt = Antwort). Das Suchfeld filtert sofort, *Alle aufklappen/zuklappen* hilft beim Lesen. **Neue Frage** legt Frage und Antwort direkt im Dialog an (Markdown), **Neuer Abschnitt** eine Unterkategorie. Jede Frage hat einen eigenen Link (`#q-123`).
+- **FAQ**: Unterkategorien werden zu aufklappbaren Abschnitten, Seiten zu aufklappbaren Fragen (Titel = Frage, Inhalt = Antwort). Das Suchfeld filtert sofort, *Alle aufklappen/zuklappen* hilft beim Lesen. **Neue Frage** legt Frage und Antwort direkt im Dialog an (Markdown), **Neuer Abschnitt** eine Unterkategorie. Jede Frage hat einen eigenen Link (`#q-123`). **Weitere Quellen** fügen Fragen anderer Kategorien als eigene Abschnitte hinzu.
 - **Veranstaltungskalender**:
   - Ansichten Monat, Woche und Liste, Kategorien mit Farben, Suche.
   - Wiederkehrende Termine: täglich, wöchentlich an bestimmten Tagen, monatlich am Tag X oder z. B. „am letzten Freitag“, jährlich; mit Ende nach Datum oder Anzahl. Einzelne Termine einer Serie lassen sich absagen oder mit **Nur diesen Termin bearbeiten** ändern (Titel, Ort, Beschreibung, Datum und Uhrzeit). Geänderte Termine sind gekennzeichnet, Anmeldungen bleiben erhalten, und Angemeldete erhalten bei neuer Zeit oder neuem Ort eine E-Mail. **Änderung zurücksetzen** stellt den Termin wie in der Serie wieder her; **Serie bearbeiten** ändert alle Termine.
   - **Anmeldung** mit Platzzahl, Warteliste und Anmeldeschluss. Bestätigungen kommen per E-Mail mit einer **Kalendereinladung**: Outlook, Google oder Apple Kalender tragen den Termin direkt ein, aktualisieren ihn bei Änderungen und entfernen ihn bei Abmeldung oder Absage (je Kalender abschaltbar). Wird ein Platz frei, rückt automatisch die erste Person der Warteliste nach und wird informiert.
   - **Erinnerungen per E-Mail** (z. B. 1 Tag vorher) an Angemeldete und alle, die „Erinnern“ gewählt haben.
   - **In meinen Kalender (.ics)** für einen Termin und **Abonnieren** des ganzen Kalenders in Outlook, Google oder Apple Kalender (persönlicher Link). Organisatoren sehen die Teilnehmenden und können sie als CSV exportieren.
-  - Das Makro **Nächste Termine** zeigt kommende Termine auf jeder Seite.
+  - **Weitere Quellen**: Termine anderer Kalender (nur solche, die die Lesenden sehen dürfen; geändert werden sie in ihrem Kalender) und **iCal-Abonnements** externer Kalender (z. B. Feiertage; alle 10 Minuten aktualisiert, nur lesend, die Beschreibung als reiner Text). Jeder Termin zeigt, aus welchem Kalender er stammt.
+  - Das Makro **Nächste Termine** zeigt kommende Termine auf jeder Seite – aus diesem, aus mehreren Kalendern oder aus iCal-Abonnements.
 - **Team**: Name und Beschreibung (Markdown/HTML), eine oder mehrere Gruppen, deren Mitglieder angezeigt werden, und die Auswahl der Angaben: Foto, Funktion, Abteilung, E-Mail, Telefon, Mobil, Büro, „Über mich“, Gruppen oder Attribute aus LDAP/OIDC/SAML. Darstellung als Karten, Liste oder Tabelle, auf Wunsch nach Gruppen gegliedert, mit Filter und CSV-Export. Die Angaben pflegt jede Person unter *Mein Profil → Visitenkarte*, Administratoren unter *Administration → Benutzer*.
 
 ### Reaktionen und Favoriten
@@ -170,7 +177,7 @@ Elemente und Kategorien können eine **Kurz-URL** bekommen: Seiten über *Eigens
 Unter *Administration → Einstellungen → Startseite* wählen Administratoren, was unter `/` erscheint: die Übersicht der obersten Kategorien, eine Kategorie oder ein Element. Neue Installationen zeigen die Willkommensseite. Für eine Übersicht von Bereichen eignet sich der Elementtyp **Kategorieübersicht**: eine Kategorie oder die oberste Ebene, mit 1–5 Ebenen Unterkategorien, als Karten oder Liste, auf Wunsch mit Beschreibungen und den Seiten jeder Kategorie.
 
 ### Karussells
-Karussells zeigen an einer Position der Vorlage (z. B. über dem Inhalt) Neuigkeiten, eigene Folien und Einträge externer Feeds. Beim **Veröffentlichen mit Optionen** wählen Sie mit dem Recht *Neuigkeiten in Karussells veröffentlichen* „Als Neuigkeit in …“ und optional ein Enddatum; Neuigkeiten sehen nur Personen, die die Seite sehen dürfen. Mit *‹* und *›* oder den Punkten wechseln Sie die Folie; läuft das Karussell automatisch, hält *Pause* es an (es hält auch an, solange Maus oder Fokus darin sind, und läuft gar nicht, wenn Ihr System reduzierte Bewegung wünscht).
+Karussells zeigen an einer Position der Vorlage (z. B. über dem Inhalt) Neuigkeiten, eigene Folien, Einträge externer Feeds und die neuesten Elemente beliebiger **Quellen** (Kategorien, Schlagwörter, Elementtypen – mit Titel, Zusammenfassung und Vorschaubild; jede Person sieht nur, was sie lesen darf). Beim **Veröffentlichen mit Optionen** wählen Sie mit dem Recht *Neuigkeiten in Karussells veröffentlichen* „Als Neuigkeit in …“ und optional ein Enddatum; Neuigkeiten sehen nur Personen, die die Seite sehen dürfen. Mit *‹* und *›* oder den Punkten wechseln Sie die Folie; läuft das Karussell automatisch, hält *Pause* es an (es hält auch an, solange Maus oder Fokus darin sind, und läuft gar nicht, wenn Ihr System reduzierte Bewegung wünscht).
 
 ### Menüs
 

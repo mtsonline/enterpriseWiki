@@ -22,6 +22,7 @@ import (
 	"regexp"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 	_ "time/tzdata" // time zones without system tzdata
 	"unicode/utf8"
@@ -49,7 +50,11 @@ var locales embed.FS
 const TypeID = "content.events"
 
 // Plugin is the event calendar plugin.
-type Plugin struct{ host *sdk.Host }
+type Plugin struct {
+	host  *sdk.Host
+	icsMu sync.Mutex
+	ics   map[string][]*Event // parsed subscribed calendars
+}
 
 // plugins holds the plugin instance of each site (for renderers).
 var plugins sdk.PerSite[*Plugin]
@@ -84,6 +89,9 @@ type Config struct {
 	// NoInvitations: registration e-mails without calendar invitation (iTIP)
 	NoInvitations bool `json:"no_invitations"`
 	ListDays      int  `json:"list_days"` // range of the list view
+	// More: events of further sources shown too (read-only here), e.g.
+	// "calendar:12; ical:https://example.org/holidays.ics"
+	More string `json:"more_sources"`
 }
 
 var (
@@ -98,6 +106,9 @@ func decodeConfig(raw []byte) (*Config, error) {
 	}
 	if c.View != "week" && c.View != "list" {
 		c.View = "month"
+	}
+	if _, err := parseEventSources(c.More); err != nil {
+		return nil, err
 	}
 	if c.WeekStart != 0 || !strings.Contains(string(raw), `"week_start"`) {
 		c.WeekStart = 1 // Monday unless Sunday (0) is chosen explicitly
@@ -202,6 +213,9 @@ type Event struct {
 	DescriptionHTML string `json:"description_html"`
 	CanEdit         bool   `json:"can_edit"`
 	CanManage       bool   `json:"can_manage"` // sees participants
+	// External: from a subscribed calendar (read-only); Source is its address
+	External bool   `json:"external,omitempty"`
+	Source   string `json:"source,omitempty"`
 }
 
 const eventCols = `e.id, e.calendar_id, e.uid, e.sequence, e.title, e.description, e.location, e.url, e.category, e.starts_at, e.ends_at,
@@ -715,6 +729,14 @@ func (p *Plugin) visibleCalendars(ctx context.Context, only []int64) (map[int64]
 	return out, nil
 }
 
+// hostOf is the host of an address (the name of a subscribed calendar).
+func hostOf(u string) string {
+	if i := strings.Index(u, "://"); i >= 0 {
+		return strings.TrimPrefix(strings.SplitN(u[i+3:], "/", 2)[0], "www.")
+	}
+	return u
+}
+
 // ---------------------------------------------------------------- element type
 
 // Type implements content.ElementType for calendars.
@@ -761,7 +783,7 @@ func (Type) Render(ctx context.Context, rc content.RenderContext, raw json.RawMe
 	if strings.TrimSpace(c.Intro.Source) != "" {
 		b.WriteString(`<div class="ewe-intro">` + core_html.ToHTML(&c.Intro) + `</div>`)
 	}
-	list, err := plugins.Get(ctx).upcoming(ctx, []int64{rc.ElementID}, time.Now(), c.ListDays, 30)
+	list, err := plugins.Get(ctx).upcoming(ctx, []int64{rc.ElementID}, nil, time.Now(), c.ListDays, 30)
 	if err != nil {
 		return "", err
 	}
@@ -779,20 +801,26 @@ type upcomingItem struct {
 	Date  string // original local date
 }
 
-func (p *Plugin) upcoming(ctx context.Context, calendars []int64, from time.Time, days, limit int) ([]upcomingItem, error) {
-	vis, err := p.visibleCalendars(ctx, calendars)
-	if err != nil || len(vis) == 0 {
-		return nil, err
+func (p *Plugin) upcoming(ctx context.Context, calendars []int64, ical []string, from time.Time, days, limit int) ([]upcomingItem, error) {
+	vis := map[int64]string{}
+	var err error
+	if len(calendars) > 0 || len(ical) == 0 {
+		if vis, err = p.visibleCalendars(ctx, calendars); err != nil {
+			return nil, err
+		}
 	}
 	ids := make([]int64, 0, len(vis))
 	for id := range vis {
 		ids = append(ids, id)
 	}
 	to := from.AddDate(0, 0, days)
-	events, err := p.eventsOf(ctx, ids, from, to, "", "")
-	if err != nil {
-		return nil, err
+	var events []*Event
+	if len(ids) > 0 {
+		if events, err = p.eventsOf(ctx, ids, from, to, "", ""); err != nil {
+			return nil, err
+		}
 	}
+	events = append(events, p.externalEvents(ctx, ical, from, to)...)
 	var out []upcomingItem
 	for _, e := range events {
 		for _, in := range e.Instances(from, to) {
@@ -802,7 +830,11 @@ func (p *Plugin) upcoming(ctx context.Context, calendars []int64, from time.Time
 				c.Title, c.Location = e.instTitle(in), e.instLocation(in)
 				ev = &c
 			}
-			out = append(out, upcomingItem{Event: ev, Occ: in.Start, End: in.End, Cal: vis[e.CalendarID], Date: in.Date})
+			name := vis[e.CalendarID]
+			if e.External {
+				name = hostOf(e.Source)
+			}
+			out = append(out, upcomingItem{Event: ev, Occ: in.Start, End: in.End, Cal: name, Date: in.Date})
 		}
 	}
 	sort.SliceStable(out, func(a, b int) bool { return out[a].Occ.Before(out[b].Occ) })
@@ -868,8 +900,18 @@ func renderUpcoming(list []upcomingItem, lang string, withCal bool) string {
 	for _, it := range list {
 		e := it.Event
 		date := it.Date
-		fmt.Fprintf(&b, `<li class="ewe-up"><a href="/e/%d#event-%d-%s"><time datetime="%s">%s</time> <strong>%s</strong></a>`,
-			e.CalendarID, e.ID, date, it.Occ.UTC().Format(time.RFC3339), esc(FormatWhen(it.Occ, it.End, e.AllDay, e.Loc(), lang)), esc(e.Title))
+		if e.External {
+			// a subscribed calendar: its link (if any), else only the text
+			when := fmt.Sprintf(`<time datetime="%s">%s</time> <strong>%s</strong>`, it.Occ.UTC().Format(time.RFC3339), esc(FormatWhen(it.Occ, it.End, e.AllDay, e.Loc(), lang)), esc(e.Title))
+			if e.URL != "" {
+				fmt.Fprintf(&b, `<li class="ewe-up"><a href="%s" rel="noopener noreferrer nofollow">%s</a>`, esc(e.URL), when)
+			} else {
+				b.WriteString(`<li class="ewe-up">` + when)
+			}
+		} else {
+			fmt.Fprintf(&b, `<li class="ewe-up"><a href="/e/%d#event-%d-%s"><time datetime="%s">%s</time> <strong>%s</strong></a>`,
+				e.CalendarID, e.ID, date, it.Occ.UTC().Format(time.RFC3339), esc(FormatWhen(it.Occ, it.End, e.AllDay, e.Loc(), lang)), esc(e.Title))
+		}
 		if e.Location != "" {
 			b.WriteString(` <span class="ewe-up-loc">` + esc(e.Location) + `</span>`)
 		}
@@ -907,6 +949,7 @@ func (UpcomingMacro) HasBody() bool { return false }
 func (UpcomingMacro) Params() []content.MacroParam {
 	return []content.MacroParam{
 		{Name: "calendar", Labels: map[string]string{"en": "Calendar (element id, empty = all)", "de": "Kalender (Element-ID, leer = alle)"}, Type: "number"},
+		{Name: "source", Labels: map[string]string{"en": "Calendars and subscribed calendars (instead of the one above)", "de": "Kalender und abonnierte Kalender (statt des obigen)"}, Type: "custom:events.sources"},
 		{Name: "limit", Labels: map[string]string{"en": "Number of events", "de": "Anzahl Termine"}, Type: "number", Default: "5"},
 		{Name: "days", Labels: map[string]string{"en": "Days ahead", "de": "Tage im Voraus"}, Type: "number", Default: "60"},
 	}
@@ -921,6 +964,14 @@ func (UpcomingMacro) Render(ctx context.Context, mc content.MacroContext) (strin
 			cals = []int64{id}
 		}
 	}
+	var ical []string
+	if src := strings.TrimSpace(mc.Params["source"]); src != "" {
+		more, err := parseEventSources(src)
+		if err != nil {
+			return `<p class="ew-notice ew-notice--warning" role="note">` + html.EscapeString(err.Error()) + `</p>`, nil
+		}
+		cals, ical = more.Calendars, more.ICal
+	}
 	limit, days := 5, 60
 	_, _ = fmt.Sscan(mc.Params["limit"], &limit)
 	_, _ = fmt.Sscan(mc.Params["days"], &days)
@@ -930,9 +981,9 @@ func (UpcomingMacro) Render(ctx context.Context, mc content.MacroContext) (strin
 	if days < 1 || days > 730 {
 		days = 60
 	}
-	list, err := plugins.Get(ctx).upcoming(ctx, cals, time.Now(), days, limit)
+	list, err := plugins.Get(ctx).upcoming(ctx, cals, ical, time.Now(), days, limit)
 	if err != nil {
 		return "", err
 	}
-	return `<div class="ewe-macro">` + renderUpcoming(list, mc.Lang, len(cals) == 0) + `</div>`, nil
+	return `<div class="ewe-macro">` + renderUpcoming(list, mc.Lang, len(cals) != 1 || len(ical) > 0) + `</div>`, nil
 }

@@ -2,8 +2,8 @@
   "id": "content.faq",
   "name": "FAQ",
   "version": "1.0.0",
-  "description": "Element type that shows the elements of a category and its subcategories as FAQ: subcategories become collapsible sections, pages become collapsible questions with their content as answer. With search within the FAQ, quick adding of questions and sections and an Atom/RSS feed.",
+  "description": "Element type that shows the elements of a category and its subcategories as FAQ: subcategories become collapsible sections, pages become collapsible questions with their content as answer. With search within the FAQ, quick adding of questions and sections and an Atom/RSS feed. The macro ::faq shows questions of several sources together.",
   "author": "Enterprise Wiki",
-  "kinds": ["element"],
+  "kinds": ["element", "macro"],
   "frontend": true
 }

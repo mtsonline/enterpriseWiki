@@ -194,14 +194,21 @@ func (s *Service) GetElement(ctx context.Context, id int64, lang string, withBod
 	}
 	t := s.Type(e.Type)
 	v.TypeActive = t != nil
-	if t != nil {
+	depth, _ := ctx.Value(renderDepthKey{}).(int)
+	switch {
+	case t != nil && depth >= MaxRenderDepth:
+		// elements shown inside elements (FAQ answers, full blog posts,
+		// previews) that again show elements: stop before it loops
+		v.HTML = `<p role="note">This content is nested too deeply to be shown here.</p>`
+	case t != nil:
+		ctx := context.WithValue(ctx, renderDepthKey{}, depth+1)
 		html, err := t.Render(ctx, RenderContext{ElementID: id, CategoryID: e.CategoryID, Lang: v.ShownLang, Principal: identity.From(ctx), Service: s}, body)
 		if err != nil {
 			s.log.Error("render failed", "element", id, "err", err)
 			html = `<p role="alert">This element could not be rendered.</p>`
 		}
 		v.HTML = html
-	} else {
+	default:
 		v.HTML = `<p role="note">The element type "` + htmlEscape(e.Type) + `" is not available (plugin disabled or not installed).</p>`
 	}
 	if withBody && perms&acl.Edit != 0 {
@@ -214,6 +221,11 @@ func (s *Service) GetElement(ctx context.Context, id int64, lang string, withBod
 	}
 	return v, nil
 }
+
+// MaxRenderDepth limits elements rendered inside the rendering of elements.
+const MaxRenderDepth = 4
+
+type renderDepthKey struct{}
 
 func htmlEscape(s string) string {
 	return strings.NewReplacer("&", "&amp;", "<", "&lt;", ">", "&gt;", `"`, "&quot;", "'", "&#39;").Replace(s)

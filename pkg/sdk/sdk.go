@@ -14,6 +14,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/mtsonline/enterprisewiki/internal/feedfetch"
 	"io/fs"
 	"log/slog"
 	"net/http"
@@ -155,7 +156,9 @@ type Host struct {
 	Files    *storage.Store
 	Media    *media.Service
 	Mail     *mail.Service
-	Workers  *worker.Registry
+	// Feeds reads external RSS/Atom feeds (cached, SSRF-safe).
+	Feeds   *feedfetch.Cache
+	Workers *worker.Registry
 	// Webhooks queues HTTP notifications (Emit) for events of the plugin.
 	Webhooks *webhook.Service
 	// Notify sends notifications in the wiki (bell) and by e-mail; declare

@@ -102,6 +102,23 @@ func (s *Service) Type(id string) ElementType {
 	return r.t
 }
 
+// Listing is implemented by element types that show other elements (blog,
+// FAQ, overviews); lists of several sources can leave them out.
+type Listing interface{ ListsElements() bool }
+
+// ListingTypes returns the ids of the registered types that list other elements.
+func (s *Service) ListingTypes() []string {
+	s.types.mu.RLock()
+	defer s.types.mu.RUnlock()
+	out := []string{}
+	for id, r := range s.types.types {
+		if l, ok := r.t.(Listing); ok && l.ListsElements() {
+			out = append(out, id)
+		}
+	}
+	return out
+}
+
 // Types lists active element types.
 func (s *Service) Types() []TypeInfo {
 	s.types.mu.RLock()

@@ -2,6 +2,8 @@ package content
 
 import (
 	"context"
+	"fmt"
+	"strconv"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -82,6 +84,11 @@ type ListOptions struct {
 	SummaryLen  int // characters of the summary (default 300)
 	WithContent bool
 	Exclude     int64 // e.g. the blog element itself
+	// Sources replaces Categories: elements of several sources (ResolveSources)
+	Sources *SourceSet
+	// SkipListings leaves out elements whose type lists other elements
+	// (blog, FAQ, overviews …) unless their type or id is a source itself
+	SkipListings bool
 }
 
 // ListIn returns elements of the given categories in the caller's
@@ -103,19 +110,35 @@ func (s *Service) ListIn(ctx context.Context, o ListOptions) ([]ListedElement, i
 	case "position":
 		order = "c.path, e.position, e.id"
 	}
+	// where the elements come from: categories (permission checked by the caller) or sources
+	where, wargs := "e.category_id = ANY($1)", []any{o.Categories}
+	if o.Sources != nil {
+		where, wargs = sourceCond(o.Sources, 1)
+	}
+	if o.SkipListings {
+		types, ids := []string{}, []int64{}
+		if o.Sources != nil {
+			types, ids = o.Sources.Types, o.Sources.IDs
+		}
+		k := len(wargs)
+		where += fmt.Sprintf(" AND (e.type <> ALL($%d) OR e.type = ANY($%d) OR e.id = ANY($%d))", k+1, k+2, k+3)
+		wargs = append(wargs, s.ListingTypes(), types, ids)
+	}
+	nw := len(wargs)
+	arg := func(i int) string { return "$" + strconv.Itoa(nw+i) }
 	var total int
-	if err := s.pool.QueryRow(ctx, `SELECT count(*) FROM elements e WHERE e.deleted_at IS NULL AND e.category_id = ANY($1)
-		AND ($2 = '' OR $2 = ANY(e.tags)) AND e.id <> $3`, o.Categories, o.Tag, o.Exclude).Scan(&total); err != nil {
+	if err := s.pool.QueryRow(ctx, `SELECT count(*) FROM elements e WHERE e.deleted_at IS NULL AND `+where+`
+		AND (`+arg(1)+` = '' OR `+arg(1)+` = ANY(e.tags)) AND e.id <> `+arg(2), append(wargs, o.Tag, o.Exclude)...).Scan(&total); err != nil {
 		return nil, 0, err
 	}
-	rows, err := s.pool.Query(ctx, `SELECT e.id, e.category_id, e.type, d.lang, d.title, left(d.body_text, $3), e.tags, e.position,
+	rows, err := s.pool.Query(ctx, `SELECT e.id, e.category_id, e.type, d.lang, d.title, left(d.body_text, `+arg(2)+`), e.tags, e.position,
 			COALESCE(NULLIF(u.display_name, ''), u.username, ''), e.created_at, e.updated_at
 		FROM elements e JOIN categories c ON c.id = e.category_id
-		JOIN LATERAL (SELECT lang, title, body_text FROM search_docs WHERE element_id = e.id AND lang IN ($2, e.original_lang)
-			ORDER BY (lang = $2) DESC LIMIT 1) d ON true
+		JOIN LATERAL (SELECT lang, title, body_text FROM search_docs WHERE element_id = e.id AND lang IN (`+arg(1)+`, e.original_lang)
+			ORDER BY (lang = `+arg(1)+`) DESC LIMIT 1) d ON true
 		LEFT JOIN users u ON u.id = e.created_by
-		WHERE e.deleted_at IS NULL AND e.category_id = ANY($1) AND ($4 = '' OR $4 = ANY(e.tags)) AND e.id <> $7
-		ORDER BY `+order+` LIMIT $5 OFFSET $6`, o.Categories, o.Lang, o.SummaryLen+1, o.Tag, o.Limit, o.Offset, o.Exclude)
+		WHERE e.deleted_at IS NULL AND `+where+` AND (`+arg(3)+` = '' OR `+arg(3)+` = ANY(e.tags)) AND e.id <> `+arg(6)+`
+		ORDER BY `+order+` LIMIT `+arg(4)+` OFFSET `+arg(5), append(wargs, o.Lang, o.SummaryLen+1, o.Tag, o.Limit, o.Offset, o.Exclude)...)
 	if err != nil {
 		return nil, 0, err
 	}

@@ -665,3 +665,16 @@ CREATE TABLE demo_objects (
     UNIQUE (kind, ref)
 );
 
+
+-- External feeds (RSS/Atom) of reading plugins and macros: the items as
+-- last fetched; a worker refreshes feeds in use every 10 minutes.
+CREATE TABLE feed_cache (
+    url        text NOT NULL,
+    kind       text NOT NULL DEFAULT 'rss' CHECK (kind IN ('rss', 'ical')),
+    items      jsonb NOT NULL DEFAULT '[]',        -- rss: the parsed items
+    body       text NOT NULL DEFAULT '',          -- ical: the calendar as fetched
+    fetched_at timestamptz,
+    used_at    timestamptz NOT NULL DEFAULT now(),
+    error      text NOT NULL DEFAULT '',
+    PRIMARY KEY (kind, url)                        -- one address may serve as feed and as calendar
+);

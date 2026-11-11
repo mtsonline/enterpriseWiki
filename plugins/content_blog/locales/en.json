@@ -42,5 +42,7 @@
  "content.blog.clear_filter": "Clear filter",
  "content.blog.search": "Search the blog",
  "content.blog.search_placeholder": "Search term …",
- "content.blog.new_source": "– Create a new category with the title –"
+ "content.blog.new_source": "– Create a new category with the title –",
+ "content.blog.more_sources": "Further sources",
+ "content.blog.more_sources_help": "Show the posts of further categories, tags or element types too (only to readers who may see them). New posts still go into the category above."
 }

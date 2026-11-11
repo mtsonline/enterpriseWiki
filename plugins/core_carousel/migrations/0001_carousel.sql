@@ -7,7 +7,8 @@ CREATE TABLE plugin_carousels (
     autoplay    int NOT NULL DEFAULT 0,         -- seconds per slide, 0 = no automatic rotation
     max_slides  int NOT NULL DEFAULT 10,
     feeds       text[] NOT NULL DEFAULT '{}',   -- external RSS/Atom feeds
-    feed_items  int NOT NULL DEFAULT 5,         -- items per feed
+    feed_items  int NOT NULL DEFAULT 5,         -- items per feed (and per source)
+    sources     text NOT NULL DEFAULT '',       -- elements as slides: content sources ("category:12+sub; tag:news")
     enabled     boolean NOT NULL DEFAULT true,
     position_order int NOT NULL DEFAULT 0,
     created_at  timestamptz NOT NULL DEFAULT now(),

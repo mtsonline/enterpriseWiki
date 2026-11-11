@@ -41,5 +41,7 @@
  "content.faq.edit_section": "Edit section",
  "content.faq.delete_section": "Delete section",
  "content.faq.delete_section_confirm": "Move the section “{title}” with all its questions to the trash?",
- "content.faq.section_deleted": "Section moved to the trash."
+ "content.faq.section_deleted": "Section moved to the trash.",
+ "content.faq.more_sources": "Further sources",
+ "content.faq.more_sources_help": "Show the questions of further categories, tags or element types too (only to readers who may see them). New questions still go into the category above."
 }

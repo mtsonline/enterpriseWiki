@@ -2,8 +2,8 @@
   "id": "content.blog",
   "name": "Blog",
   "version": "1.0.0",
-  "description": "Element type that shows the elements of a category (optionally with subcategories) as a blog: newest first, with teaser, author and date, paging, search within the blog, tags and an Atom/RSS feed. Posts are normal pages of the category.",
+  "description": "Element type that shows the elements of a category (optionally with subcategories) as a blog: newest first, with teaser, author and date, paging, search within the blog, tags and an Atom/RSS feed. The macro ::blog shows posts of several sources together. Posts are normal pages of the category.",
   "author": "Enterprise Wiki",
-  "kinds": ["element"],
+  "kinds": ["element", "macro"],
   "frontend": true
 }

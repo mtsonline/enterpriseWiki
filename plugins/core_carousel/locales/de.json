@@ -73,5 +73,8 @@
  "perm.core.carousel.manage_help": "Karussells anlegen, platzieren, Folien und externe Feeds bearbeiten.",
  "perm.core.carousel.publish": "Neuigkeiten in Karussells veröffentlichen",
  "perm.core.carousel.publish_help": "Eine veröffentlichte Seite als Neuigkeit in einem Karussell zeigen (Option beim Veröffentlichen).",
- "perm.group.core.carousel": "Karussell"
+ "perm.group.core.carousel": "Karussell",
+ "core.carousel.sources": "Elemente aus Quellen",
+ "core.carousel.sources_help": "Die neuesten Elemente dieser Quellen werden zu Folien (Titel, Zusammenfassung, Vorschaubild). Angezeigt wird nur, was die Betrachtenden lesen dürfen.",
+ "core.carousel.feed_items_help": "Pro Feed sowie für alle Quellen zusammen."
 }
