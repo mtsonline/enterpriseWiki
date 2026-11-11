@@ -59,21 +59,29 @@ func (p *Plugin) Manifest() sdk.Manifest { return sdk.ParseManifest(manifest) }
 // Locales implements sdk.LocalesPlugin.
 func (p *Plugin) Locales() fs.FS { s, _ := fs.Sub(locales, "locales"); return s }
 
-// Setup registers the provider and the admin test endpoint.
+// Setup registers one provider per configured instance ("ldap",
+// "ldap-<id>") and the admin test endpoint.
 func (p *Plugin) Setup(host *sdk.Host) error {
-	prov := &Provider{settings: host.Settings}
-	host.RegisterAuthProvider(prov)
+	set := auth.NewInstanceSet("ldap", host.Settings, func(id string, s func() map[string]any) *Provider {
+		return &Provider{id: id, settings: s}
+	})
+	sdk.RegisterAuthInstances(host, set)
 	// Admin: test a login with the current settings without creating a session.
 	host.Handle("POST", "/test", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		if err := perm.Require(r.Context(), "core.settings.manage"); err != nil {
 			return nil, err
 		}
 		var in struct {
+			Instance string `json:"instance"` // provider id; "" = ldap
 			Username string `json:"username"`
 			Password string `json:"password"`
 		}
 		if err := h.Decode(r, &in); err != nil {
 			return nil, err
+		}
+		prov, ok := set.Get(in.Instance)
+		if !ok {
+			return nil, apperr.NotFound("instance")
 		}
 		id, err := prov.Authenticate(r.Context(), in.Username, in.Password)
 		switch {
@@ -91,14 +99,18 @@ func (p *Plugin) Setup(host *sdk.Host) error {
 
 // Provider implements auth.PasswordProvider.
 type Provider struct {
+	id       string // "ldap" or "ldap-<instance>"
 	settings func() map[string]any
 }
+
+// Settings implements auth.SettingsProvider.
+func (p *Provider) Settings() map[string]any { return p.settings() }
 
 // Configured implements auth.Configurable.
 func (p *Provider) Configured() bool { return auth.Setting(p.settings(), "url", "") != "" }
 
 // ID implements auth.PasswordProvider.
-func (p *Provider) ID() string { return "ldap" }
+func (p *Provider) ID() string { return p.id }
 
 // Name implements auth.PasswordProvider.
 func (p *Provider) Name() string { return auth.Setting(p.settings(), "name", "LDAP") }
@@ -188,7 +200,7 @@ func (p *Provider) Authenticate(ctx context.Context, username, password string) 
 		}
 		return nil, fmt.Errorf("user bind: %w", err)
 	}
-	id := &auth.ExternalIdentity{Provider: "ldap", Subject: e.DN, Username: e.GetAttributeValue(attrUser),
+	id := &auth.ExternalIdentity{Provider: p.id, Subject: e.DN, Username: e.GetAttributeValue(attrUser),
 		Email: e.GetAttributeValue(attrMail), DisplayName: e.GetAttributeValue(attrName),
 		Attributes: map[string]any{"dn": e.DN}}
 	if id.Username == "" {

@@ -42,13 +42,22 @@ type RedirectProvider interface {
 type registeredRedirect struct {
 	pluginID string
 	p        RedirectProvider
+	src      func() []RedirectProvider // provider instances (see instances.go)
 }
 
 // RegisterRedirectProvider adds a browser based provider owned by pluginID.
 func (s *Service) RegisterRedirectProvider(pluginID string, p RedirectProvider) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	s.redirects = append(s.redirects, registeredRedirect{pluginID, p})
+	s.redirects = append(s.redirects, registeredRedirect{pluginID: pluginID, p: p})
+}
+
+// RegisterRedirectSource adds the browser based providers src returns at
+// each call (one per configured instance) owned by pluginID.
+func (s *Service) RegisterRedirectSource(pluginID string, src func() []RedirectProvider) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.redirects = append(s.redirects, registeredRedirect{pluginID: pluginID, src: src})
 }
 
 // RedirectProviders returns the active browser based providers.
@@ -57,7 +66,11 @@ func (s *Service) RedirectProviders() []RedirectProvider {
 	defer s.mu.RUnlock()
 	var out []RedirectProvider
 	for _, r := range s.redirects {
-		if s.enabled(r.pluginID) {
+		switch {
+		case !s.enabled(r.pluginID):
+		case r.src != nil:
+			out = append(out, r.src()...)
+		default:
 			out = append(out, r.p)
 		}
 	}

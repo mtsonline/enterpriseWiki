@@ -25,6 +25,9 @@ export const MAPPING_FIELDS = (): SettingField[] => [
   { key: 'default_groups', label: t('mapping.default_groups'), type: 'list', help: t('mapping.list_help') },
   { key: 'default_roles', label: t('mapping.default_roles'), type: 'list', help: t('mapping.list_help') },
   { key: 'keep_unmapped_groups', label: t('mapping.keep_unmapped'), type: 'bool', help: t('mapping.keep_unmapped_help') },
+  { key: 'jit', label: t('mapping.jit'), type: 'bool', default: true, help: t('mapping.jit_help') },
+  { key: 'trust_email', label: t('mapping.trust_email'), type: 'bool', help: t('mapping.trust_email_help') },
+  { key: 'email_verified', label: t('mapping.email_verified'), type: 'bool', help: t('mapping.email_verified_help') },
 ];
 
 type Getter = () => unknown;
@@ -45,13 +48,30 @@ function textToMap(s: string): Record<string, string> {
   return out;
 }
 
+type Settings = Record<string, unknown>;
+const instancesOf = (s: Settings): Settings[] => (Array.isArray(s.instances) ? s.instances.filter((x): x is Settings => !!x && typeof x === 'object') : []);
+
+/** The stored settings of a plugin (secrets masked). */
+export async function loadPluginSettings(pluginId: string): Promise<{ settings: Settings; path: string }> {
+  const res = await api.get<{ config: { plugin_settings?: Record<string, Settings> }; path: string }>('admin/settings');
+  return { settings: res.config.plugin_settings?.[pluginId] ?? {}, path: res.path };
+}
+
+/** Saves the complete settings of a plugin. */
+export async function savePluginSettings(pluginId: string, settings: Settings): Promise<void> {
+  await api.put('admin/settings', { plugin_settings: { [pluginId]: settings } });
+}
+
 /**
- * Renders a settings form for a plugin. Unknown keys already present in the
- * configuration are preserved.
+ * Renders a settings form for a plugin, or for one of its instances
+ * (settings "instances", entry with this id). Unknown keys already present in
+ * the configuration are preserved.
  */
-export async function pluginSettingsForm(pluginId: string, fields: SettingField[], legend?: string): Promise<{ el: HTMLElement; values: () => Record<string, unknown> }> {
-  const res = await api.get<{ config: { plugin_settings?: Record<string, Record<string, unknown>> }; path: string }>('admin/settings');
-  const stored = res.config.plugin_settings?.[pluginId] ?? {};
+export async function pluginSettingsForm(pluginId: string, fields: SettingField[], legend?: string, instance?: string): Promise<{ el: HTMLElement; values: () => Record<string, unknown> }> {
+  const loaded = await loadPluginSettings(pluginId);
+  const res = { path: loaded.path };
+  const all = loaded.settings;
+  const stored = instance ? instancesOf(all).find((x) => x.id === instance) ?? { id: instance } : all;
   const getters: Record<string, Getter> = {};
   const rows: { f: SettingField; el: HTMLElement }[] = [];
   for (const f of fields) {
@@ -150,7 +170,10 @@ export async function pluginSettingsForm(pluginId: string, fields: SettingField[
     ev.preventDefault();
     alert.textContent = '';
     try {
-      await api.put('admin/settings', { plugin_settings: { [pluginId]: values() } });
+      const v = values();
+      await savePluginSettings(pluginId, instance
+        ? { ...all, instances: instancesOf(all).map((x) => (x.id === instance ? { ...v, id: instance } : x)) }
+        : v);
       toast(t('settings.saved'));
     } catch (e) {
       alert.textContent = errorText(e);

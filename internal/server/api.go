@@ -110,6 +110,7 @@ func (s *Server) routes() {
 	s.routesCollab()
 	s.routesIdentity()
 	s.routesSessions()
+	s.routesProviderAdmin()
 	s.routesM3()
 	s.routesM4()
 	s.routesM6()
@@ -1105,12 +1106,11 @@ func (s *Server) updateSettings(w http.ResponseWriter, r *http.Request) (any, er
 			if c.Settings == nil {
 				c.Settings = map[string]map[string]any{}
 			}
-			// keep stored secrets the UI only saw masked
-			for k, v := range m {
-				if v == secretMask {
-					m[k] = c.Settings[id][k]
-				}
+			if err := checkInstances(m); err != nil {
+				return err
 			}
+			// keep stored secrets the UI only saw masked
+			keepMasked(m, c.Settings[id])
 			c.Settings[id] = m
 		}
 		return nil

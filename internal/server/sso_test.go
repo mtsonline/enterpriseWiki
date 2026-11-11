@@ -193,8 +193,17 @@ func (f *fakeOIDC) sign(claims map[string]any, key *rsa.PrivateKey, typ jose.Con
 // login signs c in through the provider (start, authorize, callback).
 func (f *fakeOIDC) login(t *testing.T, e *env, c *client) {
 	t.Helper()
+	if loc := f.loginAt(t, e, c, "oidc"); loc != "/" {
+		t.Fatalf("callback redirect %s", loc)
+	}
+}
+
+// loginAt runs the sign-in at provider id and returns where the callback
+// sent the browser.
+func (f *fakeOIDC) loginAt(t *testing.T, e *env, c *client, provider string) string {
+	t.Helper()
 	hc := c.noRedirect()
-	res, err := hc.Get(e.srv.URL + "/api/v1/auth/sso/oidc/start?next=/")
+	res, err := hc.Get(e.srv.URL + "/api/v1/auth/sso/" + provider + "/start?next=/")
 	if err != nil || res.StatusCode != 302 {
 		t.Fatalf("start: %v %v", err, res.StatusCode)
 	}
@@ -204,6 +213,7 @@ func (f *fakeOIDC) login(t *testing.T, e *env, c *client) {
 	if res, err = hc.Get(res.Header.Get("Location")); err != nil || res.StatusCode != 303 {
 		t.Fatalf("callback: %v %v", err, res.StatusCode)
 	}
+	return res.Header.Get("Location")
 }
 
 func TestOIDCLogin(t *testing.T) {

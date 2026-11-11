@@ -166,7 +166,7 @@ func (e *env) readPassword(fromStdin bool, prompt string) (string, error) {
 
 func (e *env) user(args []string) error {
 	if len(args) == 0 {
-		return errors.New("usage: ewiki user list|create|invite|emails|email-add|email-primary|email-remove|identities|unlink|passwd|disable|enable|unlock|mfa-reset|networks")
+		return errors.New("usage: ewiki user list|create|invite|emails|email-add|email-primary|email-remove|identities|unlink|sessions|logout|signin-preview|passwd|disable|enable|unlock|mfa-reset|networks")
 	}
 	sub, args := args[0], args[1:]
 	fs := flag.NewFlagSet("user", flag.ContinueOnError)
@@ -175,7 +175,9 @@ func (e *env) user(args []string) error {
 	email := fs.String("email", "", "e-mail address")
 	stdinPw := fs.Bool("password-stdin", false, "read the password from stdin")
 	unconfirmed := fs.Bool("unconfirmed", false, "email-add: send a confirmation link instead of confirming the address")
-	groups := fs.String("groups", "", "invite: groups (comma separated names)")
+	groups := fs.String("groups", "", "invite: groups (comma separated names); signin-preview: groups of the provider")
+	verified := fs.Bool("verified", false, "signin-preview: the provider confirms the e-mail address")
+	subject := fs.String("subject", "", "signin-preview: stable id at the provider (default: the user name)")
 	var name string
 	if len(args) > 0 && !strings.HasPrefix(args[0], "-") {
 		name, args = args[0], args[1:]
@@ -323,6 +325,24 @@ func (e *env) user(args []string) error {
 				return errors.New("usage: ewiki user unlink NAME PROVIDER SUBJECT")
 			}
 			return a.Auth.UnlinkUserIdentity(ctx, id, fs.Arg(0), fs.Arg(1))
+		case "signin-preview":
+			// ewiki user signin-preview PROVIDER USERNAME [--email E] [--verified] [--groups A,B] [--subject S]
+			if fs.NArg() != 1 {
+				return errors.New("usage: ewiki user signin-preview PROVIDER USERNAME [--email E] [--verified] [--groups A,B] [--subject S]")
+			}
+			in := auth.PreviewInput{Subject: *subject, Username: fs.Arg(0), Email: *email, EmailVerified: *verified}
+			for _, g := range strings.Split(*groups, ",") {
+				if g = strings.TrimSpace(g); g != "" {
+					in.Groups = append(in.Groups, g)
+				}
+			}
+			pv, err := a.Auth.PreviewSignIn(ctx, name, in)
+			if err != nil {
+				return err
+			}
+			b, _ := json.MarshalIndent(pv, "", "  ")
+			e.println(string(b))
+			return nil
 		case "sessions":
 			id, err := findID()
 			if err != nil {

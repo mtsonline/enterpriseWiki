@@ -62,6 +62,8 @@ Users
   user email-primary NAME ADDRESS | user email-remove NAME ADDRESS
   user identities NAME | user unlink NAME PROVIDER SUBJECT
   user sessions NAME | user logout NAME [SESSION-ID]   sessions; sign out one or all
+  user signin-preview PROVIDER USERNAME [--email E] [--verified] [--groups A,B] [--subject S]
+                                what a sign-in would lead to (mapping, JIT, linking)
   user passwd NAME [--password-stdin]
   user disable NAME | user enable NAME | user unlock NAME
   user mfa-reset NAME           remove the second factors (app and e-mail)

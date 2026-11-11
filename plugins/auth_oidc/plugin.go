@@ -55,27 +55,36 @@ func (p *Plugin) Manifest() sdk.Manifest { return sdk.ParseManifest(manifest) }
 // Locales implements sdk.LocalesPlugin.
 func (p *Plugin) Locales() fs.FS { s, _ := fs.Sub(locales, "locales"); return s }
 
-// Setup registers the provider and an admin check endpoint.
+// Setup registers one provider per configured instance ("oidc",
+// "oidc-<id>") and an admin check endpoint (?instance=<provider id>).
 func (p *Plugin) Setup(host *sdk.Host) error {
-	prov := &Provider{settings: host.Settings, replay: host.Auth.ReplayCache("oidc")}
-	host.RegisterRedirectProvider(prov)
+	replay := host.Auth.ReplayCache("oidc")
+	set := auth.NewInstanceSet("oidc", host.Settings, func(id string, s func() map[string]any) *Provider {
+		return &Provider{id: id, settings: s, replay: replay}
+	})
+	sdk.RegisterRedirectInstances(host, set)
 	host.Handle("GET", "/check", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		if err := perm.Require(r.Context(), "core.settings.manage"); err != nil {
 			return nil, err
 		}
-		s := host.Settings()
-		_, cfg, err := prov.provider(r.Context(), s)
+		prov, ok := set.Get(r.URL.Query().Get("instance"))
+		if !ok {
+			return nil, apperr.NotFound("instance")
+		}
+		base := strings.TrimRight(host.Config.Get().Server.BaseURL, "/") + "/api/v1/auth/sso/" + prov.id
+		_, cfg, err := prov.provider(r.Context(), prov.settings())
 		if err != nil {
 			return map[string]any{"ok": false, "message": err.Error()}, nil
 		}
 		return map[string]any{"ok": true, "authorization_endpoint": cfg.Endpoint.AuthURL,
-			"redirect_uri": strings.TrimRight(host.Config.Get().Server.BaseURL, "/") + "/api/v1/auth/sso/oidc/callback"}, nil
+			"redirect_uri": base + "/callback", "backchannel_logout_uri": base + "/logout"}, nil
 	})
 	return nil
 }
 
 // Provider implements auth.RedirectProvider.
 type Provider struct {
+	id       string // "oidc" or "oidc-<instance>"
 	settings func() map[string]any
 	replay   *auth.ReplayCache
 	mu       sync.Mutex
@@ -91,7 +100,10 @@ func (p *Provider) Configured() bool {
 }
 
 // ID implements auth.RedirectProvider.
-func (p *Provider) ID() string { return "oidc" }
+func (p *Provider) ID() string { return p.id }
+
+// Settings implements auth.SettingsProvider.
+func (p *Provider) Settings() map[string]any { return p.settings() }
 
 // Name implements auth.RedirectProvider.
 func (p *Provider) Name() string { return auth.Setting(p.settings(), "name", "Single sign-on") }
@@ -176,7 +188,7 @@ func (p *Provider) Callback(ctx context.Context, r *http.Request, req *auth.SSOR
 			}
 		}
 	}
-	id := MapClaims(s, idt.Subject, claims)
+	id := MapClaims(s, p.id, idt.Subject, claims)
 	// for single logout: the provider session and the ID token as hint
 	id.SessionID, _ = claims["sid"].(string)
 	id.LogoutHint = raw
@@ -280,14 +292,14 @@ func (p *Provider) HandleLogout(ctx context.Context, r *http.Request, _ string) 
 }
 
 // MapClaims converts ID token claims into an external identity.
-func MapClaims(s map[string]any, subject string, claims map[string]any) *auth.ExternalIdentity {
+func MapClaims(s map[string]any, provider, subject string, claims map[string]any) *auth.ExternalIdentity {
 	str := func(k string) string {
 		if v, ok := claims[k].(string); ok {
 			return v
 		}
 		return ""
 	}
-	id := &auth.ExternalIdentity{Provider: "oidc", Subject: subject,
+	id := &auth.ExternalIdentity{Provider: provider, Subject: subject,
 		Username: str(auth.Setting(s, "claim_username", "preferred_username")), Email: str(auth.Setting(s, "claim_email", "email")),
 		DisplayName: str(auth.Setting(s, "claim_display_name", "name")), Attributes: map[string]any{}}
 	if id.Username == "" {

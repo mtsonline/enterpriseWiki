@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	"github.com/mtsonline/enterprisewiki/internal/apperr"
+	"github.com/mtsonline/enterprisewiki/internal/auth"
 	h "github.com/mtsonline/enterprisewiki/internal/httpx"
 )
 
@@ -86,4 +87,15 @@ func (s *Server) routesSessions() {
 	h.RecordRoute("POST /api/v1/auth/sso/{provider}/logout")
 	s.app.Mux.HandleFunc("GET /api/v1/auth/sso/{provider}/logout", logout)
 	s.app.Mux.HandleFunc("POST /api/v1/auth/sso/{provider}/logout", logout)
+}
+
+// routesProviderAdmin: mapping and JIT preview of a provider instance.
+func (s *Server) routesProviderAdmin() {
+	s.handle("POST /api/v1/admin/auth/providers/{id}/preview", func(w http.ResponseWriter, r *http.Request) (any, error) {
+		var in auth.PreviewInput
+		if err := h.Decode(r, &in); err != nil {
+			return nil, err
+		}
+		return s.app.Auth.PreviewSignIn(r.Context(), r.PathValue("id"), in)
+	})
 }

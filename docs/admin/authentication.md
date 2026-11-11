@@ -9,6 +9,40 @@ Grundregeln für alle Verfahren:
 - Bei jeder Anmeldung werden Name, E-Mail, Gruppen und Rollen aus dem Verfahren **synchronisiert**. Lokal im Admin-Bereich vergebene Gruppen und Rollen bleiben davon unberührt.
 - Geheimnisse (Passwörter, Client-Secrets) sollten als `${VARIABLE}` eingetragen und in `.env` hinterlegt werden. Die Oberfläche zeigt gespeicherte Klartext-Geheimnisse nur maskiert an.
 
+## Mehrere Anbieter derselben Art (Instanzen)
+
+Jedes Verfahren kann mehrfach eingerichtet werden, z. B. ein OpenID-Connect-Anbieter für das Personal und einer für Partner, oder zwei LDAP-Verzeichnisse. Die Einstellungen auf oberster Ebene sind der erste Anbieter (`oidc`, `ldap`, `shib`). Jeder Eintrag unter `instances` ist ein weiterer mit vollständig eigenen Einstellungen: Verbindung, Gruppen- und Rollen-Zuordnung, JIT und Vertrauen. Seine Anbieter-ID ist `<verfahren>-<id>`:
+
+```yaml
+plugin_settings:
+  auth.oidc:
+    name: Personal
+    issuer: https://keycloak.example.com/realms/staff
+    client_id: wiki
+    client_secret: ${OIDC_STAFF_SECRET}
+    instances:
+      - id: partner                      # Anbieter-ID oidc-partner
+        name: Partner-Login
+        issuer: https://login.microsoftonline.com/<tenant>/v2.0
+        client_id: 6f1e…
+        client_secret: ${OIDC_PARTNER_SECRET}
+        group_mapping: { sales: Partners }
+        keep_unmapped_groups: false
+        jit: false                       # nur eingeladene Partner
+```
+
+- Die Kennung (`id`): 1–24 Kleinbuchstaben, Ziffern und Bindestriche, eindeutig im Verfahren. Sie steckt in den Adressen (`/api/v1/auth/sso/oidc-partner/callback`) und in der Benutzerkennung (`anna@oidc-partner`). Ändern Sie sie nicht mehr, sobald sich jemand damit angemeldet hat.
+- In der Administration wählen Sie den Anbieter oben auf der Seite des Verfahrens aus, legen weitere an oder entfernen sie. Geheimnisse sind auch bei Instanzen nur maskiert sichtbar.
+- SAML: Jede Instanz ist ein eigener Service Provider mit eigenen Metadaten (`/api/v1/x/auth.shib/metadata?instance=shib-uni`), eigener Entity-ID, eigenem ACS und SLO-Endpunkt. Das Schlüsselpaar ist für alle Instanzen gleich.
+- LDAP: Die Verzeichnisse werden in der Reihenfolge von `auth.order` geprüft (z. B. `[ldap, ldap-extern]`). Mit `name@ldap-extern` wird gezielt ein Verzeichnis gewählt.
+
+**Vorschau einer Anmeldung:** Auf der Seite jedes Anbieters zeigt *Vorschau einer Anmeldung*, was eine Anmeldung mit Benutzername, E-Mail-Adresse und externen Gruppen bewirken würde: bestehendes Konto, automatische Verknüpfung, Bestätigung nötig, neues Konto (JIT) oder Ablehnung. Außerdem sieht man die zugeordneten Gruppen (neu anzulegende eigens markiert) und Rollen. Unbekannte Rollen werden gemeldet, weil sie bei der Anmeldung ignoriert würden. Es wird nichts gespeichert. Dasselbe per CLI und API:
+
+```bash
+ewiki user signin-preview oidc-partner dora --email dora@partner.example --verified --groups sales,emea
+curl -X POST …/api/v1/admin/auth/providers/oidc-partner/preview -d '{"username":"dora","groups":["sales"]}'
+```
+
 ## Gruppen- und Rollen-Zuordnung (für alle Verfahren gleich)
 
 ```yaml

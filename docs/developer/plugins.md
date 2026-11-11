@@ -270,6 +270,10 @@ host.RegisterAuthProvider(&MyProvider{})
 
 Für Browser-Verfahren (OAuth, SAML, …) implementieren Sie `auth.RedirectProvider` (`Start`, `Callback`) und registrieren ihn mit `host.RegisterRedirectProvider`. Der Kern kümmert sich um State, Nonce und PKCE-Verifier (serverseitig gespeichert), um die Einmalverwendung, die Sitzung und den Rücksprung. Mit `Configured() bool` blenden Sie ein unkonfiguriertes Verfahren auf der Login-Seite aus. Gruppen und Rollen ordnen Sie mit `auth.MappingFromSettings(settings).Apply(identity)` zu (siehe `plugins/auth_oidc`).
 
+**Mehrere Instanzen:** Soll ein Verfahren mehrfach einrichtbar sein, bauen Sie mit `auth.NewInstanceSet(base, host.Settings, mk)` einen Satz von Providern, einen je Eintrag in `instances` plus den Basis-Provider, und registrieren ihn mit `sdk.RegisterAuthInstances(host, set)` bzw. `sdk.RegisterRedirectInstances(host, set)`. `mk(id, settings)` erhält die Anbieter-ID (`base` oder `base-<id>`) und eine Funktion, die immer die aktuellen Einstellungen dieser Instanz liefert. `ID()` muss diese ID zurückgeben und `ExternalIdentity.Provider` auf sie setzen. Mit `Settings()` (Interface `auth.SettingsProvider`) steht die Instanz in der Vorschau zur Verfügung. Die Admin-Seite baut `renderAuthProviderPage(el, {pluginId, base, title, help, fields, extra})` aus dem Frontend-SDK: Auswahl, Anlegen und Entfernen von Instanzen, Einstellungsformular und Vorschau.
+
+**Single Logout:** Ein Browser-Verfahren kann `auth.LogoutProvider` (`LogoutURL`: Abmelden beim Anbieter) und `auth.LogoutHandler` (`HandleLogout`: Nachrichten des Anbieters an `/api/v1/auth/sso/<id>/logout`) implementieren. Die Sitzung speichert dafür `ExternalIdentity.SessionID` und `LogoutHint`. Nachrichten-IDs, die nur einmal gelten dürfen, prüft `host.Auth.ReplayCache(prefix).Consume` über alle Instanzen des Servers hinweg.
+
 Geben Sie `auth.ErrUnknownUser` zurück, wenn der Benutzer unbekannt ist (dann wird das nächste Verfahren geprüft), und `auth.ErrBadCredentials` bei falschem Passwort. `ExternalIdentity.Groups` wird bei jedem Login als Gruppenmitgliedschaft synchronisiert.
 
 ## Frontend-Teil (`web/index.ts`)

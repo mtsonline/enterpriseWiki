@@ -480,6 +480,35 @@ test('sessions: see where one is signed in and sign out elsewhere', async () => 
   }
 });
 
+test('sign-in providers: several instances, mapping preview', async () => {
+  const logged = errors.length;
+  await page.goto(`${BASE}/admin/oidc`);
+  await idle();
+  const choice = page.getByLabel(/^(provider|anbieter)/i).first();
+  await choice.waitFor();
+  await page.getByRole('button', { name: /^(add provider|anbieter hinzufügen)$/i }).click();
+  const dlg = page.locator('dialog[open]');
+  await dlg.getByLabel(/^(id|kennung)/i).fill(`p${run}`);
+  await dlg.getByLabel(/^(name on the login page|name auf der anmeldeseite)/i).fill(`Partner ${run}`);
+  await dlg.locator('button[type=submit]').click();
+  await dlg.waitFor({ state: 'detached' });
+  await page.locator('legend', { hasText: `oidc-p${run}` }).waitFor();
+  assert.equal(await choice.inputValue(), `p${run}`, 'the new instance is selected');
+  await a11y('sign-in provider instances');
+  // preview of a sign-in at the new instance (JIT on by default)
+  await page.getByLabel(/^(user ?name|benutzername)/i).last().fill(`dora${run}`);
+  await page.getByRole('button', { name: /^(show preview|vorschau anzeigen)$/i }).click();
+  await page.locator('.ew-test-result dd', { hasText: /new account|neues konto/i }).waitFor();
+  await a11y('sign-in preview');
+  // remove it again
+  await page.getByRole('button', { name: /^(remove provider|anbieter entfernen)$/i }).click();
+  await page.locator('dialog[open]').getByRole('button', { name: /^(remove provider|anbieter entfernen)$/i }).click();
+  await page.locator('legend', { hasText: /oidc$/ }).waitFor();
+  const s = await call('GET', '/api/v1/admin/settings');
+  assert.ok(!(s.config.plugin_settings?.['auth.oidc']?.instances ?? []).some((x) => x.id === `p${run}`), 'instance removed');
+  errors.splice(logged, errors.length - logged, ...errors.slice(logged).filter((e) => !/status of 400/.test(e)));
+});
+
 test('the simple editor as personal choice', async () => {
   await call('PUT', '/api/v1/me', { prefs: { editor: 'simple' } });
   try {

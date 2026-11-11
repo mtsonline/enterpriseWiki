@@ -241,6 +241,34 @@ func (h *Host) RegisterRedirectProvider(p auth.RedirectProvider) {
 	h.Auth.RegisterRedirectProvider(h.Manifest.ID, p)
 }
 
+// RegisterAuthInstances adds one password provider per configured instance
+// of the plugin (see auth.InstanceSet): the top-level settings are the
+// provider base, each entry of settings "instances" a provider base-<id>.
+func RegisterAuthInstances[T auth.PasswordProvider](h *Host, set *auth.InstanceSet[T]) {
+	h.Auth.RegisterProviderSource(h.Manifest.ID, func() []auth.PasswordProvider {
+		all := set.All()
+		out := make([]auth.PasswordProvider, len(all))
+		for i, p := range all {
+			out[i] = p
+		}
+		return out
+	})
+}
+
+// RegisterRedirectInstances adds one browser based provider per configured
+// instance of the plugin (see RegisterAuthInstances); the endpoints of an
+// instance are /api/v1/auth/sso/<base>-<id>/...
+func RegisterRedirectInstances[T auth.RedirectProvider](h *Host, set *auth.InstanceSet[T]) {
+	h.Auth.RegisterRedirectSource(h.Manifest.ID, func() []auth.RedirectProvider {
+		all := set.All()
+		out := make([]auth.RedirectProvider, len(all))
+		for i, p := range all {
+			out[i] = p
+		}
+		return out
+	})
+}
+
 // RequirePerm returns 401/403 unless the caller of r has the global
 // permission key (declared in plugin.json; administrators have all).
 func (h *Host) RequirePerm(r *http.Request, key string) error {

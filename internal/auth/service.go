@@ -66,6 +66,7 @@ type PasswordProvider interface {
 type registered struct {
 	pluginID string
 	p        PasswordProvider
+	src      func() []PasswordProvider // provider instances (see instances.go)
 }
 
 // Service is the authentication service.
@@ -118,7 +119,15 @@ func (s *Service) SetEnabledFunc(f func(pluginID string) bool) { s.enabled = f }
 func (s *Service) RegisterProvider(pluginID string, p PasswordProvider) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	s.providers = append(s.providers, registered{pluginID, p})
+	s.providers = append(s.providers, registered{pluginID: pluginID, p: p})
+}
+
+// RegisterProviderSource adds the password providers src returns at each
+// call (one per configured instance) owned by pluginID.
+func (s *Service) RegisterProviderSource(pluginID string, src func() []PasswordProvider) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.providers = append(s.providers, registered{pluginID: pluginID, src: src})
 }
 
 // ProviderInfo describes a provider for the login page.
@@ -146,7 +155,12 @@ func (s *Service) Providers() []PasswordProvider {
 	}
 	var out []PasswordProvider
 	for _, r := range s.providers {
-		if r.p.ID() == "local" || s.enabled(r.pluginID) {
+		switch {
+		case r.src != nil:
+			if s.enabled(r.pluginID) {
+				out = append(out, r.src()...)
+			}
+		case r.p.ID() == "local" || s.enabled(r.pluginID):
 			out = append(out, r.p)
 		}
 	}

@@ -87,9 +87,17 @@ func (p *Plugin) Locales() fs.FS { s, _ := fs.Sub(locales, "locales"); return s 
 
 // Setup registers the provider and the metadata endpoint.
 func (p *Plugin) Setup(host *sdk.Host) error {
-	prov := &Provider{settings: host.Settings, cfg: host.Config, pool: host.DB, replay: host.Auth.ReplayCache("saml"), log: host.Log}
-	host.RegisterRedirectProvider(prov)
+	replay := host.Auth.ReplayCache("saml")
+	set := auth.NewInstanceSet("shib", host.Settings, func(id string, s func() map[string]any) *Provider {
+		return &Provider{id: id, settings: s, cfg: host.Config, pool: host.DB, replay: replay, log: host.Log}
+	})
+	sdk.RegisterRedirectInstances(host, set)
+	// SP metadata of an instance: /metadata?instance=<provider id> ("" = shib)
 	host.Handle("GET", "/metadata", func(w http.ResponseWriter, r *http.Request) (any, error) {
+		prov, ok := set.Get(r.URL.Query().Get("instance"))
+		if !ok {
+			return nil, apperr.NotFound("instance")
+		}
 		sp, err := prov.serviceProvider(r.Context(), false)
 		if err != nil {
 			return nil, err
@@ -100,7 +108,7 @@ func (p *Plugin) Setup(host *sdk.Host) error {
 		}
 		w.Header().Set("Content-Type", "application/samlmetadata+xml")
 		_, _ = w.Write([]byte(xml.Header))
-		_, _ = w.Write(b)
+		_, _ = w.Write(b) // #nosec G705 -- XML marshalled (escaped) metadata of a configured instance, not HTML
 		return h.Handled{}, nil
 	})
 	return nil
@@ -108,6 +116,7 @@ func (p *Plugin) Setup(host *sdk.Host) error {
 
 // Provider implements auth.RedirectProvider.
 type Provider struct {
+	id       string // "shib" or "shib-<instance>"
 	settings func() map[string]any
 	cfg      *config.Store
 	pool     *pgxpool.Pool
@@ -129,7 +138,10 @@ func (p *Provider) Configured() bool {
 }
 
 // ID implements auth.RedirectProvider.
-func (p *Provider) ID() string { return "shib" }
+func (p *Provider) ID() string { return p.id }
+
+// Settings implements auth.SettingsProvider.
+func (p *Provider) Settings() map[string]any { return p.settings() }
 
 // Name implements auth.RedirectProvider.
 func (p *Provider) Name() string { return auth.Setting(p.settings(), "name", "Shibboleth") }
@@ -144,6 +156,9 @@ func (p *Provider) Start(ctx context.Context, r *http.Request, req *auth.SSORequ
 			return "", nil, apperr.ErrForbidden
 		}
 		id, err := IdentityFromHeaders(s, r.Header)
+		if id != nil {
+			id.Provider = p.id
+		}
 		return "", id, err
 	}
 	sp, err := p.serviceProvider(ctx, true)
@@ -183,6 +198,7 @@ func (p *Provider) Callback(ctx context.Context, r *http.Request, req *auth.SSOR
 	if err != nil {
 		return nil, err
 	}
+	id.Provider = p.id
 	// for single logout: the IdP session and the NameID it knows the user by
 	for _, st := range a.AuthnStatements {
 		if st.SessionIndex != "" {
@@ -384,15 +400,18 @@ func sanitize(u string) string {
 func (p *Provider) serviceProvider(ctx context.Context, needIdP bool) (*saml.ServiceProvider, error) {
 	s := p.settings()
 	base := strings.TrimRight(p.cfg.Get().Server.BaseURL, "/")
-	acs, _ := url.Parse(base + "/api/v1/auth/sso/shib/callback")
+	acs, _ := url.Parse(base + "/api/v1/auth/sso/" + p.id + "/callback")
 	md, _ := url.Parse(base + "/api/v1/x/auth.shib/metadata")
-	slo, _ := url.Parse(base + "/api/v1/auth/sso/shib/logout")
+	if p.id != "shib" {
+		md.RawQuery = url.Values{"instance": {p.id}}.Encode()
+	}
+	slo, _ := url.Parse(base + "/api/v1/auth/sso/" + p.id + "/logout")
 	key, cert, err := p.keyPair(ctx)
 	if err != nil {
 		return nil, err
 	}
 	sp := &saml.ServiceProvider{EntityID: auth.Setting(s, "entity_id", md.String()), Key: key, Certificate: cert,
-		MetadataURL: *md, AcsURL: *acs, SloURL: *slo, ReplayCache: p.replay, AllowIDPInitiated: false, SignatureMethod: "http://www.w3.org/2001/04/xmldsig-more#rsa-sha256"}
+		MetadataURL: *md, AcsURL: *acs, SloURL: *slo, LogoutBindings: []string{saml.HTTPRedirectBinding, saml.HTTPPostBinding}, ReplayCache: p.replay, AllowIDPInitiated: false, SignatureMethod: "http://www.w3.org/2001/04/xmldsig-more#rsa-sha256"}
 	idp, err := p.idpMetadata(ctx, s)
 	if err != nil && needIdP {
 		return nil, err
