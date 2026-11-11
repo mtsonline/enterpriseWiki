@@ -28,12 +28,16 @@ import (
 
 // MacroParam describes a parameter for the macro dialog in the editor.
 type MacroParam struct {
-	Name     string            `json:"name"`
-	Labels   map[string]string `json:"labels"`
-	Type     string            `json:"type"` // text | textarea | number | select | bool | url
-	Options  []string          `json:"options,omitempty"`
-	Default  string            `json:"default,omitempty"`
-	Required bool              `json:"required,omitempty"`
+	Name   string            `json:"name"`
+	Labels map[string]string `json:"labels"`
+	// text | textarea | number | select | bool | url, or custom:<name> for
+	// a control a plugin registers in the browser (registerMacroParamControl)
+	Type    string   `json:"type"`
+	Options []string `json:"options,omitempty"`
+	// OptionLabels: labels of the options by language
+	OptionLabels map[string]map[string]string `json:"option_labels,omitempty"`
+	Default      string                       `json:"default,omitempty"`
+	Required     bool                         `json:"required,omitempty"`
 }
 
 // Heading is a heading of the page (used by the table of contents).

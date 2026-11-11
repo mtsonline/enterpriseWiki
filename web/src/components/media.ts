@@ -116,7 +116,7 @@ async function rightsFields(own: boolean, rules: MediaRule[]): Promise<{ el: HTM
     showWho();
     const boxes = MEDIA_RIGHTS.map((p) => checkbox(t(`media.right.${p}`), r.perms.includes(p)));
     const row: HTMLElement = h('li', { class: 'ew-media-rule' },
-      h('label', { class: 'ew-sr-only' }, t('acl.subject_type')), type, who, ...boxes.map((b) => b.el),
+      h('label', { class: 'sr-only' }, t('acl.subject_type')), type, who, ...boxes.map((b) => b.el),
       button(t('common.remove'), () => { row.remove(); rows.splice(rows.indexOf(entry), 1); }, { variant: 'subtle', ariaLabel: t('common.remove') }));
     const entry = {
       el: row,

@@ -1,0 +1,19 @@
+{
+ "content.propdb.sources": "Quellen",
+ "content.propdb.filters": "Filter (immer angewendet)",
+ "content.propdb.columns": "Spalten",
+ "content.propdb.sort": "Sortierung",
+ "content.propdb.group": "Gruppieren nach (Board, Diagramm, Tabelle)",
+ "content.propdb.date": "Datums-Eigenschaft (Kalender, Zeitleiste)",
+ "content.propdb.view": "Darstellung beim Öffnen",
+ "content.propdb.per_page": "Einträge pro Seite",
+ "content.propdb.data": "Daten",
+ "content.propdb.display": "Darstellung",
+ "content.propdb.new_entries": "Neue Einträge",
+ "content.propdb.new_type": "Elementtyp neuer Einträge",
+ "content.propdb.new_category": "Kategorie neuer Einträge",
+ "content.propdb.new_category_help": "Leer: die Kategorie der Datenbank.",
+ "content.propdb.same_category": "(die Kategorie der Datenbank)",
+ "content.propdb.intro": "Einleitung (Markdown)",
+ "content.propdb.intro_help": "Wird über der Datenbank angezeigt."
+}

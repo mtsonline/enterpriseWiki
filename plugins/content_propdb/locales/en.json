@@ -1,0 +1,19 @@
+{
+ "content.propdb.sources": "Sources",
+ "content.propdb.filters": "Filters (always applied)",
+ "content.propdb.columns": "Columns",
+ "content.propdb.sort": "Sorting",
+ "content.propdb.group": "Group by (board, chart, table)",
+ "content.propdb.date": "Date property (calendar, timeline)",
+ "content.propdb.view": "View when opened",
+ "content.propdb.per_page": "Entries per page",
+ "content.propdb.data": "Data",
+ "content.propdb.display": "Display",
+ "content.propdb.new_entries": "New entries",
+ "content.propdb.new_type": "Element type of new entries",
+ "content.propdb.new_category": "Category of new entries",
+ "content.propdb.new_category_help": "Empty: the category of the database.",
+ "content.propdb.same_category": "(the category of the database)",
+ "content.propdb.intro": "Introduction (Markdown)",
+ "content.propdb.intro_help": "Shown above the database."
+}

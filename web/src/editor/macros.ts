@@ -5,6 +5,7 @@ import { h } from '../core/dom';
 import { t, uiLang } from '../core/i18n';
 import type { MacroInfo, MacroParam } from '../core/types';
 import { checkbox, field, formDialog, select, textArea, textInput } from '../components/ui';
+import { currentCategory } from '../components/widgets';
 
 let cache: Promise<MacroInfo[]> | null = null;
 
@@ -19,11 +20,39 @@ export const label = (m: Record<string, string> | undefined): string => (m ? m[u
 
 export interface MacroChoice { name: string; params: Record<string, string>; hasBody: boolean; inline: boolean }
 
-function paramControl(p: MacroParam, value: string): { el: HTMLElement; get: () => string } {
+/** Context of a custom parameter control: the other parameters of the dialog. */
+export interface MacroParamContext {
+  label: string;
+  required: boolean;
+  /** current values of all parameters (also of other controls) */
+  params: () => Record<string, string>;
+  /** the category of the page being edited (0: unknown) */
+  categoryId: number;
+}
+
+export type MacroParamControl = (value: string, ctx: MacroParamContext) => { el: HTMLElement; get: () => string };
+
+const customControls = new Map<string, MacroParamControl>();
+
+/** Registers a control for macro parameters of type custom:<name>. */
+export function registerMacroParamControl(name: string, f: MacroParamControl): void {
+  customControls.set(name, f);
+}
+
+/** A registered control (e.g. for editors of element types with the same settings). */
+export function getMacroParamControl(name: string): MacroParamControl | undefined {
+  return customControls.get(name);
+}
+
+function paramControl(p: MacroParam, value: string, ctx: Omit<MacroParamContext, 'label' | 'required'>): { el: HTMLElement; get: () => string } {
   const name = label(p.labels) || p.name;
+  if (p.type.startsWith('custom:')) {
+    const f = customControls.get(p.type.slice(7));
+    if (f) return f(value, { ...ctx, label: name, required: !!p.required });
+  }
   switch (p.type) {
     case 'select': {
-      const s = select((p.options ?? []).map((o) => ({ value: o, label: o })), value || p.default);
+      const s = select((p.options ?? []).map((o) => ({ value: o, label: label(p.option_labels?.[o]) || o })), value || p.default);
       return { el: field(name, s, { required: p.required }), get: () => s.value };
     }
     case 'bool': {
@@ -63,8 +92,9 @@ export async function macroDialog(existing: { name: string; params: Record<strin
     if (!m) return;
     desc.textContent = label(m.description);
     getters = [];
+    const all = () => Object.fromEntries(getters.map((g) => [g.name, g.get()]));
     paramBox.replaceChildren(...(m.params ?? []).map((p) => {
-      const c = paramControl(p, existing?.name === m.name ? (existing.params[p.name] ?? '') : (preset[p.name] ?? p.default ?? ''));
+      const c = paramControl(p, existing?.name === m.name ? (existing.params[p.name] ?? '') : (preset[p.name] ?? p.default ?? ''), { params: all, categoryId: currentCategory() });
       getters.push({ name: p.name, get: c.get, required: p.required, label: label(p.labels) || p.name });
       return c.el;
     }));

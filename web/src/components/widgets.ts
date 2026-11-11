@@ -23,6 +23,11 @@ export function setContext(categoryId: number, path: number[], perms: string[] |
   ctx.perms = perms ?? [];
 }
 
+/** The category of the page shown (0: none). */
+export function currentCategory(): number {
+  return ctx.categoryId || 0;
+}
+
 export function canEditHere(): boolean {
   return !!state.user && (isAdmin() || ctx.perms.some((p) => p !== 'view'));
 }

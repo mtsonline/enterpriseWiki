@@ -93,13 +93,17 @@ Admin-Seiten (`registerAdminPage`) geben mit `permission: 'acme.kanban.export'` 
 
 | Funktion | Wofür |
 |---|---|
-| `registerElementExtension({ id, order, placement: 'top' \| 'bottom', render(el) })` | Bereich unter (oder mit `top` über) dem Inhalt einer Seite, z. B. Kommentare, Seiteneigenschaften |
+| `registerElementExtension({ id, order, placement: 'top' \| 'bottom', render(el) })` | Bereich unter (oder mit `top` über) dem Inhalt einer Seite, z. B. Kommentare, Eigenschaften |
 | `registerCategoryExtension({ id, order, render(category) })` | Bereich unter dem Inhalt einer Kategorie |
 | `registerPageAction({ id, order, render(target) })` | Knopf in den Aktionen einer Seite oder Kategorie (Teilen, Favorit) |
 | `registerSlot({ id, position, render(position) })` | Widget an einer Position der Vorlage; `position: '*'` für alle, `render` darf ein Promise liefern – `null` lässt die Position leer (wichtig, damit leere Positionen ausgeblendet bleiben) |
 | `registerProfileSection({ id, order, render() })` | Abschnitt in „Mein Profil“ |
 | `registerPublishOption({ id, render(ctx) })` | Feld im Dialog „Veröffentlichen mit Optionen“; im Backend `host.Content.RegisterPublishOption(id, option)` mit `Apply(ctx, svc, el, value)` |
 | `registerReactions(provider)` / `reactionBar(type, id, title)` / `prefetchReactions(type, ids)` | Reaktionsleiste eines Plugins (z. B. `core.reactions`) an eigenen Objekten anzeigen; ohne Plugin liefert `reactionBar` `null` |
+| `registerEditField({ id, order, render(ctx) })` | Teil im Bearbeiten **jedes** Elementtyps (z. B. Eigenschaften); der Wert geht als `fields[id]` mit dem Speichern, Veröffentlichen und in Entwürfe. Im Backend `host.RegisterElementField(f)` mit `content.ElementField` (`Check` mit den Rechten des Aufrufers, `Store` in der Transaktion des Elements); `content.ElementFieldAlways` wird auch ohne gesendeten Wert geprüft (Vorgaben, berechnete Werte) |
+| `registerCategorySettingsTab({ id, order, label, visible(c), render(panel, c) })` | eigener Reiter in den Kategorie-Einstellungen |
+| `registerMacroParamControl(name, (value, ctx) => ({ el, get }))` | eigenes Eingabefeld für Makro-Parameter vom Typ `custom:<name>` (Go: `content.MacroParam{Type: "custom:<name>"}`); `ctx.params()` liefert die übrigen Parameter, `ctx.categoryId` die Kategorie. `getMacroParamControl(name)` verwendet ein registriertes Feld auch in Editoren von Elementtypen; `option_labels` beschriftet Auswahlwerte je Sprache |
+| `userPicker`, `groupPicker`, `subjectsEditor` | Personen/Gruppen wählen, Liste von Berechtigten (Benutzer, Gruppen, Rollen, angemeldete Personen, alle) wie `acl.Subject`; im Backend `acl.MatchesAny(subjects, principal)` |
 | `registerMenuStyle({ id, label, itemFields, render(menu, helpers) })` | eigene Darstellung waagrechter Menüs (Beispiel `core.megamenu`); `itemFields: ['description']` blendet Beschreibungsfelder in der Menüverwaltung ein |
 
 Im Backend liefert `host.Content.Path(ctx, "element"|"category", id)` die lesbare Adresse (`/wiki/…`), `host.Content.Resolve(ctx, path)` löst Adressen, Kurz-URLs und frühere Adressen auf.
@@ -370,3 +374,7 @@ EWIKI_TEST_DATABASE_URL=… go test ./internal/server/   # prüft u. a., dass je
 Veröffentlichen: ein Git-Repository, dessen Wurzel das Plugin-Verzeichnis ist (`plugin.json` im Root), mit Versions-Tags (`v1.0.0`). Installation: `ewiki plugin install github.com/acme/ewiki-kanban --ref v1.0.0` oder über den Katalog.
 
 Das Go-Paket des Plugins gehört zum Modul `github.com/mtsonline/enterprisewiki`. Imports aus `internal/…` und `pkg/sdk` sind daher erlaubt. Halten Sie sich bevorzugt an `pkg/sdk` und die dort referenzierten Dienste, denn das ist die stabile Schnittstelle.
+
+### Eigenschaften in eigenen Plugins
+
+`core_properties` stellt `Query`/`Run` (Filter, Sortierung, Gruppen mit den Rechten des Aufrufers), `ParseSources`, `ParseFilters`, `QueryOf(params)` und `RenderTable(ctx, query)` bereit (Beispiel: `plugins/content_propdb`). Über die API: `POST /api/v1/x/core.properties/query` (Zeilen oder Gruppen), `…/report` (Parameter des Makros), `…/query.csv`, `GET/PUT …/elements/{id}` (Werte: `{"values": {…}, "free": {key: {type, label}}}`), `…/defs` (Definitionen), `…/history/{id}`.

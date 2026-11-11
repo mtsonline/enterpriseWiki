@@ -1756,5 +1756,8 @@
  "mfa.admin.counts_two": "zwei Faktoren",
  "mfa.admin.counts_two_of": "{name} gilt als zwei Faktoren",
  "mfa.admin.counts_two_help": "Das Gerät prüft die Person selbst (PIN, Fingerabdruck, Gesicht): Der Passkey deckt auch den folgenden Faktor der Kette ab.",
- "mfa.counts_two": "zählt als zwei Faktoren"
+ "mfa.counts_two": "zählt als zwei Faktoren",
+ "common.remove_item": "{name} entfernen",
+ "common.added_item": "{name} hinzugefügt.",
+ "acl.add_subject": "Person, Gruppe oder Rolle hinzufügen"
 }

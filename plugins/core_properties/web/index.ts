@@ -1,84 +1,49 @@
-// Page properties: a table above the content (if a page has properties),
-// an editor dialog for people with the Edit permission (add, remove,
-// reorder rows; suggestions from the keys used in the category).
-import { api, button, fmtDate, formDialog, h, registerElementExtension, select, state, t, textInput, toast, uid, type ElementView } from '@ewiki/sdk';
+// Properties of elements: the part in every editor, the properties above the
+// content, the definitions (administration and category settings), the
+// report widget and the controls of its macro dialog.
+import { api, hasPerm, qs, registerAdminPage, registerCategorySettingsTab, registerEditField, registerElementExtension, registerWidget, state, t } from '@ewiki/sdk';
 import './style.css';
-
-const BASE = 'x/core.properties';
-
-interface Property { key: string; value: string; type: string }
-interface Props { items: Property[]; can_edit: boolean; types: string[] }
-
-function valueNode(p: Property): Node {
-  switch (p.type) {
-    case 'date': return p.value ? h('time', { datetime: p.value }, fmtDate(`${p.value}T12:00:00`, state.lang).split(',')[0]) : document.createTextNode('');
-    case 'url': return p.value ? h('a', { href: p.value, rel: 'noopener' }, p.value) : document.createTextNode('');
-    case 'status': return p.value ? h('span', { class: 'ew-badge ewprop-status' }, p.value) : document.createTextNode('');
-    default: return document.createTextNode(p.value);
-  }
-}
-
-function editor(el: ElementView, data: Props, done: (p: Props) => void): void {
-  const rows: Property[] = data.items.length ? data.items.map((x) => ({ ...x })) : [{ key: '', value: '', type: 'text' }];
-  const list = h('div', { class: 'ewprop-edit' });
-  const keysId = uid('ewprop-keys');
-  const keys = h('datalist', { id: keysId });
-  void api.get<{ key: string; type: string }[]>(`${BASE}/keys?category=${el.category_id}`).then((ks) => {
-    keys.replaceChildren(...ks.map((k) => h('option', { value: k.key })));
-  }).catch(() => undefined);
-  const draw = (focus?: number) => {
-    list.replaceChildren(...rows.map((r, i) => {
-      const key = textInput({ value: r.key, maxlength: 80 });
-      key.setAttribute('list', keysId);
-      key.setAttribute('aria-label', t('core.properties.key_n', { n: i + 1 }));
-      key.addEventListener('input', () => { r.key = key.value; });
-      const type = select(data.types.map((x) => ({ value: x, label: t(`core.properties.type.${x}`) })), r.type);
-      type.setAttribute('aria-label', t('core.properties.type_n', { n: i + 1 }));
-      const val = textInput({ value: r.value, maxlength: 1000, type: r.type === 'date' ? 'date' : r.type === 'number' ? 'text' : r.type === 'url' ? 'url' : 'text' });
-      val.setAttribute('aria-label', t('core.properties.value_n', { n: i + 1 }));
-      val.addEventListener('input', () => { r.value = val.value; });
-      type.addEventListener('change', () => { r.type = type.value; draw(i); });
-      const row = h('div', { class: 'ewprop-row' }, key, type, val,
-        h('span', { class: 'ew-actions' },
-          i > 0 ? button('↑', () => { [rows[i - 1], rows[i]] = [rows[i], rows[i - 1]]; draw(i - 1); }, { variant: 'subtle', ariaLabel: t('core.properties.up_n', { n: i + 1 }) }) : null,
-          i < rows.length - 1 ? button('↓', () => { [rows[i + 1], rows[i]] = [rows[i], rows[i + 1]]; draw(i + 1); }, { variant: 'subtle', ariaLabel: t('core.properties.down_n', { n: i + 1 }) }) : null,
-          button(t('common.remove'), () => { rows.splice(i, 1); draw(Math.min(i, rows.length - 1)); }, { variant: 'link', ariaLabel: t('core.properties.remove_n', { n: i + 1 }) })));
-      if (focus === i) queueMicrotask(() => key.focus());
-      return row;
-    }));
-  };
-  draw();
-  formDialog(t('core.properties.edit_title', { title: el.title }), [
-    h('p', { class: 'ew-help' }, t('core.properties.help')), keys,
-    h('div', { class: 'ewprop-head', 'aria-hidden': 'true' }, h('span', null, t('core.properties.key')), h('span', null, t('core.properties.type')), h('span', null, t('core.properties.value'))),
-    list, button(t('core.properties.add'), () => { rows.push({ key: '', value: '', type: 'text' }); draw(rows.length - 1); }, { variant: 'secondary' }),
-  ], t('common.save'), async () => {
-    const r = await api.put<Props>(`${BASE}/elements/${el.id}`, { items: rows.filter((x) => x.key.trim()) });
-    toast(t('core.properties.saved'));
-    done(r);
-  }, { wide: true });
-}
-
-async function section(el: ElementView): Promise<Node | null> {
-  let data: Props;
-  try { data = await api.get<Props>(`${BASE}/elements/${el.id}`); } catch { return null; }
-  const root = h('section', { class: 'ewprop', 'aria-labelledby': `ewprop-${el.id}` });
-  const draw = () => {
-    root.hidden = !data.items.length && !(data.can_edit && state.editMode);
-    root.replaceChildren(...[
-      h('h2', { id: `ewprop-${el.id}`, class: data.items.length ? 'sr-only' : 'ewprop-title' }, t('core.properties.title')),
-      data.items.length ? h('table', { class: 'ew-table ewprop-table' }, h('caption', { class: 'sr-only' }, t('core.properties.title')),
-        h('tbody', null, ...data.items.map((p) => h('tr', null, h('th', { scope: 'row' }, p.key), h('td', null, valueNode(p)))))) : null,
-      data.can_edit && state.editMode ? (() => {
-        const text = data.items.length ? t('core.properties.edit') : t('core.properties.add_first');
-        return button(text, () => editor(el, data, (n) => { data = n; draw(); }), { variant: 'secondary', ariaLabel: `${text}: ${el.title}` });
-      })() : null,
-    ].filter((x) => x !== null) as HTMLElement[]);
-  };
-  draw();
-  return root;
-}
+import { BASE, type Props } from './model';
+import { propertiesForm } from './edit';
+import { section } from './view';
+import { defsManager } from './defs';
+import { reportWidget } from './report';
+import { databaseWidget } from './database';
+import { registerControls } from './config';
 
 export function register(): void {
+  registerEditField({
+    id: 'core.properties',
+    order: 10,
+    render: async (ctx) => {
+      let data: Props;
+      try {
+        data = ctx.elementId
+          ? await api.get<Props>(`${BASE}/elements/${ctx.elementId}${qs({ lang: ctx.lang })}`)
+          : await api.get<Props>(`${BASE}/new${qs({ category: ctx.categoryId, type: ctx.type, lang: ctx.lang })}`);
+      } catch { return null; }
+      // a draft's values over the stored ones
+      const init = ctx.initial as { values?: Record<string, unknown>; free?: Record<string, { type: string; label: string }> } | undefined;
+      if (init?.values) {
+        for (const [k, v] of Object.entries(init.values)) {
+          const it = data.items.find((x) => x.key === k);
+          if (it) it.value = v;
+          else if (init.free?.[k]) data.items.push({ key: k, label: init.free[k].label, type: init.free[k].type, def_id: null, value: v, show_on_page: true, can_edit: true });
+        }
+      }
+      const form = await propertiesForm(data);
+      if (form.empty) return null;
+      return { el: form.el, value: () => form.value(), validate: () => form.validate() };
+    },
+  });
   registerElementExtension({ id: 'core.properties', order: 5, placement: 'top', render: section });
+  registerWidget('core.properties.report', reportWidget);
+  registerWidget('core.properties.database', databaseWidget);
+  registerControls();
+  registerAdminPage({ id: 'properties', label: () => t('props.admin_title'), permission: 'core.properties.admin', order: 40, render: (el) => defsManager(el, null) });
+  registerCategorySettingsTab({
+    id: 'properties', order: 20, label: () => t('props.title'),
+    visible: (c) => !!state.user && ((c.permissions ?? []).includes('manage') || hasPerm('core.properties.admin')),
+    render: (panel, c) => defsManager(panel, c.id),
+  });
 }

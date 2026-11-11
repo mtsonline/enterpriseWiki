@@ -40,20 +40,42 @@ func (report) Description() map[string]string {
 }
 func (report) HasBody() bool   { return false }
 func (report) Toolbar() string { return "▦" }
+
+var optionLabels = map[string]map[string]string{
+	"table": lm("Table", "Tabelle"), "list": lm("List", "Liste"), "cards": lm("Cards", "Karten"), "kanban": lm("Board (columns by a property)", "Board (Spalten nach einer Eigenschaft)"),
+	"calendar": lm("Calendar", "Kalender"), "timeline": lm("Timeline (Gantt)", "Zeitleiste (Gantt)"), "chart": lm("Chart", "Diagramm"), "kpi": lm("Key figures", "Kennzahlen"),
+	"pivot": lm("Pivot table", "Pivot-Tabelle"), "tagcloud": lm("Tag cloud", "Schlagwort-Wolke"), "completeness": lm("Completeness (missing values)", "Vollständigkeit (fehlende Werte)"),
+	"overdue": lm("Overdue and due soon", "Überfällig und bald fällig"), "map": lm("Places", "Orte"),
+	"bar": lm("Columns", "Säulen"), "hbar": lm("Bars", "Balken"), "stacked": lm("Stacked columns", "Gestapelte Säulen"), "line": lm("Line", "Linie"), "area": lm("Area (stacked)", "Fläche (gestapelt)"),
+	"pie": lm("Pie", "Kreis"), "donut": lm("Donut", "Ring"), "heatmap": lm("Heat map", "Heatmap"),
+	"day": lm("Day", "Tag"), "week": lm("Week", "Woche"), "month": lm("Month", "Monat"), "quarter": lm("Quarter", "Quartal"), "year": lm("Year", "Jahr"),
+	"count": lm("Number of elements", "Anzahl Elemente"), "sum": lm("Sum", "Summe"), "avg": lm("Average", "Mittelwert"), "min": lm("Minimum", "Minimum"), "max": lm("Maximum", "Maximum"),
+}
+
+func labelsFor(opts []string) map[string]map[string]string {
+	out := map[string]map[string]string{}
+	for _, o := range opts {
+		if l, ok := optionLabels[o]; ok {
+			out[o] = l
+		}
+	}
+	return out
+}
+
 func (report) Params() []content.MacroParam {
 	opt := func(list []string) []string { return append([]string{}, list...) }
 	return []content.MacroParam{
-		{Name: "view", Labels: lm("View", "Darstellung"), Type: "select", Options: opt(Views), Default: "table"},
+		{Name: "view", Labels: lm("View", "Darstellung"), Type: "select", Options: opt(Views), OptionLabels: labelsFor(Views), Default: "table"},
 		{Name: "source", Labels: lm("Sources (empty: this category with subcategories)", "Quellen (leer: diese Kategorie mit Unterkategorien)"), Type: "custom:properties.source"},
 		{Name: "filter", Labels: lm("Filters", "Filter"), Type: "custom:properties.filter"},
 		{Name: "columns", Labels: lm("Columns", "Spalten"), Type: "custom:properties.columns"},
 		{Name: "sort", Labels: lm("Sort by (- before a key: descending)", "Sortieren nach (- vor dem Schlüssel: absteigend)"), Type: "custom:properties.sort"},
 		{Name: "group", Labels: lm("Group by (board columns, chart categories, pivot rows)", "Gruppieren nach (Board-Spalten, Diagramm-Kategorien, Pivot-Zeilen)"), Type: "custom:properties.key"},
 		{Name: "group2", Labels: lm("Second grouping (series of stacked charts, pivot columns)", "Zweite Gruppierung (Reihen gestapelter Diagramme, Pivot-Spalten)"), Type: "custom:properties.key"},
-		{Name: "bucket", Labels: lm("Dates grouped by", "Datumswerte zusammenfassen nach"), Type: "select", Options: []string{"day", "week", "month", "quarter", "year"}, Default: "month"},
-		{Name: "agg", Labels: lm("Value", "Wert"), Type: "select", Options: []string{"count", "sum", "avg", "min", "max"}, Default: "count"},
+		{Name: "bucket", Labels: lm("Dates grouped by", "Datumswerte zusammenfassen nach"), Type: "select", Options: []string{"day", "week", "month", "quarter", "year"}, OptionLabels: labelsFor([]string{"day", "week", "month", "quarter", "year"}), Default: "month"},
+		{Name: "agg", Labels: lm("Value", "Wert"), Type: "select", Options: []string{"count", "sum", "avg", "min", "max"}, OptionLabels: labelsFor([]string{"count", "sum", "avg", "min", "max"}), Default: "count"},
 		{Name: "value", Labels: lm("Property for sum/average (number)", "Eigenschaft für Summe/Mittelwert (Zahl)"), Type: "custom:properties.key"},
-		{Name: "chart", Labels: lm("Chart", "Diagramm"), Type: "select", Options: opt(Charts), Default: "bar"},
+		{Name: "chart", Labels: lm("Chart", "Diagramm"), Type: "select", Options: opt(Charts), OptionLabels: labelsFor(Charts), Default: "bar"},
 		{Name: "date", Labels: lm("Date property (calendar, timeline, overdue)", "Datums-Eigenschaft (Kalender, Zeitleiste, überfällig)"), Type: "custom:properties.key"},
 		{Name: "live_filters", Labels: lm("Filters for readers (properties)", "Filter für Lesende (Eigenschaften)"), Type: "custom:properties.columns"},
 		{Name: "totals", Labels: lm("Show totals", "Summen anzeigen"), Type: "bool"},
@@ -210,6 +232,14 @@ func QueryOf(params map[string]string, categoryID, elementID int64, lang string)
 		return nil, err
 	}
 	q.Columns = splitKeys(params["columns"])
+	// the views need their keys in the rows (board columns, dates, places)
+	if len(q.Columns) > 0 {
+		for _, k := range []string{params["group"], params["date"]} {
+			if k = strings.ToLower(strings.TrimSpace(k)); k != "" && !slicesContains(q.Columns, k) {
+				q.Columns = append(q.Columns, k)
+			}
+		}
+	}
 	for _, k := range splitKeys(params["sort"]) {
 		q.Sort = append(q.Sort, SortKey{Key: strings.TrimPrefix(k, "-"), Desc: strings.HasPrefix(k, "-")})
 	}
@@ -273,6 +303,33 @@ func (r report) Render(ctx context.Context, mc content.MacroContext) (string, er
 	}
 	b.WriteString(`</div></section>`)
 	return b.String(), nil
+}
+
+// the running plugin (for other plugins rendering property tables)
+var instance *Plugin
+
+// RenderTable renders the rows of a query as an accessible table with the
+// rights of the caller (e.g. the fallback of the property database).
+func RenderTable(ctx context.Context, q *Query) (string, error) {
+	if instance == nil {
+		return "", apperr.NotFound("plugin core.properties")
+	}
+	res, err := instance.Run(ctx, q)
+	if err != nil {
+		return "", err
+	}
+	var b strings.Builder
+	report{instance}.rowTable(&b, q, res, q.Lang)
+	return b.String(), nil
+}
+
+func slicesContains(list []string, s string) bool {
+	for _, x := range list {
+		if x == s {
+			return true
+		}
+	}
+	return false
 }
 
 func asAppErr(err error, target **apperr.Error) bool {

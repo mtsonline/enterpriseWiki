@@ -38,6 +38,7 @@ var demoTables = []struct{ kind, table string }{
 	{"carousel", "plugin_carousels"},
 	{"block", "plugin_blocks"},
 	{"menu", "plugin_menus"},
+	{"property", "plugin_prop_defs"},
 	{"medium", "media"},
 	{"element", "elements"},
 	{"category", "categories"},
@@ -49,7 +50,7 @@ var demoTables = []struct{ kind, table string }{
 var demoEntity = map[string][]string{
 	"element": {"element"}, "category": {"category"}, "medium": {"medium", "media"},
 	"user": {"user"}, "group": {"group"}, "menu": {"menu"}, "block": {"block"},
-	"carousel": {"carousel"}, "event": {"event"}, "comment": {"comment"},
+	"carousel": {"carousel"}, "event": {"event"}, "comment": {"comment"}, "property": {"property"},
 }
 
 type demoStatus struct {

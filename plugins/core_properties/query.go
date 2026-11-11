@@ -80,6 +80,8 @@ type Row struct {
 	CreatedBy  *int64                     `json:"created_by"`
 	UpdatedBy  *int64                     `json:"updated_by"`
 	Values     map[string]json.RawMessage `json:"values"`
+	// CanEdit: the caller may edit the element (changing values in place)
+	CanEdit bool `json:"can_edit"`
 }
 
 // Column describes a key of the result.
@@ -674,8 +676,17 @@ func (p *Plugin) Run(ctx context.Context, q *Query) (*Result, error) {
 		res.Rows = []Row{}
 	}
 	ids := make([]int64, len(res.Rows))
+	cats := make([]int64, 0, len(res.Rows))
 	for i, r := range res.Rows {
 		ids[i] = r.ID
+		cats = append(cats, r.CategoryID)
+	}
+	editable, err := p.host.ACL.Filter(ctx, identity.From(ctx), cats, acl.Edit)
+	if err != nil {
+		return nil, err
+	}
+	for i := range res.Rows {
+		res.Rows[i].CanEdit = slices.Contains(editable, res.Rows[i].CategoryID)
 	}
 	vals, err := p.load(ctx, p.host.DB, ids)
 	if err != nil {
@@ -914,10 +925,11 @@ func (p *Plugin) groups(ctx context.Context, q *Query, sc *scope, res *Result) (
 	if res.Refs, err = p.refNames(ctx, refIDs, q.Lang); err != nil {
 		return nil, err
 	}
+	// keys without a visible definition (free properties): their type
 	found := map[string]Column{}
 	for _, k := range []string{q.Group, q.Group2, q.AggKey} {
-		if k != "" {
-			found[k] = Column{Key: k, Type: p.typeOf(ctx, sc, k)}
+		if _, builtin := builtinType[k]; k != "" && !builtin && len(sc.defs[k]) == 0 {
+			found[k] = Column{Key: k, Label: k, Type: p.typeOf(ctx, sc, k)}
 		}
 	}
 	q.Columns = slices.DeleteFunc([]string{q.Group, q.Group2, q.AggKey}, func(s string) bool { return s == "" })
@@ -934,6 +946,44 @@ func (p *Plugin) routesQuery() {
 			return nil, err
 		}
 		return p.Run(r.Context(), &q)
+	})
+	// POST /report – a report from the parameters of the macro (as in the
+	// page), with filters of the reader added, another sorting or page:
+	// {"params": {...}, "category_id": 1, "element_id": 2, "filters": [...], "sort": [...], "offset": 0, "lang": "de", "rows": true}
+	host.Handle("POST", "/report", func(w http.ResponseWriter, r *http.Request) (any, error) {
+		var in struct {
+			Params     map[string]string `json:"params"`
+			CategoryID int64             `json:"category_id"`
+			ElementID  int64             `json:"element_id"`
+			Filters    []Filter          `json:"filters"`
+			Sort       []SortKey         `json:"sort"`
+			Offset     int               `json:"offset"`
+			Lang       string            `json:"lang"`
+			// Rows: the elements instead of the groups (e.g. a chart's data per element)
+			Rows bool `json:"rows"`
+		}
+		if err := h.Decode(r, &in); err != nil {
+			return nil, err
+		}
+		if len(in.Params) > 40 {
+			return nil, apperr.BadRequest("too many parameters")
+		}
+		q, err := QueryOf(in.Params, in.CategoryID, in.ElementID, in.Lang)
+		if err != nil {
+			return nil, err
+		}
+		if len(in.Filters) > 10 {
+			return nil, apperr.BadRequest("at most 10 filters of readers")
+		}
+		q.Filters = append(q.Filters, in.Filters...)
+		if len(in.Sort) > 0 {
+			q.Sort = in.Sort
+		}
+		q.Offset = in.Offset
+		if in.Rows {
+			q.Group, q.Group2 = "", ""
+		}
+		return p.Run(r.Context(), q)
 	})
 	// POST /query.csv – the rows as CSV (UTF-8 with BOM for spreadsheets)
 	host.Mux.HandleFunc("POST /api/v1/x/core.properties/query.csv", func(w http.ResponseWriter, r *http.Request) {

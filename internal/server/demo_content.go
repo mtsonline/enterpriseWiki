@@ -226,6 +226,7 @@ func buildDemo(d *demoRun) {
 		{"david", "David Steiner", "Datenschutzbeauftragter", "Recht", readersGroup},
 	}
 	handles := map[string]string{}
+	userIDs := map[string]int64{}
 	for _, pp := range people {
 		if d.err != nil {
 			break
@@ -248,6 +249,7 @@ func buildDemo(d *demoRun) {
 			"about": "Demo-Konto (keine Anmeldung möglich).",
 		}, nil)
 		handles[pp.user] = uname
+		userIDs[pp.user] = uid
 	}
 	// the editors may edit the demo area
 	d.call(http.MethodPost, fmt.Sprintf("/api/v1/categories/%d/acl", root), map[string]any{"subject_type": "group", "subject_id": editorsGroup, "permissions": 1 | 2 | 4 | 8, "inherit": inherit}, nil)
@@ -414,6 +416,104 @@ func buildDemo(d *demoRun) {
 	d.optional("team", func() {
 		d.element(team, "content.team", d.tr("Our team", "Unser Team"), d.same(map[string]any{"description": htmlBodyOf("<p>Demo-Konten – eine Anmeldung ist nicht möglich.</p>"),
 			"groups": []int64{editorsGroup, readersGroup}, "fields": []string{"photo", "job_title", "department", "phone", "office"}, "layout": "cards", "by_group": true, "sort": "name"}), nil)
+	})
+
+	// ---- 5b. projects with properties: definitions, a database and reports
+	projCat := d.category(root, "Projects (properties)", "Projekte (Eigenschaften)", "Properties of every type, a property database and reports as table, board, charts, calendar and timeline.",
+		"Eigenschaften aller Art, eine Eigenschaften-Datenbank und Berichte als Tabelle, Board, Diagramme, Kalender und Zeitleiste.", nil)
+	d.optional("properties", func() {
+		def := func(body map[string]any) {
+			body["category_id"] = projCat
+			d.create("property", "/api/v1/x/core.properties/defs", body)
+		}
+		ch := func(vals ...[3]string) []map[string]any {
+			out := []map[string]any{}
+			for _, v := range vals {
+				out = append(out, map[string]any{"value": v[0], "labels": map[string]string{"en": v[0], "de": v[1]}, "color": v[2]})
+			}
+			return out
+		}
+		def(map[string]any{"key": "ref", "type": "autonumber", "labels": d.tr("Number", "Nummer"), "options": map[string]any{"prefix": "PRJ-", "digits": 3}, "position": 0})
+		def(map[string]any{"key": "status", "type": "status", "labels": d.tr("Status", "Status"), "required": true, "default": "Planned", "position": 1,
+			"options": map[string]any{"choices": ch([3]string{"Planned", "Geplant", "grey"}, [3]string{"Active", "Aktiv", "blue"}, [3]string{"At risk", "Gefährdet", "orange"}, [3]string{"Done", "Erledigt", "green"})}})
+		def(map[string]any{"key": "priority", "type": "select", "labels": d.tr("Priority", "Priorität"), "position": 2,
+			"options": map[string]any{"choices": ch([3]string{"High", "Hoch", ""}, [3]string{"Medium", "Mittel", ""}, [3]string{"Low", "Niedrig", ""})}})
+		def(map[string]any{"key": "owner", "type": "user", "labels": d.tr("Owner", "Verantwortlich"), "position": 3})
+		def(map[string]any{"key": "period", "type": "daterange", "labels": d.tr("Period", "Zeitraum"), "position": 4})
+		def(map[string]any{"key": "due", "type": "date", "labels": d.tr("Next milestone", "Nächster Meilenstein"), "position": 5})
+		def(map[string]any{"key": "budget", "type": "currency", "labels": d.tr("Budget", "Budget"), "options": map[string]any{"currency": "EUR", "min": 0}, "group": "Finanzen", "position": 6})
+		def(map[string]any{"key": "progress", "type": "progress", "labels": d.tr("Progress", "Fortschritt"), "group": "Finanzen", "position": 7})
+		def(map[string]any{"key": "spent", "type": "formula", "labels": d.tr("Used so far (budget × progress)", "Bisher verbraucht (Budget × Fortschritt)"), "group": "Finanzen", "position": 8,
+			"options": map[string]any{"formula": "round(budget * progress / 100)", "decimals": 0}})
+		def(map[string]any{"key": "rating", "type": "rating", "labels": d.tr("Satisfaction", "Zufriedenheit"), "options": map[string]any{"max": 5}, "position": 9})
+		def(map[string]any{"key": "site", "type": "location", "labels": d.tr("Location", "Standort"), "position": 10})
+		def(map[string]any{"key": "areas", "type": "multiselect", "labels": d.tr("Areas", "Bereiche"), "position": 11,
+			"options": map[string]any{"choices": ch([3]string{"IT", "IT", ""}, [3]string{"HR", "Personal", ""}, [3]string{"Finance", "Finanzen", ""}, [3]string{"Facilities", "Gebäude", ""})}})
+		day := func(n int) string { return time.Now().AddDate(0, 0, n).Format("2006-01-02") }
+		lat := func(f float64) *float64 { return &f }
+		projects := []struct {
+			en, de, status, prio, owner string
+			from, to, due               int
+			budget, progress, rating    float64
+			city                        string
+			la, lo                      float64
+			areas                       []string
+		}{
+			{"New intranet", "Neues Intranet", "Active", "High", "anna", -60, 90, 12, 120000, 45, 4, "Wien", 48.2082, 16.3738, []string{"IT", "HR"}},
+			{"Office relocation", "Büro-Umzug", "At risk", "High", "ben", -30, 45, -3, 80000, 70, 2, "Graz", 47.0707, 15.4395, []string{"Facilities"}},
+			{"Onboarding programme", "Onboarding-Programm", "Planned", "Medium", "clara", 20, 120, 25, 15000, 0, 0, "Linz", 48.3069, 14.2858, []string{"HR"}},
+			{"Annual accounts", "Jahresabschluss", "Done", "Medium", "anna", -120, -10, -10, 25000, 100, 5, "Wien", 48.2082, 16.3738, []string{"Finance"}},
+			{"Security audit", "Sicherheitsaudit", "Active", "High", "ben", -10, 40, 5, 40000, 30, 3, "Salzburg", 47.8095, 13.0550, []string{"IT"}},
+			{"Energy saving", "Energiesparen", "Planned", "Low", "clara", 40, 200, 60, 60000, 0, 0, "Innsbruck", 47.2692, 11.4041, []string{"Facilities", "Finance"}},
+		}
+		for _, x := range projects {
+			if d.err != nil {
+				break
+			}
+			values := map[string]any{"status": x.status, "priority": x.prio, "period": map[string]string{"from": day(x.from), "to": day(x.to)}, "due": day(x.due),
+				"budget": x.budget, "progress": x.progress, "site": map[string]any{"address": x.city, "lat": lat(x.la), "lng": lat(x.lo)}, "areas": x.areas}
+			if uid := userIDs[x.owner]; uid != 0 {
+				values["owner"] = []int64{uid}
+			}
+			if x.rating > 0 {
+				values["rating"] = x.rating
+			}
+			d.page(projCat, x.en, x.de, "<p>Project description, goals and contacts.</p>", "<p>Projektbeschreibung, Ziele und Ansprechpersonen.</p>",
+				map[string]any{"fields": map[string]any{"core.properties": map[string]any{"values": values}}, "tags": []string{"demo", "project"}})
+		}
+		src := "category:" + strconv.FormatInt(projCat, 10)
+		d.optional("propdb", func() {
+			d.element(projCat, "content.propdb", d.tr("Project database", "Projekt-Datenbank"), d.same(map[string]any{
+				"intro":  map[string]string{"format": "markdown", "source": "Alle Projekte mit ihren Eigenschaften: suchen, filtern, gruppieren, als Board oder Kalender ansehen und Werte direkt ändern."},
+				"source": src, "filter": "tags has project", "columns_text": "ref,status,priority,owner,due,budget,progress", "sort_text": "ref", "view": "table", "group": "status", "date": "period",
+				"new_type": "core.html", "new_category": 0, "per_page": 50}), map[string]any{"position": 0})
+		})
+		rep := func(params map[string]string) string {
+			params["source"] = src
+			if params["filter"] != "" {
+				params["filter"] += "; "
+			}
+			params["filter"] += "tags has project"
+			return macro("properties", params, "")
+		}
+		de := "<p>Berichte aus den Eigenschaften der Projekte – jeweils mit den Rechten der Lesenden.</p>" +
+			"<h2>Tabelle nach Status mit Summen</h2>" + rep(map[string]string{"view": "table", "columns": "ref,priority,owner,budget,spent,progress", "group": "status", "totals": "true", "sort": "-budget", "live_filters": "priority,owner"}) +
+			"<h2>Board</h2>" + rep(map[string]string{"view": "kanban", "group": "status", "columns": "priority,owner,due"}) +
+			"<h2>Budget nach Status</h2>" + rep(map[string]string{"view": "chart", "chart": "bar", "group": "status", "agg": "sum", "value": "budget", "title": "Budget nach Status"}) +
+			"<h2>Projekte nach Bereich und Priorität</h2>" + rep(map[string]string{"view": "chart", "chart": "stacked", "group": "areas", "group2": "priority", "title": "Projekte nach Bereich und Priorität"}) +
+			"<h2>Anteil nach Priorität</h2>" + rep(map[string]string{"view": "chart", "chart": "donut", "group": "priority", "title": "Anteil nach Priorität"}) +
+			"<h2>Kennzahlen</h2>" + rep(map[string]string{"view": "kpi", "group": "status", "agg": "sum", "value": "budget"}) +
+			"<h2>Pivot: Status × Priorität</h2>" + rep(map[string]string{"view": "pivot", "group": "status", "group2": "priority"}) +
+			"<h2>Zeitleiste</h2>" + rep(map[string]string{"view": "timeline", "date": "period"}) +
+			"<h2>Kalender der Meilensteine</h2>" + rep(map[string]string{"view": "calendar", "date": "due"}) +
+			"<h2>Überfällig und bald fällig</h2>" + rep(map[string]string{"view": "overdue", "date": "due", "columns": "owner,status", "filter": "status != Done"}) +
+			"<h2>Vollständigkeit</h2>" + rep(map[string]string{"view": "completeness", "columns": "owner,due,budget,rating"}) +
+			"<h2>Standorte</h2>" + rep(map[string]string{"view": "map", "columns": "site"})
+		en := strings.NewReplacer("Berichte aus den Eigenschaften der Projekte – jeweils mit den Rechten der Lesenden.", "Reports from the properties of the projects – always with the permissions of the reader.",
+			"Tabelle nach Status mit Summen", "Table by status with totals", "Budget nach Status", "Budget by status", "Projekte nach Bereich und Priorität", "Projects by area and priority",
+			"Anteil nach Priorität", "Share by priority", "Kennzahlen", "Key figures", "Zeitleiste", "Timeline", "Kalender der Meilensteine", "Calendar of milestones",
+			"Überfällig und bald fällig", "Overdue and due soon", "Vollständigkeit", "Completeness", "Standorte", "Locations").Replace(de)
+		d.page(projCat, "Reports: projects", "Berichte: Projekte", en, de, nil)
 	})
 
 	// ---- 6. documents and processes

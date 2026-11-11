@@ -242,8 +242,9 @@ export const PERMS = [
 export interface MacroParam {
   name: string;
   labels: Record<string, string>;
-  type: 'text' | 'textarea' | 'number' | 'select' | 'bool' | 'url';
+  type: 'text' | 'textarea' | 'number' | 'select' | 'bool' | 'url' | `custom:${string}`;
   options?: string[];
+  option_labels?: Record<string, Record<string, string>>;
   default?: string;
   required?: boolean;
 }

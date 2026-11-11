@@ -39,7 +39,11 @@ export type { WidgetFactory } from './core/widgets';
 export type { MarkdownEditor, MarkdownEditorOptions, EditorMode } from './editor/editor';
 export type { Peer } from './editor/collab';
 export { formatAttrs, parseAttrs } from './editor/attrs';
-export { macroDialog, loadMacros } from './editor/macros';
+export { macroDialog, loadMacros, registerMacroParamControl, getMacroParamControl } from './editor/macros';
+export type { MacroParamContext, MacroParamControl } from './editor/macros';
+export { currentCategory } from './components/widgets';
+export { subjectsEditor, userPicker, groupPicker } from './components/subjects';
+export type { Subject } from './components/subjects';
 export type { MacroChoice } from './editor/macros';
 
 /** Loads the visual Markdown editor (a separate file, loaded on first use). */
@@ -387,6 +391,29 @@ export async function renderCategoryExtensions(container: HTMLElement, c: import
       console.error(`category extension ${x.id} failed`, e);
     }
   }
+}
+
+// ---------------------------------------------------------------- category settings tabs
+
+/** A tab of the category settings (e.g. properties, appearance). visible
+ * decides from the category (its permissions) whether the tab is shown. */
+export interface CategorySettingsTab {
+  id: string;
+  order?: number;
+  label: () => string;
+  visible?: (c: import('./core/types').Category) => boolean;
+  render: (panel: HTMLElement, c: import('./core/types').Category) => Promise<void> | void;
+}
+
+const categoryTabs: CategorySettingsTab[] = [];
+
+export function registerCategorySettingsTab(x: CategorySettingsTab): void {
+  categoryTabs.push(x);
+  categoryTabs.sort((a, b) => (a.order ?? 50) - (b.order ?? 50));
+}
+
+export function listCategorySettingsTabs(): CategorySettingsTab[] {
+  return categoryTabs;
 }
 
 // ---------------------------------------------------------------- profile sections

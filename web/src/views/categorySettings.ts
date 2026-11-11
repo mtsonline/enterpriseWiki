@@ -11,6 +11,7 @@ import { toast } from '../core/announce';
 import { button, checkbox, confirmDialog, errorText, field, formDialog, langFields, select, textInput } from '../components/ui';
 import { breadcrumbs, can, invalidateTree, setContext } from '../components/widgets';
 import { errorPage, splitTags } from './content';
+import { listCategorySettingsTabs } from '../sdk';
 
 interface CategoryResponse { category: Category; breadcrumbs: Category[]; elements: ElementSummary[] }
 
@@ -28,17 +29,25 @@ export async function categorySettingsView({ params, query, main }: RouteCtx): P
   const c = data.category;
   setContext(c.id, c.path, c.permissions);
   const title = pick(c.titles, state.lang, state.site.default_language);
-  const tab = (TABS as readonly string[]).includes(query.get('tab') ?? '') ? query.get('tab')! : 'general';
-  const panel = h('div', { class: 'ew-tabpanel', id: 'ew-tabpanel', role: 'region', 'aria-label': t(`category.tab.${tab}`) });
+  // tabs of plugins (e.g. properties) where they apply
+  const extra = listCategorySettingsTabs().filter((x) => x.visible?.(c) ?? true);
+  const ids = [...TABS, ...extra.map((x) => x.id)];
+  const tabLabel = (id: string) => extra.find((x) => x.id === id)?.label() ?? t(`category.tab.${id}`);
+  const tab = ids.includes(query.get('tab') ?? '') ? query.get('tab')! : 'general';
+  const panel = h('div', { class: 'ew-tabpanel', id: 'ew-tabpanel', role: 'region', 'aria-label': tabLabel(tab) });
   mount(main,
     breadcrumbs([{ title: t('nav.home'), href: '/' }, { title, href: `/c/${c.id}` }, { title: t('category.settings') }]),
     h('h1', null, t('category.settings_title', { title })),
     h('nav', { class: 'ew-tabs', 'aria-label': t('category.settings') },
-      h('ul', null, ...TABS.map((tb) => h('li', null, h('a', { href: `/c/${c.id}/settings?tab=${tb}`, 'aria-current': tb === tab ? 'page' : undefined }, t(`category.tab.${tb}`)))))),
+      h('ul', null, ...ids.map((tb) => h('li', null, h('a', { href: `/c/${c.id}/settings?tab=${tb}`, 'aria-current': tb === tab ? 'page' : undefined }, tabLabel(tb)))))),
     panel);
   if (tab === 'general') general(panel, c, data.elements);
   if (tab === 'permissions') await permissions(panel, c);
   if (tab === 'history') await history(panel, c);
+  const x = extra.find((e) => e.id === tab);
+  if (x) {
+    try { await x.render(panel, c); } catch (e) { panel.append(h('p', { role: 'alert' }, errorText(e))); }
+  }
 }
 
 function general(panel: HTMLElement, c: Category, elements: ElementSummary[]): void {

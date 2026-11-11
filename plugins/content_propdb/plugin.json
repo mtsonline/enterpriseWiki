@@ -1,0 +1,10 @@
+{
+  "id": "content.propdb",
+  "name": "Property database",
+  "version": "1.0.0",
+  "description": "Element type “Property database”: the elements of one or more sources with their properties as an interactive table, cards, board, calendar, timeline or chart — searching, filtering, sorting, grouping, changing values in place and adding new entries; the definitions of the properties are managed there too. Every row is a real element with its permissions, history and search.",
+  "author": "Enterprise Wiki",
+  "kinds": ["element"],
+  "extends": ["core.properties"],
+  "frontend": true
+}

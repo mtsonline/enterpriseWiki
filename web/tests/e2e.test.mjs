@@ -259,6 +259,17 @@ test('insert macros with the macro dialog', async () => {
   await page.locator('dialog[open] select').first().selectOption('toc');
   await page.locator('dialog[open] button[type=submit]').click();
   await page.waitForSelector('.ewe-prose .ewe-macro[data-macro="toc"]');
+  // the property report with its own controls (sources, filters, columns)
+  await page.keyboard.press('Control+End');
+  await page.getByRole('button', { name: /^(insert macro|makro einfügen)$/i }).click();
+  await page.locator('dialog[open] select').first().selectOption('properties');
+  await page.locator('dialog[open]').getByRole('button', { name: /^(add filter|filter hinzufügen)$/i }).waitFor();
+  await page.locator('dialog[open]').getByRole('button', { name: /^(add source|quelle hinzufügen)$/i }).click();
+  await page.locator('dialog[open]').getByRole('button', { name: /^(add filter|filter hinzufügen)$/i }).click();
+  await page.locator('dialog[open]').getByLabel(/^(condition|bedingung)$/i).first().waitFor();
+  await a11y('property report macro dialog');
+  await page.locator('dialog[open] button[type=submit]').click();
+  await page.waitForSelector('.ewe-prose .ewe-macro[data-macro="properties"]');
   await a11y('visual editor with macros');
   await page.getByRole('button', { name: /^(publish|veröffentlichen)$/i }).click();
   await page.waitForURL(/\/e\/\d+$/);
@@ -1252,17 +1263,40 @@ test('reactions, favorites and page properties', async () => {
   // favorites: star in the actions, list in the sidebar
   await page.getByRole('button', { name: /^(☆|★)?\s*(favorite|favorit)$/i }).click();
   await page.locator('.ewfav a', { hasText: `M11 page ${run}` }).waitFor();
-  // page properties: editor in edit mode
+  // properties: quick editing in edit mode with a free property
   const edit = page.locator('.ew-pos--header-tools button[aria-pressed]');
   if ((await edit.getAttribute('aria-pressed')) !== 'true') { await edit.click(); await idle(); }
-  await page.getByRole('button', { name: /^(add page properties|seiteneigenschaften hinzufügen)/i }).click();
+  await page.getByRole('button', { name: /^(add properties|eigenschaften hinzufügen)/i }).click();
   const dlg = page.locator('dialog[open]');
-  await dlg.getByLabel(/^(property|eigenschaft) 1$/i).fill('Owner');
-  await dlg.getByLabel(/^(value of property|wert von eigenschaft) 1$/i).fill(`Ada ${run}`);
-  await a11y('page properties dialog');
+  await dlg.getByRole('button', { name: /^(add property|eigenschaft hinzufügen)$/i }).click();
+  const add = page.locator('dialog[open]').last();
+  await add.getByLabel(/^(name)/i).fill('Owner');
+  await a11y('add a free property');
+  await add.locator('button[type=submit]').click();
+  await dlg.getByLabel(/^owner/i).fill(`Ada ${run}`);
+  await a11y('properties dialog');
   await dlg.locator('button[type=submit]').click();
-  await page.locator('.ewprop-table', { hasText: `Ada ${run}` }).waitFor();
+  await page.locator('.ewprop-list', { hasText: `Ada ${run}` }).waitFor();
   await a11y('page with reactions, favorites and properties');
+  // definitions in the category settings: the dialog to define one
+  await page.goto(`${BASE}/c/${cat}/settings?tab=properties`);
+  await idle();
+  await a11y('property definitions');
+  await page.getByRole('button', { name: /^(define a property|eigenschaft definieren)$/i }).click();
+  const def = page.locator('dialog[open]');
+  await def.getByLabel(/^(key|schlüssel)/i).fill(`status_${run}`.toLowerCase().replace(/[^a-z0-9_]/g, '_'));
+  await def.getByLabel(/^name/i).first().fill('Status');
+  await def.getByLabel(/^(type|typ)$/i).selectOption('status');
+  await def.getByRole('button', { name: /^(add value|wert hinzufügen)$/i }).click();
+  await def.getByLabel(/^(value|wert)$/i).first().fill('Open');
+  await a11y('define a property');
+  await def.locator('details summary').click();
+  await a11y('define a property: more settings');
+  await def.locator('button[type=submit]').click();
+  await def.waitFor({ state: 'detached', timeout: 5000 }).catch(async () => { throw new Error(`definition dialog: ${await def.locator('.ew-form-alert').innerText()}`); });
+  await page.locator('.ew-table code', { hasText: `status_${run}`.toLowerCase().replace(/[^a-z0-9_]/g, '_') }).waitFor();
+  await page.goto(`${BASE}/e/${el.id}`);
+  await idle();
   await page.getByRole('button', { name: /^(☆|★)?\s*(favorite|favorit)$/i }).click(); // remove again
 });
 
