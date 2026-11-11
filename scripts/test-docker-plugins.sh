@@ -39,7 +39,7 @@ type Plugin struct{}
 func init() { sdk.Register(&Plugin{}) }
 
 func (p *Plugin) Manifest() sdk.Manifest {
-	return sdk.Manifest{ID: "$2", Name: "Test $2", Version: "1.0.0"}
+	return sdk.Manifest{ID: "$2", Name: "Test $2", Version: "1.0.0", Kinds: []string{"general"}}
 }
 GO
 }

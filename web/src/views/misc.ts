@@ -192,7 +192,7 @@ async function mfaStep(main: HTMLElement, token: string, next: string, link: { c
     methods = (await mfa.info()).methods.filter((m) => !!mfaMethodUI(m));
   } catch (e) {
     mount(main, h('div', { class: 'ew-narrow' }, heading, h('p', { class: 'ew-notice ew-notice--error', role: 'alert' }, errorText(e)),
-      h('p', null, h('a', { href: '/login' }, t('mfa.again')))));
+      h('div', { class: 'ew-form-actions' }, h('a', { href: '/login', class: 'ew-btn ew-btn--secondary' }, t('mfa.again')))));
     heading.focus();
     return;
   }
@@ -217,7 +217,7 @@ async function mfaStep(main: HTMLElement, token: string, next: string, link: { c
       return h('div', { class: 'ew-check' }, r, h('label', { for: `mfa-${id}` }, mfaMethodUI(id)!.label()));
     })) : null;
   mount(main, h('div', { class: 'ew-narrow' }, heading, h('p', null, t('mfa.step_help')), alert, choice, body,
-    h('p', { class: 'ew-help' }, h('a', { href: '/login' }, t('mfa.cancel')))));
+    h('div', { class: 'ew-form-actions' }, h('a', { href: '/login', class: 'ew-btn ew-btn--secondary' }, t('mfa.cancel')))));
   if (methods.length) show(methods[0]);
   else alert.textContent = t('mfa.none');
   heading.focus();
