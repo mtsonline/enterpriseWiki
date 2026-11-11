@@ -37,6 +37,7 @@ export async function spacesView({ main }: RouteCtx): Promise<void> {
     return;
   }
   const filter = textInput({ type: 'search', placeholder: t('space.filter_placeholder') });
+  const mine = checkbox(t('space.mine_only'), false, { help: t('space.mine_help') });
   const status = h('p', { class: 'sr-only', role: 'status', 'aria-live': 'polite' });
   const grid = h('ul', { class: 'ew-spaces' });
   const archivedGrid = h('ul', { class: 'ew-spaces' });
@@ -44,10 +45,12 @@ export async function spacesView({ main }: RouteCtx): Promise<void> {
   const card = (s: SpaceInfo) => h('li', { class: ['ew-space-card', s.archived && 'is-archived'] },
       h('h3', null, h('a', { href: s.key ? `/s/${s.key}` : `/c/${s.id}` }, pick(s.titles, L(), D()))),
       s.key ? h('p', { class: 'ew-space-key' }, h('span', { class: 'sr-only' }, `${t('space.key')}: `), s.key) : null,
+      s.personal ? h('p', { class: 'ew-badge ew-badge--info' }, t('space.personal')) : null,
       pick(s.descriptions, L(), D()) ? h('p', null, pick(s.descriptions, L(), D())) : null);
   const draw = () => {
     const q = filter.value.trim().toLowerCase();
-    const shown = list.filter((s) => !q || [pick(s.titles, L(), D()), pick(s.descriptions, L(), D()), s.key].join(' ').toLowerCase().includes(q));
+    const shown = list.filter((s) => (!q || [pick(s.titles, L(), D()), pick(s.descriptions, L(), D()), s.key].join(' ').toLowerCase().includes(q))
+      && (!mine.input.checked || s.member || s.can_manage));
     const active = shown.filter((s) => !s.archived);
     const archived = shown.filter((s) => s.archived);
     grid.replaceChildren(...active.map(card));
@@ -57,12 +60,22 @@ export async function spacesView({ main }: RouteCtx): Promise<void> {
     status.textContent = t('space.count', { n: shown.length });
   };
   filter.addEventListener('input', draw);
+  mine.input.addEventListener('change', draw);
   draw();
   const admin = hasPerm('core.categories.admin');
   const create = admin ? button(t('space.new'), () => newSpaceDialog(list), { variant: 'primary' }) : null;
   const imp = admin ? button(t('space.import'), () => importDialog(0), { variant: 'secondary' }) : null;
-  mount(main, pageHeader(t('space.directory'), create, imp), h('p', null, t('space.directory_help')),
-    field(t('space.filter'), filter), status,
+  const own = list.find((s) => s.personal && s.personal === state.user?.id);
+  const personal = own ? h('a', { class: 'ew-btn ew-btn--secondary', href: `/c/${own.id}` }, t('space.personal_open'))
+    : hasPerm('core.spaces.personal') ? button(t('space.personal_create'), async () => {
+      try {
+        const sp = await api.post<SpaceInfo>('spaces/personal');
+        invalidateTree();
+        navigate(`/c/${sp.id}`);
+      } catch (e) { toast(errorText(e), 'error'); }
+    }, { variant: 'secondary' }) : null;
+  mount(main, pageHeader(t('space.directory'), create, imp, personal), h('p', null, t('space.directory_help')),
+    field(t('space.filter'), filter), mine.el, status,
     h('section', { class: 'ew-section', 'aria-labelledby': 'ew-act-h' }, h('h2', { id: 'ew-act-h' }, t('space.active')), grid), archivedSec);
 }
 

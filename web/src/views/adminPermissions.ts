@@ -13,7 +13,7 @@ import { loadCatalog, ruleEditor, summary, type PermDef } from '../components/pe
 import { editRuleDialog } from './categorySettings';
 
 interface Source extends Rule { inherited: boolean }
-interface Row { id: number; parent_id: number | null; depth: number; titles: Record<string, string>; rules: Rule[]; effective: string[]; sources: Source[] }
+interface Row { id: number; parent_id: number | null; depth: number; titles: Record<string, string>; space_key?: string; personal?: boolean; rules: Rule[]; effective: string[]; sources: Source[] }
 
 const CORE_BITS: Record<string, number> = { view: 1, edit: 2, create: 4, delete: 8, manage: 16 };
 
@@ -76,7 +76,9 @@ export async function permissionsAdmin(panel: HTMLElement, query: URLSearchParam
           const acts = r.effective.filter((e) => !(e in CORE_BITS));
           const own = r.rules[0];
           return h('tr', null,
-            h('th', { scope: 'row', class: 'ew-perm-cat' }, h('span', { class: `ew-indent ew-indent-${Math.min(r.depth, 8)}` }, h('a', { href: `/c/${r.id}/settings?tab=permissions` }, titleOf(r)))),
+            h('th', { scope: 'row', class: 'ew-perm-cat' }, h('span', { class: `ew-indent ew-indent-${Math.min(r.depth, 8)}` }, h('a', { href: `/c/${r.id}/settings?tab=permissions` }, titleOf(r)),
+              // top-level categories are spaces (their permissions are these rules)
+              r.parent_id === null ? h('span', { class: 'ew-badge ew-badge--info ew-space-badge' }, r.personal ? t('space.personal') : r.space_key ? `${t('category.tab.space')} ${r.space_key}` : t('category.tab.space')) : null)),
             h('td', null, r.rules.length ? r.rules.map((x) => summary(x.permissions, x.actions ?? [], defs) + (x.inherit ? '' : ` (${t('permissions.this_only')})`)).join('; ') : '–'),
             h('td', null, sub.type === 'guest' ? '–' : summary(bits, acts, defs)),
             h('td', null, r.sources.length ? r.sources.map(sourceText).join(', ') : '–'),

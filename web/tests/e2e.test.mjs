@@ -1511,6 +1511,47 @@ test('demo content: create, browse accessibly, remove', async () => {
   assert.equal(res, 404);
 });
 
+test('spaces: settings, own navigation, /s/KEY, directory, archive', async () => {
+  await page.goto(BASE + '/');
+  await idle();
+  const key = `S${run.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 10)}`;
+  const top = await call('POST', '/api/v1/categories', { titles: { en: `Space ${run}`, de: `Bereich ${run}` } });
+  await call('POST', '/api/v1/categories', { parent_id: top.id, titles: { en: 'Inside', de: 'Innen' } });
+  await page.goto(`${BASE}/c/${top.id}/settings?tab=space`);
+  await idle();
+  await page.getByLabel(/^(space key|bereichsschlüssel)/i).fill(key);
+  await page.getByLabel(/^(own navigation|eigene navigation)/i).check();
+  await page.getByRole('button', { name: /^(add shortcut|verknüpfung hinzufügen)$/i }).click();
+  await page.getByLabel(/^(label of shortcut 1|bezeichnung der verknüpfung 1)$/i).fill('Search');
+  await page.getByLabel(/^(address of shortcut 1|adresse der verknüpfung 1)$/i).fill('/search');
+  await page.getByRole('button', { name: /^(save|speichern)$/i }).first().click();
+  await idle();
+  await a11y('space settings');
+  await page.goto(`${BASE}/s/${key}`);
+  await idle();
+  assert.match(page.url(), new RegExp(`/(c/${top.id}|wiki/)`));
+  const nav = page.locator('.ew-space-nav');
+  await nav.waitFor();
+  assert.ok(await nav.getByRole('link', { name: 'Search' }).count(), 'shortcut in the space navigation');
+  assert.ok(await nav.getByRole('link', { name: /^(.*Inside|.*Innen)$/ }).count(), 'subcategory in the space navigation');
+  await page.goto(BASE + '/spaces');
+  await idle();
+  await page.getByLabel(/^(filter spaces|bereiche filtern)/i).fill(key);
+  assert.equal(await page.locator('.ew-space-card').count(), 1);
+  await a11y('space directory');
+  // archive and restore
+  await page.goto(`${BASE}/c/${top.id}/settings`);
+  await idle();
+  await page.getByRole('button', { name: /^(archive|archivieren)$/i }).click();
+  await page.locator('dialog[open]').getByRole('button', { name: /^(archive|archivieren)$/i }).click();
+  await page.getByRole('button', { name: /^(restore|wiederherstellen)$/i }).waitFor();
+  await page.goto(`${BASE}/c/${top.id}`);
+  await idle();
+  await page.locator('.ew-archived').waitFor();
+  await a11y('archived space');
+  await call('POST', `/api/v1/categories/${top.id}/archive`, { archived: false });
+});
+
 test('no JavaScript errors occurred', () => {
   assert.deepEqual(errors, []);
 });

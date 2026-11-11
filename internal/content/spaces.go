@@ -8,6 +8,7 @@ import (
 	"net/url"
 	"regexp"
 	"slices"
+	"strconv"
 	"strings"
 	"unicode/utf8"
 
@@ -43,6 +44,8 @@ type Space struct {
 	Language string `json:"language"`
 	// IsTemplate: offered as template for new spaces
 	IsTemplate bool `json:"is_template"`
+	// Personal: the owner of a personal space (set when it is created)
+	Personal int64 `json:"personal,omitempty"`
 }
 
 // SpaceInfo is a space with its category texts.
@@ -55,6 +58,8 @@ type SpaceInfo struct {
 	Archived bool `json:"archived"`
 	// CanManage: the caller may change the space (settings, templates)
 	CanManage bool `json:"can_manage"`
+	// Member: the caller has own permissions here (as user, group or role)
+	Member bool `json:"member"`
 	Space
 }
 
@@ -85,6 +90,7 @@ func (s *Service) loadSpace(ctx context.Context, top int64) (*SpaceInfo, error) 
 	}
 	_ = json.Unmarshal(raw, &info.Space)
 	info.CanManage = s.require(ctx, top, acl.Manage) == nil
+	info.Member = s.acl.Member(ctx, identity.From(ctx), top)
 	if info.Shortcuts == nil {
 		info.Shortcuts = []SpaceLink{}
 	}
@@ -172,6 +178,7 @@ func (s *Service) SetSpace(ctx context.Context, id int64, in SpaceInput) (*Space
 	if err != nil {
 		return nil, err
 	}
+	sp.Personal = before.Personal // fixed when created
 	if sp.IsTemplate != before.IsTemplate && !perm.HasP(identity.From(ctx), "core.categories.admin") {
 		return nil, apperr.Forbidden("only category administrators offer spaces as templates")
 	}
@@ -370,5 +377,47 @@ func (s *Service) CreateSpaceFrom(ctx context.Context, in NewSpaceInput) (*Space
 		return nil, err
 	}
 	_ = audit.Log(ctx, s.pool, "space.create", "category", c.ID, nil, map[string]any{"template": in.TemplateID, "key": key, "pages": in.WithPages})
+	return s.loadSpace(ctx, c.ID)
+}
+
+type personalSpaceKey struct{}
+
+// CreatePersonalSpace creates the personal space of the caller (permission
+// core.spaces.personal; one per person) or returns the existing one. Only
+// its owner has permissions until they share it.
+func (s *Service) CreatePersonalSpace(ctx context.Context) (*SpaceInfo, error) {
+	p := identity.From(ctx)
+	if p == nil || p.ID() <= 0 {
+		return nil, apperr.ErrUnauthorized
+	}
+	if err := perm.Require(ctx, "core.spaces.personal"); err != nil {
+		return nil, err
+	}
+	var id int64
+	err := s.pool.QueryRow(ctx, `SELECT id FROM categories WHERE parent_id IS NULL AND deleted_at IS NULL AND space->>'personal' = $1`, strconv.FormatInt(p.ID(), 10)).Scan(&id)
+	if err == nil {
+		return s.loadSpace(ctx, id)
+	}
+	if !errors.Is(err, pgx.ErrNoRows) {
+		return nil, err
+	}
+	name := p.DisplayName
+	if name == "" {
+		name = p.Username
+	}
+	titles := map[string]string{}
+	for _, l := range s.Languages() {
+		titles[l] = name
+	}
+	c, err := s.CreateCategory(context.WithValue(ctx, personalSpaceKey{}, true), CategoryInput{Titles: titles})
+	if err != nil {
+		return nil, err
+	}
+	raw, _ := json.Marshal(Space{OwnTree: true, Personal: p.ID(), Shortcuts: []SpaceLink{}, AllowedTypes: []string{}})
+	if _, err := s.pool.Exec(ctx, `UPDATE categories SET space=$2 WHERE id=$1`, c.ID, raw); err != nil {
+		_, _ = s.pool.Exec(ctx, `DELETE FROM categories WHERE id=$1`, c.ID)
+		return nil, err
+	}
+	_ = audit.Log(ctx, s.pool, "space.personal", "category", c.ID, nil, nil)
 	return s.loadSpace(ctx, c.ID)
 }

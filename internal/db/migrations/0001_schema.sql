@@ -140,6 +140,7 @@ CREATE TABLE categories (
 );
 CREATE INDEX categories_path ON categories USING gist(path);
 CREATE UNIQUE INDEX categories_space_key ON categories(space_key) WHERE deleted_at IS NULL;
+CREATE UNIQUE INDEX categories_personal ON categories((space->>'personal')) WHERE parent_id IS NULL AND deleted_at IS NULL AND space ? 'personal';
 CREATE INDEX categories_parent ON categories(parent_id, position);
 CREATE INDEX categories_tags ON categories USING gin(tags);
 CREATE UNIQUE INDEX categories_short_url ON categories(short_url) WHERE short_url IS NOT NULL;
@@ -584,6 +585,20 @@ CREATE VIEW watch_effective AS
         UNION SELECT ug.user_id FROM group_roles gr JOIN user_groups ug ON ug.group_id = gr.group_id WHERE a.subject_type = 'role' AND gr.role_id = a.subject_id
     ) m ON true
     WHERE a.mandatory OR NOT EXISTS (SELECT 1 FROM watch_optouts o WHERE o.assignment_id = a.id AND o.user_id = m.user_id);
+
+-- requests for access to a category (sent to the people who may manage it)
+CREATE TABLE access_requests (
+    id          bigserial PRIMARY KEY,
+    user_id     bigint NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    category_id bigint NOT NULL REFERENCES categories(id) ON DELETE CASCADE,
+    message     text NOT NULL DEFAULT '',
+    status      text NOT NULL DEFAULT 'open' CHECK (status IN ('open', 'granted', 'declined')),
+    handled_by  bigint REFERENCES users(id) ON DELETE SET NULL,
+    handled_at  timestamptz,
+    created_at  timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX access_requests_category ON access_requests(category_id, status);
+CREATE INDEX access_requests_user ON access_requests(user_id, created_at);
 
 -- notifications in the wiki (bell); e-mails per kind as set in the profile (users.notify)
 CREATE TABLE notifications (

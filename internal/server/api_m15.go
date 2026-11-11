@@ -21,6 +21,8 @@ type overviewRow struct {
 	ParentID  *int64            `json:"parent_id"`
 	Depth     int               `json:"depth"`
 	Titles    map[string]string `json:"titles"`
+	SpaceKey  string            `json:"space_key"` // top level: the category is a space
+	Personal  bool              `json:"personal"`  // a personal space
 	Rules     []acl.Rule        `json:"rules"`     // rules of the subject attached here
 	Effective []string          `json:"effective"` // effective permissions (bits and actions)
 	Sources   []acl.Source      `json:"sources"`   // where they come from
@@ -104,13 +106,14 @@ func (s *Server) permissionOverview(ctx context.Context, me *identity.Principal,
 	default:
 		return nil, apperr.BadRequest("subject_type must be user, group, role, guest or authenticated")
 	}
-	rows, err := s.app.DB.Query(ctx, `SELECT id, parent_id, nlevel(path) - 1, titles FROM categories WHERE deleted_at IS NULL ORDER BY path`)
+	rows, err := s.app.DB.Query(ctx, `SELECT id, parent_id, nlevel(path) - 1, titles, COALESCE(space_key, ''), parent_id IS NULL AND space ? 'personal'
+		FROM categories WHERE deleted_at IS NULL ORDER BY path`)
 	if err != nil {
 		return nil, err
 	}
 	cats, err := pgx.CollectRows(rows, func(r pgx.CollectableRow) (overviewRow, error) {
 		var o overviewRow
-		return o, r.Scan(&o.ID, &o.ParentID, &o.Depth, &o.Titles)
+		return o, r.Scan(&o.ID, &o.ParentID, &o.Depth, &o.Titles, &o.SpaceKey, &o.Personal)
 	})
 	if err != nil {
 		return nil, err

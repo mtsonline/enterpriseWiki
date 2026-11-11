@@ -27,5 +27,7 @@ func init() {
 		Def{Key: "core.elements.admin", Scope: Global, Label: "Element overview", Description: "List all elements with their short URLs and tags in the administration."},
 		Def{Key: "core.watches.assign", Scope: Global, Label: "Assign watches", Description: "Make users, groups and roles watch categories and elements (mandatory or optional)."},
 		Def{Key: "core.templates.global", Scope: Global, Label: "Save templates for everybody"},
+		Def{Key: "core.spaces.personal", Scope: Global, Label: "Create a personal space",
+			Description: "Create one own space (top-level category) that only its owner sees until they share it."},
 	)
 }

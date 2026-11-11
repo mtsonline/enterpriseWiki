@@ -484,3 +484,221 @@ not json
 		t.Fatalf("foreign format: %d", code)
 	}
 }
+
+// TestSpaceMoves: categories become spaces and spaces become subcategories.
+func TestSpaceMoves(t *testing.T) {
+	e := setup(t)
+	admin := e.client()
+	admin.login("admin", adminPW)
+	var a, b, sub cat
+	admin.must("POST", "/api/v1/categories", map[string]any{"titles": map[string]string{"en": "A"}}, &a, 201)
+	admin.must("POST", "/api/v1/categories", map[string]any{"titles": map[string]string{"en": "B"}}, &b, 201)
+	admin.must("POST", "/api/v1/categories", map[string]any{"parent_id": a.ID, "titles": map[string]string{"en": "Sub"}}, &sub, 201)
+	admin.must("POST", "/api/v1/elements", map[string]any{"category_id": sub.ID, "type": "content.blog", "title": "Blog", "body": map[string]any{"category_id": sub.ID}}, nil, 201)
+	admin.must("PUT", fmt.Sprintf("/api/v1/categories/%d/space", b.ID), map[string]any{"key": "BEE", "allowed_types": []string{"core.html"}, "own_tree": true}, nil, 200)
+	// the blog is not allowed in B
+	if code := admin.do("POST", fmt.Sprintf("/api/v1/categories/%d/move", sub.ID), map[string]any{"parent_id": b.ID}, nil); code != 400 {
+		t.Fatalf("moved a blog into a space without blogs: %d", code)
+	}
+	if code := admin.do("POST", fmt.Sprintf("/api/v1/categories/%d/duplicate", sub.ID), map[string]any{"parent_id": b.ID}, nil); code != 400 {
+		t.Fatalf("duplicated a blog into a space without blogs: %d", code)
+	}
+	// a subcategory becomes a space
+	admin.must("POST", fmt.Sprintf("/api/v1/categories/%d/move", sub.ID), map[string]any{"parent_id": 0}, nil, 200)
+	admin.must("PUT", fmt.Sprintf("/api/v1/categories/%d/space", sub.ID), map[string]any{"key": "SUB"}, nil, 200)
+	admin.must("GET", "/api/v1/spaces/SUB", nil, nil, 200)
+	// a space becomes a subcategory: its key is free again, its settings rest
+	admin.must("POST", fmt.Sprintf("/api/v1/categories/%d/move", b.ID), map[string]any{"parent_id": a.ID}, nil, 200)
+	if code := admin.do("GET", "/api/v1/spaces/BEE", nil, nil); code != 404 {
+		t.Fatalf("key of a former space still works: %d", code)
+	}
+	admin.must("PUT", fmt.Sprintf("/api/v1/categories/%d/space", a.ID), map[string]any{"key": "BEE"}, nil, 200)
+	if code := admin.do("PUT", fmt.Sprintf("/api/v1/categories/%d/space", b.ID), map[string]any{"key": "X2"}, nil); code != 400 {
+		t.Fatalf("space settings on a subcategory: %d", code)
+	}
+	var view struct {
+		Space *struct {
+			ID int64 `json:"id"`
+		} `json:"space"`
+	}
+	admin.must("GET", fmt.Sprintf("/api/v1/categories/%d", b.ID), nil, &view, 200)
+	if view.Space == nil || view.Space.ID != a.ID {
+		t.Fatalf("space of the moved category: %+v", view.Space)
+	}
+	// back to the top: the settings apply again (without the old key)
+	admin.must("POST", fmt.Sprintf("/api/v1/categories/%d/move", b.ID), map[string]any{"parent_id": 0}, nil, 200)
+	var sp struct {
+		Key          string   `json:"key"`
+		OwnTree      bool     `json:"own_tree"`
+		AllowedTypes []string `json:"allowed_types"`
+	}
+	admin.must("GET", fmt.Sprintf("/api/v1/categories/%d", b.ID), nil, &struct {
+		Space *struct{} `json:"space"`
+	}{}, 200)
+	var dir []struct {
+		ID           int64    `json:"id"`
+		Key          string   `json:"key"`
+		OwnTree      bool     `json:"own_tree"`
+		AllowedTypes []string `json:"allowed_types"`
+	}
+	admin.must("GET", "/api/v1/spaces", nil, &dir, 200)
+	for _, d := range dir {
+		if d.ID == b.ID {
+			sp.Key, sp.OwnTree, sp.AllowedTypes = d.Key, d.OwnTree, d.AllowedTypes
+		}
+	}
+	if sp.Key != "" || !sp.OwnTree || len(sp.AllowedTypes) != 1 {
+		t.Fatalf("settings back at the top: %+v", sp)
+	}
+}
+
+// TestAccessRequests: asking for access never reveals whether the target
+// exists; managers are notified and grant a normal permission rule.
+func TestAccessRequests(t *testing.T) {
+	e := setup(t)
+	admin := e.client()
+	admin.login("admin", adminPW)
+	var space, sub cat
+	admin.must("POST", "/api/v1/categories", map[string]any{"titles": map[string]string{"en": "Finance"}}, &space, 201)
+	admin.must("POST", "/api/v1/categories", map[string]any{"parent_id": space.ID, "titles": map[string]string{"en": "Budgets"}}, &sub, 201)
+	var page elem
+	admin.must("POST", "/api/v1/elements", map[string]any{"category_id": sub.ID, "type": "core.html", "title": "Budget 2027", "body": htmlBody("<p>x</p>")}, &page, 201)
+	var mgr, req struct {
+		ID int64 `json:"id"`
+	}
+	admin.must("POST", "/api/v1/admin/users", map[string]any{"username": "fred", "password": "Passw0rd!Passw0rd", "display_name": "Fred", "email": "fred@example.com"}, &mgr, 201)
+	admin.must("POST", "/api/v1/admin/users", map[string]any{"username": "rosa", "password": "Passw0rd!Passw0rd", "display_name": "Rosa", "email": "rosa@example.com"}, &req, 201)
+	admin.must("POST", fmt.Sprintf("/api/v1/categories/%d/acl", space.ID), map[string]any{"subject_type": "user", "subject_id": mgr.ID, "preset": "manager", "inherit": true}, nil, 201)
+	fred, rosa, guest := e.client(), e.client(), e.client()
+	fred.login("fred", "Passw0rd!Passw0rd")
+	rosa.login("rosa", "Passw0rd!Passw0rd")
+	if code := guest.do("POST", "/api/v1/access-requests", map[string]any{"type": "element", "id": page.ID}, nil); code != 401 {
+		t.Fatalf("guest asked: %d", code)
+	}
+	if code := rosa.do("GET", fmt.Sprintf("/api/v1/elements/%d", page.ID), nil, nil); code != 404 {
+		t.Fatalf("hidden page: %d", code)
+	}
+	// existing and missing targets answer the same
+	var a, b map[string]any
+	rosa.must("POST", "/api/v1/access-requests", map[string]any{"type": "element", "id": page.ID, "message": "I prepare the budget"}, &a, 200)
+	rosa.must("POST", "/api/v1/access-requests", map[string]any{"type": "element", "id": 999999}, &b, 200)
+	if fmt.Sprint(a) != fmt.Sprint(b) {
+		t.Fatalf("answers differ: %v %v", a, b)
+	}
+	rosa.must("POST", "/api/v1/access-requests", map[string]any{"type": "element", "id": page.ID}, nil, 200) // no second open request
+	var open []struct {
+		ID      int64  `json:"id"`
+		User    string `json:"user"`
+		Message string `json:"message"`
+	}
+	if code := rosa.do("GET", fmt.Sprintf("/api/v1/categories/%d/access-requests", sub.ID), nil, nil); code != 403 && code != 404 {
+		t.Fatalf("requester listed requests: %d", code)
+	}
+	fred.must("GET", fmt.Sprintf("/api/v1/categories/%d/access-requests", sub.ID), nil, &open, 200)
+	if len(open) != 1 || open[0].User != "Rosa" || open[0].Message != "I prepare the budget" {
+		t.Fatalf("open requests: %+v", open)
+	}
+	var inbox struct {
+		Items []struct {
+			Kind string `json:"kind"`
+		} `json:"items"`
+	}
+	fred.must("GET", "/api/v1/me/inbox", nil, &inbox, 200)
+	found := false
+	for _, n := range inbox.Items {
+		found = found || n.Kind == "access_request"
+	}
+	if !found {
+		t.Fatalf("manager not notified: %+v", inbox)
+	}
+	if code := rosa.do("POST", fmt.Sprintf("/api/v1/access-requests/%d", open[0].ID), map[string]any{"grant": true}, nil); code != 403 && code != 404 {
+		t.Fatalf("requester granted herself: %d", code)
+	}
+	fred.must("POST", fmt.Sprintf("/api/v1/access-requests/%d", open[0].ID), map[string]any{"grant": true, "preset": "reader"}, nil, 204)
+	rosa.must("GET", fmt.Sprintf("/api/v1/elements/%d", page.ID), nil, nil, 200)
+	if code := fred.do("POST", fmt.Sprintf("/api/v1/access-requests/%d", open[0].ID), map[string]any{"grant": false}, nil); code != 409 {
+		t.Fatalf("answered twice: %d", code)
+	}
+	// the permission is a normal rule (also in the permission management)
+	var acl struct {
+		Own []struct {
+			SubjectType string `json:"subject_type"`
+			SubjectID   *int64 `json:"subject_id"`
+			Permissions int    `json:"permissions"`
+		} `json:"own"`
+	}
+	admin.must("GET", fmt.Sprintf("/api/v1/categories/%d/acl", sub.ID), nil, &acl, 200)
+	if len(acl.Own) != 1 || acl.Own[0].SubjectID == nil || *acl.Own[0].SubjectID != req.ID || acl.Own[0].Permissions&2 != 0 {
+		t.Fatalf("rule: %+v", acl.Own)
+	}
+	// rate limit
+	for i := 0; i < 12; i++ {
+		rosa.do("POST", "/api/v1/access-requests", map[string]any{"type": "category", "id": 900000 + i}, nil)
+	}
+	if code := rosa.do("POST", "/api/v1/access-requests", map[string]any{"type": "category", "id": 1}, nil); code != 429 {
+		t.Fatalf("no rate limit: %d", code)
+	}
+}
+
+// TestPersonalSpaces and "my spaces".
+func TestPersonalSpaces(t *testing.T) {
+	e := setup(t)
+	admin := e.client()
+	admin.login("admin", adminPW)
+	pw := "Passw0rd!Passw0rd"
+	var role struct {
+		ID int64 `json:"id"`
+	}
+	admin.must("POST", "/api/v1/admin/roles", map[string]any{"name": "Staff", "permissions": []string{"core.spaces.personal"}}, &role, 200)
+	var lena, max struct {
+		ID int64 `json:"id"`
+	}
+	admin.must("POST", "/api/v1/admin/users", map[string]any{"username": "lena", "password": pw, "display_name": "Lena", "roles": []int64{role.ID}}, &lena, 201)
+	admin.must("POST", "/api/v1/admin/users", map[string]any{"username": "max", "password": pw, "display_name": "Max", "roles": []int64{}}, &max, 201)
+	l, m := e.client(), e.client()
+	l.login("lena", pw)
+	m.login("max", pw)
+	if code := m.do("POST", "/api/v1/spaces/personal", nil, nil); code != 403 {
+		t.Fatalf("personal space without permission: %d", code)
+	}
+	type sp struct {
+		ID        int64             `json:"id"`
+		Titles    map[string]string `json:"titles"`
+		Personal  int64             `json:"personal"`
+		Member    bool              `json:"member"`
+		CanManage bool              `json:"can_manage"`
+		OwnTree   bool              `json:"own_tree"`
+	}
+	var a, b sp
+	l.must("POST", "/api/v1/spaces/personal", nil, &a, 200)
+	l.must("POST", "/api/v1/spaces/personal", nil, &b, 200)
+	if a.ID != b.ID || a.Personal != lena.ID || a.Titles["en"] != "Lena" || !a.CanManage || !a.OwnTree || !a.Member {
+		t.Fatalf("personal space: %+v %+v", a, b)
+	}
+	// only its owner sees it; the owner cannot hand it over by changing settings
+	if code := m.do("GET", fmt.Sprintf("/api/v1/categories/%d", a.ID), nil, nil); code != 404 && code != 403 {
+		t.Fatalf("other user sees the personal space: %d", code)
+	}
+	l.must("PUT", fmt.Sprintf("/api/v1/categories/%d/space", a.ID), map[string]any{"key": "LENA", "personal": max.ID}, &b, 200)
+	if b.Personal != lena.ID {
+		t.Fatalf("owner changed: %+v", b)
+	}
+	// the owner may create content in it but no further top-level categories
+	l.must("POST", "/api/v1/categories", map[string]any{"parent_id": a.ID, "titles": map[string]string{"en": "Notes"}}, nil, 201)
+	if code := l.do("POST", "/api/v1/categories", map[string]any{"titles": map[string]string{"en": "Another top"}}, nil); code != 403 {
+		t.Fatalf("top-level category without permission: %d", code)
+	}
+	// my spaces: member only where own rules exist
+	var pub cat
+	admin.must("POST", "/api/v1/categories", map[string]any{"titles": map[string]string{"en": "Public"}}, &pub, 201)
+	admin.must("POST", fmt.Sprintf("/api/v1/categories/%d/acl", pub.ID), map[string]any{"subject_type": "authenticated", "permissions": 1, "inherit": true}, nil, 201)
+	var dir []sp
+	l.must("GET", "/api/v1/spaces", nil, &dir, 200)
+	members := map[int64]bool{}
+	for _, d := range dir {
+		members[d.ID] = d.Member
+	}
+	if len(dir) != 2 || !members[a.ID] || members[pub.ID] {
+		t.Fatalf("directory of lena: %+v", dir)
+	}
+}

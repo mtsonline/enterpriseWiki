@@ -33,12 +33,24 @@ export function showReadableURL(urls: Record<string, string> | undefined, fallba
   history.replaceState(history.state, '', url + location.search + location.hash);
 }
 
+function accessDialog(type: string, id: number): void {
+  const msg = textArea({ rows: 3 });
+  msg.maxLength = 1000;
+  formDialog(t('access.request'), [h('p', null, t('access.help')), field(t('access.message'), msg)], t('access.send'), async () => {
+    await api.post('access-requests', { type, id, message: msg.value });
+    toast(t('access.sent'));
+  });
+}
+
 interface NotFoundInfo { deleted: { type: string; id: number; title: string; can_restore: boolean } | null; suggestions: { type: string; id: number; title: string; path: string }[] }
 
 /** "Page not found" with a deleted page and probable pages (by address or former title). */
 export function notFoundPage(main: HTMLElement, q: { path?: string; type?: string; id?: number }): void {
   const box = h('div');
-  mount(main, h('h1', null, t('error.not_found')), box, h('p', null, h('a', { href: '/' }, t('nav.home'))));
+  // signed-in readers may ask for access (the answer does not reveal whether the page exists)
+  const ask = state.user && q.id && (q.type === 'category' || q.type === 'element')
+    ? h('p', null, t('access.maybe'), ' ', button(t('access.request'), () => accessDialog(q.type!, q.id!), { variant: 'secondary' })) : null;
+  mount(main, h('h1', null, t('error.not_found')), box, ask, h('p', null, h('a', { href: '/' }, t('nav.home'))));
   void api.get<NotFoundInfo>(`not-found${qs({ path: q.path, type: q.type, id: q.id, lang: L() })}`).then((info) => {
     const parts: HTMLElement[] = [];
     if (info.deleted) {

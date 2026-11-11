@@ -165,6 +165,26 @@ func (sn *snapshot) isArchived(anc []int64) bool {
 	return false
 }
 
+// Member reports whether p has own rules (as user, group or role, not as
+// guest or signed-in user) on a category or above it.
+func (s *Service) Member(ctx context.Context, p *identity.Principal, categoryID int64) bool {
+	if p == nil || p.UserID <= 0 {
+		return false
+	}
+	sn, err := s.load(ctx)
+	if err != nil {
+		return false
+	}
+	for _, cid := range sn.ancestors[categoryID] {
+		for _, r := range sn.rules[cid] {
+			if r.SubjectType != "guest" && r.SubjectType != "authenticated" && matches(r, p) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
 // Archived reports whether a category or one above it is archived.
 func (s *Service) Archived(ctx context.Context, categoryID int64) bool {
 	sn, err := s.load(ctx)

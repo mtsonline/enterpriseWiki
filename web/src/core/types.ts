@@ -112,6 +112,10 @@ export interface SpaceInfo {
   archived: boolean;
   /** the reader may change the space (settings, templates) */
   can_manage: boolean;
+  /** the reader has own permissions here (as user, group or role) */
+  member: boolean;
+  /** owner of a personal space */
+  personal?: number;
 }
 
 /** A file of the media library (GET /api/v1/media/{id}). */

@@ -193,6 +193,14 @@ Jede Kategorie der obersten Ebene ist ein **Bereich** (wie ein Space in Confluen
 
 **Bereichsvorlagen:** Kategorie-Administratoren können einen Bereich *als Vorlage für neue Bereiche anbieten*. *Alle Bereiche → Neuer Bereich* legt dann einen Bereich mit Unterkategorien, Rechten, Einstellungen, Website-Vorlage und Seitenvorlagen der Vorlage an – auf Wunsch auch mit den Seiten.
 
+**Rechte eines Bereichs** sind die ganz normalen Rechte seiner obersten Kategorie (*Kategorie-Einstellungen → Berechtigungen*) und erscheinen deshalb auch in *Administration → Rechte* – dort sind Bereiche gekennzeichnet. Wer Rechte als Person, über eine Gruppe oder eine Rolle hat, ist **Mitglied**; *Alle Bereiche → Nur meine Bereiche* zeigt diese.
+
+**Verschieben:** Jede Kategorie kann jederzeit verschoben werden. Wird sie zur obersten Ebene, ist sie ein Bereich (frühere Bereichseinstellungen gelten wieder, der Schlüssel muss neu vergeben werden). Wird ein Bereich unter eine andere Kategorie verschoben, gibt er seinen Schlüssel frei; seine Einstellungen und Seitenvorlagen ruhen, und es gelten die des neuen Bereichs. Verschieben und Kopieren in einen Bereich ist nur möglich, wenn dessen erlaubte Elementtypen passen.
+
+**Zugriff anfordern:** Wer eine Seite oder Kategorie nicht sehen darf, bekommt „Nicht gefunden“ (ob es sie gibt, wird nicht verraten) und kann angemeldet *Zugriff anfordern*. Die Personen, die die Kategorie verwalten, erhalten eine Benachrichtigung und beantworten offene Anfragen unter *Kategorie-Einstellungen → Berechtigungen* mit *Lesen erlauben*, *Bearbeiten erlauben* oder *Ablehnen*; daraus wird eine normale Berechtigungsregel. Höchstens 10 Anfragen pro Person und Tag.
+
+**Persönlicher Bereich:** Mit der Berechtigung *Persönlichen Bereich anlegen* legt jede Person unter *Alle Bereiche* einen eigenen Bereich an, den nur sie sieht, bis sie ihn über die Berechtigungen teilt.
+
 **Exportieren und importieren** (*Kategorie-Einstellungen → Bereich*): Der Export ist eine Datei (JSON Lines) mit allen Unterkategorien, Seiten (letzte Fassung jeder Sprache), Einstellungen und Seitenvorlagen. *Alle Bereiche → Bereich importieren* legt daraus einen neuen Bereich an, *Hier importieren* eine Unterkategorie. Rechte und Dateien sind nicht enthalten (sie hängen von der Installation ab); alle Inhalte werden beim Import wie beim Speichern geprüft und bereinigt, nicht übernehmbare Einträge werden aufgelistet.
 
 ### Eigene Website-Vorlage je Kategorie

@@ -327,8 +327,10 @@ type CategoryInput struct {
 func (s *Service) CreateCategory(ctx context.Context, in CategoryInput) (*Category, error) {
 	if in.ParentID == nil || *in.ParentID == 0 {
 		in.ParentID = nil
-		if err := perm.Require(ctx, "core.categories.admin"); err != nil {
-			return nil, err
+		if ok, _ := ctx.Value(personalSpaceKey{}).(bool); !ok { // see CreatePersonalSpace
+			if err := perm.Require(ctx, "core.categories.admin"); err != nil {
+				return nil, err
+			}
 		}
 	} else if err := s.require(ctx, *in.ParentID, acl.Manage); err != nil {
 		return nil, err
@@ -625,6 +627,10 @@ func (s *Service) MoveCategory(ctx context.Context, id, newParent int64, positio
 				}
 			}
 			parentPtr = &newParent
+			// the space it moves into may limit the element types
+			if err := typesAllowedIn(ctx, tx, oldPath, newPrefix); err != nil {
+				return err
+			}
 		}
 		pos := 0
 		if position != nil {
@@ -645,7 +651,16 @@ func (s *Service) MoveCategory(ctx context.Context, id, newParent int64, positio
 		if _, err := tx.Exec(ctx, `UPDATE categories SET parent_id=$2, position=$3, updated_at=now() WHERE id=$1`, id, parentPtr, pos); err != nil {
 			return err
 		}
-		return audit.Log(ctx, tx, "category.move", "category", id, map[string]any{"parent_id": oldParent, "position": oldPos}, map[string]any{"parent_id": parentPtr, "position": pos})
+		// a space that becomes a subcategory gives up its key (/s/KEY, free for
+		// others); its other space settings and page templates rest and apply
+		// again when it becomes a top-level category (a space) again
+		var key *string
+		if oldParent == nil && parentPtr != nil {
+			if err := tx.QueryRow(ctx, `UPDATE categories c SET space_key = NULL FROM categories o WHERE c.id=$1 AND o.id=c.id RETURNING o.space_key`, id).Scan(&key); err != nil {
+				return err
+			}
+		}
+		return audit.Log(ctx, tx, "category.move", "category", id, map[string]any{"parent_id": oldParent, "position": oldPos, "space_key": key}, map[string]any{"parent_id": parentPtr, "position": pos})
 	})
 	if err != nil {
 		return nil, err
@@ -654,6 +669,22 @@ func (s *Service) MoveCategory(ctx context.Context, id, newParent int64, positio
 	_ = s.syncSlug(ctx, "category", id, fromParent)
 	s.fire(ctx, "move", "category", id)
 	return s.GetCategory(ctx, id)
+}
+
+// typesAllowedIn checks the elements below subtree against the element
+// types allowed in the space of the category with path target.
+func typesAllowedIn(ctx context.Context, q db.Querier, subtree, target string) error {
+	var bad string
+	if err := q.QueryRow(ctx, `SELECT COALESCE((SELECT e.type FROM elements e JOIN categories c ON c.id = e.category_id
+		WHERE c.path <@ $1::ltree AND e.deleted_at IS NULL AND jsonb_array_length(COALESCE(t.space->'allowed_types', '[]')) > 0
+			AND NOT (t.space->'allowed_types') ? e.type LIMIT 1), '')
+		FROM categories t WHERE t.id = split_part($2, '.', 1)::bigint`, subtree, target).Scan(&bad); err != nil {
+		return err
+	}
+	if bad != "" {
+		return apperr.BadRequest("element type %q is not allowed in the target space", bad)
+	}
+	return nil
 }
 
 // Reorder sets the order of the given sibling categories.
@@ -698,6 +729,8 @@ func (s *Service) duplicateCategory(ctx context.Context, id, targetParent int64,
 		}
 	} else if err := s.require(ctx, targetParent, acl.Manage); err != nil {
 		return nil, err
+	} else if err := s.notArchived(ctx, targetParent); err != nil {
+		return nil, err
 	}
 	src, err := s.loadCategory(ctx, s.pool, id, false)
 	if err != nil {
@@ -728,6 +761,11 @@ func (s *Service) duplicateCategory(ctx context.Context, id, targetParent int64,
 			for _, a := range parsePath(targetPath) {
 				if a == id {
 					return apperr.BadRequest("cannot duplicate a category into itself")
+				}
+			}
+			if withElements {
+				if err := typesAllowedIn(ctx, tx, pathString(src.Path), targetPath); err != nil {
+					return err
 				}
 			}
 		}

@@ -373,3 +373,4 @@ html { scroll-padding-top: calc(var(--ew-sticky-top, var(--ew-header-h)) + .5rem
 .ew-space-shortcut { display: flex; flex-wrap: wrap; gap: .5rem; align-items: center; margin-bottom: .5rem; }
 .ew-space-shortcut input { flex: 1 1 12rem; }
 .ew-checks { display: grid; grid-template-columns: repeat(auto-fill, minmax(14rem, 1fr)); gap: .25rem 1rem; }
+.ew-space-badge { margin-left: .5rem; font-weight: 600; }

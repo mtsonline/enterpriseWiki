@@ -125,6 +125,7 @@ func (s *Server) routes() {
 	s.routesSites()
 	s.routesM9()
 	s.routesM15()
+	s.routesAccess()
 	s.routesAudit()
 	s.routesDrafts()
 	s.routesNotifications()
@@ -493,6 +494,9 @@ func (s *Server) routes() {
 			return nil, err
 		}
 		return h.Created{V: sp}, nil
+	})
+	s.handle("POST /api/v1/spaces/personal", func(w http.ResponseWriter, r *http.Request) (any, error) {
+		return s.app.Content.CreatePersonalSpace(r.Context())
 	})
 	s.handle("GET /api/v1/spaces/{key}", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		return s.app.Content.SpaceByKey(r.Context(), r.PathValue("key"))

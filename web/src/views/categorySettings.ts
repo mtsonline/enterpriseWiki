@@ -172,9 +172,37 @@ async function permissions(panel: HTMLElement, c: Category): Promise<void> {
         : h('td', null, h('a', { href: `/c/${r.category_id}/settings?tab=permissions` }, `#${r.category_id}`)))) : [h('tr', null, h('td', { colspan: '4' }, t('acl.none')))])));
   panel.append(
     h('p', null, t('acl.help')),
+    (await accessRequests(c)) ?? '',
     button(t('acl.add'), () => void addRuleDialog(c, groups, roles), { variant: 'primary' }),
     table(acl.own, true, t('acl.own_rules')),
     table(acl.inherited, false, t('acl.inherited_rules')));
+}
+
+/** Open access requests: grant (a permission rule for the person) or decline. */
+async function accessRequests(c: Category): Promise<HTMLElement | null> {
+  let list: { id: number; user: string; message: string; created_at: string }[] = [];
+  try { list = await api.get<typeof list>(`categories/${c.id}/access-requests`); } catch { return null; }
+  if (!list.length) return null;
+  const sec = h('section', { class: 'ew-section ew-access-requests', 'aria-labelledby': 'ew-ar-h' }, h('h2', { id: 'ew-ar-h' }, t('access.open', { n: list.length })));
+  const ul = h('ul', { class: 'ew-plain-list' });
+  for (const r of list) {
+    const answer = async (grant: boolean, preset?: string) => {
+      try {
+        await api.post(`access-requests/${r.id}`, { grant, preset });
+        toast(grant ? t('access.granted', { user: r.user }) : t('access.declined'));
+        void rerender();
+      } catch (e) { toast(errorText(e), 'error'); }
+    };
+    ul.append(h('li', { class: 'ew-access-request' },
+      h('p', null, h('strong', null, r.user), ' · ', fmtDate(r.created_at, state.lang)),
+      r.message ? h('blockquote', null, r.message) : null,
+      h('div', { class: 'ew-actions', role: 'group', 'aria-label': t('access.answer_for', { user: r.user }) },
+        button(t('access.grant_read'), () => void answer(true, 'reader'), { variant: 'primary', ariaLabel: `${t('access.grant_read')}: ${r.user}` }),
+        button(t('access.grant_edit'), () => void answer(true, 'editor'), { variant: 'secondary', ariaLabel: `${t('access.grant_edit')}: ${r.user}` }),
+        button(t('access.decline'), () => void answer(false), { variant: 'link', ariaLabel: `${t('access.decline')}: ${r.user}` }))));
+  }
+  sec.append(ul);
+  return sec;
 }
 
 /** editRuleDialog changes the permissions of a rule. */
