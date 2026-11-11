@@ -32,13 +32,15 @@ function fromPreload(url: string): { hit: boolean; data?: unknown } {
   return { hit: true, data };
 }
 
-async function request<T>(method: string, path: string, body?: unknown): Promise<T> {
+async function request<T>(method: string, path: string, body?: unknown, background = false): Promise<T> {
   const url = path.startsWith('/') ? path : `/api/v1/${path}`;
   if (method === 'GET') {
     const p = fromPreload(url);
     if (p.hit) return p.data as T;
   }
   const headers: Record<string, string> = { 'X-Requested-With': 'ewiki', Accept: 'application/json' };
+  // automatic requests (polling) do not count as activity for the idle timeout
+  if (background) headers['X-Ewiki-Background'] = '1';
   const init: RequestInit = { method, headers, credentials: 'same-origin' };
   if (body !== undefined) {
     headers['Content-Type'] = 'application/json';
@@ -69,6 +71,8 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
 
 export const api = {
   get: <T>(p: string) => request<T>('GET', p),
+  /** GET that the server does not count as activity of the user (polling). */
+  poll: <T>(p: string) => request<T>('GET', p, undefined, true),
   post: <T>(p: string, b: unknown = {}) => request<T>('POST', p, b),
   put: <T>(p: string, b: unknown) => request<T>('PUT', p, b),
   patch: <T>(p: string, b: unknown) => request<T>('PATCH', p, b),

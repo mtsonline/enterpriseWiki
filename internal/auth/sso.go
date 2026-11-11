@@ -181,7 +181,7 @@ func (s *Service) completeSSO(ctx context.Context, ext *ExternalIdentity, ip, ua
 	if err := s.checkNetwork(ctx, uid, ip); err != nil {
 		return nil, err
 	}
-	tok, exp, err := s.createSession(ctx, uid, "web", config.Duration(s.cfg.Get().Auth.SessionTTL, 7*24*time.Hour), ip, ua)
+	tok, exp, err := s.createSession(ctx, uid, "web", config.Duration(s.cfg.Get().Auth.SessionTTL, 7*24*time.Hour), ip, ua, ext)
 	if err != nil {
 		return nil, err
 	}
@@ -196,6 +196,44 @@ func (s *Service) completeSSO(ctx context.Context, ext *ExternalIdentity, ip, ua
 
 // CleanupSSO removes expired SSO states.
 func (s *Service) CleanupSSO(ctx context.Context) error {
+	if _, err := s.pool.Exec(ctx, `DELETE FROM sso_replay WHERE expires_at < now()`); err != nil {
+		return err
+	}
 	_, err := s.pool.Exec(ctx, `DELETE FROM sso_states WHERE expires_at < now()`)
 	return err
+}
+
+// ErrReplayed is returned for a message ID that was already accepted.
+var ErrReplayed = errors.New("message has already been used")
+
+// ReplayCache records IDs of single-use messages of identity providers in
+// the database, so each is accepted once on all instances. It implements
+// the AssertionReplayCache interface of github.com/crewjam/saml.
+type ReplayCache struct {
+	s      *Service
+	prefix string
+}
+
+// ReplayCache returns the cache of a provider (prefix keeps providers apart).
+func (s *Service) ReplayCache(prefix string) *ReplayCache { return &ReplayCache{s, prefix} }
+
+// Consume records id until expiresAt (at most one day); it returns
+// ErrReplayed if id was recorded already.
+func (c *ReplayCache) Consume(id string, expiresAt time.Time) error {
+	if id == "" || len(id) > 512 {
+		return errors.New("invalid message id")
+	}
+	if max := time.Now().Add(24 * time.Hour); expiresAt.After(max) {
+		expiresAt = max
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	tag, err := c.s.pool.Exec(ctx, `INSERT INTO sso_replay(id, expires_at) VALUES ($1, $2) ON CONFLICT (id) DO NOTHING`, c.prefix+":"+id, expiresAt)
+	if err != nil {
+		return err
+	}
+	if tag.RowsAffected() == 0 {
+		return ErrReplayed
+	}
+	return nil
 }

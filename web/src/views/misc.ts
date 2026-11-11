@@ -169,6 +169,7 @@ export async function loginView({ query, main }: RouteCtx): Promise<void> {
     h('ul', { class: 'ew-sso-list' }, ...sso.map((p) => h('li', null,
       h('a', { class: 'ew-btn ew-btn--secondary ew-sso-btn', href: `/api/v1/auth/sso/${encodeURIComponent(p.id)}/start?next=${encodeURIComponent(safeNext)}` }, t('auth.sso_with', { name: p.name })))))) : null;
   mount(main, h('div', { class: 'ew-narrow' }, h('h1', null, t('auth.login_title', { site: state.site.name })),
+    query.get('logged_out') ? h('p', { class: 'ew-notice ew-notice--info', role: 'status' }, t('auth.logged_out')) : null,
     link?.el ?? null, ssoBox, sso.length ? h('h2', { class: 'ew-login-local' }, t('auth.local_title')) : null, form,
     h('p', { class: 'ew-help' }, t('auth.ssh_hint'))));
   if (query.get('error')) alert.focus?.();

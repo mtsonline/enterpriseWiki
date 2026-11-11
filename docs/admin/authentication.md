@@ -130,6 +130,11 @@ plugin_settings:
 
 **Verbindung prüfen** im Admin-Bereich lädt das Discovery-Dokument des Anbieters.
 
+**Abmelden (Single Logout):**
+
+- *RP-initiated Logout:* Beim Abmelden im Wiki wird der Browser zum `end_session_endpoint` des Anbieters geschickt (mit `id_token_hint` und `client_id`), sofern der Anbieter einen hat. Registrieren Sie als Post-Logout-Redirect-URI `<server.base_url>/login?logged_out=1` oder setzen Sie `post_logout_redirect_uri`. Mit `single_logout: false` endet nur die Sitzung im Wiki.
+- *Back-Channel Logout:* Tragen Sie beim Anbieter `<server.base_url>/api/v1/auth/sso/oidc/logout` als Back-Channel-Logout-URL ein (Keycloak: „Backchannel logout URL“, „Backchannel logout session required“ an). Das Wiki prüft das Logout-Token vollständig (Signatur, Aussteller, Audience, Ablauf, Logout-Event, kein `nonce`, aktuelles `iat`, `jti` nur einmal) und beendet genau die genannte Sitzung (`sid`) bzw. alle Sitzungen des Benutzers (`sub`).
+
 ## Shibboleth / SAML 2.0 (`auth.shib`)
 
 ### Nativer Modus (empfohlen)
@@ -152,7 +157,9 @@ plugin_settings:
 - Assertion Consumer Service: `<server.base_url>/api/v1/auth/sso/shib/callback` (HTTP-POST)
 - Attribute können mit dem Namen (OID) oder dem FriendlyName angegeben werden.
 - Föderations-Metadaten (EntitiesDescriptor) werden unterstützt. Verwendet wird der erste IdP darin. Für eine bestimmte Organisation tragen Sie die Metadaten des einzelnen IdP ein.
-- Nur vom Wiki angestoßene Logins werden akzeptiert (kein IdP-initiated SSO), jede Antwort nur einmal.
+- Single Logout Service: `<server.base_url>/api/v1/auth/sso/shib/logout` (HTTP-Redirect und HTTP-POST; steht in den Metadaten).
+- Nur vom Wiki angestoßene Logins werden akzeptiert (kein IdP-initiated SSO), jede Antwort und jede LogoutRequest nur einmal (auch über mehrere Instanzen).
+- **Single Logout (SLO):** Beim Abmelden im Wiki geht eine signierte LogoutRequest (NameID und SessionIndex) an den IdP, sofern er einen SLO-Endpunkt anbietet. Eine LogoutRequest des IdP wird nur mit gültiger Signatur, passendem Aussteller und Ziel und frischem Zeitstempel angenommen. Sie beendet die genannten Sitzungen und wird mit einer signierten LogoutResponse beantwortet. Mit `single_logout: false` schickt das Wiki keine LogoutRequest an den IdP.
 
 ### Header-Modus (Apache mit mod_shib)
 
@@ -180,6 +187,22 @@ plugin_settings:
 </Location>
 ProxyPass / http://127.0.0.1:8080/
 RequestHeader unset eppn early      # Header von außen verwerfen
+```
+
+## Sitzungen
+
+- Eine Browser-Sitzung endet nach `auth.session_ttl` (Standard 7 Tage) und nach `auth.session_idle` ohne Aktivität (Standard 12 Stunden). Automatische Abfragen der Oberfläche (Benachrichtigungen) halten eine Sitzung nicht am Leben.
+- Unter *Profil → Sitzungen* sieht jede Person, wo sie angemeldet ist (Gerät, IP-Adresse, Anmeldeverfahren, Beginn, letzte Aktivität), und kann einzelne Sitzungen oder alle anderen beenden („Überall sonst abmelden“). Das Sitzungstoken selbst wird nie angezeigt.
+- Wer das eigene Passwort ändert, bleibt nur in der aktuellen Sitzung angemeldet. Ändert ein Administrator das Passwort oder sperrt das Konto, enden alle Sitzungen.
+- Administratoren sehen und beenden die Sitzungen eines Benutzers unter *Administration → Benutzer → E-Mail & Anmeldungen*.
+- Mit einem API-Key lassen sich Sitzungen weder auflisten noch beenden.
+- Bei Anmeldung über OIDC oder SAML speichert das Wiki zur Sitzung, was der Anbieter für den Single Logout braucht (OIDC: `sid` und ID-Token als `id_token_hint`; SAML: SessionIndex und NameID).
+
+```bash
+ewiki user sessions anna            # Sitzungen auflisten
+ewiki user logout anna 42           # eine Sitzung beenden
+ewiki user logout anna              # alle Sitzungen beenden
+ewiki api GET /api/v1/me/sessions --as anna
 ```
 
 ## Zwei-Faktor-Authentifizierung (App oder E-Mail) und erlaubte Netze

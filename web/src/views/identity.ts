@@ -12,15 +12,21 @@ import { setContext } from '../components/widgets';
 export interface Email { id: number; email: string; verified: boolean; primary: boolean; created_at: string; verified_at: string | null }
 export interface Identity { provider: string; subject: string; username: string; primary: boolean; created_at: string; last_login_at: string | null }
 export interface LinkInfo { provider: string; username: string; email: string }
+export interface Session { id: number; kind: string; created_at: string; last_seen_at: string; expires_at: string; ip: string; user_agent: string; provider?: string; current: boolean }
 
 /** The API addresses for the own account or (administrators) for user uid. */
-interface Paths { emails: string; email: (id: number) => string; primary: (id: number) => string; resend: (id: number) => string; identities: string }
+interface Paths {
+  emails: string; email: (id: number) => string; primary: (id: number) => string; resend: (id: number) => string; identities: string;
+  sessions: string; session: (id: number) => string;
+}
 const myPaths: Paths = {
   emails: 'me/emails', email: (id) => `me/emails/${id}`, primary: (id) => `me/emails/${id}/primary`, resend: (id) => `me/emails/${id}/resend`, identities: 'me/identities',
+  sessions: 'me/sessions', session: (id) => `me/sessions/${id}`,
 };
 const userPaths = (uid: number): Paths => ({
   emails: `admin/users/${uid}/emails`, email: (id) => `admin/users/${uid}/emails/${id}`, primary: (id) => `admin/users/${uid}/emails/${id}/primary`,
   resend: () => '', identities: `admin/users/${uid}/identities`,
+  sessions: `admin/users/${uid}/sessions`, session: (id) => `admin/users/${uid}/sessions/${id}`,
 });
 
 function table(caption: string, headers: string[], rows: HTMLElement[], empty: string): HTMLElement {
@@ -97,6 +103,48 @@ async function identitiesBlock(p: Paths): Promise<HTMLElement> {
   return box;
 }
 
+/** A short description of a browser ("Firefox, Linux") from its user agent. */
+export function deviceLabel(ua: string, kind: string): string {
+  if (kind === 'ssh') return t('session.ssh');
+  const browser = /Edg\//.test(ua) ? 'Edge' : /OPR\//.test(ua) ? 'Opera' : /Firefox\//.test(ua) ? 'Firefox' : /Chrome\//.test(ua) ? 'Chrome'
+    : /Safari\//.test(ua) ? 'Safari' : /^ewiki|curl|python|Go-http/i.test(ua) ? t('session.program') : t('session.browser');
+  const os = /Android/.test(ua) ? 'Android' : /iPhone|iPad/.test(ua) ? 'iOS' : /Windows/.test(ua) ? 'Windows' : /Mac OS X|Macintosh/.test(ua) ? 'macOS'
+    : /Linux/.test(ua) ? 'Linux' : '';
+  return os ? `${browser}, ${os}` : browser;
+}
+
+/** Sessions of the own account (sign out elsewhere) or of a user (administrators). */
+async function sessionsBlock(p: Paths, admin: boolean): Promise<HTMLElement> {
+  const box = h('div');
+  const render = async () => {
+    let list: Session[];
+    try { list = await api.get<Session[]>(p.sessions); } catch (e) { box.replaceChildren(h('p', { role: 'alert' }, errorText(e))); return; }
+    const end = async (s: Session) => {
+      const label = deviceLabel(s.user_agent, s.kind);
+      if (!(await confirmDialog(t('session.end_confirm', { device: label }), t('session.end'), true))) return;
+      try { await api.del(p.session(s.id)); toast(t('session.ended')); await render(); } catch (e) { toast(errorText(e), 'error'); }
+    };
+    const rows = list.map((s) => h('tr', null,
+      h('th', { scope: 'row' }, deviceLabel(s.user_agent, s.kind), s.current ? h('span', { class: 'ew-badge ew-badge--info' }, ' ', t('session.current')) : null,
+        s.user_agent ? [h('br'), h('small', { class: 'ew-muted', title: s.user_agent }, s.user_agent.slice(0, 80))] : null),
+      h('td', null, s.ip || '–'),
+      h('td', null, s.provider ? providerName(s.provider) : t('identity.local')),
+      h('td', null, fmtDate(s.created_at, state.lang)),
+      h('td', null, fmtDate(s.last_seen_at, state.lang)),
+      h('td', null, s.current ? null : button(t('session.end'), () => void end(s),
+        { variant: 'link', ariaLabel: `${t('session.end')}: ${deviceLabel(s.user_agent, s.kind)}, ${fmtDate(s.last_seen_at, state.lang)}` }))));
+    const others = list.filter((s) => !s.current).length;
+    const all = others ? button(admin ? t('session.end_all') : t('session.end_others'), async () => {
+      if (!(await confirmDialog(admin ? t('session.end_all_confirm') : t('session.end_others_confirm'), admin ? t('session.end_all') : t('session.end_others'), true))) return;
+      try { await api.del(p.sessions); toast(t('session.ended_all')); await render(); } catch (e) { toast(errorText(e), 'error'); }
+    }, { variant: 'secondary' }) : null;
+    box.replaceChildren(table(t('session.title'), [t('session.device'), t('session.ip'), t('identity.provider'), t('session.started'), t('session.last_seen'), t('common.actions')],
+      rows, t('session.none')), ...(all ? [all] : []));
+  };
+  await render();
+  return box;
+}
+
 function providerName(id: string): string {
   return state.site.auth_providers?.find((p) => p.id === id)?.name ?? (id === 'local' ? t('identity.local') : id === 'invite' ? t('identity.invite') : id);
 }
@@ -108,6 +156,8 @@ export async function profileIdentitySections(): Promise<HTMLElement[]> {
       h('p', { class: 'ew-help' }, t('email.help')), await emailsBlock(myPaths, false)),
     h('section', { class: 'ew-section', 'aria-labelledby': 'id-h' }, h('h2', { id: 'id-h' }, t('identity.title')),
       h('p', { class: 'ew-help' }, t('identity.help')), await identitiesBlock(myPaths)),
+    h('section', { class: 'ew-section', 'aria-labelledby': 'ses-h' }, h('h2', { id: 'ses-h' }, t('session.title')),
+      h('p', { class: 'ew-help' }, t('session.help')), await sessionsBlock(myPaths, false)),
   ];
 }
 
@@ -116,7 +166,8 @@ export async function adminIdentityDialog(uid: number, name: string): Promise<vo
   const p = userPaths(uid);
   openDialog(`${t('identity.admin_title')}: ${name}`, h('div', null,
     h('h3', null, t('email.title')), await emailsBlock(p, true),
-    h('h3', null, t('identity.title')), await identitiesBlock(p)), [], { wide: true });
+    h('h3', null, t('identity.title')), await identitiesBlock(p),
+    h('h3', null, t('session.title')), await sessionsBlock(p, true)), [], { wide: true });
 }
 
 /** Administration: invite somebody by e-mail address. */

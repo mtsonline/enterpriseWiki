@@ -43,6 +43,7 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
+	"log/slog"
 	"math/big"
 	"net/http"
 	"net/url"
@@ -86,7 +87,7 @@ func (p *Plugin) Locales() fs.FS { s, _ := fs.Sub(locales, "locales"); return s 
 
 // Setup registers the provider and the metadata endpoint.
 func (p *Plugin) Setup(host *sdk.Host) error {
-	prov := &Provider{settings: host.Settings, cfg: host.Config, pool: host.DB}
+	prov := &Provider{settings: host.Settings, cfg: host.Config, pool: host.DB, replay: host.Auth.ReplayCache("saml"), log: host.Log}
 	host.RegisterRedirectProvider(prov)
 	host.Handle("GET", "/metadata", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		sp, err := prov.serviceProvider(r.Context(), false)
@@ -110,6 +111,8 @@ type Provider struct {
 	settings func() map[string]any
 	cfg      *config.Store
 	pool     *pgxpool.Pool
+	replay   saml.AssertionReplayCache
+	log      *slog.Logger
 
 	mu      sync.Mutex
 	idpMeta *saml.EntityDescriptor
@@ -176,7 +179,122 @@ func (p *Provider) Callback(ctx context.Context, r *http.Request, req *auth.SSOR
 		}
 		return nil, err
 	}
-	return IdentityFromAssertion(p.settings(), a)
+	id, err := IdentityFromAssertion(p.settings(), a)
+	if err != nil {
+		return nil, err
+	}
+	// for single logout: the IdP session and the NameID it knows the user by
+	for _, st := range a.AuthnStatements {
+		if st.SessionIndex != "" {
+			id.SessionID = st.SessionIndex
+			break
+		}
+	}
+	if a.Subject != nil && a.Subject.NameID != nil {
+		id.LogoutHint = a.Subject.NameID.Value
+	}
+	return id, nil
+}
+
+// LogoutURL implements auth.LogoutProvider: a signed LogoutRequest to the
+// IdP (HTTP-Redirect binding), if the IdP offers single logout and the
+// setting single_logout is on (default).
+func (p *Provider) LogoutURL(ctx context.Context, sess auth.SSOSession, _ string) (string, error) {
+	if p.mode() == "header" || !auth.BoolSetting(p.settings(), "single_logout", true) || sess.Hint == "" {
+		return "", nil
+	}
+	sp, err := p.serviceProvider(ctx, true)
+	if err != nil {
+		return "", err
+	}
+	if sp.GetSLOBindingLocation(saml.HTTPRedirectBinding) == "" {
+		return "", nil
+	}
+	u, err := sp.MakeRedirectLogoutRequest(sess.Hint, "", saml.WithSessionIndex(sess.SessionID))
+	if err != nil {
+		return "", err
+	}
+	return u.String(), nil
+}
+
+// HandleLogout implements auth.LogoutHandler: a LogoutRequest of the IdP
+// (signature, issuer, destination, age and replay are checked) ends the
+// sessions it names and is answered with a LogoutResponse; the
+// LogoutResponse to our own request leads back to the login page.
+func (p *Provider) HandleLogout(ctx context.Context, r *http.Request, base string) (m *auth.LogoutMatch, respond func(http.ResponseWriter, *http.Request), err error) {
+	if p.mode() == "header" {
+		return nil, nil, apperr.NotFound("provider")
+	}
+	sp, err := p.serviceProvider(ctx, true)
+	if err != nil {
+		return nil, nil, err
+	}
+	defer func() {
+		if x := recover(); x != nil {
+			m, respond, err = nil, nil, guardFail("SAML library failed: %v", x)
+		}
+	}()
+	done := func(w http.ResponseWriter, r *http.Request) {
+		http.Redirect(w, r, base+"/login?logged_out=1", http.StatusSeeOther)
+	}
+	if err := r.ParseForm(); err != nil {
+		return nil, nil, apperr.BadRequest("invalid form")
+	}
+	if r.Form.Get("SAMLResponse") != "" {
+		// the answer to our LogoutRequest: the wiki session ended before
+		if err := sp.ValidateLogoutResponseRequest(r); err != nil {
+			var ire *saml.InvalidResponseError
+			if errors.As(err, &ire) {
+				err = ire.PrivateErr
+			}
+			p.logWarn("invalid SAML LogoutResponse", err)
+		}
+		return nil, done, nil
+	}
+	if r.Form.Get("SAMLRequest") == "" {
+		return nil, nil, apperr.BadRequest("no SAML logout message")
+	}
+	req, err := sp.ValidateLogoutRequest(r)
+	if err != nil {
+		var ire *saml.InvalidResponseError
+		if errors.As(err, &ire) {
+			return nil, nil, fmt.Errorf("invalid SAML LogoutRequest: %w", ire.PrivateErr)
+		}
+		return nil, nil, err
+	}
+	m = &auth.LogoutMatch{}
+	if req.NameID != nil {
+		m.Hint = req.NameID.Value
+	}
+	for _, x := range req.AllSessionIndexes() {
+		m.SessionIDs = append(m.SessionIDs, x.Value)
+	}
+	if m.Hint == "" && len(m.SessionIDs) == 0 {
+		return nil, nil, apperr.BadRequest("LogoutRequest names no session")
+	}
+	relay := r.Form.Get("RelayState")
+	if len(relay) > 80 {
+		relay = "" // saml-bindings 3.4.3: at most 80 bytes
+	}
+	respond = func(w http.ResponseWriter, r *http.Request) {
+		if sp.GetSLOBindingLocation(saml.HTTPRedirectBinding) == "" {
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+		u, err := sp.MakeRedirectLogoutResponse(req.ID, relay)
+		if err != nil {
+			http.Error(w, "logout response failed", http.StatusInternalServerError)
+			return
+		}
+		http.Redirect(w, r, u.String(), http.StatusFound) // #nosec G710 -- SLO endpoint of the configured IdP
+	}
+	return m, respond, nil
+}
+
+func (p *Provider) logWarn(msg string, err error) {
+	if p.log != nil {
+		p.log.Warn(msg, "err", err)
+	}
 }
 
 // IdentityFromAssertion maps SAML attributes to an identity.
@@ -268,12 +386,13 @@ func (p *Provider) serviceProvider(ctx context.Context, needIdP bool) (*saml.Ser
 	base := strings.TrimRight(p.cfg.Get().Server.BaseURL, "/")
 	acs, _ := url.Parse(base + "/api/v1/auth/sso/shib/callback")
 	md, _ := url.Parse(base + "/api/v1/x/auth.shib/metadata")
+	slo, _ := url.Parse(base + "/api/v1/auth/sso/shib/logout")
 	key, cert, err := p.keyPair(ctx)
 	if err != nil {
 		return nil, err
 	}
 	sp := &saml.ServiceProvider{EntityID: auth.Setting(s, "entity_id", md.String()), Key: key, Certificate: cert,
-		MetadataURL: *md, AcsURL: *acs, AllowIDPInitiated: false, SignatureMethod: "http://www.w3.org/2001/04/xmldsig-more#rsa-sha256"}
+		MetadataURL: *md, AcsURL: *acs, SloURL: *slo, ReplayCache: p.replay, AllowIDPInitiated: false, SignatureMethod: "http://www.w3.org/2001/04/xmldsig-more#rsa-sha256"}
 	idp, err := p.idpMetadata(ctx, s)
 	if err != nil && needIdP {
 		return nil, err

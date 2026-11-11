@@ -409,8 +409,9 @@ func (s *Service) DeleteUser(ctx context.Context, id int64) error {
 	return err
 }
 
-// ChangeOwnPassword changes the caller's local password.
-func (s *Service) ChangeOwnPassword(ctx context.Context, current, newPw string) error {
+// ChangeOwnPassword changes the caller's local password and ends all other
+// sessions of the caller (keep is the token of the current one).
+func (s *Service) ChangeOwnPassword(ctx context.Context, current, newPw, keep string) error {
 	p := identity.From(ctx)
 	if p == nil || p.UserID == 0 {
 		return apperr.ErrUnauthorized
@@ -432,12 +433,24 @@ func (s *Service) ChangeOwnPassword(ctx context.Context, current, newPw string) 
 	if err != nil {
 		return err
 	}
-	return db.Tx(ctx, s.pool, func(tx pgx.Tx) error {
+	keepHash := curHash(keep)
+	if keepHash == nil {
+		keepHash = []byte{}
+	}
+	err = db.Tx(ctx, s.pool, func(tx pgx.Tx) error {
 		if _, err := tx.Exec(ctx, `UPDATE users SET password_hash=$2, updated_at=now() WHERE id=$1`, p.UserID, h); err != nil {
+			return err
+		}
+		// whoever knew the old password is signed out everywhere else
+		if _, err := tx.Exec(ctx, `DELETE FROM sessions WHERE user_id=$1 AND token_hash <> $2`, p.UserID, keepHash); err != nil {
 			return err
 		}
 		return audit.Log(ctx, tx, "user.password", "user", p.UserID, nil, nil)
 	})
+	if err == nil {
+		s.bump(ctx)
+	}
+	return err
 }
 
 // UpdateProfile changes the caller's display name and language. A new

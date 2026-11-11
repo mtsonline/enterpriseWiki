@@ -139,6 +139,12 @@ func (s *Server) authenticate(w http.ResponseWriter, r *http.Request) (context.C
 	if p := identity.From(ctx); p.InProcess() {
 		return ctx, nil // in-process CLI call
 	}
+	if ssoInbound(r.URL.Path) {
+		// messages of identity providers (assertions, logout requests) are
+		// authenticated by their signature, never by the browser's session:
+		// a same-site IdP's form POST carries the cookie but no CSRF header
+		return ctx, nil
+	}
 	if s.app.Media.TokenPath(r.URL.Path) {
 		// office servers authenticate with the access token of one file
 		// (checked by the WOPI handlers); sessions and API keys never count
@@ -158,6 +164,9 @@ func (s *Server) authenticate(w http.ResponseWriter, r *http.Request) (context.C
 	c, err := r.Cookie(sessionCookie)
 	if err != nil || c.Value == "" {
 		return ctx, nil
+	}
+	if r.Header.Get("X-Ewiki-Background") == "1" {
+		ctx = auth.WithBackground(ctx)
 	}
 	p, err := s.app.Auth.Authenticate(ctx, c.Value)
 	if errors.Is(err, auth.ErrNetworkDenied) {
@@ -202,6 +211,17 @@ func ipInCIDR(ip, cidr string) bool {
 	_, n, err := net.ParseCIDR(cidr)
 	p := net.ParseIP(ip)
 	return err == nil && p != nil && n.Contains(p)
+}
+
+// ssoInbound reports whether path receives messages of an identity
+// provider (/api/v1/auth/sso/<provider>/callback or /logout).
+func ssoInbound(path string) bool {
+	rest, ok := strings.CutPrefix(path, "/api/v1/auth/sso/")
+	if !ok {
+		return false
+	}
+	_, end, ok := strings.Cut(rest, "/")
+	return ok && (end == "callback" || end == "logout")
 }
 
 // noInvalidate lists write requests that do not change what guests see.

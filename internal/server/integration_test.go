@@ -645,6 +645,7 @@ func checkRouteCoverage(t *testing.T) {
 	exempt := map[string]bool{
 		"/readyz":                              true, // used by load balancers / orchestrators
 		"/api/v1/auth/sso/{provider}/callback": true, // called by the identity provider
+		"/api/v1/auth/sso/{provider}/logout":   true, // called by the identity provider (single logout)
 		// called by office servers (WOPI host, OnlyOffice Document Server)
 		"/api/v1/wopi/files/{id}":                   true,
 		"/api/v1/wopi/files/{id}/contents":          true,

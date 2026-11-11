@@ -51,6 +51,9 @@ type ExternalIdentity struct {
 	Groups     []string // local group names (after Mapping.Apply)
 	Roles      []string // local role names (after Mapping.Apply)
 	Attributes map[string]any
+	// SessionID and LogoutHint let the provider end the session later
+	// (single logout): OIDC sid and id token, SAML SessionIndex and NameID.
+	SessionID, LogoutHint string
 }
 
 // PasswordProvider authenticates username/password credentials.
@@ -243,7 +246,7 @@ func (s *Service) LoginMFA(ctx context.Context, username, password, totp, method
 				return nil, err
 			}
 		}
-		tok, exp, err := s.createSession(ctx, uid, "web", config.Duration(s.cfg.Get().Auth.SessionTTL, 7*24*time.Hour), ip, ua)
+		tok, exp, err := s.createSession(ctx, uid, "web", config.Duration(s.cfg.Get().Auth.SessionTTL, 7*24*time.Hour), ip, ua, ext)
 		if err != nil {
 			return nil, err
 		}
@@ -359,29 +362,38 @@ func (s *Service) syncProviderRoles(ctx context.Context, uid int64, provider str
 	})
 }
 
-func (s *Service) createSession(ctx context.Context, uid int64, kind string, ttl time.Duration, ip, ua string) (string, time.Time, error) {
+func (s *Service) createSession(ctx context.Context, uid int64, kind string, ttl time.Duration, ip, ua string, sso *ExternalIdentity) (string, time.Time, error) {
 	tok := NewToken("")
 	exp := time.Now().Add(ttl)
 	if len(ua) > 300 {
 		ua = ua[:300]
 	}
-	_, err := s.pool.Exec(ctx, `INSERT INTO sessions(token_hash, user_id, kind, expires_at, ip, user_agent) VALUES ($1,$2,$3,$4,$5,$6)`,
-		HashToken(tok), uid, kind, exp, ip, ua)
+	var prov, subj, sid, hint string
+	if sso != nil && sso.Provider != "local" {
+		prov, subj, sid, hint = sso.Provider, sso.Subject, sso.SessionID, sso.LogoutHint
+		if len(hint) > 16<<10 {
+			hint = ""
+		}
+	}
+	_, err := s.pool.Exec(ctx, `INSERT INTO sessions(token_hash, user_id, kind, expires_at, ip, user_agent, sso_provider, sso_subject, sso_session, sso_hint)
+		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`, HashToken(tok), uid, kind, exp, ip, ua, prov, subj, sid, hint)
 	return tok, exp, err
-}
-
-// Logout deletes the session of token.
-func (s *Service) Logout(ctx context.Context, token string) error {
-	h := HashToken(token)
-	_, err := s.pool.Exec(ctx, `DELETE FROM sessions WHERE token_hash=$1`, h)
-	s.cache.Delete(string(h))
-	s.bus.Publish(ctx, "auth", "")
-	return err
 }
 
 func (s *Service) flushCache() {
 	s.cache.Range(func(k, _ any) bool { s.cache.Delete(k); return true })
 }
+
+type backgroundKey struct{}
+
+// WithBackground marks a request made automatically by the browser
+// (polling): it does not keep an idle session alive.
+func WithBackground(ctx context.Context) context.Context {
+	return context.WithValue(ctx, backgroundKey{}, true)
+}
+
+// Background reports whether ctx belongs to an automatic request.
+func Background(ctx context.Context) bool { b, _ := ctx.Value(backgroundKey{}).(bool); return b }
 
 // Authenticate resolves a session token, SSH token or API key ("ewk_...").
 func (s *Service) Authenticate(ctx context.Context, token string) (*identity.Principal, error) {
@@ -423,8 +435,12 @@ func (s *Service) Authenticate(ctx context.Context, token string) (*identity.Pri
 	} else {
 		var uid int64
 		var kind string
-		err := s.pool.QueryRow(ctx, `UPDATE sessions SET last_seen_at = now()
-			WHERE token_hash=$1 AND expires_at > now() RETURNING user_id, kind`, h).Scan(&uid, &kind)
+		// idle sessions end (browser sessions only; SSH tokens are short-lived);
+		// automatic requests (Background) do not count as activity
+		idle := config.Duration(s.cfg.Get().Auth.SessionIdle, 0)
+		err := s.pool.QueryRow(ctx, `UPDATE sessions SET last_seen_at = CASE WHEN $3 THEN last_seen_at ELSE now() END
+			WHERE token_hash=$1 AND expires_at > now() AND (kind <> 'web' OR $2::float8 <= 0 OR last_seen_at > now() - make_interval(secs => $2))
+			RETURNING user_id, kind`, h, idle.Seconds(), Background(ctx)).Scan(&uid, &kind)
 		if err != nil {
 			return nil, apperr.ErrUnauthorized
 		}
@@ -594,6 +610,19 @@ type limiter struct {
 
 func newLimiter() *limiter { return &limiter{hits: map[string][]time.Time{}} }
 
+// exceeded reports whether key has max hits in window, without counting.
+func (l *limiter) exceeded(key string, max int, window time.Duration) bool {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	n := 0
+	for _, t := range l.hits[key] {
+		if time.Since(t) <= window {
+			n++
+		}
+	}
+	return n >= max
+}
+
 func (l *limiter) allow(key string, max int, window time.Duration) bool {
 	l.mu.Lock()
 	defer l.mu.Unlock()
@@ -676,7 +705,7 @@ func (s *Service) SSHLogin(ctx context.Context, challenge, signature, ip, ua str
 			if err := s.checkNetwork(ctx, uid, ip); err != nil {
 				return nil, err
 			}
-			tok, exp, err := s.createSession(ctx, uid, "ssh", config.Duration(s.cfg.Get().Auth.SSHTokenTTL, time.Hour), ip, ua)
+			tok, exp, err := s.createSession(ctx, uid, "ssh", config.Duration(s.cfg.Get().Auth.SSHTokenTTL, time.Hour), ip, ua, nil)
 			if err != nil {
 				return nil, err
 			}

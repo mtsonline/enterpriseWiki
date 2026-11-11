@@ -24,6 +24,7 @@ ui:
 auth:
     order: [local]                # local is always tried first
     session_ttl: 168h
+    session_idle: 12h             # ends a browser session after this long without activity (0: off)
     api_key_max_ttl: 8760h
     ssh_token_ttl: 1h
     max_login_failures: 10

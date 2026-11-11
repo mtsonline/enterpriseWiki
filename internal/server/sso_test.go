@@ -139,7 +139,7 @@ func newFakeOIDC(t *testing.T) *fakeOIDC {
 	mux.HandleFunc("/.well-known/openid-configuration", func(w http.ResponseWriter, r *http.Request) {
 		json.NewEncoder(w).Encode(map[string]any{"issuer": f.srv.URL, "authorization_endpoint": f.srv.URL + "/authorize",
 			"token_endpoint": f.srv.URL + "/token", "jwks_uri": f.srv.URL + "/jwks", "userinfo_endpoint": f.srv.URL + "/userinfo",
-			"id_token_signing_alg_values_supported": []string{"RS256"}})
+			"end_session_endpoint": f.srv.URL + "/logout?tenant=1", "id_token_signing_alg_values_supported": []string{"RS256"}})
 	})
 	mux.HandleFunc("/jwks", func(w http.ResponseWriter, r *http.Request) {
 		json.NewEncoder(w).Encode(jose.JSONWebKeySet{Keys: []jose.JSONWebKey{{Key: &f.key.PublicKey, KeyID: "k1", Algorithm: "RS256", Use: "sig"}}})
@@ -165,7 +165,7 @@ func newFakeOIDC(t *testing.T) *fakeOIDC {
 		delete(f.codes, r.FormValue("code"))
 		signer, _ := jose.NewSigner(jose.SigningKey{Algorithm: jose.RS256, Key: jose.JSONWebKey{Key: f.key, KeyID: "k1"}}, (&jose.SignerOptions{}).WithType("JWT"))
 		claims, _ := json.Marshal(map[string]any{"iss": f.srv.URL, "aud": f.clientID, "sub": "u-123", "exp": time.Now().Add(time.Hour).Unix(),
-			"iat": time.Now().Unix(), "nonce": c["nonce"], "preferred_username": "carol", "email": "carol@example.com", "name": "Carol C",
+			"iat": time.Now().Unix(), "nonce": c["nonce"], "sid": "sid-" + r.FormValue("code"), "preferred_username": "carol", "email": "carol@example.com", "name": "Carol C",
 			"groups": []string{"wiki-editors", "sales"}})
 		jws, _ := signer.Sign(claims)
 		tok, _ := jws.CompactSerialize()
@@ -176,6 +176,34 @@ func newFakeOIDC(t *testing.T) *fakeOIDC {
 		json.NewEncoder(w).Encode(map[string]any{"sub": "u-123"})
 	})
 	return f
+}
+
+// sign returns claims as a JWT signed with key (the provider's by default).
+func (f *fakeOIDC) sign(claims map[string]any, key *rsa.PrivateKey, typ jose.ContentType) string {
+	if key == nil {
+		key = f.key
+	}
+	signer, _ := jose.NewSigner(jose.SigningKey{Algorithm: jose.RS256, Key: jose.JSONWebKey{Key: key, KeyID: "k1"}}, (&jose.SignerOptions{}).WithType(typ))
+	b, _ := json.Marshal(claims)
+	jws, _ := signer.Sign(b)
+	tok, _ := jws.CompactSerialize()
+	return tok
+}
+
+// login signs c in through the provider (start, authorize, callback).
+func (f *fakeOIDC) login(t *testing.T, e *env, c *client) {
+	t.Helper()
+	hc := c.noRedirect()
+	res, err := hc.Get(e.srv.URL + "/api/v1/auth/sso/oidc/start?next=/")
+	if err != nil || res.StatusCode != 302 {
+		t.Fatalf("start: %v %v", err, res.StatusCode)
+	}
+	if res, err = hc.Get(res.Header.Get("Location")); err != nil || res.StatusCode != 302 {
+		t.Fatalf("authorize: %v %v", err, res.StatusCode)
+	}
+	if res, err = hc.Get(res.Header.Get("Location")); err != nil || res.StatusCode != 303 {
+		t.Fatalf("callback: %v %v", err, res.StatusCode)
+	}
 }
 
 func TestOIDCLogin(t *testing.T) {
@@ -277,24 +305,34 @@ func (p idpSPs) GetServiceProvider(r *http.Request, id string) (*saml.EntityDesc
 	return p.md, nil
 }
 
-func TestSAMLLogin(t *testing.T) {
-	e := setup(t)
+// fakeSAML is a SAML IdP for tests; login signs c in through it.
+type fakeSAML struct {
+	idp  *saml.IdentityProvider
+	srv  *httptest.Server
+	spMD *saml.EntityDescriptor
+}
+
+func newFakeSAML(t *testing.T, e *env, settings map[string]any) *fakeSAML {
+	t.Helper()
 	key, _ := rsa.GenerateKey(rand.Reader, 2048)
 	tmpl := &x509.Certificate{SerialNumber: big.NewInt(1), Subject: pkix.Name{CommonName: "idp"}, NotBefore: time.Now().Add(-time.Hour), NotAfter: time.Now().Add(time.Hour)}
 	der, _ := x509.CreateCertificate(rand.Reader, tmpl, tmpl, &key.PublicKey, key)
 	cert, _ := x509.ParseCertificate(der)
 	mux := http.NewServeMux()
 	isrv := httptest.NewServer(mux)
-	defer isrv.Close()
+	t.Cleanup(isrv.Close)
 	md, _ := url.Parse(isrv.URL + "/metadata")
 	sso, _ := url.Parse(isrv.URL + "/sso")
-	idp := &saml.IdentityProvider{Key: key, Certificate: cert, MetadataURL: *md, SSOURL: *sso, SessionProvider: idpSessions{}}
+	slo, _ := url.Parse(isrv.URL + "/slo")
+	idp := &saml.IdentityProvider{Key: key, Certificate: cert, MetadataURL: *md, SSOURL: *sso, LogoutURL: *slo, SessionProvider: idpSessions{}}
 	idpXML, _ := xml.Marshal(idp.Metadata())
-	e.setPluginSettings(t, "auth.shib", map[string]any{"mode": "saml", "idp_metadata": string(idpXML), "attr_username": "uid",
-		"attr_groups": "eduPersonAffiliation", "group_mapping": map[string]any{"faculty": "Faculty"}, "keep_unmapped_groups": false})
+	s := map[string]any{"mode": "saml", "idp_metadata": string(idpXML)}
+	for k, v := range settings {
+		s[k] = v
+	}
+	e.setPluginSettings(t, "auth.shib", s)
 	// the IdP knows our SP from its metadata endpoint
-	c := e.client()
-	res, err := c.http.Get(e.srv.URL + "/api/v1/x/auth.shib/metadata")
+	res, err := http.Get(e.srv.URL + "/api/v1/x/auth.shib/metadata")
 	if err != nil || res.StatusCode != 200 {
 		t.Fatalf("sp metadata: %v %v", err, res.StatusCode)
 	}
@@ -305,9 +343,14 @@ func TestSAMLLogin(t *testing.T) {
 	}
 	idp.ServiceProviderProvider = idpSPs{spMD}
 	mux.HandleFunc("/sso", idp.ServeSSO)
+	return &fakeSAML{idp: idp, srv: isrv, spMD: spMD}
+}
 
+// login signs c in through the IdP and returns where the wiki sent it.
+func (f *fakeSAML) login(t *testing.T, e *env, c *client, next string) string {
+	t.Helper()
 	hc := c.noRedirect()
-	res, err = hc.Get(e.srv.URL + "/api/v1/auth/sso/shib/start?next=/search")
+	res, err := hc.Get(e.srv.URL + "/api/v1/auth/sso/shib/start?next=" + url.QueryEscape(next))
 	if err != nil || res.StatusCode != 302 {
 		t.Fatalf("start %v %d", err, res.StatusCode)
 	}
@@ -324,8 +367,19 @@ func TestSAMLLogin(t *testing.T) {
 		return html.UnescapeString(string(m[1]))
 	}
 	res, err = hc.PostForm(e.srv.URL+"/api/v1/auth/sso/shib/callback", url.Values{"SAMLResponse": {field("SAMLResponse")}, "RelayState": {field("RelayState")}})
-	if err != nil || res.StatusCode != 303 || res.Header.Get("Location") != "/search" {
-		t.Fatalf("acs %v %d %s", err, res.StatusCode, res.Header.Get("Location"))
+	if err != nil || res.StatusCode != 303 {
+		t.Fatalf("acs %v %d", err, res.StatusCode)
+	}
+	return res.Header.Get("Location")
+}
+
+func TestSAMLLogin(t *testing.T) {
+	e := setup(t)
+	f := newFakeSAML(t, e, map[string]any{"attr_username": "uid",
+		"attr_groups": "eduPersonAffiliation", "group_mapping": map[string]any{"faculty": "Faculty"}, "keep_unmapped_groups": false})
+	c := e.client()
+	if loc := f.login(t, e, c, "/search"); loc != "/search" {
+		t.Fatalf("acs redirect %s", loc)
 	}
 	var me meResp
 	c.must("GET", "/api/v1/auth/me", nil, &me, 200)

@@ -109,6 +109,7 @@ func (s *Server) routes() {
 	s.routesDemo()
 	s.routesCollab()
 	s.routesIdentity()
+	s.routesSessions()
 	s.routesM3()
 	s.routesM4()
 	s.routesM6()
@@ -153,13 +154,18 @@ func (s *Server) routes() {
 		if p := identity.From(r.Context()); p != nil {
 			_ = audit.Log(r.Context(), s.app.DB, "auth.logout", "user", p.ID(), nil, nil)
 		}
+		var redirect string
 		if c, err := r.Cookie(sessionCookie); err == nil {
-			_ = s.app.Auth.Logout(r.Context(), c.Value)
+			redirect, _ = s.app.Auth.Logout(r.Context(), c.Value)
 		}
 		if a, ok := strings.CutPrefix(r.Header.Get("Authorization"), "Bearer "); ok && !strings.HasPrefix(a, "ewk_") {
-			_ = s.app.Auth.Logout(r.Context(), a)
+			_, _ = s.app.Auth.Logout(r.Context(), a)
 		}
 		s.clearCookie(w)
+		if redirect != "" {
+			// single logout: the browser continues at the identity provider
+			return map[string]string{"redirect": redirect}, nil
+		}
 		return h.NoContent{}, nil
 	})
 	s.handle("GET /api/v1/auth/me", func(w http.ResponseWriter, r *http.Request) (any, error) {
@@ -239,7 +245,7 @@ func (s *Server) routes() {
 		if err := h.Decode(r, &in); err != nil {
 			return nil, err
 		}
-		return h.NoContent{}, s.app.Auth.ChangeOwnPassword(r.Context(), in.Current, in.New)
+		return h.NoContent{}, s.app.Auth.ChangeOwnPassword(r.Context(), in.Current, in.New, s.sessionToken(r))
 	})
 	s.handle("GET /api/v1/me/api-keys", func(w http.ResponseWriter, r *http.Request) (any, error) { return s.app.Auth.ListAPIKeys(r.Context()) })
 	s.handle("POST /api/v1/me/api-keys", func(w http.ResponseWriter, r *http.Request) (any, error) {

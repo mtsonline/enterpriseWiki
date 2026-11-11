@@ -8,14 +8,22 @@
 -- ---------------------------------------------------------------- sign-in (per site)
 CREATE TABLE sessions (
     token_hash   bytea PRIMARY KEY,
+    id           bigserial UNIQUE,                 -- shown to the user ("my sessions"); the token never is
     user_id      bigint NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     kind         text NOT NULL DEFAULT 'web',      -- web | ssh
     created_at   timestamptz NOT NULL DEFAULT now(),
     expires_at   timestamptz NOT NULL,
     last_seen_at timestamptz NOT NULL DEFAULT now(),
     ip           text NOT NULL DEFAULT '',
-    user_agent   text NOT NULL DEFAULT ''
+    user_agent   text NOT NULL DEFAULT '',
+    -- single sign-on: provider, its session (OIDC sid, SAML SessionIndex)
+    -- and what it needs to end it (OIDC id token, SAML NameID)
+    sso_provider text NOT NULL DEFAULT '',
+    sso_subject  text NOT NULL DEFAULT '',
+    sso_session  text NOT NULL DEFAULT '',
+    sso_hint     text NOT NULL DEFAULT ''
 );
+CREATE INDEX sessions_sso ON sessions(sso_provider, sso_session) WHERE sso_provider <> '';
 CREATE INDEX sessions_user ON sessions(user_id);
 CREATE INDEX sessions_expires ON sessions(expires_at);
 
@@ -32,6 +40,13 @@ CREATE TABLE mfa_codes (
 CREATE TABLE auth_challenges (
     nonce      text PRIMARY KEY,
     user_id    bigint NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    expires_at timestamptz NOT NULL
+);
+
+-- IDs of single-use messages of identity providers (OIDC logout token jti,
+-- SAML LogoutRequest IDs): each is accepted once, on every instance
+CREATE TABLE sso_replay (
+    id         text PRIMARY KEY,
     expires_at timestamptz NOT NULL
 );
 

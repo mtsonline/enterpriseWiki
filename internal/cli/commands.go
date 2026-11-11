@@ -14,8 +14,10 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"text/tabwriter"
+	"time"
 
 	"github.com/mtsonline/enterprisewiki/internal/app"
 	"github.com/mtsonline/enterprisewiki/internal/auth"
@@ -321,6 +323,38 @@ func (e *env) user(args []string) error {
 				return errors.New("usage: ewiki user unlink NAME PROVIDER SUBJECT")
 			}
 			return a.Auth.UnlinkUserIdentity(ctx, id, fs.Arg(0), fs.Arg(1))
+		case "sessions":
+			id, err := findID()
+			if err != nil {
+				return err
+			}
+			list, err := a.Auth.UserSessions(ctx, id)
+			if err != nil {
+				return err
+			}
+			tw := tabwriter.NewWriter(e.stdout, 0, 4, 2, ' ', 0)
+			rowln(tw, "ID\tKIND\tLAST SEEN\tIP\tSSO\tCLIENT")
+			for _, x := range list {
+				row(tw, "%d\t%s\t%s\t%s\t%s\t%s\n", x.ID, x.Kind, x.LastSeen.Format(time.RFC3339), x.IP, x.Provider, x.UserAgent)
+			}
+			return tw.Flush()
+		case "logout":
+			// ewiki user logout NAME [SESSION-ID]: one or all sessions
+			id, err := findID()
+			if err != nil {
+				return err
+			}
+			var sid int64
+			if fs.NArg() == 1 {
+				if sid, err = strconv.ParseInt(fs.Arg(0), 10, 64); err != nil || sid <= 0 {
+					return errors.New("usage: ewiki user logout NAME [SESSION-ID]")
+				}
+			}
+			if err := a.Auth.EndUserSession(ctx, id, sid); err != nil {
+				return err
+			}
+			e.println("signed out")
+			return nil
 		case "passwd":
 			id, err := findID()
 			if err != nil {

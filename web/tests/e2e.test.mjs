@@ -452,6 +452,34 @@ test('e-mail addresses, sign-ins and invitations', async () => {
   errors.splice(logged, errors.length - logged, ...errors.slice(logged).filter((e) => !/status of 400/.test(e)));
 });
 
+test('sessions: see where one is signed in and sign out elsewhere', async () => {
+  const ctx2 = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+  const p2 = await ctx2.newPage();
+  p2.on('pageerror', (e) => errors.push(`second browser: ${e.message}`));
+  try {
+    await p2.goto(BASE + '/login');
+    await p2.getByLabel(/user ?name|benutzername/i).fill(USER);
+    await p2.getByLabel(/^(password|passwort)/i).fill(PASSWORD);
+    await p2.keyboard.press('Enter');
+    await p2.waitForURL((u) => !u.pathname.startsWith('/login'));
+    await page.goto(`${BASE}/profile`);
+    await idle();
+    const sec = page.locator('section', { has: page.locator('#ses-h') });
+    await sec.locator('.ew-badge', { hasText: /this session|diese sitzung/i }).waitFor();
+    assert.ok(await sec.getByRole('button', { name: /^(sign out|abmelden):/i }).count() >= 1, 'the other session can be ended');
+    await a11y('profile with sessions');
+    await sec.getByRole('button', { name: /^(sign out everywhere else|überall sonst abmelden)$/i }).click();
+    await page.locator('dialog[open]').getByRole('button', { name: /^(sign out everywhere else|überall sonst abmelden)$/i }).click();
+    await sec.getByRole('button', { name: /^(sign out|abmelden):/i }).first().waitFor({ state: 'detached' });
+    // the other browser is signed out, this one is not
+    const me2 = await p2.evaluate(async () => (await (await fetch('/api/v1/auth/me')).json()).user);
+    assert.equal(me2, null, 'other session ended');
+    assert.ok((await call('GET', '/api/v1/auth/me')).user, 'own session kept');
+  } finally {
+    await ctx2.close();
+  }
+});
+
 test('the simple editor as personal choice', async () => {
   await call('PUT', '/api/v1/me', { prefs: { editor: 'simple' } });
   try {

@@ -146,10 +146,16 @@ export function userMenu(): HTMLElement {
 }
 
 export async function logout(): Promise<void> {
+  let redirect = '';
   try {
-    await api.post('auth/logout');
+    redirect = (await api.post<{ redirect?: string } | undefined>('auth/logout'))?.redirect ?? '';
   } catch {
     /* ignore */
+  }
+  if (/^https?:\/\//.test(redirect)) {
+    // single logout: the identity provider ends its session and sends the browser back
+    window.location.assign(redirect);
+    return;
   }
   state.user = null;
   setEditMode(false);

@@ -61,6 +61,7 @@ Users
   user emails NAME | user email-add NAME ADDRESS [--unconfirmed]
   user email-primary NAME ADDRESS | user email-remove NAME ADDRESS
   user identities NAME | user unlink NAME PROVIDER SUBJECT
+  user sessions NAME | user logout NAME [SESSION-ID]   sessions; sign out one or all
   user passwd NAME [--password-stdin]
   user disable NAME | user enable NAME | user unlock NAME
   user mfa-reset NAME           remove the second factors (app and e-mail)

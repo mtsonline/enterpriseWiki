@@ -25,6 +25,7 @@ import (
 	"github.com/mtsonline/enterprisewiki/internal/perm"
 	"io/fs"
 	"net/http"
+	"net/url"
 	"strings"
 	"sync"
 	"time"
@@ -56,7 +57,7 @@ func (p *Plugin) Locales() fs.FS { s, _ := fs.Sub(locales, "locales"); return s 
 
 // Setup registers the provider and an admin check endpoint.
 func (p *Plugin) Setup(host *sdk.Host) error {
-	prov := &Provider{settings: host.Settings}
+	prov := &Provider{settings: host.Settings, replay: host.Auth.ReplayCache("oidc")}
 	host.RegisterRedirectProvider(prov)
 	host.Handle("GET", "/check", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		if err := perm.Require(r.Context(), "core.settings.manage"); err != nil {
@@ -76,6 +77,7 @@ func (p *Plugin) Setup(host *sdk.Host) error {
 // Provider implements auth.RedirectProvider.
 type Provider struct {
 	settings func() map[string]any
+	replay   *auth.ReplayCache
 	mu       sync.Mutex
 	cached   *oidc.Provider
 	issuer   string
@@ -174,7 +176,107 @@ func (p *Provider) Callback(ctx context.Context, r *http.Request, req *auth.SSOR
 			}
 		}
 	}
-	return MapClaims(s, idt.Subject, claims), nil
+	id := MapClaims(s, idt.Subject, claims)
+	// for single logout: the provider session and the ID token as hint
+	id.SessionID, _ = claims["sid"].(string)
+	id.LogoutHint = raw
+	return id, nil
+}
+
+// LogoutURL implements auth.LogoutProvider: RP-initiated logout at the
+// end_session_endpoint of the provider, if it has one and the setting
+// single_logout is on (default). post_logout_redirect_uri (default
+// <base_url>/login?logged_out=1) must be registered at the provider.
+func (p *Provider) LogoutURL(ctx context.Context, sess auth.SSOSession, returnURL string) (string, error) {
+	s := p.settings()
+	if !auth.BoolSetting(s, "single_logout", true) {
+		return "", nil
+	}
+	prov, cfg, err := p.provider(ctx, s)
+	if err != nil {
+		return "", err
+	}
+	var md struct {
+		EndSession string `json:"end_session_endpoint"`
+	}
+	if err := prov.Claims(&md); err != nil || md.EndSession == "" {
+		return "", nil
+	}
+	u, err := url.Parse(md.EndSession)
+	if err != nil || u.Scheme != "https" && !(u.Scheme == "http" && isLoopback(u.Hostname())) {
+		return "", fmt.Errorf("invalid end_session_endpoint %q", md.EndSession)
+	}
+	q := u.Query()
+	q.Set("client_id", cfg.ClientID)
+	if sess.Hint != "" {
+		q.Set("id_token_hint", sess.Hint)
+	}
+	q.Set("post_logout_redirect_uri", auth.Setting(s, "post_logout_redirect_uri", returnURL))
+	u.RawQuery = q.Encode()
+	return u.String(), nil
+}
+
+func isLoopback(h string) bool { return h == "localhost" || h == "127.0.0.1" || h == "::1" }
+
+// backchannelEvent is the event of an OIDC back-channel logout token.
+const backchannelEvent = "http://schemas.openid.net/event/backchannel-logout"
+
+// HandleLogout implements auth.LogoutHandler: OIDC Back-Channel Logout 1.0.
+// The logout token must be signed by the provider for this client
+// (signature, issuer, audience, expiry), carry the logout event, sub or sid,
+// a fresh iat and an unused jti, and must not carry a nonce.
+func (p *Provider) HandleLogout(ctx context.Context, r *http.Request, _ string) (*auth.LogoutMatch, func(http.ResponseWriter, *http.Request), error) {
+	if r.Method != http.MethodPost {
+		return nil, nil, apperr.BadRequest("back-channel logout uses POST")
+	}
+	raw := r.PostFormValue("logout_token")
+	if raw == "" {
+		return nil, nil, apperr.BadRequest("logout_token missing")
+	}
+	s := p.settings()
+	prov, cfg, err := p.provider(ctx, s)
+	if err != nil {
+		return nil, nil, err
+	}
+	tctx, cancel := context.WithTimeout(ctx, 20*time.Second)
+	defer cancel()
+	tok, err := prov.Verifier(&oidc.Config{ClientID: cfg.ClientID}).Verify(tctx, raw)
+	if err != nil {
+		return nil, nil, fmt.Errorf("logout token: %w", err)
+	}
+	var c struct {
+		Sid    string         `json:"sid"`
+		Jti    string         `json:"jti"`
+		Iat    int64          `json:"iat"`
+		Nonce  *string        `json:"nonce"`
+		Events map[string]any `json:"events"`
+	}
+	if err := tok.Claims(&c); err != nil {
+		return nil, nil, fmt.Errorf("logout token: %w", err)
+	}
+	if _, ok := c.Events[backchannelEvent]; !ok {
+		return nil, nil, errors.New("logout token: no back-channel logout event")
+	}
+	if c.Nonce != nil {
+		return nil, nil, errors.New("logout token: nonce not allowed")
+	}
+	if tok.Subject == "" && c.Sid == "" {
+		return nil, nil, errors.New("logout token: neither sub nor sid")
+	}
+	if iat := time.Unix(c.Iat, 0); c.Iat == 0 || time.Since(iat) > 10*time.Minute || time.Until(iat) > 2*time.Minute {
+		return nil, nil, errors.New("logout token: iat missing or not recent")
+	}
+	if c.Jti == "" {
+		return nil, nil, errors.New("logout token: jti missing")
+	}
+	if err := p.replay.Consume(tok.Issuer+"|"+c.Jti, time.Now().Add(15*time.Minute)); err != nil {
+		return nil, nil, fmt.Errorf("logout token: %w", err)
+	}
+	m := &auth.LogoutMatch{Subject: tok.Subject}
+	if c.Sid != "" {
+		m.SessionIDs = []string{c.Sid}
+	}
+	return m, nil, nil
 }
 
 // MapClaims converts ID token claims into an external identity.

@@ -71,7 +71,8 @@ Sprachen werden in der Oberfläche unter *Administration → Sprachen* hinzugef�
 | Schlüssel | Bedeutung | Standard |
 |---|---|---|
 | `order` | Reihenfolge der Anmeldeverfahren (Provider-IDs). `local` wird **immer zuerst** geprüft | `[local]` |
-| `session_ttl` | Gültigkeit einer Browser-Sitzung | `168h` |
+| `session_ttl` | Gültigkeit einer Browser-Sitzung (absolut) | `168h` |
+| `session_idle` | Eine Browser-Sitzung endet nach so langer Inaktivität. Automatische Abfragen (z. B. Benachrichtigungen) zählen nicht als Aktivität. `0` = nur `session_ttl` | `12h` |
 | `api_key_max_ttl` | maximale Gültigkeit eines API-Keys | `8760h` |
 | `ssh_token_ttl` | Gültigkeit eines Tokens nach SSH-Login | `1h` |
 | `max_login_failures` | Fehlversuche bis zur Sperre eines lokalen Kontos | `10` |

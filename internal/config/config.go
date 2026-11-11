@@ -193,13 +193,16 @@ type Auth struct {
 	// Order of password based providers. "local" is always tried first,
 	// regardless of its position, so local (break-glass) accounts keep working
 	// when an external identity provider is down.
-	Order           []string `yaml:"order" json:"order"`
-	SessionTTL      string   `yaml:"session_ttl" json:"session_ttl"`
-	APIKeyMaxTTL    string   `yaml:"api_key_max_ttl" json:"api_key_max_ttl"`
-	SSHTokenTTL     string   `yaml:"ssh_token_ttl" json:"ssh_token_ttl"`
-	MaxLoginFails   int      `yaml:"max_login_failures" json:"max_login_failures"`
-	LockoutDuration string   `yaml:"lockout_duration" json:"lockout_duration"`
-	MinPasswordLen  int      `yaml:"min_password_length" json:"min_password_length"`
+	Order      []string `yaml:"order" json:"order"`
+	SessionTTL string   `yaml:"session_ttl" json:"session_ttl"`
+	// SessionIdle ends a browser session after this time without requests
+	// ("0" = only the absolute session_ttl).
+	SessionIdle     string `yaml:"session_idle" json:"session_idle"`
+	APIKeyMaxTTL    string `yaml:"api_key_max_ttl" json:"api_key_max_ttl"`
+	SSHTokenTTL     string `yaml:"ssh_token_ttl" json:"ssh_token_ttl"`
+	MaxLoginFails   int    `yaml:"max_login_failures" json:"max_login_failures"`
+	LockoutDuration string `yaml:"lockout_duration" json:"lockout_duration"`
+	MinPasswordLen  int    `yaml:"min_password_length" json:"min_password_length"`
 }
 
 // Retention configures automatic cleanup. Nothing is ever deleted that is the
@@ -365,7 +368,7 @@ func Defaults() *Config {
 		I18n:     I18n{DefaultLanguage: "en", Languages: []string{"en", "de"}},
 		UI:       UI{SiteName: "Enterprise Wiki", Template: "theme.wiki", Prerender: true, ReadableURLs: true, Collaboration: true},
 		Auth: Auth{
-			Order: []string{"local"}, SessionTTL: "168h", APIKeyMaxTTL: "8760h", SSHTokenTTL: "1h",
+			Order: []string{"local"}, SessionTTL: "168h", SessionIdle: "12h", APIKeyMaxTTL: "8760h", SSHTokenTTL: "1h",
 			MaxLoginFails: 10, LockoutDuration: "15m", MinPasswordLen: 12,
 		},
 		Retention: Retention{RevisionsKeepDays: 0, RevisionsKeepMin: 50, TrashDays: 30, AuditDays: 0, MailDays: 90},

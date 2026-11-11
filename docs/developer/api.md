@@ -66,6 +66,8 @@ curl -H "Authorization: Bearer $KEY" -H 'Content-Type: application/json' \
 | `GET` | `/api/v1/auth/sso/{provider}/start` |
 | `GET` | `/api/v1/auth/sso/{provider}/callback` |
 | `POST` | `/api/v1/auth/sso/{provider}/callback` |
+| `GET` | `/api/v1/auth/sso/{provider}/logout` |
+| `POST` | `/api/v1/auth/sso/{provider}/logout` |
 
 ### Eigenes Konto (inkl. 2FA, API-Keys, SSH)
 
@@ -128,6 +130,9 @@ curl -H "Authorization: Bearer $KEY" -H 'Content-Type: application/json' \
 | `GET` | `/api/v1/media/viewers` |
 | `GET` | `/api/v1/media/{id}/open` |
 | `POST` | `/api/v1/media/{id}/open` |
+| `GET` | `/api/v1/me/sessions` |
+| `DELETE` | `/api/v1/me/sessions` |
+| `DELETE` | `/api/v1/me/sessions/{id}` |
 
 ### Benutzer, Gruppen, Rollen
 
@@ -157,6 +162,9 @@ curl -H "Authorization: Bearer $KEY" -H 'Content-Type: application/json' \
 | `POST` | `/api/v1/admin/users/invite` |
 | `GET` | `/api/v1/admin/users/{id}/profile` |
 | `PUT` | `/api/v1/admin/users/{id}/profile` |
+| `GET` | `/api/v1/admin/users/{id}/sessions` |
+| `DELETE` | `/api/v1/admin/users/{id}/sessions` |
+| `DELETE` | `/api/v1/admin/users/{id}/sessions/{sid}` |
 
 ### Kategorien & Berechtigungen
 

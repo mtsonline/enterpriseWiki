@@ -33,9 +33,9 @@ export function notificationBell(): HTMLElement | null {
     if (lastUnread >= 0 && n > lastUnread) announce(t('inbox.new', { n: n - lastUnread }));
     lastUnread = n;
   };
-  const load = async (draw: boolean) => {
+  const load = async (draw: boolean, background = false) => {
     let res: { items: Item[]; unread: number };
-    try { res = await api.get<{ items: Item[]; unread: number }>('me/inbox?limit=20'); } catch { return; }
+    try { res = await (background ? api.poll : api.get)<{ items: Item[]; unread: number }>('me/inbox?limit=20'); } catch { return; }
     setCount(res.unread);
     if (!draw) return;
     list.replaceChildren(...(res.items.length ? res.items.map((n) => h('li', { class: n.read_at ? undefined : 'is-unread' },
@@ -60,6 +60,6 @@ export function notificationBell(): HTMLElement | null {
   wrap.addEventListener('focusout', (ev) => { if (!wrap.contains(ev.relatedTarget as Node)) setOpen(false); });
   void load(false);
   window.clearInterval(timer);
-  timer = window.setInterval(() => { if (document.visibilityState === 'visible' && state.user) void load(!panel.hidden); }, 60000);
+  timer = window.setInterval(() => { if (document.visibilityState === 'visible' && state.user) void load(!panel.hidden, true); }, 60000);
   return wrap;
 }
