@@ -139,10 +139,11 @@ func (s *Server) authenticate(w http.ResponseWriter, r *http.Request) (context.C
 	if p := identity.From(ctx); p.InProcess() {
 		return ctx, nil // in-process CLI call
 	}
-	if ssoInbound(r.URL.Path) {
+	if ssoInbound(r.URL.Path) || scimInbound(r.URL.Path) {
 		// messages of identity providers (assertions, logout requests) are
 		// authenticated by their signature, never by the browser's session:
-		// a same-site IdP's form POST carries the cookie but no CSRF header
+		// a same-site IdP's form POST carries the cookie but no CSRF header;
+		// SCIM requests by their own bearer token (see scim.go)
 		return ctx, nil
 	}
 	if s.app.Media.TokenPath(r.URL.Path) {

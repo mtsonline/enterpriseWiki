@@ -62,6 +62,8 @@ Users
   user email-primary NAME ADDRESS | user email-remove NAME ADDRESS
   user identities NAME | user unlink NAME PROVIDER SUBJECT
   user sessions NAME | user logout NAME [SESSION-ID]   sessions; sign out one or all
+  scim list | scim create NAME --provider P [--subject-from userName|externalId] [--on-delete disable|delete]
+  scim token ID | scim delete ID   SCIM 2.0 provisioning clients (Entra ID, Okta, ...)
   user signin-preview PROVIDER USERNAME [--email E] [--verified] [--groups A,B] [--subject S]
                                 what a sign-in would lead to (mapping, JIT, linking)
   user passwd NAME [--password-stdin]
@@ -209,6 +211,8 @@ func Main(args []string) int {
 		err = e.api(args[1:])
 	case "user":
 		err = e.user(args[1:])
+	case "scim":
+		err = e.scim(args[1:])
 	case "plugin":
 		err = e.plugin(args[1:])
 	case "config":

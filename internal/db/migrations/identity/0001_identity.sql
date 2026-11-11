@@ -5,6 +5,19 @@
 -- (sites.accounts = 'separate'), before that site's own tables, so their
 -- foreign keys point to the site's own accounts.
 -- ---------------------------------------------------------------- identities
+-- SCIM 2.0 clients (Entra ID, Okta, ...) that provision users and groups;
+-- only the hash of the bearer token is stored
+CREATE TABLE scim_clients (
+    id           bigserial PRIMARY KEY,
+    name         text NOT NULL CHECK (length(name) BETWEEN 1 AND 100),
+    provider     text NOT NULL,                     -- sign-in the provisioned people use (oidc, oidc-entra, ...)
+    subject_from text NOT NULL DEFAULT 'userName' CHECK (subject_from IN ('userName', 'externalId')),
+    on_delete    text NOT NULL DEFAULT 'disable' CHECK (on_delete IN ('disable', 'delete')),
+    token_hash   bytea NOT NULL UNIQUE,
+    created_at   timestamptz NOT NULL DEFAULT now(),
+    last_used_at timestamptz
+);
+
 CREATE TABLE users (
     id             bigserial PRIMARY KEY,
     username       text NOT NULL,                 -- login name inside its provider
@@ -37,6 +50,9 @@ CREATE TABLE users (
     -- profile ("business card") maintained by the user or admins; not
     -- overwritten by identity providers (unlike attributes)
     profile        jsonb NOT NULL DEFAULT '{}',
+    -- provisioned by a SCIM client (and its id for the person)
+    scim_client    bigint REFERENCES scim_clients(id) ON DELETE SET NULL,
+    external_id    text NOT NULL DEFAULT '',
     UNIQUE (provider, subject),
     UNIQUE (provider, username),
     CHECK (username ~ '^[A-Za-z0-9._@+-]{1,128}$')
@@ -47,7 +63,9 @@ CREATE TABLE groups (
     name        text NOT NULL UNIQUE,
     description text NOT NULL DEFAULT '',
     source      text NOT NULL DEFAULT 'local',
-    created_at  timestamptz NOT NULL DEFAULT now()
+    created_at  timestamptz NOT NULL DEFAULT now(),
+    scim_client bigint REFERENCES scim_clients(id) ON DELETE SET NULL,  -- managed by a SCIM client
+    external_id text NOT NULL DEFAULT ''
 );
 
 CREATE TABLE roles (
@@ -88,6 +106,7 @@ CREATE TABLE user_emails (
     is_primary  boolean NOT NULL DEFAULT false,
     created_at  timestamptz NOT NULL DEFAULT now(),
     verified_at timestamptz,
+    scim        boolean NOT NULL DEFAULT false,   -- delivered by a SCIM client (removed when it no longer sends it)
     UNIQUE (user_id, email)
 );
 CREATE UNIQUE INDEX user_emails_verified ON user_emails(email) WHERE verified;  -- one owner per confirmed address

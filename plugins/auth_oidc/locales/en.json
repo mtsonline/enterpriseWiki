@@ -17,5 +17,7 @@
  "auth.oidc.single_logout_help": "Sends the browser to the end_session_endpoint of the provider.",
  "auth.oidc.post_logout": "Post-logout redirect URI",
  "auth.oidc.redirect_uri": "Redirect URI (register at the provider):",
- "auth.oidc.backchannel_uri": "Back-channel logout URL (optional, register at the provider):"
+ "auth.oidc.backchannel_uri": "Back-channel logout URL (optional, register at the provider):",
+ "auth.oidc.claim_subject": "Claim of the stable id",
+ "auth.oidc.claim_subject_help": "Default: sub. For Microsoft Entra ID with SCIM provisioning: oid (matches the externalId)."
 }

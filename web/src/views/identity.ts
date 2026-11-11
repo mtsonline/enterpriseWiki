@@ -237,3 +237,57 @@ export async function linkNotice(token: string): Promise<{ el: HTMLElement; conf
 export function goLink(token: string, next: string): void {
   navigate(`/login?link=${encodeURIComponent(token)}&next=${encodeURIComponent(next)}`);
 }
+
+// ---------------------------------------------------------------- SCIM
+
+interface ScimClient { id: number; name: string; provider: string; subject_from: string; on_delete: string; created_at: string; last_used_at: string | null }
+
+/** Shows a token once, with the tenant URL, ready to copy. */
+function tokenDialog(title: string, url: string, token: string): void {
+  const ro = (value: string) => { const i = textInput({ value, autocomplete: 'off' }); i.readOnly = true; return i; };
+  openDialog(title, h('div', null,
+    h('p', { class: 'ew-notice ew-notice--warn' }, t('scim.token_once')),
+    field(t('scim.url'), ro(url)), field(t('scim.token'), ro(token))), [], {});
+}
+
+/** Administration: SCIM 2.0 clients (directories that provision people and groups). */
+export async function scimAdmin(panel: HTMLElement): Promise<void> {
+  const list = await api.get<ScimClient[]>('admin/scim/clients');
+  const providers = (state.site.auth_providers ?? []).filter((p) => p.id !== 'local');
+  const render = () => void scimAdmin(panel);
+  const rows = list.map((c) => h('tr', null,
+    h('th', { scope: 'row' }, c.name), h('td', null, providerName(c.provider)),
+    h('td', null, c.subject_from), h('td', null, t(`scim.on_delete.${c.on_delete}`)),
+    h('td', null, c.last_used_at ? fmtDate(c.last_used_at, state.lang) : t('scim.never')),
+    h('td', { class: 'ew-actions' },
+      button(t('scim.renew'), async () => {
+        if (!(await confirmDialog(t('scim.renew_confirm', { name: c.name }), t('scim.renew'), true))) return;
+        try {
+          const r = await api.post<{ token: string; url: string }>(`admin/scim/clients/${c.id}/token`);
+          tokenDialog(t('scim.token_title', { name: c.name }), r.url, r.token);
+        } catch (e) { toast(errorText(e), 'error'); }
+      }, { variant: 'link', ariaLabel: `${t('scim.renew')}: ${c.name}` }),
+      button(t('common.delete'), async () => {
+        if (!(await confirmDialog(t('scim.delete_confirm', { name: c.name }), t('common.delete'), true))) return;
+        try { await api.del(`admin/scim/clients/${c.id}`); toast(t('scim.deleted')); render(); } catch (e) { toast(errorText(e), 'error'); }
+      }, { variant: 'link', ariaLabel: `${t('common.delete')}: ${c.name}` }))));
+  const add = button(t('scim.add'), () => {
+    const name = textInput({ required: true, maxlength: 100 });
+    const prov = select(providers.map((p) => ({ value: p.id, label: `${p.name} (${p.id})` })));
+    const subj = select([{ value: 'userName', label: t('scim.subject_username') }, { value: 'externalId', label: t('scim.subject_externalid') }]);
+    const del = select([{ value: 'disable', label: t('scim.on_delete.disable') }, { value: 'delete', label: t('scim.on_delete.delete') }]);
+    formDialog(t('scim.add'), [h('p', { class: 'ew-help' }, t('scim.add_help')),
+      field(t('scim.name'), name, { required: true }),
+      field(t('scim.provider'), prov, { help: t('scim.provider_help') }),
+      field(t('scim.subject_from'), subj, { help: t('scim.subject_from_help') }),
+      field(t('scim.on_delete'), del)], t('scim.add'), async () => {
+      if (!prov.value) throw new Error(t('scim.no_provider'));
+      const r = await api.post<{ client: ScimClient; token: string; url: string }>('admin/scim/clients',
+        { name: name.value.trim(), provider: prov.value, subject_from: subj.value, on_delete: del.value });
+      setTimeout(() => { tokenDialog(t('scim.token_title', { name: r.client.name }), r.url, r.token); render(); }, 0);
+    });
+  }, { variant: 'primary' });
+  mount(panel, h('h1', null, t('admin.scim')), h('p', { class: 'ew-help' }, t('scim.help')),
+    providers.length ? add : h('p', { class: 'ew-notice ew-notice--info' }, t('scim.no_provider')),
+    table(t('admin.scim'), [t('scim.name'), t('scim.provider'), t('scim.subject_from'), t('scim.on_delete'), t('scim.last_used'), t('common.actions')], rows, t('scim.none')));
+}

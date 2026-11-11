@@ -294,9 +294,10 @@ func (s *Service) syncIdentity(ctx context.Context, ext *ExternalIdentity) (int6
 	err := s.pool.QueryRow(ctx, `INSERT INTO users(username, provider, subject, display_name, email, attributes, last_login_at)
 		VALUES ($1,$2,$3,$4,$5,COALESCE($6::jsonb,'{}'),now())
 		ON CONFLICT (provider, subject) DO UPDATE SET
-			username = EXCLUDED.username,
-			display_name = CASE WHEN EXCLUDED.display_name <> '' THEN EXCLUDED.display_name ELSE users.display_name END,
-			email = CASE WHEN EXCLUDED.email <> '' THEN EXCLUDED.email ELSE users.email END,
+			-- accounts provisioned by SCIM keep the directory's name and address
+			username = CASE WHEN users.scim_client IS NULL THEN EXCLUDED.username ELSE users.username END,
+			display_name = CASE WHEN EXCLUDED.display_name <> '' AND users.scim_client IS NULL THEN EXCLUDED.display_name ELSE users.display_name END,
+			email = CASE WHEN EXCLUDED.email <> '' AND users.scim_client IS NULL THEN EXCLUDED.email ELSE users.email END,
 			attributes = CASE WHEN $6::jsonb IS NULL THEN users.attributes ELSE EXCLUDED.attributes END,
 			last_login_at = now(), updated_at = now()
 		RETURNING id, disabled`,

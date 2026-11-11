@@ -509,6 +509,34 @@ test('sign-in providers: several instances, mapping preview', async () => {
   errors.splice(logged, errors.length - logged, ...errors.slice(logged).filter((e) => !/status of 400/.test(e)));
 });
 
+test('SCIM provisioning clients', async () => {
+  const before = await call('GET', '/api/v1/admin/settings');
+  const oidc = before.config.plugin_settings?.['auth.oidc'] ?? {};
+  await call('PUT', '/api/v1/admin/settings', { plugin_settings: { 'auth.oidc': { ...oidc, issuer: 'https://idp.example.invalid', client_id: 'wiki' } } });
+  try {
+    await page.goto(`${BASE}/admin/scim`);
+    await idle();
+    await page.getByRole('button', { name: /^(add scim client|scim-zugang anlegen)$/i }).click();
+    const dlg = page.locator('dialog[open]');
+    await dlg.getByLabel(/^name/i).fill(`Entra ${run}`);
+    await a11y('add SCIM client');
+    await dlg.locator('button[type=submit]').click();
+    const tok = page.locator('dialog[open]', { hasText: /scim_|token/i });
+    await tok.getByLabel(/^token/i).waitFor();
+    assert.match(await tok.getByLabel(/^token/i).inputValue(), /^scim_/);
+    assert.match(await tok.getByLabel(/^(tenant url|tenant-url)/i).inputValue(), /\/scim\/v2$/);
+    await a11y('SCIM token');
+    await page.keyboard.press('Escape');
+    const row = page.locator('tr', { hasText: `Entra ${run}` });
+    await row.waitFor();
+    await row.getByRole('button', { name: /^(delete|löschen):/i }).click();
+    await page.locator('dialog[open]').getByRole('button', { name: /^(delete|löschen)$/i }).click();
+    await row.waitFor({ state: 'detached' });
+  } finally {
+    await call('PUT', '/api/v1/admin/settings', { plugin_settings: { 'auth.oidc': oidc } });
+  }
+});
+
 test('the simple editor as personal choice', async () => {
   await call('PUT', '/api/v1/me', { prefs: { editor: 'simple' } });
   try {

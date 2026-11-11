@@ -13,6 +13,7 @@ export function register(): void {
         { key: 'client_id', label: t('auth.oidc.client_id') },
         { key: 'client_secret', label: t('auth.oidc.client_secret'), type: 'secret', placeholder: '${OIDC_CLIENT_SECRET}' },
         { key: 'scopes', label: t('auth.oidc.scopes'), type: 'list', placeholder: 'openid, profile, email, groups' },
+        { key: 'claim_subject', label: t('auth.oidc.claim_subject'), placeholder: 'sub', help: t('auth.oidc.claim_subject_help') },
         { key: 'claim_username', label: t('auth.oidc.claim_username'), placeholder: 'preferred_username' },
         { key: 'claim_email', label: t('auth.oidc.claim_email'), placeholder: 'email' },
         { key: 'claim_display_name', label: t('auth.oidc.claim_display_name'), placeholder: 'name' },

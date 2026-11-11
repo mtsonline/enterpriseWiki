@@ -297,6 +297,10 @@ curl -H "Authorization: Bearer $KEY" -H 'Content-Type: application/json' \
 | `PUT` | `/api/v1/admin/license` |
 | `DELETE` | `/api/v1/admin/license` |
 | `POST` | `/api/v1/admin/auth/providers/{id}/preview` |
+| `GET` | `/api/v1/admin/scim/clients` |
+| `POST` | `/api/v1/admin/scim/clients` |
+| `POST` | `/api/v1/admin/scim/clients/{id}/token` |
+| `DELETE` | `/api/v1/admin/scim/clients/{id}` |
 | `GET` | `/api/v1/admin/demo` |
 | `POST` | `/api/v1/admin/demo` |
 | `DELETE` | `/api/v1/admin/demo` |

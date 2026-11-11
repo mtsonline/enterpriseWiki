@@ -646,6 +646,9 @@ func checkRouteCoverage(t *testing.T) {
 		"/readyz":                              true, // used by load balancers / orchestrators
 		"/api/v1/auth/sso/{provider}/callback": true, // called by the identity provider
 		"/api/v1/auth/sso/{provider}/logout":   true, // called by the identity provider (single logout)
+		// SCIM 2.0 service provider: called by directories (Entra ID, Okta)
+		"/scim/v2/ServiceProviderConfig": true, "/scim/v2/ResourceTypes": true, "/scim/v2/Schemas": true,
+		"/scim/v2/Users": true, "/scim/v2/Users/{id}": true, "/scim/v2/Groups": true, "/scim/v2/Groups/{id}": true,
 		// called by office servers (WOPI host, OnlyOffice Document Server)
 		"/api/v1/wopi/files/{id}":                   true,
 		"/api/v1/wopi/files/{id}/contents":          true,

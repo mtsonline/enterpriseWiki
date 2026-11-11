@@ -7,6 +7,7 @@
 //	client_id: enterprise-wiki
 //	client_secret: ${OIDC_CLIENT_SECRET}
 //	scopes: [openid, profile, email, groups]
+//	claim_subject: sub                  # stable id (Entra ID: oid; must match SCIM externalId)
 //	claim_username: preferred_username
 //	claim_email: email
 //	claim_display_name: name
@@ -188,7 +189,17 @@ func (p *Provider) Callback(ctx context.Context, r *http.Request, req *auth.SSOR
 			}
 		}
 	}
-	id := MapClaims(s, p.id, idt.Subject, claims)
+	// the stable id: sub, or another claim (e.g. oid of Entra ID, to match
+	// accounts provisioned by SCIM with externalId)
+	subject := idt.Subject
+	if cs := auth.Setting(s, "claim_subject", ""); cs != "" {
+		v, _ := claims[cs].(string)
+		if v == "" {
+			return nil, fmt.Errorf("the ID token has no claim %s", cs)
+		}
+		subject = v
+	}
+	id := MapClaims(s, p.id, subject, claims)
 	// for single logout: the provider session and the ID token as hint
 	id.SessionID, _ = claims["sid"].(string)
 	id.LogoutHint = raw
@@ -285,6 +296,12 @@ func (p *Provider) HandleLogout(ctx context.Context, r *http.Request, _ string) 
 		return nil, nil, fmt.Errorf("logout token: %w", err)
 	}
 	m := &auth.LogoutMatch{Subject: tok.Subject}
+	if auth.Setting(s, "claim_subject", "") != "" {
+		m.Subject = "" // accounts use another claim as subject: only sid identifies the session
+		if c.Sid == "" {
+			return nil, nil, errors.New("logout token: sid required (claim_subject is set)")
+		}
+	}
 	if c.Sid != "" {
 		m.SessionIDs = []string{c.Sid}
 	}

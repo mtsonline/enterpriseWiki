@@ -3,6 +3,7 @@ package server
 import (
 	"errors"
 	"net/http"
+	"strings"
 
 	"github.com/mtsonline/enterprisewiki/internal/apperr"
 	"github.com/mtsonline/enterprisewiki/internal/auth"
@@ -98,4 +99,45 @@ func (s *Server) routesProviderAdmin() {
 		}
 		return s.app.Auth.PreviewSignIn(r.Context(), r.PathValue("id"), in)
 	})
+}
+
+// routesScimAdmin: SCIM clients (administrators).
+func (s *Server) routesScimAdmin() {
+	s.handle("GET /api/v1/admin/scim/clients", func(w http.ResponseWriter, r *http.Request) (any, error) {
+		return s.app.Auth.ScimClients(r.Context())
+	})
+	s.handle("POST /api/v1/admin/scim/clients", func(w http.ResponseWriter, r *http.Request) (any, error) {
+		var in auth.ScimClient
+		if err := h.Decode(r, &in); err != nil {
+			return nil, err
+		}
+		c, tok, err := s.app.Auth.CreateScimClient(r.Context(), in)
+		if err != nil {
+			return nil, err
+		}
+		return h.Created{V: map[string]any{"client": c, "token": tok, "url": s.scimBase()}}, nil
+	})
+	s.handle("POST /api/v1/admin/scim/clients/{id}/token", func(w http.ResponseWriter, r *http.Request) (any, error) {
+		id, err := h.PathID(r, "id")
+		if err != nil {
+			return nil, err
+		}
+		tok, err := s.app.Auth.RenewScimToken(r.Context(), id)
+		if err != nil {
+			return nil, err
+		}
+		return map[string]any{"token": tok, "url": s.scimBase()}, nil
+	})
+	s.handle("DELETE /api/v1/admin/scim/clients/{id}", func(w http.ResponseWriter, r *http.Request) (any, error) {
+		id, err := h.PathID(r, "id")
+		if err != nil {
+			return nil, err
+		}
+		return h.NoContent{}, s.app.Auth.DeleteScimClient(r.Context(), id)
+	})
+}
+
+// scimBase is the tenant URL to enter in the directory.
+func (s *Server) scimBase() string {
+	return strings.TrimRight(s.app.Config.Get().Server.BaseURL, "/") + "/scim/v2"
 }

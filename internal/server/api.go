@@ -111,6 +111,8 @@ func (s *Server) routes() {
 	s.routesIdentity()
 	s.routesSessions()
 	s.routesProviderAdmin()
+	s.routesSCIM()
+	s.routesScimAdmin()
 	s.routesM3()
 	s.routesM4()
 	s.routesM6()

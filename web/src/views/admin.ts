@@ -13,7 +13,7 @@ import { canTranslateAny, hasPerm, isAdmin, isInstanceAdmin, state } from '../co
 import { globalEditor, loadCatalog, permLabel } from '../components/permissions';
 import { permissionsAdmin } from './adminPermissions';
 import { auditAdmin } from './adminAudit';
-import { adminIdentityDialog, inviteDialog } from './identity';
+import { adminIdentityDialog, inviteDialog, scimAdmin } from './identity';
 import type { Group, MediaViewers, Role } from '../core/types';
 import { toast } from '../core/announce';
 import { button, checkbox, confirmDialog, errorText, field, formDialog, openDialog, pageHeader, select, textArea, textInput } from '../components/ui';
@@ -27,11 +27,11 @@ import { sitesAdmin } from './adminSites';
 
 interface User { id: number; username: string; provider: string; handle: string; display_name: string; email: string; language: string; disabled: boolean; locked_until: string | null; created_at: string; last_login_at: string | null; groups: number[]; roles: number[]; totp_enabled: boolean; mfa_email: boolean; networks: string[] }
 
-const CORE_SECTIONS = ['users', 'groups', 'roles', 'permissions', 'elements', 'plugins', 'updates', 'settings', 'mail', 'webhooks', 'cache', 'languages', 'audit', 'watches', 'license', 'sites', 'demo'];
+const CORE_SECTIONS = ['users', 'scim', 'groups', 'roles', 'permissions', 'elements', 'plugins', 'updates', 'settings', 'mail', 'webhooks', 'cache', 'languages', 'audit', 'watches', 'license', 'sites', 'demo'];
 
 /** global permission of each administration page ('' = category managers too) */
 const SECTION_PERMS: Record<string, string> = {
-  users: 'core.users.manage', groups: 'core.groups.manage', roles: 'core.roles.manage', permissions: '',
+  users: 'core.users.manage', scim: 'core.users.manage', groups: 'core.groups.manage', roles: 'core.roles.manage', permissions: '',
   elements: 'core.elements.admin', plugins: 'core.plugins.manage', updates: 'core.plugins.manage', settings: 'core.settings.manage',
   mail: 'core.mail.manage', webhooks: 'core.webhooks.manage', cache: 'core.system.manage', languages: 'core.i18n.manage',
   audit: 'core.audit.view', watches: 'core.watches.assign', license: 'core.license.manage',
@@ -45,6 +45,7 @@ export function adminSections(): { id: string; label: string }[] {
     if (s === 'sites') return isInstanceAdmin();
     if (s === 'demo') return isAdmin();
     // license and plugin installation concern the whole instance
+    if (s === 'scim') return hasPerm(k) && (state.site.site === 'main' || isInstanceAdmin());
     if (s === 'license' || s === 'updates') return hasPerm(k) && (state.site.site === 'main' || isInstanceAdmin());
     return k === '' ? !!state.user && (isAdmin() || hasPerm('core.categories.admin') || state.managesCategories) : hasPerm(k);
   }).map((s) => ({ id: s, label: t(`admin.${s}`) }));
@@ -84,6 +85,7 @@ export async function adminView({ params, query, main }: RouteCtx): Promise<void
   try {
     switch (section) {
       case 'users': await users(panel, query); break;
+      case 'scim': await scimAdmin(panel); break;
       case 'groups': await groups(panel); break;
       case 'roles': await roles(panel); break;
       case 'permissions': await permissionsAdmin(panel, query); break;

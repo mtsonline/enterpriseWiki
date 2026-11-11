@@ -223,6 +223,24 @@ ProxyPass / http://127.0.0.1:8080/
 RequestHeader unset eppn early      # Header von außen verwerfen
 ```
 
+## SCIM 2.0: Bereitstellung aus dem Verzeichnis
+
+Microsoft Entra ID, Okta und andere Verzeichnisse legen über SCIM 2.0 (RFC 7643/7644) Personen und Gruppen an, ändern sie, sperren sie und entfernen sie, bevor sich jemand anmeldet. Einrichten unter *Administration → SCIM-Bereitstellung* oder per CLI:
+
+```bash
+ewiki scim create "Entra ID" --provider oidc-entra --subject-from externalId   # zeigt Tenant-URL und Token (einmalig)
+ewiki scim list | ewiki scim token 3 | ewiki scim delete 3
+```
+
+Im Verzeichnis tragen Sie als **Tenant-URL** `<server.base_url>/scim/v2` und als **Secret Token** das Token ein.
+
+- **Wiedererkennen bei der Anmeldung:** Jeder Zugang gehört zu einem Anmeldeverfahren (`--provider`). Bereitgestellte Konten bekommen dessen Anbieter-ID und als stabile ID das SCIM-Attribut `userName` oder `externalId`. Meldet sich die Person an, findet das Wiki das Konto über diese ID. Für **Entra ID mit OpenID Connect**: `--subject-from externalId` (Entra sendet die objectId) und beim OIDC-Anbieter `claim_subject: oid`. Bei Okta und Keycloak passt meist `userName` zum Benutzernamen beim Anbieter.
+- **Was SCIM darf:** Personen des eigenen Anmeldeverfahrens, die kein anderer Zugang verwaltet, und von ihm angelegte Gruppen. **Nie Administratoren und nie Rollen.** Welche Rollen eine bereitgestellte Gruppe bekommt, legen Administratoren unter *Gruppen* fest. Lokale Konten sind für SCIM unsichtbar.
+- **Name und Adressen** kommen aus dem Verzeichnis: Die Anmeldung überschreibt sie bei bereitgestellten Konten nicht. Adressen aus SCIM gelten als bestätigt. Sendet das Verzeichnis eine Adresse nicht mehr, wird sie entfernt. Eine Adresse, die ein anderes Konto bestätigt hat, wird abgelehnt (409).
+- **Sperren** (`active: false`) beendet alle Sitzungen sofort. **Löschen** sperrt das Konto (Standard) oder löscht es (`--on-delete delete`).
+- Unterstützt: Users und Groups mit GET (Filter `attribut eq "wert"` auf `userName`, `externalId`, `emails.value`, `displayName`, `id`; Paging), POST, PUT, PATCH (wie von Entra ID und Okta gesendet), DELETE. Nicht unterstützt: Bulk, Sortierung, ETags. Attribute, die das Wiki nicht kennt (z. B. die Enterprise-Erweiterung), werden ignoriert.
+- Sicherheit: Nur das Token des Zugangs authentifiziert, keine Sitzung und kein API-Key. Gespeichert wird nur sein Hash. Nach 30 falschen Tokens in 5 Minuten wird die IP-Adresse vorübergehend abgewiesen. Jede Änderung steht im Audit-Log als `scim:<Name>`. Bei mehreren Sites mit gemeinsamen Konten gibt es SCIM nur auf der Haupt-Site.
+
 ## Sitzungen
 
 - Eine Browser-Sitzung endet nach `auth.session_ttl` (Standard 7 Tage) und nach `auth.session_idle` ohne Aktivität (Standard 12 Stunden). Automatische Abfragen der Oberfläche (Benachrichtigungen) halten eine Sitzung nicht am Leben.
