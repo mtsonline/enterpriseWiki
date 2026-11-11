@@ -266,7 +266,7 @@ func (s *Service) Login(ctx context.Context, username, password, ip, ua string) 
 		if err := s.checkSignIn(ctx, uid, ip); err != nil {
 			return nil, err
 		}
-		res, err := s.afterFirstFactor(ctx, uid, ext.Provider, ext, "", ip, ua)
+		res, err := s.afterFirstFactor(ctx, uid, ext.Provider, ext, "", ip, ua, false)
 		if err != nil {
 			return nil, err
 		}

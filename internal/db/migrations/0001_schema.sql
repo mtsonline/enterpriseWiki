@@ -51,6 +51,7 @@ CREATE TABLE mfa_pending (
     chain      text NOT NULL,                     -- sign-in provider whose factors apply
     passed     int NOT NULL DEFAULT 1,            -- factors passed (factor 1 included)
     last_factor int NOT NULL DEFAULT 1,           -- number of the last factor passed
+    covered    int NOT NULL DEFAULT 0,            -- factor numbers up to this one covered (a factor counting two)
     sso        jsonb NOT NULL DEFAULT '{}',
     next       text NOT NULL DEFAULT '/',
     data       jsonb NOT NULL DEFAULT '{}',

@@ -182,7 +182,10 @@ type MFAFactor struct {
 	Passwordless  bool   `json:"passwordless"` // may be factor 1
 	Enroll        bool   `json:"enroll"`       // set up in the browser
 	Silent        bool   `json:"silent"`       // decided without the person
-	m             MFAMethod
+	// CountsTwo: passing it also covers the next factor of the chain
+	// (only password-less methods, which check the person themselves).
+	CountsTwo bool `json:"counts_two"`
+	m         MFAMethod
 }
 
 // factorOf returns the configured factor number of a method.
@@ -199,6 +202,16 @@ func (s *Service) factorOf(r registeredMFA) int {
 	return f
 }
 
+// countsTwo reports whether a method counts as two factors (plugin
+// setting "counts_two"; only password-less methods with user verification).
+func (s *Service) countsTwo(r registeredMFA) bool {
+	if _, ok := r.m.(PasswordlessMethod); !ok {
+		return false
+	}
+	v, ok := s.cfg.Get().Settings[r.pluginID]["counts_two"].(bool)
+	return ok && v
+}
+
 // MFAFactors lists all factors (also of disabled plugins), by factor.
 func (s *Service) MFAFactors() []MFAFactor {
 	s.mu.RLock()
@@ -210,7 +223,7 @@ func (s *Service) MFAFactors() []MFAFactor {
 		_, en := r.m.(MFAEnroller)
 		_, si := r.m.(MFASilent)
 		out = append(out, MFAFactor{ID: r.m.ID(), Plugin: r.pluginID, Factor: s.factorOf(r), DefaultFactor: r.m.DefaultFactor(),
-			Enabled: s.enabled(r.pluginID), Passwordless: pl, Enroll: en, Silent: si, m: r.m})
+			Enabled: s.enabled(r.pluginID), Passwordless: pl, Enroll: en, Silent: si, CountsTwo: s.countsTwo(r), m: r.m})
 	}
 	slices.SortStableFunc(out, func(a, b MFAFactor) int { return a.Factor - b.Factor })
 	return out
@@ -328,6 +341,7 @@ type pending struct {
 	data   map[string]string
 	passed int // factors passed (factor 1 included)
 	last   int // number of the last factor passed
+	cover  int // factor numbers up to this one are covered (a factor counting two)
 }
 
 func (s *Service) loadPending(ctx context.Context, token string) (*pending, error) {
@@ -335,8 +349,8 @@ func (s *Service) loadPending(ctx context.Context, token string) (*pending, erro
 		return nil, ErrMFAExpired
 	}
 	p := &pending{token: token}
-	err := s.pool.QueryRow(ctx, `SELECT user_id, chain, sso, next, data, passed, last_factor FROM mfa_pending
-		WHERE token_hash=$1 AND expires_at > now()`, HashToken(token)).Scan(&p.uid, &p.chain, &p.sso, &p.next, &p.data, &p.passed, &p.last)
+	err := s.pool.QueryRow(ctx, `SELECT user_id, chain, sso, next, data, passed, last_factor, covered FROM mfa_pending
+		WHERE token_hash=$1 AND expires_at > now()`, HashToken(token)).Scan(&p.uid, &p.chain, &p.sso, &p.next, &p.data, &p.passed, &p.last, &p.cover)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, ErrMFAExpired
 	}
@@ -347,7 +361,7 @@ func (s *Service) loadPending(ctx context.Context, token string) (*pending, erro
 }
 
 func (s *Service) savePending(ctx context.Context, p *pending) error {
-	_, err := s.pool.Exec(ctx, `UPDATE mfa_pending SET passed=$2, last_factor=$3, data=$4 WHERE token_hash=$1`, HashToken(p.token), p.passed, p.last, p.data)
+	_, err := s.pool.Exec(ctx, `UPDATE mfa_pending SET passed=$2, last_factor=$3, data=$4, covered=$5 WHERE token_hash=$1`, HashToken(p.token), p.passed, p.last, p.data, p.cover)
 	return err
 }
 
@@ -391,6 +405,15 @@ func (s *Service) nextStep(ctx context.Context, p *pending, ip string) (*MFAStep
 				enrollable = append(enrollable, f.ID)
 			}
 		}
+		if n <= p.cover {
+			// covered by a factor counting two: only a network that
+			// cannot be replaced by anything still decides
+			if silentFail && !silentPass && len(interactive) == 0 {
+				_ = audit.Log(identity.With(ctx, &identity.Principal{UserID: p.uid}), s.pool, "auth.network_denied", "user", p.uid, nil, map[string]string{"ip": ip})
+				return nil, ErrNetworkDenied
+			}
+			continue
+		}
 		switch {
 		case silentPass:
 			p.passed, p.last = p.passed+1, n
@@ -423,7 +446,7 @@ type SignInResult struct {
 
 // afterFirstFactor continues a sign-in whose factor 1 was passed: further
 // factors of the chain of provider (chain), or the session.
-func (s *Service) afterFirstFactor(ctx context.Context, uid int64, chain string, ext *ExternalIdentity, next, ip, ua string) (*SignInResult, error) {
+func (s *Service) afterFirstFactor(ctx context.Context, uid int64, chain string, ext *ExternalIdentity, next, ip, ua string, two bool) (*SignInResult, error) {
 	sso := pendingSSO{}
 	if ext != nil {
 		sso = pendingSSO{ext.Provider, ext.Subject, ext.SessionID, ext.LogoutHint}
@@ -432,8 +455,11 @@ func (s *Service) afterFirstFactor(ctx context.Context, uid int64, chain string,
 		}
 	}
 	p := &pending{token: NewToken(""), uid: uid, chain: chain, sso: sso, next: SafeNext(next), data: map[string]string{}, passed: 1, last: 1}
-	if _, err := s.pool.Exec(ctx, `INSERT INTO mfa_pending(token_hash, user_id, chain, sso, next, passed, last_factor, expires_at)
-		VALUES ($1,$2,$3,$4,$5,1,1,$6)`, HashToken(p.token), uid, chain, sso, p.next, time.Now().Add(mfaPendingTTL)); err != nil {
+	if two {
+		p.passed, p.cover = 2, s.nextFactorNumber(chain, 1)
+	}
+	if _, err := s.pool.Exec(ctx, `INSERT INTO mfa_pending(token_hash, user_id, chain, sso, next, passed, last_factor, covered, expires_at)
+		VALUES ($1,$2,$3,$4,$5,$6,1,$7,$8)`, HashToken(p.token), uid, chain, sso, p.next, p.passed, p.cover, time.Now().Add(mfaPendingTTL)); err != nil {
 		return nil, err
 	}
 	step, err := s.nextStep(ctx, p, ip)
@@ -527,9 +553,26 @@ func (s *Service) countAttempt(ctx context.Context, token string) error {
 	return nil
 }
 
+// nextFactorNumber is the factor number following n in the chain (0: none).
+func (s *Service) nextFactorNumber(provider string, n int) int {
+	chain, _ := s.chainFor(provider)
+	next := 0
+	for _, f := range chain {
+		if f.Factor > n && (next == 0 || f.Factor < next) {
+			next = f.Factor
+		}
+	}
+	return next
+}
+
 // advance records a passed factor and returns the next step or the session.
-func (s *Service) advance(ctx context.Context, p *pending, factor int, ip, ua string) (*MFAResult, error) {
+func (s *Service) advance(ctx context.Context, p *pending, f MFAFactor, ip, ua string) (*MFAResult, error) {
+	factor := f.Factor
 	p.passed, p.last = p.passed+1, factor
+	if f.CountsTwo {
+		p.passed++
+		p.cover = max(p.cover, s.nextFactorNumber(p.chain, factor))
+	}
 	if err := s.savePending(ctx, p); err != nil {
 		return nil, err
 	}
@@ -564,7 +607,7 @@ func (s *Service) CompleteMFA(ctx context.Context, token, method string, answer 
 		return nil, err
 	}
 	delete(p.data, method)
-	return s.advance(ctx, p, f.Factor, ip, ua)
+	return s.advance(ctx, p, f, ip, ua)
 }
 
 // MFAEnrollBegin starts setting up a factor during a sign-in that needs
@@ -605,7 +648,7 @@ func (s *Service) MFAEnrollFinish(ctx context.Context, token, method string, ans
 	}
 	delete(p.data, "enroll:"+method)
 	_ = audit.Log(identity.With(ctx, &identity.Principal{UserID: p.uid}), s.pool, "mfa.enroll", "user", p.uid, nil, map[string]string{"method": method, "during": "sign-in"})
-	return s.advance(ctx, p, f.Factor, ip, ua)
+	return s.advance(ctx, p, f, ip, ua)
 }
 
 // ---------------------------------------------------------------- setting up factors in the profile
@@ -772,11 +815,12 @@ func (s *Service) PasswordlessFinish(ctx context.Context, token string, answer j
 		return nil, apperr.ErrInvalidLogin
 	}
 	chain, _ := s.chainFor(provider)
-	if !slices.ContainsFunc(chain, func(f MFAFactor) bool { return f.ID == method && f.Factor == 1 }) {
+	i := slices.IndexFunc(chain, func(f MFAFactor) bool { return f.ID == method && f.Factor == 1 })
+	if i < 0 {
 		return nil, apperr.Forbidden("this account cannot sign in with %s", method)
 	}
 	_, _ = s.pool.Exec(ctx, `UPDATE users SET last_login_at=now() WHERE id=$1`, uid)
-	return s.afterFirstFactor(ctx, uid, provider, &ExternalIdentity{Provider: method}, "", ip, ua)
+	return s.afterFirstFactor(ctx, uid, provider, &ExternalIdentity{Provider: method}, "", ip, ua, chain[i].CountsTwo)
 }
 
 // newSession creates a browser session for uid after a complete sign-in.

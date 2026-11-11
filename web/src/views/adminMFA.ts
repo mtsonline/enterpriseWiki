@@ -8,7 +8,7 @@ import { toast } from '../core/announce';
 import { mfaMethodUI } from '../core/mfa';
 import { button, checkbox, errorText, field, formDialog, pageHeader, textInput } from '../components/ui';
 
-interface Factor { id: string; plugin: string; factor: number; default_factor: number; enabled: boolean; passwordless: boolean; enroll: boolean; silent: boolean }
+interface Factor { id: string; plugin: string; factor: number; default_factor: number; enabled: boolean; passwordless: boolean; enroll: boolean; silent: boolean; counts_two: boolean }
 interface ProviderChain { id: string; name: string; kind: string; methods: string[] | null; required: number }
 interface MFAConfig { factors: Factor[]; providers: ProviderChain[] }
 
@@ -29,12 +29,13 @@ export async function askFactor(plugin: string): Promise<boolean> {
   try { cfg = await api.get<MFAConfig>('admin/mfa'); } catch { return true; }
   const fs = cfg.factors.filter((f) => f.plugin === plugin);
   if (!fs.length) return true;
-  const inputs = fs.map((f) => ({ f, i: numberInput(f.factor || f.default_factor, f.passwordless ? 1 : 2) }));
+  const inputs = fs.map((f) => ({ f, i: numberInput(f.factor || f.default_factor, f.passwordless ? 1 : 2),
+    two: f.passwordless ? checkbox(t('mfa.admin.counts_two_of', { name: factorName(f) }), f.counts_two, { help: t('mfa.admin.counts_two_help') }) : null }));
   return new Promise((resolve) => {
     let ok = false;
     formDialog(t('mfa.admin.enable_title'), [h('p', null, t('mfa.admin.enable_help')),
-      ...inputs.map(({ f, i }) => field(t('mfa.admin.factor_of', { name: factorName(f) }), i,
-        { required: true, help: f.passwordless ? t('mfa.admin.factor_help_first') : t('mfa.admin.factor_help') }))],
+      ...inputs.flatMap(({ f, i, two }) => [field(t('mfa.admin.factor_of', { name: factorName(f) }), i,
+        { required: true, help: f.passwordless ? t('mfa.admin.factor_help_first') : t('mfa.admin.factor_help') }), two?.el ?? ''])],
     t('plugins.enable'), async () => {
       const factors: Record<string, number> = {};
       for (const { i } of inputs) {
@@ -42,7 +43,8 @@ export async function askFactor(plugin: string): Promise<boolean> {
         if (!Number.isInteger(n) || n < Number(i.min) || n > 9) { i.focus(); throw new Error(t('mfa.admin.factor_invalid', { min: i.min })); }
       }
       factors[plugin] = Number(inputs[0].i.value);
-      await api.put('admin/mfa', { factors });
+      const two = inputs[0].two;
+      await api.put('admin/mfa', { factors, ...(two ? { counts_two: { [plugin]: two.input.checked } } : {}) });
       ok = true;
     }, { onClose: () => resolve(ok) });
   });
@@ -51,15 +53,18 @@ export async function askFactor(plugin: string): Promise<boolean> {
 export async function mfaAdmin(panel: HTMLElement): Promise<void> {
   const cfg = await api.get<MFAConfig>('admin/mfa');
   const active = cfg.factors.filter((f) => f.enabled);
-  const factorInputs = cfg.factors.map((f) => ({ f, i: numberInput(f.factor, f.passwordless ? 1 : 2) }));
+  const factorInputs = cfg.factors.map((f) => ({ f, i: numberInput(f.factor, f.passwordless ? 1 : 2),
+    two: f.passwordless ? checkbox(t('mfa.admin.counts_two'), f.counts_two) : null }));
   const factorTable = h('table', { class: 'ew-table' }, h('caption', { class: 'sr-only' }, t('mfa.admin.factors')),
     h('thead', null, h('tr', null, h('th', { scope: 'col' }, t('mfa.admin.method')), h('th', { scope: 'col' }, t('mfa.admin.plugin')),
-      h('th', { scope: 'col' }, t('mfa.admin.factor')), h('th', { scope: 'col' }, t('mfa.admin.status')))),
-    h('tbody', null, ...(factorInputs.length ? factorInputs.map(({ f, i }) => {
+      h('th', { scope: 'col' }, t('mfa.admin.factor')), h('th', { scope: 'col' }, t('mfa.admin.counts')), h('th', { scope: 'col' }, t('mfa.admin.status')))),
+    h('tbody', null, ...(factorInputs.length ? factorInputs.map(({ f, i, two }) => {
       i.setAttribute('aria-label', t('mfa.admin.factor_of', { name: factorName(f) }));
+      two?.input.setAttribute('aria-label', t('mfa.admin.counts_two_of', { name: factorName(f) }));
       return h('tr', null, h('th', { scope: 'row' }, factorName(f)), h('td', null, h('code', null, f.plugin)), h('td', null, i),
+        h('td', null, two ? two.el : t('mfa.admin.counts_one')),
         h('td', null, f.enabled ? t('mfa.admin.on') : t('mfa.admin.off'), f.silent ? ` · ${t('mfa.admin.silent')}` : '', f.passwordless ? ` · ${t('mfa.admin.passwordless')}` : ''));
-    }) : [h('tr', null, h('td', { colspan: '4' }, t('mfa.admin.no_factors')))])));
+    }) : [h('tr', null, h('td', { colspan: '5' }, t('mfa.admin.no_factors')))])));
 
   const provs = cfg.providers.map((p) => {
     const all = checkbox(t('mfa.admin.all'), p.methods === null, { help: t('mfa.admin.all_help') });
@@ -83,7 +88,9 @@ export async function mfaAdmin(panel: HTMLElement): Promise<void> {
     ev.preventDefault();
     alert.textContent = '';
     const factors: Record<string, number> = {};
-    for (const { f, i } of factorInputs) {
+    const countsTwo: Record<string, boolean> = {};
+    for (const { f, i, two } of factorInputs) {
+      if (two) countsTwo[f.plugin] = two.input.checked;
       const n = Number(i.value);
       if (!Number.isInteger(n) || n < Number(i.min) || n > 9) { alert.textContent = t('mfa.admin.factor_invalid', { min: i.min }); i.focus(); return; }
       factors[f.plugin] = n;
@@ -91,7 +98,7 @@ export async function mfaAdmin(panel: HTMLElement): Promise<void> {
     const providers: Record<string, unknown> = {};
     for (const x of provs) providers[x.p.id] = x.get();
     try {
-      await api.put('admin/mfa', { factors, providers });
+      await api.put('admin/mfa', { factors, counts_two: countsTwo, providers });
       toast(t('common.saved'));
       await mfaAdmin(panel);
     } catch (e) { alert.textContent = errorText(e); alert.scrollIntoView({ block: 'nearest' }); }

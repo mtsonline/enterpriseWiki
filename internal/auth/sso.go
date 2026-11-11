@@ -189,7 +189,7 @@ func (s *Service) completeSSO(ctx context.Context, ext *ExternalIdentity, next, 
 		return nil, err
 	}
 	// further factors of this provider's chain
-	res, err := s.afterFirstFactor(ctx, uid, ext.Provider, ext, next, ip, ua)
+	res, err := s.afterFirstFactor(ctx, uid, ext.Provider, ext, next, ip, ua, false)
 	if err != nil {
 		return nil, err
 	}

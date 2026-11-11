@@ -274,6 +274,7 @@ Jeder weitere Faktor der Anmeldung ist ein **MFA-Plugin**. Die Kette gilt für *
 
 - Faktoren mit **derselben Nummer** sind Alternativen: Die Person wählt einen davon.
 - **Höhere Nummern** werden danach abgefragt, aufsteigend. So entstehen beliebig lange Ketten, z. B. Passwort → App oder E-Mail (2) → Sicherheitsschlüssel (3).
+- **Gilt als zwei Faktoren** (nur Passkeys, Einstellung `counts_two`, beim Einschalten und unter *Anmeldefaktoren* wählbar): Das Gerät prüft die Person selbst (PIN, Biometrie). Ein Passkey zählt dann doppelt und deckt auch die folgende Stufe der Kette ab – z. B. Passkey statt Passwort **und** App. Nur erlaubte Netze, für die es in dieser Stufe keine Alternative gibt, entscheiden weiterhin.
 - **Faktor 1** steht neben dem Passwort bzw. dem Anmeldeverfahren und ist nur für Plugins erlaubt, die selbst die Person feststellen (Passkeys). Ein Passkey gilt nur, wenn Faktor 1 in der Kette des Anmeldeverfahrens seines Kontos enthalten ist.
 
 **Pro Anmeldeverfahren (Instanz).** Unter *Administration → Anmeldefaktoren* wählen Sie für jede Instanz (z. B. `local`, `oidc-1`, `ldap-2`):
@@ -287,7 +288,7 @@ In der Konfiguration stehen die Werte in den Plugin-Einstellungen: `factor` beim
 plugin_settings:
   mfa.totp:   { factor: 2 }
   mfa.email:  { factor: 2 }
-  mfa.webauthn: { factor: 1 }
+  mfa.webauthn: { factor: 1, counts_two: true }
   auth.local: { mfa_methods: [totp, webauthn], mfa_required: 2 }
   auth.oidc:  { mfa_methods: [] }   # der Identity Provider macht MFA
 ```

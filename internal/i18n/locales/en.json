@@ -1700,5 +1700,11 @@
  "mfa.admin.all_help": "Also factors switched on later.",
  "mfa.admin.methods": "Factors of this sign-in method",
  "mfa.admin.required": "Factors needed",
- "mfa.admin.required_help": "1 = the first factor is enough (further factors only for people who set them up); 2 = at least one further factor, and so on."
+ "mfa.admin.required_help": "1 = the first factor is enough (further factors only for people who set them up); 2 = at least one further factor, and so on.",
+ "mfa.admin.counts": "Counts as",
+ "mfa.admin.counts_one": "one factor",
+ "mfa.admin.counts_two": "two factors",
+ "mfa.admin.counts_two_of": "{name} counts as two factors",
+ "mfa.admin.counts_two_help": "The device checks the person itself (PIN, fingerprint, face): the passkey also covers the following factor of the chain.",
+ "mfa.counts_two": "counts as two factors"
 }

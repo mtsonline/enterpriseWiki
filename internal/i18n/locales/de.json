@@ -1750,5 +1750,11 @@
  "mfa.admin.all_help": "Auch später eingeschaltete Faktoren.",
  "mfa.admin.methods": "Faktoren dieses Anmeldeverfahrens",
  "mfa.admin.required": "Nötige Faktoren",
- "mfa.admin.required_help": "1 = der erste Faktor genügt (weitere nur für Personen, die sie eingerichtet haben); 2 = mindestens ein weiterer Faktor usw."
+ "mfa.admin.required_help": "1 = der erste Faktor genügt (weitere nur für Personen, die sie eingerichtet haben); 2 = mindestens ein weiterer Faktor usw.",
+ "mfa.admin.counts": "Zählt als",
+ "mfa.admin.counts_one": "ein Faktor",
+ "mfa.admin.counts_two": "zwei Faktoren",
+ "mfa.admin.counts_two_of": "{name} gilt als zwei Faktoren",
+ "mfa.admin.counts_two_help": "Das Gerät prüft die Person selbst (PIN, Fingerabdruck, Gesicht): Der Passkey deckt auch den folgenden Faktor der Kette ab.",
+ "mfa.counts_two": "zählt als zwei Faktoren"
 }

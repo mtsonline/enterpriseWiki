@@ -9,6 +9,7 @@ import (
 	"encoding/base64"
 	"encoding/binary"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 	"net/url"
@@ -196,6 +197,57 @@ func TestWebAuthn(t *testing.T) {
 		t.Fatalf("other origin: %d", got)
 	}
 	key.origin = origin
+
+	// with an authenticator app (factor 2) the passkey sign-in asks for it ...
+	secret := enrollTOTP(t, w)
+	passkey := func() (int, map[string]any) {
+		c := e.client()
+		c.must("POST", "/api/v1/auth/passwordless/webauthn/begin", nil, &begin, 200)
+		return c.rawJSON("POST", "/api/v1/auth/passwordless/webauthn/finish", map[string]any{"token": begin.Token, "credential": key.get(begin.Options)})
+	}
+	if st, _ := passkey(); st != 401 {
+		t.Fatalf("passkey then app: %d", st)
+	}
+	// ... unless the passkey counts as two factors (only password-less methods may)
+	admin.must("PUT", "/api/v1/admin/mfa", map[string]any{"counts_two": map[string]bool{"mfa.totp": true}}, nil, 400)
+	admin.must("PUT", "/api/v1/admin/mfa", map[string]any{"counts_two": map[string]bool{"mfa.webauthn": true}}, nil, 200)
+	if st, out := passkey(); st != 200 {
+		t.Fatalf("passkey counting two: %d %v", st, out)
+	}
+	// it also fulfils a requirement of two factors; three still need the app
+	setChain(t, admin, "local", nil, 2)
+	if st, _ := passkey(); st != 200 {
+		t.Fatalf("passkey for two required factors: %d", st)
+	}
+	admin.must("PUT", "/api/v1/admin/mfa", map[string]any{"factors": map[string]int{"mfa.email": 3}}, nil, 200)
+	setChain(t, admin, "local", nil, 3)
+	if st, _ := passkey(); st != 401 {
+		t.Fatal("three factors with a passkey alone")
+	}
+	// the password alone still needs the app; a network that is not met still refuses
+	c := e.client()
+	tok0 := c.pendingMFA("wendy", "Wendy-Passw0rd!")
+	if st := c.mfaInfo(tok0); st.Factor != 2 {
+		t.Fatalf("password then: %+v", st)
+	}
+	setChain(t, admin, "local", nil, 1)
+	admin.must("PUT", "/api/v1/admin/mfa", map[string]any{"factors": map[string]int{"mfa.email": 2}}, nil, 200)
+	e.setPluginSettings(t, "mfa.network", map[string]any{"factor": 2, "enforce_always": false})
+	admin.must("PUT", fmt.Sprintf("/api/v1/x/mfa.network/users/%d", u.ID), map[string]any{"networks": []string{"192.0.2.0/24"}}, nil, 200)
+	if st, _ := passkey(); st != 200 {
+		t.Fatalf("passkey covers app or network: %d", st)
+	}
+	_ = secret
+	// a network that nothing can replace still decides
+	w.must("DELETE", "/api/v1/x/mfa.totp/me", nil, nil, 204)
+	if st, _ := passkey(); st != 403 {
+		t.Fatalf("passkey from outside the networks: %d", st)
+	}
+	admin.must("PUT", fmt.Sprintf("/api/v1/x/mfa.network/users/%d", u.ID), map[string]any{"networks": []string{}}, nil, 200)
+	if st, _ := passkey(); st != 200 {
+		t.Fatalf("without networks: %d", st)
+	}
+	admin.must("PUT", "/api/v1/admin/mfa", map[string]any{"counts_two": map[string]bool{"mfa.webauthn": false}}, nil, 200)
 
 	// as factor 2 the key confirms a password sign-in; no passkey sign-in then
 	setFactor(t, admin, "mfa.webauthn", 2)

@@ -39,7 +39,9 @@ type MFAProviderUpdate struct {
 
 // MFAConfigUpdate changes factor numbers (by plugin id) and provider chains.
 type MFAConfigUpdate struct {
-	Factors   map[string]int               `json:"factors"`
+	Factors map[string]int `json:"factors"`
+	// CountsTwo: a password-less factor (passkey) counts as two factors
+	CountsTwo map[string]bool              `json:"counts_two"`
 	Providers map[string]MFAProviderUpdate `json:"providers"`
 }
 
@@ -132,6 +134,20 @@ func (s *Service) SetMFAConfig(ctx context.Context, in MFAConfigUpdate) error {
 		}
 		numbers[f.ID] = n
 	}
+	two := map[string]bool{} // factor id -> counts two after the change
+	for _, f := range factors {
+		two[f.ID] = f.CountsTwo
+	}
+	for plugin, v := range in.CountsTwo {
+		f, ok := byPlugin[plugin]
+		if !ok {
+			return apperr.BadRequest("%s is not a factor plugin", plugin)
+		}
+		if v && !f.Passwordless {
+			return apperr.BadRequest("%s cannot count as two factors: only methods that check the person themselves (passkeys)", f.ID)
+		}
+		two[f.ID] = v
+	}
 	type target struct {
 		id, plugin, base string
 		upd              MFAProviderUpdate
@@ -152,12 +168,16 @@ func (s *Service) SetMFAConfig(ctx context.Context, in MFAConfigUpdate) error {
 		}
 		// enough factor numbers for the requirement
 		levels := map[int]bool{1: true}
+		extra := 0
 		for _, f := range factors {
 			if f.Enabled && (upd.All || slices.Contains(upd.Methods, f.ID)) {
 				levels[numbers[f.ID]] = true
+				if two[f.ID] {
+					extra = 1
+				}
 			}
 		}
-		if upd.Required > len(levels) {
+		if upd.Required > len(levels)+extra {
 			return apperr.BadRequest("%s: %d factors required, but its chain has only %d", id, upd.Required, len(levels))
 		}
 		targets = append(targets, target{id, plugin, base, upd})
@@ -171,6 +191,12 @@ func (s *Service) SetMFAConfig(ctx context.Context, in MFAConfigUpdate) error {
 				c.Settings[plugin] = map[string]any{}
 			}
 			c.Settings[plugin]["factor"] = n
+		}
+		for plugin, v := range in.CountsTwo {
+			if c.Settings[plugin] == nil {
+				c.Settings[plugin] = map[string]any{}
+			}
+			c.Settings[plugin]["counts_two"] = v
 		}
 		for _, t := range targets {
 			if c.Settings[t.plugin] == nil {

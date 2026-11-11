@@ -426,7 +426,7 @@ export async function profileView({ main }: RouteCtx): Promise<void> {
         h('tbody', null, ...(sshRows.length ? sshRows : [h('tr', null, h('td', { colspan: '5' }, t('ssh.none')))])))));
 }
 
-interface MFAChainFactor { id: string; factor: number; passwordless: boolean; silent: boolean }
+interface MFAChainFactor { id: string; factor: number; passwordless: boolean; silent: boolean; counts_two?: boolean }
 
 /** The factors of the own sign-in: overview and the part of each factor. */
 async function mfaSections(): Promise<HTMLElement[]> {
@@ -434,7 +434,7 @@ async function mfaSections(): Promise<HTMLElement[]> {
   const head = h('h2', { id: 'mfa-h' }, t('mfa.title'));
   if (!st.applies) return [h('section', { class: 'ew-section', 'aria-labelledby': 'mfa-h' }, head, h('p', null, t('mfa.by_provider')))];
   const numbers = [...new Set([1, ...st.chain.map((f) => f.factor)])].sort((a, b) => a - b);
-  const name = (f: MFAChainFactor) => mfaMethodUI(f.id)?.label() ?? f.id;
+  const name = (f: MFAChainFactor) => (mfaMethodUI(f.id)?.label() ?? f.id) + (f.counts_two ? ` (${t('mfa.counts_two')})` : '');
   const overview = h('ol', { class: 'ew-mfa-chain' }, ...numbers.map((n) => {
     const fs = st.chain.filter((f) => f.factor === n);
     const names = [...(n === 1 ? [t('mfa.first_factor')] : []), ...fs.map((f) => name(f) + (st.methods.includes(f.id) ? ` (${t('mfa.set_up')})` : ''))];
