@@ -178,7 +178,7 @@ func watermarked(m *Medium) bool {
 
 // modesFor decides what the caller may do with m in o: never more than the
 // rights (perms) allow.
-func modesFor(ctx context.Context, o Opener, m *Medium, perms Perm) (modes []string, restricted bool) {
+func (s *Service) modesFor(ctx context.Context, o Opener, m *Medium, perms Perm) (modes []string, restricted bool) {
 	view, edit := o.Supports(ctx, m.Name, m.Mime)
 	if !view && !edit {
 		return nil, false
@@ -188,7 +188,7 @@ func modesFor(ctx context.Context, o Opener, m *Medium, perms Perm) (modes []str
 	if op, ok := o.(OptionsProvider); ok {
 		readOnly = op.Options().ReadOnlyWithoutDownload
 	}
-	if watermarked(m) && perms&Manage == 0 {
+	if s.watermarked(ctx, m) && perms&Manage == 0 {
 		// the program gets the original: only for viewing with its own
 		// watermark and without any way to take the file out
 		if view && caps.Watermark && caps.Restrict {
@@ -220,7 +220,7 @@ func (s *Service) OpenOptions(ctx context.Context, id int64, defViewer string, e
 	out := []OpenOption{{Viewer: Internal, Label: "Browser", Modes: []string{ModeView}, Restricted: perms&Download == 0,
 		Default: defViewer == "" || defViewer == Internal}}
 	for _, o := range s.Openers() {
-		modes, restricted := modesFor(ctx, o, m, perms)
+		modes, restricted := s.modesFor(ctx, o, m, perms)
 		if len(modes) == 0 {
 			continue
 		}
@@ -274,7 +274,7 @@ func (s *Service) Open(ctx context.Context, id int64, in OpenInput) (*OpenResult
 	if o == nil {
 		return nil, apperr.BadRequest("unknown or inactive program")
 	}
-	modes, restricted := modesFor(ctx, o, m, perms)
+	modes, restricted := s.modesFor(ctx, o, m, perms)
 	if len(modes) == 0 {
 		return nil, apperr.New(403, "not_allowed", "this file cannot be opened in this program with your rights")
 	}
@@ -297,7 +297,7 @@ func (s *Service) Open(ctx context.Context, id int64, in OpenInput) (*OpenResult
 	if l.UserName == "" {
 		l.UserName = "Guest"
 	}
-	if watermarked(m) && perms&Manage == 0 {
+	if s.watermarked(ctx, m) && perms&Manage == 0 {
 		l.Watermark = s.watermarkText(ctx, m)
 	}
 	a, err := o.Launch(ctx, l)
@@ -311,10 +311,18 @@ func (s *Service) Open(ctx context.Context, id int64, in OpenInput) (*OpenResult
 // watermarkText is the text an office program shows over a watermarked file.
 func (s *Service) watermarkText(ctx context.Context, m *Medium) string {
 	name, t := viewerName(ctx), time.Now()
-	if m.Watermark.Mode == WMUploaderView {
+	spec := m.Watermark
+	if !watermarked(m) { // watermark of the category (confidential): name and time
+		spec = WatermarkSpec{Mode: WMViewerAll, User: true, Date: true, Comment: spec.Comment}
+	} else if m.Watermark.Mode == WMUploaderView {
 		name, t = s.userName(ctx, m.CreatedBy), m.CreatedAt
 	}
-	return strings.Join(lines(m.Watermark, name, t), " · ")
+	return strings.Join(lines(spec, name, t), " · ")
+}
+
+// watermarked: the medium's own watermark, or the one of its (confidential) category.
+func (s *Service) watermarked(ctx context.Context, m *Medium) bool {
+	return watermarked(m) || s.marked(ctx, m.CategoryID)
 }
 
 // ---------------------------------------------------------------- tokens
@@ -402,7 +410,7 @@ func (s *Service) TokenContext(ctx context.Context, id int64, tok string) (conte
 		return ctx, nil, nil, ErrBadToken
 	}
 	// rights or file settings changed since the token was issued
-	modes, restricted := modesFor(ctx, s.Opener(t.Viewer), m, perms)
+	modes, restricted := s.modesFor(ctx, s.Opener(t.Viewer), m, perms)
 	if !slices.Contains(modes, t.Mode) || (restricted && !t.Restricted) {
 		return ctx, nil, nil, ErrBadToken
 	}
@@ -525,7 +533,7 @@ func (s *Service) Unlock(ctx context.Context, id int64, lock string) error {
 // OfficeWatermark returns the text an office program must show over m for
 // the caller ("" = none; ctx from TokenContext).
 func (s *Service) OfficeWatermark(ctx context.Context, m *Medium) string {
-	if !watermarked(m) {
+	if !s.watermarked(ctx, m) {
 		return ""
 	}
 	perms, err := s.Perms(ctx, m)

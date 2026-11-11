@@ -299,6 +299,34 @@ func TestOfficeWOPI(t *testing.T) {
 		t.Fatalf("editing a watermarked original without manage: %d", c)
 	}
 
+	// a confidential category: the office program too shows the viewer's name
+	admin.must("PUT", fmt.Sprintf("/api/v1/categories/%d", cat.ID), map[string]any{"classification": 2}, nil, 200)
+	ec.must("POST", fmt.Sprintf("/api/v1/media/%d/open", other.ID), map[string]string{"viewer": "office.collabora"}, &eo, 200)
+	r = f.call(t, e, base, "GET", fmt.Sprintf("/api/v1/wopi/files/%d", other.ID), eo.Action.Form["access_token"], nil, nil, true)
+	info = map[string]any{}
+	_ = json.Unmarshal(r.body, &info)
+	if !eo.Restricted || !strings.Contains(fmt.Sprint(info["WatermarkText"]), "Eve") {
+		t.Fatalf("confidential category in office: %+v %s", eo, r.body)
+	}
+	// the original when the category chooses it
+	admin.must("PUT", fmt.Sprintf("/api/v1/categories/%d", cat.ID), map[string]any{"watermark": "off"}, nil, 200)
+	ec.must("POST", fmt.Sprintf("/api/v1/media/%d/open", other.ID), map[string]string{"viewer": "office.collabora"}, &eo, 200)
+	r = f.call(t, e, base, "GET", fmt.Sprintf("/api/v1/wopi/files/%d", other.ID), eo.Action.Form["access_token"], nil, nil, true)
+	info = map[string]any{}
+	_ = json.Unmarshal(r.body, &info)
+	if strings.Contains(fmt.Sprint(info["WatermarkText"]), "Eve") {
+		t.Fatalf("watermark although the category chose the original: %s", r.body)
+	}
+	// ... but never for a file with its own watermark
+	ec.must("POST", fmt.Sprintf("/api/v1/media/%d/open", marked.ID), map[string]string{"viewer": "office.collabora"}, &eo, 200)
+	r = f.call(t, e, base, "GET", fmt.Sprintf("/api/v1/wopi/files/%d", marked.ID), eo.Action.Form["access_token"], nil, nil, true)
+	info = map[string]any{}
+	_ = json.Unmarshal(r.body, &info)
+	if !strings.Contains(fmt.Sprint(info["WatermarkText"]), "Eve") {
+		t.Fatalf("own watermark overridden: %s", r.body)
+	}
+	admin.must("PUT", fmt.Sprintf("/api/v1/categories/%d", cat.ID), map[string]any{"classification": -1, "watermark": ""}, nil, 200)
+
 	// rights withdrawn: the token stops working at once
 	ec.must("POST", fmt.Sprintf("/api/v1/media/%d/open", doc.ID), map[string]string{"viewer": "office.collabora"}, &eo, 200)
 	et = eo.Action.Form["access_token"]
