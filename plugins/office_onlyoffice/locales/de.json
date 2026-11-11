@@ -10,7 +10,7 @@
  "office.onlyoffice.test": "Verbindung testen",
  "office.onlyoffice.test_ok": "Verbunden: {view} Dateitypen ansehen, {edit} bearbeiten",
  "office.onlyoffice.proof_missing": "Der Server veröffentlicht keinen Proof-Key: Prüfung abschalten oder Server aktualisieren.",
- "office.onlyoffice.default_hint": "Als Standard-Anzeige wählst du das Programm in den allgemeinen Einstellungen (Medien).",
+ "office.onlyoffice.default_hint": "Die Standard-Anzeige wählen Sie in den allgemeinen Einstellungen (Medien).",
  "office.onlyoffice.mode": "Schnittstelle",
  "office.onlyoffice.mode.api": "OnlyOffice-API (empfohlen)",
  "office.onlyoffice.mode.wopi": "WOPI",

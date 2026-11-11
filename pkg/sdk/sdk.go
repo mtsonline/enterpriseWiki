@@ -13,10 +13,13 @@ package sdk
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"io/fs"
 	"log/slog"
 	"net/http"
 	"reflect"
+	"regexp"
+	"slices"
 	"sort"
 	"strings"
 	"sync"
@@ -41,26 +44,35 @@ import (
 	"github.com/mtsonline/enterprisewiki/internal/worker"
 )
 
-// Plugin kinds (informational, used by the admin UI).
+// Plugin kinds (Manifest.Kinds, see PluginKinds).
 const (
-	KindElement  = "element"  // provides element types
-	KindAuth     = "auth"     // provides authentication providers
-	KindMenu     = "menu"     // provides menus
-	KindTemplate = "template" // provides a frontend template (theme)
-	KindMacro    = "macro"    // provides macros for rich text
-	KindGeneric  = "generic"
+	KindElement      = "element"      // element types
+	KindMacro        = "macro"        // macros
+	KindAuth         = "auth"         // sign-in providers
+	KindMFA          = "mfa"          // second factors
+	KindStorage      = "storage"      // storage and cloud drives
+	KindOffice       = "office"       // office programs
+	KindSearch       = "search"       // search engines
+	KindNotification = "notification" // notification channels
+	KindWorkflow     = "workflow"     // workflows
+	KindMenu         = "menu"         // menus
+	KindTemplate     = "template"     // frontend templates (themes)
+	KindIntegration  = "integration"  // external systems
+	KindGeneral      = "general"      // anything else
 )
 
 // Manifest describes a plugin. It must match plugins/<dir>/plugin.json.
 type Manifest struct {
-	ID          string   `json:"id"`      // unique, e.g. "core.html"
-	Name        string   `json:"name"`    // human readable
-	Version     string   `json:"version"` // semantic version
-	Description string   `json:"description"`
-	Author      string   `json:"author"`
-	Homepage    string   `json:"homepage"`
-	Repo        string   `json:"repo"` // e.g. github.com/owner/repo (for updates)
-	Kinds       []string `json:"kinds"`
+	ID          string `json:"id"`      // unique, e.g. "core.html"
+	Name        string `json:"name"`    // human readable
+	Version     string `json:"version"` // semantic version
+	Description string `json:"description"`
+	Author      string `json:"author"`
+	Homepage    string `json:"homepage"`
+	Repo        string `json:"repo"` // e.g. github.com/owner/repo (for updates)
+	// Kinds is the type of the plugin (required, one or more of
+	// PluginKinds); the administration groups plugins by the first one.
+	Kinds []string `json:"kinds"`
 	// Extends lists plugins this plugin builds on. It is only active while
 	// all of them are active.
 	Extends []string `json:"extends"`
@@ -108,10 +120,11 @@ var (
 func Register(p Plugin) {
 	regMu.Lock()
 	defer regMu.Unlock()
-	id := p.Manifest().ID
-	if id == "" {
-		panic("sdk.Register: plugin without id")
+	m := p.Manifest()
+	if err := m.Validate(); err != nil {
+		panic("sdk.Register: " + err.Error())
 	}
+	id := m.ID
 	if _, dup := registry[id]; dup {
 		panic("sdk.Register: duplicate plugin id " + id)
 	}
@@ -283,6 +296,31 @@ func RequireAdmin(r *http.Request) error {
 	}
 	if !p.Admin() {
 		return apperr.ErrForbidden
+	}
+	return nil
+}
+
+// PluginKinds are the types of plugins, in the order of the administration.
+var PluginKinds = []string{KindElement, KindMacro, KindAuth, KindMFA, KindStorage, KindOffice, KindSearch, KindNotification,
+	KindWorkflow, KindMenu, KindTemplate, KindIntegration, KindGeneral}
+
+var pluginID = regexp.MustCompile(`^[a-z0-9][a-z0-9_-]*(\.[a-z0-9][a-z0-9_-]*)+$`)
+
+// Validate checks the required fields of a manifest.
+func (m Manifest) Validate() error {
+	if len(m.ID) > 64 || !pluginID.MatchString(m.ID) {
+		return fmt.Errorf("plugin id %q: must look like vendor.name (lower case)", m.ID)
+	}
+	if m.Name == "" || m.Version == "" {
+		return fmt.Errorf("plugin %s: name and version are required", m.ID)
+	}
+	if len(m.Kinds) == 0 {
+		return fmt.Errorf("plugin %s: kinds is required (one or more of %s)", m.ID, strings.Join(PluginKinds, ", "))
+	}
+	for _, k := range m.Kinds {
+		if !slices.Contains(PluginKinds, k) {
+			return fmt.Errorf("plugin %s: unknown kind %q (allowed: %s)", m.ID, k, strings.Join(PluginKinds, ", "))
+		}
 	}
 	return nil
 }

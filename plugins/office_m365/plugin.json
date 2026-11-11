@@ -4,8 +4,6 @@
   "version": "1.0.0",
   "description": "Opens and edits Word, Excel and PowerPoint files of the media library in Microsoft 365 for the web (WOPI, requires the Cloud Storage Partner Program).",
   "author": "Enterprise Wiki",
-  "kinds": [
-    "generic"
-  ],
+  "kinds": ["office"],
   "frontend": true
 }

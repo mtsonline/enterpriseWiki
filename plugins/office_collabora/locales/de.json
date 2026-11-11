@@ -10,5 +10,5 @@
  "office.collabora.test": "Verbindung testen",
  "office.collabora.test_ok": "Verbunden: {view} Dateitypen ansehen, {edit} bearbeiten",
  "office.collabora.proof_missing": "Der Server veröffentlicht keinen Proof-Key: Prüfung abschalten oder Server aktualisieren.",
- "office.collabora.default_hint": "Als Standard-Anzeige wählst du das Programm in den allgemeinen Einstellungen (Medien)."
+ "office.collabora.default_hint": "Die Standard-Anzeige wählen Sie in den allgemeinen Einstellungen (Medien)."
 }

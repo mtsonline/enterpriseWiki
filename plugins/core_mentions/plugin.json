@@ -4,7 +4,7 @@
   "version": "1.0.0",
   "description": "Mention people with @name in pages and comments: they get a notification in the wiki and, unless switched off in their profile, an e-mail. Only people who may see the page are notified. Suggestions while typing @.",
   "author": "Enterprise Wiki",
-  "kinds": ["generic"],
+  "kinds": ["general"],
   "frontend": true,
   "permissions": [
     {"key": "core.mentions.use", "scope": "global", "label": "Mention people", "description": "Notify people with @name in a page or comment.", "presets": ["authenticated"]}

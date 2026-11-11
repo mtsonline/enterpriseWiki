@@ -17,8 +17,8 @@ func TestGenerateAndManifest(t *testing.T) {
 			os.WriteFile(filepath.Join(p, "plugin.go"), []byte("package "+dir+"\n"), 0o644)
 		}
 	}
-	mk("good_one", `{"id":"good.one","name":"Good","version":"1.0.0"}`, true)
-	mk("no_go", `{"id":"no.go","name":"No Go","version":"1.0.0"}`, false)
+	mk("good_one", `{"id":"good.one","name":"Good","version":"1.0.0","kinds":["general"]}`, true)
+	mk("no_go", `{"id":"no.go","name":"No Go","version":"1.0.0","kinds":["general"]}`, false)
 	mk("bad_id", `{"id":"Bad ID","name":"Bad","version":"1"}`, true)
 	if err := Generate(root); err != nil {
 		t.Fatal(err)

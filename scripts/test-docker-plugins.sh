@@ -26,7 +26,7 @@ docker build -q --target lite -t ewiki-test:lite "$src" >/dev/null
 plugin() { # dir id
 	mkdir -p "$1"
 	cat > "$1/plugin.json" <<JSON
-{"id": "$2", "name": "Test $2", "version": "1.0.0", "description": "CI test plugin"}
+{"id": "$2", "name": "Test $2", "version": "1.0.0", "description": "CI test plugin", "kinds": ["general"]}
 JSON
 	pkg="$(basename "$1")"
 	cat > "$1/plugin.go" <<GO

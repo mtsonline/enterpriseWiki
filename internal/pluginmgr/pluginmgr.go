@@ -127,6 +127,9 @@ func ReadManifest(dir string) (*sdk.Manifest, error) {
 	if mf.Name == "" || mf.Version == "" {
 		return nil, errors.New("plugin.json: name and version are required")
 	}
+	if err := mf.Validate(); err != nil {
+		return nil, fmt.Errorf("plugin.json: %w", err)
+	}
 	return &mf, nil
 }
 

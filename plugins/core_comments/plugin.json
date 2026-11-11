@@ -4,9 +4,7 @@
   "version": "1.0.0",
   "description": "Comments and replies below pages. Edits and deletions are recorded in the audit log; deleted comments remain as placeholders so threads stay intact.",
   "author": "Enterprise Wiki",
-  "kinds": [
-    "generic"
-  ],
+  "kinds": ["general"],
   "frontend": true,
   "permissions": [
     {

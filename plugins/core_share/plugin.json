@@ -4,7 +4,7 @@
   "version": "1.0.0",
   "description": "Share pages and categories with users, groups and roles: they get a notification in the wiki and an e-mail. Sharing does not change permissions – people who may not see the page are not notified.",
   "author": "Enterprise Wiki",
-  "kinds": ["generic"],
+  "kinds": ["general"],
   "frontend": true,
   "permissions": [
     {"key": "core.share.use", "scope": "global", "label": "Share pages", "description": "Notify users, groups and roles about a page or category they may see.", "presets": ["authenticated"]}

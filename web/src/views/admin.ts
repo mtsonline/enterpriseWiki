@@ -335,6 +335,8 @@ async function useTemplate(id: string): Promise<void> {
   } catch (e) { toast(errorText(e), 'error'); }
 }
 
+const KIND_ORDER = ['auth', 'mfa', 'element', 'macro', 'workflow', 'menu', 'template', 'office', 'storage', 'search', 'notification', 'integration', 'general'];
+
 async function plugins(panel: HTMLElement): Promise<void> {
   const data = await api.get<PluginsResponse>('admin/plugins');
   const installedIds = new Set(data.installed.map((p) => p.id));
@@ -393,8 +395,11 @@ async function plugins(panel: HTMLElement): Promise<void> {
     b.started_at ? h('p', { role: 'status' }, b.running ? t('plugins.build_running') : (b.ok ? t('plugins.build_ok') : t('plugins.build_failed'))) : null,
     b.log ? h('details', null, h('summary', null, t('plugins.build_log')), h('pre', { class: 'ew-code', tabindex: '0' }, b.log)) : null);
   mount(panel, pageHeader(t('admin.plugins')), h('p', null, t('plugins.help')),
-    table(t('admin.plugins'), [t('common.name'), t('plugins.version'), t('plugins.kinds'), t('plugins.extends'), t('common.status'), t('common.actions')],
-      data.installed.map((p) => h('tr', null,
+    // grouped by the type of the plugin (first kind)
+    ...KIND_ORDER.filter((k) => data.installed.some((p) => (p.kinds[0] ?? 'general') === k)).map((k) => h('section', { class: 'ew-section', 'aria-labelledby': `pk-${k}` },
+      h('h2', { id: `pk-${k}` }, t(`plugins.group.${k}`)),
+      table(t(`plugins.group.${k}`), [t('common.name'), t('plugins.version'), t('plugins.kinds'), t('plugins.extends'), t('common.status'), t('common.actions')],
+      data.installed.filter((p) => (p.kinds[0] ?? 'general') === k).map((p) => h('tr', null,
         h('th', { scope: 'row' }, h('span', null, p.name), h('br'), h('code', null, p.id), h('p', { class: 'ew-help' }, p.description)),
         h('td', null, p.version), h('td', null, p.kinds.map((k) => t(`plugins.kind.${k}`)).join(', ')),
         h('td', null, p.extends.join(', ') || '–', p.missing.length ? h('p', { class: 'ew-field-error' }, t('plugins.missing', { ids: p.missing.join(', ') })) : null),
@@ -415,7 +420,7 @@ async function plugins(panel: HTMLElement): Promise<void> {
               if (res?.building) { toast(t('plugins.removed_building')); followBuild(reload); } else toast(t('plugins.removed'));
               reload();
             } catch (e) { toast(errorText(e), 'error'); }
-          }, { variant: 'link', ariaLabel: t('plugins.remove_named', { name: p.name }) })))), '–'),
+          }, { variant: 'link', ariaLabel: t('plugins.remove_named', { name: p.name }) })))), '–'))),
     buildBox,
     data.catalog.length ? h('section', { class: 'ew-section', 'aria-labelledby': 'cat-h' }, h('h2', { id: 'cat-h' }, t('plugins.catalog')),
       table(t('plugins.catalog'), [t('common.name'), t('common.description'), t('plugins.source'), t('common.actions')],

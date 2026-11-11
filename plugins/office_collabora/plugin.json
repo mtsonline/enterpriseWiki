@@ -4,8 +4,6 @@
   "version": "1.0.0",
   "description": "Opens and edits office files of the media library in Collabora Online (WOPI): documents, spreadsheets and presentations, also read-only without download, print or copy and with the viewer's watermark.",
   "author": "Enterprise Wiki",
-  "kinds": [
-    "generic"
-  ],
+  "kinds": ["office"],
   "frontend": true
 }

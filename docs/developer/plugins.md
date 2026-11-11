@@ -37,8 +37,8 @@ Vollständige Beispiele im Repository:
 }
 ```
 
-- `id`: eindeutig, Kleinbuchstaben, Punkte (`hersteller.name`). Das Verzeichnis heißt üblicherweise wie die ID mit `_` statt `.`.
-- `kinds`: `element`, `auth`, `menu`, `template`, `macro`, `generic` (nur Information für die Oberfläche).
+- `id`: eindeutig, Kleinbuchstaben, Punkte (`hersteller.name`), höchstens 64 Zeichen. Das Verzeichnis heißt üblicherweise wie die ID mit `_` statt `.`.
+- `kinds` (**Pflicht**, einer oder mehrere): `element` (Elementtyp), `macro`, `auth` (Anmeldung), `mfa` (zweiter Faktor), `storage` (Speicher & Cloud), `office`, `search`, `notification`, `workflow`, `menu`, `template`, `integration` (Fremdsysteme), `general`. Die Administration gruppiert die Plugins nach dem ersten Eintrag. Ein Manifest ohne oder mit unbekanntem Typ wird weder installiert noch geladen.
 - `extends`: Plugins, auf denen dieses aufbaut. Ein Plugin ist nur aktiv, solange alle Basis-Plugins aktiv sind.
 - `required`: kann nicht deaktiviert werden (nur für Kern-Plugins).
 - `frontend`: `true`, wenn `web/index.ts` existiert.

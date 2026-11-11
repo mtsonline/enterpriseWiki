@@ -4,8 +4,6 @@
   "version": "1.0.0",
   "description": "Opens and edits office files of the media library in OnlyOffice Docs (Document Server), through the OnlyOffice API (signed with JWT) or WOPI; read-only without download, print or copy for users without the right to download.",
   "author": "Enterprise Wiki",
-  "kinds": [
-    "generic"
-  ],
+  "kinds": ["office"],
   "frontend": true
 }

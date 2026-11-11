@@ -18,7 +18,7 @@ func writePlugin(t *testing.T, dir, id, ver string) {
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		t.Fatal(err)
 	}
-	mf := `{"id":"` + id + `","name":"` + id + `","version":"` + ver + `"}`
+	mf := `{"id":"` + id + `","name":"` + id + `","version":"` + ver + `","kinds":["general"]}`
 	if err := os.WriteFile(filepath.Join(dir, "plugin.json"), []byte(mf), 0o644); err != nil {
 		t.Fatal(err)
 	}

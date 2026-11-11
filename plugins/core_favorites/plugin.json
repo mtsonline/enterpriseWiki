@@ -4,7 +4,7 @@
   "version": "1.0.0",
   "description": "Personal favorites: mark pages and categories with a star and find them in a list (sidebar or another position of the template) and in the profile.",
   "author": "Enterprise Wiki",
-  "kinds": ["generic"],
+  "kinds": ["general"],
   "frontend": true,
   "permissions": [
     {"key": "core.favorites.use", "scope": "global", "label": "Use favorites", "description": "Mark pages and categories as personal favorites.", "presets": ["authenticated"]}
