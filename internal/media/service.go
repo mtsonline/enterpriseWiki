@@ -1010,6 +1010,15 @@ func (s *Service) HashVisible(ctx context.Context, hash string) bool {
 	return false
 }
 
+// HashRestricted reports whether a file belongs to a medium with its own
+// restrictions (own permissions, view only or a watermark).
+func (s *Service) HashRestricted(ctx context.Context, hash string) bool {
+	var restricted bool
+	err := s.pool.QueryRow(ctx, `SELECT EXISTS (SELECT 1 FROM media_versions v JOIN media m ON m.id = v.media_id
+		WHERE v.hash=$1 AND m.deleted_at IS NULL AND (m.own_acl OR NOT m.download OR COALESCE(m.watermark->>'mode', 'none') <> 'none'))`, hash).Scan(&restricted)
+	return err != nil || restricted // fail closed
+}
+
 func cleanName(n string) string {
 	n = strings.TrimSpace(strings.ReplaceAll(strings.ReplaceAll(n, "/", "_"), `\`, "_"))
 	n = strings.Map(func(r rune) rune {

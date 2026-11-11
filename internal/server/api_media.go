@@ -253,6 +253,12 @@ func (s *Server) fileVisible(r *http.Request, hash string) (bool, int) {
 	if s.app.Media.HashVisible(ctx, hash) {
 		return true, 0
 	}
+	// settings of a medium itself (own permissions, view only, watermark)
+	// come first: such files are only delivered through the media library,
+	// never because a page embeds them or a category allows more
+	if s.app.Media.HashRestricted(ctx, hash) {
+		return false, 0
+	}
 	p := identity.From(ctx)
 	if p != nil && p.UserID > 0 { // own uploads (e.g. the editor preview before saving)
 		var mine bool

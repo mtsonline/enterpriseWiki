@@ -213,6 +213,8 @@ Jede Kategorie der obersten Ebene ist ein **Bereich** (wie ein Space in Confluen
 
 **Schutz von Dateien wählbar:** In den *Kategorie-Einstellungen* stehen unter der Einstufung *Wasserzeichen für Dateien* (*Automatisch* oder *Aus: immer das Original*) und *Herunterladen von Dateien* (*Automatisch* oder *Erlaubt: Original herunterladen*). Ohne Auswahl gilt die Einstellung darüber; eine Unterkategorie kann den Schutz wieder einschalten.
 
+**Einstellungen einer Datei gehen vor:** Was direkt bei einer Datei der Medienbibliothek eingestellt ist – eigene Berechtigungen, *Nur ansehen* oder ein Wasserzeichen – lässt sich durch Einstellungen der Kategorie oder des Bereichs nicht aufheben. Kategorie und Bereich können nur zusätzlich einschränken. Solche Dateien werden auch nicht über eine Seite, die sie einbettet, ohne diese Einschränkungen ausgeliefert.
+
 **Downloads von Berichten und Datenbanken:** Beim Anlegen bzw. Bearbeiten wählbar: *Sicher* (Standard: Werte mit `=` am Anfang bleiben Text, damit Excel nichts unerwartet ausführt) oder *Original* (solche Werte werden zu Formeln – nur für vertrauenswürdige Inhalte).
 
 **Auswertung** (*Kategorie-Einstellungen → Auswertung*, mit *Verwalten*): Aufrufe pro Tag, meistgelesene Seiten, seit über sechs Monaten nicht geänderte Seiten und Mitwirkende der letzten 7 bis 365 Tage. Aufrufe werden datensparsam nur pro Seite und Tag gezählt – ohne Personen und Adressen – und nach 400 Tagen gelöscht.

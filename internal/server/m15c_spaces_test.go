@@ -1268,3 +1268,63 @@ func TestProtectionOptions(t *testing.T) {
 		t.Fatalf("csv: %q / %q", c1, c2)
 	}
 }
+
+// TestMediumSettingsFirst: restrictions set on a medium itself win over
+// more open settings of its category or space and over embedding pages.
+func TestMediumSettingsFirst(t *testing.T) {
+	e := setup(t)
+	admin := e.client()
+	admin.login("admin", adminPW)
+	var space cat
+	admin.must("POST", "/api/v1/categories", map[string]any{"titles": map[string]string{"en": "Open space"}}, &space, 201)
+	var bob struct {
+		ID int64 `json:"id"`
+	}
+	admin.must("POST", "/api/v1/admin/users", map[string]any{"username": "bob", "password": "Bob-Passw0rd!x", "display_name": "Bob"}, &bob, 201)
+	admin.must("POST", fmt.Sprintf("/api/v1/categories/%d/acl", space.ID), map[string]any{"subject_type": "user", "subject_id": bob.ID, "permissions": 1, "inherit": true}, nil, 201)
+	// the space is strictly confidential but chooses the original everywhere
+	admin.must("PUT", fmt.Sprintf("/api/v1/categories/%d", space.ID), map[string]any{"classification": 3, "watermark": "off", "downloads": "allow"}, nil, 200)
+	bc := e.client()
+	bc.login("bob", "Bob-Passw0rd!x")
+	_, marked := admin.uploadMedium(t, "/api/v1/media", map[string]any{"category_id": space.ID, "watermark": map[string]any{"mode": "viewer_view", "user": true, "date": true}}, "plan.png", testPNG(300, 200))
+	_, viewOnly := admin.uploadMedium(t, "/api/v1/media", map[string]any{"category_id": space.ID, "title": "Org", "alt": "Org"}, "org.png", testPNG(200, 100))
+	admin.must("PATCH", fmt.Sprintf("/api/v1/media/%d", viewOnly.ID), map[string]any{"download": false}, nil, 200)
+	_, open := admin.uploadMedium(t, "/api/v1/media", map[string]any{"category_id": space.ID, "title": "Free", "alt": "Free"}, "free.png", testPNG(201, 100))
+	// a page embeds all three files directly
+	var hashes []string
+	for _, id := range []int64{marked.ID, viewOnly.ID, open.ID} {
+		var hsh string
+		if err := e.app.DB.QueryRow(context.Background(), `SELECT hash FROM media_versions WHERE media_id=$1 ORDER BY version DESC LIMIT 1`, id).Scan(&hsh); err != nil || hsh == "" {
+			t.Fatalf("hash: %v", err)
+		}
+		hashes = append(hashes, hsh)
+	}
+	src := ""
+	for _, hsh := range hashes {
+		src += `<p><img src="/api/v1/files/` + hsh + `" alt="x"></p>`
+	}
+	admin.must("POST", "/api/v1/elements", map[string]any{"category_id": space.ID, "type": "core.html", "title": "Plans", "body": htmlBody(src)}, nil, 201)
+
+	// medium with its own watermark: always marked, never raw
+	_, orig, _ := admin.fetch(t, fmt.Sprintf("/api/v1/media/%d/download", marked.ID))
+	if _, v, _ := bc.fetch(t, fmt.Sprintf("/api/v1/media/%d/view", marked.ID)); bytes.Equal(v, orig) {
+		t.Fatal("own watermark overridden by the space")
+	}
+	if c, _, _ := bc.fetch(t, "/api/v1/files/"+hashes[0]); c != 404 {
+		t.Fatalf("raw file of a watermarked medium through the page: %d", c)
+	}
+	// view only: no download although the space allows downloads
+	if c, _, _ := bc.fetch(t, fmt.Sprintf("/api/v1/media/%d/download", viewOnly.ID)); c != 403 {
+		t.Fatalf("download of a view-only medium: %d", c)
+	}
+	if c, _, _ := bc.fetch(t, "/api/v1/files/"+hashes[1]); c != 404 {
+		t.Fatalf("raw file of a view-only medium through the page: %d", c)
+	}
+	// without own settings the choice of the space counts (original)
+	if c, _, _ := bc.fetch(t, fmt.Sprintf("/api/v1/media/%d/download", open.ID)); c != 200 {
+		t.Fatalf("open medium: %d", c)
+	}
+	if c, _, _ := bc.fetch(t, "/api/v1/files/"+hashes[2]); c != 200 {
+		t.Fatalf("open file: %d", c)
+	}
+}
