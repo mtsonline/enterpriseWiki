@@ -203,6 +203,13 @@ type Auth struct {
 	MaxLoginFails   int    `yaml:"max_login_failures" json:"max_login_failures"`
 	LockoutDuration string `yaml:"lockout_duration" json:"lockout_duration"`
 	MinPasswordLen  int    `yaml:"min_password_length" json:"min_password_length"`
+	// Profile photos: who sees them unless the person chooses (private:
+	// the person and administrators; users: signed-in people; public:
+	// everybody), the widest a person may choose, and whether the default
+	// is fixed (no choice).
+	PhotoVisibility      string `yaml:"photo_visibility" json:"photo_visibility"`
+	PhotoVisibilityMax   string `yaml:"photo_visibility_max" json:"photo_visibility_max"`
+	PhotoVisibilityFixed bool   `yaml:"photo_visibility_fixed" json:"photo_visibility_fixed"`
 }
 
 // Retention configures automatic cleanup. Nothing is ever deleted that is the
@@ -368,7 +375,7 @@ func Defaults() *Config {
 		I18n:     I18n{DefaultLanguage: "en", Languages: []string{"en", "de"}},
 		UI:       UI{SiteName: "Enterprise Wiki", Template: "theme.wiki", Prerender: true, ReadableURLs: true, Collaboration: true},
 		Auth: Auth{
-			Order: []string{"local"}, SessionTTL: "168h", SessionIdle: "12h", APIKeyMaxTTL: "8760h", SSHTokenTTL: "1h",
+			Order: []string{"local"}, SessionTTL: "168h", SessionIdle: "12h", PhotoVisibility: "users", PhotoVisibilityMax: "public", APIKeyMaxTTL: "8760h", SSHTokenTTL: "1h",
 			MaxLoginFails: 10, LockoutDuration: "15m", MinPasswordLen: 12,
 		},
 		Retention: Retention{RevisionsKeepDays: 0, RevisionsKeepMin: 50, TrashDays: 30, AuditDays: 0, MailDays: 90},

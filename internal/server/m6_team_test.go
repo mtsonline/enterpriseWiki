@@ -47,7 +47,7 @@ func TestTeamAndProfile(t *testing.T) {
 	data, _ := io.ReadAll(resp.Body)
 	resp.Body.Close()
 	hash := strings.Split(strings.Split(string(data), `"hash":"`)[1], `"`)[0]
-	zc.must("PUT", "/api/v1/me/profile", map[string]string{"job_title": "Head of Sales", "phone": "+43 1 234", "photo": hash, "about": "Loves **cycling**"}, nil, 200)
+	zc.must("PUT", "/api/v1/me/profile", map[string]string{"job_title": "Head of Sales", "phone": "+43 1 234", "photo": hash, "photo_visibility": "public", "about": "Loves **cycling**"}, nil, 200)
 	if code := zc.do("PUT", "/api/v1/me/profile", map[string]string{"salary": "1"}, nil); code != 400 {
 		t.Fatalf("unknown field: %d", code)
 	}

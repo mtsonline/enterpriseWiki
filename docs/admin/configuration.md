@@ -73,6 +73,9 @@ Sprachen werden in der Oberfläche unter *Administration → Sprachen* hinzugef�
 | `order` | Reihenfolge der Anmeldeverfahren (Provider-IDs). `local` wird **immer zuerst** geprüft | `[local]` |
 | `session_ttl` | Gültigkeit einer Browser-Sitzung (absolut) | `168h` |
 | `session_idle` | Eine Browser-Sitzung endet nach so langer Inaktivität. Automatische Abfragen (z. B. Benachrichtigungen) zählen nicht als Aktivität. `0` = nur `session_ttl` | `12h` |
+| `photo_visibility` | Wer Profilfotos sieht, solange die Person nichts wählt: `private` (die Person und die Administration), `users` (angemeldete Personen), `public` (alle, auch Gäste) | `users` |
+| `photo_visibility_max` | Am weitesten darf eine Person ihr Foto so freigeben. Enger geht immer | `public` |
+| `photo_visibility_fixed` | `true`: keine Wahl, es gilt immer `photo_visibility` | `false` |
 | `api_key_max_ttl` | maximale Gültigkeit eines API-Keys | `8760h` |
 | `ssh_token_ttl` | Gültigkeit eines Tokens nach SSH-Login | `1h` |
 | `max_login_failures` | Fehlversuche bis zur Sperre eines lokalen Kontos | `10` |

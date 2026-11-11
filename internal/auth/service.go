@@ -467,7 +467,7 @@ func (s *Service) Authenticate(ctx context.Context, token string) (*identity.Pri
 		var created time.Time
 		// idle sessions end (browser sessions only; SSH tokens are short-lived);
 		// automatic requests (Background) do not count as activity
-		idle := config.Duration(s.cfg.Get().Auth.SessionIdle, 0)
+		idle := config.Duration(s.cfg.Get().Auth.SessionIdle, 12*time.Hour) // "0" switches it off
 		err := s.pool.QueryRow(ctx, `UPDATE sessions SET last_seen_at = CASE WHEN $3 THEN last_seen_at ELSE now() END
 			WHERE token_hash=$1 AND expires_at > now() AND (kind <> 'web' OR $2::float8 <= 0 OR last_seen_at > now() - make_interval(secs => $2))
 			RETURNING user_id, kind, created_at`, h, idle.Seconds(), Background(ctx)).Scan(&uid, &kind, &created)

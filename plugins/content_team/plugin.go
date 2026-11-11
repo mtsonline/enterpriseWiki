@@ -144,10 +144,10 @@ func has(list []string, s string) bool {
 	return false
 }
 
-// members loads the members of the configured groups.
-func members(ctx context.Context, q interface {
-	Query(context.Context, string, ...any) (pgx.Rows, error)
-}, c *Config) ([]Section, error) {
+// members loads the members of the configured groups. Profile photos are
+// only included if the viewer (ctx) may see them.
+func members(ctx context.Context, hs *sdk.Host, c *Config) ([]Section, error) {
+	q := hs.DB
 	if len(c.Groups) == 0 {
 		return []Section{}, nil
 	}
@@ -182,6 +182,10 @@ func members(ctx context.Context, q interface {
 				m.Groups = groups
 			case strings.HasPrefix(f, "attr:"):
 				m.Fields[f] = attrString(attrs[strings.TrimPrefix(f, "attr:")])
+			case f == "photo":
+				if hs.Auth.PhotoVisible(ctx, uid, profile["photo_visibility"]) {
+					m.Fields[f] = profile[f]
+				}
 			default:
 				m.Fields[f] = profile[f]
 			}
@@ -454,7 +458,7 @@ func (Type) Render(ctx context.Context, rc content.RenderContext, raw json.RawMe
 	if err != nil {
 		return "", err
 	}
-	secs, err := members(ctx, plugins.Get(ctx).host.DB, c)
+	secs, err := members(ctx, plugins.Get(ctx).host, c)
 	if err != nil {
 		return "", err
 	}
@@ -530,7 +534,7 @@ func (p *Plugin) Setup(hs *sdk.Host) error {
 		if err != nil {
 			return nil, err
 		}
-		secs, err := members(r.Context(), hs.DB, c)
+		secs, err := members(r.Context(), hs, c)
 		if err != nil {
 			return nil, err
 		}

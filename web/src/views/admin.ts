@@ -474,7 +474,7 @@ interface Settings {
   config: {
     ui: { site_name: string; template: string; home_category: number; home_element: number; prerender: boolean; preview_image: string; readable_urls: boolean; editor?: string; collaboration?: boolean };
     i18n: { default_language: string; languages: string[] };
-    auth: { order: string[]; session_ttl: string; api_key_max_ttl: string; ssh_token_ttl: string; max_login_failures: number; lockout_duration: string; min_password_length: number };
+    auth: { order: string[]; session_ttl: string; session_idle?: string; photo_visibility?: string; photo_visibility_max?: string; photo_visibility_fixed?: boolean; api_key_max_ttl: string; ssh_token_ttl: string; max_login_failures: number; lockout_duration: string; min_password_length: number };
     retention: { revisions_keep_days: number; revisions_keep_min: number; trash_days: number; audit_days: number };
     media?: { viewer?: string; open_external?: boolean; token_ttl?: string };
     mode: string;
@@ -520,6 +520,11 @@ async function settings(panel: HTMLElement): Promise<void> {
   const defLang = select(c.i18n.languages.map((l) => ({ value: l, label: langName(l) })), c.i18n.default_language);
   const order = textInput({ value: c.auth.order.join(', ') });
   const sessionTTL = textInput({ value: c.auth.session_ttl });
+  const sessionIdle = textInput({ value: c.auth.session_idle ?? '', placeholder: '12h' });
+  const levels = () => ['private', 'users', 'public'].map((v) => ({ value: v, label: t(`photo.vis.${v}`) }));
+  const photoDef = select(levels(), c.auth.photo_visibility || 'users');
+  const photoMax = select(levels(), c.auth.photo_visibility_max || 'public');
+  const photoFixed = checkbox(t('settings.photo_fixed'), !!c.auth.photo_visibility_fixed, { help: t('settings.photo_fixed_help') });
   const keyTTL = textInput({ value: c.auth.api_key_max_ttl });
   const sshTTL = textInput({ value: c.auth.ssh_token_ttl });
   const fails = num(c.auth.max_login_failures);
@@ -547,7 +552,9 @@ async function settings(panel: HTMLElement): Promise<void> {
     fs(t('settings.site'), field(t('settings.site_name'), siteName, { required: true }), field(t('settings.template'), tpl, { help: t('settings.template_help') }), field(t('settings.home'), homeMode, { help: t('settings.home_help') }), fHomeCat, fHomeEl,
       field(t('settings.default_language'), defLang, { help: t('settings.languages_help') }), prerender.el, readable.el, field(t('settings.editor'), editorSel, { help: t('settings.editor_help') }), collabBox.el, sitePreview.el, field(t('settings.guest_view_path'), guestPath, { help: t('settings.guest_view_help') }), guestView),
     fs(t('settings.auth'), field(t('settings.auth_order'), order, { help: t('settings.auth_order_help') }), field(t('settings.session_ttl'), sessionTTL, { help: t('settings.duration_help') }),
-      field(t('settings.api_key_max_ttl'), keyTTL), field(t('settings.ssh_token_ttl'), sshTTL), field(t('settings.max_login_failures'), fails), field(t('settings.lockout_duration'), lockout), field(t('settings.min_password_length'), minPw)),
+      field(t('settings.session_idle'), sessionIdle, { help: t('settings.session_idle_help') }),
+      field(t('settings.api_key_max_ttl'), keyTTL), field(t('settings.ssh_token_ttl'), sshTTL), field(t('settings.max_login_failures'), fails), field(t('settings.lockout_duration'), lockout), field(t('settings.min_password_length'), minPw),
+      field(t('settings.photo_default'), photoDef, { help: t('settings.photo_default_help') }), field(t('settings.photo_max'), photoMax, { help: t('settings.photo_max_help') }), photoFixed.el),
     fs(t('settings.media'), field(t('settings.viewer'), viewer, { help: t('settings.viewer_help') }), openExternal.el,
       field(t('settings.office_token_ttl'), tokenTTL, { help: t('settings.office_token_ttl_help') })),
     fs(t('settings.retention'), h('p', { class: 'ew-help' }, t('settings.retention_help')), field(t('settings.revisions_keep_days'), keepDays, { help: t('settings.zero_forever') }), field(t('settings.revisions_keep_min'), keepMin),
@@ -563,7 +570,8 @@ async function settings(panel: HTMLElement): Promise<void> {
       await api.put('admin/settings', {
         ui: { site_name: siteName.value, template: tpl.value, home_category: homeMode.value === 'category' ? homeCat.value() : 0, home_element: homeMode.value === 'element' ? homeEl.value() : 0, prerender: prerender.input.checked, readable_urls: readable.input.checked, preview_image: sitePreview.value(), editor: editorSel.value, collaboration: collabBox.input.checked },
         i18n: { default_language: defLang.value, languages: c.i18n.languages },
-        auth: { order: order.value.split(',').map((x) => x.trim()).filter(Boolean), session_ttl: sessionTTL.value, api_key_max_ttl: keyTTL.value, ssh_token_ttl: sshTTL.value, max_login_failures: Number(fails.value), lockout_duration: lockout.value, min_password_length: Number(minPw.value) },
+        auth: { order: order.value.split(',').map((x) => x.trim()).filter(Boolean), session_ttl: sessionTTL.value, session_idle: sessionIdle.value.trim(),
+          photo_visibility: photoDef.value, photo_visibility_max: photoMax.value, photo_visibility_fixed: photoFixed.input.checked, api_key_max_ttl: keyTTL.value, ssh_token_ttl: sshTTL.value, max_login_failures: Number(fails.value), lockout_duration: lockout.value, min_password_length: Number(minPw.value) },
         retention: { revisions_keep_days: Number(keepDays.value), revisions_keep_min: Number(keepMin.value), trash_days: Number(trashDays.value), audit_days: Number(auditDays.value) },
         media: { viewer: viewer.value === 'internal' ? '' : viewer.value, open_external: openExternal.input.checked, token_ttl: tokenTTL.value.trim() },
       });

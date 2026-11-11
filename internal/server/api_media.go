@@ -282,11 +282,12 @@ func (s *Server) fileVisible(r *http.Request, hash string) bool {
 	return false
 }
 
+// profilePhoto reports whether hash is a profile photo the caller may see
+// (visibility chosen by the person within the administrators' rule).
 func (s *Server) profilePhoto(r *http.Request, hash string) bool {
-	var ok bool
-	err := s.app.DB.QueryRow(r.Context(), `SELECT EXISTS(SELECT 1 FROM users WHERE profile->>'photo' = $1)`, hash).Scan(&ok)
-	if err == nil && ok {
+	if s.app.Auth.PhotoHashVisible(r.Context(), s.app.DB, hash) {
 		return true
 	}
-	return !s.app.SeparateAccounts && s.app.Instance != nil && s.sharedProfilePhoto(r.Context(), hash)
+	return !s.app.SeparateAccounts && s.app.Instance != nil && storage.ValidHash(hash) &&
+		s.app.Auth.PhotoHashVisible(r.Context(), s.app.Instance.Shared, hash)
 }

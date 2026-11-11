@@ -119,7 +119,7 @@ func (s *Server) routesM6() {
 			return nil, err
 		}
 		prof, err := s.app.Auth.Profile(r.Context(), p.ID())
-		return map[string]any{"profile": prof, "fields": auth.ProfileFields}, err
+		return map[string]any{"profile": prof, "fields": auth.ProfileFields, "photo_policy": s.app.Auth.PhotoPolicy()}, err
 	})
 	s.handle("PUT /api/v1/me/profile", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		p, err := requireUser(r)
@@ -141,7 +141,7 @@ func (s *Server) routesM6() {
 			return nil, err
 		}
 		prof, err := s.app.Auth.Profile(r.Context(), id)
-		return map[string]any{"profile": prof, "fields": auth.ProfileFields}, err
+		return map[string]any{"profile": prof, "fields": auth.ProfileFields, "photo_policy": s.app.Auth.PhotoPolicy()}, err
 	})
 	s.handle("PUT /api/v1/admin/users/{id}/profile", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		if err := requireAdmin(r); err != nil {

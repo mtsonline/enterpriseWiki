@@ -1731,5 +1731,20 @@
  "auth.passkey_cancelled": "Die Anmeldung mit Passkey wurde abgebrochen.",
  "auth.webauthn_use": "Sicherheitsschlüssel verwenden",
  "mapping.mfa": "Zweiten Faktor im Wiki abfragen",
- "mapping.mfa_help": "Für Personen, die einen zweiten Faktor eingerichtet haben. Aus, wenn der Anbieter selbst MFA verlangt (z. B. Entra ID mit bedingtem Zugriff)."
+ "mapping.mfa_help": "Für Personen, die einen zweiten Faktor eingerichtet haben. Aus, wenn der Anbieter selbst MFA verlangt (z. B. Entra ID mit bedingtem Zugriff).",
+ "photo.vis.private": "nur ich (und die Administration)",
+ "photo.vis.users": "angemeldete Personen",
+ "photo.vis.public": "alle, auch Gäste",
+ "photo.vis.default": "Vorgabe ({level})",
+ "photo.vis.label": "Wer sieht mein Foto?",
+ "photo.vis.help": "Ohne Foto zeigt das Wiki Ihre Initialen.",
+ "photo.vis.fixed": "Von der Administration festgelegt: {level}.",
+ "settings.session_idle": "Sitzung endet nach Inaktivität",
+ "settings.session_idle_help": "z. B. 12h oder 30m; 0 = nur die Gültigkeit oben. Automatische Abfragen zählen nicht als Aktivität.",
+ "settings.photo_default": "Profilfotos sehen (Vorgabe)",
+ "settings.photo_default_help": "Gilt für Personen, die nichts gewählt haben.",
+ "settings.photo_max": "Profilfotos höchstens für",
+ "settings.photo_max_help": "Weiter darf niemand sein Foto freigeben. Enger geht immer.",
+ "settings.photo_fixed": "Vorgabe fest (keine Wahl)",
+ "settings.photo_fixed_help": "Alle Fotos sind dann genau so sichtbar wie die Vorgabe."
 }

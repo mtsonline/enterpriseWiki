@@ -227,11 +227,12 @@ Je nach Einrichtung melden Sie sich mit Benutzername und Passwort an (lokales Ko
 
 ## Mein Profil
 
-- Anzeigename, E-Mail und bevorzugte Sprache,
-- Passwort ändern und **Zwei-Faktor-Authentifizierung** einrichten (lokale Konten),
+- Anzeigename und bevorzugte Sprache, **E-Mail-Adressen** (mehrere möglich, eine davon die Hauptadresse) und **verknüpfte Anmeldungen**,
+- Passwort ändern (lokale Konten) und einen **zweiten Faktor** einrichten: Authenticator-App, Code per E-Mail, **Sicherheitsschlüssel** oder **Passkey** (damit auch Anmeldung ohne Passwort),
+- **Sitzungen**: wo Sie angemeldet sind; einzelne Sitzungen beenden oder „Überall sonst abmelden“,
 - **API-Keys** für Skripte: Rechte, Kategorie und Ablaufdatum wählen. Der Schlüssel wird nur einmal angezeigt,
 - **SSH-Schlüssel** für die passwortlose Anmeldung an der API,
-- **Visitenkarte** (Foto, Funktion, Abteilung, Telefon, Büro, „Über mich“) für Team-Seiten,
+- **Visitenkarte** (Foto, Funktion, Abteilung, Telefon, Büro, „Über mich“) für Team-Seiten. Wer Ihr Foto sieht (nur Sie, angemeldete Personen oder alle), wählen Sie im Rahmen der Vorgaben der Administration,
 - **Beobachtungen**, **zugewiesene Beobachtungen** und **Feed- und Kalender-Links**,
 - **E-Mail-Benachrichtigungen** (auch für Erwähnungen und geteilte Seiten).
 

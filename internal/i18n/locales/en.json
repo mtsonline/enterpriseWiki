@@ -1681,5 +1681,20 @@
  "auth.passkey_cancelled": "The sign-in with a passkey was cancelled.",
  "auth.webauthn_use": "Use security key",
  "mapping.mfa": "Ask for the second factor in the wiki",
- "mapping.mfa_help": "For people who set up a second factor. Off if the provider requires MFA itself (e.g. Entra ID with conditional access)."
+ "mapping.mfa_help": "For people who set up a second factor. Off if the provider requires MFA itself (e.g. Entra ID with conditional access).",
+ "photo.vis.private": "only me (and the administrators)",
+ "photo.vis.users": "signed-in people",
+ "photo.vis.public": "everybody, guests too",
+ "photo.vis.default": "Default ({level})",
+ "photo.vis.label": "Who sees my photo?",
+ "photo.vis.help": "Without a photo the wiki shows your initials.",
+ "photo.vis.fixed": "Set by the administrators: {level}.",
+ "settings.session_idle": "Session ends after inactivity",
+ "settings.session_idle_help": "e.g. 12h or 30m; 0 = only the validity above. Automatic requests do not count as activity.",
+ "settings.photo_default": "Profile photos are seen by (default)",
+ "settings.photo_default_help": "For people who did not choose.",
+ "settings.photo_max": "Profile photos at most for",
+ "settings.photo_max_help": "Nobody can share their photo more widely. More narrowly is always possible.",
+ "settings.photo_fixed": "Default is fixed (no choice)",
+ "settings.photo_fixed_help": "All photos are then visible exactly as the default says."
 }
