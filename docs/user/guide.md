@@ -176,6 +176,9 @@ Elemente und Kategorien können eine **Kurz-URL** bekommen: Seiten über *Eigens
 
 Unter *Administration → Einstellungen → Startseite* wählen Administratoren, was unter `/` erscheint: die Übersicht der obersten Kategorien, eine Kategorie oder ein Element. Neue Installationen zeigen die Willkommensseite. Für eine Übersicht von Bereichen eignet sich der Elementtyp **Kategorieübersicht**: eine Kategorie oder die oberste Ebene, mit 1–5 Ebenen Unterkategorien, als Karten oder Liste, auf Wunsch mit Beschreibungen und den Seiten jeder Kategorie.
 
+### Eigene Website-Vorlage je Kategorie
+In den *Kategorie-Einstellungen* wählt, wer die Kategorie verwalten darf, unter **Website-Vorlage** eine der aktiven Vorlagen (z. B. *CMS* für einen öffentlichen Bereich innerhalb eines internen Wikis). Sie gilt für die Kategorie, ihre Unterkategorien und alle Seiten darin; eine Unterkategorie kann wieder eine eigene wählen (die nächstgelegene gewinnt). *Übernehmen* verwendet die Vorlage darüber bzw. die der Site. Beim Wechsel zwischen Bereichen wechselt die Vorlage ohne Neuladen; Inhalt, Fokus und Rechte bleiben gleich.
+
 ### Karussells
 Karussells zeigen an einer Position der Vorlage (z. B. über dem Inhalt) Neuigkeiten, eigene Folien, Einträge externer Feeds und die neuesten Elemente beliebiger **Quellen** (Kategorien, Schlagwörter, Elementtypen – mit Titel, Zusammenfassung und Vorschaubild; jede Person sieht nur, was sie lesen darf). Beim **Veröffentlichen mit Optionen** wählen Sie mit dem Recht *Neuigkeiten in Karussells veröffentlichen* „Als Neuigkeit in …“ und optional ein Enddatum; Neuigkeiten sehen nur Personen, die die Seite sehen dürfen. Mit *‹* und *›* oder den Punkten wechseln Sie die Folie; läuft das Karussell automatisch, hält *Pause* es an (es hält auch an, solange Maus oder Fokus darin sind, und läuft gar nicht, wenn Ihr System reduzierte Bewegung wünscht).
 

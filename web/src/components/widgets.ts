@@ -15,12 +15,15 @@ export const ctx = {
   categoryId: 0,
   path: [] as number[],
   perms: [] as string[],
+  /** website template of the category ('' = the site template) */
+  template: '',
 };
 
-export function setContext(categoryId: number, path: number[], perms: string[] | null): void {
+export function setContext(categoryId: number, path: number[], perms: string[] | null, template = ''): void {
   ctx.categoryId = categoryId;
   ctx.path = path;
   ctx.perms = perms ?? [];
+  ctx.template = template;
 }
 
 /** The category of the page shown (0: none). */

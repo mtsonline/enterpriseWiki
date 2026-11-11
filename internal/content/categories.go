@@ -35,13 +35,17 @@ type Category struct {
 	ShortURL  string `json:"short_url"`
 	ShortOnly bool   `json:"short_only"`
 	// Hidden: not in navigation, menus, listings and search (folders for media)
-	Hidden       bool       `json:"hidden"`
-	CreatedAt    time.Time  `json:"created_at"`
-	UpdatedAt    time.Time  `json:"updated_at"`
-	DeletedAt    *time.Time `json:"deleted_at,omitempty"`
-	HasChildren  bool       `json:"has_children"`
-	ElementCount int        `json:"element_count"`
-	Permissions  []string   `json:"permissions"`
+	Hidden bool `json:"hidden"`
+	// Template: website template of this category and its subcategories
+	// ("" = inherited); EffectiveTemplate is the one that applies ("" = site template)
+	Template          string     `json:"template"`
+	EffectiveTemplate string     `json:"effective_template"`
+	CreatedAt         time.Time  `json:"created_at"`
+	UpdatedAt         time.Time  `json:"updated_at"`
+	DeletedAt         *time.Time `json:"deleted_at,omitempty"`
+	HasChildren       bool       `json:"has_children"`
+	ElementCount      int        `json:"element_count"`
+	Permissions       []string   `json:"permissions"`
 	// translations of title and description (see cattrans.go)
 	OriginalLang         string            `json:"original_lang"`
 	TextRev              int               `json:"text_rev"`
@@ -57,13 +61,14 @@ const catCols = `c.id, c.parent_id, c.path::text, c.position, c.slug, c.titles, 
 	c.created_at, c.updated_at, c.deleted_at,
 	EXISTS (SELECT 1 FROM categories x WHERE x.parent_id=c.id AND x.deleted_at IS NULL),
 	(SELECT count(*) FROM elements e WHERE e.category_id=c.id AND e.deleted_at IS NULL),
-	c.original_lang, c.text_rev, c.translation_revs, c.short_only, c.hidden`
+	c.original_lang, c.text_rev, c.translation_revs, c.short_only, c.hidden, c.template,
+	COALESCE((SELECT t.template FROM categories t WHERE t.path @> c.path AND t.template <> '' ORDER BY nlevel(t.path) DESC LIMIT 1), '')`
 
 func scanCategory(r pgx.CollectableRow) (Category, error) {
 	var c Category
 	var path string
 	err := r.Scan(&c.ID, &c.ParentID, &path, &c.Position, &c.Slug, &c.Titles, &c.Descriptions, &c.Tags, &c.DefaultElementID, &c.Feed, &c.ShortURL,
-		&c.CreatedAt, &c.UpdatedAt, &c.DeletedAt, &c.HasChildren, &c.ElementCount, &c.OriginalLang, &c.TextRev, &c.TranslationRevs, &c.ShortOnly, &c.Hidden)
+		&c.CreatedAt, &c.UpdatedAt, &c.DeletedAt, &c.HasChildren, &c.ElementCount, &c.OriginalLang, &c.TextRev, &c.TranslationRevs, &c.ShortOnly, &c.Hidden, &c.Template, &c.EffectiveTemplate)
 	c.Path = parsePath(path)
 	return c, err
 }
@@ -302,6 +307,8 @@ type CategoryInput struct {
 	// Hidden: not in navigation, menus, listings and search
 	Hidden *bool   `json:"hidden"`
 	Feed   *string `json:"feed"`
+	// Template: id of an active template plugin ("" = inherited)
+	Template *string `json:"template"`
 	// GuestVisible applies to new top-level categories: true makes them
 	// visible to guests (default: only the creator has permissions).
 	GuestVisible *bool `json:"guest_visible"`
@@ -318,6 +325,9 @@ func (s *Service) CreateCategory(ctx context.Context, in CategoryInput) (*Catego
 			return nil, err
 		}
 	} else if err := s.require(ctx, *in.ParentID, acl.Manage); err != nil {
+		return nil, err
+	}
+	if err := s.checkTemplate(in.Template); err != nil {
 		return nil, err
 	}
 	titles, err := s.normalizeTexts(in.Titles, 200, true)
@@ -402,6 +412,11 @@ func (s *Service) CreateCategory(ctx context.Context, in CategoryInput) (*Catego
 				return err
 			}
 		}
+		if in.Template != nil && *in.Template != "" {
+			if _, err := tx.Exec(ctx, `UPDATE categories SET template=$2 WHERE id=$1`, id, *in.Template); err != nil {
+				return err
+			}
+		}
 		if in.ShortOnly != nil && *in.ShortOnly {
 			if _, err := tx.Exec(ctx, `UPDATE categories SET short_only=true WHERE id=$1`, id); err != nil {
 				return err
@@ -424,6 +439,17 @@ func nullID(ctx context.Context) *int64 {
 	return nil
 }
 
+// checkTemplate accepts "" (inherited) or an active template plugin.
+func (s *Service) checkTemplate(t *string) error {
+	if t == nil || *t == "" {
+		return nil
+	}
+	if s.templateOK == nil || !s.templateOK(*t) {
+		return apperr.BadRequest("template %q is not an active website template", *t)
+	}
+	return nil
+}
+
 func snapshotOf(titles, descs map[string]string, tags []string, slug string, parent *int64, pos int, def *int64) map[string]any {
 	return map[string]any{"titles": titles, "descriptions": descs, "tags": tags, "slug": slug, "parent_id": parent, "position": pos, "default_element_id": def}
 }
@@ -431,6 +457,9 @@ func snapshotOf(titles, descs map[string]string, tags []string, slug string, par
 // UpdateCategory changes texts, tags, slug, position and default element.
 func (s *Service) UpdateCategory(ctx context.Context, id int64, in CategoryInput) (*Category, error) {
 	if err := s.require(ctx, id, acl.Manage); err != nil {
+		return nil, err
+	}
+	if err := s.checkTemplate(in.Template); err != nil {
 		return nil, err
 	}
 	before, err := s.loadCategory(ctx, s.pool, id, false)
@@ -519,6 +548,14 @@ func (s *Service) UpdateCategory(ctx context.Context, id int64, in CategoryInput
 		}
 		if in.Hidden != nil {
 			if _, err := tx.Exec(ctx, `UPDATE categories SET hidden=$2 WHERE id=$1`, id, *in.Hidden); err != nil {
+				return err
+			}
+		}
+		if in.Template != nil && *in.Template != before.Template {
+			if _, err := tx.Exec(ctx, `UPDATE categories SET template=$2 WHERE id=$1`, id, *in.Template); err != nil {
+				return err
+			}
+			if err := audit.Log(ctx, tx, "category.template", "category", id, map[string]any{"template": before.Template}, map[string]any{"template": *in.Template}); err != nil {
 				return err
 			}
 		}

@@ -96,6 +96,12 @@ func (k *Kernel) Enabled(id string) bool {
 	return (*k.active.Load())[id]
 }
 
+// IsTemplate reports whether id is an active website template plugin.
+func (k *Kernel) IsTemplate(id string) bool {
+	p, ok := k.plugins[id]
+	return ok && k.Enabled(id) && slices.Contains(p.Manifest().Kinds, sdk.KindTemplate)
+}
+
 // Get returns a compiled plugin.
 func (k *Kernel) Get(id string) (sdk.Plugin, bool) {
 	p, ok := k.plugins[id]

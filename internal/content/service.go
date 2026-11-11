@@ -34,7 +34,9 @@ type Service struct {
 	macros  macroRegistry
 	backend backendRegistry
 	enabled func(pluginID string) bool
-	hooks   []Hook
+	// templateOK reports whether id is an active template plugin
+	templateOK func(id string) bool
+	hooks      []Hook
 
 	mu             sync.Mutex
 	publishOptions map[string]publishOption
@@ -47,6 +49,9 @@ func New(pool *pgxpool.Pool, a *acl.Service, bus *events.Bus, cfg *config.Store,
 	s.OnChange(s.onChangeSlugs)
 	return s
 }
+
+// SetTemplateFunc wires the check for active template plugins.
+func (s *Service) SetTemplateFunc(f func(string) bool) { s.templateOK = f }
 
 // SetEnabledFunc wires the plugin enabled check.
 func (s *Service) SetEnabledFunc(f func(string) bool) { s.enabled = f }

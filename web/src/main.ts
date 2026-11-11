@@ -7,12 +7,12 @@ import { officeView } from './components/office';
 import { api } from './core/api';
 import { h, mount } from './core/dom';
 import { loadMessages, t } from './core/i18n';
-import { onNavigate, rerender, route, setMain, setNotFound, start } from './core/router';
+import { onBeforeRender, onNavigate, rerender, route, setMain, setNotFound, start } from './core/router';
 import { rememberedLang, state, stored } from './core/state';
 import type { Principal, Site } from './core/types';
-import { categoryTree, editToggle, languageSwitcher, searchBox, userMenu } from './components/widgets';
+import { categoryTree, ctx, editToggle, languageSwitcher, searchBox, userMenu } from './components/widgets';
 import { pluginModules } from './generated/plugins';
-import { positionContainer, refreshPositions, registerSlot, registerTemplate, resolveTemplate } from './sdk';
+import { positionContainer, refreshPositions, registerSlot, registerTemplate, resolveTemplate, setShownTemplate } from './sdk';
 import { adminView } from './views/admin';
 import { registerSourceControls } from './components/sources';
 import { categorySettingsView } from './views/categorySettings';
@@ -92,7 +92,8 @@ async function boot(): Promise<void> {
       console.error(`plugin ${p.id} failed to register`, e);
     }
   }
-  const tpl = resolveTemplate(state.site.template) ?? resolveTemplate('core.basic')!;
+  let tpl = resolveTemplate(state.site.template) ?? resolveTemplate('core.basic')!;
+  setShownTemplate(tpl.id);
   document.body.classList.add('ew', ...tpl.classNames);
   const build = () => {
     const layout = tpl.layout({ position: (name, tag) => positionContainer(name, tag) });
@@ -100,13 +101,36 @@ async function boot(): Promise<void> {
     trackStickyHeader(layout.root);
     return layout;
   };
-  const layout = build();
+  let layout = build();
   showPositionsMode();
-  onNavigate(() => void refreshPositions());
+  // Categories may have their own template: after the page is rendered, the
+  // skeleton is rebuilt with it and the page content moved over (not re-rendered).
+  const useTemplate = (id: string) => {
+    const next = resolveTemplate(id) ?? resolveTemplate(state.site.template);
+    if (!next || next.id === tpl.id) return;
+    document.body.classList.remove(...tpl.classNames);
+    tpl = next;
+    setShownTemplate(tpl.id);
+    document.body.classList.add('ew', ...tpl.classNames);
+    const old = layout.main;
+    const focused = document.activeElement;
+    const nodes = [...old.childNodes];
+    layout = build();
+    layout.main.append(...nodes);
+    setMain(layout.main);
+    if (focused instanceof HTMLElement && layout.main.contains(focused)) focused.focus({ preventScroll: true });
+  };
+  onBeforeRender(() => { ctx.template = ''; });
+  document.addEventListener('ewiki:template', () => { useTemplate(ctx.template || state.site.template); void refreshPositions(); });
+  onNavigate(() => {
+    useTemplate(ctx.template || state.site.template);
+    void refreshPositions();
+  });
   start(layout.main);
   // Texts of the template itself (skip link, landmarks) follow the language.
   window.addEventListener('ewiki:relayout', () => {
-    setMain(build().main);
+    layout = build();
+    setMain(layout.main);
     void rerender();
   });
 }

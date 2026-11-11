@@ -40,6 +40,8 @@ export interface Site {
   sites_accounts?: 'shared' | 'separate';
   separate_accounts?: boolean;
   template: string;
+  /** active website templates (for the template of a category) */
+  templates?: { id: string; name: string }[];
   home_category: number;
   home_element: number;
   /** default editor of text pages */
@@ -84,6 +86,10 @@ export interface Category {
   short_only?: boolean;
   /** not in navigation, menus, listings and search (e.g. folders for media) */
   hidden?: boolean;
+  /** website template of this category and below ('' = inherited) */
+  template?: string;
+  /** the template that applies ('' = the site template) */
+  effective_template?: string;
 }
 
 /** A file of the media library (GET /api/v1/media/{id}). */

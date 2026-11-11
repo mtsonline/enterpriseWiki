@@ -1719,5 +1719,11 @@
  "sources.kind": "Kind of source",
  "sources.add": "Add source",
  "sources.remove": "Remove source",
- "sources.help": "Elements of all sources are shown together, each once, and only to readers who may see them. Without a source: this category with its subcategories."
+ "sources.help": "Elements of all sources are shown together, each once, and only to readers who may see them. Without a source: this category with its subcategories.",
+ "category.template": "Website template",
+ "category.template_help": "Look of this category and its subcategories – e.g. the CMS template for a public area. Without an own choice the template of the parent category or of the site applies.",
+ "category.template_inherit": "Inherit (site template)",
+ "category.template_inherit_named": "Inherit (currently: {name})",
+ "category.template_site": "site template",
+ "category.template_inactive": "{name} (not active – the template above applies)"
 }

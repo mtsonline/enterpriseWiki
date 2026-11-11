@@ -9,7 +9,7 @@ import { loadCatalog, ruleEditor, summary, type PermDef } from '../components/pe
 import { type AuditEntry, type Category, type ElementSummary, type Group, type Role, type Rule } from '../core/types';
 import { toast } from '../core/announce';
 import { button, checkbox, confirmDialog, errorText, field, formDialog, langFields, select, textInput } from '../components/ui';
-import { breadcrumbs, can, invalidateTree, setContext } from '../components/widgets';
+import { breadcrumbs, can, ctx, invalidateTree, setContext } from '../components/widgets';
 import { errorPage, splitTags } from './content';
 import { listCategorySettingsTabs } from '../sdk';
 
@@ -27,7 +27,7 @@ export async function categorySettingsView({ params, query, main }: RouteCtx): P
     return;
   }
   const c = data.category;
-  setContext(c.id, c.path, c.permissions);
+  setContext(c.id, c.path, c.permissions, c.effective_template);
   const title = pick(c.titles, state.lang, state.site.default_language);
   // tabs of plugins (e.g. properties) where they apply
   const extra = listCategorySettingsTabs().filter((x) => x.visible?.(c) ?? true);
@@ -63,19 +63,30 @@ function general(panel: HTMLElement, c: Category, elements: ElementSummary[]): v
   const hidden = checkbox(t('category.hidden'), !!c.hidden, { help: t('category.hidden_help') });
   const def = select([{ value: '0', label: t('category.no_default') }, ...elements.map((e) => ({ value: String(e.id), label: pick(e.titles, state.lang, e.original_lang) }))], String(c.default_element_id ?? 0));
   const feed = select(['off', 'on', 'recursive'].map((v) => ({ value: v, label: t(`feed.setting_${v}`) })), c.feed ?? 'off');
+  // website template: inherited ('' = from above or the site template) or one of the active templates
+  const tpls = state.site.templates ?? [];
+  const tplName = (id: string) => tpls.find((x) => x.id === id)?.name ?? id;
+  const inherited = c.template ? '' : (c.effective_template || state.site.template);
+  const tpl = select([{ value: '', label: inherited ? t('category.template_inherit_named', { name: tplName(inherited) }) : t('category.template_inherit') },
+    ...tpls.map((x) => ({ value: x.id, label: x.name + (x.id === state.site.template ? ` (${t('category.template_site')})` : '') })),
+    ...(c.template && !tpls.some((x) => x.id === c.template) ? [{ value: c.template, label: t('category.template_inactive', { name: c.template }) }] : [])], c.template ?? '');
   const alert = h('div', { class: 'ew-form-alert', role: 'alert' });
   const form = h('form', { class: 'ew-form', novalidate: true }, alert, titles.el, descs.el,
     field(t('common.tags'), tags, { help: t('common.tags_help') }),
     field(t('shorturl.label'), short, { help: t('shorturl.help', { origin: location.origin }) }), only.el, hidden.el,
     field(t('category.default_page'), def, { help: t('category.default_page_help') }),
     field(t('feed.setting'), feed, { help: t('feed.setting_help') }),
+    field(t('category.template'), tpl, { help: t('category.template_help') }),
     h('div', { class: 'ew-form-actions' }, button(t('common.save'), () => undefined, { type: 'submit', variant: 'primary' })));
   form.addEventListener('submit', async (ev) => {
     ev.preventDefault();
     alert.textContent = '';
     try {
-      await api.put(`categories/${c.id}`, { titles: titles.get(), descriptions: descs.get(), tags: splitTags(tags.value), short_url: short.value, short_only: only.input.checked, hidden: hidden.input.checked, default_element_id: Number(def.value), feed: feed.value });
+      const saved = await api.put<Category>(`categories/${c.id}`, { titles: titles.get(), descriptions: descs.get(), tags: splitTags(tags.value), short_url: short.value, short_only: only.input.checked, hidden: hidden.input.checked, default_element_id: Number(def.value), feed: feed.value, template: tpl.value });
       invalidateTree();
+      c.template = saved.template;
+      ctx.template = saved.effective_template ?? '';
+      document.dispatchEvent(new CustomEvent('ewiki:template'));
       toast(t('common.saved'));
     } catch (e) {
       alert.textContent = errorText(e);

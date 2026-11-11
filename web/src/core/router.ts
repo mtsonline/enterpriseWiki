@@ -21,6 +21,7 @@ const routes: Route[] = [];
 let mainEl: HTMLElement | null = null;
 let notFound: View | null = null;
 let afterNavigate: (() => void) | null = null;
+let beforeRender: (() => void) | null = null;
 let renderSeq = 0;
 let first = true;
 
@@ -66,6 +67,9 @@ export function start(main: HTMLElement): void {
 
 export function setMain(main: HTMLElement): void { mainEl = main; }
 
+/** Runs before a page is rendered (e.g. to reset page context). */
+export function onBeforeRender(fn: () => void): void { beforeRender = fn; }
+
 async function render(keepFocus = false): Promise<void> {
   if (!mainEl) return;
   const seq = ++renderSeq;
@@ -83,6 +87,7 @@ async function render(keepFocus = false): Promise<void> {
       break;
     }
   }
+  beforeRender?.();
   const target = document.createElement('div');
   target.className = 'ew-view';
   mainEl.setAttribute('aria-busy', 'true');

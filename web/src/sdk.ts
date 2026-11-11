@@ -136,9 +136,16 @@ export function listTemplates(): TemplateDef[] {
   return [...templates.values()];
 }
 
-/** The template in use (with inherited positions). */
+let shownTemplate = '';
+
+/** Records the template the page is shown with (set by the shell). */
+export function setShownTemplate(id: string): void {
+  shownTemplate = id;
+}
+
+/** The template in use on this page (with inherited positions): the one of the category, else the site template. */
 export function activeTemplate(): ResolvedTemplate | null {
-  return resolveTemplate(state.site?.template ?? 'theme.wiki');
+  return resolveTemplate(shownTemplate || (state.site?.template ?? 'theme.wiki'));
 }
 
 /** Human readable name of a template position (core locale "position.<name>"). */

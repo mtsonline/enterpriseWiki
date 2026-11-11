@@ -425,6 +425,10 @@ func buildDemo(d *demoRun) {
 	d.page(srcCat, "Help from all sections", "Hilfe aus allen Bereichen",
 		"<p>Questions of several categories as one FAQ (macro <code>faq</code>):</p>"+macro("faq", map[string]string{"source": fmt.Sprintf("category:%d+sub; category:%d", faq, news), "open": "no", "numbering": "yes"}, ""),
 		"<p>Fragen mehrerer Kategorien als eine FAQ (Makro <code>faq</code>):</p>"+macro("faq", map[string]string{"source": fmt.Sprintf("category:%d+sub; category:%d", faq, news), "open": "no", "numbering": "yes"}, ""), nil)
+	// a category with its own website template (the modern website look)
+	d.optional("category-template", func() {
+		d.call(http.MethodPut, fmt.Sprintf("/api/v1/categories/%d", srcCat), map[string]any{"template": "theme.cms.modern"}, nil)
+	})
 	d.optional("events-sources", func() {
 		if calID == 0 {
 			return

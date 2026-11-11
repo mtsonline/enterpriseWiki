@@ -127,6 +127,7 @@ CREATE TABLE categories (
     short_url          text,                          -- e.g. /kalender; unique with elements.short_url (checked by the application)
     short_only         boolean NOT NULL DEFAULT false, -- only the short URL (no readable path /wiki/… for this category)
     hidden             boolean NOT NULL DEFAULT false, -- not in navigation, menus, listings and search (e.g. folders for media)
+    template           text NOT NULL DEFAULT '',       -- website template of this category and below ('' = inherited / site template)
     -- translations of title and description (like elements): the original
     -- language, its revision (incremented when its texts change) and the
     -- revision of the original each translation is based on

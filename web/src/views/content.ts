@@ -138,7 +138,7 @@ export async function categoryView({ params, main }: RouteCtx): Promise<void> {
     return;
   }
   const c = data.category;
-  setContext(c.id, c.path, c.permissions);
+  setContext(c.id, c.path, c.permissions, c.effective_template);
   showReadableURL(c.urls, c.url);
   const title = pick(c.titles, L(), D());
   const edit = state.editMode;
@@ -418,7 +418,7 @@ export async function elementView({ params, main }: RouteCtx): Promise<void> {
     errorPage(main, e, { type: 'element', id });
     return;
   }
-  setContext(el.category_id, cat.category.path, el.permissions);
+  setContext(el.category_id, cat.category.path, el.permissions, cat.category.effective_template);
   showReadableURL(el.urls, el.url);
   const edit = state.editMode;
   const actions: HTMLElement[] = [];
@@ -551,7 +551,7 @@ export async function editElementView({ params, query, main }: RouteCtx): Promis
     errorPage(main, new ApiError(403, 'forbidden', t('error.forbidden')));
     return;
   }
-  setContext(el.category_id, ctx.path, el.permissions);
+  setContext(el.category_id, ctx.path, el.permissions, ctx.template);
   const isNewTranslation = el.fallback;
   let baseRev = isNewTranslation ? 0 : el.rev;
   // live editing: the others saved, the next save builds on that revision
@@ -668,7 +668,7 @@ async function newOrDraftView({ params, query, main }: RouteCtx, draft: Draft | 
     errorPage(main, e);
     return;
   }
-  setContext(catId, cat.category.path, cat.category.permissions);
+  setContext(catId, cat.category.path, cat.category.permissions, cat.category.effective_template);
   if (!can('create') && !draft) {
     errorPage(main, new ApiError(403, 'forbidden', t('error.forbidden')));
     return;
@@ -786,7 +786,7 @@ export async function historyView({ params, query, main }: RouteCtx): Promise<vo
     errorPage(main, e);
     return;
   }
-  setContext(el.category_id, ctx.path, el.permissions);
+  setContext(el.category_id, ctx.path, el.permissions, ctx.template);
   const canEdit = el.permissions?.includes('edit');
   const filter = select([{ value: '', label: t('history.all_languages') }, ...state.site.languages.map((l) => ({ value: l, label: langName(l) }))], lang);
   filter.addEventListener('change', () => navigate(`/e/${id}/history${qs({ lang: filter.value })}`, { replace: true }));

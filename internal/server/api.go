@@ -31,6 +31,7 @@ import (
 	"github.com/mtsonline/enterprisewiki/internal/perm"
 	"github.com/mtsonline/enterprisewiki/internal/pluginmgr"
 	"github.com/mtsonline/enterprisewiki/internal/version"
+	"github.com/mtsonline/enterprisewiki/pkg/sdk"
 )
 
 func (s *Server) handle(pattern string, fn h.Handler) {
@@ -1005,14 +1006,19 @@ func maskURL(u string) string {
 func (s *Server) site(w http.ResponseWriter, r *http.Request) (any, error) {
 	c := s.app.Config.Get()
 	var frontend []string
+	templates := []map[string]string{}
 	for _, p := range s.app.Kernel.List() {
 		if p.Active && p.Frontend {
 			frontend = append(frontend, p.ID)
 		}
+		if p.Active && slices.Contains(p.Kinds, sdk.KindTemplate) {
+			templates = append(templates, map[string]string{"id": p.ID, "name": p.Name})
+		}
 	}
+	slices.SortFunc(templates, func(a, b map[string]string) int { return strings.Compare(a["name"], b["name"]) })
 	home := c.UI.HomeCategory
 	return map[string]any{
-		"name": c.UI.SiteName, "template": c.UI.Template, "home_category": home, "home_element": c.UI.HomeElement, "editor": cmp.Or(c.UI.Editor, "visual"), "collaboration": c.UI.Collaboration,
+		"name": c.UI.SiteName, "template": c.UI.Template, "templates": templates, "home_category": home, "home_element": c.UI.HomeElement, "editor": cmp.Or(c.UI.Editor, "visual"), "collaboration": c.UI.Collaboration,
 		"languages": c.I18n.Languages, "default_language": c.I18n.DefaultLanguage,
 		"plugins": frontend, "element_types": s.app.Content.Types(), "auth_providers": s.app.Auth.ProviderInfos(),
 		"version": version.Version, "permissions": acl.Names,
