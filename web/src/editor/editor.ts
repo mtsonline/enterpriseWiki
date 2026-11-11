@@ -26,7 +26,7 @@ import { prosemirrorToYXmlFragment, redo as yRedo, undo as yUndo, yCursorPlugin,
 import { formatAttrs } from './attrs';
 import { Collab, collabURL, colorOf, markerOf, type Peer } from './collab';
 import { TextareaBinding } from './mdlive';
-import { label as macroLabel, loadMacros, macroDialog, type MacroChoice } from './macros';
+import { allowedMacros, label as macroLabel, loadMacros, macroDialog, type MacroChoice } from './macros';
 import { parse, serialize } from './markdown';
 import { schema } from './schema';
 
@@ -645,7 +645,7 @@ export function createMarkdownEditor(container: HTMLElement, opts: MarkdownEdito
   // own buttons of macros (plugins declare them), after the macro button
   void loadMacros().then((ms) => {
     let after = buttons.find((b) => b.tool.id === 'macro')?.btn;
-    for (const m of ms.filter((x) => x.toolbar)) {
+    for (const m of allowedMacros(ms).filter((x) => x.toolbar)) {
       const btn = makeButton({ id: `macro:${m.name}`, icon: m.toolbar!, key: '', label: macroLabel(m.labels) || m.name, run: (v) => void macroInsert(v, m.name), markdown: true });
       after?.after(btn);
       after = btn;

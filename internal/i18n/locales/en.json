@@ -1840,5 +1840,12 @@
  "insights.updated": "Last changed",
  "insights.contributors": "Contributors",
  "insights.versions": "Saved versions",
- "insights.none": "No entries."
+ "insights.none": "No entries.",
+ "space.allowed_macros": "Allowed macros",
+ "space.allowed_macros_help": "Only these macros are offered and shown in the space (others appear as a notice). None selected: all active macros.",
+ "space.logo": "Logo of the space",
+ "space.logo_help": "Picture of the wiki (upload or address /api/v1/files/… or /api/v1/media/…); shown in the navigation and the directory.",
+ "space.accent_use": "Own accent color",
+ "space.accent": "Accent color",
+ "space.accent_help": "Color of links and buttons in the space. It needs a contrast of at least 4.5:1 with white (WCAG); too light colors are refused."
 }

@@ -1,6 +1,7 @@
 package server_test
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -824,5 +825,84 @@ func TestInsights(t *testing.T) {
 	if in.Pages != 2 || in.NewPages != 2 || in.Views != 4 || len(in.ViewsPerDay) != 1 || len(in.Popular) != 2 || in.Popular[0].Title != "Popular" || in.Popular[0].Views != 3 ||
 		len(in.Contributors) != 1 || in.Contributors[0].Versions != 2 {
 		t.Fatalf("insights: %+v", in)
+	}
+}
+
+// TestConfidentialMedia: pictures of confidential categories carry the
+// viewer's name; strictly confidential ones cannot be downloaded.
+func TestConfidentialMedia(t *testing.T) {
+	e := setup(t)
+	admin := e.client()
+	admin.login("admin", adminPW)
+	var folder cat
+	admin.must("POST", "/api/v1/categories", map[string]any{"titles": map[string]string{"en": "HR files"}}, &folder, 201)
+	var bob struct {
+		ID int64 `json:"id"`
+	}
+	admin.must("POST", "/api/v1/admin/users", map[string]any{"username": "bob", "password": "Bob-Passw0rd!x", "display_name": "Bob Baum"}, &bob, 201)
+	admin.must("POST", fmt.Sprintf("/api/v1/categories/%d/acl", folder.ID), map[string]any{"subject_type": "user", "subject_id": bob.ID, "permissions": 1, "inherit": true}, nil, 201)
+	bc := e.client()
+	bc.login("bob", "Bob-Passw0rd!x")
+	png := testPNG(200, 120)
+	_, img := admin.uploadMedium(t, "/api/v1/media", map[string]any{"category_id": folder.ID, "title": "Org chart", "alt": "Org chart"}, "org.png", png)
+	_, plain, _ := bc.fetch(t, fmt.Sprintf("/api/v1/media/%d/view", img.ID))
+	admin.must("PUT", fmt.Sprintf("/api/v1/categories/%d", folder.ID), map[string]any{"classification": 2}, nil, 200)
+	c, marked, _ := bc.fetch(t, fmt.Sprintf("/api/v1/media/%d/view", img.ID))
+	if c != 200 || bytes.Equal(plain, marked) {
+		t.Fatalf("confidential picture without watermark: %d", c)
+	}
+	if c, _, _ := bc.fetch(t, fmt.Sprintf("/api/v1/media/%d/download", img.ID)); c != 200 {
+		t.Fatalf("confidential download: %d", c)
+	}
+	admin.must("PUT", fmt.Sprintf("/api/v1/categories/%d", folder.ID), map[string]any{"classification": 3}, nil, 200)
+	if c, _, _ := bc.fetch(t, fmt.Sprintf("/api/v1/media/%d/download", img.ID)); c != 403 {
+		t.Fatalf("strictly confidential download: %d", c)
+	}
+	if c, _, _ := bc.fetch(t, fmt.Sprintf("/api/v1/media/%d/view", img.ID)); c != 200 {
+		t.Fatalf("strictly confidential view: %d", c)
+	}
+	if c, _, _ := admin.fetch(t, fmt.Sprintf("/api/v1/media/%d/download", img.ID)); c != 200 {
+		t.Fatalf("manager download: %d", c)
+	}
+}
+
+// TestSpaceLook: accent color (contrast checked), logo and allowed macros.
+func TestSpaceLook(t *testing.T) {
+	e := setup(t)
+	admin := e.client()
+	admin.login("admin", adminPW)
+	var top cat
+	admin.must("POST", "/api/v1/categories", map[string]any{"titles": map[string]string{"en": "Brand"}}, &top, 201)
+	put := func(body map[string]any) int {
+		return admin.do("PUT", fmt.Sprintf("/api/v1/categories/%d/space", top.ID), body, nil)
+	}
+	for name, body := range map[string]map[string]any{
+		"too light":     {"accent": "#ffcc00"},
+		"no color":      {"accent": "red"},
+		"external logo": {"logo": "https://tracker.example/logo.png"},
+		"logo escape":   {"logo": "/api/v1/files/../../etc"},
+		"unknown macro": {"allowed_macros": []string{"nope"}},
+	} {
+		if code := put(body); code != 400 {
+			t.Fatalf("%s accepted: %d", name, code)
+		}
+	}
+	var sp struct {
+		Accent        string   `json:"accent"`
+		Logo          string   `json:"logo"`
+		AllowedMacros []string `json:"allowed_macros"`
+	}
+	admin.must("PUT", fmt.Sprintf("/api/v1/categories/%d/space", top.ID), map[string]any{"accent": "#0B5CAD", "logo": "/api/v1/files/abc123", "allowed_macros": []string{"toc"}}, &sp, 200)
+	if sp.Accent != "#0b5cad" || sp.Logo != "/api/v1/files/abc123" || len(sp.AllowedMacros) != 1 {
+		t.Fatalf("space look: %+v", sp)
+	}
+	// macros that are not allowed are not rendered in the space
+	page := macroPage(t, admin, top.ID, "recent", map[string]string{})
+	if html := viewHTML(t, admin, page); !strings.Contains(html, "not available in this space") {
+		t.Fatalf("macro not allowed but rendered: %s", html)
+	}
+	toc := macroPage(t, admin, top.ID, "toc", map[string]string{})
+	if html := viewHTML(t, admin, toc); strings.Contains(html, "not available") {
+		t.Fatalf("allowed macro refused: %s", html)
 	}
 }

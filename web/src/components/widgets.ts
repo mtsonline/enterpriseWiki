@@ -248,7 +248,8 @@ async function spaceTree(sp: SpaceInfo): Promise<HTMLElement> {
   const title = pick(sp.titles, state.lang, state.site.default_language);
   const headId = uid('space');
   const nav = h('nav', { class: 'ew-tree ew-space-nav', 'aria-labelledby': headId },
-    h('h2', { class: 'ew-tree-title', id: headId }, h('a', { href: `/c/${sp.id}`, 'aria-current': ctx.categoryId === sp.id ? 'page' : undefined }, title)),
+    h('h2', { class: 'ew-tree-title', id: headId }, h('a', { href: `/c/${sp.id}`, 'aria-current': ctx.categoryId === sp.id ? 'page' : undefined },
+      sp.logo ? h('img', { class: 'ew-space-logo', src: sp.logo, alt: '' }) : null, title)),
     sp.key ? h('p', { class: 'ew-space-key' }, h('span', { class: 'sr-only' }, t('space.key') + ': '), sp.key) : null);
   if (sp.shortcuts.length) {
     nav.append(h('ul', { class: 'ew-space-links', 'aria-label': t('space.shortcuts') }, ...sp.shortcuts.map((l) => {

@@ -109,6 +109,11 @@ export interface SpaceInfo {
   own_tree: boolean;
   shortcuts: { label: Record<string, string>; url: string }[];
   allowed_types: string[];
+  /** macros allowed in the space (empty: all) */
+  allowed_macros?: string[];
+  /** color of links and buttons in the space; logo picture */
+  accent?: string;
+  logo?: string;
   language: string;
   /** offered as template for new spaces */
   is_template?: boolean;

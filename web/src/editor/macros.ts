@@ -5,7 +5,7 @@ import { h } from '../core/dom';
 import { t, uiLang } from '../core/i18n';
 import type { MacroInfo, MacroParam } from '../core/types';
 import { checkbox, field, formDialog, select, textArea, textInput } from '../components/ui';
-import { currentCategory } from '../components/widgets';
+import { currentCategory, currentSpace } from '../components/widgets';
 
 let cache: Promise<MacroInfo[]> | null = null;
 
@@ -13,6 +13,12 @@ let cache: Promise<MacroInfo[]> | null = null;
 export function loadMacros(): Promise<MacroInfo[]> {
   cache ??= api.get<MacroInfo[]>('macros').catch((e: unknown) => { cache = null; throw e; });
   return cache;
+}
+
+/** The macros the space of the current page allows (all if it does not limit them). */
+export function allowedMacros(ms: MacroInfo[]): MacroInfo[] {
+  const allowed = currentSpace?.allowed_macros ?? [];
+  return allowed.length ? ms.filter((m) => allowed.includes(m.name)) : ms;
 }
 
 /** The label of a localized map in the UI language. */
@@ -78,7 +84,7 @@ function paramControl(p: MacroParam, value: string, ctx: Omit<MacroParamContext,
  * Resolves with the choice, or null if the dialog was cancelled.
  */
 export async function macroDialog(existing: { name: string; params: Record<string, string> } | null, only?: string, preset: Record<string, string> = {}): Promise<MacroChoice | null> {
-  const macros = (await loadMacros()).slice().sort((a, b) => label(a.labels).localeCompare(label(b.labels)));
+  const macros = allowedMacros(await loadMacros()).sort((a, b) => label(a.labels).localeCompare(label(b.labels)));
   if (!macros.length) throw new Error(t('editor.macro_none'));
   const initial = existing?.name ?? only ?? macros[0].name;
   if (!macros.some((m) => m.name === initial)) throw new Error(t('editor.macro_unknown', { name: initial }));

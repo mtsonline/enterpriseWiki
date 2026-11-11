@@ -184,6 +184,8 @@ Jede Kategorie der obersten Ebene ist ein **Bereich** (wie ein Space in Confluen
 - **Verknüpfungen**: wichtige Seiten oder externe Adressen oben in der Navigation des Bereichs.
 - **Erlaubte Elementtypen**: Nur diese Typen lassen sich im Bereich anlegen oder dorthin verschieben; *Neues Element* bietet nur sie an.
 - **Sprache neuer Elemente**: Standardsprache für neue Seiten im Bereich.
+- **Erlaubte Makros**: Nur diese Makros bietet der Editor im Bereich an; andere werden im Bereich nicht ausgeführt, sondern als Hinweis gezeigt.
+- **Logo** und **Akzentfarbe**: Logo in der Navigation und im Verzeichnis; die Akzentfarbe gilt für Links und Knöpfe im Bereich und muss mit Weiß einen Kontrast von mindestens 4,5:1 haben.
 
 *Alle Bereiche* (`/spaces`, Link unten in der Navigation) listet alle Bereiche, die Sie sehen dürfen, mit Filter. Name und Verknüpfungen eines Bereichs sieht nur, wer seine oberste Kategorie sehen darf.
 
@@ -206,8 +208,8 @@ Jede Kategorie der obersten Ebene ist ein **Bereich** (wie ein Space in Confluen
 | Einstufung | Wirkung |
 |---|---|
 | Intern | nie für Gäste – auch wenn eine Regel Gästen Lesen erlaubt; Hinweis „Intern“ auf jeder Seite |
-| Vertraulich | zusätzlich nicht in Atom/RSS-Feeds und Kalender-Abos, Beobachtungs-E-Mails nur mit Titel und Link, Hinweis auf jeder Seite |
-| Streng vertraulich | zusätzlich nicht in der allgemeinen Suche (nur bei Suche innerhalb der Kategorie), nicht in externen Suchindizes, kein Export und keine Kopien |
+| Vertraulich | zusätzlich nicht in Atom/RSS-Feeds und Kalender-Abos, Beobachtungs-E-Mails nur mit Titel und Link, Hinweis auf jeder Seite; Bilder und PDFs der Medienbibliothek tragen Name der Betrachterin bzw. des Betrachters und Uhrzeit als Wasserzeichen |
+| Streng vertraulich | zusätzlich nicht in der allgemeinen Suche (nur bei Suche innerhalb der Kategorie), nicht in externen Suchindizes, kein Export, keine Kopien; Dateien der Medienbibliothek nur ansehen, nicht herunterladen (außer mit Verwaltungsrecht) |
 
 **Auswertung** (*Kategorie-Einstellungen → Auswertung*, mit *Verwalten*): Aufrufe pro Tag, meistgelesene Seiten, seit über sechs Monaten nicht geänderte Seiten und Mitwirkende der letzten 7 bis 365 Tage. Aufrufe werden datensparsam nur pro Seite und Tag gezählt – ohne Personen und Adressen – und nach 400 Tagen gelöscht.
 

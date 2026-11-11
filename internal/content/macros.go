@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"html"
 	"regexp"
+	"slices"
 	"sort"
 	"strings"
 	"sync"
@@ -252,6 +253,7 @@ func (s *Service) RenderMacros(ctx context.Context, rc RenderContext, src string
 		return renderChildren(root)
 	}
 	count := 0
+	allowed := s.spaceMacros(ctx, rc.CategoryID) // the space may limit the macros
 	var walk func(*nethtml.Node)
 	walk = func(n *nethtml.Node) {
 		for c := n.FirstChild; c != nil; {
@@ -274,6 +276,8 @@ func (s *Service) RenderMacros(ctx context.Context, rc RenderContext, src string
 			out = macroNote("too many macros on this page")
 		case m == nil:
 			out = macroNote(fmt.Sprintf("macro %q is not available", name))
+		case len(allowed) > 0 && !slices.Contains(allowed, name):
+			out = macroNote(fmt.Sprintf("macro %q is not available in this space", name))
 		default:
 			body := renderChildren(n)
 			params := ParseMacroParams(attr(n, "data-params"))

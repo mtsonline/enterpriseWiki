@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"github.com/mtsonline/enterprisewiki/internal/acl"
 	"image"
 	"image/jpeg"
 	"os"
@@ -110,13 +111,20 @@ func (s *Service) Deliver(ctx context.Context, id int64, in DeliverInput) (*Deli
 	var markName string
 	var markTime time.Time
 	marked := false
-	switch m.Watermark.Mode {
+	mode, spec := m.Watermark.Mode, m.Watermark
+	// confidential and above: the viewer's name and the time on every picture and PDF page
+	if (mode == "" || mode == WMNone || mode == WMUploaderView) && (mime == "application/pdf" || editable(mime)) &&
+		s.acl.Classification(ctx, m.CategoryID) >= acl.Confidential {
+		mode = WMViewerAll
+		spec = WatermarkSpec{Mode: mode, User: true, Date: true, Comment: spec.Comment}
+	}
+	switch mode {
 	case WMUploaderView:
 		if !in.Download {
 			marked, markName, markTime = true, s.userName(ctx, m.CreatedBy), m.CreatedAt
 		}
 	case WMViewerView, WMViewerAll:
-		if !in.Download || m.Watermark.Mode == WMViewerAll {
+		if !in.Download || mode == WMViewerAll {
 			marked, markName, markTime = true, viewerName(ctx), time.Now()
 		}
 	}
@@ -133,9 +141,9 @@ func (s *Service) Deliver(ctx context.Context, id int64, in DeliverInput) (*Deli
 		}
 	}
 	day := markTime.Format("2006-01-02")
-	key := fmt.Sprintf("%s|%v|%s|%s|%s|%d|%d", hash, marked, m.Watermark.Mode, markName, day, in.Width, in.Page)
+	key := fmt.Sprintf("%s|%v|%s|%s|%s|%d|%d", hash, marked, mode, markName, day, in.Width, in.Page)
 	if marked {
-		key += "|" + strings.Join(lines(m.Watermark, markName, markTime), "|")
+		key += "|" + strings.Join(lines(spec, markName, markTime), "|")
 	}
 
 	switch {
@@ -161,7 +169,7 @@ func (s *Service) Deliver(ctx context.Context, id int64, in DeliverInput) (*Deli
 			return nil, err
 		}
 		if marked {
-			if img, err = Watermark(img, lines(m.Watermark, markName, markTime)); err != nil {
+			if img, err = Watermark(img, lines(spec, markName, markTime)); err != nil {
 				return nil, err
 			}
 		}
@@ -177,7 +185,7 @@ func (s *Service) Deliver(ctx context.Context, id int64, in DeliverInput) (*Deli
 			d.Data = b
 			return d, nil
 		}
-		b, err := markPDF(ctx, data, lines(m.Watermark, markName, markTime))
+		b, err := markPDF(ctx, data, lines(spec, markName, markTime))
 		if err != nil {
 			return nil, err
 		}
@@ -200,7 +208,7 @@ func (s *Service) Deliver(ctx context.Context, id int64, in DeliverInput) (*Deli
 			img = Resize(img, min(in.Width, 4000), 0)
 		}
 		if marked {
-			if img, err = Watermark(img, lines(m.Watermark, markName, markTime)); err != nil {
+			if img, err = Watermark(img, lines(spec, markName, markTime)); err != nil {
 				return nil, err
 			}
 		}

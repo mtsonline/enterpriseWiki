@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"math"
 	"net/http"
 	"net/url"
 	"regexp"
@@ -40,6 +41,12 @@ type Space struct {
 	Shortcuts []SpaceLink `json:"shortcuts"`
 	// AllowedTypes limits the element types (empty: all active types)
 	AllowedTypes []string `json:"allowed_types"`
+	// AllowedMacros limits the macros (empty: all active macros)
+	AllowedMacros []string `json:"allowed_macros"`
+	// Accent: color of links and buttons in the space (#rrggbb, contrast
+	// at least 4.5:1 with white); Logo: picture of the wiki (files or media)
+	Accent string `json:"accent"`
+	Logo   string `json:"logo"`
 	// Language of new elements ("" = the default language of the site)
 	Language string `json:"language"`
 	// IsTemplate: offered as template for new spaces
@@ -69,7 +76,25 @@ type SpaceInput struct {
 	Space
 }
 
-var spaceKeyRe = regexp.MustCompile(`^[A-Z][A-Z0-9]{1,15}$`)
+var (
+	spaceKeyRe = regexp.MustCompile(`^[A-Z][A-Z0-9]{1,15}$`)
+	accentRe   = regexp.MustCompile(`^#[0-9a-fA-F]{6}$`)
+	logoRe     = regexp.MustCompile(`^/api/v1/(files|media)/[A-Za-z0-9._/-]{1,200}$`)
+)
+
+// contrastWithWhite is the WCAG contrast ratio of a #rrggbb color with white.
+func contrastWithWhite(hex string) float64 {
+	lin := func(i int) float64 {
+		v, _ := strconv.ParseUint(hex[i:i+2], 16, 8)
+		c := float64(v) / 255
+		if c <= 0.04045 {
+			return c / 12.92
+		}
+		return math.Pow((c+0.055)/1.055, 2.4)
+	}
+	l := 0.2126*lin(1) + 0.7152*lin(3) + 0.0722*lin(5)
+	return 1.05 / (l + 0.05)
+}
 
 const maxShortcuts = 30
 
@@ -96,6 +121,9 @@ func (s *Service) loadSpace(ctx context.Context, top int64) (*SpaceInfo, error) 
 	}
 	if info.AllowedTypes == nil {
 		info.AllowedTypes = []string{}
+	}
+	if info.AllowedMacros == nil {
+		info.AllowedMacros = []string{}
 	}
 	return info, nil
 }
@@ -207,7 +235,7 @@ func (s *Service) SetSpace(ctx context.Context, id int64, in SpaceInput) (*Space
 }
 
 func (s *Service) cleanSpace(in Space) (Space, error) {
-	out := Space{OwnTree: in.OwnTree, IsTemplate: in.IsTemplate, Shortcuts: []SpaceLink{}, AllowedTypes: []string{}}
+	out := Space{OwnTree: in.OwnTree, IsTemplate: in.IsTemplate, Shortcuts: []SpaceLink{}, AllowedTypes: []string{}, AllowedMacros: []string{}}
 	if len(in.Shortcuts) > maxShortcuts {
 		return out, apperr.BadRequest("at most %d shortcuts", maxShortcuts)
 	}
@@ -238,6 +266,29 @@ func (s *Service) cleanSpace(in Space) (Space, error) {
 		}
 		if !slices.Contains(out.AllowedTypes, t) {
 			out.AllowedTypes = append(out.AllowedTypes, t)
+		}
+	}
+	if in.Accent != "" {
+		if !accentRe.MatchString(in.Accent) {
+			return out, apperr.BadRequest("accent: a color like #0b5cad")
+		}
+		if contrastWithWhite(in.Accent) < 4.5 {
+			return out, apperr.BadRequest("accent %s is too light: it needs a contrast of at least 4.5:1 with white (WCAG)", in.Accent)
+		}
+		out.Accent = strings.ToLower(in.Accent)
+	}
+	if in.Logo != "" {
+		if !logoRe.MatchString(in.Logo) || strings.Contains(in.Logo, "..") {
+			return out, apperr.BadRequest("logo: choose a picture of the wiki (files or media library)")
+		}
+		out.Logo = in.Logo
+	}
+	for _, m := range in.AllowedMacros {
+		if s.macro(m) == nil {
+			return out, apperr.BadRequest("unknown or disabled macro %q", m)
+		}
+		if !slices.Contains(out.AllowedMacros, m) {
+			out.AllowedMacros = append(out.AllowedMacros, m)
 		}
 	}
 	if in.Language != "" && !s.validLang(in.Language) {
@@ -420,4 +471,18 @@ func (s *Service) CreatePersonalSpace(ctx context.Context) (*SpaceInfo, error) {
 	}
 	_ = audit.Log(ctx, s.pool, "space.personal", "category", c.ID, nil, nil)
 	return s.loadSpace(ctx, c.ID)
+}
+
+// spaceMacros returns the macros allowed in the space of a category (nil: all).
+func (s *Service) spaceMacros(ctx context.Context, categoryID int64) []string {
+	if categoryID == 0 {
+		return nil
+	}
+	var raw []byte
+	if err := s.pool.QueryRow(ctx, `SELECT t.space->'allowed_macros' FROM categories c JOIN categories t ON t.id = split_part(c.path::text, '.', 1)::bigint WHERE c.id=$1`, categoryID).Scan(&raw); err != nil {
+		return nil
+	}
+	var list []string
+	_ = json.Unmarshal(raw, &list)
+	return list
 }

@@ -297,6 +297,10 @@ func (s *Service) Perms(ctx context.Context, m *Medium) (Perm, error) {
 	if !m.Download && out&Manage == 0 {
 		out &^= Download
 	}
+	// strictly confidential: shown only (with the viewer's name), no downloads
+	if out&Manage == 0 && s.acl.Classification(ctx, m.CategoryID) >= acl.StrictConfidential {
+		out &^= Download
+	}
 	return out, nil
 }
 

@@ -427,7 +427,7 @@ func buildDemo(d *demoRun) {
 		"<p>Fragen mehrerer Kategorien als eine FAQ (Makro <code>faq</code>):</p>"+macro("faq", map[string]string{"source": fmt.Sprintf("category:%d+sub; category:%d", faq, news), "open": "no", "numbering": "yes"}, ""), nil)
 	// the demo is a space: key DEMO (/s/DEMO), own navigation with shortcuts
 	d.optional("space", func() {
-		d.call(http.MethodPut, fmt.Sprintf("/api/v1/categories/%d/space", root), map[string]any{"key": "DEMO", "own_tree": true,
+		d.call(http.MethodPut, fmt.Sprintf("/api/v1/categories/%d/space", root), map[string]any{"key": "DEMO", "own_tree": true, "accent": "#5f2aa3",
 			"shortcuts": []map[string]any{
 				{"label": d.tr("All news", "Alles Neue"), "url": "/c/" + strconv.FormatInt(srcCat, 10)},
 				{"label": d.tr("Search", "Suche"), "url": "/search"},

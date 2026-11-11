@@ -10,7 +10,7 @@ import { loadMessages, t } from './core/i18n';
 import { onBeforeRender, onNavigate, rerender, route, setMain, setNotFound, start } from './core/router';
 import { rememberedLang, state, stored } from './core/state';
 import type { Principal, Site } from './core/types';
-import { categoryTree, ctx, setSpace, editToggle, languageSwitcher, searchBox, userMenu } from './components/widgets';
+import { categoryTree, ctx, currentSpace, setSpace, editToggle, languageSwitcher, searchBox, userMenu } from './components/widgets';
 import { pluginModules } from './generated/plugins';
 import { positionContainer, refreshPositions, registerSlot, registerTemplate, resolveTemplate, setShownTemplate } from './sdk';
 import { adminView } from './views/admin';
@@ -125,7 +125,20 @@ async function boot(): Promise<void> {
   };
   onBeforeRender(() => { ctx.template = ''; setSpace(null); });
   document.addEventListener('ewiki:template', () => { useTemplate(ctx.template || state.site.template); void refreshPositions(); });
+  // accent color of the space (contrast checked on the server)
+  const useAccent = () => {
+    const a = currentSpace?.accent;
+    const root = document.documentElement.style;
+    if (a) {
+      root.setProperty('--ew-primary', a);
+      root.setProperty('--ew-link', a);
+      root.setProperty('--ew-primary-hover', `color-mix(in srgb, ${a} 80%, black)`);
+    } else {
+      for (const p of ['--ew-primary', '--ew-link', '--ew-primary-hover']) root.removeProperty(p);
+    }
+  };
   onNavigate(() => {
+    useAccent();
     useTemplate(ctx.template || state.site.template);
     void refreshPositions();
   });

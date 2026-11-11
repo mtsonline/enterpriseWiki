@@ -11,6 +11,9 @@ import { button, checkbox, errorText, field, formDialog, langFields, openDialog,
 import { invalidateTree, langName, setContext } from '../components/widgets';
 import { errorPage } from './content';
 import { typeLabel } from '../sdk';
+import { previewImageInput } from '../components/previewimage';
+import { label as macroLabel, loadMacros } from '../editor/macros';
+import type { MacroInfo } from '../core/types';
 
 const L = () => state.lang;
 const D = () => state.site.default_language;
@@ -43,6 +46,7 @@ export async function spacesView({ main }: RouteCtx): Promise<void> {
   const archivedGrid = h('ul', { class: 'ew-spaces' });
   const archivedSec = h('section', { class: 'ew-section', 'aria-labelledby': 'ew-arch-h', hidden: true }, h('h2', { id: 'ew-arch-h' }, t('archive.spaces')), archivedGrid);
   const card = (s: SpaceInfo) => h('li', { class: ['ew-space-card', s.archived && 'is-archived'] },
+      s.logo ? h('img', { class: 'ew-space-logo', src: s.logo, alt: '' }) : null,
       h('h3', null, h('a', { href: s.key ? `/s/${s.key}` : `/c/${s.id}` }, pick(s.titles, L(), D()))),
       s.key ? h('p', { class: 'ew-space-key' }, h('span', { class: 'sr-only' }, `${t('space.key')}: `), s.key) : null,
       s.personal ? h('p', { class: 'ew-badge ew-badge--info' }, t('space.personal')) : null,
@@ -133,6 +137,13 @@ export async function spaceSettings(panel: HTMLElement, c: Category): Promise<vo
   key.setAttribute('pattern', '[A-Za-z][A-Za-z0-9]{1,15}');
   const own = checkbox(t('space.own_tree'), sp.own_tree, { help: t('space.own_tree_help') });
   const isTpl = hasPerm('core.categories.admin') ? checkbox(t('space.is_template'), !!sp.is_template, { help: t('space.is_template_help') }) : null;
+  const logo = previewImageInput(sp.logo ?? '', { label: t('space.logo'), help: t('space.logo_help') });
+  const useAccent = checkbox(t('space.accent_use'), !!sp.accent);
+  const accent = textInput({ type: 'color', value: sp.accent || '#0b5cad' });
+  const accentField = field(t('space.accent'), accent, { help: t('space.accent_help') });
+  const syncAccent = () => { accent.disabled = !useAccent.input.checked; };
+  useAccent.input.addEventListener('change', syncAccent);
+  syncAccent();
   const lang = select([{ value: '', label: t('space.language_site') }, ...state.site.languages.map((l) => ({ value: l, label: langName(l) }))], sp.language);
   // shortcuts: label (UI language) and address
   const rows = h('ol', { class: 'ew-space-shortcuts' });
@@ -152,6 +163,12 @@ export async function spaceSettings(panel: HTMLElement, c: Category): Promise<vo
     return label;
   };
   sp.shortcuts.forEach((l) => addRow(l));
+  // allowed macros (none checked = all)
+  let macros: MacroInfo[] = [];
+  try { macros = await loadMacros(); } catch { /* none */ }
+  const macroBoxes = macros.slice().sort((a, b) => macroLabel(a.labels).localeCompare(macroLabel(b.labels)))
+    .map((m) => ({ id: m.name, cb: checkbox(macroLabel(m.labels) || m.name, (sp!.allowed_macros ?? []).includes(m.name)) }));
+  const macrosId = uid('macros');
   // allowed element types (none checked = all)
   const typeBoxes = state.site.element_types.map((x) => ({ id: x.id, cb: checkbox(typeLabel(x.id), sp!.allowed_types.includes(x.id)) }));
   const typesId = uid('types');
@@ -159,11 +176,13 @@ export async function spaceSettings(panel: HTMLElement, c: Category): Promise<vo
   const form = h('form', { class: 'ew-form', novalidate: true }, alert,
     h('p', null, t('space.help')),
     field(t('space.key'), key, { help: t('space.key_help', { origin: location.origin }) }),
-    own.el, isTpl?.el ?? null,
+    own.el, isTpl?.el ?? null, logo.el, useAccent.el, accentField,
     h('fieldset', { class: 'ew-fieldset' }, h('legend', null, t('space.shortcuts')), h('p', { class: 'ew-help' }, t('space.shortcuts_help')), rows,
       button(t('space.shortcut_add'), () => addRow().focus(), { variant: 'secondary' })),
     h('fieldset', { class: 'ew-fieldset', 'aria-describedby': typesId }, h('legend', null, t('space.allowed_types')),
       h('p', { class: 'ew-help', id: typesId }, t('space.allowed_types_help')), h('div', { class: 'ew-checks' }, ...typeBoxes.map((b) => b.cb.el))),
+    macroBoxes.length ? h('fieldset', { class: 'ew-fieldset', 'aria-describedby': macrosId }, h('legend', null, t('space.allowed_macros')),
+      h('p', { class: 'ew-help', id: macrosId }, t('space.allowed_macros_help')), h('div', { class: 'ew-checks' }, ...macroBoxes.map((b) => b.cb.el))) : '',
     field(t('space.language'), lang, { help: t('space.language_help') }),
     h('div', { class: 'ew-form-actions' }, button(t('common.save'), () => undefined, { type: 'submit', variant: 'primary' })));
   const io = h('section', { class: 'ew-section', 'aria-labelledby': 'ew-io-h' }, h('h2', { id: 'ew-io-h' }, t('space.io')),
@@ -179,6 +198,8 @@ export async function spaceSettings(panel: HTMLElement, c: Category): Promise<vo
       sp = await api.put<SpaceInfo>(`categories/${c.id}/space`, {
         key: key.value.trim(), own_tree: own.input.checked, shortcuts, language: lang.value, is_template: isTpl ? isTpl.input.checked : !!sp?.is_template,
         allowed_types: typeBoxes.filter((b) => b.cb.input.checked).map((b) => b.id),
+        allowed_macros: macroBoxes.filter((b) => b.cb.input.checked).map((b) => b.id),
+        logo: logo.value(), accent: useAccent.input.checked ? accent.value : '',
       });
       key.value = sp.key;
       invalidateTree();

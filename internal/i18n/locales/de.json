@@ -1890,5 +1890,12 @@
  "insights.updated": "Zuletzt geändert",
  "insights.contributors": "Mitwirkende",
  "insights.versions": "Gespeicherte Fassungen",
- "insights.none": "Keine Einträge."
+ "insights.none": "Keine Einträge.",
+ "space.allowed_macros": "Erlaubte Makros",
+ "space.allowed_macros_help": "Nur diese Makros werden im Bereich angeboten und angezeigt (andere erscheinen als Hinweis). Keines ausgewählt: alle aktiven Makros.",
+ "space.logo": "Logo des Bereichs",
+ "space.logo_help": "Bild aus dem Wiki (hochladen oder Adresse /api/v1/files/… bzw. /api/v1/media/…); erscheint in der Navigation und im Verzeichnis.",
+ "space.accent_use": "Eigene Akzentfarbe",
+ "space.accent": "Akzentfarbe",
+ "space.accent_help": "Farbe für Links und Knöpfe im Bereich. Sie muss mit Weiß einen Kontrast von mindestens 4,5:1 haben (WCAG); zu helle Farben werden abgelehnt."
 }
