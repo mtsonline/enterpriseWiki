@@ -264,7 +264,7 @@ func CountActiveAccounts(ctx context.Context, q Querier) (int, error) {
 	total := 0
 	for _, s := range schemas {
 		var n int
-		if err := q.QueryRow(ctx, `SELECT count(*) FROM `+pgx.Identifier{s, "users"}.Sanitize()+` WHERE NOT disabled AND provider <> 'demo'`).Scan(&n); err != nil {
+		if err := q.QueryRow(ctx, `SELECT count(*) FROM `+pgx.Identifier{s, "users"}.Sanitize()+` WHERE NOT disabled AND provider NOT IN ('demo', 'invite')`).Scan(&n); err != nil {
 			return 0, err
 		}
 		total += n

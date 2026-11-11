@@ -12,6 +12,9 @@ type Error struct {
 	Status int
 	Code   string
 	Msg    string
+	// Detail is passed to the client as "detail" (e.g. the token of a
+	// sign-in that needs confirmation).
+	Detail string
 }
 
 func (e *Error) Error() string { return e.Msg }
@@ -36,6 +39,13 @@ func Conflict(format string, a ...any) error {
 }
 func TooMany(format string, a ...any) error {
 	return newf(http.StatusTooManyRequests, "rate_limited", format, a...)
+}
+
+// LinkRequired: a sign-in uses the e-mail address of an existing account;
+// the user confirms the link by signing in with that account (token).
+func LinkRequired(token string) error {
+	return &Error{Status: http.StatusConflict, Code: "link_required", Detail: token,
+		Msg: "an account with this e-mail address exists: sign in with it once to link this sign-in"}
 }
 
 // Sentinel errors.

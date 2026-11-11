@@ -203,6 +203,28 @@ func newSite(ctx context.Context, in *Instance, site string, migrate bool) (*App
 		return a.Mail.SendNow(ctx, mail.Message{To: []string{addr}, Subject: a.I18n.T(ctx, lang, "mfa.mail_subject_"+purpose, p),
 			Text: a.I18n.T(ctx, lang, "mfa.mail_text_"+purpose, p), Source: "auth", NoReport: true})
 	}
+	// confirmation links of e-mail addresses (sent directly, the link is secret)
+	a.Auth.SendConfirmation = func(ctx context.Context, uid int64, addr, link string) error {
+		var lang, name string
+		if err := pool.QueryRow(ctx, `SELECT language, coalesce(nullif(display_name,''), username) FROM users WHERE id=$1`, uid).Scan(&lang, &name); err != nil {
+			return err
+		}
+		if lang == "" {
+			lang = cfg.Get().I18n.DefaultLanguage
+		}
+		p := map[string]string{"link": link, "site": cfg.Get().UI.SiteName, "name": name, "email": addr, "hours": "48"}
+		return a.Mail.SendNow(ctx, mail.Message{To: []string{addr}, Subject: a.I18n.T(ctx, lang, "email.confirm_subject", p),
+			Text: a.I18n.T(ctx, lang, "email.confirm_text", p), Source: "auth", NoReport: true})
+	}
+	a.Auth.MailReady = func() bool { return a.Mail.Enabled() && a.Mail.Transport() != nil }
+	a.Workers.Register(worker.Job{Name: "auth.emails", Interval: 24 * time.Hour, Run: func(ctx context.Context) error {
+		if err := a.Auth.BackfillEmails(ctx); err != nil {
+			return err
+		}
+		_, err := pool.Exec(ctx, `DELETE FROM email_tokens WHERE expires_at < now() - interval '1 day';
+			DELETE FROM identity_links WHERE expires_at < now()`)
+		return err
+	}})
 	a.Watch = watch.New(pool, cfg, a.ACL, a.Auth, a.Content, a.Mail, a.I18n, log)
 	// guest cache: every change invalidates it (here, on other nodes and from CLI processes)
 	a.Cache = pagecache.New(pool, cfg, log)

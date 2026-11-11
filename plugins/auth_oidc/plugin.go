@@ -201,6 +201,13 @@ func MapClaims(s map[string]any, subject string, claims map[string]any) *auth.Ex
 		}
 	}
 	id.Groups = auth.StringList(claims[auth.Setting(s, "claim_groups", "groups")])
+	// the provider confirms the address (OIDC Core 5.1: boolean; some send "true")
+	switch v := claims["email_verified"].(type) {
+	case bool:
+		id.EmailVerified = v
+	case string:
+		id.EmailVerified = v == "true"
+	}
 	auth.MappingFromSettings(s).Apply(id)
 	return id
 }

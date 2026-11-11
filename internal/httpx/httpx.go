@@ -68,7 +68,12 @@ func WriteError(w http.ResponseWriter, r *http.Request, err error) {
 	if status >= 500 {
 		Logger.Error("request failed", "method", r.Method, "path", r.URL.Path, "err", err)
 	}
-	Write(w, status, map[string]any{"error": map[string]string{"code": code, "message": msg}})
+	body := map[string]string{"code": code, "message": msg}
+	var ae *apperr.Error
+	if errors.As(err, &ae) && ae.Detail != "" {
+		body["detail"] = ae.Detail
+	}
+	Write(w, status, map[string]any{"error": body})
 }
 
 // Decode reads a JSON body into v (unknown fields are rejected).

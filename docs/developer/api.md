@@ -61,6 +61,8 @@ curl -H "Authorization: Bearer $KEY" -H 'Content-Type: application/json' \
 | `GET` | `/api/v1/auth/me` |
 | `POST` | `/api/v1/auth/ssh/challenge` |
 | `POST` | `/api/v1/auth/ssh/verify` |
+| `POST` | `/api/v1/auth/verify-email` |
+| `POST` | `/api/v1/auth/link/info` |
 | `GET` | `/api/v1/auth/sso/{provider}/start` |
 | `GET` | `/api/v1/auth/sso/{provider}/callback` |
 | `POST` | `/api/v1/auth/sso/{provider}/callback` |
@@ -83,6 +85,14 @@ curl -H "Authorization: Bearer $KEY" -H 'Content-Type: application/json' \
 | `DELETE` | `/api/v1/me/inbox/{id}` |
 | `GET` | `/api/v1/me/watch-assignments` |
 | `PUT` | `/api/v1/me/watch-assignments/{id}` |
+| `GET` | `/api/v1/me/emails` |
+| `POST` | `/api/v1/me/emails` |
+| `POST` | `/api/v1/me/emails/{id}/resend` |
+| `POST` | `/api/v1/me/emails/{id}/primary` |
+| `DELETE` | `/api/v1/me/emails/{id}` |
+| `GET` | `/api/v1/me/identities` |
+| `DELETE` | `/api/v1/me/identities` |
+| `POST` | `/api/v1/me/identities/link` |
 | `GET` | `/api/v1/me/totp` |
 | `POST` | `/api/v1/me/totp/setup` |
 | `POST` | `/api/v1/me/totp/enable` |
@@ -138,6 +148,13 @@ curl -H "Authorization: Bearer $KEY" -H 'Content-Type: application/json' \
 | `POST` | `/api/v1/admin/roles` |
 | `PUT` | `/api/v1/admin/roles/{id}` |
 | `DELETE` | `/api/v1/admin/roles/{id}` |
+| `GET` | `/api/v1/admin/users/{id}/emails` |
+| `POST` | `/api/v1/admin/users/{id}/emails` |
+| `POST` | `/api/v1/admin/users/{id}/emails/{eid}/primary` |
+| `DELETE` | `/api/v1/admin/users/{id}/emails/{eid}` |
+| `GET` | `/api/v1/admin/users/{id}/identities` |
+| `DELETE` | `/api/v1/admin/users/{id}/identities` |
+| `POST` | `/api/v1/admin/users/invite` |
 | `GET` | `/api/v1/admin/users/{id}/profile` |
 | `PUT` | `/api/v1/admin/users/{id}/profile` |
 

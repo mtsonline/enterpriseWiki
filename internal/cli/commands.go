@@ -164,7 +164,7 @@ func (e *env) readPassword(fromStdin bool, prompt string) (string, error) {
 
 func (e *env) user(args []string) error {
 	if len(args) == 0 {
-		return errors.New("usage: ewiki user list|create|passwd|disable|enable|unlock|mfa-reset|networks")
+		return errors.New("usage: ewiki user list|create|invite|emails|email-add|email-primary|email-remove|identities|unlink|passwd|disable|enable|unlock|mfa-reset|networks")
 	}
 	sub, args := args[0], args[1:]
 	fs := flag.NewFlagSet("user", flag.ContinueOnError)
@@ -172,6 +172,8 @@ func (e *env) user(args []string) error {
 	display := fs.String("display-name", "", "display name")
 	email := fs.String("email", "", "e-mail address")
 	stdinPw := fs.Bool("password-stdin", false, "read the password from stdin")
+	unconfirmed := fs.Bool("unconfirmed", false, "email-add: send a confirmation link instead of confirming the address")
+	groups := fs.String("groups", "", "invite: groups (comma separated names)")
 	var name string
 	if len(args) > 0 && !strings.HasPrefix(args[0], "-") {
 		name, args = args[0], args[1:]
@@ -188,7 +190,11 @@ func (e *env) user(args []string) error {
 			var id int64
 			err := a.DB.QueryRow(ctx, `SELECT id FROM users WHERE lower(username)=lower($1) AND provider=$2`, n, prov).Scan(&id)
 			if err != nil {
-				return 0, fmt.Errorf("user %s@%s not found", n, prov)
+				// NAME may also be an e-mail address of the user
+				err = a.DB.QueryRow(ctx, `SELECT user_id FROM user_emails WHERE email=lower($1) ORDER BY verified DESC LIMIT 1`, name).Scan(&id)
+			}
+			if err != nil {
+				return 0, fmt.Errorf("user %s not found", name)
 			}
 			return id, nil
 		}
@@ -226,6 +232,95 @@ func (e *env) user(args []string) error {
 			}
 			e.printf("created %s (id %d)\n", u.Handle, u.ID)
 			return nil
+		case "invite":
+			// ewiki user invite ADDRESS [--display-name N] [--groups A,B]
+			in := auth.Invite{Email: name, DisplayName: *display}
+			for _, g := range strings.Split(*groups, ",") {
+				if g = strings.TrimSpace(g); g == "" {
+					continue
+				}
+				var gid int64
+				if err := a.DB.QueryRow(ctx, `SELECT id FROM groups WHERE lower(name)=lower($1)`, g).Scan(&gid); err != nil {
+					return fmt.Errorf("group %q not found", g)
+				}
+				in.Groups = append(in.Groups, gid)
+			}
+			u, err := a.Auth.InviteUser(ctx, in)
+			if err != nil {
+				return err
+			}
+			e.printf("invited %s (id %d)\n", name, u.ID)
+			return nil
+		case "emails":
+			id, err := findID()
+			if err != nil {
+				return err
+			}
+			list, err := a.Auth.UserEmails(ctx, id)
+			if err != nil {
+				return err
+			}
+			tw := tabwriter.NewWriter(e.stdout, 0, 4, 2, ' ', 0)
+			rowln(tw, "ID\tE-MAIL\tCONFIRMED\tPRIMARY")
+			for _, x := range list {
+				row(tw, "%d\t%s\t%v\t%v\n", x.ID, x.Email, x.Verified, x.Primary)
+			}
+			return tw.Flush()
+		case "email-add", "email-primary", "email-remove":
+			// ewiki user email-add NAME ADDRESS [--unconfirmed]; email-primary|email-remove NAME ADDRESS
+			id, err := findID()
+			if err != nil {
+				return err
+			}
+			if fs.NArg() != 1 {
+				return fmt.Errorf("usage: ewiki user %s NAME ADDRESS", sub)
+			}
+			addr := fs.Arg(0)
+			if sub == "email-add" {
+				_, err := a.Auth.AddUserEmail(ctx, id, addr, !*unconfirmed)
+				return err
+			}
+			list, err := a.Auth.UserEmails(ctx, id)
+			if err != nil {
+				return err
+			}
+			for _, x := range list {
+				if strings.EqualFold(x.Email, addr) {
+					if sub == "email-primary" {
+						return a.Auth.SetUserPrimaryEmail(ctx, id, x.ID)
+					}
+					return a.Auth.RemoveUserEmail(ctx, id, x.ID)
+				}
+			}
+			return fmt.Errorf("%s has no address %s", name, addr)
+		case "identities":
+			id, err := findID()
+			if err != nil {
+				return err
+			}
+			if _, err := a.Auth.UserEmails(ctx, id); err != nil { // permission
+				return err
+			}
+			list, err := a.Auth.Identities(ctx, id)
+			if err != nil {
+				return err
+			}
+			tw := tabwriter.NewWriter(e.stdout, 0, 4, 2, ' ', 0)
+			rowln(tw, "PROVIDER\tSUBJECT\tUSERNAME\tPRIMARY")
+			for _, x := range list {
+				row(tw, "%s\t%s\t%s\t%v\n", x.Provider, x.Subject, x.Username, x.Primary)
+			}
+			return tw.Flush()
+		case "unlink":
+			// ewiki user unlink NAME PROVIDER SUBJECT
+			id, err := findID()
+			if err != nil {
+				return err
+			}
+			if fs.NArg() != 2 {
+				return errors.New("usage: ewiki user unlink NAME PROVIDER SUBJECT")
+			}
+			return a.Auth.UnlinkUserIdentity(ctx, id, fs.Arg(0), fs.Arg(1))
 		case "passwd":
 			id, err := findID()
 			if err != nil {

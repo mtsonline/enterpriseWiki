@@ -13,6 +13,7 @@ import { canTranslateAny, hasPerm, isAdmin, isInstanceAdmin, state } from '../co
 import { globalEditor, loadCatalog, permLabel } from '../components/permissions';
 import { permissionsAdmin } from './adminPermissions';
 import { auditAdmin } from './adminAudit';
+import { adminIdentityDialog, inviteDialog } from './identity';
 import type { Group, MediaViewers, Role } from '../core/types';
 import { toast } from '../core/announce';
 import { button, checkbox, confirmDialog, errorText, field, formDialog, openDialog, pageHeader, select, textArea, textInput } from '../components/ui';
@@ -136,16 +137,19 @@ async function users(panel: HTMLElement, query: URLSearchParams): Promise<void> 
   const sf = h('form', { role: 'search', class: 'ew-inline-form', 'aria-label': t('admin.user_search') }, field(t('admin.user_search'), search, { inline: true }), button(t('search.submit'), () => undefined, { type: 'submit' }));
   sf.addEventListener('submit', (ev) => { ev.preventDefault(); navigate(`/admin/users${qs({ q: search.value })}`); });
   const name = (ids: number[], all: { id: number; name: string }[]) => ids.map((id) => all.find((x) => x.id === id)?.name ?? `#${id}`).join(', ');
-  mount(panel, pageHeader(t('admin.users'), sharedEditable() ? button(t('admin.user_create'), () => userDialog(null, gs, rs), { variant: 'primary' }) : null), sharedNotice(), sf,
+  mount(panel, pageHeader(t('admin.users'), sharedEditable() ? button(t('admin.user_create'), () => userDialog(null, gs, rs), { variant: 'primary' }) : null,
+    sharedEditable() ? button(t('invite.title'), () => inviteDialog(gs, rs, reload), { variant: 'secondary' }) : null), sharedNotice(), sf,
     table(t('admin.users'), [t('admin.handle'), t('profile.display_name'), t('admin.groups'), t('admin.roles'), t('admin.last_login'), t('common.status'), t('common.actions')],
       list.map((u) => h('tr', null,
         h('th', { scope: 'row' }, u.handle, u.totp_enabled || u.mfa_email ? h('span', { class: 'ew-badge ew-badge--ok' }, ' 2FA') : null), h('td', null, u.display_name), h('td', null, name(u.groups, gs)), h('td', null, name(u.roles, rs)),
         h('td', null, u.last_login_at ? fmtDate(u.last_login_at, state.lang) : '–'),
-        h('td', null, u.disabled ? h('span', { class: 'ew-badge ew-badge--warn' }, t('admin.disabled')) : (u.locked_until && new Date(u.locked_until) > new Date() ? h('span', { class: 'ew-badge ew-badge--warn' }, t('admin.locked')) : h('span', { class: 'ew-badge ew-badge--ok' }, t('admin.active')))),
+        h('td', null, u.provider === 'invite' ? h('span', { class: 'ew-badge ew-badge--info' }, t('invite.pending')) : u.disabled ? h('span', { class: 'ew-badge ew-badge--warn' }, t('admin.disabled')) : (u.locked_until && new Date(u.locked_until) > new Date() ? h('span', { class: 'ew-badge ew-badge--warn' }, t('admin.locked')) : h('span', { class: 'ew-badge ew-badge--ok' }, t('admin.active')))),
         h('td', { class: 'ew-actions' },
           button(t('common.edit'), async () => {
             try { userDialog(await api.get<User>(`admin/users/${u.id}`), gs, rs); } catch (e) { toast(errorText(e), 'error'); }
           }, { variant: 'link', ariaLabel: t('admin.edit_named', { name: u.handle }) }),
+          sharedEditable() ? button(t('identity.admin_title'), () => void adminIdentityDialog(u.id, u.handle).catch((e) => toast(errorText(e), 'error')),
+            { variant: 'link', ariaLabel: `${t('identity.admin_title')}: ${u.handle}` }) : null,
           button(t('profile.card_title'), async () => {
             try {
               openDialog(`${t('profile.card_title')}: ${u.display_name || u.handle}`, await profileCardForm(`admin/users/${u.id}/profile`, u.display_name || u.handle), [], { wide: true });

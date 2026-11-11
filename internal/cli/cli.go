@@ -57,6 +57,10 @@ Generic API access (every API function, as superadmin or --as USER)
 Users
   user list [QUERY]
   user create NAME [--admin] [--display-name N] [--email E] [--password-stdin]
+  user invite ADDRESS [--display-name N] [--groups A,B]   account before the first single sign-on
+  user emails NAME | user email-add NAME ADDRESS [--unconfirmed]
+  user email-primary NAME ADDRESS | user email-remove NAME ADDRESS
+  user identities NAME | user unlink NAME PROVIDER SUBJECT
   user passwd NAME [--password-stdin]
   user disable NAME | user enable NAME | user unlock NAME
   user mfa-reset NAME           remove the second factors (app and e-mail)

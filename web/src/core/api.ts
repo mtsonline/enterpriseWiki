@@ -1,7 +1,8 @@
 // API client. The frontend uses exactly the public REST API.
 
 export class ApiError extends Error {
-  constructor(public status: number, public code: string, message: string) {
+  /** detail: e.g. the token of a sign-in that waits for linking */
+  constructor(public status: number, public code: string, message: string, public detail = '') {
     super(message);
   }
 }
@@ -60,8 +61,8 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
     }
   }
   if (!res.ok) {
-    const err = (data as { error?: { code?: string; message?: string } } | null)?.error;
-    throw new ApiError(res.status, err?.code ?? 'error', err?.message ?? res.statusText);
+    const err = (data as { error?: { code?: string; message?: string; detail?: string } } | null)?.error;
+    throw new ApiError(res.status, err?.code ?? 'error', err?.message ?? res.statusText, err?.detail ?? '');
   }
   return data as T;
 }

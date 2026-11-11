@@ -108,6 +108,7 @@ func (s *Server) routes() {
 	s.routesOffice()
 	s.routesDemo()
 	s.routesCollab()
+	s.routesIdentity()
 	s.routesM3()
 	s.routesM4()
 	s.routesM6()

@@ -15,6 +15,7 @@ import { categoryView, elementView, errorPage, notFoundPage } from './content';
 import { watchDialog, type Watch } from '../components/watch';
 import { feedTokenSection } from '../components/feeds';
 import { profileCardForm } from '../components/profilecard';
+import { goLink, linkNotice, profileIdentitySections } from './identity';
 
 // ---------------------------------------------------------------- search
 
@@ -113,6 +114,9 @@ export async function loginView({ query, main }: RouteCtx): Promise<void> {
   const emailBtn = button(t('auth.mfa_email_send'), () => { mfa = 'email'; totp.value = ''; form.requestSubmit(); }, { variant: 'link' });
   emailBtn.hidden = true;
   const alert = h('div', { class: 'ew-form-alert', role: 'alert' }, query.get('error') ?? '');
+  // a sign-in waits to be linked to the account the person signs in with now
+  const linkToken = query.get('link') ?? '';
+  const link = linkToken ? await linkNotice(linkToken) : null;
   const form = h('form', { class: 'ew-form ew-login', novalidate: true },
     alert,
     field(t('auth.username'), user, { required: true, help: pwProviders.length > 1 ? t('auth.username_help', { providers: pwProviders.map((p) => p.id).join(', ') }) : undefined }),
@@ -139,6 +143,7 @@ export async function loginView({ query, main }: RouteCtx): Promise<void> {
       invalidateTree();
       changed();
       announce(t('auth.logged_in', { name: res.user.display_name || res.user.username }));
+      if (link) await link.confirm();
       navigate(safeNext);
     } catch (e) {
       if (e instanceof ApiError && ['totp_required', 'totp_required_email', 'totp_invalid', 'mfa_email_sent'].includes(e.code)) {
@@ -150,6 +155,11 @@ export async function loginView({ query, main }: RouteCtx): Promise<void> {
         totp.focus();
         return;
       }
+      if (e instanceof ApiError && e.code === 'link_required' && e.detail) {
+        // e.g. LDAP: the address belongs to an existing account
+        goLink(e.detail, safeNext);
+        return;
+      }
       alert.textContent = errorText(e);
       pw.value = '';
       pw.focus();
@@ -159,7 +169,7 @@ export async function loginView({ query, main }: RouteCtx): Promise<void> {
     h('ul', { class: 'ew-sso-list' }, ...sso.map((p) => h('li', null,
       h('a', { class: 'ew-btn ew-btn--secondary ew-sso-btn', href: `/api/v1/auth/sso/${encodeURIComponent(p.id)}/start?next=${encodeURIComponent(safeNext)}` }, t('auth.sso_with', { name: p.name })))))) : null;
   mount(main, h('div', { class: 'ew-narrow' }, h('h1', null, t('auth.login_title', { site: state.site.name })),
-    ssoBox, sso.length ? h('h2', { class: 'ew-login-local' }, t('auth.local_title')) : null, form,
+    link?.el ?? null, ssoBox, sso.length ? h('h2', { class: 'ew-login-local' }, t('auth.local_title')) : null, form,
     h('p', { class: 'ew-help' }, t('auth.ssh_hint'))));
   if (query.get('error')) alert.focus?.();
 }
@@ -263,22 +273,21 @@ export async function profileView({ main }: RouteCtx): Promise<void> {
   }
   // profile form
   const name = textInput({ value: u.display_name, autocomplete: 'name' });
-  const email = textInput({ value: u.email, type: 'email', autocomplete: 'email' });
   const lang = select([{ value: '', label: t('profile.lang_auto') }, ...state.site.languages.map((l) => ({ value: l, label: langName(l) }))], u.language);
   const editorSel = select([{ value: '', label: t('profile.editor_default', { name: t(`editor.kind.${state.site.editor ?? 'visual'}`) }) },
     ...(prefs.options.editor ?? []).map((v) => ({ value: v, label: t(`editor.kind.${v}`) }))], prefs.prefs.editor ?? '');
   const pAlert = h('div', { class: 'ew-form-alert', role: 'alert' });
-  const pForm = h('form', { class: 'ew-form', novalidate: true }, pAlert, field(t('profile.display_name'), name), field(t('profile.email'), email), field(t('profile.language'), lang),
+  const pForm = h('form', { class: 'ew-form', novalidate: true }, pAlert, field(t('profile.display_name'), name), field(t('profile.language'), lang),
     field(t('profile.editor'), editorSel, { help: t('profile.editor_help') }),
     h('div', { class: 'ew-form-actions' }, button(t('common.save'), () => undefined, { type: 'submit', variant: 'primary' })));
   pForm.addEventListener('submit', async (ev) => {
     ev.preventDefault();
     try {
-      await api.put('me', { display_name: name.value, email: email.value, language: lang.value, prefs: { editor: editorSel.value } });
+      await api.put('me', { display_name: name.value, language: lang.value, prefs: { editor: editorSel.value } });
       const prefs = { ...(u.prefs ?? {}) };
       if (editorSel.value) prefs.editor = editorSel.value;
       else delete prefs.editor;
-      Object.assign(u, { display_name: name.value, email: email.value, language: lang.value, prefs });
+      Object.assign(u, { display_name: name.value, language: lang.value, prefs });
       changed();
       toast(t('common.saved'));
     } catch (e) { pAlert.textContent = errorText(e); }
@@ -324,6 +333,7 @@ export async function profileView({ main }: RouteCtx): Promise<void> {
   mount(main, pageHeader(t('profile.title')),
     h('p', null, t('profile.logged_in_as', { handle: `${u.username}@${u.provider}` })),
     h('section', { class: 'ew-section', 'aria-labelledby': 'pr-h' }, h('h2', { id: 'pr-h' }, t('profile.data')), pForm),
+    ...(await profileIdentitySections()),
     await notificationSection(),
     await cardSection(u.display_name || u.username),
     await watchesSection(),

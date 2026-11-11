@@ -38,9 +38,19 @@ type ExternalIdentity struct {
 	Username    string
 	DisplayName string
 	Email       string
-	Groups      []string // local group names (after Mapping.Apply)
-	Roles       []string // local role names (after Mapping.Apply)
-	Attributes  map[string]any
+	// EmailVerified: the provider confirms that the address belongs to the
+	// person (OIDC email_verified, or configured for LDAP/SAML).
+	EmailVerified bool
+	// TrustEmail: the administrator trusts the provider's confirmation, so a
+	// new sign-in with a confirmed address is linked to the account with that
+	// address automatically (otherwise the user confirms with that account).
+	TrustEmail bool
+	// NoJIT: unknown people get no account at their first sign-in (only
+	// accounts created or invited before, or linked by e-mail).
+	NoJIT      bool
+	Groups     []string // local group names (after Mapping.Apply)
+	Roles      []string // local role names (after Mapping.Apply)
+	Attributes map[string]any
 }
 
 // PasswordProvider authenticates username/password credentials.
@@ -77,6 +87,10 @@ type Service struct {
 	// SendCode e-mails a one-time code (second factor); set by the
 	// application. purpose is "login" or "setup".
 	SendCode func(ctx context.Context, uid int64, purpose, code string) error
+	// SendConfirmation e-mails the confirmation link of an address;
+	// MailReady reports whether e-mails can be sent at all.
+	SendConfirmation func(ctx context.Context, uid int64, addr, link string) error
+	MailReady        func() bool
 }
 
 type cachedPrincipal struct {
@@ -247,6 +261,17 @@ func (s *Service) LoginMFA(ctx context.Context, username, password, totp, method
 // syncIdentity creates or updates the local user record of an identity and
 // returns its id. Local identities already exist.
 func (s *Service) syncIdentity(ctx context.Context, ext *ExternalIdentity) (int64, error) {
+	if ext.Provider != "local" {
+		// a further sign-in linked to an account, or a new one that is
+		// linked now (same confirmed e-mail address) - see link.go
+		uid, linked, err := s.linkedIdentity(ctx, ext)
+		if err != nil {
+			return 0, err
+		}
+		if linked {
+			return uid, s.syncMemberships(ctx, uid, ext)
+		}
+	}
 	var id int64
 	var disabled bool
 	err := s.pool.QueryRow(ctx, `INSERT INTO users(username, provider, subject, display_name, email, attributes, last_login_at)
@@ -265,18 +290,29 @@ func (s *Service) syncIdentity(ctx context.Context, ext *ExternalIdentity) (int6
 	if disabled {
 		return 0, apperr.ErrInvalidLogin
 	}
+	if ext.Provider != "local" {
+		// the address of the provider; confirmed only if the provider is trusted
+		if _, err := adoptEmail(ctx, s.pool, id, ext.Email, ext.TrustEmail && ext.EmailVerified); err != nil {
+			s.log.Warn("e-mail of identity provider not taken over", "provider", ext.Provider, "err", err)
+		}
+	}
+	return id, s.syncMemberships(ctx, id, ext)
+}
+
+// syncMemberships replaces the groups and roles a provider assigns.
+func (s *Service) syncMemberships(ctx context.Context, id int64, ext *ExternalIdentity) error {
 	if ext.Provider != "local" && ext.Groups != nil {
 		if err := s.syncProviderGroups(ctx, id, ext.Provider, ext.Groups); err != nil {
-			return 0, err
+			return err
 		}
 	}
 	if ext.Provider != "local" && ext.Roles != nil {
 		if err := s.syncProviderRoles(ctx, id, ext.Provider, ext.Roles); err != nil {
-			return 0, err
+			return err
 		}
 	}
 	s.bump(ctx)
-	return id, nil
+	return nil
 }
 
 func (s *Service) syncProviderGroups(ctx context.Context, uid int64, provider string, names []string) error {
@@ -508,8 +544,11 @@ func (l *LocalProvider) Authenticate(ctx context.Context, username, password str
 	var locked *time.Time
 	var disabled bool
 	var ext ExternalIdentity
+	// the user name, or a confirmed e-mail address of a local account
 	err := l.s.pool.QueryRow(ctx, `SELECT id, password_hash, locked_until, disabled, subject, display_name, email FROM users
-		WHERE provider='local' AND lower(username)=lower($1)`, username).Scan(&id, &hash, &locked, &disabled, &ext.Subject, &ext.DisplayName, &ext.Email)
+		WHERE provider='local' AND (lower(username)=lower($1)
+			OR id = (SELECT user_id FROM user_emails WHERE email=lower($1) AND verified))
+		ORDER BY lower(username)=lower($1) DESC LIMIT 1`, username).Scan(&id, &hash, &locked, &disabled, &ext.Subject, &ext.DisplayName, &ext.Email)
 	if errors.Is(err, pgx.ErrNoRows) {
 		VerifyPassword(dummyHash, password)
 		return nil, ErrUnknownUser

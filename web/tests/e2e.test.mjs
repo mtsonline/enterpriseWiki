@@ -412,6 +412,46 @@ test('shared notes: write together in the page view, saved automatically', async
   }
 });
 
+test('e-mail addresses, sign-ins and invitations', async () => {
+  const logged = errors.length;
+  // profile: addresses and sign-ins
+  await page.goto(`${BASE}/profile`);
+  await idle();
+  await page.locator('#em-h').waitFor();
+  assert.ok(await page.locator('#id-h').isVisible(), 'sign-ins section');
+  // without configured e-mail, adding an address explains why it does not work
+  await page.getByLabel(/^(add an address|adresse hinzufügen)/i).fill(`me${run}@example.org`);
+  await page.getByRole('button', { name: /^(add|hinzufügen)$/i }).click();
+  await page.locator('.ew-section form .ew-form-alert', { hasText: /e-mail|e-mail-versand|sending/i }).waitFor();
+  await a11y('profile with e-mail addresses and sign-ins');
+  // administration: invite somebody and add a confirmed address
+  await page.goto(`${BASE}/admin/users`);
+  await idle();
+  await page.getByRole('button', { name: /^(invite|einladen)$/i }).click();
+  const dlg = page.locator('dialog[open]');
+  await dlg.getByLabel(/^(e-mail address|e-mail-adresse)/i).fill(`guest${run}@example.org`);
+  await dlg.getByLabel(/^(display name|anzeigename)/i).fill(`Guest ${run}`);
+  await a11y('invite dialog');
+  await dlg.locator('button[type=submit]').click();
+  await dlg.waitFor({ state: 'detached' });
+  const row = page.locator('tr', { hasText: `Guest ${run}` });
+  await row.locator('.ew-badge', { hasText: /invited|eingeladen/i }).waitFor();
+  await row.getByRole('button', { name: /^(e-mail & sign-ins|e-mail & anmeldungen):/i }).click();
+  const idDlg = page.locator('dialog[open]');
+  await idDlg.getByLabel(/^(add an address|adresse hinzufügen)/i).fill(`guest.work${run}@example.org`);
+  await idDlg.getByRole('button', { name: /^(add|hinzufügen)$/i }).click();
+  await idDlg.locator('th', { hasText: `guest.work${run}@example.org` }).waitFor();
+  await a11y('e-mail and sign-ins of a user');
+  await page.keyboard.press('Escape');
+  // confirmation and link pages with invalid tokens
+  await page.goto(`${BASE}/verify-email?token=invalid`);
+  await page.locator('.ew-notice--error').waitFor();
+  assert.equal(new URL(page.url()).search, '', 'token removed from the address bar');
+  await a11y('e-mail confirmation');
+  // the refusals above are expected (400): not counted as errors
+  errors.splice(logged, errors.length - logged, ...errors.slice(logged).filter((e) => !/status of 400/.test(e)));
+});
+
 test('the simple editor as personal choice', async () => {
   await call('PUT', '/api/v1/me', { prefs: { editor: 'simple' } });
   try {

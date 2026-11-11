@@ -28,6 +28,34 @@ plugin_settings:
 
 Externe Gruppen werden ohne Beachtung der Groß-/Kleinschreibung verglichen, entweder mit dem vollen Wert (z. B. DN) oder mit dem Kurznamen (`cn=HR,ou=…` passt auch auf den Schlüssel `hr`). Berechtigungen vergeben Sie dann wie gewohnt an die lokalen Gruppen und Rollen.
 
+## E-Mail-Adressen, verknüpfte Anmeldungen und Einladungen
+
+Ein Benutzer ist **ein Profil mit einer oder mehreren E-Mail-Adressen**. Eine **bestätigte** Adresse gehört genau einem Benutzer. Sie kennzeichnet ihn eindeutig: Mit ihr kann man sich bei lokalen Konten anmelden, und neue Anmeldungen anderer Verfahren mit dieser Adresse werden mit dem Konto **verknüpft**.
+
+- **Adressen verwalten:**
+  - Benutzer: im Profil unter *E-Mail-Adressen* (`/api/v1/me/emails`).
+  - Administratoren: *Benutzer → E-Mail & Anmeldungen* (`/api/v1/admin/users/{id}/emails`), CLI `ewiki user emails|email-add|email-primary|email-remove`.
+  - Selbst hinzugefügte Adressen bestätigt ein Link per E-Mail (48 Stunden gültig, nur einmal verwendbar). Ohne E-Mail-Versand fügen Administratoren Adressen direkt bestätigt hinzu.
+  - Benachrichtigungen gehen an die **primäre** Adresse; primär kann nur eine bestätigte Adresse sein.
+- **Verknüpfen statt doppelter Konten** (Schutz vor Konto-Übernahme): Meldet sich jemand mit einem anderen Verfahren an und dessen Adresse gehört schon zu einem Konto, dann
+  - wird **automatisch verknüpft**, wenn das Verfahren die Adresse bestätigt (`email_verified`, bei OIDC der Claim) **und** Sie ihm vertrauen (`trust_email: true`);
+  - sonst meldet sich die Person **einmal mit dem bestehenden Konto an** und bestätigt so die Verknüpfung. Die Login-Seite erklärt das; der Vorgang ist 30 Minuten gültig.
+  - Weitere Anmeldungen eines Kontos stehen im Profil unter *Anmeldungen* und können dort entfernt werden (`ewiki user identities|unlink`).
+- **Vorab anlegen (Einladung):** *Benutzer → Einladen*, `POST /api/v1/admin/users/invite` oder `ewiki user invite ADRESSE --groups A,B`.
+  - Das Konto bekommt Gruppen und Rollen sofort. Es zählt erst ab der ersten Anmeldung für die Lizenz.
+  - Die erste Anmeldung über ein **vertrauenswürdiges** Verfahren mit dieser bestätigten Adresse übernimmt das Konto.
+- **Konten bei der ersten Anmeldung (JIT):** Standard ist an. Mit `jit: false` bekommen unbekannte Personen kein Konto, nur eingeladene, angelegte oder per Adresse verknüpfte.
+
+```yaml
+plugin_settings:
+  auth.oidc:              # genauso bei auth.ldap und auth.shib
+    jit: true             # Konto bei der ersten Anmeldung anlegen
+    trust_email: false    # bestätigte Adressen dieses Verfahrens automatisch verknüpfen
+    email_verified: false # nur LDAP/SAML: das Verzeichnis bestätigt alle Adressen (OIDC: Claim email_verified)
+```
+
+Setzen Sie `trust_email` nur für Verfahren, bei denen niemand eine fremde Adresse eintragen kann, etwa den eigenen Identity Provider oder das eigene Active Directory.
+
 ## LDAP / Active Directory (`auth.ldap`)
 
 Benutzer:innen melden sich im normalen Login-Formular mit Verzeichnis-Benutzername und Passwort an, auch per API (`POST /api/v1/auth/login`).

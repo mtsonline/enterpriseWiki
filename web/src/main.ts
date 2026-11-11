@@ -1,4 +1,5 @@
 // Application bootstrap.
+import { verifyEmailView } from './views/identity';
 import './styles/base.css';
 import './editor/editor.css';
 import { mediaView } from './views/media';
@@ -33,6 +34,7 @@ function registerCore(): void {
   route('/d/:id/edit', draftEditView);
   route('/search', searchView);
   route('/login', loginView);
+  route('/verify-email', verifyEmailView);
   route('/profile', profileView);
   route('/trash', trashView);
   route('/media', mediaView);

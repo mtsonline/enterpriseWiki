@@ -15,6 +15,9 @@ import (
 //	default_groups: [Staff]                                      # always added
 //	default_roles:  []
 //	keep_unmapped_groups: true                                   # unmapped external groups are created as local groups
+//	jit: true               # unknown people get an account at their first sign-in
+//	email_verified: false   # the directory confirms the addresses (OIDC: claim email_verified)
+//	trust_email: false      # link a new sign-in with a confirmed address to the account with that address automatically
 //
 // Group matching is case-insensitive. Local memberships (assigned in the
 // admin UI) are never touched by the synchronization.
@@ -24,12 +27,16 @@ type Mapping struct {
 	DefaultGroups      []string
 	DefaultRoles       []string
 	KeepUnmappedGroups bool
+	// JIT: accounts at the first sign-in; EmailVerified: the provider
+	// confirms all its addresses; TrustEmail: see ExternalIdentity.
+	JIT, EmailVerified, TrustEmail bool
 }
 
 // MappingFromSettings reads the mapping keys of a plugin_settings section.
 func MappingFromSettings(s map[string]any) Mapping {
 	m := Mapping{GroupMapping: StringMap(s["group_mapping"]), RoleMapping: StringMap(s["role_mapping"]),
-		DefaultGroups: StringList(s["default_groups"]), DefaultRoles: StringList(s["default_roles"]), KeepUnmappedGroups: true}
+		DefaultGroups: StringList(s["default_groups"]), DefaultRoles: StringList(s["default_roles"]), KeepUnmappedGroups: true,
+		JIT: BoolSetting(s, "jit", true), EmailVerified: BoolSetting(s, "email_verified", false), TrustEmail: BoolSetting(s, "trust_email", false)}
 	if v, ok := s["keep_unmapped_groups"].(bool); ok {
 		m.KeepUnmappedGroups = v
 	}
@@ -38,6 +45,11 @@ func MappingFromSettings(s map[string]any) Mapping {
 
 // Apply maps the external groups of id (id.Groups) to local groups and roles.
 func (m Mapping) Apply(id *ExternalIdentity) {
+	id.NoJIT = !m.JIT
+	id.TrustEmail = m.TrustEmail
+	if m.EmailVerified {
+		id.EmailVerified = true
+	}
 	groups := map[string]bool{}
 	roles := map[string]bool{}
 	lower := func(mm map[string]string) map[string]string {

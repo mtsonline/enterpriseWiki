@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"net/url"
 	"strings"
@@ -217,6 +218,11 @@ func (s *Server) ssoError(w http.ResponseWriter, r *http.Request, err error) {
 	_, code, msg := apperr.Status(err)
 	if code == "internal" {
 		s.log.Error("sso failed", "err", err)
+	}
+	var ae *apperr.Error
+	if code == "link_required" && errors.As(err, &ae) {
+		http.Redirect(w, r, "/login?link="+url.QueryEscape(ae.Detail), http.StatusSeeOther)
+		return
 	}
 	http.Redirect(w, r, "/login?error="+url.QueryEscape(msg), http.StatusSeeOther)
 }

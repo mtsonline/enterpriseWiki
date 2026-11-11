@@ -206,13 +206,17 @@ func (s *Service) createLocalUser(ctx context.Context, in NewUser) (*User, error
 	}
 	var id int64
 	err = db.Tx(ctx, s.pool, func(tx pgx.Tx) error {
-		err := tx.QueryRow(ctx, `INSERT INTO users(username, provider, subject, display_name, email, language, password_hash)
-			VALUES ($1,'local',$1,$2,$3,$4,$5) RETURNING id`, in.Username, in.DisplayName, in.Email, in.Language, hash).Scan(&id)
+		err := tx.QueryRow(ctx, `INSERT INTO users(username, provider, subject, display_name, language, password_hash)
+			VALUES ($1,'local',$1,$2,$3,$4) RETURNING id`, in.Username, in.DisplayName, in.Language, hash).Scan(&id)
 		if db.IsUniqueViolation(err) {
 			return apperr.Conflict("user %s@local already exists", in.Username)
 		}
 		if err != nil {
 			return apperr.BadRequest("invalid user: %v", err)
+		}
+		// given by an administrator (or setup): confirmed
+		if err := setAdminPrimary(ctx, tx, id, in.Email); err != nil {
+			return err
 		}
 		if err := guardRoles(ctx, tx, in.Roles, in.Groups); err != nil {
 			return err
@@ -312,16 +316,22 @@ func (s *Service) UpdateUser(ctx context.Context, id int64, in UserUpdate) (*Use
 	}
 	err = db.Tx(ctx, s.pool, func(tx pgx.Tx) error {
 		if _, err := tx.Exec(ctx, `UPDATE users SET
-				display_name = COALESCE($2, display_name), email = COALESCE($3, email), language = COALESCE($4, language),
-				disabled = COALESCE($5, disabled), password_hash = COALESCE($6, password_hash),
-				failed_logins = CASE WHEN $7 THEN 0 ELSE failed_logins END,
-				locked_until = CASE WHEN $7 THEN NULL ELSE locked_until END,
-				totp_enabled = CASE WHEN $8 THEN false ELSE totp_enabled END,
-				totp_secret = CASE WHEN $8 THEN NULL ELSE totp_secret END,
-				mfa_email = CASE WHEN $8 THEN false ELSE mfa_email END,
-				allowed_networks = COALESCE($9, allowed_networks), updated_at = now()
-			WHERE id=$1`, id, in.DisplayName, in.Email, in.Language, in.Disabled, hash, in.Unlock, in.ResetTOTP, nets); err != nil {
+				display_name = COALESCE($2, display_name), language = COALESCE($3, language),
+				disabled = COALESCE($4, disabled), password_hash = COALESCE($5, password_hash),
+				failed_logins = CASE WHEN $6 THEN 0 ELSE failed_logins END,
+				locked_until = CASE WHEN $6 THEN NULL ELSE locked_until END,
+				totp_enabled = CASE WHEN $7 THEN false ELSE totp_enabled END,
+				totp_secret = CASE WHEN $7 THEN NULL ELSE totp_secret END,
+				mfa_email = CASE WHEN $7 THEN false ELSE mfa_email END,
+				allowed_networks = COALESCE($8, allowed_networks), updated_at = now()
+			WHERE id=$1`, id, in.DisplayName, in.Language, in.Disabled, hash, in.Unlock, in.ResetTOTP, nets); err != nil {
 			return err
+		}
+		if in.Email != nil {
+			// set by an administrator: confirmed, and the primary address
+			if err := setAdminPrimary(ctx, tx, id, *in.Email); err != nil {
+				return err
+			}
 		}
 		if err := guardTarget(ctx, tx, id); err != nil {
 			return err
@@ -430,14 +440,31 @@ func (s *Service) ChangeOwnPassword(ctx context.Context, current, newPw string) 
 	})
 }
 
-// UpdateProfile changes the caller's display name, email and language.
+// UpdateProfile changes the caller's display name and language. A new
+// e-mail address is added unconfirmed (confirmation link); it becomes the
+// primary address once confirmed (see emails.go).
 func (s *Service) UpdateProfile(ctx context.Context, displayName, email, language *string) error {
 	p := identity.From(ctx)
 	if p == nil || p.UserID == 0 {
 		return apperr.ErrUnauthorized
 	}
-	_, err := s.pool.Exec(ctx, `UPDATE users SET display_name=COALESCE($2,display_name), email=COALESCE($3,email),
-		language=COALESCE($4,language), updated_at=now() WHERE id=$1`, p.UserID, displayName, email, language)
+	if email != nil {
+		addr, err := NormalizeEmail(*email)
+		if err != nil {
+			return err
+		}
+		var known bool
+		if err := s.pool.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM user_emails WHERE user_id=$1 AND email=$2)`, p.UserID, addr).Scan(&known); err != nil {
+			return err
+		}
+		if addr != "" && !known {
+			if _, err := s.AddMyEmail(ctx, addr); err != nil {
+				return err
+			}
+		}
+	}
+	_, err := s.pool.Exec(ctx, `UPDATE users SET display_name=COALESCE($2,display_name),
+		language=COALESCE($3,language), updated_at=now() WHERE id=$1`, p.UserID, displayName, language)
 	s.bump(ctx)
 	return err
 }

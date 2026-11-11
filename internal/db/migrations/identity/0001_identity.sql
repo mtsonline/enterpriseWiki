@@ -76,3 +76,50 @@ CREATE TABLE ssh_keys (
     created_at   timestamptz NOT NULL DEFAULT now(),
     last_used_at timestamptz
 );
+
+-- ---------------------------------------------------------------- e-mail addresses and linked sign-ins
+-- A user has one or more e-mail addresses; a confirmed address belongs to
+-- exactly one user. users.email mirrors the primary address.
+CREATE TABLE user_emails (
+    id          bigserial PRIMARY KEY,
+    user_id     bigint NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    email       text NOT NULL CHECK (email = lower(email) AND length(email) BETWEEN 3 AND 254 AND position('@' in email) > 1),
+    verified    boolean NOT NULL DEFAULT false,
+    is_primary  boolean NOT NULL DEFAULT false,
+    created_at  timestamptz NOT NULL DEFAULT now(),
+    verified_at timestamptz,
+    UNIQUE (user_id, email)
+);
+CREATE UNIQUE INDEX user_emails_verified ON user_emails(email) WHERE verified;  -- one owner per confirmed address
+CREATE UNIQUE INDEX user_emails_primary ON user_emails(user_id) WHERE is_primary;
+CREATE INDEX user_emails_email ON user_emails(email);
+
+-- confirmation links (only the hash of the token is stored)
+CREATE TABLE email_tokens (
+    token_hash bytea PRIMARY KEY,
+    email_id   bigint NOT NULL REFERENCES user_emails(id) ON DELETE CASCADE,
+    expires_at timestamptz NOT NULL
+);
+
+-- further sign-ins of a user (the first one is users.provider/subject)
+CREATE TABLE user_identities (
+    provider      text NOT NULL,
+    subject       text NOT NULL,
+    user_id       bigint NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    username      text NOT NULL DEFAULT '',
+    created_at    timestamptz NOT NULL DEFAULT now(),
+    last_login_at timestamptz,
+    PRIMARY KEY (provider, subject)
+);
+CREATE INDEX user_identities_user ON user_identities(user_id);
+
+-- sign-ins waiting for confirmation with the existing account (same e-mail
+-- address, provider not trusted for automatic linking)
+CREATE TABLE identity_links (
+    token_hash bytea PRIMARY KEY,
+    provider   text NOT NULL,
+    subject    text NOT NULL,
+    username   text NOT NULL,
+    email      text NOT NULL,
+    expires_at timestamptz NOT NULL
+);
