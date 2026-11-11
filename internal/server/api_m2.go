@@ -1,8 +1,14 @@
 package server
 
 import (
+	"cmp"
 	"context"
+	"io"
+	"time"
+
 	"errors"
+	"github.com/mtsonline/enterprisewiki/internal/acl"
+	"github.com/mtsonline/enterprisewiki/internal/media"
 	"net/http"
 	"net/url"
 	"strings"
@@ -224,8 +230,18 @@ func (s *Server) routesM2() {
 				}
 			}
 		}
-		if err != nil || !strings.HasPrefix(f.Mime, "image/") || strings.Contains(f.Mime, "svg") || !s.fileVisible(r, f.Hash) {
+		if err != nil || !strings.HasPrefix(f.Mime, "image/") || strings.Contains(f.Mime, "svg") {
 			h.WriteError(w, r, apperr.NotFound("image"))
+			return
+		}
+		ok, level := s.fileVisible(r, f.Hash)
+		if !ok {
+			h.WriteError(w, r, apperr.NotFound("image"))
+			return
+		}
+		if level >= acl.Confidential {
+			// only seen in confidential content: with the viewer's name and the time
+			s.serveMarked(w, r, store, f)
 			return
 		}
 		store.Serve(w, r, f, "", true)
@@ -255,4 +271,41 @@ func (s *Server) sharedProfilePhoto(ctx context.Context, hash string) bool {
 	var ok bool
 	err := s.app.Instance.Shared.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM users WHERE profile->>'photo' = $1)`, hash).Scan(&ok)
 	return err == nil && ok
+}
+
+// serveMarked delivers a picture with the name of the viewer and the time.
+func (s *Server) serveMarked(w http.ResponseWriter, r *http.Request, store *storage.Store, f *storage.File) {
+	rd, err := store.Open(f.Hash)
+	if err != nil {
+		h.WriteError(w, r, apperr.NotFound("image"))
+		return
+	}
+	data, err := io.ReadAll(io.LimitReader(rd, 64<<20))
+	_ = rd.Close()
+	if err != nil {
+		h.WriteError(w, r, err)
+		return
+	}
+	img, format, err := media.Decode(data)
+	if err != nil {
+		h.WriteError(w, r, apperr.NotFound("image"))
+		return
+	}
+	name := "?"
+	if p := identity.From(r.Context()); p != nil {
+		name = cmp.Or(p.DisplayName, p.Username, name)
+	}
+	if img, err = media.Watermark(img, []string{name, time.Now().Format("2006-01-02 15:04")}); err != nil {
+		h.WriteError(w, r, err)
+		return
+	}
+	out, mime, err := media.Encode(img, format)
+	if err != nil {
+		h.WriteError(w, r, err)
+		return
+	}
+	w.Header().Set("Content-Type", mime)
+	w.Header().Set("Cache-Control", "private, no-store")
+	w.Header().Set("X-Content-Type-Options", "nosniff")
+	_, _ = w.Write(out)
 }

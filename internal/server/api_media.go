@@ -243,19 +243,21 @@ func (l *legacyRefs) put(key string, cats []int64) {
 // fileVisible decides whether GET /api/v1/files/{hash} may deliver a file:
 // settings assets and profile photos are public; otherwise the caller must
 // be allowed to see a medium with this file or an element that embeds it.
-func (s *Server) fileVisible(r *http.Request, hash string) bool {
+// The level is the lowest classification of the places the caller sees the
+// file from (confidential pictures are delivered with a watermark).
+func (s *Server) fileVisible(r *http.Request, hash string) (bool, int) {
 	ctx := r.Context()
 	if s.app.Files.IsConfigAsset(hash) || s.profilePhoto(r, hash) {
-		return true
+		return true, 0
 	}
 	if s.app.Media.HashVisible(ctx, hash) {
-		return true
+		return true, 0
 	}
 	p := identity.From(ctx)
 	if p != nil && p.UserID > 0 { // own uploads (e.g. the editor preview before saving)
 		var mine bool
 		if s.app.DB.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM files WHERE hash=$1 AND created_by=$2)`, hash, p.UserID).Scan(&mine) == nil && mine {
-			return true
+			return true, 0
 		}
 	}
 	cats, ok := s.legacy.get(s.app.Site + "|" + hash)
@@ -263,7 +265,7 @@ func (s *Server) fileVisible(r *http.Request, hash string) bool {
 		rows, err := s.app.DB.Query(ctx, `SELECT DISTINCT e.category_id FROM element_revisions v JOIN elements e ON e.id = v.element_id
 			WHERE e.deleted_at IS NULL AND strpos(v.body::text, $1) > 0 LIMIT 100`, hash)
 		if err != nil {
-			return false
+			return false, 0
 		}
 		for rows.Next() {
 			var c int64
@@ -274,12 +276,17 @@ func (s *Server) fileVisible(r *http.Request, hash string) bool {
 		rows.Close()
 		s.legacy.put(s.app.Site+"|"+hash, cats)
 	}
+	visible, level := false, acl.StrictConfidential
 	for _, c := range cats {
 		if s.app.ACL.Can(ctx, p, c, acl.View) {
-			return true
+			visible = true
+			level = min(level, s.app.ACL.Classification(ctx, c))
 		}
 	}
-	return false
+	if !visible {
+		return false, 0
+	}
+	return true, level
 }
 
 // profilePhoto reports whether hash is a profile photo the caller may see

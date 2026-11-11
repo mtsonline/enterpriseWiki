@@ -1,7 +1,7 @@
 // The property report in the browser: the views of the macro "properties"
 // with sorting, filters for readers, paging and CSV download. The data comes
 // from POST /report with the rights of the reader.
-import { api, button, errorText, h, select, state, t, textInput, toast, uid } from '@ewiki/sdk';
+import { api, button, errorText, field, formDialog, h, select, state, t, textInput, toast, uid } from '@ewiki/sdk';
 import { BASE, builtinLabel, choiceLabel, formatNumber, formatValue, plainValue, type Options, type Ref } from './model';
 import { chart, type ChartData } from './charts';
 
@@ -43,6 +43,33 @@ export function groupLabel(v: unknown, c: Column | undefined, refs: Record<strin
 
 function csvSafe(s: string): string {
   return s && '=+-@\t\r'.includes(s[0]) ? `'${s}` : s;
+}
+
+/** Downloads rows as CSV or Excel file made by the server (body: a query or a report). */
+export async function serverDownload(format: 'csv' | 'xlsx', body: unknown, name: string): Promise<void> {
+  const res = await fetch(`/api/v1/${BASE}/query.${format}`, {
+    method: 'POST', credentials: 'same-origin',
+    headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'ewiki' }, body: JSON.stringify(body),
+  });
+  if (!res.ok) {
+    let msg = res.statusText;
+    try { msg = ((await res.json()) as { error?: { message?: string } }).error?.message ?? msg; } catch { /* not JSON */ }
+    throw new Error(msg);
+  }
+  const blob = await res.blob();
+  const a = h('a', { href: URL.createObjectURL(blob), download: `${(name || 'report').replace(/[\\/:*?"<>|]+/g, '_')}.${format}` });
+  document.body.append(a);
+  a.click();
+  setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
+}
+
+/** Buttons "CSV" and "Excel" for a query or report body. */
+export function downloadButtons(body: () => unknown, name: () => string): HTMLElement {
+  const run = (format: 'csv' | 'xlsx') => async () => {
+    try { await serverDownload(format, body(), name()); } catch (e) { toast(errorText(e), 'error'); }
+  };
+  return h('span', { class: 'ewprop-downloads', role: 'group', 'aria-label': t('props.download') },
+    button(t('props.csv'), run('csv'), { variant: 'subtle' }), button(t('props.xlsx'), run('xlsx'), { variant: 'subtle' }));
 }
 
 export function download(res: Result, cols: Column[], name: string): void {
@@ -341,7 +368,7 @@ export async function reportWidget(el: HTMLElement): Promise<void> {
   const categoryId = Number(el.dataset.category) || 0;
   const elementId = Number(el.dataset.element) || 0;
   const view = p.view || 'table';
-  const grouped = ['chart', 'kpi', 'pivot', 'tagcloud'].includes(view);
+  const grouped = ['chart', 'kpi', 'pivot', 'tagcloud', 'trend'].includes(view);
   let sort: SortKey[] = [];
   let offset = 0;
   const live: Filter[] = [];
@@ -352,6 +379,25 @@ export async function reportWidget(el: HTMLElement): Promise<void> {
   let last: Result | null = null;
   const load = async () => {
     out.setAttribute('aria-busy', 'true');
+    if (view === 'trend') {
+      // development of a property from its history (per week)
+      try {
+        const tr = await api.post<{ weeks: string[]; series: { value: string; values: number[] }[]; type: string }>(`${BASE}/trend`,
+          { report: { params: p, category_id: categoryId, element_id: elementId, filters: live, lang: state.lang }, key: p.group, weeks: Number(p.weeks) || 12 });
+        fallback?.remove();
+        const name = (v: string) => (v === 'sum' ? t('props.trend.sum') : v === 'true' ? t('props.trend.yes') : v === 'false' ? t('props.trend.no') : v);
+        out.replaceChildren(tr.series.length
+          ? chart('line', { categories: tr.weeks.map((w) => new Date(`${w}T12:00:00`).toLocaleDateString(state.lang)), series: tr.series.map((x) => ({ name: name(x.value), values: x.values })),
+            valueLabel: tr.type === 'select' || tr.type === 'status' || tr.type === 'boolean' ? t('props.trend.count') : t('props.trend.sum'),
+            format: (n) => n.toLocaleString(state.lang) }, p.title || t('props.report'))
+          : h('p', { class: 'ew-muted' }, t('props.no_match')));
+      } catch (e) {
+        out.replaceChildren(h('p', { class: 'ew-notice ew-notice--warning', role: 'note' }, errorText(e)));
+      } finally {
+        out.setAttribute('aria-busy', 'false');
+      }
+      return;
+    }
     try {
       const res = await api.post<Result>(`${BASE}/report`, { params: p, category_id: categoryId, element_id: elementId, filters: live, sort, offset, lang: state.lang });
       last = res;
@@ -440,12 +486,29 @@ export async function reportWidget(el: HTMLElement): Promise<void> {
     }
   }
   if (p.export !== 'false' && !grouped) {
-    controls.push(button(t('props.csv'), async () => {
-      try {
-        const all = await api.post<Result>(`${BASE}/report`, { params: { ...p, limit: '1000' }, category_id: categoryId, element_id: elementId, filters: live, sort, lang: state.lang });
-        download(all, all.columns.filter((c) => c.key !== 'title'), p.title || 'report');
-      } catch (e) { toast(errorText(e), 'error'); }
-    }, { variant: 'subtle' }));
+    controls.push(downloadButtons(() => ({ params: { ...p, limit: '1000' }, category_id: categoryId, element_id: elementId, filters: live, sort, lang: state.lang }), () => p.title || 'report'));
+  }
+  // subscribe: the report by e-mail, daily or weekly
+  if (state.user && elementId) {
+    const same = (x: Record<string, string>) => JSON.stringify(Object.entries(x).sort()) === JSON.stringify(Object.entries(p).sort());
+    const subBtn = button(t('props.sub.subscribe'), () => undefined, { variant: 'subtle' });
+    let current: { id: number } | undefined;
+    const sync = () => { subBtn.textContent = current ? t('props.sub.end') : t('props.sub.subscribe'); };
+    void api.get<{ id: number; params: Record<string, string> }[]>(`${BASE}/subscriptions?element=${elementId}`)
+      .then((list) => { current = list.find((x) => same(x.params ?? {})); sync(); }).catch(() => undefined);
+    subBtn.addEventListener('click', () => {
+      if (current) {
+        void api.del(`${BASE}/subscriptions/${current.id}`).then(() => { current = undefined; sync(); toast(t('props.sub.ended')); }).catch((e: unknown) => toast(errorText(e), 'error'));
+        return;
+      }
+      const freq = select([{ value: 'weekly', label: t('props.sub.weekly') }, { value: 'daily', label: t('props.sub.daily') }], 'weekly');
+      formDialog(t('props.sub.subscribe'), [h('p', null, t('props.sub.help')), field(t('props.sub.frequency'), freq)], t('props.sub.subscribe'), async () => {
+        current = await api.post<{ id: number }>(`${BASE}/subscriptions`, { element_id: elementId, category_id: categoryId, params: p, title: p.title || document.title.split(' – ')[0], frequency: freq.value });
+        sync();
+        toast(t('props.sub.done'));
+      });
+    });
+    controls.push(subBtn);
   }
   if (controls.length) tools.append(...controls);
   el.append(tools, out, pager);

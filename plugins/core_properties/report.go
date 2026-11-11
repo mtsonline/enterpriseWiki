@@ -24,7 +24,7 @@ import (
 // rights of the reader); the browser turns it into the chosen view.
 
 // Views of a report.
-var Views = []string{"table", "list", "cards", "kanban", "calendar", "timeline", "chart", "kpi", "pivot", "tagcloud", "completeness", "overdue", "map"}
+var Views = []string{"table", "list", "cards", "kanban", "calendar", "timeline", "chart", "trend", "kpi", "pivot", "tagcloud", "completeness", "overdue", "map"}
 
 // Charts of the view "chart".
 var Charts = []string{"bar", "hbar", "stacked", "line", "area", "pie", "donut", "heatmap"}
@@ -46,7 +46,7 @@ var optionLabels = map[string]map[string]string{
 	"table": lm("Table", "Tabelle"), "list": lm("List", "Liste"), "cards": lm("Cards", "Karten"), "kanban": lm("Board (columns by a property)", "Board (Spalten nach einer Eigenschaft)"),
 	"calendar": lm("Calendar", "Kalender"), "timeline": lm("Timeline (Gantt)", "Zeitleiste (Gantt)"), "chart": lm("Chart", "Diagramm"), "kpi": lm("Key figures", "Kennzahlen"),
 	"pivot": lm("Pivot table", "Pivot-Tabelle"), "tagcloud": lm("Tag cloud", "Schlagwort-Wolke"), "completeness": lm("Completeness (missing values)", "Vollständigkeit (fehlende Werte)"),
-	"overdue": lm("Overdue and due soon", "Überfällig und bald fällig"), "map": lm("Places", "Orte"),
+	"overdue": lm("Overdue and due soon", "Überfällig und bald fällig"), "trend": lm("Trend (history of a property)", "Verlauf (Entwicklung einer Eigenschaft)"), "map": lm("Places", "Orte"),
 	"bar": lm("Columns", "Säulen"), "hbar": lm("Bars", "Balken"), "stacked": lm("Stacked columns", "Gestapelte Säulen"), "line": lm("Line", "Linie"), "area": lm("Area (stacked)", "Fläche (gestapelt)"),
 	"pie": lm("Pie", "Kreis"), "donut": lm("Donut", "Ring"), "heatmap": lm("Heat map", "Heatmap"),
 	"day": lm("Day", "Tag"), "week": lm("Week", "Woche"), "month": lm("Month", "Monat"), "quarter": lm("Quarter", "Quartal"), "year": lm("Year", "Jahr"),
@@ -73,6 +73,7 @@ func (report) Params() []content.MacroParam {
 		{Name: "sort", Labels: lm("Sort by (- before a key: descending)", "Sortieren nach (- vor dem Schlüssel: absteigend)"), Type: "custom:properties.sort"},
 		{Name: "group", Labels: lm("Group by (board columns, chart categories, pivot rows)", "Gruppieren nach (Board-Spalten, Diagramm-Kategorien, Pivot-Zeilen)"), Type: "custom:properties.key"},
 		{Name: "group2", Labels: lm("Second grouping (series of stacked charts, pivot columns)", "Zweite Gruppierung (Reihen gestapelter Diagramme, Pivot-Spalten)"), Type: "custom:properties.key"},
+		{Name: "weeks", Labels: lm("Trend: number of weeks", "Verlauf: Anzahl Wochen"), Type: "number", Default: "12"},
 		{Name: "bucket", Labels: lm("Dates grouped by", "Datumswerte zusammenfassen nach"), Type: "select", Options: []string{"day", "week", "month", "quarter", "year"}, OptionLabels: labelsFor([]string{"day", "week", "month", "quarter", "year"}), Default: "month"},
 		{Name: "agg", Labels: lm("Value", "Wert"), Type: "select", Options: []string{"count", "sum", "avg", "min", "max"}, OptionLabels: labelsFor([]string{"count", "sum", "avg", "min", "max"}), Default: "count"},
 		{Name: "value", Labels: lm("Property for sum/average (number)", "Eigenschaft für Summe/Mittelwert (Zahl)"), Type: "custom:properties.key"},
@@ -233,15 +234,21 @@ func (r report) Render(ctx context.Context, mc content.MacroContext) (string, er
 	if title == "" {
 		title = pick(lm("Property report", "Eigenschaften-Bericht"), lang)
 	}
+	// a region (landmark) only with its own title; several untitled reports
+	// on a page are groups, so landmarks stay unique
+	tag, role := "section", ""
+	if strings.TrimSpace(mc.Params["title"]) == "" {
+		tag, role = "div", ` role="group"`
+	}
 	var b strings.Builder
-	fmt.Fprintf(&b, `<section class="ewprop-report" data-ew-widget="core.properties.report" data-config="%s" data-category="%d" data-element="%d" aria-label="%s">`,
-		html.EscapeString(string(cfg)), mc.CategoryID, mc.ElementID, html.EscapeString(title))
+	fmt.Fprintf(&b, `<%s class="ewprop-report" data-ew-widget="core.properties.report" data-config="%s" data-category="%d" data-element="%d"%s aria-label="%s">`,
+		tag, html.EscapeString(string(cfg)), mc.CategoryID, mc.ElementID, role, html.EscapeString(title))
 	if t := strings.TrimSpace(mc.Params["title"]); t != "" {
 		fmt.Fprintf(&b, `<h2 class="ewprop-report-title">%s</h2>`, html.EscapeString(t))
 	}
 	q, err := QueryOf(mc.Params, mc.CategoryID, mc.ElementID, lang)
 	if err != nil {
-		fmt.Fprintf(&b, `<p class="ew-notice ew-notice--warning" role="note">%s</p></section>`, html.EscapeString(err.Error()))
+		fmt.Fprintf(&b, `<p class="ew-notice ew-notice--warning" role="note">%s</p></%s>`, html.EscapeString(err.Error()), tag)
 		return b.String(), nil
 	}
 	res, err := r.p.Run(ctx, q)
@@ -251,7 +258,7 @@ func (r report) Render(ctx context.Context, mc content.MacroContext) (string, er
 		if asAppErr(err, &ae) {
 			msg = ae.Msg
 		}
-		fmt.Fprintf(&b, `<p class="ew-notice ew-notice--warning" role="note">%s</p></section>`, html.EscapeString(msg))
+		fmt.Fprintf(&b, `<p class="ew-notice ew-notice--warning" role="note">%s</p></%s>`, html.EscapeString(msg), tag)
 		return b.String(), nil
 	}
 	b.WriteString(`<div class="ewprop-fallback">`)
@@ -260,7 +267,7 @@ func (r report) Render(ctx context.Context, mc content.MacroContext) (string, er
 	} else {
 		r.rowTable(&b, q, res, lang)
 	}
-	b.WriteString(`</div></section>`)
+	b.WriteString(`</div></` + tag + `>`)
 	return b.String(), nil
 }
 

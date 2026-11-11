@@ -72,6 +72,9 @@ func (p *Plugin) Setup(host *sdk.Host) error {
 	p.formulas = map[string]*Formula{}
 	host.RegisterElementField(field{p})
 	host.RegisterMacro(report{p})
+	viewRoutes(host)
+	trendRoutes(p)
+	subRoutes(p)
 	p.routesDefs()
 	p.routesValues()
 	p.routesQuery()

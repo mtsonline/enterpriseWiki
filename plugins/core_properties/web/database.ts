@@ -1,11 +1,11 @@
 // The element "Property database" in the browser: search, filters, views,
 // grouping, changing the properties of a row, new entries, managing the
 // definitions — everything with the rights of the reader (POST /query).
-import { api, button, errorText, field, formDialog, h, qs, select, state, t, textInput, toast } from '@ewiki/sdk';
+import { announce, api, button, checkbox, errorText, field, formDialog, h, qs, select, state, t, textInput, toast } from '@ewiki/sdk';
 import { BASE, type Props } from './model';
 import { propertiesForm } from './edit';
 import { chart } from './charts';
-import { calendarView, cardsView, chartData, colLabel, download, kanbanView, tableView, timelineView, type Column, type Filter, type Result, type Row, type SortKey } from './report';
+import { calendarView, cardsView, chartData, colLabel, downloadButtons, kanbanView, tableView, timelineView, type Column, type Filter, type Result, type Row, type SortKey } from './report';
 
 interface Source { kind: string; id?: number; sub?: boolean; tag?: string; type?: string; ids?: number[] }
 interface Config {
@@ -41,12 +41,13 @@ export async function databaseWidget(el: HTMLElement): Promise<void> {
   let columns: Column[] = [];
   // where new entries go and whether the reader may manage definitions
   const target = cfg.new_category || categoryId;
-  let canCreate = false, canManage = false;
+  let canCreate = false, canManage = false, canEditDb = false;
   try {
     const c = await api.get<{ category: { permissions: string[] | null } }>(`categories/${target}`);
     canCreate = !!c.category.permissions?.includes('create');
     const own = target === categoryId ? c : await api.get<{ category: { permissions: string[] | null } }>(`categories/${categoryId}`);
     canManage = !!own.category.permissions?.includes('manage');
+    canEditDb = !!own.category.permissions?.includes('edit');
   } catch { /* guests or hidden */ }
   const query = (withGroup: boolean) => ({
     sources, filters: [...(cfg.filters ?? []), ...extra], q: search, sort, columns: cfg.columns?.length ? ['title', ...cfg.columns] : [],
@@ -155,18 +156,60 @@ export async function databaseWidget(el: HTMLElement): Promise<void> {
   const groupSel = select([{ value: '', label: t('props.db.no_group') }, ...keys.filter((k) => !['textarea', 'url', 'email'].includes(k.type)).map((k) => ({ value: k.key, label: k.label }))], group);
   groupSel.setAttribute('aria-label', t('props.db.group_by'));
   groupSel.addEventListener('change', () => { group = groupSel.value; void load(); });
+  // saved views: personal ones and shared ones of the database
+  interface SavedView { id: number; name: string; shared: boolean; mine: boolean; state: { search: string; view: string; group: string; filters: Filter[]; sort: SortKey[] } }
+  let saved: SavedView[] = [];
+  const savedSel = select([]);
+  savedSel.setAttribute('aria-label', t('props.db.saved_views'));
+  const drawSaved = () => {
+    savedSel.replaceChildren(h('option', { value: '' }, t('props.db.saved_choose')),
+      ...saved.map((v) => h('option', { value: String(v.id) }, v.shared ? `${v.name} (${t('props.db.shared')})` : v.name)));
+    savedSel.hidden = !saved.length;
+    delSaved.hidden = !saved.length;
+  };
+  const loadSaved = async () => {
+    if (!elementId) return;
+    try { saved = await api.get<SavedView[]>(`${BASE}/databases/${elementId}/views`); } catch { saved = []; }
+    drawSaved();
+  };
+  savedSel.addEventListener('change', () => {
+    const v = saved.find((x) => String(x.id) === savedSel.value);
+    if (!v) return;
+    search = v.state.search ?? ''; q.value = search;
+    view = VIEWS.includes(v.state.view) ? v.state.view : view; viewSel.value = view;
+    group = v.state.group ?? ''; groupSel.value = group;
+    extra.splice(0, extra.length, ...(v.state.filters ?? []));
+    sort = v.state.sort ?? [];
+    offset = 0;
+    drawChips();
+    void load();
+    announce(t('props.db.view_applied', { name: v.name }));
+  });
+  const saveView = button(t('props.db.save_view'), () => {
+    const name = textInput({ maxlength: 100, required: true });
+    const shared = canEditDb ? checkbox(t('props.db.share_view'), false, { help: t('props.db.share_view_help') }) : null;
+    formDialog(t('props.db.save_view'), [field(t('common.name'), name, { required: true }), shared?.el ?? ''], t('common.save'), async () => {
+      if (!name.value.trim()) throw new Error(t('props.required', { name: t('common.name') }));
+      await api.post(`${BASE}/databases/${elementId}/views`, { name: name.value.trim(), shared: !!shared?.input.checked, state: { search, view, group, filters: [...extra], sort } });
+      toast(t('common.saved'));
+      await loadSaved();
+    });
+  }, { variant: 'subtle' });
+  const delSaved = button(t('props.db.delete_view'), async () => {
+    const v = saved.find((x) => String(x.id) === savedSel.value);
+    if (!v) { toast(t('props.db.saved_choose'), 'error'); return; }
+    if (!v.mine && !(v.shared && canEditDb)) { toast(t('error.forbidden'), 'error'); return; }
+    try { await api.del(`${BASE}/views/${v.id}`); toast(t('props.db.view_deleted')); await loadSaved(); } catch (e) { toast(errorText(e), 'error'); }
+  }, { variant: 'subtle' });
   const tools = h('div', { class: 'ewprop-tools ewdb-tools' }, q, viewSel, groupSel,
+    elementId && state.user ? savedSel : '', elementId && state.user ? saveView : '', elementId && state.user ? delSaved : '',
     button(t('props.db.add_filter'), addFilter, { variant: 'secondary' }),
-    button(t('props.csv'), async () => {
-      try {
-        const all = await api.post<Result>(`${BASE}/query`, { ...query(false), limit: 1000, offset: 0 });
-        download(all, all.columns.filter((c) => c.key !== 'title'), 'database');
-      } catch (e) { toast(errorText(e), 'error'); }
-    }, { variant: 'subtle' }),
+    downloadButtons(() => ({ ...query(false), limit: 1000, offset: 0 }), () => 'database'),
     canCreate ? h('a', { class: 'ew-btn ew-btn--primary', href: `/c/${target}/new${qs({ type: cfg.new_type || undefined, return: location.pathname })}` }, t('props.db.new')) : '',
     canManage ? h('a', { class: 'ew-btn ew-btn--subtle', href: `/c/${categoryId}/settings?tab=properties` }, t('props.db.manage')) : '');
   el.prepend(tools, chips, count);
   el.append(out, pager);
   void columns;
+  void loadSaved();
   await load();
 }

@@ -997,7 +997,8 @@ func (s *Service) HashVisible(ctx context.Context, hash string) bool {
 			continue
 		}
 		// a file with a watermark for viewers or no download is never served raw
-		if m.Watermark.Mode == WMViewerView || m.Watermark.Mode == WMViewerAll || m.Watermark.Mode == WMUploaderView {
+		if m.Watermark.Mode == WMViewerView || m.Watermark.Mode == WMViewerAll || m.Watermark.Mode == WMUploaderView ||
+			s.acl.Classification(ctx, m.CategoryID) >= acl.Confidential { // confidential: watermarked by Deliver
 			if perms&Manage == 0 {
 				continue
 			}

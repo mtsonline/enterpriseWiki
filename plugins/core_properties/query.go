@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/mtsonline/enterprisewiki/internal/content"
+	"github.com/mtsonline/enterprisewiki/internal/xlsx"
 	"net/http"
 	"regexp"
 	"slices"
@@ -945,33 +946,13 @@ func (p *Plugin) routesQuery() {
 	// page), with filters of the reader added, another sorting or page:
 	// {"params": {...}, "category_id": 1, "element_id": 2, "filters": [...], "sort": [...], "offset": 0, "lang": "de", "rows": true}
 	host.Handle("POST", "/report", func(w http.ResponseWriter, r *http.Request) (any, error) {
-		var in struct {
-			Params     map[string]string `json:"params"`
-			CategoryID int64             `json:"category_id"`
-			ElementID  int64             `json:"element_id"`
-			Filters    []Filter          `json:"filters"`
-			Sort       []SortKey         `json:"sort"`
-			Offset     int               `json:"offset"`
-			Lang       string            `json:"lang"`
-			// Rows: the elements instead of the groups (e.g. a chart's data per element)
-			Rows bool `json:"rows"`
-		}
+		var in reportInput
 		if err := h.Decode(r, &in); err != nil {
 			return nil, err
 		}
-		if len(in.Params) > 40 {
-			return nil, apperr.BadRequest("too many parameters")
-		}
-		q, err := QueryOf(in.Params, in.CategoryID, in.ElementID, in.Lang)
+		q, err := in.query()
 		if err != nil {
 			return nil, err
-		}
-		if len(in.Filters) > 10 {
-			return nil, apperr.BadRequest("at most 10 filters of readers")
-		}
-		q.Filters = append(q.Filters, in.Filters...)
-		if len(in.Sort) > 0 {
-			q.Sort = in.Sort
 		}
 		q.Offset = in.Offset
 		if in.Rows {
@@ -979,41 +960,100 @@ func (p *Plugin) routesQuery() {
 		}
 		return p.Run(r.Context(), q)
 	})
-	// POST /query.csv – the rows as CSV (UTF-8 with BOM for spreadsheets)
-	host.Mux.HandleFunc("POST /api/v1/x/core.properties/query.csv", func(w http.ResponseWriter, r *http.Request) {
-		if !host.IsEnabled(host.Manifest.ID) {
-			h.WriteError(w, r, apperr.NotFound("plugin"))
-			return
-		}
-		var q Query
-		if err := h.Decode(r, &q); err != nil {
-			h.WriteError(w, r, err)
-			return
-		}
-		q.Group, q.Limit = "", maxRows
-		res, err := p.Run(r.Context(), &q)
-		if err != nil {
-			h.WriteError(w, r, err)
-			return
-		}
-		w.Header().Set("Content-Type", "text/csv; charset=utf-8")
-		w.Header().Set("Content-Disposition", `attachment; filename="properties.csv"`)
-		_, _ = w.Write([]byte("\xef\xbb\xbf"))
-		cw := csv.NewWriter(w)
-		head := []string{"id", "title", "link"}
-		for _, c := range res.Columns {
-			head = append(head, csvSafe(c.Label))
-		}
-		_ = cw.Write(head)
-		for _, row := range res.Rows {
-			rec := []string{strconv.FormatInt(row.ID, 10), csvSafe(row.Title), row.Link}
-			for _, c := range res.Columns {
-				rec = append(rec, csvSafe(plain(builtinValue(row, c.Key), c.Type, res.Refs)))
+	// POST /query.csv and /query.xlsx – the rows as file (strictly
+	// confidential content is never exported)
+	export := func(format string) http.HandlerFunc {
+		return func(w http.ResponseWriter, r *http.Request) {
+			if !host.IsEnabled(host.Manifest.ID) {
+				h.WriteError(w, r, apperr.NotFound("plugin"))
+				return
 			}
-			_ = cw.Write(rec)
+			// a query or (with "params") the body of a report
+			var raw json.RawMessage
+			if err := h.Decode(r, &raw); err != nil {
+				h.WriteError(w, r, err)
+				return
+			}
+			q := &Query{}
+			var probe struct {
+				Params map[string]string `json:"params"`
+			}
+			_ = json.Unmarshal(raw, &probe)
+			if probe.Params != nil {
+				if probe.Params["export"] == "false" {
+					h.WriteError(w, r, apperr.Forbidden("this report offers no download"))
+					return
+				}
+				var in reportInput
+				if err := json.Unmarshal(raw, &in); err != nil {
+					h.WriteError(w, r, apperr.BadRequest("invalid report"))
+					return
+				}
+				var err error
+				if q, err = in.query(); err != nil {
+					h.WriteError(w, r, err)
+					return
+				}
+			} else if err := json.Unmarshal(raw, q); err != nil {
+				h.WriteError(w, r, apperr.BadRequest("invalid query"))
+				return
+			}
+			q.Group, q.Group2, q.Limit, q.Offset = "", "", maxRows, 0
+			res, err := p.Run(r.Context(), q)
+			if err != nil {
+				h.WriteError(w, r, err)
+				return
+			}
+			rows := res.Rows[:0:0]
+			for _, row := range res.Rows {
+				if host.ACL.Classification(r.Context(), row.CategoryID) < acl.StrictConfidential {
+					rows = append(rows, row)
+				}
+			}
+			head := []string{"id", "title", "link"}
+			for _, c := range res.Columns {
+				head = append(head, c.Label)
+			}
+			if format == "xlsx" {
+				out := make([][]xlsx.Cell, 0, len(rows))
+				for _, row := range rows {
+					rec := []xlsx.Cell{xlsx.Num(float64(row.ID)), xlsx.Text(row.Title), xlsx.Text(row.Link)}
+					for _, c := range res.Columns {
+						raw := builtinValue(row, c.Key)
+						var f float64
+						if t, ok := TypeByID(c.Type); ok && t.Group == "number" && json.Unmarshal(raw, &f) == nil {
+							rec = append(rec, xlsx.Num(f))
+						} else {
+							rec = append(rec, xlsx.Text(plain(raw, c.Type, res.Refs)))
+						}
+					}
+					out = append(out, rec)
+				}
+				w.Header().Set("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+				w.Header().Set("Content-Disposition", `attachment; filename="properties.xlsx"`)
+				_ = xlsx.Write(w, "Properties", head, out)
+				return
+			}
+			w.Header().Set("Content-Type", "text/csv; charset=utf-8")
+			w.Header().Set("Content-Disposition", `attachment; filename="properties.csv"`)
+			_, _ = w.Write([]byte("\xef\xbb\xbf"))
+			cw := csv.NewWriter(w)
+			for i := range head {
+				head[i] = csvSafe(head[i])
+			}
+			_ = cw.Write(head)
+			for _, row := range rows {
+				rec := []string{strconv.FormatInt(row.ID, 10), csvSafe(row.Title), row.Link}
+				for _, c := range res.Columns {
+					rec = append(rec, csvSafe(plain(builtinValue(row, c.Key), c.Type, res.Refs)))
+				}
+				_ = cw.Write(rec)
+			}
+			cw.Flush()
 		}
-		cw.Flush()
-	})
+	}
+	host.Mux.HandleFunc("POST /api/v1/x/core.properties/query.csv", export("csv"))
+	host.Mux.HandleFunc("POST /api/v1/x/core.properties/query.xlsx", export("xlsx"))
 	// GET /values?key=K&category=ID – values in use (for filter forms)
 	host.Handle("GET", "/values", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		ctx := r.Context()
@@ -1151,4 +1191,36 @@ func csvSafe(s string) string {
 		return "'" + s
 	}
 	return s
+}
+
+// reportInput is the body of POST /report (a report macro with the
+// filters and sorting of its reader).
+type reportInput struct {
+	Params     map[string]string `json:"params"`
+	CategoryID int64             `json:"category_id"`
+	ElementID  int64             `json:"element_id"`
+	Filters    []Filter          `json:"filters"`
+	Sort       []SortKey         `json:"sort"`
+	Offset     int               `json:"offset"`
+	Lang       string            `json:"lang"`
+	// Rows: the elements instead of the groups (e.g. a chart's data per element)
+	Rows bool `json:"rows"`
+}
+
+func (in *reportInput) query() (*Query, error) {
+	if len(in.Params) > 40 {
+		return nil, apperr.BadRequest("too many parameters")
+	}
+	q, err := QueryOf(in.Params, in.CategoryID, in.ElementID, in.Lang)
+	if err != nil {
+		return nil, err
+	}
+	if len(in.Filters) > 10 {
+		return nil, apperr.BadRequest("at most 10 filters of readers")
+	}
+	q.Filters = append(q.Filters, in.Filters...)
+	if len(in.Sort) > 0 {
+		q.Sort = in.Sort
+	}
+	return q, nil
 }

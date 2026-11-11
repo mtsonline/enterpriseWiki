@@ -1,6 +1,7 @@
 package server_test
 
 import (
+	"archive/zip"
 	"bytes"
 	"context"
 	"encoding/json"
@@ -905,4 +906,278 @@ func TestSpaceLook(t *testing.T) {
 	if html := viewHTML(t, admin, toc); strings.Contains(html, "not available") {
 		t.Fatalf("allowed macro refused: %s", html)
 	}
+}
+
+// TestConfidentialPictures: pictures embedded in pages of confidential
+// categories carry the viewer's name; elsewhere they stay unchanged.
+func TestConfidentialPictures(t *testing.T) {
+	e := setup(t)
+	admin := e.client()
+	admin.login("admin", adminPW)
+	var secret, open cat
+	admin.must("POST", "/api/v1/categories", map[string]any{"titles": map[string]string{"en": "Board"}}, &secret, 201)
+	admin.must("POST", "/api/v1/categories", map[string]any{"titles": map[string]string{"en": "Open"}}, &open, 201)
+	var bob struct {
+		ID int64 `json:"id"`
+	}
+	admin.must("POST", "/api/v1/admin/users", map[string]any{"username": "bob", "password": "Bob-Passw0rd!x", "display_name": "Bob Baum"}, &bob, 201)
+	for _, c := range []int64{secret.ID, open.ID} {
+		admin.must("POST", fmt.Sprintf("/api/v1/categories/%d/acl", c), map[string]any{"subject_type": "user", "subject_id": bob.ID, "permissions": 1, "inherit": true}, nil, 201)
+	}
+	admin.must("PUT", fmt.Sprintf("/api/v1/categories/%d", secret.ID), map[string]any{"classification": 2}, nil, 200)
+	bc := e.client()
+	bc.login("bob", "Bob-Passw0rd!x")
+	_, a := admin.upload(t, "a.png", testPNG(160, 100))
+	_, b := admin.upload(t, "b.png", testPNG(161, 100))
+	admin.must("POST", "/api/v1/elements", map[string]any{"category_id": secret.ID, "type": "core.html", "title": "Minutes", "body": htmlBody(`<p><img src="/api/v1/files/` + a.Hash + `" alt="chart"></p>`)}, nil, 201)
+	admin.must("POST", "/api/v1/elements", map[string]any{"category_id": open.ID, "type": "core.html", "title": "News", "body": htmlBody(`<p><img src="/api/v1/files/` + b.Hash + `" alt="chart"></p>`)}, nil, 201)
+	_, origA, _ := admin.fetch(t, "/api/v1/files/"+a.Hash) // own upload: unchanged
+	c, markedA, hdr := bc.fetch(t, "/api/v1/files/"+a.Hash)
+	if c != 200 || bytes.Equal(origA, markedA) || hdr.Get("Cache-Control") != "private, no-store" {
+		t.Fatalf("confidential picture: %d %v", c, hdr)
+	}
+	_, origB, _ := admin.fetch(t, "/api/v1/files/"+b.Hash)
+	if c, plainB, _ := bc.fetch(t, "/api/v1/files/"+b.Hash); c != 200 || !bytes.Equal(origB, plainB) {
+		t.Fatalf("open picture changed: %d", c)
+	}
+	// file elements of strictly confidential categories: no downloads for readers
+	var att elem
+	admin.must("POST", "/api/v1/elements", map[string]any{"category_id": secret.ID, "type": "core.attachment", "title": "Plan",
+		"body": map[string]any{"file": map[string]string{"hash": a.Hash, "name": "plan.png"}}}, &att, 201)
+	if c, _, _ := bc.fetch(t, fmt.Sprintf("/api/v1/x/core.attachment/elements/%d/file", att.ID)); c != 200 {
+		t.Fatalf("confidential attachment: %d", c)
+	}
+	admin.must("PUT", fmt.Sprintf("/api/v1/categories/%d", secret.ID), map[string]any{"classification": 3}, nil, 200)
+	if c, _, _ := bc.fetch(t, fmt.Sprintf("/api/v1/x/core.attachment/elements/%d/file", att.ID)); c != 403 {
+		t.Fatalf("strictly confidential attachment: %d", c)
+	}
+	if c, _, _ := admin.fetch(t, fmt.Sprintf("/api/v1/x/core.attachment/elements/%d/file", att.ID)); c != 200 {
+		t.Fatalf("manager download: %d", c)
+	}
+}
+
+// TestPropertyDownloads: CSV and Excel files of a query or report;
+// strictly confidential rows are never exported.
+func TestPropertyDownloads(t *testing.T) {
+	e := setup(t)
+	admin := e.client()
+	admin.login("admin", adminPW)
+	var c, strict cat
+	admin.must("POST", "/api/v1/categories", map[string]any{"titles": map[string]string{"en": "Budgets"}}, &c, 201)
+	admin.must("POST", "/api/v1/categories", map[string]any{"parent_id": c.ID, "titles": map[string]string{"en": "Board"}}, &strict, 201)
+	admin.must("POST", "/api/v1/x/core.properties/defs", map[string]any{"category_id": c.ID, "key": "budget", "type": "currency", "labels": map[string]string{"en": "Budget"}, "options": map[string]any{"currency": "EUR"}}, nil, 201)
+	fields := func(v any) map[string]any {
+		return map[string]any{"core.properties": map[string]any{"values": map[string]any{"budget": v}}}
+	}
+	admin.must("POST", "/api/v1/elements", map[string]any{"category_id": c.ID, "type": "core.html", "title": "=cmd|' /C calc'!A0", "body": htmlBody("<p>a</p>"), "fields": fields(1250.5)}, nil, 201)
+	admin.must("POST", "/api/v1/elements", map[string]any{"category_id": strict.ID, "type": "core.html", "title": "Merger", "body": htmlBody("<p>b</p>"), "fields": fields(9e6)}, nil, 201)
+	admin.must("PUT", fmt.Sprintf("/api/v1/categories/%d", strict.ID), map[string]any{"classification": 3}, nil, 200)
+	q := `{"sources":[{"kind":"category","id":` + fmt.Sprint(c.ID) + `,"sub":true}],"columns":["budget"]}`
+	code, csvBody := admin.rawBody("POST", "/api/v1/x/core.properties/query.csv", q)
+	if code != 200 || !strings.Contains(csvBody, "'=cmd") || strings.Contains(csvBody, "Merger") || !strings.Contains(csvBody, "1250") {
+		t.Fatalf("csv %d: %s", code, csvBody)
+	}
+	code, x := admin.rawBody("POST", "/api/v1/x/core.properties/query.xlsx", q)
+	if code != 200 || !strings.HasPrefix(x, "PK") {
+		t.Fatalf("xlsx %d", code)
+	}
+	z, err := zip.NewReader(strings.NewReader(x), int64(len(x)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var sheet string
+	for _, f := range z.File {
+		if f.Name == "xl/worksheets/sheet1.xml" {
+			r, _ := f.Open()
+			b, _ := io.ReadAll(r)
+			sheet = string(b)
+		}
+	}
+	if !strings.Contains(sheet, "<v>1250.5</v>") || strings.Contains(sheet, "Merger") || strings.Contains(sheet, "<f>") {
+		t.Fatalf("sheet: %s", sheet)
+	}
+	// a report body; reports without downloads refuse
+	rep := `{"params":{"source":"category:` + fmt.Sprint(c.ID) + `+sub","columns":"budget"},"category_id":` + fmt.Sprint(c.ID) + `}`
+	if code, _ := admin.rawBody("POST", "/api/v1/x/core.properties/query.xlsx", rep); code != 200 {
+		t.Fatalf("report xlsx: %d", code)
+	}
+	no := `{"params":{"source":"category:` + fmt.Sprint(c.ID) + `","export":"false"}}`
+	if code, _ := admin.rawBody("POST", "/api/v1/x/core.properties/query.csv", no); code != 403 {
+		t.Fatalf("report without downloads: %d", code)
+	}
+}
+
+// TestSavedViews: personal and shared views of a property database.
+func TestSavedViews(t *testing.T) {
+	e := setup(t)
+	admin := e.client()
+	admin.login("admin", adminPW)
+	var c cat
+	admin.must("POST", "/api/v1/categories", map[string]any{"titles": map[string]string{"en": "Projects"}}, &c, 201)
+	var db elem
+	admin.must("POST", "/api/v1/elements", map[string]any{"category_id": c.ID, "type": "content.propdb", "title": "All projects", "body": map[string]any{"source": fmt.Sprintf("category:%d", c.ID)}}, &db, 201)
+	var u struct {
+		ID int64 `json:"id"`
+	}
+	admin.must("POST", "/api/v1/admin/users", map[string]any{"username": "vera", "password": "Passw0rd!Passw0rd", "display_name": "Vera"}, &u, 201)
+	admin.must("POST", fmt.Sprintf("/api/v1/categories/%d/acl", c.ID), map[string]any{"subject_type": "user", "subject_id": u.ID, "permissions": 1, "inherit": true}, nil, 201)
+	vera := e.client()
+	vera.login("vera", "Passw0rd!Passw0rd")
+	base := fmt.Sprintf("/api/v1/x/core.properties/databases/%d/views", db.ID)
+	state := map[string]any{"search": "alpha", "view": "board", "group": "status", "filters": []map[string]any{{"key": "status", "op": "eq", "value": "Open"}}}
+	if code := vera.do("POST", base, map[string]any{"name": "For all", "shared": true, "state": state}, nil); code != 403 {
+		t.Fatalf("reader shared a view: %d", code)
+	}
+	var mine struct {
+		ID int64 `json:"id"`
+	}
+	vera.must("POST", base, map[string]any{"name": "My board", "state": state}, &mine, 201)
+	admin.must("POST", base, map[string]any{"name": "Team view", "shared": true, "state": state}, nil, 201)
+	type sv struct {
+		Name   string `json:"name"`
+		Shared bool   `json:"shared"`
+		Mine   bool   `json:"mine"`
+		State  struct {
+			View    string `json:"view"`
+			Filters []any  `json:"filters"`
+		} `json:"state"`
+	}
+	var list []sv
+	vera.must("GET", base, nil, &list, 200)
+	if len(list) != 2 || list[0].Name != "Team view" || !list[0].Shared || !list[1].Mine || list[1].State.View != "board" || len(list[1].State.Filters) != 1 {
+		t.Fatalf("views of vera: %+v", list)
+	}
+	admin.must("GET", base, nil, &list, 200)
+	if len(list) != 1 {
+		t.Fatalf("admin sees vera's personal view: %+v", list)
+	}
+	if code := admin.do("DELETE", fmt.Sprintf("/api/v1/x/core.properties/views/%d", mine.ID), nil, nil); code != 404 {
+		t.Fatalf("other person deleted a personal view: %d", code)
+	}
+	vera.must("DELETE", fmt.Sprintf("/api/v1/x/core.properties/views/%d", mine.ID), nil, nil, 204)
+	guest := e.client()
+	if code := guest.do("GET", base, nil, nil); code != 404 && code != 401 {
+		t.Fatalf("guest: %d", code)
+	}
+}
+
+// TestPropertyTrend: development of a status and a number per week.
+func TestPropertyTrend(t *testing.T) {
+	e := setup(t)
+	admin := e.client()
+	admin.login("admin", adminPW)
+	var c cat
+	admin.must("POST", "/api/v1/categories", map[string]any{"titles": map[string]string{"en": "Tasks"}}, &c, 201)
+	choices := []map[string]any{{"value": "Open"}, {"value": "Done"}}
+	admin.must("POST", "/api/v1/x/core.properties/defs", map[string]any{"category_id": c.ID, "key": "state", "type": "status", "options": map[string]any{"choices": choices}}, nil, 201)
+	admin.must("POST", "/api/v1/x/core.properties/defs", map[string]any{"category_id": c.ID, "key": "hours", "type": "integer"}, nil, 201)
+	var role struct {
+		ID int64 `json:"id"`
+	}
+	admin.must("POST", "/api/v1/admin/roles", map[string]any{"name": "Payroll"}, &role, 200)
+	admin.must("POST", "/api/v1/x/core.properties/defs", map[string]any{"category_id": c.ID, "key": "salary", "type": "integer", "view_subjects": []map[string]any{{"type": "role", "id": role.ID}}}, nil, 201)
+	fields := func(v map[string]any) map[string]any {
+		return map[string]any{"core.properties": map[string]any{"values": v}}
+	}
+	var a, b elem
+	admin.must("POST", "/api/v1/elements", map[string]any{"category_id": c.ID, "type": "core.html", "title": "A", "body": htmlBody("<p>a</p>"), "fields": fields(map[string]any{"state": "Open", "hours": 3, "salary": 100})}, &a, 201)
+	admin.must("POST", "/api/v1/elements", map[string]any{"category_id": c.ID, "type": "core.html", "title": "B", "body": htmlBody("<p>b</p>"), "fields": fields(map[string]any{"state": "Open", "hours": 5})}, &b, 201)
+	// A was done two weeks ago (history moved back), B still open
+	if _, err := e.app.DB.Exec(context.Background(), `UPDATE plugin_prop_history SET changed_at = now() - interval '21 days' WHERE element_id=$1`, a.ID); err != nil {
+		t.Fatal(err)
+	}
+	admin.must("PUT", fmt.Sprintf("/api/v1/elements/%d", a.ID), map[string]any{"lang": "en", "title": "A", "body": htmlBody("<p>a</p>"), "fields": fields(map[string]any{"state": "Done", "hours": 3})}, nil, 200)
+	if _, err := e.app.DB.Exec(context.Background(), `UPDATE plugin_prop_history SET changed_at = now() - interval '14 days' WHERE element_id=$1 AND changed_at > now() - interval '1 hour' AND key='state'`, a.ID); err != nil {
+		t.Fatal(err)
+	}
+	rep := map[string]any{"params": map[string]any{"source": fmt.Sprintf("category:%d", c.ID)}, "category_id": c.ID}
+	var tr struct {
+		Weeks  []string `json:"weeks"`
+		Series []struct {
+			Value  string    `json:"value"`
+			Values []float64 `json:"values"`
+		} `json:"series"`
+	}
+	admin.must("POST", "/api/v1/x/core.properties/trend", map[string]any{"report": rep, "key": "state", "weeks": 4}, &tr, 200)
+	got := map[string][]float64{}
+	for _, s := range tr.Series {
+		got[s.Value] = s.Values
+	}
+	// weeks: -3w (A open), -2w (A done), -1w, now; B only exists now
+	if len(tr.Weeks) != 4 || got["Open"][0] != 1 || got["Done"][1] != 1 || got["Done"][3] != 1 || got["Open"][3] != 1 {
+		t.Fatalf("trend: %+v", tr)
+	}
+	admin.must("POST", "/api/v1/x/core.properties/trend", map[string]any{"report": rep, "key": "hours", "weeks": 2}, &tr, 200)
+	if len(tr.Series) != 1 || tr.Series[0].Values[1] != 8 {
+		t.Fatalf("sum trend: %+v", tr)
+	}
+	// readers without the role do not get the history of a hidden property
+	var u struct {
+		ID int64 `json:"id"`
+	}
+	admin.must("POST", "/api/v1/admin/users", map[string]any{"username": "tom", "password": "Passw0rd!Passw0rd", "display_name": "Tom"}, &u, 201)
+	admin.must("POST", fmt.Sprintf("/api/v1/categories/%d/acl", c.ID), map[string]any{"subject_type": "user", "subject_id": u.ID, "permissions": 1, "inherit": true}, nil, 201)
+	tom := e.client()
+	tom.login("tom", "Passw0rd!Passw0rd")
+	if code := tom.do("POST", "/api/v1/x/core.properties/trend", map[string]any{"report": rep, "key": "salary"}, nil); code != 404 {
+		t.Fatalf("hidden property trend: %d", code)
+	}
+	tom.must("POST", "/api/v1/x/core.properties/trend", map[string]any{"report": rep, "key": "state"}, nil, 200)
+	if code := admin.do("POST", "/api/v1/x/core.properties/trend", map[string]any{"report": rep, "key": "title"}, nil); code != 400 {
+		t.Fatalf("builtin key: %d", code)
+	}
+}
+
+// TestReportSubscriptions: the report by e-mail with the subscriber's
+// rights; strictly confidential rows are left out.
+func TestReportSubscriptions(t *testing.T) {
+	e := setup(t)
+	c := &capture{}
+	e.app.Mail.SetTransport(c)
+	admin := e.client()
+	admin.login("admin", adminPW)
+	var cat1, strict cat
+	admin.must("POST", "/api/v1/categories", map[string]any{"titles": map[string]string{"en": "Projects"}}, &cat1, 201)
+	admin.must("POST", "/api/v1/categories", map[string]any{"parent_id": cat1.ID, "titles": map[string]string{"en": "Board"}}, &strict, 201)
+	admin.must("POST", "/api/v1/elements", map[string]any{"category_id": cat1.ID, "type": "core.html", "title": "Visible project", "body": htmlBody("<p>a</p>")}, nil, 201)
+	admin.must("POST", "/api/v1/elements", map[string]any{"category_id": strict.ID, "type": "core.html", "title": "Secret merger", "body": htmlBody("<p>b</p>")}, nil, 201)
+	admin.must("PUT", fmt.Sprintf("/api/v1/categories/%d", strict.ID), map[string]any{"classification": 3}, nil, 200)
+	var u struct {
+		ID int64 `json:"id"`
+	}
+	admin.must("POST", "/api/v1/admin/users", map[string]any{"username": "sue", "password": "Passw0rd!Passw0rd", "display_name": "Sue", "email": "sue@example.com"}, &u, 201)
+	admin.must("POST", fmt.Sprintf("/api/v1/categories/%d/acl", cat1.ID), map[string]any{"subject_type": "user", "subject_id": u.ID, "permissions": 1, "inherit": true}, nil, 201)
+	page := macroPage(t, admin, cat1.ID, "properties", map[string]string{"source": fmt.Sprintf("category:%d+sub", cat1.ID), "title": "Portfolio"})
+	sue := e.client()
+	sue.login("sue", "Passw0rd!Passw0rd")
+	body := map[string]any{"element_id": page, "params": map[string]string{"source": fmt.Sprintf("category:%d+sub", cat1.ID), "title": "Portfolio"}, "title": "Portfolio", "frequency": "hourly"}
+	if code := sue.do("POST", "/api/v1/x/core.properties/subscriptions", body, nil); code != 400 {
+		t.Fatalf("bad frequency: %d", code)
+	}
+	body["frequency"] = "weekly"
+	var sub struct {
+		ID int64 `json:"id"`
+	}
+	sue.must("POST", "/api/v1/x/core.properties/subscriptions", body, &sub, 201)
+	var list []struct {
+		ID int64 `json:"id"`
+	}
+	sue.must("GET", fmt.Sprintf("/api/v1/x/core.properties/subscriptions?element=%d", page), nil, &list, 200)
+	if len(list) != 1 {
+		t.Fatalf("subscriptions: %+v", list)
+	}
+	if code := admin.do("DELETE", fmt.Sprintf("/api/v1/x/core.properties/subscriptions/%d", sub.ID), nil, nil); code != 404 {
+		t.Fatalf("other person ended the subscription: %d", code)
+	}
+	if _, err := e.app.DB.Exec(context.Background(), `UPDATE plugin_prop_subs SET next_at = now() - interval '1 minute'`); err != nil {
+		t.Fatal(err)
+	}
+	if err := e.app.Workers.RunOnce(context.Background(), "core.properties.subscriptions"); err != nil {
+		t.Fatal(err)
+	}
+	e.flushMail(t)
+	if !c.find("sue@example.com", "Visible project") || c.find("sue@example.com", "Secret merger") {
+		t.Fatalf("report mail: %d messages", c.count())
+	}
+	sue.must("DELETE", fmt.Sprintf("/api/v1/x/core.properties/subscriptions/%d", sub.ID), nil, nil, 204)
 }

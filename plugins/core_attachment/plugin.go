@@ -10,6 +10,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/mtsonline/enterprisewiki/internal/acl"
+	"github.com/mtsonline/enterprisewiki/internal/identity"
 	"html"
 	"io/fs"
 	"net/http"
@@ -75,6 +77,10 @@ func (p *Plugin) Setup(host *sdk.Host) error {
 		}
 		if view.Type != "core.attachment" {
 			return nil, apperr.NotFound("file")
+		}
+		// strictly confidential: no downloads without the permission to manage
+		if host.ACL.Classification(ctx, view.CategoryID) >= acl.StrictConfidential && !host.ACL.Can(ctx, identity.From(ctx), view.CategoryID, acl.Manage) {
+			return nil, apperr.Forbidden("strictly confidential files cannot be downloaded")
 		}
 		hash := r.URL.Query().Get("hash")
 		var raw json.RawMessage

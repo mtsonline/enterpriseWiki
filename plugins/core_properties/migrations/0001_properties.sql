@@ -71,3 +71,31 @@ CREATE TABLE plugin_prop_seq (
     def_id bigint PRIMARY KEY REFERENCES plugin_prop_defs(id) ON DELETE CASCADE,
     next   bigint NOT NULL DEFAULT 1
 );
+
+-- Saved views of property databases: search, view, grouping, filters and
+-- sorting; personal (owner_id) or for all readers of the database (NULL).
+CREATE TABLE plugin_prop_views (
+    id         bigserial PRIMARY KEY,
+    element_id bigint NOT NULL REFERENCES elements(id) ON DELETE CASCADE,
+    owner_id   bigint REFERENCES users(id) ON DELETE CASCADE,
+    name       text NOT NULL,
+    state      jsonb NOT NULL,
+    created_by bigint REFERENCES users(id) ON DELETE SET NULL,
+    created_at timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX plugin_prop_views_element ON plugin_prop_views(element_id);
+
+-- Subscriptions of reports: the report of a page by e-mail, daily or weekly.
+CREATE TABLE plugin_prop_subs (
+    id          bigserial PRIMARY KEY,
+    user_id     bigint NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    element_id  bigint NOT NULL REFERENCES elements(id) ON DELETE CASCADE,
+    category_id bigint NOT NULL,
+    params      jsonb NOT NULL,
+    title       text NOT NULL DEFAULT '',
+    frequency   text NOT NULL CHECK (frequency IN ('daily', 'weekly')),
+    next_at     timestamptz NOT NULL,
+    created_at  timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX plugin_prop_subs_due ON plugin_prop_subs(next_at);
+CREATE INDEX plugin_prop_subs_user ON plugin_prop_subs(user_id);
