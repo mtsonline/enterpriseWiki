@@ -12,13 +12,15 @@ import { registerMacroParamControl, type MacroParamContext } from '../editor/mac
 export interface SourceKind {
   kind: string;
   label: () => string;
+  /** resolved to elements (offered in every source editor); others only when asked for (feeds, calendars) */
+  element?: boolean;
   /** an input for the value after "kind:"; get returns "" for none */
   render: (value: string, ctx: { categoryId: number }) => Promise<{ el: HTMLElement; get: () => string }> | { el: HTMLElement; get: () => string };
 }
 
 const kinds: SourceKind[] = [
   {
-    kind: 'category', label: () => t('sources.category'),
+    kind: 'category', element: true, label: () => t('sources.category'),
     render: async (v, ctx) => {
       const c = await categorySelect({ selected: Number(v.replace('+sub', '')) || ctx.categoryId || undefined });
       c.select.setAttribute('aria-label', t('sources.category'));
@@ -27,11 +29,11 @@ const kinds: SourceKind[] = [
     },
   },
   {
-    kind: 'tag', label: () => t('sources.tag'),
+    kind: 'tag', element: true, label: () => t('sources.tag'),
     render: (v) => { const i = textInput({ value: v, placeholder: 'hr' }); i.setAttribute('aria-label', t('sources.tag')); return { el: i, get: () => i.value.trim().toLowerCase() }; },
   },
   {
-    kind: 'type', label: () => t('sources.type'),
+    kind: 'type', element: true, label: () => t('sources.type'),
     render: (v) => {
       const s = select(state.site.element_types.map((x) => ({ value: x.id, label: x.id })), v);
       s.setAttribute('aria-label', t('sources.type'));
@@ -39,8 +41,12 @@ const kinds: SourceKind[] = [
     },
   },
   {
-    kind: 'elements', label: () => t('sources.elements'),
+    kind: 'elements', element: true, label: () => t('sources.elements'),
     render: (v) => { const i = textInput({ value: v, placeholder: '12, 15' }); i.setAttribute('aria-label', t('sources.elements')); return { el: i, get: () => i.value.replace(/\s+/g, '') }; },
+  },
+  {
+    kind: 'search', element: true, label: () => t('sources.search'),
+    render: (v) => { const i = textInput({ value: v, placeholder: t('sources.search_placeholder') }); i.setAttribute('aria-label', t('sources.search')); return { el: i, get: () => i.value.replace(/;/g, ' ').trim() }; },
   },
   {
     kind: 'feed', label: () => t('sources.feed'),
@@ -60,8 +66,9 @@ export function registerSourceKind(k: SourceKind): void {
 }
 
 /** An editor of sources; only offers the kinds listed (default: the element kinds). */
-export function sourcesEditor(label: string, value: string, opts: { categoryId?: number; kinds?: string[]; help?: string } = {}): { el: HTMLElement; get: () => string } {
-  const allowed = () => kinds.filter((k) => (opts.kinds ? opts.kinds.includes(k.kind) : k.kind !== 'feed'));
+export function sourcesEditor(label: string, value: string, opts: { categoryId?: number; kinds?: string[]; extra?: string[]; help?: string } = {}): { el: HTMLElement; get: () => string } {
+  // kinds: exactly these; otherwise all kinds resolved to elements plus extra (e.g. feed)
+  const allowed = () => kinds.filter((k) => (opts.kinds ? opts.kinds.includes(k.kind) : k.element || (opts.extra?.includes(k.kind) ?? false)));
   const list = h('ol', { class: 'ew-sources' });
   const rows: { get: () => string }[] = [];
   const add = async (src: string) => {
@@ -94,7 +101,7 @@ export function sourcesEditor(label: string, value: string, opts: { categoryId?:
 
 /** Macro parameter controls: "sources" (elements) and "sources.feeds" (with external feeds). */
 export function registerSourceControls(): void {
-  registerMacroParamControl('sources', (value: string, ctx: MacroParamContext) => sourcesEditor(ctx.label, value, { categoryId: ctx.categoryId, kinds: ['category', 'tag', 'type', 'elements'] }));
-  registerMacroParamControl('sources.feeds', (value: string, ctx: MacroParamContext) => sourcesEditor(ctx.label, value, { categoryId: ctx.categoryId, kinds: ['category', 'tag', 'type', 'elements', 'feed'] }));
+  registerMacroParamControl('sources', (value: string, ctx: MacroParamContext) => sourcesEditor(ctx.label, value, { categoryId: ctx.categoryId }));
+  registerMacroParamControl('sources.feeds', (value: string, ctx: MacroParamContext) => sourcesEditor(ctx.label, value, { categoryId: ctx.categoryId, extra: ['feed'] }));
 }
 

@@ -4,6 +4,7 @@ import (
 	"context"
 	"strconv"
 	"strings"
+	"sync"
 	"unicode/utf8"
 
 	"github.com/jackc/pgx/v5"
@@ -39,7 +40,53 @@ type Source struct {
 const MaxSources = 50
 
 // ElementKinds are the kinds the core resolves to elements.
-var ElementKinds = []string{"category", "tag", "type", "elements"}
+var ElementKinds = []string{"category", "tag", "type", "elements", "search"}
+
+// resolvedKinds are kinds whose text value is turned into elements by a
+// resolver: "search" (full-text search) and those plugins register
+// (e.g. "props" for property filters).
+var (
+	resolvedMu    sync.RWMutex
+	resolvedKinds = map[string]bool{"search": true}
+)
+
+// RegisterElementSourceKind declares a kind resolved to elements by a
+// plugin (call in init; the plugin registers the resolver per site with
+// Service.RegisterSourceResolver).
+func RegisterElementSourceKind(kind string) {
+	resolvedMu.Lock()
+	defer resolvedMu.Unlock()
+	resolvedKinds[kind] = true
+}
+
+func isResolvedKind(kind string) bool {
+	resolvedMu.RLock()
+	defer resolvedMu.RUnlock()
+	return resolvedKinds[kind]
+}
+
+// SourceResolver returns the elements of a source value (with the rights
+// of the caller; at most MaxResolved).
+type SourceResolver func(ctx context.Context, value, lang string) ([]int64, error)
+
+// MaxResolved limits the elements one resolved source contributes.
+const MaxResolved = 200
+
+// RegisterSourceResolver sets the resolver of a kind on this site.
+func (s *Service) RegisterSourceResolver(kind string, r SourceResolver) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.resolvers == nil {
+		s.resolvers = map[string]SourceResolver{}
+	}
+	s.resolvers[kind] = r
+}
+
+func (s *Service) resolver(kind string) SourceResolver {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.resolvers[kind]
+}
 
 // ParseSources reads the text form of element sources.
 func ParseSources(s string) ([]Source, error) {
@@ -95,15 +142,15 @@ func ParseSourcesKinds(s string, extra []string) ([]Source, error) {
 			}
 			out = append(out, Source{Kind: "elements", IDs: ids})
 		default:
-			found := false
+			found := isResolvedKind(kind)
 			for _, k := range extra {
 				found = found || k == kind
 			}
 			if !found {
 				return nil, apperr.BadRequest("unknown source %q", kind)
 			}
-			if len(val) > 2000 {
-				return nil, apperr.BadRequest("source %q too long", kind)
+			if len(val) > 2000 || val == "" && isResolvedKind(kind) {
+				return nil, apperr.BadRequest("source %q: value", kind)
 			}
 			out = append(out, Source{Kind: kind, Value: val})
 		}
@@ -152,6 +199,8 @@ type SourceSet struct {
 	// Viewable are all categories the reader may view (tags, types and
 	// single elements are only shown from there).
 	Viewable []int64
+	// Resolved: some IDs come from searches or filters (not listed by hand)
+	Resolved bool
 }
 
 // Empty reports whether nothing can come from the set.
@@ -184,6 +233,29 @@ func (s *Service) ResolveSources(ctx context.Context, list []Source) (*SourceSet
 		case "elements":
 			set.IDs = append(set.IDs, src.IDs...)
 			needAll = true
+		case "search":
+			res, err := s.Search(ctx, src.Value, nil, "", 100) // search caps at 100 hits
+			if err != nil {
+				return nil, err
+			}
+			for _, e := range res.Elements {
+				set.IDs = append(set.IDs, e.ElementID)
+			}
+			set.Resolved = true
+			needAll = true
+		default:
+			if r := s.resolver(src.Kind); r != nil && isResolvedKind(src.Kind) {
+				ids, err := r(ctx, src.Value, "")
+				if err != nil {
+					return nil, err
+				}
+				if len(ids) > MaxResolved {
+					ids = ids[:MaxResolved]
+				}
+				set.IDs = append(set.IDs, ids...)
+				set.Resolved = true
+				needAll = true
+			}
 		}
 	}
 	p := identity.From(ctx)

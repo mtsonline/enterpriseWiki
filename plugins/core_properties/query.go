@@ -542,7 +542,15 @@ func (p *Plugin) where(ctx context.Context, q *Query, sc *scope, b *qb) (string,
 			}
 			or = append(or, "e.id = ANY("+b.arg(s.IDs)+")")
 		default:
-			return "", apperr.BadRequest("unknown source %q", s.Kind)
+			// search, property filter …: resolved to elements by the core or a plugin
+			set, err := p.host.Content.ResolveSources(ctx, []content.Source{s})
+			if err != nil {
+				return "", err
+			}
+			if !set.Resolved {
+				return "", apperr.BadRequest("unknown source %q", s.Kind)
+			}
+			or = append(or, "e.id = ANY("+b.arg(set.IDs)+")")
 		}
 	}
 	if hasCat && len(or) > 0 {

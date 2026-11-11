@@ -332,5 +332,6 @@
  "props.sub.weekly": "Wöchentlich (montags)",
  "props.sub.daily": "Täglich",
  "props.sub.frequency": "Häufigkeit",
- "props.sub.help": "Sie erhalten den Bericht per E-Mail – immer mit Ihren aktuellen Rechten. Vertrauliche Einträge kommen nur mit Titel und Link, streng vertrauliche gar nicht."
+ "props.sub.help": "Sie erhalten den Bericht per E-Mail – immer mit Ihren aktuellen Rechten. Vertrauliche Einträge kommen nur mit Titel und Link, streng vertrauliche gar nicht.",
+ "props.source_kind": "Eigenschaften-Filter"
 }

@@ -23,7 +23,10 @@ import (
 	"context"
 	"embed"
 	"encoding/json"
+	"github.com/mtsonline/enterprisewiki/internal/apperr"
+	"github.com/mtsonline/enterprisewiki/internal/content"
 	"io/fs"
+	"strings"
 	"sync"
 
 	"github.com/mtsonline/enterprisewiki/pkg/sdk"
@@ -54,7 +57,10 @@ type Plugin struct {
 	formulas map[string]*Formula
 }
 
-func init() { sdk.Register(&Plugin{}) }
+func init() {
+	sdk.Register(&Plugin{})
+	content.RegisterElementSourceKind("props")
+}
 
 // Manifest implements sdk.Plugin.
 func (p *Plugin) Manifest() sdk.Manifest { return sdk.ParseManifest(manifest) }
@@ -72,6 +78,30 @@ func (p *Plugin) Setup(host *sdk.Host) error {
 	p.formulas = map[string]*Formula{}
 	host.RegisterElementField(field{p})
 	host.RegisterMacro(report{p})
+	// source "props:<filter>" for all lists of several sources; the filters
+	// are separated by "&&" there, since ";" separates the sources
+	// (e.g. "props:status = open && due <= today+7d")
+	host.Content.RegisterSourceResolver("props", func(ctx context.Context, value, lang string) ([]int64, error) {
+		if !host.IsEnabled(host.Manifest.ID) {
+			return nil, apperr.BadRequest("the properties plugin is not active")
+		}
+		filters, err := ParseFilters(strings.ReplaceAll(value, "&&", ";"))
+		if err != nil {
+			return nil, err
+		}
+		if len(filters) == 0 {
+			return nil, apperr.BadRequest("props source: at least one filter")
+		}
+		res, err := p.Run(ctx, &Query{Filters: filters, Limit: content.MaxResolved, Lang: lang})
+		if err != nil {
+			return nil, err
+		}
+		ids := make([]int64, 0, len(res.Rows))
+		for _, r := range res.Rows {
+			ids = append(ids, r.ID)
+		}
+		return ids, nil
+	})
 	viewRoutes(host)
 	trendRoutes(p)
 	subRoutes(p)

@@ -1856,5 +1856,7 @@
  "protect.dl": "Downloading files",
  "protect.dl_auto": "Automatic: “Strictly confidential” view only",
  "protect.dl_allow": "Allowed: download the original",
- "protect.dl_help": "Applies to media and file elements. With the permission to manage, downloading is always possible."
+ "protect.dl_help": "Applies to media and file elements. With the permission to manage, downloading is always possible.",
+ "sources.search": "Search",
+ "sources.search_placeholder": "Search terms"
 }

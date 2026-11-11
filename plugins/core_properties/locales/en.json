@@ -332,5 +332,6 @@
  "props.sub.weekly": "Weekly (Mondays)",
  "props.sub.daily": "Daily",
  "props.sub.frequency": "Frequency",
- "props.sub.help": "You get the report by e-mail – always with your current permissions. Confidential entries come with title and link only, strictly confidential ones not at all."
+ "props.sub.help": "You get the report by e-mail – always with your current permissions. Confidential entries come with title and link only, strictly confidential ones not at all.",
+ "props.source_kind": "Properties filter"
 }

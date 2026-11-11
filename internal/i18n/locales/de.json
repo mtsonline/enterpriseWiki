@@ -1906,5 +1906,7 @@
  "protect.dl": "Herunterladen von Dateien",
  "protect.dl_auto": "Automatisch: bei „Streng vertraulich“ nur ansehen",
  "protect.dl_allow": "Erlaubt: Original herunterladen",
- "protect.dl_help": "Gilt für Medien und Datei-Elemente. Mit Verwaltungsrecht ist das Herunterladen immer möglich."
+ "protect.dl_help": "Gilt für Medien und Datei-Elemente. Mit Verwaltungsrecht ist das Herunterladen immer möglich.",
+ "sources.search": "Suche",
+ "sources.search_placeholder": "Suchbegriffe"
 }

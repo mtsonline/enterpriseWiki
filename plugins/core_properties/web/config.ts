@@ -1,7 +1,7 @@
 // Controls of the macro dialog for the property report: sources, filters
 // with operators fitting the type, columns, sorting and keys. They write the
 // short text parameters of the macro (readable in Markdown).
-import { api, button, checkbox, field, h, qs, registerMacroParamControl, select, sourcesEditor, state, t, textArea, textInput, uid, type MacroParamContext } from '@ewiki/sdk';
+import { api, button, checkbox, field, h, qs, registerMacroParamControl, registerSourceKind, select, sourcesEditor, state, t, textArea, textInput, uid, type MacroParamContext } from '@ewiki/sdk';
 import { BASE, builtinLabel, type Def } from './model';
 
 interface Key { key: string; label: string; type: string }
@@ -147,3 +147,14 @@ export function registerControls(): void {
   registerMacroParamControl('properties.sort', sortControl);
   registerMacroParamControl('properties.key', keyControl);
 }
+
+// source "props:<filter>": elements whose properties match (for every list of several sources)
+registerSourceKind({
+  kind: 'props', element: true, label: () => t('props.source_kind'),
+  render: (v) => {
+    // shown with ";" as in reports; stored with "&&" (";" separates the sources)
+    const i = textInput({ value: v.split('&&').map((x) => x.trim()).join('; '), placeholder: 'status = open; due <= today+7d' });
+    i.setAttribute('aria-label', t('props.source_kind'));
+    return { el: i, get: () => i.value.split(';').map((x) => x.trim()).filter(Boolean).join(' && ') };
+  },
+});

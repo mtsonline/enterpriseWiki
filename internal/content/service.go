@@ -38,7 +38,8 @@ type Service struct {
 	templateOK func(id string) bool
 	hooks      []Hook
 
-	views viewCounter
+	views     viewCounter
+	resolvers map[string]SourceResolver
 
 	mu             sync.Mutex
 	publishOptions map[string]publishOption
