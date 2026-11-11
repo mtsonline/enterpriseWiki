@@ -90,6 +90,20 @@ export interface Category {
   template?: string;
   /** the template that applies ('' = the site template) */
   effective_template?: string;
+  /** key of the space (top level only; address /s/KEY) */
+  space_key?: string;
+}
+
+/** A space: a top-level category with settings for its whole subtree. */
+export interface SpaceInfo {
+  id: number;
+  key: string;
+  titles: Record<string, string>;
+  descriptions: Record<string, string>;
+  own_tree: boolean;
+  shortcuts: { label: Record<string, string>; url: string }[];
+  allowed_types: string[];
+  language: string;
 }
 
 /** A file of the media library (GET /api/v1/media/{id}). */

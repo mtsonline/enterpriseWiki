@@ -51,3 +51,10 @@ export function pick(m: Record<string, string> | null | undefined, lang = curren
   if (!m) return '';
   return m[lang] || (fallback ? m[fallback] : '') || Object.values(m)[0] || '';
 }
+
+/** Name of a plugin in the UI language (core locale "plugin.name.<id>"), else its manifest name. */
+export function pluginName(id: string, fallback: string): string {
+  const k = `plugin.name.${id}`;
+  const v = t(k);
+  return v === k ? fallback : v;
+}

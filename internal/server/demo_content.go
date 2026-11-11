@@ -425,6 +425,14 @@ func buildDemo(d *demoRun) {
 	d.page(srcCat, "Help from all sections", "Hilfe aus allen Bereichen",
 		"<p>Questions of several categories as one FAQ (macro <code>faq</code>):</p>"+macro("faq", map[string]string{"source": fmt.Sprintf("category:%d+sub; category:%d", faq, news), "open": "no", "numbering": "yes"}, ""),
 		"<p>Fragen mehrerer Kategorien als eine FAQ (Makro <code>faq</code>):</p>"+macro("faq", map[string]string{"source": fmt.Sprintf("category:%d+sub; category:%d", faq, news), "open": "no", "numbering": "yes"}, ""), nil)
+	// the demo is a space: key DEMO (/s/DEMO), own navigation with shortcuts
+	d.optional("space", func() {
+		d.call(http.MethodPut, fmt.Sprintf("/api/v1/categories/%d/space", root), map[string]any{"key": "DEMO", "own_tree": true,
+			"shortcuts": []map[string]any{
+				{"label": d.tr("All news", "Alles Neue"), "url": "/c/" + strconv.FormatInt(srcCat, 10)},
+				{"label": d.tr("Search", "Suche"), "url": "/search"},
+			}}, nil)
+	})
 	// a category with its own website template (the modern website look)
 	d.optional("category-template", func() {
 		d.call(http.MethodPut, fmt.Sprintf("/api/v1/categories/%d", srcCat), map[string]any{"template": "theme.cms.modern"}, nil)

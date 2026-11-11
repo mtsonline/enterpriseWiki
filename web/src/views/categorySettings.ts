@@ -2,18 +2,19 @@
 import { shortOnlyBox, shortURLInput } from '../components/shorturl';
 import { api } from '../core/api';
 import { fmtDate, h, mount, uid } from '../core/dom';
-import { pick, t } from '../core/i18n';
+import { pick, pluginName, t } from '../core/i18n';
 import { navigate, type RouteCtx } from '../core/router';
 import { state } from '../core/state';
 import { loadCatalog, ruleEditor, summary, type PermDef } from '../components/permissions';
-import { type AuditEntry, type Category, type ElementSummary, type Group, type Role, type Rule } from '../core/types';
+import { type AuditEntry, type Category, type ElementSummary, type Group, type SpaceInfo, type Role, type Rule } from '../core/types';
 import { toast } from '../core/announce';
 import { button, checkbox, confirmDialog, errorText, field, formDialog, langFields, select, textInput } from '../components/ui';
-import { breadcrumbs, can, ctx, invalidateTree, setContext } from '../components/widgets';
+import { breadcrumbs, can, ctx, invalidateTree, setContext, setSpace } from '../components/widgets';
 import { errorPage, splitTags } from './content';
 import { listCategorySettingsTabs } from '../sdk';
+import { spaceSettings } from './spaces';
 
-interface CategoryResponse { category: Category; breadcrumbs: Category[]; elements: ElementSummary[] }
+interface CategoryResponse { category: Category; breadcrumbs: Category[]; elements: ElementSummary[]; space?: SpaceInfo | null }
 
 const TABS = ['general', 'permissions', 'history'] as const;
 
@@ -28,10 +29,13 @@ export async function categorySettingsView({ params, query, main }: RouteCtx): P
   }
   const c = data.category;
   setContext(c.id, c.path, c.permissions, c.effective_template);
+  setSpace(data.space ?? null);
   const title = pick(c.titles, state.lang, state.site.default_language);
   // tabs of plugins (e.g. properties) where they apply
   const extra = listCategorySettingsTabs().filter((x) => x.visible?.(c) ?? true);
-  const ids = [...TABS, ...extra.map((x) => x.id)];
+  // top-level categories are spaces
+  const isSpace = !c.parent_id && can('manage');
+  const ids = [...TABS.slice(0, 1), ...(isSpace ? ['space'] : []), ...TABS.slice(1), ...extra.map((x) => x.id)];
   const tabLabel = (id: string) => extra.find((x) => x.id === id)?.label() ?? t(`category.tab.${id}`);
   const tab = ids.includes(query.get('tab') ?? '') ? query.get('tab')! : 'general';
   const panel = h('div', { class: 'ew-tabpanel', id: 'ew-tabpanel', role: 'region', 'aria-label': tabLabel(tab) });
@@ -42,6 +46,7 @@ export async function categorySettingsView({ params, query, main }: RouteCtx): P
       h('ul', null, ...ids.map((tb) => h('li', null, h('a', { href: `/c/${c.id}/settings?tab=${tb}`, 'aria-current': tb === tab ? 'page' : undefined }, tabLabel(tb)))))),
     panel);
   if (tab === 'general') general(panel, c, data.elements);
+  if (tab === 'space' && isSpace) await spaceSettings(panel, c);
   if (tab === 'permissions') await permissions(panel, c);
   if (tab === 'history') await history(panel, c);
   const x = extra.find((e) => e.id === tab);
@@ -65,10 +70,10 @@ function general(panel: HTMLElement, c: Category, elements: ElementSummary[]): v
   const feed = select(['off', 'on', 'recursive'].map((v) => ({ value: v, label: t(`feed.setting_${v}`) })), c.feed ?? 'off');
   // website template: inherited ('' = from above or the site template) or one of the active templates
   const tpls = state.site.templates ?? [];
-  const tplName = (id: string) => tpls.find((x) => x.id === id)?.name ?? id;
+  const tplName = (id: string) => pluginName(id, tpls.find((x) => x.id === id)?.name ?? id);
   const inherited = c.template ? '' : (c.effective_template || state.site.template);
   const tpl = select([{ value: '', label: inherited ? t('category.template_inherit_named', { name: tplName(inherited) }) : t('category.template_inherit') },
-    ...tpls.map((x) => ({ value: x.id, label: x.name + (x.id === state.site.template ? ` (${t('category.template_site')})` : '') })),
+    ...tpls.map((x) => ({ value: x.id, label: tplName(x.id) + (x.id === state.site.template ? ` (${t('category.template_site')})` : '') })),
     ...(c.template && !tpls.some((x) => x.id === c.template) ? [{ value: c.template, label: t('category.template_inactive', { name: c.template }) }] : [])], c.template ?? '');
   const alert = h('div', { class: 'ew-form-alert', role: 'alert' });
   const form = h('form', { class: 'ew-form', novalidate: true }, alert, titles.el, descs.el,

@@ -4,10 +4,10 @@ import { h, mount, trustedHTML, fmtDate, uid } from '../core/dom';
 import { pick, t } from '../core/i18n';
 import { navigate, type RouteCtx } from '../core/router';
 import { hasPerm, state } from '../core/state';
-import type { Category, ElementSummary, ElementView, Revision } from '../core/types';
+import type { Category, ElementSummary, ElementView, Revision, SpaceInfo } from '../core/types';
 import { toast } from '../core/announce';
 import { button, confirmDialog, errorText, field, formDialog, langFields, loading, openDialog, pageHeader, textArea, textInput, select } from '../components/ui';
-import { breadcrumbs, can, categoryPicker, ctx, invalidateTree, langName, setContext } from '../components/widgets';
+import { breadcrumbs, can, categoryPicker, ctx, invalidateTree, langName, setContext, setSpace } from '../components/widgets';
 import { watchButton } from '../components/watch';
 import { shortOnlyBox, shortURLInput } from '../components/shorturl';
 import { imagesOf, previewImageInput } from '../components/previewimage';
@@ -118,6 +118,8 @@ interface CategoryResponse {
   category: Category;
   breadcrumbs: Category[];
   elements: ElementSummary[];
+  /** the space of the category (null if its top level is not visible) */
+  space?: SpaceInfo | null;
 }
 
 function crumbs(bc: Category[], last?: { title: string; href?: string }): HTMLElement {
@@ -139,6 +141,7 @@ export async function categoryView({ params, main }: RouteCtx): Promise<void> {
   }
   const c = data.category;
   setContext(c.id, c.path, c.permissions, c.effective_template);
+  setSpace(data.space ?? null);
   showReadableURL(c.urls, c.url);
   const title = pick(c.titles, L(), D());
   const edit = state.editMode;
@@ -419,6 +422,7 @@ export async function elementView({ params, main }: RouteCtx): Promise<void> {
     return;
   }
   setContext(el.category_id, cat.category.path, el.permissions, cat.category.effective_template);
+  setSpace(cat.space ?? null);
   showReadableURL(el.urls, el.url);
   const edit = state.editMode;
   const actions: HTMLElement[] = [];
@@ -669,12 +673,16 @@ async function newOrDraftView({ params, query, main }: RouteCtx, draft: Draft | 
     return;
   }
   setContext(catId, cat.category.path, cat.category.permissions, cat.category.effective_template);
+  setSpace(cat.space ?? null);
   if (!can('create') && !draft) {
     errorPage(main, new ApiError(403, 'forbidden', t('error.forbidden')));
     return;
   }
   let types = state.site.element_types;
   try { types = await api.get<typeof types>('element-types'); } catch { /* use site info */ }
+  // the space may limit the element types
+  const allowed = cat.space?.allowed_types ?? [];
+  if (allowed.length) types = types.filter((x) => allowed.includes(x.id) || x.id === draft?.type);
   const typeId = draft?.type ?? (query.get('type') && types.some((x) => x.id === query.get('type')) ? query.get('type')! : (types.find((x) => x.id === 'core.html')?.id ?? types[0]?.id));
   const typeSel = select(types.map((x) => ({ value: x.id, label: typeLabel(x.id) })), typeId);
   if (draft) typeSel.disabled = true;

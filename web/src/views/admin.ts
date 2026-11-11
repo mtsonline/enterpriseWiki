@@ -7,7 +7,7 @@ import { databaseFacts, databaseNotice, type DatabaseStatus } from './adminDatab
 import { categorySelect, elementSelect } from '../components/pickers';
 import { api, qs } from '../core/api';
 import { fmtDate, h, mount } from '../core/dom';
-import { t } from '../core/i18n';
+import { pluginName, t } from '../core/i18n';
 import { navigate, type RouteCtx } from '../core/router';
 import { canTranslateAny, hasPerm, isAdmin, isInstanceAdmin, state } from '../core/state';
 import { globalEditor, loadCatalog, permLabel } from '../components/permissions';
@@ -413,7 +413,7 @@ async function plugins(panel: HTMLElement): Promise<void> {
       h('h2', { id: `pk-${k}` }, t(`plugins.group.${k}`)),
       table(t(`plugins.group.${k}`), [t('common.name'), t('plugins.version'), t('plugins.kinds'), t('plugins.extends'), t('common.status'), t('common.actions')],
       data.installed.filter((p) => (p.kinds[0] ?? 'general') === k).map((p) => h('tr', null,
-        h('th', { scope: 'row' }, h('span', null, p.name), h('br'), h('code', null, p.id), h('p', { class: 'ew-help' }, p.description)),
+        h('th', { scope: 'row' }, h('span', null, pluginName(p.id, p.name)), h('br'), h('code', null, p.id), h('p', { class: 'ew-help' }, p.description)),
         h('td', null, p.version), h('td', null, p.kinds.map((k) => t(`plugins.kind.${k}`)).join(', ')),
         h('td', null, p.extends.join(', ') || '–', p.missing.length ? h('p', { class: 'ew-field-error' }, t('plugins.missing', { ids: p.missing.join(', ') })) : null),
         h('td', null, p.required ? h('span', { class: 'ew-badge ew-badge--info' }, t('plugins.required')) : null, ' ',
@@ -422,18 +422,18 @@ async function plugins(panel: HTMLElement): Promise<void> {
             ? h('strong', null, t('plugins.template_in_use')) : t('plugins.template_available')) : null),
         h('td', { class: 'ew-actions' },
           p.kinds.includes('template') && p.active && p.id !== state.site.template && listTemplates().some((x) => x.id === p.id)
-            ? button(t('plugins.use_template'), () => void useTemplate(p.id), { variant: 'link', ariaLabel: `${t('plugins.use_template')}: ${p.name}` }) : null,
+            ? button(t('plugins.use_template'), () => void useTemplate(p.id), { variant: 'link', ariaLabel: `${t('plugins.use_template')}: ${pluginName(p.id, p.name)}` }) : null,
           p.required ? null : (p.enabled
-            ? button(t('plugins.disable'), () => void toggle(p, false), { variant: 'link', ariaLabel: t('plugins.disable_named', { name: p.name }) })
-            : button(t('plugins.enable'), () => void toggle(p, true), { variant: 'link', ariaLabel: t('plugins.enable_named', { name: p.name }) })),
+            ? button(t('plugins.disable'), () => void toggle(p, false), { variant: 'link', ariaLabel: t('plugins.disable_named', { name: pluginName(p.id, p.name) }) })
+            : button(t('plugins.enable'), () => void toggle(p, true), { variant: 'link', ariaLabel: t('plugins.enable_named', { name: pluginName(p.id, p.name) }) })),
           p.required || !removable.has(p.id) ? null : button(t('plugins.remove'), async () => {
-            if (!(await confirmDialog(t('plugins.remove_confirm', { name: p.name }), t('plugins.remove'), true))) return;
+            if (!(await confirmDialog(t('plugins.remove_confirm', { name: pluginName(p.id, p.name) }), t('plugins.remove'), true))) return;
             try {
               const res = await api.del<{ building?: boolean }>(`admin/plugins/${encodeURIComponent(p.id)}`);
               if (res?.building) { toast(t('plugins.removed_building')); followBuild(reload); } else toast(t('plugins.removed'));
               reload();
             } catch (e) { toast(errorText(e), 'error'); }
-          }, { variant: 'link', ariaLabel: t('plugins.remove_named', { name: p.name }) })))), '–'))),
+          }, { variant: 'link', ariaLabel: t('plugins.remove_named', { name: pluginName(p.id, p.name) }) })))), '–'))),
     buildBox,
     data.catalog.length ? h('section', { class: 'ew-section', 'aria-labelledby': 'cat-h' }, h('h2', { id: 'cat-h' }, t('plugins.catalog')),
       table(t('plugins.catalog'), [t('common.name'), t('common.description'), t('plugins.source'), t('common.actions')],

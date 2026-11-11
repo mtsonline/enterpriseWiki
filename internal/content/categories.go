@@ -38,14 +38,16 @@ type Category struct {
 	Hidden bool `json:"hidden"`
 	// Template: website template of this category and its subcategories
 	// ("" = inherited); EffectiveTemplate is the one that applies ("" = site template)
-	Template          string     `json:"template"`
-	EffectiveTemplate string     `json:"effective_template"`
-	CreatedAt         time.Time  `json:"created_at"`
-	UpdatedAt         time.Time  `json:"updated_at"`
-	DeletedAt         *time.Time `json:"deleted_at,omitempty"`
-	HasChildren       bool       `json:"has_children"`
-	ElementCount      int        `json:"element_count"`
-	Permissions       []string   `json:"permissions"`
+	Template          string `json:"template"`
+	EffectiveTemplate string `json:"effective_template"`
+	// SpaceKey: key of a space (top level only, address /s/KEY)
+	SpaceKey     string     `json:"space_key,omitempty"`
+	CreatedAt    time.Time  `json:"created_at"`
+	UpdatedAt    time.Time  `json:"updated_at"`
+	DeletedAt    *time.Time `json:"deleted_at,omitempty"`
+	HasChildren  bool       `json:"has_children"`
+	ElementCount int        `json:"element_count"`
+	Permissions  []string   `json:"permissions"`
 	// translations of title and description (see cattrans.go)
 	OriginalLang         string            `json:"original_lang"`
 	TextRev              int               `json:"text_rev"`
@@ -61,14 +63,14 @@ const catCols = `c.id, c.parent_id, c.path::text, c.position, c.slug, c.titles, 
 	c.created_at, c.updated_at, c.deleted_at,
 	EXISTS (SELECT 1 FROM categories x WHERE x.parent_id=c.id AND x.deleted_at IS NULL),
 	(SELECT count(*) FROM elements e WHERE e.category_id=c.id AND e.deleted_at IS NULL),
-	c.original_lang, c.text_rev, c.translation_revs, c.short_only, c.hidden, c.template,
+	c.original_lang, c.text_rev, c.translation_revs, c.short_only, c.hidden, c.template, COALESCE(c.space_key, ''),
 	COALESCE((SELECT t.template FROM categories t WHERE t.path @> c.path AND t.template <> '' ORDER BY nlevel(t.path) DESC LIMIT 1), '')`
 
 func scanCategory(r pgx.CollectableRow) (Category, error) {
 	var c Category
 	var path string
 	err := r.Scan(&c.ID, &c.ParentID, &path, &c.Position, &c.Slug, &c.Titles, &c.Descriptions, &c.Tags, &c.DefaultElementID, &c.Feed, &c.ShortURL,
-		&c.CreatedAt, &c.UpdatedAt, &c.DeletedAt, &c.HasChildren, &c.ElementCount, &c.OriginalLang, &c.TextRev, &c.TranslationRevs, &c.ShortOnly, &c.Hidden, &c.Template, &c.EffectiveTemplate)
+		&c.CreatedAt, &c.UpdatedAt, &c.DeletedAt, &c.HasChildren, &c.ElementCount, &c.OriginalLang, &c.TextRev, &c.TranslationRevs, &c.ShortOnly, &c.Hidden, &c.Template, &c.SpaceKey, &c.EffectiveTemplate)
 	c.Path = parsePath(path)
 	return c, err
 }

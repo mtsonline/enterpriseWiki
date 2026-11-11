@@ -267,7 +267,7 @@ func (s *Service) CreateElement(ctx context.Context, in ElementInput) (*ElementV
 		return nil, apperr.BadRequest("unknown or disabled element type %q", in.Type)
 	}
 	if in.Lang == "" {
-		in.Lang = s.DefaultLanguage()
+		in.Lang = s.spaceLanguage(ctx, in.CategoryID)
 	}
 	if !s.validLang(in.Lang) {
 		return nil, apperr.BadRequest("language %q is not enabled", in.Lang)
@@ -279,10 +279,8 @@ func (s *Service) CreateElement(ctx context.Context, in ElementInput) (*ElementV
 	if len(in.Body) == 0 {
 		in.Body = t.EmptyBody()
 	}
-	if g, ok := t.(Guard); ok {
-		if err := g.CheckCreate(ctx, s, in.CategoryID); err != nil {
-			return nil, err
-		}
+	if err := s.guardCreate(ctx, in.Type, in.CategoryID); err != nil {
+		return nil, err
 	}
 	if p, ok := t.(Preparer); ok {
 		if in.Body, err = p.Prepare(ctx, s, in.CategoryID, in.Lang, title, in.Body); err != nil {
@@ -808,7 +806,11 @@ func (s *Service) guardChange(ctx context.Context, e *Element) error {
 }
 
 // guardCreate asks the element type whether an element may be created in categoryID.
+// The space of the category may also limit the element types.
 func (s *Service) guardCreate(ctx context.Context, typ string, categoryID int64) error {
+	if err := s.spaceAllows(ctx, typ, categoryID); err != nil {
+		return err
+	}
 	if g, ok := s.Type(typ).(Guard); ok {
 		return g.CheckCreate(ctx, s, categoryID)
 	}

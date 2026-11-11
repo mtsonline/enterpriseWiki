@@ -10,12 +10,13 @@ import { loadMessages, t } from './core/i18n';
 import { onBeforeRender, onNavigate, rerender, route, setMain, setNotFound, start } from './core/router';
 import { rememberedLang, state, stored } from './core/state';
 import type { Principal, Site } from './core/types';
-import { categoryTree, ctx, editToggle, languageSwitcher, searchBox, userMenu } from './components/widgets';
+import { categoryTree, ctx, setSpace, editToggle, languageSwitcher, searchBox, userMenu } from './components/widgets';
 import { pluginModules } from './generated/plugins';
 import { positionContainer, refreshPositions, registerSlot, registerTemplate, resolveTemplate, setShownTemplate } from './sdk';
 import { adminView } from './views/admin';
 import { registerSourceControls } from './components/sources';
 import { categorySettingsView } from './views/categorySettings';
+import { spaceKeyView, spacesView } from './views/spaces';
 import { categoryView, editElementView, elementView, draftEditView, historyView, homeView, newElementView } from './views/content';
 import { loginView, notFoundView, profileView, searchView, trashView } from './views/misc';
 
@@ -30,6 +31,8 @@ function registerCore(): void {
   route('/c/:id', categoryView);
   route('/c/:id/new', newElementView);
   route('/c/:id/settings', categorySettingsView);
+  route('/s/:key', spaceKeyView);
+  route('/spaces', spacesView);
   route('/e/:id', elementView);
   route('/e/:id/edit', editElementView);
   route('/e/:id/history', historyView);
@@ -120,7 +123,7 @@ async function boot(): Promise<void> {
     setMain(layout.main);
     if (focused instanceof HTMLElement && layout.main.contains(focused)) focused.focus({ preventScroll: true });
   };
-  onBeforeRender(() => { ctx.template = ''; });
+  onBeforeRender(() => { ctx.template = ''; setSpace(null); });
   document.addEventListener('ewiki:template', () => { useTemplate(ctx.template || state.site.template); void refreshPositions(); });
   onNavigate(() => {
     useTemplate(ctx.template || state.site.template);

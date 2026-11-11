@@ -473,7 +473,29 @@ func (s *Server) routes() {
 				return nil, err
 			}
 		}
-		return map[string]any{"category": c, "breadcrumbs": bc, "elements": els}, nil
+		space, err := s.app.Content.SpaceOf(r.Context(), id)
+		if err != nil {
+			return nil, err
+		}
+		return map[string]any{"category": c, "breadcrumbs": bc, "elements": els, "space": space}, nil
+	})
+	// spaces: the top-level categories (directory, address /s/KEY, settings)
+	s.handle("GET /api/v1/spaces", func(w http.ResponseWriter, r *http.Request) (any, error) {
+		return s.app.Content.Spaces(r.Context())
+	})
+	s.handle("GET /api/v1/spaces/{key}", func(w http.ResponseWriter, r *http.Request) (any, error) {
+		return s.app.Content.SpaceByKey(r.Context(), r.PathValue("key"))
+	})
+	s.handle("PUT /api/v1/categories/{id}/space", func(w http.ResponseWriter, r *http.Request) (any, error) {
+		id, err := h.PathID(r, "id")
+		if err != nil {
+			return nil, err
+		}
+		var in content.SpaceInput
+		if err := h.Decode(r, &in); err != nil {
+			return nil, err
+		}
+		return s.app.Content.SetSpace(r.Context(), id, in)
 	})
 	s.handle("PUT /api/v1/categories/{id}", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		id, err := h.PathID(r, "id")

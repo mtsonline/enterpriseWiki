@@ -176,6 +176,17 @@ Elemente und Kategorien können eine **Kurz-URL** bekommen: Seiten über *Eigens
 
 Unter *Administration → Einstellungen → Startseite* wählen Administratoren, was unter `/` erscheint: die Übersicht der obersten Kategorien, eine Kategorie oder ein Element. Neue Installationen zeigen die Willkommensseite. Für eine Übersicht von Bereichen eignet sich der Elementtyp **Kategorieübersicht**: eine Kategorie oder die oberste Ebene, mit 1–5 Ebenen Unterkategorien, als Karten oder Liste, auf Wunsch mit Beschreibungen und den Seiten jeder Kategorie.
 
+### Bereiche
+Jede Kategorie der obersten Ebene ist ein **Bereich** (wie ein Space in Confluence). Wer dort das Recht *Verwalten* hat, ist Bereichsverwaltung – ganz ohne Administratorrechte – und stellt in den *Kategorie-Einstellungen → Bereich* ein:
+
+- **Bereichsschlüssel** (z. B. `HR`): Der Bereich ist dann unter der Kurzadresse `/s/HR` erreichbar; Schlüssel sind eindeutig.
+- **Eigene Navigation**: Innerhalb des Bereichs zeigt die Seitenleiste nur dessen Kategorien, mit Name und Schlüssel des Bereichs oben.
+- **Verknüpfungen**: wichtige Seiten oder externe Adressen oben in der Navigation des Bereichs.
+- **Erlaubte Elementtypen**: Nur diese Typen lassen sich im Bereich anlegen oder dorthin verschieben; *Neues Element* bietet nur sie an.
+- **Sprache neuer Elemente**: Standardsprache für neue Seiten im Bereich.
+
+*Alle Bereiche* (`/spaces`, Link unten in der Navigation) listet alle Bereiche, die Sie sehen dürfen, mit Filter. Name und Verknüpfungen eines Bereichs sieht nur, wer seine oberste Kategorie sehen darf.
+
 ### Eigene Website-Vorlage je Kategorie
 In den *Kategorie-Einstellungen* wählt, wer die Kategorie verwalten darf, unter **Website-Vorlage** eine der aktiven Vorlagen (z. B. *CMS* für einen öffentlichen Bereich innerhalb eines internen Wikis). Sie gilt für die Kategorie, ihre Unterkategorien und alle Seiten darin; eine Unterkategorie kann wieder eine eigene wählen (die nächstgelegene gewinnt). *Übernehmen* verwendet die Vorlage darüber bzw. die der Site. Beim Wechsel zwischen Bereichen wechselt die Vorlage ohne Neuladen; Inhalt, Fokus und Rechte bleiben gleich.
 

@@ -103,11 +103,12 @@ export function register(): void {
       toggle.addEventListener('click', () => setOpen(toggle.getAttribute('aria-expanded') !== 'true'));
       nav.addEventListener('click', (ev) => { if ((ev.target as Element).closest('a')) setOpen(false); });
       const brand = h('a', { href: '/', class: 'ewcms-brand' }, h('span', { class: 'ewcms-logo', 'aria-hidden': 'true' }), h('span', { class: 'ewcms-brand-name' }, state.site.name));
-      const header = h('header', { class: 'ewcms-header' }, h('div', { class: 'ewcms-wrap ewcms-header-inner' }, brand, toggle, nav));
+      const header = h('div', { class: 'ewcms-header' }, h('div', { class: 'ewcms-wrap ewcms-header-inner' }, brand, toggle, nav));
       // Escape closes the menu (from the button or from inside the menu)
       header.addEventListener('keydown', (ev) => { if (ev.key === 'Escape' && nav.classList.contains('is-open')) { setOpen(false); toggle.focus(); } });
       const heroPos = ctx.position('hero');
-      const head = h('div', { class: 'ewcms-head' },
+      // one banner landmark for the top bar (tools, language) and the header
+      const head = h('header', { class: 'ewcms-head' },
         h('div', { class: 'ewcms-topbar' }, h('div', { class: 'ewcms-wrap ewcms-topbar-inner' }, ctx.position('top-bar'), ctx.position('header-tools'))),
         header);
       const year = new Date().getFullYear();

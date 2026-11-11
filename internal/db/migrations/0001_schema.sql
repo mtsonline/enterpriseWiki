@@ -128,6 +128,8 @@ CREATE TABLE categories (
     short_only         boolean NOT NULL DEFAULT false, -- only the short URL (no readable path /wiki/… for this category)
     hidden             boolean NOT NULL DEFAULT false, -- not in navigation, menus, listings and search (e.g. folders for media)
     template           text NOT NULL DEFAULT '',       -- website template of this category and below ('' = inherited / site template)
+    space_key          text,                           -- top level: key of the space (e.g. HR, address /s/HR)
+    space              jsonb NOT NULL DEFAULT '{}',    -- top level: settings of the space (see content.Space)
     -- translations of title and description (like elements): the original
     -- language, its revision (incremented when its texts change) and the
     -- revision of the original each translation is based on
@@ -136,6 +138,7 @@ CREATE TABLE categories (
     translation_revs   jsonb NOT NULL DEFAULT '{}'    -- {"de": 3, "fr": 2}
 );
 CREATE INDEX categories_path ON categories USING gist(path);
+CREATE UNIQUE INDEX categories_space_key ON categories(space_key) WHERE deleted_at IS NULL;
 CREATE INDEX categories_parent ON categories(parent_id, position);
 CREATE INDEX categories_tags ON categories USING gin(tags);
 CREATE UNIQUE INDEX categories_short_url ON categories(short_url) WHERE short_url IS NOT NULL;

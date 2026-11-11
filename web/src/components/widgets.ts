@@ -5,7 +5,7 @@ import { h, uid } from '../core/dom';
 import { loadMessages, pick, t } from '../core/i18n';
 import { navigate, rerender } from '../core/router';
 import { changed, isAdmin, hasPerm, rememberLang, setEditMode, state } from '../core/state';
-import type { Category } from '../core/types';
+import type { Category, SpaceInfo } from '../core/types';
 import { announce, toast } from '../core/announce';
 import { refreshPositions } from '../sdk';
 import { button, errorText } from './ui';
@@ -24,6 +24,13 @@ export function setContext(categoryId: number, path: number[], perms: string[] |
   ctx.path = path;
   ctx.perms = perms ?? [];
   ctx.template = template;
+}
+
+/** The space of the page shown (null: none or not visible). */
+export let currentSpace: SpaceInfo | null = null;
+
+export function setSpace(sp: SpaceInfo | null): void {
+  currentSpace = sp;
 }
 
 /** The category of the page shown (0: none). */
@@ -223,14 +230,39 @@ async function renderLevel(parent: number, current: number): Promise<HTMLUListEl
 
 export async function categoryTree(): Promise<HTMLElement> {
   for (const id of ctx.path.slice(0, -1)) expanded.add(id);
+  const sp = currentSpace?.own_tree ? currentSpace : null;
+  if (sp) return spaceTree(sp);
   const nav = h('nav', { class: 'ew-tree', 'aria-label': t('tree.label') }, h('h2', { class: 'ew-tree-title' }, t('tree.title')));
   try {
     const level = await renderLevel(0, ctx.categoryId);
     if (!level.children.length) nav.append(h('p', { class: 'ew-muted' }, t('tree.empty')));
-    else nav.append(level);
+    else nav.append(level, h('p', { class: 'ew-space-all' }, h('a', { href: '/spaces' }, t('space.all'))));
   } catch (e) {
     nav.append(h('p', { role: 'alert' }, errorText(e)));
   }
+  return nav;
+}
+
+/** Navigation of a space with its own tree: its name, shortcuts and categories. */
+async function spaceTree(sp: SpaceInfo): Promise<HTMLElement> {
+  const title = pick(sp.titles, state.lang, state.site.default_language);
+  const headId = uid('space');
+  const nav = h('nav', { class: 'ew-tree ew-space-nav', 'aria-labelledby': headId },
+    h('h2', { class: 'ew-tree-title', id: headId }, h('a', { href: `/c/${sp.id}`, 'aria-current': ctx.categoryId === sp.id ? 'page' : undefined }, title)),
+    sp.key ? h('p', { class: 'ew-space-key' }, h('span', { class: 'sr-only' }, t('space.key') + ': '), sp.key) : null);
+  if (sp.shortcuts.length) {
+    nav.append(h('ul', { class: 'ew-space-links', 'aria-label': t('space.shortcuts') }, ...sp.shortcuts.map((l) => {
+      const ext = /^https?:/.test(l.url);
+      return h('li', null, h('a', { href: l.url, rel: ext ? 'noopener noreferrer external' : undefined }, pick(l.label, state.lang, state.site.default_language)));
+    })));
+  }
+  try {
+    const level = await renderLevel(sp.id, ctx.categoryId);
+    if (level.children.length) nav.append(level);
+  } catch (e) {
+    nav.append(h('p', { role: 'alert' }, errorText(e)));
+  }
+  nav.append(h('p', { class: 'ew-space-all' }, h('a', { href: '/spaces' }, t('space.all'))));
   return nav;
 }
 
