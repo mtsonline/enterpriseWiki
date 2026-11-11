@@ -187,6 +187,14 @@ Jede Kategorie der obersten Ebene ist ein **Bereich** (wie ein Space in Confluen
 
 *Alle Bereiche* (`/spaces`, Link unten in der Navigation) listet alle Bereiche, die Sie sehen dürfen, mit Filter. Name und Verknüpfungen eines Bereichs sieht nur, wer seine oberste Kategorie sehen darf.
 
+**Seitenvorlagen eines Bereichs:** Beim *Als Vorlage speichern* wählt die Bereichsverwaltung „Alle im Bereich …“. Solche Vorlagen werden nur beim Anlegen von Seiten in diesem Bereich angeboten.
+
+**Archivieren** (*Kategorie-Einstellungen → Allgemein → Archivieren*): Die Kategorie mit allem darunter wird für alle nur noch lesbar – auch für Administratoren –, verschwindet aus Navigation, Übersichten und Suche und zeigt einen Hinweis. Direkte Links funktionieren weiter; archivierte Bereiche stehen unter *Alle Bereiche* in einem eigenen Abschnitt. *Wiederherstellen* macht alles wieder bearbeitbar.
+
+**Bereichsvorlagen:** Kategorie-Administratoren können einen Bereich *als Vorlage für neue Bereiche anbieten*. *Alle Bereiche → Neuer Bereich* legt dann einen Bereich mit Unterkategorien, Rechten, Einstellungen, Website-Vorlage und Seitenvorlagen der Vorlage an – auf Wunsch auch mit den Seiten.
+
+**Exportieren und importieren** (*Kategorie-Einstellungen → Bereich*): Der Export ist eine Datei (JSON Lines) mit allen Unterkategorien, Seiten (letzte Fassung jeder Sprache), Einstellungen und Seitenvorlagen. *Alle Bereiche → Bereich importieren* legt daraus einen neuen Bereich an, *Hier importieren* eine Unterkategorie. Rechte und Dateien sind nicht enthalten (sie hängen von der Installation ab); alle Inhalte werden beim Import wie beim Speichern geprüft und bereinigt, nicht übernehmbare Einträge werden aufgelistet.
+
 ### Eigene Website-Vorlage je Kategorie
 In den *Kategorie-Einstellungen* wählt, wer die Kategorie verwalten darf, unter **Website-Vorlage** eine der aktiven Vorlagen (z. B. *CMS* für einen öffentlichen Bereich innerhalb eines internen Wikis). Sie gilt für die Kategorie, ihre Unterkategorien und alle Seiten darin; eine Unterkategorie kann wieder eine eigene wählen (die nächstgelegene gewinnt). *Übernehmen* verwendet die Vorlage darüber bzw. die der Site. Beim Wechsel zwischen Bereichen wechselt die Vorlage ohne Neuladen; Inhalt, Fokus und Rechte bleiben gleich.
 

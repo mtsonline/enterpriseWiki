@@ -421,6 +421,7 @@ type Template struct {
 	Body        json.RawMessage `json:"body,omitempty"`
 	Tags        []string        `json:"tags"`
 	Global      bool            `json:"global"`
+	SpaceID     int64           `json:"space_id,omitempty"` // template of a space
 	Mine        bool            `json:"mine"`
 	CreatedBy   string          `json:"created_by"`
 	UpdatedAt   time.Time       `json:"updated_at"`
@@ -436,32 +437,43 @@ type TemplateInput struct {
 	Body        json.RawMessage `json:"body"`
 	Tags        []string        `json:"tags"`
 	Global      bool            `json:"global"` // for everybody (core.templates.global)
+	// SpaceID: for everybody in a space (Manage on its top-level category)
+	SpaceID int64 `json:"space_id"`
 }
 
-// Templates lists the personal templates of the caller and the global ones
-// (optionally of one element type); withBody includes the bodies.
-func (s *Service) Templates(ctx context.Context, typ string, id int64) ([]Template, error) {
+// Templates lists the personal templates of the caller, the global ones and
+// those of the space of categoryID (optionally of one element type); with id
+// only that template, including its body.
+func (s *Service) Templates(ctx context.Context, typ string, id, categoryID int64) ([]Template, error) {
 	p := identity.From(ctx)
 	if p == nil {
 		return nil, apperr.ErrUnauthorized
 	}
-	rows, err := s.pool.Query(ctx, `SELECT t.id, t.name, t.description, t.type, t.lang, t.title, CASE WHEN $3 <> 0 THEN t.body END, t.tags, t.owner_id IS NULL,
+	var space int64
+	if categoryID != 0 && s.require(ctx, categoryID, acl.View) == nil {
+		space, _ = s.topOf(ctx, categoryID)
+	}
+	rows, err := s.pool.Query(ctx, `SELECT t.id, t.name, t.description, t.type, t.lang, t.title, CASE WHEN $3 <> 0 THEN t.body END, t.tags,
+			t.owner_id IS NULL AND t.space_id IS NULL, COALESCE(t.space_id, 0),
 			COALESCE(t.owner_id = $1, false), COALESCE((SELECT u.display_name FROM users u WHERE u.id = t.created_by), ''), t.updated_at
-		FROM element_templates t WHERE (t.owner_id IS NULL OR t.owner_id = $1) AND ($2 = '' OR t.type = $2) AND ($3 = 0 OR t.id = $3)
-		ORDER BY t.owner_id IS NULL, t.name`, p.ID(), typ, id)
+		FROM element_templates t
+		WHERE (t.owner_id = $1 OR (t.owner_id IS NULL AND t.space_id IS NULL) OR t.space_id = $4 OR ($3 <> 0 AND t.space_id IS NOT NULL))
+			AND ($2 = '' OR t.type = $2) AND ($3 = 0 OR t.id = $3)
+		ORDER BY t.space_id IS NULL, t.owner_id IS NULL, t.name`, p.ID(), typ, id, space)
 	if err != nil {
 		return nil, err
 	}
 	out, err := pgx.CollectRows(rows, func(r pgx.CollectableRow) (Template, error) {
 		var t Template
-		return t, r.Scan(&t.ID, &t.Name, &t.Description, &t.Type, &t.Lang, &t.Title, &t.Body, &t.Tags, &t.Global, &t.Mine, &t.CreatedBy, &t.UpdatedAt)
+		return t, r.Scan(&t.ID, &t.Name, &t.Description, &t.Type, &t.Lang, &t.Title, &t.Body, &t.Tags, &t.Global, &t.SpaceID, &t.Mine, &t.CreatedBy, &t.UpdatedAt)
 	})
 	if err != nil {
 		return nil, err
 	}
 	enabled := out[:0]
 	for _, t := range out {
-		if s.Type(t.Type) != nil {
+		// templates of other spaces only for readers of that space
+		if s.Type(t.Type) != nil && (t.SpaceID == 0 || t.SpaceID == space || s.require(ctx, t.SpaceID, acl.View) == nil) {
 			enabled = append(enabled, t)
 		}
 	}
@@ -478,7 +490,15 @@ func (s *Service) SaveTemplate(ctx context.Context, id int64, in TemplateInput) 
 	if in.Name == "" {
 		return nil, apperr.BadRequest("name is required")
 	}
-	if in.Global && !perm.HasP(p, "core.templates.global") {
+	if in.SpaceID != 0 {
+		in.Global = false
+		if err := s.require(ctx, in.SpaceID, acl.Manage); err != nil {
+			return nil, err
+		}
+		if top, err := s.topOf(ctx, in.SpaceID); err != nil || top != in.SpaceID {
+			return nil, apperr.BadRequest("space templates belong to a top-level category")
+		}
+	} else if in.Global && !perm.HasP(p, "core.templates.global") {
 		return nil, apperr.Forbidden("saving templates for everybody needs the permission %q", "Save templates for everybody")
 	}
 	t := s.Type(in.Type)
@@ -499,26 +519,28 @@ func (s *Service) SaveTemplate(ctx context.Context, id int64, in TemplateInput) 
 	if tags == nil {
 		tags = []string{}
 	}
-	var owner *int64
-	if !in.Global {
+	var owner, space *int64
+	if in.SpaceID != 0 {
+		space = &in.SpaceID
+	} else if !in.Global {
 		uid := p.ID()
 		owner = &uid
 	}
 	if id == 0 {
-		err = s.pool.QueryRow(ctx, `INSERT INTO element_templates(name, description, type, lang, title, body, tags, owner_id, created_by)
-			VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING id`, in.Name, in.Description, in.Type, in.Lang, in.Title, body, tags, owner, nullID(ctx)).Scan(&id)
+		err = s.pool.QueryRow(ctx, `INSERT INTO element_templates(name, description, type, lang, title, body, tags, owner_id, space_id, created_by)
+			VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING id`, in.Name, in.Description, in.Type, in.Lang, in.Title, body, tags, owner, space, nullID(ctx)).Scan(&id)
 	} else {
 		if err := s.canChangeTemplate(ctx, id); err != nil {
 			return nil, err
 		}
-		_, err = s.pool.Exec(ctx, `UPDATE element_templates SET name=$2, description=$3, type=$4, lang=$5, title=$6, body=$7, tags=$8, owner_id=$9, updated_at=now() WHERE id=$1`,
-			id, in.Name, in.Description, in.Type, in.Lang, in.Title, body, tags, owner)
+		_, err = s.pool.Exec(ctx, `UPDATE element_templates SET name=$2, description=$3, type=$4, lang=$5, title=$6, body=$7, tags=$8, owner_id=$9, space_id=$10, updated_at=now() WHERE id=$1`,
+			id, in.Name, in.Description, in.Type, in.Lang, in.Title, body, tags, owner, space)
 	}
 	if err != nil {
 		return nil, err
 	}
-	_ = audit.Log(ctx, s.pool, "template.save", "template", id, nil, map[string]any{"name": in.Name, "type": in.Type, "global": in.Global})
-	list, err := s.Templates(ctx, "", id)
+	_ = audit.Log(ctx, s.pool, "template.save", "template", id, nil, map[string]any{"name": in.Name, "type": in.Type, "global": in.Global, "space": in.SpaceID})
+	list, err := s.Templates(ctx, "", id, 0)
 	if err != nil || len(list) == 0 {
 		return nil, apperr.NotFound("template")
 	}
@@ -527,9 +549,15 @@ func (s *Service) SaveTemplate(ctx context.Context, id int64, in TemplateInput) 
 
 func (s *Service) canChangeTemplate(ctx context.Context, id int64) error {
 	p := identity.From(ctx)
-	var owner *int64
-	if err := s.pool.QueryRow(ctx, `SELECT owner_id FROM element_templates WHERE id=$1`, id).Scan(&owner); err != nil {
+	var owner, space *int64
+	if err := s.pool.QueryRow(ctx, `SELECT owner_id, space_id FROM element_templates WHERE id=$1`, id).Scan(&owner, &space); err != nil {
 		return apperr.NotFound("template")
+	}
+	if space != nil {
+		if s.require(ctx, *space, acl.View) != nil {
+			return apperr.NotFound("template")
+		}
+		return s.require(ctx, *space, acl.Manage)
 	}
 	if owner == nil {
 		if !perm.HasP(p, "core.templates.global") {

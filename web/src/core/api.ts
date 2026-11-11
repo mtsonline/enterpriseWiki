@@ -42,7 +42,10 @@ async function request<T>(method: string, path: string, body?: unknown, backgrou
   // automatic requests (polling) do not count as activity for the idle timeout
   if (background) headers['X-Ewiki-Background'] = '1';
   const init: RequestInit = { method, headers, credentials: 'same-origin' };
-  if (body !== undefined) {
+  if (body instanceof Blob) {
+    headers['Content-Type'] = body.type || 'application/octet-stream';
+    init.body = body; // e.g. an import package as is
+  } else if (body !== undefined) {
     headers['Content-Type'] = 'application/json';
     init.body = JSON.stringify(body);
   }

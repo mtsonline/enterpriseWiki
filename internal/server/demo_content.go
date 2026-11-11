@@ -433,6 +433,13 @@ func buildDemo(d *demoRun) {
 				{"label": d.tr("Search", "Suche"), "url": "/search"},
 			}}, nil)
 	})
+	// a page template of the space (offered for new pages in the demo only)
+	d.optional("space-template", func() {
+		d.call(http.MethodPost, "/api/v1/templates", map[string]any{"name": d.tr("Meeting minutes", "Besprechungsprotokoll")[d.lang()], "type": "core.html", "lang": d.lang(),
+			"title": d.tr("Minutes", "Protokoll")[d.lang()], "space_id": root,
+			"body": htmlBodyOf(d.tr("<h2>Participants</h2><p>…</p><h2>Decisions</h2><ul><li>…</li></ul><h2>To-dos</h2><ul><li>…</li></ul>",
+				"<h2>Teilnehmende</h2><p>…</p><h2>Beschlüsse</h2><ul><li>…</li></ul><h2>Aufgaben</h2><ul><li>…</li></ul>")[d.lang()])}, nil)
+	})
 	// a category with its own website template (the modern website look)
 	d.optional("category-template", func() {
 		d.call(http.MethodPut, fmt.Sprintf("/api/v1/categories/%d", srcCat), map[string]any{"template": "theme.cms.modern"}, nil)

@@ -483,8 +483,53 @@ func (s *Server) routes() {
 	s.handle("GET /api/v1/spaces", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		return s.app.Content.Spaces(r.Context())
 	})
+	s.handle("POST /api/v1/spaces", func(w http.ResponseWriter, r *http.Request) (any, error) {
+		var in content.NewSpaceInput
+		if err := h.Decode(r, &in); err != nil {
+			return nil, err
+		}
+		sp, err := s.app.Content.CreateSpaceFrom(r.Context(), in)
+		if err != nil {
+			return nil, err
+		}
+		return h.Created{V: sp}, nil
+	})
 	s.handle("GET /api/v1/spaces/{key}", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		return s.app.Content.SpaceByKey(r.Context(), r.PathValue("key"))
+	})
+	s.handle("POST /api/v1/categories/{id}/archive", func(w http.ResponseWriter, r *http.Request) (any, error) {
+		id, err := h.PathID(r, "id")
+		if err != nil {
+			return nil, err
+		}
+		var in struct {
+			Archived bool `json:"archived"`
+		}
+		if err := h.Decode(r, &in); err != nil {
+			return nil, err
+		}
+		return s.app.Content.SetArchived(r.Context(), id, in.Archived)
+	})
+	// export a category tree as JSON Lines; import one below ?parent= (0 = new space)
+	h.RecordRoute("GET /api/v1/categories/{id}/export")
+	s.app.Mux.HandleFunc("GET /api/v1/categories/{id}/export", func(w http.ResponseWriter, r *http.Request) {
+		id, err := h.PathID(r, "id")
+		if err != nil {
+			h.WriteError(w, r, err)
+			return
+		}
+		ew := &lazyWriter{w: w, name: fmt.Sprintf("space-%d-%s.jsonl", id, time.Now().Format("20060102"))}
+		if err := s.app.Content.ExportTree(r.Context(), id, ew); err != nil && !ew.started {
+			h.WriteError(w, r, err)
+		}
+	})
+	s.handle("POST /api/v1/categories/import", func(w http.ResponseWriter, r *http.Request) (any, error) {
+		parent, _ := strconv.ParseInt(r.URL.Query().Get("parent"), 10, 64)
+		res, err := s.app.Content.ImportTree(r.Context(), parent, r.Body)
+		if err != nil {
+			return nil, err
+		}
+		return h.Created{V: res}, nil
 	})
 	s.handle("PUT /api/v1/categories/{id}/space", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		id, err := h.PathID(r, "id")
@@ -1209,4 +1254,21 @@ func safeFileName(name string) string {
 		return "download"
 	}
 	return string(b)
+}
+
+// lazyWriter sets the download headers on the first write, so that errors
+// before any output can still be answered as JSON.
+type lazyWriter struct {
+	w       http.ResponseWriter
+	name    string
+	started bool
+}
+
+func (l *lazyWriter) Write(p []byte) (int, error) {
+	if !l.started {
+		l.started = true
+		l.w.Header().Set("Content-Type", "application/x-ndjson")
+		l.w.Header().Set("Content-Disposition", `attachment; filename="`+l.name+`"`)
+	}
+	return l.w.Write(p)
 }

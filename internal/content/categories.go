@@ -41,7 +41,10 @@ type Category struct {
 	Template          string `json:"template"`
 	EffectiveTemplate string `json:"effective_template"`
 	// SpaceKey: key of a space (top level only, address /s/KEY)
-	SpaceKey     string     `json:"space_key,omitempty"`
+	SpaceKey string `json:"space_key,omitempty"`
+	// ArchivedAt: archived itself; Archived: it or a category above (read-only)
+	ArchivedAt   *time.Time `json:"archived_at,omitempty"`
+	Archived     bool       `json:"archived"`
 	CreatedAt    time.Time  `json:"created_at"`
 	UpdatedAt    time.Time  `json:"updated_at"`
 	DeletedAt    *time.Time `json:"deleted_at,omitempty"`
@@ -63,14 +66,15 @@ const catCols = `c.id, c.parent_id, c.path::text, c.position, c.slug, c.titles, 
 	c.created_at, c.updated_at, c.deleted_at,
 	EXISTS (SELECT 1 FROM categories x WHERE x.parent_id=c.id AND x.deleted_at IS NULL),
 	(SELECT count(*) FROM elements e WHERE e.category_id=c.id AND e.deleted_at IS NULL),
-	c.original_lang, c.text_rev, c.translation_revs, c.short_only, c.hidden, c.template, COALESCE(c.space_key, ''),
+	c.original_lang, c.text_rev, c.translation_revs, c.short_only, c.hidden, c.template, COALESCE(c.space_key, ''), c.archived_at,
+	EXISTS (SELECT 1 FROM categories a WHERE a.path @> c.path AND a.archived_at IS NOT NULL),
 	COALESCE((SELECT t.template FROM categories t WHERE t.path @> c.path AND t.template <> '' ORDER BY nlevel(t.path) DESC LIMIT 1), '')`
 
 func scanCategory(r pgx.CollectableRow) (Category, error) {
 	var c Category
 	var path string
 	err := r.Scan(&c.ID, &c.ParentID, &path, &c.Position, &c.Slug, &c.Titles, &c.Descriptions, &c.Tags, &c.DefaultElementID, &c.Feed, &c.ShortURL,
-		&c.CreatedAt, &c.UpdatedAt, &c.DeletedAt, &c.HasChildren, &c.ElementCount, &c.OriginalLang, &c.TextRev, &c.TranslationRevs, &c.ShortOnly, &c.Hidden, &c.Template, &c.SpaceKey, &c.EffectiveTemplate)
+		&c.CreatedAt, &c.UpdatedAt, &c.DeletedAt, &c.HasChildren, &c.ElementCount, &c.OriginalLang, &c.TextRev, &c.TranslationRevs, &c.ShortOnly, &c.Hidden, &c.Template, &c.SpaceKey, &c.ArchivedAt, &c.Archived, &c.EffectiveTemplate)
 	c.Path = parsePath(path)
 	return c, err
 }
@@ -191,7 +195,7 @@ func (s *Service) ChildrenOpt(ctx context.Context, parent int64, withHidden bool
 		}
 	}
 	rows, err := s.pool.Query(ctx, `SELECT `+catCols+` FROM categories c
-		WHERE c.deleted_at IS NULL AND (($1 = 0 AND c.parent_id IS NULL) OR c.parent_id = $1) AND ($2 OR NOT c.hidden)
+		WHERE c.deleted_at IS NULL AND (($1 = 0 AND c.parent_id IS NULL) OR c.parent_id = $1) AND ($2 OR (NOT c.hidden AND c.archived_at IS NULL))
 		ORDER BY c.position, c.id`, parent, withHidden)
 	if err != nil {
 		return nil, err
@@ -327,6 +331,8 @@ func (s *Service) CreateCategory(ctx context.Context, in CategoryInput) (*Catego
 			return nil, err
 		}
 	} else if err := s.require(ctx, *in.ParentID, acl.Manage); err != nil {
+		return nil, err
+	} else if err := s.notArchived(ctx, *in.ParentID); err != nil {
 		return nil, err
 	}
 	if err := s.checkTemplate(in.Template); err != nil {
@@ -464,6 +470,9 @@ func (s *Service) UpdateCategory(ctx context.Context, id int64, in CategoryInput
 	if err := s.checkTemplate(in.Template); err != nil {
 		return nil, err
 	}
+	if err := s.notArchived(ctx, id); err != nil {
+		return nil, err
+	}
 	before, err := s.loadCategory(ctx, s.pool, id, false)
 	if err != nil {
 		return nil, err
@@ -589,6 +598,12 @@ func (s *Service) MoveCategory(ctx context.Context, id, newParent int64, positio
 	} else if err := s.require(ctx, newParent, acl.Manage); err != nil {
 		return nil, err
 	}
+	if err := s.notArchived(ctx, id); err != nil {
+		return nil, err
+	}
+	if err := s.notArchived(ctx, newParent); err != nil {
+		return nil, err
+	}
 	var fromParent int64
 	_ = s.pool.QueryRow(ctx, `SELECT COALESCE(parent_id, 0) FROM categories WHERE id=$1`, id).Scan(&fromParent)
 	err := db.Tx(ctx, s.pool, func(tx pgx.Tx) error {
@@ -670,6 +685,10 @@ func nilIfZero(id int64) *int64 {
 // DuplicateCategory copies a category with all visible subcategories, the
 // latest revisions of their elements and their own permission rules.
 func (s *Service) DuplicateCategory(ctx context.Context, id, targetParent int64) (*Category, error) {
+	return s.duplicateCategory(ctx, id, targetParent, true)
+}
+
+func (s *Service) duplicateCategory(ctx context.Context, id, targetParent int64, withElements bool) (*Category, error) {
 	if err := s.require(ctx, id, acl.View); err != nil {
 		return nil, err
 	}
@@ -745,9 +764,9 @@ func (s *Service) DuplicateCategory(ctx context.Context, id, targetParent int64)
 					return err
 				}
 			}
-			if _, err := tx.Exec(ctx, `INSERT INTO categories(id, parent_id, path, position, slug, titles, descriptions, tags, created_by, original_lang, text_rev, translation_revs)
-				VALUES ($1,$2,$3::ltree,$4,$5,$6,$7,$8,$9,$10,$11,$12)`, nid, parent, path, pos, c.Slug, titles, c.Descriptions, c.Tags, nullID(ctx),
-				c.OriginalLang, c.TextRev, c.TranslationRevs); err != nil {
+			if _, err := tx.Exec(ctx, `INSERT INTO categories(id, parent_id, path, position, slug, titles, descriptions, tags, created_by, original_lang, text_rev, translation_revs, template)
+				VALUES ($1,$2,$3::ltree,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)`, nid, parent, path, pos, c.Slug, titles, c.Descriptions, c.Tags, nullID(ctx),
+				c.OriginalLang, c.TextRev, c.TranslationRevs, c.Template); err != nil {
 				return err
 			}
 			if _, err := tx.Exec(ctx, `INSERT INTO acl_rules(category_id, subject_type, subject_id, permissions, inherit, created_by)
@@ -755,8 +774,10 @@ func (s *Service) DuplicateCategory(ctx context.Context, id, targetParent int64)
 				return err
 			}
 			mapping[c.ID], paths[nid] = nid, path
-			if err := copyElements(ctx, tx, c.ID, nid, p); err != nil {
-				return err
+			if withElements {
+				if err := copyElements(ctx, tx, c.ID, nid, p); err != nil {
+					return err
+				}
 			}
 		}
 		newRoot = mapping[src.ID]

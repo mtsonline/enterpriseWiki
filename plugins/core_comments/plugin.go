@@ -129,7 +129,7 @@ func (p *Plugin) decorate(ctx context.Context, c *Comment, perms acl.Perm, cat i
 		return
 	}
 	c.HTML = Format(c.Body)
-	c.CanEdit = own && perms&p.minPerm() != 0
+	c.CanEdit = own && perms&p.minPerm() != 0 && !p.host.ACL.Archived(ctx, cat)
 	c.CanDelete = own || p.host.Can(ctx, cat, "core.comments.moderate")
 }
 
@@ -179,7 +179,7 @@ func (p *Plugin) Setup(host *sdk.Host) error {
 			p.decorate(ctx, c, perms, cat)
 		}
 		me := identity.From(ctx)
-		return map[string]any{"comments": list, "can_comment": me != nil && me.ID() != 0 && perms&p.minPerm() != 0}, nil
+		return map[string]any{"comments": list, "can_comment": me != nil && me.ID() != 0 && perms&p.minPerm() != 0 && !host.ACL.Archived(ctx, cat)}, nil
 	})
 
 	// POST /elements/{id}/comments adds a comment: {"body": "...", "parent_id": null}.
@@ -196,6 +196,9 @@ func (p *Plugin) Setup(host *sdk.Host) error {
 		cat, err := host.Content.ElementCategory(ctx, id, p.minPerm())
 		if err != nil {
 			return nil, err
+		}
+		if host.ACL.Archived(ctx, cat) {
+			return nil, apperr.BadRequest("the page is archived (read-only)")
 		}
 		var in struct {
 			Body     string `json:"body"`

@@ -3,7 +3,7 @@ import { shortOnlyBox, shortURLInput } from '../components/shorturl';
 import { api } from '../core/api';
 import { fmtDate, h, mount, uid } from '../core/dom';
 import { pick, pluginName, t } from '../core/i18n';
-import { navigate, type RouteCtx } from '../core/router';
+import { navigate, rerender, type RouteCtx } from '../core/router';
 import { state } from '../core/state';
 import { loadCatalog, ruleEditor, summary, type PermDef } from '../components/permissions';
 import { type AuditEntry, type Category, type ElementSummary, type Group, type SpaceInfo, type Role, type Rule } from '../core/types';
@@ -60,6 +60,8 @@ function general(panel: HTMLElement, c: Category, elements: ElementSummary[]): v
     panel.append(h('p', null, t('error.forbidden')));
     return;
   }
+  panel.append(archiveSection(c));
+  if (c.archived) return; // read-only: texts and settings stay as they are
   const titles = langFields(t('common.title'), c.titles, { required: true });
   const descs = langFields(t('common.description'), c.descriptions, { multiline: true });
   const tags = textInput({ value: c.tags.join(', ') });
@@ -100,6 +102,29 @@ function general(panel: HTMLElement, c: Category, elements: ElementSummary[]): v
   panel.append(form);
 }
 
+
+/** Archive (read-only, out of navigation and search) or restore. */
+function archiveSection(c: Category): HTMLElement {
+  const sec = h('section', { class: 'ew-section', 'aria-labelledby': 'ew-archive-h' }, h('h2', { id: 'ew-archive-h' }, t('archive.title')));
+  if (c.archived && !c.archived_at) {
+    sec.append(h('p', null, t('archive.above')));
+    return sec;
+  }
+  const on = !c.archived_at;
+  sec.append(h('p', null, on ? t('archive.help') : t('archive.restore_help')),
+    button(on ? t('archive.archive') : t('archive.restore'), async () => {
+      if (on && !(await confirmDialog(t('archive.confirm'), t('archive.archive')))) return;
+      try {
+        await api.post(`categories/${c.id}/archive`, { archived: on });
+        invalidateTree();
+        toast(on ? t('archive.done') : t('archive.restored'));
+        void rerender();
+      } catch (e) {
+        toast(errorText(e));
+      }
+    }, { variant: on ? 'secondary' : 'primary' }));
+  return sec;
+}
 
 async function permissions(panel: HTMLElement, c: Category): Promise<void> {
   if (!can('manage')) {

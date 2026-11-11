@@ -92,6 +92,9 @@ export interface Category {
   effective_template?: string;
   /** key of the space (top level only; address /s/KEY) */
   space_key?: string;
+  /** archived itself (date) / it or a category above is archived: read-only */
+  archived_at?: string | null;
+  archived?: boolean;
 }
 
 /** A space: a top-level category with settings for its whole subtree. */
@@ -104,6 +107,11 @@ export interface SpaceInfo {
   shortcuts: { label: Record<string, string>; url: string }[];
   allowed_types: string[];
   language: string;
+  /** offered as template for new spaces */
+  is_template?: boolean;
+  archived: boolean;
+  /** the reader may change the space (settings, templates) */
+  can_manage: boolean;
 }
 
 /** A file of the media library (GET /api/v1/media/{id}). */

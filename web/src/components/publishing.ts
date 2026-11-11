@@ -1,15 +1,16 @@
 // Drafts, preview, templates and the publish dialog of the element editors.
 import { api, qs } from '../core/api';
 import { fmtDate, h, trustedHTML } from '../core/dom';
-import { t } from '../core/i18n';
+import { pick, t } from '../core/i18n';
 import { hasPerm, state } from '../core/state';
 import { toast } from '../core/announce';
 import { button, checkbox, field, formDialog, openDialog, select, textArea, textInput } from './ui';
 import { categorySelect } from './pickers';
+import { currentSpace } from './widgets';
 import { listPublishOptions } from '../sdk';
 
 export interface Draft { id: number; element_id: number | null; category_id: number; type: string; lang: string; title: string; body?: unknown; tags: string[] | null; comment: string; base_rev: number; created_by: string; updated_by: string; updated_at: string; publish_at: string | null; fields?: Record<string, unknown> | null }
-export interface Template { id: number; name: string; description: string; type: string; lang: string; title: string; body?: unknown; tags: string[]; global: boolean; mine: boolean }
+export interface Template { id: number; name: string; description: string; type: string; lang: string; title: string; body?: unknown; tags: string[]; global: boolean; mine: boolean; space_id?: number }
 
 export interface EditorState { type: string; lang: string; title: string; body: unknown; tags?: string[]; comment?: string; baseRev?: number; elementId?: number; categoryId: number; fields?: Record<string, unknown> }
 
@@ -32,35 +33,45 @@ export async function showPreview(s: EditorState): Promise<void> {
 export function saveTemplateDialog(s: EditorState): void {
   const name = textInput({ value: s.title, required: true, maxlength: 200 });
   const desc = textArea({ rows: 2 });
-  const global = hasPerm('core.templates.global') ? checkbox(t('template.global'), false, { help: t('template.global_help') }) : null;
-  formDialog(t('template.save_title'), [field(t('common.name'), name, { required: true }), field(t('common.description'), desc), global?.el ?? null], t('common.save'), async () => {
+  // who may use it: only me, everybody in this space (space managers), everybody
+  const sp = currentSpace?.can_manage ? currentSpace : null;
+  const scopes = [{ value: 'mine', label: t('template.scope_mine') },
+    ...(sp ? [{ value: 'space', label: t('template.scope_space', { name: pick(sp.titles, state.lang, state.site.default_language) }) }] : []),
+    ...(hasPerm('core.templates.global') ? [{ value: 'global', label: t('template.scope_all') }] : [])];
+  const scope = scopes.length > 1 ? select(scopes, 'mine') : null;
+  formDialog(t('template.save_title'), [field(t('common.name'), name, { required: true }), field(t('common.description'), desc),
+    scope ? field(t('template.scope'), scope) : null], t('common.save'), async () => {
     if (!name.value.trim()) throw new Error(t('error.title_required'));
-    await api.post('templates', { name: name.value.trim(), description: desc.value, type: s.type, lang: s.lang, title: s.title, body: s.body, tags: s.tags ?? [], global: global?.input.checked ?? false });
+    await api.post('templates', { name: name.value.trim(), description: desc.value, type: s.type, lang: s.lang, title: s.title, body: s.body, tags: s.tags ?? [],
+      global: scope?.value === 'global', space_id: scope?.value === 'space' && sp ? sp.id : 0 });
     toast(t('template.saved'));
   });
 }
 
 /** templatePicker offers the templates of a type; onPick receives the full template. */
-export async function templatePicker(type: string, onPick: (tpl: Template) => void): Promise<HTMLElement | null> {
+export async function templatePicker(type: string, onPick: (tpl: Template) => void, categoryId = 0): Promise<HTMLElement | null> {
   let list: Template[] = [];
-  try { list = await api.get<Template[]>(`templates${qs({ type })}`); } catch { return null; }
+  try { list = await api.get<Template[]>(`templates${qs({ type, category: categoryId || undefined })}`); } catch { return null; }
   if (!list.length) return null;
-  const sel = select([{ value: '', label: t('template.none') }, ...list.map((x) => ({ value: String(x.id), label: `${x.name}${x.global ? ` (${t('template.for_all')})` : ''}` }))], '');
+  const sel = select([{ value: '', label: t('template.none') }, ...list.map((x) => ({ value: String(x.id), label: `${x.name}${scopeLabel(x)}` }))], '');
   sel.addEventListener('change', async () => {
     if (!sel.value) return;
     const tpl = await api.get<Template>(`templates/${sel.value}`);
     onPick(tpl);
     toast(t('template.applied', { name: tpl.name }));
   });
-  const del = button(t('template.manage'), () => void manageTemplates(type), { variant: 'link' });
+  const del = button(t('template.manage'), () => void manageTemplates(type, categoryId), { variant: 'link' });
   return h('div', { class: 'ew-template-picker' }, field(t('template.label'), sel, { help: t('template.help') }), del);
 }
 
-async function manageTemplates(type: string): Promise<void> {
-  const list = await api.get<Template[]>(`templates${qs({ type })}`);
+const scopeLabel = (x: Template) => (x.space_id ? ` (${t('template.for_space')})` : x.global ? ` (${t('template.for_all')})` : '');
+
+async function manageTemplates(type: string, categoryId = 0): Promise<void> {
+  const list = await api.get<Template[]>(`templates${qs({ type, category: categoryId || undefined })}`);
   const rows = h('ul', { class: 'ew-plain-list' });
-  const draw = (items: Template[]) => rows.replaceChildren(...items.map((x) => h('li', null, x.name, x.global ? ` (${t('template.for_all')})` : '',
-    x.mine || (x.global && hasPerm('core.templates.global')) ? button(t('common.delete'), async () => {
+  const mayDelete = (x: Template) => x.mine || (x.global && hasPerm('core.templates.global')) || (!!x.space_id && x.space_id === currentSpace?.id && currentSpace.can_manage);
+  const draw = (items: Template[]) => rows.replaceChildren(...items.map((x) => h('li', null, x.name, scopeLabel(x),
+    mayDelete(x) ? button(t('common.delete'), async () => {
       await api.del(`templates/${x.id}`);
       draw(items.filter((y) => y.id !== x.id));
       toast(t('template.deleted'));

@@ -114,6 +114,12 @@ export async function homeView(ctx: RouteCtx): Promise<void> {
 
 // ---------------------------------------------------------------- category
 
+/** Notice on pages of archived categories (read-only). */
+export function archivedNotice(c: Category): HTMLElement | null {
+  if (!c.archived) return null;
+  return h('p', { class: 'ew-notice ew-notice--info ew-archived', role: 'note' }, h('strong', null, t('archive.notice_title')), ' ', t('archive.notice'));
+}
+
 interface CategoryResponse {
   category: Category;
   breadcrumbs: Category[];
@@ -171,6 +177,7 @@ export async function categoryView({ params, main }: RouteCtx): Promise<void> {
     h('div', { class: 'ew-page-header' },
       h('h1', null, edit ? h('span', { class: 'ew-num' }, `${c.number} `) : null, title),
       actions.length ? h('div', { class: 'ew-actions', role: 'group', 'aria-label': t('common.actions') }, ...actions) : null),
+    archivedNotice(c),
     pick(c.descriptions, L(), D()) ? h('p', { class: 'ew-lead' }, pick(c.descriptions, L(), D())) : null,
     tagList(c.tags),
   );
@@ -444,6 +451,7 @@ export async function elementView({ params, main }: RouteCtx): Promise<void> {
     crumbs([...cat.breadcrumbs, cat.category], { title: el.title }),
     h('div', { class: 'ew-page-header' }, h('h1', null, el.title),
       actions.length ? h('div', { class: 'ew-actions', role: 'group', 'aria-label': t('common.actions') }, ...actions) : null),
+    archivedNotice(cat.category),
     fallbackNotice(el),
     edit ? translationPanel(el) : null,
     topExtensions,
@@ -764,7 +772,7 @@ async function newOrDraftView({ params, query, main }: RouteCtx, draft: Draft | 
       editor.destroy?.();
       editorBox.replaceChildren();
       editor = mountEditor(editorBox, typeId, tpl.body, lang, labelId);
-    }).then((p) => { if (p) tplBox.append(p); });
+    }, catId).then((p) => { if (p) tplBox.append(p); });
   }
   form.addEventListener('submit', (ev) => {
     ev.preventDefault();

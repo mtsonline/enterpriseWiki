@@ -2,6 +2,7 @@ package server
 
 import (
 	"net/http"
+	"strconv"
 
 	"github.com/mtsonline/enterprisewiki/internal/apperr"
 	"github.com/mtsonline/enterprisewiki/internal/content"
@@ -70,14 +71,15 @@ func (s *Server) routesDrafts() {
 
 	// ---------------------------------------------------------------- templates
 	s.handle("GET /api/v1/templates", func(w http.ResponseWriter, r *http.Request) (any, error) {
-		return s.app.Content.Templates(r.Context(), r.URL.Query().Get("type"), 0)
+		cat, _ := strconv.ParseInt(r.URL.Query().Get("category"), 10, 64)
+		return s.app.Content.Templates(r.Context(), r.URL.Query().Get("type"), 0, cat)
 	})
 	s.handle("GET /api/v1/templates/{id}", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		id, err := h.PathID(r, "id")
 		if err != nil {
 			return nil, err
 		}
-		list, err := s.app.Content.Templates(r.Context(), "", id)
+		list, err := s.app.Content.Templates(r.Context(), "", id, 0)
 		if err != nil {
 			return nil, err
 		}

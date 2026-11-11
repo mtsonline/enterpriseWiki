@@ -130,6 +130,7 @@ CREATE TABLE categories (
     template           text NOT NULL DEFAULT '',       -- website template of this category and below ('' = inherited / site template)
     space_key          text,                           -- top level: key of the space (e.g. HR, address /s/HR)
     space              jsonb NOT NULL DEFAULT '{}',    -- top level: settings of the space (see content.Space)
+    archived_at        timestamptz,                    -- archived: read-only for everybody, out of navigation and search
     -- translations of title and description (like elements): the original
     -- language, its revision (incremented when its texts change) and the
     -- revision of the original each translation is based on
@@ -298,11 +299,13 @@ CREATE TABLE element_templates (
     body        jsonb NOT NULL,
     tags        text[] NOT NULL DEFAULT '{}',
     owner_id    bigint REFERENCES users(id) ON DELETE CASCADE,
+    space_id    bigint REFERENCES categories(id) ON DELETE CASCADE, -- template of a space (top-level category; owner_id NULL)
     created_by  bigint REFERENCES users(id) ON DELETE SET NULL,
     created_at  timestamptz NOT NULL DEFAULT now(),
     updated_at  timestamptz NOT NULL DEFAULT now()
 );
 CREATE INDEX element_templates_owner ON element_templates(owner_id);
+CREATE INDEX element_templates_space ON element_templates(space_id);
 
 -- Uploaded files (content addressed: the SHA-256 is the key and the storage name).
 CREATE TABLE files (

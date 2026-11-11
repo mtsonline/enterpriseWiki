@@ -18,6 +18,7 @@ import (
 	"github.com/mtsonline/enterprisewiki/internal/apperr"
 	"github.com/mtsonline/enterprisewiki/internal/audit"
 	"github.com/mtsonline/enterprisewiki/internal/identity"
+	"github.com/mtsonline/enterprisewiki/internal/perm"
 )
 
 // Spaces: every top-level category is a space (like a Confluence space).
@@ -40,6 +41,8 @@ type Space struct {
 	AllowedTypes []string `json:"allowed_types"`
 	// Language of new elements ("" = the default language of the site)
 	Language string `json:"language"`
+	// IsTemplate: offered as template for new spaces
+	IsTemplate bool `json:"is_template"`
 }
 
 // SpaceInfo is a space with its category texts.
@@ -48,6 +51,10 @@ type SpaceInfo struct {
 	Key          string            `json:"key"`
 	Titles       map[string]string `json:"titles"`
 	Descriptions map[string]string `json:"descriptions"`
+	// Archived: read-only, out of navigation and search (directory: separately)
+	Archived bool `json:"archived"`
+	// CanManage: the caller may change the space (settings, templates)
+	CanManage bool `json:"can_manage"`
 	Space
 }
 
@@ -65,8 +72,8 @@ func (s *Service) loadSpace(ctx context.Context, top int64) (*SpaceInfo, error) 
 	info := &SpaceInfo{ID: top}
 	var key *string
 	var raw []byte
-	err := s.pool.QueryRow(ctx, `SELECT space_key, titles, descriptions, space FROM categories WHERE id=$1 AND parent_id IS NULL AND deleted_at IS NULL`, top).
-		Scan(&key, &info.Titles, &info.Descriptions, &raw)
+	err := s.pool.QueryRow(ctx, `SELECT space_key, titles, descriptions, space, archived_at IS NOT NULL FROM categories WHERE id=$1 AND parent_id IS NULL AND deleted_at IS NULL`, top).
+		Scan(&key, &info.Titles, &info.Descriptions, &raw, &info.Archived)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, apperr.NotFound("space")
 	}
@@ -77,6 +84,7 @@ func (s *Service) loadSpace(ctx context.Context, top int64) (*SpaceInfo, error) 
 		info.Key = *key
 	}
 	_ = json.Unmarshal(raw, &info.Space)
+	info.CanManage = s.require(ctx, top, acl.Manage) == nil
 	if info.Shortcuts == nil {
 		info.Shortcuts = []SpaceLink{}
 	}
@@ -164,6 +172,9 @@ func (s *Service) SetSpace(ctx context.Context, id int64, in SpaceInput) (*Space
 	if err != nil {
 		return nil, err
 	}
+	if sp.IsTemplate != before.IsTemplate && !perm.HasP(identity.From(ctx), "core.categories.admin") {
+		return nil, apperr.Forbidden("only category administrators offer spaces as templates")
+	}
 	key := before.Key
 	if in.Key != nil {
 		key = strings.ToUpper(strings.TrimSpace(*in.Key))
@@ -189,7 +200,7 @@ func (s *Service) SetSpace(ctx context.Context, id int64, in SpaceInput) (*Space
 }
 
 func (s *Service) cleanSpace(in Space) (Space, error) {
-	out := Space{OwnTree: in.OwnTree, Shortcuts: []SpaceLink{}, AllowedTypes: []string{}}
+	out := Space{OwnTree: in.OwnTree, IsTemplate: in.IsTemplate, Shortcuts: []SpaceLink{}, AllowedTypes: []string{}}
 	if len(in.Shortcuts) > maxShortcuts {
 		return out, apperr.BadRequest("at most %d shortcuts", maxShortcuts)
 	}
@@ -267,4 +278,97 @@ func (s *Service) spaceLanguage(ctx context.Context, categoryID int64) string {
 		return s.DefaultLanguage()
 	}
 	return lang
+}
+
+// SetArchived archives a category with everything below it (read-only for
+// everybody, out of navigation and search) or restores it; needs Manage.
+func (s *Service) SetArchived(ctx context.Context, id int64, on bool) (*Category, error) {
+	if err := s.require(ctx, id, acl.Manage); err != nil {
+		return nil, err
+	}
+	q := `UPDATE categories SET archived_at = now(), updated_at = now() WHERE id=$1 AND deleted_at IS NULL AND archived_at IS NULL`
+	if !on {
+		q = `UPDATE categories SET archived_at = NULL, updated_at = now() WHERE id=$1 AND deleted_at IS NULL`
+	}
+	tag, err := s.pool.Exec(ctx, q, id)
+	if err != nil {
+		return nil, err
+	}
+	if tag.RowsAffected() > 0 {
+		event := "category.archive"
+		if !on {
+			event = "category.unarchive"
+		}
+		_ = audit.Log(ctx, s.pool, event, "category", id, nil, nil)
+		s.aclChanged(ctx)
+		s.fire(ctx, "update", "category", id)
+	}
+	return s.GetCategory(ctx, id)
+}
+
+// notArchived refuses changes of the structure below archived categories.
+func (s *Service) notArchived(ctx context.Context, categoryID int64) error {
+	if categoryID != 0 && s.acl.Archived(ctx, categoryID) {
+		return apperr.BadRequest("the category is archived (read-only); restore it first")
+	}
+	return nil
+}
+
+// NewSpaceInput creates a space from a space template.
+type NewSpaceInput struct {
+	TemplateID int64             `json:"template_id"`
+	Titles     map[string]string `json:"titles"`
+	Key        string            `json:"key"`
+	// WithPages copies the pages too (else only the structure: categories,
+	// permissions, settings and the page templates of the space)
+	WithPages bool `json:"with_pages"`
+}
+
+// CreateSpaceFrom creates a new space from a space template (category
+// administrators): structure, permissions, website template, settings and
+// page templates of the space; optionally its pages.
+func (s *Service) CreateSpaceFrom(ctx context.Context, in NewSpaceInput) (*SpaceInfo, error) {
+	tpl, err := s.loadSpace(ctx, in.TemplateID)
+	if err != nil || s.require(ctx, in.TemplateID, acl.View) != nil || !tpl.IsTemplate {
+		return nil, apperr.NotFound("space template")
+	}
+	titles, err := s.normalizeTexts(in.Titles, 200, true)
+	if err != nil {
+		return nil, err
+	}
+	key := strings.ToUpper(strings.TrimSpace(in.Key))
+	if key != "" && !spaceKeyRe.MatchString(key) {
+		return nil, apperr.BadRequest("the key has 2–16 letters and digits and starts with a letter (e.g. HR)")
+	}
+	if key != "" {
+		var used bool
+		if err := s.pool.QueryRow(ctx, `SELECT EXISTS (SELECT 1 FROM categories WHERE space_key=$1 AND deleted_at IS NULL)`, key).Scan(&used); err != nil {
+			return nil, err
+		}
+		if used {
+			return nil, apperr.Conflict("the key %s is already used by another space", key)
+		}
+	}
+	c, err := s.duplicateCategory(ctx, in.TemplateID, 0, in.WithPages) // checks core.categories.admin
+	if err != nil {
+		return nil, err
+	}
+	sp := tpl.Space
+	sp.IsTemplate = false
+	_, err = s.UpdateCategory(ctx, c.ID, CategoryInput{Titles: titles, Descriptions: tpl.Descriptions})
+	if err == nil {
+		_, err = s.SetSpace(ctx, c.ID, SpaceInput{Key: &key, Space: sp})
+	}
+	if err != nil {
+		// do not leave a half-made space behind
+		_, _ = s.pool.Exec(ctx, `DELETE FROM categories WHERE path <@ (SELECT path FROM categories WHERE id=$1)`, c.ID)
+		s.aclChanged(ctx)
+		return nil, err
+	}
+	if _, err := s.pool.Exec(ctx, `INSERT INTO element_templates(name, description, type, lang, title, body, tags, space_id, created_by)
+		SELECT name, description, type, lang, title, body, tags, $2, $3 FROM element_templates WHERE space_id=$1`, in.TemplateID, c.ID, nullID(ctx)); err != nil {
+		return nil, err
+	}
+	_ = audit.Log(ctx, s.pool, "space.create", "category", c.ID, nil, map[string]any{"template": in.TemplateID, "key": key, "pages": in.WithPages})
+	return s.loadSpace(ctx, c.ID)
 }

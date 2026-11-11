@@ -73,6 +73,7 @@ type Rule struct {
 type snapshot struct {
 	ancestors map[int64][]int64 // category id -> path ids (root..self)
 	deleted   map[int64]bool
+	archived  map[int64]bool // archived categories: read-only below them
 	rules     map[int64][]Rule
 }
 
@@ -105,16 +106,16 @@ func (s *Service) load(ctx context.Context) (*snapshot, error) {
 	if sn := s.snap.Load(); sn != nil {
 		return sn, nil
 	}
-	sn := &snapshot{ancestors: map[int64][]int64{}, deleted: map[int64]bool{}, rules: map[int64][]Rule{}}
-	rows, err := s.pool.Query(ctx, `SELECT id, path::text, deleted_at IS NOT NULL FROM categories`)
+	sn := &snapshot{ancestors: map[int64][]int64{}, deleted: map[int64]bool{}, archived: map[int64]bool{}, rules: map[int64][]Rule{}}
+	rows, err := s.pool.Query(ctx, `SELECT id, path::text, deleted_at IS NOT NULL, archived_at IS NOT NULL FROM categories`)
 	if err != nil {
 		return nil, err
 	}
 	for rows.Next() {
 		var id int64
 		var path string
-		var del bool
-		if err := rows.Scan(&id, &path, &del); err != nil {
+		var del, arch bool
+		if err := rows.Scan(&id, &path, &del, &arch); err != nil {
 			rows.Close()
 			return nil, err
 		}
@@ -127,6 +128,9 @@ func (s *Service) load(ctx context.Context) (*snapshot, error) {
 		sn.ancestors[id] = anc
 		if del {
 			sn.deleted[id] = true
+		}
+		if arch {
+			sn.archived[id] = true
 		}
 	}
 	rows.Close()
@@ -150,6 +154,24 @@ func (s *Service) load(ctx context.Context) (*snapshot, error) {
 	}
 	s.snap.Store(sn)
 	return sn, nil
+}
+
+func (sn *snapshot) isArchived(anc []int64) bool {
+	for _, cid := range anc {
+		if sn.archived[cid] {
+			return true
+		}
+	}
+	return false
+}
+
+// Archived reports whether a category or one above it is archived.
+func (s *Service) Archived(ctx context.Context, categoryID int64) bool {
+	sn, err := s.load(ctx)
+	if err != nil {
+		return false
+	}
+	return sn.isArchived(sn.ancestors[categoryID])
 }
 
 func contains(xs []int64, v int64) bool {
@@ -251,6 +273,10 @@ func (s *Service) perms(sn *snapshot, p *identity.Principal, categoryID int64) P
 			out |= Manage
 		}
 	}
+	// archived (also for administrators): read and manage (to restore) only
+	if sn.isArchived(anc) {
+		out &= View | Manage
+	}
 	// API keys narrow permissions.
 	if p != nil && p.Via == "apikey" {
 		out &= Perm(p.KeyPerms)
@@ -282,8 +308,8 @@ func (s *Service) Actions(ctx context.Context, p *identity.Principal, categoryID
 
 func (s *Service) actions(sn *snapshot, p *identity.Principal, categoryID int64) []string {
 	anc, ok := sn.ancestors[categoryID]
-	if !ok {
-		return nil
+	if !ok || sn.isArchived(anc) {
+		return nil // archived: no named actions (comments, workflows …)
 	}
 	if p != nil && p.IsAdmin {
 		if p.Via == "apikey" && Perm(p.KeyPerms)&Edit == 0 {
