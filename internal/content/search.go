@@ -93,13 +93,13 @@ func (s *Service) SearchIn(ctx context.Context, q string, tags []string, lang st
 			FROM search_docs d JOIN elements e ON e.id = d.element_id, to_tsquery('simple', $1) q
 			WHERE d.tsv @@ q AND e.deleted_at IS NULL AND (cardinality($2::text[]) = 0 OR e.tags @> $2)
 				AND ($4::bigint[] IS NULL OR d.category_id = ANY($4))
-				AND ($4::bigint[] IS NOT NULL OR NOT EXISTS (SELECT 1 FROM categories hc JOIN categories hx ON hx.id = d.category_id WHERE (hc.hidden OR hc.archived_at IS NOT NULL) AND hx.path <@ hc.path)) -- hidden categories only when searched explicitly
+				AND ($4::bigint[] IS NOT NULL OR NOT EXISTS (SELECT 1 FROM categories hc JOIN categories hx ON hx.id = d.category_id WHERE (hc.hidden OR hc.archived_at IS NOT NULL OR hc.classification >= 3) AND hx.path <@ hc.path)) -- hidden categories only when searched explicitly
 			ORDER BY ts_rank(d.tsv, q) DESC, (d.lang = $3) DESC LIMIT 1000`, tsq, tags, lang, scope)
 	} else {
 		rows, err = s.pool.Query(ctx, `SELECT d.element_id, d.category_id, d.lang, e.type, d.title, left(d.body_text, 200), e.tags, 1::real
 			FROM search_docs d JOIN elements e ON e.id = d.element_id
 			WHERE e.deleted_at IS NULL AND e.tags @> $1 AND ($3::bigint[] IS NULL OR d.category_id = ANY($3))
-				AND ($3::bigint[] IS NOT NULL OR NOT EXISTS (SELECT 1 FROM categories hc JOIN categories hx ON hx.id = d.category_id WHERE (hc.hidden OR hc.archived_at IS NOT NULL) AND hx.path <@ hc.path))
+				AND ($3::bigint[] IS NOT NULL OR NOT EXISTS (SELECT 1 FROM categories hc JOIN categories hx ON hx.id = d.category_id WHERE (hc.hidden OR hc.archived_at IS NOT NULL OR hc.classification >= 3) AND hx.path <@ hc.path))
 			ORDER BY e.updated_at DESC, (d.lang = $2) DESC LIMIT 1000`, tags, lang, scope)
 	}
 	if err != nil {
@@ -148,7 +148,7 @@ func (s *Service) searchCategories(ctx context.Context, q string, tags []string,
 	crow, err := s.pool.Query(ctx, `SELECT id, titles, tags FROM categories WHERE deleted_at IS NULL AND (
 			($1 <> '%%' AND EXISTS (SELECT 1 FROM jsonb_each_text(titles) t WHERE t.value ILIKE $1))
 			OR (cardinality($2::text[]) > 0 AND tags @> $2)) AND ($3::bigint[] IS NULL OR id = ANY($3))
-			AND ($3::bigint[] IS NOT NULL OR NOT EXISTS (SELECT 1 FROM categories hc WHERE (hc.hidden OR hc.archived_at IS NOT NULL) AND categories.path <@ hc.path))
+			AND ($3::bigint[] IS NOT NULL OR NOT EXISTS (SELECT 1 FROM categories hc WHERE (hc.hidden OR hc.archived_at IS NOT NULL OR hc.classification >= 3) AND categories.path <@ hc.path))
 			ORDER BY nlevel(path), position LIMIT 200`, like, tags, scope)
 	if err != nil {
 		return nil, err
@@ -476,7 +476,7 @@ func (s *Service) searchExternal(ctx context.Context, b SearchBackend, q string,
 		}
 		rows, err := s.pool.Query(ctx, `SELECT e.id, e.category_id, e.type, e.tags FROM elements e JOIN categories c ON c.id=e.category_id
 			WHERE e.id = ANY($1) AND e.deleted_at IS NULL AND c.deleted_at IS NULL AND (cardinality($2::text[]) = 0 OR e.tags @> $2)
-				AND NOT EXISTS (SELECT 1 FROM categories hc WHERE (hc.hidden OR hc.archived_at IS NOT NULL) AND c.path <@ hc.path)`, ids, tags)
+				AND NOT EXISTS (SELECT 1 FROM categories hc WHERE (hc.hidden OR hc.archived_at IS NOT NULL OR hc.classification >= 3) AND c.path <@ hc.path)`, ids, tags)
 		if err != nil {
 			return err
 		}

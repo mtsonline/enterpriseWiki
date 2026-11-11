@@ -495,6 +495,21 @@ func (s *Server) routes() {
 		}
 		return h.Created{V: sp}, nil
 	})
+	// page views (counted per element and day only) and the evaluation of a category
+	s.handle("POST /api/v1/elements/{id}/view", func(w http.ResponseWriter, r *http.Request) (any, error) {
+		id, err := h.PathID(r, "id")
+		if err != nil {
+			return nil, err
+		}
+		return h.NoContent{}, s.app.Content.CountView(r.Context(), id)
+	})
+	s.handle("GET /api/v1/categories/{id}/insights", func(w http.ResponseWriter, r *http.Request) (any, error) {
+		id, err := h.PathID(r, "id")
+		if err != nil {
+			return nil, err
+		}
+		return s.app.Content.Insights(r.Context(), id, h.QueryInt(r, "days", 30), r.URL.Query().Get("lang"))
+	})
 	s.handle("POST /api/v1/spaces/personal", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		return s.app.Content.CreatePersonalSpace(r.Context())
 	})

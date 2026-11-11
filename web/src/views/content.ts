@@ -126,6 +126,13 @@ export async function homeView(ctx: RouteCtx): Promise<void> {
 
 // ---------------------------------------------------------------- category
 
+/** Label of the classification (internal and above) on every page of the category. */
+export function classificationNotice(c: Category): HTMLElement | null {
+  const l = c.effective_classification ?? 0;
+  if (l < 1) return null;
+  return h('p', { class: `ew-classification ew-classification--${l}`, role: 'note' }, h('strong', null, t(`class.level.${l}`)), l >= 2 ? ` – ${t(`class.notice.${l}`)}` : null);
+}
+
 /** Notice on pages of archived categories (read-only). */
 export function archivedNotice(c: Category): HTMLElement | null {
   if (!c.archived) return null;
@@ -189,6 +196,7 @@ export async function categoryView({ params, main }: RouteCtx): Promise<void> {
     h('div', { class: 'ew-page-header' },
       h('h1', null, edit ? h('span', { class: 'ew-num' }, `${c.number} `) : null, title),
       actions.length ? h('div', { class: 'ew-actions', role: 'group', 'aria-label': t('common.actions') }, ...actions) : null),
+    classificationNotice(c),
     archivedNotice(c),
     pick(c.descriptions, L(), D()) ? h('p', { class: 'ew-lead' }, pick(c.descriptions, L(), D())) : null,
     tagList(c.tags),
@@ -444,6 +452,8 @@ export async function elementView({ params, main }: RouteCtx): Promise<void> {
   setSpace(cat.space ?? null);
   showReadableURL(el.urls, el.url);
   const edit = state.editMode;
+  // page views are counted per page and day only (no people)
+  if (!edit) void api.post(`elements/${el.id}/view`).catch(() => undefined);
   const actions: HTMLElement[] = [];
   if (edit) {
     if (can('edit')) actions.push(h('a', { href: `/e/${el.id}/edit?lang=${L()}`, class: 'ew-btn ew-btn--primary' }, t('common.edit')));
@@ -463,6 +473,7 @@ export async function elementView({ params, main }: RouteCtx): Promise<void> {
     crumbs([...cat.breadcrumbs, cat.category], { title: el.title }),
     h('div', { class: 'ew-page-header' }, h('h1', null, el.title),
       actions.length ? h('div', { class: 'ew-actions', role: 'group', 'aria-label': t('common.actions') }, ...actions) : null),
+    classificationNotice(cat.category),
     archivedNotice(cat.category),
     fallbackNotice(el),
     edit ? translationPanel(el) : null,

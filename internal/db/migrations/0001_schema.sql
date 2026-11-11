@@ -131,6 +131,7 @@ CREATE TABLE categories (
     space_key          text,                           -- top level: key of the space (e.g. HR, address /s/HR)
     space              jsonb NOT NULL DEFAULT '{}',    -- top level: settings of the space (see content.Space)
     archived_at        timestamptz,                    -- archived: read-only for everybody, out of navigation and search
+    classification     smallint CHECK (classification BETWEEN 0 AND 3), -- 0 public, 1 internal, 2 confidential, 3 strictly confidential; NULL = as above (the strictest above applies)
     -- translations of title and description (like elements): the original
     -- language, its revision (incremented when its texts change) and the
     -- revision of the original each translation is based on
@@ -585,6 +586,15 @@ CREATE VIEW watch_effective AS
         UNION SELECT ug.user_id FROM group_roles gr JOIN user_groups ug ON ug.group_id = gr.group_id WHERE a.subject_type = 'role' AND gr.role_id = a.subject_id
     ) m ON true
     WHERE a.mandatory OR NOT EXISTS (SELECT 1 FROM watch_optouts o WHERE o.assignment_id = a.id AND o.user_id = m.user_id);
+
+-- page views per element and day (aggregated: no people, no addresses)
+CREATE TABLE element_views (
+    element_id bigint NOT NULL REFERENCES elements(id) ON DELETE CASCADE,
+    day        date NOT NULL,
+    views      integer NOT NULL DEFAULT 0,
+    PRIMARY KEY (element_id, day)
+);
+CREATE INDEX element_views_day ON element_views(day);
 
 -- requests for access to a category (sent to the people who may manage it)
 CREATE TABLE access_requests (

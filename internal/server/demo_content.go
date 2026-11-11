@@ -592,6 +592,11 @@ func buildDemo(d *demoRun) {
 		"<p>All pages of the demo with their properties:</p>"+macro("properties", map[string]string{"source": "category:" + strconv.FormatInt(root, 10) + "+sub", "filter": "responsible notempty", "columns": "responsible,state,review", "limit": "50"}, ""),
 		"<p>Alle Seiten der Demo mit ihren Eigenschaften:</p>"+macro("properties", map[string]string{"source": "category:" + strconv.FormatInt(root, 10) + "+sub", "filter": "responsible notempty", "columns": "responsible,state,review", "limit": "50"}, ""), nil)
 
+	// classification: the documents are confidential (marked on every page, not in feeds)
+	d.optional("classification", func() {
+		d.call(http.MethodPut, fmt.Sprintf("/api/v1/categories/%d", docs), map[string]any{"classification": 2}, nil)
+	})
+
 	// ---- overview of the demo area (first element = default of the category)
 	d.optional("overview", func() {
 		d.element(root, "content.catlist", d.tr("Overview of the demo", "Übersicht der Demo"), d.same(map[string]any{"intro": htmlBodyOf(""), "category_id": root, "depth": 2,

@@ -414,7 +414,8 @@ func (s *Service) describe(ctx context.Context, tx pgx.Tx, c pending, lang, base
 		it.event, it.url = tr("watch.event.delete", nil), fmt.Sprintf("%s/c/%d", base, cat)
 		return it, true
 	}
-	if c.mode == "content" {
+	// confidential content does not leave the wiki by e-mail: title and link only
+	if c.mode == "content" && s.acl.Classification(ctx, cat) < acl.Confidential {
 		view, err := s.content.GetElement(ctx, c.entityID, lang, false)
 		if err == nil {
 			it.title = view.Title

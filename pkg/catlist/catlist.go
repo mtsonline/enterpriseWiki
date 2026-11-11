@@ -258,7 +258,7 @@ func WriteFeed(w http.ResponseWriter, r *http.Request, hs *sdk.Host, id int64, s
 	if err != nil {
 		return nil, err
 	}
-	list, _, err := hs.Content.ListIn(ctx, content.ListOptions{Categories: scope, Sources: set, Lang: lang, Order: o.Order, Limit: o.Limit, WithContent: o.WithContent, Exclude: o.Exclude})
+	list, _, err := hs.Content.ListIn(ctx, content.ListOptions{Categories: scope, Sources: set, Lang: lang, Order: o.Order, Limit: o.Limit, WithContent: o.WithContent, Exclude: o.Exclude, NoConfidential: true})
 	if err != nil {
 		return nil, err
 	}

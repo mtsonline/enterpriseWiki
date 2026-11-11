@@ -95,6 +95,9 @@ export interface Category {
   /** archived itself (date) / it or a category above is archived: read-only */
   archived_at?: string | null;
   archived?: boolean;
+  /** classification set here (null = as above) and the one that applies: 0 public … 3 strictly confidential */
+  classification?: number | null;
+  effective_classification?: number;
 }
 
 /** A space: a top-level category with settings for its whole subtree. */

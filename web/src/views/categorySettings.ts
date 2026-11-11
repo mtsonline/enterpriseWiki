@@ -12,7 +12,7 @@ import { button, checkbox, confirmDialog, errorText, field, formDialog, langFiel
 import { breadcrumbs, can, ctx, invalidateTree, setContext, setSpace } from '../components/widgets';
 import { errorPage, splitTags } from './content';
 import { listCategorySettingsTabs } from '../sdk';
-import { spaceSettings } from './spaces';
+import { insightsPanel, spaceSettings } from './spaces';
 
 interface CategoryResponse { category: Category; breadcrumbs: Category[]; elements: ElementSummary[]; space?: SpaceInfo | null }
 
@@ -35,7 +35,7 @@ export async function categorySettingsView({ params, query, main }: RouteCtx): P
   const extra = listCategorySettingsTabs().filter((x) => x.visible?.(c) ?? true);
   // top-level categories are spaces
   const isSpace = !c.parent_id && can('manage');
-  const ids = [...TABS.slice(0, 1), ...(isSpace ? ['space'] : []), ...TABS.slice(1), ...extra.map((x) => x.id)];
+  const ids = [...TABS.slice(0, 1), ...(isSpace ? ['space'] : []), ...TABS.slice(1), ...(can('manage') ? ['insights'] : []), ...extra.map((x) => x.id)];
   const tabLabel = (id: string) => extra.find((x) => x.id === id)?.label() ?? t(`category.tab.${id}`);
   const tab = ids.includes(query.get('tab') ?? '') ? query.get('tab')! : 'general';
   const panel = h('div', { class: 'ew-tabpanel', id: 'ew-tabpanel', role: 'region', 'aria-label': tabLabel(tab) });
@@ -47,6 +47,7 @@ export async function categorySettingsView({ params, query, main }: RouteCtx): P
     panel);
   if (tab === 'general') general(panel, c, data.elements);
   if (tab === 'space' && isSpace) await spaceSettings(panel, c);
+  if (tab === 'insights' && can('manage')) await insightsPanel(panel, c);
   if (tab === 'permissions') await permissions(panel, c);
   if (tab === 'history') await history(panel, c);
   const x = extra.find((e) => e.id === tab);
@@ -70,6 +71,10 @@ function general(panel: HTMLElement, c: Category, elements: ElementSummary[]): v
   const hidden = checkbox(t('category.hidden'), !!c.hidden, { help: t('category.hidden_help') });
   const def = select([{ value: '0', label: t('category.no_default') }, ...elements.map((e) => ({ value: String(e.id), label: pick(e.titles, state.lang, e.original_lang) }))], String(c.default_element_id ?? 0));
   const feed = select(['off', 'on', 'recursive'].map((v) => ({ value: v, label: t(`feed.setting_${v}`) })), c.feed ?? 'off');
+  // classification: as above or a level (only a stricter one than above has an effect)
+  const eff = c.effective_classification ?? 0;
+  const cls = select([{ value: '-1', label: c.classification == null ? t('class.inherit', { level: t(`class.level.${eff}`) }) : t('class.inherit_plain') },
+    ...[0, 1, 2, 3].map((l) => ({ value: String(l), label: t(`class.level.${l}`) }))], c.classification == null ? '-1' : String(c.classification));
   // website template: inherited ('' = from above or the site template) or one of the active templates
   const tpls = state.site.templates ?? [];
   const tplName = (id: string) => pluginName(id, tpls.find((x) => x.id === id)?.name ?? id);
@@ -84,12 +89,13 @@ function general(panel: HTMLElement, c: Category, elements: ElementSummary[]): v
     field(t('category.default_page'), def, { help: t('category.default_page_help') }),
     field(t('feed.setting'), feed, { help: t('feed.setting_help') }),
     field(t('category.template'), tpl, { help: t('category.template_help') }),
+    field(t('class.label'), cls, { help: t('class.help') }),
     h('div', { class: 'ew-form-actions' }, button(t('common.save'), () => undefined, { type: 'submit', variant: 'primary' })));
   form.addEventListener('submit', async (ev) => {
     ev.preventDefault();
     alert.textContent = '';
     try {
-      const saved = await api.put<Category>(`categories/${c.id}`, { titles: titles.get(), descriptions: descs.get(), tags: splitTags(tags.value), short_url: short.value, short_only: only.input.checked, hidden: hidden.input.checked, default_element_id: Number(def.value), feed: feed.value, template: tpl.value });
+      const saved = await api.put<Category>(`categories/${c.id}`, { titles: titles.get(), descriptions: descs.get(), tags: splitTags(tags.value), short_url: short.value, short_only: only.input.checked, hidden: hidden.input.checked, default_element_id: Number(def.value), feed: feed.value, template: tpl.value, classification: Number(cls.value) });
       invalidateTree();
       c.template = saved.template;
       ctx.template = saved.effective_template ?? '';

@@ -201,6 +201,18 @@ Jede Kategorie der obersten Ebene ist ein **Bereich** (wie ein Space in Confluen
 
 **Persönlicher Bereich:** Mit der Berechtigung *Persönlichen Bereich anlegen* legt jede Person unter *Alle Bereiche* einen eigenen Bereich an, den nur sie sieht, bis sie ihn über die Berechtigungen teilt.
 
+**Einstufung** (*Kategorie-Einstellungen → Allgemein → Einstufung*): *Öffentlich*, *Intern*, *Vertraulich* oder *Streng vertraulich*; sie gilt für alles darunter, und es gilt immer die strengste Einstufung darüber (eine Unterkategorie kann nur strenger werden). Folgen:
+
+| Einstufung | Wirkung |
+|---|---|
+| Intern | nie für Gäste – auch wenn eine Regel Gästen Lesen erlaubt; Hinweis „Intern“ auf jeder Seite |
+| Vertraulich | zusätzlich nicht in Atom/RSS-Feeds und Kalender-Abos, Beobachtungs-E-Mails nur mit Titel und Link, Hinweis auf jeder Seite |
+| Streng vertraulich | zusätzlich nicht in der allgemeinen Suche (nur bei Suche innerhalb der Kategorie), nicht in externen Suchindizes, kein Export und keine Kopien |
+
+**Auswertung** (*Kategorie-Einstellungen → Auswertung*, mit *Verwalten*): Aufrufe pro Tag, meistgelesene Seiten, seit über sechs Monaten nicht geänderte Seiten und Mitwirkende der letzten 7 bis 365 Tage. Aufrufe werden datensparsam nur pro Seite und Tag gezählt – ohne Personen und Adressen – und nach 400 Tagen gelöscht.
+
+**Zusammenfassung eines Bereichs:** *Beobachten* auf der obersten Kategorie mit Unterkategorien und täglicher oder wöchentlicher Zusammenfassung schickt alle Änderungen des Bereichs gesammelt per E-Mail.
+
 **Exportieren und importieren** (*Kategorie-Einstellungen → Bereich*): Der Export ist eine Datei (JSON Lines) mit allen Unterkategorien, Seiten (letzte Fassung jeder Sprache), Einstellungen und Seitenvorlagen. *Alle Bereiche → Bereich importieren* legt daraus einen neuen Bereich an, *Hier importieren* eine Unterkategorie. Rechte und Dateien sind nicht enthalten (sie hängen von der Installation ab); alle Inhalte werden beim Import wie beim Speichern geprüft und bereinigt, nicht übernehmbare Einträge werden aufgelistet.
 
 ### Eigene Website-Vorlage je Kategorie

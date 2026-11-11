@@ -38,6 +38,8 @@ type Service struct {
 	templateOK func(id string) bool
 	hooks      []Hook
 
+	views viewCounter
+
 	mu             sync.Mutex
 	publishOptions map[string]publishOption
 	fields         map[string]elementField

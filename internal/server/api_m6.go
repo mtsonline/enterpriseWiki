@@ -98,7 +98,7 @@ func (s *Server) routesM6() {
 		if lang == "" {
 			lang = s.app.Content.DefaultLanguage()
 		}
-		list, _, err := s.app.Content.ListIn(ctx, content.ListOptions{Categories: scope, Lang: lang, Order: "updated", Limit: h.QueryInt(r, "limit", 30), WithContent: q.Get("content") == "1"})
+		list, _, err := s.app.Content.ListIn(ctx, content.ListOptions{Categories: scope, Lang: lang, Order: "updated", Limit: h.QueryInt(r, "limit", 30), WithContent: q.Get("content") == "1", NoConfidential: true})
 		if err != nil {
 			return nil, err
 		}

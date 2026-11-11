@@ -190,3 +190,46 @@ export async function spaceSettings(panel: HTMLElement, c: Category): Promise<vo
   });
   panel.append(form, io);
 }
+
+interface InsightRow { id: number; title: string; views?: number; updated_at: string }
+interface Insights { days: number; pages: number; new_pages: number; views: number; views_per_day: { day: string; views: number }[]; popular: InsightRow[]; stale: InsightRow[]; contributors: { name: string; versions: number }[] }
+
+/** Evaluation of a category with everything below it (views per page and day only, no people). */
+export async function insightsPanel(panel: HTMLElement, c: Category): Promise<void> {
+  const period = select([7, 30, 90, 365].map((d) => ({ value: String(d), label: t('insights.days', { n: d }) })), '30');
+  const box = h('div', { 'aria-live': 'polite' });
+  const draw = async () => {
+    let d: Insights;
+    try {
+      d = await api.get<Insights>(`categories/${c.id}/insights?days=${period.value}&lang=${state.lang}`);
+    } catch (e) {
+      box.replaceChildren(h('p', { role: 'alert' }, errorText(e)));
+      return;
+    }
+    const max = Math.max(1, ...d.views_per_day.map((x) => x.views));
+    const table = (caption: string, head: string[], rows: (string | HTMLElement)[][]) => h('table', { class: 'ew-table' },
+      h('caption', null, caption), h('thead', null, h('tr', null, ...head.map((x) => h('th', { scope: 'col' }, x)))),
+      h('tbody', null, ...(rows.length ? rows.map((r) => h('tr', null, ...r.map((x, i) => (i === 0 ? h('th', { scope: 'row' }, x) : h('td', null, x))))) : [h('tr', null, h('td', { colspan: String(head.length) }, t('insights.none')))])));
+    const link = (r: InsightRow) => h('a', { href: `/e/${r.id}` }, r.title || `#${r.id}`);
+    box.replaceChildren(
+      h('ul', { class: 'ew-stats' },
+        h('li', null, h('strong', null, String(d.views)), ' ', t('insights.views')),
+        h('li', null, h('strong', null, String(d.pages)), ' ', t('insights.pages')),
+        h('li', null, h('strong', null, String(d.new_pages)), ' ', t('insights.new_pages'))),
+      // views per day: bars with the numbers as text (also readable without the picture)
+      d.views_per_day.length ? h('figure', { class: 'ew-bars' },
+        h('figcaption', null, t('insights.per_day')),
+        h('ol', null, ...d.views_per_day.map((x) => h('li', null,
+          h('span', { class: 'ew-bars-label' }, fmtDay(x.day)),
+          h('span', { class: 'ew-bars-bar', style: `--w:${Math.round((x.views / max) * 100)}%`, 'aria-hidden': 'true' }),
+          h('span', { class: 'ew-bars-value' }, String(x.views)))))) : '',
+      table(t('insights.popular'), [t('common.title'), t('insights.views')], d.popular.map((r) => [link(r), String(r.views ?? 0)])),
+      table(t('insights.stale'), [t('common.title'), t('insights.updated')], d.stale.map((r) => [link(r), fmtDay(r.updated_at)])),
+      table(t('insights.contributors'), [t('common.name'), t('insights.versions')], d.contributors.map((x) => [x.name, String(x.versions)])));
+  };
+  period.addEventListener('change', () => void draw());
+  panel.append(h('p', null, t('insights.help')), field(t('insights.period'), period), box);
+  await draw();
+}
+
+const fmtDay = (iso: string) => new Date(iso.length === 10 ? `${iso}T12:00:00` : iso).toLocaleDateString(state.lang);

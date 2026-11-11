@@ -43,14 +43,19 @@ type Category struct {
 	// SpaceKey: key of a space (top level only, address /s/KEY)
 	SpaceKey string `json:"space_key,omitempty"`
 	// ArchivedAt: archived itself; Archived: it or a category above (read-only)
-	ArchivedAt   *time.Time `json:"archived_at,omitempty"`
-	Archived     bool       `json:"archived"`
-	CreatedAt    time.Time  `json:"created_at"`
-	UpdatedAt    time.Time  `json:"updated_at"`
-	DeletedAt    *time.Time `json:"deleted_at,omitempty"`
-	HasChildren  bool       `json:"has_children"`
-	ElementCount int        `json:"element_count"`
-	Permissions  []string   `json:"permissions"`
+	ArchivedAt *time.Time `json:"archived_at,omitempty"`
+	Archived   bool       `json:"archived"`
+	// Classification set here (nil = as above); EffectiveClassification is
+	// the strictest on it or above: 0 public, 1 internal, 2 confidential,
+	// 3 strictly confidential
+	Classification          *int       `json:"classification"`
+	EffectiveClassification int        `json:"effective_classification"`
+	CreatedAt               time.Time  `json:"created_at"`
+	UpdatedAt               time.Time  `json:"updated_at"`
+	DeletedAt               *time.Time `json:"deleted_at,omitempty"`
+	HasChildren             bool       `json:"has_children"`
+	ElementCount            int        `json:"element_count"`
+	Permissions             []string   `json:"permissions"`
 	// translations of title and description (see cattrans.go)
 	OriginalLang         string            `json:"original_lang"`
 	TextRev              int               `json:"text_rev"`
@@ -68,13 +73,14 @@ const catCols = `c.id, c.parent_id, c.path::text, c.position, c.slug, c.titles, 
 	(SELECT count(*) FROM elements e WHERE e.category_id=c.id AND e.deleted_at IS NULL),
 	c.original_lang, c.text_rev, c.translation_revs, c.short_only, c.hidden, c.template, COALESCE(c.space_key, ''), c.archived_at,
 	EXISTS (SELECT 1 FROM categories a WHERE a.path @> c.path AND a.archived_at IS NOT NULL),
+	c.classification, (SELECT COALESCE(max(a.classification), 0) FROM categories a WHERE a.path @> c.path),
 	COALESCE((SELECT t.template FROM categories t WHERE t.path @> c.path AND t.template <> '' ORDER BY nlevel(t.path) DESC LIMIT 1), '')`
 
 func scanCategory(r pgx.CollectableRow) (Category, error) {
 	var c Category
 	var path string
 	err := r.Scan(&c.ID, &c.ParentID, &path, &c.Position, &c.Slug, &c.Titles, &c.Descriptions, &c.Tags, &c.DefaultElementID, &c.Feed, &c.ShortURL,
-		&c.CreatedAt, &c.UpdatedAt, &c.DeletedAt, &c.HasChildren, &c.ElementCount, &c.OriginalLang, &c.TextRev, &c.TranslationRevs, &c.ShortOnly, &c.Hidden, &c.Template, &c.SpaceKey, &c.ArchivedAt, &c.Archived, &c.EffectiveTemplate)
+		&c.CreatedAt, &c.UpdatedAt, &c.DeletedAt, &c.HasChildren, &c.ElementCount, &c.OriginalLang, &c.TextRev, &c.TranslationRevs, &c.ShortOnly, &c.Hidden, &c.Template, &c.SpaceKey, &c.ArchivedAt, &c.Archived, &c.Classification, &c.EffectiveClassification, &c.EffectiveTemplate)
 	c.Path = parsePath(path)
 	return c, err
 }
@@ -315,6 +321,8 @@ type CategoryInput struct {
 	Feed   *string `json:"feed"`
 	// Template: id of an active template plugin ("" = inherited)
 	Template *string `json:"template"`
+	// Classification 0–3; -1 = as above (only a stricter one than above has an effect)
+	Classification *int `json:"classification"`
 	// GuestVisible applies to new top-level categories: true makes them
 	// visible to guests (default: only the creator has permissions).
 	GuestVisible *bool `json:"guest_visible"`
@@ -449,6 +457,10 @@ func nullID(ctx context.Context) *int64 {
 	return nil
 }
 
+func intPtrEqual(a, b *int) bool {
+	return (a == nil && b == nil) || (a != nil && b != nil && *a == *b)
+}
+
 // checkTemplate accepts "" (inherited) or an active template plugin.
 func (s *Service) checkTemplate(t *string) error {
 	if t == nil || *t == "" {
@@ -474,6 +486,9 @@ func (s *Service) UpdateCategory(ctx context.Context, id int64, in CategoryInput
 	}
 	if err := s.notArchived(ctx, id); err != nil {
 		return nil, err
+	}
+	if in.Classification != nil && (*in.Classification < -1 || *in.Classification > 3) {
+		return nil, apperr.BadRequest("classification: -1 (as above) or 0–3")
 	}
 	before, err := s.loadCategory(ctx, s.pool, id, false)
 	if err != nil {
@@ -544,6 +559,7 @@ func (s *Service) UpdateCategory(ctx context.Context, id int64, in CategoryInput
 			}
 		}
 	}
+	classChanged := false
 	err = db.Tx(ctx, s.pool, func(tx pgx.Tx) error {
 		if _, err := tx.Exec(ctx, `UPDATE categories SET titles=$2, descriptions=$3, tags=$4, slug=$5, position=$6, default_element_id=$7, feed=$8,
 			original_lang=$9, text_rev=$10, translation_revs=$11, updated_at=now()
@@ -562,6 +578,26 @@ func (s *Service) UpdateCategory(ctx context.Context, id int64, in CategoryInput
 		if in.Hidden != nil {
 			if _, err := tx.Exec(ctx, `UPDATE categories SET hidden=$2 WHERE id=$1`, id, *in.Hidden); err != nil {
 				return err
+			}
+		}
+		if in.Classification != nil {
+			var v *int
+			if *in.Classification >= 0 {
+				v = in.Classification
+			}
+			if !intPtrEqual(v, before.Classification) {
+				if _, err := tx.Exec(ctx, `UPDATE categories SET classification=$2 WHERE id=$1`, id, v); err != nil {
+					return err
+				}
+				if err := audit.Log(ctx, tx, "category.classification", "category", id, map[string]any{"classification": before.Classification}, map[string]any{"classification": v}); err != nil {
+					return err
+				}
+				classChanged = true
+				// external search indexes take the elements again (or drop them)
+				if _, err := tx.Exec(ctx, `INSERT INTO search_changes(element_id) SELECT e.id FROM elements e JOIN categories c ON c.id = e.category_id
+					WHERE c.path <@ (SELECT path FROM categories WHERE id=$1)`, id); err != nil {
+					return err
+				}
 			}
 		}
 		if in.Template != nil && *in.Template != before.Template {
@@ -585,6 +621,9 @@ func (s *Service) UpdateCategory(ctx context.Context, id int64, in CategoryInput
 		return nil, err
 	}
 	s.fire(ctx, "update", "category", id)
+	if classChanged {
+		s.aclChanged(ctx)
+	}
 	return s.GetCategory(ctx, id)
 }
 
@@ -649,6 +688,11 @@ func (s *Service) MoveCategory(ctx context.Context, id, newParent int64, positio
 			return err
 		}
 		if _, err := tx.Exec(ctx, `UPDATE categories SET parent_id=$2, position=$3, updated_at=now() WHERE id=$1`, id, parentPtr, pos); err != nil {
+			return err
+		}
+		// the classification may change with the new place: external indexes take the elements again
+		if _, err := tx.Exec(ctx, `INSERT INTO search_changes(element_id) SELECT e.id FROM elements e JOIN categories c ON c.id = e.category_id
+			WHERE c.path <@ (SELECT path FROM categories WHERE id=$1)`, id); err != nil {
 			return err
 		}
 		// a space that becomes a subcategory gives up its key (/s/KEY, free for
@@ -722,6 +766,9 @@ func (s *Service) DuplicateCategory(ctx context.Context, id, targetParent int64)
 func (s *Service) duplicateCategory(ctx context.Context, id, targetParent int64, withElements bool) (*Category, error) {
 	if err := s.require(ctx, id, acl.View); err != nil {
 		return nil, err
+	}
+	if s.acl.Classification(ctx, id) >= acl.StrictConfidential {
+		return nil, apperr.Forbidden("strictly confidential content is not copied")
 	}
 	if targetParent == 0 {
 		if err := perm.Require(ctx, "core.categories.admin"); err != nil {

@@ -73,6 +73,9 @@ func (s *Service) ExportTree(ctx context.Context, id int64, w io.Writer) error {
 	if err := s.require(ctx, id, acl.Manage); err != nil {
 		return err
 	}
+	if s.acl.Classification(ctx, id) >= acl.StrictConfidential {
+		return apperr.Forbidden("strictly confidential content is not exported")
+	}
 	src, err := s.loadCategory(ctx, s.pool, id, false)
 	if err != nil {
 		return err

@@ -128,6 +128,8 @@ func (p *Plugin) docs(ctx context.Context, ids []int64, after int64, limit int) 
 	rows, err := p.host.DB.Query(ctx, `SELECT d.element_id, d.category_id, d.lang, d.title, left(d.body_text, $4), e.tags
 		FROM search_docs d JOIN elements e ON e.id=d.element_id
 		WHERE e.deleted_at IS NULL AND ($1::bigint[] IS NULL OR d.element_id = ANY($1)) AND d.element_id > $2
+			-- strictly confidential content is not copied into an external index
+			AND NOT EXISTS (SELECT 1 FROM categories cc JOIN categories cx ON cx.id = d.category_id WHERE cc.classification >= 3 AND cx.path <@ cc.path)
 		ORDER BY d.element_id, d.lang LIMIT $3`, ids, after, limit, MaxText)
 	if err != nil {
 		return nil, err

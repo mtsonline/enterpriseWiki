@@ -74,6 +74,7 @@ type snapshot struct {
 	ancestors map[int64][]int64 // category id -> path ids (root..self)
 	deleted   map[int64]bool
 	archived  map[int64]bool // archived categories: read-only below them
+	class     map[int64]int  // classification set on a category (strictest above applies)
 	rules     map[int64][]Rule
 }
 
@@ -106,8 +107,8 @@ func (s *Service) load(ctx context.Context) (*snapshot, error) {
 	if sn := s.snap.Load(); sn != nil {
 		return sn, nil
 	}
-	sn := &snapshot{ancestors: map[int64][]int64{}, deleted: map[int64]bool{}, archived: map[int64]bool{}, rules: map[int64][]Rule{}}
-	rows, err := s.pool.Query(ctx, `SELECT id, path::text, deleted_at IS NOT NULL, archived_at IS NOT NULL FROM categories`)
+	sn := &snapshot{ancestors: map[int64][]int64{}, deleted: map[int64]bool{}, archived: map[int64]bool{}, class: map[int64]int{}, rules: map[int64][]Rule{}}
+	rows, err := s.pool.Query(ctx, `SELECT id, path::text, deleted_at IS NOT NULL, archived_at IS NOT NULL, COALESCE(classification, 0) FROM categories`)
 	if err != nil {
 		return nil, err
 	}
@@ -115,7 +116,8 @@ func (s *Service) load(ctx context.Context) (*snapshot, error) {
 		var id int64
 		var path string
 		var del, arch bool
-		if err := rows.Scan(&id, &path, &del, &arch); err != nil {
+		var class int
+		if err := rows.Scan(&id, &path, &del, &arch, &class); err != nil {
 			rows.Close()
 			return nil, err
 		}
@@ -131,6 +133,9 @@ func (s *Service) load(ctx context.Context) (*snapshot, error) {
 		}
 		if arch {
 			sn.archived[id] = true
+		}
+		if class > 0 {
+			sn.class[id] = class
 		}
 	}
 	rows.Close()
@@ -154,6 +159,34 @@ func (s *Service) load(ctx context.Context) (*snapshot, error) {
 	}
 	s.snap.Store(sn)
 	return sn, nil
+}
+
+// Classification levels of categories.
+const (
+	Public             = 0
+	Internal           = 1 // signed-in people only (no guests)
+	Confidential       = 2 // also not in feeds and link previews; marked on every page
+	StrictConfidential = 3 // also not in the general search, no export and copies
+)
+
+func (sn *snapshot) level(anc []int64) int {
+	l := 0
+	for _, cid := range anc {
+		if sn.class[cid] > l {
+			l = sn.class[cid]
+		}
+	}
+	return l
+}
+
+// Classification returns the classification that applies to a category
+// (the strictest set on it or above).
+func (s *Service) Classification(ctx context.Context, categoryID int64) int {
+	sn, err := s.load(ctx)
+	if err != nil {
+		return StrictConfidential // fail closed
+	}
+	return sn.level(sn.ancestors[categoryID])
 }
 
 func (sn *snapshot) isArchived(anc []int64) bool {
@@ -292,6 +325,10 @@ func (s *Service) perms(sn *snapshot, p *identity.Principal, categoryID int64) P
 		if perm.HasP(p, "core.categories.admin") {
 			out |= Manage
 		}
+	}
+	// internal and above: never for guests (whatever the rules say)
+	if (p == nil || p.UserID <= 0) && sn.level(anc) >= Internal {
+		return None
 	}
 	// archived (also for administrators): read and manage (to restore) only
 	if sn.isArchived(anc) {

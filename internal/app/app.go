@@ -272,6 +272,7 @@ func newSite(ctx context.Context, in *Instance, site string, migrate bool) (*App
 	a.AuditForward = &audit.Forwarder{Pool: pool, Cfg: cfg, DataDir: filepath.Dir(cfg.Path()), Site: func() string { return cfg.Get().UI.SiteName }}
 	a.Workers.Register(worker.Job{Name: "audit.forward", Interval: 15 * time.Second, Active: func() bool { return len(cfg.Get().Audit.Forward) > 0 }, Run: a.AuditForward.Run})
 	a.Notify = notify.New(pool, cfg, a.Mail)
+	a.Workers.Register(worker.Job{Name: "views.flush", Interval: time.Minute, Run: a.Content.FlushViews})
 	a.Workers.Register(worker.Job{Name: "notifications.cleanup", Interval: 24 * time.Hour, Run: func(ctx context.Context) error { return a.Notify.Cleanup(ctx, 90) }})
 	// scheduled publication of drafts (with the permissions of who scheduled it)
 	a.Workers.Register(worker.Job{Name: "drafts.publish", Interval: time.Minute, Run: func(ctx context.Context) error {

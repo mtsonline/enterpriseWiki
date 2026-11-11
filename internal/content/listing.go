@@ -86,6 +86,8 @@ type ListOptions struct {
 	Exclude     int64 // e.g. the blog element itself
 	// Sources replaces Categories: elements of several sources (ResolveSources)
 	Sources *SourceSet
+	// NoConfidential leaves out confidential content (for feeds that leave the wiki)
+	NoConfidential bool
 	// SkipListings leaves out elements whose type lists other elements
 	// (blog, FAQ, overviews …) unless their type or id is a source itself
 	SkipListings bool
@@ -114,6 +116,9 @@ func (s *Service) ListIn(ctx context.Context, o ListOptions) ([]ListedElement, i
 	where, wargs := "e.category_id = ANY($1)", []any{o.Categories}
 	if o.Sources != nil {
 		where, wargs = sourceCond(o.Sources, 1)
+	}
+	if o.NoConfidential {
+		where += " AND NOT EXISTS (SELECT 1 FROM categories cc JOIN categories cx ON cx.id = e.category_id WHERE cc.classification >= 2 AND cx.path <@ cc.path)"
 	}
 	if o.SkipListings {
 		types, ids := []string{}, []int64{}

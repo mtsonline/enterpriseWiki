@@ -1,6 +1,7 @@
 package server_test
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -700,5 +701,128 @@ func TestPersonalSpaces(t *testing.T) {
 	}
 	if len(dir) != 2 || !members[a.ID] || members[pub.ID] {
 		t.Fatalf("directory of lena: %+v", dir)
+	}
+}
+
+// TestClassification: internal hides from guests, confidential keeps
+// content out of feeds, strictly confidential out of search and exports.
+func TestClassification(t *testing.T) {
+	e := setup(t)
+	admin := e.client()
+	admin.login("admin", adminPW)
+	guest := e.client()
+	var top, sub cat
+	admin.must("POST", "/api/v1/categories", map[string]any{"titles": map[string]string{"en": "Legal"}}, &top, 201)
+	admin.must("POST", fmt.Sprintf("/api/v1/categories/%d/acl", top.ID), map[string]any{"subject_type": "guest", "permissions": 1, "inherit": true}, nil, 201)
+	admin.must("POST", "/api/v1/categories", map[string]any{"parent_id": top.ID, "titles": map[string]string{"en": "Contracts"}, "feed": "recursive"}, &sub, 201)
+	admin.must("PUT", fmt.Sprintf("/api/v1/categories/%d", sub.ID), map[string]any{"feed": "recursive"}, nil, 200)
+	var page elem
+	admin.must("POST", "/api/v1/elements", map[string]any{"category_id": sub.ID, "type": "core.html", "title": "Contract with platypus", "body": htmlBody("<p>platypus terms</p>")}, &page, 201)
+	guest.must("GET", fmt.Sprintf("/api/v1/elements/%d", page.ID), nil, nil, 200)
+	if code := admin.do("PUT", fmt.Sprintf("/api/v1/categories/%d", top.ID), map[string]any{"classification": 7}, nil); code != 400 {
+		t.Fatalf("invalid level: %d", code)
+	}
+	// internal on the space: guests are out despite the guest rule
+	var c struct {
+		Classification          *int `json:"classification"`
+		EffectiveClassification int  `json:"effective_classification"`
+	}
+	admin.must("PUT", fmt.Sprintf("/api/v1/categories/%d", top.ID), map[string]any{"classification": 1}, &c, 200)
+	if c.Classification == nil || *c.Classification != 1 || c.EffectiveClassification != 1 {
+		t.Fatalf("classification: %+v", c)
+	}
+	if code := guest.do("GET", fmt.Sprintf("/api/v1/elements/%d", page.ID), nil, nil); code != 404 && code != 401 {
+		t.Fatalf("guest reads internal content: %d", code)
+	}
+	// a lower level below has no effect (the strictest above applies)
+	admin.must("PUT", fmt.Sprintf("/api/v1/categories/%d", sub.ID), map[string]any{"classification": 0}, &c, 200)
+	if c.EffectiveClassification != 1 {
+		t.Fatalf("lowered below: %+v", c)
+	}
+	// confidential: not in feeds
+	_, body := admin.raw(fmt.Sprintf("/api/v1/feeds/categories/%d", sub.ID), nil)
+	if !strings.Contains(body, "platypus") {
+		t.Fatalf("feed before: %s", body)
+	}
+	admin.must("PUT", fmt.Sprintf("/api/v1/categories/%d", sub.ID), map[string]any{"classification": 2}, nil, 200)
+	_, body = admin.raw(fmt.Sprintf("/api/v1/feeds/categories/%d", sub.ID), nil)
+	if strings.Contains(body, "platypus") {
+		t.Fatalf("confidential content in a feed: %s", body)
+	}
+	var hits struct {
+		Elements []struct {
+			ID int64 `json:"element_id"`
+		} `json:"elements"`
+	}
+	admin.must("GET", "/api/v1/search?q=platypus", nil, &hits, 200)
+	if len(hits.Elements) != 1 {
+		t.Fatalf("confidential not found: %+v", hits)
+	}
+	// strictly confidential: not in the general search, no export or copy
+	admin.must("PUT", fmt.Sprintf("/api/v1/categories/%d", sub.ID), map[string]any{"classification": 3}, nil, 200)
+	admin.must("GET", "/api/v1/search?q=platypus", nil, &hits, 200)
+	if len(hits.Elements) != 0 {
+		t.Fatalf("strictly confidential in the search: %+v", hits)
+	}
+	if code, _ := admin.rawBody("GET", fmt.Sprintf("/api/v1/categories/%d/export", sub.ID), ""); code != 403 {
+		t.Fatalf("export: %d", code)
+	}
+	if code := admin.do("POST", fmt.Sprintf("/api/v1/categories/%d/duplicate", sub.ID), map[string]any{"parent_id": top.ID}, nil); code != 403 {
+		t.Fatalf("copy: %d", code)
+	}
+	admin.must("GET", fmt.Sprintf("/api/v1/elements/%d", page.ID), nil, nil, 200) // still readable for the authorized
+	admin.must("PUT", fmt.Sprintf("/api/v1/categories/%d", sub.ID), map[string]any{"classification": -1}, &c, 200)
+	if c.Classification != nil || c.EffectiveClassification != 1 {
+		t.Fatalf("back to as above: %+v", c)
+	}
+}
+
+// TestInsights: views per page and day, popular and outdated pages, contributors.
+func TestInsights(t *testing.T) {
+	e := setup(t)
+	admin := e.client()
+	admin.login("admin", adminPW)
+	guest := e.client()
+	var top cat
+	admin.must("POST", "/api/v1/categories", map[string]any{"titles": map[string]string{"en": "Wiki help"}}, &top, 201)
+	admin.must("POST", fmt.Sprintf("/api/v1/categories/%d/acl", top.ID), map[string]any{"subject_type": "guest", "permissions": 1, "inherit": true}, nil, 201)
+	var a, b, hidden elem
+	admin.must("POST", "/api/v1/elements", map[string]any{"category_id": top.ID, "type": "core.html", "title": "Popular", "body": htmlBody("<p>x</p>")}, &a, 201)
+	admin.must("POST", "/api/v1/elements", map[string]any{"category_id": top.ID, "type": "core.html", "title": "Quiet", "body": htmlBody("<p>x</p>")}, &b, 201)
+	var secret cat
+	admin.must("POST", "/api/v1/categories", map[string]any{"titles": map[string]string{"en": "Secret"}}, &secret, 201)
+	admin.must("POST", "/api/v1/elements", map[string]any{"category_id": secret.ID, "type": "core.html", "title": "Hidden", "body": htmlBody("<p>x</p>")}, &hidden, 201)
+	for i := 0; i < 3; i++ {
+		guest.must("POST", fmt.Sprintf("/api/v1/elements/%d/view", a.ID), nil, nil, 204)
+	}
+	guest.must("POST", fmt.Sprintf("/api/v1/elements/%d/view", b.ID), nil, nil, 204)
+	if code := guest.do("POST", fmt.Sprintf("/api/v1/elements/%d/view", hidden.ID), nil, nil); code < 400 {
+		t.Fatalf("view of a hidden page counted: %d", code)
+	}
+	if err := e.app.Content.FlushViews(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	if code := guest.do("GET", fmt.Sprintf("/api/v1/categories/%d/insights", top.ID), nil, nil); code != 401 && code != 403 {
+		t.Fatalf("reader got insights: %d", code)
+	}
+	var in struct {
+		Pages       int                   `json:"pages"`
+		NewPages    int                   `json:"new_pages"`
+		Views       int                   `json:"views"`
+		ViewsPerDay []struct{ Views int } `json:"views_per_day"`
+		Popular     []struct {
+			ID    int64  `json:"id"`
+			Title string `json:"title"`
+			Views int    `json:"views"`
+		} `json:"popular"`
+		Contributors []struct {
+			Name     string `json:"name"`
+			Versions int    `json:"versions"`
+		} `json:"contributors"`
+	}
+	admin.must("GET", fmt.Sprintf("/api/v1/categories/%d/insights?days=30&lang=en", top.ID), nil, &in, 200)
+	if in.Pages != 2 || in.NewPages != 2 || in.Views != 4 || len(in.ViewsPerDay) != 1 || len(in.Popular) != 2 || in.Popular[0].Title != "Popular" || in.Popular[0].Views != 3 ||
+		len(in.Contributors) != 1 || in.Contributors[0].Versions != 2 {
+		t.Fatalf("insights: %+v", in)
 	}
 }
