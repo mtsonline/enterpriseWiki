@@ -30,8 +30,14 @@ type Form struct {
 	// Retention: submissions older than this are deleted (0 = kept).
 	RetentionDays int `json:"retention_days"`
 	// Copy: signed-in persons get a copy to their confirmed address.
-	Copy    bool    `json:"copy_to_submitter"`
-	Targets Targets `json:"targets"`
+	Copy bool `json:"copy_to_submitter"`
+	// ProofOfWork: the browser solves a small puzzle before submitting (bots
+	// without a browser are slowed down; no CAPTCHA, no third party).
+	ProofOfWork bool `json:"proof_of_work"`
+	// PublicResults: everyone who sees the form sees the counts of its
+	// choice fields (macro "form-results"); never the single submissions.
+	PublicResults bool    `json:"public_results"`
+	Targets       Targets `json:"targets"`
 }
 
 // Field is one field of a form.
@@ -55,6 +61,11 @@ type Field struct {
 	Rows         int      `json:"rows,omitempty"`
 	Autocomplete string   `json:"autocomplete,omitempty"`
 	ShowIf       *Cond    `json:"show_if,omitempty"`
+	Fields       []Field  `json:"fields,omitempty"`   // repeated group: the fields of a row
+	MinRows      int      `json:"min_rows,omitempty"` // repeated group
+	MaxRows      int      `json:"max_rows,omitempty"` // repeated group
+	Formula      string   `json:"formula,omitempty"`  // computed fields
+	Decimals     int      `json:"decimals,omitempty"` // computed fields: digits after the point
 	// grid layout: columns of 12; free layout: position and size in pixels
 	Width int `json:"width,omitempty"`
 	X     int `json:"x,omitempty"`
@@ -91,6 +102,14 @@ type Targets struct {
 	Webhook  *WebhookTarget  `json:"webhook,omitempty"`
 	PropDB   *PropDBTarget   `json:"propdb,omitempty"`
 	Workflow *WorkflowTarget `json:"workflow,omitempty"`
+	Files    *FilesTarget    `json:"files,omitempty"`
+}
+
+// FilesTarget stores each submission as a file in the media library.
+type FilesTarget struct {
+	Category int64    `json:"category_id"`
+	Formats  []string `json:"formats"` // pdf, json, csv, txt
+	Name     string   `json:"name"`    // file name without extension (placeholders)
 }
 
 // EmailTarget sends each submission by e-mail.
@@ -124,8 +143,11 @@ type WorkflowTarget struct {
 
 // Field types.
 var (
-	InputTypes  = []string{"text", "textarea", "email", "tel", "url", "number", "date", "time", "datetime", "select", "multiselect", "radio", "checkbox", "checkboxes", "rating", "range", "file", "hidden", "consent"}
-	StaticTypes = []string{"heading", "paragraph", "divider"}
+	InputTypes = []string{"text", "textarea", "email", "tel", "url", "number", "date", "time", "datetime", "select", "multiselect", "radio", "checkbox", "checkboxes", "rating", "range", "file", "hidden", "consent", "calc", "signature", "repeat"}
+	// RowTypes are the field types inside a repeated group.
+	RowTypes    = []string{"text", "textarea", "email", "tel", "url", "number", "date", "time", "select", "checkbox"}
+	StaticTypes = []string{"heading", "paragraph", "divider", "page"}
+	FileFormats = []string{"pdf", "json", "csv", "txt"}
 	CondOps     = []string{"eq", "ne", "empty", "notempty", "contains"}
 	FileKinds   = map[string][]string{
 		"image":   {".png", ".jpg", ".jpeg", ".gif", ".webp"},
@@ -212,6 +234,24 @@ func (f *Form) Validate() error {
 		}
 		seen[x.ID] = true
 	}
+	// formulas use input fields above them
+	for i, x := range f.Fields {
+		if x.Type != "calc" {
+			continue
+		}
+		_, refs, _ := parseFormula(x.Formula)
+		for _, r := range refs {
+			ok := false
+			for _, y := range f.Fields[:i] {
+				if y.ID == r && y.Input() && y.Type != "file" && y.Type != "signature" && y.Type != "repeat" {
+					ok = true
+				}
+			}
+			if !ok {
+				return apperr.BadRequest("field %q: the formula uses %q, which is no field above it", x.ID, r)
+			}
+		}
+	}
 	// conditions refer to earlier input fields
 	for i, x := range f.Fields {
 		if x.ShowIf == nil {
@@ -242,7 +282,7 @@ func (x *Field) validate() error {
 	x.Placeholder = clean(x.Placeholder, 200)
 	x.Default = clean(x.Default, MaxText)
 	x.PatternHelp = clean(x.PatternHelp, 300)
-	if x.Label == "" && x.Type != "divider" && x.Type != "hidden" {
+	if x.Label == "" && x.Type != "divider" && x.Type != "hidden" && x.Type != "page" {
 		return fmt.Errorf("a label is needed (screen readers)")
 	}
 	if x.Prefill != "" && !slices.Contains([]string{"user.name", "user.email", "user.username"}, x.Prefill) && !strings.HasPrefix(x.Prefill, "param:") {
@@ -304,7 +344,11 @@ func (x *Field) validate() error {
 	}
 	x.X, x.Y = min(max(x.X, 0), 4000), min(max(x.Y, 0), 5000)
 	x.W, x.H = min(max(x.W, 0), 4000), min(max(x.H, 0), 2000)
-	if x.Type == "file" {
+	if x.Type == "signature" {
+		// a drawn signature is one PNG; a typed name is a text value
+		x.Accept, x.MaxFiles, x.MaxSizeMB, x.MediaCategory = []string{".png"}, 1, 1, 0
+		x.AllowMacros, x.AllowActive = false, false
+	} else if x.Type == "file" {
 		x.MaxFiles = min(max(x.MaxFiles, 1), MaxFilesField)
 		if x.MaxSizeMB <= 0 || x.MaxSizeMB > MaxFileMB {
 			x.MaxSizeMB = 10
@@ -324,6 +368,42 @@ func (x *Field) validate() error {
 		}
 	} else {
 		x.Accept, x.MaxFiles, x.MaxSizeMB, x.MediaCategory = nil, 0, 0, 0
+	}
+	if x.Type == "repeat" {
+		if len(x.Fields) == 0 || len(x.Fields) > 30 {
+			return fmt.Errorf("a repeated group has 1 to 30 fields")
+		}
+		ids := map[string]bool{}
+		for i := range x.Fields {
+			y := &x.Fields[i]
+			if !slices.Contains(RowTypes, y.Type) {
+				return fmt.Errorf("%q cannot be used in a repeated group", y.Type)
+			}
+			y.ShowIf = nil
+			if err := y.validate(); err != nil {
+				return fmt.Errorf("%s: %v", y.Label, err)
+			}
+			if ids[y.ID] {
+				return fmt.Errorf("field id %q is used twice in the group", y.ID)
+			}
+			ids[y.ID] = true
+		}
+		if x.MaxRows <= 0 {
+			x.MaxRows = 20
+		}
+		x.MaxRows = min(x.MaxRows, 100)
+		x.MinRows = min(max(x.MinRows, 0), x.MaxRows)
+	} else {
+		x.Fields, x.MinRows, x.MaxRows = nil, 0, 0
+	}
+	if x.Type == "calc" {
+		if _, _, err := parseFormula(x.Formula); err != nil {
+			return fmt.Errorf("formula: %v", err)
+		}
+		x.Decimals = min(max(x.Decimals, 0), 6)
+		x.Required = false
+	} else {
+		x.Formula, x.Decimals = "", 0
 	}
 	if x.ShowIf != nil {
 		if !slices.Contains(CondOps, x.ShowIf.Op) {
@@ -382,6 +462,23 @@ func (t *Targets) validate(f *Form) error {
 					return apperr.BadRequest("property database: invalid mapping %s → %s", k, v)
 				}
 			}
+		}
+	}
+	if ft := t.Files; ft != nil {
+		if ft.Category <= 0 {
+			t.Files = nil
+		} else {
+			ft.Name = clean(ft.Name, 200)
+			if len(ft.Formats) == 0 {
+				ft.Formats = []string{"pdf"}
+			}
+			for _, x := range ft.Formats {
+				if !slices.Contains(FileFormats, x) {
+					return apperr.BadRequest("files: unknown format %q", x)
+				}
+			}
+			slices.Sort(ft.Formats)
+			ft.Formats = slices.Compact(ft.Formats)
 		}
 	}
 	if w := t.Workflow; w != nil {

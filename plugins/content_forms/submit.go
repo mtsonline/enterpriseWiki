@@ -101,6 +101,23 @@ func (p *Plugin) checkToken(ctx context.Context, el, uid int64, tok string) erro
 	return nil
 }
 
+// PowBits is the difficulty of the proof of work: SHA-256(token ":" nonce)
+// starts with this many zero bits (about 65 000 tries in the browser).
+var PowBits = 16
+
+func powValid(token, nonce string, bits int) bool {
+	if len(nonce) == 0 || len(nonce) > 20 {
+		return false
+	}
+	sum := sha256.Sum256([]byte(token + ":" + nonce))
+	for i := 0; i < bits; i++ {
+		if sum[i/8]&(0x80>>(i%8)) != 0 {
+			return false
+		}
+	}
+	return true
+}
+
 // ---------------------------------------------------------------- limits
 
 // limiter counts submissions per key in a sliding hour.
@@ -238,7 +255,11 @@ func (p *Plugin) start(w http.ResponseWriter, r *http.Request) (any, error) {
 			}
 		}
 	}
-	return map[string]any{"token": tok, "state": state, "prefill": prefill, "signed_in": me.ID() > 0}, nil
+	out := map[string]any{"token": tok, "state": state, "prefill": prefill, "signed_in": me.ID() > 0}
+	if f.ProofOfWork {
+		out["pow_bits"] = PowBits
+	}
+	return out, nil
 }
 
 // ---------------------------------------------------------------- submit
@@ -247,6 +268,7 @@ type submitInput struct {
 	Values  map[string]json.RawMessage `json:"values"`
 	Token   string                     `json:"token"`
 	Website string                     `json:"website"` // hidden field: filled only by bots
+	Nonce   string                     `json:"nonce"`   // proof of work
 	Lang    string                     `json:"lang"`
 }
 
@@ -278,7 +300,7 @@ func (p *Plugin) submit(w http.ResponseWriter, r *http.Request) (any, error) {
 	}
 	var limit int64 = 1 << 20
 	for _, x := range f.Fields {
-		if x.Type == "file" {
+		if x.Type == "file" || x.Type == "signature" {
 			limit += int64(x.MaxFiles) * int64(x.MaxSizeMB) << 20
 		}
 	}
@@ -300,6 +322,9 @@ func (p *Plugin) submit(w http.ResponseWriter, r *http.Request) (any, error) {
 	}
 	if err := p.checkToken(ctx, id, me.ID(), in.Token); err != nil {
 		return nil, err
+	}
+	if f.ProofOfWork && !powValid(in.Token, in.Nonce, PowBits) {
+		return nil, apperr.BadRequest("the form could not be verified: please reload the page")
 	}
 	if in.Website != "" {
 		// a bot filled the hidden field: answered like a success, nothing is stored
@@ -441,7 +466,7 @@ func (p *Plugin) readMultipart(r *http.Request, f *Form, dir string, in *submitI
 			comments[strings.TrimPrefix(name, "comment.")] = clean(string(b), 1000)
 		case strings.HasPrefix(name, "file."):
 			x := f.Field(strings.TrimPrefix(name, "file."))
-			if x == nil || x.Type != "file" {
+			if x == nil || x.Type != "file" && x.Type != "signature" {
 				return nil, apperr.BadRequest("unknown file field")
 			}
 			if n++; n > MaxFields*MaxFilesField {

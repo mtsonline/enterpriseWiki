@@ -7,9 +7,13 @@ import (
 	"context"
 	"encoding/binary"
 	"errors"
+	"fmt"
+	"image"
+	_ "image/png" // signatures
 	"io"
 	"net"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"slices"
@@ -103,6 +107,16 @@ func (p *Plugin) checkFile(ctx context.Context, x *Field, name, path string) err
 	st, err := f.Stat()
 	if err != nil {
 		return err
+	}
+	if x.Type == "signature" {
+		if _, err := f.Seek(0, io.SeekStart); err != nil {
+			return err
+		}
+		cfg, format, err := image.DecodeConfig(f)
+		if err != nil || format != "png" || cfg.Width > 4000 || cfg.Height > 2000 {
+			return &ErrRejected{"file_content", name}
+		}
+		return nil
 	}
 	switch kind {
 	case "zip":
@@ -224,9 +238,24 @@ func (p *Plugin) clamd() string {
 	return strings.TrimSpace(addr)
 }
 
+// icap returns the address of an ICAP virus scanner ("" = none).
+func (p *Plugin) icap() string {
+	if p.host == nil {
+		return ""
+	}
+	addr, _ := p.host.Settings()["icap"].(string)
+	return strings.TrimSpace(addr)
+}
+
 // virusScan sends the file to clamd (setting "clamd": "tcp://host:3310" or
-// "unix:/path/clamd.sock"); without the setting nothing is scanned.
+// "unix:/path/clamd.sock") and/or an ICAP server (setting "icap":
+// "icap://host:1344/service"); without a setting nothing is scanned.
 func (p *Plugin) virusScan(ctx context.Context, f *os.File, name string) error {
+	if u := p.icap(); u != "" {
+		if err := p.icapScan(ctx, f, name, u); err != nil {
+			return err
+		}
+	}
 	addr := p.clamd()
 	if addr == "" {
 		return nil
@@ -279,5 +308,77 @@ func (p *Plugin) virusScan(ctx context.Context, f *os.File, name string) error {
 		return &ErrRejected{"virus", name}
 	}
 	p.host.Log.Error("virus scanner error", "result", res)
+	return &ErrRejected{"scan_unavailable", name}
+}
+
+// icapScan sends the file to an ICAP server (RFC 3507, RESPMOD with
+// "Allow: 204"): 204 means clean; an answer that changes the file or
+// reports an infection refuses it; anything else is "not checked".
+func (p *Plugin) icapScan(ctx context.Context, f *os.File, name, addr string) error {
+	u, err := url.Parse(addr)
+	if err != nil || u.Scheme != "icap" || u.Host == "" {
+		p.host.Log.Error("invalid ICAP address", "address", addr)
+		return &ErrRejected{"scan_unavailable", name}
+	}
+	host := u.Host
+	if u.Port() == "" {
+		host = net.JoinHostPort(u.Hostname(), "1344")
+	}
+	st, err := f.Stat()
+	if err != nil {
+		return err
+	}
+	if _, err := f.Seek(0, io.SeekStart); err != nil {
+		return err
+	}
+	d := net.Dialer{Timeout: 5 * time.Second}
+	conn, err := d.DialContext(ctx, "tcp", host)
+	if err != nil {
+		p.host.Log.Error("ICAP scanner not reachable", "err", err)
+		return &ErrRejected{"scan_unavailable", name}
+	}
+	defer func() { _ = conn.Close() }()
+	_ = conn.SetDeadline(time.Now().Add(2 * time.Minute))
+	resHdr := fmt.Sprintf("HTTP/1.1 200 OK\r\nContent-Type: application/octet-stream\r\nContent-Length: %d\r\n\r\n", st.Size())
+	w := bufio.NewWriter(conn)
+	fmt.Fprintf(w, "RESPMOD %s ICAP/1.0\r\nHost: %s\r\nUser-Agent: enterprise-wiki\r\nAllow: 204\r\nEncapsulated: res-hdr=0, res-body=%d\r\n\r\n%s",
+		u.String(), u.Hostname(), len(resHdr), resHdr)
+	buf := make([]byte, 32<<10)
+	for {
+		n, rerr := f.Read(buf)
+		if n > 0 {
+			fmt.Fprintf(w, "%x\r\n", n)
+			_, _ = w.Write(buf[:n])
+			_, _ = w.WriteString("\r\n")
+		}
+		if errors.Is(rerr, io.EOF) {
+			break
+		}
+		if rerr != nil {
+			return rerr
+		}
+	}
+	_, _ = w.WriteString("0\r\n\r\n")
+	if err := w.Flush(); err != nil {
+		return &ErrRejected{"scan_unavailable", name}
+	}
+	r := bufio.NewReader(io.LimitReader(conn, 1<<20))
+	status, err := r.ReadString('\n')
+	if err != nil {
+		return &ErrRejected{"scan_unavailable", name}
+	}
+	head := strings.Fields(status)
+	if len(head) < 2 || !strings.HasPrefix(head[0], "ICAP/") {
+		return &ErrRejected{"scan_unavailable", name}
+	}
+	switch head[1] {
+	case "204":
+		return nil
+	case "200":
+		// the server changed the file or reports an infection: refused
+		p.host.Log.Warn("ICAP scanner refused a form upload", "file", name)
+		return &ErrRejected{"virus", name}
+	}
+	p.host.Log.Error("ICAP scanner error", "status", strings.TrimSpace(status))
 	return &ErrRejected{"scan_unavailable", name}
 }

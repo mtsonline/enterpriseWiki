@@ -10,6 +10,7 @@ export interface FField {
   id: string; type: string; label: string; help?: string; required?: boolean; placeholder?: string; default?: string; prefill?: string;
   options?: Option[]; min?: number | null; max?: number | null; step?: number; min_length?: number; max_length?: number; pattern?: string; pattern_help?: string;
   rows?: number; autocomplete?: string; show_if?: Cond | null; width?: number; x?: number; y?: number; w?: number; h?: number;
+  formula?: string; decimals?: number; fields?: FField[]; min_rows?: number; max_rows?: number;
   accept?: string[]; max_files?: number; max_size_mb?: number; file_comment?: boolean; allow_macros?: boolean; allow_active?: boolean; media_category?: number;
 }
 interface EmailTarget { to: string; subject: string; body: string; files?: boolean }
@@ -17,18 +18,19 @@ interface Targets {
   store: boolean; email?: EmailTarget[]; webhook?: { url: string; secret?: string } | null;
   propdb?: { element_id: number; title: string; mapping: Record<string, string> } | null;
   workflow?: { element_id: number; mapping: Record<string, string>; files?: boolean } | null;
+  files?: { category_id: number; formats: string[]; name: string } | null;
 }
 export interface FormBody {
   intro: string; fields: FField[]; layout: 'grid' | 'free'; height?: number; submit_label?: string; success_message?: string;
   once_per_user?: boolean; signed_in?: boolean; opens_at?: string | null; closes_at?: string | null; max_submissions?: number;
-  retention_days?: number; copy_to_submitter?: boolean; targets: Targets;
+  retention_days?: number; copy_to_submitter?: boolean; proof_of_work?: boolean; public_results?: boolean; targets: Targets;
 }
 interface Meta { input_types: string[]; static_types: string[]; cond_ops: string[]; file_kinds: Record<string, string[]>; autocomplete: string[]; http_allow: boolean; virus_scan: boolean }
 
 const TYPES = ['text', 'textarea', 'email', 'tel', 'url', 'number', 'date', 'time', 'datetime', 'select', 'multiselect', 'radio', 'checkbox', 'checkboxes',
-  'rating', 'range', 'file', 'consent', 'hidden', 'heading', 'paragraph', 'divider'];
+  'rating', 'range', 'calc', 'repeat', 'file', 'signature', 'consent', 'hidden', 'heading', 'paragraph', 'divider', 'page'];
 const CHOICE = ['select', 'multiselect', 'radio', 'checkboxes'];
-const STATIC = ['heading', 'paragraph', 'divider'];
+const STATIC = ['heading', 'paragraph', 'divider', 'page'];
 const DRAG = 'application/x-ewiki-form-field';
 
 const typeLabel = (x: string) => t(`forms.type.${x}`);
@@ -90,6 +92,8 @@ export function createFormEditor(container: HTMLElement, raw: unknown, _ctx: Edi
     if (CHOICE.includes(type)) f.options = [{ value: 'a', label: 'A' }, { value: 'b', label: 'B' }];
     if (type === 'file') { f.accept = ['pdf', 'image']; f.max_files = 1; f.max_size_mb = 10; }
     if (type === 'consent') f.required = true;
+    if (type === 'repeat') { f.fields = [{ id: 'name', type: 'text', label: typeLabel('text') }]; f.min_rows = 1; f.max_rows = 20; }
+    if (type === 'calc') { const nums = body.fields.filter((x) => ['number', 'range', 'rating'].includes(x.type)).map((x) => x.id); f.formula = nums.join(' + ') || '0'; }
     if (body.layout === 'free') { f.x = 16; f.y = 16 + 72 * body.fields.length; f.w = 320; f.h = 64; }
     body.fields.splice(at, 0, f);
     open.add(f.id);
@@ -163,6 +167,19 @@ export function createFormEditor(container: HTMLElement, raw: unknown, _ctx: Edi
     txt(t('forms.ed.id'), 'id');
     if (STATIC.includes(f.type)) return box;
     txt(t('forms.ed.help'), 'help');
+    if (f.type === 'calc') {
+      const above = body.fields.slice(0, i).filter((x) => !STATIC.includes(x.type) && !['file', 'signature'].includes(x.type)).map((x) => x.id);
+      txt(t('forms.ed.formula'), 'formula', { help: t('forms.ed.formula_help', { ids: above.join(', ') || '—' }) });
+      txt(t('forms.ed.decimals'), 'decimals', { type: 'number' });
+      return box;
+    }
+    if (f.type === 'repeat') {
+      flag(t('forms.ed.required'), 'required');
+      txt(t('forms.ed.min_rows'), 'min_rows', { type: 'number' });
+      txt(t('forms.ed.max_rows'), 'max_rows', { type: 'number' });
+      box.append(subFields(f));
+      return box;
+    }
     if (f.type !== 'hidden') flag(t('forms.ed.required'), 'required');
     if (['text', 'textarea', 'email', 'tel', 'url', 'number'].includes(f.type)) txt(t('forms.ed.placeholder'), 'placeholder');
     if (!['file', 'checkboxes', 'multiselect'].includes(f.type)) txt(t('forms.ed.default'), 'default');
@@ -254,6 +271,39 @@ export function createFormEditor(container: HTMLElement, raw: unknown, _ctx: Edi
     return box;
   }
 
+  // fields of a row of a repeated group (simple types)
+  function subFields(g: FField): HTMLElement {
+    const ROW = ['text', 'textarea', 'email', 'tel', 'url', 'number', 'date', 'time', 'select', 'checkbox'];
+    g.fields ??= [];
+    const box = h('fieldset', { class: 'ew-fieldset ewfm-ed-sub' }, h('legend', null, t('forms.ed.sub_fields')));
+    const draw = () => {
+      box.replaceChildren(h('legend', null, t('forms.ed.sub_fields')), ...g.fields!.map((sf, k) => {
+        const ty = select(ROW.map((x) => ({ value: x, label: typeLabel(x) })), sf.type);
+        ty.setAttribute('aria-label', `${t('forms.ed.type')} ${k + 1}`);
+        ty.addEventListener('change', () => { sf.type = ty.value; if (sf.type === 'select' && !sf.options?.length) sf.options = [{ value: 'a', label: 'A' }]; draw(); });
+        const lab = textInput({ value: sf.label });
+        lab.setAttribute('aria-label', `${t('forms.ed.label')} ${k + 1}`);
+        lab.addEventListener('input', () => { sf.label = lab.value; });
+        const id = textInput({ value: sf.id });
+        id.setAttribute('aria-label', `${t('forms.ed.id')} ${k + 1}`);
+        id.addEventListener('input', () => { sf.id = id.value.trim(); });
+        const req = checkbox(t('forms.ed.required'), !!sf.required);
+        req.input.addEventListener('change', () => { sf.required = req.input.checked; });
+        const row = h('div', { class: 'ewfm-ed-row' }, ty, lab, id, req.el,
+          button('×', () => { g.fields!.splice(k, 1); draw(); }, { variant: 'subtle', ariaLabel: t('forms.ed.remove', { label: sf.label || sf.id }) }));
+        if (sf.type === 'select') {
+          const opts = textArea({ value: (sf.options ?? []).map((o) => (o.value === o.label ? o.label : `${o.value}|${o.label}`)).join('\n'), rows: 2 });
+          opts.setAttribute('aria-label', `${t('forms.ed.options')} ${k + 1}`);
+          opts.addEventListener('change', () => { sf.options = opts.value.split('\n').map((l) => l.trim()).filter(Boolean).map((l) => { const [v, ...r] = l.split('|'); return r.length ? { value: v.trim(), label: r.join('|').trim() } : { value: l, label: l }; }); });
+          return h('div', null, row, opts);
+        }
+        return row;
+      }), button(t('forms.ed.sub_add'), () => { g.fields!.push({ id: newId(g.fields!, 'text'), type: 'text', label: typeLabel('text') }); draw(); }, { variant: 'secondary' }));
+    };
+    draw();
+    return box;
+  }
+
   // ---------------------------------------------------------------- free layout canvas
   function drawCanvas(): void {
     if (body.layout !== 'free') { canvasBox.replaceChildren(); return; }
@@ -298,7 +348,7 @@ export function createFormEditor(container: HTMLElement, raw: unknown, _ctx: Edi
 
   // ---------------------------------------------------------------- limits
   const limits = h('fieldset', { class: 'ew-fieldset' }, h('legend', null, t('forms.ed.limits')));
-  const flagB = (label: string, key: 'signed_in' | 'once_per_user' | 'copy_to_submitter') => {
+  const flagB = (label: string, key: 'signed_in' | 'once_per_user' | 'copy_to_submitter' | 'proof_of_work' | 'public_results') => {
     const c = checkbox(label, !!body[key]);
     c.input.addEventListener('change', () => { body[key] = c.input.checked; });
     limits.append(c.el);
@@ -306,6 +356,8 @@ export function createFormEditor(container: HTMLElement, raw: unknown, _ctx: Edi
   flagB(t('forms.ed.signed_in'), 'signed_in');
   flagB(t('forms.ed.once'), 'once_per_user');
   flagB(t('forms.ed.copy'), 'copy_to_submitter');
+  flagB(t('forms.ed.pow'), 'proof_of_work');
+  flagB(t('forms.ed.public_results'), 'public_results');
   const dt = (label: string, key: 'opens_at' | 'closes_at') => {
     const i = textInput({ type: 'datetime-local', value: localDT(body[key]) });
     i.addEventListener('change', () => { body[key] = i.value ? new Date(i.value).toISOString() : null; });
@@ -377,9 +429,27 @@ export function createFormEditor(container: HTMLElement, raw: unknown, _ctx: Edi
     wfMap.replaceChildren(body.targets.workflow ? mapping(t('forms.ed.workflow'), body.targets.workflow.mapping) : '');
   };
   drawMaps();
+  // files in the media library
+  const filesBox = h('fieldset', { class: 'ew-fieldset' }, h('legend', null, t('forms.ed.files')));
+  const fname = textInput({ value: body.targets.files?.name ?? '' });
+  const formats = ['pdf', 'json', 'csv', 'txt'].map((fm) => {
+    const c = checkbox(fm.toUpperCase(), (body.targets.files?.formats ?? ['pdf']).includes(fm));
+    c.input.dataset.format = fm;
+    return c;
+  });
+  const syncFiles = (cat?: number) => {
+    const id = cat ?? body.targets.files?.category_id ?? 0;
+    body.targets.files = id ? { category_id: id, name: fname.value, formats: formats.filter((c) => c.input.checked).map((c) => c.input.dataset.format!) } : null;
+  };
+  fname.addEventListener('input', () => syncFiles());
+  formats.forEach((c) => c.input.addEventListener('change', () => syncFiles()));
+  void categorySelect({ selected: body.targets.files?.category_id ?? 0, perm: 'edit', noneLabel: '—', onChange: (id) => syncFiles(id || 0) })
+    .then((cs) => filesBox.insertBefore(cs.field(t('forms.ed.files_category')), filesBox.children[1] ?? null));
+  filesBox.append(h('div', { class: 'ewfm-ed-row', role: 'group', 'aria-label': t('forms.ed.files_formats') }, ...formats.map((c) => c.el)),
+    field(t('forms.ed.files_name'), fname, { help: t('forms.ed.placeholders') }));
   targets.append(store.el, h('p', { class: 'ew-label' }, t('forms.ed.email')), emails,
     h('fieldset', { class: 'ew-fieldset' }, h('legend', null, t('forms.ed.webhook')), field(t('forms.ed.webhook_url'), hookURL), field(t('forms.ed.webhook_secret'), hookSecret)),
-    propBox, wfBox);
+    propBox, wfBox, filesBox);
 
   container.append(h('div', { class: 'ewfm-ed' },
     field(t('forms.ed.intro'), intro),

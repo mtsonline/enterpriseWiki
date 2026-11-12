@@ -5,6 +5,7 @@ import (
 	"context"
 	"crypto/hmac"
 	"crypto/sha256"
+	"encoding/csv"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -24,6 +25,7 @@ import (
 	"github.com/mtsonline/enterprisewiki/internal/identity"
 	"github.com/mtsonline/enterprisewiki/internal/media"
 	"github.com/mtsonline/enterprisewiki/internal/netguard"
+	"github.com/mtsonline/enterprisewiki/internal/pdfdoc"
 	"github.com/mtsonline/enterprisewiki/pkg/sdk"
 )
 
@@ -43,6 +45,9 @@ func (f *Form) pendingTargets(files []StoredFile) []string {
 	}
 	if f.Targets.Workflow != nil {
 		out = append(out, "workflow")
+	}
+	if f.Targets.Files != nil {
+		out = append(out, "files")
 	}
 	for _, fl := range files {
 		if x := f.Field(fl.Field); x != nil && x.MediaCategory > 0 && !slices.Contains(out, "media") {
@@ -151,6 +156,8 @@ func (p *Plugin) deliverTargets(ctx context.Context, d *due) ([]string, string) 
 			err = p.startCase(octx, f, d, title)
 		case "media":
 			err = p.addMedia(octx, f, d)
+		case "files":
+			err = p.storeFiles(octx, f, d, title)
 		case "forget":
 			left = append(left, t)
 			continue
@@ -417,6 +424,92 @@ func (p *Plugin) addMedia(ctx context.Context, f *Form, d *due) error {
 	if changed {
 		_, err := p.host.DB.Exec(ctx, `UPDATE plugin_form_submissions SET files=$2 WHERE id=$1`, d.id, d.files)
 		return err
+	}
+	return nil
+}
+
+// ---------------------------------------------------------------- files
+
+// record returns the submission as label/value pairs (reading order).
+func (f *Form) record(d *due) [][2]string {
+	var out [][2]string
+	for _, x := range f.Fields {
+		if !x.Input() || x.Type == "hidden" {
+			continue
+		}
+		v, ok := d.data[x.ID]
+		text := f.Text(x.ID, v)
+		if x.Type == "file" || x.Type == "signature" {
+			var names []string
+			if text != "" {
+				names = append(names, text)
+			}
+			for _, fl := range d.files {
+				if fl.Field == x.ID {
+					names = append(names, fl.Name)
+				}
+			}
+			text, ok = strings.Join(names, ", "), len(names) > 0
+		}
+		if ok {
+			out = append(out, [2]string{x.Label, text})
+		}
+	}
+	return out
+}
+
+// storeFiles stores the submission as PDF, JSON, CSV or text in the media
+// library (with the rights of the creator of the form).
+func (p *Plugin) storeFiles(ctx context.Context, f *Form, d *due, title string) error {
+	t := f.Targets.Files
+	if t == nil {
+		return nil
+	}
+	if !p.host.ACL.Can(ctx, identity.From(ctx), t.Category, acl.Edit) {
+		return fmt.Errorf("the creator of the form may no longer upload into category %d", t.Category)
+	}
+	vars := f.vars(title, "", "", d.data, d.files, d.author)
+	base := safeName(render(t.Name, vars, true))
+	if strings.TrimSpace(t.Name) == "" {
+		base = safeName(fmt.Sprintf("%s %d", title, d.id))
+	}
+	rec := f.record(d)
+	var created time.Time
+	_ = p.host.DB.QueryRow(ctx, `SELECT created_at FROM plugin_form_submissions WHERE id=$1`, d.id).Scan(&created)
+	when := created.Format("2006-01-02 15:04")
+	for _, format := range t.Formats {
+		var data []byte
+		switch format {
+		case "pdf":
+			lines := []pdfdoc.Line{{Text: title, Bold: true, Size: 16}, {Text: fmt.Sprintf("#%d · %s · %s", d.id, when, d.author), Size: 9, Space: 4}}
+			for _, r := range rec {
+				lines = append(lines, pdfdoc.Line{Text: r[0], Bold: true, Space: 8}, pdfdoc.Line{Text: r[1]})
+			}
+			data = pdfdoc.Write(fmt.Sprintf("%s #%d", title, d.id), d.lang, lines)
+		case "json":
+			data, _ = json.MarshalIndent(map[string]any{"form": title, "element_id": d.element, "submission": d.id, "submitted_at": created,
+				"submitted_by": d.author, "data": d.data, "files": d.files}, "", "  ")
+		case "csv":
+			var b bytes.Buffer
+			w := csv.NewWriter(&b)
+			for _, r := range rec {
+				_ = w.Write([]string{csvSafe(r[0]), csvSafe(r[1])})
+			}
+			w.Flush()
+			data = append([]byte("\xef\xbb\xbf"), b.Bytes()...)
+		case "txt":
+			var b strings.Builder
+			fmt.Fprintf(&b, "%s #%d\n%s %s\n\n", title, d.id, when, d.author)
+			for _, r := range rec {
+				fmt.Fprintf(&b, "%s: %s\n", r[0], r[1])
+			}
+			data = []byte(b.String())
+		default:
+			continue
+		}
+		if _, err := p.host.Media.Upload(ctx, media.UploadInput{CategoryID: t.Category, Name: base + "." + format, Title: base}, bytes.NewReader(data)); err != nil {
+			return err
+		}
 	}
 	return nil
 }

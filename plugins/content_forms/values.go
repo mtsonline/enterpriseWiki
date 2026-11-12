@@ -2,6 +2,8 @@ package content_forms
 
 import (
 	"encoding/json"
+	"fmt"
+	"math"
 	"net/mail"
 	"net/url"
 	"regexp"
@@ -38,6 +40,64 @@ func (f *Form) CheckValues(in map[string]json.RawMessage, files map[string]int) 
 		}
 		raw, given := in[x.ID]
 		switch x.Type {
+		case "calc":
+			vars := map[string]float64{}
+			for k, v := range out {
+				vars[k] = numeric(v)
+			}
+			n, _, err := parseFormula(x.Formula)
+			if err != nil {
+				continue
+			}
+			r := n.eval(vars)
+			if math.IsNaN(r) || math.IsInf(r, 0) {
+				r = 0
+			}
+			p := math.Pow(10, float64(x.Decimals))
+			out[x.ID] = math.Round(r*p) / p
+			continue
+		case "repeat":
+			var rows []map[string]json.RawMessage
+			if given && json.Unmarshal(raw, &rows) != nil {
+				bad(x.ID, "invalid", "")
+				continue
+			}
+			if len(rows) > x.MaxRows {
+				bad(x.ID, "rows_max", strconv.Itoa(x.MaxRows))
+				continue
+			}
+			least := x.MinRows
+			if x.Required && least == 0 {
+				least = 1
+			}
+			if len(rows) < least {
+				bad(x.ID, "rows_min", strconv.Itoa(least))
+			}
+			sub := &Form{Fields: x.Fields}
+			list := make([]map[string]any, 0, len(rows))
+			for i, row := range rows {
+				v, rerrs := sub.CheckValues(row, nil)
+				for _, e := range rerrs {
+					errs = append(errs, FieldError{Field: fmt.Sprintf("%s.%d.%s", x.ID, i, e.Field), Code: e.Code, Param: e.Param})
+				}
+				list = append(list, v)
+			}
+			out[x.ID] = list
+			continue
+		case "signature":
+			var typed string
+			if given {
+				_ = json.Unmarshal(raw, &typed)
+			}
+			typed = clean(strings.Join(strings.Fields(typed), " "), 200)
+			if x.Required && typed == "" && files[x.ID] == 0 {
+				bad(x.ID, "signature", "")
+			}
+			if files[x.ID] > 1 {
+				bad(x.ID, "files", "1")
+			}
+			out[x.ID] = typed
+			continue
 		case "file":
 			n := files[x.ID]
 			if x.Required && n == 0 {
@@ -234,12 +294,34 @@ func (f *Form) Text(id string, v any) string {
 			parts[i] = label(s)
 		}
 		return strings.Join(parts, ", ")
+	case []map[string]any:
+		rows := make([]any, len(t))
+		for i, r := range t {
+			rows[i] = r
+		}
+		return f.Text(id, rows)
 	case []any:
 		parts := make([]string, 0, len(t))
+		var rows []string
 		for _, s := range t {
-			if str, ok := s.(string); ok {
-				parts = append(parts, label(str))
+			switch v := s.(type) {
+			case string:
+				parts = append(parts, label(v))
+			case map[string]any: // a row of a repeated group
+				var cells []string
+				if x != nil {
+					sub := &Form{Fields: x.Fields}
+					for _, y := range x.Fields {
+						if c := sub.Text(y.ID, v[y.ID]); c != "" {
+							cells = append(cells, y.Label+": "+c)
+						}
+					}
+				}
+				rows = append(rows, strings.Join(cells, ", "))
 			}
+		}
+		if len(rows) > 0 {
+			return strings.Join(rows, " | ")
 		}
 		return strings.Join(parts, ", ")
 	}

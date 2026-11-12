@@ -90,6 +90,10 @@ func renderField(b *strings.Builder, x *Field, pre, layout string, tr func(strin
 	case "divider":
 		b.WriteString(`<hr>`)
 		return
+	case "page":
+		// the start of a page of a form in several steps (the widget shows one at a time)
+		b.WriteString(`<h2 class="ewfm-page-title">` + esc(x.Label) + `</h2>`)
+		return
 	case "hidden":
 		fmt.Fprintf(b, `<input type="hidden" id="%s" name="%s" value="%s"%s>`, id, esc(x.ID), esc(x.Default), prefillAttr(x))
 		return
@@ -130,6 +134,26 @@ func renderField(b *strings.Builder, x *Field, pre, layout string, tr func(strin
 	}
 	label := fmt.Sprintf(`<label class="ewfm-label" for="%s">%s%s</label>`, id, esc(x.Label), mark)
 	switch x.Type {
+	case "repeat":
+		// rows are added by the widget from the template ("__N__" = row number)
+		fmt.Fprintf(b, `<fieldset class="ewfm-group ewfm-repeat" id="%s" aria-describedby="%s"%s data-min="%d" data-max="%d"><legend>%s%s</legend>%s<template>`,
+			id, strings.Join(described, " "), groupReq(x), x.MinRows, x.MaxRows, esc(x.Label), mark, help)
+		fmt.Fprintf(b, `<li class="ewfm-row"><p class="ewfm-row-title">%s</p><div class="ewfm-row-fields">`, esc(strings.ReplaceAll(tr("forms.row"), "{label}", x.Label)))
+		for i := range x.Fields {
+			y := x.Fields[i]
+			y.Width = 12
+			var rb strings.Builder
+			renderField(&rb, &y, pre+x.ID+"-__N__-", "grid", tr)
+			b.WriteString(strings.Replace(rb.String(), `class="ewfm-field `, `data-sub="`+esc(y.ID)+`" class="ewfm-subfield ewfm-field `, 1))
+		}
+		b.WriteString(`</div></li></template><ol class="ewfm-rows"></ol>` + errP + `</fieldset>`)
+	case "calc":
+		fmt.Fprintf(b, `<p class="ewfm-label" id="%s-label">%s</p>%s<output id="%s" name="%s" class="ewfm-calc" aria-labelledby="%s-label" aria-describedby="%s" data-formula="%s" data-decimals="%d" aria-live="polite">0</output>`,
+			id, esc(x.Label), help, id, esc(x.ID), id, strings.Join(described, " "), esc(x.Formula), x.Decimals)
+	case "signature":
+		// drawn with the pointer or typed (keyboard and screen readers)
+		fmt.Fprintf(b, `<fieldset class="ewfm-group ewfm-signature" id="%s" aria-describedby="%s"%s><legend>%s%s</legend>%s<div class="ewfm-sigpad" data-field="%s"></div><label class="ewfm-label ewfm-sig-typed" for="%s-typed">%s</label><input type="text" id="%s-typed" name="%s" maxlength="200" autocomplete="name">%s</fieldset>`,
+			id, strings.Join(described, " "), groupReq(x), esc(x.Label), mark, help, esc(x.ID), id, esc(tr("forms.sig_typed")), id, esc(x.ID), errP)
 	case "radio":
 		group("radio")
 	case "checkboxes":

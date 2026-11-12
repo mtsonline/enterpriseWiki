@@ -73,7 +73,7 @@ func (p *Plugin) routes() {
 	host.Handle("GET", "/meta", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		return map[string]any{"input_types": InputTypes, "static_types": StaticTypes, "cond_ops": CondOps, "file_kinds": FileKinds,
 			"autocomplete": AutocompleteValues, "http_allow": len(host.Config.Get().Plugins.Macros.HTTPAllow) > 0,
-			"virus_scan": p.clamd() != ""}, nil
+			"virus_scan": p.clamd() != "" || p.icap() != ""}, nil
 	})
 	host.Handle("GET", "/elements/{id}/start", p.start)
 	host.Handle("POST", "/elements/{id}/submit", p.submit)
@@ -199,8 +199,11 @@ func (p *Plugin) routes() {
 			for _, s := range list {
 				row := []string{strconv.FormatInt(s.ID, 10), s.CreatedAt.Format(time.RFC3339), s.Author}
 				for _, c := range cols {
-					if c.Type == "file" {
+					if c.Type == "file" || c.Type == "signature" {
 						var names []string
+						if typed, _ := s.Data[c.ID].(string); typed != "" {
+							names = append(names, typed)
+						}
 						for _, fl := range s.Files {
 							if fl.Field == c.ID {
 								names = append(names, fl.Name)

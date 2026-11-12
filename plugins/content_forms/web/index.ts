@@ -1,6 +1,6 @@
 // Frontend of the forms plugin: the form on the page, the editor and the
 // submissions below the form (creator and "See submissions").
-import { ApiError, api, button, confirmDialog, fmtDate, h, humanSize, pageHeader, pluginSettingsForm, registerAdminPage, registerEditor, registerElementExtension, registerWidget, state, t, textInput, toast, errorText } from '@ewiki/sdk';
+import { ApiError, api, button, confirmDialog, elementSelect, fmtDate, h, humanSize, pageHeader, pluginSettingsForm, registerAdminPage, registerEditor, registerElementExtension, registerMacroParamControl, registerWidget, state, t, textInput, toast, errorText } from '@ewiki/sdk';
 import type { ElementView } from '@ewiki/sdk';
 import { createFormEditor, type FField } from './editor';
 import { BASE, formWidget } from './widget';
@@ -73,12 +73,22 @@ async function submissions(el: ElementView): Promise<Node | null> {
 }
 
 async function adminPage(panel: HTMLElement): Promise<void> {
-  const settings = await pluginSettingsForm('content.forms', [{ key: 'clamd', label: t('forms.admin.clamd'), type: 'text', help: t('forms.admin.clamd_help') }]);
+  const settings = await pluginSettingsForm('content.forms', [
+    { key: 'clamd', label: t('forms.admin.clamd'), type: 'text', help: t('forms.admin.clamd_help') },
+    { key: 'icap', label: t('forms.admin.icap'), type: 'text', help: t('forms.admin.icap_help') },
+  ]);
   panel.replaceChildren(pageHeader(t('forms.admin.title')), h('p', null, t('forms.admin.intro')), settings.el);
 }
 
 export function register(): void {
   registerAdminPage({ id: 'forms', label: () => t('forms.admin.title'), render: adminPage });
+  // macro "form-results": choose the form
+  registerMacroParamControl('forms.form', (value, ctx) => {
+    const box = h('div', { class: 'ewfm-pick' }, h('p', { class: 'ew-label' }, ctx.label));
+    let id = Number(value) || 0;
+    void elementSelect({ selected: id, type: 'content.forms', onChange: (v) => { id = v; } }).then((s) => box.append(s.el));
+    return { el: box, get: () => (id ? String(id) : '') };
+  });
   registerWidget('form', formWidget);
   registerEditor('content.forms', createFormEditor);
   registerElementExtension({ id: 'content.forms.submissions', order: 20, render: submissions });

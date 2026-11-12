@@ -610,6 +610,38 @@ func buildDemo(d *demoRun) {
 			"de": mk("Schreiben Sie uns – die Felder passen sich Ihren Antworten an („Anderes“ fragt nach), Dateien lassen sich auf die Upload-Fläche ziehen.", "Ihr Name", "E-Mail", "Worum geht es?", "IT", "Personal", "Anderes", "Was genau?", "Nachricht", "Bitte keine Passwörter senden.", "Wie zufrieden sind Sie mit dem Wiki?", "Anhang", "Ich stimme der Verarbeitung meiner Angaben zu.", "Anfrage senden", "Danke! Wir melden uns."),
 		}, nil)
 	})
+	d.optional("forms-order", func() {
+		order := func(l string) map[string]any {
+			tr := func(en, de string) string {
+				if l == "de" {
+					return de
+				}
+				return en
+			}
+			return map[string]any{"layout": "grid", "proof_of_work": true, "public_results": true, "submit_label": tr("Order", "Bestellen"),
+				"intro": tr("A form in steps: computed total, rows for several people, signature drawn or typed. The answers about delivery are public (see “Results”).",
+					"Ein Formular in Schritten: berechnete Summe, Zeilen für mehrere Personen, Unterschrift gezeichnet oder getippt. Die Antworten zur Zustellung sind öffentlich (siehe „Ergebnisse“)."),
+				"fields": []map[string]any{
+					{"id": "p1", "type": "page", "label": tr("Quantity", "Menge")},
+					{"id": "qty", "type": "number", "label": tr("Number of tickets", "Anzahl Karten"), "required": true, "min": 1, "max": 20, "width": 6},
+					{"id": "price", "type": "number", "label": tr("Price per ticket (€)", "Preis pro Karte (€)"), "default": "12.5", "width": 6},
+					{"id": "total", "type": "calc", "label": tr("Total (€)", "Summe (€)"), "formula": "round(qty * price, 2)", "decimals": 2},
+					{"id": "p2", "type": "page", "label": tr("Guests", "Gäste")},
+					{"id": "guests", "type": "repeat", "label": tr("Guest", "Gast"), "max_rows": 20, "fields": []map[string]any{
+						{"id": "name", "type": "text", "label": "Name", "required": true},
+						{"id": "diet", "type": "select", "label": tr("Food", "Essen"), "options": []map[string]string{{"value": "veg", "label": tr("Vegetarian", "Vegetarisch")}, {"value": "all", "label": tr("Everything", "Alles")}}}}},
+					{"id": "p3", "type": "page", "label": tr("Delivery", "Zustellung")},
+					{"id": "way", "type": "radio", "label": tr("Delivery", "Zustellung"), "required": true, "options": []map[string]string{{"value": "post", "label": tr("By post", "Per Post")}, {"value": "pick", "label": tr("Pick up", "Abholung")}}},
+					{"id": "sig", "type": "signature", "label": tr("Signature", "Unterschrift"), "required": true},
+				}, "targets": map[string]any{"store": true}}
+		}
+		oid := d.element(docs, "content.forms", d.tr("Ticket order (steps)", "Kartenbestellung (Schritte)"), map[string]any{"en": order("en"), "de": order("de")}, nil)
+		if d.err == nil && oid > 0 {
+			src := fmt.Sprintf("<p>%s</p>", "Results of the ticket order / Ergebnisse der Kartenbestellung") +
+				macro("form-results", map[string]string{"form": strconv.FormatInt(oid, 10), "fields": "way"}, "")
+			d.page(docs, "Results", "Ergebnisse", src, src, nil)
+		}
+	})
 	d.optional("notes", func() {
 		bodies := map[string]any{}
 		for l, src := range d.tr("## Agenda\n\n- [x] Welcome\n- [ ] Demo of the wiki\n- [ ] Next steps\n\nWrite here together: everybody who may edit sees the others live.\n",

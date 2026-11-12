@@ -3,11 +3,16 @@ package server_test
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
 	"encoding/json"
 	"fmt"
+	"image"
+	"image/color"
+	"image/png"
 	"io"
 	"mime/multipart"
 	"net/http"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -224,4 +229,137 @@ func TestForms(t *testing.T) {
 	if list.Total != 1 {
 		t.Fatalf("after delete: %d", list.Total)
 	}
+}
+
+// TestFormsPart3 covers computed fields, signatures, the proof of work,
+// submissions as files and the macro "form-results".
+func TestFormsPart3(t *testing.T) {
+	e := setup(t)
+	admin := e.client()
+	admin.login("admin", adminPW)
+	guest := e.client()
+	old := content_forms.MinAge
+	content_forms.MinAge = 0
+	t.Cleanup(func() { content_forms.MinAge = old })
+	oldBits := content_forms.PowBits
+	content_forms.PowBits = 8
+	t.Cleanup(func() { content_forms.PowBits = oldBits })
+	var c, files cat
+	admin.must("POST", "/api/v1/categories", map[string]any{"titles": map[string]string{"en": "Poll"}}, &c, 201)
+	admin.must("POST", fmt.Sprintf("/api/v1/categories/%d/acl", c.ID), map[string]any{"subject_type": "guest", "permissions": 1, "inherit": true}, nil, 201)
+	admin.must("POST", "/api/v1/categories", map[string]any{"titles": map[string]string{"en": "Records"}}, &files, 201)
+	def := map[string]any{"proof_of_work": true, "public_results": false,
+		"fields": []map[string]any{
+			{"id": "qty", "type": "number", "label": "Quantity"},
+			{"id": "price", "type": "number", "label": "Price"},
+			{"id": "total", "type": "calc", "label": "Total", "formula": "round(qty * price, 2)", "decimals": 2},
+			{"id": "p2", "type": "page", "label": "Your opinion"},
+			{"id": "fav", "type": "radio", "label": "Favourite", "options": []map[string]string{{"value": "a", "label": "Apples"}, {"value": "b", "label": "Pears"}}},
+			{"id": "sig", "type": "signature", "label": "Signature", "required": true},
+		},
+		"targets": map[string]any{"store": true, "files": map[string]any{"category_id": files.ID, "formats": []string{"pdf", "json"}, "name": "Order {{field.qty}}"}}}
+	var form elem
+	admin.must("POST", "/api/v1/elements", map[string]any{"category_id": c.ID, "type": "content.forms", "title": "Order", "body": def}, &form, 201)
+	if html := viewHTML(t, guest, form.ID); !strings.Contains(html, `data-formula="round(qty * price, 2)"`) || !strings.Contains(html, `class="ewfm-page-title"`) || !strings.Contains(html, `class="ewfm-sigpad"`) {
+		t.Fatalf("render: %s", html)
+	}
+	var st struct {
+		Token string `json:"token"`
+		Bits  int    `json:"pow_bits"`
+	}
+	guest.must("GET", fmt.Sprintf("/api/v1/x/content.forms/elements/%d/start", form.ID), nil, &st, 200)
+	if st.Bits != 8 {
+		t.Fatalf("pow bits: %+v", st)
+	}
+	nonce := ""
+	for n := 0; ; n++ {
+		sum := sha256.Sum256([]byte(st.Token + ":" + strconv.Itoa(n)))
+		if sum[0] == 0 {
+			nonce = strconv.Itoa(n)
+			break
+		}
+	}
+	vals := map[string]any{"qty": "3", "price": "2.5", "total": "1000000", "fav": "a", "sig": ""}
+	// without the proof of work
+	if code, _ := guest.submitForm(t, form.ID, map[string]any{"token": st.Token, "values": vals}, nil); code != 400 {
+		t.Fatalf("without proof of work: %d", code)
+	}
+	// the signature is required: drawn or typed
+	code, body := guest.submitForm(t, form.ID, map[string]any{"token": st.Token, "nonce": nonce, "values": vals}, nil)
+	if code != 422 || !strings.Contains(body, `"code":"signature"`) {
+		t.Fatalf("no signature: %d %s", code, body)
+	}
+	var png bytes.Buffer
+	_ = pngEncode(&png, 300, 90)
+	code, body = guest.submitForm(t, form.ID, map[string]any{"token": st.Token, "nonce": nonce, "values": vals}, map[string]map[string][]byte{"sig": {"signature.png": png.Bytes()}})
+	if code != 201 {
+		t.Fatalf("drawn signature: %d %s", code, body)
+	}
+	vals["sig"], vals["fav"] = "Ann Lee", "b"
+	if code, body := guest.submitForm(t, form.ID, map[string]any{"token": st.Token, "nonce": nonce, "values": vals}, nil); code != 201 {
+		t.Fatalf("typed signature: %d %s", code, body)
+	}
+	// the server computed the total (the sent value is ignored)
+	var list struct {
+		Items []struct {
+			Data  map[string]any `json:"data"`
+			Files []struct {
+				Field string `json:"field"`
+			} `json:"files"`
+		} `json:"items"`
+	}
+	admin.must("GET", fmt.Sprintf("/api/v1/x/content.forms/elements/%d/submissions", form.ID), nil, &list, 200)
+	if len(list.Items) != 2 || list.Items[0].Data["total"] != 7.5 || len(list.Items[1].Files) != 1 || list.Items[1].Files[0].Field != "sig" {
+		t.Fatalf("submissions: %+v", list.Items)
+	}
+	// stored as files in the media library (with the creator's rights)
+	if err := e.app.Workers.RunOnce(context.Background(), "content.forms.deliver"); err != nil {
+		t.Fatal(err)
+	}
+	var names []string
+	rows, err := e.app.DB.Query(context.Background(), `SELECT name FROM media WHERE category_id=$1 ORDER BY name`, files.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for rows.Next() {
+		var n string
+		_ = rows.Scan(&n)
+		names = append(names, n)
+	}
+	rows.Close()
+	if len(names) != 4 || names[0] != "Order 3.json" || names[1] != "Order 3.json" && !strings.HasSuffix(names[1], ".pdf") {
+		t.Fatalf("files: %v", names)
+	}
+	// results: not public – guests see nothing, the creator sees the counts
+	mid := macroPage(t, admin, c.ID, "form-results", map[string]string{"form": fmt.Sprint(form.ID)})
+	if html := viewHTML(t, guest, mid); strings.Contains(html, "Apples") || !strings.Contains(html, "not public") {
+		t.Fatalf("guest results: %s", html)
+	}
+	if html := viewHTML(t, admin, mid); !strings.Contains(html, "<caption>Favourite</caption>") || !strings.Contains(html, "Apples</th><td>1</td>") {
+		t.Fatalf("admin results: %s", html)
+	}
+	tid := macroPage(t, admin, c.ID, "form-results", map[string]string{"form": fmt.Sprint(form.ID), "show": "table", "fields": "qty,total,sig"})
+	if html := viewHTML(t, admin, tid); !strings.Contains(html, "Ann Lee") || !strings.Contains(html, "7.5") {
+		t.Fatalf("results table: %s", html)
+	}
+	if html := viewHTML(t, guest, tid); strings.Contains(html, "Ann Lee") {
+		t.Fatalf("guest sees the table: %s", html)
+	}
+	// public results
+	def["public_results"] = true
+	admin.must("PUT", fmt.Sprintf("/api/v1/elements/%d", form.ID), map[string]any{"title": "Order", "body": def, "base_rev": 1}, nil, 200)
+	if html := viewHTML(t, guest, mid); !strings.Contains(html, "Pears</th><td>1</td>") {
+		t.Fatalf("public results: %s", html)
+	}
+	if html := viewHTML(t, guest, tid); strings.Contains(html, "Ann Lee") {
+		t.Fatalf("guest sees the table of a public form: %s", html)
+	}
+}
+
+func pngEncode(w io.Writer, width, height int) error {
+	img := image.NewRGBA(image.Rect(0, 0, width, height))
+	for x := 10; x < width-10; x++ {
+		img.Set(x, height/2, color.Black)
+	}
+	return png.Encode(w, img)
 }

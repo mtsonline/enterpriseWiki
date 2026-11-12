@@ -85,6 +85,7 @@ func (p *Plugin) Setup(host *sdk.Host) error {
 	p.limiter = newLimiter()
 	hosts.Store(host.Site, host)
 	host.RegisterElementType(Type{})
+	host.RegisterMacro(resultsMacro{p})
 	host.Files.AddReference("plugin_form_submissions", "files")
 	host.RegisterWorker("deliver", 30*time.Second, p.deliver)
 	host.RegisterWorker("retention", time.Hour, p.retention)
@@ -188,6 +189,9 @@ func checkTargets(ctx context.Context, gh *sdk.Host, cat int64, f *Form) error {
 		if err := workflowUsable(ctx, gh, t.Element); err != nil {
 			return err
 		}
+	}
+	if t := f.Targets.Files; t != nil && !gh.ACL.Can(ctx, identity.From(ctx), t.Category, acl.Edit) {
+		return apperr.Forbidden("files: no right to upload into category %d", t.Category)
 	}
 	for _, x := range f.Fields {
 		if x.MediaCategory > 0 && !gh.ACL.Can(ctx, identity.From(ctx), x.MediaCategory, acl.Edit) {
