@@ -697,6 +697,7 @@ func (s *Service) MoveCategory(ctx context.Context, id, newParent int64, positio
 	}
 	var fromParent int64
 	_ = s.pool.QueryRow(ctx, `SELECT COALESCE(parent_id, 0) FROM categories WHERE id=$1`, id).Scan(&fromParent)
+	var noted int64
 	err := db.Tx(ctx, s.pool, func(tx pgx.Tx) error {
 		var oldPath string
 		var oldParent *int64
@@ -754,14 +755,14 @@ func (s *Service) MoveCategory(ctx context.Context, id, newParent int64, positio
 				return err
 			}
 		}
-		return audit.Log(ctx, tx, "category.move", "category", id, map[string]any{"parent_id": oldParent, "position": oldPos, "space_key": key}, map[string]any{"parent_id": parentPtr, "position": pos})
+		return s.andNote(ctx, tx, &noted, "move", "category", id, audit.Log(ctx, tx, "category.move", "category", id, map[string]any{"parent_id": oldParent, "position": oldPos, "space_key": key}, map[string]any{"parent_id": parentPtr, "position": pos}))
 	})
 	if err != nil {
 		return nil, err
 	}
 	s.aclChanged(ctx)
 	_ = s.syncSlug(ctx, "category", id, fromParent)
-	s.fire(ctx, "move", "category", id)
+	s.fireNoted(ctx, noted, "move", "category", id)
 	return s.GetCategory(ctx, id)
 }
 
@@ -1071,6 +1072,7 @@ func (s *Service) DeleteCategory(ctx context.Context, id int64) error {
 			return err
 		}
 	}
+	var noted int64
 	err = db.Tx(ctx, s.pool, func(tx pgx.Tx) error {
 		now := time.Now()
 		uid := nullID(ctx)
@@ -1083,13 +1085,13 @@ func (s *Service) DeleteCategory(ctx context.Context, id int64) error {
 			WHERE deleted_at IS NULL AND path <@ $1::ltree`, p, now, uid, id); err != nil {
 			return err
 		}
-		return audit.Log(ctx, tx, "category.trash", "category", id, map[string]any{"titles": c.Titles}, nil)
+		return s.andNote(ctx, tx, &noted, "delete", "category", id, audit.Log(ctx, tx, "category.trash", "category", id, map[string]any{"titles": c.Titles}, nil))
 	})
 	if err != nil {
 		return err
 	}
 	s.aclChanged(ctx)
-	s.fire(ctx, "delete", "category", id)
+	s.fireNoted(ctx, noted, "delete", "category", id)
 	return nil
 }
 

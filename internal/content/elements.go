@@ -577,6 +577,7 @@ func (s *Service) MoveElement(ctx context.Context, id, categoryID int64) (*Eleme
 	if err := s.guardCreate(ctx, e.Type, categoryID); err != nil {
 		return nil, err
 	}
+	var noted int64
 	err = db.Tx(ctx, s.pool, func(tx pgx.Tx) error {
 		var ok bool
 		if err := tx.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM categories WHERE id=$1 AND deleted_at IS NULL)`, categoryID).Scan(&ok); err != nil || !ok {
@@ -592,13 +593,13 @@ func (s *Service) MoveElement(ctx context.Context, id, categoryID int64) (*Eleme
 		if _, err := tx.Exec(ctx, `UPDATE search_docs SET category_id=$2 WHERE element_id=$1`, id, categoryID); err != nil {
 			return err
 		}
-		return audit.Log(ctx, tx, "element.move", "element", id, map[string]any{"category_id": e.CategoryID}, map[string]any{"category_id": categoryID})
+		return s.andNote(ctx, tx, &noted, "move", "element", id, audit.Log(ctx, tx, "element.move", "element", id, map[string]any{"category_id": e.CategoryID}, map[string]any{"category_id": categoryID}))
 	})
 	if err != nil {
 		return nil, err
 	}
 	_ = s.syncSlug(ctx, "element", id, e.CategoryID)
-	s.fire(ctx, "move", "element", id)
+	s.fireNoted(ctx, noted, "move", "element", id)
 	return s.loadElement(ctx, s.pool, id, false)
 }
 
@@ -653,6 +654,7 @@ func (s *Service) DeleteElement(ctx context.Context, id int64) error {
 	if err := s.guardChange(ctx, e); err != nil {
 		return err
 	}
+	var noted int64
 	err = db.Tx(ctx, s.pool, func(tx pgx.Tx) error {
 		if _, err := tx.Exec(ctx, `UPDATE elements SET deleted_at=now(), deleted_by=$2, trash_root=true WHERE id=$1`, id, nullID(ctx)); err != nil {
 			return err
@@ -660,10 +662,10 @@ func (s *Service) DeleteElement(ctx context.Context, id int64) error {
 		if _, err := tx.Exec(ctx, `UPDATE categories SET default_element_id=NULL WHERE default_element_id=$1`, id); err != nil {
 			return err
 		}
-		return audit.Log(ctx, tx, "element.trash", "element", id, map[string]any{"titles": e.Titles}, nil)
+		return s.andNote(ctx, tx, &noted, "delete", "element", id, audit.Log(ctx, tx, "element.trash", "element", id, map[string]any{"titles": e.Titles}, nil))
 	})
 	if err == nil {
-		s.fire(ctx, "delete", "element", id)
+		s.fireNoted(ctx, noted, "delete", "element", id)
 	}
 	return err
 }

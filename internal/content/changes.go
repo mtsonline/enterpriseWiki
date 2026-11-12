@@ -62,6 +62,32 @@ func (s *Service) note(ctx context.Context, q db.Querier, event, etype string, i
 	return entry, err
 }
 
+// andNote ends a transaction that changed something: after err == nil it
+// writes the change to the queue with the transaction, so that what
+// follows from it (notifications) is committed with the change itself.
+//
+//	return s.andNote(ctx, tx, &entry, "move", "element", id, audit.Log(...))
+//	...
+//	s.fireNoted(ctx, entry, "move", "element", id)
+func (s *Service) andNote(ctx context.Context, q db.Querier, entry *int64, event, etype string, id int64, err error) error {
+	if err != nil {
+		return err
+	}
+	*entry, err = s.note(ctx, q, event, etype, id)
+	return err
+}
+
+// TouchTx is Touch for a change that the caller stores in its own
+// transaction q (e.g. events of a calendar): the change is queued with
+// it. Call the returned function after the commit.
+func (s *Service) TouchTx(ctx context.Context, q db.Querier, elementID int64) (after func(), err error) {
+	entry, err := s.note(ctx, q, "update", "element", elementID)
+	if err != nil {
+		return nil, err
+	}
+	return func() { s.fireNoted(ctx, entry, "update", "element", elementID) }, nil
+}
+
 // deliver runs the durable hooks named in names for a change and settles
 // its entry with q: removed when all succeeded, otherwise kept for the
 // worker with the hooks that are still open.

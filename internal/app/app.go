@@ -3,7 +3,9 @@ package app
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"github.com/jackc/pgx/v5"
 	"github.com/mtsonline/enterprisewiki/internal/audit"
 	"github.com/mtsonline/enterprisewiki/internal/collab"
 	"github.com/mtsonline/enterprisewiki/internal/feedfetch"
@@ -283,7 +285,9 @@ func newSite(ctx context.Context, in *Instance, site string, migrate bool) (*App
 	a.Webhooks = webhook.New(pool, cfg, log)
 	a.Webhooks.T = a.I18n.T
 	a.Webhooks.Kick = func() { time.AfterFunc(300*time.Millisecond, func() { a.Workers.Trigger("webhooks") }) }
-	a.Content.OnChange(func(ctx context.Context, event, etype string, id int64) { a.emitContent(ctx, event, etype, id) })
+	// durable: webhooks of content changes are queued even after an error or
+	// a restart (a repeat can deliver an event twice, never zero times)
+	a.Content.OnChangeDurable("webhooks", a.emitContent)
 	a.Workers.Register(worker.Job{Name: "webhooks", Interval: 30 * time.Second, Run: func(ctx context.Context) error {
 		_, err := a.Webhooks.Deliver(ctx)
 		return err
@@ -377,7 +381,7 @@ func (a *App) close() {
 }
 
 // emitContent turns a content change into a webhook event.
-func (a *App) emitContent(ctx context.Context, event, etype string, id int64) {
+func (a *App) emitContent(ctx context.Context, event, etype string, id int64) error {
 	ev := webhook.Event{Name: etype + "." + event, Object: webhook.Object{Type: etype, ID: id}}
 	def := a.Config.Get().I18n.DefaultLanguage
 	var titles map[string]string
@@ -385,7 +389,7 @@ func (a *App) emitContent(ctx context.Context, event, etype string, id int64) {
 	case "element":
 		var short string
 		if err := a.DB.QueryRow(context.WithoutCancel(ctx), `SELECT titles, category_id, COALESCE(short_url, '') FROM elements WHERE id=$1`, id).Scan(&titles, &ev.CategoryID, &short); err != nil {
-			return
+			return gone(err)
 		}
 		ev.Object.URL = fmt.Sprintf("/e/%d", id)
 		if short != "" {
@@ -393,12 +397,12 @@ func (a *App) emitContent(ctx context.Context, event, etype string, id int64) {
 		}
 	case "category":
 		if err := a.DB.QueryRow(context.WithoutCancel(ctx), `SELECT titles FROM categories WHERE id=$1`, id).Scan(&titles); err != nil {
-			return
+			return gone(err)
 		}
 		ev.CategoryID = id
 		ev.Object.URL = fmt.Sprintf("/c/%d", id)
 	default:
-		return
+		return nil
 	}
 	ev.Object.Title = titles[def]
 	if ev.Object.Title == "" {
@@ -410,5 +414,14 @@ func (a *App) emitContent(ctx context.Context, event, etype string, id int64) {
 	if event == "delete" {
 		ev.Object.URL = ""
 	}
-	a.Webhooks.Emit(ctx, ev)
+	return a.Webhooks.Queue(ctx, ev)
+}
+
+// gone: the object no longer exists (nothing to report), every other
+// error is repeated.
+func gone(err error) error {
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil
+	}
+	return err
 }

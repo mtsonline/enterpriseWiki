@@ -247,7 +247,9 @@ func auditLog(ctx context.Context, s *Service, action, etype string, id int64, b
 
 // Touch reports a change of an element that is stored outside its
 // revisions (e.g. events of a calendar): watchers are notified and caches
-// invalidated, no revision is created.
+// invalidated, no revision is created. The change is queued when Touch is
+// called, not with the data of the caller: use TouchTx inside the
+// transaction that stores them, so that no notification can be lost.
 func (s *Service) Touch(ctx context.Context, elementID int64) {
 	s.fire(ctx, "update", "element", elementID)
 }

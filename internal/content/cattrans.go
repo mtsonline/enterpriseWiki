@@ -135,6 +135,7 @@ func (s *Service) TranslateCategory(ctx context.Context, id int64, lang string, 
 	if !s.validLang(lang) {
 		return nil, apperr.BadRequest("language %q is not configured", lang)
 	}
+	var noted int64
 	err := db.Tx(ctx, s.pool, func(tx pgx.Tx) error {
 		c, err := s.loadCategoryForUpdate(ctx, tx, id)
 		if err != nil {
@@ -172,14 +173,14 @@ func (s *Service) TranslateCategory(ctx context.Context, id int64, lang string, 
 		if in.Confirm && in.Title == nil && in.Description == nil {
 			action = "category.translation_confirm"
 		}
-		return audit.Log(ctx, tx, action, "category", id,
+		return s.andNote(ctx, tx, &noted, "update", "category", id, audit.Log(ctx, tx, action, "category", id,
 			map[string]any{"lang": lang, "title": c.Titles[lang], "description": c.Descriptions[lang]},
-			map[string]any{"lang": lang, "title": titles[lang], "description": descs[lang], "based_on": revs[lang]})
+			map[string]any{"lang": lang, "title": titles[lang], "description": descs[lang], "based_on": revs[lang]}))
 	})
 	if err != nil {
 		return nil, err
 	}
-	s.fire(ctx, "update", "category", id)
+	s.fireNoted(ctx, noted, "update", "category", id)
 	return s.GetCategory(ctx, id)
 }
 

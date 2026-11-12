@@ -3,6 +3,7 @@ package content
 import (
 	"context"
 	"errors"
+	"github.com/mtsonline/enterprisewiki/internal/audit"
 	"net/url"
 	"strings"
 
@@ -110,16 +111,18 @@ func (s *Service) SetShortURL(ctx context.Context, etype string, id int64, raw s
 	default:
 		return "", apperr.BadRequest("type must be element or category")
 	}
+	var noted int64
 	err = db.Tx(ctx, s.pool, func(tx pgx.Tx) error {
 		if err := s.setShortURL(ctx, tx, etype, id, short); err != nil {
 			return err
 		}
-		return auditLog(ctx, s, etype+".short_url", etype, id, nil, map[string]string{"short_url": short})
+		// with the transaction: never a second connection while one is held
+		return s.andNote(ctx, tx, &noted, "update", etype, id, audit.Log(ctx, tx, etype+".short_url", etype, id, nil, map[string]string{"short_url": short}))
 	})
 	if err != nil {
 		return "", err
 	}
-	s.fire(ctx, "update", etype, id)
+	s.fireNoted(ctx, noted, "update", etype, id)
 	return short, nil
 }
 

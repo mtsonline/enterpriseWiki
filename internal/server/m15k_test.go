@@ -259,3 +259,80 @@ func TestNotificationsAreNotLost(t *testing.T) {
 		t.Fatalf("stored without notification: comments %d -> %d, reactions %d -> %d", comments, c2, reactions, r2)
 	}
 }
+
+// Every change of content writes its queue entry in the same transaction:
+// while the queue cannot be written, the change is not stored either -
+// there is no moment in which a stored change has no entry.
+func TestChangesAndTheirQueueEntryAreOne(t *testing.T) {
+	e := setup(t)
+	ctx := context.Background()
+	admin := e.client()
+	admin.login("admin", adminPW)
+	var a, b cat
+	admin.must("POST", "/api/v1/categories", map[string]any{"titles": map[string]string{"en": "A"}}, &a, 201)
+	admin.must("POST", "/api/v1/categories", map[string]any{"titles": map[string]string{"en": "B"}}, &b, 201)
+	var page, cal elem
+	admin.must("POST", "/api/v1/elements", map[string]any{"category_id": a.ID, "type": "core.html", "title": "Page", "body": htmlBody("<p>x</p>")}, &page, 201)
+	admin.must("POST", "/api/v1/elements", map[string]any{"category_id": a.ID, "type": "content.events", "title": "Dates", "body": map[string]any{"view": "list"}}, &cal, 201)
+	// a hook that never succeeds keeps every entry in the queue
+	e.app.Content.OnChangeDurable("test", func(context.Context, string, string, int64) error { return fmt.Errorf("later") })
+	state := func() string {
+		t.Helper()
+		var s string
+		if err := e.app.DB.QueryRow(ctx, `SELECT concat_ws('|',
+			(SELECT string_agg(concat_ws(',', id, category_id, deleted_at IS NOT NULL, COALESCE(short_url, ''), titles::text), ';' ORDER BY id) FROM elements),
+			(SELECT string_agg(concat_ws(',', id, parent_id, deleted_at IS NOT NULL, archived_at IS NOT NULL, titles::text, space::text), ';' ORDER BY id) FROM categories),
+			(SELECT count(*) FROM element_revisions), (SELECT count(*) FROM plugin_events))`).Scan(&s); err != nil {
+			t.Fatal(err)
+		}
+		return s
+	}
+	start := time.Now().Add(48 * time.Hour).UTC().Truncate(time.Hour)
+	ops := []struct {
+		name, method, path string
+		body               any
+	}{
+		{"save a page", "PUT", fmt.Sprintf("/api/v1/elements/%d", page.ID), map[string]any{"title": "Page", "body": htmlBody("<p>y</p>")}},
+		{"create a page", "POST", "/api/v1/elements", map[string]any{"category_id": a.ID, "type": "core.html", "title": "New", "body": htmlBody("<p>x</p>")}},
+		{"move a page", "POST", fmt.Sprintf("/api/v1/elements/%d/move", page.ID), map[string]any{"category_id": b.ID}},
+		{"calendar event", "POST", fmt.Sprintf("/api/v1/x/content.events/calendars/%d/events", cal.ID), map[string]any{"title": "Yoga", "starts_at": start, "ends_at": start.Add(time.Hour)}},
+		{"delete a page", "DELETE", fmt.Sprintf("/api/v1/elements/%d", page.ID), nil},
+		{"rename a category", "PUT", fmt.Sprintf("/api/v1/categories/%d", b.ID), map[string]any{"titles": map[string]string{"en": "B2"}}},
+		{"move a category", "POST", fmt.Sprintf("/api/v1/categories/%d/move", b.ID), map[string]any{"parent_id": a.ID}},
+		{"archive a category", "POST", fmt.Sprintf("/api/v1/categories/%d/archive", b.ID), map[string]any{"archived": true}},
+		{"create a category", "POST", "/api/v1/categories", map[string]any{"titles": map[string]string{"en": "C"}}},
+		{"delete a category", "DELETE", fmt.Sprintf("/api/v1/categories/%d", b.ID), nil},
+	}
+	// 1. without the queue nothing is stored
+	if _, err := e.app.DB.Exec(ctx, `ALTER TABLE change_events RENAME TO change_events_away`); err != nil {
+		t.Fatal(err)
+	}
+	before := state()
+	for _, op := range ops {
+		st, err := admin.send(op.method, op.path, op.body)
+		if err != nil || st < 500 {
+			t.Errorf("%s without the queue: status %d %v", op.name, st, err)
+		}
+		if now := state(); now != before {
+			t.Fatalf("%s was stored without its queue entry:\n%s\n%s", op.name, before, now)
+		}
+	}
+	if _, err := e.app.DB.Exec(ctx, `ALTER TABLE change_events_away RENAME TO change_events`); err != nil {
+		t.Fatal(err)
+	}
+	// 2. with the queue every one of them is stored and leaves its entry
+	for _, op := range ops {
+		var n0, n1 int
+		_ = e.app.DB.QueryRow(ctx, `SELECT count(*) FROM change_events`).Scan(&n0)
+		if st, err := admin.send(op.method, op.path, op.body); err != nil || st >= 300 {
+			t.Fatalf("%s: status %d %v", op.name, st, err)
+		}
+		_ = e.app.DB.QueryRow(ctx, `SELECT count(*) FROM change_events WHERE 'test' = ANY(hooks)`).Scan(&n1)
+		if n1 <= n0 {
+			t.Errorf("%s left no queue entry (%d -> %d)", op.name, n0, n1)
+		}
+	}
+	if state() == before {
+		t.Fatal("nothing changed")
+	}
+}
