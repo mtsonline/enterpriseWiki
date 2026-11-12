@@ -59,7 +59,7 @@ func static(repo, out string) error {
 	if ran && code != 0 && code != 3 {
 		r.Ran, r.Summary = false, fmt.Sprintf("failed with exit code %d (built with another Go version?): ", code)
 	} else if ran {
-		allow, _ := os.ReadFile(filepath.Join(repo, ".govulncheck-allow")) // #nosec G304 -- file of the repository
+		allow, _ := os.ReadFile(filepath.Join(repo, ".govulncheck-allow")) // #nosec G304 G703 -- file of the repository given on the command line
 		var ids []string
 		open := 0
 		for _, l := range strings.Split(o, "\n") {

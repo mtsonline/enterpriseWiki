@@ -65,7 +65,7 @@ var transport = &http.Transport{
 // the test instance behind a reverse proxy with its own authority. The
 // connections then use HTTP/2 where the proxy offers it, as browsers do.
 func trustCA(file string) error {
-	pem, err := os.ReadFile(file)
+	pem, err := os.ReadFile(file) // #nosec G304 G703 -- file named on the command line of the test routine
 	if err != nil {
 		return err
 	}

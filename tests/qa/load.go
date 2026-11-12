@@ -490,7 +490,7 @@ func (e *loadEnv) pause(ctx context.Context, r *rand.Rand) bool {
 
 // user is one virtual user until the stage ends.
 func (e *loadEnv) user(ctx context.Context, i int, kind string, rec *Recorder, liveFailed *atomic.Int64) {
-	r := rand.New(rand.NewPCG(uint64(i), 7)) // #nosec G404 -- load mix, not security
+	r := rand.New(rand.NewPCG(uint64(i), 7)) // #nosec G404 G115 -- load mix, not security; i is a small index
 	c := newClient(e.o.Base, kind)
 	c.rec = rec
 	c.hc.Timeout = 30 * time.Second
