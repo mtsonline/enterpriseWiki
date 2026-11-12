@@ -727,6 +727,93 @@ test('workflow: HR application from template, start and handle a case', async ()
   await a11y('my tasks');
 });
 
+test('workflow 2: automatic steps, deadline, triggers and a signed webhook really work', async () => {
+  const cat = await m6Category();
+  const job = (name) => call('POST', `/api/v1/admin/jobs/${name}/run`, {});
+  const me = await call('GET', '/api/v1/auth/me');
+  const wf = await call('POST', '/api/v1/elements', { category_id: cat, type: 'workflow.process', title: `Onboarding ${run}`, body: {
+    description: 'E2E', fields: [{ id: 'name', label: 'Name', type: 'text', required: true }, { id: 'amount', label: 'Amount', type: 'number' }],
+    triggers: [
+      { id: 'pages', type: 'content', name: 'New pages', title: '{{trigger.object.title}}', sources: `category:${cat}`, events: ['create'], data: { name: '{{trigger.object.title}}', amount: '1' } },
+      { id: 'hook', type: 'webhook', name: 'Shop', title: '{{trigger.data.who}}', data: { name: '{{trigger.data.who}}', amount: '{{trigger.data.n}}' } }],
+    steps: [
+      { id: 'calc', name: 'Compute', type: 'set', next: 'note', set: [{ field: 'total', formula: 'amount * 2' }] },
+      { id: 'note', name: 'Message', type: 'notify', next: 'mk', notify: { to: 'starter', channel: 'inbox', subject: `Case {{case.title}} ${run}` } },
+      { id: 'mk', name: 'Page', type: 'create', next: 'check', create: { category: cat, title: `Welcome {{field.name}} ${run}`, store_url: 'page' } },
+      { id: 'check', name: 'Check', assignee: { type: 'starter', value: '' }, actions: [{ id: 'ok', label: 'Done', next: 'done' }],
+        deadline: { days: 3, workdays: true, warn: [24], escalate: { action: 'notify', notify: { to: 'starter', subject: 'late', channel: 'inbox' } } } },
+      { id: 'done', name: 'Finished', type: 'end', outcome: 'success' }] } });
+  // the editor shows triggers, deadline and the new steps accessibly
+  await page.goto(`${BASE}/e/${wf.id}/edit`);
+  await idle();
+  await page.locator('#ewf-triggers-h').waitFor();
+  await page.getByRole('button', { name: /^(create secret|geheimnis erzeugen)$/i }).click();
+  const secret = await page.getByLabel(/^(secret|geheimnis)$/i).inputValue();
+  assert.equal(secret.length, 64, 'the secret is shown once');
+  await a11y('workflow 2 editor with triggers and secret');
+  // start a case with the start form; the automatic steps run in the worker
+  await page.goto(`${BASE}/e/${wf.id}`);
+  await idle();
+  await page.getByRole('button', { name: /start new case|neuen vorgang starten/i }).click();
+  const form = page.locator('dialog[open]');
+  await form.getByLabel(/^name/i).fill(`Ada ${run}`);
+  await form.getByLabel(/^amount/i).fill('21');
+  await form.locator('button[type=submit]').click();
+  await page.waitForFunction((t) => document.querySelector('dialog[open] h2')?.textContent?.includes(t), `Ada ${run}`);
+  await page.keyboard.press('Escape');
+  await job('workflow.process.timers');
+  const list = await call('GET', `/api/v1/x/workflow.process/elements/${wf.id}/instances`);
+  const mine = list.instances.find((x) => x.title === `Ada ${run}`);
+  assert.ok(mine, 'case started');
+  const x = await call('GET', `/api/v1/x/workflow.process/instances/${mine.id}`);
+  assert.equal(x.step, 'check', `case waits in the task: ${JSON.stringify(x)}`);
+  assert.equal(x.data.total, '42');
+  assert.match(String(x.data.page), /\/e\/\d+$/, 'page created');
+  assert.ok(x.due_at, 'deadline set');
+  const inbox = await call('GET', '/api/v1/me/inbox');
+  assert.ok(inbox.items.some((n) => n.title === `Case Ada ${run} ${run}`), 'message of the notify step');
+  // the task in the case dialog: values of the steps, deadline, action
+  await page.reload();
+  await idle();
+  await page.locator('.ewf-cases').getByRole('button', { name: `Ada ${run}` }).click();
+  const dlg = page.locator('dialog[open]');
+  await dlg.getByText(/deadline|frist/i).first().waitFor();
+  await a11y('workflow 2 case with deadline and values');
+  await dlg.getByRole('button', { name: /^done$/i }).click();
+  await page.locator('dialog[open] form button[type=submit]').click();
+  await page.waitForFunction(() => !document.querySelector('dialog[open] form'));
+  assert.equal((await call('GET', `/api/v1/x/workflow.process/instances/${mine.id}`)).status, 'done');
+  // trigger: the page created by the case started another case (content trigger) – and a new page too
+  await call('POST', '/api/v1/elements', { category_id: cat, type: 'core.html', title: `Trigger page ${run}`, body: { format: 'html', source: '<p>x</p>' } });
+  // the change reaches the queue right after its commit; the worker decides
+  const started = async (title) => {
+    for (let i = 0; i < 10; i++) {
+      await job('workflow.process.triggers');
+      await job('workflow.process.timers');
+      const r = await call('GET', `/api/v1/x/workflow.process/elements/${wf.id}/instances`);
+      const c = r.instances.find((y) => y.title === title);
+      if (c) return c;
+      await page.waitForTimeout(300);
+    }
+    return null;
+  };
+  assert.ok(await started(`Trigger page ${run}`), 'content trigger started a case');
+  // signed webhook from another system (no session, no CSRF header)
+  const body = JSON.stringify({ who: `Hook ${run}`, n: 5 });
+  const ts = String(Math.floor(Date.now() / 1000));
+  const sig = createHmac('sha256', secret).update(`${ts}.${body}`).digest('hex');
+  const url = `${BASE}/api/v1/x/workflow.process/hooks/${wf.id}/pages`;
+  const hook = `${BASE}/api/v1/x/workflow.process/hooks/${wf.id}/hook`;
+  const post = (u, s) => fetch(u, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Ewiki-Timestamp': ts, 'X-Ewiki-Signature': `sha256=${s}` }, body });
+  assert.equal((await post(hook, '0'.repeat(64))).status, 403, 'wrong signature');
+  assert.equal((await post(url, sig)).status, 403, 'not a webhook trigger');
+  assert.equal((await post(hook, sig)).status, 202, 'signed webhook accepted');
+  const hooked = await started(`Hook ${run}`);
+  assert.ok(hooked, 'webhook started a case');
+  assert.equal((await call('GET', `/api/v1/x/workflow.process/instances/${hooked.id}`)).data.total, '10');
+  assert.ok(me.user.id > 0);
+});
+
 test('drafts, preview, templates and publishing with options', async () => {
   const cat = await m6Category();
   await page.goto(`${BASE}/c/${cat}/new`);

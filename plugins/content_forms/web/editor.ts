@@ -15,7 +15,7 @@ export interface FField {
 }
 interface EmailTarget { to: string; subject: string; body: string; files?: boolean }
 interface Targets {
-  store: boolean; email?: EmailTarget[]; webhook?: { url: string; secret?: string } | null;
+  store: boolean; email?: EmailTarget[]; webhook?: { url: string; secret?: string; secret_ref?: string } | null;
   propdb?: { element_id: number; title: string; mapping: Record<string, string> } | null;
   workflow?: { element_id: number; mapping: Record<string, string>; files?: boolean } | null;
   files?: { category_id: number; formats: string[]; name: string } | null;
@@ -393,8 +393,13 @@ export function createFormEditor(container: HTMLElement, raw: unknown, _ctx: Edi
   };
   drawEmails();
   const hookURL = textInput({ type: 'url', value: body.targets.webhook?.url ?? '', placeholder: 'https://' });
-  const hookSecret = textInput({ value: body.targets.webhook?.secret ?? '' });
-  const syncHook = () => { body.targets.webhook = hookURL.value.trim() ? { url: hookURL.value.trim(), secret: hookSecret.value } : null; };
+  // the secret is never sent back: empty keeps the stored one
+  const hookSecret = textInput({ value: '', type: 'password', autocomplete: 'new-password',
+    placeholder: body.targets.webhook?.secret_ref ? t('forms.ed.webhook_secret_kept') : '' });
+  const syncHook = () => {
+    const ref = body.targets.webhook?.secret_ref;
+    body.targets.webhook = hookURL.value.trim() ? { url: hookURL.value.trim(), secret: hookSecret.value || undefined, secret_ref: hookSecret.value ? undefined : ref } : null;
+  };
   hookURL.addEventListener('input', syncHook);
   hookSecret.addEventListener('input', syncHook);
   const mapping = (target: string, map: Record<string, string>) => {
@@ -448,7 +453,7 @@ export function createFormEditor(container: HTMLElement, raw: unknown, _ctx: Edi
   filesBox.append(h('div', { class: 'ewfm-ed-row', role: 'group', 'aria-label': t('forms.ed.files_formats') }, ...formats.map((c) => c.el)),
     field(t('forms.ed.files_name'), fname, { help: t('forms.ed.placeholders') }));
   targets.append(store.el, h('p', { class: 'ew-label' }, t('forms.ed.email')), emails,
-    h('fieldset', { class: 'ew-fieldset' }, h('legend', null, t('forms.ed.webhook')), field(t('forms.ed.webhook_url'), hookURL), field(t('forms.ed.webhook_secret'), hookSecret)),
+    h('fieldset', { class: 'ew-fieldset' }, h('legend', null, t('forms.ed.webhook')), field(t('forms.ed.webhook_url'), hookURL), field(t('forms.ed.webhook_secret'), hookSecret, { help: t('forms.ed.webhook_secret_help') })),
     propBox, wfBox, filesBox);
 
   container.append(h('div', { class: 'ewfm-ed' },

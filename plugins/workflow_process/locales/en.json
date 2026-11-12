@@ -194,7 +194,7 @@
  "workflow.webhook_method": "Method",
  "workflow.webhook_no_allow": "Webhooks only work for addresses an administrator allowed in config.yaml (plugins.macros.http_allow).",
  "workflow.webhook_secret": "Secret (optional)",
- "workflow.webhook_secret_help": "Signs the request: header X-Ewiki-Signature: sha256=…",
+ "workflow.webhook_secret_help": "Signs the request: header X-Ewiki-Signature: sha256=… The secret is stored outside of the workflow and never shown again.",
  "workflow.webhook_url": "URL",
  "workflow.template.onboarding": "Onboarding (with waiting time and welcome e-mail)",
  "workflow.mail_admin_change_subject": "Your workflow “{title}” was changed by {by}",
@@ -385,5 +385,6 @@
  "workflow.admin.title": "Workflow",
  "workflow.admin.intro": "Settings of all workflows. Triggers, steps and deadlines are set in each workflow.",
  "workflow.admin.holidays": "Holidays",
- "workflow.admin.holidays_help": "Days that do not count for deadlines in working days: yearly days (12-25) or dates (2027-03-29), one per line."
+ "workflow.admin.holidays_help": "Days that do not count for deadlines in working days: yearly days (12-25) or dates (2027-03-29), one per line.",
+ "workflow.webhook_secret_kept": "A secret is stored – leave empty to keep it"
 }

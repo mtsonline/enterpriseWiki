@@ -110,6 +110,24 @@ API: `GET|PUT /api/v1/admin/i18n/{lang}`, `GET /api/v1/admin/i18n/{lang}/export?
 - **Quellen (Makros, Blog, FAQ, Kalender, Karussell, Berichte):** Quellen werden immer mit den Rechten der lesenden Person aufgelöst – Elemente, Kalender und Kategorien, die sie nicht sehen darf, erscheinen nicht (auch nicht als Abschnittsname oder Anzahl). Höchstens 50 Quellen je Element/Makro, 1000 einzelne Elemente, 10 Feeds je Makro. Externe Feeds und iCal-Abonnements werden nur im Hintergrund über den SSRF-Schutz abgerufen (interne Adressen nur mit `feeds.allow_private`), höchstens 2 MB, ohne Zugangsdaten. Inhalte daraus werden maskiert: Titel und Zusammenfassungen als Text, Links nur `http(s)` mit `rel="noopener noreferrer nofollow"`, Bilder mit `referrerpolicy="no-referrer"`, Beschreibungen fremder Kalender als reiner Text (keine fremden Bilder oder Links, die nachladen).
 - **Seiteneigenschaften:** lesen mit *Ansehen*, ändern mit *Bearbeiten* der Kategorie; Änderungen werden protokolliert (`element.properties`).
 
+## Geheimnisse in der Datenbank
+
+Signaturschlüssel von Webhooks, Geheimnisse von Authenticator-Apps, Geheimnisse eingehender und ausgehender Webhooks von Workflows und Formularen sowie der Schlüssel der Formular-Tokens liegen in der Datenbank. Wie sie gespeichert werden, legt `secrets.mode` in `config.yaml` fest (für die ganze Instanz):
+
+| Modus | Schutz |
+|---|---|
+| `plain` (Vorgabe) | wie bisher: geschützt durch den Zugriff auf die Datenbank |
+| `aes` | AES-256-GCM mit einer Schlüsseldatei auf dem Dateisystem des Wikis. AES-256 gilt auch gegenüber Quantencomputern als sicher (Grover lässt 128 Bit übrig) – für die meisten Installationen die empfohlene Wahl. |
+| `pq` | hybride Post-Quanten-Verschlüsselung: je Wert ein eigener Schlüssel aus **ML-KEM-1024** (NIST FIPS 203) **und** X25519, abgeleitet mit HKDF-SHA256, dann AES-256-GCM. Sicher, solange eines der beiden Verfahren hält. Für Vorgaben, die Post-Quanten-Verfahren verlangen. |
+
+- Die **Schlüsseldatei** (`secrets.key_file`, Vorgabe `secrets.key` neben `config.yaml`, Rechte `600`) entsteht beim ersten Start eines Modus `aes` oder `pq` und enthält die Schlüssel beider Modi. Sie gehört **nicht** in dieselbe Sicherung wie die Datenbank – bewahren Sie eine Kopie getrennt auf: Ohne sie sind verschlüsselte Werte verloren.
+- Optional schützt ein **Passwort** die Schlüsseldatei (Argon2id): Steht beim ersten Start in der Umgebungsvariable `EWIKI_SECRETS_PASSWORD` (Name änderbar mit `secrets.password_env`, z. B. aus `.env`) ein Passwort, wird die Datei damit verschlüsselt; danach braucht jeder Start dieses Passwort.
+- Jeder verschlüsselte Wert ist an seine Stelle (Tabelle und Zeile) gebunden: in eine andere Zeile kopiert, lässt er sich nicht öffnen.
+- **Modus wechseln:** `secrets.mode` ändern, neu starten, dann unter *Administration → Experteneinstellungen → Geheimnisse in der Datenbank* „Alle Werte im aktuellen Modus speichern“ (oder `ewiki api POST /api/v1/admin/secrets/rewrap`, je Site). Bisherige Werte bleiben bis dahin lesbar; zurück zu `plain` geht nur mit vorhandener Schlüsseldatei.
+- **Datenbank auf einem anderen Host** (nicht Teil der Standardinstallation, aber möglich: `database.url`): Dann liegen Schlüsseldatei und Datenbank getrennt – wer nur die Datenbank (oder eine Sicherung davon) erbeutet, liest keine Geheimnisse; nötig sind beide Hosts und ggf. das Passwort.
+- Geheimnisse von Workflows und Formularen (Webhooks) sind **nie Teil der Seite**: Gespeichert wird nur ein Verweis; Bearbeitende sehen „Ein Geheimnis ist gespeichert“. Eine Kopie der Seite (Duplizieren, Vorlage) übernimmt das Geheimnis nicht – es muss neu eingegeben werden.
+- Passwörter und Schlüssel in `config.yaml` bzw. `.env` (SMTP, SSO, LDAP …) sind davon nicht betroffen; sie gehören in die Umgebung (`${NAME}`) und auf ein geschütztes Dateisystem.
+
 ## Schutz vor Überlastung
 
 - **Anfragegrenzen** je Konto bzw. je Adresse für Gäste, strenger für teure Anfragen (Suche, Vorschau, Export, Upload); Antwort `429` mit `Retry-After`. Einstellbar unter Administration → Experteneinstellungen (`core.rate.*`, siehe [configuration.md](configuration.md#limits-experteneinstellungen)).

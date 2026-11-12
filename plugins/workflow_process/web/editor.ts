@@ -216,6 +216,12 @@ export function createWorkflowEditor(container: HTMLElement, body: unknown, ctx:
         target.focus();
       }, { variant: 'link', ariaLabel: t('workflow.insert_placeholder', { p }) })))));
 
+  // the secret is never sent back: empty keeps the stored one (secret_ref)
+  const secretInput = (w: { secret?: string; secret_ref?: string }) => {
+    const i = textInput({ value: '', type: 'password', autocomplete: 'new-password', maxlength: 200, placeholder: w.secret_ref ? t('workflow.webhook_secret_kept') : '' });
+    i.addEventListener('input', () => { w.secret = i.value || undefined; });
+    return i;
+  };
   const kit: Kit = { text, area, num, stepSelect, placeholderHelp, redraw: () => draw(), fields: () => m.fields, meta: () => meta, elementId: ctx.elementId };
 
   const ruleRow = (s: EStep, r: Rule, j: number): HTMLElement => {
@@ -289,7 +295,7 @@ export function createWorkflowEditor(container: HTMLElement, body: unknown, ctx:
           h('div', { class: 'ewf-grid' },
             field(t('workflow.webhook_url'), text(() => w.url, (v) => { w.url = v; }, { max: 1000, type: 'url', placeholder: 'https://' }), { required: true }),
             field(t('workflow.webhook_method'), method),
-            field(t('workflow.webhook_secret'), text(() => w.secret, (v) => { w.secret = v; }, { max: 200 }), { help: t('workflow.webhook_secret_help') })),
+            field(t('workflow.webhook_secret'), secretInput(w), { help: t('workflow.webhook_secret_help') })),
           h('div', { class: 'ewf-grid' },
             field(t('workflow.next'), stepSelect(() => s.next, (k) => { s.next = k; }, s), { required: true }),
             field(t('workflow.next_error'), stepSelect(() => s.nextElse, (k) => { s.nextElse = k; }, s, true), { help: t('workflow.next_error_help') }))];

@@ -34,6 +34,7 @@ import (
 	"github.com/mtsonline/enterprisewiki/internal/media"
 	"github.com/mtsonline/enterprisewiki/internal/pagecache"
 	"github.com/mtsonline/enterprisewiki/internal/pgversion"
+	"github.com/mtsonline/enterprisewiki/internal/secrets"
 	"github.com/mtsonline/enterprisewiki/internal/storage"
 	"github.com/mtsonline/enterprisewiki/internal/watch"
 	"github.com/mtsonline/enterprisewiki/internal/webhook"
@@ -283,6 +284,7 @@ func newSite(ctx context.Context, in *Instance, site string, migrate bool) (*App
 	a.Workers.Register(worker.Job{Name: "pgversion", Interval: 24 * time.Hour, Run: a.PGVersion.Run})
 	// webhooks: content changes here, other events from plugins (Host.Webhooks)
 	a.Webhooks = webhook.New(pool, cfg, log)
+	a.Webhooks.Box = in.Secrets
 	a.Webhooks.T = a.I18n.T
 	a.Webhooks.Kick = func() { time.AfterFunc(300*time.Millisecond, func() { a.Workers.Trigger("webhooks") }) }
 	// durable: webhooks of content changes are queued even after an error or
@@ -294,6 +296,10 @@ func newSite(ctx context.Context, in *Instance, site string, migrate bool) (*App
 	}})
 	a.Workers.Register(worker.Job{Name: "webhooks.cleanup", Interval: 24 * time.Hour, Run: func(ctx context.Context) error {
 		return a.Webhooks.Cleanup(ctx, cfg.Get().Webhooks.KeepDays)
+	}})
+	// secrets of element bodies that were never saved with an element
+	a.Workers.Register(worker.Job{Name: "secrets.cleanup", Interval: 24 * time.Hour, Run: func(ctx context.Context) error {
+		return secrets.Cleanup(ctx, a.DB)
 	}})
 	// audit log: areas switched off in the settings, forwarding to other systems
 	audit.SetSiteFilter(site, func(action string) bool {
@@ -325,7 +331,7 @@ func newSite(ctx context.Context, in *Instance, site string, migrate bool) (*App
 		a.close()
 		return nil, err
 	}
-	base := sdk.Host{Notify: a.Notify, Webhooks: a.Webhooks, Config: cfg, DB: pool, ACL: a.ACL, Content: a.Content, Auth: a.Auth, I18n: a.I18n, Files: a.Files, Media: a.Media, Mail: a.Mail, Feeds: a.Feeds, Workers: a.Workers,
+	base := sdk.Host{Notify: a.Notify, Webhooks: a.Webhooks, Secrets: in.Secrets, Config: cfg, DB: pool, ACL: a.ACL, Content: a.Content, Auth: a.Auth, I18n: a.I18n, Files: a.Files, Media: a.Media, Mail: a.Mail, Feeds: a.Feeds, Workers: a.Workers,
 		Log: log, Mux: a.Mux, IsEnabled: a.Kernel.Enabled}
 	if err := a.Kernel.Setup(base, a.I18n); err != nil {
 		a.close()

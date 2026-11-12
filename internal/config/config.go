@@ -46,6 +46,7 @@ type Config struct {
 	Lists     Lists                     `yaml:"lists" json:"lists"`
 	Audit     Audit                     `yaml:"audit" json:"audit"`
 	License   License                   `yaml:"license" json:"license"`
+	Secrets   Secrets                   `yaml:"secrets,omitempty" json:"secrets"`
 	Settings  map[string]map[string]any `yaml:"plugin_settings,omitempty" json:"plugin_settings,omitempty"`
 	// Limits holds the changed technical limits (expert settings); what is
 	// missing has the default declared by the core or the plugin (package
@@ -60,6 +61,19 @@ type Sites struct {
 	// separate (own users, groups and roles per site). Each site keeps the
 	// choice made when it was created.
 	Accounts string `yaml:"accounts" json:"accounts"`
+}
+
+// Secrets configures how secrets in the database (signing keys of
+// webhooks, authenticator apps, workflows and forms) are stored: plain
+// (default), aes (AES-256-GCM with a key file) or pq (hybrid ML-KEM-1024 +
+// X25519 with a key file). The key file can be protected by a password from
+// the environment variable PasswordEnv. Instance-wide; see
+// docs/admin/security.md.
+type Secrets struct {
+	Mode string `yaml:"mode,omitempty" json:"mode"`
+	// KeyFile: default secrets.key next to config.yaml.
+	KeyFile     string `yaml:"key_file,omitempty" json:"key_file"`
+	PasswordEnv string `yaml:"password_env,omitempty" json:"password_env"`
 }
 
 // License holds the license key of the organisation (Administration →
@@ -694,6 +708,8 @@ func WriteFile(path string, c *Config) error {
 	return os.Rename(tmp.Name(), path)
 }
 
+var envNameRe = regexp.MustCompile(`^[A-Z_][A-Z0-9_]{0,63}$`)
+
 var pluginIDRe = regexp.MustCompile(`^[a-z][a-z0-9_]*(\.[a-z][a-z0-9_]*)+$`)
 
 var langRe = regexp.MustCompile(`^[a-z]{2,3}(-[A-Z]{2})?$`)
@@ -703,6 +719,12 @@ func ValidLanguage(code string) bool { return langRe.MatchString(code) }
 
 // Validate checks a configuration document.
 func Validate(c *Config) error {
+	if m := c.Secrets.Mode; m != "" && m != "plain" && m != "aes" && m != "pq" {
+		return fmt.Errorf("secrets.mode must be plain, aes or pq, got %q", m)
+	}
+	if e := c.Secrets.PasswordEnv; e != "" && !envNameRe.MatchString(e) {
+		return fmt.Errorf("secrets.password_env must be the name of an environment variable")
+	}
 	if c.Sites.Accounts != "" && c.Sites.Accounts != "shared" && c.Sites.Accounts != "separate" {
 		return fmt.Errorf("sites.accounts must be 'shared' or 'separate', got %q", c.Sites.Accounts)
 	}

@@ -28,6 +28,7 @@ import (
 	h "github.com/mtsonline/enterprisewiki/internal/httpx"
 	"github.com/mtsonline/enterprisewiki/internal/identity"
 	"github.com/mtsonline/enterprisewiki/internal/mail"
+	"github.com/mtsonline/enterprisewiki/internal/secrets"
 	"github.com/mtsonline/enterprisewiki/internal/webhook"
 )
 
@@ -57,12 +58,25 @@ func (p *Plugin) secret(ctx context.Context) ([]byte, error) {
 		if _, err := rand.Read(s); err != nil {
 			return nil, err
 		}
-		if _, err := p.host.DB.Exec(ctx, `INSERT INTO plugin_form_secret(id, secret) VALUES (1, $1) ON CONFLICT (id) DO NOTHING`, s); err != nil {
+		sealed, serr := p.host.Secrets.Seal(s, secretAAD)
+		if serr != nil {
+			return nil, serr
+		}
+		if _, err := p.host.DB.Exec(ctx, `INSERT INTO plugin_form_secret(id, secret) VALUES (1, $1) ON CONFLICT (id) DO NOTHING`, sealed); err != nil {
 			return nil, err
 		}
 		err = p.host.DB.QueryRow(ctx, `SELECT secret FROM plugin_form_secret WHERE id=1`).Scan(&s)
 	}
-	return s, err
+	if err != nil {
+		return nil, err
+	}
+	return p.host.Secrets.Open(s, secretAAD)
+}
+
+var secretAAD = secrets.AAD("plugin_form_secret", "1")
+
+func init() {
+	secrets.Register(secrets.Column{Table: "plugin_form_secret", Key: "id", Value: "secret"})
 }
 
 func (p *Plugin) sign(ctx context.Context, el, uid, at int64) (string, error) {

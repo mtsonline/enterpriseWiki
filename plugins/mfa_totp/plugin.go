@@ -16,6 +16,7 @@ import (
 	"io/fs"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
 	"time"
 
@@ -28,6 +29,7 @@ import (
 	"github.com/mtsonline/enterprisewiki/internal/config"
 	h "github.com/mtsonline/enterprisewiki/internal/httpx"
 	"github.com/mtsonline/enterprisewiki/internal/identity"
+	"github.com/mtsonline/enterprisewiki/internal/secrets"
 	"github.com/mtsonline/enterprisewiki/pkg/sdk"
 )
 
@@ -56,7 +58,7 @@ func (p *Plugin) Locales() fs.FS { s, _ := fs.Sub(locales, "locales"); return s 
 
 // Setup registers the factor and the endpoints of the own authenticator.
 func (p *Plugin) Setup(host *sdk.Host) error {
-	m := &Method{pool: host.DB, cfg: host.Config}
+	m := &Method{pool: host.DB, cfg: host.Config, box: host.Secrets}
 	host.RegisterMFAMethod(m)
 	host.Handle("GET", "/me", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		pr := identity.From(r.Context())
@@ -83,7 +85,14 @@ func (p *Plugin) Setup(host *sdk.Host) error {
 type Method struct {
 	pool *pgxpool.Pool
 	cfg  *config.Store
+	box  *secrets.Box
 }
+
+func init() {
+	secrets.Register(secrets.Column{Table: "plugin_mfa_totp", Key: "user_id", Value: "secret", Text: true})
+}
+
+func aad(uid int64) string { return secrets.AAD("plugin_mfa_totp", strconv.FormatInt(uid, 10)) }
 
 // ID implements auth.MFAMethod.
 func (m *Method) ID() string { return "totp" }
@@ -129,6 +138,10 @@ func (m *Method) Verify(ctx context.Context, uid int64, _ string, answer json.Ra
 	var last int64
 	if err := m.pool.QueryRow(ctx, `SELECT secret, last_step FROM plugin_mfa_totp WHERE user_id=$1`, uid).Scan(&secret, &last); err != nil {
 		return auth.ErrMFAInvalid
+	}
+	secret, err := m.box.OpenString(secret, aad(uid))
+	if err != nil {
+		return err // the key file is missing: no sign-in with the app (fail closed)
 	}
 	step, ok := VerifyTOTP(secret, in.Code, time.Now(), last)
 	if !ok {
@@ -178,7 +191,11 @@ func (m *Method) FinishEnroll(ctx context.Context, uid int64, state string, answ
 	if !ok {
 		return auth.ErrMFAInvalid
 	}
-	tag, err := m.pool.Exec(ctx, `INSERT INTO plugin_mfa_totp(user_id, secret, last_step) VALUES ($1,$2,$3) ON CONFLICT (user_id) DO NOTHING`, uid, state, step)
+	sealed, err := m.box.SealString(state, aad(uid))
+	if err != nil {
+		return err
+	}
+	tag, err := m.pool.Exec(ctx, `INSERT INTO plugin_mfa_totp(user_id, secret, last_step) VALUES ($1,$2,$3) ON CONFLICT (user_id) DO NOTHING`, uid, sealed, step)
 	if err != nil {
 		return err
 	}

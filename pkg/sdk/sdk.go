@@ -41,6 +41,7 @@ import (
 	"github.com/mtsonline/enterprisewiki/internal/media"
 	"github.com/mtsonline/enterprisewiki/internal/notify"
 	"github.com/mtsonline/enterprisewiki/internal/perm"
+	"github.com/mtsonline/enterprisewiki/internal/secrets"
 	"github.com/mtsonline/enterprisewiki/internal/storage"
 	"github.com/mtsonline/enterprisewiki/internal/webhook"
 	"github.com/mtsonline/enterprisewiki/internal/worker"
@@ -167,6 +168,9 @@ type Host struct {
 	Workers *worker.Registry
 	// Webhooks queues HTTP notifications (Emit) for events of the plugin.
 	Webhooks *webhook.Service
+	// Secrets seals secrets stored in the database (secrets.mode); register
+	// the columns with secrets.Register so that "rewrap" finds them.
+	Secrets *secrets.Box
 	// Notify sends notifications in the wiki (bell) and by e-mail; declare
 	// the kinds with notify.RegisterKind so users can configure the e-mails.
 	Notify *notify.Service

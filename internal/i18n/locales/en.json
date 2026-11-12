@@ -2031,5 +2031,17 @@
  "apikey.rate_value": "{n}/s",
  "apikey.rate_edit": "Change the limit of “{name}”",
  "webhook.text.form.submitted": "Someone submitted the form “{title}”.",
- "webhooks.ev.form.submitted": "Form submitted"
+ "webhooks.ev.form.submitted": "Form submitted",
+ "secrets.title": "Secrets in the database",
+ "secrets.mode.plain": "Mode: plain – signing keys and secrets of authenticator apps are protected by the access to the database.",
+ "secrets.mode.aes": "Mode: aes – encrypted with AES-256-GCM and the key file of the instance.",
+ "secrets.mode.pq": "Mode: pq – encrypted post-quantum (ML-KEM-1024 + X25519, AES-256-GCM) with the key file of the instance.",
+ "secrets.key_loaded": "The key file is loaded.",
+ "secrets.key_password": "The key file is loaded and protected by a password.",
+ "secrets.no_key": "No key file is loaded.",
+ "secrets.values": "Stored: {plain} plain, {aes} aes, {pq} pq.",
+ "secrets.rewrap_needed": "Some values are not stored in the current mode yet.",
+ "secrets.help": "The mode is set in config.yaml (secrets.mode: plain, aes or pq); a key file is created at the first start (secrets.key next to config.yaml). Optionally the variable {env} protects the key file with a password. Then store all values in the new mode.",
+ "secrets.rewrap": "Store all values in the current mode",
+ "secrets.rewrapped": "{n} values stored again."
 }

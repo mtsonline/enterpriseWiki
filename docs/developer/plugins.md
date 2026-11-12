@@ -283,6 +283,10 @@ max := h.Limit("acme.forms.answer_kb") // aktueller Wert, jederzeit
 - `h.Signed("POST", "/hooks/{id}")` meldet eine Route an, die andere Systeme aufrufen (eingehende Webhooks): Der Aufrufer ist dort **immer anonym** – Sitzungen und API-Keys zählen nie, ein CSRF-Header ist nicht nötig. Der Handler prüft die Signatur selbst (`hmac.Equal`, Zeitstempel gegen Wiederholungen) und antwortet bei jedem Fehler gleich (`403`). Es gelten die Größen- und Ratengrenzen für Gäste.
 - `host.Webhooks.Listen(func(ctx, q, ev) error)` erhält jedes Ereignis (`element.*`, `category.*`, `comment.create`, `form.submitted`, `workflow.*` …) **in der Transaktion der Änderung** (`q`), bevor Webhooks eingereiht werden. Wer in `q` schreibt, sollte einen Savepoint nehmen (`q.(pgx.Tx).Begin`), damit ein eigener Fehler die Änderung nicht verhindert. Teures gehört in eine Warteschlange und einen Worker.
 
+### Geheimnisse
+
+Geheimnisse in eigenen Tabellen mit `host.Secrets.Seal(wert, secrets.AAD("tabelle", schlüssel))` speichern und mit `Open` lesen (bei `secrets.mode: plain` unverändert) und die Spalte mit `secrets.Register(secrets.Column{…})` anmelden, damit „rewrap“ sie findet. Geheimnisse im Inhalt eines Elementtyps nie im Body speichern: `Prepare` legt sie mit `secrets.PutRef` ab und schreibt nur den Verweis in den Body, `SecretRefs(body)` nennt die Verweise (sie werden beim Speichern an das Element gebunden), gelesen wird mit `secrets.GetRef(ctx, db, host.Secrets, elementID, ref)`.
+
 ### Rechte in Plugin-Routen
 
 `host.Content.ElementCategory(ctx, elementID, acl.View)` liefert die Kategorie eines Elements und prüft dabei das Recht (404 statt 403, wenn das Element nicht sichtbar ist). `host.Content.Require(ctx, categoryID, perm)` prüft ein Recht auf einer Kategorie.

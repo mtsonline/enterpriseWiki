@@ -14,6 +14,7 @@ interface Limit {
 }
 
 interface Proxy { header: string; trusted: number; untrusted: { peer: string; header: string; last: string; requests: number }[] }
+interface SecretsStatus { mode: 'plain' | 'aes' | 'pq'; key_loaded: boolean; password: boolean; password_env: string; values: { plain: number; aes: number; pq: number }; rewrap_needed: boolean }
 interface Key { id: number; name: string; prefix: string; owner: string; rate_per_second: number | null; rate_own: boolean }
 
 /** translated text of a limit, or the English text the core or plugin declared */
@@ -107,8 +108,30 @@ export async function limitsAdmin(panel: HTMLElement): Promise<void> {
       h('thead', null, h('tr', null, ...[t('limits.keys.owner'), t('limits.keys.name'), t('limits.keys.rate'), t('common.actions')].map((x) => h('th', { scope: 'col' }, x)))),
       h('tbody', null, ...keys.map(keyRow))) : h('p', null, t('limits.keys.none'))) : null;
 
+  // how secrets in the database are stored (instance administrators)
+  let secretsSection: HTMLElement | null = null;
+  if (isAdmin() && res.editable) {
+    try {
+      const st = await api.get<SecretsStatus>('admin/secrets');
+      const counts = t('secrets.values', { plain: st.values.plain, aes: st.values.aes, pq: st.values.pq });
+      const status = h('p', { role: 'status' });
+      secretsSection = h('section', { class: 'ew-section', 'aria-labelledby': 'lim-secrets' }, h('h2', { id: 'lim-secrets' }, t('secrets.title')),
+        h('p', null, t(`secrets.mode.${st.mode}`)),
+        h('p', null, st.key_loaded ? t(st.password ? 'secrets.key_password' : 'secrets.key_loaded') : t('secrets.no_key')),
+        h('p', null, counts),
+        st.rewrap_needed ? h('p', { class: 'ew-notice ew-notice--warning', role: 'note' }, t('secrets.rewrap_needed')) : null,
+        h('p', { class: 'ew-help' }, t('secrets.help', { env: st.password_env })),
+        button(t('secrets.rewrap'), async () => {
+          try {
+            const r = await api.post<{ changed: number }>('admin/secrets/rewrap', {});
+            status.textContent = t('secrets.rewrapped', { n: r.changed });
+          } catch (e) { status.textContent = errorText(e); }
+        }, { variant: 'secondary' }), status);
+    } catch { secretsSection = null; }
+  }
+
   mount(panel, pageHeader(t('admin.limits')),
     h('p', null, t('limits.intro')),
     res.editable ? null : h('p', { role: 'note' }, t('limits.instance_only')),
-    form, keySection, proxy);
+    form, keySection, proxy, secretsSection);
 }

@@ -220,6 +220,18 @@ CREATE TABLE element_revisions (
 );
 CREATE INDEX element_revisions_time ON element_revisions(element_id, created_at);
 
+-- Secrets of element bodies (signing keys of webhooks of workflows and
+-- forms), kept outside of the body; sealed as secrets.mode says. A secret
+-- belongs to the element it was saved with (element_id NULL: not saved yet).
+CREATE TABLE element_secrets (
+    ref         text PRIMARY KEY,
+    element_id  bigint REFERENCES elements(id) ON DELETE CASCADE,
+    value       bytea NOT NULL,
+    created_by  bigint REFERENCES users(id) ON DELETE SET NULL,
+    created_at  timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX element_secrets_element ON element_secrets(element_id);
+
 -- Full text index, one row per element and language (latest revision).
 CREATE TABLE search_docs (
     element_id  bigint NOT NULL REFERENCES elements(id) ON DELETE CASCADE,

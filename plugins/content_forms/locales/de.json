@@ -240,5 +240,7 @@
  "forms.ed.sub_add": "Feld zur Zeile hinzufügen",
  "limit.content.forms.submit_mb": "Größe einer Formular-Einsendung",
  "limit.content.forms.submit_mb.help": "Obergrenze für eine Einsendung mit allen Dateien (auch für Gäste). Jedes Formular erlaubt höchstens die Dateien, die seine Felder annehmen; diese Grenze gilt für alle Formulare.",
- "limits.group.forms": "Formulare"
+ "limits.group.forms": "Formulare",
+ "forms.ed.webhook_secret_kept": "Ein Geheimnis ist gespeichert – leer lassen, um es zu behalten",
+ "forms.ed.webhook_secret_help": "Signiert jede Anfrage (X-Ewiki-Signature). Es wird außerhalb des Formulars gespeichert und nie wieder angezeigt."
 }

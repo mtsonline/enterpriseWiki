@@ -2031,5 +2031,17 @@
  "apikey.rate_value": "{n}/s",
  "apikey.rate_edit": "Grenze von „{name}“ ändern",
  "webhook.text.form.submitted": "Jemand hat das Formular „{title}“ abgeschickt.",
- "webhooks.ev.form.submitted": "Formular abgeschickt"
+ "webhooks.ev.form.submitted": "Formular abgeschickt",
+ "secrets.title": "Geheimnisse in der Datenbank",
+ "secrets.mode.plain": "Modus: unverschlüsselt – Signaturschlüssel und Geheimnisse von Authenticator-Apps sind durch den Zugriff auf die Datenbank geschützt.",
+ "secrets.mode.aes": "Modus: aes – verschlüsselt mit AES-256-GCM und der Schlüsseldatei der Instanz.",
+ "secrets.mode.pq": "Modus: pq – Post-Quanten-verschlüsselt (ML-KEM-1024 + X25519, AES-256-GCM) mit der Schlüsseldatei der Instanz.",
+ "secrets.key_loaded": "Die Schlüsseldatei ist geladen.",
+ "secrets.key_password": "Die Schlüsseldatei ist geladen und durch ein Passwort geschützt.",
+ "secrets.no_key": "Keine Schlüsseldatei geladen.",
+ "secrets.values": "Gespeichert: {plain} unverschlüsselt, {aes} aes, {pq} pq.",
+ "secrets.rewrap_needed": "Einige Werte sind noch nicht im aktuellen Modus gespeichert.",
+ "secrets.help": "Der Modus wird in config.yaml festgelegt (secrets.mode: plain, aes oder pq); beim ersten Start entsteht eine Schlüsseldatei (secrets.key neben config.yaml). Optional schützt die Variable {env} die Schlüsseldatei mit einem Passwort. Danach alle Werte im neuen Modus speichern.",
+ "secrets.rewrap": "Alle Werte im aktuellen Modus speichern",
+ "secrets.rewrapped": "{n} Werte neu gespeichert."
 }

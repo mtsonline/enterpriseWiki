@@ -213,6 +213,17 @@ Für Gäste werden die API-Antworten im Arbeitsspeicher gehalten. Beim Aufruf ei
 
 Kommandozeile: `ewiki cache status`, `ewiki cache clear`. API: `GET/DELETE /api/v1/admin/cache`.
 
+### `secrets`
+
+Wie Geheimnisse in der Datenbank gespeichert werden (Details: [Sicherheit](security.md#geheimnisse-in-der-datenbank)).
+
+```yaml
+secrets:
+  mode: pq                     # plain (Vorgabe) | aes | pq
+  key_file: secrets.key        # relativ zu config.yaml oder absolut
+  password_env: EWIKI_SECRETS_PASSWORD   # optional: Passwort der Schlüsseldatei
+```
+
 ### `license`
 Lizenzschlüssel der Organisation (siehe [LICENSING.md](../../LICENSING.md)). Am einfachsten unter *Administration → Lizenz*
 oder mit `ewiki license install KEY` einspielen; die Prüfung erfolgt offline.

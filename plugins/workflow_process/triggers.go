@@ -45,6 +45,7 @@ import (
 	h "github.com/mtsonline/enterprisewiki/internal/httpx"
 	"github.com/mtsonline/enterprisewiki/internal/identity"
 	"github.com/mtsonline/enterprisewiki/internal/netlist"
+	"github.com/mtsonline/enterprisewiki/internal/secrets"
 	"github.com/mtsonline/enterprisewiki/internal/webhook"
 )
 
@@ -794,6 +795,14 @@ func (pl *Plugin) fireSchedule(ctx context.Context, element int64, trigger strin
 
 // ---------------------------------------------------------------- incoming webhooks
 
+func init() {
+	secrets.Register(secrets.Column{Table: "plugin_workflow_hook_secrets", Key: "element_id::text || ':' || trigger_id", Value: "secret"})
+}
+
+func hookAAD(element int64, trigger string) string {
+	return secrets.AAD("plugin_workflow_hook_secrets", strconv.FormatInt(element, 10)+":"+trigger)
+}
+
 // HookTolerance is how far the time of a signed request may differ.
 const HookTolerance = 5 * time.Minute
 
@@ -825,6 +834,10 @@ func (pl *Plugin) receiveHook(w http.ResponseWriter, r *http.Request) (any, erro
 	}
 	var t Trigger
 	if json.Unmarshal(raw, &t) != nil {
+		return nil, denied
+	}
+	if secret, err = pl.host.Secrets.Open(secret, hookAAD(element, trigger)); err != nil {
+		pl.host.Log.Error("workflow webhook: secret cannot be read", "workflow", element, "trigger", trigger, "err", err)
 		return nil, denied
 	}
 	ip := audit.ClientIP(ctx)
@@ -882,11 +895,15 @@ func (pl *Plugin) newHookSecret(ctx context.Context, element int64, trigger stri
 		return "", err
 	}
 	secret := hex.EncodeToString(b)
+	sealed, err := pl.host.Secrets.Seal([]byte(secret), hookAAD(element, trigger))
+	if err != nil {
+		return "", err
+	}
 	p := identity.From(ctx)
-	err := pgx.BeginFunc(ctx, pl.host.DB, func(tx pgx.Tx) error {
+	err = pgx.BeginFunc(ctx, pl.host.DB, func(tx pgx.Tx) error {
 		if _, err := tx.Exec(ctx, `INSERT INTO plugin_workflow_hook_secrets(element_id, trigger_id, secret, created_by) VALUES ($1,$2,$3,$4)
 			ON CONFLICT (element_id, trigger_id) DO UPDATE SET secret=EXCLUDED.secret, created_by=EXCLUDED.created_by, created_at=now()`,
-			element, trigger, []byte(secret), nullID(p.ID())); err != nil {
+			element, trigger, sealed, nullID(p.ID())); err != nil {
 			return err
 		}
 		return audit.Log(ctx, tx, "workflow.hook_secret", "element", element, nil, map[string]string{"trigger": trigger})

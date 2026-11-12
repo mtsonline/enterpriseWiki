@@ -131,6 +131,7 @@ func (s *Server) routes() {
 	s.routesAudit()
 	s.routesLimits()
 	s.routesKeyLimits()
+	s.routesSecrets()
 	s.routesDrafts()
 	s.routesNotifications()
 	s.routesWatchAssignments()

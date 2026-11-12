@@ -26,6 +26,7 @@ import (
 	"github.com/mtsonline/enterprisewiki/internal/media"
 	"github.com/mtsonline/enterprisewiki/internal/netguard"
 	"github.com/mtsonline/enterprisewiki/internal/pdfdoc"
+	"github.com/mtsonline/enterprisewiki/internal/secrets"
 	"github.com/mtsonline/enterprisewiki/pkg/sdk"
 )
 
@@ -240,8 +241,12 @@ func (p *Plugin) sendWebhook(ctx context.Context, f *Form, cat int64, d *due, ti
 	}
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("User-Agent", "enterprise-wiki-forms")
-	if t.Secret != "" {
-		m := hmac.New(sha256.New, []byte(t.Secret))
+	if t.SecretRef != "" {
+		key, err := secrets.GetRef(ctx, p.host.DB, p.host.Secrets, d.element, t.SecretRef)
+		if err != nil {
+			return err
+		}
+		m := hmac.New(sha256.New, []byte(key))
 		m.Write(body)
 		req.Header.Set("X-Ewiki-Signature", "sha256="+hex.EncodeToString(m.Sum(nil)))
 	}

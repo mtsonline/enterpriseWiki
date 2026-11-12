@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"net"
 	"net/url"
+	"os"
 	"path/filepath"
 	"slices"
 	"sort"
@@ -24,6 +25,7 @@ import (
 	"github.com/mtsonline/enterprisewiki/internal/db/migrations"
 	"github.com/mtsonline/enterprisewiki/internal/httpx"
 	"github.com/mtsonline/enterprisewiki/internal/identity"
+	"github.com/mtsonline/enterprisewiki/internal/secrets"
 )
 
 // Instance holds the resources shared by all sites (instance settings,
@@ -37,6 +39,9 @@ type Instance struct {
 	Shared *pgxpool.Pool
 	Log    *slog.Logger
 	Root   string
+
+	// Secrets seals and opens the secrets in the databases of all sites.
+	Secrets *secrets.Box
 
 	mu    sync.RWMutex
 	sites map[string]*App
@@ -83,11 +88,15 @@ func OpenInstance(ctx context.Context, o InstanceOptions) (*Instance, error) {
 		return nil, err
 	}
 	c := cfg.Get()
+	box, err := openSecrets(c, root, log)
+	if err != nil {
+		return nil, err
+	}
 	shared, err := db.Open(ctx, c.Database.URL, 4)
 	if err != nil {
 		return nil, err
 	}
-	in := &Instance{Config: cfg, Shared: shared, Log: log, Root: root, sites: map[string]*App{}}
+	in := &Instance{Config: cfg, Shared: shared, Log: log, Root: root, Secrets: box, sites: map[string]*App{}}
 	if o.Migrate {
 		applied, err := db.Migrate(ctx, shared, []db.MigrationSource{{Name: "identity", Files: migrations.Identity}, {Name: "core", Files: migrations.Shared}})
 		for _, m := range applied {
@@ -524,4 +533,37 @@ func (in *Instance) AllowedHost(ctx context.Context, host string) (bool, error) 
 		}
 	}
 	return false, nil
+}
+
+// openSecrets loads the key file of the secrets (created at the first
+// start of a mode that needs one).
+func openSecrets(c *config.Config, root string, log *slog.Logger) (*secrets.Box, error) {
+	path := SecretsKeyFile(c, root)
+	envName := c.Secrets.PasswordEnv
+	if envName == "" {
+		envName = "EWIKI_SECRETS_PASSWORD"
+	}
+	pw := os.Getenv(envName)
+	if c.Secrets.Mode == secrets.ModeAES || c.Secrets.Mode == secrets.ModePQ {
+		if _, err := os.Stat(path); errors.Is(err, os.ErrNotExist) {
+			log.Warn("creating the key file of the secrets; keep a copy of it apart from the database backups", "file", path, "password", pw != "")
+		}
+	}
+	box, err := secrets.Load(c.Secrets.Mode, path, pw, true)
+	if err != nil {
+		return nil, fmt.Errorf("secrets: %w", err)
+	}
+	return box, nil
+}
+
+// SecretsKeyFile returns the key file of the secrets (default: secrets.key
+// next to config.yaml).
+func SecretsKeyFile(c *config.Config, root string) string {
+	if c.Secrets.KeyFile != "" {
+		if filepath.IsAbs(c.Secrets.KeyFile) {
+			return c.Secrets.KeyFile
+		}
+		return filepath.Join(root, c.Secrets.KeyFile)
+	}
+	return filepath.Join(root, "secrets.key")
 }
