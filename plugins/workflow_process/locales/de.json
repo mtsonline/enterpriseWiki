@@ -452,7 +452,7 @@
  "workflow.deputy.active": "{name} vertritt Sie bis {until} (seit {from}).",
  "workflow.deputy.planned": "{name} vertritt Sie von {from} bis {until}.",
  "workflow.deputy.stand_in": "Sie vertreten: {names}",
- "workflow.mail.links": "Direkt entscheiden (jeder Link gilt einmal, 14 Tage lang):",
+ "workflow.mail.links": "Direkt entscheiden (jeder Link gilt einmal, bis {until}):",
  "workflow.ev.test_skipped": "Testlauf: Schritt „{type}“ übersprungen → {step}",
  "workflow.version": "Version {n}",
  "workflow.test_badge": "Testlauf",
@@ -492,5 +492,11 @@
  "workflow.retention.help": "Leer: unbegrenzt aufbewahren. Nach dieser Zeit werden abgeschlossene und abgebrochene Fälle anonymisiert oder gelöscht.",
  "workflow.retention.mode": "Danach",
  "workflow.retention.anonymize": "anonymisieren (Titel, Daten, Notizen und Personen entfernt)",
- "workflow.retention.delete": "löschen"
+ "workflow.retention.delete": "löschen",
+ "workflow.links_valid": "Links gültig für",
+ "workflow.links_valid_help": "Höchstens 90 Tage. Ein Link gilt nie über die Frist seines Schritts hinaus und endet, sobald der Fall weitergeht.",
+ "workflow.links_unit": "Einheit",
+ "workflow.links_unit.days": "Tage",
+ "workflow.links_unit.hours": "Stunden",
+ "workflow.link.valid_until": "Der Link gilt bis {date}."
 }

@@ -8,6 +8,7 @@ import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { chromium } from 'playwright';
 import { createHmac } from 'node:crypto';
+import net from 'node:net';
 
 const BASE = process.env.EWIKI_E2E_URL ?? 'http://localhost:8080';
 const USER = process.env.EWIKI_E2E_USER ?? 'admin';
@@ -888,6 +889,12 @@ test('workflow 2: decision links in e-mails, test run, evaluation and retention 
   // an own category that every signed-in user may read (the addressee must see the case)
   const cat = (await call('POST', '/api/v1/categories', { titles: { en: `Flows ${run}` } })).id;
   await call('POST', `/api/v1/categories/${cat}/acl`, { subject_type: 'authenticated', permissions: 1, inherit: true });
+  const job = (name) => call('POST', `/api/v1/admin/jobs/${name}/run`, {});
+  // a real e-mail delivery: a small SMTP server receives the task e-mail
+  const smtp = await smtpFake();
+  const prevMail = await call('GET', '/api/v1/admin/settings');
+  await call('PUT', '/api/v1/admin/settings', { mail: { ...prevMail.config.mail, enabled: true, transport: 'smtp', from: prevMail.config.mail.from || 'wiki@example.invalid',
+    smtp: { ...prevMail.config.mail.smtp, host: '127.0.0.1', port: smtp.port, security: 'none', username: '', password: '' } } });
   const who = `lnk${run}`;
   await call('POST', '/api/v1/admin/users', { username: who, password: 'Lnk-Passw0rd-1!', display_name: `Linda ${run}`, email: `${who}@example.invalid` });
   // the administrator allows decisions from e-mails without signing in
@@ -900,7 +907,7 @@ test('workflow 2: decision links in e-mails, test run, evaluation and retention 
   await page.waitForFunction(async () => (await (await fetch('/api/v1/admin/settings')).json()).config.plugin_settings?.['workflow.process']?.links_without_login === true);
   try {
     const wf = await call('POST', '/api/v1/elements', { category_id: cat, type: 'workflow.process', title: `Leave ${run}`, body: {
-      description: 'E2E', links: true, retention: { days: 365, mode: 'anonymize' }, fields: [{ id: 'reason', label: 'Reason', type: 'text', required: true }],
+      description: 'E2E', links: true, link_hours: 48, retention: { days: 365, mode: 'anonymize' }, fields: [{ id: 'reason', label: 'Reason', type: 'text', required: true }],
       steps: [
         { id: 'mail', name: 'Inform', type: 'email', next: 'check', email: { to: 'outside@example.invalid', subject: 'Hi', body: 'x' } },
         { id: 'check', name: 'Check', assignee: { type: 'user', value: who }, actions: [{ id: 'ok', label: 'Agree', next: 'done' }, { id: 'no', label: 'Refuse', next: 'done', note: 'required' }] },
@@ -910,15 +917,20 @@ test('workflow 2: decision links in e-mails, test run, evaluation and retention 
     await idle();
     await page.getByLabel(/decision links in task e-mails|entscheidungslinks in aufgaben-e-mails/i).waitFor();
     assert.equal(await page.getByLabel(/keep completed cases|abgeschlossene fälle aufbewahren/i).inputValue(), '365');
+    assert.equal(await page.getByLabel(/^(links valid for|links gültig für)/i).inputValue(), '2');
     await a11y('workflow editor options');
     // a case: the task e-mail carries one link per decision
     const c = await call('POST', `/api/v1/x/workflow.process/elements/${wf.id}/instances`, { data: { reason: `Holiday ${run}` } });
     const out = await call('GET', `/api/v1/admin/mail/outbox?q=${encodeURIComponent(`${who}@example.invalid`)}`);
-    const mail = out[0];
-    assert.ok(mail, 'task e-mail queued');
-    const body = (await call('GET', `/api/v1/admin/mail/outbox/${mail.id}`)).body;
-    const tok = (body.split('\n').find((l) => l.startsWith('- Agree: ')) ?? '').split('?t=')[1];
-    assert.ok(tok, `link in the e-mail: ${body}`);
+    assert.ok(out[0], 'task e-mail queued');
+    // administrators never see the token, only the recipient gets it
+    const shown = (await call('GET', `/api/v1/admin/mail/outbox/${out[0].id}`)).body;
+    assert.match(shown, /\/workflow\/link\?t=\[hidden\]/, `outbox hides the link: ${shown}`);
+    await job('mail');
+    const body = smtp.mails.find((m) => m.to.includes(`${who}@example.invalid`))?.text ?? '';
+    const tok = (body.split('\n').find((l) => l.startsWith('- Agree: ')) ?? '').split('?t=')[1]?.trim();
+    assert.ok(tok, `link in the delivered e-mail: ${body}`);
+    assert.ok(!(await call('GET', `/api/v1/admin/mail/outbox/${out[0].id}`)).body.includes(tok), 'token gone after delivery');
     // signed in as someone else: the page says so and does not decide
     await page.goto(`${BASE}/workflow/link?t=${tok}`);
     await page.getByText(/sent to another person|an eine andere person/i).waitFor();
@@ -930,6 +942,7 @@ test('workflow 2: decision links in e-mails, test run, evaluation and retention 
       await guest.goto(`${BASE}/workflow/link?t=${tok}`);
       const confirm = guest.getByRole('button', { name: /^(confirm|bestätigen): agree$/i });
       await confirm.waitFor();
+      await guest.getByText(/valid until|gilt bis/i).waitFor();
       await a11y('decision link without signing in', guest);
       await confirm.click();
       await guest.getByText(/^(done|erledigt):/i).waitFor();
@@ -960,9 +973,49 @@ test('workflow 2: decision links in e-mails, test run, evaluation and retention 
     await a11y('workflow evaluation');
   } finally {
     const s = await call('GET', '/api/v1/admin/settings');
-    await call('PUT', '/api/v1/admin/settings', { plugin_settings: { 'workflow.process': { ...(s.config.plugin_settings?.['workflow.process'] ?? {}), links_without_login: false } } });
+    await call('PUT', '/api/v1/admin/settings', { mail: prevMail.config.mail,
+      plugin_settings: { 'workflow.process': { ...(s.config.plugin_settings?.['workflow.process'] ?? {}), links_without_login: false } } });
+    smtp.close();
   }
 });
+
+/** A minimal SMTP server for the tests: keeps the decoded text of every message. */
+function smtpFake() {
+  const mails = [];
+  const server = net.createServer((sock) => {
+    let buf = '', data = false, msg = { to: [], raw: '' };
+    const say = (x) => sock.write(`${x}\r\n`);
+    say('220 e2e ESMTP');
+    sock.on('data', (chunk) => {
+      buf += chunk.toString('utf8');
+      let i;
+      while ((i = buf.indexOf('\r\n')) >= 0) {
+        const line = buf.slice(0, i);
+        buf = buf.slice(i + 2);
+        if (data) {
+          if (line === '.') {
+            data = false;
+            const body = msg.raw.split('\r\n\r\n').slice(1).join('\r\n\r\n');
+            msg.text = body.replace(/=\r\n/g, '').replace(/=([0-9A-F]{2})/g, (_, h) => String.fromCharCode(parseInt(h, 16))).replace(/\r\n/g, '\n');
+            msg.text = Buffer.from(msg.text, 'latin1').toString('utf8');
+            mails.push(msg);
+            msg = { to: [], raw: '' };
+            say('250 ok');
+          } else msg.raw += `${line.startsWith('..') ? line.slice(1) : line}\r\n`;
+          continue;
+        }
+        const up = line.toUpperCase();
+        if (up.startsWith('EHLO') || up.startsWith('HELO')) { sock.write('250-e2e\r\n'); say('250 8BITMIME'); }
+        else if (up.startsWith('RCPT TO:')) { msg.to.push(line.slice(8).replace(/[<> ]/g, '')); say('250 ok'); }
+        else if (up === 'DATA') { data = true; say('354 go'); }
+        else if (up === 'QUIT') { say('221 bye'); sock.end(); }
+        else say('250 ok');
+      }
+    });
+    sock.on('error', () => undefined);
+  });
+  return new Promise((resolve) => server.listen(0, '127.0.0.1', () => resolve({ port: server.address().port, mails, close: () => server.close() })));
+}
 
 test('drafts, preview, templates and publishing with options', async () => {
   const cat = await m6Category();

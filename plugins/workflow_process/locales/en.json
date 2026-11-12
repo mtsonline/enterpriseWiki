@@ -452,7 +452,7 @@
  "workflow.deputy.active": "{name} stands in for you until {until} (since {from}).",
  "workflow.deputy.planned": "{name} will stand in for you from {from} to {until}.",
  "workflow.deputy.stand_in": "You stand in for: {names}",
- "workflow.mail.links": "Decide directly (each link works once, for 14 days):",
+ "workflow.mail.links": "Decide directly (each link works once, until {until}):",
  "workflow.ev.test_skipped": "test run: step “{type}” skipped → {step}",
  "workflow.version": "version {n}",
  "workflow.test_badge": "test run",
@@ -492,5 +492,11 @@
  "workflow.retention.help": "Empty: keep forever. After this time completed and cancelled cases are anonymized or deleted.",
  "workflow.retention.mode": "After that",
  "workflow.retention.anonymize": "anonymize (title, data, notes and persons removed)",
- "workflow.retention.delete": "delete"
+ "workflow.retention.delete": "delete",
+ "workflow.links_valid": "Links valid for",
+ "workflow.links_valid_help": "At most 90 days. A link never stays valid past the deadline of its step and ends as soon as the case moves on.",
+ "workflow.links_unit": "Unit",
+ "workflow.links_unit.days": "days",
+ "workflow.links_unit.hours": "hours",
+ "workflow.link.valid_until": "The link is valid until {date}."
 }

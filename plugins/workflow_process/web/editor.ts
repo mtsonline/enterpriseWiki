@@ -9,7 +9,7 @@ import type { Action, Definition, Field, Meta, Rule, Step, StepType, Trigger } f
 // step id does not break the "next step" choices.
 interface EAction extends Omit<Action, 'next'> { next: number }
 export interface EStep extends Omit<Step, 'actions' | 'next' | 'next_else' | 'type'> { key: number; type: StepType; actions: EAction[]; next: number; nextElse: number; branchKeys?: number[] }
-export interface Model { description: string; fields: Field[]; steps: EStep[]; triggers?: Trigger[]; no_manual?: boolean; links?: boolean; retention?: Definition['retention'] }
+export interface Model { description: string; fields: Field[]; steps: EStep[]; triggers?: Trigger[]; no_manual?: boolean; links?: boolean; link_hours?: number; retention?: Definition['retention'] }
 
 let seq = 0;
 const BASE = 'x/workflow.process';
@@ -46,7 +46,7 @@ function toModel(d: Definition): Model {
   });
   return { description: d.description ?? '', fields: (d.fields ?? []).map((f) => ({ ...f, options: f.options ? [...f.options] : [] })), steps,
     triggers: (d.triggers ?? []).map((x) => ({ ...x, data: { ...(x.data ?? {}) }, events: x.events ? [...x.events] : undefined, prop: x.prop ? { ...x.prop } : undefined })),
-    no_manual: d.no_manual, links: d.links, retention: d.retention ? { ...d.retention } : undefined };
+    no_manual: d.no_manual, links: d.links, link_hours: d.link_hours, retention: d.retention ? { ...d.retention } : undefined };
 }
 
 export function slug(s: string, taken: Set<string>, fallback: string): string {
@@ -102,7 +102,7 @@ function toDefinition(m: Model): Definition {
     return base;
   });
   return { description: m.description, fields, steps, triggers: (m.triggers ?? []).map(cleanTrigger), no_manual: m.no_manual || undefined,
-    links: m.links || undefined, retention: m.retention?.days ? m.retention : undefined };
+    links: m.links || undefined, link_hours: m.links && m.link_hours !== 14 * 24 ? m.link_hours : undefined, retention: m.retention?.days ? m.retention : undefined };
 }
 
 /** Converts a step to another type, keeping what fits. */

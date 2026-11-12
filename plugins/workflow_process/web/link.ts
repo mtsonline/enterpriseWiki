@@ -1,10 +1,10 @@
 // The page behind the decision links of task e-mails (/workflow/link?t=…).
-import { api, button, errorText, field, h, mount, t, textArea } from '@ewiki/sdk';
+import { api, button, errorText, field, fmtDate, h, mount, state, t, textArea } from '@ewiki/sdk';
 import { BASE } from './widget';
 
 interface LinkInfo {
   case_id: number; element_id: number; title: string; step: string; action: string; label: string;
-  note: '' | 'optional' | 'required'; mine: boolean; signed_in: boolean; without_login: boolean;
+  note: '' | 'optional' | 'required'; expires: string; mine: boolean; signed_in: boolean; without_login: boolean;
 }
 
 const label = (x: LinkInfo) => (x.action === 'approve' || x.action === 'reject') && (x.label === 'approve' || x.label === 'reject')
@@ -23,7 +23,8 @@ export async function linkView({ main }: { main: HTMLElement }): Promise<void> {
   const target = `/e/${info.element_id}?case=${info.case_id}&act=${encodeURIComponent(info.action)}`;
   // signed in as the addressee: the regular dialog of the case with the decision
   if (info.mine) { location.assign(target); return; }
-  const what = h('p', null, t('workflow.link.what', { action: label(info), step: info.step, title: info.title }));
+  const what = h('div', null, h('p', null, t('workflow.link.what', { action: label(info), step: info.step, title: info.title })),
+    h('p', { class: 'ew-help' }, t('workflow.link.valid_until', { date: fmtDate(info.expires, state.lang) })));
   const login = h('a', { href: `/login?next=${encodeURIComponent(target)}` }, t('workflow.link.login'));
   if (info.signed_in && !info.mine) {
     mount(main, title, what, h('p', { class: 'ew-field-error' }, t('workflow.link.other_user')), h('p', null, login));
