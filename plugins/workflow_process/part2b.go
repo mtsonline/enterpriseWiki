@@ -291,7 +291,7 @@ func (pl *Plugin) linkRoutes(host *sdk.Host) {
 
 // sideEffect reports whether a step type leaves the case (skipped in test runs).
 func sideEffect(t string) bool {
-	return in(t, StepEmail, StepNotify, StepWebhook, StepHTTP, StepCreate, StepProps, StepSubflow)
+	return in(t, StepEmail, StepNotify, StepWebhook) || apiStep(t)
 }
 
 // ---------------------------------------------------------------- evaluation

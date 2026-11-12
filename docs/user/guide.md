@@ -115,9 +115,14 @@ Wählen Sie bei *Neue Seite* den Elementtyp **Workflow**. Mit *Vorlage* überneh
 | HTTP-Abfrage | fragt ein anderes System ab (nur Adressen der Freigabeliste `plugins.macros.http_allow`) und übernimmt Werte der JSON-Antwort (Pfad wie `daten.status` oder `einträge.0.id`) |
 | Seite anlegen | legt eine Seite (Markdown mit Platzhaltern) in einer Kategorie an und merkt sich ID und Adresse für spätere Schritte |
 | Eigenschaften setzen | setzt Eigenschaften einer Seite (z. B. der eben angelegten: `{{field.page}}`) |
+| Berechtigungen | vergibt einer Person (Benutzername, Alias, E-Mail oder ID, meist ein Platzhalter wie `{{trigger.data.username}}`) oder Gruppe Lese-, Bearbeitungs- oder Verwaltungsrechte auf eine Kategorie – auf Wunsch nur für **N Tage**, danach werden sie automatisch entzogen – oder entzieht sie |
+| Gruppenmitgliedschaft | nimmt eine Person in eine Gruppe auf oder entfernt sie daraus |
+| Seite verschieben | verschiebt eine Seite in eine andere Kategorie, z. B. ins Archiv |
 | Weiterer Workflow | startet einen Vorgang eines anderen Workflows mit Werten; wartet auf Wunsch, bis er beendet ist, übernimmt dann Werte und verzweigt bei Misserfolg |
 | Parallele Zweige | startet mehrere Zweige gleichzeitig – feste Schritte oder **ein Zweig je Wert** eines Felds (z. B. eine Prüfung je Abteilung, der Wert ist `{{field.item}}`); jeder Zweig endet am **Treffpunkt** (nächster Schritt). Optional reichen *k* von *n* Zweigen, die übrigen werden dann beendet; Werte der Zweige werden übernommen |
 | Ende | schließt den Vorgang mit einem Ergebnis (erfolgreich, nicht erfolgreich, neutral) |
+
+Automatische Schritte mit Rechten (HTTP-Abfrage, Seite anlegen, Eigenschaften, Berechtigungen, Gruppenmitgliedschaft, Seite verschieben, weiterer Workflow) handeln mit den Rechten der Person, die den Workflow gespeichert hat (oder der startenden Person) – niemand bekommt über einen Workflow mehr, als diese Person selbst darf.
 
 Bei Aufgaben und Freigaben kann eine **Erinnerung nach X Tagen** eingestellt werden. Zuständige erhalten bei neuen Aufgaben eine E-Mail (abschaltbar im Profil).
 
@@ -148,6 +153,7 @@ Bei Aufgaben und Freigaben kann eine **Erinnerung nach X Tagen** eingestellt wer
 | Zeitplan | die Zeit kommt: `Minute Stunde Tag Monat Wochentag` (z. B. `0 7 * * 1-5` werktags um 7:00) oder `@daily`, `@weekly`, `@monthly` |
 | Änderungen von Seiten | Seiten der gewählten Quellen angelegt, geändert, gelöscht, verschoben, wiederhergestellt werden oder neue Eigenschaften bekommen – optional nur, wenn eine Eigenschaft einen Wert **annimmt** (z. B. *Status* wird *Prüfung*; einmal pro Änderung) |
 | Ereignis | ein Kommentar geschrieben, ein Formular abgesendet, sich jemand zu einem Termin an- oder abgemeldet hat oder ein Vorgang eines anderen Workflows endet (Verkettung, optional nur mit einem bestimmten Ergebnis) – auf Wunsch nur in einer Kategorie |
+| Konten | eine Person wurde angelegt, deaktiviert, wieder aktiviert oder gelöscht oder in eine Gruppe aufgenommen bzw. daraus entfernt (optional nur eine Gruppe) – egal ob über die Administration, SCIM oder einen Anmeldeanbieter. Nur für Personen, die Konten verwalten (`core.users.manage`); Werte: `{{trigger.data.username}}`, `display_name`, `email`, `group_name` (On- und Offboarding) |
 | Eingehender Webhook | ein anderes System eine signierte Anfrage schickt (siehe unten) |
 
 Titel und Werte des Startformulars kommen aus Platzhaltern des Auslösers: `{{trigger.object.title}}`, `{{trigger.object.url}}`, `{{trigger.object.id}}`, `{{trigger.actor}}`, `{{trigger.time}}`, `{{trigger.data.SCHLÜSSEL}}` (Werte des Ereignisses bzw. des JSON eines Webhooks, z. B. `{{trigger.data.bestellung.id}}`). Der Editor zeigt je Auslöser, ob er aktiv ist, die Starts der letzten 24 Stunden, den nächsten Termin und den letzten Fehler.

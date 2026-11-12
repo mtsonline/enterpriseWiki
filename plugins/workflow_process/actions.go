@@ -303,6 +303,12 @@ func (pl *Plugin) runStep(ctx context.Context, tx pgx.Tx, x *Instance, s *Step) 
 		return pl.runProps(pctx, tx, x, s)
 	case StepSubflow:
 		return pl.runSubflow(pctx, tx, x, s)
+	case StepAccess:
+		return pl.runAccess(pctx, tx, x, s)
+	case StepMember:
+		return pl.runMember(pctx, tx, x, s)
+	case StepMove:
+		return pl.runMove(pctx, tx, x, s)
 	}
 	return result{}, fmt.Errorf("unknown step type %q", s.Type)
 }

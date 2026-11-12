@@ -305,7 +305,7 @@ func (pl *Plugin) decorate(ctx context.Context, w *who, x *Instance, manage bool
 				{ID: "reject", Label: s.RejectLabel, Next: s.NextElse, Note: "required"}}
 			x.Form = s.Form
 		}
-	case StepWebhook, StepHTTP, StepCreate, StepProps, StepSubflow:
+	case StepWebhook, StepHTTP, StepCreate, StepProps, StepSubflow, StepAccess, StepMember, StepMove:
 		if x.WakeAt == nil && x.LastError != "" && (manage || w.p.Admin()) { // failed, waiting for a decision
 			x.Actions = []Action{{ID: ActRetry, Next: s.ID}, {ID: ActSkip, Next: s.Next, Note: "optional"}}
 		}
@@ -606,6 +606,7 @@ func (pl *Plugin) Setup(host *sdk.Host) error {
 	pl.linkRoutes(host)
 	pl.statsRoutes(host)
 	host.RegisterWorker("retention", 6*time.Hour, pl.retention)
+	host.RegisterWorker("grants", 10*time.Minute, pl.expireGrants)
 
 	// GET /meta describes step types, rule operators and placeholders (editor).
 	host.Handle("GET", "/meta", func(w http.ResponseWriter, r *http.Request) (any, error) {

@@ -7,7 +7,32 @@ import type { EStep, Model } from './editor';
 const BASE = 'x/workflow.process';
 export const TRIGGER_TYPES: TriggerType[] = ['schedule', 'content', 'event', 'webhook'];
 const CONTENT_EVENTS = ['create', 'update', 'delete', 'move', 'restore', 'properties'];
-const TRIGGER_EVENTS = ['comment.create', 'form.submitted', 'workflow.completed', 'workflow.cancelled', 'event.registration', 'event.registration_cancelled'];
+const TRIGGER_EVENTS = ['comment.create', 'form.submitted', 'workflow.completed', 'workflow.cancelled', 'event.registration', 'event.registration_cancelled',
+  'user.created', 'user.disabled', 'user.enabled', 'user.deleted', 'group.member_added', 'group.member_removed'];
+const accountEvent = (ev?: string) => !!ev && (ev.startsWith('user.') || ev.startsWith('group.'));
+
+/** A choice of the groups (by id); a number field when the list cannot be read. */
+function groupPicker(selected: number, onChange: (id: number) => void, opts: { any?: boolean } = {}): HTMLElement {
+  const box = h('div');
+  void api.get<{ id: number; name: string }[]>('groups').then((gs) => {
+    const s = select([...(opts.any ? [{ value: '0', label: t('workflow.group_any') }] : [{ value: '0', label: t('workflow.group_choose') }]),
+      ...gs.map((g) => ({ value: String(g.id), label: g.name }))], String(selected || 0));
+    s.addEventListener('change', () => onChange(Number(s.value)));
+    box.append(field(t('workflow.group'), s, { required: !opts.any }));
+  }).catch(() => {
+    const n = textInput({ type: 'number', value: selected ? String(selected) : '' });
+    n.addEventListener('input', () => onChange(Number(n.value) || 0));
+    box.append(field(t('workflow.group_id'), n, { required: !opts.any }));
+  });
+  return box;
+}
+
+/** A category chooser in a box (loaded in the background). */
+function categoryBox(label: string, selected: number, onChange: (id: number) => void, help?: string): HTMLElement {
+  const box = h('div');
+  void categorySelect({ selected: selected || 0, perm: 'view', onChange }).then((cs) => box.append(cs.field(label, { help })));
+  return box;
+}
 const RULE_OPS = ['equals', 'not_equals', 'contains', 'not_contains', 'empty', 'not_empty', 'gt', 'gte', 'lt', 'lte'];
 
 /** Helpers of the editor (bound to its model and redraw). */
@@ -161,6 +186,37 @@ export function extraStepFields(s: EStep, kit: Kit): (HTMLElement | null)[] {
         field(t('workflow.parallel_require'), kit.num(() => p.require, (v) => { p.require = v || undefined; }), { help: t('workflow.parallel_require_help') }),
         grid(field(t('workflow.parallel_join'), kit.stepSelect(() => s.next, (k) => { s.next = k; kit.redraw(); }, s), { required: true, help: t('workflow.parallel_join_help') }),
           field(t('workflow.parallel_failed'), kit.stepSelect(() => s.nextElse, (k) => { s.nextElse = k; }, s, true)))];
+    }
+    case 'access': {
+      const a = (s.access ??= { mode: 'grant', category: 0, subject: 'user', user: '', level: 'reader' });
+      const who = a.subject === 'user'
+        ? field(t('workflow.person'), kit.text(() => a.user, (v) => { a.user = v; }, { max: 200, ph: true, placeholder: '{{trigger.data.username}}' }), { required: true, help: t('workflow.person_help') })
+        : groupPicker(a.group ?? 0, (id) => { a.group = id; });
+      const days = textInput({ type: 'number', value: a.days ? String(a.days) : '' });
+      days.min = '0'; days.max = '3650';
+      days.addEventListener('input', () => { a.days = Number(days.value) > 0 ? Math.round(Number(days.value)) : undefined; });
+      return [h('p', { class: 'ew-help' }, t('workflow.access_help')),
+        grid(field(t('workflow.access_mode'), sel(['grant', 'revoke'], a.mode, (v) => t(`workflow.access_mode.${v}`), (v) => { a.mode = v as 'grant' | 'revoke'; kit.redraw(); })),
+          field(t('workflow.access_subject'), sel(['user', 'group'], a.subject, (v) => t(`workflow.access_subject.${v}`), (v) => { a.subject = v as 'user' | 'group'; kit.redraw(); }))),
+        categoryBox(t('workflow.access_category'), a.category, (id) => { a.category = id; }), who,
+        a.mode === 'grant' ? grid(field(t('workflow.access_level'), sel(['reader', 'editor', 'manager'], a.level ?? 'reader', (v) => t(`workflow.access_level.${v}`), (v) => { a.level = v as 'reader'; })),
+          field(t('workflow.access_days'), days, { help: t('workflow.access_days_help') })) : null,
+        runAs(s), kit.placeholderHelp(), next()];
+    }
+    case 'membership': {
+      const m = (s.membership ??= { mode: 'add', group: 0, user: '' });
+      return [h('p', { class: 'ew-help' }, t('workflow.membership_help')),
+        field(t('workflow.membership_mode'), sel(['add', 'remove'], m.mode, (v) => t(`workflow.membership_mode.${v}`), (v) => { m.mode = v as 'add' | 'remove'; })),
+        groupPicker(m.group, (id) => { m.group = id; }),
+        field(t('workflow.person'), kit.text(() => m.user, (v) => { m.user = v; }, { max: 200, ph: true, placeholder: '{{trigger.data.username}}' }), { required: true, help: t('workflow.person_help') }),
+        runAs(s), kit.placeholderHelp(), next()];
+    }
+    case 'move': {
+      const m = (s.move ??= { element: '', category: 0 });
+      return [h('p', { class: 'ew-help' }, t('workflow.move_help')),
+        field(t('workflow.props_element'), kit.text(() => m.element, (v) => { m.element = v; }, { max: 200, ph: true, placeholder: '{{field.page}}' }), { required: true, help: t('workflow.props_element_help') }),
+        categoryBox(t('workflow.move_category'), m.category, (id) => { m.category = id; }),
+        runAs(s), kit.placeholderHelp(), next()];
     }
     case 'subflow': {
       const f = (s.subflow ??= { workflow: 0, wait: true, data: {}, return: {} });
@@ -335,10 +391,16 @@ export function triggersSection(m: Model, kit: Kit): HTMLElement {
       case 'event': {
         const ev = sel(TRIGGER_EVENTS, tr.event ?? 'comment.create', (v) => t(`workflow.trigger_event.${v}`), (v) => { tr.event = v; kit.redraw(); });
         tr.event ??= 'comment.create';
-        const catBox = h('div');
-        void categorySelect({ selected: tr.category || 0, perm: 'view', noneLabel: t('workflow.trigger_everywhere'), onChange: (id) => { tr.category = id || undefined; } })
-          .then((cs) => catBox.append(cs.field(t('workflow.trigger_category'), { help: t('workflow.trigger_category_help') })));
-        box.append(field(t('workflow.trigger_event'), ev), catBox);
+        box.append(field(t('workflow.trigger_event'), ev));
+        if (accountEvent(tr.event)) {
+          box.append(h('p', { class: 'ew-help' }, t('workflow.trigger_account_help')));
+          if (tr.event.startsWith('group.')) box.append(groupPicker(tr.group ?? 0, (id) => { tr.group = id || undefined; }, { any: true }));
+        } else {
+          const catBox = h('div');
+          void categorySelect({ selected: tr.category || 0, perm: 'view', noneLabel: t('workflow.trigger_everywhere'), onChange: (id) => { tr.category = id || undefined; } })
+            .then((cs) => catBox.append(cs.field(t('workflow.trigger_category'), { help: t('workflow.trigger_category_help') })));
+          box.append(catBox);
+        }
         if (tr.event.startsWith('workflow.')) {
           const wfBox = h('div');
           void elementSelect({ selected: tr.workflow || 0, type: 'workflow.process', onChange: (id) => { tr.workflow = id; } })
@@ -356,7 +418,7 @@ export function triggersSection(m: Model, kit: Kit): HTMLElement {
         if (!kit.elementId) box.append(h('p', { class: 'ew-help' }, t('workflow.hook_save_first')));
         break;
     }
-    if (tr.type === 'content' || tr.type === 'event') {
+    if (tr.type === 'content' || (tr.type === 'event' && !accountEvent(tr.event))) {
       box.append(field(t('workflow.run_as'), sel(['definer', 'actor'], tr.run_as ?? 'definer', (v) => t(`workflow.trigger_run_as.${v}`), (v) => { tr.run_as = v; }),
         { help: t('workflow.trigger_run_as_help') }));
     } else {

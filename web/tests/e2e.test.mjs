@@ -1017,6 +1017,67 @@ function smtpFake() {
   return new Promise((resolve) => server.listen(0, '127.0.0.1', () => resolve({ port: server.address().port, mails, close: () => server.close() })));
 }
 
+test('workflow 3: a new account starts onboarding with permissions, group and archive', async () => {
+  const job = (name) => call('POST', `/api/v1/admin/jobs/${name}/run`, {});
+  await job('identity.events');
+  const cat = (await call('POST', '/api/v1/categories', { titles: { en: `People ${run}` } })).id;
+  const docs = (await call('POST', '/api/v1/categories', { titles: { en: `Handbook ${run}` } })).id;
+  const arch = (await call('POST', '/api/v1/categories', { titles: { en: `Archive ${run}` } })).id;
+  const grp = await call('POST', '/api/v1/admin/groups', { name: `Newcomers ${run}` });
+  const pack = await call('POST', '/api/v1/elements', { category_id: docs, type: 'core.html', title: `Pack ${run}`, body: { format: 'markdown', source: 'hi' } });
+  const wf = await call('POST', '/api/v1/elements', { category_id: cat, type: 'workflow.process', title: `Onboarding ${run}`, body: {
+    description: 'E2E', no_manual: true, fields: [{ id: 'who', label: 'Who', type: 'text' }, { id: 'page', label: 'Page', type: 'text' }],
+    triggers: [{ id: 'new', type: 'event', event: 'user.created', title: 'Welcome {{trigger.data.username}}', data: { who: '{{trigger.data.username}}', page: String(pack.id) } },
+      { id: 'grp', type: 'event', event: 'group.member_removed', group: grp.id, off: true }],
+    steps: [
+      { id: 'grant', name: 'Read', type: 'access', next: 'join', access: { mode: 'grant', category: docs, subject: 'user', user: '{{field.who}}', level: 'reader', days: 30 } },
+      { id: 'join', name: 'Join', type: 'membership', next: 'move', membership: { mode: 'add', group: grp.id, user: '{{field.who}}' } },
+      { id: 'move', name: 'Archive', type: 'move', next: 'done', move: { element: '{{field.page}}', category: arch } },
+      { id: 'done', name: 'Done', type: 'end', outcome: 'success' }] } });
+  // the editor shows the account trigger and the new steps
+  await page.goto(`${BASE}/e/${wf.id}/edit`);
+  await idle();
+  await page.getByText(/only people who manage accounts|nur personen, die konten verwalten/i).first().waitFor();
+  await page.locator('.ewf-step-row').first().getByLabel(/^(for days|für tage)/i).waitFor();
+  assert.equal(await page.locator('.ewf-step-row').first().getByLabel(/^(for days|für tage)/i).inputValue(), '30');
+  await page.locator('.ewf-step-row').nth(1).getByLabel(/^(group|gruppe)/i).waitFor();
+  await a11y('workflow editor with account trigger and account steps');
+  // a new person: the whole chain runs
+  const who = `newbie${run}`;
+  const u = await call('POST', '/api/v1/admin/users', { username: who, password: 'Newbie-Passw0rd-1!', display_name: `Newbie ${run}` });
+  await job('identity.events');
+  await job('workflow.process.triggers');
+  for (let i = 0; i < 3; i++) await job('workflow.process.timers');
+  const list = await call('GET', `/api/v1/x/workflow.process/elements/${wf.id}/instances?status=`);
+  assert.equal(list.instances.length, 1, 'one onboarding case');
+  const x = await call('GET', `/api/v1/x/workflow.process/instances/${list.instances[0].id}`);
+  assert.equal(x.status, 'done', `onboarding: ${x.status} ${x.last_error ?? ''}`);
+  assert.ok((await call('GET', `/api/v1/admin/groups/${grp.id}/members`)).includes(u.id), 'member of the group');
+  assert.equal((await call('GET', `/api/v1/elements/${pack.id}`)).category_id, arch, 'page archived');
+  // the case shows what happened
+  await page.goto(`${BASE}/e/${wf.id}?case=${x.id}`);
+  await idle();
+  const dlg = page.locator('dialog[open]');
+  await dlg.getByText(/permission granted|berechtigung vergeben/i).waitFor();
+  await dlg.getByText(/page moved|seite verschoben/i).waitFor();
+  await a11y('case with account steps');
+  await page.keyboard.press('Escape');
+  // the members of the group: remove and add again in the administration
+  await page.goto(`${BASE}/admin/groups`);
+  await idle();
+  await page.getByRole('button', { name: new RegExp(`(members of|mitglieder von) .?newcomers ${run}`, 'i') }).click();
+  const md = page.locator('dialog[open]');
+  await md.getByRole('button', { name: new RegExp(`${who}`, 'i') }).click();
+  await md.getByText(/no members|keine mitglieder/i).waitFor();
+  const opt = (await md.locator('option', { hasText: who }).first().textContent()) ?? '';
+  await md.getByLabel(/^(add to the group|zur gruppe hinzufügen)/i).selectOption({ label: opt });
+  await md.getByRole('button', { name: /^(add to the group|zur gruppe hinzufügen)$/i }).click();
+  await md.getByRole('button', { name: new RegExp(`${who}`, 'i') }).waitFor();
+  await a11y('group members dialog');
+  await page.keyboard.press('Escape');
+  assert.ok((await call('GET', `/api/v1/admin/groups/${grp.id}/members`)).includes(u.id), 'member again');
+});
+
 test('drafts, preview, templates and publishing with options', async () => {
   const cat = await m6Category();
   await page.goto(`${BASE}/c/${cat}/new`);

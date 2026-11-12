@@ -199,6 +199,8 @@ Verlangt das Konto einen zweiten Faktor, antwortet die Anmeldung mit `mfa_requir
 | `PUT` | `/api/v1/admin/groups/{id}` |
 | `DELETE` | `/api/v1/admin/groups/{id}` |
 | `GET` | `/api/v1/admin/groups/{id}/members` |
+| `PUT` | `/api/v1/admin/groups/{id}/members/{user}` |
+| `DELETE` | `/api/v1/admin/groups/{id}/members/{user}` |
 | `POST` | `/api/v1/admin/roles` |
 | `PUT` | `/api/v1/admin/roles/{id}` |
 | `DELETE` | `/api/v1/admin/roles/{id}` |

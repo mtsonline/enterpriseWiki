@@ -736,6 +736,22 @@ func buildDemo(d *demoRun) {
 						"notify": map[string]any{"to": "group:" + editors, "channel": "inbox", "subject": tr("{{case.title}} by {{trigger.actor}}", "{{case.title}} von {{trigger.actor}}")}},
 					end(tr)}}
 		}), nil)
+		d.element(docs, "workflow.process", d.tr("New colleagues (accounts)", "Neue Kolleginnen und Kollegen (Konten)"), both(func(tr func(en, de string) string) map[string]any {
+			return map[string]any{
+				"description": tr("Starts for every new account (administration, SCIM or sign-in provider): the person may read “Documents and processes” for 90 days and the editors are told. Try it with a test run.",
+					"Startet bei jedem neuen Konto (Administration, SCIM oder Anmeldeanbieter): Die Person darf „Dokumente und Abläufe“ 90 Tage lang lesen, die Redaktion wird informiert. Mit einem Testlauf ausprobieren."),
+				"no_manual": true,
+				"fields":    []map[string]any{{"id": "who", "label": tr("User name", "Benutzername"), "type": "text", "required": true}},
+				"triggers": []map[string]any{
+					{"id": "new", "type": "event", "event": "user.created", "name": tr("New account", "Neues Konto"),
+						"title": tr("Welcome {{trigger.data.display_name}}", "Willkommen {{trigger.data.display_name}}"), "data": map[string]string{"who": "{{trigger.data.username}}"}}},
+				"steps": []map[string]any{
+					{"id": "read", "name": tr("Read the documents", "Dokumente lesen"), "type": "access", "next": "tell",
+						"access": map[string]any{"mode": "grant", "category": docs, "subject": "user", "user": "{{field.who}}", "level": "reader", "days": 90}},
+					{"id": "tell", "name": tr("Tell the editors", "Redaktion informieren"), "type": "notify", "next": "done",
+						"notify": map[string]any{"to": "group:" + editors, "channel": "inbox", "subject": tr("New colleague: {{field.who}}", "Neu im Team: {{field.who}}")}},
+					end(tr)}}
+		}), nil)
 	})
 	d.optional("forms", func() {
 		mk := func(intro, name, mail, topic, it, hr, other, which, msg, msgHelp, rate, file, ok, send, thanks string) map[string]any {

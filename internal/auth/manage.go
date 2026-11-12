@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 
 	"github.com/mtsonline/enterprisewiki/internal/apperr"
 	"github.com/mtsonline/enterprisewiki/internal/audit"
@@ -712,6 +713,61 @@ func (s *Service) GroupMembers(ctx context.Context, id int64) ([]int64, error) {
 		return nil, err
 	}
 	return pgx.CollectRows(rows, pgx.RowTo[int64])
+}
+
+// SetGroupMember adds (member=true) or removes a person from a group. The
+// same guards as for changing a user apply: no administrators changed by
+// others, no roles passed on that the caller does not have, and the last
+// administrator stays. Returns whether something changed.
+func (s *Service) SetGroupMember(ctx context.Context, group, user int64, member bool) (bool, error) {
+	if err := perm.Require(ctx, "core.groups.manage"); err != nil {
+		return false, err
+	}
+	if err := s.requireShared(ctx); err != nil {
+		return false, err
+	}
+	changed := false
+	err := db.Tx(ctx, s.pool, func(tx pgx.Tx) error {
+		var ok bool
+		if err := tx.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM groups WHERE id=$1) AND EXISTS(SELECT 1 FROM users WHERE id=$2)`, group, user).Scan(&ok); err != nil {
+			return err
+		}
+		if !ok {
+			return apperr.NotFound("group or user")
+		}
+		if err := guardTarget(ctx, tx, user); err != nil {
+			return err
+		}
+		if err := guardRoles(ctx, tx, nil, []int64{group}); err != nil {
+			return err
+		}
+		var tag pgconn.CommandTag
+		var err error
+		if member {
+			tag, err = tx.Exec(ctx, `INSERT INTO user_groups(user_id, group_id) VALUES ($1,$2) ON CONFLICT DO NOTHING`, user, group)
+		} else {
+			tag, err = tx.Exec(ctx, `DELETE FROM user_groups WHERE user_id=$1 AND group_id=$2`, user, group)
+		}
+		if err != nil {
+			return err
+		}
+		if changed = tag.RowsAffected() > 0; !changed {
+			return nil
+		}
+		if err := ensureAdminRemains(ctx, tx); err != nil {
+			return err
+		}
+		action := "group.member_add"
+		if !member {
+			action = "group.member_remove"
+		}
+		return audit.Log(ctx, tx, action, "group", group, nil, map[string]int64{"user": user})
+	})
+	if err == nil && changed {
+		s.bump(ctx)
+		s.bus.Publish(ctx, "acl", "")
+	}
+	return changed, err
 }
 
 // ListRoles lists all roles.

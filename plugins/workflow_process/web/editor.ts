@@ -13,7 +13,7 @@ export interface Model { description: string; fields: Field[]; steps: EStep[]; t
 
 let seq = 0;
 const BASE = 'x/workflow.process';
-const STEP_TYPES: StepType[] = ['task', 'approval', 'condition', 'email', 'notify', 'set', 'webhook', 'http', 'create', 'props', 'subflow', 'parallel', 'delay', 'end'];
+const STEP_TYPES: StepType[] = ['task', 'approval', 'condition', 'email', 'notify', 'set', 'webhook', 'http', 'create', 'props', 'access', 'membership', 'move', 'subflow', 'parallel', 'delay', 'end'];
 const RULE_OPS = ['equals', 'not_equals', 'contains', 'not_contains', 'empty', 'not_empty', 'gt', 'gte', 'lt', 'lte'];
 const FIELD_TYPES = ['text', 'textarea', 'email', 'date', 'number', 'select', 'checkbox', 'file'];
 const PLACEHOLDERS = ['case.title', 'case.id', 'case.url', 'case.step', 'workflow.title', 'starter.name', 'starter.email', 'actor.name', 'actor.email',
@@ -97,6 +97,9 @@ function toDefinition(m: Model): Definition {
       case 'http': return { ...base, http: s.http, run_as: s.run_as, next: ref(s.next), next_else: ref(s.nextElse) || undefined };
       case 'create': return { ...base, create: s.create, run_as: s.run_as, next: ref(s.next) };
       case 'props': return { ...base, props: s.props, run_as: s.run_as, next: ref(s.next) };
+      case 'access': return { ...base, access: s.access, run_as: s.run_as, next: ref(s.next) };
+      case 'membership': return { ...base, membership: s.membership, run_as: s.run_as, next: ref(s.next) };
+      case 'move': return { ...base, move: s.move, run_as: s.run_as, next: ref(s.next) };
       case 'subflow': return { ...base, subflow: s.subflow, run_as: s.run_as, next: ref(s.next), next_else: s.subflow?.wait ? ref(s.nextElse) || undefined : undefined };
     }
     return base;
@@ -120,6 +123,9 @@ function retype(s: EStep, type: StepType): void {
   if (type === 'http' && !s.http) s.http = { url: '', method: 'GET', map: {} };
   if (type === 'create' && !s.create) s.create = { category: 0, title: '{{case.title}}', body: '', store_id: 'page' };
   if (type === 'props' && !s.props) s.props = { element: '{{field.page}}', values: {} };
+  if (type === 'access' && !s.access) s.access = { mode: 'grant', category: 0, subject: 'user', user: '{{starter.username}}', level: 'reader' };
+  if (type === 'membership' && !s.membership) s.membership = { mode: 'add', group: 0, user: '{{starter.username}}' };
+  if (type === 'move' && !s.move) s.move = { element: '{{field.page}}', category: 0 };
   if (type === 'subflow' && !s.subflow) s.subflow = { workflow: 0, wait: true, data: {}, return: {} };
   if (type === 'parallel' && !s.parallel) { s.parallel = { branches: [] }; s.branchKeys ??= []; }
 }
@@ -308,7 +314,7 @@ export function createWorkflowEditor(container: HTMLElement, body: unknown, ctx:
             field(t('workflow.next'), stepSelect(() => s.next, (k) => { s.next = k; }, s), { required: true }),
             field(t('workflow.next_error'), stepSelect(() => s.nextElse, (k) => { s.nextElse = k; }, s, true), { help: t('workflow.next_error_help') }))];
       }
-      case 'notify': case 'set': case 'http': case 'create': case 'props': case 'subflow': case 'parallel':
+      case 'notify': case 'set': case 'http': case 'create': case 'props': case 'access': case 'membership': case 'move': case 'subflow': case 'parallel':
         return extraStepFields(s, kit);
       case 'delay': {
         const d = (s.delay ??= { days: 1 });

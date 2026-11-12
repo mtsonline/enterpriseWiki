@@ -294,6 +294,13 @@ func newSite(ctx context.Context, in *Instance, site string, migrate bool) (*App
 		_, err := a.Webhooks.Deliver(ctx)
 		return err
 	}})
+	// account changes (all sources) become the events user.* and group.*
+	a.Workers.Register(worker.Job{Name: "identity.events", Interval: 15 * time.Second, Run: a.identityEvents})
+	a.Workers.Register(worker.Job{Name: "identity.changes.cleanup", Interval: time.Hour, Run: func(ctx context.Context) error {
+		// personal data of deleted people: one day at most (events go out within seconds)
+		_, err := pool.Exec(ctx, `DELETE FROM identity_changes WHERE at < now() - interval '1 day'`)
+		return err
+	}})
 	a.Workers.Register(worker.Job{Name: "webhooks.cleanup", Interval: 24 * time.Hour, Run: func(ctx context.Context) error {
 		return a.Webhooks.Cleanup(ctx, cfg.Get().Webhooks.KeepDays)
 	}})
