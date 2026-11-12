@@ -515,7 +515,7 @@
  "workflow.group_choose": "– Gruppe wählen –",
  "workflow.person": "Person",
  "workflow.person_help": "Benutzername, Alias, E-Mail-Adresse oder ID – meist ein Platzhalter wie {{trigger.data.username}} oder {{starter.username}}.",
- "workflow.access_help": "Vergibt oder entzieht Berechtigungen auf eine Kategorie mit den Rechten der gewählten Person: Niemand erhält mehr, als diese Person vergeben darf. Werte aus dem Startformular wählt, wer den Vorgang startet – besser Konto-Auslöser, feste Werte oder {{starter.username}}.",
+ "workflow.access_help": "Vergibt oder entzieht Berechtigungen auf eine Kategorie mit den Rechten der gewählten Person: Niemand erhält mehr, als diese Person vergeben darf. Eine Person aus dem Startformular nur, wenn die Administration es erlaubt (Administration → Workflow).",
  "workflow.access_mode": "Änderung",
  "workflow.access_mode.grant": "vergeben",
  "workflow.access_mode.revoke": "entziehen",
@@ -539,5 +539,7 @@
  "workflow.ev.access_revoke": "Berechtigung entzogen → {step}",
  "workflow.ev.membership_add": "in die Gruppe aufgenommen → {step}",
  "workflow.ev.membership_remove": "aus der Gruppe entfernt → {step}",
- "workflow.ev.move": "Seite verschoben → {step}"
+ "workflow.ev.move": "Seite verschoben → {step}",
+ "workflow.admin.form_accounts": "Berechtigungen und Gruppen aus Werten des Startformulars",
+ "workflow.admin.form_accounts_help": "Aus (empfohlen): Die Schritte Berechtigungen und Gruppenmitgliedschaft lehnen eine Person aus dem Startformular eines von Hand gestarteten Vorgangs ab, weil sie wählt, wer den Vorgang startet. Auslöser, andere Workflows, feste Werte und {{starter.username}} funktionieren immer."
 }

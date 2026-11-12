@@ -840,7 +840,7 @@
  "webhooks.format.slack": "Slack",
  "webhooks.format.teams": "Microsoft Teams (Adaptive Card)",
  "webhooks.events": "Events",
- "webhooks.events_help": "Nothing selected: all events except changes of accounts (people and groups), which are only sent when chosen.",
+ "webhooks.events_help": "Nothing selected: all events (changes of accounts only if allowed above).",
  "webhooks.category": "Only changes in this category (with subcategories)",
  "webhooks.enabled": "Active",
  "webhooks.secret": "Signing key",
@@ -2061,5 +2061,7 @@
  "admin.member_remove_named": "Remove {name} from the group",
  "admin.member_removed": "{name} removed.",
  "admin.member_add": "Add to the group",
- "admin.member_added": "{name} added."
+ "admin.member_added": "{name} added.",
+ "webhooks.accounts_in_all": "Also send changes of accounts to webhooks with all events",
+ "webhooks.accounts_in_all_help": "Changes of accounts (people created, deactivated, deleted, group memberships) contain personal data. Off (recommended): only webhooks that chose these events get them."
 }

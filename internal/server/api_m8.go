@@ -1,9 +1,11 @@
 package server
 
 import (
+	"fmt"
 	"net/http"
 
 	"github.com/mtsonline/enterprisewiki/internal/audit"
+	"github.com/mtsonline/enterprisewiki/internal/config"
 	h "github.com/mtsonline/enterprisewiki/internal/httpx"
 	"github.com/mtsonline/enterprisewiki/internal/webhook"
 )
@@ -23,7 +25,23 @@ func (s *Server) routesM8() {
 	}
 	s.handle("GET /api/v1/admin/webhooks", admin(func(w http.ResponseWriter, r *http.Request) (any, error) {
 		list, err := s.app.Webhooks.List(r.Context())
-		return map[string]any{"webhooks": list, "events": webhook.Events, "formats": webhook.Formats}, err
+		return map[string]any{"webhooks": list, "events": webhook.Events, "formats": webhook.Formats,
+			"accounts_in_all": s.app.Config.Get().Webhooks.AccountsInAll}, err
+	}))
+	// PUT /api/v1/admin/webhooks/options {"accounts_in_all": false}: whether
+	// webhooks with "all events" also get the events of accounts
+	s.handle("PUT /api/v1/admin/webhooks/options", admin(func(w http.ResponseWriter, r *http.Request) (any, error) {
+		var in struct {
+			AccountsInAll bool `json:"accounts_in_all"`
+		}
+		if err := h.Decode(r, &in); err != nil {
+			return nil, err
+		}
+		if err := s.app.Config.Update(func(c *config.Config) error { c.Webhooks.AccountsInAll = in.AccountsInAll; return nil }); err != nil {
+			return nil, err
+		}
+		s.auditSettings(r, "webhooks.options", fmt.Sprintf("accounts_in_all=%v", in.AccountsInAll))
+		return map[string]bool{"accounts_in_all": in.AccountsInAll}, nil
 	}))
 	s.handle("POST /api/v1/admin/webhooks", admin(func(w http.ResponseWriter, r *http.Request) (any, error) {
 		var in webhook.Input

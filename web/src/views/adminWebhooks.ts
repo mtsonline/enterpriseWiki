@@ -17,7 +17,7 @@ interface Delivery { id: number; event: string; status: 'pending' | 'delivered' 
 const reload = () => navigate(location.pathname + location.search, { replace: true });
 
 export async function webhooksAdmin(panel: HTMLElement): Promise<void> {
-  const data = await api.get<{ webhooks: Hook[]; events: string[]; formats: string[] }>('admin/webhooks');
+  const data = await api.get<{ webhooks: Hook[]; events: string[]; formats: string[]; accounts_in_all: boolean }>('admin/webhooks');
   const rows = data.webhooks.map((w) => h('tr', null,
     h('th', { scope: 'row' }, w.name, h('br'), h('small', { class: 'ew-muted' }, new URL(w.url).host)),
     h('td', null, t(`webhooks.format.${w.format}`)),
@@ -37,6 +37,7 @@ export async function webhooksAdmin(panel: HTMLElement): Promise<void> {
       }, { variant: 'link', ariaLabel: `${t('common.delete')}: ${w.name}` })))));
   mount(panel, pageHeader(t('admin.webhooks'), button(t('webhooks.new'), () => hookDialog(data.events, null), { variant: 'primary' })),
     h('p', null, t('webhooks.help')),
+    accountsOption(data.accounts_in_all),
     rows.length ? h('table', { class: 'ew-table' }, h('caption', { class: 'sr-only' }, t('admin.webhooks')),
       h('thead', null, h('tr', null, ...[t('webhooks.name'), t('webhooks.format'), t('webhooks.events'), t('webhooks.last'), t('common.actions')].map((x) => h('th', { scope: 'col' }, x)))),
       h('tbody', null, ...rows)) : h('p', null, t('webhooks.none')));
@@ -95,4 +96,16 @@ async function deliveries(w: Hook): Promise<void> {
       }, { variant: 'link', ariaLabel: `${t('webhooks.retry')}: ${d.id}` }) : null)))))
     : h('p', null, t('webhooks.no_deliveries'));
   const dlg = openDialog(`${t('webhooks.deliveries')}: ${w.name}`, body, [], { wide: true });
+}
+
+/** Whether webhooks with "all events" also get the events of accounts (personal data). */
+function accountsOption(on: boolean): HTMLElement {
+  const cb = checkbox(t('webhooks.accounts_in_all'), on, { help: t('webhooks.accounts_in_all_help') });
+  cb.input.addEventListener('change', async () => {
+    try {
+      await api.put('admin/webhooks/options', { accounts_in_all: cb.input.checked });
+      toast(t('common.saved'));
+    } catch (e) { cb.input.checked = !cb.input.checked; toast(errorText(e), 'error'); }
+  });
+  return h('div', { class: 'ew-form' }, cb.el);
 }

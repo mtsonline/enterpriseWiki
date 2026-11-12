@@ -48,7 +48,7 @@ var Events = []string{
 
 // AccountEvent reports whether an event concerns accounts (people and
 // groups, with personal data): webhooks get them only when chosen
-// explicitly, never with "all events".
+// explicitly, not with "all events" (unless webhooks.accounts_in_all).
 func AccountEvent(name string) bool {
 	return strings.HasPrefix(name, "user.") || strings.HasPrefix(name, "group.")
 }
@@ -432,7 +432,7 @@ func (s *Service) emit(ctx context.Context, q db.Querier, ev Event) error {
 	tag, err := q.Exec(ctx, `INSERT INTO webhook_deliveries(webhook_id, event, payload)
 		SELECT h.id, $1, $2 FROM webhooks h WHERE h.enabled AND ((cardinality(h.events) = 0 AND NOT $4) OR $1 = ANY(h.events))
 			AND (h.category_id IS NULL OR EXISTS (SELECT 1 FROM categories a, categories c WHERE c.id = $3 AND a.id = h.category_id AND a.path @> c.path))`,
-		ev.Name, b, ev.CategoryID, AccountEvent(ev.Name))
+		ev.Name, b, ev.CategoryID, AccountEvent(ev.Name) && !c.Webhooks.AccountsInAll)
 	if err != nil {
 		s.log.Error("queuing webhooks failed", "event", ev.Name, "err", err)
 		return err
