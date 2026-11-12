@@ -15,3 +15,6 @@
 # test runs (storage below the package directory)
 /internal/**/data/
 /plugins/**/data/
+# test routine against a running instance: binary and results (reports describe open weaknesses)
+/tests/qa/qa
+qa-results/
