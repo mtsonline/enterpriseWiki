@@ -27,6 +27,7 @@ import (
 	h "github.com/mtsonline/enterprisewiki/internal/httpx"
 	"github.com/mtsonline/enterprisewiki/internal/i18n"
 	"github.com/mtsonline/enterprisewiki/internal/identity"
+	"github.com/mtsonline/enterprisewiki/internal/limits"
 	"github.com/mtsonline/enterprisewiki/internal/media"
 	"github.com/mtsonline/enterprisewiki/internal/perm"
 	"github.com/mtsonline/enterprisewiki/internal/pluginmgr"
@@ -47,6 +48,7 @@ var adminPerms = []struct{ prefix, perm string }{
 	{"/api/v1/admin/roles", "core.roles.manage"},
 	{"/api/v1/admin/permissions", "core.roles.manage"},
 	{"/api/v1/admin/settings", "core.settings.manage"},
+	{"/api/v1/admin/limits", "core.settings.manage"},
 	{"/api/v1/admin/languages", "core.i18n.manage"},
 	{"/api/v1/admin/retention", "core.settings.manage"},
 	{"/api/v1/admin/audit/settings", "core.audit.manage"},
@@ -127,6 +129,7 @@ func (s *Server) routes() {
 	s.routesM15()
 	s.routesAccess()
 	s.routesAudit()
+	s.routesLimits()
 	s.routesDrafts()
 	s.routesNotifications()
 	s.routesWatchAssignments()
@@ -1168,7 +1171,8 @@ func (s *Server) site(w http.ResponseWriter, r *http.Request) (any, error) {
 	home := c.UI.HomeCategory
 	return map[string]any{
 		"name": c.UI.SiteName, "template": c.UI.Template, "templates": templates, "home_category": home, "home_element": c.UI.HomeElement, "editor": cmp.Or(c.UI.Editor, "visual"), "collaboration": c.UI.Collaboration,
-		"languages": c.I18n.Languages, "default_language": c.I18n.DefaultLanguage,
+		"wait_notice_s": limits.Value(c, limits.WaitNoticeSeconds),
+		"languages":     c.I18n.Languages, "default_language": c.I18n.DefaultLanguage,
 		"plugins": frontend, "element_types": s.app.Content.Types(), "auth_providers": s.app.Auth.ProviderInfos(),
 		"version": version.Version, "permissions": acl.Names,
 		// site: the site of this host; instance_only: settings only

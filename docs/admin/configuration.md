@@ -18,11 +18,10 @@ Vollständiges Beispiel: [config.example.yaml](../../config.example.yaml)
 | `base_url` | öffentliche URL | `http://localhost:8080` |
 | `secure_cookies` | Cookies nur über HTTPS und HSTS-Header senden | `false` |
 | `trusted_proxies` | IPs/CIDRs, deren `X-Forwarded-For` vertraut wird (für Rate-Limits, Logs, erlaubte Netze); `EWIKI_TRUSTED_PROXIES` überschreibt den Wert | `[]` |
-| `max_body_mb` | maximale Größe einer API-Anfrage (Uploads, Importe) | `64` |
-| `max_json_kb` | maximale Größe eines JSON-Körpers angemeldeter Personen; Gäste dürfen 64 KB senden (SSO-Rückmeldungen 1 MB) | `4096` |
-| `rate_limit` | Anfragen pro Sekunde und Vorrat je Konto (`per_second`, `burst`), je Adresse für Gäste (`guest_per_second`, `guest_burst`) und zusätzlich für teure Anfragen wie Suche, Vorschau, Export und Upload (`expensive_per_second`, `expensive_burst`); `disabled: true` schaltet ab (nur mit Grenzen im Reverse Proxy). Antwort bei Überschreitung `429` mit `Retry-After` | `50/500`, `20/200`, `5/50` |
+| `max_body_mb` | ältere Einstellung für die Größe von Importen; ersetzt durch den Grenzwert `core.request.import_mb` (siehe [Experteneinstellungen](#limits-experteneinstellungen)) | `64` |
+| `rate_limit.disabled` | `true` schaltet die Anfragegrenzen ab (nur für Lasttests oder mit Grenzen im Reverse Proxy) | `false` |
 
-Höchstens 16 große Anfragen (über 1 MB) werden gleichzeitig verarbeitet. Hinter einem Reverse Proxy unbedingt `trusted_proxies` setzen, sonst teilen sich alle Benutzer die Grenzen der Proxy-Adresse.
+Hinter einem Reverse Proxy unbedingt `trusted_proxies` setzen, sonst teilen sich alle Benutzer die Grenzen der Proxy-Adresse.
 
 ### `mode`
 `single` (eine Instanz) oder `cluster` (mehrere Instanzen, siehe [installation.md](installation.md#mehrere-instanzen-cluster-modus)).
@@ -289,3 +288,33 @@ ewiki config validate
 ```
 
 Weitere Sites einer Instanz haben eigene Einstellungsdateien (`sites/<name>.yaml`), siehe [sites.md](sites.md).
+
+### `limits` (Experteneinstellungen)
+
+Technische Grenzwerte des Kerns und aller Plugins. Jeder hat eine Vorgabe und einen erlaubten Bereich; in `config.yaml` steht nur, was von der Vorgabe abweicht. Ändern unter **Administration → Experteneinstellungen** (alle Werte an einer Stelle, mit Erklärung, Vorgabe und Bereich; Änderungen stehen im Audit-Protokoll als `settings.limits`), mit `PUT /api/v1/admin/limits` oder direkt:
+
+```yaml
+limits:
+  core.request.guest_kb: 128
+  core.rate.user_per_second: 100
+```
+
+Die Grenzwerte gelten für die ganze Instanz; in weiteren Sites ändern sie nur Administratoren der Instanz. Plugins melden ihre eigenen Grenzwerte an (Schlüssel beginnt mit der Plugin-ID); sie erscheinen in derselben Liste.
+
+| Schlüssel | Bedeutung | Vorgabe |
+|---|---|---|
+| `core.request.guest_kb` | größte Anfrage ohne Sitzung und ohne API-Key (Anmeldung, Formulare für Gäste) | 64 kB |
+| `core.request.body_kb` | größte Anfrage angemeldeter Benutzer; Routen, die mehr brauchen, melden eine eigene Grenze an | 1024 kB |
+| `core.request.content_kb` | Speichern von Seiten, Entwürfen, Vorlagen und Vorschauen | 4096 kB |
+| `core.request.sso_kb` | Nachrichten von Identity Providern (SAML, OIDC) | 1024 kB |
+| `core.request.import_mb` | Import von Kategorien und Übersetzungen | 64 MB |
+| `core.request.large_parallel` | Anfragen über 1 MB, die zugleich verarbeitet werden (Uploads werden durchgereicht und zählen nicht) | 4 |
+| `core.request.large_wait_s` | so lange wartet eine große Anfrage auf einen freien Platz, dann `503` (nichts gespeichert, wiederholbar) | 30 s |
+| `core.rate.user_per_second`, `core.rate.user_burst` | Anfragen je Konto: Dauerrate und Vorrat für kurze Spitzen | 50 / 500 |
+| `core.rate.guest_per_second`, `core.rate.guest_burst` | Anfragen je Adresse ohne Anmeldung | 20 / 200 |
+| `core.rate.expensive_per_second`, `core.rate.expensive_burst` | zusätzlich für Suche, Vorschau, Export und Upload | 5 / 50 |
+| `core.audit.value_guest_bytes` | längster Wert im Audit-Protokoll bei Ereignissen ohne angemeldeten Benutzer | 1024 Bytes |
+| `core.audit.value_bytes` | längster Vorher-/Nachher-Wert bei Ereignissen angemeldeter Benutzer | 65536 Bytes |
+| `core.ui.wait_notice_s` | nach dieser Zeit ohne Antwort auf eine Änderung fragt die Oberfläche „weiter warten oder abbrechen“; die Eingabe bleibt in beiden Fällen erhalten | 5 s |
+
+Zu große Anfragen erhalten `413`, zu viele `429` mit `Retry-After`.

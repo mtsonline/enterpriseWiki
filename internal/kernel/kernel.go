@@ -15,6 +15,7 @@ import (
 	"github.com/mtsonline/enterprisewiki/internal/config"
 	"github.com/mtsonline/enterprisewiki/internal/db"
 	"github.com/mtsonline/enterprisewiki/internal/i18n"
+	"github.com/mtsonline/enterprisewiki/internal/limits"
 	"github.com/mtsonline/enterprisewiki/pkg/sdk"
 )
 
@@ -199,6 +200,11 @@ func (k *Kernel) Setup(base sdk.Host, tr *i18n.Service) error {
 		m := p.Manifest()
 		if err := perm.Register(m.ID, m.Permissions...); err != nil {
 			return fmt.Errorf("plugin %s: %w", m.ID, err)
+		}
+		for _, d := range m.Limits {
+			if err := limits.Register(m.ID, d); err != nil {
+				return fmt.Errorf("plugin %s: %w", m.ID, err)
+			}
 		}
 		if l, ok := p.(sdk.LocalesPlugin); ok {
 			if err := tr.Register(m.ID, l.Locales()); err != nil {

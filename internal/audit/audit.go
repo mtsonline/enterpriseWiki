@@ -105,24 +105,32 @@ func toJSON(v any) any {
 	if err != nil || string(b) == "null" {
 		return nil
 	}
-	return bound(b)
+	return b
 }
 
-// Limits of one audit entry (S-03): large snapshots keep their structure
-// with each text shortened; what is still too large is only noted.
-const (
-	maxSnapshot = 16 << 10
-	maxText     = 1 << 10
-	maxEntry    = 64 << 10
-)
-
-func bound(b []byte) []byte {
-	if len(b) <= maxSnapshot {
-		return b
+// ValueLimit returns the longest before/after value of an entry in bytes
+// (guest: the event has no signed-in user, e.g. a failed sign-in). The
+// application sets it to the limits core.audit.value_guest_bytes and
+// core.audit.value_bytes (expert settings).
+var ValueLimit = func(guest bool) int {
+	if guest {
+		return 1 << 10
 	}
-	var v any
-	if json.Unmarshal(b, &v) == nil {
-		if c, err := json.Marshal(shorten(v)); err == nil && len(c) <= maxEntry {
+	return 64 << 10
+}
+
+// bound keeps a value of an entry within max bytes (S-03): a larger one
+// keeps its structure with each text shortened to a quarter of max (its
+// original length is noted); what is still too large is only noted. The log
+// must not grow without bound from input of the outside.
+func bound(v any, max int) any {
+	b, ok := v.([]byte)
+	if !ok || len(b) <= max || max <= 0 {
+		return v
+	}
+	var x any
+	if json.Unmarshal(b, &x) == nil {
+		if c, err := json.Marshal(shorten(x, max/4)); err == nil && len(c) <= max {
 			return c
 		}
 	}
@@ -130,20 +138,19 @@ func bound(b []byte) []byte {
 	return out
 }
 
-func shorten(v any) any {
+func shorten(v any, max int) any {
 	switch x := v.(type) {
 	case string:
-		if len(x) > maxText {
-			r := []rune(x[:maxText])
-			return string(r[:len(r)-1]) + "…" // the last rune may be cut
+		if len(x) > max {
+			return clip(x, max) + fmt.Sprintf("… (+%d bytes)", len(x)-max)
 		}
 	case map[string]any:
 		for k, e := range x {
-			x[k] = shorten(e)
+			x[k] = shorten(e, max)
 		}
 	case []any:
 		for i, e := range x {
-			x[i] = shorten(e)
+			x[i] = shorten(e, max)
 		}
 	}
 	return v
@@ -173,7 +180,8 @@ func Log(ctx context.Context, q db.Querier, action, entityType string, entityID 
 		via = "guest"
 	}
 	_, err := q.Exec(ctx, `INSERT INTO audit_log(user_id, actor, action, entity_type, entity_id, before, after, ip, user_agent, via)
-		VALUES ($1,$2,$3,$4,$5,$6,$7,NULLIF($8,''),NULLIF($9,''),$10)`, uid, p.Handle(), action, entityType, eid, toJSON(before), toJSON(after), req.ip, clip(req.ua, 512), via)
+		VALUES ($1,$2,$3,$4,$5,$6,$7,NULLIF($8,''),NULLIF($9,''),$10)`, uid, p.Handle(), action, entityType, eid,
+		bound(toJSON(before), ValueLimit(p == nil)), bound(toJSON(after), ValueLimit(p == nil)), req.ip, clip(req.ua, 512), via)
 	return err
 }
 

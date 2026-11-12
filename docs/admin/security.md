@@ -112,10 +112,10 @@ API: `GET|PUT /api/v1/admin/i18n/{lang}`, `GET /api/v1/admin/i18n/{lang}/export?
 
 ## Schutz vor Überlastung
 
-- **Anfragegrenzen** je Konto bzw. je Adresse für Gäste, strenger für teure Anfragen (Suche, Vorschau, Export, Upload); Antwort `429` mit `Retry-After`. Einstellbar unter `server.rate_limit` (siehe [configuration.md](configuration.md)).
-- **Größe von Anfragen:** Gäste 64 KB, JSON angemeldeter Personen 4 MB (`server.max_json_kb`), Uploads und Importe `server.max_body_mb`; höchstens 16 große Anfragen gleichzeitig. Bilder mit mehr als 80 Millionen Pixeln werden schon beim Hochladen abgelehnt (`422`).
+- **Anfragegrenzen** je Konto bzw. je Adresse für Gäste, strenger für teure Anfragen (Suche, Vorschau, Export, Upload); Antwort `429` mit `Retry-After`. Einstellbar unter Administration → Experteneinstellungen (`core.rate.*`, siehe [configuration.md](configuration.md#limits-experteneinstellungen)).
+- **Größe von Anfragen:** ohne Anmeldung 64 kB, angemeldet 1 MB, Inhalte (Seiten, Entwürfe, Vorlagen) 4 MB, Importe 64 MB, Uploads `storage.max_upload_mb`; höchstens 4 Anfragen über 1 MB gleichzeitig. Routen und Plugins, die mehr brauchen, melden ihre Grenze an; alle Werte stehen unter Administration → Experteneinstellungen (`core.request.*`). Bilder mit mehr als 80 Millionen Pixeln werden schon beim Hochladen abgelehnt (`422`).
 - **Datenbank:** Keine Funktion holt eine zweite Verbindung, solange sie eine Transaktion offen hält; zusätzlich beendet PostgreSQL Transaktionen, die länger als 60 Sekunden warten. So können viele gleichzeitige Kommentare oder Vorgangsstarts den Pool nicht blockieren.
-- **Protokoll:** Einträge werden begrenzt (Texte je Wert 1 KB, ein Eintrag höchstens 64 KB), die Freitextsuche in den Zuständen vorher/nachher umfasst ohne Startdatum die letzten 90 Tage.
+- **Protokoll:** Werte werden begrenzt (ohne angemeldeten Benutzer 1 kB, sonst 64 kB je Vorher-/Nachher-Wert, einstellbar als `core.audit.*`; gekürzte Texte vermerken ihre ursprüngliche Länge), die Freitextsuche in den Zuständen vorher/nachher umfasst ohne Startdatum die letzten 90 Tage.
 - **Live-Bearbeitung:** höchstens 5 Verbindungen einer Person und 50 Personen je Seite.
 
 ## Protokoll (Audit-Log)

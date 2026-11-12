@@ -37,6 +37,13 @@ func Forbidden(format string, a ...any) error {
 func Conflict(format string, a ...any) error {
 	return newf(http.StatusConflict, "conflict", format, a...)
 }
+
+// Busy is the error for work the server cannot take on right now (503);
+// nothing was changed and the request can be repeated.
+func Busy(format string, a ...any) error {
+	return newf(http.StatusServiceUnavailable, "busy", format, a...)
+}
+
 func TooLarge(format string, a ...any) error {
 	return newf(http.StatusRequestEntityTooLarge, "too_large", format, a...)
 }

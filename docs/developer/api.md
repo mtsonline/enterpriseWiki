@@ -305,6 +305,8 @@ curl -H "Authorization: Bearer $KEY" -H 'Content-Type: application/json' \
 | `GET` | `/api/v1/admin/license` |
 | `PUT` | `/api/v1/admin/license` |
 | `DELETE` | `/api/v1/admin/license` |
+| `GET` | `/api/v1/admin/limits` |
+| `PUT` | `/api/v1/admin/limits` |
 | `GET` | `/api/v1/admin/mfa` |
 | `PUT` | `/api/v1/admin/mfa` |
 | `POST` | `/api/v1/admin/auth/providers/{id}/preview` |

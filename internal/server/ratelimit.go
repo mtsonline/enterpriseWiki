@@ -10,6 +10,7 @@ import (
 	"github.com/mtsonline/enterprisewiki/internal/apperr"
 	"github.com/mtsonline/enterprisewiki/internal/config"
 	"github.com/mtsonline/enterprisewiki/internal/httpx"
+	"github.com/mtsonline/enterprisewiki/internal/limits"
 )
 
 // Limits of API requests per client (S-04): a token bucket per account
@@ -79,15 +80,15 @@ func (s *Server) rateLimited(w http.ResponseWriter, r *http.Request, user int64,
 		return false
 	}
 	key := "ip:" + s.clientIP(r)
-	rate, burst := rl.GuestPerSecond(), rl.GuestBurst()
+	rate, burst := float64(limits.Value(cfg, limits.RateGuest)), int(limits.Value(cfg, limits.RateGuestBurst))
 	if user > 0 {
 		key = "u:" + strconv.FormatInt(user, 10)
-		rate, burst = rl.UserPerSecond(), rl.UserBurst()
+		rate, burst = float64(limits.Value(cfg, limits.RateUser)), int(limits.Value(cfg, limits.RateUserBurst))
 	}
 	now := time.Now()
 	ok, wait := s.limits.take(key, rate, burst, now)
 	if ok && expensive(r) {
-		ok, wait = s.limits.take("x"+key, rl.ExpensivePerSecond(), rl.ExpensiveBurst(), now)
+		ok, wait = s.limits.take("x"+key, float64(limits.Value(cfg, limits.RateExpensive)), int(limits.Value(cfg, limits.RateExpensiveBurst)), now)
 	}
 	if ok {
 		return false

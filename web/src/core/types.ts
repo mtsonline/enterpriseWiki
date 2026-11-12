@@ -48,6 +48,8 @@ export interface Site {
   editor?: 'visual' | 'simple';
   /** live editing of pages (several editors at the same time) */
   collaboration?: boolean;
+  /** seconds without an answer to a change after which the user is asked whether to keep waiting */
+  wait_notice_s?: number;
   languages: string[];
   default_language: string;
   plugins: string[] | null;

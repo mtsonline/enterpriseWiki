@@ -3,6 +3,7 @@ import { profileCardForm } from '../components/profilecard';
 import { elementsAdmin } from './adminElements';
 import { webhooksAdmin } from './adminWebhooks';
 import { licenseAdmin, licenseNotice, type LicenseStatus } from './adminLicense';
+import { limitsAdmin } from './adminLimits';
 import { databaseFacts, databaseNotice, type DatabaseStatus } from './adminDatabase';
 import { categorySelect, elementSelect } from '../components/pickers';
 import { api, qs } from '../core/api';
@@ -28,12 +29,12 @@ import { askFactor, mfaAdmin } from './adminMFA';
 
 interface User { id: number; username: string; provider: string; handle: string; display_name: string; email: string; language: string; disabled: boolean; locked_until: string | null; created_at: string; last_login_at: string | null; groups: number[]; roles: number[]; alias: string | null; alias_source: string; mfa: boolean }
 
-const CORE_SECTIONS = ['users', 'scim', 'mfa', 'groups', 'roles', 'permissions', 'elements', 'plugins', 'updates', 'settings', 'mail', 'webhooks', 'cache', 'languages', 'audit', 'watches', 'license', 'sites', 'demo'];
+const CORE_SECTIONS = ['users', 'scim', 'mfa', 'groups', 'roles', 'permissions', 'elements', 'plugins', 'updates', 'settings', 'limits', 'mail', 'webhooks', 'cache', 'languages', 'audit', 'watches', 'license', 'sites', 'demo'];
 
 /** global permission of each administration page ('' = category managers too) */
 const SECTION_PERMS: Record<string, string> = {
   users: 'core.users.manage', scim: 'core.users.manage', mfa: 'core.settings.manage', groups: 'core.groups.manage', roles: 'core.roles.manage', permissions: '',
-  elements: 'core.elements.admin', plugins: 'core.plugins.manage', updates: 'core.plugins.manage', settings: 'core.settings.manage',
+  elements: 'core.elements.admin', plugins: 'core.plugins.manage', updates: 'core.plugins.manage', settings: 'core.settings.manage', limits: 'core.settings.manage',
   mail: 'core.mail.manage', webhooks: 'core.webhooks.manage', cache: 'core.system.manage', languages: 'core.i18n.manage',
   audit: 'core.audit.view', watches: 'core.watches.assign', license: 'core.license.manage',
 };
@@ -102,6 +103,7 @@ export async function adminView({ params, query, main }: RouteCtx): Promise<void
       case 'audit': await auditAdmin(panel, query); break;
       case 'watches': await watchesAdmin(panel); break;
       case 'license': await licenseAdmin(panel); break;
+      case 'limits': await limitsAdmin(panel); break;
       case 'sites': await sitesAdmin(panel); break;
       case 'demo': await demoAdmin(panel); break;
       default: {

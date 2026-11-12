@@ -419,3 +419,9 @@ html { scroll-padding-top: calc(var(--ew-sticky-top, var(--ew-header-h)) + .5rem
 .ew-source-box { flex: 1 1 14rem; display: flex; flex-wrap: wrap; gap: .5rem; align-items: center; min-width: 0; }
 .ew-source-box input[type="text"], .ew-source-box input[type="url"], .ew-source-box input:not([type]) { flex: 1 1 12rem; min-width: 0; }
 .ew-sources-preview { margin: .75rem 0 0; padding: .5rem .75rem; background: var(--ew-info-bg); color: var(--ew-info-text); border-radius: 6px; }
+
+/* expert settings: one limit per row, the "default" button beside the field */
+.ew-limit { display: flex; align-items: flex-start; gap: .75rem; }
+.ew-limit > .ew-field { flex: 1 1 auto; min-width: 0; }
+.ew-limit > button { margin-top: 1.6rem; flex: none; }
+.ew-limit input[type="number"] { max-width: 12rem; }

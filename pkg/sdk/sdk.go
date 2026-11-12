@@ -36,6 +36,7 @@ import (
 	"github.com/mtsonline/enterprisewiki/internal/httpx"
 	"github.com/mtsonline/enterprisewiki/internal/i18n"
 	"github.com/mtsonline/enterprisewiki/internal/identity"
+	"github.com/mtsonline/enterprisewiki/internal/limits"
 	"github.com/mtsonline/enterprisewiki/internal/mail"
 	"github.com/mtsonline/enterprisewiki/internal/media"
 	"github.com/mtsonline/enterprisewiki/internal/notify"
@@ -87,6 +88,11 @@ type Manifest struct {
 	// Every permission a plugin uses must be declared here; keys start with
 	// the plugin id. Labels are English (translations: UI key perm.<key>).
 	Permissions []perm.Def `json:"permissions,omitempty"`
+	// Limits are the technical limits of the plugin (sizes, counts, waiting
+	// times). Keys start with the plugin id. Administrators see and change
+	// them under Administration → Expert settings; read them with
+	// Host.Limit (see docs/developer/plugins.md#limits).
+	Limits []limits.Def `json:"limits,omitempty"`
 }
 
 // Plugin is implemented by every plugin.
@@ -202,6 +208,20 @@ func (h *Host) Handle(method, path string, fn httpx.Handler) {
 		}
 		httpx.JSON(fn)(w, r)
 	})
+}
+
+// Limit returns the current value of a limit (of this plugin or the core).
+func (h *Host) Limit(key string) int64 { return limits.Value(h.Config.Get(), key) }
+
+// BodyLimit declares that a route of this plugin (method and path as given
+// to Handle) accepts request bodies up to the limit key - a limit of the
+// plugin's manifest or one of the core (limits.RequestContentKB for page
+// content). Without it the general limit of requests applies.
+func (h *Host) BodyLimit(method, path, key string) {
+	if !strings.HasPrefix(path, "/") {
+		path = "/" + path
+	}
+	limits.RouteBody(method+" /api/v1/x/"+h.Manifest.ID+path, key)
 }
 
 // RegisterElementType adds an element type owned by this plugin.

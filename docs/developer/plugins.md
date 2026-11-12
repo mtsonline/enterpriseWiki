@@ -249,6 +249,32 @@ Speichert ein Plugin Datei-Hashes außerhalb von Element-Inhalten, meldet es die
 - `host.Webhooks.Emit(ctx, webhook.Event{Name: "acme.ticket_closed", CategoryID: cat, Object: webhook.Object{Type: "ticket", ID: id, Title: t, URL: "/e/12#ticket-5"}, Data: map[string]any{…}})` meldet ein Ereignis an die konfigurierten Webhooks (Warteschlange, Wiederholungen und Formate Teams/Slack/JSON übernimmt der Kern). Eigene Ereignisnamen müssen in `webhook.Events` stehen, damit Administratoren sie auswählen können; Texte für Teams/Slack kommen aus `webhook.text.<name>` (Platzhalter: `title`, `actor`, `site` und die Schlüssel aus `Data`).
 - `host.RegisterSearchBackend(b)` bindet eine externe Suchmaschine an (`content.SearchBackend`, siehe `plugins/search_external`). Die Tabelle `search_changes` protokolliert jede Änderung am Suchindex.
 
+### Grenzwerte (Limits) {#limits}
+
+Technische Grenzen eines Plugins (Größen, Anzahlen, Wartezeiten) stehen nicht fest im Code, sondern im Manifest. Administratoren sehen und ändern sie zusammen mit denen des Kerns unter **Administration → Experteneinstellungen**.
+
+```go
+func (p *Plugin) Manifest() sdk.Manifest {
+	return sdk.Manifest{ID: "acme.forms", /* … */
+		Limits: []limits.Def{{Key: "acme.forms.answer_kb", Group: "requests", Unit: "kb", Default: 256, Min: 16, Max: 16384,
+			Label: "Size of a form answer", Help: "Largest answer a form accepts."}}}
+}
+
+func (p *Plugin) Setup(h *sdk.Host) error {
+	// die Route nimmt Körper bis zu diesem Grenzwert an (sonst gilt die allgemeine Grenze: 64 kB ohne Anmeldung, 1 MB mit)
+	h.BodyLimit("POST", "/forms/{id}/answers", "acme.forms.answer_kb")
+	h.Handle("POST", "/forms/{id}/answers", p.answer)
+	return nil
+}
+
+max := h.Limit("acme.forms.answer_kb") // aktueller Wert, jederzeit
+```
+
+- Der Schlüssel beginnt mit der Plugin-ID. Einheiten: `kb`, `mb`, `bytes`, `count`, `seconds`, `per_second`, `days`.
+- `Label` und `Help` sind englisch; Übersetzungen als UI-Texte `limit.<key>` und `limit.<key>.help`.
+- Für Seiteninhalte den Grenzwert des Kerns verwenden: `h.BodyLimit("POST", "/…", limits.RequestContentKB)`.
+- Uploads streamen (`multipart`) und mit `limits.RequestUpload` anmelden; dann gilt `storage.max_upload_mb`.
+
 ### Rechte in Plugin-Routen
 
 `host.Content.ElementCategory(ctx, elementID, acl.View)` liefert die Kategorie eines Elements und prüft dabei das Recht (404 statt 403, wenn das Element nicht sichtbar ist). `host.Content.Require(ctx, categoryID, perm)` prüft ein Recht auf einer Kategorie.

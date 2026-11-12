@@ -4,7 +4,8 @@ import './styles/base.css';
 import './editor/editor.css';
 import { mediaView } from './views/media';
 import { officeView } from './components/office';
-import { api } from './core/api';
+import { api, setWaitNotice, setWaitPrompt } from './core/api';
+import { waitDialog } from './components/ui';
 import { h, mount } from './core/dom';
 import { loadMessages, t } from './core/i18n';
 import { onBeforeRender, onNavigate, rerender, route, setMain, setNotFound, start } from './core/router';
@@ -77,6 +78,8 @@ async function boot(): Promise<void> {
   try {
     const [site, me] = await Promise.all([api.get<Site>('site'), api.get<{ user: Principal | null; manages_categories?: boolean }>('auth/me')]);
     state.site = site;
+    setWaitNotice(site.wait_notice_s);
+    setWaitPrompt(waitDialog);
     state.user = me.user;
     state.managesCategories = !!me.manages_categories;
     state.lang = pickLanguage(site, me.user);

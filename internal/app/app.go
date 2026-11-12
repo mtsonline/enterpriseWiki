@@ -25,6 +25,7 @@ import (
 	"github.com/mtsonline/enterprisewiki/internal/events"
 	"github.com/mtsonline/enterprisewiki/internal/i18n"
 	"github.com/mtsonline/enterprisewiki/internal/kernel"
+	"github.com/mtsonline/enterprisewiki/internal/limits"
 	"github.com/mtsonline/enterprisewiki/internal/mail"
 	"github.com/mtsonline/enterprisewiki/internal/media"
 	"github.com/mtsonline/enterprisewiki/internal/pagecache"
@@ -151,6 +152,12 @@ func newSite(ctx context.Context, in *Instance, site string, migrate bool) (*App
 	if err := a.checkAccounts(ctx); err != nil {
 		pool.Close()
 		return nil, err
+	}
+	audit.ValueLimit = func(guest bool) int {
+		if guest {
+			return int(limits.Value(in.Config.Get(), limits.AuditValueGuest))
+		}
+		return int(limits.Value(in.Config.Get(), limits.AuditValue))
 	}
 	a.Bus = events.NewSite(pool, c.Mode == "cluster", log, site)
 	a.ACL = acl.New(pool, a.Bus, log)

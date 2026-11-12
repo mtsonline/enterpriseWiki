@@ -221,7 +221,9 @@ func TestHardening(t *testing.T) {
 // S-04: requests per account and address are limited (with Retry-After).
 func TestRateLimit(t *testing.T) {
 	e := setupWith(t, func(c *config.Config) {
-		c.Server.RateLimit = config.RateLimit{PerSecond: 1, Burst: 15, GuestPerSec: 1, GuestBurstN: 10, ExpensivePerSec: 1, ExpensiveBurstN: 3}
+		c.Server.RateLimit.Disabled = false
+		c.Limits = map[string]int64{"core.rate.user_per_second": 1, "core.rate.user_burst": 15, "core.rate.guest_per_second": 1, "core.rate.guest_burst": 10,
+			"core.rate.expensive_per_second": 1, "core.rate.expensive_burst": 3}
 	})
 	admin := e.client()
 	admin.login("admin", adminPW) // before the guest uses up the address
