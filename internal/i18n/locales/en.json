@@ -1879,5 +1879,7 @@
  "pager.loaded": "Page {page} loaded.",
  "settings.lists": "Lists",
  "settings.lists_max": "Most entries per list",
- "settings.lists_max_help": "Upper bound for lists from sources (macros, blog, FAQ …) and for search and filter sources: 0 = 1000, at most 10000. Editors choose their limit and pages below it."
+ "settings.lists_max_help": "Upper bound for lists from sources (macros, blog, FAQ …) and for search and filter sources: 0 = 1000, at most 10000. Editors choose their limit and pages below it.",
+ "webhook.text.form.submitted": "Someone submitted the form “{title}”.",
+ "webhooks.ev.form.submitted": "Form submitted"
 }

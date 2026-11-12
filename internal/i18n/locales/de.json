@@ -1929,5 +1929,7 @@
  "pager.loaded": "Seite {page} geladen.",
  "settings.lists": "Listen",
  "settings.lists_max": "Höchstzahl Einträge pro Liste",
- "settings.lists_max_help": "Obergrenze für Listen aus Quellen (Makros, Blog, FAQ …) und für Such- und Filterquellen: 0 = 1000, höchstens 10000. Darunter wählen Bearbeitende Anzahl und Seiten selbst."
+ "settings.lists_max_help": "Obergrenze für Listen aus Quellen (Makros, Blog, FAQ …) und für Such- und Filterquellen: 0 = 1000, höchstens 10000. Darunter wählen Bearbeitende Anzahl und Seiten selbst.",
+ "webhook.text.form.submitted": "Jemand hat das Formular „{title}“ abgeschickt.",
+ "webhooks.ev.form.submitted": "Formular abgeschickt"
 }
