@@ -248,22 +248,6 @@ func (p *Plugin) routes() {
 	host.Handle("GET", "/elements/{id}/submissions.csv", export("csv"))
 	host.Handle("GET", "/elements/{id}/submissions.xlsx", export("xlsx"))
 
-	// GET /elements/{id}/summary: counts of the choices (for the display macro)
-	host.Handle("GET", "/elements/{id}/summary", func(w http.ResponseWriter, r *http.Request) (any, error) {
-		id, err := h.PathID(r, "id")
-		if err != nil {
-			return nil, err
-		}
-		ctx := r.Context()
-		if _, err := p.canSee(ctx, id); err != nil {
-			return nil, err
-		}
-		var total int
-		if err := host.DB.QueryRow(ctx, `SELECT count(*) FROM plugin_form_submissions WHERE element_id=$1`, id).Scan(&total); err != nil {
-			return nil, err
-		}
-		return map[string]any{"total": total}, nil
-	})
 }
 
 // submission loads a submission the caller may see.

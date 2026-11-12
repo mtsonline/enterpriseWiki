@@ -185,5 +185,12 @@
  "forms.kind.text": "Text und CSV",
  "forms.kind.archive": "ZIP-Archive",
  "forms.kind.audio": "Audio",
- "forms.kind.video": "Video"
+ "forms.kind.video": "Video",
+ "forms.error": "Das Formular konnte nicht geladen oder gesendet werden. Bitte versuchen Sie es erneut.",
+ "forms.ed.max_submissions": "Höchstzahl Einsendungen (0 = unbegrenzt)",
+ "forms.err.choose": "Bitte wählen Sie eine Möglichkeit.",
+ "forms.admin.title": "Formulare",
+ "forms.admin.intro": "Uploads von Formularen werden immer nach ihrem Inhalt geprüft (Dateityp, Office-Makros, aktive PDF-Inhalte). Ein Virenscanner prüft zusätzlich jede Datei.",
+ "forms.admin.clamd": "Virenscanner (ClamAV clamd)",
+ "forms.admin.clamd_help": "Adresse von clamd, z. B. tcp://clamav:3310 oder unix:/run/clamav/clamd.ctl. Leer: kein Virenscan. Ist sie gesetzt, aber nicht erreichbar, werden Uploads abgelehnt."
 }

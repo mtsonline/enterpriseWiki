@@ -4,7 +4,7 @@
   "version": "1.0.0",
   "description": "Element type for web forms: a form editor with all usual fields (also uploads, conditions and checks), a layout as accessible grid or placed freely, storage of the submissions and further targets (property database, e-mail, workflow, webhook). Everyone who may see the form may submit it; what happens with a submission is done with the rights of the person who set the form up.",
   "author": "Enterprise Wiki",
-  "kinds": ["element", "macro"],
+  "kinds": ["element"],
   "frontend": true,
   "permissions": [
     {

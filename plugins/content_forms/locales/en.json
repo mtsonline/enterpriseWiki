@@ -185,5 +185,12 @@
  "forms.kind.text": "Text and CSV",
  "forms.kind.archive": "ZIP archives",
  "forms.kind.audio": "Audio",
- "forms.kind.video": "Video"
+ "forms.kind.video": "Video",
+ "forms.error": "The form could not be loaded or sent. Please try again.",
+ "forms.ed.max_submissions": "Most submissions (0 = no limit)",
+ "forms.err.choose": "Please choose one.",
+ "forms.admin.title": "Forms",
+ "forms.admin.intro": "Uploads of forms are always checked by their content (file type, Office macros, active PDF content). A virus scanner checks every file in addition.",
+ "forms.admin.clamd": "Virus scanner (ClamAV clamd)",
+ "forms.admin.clamd_help": "Address of clamd, e.g. tcp://clamav:3310 or unix:/run/clamav/clamd.ctl. Empty: no virus scan. If it is set but cannot be reached, uploads are refused."
 }
