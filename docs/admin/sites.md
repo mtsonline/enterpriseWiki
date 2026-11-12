@@ -58,7 +58,7 @@ Der Name (`[a-z][a-z0-9_]*`, höchstens 31 Zeichen) bestimmt das Schema `site_<n
 
 Die Einstellungen in `config.yaml` sind die der Site `main` und zugleich die Vorgabe für alle anderen Sites. Was eine Site abweichend einstellt (in ihrer Administration oder per `ewiki --site docs config set …`), steht in `sites/<name>.yaml` neben `config.yaml`, und zwar nur die Abweichungen. Änderungen an `config.yaml` wirken also auf alle Sites, die den Wert nicht selbst gesetzt haben.
 
-Nur für die ganze Instanz gelten: `mode`, `database`, `license`, `server.listen`, `server.trusted_proxies`, `server.max_body_mb`. Diese Werte werden in Site-Dateien ignoriert.
+Nur für die ganze Instanz gelten: `mode`, `database`, `license`, `server.listen`, `limits`, `server.trusted_proxies`, `server.client_ip_header`, `server.max_body_mb`. Diese Werte werden in Site-Dateien ignoriert.
 
 Dateien einer Site liegen in `<storage.path>/sites/<name>`, solange die Site keinen eigenen `storage.path` setzt.
 

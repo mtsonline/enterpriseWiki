@@ -340,13 +340,17 @@ func actorName(ctx context.Context) string {
 }
 
 // Emit queues an event for all matching webhooks (errors are logged).
-func (s *Service) Emit(ctx context.Context, ev Event) { s.emit(ctx, s.pool, ev) }
+func (s *Service) Emit(ctx context.Context, ev Event) { _ = s.emit(ctx, s.pool, ev) }
+
+// Queue is Emit that reports whether the event could be queued (for
+// callers that repeat it, e.g. durable change hooks).
+func (s *Service) Queue(ctx context.Context, ev Event) error { return s.emit(ctx, s.pool, ev) }
 
 // EmitTx queues an event in the transaction of the change (nothing is sent
 // if it rolls back).
-func (s *Service) EmitTx(ctx context.Context, q db.Querier, ev Event) { s.emit(ctx, q, ev) }
+func (s *Service) EmitTx(ctx context.Context, q db.Querier, ev Event) { _ = s.emit(ctx, q, ev) }
 
-func (s *Service) emit(ctx context.Context, q db.Querier, ev Event) {
+func (s *Service) emit(ctx context.Context, q db.Querier, ev Event) error {
 	ctx = context.WithoutCancel(ctx)
 	c := s.cfg.Get()
 	if ev.OccurredAt.IsZero() {
@@ -361,18 +365,19 @@ func (s *Service) emit(ctx context.Context, q db.Querier, ev Event) {
 	}
 	b, err := json.Marshal(ev)
 	if err != nil {
-		return
+		return err
 	}
 	tag, err := q.Exec(ctx, `INSERT INTO webhook_deliveries(webhook_id, event, payload)
 		SELECT h.id, $1, $2 FROM webhooks h WHERE h.enabled AND (cardinality(h.events) = 0 OR $1 = ANY(h.events))
 			AND (h.category_id IS NULL OR EXISTS (SELECT 1 FROM categories a, categories c WHERE c.id = $3 AND a.id = h.category_id AND a.path @> c.path))`, ev.Name, b, ev.CategoryID)
 	if err != nil {
 		s.log.Error("queuing webhooks failed", "event", ev.Name, "err", err)
-		return
+		return err
 	}
 	if tag.RowsAffected() > 0 {
 		s.Kick()
 	}
+	return nil
 }
 
 type due struct {

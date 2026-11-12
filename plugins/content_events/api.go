@@ -167,6 +167,7 @@ func (p *Plugin) Setup(hs *sdk.Host) error {
 			host = u.Hostname()
 		}
 		var eid int64
+		var after func()
 		err = pgx.BeginFunc(ctx, hs.DB, func(tx pgx.Tx) error {
 			if err := tx.QueryRow(ctx, `INSERT INTO plugin_events(calendar_id, uid, title, description, location, url, category, starts_at, ends_at, all_day, tz,
 				rrule, exdates, registration, capacity, waitlist, reg_deadline, reminders, created_by, updated_by)
@@ -175,12 +176,12 @@ func (p *Plugin) Setup(hs *sdk.Host) error {
 				in.RRule, in.ExDates, in.Registration, in.Capacity, *in.Waitlist, in.RegDeadline, in.Reminders, nullID(uid)).Scan(&eid); err != nil {
 				return err
 			}
-			return audit.Log(ctx, tx, "event.create", "event", eid, nil, in)
+			return p.changedTx(ctx, tx, id, &after, audit.Log(ctx, tx, "event.create", "event", eid, nil, in))
 		})
 		if err != nil {
 			return nil, err
 		}
-		p.changed(ctx, id)
+		after()
 		e, _, err := p.event(ctx, eid, "")
 		if err != nil {
 			return nil, err
@@ -232,6 +233,7 @@ func (p *Plugin) Setup(hs *sdk.Host) error {
 			return nil, err
 		}
 		uid := identity.From(ctx).ID()
+		var after func()
 		err = pgx.BeginFunc(ctx, hs.DB, func(tx pgx.Tx) error {
 			if _, err := tx.Exec(ctx, `UPDATE plugin_events SET title=$2, description=$3, location=$4, url=$5, category=$6, starts_at=$7, ends_at=$8,
 				all_day=$9, tz=$10, rrule=$11, exdates=$12::date[], registration=$13, capacity=$14, waitlist=$15, reg_deadline=$16, reminders=$17,
@@ -250,12 +252,12 @@ func (p *Plugin) Setup(hs *sdk.Host) error {
 			if err := p.notifyChanged(ctx, tx, before, cal); err != nil {
 				return err
 			}
-			return audit.Log(ctx, tx, "event.update", "event", id, before, in)
+			return p.changedTx(ctx, tx, cal.ID, &after, audit.Log(ctx, tx, "event.update", "event", id, before, in))
 		})
 		if err != nil {
 			return nil, err
 		}
-		p.changed(ctx, cal.ID)
+		after()
 		e, _, err := p.event(ctx, id, "")
 		return e, err
 	})
@@ -274,6 +276,7 @@ func (p *Plugin) Setup(hs *sdk.Host) error {
 		if !e.CanEdit {
 			return nil, apperr.ErrForbidden
 		}
+		var after func()
 		err = pgx.BeginFunc(ctx, hs.DB, func(tx pgx.Tx) error {
 			if r.URL.Query().Get("notify") != "0" {
 				if err := p.notifyCancelled(ctx, tx, e, cal); err != nil {
@@ -283,12 +286,12 @@ func (p *Plugin) Setup(hs *sdk.Host) error {
 			if _, err := tx.Exec(ctx, `DELETE FROM plugin_events WHERE id=$1`, id); err != nil {
 				return err
 			}
-			return audit.Log(ctx, tx, "event.delete", "event", id, e, nil)
+			return p.changedTx(ctx, tx, cal.ID, &after, audit.Log(ctx, tx, "event.delete", "event", id, e, nil))
 		})
 		if err != nil {
 			return nil, err
 		}
-		p.changed(ctx, cal.ID)
+		after()
 		return h.NoContent{}, nil
 	})
 
@@ -515,6 +518,7 @@ func (p *Plugin) setOverride(ctx context.Context, r *http.Request, ov *Override,
 		}
 	}
 	uid := identity.From(ctx).ID()
+	var afterCommit func()
 	err = pgx.BeginFunc(ctx, p.host.DB, func(tx pgx.Tx) error {
 		var q string
 		args := []any{id, date, nullID(uid)}
@@ -548,12 +552,12 @@ func (p *Plugin) setOverride(ctx context.Context, r *http.Request, ov *Override,
 				}
 			}
 		}
-		return audit.Log(ctx, tx, "event.occurrence", "event", id, map[string]any{"date": date, "override": old.Override}, map[string]any{"date": date, "override": ov})
+		return p.changedTx(ctx, tx, cal.ID, &afterCommit, audit.Log(ctx, tx, "event.occurrence", "event", id, map[string]any{"date": date, "override": old.Override}, map[string]any{"date": date, "override": ov}))
 	})
 	if err != nil {
 		return nil, err
 	}
-	p.changed(ctx, cal.ID)
+	afterCommit()
 	e, _, err := p.event(ctx, id, "")
 	if err == nil {
 		p.emit(ctx, "event.occurrence_changed", e, cal, date, map[string]any{"reset": ov == nil})
@@ -616,9 +620,15 @@ func nullID(id int64) *int64 {
 	return &id
 }
 
-// changed tells other parts (watches, caches) that the calendar changed.
-func (p *Plugin) changed(ctx context.Context, calendar int64) {
-	p.host.Content.Touch(ctx, calendar)
+// changedTx ends a transaction that changed a calendar: the change is
+// queued with it (watchers are told even after a crash); *after tells
+// the other parts (watches, caches) and is called after the commit.
+func (p *Plugin) changedTx(ctx context.Context, tx pgx.Tx, calendar int64, after *func(), err error) error {
+	if err != nil {
+		return err
+	}
+	*after, err = p.host.Content.TouchTx(ctx, tx, calendar)
+	return err
 }
 
 // ---------------------------------------------------------------- registrations

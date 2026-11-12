@@ -3,9 +3,11 @@ package media
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"image"
 	"image/jpeg"
+	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -200,6 +202,10 @@ func (s *Service) Deliver(ctx context.Context, id int64, in DeliverInput) (*Deli
 			return d, nil
 		}
 		img, format, err := Decode(data)
+		if errors.Is(err, ErrTooLarge) {
+			// never the original instead (it may need a watermark)
+			return nil, apperr.New(http.StatusUnprocessableEntity, "image_too_large", "image too large to process")
+		}
 		if err != nil {
 			return nil, err
 		}

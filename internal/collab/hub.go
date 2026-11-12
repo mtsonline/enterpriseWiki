@@ -33,7 +33,6 @@ const (
 // Limits.
 const (
 	MaxMessage   = 4 << 20 // bytes per message (the initial sync of a large page)
-	MaxPeers     = 50      // editors per document
 	queueSize    = 256     // messages waiting per peer
 	ratePerSec   = 100     // messages per second and peer (burst: 2x)
 	RecheckEvery = 30 * time.Second
@@ -78,7 +77,15 @@ type frame struct {
 
 func (p *peer) close() { p.once.Do(func() { close(p.quit) }) }
 
-// ErrFull is returned when a room has MaxPeers editors.
+// Limits returns the persons per document and the connections of one
+// person per document (tabs, devices); set by the application (expert
+// settings).
+var Limits = func() (persons, perPerson int) { return 50, 5 }
+
+// ErrTooManyConnections: the person has too many connections to the room.
+var ErrTooManyConnections = errors.New("too many connections of this person to the document")
+
+// ErrFull is returned when a room has the allowed number of persons.
 var ErrFull = errors.New("too many editors of this document")
 
 // Peers returns the number of editors in a room.
@@ -99,7 +106,20 @@ func (h *Hub) join(key string, u User) (*peer, error) {
 		r = &room{peers: map[*peer]bool{}}
 		h.rooms[key] = r
 	}
-	if len(r.peers) >= MaxPeers {
+	// S-06: persons are counted, not connections; one person cannot fill
+	// a room with connections
+	mine, persons := 0, map[int64]bool{}
+	for q := range r.peers {
+		persons[q.user.ID] = true
+		if q.user.ID == u.ID {
+			mine++
+		}
+	}
+	maxPersons, perPerson := Limits()
+	if mine >= perPerson {
+		return nil, ErrTooManyConnections
+	}
+	if !persons[u.ID] && len(persons) >= maxPersons {
 		return nil, ErrFull
 	}
 	h.seq++

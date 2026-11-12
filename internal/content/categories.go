@@ -2,8 +2,10 @@ package content
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"github.com/mtsonline/enterprisewiki/internal/perm"
+	"regexp"
 	"sort"
 	"strconv"
 	"strings"
@@ -372,7 +374,7 @@ func (s *Service) CreateCategory(ctx context.Context, in CategoryInput) (*Catego
 	if in.Slug != nil && Slugify(*in.Slug) != "" {
 		slug = Slugify(*in.Slug)
 	}
-	var id int64
+	var id, noted int64
 	err = db.Tx(ctx, s.pool, func(tx pgx.Tx) error {
 		var parentPath string
 		if in.ParentID != nil {
@@ -448,13 +450,18 @@ func (s *Service) CreateCategory(ctx context.Context, in CategoryInput) (*Catego
 				return err
 			}
 		}
-		return audit.Log(ctx, tx, "category.create", "category", id, nil, snapshotOf(titles, descs, tags, slug, in.ParentID, pos, nil))
+		if err := audit.Log(ctx, tx, "category.create", "category", id, nil, snapshotOf(titles, descs, tags, slug, in.ParentID, pos, nil)); err != nil {
+			return err
+		}
+		var err error
+		noted, err = s.note(ctx, tx, "create", "category", id)
+		return err
 	})
 	if err != nil {
 		return nil, err
 	}
 	s.aclChanged(ctx)
-	s.fire(ctx, "create", "category", id)
+	s.fireNoted(ctx, noted, "create", "category", id)
 	return s.GetCategory(ctx, id)
 }
 
@@ -574,6 +581,7 @@ func (s *Service) UpdateCategory(ctx context.Context, id int64, in CategoryInput
 		}
 	}
 	classChanged := false
+	var noted int64
 	err = db.Tx(ctx, s.pool, func(tx pgx.Tx) error {
 		if _, err := tx.Exec(ctx, `UPDATE categories SET titles=$2, descriptions=$3, tags=$4, slug=$5, position=$6, default_element_id=$7, feed=$8,
 			original_lang=$9, text_rev=$10, translation_revs=$11, updated_at=now()
@@ -650,14 +658,19 @@ func (s *Service) UpdateCategory(ctx context.Context, id int64, in CategoryInput
 				return err
 			}
 		}
-		return audit.Log(ctx, tx, "category.update", "category", id,
+		if err := audit.Log(ctx, tx, "category.update", "category", id,
 			snapshotOf(before.Titles, before.Descriptions, before.Tags, before.Slug, before.ParentID, before.Position, before.DefaultElementID),
-			snapshotOf(titles, descs, tags, slug, before.ParentID, pos, def))
+			snapshotOf(titles, descs, tags, slug, before.ParentID, pos, def)); err != nil {
+			return err
+		}
+		var err error
+		noted, err = s.note(ctx, tx, "update", "category", id)
+		return err
 	})
 	if err != nil {
 		return nil, err
 	}
-	s.fire(ctx, "update", "category", id)
+	s.fireNoted(ctx, noted, "update", "category", id)
 	if classChanged {
 		s.aclChanged(ctx)
 	}
@@ -684,6 +697,7 @@ func (s *Service) MoveCategory(ctx context.Context, id, newParent int64, positio
 	}
 	var fromParent int64
 	_ = s.pool.QueryRow(ctx, `SELECT COALESCE(parent_id, 0) FROM categories WHERE id=$1`, id).Scan(&fromParent)
+	var noted int64
 	err := db.Tx(ctx, s.pool, func(tx pgx.Tx) error {
 		var oldPath string
 		var oldParent *int64
@@ -741,14 +755,14 @@ func (s *Service) MoveCategory(ctx context.Context, id, newParent int64, positio
 				return err
 			}
 		}
-		return audit.Log(ctx, tx, "category.move", "category", id, map[string]any{"parent_id": oldParent, "position": oldPos, "space_key": key}, map[string]any{"parent_id": parentPtr, "position": pos})
+		return s.andNote(ctx, tx, &noted, "move", "category", id, audit.Log(ctx, tx, "category.move", "category", id, map[string]any{"parent_id": oldParent, "position": oldPos, "space_key": key}, map[string]any{"parent_id": parentPtr, "position": pos}))
 	})
 	if err != nil {
 		return nil, err
 	}
 	s.aclChanged(ctx)
 	_ = s.syncSlug(ctx, "category", id, fromParent)
-	s.fire(ctx, "move", "category", id)
+	s.fireNoted(ctx, noted, "move", "category", id)
 	return s.GetCategory(ctx, id)
 }
 
@@ -903,6 +917,13 @@ func (s *Service) duplicateCategory(ctx context.Context, id, targetParent int64,
 			}
 		}
 		newRoot = mapping[src.ID]
+		if withElements {
+			// F-02: references to categories of the copied tree (blog, FAQ,
+			// sources …) point to the copies
+			if err := remapCategoryRefs(ctx, tx, mapping); err != nil {
+				return err
+			}
+		}
 		return audit.Log(ctx, tx, "category.duplicate", "category", newRoot, map[string]any{"source": id}, map[string]any{"categories": len(mapping)})
 	})
 	if err != nil {
@@ -910,6 +931,89 @@ func (s *Service) duplicateCategory(ctx context.Context, id, targetParent int64,
 	}
 	s.aclChanged(ctx)
 	return s.GetCategory(ctx, newRoot)
+}
+
+// remapCategoryRefs rewrites, in the copied elements, references to
+// categories of the copied tree: "category_id" values in JSON bodies and
+// "category:N" in source texts.
+func remapCategoryRefs(ctx context.Context, tx pgx.Tx, mapping map[int64]int64) error {
+	newCats := make([]int64, 0, len(mapping))
+	for _, n := range mapping {
+		newCats = append(newCats, n)
+	}
+	rows, err := tx.Query(ctx, `SELECT r.element_id, r.lang, r.rev, r.body FROM element_revisions r JOIN elements e ON e.id = r.element_id
+		WHERE e.category_id = ANY($1)`, newCats)
+	if err != nil {
+		return err
+	}
+	type rev struct {
+		id   int64
+		lang string
+		rev  int
+		body []byte
+	}
+	list, err := pgx.CollectRows(rows, func(r pgx.CollectableRow) (rev, error) {
+		var x rev
+		return x, r.Scan(&x.id, &x.lang, &x.rev, &x.body)
+	})
+	if err != nil {
+		return err
+	}
+	for _, x := range list {
+		var v any
+		if json.Unmarshal(x.body, &v) != nil {
+			continue
+		}
+		changed := false
+		v = remapRefs(v, mapping, &changed)
+		if !changed {
+			continue
+		}
+		b, err := json.Marshal(v)
+		if err != nil {
+			return err
+		}
+		if _, err := tx.Exec(ctx, `UPDATE element_revisions SET body=$4 WHERE element_id=$1 AND lang=$2 AND rev=$3`, x.id, x.lang, x.rev, b); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+var catRefText = regexp.MustCompile(`(^|[;\s+\-"'=])category:(\d+)`)
+
+func remapRefs(v any, mapping map[int64]int64, changed *bool) any {
+	switch x := v.(type) {
+	case map[string]any:
+		for k, e := range x {
+			if f, ok := e.(float64); ok && k == "category_id" {
+				if n, ok := mapping[int64(f)]; ok {
+					x[k] = n
+					*changed = true
+				}
+				continue
+			}
+			x[k] = remapRefs(e, mapping, changed)
+		}
+	case []any:
+		for i, e := range x {
+			x[i] = remapRefs(e, mapping, changed)
+		}
+	case string:
+		if strings.Contains(x, "category:") {
+			out := catRefText.ReplaceAllStringFunc(x, func(m string) string {
+				sub := catRefText.FindStringSubmatch(m)
+				id, _ := strconv.ParseInt(sub[2], 10, 64)
+				if n, ok := mapping[id]; ok {
+					*changed = true
+					return sub[1] + "category:" + strconv.FormatInt(n, 10)
+				}
+				return m
+			})
+			return out
+		}
+	}
+	return v
 }
 
 // copyElements copies the non-deleted elements of category from into to.
@@ -968,6 +1072,7 @@ func (s *Service) DeleteCategory(ctx context.Context, id int64) error {
 			return err
 		}
 	}
+	var noted int64
 	err = db.Tx(ctx, s.pool, func(tx pgx.Tx) error {
 		now := time.Now()
 		uid := nullID(ctx)
@@ -980,13 +1085,13 @@ func (s *Service) DeleteCategory(ctx context.Context, id int64) error {
 			WHERE deleted_at IS NULL AND path <@ $1::ltree`, p, now, uid, id); err != nil {
 			return err
 		}
-		return audit.Log(ctx, tx, "category.trash", "category", id, map[string]any{"titles": c.Titles}, nil)
+		return s.andNote(ctx, tx, &noted, "delete", "category", id, audit.Log(ctx, tx, "category.trash", "category", id, map[string]any{"titles": c.Titles}, nil))
 	})
 	if err != nil {
 		return err
 	}
 	s.aclChanged(ctx)
-	s.fire(ctx, "delete", "category", id)
+	s.fireNoted(ctx, noted, "delete", "category", id)
 	return nil
 }
 

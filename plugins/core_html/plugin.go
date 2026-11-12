@@ -10,6 +10,7 @@ import (
 	"embed"
 	"encoding/json"
 	"errors"
+	"github.com/mtsonline/enterprisewiki/internal/limits"
 	"html"
 	"io/fs"
 	"net/http"
@@ -48,6 +49,8 @@ func (p *Plugin) Setup(h *sdk.Host) error {
 	h.RegisterElementType(&Type{})
 	// Conversions for the editors (no macro is executed): the simple editor
 	// edits HTML with macro placeholders, both save Markdown.
+	h.BodyLimit("POST", "/edit-html", limits.RequestContentKB)
+	h.BodyLimit("POST", "/to-markdown", limits.RequestContentKB)
 	h.Handle("POST", "/edit-html", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		src, err := convertInput(r)
 		if err != nil {

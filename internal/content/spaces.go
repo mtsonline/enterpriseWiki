@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"github.com/mtsonline/enterprisewiki/internal/db"
 	"math"
 	"net/http"
 	"net/url"
@@ -222,15 +223,21 @@ func (s *Service) SetSpace(ctx context.Context, id int64, in SpaceInput) (*Space
 	if key != "" {
 		keyArg = &key
 	}
-	if _, err := s.pool.Exec(ctx, `UPDATE categories SET space_key=$2, space=$3, updated_at=now() WHERE id=$1`, id, keyArg, raw); err != nil {
+	var noted int64
+	err = db.Tx(ctx, s.pool, func(tx pgx.Tx) error {
+		if _, err := tx.Exec(ctx, `UPDATE categories SET space_key=$2, space=$3, updated_at=now() WHERE id=$1`, id, keyArg, raw); err != nil {
+			return err
+		}
+		return s.andNote(ctx, tx, &noted, "update", "category", id, audit.Log(ctx, tx, "space.update", "category", id, map[string]any{"key": before.Key, "space": before.Space}, map[string]any{"key": key, "space": sp}))
+	})
+	if err != nil {
 		var pe *pgconn.PgError
 		if errors.As(err, &pe) && pe.Code == "23505" {
 			return nil, apperr.Conflict("the key %s is already used by another space", key)
 		}
 		return nil, err
 	}
-	_ = audit.Log(ctx, s.pool, "space.update", "category", id, map[string]any{"key": before.Key, "space": before.Space}, map[string]any{"key": key, "space": sp})
-	s.fire(ctx, "update", "category", id)
+	s.fireNoted(ctx, noted, "update", "category", id)
 	return s.loadSpace(ctx, id)
 }
 
@@ -348,18 +355,26 @@ func (s *Service) SetArchived(ctx context.Context, id int64, on bool) (*Category
 	if !on {
 		q = `UPDATE categories SET archived_at = NULL, updated_at = now() WHERE id=$1 AND deleted_at IS NULL`
 	}
-	tag, err := s.pool.Exec(ctx, q, id)
-	if err != nil {
-		return nil, err
-	}
-	if tag.RowsAffected() > 0 {
+	var noted int64
+	changed := false
+	err := db.Tx(ctx, s.pool, func(tx pgx.Tx) error {
+		tag, err := tx.Exec(ctx, q, id)
+		if err != nil || tag.RowsAffected() == 0 {
+			return err
+		}
+		changed = true
 		event := "category.archive"
 		if !on {
 			event = "category.unarchive"
 		}
-		_ = audit.Log(ctx, s.pool, event, "category", id, nil, nil)
+		return s.andNote(ctx, tx, &noted, "update", "category", id, audit.Log(ctx, tx, event, "category", id, nil, nil))
+	})
+	if err != nil {
+		return nil, err
+	}
+	if changed {
 		s.aclChanged(ctx)
-		s.fire(ctx, "update", "category", id)
+		s.fireNoted(ctx, noted, "update", "category", id)
 	}
 	return s.GetCategory(ctx, id)
 }

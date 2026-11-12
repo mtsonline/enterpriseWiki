@@ -161,13 +161,8 @@ func (s *Server) requestAccess(ctx context.Context, me *identity.Principal, typ 
 	if err := s.app.DB.QueryRow(ctx, `SELECT EXISTS (SELECT 1 FROM access_requests WHERE user_id=$1 AND category_id=$2 AND status='open')`, me.ID(), cat).Scan(&open); err != nil || open {
 		return err
 	}
-	var rid int64
-	if err := s.app.DB.QueryRow(ctx, `INSERT INTO access_requests(user_id, category_id, message) VALUES ($1,$2,$3) RETURNING id`, me.ID(), cat, msg).Scan(&rid); err != nil {
-		return err
-	}
-	_ = audit.Log(ctx, s.app.DB, "access.request", "category", cat, nil, map[string]any{"request": rid})
 	managers, err := s.managersOf(ctx, cat)
-	if err != nil || len(managers) == 0 {
+	if err != nil {
 		return err
 	}
 	name := me.DisplayName
@@ -176,15 +171,26 @@ func (s *Server) requestAccess(ctx context.Context, me *identity.Principal, typ 
 	}
 	def := s.app.Config.Get().I18n.DefaultLanguage
 	link := fmt.Sprintf("/c/%d/settings?tab=permissions", cat)
-	_, err = s.app.Notify.Send(ctx, managers, notify.Message{Kind: "access_request", EntityType: "category", EntityID: cat, Link: link,
+	ask := notify.Message{Kind: "access_request", EntityType: "category", EntityID: cat, Link: link,
 		Text: func(lang string) (string, string) {
 			body, title := msg, pickTitle(titles, lang, def)
 			if lang == "de" {
 				return fmt.Sprintf("%s bittet um Zugriff auf „%s“", name, title), body
 			}
 			return fmt.Sprintf("%s asks for access to “%s”", name, title), body
-		}})
-	return err
+		}}
+	// the request and the notification of the managers are stored together
+	return pgx.BeginFunc(ctx, s.app.DB, func(tx pgx.Tx) error {
+		var rid int64
+		if err := tx.QueryRow(ctx, `INSERT INTO access_requests(user_id, category_id, message) VALUES ($1,$2,$3) RETURNING id`, me.ID(), cat, msg).Scan(&rid); err != nil {
+			return err
+		}
+		if err := audit.Log(ctx, tx, "access.request", "category", cat, nil, map[string]any{"request": rid}); err != nil {
+			return err
+		}
+		_, err := s.app.Notify.SendQ(ctx, tx, managers, ask)
+		return err
+	})
 }
 
 // managersOf returns the users who may manage a category through rules on it
@@ -248,10 +254,6 @@ func (s *Server) answerAccess(ctx context.Context, id int64, grant bool, preset 
 		}
 		status = "granted"
 	}
-	if _, err := s.app.DB.Exec(ctx, `UPDATE access_requests SET status=$2, handled_by=$3, handled_at=now() WHERE id=$1 AND status='open'`, id, status, identity.From(ctx).ID()); err != nil {
-		return err
-	}
-	_ = audit.Log(ctx, s.app.DB, "access."+status, "category", req.CategoryID, nil, map[string]any{"request": id, "user": req.UserID, "preset": preset})
 	var titles map[string]string
 	_ = s.app.DB.QueryRow(ctx, `SELECT titles FROM categories WHERE id=$1`, req.CategoryID).Scan(&titles)
 	def := s.app.Config.Get().I18n.DefaultLanguage
@@ -259,7 +261,7 @@ func (s *Server) answerAccess(ctx context.Context, id int64, grant bool, preset 
 	if grant {
 		link = fmt.Sprintf("/c/%d", req.CategoryID)
 	}
-	_, _ = s.app.Notify.Send(ctx, []int64{req.UserID}, notify.Message{Kind: "access_answer", EntityType: "category", EntityID: req.CategoryID, Link: link,
+	answer := notify.Message{Kind: "access_answer", EntityType: "category", EntityID: req.CategoryID, Link: link,
 		Text: func(lang string) (string, string) {
 			title := pickTitle(titles, lang, def)
 			switch {
@@ -272,6 +274,16 @@ func (s *Server) answerAccess(ctx context.Context, id int64, grant bool, preset 
 			default:
 				return "Your access request was declined", ""
 			}
-		}})
-	return nil
+		}}
+	// the answer and its notification are stored together
+	return pgx.BeginFunc(ctx, s.app.DB, func(tx pgx.Tx) error {
+		if _, err := tx.Exec(ctx, `UPDATE access_requests SET status=$2, handled_by=$3, handled_at=now() WHERE id=$1 AND status='open'`, id, status, identity.From(ctx).ID()); err != nil {
+			return err
+		}
+		if err := audit.Log(ctx, tx, "access."+status, "category", req.CategoryID, nil, map[string]any{"request": id, "user": req.UserID, "preset": preset}); err != nil {
+			return err
+		}
+		_, err := s.app.Notify.SendQ(ctx, tx, []int64{req.UserID}, answer)
+		return err
+	})
 }

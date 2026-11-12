@@ -173,7 +173,7 @@ export function createWorkflowEditor(container: HTMLElement, body: unknown, ctx:
 
   const assigneeFields = (s: EStep) => {
     const at = select(['starter', 'user', 'group', 'role'].map((x) => ({ value: x, label: t(`workflow.assignee.${x}`) })), s.assignee.type || 'group');
-    const av = textInput({ value: s.assignee.value, maxlength: 200 });
+    const av = textInput({ value: s.assignee.value, maxlength: 200, placeholder: t('workflow.assignee_value_ph') });
     at.addEventListener('change', () => { s.assignee = { type: at.value as EStep['assignee']['type'], value: av.value }; av.disabled = at.value === 'starter'; });
     av.addEventListener('input', () => { s.assignee = { type: at.value as EStep['assignee']['type'], value: av.value }; });
     av.disabled = at.value === 'starter';

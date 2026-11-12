@@ -239,7 +239,7 @@ async function mfaStep(main: HTMLElement, token: string, next: string, link: { c
 
 // ---------------------------------------------------------------- profile
 
-interface APIKey { id: number; name: string; prefix: string; permissions: number; category_id: number | null; allow_admin: boolean; expires_at: string; created_at: string; last_used_at: string | null; revoked_at: string | null; token?: string }
+interface APIKey { id: number; name: string; prefix: string; permissions: number; category_id: number | null; allow_admin: boolean; expires_at: string; created_at: string; last_used_at: string | null; revoked_at: string | null; rate_per_second: number | null; rate_own: boolean; token?: string }
 interface SSHKey { id: number; name: string; fingerprint: string; created_at: string; last_used_at: string | null }
 
 // E-mail notification preferences.
@@ -388,6 +388,9 @@ export async function profileView({ main }: RouteCtx): Promise<void> {
     h('th', { scope: 'row' }, k.name), h('td', null, h('code', null, `${k.prefix}…`)),
     h('td', null, PERMS.filter((p) => k.permissions & p.bit).map((p) => t(`perm.${p.key}`)).join(', ') + (k.allow_admin ? `, ${t('apikey.admin')}` : '')),
     h('td', null, k.category_id ? `#${k.category_id}` : t('apikey.all_categories')),
+    h('td', null, k.rate_per_second ? t('apikey.rate_value', { n: k.rate_per_second }) : t('apikey.rate_account'),
+      // a budget granted by the administration is not the owner's to change
+      k.revoked_at || k.rate_own ? null : h('span', null, ' ', button(t('common.edit'), () => keyRateDialog(k), { variant: 'link', ariaLabel: t('apikey.rate_edit', { name: k.name }) }))),
     h('td', null, fmtDate(k.expires_at, state.lang)),
     h('td', null, k.revoked_at ? t('apikey.revoked') : (k.last_used_at ? fmtDate(k.last_used_at, state.lang) : t('apikey.never'))),
     h('td', null, k.revoked_at ? null : button(t('apikey.revoke'), async () => {
@@ -416,8 +419,8 @@ export async function profileView({ main }: RouteCtx): Promise<void> {
     h('section', { class: 'ew-section', 'aria-labelledby': 'ak-h' }, h('h2', { id: 'ak-h' }, t('apikey.title')), h('p', null, t('apikey.help')),
       button(t('apikey.create'), () => createKeyDialog(), { variant: 'primary' }),
       h('table', { class: 'ew-table' }, h('caption', { class: 'sr-only' }, t('apikey.title')),
-        h('thead', null, h('tr', null, ...[t('common.name'), t('apikey.prefix'), t('acl.permissions'), t('apikey.scope'), t('apikey.expires'), t('apikey.last_used'), t('common.actions')].map((x) => h('th', { scope: 'col' }, x)))),
-        h('tbody', null, ...(keyRows.length ? keyRows : [h('tr', null, h('td', { colspan: '7' }, t('apikey.none')))])))),
+        h('thead', null, h('tr', null, ...[t('common.name'), t('apikey.prefix'), t('acl.permissions'), t('apikey.scope'), t('apikey.rate_col'), t('apikey.expires'), t('apikey.last_used'), t('common.actions')].map((x) => h('th', { scope: 'col' }, x)))),
+        h('tbody', null, ...(keyRows.length ? keyRows : [h('tr', null, h('td', { colspan: '8' }, t('apikey.none')))])))),
     h('section', { class: 'ew-section', 'aria-labelledby': 'ssh-h' }, h('h2', { id: 'ssh-h' }, t('ssh.title')), h('p', null, t('ssh.help')),
       h('pre', { class: 'ew-code' }, `scripts/ewiki-ssh-login.sh ${location.origin} ${u.username} ~/.ssh/id_ed25519`),
       button(t('ssh.add'), () => addSSHDialog(), { variant: 'primary' }),
@@ -453,19 +456,36 @@ async function mfaSections(): Promise<HTMLElement[]> {
     h('p', null, t('mfa.chain_help', { required: st.required })), overview, ...parts)];
 }
 
+function keyRateDialog(k: APIKey): void {
+  const rate = textInput({ type: 'number', value: k.rate_per_second ? String(k.rate_per_second) : '' });
+  rate.min = '1';
+  rate.step = '1';
+  rate.inputMode = 'numeric';
+  formDialog(t('apikey.rate_edit', { name: k.name }), [field(t('apikey.rate'), rate, { help: t('apikey.rate_help') })], t('common.save'), async () => {
+    await api.put(`me/api-keys/${k.id}/rate`, { rate_per_second: rate.value.trim() ? Number(rate.value) : null });
+    navigate('/profile', { replace: true });
+  });
+}
+
 function createKeyDialog(): void {
   const name = textInput({ required: true });
   const boxes = PERMS.map((p) => ({ p, cb: checkbox(t(`perm.${p.key}`), p.key === 'view') }));
   const admin = isAdmin() ? checkbox(t('apikey.allow_admin'), false, { help: t('apikey.allow_admin_help') }) : null;
   const cat = textInput({ type: 'number', placeholder: t('apikey.category_placeholder') });
   const exp = h('input', { type: 'date', class: 'ew-input', value: new Date(Date.now() + 90 * 864e5).toISOString().slice(0, 10) });
+  const rate = textInput({ type: 'number' });
+  rate.min = '1';
+  rate.step = '1';
+  rate.inputMode = 'numeric';
   formDialog(t('apikey.create'), [field(t('common.name'), name, { required: true }),
     h('fieldset', null, h('legend', null, t('acl.permissions')), ...boxes.map((b) => b.cb.el)), admin?.el ?? null,
-    field(t('apikey.category'), cat, { help: t('apikey.category_help') }), field(t('apikey.expires'), exp)], t('common.create'), async () => {
+    field(t('apikey.category'), cat, { help: t('apikey.category_help') }), field(t('apikey.expires'), exp),
+    field(t('apikey.rate'), rate, { help: t('apikey.rate_help') })], t('common.create'), async () => {
     const perms = boxes.filter((b) => b.cb.input.checked).reduce((a, b) => a | b.p.bit, 0);
     const k = await api.post<APIKey>('me/api-keys', {
       name: name.value, permissions: perms, allow_admin: admin?.input.checked ?? false,
       category_id: cat.value ? Number(cat.value) : null, expires_at: new Date(`${exp.value}T23:59:59`).toISOString(),
+      rate_per_second: rate.value.trim() ? Number(rate.value) : null,
     });
     window.setTimeout(() => {
       const d = openDialog(t('apikey.created'), h('div', null, h('p', null, t('apikey.copy_now')), h('pre', { class: 'ew-code', tabindex: '0' }, k.token ?? ''),

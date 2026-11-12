@@ -95,6 +95,7 @@ func (s *Service) Restore(ctx context.Context, typ string, id int64) error {
 				return apperr.ErrForbidden
 			}
 		}
+		var noted int64
 		err = db.Tx(ctx, s.pool, func(tx pgx.Tx) error {
 			p := pathString(c.Path)
 			if _, err := tx.Exec(ctx, `UPDATE elements SET deleted_at=NULL, deleted_by=NULL WHERE deleted_at=$2
@@ -104,11 +105,11 @@ func (s *Service) Restore(ctx context.Context, typ string, id int64) error {
 			if _, err := tx.Exec(ctx, `UPDATE categories SET deleted_at=NULL, deleted_by=NULL, trash_root=false WHERE path <@ $1::ltree AND deleted_at=$2`, p, *c.DeletedAt); err != nil {
 				return err
 			}
-			return audit.Log(ctx, tx, "category.restore", "category", id, nil, map[string]any{"titles": c.Titles})
+			return s.andNote(ctx, tx, &noted, "restore", "category", id, audit.Log(ctx, tx, "category.restore", "category", id, nil, map[string]any{"titles": c.Titles}))
 		})
 		if err == nil {
 			s.aclChanged(ctx)
-			s.fire(ctx, "restore", "category", id)
+			s.fireNoted(ctx, noted, "restore", "category", id)
 		}
 		return err
 	case "element":
@@ -129,14 +130,15 @@ func (s *Service) Restore(ctx context.Context, typ string, id int64) error {
 		if !s.acl.Can(ctx, identity.From(ctx), e.CategoryID, acl.Delete) {
 			return apperr.ErrForbidden
 		}
+		var noted int64
 		err = db.Tx(ctx, s.pool, func(tx pgx.Tx) error {
 			if _, err := tx.Exec(ctx, `UPDATE elements SET deleted_at=NULL, deleted_by=NULL, trash_root=false WHERE id=$1`, id); err != nil {
 				return err
 			}
-			return audit.Log(ctx, tx, "element.restore_trash", "element", id, nil, map[string]any{"titles": e.Titles})
+			return s.andNote(ctx, tx, &noted, "restore", "element", id, audit.Log(ctx, tx, "element.restore_trash", "element", id, nil, map[string]any{"titles": e.Titles}))
 		})
 		if err == nil {
-			s.fire(ctx, "restore", "element", id)
+			s.fireNoted(ctx, noted, "restore", "element", id)
 		}
 		return err
 	}
@@ -253,6 +255,7 @@ func (s *Service) RollbackCategory(ctx context.Context, id int64, in RollbackInp
 		return nil, err
 	}
 	res := &RollbackResult{}
+	var noted int64
 	err = db.Tx(ctx, s.pool, func(tx pgx.Tx) error {
 		q := `SELECT id FROM categories WHERE id=$1 AND deleted_at IS NULL`
 		arg := any(id)
@@ -342,12 +345,12 @@ func (s *Service) RollbackCategory(ctx context.Context, id int64, in RollbackInp
 				}
 			}
 		}
-		return audit.Log(ctx, tx, "category.rollback", "category", id, nil, map[string]any{"at": in.At, "recursive": in.Recursive, "result": res})
+		return s.andNote(ctx, tx, &noted, "rollback", "category", id, audit.Log(ctx, tx, "category.rollback", "category", id, nil, map[string]any{"at": in.At, "recursive": in.Recursive, "result": res}))
 	})
 	if err != nil {
 		return nil, err
 	}
-	s.fire(ctx, "rollback", "category", id)
+	s.fireNoted(ctx, noted, "rollback", "category", id)
 	return res, nil
 }
 

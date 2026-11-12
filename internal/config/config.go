@@ -47,7 +47,11 @@ type Config struct {
 	Audit     Audit                     `yaml:"audit" json:"audit"`
 	License   License                   `yaml:"license" json:"license"`
 	Settings  map[string]map[string]any `yaml:"plugin_settings,omitempty" json:"plugin_settings,omitempty"`
-	Sites     Sites                     `yaml:"sites" json:"sites"`
+	// Limits holds the changed technical limits (expert settings); what is
+	// missing has the default declared by the core or the plugin (package
+	// limits).
+	Limits map[string]int64 `yaml:"limits,omitempty" json:"limits,omitempty"`
+	Sites  Sites            `yaml:"sites" json:"sites"`
 }
 
 // Sites holds defaults for further sites of the instance.
@@ -155,7 +159,21 @@ type Server struct {
 	BaseURL        string   `yaml:"base_url" json:"base_url"`
 	SecureCookies  bool     `yaml:"secure_cookies" json:"secure_cookies"`
 	TrustedProxies []string `yaml:"trusted_proxies" json:"trusted_proxies"`
-	MaxBodyMB      int      `yaml:"max_body_mb" json:"max_body_mb"`
+	// ClientIPHeader names the header of the reverse proxies with the
+	// address of the client: "x-forwarded-for" (default), "forwarded"
+	// (RFC 7239) or a header with one address (X-Real-IP,
+	// CF-Connecting-IP ...). Only read from trusted_proxies.
+	ClientIPHeader string `yaml:"client_ip_header,omitempty" json:"client_ip_header"`
+	MaxBodyMB      int    `yaml:"max_body_mb" json:"max_body_mb"`
+	// RateLimit limits API requests per account or address.
+	RateLimit RateLimit `yaml:"rate_limit,omitempty" json:"rate_limit"`
+}
+
+// RateLimit switches the limits of API requests per account or address
+// off (load tests). The rates and bursts are technical limits (expert
+// settings, core.rate.*).
+type RateLimit struct {
+	Disabled bool `yaml:"disabled,omitempty" json:"disabled"`
 }
 
 // Database holds the PostgreSQL connection.

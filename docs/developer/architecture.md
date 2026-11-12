@@ -49,6 +49,7 @@ scripts/              build, install, update, SSH-Login
 | `files` | hochgeladene Dateien (SHA-256, Größe, aus dem Inhalt bestimmter Typ, Name) |
 | `sso_states` | laufende SSO-Anmeldungen (State, Nonce, PKCE-Verifier, Rücksprungziel), einmal verwendbar, 10 Minuten gültig |
 | `schema_migrations` | angewendete Migrationen je Quelle (Kern bzw. `plugin:<id>`) |
+| `change_events` | Änderungen, deren Folgearbeit (Benachrichtigungen an Beobachter und Erwähnte) noch nicht abgeschlossen ist; mit der Änderung geschrieben, nach Erfolg entfernt, sonst vom Worker `changes` wiederholt |
 
 Die Gliederungsnummer (1.2.3) wird aus den Positionen berechnet. Die IDs bleiben dagegen beim Verschieben stabil, daher brechen Rechte, Links und API-Keys nie.
 

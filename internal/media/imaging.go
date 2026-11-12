@@ -16,6 +16,7 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/mtsonline/enterprisewiki/internal/storage"
 	"golang.org/x/image/draw"
 	"golang.org/x/image/font"
 	"golang.org/x/image/font/gofont/gobold"
@@ -25,10 +26,13 @@ import (
 )
 
 // MaxPixels limits decoded images (decompression bombs).
-const MaxPixels = 80_000_000
+const MaxPixels = storage.MaxPixels
 
 // ErrTooLarge is returned for images with too many pixels.
 var ErrTooLarge = errors.New("image too large")
+
+// CheckPixels refuses images with too many pixels (see storage).
+func CheckPixels(b []byte) error { return storage.CheckPixels(b) }
 
 // Decode reads an image after checking its dimensions.
 func Decode(b []byte) (image.Image, string, error) {

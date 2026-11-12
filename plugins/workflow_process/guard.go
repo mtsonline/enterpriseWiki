@@ -83,7 +83,10 @@ func (Type) CheckChange(ctx context.Context, _ *content.Service, el *content.Ele
 		return err
 	}
 	if el.CreatedByID != nil && len(changes) > 0 {
-		notifyCreator(ctx, el, p, changes)
+		// the change is refused when its creator cannot be told
+		if err := notifyCreator(ctx, el, p, changes); err != nil {
+			return err
+		}
 	}
 	return nil
 }
@@ -136,14 +139,14 @@ func assigneeText(a Assignee) string {
 }
 
 // notifyCreator tells the creator of a workflow that an administrator changed it.
-func notifyCreator(ctx context.Context, el *content.Element, by *identity.Principal, changes []string) {
+func notifyCreator(ctx context.Context, el *content.Element, by *identity.Principal, changes []string) error {
 	h := guardHost(ctx)
 	if h == nil || h.Mail == nil || !h.Mail.Enabled() {
-		return
+		return nil
 	}
 	us, err := h.Mail.Users(ctx, h.DB, []int64{*el.CreatedByID})
 	if err != nil || len(us) == 0 || us[0].Email == "" {
-		return
+		return err
 	}
 	u := us[0]
 	title := el.Titles[el.OriginalLang]
@@ -158,7 +161,6 @@ func notifyCreator(ctx context.Context, el *content.Element, by *identity.Princi
 	params := map[string]string{"name": u.Name, "title": title, "by": who, "changes": "- " + strings.Join(changes, "\n- "), "link": link}
 	m := mail.Message{To: []string{u.Email}, Subject: h.T(ctx, u.Lang, "workflow.mail_admin_change_subject", params),
 		Text: h.T(ctx, u.Lang, "workflow.mail_admin_change_body", params) + "\n\n" + link + "\n", Source: "workflow", Ref: fmt.Sprintf("element:%d", el.ID), Owner: -1}
-	if _, err := h.Mail.Enqueue(ctx, h.DB, m); err != nil {
-		h.Log.Error("notify workflow creator", "err", err)
-	}
+	_, err = h.Mail.Enqueue(ctx, h.DB, m)
+	return err
 }

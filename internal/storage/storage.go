@@ -11,6 +11,10 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"image"
+	_ "image/gif"  // dimensions of uploads
+	_ "image/jpeg" // dimensions of uploads
+	_ "image/png"  // dimensions of uploads
 	"io"
 	"io/fs"
 	"mime"
@@ -123,7 +127,7 @@ func (s *Store) Put(ctx context.Context, r io.Reader, name string) (*File, error
 	}
 	defer func() { _ = os.Remove(tmp.Name()) }()
 	h := sha256.New()
-	head := make([]byte, 0, 512)
+	head := make([]byte, 0, headSize) // type detection and image dimensions
 	limit := s.MaxBytes()
 	buf := make([]byte, 64<<10)
 	var size int64
@@ -135,8 +139,8 @@ func (s *Store) Put(ctx context.Context, r io.Reader, name string) (*File, error
 				_ = tmp.Close()
 				return nil, apperr.BadRequest("file too large (max %d MB)", limit>>20)
 			}
-			if len(head) < 512 {
-				head = append(head, buf[:min(n, 512-len(head))]...)
+			if len(head) < headSize {
+				head = append(head, buf[:min(n, headSize-len(head))]...)
 			}
 			h.Write(buf[:n])
 			if _, err := tmp.Write(buf[:n]); err != nil {
@@ -151,6 +155,10 @@ func (s *Store) Put(ctx context.Context, r io.Reader, name string) (*File, error
 			_ = tmp.Close()
 			return nil, rerr
 		}
+	}
+	if err := CheckPixels(head); err != nil {
+		_ = tmp.Close()
+		return nil, err
 	}
 	if err := tmp.Sync(); err != nil {
 		_ = tmp.Close()
@@ -468,4 +476,26 @@ func (s *Store) Wipe() error {
 		return err
 	}
 	return os.MkdirAll(root, 0o750)
+}
+
+// headSize is the start of an upload kept for checks (JPEG dimensions
+// can follow a long EXIF block).
+const headSize = 256 << 10
+
+// MaxPixels limits decoded images (decompression bombs).
+const MaxPixels = 80_000_000
+
+// CheckPixels refuses images with more pixels than can be processed
+// (S-09: refused when uploaded, not when shown); other files pass. b may be
+// the start of the file only.
+func CheckPixels(b []byte) error {
+	cfg, _, err := image.DecodeConfig(bytes.NewReader(b))
+	if err != nil {
+		return nil // not an image the wiki decodes (or dimensions not in b)
+	}
+	if int64(cfg.Width)*int64(cfg.Height) > MaxPixels {
+		return apperr.New(http.StatusUnprocessableEntity, "image_too_large",
+			fmt.Sprintf("image too large: %d × %d pixels (at most %d million)", cfg.Width, cfg.Height, MaxPixels/1_000_000))
+	}
+	return nil
 }

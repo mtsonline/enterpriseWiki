@@ -12,7 +12,7 @@ Jede Identität ist intern eindeutig als `name@anbieter` gespeichert (`admin@loc
 ### Lokale Konten
 - Passwörter werden mit **Argon2id** gehasht (19 MiB, t=2, p=1, OWASP-Empfehlung).
 - Passwortregel: Mindestlänge `auth.min_password_length`, mindestens drei von vier Zeichenklassen.
-- Nach `auth.max_login_failures` Fehlversuchen ist das Konto für `auth.lockout_duration` gesperrt. Zusätzlich gibt es ein Rate-Limit je IP und je Benutzername.
+- Nach `auth.max_login_failures` Fehlversuchen ist das Konto für `auth.lockout_duration` gesperrt. Zusätzlich gibt es ein Rate-Limit für **fehlgeschlagene** Versuche je IP (30 in 5 Minuten) und je Benutzername (20) – erfolgreiche Anmeldungen zählen nicht, damit Büros hinter einer Adresse nicht ausgesperrt werden. Benutzernamen über 255 Zeichen und Passwörter über 1024 Zeichen werden gar nicht erst verarbeitet.
 - Antwortzeiten verraten nicht, ob ein Konto existiert.
 - Mehrere Faktoren als Plugins (Authenticator-App, Code per E-Mail, Sicherheitsschlüssel/Passkeys, erlaubte Netze) in einer frei wählbaren Kette pro Anmeldeverfahren, siehe [authentication.md](authentication.md#mehrere-faktoren-die-faktorkette).
 - Setzt ein Administrator ein Passwort neu oder deaktiviert ein Konto, werden alle Sitzungen dieses Kontos beendet.
@@ -20,7 +20,7 @@ Jede Identität ist intern eindeutig als `name@anbieter` gespeichert (`admin@loc
 
 ### Browser-Sitzungen
 - Zufälliges 256-Bit-Token im Cookie `ewiki_session` (`HttpOnly`, `SameSite=Lax`, mit `secure_cookies: true` auch `Secure`). In der Datenbank liegt nur der SHA-256-Hash.
-- CSRF-Schutz: Zustandsändernde Anfragen mit Cookie-Anmeldung müssen den Header `X-Requested-With: ewiki` senden. Browser schicken eigene Header fremder Seiten nur nach einer CORS-Freigabe, und das Wiki erlaubt keine.
+- CSRF-Schutz: Zustandsändernde API-Anfragen ohne API-Key – mit Cookie-Anmeldung, aber auch die Anmeldung selbst und Anfragen von Gästen – müssen den Header `X-Requested-With: ewiki` senden (verhindert auch „Login-CSRF“, bei dem eine fremde Seite Besucher in ein Konto des Angreifers einloggt). Browser schicken eigene Header fremder Seiten nur nach einer CORS-Freigabe, und das Wiki erlaubt keine.
 
 ### API-Keys
 Unter *Mein Profil → API-Keys*:
@@ -84,7 +84,7 @@ Grundsätze:
 
 ### Workflows
 
-Workflows ändern und löschen nur ihr **Ersteller** (Recht *Workflows anlegen*) und **Workflow-Administratoren**. Ändert ein Administrator einen fremden Workflow, wird jede Änderung ausführlich protokolliert und der Ersteller benachrichtigt. Schritte eines Vorgangs führen **nur die beim Schritt eingetragenen Zuständigen** aus – auch Administratoren nicht, solange sie nicht zuständig sind. *Vorgänge verwalten* erlaubt, alle Vorgänge zu sehen, abzubrechen und über fehlgeschlagene Schritte zu entscheiden.
+Workflows ändern und löschen nur ihr **Ersteller** (Recht *Workflows anlegen*) und **Workflow-Administratoren**. Ändert ein Administrator einen fremden Workflow, wird jede Änderung ausführlich protokolliert und der Ersteller benachrichtigt. Zuständige Gruppen und Rollen werden als `#ID` gespeichert (bleiben beim Umbenennen gültig; Namen gehen weiterhin). Schritte eines Vorgangs führen **nur die beim Schritt eingetragenen Zuständigen** aus – auch Administratoren nicht, solange sie nicht zuständig sind. *Vorgänge verwalten* erlaubt, alle Vorgänge zu sehen, abzubrechen und über fehlgeschlagene Schritte zu entscheiden.
 
 ### Entwürfe
 
@@ -110,6 +110,14 @@ API: `GET|PUT /api/v1/admin/i18n/{lang}`, `GET /api/v1/admin/i18n/{lang}/export?
 - **Quellen (Makros, Blog, FAQ, Kalender, Karussell, Berichte):** Quellen werden immer mit den Rechten der lesenden Person aufgelöst – Elemente, Kalender und Kategorien, die sie nicht sehen darf, erscheinen nicht (auch nicht als Abschnittsname oder Anzahl). Höchstens 50 Quellen je Element/Makro, 1000 einzelne Elemente, 10 Feeds je Makro. Externe Feeds und iCal-Abonnements werden nur im Hintergrund über den SSRF-Schutz abgerufen (interne Adressen nur mit `feeds.allow_private`), höchstens 2 MB, ohne Zugangsdaten. Inhalte daraus werden maskiert: Titel und Zusammenfassungen als Text, Links nur `http(s)` mit `rel="noopener noreferrer nofollow"`, Bilder mit `referrerpolicy="no-referrer"`, Beschreibungen fremder Kalender als reiner Text (keine fremden Bilder oder Links, die nachladen).
 - **Seiteneigenschaften:** lesen mit *Ansehen*, ändern mit *Bearbeiten* der Kategorie; Änderungen werden protokolliert (`element.properties`).
 
+## Schutz vor Überlastung
+
+- **Anfragegrenzen** je Konto bzw. je Adresse für Gäste, strenger für teure Anfragen (Suche, Vorschau, Export, Upload); Antwort `429` mit `Retry-After`. Einstellbar unter Administration → Experteneinstellungen (`core.rate.*`, siehe [configuration.md](configuration.md#limits-experteneinstellungen)).
+- **Größe von Anfragen:** ohne Anmeldung 64 kB, angemeldet 1 MB, Inhalte (Seiten, Entwürfe, Vorlagen) 4 MB, Importe 64 MB, Uploads `storage.max_upload_mb`; höchstens 4 Anfragen über 1 MB gleichzeitig. Routen und Plugins, die mehr brauchen, melden ihre Grenze an; alle Werte stehen unter Administration → Experteneinstellungen (`core.request.*`). Bilder mit mehr als 80 Millionen Pixeln werden schon beim Hochladen abgelehnt (`422`).
+- **Datenbank:** Keine Funktion holt eine zweite Verbindung, solange sie eine Transaktion offen hält; zusätzlich beendet PostgreSQL Transaktionen, die länger als 60 Sekunden warten. So können viele gleichzeitige Kommentare oder Vorgangsstarts den Pool nicht blockieren.
+- **Protokoll:** Werte werden begrenzt (ohne angemeldeten Benutzer 1 kB, sonst 64 kB je Vorher-/Nachher-Wert, einstellbar als `core.audit.*`; gekürzte Texte vermerken ihre ursprüngliche Länge), die Freitextsuche in den Zuständen vorher/nachher umfasst ohne Startdatum die letzten 90 Tage.
+- **Live-Bearbeitung:** höchstens 5 Verbindungen einer Person und 50 Personen je Seite.
+
 ## Protokoll (Audit-Log)
 
 *Administration → Protokoll* (Recht *Protokoll ansehen*) listet alle Änderungen mit Zeitpunkt, Person, IP-Adresse, Browser und Kanal (Oberfläche, API, CLI, Hintergrundjob). Filter: Freitext, Bereich, Aktion, Person, IP, Zeitraum, Objekt; Details zeigen den Zustand vorher und nachher. Export als CSV oder JSON Lines.
@@ -124,6 +132,7 @@ API: `GET /api/v1/admin/audit/search`, `/admin/audit/export`, `GET|PUT /admin/au
 
 ## Benachrichtigungen, Teilen, Erwähnungen, zugewiesene Beobachtungen
 
+- **Benachrichtigungen gehen nicht verloren.** Was aus einer Änderung folgt, wird mit ihr gespeichert: Kommentare, Reaktionen, Erwähnungen in Kommentaren, Antworten auf Zugriffsanfragen und Schritte in Abläufen schreiben ihre Benachrichtigungen in derselben Transaktion – entweder ist beides gespeichert oder nichts, und im zweiten Fall erfährt es die Person sofort. Jede Änderung an Seiten und Kategorien (Anlegen, Speichern, Verschieben, Löschen, Wiederherstellen, Archivieren, Übersetzen, Termine eines Kalenders) wird in derselben Transaktion wie der Inhalt in eine Warteschlange geschrieben; Beobachter, Erwähnte und Webhooks werden direkt danach bedient, und nach einem Fehler oder Neustart holt das der Hintergrunddienst `changes` nach (alle 30 Sekunden, bei anhaltenden Fehlern in wachsenden Abständen bis zu einer Stunde). Dabei kann eine Benachrichtigung im Ausnahmefall doppelt ankommen, aber nicht fehlen. E-Mails selbst liegen im Postausgang und werden wiederholt, bis der Mailserver sie annimmt.
 - Die **Glocke** neben dem Benutzermenü zeigt Benachrichtigungen im Wiki (Erwähnungen, geteilte Seiten, Änderungen an Workflows). Zusätzlich gehen E-Mails, soweit der Benutzer sie im Profil nicht abgeschaltet hat (Standard: an).
 - **Teilen** (Plugin `core.share`, Recht *Seiten teilen*) weist Personen, Gruppen oder Rollen auf eine Seite hin. Teilen **ändert keine Rechte**: Wer die Seite nicht sehen darf, wird nicht benachrichtigt; der Dialog zeigt das vorher an.
 - **@Erwähnungen** (Plugin `core.mentions`, Recht *Personen erwähnen*) in Seiten und Kommentaren benachrichtigen die genannten Personen – ebenfalls nur, wenn sie die Seite sehen dürfen.
@@ -136,7 +145,7 @@ API: `GET /api/v1/admin/audit/search`, `/admin/audit/export`, `GET|PUT /admin/au
 - Strikte Content Security Policy (`script-src 'self'`, kein Inline-JavaScript, `frame-ancestors 'self'`, `object-src 'none'`), dazu `X-Content-Type-Options`, `Referrer-Policy`, `X-Frame-Options`, `Permissions-Policy` und HSTS (mit `secure_cookies`).
 - Menülinks erlauben nur `http(s)`, `mailto` und relative Pfade.
 - Hochgeladene Dateien: Der Typ wird aus dem Inhalt bestimmt, nicht aus Angaben des Browsers. HTML, SVG und Skripte werden nie im Browser angezeigt, sondern nur heruntergeladen (`Content-Disposition: attachment`, `nosniff`, eigene CSP mit `sandbox`). Dateinamen werden bereinigt. Dateien eines Elements gibt es nur mit Leserecht auf das Element. Bilder sind zusätzlich über ihren nicht erratbaren SHA-256-Hash abrufbar, damit Bilder in öffentlichen Seiten auch für Gäste funktionieren.
-- **Live-Bearbeitung** (WebSocket `/api/v1/collab/elements/{id}/{lang}`): nur angemeldete Benutzer mit Browser-Sitzung (keine API-Schlüssel) und Bearbeitungsrecht; die Herkunft (`Origin`) muss der eigene Host sein (kein Cross-Site-WebSocket). Sitzung und Recht werden alle 30 s neu geprüft; endet eines, wird die Verbindung getrennt. Der Server speichert nichts und leitet nur Yjs-Nachrichten weiter (Typ geprüft, höchstens 4 MiB je Nachricht, 100 Nachrichten/s je Person, 50 Personen je Seite, langsame Empfänger werden getrennt, keine Kompression). Name und Kennung im Cursor setzt der Server aus der Anmeldung ein – niemand kann unter fremdem Namen erscheinen oder Cursor anderer entfernen. Gespeichert wird weiterhin über die normale API mit allen Prüfungen und Bereinigungen.
+- **Live-Bearbeitung** (WebSocket `/api/v1/collab/elements/{id}/{lang}`): nur angemeldete Benutzer mit Browser-Sitzung (keine API-Schlüssel) und Bearbeitungsrecht; die Herkunft (`Origin`) muss der eigene Host sein (kein Cross-Site-WebSocket). Sitzung und Recht werden alle 30 s neu geprüft; endet eines, wird die Verbindung getrennt. Der Server speichert nichts und leitet nur Yjs-Nachrichten weiter (Typ geprüft, höchstens 4 MiB je Nachricht, 100 Nachrichten/s je Person, 50 Personen und je Person 5 Verbindungen pro Seite (einstellbar: `core.live.persons`, `core.live.connections_per_person`), langsame Empfänger werden getrennt, keine Kompression). Name und Kennung im Cursor setzt der Server aus der Anmeldung ein – niemand kann unter fremdem Namen erscheinen oder Cursor anderer entfernen. Gespeichert wird weiterhin über die normale API mit allen Prüfungen und Bereinigungen.
 - Konfigurationsgeheimnisse stehen nur in der Umgebung bzw. in `.env`. Die Datenbank-URL wird in der Oberfläche maskiert.
 - Alle sicherheitsrelevanten Änderungen landen im Audit-Protokoll.
 

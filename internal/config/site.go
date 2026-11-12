@@ -14,7 +14,7 @@ import (
 
 // InstanceOnly lists the settings that apply to the whole instance; a site
 // cannot override them (database, license, listener).
-var InstanceOnly = []string{"mode", "database", "license", "sites", "server.listen", "server.trusted_proxies", "server.max_body_mb"}
+var InstanceOnly = []string{"mode", "database", "license", "sites", "server.listen", "server.trusted_proxies", "server.client_ip_header", "server.max_body_mb", "limits"}
 
 // IsInstanceOnly reports whether key (dotted path) is an instance setting.
 func IsInstanceOnly(key string) bool {

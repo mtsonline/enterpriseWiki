@@ -457,7 +457,10 @@ func Decode(raw json.RawMessage) (*Definition, error) {
 // ---------------------------------------------------------------- element type
 
 // Type implements content.ElementType.
-type Type struct{}
+type Type struct {
+	// name shows a group or role given by "#ID" with its current name
+	name func(ctx context.Context, kind, value string) string
+}
 
 // TypeID implements content.ElementType.
 func (Type) TypeID() string { return "workflow.process" }
@@ -543,7 +546,7 @@ func Paragraphs(s string) string {
 
 // Render implements content.ElementType: description, process overview and
 // the interactive part (hydrated by the frontend widget "workflow").
-func (Type) Render(_ context.Context, rc content.RenderContext, raw json.RawMessage) (string, error) {
+func (t Type) Render(ctx context.Context, rc content.RenderContext, raw json.RawMessage) (string, error) {
 	d, err := Decode(raw)
 	if err != nil {
 		return "", err
@@ -567,7 +570,11 @@ func (Type) Render(_ context.Context, rc content.RenderContext, raw json.RawMess
 		}
 		who := msg(rc.Lang, "starter")
 		if s.Assignee.Type != "starter" && s.Assignee.Type != "" {
-			who = fmt.Sprintf(msg(rc.Lang, s.Assignee.Type), s.Assignee.Value)
+			v := s.Assignee.Value
+			if t.name != nil && strings.HasPrefix(v, "#") {
+				v = t.name(ctx, s.Assignee.Type, v)
+			}
+			who = fmt.Sprintf(msg(rc.Lang, s.Assignee.Type), v)
 		}
 		switch s.Type {
 		case StepEnd:

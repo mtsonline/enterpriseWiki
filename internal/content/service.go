@@ -7,6 +7,7 @@ import (
 	"regexp"
 	"strings"
 	"sync"
+	"time"
 	"unicode/utf8"
 
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -37,6 +38,8 @@ type Service struct {
 	// templateOK reports whether id is an active template plugin
 	templateOK func(id string) bool
 	hooks      []Hook
+	durable    []durableHook // see changes.go
+	actorCtx   func(ctx context.Context, uid int64) context.Context
 
 	views     viewCounter
 	resolvers map[string]SourceResolver
@@ -62,9 +65,33 @@ func (s *Service) SetEnabledFunc(f func(string) bool) { s.enabled = f }
 // OnChange registers a hook.
 func (s *Service) OnChange(h Hook) { s.hooks = append(s.hooks, h) }
 
+// fire reports a change that is committed. Where the change was written
+// to the queue of durable hooks in its own transaction use fireNoted.
 func (s *Service) fire(ctx context.Context, event, etype string, id int64) {
+	s.fireNoted(ctx, 0, event, etype, id)
+}
+
+// fireNoted is fire for a change whose queue entry (note) was committed
+// with it; entry 0: it is queued now, before the caller gets the answer.
+func (s *Service) fireNoted(ctx context.Context, entry int64, event, etype string, id int64) {
+	dctx := context.WithoutCancel(ctx) // a closed browser must not cancel what follows from a stored change
+	if entry == 0 && len(s.durable) > 0 {
+		var err error
+		for try := 0; try < 3; try++ { // the change is stored already: insist
+			if entry, err = s.note(dctx, s.pool, event, etype, id); err == nil {
+				break
+			}
+			time.Sleep(time.Duration(try+1) * 100 * time.Millisecond)
+		}
+		if err != nil {
+			s.log.Error("queueing a change failed", "event", event, "type", etype, "id", id, "err", err)
+		}
+	}
 	for _, h := range s.hooks {
 		h(ctx, event, etype, id)
+	}
+	if len(s.durable) > 0 {
+		s.deliver(dctx, s.pool, entry, nil, 0, event, etype, id)
 	}
 }
 
@@ -220,7 +247,9 @@ func auditLog(ctx context.Context, s *Service, action, etype string, id int64, b
 
 // Touch reports a change of an element that is stored outside its
 // revisions (e.g. events of a calendar): watchers are notified and caches
-// invalidated, no revision is created.
+// invalidated, no revision is created. The change is queued when Touch is
+// called, not with the data of the caller: use TouchTx inside the
+// transaction that stores them, so that no notification can be lost.
 func (s *Service) Touch(ctx context.Context, elementID int64) {
 	s.fire(ctx, "update", "element", elementID)
 }

@@ -72,7 +72,10 @@ export function checkbox(label: string, checked = false, opts: { name?: string; 
 /** Renders an error message for an exception. */
 export function errorText(e: unknown): string {
   if (e instanceof ApiError) {
+    if (e.code === 'cancelled') return t('wait.cancelled');
     if (e.status === 0) return t('error.network');
+    if (e.status === 413) return t('error.too_large');
+    if (e.code === 'busy') return t('error.busy');
     return e.message;
   }
   return e instanceof Error ? e.message : String(e);
@@ -133,6 +136,20 @@ export function openDialog(title: string, content: Child, actions: Child[] = [],
   const first = dialog.querySelector<HTMLElement>('.ew-dialog-body input, .ew-dialog-body select, .ew-dialog-body textarea, .ew-dialog-body button, .ew-dialog-actions button');
   first?.focus();
   return { dialog, close };
+}
+
+/**
+ * Asks whether to keep waiting for the answer to a change or to cancel it
+ * (see core/api: setWaitPrompt). Closing the dialog means "keep waiting".
+ */
+export function waitDialog(keepWaiting: () => void, cancel: () => void): { close: () => void } {
+  let decided = false;
+  const d = openDialog(t('wait.title'), h('p', null, t('wait.text')), [
+    button(t('wait.keep'), () => d.close(), { variant: 'primary' }),
+    button(t('wait.cancel'), () => { decided = true; d.close(); cancel(); }),
+  ], { onClose: () => { if (!decided) { decided = true; keepWaiting(); } } });
+  d.dialog.setAttribute('role', 'alertdialog');
+  return { close: () => { decided = true; d.close(); } };
 }
 
 /** Asks for confirmation. */

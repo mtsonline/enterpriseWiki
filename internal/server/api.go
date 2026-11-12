@@ -27,6 +27,7 @@ import (
 	h "github.com/mtsonline/enterprisewiki/internal/httpx"
 	"github.com/mtsonline/enterprisewiki/internal/i18n"
 	"github.com/mtsonline/enterprisewiki/internal/identity"
+	"github.com/mtsonline/enterprisewiki/internal/limits"
 	"github.com/mtsonline/enterprisewiki/internal/media"
 	"github.com/mtsonline/enterprisewiki/internal/perm"
 	"github.com/mtsonline/enterprisewiki/internal/pluginmgr"
@@ -47,6 +48,7 @@ var adminPerms = []struct{ prefix, perm string }{
 	{"/api/v1/admin/roles", "core.roles.manage"},
 	{"/api/v1/admin/permissions", "core.roles.manage"},
 	{"/api/v1/admin/settings", "core.settings.manage"},
+	{"/api/v1/admin/limits", "core.settings.manage"},
 	{"/api/v1/admin/languages", "core.i18n.manage"},
 	{"/api/v1/admin/retention", "core.settings.manage"},
 	{"/api/v1/admin/audit/settings", "core.audit.manage"},
@@ -127,6 +129,8 @@ func (s *Server) routes() {
 	s.routesM15()
 	s.routesAccess()
 	s.routesAudit()
+	s.routesLimits()
+	s.routesKeyLimits()
 	s.routesDrafts()
 	s.routesNotifications()
 	s.routesWatchAssignments()
@@ -1168,7 +1172,8 @@ func (s *Server) site(w http.ResponseWriter, r *http.Request) (any, error) {
 	home := c.UI.HomeCategory
 	return map[string]any{
 		"name": c.UI.SiteName, "template": c.UI.Template, "templates": templates, "home_category": home, "home_element": c.UI.HomeElement, "editor": cmp.Or(c.UI.Editor, "visual"), "collaboration": c.UI.Collaboration,
-		"languages": c.I18n.Languages, "default_language": c.I18n.DefaultLanguage,
+		"wait_notice_s": limits.Value(c, limits.WaitNoticeSeconds),
+		"languages":     c.I18n.Languages, "default_language": c.I18n.DefaultLanguage,
 		"plugins": frontend, "element_types": s.app.Content.Types(), "auth_providers": s.app.Auth.ProviderInfos(),
 		"version": version.Version, "permissions": acl.Names,
 		// site: the site of this host; instance_only: settings only
@@ -1324,7 +1329,7 @@ func (s *Server) auditLogin(r *http.Request, p *identity.Principal, method, user
 		if errors.As(err, &ae) {
 			reason = ae.Code
 		}
-		_ = audit.Log(ctx, s.app.DB, "auth.login_failed", "user", 0, nil, map[string]string{"username": username, "method": method, "reason": reason})
+		_ = audit.Log(ctx, s.app.DB, "auth.login_failed", "user", 0, nil, map[string]string{"username": clip(username, 255), "method": method, "reason": reason})
 		return
 	}
 	_ = audit.Log(identity.With(ctx, p), s.app.DB, "auth.login", "user", p.ID(), nil, map[string]string{"method": method})
@@ -1374,4 +1379,13 @@ func macroPageParam(v string) (index, page int, ok bool) {
 		return 0, 0, false
 	}
 	return i, p, true
+}
+
+// clip shortens a text to at most n bytes (whole runes).
+func clip(s string, n int) string {
+	if len(s) <= n {
+		return s
+	}
+	r := []rune(s[:n])
+	return string(r[:len(r)-1]) + "…"
 }

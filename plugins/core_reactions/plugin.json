@@ -4,10 +4,37 @@
   "version": "1.0.0",
   "description": "Emoji reactions on pages, categories and comments: any emoji (administrators can block some), shows who reacted, optional notification of the author.",
   "author": "Enterprise Wiki",
-  "kinds": ["general"],
+  "kinds": [
+    "general"
+  ],
   "frontend": true,
   "permissions": [
-    {"key": "core.reactions.use", "scope": "global", "label": "React with emojis", "description": "Add and remove own reactions on pages, categories and comments one may see.", "presets": ["authenticated"]},
-    {"key": "core.reactions.manage", "scope": "global", "label": "Manage reactions", "description": "Block emojis and remove reactions of others."}
+    {
+      "key": "core.reactions.use",
+      "scope": "global",
+      "label": "React with emojis",
+      "description": "Add and remove own reactions on pages, categories and comments one may see.",
+      "presets": [
+        "authenticated"
+      ]
+    },
+    {
+      "key": "core.reactions.manage",
+      "scope": "global",
+      "label": "Manage reactions",
+      "description": "Block emojis and remove reactions of others."
+    }
+  ],
+  "limits": [
+    {
+      "key": "core.reactions.per_person",
+      "group": "reactions",
+      "unit": "count",
+      "default": 10,
+      "min": 1,
+      "max": 100,
+      "label": "Reactions per person",
+      "help": "How many different emojis one person may put on one page, category or comment."
+    }
   ]
 }

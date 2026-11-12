@@ -33,11 +33,13 @@ type Server struct {
 	collab     *collab.Hub
 	collabDone context.Context
 	closeLive  context.CancelFunc
+	limits     *limiter // requests per account or address (S-04)
+	forwards   untrustedForwards
 }
 
 // New creates the server. web contains the built frontend (may be nil).
 func New(a *app.App, web fs.FS, pm *pluginmgr.Manager) *Server {
-	s := &Server{app: a, log: a.Log, web: web, plugins: pm, started: time.Now(), collab: collab.NewHub()}
+	s := &Server{app: a, log: a.Log, web: web, plugins: pm, started: time.Now(), collab: collab.NewHub(), limits: newRateLimiter()}
 	s.collabDone, s.closeLive = context.WithCancel(context.Background())
 	s.routes()
 	a.Mux.HandleFunc("/", s.serveFrontend)

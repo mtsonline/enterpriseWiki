@@ -93,7 +93,7 @@ func (s *Server) serveCollab(w http.ResponseWriter, r *http.Request) error {
 	defer stop()
 	defer context.AfterFunc(s.collabDone, stop)()
 	err = s.collab.Serve(ctx, c, key, user, allowed)
-	if err != nil && !errors.Is(err, collab.ErrFull) && !errors.Is(err, context.Canceled) {
+	if err != nil && !errors.Is(err, collab.ErrFull) && !errors.Is(err, collab.ErrTooManyConnections) && !errors.Is(err, context.Canceled) {
 		s.log.Debug("live editing ended", "element", id, "err", err)
 	}
 	return nil

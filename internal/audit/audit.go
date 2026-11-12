@@ -108,6 +108,54 @@ func toJSON(v any) any {
 	return b
 }
 
+// ValueLimit returns the longest before/after value of an entry in bytes
+// (guest: the event has no signed-in user, e.g. a failed sign-in). The
+// application sets it to the limits core.audit.value_guest_bytes and
+// core.audit.value_bytes (expert settings).
+var ValueLimit = func(guest bool) int {
+	if guest {
+		return 1 << 10
+	}
+	return 64 << 10
+}
+
+// bound keeps a value of an entry within max bytes (S-03): a larger one
+// keeps its structure with each text shortened to a quarter of max (its
+// original length is noted); what is still too large is only noted. The log
+// must not grow without bound from input of the outside.
+func bound(v any, max int) any {
+	b, ok := v.([]byte)
+	if !ok || len(b) <= max || max <= 0 {
+		return v
+	}
+	var x any
+	if json.Unmarshal(b, &x) == nil {
+		if c, err := json.Marshal(shorten(x, max/4)); err == nil && len(c) <= max {
+			return c
+		}
+	}
+	out, _ := json.Marshal(map[string]any{"truncated": true, "bytes": len(b)})
+	return out
+}
+
+func shorten(v any, max int) any {
+	switch x := v.(type) {
+	case string:
+		if len(x) > max {
+			return clip(x, max) + fmt.Sprintf("… (+%d bytes)", len(x)-max)
+		}
+	case map[string]any:
+		for k, e := range x {
+			x[k] = shorten(e, max)
+		}
+	case []any:
+		for i, e := range x {
+			x[i] = shorten(e, max)
+		}
+	}
+	return v
+}
+
 // Log appends an audit record using q (pass the transaction so the record is
 // committed atomically with the change).
 func Log(ctx context.Context, q db.Querier, action, entityType string, entityID int64, before, after any) error {
@@ -132,9 +180,14 @@ func Log(ctx context.Context, q db.Querier, action, entityType string, entityID 
 		via = "guest"
 	}
 	_, err := q.Exec(ctx, `INSERT INTO audit_log(user_id, actor, action, entity_type, entity_id, before, after, ip, user_agent, via)
-		VALUES ($1,$2,$3,$4,$5,$6,$7,NULLIF($8,''),NULLIF($9,''),$10)`, uid, p.Handle(), action, entityType, eid, toJSON(before), toJSON(after), req.ip, req.ua, via)
+		VALUES ($1,$2,$3,$4,$5,$6,$7,NULLIF($8,''),NULLIF($9,''),$10)`, uid, p.Handle(), action, entityType, eid,
+		bound(toJSON(before), ValueLimit(p == nil)), bound(toJSON(after), ValueLimit(p == nil)), req.ip, clip(req.ua, 512), via)
 	return err
 }
+
+// SnapshotSearchDays is the period of the text search in the snapshots
+// when no start is given; set by the application (expert settings).
+var SnapshotSearchDays = func() int { return 90 }
 
 // Search filters audit entries.
 type Search struct {
@@ -196,9 +249,18 @@ func (s Search) where() (string, []any) {
 		add("id > ?", s.AfterID)
 	}
 	if t := strings.TrimSpace(s.Text); t != "" {
-		add("(actor ILIKE ? OR action ILIKE $X OR entity_type ILIKE $X OR before::text ILIKE $X OR after::text ILIKE $X OR COALESCE(ip,'') ILIKE $X)", "%"+t+"%")
+		// P-02: the snapshots are searched in a period only (without "from":
+		// the last SnapshotSearchDays days); actor, action, object and
+		// address always
+		since := s.From
+		if since.IsZero() {
+			since = time.Now().AddDate(0, 0, -SnapshotSearchDays())
+		}
+		like := strings.NewReplacer(`\`, `\\`, "%", `\%`, "_", `\_`).Replace(t)
+		add("(actor ILIKE ? OR action ILIKE $X OR entity_type ILIKE $X OR COALESCE(ip,'') ILIKE $X OR (at >= $Y AND (before::text ILIKE $X OR after::text ILIKE $X)))", "%"+like+"%")
 		n := fmt.Sprintf("$%d", len(args))
-		conds[len(conds)-1] = strings.ReplaceAll(conds[len(conds)-1], "$X", n)
+		args = append(args, since)
+		conds[len(conds)-1] = strings.ReplaceAll(strings.ReplaceAll(conds[len(conds)-1], "$X", n), "$Y", fmt.Sprintf("$%d", len(args)))
 	}
 	return strings.Join(conds, " AND "), args
 }
@@ -264,4 +326,13 @@ func Areas(ctx context.Context, q db.Querier) ([]string, error) {
 	}
 	slices.Sort(out)
 	return out, rows.Err()
+}
+
+// clip shortens a text to at most n bytes (whole runes).
+func clip(s string, n int) string {
+	if len(s) <= n {
+		return s
+	}
+	r := []rune(s[:n])
+	return string(r[:len(r)-1])
 }

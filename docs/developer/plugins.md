@@ -112,6 +112,9 @@ Im Backend liefert `host.Content.Path(ctx, "element"|"category", id)` die lesbar
 ### Benachrichtigungen, Veröffentlichen-Optionen, Seitenaktionen
 
 - `notify.RegisterKind("acme.kanban.assigned", "acme.kanban.kind")` deklariert eine Art von Benachrichtigung (Benutzer schalten die E-Mail dazu im Profil ab); `notify.RegisterKindOff(…)` für Arten, deren E-Mails erst eingeschaltet werden müssen (z. B. Reaktionen). Senden: `host.Notify.Send(ctx, userIDs, notify.Message{Kind: …, EntityType: "element", EntityID: id, Link: "/e/12", Text: func(lang string) (string, string) { … }})`. Der Absender selbst wird nie benachrichtigt; prüfen Sie vorher mit `UserCan`, ob der Empfänger das Ziel sehen darf.
+- **Benachrichtigungen dürfen nie verloren gehen.** Zwei Wege, je nachdem, wo die Änderung gespeichert wird:
+  - *Das Plugin speichert selbst* (Kommentar, Reaktion, Aufgabe …): in derselben Transaktion benachrichtigen – `host.Notify.SendQ(ctx, tx, userIDs, msg)` bzw. `host.Mail.Enqueue(ctx, tx, …)`. Fehler zurückgeben, nicht nur protokollieren: Dann wird entweder beides gespeichert oder nichts, und der Aufrufer erfährt es. Empfänger in der Transaktion mit `host.Auth.LoadPrincipalQ(ctx, tx, id)` laden (nie eine zweite Verbindung holen, solange eine gehalten wird). Erwähnungen in eigenem Text: `core_mentions.NotifyTx(ctx, tx, …)`.
+  - *Das Plugin reagiert auf gespeicherte Seiten oder Kategorien:* `host.Content.OnChangeDurable("acme.kanban", func(ctx, event, entityType string, id int64) error { … })` statt `OnChange`. Der Kern schreibt jede Änderung in derselben Transaktion wie den Inhalt in die Warteschlange `change_events`, ruft den Hook nach dem Commit auf und wiederholt ihn nach einem Fehler oder Absturz, bis er `nil` liefert (nach 1, 2, 4 … Minuten, höchstens stündlich; mit den Rechten des Kontos, das die Änderung gemacht hat). Der Hook kann deshalb **mehrfach** für dieselbe Änderung laufen und muss das vertragen – z. B. „schon benachrichtigt“ und die Benachrichtigung in einer Transaktion speichern. `OnChange` bleibt für alles, was verloren gehen darf (Caches, Statistik). Speichert ein Plugin Daten eines Elements außerhalb der Revisionen (z. B. Termine eines Kalenders), meldet es die Änderung in seiner eigenen Transaktion mit `after, err := host.Content.TouchTx(ctx, tx, elementID)` und ruft `after()` nach dem Commit auf; `Touch` ohne Transaktion ist nur noch für Änderungen gedacht, deren Benachrichtigung verloren gehen darf.
 - `@Erwähnungen` in eigenen Texten: `core_mentions.Notify(ctx, "acme.card", id, categoryID, title, link, text)` (tut nichts, wenn das Plugin deaktiviert ist).
 - `registerPublishOption({ id, render })` fügt dem Dialog *Veröffentlichen mit Optionen* ein Feld hinzu; der Wert kommt im Backend über `content.RegisterPublishOption` an (Beispiel folgt mit dem Karussell in Meilenstein 11).
 - `registerPageAction({ id, order, render(target) })` fügt einen Knopf in die Aktionen einer Seite oder Kategorie ein (Beispiel: `plugins/core_share`).
@@ -248,6 +251,32 @@ Speichert ein Plugin Datei-Hashes außerhalb von Element-Inhalten, meldet es die
 - `host.RegisterWorker("sync", 30*time.Second, func(ctx) error)` registriert einen Hintergrundjob `<plugin-id>.sync`; er läuft nur, solange das Plugin aktiv ist, im Cluster auf einer Instanz zur selben Zeit. Verwenden Sie trotzdem `FOR UPDATE SKIP LOCKED`.
 - `host.Webhooks.Emit(ctx, webhook.Event{Name: "acme.ticket_closed", CategoryID: cat, Object: webhook.Object{Type: "ticket", ID: id, Title: t, URL: "/e/12#ticket-5"}, Data: map[string]any{…}})` meldet ein Ereignis an die konfigurierten Webhooks (Warteschlange, Wiederholungen und Formate Teams/Slack/JSON übernimmt der Kern). Eigene Ereignisnamen müssen in `webhook.Events` stehen, damit Administratoren sie auswählen können; Texte für Teams/Slack kommen aus `webhook.text.<name>` (Platzhalter: `title`, `actor`, `site` und die Schlüssel aus `Data`).
 - `host.RegisterSearchBackend(b)` bindet eine externe Suchmaschine an (`content.SearchBackend`, siehe `plugins/search_external`). Die Tabelle `search_changes` protokolliert jede Änderung am Suchindex.
+
+### Grenzwerte (Limits) {#limits}
+
+Technische Grenzen eines Plugins (Größen, Anzahlen, Wartezeiten) stehen nicht fest im Code, sondern im Manifest. Administratoren sehen und ändern sie zusammen mit denen des Kerns unter **Administration → Experteneinstellungen**.
+
+```go
+func (p *Plugin) Manifest() sdk.Manifest {
+	return sdk.Manifest{ID: "acme.forms", /* … */
+		Limits: []limits.Def{{Key: "acme.forms.answer_kb", Group: "requests", Unit: "kb", Default: 256, Min: 16, Max: 16384,
+			Label: "Size of a form answer", Help: "Largest answer a form accepts."}}}
+}
+
+func (p *Plugin) Setup(h *sdk.Host) error {
+	// die Route nimmt Körper bis zu diesem Grenzwert an (sonst gilt die allgemeine Grenze: 64 kB ohne Anmeldung, 1 MB mit)
+	h.BodyLimit("POST", "/forms/{id}/answers", "acme.forms.answer_kb")
+	h.Handle("POST", "/forms/{id}/answers", p.answer)
+	return nil
+}
+
+max := h.Limit("acme.forms.answer_kb") // aktueller Wert, jederzeit
+```
+
+- Der Schlüssel beginnt mit der Plugin-ID. Einheiten: `kb`, `mb`, `bytes`, `count`, `seconds`, `per_second`, `days`.
+- `Label` und `Help` sind englisch; Übersetzungen als UI-Texte `limit.<key>` und `limit.<key>.help`.
+- Für Seiteninhalte den Grenzwert des Kerns verwenden: `h.BodyLimit("POST", "/…", limits.RequestContentKB)`.
+- Uploads streamen (`multipart`) und mit `limits.RequestUpload` anmelden; dann gilt `storage.max_upload_mb`.
 
 ### Rechte in Plugin-Routen
 

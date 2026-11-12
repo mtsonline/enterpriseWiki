@@ -32,6 +32,39 @@ function fromPreload(url: string): { hit: boolean; data?: unknown } {
   return { hit: true, data };
 }
 
+/**
+ * A change that gets no answer: after waitNotice seconds the user is asked
+ * whether to keep waiting or to cancel. Nothing typed is lost either way:
+ * the request keeps running while waiting, and cancelling leaves the page
+ * (and its editor) as it is. The dialog is provided by the UI (setWaitPrompt),
+ * so this module stays free of markup.
+ */
+export interface WaitPrompt { close: () => void }
+let waitNotice = 5;
+let waitPrompt: ((keepWaiting: () => void, cancel: () => void) => WaitPrompt) | null = null;
+export function setWaitNotice(seconds: number | undefined): void { if (seconds && seconds > 0) waitNotice = seconds; }
+export function setWaitPrompt(fn: typeof waitPrompt): void { waitPrompt = fn; }
+
+/** fetch for changes: asks the user after waitNotice seconds without an answer. */
+async function patientFetch(url: string, init: RequestInit): Promise<Response> {
+  if (!waitPrompt || init.method === 'GET') return fetch(url, init);
+  const ctl = new AbortController();
+  let prompt: WaitPrompt | null = null;
+  let timer = 0;
+  const arm = () => {
+    timer = window.setTimeout(() => {
+      prompt = waitPrompt!(() => { prompt = null; arm(); }, () => { prompt = null; ctl.abort(); });
+    }, waitNotice * 1000);
+  };
+  arm();
+  try {
+    return await fetch(url, { ...init, signal: ctl.signal });
+  } finally {
+    window.clearTimeout(timer);
+    (prompt as WaitPrompt | null)?.close();
+  }
+}
+
 async function request<T>(method: string, path: string, body?: unknown, background = false): Promise<T> {
   const url = path.startsWith('/') ? path : `/api/v1/${path}`;
   if (method === 'GET') {
@@ -51,8 +84,9 @@ async function request<T>(method: string, path: string, body?: unknown, backgrou
   }
   let res: Response;
   try {
-    res = await fetch(url, init);
-  } catch {
+    res = await patientFetch(url, init);
+  } catch (e) {
+    if ((e as Error)?.name === 'AbortError') throw new ApiError(0, 'cancelled', 'cancelled');
     throw new ApiError(0, 'network', 'network error');
   }
   if (res.status === 204) return undefined as T;

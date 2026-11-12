@@ -3,8 +3,11 @@ package app
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"github.com/jackc/pgx/v5"
 	"github.com/mtsonline/enterprisewiki/internal/audit"
+	"github.com/mtsonline/enterprisewiki/internal/collab"
 	"github.com/mtsonline/enterprisewiki/internal/feedfetch"
 	"github.com/mtsonline/enterprisewiki/internal/notify"
 	"log/slog"
@@ -24,7 +27,9 @@ import (
 	"github.com/mtsonline/enterprisewiki/internal/db/migrations"
 	"github.com/mtsonline/enterprisewiki/internal/events"
 	"github.com/mtsonline/enterprisewiki/internal/i18n"
+	"github.com/mtsonline/enterprisewiki/internal/identity"
 	"github.com/mtsonline/enterprisewiki/internal/kernel"
+	"github.com/mtsonline/enterprisewiki/internal/limits"
 	"github.com/mtsonline/enterprisewiki/internal/mail"
 	"github.com/mtsonline/enterprisewiki/internal/media"
 	"github.com/mtsonline/enterprisewiki/internal/pagecache"
@@ -152,6 +157,21 @@ func newSite(ctx context.Context, in *Instance, site string, migrate bool) (*App
 		pool.Close()
 		return nil, err
 	}
+	auth.KeyRateMax = func() (int, int) {
+		d, _ := limits.Get(limits.RateUser)
+		return int(limits.Value(in.Config.Get(), limits.RateUser)), int(d.Max)
+	}
+	audit.SnapshotSearchDays = func() int { return int(limits.Value(in.Config.Get(), limits.AuditSearchDays)) }
+	collab.Limits = func() (int, int) {
+		c := in.Config.Get()
+		return int(limits.Value(c, limits.LivePersons)), int(limits.Value(c, limits.LivePerPerson))
+	}
+	audit.ValueLimit = func(guest bool) int {
+		if guest {
+			return int(limits.Value(in.Config.Get(), limits.AuditValueGuest))
+		}
+		return int(limits.Value(in.Config.Get(), limits.AuditValue))
+	}
 	a.Bus = events.NewSite(pool, c.Mode == "cluster", log, site)
 	a.ACL = acl.New(pool, a.Bus, log)
 	a.Auth = auth.New(pool, cfg, a.Bus, log)
@@ -216,6 +236,21 @@ func newSite(ctx context.Context, in *Instance, site string, migrate bool) (*App
 		return err
 	}})
 	a.Watch = watch.New(pool, cfg, a.ACL, a.Auth, a.Content, a.Mail, a.I18n, log)
+	// changes whose notifications are not written yet are repeated with
+	// the rights of the account that made them
+	a.Content.SetActorContext(func(ctx context.Context, uid int64) context.Context {
+		if p, err := a.Auth.LoadPrincipal(ctx, uid); err == nil {
+			return identity.With(ctx, p)
+		}
+		return ctx
+	})
+	a.Workers.Register(worker.Job{Name: "changes", Interval: 30 * time.Second, Run: func(ctx context.Context) error {
+		n, err := a.Content.RetryChanges(ctx)
+		if n > 0 {
+			log.Info("queued changes repeated", "changes", n)
+		}
+		return err
+	}})
 	// guest cache: every change invalidates it (here, on other nodes and from CLI processes)
 	a.Cache = pagecache.New(pool, cfg, log)
 	a.Content.OnChange(func(ctx context.Context, event, etype string, id int64) { a.Cache.Invalidate(ctx, etype+"."+event) })
@@ -250,7 +285,9 @@ func newSite(ctx context.Context, in *Instance, site string, migrate bool) (*App
 	a.Webhooks = webhook.New(pool, cfg, log)
 	a.Webhooks.T = a.I18n.T
 	a.Webhooks.Kick = func() { time.AfterFunc(300*time.Millisecond, func() { a.Workers.Trigger("webhooks") }) }
-	a.Content.OnChange(func(ctx context.Context, event, etype string, id int64) { a.emitContent(ctx, event, etype, id) })
+	// durable: webhooks of content changes are queued even after an error or
+	// a restart (a repeat can deliver an event twice, never zero times)
+	a.Content.OnChangeDurable("webhooks", a.emitContent)
 	a.Workers.Register(worker.Job{Name: "webhooks", Interval: 30 * time.Second, Run: func(ctx context.Context) error {
 		_, err := a.Webhooks.Deliver(ctx)
 		return err
@@ -344,7 +381,7 @@ func (a *App) close() {
 }
 
 // emitContent turns a content change into a webhook event.
-func (a *App) emitContent(ctx context.Context, event, etype string, id int64) {
+func (a *App) emitContent(ctx context.Context, event, etype string, id int64) error {
 	ev := webhook.Event{Name: etype + "." + event, Object: webhook.Object{Type: etype, ID: id}}
 	def := a.Config.Get().I18n.DefaultLanguage
 	var titles map[string]string
@@ -352,7 +389,7 @@ func (a *App) emitContent(ctx context.Context, event, etype string, id int64) {
 	case "element":
 		var short string
 		if err := a.DB.QueryRow(context.WithoutCancel(ctx), `SELECT titles, category_id, COALESCE(short_url, '') FROM elements WHERE id=$1`, id).Scan(&titles, &ev.CategoryID, &short); err != nil {
-			return
+			return gone(err)
 		}
 		ev.Object.URL = fmt.Sprintf("/e/%d", id)
 		if short != "" {
@@ -360,12 +397,12 @@ func (a *App) emitContent(ctx context.Context, event, etype string, id int64) {
 		}
 	case "category":
 		if err := a.DB.QueryRow(context.WithoutCancel(ctx), `SELECT titles FROM categories WHERE id=$1`, id).Scan(&titles); err != nil {
-			return
+			return gone(err)
 		}
 		ev.CategoryID = id
 		ev.Object.URL = fmt.Sprintf("/c/%d", id)
 	default:
-		return
+		return nil
 	}
 	ev.Object.Title = titles[def]
 	if ev.Object.Title == "" {
@@ -377,5 +414,14 @@ func (a *App) emitContent(ctx context.Context, event, etype string, id int64) {
 	if event == "delete" {
 		ev.Object.URL = ""
 	}
-	a.Webhooks.Emit(ctx, ev)
+	return a.Webhooks.Queue(ctx, ev)
+}
+
+// gone: the object no longer exists (nothing to report), every other
+// error is repeated.
+func gone(err error) error {
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil
+	}
+	return err
 }

@@ -6,7 +6,9 @@ package core_mentions
 import (
 	"context"
 	"embed"
+	"errors"
 	"fmt"
+	"github.com/jackc/pgx/v5"
 	"io/fs"
 	"regexp"
 	"strings"
@@ -49,11 +51,12 @@ func (p *Plugin) Setup(host *sdk.Host) error {
 	instances.Set(host.Site, p)
 	p.host = host
 	notify.RegisterKind("mention", "core.mentions.kind")
-	host.Content.OnChange(func(ctx context.Context, event, etype string, id int64) {
+	// durable: a mention in a saved page is never lost (repeated after an error)
+	host.Content.OnChangeDurable("core.mentions", func(ctx context.Context, event, etype string, id int64) error {
 		if etype != "element" || (event != "create" && event != "update") || !host.Active() {
-			return
+			return nil
 		}
-		p.element(context.WithoutCancel(ctx), id)
+		return p.element(context.WithoutCancel(ctx), id)
 	})
 	return nil
 }
@@ -75,55 +78,63 @@ func Handles(text string) []string {
 }
 
 // element notifies the people mentioned in the latest revisions of an element.
-func (p *Plugin) element(ctx context.Context, id int64) {
+func (p *Plugin) element(ctx context.Context, id int64) error {
 	var typ string
 	var cat int64
 	var titles map[string]string
-	if err := p.host.DB.QueryRow(ctx, `SELECT type, category_id, titles FROM elements WHERE id=$1`, id).Scan(&typ, &cat, &titles); err != nil {
-		return
+	err := p.host.DB.QueryRow(ctx, `SELECT type, category_id, titles FROM elements WHERE id=$1`, id).Scan(&typ, &cat, &titles)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil // gone in the meantime
+	}
+	if err != nil {
+		return err
 	}
 	t := p.host.Content.Type(typ)
 	if t == nil {
-		return
+		return nil
 	}
 	rows, err := p.host.DB.Query(ctx, `SELECT DISTINCT ON (lang) body FROM element_revisions WHERE element_id=$1 ORDER BY lang, rev DESC`, id)
 	if err != nil {
-		return
+		return err
+	}
+	bodies, err := pgx.CollectRows(rows, pgx.RowTo[[]byte])
+	if err != nil {
+		return err
 	}
 	var text strings.Builder
-	for rows.Next() {
-		var body []byte
-		if rows.Scan(&body) == nil {
-			text.WriteString(t.Text(body))
-			text.WriteByte('\n')
-		}
+	for _, body := range bodies {
+		text.WriteString(t.Text(body))
+		text.WriteByte('\n')
 	}
-	rows.Close()
 	title := titles[p.host.Config.Get().I18n.DefaultLanguage]
 	for _, v := range titles {
 		if title == "" {
 			title = v
 		}
 	}
-	p.notify(ctx, "element", id, cat, title, fmt.Sprintf("/e/%d", id), text.String())
+	// "mentioned once" and the notification are stored together
+	return pgx.BeginFunc(ctx, p.host.DB, func(tx pgx.Tx) error {
+		return p.notify(ctx, tx, "element", id, cat, title, fmt.Sprintf("/e/%d", id), text.String())
+	})
 }
 
-// Notify notifies the people mentioned in text (e.g. a comment) once per
-// entity; it is used by other plugins and does nothing while this plugin is
-// disabled.
-func Notify(ctx context.Context, entityType string, entityID, categoryID int64, title, link, text string) {
+// NotifyTx notifies the people mentioned in text (e.g. a comment) once per
+// entity, inside the transaction tx that stores the text: the
+// notification is stored with it or not at all. It is used by other
+// plugins and does nothing while this plugin is disabled.
+func NotifyTx(ctx context.Context, tx pgx.Tx, entityType string, entityID, categoryID int64, title, link, text string) error {
 	instance := instances.Get(ctx)
 	if instance == nil || instance.host == nil || !instance.host.Active() {
-		return
+		return nil
 	}
-	instance.notify(ctx, entityType, entityID, categoryID, title, link, text)
+	return instance.notify(ctx, tx, entityType, entityID, categoryID, title, link, text)
 }
 
-func (p *Plugin) notify(ctx context.Context, entityType string, entityID, categoryID int64, title, link, text string) {
+func (p *Plugin) notify(ctx context.Context, tx pgx.Tx, entityType string, entityID, categoryID int64, title, link, text string) error {
 	handles := Handles(text)
 	me := identity.From(ctx)
 	if len(handles) == 0 || me == nil || !perm.HasP(me, "core.mentions.use") {
-		return
+		return nil
 	}
 	var ids []int64
 	for _, hdl := range handles {
@@ -131,36 +142,45 @@ func (p *Plugin) notify(ctx context.Context, entityType string, entityID, catego
 		var id int64
 		var err error
 		if ok {
-			err = p.host.DB.QueryRow(ctx, `SELECT id FROM users WHERE lower(username)=$1 AND lower(provider)=$2 AND NOT disabled`, name, provider).Scan(&id)
+			err = tx.QueryRow(ctx, `SELECT id FROM users WHERE lower(username)=$1 AND lower(provider)=$2 AND NOT disabled`, name, provider).Scan(&id)
 		} else {
-			err = p.host.DB.QueryRow(ctx, `SELECT id FROM users WHERE lower(username)=$1 AND NOT disabled ORDER BY provider <> 'local', id LIMIT 1`, name).Scan(&id)
+			err = tx.QueryRow(ctx, `SELECT id FROM users WHERE lower(username)=$1 AND NOT disabled ORDER BY provider <> 'local', id LIMIT 1`, name).Scan(&id)
 		}
-		if err != nil || id == me.ID() || !p.host.UserCan(ctx, id, categoryID, acl.View) {
+		if errors.Is(err, pgx.ErrNoRows) || (err == nil && id == me.ID()) {
+			continue
+		}
+		if err != nil {
+			return err
+		}
+		// only people who may see it; loaded with the transaction (never a
+		// second connection while one is held)
+		pr, err := p.host.Auth.LoadPrincipalQ(ctx, tx, id)
+		if err != nil || !p.host.ACL.Can(ctx, pr, categoryID, acl.View) {
 			continue
 		}
 		// once per entity and person
-		tag, err := p.host.DB.Exec(ctx, `INSERT INTO plugin_mentions(entity_type, entity_id, user_id) VALUES ($1,$2,$3) ON CONFLICT DO NOTHING`, entityType, entityID, id)
-		if err != nil || tag.RowsAffected() == 0 {
-			continue
+		tag, err := tx.Exec(ctx, `INSERT INTO plugin_mentions(entity_type, entity_id, user_id) VALUES ($1,$2,$3) ON CONFLICT DO NOTHING`, entityType, entityID, id)
+		if err != nil {
+			return err
 		}
-		ids = append(ids, id)
+		if tag.RowsAffected() > 0 {
+			ids = append(ids, id)
+		}
 	}
 	if len(ids) == 0 {
-		return
+		return nil
 	}
 	by := me.DisplayName
 	if by == "" {
 		by = me.Handle()
 	}
 	excerpt := excerptAround(text, handles)
-	_, err := p.host.Notify.Send(ctx, ids, notify.Message{Kind: "mention", EntityType: entityType, EntityID: entityID, Link: link,
+	_, err := p.host.Notify.SendQ(ctx, tx, ids, notify.Message{Kind: "mention", EntityType: entityType, EntityID: entityID, Link: link,
 		Text: func(lang string) (string, string) {
 			params := map[string]string{"by": by, "title": title, "excerpt": excerpt}
 			return p.host.T(ctx, lang, "core.mentions.mail_subject", params), p.host.T(ctx, lang, "core.mentions.mail_body", params)
 		}})
-	if err != nil {
-		p.host.Log.Error("mention notifications", "err", err)
-	}
+	return err
 }
 
 // excerptAround returns the text around the first mention (max. 300 characters).

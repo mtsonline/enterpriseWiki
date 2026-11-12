@@ -153,6 +153,9 @@ func (pl *Plugin) caller(ctx context.Context) (*who, error) {
 		for _, n := range names {
 			w.groups[strings.ToLower(n)] = true
 		}
+		for _, id := range p.Groups {
+			w.groups["#"+strconv.FormatInt(id, 10)] = true // by ID: stays valid when renamed
+		}
 	}
 	if len(p.Roles) > 0 {
 		rows, err := pl.host.DB.Query(ctx, `SELECT name FROM roles WHERE id = ANY($1)`, p.Roles)
@@ -165,6 +168,9 @@ func (pl *Plugin) caller(ctx context.Context) (*who, error) {
 		}
 		for _, n := range names {
 			w.roles[strings.ToLower(n)] = true
+		}
+		for _, id := range p.Roles {
+			w.roles["#"+strconv.FormatInt(id, 10)] = true
 		}
 	}
 	return w, nil
@@ -415,7 +421,25 @@ func titleFrom(fields []Field, data map[string]any) string {
 func (pl *Plugin) Setup(host *sdk.Host) error {
 	pl.host = host
 	guardHosts.Store(host.Site, host)
-	host.RegisterElementType(Type{})
+	host.RegisterElementType(Type{name: func(ctx context.Context, kind, value string) string {
+		id, err := strconv.ParseInt(strings.TrimPrefix(value, "#"), 10, 64)
+		if err != nil {
+			return value
+		}
+		var n string
+		switch kind {
+		case "group":
+			err = host.DB.QueryRow(ctx, `SELECT name FROM groups WHERE id=$1`, id).Scan(&n)
+		case "role":
+			err = host.DB.QueryRow(ctx, `SELECT name FROM roles WHERE id=$1`, id).Scan(&n)
+		default:
+			return value
+		}
+		if err != nil {
+			return value
+		}
+		return n
+	}})
 	host.Files.AddReference("plugin_workflow_instances", "data")
 	host.RegisterWorker("timers", 30*time.Second, pl.runTimers)
 
