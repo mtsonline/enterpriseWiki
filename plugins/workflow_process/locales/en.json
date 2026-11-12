@@ -515,7 +515,7 @@
  "workflow.group_choose": "– choose a group –",
  "workflow.person": "Person",
  "workflow.person_help": "User name, alias, e-mail address or id – usually a placeholder such as {{trigger.data.username}} or {{starter.username}}.",
- "workflow.access_help": "Grants or removes permissions on a category with the rights of the chosen person: nobody gets more than that person may give. Values of the start form are chosen by whoever starts the case – prefer account triggers, fixed values or {{starter.username}}.",
+ "workflow.access_help": "Grants or removes permissions on a category with the rights of the chosen person: nobody gets more than that person may give. A person from the start form only when the administrator allows it (Administration → Workflow).",
  "workflow.access_mode": "Change",
  "workflow.access_mode.grant": "grant",
  "workflow.access_mode.revoke": "remove",
@@ -539,5 +539,7 @@
  "workflow.ev.access_revoke": "permission removed → {step}",
  "workflow.ev.membership_add": "added to the group → {step}",
  "workflow.ev.membership_remove": "removed from the group → {step}",
- "workflow.ev.move": "page moved → {step}"
+ "workflow.ev.move": "page moved → {step}",
+ "workflow.admin.form_accounts": "Permissions and groups from values of the start form",
+ "workflow.admin.form_accounts_help": "Off (recommended): the steps Permissions and Group membership refuse a person taken from the start form of a case started by hand, because whoever starts the case chooses it. Triggers, other workflows, fixed values and {{starter.username}} always work."
 }

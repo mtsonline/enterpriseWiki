@@ -118,9 +118,14 @@ func person(ctx context.Context, tx pgx.Tx, ref string) (int64, string, error) {
 	if ref == "" {
 		return 0, "", fmt.Errorf("no person given (the placeholder is empty)")
 	}
+	name, provider, _ := strings.Cut(ref, "@")
+	if i := strings.LastIndex(ref, "@"); i > 0 {
+		name, provider = ref[:i], ref[i+1:]
+	}
 	rows, err := tx.Query(ctx, `SELECT id, username FROM users
 		WHERE ($2 > 0 AND id = $2) OR lower(username) = lower($1) OR lower(alias) = lower($1) OR (position('@' in $1) > 0 AND lower(email) = lower($1))
-		LIMIT 2`, ref, parseID(ref))
+			OR (lower(username) = lower($3) AND provider = $4) -- the handle user@provider ({{starter.username}})
+		LIMIT 2`, ref, parseID(ref), name, provider)
 	if err != nil {
 		return 0, "", err
 	}
@@ -152,10 +157,47 @@ func parseID(s string) int64 {
 	return n
 }
 
+// formChosen reports which value of the start form a person template uses
+// when the case was started by hand: whoever starts the case chooses it.
+// Unless the administrator allows it (setting form_values_for_accounts),
+// permissions and group memberships never follow such values; triggers,
+// parent workflows, fixed values and starter.* are fine.
+func (pl *Plugin) formChosen(x *Instance, tpl string) string {
+	if on, _ := pl.host.Settings()["form_values_for_accounts"].(bool); on {
+		return ""
+	}
+	if x.Trigger["trigger.id"] != "" || x.ParentID != nil {
+		return ""
+	}
+	for _, m := range placeholderRe.FindAllStringSubmatch(tpl, -1) {
+		id, ok := strings.CutPrefix(m[1], "field.")
+		if !ok {
+			continue
+		}
+		for _, f := range x.Definition.Fields {
+			if f.ID == id && !f.Later {
+				return id
+			}
+		}
+	}
+	return ""
+}
+
+func (pl *Plugin) checkFormChosen(x *Instance, tpl string) error {
+	if id := pl.formChosen(x, tpl); id != "" {
+		return fmt.Errorf("the person comes from the field %q of the start form, which whoever starts the case chooses; "+
+			"permissions and groups only follow triggers, fixed values or starter.* (administrators can allow it: form values for accounts)", id)
+	}
+	return nil
+}
+
 func (pl *Plugin) runAccess(ctx context.Context, tx pgx.Tx, x *Instance, s *Step) (result, error) {
 	a := s.Access
 	subject, who := a.Group, fmt.Sprintf("group %d", a.Group)
 	if a.Subject == "user" {
+		if err := pl.checkFormChosen(x, a.User); err != nil {
+			return result{}, err
+		}
 		uid, name, err := person(ctx, tx, render(a.User, pl.vars(ctx, tx, x, actorInfo{})))
 		if err != nil {
 			return result{}, err
@@ -210,6 +252,9 @@ func (pl *Plugin) runAccess(ctx context.Context, tx pgx.Tx, x *Instance, s *Step
 
 func (pl *Plugin) runMember(ctx context.Context, tx pgx.Tx, x *Instance, s *Step) (result, error) {
 	m := s.Member
+	if err := pl.checkFormChosen(x, m.User); err != nil {
+		return result{}, err
+	}
 	uid, name, err := person(ctx, tx, render(m.User, pl.vars(ctx, tx, x, actorInfo{})))
 	if err != nil {
 		return result{}, err

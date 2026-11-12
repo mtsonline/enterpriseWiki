@@ -157,6 +157,10 @@ type Webhooks struct {
 	AllowPrivate bool `yaml:"allow_private,omitempty" json:"allow_private"`
 	// KeepDays is how long sent and failed deliveries are kept (default 30).
 	KeepDays int `yaml:"keep_days,omitempty" json:"keep_days"`
+	// AccountsInAll also sends the events of accounts (user.*, group.* –
+	// personal data) to webhooks without a choice of events ("all events").
+	// Default false: only to webhooks that chose them explicitly.
+	AccountsInAll bool `yaml:"accounts_in_all,omitempty" json:"accounts_in_all"`
 }
 
 // Cache configures the optional cache for guests (see package pagecache).

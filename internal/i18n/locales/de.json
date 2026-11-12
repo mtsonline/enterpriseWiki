@@ -840,7 +840,7 @@
  "webhooks.format.slack": "Slack",
  "webhooks.format.teams": "Microsoft Teams (Adaptive Card)",
  "webhooks.events": "Ereignisse",
- "webhooks.events_help": "Nichts gewählt: alle Ereignisse außer Änderungen an Konten (Personen und Gruppen) – diese nur, wenn ausdrücklich gewählt.",
+ "webhooks.events_help": "Nichts gewählt: alle Ereignisse (Änderungen an Konten nur, wenn oben erlaubt).",
  "webhooks.category": "Nur Änderungen in dieser Kategorie (mit Unterkategorien)",
  "webhooks.enabled": "Aktiv",
  "webhooks.secret": "Signaturschlüssel",
@@ -2061,5 +2061,7 @@
  "admin.member_remove_named": "{name} aus der Gruppe entfernen",
  "admin.member_removed": "{name} entfernt.",
  "admin.member_add": "Zur Gruppe hinzufügen",
- "admin.member_added": "{name} hinzugefügt."
+ "admin.member_added": "{name} hinzugefügt.",
+ "webhooks.accounts_in_all": "Änderungen an Konten auch an Webhooks mit allen Ereignissen senden",
+ "webhooks.accounts_in_all_help": "Änderungen an Konten (Personen angelegt, deaktiviert, gelöscht, Gruppenmitgliedschaften) enthalten personenbezogene Daten. Aus (empfohlen): nur Webhooks, die diese Ereignisse gewählt haben, erhalten sie."
 }

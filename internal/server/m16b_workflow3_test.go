@@ -6,6 +6,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/mtsonline/enterprisewiki/internal/config"
 )
 
 // TestWorkflow3Accounts covers the events of accounts (from every source,
@@ -145,11 +147,12 @@ func TestWorkflow3Accounts(t *testing.T) {
 	eve.must("POST", "/api/v1/elements", map[string]any{"category_id": w.ID, "type": "workflow.process", "title": "Eve's", "body": map[string]any{
 		"description": "", "fields": []map[string]any{{"id": "who", "label": "Who", "type": "text"}},
 		"steps": []map[string]any{
-			{"id": "join", "name": "Join", "type": "membership", "next": "done", "membership": map[string]any{"mode": "add", "group": grp.ID, "user": "{{field.who}}"}},
+			{"id": "join", "name": "Join", "type": "membership", "next": "done", "membership": map[string]any{"mode": "add", "group": grp.ID, "user": "{{starter.username}}"}},
 			{"id": "done", "name": "Done", "type": "end", "outcome": "success"}}}}, &wfE, 201)
 	var c wfCase
 	eve.must("POST", fmt.Sprintf("/api/v1/x/workflow.process/elements/%d/instances", wfE.ID), map[string]any{"data": map[string]any{"who": "eve"}}, &c, 201)
 	run("workflow.process.timers")
+	x = wfCase{}
 	eve.must("GET", fmt.Sprintf("/api/v1/x/workflow.process/instances/%d", c.ID), nil, &x, 200)
 	if x.Status != "open" || !strings.Contains(x.LastError, "403") {
 		t.Fatalf("membership with eve's rights: %+v", x)
@@ -158,6 +161,51 @@ func TestWorkflow3Accounts(t *testing.T) {
 	if member {
 		t.Fatal("eve put herself into a group")
 	}
+
+	// values of the start form: refused unless the administrator allows them
+	var wfF elem
+	admin.must("POST", "/api/v1/elements", map[string]any{"category_id": w.ID, "type": "workflow.process", "title": "By form", "body": map[string]any{
+		"description": "", "fields": []map[string]any{{"id": "who", "label": "Who", "type": "text"}},
+		"steps": []map[string]any{
+			{"id": "join", "name": "Join", "type": "membership", "next": "done", "membership": map[string]any{"mode": "add", "group": other.ID, "user": "{{field.who}}"}},
+			{"id": "done", "name": "Done", "type": "end", "outcome": "success"}}}}, &wfF, 201)
+	var cf wfCase
+	admin.must("POST", fmt.Sprintf("/api/v1/x/workflow.process/elements/%d/instances", wfF.ID), map[string]any{"data": map[string]any{"who": "eve"}}, &cf, 201)
+	run("workflow.process.timers")
+	x = wfCase{}
+	admin.must("GET", fmt.Sprintf("/api/v1/x/workflow.process/instances/%d", cf.ID), nil, &x, 200)
+	if x.Status != "open" || !strings.Contains(x.LastError, "start form") {
+		t.Fatalf("person from the start form: %+v", x)
+	}
+	if err := e.app.Config.Update(func(cf *config.Config) error {
+		if cf.Settings == nil {
+			cf.Settings = map[string]map[string]any{}
+		}
+		cf.Settings["workflow.process"] = map[string]any{"form_values_for_accounts": true}
+		return nil
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := e.app.DB.Exec(ctx, `UPDATE plugin_workflow_instances SET wake_at=now() WHERE id=$1`, cf.ID); err != nil { // the next automatic attempt
+		t.Fatal(err)
+	}
+	run("workflow.process.timers")
+	x = wfCase{}
+	admin.must("GET", fmt.Sprintf("/api/v1/x/workflow.process/instances/%d", cf.ID), nil, &x, 200)
+	if x.Status != "done" {
+		t.Fatalf("allowed by the administrator: %+v", x)
+	}
+	// webhooks with all events: account events only when the administrator allows it
+	admin.must("PUT", "/api/v1/admin/webhooks/options", map[string]any{"accounts_in_all": true}, nil, 200)
+	admin.must("PUT", fmt.Sprintf("/api/v1/admin/users/%d", eveID.ID), map[string]any{"disabled": true}, nil, 200)
+	run("identity.events")
+	_ = e.app.DB.QueryRow(ctx, `SELECT count(*) FROM webhook_deliveries WHERE webhook_id=$1 AND event='user.disabled'`, hookAll).Scan(&nAll)
+	if nAll != 1 {
+		t.Fatalf("all-events hook with accounts allowed: %d", nAll)
+	}
+	admin.must("PUT", "/api/v1/admin/webhooks/options", map[string]any{"accounts_in_all": false}, nil, 200)
+	admin.must("PUT", fmt.Sprintf("/api/v1/admin/users/%d", eveID.ID), map[string]any{"disabled": false}, nil, 200)
+	eve.login("eve", pw)
 
 	// disabling and deleting are events too; the webhook of an administrator gets them
 	admin.must("PUT", fmt.Sprintf("/api/v1/admin/users/%d", nia.ID), map[string]any{"disabled": true}, nil, 200)

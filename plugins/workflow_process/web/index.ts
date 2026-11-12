@@ -60,6 +60,7 @@ async function deputySection(reload: () => void): Promise<HTMLElement> {
 async function adminPage(panel: HTMLElement): Promise<void> {
   const settings = await pluginSettingsForm('workflow.process', [
     { key: 'links_without_login', label: t('workflow.admin.links'), type: 'bool', help: t('workflow.admin.links_help') },
+    { key: 'form_values_for_accounts', label: t('workflow.admin.form_accounts'), type: 'bool', help: t('workflow.admin.form_accounts_help') },
     { key: 'holidays', label: t('workflow.admin.holidays'), type: 'textarea', help: t('workflow.admin.holidays_help'), placeholder: '01-01\n12-25\n2027-03-29' },
   ]);
   panel.replaceChildren(pageHeader(t('workflow.admin.title')), h('p', null, t('workflow.admin.intro')), settings.el);
