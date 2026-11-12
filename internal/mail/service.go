@@ -619,7 +619,10 @@ func (s *Service) finalizeTx(ctx context.Context, tx pgx.Tx, id int64) error {
 				COALESCE((SELECT last_error FROM mail_recipients WHERE message_id=$1 AND last_error <> '' ORDER BY attempts DESC, id LIMIT 1), '') AS last_error
 			FROM mail_recipients WHERE message_id=$1) x
 		WHERE o.id=$1`, id)
-	return err
+	if err != nil {
+		return err
+	}
+	return scrubFinished(ctx, tx, id)
 }
 
 // report e-mails the owner of a message which recipients did not get it.
@@ -693,6 +696,7 @@ func scanOutbox(r pgx.CollectableRow) (OutboxEntry, error) {
 	var o OutboxEntry
 	err := r.Scan(&o.ID, &o.Status, &o.From, &o.To, &o.Cc, &o.Subject, &o.Body, &o.Source, &o.Ref, &o.Attempts, &o.LastError,
 		&o.CreatedAt, &o.SentAt, &o.NextTry, &o.Owner, &o.Pending, &o.Delivered, &o.Failed)
+	o.Body = Redact(o.Body) // secrets of the recipients are never shown
 	return o, err
 }
 

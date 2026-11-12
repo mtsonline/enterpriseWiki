@@ -5,6 +5,7 @@ import (
 	"context"
 	"crypto/hmac"
 	"crypto/sha256"
+	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
@@ -792,5 +793,101 @@ func TestWorkflow2Part2b(t *testing.T) {
 	_ = e.app.DB.QueryRow(ctx, `SELECT title FROM plugin_workflow_instances WHERE id=$1`, c1.ID).Scan(&title)
 	if title != "–" {
 		t.Fatalf("title after anonymizing: %q", title)
+	}
+}
+
+// TestWorkflowLinkPrivacy: the validity of decision links is chosen per
+// workflow and never passes the deadline of the step; the tokens are
+// hidden in the outbox and removed from delivered messages.
+func TestWorkflowLinkPrivacy(t *testing.T) {
+	e := setup(t)
+	ctx := context.Background()
+	f := newSMTPFake(t)
+	useSMTPFake(t, e, f, func(cf *config.Config) { cf.Server.BaseURL = "https://wiki.example.com" })
+	admin := e.client()
+	admin.login("admin", adminPW)
+	admin.must("POST", "/api/v1/admin/users", map[string]any{"username": "lia", "password": "Passw0rd!Passw0rd", "display_name": "Lia", "email": "lia@example.com", "roles": []int64{}}, nil, 201)
+	var w cat
+	admin.must("POST", "/api/v1/categories", map[string]any{"titles": map[string]string{"en": "Flows"}}, &w, 201)
+	admin.must("POST", fmt.Sprintf("/api/v1/categories/%d/acl", w.ID), map[string]any{"subject_type": "authenticated", "permissions": 1, "inherit": true}, nil, 201)
+	def := func(hours int, deadline map[string]any) map[string]any {
+		return map[string]any{"description": "", "links": true, "link_hours": hours,
+			"fields": []map[string]any{{"id": "who", "label": "Who", "type": "text"}},
+			"steps": []map[string]any{
+				{"id": "check", "name": "Check", "assignee": map[string]string{"type": "user", "value": "lia"}, "deadline": deadline,
+					"actions": []map[string]any{{"id": "ok", "label": "Agree", "next": "done"}}},
+				{"id": "done", "name": "Done", "type": "end", "outcome": "success"}}}
+	}
+	if code := admin.do("POST", "/api/v1/elements", map[string]any{"category_id": w.ID, "type": "workflow.process", "title": "Too long",
+		"body": def(91*24, nil)}, nil); code != 400 {
+		t.Fatalf("links valid longer than allowed: %d", code)
+	}
+	expOf := func(id int64) (time.Time, string, int64) {
+		t.Helper()
+		var mid int64
+		var body string
+		if err := e.app.DB.QueryRow(ctx, `SELECT id, body_text FROM mail_outbox WHERE 'lia@example.com' = ANY(to_addrs) AND ref=$1`, fmt.Sprintf("case:%d", id)).Scan(&mid, &body); err != nil {
+			t.Fatal(err)
+		}
+		_, tok, ok := strings.Cut(body, "/workflow/link?t=")
+		if !ok {
+			t.Fatalf("no link: %s", body)
+		}
+		tok, _, _ = strings.Cut(tok, "\n")
+		payload, _, _ := strings.Cut(tok, ".")
+		raw, err := base64.RawURLEncoding.DecodeString(payload)
+		if err != nil {
+			t.Fatal(err)
+		}
+		parts := strings.Split(string(raw), "|")
+		exp, _ := strconv.ParseInt(parts[len(parts)-1], 10, 64)
+		return time.Unix(exp, 0), tok, mid
+	}
+	start := func(wf elem) int64 {
+		var x wfCase
+		admin.must("POST", fmt.Sprintf("/api/v1/x/workflow.process/elements/%d/instances", wf.ID), map[string]any{"data": map[string]any{"who": "A"}}, &x, 201)
+		return x.ID
+	}
+	// chosen validity: 3 hours
+	var wf1 elem
+	admin.must("POST", "/api/v1/elements", map[string]any{"category_id": w.ID, "type": "workflow.process", "title": "Short", "body": def(3, nil)}, &wf1, 201)
+	exp, tok, mid := expOf(start(wf1))
+	if d := time.Until(exp); d < 2*time.Hour+50*time.Minute || d > 3*time.Hour+time.Minute {
+		t.Fatalf("validity of 3 hours: %v", d)
+	}
+	// never past the deadline of the step (1 hour)
+	var wf2 elem
+	admin.must("POST", "/api/v1/elements", map[string]any{"category_id": w.ID, "type": "workflow.process", "title": "Deadline",
+		"body": def(48, map[string]any{"hours": 1})}, &wf2, 201)
+	c2 := start(wf2)
+	exp2, _, _ := expOf(c2)
+	var due time.Time
+	_ = e.app.DB.QueryRow(ctx, `SELECT due_at FROM plugin_workflow_instances WHERE id=$1`, c2).Scan(&due)
+	if exp2.After(due) || time.Until(exp2) > time.Hour+time.Minute {
+		t.Fatalf("link valid until %v, deadline %v", exp2, due)
+	}
+	// the outbox never shows the token
+	var m struct {
+		Body string `json:"body"`
+	}
+	admin.must("GET", fmt.Sprintf("/api/v1/admin/mail/outbox/%d", mid), nil, &m, 200)
+	if strings.Contains(m.Body, tok) || !strings.Contains(m.Body, "/workflow/link?t=[hidden]") {
+		t.Fatalf("outbox shows: %s", m.Body)
+	}
+	var list []struct {
+		Body string `json:"body"`
+	}
+	admin.must("GET", "/api/v1/admin/mail/outbox?q=lia@example.com", nil, &list, 200)
+	for _, x := range list {
+		if strings.Contains(x.Body, "/workflow/link?t=") && !strings.Contains(x.Body, "?t=[hidden]") {
+			t.Fatalf("outbox list shows a token: %s", x.Body)
+		}
+	}
+	// delivered: the token is gone from the database too
+	e.flushMail(t)
+	var stored, status string
+	_ = e.app.DB.QueryRow(ctx, `SELECT body_text, status FROM mail_outbox WHERE id=$1`, mid).Scan(&stored, &status)
+	if status != "sent" || strings.Contains(stored, tok) || !strings.Contains(stored, "[hidden]") {
+		t.Fatalf("after delivery (%s): %s", status, stored)
 	}
 }

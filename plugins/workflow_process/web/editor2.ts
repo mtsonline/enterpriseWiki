@@ -422,7 +422,22 @@ export function cleanTrigger(tr: Trigger): Trigger {
 /** Options of the whole process: decision links in e-mails, retention of cases. */
 export function optionsSection(m: Model): HTMLElement {
   const links = checkbox(t('workflow.links'), !!m.links, { help: t('workflow.links_help') });
-  links.input.addEventListener('change', () => { m.links = links.input.checked; });
+  links.input.addEventListener('change', () => { m.links = links.input.checked; validity.hidden = !m.links; });
+  // validity of the links: hours or days (at most 90 days; never past the deadline of the step)
+  const inDays = !m.link_hours || m.link_hours % 24 === 0;
+  const amount = textInput({ type: 'number', value: String(m.link_hours ? (inDays ? m.link_hours / 24 : m.link_hours) : 14) });
+  amount.min = '1';
+  const unit = select([{ value: 'd', label: t('workflow.links_unit.days') }, { value: 'h', label: t('workflow.links_unit.hours') }], inDays ? 'd' : 'h');
+  const setValid = () => {
+    const n = Math.round(Number(amount.value));
+    amount.max = unit.value === 'd' ? '90' : '2160';
+    m.link_hours = n > 0 ? Math.min(n * (unit.value === 'd' ? 24 : 1), 2160) : undefined;
+  };
+  amount.addEventListener('input', setValid);
+  unit.addEventListener('change', setValid);
+  setValid();
+  const validity = h('div', { class: 'ewf-grid', hidden: !m.links },
+    field(t('workflow.links_valid'), amount, { help: t('workflow.links_valid_help') }), field(t('workflow.links_unit'), unit));
   const days = textInput({ type: 'number', value: m.retention?.days ? String(m.retention.days) : '' });
   days.min = '1'; days.max = '36500';
   const set = () => {
@@ -434,7 +449,7 @@ export function optionsSection(m: Model): HTMLElement {
   mode.addEventListener('change', set);
   days.addEventListener('input', set);
   return h('section', { class: 'ewf-ed-section', 'aria-labelledby': 'ewf-opt-h' }, h('h2', { id: 'ewf-opt-h' }, t('workflow.process_options')),
-    links.el,
+    links.el, validity,
     h('div', { class: 'ewf-grid' },
       field(t('workflow.retention.days'), days, { help: t('workflow.retention.help') }),
       field(t('workflow.retention.mode'), mode)));

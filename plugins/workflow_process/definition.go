@@ -32,6 +32,9 @@ type Definition struct {
 	Retention *Retention `json:"retention,omitempty"`
 	// Links: task e-mails carry links for the decisions.
 	Links bool `json:"links,omitempty"`
+	// LinkHours: how long a link stays valid (default LinkDays; never past
+	// the deadline of the step).
+	LinkHours int `json:"link_hours,omitempty"`
 	// Rev is the revision the definition was read from (not stored).
 	Rev int `json:"-"`
 }
@@ -343,6 +346,9 @@ func (d *Definition) Validate() error {
 		} else if r.Days > 36500 || (r.Mode != "delete" && r.Mode != "anonymize") {
 			return apperr.BadRequest("retention: 1 to 36500 days, delete or anonymize")
 		}
+	}
+	if d.LinkHours < 0 || d.LinkHours > MaxLinkHours {
+		return apperr.BadRequest("links: valid for 1 to %d hours", MaxLinkHours)
 	}
 	return d.validateTriggers()
 }

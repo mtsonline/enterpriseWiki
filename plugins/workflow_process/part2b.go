@@ -14,6 +14,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -25,6 +26,7 @@ import (
 	"github.com/mtsonline/enterprisewiki/internal/audit"
 	h "github.com/mtsonline/enterprisewiki/internal/httpx"
 	"github.com/mtsonline/enterprisewiki/internal/identity"
+	"github.com/mtsonline/enterprisewiki/internal/mail"
 	"github.com/mtsonline/enterprisewiki/internal/secrets"
 	"github.com/mtsonline/enterprisewiki/pkg/sdk"
 )
@@ -35,7 +37,8 @@ func init() {
 
 // ---------------------------------------------------------------- links in e-mails
 
-// LinkDays is how long a link of a task e-mail works.
+// LinkDays is how long a link of a task e-mail works unless the workflow
+// chooses otherwise (link_hours).
 const LinkDays = 14
 
 var linkAAD = secrets.AAD("plugin_workflow_secret", "1")
@@ -121,6 +124,31 @@ func parseLink(key []byte, tok string) (link, error) {
 	return l, nil
 }
 
+// linkToken matches the token of a decision link in texts: it is hidden in
+// the outbox and removed from stored messages once they were delivered.
+var linkToken = regexp.MustCompile(`(/workflow/link\?t=)[A-Za-z0-9_.\-]+`)
+
+func init() { mail.RegisterRedaction(linkToken) }
+
+// MaxLinkHours is the longest validity of a link that a workflow may choose.
+const MaxLinkHours = 90 * 24
+
+// linkUntil is the end of the validity of links sent now: the chosen time
+// of the workflow, but never past the deadline of the step (read from the
+// database: the step may just have set it). false: no time left.
+func linkUntil(ctx context.Context, tx pgx.Tx, x *Instance, now time.Time) (time.Time, bool) {
+	h := x.Definition.LinkHours
+	if h <= 0 {
+		h = LinkDays * 24
+	}
+	until := now.Add(time.Duration(h) * time.Hour)
+	var due *time.Time
+	if err := tx.QueryRow(ctx, `SELECT due_at FROM plugin_workflow_instances WHERE id=$1`, x.ID).Scan(&due); err == nil && due != nil && due.Before(until) {
+		until = *due
+	}
+	return until, until.After(now.Add(time.Minute))
+}
+
 // linkText lists the decisions of step s of x for the person uid as links.
 func (pl *Plugin) linkText(ctx context.Context, tx pgx.Tx, x *Instance, s *Step, uid int64, lang string) string {
 	if !x.Definition.Links || x.Test || !s.Manual() || x.Handover == "ask" {
@@ -139,9 +167,13 @@ func (pl *Plugin) linkText(ctx context.Context, tx pgx.Tx, x *Instance, s *Step,
 		acts = s.Actions
 	}
 	base := strings.TrimSuffix(pl.host.Config.Get().Server.BaseURL, "/")
-	exp := time.Now().Add(LinkDays * 24 * time.Hour).Unix()
+	until, ok := linkUntil(ctx, tx, x, time.Now())
+	if !ok {
+		return ""
+	}
+	exp := until.Unix()
 	var b strings.Builder
-	b.WriteString(pl.host.T(ctx, lang, "workflow.mail.links", nil) + "\n")
+	b.WriteString(pl.host.T(ctx, lang, "workflow.mail.links", map[string]string{"until": until.Local().Format("2006-01-02 15:04 MST")}) + "\n")
 	for _, a := range acts {
 		tok := signLink(key, link{uid: uid, caseID: x.ID, entered: x.StepEntered.UnixMicro(), action: a.ID, exp: exp})
 		fmt.Fprintf(&b, "- %s: %s/workflow/link?t=%s\n", a.Label, base, tok)
@@ -212,7 +244,7 @@ func (pl *Plugin) linkRoutes(host *sdk.Host) {
 			}
 		}
 		return map[string]any{"case_id": x.ID, "element_id": x.ElementID, "title": x.Title, "step": x.StepName, "action": l.action,
-			"label": label, "note": note, "mine": p != nil && p.ID() == l.uid, "signed_in": p != nil && p.ID() > 0,
+			"label": label, "note": note, "expires": time.Unix(l.exp, 0).UTC(), "mine": p != nil && p.ID() == l.uid, "signed_in": p != nil && p.ID() > 0,
 			"without_login": withoutLogin(ctx, x)}, nil
 	})
 	// POST /links/act {"t": "…", "note": ""}: the decision of the link without
