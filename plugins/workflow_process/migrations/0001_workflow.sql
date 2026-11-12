@@ -42,7 +42,11 @@ CREATE TABLE plugin_workflow_instances (
     handover        text NOT NULL DEFAULT '',
     prev            jsonb,
     -- a branch of a parallel step of the parent (same workflow)
-    branch          boolean NOT NULL DEFAULT false
+    branch          boolean NOT NULL DEFAULT false,
+    -- version (revision) of the workflow the case was started with
+    rev             int NOT NULL DEFAULT 0,
+    -- test run: all tasks go to the person testing, nothing leaves the wiki
+    test            boolean NOT NULL DEFAULT false
 );
 CREATE INDEX plugin_workflow_instances_element ON plugin_workflow_instances(element_id, started_at DESC);
 CREATE INDEX plugin_workflow_instances_open ON plugin_workflow_instances(status) WHERE status = 'open';
@@ -126,3 +130,15 @@ CREATE TABLE plugin_workflow_deputies (
     CHECK (deputy_id <> user_id)
 );
 CREATE INDEX plugin_workflow_deputies_deputy ON plugin_workflow_deputies(deputy_id);
+
+-- Key of the links in task e-mails (one row; sealed as secrets.mode says).
+CREATE TABLE plugin_workflow_secret (
+    id      int PRIMARY KEY CHECK (id = 1),
+    secret  bytea NOT NULL
+);
+
+-- Links of task e-mails that were used (each works once).
+CREATE TABLE plugin_workflow_links_used (
+    hash     text PRIMARY KEY,
+    used_at  timestamptz NOT NULL DEFAULT now()
+);

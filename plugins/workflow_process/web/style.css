@@ -31,3 +31,6 @@
 .ewf-checks { border: 0; padding: 0; margin: .5rem 0; display: flex; flex-wrap: wrap; gap: .25rem 1.25rem; }
 .ewf-checks > legend { font-weight: 600; margin-bottom: .25rem; }
 .ewf-trigger-st:empty { display: none; }
+.ewf-stats { margin-top: 1rem; }
+.ewf-stats > summary { cursor: pointer; font-weight: 600; }
+.ewf-bar { display: inline-block; height: .6rem; width: calc(var(--w) * 1.2); max-width: 8rem; min-width: 2px; background: var(--ew-accent, #36c); border-radius: 2px; vertical-align: middle; }

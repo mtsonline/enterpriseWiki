@@ -2,14 +2,14 @@
 // types (task, approval, condition, e-mail, webhook, waiting time, end).
 import { api, button, checkbox, confirmDialog, field, h, select, t, textArea, textInput, type EditorContext, type EditorInstance } from '@ewiki/sdk';
 import { TEMPLATES } from './templates';
-import { cleanTrigger, deadlineFields, extraStepFields, noticeFields, stepFormFields, triggersSection, validateExtra, type Kit } from './editor2';
+import { cleanTrigger, deadlineFields, optionsSection, extraStepFields, noticeFields, stepFormFields, triggersSection, validateExtra, type Kit } from './editor2';
 import type { Action, Definition, Field, Meta, Rule, Step, StepType, Trigger } from './types';
 
 // Internal model: steps reference each other by a stable key, so renaming a
 // step id does not break the "next step" choices.
 interface EAction extends Omit<Action, 'next'> { next: number }
 export interface EStep extends Omit<Step, 'actions' | 'next' | 'next_else' | 'type'> { key: number; type: StepType; actions: EAction[]; next: number; nextElse: number; branchKeys?: number[] }
-export interface Model { description: string; fields: Field[]; steps: EStep[]; triggers?: Trigger[]; no_manual?: boolean }
+export interface Model { description: string; fields: Field[]; steps: EStep[]; triggers?: Trigger[]; no_manual?: boolean; links?: boolean; retention?: Definition['retention'] }
 
 let seq = 0;
 const BASE = 'x/workflow.process';
@@ -46,7 +46,7 @@ function toModel(d: Definition): Model {
   });
   return { description: d.description ?? '', fields: (d.fields ?? []).map((f) => ({ ...f, options: f.options ? [...f.options] : [] })), steps,
     triggers: (d.triggers ?? []).map((x) => ({ ...x, data: { ...(x.data ?? {}) }, events: x.events ? [...x.events] : undefined, prop: x.prop ? { ...x.prop } : undefined })),
-    no_manual: d.no_manual };
+    no_manual: d.no_manual, links: d.links, retention: d.retention ? { ...d.retention } : undefined };
 }
 
 export function slug(s: string, taken: Set<string>, fallback: string): string {
@@ -101,7 +101,8 @@ function toDefinition(m: Model): Definition {
     }
     return base;
   });
-  return { description: m.description, fields, steps, triggers: (m.triggers ?? []).map(cleanTrigger), no_manual: m.no_manual || undefined };
+  return { description: m.description, fields, steps, triggers: (m.triggers ?? []).map(cleanTrigger), no_manual: m.no_manual || undefined,
+    links: m.links || undefined, retention: m.retention?.days ? m.retention : undefined };
 }
 
 /** Converts a step to another type, keeping what fits. */
@@ -370,6 +371,7 @@ export function createWorkflowEditor(container: HTMLElement, body: unknown, ctx:
             draw();
             focusIn('.ewf-step-row')(m.steps.length - 1);
           }))),
+      optionsSection(m),
     );
   };
   draw();

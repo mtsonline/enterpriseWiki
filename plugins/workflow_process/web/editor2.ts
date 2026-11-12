@@ -418,3 +418,24 @@ export function cleanTrigger(tr: Trigger): Trigger {
   if (x.data) for (const [k, v] of Object.entries(x.data)) if (!k || !v.trim()) delete x.data[k];
   return x;
 }
+
+/** Options of the whole process: decision links in e-mails, retention of cases. */
+export function optionsSection(m: Model): HTMLElement {
+  const links = checkbox(t('workflow.links'), !!m.links, { help: t('workflow.links_help') });
+  links.input.addEventListener('change', () => { m.links = links.input.checked; });
+  const days = textInput({ type: 'number', value: m.retention?.days ? String(m.retention.days) : '' });
+  days.min = '1'; days.max = '36500';
+  const set = () => {
+    const n = Number(days.value);
+    m.retention = n > 0 ? { days: Math.round(n), mode: (mode.value as 'delete' | 'anonymize') } : undefined;
+  };
+  const mode = select([{ value: 'anonymize', label: t('workflow.retention.anonymize') }, { value: 'delete', label: t('workflow.retention.delete') }],
+    m.retention?.mode ?? 'anonymize');
+  mode.addEventListener('change', set);
+  days.addEventListener('input', set);
+  return h('section', { class: 'ewf-ed-section', 'aria-labelledby': 'ewf-opt-h' }, h('h2', { id: 'ewf-opt-h' }, t('workflow.process_options')),
+    links.el,
+    h('div', { class: 'ewf-grid' },
+      field(t('workflow.retention.days'), days, { help: t('workflow.retention.help') }),
+      field(t('workflow.retention.mode'), mode)));
+}

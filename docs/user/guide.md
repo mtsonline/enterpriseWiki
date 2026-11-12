@@ -129,6 +129,16 @@ Bei Aufgaben und Freigaben kann eine **Erinnerung nach X Tagen** eingestellt wer
 
 **Vertretung:** Unter *Meine Aufgaben* tragen Sie für eine Abwesenheit eine Vertretung mit Zeitraum ein. Sie erledigt in dieser Zeit Ihre Aufgaben (auch die Ihrer Gruppen und Rollen) und erhält die Aufgaben-E-Mails; protokolliert wird mit ihrem Namen.
 
+**Entscheiden aus der E-Mail:** Ist im Abschnitt *Optionen* des Workflows *Entscheidungslinks in Aufgaben-E-Mails* an, enthält jede Aufgaben-E-Mail einen Link je Entscheidung (z. B. *Freigeben*, *Ablehnen*). Der Link öffnet den Vorgang mit dieser Entscheidung; er gilt nur für die Person, an die die E-Mail ging, nur für diesen Schritt, einmal und 14 Tage lang. Erlaubt die Administration *Entscheidungen aus E-Mails ohne Anmeldung* (unter *Administration → Workflow*), kann die Entscheidung auch ohne Anmeldung bestätigt werden – nie in vertraulichen oder geheimen Kategorien.
+
+**Testlauf:** Wer den Workflow bearbeiten darf, startet mit *Testlauf starten* einen Probedurchlauf. Alle Aufgaben kommen zur testenden Person, nichts verlässt das Wiki (keine E-Mails, Nachrichten, Webhooks, HTTP-Abfragen oder neuen Seiten – im Verlauf als *übersprungen* vermerkt). Testläufe stehen im Filter *Testläufe*, zählen nicht in der Auswertung und werden nach 7 Tagen gelöscht.
+
+**Versionen:** Jeder Vorgang merkt sich die Version des Workflows, mit der er gestartet wurde (im Vorgang angezeigt), und läuft mit ihr zu Ende – auch wenn der Workflow inzwischen geändert wurde.
+
+**Auswertung:** Wer den Workflow bearbeiten oder Vorgänge verwalten darf, sieht unter *Auswertung* offene, abgeschlossene und abgebrochene Vorgänge, Ergebnisse, Durchschnitts- und Median-Dauer, überfällige Vorgänge, Eskalationen, verwendete Versionen und je Schritt, wie viele dort warten und wie lange sie im Schnitt bleiben.
+
+**Aufbewahrung:** Unter *Optionen* legt *Abgeschlossene Fälle aufbewahren (Tage)* fest, wie lange beendete Vorgänge bleiben. Danach werden sie **anonymisiert** (Titel, Daten, Notizen und Personen entfernt; Statistik bleibt) oder **gelöscht**. Leer heißt unbegrenzt.
+
 **Nachrichten je Schritt:** Jeder Schritt kann Nachrichten senden, wenn ein Vorgang ihn erreicht oder verlässt (im Wiki, per E-Mail oder beides, mit Platzhaltern).
 
 **Auslöser** (Abschnitt *Start*): Vorgänge starten nicht nur mit dem Startformular, sondern auch automatisch – auf Wunsch *nur* durch Auslöser:
