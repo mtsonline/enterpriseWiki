@@ -188,7 +188,7 @@ func TestWorkflow2(t *testing.T) {
 	if len(x.Actions) != 0 {
 		t.Fatal("administrator sees actions of a step of gus")
 	}
-	if x := get(gus, c1.ID); len(x.Actions) != 1 {
+	if x := get(gus, c1.ID); len(x.Actions) == 0 || x.Actions[0].ID != "ok" {
 		t.Fatalf("gus has no action: %+v", x)
 	}
 	// the deadline passes: hal takes over
@@ -199,7 +199,7 @@ func TestWorkflow2(t *testing.T) {
 	if x := get(gus, c1.ID); len(x.Actions) != 0 {
 		t.Fatal("gus still has the task after the escalation")
 	}
-	if x := get(hal, c1.ID); len(x.Actions) != 1 {
+	if x := get(hal, c1.ID); len(x.Actions) == 0 || x.Actions[0].ID != "ok" {
 		t.Fatalf("hal did not get the task: %+v", x)
 	}
 
@@ -422,5 +422,207 @@ func TestWorkflow2(t *testing.T) {
 	c6 := start(fred, ask.ID, map[string]any{"q": "a&b=c"})
 	if x := run(c6.ID); x.Status != "done" || x.Data["status"] != "granted" || x.Data["first"] != "7" || gotQuery != "a&b=c" {
 		t.Fatalf("http step: %+v (query %q)", x, gotQuery)
+	}
+}
+
+// TestWorkflow2Part2 covers parallel branches (fixed and one per value),
+// hand-overs of tasks (claim, give back, delegate, ask the starter),
+// deputies and forms of steps with field rights.
+func TestWorkflow2Part2(t *testing.T) {
+	e := setup(t)
+	ctx := context.Background()
+	admin := e.client()
+	admin.login("admin", adminPW)
+	const pw = "Passw0rd!Passw0rd"
+	var team idResp
+	admin.must("POST", "/api/v1/admin/groups", map[string]any{"name": "team"}, &team, 200)
+	user := func(name string, groups ...int64) (*client, int64) {
+		var u idResp
+		if groups == nil {
+			groups = []int64{}
+		}
+		admin.must("POST", "/api/v1/admin/users", map[string]any{"username": name, "password": pw, "display_name": name, "email": name + "@example.com", "roles": []int64{}, "groups": groups}, &u, 201)
+		c := e.client()
+		c.login(name, pw)
+		return c, u.ID
+	}
+	gus, _ := user("gus", team.ID)
+	hal, _ := user("hal", team.ID)
+	fred, _ := user("fred")
+	ivy, _ := user("ivy")
+	var w cat
+	admin.must("POST", "/api/v1/categories", map[string]any{"titles": map[string]string{"en": "Flows"}}, &w, 201)
+	admin.must("POST", fmt.Sprintf("/api/v1/categories/%d/acl", w.ID), map[string]any{"subject_type": "authenticated", "permissions": 1, "inherit": true}, nil, 201)
+	timers := func() {
+		t.Helper()
+		for i := 0; i < 3; i++ {
+			if err := e.app.Workers.RunOnce(ctx, "workflow.process.timers"); err != nil {
+				t.Fatal(err)
+			}
+		}
+	}
+	get := func(c *client, id int64) wfCase {
+		t.Helper()
+		var x wfCase
+		c.must("GET", fmt.Sprintf("/api/v1/x/workflow.process/instances/%d", id), nil, &x, 200)
+		return x
+	}
+	has := func(x wfCase, action string) bool {
+		for _, a := range x.Actions {
+			if a.ID == action {
+				return true
+			}
+		}
+		return false
+	}
+	act := func(c *client, id int64, body map[string]any, want int) {
+		t.Helper()
+		c.must("POST", fmt.Sprintf("/api/v1/x/workflow.process/instances/%d/actions", id), body, nil, want)
+	}
+	newWF := func(def map[string]any) int64 {
+		t.Helper()
+		var el elem
+		admin.must("POST", "/api/v1/elements", map[string]any{"category_id": w.ID, "type": "workflow.process", "title": "WF", "body": def}, &el, 201)
+		return el.ID
+	}
+	start := func(wf int64, data map[string]any) int64 {
+		t.Helper()
+		var x wfCase
+		admin.must("POST", fmt.Sprintf("/api/v1/x/workflow.process/elements/%d/instances", wf), map[string]any{"data": data}, &x, 201)
+		return x.ID
+	}
+	tasks := func(c *client) []wfCase {
+		t.Helper()
+		var r struct {
+			Tasks []wfCase `json:"tasks"`
+		}
+		c.must("GET", "/api/v1/x/workflow.process/tasks", nil, &r, 200)
+		return r.Tasks
+	}
+
+	// ---- one branch per region, two of three are enough
+	wf := newWF(map[string]any{"description": "", "fields": []map[string]any{{"id": "regions", "label": "Regions", "type": "textarea"}},
+		"steps": []map[string]any{
+			{"id": "par", "name": "Ask the regions", "type": "parallel", "next": "sum", "parallel": map[string]any{"branches": []string{"ask"}, "for_each": "regions", "require": 2}},
+			{"id": "ask", "name": "Region answers", "assignee": map[string]string{"type": "user", "value": "gus"},
+				"actions": []map[string]any{{"id": "ok", "label": "OK", "next": "note"}}},
+			{"id": "note", "name": "Note", "type": "set", "next": "sum", "set": []map[string]any{{"field": "last", "value": "{{field.item}}"}}},
+			{"id": "sum", "name": "Summary", "type": "set", "next": "done", "set": []map[string]any{{"field": "summary", "value": "done after {{field.last}}"}}},
+			{"id": "done", "name": "Done", "type": "end", "outcome": "success"}}})
+	pc := start(wf, map[string]any{"regions": "North\nSouth\nEast"})
+	timers()
+	if x := get(admin, pc); x.Status != "open" || x.Step != "par" {
+		t.Fatalf("parallel: %+v", x)
+	}
+	ts := tasks(gus)
+	if len(ts) != 3 {
+		var dump []string
+		rows, _ := e.app.DB.Query(ctx, `SELECT id::text || ' ' || step || ' ' || status || ' ' || branch::text || ' ' || last_error || ' ' || coalesce(wake_at::text,'-') FROM plugin_workflow_instances`)
+		for rows.Next() {
+			var s string
+			_ = rows.Scan(&s)
+			dump = append(dump, s)
+		}
+		rows.Close()
+		t.Fatalf("branch tasks: %d %v %+v", len(ts), dump, get(admin, pc))
+	}
+	var list struct {
+		Instances []wfCase `json:"instances"`
+	}
+	admin.must("GET", fmt.Sprintf("/api/v1/x/workflow.process/elements/%d/instances", wf), nil, &list, 200)
+	if len(list.Instances) != 1 {
+		t.Fatalf("branches are listed as cases: %d", len(list.Instances))
+	}
+	act(gus, ts[0].ID, map[string]any{"action": "ok"}, 200)
+	timers()
+	if x := get(admin, pc); x.Status != "open" {
+		t.Fatalf("continued after one of three: %+v", x)
+	}
+	act(gus, ts[1].ID, map[string]any{"action": "ok"}, 200)
+	timers()
+	x := get(admin, pc)
+	if x.Status != "done" || !strings.HasPrefix(fmt.Sprint(x.Data["summary"]), "done after ") {
+		t.Fatalf("after two of three: %+v", x)
+	}
+	if b := get(admin, ts[2].ID); b.Status != "cancelled" {
+		t.Fatalf("the third branch: %+v", b)
+	}
+
+	// ---- hand-overs: claim, give back, delegate, ask the starter; a form with field rights
+	wf2 := newWF(map[string]any{"description": "", "fields": []map[string]any{
+		{"id": "topic", "label": "Topic", "type": "text"}, {"id": "salary", "label": "Salary", "type": "number"},
+		{"id": "decision", "label": "Decision", "type": "textarea", "later": true}},
+		"steps": []map[string]any{
+			{"id": "check", "name": "Check", "assignee": map[string]string{"type": "group", "value": "team"},
+				"actions": []map[string]any{{"id": "ok", "label": "OK", "next": "done"}},
+				"form":    []map[string]string{{"field": "decision", "mode": "required"}, {"field": "salary", "mode": "hidden"}}},
+			{"id": "done", "name": "Done", "type": "end", "outcome": "success"}}})
+	var meta struct {
+		Fields []struct {
+			ID string `json:"id"`
+		} `json:"fields"`
+	}
+	admin.must("GET", fmt.Sprintf("/api/v1/x/workflow.process/elements/%d/instances", wf2), nil, &meta, 200)
+	for _, f := range meta.Fields {
+		if f.ID == "decision" {
+			t.Fatal("a later field is in the start form")
+		}
+	}
+	hc := start(wf2, map[string]any{"topic": "Raise", "salary": "5000", "decision": "sneaked in"})
+	g := get(gus, hc)
+	if _, ok := g.Data["salary"]; ok || g.Data["decision"] != nil || !has(g, "ok") || !has(g, "_claim") || !has(g, "_delegate") || !has(g, "_ask") {
+		t.Fatalf("assignee view: %+v", g)
+	}
+	if a := get(admin, hc); a.Data["salary"] == nil {
+		t.Fatal("the starter does not see the hidden field")
+	}
+	act(gus, hc, map[string]any{"action": "_claim"}, 200)
+	if code := hal.do("GET", fmt.Sprintf("/api/v1/x/workflow.process/instances/%d", hc), nil, nil); code != 404 {
+		t.Fatalf("hal still sees the claimed task: %d", code)
+	}
+	act(gus, hc, map[string]any{"action": "_release"}, 200)
+	if h := get(hal, hc); !has(h, "ok") {
+		t.Fatal("given back: hal has no task")
+	}
+	act(gus, hc, map[string]any{"action": "_delegate", "to": "nobody"}, 400)
+	act(gus, hc, map[string]any{"action": "_delegate", "to": "fred", "note": "you know this"}, 200)
+	if f := get(fred, hc); !has(f, "ok") {
+		t.Fatalf("fred did not get the task: %+v", f)
+	}
+	if g := gus.do("GET", fmt.Sprintf("/api/v1/x/workflow.process/instances/%d", hc), nil, nil); g != 200 {
+		t.Fatalf("gus (former assignee) lost the case: %d", g)
+	}
+	act(fred, hc, map[string]any{"action": "_ask"}, 400) // a question needs a note
+	act(fred, hc, map[string]any{"action": "_ask", "note": "Which raise?"}, 200)
+	if s := get(admin, hc); len(s.Actions) != 1 || s.Actions[0].ID != "_answer" {
+		t.Fatalf("the starter must answer: %+v", s.Actions)
+	}
+	if f := get(fred, hc); has(f, "ok") {
+		t.Fatal("fred decides while the starter is asked")
+	}
+	act(admin, hc, map[string]any{"action": "_answer", "note": "10 %"}, 200)
+	act(fred, hc, map[string]any{"action": "ok"}, 400) // the decision is required
+	act(fred, hc, map[string]any{"action": "ok", "data": map[string]any{"decision": "approved"}}, 200)
+	if d := get(admin, hc); d.Status != "done" || d.Data["decision"] != "approved" {
+		t.Fatalf("decision with the form: %+v", d)
+	}
+
+	// ---- deputies: ivy stands in for hal
+	wf3 := newWF(map[string]any{"description": "", "fields": []any{}, "steps": []map[string]any{
+		{"id": "check", "name": "Check", "assignee": map[string]string{"type": "user", "value": "hal"}, "actions": []map[string]any{{"id": "ok", "label": "OK", "next": "done"}}},
+		{"id": "done", "name": "Done", "type": "end", "outcome": "success"}}})
+	today := time.Now().Format("2006-01-02")
+	hal.must("PUT", "/api/v1/x/workflow.process/me/deputy", map[string]any{"deputy": "hal", "from": today, "until": today}, nil, 400)
+	hal.must("PUT", "/api/v1/x/workflow.process/me/deputy", map[string]any{"deputy": "ivy", "from": today, "until": time.Now().AddDate(0, 0, 7).Format("2006-01-02")}, nil, 200)
+	dc := start(wf3, map[string]any{})
+	if i := get(ivy, dc); !has(i, "ok") {
+		t.Fatalf("the deputy has no task: %+v", i)
+	}
+	if len(tasks(ivy)) != 1 {
+		t.Fatal("the task of the deputy is not in her list")
+	}
+	hal.must("DELETE", "/api/v1/x/workflow.process/me/deputy", nil, nil, 204)
+	if code := ivy.do("GET", fmt.Sprintf("/api/v1/x/workflow.process/instances/%d", dc), nil, nil); code != 404 {
+		t.Fatalf("after the end of the deputyship: %d", code)
 	}
 }

@@ -814,6 +814,75 @@ test('workflow 2: automatic steps, deadline, triggers and a signed webhook reall
   assert.ok(me.user.id > 0);
 });
 
+test('workflow 2: parallel branches, form of a step, hand-over and deputy', async () => {
+  const cat = await m6Category();
+  const job = (name) => call('POST', `/api/v1/admin/jobs/${name}/run`, {});
+  const me = await call('GET', '/api/v1/auth/me');
+  const other = `dep${run}`;
+  await call('POST', '/api/v1/admin/users', { username: other, password: 'Dep-Passw0rd-1!', display_name: `Deputy ${run}` });
+  const wf = await call('POST', '/api/v1/elements', { category_id: cat, type: 'workflow.process', title: `Contracts ${run}`, body: {
+    description: 'E2E', fields: [{ id: 'contract', label: 'Contract', type: 'text', required: true }, { id: 'departments', label: 'Departments', type: 'textarea', required: true },
+      { id: 'note', label: 'Review note', type: 'textarea', later: true }],
+    steps: [
+      { id: 'par', name: 'Reviews', type: 'parallel', next: 'decide', parallel: { branches: ['review'], for_each: 'departments' } },
+      { id: 'review', name: 'Review', assignee: { type: 'starter', value: '' }, actions: [{ id: 'ok', label: 'Reviewed', next: 'decide' }], form: [{ field: 'note', mode: 'required' }] },
+      { id: 'decide', name: 'Decide', assignee: { type: 'starter', value: '' }, actions: [{ id: 'sign', label: 'Sign', next: 'done' }] },
+      { id: 'done', name: 'Finished', type: 'end', outcome: 'success' }] } });
+  // the editor shows the parallel step and the form of the step
+  await page.goto(`${BASE}/e/${wf.id}/edit`);
+  await idle();
+  await page.locator('.ewf-step-row--parallel').waitFor();
+  await page.locator('.ewf-step-row').nth(1).locator('summary', { hasText: /form of this step|formular dieses schritts/i }).click();
+  await a11y('workflow editor with parallel step and step form');
+  const c = await call('POST', `/api/v1/x/workflow.process/elements/${wf.id}/instances`, { data: { contract: `NDA ${run}`, departments: 'Legal\nPurchasing' } });
+  await job('workflow.process.timers');
+  const tasks = (await call('GET', '/api/v1/x/workflow.process/tasks')).tasks.filter((x) => x.title.startsWith(`NDA ${run} – `));
+  assert.equal(tasks.length, 2, 'one branch per department');
+  // the parent shows its branches
+  await page.goto(`${BASE}/e/${wf.id}?case=${c.id}`);
+  await idle();
+  await page.locator('dialog[open] .ewf-branches li').nth(1).waitFor();
+  await a11y('case with branches');
+  await page.keyboard.press('Escape');
+  // a branch task: the form of the step asks for the note; hand-over dialog
+  await page.goto(`${BASE}/tasks`);
+  await idle();
+  await page.getByRole('button', { name: tasks[0].title }).click();
+  let dlg = page.locator('dialog[open]');
+  await dlg.getByRole('button', { name: /^(hand over|weitergeben)/i }).click();
+  let form = page.locator('dialog[open] form');
+  await form.getByLabel(/person who takes over|person, die übernimmt/i).waitFor();
+  await a11y('hand-over dialog');
+  await page.keyboard.press('Escape');
+  await page.keyboard.press('Escape');
+  await page.getByRole('button', { name: tasks[0].title }).click();
+  dlg = page.locator('dialog[open]');
+  await dlg.getByRole('button', { name: /^reviewed$/i }).click();
+  form = page.locator('dialog[open] form');
+  await form.locator('button[type=submit]').click();
+  await form.getByText(/review note|notiz/i).first().waitFor(); // required field of the step
+  await form.getByLabel(/^review note/i).fill('fine');
+  await a11y('decision with the form of the step');
+  await form.locator('button[type=submit]').click();
+  await page.waitForFunction(() => !document.querySelector('dialog[open] form'));
+  await call('POST', `/api/v1/x/workflow.process/instances/${tasks[1].id}/actions`, { action: 'ok', data: { note: 'ok too' } });
+  await job('workflow.process.timers');
+  const x = await call('GET', `/api/v1/x/workflow.process/instances/${c.id}`);
+  assert.equal(x.step, 'decide', `after both branches: ${x.step}`);
+  // deputy in "My tasks"
+  await page.goto(`${BASE}/tasks`);
+  await idle();
+  await page.getByLabel(/deputy \(user name\)|vertretung \(benutzername\)/i).fill(other);
+  const until = new Date(Date.now() + 7 * 864e5).toISOString().slice(0, 10);
+  await page.getByLabel(/^(until|bis)/i).fill(until);
+  await page.getByRole('button', { name: /^(save deputy|vertretung speichern)$/i }).click();
+  await page.getByRole('button', { name: /^(end the deputyship|vertretung beenden)$/i }).waitFor();
+  await a11y('my tasks with deputy');
+  await page.getByRole('button', { name: /^(end the deputyship|vertretung beenden)$/i }).click();
+  await page.getByRole('button', { name: /^(save deputy|vertretung speichern)$/i }).waitFor();
+  assert.ok(me.user.id > 0);
+});
+
 test('drafts, preview, templates and publishing with options', async () => {
   const cat = await m6Category();
   await page.goto(`${BASE}/c/${cat}/new`);

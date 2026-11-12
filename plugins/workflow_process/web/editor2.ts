@@ -1,7 +1,7 @@
 // Editor parts of Workflow 2: triggers, the automatic steps notify, set,
 // http, create, props and subflow, deadlines with escalation and notices.
 import { api, button, categorySelect, checkbox, elementSelect, field, h, select, sourcesEditor, t, textInput, toast } from '@ewiki/sdk';
-import type { Channel, Deadline, Field, Meta, Notice, NotifySpec, Trigger, TriggerStatus, TriggerType } from './types';
+import type { Channel, Deadline, Field, Meta, Notice, NotifySpec, StepField, Trigger, TriggerStatus, TriggerType } from './types';
 import type { EStep, Model } from './editor';
 
 const BASE = 'x/workflow.process';
@@ -19,6 +19,7 @@ export interface Kit {
   placeholderHelp(): HTMLElement;
   redraw(): void;
   fields(): Field[];
+  steps(): EStep[];
   meta(): Meta | null;
   elementId?: number;
 }
@@ -140,6 +141,27 @@ export function extraStepFields(s: EStep, kit: Kit): (HTMLElement | null)[] {
         mapRows(kit, p.values, t('workflow.props_key'), t('workflow.set_value'), { ph: true }),
         runAs(s), kit.placeholderHelp(), next()];
     }
+    case 'parallel': {
+      const p = (s.parallel ??= { branches: [] });
+      s.branchKeys ??= [];
+      const others = kit.steps().filter((x) => x !== s && x.key !== s.next);
+      const forEach = select([{ value: '', label: t('workflow.parallel_fixed') }, ...fieldOptions(kit)], p.for_each ?? '');
+      forEach.addEventListener('change', () => { p.for_each = forEach.value || undefined; kit.redraw(); });
+      const branches = h('fieldset', { class: 'ewf-checks' }, h('legend', null, p.for_each ? t('workflow.parallel_branch_one') : t('workflow.parallel_branches')),
+        ...others.map((x) => {
+          const cb = checkbox(x.name || x.id || '?', s.branchKeys!.includes(x.key));
+          cb.input.addEventListener('change', () => {
+            s.branchKeys = cb.input.checked ? [...new Set([...(p.for_each ? [] : s.branchKeys!), x.key])] : s.branchKeys!.filter((k) => k !== x.key);
+            if (p.for_each) kit.redraw();
+          });
+          return cb.el;
+        }));
+      return [h('p', { class: 'ew-help' }, t('workflow.parallel_help')),
+        field(t('workflow.parallel_for_each'), forEach, { help: t('workflow.parallel_for_each_help') }), branches,
+        field(t('workflow.parallel_require'), kit.num(() => p.require, (v) => { p.require = v || undefined; }), { help: t('workflow.parallel_require_help') }),
+        grid(field(t('workflow.parallel_join'), kit.stepSelect(() => s.next, (k) => { s.next = k; kit.redraw(); }, s), { required: true, help: t('workflow.parallel_join_help') }),
+          field(t('workflow.parallel_failed'), kit.stepSelect(() => s.nextElse, (k) => { s.nextElse = k; }, s, true)))];
+    }
     case 'subflow': {
       const f = (s.subflow ??= { workflow: 0, wait: true, data: {}, return: {} });
       f.data ??= {};
@@ -202,6 +224,28 @@ export function deadlineFields(s: EStep, kit: Kit): HTMLElement {
     field(t('workflow.deadline_warn'), warn, { help: t('workflow.deadline_warn_help') }),
     field(t('workflow.escalate'), action, { help: t('workflow.escalate_help') }), ...detail.filter((x): x is HTMLElement => !!x));
   return box;
+}
+
+/** Fields of the case in the form of a task or approval (field rights). */
+export function stepFormFields(s: EStep, kit: Kit): HTMLElement {
+  const list: StepField[] = (s.form ??= []);
+  const fields = kit.fields().filter((f) => f.id);
+  const mode = (f: Field) => list.find((x) => x.field === f.id)?.mode ?? '';
+  const modes = (f: Field) => [{ value: '', label: t('workflow.form_mode.default') },
+    ...(f.type === 'file' ? [] : [{ value: 'edit', label: t('workflow.form_mode.edit') }, { value: 'required', label: t('workflow.form_mode.required') }]),
+    { value: 'read', label: t('workflow.form_mode.read') }, { value: 'hidden', label: t('workflow.form_mode.hidden') }];
+  return h('details', { class: 'ewf-row ewf-sub', open: list.length > 0 },
+    h('summary', null, t('workflow.step_form', { n: list.length })),
+    h('p', { class: 'ew-help' }, t('workflow.step_form_help')),
+    fields.length ? h('div', { class: 'ewf-grid' }, ...fields.map((f) => {
+      const sel = select(modes(f), mode(f));
+      sel.addEventListener('change', () => {
+        const i = list.findIndex((x) => x.field === f.id);
+        if (i >= 0) list.splice(i, 1);
+        if (sel.value) list.push({ field: f.id, mode: sel.value as StepField['mode'] });
+      });
+      return field(f.label || f.id, sel);
+    })) : h('p', { class: 'ew-muted' }, t('workflow.step_form_none')));
 }
 
 /** Messages when a case enters or leaves the step. */
@@ -359,7 +403,8 @@ export function validateExtra(m: Model): string | null {
     if (s.type === 'create' && (!s.create?.category || !s.create.title.trim())) return t('workflow.err_create', { step: s.name });
     if (s.type === 'props' && (!s.props?.element.trim() || !Object.keys(s.props.values).length)) return t('workflow.err_props', { step: s.name });
     if (s.type === 'subflow' && !s.subflow?.workflow) return t('workflow.err_subflow', { step: s.name });
-    if (['notify', 'set', 'http', 'create', 'props', 'subflow'].includes(s.type) && !s.next) return t('workflow.err_next', { step: s.name });
+    if (s.type === 'parallel' && (!s.branchKeys?.length || !s.next)) return t('workflow.err_parallel', { step: s.name });
+    if (['notify', 'set', 'http', 'create', 'props', 'subflow', 'parallel'].includes(s.type) && !s.next) return t('workflow.err_next', { step: s.name });
   }
   return null;
 }

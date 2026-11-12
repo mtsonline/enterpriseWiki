@@ -190,7 +190,7 @@ func (s *Step) validateExtra(fieldType map[string]string) error {
 	s.Notify, s.Set, s.HTTP, s.Create, s.Props, s.Subflow = nil, nil, nil, nil, nil, nil
 	runAs := s.RunAs
 	s.RunAs = ""
-	if !in(s.Type, StepNotify, StepSet, StepHTTP, StepCreate, StepProps, StepSubflow) {
+	if !in(s.Type, StepNotify, StepSet, StepHTTP, StepCreate, StepProps, StepSubflow, StepParallel) {
 		return nil
 	}
 	// automatic: no assignee, actions, reminders
@@ -475,4 +475,95 @@ func in2(xs []int, v int) bool {
 		}
 	}
 	return false
+}
+
+// Modes of fields in the form of a step.
+var FormModes = []string{"edit", "required", "read", "hidden"}
+
+// validateForm checks the field rights of a step (tasks and approvals).
+func (s *Step) validateForm(fieldType map[string]string) error {
+	if !s.Manual() {
+		s.Form = nil
+		return nil
+	}
+	if len(s.Form) > 50 {
+		return apperr.BadRequest("step %q: at most 50 fields in the form", s.ID)
+	}
+	seen := map[string]bool{}
+	out := []StepField{}
+	for _, f := range s.Form {
+		t, ok := fieldType[f.Field]
+		if !ok {
+			return apperr.BadRequest("step %q: unknown field %q", s.ID, f.Field)
+		}
+		if t == "file" && (f.Mode == "edit" || f.Mode == "required") {
+			return apperr.BadRequest("step %q: files are only added in the start form", s.ID)
+		}
+		if !in(f.Mode, FormModes...) {
+			return apperr.BadRequest("step %q: unknown mode %q of field %q", s.ID, f.Mode, f.Field)
+		}
+		if seen[f.Field] {
+			continue
+		}
+		seen[f.Field] = true
+		out = append(out, f)
+	}
+	if len(out) == 0 {
+		out = nil
+	}
+	s.Form = out
+	return nil
+}
+
+// FieldMode returns the mode of a field in the form of step s ("" = not listed).
+func (s *Step) FieldMode(field string) string {
+	for _, f := range s.Form {
+		if f.Field == field {
+			return f.Mode
+		}
+	}
+	return ""
+}
+
+// validateParallel checks the parallel steps (after all steps are known).
+func (d *Definition) validateParallel() error {
+	for i := range d.Steps {
+		s := &d.Steps[i]
+		p := s.Parallel
+		if s.Type != StepParallel {
+			s.Parallel = nil
+			continue
+		}
+		if p == nil || len(p.Branches) == 0 || len(p.Branches) > 20 {
+			return apperr.BadRequest("step %q: 1 to 20 branches", s.ID)
+		}
+		if s.Next == "" {
+			return apperr.BadRequest("step %q: the step where the branches meet is required", s.ID)
+		}
+		x := *p
+		for _, b := range x.Branches {
+			if d.Step(b) == nil || b == s.ID || b == s.Next {
+				return apperr.BadRequest("step %q: invalid branch %q", s.ID, b)
+			}
+		}
+		if x.ForEach != "" {
+			ok := false
+			for _, f := range d.Fields {
+				ok = ok || f.ID == x.ForEach
+			}
+			for _, st := range d.Steps {
+				for _, t := range st.targets() {
+					ok = ok || t == x.ForEach
+				}
+			}
+			if !ok || len(x.Branches) != 1 {
+				return apperr.BadRequest("step %q: one branch per value needs a field and exactly one branch", s.ID)
+			}
+		}
+		if x.Require < 0 || (x.ForEach == "" && x.Require > len(x.Branches)) || x.Require > 100 {
+			return apperr.BadRequest("step %q: invalid number of branches to wait for", s.ID)
+		}
+		s.Parallel = &x
+	}
+	return nil
 }

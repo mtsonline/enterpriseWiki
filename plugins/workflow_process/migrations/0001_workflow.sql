@@ -35,8 +35,14 @@ CREATE TABLE plugin_workflow_instances (
     warned          int NOT NULL DEFAULT 0,
     escalated       boolean NOT NULL DEFAULT false,
     check_at        timestamptz,        -- next warning or the deadline
-    -- assignee of the current step after an escalation (reassignment)
-    override        jsonb
+    -- assignee of the current step after an escalation, a hand-over, a
+    -- claim or a question to the starter; handover says which, prev holds
+    -- the assignee before (to give back or after the answer)
+    override        jsonb,
+    handover        text NOT NULL DEFAULT '',
+    prev            jsonb,
+    -- a branch of a parallel step of the parent (same workflow)
+    branch          boolean NOT NULL DEFAULT false
 );
 CREATE INDEX plugin_workflow_instances_element ON plugin_workflow_instances(element_id, started_at DESC);
 CREATE INDEX plugin_workflow_instances_open ON plugin_workflow_instances(status) WHERE status = 'open';
@@ -109,3 +115,14 @@ CREATE TABLE plugin_workflow_hook_secrets (
     created_at  timestamptz NOT NULL DEFAULT now(),
     PRIMARY KEY (element_id, trigger_id)
 );
+
+-- Deputies: while a person is away, the deputy may handle their tasks.
+CREATE TABLE plugin_workflow_deputies (
+    user_id     bigint PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+    deputy_id   bigint NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    from_date   date NOT NULL,
+    until_date  date NOT NULL,
+    CHECK (until_date >= from_date),
+    CHECK (deputy_id <> user_id)
+);
+CREATE INDEX plugin_workflow_deputies_deputy ON plugin_workflow_deputies(deputy_id);

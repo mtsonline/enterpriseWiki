@@ -9,7 +9,8 @@ interface ListResponse { instances: Instance[]; can_start: boolean; fields: Fiel
 /** Label of an action (approval and system actions have default labels). */
 export function actionLabel(a: Action): string {
   if (a.label) return a.label;
-  const k: Record<string, string> = { approve: 'workflow.approve', reject: 'workflow.reject', _retry: 'workflow.retry', _skip: 'workflow.skip' };
+  const k: Record<string, string> = { approve: 'workflow.approve', reject: 'workflow.reject', _retry: 'workflow.retry', _skip: 'workflow.skip',
+    _claim: 'workflow.handover.claim', _release: 'workflow.handover.release', _delegate: 'workflow.handover.delegate', _ask: 'workflow.handover.ask', _answer: 'workflow.handover.answer' };
   return k[a.id] ? t(k[a.id]) : a.id;
 }
 
@@ -58,6 +59,17 @@ function eventText(e: Event, stepName: (id: string | null) => string): string {
     case 'timer': return t('workflow.ev.timer', { step });
     case 'retry': return t('workflow.ev.retry');
     case '_skip': return t('workflow.ev.action', { action: t('workflow.skip'), step });
+    case '_claim': return t('workflow.ev.claim');
+    case '_release': return t('workflow.ev.release');
+    case '_delegate': return t('workflow.ev.delegate', { to: e.action_label });
+    case '_ask': return t('workflow.ev.ask');
+    case '_answer': return t('workflow.ev.answer');
+    case 'parallel_started': return t('workflow.ev.parallel_started', { n: e.action_label });
+    case 'parallel_done': return t('workflow.ev.parallel_done', { n: e.action_label, step });
+    case 'parallel_failed': return t('workflow.ev.parallel_failed', { n: e.action_label, step });
+    case 'branch_start': return e.action_label ? t('workflow.ev.branch_start_item', { item: e.action_label, step }) : t('workflow.ev.start', { step });
+    case 'branch_done': return t('workflow.ev.branch_done');
+    case 'branch_cancelled': return t('workflow.ev.branch_cancelled');
   }
   return t('workflow.ev.action', { action: e.action_label || e.action, step });
 }
@@ -70,15 +82,33 @@ export async function openCase(id: number, onChange?: () => void): Promise<void>
     const note = textArea({ rows: 4 });
     const needNote = a ? a.note : 'optional';
     const title = a ? actionLabel(a) : t('workflow.cancel_case');
+    const handover = !!a && a.id.startsWith('_') && a.id !== '_skip';
+    // a decision brings the fields of the form of the step
+    const decision = !!a && !a.id.startsWith('_') && a.id !== 'reject';
+    const inputs = decision ? (x.form ?? []).filter((sf) => sf.mode === 'edit' || sf.mode === 'required').flatMap((sf) => {
+      const f = x.definition.fields.find((ff) => ff.id === sf.field);
+      return f ? [fieldControl({ ...f, required: sf.mode === 'required' }, x.lang, x.data[f.id])] : [];
+    }) : [];
+    const to = a?.id === '_delegate' ? textInput({ required: true, autocomplete: 'off', placeholder: t('workflow.handover.to_ph') }) : null;
     const run = async () => {
-      if (a) await api.post(`${BASE}/instances/${x.id}/actions`, { action: a.id, note: note.value });
+      const data: Record<string, unknown> = {};
+      for (const c of inputs) {
+        if (c.f.required && c.empty()) { c.focus(); throw new Error(t('workflow.field_missing', { field: c.f.label })); }
+        const v = await c.get();
+        if (v !== null && v !== '') data[c.f.id] = v;
+      }
+      if (to && !to.value.trim()) { to.focus(); throw new Error(t('workflow.handover.to_missing')); }
+      if (a) await api.post(`${BASE}/instances/${x.id}/actions`, { action: a.id, note: note.value, to: to?.value.trim(), data });
       else await api.post(`${BASE}/instances/${x.id}/cancel`, { note: note.value });
       toast(t('workflow.done_msg', { action: title }));
       dlg.close();
       onChange?.();
     };
     formDialog(`${title}: ${x.title}`, [
-      h('p', null, a ? (a.id === '_retry' ? t('workflow.retry_confirm') : t('workflow.action_confirm', { action: actionLabel(a), step: stepName(a.next) })) : t('workflow.cancel_confirm')),
+      h('p', null, a ? (a.id === '_retry' ? t('workflow.retry_confirm') : handover ? t(`workflow.handover.${a.id.slice(1)}_help`)
+        : t('workflow.action_confirm', { action: actionLabel(a), step: stepName(a.next) })) : t('workflow.cancel_confirm')),
+      ...inputs.map((c) => c.el),
+      to ? field(t('workflow.handover.to'), to, { required: true, help: t('workflow.handover.to_help') }) : null,
       needNote ? field(needNote === 'required' ? t('workflow.note_required') : t('workflow.note_optional'), note, { required: needNote === 'required' }) : null,
     ], title, async () => {
       if (needNote === 'required' && !note.value.trim()) throw new Error(t('workflow.note_missing'));
@@ -90,9 +120,14 @@ export async function openCase(id: number, onChange?: () => void): Promise<void>
     x.progress ? h('p', null, t('workflow.progress', { progress: x.progress })) : null,
     x.status === 'open' && x.wake_at && !x.actions.length ? h('p', null, t('workflow.waiting_until', { date: fmtDate(x.wake_at, state.lang) })) : null,
     x.last_error ? h('p', { class: 'ew-notice ew-notice--warning', role: 'note' }, t('workflow.last_error', { error: x.last_error })) : null,
+    x.handover ? h('p', null, t(`workflow.handover.state_${x.handover}`)) : null,
+    x.branches?.length ? h('section', { 'aria-labelledby': `ewf-br-${x.id}` }, h('h3', { id: `ewf-br-${x.id}` }, t('workflow.branches')),
+      h('ul', { class: 'ewf-branches' }, ...x.branches.map((b) => h('li', null, b.title, ' ',
+        h('span', { class: ['ew-badge', b.status === 'done' ? (b.outcome === 'failure' ? 'ew-badge--warn' : 'ew-badge--ok') : b.status === 'open' ? 'ew-badge--info' : ''] },
+          b.status === 'open' ? b.step_name : t(`workflow.status.${b.status}`)))))) : null,
     h('h3', null, t('workflow.data')),
     x.status === 'open' && x.due_at ? h('p', null, t(x.escalated ? 'workflow.due_escalated' : 'workflow.due_at', { date: fmtDate(x.due_at, state.lang) })) : null,
-    h('dl', { class: 'ewf-data' }, ...x.definition.fields.flatMap((f) => [h('dt', null, f.label), h('dd', null, valueOf(x, f))]),
+    h('dl', { class: 'ewf-data' }, ...x.definition.fields.filter((f) => f.id in x.data || !f.later).flatMap((f) => [h('dt', null, f.label), h('dd', null, valueOf(x, f))]),
       // values set by automatic steps
       ...Object.keys(x.data).filter((k) => !x.definition.fields.some((f) => f.id === k)).flatMap((k) => [h('dt', null, k), h('dd', null, String(x.data[k] ?? ''))])),
     h('h3', null, t('workflow.history')),
@@ -106,39 +141,47 @@ export async function openCase(id: number, onChange?: () => void): Promise<void>
   ], { wide: true });
 }
 
+interface Control { f: Field; el: HTMLElement; get: () => Promise<unknown>; empty: () => boolean; focus: () => void }
+
+/** An input for a field of the case (start form and forms of steps). */
+function fieldControl(f: Field, lang: string, value?: unknown): Control {
+  const opts = { required: f.required, help: f.help };
+  const str = value === undefined || value === null ? '' : String(value);
+  switch (f.type) {
+    case 'textarea': { const c = textArea({ rows: 5, lang, value: str }); return { f, el: field(f.label, c, opts), get: async () => c.value, empty: () => !c.value.trim(), focus: () => c.focus() }; }
+    case 'select': {
+      const c = select([{ value: '', label: t('workflow.choose') }, ...(f.options ?? []).map((o) => ({ value: o, label: o }))], str);
+      return { f, el: field(f.label, c, opts), get: async () => c.value, empty: () => !c.value, focus: () => c.focus() };
+    }
+    case 'checkbox': {
+      const c = checkbox(f.label, value === true, { help: f.help });
+      if (f.required) c.input.required = true;
+      return { f, el: c.el, get: async () => c.input.checked, empty: () => !c.input.checked, focus: () => c.input.focus() };
+    }
+    case 'file': {
+      const c = h('input', { type: 'file', class: 'ew-input' });
+      return { f, el: field(f.label, c, opts), empty: () => !c.files?.length, focus: () => c.focus(),
+        get: async () => { const file = c.files?.[0]; if (!file) return null; const up = await uploadFile(file); return { hash: up.hash, name: up.name, mime: up.mime, size: up.size }; } };
+    }
+    default: {
+      const type = f.type === 'email' ? 'email' : f.type === 'date' ? 'date' : f.type === 'number' ? 'number' : 'text';
+      const c = textInput({ type, required: f.required, autocomplete: f.type === 'email' ? 'email' : undefined, lang, value: str });
+      return { f, el: field(f.label, c, opts), get: async () => c.value, empty: () => !c.value.trim(), focus: () => c.focus() };
+    }
+  }
+}
+
 /** Builds the start form of a workflow. */
 function startDialog(element: number, data: ListResponse, done: (id: number) => void): void {
-  const getters: { f: Field; get: () => Promise<unknown> }[] = [];
-  const controls = data.fields.map((f) => {
-    const opts = { required: f.required, help: f.help };
-    switch (f.type) {
-      case 'textarea': { const c = textArea({ rows: 5, lang: data.lang }); getters.push({ f, get: async () => c.value }); return field(f.label, c, opts); }
-      case 'select': { const c = select([{ value: '', label: t('workflow.choose') }, ...(f.options ?? []).map((o) => ({ value: o, label: o }))], ''); getters.push({ f, get: async () => c.value }); return field(f.label, c, opts); }
-      case 'checkbox': { const c = checkbox(f.label, false, { help: f.help }); if (f.required) c.input.required = true; getters.push({ f, get: async () => c.input.checked }); return c.el; }
-      case 'file': {
-        const c = h('input', { type: 'file', class: 'ew-input' });
-        getters.push({ f, get: async () => { const file = c.files?.[0]; if (!file) return null; const up = await uploadFile(file); return { hash: up.hash, name: up.name, mime: up.mime, size: up.size }; } });
-        return field(f.label, c, opts);
-      }
-      default: {
-        const type = f.type === 'email' ? 'email' : f.type === 'date' ? 'date' : f.type === 'number' ? 'number' : 'text';
-        const c = textInput({ type, required: f.required, autocomplete: f.type === 'email' ? 'email' : undefined, lang: data.lang });
-        getters.push({ f, get: async () => c.value });
-        return field(f.label, c, opts);
-      }
-    }
-  });
-  formDialog(t('workflow.start'), [h('p', { class: 'ew-help' }, t('workflow.start_help', { step: data.first_step })), ...controls], t('workflow.submit'), async () => {
-    for (const g of getters) {
-      if (!g.f.required) continue;
-      const el = controls[getters.indexOf(g)].querySelector<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>('input, textarea, select');
-      const empty = g.f.type === 'checkbox' ? !(el as HTMLInputElement).checked : g.f.type === 'file' ? !(el as HTMLInputElement).files?.length : !el?.value.trim();
-      if (empty) { el?.focus(); throw new Error(t('workflow.field_missing', { field: g.f.label })); }
+  const controls = data.fields.map((f) => fieldControl(f, data.lang));
+  formDialog(t('workflow.start'), [h('p', { class: 'ew-help' }, t('workflow.start_help', { step: data.first_step })), ...controls.map((c) => c.el)], t('workflow.submit'), async () => {
+    for (const c of controls) {
+      if (c.f.required && c.empty()) { c.focus(); throw new Error(t('workflow.field_missing', { field: c.f.label })); }
     }
     const values: Record<string, unknown> = {};
-    for (const g of getters) {
-      const v = await g.get();
-      if (v !== null && v !== '') values[g.f.id] = v;
+    for (const c of controls) {
+      const v = await c.get();
+      if (v !== null && v !== '') values[c.f.id] = v;
     }
     const x = await api.post<Instance>(`${BASE}/elements/${element}/instances`, { data: values, lang: data.lang });
     toast(t('workflow.started'));

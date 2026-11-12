@@ -38,6 +38,30 @@ type Field struct {
 	Required bool     `json:"required,omitempty"`
 	Options  []string `json:"options,omitempty"`
 	Help     string   `json:"help,omitempty"`
+	// Later: not in the start form – filled in by the assignees of a step
+	// (Step.Form).
+	Later bool `json:"later,omitempty"`
+}
+
+// StepField is a field of the case in the form of a step: edit, required
+// (edit and must be filled), read (shown, not editable) or hidden (not
+// shown to the assignees of the step).
+type StepField struct {
+	Field string `json:"field"`
+	Mode  string `json:"mode"`
+}
+
+// ParallelSpec runs branches at the same time: each branch starts at a
+// step and ends when it reaches Join (the next step of the parallel step).
+type ParallelSpec struct {
+	Branches []string `json:"branches"`
+	// Require: branches that must end before the case continues (0 = all);
+	// the others are cancelled then.
+	Require int `json:"require,omitempty"`
+	// ForEach: a field with several values (one per line or comma, or a
+	// multiple choice): one branch per value (with a single branch step);
+	// the value is {{field.item}} in the branch.
+	ForEach string `json:"for_each,omitempty"`
 }
 
 // Assignee decides who handles a step.
@@ -68,17 +92,18 @@ const (
 	StepCreate    = "create"    // automatic: create a page from a template
 	StepProps     = "props"     // automatic: set properties of a page
 	StepSubflow   = "subflow"   // automatic: start another workflow (and wait for it)
+	StepParallel  = "parallel"  // automatic: branches at the same time, continue when they ended
 	StepEnd       = "end"       // closes the case
 )
 
 // StepTypes lists all step types.
 var StepTypes = []string{StepTask, StepApproval, StepCondition, StepEmail, StepNotify, StepSet, StepWebhook, StepHTTP,
-	StepCreate, StepProps, StepSubflow, StepDelay, StepEnd}
+	StepCreate, StepProps, StepSubflow, StepParallel, StepDelay, StepEnd}
 
 // deferred steps are run by the background worker (they call other
 // systems or the wiki's API and may take a while).
 func (s *Step) deferred() bool {
-	return s.Type == StepWebhook || s.Type == StepHTTP || s.Type == StepCreate || s.Type == StepProps || s.Type == StepSubflow
+	return s.Type == StepWebhook || s.Type == StepHTTP || s.Type == StepCreate || s.Type == StepProps || s.Type == StepSubflow || s.Type == StepParallel
 }
 
 // Rule is a condition on the case data.
@@ -156,6 +181,10 @@ type Step struct {
 	Deadline *Deadline `json:"deadline,omitempty"`
 	// Notices are sent when a case enters or leaves the step.
 	Notices []Notice `json:"notices,omitempty"`
+	// Form: fields of the case the assignees of a task or approval fill in
+	// or see (field rights of the step).
+	Form     []StepField   `json:"form,omitempty"`
+	Parallel *ParallelSpec `json:"parallel,omitempty"`
 }
 
 // Automatic reports whether the step runs without a person.
@@ -289,6 +318,9 @@ func (d *Definition) Validate() error {
 				return apperr.BadRequest("step %q: next step %q does not exist", s.ID, n)
 			}
 		}
+	}
+	if err := d.validateParallel(); err != nil {
+		return err
 	}
 	if d.Fields == nil {
 		d.Fields = []Field{}
@@ -495,7 +527,7 @@ func (s *Step) validate(fieldType map[string]string) error {
 	if s.Notices, err = validateNotices(s.ID, notices); err != nil {
 		return err
 	}
-	return nil
+	return s.validateForm(fieldType)
 }
 
 // Decode parses a body.
@@ -632,6 +664,7 @@ var msgs = map[string]map[string]string{
 	"create":    {"en": "Automatic new page", "de": "Automatisch neue Seite"},
 	"props":     {"en": "Automatic properties of a page", "de": "Automatische Eigenschaften einer Seite"},
 	"subflow":   {"en": "Another workflow", "de": "Weiterer Workflow"},
+	"parallel":  {"en": "Branches at the same time", "de": "Zweige gleichzeitig"},
 	"deadline":  {"en": "With a deadline", "de": "Mit Frist"},
 	"triggers":  {"en": "Starts automatically", "de": "Startet automatisch"},
 }
