@@ -87,6 +87,9 @@ func (pl *Plugin) enter(ctx context.Context, tx pgx.Tx, x *Instance, id string, 
 		if s == nil {
 			return apperr.BadRequest("step %q does not exist", id)
 		}
+		if branchEnds(x, id) { // a branch reached the meeting point
+			return pl.finishBranch(ctx, tx, x, id)
+		}
 		// notices of the step that is left and of the new one
 		if prev := d.Step(x.Step); prev != nil {
 			if err := pl.notices(ctx, tx, x, prev, "leave", a); err != nil {
@@ -103,6 +106,9 @@ func (pl *Plugin) enter(ctx context.Context, tx pgx.Tx, x *Instance, id string, 
 			if err := pl.setStep(ctx, tx, x, nil); err != nil {
 				return err
 			}
+			if x.Branch { // a branch that ends: only its parallel step learns about it
+				return nil
+			}
 			pl.emit(ctx, tx, "workflow.completed", x, a)
 			return pl.notifyStarter(ctx, tx, x, a, "done")
 		case StepTask, StepApproval:
@@ -116,7 +122,7 @@ func (pl *Plugin) enter(ctx context.Context, tx pgx.Tx, x *Instance, id string, 
 			x.Status = "open"
 			wake := pl.wakeTime(x, s)
 			return pl.setStep(ctx, tx, x, &wake)
-		case StepWebhook, StepHTTP, StepCreate, StepProps, StepSubflow:
+		case StepWebhook, StepHTTP, StepCreate, StepProps, StepSubflow, StepParallel:
 			x.Status = "open"
 			now := time.Now()
 			return pl.setStep(ctx, tx, x, &now) // the worker carries the step out
@@ -176,7 +182,7 @@ func (pl *Plugin) setStep(ctx context.Context, tx pgx.Tx, x *Instance, wake *tim
 	x.DueAt, x.Warned, x.Escalated = due, 0, false
 	_, err := tx.Exec(ctx, `UPDATE plugin_workflow_instances SET step=$2, status=$3, updated_at=now(), step_entered_at=now(),
 		wake_at=$4, reminded_at=NULL, attempts=0, last_error='', closed_at=CASE WHEN $3='open' THEN NULL ELSE now() END,
-		due_at=$5, warned=0, escalated=false, override=$6, check_at=$7 WHERE id=$1`,
+		due_at=$5, warned=0, escalated=false, override=$6, check_at=$7, handover='', prev=NULL WHERE id=$1`,
 		x.ID, x.Step, x.Status, wake, due, x.Override, check)
 	if err != nil || x.Status == "open" {
 		return err
@@ -511,6 +517,9 @@ func (pl *Plugin) notifyAssigneesKey(ctx context.Context, tx pgx.Tx, x *Instance
 	reminder := key != "workflow.mail.task"
 	ids, err := pl.members(ctx, tx, x, x.assignee(s))
 	if err != nil {
+		return err
+	}
+	if ids, err = withDeputies(ctx, tx, ids); err != nil { // deputies of people who are away
 		return err
 	}
 	if s.Type == StepApproval && reminder { // only those who have not voted yet

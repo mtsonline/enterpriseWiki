@@ -276,6 +276,9 @@ type result struct {
 
 // runStep carries out an http, create, props or subflow step.
 func (pl *Plugin) runStep(ctx context.Context, tx pgx.Tx, x *Instance, s *Step) (result, error) {
+	if s.Type == StepParallel { // no rights needed: branches of the same case
+		return pl.runParallel(ctx, tx, x, s)
+	}
 	pctx, err := pl.runAs(ctx, tx, x, s)
 	if err != nil {
 		return result{}, err
@@ -601,6 +604,20 @@ func (pl *Plugin) cancelTx(ctx context.Context, tx pgx.Tx, x *Instance) error {
 	if _, err := tx.Exec(ctx, `UPDATE plugin_workflow_instances SET status='cancelled', updated_at=now(), closed_at=now(), wake_at=NULL, due_at=NULL, check_at=NULL
 		WHERE id=$1`, x.ID); err != nil {
 		return err
+	}
+	// its open branches end too
+	rows, err := tx.Query(ctx, `SELECT id FROM plugin_workflow_instances WHERE parent_id=$1 AND branch AND status='open'`, x.ID)
+	if err != nil {
+		return err
+	}
+	ids, err := pgx.CollectRows(rows, pgx.RowTo[int64])
+	if err != nil {
+		return err
+	}
+	for _, id := range ids {
+		if err := cancelBranch(ctx, tx, id); err != nil {
+			return err
+		}
 	}
 	return wakeParent(ctx, tx, x)
 }

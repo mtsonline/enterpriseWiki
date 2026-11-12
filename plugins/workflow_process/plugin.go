@@ -92,8 +92,16 @@ type Instance struct {
 	DueAt       *time.Time        `json:"due_at"`
 	Warned      int               `json:"-"`
 	Escalated   bool              `json:"escalated,omitempty"`
-	// Override is the assignee of the current step after an escalation.
+	// Override is the assignee of the current step after an escalation,
+	// a hand-over, a claim or a question to the starter (Handover).
 	Override *Assignee `json:"override,omitempty"`
+	Handover string    `json:"handover,omitempty"`
+	Prev     *Assignee `json:"-"`
+	Branch   bool      `json:"branch,omitempty"`
+	// Branches of a parallel step (for the caller who sees the case).
+	Branches []Branch `json:"branches,omitempty"`
+	// Form: the fields the caller fills in or sees in the current step.
+	Form []StepField `json:"form,omitempty"`
 	// Progress of an approval step, e.g. "1/2".
 	Progress string `json:"progress,omitempty"`
 	// for the caller
@@ -119,13 +127,13 @@ const instCols = `i.id, i.element_id, e.category_id, e.titles, i.lang, i.title, 
 	i.started_at, i.updated_at, i.closed_at,
 	COALESCE((SELECT array_agg(DISTINCT x.to_step) FROM plugin_workflow_events x WHERE x.instance_id=i.id AND x.to_step IS NOT NULL), '{}'),
 	COALESCE((SELECT array_agg(DISTINCT x.actor_id) FROM plugin_workflow_events x WHERE x.instance_id=i.id AND x.actor_id IS NOT NULL), '{}'),
-	i.step_entered_at, i.wake_at, i.last_error, i.definer_id, i.trigger, i.depth, i.parent_id, i.parent_step, i.due_at, i.warned, i.escalated, i.override`
+	i.step_entered_at, i.wake_at, i.last_error, i.definer_id, i.trigger, i.depth, i.parent_id, i.parent_step, i.due_at, i.warned, i.escalated, i.override, i.handover, i.prev, i.branch`
 
 func scanInstance(r pgx.CollectableRow) (*Instance, error) {
 	var x Instance
 	err := r.Scan(&x.ID, &x.ElementID, &x.CategoryID, &x.Element, &x.Lang, &x.Title, &x.Data, &x.Definition, &x.Step, &x.Status,
 		&x.StartedByID, &x.StartedBy, &x.StartedAt, &x.UpdatedAt, &x.ClosedAt, &x.Visited, &x.Actors, &x.StepEntered, &x.WakeAt, &x.LastError,
-		&x.DefinerID, &x.Trigger, &x.Depth, &x.ParentID, &x.ParentStep, &x.DueAt, &x.Warned, &x.Escalated, &x.Override)
+		&x.DefinerID, &x.Trigger, &x.Depth, &x.ParentID, &x.ParentStep, &x.DueAt, &x.Warned, &x.Escalated, &x.Override, &x.Handover, &x.Prev, &x.Branch)
 	if err != nil {
 		return nil, err
 	}
@@ -145,13 +153,20 @@ type who struct {
 	p      *identity.Principal
 	groups map[string]bool
 	roles  map[string]bool
+	// users: handles of the people the caller is the deputy of today
+	users map[string]bool
 }
 
 func (pl *Plugin) caller(ctx context.Context) (*who, error) {
 	p := identity.From(ctx)
-	w := &who{p: p, groups: map[string]bool{}, roles: map[string]bool{}}
+	w := &who{p: p, groups: map[string]bool{}, roles: map[string]bool{}, users: map[string]bool{}}
 	if p == nil {
 		return w, nil
+	}
+	if p.ID() > 0 {
+		if err := pl.deputyFor(ctx, w); err != nil {
+			return nil, err
+		}
 	}
 	if len(p.Groups) > 0 {
 		rows, err := pl.host.DB.Query(ctx, `SELECT name FROM groups WHERE id = ANY($1)`, p.Groups)
@@ -207,7 +222,7 @@ func (w *who) assigned(x *Instance, s *Step) bool {
 	case "starter":
 		return x.StartedByID != nil && *x.StartedByID == w.p.ID()
 	case "user":
-		return v == strings.ToLower(w.p.Handle()) || (!strings.Contains(v, "@") && v == strings.ToLower(w.p.Username) && w.p.Provider == "local")
+		return v == strings.ToLower(w.p.Handle()) || (!strings.Contains(v, "@") && v == strings.ToLower(w.p.Username) && w.p.Provider == "local") || w.users[v]
 	case "group":
 		return w.groups[v]
 	case "role":
@@ -258,7 +273,12 @@ func (pl *Plugin) decorate(ctx context.Context, w *who, x *Instance, manage bool
 	switch s.Type {
 	case StepTask:
 		if w.assigned(x, s) { // only the assignees of the step (also not administrators)
-			x.Actions = s.Actions
+			if x.Handover == "ask" {
+				x.Actions = handoverActions(w, x, s) // the starter answers first
+			} else {
+				x.Actions = append(append([]Action{}, s.Actions...), handoverActions(w, x, s)...)
+			}
+			x.Form = s.Form
 		}
 	case StepApproval:
 		tx, err := pl.host.DB.Begin(ctx)
@@ -278,6 +298,7 @@ func (pl *Plugin) decorate(ctx context.Context, w *who, x *Instance, manage bool
 		if w.assigned(x, s) && w.p != nil && !voted[w.p.ID()] {
 			x.Actions = []Action{{ID: "approve", Label: s.ApproveLabel, Next: s.Next, Note: "optional"},
 				{ID: "reject", Label: s.RejectLabel, Next: s.NextElse, Note: "required"}}
+			x.Form = s.Form
 		}
 	case StepWebhook, StepHTTP, StepCreate, StepProps, StepSubflow:
 		if x.WakeAt == nil && x.LastError != "" && (manage || w.p.Admin()) { // failed, waiting for a decision
@@ -316,6 +337,8 @@ func (pl *Plugin) load(ctx context.Context, id int64) (*Instance, *who, bool, er
 		return nil, nil, false, apperr.NotFound("case")
 	}
 	pl.decorate(ctx, w, x, m)
+	hideFields(w, x, m)
+	pl.loadBranches(ctx, x)
 	return x, w, m, nil
 }
 
@@ -399,7 +422,7 @@ func (pl *Plugin) startTx(ctx context.Context, tx pgx.Tx, element int64, in star
 	if in.Data == nil {
 		in.Data = map[string]any{}
 	}
-	data, err := validateData(def.Fields, in.Data)
+	data, err := validateData(startFields(def.Fields), in.Data)
 	if err != nil {
 		return 0, err
 	}
@@ -570,6 +593,7 @@ func (pl *Plugin) Setup(host *sdk.Host) error {
 		host.Webhooks.Listen(pl.listen) // events that start cases (triggers)
 	}
 	pl.triggerRoutes(host)
+	pl.deputyRoutes(host)
 
 	// GET /meta describes step types, rule operators and placeholders (editor).
 	host.Handle("GET", "/meta", func(w http.ResponseWriter, r *http.Request) (any, error) {
@@ -602,7 +626,7 @@ func (pl *Plugin) Setup(host *sdk.Host) error {
 		}
 		status := r.URL.Query().Get("status")
 		rows, err := host.DB.Query(ctx, `SELECT `+instCols+` FROM plugin_workflow_instances i JOIN elements e ON e.id=i.element_id
-			WHERE i.element_id=$1 AND ($2='' OR i.status=$2) ORDER BY i.updated_at DESC LIMIT 1000`, id, status)
+			WHERE i.element_id=$1 AND NOT i.branch AND ($2='' OR i.status=$2) ORDER BY i.updated_at DESC LIMIT 1000`, id, status)
 		if err != nil {
 			return nil, err
 		}
@@ -615,10 +639,11 @@ func (pl *Plugin) Setup(host *sdk.Host) error {
 		for _, x := range all {
 			if me.visible(x, m) {
 				pl.decorate(ctx, me, x, m)
+				hideFields(me, x, m)
 				list = append(list, x)
 			}
 		}
-		return map[string]any{"instances": list, "can_start": me.p != nil && me.p.ID() != 0 && !def.NoManual, "fields": def.Fields,
+		return map[string]any{"instances": list, "can_start": me.p != nil && me.p.ID() != 0 && !def.NoManual, "fields": startFields(def.Fields),
 			"lang": shown, "first_step": def.Steps[0].Name, "manage": m}, nil
 	})
 
@@ -707,13 +732,15 @@ func (pl *Plugin) Setup(host *sdk.Host) error {
 			return nil, err
 		}
 		var in struct {
-			Action string `json:"action"`
-			Note   string `json:"note"`
+			Action string         `json:"action"`
+			Note   string         `json:"note"`
+			To     string         `json:"to"`   // _delegate: the person who takes over
+			Data   map[string]any `json:"data"` // fields of the form of the step
 		}
 		if err := h.Decode(r, &in); err != nil {
 			return nil, err
 		}
-		return pl.transition(r.Context(), id, in.Action, in.Note)
+		return pl.transition(r.Context(), id, in.Action, in.Note, actionInput{To: in.To, Data: in.Data})
 	})
 
 	// POST /instances/{id}/cancel cancels an open case: {"note": ""}.
@@ -728,7 +755,7 @@ func (pl *Plugin) Setup(host *sdk.Host) error {
 		if err := h.Decode(r, &in); err != nil {
 			return nil, err
 		}
-		return pl.transition(r.Context(), id, "", in.Note)
+		return pl.transition(r.Context(), id, "", in.Note, actionInput{})
 	})
 
 	// GET /tasks lists the open cases waiting for the caller and the cases
@@ -796,7 +823,13 @@ func (pl *Plugin) loadTx(ctx context.Context, tx pgx.Tx, id int64) (*Instance, e
 }
 
 // transition performs action (or cancels the case when action is "").
-func (pl *Plugin) transition(ctx context.Context, id int64, action, note string) (*Instance, error) {
+// actionInput holds what comes with an action besides the note.
+type actionInput struct {
+	To   string
+	Data map[string]any
+}
+
+func (pl *Plugin) transition(ctx context.Context, id int64, action, note string, ai2 actionInput) (*Instance, error) {
 	x, w, _, err := pl.load(ctx, id)
 	if err != nil {
 		return nil, err
@@ -835,6 +868,13 @@ func (pl *Plugin) transition(ctx context.Context, id int64, action, note string)
 			return nil, apperr.BadRequest("a note is required")
 		}
 	}
+	// the form of the step: values the assignees fill in with a decision
+	var stepValues map[string]any
+	if a != nil && s != nil && !isHandover(action) && action != ActRetry && action != ActSkip && action != "reject" {
+		if stepValues, err = stepData(&x.Definition, s, ai2.Data); err != nil {
+			return nil, err
+		}
+	}
 	err = pgx.BeginFunc(ctx, pl.host.DB, func(tx pgx.Tx) error {
 		cur, err := pl.loadTx(ctx, tx, id)
 		if err != nil {
@@ -849,6 +889,14 @@ func (pl *Plugin) transition(ctx context.Context, id int64, action, note string)
 		}
 		ai := actorInfo{p: p, action: label, note: note}
 		before := cur.Step
+		if len(stepValues) > 0 {
+			for k, v := range stepValues {
+				cur.Data[k] = v
+			}
+			if err := saveData(ctx, tx, cur); err != nil {
+				return err
+			}
+		}
 		switch {
 		case action == "":
 			if err := event(ctx, tx, id, sp(cur.Step), nil, "cancel", "", note, ai); err != nil {
@@ -881,6 +929,10 @@ func (pl *Plugin) transition(ctx context.Context, id int64, action, note string)
 					return err
 				}
 			} else if _, err := tx.Exec(ctx, `UPDATE plugin_workflow_instances SET updated_at=now() WHERE id=$1`, id); err != nil {
+				return err
+			}
+		case isHandover(action):
+			if err := pl.handover(ctx, tx, cur, s, action, ai2.To, ai); err != nil {
 				return err
 			}
 		case action == ActRetry:

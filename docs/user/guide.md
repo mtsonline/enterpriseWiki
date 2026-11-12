@@ -116,11 +116,18 @@ Wählen Sie bei *Neue Seite* den Elementtyp **Workflow**. Mit *Vorlage* überneh
 | Seite anlegen | legt eine Seite (Markdown mit Platzhaltern) in einer Kategorie an und merkt sich ID und Adresse für spätere Schritte |
 | Eigenschaften setzen | setzt Eigenschaften einer Seite (z. B. der eben angelegten: `{{field.page}}`) |
 | Weiterer Workflow | startet einen Vorgang eines anderen Workflows mit Werten; wartet auf Wunsch, bis er beendet ist, übernimmt dann Werte und verzweigt bei Misserfolg |
+| Parallele Zweige | startet mehrere Zweige gleichzeitig – feste Schritte oder **ein Zweig je Wert** eines Felds (z. B. eine Prüfung je Abteilung, der Wert ist `{{field.item}}`); jeder Zweig endet am **Treffpunkt** (nächster Schritt). Optional reichen *k* von *n* Zweigen, die übrigen werden dann beendet; Werte der Zweige werden übernommen |
 | Ende | schließt den Vorgang mit einem Ergebnis (erfolgreich, nicht erfolgreich, neutral) |
 
 Bei Aufgaben und Freigaben kann eine **Erinnerung nach X Tagen** eingestellt werden. Zuständige erhalten bei neuen Aufgaben eine E-Mail (abschaltbar im Profil).
 
 **Fristen:** Aufgaben und Freigaben können eine Frist haben – Tage/Stunden ab Erreichen des Schritts oder ab einem Datum des Formulars, auf Wunsch nur **Arbeitstage** (ohne Wochenenden und die Feiertage unter *Administration → Workflow*). Vor Ablauf werden die Zuständigen gewarnt (z. B. 48 und 4 Stunden vorher). Läuft die Frist ab, passiert einmal die gewählte **Eskalation**: nur eine Nachricht, an jemand anderen übergeben, automatisch entscheiden (eine Aktion bzw. Freigabe/Ablehnung) oder den Vorgang abbrechen – jeweils optional mit Nachricht.
+
+**Formular eines Schritts:** Felder mit *Später ausgefüllt* erscheinen nicht im Startformular. Bei Aufgaben und Freigaben legt *Formular dieses Schritts* fest, welche Felder die Zuständigen ausfüllen (optional oder Pflicht), nur sehen oder **nicht sehen** (z. B. das Gehalt). Wer den Vorgang gestartet hat, Verwaltende und Admins sehen immer alles.
+
+**Aufgaben übergeben:** Bei Aufgaben einer Gruppe oder Rolle kann eine Person die Aufgabe **übernehmen** (die anderen sehen sie dann nicht mehr) und **zurückgeben**. Jede zuständige Person kann **weitergeben** (an jemanden, der den Workflow sehen darf) oder eine **Rückfrage an den Antragsteller** stellen: Dieser antwortet mit einer Notiz, danach kommt die Aufgabe zurück. Alles steht im Verlauf.
+
+**Vertretung:** Unter *Meine Aufgaben* tragen Sie für eine Abwesenheit eine Vertretung mit Zeitraum ein. Sie erledigt in dieser Zeit Ihre Aufgaben (auch die Ihrer Gruppen und Rollen) und erhält die Aufgaben-E-Mails; protokolliert wird mit ihrem Namen.
 
 **Nachrichten je Schritt:** Jeder Schritt kann Nachrichten senden, wenn ein Vorgang ihn erreicht oder verlässt (im Wiki, per E-Mail oder beides, mit Platzhaltern).
 

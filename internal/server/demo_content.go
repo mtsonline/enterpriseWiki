@@ -694,6 +694,29 @@ func buildDemo(d *demoRun) {
 						"notices":  []map[string]any{{"on": "enter", "to": "assignees", "channel": "inbox", "subject": tr("Please review: {{field.report}}", "Bitte prüfen: {{field.report}}")}}},
 					end(tr)}}
 		}), nil)
+		// contracts: one review per department at the same time, a form in each step
+		d.element(docs, "workflow.process", d.tr("Contract review (parallel)", "Vertragsprüfung (parallel)"), both(func(tr func(en, de string) string) map[string]any {
+			return map[string]any{
+				"description": tr("One review branch per department at the same time; each reviewer fills in a note (the price stays hidden from them). The final decision needs a comment. Tasks can be taken over, handed over or sent back to the requester with a question; deputies stand in during absences (My tasks).",
+					"Ein Prüfzweig je Abteilung gleichzeitig; jede prüfende Person füllt eine Notiz aus (der Preis bleibt ihr verborgen). Die Schlussentscheidung braucht einen Kommentar. Aufgaben lassen sich übernehmen, weitergeben oder mit einer Rückfrage an den Antragsteller schicken; Vertretungen springen bei Abwesenheit ein (Meine Aufgaben)."),
+				"fields": []map[string]any{
+					{"id": "contract", "label": tr("Contract", "Vertrag"), "type": "text", "required": true},
+					{"id": "price", "label": tr("Price (€)", "Preis (€)"), "type": "number"},
+					{"id": "departments", "label": tr("Departments (one per line)", "Abteilungen (eine pro Zeile)"), "type": "textarea", "required": true},
+					{"id": "review_note", "label": tr("Note of the review", "Notiz der Prüfung"), "type": "textarea", "later": true},
+					{"id": "comment", "label": tr("Comment of the decision", "Kommentar zur Entscheidung"), "type": "textarea", "later": true}},
+				"steps": []map[string]any{
+					{"id": "par", "name": tr("Reviews of the departments", "Prüfung der Abteilungen"), "type": "parallel", "next": "decide",
+						"parallel": map[string]any{"branches": []string{"review"}, "for_each": "departments"}},
+					{"id": "review", "name": tr("Review of the department", "Prüfung der Abteilung"), "assignee": map[string]string{"type": "group", "value": editors},
+						"actions": []map[string]any{{"id": "ok", "label": tr("Reviewed", "Geprüft"), "next": "decide"}},
+						"form":    []map[string]string{{"field": "review_note", "mode": "required"}, {"field": "price", "mode": "hidden"}}},
+					{"id": "decide", "name": tr("Decision", "Entscheidung"), "assignee": map[string]string{"type": "starter"},
+						"actions": []map[string]any{{"id": "sign", "label": tr("Sign", "Unterschreiben"), "next": "done"}, {"id": "drop", "label": tr("Do not sign", "Nicht unterschreiben"), "next": "no", "note": "required"}},
+						"form":    []map[string]string{{"field": "comment", "mode": "required"}}},
+					end(tr),
+					{"id": "no", "name": tr("Not signed", "Nicht unterschrieben"), "type": "end", "outcome": "failure", "actions": []any{}}}}
+		}), nil)
 		// comments: the editors hear about every comment in this category
 		d.element(docs, "workflow.process", d.tr("Feedback on comments (event)", "Rückmeldung zu Kommentaren (Ereignis)"), both(func(tr func(en, de string) string) map[string]any {
 			return map[string]any{
