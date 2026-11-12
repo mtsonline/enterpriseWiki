@@ -33,3 +33,13 @@ für Verwalter, API-Schlüssel und CLI ohne `--as` erzeugen keine Office-Schlüs
 OnlyOffice nur mit gültigem JWT und Downloads nur vom eingestellten Server (SSRF). `pkg/wopi` testet Discovery und
 Proof-Keys (inkl. Schlüsselwechsel, Überlauf, zu kurze Schlüssel), `internal/pagecache` dass Token-URLs nie im
 Gast-Cache landen.
+
+## Testroutine gegen eine laufende Instanz (`tests/qa`)
+
+Zusätzlich zu den Prüfungen oben gibt es eine Routine, die eine laufende Instanz von außen prüft: Funktionstest mit 100 gleichzeitigen Benutzern, Lasttest in Stufen bis 10.000 Benutzer und ein Penetrationstest mit rund 100 Prüfungen nach OWASP WSTG, ASVS und API Security Top 10 (jede mit Schweregrad und CVSS-Vektor), darunter ein Durchlauf über alle Routen aus `api.md` mit den IDs privater Objekte.
+
+```bash
+tests/qa/local.sh        # frische Wegwerf-Instanz, alle Tests, Bericht in /tmp/ewiki-qa/results/report.md
+```
+
+Vor jeder Version ausführen; neue Funktionen bekommen dort einen Schritt im Funktionstest. Der Bericht beschreibt offene Schwachstellen und gehört nicht ins Repository. Einzelheiten: [tests/qa/README.md](../../tests/qa/README.md).
