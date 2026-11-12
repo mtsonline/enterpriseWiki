@@ -240,13 +240,15 @@ func report(dir, title, version string) error {
 		if len(fails) == 0 {
 			w("No check failed.")
 		} else {
-			w("| # | Severity | CVSS 3.1 | Finding | Check |\n|---|---|---|---|---|")
+			w("Each finding is a check that failed; its title says what should hold.")
+			w("")
+			w("| # | Severity | CVSS 3.1 | Not met | Check |\n|---|---|---|---|---|")
 			for i, f := range fails {
 				w("| %d | %s | %.1f | %s | `%s` |", i+1, f.Severity, f.Score, mdEscape(f.Title), f.ID)
 			}
 			w("")
 			for i, f := range fails {
-				w("#### %d. %s", i+1, f.Title)
+				w("#### %d. Not met: %s", i+1, f.Title)
 				w("")
 				w("- **Severity:** %s", f.Severity)
 				if f.Vector != "" {
