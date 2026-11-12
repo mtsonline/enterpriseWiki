@@ -237,5 +237,8 @@
  "forms.ed.min_rows": "Mindestens Zeilen",
  "forms.ed.max_rows": "Höchstens Zeilen",
  "forms.ed.sub_fields": "Felder einer Zeile",
- "forms.ed.sub_add": "Feld zur Zeile hinzufügen"
+ "forms.ed.sub_add": "Feld zur Zeile hinzufügen",
+ "limit.content.forms.submit_mb": "Größe einer Formular-Einsendung",
+ "limit.content.forms.submit_mb.help": "Obergrenze für eine Einsendung mit allen Dateien (auch für Gäste). Jedes Formular erlaubt höchstens die Dateien, die seine Felder annehmen; diese Grenze gilt für alle Formulare.",
+ "limits.group.forms": "Formulare"
 }

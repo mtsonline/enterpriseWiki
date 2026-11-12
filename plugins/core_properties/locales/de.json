@@ -333,5 +333,11 @@
  "props.sub.daily": "Täglich",
  "props.sub.frequency": "Häufigkeit",
  "props.sub.help": "Sie erhalten den Bericht per E-Mail – immer mit Ihren aktuellen Rechten. Vertrauliche Einträge kommen nur mit Titel und Link, streng vertrauliche gar nicht.",
- "props.source_kind": "Eigenschaften-Filter"
+ "props.source_kind": "Eigenschaften-Filter",
+ "perm.core.properties.admin": "Globale Eigenschaften definieren",
+ "perm.core.properties.admin_help": "Definitionen von Eigenschaften, die überall und in jeder Kategorie gelten, anlegen, ändern und entfernen.",
+ "perm.core.properties.define": "Eigenschaften definieren",
+ "perm.core.properties.define_help": "Definitionen von Eigenschaften dieser Kategorie (von Unterkategorien geerbt) anlegen, ändern und entfernen sowie freie Eigenschaften erlauben oder verbieten.",
+ "perm.core.properties.free": "Freie Eigenschaften hinzufügen",
+ "perm.core.properties.free_help": "Eigenschaften ohne Definition (Name und Typ) zu Elementen hinzufügen, die man bearbeiten darf."
 }

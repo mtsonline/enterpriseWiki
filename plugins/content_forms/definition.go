@@ -165,11 +165,13 @@ var (
 
 // Limits of a form.
 const (
-	MaxFields      = 200
-	MaxOptions     = 200
-	MaxText        = 10000 // characters of a text value
-	MaxLabel       = 500
-	MaxFilesField  = 20
+	MaxFields     = 200
+	MaxOptions    = 200
+	MaxText       = 10000 // characters of a text value
+	MaxLabel      = 500
+	MaxFilesField = 20
+	// LimitSubmitMB is the expert setting for the size of one submission.
+	LimitSubmitMB  = "content.forms.submit_mb"
 	MaxFileMB      = 100
 	MaxEmailTarget = 5
 )

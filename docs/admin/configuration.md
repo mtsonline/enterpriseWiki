@@ -304,7 +304,7 @@ Die Grenzwerte gelten für die ganze Instanz; in weiteren Sites ändern sie nur 
 
 | Schlüssel | Bedeutung | Vorgabe |
 |---|---|---|
-| `core.request.guest_kb` | größte Anfrage ohne Sitzung und ohne API-Key (Anmeldung, Formulare für Gäste) | 64 kB |
+| `core.request.guest_kb` | größte Anfrage ohne Sitzung und ohne API-Key (Anmeldung, Anfragen von Gästen; Einsendungen von Formularen haben eine eigene Grenze) | 64 kB |
 | `core.request.body_kb` | größte Anfrage angemeldeter Benutzer; Routen, die mehr brauchen, melden eine eigene Grenze an | 1024 kB |
 | `core.request.content_kb` | Speichern von Seiten, Entwürfen, Vorlagen und Vorschauen | 4096 kB |
 | `core.request.sso_kb` | Nachrichten von Identity Providern (SAML, OIDC) | 1024 kB |
@@ -318,6 +318,7 @@ Die Grenzwerte gelten für die ganze Instanz; in weiteren Sites ändern sie nur 
 | `core.live.connections_per_person` | Fenster oder Geräte einer Person an derselben Seite | 5 |
 | `core.audit.search_days` | so weit reicht die Textsuche in den Vorher-/Nachher-Werten des Audit-Protokolls zurück, wenn kein Startdatum angegeben ist (mit Startdatum: jeder Zeitraum) | 90 Tage |
 | `core.reactions.per_person` | Plugin *Reaktionen*: verschiedene Emojis einer Person je Ziel | 10 |
+| `content.forms.submit_mb` | Plugin *Formulare*: größte Einsendung mit allen Dateien, auch von Gästen. Jedes Formular nimmt höchstens die Dateien an, die seine Felder erlauben (Anzahl × Größe), diese Grenze deckelt alle Formulare | 200 MB |
 | `core.audit.value_guest_bytes` | längster Wert im Audit-Protokoll bei Ereignissen ohne angemeldeten Benutzer | 1024 Bytes |
 | `core.audit.value_bytes` | längster Vorher-/Nachher-Wert bei Ereignissen angemeldeter Benutzer | 65536 Bytes |
 | `core.ui.wait_notice_s` | nach dieser Zeit ohne Antwort auf eine Änderung fragt die Oberfläche „weiter warten oder abbrechen“; die Eingabe bleibt in beiden Fällen erhalten | 5 s |

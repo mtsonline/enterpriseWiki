@@ -77,6 +77,9 @@ func (p *Plugin) routes() {
 	})
 	host.Handle("GET", "/elements/{id}/start", p.start)
 	host.Handle("POST", "/elements/{id}/submit", p.submit)
+	// guests upload files too: the route has its own limit instead of the
+	// small one for guests; the handler narrows it to the files of the form
+	host.BodyLimit("POST", "/elements/{id}/submit", LimitSubmitMB)
 
 	// GET /elements/{id}/submissions?limit=&offset=&q=
 	host.Handle("GET", "/elements/{id}/submissions", func(w http.ResponseWriter, r *http.Request) (any, error) {

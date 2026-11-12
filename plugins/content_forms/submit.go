@@ -304,7 +304,7 @@ func (p *Plugin) submit(w http.ResponseWriter, r *http.Request) (any, error) {
 			limit += int64(x.MaxFiles) * int64(x.MaxSizeMB) << 20
 		}
 	}
-	r.Body = http.MaxBytesReader(w, r.Body, min(limit, p.host.Files.MaxBytes()*MaxFilesField))
+	r.Body = http.MaxBytesReader(w, r.Body, min(limit, p.host.Files.MaxBytes()*MaxFilesField, p.host.Limit(LimitSubmitMB)<<20))
 	in := submitInput{}
 	var ups []upload
 	tmp, err := os.MkdirTemp("", "ewiki-form-*")

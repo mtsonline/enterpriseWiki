@@ -237,5 +237,8 @@
  "forms.ed.min_rows": "Rows at least",
  "forms.ed.max_rows": "Rows at most",
  "forms.ed.sub_fields": "Fields of a row",
- "forms.ed.sub_add": "Add field to the row"
+ "forms.ed.sub_add": "Add field to the row",
+ "limit.content.forms.submit_mb": "Size of a form submission",
+ "limit.content.forms.submit_mb.help": "Upper bound for one submission with all its files (also for guests). Each form allows at most the files its fields accept; this limit caps every form.",
+ "limits.group.forms": "Forms"
 }

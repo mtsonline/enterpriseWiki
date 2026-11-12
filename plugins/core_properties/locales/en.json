@@ -333,5 +333,11 @@
  "props.sub.daily": "Daily",
  "props.sub.frequency": "Frequency",
  "props.sub.help": "You get the report by e-mail – always with your current permissions. Confidential entries come with title and link only, strictly confidential ones not at all.",
- "props.source_kind": "Properties filter"
+ "props.source_kind": "Properties filter",
+ "perm.core.properties.admin": "Define global properties",
+ "perm.core.properties.admin_help": "Create, change and remove the definitions of properties that apply everywhere, and in every category.",
+ "perm.core.properties.define": "Define properties",
+ "perm.core.properties.define_help": "Create, change and remove the definitions of properties of this category (inherited by subcategories) and allow or forbid free properties.",
+ "perm.core.properties.free": "Add free properties",
+ "perm.core.properties.free_help": "Add properties without a definition (a name and a type) to elements one may edit."
 }

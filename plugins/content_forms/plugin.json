@@ -36,5 +36,17 @@
       "description": "Send submissions to any e-mail address and to webhooks (without it only to members of the wiki).",
       "presets": ["manager"]
     }
+  ],
+  "limits": [
+    {
+      "key": "content.forms.submit_mb",
+      "group": "forms",
+      "unit": "mb",
+      "default": 200,
+      "min": 1,
+      "max": 2000,
+      "label": "Size of a form submission",
+      "help": "Upper bound for one submission with all its files (also for guests). Each form allows at most the files its fields accept; this limit caps every form."
+    }
   ]
 }

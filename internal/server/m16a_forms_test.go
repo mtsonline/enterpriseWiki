@@ -135,9 +135,11 @@ func TestForms(t *testing.T) {
 	if code != 200 || !strings.Contains(body, `"id":0`) {
 		t.Fatalf("honeypot: %d %s", code, body)
 	}
-	// valid submission with a file; a value that looks like a formula
+	// valid submission with a file larger than the body limit of guests
+	// (the route has its own limit); a value that looks like a formula
 	valid["name"] = "=HYPERLINK(\"x\")"
-	code, body = guest.submitForm(t, form.ID, map[string]any{"token": st.Token, "values": valid}, map[string]map[string][]byte{"doc": {"letter.pdf": []byte("%PDF-1.4 plain letter")}})
+	letter := append([]byte("%PDF-1.4 plain letter\n"), bytes.Repeat([]byte("% padding line\n"), 40000)...)
+	code, body = guest.submitForm(t, form.ID, map[string]any{"token": st.Token, "values": valid}, map[string]map[string][]byte{"doc": {"letter.pdf": letter}})
 	if code != 201 || !strings.Contains(body, "Thanks!") {
 		t.Fatalf("valid: %d %s", code, body)
 	}
@@ -177,8 +179,8 @@ func TestForms(t *testing.T) {
 		t.Fatalf("other user downloads: %d", code)
 	}
 	code, data, hdr := admin.fetch(t, fmt.Sprintf("/api/v1/x/content.forms/submissions/%d/files/0", sid))
-	if code != 200 || string(data) != "%PDF-1.4 plain letter" || !strings.HasPrefix(hdr.Get("Content-Disposition"), "attachment") {
-		t.Fatalf("download: %d %q %v", code, data, hdr)
+	if code != 200 || !bytes.Equal(data, letter) || !strings.HasPrefix(hdr.Get("Content-Disposition"), "attachment") {
+		t.Fatalf("download: %d, %d bytes, %v", code, len(data), hdr)
 	}
 	code, data, _ = admin.fetch(t, fmt.Sprintf("/api/v1/x/content.forms/elements/%d/submissions.csv", form.ID))
 	if code != 200 || !strings.Contains(string(data), `'=HYPERLINK`) || !strings.Contains(string(data), "IT") {
