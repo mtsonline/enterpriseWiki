@@ -281,7 +281,7 @@ max := h.Limit("acme.forms.answer_kb") // aktueller Wert, jederzeit
 ### Eingehende Nachrichten anderer Systeme und Ereignisse
 
 - `h.Signed("POST", "/hooks/{id}")` meldet eine Route an, die andere Systeme aufrufen (eingehende Webhooks): Der Aufrufer ist dort **immer anonym** – Sitzungen und API-Keys zählen nie, ein CSRF-Header ist nicht nötig. Der Handler prüft die Signatur selbst (`hmac.Equal`, Zeitstempel gegen Wiederholungen) und antwortet bei jedem Fehler gleich (`403`). Es gelten die Größen- und Ratengrenzen für Gäste.
-- `host.Webhooks.Listen(func(ctx, q, ev) error)` erhält jedes Ereignis (`element.*`, `category.*`, `comment.create`, `form.submitted`, `workflow.*` …) **in der Transaktion der Änderung** (`q`), bevor Webhooks eingereiht werden. Wer in `q` schreibt, sollte einen Savepoint nehmen (`q.(pgx.Tx).Begin`), damit ein eigener Fehler die Änderung nicht verhindert. Teures gehört in eine Warteschlange und einen Worker.
+- `host.Webhooks.Listen(func(ctx, q, ev) error)` erhält jedes Ereignis (`element.*`, `category.*`, `comment.create`, `form.submitted`, `workflow.*`, `user.*`, `group.*` …) **in der Transaktion der Änderung** (`q`), bevor Webhooks eingereiht werden. Wer in `q` schreibt, sollte einen Savepoint nehmen (`q.(pgx.Tx).Begin`), damit ein eigener Fehler die Änderung nicht verhindert. Teures gehört in eine Warteschlange und einen Worker.
 
 ### Geheimnisse
 

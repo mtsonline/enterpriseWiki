@@ -247,6 +247,12 @@ CREATE INDEX search_docs_tsv ON search_docs USING gin(tsv);
 
 -- Change log of the search index. External search engines (plugins) follow
 -- it to stay in sync with search_docs; PostgreSQL stays the source of truth.
+-- How far this site has turned the account changes (identity_changes) into events.
+CREATE TABLE identity_cursor (
+    id  int PRIMARY KEY DEFAULT 1 CHECK (id = 1),
+    seq bigint NOT NULL
+);
+
 CREATE TABLE search_changes (
     seq        bigserial PRIMARY KEY,
     element_id bigint NOT NULL,

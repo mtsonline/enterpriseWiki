@@ -14,6 +14,7 @@ import (
 	"github.com/mtsonline/enterprisewiki/internal/apperr"
 	"github.com/mtsonline/enterprisewiki/internal/content"
 	"github.com/mtsonline/enterprisewiki/internal/identity"
+	"github.com/mtsonline/enterprisewiki/internal/perm"
 	"github.com/mtsonline/enterprisewiki/internal/secrets"
 )
 
@@ -95,30 +96,39 @@ type Action struct {
 
 // Step types.
 const (
-	StepTask      = "task"      // a person decides with one of the actions
-	StepApproval  = "approval"  // one or more approvals (four-eyes principle), one rejection ends it
-	StepCondition = "condition" // automatic branch on form data
-	StepEmail     = "email"     // automatic: send a predefined e-mail
-	StepWebhook   = "webhook"   // automatic: call an external system
-	StepDelay     = "delay"     // automatic: wait for a time or a date from the form
-	StepNotify    = "notify"    // automatic: message in the wiki and/or by e-mail
-	StepSet       = "set"       // automatic: set or compute values of the case
-	StepHTTP      = "http"      // automatic: query another system, take values of the answer
-	StepCreate    = "create"    // automatic: create a page from a template
-	StepProps     = "props"     // automatic: set properties of a page
-	StepSubflow   = "subflow"   // automatic: start another workflow (and wait for it)
-	StepParallel  = "parallel"  // automatic: branches at the same time, continue when they ended
-	StepEnd       = "end"       // closes the case
+	StepTask      = "task"       // a person decides with one of the actions
+	StepApproval  = "approval"   // one or more approvals (four-eyes principle), one rejection ends it
+	StepCondition = "condition"  // automatic branch on form data
+	StepEmail     = "email"      // automatic: send a predefined e-mail
+	StepWebhook   = "webhook"    // automatic: call an external system
+	StepDelay     = "delay"      // automatic: wait for a time or a date from the form
+	StepNotify    = "notify"     // automatic: message in the wiki and/or by e-mail
+	StepSet       = "set"        // automatic: set or compute values of the case
+	StepHTTP      = "http"       // automatic: query another system, take values of the answer
+	StepCreate    = "create"     // automatic: create a page from a template
+	StepProps     = "props"      // automatic: set properties of a page
+	StepSubflow   = "subflow"    // automatic: start another workflow (and wait for it)
+	StepAccess    = "access"     // automatic: grant (optionally for some days) or revoke permissions on a category
+	StepMember    = "membership" // automatic: put a person into a group or take them out
+	StepMove      = "move"       // automatic: move a page to another category (e.g. an archive)
+	StepParallel  = "parallel"   // automatic: branches at the same time, continue when they ended
+	StepEnd       = "end"        // closes the case
 )
 
 // StepTypes lists all step types.
 var StepTypes = []string{StepTask, StepApproval, StepCondition, StepEmail, StepNotify, StepSet, StepWebhook, StepHTTP,
-	StepCreate, StepProps, StepSubflow, StepParallel, StepDelay, StepEnd}
+	StepCreate, StepProps, StepAccess, StepMember, StepMove, StepSubflow, StepParallel, StepDelay, StepEnd}
+
+// apiStep reports whether a step type acts through the wiki's API with the
+// rights of the definer or starter (run by the worker, may be retried).
+func apiStep(t string) bool {
+	return in(t, StepHTTP, StepCreate, StepProps, StepSubflow, StepAccess, StepMember, StepMove)
+}
 
 // deferred steps are run by the background worker (they call other
 // systems or the wiki's API and may take a while).
 func (s *Step) deferred() bool {
-	return s.Type == StepWebhook || s.Type == StepHTTP || s.Type == StepCreate || s.Type == StepProps || s.Type == StepSubflow || s.Type == StepParallel
+	return s.Type == StepWebhook || s.Type == StepParallel || apiStep(s.Type)
 }
 
 // Rule is a condition on the case data.
@@ -189,6 +199,9 @@ type Step struct {
 	Create   *CreateSpec  `json:"create,omitempty"`
 	Props    *PropsSpec   `json:"props,omitempty"`
 	Subflow  *SubflowSpec `json:"subflow,omitempty"`
+	Access   *AccessSpec  `json:"access,omitempty"`
+	Member   *MemberSpec  `json:"membership,omitempty"`
+	Move     *MoveSpec    `json:"move,omitempty"`
 	// RunAs of http, create, props and subflow steps: "definer" (default:
 	// the person who saved the version of the workflow) or "starter".
 	RunAs string `json:"run_as,omitempty"`
@@ -592,6 +605,12 @@ func (Type) Prepare(ctx context.Context, _ *content.Service, _ int64, _, _ strin
 	if err != nil {
 		return nil, err
 	}
+	// changes of accounts: only who manages accounts may react to them
+	for _, t := range d.Triggers {
+		if t.Type == TrigEvent && accountEvent(t.Event) && !perm.HasP(identity.From(ctx), accountPerm) {
+			return nil, apperr.Forbidden("trigger %q: only who manages accounts (%s) may start workflows on changes of accounts", t.ID, accountPerm)
+		}
+	}
 	gh := guardHost(ctx)
 	changed := false
 	for i := range d.Steps {
@@ -661,37 +680,40 @@ func (Type) Text(raw json.RawMessage) string {
 }
 
 var msgs = map[string]map[string]string{
-	"process":   {"en": "Process", "de": "Ablauf"},
-	"assignee":  {"en": "Handled by", "de": "Bearbeitet von"},
-	"starter":   {"en": "the person who started the case", "de": "die Person, die den Vorgang gestartet hat"},
-	"user":      {"en": "user %s", "de": "Benutzer %s"},
-	"group":     {"en": "group %s", "de": "Gruppe %s"},
-	"role":      {"en": "role %s", "de": "Rolle %s"},
-	"end":       {"en": "End of the process", "de": "Ende des Ablaufs"},
-	"goto":      {"en": "%s → %s", "de": "%s → %s"},
-	"approval":  {"en": "Approval by %s (%s)", "de": "Freigabe durch %s (%s)"},
-	"all":       {"en": "all", "de": "alle"},
-	"n":         {"en": "%d approval(s)", "de": "%d Freigabe(n)"},
-	"approved":  {"en": "approved", "de": "freigegeben"},
-	"rejected":  {"en": "rejected", "de": "abgelehnt"},
-	"condition": {"en": "Automatic check of the details", "de": "Automatische Prüfung der Angaben"},
-	"yes":       {"en": "condition met", "de": "Bedingung erfüllt"},
-	"no":        {"en": "otherwise", "de": "sonst"},
-	"email":     {"en": "Automatic e-mail: %s", "de": "Automatische E-Mail: %s"},
-	"webhook":   {"en": "Automatic transfer to another system", "de": "Automatische Übergabe an ein anderes System"},
-	"failed":    {"en": "on error", "de": "bei Fehler"},
-	"delay":     {"en": "Waiting time", "de": "Wartezeit"},
-	"then":      {"en": "then → %s", "de": "dann → %s"},
-	"reminder":  {"en": "Reminder after %d day(s)", "de": "Erinnerung nach %d Tag(en)"},
-	"notify":    {"en": "Automatic message", "de": "Automatische Nachricht"},
-	"set":       {"en": "Automatic values", "de": "Automatische Werte"},
-	"http":      {"en": "Automatic query of another system", "de": "Automatische Abfrage eines anderen Systems"},
-	"create":    {"en": "Automatic new page", "de": "Automatisch neue Seite"},
-	"props":     {"en": "Automatic properties of a page", "de": "Automatische Eigenschaften einer Seite"},
-	"subflow":   {"en": "Another workflow", "de": "Weiterer Workflow"},
-	"parallel":  {"en": "Branches at the same time", "de": "Zweige gleichzeitig"},
-	"deadline":  {"en": "With a deadline", "de": "Mit Frist"},
-	"triggers":  {"en": "Starts automatically", "de": "Startet automatisch"},
+	"process":    {"en": "Process", "de": "Ablauf"},
+	"assignee":   {"en": "Handled by", "de": "Bearbeitet von"},
+	"starter":    {"en": "the person who started the case", "de": "die Person, die den Vorgang gestartet hat"},
+	"user":       {"en": "user %s", "de": "Benutzer %s"},
+	"group":      {"en": "group %s", "de": "Gruppe %s"},
+	"role":       {"en": "role %s", "de": "Rolle %s"},
+	"end":        {"en": "End of the process", "de": "Ende des Ablaufs"},
+	"goto":       {"en": "%s → %s", "de": "%s → %s"},
+	"approval":   {"en": "Approval by %s (%s)", "de": "Freigabe durch %s (%s)"},
+	"all":        {"en": "all", "de": "alle"},
+	"n":          {"en": "%d approval(s)", "de": "%d Freigabe(n)"},
+	"approved":   {"en": "approved", "de": "freigegeben"},
+	"rejected":   {"en": "rejected", "de": "abgelehnt"},
+	"condition":  {"en": "Automatic check of the details", "de": "Automatische Prüfung der Angaben"},
+	"yes":        {"en": "condition met", "de": "Bedingung erfüllt"},
+	"no":         {"en": "otherwise", "de": "sonst"},
+	"email":      {"en": "Automatic e-mail: %s", "de": "Automatische E-Mail: %s"},
+	"webhook":    {"en": "Automatic transfer to another system", "de": "Automatische Übergabe an ein anderes System"},
+	"failed":     {"en": "on error", "de": "bei Fehler"},
+	"delay":      {"en": "Waiting time", "de": "Wartezeit"},
+	"then":       {"en": "then → %s", "de": "dann → %s"},
+	"reminder":   {"en": "Reminder after %d day(s)", "de": "Erinnerung nach %d Tag(en)"},
+	"notify":     {"en": "Automatic message", "de": "Automatische Nachricht"},
+	"set":        {"en": "Automatic values", "de": "Automatische Werte"},
+	"http":       {"en": "Automatic query of another system", "de": "Automatische Abfrage eines anderen Systems"},
+	"create":     {"en": "Automatic new page", "de": "Automatisch neue Seite"},
+	"props":      {"en": "Automatic properties of a page", "de": "Automatische Eigenschaften einer Seite"},
+	"subflow":    {"en": "Another workflow", "de": "Weiterer Workflow"},
+	"access":     {"en": "Automatic permissions", "de": "Automatische Berechtigungen"},
+	"membership": {"en": "Automatic group membership", "de": "Automatische Gruppenmitgliedschaft"},
+	"move":       {"en": "Automatically move a page", "de": "Seite automatisch verschieben"},
+	"parallel":   {"en": "Branches at the same time", "de": "Zweige gleichzeitig"},
+	"deadline":   {"en": "With a deadline", "de": "Mit Frist"},
+	"triggers":   {"en": "Starts automatically", "de": "Startet automatisch"},
 }
 
 func msg(lang, key string) string {

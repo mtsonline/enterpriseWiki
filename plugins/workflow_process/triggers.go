@@ -45,6 +45,7 @@ import (
 	h "github.com/mtsonline/enterprisewiki/internal/httpx"
 	"github.com/mtsonline/enterprisewiki/internal/identity"
 	"github.com/mtsonline/enterprisewiki/internal/netlist"
+	"github.com/mtsonline/enterprisewiki/internal/perm"
 	"github.com/mtsonline/enterprisewiki/internal/secrets"
 	"github.com/mtsonline/enterprisewiki/internal/webhook"
 )
@@ -65,7 +66,17 @@ var ContentEvents = []string{"create", "update", "delete", "move", "restore", "p
 
 // TriggerEvents are the events an event trigger can react to.
 var TriggerEvents = []string{"comment.create", "form.submitted", "workflow.completed", "workflow.cancelled",
-	"event.registration", "event.registration_cancelled"}
+	"event.registration", "event.registration_cancelled",
+	"user.created", "user.disabled", "user.enabled", "user.deleted", "group.member_added", "group.member_removed"}
+
+// accountEvent reports whether ev concerns accounts (people and groups):
+// only who manages them may react to it (permission accountPerm).
+func accountEvent(ev string) bool {
+	return strings.HasPrefix(ev, "user.") || strings.HasPrefix(ev, "group.")
+}
+
+// accountPerm is the global permission needed for triggers of accounts.
+const accountPerm = "core.users.manage"
 
 var dataKeyRe = regexp.MustCompile(`^[A-Za-z0-9_-]{1,64}$`)
 
@@ -98,6 +109,7 @@ type Trigger struct {
 	Category int64  `json:"category,omitempty"` // 0: everywhere
 	Workflow int64  `json:"workflow,omitempty"` // workflow.*: the other workflow
 	Outcome  string `json:"outcome,omitempty"`  // workflow.completed: success | failure | neutral | ""
+	Group    int64  `json:"group,omitempty"`    // group.*: only this group (0: all)
 	// webhook: senders (addresses, networks, host names); empty: everybody
 	// with the secret
 	AllowFrom []string `json:"allow_from,omitempty"`
@@ -174,8 +186,8 @@ func (d *Definition) validateTriggers() error {
 			return apperr.BadRequest("trigger %q: run as the definer (or the actor of changes and events)", t.ID)
 		}
 		// only the fields of the type
-		cron, evs, src, prop, ev, cat, wf, out, allow := t.Cron, t.Events, t.Sources, t.Prop, t.Event, t.Category, t.Workflow, t.Outcome, t.AllowFrom
-		t.Cron, t.Events, t.Sources, t.Prop, t.Event, t.Category, t.Workflow, t.Outcome, t.AllowFrom = "", nil, "", nil, "", 0, 0, "", nil
+		cron, evs, src, prop, ev, cat, wf, out, allow, grp := t.Cron, t.Events, t.Sources, t.Prop, t.Event, t.Category, t.Workflow, t.Outcome, t.AllowFrom, t.Group
+		t.Cron, t.Events, t.Sources, t.Prop, t.Event, t.Category, t.Workflow, t.Outcome, t.AllowFrom, t.Group = "", nil, "", nil, "", 0, 0, "", nil, 0
 		switch t.Type {
 		case TrigSchedule:
 			if _, err := ParseCron(cron); err != nil {
@@ -218,6 +230,16 @@ func (d *Definition) validateTriggers() error {
 				return apperr.BadRequest("trigger %q: unknown event %q", t.ID, ev)
 			}
 			t.Event, t.Category = ev, max(cat, 0)
+			if accountEvent(ev) {
+				// accounts belong to no category; nobody else acts for them
+				t.Category = 0
+				if t.RunAs == "actor" {
+					return apperr.BadRequest("trigger %q: changes of accounts run as the definer", t.ID)
+				}
+				if strings.HasPrefix(ev, "group.") {
+					t.Group = max(grp, 0)
+				}
+			}
 			if strings.HasPrefix(ev, "workflow.") {
 				if wf <= 0 {
 					return apperr.BadRequest("trigger %q: choose the other workflow", t.ID)
@@ -255,7 +277,22 @@ func syncTriggers(ctx context.Context, q db.Querier, element int64) error {
 	if err != nil {
 		return err
 	}
-	if _, err := q.Exec(ctx, `DELETE FROM plugin_workflow_triggers WHERE element_id=$1`, element); err != nil {
+	since := map[string]time.Time{}
+	rows, err := q.Query(ctx, `DELETE FROM plugin_workflow_triggers WHERE element_id=$1 RETURNING trigger_id, since`, element)
+	if err != nil {
+		return err
+	}
+	for rows.Next() {
+		var id string
+		var at time.Time
+		if err := rows.Scan(&id, &at); err != nil {
+			rows.Close()
+			return err
+		}
+		since[id] = at
+	}
+	rows.Close()
+	if err := rows.Err(); err != nil {
 		return err
 	}
 	if deleted {
@@ -269,8 +306,12 @@ func syncTriggers(ctx context.Context, q db.Querier, element int64) error {
 		if t.Off {
 			continue
 		}
-		if _, err := q.Exec(ctx, `INSERT INTO plugin_workflow_triggers(element_id, trigger_id, type, events, spec) VALUES ($1,$2,$3,$4,$5)`,
-			element, t.ID, t.Type, t.webhookEvents(), t); err != nil {
+		at, ok := since[t.ID]
+		if !ok {
+			at = time.Now()
+		}
+		if _, err := q.Exec(ctx, `INSERT INTO plugin_workflow_triggers(element_id, trigger_id, type, events, spec, since) VALUES ($1,$2,$3,$4,$5,$6)`,
+			element, t.ID, t.Type, t.webhookEvents(), t, at); err != nil {
 			return err
 		}
 	}
@@ -356,8 +397,12 @@ func (pl *Plugin) listenQ(ctx context.Context, q db.Querier, ev webhook.Event) e
 	if err != nil {
 		return err
 	}
+	at := ev.OccurredAt // only what happened after the trigger was saved
+	if at.IsZero() {
+		at = time.Now()
+	}
 	tag, err := q.Exec(ctx, `INSERT INTO plugin_workflow_queue(element_id, trigger_id, event, actor_id, depth)
-		SELECT element_id, trigger_id, $2, $3, $4 FROM plugin_workflow_triggers WHERE $1 = ANY(events)`, ev.Name, b, actor, depth)
+		SELECT element_id, trigger_id, $2, $3, $4 FROM plugin_workflow_triggers WHERE $1 = ANY(events) AND since <= $5`, ev.Name, b, actor, depth, at)
 	if err != nil {
 		return err
 	}
@@ -504,6 +549,16 @@ func (pl *Plugin) fire(ctx context.Context, qe *queued) error {
 			if err := pl.host.DB.QueryRow(ctx, `SELECT EXISTS (SELECT 1 FROM categories a, categories c WHERE a.id=$1 AND c.id=$2 AND a.path @> c.path)`,
 				t.Category, ev.CategoryID).Scan(&below); err != nil || !below {
 				return err
+			}
+		}
+		if accountEvent(t.Event) {
+			// only who manages accounts learns about them (checked when firing:
+			// the rights of the definer may have changed since saving)
+			if !perm.HasP(identity.From(pctx), accountPerm) {
+				return fmt.Errorf("%s may no longer manage accounts (%s)", identity.From(pctx).Handle(), accountPerm)
+			}
+			if g, _ := ev.Data["group_id"].(float64); t.Group != 0 && int64(g) != t.Group {
+				return errSkip
 			}
 		}
 		if strings.HasPrefix(t.Event, "workflow.") {

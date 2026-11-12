@@ -140,3 +140,49 @@ CREATE TABLE identity_links (
     email      text NOT NULL,
     expires_at timestamptz NOT NULL
 );
+
+-- ---------------------------------------------------------------- changes
+-- Change log of accounts: every way a person is created, disabled,
+-- deleted or put into a group (administration, SCIM, sign-in providers,
+-- LDAP) is recorded here by triggers; each site turns it into the events
+-- user.* and group.* (webhooks, workflow triggers) within seconds. Personal
+-- data is kept only for deleted people (name, no e-mail) and only for a
+-- day: the details of everybody else are read when the event is sent.
+CREATE TABLE identity_changes (
+    seq          bigserial PRIMARY KEY,
+    event        text NOT NULL,
+    user_id      bigint NOT NULL,
+    group_id     bigint,
+    username     text NOT NULL DEFAULT '',  -- user.deleted only
+    display_name text NOT NULL DEFAULT '',  -- user.deleted only
+    at           timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE FUNCTION identity_changes_users() RETURNS trigger LANGUAGE plpgsql AS $$
+BEGIN
+    IF TG_OP = 'INSERT' THEN
+        EXECUTE format('INSERT INTO %I.identity_changes(event, user_id) VALUES ($1,$2)', TG_TABLE_SCHEMA) USING 'user.created', NEW.id;
+    ELSIF TG_OP = 'DELETE' THEN
+        EXECUTE format('INSERT INTO %I.identity_changes(event, user_id, username, display_name) VALUES ($1,$2,$3,$4)', TG_TABLE_SCHEMA)
+            USING 'user.deleted', OLD.id, OLD.username, OLD.display_name;
+    ELSIF NEW.disabled IS DISTINCT FROM OLD.disabled THEN
+        EXECUTE format('INSERT INTO %I.identity_changes(event, user_id) VALUES ($1,$2)', TG_TABLE_SCHEMA)
+            USING CASE WHEN NEW.disabled THEN 'user.disabled' ELSE 'user.enabled' END, NEW.id;
+    END IF;
+    RETURN NULL;
+END $$;
+CREATE TRIGGER users_identity_changed AFTER INSERT OR UPDATE OF disabled OR DELETE ON users
+    FOR EACH ROW EXECUTE FUNCTION identity_changes_users();
+
+CREATE FUNCTION identity_changes_groups() RETURNS trigger LANGUAGE plpgsql AS $$
+DECLARE r record; ev text;
+BEGIN
+    IF TG_OP = 'INSERT' THEN r := NEW; ev := 'group.member_added'; ELSE r := OLD; ev := 'group.member_removed'; END IF;
+    -- nothing when the person or the group itself is being deleted (user.deleted covers it)
+    EXECUTE format('INSERT INTO %1$I.identity_changes(event, user_id, group_id)
+        SELECT $1, u.id, g.id FROM %1$I.users u, %1$I.groups g WHERE u.id = $2 AND g.id = $3', TG_TABLE_SCHEMA)
+        USING ev, r.user_id, r.group_id;
+    RETURN NULL;
+END $$;
+CREATE TRIGGER user_groups_identity_changed AFTER INSERT OR DELETE ON user_groups
+    FOR EACH ROW EXECUTE FUNCTION identity_changes_groups();

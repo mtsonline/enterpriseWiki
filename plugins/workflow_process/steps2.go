@@ -188,9 +188,11 @@ func (s *Step) validateExtra(fieldType map[string]string) error {
 	var err error
 	n, set, hs, cr, pr, sf := s.Notify, s.Set, s.HTTP, s.Create, s.Props, s.Subflow
 	s.Notify, s.Set, s.HTTP, s.Create, s.Props, s.Subflow = nil, nil, nil, nil, nil, nil
+	ac, mb, mv := s.Access, s.Member, s.Move
+	s.Access, s.Member, s.Move = nil, nil, nil
 	runAs := s.RunAs
 	s.RunAs = ""
-	if !in(s.Type, StepNotify, StepSet, StepHTTP, StepCreate, StepProps, StepSubflow, StepParallel) {
+	if !in(s.Type, StepNotify, StepSet, StepParallel) && !apiStep(s.Type) {
 		return nil
 	}
 	// automatic: no assignee, actions, reminders
@@ -199,7 +201,7 @@ func (s *Step) validateExtra(fieldType map[string]string) error {
 	if s.Next == "" {
 		return apperr.BadRequest("step %q: the next step is required", s.ID)
 	}
-	if in(s.Type, StepHTTP, StepCreate, StepProps, StepSubflow) {
+	if apiStep(s.Type) {
 		if runAs == "" {
 			runAs = "definer"
 		}
@@ -361,6 +363,8 @@ func (s *Step) validateExtra(fieldType map[string]string) error {
 			}
 		}
 		s.Subflow = &f
+	case StepAccess, StepMember, StepMove:
+		return s.validatePart3(ac, mb, mv)
 	}
 	return nil
 }

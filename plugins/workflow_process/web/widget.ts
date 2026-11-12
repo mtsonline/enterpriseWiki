@@ -46,7 +46,10 @@ function eventText(e: Event, stepName: (id: string | null) => string): string {
     case 'props': return t('workflow.ev.props', { step });
     case 'subflow': case 'subflow_started': return t('workflow.ev.subflow_started');
     case 'subflow_done': return t('workflow.ev.subflow_done', { step });
-    case 'http_failed': case 'create_failed': case 'props_failed': case 'subflow_failed': return t('workflow.ev.step_failed');
+    case 'access': return t(e.action_label === 'revoke' ? 'workflow.ev.access_revoke' : 'workflow.ev.access_grant', { step });
+    case 'membership': return t(e.action_label === 'remove' ? 'workflow.ev.membership_remove' : 'workflow.ev.membership_add', { step });
+    case 'move': return t('workflow.ev.move', { step });
+    case 'http_failed': case 'create_failed': case 'props_failed': case 'subflow_failed': case 'access_failed': case 'membership_failed': case 'move_failed': return t('workflow.ev.step_failed');
     case 'warning': return t('workflow.ev.warning');
     case 'test_skipped': return t('workflow.ev.test_skipped', { type: t(`workflow.steptype.${e.action_label}`), step });
     case 'escalate': return t(`workflow.ev.escalate_${['notify', 'reassign', 'cancel'].includes(e.action_label) ? e.action_label : 'action'}`, { step });

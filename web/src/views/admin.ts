@@ -231,19 +231,57 @@ async function groups(panel: HTMLElement): Promise<void> {
       gs.map((g) => h('tr', null, h('th', { scope: 'row' }, g.name), h('td', null, g.description), h('td', null, g.source), h('td', null, String(g.members)),
         h('td', null, g.roles.map((id) => rs.find((r) => r.id === id)?.name ?? id).join(', ')),
         h('td', { class: 'ew-actions' },
-          button(t('admin.show_members'), async () => {
-            try {
-              const [ids, us] = await Promise.all([api.get<number[]>(`admin/groups/${g.id}/members`), api.get<User[]>('admin/users?limit=500')]);
-              const names = ids.map((id) => us.find((u) => u.id === id)?.handle ?? `#${id}`);
-              const d = openDialog(t('admin.members_of', { name: g.name }), names.length ? h('ul', null, ...names.map((n) => h('li', null, n))) : h('p', null, t('admin.no_members')),
-                [button(t('common.close'), () => d.close(), { variant: 'primary' })]);
-            } catch (e) { toast(errorText(e), 'error'); }
-          }, { variant: 'link', ariaLabel: t('admin.members_of', { name: g.name }) }),
+          button(t('admin.show_members'), () => void membersDialog(g, reload), { variant: 'link', ariaLabel: t('admin.members_of', { name: g.name }) }),
           button(t('common.edit'), () => dialog(g), { variant: 'link', ariaLabel: t('admin.edit_named', { name: g.name }) }),
           button(t('common.delete'), async () => {
             if (!(await confirmDialog(t('admin.group_delete_confirm', { name: g.name }), t('common.delete'), true))) return;
             try { await api.del(`admin/groups/${g.id}`); reload(); } catch (e) { toast(errorText(e), 'error'); }
           }, { variant: 'link', ariaLabel: t('admin.delete_named', { name: g.name }) })))), t('admin.no_groups')));
+}
+
+/** Members of a group: add and remove single people (all sources; the
+ * same guards as when editing a person apply on the server). */
+async function membersDialog(g: { id: number; name: string }, reload: () => void): Promise<void> {
+  let ids: number[], us: User[];
+  try {
+    [ids, us] = await Promise.all([api.get<number[]>(`admin/groups/${g.id}/members`), api.get<User[]>('admin/users?limit=500')]);
+  } catch (e) { toast(errorText(e), 'error'); return; }
+  const body = h('div');
+  const status = h('p', { role: 'status', class: 'sr-only' });
+  const name = (id: number) => us.find((u) => u.id === id)?.handle ?? `#${id}`;
+  const draw = () => {
+    const others = us.filter((u) => !ids.includes(u.id));
+    const pick = select([{ value: '', label: t('admin.member_choose') }, ...others.map((u) => ({ value: String(u.id), label: u.handle }))], '');
+    body.replaceChildren(
+      ids.length ? h('ul', { class: 'ew-member-list' }, ...ids.map((id) => h('li', null, name(id), ' ',
+        button(t('admin.member_remove'), async () => {
+          try {
+            await api.del(`admin/groups/${g.id}/members/${id}`);
+            ids = ids.filter((x) => x !== id);
+            status.textContent = t('admin.member_removed', { name: name(id) });
+            draw();
+            body.querySelector<HTMLElement>('select')?.focus();
+          } catch (e) { toast(errorText(e), 'error'); }
+        }, { variant: 'link', ariaLabel: t('admin.member_remove_named', { name: name(id) }) })))) : h('p', null, t('admin.no_members')),
+      sharedEditable() ? h('form', {
+        class: 'ew-form ew-inline-form',
+        onsubmit: async (ev: Event) => {
+          ev.preventDefault();
+          const id = Number(pick.value);
+          if (!id) return;
+          try {
+            await api.put(`admin/groups/${g.id}/members/${id}`, {});
+            ids = [...ids, id];
+            status.textContent = t('admin.member_added', { name: name(id) });
+            draw();
+            body.querySelector<HTMLElement>('select')?.focus();
+          } catch (e) { toast(errorText(e), 'error'); }
+        },
+      }, field(t('admin.member_add'), pick), button(t('admin.member_add'), () => undefined, { type: 'submit', variant: 'secondary' })) : '');
+  };
+  draw();
+  const d = openDialog(t('admin.members_of', { name: g.name }), h('div', null, body, status),
+    [button(t('common.close'), () => { d.close(); reload(); }, { variant: 'primary' })]);
 }
 
 async function roles(panel: HTMLElement): Promise<void> {

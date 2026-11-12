@@ -119,7 +119,9 @@ func TestDemo(t *testing.T) {
 	}
 	// search_changes: technical change log (element ids only, kept 30 days)
 	// that the search indexer may still append to after the removal
-	skip := []string{"audit_log", "worker_jobs", "worker_runs", "sessions", "search_changes"}
+	// identity_changes: change log of accounts (kept a day) – the demo
+	// accounts come and go
+	skip := []string{"audit_log", "worker_jobs", "worker_runs", "sessions", "search_changes", "identity_changes"}
 	before = dbSnapshot(t, e, skip...)
 
 	for round := 0; round < 2; round++ {

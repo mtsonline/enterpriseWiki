@@ -79,6 +79,9 @@ CREATE TABLE plugin_workflow_triggers (
     type        text NOT NULL,          -- schedule | content | event | webhook
     events      text[] NOT NULL DEFAULT '{}',
     spec        jsonb NOT NULL,
+    -- the trigger reacts to what happens from this time on (kept when the
+    -- workflow is saved again; events are handled after a short delay)
+    since       timestamptz NOT NULL DEFAULT now(),
     PRIMARY KEY (element_id, trigger_id)
 );
 CREATE INDEX plugin_workflow_triggers_events ON plugin_workflow_triggers USING gin(events);
@@ -142,3 +145,11 @@ CREATE TABLE plugin_workflow_links_used (
     hash     text PRIMARY KEY,
     used_at  timestamptz NOT NULL DEFAULT now()
 );
+
+-- permissions granted by a step for some days: removed when the time is over
+CREATE TABLE plugin_workflow_grants (
+    rule_id     bigint PRIMARY KEY REFERENCES acl_rules(id) ON DELETE CASCADE,
+    expires_at  timestamptz NOT NULL,
+    instance_id bigint REFERENCES plugin_workflow_instances(id) ON DELETE SET NULL
+);
+CREATE INDEX plugin_workflow_grants_expiry ON plugin_workflow_grants(expires_at);

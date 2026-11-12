@@ -399,6 +399,26 @@ func (s *Server) routes() {
 		}
 		return s.app.Auth.GroupMembers(r.Context(), id)
 	})
+	// PUT/DELETE /api/v1/admin/groups/{id}/members/{user}: one person into or out of a group
+	memberSet := func(member bool) h.Handler {
+		return func(w http.ResponseWriter, r *http.Request) (any, error) {
+			if err := requireAdmin(r); err != nil {
+				return nil, err
+			}
+			gid, err := h.PathID(r, "id")
+			if err != nil {
+				return nil, err
+			}
+			uid, err := h.PathID(r, "user")
+			if err != nil {
+				return nil, err
+			}
+			changed, err := s.app.Auth.SetGroupMember(r.Context(), gid, uid, member)
+			return map[string]bool{"changed": changed}, err
+		}
+	}
+	s.handle("PUT /api/v1/admin/groups/{id}/members/{user}", memberSet(true))
+	s.handle("DELETE /api/v1/admin/groups/{id}/members/{user}", memberSet(false))
 	roleSave := func(w http.ResponseWriter, r *http.Request) (any, error) {
 		var id int64
 		if r.PathValue("id") != "" {
