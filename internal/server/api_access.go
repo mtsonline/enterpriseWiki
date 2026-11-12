@@ -161,13 +161,8 @@ func (s *Server) requestAccess(ctx context.Context, me *identity.Principal, typ 
 	if err := s.app.DB.QueryRow(ctx, `SELECT EXISTS (SELECT 1 FROM access_requests WHERE user_id=$1 AND category_id=$2 AND status='open')`, me.ID(), cat).Scan(&open); err != nil || open {
 		return err
 	}
-	var rid int64
-	if err := s.app.DB.QueryRow(ctx, `INSERT INTO access_requests(user_id, category_id, message) VALUES ($1,$2,$3) RETURNING id`, me.ID(), cat, msg).Scan(&rid); err != nil {
-		return err
-	}
-	_ = audit.Log(ctx, s.app.DB, "access.request", "category", cat, nil, map[string]any{"request": rid})
 	managers, err := s.managersOf(ctx, cat)
-	if err != nil || len(managers) == 0 {
+	if err != nil {
 		return err
 	}
 	name := me.DisplayName
@@ -176,15 +171,26 @@ func (s *Server) requestAccess(ctx context.Context, me *identity.Principal, typ 
 	}
 	def := s.app.Config.Get().I18n.DefaultLanguage
 	link := fmt.Sprintf("/c/%d/settings?tab=permissions", cat)
-	_, err = s.app.Notify.Send(ctx, managers, notify.Message{Kind: "access_request", EntityType: "category", EntityID: cat, Link: link,
+	ask := notify.Message{Kind: "access_request", EntityType: "category", EntityID: cat, Link: link,
 		Text: func(lang string) (string, string) {
 			body, title := msg, pickTitle(titles, lang, def)
 			if lang == "de" {
 				return fmt.Sprintf("%s bittet um Zugriff auf „%s“", name, title), body
 			}
 			return fmt.Sprintf("%s asks for access to “%s”", name, title), body
-		}})
-	return err
+		}}
+	// the request and the notification of the managers are stored together
+	return pgx.BeginFunc(ctx, s.app.DB, func(tx pgx.Tx) error {
+		var rid int64
+		if err := tx.QueryRow(ctx, `INSERT INTO access_requests(user_id, category_id, message) VALUES ($1,$2,$3) RETURNING id`, me.ID(), cat, msg).Scan(&rid); err != nil {
+			return err
+		}
+		if err := audit.Log(ctx, tx, "access.request", "category", cat, nil, map[string]any{"request": rid}); err != nil {
+			return err
+		}
+		_, err := s.app.Notify.SendQ(ctx, tx, managers, ask)
+		return err
+	})
 }
 
 // managersOf returns the users who may manage a category through rules on it

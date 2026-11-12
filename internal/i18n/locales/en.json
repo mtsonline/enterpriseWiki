@@ -1978,5 +1978,7 @@
  "apikey.rate_col": "Limit",
  "apikey.rate_account": "as account",
  "apikey.rate_value": "{n}/s",
- "apikey.rate_edit": "Change the limit of “{name}”"
+ "apikey.rate_edit": "Change the limit of “{name}”",
+ "webhook.text.form.submitted": "Someone submitted the form “{title}”.",
+ "webhooks.ev.form.submitted": "Form submitted"
 }

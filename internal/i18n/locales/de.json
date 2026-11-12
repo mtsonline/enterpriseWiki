@@ -2028,5 +2028,7 @@
  "apikey.rate_col": "Grenze",
  "apikey.rate_account": "wie Konto",
  "apikey.rate_value": "{n}/s",
- "apikey.rate_edit": "Grenze von „{name}“ ändern"
+ "apikey.rate_edit": "Grenze von „{name}“ ändern",
+ "webhook.text.form.submitted": "Jemand hat das Formular „{title}“ abgeschickt.",
+ "webhooks.ev.form.submitted": "Formular abgeschickt"
 }

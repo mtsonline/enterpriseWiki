@@ -169,7 +169,9 @@ func TestNotificationsAreNotLost(t *testing.T) {
 		}
 		return n
 	}
-	mentions := func() int { return count(`SELECT count(*) FROM notifications WHERE user_id=$1 AND kind='mention'`, bert) }
+	mentions := func() int {
+		return count(`SELECT count(*) FROM notifications WHERE user_id=$1 AND kind='mention'`, bert)
+	}
 
 	// a page with a mention: notified, nothing left in the queue
 	var page elem

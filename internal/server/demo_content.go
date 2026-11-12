@@ -591,6 +591,25 @@ func buildDemo(d *demoRun) {
 			{"id": "check", "name": "Prüfen", "assignee": map[string]string{"type": "group", "value": "#" + strconv.FormatInt(editorsGroup, 10)}, "actions": []map[string]any{{"id": "ok", "label": "Genehmigen", "next": "done"}}},
 			{"id": "done", "name": "Erledigt", "actions": []any{}, "outcome": "success"}}}), nil)
 	})
+	d.optional("forms", func() {
+		mk := func(intro, name, mail, topic, it, hr, other, which, msg, msgHelp, rate, file, ok, send, thanks string) map[string]any {
+			return map[string]any{"intro": intro, "submit_label": send, "success_message": thanks, "layout": "grid",
+				"fields": []map[string]any{
+					{"id": "name", "type": "text", "label": name, "required": true, "autocomplete": "name", "prefill": "user.name", "width": 6},
+					{"id": "mail", "type": "email", "label": mail, "required": true, "autocomplete": "email", "prefill": "user.email", "width": 6},
+					{"id": "topic", "type": "radio", "label": topic, "required": true, "options": []map[string]string{{"value": "it", "label": it}, {"value": "hr", "label": hr}, {"value": "other", "label": other}}},
+					{"id": "which", "type": "text", "label": which, "required": true, "show_if": map[string]string{"field": "topic", "op": "eq", "value": "other"}},
+					{"id": "msg", "type": "textarea", "label": msg, "help": msgHelp, "rows": 4},
+					{"id": "rate", "type": "rating", "label": rate},
+					{"id": "doc", "type": "file", "label": file, "accept": []string{"pdf", "image"}, "max_files": 3, "max_size_mb": 5, "file_comment": true},
+					{"id": "ok", "type": "consent", "label": ok, "required": true},
+				}, "targets": map[string]any{"store": true}}
+		}
+		d.element(docs, "content.forms", d.tr("Contact form", "Kontaktformular"), map[string]any{
+			"en": mk("Write to us – the fields adapt to your answers (“Other” asks for details), files can be dropped onto the upload area.", "Your name", "E-mail", "What is it about?", "IT", "HR", "Other", "What exactly?", "Message", "Please do not send passwords.", "How happy are you with the wiki?", "Attachment", "I agree that my details are processed.", "Send request", "Thank you! We will get back to you."),
+			"de": mk("Schreiben Sie uns – die Felder passen sich Ihren Antworten an („Anderes“ fragt nach), Dateien lassen sich auf die Upload-Fläche ziehen.", "Ihr Name", "E-Mail", "Worum geht es?", "IT", "Personal", "Anderes", "Was genau?", "Nachricht", "Bitte keine Passwörter senden.", "Wie zufrieden sind Sie mit dem Wiki?", "Anhang", "Ich stimme der Verarbeitung meiner Angaben zu.", "Anfrage senden", "Danke! Wir melden uns."),
+		}, nil)
+	})
 	d.optional("notes", func() {
 		bodies := map[string]any{}
 		for l, src := range d.tr("## Agenda\n\n- [x] Welcome\n- [ ] Demo of the wiki\n- [ ] Next steps\n\nWrite here together: everybody who may edit sees the others live.\n",

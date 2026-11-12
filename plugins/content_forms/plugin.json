@@ -1,0 +1,40 @@
+{
+  "id": "content.forms",
+  "name": "Forms",
+  "version": "1.0.0",
+  "description": "Element type for web forms: a form editor with all usual fields (also uploads, conditions and checks), a layout as accessible grid or placed freely, storage of the submissions and further targets (property database, e-mail, workflow, webhook). Everyone who may see the form may submit it; what happens with a submission is done with the rights of the person who set the form up.",
+  "author": "Enterprise Wiki",
+  "kinds": ["element"],
+  "frontend": true,
+  "permissions": [
+    {
+      "key": "content.forms.create",
+      "scope": "category",
+      "label": "Create forms",
+      "description": "Create forms and change or delete the own ones.",
+      "presets": ["editor"]
+    },
+    {
+      "key": "content.forms.admin",
+      "scope": "category",
+      "label": "Forms administrator",
+      "description": "Change and delete all forms of the category.",
+      "presets": ["manager"],
+      "implies": ["content.forms.create", "content.forms.submissions"]
+    },
+    {
+      "key": "content.forms.submissions",
+      "scope": "category",
+      "label": "See submissions",
+      "description": "See, export and delete the submissions of the forms of the category (the creator of a form always sees its submissions).",
+      "presets": ["manager"]
+    },
+    {
+      "key": "content.forms.external",
+      "scope": "category",
+      "label": "Send submissions outside",
+      "description": "Send submissions to any e-mail address and to webhooks (without it only to members of the wiki).",
+      "presets": ["manager"]
+    }
+  ]
+}

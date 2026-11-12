@@ -39,6 +39,7 @@ var Events = []string{
 	"event.registration", "event.registration_cancelled", "event.occurrence_changed",
 	"comment.create",
 	"workflow.started", "workflow.completed", "workflow.cancelled",
+	"form.submitted",
 }
 
 // Formats of the request body.
