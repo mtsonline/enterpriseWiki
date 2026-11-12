@@ -98,6 +98,8 @@ type Instance struct {
 	Handover string    `json:"handover,omitempty"`
 	Prev     *Assignee `json:"-"`
 	Branch   bool      `json:"branch,omitempty"`
+	Rev      int       `json:"rev"`
+	Test     bool      `json:"test,omitempty"`
 	// Branches of a parallel step (for the caller who sees the case).
 	Branches []Branch `json:"branches,omitempty"`
 	// Form: the fields the caller fills in or sees in the current step.
@@ -127,13 +129,13 @@ const instCols = `i.id, i.element_id, e.category_id, e.titles, i.lang, i.title, 
 	i.started_at, i.updated_at, i.closed_at,
 	COALESCE((SELECT array_agg(DISTINCT x.to_step) FROM plugin_workflow_events x WHERE x.instance_id=i.id AND x.to_step IS NOT NULL), '{}'),
 	COALESCE((SELECT array_agg(DISTINCT x.actor_id) FROM plugin_workflow_events x WHERE x.instance_id=i.id AND x.actor_id IS NOT NULL), '{}'),
-	i.step_entered_at, i.wake_at, i.last_error, i.definer_id, i.trigger, i.depth, i.parent_id, i.parent_step, i.due_at, i.warned, i.escalated, i.override, i.handover, i.prev, i.branch`
+	i.step_entered_at, i.wake_at, i.last_error, i.definer_id, i.trigger, i.depth, i.parent_id, i.parent_step, i.due_at, i.warned, i.escalated, i.override, i.handover, i.prev, i.branch, i.rev, i.test`
 
 func scanInstance(r pgx.CollectableRow) (*Instance, error) {
 	var x Instance
 	err := r.Scan(&x.ID, &x.ElementID, &x.CategoryID, &x.Element, &x.Lang, &x.Title, &x.Data, &x.Definition, &x.Step, &x.Status,
 		&x.StartedByID, &x.StartedBy, &x.StartedAt, &x.UpdatedAt, &x.ClosedAt, &x.Visited, &x.Actors, &x.StepEntered, &x.WakeAt, &x.LastError,
-		&x.DefinerID, &x.Trigger, &x.Depth, &x.ParentID, &x.ParentStep, &x.DueAt, &x.Warned, &x.Escalated, &x.Override, &x.Handover, &x.Prev, &x.Branch)
+		&x.DefinerID, &x.Trigger, &x.Depth, &x.ParentID, &x.ParentStep, &x.DueAt, &x.Warned, &x.Escalated, &x.Override, &x.Handover, &x.Prev, &x.Branch, &x.Rev, &x.Test)
 	if err != nil {
 		return nil, err
 	}
@@ -205,6 +207,9 @@ func (pl *Plugin) caller(ctx context.Context) (*who, error) {
 
 // assignee returns who handles step s of x (after an escalation: the new assignee).
 func (x *Instance) assignee(s *Step) Assignee {
+	if x.Test && s.Manual() { // a test run: everything goes to the person testing
+		return Assignee{Type: "starter"}
+	}
 	if x.Override != nil && s.ID == x.Step {
 		return *x.Override
 	}
@@ -368,9 +373,10 @@ func definitionByQ(ctx context.Context, q db.Querier, element int64, lang string
 	var raw json.RawMessage
 	var shown string
 	var by *int64
-	err := q.QueryRow(ctx, `SELECT r.body, r.lang, r.created_by FROM element_revisions r JOIN elements e ON e.id=r.element_id
+	var rev int
+	err := q.QueryRow(ctx, `SELECT r.body, r.lang, r.created_by, r.rev FROM element_revisions r JOIN elements e ON e.id=r.element_id
 		WHERE r.element_id=$1 AND e.type='workflow.process' AND e.deleted_at IS NULL
-		ORDER BY (r.lang=$2) DESC, (r.lang=e.original_lang) DESC, r.rev DESC LIMIT 1`, element, lang).Scan(&raw, &shown, &by)
+		ORDER BY (r.lang=$2) DESC, (r.lang=e.original_lang) DESC, r.rev DESC LIMIT 1`, element, lang).Scan(&raw, &shown, &by, &rev)
 	if err != nil {
 		return nil, "", 0, apperr.NotFound("workflow")
 	}
@@ -379,6 +385,7 @@ func definitionByQ(ctx context.Context, q db.Querier, element int64, lang string
 		return nil, "", 0, err
 	}
 	d.normalizeTypes()
+	d.Rev = rev
 	var definer int64
 	if by != nil {
 		definer = *by
@@ -398,6 +405,8 @@ type startInput struct {
 	// Manual: by a person with the start form (refused for NoManual).
 	Via    string
 	Manual bool
+	// Test: a test run (all tasks to the person testing, nothing leaves the wiki).
+	Test bool
 }
 
 // startTx starts a case of workflow element with the principal of ctx in tx.
@@ -445,8 +454,8 @@ func (pl *Plugin) startTx(ctx context.Context, tx pgx.Tx, element int64, in star
 	first := def.Steps[0]
 	var iid int64
 	if err := tx.QueryRow(ctx, `INSERT INTO plugin_workflow_instances(element_id, lang, title, data, definition, step, status, started_by,
-		definer_id, trigger, depth, parent_id, parent_step) VALUES ($1,$2,$3,$4,$5,$6,'open',$7,$8,$9,$10,$11,$12) RETURNING id`,
-		element, shown, title, data, def, first.ID, p.ID(), nullID(definer), in.Trigger, in.Depth, in.ParentID, in.ParentStep).Scan(&iid); err != nil {
+		definer_id, trigger, depth, parent_id, parent_step, rev, test) VALUES ($1,$2,$3,$4,$5,$6,'open',$7,$8,$9,$10,$11,$12,$13,$14) RETURNING id`,
+		element, shown, title, data, def, first.ID, p.ID(), nullID(definer), in.Trigger, in.Depth, in.ParentID, in.ParentStep, def.Rev, in.Test).Scan(&iid); err != nil {
 		return 0, err
 	}
 	label := ""
@@ -594,6 +603,9 @@ func (pl *Plugin) Setup(host *sdk.Host) error {
 	}
 	pl.triggerRoutes(host)
 	pl.deputyRoutes(host)
+	pl.linkRoutes(host)
+	pl.statsRoutes(host)
+	host.RegisterWorker("retention", 6*time.Hour, pl.retention)
 
 	// GET /meta describes step types, rule operators and placeholders (editor).
 	host.Handle("GET", "/meta", func(w http.ResponseWriter, r *http.Request) (any, error) {
@@ -626,7 +638,7 @@ func (pl *Plugin) Setup(host *sdk.Host) error {
 		}
 		status := r.URL.Query().Get("status")
 		rows, err := host.DB.Query(ctx, `SELECT `+instCols+` FROM plugin_workflow_instances i JOIN elements e ON e.id=i.element_id
-			WHERE i.element_id=$1 AND NOT i.branch AND ($2='' OR i.status=$2) ORDER BY i.updated_at DESC LIMIT 1000`, id, status)
+			WHERE i.element_id=$1 AND NOT i.branch AND i.test = $3 AND ($2='' OR i.status=$2) ORDER BY i.updated_at DESC LIMIT 1000`, id, status, r.URL.Query().Get("test") == "1")
 		if err != nil {
 			return nil, err
 		}
@@ -643,7 +655,9 @@ func (pl *Plugin) Setup(host *sdk.Host) error {
 				list = append(list, x)
 			}
 		}
+		_, cerr := pl.mayChange(ctx, id)
 		return map[string]any{"instances": list, "can_start": me.p != nil && me.p.ID() != 0 && !def.NoManual, "fields": startFields(def.Fields),
+			"can_test": cerr == nil, "can_stats": cerr == nil || m, "rev": def.Rev,
 			"lang": shown, "first_step": def.Steps[0].Name, "manage": m}, nil
 	})
 
@@ -665,13 +679,19 @@ func (pl *Plugin) Setup(host *sdk.Host) error {
 			Title string         `json:"title"`
 			Lang  string         `json:"lang"`
 			Data  map[string]any `json:"data"`
+			Test  bool           `json:"test"` // a test run (who may change the workflow)
 		}
 		if err := h.Decode(r, &in); err != nil {
 			return nil, err
 		}
+		if in.Test {
+			if _, err := pl.mayChange(ctx, id); err != nil {
+				return nil, err
+			}
+		}
 		var iid int64
 		err = pgx.BeginFunc(ctx, host.DB, func(tx pgx.Tx) error {
-			iid, err = pl.startTx(ctx, tx, id, startInput{Title: in.Title, Lang: in.Lang, Data: in.Data, Via: p.Via, Manual: true})
+			iid, err = pl.startTx(ctx, tx, id, startInput{Title: in.Title, Lang: in.Lang, Data: in.Data, Via: p.Via, Manual: !in.Test, Test: in.Test})
 			return err
 		})
 		if err != nil {

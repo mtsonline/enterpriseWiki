@@ -490,6 +490,9 @@ Verlangt das Konto einen zweiten Faktor, antwortet die Anmeldung mit `mfa_requir
 | `GET` | `/api/v1/x/workflow.process/me/deputy` |
 | `PUT` | `/api/v1/x/workflow.process/me/deputy` |
 | `DELETE` | `/api/v1/x/workflow.process/me/deputy` |
+| `GET` | `/api/v1/x/workflow.process/links/info` |
+| `POST` | `/api/v1/x/workflow.process/links/act` |
+| `GET` | `/api/v1/x/workflow.process/elements/{id}/stats` |
 | `GET` | `/api/v1/x/content.forms/meta` |
 | `GET` | `/api/v1/x/content.forms/elements/{id}/start` |
 | `POST` | `/api/v1/x/content.forms/elements/{id}/submit` |

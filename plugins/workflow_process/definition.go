@@ -28,6 +28,18 @@ type Definition struct {
 	// NoManual hides the start form: cases start only by triggers (and
 	// forms or other workflows).
 	NoManual bool `json:"no_manual,omitempty"`
+	// Retention: closed cases are deleted or anonymized after some days.
+	Retention *Retention `json:"retention,omitempty"`
+	// Links: task e-mails carry links for the decisions.
+	Links bool `json:"links,omitempty"`
+	// Rev is the revision the definition was read from (not stored).
+	Rev int `json:"-"`
+}
+
+// Retention of closed cases.
+type Retention struct {
+	Days int    `json:"days"`
+	Mode string `json:"mode"` // delete | anonymize
 }
 
 // Field is an input of the start form.
@@ -324,6 +336,13 @@ func (d *Definition) Validate() error {
 	}
 	if d.Fields == nil {
 		d.Fields = []Field{}
+	}
+	if r := d.Retention; r != nil {
+		if r.Days <= 0 {
+			d.Retention = nil
+		} else if r.Days > 36500 || (r.Mode != "delete" && r.Mode != "anonymize") {
+			return apperr.BadRequest("retention: 1 to 36500 days, delete or anonymize")
+		}
 	}
 	return d.validateTriggers()
 }

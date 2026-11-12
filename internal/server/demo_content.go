@@ -697,8 +697,10 @@ func buildDemo(d *demoRun) {
 		// contracts: one review per department at the same time, a form in each step
 		d.element(docs, "workflow.process", d.tr("Contract review (parallel)", "Vertragsprüfung (parallel)"), both(func(tr func(en, de string) string) map[string]any {
 			return map[string]any{
-				"description": tr("One review branch per department at the same time; each reviewer fills in a note (the price stays hidden from them). The final decision needs a comment. Tasks can be taken over, handed over or sent back to the requester with a question; deputies stand in during absences (My tasks).",
-					"Ein Prüfzweig je Abteilung gleichzeitig; jede prüfende Person füllt eine Notiz aus (der Preis bleibt ihr verborgen). Die Schlussentscheidung braucht einen Kommentar. Aufgaben lassen sich übernehmen, weitergeben oder mit einer Rückfrage an den Antragsteller schicken; Vertretungen springen bei Abwesenheit ein (Meine Aufgaben)."),
+				"description": tr("One review branch per department at the same time; each reviewer fills in a note (the price stays hidden from them). The final decision needs a comment. Tasks can be taken over, handed over or sent back to the requester with a question; deputies stand in during absences (My tasks). Task e-mails carry decision links; finished cases are anonymized after two years. Try it first with \"Start test run\".",
+					"Ein Prüfzweig je Abteilung gleichzeitig; jede prüfende Person füllt eine Notiz aus (der Preis bleibt ihr verborgen). Die Schlussentscheidung braucht einen Kommentar. Aufgaben lassen sich übernehmen, weitergeben oder mit einer Rückfrage an den Antragsteller schicken; Vertretungen springen bei Abwesenheit ein (Meine Aufgaben). Aufgaben-E-Mails enthalten Entscheidungslinks; beendete Fälle werden nach zwei Jahren anonymisiert. Zuerst mit „Testlauf starten“ ausprobieren."),
+				"links":     true,
+				"retention": map[string]any{"days": 730, "mode": "anonymize"},
 				"fields": []map[string]any{
 					{"id": "contract", "label": tr("Contract", "Vertrag"), "type": "text", "required": true},
 					{"id": "price", "label": tr("Price (€)", "Preis (€)"), "type": "number"},

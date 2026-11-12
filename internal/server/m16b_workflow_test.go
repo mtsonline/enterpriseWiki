@@ -11,6 +11,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"strconv"
 	"strings"
 	"testing"
@@ -624,5 +625,172 @@ func TestWorkflow2Part2(t *testing.T) {
 	hal.must("DELETE", "/api/v1/x/workflow.process/me/deputy", nil, nil, 204)
 	if code := ivy.do("GET", fmt.Sprintf("/api/v1/x/workflow.process/instances/%d", dc), nil, nil); code != 404 {
 		t.Fatalf("after the end of the deputyship: %d", code)
+	}
+}
+
+// TestWorkflow2Part2b covers links in task e-mails (once, only for the
+// person, without signing in only when allowed and below confidential),
+// test runs, versions, the evaluation and the retention of cases.
+func TestWorkflow2Part2b(t *testing.T) {
+	e := setup(t)
+	ctx := context.Background()
+	if err := e.app.Config.Update(func(cf *config.Config) error {
+		cf.Mail.From = "wiki@example.com"
+		cf.Server.BaseURL = "https://wiki.example.com"
+		return nil
+	}); err != nil {
+		t.Fatal(err)
+	}
+	admin := e.client()
+	admin.login("admin", adminPW)
+	const pw = "Passw0rd!Passw0rd"
+	var gusID idResp
+	admin.must("POST", "/api/v1/admin/users", map[string]any{"username": "gus", "password": pw, "display_name": "Gus", "email": "gus@example.com", "roles": []int64{}}, &gusID, 201)
+	gus := e.client()
+	gus.login("gus", pw)
+	var w cat
+	admin.must("POST", "/api/v1/categories", map[string]any{"titles": map[string]string{"en": "Flows"}}, &w, 201)
+	admin.must("POST", fmt.Sprintf("/api/v1/categories/%d/acl", w.ID), map[string]any{"subject_type": "authenticated", "permissions": 1, "inherit": true}, nil, 201)
+	def := map[string]any{"description": "", "links": true, "retention": map[string]any{"days": 1, "mode": "anonymize"},
+		"fields": []map[string]any{{"id": "who", "label": "Who", "type": "text"}},
+		"steps": []map[string]any{
+			{"id": "mail", "name": "Mail", "type": "email", "next": "check", "email": map[string]any{"to": "outside@example.org", "subject": "Hi", "body": "x"}},
+			{"id": "check", "name": "Check", "assignee": map[string]string{"type": "user", "value": "gus"},
+				"actions": []map[string]any{{"id": "ok", "label": "Agree", "next": "done"}, {"id": "no", "label": "Refuse", "next": "done", "note": "required"}}},
+			{"id": "done", "name": "Done", "type": "end", "outcome": "success"}}}
+	var wf elem
+	admin.must("POST", "/api/v1/elements", map[string]any{"category_id": w.ID, "type": "workflow.process", "title": "Leave", "body": def}, &wf, 201)
+	start := func(c *client, body map[string]any, want int) wfCase {
+		t.Helper()
+		var x wfCase
+		c.must("POST", fmt.Sprintf("/api/v1/x/workflow.process/elements/%d/instances", wf.ID), body, &x, want)
+		return x
+	}
+	tokenOf := func(label string) string {
+		t.Helper()
+		var body string
+		if err := e.app.DB.QueryRow(ctx, `SELECT body_text FROM mail_outbox WHERE 'gus@example.com' = ANY(to_addrs) ORDER BY id DESC LIMIT 1`).Scan(&body); err != nil {
+			t.Fatal(err)
+		}
+		for _, line := range strings.Split(body, "\n") {
+			if strings.HasPrefix(line, "- "+label+": ") {
+				_, tok, _ := strings.Cut(line, "?t=")
+				return tok
+			}
+		}
+		t.Fatalf("no link %q in: %s", label, body)
+		return ""
+	}
+	guest := e.client()
+	info := func(tok string) (int, map[string]any) {
+		var m map[string]any
+		code := guest.do("GET", "/api/v1/x/workflow.process/links/info?t="+url.QueryEscape(tok), nil, &m)
+		return code, m
+	}
+	c1 := start(admin, map[string]any{"data": map[string]any{"who": "Ann"}}, 201)
+	tok := tokenOf("Agree")
+	if code, m := info(tok); code != 200 || m["without_login"] != false || m["mine"] != false || m["label"] != "Agree" {
+		t.Fatalf("info: %d %v", code, m)
+	}
+	if code := guest.do("POST", "/api/v1/x/workflow.process/links/act", map[string]any{"t": tok}, nil); code != 403 {
+		t.Fatalf("decision without login while not allowed: %d", code)
+	}
+	if err := e.app.Config.Update(func(cf *config.Config) error {
+		if cf.Settings == nil {
+			cf.Settings = map[string]map[string]any{}
+		}
+		cf.Settings["workflow.process"] = map[string]any{"links_without_login": true}
+		return nil
+	}); err != nil {
+		t.Fatal(err)
+	}
+	bad := tok[:len(tok)-2] + "xx"
+	if code := guest.do("POST", "/api/v1/x/workflow.process/links/act", map[string]any{"t": bad}, nil); code != 400 {
+		t.Fatalf("changed link: %d", code)
+	}
+	guest.must("POST", "/api/v1/x/workflow.process/links/act", map[string]any{"t": tok}, nil, 200)
+	var x wfCase
+	admin.must("GET", fmt.Sprintf("/api/v1/x/workflow.process/instances/%d", c1.ID), nil, &x, 200)
+	if x.Status != "done" {
+		t.Fatalf("after the link: %+v", x)
+	}
+	if code := guest.do("POST", "/api/v1/x/workflow.process/links/act", map[string]any{"t": tok}, nil); code != 409 {
+		t.Fatalf("link used twice: %d", code)
+	}
+	// confidential: never without signing in
+	admin.must("PUT", fmt.Sprintf("/api/v1/categories/%d", w.ID), map[string]any{"classification": 2}, nil, 200)
+	start(admin, map[string]any{"data": map[string]any{"who": "Bob"}}, 201)
+	if code := guest.do("POST", "/api/v1/x/workflow.process/links/act", map[string]any{"t": tokenOf("Agree")}, nil); code != 403 {
+		t.Fatalf("confidential without login: %d", code)
+	}
+	admin.must("PUT", fmt.Sprintf("/api/v1/categories/%d", w.ID), map[string]any{"classification": -1}, nil, 200)
+
+	// test run: only who may change the workflow; nothing leaves, all tasks to the tester
+	if code := gus.do("POST", fmt.Sprintf("/api/v1/x/workflow.process/elements/%d/instances", wf.ID), map[string]any{"test": true}, nil); code != 403 {
+		t.Fatalf("test run by someone else: %d", code)
+	}
+	var mails int
+	_ = e.app.DB.QueryRow(ctx, `SELECT count(*) FROM mail_outbox`).Scan(&mails)
+	tc := start(admin, map[string]any{"test": true, "data": map[string]any{"who": "Test"}}, 201)
+	var after int
+	_ = e.app.DB.QueryRow(ctx, `SELECT count(*) FROM mail_outbox`).Scan(&after)
+	admin.must("GET", fmt.Sprintf("/api/v1/x/workflow.process/instances/%d", tc.ID), nil, &x, 200)
+	if after != mails || x.Step != "check" || len(x.Actions) == 0 || x.Events[1].Action != "test_skipped" {
+		t.Fatalf("test run: mails %d→%d %+v", mails, after, x)
+	}
+	if code := gus.do("GET", fmt.Sprintf("/api/v1/x/workflow.process/instances/%d", tc.ID), nil, nil); code != 404 {
+		t.Fatalf("gus sees the test run: %d", code)
+	}
+	var list struct {
+		Instances []wfCase `json:"instances"`
+		CanTest   bool     `json:"can_test"`
+	}
+	admin.must("GET", fmt.Sprintf("/api/v1/x/workflow.process/elements/%d/instances?status=", wf.ID), nil, &list, 200)
+	for _, c := range list.Instances {
+		if c.ID == tc.ID {
+			t.Fatal("test run among the cases")
+		}
+	}
+	admin.must("GET", fmt.Sprintf("/api/v1/x/workflow.process/elements/%d/instances?test=1&status=", wf.ID), nil, &list, 200)
+	if len(list.Instances) != 1 || !list.CanTest {
+		t.Fatalf("test runs: %+v", list)
+	}
+
+	// evaluation
+	var st struct {
+		Done     int            `json:"done"`
+		Open     int            `json:"open"`
+		Outcomes map[string]int `json:"outcomes"`
+		Steps    []struct {
+			ID     string `json:"id"`
+			Visits int    `json:"visits"`
+			Open   int    `json:"open"`
+		} `json:"steps"`
+		Versions []int `json:"versions"`
+	}
+	if code := gus.do("GET", fmt.Sprintf("/api/v1/x/workflow.process/elements/%d/stats", wf.ID), nil, nil); code != 403 {
+		t.Fatalf("stats for gus: %d", code)
+	}
+	admin.must("GET", fmt.Sprintf("/api/v1/x/workflow.process/elements/%d/stats", wf.ID), nil, &st, 200)
+	if st.Done != 1 || st.Open != 1 || st.Outcomes["success"] != 1 || len(st.Versions) != 1 || st.Versions[0] != 1 {
+		t.Fatalf("stats: %+v", st)
+	}
+
+	// retention: anonymized a day after closing
+	if _, err := e.app.DB.Exec(ctx, `UPDATE plugin_workflow_instances SET closed_at = now() - interval '2 days' WHERE id=$1`, c1.ID); err != nil {
+		t.Fatal(err)
+	}
+	if err := e.app.Workers.RunOnce(ctx, "workflow.process.retention"); err != nil {
+		t.Fatal(err)
+	}
+	var anon wfCase
+	admin.must("GET", fmt.Sprintf("/api/v1/x/workflow.process/instances/%d", c1.ID), nil, &anon, 200)
+	if anon.Data["who"] != nil || len(anon.Events) == 0 {
+		t.Fatalf("anonymized: %+v", anon)
+	}
+	var title string
+	_ = e.app.DB.QueryRow(ctx, `SELECT title FROM plugin_workflow_instances WHERE id=$1`, c1.ID).Scan(&title)
+	if title != "–" {
+		t.Fatalf("title after anonymizing: %q", title)
 	}
 }

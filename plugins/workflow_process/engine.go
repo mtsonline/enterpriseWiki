@@ -100,6 +100,13 @@ func (pl *Plugin) enter(ctx context.Context, tx pgx.Tx, x *Instance, id string, 
 		if err := pl.notices(ctx, tx, x, s, "enter", a); err != nil {
 			return err
 		}
+		if x.Test && sideEffect(s.Type) { // a test run: nothing leaves the wiki
+			if err := event(ctx, tx, x.ID, sp(s.ID), sp(s.Next), "test_skipped", s.Type, "", actorInfo{}); err != nil {
+				return err
+			}
+			id = s.Next
+			continue
+		}
 		switch s.Type {
 		case StepEnd:
 			x.Status, x.Outcome = "done", s.Outcome
@@ -515,6 +522,9 @@ func (pl *Plugin) notifyAssignees(ctx context.Context, tx pgx.Tx, x *Instance, s
 // a new task).
 func (pl *Plugin) notifyAssigneesKey(ctx context.Context, tx pgx.Tx, x *Instance, s *Step, key string) error {
 	reminder := key != "workflow.mail.task"
+	if x.Test { // a test run: no e-mails
+		return nil
+	}
 	ids, err := pl.members(ctx, tx, x, x.assignee(s))
 	if err != nil {
 		return err
@@ -547,7 +557,7 @@ func (pl *Plugin) notifyAssigneesKey(ctx context.Context, tx pgx.Tx, x *Instance
 		params := map[string]string{"name": u.Name, "case": x.Title, "step": s.Name, "workflow": vars["workflow.title"],
 			"url": vars["case.url"], "tasks": vars["tasks.url"], "site": vars["site.name"], "due": vars["case.due"]}
 		if _, err := pl.host.Mail.Enqueue(ctx, tx, mail.Message{To: []string{u.Email},
-			Subject: pl.host.T(ctx, u.Lang, key+"_subject", params), Text: pl.host.T(ctx, u.Lang, key+"_body", params),
+			Subject: pl.host.T(ctx, u.Lang, key+"_subject", params), Text: pl.host.T(ctx, u.Lang, key+"_body", params) + pl.linksFor(ctx, tx, x, s, u.ID, u.Lang),
 			Source: "workflow.process", Ref: fmt.Sprintf("case:%d", x.ID)}); err != nil {
 			pl.host.Log.Warn("notification not queued", "user", u.ID, "err", err)
 		}
@@ -672,7 +682,7 @@ func asURLError(err error, target **url.Error) bool {
 
 // emit reports a case event to the webhooks (in the transaction of the change).
 func (pl *Plugin) emit(ctx context.Context, tx pgx.Tx, name string, x *Instance, a actorInfo) {
-	if pl.host.Webhooks == nil {
+	if pl.host.Webhooks == nil || x.Test { // test runs start nothing
 		return
 	}
 	actor := ""

@@ -159,8 +159,19 @@ func (pl *Plugin) sendNotice(ctx context.Context, tx pgx.Tx, x *Instance, n *Not
 	return nil
 }
 
+// linksFor returns the links of the decisions for a task e-mail ("" = none).
+func (pl *Plugin) linksFor(ctx context.Context, tx pgx.Tx, x *Instance, s *Step, uid int64, lang string) string {
+	if t := pl.linkText(ctx, tx, x, s, uid, lang); t != "" {
+		return "\n\n" + t
+	}
+	return ""
+}
+
 // notices sends the notices of step s on "enter" or "leave".
 func (pl *Plugin) notices(ctx context.Context, tx pgx.Tx, x *Instance, s *Step, on string, a actorInfo) error {
+	if x.Test {
+		return nil
+	}
 	for i := range s.Notices {
 		n := &s.Notices[i]
 		if n.On != on {

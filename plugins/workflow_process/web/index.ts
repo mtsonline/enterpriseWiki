@@ -1,6 +1,7 @@
 // Frontend of the workflow plugin: editor, page widget, "My tasks".
 import { api, button, errorText, field, fmtDate, h, mount, pageHeader, pick, pluginSettingsForm, registerAdminPage, registerEditor, registerSlot, registerWidget, route, state, t, textInput, toast } from '@ewiki/sdk';
 import { createWorkflowEditor } from './editor';
+import { linkView } from './link';
 import type { Instance } from './types';
 import { BASE, openCase, statusBadge, workflowWidget } from './widget';
 import './style.css';
@@ -58,6 +59,7 @@ async function deputySection(reload: () => void): Promise<HTMLElement> {
 
 async function adminPage(panel: HTMLElement): Promise<void> {
   const settings = await pluginSettingsForm('workflow.process', [
+    { key: 'links_without_login', label: t('workflow.admin.links'), type: 'bool', help: t('workflow.admin.links_help') },
     { key: 'holidays', label: t('workflow.admin.holidays'), type: 'textarea', help: t('workflow.admin.holidays_help'), placeholder: '01-01\n12-25\n2027-03-29' },
   ]);
   panel.replaceChildren(pageHeader(t('workflow.admin.title')), h('p', null, t('workflow.admin.intro')), settings.el);
@@ -68,6 +70,7 @@ export function register(): void {
   registerEditor('workflow.process', createWorkflowEditor);
   registerWidget('workflow', workflowWidget);
   route('/tasks', tasksView);
+  route('/workflow/link', linkView);
   registerSlot({
     id: 'workflow.tasks', position: 'sidebar', order: 5,
     render: async () => {

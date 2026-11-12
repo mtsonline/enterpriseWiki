@@ -31,7 +31,7 @@ export interface Step {
   notify?: NotifySpec; set?: Assign[]; http?: HTTPSpec; create?: CreateSpec; props?: PropsSpec; subflow?: SubflowSpec;
   run_as?: 'definer' | 'starter'; deadline?: Deadline; notices?: Notice[]; form?: StepField[]; parallel?: ParallelSpec;
 }
-export interface Definition { description: string; fields: Field[]; steps: Step[]; triggers?: Trigger[]; no_manual?: boolean }
+export interface Definition { description: string; fields: Field[]; steps: Step[]; triggers?: Trigger[]; no_manual?: boolean; links?: boolean; retention?: { days: number; mode: 'delete' | 'anonymize' } }
 
 export interface Event { id: number; from_step: string | null; to_step: string | null; action: string; action_label: string; note: string; actor: string; at: string }
 export interface Instance {
@@ -39,7 +39,7 @@ export interface Instance {
   data: Record<string, unknown>; definition: Definition; step: string; step_name: string; status: 'open' | 'done' | 'cancelled'; outcome?: string;
   started_by: string; started_at: string; updated_at: string; closed_at: string | null; actions: Action[]; can_cancel: boolean; events?: Event[];
   progress?: string; last_error?: string; wake_at?: string | null; due_at?: string | null; escalated?: boolean;
-  handover?: '' | 'claim' | 'delegate' | 'ask'; form?: StepField[]; branches?: { id: number; title: string; step: string; step_name: string; status: string; outcome?: string }[];
+  handover?: '' | 'claim' | 'delegate' | 'ask'; rev?: number; test?: boolean; form?: StepField[]; branches?: { id: number; title: string; step: string; step_name: string; status: string; outcome?: string }[];
 }
 export interface Meta {
   step_types: StepType[]; rule_ops: string[]; placeholders: string[]; field_types: string[]; mail_configured: boolean; http_allow: boolean;

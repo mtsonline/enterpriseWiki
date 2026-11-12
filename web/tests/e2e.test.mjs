@@ -883,6 +883,87 @@ test('workflow 2: parallel branches, form of a step, hand-over and deputy', asyn
   assert.ok(me.user.id > 0);
 });
 
+test('workflow 2: decision links in e-mails, test run, evaluation and retention options', async () => {
+  await m6Category();
+  // an own category that every signed-in user may read (the addressee must see the case)
+  const cat = (await call('POST', '/api/v1/categories', { titles: { en: `Flows ${run}` } })).id;
+  await call('POST', `/api/v1/categories/${cat}/acl`, { subject_type: 'authenticated', permissions: 1, inherit: true });
+  const who = `lnk${run}`;
+  await call('POST', '/api/v1/admin/users', { username: who, password: 'Lnk-Passw0rd-1!', display_name: `Linda ${run}`, email: `${who}@example.invalid` });
+  // the administrator allows decisions from e-mails without signing in
+  await page.goto(`${BASE}/admin/workflow`);
+  await idle();
+  const allow = page.getByLabel(/decisions from e-mails without signing in|entscheidungen aus e-mails ohne anmeldung/i);
+  await allow.check();
+  await a11y('workflow admin page');
+  await page.getByRole('button', { name: /^(save|speichern)$/i }).click();
+  await page.waitForFunction(async () => (await (await fetch('/api/v1/admin/settings')).json()).config.plugin_settings?.['workflow.process']?.links_without_login === true);
+  try {
+    const wf = await call('POST', '/api/v1/elements', { category_id: cat, type: 'workflow.process', title: `Leave ${run}`, body: {
+      description: 'E2E', links: true, retention: { days: 365, mode: 'anonymize' }, fields: [{ id: 'reason', label: 'Reason', type: 'text', required: true }],
+      steps: [
+        { id: 'mail', name: 'Inform', type: 'email', next: 'check', email: { to: 'outside@example.invalid', subject: 'Hi', body: 'x' } },
+        { id: 'check', name: 'Check', assignee: { type: 'user', value: who }, actions: [{ id: 'ok', label: 'Agree', next: 'done' }, { id: 'no', label: 'Refuse', next: 'done', note: 'required' }] },
+        { id: 'done', name: 'Finished', type: 'end', outcome: 'success' }] } });
+    // the editor shows the options of the process
+    await page.goto(`${BASE}/e/${wf.id}/edit`);
+    await idle();
+    await page.getByLabel(/decision links in task e-mails|entscheidungslinks in aufgaben-e-mails/i).waitFor();
+    assert.equal(await page.getByLabel(/keep completed cases|abgeschlossene fälle aufbewahren/i).inputValue(), '365');
+    await a11y('workflow editor options');
+    // a case: the task e-mail carries one link per decision
+    const c = await call('POST', `/api/v1/x/workflow.process/elements/${wf.id}/instances`, { data: { reason: `Holiday ${run}` } });
+    const out = await call('GET', `/api/v1/admin/mail/outbox?q=${encodeURIComponent(`${who}@example.invalid`)}`);
+    const mail = out[0];
+    assert.ok(mail, 'task e-mail queued');
+    const body = (await call('GET', `/api/v1/admin/mail/outbox/${mail.id}`)).body;
+    const tok = (body.split('\n').find((l) => l.startsWith('- Agree: ')) ?? '').split('?t=')[1];
+    assert.ok(tok, `link in the e-mail: ${body}`);
+    // signed in as someone else: the page says so and does not decide
+    await page.goto(`${BASE}/workflow/link?t=${tok}`);
+    await page.getByText(/sent to another person|an eine andere person/i).waitFor();
+    assert.equal(new URL(page.url()).search, '', 'the token leaves the address bar');
+    await a11y('decision link of another person');
+    // without signing in: confirm the decision
+    const guest = await browser.newPage({ viewport: { width: 1280, height: 900 }, bypassCSP: true });
+    try {
+      await guest.goto(`${BASE}/workflow/link?t=${tok}`);
+      const confirm = guest.getByRole('button', { name: /^(confirm|bestätigen): agree$/i });
+      await confirm.waitFor();
+      await a11y('decision link without signing in', guest);
+      await confirm.click();
+      await guest.getByText(/^(done|erledigt):/i).waitFor();
+      await a11y('decision link done', guest);
+      // once only
+      await guest.goto(`${BASE}/workflow/link?t=${tok}`);
+      await guest.getByRole('alert').waitFor();
+    } finally { await guest.close(); }
+    const x = await call('GET', `/api/v1/x/workflow.process/instances/${c.id}`);
+    assert.equal(x.status, 'done', `decided by the link: ${x.status}`);
+    // a test run from the page: all tasks come to the tester, nothing leaves the wiki
+    await page.goto(`${BASE}/e/${wf.id}`);
+    await idle();
+    await page.getByRole('button', { name: /^(start test run|testlauf starten)$/i }).click();
+    const form = page.locator('dialog[open] form');
+    await form.getByLabel(/^reason/i).fill('Try');
+    await a11y('test run start');
+    await form.locator('button[type=submit]').click();
+    const dlg = page.locator('dialog[open]');
+    await dlg.locator('.ew-badge', { hasText: /test run|testlauf/i }).waitFor();
+    await dlg.getByText(/skipped|übersprungen/i).waitFor();
+    await dlg.getByRole('button', { name: /^agree$/i }).waitFor();
+    await a11y('test run case');
+    await page.keyboard.press('Escape');
+    // the evaluation
+    await page.locator('.ewf-stats summary').click();
+    await page.locator('.ewf-stats table tbody tr').first().waitFor();
+    await a11y('workflow evaluation');
+  } finally {
+    const s = await call('GET', '/api/v1/admin/settings');
+    await call('PUT', '/api/v1/admin/settings', { plugin_settings: { 'workflow.process': { ...(s.config.plugin_settings?.['workflow.process'] ?? {}), links_without_login: false } } });
+  }
+});
+
 test('drafts, preview, templates and publishing with options', async () => {
   const cat = await m6Category();
   await page.goto(`${BASE}/c/${cat}/new`);
