@@ -2,6 +2,7 @@ package auth
 
 import (
 	"context"
+	"encoding/hex"
 	"net/http"
 	"strings"
 	"time"
@@ -202,7 +203,7 @@ func (s *Service) Logout(ctx context.Context, token string) (string, error) {
 	err := s.pool.QueryRow(ctx, `DELETE FROM sessions WHERE token_hash=$1
 		RETURNING sso_provider, sso_subject, sso_session, sso_hint`, h).Scan(&prov, &sess.Subject, &sess.SessionID, &sess.Hint)
 	s.cache.Delete(string(h))
-	s.bus.Publish(ctx, "auth", "")
+	s.bus.Publish(ctx, "auth", "session:"+hex.EncodeToString(h)) // P-01: only this session, not every cached sign-in
 	if err == pgx.ErrNoRows || prov == "" {
 		return "", nil
 	}

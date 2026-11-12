@@ -105,7 +105,48 @@ func toJSON(v any) any {
 	if err != nil || string(b) == "null" {
 		return nil
 	}
-	return b
+	return bound(b)
+}
+
+// Limits of one audit entry (S-03): large snapshots keep their structure
+// with each text shortened; what is still too large is only noted.
+const (
+	maxSnapshot = 16 << 10
+	maxText     = 1 << 10
+	maxEntry    = 64 << 10
+)
+
+func bound(b []byte) []byte {
+	if len(b) <= maxSnapshot {
+		return b
+	}
+	var v any
+	if json.Unmarshal(b, &v) == nil {
+		if c, err := json.Marshal(shorten(v)); err == nil && len(c) <= maxEntry {
+			return c
+		}
+	}
+	out, _ := json.Marshal(map[string]any{"truncated": true, "bytes": len(b)})
+	return out
+}
+
+func shorten(v any) any {
+	switch x := v.(type) {
+	case string:
+		if len(x) > maxText {
+			r := []rune(x[:maxText])
+			return string(r[:len(r)-1]) + "…" // the last rune may be cut
+		}
+	case map[string]any:
+		for k, e := range x {
+			x[k] = shorten(e)
+		}
+	case []any:
+		for i, e := range x {
+			x[i] = shorten(e)
+		}
+	}
+	return v
 }
 
 // Log appends an audit record using q (pass the transaction so the record is
@@ -132,9 +173,13 @@ func Log(ctx context.Context, q db.Querier, action, entityType string, entityID 
 		via = "guest"
 	}
 	_, err := q.Exec(ctx, `INSERT INTO audit_log(user_id, actor, action, entity_type, entity_id, before, after, ip, user_agent, via)
-		VALUES ($1,$2,$3,$4,$5,$6,$7,NULLIF($8,''),NULLIF($9,''),$10)`, uid, p.Handle(), action, entityType, eid, toJSON(before), toJSON(after), req.ip, req.ua, via)
+		VALUES ($1,$2,$3,$4,$5,$6,$7,NULLIF($8,''),NULLIF($9,''),$10)`, uid, p.Handle(), action, entityType, eid, toJSON(before), toJSON(after), req.ip, clip(req.ua, 512), via)
 	return err
 }
+
+// SnapshotSearchDays is the period of the text search in the snapshots
+// when no start is given.
+const SnapshotSearchDays = 90
 
 // Search filters audit entries.
 type Search struct {
@@ -196,9 +241,18 @@ func (s Search) where() (string, []any) {
 		add("id > ?", s.AfterID)
 	}
 	if t := strings.TrimSpace(s.Text); t != "" {
-		add("(actor ILIKE ? OR action ILIKE $X OR entity_type ILIKE $X OR before::text ILIKE $X OR after::text ILIKE $X OR COALESCE(ip,'') ILIKE $X)", "%"+t+"%")
+		// P-02: the snapshots are searched in a period only (without "from":
+		// the last SnapshotSearchDays days); actor, action, object and
+		// address always
+		since := s.From
+		if since.IsZero() {
+			since = time.Now().AddDate(0, 0, -SnapshotSearchDays)
+		}
+		like := strings.NewReplacer(`\`, `\\`, "%", `\%`, "_", `\_`).Replace(t)
+		add("(actor ILIKE ? OR action ILIKE $X OR entity_type ILIKE $X OR COALESCE(ip,'') ILIKE $X OR (at >= $Y AND (before::text ILIKE $X OR after::text ILIKE $X)))", "%"+like+"%")
 		n := fmt.Sprintf("$%d", len(args))
-		conds[len(conds)-1] = strings.ReplaceAll(conds[len(conds)-1], "$X", n)
+		args = append(args, since)
+		conds[len(conds)-1] = strings.ReplaceAll(strings.ReplaceAll(conds[len(conds)-1], "$X", n), "$Y", fmt.Sprintf("$%d", len(args)))
 	}
 	return strings.Join(conds, " AND "), args
 }
@@ -264,4 +318,13 @@ func Areas(ctx context.Context, q db.Querier) ([]string, error) {
 	}
 	slices.Sort(out)
 	return out, rows.Err()
+}
+
+// clip shortens a text to at most n bytes (whole runes).
+func clip(s string, n int) string {
+	if len(s) <= n {
+		return s
+	}
+	r := []rune(s[:n])
+	return string(r[:len(r)-1])
 }

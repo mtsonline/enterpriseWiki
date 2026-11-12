@@ -86,7 +86,7 @@ func Decode(r *http.Request, v any) error {
 		}
 		var mbe *http.MaxBytesError
 		if errors.As(err, &mbe) {
-			return apperr.BadRequest("request body too large")
+			return apperr.TooLarge("request body too large")
 		}
 		return apperr.BadRequest("invalid JSON: %v", err)
 	}

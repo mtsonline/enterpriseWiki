@@ -467,6 +467,9 @@ func (s *Service) Upload(ctx context.Context, in UploadInput, r io.Reader) (*Med
 	if int64(len(data)) > s.files.MaxBytes() {
 		return nil, apperr.New(413, "too_large", "file too large")
 	}
+	if err := CheckPixels(data); err != nil {
+		return nil, err
+	}
 	name := cleanName(in.Name)
 	// "original not stored": only the version with the uploader's mark
 	if in.Watermark.Mode == WMUploaderOnly {

@@ -588,7 +588,7 @@ func buildDemo(d *demoRun) {
 		`<p>Dateien der Medienbibliothek mit eigenen Rechten:</p><ul><li><a href="/api/v1/media/`+strconv.FormatInt(guide.ID, 10)+`/view">Kurzanleitung (PDF)</a></li><li><a href="/api/v1/media/`+strconv.FormatInt(confidential.ID, 10)+`/view">Vertrauliches Protokoll – nur ansehen, mit deinem Namen als Wasserzeichen</a></li><li><a href="/media?open=`+strconv.FormatInt(letter.ID, 10)+`">Briefvorlage – öffnet sich im Office-Programm, wenn eines eingerichtet ist</a></li></ul>`, nil)
 	d.optional("workflow", func() {
 		d.element(docs, "workflow.process", d.tr("Vacation request", "Urlaubsantrag"), d.same(map[string]any{"description": "Demo", "fields": []any{}, "steps": []map[string]any{
-			{"id": "check", "name": "Prüfen", "assignee": map[string]string{"type": "group", "value": strconv.FormatInt(editorsGroup, 10)}, "actions": []map[string]any{{"id": "ok", "label": "Genehmigen", "next": "done"}}},
+			{"id": "check", "name": "Prüfen", "assignee": map[string]string{"type": "group", "value": "#" + strconv.FormatInt(editorsGroup, 10)}, "actions": []map[string]any{{"id": "ok", "label": "Genehmigen", "next": "done"}}},
 			{"id": "done", "name": "Erledigt", "actions": []any{}, "outcome": "success"}}}), nil)
 	})
 	d.optional("notes", func() {

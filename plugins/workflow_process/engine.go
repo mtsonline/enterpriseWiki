@@ -332,12 +332,13 @@ func (pl *Plugin) members(ctx context.Context, q pgx.Tx, x *Instance, as Assigne
 			rows, err = q.Query(ctx, `SELECT id FROM users WHERE lower(username) = lower($1) AND provider='local' AND NOT disabled`, v)
 		}
 	case "group":
+		// "#ID" (stays valid when the group is renamed) or the name
 		rows, err = q.Query(ctx, `SELECT ug.user_id FROM user_groups ug JOIN groups g ON g.id=ug.group_id JOIN users u ON u.id=ug.user_id
-			WHERE lower(g.name)=lower($1) AND NOT u.disabled`, v)
+			WHERE (lower(g.name)=lower($1) OR '#' || g.id::text = $1) AND NOT u.disabled`, v)
 	case "role":
 		rows, err = q.Query(ctx, `SELECT DISTINCT x.uid FROM (
-				SELECT ur.user_id AS uid FROM user_roles ur JOIN roles r ON r.id=ur.role_id WHERE lower(r.name)=lower($1)
-				UNION SELECT ug.user_id FROM user_groups ug JOIN group_roles gr ON gr.group_id=ug.group_id JOIN roles r ON r.id=gr.role_id WHERE lower(r.name)=lower($1)
+				SELECT ur.user_id AS uid FROM user_roles ur JOIN roles r ON r.id=ur.role_id WHERE lower(r.name)=lower($1) OR '#' || r.id::text = $1
+				UNION SELECT ug.user_id FROM user_groups ug JOIN group_roles gr ON gr.group_id=ug.group_id JOIN roles r ON r.id=gr.role_id WHERE lower(r.name)=lower($1) OR '#' || r.id::text = $1
 			) x JOIN users u ON u.id=x.uid WHERE NOT u.disabled`, v)
 	default:
 		return nil, nil
@@ -349,10 +350,10 @@ func (pl *Plugin) members(ctx context.Context, q pgx.Tx, x *Instance, as Assigne
 }
 
 // canView keeps the users that may see the workflow page.
-func (pl *Plugin) canView(ctx context.Context, x *Instance, ids []int64) []int64 {
+func (pl *Plugin) canView(ctx context.Context, tx pgx.Tx, x *Instance, ids []int64) []int64 {
 	out := []int64{}
 	for _, id := range ids {
-		p, err := pl.host.Auth.LoadPrincipal(ctx, id)
+		p, err := pl.host.Auth.LoadPrincipalQ(ctx, tx, id) // inside the transaction (S-01)
 		if err == nil && pl.host.ACL.Can(ctx, p, x.CategoryID, acl.View) {
 			out = append(out, id)
 		}
@@ -452,7 +453,7 @@ func (pl *Plugin) notifyAssignees(ctx context.Context, tx pgx.Tx, x *Instance, s
 		}
 		ids = keep
 	}
-	us, err := pl.host.Mail.Users(ctx, tx, pl.canView(ctx, x, ids))
+	us, err := pl.host.Mail.Users(ctx, tx, pl.canView(ctx, tx, x, ids))
 	if err != nil {
 		return err
 	}

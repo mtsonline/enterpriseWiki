@@ -363,7 +363,7 @@ func (p *Plugin) notify(ctx context.Context, tx pgx.Tx, c *Comment, cat int64) e
 	delete(ids, me.ID())
 	list := []int64{}
 	for id := range ids {
-		pr, err := p.host.Auth.LoadPrincipal(ctx, id)
+		pr, err := p.host.Auth.LoadPrincipalQ(ctx, tx, id) // inside the transaction (S-01)
 		if err == nil && p.host.ACL.Can(ctx, pr, cat, acl.View) {
 			list = append(list, id)
 		}

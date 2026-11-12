@@ -313,7 +313,7 @@ func (s *Service) notify(ctx context.Context, tx pgx.Tx, uid int64, changes []pe
 		return err
 	}
 	u := us[0]
-	p, err := s.auth.LoadPrincipal(ctx, uid)
+	p, err := s.auth.LoadPrincipalQ(ctx, tx, uid) // inside the transaction (S-01)
 	if err != nil {
 		return nil // user disabled or deleted meanwhile
 	}

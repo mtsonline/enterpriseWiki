@@ -61,6 +61,12 @@ const adminPW = "Admin-Passw0rd!"
 
 func setup(t *testing.T) *env {
 	t.Helper()
+	return setupWith(t, nil)
+}
+
+// setupWith is setup with a change of the configuration (e.g. a small pool).
+func setupWith(t *testing.T, mod func(*config.Config)) *env {
+	t.Helper()
 	url := os.Getenv("EWIKI_TEST_DATABASE_URL")
 	if url == "" {
 		t.Skip("EWIKI_TEST_DATABASE_URL not set")
@@ -80,6 +86,10 @@ func setup(t *testing.T) *env {
 	c.Storage.Path = filepath.Join(dir, "data") // never inside the source tree
 	c.I18n.Languages = []string{"en", "de", "fr"}
 	c.Plugins.Disabled = []string{}
+	c.Server.RateLimit.Disabled = true // the tests send requests in bursts (own test: m15j)
+	if mod != nil {
+		mod(c)
+	}
 	cfgPath := filepath.Join(dir, "config.yaml")
 	if err := config.WriteFile(cfgPath, c); err != nil {
 		t.Fatal(err)

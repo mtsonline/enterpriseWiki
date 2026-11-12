@@ -204,5 +204,6 @@
  "perm.workflow.process.admin": "Workflow administrator",
  "perm.workflow.process.admin_help": "Change and delete all workflows of the category. Every change is logged in detail and the creator is notified.",
  "perm.workflow.process.cases": "Manage cases",
- "perm.workflow.process.cases_help": "See all cases of the workflows, cancel them and decide about failed steps. Who carries out a step is defined only by its assignee."
+ "perm.workflow.process.cases_help": "See all cases of the workflows, cancel them and decide about failed steps. Who carries out a step is defined only by its assignee.",
+ "workflow.assignee_value_ph": "Name, or #ID (stays valid when renamed)"
 }

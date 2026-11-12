@@ -100,6 +100,7 @@ func (s *Service) ListIn(ctx context.Context, o ListOptions) ([]ListedElement, i
 		o.Limit = 20
 	}
 	o.Limit = min(o.Limit, s.MaxListItems()) // the bound of the setting lists.max_items
+	o.Offset = max(o.Offset, 0)
 	if o.SummaryLen <= 0 {
 		o.SummaryLen = 300
 	}

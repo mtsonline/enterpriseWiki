@@ -11,7 +11,7 @@ Die Weboberfläche nutzt ausschließlich diese API. Alles, was in der Oberfläch
 
 | Verfahren | Verwendung |
 |---|---|
-| Session-Cookie | `POST /api/v1/auth/login {"username","password"}` setzt `ewiki_session`. Schreibende Anfragen brauchen den Header `X-Requested-With: ewiki` |
+| Session-Cookie | `POST /api/v1/auth/login {"username","password"}` setzt `ewiki_session`. Schreibende Anfragen – auch die Anmeldung selbst und Anfragen von Gästen – brauchen den Header `X-Requested-With: ewiki` |
 | API-Key | `Authorization: Bearer ewk_…` (unter *Mein Profil* erstellen) |
 | SSH-Schlüssel | Challenge holen, mit `ssh-keygen -Y sign -n ewiki-login` signieren, das Token als `Authorization: Bearer …` senden (siehe `scripts/ewiki-ssh-login.sh`) |
 | LDAP-Konten | wie lokale Konten über `POST /api/v1/auth/login` (auch für Skripte); weitere Faktoren danach über `/api/v1/auth/mfa/…` |

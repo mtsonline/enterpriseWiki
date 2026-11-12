@@ -59,6 +59,11 @@ func OpenSchema(ctx context.Context, url string, maxConns int, schema string) (*
 		cfg.MaxConns = int32(min(maxConns, 10000)) // #nosec G115 -- bounded
 	}
 	cfg.MaxConnIdleTime = 5 * time.Minute
+	// safety net: a transaction that waits on the application for a minute
+	// is ended by the server, so a pool can never stay blocked (S-01)
+	if _, ok := cfg.ConnConfig.RuntimeParams["idle_in_transaction_session_timeout"]; !ok {
+		cfg.ConnConfig.RuntimeParams["idle_in_transaction_session_timeout"] = "60000"
+	}
 	if schema != "" {
 		cfg.ConnConfig.RuntimeParams["search_path"] = schema + ", " + SharedSchema
 	} else {

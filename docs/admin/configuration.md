@@ -18,7 +18,11 @@ Vollständiges Beispiel: [config.example.yaml](../../config.example.yaml)
 | `base_url` | öffentliche URL | `http://localhost:8080` |
 | `secure_cookies` | Cookies nur über HTTPS und HSTS-Header senden | `false` |
 | `trusted_proxies` | IPs/CIDRs, deren `X-Forwarded-For` vertraut wird (für Rate-Limits, Logs, erlaubte Netze); `EWIKI_TRUSTED_PROXIES` überschreibt den Wert | `[]` |
-| `max_body_mb` | maximale Größe einer API-Anfrage | `64` |
+| `max_body_mb` | maximale Größe einer API-Anfrage (Uploads, Importe) | `64` |
+| `max_json_kb` | maximale Größe eines JSON-Körpers angemeldeter Personen; Gäste dürfen 64 KB senden (SSO-Rückmeldungen 1 MB) | `4096` |
+| `rate_limit` | Anfragen pro Sekunde und Vorrat je Konto (`per_second`, `burst`), je Adresse für Gäste (`guest_per_second`, `guest_burst`) und zusätzlich für teure Anfragen wie Suche, Vorschau, Export und Upload (`expensive_per_second`, `expensive_burst`); `disabled: true` schaltet ab (nur mit Grenzen im Reverse Proxy). Antwort bei Überschreitung `429` mit `Retry-After` | `50/500`, `20/200`, `5/50` |
+
+Höchstens 16 große Anfragen (über 1 MB) werden gleichzeitig verarbeitet. Hinter einem Reverse Proxy unbedingt `trusted_proxies` setzen, sonst teilen sich alle Benutzer die Grenzen der Proxy-Adresse.
 
 ### `mode`
 `single` (eine Instanz) oder `cluster` (mehrere Instanzen, siehe [installation.md](installation.md#mehrere-instanzen-cluster-modus)).
@@ -28,6 +32,8 @@ Vollständiges Beispiel: [config.example.yaml](../../config.example.yaml)
 |---|---|---|
 | `url` | PostgreSQL-URL, normalerweise `${EWIKI_DATABASE_URL}` | `${EWIKI_DATABASE_URL}` |
 | `max_conns` | maximale Verbindungen dieser Instanz | `50` |
+
+Eine Transaktion, die länger als 60 Sekunden auf die Anwendung wartet, beendet PostgreSQL (`idle_in_transaction_session_timeout`); so kann der Verbindungspool nie dauerhaft blockieren. Ein eigener Wert in der Datenbank-URL (`?idle_in_transaction_session_timeout=…`) hat Vorrang.
 
 ### `storage`
 | Schlüssel | Bedeutung | Standard |

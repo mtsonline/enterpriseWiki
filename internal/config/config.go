@@ -156,7 +156,47 @@ type Server struct {
 	SecureCookies  bool     `yaml:"secure_cookies" json:"secure_cookies"`
 	TrustedProxies []string `yaml:"trusted_proxies" json:"trusted_proxies"`
 	MaxBodyMB      int      `yaml:"max_body_mb" json:"max_body_mb"`
+	// MaxJSONKB limits JSON bodies of signed-in callers (default 4096);
+	// guests may send 64 KB (SSO callbacks 1 MB), uploads max_body_mb.
+	MaxJSONKB int `yaml:"max_json_kb,omitempty" json:"max_json_kb"`
+	// RateLimit limits API requests per account or address.
+	RateLimit RateLimit `yaml:"rate_limit,omitempty" json:"rate_limit"`
 }
+
+// RateLimit: requests per second and burst for signed-in accounts and for
+// guests (per address), and for expensive requests (search, previews,
+// exports, uploads) on top. Zero values use the defaults.
+type RateLimit struct {
+	Disabled        bool    `yaml:"disabled,omitempty" json:"disabled"`
+	PerSecond       float64 `yaml:"per_second,omitempty" json:"per_second"`
+	Burst           int     `yaml:"burst,omitempty" json:"burst"`
+	GuestPerSec     float64 `yaml:"guest_per_second,omitempty" json:"guest_per_second"`
+	GuestBurstN     int     `yaml:"guest_burst,omitempty" json:"guest_burst"`
+	ExpensivePerSec float64 `yaml:"expensive_per_second,omitempty" json:"expensive_per_second"`
+	ExpensiveBurstN int     `yaml:"expensive_burst,omitempty" json:"expensive_burst"`
+}
+
+func orF(v, def float64) float64 {
+	if v > 0 {
+		return v
+	}
+	return def
+}
+
+func orI(v, def int) int {
+	if v > 0 {
+		return v
+	}
+	return def
+}
+
+// UserPerSecond and the other methods return the effective values.
+func (r RateLimit) UserPerSecond() float64      { return orF(r.PerSecond, 50) }
+func (r RateLimit) UserBurst() int              { return orI(r.Burst, 500) }
+func (r RateLimit) GuestPerSecond() float64     { return orF(r.GuestPerSec, 20) }
+func (r RateLimit) GuestBurst() int             { return orI(r.GuestBurstN, 200) }
+func (r RateLimit) ExpensivePerSecond() float64 { return orF(r.ExpensivePerSec, 5) }
+func (r RateLimit) ExpensiveBurst() int         { return orI(r.ExpensiveBurstN, 50) }
 
 // Database holds the PostgreSQL connection.
 type Database struct {

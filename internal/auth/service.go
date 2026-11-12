@@ -6,6 +6,7 @@ package auth
 import (
 	"context"
 	"encoding/base64"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"github.com/mtsonline/enterprisewiki/internal/perm"
@@ -20,6 +21,7 @@ import (
 
 	"github.com/mtsonline/enterprisewiki/internal/apperr"
 	"github.com/mtsonline/enterprisewiki/internal/config"
+	"github.com/mtsonline/enterprisewiki/internal/db"
 	"github.com/mtsonline/enterprisewiki/internal/events"
 	"github.com/mtsonline/enterprisewiki/internal/identity"
 )
@@ -109,7 +111,17 @@ const principalCacheTTL = 30 * time.Second
 // New creates the auth service.
 func New(pool *pgxpool.Pool, cfg *config.Store, bus *events.Bus, log *slog.Logger) *Service {
 	s := &Service{pool: pool, cfg: cfg, bus: bus, log: log, enabled: func(string) bool { return true }, limiter: newLimiter()}
-	bus.Subscribe("auth", func(string) { s.flushCache() })
+	bus.Subscribe("auth", func(msg string) {
+		// "session:HASH" ends one cached session (sign-out); anything else
+		// (user, group, role changes) flushes all
+		if x, ok := strings.CutPrefix(msg, "session:"); ok {
+			if h, err := hex.DecodeString(x); err == nil {
+				s.cache.Delete(string(h))
+				return
+			}
+		}
+		s.flushCache()
+	})
 	bus.Subscribe("*", func(string) { s.flushCache() })
 	return s
 }
@@ -212,6 +224,15 @@ type LoginResult struct {
 	Principal *identity.Principal
 }
 
+// Limits of the sign-in: failed attempts per address and per user name in
+// 5 minutes, longest user name and password.
+const (
+	loginFailsIP   = 30
+	loginFailsUser = 20
+	maxUsername    = 255
+	maxPassword    = 1024
+)
+
 // Login checks factor 1 with a password against the provider chain. A
 // handle "name@provider" restricts the attempt to that provider; the wiki
 // user name (alias) signs in with the account's own method. If further
@@ -219,11 +240,21 @@ type LoginResult struct {
 // pending sign-in (see mfaflow.go).
 func (s *Service) Login(ctx context.Context, username, password, ip, ua string) (*LoginResult, error) {
 	username = strings.TrimSpace(username)
-	if username == "" || password == "" {
+	// only failed attempts count (S-05: offices behind one address)
+	failed := func() (*LoginResult, error) {
+		s.limiter.allow("ip:"+ip, loginFailsIP, 5*time.Minute)
+		if len(username) <= maxUsername {
+			s.limiter.allow("user:"+strings.ToLower(username), loginFailsUser, 5*time.Minute)
+		}
 		return nil, apperr.ErrInvalidLogin
 	}
-	if !s.limiter.allow("ip:"+ip, 30, 5*time.Minute) || !s.limiter.allow("user:"+strings.ToLower(username), 20, 5*time.Minute) {
+	if s.limiter.exceeded("ip:"+ip, loginFailsIP, 5*time.Minute) ||
+		(len(username) <= maxUsername && s.limiter.exceeded("user:"+strings.ToLower(username), loginFailsUser, 5*time.Minute)) {
 		return nil, apperr.TooMany("too many login attempts, try again later")
+	}
+	// S-03: never process (or log) oversized names and passwords
+	if username == "" || password == "" || len(username) > maxUsername || len(password) > maxPassword {
+		return failed()
 	}
 	providers := s.Providers()
 	// the wiki user name (alias): signs in with the account's own method;
@@ -276,7 +307,7 @@ func (s *Service) Login(ctx context.Context, username, password, ip, ua string) 
 		s.log.Info("login", "user", res.Principal.Handle(), "ip", ip)
 		return res.LoginResult, nil
 	}
-	return nil, apperr.ErrInvalidLogin
+	return failed()
 }
 
 // syncIdentity creates or updates the local user record of an identity and
@@ -337,7 +368,9 @@ func (s *Service) syncMemberships(ctx context.Context, id int64, ext *ExternalId
 			return err
 		}
 	}
-	s.bump(ctx)
+	if ext.Provider != "local" {
+		s.bump(ctx) // P-01: a local sign-in changes no memberships
+	}
 	return nil
 }
 
@@ -486,9 +519,16 @@ func (s *Service) Authenticate(ctx context.Context, token string) (*identity.Pri
 
 // LoadPrincipal loads a user with its groups and roles.
 func (s *Service) LoadPrincipal(ctx context.Context, uid int64) (*identity.Principal, error) {
+	return s.LoadPrincipalQ(ctx, s.pool, uid)
+}
+
+// LoadPrincipalQ loads a user with q: inside a transaction pass the
+// transaction, never take a second connection of the pool while one is
+// held (all connections could wait on each other).
+func (s *Service) LoadPrincipalQ(ctx context.Context, q db.Querier, uid int64) (*identity.Principal, error) {
 	p := &identity.Principal{UserID: uid}
 	var disabled bool
-	err := s.pool.QueryRow(ctx, `SELECT username, COALESCE(alias, ''), alias_source, provider, display_name, email, language, disabled, prefs FROM users WHERE id=$1`, uid).
+	err := q.QueryRow(ctx, `SELECT username, COALESCE(alias, ''), alias_source, provider, display_name, email, language, disabled, prefs FROM users WHERE id=$1`, uid).
 		Scan(&p.Username, &p.Alias, &p.AliasSource, &p.Provider, &p.DisplayName, &p.Email, &p.Language, &disabled, &p.Prefs)
 	if err != nil {
 		return nil, apperr.NotFound("user")
@@ -496,7 +536,7 @@ func (s *Service) LoadPrincipal(ctx context.Context, uid int64) (*identity.Princ
 	if disabled {
 		return nil, apperr.ErrUnauthorized
 	}
-	rows, err := s.pool.Query(ctx, `SELECT group_id FROM user_groups WHERE user_id=$1`, uid)
+	rows, err := q.Query(ctx, `SELECT group_id FROM user_groups WHERE user_id=$1`, uid)
 	if err != nil {
 		return nil, err
 	}
@@ -504,7 +544,7 @@ func (s *Service) LoadPrincipal(ctx context.Context, uid int64) (*identity.Princ
 	if err != nil {
 		return nil, err
 	}
-	rows, err = s.pool.Query(ctx, `SELECT r.id, r.is_admin, r.permissions FROM roles r WHERE r.id IN (
+	rows, err = q.Query(ctx, `SELECT r.id, r.is_admin, r.permissions FROM roles r WHERE r.id IN (
 			SELECT role_id FROM user_roles WHERE user_id=$1
 			UNION SELECT gr.role_id FROM group_roles gr JOIN user_groups ug ON ug.group_id=gr.group_id WHERE ug.user_id=$1)`, uid)
 	if err != nil {
@@ -531,7 +571,7 @@ func (s *Service) LoadPrincipal(ctx context.Context, uid int64) (*identity.Princ
 	if s.SeparateAccounts {
 		// IDs of own accounts must never be looked up in the instance tables
 		p.InstanceAdmin = false
-	} else if err := s.pool.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM public.instance_admins WHERE user_id=$1)
+	} else if err := q.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM public.instance_admins WHERE user_id=$1)
 		OR EXISTS(SELECT 1 FROM public.roles r WHERE r.is_admin AND (
 			r.id IN (SELECT role_id FROM site_main.user_roles WHERE user_id=$1) OR
 			r.id IN (SELECT gr.role_id FROM site_main.group_roles gr JOIN public.user_groups ug ON ug.group_id=gr.group_id WHERE ug.user_id=$1)))`, uid).
@@ -539,7 +579,7 @@ func (s *Service) LoadPrincipal(ctx context.Context, uid int64) (*identity.Princ
 		return nil, err
 	}
 	p.IsAdmin = p.IsAdmin || p.InstanceAdmin
-	defaults, err := s.DefaultPermissions(ctx)
+	defaults, err := defaultPermissions(ctx, q)
 	if err != nil {
 		return nil, err
 	}
@@ -556,8 +596,12 @@ func (s *Service) LoadPrincipal(ctx context.Context, uid int64) (*identity.Princ
 // DefaultPermissions returns the global permissions of every signed-in user
 // (Administration → Roles; without a setting the declared defaults).
 func (s *Service) DefaultPermissions(ctx context.Context) ([]string, error) {
+	return defaultPermissions(ctx, s.pool)
+}
+
+func defaultPermissions(ctx context.Context, q db.Querier) ([]string, error) {
 	var out []string
-	err := s.pool.QueryRow(ctx, `SELECT permissions FROM permission_defaults WHERE subject='authenticated'`).Scan(&out)
+	err := q.QueryRow(ctx, `SELECT permissions FROM permission_defaults WHERE subject='authenticated'`).Scan(&out)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return perm.DefaultAuthenticated(), nil
 	}

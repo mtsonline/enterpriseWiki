@@ -130,7 +130,7 @@ func TestEditorConversions(t *testing.T) {
 		}
 	}
 	big, _ := json.Marshal(map[string]string{"source": strings.Repeat("a", 3<<20)})
-	if got := c.do("POST", "/api/v1/x/core.html/edit-html", json.RawMessage(big), nil); got != 400 {
+	if got := c.do("POST", "/api/v1/x/core.html/edit-html", json.RawMessage(big), nil); got != 413 {
 		t.Errorf("oversized conversion: %d", got)
 	}
 }

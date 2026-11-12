@@ -8,11 +8,13 @@ import (
 	"net"
 	"net/http"
 	"runtime/debug"
+	"strconv"
 	"strings"
 	"time"
 
 	"github.com/mtsonline/enterprisewiki/internal/apperr"
 	"github.com/mtsonline/enterprisewiki/internal/auth"
+	"github.com/mtsonline/enterprisewiki/internal/config"
 	"github.com/mtsonline/enterprisewiki/internal/httpx"
 	"github.com/mtsonline/enterprisewiki/internal/identity"
 )
@@ -98,6 +100,10 @@ func (s *Server) wrap(next http.Handler) http.Handler {
 		}
 		if strings.HasPrefix(r.URL.Path, "/api/") {
 			h.Set("Cache-Control", "no-store")
+			if err := pagingParams(r); err != nil { // S-08
+				httpx.WriteError(sw, r, err)
+				return
+			}
 			max := int64(cfg.Server.MaxBodyMB)
 			if max <= 0 {
 				max = 64
@@ -113,6 +119,32 @@ func (s *Server) wrap(next http.Handler) http.Handler {
 			return
 		}
 		r = r.WithContext(ctx)
+		if p := identity.From(ctx); !p.InProcess() && s.rateLimited(sw, r, p.ID(), cfg) {
+			return
+		}
+		if strings.HasPrefix(r.URL.Path, "/api/") && r.Body != nil && r.Body != http.NoBody {
+			// S-02: small bodies for guests, JSON bounded; uploads keep max_body_mb
+			if lim := bodyLimit(cfg, identity.From(ctx) == nil, r); lim > 0 {
+				if r.ContentLength > lim {
+					httpx.WriteError(sw, r, apperr.TooLarge("request body too large"))
+					return
+				}
+				r.Body = http.MaxBytesReader(sw, r.Body, lim)
+			}
+			// at most 16 large bodies at the same time (memory); guests send
+			// small bodies only and cannot hold these places
+			if identity.From(ctx) != nil && (r.ContentLength > 1<<20 || r.ContentLength < 0) {
+				select {
+				case bigBodies <- struct{}{}:
+					defer func() { <-bigBodies }()
+				case <-r.Context().Done():
+					return
+				case <-time.After(30 * time.Second):
+					httpx.WriteError(sw, r, apperr.TooMany("server busy, try again"))
+					return
+				}
+			}
+		}
 		// guests: answer from the cache (or fill it)
 		if identity.From(ctx) == nil && s.app.Cache.ServeAPI(sw, r, next) {
 			return
@@ -164,6 +196,12 @@ func (s *Server) authenticate(w http.ResponseWriter, r *http.Request) (context.C
 	}
 	c, err := r.Cookie(sessionCookie)
 	if err != nil || c.Value == "" {
+		// S-07: also without a session (sign-in, guest forms) a changing
+		// request needs the header: no foreign page can sign a visitor in
+		// to an account of the attacker (login CSRF)
+		if strings.HasPrefix(r.URL.Path, "/api/") && !safeMethod(r.Method) && r.Header.Get(csrfHeader) != csrfValue {
+			return ctx, &apperr.Error{Status: http.StatusForbidden, Code: "csrf", Msg: "missing X-Requested-With header"}
+		}
 		return ctx, nil
 	}
 	if r.Header.Get("X-Ewiki-Background") == "1" {
@@ -234,4 +272,52 @@ func noInvalidate(p string) bool {
 		}
 	}
 	return false
+}
+
+// bigBodies limits large request bodies processed at the same time.
+var bigBodies = make(chan struct{}, 16)
+
+// bodyLimit returns the largest body of an API request after the caller is
+// known (0: the general limit server.max_body_mb applies).
+func bodyLimit(cfg *config.Config, guest bool, r *http.Request) int64 {
+	if guest {
+		if strings.HasPrefix(r.URL.Path, "/api/v1/auth/sso/") {
+			return 1 << 20 // SAML responses with certificates
+		}
+		return 64 << 10
+	}
+	if strings.HasSuffix(r.URL.Path, "/import") {
+		return 0 // packages and translation files (own limits)
+	}
+	ct := strings.ToLower(r.Header.Get("Content-Type"))
+	if ct == "" || strings.HasPrefix(ct, "application/json") || strings.HasPrefix(ct, "text/") {
+		kb := int64(cfg.Server.MaxJSONKB)
+		if kb <= 0 {
+			kb = 4096
+		}
+		return kb << 10
+	}
+	return 0
+}
+
+func safeMethod(m string) bool {
+	return m == http.MethodGet || m == http.MethodHead || m == http.MethodOptions
+}
+
+// pagingParams refuses negative or malformed limit, offset and page
+// parameters of API requests (400 instead of a database error).
+func pagingParams(r *http.Request) error {
+	q := r.URL.Query()
+	for _, k := range [...]string{"limit", "offset", "page", "per_page"} {
+		for _, v := range q[k] {
+			if v == "" {
+				continue
+			}
+			n, err := strconv.Atoi(v)
+			if err != nil || n < 0 {
+				return apperr.BadRequest("%s: a number from 0", k)
+			}
+		}
+	}
+	return nil
 }

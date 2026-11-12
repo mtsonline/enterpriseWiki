@@ -2,8 +2,10 @@ package content
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"github.com/mtsonline/enterprisewiki/internal/perm"
+	"regexp"
 	"sort"
 	"strconv"
 	"strings"
@@ -903,6 +905,13 @@ func (s *Service) duplicateCategory(ctx context.Context, id, targetParent int64,
 			}
 		}
 		newRoot = mapping[src.ID]
+		if withElements {
+			// F-02: references to categories of the copied tree (blog, FAQ,
+			// sources …) point to the copies
+			if err := remapCategoryRefs(ctx, tx, mapping); err != nil {
+				return err
+			}
+		}
 		return audit.Log(ctx, tx, "category.duplicate", "category", newRoot, map[string]any{"source": id}, map[string]any{"categories": len(mapping)})
 	})
 	if err != nil {
@@ -910,6 +919,89 @@ func (s *Service) duplicateCategory(ctx context.Context, id, targetParent int64,
 	}
 	s.aclChanged(ctx)
 	return s.GetCategory(ctx, newRoot)
+}
+
+// remapCategoryRefs rewrites, in the copied elements, references to
+// categories of the copied tree: "category_id" values in JSON bodies and
+// "category:N" in source texts.
+func remapCategoryRefs(ctx context.Context, tx pgx.Tx, mapping map[int64]int64) error {
+	newCats := make([]int64, 0, len(mapping))
+	for _, n := range mapping {
+		newCats = append(newCats, n)
+	}
+	rows, err := tx.Query(ctx, `SELECT r.element_id, r.lang, r.rev, r.body FROM element_revisions r JOIN elements e ON e.id = r.element_id
+		WHERE e.category_id = ANY($1)`, newCats)
+	if err != nil {
+		return err
+	}
+	type rev struct {
+		id   int64
+		lang string
+		rev  int
+		body []byte
+	}
+	list, err := pgx.CollectRows(rows, func(r pgx.CollectableRow) (rev, error) {
+		var x rev
+		return x, r.Scan(&x.id, &x.lang, &x.rev, &x.body)
+	})
+	if err != nil {
+		return err
+	}
+	for _, x := range list {
+		var v any
+		if json.Unmarshal(x.body, &v) != nil {
+			continue
+		}
+		changed := false
+		v = remapRefs(v, mapping, &changed)
+		if !changed {
+			continue
+		}
+		b, err := json.Marshal(v)
+		if err != nil {
+			return err
+		}
+		if _, err := tx.Exec(ctx, `UPDATE element_revisions SET body=$4 WHERE element_id=$1 AND lang=$2 AND rev=$3`, x.id, x.lang, x.rev, b); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+var catRefText = regexp.MustCompile(`(^|[;\s+\-"'=])category:(\d+)`)
+
+func remapRefs(v any, mapping map[int64]int64, changed *bool) any {
+	switch x := v.(type) {
+	case map[string]any:
+		for k, e := range x {
+			if f, ok := e.(float64); ok && k == "category_id" {
+				if n, ok := mapping[int64(f)]; ok {
+					x[k] = n
+					*changed = true
+				}
+				continue
+			}
+			x[k] = remapRefs(e, mapping, changed)
+		}
+	case []any:
+		for i, e := range x {
+			x[i] = remapRefs(e, mapping, changed)
+		}
+	case string:
+		if strings.Contains(x, "category:") {
+			out := catRefText.ReplaceAllStringFunc(x, func(m string) string {
+				sub := catRefText.FindStringSubmatch(m)
+				id, _ := strconv.ParseInt(sub[2], 10, 64)
+				if n, ok := mapping[id]; ok {
+					*changed = true
+					return sub[1] + "category:" + strconv.FormatInt(n, 10)
+				}
+				return m
+			})
+			return out
+		}
+	}
+	return v
 }
 
 // copyElements copies the non-deleted elements of category from into to.

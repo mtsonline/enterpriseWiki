@@ -37,6 +37,9 @@ func Forbidden(format string, a ...any) error {
 func Conflict(format string, a ...any) error {
 	return newf(http.StatusConflict, "conflict", format, a...)
 }
+func TooLarge(format string, a ...any) error {
+	return newf(http.StatusRequestEntityTooLarge, "too_large", format, a...)
+}
 func TooMany(format string, a ...any) error {
 	return newf(http.StatusTooManyRequests, "rate_limited", format, a...)
 }

@@ -204,5 +204,6 @@
  "perm.workflow.process.admin": "Workflow-Admin",
  "perm.workflow.process.admin_help": "Alle Workflows der Kategorie ändern und löschen. Jede Änderung wird genau protokolliert, und der Ersteller wird benachrichtigt.",
  "perm.workflow.process.cases": "Vorgänge verwalten",
- "perm.workflow.process.cases_help": "Alle Vorgänge sehen, abbrechen und über fehlgeschlagene Schritte entscheiden. Wer einen Schritt erledigt, legt nur die Zuständigkeit im Schritt fest."
+ "perm.workflow.process.cases_help": "Alle Vorgänge sehen, abbrechen und über fehlgeschlagene Schritte entscheiden. Wer einen Schritt erledigt, legt nur die Zuständigkeit im Schritt fest.",
+ "workflow.assignee_value_ph": "Name oder #ID (bleibt bei Umbenennen gültig)"
 }

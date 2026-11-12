@@ -1324,7 +1324,7 @@ func (s *Server) auditLogin(r *http.Request, p *identity.Principal, method, user
 		if errors.As(err, &ae) {
 			reason = ae.Code
 		}
-		_ = audit.Log(ctx, s.app.DB, "auth.login_failed", "user", 0, nil, map[string]string{"username": username, "method": method, "reason": reason})
+		_ = audit.Log(ctx, s.app.DB, "auth.login_failed", "user", 0, nil, map[string]string{"username": clip(username, 255), "method": method, "reason": reason})
 		return
 	}
 	_ = audit.Log(identity.With(ctx, p), s.app.DB, "auth.login", "user", p.ID(), nil, map[string]string{"method": method})
@@ -1374,4 +1374,13 @@ func macroPageParam(v string) (index, page int, ok bool) {
 		return 0, 0, false
 	}
 	return i, p, true
+}
+
+// clip shortens a text to at most n bytes (whole runes).
+func clip(s string, n int) string {
+	if len(s) <= n {
+		return s
+	}
+	r := []rune(s[:n])
+	return string(r[:len(r)-1]) + "…"
 }
