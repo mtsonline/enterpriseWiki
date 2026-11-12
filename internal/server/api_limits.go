@@ -5,6 +5,7 @@ import (
 
 	"github.com/mtsonline/enterprisewiki/internal/apperr"
 	"github.com/mtsonline/enterprisewiki/internal/audit"
+	"github.com/mtsonline/enterprisewiki/internal/auth"
 	"github.com/mtsonline/enterprisewiki/internal/config"
 	h "github.com/mtsonline/enterprisewiki/internal/httpx"
 	"github.com/mtsonline/enterprisewiki/internal/identity"
@@ -38,7 +39,11 @@ func (s *Server) routesLimits() {
 		if err := requireAdmin(r); err != nil {
 			return nil, err
 		}
-		return map[string]any{"limits": list(), "editable": s.limitsEditable(r)}, nil
+		c := s.app.Config.Get().Server
+		return map[string]any{"limits": list(), "editable": s.limitsEditable(r),
+			// reverse proxies: where the address of the client comes from, and
+			// peers that sent the header without being trusted (ignored)
+			"proxy": map[string]any{"header": forwardHeader(c.ClientIPHeader), "trusted": len(c.TrustedProxies), "untrusted": s.forwards.list()}}, nil
 	})
 	// PUT /admin/limits {"values": {"core.request.guest_kb": 128, "core.request.body_kb": null}}
 	// changes limits (null: back to the default). They apply to the whole
@@ -108,4 +113,35 @@ func (s *Server) routesLimits() {
 func (s *Server) limitsEditable(r *http.Request) bool {
 	p := identity.From(r.Context())
 	return p != nil && (s.app.Site == "main" || p.InstanceAdmin)
+}
+
+// routesKeyLimits: the limit of requests of each API key. Owners limit
+// their keys below the limit of the account; administrators grant a key a
+// budget of its own (integrations).
+func (s *Server) routesKeyLimits() {
+	type in struct {
+		RatePerSecond *int `json:"rate_per_second"`
+	}
+	set := func(admin bool) func(w http.ResponseWriter, r *http.Request) (any, error) {
+		return func(w http.ResponseWriter, r *http.Request) (any, error) {
+			id, err := h.PathID(r, "id")
+			if err != nil {
+				return nil, err
+			}
+			var body in
+			if err := h.Decode(r, &body); err != nil {
+				return nil, err
+			}
+			return h.NoContent{}, s.app.Auth.SetAPIKeyRate(r.Context(), id, body.RatePerSecond, admin)
+		}
+	}
+	s.handle("PUT /api/v1/me/api-keys/{id}/rate", set(false))
+	s.handle("GET /api/v1/admin/api-keys", func(w http.ResponseWriter, r *http.Request) (any, error) {
+		keys, err := s.app.Auth.AllAPIKeys(r.Context())
+		if keys == nil {
+			keys = []auth.APIKey{}
+		}
+		return keys, err
+	})
+	s.handle("PUT /api/v1/admin/api-keys/{id}/rate", set(true))
 }

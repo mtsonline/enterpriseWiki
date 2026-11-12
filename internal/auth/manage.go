@@ -912,7 +912,12 @@ type APIKey struct {
 	CreatedAt   time.Time  `json:"created_at"`
 	LastUsedAt  *time.Time `json:"last_used_at"`
 	RevokedAt   *time.Time `json:"revoked_at"`
-	Token       string     `json:"token,omitempty"`
+	// RatePerSecond is the key's own limit of requests (nil: that of the
+	// account). RateOwn: granted by an administrator, a budget of its own.
+	RatePerSecond *int   `json:"rate_per_second"`
+	RateOwn       bool   `json:"rate_own"`
+	Owner         string `json:"owner,omitempty"` // lists of administrators
+	Token         string `json:"token,omitempty"`
 }
 
 // NewAPIKey is the input for CreateAPIKey.
@@ -922,7 +927,14 @@ type NewAPIKey struct {
 	CategoryID  *int64    `json:"category_id"`
 	AllowAdmin  bool      `json:"allow_admin"`
 	ExpiresAt   time.Time `json:"expires_at"`
+	// RatePerSecond limits the key below the limit of the account.
+	RatePerSecond *int `json:"rate_per_second"`
 }
+
+// KeyRateMax returns the highest limit of requests per second the owner
+// of a key may choose (that of accounts) and the highest an administrator
+// may grant; set by the application (expert settings).
+var KeyRateMax = func() (owner, admin int) { return 50, 10000 }
 
 // CreateAPIKey creates a key for the caller. Keys can never exceed the
 // caller's own rights: permissions are intersected at request time.
@@ -951,19 +963,22 @@ func (s *Service) CreateAPIKey(ctx context.Context, in NewAPIKey) (*APIKey, erro
 	if in.AllowAdmin && !p.IsAdmin {
 		return nil, apperr.ErrForbidden
 	}
+	if own, _ := KeyRateMax(); in.RatePerSecond != nil && (*in.RatePerSecond < 1 || *in.RatePerSecond > own) {
+		return nil, apperr.BadRequest("rate_per_second must be between 1 and %d", own)
+	}
 	tok := NewToken("ewk_")
 	k := &APIKey{Name: in.Name, Prefix: tok[:12], Permissions: in.Permissions, CategoryID: in.CategoryID,
-		AllowAdmin: in.AllowAdmin, ExpiresAt: in.ExpiresAt, Token: tok}
-	err := s.pool.QueryRow(ctx, `INSERT INTO api_keys(user_id, name, prefix, token_hash, permissions, category_id, allow_admin, expires_at)
-		VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING id, created_at`, p.UserID, k.Name, k.Prefix, HashToken(tok), k.Permissions,
-		k.CategoryID, k.AllowAdmin, k.ExpiresAt).Scan(&k.ID, &k.CreatedAt)
+		AllowAdmin: in.AllowAdmin, ExpiresAt: in.ExpiresAt, RatePerSecond: in.RatePerSecond, Token: tok}
+	err := s.pool.QueryRow(ctx, `INSERT INTO api_keys(user_id, name, prefix, token_hash, permissions, category_id, allow_admin, expires_at, rate_per_second)
+		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING id, created_at`, p.UserID, k.Name, k.Prefix, HashToken(tok), k.Permissions,
+		k.CategoryID, k.AllowAdmin, k.ExpiresAt, k.RatePerSecond).Scan(&k.ID, &k.CreatedAt)
 	if db.IsForeignKeyViolation(err) {
 		return nil, apperr.BadRequest("category does not exist")
 	}
 	if err != nil {
 		return nil, err
 	}
-	_ = audit.Log(ctx, s.pool, "apikey.create", "apikey", k.ID, nil, map[string]any{"name": k.Name, "permissions": k.Permissions, "category_id": k.CategoryID, "allow_admin": k.AllowAdmin, "expires_at": k.ExpiresAt})
+	_ = audit.Log(ctx, s.pool, "apikey.create", "apikey", k.ID, nil, map[string]any{"name": k.Name, "permissions": k.Permissions, "category_id": k.CategoryID, "allow_admin": k.AllowAdmin, "expires_at": k.ExpiresAt, "rate_per_second": k.RatePerSecond})
 	return k, nil
 }
 
@@ -973,15 +988,67 @@ func (s *Service) ListAPIKeys(ctx context.Context) ([]APIKey, error) {
 	if p == nil || p.UserID == 0 {
 		return nil, apperr.ErrUnauthorized
 	}
-	rows, err := s.pool.Query(ctx, `SELECT id, name, prefix, permissions, category_id, allow_admin, expires_at, created_at, last_used_at, revoked_at
-		FROM api_keys WHERE user_id=$1 ORDER BY created_at DESC`, p.UserID)
+	rows, err := s.pool.Query(ctx, `SELECT `+keyCols+`, '' FROM api_keys k WHERE k.user_id=$1 ORDER BY k.created_at DESC`, p.UserID)
 	if err != nil {
 		return nil, err
 	}
-	return pgx.CollectRows(rows, func(r pgx.CollectableRow) (APIKey, error) {
-		var k APIKey
-		return k, r.Scan(&k.ID, &k.Name, &k.Prefix, &k.Permissions, &k.CategoryID, &k.AllowAdmin, &k.ExpiresAt, &k.CreatedAt, &k.LastUsedAt, &k.RevokedAt)
-	})
+	return pgx.CollectRows(rows, scanKey)
+}
+
+const keyCols = `k.id, k.name, k.prefix, k.permissions, k.category_id, k.allow_admin, k.expires_at, k.created_at, k.last_used_at, k.revoked_at, k.rate_per_second, k.rate_own`
+
+func scanKey(r pgx.CollectableRow) (APIKey, error) {
+	var k APIKey
+	return k, r.Scan(&k.ID, &k.Name, &k.Prefix, &k.Permissions, &k.CategoryID, &k.AllowAdmin, &k.ExpiresAt, &k.CreatedAt, &k.LastUsedAt, &k.RevokedAt, &k.RatePerSecond, &k.RateOwn, &k.Owner)
+}
+
+// AllAPIKeys lists the valid keys of all accounts (administrators): who
+// owns them and their limits, never the secrets.
+func (s *Service) AllAPIKeys(ctx context.Context) ([]APIKey, error) {
+	if p := identity.From(ctx); !p.Admin() {
+		return nil, apperr.ErrForbidden
+	}
+	rows, err := s.pool.Query(ctx, `SELECT `+keyCols+`, u.username || '@' || u.provider FROM api_keys k JOIN users u ON u.id=k.user_id
+		WHERE k.revoked_at IS NULL AND k.expires_at > now() ORDER BY u.username, k.created_at DESC LIMIT 5000`)
+	if err != nil {
+		return nil, err
+	}
+	return pgx.CollectRows(rows, scanKey)
+}
+
+// SetAPIKeyRate sets the own limit of requests per second of a key (nil:
+// none, the limit of the account applies). The owner may limit a key below
+// the limit of the account; a limit set by an administrator is a budget of
+// its own and may be higher (integrations).
+func (s *Service) SetAPIKeyRate(ctx context.Context, id int64, rate *int, asAdmin bool) error {
+	p := identity.From(ctx)
+	if p == nil || p.UserID == 0 {
+		return apperr.ErrUnauthorized
+	}
+	if p.Via == "apikey" || (asAdmin && !p.Admin()) {
+		return apperr.ErrForbidden // a key never changes limits, not even its own
+	}
+	own, admin := KeyRateMax()
+	max := own
+	if asAdmin {
+		max = admin
+	}
+	if rate != nil && (*rate < 1 || *rate > max) {
+		return apperr.BadRequest("rate_per_second must be between 1 and %d", max)
+	}
+	var before *int
+	// the owner cannot take over a budget granted by an administrator
+	err := s.pool.QueryRow(ctx, `UPDATE api_keys k SET rate_per_second=$2, rate_own=($3 AND $2::int IS NOT NULL)
+		FROM (SELECT id, rate_per_second FROM api_keys WHERE id=$1 FOR UPDATE) o
+		WHERE k.id=o.id AND k.revoked_at IS NULL AND ($3 OR (k.user_id=$4 AND NOT k.rate_own)) RETURNING o.rate_per_second`, id, rate, asAdmin, p.UserID).Scan(&before)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return apperr.NotFound("api key")
+	}
+	if err != nil {
+		return err
+	}
+	s.bump(ctx) // cached sign-ins carry the limit
+	return audit.Log(ctx, s.pool, "apikey.rate", "apikey", id, map[string]any{"rate_per_second": before}, map[string]any{"rate_per_second": rate, "own_budget": asAdmin && rate != nil})
 }
 
 // RevokeAPIKey revokes one of the caller's keys (admins may revoke any key).

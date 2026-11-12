@@ -26,6 +26,46 @@ curl -H "Authorization: Bearer $KEY" -H 'Content-Type: application/json' \
      https://wiki.example.com/api/v1/elements
 ```
 
+### Anmeldung aus Skripten
+
+Für Skripte ist ein API-Key der einfachste Weg. Wer stattdessen mit Benutzername und Passwort arbeitet, sendet bei **jeder schreibenden Anfrage ohne API-Key – auch bei der Anmeldung selbst – den Header `X-Requested-With: ewiki`**. Ohne ihn lautet die Antwort `403` mit `"code": "csrf"`. Der Header schützt Browser davor, dass fremde Seiten im Namen der Besucher Anfragen stellen oder sie in ein fremdes Konto einloggen; Skripte setzen ihn einfach mit.
+
+```bash
+WIKI=https://wiki.example.com
+JAR=$(mktemp)            # Datei für das Sitzungs-Cookie
+
+# 1. anmelden: das Cookie ewiki_session landet in $JAR
+curl -sS -c "$JAR" -H 'X-Requested-With: ewiki' -H 'Content-Type: application/json' \
+     -d '{"username": "anna", "password": "…"}' "$WIKI/api/v1/auth/login"
+
+# 2. lesen: Cookie genügt
+curl -sS -b "$JAR" "$WIKI/api/v1/auth/me"
+
+# 3. schreiben: Cookie und Header
+curl -sS -b "$JAR" -H 'X-Requested-With: ewiki' -H 'Content-Type: application/json' \
+     -d '{"category_id": 3, "type": "core.html", "title": "Neue Seite",
+          "body": {"format": "markdown", "source": "# Hallo"}}' "$WIKI/api/v1/elements"
+
+# 4. abmelden
+curl -sS -b "$JAR" -H 'X-Requested-With: ewiki' -X POST "$WIKI/api/v1/auth/logout"; rm -f "$JAR"
+```
+
+Dasselbe in Python:
+
+```python
+import requests
+
+s = requests.Session()
+s.headers["X-Requested-With"] = "ewiki"      # gilt für alle Anfragen der Sitzung
+r = s.post("https://wiki.example.com/api/v1/auth/login", json={"username": "anna", "password": "…"})
+r.raise_for_status()
+print(s.get("https://wiki.example.com/api/v1/auth/me").json())
+```
+
+Verlangt das Konto einen zweiten Faktor, antwortet die Anmeldung mit `mfa_required` und einem Token für `/api/v1/auth/mfa/…`; für unbeaufsichtigte Skripte deshalb API-Key oder SSH-Schlüssel verwenden. Anfragen mit `Authorization: Bearer …` brauchen den Header nicht.
+
+**Grenzen.** Zu viele Anfragen beantwortet das Wiki mit `429` und `Retry-After` (Sekunden), zu große mit `413`, bei kurzzeitiger Überlast mit `503` und `Retry-After`. In allen drei Fällen wurde nichts gespeichert; die Anfrage kann nach der genannten Zeit unverändert wiederholt werden. Ein API-Key kann eine eigene Grenze haben (`rate_per_second` beim Anlegen, siehe [Konfiguration](../admin/configuration.md#limits-experteneinstellungen)).
+
 ## Wichtige Abläufe
 
 - **Seite speichern:** `PUT /api/v1/elements/{id}` mit `{"lang", "title", "body", "comment", "base_rev"}`. `base_rev` ist die Version, mit der der Editor begonnen hat (0 für eine neue Übersetzung). Wurde inzwischen eine andere Version gespeichert, kommt `409 conflict` zurück. Jede Speicherung erzeugt eine neue Version.
@@ -90,6 +130,9 @@ curl -H "Authorization: Bearer $KEY" -H 'Content-Type: application/json' \
 | `GET` | `/api/v1/me/api-keys` |
 | `POST` | `/api/v1/me/api-keys` |
 | `DELETE` | `/api/v1/me/api-keys/{id}` |
+| `PUT` | `/api/v1/me/api-keys/{id}/rate` |
+| `GET` | `/api/v1/admin/api-keys` |
+| `PUT` | `/api/v1/admin/api-keys/{id}/rate` |
 | `GET` | `/api/v1/me/ssh-keys` |
 | `POST` | `/api/v1/me/ssh-keys` |
 | `DELETE` | `/api/v1/me/ssh-keys/{id}` |

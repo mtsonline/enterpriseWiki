@@ -39,8 +39,9 @@ var migrations embed.FS
 //go:embed locales/*.json
 var locales embed.FS
 
-// MaxPerUser limits the different emojis of one person on one target.
-const MaxPerUser = 10
+// LimitPerPerson is the limit (manifest) of the different emojis of one
+// person on one target.
+const LimitPerPerson = "core.reactions.per_person"
 
 // Plugin is the reactions plugin.
 type Plugin struct{ host *sdk.Host }
@@ -348,8 +349,8 @@ func (p *Plugin) react(ctx context.Context, typ string, id int64, emoji string, 
 			if err := tx.QueryRow(ctx, `SELECT count(*) FROM plugin_reactions WHERE target_type=$1 AND target_id=$2 AND user_id=$3`, typ, id, me.ID()).Scan(&n); err != nil {
 				return err
 			}
-			if n >= MaxPerUser {
-				return apperr.BadRequest("at most %d reactions per person", MaxPerUser)
+			if max := int(p.host.Limit(LimitPerPerson)); n >= max {
+				return apperr.BadRequest("at most %d reactions per person", max)
 			}
 			first = n == 0
 			_, err := tx.Exec(ctx, `INSERT INTO plugin_reactions(target_type, target_id, user_id, emoji) VALUES ($1,$2,$3,$4) ON CONFLICT DO NOTHING`, typ, id, me.ID(), emoji)

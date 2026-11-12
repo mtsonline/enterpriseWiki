@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/mtsonline/enterprisewiki/internal/audit"
+	"github.com/mtsonline/enterprisewiki/internal/collab"
 	"github.com/mtsonline/enterprisewiki/internal/feedfetch"
 	"github.com/mtsonline/enterprisewiki/internal/notify"
 	"log/slog"
@@ -152,6 +153,15 @@ func newSite(ctx context.Context, in *Instance, site string, migrate bool) (*App
 	if err := a.checkAccounts(ctx); err != nil {
 		pool.Close()
 		return nil, err
+	}
+	auth.KeyRateMax = func() (int, int) {
+		d, _ := limits.Get(limits.RateUser)
+		return int(limits.Value(in.Config.Get(), limits.RateUser)), int(d.Max)
+	}
+	audit.SnapshotSearchDays = func() int { return int(limits.Value(in.Config.Get(), limits.AuditSearchDays)) }
+	collab.Limits = func() (int, int) {
+		c := in.Config.Get()
+		return int(limits.Value(c, limits.LivePersons)), int(limits.Value(c, limits.LivePerPerson))
 	}
 	audit.ValueLimit = func(guest bool) int {
 		if guest {

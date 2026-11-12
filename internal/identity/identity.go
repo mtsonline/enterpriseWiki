@@ -42,6 +42,12 @@ type Principal struct {
 	KeyPerms      int   `json:"-"`
 	KeyCategory   int64 `json:"-"`
 	KeyAllowAdmin bool  `json:"-"`
+	// KeyID is the key; KeyRate its own limit of requests per second
+	// (0: none). KeyRateOwn: the limit was granted by an administrator and
+	// is a budget of its own; otherwise the key also counts for the account.
+	KeyID      int64 `json:"-"`
+	KeyRate    int   `json:"-"`
+	KeyRateOwn bool  `json:"-"`
 }
 
 // Handle returns the unique login handle name@provider.

@@ -467,41 +467,41 @@ func (s *Service) Authenticate(ctx context.Context, token string) (*identity.Pri
 		}
 		s.cache.Delete(string(h))
 	}
+	// P-01: one statement per sign-in that is not cached - the session or
+	// key, the account, its groups, roles and the default permissions
 	var p *identity.Principal
+	var err error
 	if strings.HasPrefix(token, "ewk_") {
-		var uid, cat int64
-		var perms int
-		var allowAdmin bool
 		var catPtr *int64
-		var keyID int64
-		err := s.pool.QueryRow(ctx, `SELECT id, user_id, permissions, category_id, allow_admin FROM api_keys
-			WHERE token_hash=$1 AND revoked_at IS NULL AND expires_at > now()`, h).Scan(&keyID, &uid, &perms, &catPtr, &allowAdmin)
+		var rate *int
+		key := &identity.Principal{}
+		p, err = s.scanPrincipal(s.pool.QueryRow(ctx, `WITH k AS (SELECT id, user_id, permissions, category_id, allow_admin, rate_per_second, rate_own FROM api_keys
+				WHERE token_hash=$1 AND revoked_at IS NULL AND expires_at > now()),
+			touch AS (UPDATE api_keys SET last_used_at=now() WHERE id=(SELECT id FROM k) AND (last_used_at IS NULL OR last_used_at < now() - interval '5 minutes'))
+			SELECT `+s.principalCols()+`, k.id, k.permissions, k.category_id, k.allow_admin, k.rate_per_second, k.rate_own
+			FROM k JOIN users u ON u.id=k.user_id`, h), &key.KeyID, &key.KeyPerms, &catPtr, &key.KeyAllowAdmin, &rate, &key.KeyRateOwn)
 		if err != nil {
 			return nil, apperr.ErrUnauthorized
 		}
+		p.Via, p.KeyID, p.KeyPerms, p.KeyAllowAdmin, p.KeyRateOwn = "apikey", key.KeyID, key.KeyPerms, key.KeyAllowAdmin, key.KeyRateOwn
 		if catPtr != nil {
-			cat = *catPtr
+			p.KeyCategory = *catPtr
 		}
-		p, err = s.LoadPrincipal(ctx, uid)
-		if err != nil {
-			return nil, apperr.ErrUnauthorized
+		if rate != nil {
+			p.KeyRate = *rate
 		}
-		p.Via, p.KeyPerms, p.KeyCategory, p.KeyAllowAdmin = "apikey", perms, cat, allowAdmin
-		_, _ = s.pool.Exec(ctx, `UPDATE api_keys SET last_used_at=now() WHERE id=$1 AND (last_used_at IS NULL OR last_used_at < now() - interval '5 minutes')`, keyID)
 	} else {
-		var uid int64
 		var kind string
 		var created time.Time
 		// idle sessions end (browser sessions only; SSH tokens are short-lived);
-		// automatic requests (Background) do not count as activity
+		// automatic requests (Background) do not count as activity. The
+		// last activity is written at most once per minute (no write per
+		// request): a session can end up to a minute before the idle time.
 		idle := config.Duration(s.cfg.Get().Auth.SessionIdle, 12*time.Hour) // "0" switches it off
-		err := s.pool.QueryRow(ctx, `UPDATE sessions SET last_seen_at = CASE WHEN $3 THEN last_seen_at ELSE now() END
-			WHERE token_hash=$1 AND expires_at > now() AND (kind <> 'web' OR $2::float8 <= 0 OR last_seen_at > now() - make_interval(secs => $2))
-			RETURNING user_id, kind, created_at`, h, idle.Seconds(), Background(ctx)).Scan(&uid, &kind, &created)
-		if err != nil {
-			return nil, apperr.ErrUnauthorized
-		}
-		p, err = s.LoadPrincipal(ctx, uid)
+		p, err = s.scanPrincipal(s.pool.QueryRow(ctx, `WITH s AS (SELECT user_id, kind, created_at FROM sessions
+				WHERE token_hash=$1 AND expires_at > now() AND (kind <> 'web' OR $2::float8 <= 0 OR last_seen_at > now() - make_interval(secs => $2))),
+			touch AS (UPDATE sessions SET last_seen_at=now() WHERE token_hash=$1 AND NOT $3 AND last_seen_at < now() - interval '1 minute' AND EXISTS(SELECT 1 FROM s))
+			SELECT `+s.principalCols()+`, s.kind, s.created_at FROM s JOIN users u ON u.id=s.user_id`, h, idle.Seconds(), Background(ctx)), &kind, &created)
 		if err != nil {
 			return nil, apperr.ErrUnauthorized
 		}
@@ -526,68 +526,61 @@ func (s *Service) LoadPrincipal(ctx context.Context, uid int64) (*identity.Princ
 // transaction, never take a second connection of the pool while one is
 // held (all connections could wait on each other).
 func (s *Service) LoadPrincipalQ(ctx context.Context, q db.Querier, uid int64) (*identity.Principal, error) {
-	p := &identity.Principal{UserID: uid}
-	var disabled bool
-	err := q.QueryRow(ctx, `SELECT username, COALESCE(alias, ''), alias_source, provider, display_name, email, language, disabled, prefs FROM users WHERE id=$1`, uid).
-		Scan(&p.Username, &p.Alias, &p.AliasSource, &p.Provider, &p.DisplayName, &p.Email, &p.Language, &disabled, &p.Prefs)
-	if err != nil {
+	p, err := s.scanPrincipal(q.QueryRow(ctx, `SELECT `+s.principalCols()+` FROM users u WHERE u.id=$1`, uid))
+	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, apperr.NotFound("user")
+	}
+	return p, err
+}
+
+// roleSet are the roles of the account u (own ones and those of its groups).
+const roleSet = `(SELECT role_id FROM user_roles WHERE user_id=u.id
+	UNION SELECT gr.role_id FROM group_roles gr JOIN user_groups ug ON ug.group_id=gr.group_id WHERE ug.user_id=u.id)`
+
+// principalCols are the columns of an account u with its groups, roles and
+// permissions (see scanPrincipal).
+func (s *Service) principalCols() string {
+	instance := `false`
+	if !s.SeparateAccounts { // IDs of own accounts must never be looked up in the instance tables
+		instance = `(EXISTS(SELECT 1 FROM public.instance_admins WHERE user_id=u.id)
+		OR EXISTS(SELECT 1 FROM public.roles r WHERE r.is_admin AND (
+			r.id IN (SELECT role_id FROM site_main.user_roles WHERE user_id=u.id) OR
+			r.id IN (SELECT gr.role_id FROM site_main.group_roles gr JOIN public.user_groups ug ON ug.group_id=gr.group_id WHERE ug.user_id=u.id))))`
+	}
+	return `u.id, u.username, COALESCE(u.alias, ''), u.alias_source, u.provider, u.display_name, u.email, u.language, u.disabled, u.prefs,
+		ARRAY(SELECT group_id FROM user_groups WHERE user_id=u.id),
+		ARRAY(SELECT r.id FROM roles r WHERE r.id IN ` + roleSet + `),
+		COALESCE((SELECT bool_or(r.is_admin) FROM roles r WHERE r.id IN ` + roleSet + `), false),
+		ARRAY(SELECT DISTINCT x FROM roles r, unnest(r.permissions) x WHERE r.id IN ` + roleSet + `),
+		` + instance + `,
+		EXISTS(SELECT 1 FROM permission_defaults WHERE subject='authenticated'),
+		COALESCE((SELECT permissions FROM permission_defaults WHERE subject='authenticated'), '{}')`
+}
+
+// scanPrincipal reads a row of principalCols followed by more columns.
+// Disabled accounts are refused.
+func (s *Service) scanPrincipal(row pgx.Row, more ...any) (*identity.Principal, error) {
+	p := &identity.Principal{}
+	var disabled, hasDefaults bool
+	var perms, defaults []string
+	dst := append([]any{&p.UserID, &p.Username, &p.Alias, &p.AliasSource, &p.Provider, &p.DisplayName, &p.Email, &p.Language, &disabled, &p.Prefs,
+		&p.Groups, &p.Roles, &p.IsAdmin, &perms, &p.InstanceAdmin, &hasDefaults, &defaults}, more...)
+	if err := row.Scan(dst...); err != nil {
+		return nil, err
 	}
 	if disabled {
 		return nil, apperr.ErrUnauthorized
 	}
-	rows, err := q.Query(ctx, `SELECT group_id FROM user_groups WHERE user_id=$1`, uid)
-	if err != nil {
-		return nil, err
-	}
-	p.Groups, err = pgx.CollectRows(rows, pgx.RowTo[int64])
-	if err != nil {
-		return nil, err
-	}
-	rows, err = q.Query(ctx, `SELECT r.id, r.is_admin, r.permissions FROM roles r WHERE r.id IN (
-			SELECT role_id FROM user_roles WHERE user_id=$1
-			UNION SELECT gr.role_id FROM group_roles gr JOIN user_groups ug ON ug.group_id=gr.group_id WHERE ug.user_id=$1)`, uid)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	set := map[string]bool{}
-	for rows.Next() {
-		var id int64
-		var admin bool
-		var perms []string
-		if err := rows.Scan(&id, &admin, &perms); err != nil {
-			return nil, err
-		}
-		p.Roles = append(p.Roles, id)
-		p.IsAdmin = p.IsAdmin || admin
-		for _, k := range perms {
-			set[k] = true
-		}
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	if s.SeparateAccounts {
-		// IDs of own accounts must never be looked up in the instance tables
-		p.InstanceAdmin = false
-	} else if err := q.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM public.instance_admins WHERE user_id=$1)
-		OR EXISTS(SELECT 1 FROM public.roles r WHERE r.is_admin AND (
-			r.id IN (SELECT role_id FROM site_main.user_roles WHERE user_id=$1) OR
-			r.id IN (SELECT gr.role_id FROM site_main.group_roles gr JOIN public.user_groups ug ON ug.group_id=gr.group_id WHERE ug.user_id=$1)))`, uid).
-		Scan(&p.InstanceAdmin); err != nil {
-		return nil, err
-	}
 	p.IsAdmin = p.IsAdmin || p.InstanceAdmin
-	defaults, err := defaultPermissions(ctx, q)
-	if err != nil {
-		return nil, err
+	if !hasDefaults {
+		defaults = perm.DefaultAuthenticated()
 	}
-	for _, k := range defaults {
-		set[k] = true
-	}
-	for k := range set {
-		p.Perms = append(p.Perms, k)
+	set := map[string]bool{}
+	for _, k := range append(perms, defaults...) {
+		if !set[k] {
+			set[k] = true
+			p.Perms = append(p.Perms, k)
+		}
 	}
 	p.Perms = perm.Expand(p.Perms)
 	return p, nil

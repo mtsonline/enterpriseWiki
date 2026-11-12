@@ -17,7 +17,8 @@ Vollständiges Beispiel: [config.example.yaml](../../config.example.yaml)
 | `listen` | Adresse/Port | `:8080` |
 | `base_url` | öffentliche URL | `http://localhost:8080` |
 | `secure_cookies` | Cookies nur über HTTPS und HSTS-Header senden | `false` |
-| `trusted_proxies` | IPs/CIDRs, deren `X-Forwarded-For` vertraut wird (für Rate-Limits, Logs, erlaubte Netze); `EWIKI_TRUSTED_PROXIES` überschreibt den Wert | `[]` |
+| `trusted_proxies` | IPs/CIDRs der Reverse-Proxys: nur von ihnen wird die weitergereichte Adresse der Besucher angenommen (für Anfragebegrenzung, Anmeldeschutz, Audit-Protokoll, erlaubte Netze); `EWIKI_TRUSTED_PROXIES` überschreibt den Wert | `[]` |
+| `client_ip_header` | Header, in dem die Proxys die Adresse der Besucher nennen: `x-forwarded-for`, `forwarded` (RFC 7239) oder der Name eines Headers mit genau einer Adresse (`x-real-ip`, `cf-connecting-ip` …). Siehe [Adresse der Besucher](installation.md#vertrauenswürdige-proxys-ewiki_trusted_proxies) | `x-forwarded-for` |
 | `max_body_mb` | ältere Einstellung für die Größe von Importen; ersetzt durch den Grenzwert `core.request.import_mb` (siehe [Experteneinstellungen](#limits-experteneinstellungen)) | `64` |
 | `rate_limit.disabled` | `true` schaltet die Anfragegrenzen ab (nur für Lasttests oder mit Grenzen im Reverse Proxy) | `false` |
 
@@ -77,7 +78,7 @@ Sprachen werden in der Oberfläche unter *Administration → Sprachen* hinzugef�
 |---|---|---|
 | `order` | Reihenfolge der Anmeldeverfahren (Provider-IDs). `local` wird **immer zuerst** geprüft | `[local]` |
 | `session_ttl` | Gültigkeit einer Browser-Sitzung (absolut) | `168h` |
-| `session_idle` | Eine Browser-Sitzung endet nach so langer Inaktivität. Automatische Abfragen (z. B. Benachrichtigungen) zählen nicht als Aktivität. `0` = nur `session_ttl` | `12h` |
+| `session_idle` | Eine Browser-Sitzung endet nach so langer Inaktivität. Automatische Abfragen (z. B. Benachrichtigungen) zählen nicht als Aktivität. Die letzte Aktivität wird höchstens einmal pro Minute gespeichert (kein Schreibzugriff je Anfrage): Eine Sitzung kann deshalb bis zu eine Minute früher enden, nie später. `0` = nur `session_ttl` | `12h` |
 | `photo_visibility` | Wer Profilfotos sieht, solange die Person nichts wählt: `nobody` (nur die Person), `users` (angemeldete Personen), `public` (alle, auch Gäste). Wer das globale Recht *Alle Profilfotos sehen* (`core.photos.view`) hat, sieht jedes Foto (Administratoren immer) | `users` |
 | `photo_visibility_max` | Am weitesten darf eine Person ihr Foto so freigeben. Enger geht immer | `public` |
 | `photo_visibility_fixed` | `true`: keine Wahl, es gilt immer `photo_visibility` | `false` |
@@ -313,8 +314,18 @@ Die Grenzwerte gelten für die ganze Instanz; in weiteren Sites ändern sie nur 
 | `core.rate.user_per_second`, `core.rate.user_burst` | Anfragen je Konto: Dauerrate und Vorrat für kurze Spitzen | 50 / 500 |
 | `core.rate.guest_per_second`, `core.rate.guest_burst` | Anfragen je Adresse ohne Anmeldung | 20 / 200 |
 | `core.rate.expensive_per_second`, `core.rate.expensive_burst` | zusätzlich für Suche, Vorschau, Export und Upload | 5 / 50 |
+| `core.live.persons` | Personen, die eine Seite gleichzeitig gemeinsam bearbeiten | 50 |
+| `core.live.connections_per_person` | Fenster oder Geräte einer Person an derselben Seite | 5 |
+| `core.audit.search_days` | so weit reicht die Textsuche in den Vorher-/Nachher-Werten des Audit-Protokolls zurück, wenn kein Startdatum angegeben ist (mit Startdatum: jeder Zeitraum) | 90 Tage |
+| `core.reactions.per_person` | Plugin *Reaktionen*: verschiedene Emojis einer Person je Ziel | 10 |
 | `core.audit.value_guest_bytes` | längster Wert im Audit-Protokoll bei Ereignissen ohne angemeldeten Benutzer | 1024 Bytes |
 | `core.audit.value_bytes` | längster Vorher-/Nachher-Wert bei Ereignissen angemeldeter Benutzer | 65536 Bytes |
 | `core.ui.wait_notice_s` | nach dieser Zeit ohne Antwort auf eine Änderung fragt die Oberfläche „weiter warten oder abbrechen“; die Eingabe bleibt in beiden Fällen erhalten | 5 s |
 
 Zu große Anfragen erhalten `413`, zu viele `429` mit `Retry-After`.
+
+**Grenze je API-Schlüssel.** Jeder API-Schlüssel kann eine eigene Grenze in Anfragen pro Sekunde haben:
+
+- Wer einen Schlüssel besitzt, kann ihn beim Anlegen (*Mein Profil*) oder mit `PUT /api/v1/me/api-keys/{id}/rate {"rate_per_second": 5}` **unterhalb** der Grenze des Kontos begrenzen. Der Schlüssel zählt weiter auch für das Konto: Mehrere Schlüssel vervielfachen das Kontingent nicht.
+- Administratoren vergeben unter **Administration → Experteneinstellungen → API-Schlüssel** (oder `PUT /api/v1/admin/api-keys/{id}/rate`) ein **eigenes Kontingent**, das auch über der Grenze des Kontos liegen darf, etwa für Integrationen. Ein solcher Schlüssel zählt nicht mehr für das Konto; die Person selbst kann den Wert nicht ändern.
+- `{"rate_per_second": null}` entfernt die eigene Grenze. Der Vorrat für kurze Spitzen folgt dem Verhältnis der Konten (Vorgabe: das Zehnfache der Rate). Änderungen stehen im Audit-Protokoll (`apikey.rate`).

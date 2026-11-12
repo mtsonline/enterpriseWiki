@@ -10,6 +10,7 @@ import (
 	"github.com/mtsonline/enterprisewiki/internal/apperr"
 	"github.com/mtsonline/enterprisewiki/internal/config"
 	"github.com/mtsonline/enterprisewiki/internal/httpx"
+	"github.com/mtsonline/enterprisewiki/internal/identity"
 	"github.com/mtsonline/enterprisewiki/internal/limits"
 )
 
@@ -86,7 +87,17 @@ func (s *Server) rateLimited(w http.ResponseWriter, r *http.Request, user int64,
 		rate, burst = float64(limits.Value(cfg, limits.RateUser)), int(limits.Value(cfg, limits.RateUserBurst))
 	}
 	now := time.Now()
-	ok, wait := s.limits.take(key, rate, burst, now)
+	ok, wait := true, time.Duration(0)
+	p := identity.From(r.Context())
+	if p != nil && p.KeyID > 0 && p.KeyRate > 0 {
+		// the key's own limit, with the short-term reserve in the
+		// proportion of accounts
+		kb := max(p.KeyRate, int(float64(p.KeyRate)*float64(burst)/max(rate, 1)))
+		ok, wait = s.limits.take("k:"+strconv.FormatInt(p.KeyID, 10), float64(p.KeyRate), kb, now)
+	}
+	if ok && (p == nil || !p.KeyRateOwn || p.KeyRate == 0) { // budgets granted by an administrator do not count for the account
+		ok, wait = s.limits.take(key, rate, burst, now)
+	}
 	if ok && expensive(r) {
 		ok, wait = s.limits.take("x"+key, float64(limits.Value(cfg, limits.RateExpensive)), int(limits.Value(cfg, limits.RateExpensiveBurst)), now)
 	}

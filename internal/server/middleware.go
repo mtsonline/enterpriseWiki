@@ -4,15 +4,17 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/mtsonline/enterprisewiki/internal/audit"
 	"net"
 	"net/http"
 	"runtime/debug"
+	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/mtsonline/enterprisewiki/internal/apperr"
+	"github.com/mtsonline/enterprisewiki/internal/audit"
 	"github.com/mtsonline/enterprisewiki/internal/auth"
 	"github.com/mtsonline/enterprisewiki/internal/httpx"
 	"github.com/mtsonline/enterprisewiki/internal/identity"
@@ -36,19 +38,49 @@ func (w *statusWriter) WriteHeader(s int) {
 
 func (w *statusWriter) Unwrap() http.ResponseWriter { return w.ResponseWriter }
 
-// clientIP returns the caller IP. X-Forwarded-For is only honoured when the
-// direct peer is a trusted proxy; the header is read from the right and the
-// first address that is not a trusted proxy is the client (addresses further
-// left were set by the client and could be forged).
+// clientIP returns the address of the caller. Behind reverse proxies it
+// is taken from the header of server.client_ip_header - only when the
+// direct peer is one of server.trusted_proxies: anybody else could forge
+// the header (see noteUntrustedForward).
 func (s *Server) clientIP(r *http.Request) string {
 	host := s.peerIP(r)
-	trusted := s.app.Config.Get().Server.TrustedProxies
-	if len(trusted) == 0 || !isTrusted(trusted, host) {
+	c := s.app.Config.Get().Server
+	if len(c.TrustedProxies) == 0 || !isTrusted(c.TrustedProxies, host) {
 		return host
 	}
-	parts := strings.Split(strings.Join(r.Header.Values("X-Forwarded-For"), ","), ",")
-	for i := len(parts) - 1; i >= 0; i-- {
-		ip := strings.TrimSpace(parts[i])
+	return forwardedClient(r.Header, c.ClientIPHeader, c.TrustedProxies, host)
+}
+
+// forwardedClient reads the client address from the forwarding header kind
+// ("x-forwarded-for", the default; "forwarded" (RFC 7239); or the name of a
+// header with one address such as X-Real-IP or CF-Connecting-IP). Lists
+// are read from the right: the first address that is not a trusted proxy
+// is the client (addresses further left were sent by the client and could
+// be forged). Without a usable value the peer counts.
+func forwardedClient(hd http.Header, kind string, trusted []string, peer string) string {
+	var hops []string
+	switch k := strings.ToLower(strings.TrimSpace(kind)); k {
+	case "", "x-forwarded-for":
+		hops = strings.Split(strings.Join(hd.Values("X-Forwarded-For"), ","), ",")
+	case "forwarded":
+		for _, el := range strings.Split(strings.Join(hd.Values("Forwarded"), ","), ",") {
+			hop := ""
+			for _, pair := range strings.Split(el, ";") {
+				if name, v, ok := strings.Cut(strings.TrimSpace(pair), "="); ok && strings.EqualFold(name, "for") {
+					hop = forwardedNode(v)
+				}
+			}
+			hops = append(hops, hop) // an element without "for" ends the chain
+		}
+	default:
+		if v := strings.TrimSpace(hd.Get(k)); net.ParseIP(v) != nil {
+			return v
+		}
+		return peer
+	}
+	host := peer
+	for i := len(hops) - 1; i >= 0; i-- {
+		ip := strings.TrimSpace(hops[i])
 		if net.ParseIP(ip) == nil {
 			break // garbage: stop at the last valid hop
 		}
@@ -58,6 +90,129 @@ func (s *Server) clientIP(r *http.Request) string {
 		}
 	}
 	return host
+}
+
+// forwardedNode returns the address of a "for" value of Forwarded:
+// 192.0.2.1, "192.0.2.1:4711", "[2001:db8::1]:4711"; empty for names
+// (unknown, _hidden).
+func forwardedNode(v string) string {
+	v = strings.Trim(strings.TrimSpace(v), `"`)
+	if strings.HasPrefix(v, "[") {
+		if end := strings.Index(v, "]"); end > 0 {
+			return v[1:end]
+		}
+		return ""
+	}
+	if net.ParseIP(v) != nil {
+		return v
+	}
+	if h, _, err := net.SplitHostPort(v); err == nil {
+		return h
+	}
+	return ""
+}
+
+// forwardHeader is the name of the configured forwarding header.
+func forwardHeader(kind string) string {
+	switch k := strings.ToLower(strings.TrimSpace(kind)); k {
+	case "", "x-forwarded-for":
+		return "X-Forwarded-For"
+	default:
+		return http.CanonicalHeaderKey(k)
+	}
+}
+
+// untrustedForwards remembers peers that sent the forwarding header
+// without being a trusted proxy: most often a reverse proxy that is
+// missing in server.trusted_proxies - then all its visitors share one
+// address (limits of requests, sign-in protection, audit log). Few
+// entries and one audit record per peer and day: anybody can send the
+// header, it must not flood anything.
+type untrustedForwards struct {
+	mu    sync.Mutex
+	peers map[string]*UntrustedForward
+}
+
+// UntrustedForward is one such peer.
+type UntrustedForward struct {
+	Peer     string    `json:"peer"`
+	Header   string    `json:"header"`
+	First    time.Time `json:"first"`
+	Last     time.Time `json:"last"`
+	Requests int64     `json:"requests"`
+	audited  time.Time
+}
+
+const untrustedForwardPeers = 20
+
+// note counts a request of peer; true: write an audit record now.
+func (u *untrustedForwards) note(peer, header string, now time.Time) bool {
+	u.mu.Lock()
+	defer u.mu.Unlock()
+	e := u.peers[peer]
+	if e == nil {
+		if len(u.peers) >= untrustedForwardPeers {
+			var oldest string
+			for k, v := range u.peers {
+				if now.Sub(v.Last) > 24*time.Hour && (oldest == "" || v.Last.Before(u.peers[oldest].Last)) {
+					oldest = k
+				}
+			}
+			if oldest == "" {
+				return false // full: the known ones are shown, nothing more is recorded
+			}
+			delete(u.peers, oldest)
+		}
+		if u.peers == nil {
+			u.peers = map[string]*UntrustedForward{}
+		}
+		e = &UntrustedForward{Peer: peer, Header: header, First: now}
+		u.peers[peer] = e
+	}
+	e.Last, e.Header = now, header
+	e.Requests++
+	if now.Sub(e.audited) < 24*time.Hour {
+		return false
+	}
+	e.audited = now
+	return true
+}
+
+func (u *untrustedForwards) list() []UntrustedForward {
+	u.mu.Lock()
+	defer u.mu.Unlock()
+	out := make([]UntrustedForward, 0, len(u.peers))
+	for _, e := range u.peers {
+		out = append(out, *e)
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i].Requests > out[j].Requests })
+	return out
+}
+
+// noteUntrustedForward records a request with the forwarding header from
+// a peer that is not a trusted proxy (the header is ignored): warning in
+// the log, in the expert settings and - once per peer and day - in the
+// audit log.
+func (s *Server) noteUntrustedForward(r *http.Request) {
+	c := s.app.Config.Get().Server
+	name := forwardHeader(c.ClientIPHeader)
+	if r.Header.Get(name) == "" {
+		return
+	}
+	peer := s.peerIP(r)
+	if isTrusted(c.TrustedProxies, peer) {
+		return
+	}
+	if !s.forwards.note(peer, name, time.Now()) {
+		return
+	}
+	s.log.Warn("forwarding header from an address that is not a trusted proxy: ignored (server.trusted_proxies)", "peer", peer, "header", name)
+	ctx := identity.WithSite(context.Background(), s.app.Site) // the system reports, not the visitor
+	go func() {
+		if err := audit.Log(ctx, s.app.DB, "server.proxy_untrusted", "server", 0, nil, map[string]any{"peer": peer, "header": name}); err != nil {
+			s.log.Warn("audit: untrusted proxy", "err", err)
+		}
+	}()
 }
 
 // isTrusted reports whether ip is one of the trusted proxies (IPs or CIDRs).
@@ -111,6 +266,7 @@ func (s *Server) wrap(next http.Handler) http.Handler {
 				r.Body = http.MaxBytesReader(sw, r.Body, max<<20)
 			}
 		}
+		s.noteUntrustedForward(r)
 		r = r.WithContext(audit.WithRequest(r.Context(), s.clientIP(r), r.UserAgent()))
 		ctx, err := s.authenticate(sw, r)
 		if err != nil {

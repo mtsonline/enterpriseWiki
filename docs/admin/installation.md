@@ -104,7 +104,7 @@ Danach `docker compose up -d`. Die Ports 80 und 443 (TCP, für HTTP/3 auch UDP 4
 
 ### Vertrauenswürdige Proxys (`EWIKI_TRUSTED_PROXIES`)
 
-Das Wiki nimmt die Client-Adresse aus `X-Forwarded-For` nur von vertrauenswürdigen Proxys an (für Protokoll, Login-Sperren und die erlaubten Netze von Konten). Die Umgebungsvariable `EWIKI_TRUSTED_PROXIES` (IP-Adressen und CIDR-Netze, durch Komma getrennt) überschreibt `server.trusted_proxies` aus `config.yaml`:
+Hinter einem Reverse Proxy kommen alle Anfragen von dessen Adresse. Damit Anfragebegrenzung, Login-Sperren, Audit-Protokoll und die erlaubten Netze von Konten die **Adresse der Besucher** verwenden, liest das Wiki sie aus dem Header des Proxys – aber nur von vertrauenswürdigen Proxys: Jeder andere Absender könnte den Header fälschen und sich so als beliebige Adresse ausgeben. Die Umgebungsvariable `EWIKI_TRUSTED_PROXIES` (IP-Adressen und CIDR-Netze, durch Komma getrennt) überschreibt `server.trusted_proxies` aus `config.yaml`:
 
 | Aufbau | `EWIKI_TRUSTED_PROXIES` |
 |---|---|
@@ -113,7 +113,19 @@ Das Wiki nimmt die Client-Adresse aus `X-Forwarded-For` nur von vertrauenswürdi
 | ohne Docker, nginx auf demselben Server | `127.0.0.1,::1` |
 | Proxy/Load-Balancer auf anderen Rechnern | deren Adressen, z. B. `10.0.5.10,10.0.5.11` |
 
-Der Header wird von rechts gelesen: Die erste Adresse, die kein vertrauenswürdiger Proxy ist, gilt als Client. Vom Client selbst gesetzte Werte weiter links werden ignoriert. Das Docker-Netz hat ein festes Subnetz (`EWIKI_SUBNET`, Standard `172.30.80.0/24`); wer es ändert, setzt auch `EWIKI_IP_RANGE` (Bereich für die Container), `EWIKI_PROXY_IP` (feste Adresse des Proxys außerhalb dieses Bereichs) und `EWIKI_TRUSTED_PROXIES`. Mehrere Installationen auf demselben Host brauchen je ein eigenes Subnetz.
+**Welcher Header** gelesen wird, bestimmt `server.client_ip_header`:
+
+| Wert | Header | passend für |
+|---|---|---|
+| `x-forwarded-for` (Vorgabe) | `X-Forwarded-For: client, proxy1` | Caddy, nginx, Apache, HAProxy, Traefik, die meisten Load-Balancer |
+| `forwarded` | `Forwarded: for=192.0.2.60;proto=https` (RFC 7239) | Proxys, die den genormten Header senden |
+| Name eines Headers | genau eine Adresse, z. B. `x-real-ip`, `cf-connecting-ip`, `true-client-ip` | nginx mit `X-Real-IP`, CDNs |
+
+Bei einem Header mit genau einer Adresse muss der Proxy ihn selbst setzen und Werte der Besucher überschreiben (bei nginx `proxy_set_header X-Real-IP $remote_addr;`).
+
+**Warnung bei fehlendem Eintrag.** Sendet eine Adresse den gewählten Header, ohne als Proxy eingetragen zu sein, wird der Header ignoriert. Das Wiki meldet das im Server-Protokoll, unter **Administration → Experteneinstellungen → Adresse der Besucher** (mit Adresse und Zahl der Anfragen) und einmal je Adresse und Tag im Audit-Protokoll (`server.proxy_untrusted`). Ist es Ihr eigener Proxy, fehlt er in `trusted_proxies` – bis dahin teilen sich alle Besucher dahinter eine Adresse und damit eine Anfragebegrenzung. Einzelne fremde Adressen in dieser Liste sind dagegen normal (Besucher hinter Firmen-Proxys) und brauchen keine Reaktion.
+
+Listen (`X-Forwarded-For`, `Forwarded`) werden von rechts gelesen: Die erste Adresse, die kein vertrauenswürdiger Proxy ist, gilt als Client. Vom Client selbst gesetzte Werte weiter links werden ignoriert. Das Docker-Netz hat ein festes Subnetz (`EWIKI_SUBNET`, Standard `172.30.80.0/24`); wer es ändert, setzt auch `EWIKI_IP_RANGE` (Bereich für die Container), `EWIKI_PROXY_IP` (feste Adresse des Proxys außerhalb dieses Bereichs) und `EWIKI_TRUSTED_PROXIES`. Mehrere Installationen auf demselben Host brauchen je ein eigenes Subnetz.
 
 ### Eigener Proxy
 

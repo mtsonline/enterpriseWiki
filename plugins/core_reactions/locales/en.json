@@ -37,5 +37,7 @@
  "core.reactions.manage": "Manage reactions",
  "core.reactions.emoji": "Emoji",
  "core.reactions.person": "Person",
- "core.reactions.none": "No reactions."
+ "core.reactions.none": "No reactions.",
+ "limit.core.reactions.per_person": "Reactions per person",
+ "limit.core.reactions.per_person.help": "How many different emojis one person may put on one page, category or comment."
 }

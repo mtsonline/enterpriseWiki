@@ -186,8 +186,8 @@ func Log(ctx context.Context, q db.Querier, action, entityType string, entityID 
 }
 
 // SnapshotSearchDays is the period of the text search in the snapshots
-// when no start is given.
-const SnapshotSearchDays = 90
+// when no start is given; set by the application (expert settings).
+var SnapshotSearchDays = func() int { return 90 }
 
 // Search filters audit entries.
 type Search struct {
@@ -254,7 +254,7 @@ func (s Search) where() (string, []any) {
 		// address always
 		since := s.From
 		if since.IsZero() {
-			since = time.Now().AddDate(0, 0, -SnapshotSearchDays)
+			since = time.Now().AddDate(0, 0, -SnapshotSearchDays())
 		}
 		like := strings.NewReplacer(`\`, `\\`, "%", `\%`, "_", `\_`).Replace(t)
 		add("(actor ILIKE ? OR action ILIKE $X OR entity_type ILIKE $X OR COALESCE(ip,'') ILIKE $X OR (at >= $Y AND (before::text ILIKE $X OR after::text ILIKE $X)))", "%"+like+"%")

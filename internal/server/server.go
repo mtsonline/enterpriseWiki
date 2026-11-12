@@ -34,6 +34,7 @@ type Server struct {
 	collabDone context.Context
 	closeLive  context.CancelFunc
 	limits     *limiter // requests per account or address (S-04)
+	forwards   untrustedForwards
 }
 
 // New creates the server. web contains the built frontend (may be nil).

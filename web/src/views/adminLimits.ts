@@ -2,7 +2,8 @@
 // all plugins in one place (sizes of requests, parallel work, lengths in the
 // audit log …). Each has a default and an allowed range.
 import { api } from '../core/api';
-import { h, mount } from '../core/dom';
+import { fmtDate, h, mount } from '../core/dom';
+import { isAdmin, state } from '../core/state';
 import { t } from '../core/i18n';
 import { toast } from '../core/announce';
 import { button, errorText, field, pageHeader, setFieldError, textInput } from '../components/ui';
@@ -12,12 +13,16 @@ interface Limit {
   default: number; min: number; max: number; restart?: boolean; value: number; changed: boolean; active: boolean;
 }
 
+interface Proxy { header: string; trusted: number; untrusted: { peer: string; header: string; last: string; requests: number }[] }
+interface Key { id: number; name: string; prefix: string; owner: string; rate_per_second: number | null; rate_own: boolean }
+
 /** translated text of a limit, or the English text the core or plugin declared */
 const tr = (key: string, fallback: string) => { const s = t(key); return s === key ? fallback : s; };
 const withUnit = (n: number, unit: string) => t(`limits.unit.${unit}`, { n: n.toLocaleString() });
 
 export async function limitsAdmin(panel: HTMLElement): Promise<void> {
-  const res = await api.get<{ limits: Limit[]; editable: boolean }>('admin/limits');
+  const res = await api.get<{ limits: Limit[]; editable: boolean; proxy: Proxy }>('admin/limits');
+  const keys = isAdmin() ? await api.get<Key[]>('admin/api-keys') : null;
   const inputs = new Map<string, HTMLInputElement>();
   const alert = h('div', { class: 'ew-form-alert', role: 'alert' });
   const groups = new Map<string, Limit[]>();
@@ -70,8 +75,40 @@ export async function limitsAdmin(panel: HTMLElement): Promise<void> {
     } catch (e) { alert.textContent = errorText(e); }
   });
 
+  // where the address of visitors comes from, and proxies that are not configured
+  const px = res.proxy;
+  const proxy = h('section', { class: 'ew-section', 'aria-labelledby': 'lim-proxy' }, h('h2', { id: 'lim-proxy' }, t('limits.proxy.title')),
+    h('p', null, px.trusted ? t('limits.proxy.info', { header: px.header, n: px.trusted }) : t('limits.proxy.none')),
+    px.untrusted.length ? h('div', { class: 'ew-notice ew-notice--warning', role: 'status' }, h('p', null, t('limits.proxy.warning', { header: px.header })),
+      h('table', { class: 'ew-table' }, h('caption', { class: 'sr-only' }, t('limits.proxy.title')),
+        h('thead', null, h('tr', null, ...[t('limits.proxy.peer'), t('limits.proxy.requests'), t('limits.proxy.last')].map((x) => h('th', { scope: 'col' }, x)))),
+        h('tbody', null, ...px.untrusted.map((u) => h('tr', null, h('th', { scope: 'row' }, h('code', null, u.peer)),
+          h('td', null, u.requests.toLocaleString()), h('td', null, fmtDate(u.last, state.lang))))))) : null);
+
+  // the own limit of each API key
+  const keyRow = (k: Key): HTMLElement => {
+    const label = `${k.owner} · ${k.name}`;
+    const input = textInput({ value: k.rate_per_second ? String(k.rate_per_second) : '', type: 'number' });
+    input.setAttribute('aria-label', t('limits.keys.rate_of', { name: label }));
+    input.min = '1';
+    input.step = '1';
+    input.inputMode = 'numeric';
+    const save = button(t('common.save'), async () => {
+      const v = input.value.trim() === '' ? null : Number(input.value);
+      setFieldError(input, '');
+      if (v !== null && (!Number.isInteger(v) || v < 1)) { setFieldError(input, t('limits.out_of_range', { min: '1', max: '100.000' })); input.focus(); return; }
+      try { await api.put(`admin/api-keys/${k.id}/rate`, { rate_per_second: v }); toast(t('limits.keys.saved')); } catch (e) { setFieldError(input, errorText(e)); input.focus(); }
+    }, { variant: 'subtle', ariaLabel: `${t('common.save')}: ${label}` });
+    return h('tr', null, h('th', { scope: 'row' }, k.owner), h('td', null, k.name, ' ', h('code', null, `${k.prefix}…`)), h('td', null, input), h('td', null, save));
+  };
+  const keySection = keys ? h('section', { class: 'ew-section', 'aria-labelledby': 'lim-keys' }, h('h2', { id: 'lim-keys' }, t('limits.keys.title')),
+    h('p', null, t('limits.keys.help')),
+    keys.length ? h('table', { class: 'ew-table' }, h('caption', { class: 'sr-only' }, t('limits.keys.title')),
+      h('thead', null, h('tr', null, ...[t('limits.keys.owner'), t('limits.keys.name'), t('limits.keys.rate'), t('common.actions')].map((x) => h('th', { scope: 'col' }, x)))),
+      h('tbody', null, ...keys.map(keyRow))) : h('p', null, t('limits.keys.none'))) : null;
+
   mount(panel, pageHeader(t('admin.limits')),
     h('p', null, t('limits.intro')),
     res.editable ? null : h('p', { role: 'note' }, t('limits.instance_only')),
-    form);
+    form, keySection, proxy);
 }

@@ -33,8 +33,6 @@ const (
 // Limits.
 const (
 	MaxMessage   = 4 << 20 // bytes per message (the initial sync of a large page)
-	MaxPeers     = 50      // persons per document
-	MaxPerUser   = 5       // connections of one person per document (tabs, devices)
 	queueSize    = 256     // messages waiting per peer
 	ratePerSec   = 100     // messages per second and peer (burst: 2x)
 	RecheckEvery = 30 * time.Second
@@ -79,10 +77,15 @@ type frame struct {
 
 func (p *peer) close() { p.once.Do(func() { close(p.quit) }) }
 
-// ErrTooManyConnections: the person has MaxPerUser connections to the room.
+// Limits returns the persons per document and the connections of one
+// person per document (tabs, devices); set by the application (expert
+// settings).
+var Limits = func() (persons, perPerson int) { return 50, 5 }
+
+// ErrTooManyConnections: the person has too many connections to the room.
 var ErrTooManyConnections = errors.New("too many connections of this person to the document")
 
-// ErrFull is returned when a room has MaxPeers editors.
+// ErrFull is returned when a room has the allowed number of persons.
 var ErrFull = errors.New("too many editors of this document")
 
 // Peers returns the number of editors in a room.
@@ -112,10 +115,11 @@ func (h *Hub) join(key string, u User) (*peer, error) {
 			mine++
 		}
 	}
-	if mine >= MaxPerUser {
+	maxPersons, perPerson := Limits()
+	if mine >= perPerson {
 		return nil, ErrTooManyConnections
 	}
-	if !persons[u.ID] && len(persons) >= MaxPeers {
+	if !persons[u.ID] && len(persons) >= maxPersons {
 		return nil, ErrFull
 	}
 	h.seq++

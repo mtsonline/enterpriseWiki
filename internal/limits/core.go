@@ -19,6 +19,9 @@ const (
 	RateGuestBurst     = "core.rate.guest_burst"
 	RateExpensive      = "core.rate.expensive_per_second"
 	RateExpensiveBurst = "core.rate.expensive_burst"
+	LivePersons        = "core.live.persons"
+	LivePerPerson      = "core.live.connections_per_person"
+	AuditSearchDays    = "core.audit.search_days"
 )
 
 // LargeBody is the size from which a request counts as large (limited
@@ -59,5 +62,11 @@ func init() {
 			Label: "Expensive requests", Help: "Searches, previews, exports and uploads per second of an account or address, on top of the general limit."},
 		Def{Key: RateExpensiveBurst, Group: "rate", Unit: "count", Default: 50, Min: 1, Max: 100000,
 			Label: "Reserve for expensive requests", Help: "Expensive requests an account or address may send at once."},
+		Def{Key: LivePersons, Group: "live", Unit: "count", Default: 50, Min: 2, Max: 1000,
+			Label: "Persons per page", Help: "How many persons edit one page together at the same time. Further ones see the page and are told that it is full."},
+		Def{Key: LivePerPerson, Group: "live", Unit: "count", Default: 5, Min: 1, Max: 50,
+			Label: "Connections per person and page", Help: "How many windows or devices of one person edit the same page at once."},
+		Def{Key: AuditSearchDays, Group: "audit", Unit: "days", Default: 90, Min: 1, Max: 3650,
+			Label: "Period of the text search", Help: "How far back the text search in before/after values of the audit log looks when no start date is given. With a start date any period is searched."},
 	)
 }

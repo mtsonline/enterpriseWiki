@@ -427,7 +427,9 @@ CREATE TABLE api_keys (
     expires_at   timestamptz NOT NULL,
     created_at   timestamptz NOT NULL DEFAULT now(),
     last_used_at timestamptz,
-    revoked_at   timestamptz
+    revoked_at   timestamptz,
+    rate_per_second int CHECK (rate_per_second > 0), -- own limit of requests; NULL = that of the account
+    rate_own     boolean NOT NULL DEFAULT false     -- granted by an administrator: a budget of its own, not counted for the account
 );
 CREATE INDEX api_keys_user ON api_keys(user_id);
 
