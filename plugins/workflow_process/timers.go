@@ -24,7 +24,10 @@ func (pl *Plugin) runTimers(ctx context.Context) error {
 			break
 		}
 	}
-	return pl.reminders(ctx)
+	if err := pl.reminders(ctx); err != nil {
+		return err
+	}
+	return pl.deadlines(ctx)
 }
 
 // wakeOne handles one due case; done is true if there was none.
@@ -32,7 +35,7 @@ func (pl *Plugin) wakeOne(ctx context.Context) (done bool, err error) {
 	err = pgx.BeginFunc(ctx, pl.host.DB, func(tx pgx.Tx) error {
 		var id int64
 		err := tx.QueryRow(ctx, `SELECT id FROM plugin_workflow_instances WHERE status='open' AND wake_at <= now()
-			ORDER BY wake_at LIMIT 1 FOR UPDATE SKIP LOCKED`).Scan(&id)
+			ORDER BY wake_at LIMIT 1 FOR NO KEY UPDATE SKIP LOCKED`).Scan(&id)
 		if errors.Is(err, pgx.ErrNoRows) {
 			done = true
 			return nil
@@ -86,6 +89,59 @@ func (pl *Plugin) wakeOne(ctx context.Context) (done bool, err error) {
 				return err
 			}
 			_, err := tx.Exec(ctx, `UPDATE plugin_workflow_instances SET attempts=$2, last_error=$3, wake_at=NULL, updated_at=now() WHERE id=$1`, id, attempts, msg)
+			return err
+		case StepHTTP, StepCreate, StepProps, StepSubflow:
+			var attempts int
+			if err := tx.QueryRow(ctx, `SELECT attempts FROM plugin_workflow_instances WHERE id=$1`, id).Scan(&attempts); err != nil {
+				return err
+			}
+			// a savepoint: a failed step leaves nothing behind in the case
+			sp2, err := tx.Begin(ctx)
+			if err != nil {
+				return err
+			}
+			res, runErr := pl.runStep(ctx, sp2, x, s)
+			if runErr == nil && res.wait {
+				if err := sp2.Commit(ctx); err != nil {
+					return err
+				}
+				_, err := tx.Exec(ctx, `UPDATE plugin_workflow_instances SET wake_at=NULL, attempts=0, last_error='' WHERE id=$1`, id)
+				return err
+			}
+			if runErr == nil {
+				if err := event(ctx, sp2, id, sp(s.ID), sp(res.next), res.action, res.label, res.note, sys); err != nil {
+					runErr = err
+				} else if err := pl.enter(ctx, sp2, x, res.next, sys); err != nil {
+					runErr = err
+				}
+			}
+			if runErr == nil {
+				return sp2.Commit(ctx)
+			}
+			_ = sp2.Rollback(ctx)
+			x, err = pl.loadTx(ctx, tx, id) // as before the step
+			if err != nil {
+				return err
+			}
+			attempts++
+			msg := runErr.Error()
+			pl.host.Log.Warn("workflow step failed", "case", id, "step", s.ID, "attempt", attempts, "err", msg)
+			if attempts < WebhookAttempts {
+				_, err := tx.Exec(ctx, `UPDATE plugin_workflow_instances SET attempts=$2, last_error=$3, wake_at=now() + make_interval(mins => $2 * 2) WHERE id=$1`,
+					id, attempts, msg)
+				return err
+			}
+			if s.NextElse != "" && s.Type == StepHTTP {
+				if err := event(ctx, tx, id, sp(s.ID), sp(s.NextElse), s.Type+"_failed", "", msg, sys); err != nil {
+					return err
+				}
+				return pl.enter(ctx, tx, x, s.NextElse, sys)
+			}
+			// waits for a decision of a manager (repeat or skip)
+			if err := event(ctx, tx, id, sp(s.ID), sp(s.ID), s.Type+"_failed", "", msg, sys); err != nil {
+				return err
+			}
+			_, err = tx.Exec(ctx, `UPDATE plugin_workflow_instances SET attempts=$2, last_error=$3, wake_at=NULL, updated_at=now() WHERE id=$1`, id, attempts, msg)
 			return err
 		default:
 			_, err := tx.Exec(ctx, `UPDATE plugin_workflow_instances SET wake_at=NULL WHERE id=$1`, id)

@@ -318,6 +318,12 @@ func (s *Server) authenticate(w http.ResponseWriter, r *http.Request) (context.C
 		// SCIM requests by their own bearer token (see scim.go)
 		return ctx, nil
 	}
+	if _, pattern := s.app.Mux.Handler(r); pattern != "" && httpx.Signed(pattern) {
+		// messages of other systems (incoming webhooks of plugins) are
+		// authenticated by the handler with their signature; a session or
+		// API key never counts there
+		return ctx, nil
+	}
 	if s.app.Media.TokenPath(r.URL.Path) {
 		// office servers authenticate with the access token of one file
 		// (checked by the WOPI handlers); sessions and API keys never count

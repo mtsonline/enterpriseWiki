@@ -20,6 +20,12 @@ type Definition struct {
 	Description string  `json:"description"`
 	Fields      []Field `json:"fields"`
 	Steps       []Step  `json:"steps"`
+	// Triggers start cases without a person (schedule, changes, events,
+	// incoming webhooks).
+	Triggers []Trigger `json:"triggers,omitempty"`
+	// NoManual hides the start form: cases start only by triggers (and
+	// forms or other workflows).
+	NoManual bool `json:"no_manual,omitempty"`
 }
 
 // Field is an input of the start form.
@@ -54,11 +60,24 @@ const (
 	StepEmail     = "email"     // automatic: send a predefined e-mail
 	StepWebhook   = "webhook"   // automatic: call an external system
 	StepDelay     = "delay"     // automatic: wait for a time or a date from the form
+	StepNotify    = "notify"    // automatic: message in the wiki and/or by e-mail
+	StepSet       = "set"       // automatic: set or compute values of the case
+	StepHTTP      = "http"      // automatic: query another system, take values of the answer
+	StepCreate    = "create"    // automatic: create a page from a template
+	StepProps     = "props"     // automatic: set properties of a page
+	StepSubflow   = "subflow"   // automatic: start another workflow (and wait for it)
 	StepEnd       = "end"       // closes the case
 )
 
 // StepTypes lists all step types.
-var StepTypes = []string{StepTask, StepApproval, StepCondition, StepEmail, StepWebhook, StepDelay, StepEnd}
+var StepTypes = []string{StepTask, StepApproval, StepCondition, StepEmail, StepNotify, StepSet, StepWebhook, StepHTTP,
+	StepCreate, StepProps, StepSubflow, StepDelay, StepEnd}
+
+// deferred steps are run by the background worker (they call other
+// systems or the wiki's API and may take a while).
+func (s *Step) deferred() bool {
+	return s.Type == StepWebhook || s.Type == StepHTTP || s.Type == StepCreate || s.Type == StepProps || s.Type == StepSubflow
+}
 
 // Rule is a condition on the case data.
 type Rule struct {
@@ -119,12 +138,23 @@ type Step struct {
 	Email    *EmailSpec   `json:"email,omitempty"`
 	Webhook  *WebhookSpec `json:"webhook,omitempty"`
 	Delay    *DelaySpec   `json:"delay,omitempty"`
+	Notify   *NotifySpec  `json:"notify,omitempty"`
+	Set      []Assign     `json:"set,omitempty"`
+	HTTP     *HTTPSpec    `json:"http,omitempty"`
+	Create   *CreateSpec  `json:"create,omitempty"`
+	Props    *PropsSpec   `json:"props,omitempty"`
+	Subflow  *SubflowSpec `json:"subflow,omitempty"`
+	// RunAs of http, create, props and subflow steps: "definer" (default:
+	// the person who saved the version of the workflow) or "starter".
+	RunAs string `json:"run_as,omitempty"`
+	// Deadline of a task or approval: warnings and escalation.
+	Deadline *Deadline `json:"deadline,omitempty"`
+	// Notices are sent when a case enters or leaves the step.
+	Notices []Notice `json:"notices,omitempty"`
 }
 
 // Automatic reports whether the step runs without a person.
-func (s *Step) Automatic() bool {
-	return s.Type == StepCondition || s.Type == StepEmail || s.Type == StepWebhook || s.Type == StepDelay
-}
+func (s *Step) Automatic() bool { return !s.Manual() && s.Type != StepEnd }
 
 // Manual reports whether people act on the step.
 func (s *Step) Manual() bool { return s.Type == StepTask || s.Type == StepApproval }
@@ -210,6 +240,14 @@ func (d *Definition) Validate() error {
 	for _, f := range d.Fields {
 		fieldType[f.ID] = f.Type
 	}
+	// values set by steps (set, http, create, subflow) are usable like fields
+	for _, s := range d.Steps {
+		for _, id := range s.targets() {
+			if _, ok := fieldType[id]; !ok && idRe.MatchString(id) {
+				fieldType[id] = "text"
+			}
+		}
+	}
 	for i := range d.Steps {
 		s := &d.Steps[i]
 		if !idRe.MatchString(s.ID) || seen["s:"+s.ID] {
@@ -250,7 +288,7 @@ func (d *Definition) Validate() error {
 	if d.Fields == nil {
 		d.Fields = []Field{}
 	}
-	return nil
+	return d.validateTriggers()
 }
 
 // RuleOps are the operators of condition rules.
@@ -285,6 +323,10 @@ func (s *Step) validate(fieldType map[string]string) error {
 	}
 	email, webhook, delay := s.Email, s.Webhook, s.Delay
 	s.Email, s.Webhook, s.Delay = nil, nil, nil
+	deadline, notices := s.Deadline, s.Notices
+	if err := s.validateExtra(fieldType); err != nil { // the steps of Workflow 2
+		return err
+	}
 	switch s.Type {
 	case StepEnd:
 		out := s.Outcome
@@ -440,6 +482,12 @@ func (s *Step) validate(fieldType map[string]string) error {
 	if s.Actions == nil {
 		s.Actions = []Action{}
 	}
+	if s.Deadline, err = deadline.validate(s, fieldType); err != nil {
+		return err
+	}
+	if s.Notices, err = validateNotices(s.ID, notices); err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -524,6 +572,14 @@ var msgs = map[string]map[string]string{
 	"delay":     {"en": "Waiting time", "de": "Wartezeit"},
 	"then":      {"en": "then → %s", "de": "dann → %s"},
 	"reminder":  {"en": "Reminder after %d day(s)", "de": "Erinnerung nach %d Tag(en)"},
+	"notify":    {"en": "Automatic message", "de": "Automatische Nachricht"},
+	"set":       {"en": "Automatic values", "de": "Automatische Werte"},
+	"http":      {"en": "Automatic query of another system", "de": "Automatische Abfrage eines anderen Systems"},
+	"create":    {"en": "Automatic new page", "de": "Automatisch neue Seite"},
+	"props":     {"en": "Automatic properties of a page", "de": "Automatische Eigenschaften einer Seite"},
+	"subflow":   {"en": "Another workflow", "de": "Weiterer Workflow"},
+	"deadline":  {"en": "With a deadline", "de": "Mit Frist"},
+	"triggers":  {"en": "Starts automatically", "de": "Startet automatisch"},
 }
 
 func msg(lang, key string) string {
@@ -609,6 +665,15 @@ func (t Type) Render(ctx context.Context, rc content.RenderContext, raw json.Raw
 		case StepDelay:
 			fmt.Fprintf(&b, `<br><span class="ewf-assignee">%s</span><ul class="ewf-actions">`, esc(msg(rc.Lang, "delay")))
 			li(fmt.Sprintf(msg(rc.Lang, "then"), name(s.Next)))
+		default: // notify, set, http, create, props, subflow
+			fmt.Fprintf(&b, `<br><span class="ewf-assignee">%s</span><ul class="ewf-actions">`, esc(msg(rc.Lang, s.Type)))
+			li(fmt.Sprintf(msg(rc.Lang, "then"), name(s.Next)))
+			if s.NextElse != "" {
+				li(fmt.Sprintf(msg(rc.Lang, "goto"), msg(rc.Lang, "failed"), name(s.NextElse)))
+			}
+		}
+		if s.Deadline != nil {
+			li(msg(rc.Lang, "deadline"))
 		}
 		if s.DueDays > 0 {
 			li(fmt.Sprintf(msg(rc.Lang, "reminder"), s.DueDays))

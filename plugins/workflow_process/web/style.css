@@ -21,4 +21,13 @@
 .ewf-action-row { display: grid; grid-template-columns: 2fr 2fr 1.4fr auto; gap: 0 .75rem; align-items: end; border-top: 1px dashed var(--ew-border); padding-top: .4rem; }
 @media (max-width: 760px) { .ewf-action-row { grid-template-columns: 1fr; } }
 .ewf-ed-section { margin: 1.5rem 0; }
-.ewf-template { display: flex; flex-wrap: wrap; gap: .5rem; align-items: end; margin-bottom: 1rem; }
+.ewf-template, .ewf-add-trigger { display: flex; flex-wrap: wrap; gap: .5rem; align-items: end; margin-bottom: 1rem; }
+/* Workflow 2: triggers, sub parts of steps, key/value rows */
+.ewf-ed-section > h2 { font-size: 1.25rem; }
+.ewf-editor h3 { font-size: 1rem; margin: .9rem 0 .4rem; }
+.ewf-editor .ewf-sub { background: var(--ew-surface-2, transparent); }
+.ewf-editor .ewf-sub > summary { cursor: pointer; font-weight: 600; }
+.ewf-map { display: grid; gap: .4rem; margin-bottom: .6rem; }
+.ewf-checks { border: 0; padding: 0; margin: .5rem 0; display: flex; flex-wrap: wrap; gap: .25rem 1.25rem; }
+.ewf-checks > legend { font-weight: 600; margin-bottom: .25rem; }
+.ewf-trigger-st:empty { display: none; }

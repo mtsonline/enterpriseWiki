@@ -37,7 +37,17 @@ function valueOf(x: Instance, f: Field): Node | string {
 function eventText(e: Event, stepName: (id: string | null) => string): string {
   const step = stepName(e.to_step);
   switch (e.action) {
-    case 'start': return t('workflow.ev.start', { step });
+    case 'start': return e.action_label.startsWith('trigger:') ? t('workflow.ev.start_trigger', { step, trigger: e.action_label.slice(8) }) : t('workflow.ev.start', { step });
+    case 'notify': return t('workflow.ev.notify', { subject: e.action_label, step });
+    case 'set': return t('workflow.ev.set', { step });
+    case 'http': return t('workflow.ev.http', { status: e.action_label, step });
+    case 'create': return t('workflow.ev.create', { title: e.action_label, step });
+    case 'props': return t('workflow.ev.props', { step });
+    case 'subflow': case 'subflow_started': return t('workflow.ev.subflow_started');
+    case 'subflow_done': return t('workflow.ev.subflow_done', { step });
+    case 'http_failed': case 'create_failed': case 'props_failed': case 'subflow_failed': return t('workflow.ev.step_failed');
+    case 'warning': return t('workflow.ev.warning');
+    case 'escalate': return t(`workflow.ev.escalate_${['notify', 'reassign', 'cancel'].includes(e.action_label) ? e.action_label : 'action'}`, { step });
     case 'cancel': return t('workflow.ev.cancel');
     case 'approve': return e.from_step === e.to_step ? t('workflow.ev.approve') : t('workflow.ev.action', { action: e.action_label || t('workflow.approve'), step });
     case 'reject': return t('workflow.ev.action', { action: e.action_label || t('workflow.reject'), step });
@@ -81,7 +91,10 @@ export async function openCase(id: number, onChange?: () => void): Promise<void>
     x.status === 'open' && x.wake_at && !x.actions.length ? h('p', null, t('workflow.waiting_until', { date: fmtDate(x.wake_at, state.lang) })) : null,
     x.last_error ? h('p', { class: 'ew-notice ew-notice--warning', role: 'note' }, t('workflow.last_error', { error: x.last_error })) : null,
     h('h3', null, t('workflow.data')),
-    h('dl', { class: 'ewf-data' }, ...x.definition.fields.flatMap((f) => [h('dt', null, f.label), h('dd', null, valueOf(x, f))])),
+    x.status === 'open' && x.due_at ? h('p', null, t(x.escalated ? 'workflow.due_escalated' : 'workflow.due_at', { date: fmtDate(x.due_at, state.lang) })) : null,
+    h('dl', { class: 'ewf-data' }, ...x.definition.fields.flatMap((f) => [h('dt', null, f.label), h('dd', null, valueOf(x, f))]),
+      // values set by automatic steps
+      ...Object.keys(x.data).filter((k) => !x.definition.fields.some((f) => f.id === k)).flatMap((k) => [h('dt', null, k), h('dd', null, String(x.data[k] ?? ''))])),
     h('h3', null, t('workflow.history')),
     h('ol', { class: 'ewf-history' }, ...(x.events ?? []).map((e) => h('li', null,
       h('time', { datetime: e.at }, fmtDate(e.at, state.lang)), ' – ', h('strong', null, e.actor === 'system' ? t('workflow.system') : e.actor), ': ',

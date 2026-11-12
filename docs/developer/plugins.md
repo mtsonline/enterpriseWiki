@@ -278,6 +278,11 @@ max := h.Limit("acme.forms.answer_kb") // aktueller Wert, jederzeit
 - Für Seiteninhalte den Grenzwert des Kerns verwenden: `h.BodyLimit("POST", "/…", limits.RequestContentKB)`.
 - Uploads streamen (`multipart`) und mit `limits.RequestUpload` anmelden; dann gilt `storage.max_upload_mb`.
 
+### Eingehende Nachrichten anderer Systeme und Ereignisse
+
+- `h.Signed("POST", "/hooks/{id}")` meldet eine Route an, die andere Systeme aufrufen (eingehende Webhooks): Der Aufrufer ist dort **immer anonym** – Sitzungen und API-Keys zählen nie, ein CSRF-Header ist nicht nötig. Der Handler prüft die Signatur selbst (`hmac.Equal`, Zeitstempel gegen Wiederholungen) und antwortet bei jedem Fehler gleich (`403`). Es gelten die Größen- und Ratengrenzen für Gäste.
+- `host.Webhooks.Listen(func(ctx, q, ev) error)` erhält jedes Ereignis (`element.*`, `category.*`, `comment.create`, `form.submitted`, `workflow.*` …) **in der Transaktion der Änderung** (`q`), bevor Webhooks eingereiht werden. Wer in `q` schreibt, sollte einen Savepoint nehmen (`q.(pgx.Tx).Begin`), damit ein eigener Fehler die Änderung nicht verhindert. Teures gehört in eine Warteschlange und einen Worker.
+
 ### Rechte in Plugin-Routen
 
 `host.Content.ElementCategory(ctx, elementID, acl.View)` liefert die Kategorie eines Elements und prüft dabei das Recht (404 statt 403, wenn das Element nicht sichtbar ist). `host.Content.Require(ctx, categoryID, perm)` prüft ein Recht auf einer Kategorie.

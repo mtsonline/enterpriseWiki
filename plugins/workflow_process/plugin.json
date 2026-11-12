@@ -38,5 +38,17 @@
         "manager"
       ]
     }
+  ],
+  "limits": [
+    {
+      "key": "workflow.process.trigger_per_hour",
+      "group": "workflows",
+      "unit": "count",
+      "default": 60,
+      "min": 1,
+      "max": 10000,
+      "label": "Starts of a trigger per hour",
+      "help": "How many cases one trigger of a workflow (schedule, change, event, incoming webhook) may start in an hour; further starts are skipped and shown in the editor."
+    }
   ]
 }

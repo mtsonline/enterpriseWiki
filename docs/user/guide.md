@@ -110,11 +110,43 @@ Wählen Sie bei *Neue Seite* den Elementtyp **Workflow**. Mit *Vorlage* überneh
 | E-Mail senden | verschickt automatisch eine vorbereitete E-Mail (Empfänger, Cc, Absender, Antwortadresse, Betreff, Text) |
 | Webhook | übergibt den Vorgang an ein anderes System (z. B. Personalsoftware) |
 | Wartezeit | wartet Tage/Stunden oder bis zu einem Datum aus dem Formular (z. B. dem Eintrittsdatum) |
+| Nachricht | schickt eine Nachricht im Wiki (Glocke) und/oder per E-Mail an `starter`, `actor`, `assignees`, `user:NAME`, `group:NAME`, `role:NAME` oder Adressen |
+| Werte setzen | setzt Werte des Vorgangs: Text mit Platzhaltern oder eine Formel (`round(menge * preis, 2)`, `if(betrag > 1000, 1, 0)` …); spätere Schritte nutzen sie als `{{field.NAME}}` und in Bedingungen |
+| HTTP-Abfrage | fragt ein anderes System ab (nur Adressen der Freigabeliste `plugins.macros.http_allow`) und übernimmt Werte der JSON-Antwort (Pfad wie `daten.status` oder `einträge.0.id`) |
+| Seite anlegen | legt eine Seite (Markdown mit Platzhaltern) in einer Kategorie an und merkt sich ID und Adresse für spätere Schritte |
+| Eigenschaften setzen | setzt Eigenschaften einer Seite (z. B. der eben angelegten: `{{field.page}}`) |
+| Weiterer Workflow | startet einen Vorgang eines anderen Workflows mit Werten; wartet auf Wunsch, bis er beendet ist, übernimmt dann Werte und verzweigt bei Misserfolg |
 | Ende | schließt den Vorgang mit einem Ergebnis (erfolgreich, nicht erfolgreich, neutral) |
 
 Bei Aufgaben und Freigaben kann eine **Erinnerung nach X Tagen** eingestellt werden. Zuständige erhalten bei neuen Aufgaben eine E-Mail (abschaltbar im Profil).
 
-**Platzhalter** in E-Mails: `{{field.<id>}}` (Angaben aus dem Formular, z. B. `{{field.email}}`), `{{case.title}}`, `{{case.id}}`, `{{case.url}}`, `{{case.step}}`, `{{workflow.title}}`, `{{starter.name}}`, `{{starter.email}}`, `{{actor.name}}` und `{{actor.email}}` (wer den Schritt zuletzt bearbeitet hat), `{{last.action}}`, `{{last.note}}` (Aktion und Notiz dieser Person), `{{site.name}}`, `{{date}}`. Im Editor fügt ein Klick auf einen Platzhalter ihn in das zuletzt benutzte Feld ein. Als Empfänger sind außerdem `starter`, `actor`, `user:name`, `group:name` und `role:name` möglich.
+**Fristen:** Aufgaben und Freigaben können eine Frist haben – Tage/Stunden ab Erreichen des Schritts oder ab einem Datum des Formulars, auf Wunsch nur **Arbeitstage** (ohne Wochenenden und die Feiertage unter *Administration → Workflow*). Vor Ablauf werden die Zuständigen gewarnt (z. B. 48 und 4 Stunden vorher). Läuft die Frist ab, passiert einmal die gewählte **Eskalation**: nur eine Nachricht, an jemand anderen übergeben, automatisch entscheiden (eine Aktion bzw. Freigabe/Ablehnung) oder den Vorgang abbrechen – jeweils optional mit Nachricht.
+
+**Nachrichten je Schritt:** Jeder Schritt kann Nachrichten senden, wenn ein Vorgang ihn erreicht oder verlässt (im Wiki, per E-Mail oder beides, mit Platzhaltern).
+
+**Auslöser** (Abschnitt *Start*): Vorgänge starten nicht nur mit dem Startformular, sondern auch automatisch – auf Wunsch *nur* durch Auslöser:
+
+| Auslöser | Startet einen Vorgang, wenn … |
+|---|---|
+| Zeitplan | die Zeit kommt: `Minute Stunde Tag Monat Wochentag` (z. B. `0 7 * * 1-5` werktags um 7:00) oder `@daily`, `@weekly`, `@monthly` |
+| Änderungen von Seiten | Seiten der gewählten Quellen angelegt, geändert, gelöscht, verschoben, wiederhergestellt werden oder neue Eigenschaften bekommen – optional nur, wenn eine Eigenschaft einen Wert **annimmt** (z. B. *Status* wird *Prüfung*; einmal pro Änderung) |
+| Ereignis | ein Kommentar geschrieben, ein Formular abgesendet, sich jemand zu einem Termin an- oder abgemeldet hat oder ein Vorgang eines anderen Workflows endet (Verkettung, optional nur mit einem bestimmten Ergebnis) – auf Wunsch nur in einer Kategorie |
+| Eingehender Webhook | ein anderes System eine signierte Anfrage schickt (siehe unten) |
+
+Titel und Werte des Startformulars kommen aus Platzhaltern des Auslösers: `{{trigger.object.title}}`, `{{trigger.object.url}}`, `{{trigger.object.id}}`, `{{trigger.actor}}`, `{{trigger.time}}`, `{{trigger.data.SCHLÜSSEL}}` (Werte des Ereignisses bzw. des JSON eines Webhooks, z. B. `{{trigger.data.bestellung.id}}`). Der Editor zeigt je Auslöser, ob er aktiv ist, die Starts der letzten 24 Stunden, den nächsten Termin und den letzten Fehler.
+
+**Sicherheit:** Automatische Schritte (HTTP, Seite, Eigenschaften, weiterer Workflow) und Auslöser handeln mit den Rechten der Person, die die **Fassung des Workflows gespeichert** hat – nie mit den Rechten eines Admins, der den Workflow nur bearbeiten darf: Speichert er, zählen seine eigenen Rechte. Wahlweise handeln Schritte mit den Rechten der startenden Person und Auslöser von Änderungen und Ereignissen mit denen der Person, die sie ausgelöst hat. Diese Person muss den Workflow und die Seite bzw. das Ereignis sehen dürfen, sonst startet nichts; Quellen werden mit ihren Rechten aufgelöst. Ein Auslöser startet höchstens 60 Vorgänge pro Stunde (Expertenwert `workflow.process.trigger_per_hour`), Ketten von Workflows enden nach 5 Gliedern. Werte, die ein Auslöser in den Vorgang übernimmt, sehen alle, die den Vorgang sehen.
+
+**Eingehender Webhook:** Nach dem Speichern zeigt der Auslöser seine Adresse; *Geheimnis erzeugen* liefert das Geheimnis **einmal** (es ist nicht Teil des Workflows, ein neues macht das alte ungültig). Das andere System sendet `POST` mit JSON und den Headern `X-Ewiki-Timestamp` (Unix-Zeit) und `X-Ewiki-Signature: sha256=<hex HMAC-SHA256(Geheimnis, Zeitstempel + "." + Inhalt)>`, optional `X-Ewiki-Delivery` (eine ID – jede Lieferung startet nur einmal). Anfragen älter als 5 Minuten, mit falscher Signatur oder (falls eingestellt) von nicht erlaubten Absendern (Adressen, Netze, Hostnamen) werden mit `403` abgelehnt; angenommen wird mit `202`. Beispiel:
+
+```sh
+BODY='{"bestellung":{"id":"A-17","artikel":"Stuhl"}}'
+TS=$(date +%s)
+SIG=$(printf '%s.%s' "$TS" "$BODY" | openssl dgst -sha256 -hmac "$GEHEIMNIS" -hex | sed 's/^.* //')
+curl -X POST "$ADRESSE" -H 'Content-Type: application/json' -H "X-Ewiki-Timestamp: $TS" -H "X-Ewiki-Signature: sha256=$SIG" -d "$BODY"
+```
+
+**Platzhalter** in E-Mails: `{{field.<id>}}` (Angaben aus dem Formular, z. B. `{{field.email}}`), `{{case.title}}`, `{{case.id}}`, `{{case.url}}`, `{{case.step}}`, `{{workflow.title}}`, `{{starter.name}}`, `{{starter.email}}`, `{{actor.name}}` und `{{actor.email}}` (wer den Schritt zuletzt bearbeitet hat), `{{last.action}}`, `{{last.note}}` (Aktion und Notiz dieser Person), `{{site.name}}`, `{{date}}`, `{{case.due}}` (Frist) sowie alle Werte, die Schritte setzen. Im Editor fügt ein Klick auf einen Platzhalter ihn in das zuletzt benutzte Feld ein. Als Empfänger sind außerdem `starter`, `actor`, `user:name`, `group:name` und `role:name` möglich.
 
 Vorlagen: *Personal: Bewerbung* (mit Eingangsbestätigung und Absageschreiben per E-Mail), *Genehmigungsantrag* (Freigabe) und *Einarbeitung* (Wartezeit bis zum ersten Arbeitstag, Willkommens-E-Mail).
 

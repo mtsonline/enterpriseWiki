@@ -668,7 +668,7 @@ func checkRouteCoverage(t *testing.T) {
 	ph := regexp.MustCompile(`\\\{[a-z_]+\\\}`)
 	for _, r := range httpx.Routes() {
 		_, path, _ := strings.Cut(r, " ")
-		if exempt[path] {
+		if exempt[path] || httpx.Signed(r) { // signed routes are called by other systems
 			continue
 		}
 		rel := strings.TrimPrefix(path, "/api/v1/")
