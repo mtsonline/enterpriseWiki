@@ -30,13 +30,12 @@ func (faqMacro) Toolbar() string { return "❓" }
 
 func (faqMacro) Params() []content.MacroParam {
 	yesNo := map[string]map[string]string{"yes": lm("Yes", "Ja"), "no": lm("No", "Nein")}
-	return []content.MacroParam{
+	return append([]content.MacroParam{
 		{Name: "source", Labels: lm("Sources (empty: this category with subcategories)", "Quellen (leer: diese Kategorie mit Unterkategorien)"), Type: "custom:sources"},
 		{Name: "open", Labels: lm("Sections expanded", "Abschnitte aufgeklappt"), Type: "select", Options: []string{"yes", "no"}, Default: "yes", OptionLabels: yesNo},
 		{Name: "numbering", Labels: lm("Numbering", "Nummerierung"), Type: "select", Options: []string{"yes", "no"}, Default: "no", OptionLabels: yesNo},
-		{Name: "limit", Labels: lm("Maximum questions", "Höchstens Fragen"), Type: "number", Default: "100"},
 		{Name: "title", Labels: lm("Heading", "Überschrift"), Type: "text"},
-	}
+	}, content.ListParams(100)...)
 }
 
 func (faqMacro) Render(ctx context.Context, mc content.MacroContext) (string, error) {
@@ -48,23 +47,18 @@ func (faqMacro) Render(ctx context.Context, mc content.MacroContext) (string, er
 	if err != nil {
 		return `<p class="ew-notice ew-notice--warning" role="note">` + esc(err.Error()) + `</p>`, nil
 	}
-	if len(srcs) == 0 {
-		if mc.CategoryID <= 0 {
-			return "", nil
-		}
-		srcs = []content.Source{{Kind: "category", ID: mc.CategoryID, Sub: true}}
+	if srcs = content.WithDefault(srcs, mc.CategoryID); len(srcs) == 0 {
+		return "", nil
 	}
 	set, err := mc.Service.ResolveSources(ctx, srcs)
 	if err != nil {
 		return "", err
 	}
-	limit, _ := strconv.Atoi(mc.Params["limit"])
-	if limit <= 0 || limit > 200 {
-		limit = 100
-	}
+	pg := mc.Paging(100)
 	var list []content.ListedElement
+	total := 0
 	if !set.Empty() {
-		list, _, err = mc.Service.ListIn(ctx, content.ListOptions{Sources: set, Lang: mc.Lang, Order: "position", Limit: limit, WithContent: true, Exclude: mc.ElementID, SkipListings: true})
+		list, total, err = mc.Service.ListIn(ctx, content.ListOptions{Sources: set, Lang: mc.Lang, Order: "position", Limit: pg.Size(), Offset: pg.Offset(), WithContent: true, Exclude: mc.ElementID, SkipListings: true})
 		if err != nil {
 			return "", err
 		}
@@ -113,7 +107,7 @@ func (faqMacro) Render(ctx context.Context, mc content.MacroContext) (string, er
 		out = strings.ReplaceAll(strings.ReplaceAll(out, `"ewq-section-title"><h2>`, `"ewq-section-title"><h3>`), `</h2></summary>`, `</h3></summary>`)
 	}
 	b.WriteString(out)
-	b.WriteString(`</div></section>`)
+	b.WriteString(`</div>` + mc.Pager(pg, total) + `</section>`)
 	return b.String(), nil
 }
 

@@ -43,6 +43,7 @@ type Config struct {
 	Cache     Cache                     `yaml:"cache" json:"cache"`
 	Webhooks  Webhooks                  `yaml:"webhooks" json:"webhooks"`
 	Feeds     Feeds                     `yaml:"feeds" json:"feeds"`
+	Lists     Lists                     `yaml:"lists" json:"lists"`
 	Audit     Audit                     `yaml:"audit" json:"audit"`
 	License   License                   `yaml:"license" json:"license"`
 	Settings  map[string]map[string]any `yaml:"plugin_settings,omitempty" json:"plugin_settings,omitempty"`
@@ -103,6 +104,27 @@ type AuditForward struct {
 	Headers map[string]string `yaml:"headers,omitempty" json:"headers"`
 	// Areas limits the forwarded entries (empty = all).
 	Areas []string `yaml:"areas,omitempty" json:"areas"`
+}
+
+// Lists limits lists from sources (macros, blog, FAQ, reports …).
+type Lists struct {
+	// MaxItems is the technical upper bound of entries one list shows in
+	// total and of elements a search or filter source contributes
+	// (default 1000, at most 10000). Editors choose their limit below it.
+	MaxItems int `yaml:"max_items,omitempty" json:"max_items"`
+}
+
+// ListMax returns the effective upper bound of list entries.
+func (l Lists) ListMax() int {
+	switch {
+	case l.MaxItems <= 0:
+		return 1000
+	case l.MaxItems < 50:
+		return 50
+	case l.MaxItems > 10000:
+		return 10000
+	}
+	return l.MaxItems
 }
 
 // Feeds configures reading external RSS/Atom feeds (news, lists, carousel).

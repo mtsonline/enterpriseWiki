@@ -15,6 +15,7 @@ import { pluginModules } from './generated/plugins';
 import { positionContainer, refreshPositions, registerSlot, registerTemplate, resolveTemplate, setShownTemplate } from './sdk';
 import { adminView } from './views/admin';
 import { registerSourceControls } from './components/sources';
+import { installMacroPager } from './core/pager';
 import { categorySettingsView } from './views/categorySettings';
 import { spaceKeyView, spacesView } from './views/spaces';
 import { categoryView, editElementView, elementView, draftEditView, historyView, homeView, newElementView } from './views/content';
@@ -71,6 +72,7 @@ function registerCore(): void {
 }
 
 async function boot(): Promise<void> {
+  installMacroPager();
   const app = document.getElementById('app')!;
   try {
     const [site, me] = await Promise.all([api.get<Site>('site'), api.get<{ user: Principal | null; manages_categories?: boolean }>('auth/me')]);

@@ -81,7 +81,7 @@ func (p *Plugin) Setup(host *sdk.Host) error {
 	// source "props:<filter>" for all lists of several sources; the filters
 	// are separated by "&&" there, since ";" separates the sources
 	// (e.g. "props:status = open && due <= today+7d")
-	host.Content.RegisterSourceResolver("props", func(ctx context.Context, value, lang string) ([]int64, error) {
+	host.Content.RegisterSourceResolver("props", func(ctx context.Context, value, lang string, limit int) ([]int64, error) {
 		if !host.IsEnabled(host.Manifest.ID) {
 			return nil, apperr.BadRequest("the properties plugin is not active")
 		}
@@ -92,7 +92,7 @@ func (p *Plugin) Setup(host *sdk.Host) error {
 		if len(filters) == 0 {
 			return nil, apperr.BadRequest("props source: at least one filter")
 		}
-		res, err := p.Run(ctx, &Query{Filters: filters, Limit: content.MaxResolved, Lang: lang})
+		res, err := p.Run(ctx, &Query{Filters: filters, Limit: limit, Lang: lang, maxLimit: limit})
 		if err != nil {
 			return nil, err
 		}

@@ -425,6 +425,17 @@ func buildDemo(d *demoRun) {
 	d.page(srcCat, "Help from all sections", "Hilfe aus allen Bereichen",
 		"<p>Questions of several categories as one FAQ (macro <code>faq</code>):</p>"+macro("faq", map[string]string{"source": fmt.Sprintf("category:%d+sub; category:%d", faq, news), "open": "no", "numbering": "yes"}, ""),
 		"<p>Fragen mehrerer Kategorien als eine FAQ (Makro <code>faq</code>):</p>"+macro("faq", map[string]string{"source": fmt.Sprintf("category:%d+sub; category:%d", faq, news), "open": "no", "numbering": "yes"}, ""), nil)
+	// the source builder: exclusions, requirements and pages
+	all := fmt.Sprintf("category:%d+sub; category:%d+sub; -type:content.faq; -type:content.blog", news, faq)
+	d.page(srcCat, "Page by page", "Seitenweise",
+		"<p>All pages of <em>News</em> and <em>Questions</em> except overviews, three per page – the page changes without reloading (macro <code>news</code> with <code>paginate</code>):</p>"+
+			macro("news", map[string]string{"source": all, "layout": "list", "limit": "30", "paginate": "yes", "per_page": "3", "title": "All pages"}, "")+
+			"<p>Only what is about holidays (search source) and nothing from the questions:</p>"+
+			macro("blog", map[string]string{"source": fmt.Sprintf("search:holiday; -category:%d+sub", faq), "layout": "compact", "limit": "10"}, ""),
+		"<p>Alle Seiten aus <em>Neuigkeiten</em> und <em>Häufige Fragen</em> ohne Übersichten, drei pro Seite – geblättert wird ohne Neuladen (Makro <code>news</code> mit <code>paginate</code>):</p>"+
+			macro("news", map[string]string{"source": all, "layout": "list", "limit": "30", "paginate": "yes", "per_page": "3", "title": "Alle Seiten"}, "")+
+			"<p>Nur was mit Urlaub zu tun hat (Quelle Suche) und nichts aus den Fragen:</p>"+
+			macro("blog", map[string]string{"source": fmt.Sprintf("search:Urlaub; -category:%d+sub", faq), "layout": "compact", "limit": "10"}, ""), nil)
 	// the demo is a space: key DEMO (/s/DEMO), own navigation with shortcuts
 	d.optional("space", func() {
 		d.call(http.MethodPut, fmt.Sprintf("/api/v1/categories/%d/space", root), map[string]any{"key": "DEMO", "own_tree": true, "accent": "#5f2aa3",

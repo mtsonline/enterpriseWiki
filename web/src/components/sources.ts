@@ -3,6 +3,8 @@
 // the kinds of the core and those plugins register (other calendars,
 // external feeds …). Registered as macro parameter control "sources".
 import { h } from '../core/dom';
+import { api } from '../core/api';
+import { announce } from '../core/announce';
 import { t } from '../core/i18n';
 import { state } from '../core/state';
 import { button, checkbox, select, textInput } from './ui';
@@ -65,39 +67,154 @@ export function registerSourceKind(k: SourceKind): void {
   else kinds.push(k);
 }
 
-/** An editor of sources; only offers the kinds listed (default: the element kinds). */
+type Zone = 'include' | 'exclude' | 'require';
+const ZONES: Zone[] = ['include', 'exclude', 'require'];
+const PREFIX: Record<Zone, string> = { include: '', exclude: '-', require: '+' };
+const DRAG = 'application/x-ewiki-source';
+
+/**
+ * The source builder: a palette of kinds that are added by a click (or
+ * Enter) or dragged into the zones "include" (any is enough), "exclude"
+ * (never these) and "require" (these as well); entries move between the
+ * zones by dragging or with their zone menu (WCAG 2.5.7: nothing needs
+ * dragging). A live preview counts the elements with the editor's rights.
+ * With kinds: exactly these (e.g. calendars); otherwise all kinds resolved
+ * to elements plus extra (e.g. feed).
+ */
 export function sourcesEditor(label: string, value: string, opts: { categoryId?: number; kinds?: string[]; extra?: string[]; help?: string } = {}): { el: HTMLElement; get: () => string } {
-  // kinds: exactly these; otherwise all kinds resolved to elements plus extra (e.g. feed)
   const allowed = () => kinds.filter((k) => (opts.kinds ? opts.kinds.includes(k.kind) : k.element || (opts.extra?.includes(k.kind) ?? false)));
-  const list = h('ol', { class: 'ew-sources' });
-  const rows: { get: () => string }[] = [];
-  const add = async (src: string) => {
-    const at = src.indexOf(':');
-    const k0 = at > 0 ? src.slice(0, at) : allowed()[0]?.kind ?? 'category';
-    const v0 = at > 0 ? src.slice(at + 1) : '';
-    const kind = select(allowed().map((k) => ({ value: k.kind, label: k.label() })), k0);
-    kind.setAttribute('aria-label', t('sources.kind'));
-    const box = h('span', { class: 'ew-source-box' });
-    let get = () => '';
-    const draw = async (v: string) => {
-      const k = kinds.find((x) => x.kind === kind.value);
-      if (!k) return;
-      const r = await k.render(v, { categoryId: opts.categoryId ?? 0 });
-      box.replaceChildren(r.el);
-      get = r.get;
-    };
-    kind.addEventListener('change', () => void draw(''));
-    await draw(v0);
-    const entry = { get: () => { const v = get(); return v ? `${kind.value}:${v}` : ''; } };
-    const li: HTMLElement = h('li', null, kind, box, button(t('common.remove'), () => { li.remove(); rows.splice(rows.indexOf(entry), 1); }, { variant: 'subtle', ariaLabel: t('sources.remove') }));
-    rows.push(entry);
-    list.append(li);
+  const isElement = (kind: string) => kinds.find((k) => k.kind === kind)?.element ?? false;
+  // exclusions and requirements only for kinds resolved to elements
+  const zoned = allowed().some((k) => k.element);
+  interface Row { zone: Zone; kind: string; get: () => string; li: HTMLElement }
+  const rows: Row[] = [];
+  const lists = {} as Record<Zone, HTMLOListElement>;
+  const zoneBoxes = {} as Record<Zone, HTMLElement>;
+  const preview = h('p', { class: 'ew-sources-preview', 'aria-live': 'polite' });
+  let seq = 0;
+  let timer = 0;
+
+  const text = () => ZONES.flatMap((z) => rows.filter((r) => r.zone === z).map((r) => { const v = r.get(); return v ? `${PREFIX[z]}${r.kind}:${v}` : ''; })).filter(Boolean).join('; ');
+  const refresh = () => {
+    for (const z of ZONES) zoneBoxes[z]?.classList.toggle('is-empty', !rows.some((r) => r.zone === z));
+    if (!zoned) return;
+    window.clearTimeout(timer);
+    timer = window.setTimeout(() => void runPreview(), 400);
   };
-  for (const s of value.split(';').map((x) => x.trim()).filter(Boolean)) void add(s);
-  const el = h('fieldset', { class: 'ew-fieldset' }, h('legend', null, label), h('p', { class: 'ew-help' }, opts.help ?? t('sources.help')), list,
-    button(t('sources.add'), () => void add(''), { variant: 'secondary' }));
-  return { el, get: () => rows.map((r) => r.get()).filter(Boolean).join('; ') };
+  const runPreview = async () => {
+    // only kinds resolved to elements (feeds and calendars are not counted)
+    const src = ZONES.flatMap((z) => rows.filter((r) => r.zone === z && isElement(r.kind)).map((r) => { const v = r.get(); return v ? `${PREFIX[z]}${r.kind}:${v}` : ''; })).filter(Boolean).join('; ');
+    const my = ++seq;
+    try {
+      const r = await api.post<{ total: number; items: { id: number; title: string }[] }>('sources/preview', { sources: src, category_id: opts.categoryId ?? 0, lang: state.lang });
+      if (my !== seq) return;
+      preview.replaceChildren(h('strong', null, t('sources.preview_count', { count: r.total })));
+      if (r.items.length) preview.append(h('span', null, ` – ${r.items.map((x) => x.title).join(' · ')}${r.total > r.items.length ? ' …' : ''}`));
+    } catch (e) {
+      if (my === seq) preview.textContent = e instanceof Error ? e.message : String(e);
+    }
+  };
+
+  const move = (row: Row, zone: Zone, announceIt = true) => {
+    if (row.zone === zone) return;
+    row.zone = zone;
+    lists[zone].append(row.li);
+    const sel = row.li.querySelector<HTMLSelectElement>('select.ew-source-zone');
+    if (sel) sel.value = zone;
+    if (announceIt) announce(t('sources.moved', { zone: t(`sources.zone.${zone}`) }));
+    refresh();
+  };
+
+  const add = async (kindName: string, v0: string, zone: Zone, focus = false) => {
+    const k = kinds.find((x) => x.kind === kindName);
+    if (!k) return;
+    const id = `src-${++rowSeq}`;
+    const li: HTMLElement = h('li', { class: 'ew-source', 'data-row': id });
+    const row: Row = { zone, kind: k.kind, get: () => '', li };
+    rows.push(row);
+    lists[zone].append(li); // place first, so the order of the text form is kept
+    const r = await k.render(v0, { categoryId: opts.categoryId ?? 0 });
+    row.get = r.get;
+    const zoneSel = select(ZONES.map((z) => ({ value: z, label: t(`sources.zone.${z}`) })), zone);
+    zoneSel.classList.add('ew-source-zone');
+    zoneSel.setAttribute('aria-label', t('sources.zone_of', { kind: k.label() }));
+    zoneSel.addEventListener('change', () => move(row, zoneSel.value as Zone));
+    const remove = button('×', () => {
+      li.remove();
+      rows.splice(rows.indexOf(row), 1);
+      announce(t('sources.removed', { kind: k.label() }));
+      refresh();
+    }, { variant: 'subtle', ariaLabel: t('sources.remove_named', { kind: k.label() }) });
+    // dragging only from the handle (text in the inputs stays selectable)
+    const handle = h('span', { class: 'ew-source-handle', 'aria-hidden': 'true', title: t('sources.drag') }, '⠿');
+    handle.addEventListener('pointerdown', () => { li.draggable = true; });
+    li.addEventListener('pointerup', () => { li.draggable = false; });
+    li.append(handle, h('span', { class: 'ew-source-kind' }, k.label()), h('span', { class: 'ew-source-box' }, r.el));
+    if (zoned && isElement(k.kind)) li.append(zoneSel);
+    li.append(remove);
+    li.addEventListener('dragstart', (ev) => { ev.dataTransfer?.setData(DRAG, JSON.stringify({ row: id })); li.classList.add('is-dragging'); });
+    li.addEventListener('dragend', () => { li.classList.remove('is-dragging'); li.draggable = false; });
+    li.addEventListener('input', refresh);
+    li.addEventListener('change', refresh);
+    if (focus) li.querySelector<HTMLElement>('.ew-source-box input, .ew-source-box select')?.focus();
+    refresh();
+  };
+
+  const zoneEl = (z: Zone) => {
+    const list = h('ol', { class: 'ew-sources' });
+    lists[z] = list;
+    const box = h('fieldset', { class: ['ew-source-zonebox', `ew-source-zonebox--${z}`, 'is-empty'] },
+      h('legend', null, t(`sources.zone.${z}`)), h('p', { class: 'ew-help' }, t(`sources.zone_help.${z}`)), list,
+      h('p', { class: 'ew-source-drop', 'aria-hidden': 'true' }, t('sources.drop_here')));
+    box.addEventListener('dragover', (ev) => { if (ev.dataTransfer?.types.includes(DRAG)) { ev.preventDefault(); box.classList.add('is-over'); } });
+    box.addEventListener('dragleave', () => box.classList.remove('is-over'));
+    box.addEventListener('drop', (ev) => {
+      box.classList.remove('is-over');
+      const raw = ev.dataTransfer?.getData(DRAG);
+      if (!raw) return;
+      ev.preventDefault();
+      const d = JSON.parse(raw) as { kind?: string; row?: string };
+      if (d.row) {
+        const row = rows.find((r) => r.li.dataset.row === d.row);
+        if (row && (z === 'include' || isElement(row.kind))) move(row, z);
+      } else if (d.kind && (z === 'include' || isElement(d.kind))) {
+        void add(d.kind, '', z, true);
+        announce(t('sources.added', { kind: kinds.find((k) => k.kind === d.kind)?.label() ?? d.kind, zone: t(`sources.zone.${z}`) }));
+      }
+    });
+    zoneBoxes[z] = box;
+    return box;
+  };
+
+  // the palette: click adds to "include"; drag into any zone
+  const palette = h('ul', { class: 'ew-source-palette', 'aria-label': t('sources.palette') },
+    ...allowed().map((k) => {
+      const b = button(h('span', null, h('span', { 'aria-hidden': 'true' }, '+ '), k.label()), () => {
+        void add(k.kind, '', 'include', true);
+        announce(t('sources.added', { kind: k.label(), zone: t('sources.zone.include') }));
+      }, { variant: 'secondary', ariaLabel: t('sources.add_named', { kind: k.label() }) });
+      b.draggable = true;
+      b.addEventListener('dragstart', (ev) => ev.dataTransfer?.setData(DRAG, JSON.stringify({ kind: k.kind })));
+      return h('li', null, b);
+    }));
+  const zonesEl = h('div', { class: 'ew-source-zones' }, zoneEl('include'), zoned ? zoneEl('exclude') : null, zoned ? zoneEl('require') : null);
+
+  for (const part of value.split(';').map((x) => x.trim()).filter(Boolean)) {
+    let zone: Zone = 'include';
+    let p = part;
+    if (p.startsWith('-')) { zone = 'exclude'; p = p.slice(1).trim(); } else if (p.startsWith('+')) { zone = 'require'; p = p.slice(1).trim(); }
+    const at = p.indexOf(':');
+    if (at <= 0) continue;
+    void add(p.slice(0, at), p.slice(at + 1), zoned ? zone : 'include');
+  }
+  const el = h('fieldset', { class: ['ew-fieldset', 'ew-source-builder'] }, h('legend', null, label), h('p', { class: 'ew-help' }, opts.help ?? t('sources.help')),
+    h('div', { class: 'ew-source-layout' }, h('div', { class: 'ew-source-palettebox' }, h('p', { class: 'ew-source-palette-title' }, t('sources.palette')), palette), zonesEl),
+    zoned ? preview : null);
+  refresh();
+  return { el, get: text };
 }
+
+let rowSeq = 0;
 
 /** Macro parameter controls: "sources" (elements) and "sources.feeds" (with external feeds). */
 export function registerSourceControls(): void {

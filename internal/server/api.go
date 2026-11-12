@@ -704,11 +704,74 @@ func (s *Server) routes() {
 		if err != nil {
 			return nil, err
 		}
-		v, err := s.app.Content.GetElement(r.Context(), id, r.URL.Query().Get("lang"), r.URL.Query().Get("edit") == "1")
+		ctx := r.Context()
+		if idx, page, ok := macroPageParam(r.URL.Query().Get("mp")); ok {
+			ctx = content.WithMacroPage(ctx, id, idx, page) // a page of a list (link ?mp=INDEX-PAGE)
+		}
+		v, err := s.app.Content.GetElement(ctx, id, r.URL.Query().Get("lang"), r.URL.Query().Get("edit") == "1")
 		if err == nil && s.app.Config.Get().Audit.LogViews {
 			_ = audit.Log(r.Context(), s.app.DB, "element.view", "element", id, nil, map[string]string{"lang": v.ShownLang})
 		}
 		return v, err
+	})
+	// preview of sources for their editor: count and first titles with the caller's rights
+	s.handle("POST /api/v1/sources/preview", func(w http.ResponseWriter, r *http.Request) (any, error) {
+		if _, err := requireUser(r); err != nil {
+			return nil, err
+		}
+		var in struct {
+			Sources    string `json:"sources"`
+			CategoryID int64  `json:"category_id"`
+			Lang       string `json:"lang"`
+		}
+		if err := h.Decode(r, &in); err != nil {
+			return nil, err
+		}
+		list, err := content.ParseSources(in.Sources)
+		if err != nil {
+			return nil, err
+		}
+		out := map[string]any{"total": 0, "items": []map[string]any{}}
+		if list = content.WithDefault(list, in.CategoryID); len(list) == 0 {
+			return out, nil
+		}
+		set, err := s.app.Content.ResolveSources(r.Context(), list)
+		if err != nil || set.Empty() {
+			return out, err
+		}
+		items, total, err := s.app.Content.ListIn(r.Context(), content.ListOptions{Sources: set, Lang: in.Lang, Order: "updated", Limit: 5, SummaryLen: 1})
+		if err != nil {
+			return nil, err
+		}
+		shown := []map[string]any{}
+		for _, e := range items {
+			shown = append(shown, map[string]any{"id": e.ID, "title": e.Title})
+		}
+		out["total"], out["items"] = total, shown
+		return out, nil
+	})
+	// one macro of an element again at another page of its list
+	s.handle("GET /api/v1/elements/{id}/macro/{index}", func(w http.ResponseWriter, r *http.Request) (any, error) {
+		id, err := h.PathID(r, "id")
+		if err != nil {
+			return nil, err
+		}
+		idx, err := h.PathID(r, "index")
+		if err != nil || idx > 200 {
+			return nil, apperr.BadRequest("index")
+		}
+		page := h.QueryInt(r, "page", 1)
+		if page < 1 || page > 100000 {
+			page = 1
+		}
+		out, err := s.app.Content.RenderMacroPage(r.Context(), id, int(idx), page, r.URL.Query().Get("lang"))
+		if err != nil {
+			return nil, err
+		}
+		if out == "" {
+			return nil, apperr.NotFound("macro")
+		}
+		return map[string]string{"html": out}, nil
 	})
 	s.handle("PUT /api/v1/elements/{id}", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		id, err := h.PathID(r, "id")
@@ -1142,6 +1205,7 @@ type SettingsUpdate struct {
 	Auth           *config.Auth              `json:"auth"`
 	Retention      *config.Retention         `json:"retention"`
 	Media          *config.Media             `json:"media"`
+	Lists          *config.Lists             `json:"lists"`
 	Macros         *config.MacroSecurity     `json:"macros"`
 	Mail           *config.Mail              `json:"mail"`
 	Catalog        []config.CatalogEntry     `json:"catalog"`
@@ -1185,6 +1249,12 @@ func (s *Server) updateSettings(w http.ResponseWriter, r *http.Request) (any, er
 				return apperr.BadRequest("unknown or inactive program %q", v)
 			}
 			c.Media = *in.Media
+		}
+		if in.Lists != nil {
+			if in.Lists.MaxItems < 0 || in.Lists.MaxItems > 10000 {
+				return apperr.BadRequest("lists.max_items: 0 (default 1000) or 50 to 10000")
+			}
+			c.Lists = *in.Lists
 		}
 		if in.Macros != nil && !reflect.DeepEqual(*in.Macros, c.Plugins.Macros) {
 			return apperr.BadRequest("macro security settings can only be changed in config.yaml")
@@ -1290,4 +1360,18 @@ func (l *lazyWriter) Write(p []byte) (int, error) {
 		l.w.Header().Set("Content-Disposition", `attachment; filename="`+l.name+`"`)
 	}
 	return l.w.Write(p)
+}
+
+// macroPageParam reads "INDEX-PAGE" (a page of a macro list).
+func macroPageParam(v string) (index, page int, ok bool) {
+	a, b, found := strings.Cut(v, "-")
+	if !found {
+		return 0, 0, false
+	}
+	i, err1 := strconv.Atoi(a)
+	p, err2 := strconv.Atoi(b)
+	if err1 != nil || err2 != nil || i < 1 || i > 200 || p < 1 || p > 100000 {
+		return 0, 0, false
+	}
+	return i, p, true
 }

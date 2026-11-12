@@ -264,7 +264,9 @@ test('insert macros with the macro dialog', async () => {
   await page.getByRole('button', { name: /^(insert macro|makro einfügen)$/i }).click();
   await page.locator('dialog[open] select').first().selectOption('properties');
   await page.locator('dialog[open]').getByRole('button', { name: /^(add filter|filter hinzufügen)$/i }).waitFor();
-  await page.locator('dialog[open]').getByRole('button', { name: /^(add source|quelle hinzufügen)$/i }).click();
+  // the source builder: a building block by click
+  await page.locator('dialog[open]').getByRole('button', { name: /^(add category|kategorie hinzufügen)$/i }).click();
+  await page.locator('dialog[open] .ew-source-zonebox--include .ew-source').first().waitFor();
   await page.locator('dialog[open]').getByRole('button', { name: /^(add filter|filter hinzufügen)$/i }).click();
   await page.locator('dialog[open]').getByLabel(/^(condition|bedingung)$/i).first().waitFor();
   await a11y('property report macro dialog');

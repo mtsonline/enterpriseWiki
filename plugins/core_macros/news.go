@@ -37,28 +37,28 @@ const maxNewsFeeds = 10
 var newsLayouts = []string{"cards", "list", "headlines"}
 
 func (news) Params() []content.MacroParam {
-	return []content.MacroParam{
+	return append([]content.MacroParam{
 		{Name: "source", Labels: lm("Sources (empty: this category with subcategories)", "Quellen (leer: diese Kategorie mit Unterkategorien)"), Type: "custom:sources.feeds"},
 		{Name: "layout", Labels: lm("Layout", "Darstellung"), Type: "select", Options: newsLayouts, Default: "cards",
 			OptionLabels: map[string]map[string]string{"cards": lm("Cards", "Karten"), "list": lm("List with summary", "Liste mit Zusammenfassung"), "headlines": lm("Headlines", "Schlagzeilen")}},
 		{Name: "order", Labels: lm("Newest by", "Neueste nach"), Type: "select", Options: []string{"created", "updated"}, Default: "created",
 			OptionLabels: map[string]map[string]string{"created": lm("Created", "Erstellt"), "updated": lm("Changed", "Geändert")}},
-		{Name: "limit", Labels: lm("Number of entries", "Anzahl Einträge"), Type: "number", Default: "6"},
 		{Name: "title", Labels: lm("Heading", "Überschrift"), Type: "text"},
-	}
+	}, content.ListParams(6)...)
 }
 
 type newsItem struct {
 	title, link, summary, image, source string
 	date                                time.Time
 	external                            bool
+	id                                  int64
 }
 
 func (n news) Render(ctx context.Context, mc content.MacroContext) (string, error) {
 	if mc.Service == nil {
 		return "", nil
 	}
-	limit := intParam(mc.Params, "limit", 6, 1, 50)
+	pg := mc.Paging(6)
 	layout := mc.Params["layout"]
 	if layout != "list" && layout != "headlines" {
 		layout = "cards"
@@ -79,10 +79,11 @@ func (n news) Render(ctx context.Context, mc content.MacroContext) (string, erro
 	if len(feeds) > maxNewsFeeds {
 		return `<p class="ew-notice ew-notice--warning" role="note">` + esc(fmt.Sprintf("at most %d feeds", maxNewsFeeds)) + `</p>`, nil
 	}
-	if len(srcs) == 0 && mc.CategoryID > 0 {
-		elems = []content.Source{{Kind: "category", ID: mc.CategoryID, Sub: true}}
+	if len(feeds) == 0 || len(elems) > 0 {
+		elems = content.WithDefault(elems, mc.CategoryID) // only exclusions: from this category
 	}
 	var items []newsItem
+	total := 0
 	if len(elems) > 0 {
 		set, err := mc.Service.ResolveSources(ctx, elems)
 		if err != nil {
@@ -93,10 +94,16 @@ func (n news) Render(ctx context.Context, mc content.MacroContext) (string, erro
 			if mc.Params["order"] == "updated" {
 				order = "updated"
 			}
-			list, _, err := mc.Service.ListIn(ctx, content.ListOptions{Sources: set, Lang: mc.Lang, Order: order, Limit: limit, SummaryLen: 200, Exclude: mc.ElementID, SkipListings: true})
+			// without feeds only the page is loaded; with feeds all are merged by date
+			lo := content.ListOptions{Sources: set, Lang: mc.Lang, Order: order, Limit: pg.Limit, SummaryLen: 200, Exclude: mc.ElementID, SkipListings: true}
+			if len(feeds) == 0 {
+				lo.Limit, lo.Offset = pg.Size(), pg.Offset()
+			}
+			list, n, err := mc.Service.ListIn(ctx, lo)
 			if err != nil {
 				return "", err
 			}
+			total = n
 			for _, e := range list {
 				d := e.CreatedAt
 				if order == "updated" {
@@ -106,17 +113,13 @@ func (n news) Render(ctx context.Context, mc content.MacroContext) (string, erro
 				if link == "" {
 					link = fmt.Sprintf("/e/%d", e.ID)
 				}
-				it := newsItem{title: e.Title, link: link, summary: e.Summary, date: d, source: e.Author}
-				if layout == "cards" {
-					it.image = elementImage(ctx, mc.Service, e.ID, mc.Lang)
-				}
-				items = append(items, it)
+				items = append(items, newsItem{title: e.Title, link: link, summary: e.Summary, date: d, source: e.Author, id: e.ID})
 			}
 		}
 	}
 	if n.feeds != nil {
 		for _, f := range feeds {
-			list, err := n.feeds.Items(ctx, f, limit)
+			list, err := n.feeds.Items(ctx, f, pg.Limit)
 			if err != nil {
 				continue
 			}
@@ -133,9 +136,18 @@ func (n news) Render(ctx context.Context, mc content.MacroContext) (string, erro
 			}
 		}
 	}
-	sort.SliceStable(items, func(i, j int) bool { return items[i].date.After(items[j].date) })
-	if len(items) > limit {
-		items = items[:limit]
+	if len(feeds) > 0 {
+		sort.SliceStable(items, func(i, j int) bool { return items[i].date.After(items[j].date) })
+		items = items[:min(len(items), pg.Limit)]
+		total = len(items)
+		items = items[min(len(items), pg.Offset()):min(len(items), pg.Offset()+pg.Size())]
+	}
+	if layout == "cards" {
+		for i := range items {
+			if items[i].id > 0 {
+				items[i].image = elementImage(ctx, mc.Service, items[i].id, mc.Lang)
+			}
+		}
 	}
 	var b strings.Builder
 	label := strings.TrimSpace(mc.Params["title"])
@@ -184,6 +196,7 @@ func (n news) Render(ctx context.Context, mc content.MacroContext) (string, erro
 		b.WriteString(`</li>`)
 	}
 	b.WriteString(`</ul>`)
+	b.WriteString(mc.Pager(pg, total))
 	return b.String(), nil
 }
 

@@ -3,7 +3,6 @@ package content_blog
 import (
 	"context"
 	"html"
-	"strconv"
 	"strings"
 
 	"github.com/mtsonline/enterprisewiki/internal/content"
@@ -29,17 +28,16 @@ func (postsMacro) Toolbar() string { return "✍️" }
 
 func (postsMacro) Params() []content.MacroParam {
 	yesNo := map[string]map[string]string{"yes": lm("Yes", "Ja"), "no": lm("No", "Nein")}
-	return []content.MacroParam{
+	return append([]content.MacroParam{
 		{Name: "source", Labels: lm("Sources (empty: this category with subcategories)", "Quellen (leer: diese Kategorie mit Unterkategorien)"), Type: "custom:sources"},
 		{Name: "layout", Labels: lm("Layout", "Darstellung"), Type: "select", Options: []string{"list", "cards", "compact"}, Default: "list",
 			OptionLabels: map[string]map[string]string{"list": lm("List", "Liste"), "cards": lm("Cards", "Karten"), "compact": lm("Compact", "Kompakt")}},
 		{Name: "order", Labels: lm("Newest by", "Neueste nach"), Type: "select", Options: []string{"created", "updated"}, Default: "created",
 			OptionLabels: map[string]map[string]string{"created": lm("Created", "Erstellt"), "updated": lm("Changed", "Geändert")}},
-		{Name: "limit", Labels: lm("Number of posts", "Anzahl Beiträge"), Type: "number", Default: "5"},
 		{Name: "date", Labels: lm("Show date", "Datum zeigen"), Type: "select", Options: []string{"yes", "no"}, Default: "yes", OptionLabels: yesNo},
 		{Name: "author", Labels: lm("Show author", "Autor/in zeigen"), Type: "select", Options: []string{"yes", "no"}, Default: "yes", OptionLabels: yesNo},
 		{Name: "title", Labels: lm("Heading", "Überschrift"), Type: "text"},
-	}
+	}, content.ListParams(5)...)
 }
 
 func (postsMacro) Render(ctx context.Context, mc content.MacroContext) (string, error) {
@@ -51,20 +49,14 @@ func (postsMacro) Render(ctx context.Context, mc content.MacroContext) (string, 
 	if err != nil {
 		return `<p class="ew-notice ew-notice--warning" role="note">` + esc(err.Error()) + `</p>`, nil
 	}
-	if len(srcs) == 0 {
-		if mc.CategoryID <= 0 {
-			return "", nil
-		}
-		srcs = []content.Source{{Kind: "category", ID: mc.CategoryID, Sub: true}}
+	if srcs = content.WithDefault(srcs, mc.CategoryID); len(srcs) == 0 {
+		return "", nil
 	}
 	set, err := mc.Service.ResolveSources(ctx, srcs)
 	if err != nil {
 		return "", err
 	}
-	limit, _ := strconv.Atoi(mc.Params["limit"])
-	if limit <= 0 || limit > 50 {
-		limit = 5
-	}
+	pg := mc.Paging(5)
 	c := &Config{Layout: mc.Params["layout"], Order: mc.Params["order"], ShowDate: mc.Params["date"] != "no", ShowAuthor: mc.Params["author"] != "no", SummaryLength: 280}
 	if c.Layout != "cards" && c.Layout != "compact" {
 		c.Layout = "list"
@@ -73,8 +65,9 @@ func (postsMacro) Render(ctx context.Context, mc content.MacroContext) (string, 
 		c.Order = "created"
 	}
 	var list []content.ListedElement
+	total := 0
 	if !set.Empty() {
-		list, _, err = mc.Service.ListIn(ctx, content.ListOptions{Sources: set, Lang: mc.Lang, Order: c.Order, Limit: limit, SummaryLen: c.SummaryLength, Exclude: mc.ElementID, SkipListings: true})
+		list, total, err = mc.Service.ListIn(ctx, content.ListOptions{Sources: set, Lang: mc.Lang, Order: c.Order, Limit: pg.Size(), Offset: pg.Offset(), SummaryLen: c.SummaryLength, Exclude: mc.ElementID, SkipListings: true})
 		if err != nil {
 			return "", err
 		}
@@ -99,6 +92,6 @@ func (postsMacro) Render(ctx context.Context, mc content.MacroContext) (string, 
 		}
 		b.WriteString(post)
 	}
-	b.WriteString(`</div></section>`)
+	b.WriteString(`</div>` + mc.Pager(pg, total) + `</section>`)
 	return b.String(), nil
 }

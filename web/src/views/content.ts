@@ -441,7 +441,8 @@ export async function elementView({ params, main }: RouteCtx): Promise<void> {
   let el: ElementView;
   let cat: CategoryResponse;
   try {
-    el = await api.get<ElementView>(`elements/${id}${qs({ lang: L() })}`);
+    // ?mp=INDEX-PAGE: a page of a macro list (link of its page navigation)
+    el = await api.get<ElementView>(`elements/${id}${qs({ lang: L(), mp: new URLSearchParams(location.search).get('mp') })}`);
     cat = await api.get<CategoryResponse>(`categories/${el.category_id}`);
   } catch (e) {
     setContext(0, [], []);

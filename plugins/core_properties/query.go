@@ -44,6 +44,8 @@ type Query struct {
 	Lang   string `json:"lang"`
 	// Exclude is an element left out (e.g. the page with the report).
 	Exclude int64 `json:"exclude"`
+	// maxLimit raises the row limit for internal callers (source resolver)
+	maxLimit int
 }
 
 // Source is where elements come from (several are combined; see content.Source).
@@ -139,8 +141,11 @@ func (p *Plugin) scope(ctx context.Context, q *Query) (*scope, error) {
 	// categories of the sources (all when none names categories)
 	var roots []int64
 	sub := map[int64]bool{}
-	onlyCats := len(q.Sources) > 0
+	onlyCats := content.HasInclude(q.Sources)
 	for _, s := range q.Sources {
+		if s.Mode != "" {
+			continue // exclusions and requirements narrow the rows (see where)
+		}
 		if s.Kind == "category" {
 			roots = append(roots, s.ID)
 			sub[s.ID] = s.Sub
@@ -529,6 +534,19 @@ func (p *Plugin) where(ctx context.Context, q *Query, sc *scope, b *qb) (string,
 	var or []string
 	var hasCat bool
 	for _, s := range q.Sources {
+		if s.Mode != "" {
+			// -source / +source: never these / these as well
+			set, err := p.host.Content.ResolveNarrowing(ctx, s)
+			if err != nil {
+				return "", err
+			}
+			c := content.MatchSQL(set, b.arg)
+			if s.Mode == content.ModeExclude {
+				c = "NOT " + c
+			}
+			parts = append(parts, c)
+			continue
+		}
 		switch s.Kind {
 		case "category":
 			hasCat = true
@@ -626,7 +644,7 @@ func (p *Plugin) Run(ctx context.Context, q *Query) (*Result, error) {
 	if err != nil {
 		return nil, err
 	}
-	if q.Limit <= 0 || q.Limit > maxRows {
+	if lim := max(q.maxLimit, maxRows); q.Limit <= 0 || q.Limit > lim {
 		q.Limit = 100
 	}
 	if q.Offset < 0 || q.Offset > 100000 {

@@ -96,9 +96,10 @@ type ListOptions struct {
 // ListIn returns elements of the given categories in the caller's
 // language (falling back to the original language) and the total count.
 func (s *Service) ListIn(ctx context.Context, o ListOptions) ([]ListedElement, int, error) {
-	if o.Limit <= 0 || o.Limit > 200 {
+	if o.Limit <= 0 {
 		o.Limit = 20
 	}
+	o.Limit = min(o.Limit, s.MaxListItems()) // the bound of the setting lists.max_items
 	if o.SummaryLen <= 0 {
 		o.SummaryLen = 300
 	}

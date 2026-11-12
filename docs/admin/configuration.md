@@ -226,6 +226,14 @@ feeds:
 
 Die Feeds des Karussells haben eine eigene Einstellung im Plugin (*Administration → Plugins → Karussell*).
 
+### `lists`
+Obergrenze für Listen aus Quellen (Makros Neuigkeiten, Blog, FAQ, Eigenschaften-Bericht …) und für Such- und Filterquellen. Bearbeitende wählen darunter beim Makro selbst die Höchstzahl und ob ab einer Anzahl seitenweise geblättert wird. Auch unter *Administration → Einstellungen → Listen*.
+
+```yaml
+lists:
+  max_items: 0  # 0 = 1000; 50 bis 10000
+```
+
 ### `webhooks`
 Webhooks selbst werden unter *Administration → Webhooks* (API `/api/v1/admin/webhooks`) angelegt. In `config.yaml` stehen nur:
 

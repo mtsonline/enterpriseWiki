@@ -21,6 +21,9 @@ import (
 //
 //	category:12+sub; category:7; tag:hr; type:core.html; elements:1,2
 //
+// Any of them is enough ("include"); a leading "-" excludes (-tag:intern)
+// and a leading "+" requires a source as well (+props:status = open).
+//
 // Plugins add own kinds (e.g. other calendars, external feeds) and read
 // them with ParseSourcesKinds.
 
@@ -34,6 +37,35 @@ type Source struct {
 	IDs  []int64 `json:"ids,omitempty"`
 	// Value is the text of a plugin's kind (e.g. a feed address).
 	Value string `json:"value,omitempty"`
+	// Mode: "" (include: any source is enough), "exclude" (never these)
+	// or "require" (only elements that also match this source).
+	Mode string `json:"mode,omitempty"`
+}
+
+// Source modes.
+const (
+	ModeExclude = "exclude"
+	ModeRequire = "require"
+)
+
+// HasInclude reports whether a list has a source to include (otherwise
+// callers use their default, e.g. the current category).
+func HasInclude(list []Source) bool {
+	for _, s := range list {
+		if s.Mode == "" {
+			return true
+		}
+	}
+	return false
+}
+
+// WithDefault adds the category cat with subcategories when the list has
+// no source to include (e.g. only exclusions).
+func WithDefault(list []Source, cat int64) []Source {
+	if HasInclude(list) || cat <= 0 {
+		return list
+	}
+	return append([]Source{{Kind: "category", ID: cat, Sub: true}}, list...)
 }
 
 // MaxSources is the most sources of one element or macro.
@@ -66,11 +98,12 @@ func isResolvedKind(kind string) bool {
 }
 
 // SourceResolver returns the elements of a source value (with the rights
-// of the caller; at most MaxResolved).
-type SourceResolver func(ctx context.Context, value, lang string) ([]int64, error)
+// of the caller; at most limit).
+type SourceResolver func(ctx context.Context, value, lang string, limit int) ([]int64, error)
 
-// MaxResolved limits the elements one resolved source contributes.
-const MaxResolved = 200
+// MaxListItems is the upper bound of entries of one list and of elements
+// a resolved source (search, filter) contributes (setting lists.max_items).
+func (s *Service) MaxListItems() int { return s.cfg.Get().Lists.ListMax() }
 
 // RegisterSourceResolver sets the resolver of a kind on this site.
 func (s *Service) RegisterSourceResolver(kind string, r SourceResolver) {
@@ -110,6 +143,14 @@ func ParseSourcesKinds(s string, extra []string) ([]Source, error) {
 			return nil, apperr.BadRequest("source %q: kind:value", part)
 		}
 		kind, val = strings.TrimSpace(kind), strings.TrimSpace(val)
+		mode := ""
+		switch {
+		case strings.HasPrefix(kind, "-"):
+			mode, kind = ModeExclude, strings.TrimSpace(kind[1:])
+		case strings.HasPrefix(kind, "+"):
+			mode, kind = ModeRequire, strings.TrimSpace(kind[1:])
+		}
+		n := len(out)
 		switch kind {
 		case "category":
 			sub := strings.HasSuffix(val, "+sub")
@@ -154,6 +195,9 @@ func ParseSourcesKinds(s string, extra []string) ([]Source, error) {
 			}
 			out = append(out, Source{Kind: kind, Value: val})
 		}
+		if len(out) > n {
+			out[n].Mode = mode
+		}
 		if len(out) > MaxSources {
 			return nil, apperr.BadRequest("at most %d sources", MaxSources)
 		}
@@ -165,25 +209,32 @@ func ParseSourcesKinds(s string, extra []string) ([]Source, error) {
 func FormatSources(list []Source) string {
 	parts := make([]string, 0, len(list))
 	for _, s := range list {
+		pre := ""
+		switch s.Mode {
+		case ModeExclude:
+			pre = "-"
+		case ModeRequire:
+			pre = "+"
+		}
 		switch s.Kind {
 		case "category":
 			p := "category:" + strconv.FormatInt(s.ID, 10)
 			if s.Sub {
 				p += "+sub"
 			}
-			parts = append(parts, p)
+			parts = append(parts, pre+p)
 		case "tag":
-			parts = append(parts, "tag:"+s.Tag)
+			parts = append(parts, pre+"tag:"+s.Tag)
 		case "type":
-			parts = append(parts, "type:"+s.Type)
+			parts = append(parts, pre+"type:"+s.Type)
 		case "elements":
 			ids := make([]string, len(s.IDs))
 			for i, id := range s.IDs {
 				ids[i] = strconv.FormatInt(id, 10)
 			}
-			parts = append(parts, "elements:"+strings.Join(ids, ","))
+			parts = append(parts, pre+"elements:"+strings.Join(ids, ","))
 		default:
-			parts = append(parts, s.Kind+":"+s.Value)
+			parts = append(parts, pre+s.Kind+":"+s.Value)
 		}
 	}
 	return strings.Join(parts, "; ")
@@ -201,6 +252,9 @@ type SourceSet struct {
 	Viewable []int64
 	// Resolved: some IDs come from searches or filters (not listed by hand)
 	Resolved bool
+	// Not: elements matching it are left out; And: each must match too.
+	Not *SourceSet
+	And []*SourceSet
 }
 
 // Empty reports whether nothing can come from the set.
@@ -213,7 +267,51 @@ func (s *SourceSet) Empty() bool {
 // exist or that the caller may not view are left out silently, so a page
 // shows what its reader may see.
 func (s *Service) ResolveSources(ctx context.Context, list []Source) (*SourceSet, error) {
+	var inc, exc, req []Source
+	for _, src := range list {
+		switch src.Mode {
+		case ModeExclude:
+			exc = append(exc, src)
+		case ModeRequire:
+			req = append(req, src)
+		default:
+			inc = append(inc, src)
+		}
+	}
+	if len(inc) == 0 && len(exc)+len(req) > 0 {
+		return nil, apperr.BadRequest("sources: at least one source to include (not only - or +)")
+	}
+	set, err := s.resolveSet(ctx, inc, true)
+	if err != nil {
+		return nil, err
+	}
+	if len(exc) > 0 {
+		if set.Not, err = s.resolveSet(ctx, exc, false); err != nil {
+			return nil, err
+		}
+	}
+	for _, r := range req {
+		x, err := s.resolveSet(ctx, []Source{r}, false)
+		if err != nil {
+			return nil, err
+		}
+		set.And = append(set.And, x)
+	}
+	return set, nil
+}
+
+// ResolveNarrowing resolves one source that only narrows a list
+// (exclusion or requirement).
+func (s *Service) ResolveNarrowing(ctx context.Context, src Source) (*SourceSet, error) {
+	return s.resolveSet(ctx, []Source{src}, false)
+}
+
+// resolveSet resolves sources; with reader it also limits the categories to
+// those the caller may view (exclusions and requirements only narrow a
+// set that is limited already).
+func (s *Service) resolveSet(ctx context.Context, list []Source, reader bool) (*SourceSet, error) {
 	set := &SourceSet{}
+	limit := s.MaxListItems()
 	var flat, sub []int64
 	needAll := false
 	for _, src := range list {
@@ -234,23 +332,21 @@ func (s *Service) ResolveSources(ctx context.Context, list []Source) (*SourceSet
 			set.IDs = append(set.IDs, src.IDs...)
 			needAll = true
 		case "search":
-			res, err := s.Search(ctx, src.Value, nil, "", 100) // search caps at 100 hits
+			ids, err := s.searchIDs(ctx, src.Value, limit)
 			if err != nil {
 				return nil, err
 			}
-			for _, e := range res.Elements {
-				set.IDs = append(set.IDs, e.ElementID)
-			}
+			set.IDs = append(set.IDs, ids...)
 			set.Resolved = true
 			needAll = true
 		default:
 			if r := s.resolver(src.Kind); r != nil && isResolvedKind(src.Kind) {
-				ids, err := r(ctx, src.Value, "")
+				ids, err := r(ctx, src.Value, "", limit)
 				if err != nil {
 					return nil, err
 				}
-				if len(ids) > MaxResolved {
-					ids = ids[:MaxResolved]
+				if len(ids) > limit {
+					ids = ids[:limit]
 				}
 				set.IDs = append(set.IDs, ids...)
 				set.Resolved = true
@@ -271,9 +367,14 @@ func (s *Service) ResolveSources(ctx context.Context, list []Source) (*SourceSet
 		if err != nil {
 			return nil, err
 		}
-		if set.Categories, err = s.acl.Filter(ctx, p, cats, acl.View); err != nil {
+		if !reader {
+			set.Categories = cats
+		} else if set.Categories, err = s.acl.Filter(ctx, p, cats, acl.View); err != nil {
 			return nil, err
 		}
+	}
+	if !reader {
+		needAll = false
 	}
 	if needAll {
 		rows, err = s.pool.Query(ctx, `SELECT id FROM categories WHERE deleted_at IS NULL`)
@@ -299,7 +400,64 @@ func (s *Service) ResolveSources(ctx context.Context, list []Source) (*SourceSet
 // sourceCond returns the SQL condition for elements e of a source set with
 // the arguments starting at number n.
 func sourceCond(set *SourceSet, n int) (string, []any) {
-	a := func(i int) string { return "$" + strconv.Itoa(n+i) }
-	return "(e.category_id = ANY(" + a(0) + ") OR e.tags && " + a(1) + " OR e.type = ANY(" + a(2) + ") OR e.id = ANY(" + a(3) + ")) AND e.category_id = ANY(" + a(4) + ")",
-		[]any{set.Categories, set.Tags, set.Types, set.IDs, set.Viewable}
+	var args []any
+	arg := func(v any) string {
+		args = append(args, v)
+		return "$" + strconv.Itoa(n+len(args)-1)
+	}
+	return SourceSQL(set, arg), args
+}
+
+// SourceSQL returns the SQL condition for elements e of a resolved source
+// set; arg adds an argument and returns its placeholder.
+func SourceSQL(set *SourceSet, arg func(any) string) string {
+	cond := matchSQL(set, arg) + " AND e.category_id = ANY(" + arg(set.Viewable) + ")"
+	if set.Not != nil {
+		cond += " AND NOT " + matchSQL(set.Not, arg)
+	}
+	for _, x := range set.And {
+		cond += " AND " + matchSQL(x, arg)
+	}
+	return cond
+}
+
+// MatchSQL is the condition for elements e matching a set (without the
+// reader's categories; for narrowing an already limited query).
+func MatchSQL(set *SourceSet, arg func(any) string) string { return matchSQL(set, arg) }
+
+func matchSQL(set *SourceSet, arg func(any) string) string {
+	cats, tags, types, ids := set.Categories, set.Tags, set.Types, set.IDs
+	if cats == nil {
+		cats = []int64{}
+	}
+	if tags == nil {
+		tags = []string{}
+	}
+	if types == nil {
+		types = []string{}
+	}
+	if ids == nil {
+		ids = []int64{}
+	}
+	return "(e.category_id = ANY(" + arg(cats) + ") OR e.tags && " + arg(tags) + " OR e.type = ANY(" + arg(types) + ") OR e.id = ANY(" + arg(ids) + "))"
+}
+
+// searchIDs returns the elements matching a full-text search (PostgreSQL,
+// with the rules of the search: hidden, archived and strictly confidential
+// categories only when searched there; the viewer's rights are applied
+// by the source set).
+func (s *Service) searchIDs(ctx context.Context, q string, limit int) ([]int64, error) {
+	tsq := buildTSQuery(q)
+	if tsq == "" {
+		return nil, apperr.BadRequest("search source: enter a search term")
+	}
+	rows, err := s.pool.Query(ctx, `SELECT x.element_id FROM (
+			SELECT d.element_id, max(ts_rank(d.tsv, q)) AS r FROM search_docs d JOIN elements e ON e.id = d.element_id, to_tsquery('simple', $1) q
+			WHERE d.tsv @@ q AND e.deleted_at IS NULL
+				AND NOT EXISTS (SELECT 1 FROM categories hc JOIN categories hx ON hx.id = d.category_id WHERE (hc.hidden OR hc.archived_at IS NOT NULL OR hc.classification >= 3) AND hx.path <@ hc.path)
+			GROUP BY d.element_id) x ORDER BY x.r DESC, x.element_id LIMIT $2`, tsq, limit)
+	if err != nil {
+		return nil, err
+	}
+	return pgx.CollectRows(rows, pgx.RowTo[int64])
 }

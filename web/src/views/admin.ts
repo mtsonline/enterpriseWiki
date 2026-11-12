@@ -484,6 +484,7 @@ interface Settings {
     auth: { order: string[]; session_ttl: string; session_idle?: string; photo_visibility?: string; photo_visibility_max?: string; photo_visibility_fixed?: boolean; api_key_max_ttl: string; ssh_token_ttl: string; max_login_failures: number; lockout_duration: string; min_password_length: number };
     retention: { revisions_keep_days: number; revisions_keep_min: number; trash_days: number; audit_days: number };
     media?: { viewer?: string; open_external?: boolean; token_ttl?: string };
+    lists?: { max_items?: number };
     mode: string;
     server: { listen: string; base_url: string };
   };
@@ -553,6 +554,9 @@ async function settings(panel: HTMLElement): Promise<void> {
   viewer.addEventListener('change', syncExternal);
   syncExternal();
   const tokenTTL = textInput({ value: mediaCfg.token_ttl ?? '', placeholder: '10h' });
+  const listsMax = textInput({ type: 'number', value: String(c.lists?.max_items ?? 0) });
+  listsMax.min = '0';
+  listsMax.max = '10000';
   const alert = h('div', { class: 'ew-form-alert', role: 'alert' });
   const fs = (legend: string, ...kids: HTMLElement[]) => h('fieldset', null, h('legend', null, legend), ...kids);
   const form = h('form', { class: 'ew-form', novalidate: true }, alert,
@@ -564,6 +568,7 @@ async function settings(panel: HTMLElement): Promise<void> {
       field(t('settings.photo_default'), photoDef, { help: t('settings.photo_default_help') }), field(t('settings.photo_max'), photoMax, { help: t('settings.photo_max_help') }), photoFixed.el),
     fs(t('settings.media'), field(t('settings.viewer'), viewer, { help: t('settings.viewer_help') }), openExternal.el,
       field(t('settings.office_token_ttl'), tokenTTL, { help: t('settings.office_token_ttl_help') })),
+    fs(t('settings.lists'), field(t('settings.lists_max'), listsMax, { help: t('settings.lists_max_help') })),
     fs(t('settings.retention'), h('p', { class: 'ew-help' }, t('settings.retention_help')), field(t('settings.revisions_keep_days'), keepDays, { help: t('settings.zero_forever') }), field(t('settings.revisions_keep_min'), keepMin),
       field(t('settings.trash_days'), trashDays, { help: t('settings.zero_never') }), field(t('settings.audit_days'), auditDays, { help: t('settings.zero_forever') })),
     h('div', { class: 'ew-form-actions' }, button(t('common.save'), () => undefined, { type: 'submit', variant: 'primary' }),
@@ -581,6 +586,7 @@ async function settings(panel: HTMLElement): Promise<void> {
           photo_visibility: photoDef.value, photo_visibility_max: photoMax.value, photo_visibility_fixed: photoFixed.input.checked, api_key_max_ttl: keyTTL.value, ssh_token_ttl: sshTTL.value, max_login_failures: Number(fails.value), lockout_duration: lockout.value, min_password_length: Number(minPw.value) },
         retention: { revisions_keep_days: Number(keepDays.value), revisions_keep_min: Number(keepMin.value), trash_days: Number(trashDays.value), audit_days: Number(auditDays.value) },
         media: { viewer: viewer.value === 'internal' ? '' : viewer.value, open_external: openExternal.input.checked, token_ttl: tokenTTL.value.trim() },
+        lists: { max_items: Number(listsMax.value) || 0 },
       });
       toast(t('settings.saved'));
       setTimeout(() => location.reload(), 800);

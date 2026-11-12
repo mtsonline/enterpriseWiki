@@ -9,6 +9,7 @@ import (
 	"regexp"
 	"slices"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 
@@ -54,6 +55,10 @@ type MacroContext struct {
 	Params   map[string]string
 	Body     string // sanitized inner HTML (macros inside are already rendered)
 	Headings []Heading
+	// Index is the number of the macro on its element (1 …) and Page the
+	// page of its list a reader asked for (see Paging).
+	Index int
+	Page  int
 }
 
 // Macro is implemented by macro plugins.
@@ -254,6 +259,10 @@ func (s *Service) RenderMacros(ctx context.Context, rc RenderContext, src string
 	}
 	count := 0
 	allowed := s.spaceMacros(ctx, rc.CategoryID) // the space may limit the macros
+	mp, _ := ctx.Value(macroPageKey{}).(*macroPage)
+	if mp != nil && (rc.ElementID <= 0 || mp.element != rc.ElementID) {
+		mp = nil // a page of another element (e.g. one shown inside this one)
+	}
 	var walk func(*nethtml.Node)
 	walk = func(n *nethtml.Node) {
 		for c := n.FirstChild; c != nil; {
@@ -271,7 +280,13 @@ func (s *Service) RenderMacros(ctx context.Context, rc RenderContext, src string
 		count++
 		var out string
 		m := s.macro(name)
+		page := 0
+		if mp != nil && mp.index == count {
+			page = mp.page
+		}
 		switch {
+		case mp != nil && mp.only && mp.index != count:
+			// only one macro is asked for: leave the others out
 		case count > 200:
 			out = macroNote("too many macros on this page")
 		case m == nil:
@@ -284,7 +299,7 @@ func (s *Service) RenderMacros(ctx context.Context, rc RenderContext, src string
 			if _, ok := params["text"]; !ok && n.DataAtom == atom.Span {
 				params["text"] = textOf(n) // :status[DONE]: the label is the text
 			}
-			res, err := m.Render(ctx, MacroContext{RenderContext: rc, Params: params, Body: body, Headings: headings})
+			res, err := m.Render(ctx, MacroContext{RenderContext: rc, Params: params, Body: body, Headings: headings, Index: count, Page: page})
 			if err != nil {
 				out = macroNote(fmt.Sprintf("macro %s: %s", name, err.Error()))
 			} else {
@@ -292,7 +307,10 @@ func (s *Service) RenderMacros(ctx context.Context, rc RenderContext, src string
 				if n.DataAtom == atom.Span {
 					tag = "span" // inline macro
 				}
-				out = `<` + tag + ` class="ew-macro ew-macro--` + html.EscapeString(name) + `">` + res + `</` + tag + `>`
+				out = `<` + tag + ` class="ew-macro ew-macro--` + html.EscapeString(name) + `" data-macro-index="` + strconv.Itoa(count) + `">` + res + `</` + tag + `>`
+			}
+			if mp != nil && mp.only && mp.out != nil {
+				*mp.out = out
 			}
 		}
 		repl, err := nethtml.ParseFragment(strings.NewReader(out), ctxNode)
