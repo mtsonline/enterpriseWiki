@@ -50,6 +50,13 @@ type Preparer interface {
 	Prepare(ctx context.Context, svc *Service, categoryID int64, lang, title string, body json.RawMessage) (json.RawMessage, error)
 }
 
+// SecretHolder is implemented by element types that keep secrets outside
+// of the body (package secrets): the references in a saved body are bound
+// to the element in the transaction of the change.
+type SecretHolder interface {
+	SecretRefs(body json.RawMessage) []string
+}
+
 // Guard is implemented by element types with own permissions (declared in
 // the plugin.json of their plugin), in addition to the category permissions
 // create, edit and delete.

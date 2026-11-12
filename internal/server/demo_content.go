@@ -629,7 +629,88 @@ func buildDemo(d *demoRun) {
 						"data": map[string]string{"item": "{{trigger.data.item}}", "qty": "{{trigger.data.qty}}", "price": "{{trigger.data.price}}"}}},
 			}
 		}
-		d.element(docs, "workflow.process", d.tr("Device request (Workflow 2)", "Geräteantrag (Workflow 2)"), map[string]any{"en": wf("en"), "de": wf("de")}, nil)
+		device := d.element(docs, "workflow.process", d.tr("Device request (Workflow 2)", "Geräteantrag (Workflow 2)"), map[string]any{"en": wf("en"), "de": wf("de")}, nil)
+		if d.err != nil || device <= 0 {
+			return
+		}
+		editors := "#" + strconv.FormatInt(editorsGroup, 10)
+		both := func(f func(tr func(en, de string) string) map[string]any) map[string]any {
+			mk := func(l string) map[string]any {
+				return f(func(en, de string) string {
+					if l == "de" {
+						return de
+					}
+					return en
+				})
+			}
+			return map[string]any{"en": mk("en"), "de": mk("de")}
+		}
+		end := func(tr func(en, de string) string) map[string]any {
+			return map[string]any{"id": "done", "name": tr("Done", "Erledigt"), "type": "end", "outcome": "success", "actions": []any{}}
+		}
+		// onboarding: a welcome page, the device request as sub-workflow, a deadline from the start date
+		d.element(docs, "workflow.process", d.tr("Onboarding (Workflow 2)", "Einarbeitung (Workflow 2)"), both(func(tr func(en, de string) string) map[string]any {
+			return map[string]any{
+				"description": tr("Creates a welcome page, starts the device request as a sub-workflow and waits for it, then the team prepares the workplace – due two working days before the first day.",
+					"Legt eine Willkommensseite an, startet den Geräteantrag als Unter-Workflow und wartet darauf, danach bereitet das Team den Arbeitsplatz vor – fällig zwei Arbeitstage vor dem ersten Tag."),
+				"fields": []map[string]any{{"id": "name", "label": tr("Name", "Name"), "type": "text", "required": true},
+					{"id": "start", "label": tr("First day", "Erster Arbeitstag"), "type": "date", "required": true},
+					{"id": "device", "label": tr("Laptop model", "Laptop-Modell"), "type": "text"}},
+				"steps": []map[string]any{
+					{"id": "page", "name": tr("Welcome page", "Willkommensseite"), "type": "create", "next": "laptop",
+						"create": map[string]any{"category": docs, "title": tr("Welcome, {{field.name}}!", "Willkommen, {{field.name}}!"), "store_id": "page", "store_url": "page_url",
+							"body": tr("# Welcome {{field.name}}\n\nYour first day: **{{field.start}}**.", "# Willkommen {{field.name}}\n\nDein erster Tag: **{{field.start}}**.")}},
+					{"id": "laptop", "name": tr("Device request", "Geräteantrag"), "type": "subflow", "next": "prepare",
+						"subflow": map[string]any{"workflow": device, "wait": true, "title": tr("Laptop for {{field.name}}", "Laptop für {{field.name}}"),
+							"data": map[string]string{"item": "{{field.device}}", "qty": "1", "price": "1200"}, "return": map[string]string{"device_total": "total"}}},
+					{"id": "prepare", "name": tr("Prepare the workplace", "Arbeitsplatz vorbereiten"), "assignee": map[string]string{"type": "group", "value": editors},
+						"actions": []map[string]any{{"id": "ok", "label": tr("Ready", "Bereit"), "next": "tell"}},
+						"deadline": map[string]any{"field": "start", "days": 0, "workdays": true, "warn": []int{48},
+							"escalate": map[string]any{"action": "notify", "notify": map[string]any{"to": "starter", "channel": "both",
+								"subject": tr("The workplace of {{field.name}} is not ready yet", "Der Arbeitsplatz von {{field.name}} ist noch nicht bereit")}}}},
+					{"id": "tell", "name": tr("Tell the requester", "Antragsteller informieren"), "type": "notify", "next": "done",
+						"notify": map[string]any{"to": "starter", "channel": "inbox", "subject": tr("All set for {{field.name}}", "Alles bereit für {{field.name}}"),
+							"body": tr("Welcome page: {{field.page_url}}", "Willkommensseite: {{field.page_url}}")}},
+					end(tr)}}
+		}), nil)
+		// projects: when the status of a project becomes "Done", a closing report is due
+		d.element(docs, "workflow.process", d.tr("Project closed (trigger)", "Projekt abgeschlossen (Auslöser)"), both(func(tr func(en, de string) string) map[string]any {
+			return map[string]any{
+				"description": tr("Starts by itself when the status of a project (Projects) becomes “Done”: creates the page of the closing report and asks the team for a review within five working days.",
+					"Startet von selbst, wenn der Status eines Projekts (Projekte) „Erledigt“ wird: legt die Seite des Abschlussberichts an und bittet das Team um Prüfung innerhalb von fünf Arbeitstagen."),
+				"no_manual": true,
+				"fields":    []map[string]any{{"id": "project", "label": tr("Project", "Projekt"), "type": "text"}, {"id": "link", "label": tr("Link", "Link"), "type": "text"}},
+				"triggers": []map[string]any{{"id": "done", "type": "content", "name": tr("Status becomes Done", "Status wird Erledigt"),
+					"sources": fmt.Sprintf("category:%d+sub", projCat), "prop": map[string]string{"field": "status", "op": "equals", "value": "Done"},
+					"title": tr("Closing report: {{trigger.object.title}}", "Abschlussbericht: {{trigger.object.title}}"),
+					"data":  map[string]string{"project": "{{trigger.object.title}}", "link": "{{trigger.object.url}}"}}},
+				"steps": []map[string]any{
+					{"id": "report", "name": tr("Report page", "Berichtsseite"), "type": "create", "next": "review",
+						"create": map[string]any{"category": projCat, "title": tr("Closing report: {{field.project}}", "Abschlussbericht: {{field.project}}"), "store_url": "report",
+							"body": tr("Project: {{field.link}}\n\n## Results\n\n## Lessons learned", "Projekt: {{field.link}}\n\n## Ergebnisse\n\n## Erkenntnisse")}},
+					{"id": "review", "name": tr("Review the report", "Bericht prüfen"), "assignee": map[string]string{"type": "group", "value": editors},
+						"actions":  []map[string]any{{"id": "ok", "label": tr("Reviewed", "Geprüft"), "next": "done"}},
+						"deadline": map[string]any{"days": 5, "workdays": true, "warn": []int{24}, "escalate": map[string]any{"action": "reassign", "assignee": map[string]string{"type": "role", "value": "Admin"}}},
+						"notices":  []map[string]any{{"on": "enter", "to": "assignees", "channel": "inbox", "subject": tr("Please review: {{field.report}}", "Bitte prüfen: {{field.report}}")}}},
+					end(tr)}}
+		}), nil)
+		// comments: the editors hear about every comment in this category
+		d.element(docs, "workflow.process", d.tr("Feedback on comments (event)", "Rückmeldung zu Kommentaren (Ereignis)"), both(func(tr func(en, de string) string) map[string]any {
+			return map[string]any{
+				"description": tr("Starts for every comment in “Documents and processes” and tells the editors; also a weekly review (switched off) as a schedule.",
+					"Startet bei jedem Kommentar in „Dokumente und Abläufe“ und informiert die Redaktion; dazu ein wöchentlicher Rückblick (ausgeschaltet) als Zeitplan."),
+				"no_manual": true,
+				"fields":    []map[string]any{{"id": "page", "label": tr("Page", "Seite"), "type": "text"}},
+				"triggers": []map[string]any{
+					{"id": "comment", "type": "event", "event": "comment.create", "category": docs, "run_as": "actor", "name": tr("New comment", "Neuer Kommentar"),
+						"title": tr("Comment on {{trigger.object.title}}", "Kommentar zu {{trigger.object.title}}"), "data": map[string]string{"page": "{{trigger.object.title}}"}},
+					{"id": "weekly", "type": "schedule", "cron": "0 8 * * 1", "off": true, "name": tr("Weekly review", "Wöchentlicher Rückblick"),
+						"title": tr("Weekly review {{date}}", "Wochenrückblick {{date}}"), "data": map[string]string{"page": tr("all pages", "alle Seiten")}}},
+				"steps": []map[string]any{
+					{"id": "tell", "name": tr("Tell the editors", "Redaktion informieren"), "type": "notify", "next": "done",
+						"notify": map[string]any{"to": "group:" + editors, "channel": "inbox", "subject": tr("{{case.title}} by {{trigger.actor}}", "{{case.title}} von {{trigger.actor}}")}},
+					end(tr)}}
+		}), nil)
 	})
 	d.optional("forms", func() {
 		mk := func(intro, name, mail, topic, it, hr, other, which, msg, msgHelp, rate, file, ok, send, thanks string) map[string]any {

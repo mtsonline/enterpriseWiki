@@ -18,6 +18,7 @@ import (
 	"log/slog"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -31,6 +32,7 @@ import (
 	"github.com/mtsonline/enterprisewiki/internal/db"
 	"github.com/mtsonline/enterprisewiki/internal/identity"
 	"github.com/mtsonline/enterprisewiki/internal/netguard"
+	"github.com/mtsonline/enterprisewiki/internal/secrets"
 )
 
 // Events lists the event names a webhook can subscribe to.
@@ -126,6 +128,23 @@ type Service struct {
 
 	lmu       sync.RWMutex
 	listeners []Listener
+
+	// Box protects the signing keys (secrets.mode); nil: plain.
+	Box *secrets.Box
+}
+
+func init() {
+	secrets.Register(secrets.Column{Table: "webhooks", Key: "id", Value: "secret", Text: true})
+}
+
+// seal stores the signing key of webhook id.
+func (s *Service) seal(ctx context.Context, id int64, secret string) error {
+	v, err := s.Box.SealString(secret, secrets.AAD("webhooks", strconv.FormatInt(id, 10)))
+	if err != nil {
+		return err
+	}
+	_, err = s.pool.Exec(ctx, `UPDATE webhooks SET secret=$2 WHERE id=$1`, id, v)
+	return err
 }
 
 // Listener receives every event in the transaction of its change (or with
@@ -253,9 +272,15 @@ func (s *Service) Create(ctx context.Context, in Input) (*Created, error) {
 	secret, shown := secretValue(in.Secret)
 	enabled := in.Enabled == nil || *in.Enabled
 	var id int64
-	if err := s.pool.QueryRow(ctx, `INSERT INTO webhooks(name, url, format, secret, events, category_id, enabled) VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING id`,
-		in.Name, in.URL, in.Format, secret, in.Events, in.CategoryID, enabled).Scan(&id); err != nil {
+	if err := s.pool.QueryRow(ctx, `INSERT INTO webhooks(name, url, format, secret, events, category_id, enabled) VALUES ($1,$2,$3,'',$4,$5,$6) RETURNING id`,
+		in.Name, in.URL, in.Format, in.Events, in.CategoryID, enabled).Scan(&id); err != nil {
 		return nil, err
+	}
+	if secret != "" {
+		if err := s.seal(ctx, id, secret); err != nil {
+			_, _ = s.pool.Exec(ctx, `DELETE FROM webhooks WHERE id=$1`, id)
+			return nil, err
+		}
 	}
 	h, err := s.Get(ctx, id)
 	if err != nil {
@@ -271,8 +296,12 @@ func (s *Service) Update(ctx context.Context, id int64, in Input) (*Created, err
 	}
 	enabled := in.Enabled == nil || *in.Enabled
 	secret, shown := secretValue(in.Secret)
+	sealed, err := s.Box.SealString(secret, secrets.AAD("webhooks", strconv.FormatInt(id, 10)))
+	if err != nil {
+		return nil, err
+	}
 	tag, err := s.pool.Exec(ctx, `UPDATE webhooks SET name=$2, url=$3, format=$4, events=$5, category_id=$6, enabled=$7, updated_at=now(),
-		secret = CASE WHEN $8 THEN $9 ELSE secret END WHERE id=$1`, id, in.Name, in.URL, in.Format, in.Events, in.CategoryID, enabled, in.Secret != nil, secret)
+		secret = CASE WHEN $8 THEN $9 ELSE secret END WHERE id=$1`, id, in.Name, in.URL, in.Format, in.Events, in.CategoryID, enabled, in.Secret != nil, sealed)
 	if err != nil {
 		return nil, err
 	}
@@ -501,7 +530,11 @@ func (s *Service) send(ctx context.Context, d due) (int, string) {
 	req.Header.Set("X-Ewiki-Event", d.event)
 	req.Header.Set("X-Ewiki-Delivery", fmt.Sprint(d.id))
 	if d.secret != "" {
-		m := hmac.New(sha256.New, []byte(d.secret))
+		key, err := s.Box.OpenString(d.secret, secrets.AAD("webhooks", strconv.FormatInt(d.hook, 10)))
+		if err != nil {
+			return 0, "signing key: " + err.Error()
+		}
+		m := hmac.New(sha256.New, []byte(key))
 		m.Write(body)
 		req.Header.Set("X-Ewiki-Signature", "sha256="+hex.EncodeToString(m.Sum(nil)))
 	}

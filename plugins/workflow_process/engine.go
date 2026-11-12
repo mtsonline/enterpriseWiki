@@ -23,6 +23,7 @@ import (
 	"github.com/mtsonline/enterprisewiki/internal/identity"
 	"github.com/mtsonline/enterprisewiki/internal/mail"
 	"github.com/mtsonline/enterprisewiki/internal/netguard"
+	"github.com/mtsonline/enterprisewiki/internal/secrets"
 	"github.com/mtsonline/enterprisewiki/internal/webhook"
 )
 
@@ -627,8 +628,12 @@ func (pl *Plugin) callWebhook(ctx context.Context, x *Instance, s *Step, vars ma
 	}
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("User-Agent", "enterprise-wiki-workflow")
-	if s.Webhook.Secret != "" {
-		m := hmac.New(sha256.New, []byte(s.Webhook.Secret))
+	if ref := s.Webhook.SecretRef; ref != "" {
+		key, err := secrets.GetRef(ctx, pl.host.DB, pl.host.Secrets, x.ElementID, ref)
+		if err != nil {
+			return err
+		}
+		m := hmac.New(sha256.New, []byte(key))
 		m.Write(body)
 		req.Header.Set("X-Ewiki-Signature", "sha256="+hex.EncodeToString(m.Sum(nil)))
 	}

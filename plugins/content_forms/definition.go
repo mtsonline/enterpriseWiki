@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/mtsonline/enterprisewiki/internal/apperr"
+	"github.com/mtsonline/enterprisewiki/internal/secrets"
 )
 
 // Form is the body of a form element.
@@ -122,8 +123,11 @@ type EmailTarget struct {
 
 // WebhookTarget posts each submission as JSON (signed with the secret).
 type WebhookTarget struct {
-	URL    string `json:"url"`
-	Secret string `json:"secret,omitempty"`
+	URL string `json:"url"`
+	// Secret is only sent to the server: saved, it is kept outside of the
+	// form (SecretRef; package secrets).
+	Secret    string `json:"secret,omitempty"`
+	SecretRef string `json:"secret_ref,omitempty"`
 }
 
 // PropDBTarget adds each submission as an entry of a property database:
@@ -450,8 +454,9 @@ func (t *Targets) validate(f *Form) error {
 		} else if u, err := url.Parse(w.URL); err != nil || (u.Scheme != "https" && u.Scheme != "http") || u.Host == "" {
 			return apperr.BadRequest("webhook: invalid address")
 		}
-		if t.Webhook != nil && len(w.Secret) > 200 {
-			return apperr.BadRequest("webhook: secret too long")
+		w.Secret = "" // never in the body (see Type.Prepare)
+		if t.Webhook != nil && w.SecretRef != "" && !secrets.ValidRef(w.SecretRef) {
+			return apperr.BadRequest("webhook: invalid reference of the secret")
 		}
 	}
 	if p := t.PropDB; p != nil {

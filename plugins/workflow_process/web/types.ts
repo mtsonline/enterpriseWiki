@@ -3,7 +3,7 @@ export interface Assignee { type: 'starter' | 'user' | 'group' | 'role' | ''; va
 export interface Action { id: string; label: string; next: string; note?: '' | 'optional' | 'required' }
 export interface Rule { field: string; op: string; value?: string }
 export interface EmailSpec { to: string; cc?: string; from?: string; reply_to?: string; subject: string; body: string }
-export interface WebhookSpec { url: string; method?: string; secret?: string }
+export interface WebhookSpec { url: string; method?: string; secret?: string; secret_ref?: string }
 export interface DelaySpec { days?: number; hours?: number; until?: string }
 export type StepType = 'task' | 'approval' | 'condition' | 'email' | 'notify' | 'set' | 'webhook' | 'http' | 'create' | 'props' | 'subflow' | 'delay' | 'end';
 export type Channel = 'inbox' | 'email' | 'both';

@@ -240,5 +240,7 @@
  "forms.ed.sub_add": "Add field to the row",
  "limit.content.forms.submit_mb": "Size of a form submission",
  "limit.content.forms.submit_mb.help": "Upper bound for one submission with all its files (also for guests). Each form allows at most the files its fields accept; this limit caps every form.",
- "limits.group.forms": "Forms"
+ "limits.group.forms": "Forms",
+ "forms.ed.webhook_secret_kept": "A secret is stored – leave empty to keep it",
+ "forms.ed.webhook_secret_help": "Signs each request (X-Ewiki-Signature). It is stored outside of the form and never shown again."
 }

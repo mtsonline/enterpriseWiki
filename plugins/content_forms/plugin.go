@@ -27,6 +27,7 @@ import (
 	"github.com/mtsonline/enterprisewiki/internal/apperr"
 	"github.com/mtsonline/enterprisewiki/internal/content"
 	"github.com/mtsonline/enterprisewiki/internal/identity"
+	"github.com/mtsonline/enterprisewiki/internal/secrets"
 	"github.com/mtsonline/enterprisewiki/pkg/sdk"
 )
 
@@ -107,6 +108,41 @@ func (Type) Labels() map[string]string { return map[string]string{"en": "Form", 
 // EmptyBody implements content.ElementType.
 func (Type) EmptyBody() json.RawMessage {
 	return json.RawMessage(`{"intro":"","layout":"grid","fields":[{"id":"name","type":"text","label":"Name","required":true,"autocomplete":"name","width":6},{"id":"email","type":"email","label":"E-mail","required":true,"autocomplete":"email","width":6},{"id":"message","type":"textarea","label":"Message","rows":5}],"targets":{"store":true}}`)
+}
+
+// Prepare implements content.Preparer: the secret of the webhook is moved
+// out of the body into the secret store before the body is saved.
+func (Type) Prepare(ctx context.Context, _ *content.Service, _ int64, _, _ string, body json.RawMessage) (json.RawMessage, error) {
+	f, err := Decode(body)
+	if err != nil {
+		return nil, err
+	}
+	w := f.Targets.Webhook
+	if w == nil || w.Secret == "" {
+		return body, nil
+	}
+	if len(w.Secret) > 200 {
+		return nil, apperr.BadRequest("webhook: secret too long")
+	}
+	gh := hostOf(ctx)
+	if gh == nil {
+		return nil, apperr.BadRequest("secrets cannot be stored here")
+	}
+	ref, err := secrets.PutRef(ctx, gh.DB, gh.Secrets, identity.From(ctx).ID(), w.Secret)
+	if err != nil {
+		return nil, err
+	}
+	w.Secret, w.SecretRef = "", ref
+	return json.Marshal(f)
+}
+
+// SecretRefs implements content.SecretHolder.
+func (Type) SecretRefs(body json.RawMessage) []string {
+	f, err := Decode(body)
+	if err != nil || f.Targets.Webhook == nil || f.Targets.Webhook.SecretRef == "" {
+		return nil
+	}
+	return []string{f.Targets.Webhook.SecretRef}
 }
 
 // Normalize implements content.ElementType.

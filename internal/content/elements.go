@@ -15,6 +15,7 @@ import (
 	"github.com/mtsonline/enterprisewiki/internal/audit"
 	"github.com/mtsonline/enterprisewiki/internal/db"
 	"github.com/mtsonline/enterprisewiki/internal/identity"
+	"github.com/mtsonline/enterprisewiki/internal/secrets"
 )
 
 // Element is an element without content.
@@ -324,6 +325,9 @@ func (s *Service) CreateElement(ctx context.Context, in ElementInput) (*ElementV
 			id, in.Lang, title, body, in.Comment, uid); err != nil {
 			return err
 		}
+		if err := bindSecrets(ctx, tx, t, id, body); err != nil {
+			return err
+		}
 		if err := s.index(ctx, tx, id, in.CategoryID, in.Lang, title, t.Text(body), tags); err != nil {
 			return err
 		}
@@ -458,6 +462,9 @@ func (s *Service) SaveElement(ctx context.Context, id int64, in SaveInput) (*Ele
 		uid := nullID(ctx)
 		if _, err := tx.Exec(ctx, `INSERT INTO element_revisions(element_id, lang, rev, source_rev, title, body, comment, created_by)
 			VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`, id, in.Lang, cur+1, src, title, body, in.Comment, uid); err != nil {
+			return err
+		}
+		if err := bindSecrets(ctx, tx, t, id, body); err != nil {
 			return err
 		}
 		if _, err := tx.Exec(ctx, `UPDATE elements SET titles = titles || jsonb_build_object($2::text, $3::text), updated_at=now(), updated_by=$4 WHERE id=$1`,
@@ -832,4 +839,13 @@ func (s *Service) guardCreate(ctx context.Context, typ string, categoryID int64)
 		return g.CheckCreate(ctx, s, categoryID)
 	}
 	return nil
+}
+
+// bindSecrets binds the secret references of a saved body to the element.
+func bindSecrets(ctx context.Context, tx pgx.Tx, t ElementType, id int64, body json.RawMessage) error {
+	h, ok := t.(SecretHolder)
+	if !ok {
+		return nil
+	}
+	return secrets.BindRefs(ctx, tx, id, identity.From(ctx).ID(), h.SecretRefs(body))
 }

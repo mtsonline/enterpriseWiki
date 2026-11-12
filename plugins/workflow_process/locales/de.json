@@ -194,7 +194,7 @@
  "workflow.webhook_method": "Methode",
  "workflow.webhook_no_allow": "Webhooks funktionieren nur für Adressen, die ein Administrator in der config.yaml freigegeben hat (plugins.macros.http_allow).",
  "workflow.webhook_secret": "Geheimnis (optional)",
- "workflow.webhook_secret_help": "Signiert die Anfrage: Header X-Ewiki-Signature: sha256=…",
+ "workflow.webhook_secret_help": "Signiert die Anfrage: Header X-Ewiki-Signature: sha256=… Das Geheimnis wird außerhalb des Workflows gespeichert und nie wieder angezeigt.",
  "workflow.webhook_url": "URL",
  "workflow.template.onboarding": "Einarbeitung (mit Wartezeit und Willkommens-E-Mail)",
  "workflow.mail_admin_change_subject": "Ihr Workflow „{title}“ wurde von {by} geändert",
@@ -385,5 +385,6 @@
  "workflow.admin.title": "Workflow",
  "workflow.admin.intro": "Einstellungen für alle Workflows. Auslöser, Schritte und Fristen werden im jeweiligen Workflow festgelegt.",
  "workflow.admin.holidays": "Feiertage",
- "workflow.admin.holidays_help": "Tage, die bei Fristen in Arbeitstagen nicht zählen: jährliche Tage (12-25) oder Daten (2027-03-29), einer pro Zeile."
+ "workflow.admin.holidays_help": "Tage, die bei Fristen in Arbeitstagen nicht zählen: jährliche Tage (12-25) oder Daten (2027-03-29), einer pro Zeile.",
+ "workflow.webhook_secret_kept": "Ein Geheimnis ist gespeichert – leer lassen, um es zu behalten"
 }

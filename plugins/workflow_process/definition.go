@@ -13,6 +13,8 @@ import (
 
 	"github.com/mtsonline/enterprisewiki/internal/apperr"
 	"github.com/mtsonline/enterprisewiki/internal/content"
+	"github.com/mtsonline/enterprisewiki/internal/identity"
+	"github.com/mtsonline/enterprisewiki/internal/secrets"
 )
 
 // Definition is the body of a workflow element (per language).
@@ -101,7 +103,10 @@ type WebhookSpec struct {
 	URL    string `json:"url"`
 	Method string `json:"method,omitempty"` // POST (default) or PUT
 	// Secret signs the body: header X-Ewiki-Signature: sha256=<hex HMAC>.
-	Secret string `json:"secret,omitempty"`
+	// It is only sent to the server: saved, it is kept outside of the
+	// workflow (SecretRef; package secrets) – nobody reads it back.
+	Secret    string `json:"secret,omitempty"`
+	SecretRef string `json:"secret_ref,omitempty"`
 }
 
 // DelaySpec waits a fixed time or until a date from the form.
@@ -451,8 +456,10 @@ func (s *Step) validate(fieldType map[string]string) error {
 		if w.Method != "POST" && w.Method != "PUT" {
 			return apperr.BadRequest("step %q: webhook method must be POST or PUT", s.ID)
 		}
-		if len(w.Secret) > 200 {
-			return apperr.BadRequest("step %q: secret too long", s.ID)
+		// the secret itself never stays in the body (see Type.Prepare)
+		w.Secret = ""
+		if w.SecretRef != "" && !secrets.ValidRef(w.SecretRef) {
+			return apperr.BadRequest("step %q: invalid reference of the secret", s.ID)
 		}
 		s.Webhook = &w
 		if err := need(s.Next, "the next step"); err != nil {
@@ -519,6 +526,53 @@ func (Type) Labels() map[string]string { return map[string]string{"en": "Workflo
 // EmptyBody implements content.ElementType.
 func (Type) EmptyBody() json.RawMessage {
 	return json.RawMessage(`{"description":"","fields":[],"steps":[{"id":"start","name":"Start","assignee":{"type":"starter","value":""},"actions":[{"id":"done","label":"Done","next":"done"}]},{"id":"done","name":"Done","actions":[],"outcome":"success"}]}`)
+}
+
+// Prepare implements content.Preparer: secrets of webhook steps are moved
+// out of the body into the secret store before the body is saved.
+func (Type) Prepare(ctx context.Context, _ *content.Service, _ int64, _, _ string, body json.RawMessage) (json.RawMessage, error) {
+	d, err := Decode(body)
+	if err != nil {
+		return nil, err
+	}
+	gh := guardHost(ctx)
+	changed := false
+	for i := range d.Steps {
+		w := d.Steps[i].Webhook
+		if w == nil || w.Secret == "" {
+			continue
+		}
+		if len(w.Secret) > 200 {
+			return nil, apperr.BadRequest("step %q: secret too long", d.Steps[i].ID)
+		}
+		if gh == nil {
+			return nil, apperr.BadRequest("secrets cannot be stored here")
+		}
+		ref, err := secrets.PutRef(ctx, gh.DB, gh.Secrets, identity.From(ctx).ID(), w.Secret)
+		if err != nil {
+			return nil, err
+		}
+		w.Secret, w.SecretRef, changed = "", ref, true
+	}
+	if !changed {
+		return body, nil
+	}
+	return json.Marshal(d)
+}
+
+// SecretRefs implements content.SecretHolder.
+func (Type) SecretRefs(body json.RawMessage) []string {
+	d, err := Decode(body)
+	if err != nil {
+		return nil
+	}
+	var out []string
+	for _, s := range d.Steps {
+		if s.Webhook != nil && s.Webhook.SecretRef != "" {
+			out = append(out, s.Webhook.SecretRef)
+		}
+	}
+	return out
 }
 
 // Normalize implements content.ElementType.

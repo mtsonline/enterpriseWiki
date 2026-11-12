@@ -349,6 +349,8 @@ Verlangt das Konto einen zweiten Faktor, antwortet die Anmeldung mit `mfa_requir
 | `PUT` | `/api/v1/admin/license` |
 | `DELETE` | `/api/v1/admin/license` |
 | `GET` | `/api/v1/admin/limits` |
+| `GET` | `/api/v1/admin/secrets` |
+| `POST` | `/api/v1/admin/secrets/rewrap` |
 | `PUT` | `/api/v1/admin/limits` |
 | `GET` | `/api/v1/admin/mfa` |
 | `PUT` | `/api/v1/admin/mfa` |
