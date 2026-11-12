@@ -67,7 +67,7 @@ func TestLocaleParity(t *testing.T) {
 		}
 		var m struct {
 			Permissions []struct{ Key string } `json:"permissions"`
-			Limits      []limits.Def          `json:"limits"`
+			Limits      []limits.Def           `json:"limits"`
 		}
 		if err := json.Unmarshal(raw, &m); err != nil {
 			t.Fatalf("%s: %v", f, err)
