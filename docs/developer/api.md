@@ -341,6 +341,7 @@ Verlangt das Konto einen zweiten Faktor, antwortet die Anmeldung mit `mfa_requir
 | `DELETE` | `/api/v1/admin/cache` |
 | `GET` | `/api/v1/admin/webhooks` |
 | `POST` | `/api/v1/admin/webhooks` |
+| `PUT` | `/api/v1/admin/webhooks/options` |
 | `GET` | `/api/v1/admin/webhooks/{id}` |
 | `PUT` | `/api/v1/admin/webhooks/{id}` |
 | `DELETE` | `/api/v1/admin/webhooks/{id}` |
