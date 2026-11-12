@@ -540,6 +540,23 @@ CREATE TABLE watches (
 );
 CREATE INDEX watches_target ON watches(target_type, target_id);
 
+-- Changes whose follow-up work (notifications of watchers and of mentioned
+-- people ...) is not finished yet: written with the change, removed when
+-- all hooks succeeded, repeated by a worker otherwise (content/changes.go).
+CREATE TABLE change_events (
+    id          bigserial PRIMARY KEY,
+    event       text NOT NULL,                  -- create | update | delete ...
+    entity_type text NOT NULL,
+    entity_id   bigint NOT NULL,
+    actor_id    bigint,                         -- who made the change (no reference: the account may be gone)
+    silent      boolean NOT NULL DEFAULT false, -- saved without notifying watchers
+    hooks       text[] NOT NULL,                -- hooks that are still open
+    attempts    int NOT NULL DEFAULT 0,
+    created_at  timestamptz NOT NULL DEFAULT now(),
+    next_at     timestamptz NOT NULL DEFAULT now() + interval '1 minute' -- the worker leaves fresh entries to the request
+);
+CREATE INDEX change_events_next ON change_events(next_at);
+
 -- Changes waiting to be sent to watchers (coalesced per user and object;
 -- sent as one e-mail per user after a quiet period).
 CREATE TABLE watch_events (

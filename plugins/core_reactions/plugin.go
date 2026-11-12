@@ -353,7 +353,27 @@ func (p *Plugin) react(ctx context.Context, typ string, id int64, emoji string, 
 				return apperr.BadRequest("at most %d reactions per person", max)
 			}
 			first = n == 0
-			_, err := tx.Exec(ctx, `INSERT INTO plugin_reactions(target_type, target_id, user_id, emoji) VALUES ($1,$2,$3,$4) ON CONFLICT DO NOTHING`, typ, id, me.ID(), emoji)
+			if _, err := tx.Exec(ctx, `INSERT INTO plugin_reactions(target_type, target_id, user_id, emoji) VALUES ($1,$2,$3,$4) ON CONFLICT DO NOTHING`, typ, id, me.ID(), emoji); err != nil {
+				return err
+			}
+			// the author learns about the first reaction of each person (not
+			// about each emoji) - stored with the reaction or not at all
+			if !first || t.author == nil || *t.author == me.ID() {
+				return nil
+			}
+			author, err := p.host.Auth.LoadPrincipalQ(ctx, tx, *t.author)
+			if err != nil || !p.host.ACL.Can(ctx, author, t.category, acl.View) {
+				return nil // gone or without access: nobody to tell
+			}
+			by := me.DisplayName
+			if by == "" {
+				by = me.Handle()
+			}
+			_, err = p.host.Notify.SendQ(ctx, tx, []int64{*t.author}, notify.Message{Kind: "reaction", EntityType: typ, EntityID: id, Link: t.link,
+				Text: func(lang string) (string, string) {
+					params := map[string]string{"by": by, "emoji": emoji, "title": t.title}
+					return p.host.T(ctx, lang, "core.reactions.mail_subject", params), p.host.T(ctx, lang, "core.reactions.mail_body", params)
+				}})
 			return err
 		})
 	} else {
@@ -361,18 +381,6 @@ func (p *Plugin) react(ctx context.Context, typ string, id int64, emoji string, 
 	}
 	if err != nil {
 		return nil, err
-	}
-	// the author learns about the first reaction of each person (not about each emoji)
-	if on && first && t.author != nil && *t.author != me.ID() && p.host.UserCan(ctx, *t.author, t.category, acl.View) {
-		by := me.DisplayName
-		if by == "" {
-			by = me.Handle()
-		}
-		_, _ = p.host.Notify.Send(ctx, []int64{*t.author}, notify.Message{Kind: "reaction", EntityType: typ, EntityID: id, Link: t.link,
-			Text: func(lang string) (string, string) {
-				params := map[string]string{"by": by, "emoji": emoji, "title": t.title}
-				return p.host.T(ctx, lang, "core.reactions.mail_subject", params), p.host.T(ctx, lang, "core.reactions.mail_body", params)
-			}})
 	}
 	list, err := p.summaries(ctx, typ, []int64{id})
 	if err != nil {

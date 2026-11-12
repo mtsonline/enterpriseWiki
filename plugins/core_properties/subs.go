@@ -159,27 +159,32 @@ func (p *Plugin) SendSubscriptions(ctx context.Context) error {
 	}
 	rows.Close()
 	for _, d := range list {
-		if _, err := p.host.DB.Exec(ctx, `UPDATE plugin_prop_subs SET next_at=$2 WHERE id=$1`, d.id, nextRun(time.Now(), d.freq)); err != nil {
-			return err
-		}
-		if err := p.sendOne(ctx, d.user, d.el, d.params, d.title); err != nil {
-			p.host.Log.Info("report subscription", "id", d.id, "err", err)
+		// the report is queued and the next date set together: a report
+		// that could not be queued stays due and is tried again
+		err := pgx.BeginFunc(ctx, p.host.DB, func(tx pgx.Tx) error {
+			if _, err := tx.Exec(ctx, `UPDATE plugin_prop_subs SET next_at=$2 WHERE id=$1`, d.id, nextRun(time.Now(), d.freq)); err != nil {
+				return err
+			}
+			return p.sendOne(ctx, tx, d.user, d.el, d.params, d.title)
+		})
+		if err != nil {
+			p.host.Log.Warn("report subscription not sent, it is tried again", "id", d.id, "err", err)
 		}
 	}
 	return nil
 }
 
-func (p *Plugin) sendOne(ctx context.Context, uid, el int64, params map[string]string, title string) error {
-	pr, err := p.host.Auth.LoadPrincipal(ctx, uid)
+func (p *Plugin) sendOne(ctx context.Context, tx pgx.Tx, uid, el int64, params map[string]string, title string) error {
+	pr, err := p.host.Auth.LoadPrincipalQ(ctx, tx, uid)
 	if err != nil {
-		return err
+		return nil // account gone or disabled: nothing is sent
 	}
 	uctx := identity.With(ctx, pr)
 	cat, err := p.host.Content.ElementCategory(uctx, el, acl.View)
 	if err != nil {
 		return nil // no longer visible: nothing is sent
 	}
-	us, err := p.host.Mail.Users(ctx, p.host.DB, []int64{uid})
+	us, err := p.host.Mail.Users(ctx, tx, []int64{uid})
 	if err != nil || len(us) == 0 || us[0].Email == "" {
 		return err
 	}
@@ -253,7 +258,7 @@ func (p *Plugin) sendOne(ctx context.Context, uid, el int64, params map[string]s
 	text.WriteString("\n" + foot + "\n")
 	body.WriteString(`<p style="color:#5e6c84;font-size:13px;margin-top:24px">` + html.EscapeString(foot) + `</p></body></html>`)
 	subject := fmt.Sprintf(tr("Report: %s (%d entries)", "Bericht: %s (%d Einträge)"), title, len(res.Rows)-left)
-	_, err = p.host.Mail.Enqueue(ctx, p.host.DB, mail.Message{To: []string{u.Email}, Subject: subject, Text: text.String(), HTML: body.String(),
+	_, err = p.host.Mail.Enqueue(ctx, tx, mail.Message{To: []string{u.Email}, Subject: subject, Text: text.String(), HTML: body.String(),
 		Source: "core.properties", Ref: fmt.Sprintf("report:%d", el), Owner: -1})
 	return err
 }

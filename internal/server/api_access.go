@@ -248,10 +248,6 @@ func (s *Server) answerAccess(ctx context.Context, id int64, grant bool, preset 
 		}
 		status = "granted"
 	}
-	if _, err := s.app.DB.Exec(ctx, `UPDATE access_requests SET status=$2, handled_by=$3, handled_at=now() WHERE id=$1 AND status='open'`, id, status, identity.From(ctx).ID()); err != nil {
-		return err
-	}
-	_ = audit.Log(ctx, s.app.DB, "access."+status, "category", req.CategoryID, nil, map[string]any{"request": id, "user": req.UserID, "preset": preset})
 	var titles map[string]string
 	_ = s.app.DB.QueryRow(ctx, `SELECT titles FROM categories WHERE id=$1`, req.CategoryID).Scan(&titles)
 	def := s.app.Config.Get().I18n.DefaultLanguage
@@ -259,7 +255,7 @@ func (s *Server) answerAccess(ctx context.Context, id int64, grant bool, preset 
 	if grant {
 		link = fmt.Sprintf("/c/%d", req.CategoryID)
 	}
-	_, _ = s.app.Notify.Send(ctx, []int64{req.UserID}, notify.Message{Kind: "access_answer", EntityType: "category", EntityID: req.CategoryID, Link: link,
+	answer := notify.Message{Kind: "access_answer", EntityType: "category", EntityID: req.CategoryID, Link: link,
 		Text: func(lang string) (string, string) {
 			title := pickTitle(titles, lang, def)
 			switch {
@@ -272,6 +268,16 @@ func (s *Server) answerAccess(ctx context.Context, id int64, grant bool, preset 
 			default:
 				return "Your access request was declined", ""
 			}
-		}})
-	return nil
+		}}
+	// the answer and its notification are stored together
+	return pgx.BeginFunc(ctx, s.app.DB, func(tx pgx.Tx) error {
+		if _, err := tx.Exec(ctx, `UPDATE access_requests SET status=$2, handled_by=$3, handled_at=now() WHERE id=$1 AND status='open'`, id, status, identity.From(ctx).ID()); err != nil {
+			return err
+		}
+		if err := audit.Log(ctx, tx, "access."+status, "category", req.CategoryID, nil, map[string]any{"request": id, "user": req.UserID, "preset": preset}); err != nil {
+			return err
+		}
+		_, err := s.app.Notify.SendQ(ctx, tx, []int64{req.UserID}, answer)
+		return err
+	})
 }

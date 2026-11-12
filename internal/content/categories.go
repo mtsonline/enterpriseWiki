@@ -374,7 +374,7 @@ func (s *Service) CreateCategory(ctx context.Context, in CategoryInput) (*Catego
 	if in.Slug != nil && Slugify(*in.Slug) != "" {
 		slug = Slugify(*in.Slug)
 	}
-	var id int64
+	var id, noted int64
 	err = db.Tx(ctx, s.pool, func(tx pgx.Tx) error {
 		var parentPath string
 		if in.ParentID != nil {
@@ -450,13 +450,18 @@ func (s *Service) CreateCategory(ctx context.Context, in CategoryInput) (*Catego
 				return err
 			}
 		}
-		return audit.Log(ctx, tx, "category.create", "category", id, nil, snapshotOf(titles, descs, tags, slug, in.ParentID, pos, nil))
+		if err := audit.Log(ctx, tx, "category.create", "category", id, nil, snapshotOf(titles, descs, tags, slug, in.ParentID, pos, nil)); err != nil {
+			return err
+		}
+		var err error
+		noted, err = s.note(ctx, tx, "create", "category", id)
+		return err
 	})
 	if err != nil {
 		return nil, err
 	}
 	s.aclChanged(ctx)
-	s.fire(ctx, "create", "category", id)
+	s.fireNoted(ctx, noted, "create", "category", id)
 	return s.GetCategory(ctx, id)
 }
 
@@ -576,6 +581,7 @@ func (s *Service) UpdateCategory(ctx context.Context, id int64, in CategoryInput
 		}
 	}
 	classChanged := false
+	var noted int64
 	err = db.Tx(ctx, s.pool, func(tx pgx.Tx) error {
 		if _, err := tx.Exec(ctx, `UPDATE categories SET titles=$2, descriptions=$3, tags=$4, slug=$5, position=$6, default_element_id=$7, feed=$8,
 			original_lang=$9, text_rev=$10, translation_revs=$11, updated_at=now()
@@ -652,14 +658,19 @@ func (s *Service) UpdateCategory(ctx context.Context, id int64, in CategoryInput
 				return err
 			}
 		}
-		return audit.Log(ctx, tx, "category.update", "category", id,
+		if err := audit.Log(ctx, tx, "category.update", "category", id,
 			snapshotOf(before.Titles, before.Descriptions, before.Tags, before.Slug, before.ParentID, before.Position, before.DefaultElementID),
-			snapshotOf(titles, descs, tags, slug, before.ParentID, pos, def))
+			snapshotOf(titles, descs, tags, slug, before.ParentID, pos, def)); err != nil {
+			return err
+		}
+		var err error
+		noted, err = s.note(ctx, tx, "update", "category", id)
+		return err
 	})
 	if err != nil {
 		return nil, err
 	}
-	s.fire(ctx, "update", "category", id)
+	s.fireNoted(ctx, noted, "update", "category", id)
 	if classChanged {
 		s.aclChanged(ctx)
 	}

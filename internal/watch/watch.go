@@ -47,7 +47,7 @@ type Service struct {
 // New creates the service and subscribes to content changes.
 func New(pool *pgxpool.Pool, cfg *config.Store, a *acl.Service, au *auth.Service, c *content.Service, m *mail.Service, i *i18n.Service, log *slog.Logger) *Service {
 	s := &Service{pool: pool, cfg: cfg, acl: a, auth: au, content: c, mail: m, i18n: i, log: log}
-	c.OnChange(s.onChange)
+	c.OnChangeDurable("watch", s.onChange) // watchers must learn about every change
 	return s
 }
 
@@ -169,9 +169,9 @@ func (s *Service) Delete(ctx context.Context, id int64) error {
 }
 
 // onChange records a change for all watchers (except the person who made it).
-func (s *Service) onChange(ctx context.Context, event, etype string, id int64) {
+func (s *Service) onChange(ctx context.Context, event, etype string, id int64) error {
 	if !s.mail.Enabled() || content.IsSilent(ctx) {
-		return
+		return nil
 	}
 	ctx = context.WithoutCancel(ctx)
 	actor := identity.From(ctx).ID()
@@ -195,9 +195,7 @@ func (s *Service) onChange(ctx context.Context, event, etype string, id int64) {
 			GROUP BY w.user_id
 			ON CONFLICT (user_id, entity_type, entity_id) DO UPDATE SET event=EXCLUDED.event, actor_id=EXCLUDED.actor_id, last_at=now(), freq = LEAST(watch_events.freq, EXCLUDED.freq)`, id, event, nullID(actor))
 	}
-	if err != nil {
-		s.log.Error("recording a change for watchers failed", "type", etype, "id", id, "err", err)
-	}
+	return err // repeated until it is recorded (content.OnChangeDurable)
 }
 
 // freqSQL is the most urgent frequency of the matching watches (0 instant, 1 daily, 2 weekly).

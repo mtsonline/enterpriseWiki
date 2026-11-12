@@ -303,7 +303,7 @@ func (s *Service) CreateElement(ctx context.Context, in ElementInput) (*ElementV
 	if err != nil {
 		return nil, err
 	}
-	var id int64
+	var id, noted int64
 	err = db.Tx(ctx, s.pool, func(tx pgx.Tx) error {
 		var catPath string
 		if err := tx.QueryRow(ctx, `SELECT path::text FROM categories WHERE id=$1 AND deleted_at IS NULL`, in.CategoryID).Scan(&catPath); err != nil {
@@ -339,12 +339,16 @@ func (s *Service) CreateElement(ctx context.Context, in ElementInput) (*ElementV
 		if _, err := tx.Exec(ctx, `UPDATE categories SET default_element_id=$2 WHERE id=$1 AND default_element_id IS NULL`, in.CategoryID, id); err != nil {
 			return err
 		}
-		return audit.Log(ctx, tx, "element.create", "element", id, nil, map[string]any{"category_id": in.CategoryID, "type": in.Type, "lang": in.Lang, "title": title})
+		if err := audit.Log(ctx, tx, "element.create", "element", id, nil, map[string]any{"category_id": in.CategoryID, "type": in.Type, "lang": in.Lang, "title": title}); err != nil {
+			return err
+		}
+		noted, err = s.note(ctx, tx, "create", "element", id) // what follows (notifications) commits with the page
+		return err
 	})
 	if err != nil {
 		return nil, err
 	}
-	s.fire(ctx, "create", "element", id)
+	s.fireNoted(ctx, noted, "create", "element", id)
 	return s.GetElement(ctx, id, in.Lang, true)
 }
 
@@ -428,6 +432,7 @@ func (s *Service) SaveElement(ctx context.Context, id int64, in SaveInput) (*Ele
 	if err != nil {
 		return nil, err
 	}
+	var noted int64
 	err = db.Tx(ctx, s.pool, func(tx pgx.Tx) error {
 		if _, err := tx.Exec(ctx, `SELECT 1 FROM elements WHERE id=$1 FOR UPDATE`, id); err != nil {
 			return err
@@ -465,17 +470,22 @@ func (s *Service) SaveElement(ctx context.Context, id int64, in SaveInput) (*Ele
 		if err := s.storeFields(ctx, tx, id, fields); err != nil {
 			return err
 		}
-		return audit.Log(ctx, tx, "element.save", "element", id, map[string]any{"lang": in.Lang, "rev": cur}, map[string]any{"lang": in.Lang, "rev": cur + 1, "title": title})
+		if err := audit.Log(ctx, tx, "element.save", "element", id, map[string]any{"lang": in.Lang, "rev": cur}, map[string]any{"lang": in.Lang, "rev": cur + 1, "title": title}); err != nil {
+			return err
+		}
+		noted, err = s.note(ctx, tx, "update", "element", id) // what follows (notifications) commits with the page
+		return err
 	})
 	if err != nil {
 		return nil, err
 	}
 	if in.Tags != nil {
 		if _, err := s.UpdateElementMeta(ctx, id, MetaInput{Tags: in.Tags}); err != nil {
+			s.fireNoted(ctx, noted, "update", "element", id) // the page is saved
 			return nil, err
 		}
 	}
-	s.fire(ctx, "update", "element", id)
+	s.fireNoted(ctx, noted, "update", "element", id)
 	return s.GetElement(ctx, id, in.Lang, true)
 }
 
@@ -732,14 +742,19 @@ func (s *Service) RestoreRevision(ctx context.Context, id int64, lang string, re
 	if err := s.require(ctx, e.CategoryID, acl.Edit); err != nil {
 		return nil, err
 	}
+	var noted int64
 	err = db.Tx(ctx, s.pool, func(tx pgx.Tx) error {
-		_, err := s.restoreRev(ctx, tx, e, lang, rev, "Restored revision")
+		if _, err := s.restoreRev(ctx, tx, e, lang, rev, "Restored revision"); err != nil {
+			return err
+		}
+		var err error
+		noted, err = s.note(ctx, tx, "update", "element", id)
 		return err
 	})
 	if err != nil {
 		return nil, err
 	}
-	s.fire(ctx, "update", "element", id)
+	s.fireNoted(ctx, noted, "update", "element", id)
 	return s.GetElement(ctx, id, lang, true)
 }
 

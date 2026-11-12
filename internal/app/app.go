@@ -25,6 +25,7 @@ import (
 	"github.com/mtsonline/enterprisewiki/internal/db/migrations"
 	"github.com/mtsonline/enterprisewiki/internal/events"
 	"github.com/mtsonline/enterprisewiki/internal/i18n"
+	"github.com/mtsonline/enterprisewiki/internal/identity"
 	"github.com/mtsonline/enterprisewiki/internal/kernel"
 	"github.com/mtsonline/enterprisewiki/internal/limits"
 	"github.com/mtsonline/enterprisewiki/internal/mail"
@@ -233,6 +234,21 @@ func newSite(ctx context.Context, in *Instance, site string, migrate bool) (*App
 		return err
 	}})
 	a.Watch = watch.New(pool, cfg, a.ACL, a.Auth, a.Content, a.Mail, a.I18n, log)
+	// changes whose notifications are not written yet are repeated with
+	// the rights of the account that made them
+	a.Content.SetActorContext(func(ctx context.Context, uid int64) context.Context {
+		if p, err := a.Auth.LoadPrincipal(ctx, uid); err == nil {
+			return identity.With(ctx, p)
+		}
+		return ctx
+	})
+	a.Workers.Register(worker.Job{Name: "changes", Interval: 30 * time.Second, Run: func(ctx context.Context) error {
+		n, err := a.Content.RetryChanges(ctx)
+		if n > 0 {
+			log.Info("queued changes repeated", "changes", n)
+		}
+		return err
+	}})
 	// guest cache: every change invalidates it (here, on other nodes and from CLI processes)
 	a.Cache = pagecache.New(pool, cfg, log)
 	a.Content.OnChange(func(ctx context.Context, event, etype string, id int64) { a.Cache.Invalidate(ctx, etype+"."+event) })

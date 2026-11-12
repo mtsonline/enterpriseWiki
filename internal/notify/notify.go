@@ -16,6 +16,7 @@ import (
 
 	"github.com/mtsonline/enterprisewiki/internal/apperr"
 	"github.com/mtsonline/enterprisewiki/internal/config"
+	"github.com/mtsonline/enterprisewiki/internal/db"
 	"github.com/mtsonline/enterprisewiki/internal/identity"
 	"github.com/mtsonline/enterprisewiki/internal/mail"
 )
@@ -74,8 +75,25 @@ func New(pool *pgxpool.Pool, cfg *config.Store, m *mail.Service) *Service {
 }
 
 // Send notifies users (the actor is never notified). It returns the number
-// of recipients.
+// of recipients. All of them or none: the notifications and their e-mails
+// are written in one transaction.
 func (s *Service) Send(ctx context.Context, userIDs []int64, m Message) (int, error) {
+	n := 0
+	err := pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
+		var err error
+		n, err = s.SendQ(ctx, tx, userIDs, m)
+		return err
+	})
+	if err != nil {
+		return 0, err
+	}
+	return n, nil
+}
+
+// SendQ is Send inside the transaction q of the caller: the notification
+// is stored together with what it is about, or not at all. After an error
+// the transaction cannot be committed.
+func (s *Service) SendQ(ctx context.Context, q db.Querier, userIDs []int64, m Message) (int, error) {
 	actor := identity.From(ctx).ID()
 	seen := map[int64]bool{}
 	var ids []int64
@@ -88,7 +106,7 @@ func (s *Service) Send(ctx context.Context, userIDs []int64, m Message) (int, er
 	if len(ids) == 0 {
 		return 0, nil
 	}
-	us, err := s.mail.Users(ctx, s.pool, ids)
+	us, err := s.mail.Users(ctx, q, ids)
 	if err != nil {
 		return 0, err
 	}
@@ -102,28 +120,25 @@ func (s *Service) Send(ctx context.Context, userIDs []int64, m Message) (int, er
 		actorID = &actor
 	}
 	n := 0
-	err = pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
-		for _, u := range us {
-			title, body := m.Text(u.Lang)
-			if _, err := tx.Exec(ctx, `INSERT INTO notifications(user_id, kind, title, body, link, actor_id, entity_type, entity_id) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`,
-				u.ID, m.Kind, title, body, m.Link, actorID, m.EntityType, eid); err != nil {
-				return err
-			}
-			n++
-			if !u.Wants(m.Kind) || !s.mail.Enabled() {
-				continue
-			}
-			text := body
-			if m.Link != "" {
-				text += "\n\n" + base + m.Link + "\n"
-			}
-			if _, err := s.mail.Enqueue(ctx, tx, mail.Message{To: []string{u.Email}, Subject: title, Text: text, Source: "notify", Ref: fmt.Sprintf("%s:%s:%d", m.Kind, m.EntityType, m.EntityID), Owner: -1}); err != nil {
-				return err
-			}
+	for _, u := range us {
+		title, body := m.Text(u.Lang)
+		if _, err := q.Exec(ctx, `INSERT INTO notifications(user_id, kind, title, body, link, actor_id, entity_type, entity_id) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`,
+			u.ID, m.Kind, title, body, m.Link, actorID, m.EntityType, eid); err != nil {
+			return 0, err
 		}
-		return nil
-	})
-	return n, err
+		n++
+		if !u.Wants(m.Kind) || !s.mail.Enabled() {
+			continue
+		}
+		text := body
+		if m.Link != "" {
+			text += "\n\n" + base + m.Link + "\n"
+		}
+		if _, err := s.mail.Enqueue(ctx, q, mail.Message{To: []string{u.Email}, Subject: title, Text: text, Source: "notify", Ref: fmt.Sprintf("%s:%s:%d", m.Kind, m.EntityType, m.EntityID), Owner: -1}); err != nil {
+			return 0, err
+		}
+	}
+	return n, nil
 }
 
 // List returns the latest notifications of the caller and the number of unread ones.

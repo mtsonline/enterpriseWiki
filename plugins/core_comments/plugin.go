@@ -233,6 +233,20 @@ func (p *Plugin) Setup(host *sdk.Host) error {
 			if err := p.notify(ctx, tx, &c, cat); err != nil {
 				return err
 			}
+			// mentions: stored with the comment or not at all
+			var titles map[string]string
+			if err := tx.QueryRow(ctx, `SELECT titles FROM elements WHERE id=$1`, c.ElementID).Scan(&titles); err != nil {
+				return err
+			}
+			title := titles[host.Config.Get().I18n.DefaultLanguage]
+			for _, t := range titles {
+				if title == "" {
+					title = t
+				}
+			}
+			if err := core_mentions.NotifyTx(ctx, tx, "comment", c.ID, cat, title, fmt.Sprintf("/e/%d#comment-%d", c.ElementID, c.ID), body); err != nil {
+				return err
+			}
 			return audit.Log(ctx, tx, "comment.create", "comment", c.ID, nil, map[string]any{"element_id": id, "body": body})
 		})
 		if err != nil {
@@ -241,15 +255,6 @@ func (p *Plugin) Setup(host *sdk.Host) error {
 		perms, _ := host.ACL.Perms(ctx, me, cat)
 		p.decorate(ctx, &c, perms, cat)
 		p.emitComment(ctx, &c, cat, body)
-		var titles map[string]string
-		_ = host.DB.QueryRow(ctx, `SELECT titles FROM elements WHERE id=$1`, c.ElementID).Scan(&titles)
-		title := titles[host.Config.Get().I18n.DefaultLanguage]
-		for _, t := range titles {
-			if title == "" {
-				title = t
-			}
-		}
-		core_mentions.Notify(ctx, "comment", c.ID, cat, title, fmt.Sprintf("/e/%d#comment-%d", c.ElementID, c.ID), body)
 		return h.Created{V: &c}, nil
 	})
 
@@ -394,7 +399,7 @@ func (p *Plugin) notify(ctx context.Context, tx pgx.Tx, c *Comment, cat int64) e
 		if _, err := p.host.Mail.Enqueue(ctx, tx, mail.Message{To: []string{u.Email},
 			Subject: p.host.T(ctx, u.Lang, "core.comments.mail_subject", params), Text: p.host.T(ctx, u.Lang, "core.comments.mail_body", params),
 			Source: "core.comments", Ref: fmt.Sprintf("comment:%d", c.ID)}); err != nil {
-			p.host.Log.Warn("comment notification not queued", "user", u.ID, "err", err)
+			return err // the comment is not stored without its notifications
 		}
 	}
 	return nil
