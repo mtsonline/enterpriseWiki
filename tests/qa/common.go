@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"context"
 	"crypto/rand"
+	"crypto/tls"
+	"crypto/x509"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
@@ -15,6 +17,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -58,14 +61,37 @@ var transport = &http.Transport{
 	DisableCompression:    true,
 }
 
+// trustCA makes the routine trust the certificate authority in file (PEM):
+// the test instance behind a reverse proxy with its own authority. The
+// connections then use HTTP/2 where the proxy offers it, as browsers do.
+func trustCA(file string) error {
+	pem, err := os.ReadFile(file)
+	if err != nil {
+		return err
+	}
+	pool := x509.NewCertPool()
+	if !pool.AppendCertsFromPEM(pem) {
+		return fmt.Errorf("%s: no certificate found", file)
+	}
+	transport.TLSClientConfig = &tls.Config{RootCAs: pool, MinVersion: tls.VersionTLS12}
+	transport.ForceAttemptHTTP2 = true
+	// live editing: WebSocket over HTTP/1.1
+	wsHTTP.Transport.(*http.Transport).TLSClientConfig = &tls.Config{RootCAs: pool, MinVersion: tls.VersionTLS12, NextProtos: []string{"http/1.1"}}
+	return nil
+}
+
 // Client is one caller: a guest, a session (cookie) or an API key.
 type Client struct {
-	Base    string
-	Name    string
-	Cookie  string // value of ewiki_session
-	Bearer  string
-	IP      string // sent as X-Forwarded-For when set
-	NoCSRF  bool   // omit X-Requested-With (to test the CSRF protection)
+	Base   string
+	Name   string
+	Cookie string // value of ewiki_session
+	Bearer string
+	IP     string // sent as X-Forwarded-For when set
+	NoCSRF bool   // omit X-Requested-With (to test the CSRF protection)
+	// Patient: "too many requests" (429 with a short Retry-After) is not
+	// the answer but a pause - wait and repeat, as a well-behaved client
+	// does. Not for the sign-in and not for checks of the limits themselves.
+	Patient bool
 	Headers map[string]string
 	hc      *http.Client
 	rec     *Recorder
@@ -110,6 +136,21 @@ func (c *Client) Do(method, path string, body any) *Resp {
 
 // DoOp is Do with the name of the operation for the latency statistics.
 func (c *Client) DoOp(op, method, path string, body any) *Resp {
+	if rd, ok := body.(io.Reader); ok && c.Patient { // repeatable
+		b, _ := io.ReadAll(rd)
+		body = b
+	}
+	for try := 0; ; try++ {
+		r := c.doOnce(op, method, path, body)
+		wait, err := strconv.Atoi(r.Header.Get("Retry-After"))
+		if !c.Patient || r.Status != 429 || err != nil || wait > 30 || try >= 8 || strings.Contains(path, "/auth/login") {
+			return r
+		}
+		time.Sleep(time.Duration(wait) * time.Second)
+	}
+}
+
+func (c *Client) doOnce(op, method, path string, body any) *Resp {
 	var rd io.Reader
 	ctype := ""
 	switch b := body.(type) {

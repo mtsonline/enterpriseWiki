@@ -11,7 +11,10 @@
 ```bash
 tests/qa/local.sh              # alles, auf einer frischen Wegwerf-Instanz (etwa 25 Minuten)
 tests/qa/local.sh functional   # nur ein Teil: functional | load | pentest
+EWIKI_QA_PROXY=caddy tests/qa/local.sh   # dasselbe hinter dem Reverse Proxy des Docker-Setups
 ```
+
+**Immer beide Varianten fahren** – ohne Proxy (das Wiki allein) und mit `EWIKI_QA_PROXY=caddy` (TLS, HTTP/2, Kompression, weitergereichte Adressen wie im Betrieb) – und für die zweite ein eigenes Arbeitsverzeichnis wählen (`EWIKI_QA_WORK`). Der Proxy läuft mit demselben Handler wie `docker/caddy/Caddyfile`; anders sind nur zwei Dinge, die ein Test auf einem Rechner braucht: Zertifikate einer eigenen Zertifizierungsstelle statt ACME, und der Proxy glaubt dem Testrechner die Adressen der virtuellen Benutzer. `caddy` muss im `PATH` liegen (oder `EWIKI_QA_CADDY=/pfad/caddy`; ohne Paket: `go install github.com/caddyserver/caddy/v2/cmd/caddy@latest`).
 
 `local.sh` legt eine eigene PostgreSQL-Instanz und Datenbank an, baut das Wiki aus dem Checkout, startet es, lässt die Tests laufen und räumt wieder auf. Ergebnisse: `$EWIKI_QA_WORK/results` (Vorgabe `/tmp/ewiki-qa/results`): `report.md` und die Rohdaten als JSON. Voraussetzungen: Go, Node.js (für den Build), PostgreSQL (`initdb`), für die statischen Prüfungen `govulncheck` und `gosec`.
 
@@ -43,6 +46,7 @@ export EWIKI_QA_ADMIN_PASSWORD=…          # Passwort des Administrators
 |---|---|
 | `-users N` | Zahl der QA-Konten (Vorgabe 100) |
 | `-spoof-ips` | Jeder virtuelle Benutzer bekommt eine eigene Adresse (`X-Forwarded-For`). Die Instanz muss dem Testrechner vertrauen (`server.trusted_proxies`), sonst greift die Grenze von 30 Anmeldungen pro Adresse in 5 Minuten |
+| `-ca DATEI` | Zertifizierungsstelle der Testinstanz hinter einem Proxy mit eigenen Zertifikaten (auch `EWIKI_QA_CA`); die Verbindungen nutzen dann HTTP/2, die Live-Bearbeitung WebSocket über HTTP/1.1 |
 | `-server-pid PID` | Prozess des Wikis auf demselben Rechner: CPU und Speicher im Bericht, Speicherprüfungen im Penetrationstest |
 | `-stages 100,500,…` | gleichzeitige Benutzer je Laststufe |
 | `-hold 40s`, `-think 5s` | Messdauer je Stufe, mittlere Denkzeit zwischen zwei Anfragen |
@@ -50,6 +54,14 @@ export EWIKI_QA_ADMIN_PASSWORD=…          # Passwort des Administrators
 | `-spike 10000` | Anfragen im selben Moment (0: aus) |
 | `-notify-ops` | Kommentare und Vorgangsstarts in den Lastmix aufnehmen (benachrichtigen viele Personen; Vorgabe aus) |
 | `-routes DATEI` | Routenliste für den Zugriffsschutz-Durchlauf (Vorgabe `docs/developer/api.md`) |
+
+## Anfragebegrenzung und die Tests
+
+Das Wiki begrenzt Anfragen je Konto und je Adresse (Experteneinstellungen, `core.rate.*`). Die Routine arbeitet **mit** diesen Grenzen, nicht an ihnen vorbei:
+
+- **Funktions- und Penetrationstest** laufen mit den Vorgaben des Wikis. Antwortet es mit `429`, warten die Prüfungen die genannte Zeit und wiederholen die Anfrage – wie ein ordentlicher Client. Die Prüfungen der Grenzen selbst (`API4-RATELIMIT`, `ATHN-RATE`, `BUSL-ACCESSREQ`) warten nicht.
+- **Lasttest:** Die virtuellen Benutzer teilen sich die QA-Konten (10 000 Benutzer auf 100 Konten: jedes Konto steht für 100 Personen). Für die Dauer des Lasttests hebt die Routine deshalb die Grenzen **je Konto** um diesen Faktor an und stellt sie danach wieder her (`PUT /api/v1/admin/limits`). Die Grenzen je Adresse bleiben unverändert: Jeder virtuelle Gast hat seine eigene Adresse. Abgelehnte Anfragen (`429`) weist der Bericht getrennt von Fehlern aus.
+- Wer die Grenzen ganz ausschalten will (reiner Durchsatztest), setzt in der Testinstanz `server.rate_limit.disabled: true`.
 
 ## Zielwerte des Lasttests
 
@@ -66,7 +78,7 @@ Für belastbare Kapazitätszahlen den Lastgenerator auf einem **zweiten Rechner*
 
 ## Grenzen
 
-- TLS, Zertifikate und der Reverse Proxy werden nicht geprüft (die Testinstanz spricht HTTP).
+- Die Proxy-Variante prüft das Zusammenspiel mit dem Reverse Proxy (Adressen, Kompression, WebSocket, HTTP/2), nicht dessen Zertifikatsbezug (ACME) und nicht HTTP/3. Der Lastgenerator bündelt mit HTTP/2 viele Benutzer auf wenige Verbindungen; echte Browser öffnen je Benutzer eine eigene.
 - Skript im Browser (DOM-basiertes XSS) sieht ein HTTP-Test nicht: Browser-Tests und ein Browser-Scanner (z. B. OWASP ZAP) ergänzen das.
 - Anmeldung über echte Identity Provider, SCIM-Clients und Office-Server prüfen die Go-Tests mit nachgebauten Servern.
 - Ein automatischer Test ersetzt keinen Penetrationstest durch eine unabhängige Stelle, wie ihn Zertifizierungen verlangen.

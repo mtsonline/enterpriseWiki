@@ -215,6 +215,18 @@ func load(o Options, lo LoadOptions, w *World) error {
 	if err != nil {
 		return err
 	}
+	// The virtual users share the QA accounts: each account stands for
+	// several persons, so the limits of requests per account are raised by
+	// that factor for the load test and set back afterwards. The limits
+	// per address (guests) stay as they are - every guest has an address.
+	if factor := (maxUsers + len(w.Users) - 1) / max(len(w.Users), 1); factor > 1 {
+		reset, err := scaleAccountLimits(adm, int64(factor))
+		if err != nil {
+			return err
+		}
+		defer reset()
+		fmt.Printf("load: limits of requests per account x%d (%d users share %d accounts)\n", factor, maxUsers, len(w.Users))
+	}
 	e := &loadEnv{o: o, lo: lo, w: w, readable: w.Typed["core.html"]}
 	res := &LoadResult{Started: time.Now(), Target: o.Base, Think: lo.Think.Seconds(), Hold: lo.Hold.Seconds(), Targets: targets, Machine: machine()}
 
@@ -699,4 +711,43 @@ func (e *loadEnv) spike(n int) []SpikeResult {
 		cancel()
 	}
 	return out
+}
+
+// scaleAccountLimits multiplies the limits of requests per account (expert
+// settings) and returns the function that restores the previous values.
+// Wikis without these limits are left alone.
+func scaleAccountLimits(adm *Client, factor int64) (func(), error) {
+	var cur struct {
+		Limits []struct {
+			Key     string `json:"key"`
+			Value   int64  `json:"value"`
+			Default int64  `json:"default"`
+			Max     int64  `json:"max"`
+		} `json:"limits"`
+	}
+	if r := adm.Do("GET", "/api/v1/admin/limits", nil); r.Status != 200 || r.JSON(&cur) != nil {
+		return func() {}, nil
+	}
+	scaled, before := map[string]any{}, map[string]any{}
+	for _, l := range cur.Limits {
+		switch l.Key {
+		case "core.rate.user_per_second", "core.rate.user_burst", "core.rate.expensive_per_second", "core.rate.expensive_burst":
+			scaled[l.Key] = min(l.Value*factor, l.Max)
+			before[l.Key] = l.Value
+			if l.Value == l.Default {
+				before[l.Key] = nil
+			}
+		}
+	}
+	if len(scaled) == 0 {
+		return func() {}, nil
+	}
+	if err := must(adm.Do("PUT", "/api/v1/admin/limits", map[string]any{"values": scaled}), 200, 204); err != nil {
+		return nil, fmt.Errorf("raising the limits per account: %w", err)
+	}
+	return func() {
+		if err := must(adm.Do("PUT", "/api/v1/admin/limits", map[string]any{"values": before}), 200, 204); err != nil {
+			fmt.Fprintln(os.Stderr, "load: the limits per account were not restored:", err)
+		}
+	}, nil
 }

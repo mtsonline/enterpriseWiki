@@ -27,6 +27,8 @@ Flags (all commands):
   -admin NAME      administrator (default admin); password from EWIKI_QA_ADMIN_PASSWORD
   -out DIR         result files (default ./qa-results)
   -users N         QA accounts (default 100)
+  -ca FILE         trust this certificate authority (test instance behind a reverse proxy
+                   with its own authority; also EWIKI_QA_CA)
   -spoof-ips       one client address per virtual user via X-Forwarded-For
                    (the instance must trust this machine: server.trusted_proxies)
   -force           allow a target that is not on this machine or a private network
@@ -59,6 +61,7 @@ func main() {
 	fs.IntVar(&lo.Spike, "spike", 10000, "load: simultaneous requests of the spike test (0: none)")
 	fs.BoolVar(&lo.NotifyOps, "notify-ops", false, "load: include comments and workflow starts in the mix")
 	fs.StringVar(&o.ServerPID, "server-pid", os.Getenv("EWIKI_QA_SERVER_PID"), "process id of the wiki on this machine (memory and CPU in the results)")
+	ca := fs.String("ca", os.Getenv("EWIKI_QA_CA"), "certificate authority (PEM file) of the test instance behind a reverse proxy")
 	fs.StringVar(&o.Routes, "routes", "", "pentest: route list (default: docs/developer/api.md of the repository)")
 	repo := fs.String("repo", ".", "static: root of the repository")
 	title := fs.String("title", "Enterprise Wiki", "report: name of the product")
@@ -66,6 +69,9 @@ func main() {
 	fs.Usage = func() { fmt.Fprint(os.Stderr, usage) }
 	_ = fs.Parse(os.Args[2:])
 	o.AdminPass = os.Getenv("EWIKI_QA_ADMIN_PASSWORD")
+	if *ca != "" {
+		fail(trustCA(*ca))
+	}
 
 	if cmd == "report" {
 		fail(report(o.Out, *title, *version))
