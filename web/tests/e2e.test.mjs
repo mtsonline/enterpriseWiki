@@ -775,7 +775,7 @@ test('workflow 2: automatic steps, deadline, triggers and a signed webhook reall
   // the task in the case dialog: values of the steps, deadline, action
   await page.reload();
   await idle();
-  await page.locator('.ewf-cases').getByRole('button', { name: `Ada ${run}` }).click();
+  await page.locator('.ewf-cases').getByRole('button', { name: `Ada ${run}`, exact: true }).click();
   const dlg = page.locator('dialog[open]');
   await dlg.getByText(/deadline|frist/i).first().waitFor();
   await a11y('workflow 2 case with deadline and values');
