@@ -362,7 +362,8 @@ func (pl *Plugin) listenQ(ctx context.Context, q db.Querier, ev webhook.Event) e
 		return err
 	}
 	if tag.RowsAffected() > 0 {
-		time.AfterFunc(200*time.Millisecond, func() { pl.host.Workers.Trigger("workflow.process.triggers") })
+		w := pl.host.Workers // read now: the timer must not touch the plugin (a new Setup may replace its host)
+		time.AfterFunc(200*time.Millisecond, func() { w.Trigger("workflow.process.triggers") })
 	}
 	return nil
 }
