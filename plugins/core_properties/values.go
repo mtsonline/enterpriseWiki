@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"math"
 	"net/http"
 	"slices"
@@ -21,6 +22,7 @@ import (
 	"github.com/mtsonline/enterprisewiki/internal/db"
 	h "github.com/mtsonline/enterprisewiki/internal/httpx"
 	"github.com/mtsonline/enterprisewiki/internal/identity"
+	"github.com/mtsonline/enterprisewiki/internal/webhook"
 )
 
 // Value is a stored value as shown.
@@ -54,6 +56,15 @@ type change struct {
 	// definitions computed on store (numbering, formulas) and defaults of a new element
 	Auto []int64 `json:"auto"`
 	New  bool    `json:"new"`
+}
+
+// keys returns the changed properties.
+func (c *change) keys() []string {
+	out := []string{}
+	for _, v := range c.Set {
+		out = append(out, v.Key)
+	}
+	return append(out, c.Del...)
 }
 
 type setValue struct {
@@ -701,6 +712,10 @@ func (p *Plugin) routesValues() {
 				}
 				if err := p.store(ctx, tx, id, ch); err != nil {
 					return err
+				}
+				if host.Webhooks != nil { // with the change: webhooks and workflows ("status becomes …")
+					host.Webhooks.EmitTx(ctx, tx, webhook.Event{Name: "element.properties", CategoryID: cat,
+						Object: webhook.Object{Type: "element", ID: id, URL: fmt.Sprintf("/e/%d", id)}, Data: map[string]any{"keys": ch.keys()}})
 				}
 				return audit.Log(ctx, tx, "element.properties", "element", id, map[string]any{"properties": before[id]}, ch)
 			})

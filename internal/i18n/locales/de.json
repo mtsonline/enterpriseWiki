@@ -873,6 +873,7 @@
  "webhooks.ev.element.move": "Seite verschoben",
  "webhooks.ev.element.restore": "Seite wiederhergestellt",
  "webhooks.ev.element.rollback": "Seite zurückgesetzt",
+ "webhooks.ev.element.properties": "Eigenschaften einer Seite geändert",
  "webhooks.ev.category.create": "Kategorie erstellt",
  "webhooks.ev.category.update": "Kategorie geändert",
  "webhooks.ev.category.delete": "Kategorie gelöscht",

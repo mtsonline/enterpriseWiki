@@ -1,5 +1,5 @@
 // Frontend of the workflow plugin: editor, page widget, "My tasks".
-import { api, button, errorText, fmtDate, h, mount, pick, registerEditor, registerSlot, registerWidget, route, state, t, toast } from '@ewiki/sdk';
+import { api, button, errorText, fmtDate, h, mount, pageHeader, pick, pluginSettingsForm, registerAdminPage, registerEditor, registerSlot, registerWidget, route, state, t, toast } from '@ewiki/sdk';
 import { createWorkflowEditor } from './editor';
 import type { Instance } from './types';
 import { BASE, openCase, statusBadge, workflowWidget } from './widget';
@@ -28,7 +28,15 @@ async function tasksView({ main }: { main: HTMLElement }): Promise<void> {
       list(data.started, t('workflow.tasks_started'), t('workflow.started_none')))));
 }
 
+async function adminPage(panel: HTMLElement): Promise<void> {
+  const settings = await pluginSettingsForm('workflow.process', [
+    { key: 'holidays', label: t('workflow.admin.holidays'), type: 'textarea', help: t('workflow.admin.holidays_help'), placeholder: '01-01\n12-25\n2027-03-29' },
+  ]);
+  panel.replaceChildren(pageHeader(t('workflow.admin.title')), h('p', null, t('workflow.admin.intro')), settings.el);
+}
+
 export function register(): void {
+  registerAdminPage({ id: 'workflow', label: () => t('workflow.admin.title'), render: adminPage });
   registerEditor('workflow.process', createWorkflowEditor);
   registerWidget('workflow', workflowWidget);
   route('/tasks', tasksView);

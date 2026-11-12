@@ -29,6 +29,7 @@ import (
 	"github.com/mtsonline/enterprisewiki/internal/acl"
 	"github.com/mtsonline/enterprisewiki/internal/apperr"
 	"github.com/mtsonline/enterprisewiki/internal/audit"
+	"github.com/mtsonline/enterprisewiki/internal/db"
 	h "github.com/mtsonline/enterprisewiki/internal/httpx"
 	"github.com/mtsonline/enterprisewiki/internal/identity"
 	"github.com/mtsonline/enterprisewiki/pkg/sdk"
@@ -83,6 +84,16 @@ type Instance struct {
 	StepEntered time.Time         `json:"step_entered_at"`
 	WakeAt      *time.Time        `json:"wake_at"`
 	LastError   string            `json:"last_error,omitempty"`
+	DefinerID   *int64            `json:"-"`
+	Trigger     map[string]string `json:"trigger,omitempty"`
+	Depth       int               `json:"-"`
+	ParentID    *int64            `json:"parent_id,omitempty"`
+	ParentStep  string            `json:"-"`
+	DueAt       *time.Time        `json:"due_at"`
+	Warned      int               `json:"-"`
+	Escalated   bool              `json:"escalated,omitempty"`
+	// Override is the assignee of the current step after an escalation.
+	Override *Assignee `json:"override,omitempty"`
 	// Progress of an approval step, e.g. "1/2".
 	Progress string `json:"progress,omitempty"`
 	// for the caller
@@ -108,12 +119,13 @@ const instCols = `i.id, i.element_id, e.category_id, e.titles, i.lang, i.title, 
 	i.started_at, i.updated_at, i.closed_at,
 	COALESCE((SELECT array_agg(DISTINCT x.to_step) FROM plugin_workflow_events x WHERE x.instance_id=i.id AND x.to_step IS NOT NULL), '{}'),
 	COALESCE((SELECT array_agg(DISTINCT x.actor_id) FROM plugin_workflow_events x WHERE x.instance_id=i.id AND x.actor_id IS NOT NULL), '{}'),
-	i.step_entered_at, i.wake_at, i.last_error`
+	i.step_entered_at, i.wake_at, i.last_error, i.definer_id, i.trigger, i.depth, i.parent_id, i.parent_step, i.due_at, i.warned, i.escalated, i.override`
 
 func scanInstance(r pgx.CollectableRow) (*Instance, error) {
 	var x Instance
 	err := r.Scan(&x.ID, &x.ElementID, &x.CategoryID, &x.Element, &x.Lang, &x.Title, &x.Data, &x.Definition, &x.Step, &x.Status,
-		&x.StartedByID, &x.StartedBy, &x.StartedAt, &x.UpdatedAt, &x.ClosedAt, &x.Visited, &x.Actors, &x.StepEntered, &x.WakeAt, &x.LastError)
+		&x.StartedByID, &x.StartedBy, &x.StartedAt, &x.UpdatedAt, &x.ClosedAt, &x.Visited, &x.Actors, &x.StepEntered, &x.WakeAt, &x.LastError,
+		&x.DefinerID, &x.Trigger, &x.Depth, &x.ParentID, &x.ParentStep, &x.DueAt, &x.Warned, &x.Escalated, &x.Override)
 	if err != nil {
 		return nil, err
 	}
@@ -176,13 +188,22 @@ func (pl *Plugin) caller(ctx context.Context) (*who, error) {
 	return w, nil
 }
 
+// assignee returns who handles step s of x (after an escalation: the new assignee).
+func (x *Instance) assignee(s *Step) Assignee {
+	if x.Override != nil && s.ID == x.Step {
+		return *x.Override
+	}
+	return s.Assignee
+}
+
 // assigned reports whether the caller is responsible for step s of x.
 func (w *who) assigned(x *Instance, s *Step) bool {
 	if w.p == nil || w.p.ID() == 0 || s == nil || !s.Manual() {
 		return false
 	}
-	v := strings.ToLower(s.Assignee.Value)
-	switch s.Assignee.Type {
+	as := x.assignee(s)
+	v := strings.ToLower(as.Value)
+	switch as.Type {
 	case "starter":
 		return x.StartedByID != nil && *x.StartedByID == w.p.ID()
 	case "user":
@@ -258,8 +279,8 @@ func (pl *Plugin) decorate(ctx context.Context, w *who, x *Instance, manage bool
 			x.Actions = []Action{{ID: "approve", Label: s.ApproveLabel, Next: s.Next, Note: "optional"},
 				{ID: "reject", Label: s.RejectLabel, Next: s.NextElse, Note: "required"}}
 		}
-	case StepWebhook:
-		if x.WakeAt == nil && (manage || w.p.Admin()) { // failed, waiting for a decision
+	case StepWebhook, StepHTTP, StepCreate, StepProps, StepSubflow:
+		if x.WakeAt == nil && x.LastError != "" && (manage || w.p.Admin()) { // failed, waiting for a decision
 			x.Actions = []Action{{ID: ActRetry, Next: s.ID}, {ID: ActSkip, Next: s.Next, Note: "optional"}}
 		}
 	}
@@ -308,18 +329,120 @@ func (pl *Plugin) events(ctx context.Context, id int64) ([]Event, error) {
 
 // definition loads the current process of an element in lang (or its fallback).
 func (pl *Plugin) definition(ctx context.Context, element int64, lang string) (*Definition, string, error) {
+	d, shown, _, err := pl.definitionBy(ctx, element, lang)
+	return d, shown, err
+}
+
+// definitionBy is definition with the person who saved that version (the
+// "definer": automatic steps act with their rights).
+func (pl *Plugin) definitionBy(ctx context.Context, element int64, lang string) (*Definition, string, int64, error) {
+	return definitionByQ(ctx, pl.host.DB, element, lang)
+}
+
+// definitionByQ is definitionBy with q (inside a transaction: no second
+// connection, S-01).
+func definitionByQ(ctx context.Context, q db.Querier, element int64, lang string) (*Definition, string, int64, error) {
 	var raw json.RawMessage
 	var shown string
-	err := pl.host.DB.QueryRow(ctx, `SELECT r.body, r.lang FROM element_revisions r JOIN elements e ON e.id=r.element_id
-		WHERE r.element_id=$1 ORDER BY (r.lang=$2) DESC, (r.lang=e.original_lang) DESC, r.rev DESC LIMIT 1`, element, lang).Scan(&raw, &shown)
+	var by *int64
+	err := q.QueryRow(ctx, `SELECT r.body, r.lang, r.created_by FROM element_revisions r JOIN elements e ON e.id=r.element_id
+		WHERE r.element_id=$1 AND e.type='workflow.process' AND e.deleted_at IS NULL
+		ORDER BY (r.lang=$2) DESC, (r.lang=e.original_lang) DESC, r.rev DESC LIMIT 1`, element, lang).Scan(&raw, &shown, &by)
 	if err != nil {
-		return nil, "", apperr.NotFound("workflow")
+		return nil, "", 0, apperr.NotFound("workflow")
 	}
 	d, err := Decode(raw)
 	if err != nil {
-		return nil, "", err
+		return nil, "", 0, err
 	}
-	return d, shown, nil
+	d.normalizeTypes()
+	var definer int64
+	if by != nil {
+		definer = *by
+	}
+	return d, shown, definer, nil
+}
+
+// startInput describes a new case.
+type startInput struct {
+	Title, Lang string
+	Data        map[string]any
+	Trigger     map[string]string
+	Depth       int
+	ParentID    *int64
+	ParentStep  string
+	// Via: how it was started (session, form, trigger:ID, workflow);
+	// Manual: by a person with the start form (refused for NoManual).
+	Via    string
+	Manual bool
+}
+
+// startTx starts a case of workflow element with the principal of ctx in tx.
+func (pl *Plugin) startTx(ctx context.Context, tx pgx.Tx, element int64, in startInput) (int64, error) {
+	p := identity.From(ctx)
+	if p == nil || p.ID() == 0 {
+		return 0, apperr.ErrUnauthorized
+	}
+	// everything with tx: no second connection while the case is written (S-01)
+	var cat int64
+	if err := tx.QueryRow(ctx, `SELECT e.category_id FROM elements e JOIN categories c ON c.id=e.category_id
+		WHERE e.id=$1 AND e.deleted_at IS NULL AND c.deleted_at IS NULL`, element).Scan(&cat); err != nil || !pl.host.ACL.Can(ctx, p, cat, acl.View) {
+		return 0, apperr.NotFound("workflow")
+	}
+	def, shown, definer, err := definitionByQ(ctx, tx, element, in.Lang)
+	if err != nil {
+		return 0, err
+	}
+	if def.NoManual && in.Manual && (p.Via == "" || p.Via == "session" || p.Via == "apikey" || p.Via == "cli" || p.Via == "ssh") {
+		return 0, apperr.Forbidden("this workflow is started by its triggers only")
+	}
+	if in.Data == nil {
+		in.Data = map[string]any{}
+	}
+	data, err := validateData(def.Fields, in.Data)
+	if err != nil {
+		return 0, err
+	}
+	if !in.Manual && utf8.RuneCountInString(in.Title) > 200 { // titles of triggers and workflows
+		in.Title = string([]rune(in.Title)[:200])
+	}
+	title, err := clean(in.Title, 200)
+	if err != nil {
+		return 0, err
+	}
+	if title == "" {
+		title = titleFrom(def.Fields, data)
+	}
+	if title == "" {
+		title = p.DisplayName
+	}
+	if in.Trigger == nil {
+		in.Trigger = map[string]string{}
+	}
+	first := def.Steps[0]
+	var iid int64
+	if err := tx.QueryRow(ctx, `INSERT INTO plugin_workflow_instances(element_id, lang, title, data, definition, step, status, started_by,
+		definer_id, trigger, depth, parent_id, parent_step) VALUES ($1,$2,$3,$4,$5,$6,'open',$7,$8,$9,$10,$11,$12) RETURNING id`,
+		element, shown, title, data, def, first.ID, p.ID(), nullID(definer), in.Trigger, in.Depth, in.ParentID, in.ParentStep).Scan(&iid); err != nil {
+		return 0, err
+	}
+	label := ""
+	if strings.HasPrefix(in.Via, "trigger:") {
+		label = in.Via
+	}
+	if err := event(ctx, tx, iid, nil, sp(first.ID), "start", label, "", actorInfo{p: p}); err != nil {
+		return 0, err
+	}
+	x, err := pl.loadTx(ctx, tx, iid)
+	if err != nil {
+		return 0, err
+	}
+	pl.emit(ctx, tx, "workflow.started", x, actorInfo{p: p})
+	x.Step = "" // entering the first step (nothing is left)
+	if err := pl.enter(ctx, tx, x, first.ID, actorInfo{p: p}); err != nil {
+		return 0, err
+	}
+	return iid, audit.Log(ctx, tx, "workflow.start", "workflow_case", iid, nil, map[string]any{"element_id": element, "title": title, "via": in.Via})
 }
 
 var hashRe = regexp.MustCompile(`^[0-9a-f]{64}$`)
@@ -442,13 +565,20 @@ func (pl *Plugin) Setup(host *sdk.Host) error {
 	}})
 	host.Files.AddReference("plugin_workflow_instances", "data")
 	host.RegisterWorker("timers", 30*time.Second, pl.runTimers)
+	host.RegisterWorker("triggers", 30*time.Second, pl.runTriggers)
+	if host.Webhooks != nil {
+		host.Webhooks.Listen(pl.listen) // events that start cases (triggers)
+	}
+	pl.triggerRoutes(host)
 
 	// GET /meta describes step types, rule operators and placeholders (editor).
 	host.Handle("GET", "/meta", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		st, err := host.Mail.GetStatus(r.Context())
 		mailOK := err == nil && st.Transport != ""
 		return map[string]any{"step_types": StepTypes, "rule_ops": RuleOps, "placeholders": Placeholders,
-			"field_types": FieldTypes, "mail_configured": mailOK, "http_allow": len(host.Config.Get().Plugins.Macros.HTTPAllow) > 0}, nil
+			"field_types": FieldTypes, "mail_configured": mailOK, "http_allow": len(host.Config.Get().Plugins.Macros.HTTPAllow) > 0,
+			"trigger_types": TriggerTypes, "content_events": ContentEvents, "trigger_events": TriggerEvents,
+			"max_depth": MaxDepth, "per_hour": host.Limit(LimitPerHour)}, nil
 	})
 
 	// GET /elements/{id}/instances lists the cases of a workflow the caller can see.
@@ -488,7 +618,7 @@ func (pl *Plugin) Setup(host *sdk.Host) error {
 				list = append(list, x)
 			}
 		}
-		return map[string]any{"instances": list, "can_start": me.p != nil && me.p.ID() != 0, "fields": def.Fields,
+		return map[string]any{"instances": list, "can_start": me.p != nil && me.p.ID() != 0 && !def.NoManual, "fields": def.Fields,
 			"lang": shown, "first_step": def.Steps[0].Name, "manage": m}, nil
 	})
 
@@ -514,46 +644,10 @@ func (pl *Plugin) Setup(host *sdk.Host) error {
 		if err := h.Decode(r, &in); err != nil {
 			return nil, err
 		}
-		def, shown, err := pl.definition(ctx, id, in.Lang)
-		if err != nil {
-			return nil, err
-		}
-		if in.Data == nil {
-			in.Data = map[string]any{}
-		}
-		data, err := validateData(def.Fields, in.Data)
-		if err != nil {
-			return nil, err
-		}
-		title, err := clean(in.Title, 200)
-		if err != nil {
-			return nil, err
-		}
-		if title == "" {
-			title = titleFrom(def.Fields, data)
-		}
-		if title == "" {
-			title = p.DisplayName
-		}
-		first := def.Steps[0]
 		var iid int64
 		err = pgx.BeginFunc(ctx, host.DB, func(tx pgx.Tx) error {
-			if err := tx.QueryRow(ctx, `INSERT INTO plugin_workflow_instances(element_id, lang, title, data, definition, step, status, started_by)
-				VALUES ($1,$2,$3,$4,$5,$6,'open',$7) RETURNING id`, id, shown, title, data, def, first.ID, p.ID()).Scan(&iid); err != nil {
-				return err
-			}
-			if err := event(ctx, tx, iid, nil, sp(first.ID), "start", "", "", actorInfo{p: p}); err != nil {
-				return err
-			}
-			x, err := pl.loadTx(ctx, tx, iid)
-			if err != nil {
-				return err
-			}
-			pl.emit(ctx, tx, "workflow.started", x, actorInfo{p: p})
-			if err := pl.enter(ctx, tx, x, first.ID, actorInfo{p: p}); err != nil {
-				return err
-			}
-			return audit.Log(ctx, tx, "workflow.start", "workflow_case", iid, nil, map[string]any{"element_id": id, "title": title})
+			iid, err = pl.startTx(ctx, tx, id, startInput{Title: in.Title, Lang: in.Lang, Data: in.Data, Via: p.Via, Manual: true})
+			return err
 		})
 		if err != nil {
 			return nil, err
@@ -690,7 +784,7 @@ func (pl *Plugin) Setup(host *sdk.Host) error {
 
 // loadTx loads a case inside a transaction and locks it.
 func (pl *Plugin) loadTx(ctx context.Context, tx pgx.Tx, id int64) (*Instance, error) {
-	rows, err := tx.Query(ctx, `SELECT `+instCols+` FROM plugin_workflow_instances i JOIN elements e ON e.id=i.element_id WHERE i.id=$1 FOR UPDATE OF i`, id)
+	rows, err := tx.Query(ctx, `SELECT `+instCols+` FROM plugin_workflow_instances i JOIN elements e ON e.id=i.element_id WHERE i.id=$1 FOR NO KEY UPDATE OF i`, id)
 	if err != nil {
 		return nil, err
 	}
@@ -760,8 +854,7 @@ func (pl *Plugin) transition(ctx context.Context, id int64, action, note string)
 			if err := event(ctx, tx, id, sp(cur.Step), nil, "cancel", "", note, ai); err != nil {
 				return err
 			}
-			cur.Status = "cancelled"
-			if _, err := tx.Exec(ctx, `UPDATE plugin_workflow_instances SET status='cancelled', updated_at=now(), closed_at=now(), wake_at=NULL WHERE id=$1`, id); err != nil {
+			if err := pl.cancelTx(ctx, tx, cur); err != nil {
 				return err
 			}
 			pl.emit(ctx, tx, "workflow.cancelled", cur, ai)

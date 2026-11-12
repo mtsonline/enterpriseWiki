@@ -86,7 +86,16 @@ func (pl *Plugin) enter(ctx context.Context, tx pgx.Tx, x *Instance, id string, 
 		if s == nil {
 			return apperr.BadRequest("step %q does not exist", id)
 		}
+		// notices of the step that is left and of the new one
+		if prev := d.Step(x.Step); prev != nil {
+			if err := pl.notices(ctx, tx, x, prev, "leave", a); err != nil {
+				return err
+			}
+		}
 		x.Step, x.StepName = s.ID, s.Name
+		if err := pl.notices(ctx, tx, x, s, "enter", a); err != nil {
+			return err
+		}
 		switch s.Type {
 		case StepEnd:
 			x.Status, x.Outcome = "done", s.Outcome
@@ -97,6 +106,7 @@ func (pl *Plugin) enter(ctx context.Context, tx pgx.Tx, x *Instance, id string, 
 			return pl.notifyStarter(ctx, tx, x, a, "done")
 		case StepTask, StepApproval:
 			x.Status = "open"
+			x.Override = nil
 			if err := pl.setStep(ctx, tx, x, nil); err != nil {
 				return err
 			}
@@ -105,10 +115,29 @@ func (pl *Plugin) enter(ctx context.Context, tx pgx.Tx, x *Instance, id string, 
 			x.Status = "open"
 			wake := pl.wakeTime(x, s)
 			return pl.setStep(ctx, tx, x, &wake)
-		case StepWebhook:
+		case StepWebhook, StepHTTP, StepCreate, StepProps, StepSubflow:
 			x.Status = "open"
 			now := time.Now()
-			return pl.setStep(ctx, tx, x, &now) // the worker calls the webhook
+			return pl.setStep(ctx, tx, x, &now) // the worker carries the step out
+		case StepNotify:
+			note := ""
+			if err := pl.sendNotice(ctx, tx, x, s.Notify, a); err != nil {
+				note = "error: " + err.Error()
+				pl.host.Log.Warn("workflow notification not sent", "case", x.ID, "step", s.ID, "err", err)
+			}
+			if err := event(ctx, tx, x.ID, sp(s.ID), sp(s.Next), "notify", render(s.Notify.Subject, pl.vars(ctx, tx, x, a)), note, actorInfo{}); err != nil {
+				return err
+			}
+			id = s.Next
+		case StepSet:
+			note := ""
+			if err := pl.assign(ctx, tx, x, s, a); err != nil {
+				note = "error: " + err.Error()
+			}
+			if err := event(ctx, tx, x.ID, sp(s.ID), sp(s.Next), "set", "", note, actorInfo{}); err != nil {
+				return err
+			}
+			id = s.Next
 		case StepCondition:
 			ok := evaluate(x, s)
 			next, label := s.Next, "true"
@@ -135,11 +164,31 @@ func (pl *Plugin) enter(ctx context.Context, tx pgx.Tx, x *Instance, id string, 
 	}
 }
 
-// setStep stores the current step of x.
+// setStep stores the current step of x (with its deadline).
 func (pl *Plugin) setStep(ctx context.Context, tx pgx.Tx, x *Instance, wake *time.Time) error {
+	var due, check *time.Time
+	if s := x.Definition.Step(x.Step); s != nil && s.Manual() && s.Deadline != nil && x.Status == "open" {
+		t := pl.dueTime(x, s.Deadline, time.Now())
+		due = &t
+		check = checkTime(s.Deadline, due, 0, false)
+	}
+	x.DueAt, x.Warned, x.Escalated = due, 0, false
 	_, err := tx.Exec(ctx, `UPDATE plugin_workflow_instances SET step=$2, status=$3, updated_at=now(), step_entered_at=now(),
-		wake_at=$4, reminded_at=NULL, attempts=0, last_error='', closed_at=CASE WHEN $3='open' THEN NULL ELSE now() END WHERE id=$1`,
-		x.ID, x.Step, x.Status, wake)
+		wake_at=$4, reminded_at=NULL, attempts=0, last_error='', closed_at=CASE WHEN $3='open' THEN NULL ELSE now() END,
+		due_at=$5, warned=0, escalated=false, override=$6, check_at=$7 WHERE id=$1`,
+		x.ID, x.Step, x.Status, wake, due, x.Override, check)
+	if err != nil || x.Status == "open" {
+		return err
+	}
+	return wakeParent(ctx, tx, x)
+}
+
+// wakeParent lets a case that waits for x (sub-workflow) continue.
+func wakeParent(ctx context.Context, tx pgx.Tx, x *Instance) error {
+	if x.ParentID == nil {
+		return nil
+	}
+	_, err := tx.Exec(ctx, `UPDATE plugin_workflow_instances SET wake_at=now() WHERE id=$1 AND status='open' AND step=$2`, *x.ParentID, x.ParentStep)
 	return err
 }
 
@@ -238,7 +287,9 @@ var Placeholders = []string{
 	"starter.name", "starter.email", "starter.username",
 	"actor.name", "actor.email", "actor.username",
 	"last.action", "last.note",
-	"site.name", "site.url", "date", "time",
+	"site.name", "site.url", "date", "time", "case.due",
+	"trigger.name", "trigger.event", "trigger.actor", "trigger.time", "trigger.object.id", "trigger.object.title", "trigger.object.url",
+	"trigger.data.<key>",
 	"field.<id>",
 }
 
@@ -287,6 +338,15 @@ func (pl *Plugin) vars(ctx context.Context, tx pgx.Tx, x *Instance, a actorInfo)
 			au.name = a.p.DisplayName
 		}
 		v["actor.name"], v["actor.email"], v["actor.username"] = au.name, au.email, a.p.Handle()
+	}
+	for k := range x.Data { // values set by steps (set, http, create, subflow)
+		v["field."+k] = dataString(x, k)
+	}
+	for k, tv := range x.Trigger {
+		v[k] = tv
+	}
+	if x.DueAt != nil {
+		v["case.due"] = x.DueAt.Local().Format("2006-01-02 15:04")
 	}
 	for _, f := range x.Definition.Fields {
 		val := dataString(x, f.ID)
@@ -436,7 +496,19 @@ func (pl *Plugin) sendStepEmail(ctx context.Context, tx pgx.Tx, x *Instance, s *
 // notifyAssignees tells the people responsible for step s about a new task
 // (or reminds them).
 func (pl *Plugin) notifyAssignees(ctx context.Context, tx pgx.Tx, x *Instance, s *Step, reminder bool) error {
-	ids, err := pl.members(ctx, tx, x, s.Assignee)
+	key := "workflow.mail.task"
+	if reminder {
+		key = "workflow.mail.reminder"
+	}
+	return pl.notifyAssigneesKey(ctx, tx, x, s, key)
+}
+
+// notifyAssigneesKey sends the message key (task, reminder, deadline) to
+// the assignees (of approvals: those who have not voted yet, except for
+// a new task).
+func (pl *Plugin) notifyAssigneesKey(ctx context.Context, tx pgx.Tx, x *Instance, s *Step, key string) error {
+	reminder := key != "workflow.mail.task"
+	ids, err := pl.members(ctx, tx, x, x.assignee(s))
 	if err != nil {
 		return err
 	}
@@ -458,16 +530,12 @@ func (pl *Plugin) notifyAssignees(ctx context.Context, tx pgx.Tx, x *Instance, s
 		return err
 	}
 	vars := pl.vars(ctx, tx, x, actorInfo{})
-	key := "workflow.mail.task"
-	if reminder {
-		key = "workflow.mail.reminder"
-	}
 	for _, u := range us {
 		if !u.Wants("tasks") {
 			continue
 		}
 		params := map[string]string{"name": u.Name, "case": x.Title, "step": s.Name, "workflow": vars["workflow.title"],
-			"url": vars["case.url"], "tasks": vars["tasks.url"], "site": vars["site.name"]}
+			"url": vars["case.url"], "tasks": vars["tasks.url"], "site": vars["site.name"], "due": vars["case.due"]}
 		if _, err := pl.host.Mail.Enqueue(ctx, tx, mail.Message{To: []string{u.Email},
 			Subject: pl.host.T(ctx, u.Lang, key+"_subject", params), Text: pl.host.T(ctx, u.Lang, key+"_body", params),
 			Source: "workflow.process", Ref: fmt.Sprintf("case:%d", x.ID)}); err != nil {
@@ -525,7 +593,7 @@ func (pl *Plugin) required(ctx context.Context, q pgx.Tx, x *Instance, s *Step) 
 	if s.Required > 0 {
 		return s.Required, nil
 	}
-	ids, err := pl.members(ctx, q, x, s.Assignee)
+	ids, err := pl.members(ctx, q, x, x.assignee(s))
 	if err != nil {
 		return 0, err
 	}
@@ -602,5 +670,6 @@ func (pl *Plugin) emit(ctx context.Context, tx pgx.Tx, name string, x *Instance,
 	}
 	pl.host.Webhooks.EmitTx(ctx, tx, webhook.Event{Name: name, CategoryID: x.CategoryID, Actor: actor,
 		Object: webhook.Object{Type: "workflow_case", ID: x.ID, Title: x.Title, URL: fmt.Sprintf("/e/%d?case=%d", x.ElementID, x.ID)},
-		Data:   map[string]any{"workflow": pickTitle(x.Element, x.Lang), "status": x.Status, "outcome": x.Outcome, "step": x.StepName}})
+		Data: map[string]any{"workflow": pickTitle(x.Element, x.Lang), "workflow_id": x.ElementID, "status": x.Status, "outcome": x.Outcome,
+			"step": x.StepName}})
 }

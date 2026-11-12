@@ -2,21 +2,22 @@
 // types (task, approval, condition, e-mail, webhook, waiting time, end).
 import { api, button, checkbox, confirmDialog, field, h, select, t, textArea, textInput, type EditorContext, type EditorInstance } from '@ewiki/sdk';
 import { TEMPLATES } from './templates';
-import type { Action, Definition, Field, Meta, Rule, Step, StepType } from './types';
+import { cleanTrigger, deadlineFields, extraStepFields, noticeFields, triggersSection, validateExtra, type Kit } from './editor2';
+import type { Action, Definition, Field, Meta, Rule, Step, StepType, Trigger } from './types';
 
 // Internal model: steps reference each other by a stable key, so renaming a
 // step id does not break the "next step" choices.
 interface EAction extends Omit<Action, 'next'> { next: number }
-interface EStep extends Omit<Step, 'actions' | 'next' | 'next_else' | 'type'> { key: number; type: StepType; actions: EAction[]; next: number; nextElse: number }
-interface Model { description: string; fields: Field[]; steps: EStep[] }
+export interface EStep extends Omit<Step, 'actions' | 'next' | 'next_else' | 'type'> { key: number; type: StepType; actions: EAction[]; next: number; nextElse: number }
+export interface Model { description: string; fields: Field[]; steps: EStep[]; triggers?: Trigger[]; no_manual?: boolean }
 
 let seq = 0;
 const BASE = 'x/workflow.process';
-const STEP_TYPES: StepType[] = ['task', 'approval', 'condition', 'email', 'webhook', 'delay', 'end'];
+const STEP_TYPES: StepType[] = ['task', 'approval', 'condition', 'email', 'notify', 'set', 'webhook', 'http', 'create', 'props', 'subflow', 'delay', 'end'];
 const RULE_OPS = ['equals', 'not_equals', 'contains', 'not_contains', 'empty', 'not_empty', 'gt', 'gte', 'lt', 'lte'];
 const FIELD_TYPES = ['text', 'textarea', 'email', 'date', 'number', 'select', 'checkbox', 'file'];
 const PLACEHOLDERS = ['case.title', 'case.id', 'case.url', 'case.step', 'workflow.title', 'starter.name', 'starter.email', 'actor.name', 'actor.email',
-  'last.action', 'last.note', 'site.name', 'date'];
+  'last.action', 'last.note', 'site.name', 'date', 'case.due', 'trigger.object.title', 'trigger.object.url', 'trigger.actor', 'trigger.data.<key>'];
 
 function typeOf(s: Step): StepType {
   return s.type || (s.actions?.length ? 'task' : 'end');
@@ -29,6 +30,11 @@ function toModel(d: Definition): Model {
     keys.set(s.id, key);
     return { ...s, key, type: typeOf(s), actions: [], next: 0, nextElse: 0, rules: (s.rules ?? []).map((r) => ({ ...r })),
       email: s.email ? { ...s.email } : undefined, webhook: s.webhook ? { ...s.webhook } : undefined, delay: s.delay ? { ...s.delay } : undefined,
+      notify: s.notify ? { ...s.notify } : undefined, set: s.set?.map((a) => ({ ...a })), http: s.http ? { ...s.http, map: { ...(s.http.map ?? {}) } } : undefined,
+      create: s.create ? { ...s.create } : undefined, props: s.props ? { ...s.props, values: { ...s.props.values } } : undefined,
+      subflow: s.subflow ? { ...s.subflow, data: { ...(s.subflow.data ?? {}) }, return: { ...(s.subflow.return ?? {}) } } : undefined,
+      deadline: s.deadline ? { ...s.deadline, warn: [...(s.deadline.warn ?? [])], escalate: s.deadline.escalate ? { ...s.deadline.escalate } : undefined } : undefined,
+      notices: s.notices?.map((n) => ({ ...n })),
       assignee: s.assignee?.type ? { ...s.assignee } : { type: 'group', value: '' } };
   });
   d.steps.forEach((s, i) => {
@@ -36,7 +42,9 @@ function toModel(d: Definition): Model {
     steps[i].next = keys.get(s.next ?? '') ?? 0;
     steps[i].nextElse = keys.get(s.next_else ?? '') ?? 0;
   });
-  return { description: d.description ?? '', fields: (d.fields ?? []).map((f) => ({ ...f, options: f.options ? [...f.options] : [] })), steps };
+  return { description: d.description ?? '', fields: (d.fields ?? []).map((f) => ({ ...f, options: f.options ? [...f.options] : [] })), steps,
+    triggers: (d.triggers ?? []).map((x) => ({ ...x, data: { ...(x.data ?? {}) }, events: x.events ? [...x.events] : undefined, prop: x.prop ? { ...x.prop } : undefined })),
+    no_manual: d.no_manual };
 }
 
 export function slug(s: string, taken: Set<string>, fallback: string): string {
@@ -64,24 +72,32 @@ function toDefinition(m: Model): Definition {
   m.steps.forEach((s, i) => ids.set(s.key, uniqueId(s.id, s.name, stepIds, `step${i + 1}`)));
   const ref = (k: number) => ids.get(k) ?? '';
   const steps: Step[] = m.steps.map((s) => {
-    const base: Step = { id: ids.get(s.key)!, name: s.name, type: s.type, description: s.description, assignee: { type: '', value: '' }, actions: [] };
+    const base: Step = { id: ids.get(s.key)!, name: s.name, type: s.type, description: s.description, assignee: { type: '', value: '' }, actions: [],
+      notices: s.notices?.length ? s.notices : undefined };
+    const deadline = s.deadline ? { ...s.deadline, escalate: s.deadline.escalate?.action ? s.deadline.escalate : undefined } : undefined;
     switch (s.type) {
       case 'end': return { ...base, outcome: s.outcome || 'neutral' };
       case 'task': {
         const aIds = new Set<string>();
-        return { ...base, assignee: s.assignee, due_days: s.due_days || undefined,
+        return { ...base, assignee: s.assignee, due_days: s.due_days || undefined, deadline,
           actions: s.actions.map((a, j) => ({ id: uniqueId(a.id, a.label, aIds, `action${j + 1}`), label: a.label, next: ref(a.next), note: a.note || undefined })) };
       }
-      case 'approval': return { ...base, assignee: s.assignee, due_days: s.due_days || undefined, required: s.required || 0,
+      case 'approval': return { ...base, assignee: s.assignee, due_days: s.due_days || undefined, deadline, required: s.required || 0,
         approve_label: s.approve_label || undefined, reject_label: s.reject_label || undefined, next: ref(s.next), next_else: ref(s.nextElse) };
       case 'condition': return { ...base, match: s.match || 'all', rules: s.rules ?? [], next: ref(s.next), next_else: ref(s.nextElse) };
       case 'email': return { ...base, email: s.email, next: ref(s.next) };
       case 'webhook': return { ...base, webhook: s.webhook, next: ref(s.next), next_else: ref(s.nextElse) || undefined };
       case 'delay': return { ...base, delay: s.delay, next: ref(s.next) };
+      case 'notify': return { ...base, notify: s.notify, next: ref(s.next) };
+      case 'set': return { ...base, set: (s.set ?? []).map((a) => (a.formula !== undefined ? { field: a.field, formula: a.formula } : { field: a.field, value: a.value ?? '' })), next: ref(s.next) };
+      case 'http': return { ...base, http: s.http, run_as: s.run_as, next: ref(s.next), next_else: ref(s.nextElse) || undefined };
+      case 'create': return { ...base, create: s.create, run_as: s.run_as, next: ref(s.next) };
+      case 'props': return { ...base, props: s.props, run_as: s.run_as, next: ref(s.next) };
+      case 'subflow': return { ...base, subflow: s.subflow, run_as: s.run_as, next: ref(s.next), next_else: s.subflow?.wait ? ref(s.nextElse) || undefined : undefined };
     }
     return base;
   });
-  return { description: m.description, fields, steps };
+  return { description: m.description, fields, steps, triggers: (m.triggers ?? []).map(cleanTrigger), no_manual: m.no_manual || undefined };
 }
 
 /** Converts a step to another type, keeping what fits. */
@@ -94,6 +110,12 @@ function retype(s: EStep, type: StepType): void {
   if (type === 'webhook' && !s.webhook) s.webhook = { url: '', method: 'POST' };
   if (type === 'delay' && !s.delay) s.delay = { days: 1 };
   if (type === 'end' && !s.outcome) s.outcome = 'success';
+  if (type === 'notify' && !s.notify) s.notify = { to: 'starter', subject: '{{case.title}}', channel: 'both' };
+  if (type === 'set' && !s.set) s.set = [{ field: '', value: '' }];
+  if (type === 'http' && !s.http) s.http = { url: '', method: 'GET', map: {} };
+  if (type === 'create' && !s.create) s.create = { category: 0, title: '{{case.title}}', body: '', store_id: 'page' };
+  if (type === 'props' && !s.props) s.props = { element: '{{field.page}}', values: {} };
+  if (type === 'subflow' && !s.subflow) s.subflow = { workflow: 0, wait: true, data: {}, return: {} };
 }
 
 export function createWorkflowEditor(container: HTMLElement, body: unknown, ctx: EditorContext): EditorInstance {
@@ -177,8 +199,9 @@ export function createWorkflowEditor(container: HTMLElement, body: unknown, ctx:
     at.addEventListener('change', () => { s.assignee = { type: at.value as EStep['assignee']['type'], value: av.value }; av.disabled = at.value === 'starter'; });
     av.addEventListener('input', () => { s.assignee = { type: at.value as EStep['assignee']['type'], value: av.value }; });
     av.disabled = at.value === 'starter';
-    return h('div', { class: 'ewf-grid' }, field(t('workflow.assignee'), at), field(t('workflow.assignee_value'), av, { help: t('workflow.assignee_help') }),
-      field(t('workflow.due_days'), num(() => s.due_days, (v) => { s.due_days = v; }), { help: t('workflow.due_days_help') }));
+    return h('div', null, h('div', { class: 'ewf-grid' }, field(t('workflow.assignee'), at), field(t('workflow.assignee_value'), av, { help: t('workflow.assignee_help') }),
+      field(t('workflow.due_days'), num(() => s.due_days, (v) => { s.due_days = v; }), { help: t('workflow.due_days_help') })),
+    deadlineFields(s, kit));
   };
 
   const placeholderHelp = () => h('details', { class: 'ewf-ph' }, h('summary', null, t('workflow.placeholders')),
@@ -192,6 +215,8 @@ export function createWorkflowEditor(container: HTMLElement, body: unknown, ctx:
         target.dispatchEvent(new Event('input', { bubbles: true }));
         target.focus();
       }, { variant: 'link', ariaLabel: t('workflow.insert_placeholder', { p }) })))));
+
+  const kit: Kit = { text, area, num, stepSelect, placeholderHelp, redraw: () => draw(), fields: () => m.fields, meta: () => meta, elementId: ctx.elementId };
 
   const ruleRow = (s: EStep, r: Rule, j: number): HTMLElement => {
     const fieldSel = select([{ value: '', label: t('workflow.choose') }, { value: 'case.title', label: t('workflow.case_title') },
@@ -216,7 +241,7 @@ export function createWorkflowEditor(container: HTMLElement, body: unknown, ctx:
         return [h('p', { class: 'ew-help' }, t('workflow.final_help')), field(t('workflow.outcome'), outcome)];
       }
       case 'task':
-        return [assigneeFields(s), h('h4', null, t('workflow.actions')), ...s.actions.map((a, j) => actionRow(s, a, j)),
+        return [assigneeFields(s), h('h3', null, t('workflow.actions')), ...s.actions.map((a, j) => actionRow(s, a, j)),
           button(t('workflow.add_action'), () => {
             s.actions.push({ id: '', label: '', next: 0 }); draw();
             root.querySelectorAll<HTMLElement>('.ewf-step-row')[i]?.querySelectorAll<HTMLInputElement>('.ewf-action-row input')[s.actions.length - 1]?.focus();
@@ -269,6 +294,8 @@ export function createWorkflowEditor(container: HTMLElement, body: unknown, ctx:
             field(t('workflow.next'), stepSelect(() => s.next, (k) => { s.next = k; }, s), { required: true }),
             field(t('workflow.next_error'), stepSelect(() => s.nextElse, (k) => { s.nextElse = k; }, s, true), { help: t('workflow.next_error_help') }))];
       }
+      case 'notify': case 'set': case 'http': case 'create': case 'props': case 'subflow':
+        return extraStepFields(s, kit);
       case 'delay': {
         const d = (s.delay ??= { days: 1 });
         const until = select([{ value: '', label: t('workflow.delay_now') }, ...m.fields.filter((f) => f.type === 'date' && f.id).map((f) => ({ value: f.id, label: f.label }))], d.until ?? '');
@@ -295,6 +322,7 @@ export function createWorkflowEditor(container: HTMLElement, body: unknown, ctx:
         field(t('workflow.id'), text(() => s.id, (v) => { s.id = v; }, { max: 40 }), { help: t('workflow.id_help') })),
       field(t('workflow.step_desc'), text(() => s.description, (v) => { s.description = v; }, { max: 2000 })),
       ...typeFields(s, i),
+      noticeFields(s, kit),
       h('div', { class: 'ew-actions' }, ...moveBtns(m.steps, i, s.name || t('workflow.step_n', { n: i + 1 }), focusIn('.ewf-step-row'))));
   };
 
@@ -315,10 +343,11 @@ export function createWorkflowEditor(container: HTMLElement, body: unknown, ctx:
           root.querySelector<HTMLElement>('textarea')?.focus();
         })),
       field(t('workflow.description'), desc, { help: t('workflow.description_help') }),
-      h('section', { class: 'ewf-ed-section', 'aria-labelledby': 'ewf-fields-h' }, h('h3', { id: 'ewf-fields-h' }, t('workflow.fields')), h('p', { class: 'ew-help' }, t('workflow.fields_help')),
+      h('section', { class: 'ewf-ed-section', 'aria-labelledby': 'ewf-fields-h' }, h('h2', { id: 'ewf-fields-h' }, t('workflow.fields')), h('p', { class: 'ew-help' }, t('workflow.fields_help')),
         ...m.fields.map(fieldRow),
         button(t('workflow.add_field'), () => { m.fields.push({ id: '', label: '', type: 'text' }); draw(); focusIn('.ewf-field-row')(m.fields.length - 1); })),
-      h('section', { class: 'ewf-ed-section', 'aria-labelledby': 'ewf-steps-h' }, h('h3', { id: 'ewf-steps-h' }, t('workflow.steps')), h('p', { class: 'ew-help' }, t('workflow.steps_help')),
+      triggersSection(m, kit),
+      h('section', { class: 'ewf-ed-section', 'aria-labelledby': 'ewf-steps-h' }, h('h2', { id: 'ewf-steps-h' }, t('workflow.steps')), h('p', { class: 'ew-help' }, t('workflow.steps_help')),
         ...m.steps.map(stepRow),
         h('div', { class: 'ewf-template ewf-add-step' }, field(t('workflow.new_step_type'), newType, { inline: true }),
           button(t('workflow.add_step'), () => {
@@ -350,7 +379,7 @@ export function createWorkflowEditor(container: HTMLElement, body: unknown, ctx:
         if (s.type === 'email' && (!s.email?.to.trim() || !s.email.subject.trim() || !s.email.body.trim())) return t('workflow.err_email', { step: s.name });
         if (s.type === 'webhook' && !/^https?:\/\//.test(s.webhook?.url ?? '')) return t('workflow.err_webhook', { step: s.name });
       }
-      return null;
+      return validateExtra(m);
     },
   };
 }

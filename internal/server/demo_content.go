@@ -591,6 +591,46 @@ func buildDemo(d *demoRun) {
 			{"id": "check", "name": "Prüfen", "assignee": map[string]string{"type": "group", "value": "#" + strconv.FormatInt(editorsGroup, 10)}, "actions": []map[string]any{{"id": "ok", "label": "Genehmigen", "next": "done"}}},
 			{"id": "done", "name": "Erledigt", "actions": []any{}, "outcome": "success"}}}), nil)
 	})
+	d.optional("workflow2", func() {
+		wf := func(l string) map[string]any {
+			tr := func(en, de string) string {
+				if l == "de" {
+					return de
+				}
+				return en
+			}
+			editors := "#" + strconv.FormatInt(editorsGroup, 10)
+			return map[string]any{
+				"description": tr("Workflow 2: computed values, a deadline of three working days with a warning and hand-over, messages in the wiki, and triggers (a monthly check – switched off – and an incoming webhook that needs a secret first).",
+					"Workflow 2: berechnete Werte, eine Frist von drei Arbeitstagen mit Warnung und Übergabe, Nachrichten im Wiki und Auslöser (eine monatliche Prüfung – ausgeschaltet – und ein eingehender Webhook, der erst ein Geheimnis braucht)."),
+				"fields": []map[string]any{
+					{"id": "item", "label": tr("Device", "Gerät"), "type": "text", "required": true},
+					{"id": "qty", "label": tr("Quantity", "Anzahl"), "type": "number", "required": true},
+					{"id": "price", "label": tr("Price per piece (€)", "Preis pro Stück (€)"), "type": "number", "required": true}},
+				"steps": []map[string]any{
+					{"id": "sum", "name": tr("Compute the total", "Summe berechnen"), "type": "set", "next": "big",
+						"set": []map[string]any{{"field": "total", "formula": "round(qty * price, 2)"}}},
+					{"id": "big", "name": tr("More than 1000 €?", "Mehr als 1000 €?"), "type": "condition", "match": "all", "next": "approve", "next_else": "ok",
+						"rules": []map[string]any{{"field": "total", "op": "gt", "value": "1000"}}},
+					{"id": "approve", "name": tr("Approval", "Freigabe"), "type": "approval", "assignee": map[string]string{"type": "group", "value": editors}, "required": 1,
+						"next": "ok", "next_else": "no", "actions": []any{},
+						"deadline": map[string]any{"days": 3, "workdays": true, "warn": []int{24},
+							"escalate": map[string]any{"action": "reassign", "assignee": map[string]string{"type": "role", "value": "Admin"},
+								"notify": map[string]any{"to": "starter", "subject": tr("Your request {{case.title}} is waiting longer", "Ihr Antrag {{case.title}} wartet länger"), "channel": "inbox"}}},
+						"notices": []map[string]any{{"on": "enter", "to": "starter", "channel": "inbox", "subject": tr("{{case.title}}: total {{field.total}} € – waiting for approval", "{{case.title}}: Summe {{field.total}} € – wartet auf Freigabe")}}},
+					{"id": "ok", "name": tr("Tell the requester", "Antragsteller informieren"), "type": "notify", "next": "done",
+						"notify": map[string]any{"to": "starter", "channel": "both", "subject": tr("Approved: {{case.title}}", "Genehmigt: {{case.title}}"), "body": tr("Total: {{field.total}} €", "Summe: {{field.total}} €")}},
+					{"id": "done", "name": tr("Approved", "Genehmigt"), "type": "end", "outcome": "success", "actions": []any{}},
+					{"id": "no", "name": tr("Rejected", "Abgelehnt"), "type": "end", "outcome": "failure", "actions": []any{}}},
+				"triggers": []map[string]any{
+					{"id": "monthly", "type": "schedule", "name": tr("Monthly check", "Monatliche Prüfung"), "cron": "0 8 1 * *", "off": true,
+						"title": tr("Monthly check {{date}}", "Monatliche Prüfung {{date}}"), "data": map[string]string{"item": tr("Check of all devices", "Prüfung aller Geräte"), "qty": "1", "price": "0"}},
+					{"id": "shop", "type": "webhook", "name": tr("Web shop", "Webshop"), "title": "{{trigger.data.item}}",
+						"data": map[string]string{"item": "{{trigger.data.item}}", "qty": "{{trigger.data.qty}}", "price": "{{trigger.data.price}}"}}},
+			}
+		}
+		d.element(docs, "workflow.process", d.tr("Device request (Workflow 2)", "Geräteantrag (Workflow 2)"), map[string]any{"en": wf("en"), "de": wf("de")}, nil)
+	})
 	d.optional("forms", func() {
 		mk := func(intro, name, mail, topic, it, hr, other, which, msg, msgHelp, rate, file, ok, send, thanks string) map[string]any {
 			return map[string]any{"intro": intro, "submit_label": send, "success_message": thanks, "layout": "grid",

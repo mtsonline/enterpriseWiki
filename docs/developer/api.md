@@ -482,6 +482,9 @@ Verlangt das Konto einen zweiten Faktor, antwortet die Anmeldung mit `mfa_requir
 | `POST` | `/api/v1/x/workflow.process/instances/{id}/actions` |
 | `POST` | `/api/v1/x/workflow.process/instances/{id}/cancel` |
 | `GET` | `/api/v1/x/workflow.process/tasks` |
+| `GET` | `/api/v1/x/workflow.process/elements/{id}/triggers` |
+| `POST` | `/api/v1/x/workflow.process/elements/{id}/triggers/{trigger}/secret` |
+| `POST` | `/api/v1/x/workflow.process/hooks/{id}/{trigger}` |
 | `GET` | `/api/v1/x/content.forms/meta` |
 | `GET` | `/api/v1/x/content.forms/elements/{id}/start` |
 | `POST` | `/api/v1/x/content.forms/elements/{id}/submit` |

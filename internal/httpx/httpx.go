@@ -148,3 +148,18 @@ func Routes() []string {
 	sort.Strings(out)
 	return out
 }
+
+var signed sync.Map // route pattern -> true
+
+// RegisterSigned declares that a route ("METHOD /path" as registered)
+// receives messages of other systems that the handler authenticates by a
+// signature of its own (e.g. incoming webhooks): sessions and API keys never
+// count there, so a browser's cookie cannot be used for it and the CSRF
+// header is not needed. The handler must check the signature itself.
+func RegisterSigned(pattern string) { signed.Store(pattern, true) }
+
+// Signed reports whether a route is declared with RegisterSigned.
+func Signed(pattern string) bool {
+	_, ok := signed.Load(pattern)
+	return ok
+}

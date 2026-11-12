@@ -224,6 +224,17 @@ func (h *Host) BodyLimit(method, path, key string) {
 	limits.RouteBody(method+" /api/v1/x/"+h.Manifest.ID+path, key)
 }
 
+// Signed declares that a route of this plugin (method and path as given to
+// Handle) is called by other systems that authenticate with a signature the
+// handler checks itself (incoming webhooks): the caller is always anonymous
+// there, a session or API key never counts and no CSRF header is needed.
+func (h *Host) Signed(method, path string) {
+	if !strings.HasPrefix(path, "/") {
+		path = "/" + path
+	}
+	httpx.RegisterSigned(method + " /api/v1/x/" + h.Manifest.ID + path)
+}
+
 // RegisterElementType adds an element type owned by this plugin.
 func (h *Host) RegisterElementType(t content.ElementType) {
 	h.Content.RegisterType(h.Manifest.ID, t)

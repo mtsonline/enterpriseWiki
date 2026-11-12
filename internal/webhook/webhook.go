@@ -19,6 +19,7 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"sync"
 	"time"
 	"unicode/utf8"
 
@@ -34,7 +35,7 @@ import (
 
 // Events lists the event names a webhook can subscribe to.
 var Events = []string{
-	"element.create", "element.update", "element.delete", "element.move", "element.restore", "element.rollback",
+	"element.create", "element.update", "element.delete", "element.move", "element.restore", "element.rollback", "element.properties",
 	"category.create", "category.update", "category.delete", "category.move", "category.restore",
 	"event.registration", "event.registration_cancelled", "event.occurrence_changed",
 	"comment.create",
@@ -122,6 +123,21 @@ type Service struct {
 	// Kick asks the worker to deliver soon (set by the app).
 	Kick   func()
 	client func() *http.Client
+
+	lmu       sync.RWMutex
+	listeners []Listener
+}
+
+// Listener receives every event in the transaction of its change (or with
+// the pool after the change), before webhooks are queued; e.g. workflows
+// that start on events. An error means "repeat" for durable changes.
+type Listener func(ctx context.Context, q db.Querier, ev Event) error
+
+// Listen registers a listener (plugins; called once per site).
+func (s *Service) Listen(l Listener) {
+	s.lmu.Lock()
+	s.listeners = append(s.listeners, l)
+	s.lmu.Unlock()
 }
 
 // New creates the service.
@@ -366,6 +382,15 @@ func (s *Service) emit(ctx context.Context, q db.Querier, ev Event) error {
 	b, err := json.Marshal(ev)
 	if err != nil {
 		return err
+	}
+	s.lmu.RLock()
+	ls := s.listeners
+	s.lmu.RUnlock()
+	for _, l := range ls {
+		if err := l(ctx, q, ev); err != nil {
+			s.log.Error("event listener failed", "event", ev.Name, "err", err)
+			return err
+		}
 	}
 	tag, err := q.Exec(ctx, `INSERT INTO webhook_deliveries(webhook_id, event, payload)
 		SELECT h.id, $1, $2 FROM webhooks h WHERE h.enabled AND (cardinality(h.events) = 0 OR $1 = ANY(h.events))
