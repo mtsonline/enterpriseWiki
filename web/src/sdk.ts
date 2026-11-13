@@ -11,6 +11,7 @@ import { t } from './core/i18n';
 export { h, mount, append, trustedHTML, uid, fmtDate, srOnly } from './core/dom';
 export type { Child } from './core/dom';
 export { api, ApiError, qs, uploadFile, humanSize } from './core/api';
+export { newest } from './core/newest';
 export type { UploadedFile } from './core/api';
 export { pluginSettingsForm, loadPluginSettings, savePluginSettings, MAPPING_FIELDS } from './components/settings';
 export { renderAuthProviderPage } from './components/authadmin';

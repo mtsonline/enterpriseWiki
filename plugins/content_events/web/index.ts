@@ -3,7 +3,7 @@
 // .ics), the event form (series, registration, reminders) and iCal
 // subscription.
 import {
-  announce, api, button, checkbox, confirmDialog, errorText, feedURL, field, formDialog, h, mount, openDialog, qs, registerEditor, registerWidget, select, state, t, textArea, textInput, toast, trustedHTML, uid, type EditorInstance, sourcesEditor, registerSourceKind, registerMacroParamControl, elementSelect,
+  announce, api, button, checkbox, confirmDialog, errorText, feedURL, field, formDialog, h, mount, newest, openDialog, qs, registerEditor, registerWidget, select, state, t, textArea, textInput, toast, trustedHTML, uid, type EditorInstance, sourcesEditor, registerSourceKind, registerMacroParamControl, elementSelect,
 } from '@ewiki/sdk';
 import './style.css';
 
@@ -576,22 +576,27 @@ async function eventsWidget(root: HTMLElement): Promise<void> {
     }
   };
 
+  const fresh = newest();
   const load = async () => {
+    const current = fresh();
     const cfg = data?.calendar.config ?? { week_start: 1, list_days: 90 } as Config;
     const [from, to] = range(cfg);
+    let got: Data;
     try {
-      data = await api.get<Data>(`${BASE}/calendars/${id}/events${qs({ from: from.toISOString(), to: to.toISOString(), category, q, lang: L() })}`);
+      got = await api.get<Data>(`${BASE}/calendars/${id}/events${qs({ from: from.toISOString(), to: to.toISOString(), category, q, lang: L() })}`);
+      if (got.calendar.config.week_start !== cfg.week_start || got.calendar.config.list_days !== cfg.list_days) {
+        // settings known now: load the exact range once more
+        const [f2, t2] = range(got.calendar.config);
+        if (f2.getTime() !== from.getTime() || t2.getTime() !== to.getTime()) {
+          got = await api.get<Data>(`${BASE}/calendars/${id}/events${qs({ from: f2.toISOString(), to: t2.toISOString(), category, q, lang: L() })}`);
+        }
+      }
     } catch (e) {
-      mount(body, h('p', { role: 'alert' }, errorText(e)));
+      if (current()) mount(body, h('p', { role: 'alert' }, errorText(e)));
       return;
     }
-    if (data.calendar.config.week_start !== cfg.week_start || data.calendar.config.list_days !== cfg.list_days) {
-      // settings known now: load the exact range once more
-      const [f2, t2] = range(data.calendar.config);
-      if (f2.getTime() !== from.getTime() || t2.getTime() !== to.getTime()) {
-        data = await api.get<Data>(`${BASE}/calendars/${id}/events${qs({ from: f2.toISOString(), to: t2.toISOString(), category, q, lang: L() })}`);
-      }
-    }
+    if (!current()) return; // a newer request (search, other month) has started meanwhile
+    data = got;
     sourceNames = data.calendars ?? {};
     render();
     announce(title.textContent ?? '');

@@ -2,6 +2,7 @@
 // let users, groups or roles watch categories or pages. Mandatory
 // assignments cannot be unsubscribed; optional ones can (in the profile).
 import { api } from '../core/api';
+import { newest } from '../core/newest';
 import { fmtDate, h, mount, uid } from '../core/dom';
 import { pick, t } from '../core/i18n';
 import { navigate } from '../core/router';
@@ -59,10 +60,13 @@ async function assignmentDialog(a: Assignment | null, groups: Named[], roles: Na
   userInput.setAttribute('list', userList.id);
   const userMap = new Map<string, number>();
   if (a?.subject_type === 'user') userMap.set(a.subject_name, a.subject_id);
+  const freshUsers = newest();
   userInput.addEventListener('input', async () => {
+    const current = freshUsers();
     if (userInput.value.length < 2) return;
     try {
       const res = await api.get<{ id: number; handle: string; display_name: string }[]>(`users/lookup?q=${encodeURIComponent(userInput.value)}`);
+      if (!current()) return;
       userList.replaceChildren(...res.map((u) => { userMap.set(u.handle, u.id); return h('option', { value: u.handle }, u.display_name); }));
     } catch { /* lookup is optional */ }
   });

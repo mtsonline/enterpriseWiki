@@ -351,6 +351,7 @@ export function register(): void {
 ```
 
 - Settings pages: `pluginSettingsForm('acme.kanban', [{ key: 'url', label: t('…') }, …])` creates an accessible form that stores into `config.yaml` (types `text`, `secret`, `bool`, `number`, `list`, `map`, `select`, `textarea`, `image` – upload, the SHA-256 hash is stored, delivered under `/api/v1/files/{hash}` –, `color` – `#rrggbb`). `MAPPING_FIELDS()` adds the group and role mapping.
+- **Discard outdated answers:** if you start a request on every input (search, person search), protect the display with `newest()`: create `const fresh = newest();` once, call `const current = fresh();` in the load function and `if (!current()) return;` after the `await`. Otherwise an older, slower answer can overwrite the result of a newer one.
 - Uploading files: `uploadFile(file)` delivers `{hash, name, mime, size}`.
 - Choosing categories and elements with "Create new": `categorySelect({ selected, perm, noneLabel, allowCreate, onChange })` (`.field(label)` delivers the labelled field), `elementSelect({ selected, allowCreate, type, onChange })` (search across all categories), `newCategory(parent, done)`, `newElement(category, done)`.
 - `watchButton(type, id, title)` (watch), `feedButton(apiPath, title)` (feed dialog with personal link) and `feedURL(path, format)` for own feeds or subscriptions.

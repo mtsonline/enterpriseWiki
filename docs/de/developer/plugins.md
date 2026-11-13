@@ -351,6 +351,7 @@ export function register(): void {
 ```
 
 - Einstellungsseiten: `pluginSettingsForm('acme.kanban', [{ key: 'url', label: t('…') }, …])` erzeugt ein barrierefreies Formular, das in `config.yaml` speichert (Typen `text`, `secret`, `bool`, `number`, `list`, `map`, `select`, `textarea`, `image` – Upload, gespeichert wird der SHA-256-Hash, ausgeliefert unter `/api/v1/files/{hash}` –, `color` – `#rrggbb`). `MAPPING_FIELDS()` ergänzt die Gruppen- und Rollen-Zuordnung.
+- **Überholte Antworten verwerfen:** Wenn Sie bei jeder Eingabe eine Abfrage starten (Suche, Personensuche), schützen Sie die Anzeige mit `newest()`: einmal `const fresh = newest();` anlegen, in der Ladefunktion `const current = fresh();` und nach dem `await` `if (!current()) return;`. Sonst kann eine ältere, langsamere Antwort das Ergebnis einer neueren überschreiben.
 - Dateien hochladen: `uploadFile(file)` liefert `{hash, name, mime, size}`.
 - Auswahl von Kategorien und Elementen mit „Neu anlegen“: `categorySelect({ selected, perm, noneLabel, allowCreate, onChange })` (`.field(label)` liefert das beschriftete Feld), `elementSelect({ selected, allowCreate, type, onChange })` (Suche über alle Kategorien), `newCategory(parent, done)`, `newElement(category, done)`.
 - `watchButton(type, id, title)` (Beobachten), `feedButton(apiPath, title)` (Feed-Dialog mit persönlichem Link) und `feedURL(path, format)` für eigene Feeds bzw. Abos.

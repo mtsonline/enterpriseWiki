@@ -1,7 +1,7 @@
 // The element "Property database" in the browser: search, filters, views,
 // grouping, changing the properties of a row, new entries, managing the
 // definitions — everything with the rights of the reader (POST /query).
-import { announce, api, button, checkbox, errorText, field, formDialog, h, qs, select, state, t, textInput, toast } from '@ewiki/sdk';
+import { announce, api, button, checkbox, errorText, field, formDialog, h, newest, qs, select, state, t, textInput, toast } from '@ewiki/sdk';
 import { BASE, type Props } from './model';
 import { propertiesForm } from './edit';
 import { chart } from './charts';
@@ -67,18 +67,22 @@ export async function databaseWidget(el: HTMLElement): Promise<void> {
     }, { wide: true });
   };
   const params = (): Record<string, string> => ({ group: group || 'status', date: cfg.date || 'due', view, totals: 'false' });
+  const fresh = newest();
   const load = async () => {
+    const current = fresh();
     out.setAttribute('aria-busy', 'true');
     try {
       if (view === 'chart') {
         if (!group) { out.replaceChildren(h('p', { class: 'ew-muted' }, t('props.db.choose_group'))); return; }
         const res = await api.post<Result>(`${BASE}/query`, query(true));
+        if (!current()) return;
         count.textContent = t('props.db.count', { n: res.total });
         out.replaceChildren(chart('bar', chartData(res, { group, agg: 'count' }), t('props.db.chart_title', { name: colLabel(res.columns[0] ?? { key: group, label: group, type: 'text' }) })));
         pager.replaceChildren();
         return;
       }
       const res = await api.post<Result>(`${BASE}/query`, query(false));
+      if (!current()) return; // a newer search has started meanwhile
       el.querySelector('.ewprop-fallback')?.remove();
       columns = res.columns;
       const cols = res.columns.filter((c) => c.key !== 'title');
@@ -107,9 +111,9 @@ export async function databaseWidget(el: HTMLElement): Promise<void> {
           offset + n < res.total ? button(t('props.next_page'), () => { offset += lim; void load(); }, { variant: 'subtle' }) : '');
       }
     } catch (e) {
-      out.replaceChildren(h('p', { class: 'ew-notice ew-notice--warning', role: 'note' }, errorText(e)));
+      if (current()) out.replaceChildren(h('p', { class: 'ew-notice ew-notice--warning', role: 'note' }, errorText(e)));
     } finally {
-      out.setAttribute('aria-busy', 'false');
+      if (current()) out.setAttribute('aria-busy', 'false');
     }
   };
   // keys for filters and grouping

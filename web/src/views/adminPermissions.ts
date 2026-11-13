@@ -2,6 +2,7 @@
 // permissions in all categories the caller manages (including where they
 // come from: own rule, group, role, inherited).
 import { api, qs } from '../core/api';
+import { newest } from '../core/newest';
 import { h, mount, uid } from '../core/dom';
 import { pick, t } from '../core/i18n';
 
@@ -28,9 +29,12 @@ export async function permissionsAdmin(panel: HTMLElement, query: URLSearchParam
   userInput.setAttribute('list', userList.id);
   const userMap = new Map<string, number>();
   if (query.get('subject_type') === 'user' && query.get('user') && query.get('subject_id')) userMap.set(query.get('user')!, Number(query.get('subject_id')));
+  const freshUsers = newest();
   userInput.addEventListener('input', async () => {
+    const current = freshUsers();
     if (userInput.value.length < 2) return;
-    const res = await api.get<{ id: number; handle: string; display_name: string }[]>(`users/lookup?q=${encodeURIComponent(userInput.value)}`);
+    const res = await api.get<{ id: number; handle: string; display_name: string }[]>(`users/lookup?q=${encodeURIComponent(userInput.value)}`).catch(() => null);
+    if (!res || !current()) return;
     userList.replaceChildren(...res.map((u) => { userMap.set(u.handle, u.id); return h('option', { value: u.handle }, u.display_name); }));
   });
   const subjectWrap = h('div');

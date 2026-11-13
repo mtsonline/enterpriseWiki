@@ -1,5 +1,5 @@
 // Share pages and categories with users, groups and roles.
-import { api, button, checkbox, errorText, field, h, hasPerm, openDialog, registerPageAction, state, t, textArea, textInput, toast, uid, type Group, type Role } from '@ewiki/sdk';
+import { api, button, checkbox, errorText, field, h, hasPerm, newest, openDialog, registerPageAction, state, t, textArea, textInput, toast, uid, type Group, type Role } from '@ewiki/sdk';
 
 interface Result { recipients: number; without_access: string[]; sent: boolean }
 
@@ -13,11 +13,14 @@ async function shareDialog(target: { type: 'element' | 'category'; id: number; t
   const list = h('datalist', { id: uid('share-users') });
   user.setAttribute('list', list.id);
   const found = new Map<string, { id: number; name: string }>();
+  const freshUsers = newest();
   user.addEventListener('input', async () => {
+    const current = freshUsers();
     const v = user.value.trim();
     if (found.has(v)) { const u = found.get(v)!; chosen.set(u.id, u.name); user.value = ''; drawChips(); return; }
     if (v.length < 2) return;
     const res = await api.get<{ id: number; handle: string; display_name: string }[]>(`users/lookup?q=${encodeURIComponent(v)}`).catch(() => []);
+    if (!current()) return;
     list.replaceChildren(...res.map((u) => { found.set(u.handle, { id: u.id, name: u.display_name || u.handle }); return h('option', { value: u.handle }, u.display_name); }));
   });
   const groupBoxes = groups.map((g) => ({ g, cb: checkbox(g.name, false) }));
