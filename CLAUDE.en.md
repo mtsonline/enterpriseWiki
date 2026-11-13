@@ -18,7 +18,7 @@ In every conflict this order applies: security, no data loss, stability, accessi
 - **Fast:** no queries in loops, limits for everything that can grow. Limits belong in the expert settings (`limits`); plugins register theirs in the manifest.
 - **Modular:** features outside the core are plugins. Bundled plugins may use internal packages; the stable interface for plugins is `pkg/sdk`. The model for external plugins is still to be decided.
 - **Honest:** what the interface shows or the documentation describes exists and works as one expects. No simulations, no dummies, no announcements presented as features.
-- **Foreign product names** only appear in import functions for the respective system and their tests, nowhere else.
+- **Foreign product names:** names of competing products only appear in import functions for the respective system, their tests and coverage comparisons, nowhere else. Names of systems the wiki connects to (for example office servers, sign-in providers, directory services, chat services) are allowed.
 - **Namespaces:** everything a plugin registers (routes, permissions, settings, events, actions) carries its plugin ID; instances are called `plugin-id/instance-id`; `core.` is reserved for the core.
 - **Secrets:** default `plain`. Encryption is always selectable, never mandatory.
 - **Configuration:** without a cluster in `config.yaml`. Only in cluster mode are the settings that can be changed in the interface stored in the database.
@@ -107,7 +107,7 @@ Docker images are only published privately for now.
 ## 9. Language
 
 - Interface, documentation and guides always exist **in German and English**, complete and equivalent. German with "Sie". Short, clear sentences, plain language. Completeness is checked automatically (`TestLocaleParity`, `go run ./tools/docscheck`).
-- Storage: `docs/de/…` and `docs/en/…` with the same file names; in the root directory `X.md` is English and `X.de.md` German. Exception: `CLAUDE.md` is German, the translation is called `CLAUDE.en.md`. For legal texts (license, CLA) the German version is binding.
+- Storage: `docs/de/…` and `docs/en/…` with the same file names. In the root directory the file without a language suffix is English, the one with `.de` German (for example `README.md` and `README.de.md`). Exception: `CLAUDE.md` is German, the translation is called `CLAUDE.en.md`. For legal texts (license, CLA) the German version is binding.
 - Code, identifiers, comments, commit messages: English.
 
 ## 10. Planning

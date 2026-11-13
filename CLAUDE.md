@@ -16,7 +16,7 @@ Bei jedem Konflikt gilt diese Reihenfolge: Sicherheit, kein Datenverlust, Stabil
 - **Schnell:** keine Abfragen in Schleifen, Grenzwerte für alles, was wachsen kann. Grenzwerte gehören in die Experteneinstellungen (`limits`), Plugins melden ihre im Manifest an.
 - **Modular:** Funktionen außerhalb des Kerns sind Plugins. Mitgelieferte Plugins dürfen interne Pakete nutzen; die stabile Schnittstelle für Plugins ist `pkg/sdk`. Das Modell für externe Plugins wird noch festgelegt.
 - **Ehrlich:** Was die Oberfläche zeigt oder die Dokumentation beschreibt, existiert und funktioniert so, wie man es erwartet. Keine Simulationen, keine Attrappen, keine Ankündigungen als Funktion.
-- **Fremde Produktnamen** stehen nur in Import-Funktionen für das jeweilige System und deren Tests, sonst nirgends.
+- **Fremde Produktnamen:** Namen von Konkurrenzprodukten stehen nur in Import-Funktionen für das jeweilige System, deren Tests und Abdeckungsvergleichen, sonst nirgends. Namen von Systemen, die das Wiki anbindet (zum Beispiel Office-Server, Anmeldeanbieter, Verzeichnisdienste, Chat-Dienste), sind erlaubt.
 - **Namensräume:** Alles, was ein Plugin anmeldet (Routen, Rechte, Einstellungen, Ereignisse, Aktionen), trägt seine Plugin-ID; Instanzen heißen `plugin-id/instanz-id`; `core.` ist dem Kern vorbehalten.
 - **Geheimnisse:** Vorgabe `plain`. Verschlüsselung ist immer wählbar, nie Pflicht.
 - **Konfiguration:** ohne Cluster in `config.yaml`. Nur im Cluster-Modus liegen die in der Oberfläche änderbaren Einstellungen in der Datenbank.
@@ -105,7 +105,7 @@ Docker-Images werden vorerst nur privat veröffentlicht.
 ## 9. Sprache
 
 - Oberfläche, Dokumentation und Anleitungen gibt es **immer auf Deutsch und Englisch**, vollständig und gleichwertig. Deutsch mit „Sie“. Kurze, klare Sätze, einfache Sprache. Die Vollständigkeit wird automatisch geprüft (`TestLocaleParity`, `go run ./tools/docscheck`).
-- Ablage: `docs/de/…` und `docs/en/…` mit gleichen Dateinamen; im Hauptverzeichnis ist `X.md` Englisch und `X.de.md` Deutsch. Ausnahme: `CLAUDE.md` ist Deutsch, die Übersetzung heißt `CLAUDE.en.md`. Bei Rechtstexten (Lizenz, CLA) ist die deutsche Fassung verbindlich.
+- Ablage: `docs/de/…` und `docs/en/…` mit gleichen Dateinamen. Im Hauptverzeichnis ist die Datei ohne Sprachkürzel Englisch, die mit `.de` Deutsch (zum Beispiel `README.md` und `README.de.md`). Ausnahme: `CLAUDE.md` ist Deutsch, die Übersetzung heißt `CLAUDE.en.md`. Bei Rechtstexten (Lizenz, CLA) ist die deutsche Fassung verbindlich.
 - Code, Bezeichner, Kommentare, Commit-Nachrichten: Englisch.
 
 ## 10. Planung
