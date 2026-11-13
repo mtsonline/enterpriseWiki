@@ -249,7 +249,7 @@ func TestWorkflow3FilesCalendar(t *testing.T) {
 		{"id": "who", "label": "Name", "type": "text"}, {"id": "amount", "label": "Amount", "type": "text"}, {"id": "date", "label": "Date", "type": "text"}},
 		"steps": []map[string]any{
 			{"id": "doc", "name": "Record", "type": "file", "next": "meet", "file": map[string]any{"category": files.ID, "name": "Request {{field.who}}",
-				"formats": []string{"pdf", "docx", "xlsx", "csv", "md"}, "content": "# Request\nBy {{field.who}} <b>bold</b>", "data": true, "store_id": "doc", "store_url": "doc_url"}},
+				"formats": []string{"pdf", "docx", "xlsx", "csv", "md"}, "content": "# Request\nBy {{field.who}} <b>bold</b>\nL={{label.who}}\n{{all}}", "data": true, "store_id": "doc", "store_url": "doc_url"}},
 			{"id": "meet", "name": "Meeting", "type": "calendar", "next": "done", "calendar": map[string]any{"calendar": calEl.ID, "title": "Talk with {{field.who}}",
 				"start": "{{field.date}}", "minutes": 30, "tz": "Europe/Vienna", "location": "Room 1", "store_id": "event"}},
 			{"id": "done", "name": "Done", "type": "end", "outcome": "success"}}}
@@ -299,7 +299,8 @@ func TestWorkflow3FilesCalendar(t *testing.T) {
 		t.Fatalf("csv %d: %q", code, csvBody)
 	}
 	code, md := admin.rawBody("GET", fmt.Sprintf("/api/v1/media/%d/download", got["Request Ana.md"]), "")
-	if code != 200 || !strings.Contains(md, "# Request") || !strings.Contains(md, "- **Amount:** =SUM(A1:A9)") {
+	if code != 200 || !strings.Contains(md, "# Request") || !strings.Contains(md, "- **Amount:** =SUM(A1:A9)") ||
+		!strings.Contains(md, "L=Name\nName: Ana\nAmount: =SUM(A1:A9)\nDate: 2026-12-03 14:00") {
 		t.Fatalf("md %d: %q", code, md)
 	}
 	code, docx := admin.rawBody("GET", fmt.Sprintf("/api/v1/media/%d/download", got["Request Ana.docx"]), "")

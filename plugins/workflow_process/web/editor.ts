@@ -16,7 +16,7 @@ const BASE = 'x/workflow.process';
 const STEP_TYPES: StepType[] = ['task', 'approval', 'condition', 'email', 'notify', 'set', 'webhook', 'http', 'create', 'props', 'file', 'calendar', 'access', 'membership', 'move', 'subflow', 'parallel', 'delay', 'end'];
 const RULE_OPS = ['equals', 'not_equals', 'contains', 'not_contains', 'empty', 'not_empty', 'gt', 'gte', 'lt', 'lte'];
 const FIELD_TYPES = ['text', 'textarea', 'email', 'date', 'number', 'select', 'checkbox', 'file'];
-const PLACEHOLDERS = ['case.title', 'case.id', 'case.url', 'case.step', 'workflow.title', 'starter.name', 'starter.email', 'actor.name', 'actor.email',
+const PLACEHOLDERS = ['all', 'case.title', 'case.id', 'case.url', 'case.step', 'workflow.title', 'starter.name', 'starter.email', 'actor.name', 'actor.email',
   'last.action', 'last.note', 'site.name', 'date', 'case.due', 'trigger.object.title', 'trigger.object.url', 'trigger.actor', 'trigger.data.<key>'];
 
 function typeOf(s: Step): StepType {
