@@ -1,5 +1,5 @@
 # Reverse proxy with automatic HTTPS for Enterprise Wiki (docker compose
-# profile "proxy", see docs/admin/installation.md).
+# profile "proxy", see docs/en/admin/installation.md).
 #
 # Certificates are requested on the first visit of a host name ("on-demand
 # TLS") - but only for host names the wiki knows: the base URL and the host

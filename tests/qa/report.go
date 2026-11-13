@@ -233,7 +233,7 @@ func report(dir, title, version string) error {
 		})
 		w("## 2 Penetration test")
 		w("")
-		w("Target %s, %s, %d requests in %.0f s. Grey box: the test knows the routes (docs/developer/api.md) and uses an administrator, two editors, a reader and a guest.", pt.Target, pt.Started.Format("2006-01-02 15:04"), pt.Requests, pt.Duration)
+		w("Target %s, %s, %d requests in %.0f s. Grey box: the test knows the routes (docs/en/developer/api.md) and uses an administrator, two editors, a reader and a guest.", pt.Target, pt.Started.Format("2006-01-02 15:04"), pt.Requests, pt.Duration)
 		w("")
 		w("### 2.1 Findings")
 		w("")

@@ -1,15 +1,15 @@
-# Mitwirken
+# Contributing
 
-Danke für Ihr Interesse! Beiträge sind willkommen – Fehlerberichte, Übersetzungen, Dokumentation, Code und Plugins.
+Thank you for your interest! Contributions are welcome – bug reports, translations, documentation, code and plugins.
 
-Die verbindlichen Regeln für alle Beiträge stehen in [CLAUDE.md](CLAUDE.md) (für Menschen und KI-Agenten gleichermaßen).
+The binding rules for all contributions are in [CLAUDE.en.md](CLAUDE.en.md) (German original: [CLAUDE.md](CLAUDE.md); for humans and AI agents alike).
 
-1. **Beitragsvereinbarung**: Pull Requests können nur übernommen werden, wenn Sie der [CLA](CLA.md) zustimmen (Kästchen
-   in der Pull-Request-Vorlage). Hintergrund: Enterprise Wiki wird unter der Business Source License und unter
-   kommerziellen Lizenzen vertrieben (siehe [LICENSING.md](LICENSING.md)).
-2. **Abhängigkeiten**: Neue Bibliotheken nur mit erlaubten Lizenzen (MIT, BSD, Apache-2.0, ISC …, siehe LICENSING.md).
-   Die CI prüft das automatisch.
-3. **Qualität**: `./scripts/build.sh`, Go-Tests (`go test ./...`, mit `EWIKI_TEST_DATABASE_URL` auch die
-   API-Integrationstests) und die Browser-Tests mit Barrierefreiheitsprüfung müssen grün sein. Jede Funktion gehört in
-   API, CLI und Oberfläche.
-4. **Plugins** für den offiziellen Katalog: siehe [docs/developer/plugins.md](docs/developer/plugins.md); auch hier gilt die CLA.
+1. **Contributor agreement**: pull requests can only be accepted if you agree to the [CLA](CLA.md) (checkbox
+   in the pull request template). Background: Enterprise Wiki is distributed under the Business Source License and under
+   commercial licenses (see [LICENSING.md](LICENSING.md)).
+2. **Dependencies**: new libraries only with allowed licenses (MIT, BSD, Apache-2.0, ISC …, see LICENSING.md).
+   The CI checks this automatically.
+3. **Quality**: `./scripts/build.sh`, Go tests (`go test ./...`, with `EWIKI_TEST_DATABASE_URL` also the
+   API integration tests) and the browser tests with accessibility check must be green. Every feature belongs in
+   API, CLI and interface.
+4. **Plugins** for the official catalogue: see [docs/en/developer/plugins.md](docs/en/developer/plugins.md); the CLA applies here too.

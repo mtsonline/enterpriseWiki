@@ -2,7 +2,7 @@
 
 Diese Datei gilt für alle, die am Repository arbeiten: Menschen und KI-Agenten. `AGENTS.md` verweist hierher, es gibt nur diese eine Quelle. Änderungen an dieser Datei brauchen die Freigabe des Projektinhabers.
 
-Enterprise Wiki ist eine sichere und flexible Alternative für herkömmliche Enterprise-Wikis und CMS-Systeme: ein einzelnes Go-Programm (`ewiki`), PostgreSQL, Frontend in TypeScript. Überblick: `README.md`, Aufbau: `docs/developer/architecture.md`.
+Enterprise Wiki ist eine sichere und flexible Alternative für herkömmliche Enterprise-Wikis und CMS-Systeme: ein einzelnes Go-Programm (`ewiki`), PostgreSQL, Frontend in TypeScript. Überblick: `README.de.md`, Aufbau: `docs/de/developer/architecture.md`. Englische Fassung dieser Datei: `CLAUDE.en.md`; maßgeblich ist diese deutsche Fassung.
 
 ## 1. Grundsätze
 
@@ -68,6 +68,7 @@ gofmt -l .                              # muss leer sein
 go vet ./...
 go run ./tools/genplugins               # nach neuen oder entfernten Plugins; Ergebnis committen
 go run ./tools/notices -check           # Lizenzen der Go-Module
+go run ./tools/docscheck                # Doku Deutsch und Englisch vollständig, Links gültig
 
 # Go-Tests; mit Datenbank auch die API-Integrationstests
 EWIKI_TEST_DATABASE_URL=postgres://USER:PASS@localhost:5432/DB?sslmode=disable go test -race ./...
@@ -103,7 +104,8 @@ Docker-Images werden vorerst nur privat veröffentlicht.
 
 ## 9. Sprache
 
-- Oberfläche, Dokumentation und Anleitungen gibt es **immer auf Deutsch und Englisch**, vollständig und gleichwertig. Deutsch mit „Sie“. Kurze, klare Sätze, einfache Sprache. Die Vollständigkeit wird automatisch geprüft.
+- Oberfläche, Dokumentation und Anleitungen gibt es **immer auf Deutsch und Englisch**, vollständig und gleichwertig. Deutsch mit „Sie“. Kurze, klare Sätze, einfache Sprache. Die Vollständigkeit wird automatisch geprüft (`TestLocaleParity`, `go run ./tools/docscheck`).
+- Ablage: `docs/de/…` und `docs/en/…` mit gleichen Dateinamen; im Hauptverzeichnis ist `X.md` Englisch und `X.de.md` Deutsch. Ausnahme: `CLAUDE.md` ist Deutsch, die Übersetzung heißt `CLAUDE.en.md`. Bei Rechtstexten (Lizenz, CLA) ist die deutsche Fassung verbindlich.
 - Code, Bezeichner, Kommentare, Commit-Nachrichten: Englisch.
 
 ## 10. Planung

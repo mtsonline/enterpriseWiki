@@ -7,7 +7,7 @@
 - Werte können Umgebungsvariablen referenzieren: `${NAME}` oder `${NAME:-standard}`. Die Referenz bleibt beim Zurückschreiben erhalten, so landen **Geheimnisse nie in der Datei**. Variablen aus `.env` im selben Verzeichnis werden automatisch geladen. Bereits gesetzte Umgebungsvariablen haben Vorrang.
 - Änderungen an `server`, `database` und `mode` erfordern einen Neustart.
 
-Vollständiges Beispiel: [config.example.yaml](../../config.example.yaml)
+Vollständiges Beispiel: [config.example.yaml](../../../config.example.yaml)
 
 ## Referenz
 
@@ -238,7 +238,7 @@ secrets:
 ```
 
 ### `license`
-Lizenzschlüssel der Organisation (siehe [LICENSING.md](../../LICENSING.md)). Am einfachsten unter *Administration → Lizenz*
+Lizenzschlüssel der Organisation (siehe [LICENSING.md](../../../LICENSING.md)). Am einfachsten unter *Administration → Lizenz*
 oder mit `ewiki license install KEY` einspielen; die Prüfung erfolgt offline.
 
 ```yaml

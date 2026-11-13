@@ -119,7 +119,7 @@ fi
 
 VERSION="$(cd "$REPO" && git describe --tags --always --dirty 2>/dev/null || echo dev)"
 ARGS=(-base "$BASE" -out "$WORK/results" -spoof-ips -server-pid "$WIKIPID" -users "${EWIKI_QA_USERS:-100}"
-  -routes "$REPO/docs/developer/api.md" -repo "$REPO" -version "$VERSION"
+  -routes "$REPO/docs/en/developer/api.md" -repo "$REPO" -version "$VERSION"
   -stages "${EWIKI_QA_STAGES:-100,500,1000,2500,5000,10000}" -hold "${EWIKI_QA_HOLD:-40s}" -spike "${EWIKI_QA_SPIKE:-10000}")
 echo "==> qa $CMD (wiki pid $WIKIPID, version $VERSION)"
 if [ "$CMD" != all ] && [ "$CMD" != seed ]; then "$WORK/qa" seed "${ARGS[@]}"; fi

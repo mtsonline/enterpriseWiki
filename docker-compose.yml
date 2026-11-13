@@ -18,7 +18,7 @@
 # (Caddy) with certificates from Let's Encrypt or ZeroSSL (EWIKI_ACME).
 # Office: the profiles collabora and onlyoffice (with proxy) start an office
 # server on its own host name (EWIKI_COLLABORA_HOST, EWIKI_ONLYOFFICE_HOST);
-# ./docker-setup.sh asks for it. See docs/admin/office.md.
+# ./docker-setup.sh asks for it. See docs/en/admin/office.md.
 services:
   postgres:
     # the official PostgreSQL image; major upgrades with ./docker-postgres-upgrade.sh

@@ -258,7 +258,7 @@ Elemente und Kategorien können eine **Kurz-URL** bekommen: Seiten über *Eigens
 Unter *Administration → Einstellungen → Startseite* wählen Administratoren, was unter `/` erscheint: die Übersicht der obersten Kategorien, eine Kategorie oder ein Element. Neue Installationen zeigen die Willkommensseite. Für eine Übersicht von Bereichen eignet sich der Elementtyp **Kategorieübersicht**: eine Kategorie oder die oberste Ebene, mit 1–5 Ebenen Unterkategorien, als Karten oder Liste, auf Wunsch mit Beschreibungen und den Seiten jeder Kategorie.
 
 ### Bereiche
-Jede Kategorie der obersten Ebene ist ein **Bereich** (wie ein Space in Confluence). Wer dort das Recht *Verwalten* hat, ist Bereichsverwaltung – ganz ohne Administratorrechte – und stellt in den *Kategorie-Einstellungen → Bereich* ein:
+Jede Kategorie der obersten Ebene ist ein **Bereich**. Wer dort das Recht *Verwalten* hat, ist Bereichsverwaltung – ganz ohne Administratorrechte – und stellt in den *Kategorie-Einstellungen → Bereich* ein:
 
 - **Bereichsschlüssel** (z. B. `HR`): Der Bereich ist dann unter der Kurzadresse `/s/HR` erreichbar; Schlüssel sind eindeutig.
 - **Eigene Navigation**: Innerhalb des Bereichs zeigt die Seitenleiste nur dessen Kategorien, mit Name und Schlüssel des Bereichs oben.
@@ -368,7 +368,7 @@ Gelöschte Kategorien (mit allem Inhalt) und Seiten landen im **Papierkorb** (Be
 
 ## Berechtigungen einer Kategorie
 
-Mit dem Recht *Verwalten* legen Sie unter *Kategorie-Einstellungen → Berechtigungen* fest, wer was darf: Benutzer, Gruppe, Rolle, alle Angemeldeten oder Gäste. Wählen Sie eine Vorlage (**Leser**, **Kategorie-Editor**, **Kategorie-Manager**) oder einzelne Rechte, auch die Rechte von Plugins (z. B. *Workflows anlegen*). Optional gilt eine Regel auch für alle Unterkategorien. Geerbte Regeln werden mit ihrer Herkunft angezeigt. Details: [docs/admin/security.md](../admin/security.md#berechtigungen).
+Mit dem Recht *Verwalten* legen Sie unter *Kategorie-Einstellungen → Berechtigungen* fest, wer was darf: Benutzer, Gruppe, Rolle, alle Angemeldeten oder Gäste. Wählen Sie eine Vorlage (**Leser**, **Kategorie-Editor**, **Kategorie-Manager**) oder einzelne Rechte, auch die Rechte von Plugins (z. B. *Workflows anlegen*). Optional gilt eine Regel auch für alle Unterkategorien. Geerbte Regeln werden mit ihrer Herkunft angezeigt. Details: [docs/de/admin/security.md](../admin/security.md#berechtigungen).
 
 ## Anmelden
 

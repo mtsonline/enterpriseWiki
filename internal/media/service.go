@@ -49,7 +49,7 @@ func (p Perm) Strings() []string {
 	return out
 }
 
-// Watermark modes (see docs/developer/media.md).
+// Watermark modes (see docs/en/developer/media.md).
 const (
 	WMNone         = "none"
 	WMUploaderOnly = "uploader_only" // the original is not stored
@@ -245,7 +245,7 @@ func contains(l []int64, v int64) bool {
 	return false
 }
 
-// Perms returns the rights of the caller on m (see docs/developer/media.md).
+// Perms returns the rights of the caller on m (see docs/en/developer/media.md).
 func (s *Service) Perms(ctx context.Context, m *Medium) (Perm, error) {
 	p := identity.From(ctx)
 	cat, err := s.acl.Perms(ctx, p, m.CategoryID)

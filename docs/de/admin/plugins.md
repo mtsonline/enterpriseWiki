@@ -99,7 +99,7 @@ Jede Vorlage bietet Positionen, an denen Menüs (`core.menu`), Blöcke (`core.bl
 | `footer-1` … `footer-4` | – | Spalten im Fußbereich |
 | `footer` | Fußbereich | unterste Zeile des Fußbereichs |
 
-Die Wiki-Vorlage hieß bis v7.4.1 `theme.confluence` bzw. `theme.confluence.dark`. Beim Start werden `ui.template`, `plugins.disabled` und `plugin_settings` automatisch auf `theme.wiki` bzw. `theme.wiki.dark` umgestellt. Ihre Seitenleiste lässt sich auf allen Bildschirmgrößen über den Knopf im Kopfbereich ausblenden; der Zustand wird im Browser gemerkt.
+Bei der Wiki-Vorlage (`theme.wiki`, `theme.wiki.dark`) lässt sich die Seitenleiste auf allen Bildschirmgrößen über den Knopf im Kopfbereich ausblenden; der Zustand wird im Browser gemerkt.
 
 ### Website-Vorlage einrichten
 
@@ -149,6 +149,15 @@ Plugins sind vollwertiger Code mit Zugriff auf Datenbank und Server. Installiere
 | `auth.ldap` | Authentifizierung | LDAP / Active Directory |
 | `auth.oidc` | Authentifizierung | OpenID Connect (Keycloak, Entra ID, …) |
 | `auth.shib` | Authentifizierung | Shibboleth / SAML 2.0 |
+| `mfa.totp` | Anmeldefaktor | Code einer Authenticator-App (RFC 6238) |
+| `mfa.email` | Anmeldefaktor | Einmal-Code per E-Mail an die Haupt-Adresse |
+| `mfa.network` | Anmeldefaktor | erlaubte Netze je Person (stiller Faktor, wahlweise für alle Sitzungen, API-Keys und Feed-Links durchgesetzt) |
+| `mfa.webauthn` | Anmeldefaktor | Passkeys und Sicherheitsschlüssel (FIDO2), auch Anmeldung ohne Passwort |
+| `signature.passkey` | Signatur | Entscheidungen (z. B. Freigaben in Workflows) mit Passkey oder Sicherheitsschlüssel signieren, fortgeschrittene elektronische Signatur |
+| `signature.smime` | Signatur | ausgehende E-Mails mit S/MIME signieren (Zertifikate der Organisation und persönliche), Ablaufwarnungen, zweites Siegel für Nachweise |
+| `office.collabora` | Office | Office-Dateien in Collabora Online öffnen und bearbeiten (WOPI) |
+| `office.onlyoffice` | Office | Office-Dateien in OnlyOffice Docs öffnen und bearbeiten (OnlyOffice-API oder WOPI) |
+| `office.m365` | Office | Word-, Excel- und PowerPoint-Dateien in Microsoft 365 für das Web (WOPI, nur mit CSPP) |
 | `core.attachment` | Elementtyp | Dateien (PDF, Office, Bilder, Video) mit Vorschau und Volltext |
 | `core.html` | Elementtyp | Seiten mit WYSIWYG oder Markdown |
 | `core.menu` | Menü | beliebig viele, auch mehrstufige Menüs an jeder Position der Vorlage. Ziele sind Kategorien, Elemente, Links oder andere Menüs (*Administration → Menüs*). |
@@ -181,4 +190,4 @@ Plugins sind vollwertiger Code mit Zugriff auf Datenbank und Server. Installiere
 | `theme.wiki.dark` | Template (Beispiel) | erbt von `theme.wiki`, ändert nur die Farben |
 | `example.notice` | Elementtyp (Beispiel) | Hinweisbox, erbt von `core.html` |
 
-Eigene Plugins entwickeln: [docs/developer/plugins.md](../developer/plugins.md)
+Eigene Plugins entwickeln: [Plugins entwickeln](../developer/plugins.md)

@@ -62,7 +62,7 @@ func main() {
 	fs.BoolVar(&lo.NotifyOps, "notify-ops", false, "load: include comments and workflow starts in the mix")
 	fs.StringVar(&o.ServerPID, "server-pid", os.Getenv("EWIKI_QA_SERVER_PID"), "process id of the wiki on this machine (memory and CPU in the results)")
 	ca := fs.String("ca", os.Getenv("EWIKI_QA_CA"), "certificate authority (PEM file) of the test instance behind a reverse proxy")
-	fs.StringVar(&o.Routes, "routes", "", "pentest: route list (default: docs/developer/api.md of the repository)")
+	fs.StringVar(&o.Routes, "routes", "", "pentest: route list (default: docs/en/developer/api.md of the repository)")
 	repo := fs.String("repo", ".", "static: root of the repository")
 	title := fs.String("title", "Enterprise Wiki", "report: name of the product")
 	version := fs.String("version", "", "report: version under test")

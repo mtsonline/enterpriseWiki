@@ -33,7 +33,7 @@ type Options struct {
 	Users     int    // QA accounts (qa-u001 ...)
 	SpoofIPs  bool   // one client address per virtual user (X-Forwarded-For; needs server.trusted_proxies)
 	Force     bool   // allow targets that are not on this machine
-	Routes    string // route list (docs/developer/api.md) for the sweep of the penetration test
+	Routes    string // route list (docs/en/developer/api.md) for the sweep of the penetration test
 	ServerPID string // process id of the wiki when it runs on this machine (memory, CPU)
 }
 

@@ -24,7 +24,8 @@ import (
 	"github.com/mtsonline/enterprisewiki/internal/perm"
 )
 
-// Spaces: every top-level category is a space (like a Confluence space).
+// Spaces: every top-level category is a space with its own template, key,
+// sidebar, managers and features.
 // Its settings apply to the whole subtree: key with the address /s/KEY,
 // own navigation with shortcuts, allowed element types, default language.
 // Managing a space needs the permission Manage on its top-level category.
