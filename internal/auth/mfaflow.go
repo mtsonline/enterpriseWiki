@@ -85,6 +85,38 @@ type PasswordlessMethod interface {
 	Finish(ctx context.Context, state string, answer json.RawMessage) (uid int64, err error)
 }
 
+// KeyProof is what a security key or passkey returned when it signed a
+// given challenge: enough to verify the signature later without the wiki.
+type KeyProof struct {
+	CredentialID      []byte   `json:"credential_id"`
+	PublicKey         []byte   `json:"public_key"` // COSE key
+	AuthenticatorData []byte   `json:"authenticator_data"`
+	ClientDataJSON    []byte   `json:"client_data_json"`
+	Signature         []byte   `json:"signature"`
+	RPID              string   `json:"rp_id"`
+	Origins           []string `json:"origins"`
+	UserVerified      bool     `json:"user_verified"`
+}
+
+// KeySigner is implemented by factors with keys that can sign a challenge
+// given by the wiki (WebAuthn): signature plugins use it to sign records.
+// User verification (PIN, biometrics) is always required.
+type KeySigner interface {
+	HasKey(ctx context.Context, uid int64) bool
+	SignBegin(ctx context.Context, uid int64, challenge []byte) (public any, state string, err error)
+	SignFinish(ctx context.Context, uid int64, state string, answer json.RawMessage) (*KeyProof, error)
+}
+
+// KeySigner returns an enabled factor that can sign with keys, if any.
+func (s *Service) KeySigner() KeySigner {
+	for _, m := range s.MFAMethods() {
+		if k, ok := m.(KeySigner); ok {
+			return k
+		}
+	}
+	return nil
+}
+
 // AccessGuard is implemented by plugins that restrict sign-ins and
 // requests (e.g. to networks): CheckSignIn before a session is created,
 // CheckRequest for every authenticated request.

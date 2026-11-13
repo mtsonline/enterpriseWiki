@@ -148,6 +148,10 @@ E-mail queue
   mail send                     deliver queued messages now
   mail bounces                  read the bounce mailbox now
 
+Signatures
+  signature verify FILE [--offline]  check an exported signature (record, method, seal of this wiki)
+  signature keys                public seal keys of the wiki (fingerprints)
+
 Maintenance
   retention run                 apply retention rules now
   jobs list | jobs run NAME     background jobs (mail, workflow timers, ...)
@@ -248,6 +252,8 @@ func Main(args []string) int {
 		err = e.siteCmd(args[1:])
 	case "license":
 		err = e.licenseCmd(args[1:])
+	case "signature":
+		err = e.signatureCmd(args[1:])
 	case "retention":
 		err = e.withApp(false, func(ctx context.Context, a *app.App) error {
 			res, err := a.Content.RunRetention(ctx)

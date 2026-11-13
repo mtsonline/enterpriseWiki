@@ -4,7 +4,7 @@ import { BASE } from './widget';
 
 interface LinkInfo {
   case_id: number; element_id: number; title: string; step: string; action: string; label: string;
-  note: '' | 'optional' | 'required'; expires: string; mine: boolean; signed_in: boolean; without_login: boolean;
+  note: '' | 'optional' | 'required'; expires: string; sign?: boolean; mine: boolean; signed_in: boolean; without_login: boolean;
 }
 
 const label = (x: LinkInfo) => (x.action === 'approve' || x.action === 'reject') && (x.label === 'approve' || x.label === 'reject')
@@ -30,7 +30,7 @@ export async function linkView({ main }: { main: HTMLElement }): Promise<void> {
     mount(main, title, what, h('p', { class: 'ew-field-error' }, t('workflow.link.other_user')), h('p', null, login));
     return;
   }
-  if (!info.without_login) { mount(main, title, what, h('p', null, t('workflow.link.need_login')), h('p', null, login)); return; }
+  if (!info.without_login) { mount(main, title, what, h('p', null, t(info.sign ? 'workflow.link.sign' : 'workflow.link.need_login')), h('p', null, login)); return; }
   const status = h('p', { role: 'status', 'aria-live': 'polite' });
   const note = textArea({ rows: 3 });
   const send = button(t('workflow.link.confirm', { action: label(info) }), () => undefined, { type: 'submit', variant: 'primary' });

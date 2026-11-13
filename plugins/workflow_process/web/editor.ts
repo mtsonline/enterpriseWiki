@@ -2,7 +2,7 @@
 // types (task, approval, condition, e-mail, webhook, waiting time, end).
 import { api, button, checkbox, confirmDialog, field, h, select, t, textArea, textInput, type EditorContext, type EditorInstance } from '@ewiki/sdk';
 import { TEMPLATES } from './templates';
-import { cleanTrigger, deadlineFields, optionsSection, extraStepFields, noticeFields, stepFormFields, triggersSection, validateExtra, type Kit } from './editor2';
+import { cleanTrigger, deadlineFields, optionsSection, signField, extraStepFields, noticeFields, stepFormFields, triggersSection, validateExtra, type Kit } from './editor2';
 import type { Action, Definition, Field, Meta, Rule, Step, StepType, Trigger } from './types';
 
 // Internal model: steps reference each other by a stable key, so renaming a
@@ -82,10 +82,11 @@ function toDefinition(m: Model): Definition {
       case 'task': {
         const aIds = new Set<string>();
         return { ...base, assignee: s.assignee, due_days: s.due_days || undefined, deadline, form: s.form?.length ? s.form : undefined,
-          actions: s.actions.map((a, j) => ({ id: uniqueId(a.id, a.label, aIds, `action${j + 1}`), label: a.label, next: ref(a.next), note: a.note || undefined })) };
+          sign: s.sign || undefined,
+          actions: s.actions.map((a, j) => ({ id: uniqueId(a.id, a.label, aIds, `action${j + 1}`), label: a.label, next: ref(a.next), note: a.note || undefined, sign: a.sign || undefined })) };
       }
       case 'approval': return { ...base, assignee: s.assignee, due_days: s.due_days || undefined, deadline, form: s.form?.length ? s.form : undefined, required: s.required || 0,
-        approve_label: s.approve_label || undefined, reject_label: s.reject_label || undefined, next: ref(s.next), next_else: ref(s.nextElse) };
+        approve_label: s.approve_label || undefined, reject_label: s.reject_label || undefined, next: ref(s.next), next_else: ref(s.nextElse), sign: s.sign || undefined };
       case 'condition': return { ...base, match: s.match || 'all', rules: s.rules ?? [], next: ref(s.next), next_else: ref(s.nextElse) };
       case 'email': return { ...base, email: s.email, next: ref(s.next) };
       case 'webhook': return { ...base, webhook: s.webhook, next: ref(s.next), next_else: ref(s.nextElse) || undefined };
@@ -205,9 +206,13 @@ export function createWorkflowEditor(container: HTMLElement, body: unknown, ctx:
   const actionRow = (s: EStep, a: EAction, j: number): HTMLElement => {
     const note = select([{ value: '', label: t('workflow.note.none') }, { value: 'optional', label: t('workflow.note.optional') }, { value: 'required', label: t('workflow.note.required') }], a.note ?? '');
     note.addEventListener('change', () => { a.note = note.value as EAction['note']; });
+    const sign = select([{ value: '', label: t('workflow.sign.as_step') }, { value: 'none', label: t('workflow.sign.none') },
+      { value: 'advanced', label: t('workflow.sign.advanced') }, { value: 'qualified', label: t('workflow.sign.qualified') }], a.sign ?? '');
+    sign.addEventListener('change', () => { a.sign = sign.value || undefined; });
     return h('div', { class: 'ewf-action-row', role: 'group', 'aria-label': t('workflow.action_n', { n: j + 1 }) },
       field(t('workflow.action_label'), text(() => a.label, (v) => { a.label = v; }, { max: 100 }), { required: true }),
       field(t('workflow.next'), stepSelect(() => a.next, (k) => { a.next = k; }, s), { required: true }), field(t('workflow.note'), note),
+      field(t('workflow.sign.action'), sign),
       button(t('common.delete'), () => { s.actions.splice(j, 1); draw(); }, { variant: 'link', ariaLabel: `${t('common.delete')}: ${a.label || t('workflow.action_n', { n: j + 1 })}` }));
   };
 
@@ -265,13 +270,13 @@ export function createWorkflowEditor(container: HTMLElement, body: unknown, ctx:
         return [h('p', { class: 'ew-help' }, t('workflow.final_help')), field(t('workflow.outcome'), outcome)];
       }
       case 'task':
-        return [assigneeFields(s), h('h3', null, t('workflow.actions')), ...s.actions.map((a, j) => actionRow(s, a, j)),
+        return [assigneeFields(s), signField(s), h('h3', null, t('workflow.actions')), ...s.actions.map((a, j) => actionRow(s, a, j)),
           button(t('workflow.add_action'), () => {
             s.actions.push({ id: '', label: '', next: 0 }); draw();
             root.querySelectorAll<HTMLElement>('.ewf-step-row')[i]?.querySelectorAll<HTMLInputElement>('.ewf-action-row input')[s.actions.length - 1]?.focus();
           })];
       case 'approval':
-        return [h('p', { class: 'ew-help' }, t('workflow.approval_help')), assigneeFields(s),
+        return [h('p', { class: 'ew-help' }, t('workflow.approval_help')), assigneeFields(s), signField(s),
           h('div', { class: 'ewf-grid' },
             field(t('workflow.required_approvals'), num(() => s.required, (v) => { s.required = v; }), { help: t('workflow.required_approvals_help') }),
             field(t('workflow.approve_label'), text(() => s.approve_label, (v) => { s.approve_label = v; }, { max: 100, placeholder: t('workflow.approve') })),

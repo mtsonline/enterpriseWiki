@@ -3,6 +3,7 @@ import { verifyEmailView } from './views/identity';
 import './styles/base.css';
 import './editor/editor.css';
 import { mediaView } from './views/media';
+import { signatureVerifyView } from './views/signatures';
 import { officeView } from './components/office';
 import { api, setWaitNotice, setWaitPrompt } from './core/api';
 import { waitDialog } from './components/ui';
@@ -44,6 +45,7 @@ function registerCore(): void {
   route('/verify-email', verifyEmailView);
   route('/profile', profileView);
   route('/trash', trashView);
+  route('/signatures/verify', signatureVerifyView);
   route('/media', mediaView);
   route('/office/:id', officeView);
   route('/admin', adminView);

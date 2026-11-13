@@ -575,5 +575,22 @@
  "workflow.calendar_tz_help": "Empty: the time zone of the server.",
  "workflow.calendar_registration": "Registration open",
  "workflow.ev.file": "file written → {step}",
- "workflow.ev.calendar": "calendar entry created → {step}"
+ "workflow.ev.calendar": "calendar entry created → {step}",
+ "workflow.sign.none": "no signature",
+ "workflow.sign.advanced": "signature (any method)",
+ "workflow.sign.qualified": "qualified signature",
+ "workflow.sign.only": "only: {method}",
+ "workflow.sign.step": "Signature of the decisions",
+ "workflow.sign.step_help": "Decisions of this step are signed: the signature covers the decision, the note, the values of the step form and all data of the case. Changes afterwards show when verifying.",
+ "workflow.sign.as_step": "as the step",
+ "workflow.sign.action": "Signature",
+ "workflow.sign.needs": "This decision is signed.",
+ "workflow.sign.needs_qualified": "This decision needs a qualified electronic signature.",
+ "workflow.sign.no_method": "You cannot sign this decision yet.",
+ "workflow.sign.setup": "Set up a passkey in your profile",
+ "workflow.sign.method": "Sign with",
+ "workflow.sign.with": "You sign with: {method}",
+ "workflow.sign.submit": "Sign and {action}",
+ "workflow.sign.signed": "signed – check",
+ "workflow.link.sign": "This decision is signed: please sign in and decide in the case."
 }

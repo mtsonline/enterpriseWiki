@@ -35,6 +35,7 @@ import (
 	"github.com/mtsonline/enterprisewiki/internal/pagecache"
 	"github.com/mtsonline/enterprisewiki/internal/pgversion"
 	"github.com/mtsonline/enterprisewiki/internal/secrets"
+	"github.com/mtsonline/enterprisewiki/internal/signature"
 	"github.com/mtsonline/enterprisewiki/internal/storage"
 	"github.com/mtsonline/enterprisewiki/internal/watch"
 	"github.com/mtsonline/enterprisewiki/internal/webhook"
@@ -62,6 +63,8 @@ type App struct {
 	Webhooks  *webhook.Service
 	// Notify stores notifications (bell) and e-mails them.
 	Notify *notify.Service
+	// Signatures keeps signature methods and sealed evidence.
+	Signatures *signature.Service
 	// AuditForward sends the audit log to other systems.
 	AuditForward *audit.Forwarder
 	Cache        *pagecache.Cache
@@ -322,6 +325,8 @@ func newSite(ctx context.Context, in *Instance, site string, migrate bool) (*App
 	a.AuditForward = &audit.Forwarder{Pool: pool, Cfg: cfg, DataDir: filepath.Dir(cfg.Path()), Site: func() string { return cfg.Get().UI.SiteName }}
 	a.Workers.Register(worker.Job{Name: "audit.forward", Interval: 15 * time.Second, Active: func() bool { return len(cfg.Get().Audit.Forward) > 0 }, Run: a.AuditForward.Run})
 	a.Notify = notify.New(pool, cfg, a.Mail)
+	a.Signatures = signature.New(pool)
+	a.Signatures.Box = in.Secrets
 	a.Workers.Register(worker.Job{Name: "views.flush", Interval: time.Minute, Run: a.Content.FlushViews})
 	a.Workers.Register(worker.Job{Name: "notifications.cleanup", Interval: 24 * time.Hour, Run: func(ctx context.Context) error { return a.Notify.Cleanup(ctx, 90) }})
 	// scheduled publication of drafts (with the permissions of who scheduled it)
@@ -338,7 +343,8 @@ func newSite(ctx context.Context, in *Instance, site string, migrate bool) (*App
 		a.close()
 		return nil, err
 	}
-	base := sdk.Host{Notify: a.Notify, Webhooks: a.Webhooks, Secrets: in.Secrets, Config: cfg, DB: pool, ACL: a.ACL, Content: a.Content, Auth: a.Auth, I18n: a.I18n, Files: a.Files, Media: a.Media, Mail: a.Mail, Feeds: a.Feeds, Workers: a.Workers,
+	a.Signatures.Enabled = a.Kernel.Enabled
+	base := sdk.Host{Notify: a.Notify, Signatures: a.Signatures, Webhooks: a.Webhooks, Secrets: in.Secrets, Config: cfg, DB: pool, ACL: a.ACL, Content: a.Content, Auth: a.Auth, I18n: a.I18n, Files: a.Files, Media: a.Media, Mail: a.Mail, Feeds: a.Feeds, Workers: a.Workers,
 		Log: log, Mux: a.Mux, IsEnabled: a.Kernel.Enabled}
 	if err := a.Kernel.Setup(base, a.I18n); err != nil {
 		a.close()

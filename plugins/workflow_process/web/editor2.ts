@@ -1,6 +1,6 @@
 // Editor parts of Workflow 2: triggers, the automatic steps notify, set,
 // http, create, props and subflow, deadlines with escalation and notices.
-import { api, button, categorySelect, checkbox, elementSelect, field, h, select, sourcesEditor, t, textInput, toast } from '@ewiki/sdk';
+import { api, button, categorySelect, checkbox, elementSelect, field, h, select, sourcesEditor, state, t, textInput, toast } from '@ewiki/sdk';
 import type { Channel, Deadline, Field, Meta, Notice, NotifySpec, StepField, Trigger, TriggerStatus, TriggerType } from './types';
 import type { EStep, Model } from './editor';
 
@@ -562,4 +562,19 @@ export function optionsSection(m: Model): HTMLElement {
     h('div', { class: 'ewf-grid' },
       field(t('workflow.retention.days'), days, { help: t('workflow.retention.help') }),
       field(t('workflow.retention.mode'), mode)));
+}
+
+/** Signature of the decisions of a step: none, any method, qualified or a certain method. */
+export function signField(s: EStep): HTMLElement {
+  const box = h('div');
+  const opts = [{ value: '', label: t('workflow.sign.none') }, { value: 'advanced', label: t('workflow.sign.advanced') },
+    { value: 'qualified', label: t('workflow.sign.qualified') }];
+  const draw = (methods: { id: string; label: string }[]) => {
+    const sel = select([...opts, ...methods.map((m) => ({ value: m.id, label: t('workflow.sign.only', { method: m.label }) }))], s.sign ?? '');
+    sel.addEventListener('change', () => { s.sign = sel.value || undefined; });
+    box.replaceChildren(field(t('workflow.sign.step'), sel, { help: t('workflow.sign.step_help') }));
+  };
+  draw([]);
+  void api.get<{ id: string; label: string }[]>(`signature-methods?lang=${state.lang}`).then(draw).catch(() => undefined);
+  return box;
 }

@@ -446,3 +446,62 @@ func (wa *WebAuthn) remove(ctx context.Context, uid, id int64) error {
 	}
 	return audit.Log(ctx, wa.pool, "webauthn.remove", "user", uid, nil, map[string]any{"id": id})
 }
+
+// ---------------------------------------------------------------- signing (auth.KeySigner)
+
+// HasKey implements auth.KeySigner.
+func (wa *WebAuthn) HasKey(ctx context.Context, uid int64) bool { return wa.Enrolled(ctx, uid) }
+
+// SignBegin implements auth.KeySigner: an assertion over the given
+// challenge with any key of the person, user verification required.
+func (wa *WebAuthn) SignBegin(ctx context.Context, uid int64, challenge []byte) (any, string, error) {
+	rp, err := wa.relyingParty()
+	if err != nil {
+		return nil, "", err
+	}
+	u, err := wa.loadUser(ctx, uid, false)
+	if err != nil {
+		return nil, "", err
+	}
+	opts, sess, err := rp.BeginLogin(u, webauthn.WithChallenge(challenge), webauthn.WithUserVerification(protocol.VerificationRequired))
+	if err != nil {
+		return nil, "", err
+	}
+	state, err := json.Marshal(sess)
+	return opts, string(state), err
+}
+
+// SignFinish implements auth.KeySigner: checks the assertion (origin,
+// relying party, challenge, signature, user verification, not cloned) and
+// returns all that is needed to verify it again later.
+func (wa *WebAuthn) SignFinish(ctx context.Context, uid int64, state string, answer json.RawMessage) (*auth.KeyProof, error) {
+	var sess webauthn.SessionData
+	if err := json.Unmarshal([]byte(state), &sess); err != nil {
+		return nil, err
+	}
+	rp, err := wa.relyingParty()
+	if err != nil {
+		return nil, err
+	}
+	u, err := wa.loadUser(ctx, uid, false)
+	if err != nil {
+		return nil, err
+	}
+	parsed, err := protocol.ParseCredentialRequestResponseBytes(answer)
+	if err != nil {
+		return nil, err
+	}
+	cred, err := rp.ValidateLogin(u, sess, parsed)
+	if err != nil {
+		return nil, err
+	}
+	if !parsed.Response.AuthenticatorData.Flags.HasUserVerified() {
+		return nil, errors.New("the key did not verify the person (PIN or biometrics)")
+	}
+	if err := wa.used(ctx, uid, cred); err != nil {
+		return nil, err
+	}
+	return &auth.KeyProof{CredentialID: cred.ID, PublicKey: cred.PublicKey, AuthenticatorData: parsed.Raw.AssertionResponse.AuthenticatorData,
+		ClientDataJSON: parsed.Raw.AssertionResponse.ClientDataJSON, Signature: parsed.Raw.AssertionResponse.Signature,
+		RPID: rp.Config.RPID, Origins: rp.Config.RPOrigins, UserVerified: true}, nil
+}

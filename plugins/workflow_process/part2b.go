@@ -245,7 +245,7 @@ func (pl *Plugin) linkRoutes(host *sdk.Host) {
 		}
 		return map[string]any{"case_id": x.ID, "element_id": x.ElementID, "title": x.Title, "step": x.StepName, "action": l.action,
 			"label": label, "note": note, "expires": time.Unix(l.exp, 0).UTC(), "mine": p != nil && p.ID() == l.uid, "signed_in": p != nil && p.ID() > 0,
-			"without_login": withoutLogin(ctx, x)}, nil
+			"without_login": withoutLogin(ctx, x) && !linkNeedsSign(x, l.action), "sign": linkNeedsSign(x, l.action)}, nil
 	})
 	// POST /links/act {"t": "…", "note": ""}: the decision of the link without
 	// signing in (only when allowed, below confidential, once)
@@ -262,7 +262,7 @@ func (pl *Plugin) linkRoutes(host *sdk.Host) {
 		if err != nil {
 			return nil, err
 		}
-		if !withoutLogin(ctx, x) {
+		if !withoutLogin(ctx, x) || linkNeedsSign(x, l.action) {
 			return nil, apperr.Forbidden("please sign in to decide")
 		}
 		tag, err := host.DB.Exec(ctx, `INSERT INTO plugin_workflow_links_used(hash) VALUES ($1) ON CONFLICT DO NOTHING`, linkHash(in.T))
@@ -285,6 +285,12 @@ func (pl *Plugin) linkRoutes(host *sdk.Host) {
 		_ = audit.Log(pctx, host.DB, "workflow.link_action", "workflow_case", x.ID, nil, map[string]string{"action": l.action})
 		return map[string]any{"done": true, "title": x.Title}, nil
 	})
+}
+
+// linkNeedsSign: decisions with a signature are made in the case, signed
+// in, never with the link alone.
+func linkNeedsSign(x *Instance, action string) bool {
+	return signReq(x.Definition.Step(x.Step), Action{ID: action}) != ""
 }
 
 // ---------------------------------------------------------------- test runs
@@ -449,9 +455,13 @@ const TestDays = 7
 // workflow, and test runs after TestDays (background worker).
 func (pl *Plugin) retention(ctx context.Context) error {
 	return pgx.BeginFunc(ctx, pl.host.DB, func(tx pgx.Tx) error {
-		del, err := tx.Exec(ctx, `DELETE FROM plugin_workflow_instances WHERE (test AND started_at < now() - make_interval(days => $1))
+		drows, err := tx.Query(ctx, `DELETE FROM plugin_workflow_instances WHERE (test AND started_at < now() - make_interval(days => $1))
 			OR (status <> 'open' AND definition->'retention'->>'mode' = 'delete'
-				AND closed_at < now() - make_interval(days => (definition->'retention'->>'days')::int))`, TestDays)
+				AND closed_at < now() - make_interval(days => (definition->'retention'->>'days')::int)) RETURNING id`, TestDays)
+		if err != nil {
+			return err
+		}
+		deleted, err := pgx.CollectRows(drows, pgx.RowTo[int64])
 		if err != nil {
 			return err
 		}
@@ -474,9 +484,13 @@ func (pl *Plugin) retention(ctx context.Context) error {
 				return err
 			}
 		}
-		if del.RowsAffected() > 0 || len(ids) > 0 {
+		// signatures hold the personal data of the signers: they go with the case
+		if err := deleteSignatures(ctx, tx, append(deleted, ids...)); err != nil {
+			return err
+		}
+		if len(deleted) > 0 || len(ids) > 0 {
 			return audit.Log(identity.With(ctx, identity.CLI()), tx, "workflow.retention", "settings", 0, nil,
-				map[string]any{"deleted": del.RowsAffected(), "anonymized": len(ids)})
+				map[string]any{"deleted": len(deleted), "anonymized": len(ids)})
 		}
 		return nil
 	})

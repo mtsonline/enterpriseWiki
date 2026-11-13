@@ -17,6 +17,8 @@ export { renderAuthProviderPage } from './components/authadmin';
 export { registerMFAMethodUI, mfaCodeForm, enrollFactor } from './core/mfa';
 export type { MFAMethodUI, MFAStepContext, MFAEnrollContext } from './core/mfa';
 export { webauthnSupported, webauthnCreate, webauthnGet, webauthnCancelled } from './core/webauthn';
+export { signatureMethods, signChallenge, openSignature } from './components/signature';
+export type { SignatureMethod, SignChallenge } from './components/signature';
 export type { AuthProviderPage } from './components/authadmin';
 export type { SettingField } from './components/settings';
 export { t, pick, uiLang, pluralForm } from './core/i18n';
