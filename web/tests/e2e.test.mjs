@@ -644,6 +644,85 @@ test('second factor at sign-in and passkeys', async () => {
   }
 });
 
+test('a decision signed with a passkey, its verification and the verify page', async () => {
+  const name = `sig${run}`;
+  const pw = 'Sig-Passw0rd-1!x';
+  await call('POST', '/api/v1/admin/users', { username: name, password: pw, display_name: `Signer ${run}` });
+  const cat = (await call('POST', '/api/v1/categories', { titles: { en: `Signed ${run}` } })).id;
+  await call('POST', `/api/v1/categories/${cat}/acl`, { subject_type: 'authenticated', permissions: 1, inherit: true });
+  const wf = await call('POST', '/api/v1/elements', { category_id: cat, type: 'workflow.process', title: `Contract ${run}`, body: {
+    description: 'E2E', fields: [{ id: 'amount', label: 'Amount', type: 'number' }],
+    steps: [
+      { id: 'check', name: 'Check', type: 'task', sign: 'advanced', assignee: { type: 'user', value: name },
+        actions: [{ id: 'ok', label: 'Agree', next: 'done', note: 'optional' }] },
+      { id: 'done', name: 'Done', type: 'end', outcome: 'success' }] } });
+  const x = await call('POST', `/api/v1/x/workflow.process/elements/${wf.id}/instances`, { data: { amount: 1200 } });
+  // the editor offers the signature of the step
+  await page.goto(`${BASE}/e/${wf.id}/edit`);
+  await idle();
+  assert.equal(await page.locator('.ewf-step-row').first().getByLabel(/^(signature of the decisions|signatur der entscheidungen)/i).inputValue(), 'advanced');
+  await a11y('workflow editor with signature');
+  const ctx2 = await browser.newContext({ viewport: { width: 1280, height: 900 }, bypassCSP: true });
+  const p2 = await ctx2.newPage();
+  p2.on('pageerror', (e) => errors.push(`signer: ${e.message}`));
+  try {
+    const cdp = await ctx2.newCDPSession(p2);
+    await cdp.send('WebAuthn.enable');
+    await cdp.send('WebAuthn.addVirtualAuthenticator', { options: { protocol: 'ctap2', transport: 'internal', hasResidentKey: true, hasUserVerification: true, isUserVerified: true, automaticPresenceSimulation: true } });
+    await p2.goto(BASE + '/login');
+    await p2.getByLabel(/user ?name|benutzername/i).fill(name);
+    await p2.getByLabel(/^(password|passwort)/i).fill(pw);
+    await p2.keyboard.press('Enter');
+    await p2.waitForURL((u) => !u.pathname.startsWith('/login'));
+    // without a passkey the decision cannot be signed yet
+    await p2.goto(`${BASE}/e/${wf.id}?case=${x.id}`);
+    await p2.locator('dialog[open]').getByRole('button', { name: /^agree$/i }).click();
+    await p2.getByText(/cannot sign this decision yet|noch nicht signieren/i).waitFor();
+    await a11y('decision without a way to sign', p2);
+    // set up the passkey in the profile
+    await p2.goto(BASE + '/profile');
+    await p2.getByRole('button', { name: /^(add security key|sicherheitsschlüssel hinzufügen)$/i }).click();
+    const kd = p2.locator('dialog[open]');
+    await kd.getByLabel(/^name/i).fill('Virtual');
+    await kd.locator('button[type=submit]').click();
+    await kd.waitFor({ state: 'detached' });
+    // sign the decision
+    await p2.goto(`${BASE}/e/${wf.id}?case=${x.id}`);
+    await p2.locator('dialog[open]').getByRole('button', { name: /^agree$/i }).click();
+    const form = p2.locator('dialog[open] form');
+    await form.getByText(/you sign with|sie signieren mit/i).waitFor();
+    await form.getByLabel(/^(note|notiz)/i).fill('Checked against the offer');
+    await a11y('decision with signature', p2);
+    await form.getByRole('button', { name: /^(sign and agree|signieren und agree)$/i }).click();
+    await form.waitFor({ state: 'detached' });
+    const done = await call('GET', `/api/v1/x/workflow.process/instances/${x.id}`);
+    assert.equal(done.status, 'done');
+    const sig = done.events.find((e) => e.action === 'ok')?.signature;
+    assert.ok(sig, 'the decision carries its signature');
+    // the evidence: valid, checks listed, export
+    await p2.goto(`${BASE}/e/${wf.id}?case=${x.id}`);
+    await p2.locator('dialog[open]').getByRole('button', { name: /^(signed – check|signiert – prüfen)$/i }).click();
+    const sd = p2.locator('dialog[open]', { has: p2.getByRole('heading', { name: /^(signature|signatur)$/i }) });
+    await sd.getByText(/the signature is valid|die signatur ist gültig/i).waitFor();
+    await sd.getByText(/ml-dsa-65/i).waitFor();
+    await a11y('signature verification', p2);
+    const exp = await p2.evaluate(async (id) => (await fetch(`/api/v1/signatures/${id}/export`)).text(), sig);
+    assert.match(exp, /"public_key"/);
+    // the verify page: the export is valid, a changed one is not
+    await p2.goto(BASE + '/signatures/verify');
+    await a11y('verify page', p2);
+    await p2.getByLabel(/^(exported signature|exportierte signatur)/i).setInputFiles({ name: 'sig.json', mimeType: 'application/json', buffer: Buffer.from(exp) });
+    await p2.getByText(/the signature is valid|die signatur ist gültig/i).waitFor();
+    const bad = JSON.parse(exp);
+    bad.record.decision.note = 'Something else';
+    await p2.getByLabel(/^(exported signature|exportierte signatur)/i).setInputFiles({ name: 'bad.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(bad)) });
+    await p2.getByText(/the signature is not valid|die signatur ist nicht gültig/i).waitFor();
+    await a11y('verify page with an invalid signature', p2);
+  } finally {
+    await ctx2.close();
+  }
+});
+
 test('the simple editor as personal choice', async () => {
   await call('PUT', '/api/v1/me', { prefs: { editor: 'simple' } });
   try {

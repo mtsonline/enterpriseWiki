@@ -1,5 +1,6 @@
 // Interactive part of a workflow page: start a case, list cases, act on them.
-import { api, button, checkbox, errorText, field, fmtDate, formDialog, h, humanSize, mount, openDialog, select, state, t, textArea, textInput, toast, uploadFile } from '@ewiki/sdk';
+import { openSignature, signatureMethods, signChallenge, api, button, checkbox, errorText, field, fmtDate, formDialog, h, humanSize, mount, openDialog, select, state, t, textArea, textInput, toast, uploadFile } from '@ewiki/sdk';
+import type { SignChallenge } from '@ewiki/sdk';
 import type { Action, Event, Field, Instance } from './types';
 
 export const BASE = 'x/workflow.process';
@@ -96,6 +97,25 @@ export async function openCase(id: number, onChange?: () => void, autoAction?: s
       return f ? [fieldControl({ ...f, required: sf.mode === 'required' }, x.lang, x.data[f.id])] : [];
     }) : [];
     const to = a?.id === '_delegate' ? textInput({ required: true, autocomplete: 'off', placeholder: t('workflow.handover.to_ph') }) : null;
+    // decisions with a signature: choose the method (those the person can use)
+    const needSign = a?.sign ?? '';
+    let method = '';
+    const signBox = needSign ? h('div', { class: 'ewf-sign', 'aria-live': 'polite' }, h('p', { class: 'ew-help' }, t('common.loading'))) : null;
+    if (signBox) {
+      void signatureMethods(needSign).then((ms) => {
+        const usable = ms.filter((m) => m.available);
+        method = usable[0]?.id ?? '';
+        const help = h('p', { class: 'ew-help' }, t(needSign === 'qualified' ? 'workflow.sign.needs_qualified' : 'workflow.sign.needs'));
+        if (!usable.length) {
+          signBox.replaceChildren(help, h('p', { class: 'ew-notice ew-notice--warning', role: 'note' }, t('workflow.sign.no_method'), ' ',
+            h('a', { href: '/profile' }, t('workflow.sign.setup'))));
+          return;
+        }
+        const sel = select(usable.map((m) => ({ value: m.id, label: `${m.label} (${t(`signature.level.${m.level}`)})` })), method);
+        sel.addEventListener('change', () => { method = sel.value; });
+        signBox.replaceChildren(help, usable.length > 1 ? field(t('workflow.sign.method'), sel) : h('p', null, t('workflow.sign.with', { method: usable[0].label })));
+      }).catch((e) => signBox.replaceChildren(h('p', { class: 'ew-field-error' }, errorText(e))));
+    }
     const run = async () => {
       const data: Record<string, unknown> = {};
       for (const c of inputs) {
@@ -104,7 +124,14 @@ export async function openCase(id: number, onChange?: () => void, autoAction?: s
         if (v !== null && v !== '') data[c.f.id] = v;
       }
       if (to && !to.value.trim()) { to.focus(); throw new Error(t('workflow.handover.to_missing')); }
-      if (a) await api.post(`${BASE}/instances/${x.id}/actions`, { action: a.id, note: note.value, to: to?.value.trim(), data });
+      let signature: { token: string; answer: unknown } | undefined;
+      if (a && needSign) {
+        if (!method) throw new Error(t('workflow.sign.no_method'));
+        const r = await api.post<{ token: string; challenge: SignChallenge }>(`${BASE}/instances/${x.id}/sign`,
+          { action: a.id, note: note.value, to: to?.value.trim(), data, method, lang: state.lang });
+        signature = { token: r.token, answer: await signChallenge(r.challenge) };
+      }
+      if (a) await api.post(`${BASE}/instances/${x.id}/actions`, { action: a.id, note: note.value, to: to?.value.trim(), data, signature, lang: state.lang });
       else await api.post(`${BASE}/instances/${x.id}/cancel`, { note: note.value });
       toast(t('workflow.done_msg', { action: title }));
       dlg.close();
@@ -115,8 +142,9 @@ export async function openCase(id: number, onChange?: () => void, autoAction?: s
         : t('workflow.action_confirm', { action: actionLabel(a), step: stepName(a.next) })) : t('workflow.cancel_confirm')),
       ...inputs.map((c) => c.el),
       to ? field(t('workflow.handover.to'), to, { required: true, help: t('workflow.handover.to_help') }) : null,
+      signBox,
       needNote ? field(needNote === 'required' ? t('workflow.note_required') : t('workflow.note_optional'), note, { required: needNote === 'required' }) : null,
-    ], title, async () => {
+    ], needSign ? t('workflow.sign.submit', { action: title }) : title, async () => {
       if (needNote === 'required' && !note.value.trim()) throw new Error(t('workflow.note_missing'));
       await run();
     });
@@ -142,6 +170,7 @@ export async function openCase(id: number, onChange?: () => void, autoAction?: s
     h('ol', { class: 'ewf-history' }, ...(x.events ?? []).map((e) => h('li', null,
       h('time', { datetime: e.at }, fmtDate(e.at, state.lang)), ' – ', h('strong', null, e.actor === 'system' ? t('workflow.system') : e.actor), ': ',
       eventText(e, stepName),
+      e.signature ? h('span', null, ' ', button(t('workflow.sign.signed'), () => void openSignature(e.signature!), { variant: 'link' })) : null,
       e.note ? h('blockquote', { class: 'ewf-note' }, e.note) : null))),
   ), [
     ...x.actions.map((a) => button(actionLabel(a), () => act(a), { variant: a.id === 'reject' ? 'danger' : 'primary' })),

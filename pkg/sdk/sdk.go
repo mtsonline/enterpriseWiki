@@ -42,6 +42,7 @@ import (
 	"github.com/mtsonline/enterprisewiki/internal/notify"
 	"github.com/mtsonline/enterprisewiki/internal/perm"
 	"github.com/mtsonline/enterprisewiki/internal/secrets"
+	"github.com/mtsonline/enterprisewiki/internal/signature"
 	"github.com/mtsonline/enterprisewiki/internal/storage"
 	"github.com/mtsonline/enterprisewiki/internal/webhook"
 	"github.com/mtsonline/enterprisewiki/internal/worker"
@@ -61,6 +62,7 @@ const (
 	KindMenu         = "menu"         // menus
 	KindTemplate     = "template"     // frontend templates (themes)
 	KindIntegration  = "integration"  // external systems
+	KindSignature    = "signature"    // ways to sign (passkey, S/MIME, qualified …)
 	KindGeneral      = "general"      // anything else
 )
 
@@ -174,7 +176,10 @@ type Host struct {
 	// Notify sends notifications in the wiki (bell) and by e-mail; declare
 	// the kinds with notify.RegisterKind so users can configure the e-mails.
 	Notify *notify.Service
-	Log    *slog.Logger
+	// Signatures signs records with the methods of signature plugins and
+	// keeps sealed, verifiable evidence (see internal/signature).
+	Signatures *signature.Service
+	Log        *slog.Logger
 
 	Mux       *http.ServeMux
 	IsEnabled func(pluginID string) bool
@@ -321,6 +326,12 @@ func (h *Host) RegisterMFAMethod(m auth.MFAMethod) {
 	h.Auth.RegisterMFAMethod(h.Manifest.ID, m)
 }
 
+// RegisterSignatureMethod adds a way to sign (plugins of the kind
+// "signature"); it is inactive while the plugin is disabled.
+func (h *Host) RegisterSignatureMethod(m signature.Method) {
+	h.Signatures.Register(m)
+}
+
 // RegisterAccessGuard adds checks of sign-ins and requests (see
 // auth.AccessGuard).
 func (h *Host) RegisterAccessGuard(g auth.AccessGuard) {
@@ -387,7 +398,7 @@ func RequireAdmin(r *http.Request) error {
 }
 
 // PluginKinds are the types of plugins, in the order of the administration.
-var PluginKinds = []string{KindElement, KindMacro, KindAuth, KindMFA, KindStorage, KindOffice, KindSearch, KindNotification,
+var PluginKinds = []string{KindElement, KindMacro, KindAuth, KindMFA, KindSignature, KindStorage, KindOffice, KindSearch, KindNotification,
 	KindWorkflow, KindMenu, KindTemplate, KindIntegration, KindGeneral}
 
 var pluginID = regexp.MustCompile(`^[a-z0-9][a-z0-9_-]*(\.[a-z0-9][a-z0-9_-]*)+$`)

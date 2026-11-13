@@ -92,6 +92,9 @@ type Action struct {
 	Label string `json:"label"`
 	Next  string `json:"next"`
 	Note  string `json:"note,omitempty"` // "" | optional | required
+	// Sign: signature for this action – "" as the step, "none", "advanced",
+	// "qualified" or a signature plugin. Offered actions carry the result.
+	Sign string `json:"sign,omitempty"`
 }
 
 // Step types.
@@ -176,6 +179,9 @@ type Step struct {
 	Description string   `json:"description,omitempty"`
 	Assignee    Assignee `json:"assignee"`
 	Actions     []Action `json:"actions"`
+	// Sign: decisions of this step need a signature – "advanced" (any
+	// method), "qualified" or the id of a signature plugin ("" none).
+	Sign string `json:"sign,omitempty"`
 	// Outcome of an end step: success | failure | neutral.
 	Outcome string `json:"outcome,omitempty"`
 	// DueDays sends a reminder to the assignees of a task or approval after
@@ -363,6 +369,9 @@ func (d *Definition) Validate() error {
 		} else if r.Days > 36500 || (r.Mode != "delete" && r.Mode != "anonymize") {
 			return apperr.BadRequest("retention: 1 to 36500 days, delete or anonymize")
 		}
+	}
+	if err := d.validateSign(); err != nil {
+		return err
 	}
 	if d.LinkHours < 0 || d.LinkHours > MaxLinkHours {
 		return apperr.BadRequest("links: valid for 1 to %d hours", MaxLinkHours)

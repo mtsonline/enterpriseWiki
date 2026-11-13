@@ -1,0 +1,8 @@
+{
+ "signature.passkey.label": "Passkey oder Sicherheitsschlüssel",
+ "signature.passkey.check.challenge": "Passkey hat diesen Datensatz signiert",
+ "signature.passkey.check.client_data": "Browserdaten und Herkunft",
+ "signature.passkey.check.authenticator": "Schlüssel dieses Wikis, Person geprüft (PIN oder Biometrie)",
+ "signature.passkey.check.signature": "Signatur des Schlüssels",
+ "signature.passkey.check.proof": "Nachweis lesbar"
+}

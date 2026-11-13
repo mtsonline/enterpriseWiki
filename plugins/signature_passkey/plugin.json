@@ -1,0 +1,9 @@
+{
+  "id": "signature.passkey",
+  "name": "Signature with passkey",
+  "version": "1.0.0",
+  "description": "Sign decisions (e.g. approvals in workflows) with a passkey or security key: the key signs exactly the decision, confirmed with PIN or biometrics (advanced electronic signature). Needs security keys and passkeys (mfa.webauthn).",
+  "author": "Enterprise Wiki",
+  "kinds": ["signature"],
+  "extends": ["mfa.webauthn"]
+}

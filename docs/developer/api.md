@@ -176,6 +176,12 @@ Verlangt das Konto einen zweiten Faktor, antwortet die Anmeldung mit `mfa_requir
 | `GET` | `/api/v1/me/mfa` |
 | `POST` | `/api/v1/me/mfa/{method}/begin` |
 | `POST` | `/api/v1/me/mfa/{method}/finish` |
+| `GET` | `/api/v1/signature-methods` |
+| `GET` | `/api/v1/signature-keys` |
+| `GET` | `/api/v1/signatures/{id}` |
+| `GET` | `/api/v1/signatures/{id}/verify` |
+| `GET` | `/api/v1/signatures/{id}/export` |
+| `POST` | `/api/v1/signatures/verify` |
 | `GET` | `/api/v1/media/viewers` |
 | `GET` | `/api/v1/media/{id}/open` |
 | `POST` | `/api/v1/media/{id}/open` |
@@ -485,6 +491,7 @@ Verlangt das Konto einen zweiten Faktor, antwortet die Anmeldung mit `mfa_requir
 | `GET` | `/api/v1/x/workflow.process/instances/{id}` |
 | `GET` | `/api/v1/x/workflow.process/instances/{id}/files/{field}` |
 | `POST` | `/api/v1/x/workflow.process/instances/{id}/actions` |
+| `POST` | `/api/v1/x/workflow.process/instances/{id}/sign` |
 | `POST` | `/api/v1/x/workflow.process/instances/{id}/cancel` |
 | `GET` | `/api/v1/x/workflow.process/tasks` |
 | `GET` | `/api/v1/x/workflow.process/elements/{id}/triggers` |

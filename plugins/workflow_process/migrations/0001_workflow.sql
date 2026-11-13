@@ -65,7 +65,8 @@ CREATE TABLE plugin_workflow_events (
     note         text NOT NULL DEFAULT '',
     actor_id     bigint REFERENCES users(id) ON DELETE SET NULL,
     actor        text NOT NULL,
-    at           timestamptz NOT NULL DEFAULT now()
+    at           timestamptz NOT NULL DEFAULT now(),
+    signature_id bigint REFERENCES signatures(id) ON DELETE SET NULL -- the decision was signed
 );
 CREATE INDEX plugin_workflow_events_instance ON plugin_workflow_events(instance_id, id);
 -- votes of approval steps are events with from_step = to_step

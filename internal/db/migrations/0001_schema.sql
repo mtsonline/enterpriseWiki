@@ -247,6 +247,48 @@ CREATE INDEX search_docs_tsv ON search_docs USING gin(tsv);
 
 -- Change log of the search index. External search engines (plugins) follow
 -- it to stay in sync with search_docs; PostgreSQL stays the source of truth.
+-- Signatures (internal/signature): seal keys of the wiki (private part
+-- sealed with secrets), started signatures and the evidence. Record and
+-- proof are kept as the exact text that was signed.
+CREATE TABLE signature_keys (
+    id         bigserial PRIMARY KEY,
+    public_ed  bytea NOT NULL,
+    public_ml  bytea NOT NULL,
+    private    bytea NOT NULL,
+    created_at timestamptz NOT NULL DEFAULT now(),
+    retired_at timestamptz
+);
+CREATE TABLE signature_pending (
+    token_hash bytea PRIMARY KEY,
+    user_id    bigint NOT NULL,
+    method     text NOT NULL,
+    purpose    text NOT NULL,
+    ref        text NOT NULL,
+    require    text NOT NULL DEFAULT '',
+    digest     bytea NOT NULL,
+    record     text NOT NULL,
+    payload    text NOT NULL,
+    state      text NOT NULL,
+    expires_at timestamptz NOT NULL
+);
+CREATE TABLE signatures (
+    id         bigserial PRIMARY KEY,
+    purpose    text NOT NULL,
+    ref        text NOT NULL,
+    user_id    bigint,             -- the account (gone when it is deleted; signer keeps the name)
+    signer     jsonb NOT NULL,
+    method     text NOT NULL,
+    level      text NOT NULL,
+    digest     text NOT NULL,      -- hex SHA-256 of the record
+    record     text NOT NULL,
+    proof      text NOT NULL,
+    key_id     bigint NOT NULL REFERENCES signature_keys(id),
+    seal_ed    bytea NOT NULL,
+    seal_ml    bytea NOT NULL,
+    signed_at  timestamptz NOT NULL
+);
+CREATE INDEX signatures_ref ON signatures(ref);
+
 -- How far this site has turned the account changes (identity_changes) into events.
 CREATE TABLE identity_cursor (
     id  int PRIMARY KEY DEFAULT 1 CHECK (id = 1),

@@ -122,6 +122,7 @@ type Event struct {
 	Note        string    `json:"note"`
 	Actor       string    `json:"actor"`
 	At          time.Time `json:"at"`
+	Signature   *int64    `json:"signature,omitempty"` // id of the signature of the decision
 }
 
 const instCols = `i.id, i.element_id, e.category_id, e.titles, i.lang, i.title, i.data, i.definition, i.step, i.status, i.started_by,
@@ -283,6 +284,7 @@ func (pl *Plugin) decorate(ctx context.Context, w *who, x *Instance, manage bool
 			} else {
 				x.Actions = append(append([]Action{}, s.Actions...), handoverActions(w, x, s)...)
 			}
+			markSign(s, x.Actions)
 			x.Form = s.Form
 		}
 	case StepApproval:
@@ -303,6 +305,7 @@ func (pl *Plugin) decorate(ctx context.Context, w *who, x *Instance, manage bool
 		if w.assigned(x, s) && w.p != nil && !voted[w.p.ID()] {
 			x.Actions = []Action{{ID: "approve", Label: s.ApproveLabel, Next: s.Next, Note: "optional"},
 				{ID: "reject", Label: s.RejectLabel, Next: s.NextElse, Note: "required"}}
+			markSign(s, x.Actions)
 			x.Form = s.Form
 		}
 	case StepWebhook, StepHTTP, StepCreate, StepProps, StepSubflow, StepAccess, StepMember, StepMove, StepFile, StepCalendar:
@@ -348,7 +351,7 @@ func (pl *Plugin) load(ctx context.Context, id int64) (*Instance, *who, bool, er
 }
 
 func (pl *Plugin) events(ctx context.Context, id int64) ([]Event, error) {
-	rows, err := pl.host.DB.Query(ctx, `SELECT id, from_step, to_step, action, action_label, note, actor, at FROM plugin_workflow_events WHERE instance_id=$1 ORDER BY id`, id)
+	rows, err := pl.host.DB.Query(ctx, `SELECT id, from_step, to_step, action, action_label, note, actor, at, signature_id FROM plugin_workflow_events WHERE instance_id=$1 ORDER BY id`, id)
 	if err != nil {
 		return nil, err
 	}
@@ -605,6 +608,8 @@ func (pl *Plugin) Setup(host *sdk.Host) error {
 	pl.deputyRoutes(host)
 	pl.linkRoutes(host)
 	pl.statsRoutes(host)
+	pl.signRoutes(host)
+	host.Signatures.RegisterViewer(SignPurpose, pl.signViewer)
 	host.RegisterWorker("retention", 6*time.Hour, pl.retention)
 	host.RegisterWorker("grants", 10*time.Minute, pl.expireGrants)
 
@@ -757,11 +762,14 @@ func (pl *Plugin) Setup(host *sdk.Host) error {
 			Note   string         `json:"note"`
 			To     string         `json:"to"`   // _delegate: the person who takes over
 			Data   map[string]any `json:"data"` // fields of the form of the step
+			// Signature of the decision (POST /instances/{id}/sign first)
+			Signature *signIn `json:"signature"`
+			Lang      string  `json:"lang"`
 		}
 		if err := h.Decode(r, &in); err != nil {
 			return nil, err
 		}
-		return pl.transition(r.Context(), id, in.Action, in.Note, actionInput{To: in.To, Data: in.Data})
+		return pl.transition(r.Context(), id, in.Action, in.Note, actionInput{To: in.To, Data: in.Data, Sign: in.Signature, Lang: in.Lang})
 	})
 
 	// POST /instances/{id}/cancel cancels an open case: {"note": ""}.
@@ -848,6 +856,8 @@ func (pl *Plugin) loadTx(ctx context.Context, tx pgx.Tx, id int64) (*Instance, e
 type actionInput struct {
 	To   string
 	Data map[string]any
+	Sign *signIn // signature of the decision (if the action needs one)
+	Lang string
 }
 
 func (pl *Plugin) transition(ctx context.Context, id int64, action, note string, ai2 actionInput) (*Instance, error) {
@@ -904,6 +914,13 @@ func (pl *Plugin) transition(ctx context.Context, id int64, action, note string,
 		if cur.Status != "open" || cur.Step != x.Step || !cur.StepEntered.Equal(x.StepEntered) {
 			return apperr.Conflict("the case was changed by someone else, please reload")
 		}
+		// a signature (if needed) covers exactly this decision on this state of the case
+		var sigID int64
+		if a != nil && signReq(s, *a) != "" {
+			if sigID, err = pl.completeSign(ctx, tx, cur, s, *a, note, ai2.To, stepValues, ai2.Sign, ai2.Lang); err != nil {
+				return err
+			}
+		}
 		label := ""
 		if a != nil {
 			label = a.Label
@@ -937,6 +954,11 @@ func (pl *Plugin) transition(ctx context.Context, id int64, action, note string,
 			if err := event(ctx, tx, id, sp(cur.Step), sp(cur.Step), "approve", a.Label, note, ai); err != nil {
 				return err
 			}
+			if sigID != 0 {
+				if err := signedEvent(ctx, tx, id, sigID); err != nil {
+					return err
+				}
+			}
 			voted, err := pl.voters(ctx, tx, cur)
 			if err != nil {
 				return err
@@ -966,6 +988,11 @@ func (pl *Plugin) transition(ctx context.Context, id int64, action, note string,
 		default: // task action, rejection, skip
 			if err := event(ctx, tx, id, sp(cur.Step), sp(a.Next), action, a.Label, note, ai); err != nil {
 				return err
+			}
+			if sigID != 0 {
+				if err := signedEvent(ctx, tx, id, sigID); err != nil {
+					return err
+				}
 			}
 			if err := pl.enter(ctx, tx, cur, a.Next, ai); err != nil {
 				return err

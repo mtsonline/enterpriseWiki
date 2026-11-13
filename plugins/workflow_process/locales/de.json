@@ -575,5 +575,22 @@
  "workflow.calendar_tz_help": "Leer: die Zeitzone des Servers.",
  "workflow.calendar_registration": "Anmeldung möglich",
  "workflow.ev.file": "Datei erzeugt → {step}",
- "workflow.ev.calendar": "Kalendereintrag angelegt → {step}"
+ "workflow.ev.calendar": "Kalendereintrag angelegt → {step}",
+ "workflow.sign.none": "keine Signatur",
+ "workflow.sign.advanced": "Signatur (beliebiges Verfahren)",
+ "workflow.sign.qualified": "qualifizierte Signatur",
+ "workflow.sign.only": "nur: {method}",
+ "workflow.sign.step": "Signatur der Entscheidungen",
+ "workflow.sign.step_help": "Entscheidungen dieses Schritts werden signiert: Die Signatur umfasst die Entscheidung, die Notiz, die Werte des Schrittformulars und alle Daten des Falls. Spätere Änderungen fallen bei der Prüfung auf.",
+ "workflow.sign.as_step": "wie der Schritt",
+ "workflow.sign.action": "Signatur",
+ "workflow.sign.needs": "Diese Entscheidung wird signiert.",
+ "workflow.sign.needs_qualified": "Diese Entscheidung braucht eine qualifizierte elektronische Signatur.",
+ "workflow.sign.no_method": "Sie können diese Entscheidung noch nicht signieren.",
+ "workflow.sign.setup": "Passkey im Profil einrichten",
+ "workflow.sign.method": "Signieren mit",
+ "workflow.sign.with": "Sie signieren mit: {method}",
+ "workflow.sign.submit": "Signieren und {action}",
+ "workflow.sign.signed": "signiert – prüfen",
+ "workflow.link.sign": "Diese Entscheidung wird signiert: Bitte melden Sie sich an und entscheiden Sie im Fall."
 }
