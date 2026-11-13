@@ -2,6 +2,8 @@
 
 Danke für Ihr Interesse! Beiträge sind willkommen – Fehlerberichte, Übersetzungen, Dokumentation, Code und Plugins.
 
+Die verbindlichen Regeln für alle Beiträge stehen in [CLAUDE.md](CLAUDE.md) (für Menschen und KI-Agenten gleichermaßen).
+
 1. **Beitragsvereinbarung**: Pull Requests können nur übernommen werden, wenn Sie der [CLA](CLA.md) zustimmen (Kästchen
    in der Pull-Request-Vorlage). Hintergrund: Enterprise Wiki wird unter der Business Source License und unter
    kommerziellen Lizenzen vertrieben (siehe [LICENSING.md](LICENSING.md)).

@@ -38,7 +38,7 @@ Eigenes Image (z. B. mit eigenen Plugins in `plugins/`): `docker compose -f dock
 
 ## 2. Linux-Server mit systemd
 
-Voraussetzungen: git, Go ≥ 1.24 (empfohlen: aktuelle Version), Node.js ≥ 22 mit npm (empfohlen: aktuelle LTS), eine erreichbare PostgreSQL-Datenbank.
+Voraussetzungen: git, Go ≥ 1.27 (empfohlen: aktuelle Version), Node.js ≥ 22 mit npm (empfohlen: aktuelle LTS, derzeit 26), eine erreichbare PostgreSQL-Datenbank ab Version 16 (empfohlen: 18).
 
 ```bash
 sudo -u postgres createuser -P ewiki
