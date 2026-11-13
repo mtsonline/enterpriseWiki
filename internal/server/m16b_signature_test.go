@@ -1,10 +1,15 @@
 package server_test
 
 import (
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"os"
+	"os/exec"
+	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 )
 
 // TestWorkflowSignatures: decisions that need a signature are signed with
@@ -103,6 +108,12 @@ func TestWorkflowSignatures(t *testing.T) {
 	if code := g.do("POST", base+"/actions", map[string]any{"action": "ok", "note": "fine", "signature": map[string]any{"token": tok, "answer": ans}}, nil); code != 404 && code != 403 {
 		t.Fatalf("gus with wendy's signature: %d", code)
 	}
+	// the organisation seals evidence additionally with its S/MIME certificate
+	admin.must("PUT", "/api/v1/admin/settings", map[string]any{"mail": map[string]any{"from": "wiki@example.com"}}, nil, 200)
+	ca := newTestCA(t)
+	orgCert, orgKey := ca.issue(t, []string{"wiki@example.com"}, 365*24*time.Hour, true)
+	admin.must("POST", "/api/v1/x/signature.smime/certs", map[string]any{"scope": "org", "file": ca.p12(t, orgCert, orgKey, "s"), "password": "s", "seal": true}, nil, 201)
+	admin.must("PUT", "/api/v1/x/signature.smime/settings", map[string]any{"mail_signing": true, "on_expired": "unsigned", "personal": true, "seal_evidence": true}, nil, 200)
 	tok, ans = sign(w, "ok", "fine")
 	var after struct {
 		Step   string `json:"step"`
@@ -151,6 +162,29 @@ func TestWorkflowSignatures(t *testing.T) {
 	w.must("POST", "/api/v1/signatures/verify", exp, &v, 200)
 	if !v.Valid {
 		t.Fatalf("export does not verify: %+v", v)
+	}
+	cmsOK := false
+	for _, c := range v.Checks {
+		cmsOK = cmsOK || (c.Name == "seal.cms" && c.OK)
+	}
+	if !cmsOK {
+		t.Fatalf("no valid S/MIME seal: %+v", v.Checks)
+	}
+	// the seal can be checked with OpenSSL over the sealed bytes of the export
+	if bin, err := exec.LookPath("openssl"); err == nil {
+		seal := exp["seal"].(map[string]any)
+		der, _ := base64.StdEncoding.DecodeString(seal["cms"].(string))
+		sealed, _ := base64.StdEncoding.DecodeString(exp["sealed"].(string))
+		dir := t.TempDir()
+		_ = os.WriteFile(filepath.Join(dir, "seal.p7s"), der, 0o600)
+		_ = os.WriteFile(filepath.Join(dir, "sealed.json"), sealed, 0o600)
+		out, err := exec.Command(bin, "cms", "-verify", "-binary", "-inform", "DER", "-in", filepath.Join(dir, "seal.p7s"), // #nosec G204 -- test
+			"-content", filepath.Join(dir, "sealed.json"), "-CAfile", ca.pemFile(t), "-purpose", "any", "-out", os.DevNull).CombinedOutput()
+		if err != nil {
+			t.Fatalf("openssl cms -verify: %v\n%s", err, out)
+		}
+	} else if os.Getenv("CI") != "" {
+		t.Fatal("openssl is needed for the S/MIME check")
 	}
 	rec := exp["record"].(map[string]any)
 	if rec["decision"].(map[string]any)["note"] != "fine" || fmt.Sprint(rec["data"].(map[string]any)["amount"]) != "5000" {

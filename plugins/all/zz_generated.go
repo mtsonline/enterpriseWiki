@@ -42,6 +42,7 @@ import (
 	_ "github.com/mtsonline/enterprisewiki/plugins/office_onlyoffice"
 	_ "github.com/mtsonline/enterprisewiki/plugins/search_external"
 	_ "github.com/mtsonline/enterprisewiki/plugins/signature_passkey"
+	_ "github.com/mtsonline/enterprisewiki/plugins/signature_smime"
 	_ "github.com/mtsonline/enterprisewiki/plugins/theme_cms"
 	_ "github.com/mtsonline/enterprisewiki/plugins/theme_cms_modern"
 	_ "github.com/mtsonline/enterprisewiki/plugins/theme_wiki"

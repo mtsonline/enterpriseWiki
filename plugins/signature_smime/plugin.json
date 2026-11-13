@@ -1,0 +1,17 @@
+{
+  "id": "signature.smime",
+  "name": "S/MIME",
+  "version": "1.0.0",
+  "description": "Signs outgoing e-mails with S/MIME certificates: of the organisation for the senders of the wiki, and personal certificates people upload for e-mails sent in their name. Warns before certificates expire. Optionally seals signature evidence additionally with the certificate of the organisation (checkable with OpenSSL).",
+  "author": "Enterprise Wiki",
+  "kinds": ["signature"],
+  "frontend": true,
+  "permissions": [
+    {
+      "key": "signature.smime.manage",
+      "scope": "global",
+      "label": "Manage S/MIME certificates",
+      "description": "Upload and remove the S/MIME certificates of the organisation and change the S/MIME settings."
+    }
+  ]
+}

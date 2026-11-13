@@ -285,6 +285,7 @@ CREATE TABLE signatures (
     key_id     bigint NOT NULL REFERENCES signature_keys(id),
     seal_ed    bytea NOT NULL,
     seal_ml    bytea NOT NULL,
+    seal_cms   bytea,              -- optional seal with the certificate of the organisation (CMS, plugin signature.smime)
     signed_at  timestamptz NOT NULL
 );
 CREATE INDEX signatures_ref ON signatures(ref);

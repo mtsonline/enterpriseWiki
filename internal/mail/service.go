@@ -30,6 +30,9 @@ type Service struct {
 	T func(ctx context.Context, lang, key string, params map[string]string) string
 	// Kick asks the worker to send now (set by the application).
 	Kick func()
+
+	signerMu sync.RWMutex
+	signer   Signer
 }
 
 // New creates the service.
@@ -294,8 +297,11 @@ func (s *Service) SendNow(ctx context.Context, m Message) error {
 	if t == nil {
 		return apperr.BadRequest("no mail server is configured (mail.transport / mail.smtp.host) and no sendmail binary was found")
 	}
-	return t.Send(ctx, Envelope{From: s.envelopeFrom(m.From, 0, 0), Recipients: append(append([]string{}, m.To...), m.Cc...),
-		Data: BuildMessage(BuildInput{From: m.From, FromName: m.FromName, ReplyTo: m.ReplyTo, To: m.To, Cc: m.Cc, Subject: m.Subject, Text: m.Text, HTML: m.HTML, Calendar: m.Calendar, Now: time.Now()})})
+	data, err := s.render(ctx, BuildInput{From: m.From, FromName: m.FromName, ReplyTo: m.ReplyTo, To: m.To, Cc: m.Cc, Subject: m.Subject, Text: m.Text, HTML: m.HTML, Calendar: m.Calendar, Now: time.Now()}, 0)
+	if err != nil {
+		return apperr.BadRequest("the message cannot be signed: %s", err.Error())
+	}
+	return t.Send(ctx, Envelope{From: s.envelopeFrom(m.From, 0, 0), Recipients: append(append([]string{}, m.To...), m.Cc...), Data: data})
 }
 
 // envelopeFrom is the SMTP envelope sender (Return-Path): the bounce
@@ -510,8 +516,13 @@ func (s *Service) deliver(ctx context.Context, sess Session, m claimed) (sent in
 	if err != nil {
 		return 0, false, err
 	}
-	data := BuildMessage(BuildInput{From: m.from, FromName: m.fromName, ReplyTo: m.replyTo, To: m.to, Cc: m.cc, Subject: m.subject, Text: m.text, HTML: m.html, Calendar: m.calendar,
-		Headers: map[string]string{"X-Ewiki-Message": strconv.FormatInt(m.id, 10)}, Now: time.Now()})
+	data, err := s.render(ctx, BuildInput{From: m.from, FromName: m.fromName, ReplyTo: m.replyTo, To: m.to, Cc: m.cc, Subject: m.subject, Text: m.text, HTML: m.html, Calendar: m.calendar,
+		Headers: map[string]string{"X-Ewiki-Message": strconv.FormatInt(m.id, 10)}, Now: time.Now()}, m.id)
+	if err != nil {
+		// cannot be signed now (e.g. expired certificate with "hold"): stays queued
+		s.holdMessage(context.WithoutCancel(ctx), m.id, "S/MIME: "+err.Error())
+		return 0, false, nil
+	}
 	// one SMTP transaction for all recipients, or one per recipient with VERP
 	groups := [][]rcpt{rcpts}
 	b := s.cfg.Get().Mail.Bounce

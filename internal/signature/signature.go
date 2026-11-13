@@ -125,6 +125,36 @@ type Service struct {
 	methods map[string]Method
 	viewers map[string]Viewer
 	keys    *keyPair
+	cms     CMSSealer
+}
+
+// CMSSealer seals evidence additionally with an X.509 certificate of the
+// organisation (detached CMS SignedData over the same bytes as the seal of
+// the wiki), so it can be checked with standard tools (OpenSSL). It returns
+// nil when no certificate is set up or valid; an error aborts signing.
+type CMSSealer func(ctx context.Context, q db.Querier, msg []byte) ([]byte, error)
+
+// SetCMSSealer sets the additional seal (plugin signature.smime; nil: none).
+func (s *Service) SetCMSSealer(f CMSSealer) {
+	s.mu.Lock()
+	s.cms = f
+	s.mu.Unlock()
+}
+
+// CMSVerifier checks an additional CMS seal over msg.
+type CMSVerifier func(msg, der []byte) Check
+
+var (
+	cmsMu       sync.RWMutex
+	cmsVerifier CMSVerifier
+)
+
+// RegisterCMSVerifier sets the check of CMS seals (in init of the plugin that
+// creates them, so offline checks of the CLI work too).
+func RegisterCMSVerifier(v CMSVerifier) {
+	cmsMu.Lock()
+	cmsVerifier = v
+	cmsMu.Unlock()
 }
 
 // New returns the service.
@@ -330,9 +360,9 @@ func (s *Service) Complete(ctx context.Context, tx pgx.Tx, token, lang string, a
 	if err := s.seal(ctx, tx, &ev); err != nil {
 		return 0, pd, err
 	}
-	err = tx.QueryRow(ctx, `INSERT INTO signatures(purpose, ref, user_id, signer, method, level, digest, record, proof, key_id, seal_ed, seal_ml, signed_at)
-		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13) RETURNING id`,
-		ev.Purpose, ev.Ref, uid, signer, ev.Method, ev.Level, ev.Digest, string(ev.Record), string(ev.Proof), ev.Seal.Key, ev.Seal.Ed25519, ev.Seal.MLDSA, ev.SignedAt).Scan(&ev.ID)
+	err = tx.QueryRow(ctx, `INSERT INTO signatures(purpose, ref, user_id, signer, method, level, digest, record, proof, key_id, seal_ed, seal_ml, seal_cms, signed_at)
+		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14) RETURNING id`,
+		ev.Purpose, ev.Ref, uid, signer, ev.Method, ev.Level, ev.Digest, string(ev.Record), string(ev.Proof), ev.Seal.Key, ev.Seal.Ed25519, ev.Seal.MLDSA, ev.Seal.CMS, ev.SignedAt).Scan(&ev.ID)
 	if err != nil {
 		return 0, pd, err
 	}
@@ -352,6 +382,9 @@ type Seal struct {
 	Key     int64  `json:"key"`
 	Ed25519 []byte `json:"ed25519"`
 	MLDSA   []byte `json:"ml_dsa_65"`
+	// CMS is the optional additional seal with the certificate of the
+	// organisation (DER, detached; content: the sealed bytes).
+	CMS []byte `json:"cms,omitempty"`
 }
 
 // Evidence is a stored signature.
@@ -491,8 +524,18 @@ func (s *Service) seal(ctx context.Context, tx pgx.Tx, e *Evidence) error {
 		return err
 	}
 	e.Seal.Ed25519 = ed25519.Sign(k.ed, msg)
-	e.Seal.MLDSA, err = k.ml.Sign(rand.Reader, msg, &mldsa.Options{Context: sealContext})
-	return err
+	if e.Seal.MLDSA, err = k.ml.Sign(rand.Reader, msg, &mldsa.Options{Context: sealContext}); err != nil {
+		return err
+	}
+	s.mu.RLock()
+	cms := s.cms
+	s.mu.RUnlock()
+	if cms != nil {
+		if e.Seal.CMS, err = cms(ctx, tx, msg); err != nil {
+			return fmt.Errorf("seal with the certificate of the organisation: %w", err)
+		}
+	}
+	return nil
 }
 
 // Keys lists the public seal keys of the wiki (also retired ones).
@@ -516,9 +559,9 @@ func (s *Service) Keys(ctx context.Context) ([]PublicKey, error) {
 func (s *Service) Get(ctx context.Context, id int64) (*Evidence, error) {
 	var e Evidence
 	var uid *int64
-	err := s.pool.QueryRow(ctx, `SELECT id, purpose, ref, user_id, signer, method, level, digest, record, proof, key_id, seal_ed, seal_ml, signed_at
+	err := s.pool.QueryRow(ctx, `SELECT id, purpose, ref, user_id, signer, method, level, digest, record, proof, key_id, seal_ed, seal_ml, seal_cms, signed_at
 		FROM signatures WHERE id=$1`, id).Scan(&e.ID, &e.Purpose, &e.Ref, &uid, &e.Signer, &e.Method, &e.Level, &e.Digest, &e.Record, &e.Proof,
-		&e.Seal.Key, &e.Seal.Ed25519, &e.Seal.MLDSA, &e.SignedAt)
+		&e.Seal.Key, &e.Seal.Ed25519, &e.Seal.MLDSA, &e.Seal.CMS, &e.SignedAt)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, apperr.NotFound("signature")
 	}
@@ -546,6 +589,10 @@ func (s *Service) Get(ctx context.Context, id int64) (*Evidence, error) {
 type Export struct {
 	Evidence
 	Key PublicKey `json:"public_key"`
+	// Sealed are the exact bytes both seals cover (also the content of the
+	// CMS seal, e.g. for "openssl cms -verify -content"). Only informative:
+	// the checks compute them from the evidence.
+	Sealed []byte `json:"sealed,omitempty"`
 }
 
 // ExportOf completes an evidence with its public key.
@@ -556,7 +603,11 @@ func (s *Service) ExportOf(ctx context.Context, e *Evidence) (*Export, error) {
 	}
 	for _, k := range keys {
 		if k.ID == e.Seal.Key {
-			return &Export{Evidence: *e, Key: k}, nil
+			msg, err := e.sealed()
+			if err != nil {
+				return nil, err
+			}
+			return &Export{Evidence: *e, Key: k, Sealed: msg}, nil
 		}
 	}
 	return nil, errors.New("seal key missing")
@@ -583,6 +634,19 @@ func Verify(x *Export, known []PublicKey) []Check {
 		mlOK = mldsa.Verify(pk, msg, x.Seal.MLDSA, &mldsa.Options{Context: sealContext}) == nil
 	}
 	out = append(out, Check{Name: "seal.ed25519", OK: edOK}, Check{Name: "seal.ml_dsa_65", OK: mlOK})
+	if len(x.Seal.CMS) > 0 {
+		cmsMu.RLock()
+		v := cmsVerifier
+		cmsMu.RUnlock()
+		switch {
+		case err != nil:
+			out = append(out, Check{Name: "seal.cms", OK: false, Detail: err.Error()})
+		case v == nil:
+			out = append(out, Check{Name: "seal.cms", OK: false, Detail: "no check for CMS seals"})
+		default:
+			out = append(out, v(msg, x.Seal.CMS))
+		}
+	}
 	if known != nil {
 		match := false
 		for _, k := range known {

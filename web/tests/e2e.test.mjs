@@ -8,6 +8,10 @@ import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { chromium } from 'playwright';
 import { createHmac } from 'node:crypto';
+import { execFileSync } from 'node:child_process';
+import { mkdtempSync, readFileSync, writeFileSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import net from 'node:net';
 
 const BASE = process.env.EWIKI_E2E_URL ?? 'http://localhost:8080';
@@ -1055,6 +1059,67 @@ test('workflow 2: decision links in e-mails, test run, evaluation and retention 
     await call('PUT', '/api/v1/admin/settings', { mail: prevMail.config.mail,
       plugin_settings: { 'workflow.process': { ...(s.config.plugin_settings?.['workflow.process'] ?? {}), links_without_login: false } } });
     smtp.close();
+  }
+});
+
+/** Creates a test CA and an S/MIME certificate for addr with OpenSSL; returns the files. */
+function smimeFiles(addr) {
+  const dir = mkdtempSync(join(tmpdir(), 'ewiki-smime-'));
+  const ssl = (...a) => execFileSync('openssl', a, { cwd: dir, stdio: 'pipe' });
+  ssl('req', '-x509', '-newkey', 'ec', '-pkeyopt', 'ec_paramgen_curve:P-256', '-nodes', '-keyout', 'ca.key', '-out', 'ca.pem', '-days', '30',
+    '-subj', '/CN=E2E S-MIME CA', '-addext', 'basicConstraints=critical,CA:TRUE', '-addext', 'keyUsage=critical,keyCertSign');
+  ssl('req', '-newkey', 'ec', '-pkeyopt', 'ec_paramgen_curve:P-256', '-nodes', '-keyout', 's.key', '-out', 's.csr', '-subj', '/CN=E2E Sender');
+  writeFileSync(join(dir, 'ext.cnf'), `subjectAltName=email:${addr}\nkeyUsage=critical,digitalSignature\nextendedKeyUsage=emailProtection\n`);
+  ssl('x509', '-req', '-in', 's.csr', '-CA', 'ca.pem', '-CAkey', 'ca.key', '-CAcreateserial', '-out', 's.pem', '-days', '20', '-extfile', 'ext.cnf');
+  ssl('pkcs12', '-export', '-inkey', 's.key', '-in', 's.pem', '-certfile', 'ca.pem', '-out', 's.p12', '-passout', 'pass:e2e-secret');
+  return { dir, p12: join(dir, 's.p12'), ca: join(dir, 'ca.pem'), ssl };
+}
+
+test('S/MIME: certificate of the organisation in the administration, signed e-mails', async () => {
+  const addr = `smime${run}@example.invalid`;
+  const files = smimeFiles(addr);
+  const smtp = await smtpFake();
+  const prevMail = await call('GET', '/api/v1/admin/settings');
+  await call('PUT', '/api/v1/admin/settings', { mail: { ...prevMail.config.mail, enabled: true, transport: 'smtp', from: addr,
+    smtp: { ...prevMail.config.mail.smtp, host: '127.0.0.1', port: smtp.port, security: 'none', username: '', password: '' } } });
+  let certID = 0;
+  try {
+    await page.goto(`${BASE}/admin/smime`);
+    await idle();
+    await page.getByRole('heading', { name: /certificates of the organisation|zertifikate der organisation/i }).waitFor();
+    await a11y('S/MIME administration');
+    await page.getByRole('button', { name: /^(upload certificate|zertifikat hochladen)$/i }).first().click();
+    const dlg = page.locator('dialog[open]');
+    await dlg.getByLabel(/^(file|datei)/i).setInputFiles(files.p12);
+    await dlg.getByLabel(/^(password of the file|passwort der datei)/i).fill('e2e-secret');
+    await dlg.getByLabel(/^(label|bezeichnung)/i).fill(`E2E ${run}`);
+    await a11y('S/MIME upload dialog');
+    await dlg.locator('button[type=submit]').click();
+    await dlg.waitFor({ state: 'detached' });
+    const row = page.locator('table tbody tr', { hasText: `E2E ${run}` });
+    await row.waitFor();
+    // valid for 20 days: shown as expiring soon
+    await row.getByText(/in 20 (days|tagen)/i).waitFor();
+    await a11y('S/MIME certificate list');
+    certID = (await call('GET', '/api/v1/x/signature.smime/certs?scope=org')).find((c) => c.label === `E2E ${run}`).id;
+    // the test e-mail is signed, and OpenSSL verifies it with the CA
+    await call('POST', '/api/v1/admin/mail/test', { to: `rcpt${run}@example.invalid` });
+    const m = smtp.mails.find((x) => x.to.includes(`rcpt${run}@example.invalid`));
+    assert.ok(m, 'test e-mail delivered');
+    assert.match(m.raw, /multipart\/signed; protocol="application\/pkcs7-signature"; micalg=sha-256/);
+    writeFileSync(join(files.dir, 'mail.eml'), m.raw);
+    files.ssl('smime', '-verify', '-in', 'mail.eml', '-CAfile', 'ca.pem', '-purpose', 'smimesign', '-out', 'content.txt');
+    assert.match(readFileSync(join(files.dir, 'content.txt'), 'utf8'), /test message/i);
+    // the profile explains personal certificates
+    await page.goto(`${BASE}/profile`);
+    await idle();
+    await page.getByRole('heading', { name: /^(s\/mime certificate|s\/mime-zertifikat)$/i }).waitFor();
+    await a11y('profile with S/MIME');
+  } finally {
+    if (certID) await call('DELETE', `/api/v1/x/signature.smime/certs/${certID}`);
+    await call('PUT', '/api/v1/admin/settings', { mail: prevMail.config.mail });
+    smtp.close();
+    rmSync(files.dir, { recursive: true, force: true });
   }
 });
 

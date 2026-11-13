@@ -151,6 +151,7 @@ E-mail queue
 Signatures
   signature verify FILE [--offline]  check an exported signature (record, method, seal of this wiki)
   signature keys                public seal keys of the wiki (fingerprints)
+  smime list|add|set|remove|settings  S/MIME certificates and settings (plugin signature.smime, see ewiki smime)
 
 Maintenance
   retention run                 apply retention rules now
@@ -254,6 +255,8 @@ func Main(args []string) int {
 		err = e.licenseCmd(args[1:])
 	case "signature":
 		err = e.signatureCmd(args[1:])
+	case "smime":
+		err = e.smimeCmd(args[1:])
 	case "retention":
 		err = e.withApp(false, func(ctx context.Context, a *app.App) error {
 			res, err := a.Content.RunRetention(ctx)
