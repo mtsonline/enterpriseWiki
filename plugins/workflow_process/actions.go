@@ -309,6 +309,10 @@ func (pl *Plugin) runStep(ctx context.Context, tx pgx.Tx, x *Instance, s *Step) 
 		return pl.runMember(pctx, tx, x, s)
 	case StepMove:
 		return pl.runMove(pctx, tx, x, s)
+	case StepFile:
+		return pl.runFile(pctx, tx, x, s)
+	case StepCalendar:
+		return pl.runCalendar(pctx, tx, x, s)
 	}
 	return result{}, fmt.Errorf("unknown step type %q", s.Type)
 }

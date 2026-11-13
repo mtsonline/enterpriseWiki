@@ -229,3 +229,119 @@ func TestWorkflow3Accounts(t *testing.T) {
 		t.Fatalf("eve changes a group: %d", code)
 	}
 }
+
+// TestWorkflow3FilesCalendar: a step writes documents (PDF, Word, Excel,
+// CSV …) into the media library and another creates a calendar entry –
+// both with the rights of the definer only.
+func TestWorkflow3FilesCalendar(t *testing.T) {
+	e := setup(t)
+	ctx := context.Background()
+	admin := e.client()
+	admin.login("admin", adminPW)
+	const pw = "Passw0rd!Passw0rd"
+	var w, files, cal cat
+	admin.must("POST", "/api/v1/categories", map[string]any{"titles": map[string]string{"en": "Flows"}}, &w, 201)
+	admin.must("POST", "/api/v1/categories", map[string]any{"titles": map[string]string{"en": "Records"}}, &files, 201)
+	admin.must("POST", "/api/v1/categories", map[string]any{"titles": map[string]string{"en": "Dates"}}, &cal, 201)
+	var calEl elem
+	admin.must("POST", "/api/v1/elements", map[string]any{"category_id": cal.ID, "type": "content.events", "title": "Team", "body": map[string]any{"view": "list"}}, &calEl, 201)
+	def := map[string]any{"description": "", "fields": []map[string]any{
+		{"id": "who", "label": "Name", "type": "text"}, {"id": "amount", "label": "Amount", "type": "text"}, {"id": "date", "label": "Date", "type": "text"}},
+		"steps": []map[string]any{
+			{"id": "doc", "name": "Record", "type": "file", "next": "meet", "file": map[string]any{"category": files.ID, "name": "Request {{field.who}}",
+				"formats": []string{"pdf", "docx", "xlsx", "csv", "md"}, "content": "# Request\nBy {{field.who}} <b>bold</b>", "data": true, "store_id": "doc", "store_url": "doc_url"}},
+			{"id": "meet", "name": "Meeting", "type": "calendar", "next": "done", "calendar": map[string]any{"calendar": calEl.ID, "title": "Talk with {{field.who}}",
+				"start": "{{field.date}}", "minutes": 30, "tz": "Europe/Vienna", "location": "Room 1", "store_id": "event"}},
+			{"id": "done", "name": "Done", "type": "end", "outcome": "success"}}}
+	bad := map[string]any{"description": "", "fields": []map[string]any{}, "steps": []map[string]any{
+		{"id": "doc", "name": "Record", "type": "file", "next": "done", "file": map[string]any{"category": files.ID, "formats": []string{"exe"}, "data": true}},
+		{"id": "done", "name": "Done", "type": "end"}}}
+	if code := admin.do("POST", "/api/v1/elements", map[string]any{"category_id": w.ID, "type": "workflow.process", "title": "Bad", "body": bad}, nil); code != 400 {
+		t.Fatalf("unknown format: %d", code)
+	}
+	var wf elem
+	admin.must("POST", "/api/v1/elements", map[string]any{"category_id": w.ID, "type": "workflow.process", "title": "Requests", "body": def}, &wf, 201)
+	var c wfCase
+	admin.must("POST", fmt.Sprintf("/api/v1/x/workflow.process/elements/%d/instances", wf.ID),
+		map[string]any{"data": map[string]any{"who": "Ana", "amount": "=SUM(A1:A9)", "date": "2026-12-03 14:00"}}, &c, 201)
+	for range 3 {
+		if err := e.app.Workers.RunOnce(ctx, "workflow.process.timers"); err != nil {
+			t.Fatal(err)
+		}
+	}
+	var x wfCase
+	admin.must("GET", fmt.Sprintf("/api/v1/x/workflow.process/instances/%d", c.ID), nil, &x, 200)
+	if x.Status != "done" || x.Data["doc"] == "" || x.Data["event"] == "" || !strings.Contains(fmt.Sprint(x.Data["doc_url"]), "/media?category=") {
+		t.Fatalf("case: %+v", x)
+	}
+	rows, err := e.app.DB.Query(ctx, `SELECT id, name FROM media WHERE category_id=$1 ORDER BY id`, files.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := map[string]int64{}
+	for rows.Next() {
+		var id int64
+		var name string
+		_ = rows.Scan(&id, &name)
+		got[name] = id
+	}
+	rows.Close()
+	for _, ext := range []string{"pdf", "docx", "xlsx", "csv", "md"} {
+		if got["Request Ana."+ext] == 0 {
+			t.Fatalf("files: %v", got)
+		}
+	}
+	if fmt.Sprint(got["Request Ana.pdf"]) != fmt.Sprint(x.Data["doc"]) {
+		t.Fatalf("stored id %v, files %v", x.Data["doc"], got)
+	}
+	code, csvBody := admin.rawBody("GET", fmt.Sprintf("/api/v1/media/%d/download", got["Request Ana.csv"]), "")
+	if code != 200 || !strings.Contains(csvBody, "'=SUM(A1:A9)") || !strings.Contains(csvBody, "Name,Ana") {
+		t.Fatalf("csv %d: %q", code, csvBody)
+	}
+	code, md := admin.rawBody("GET", fmt.Sprintf("/api/v1/media/%d/download", got["Request Ana.md"]), "")
+	if code != 200 || !strings.Contains(md, "# Request") || !strings.Contains(md, "- **Amount:** =SUM(A1:A9)") {
+		t.Fatalf("md %d: %q", code, md)
+	}
+	code, docx := admin.rawBody("GET", fmt.Sprintf("/api/v1/media/%d/download", got["Request Ana.docx"]), "")
+	if code != 200 || !strings.HasPrefix(docx, "PK") {
+		t.Fatalf("docx %d", code)
+	}
+	var evr struct {
+		Event struct {
+			Title    string    `json:"title"`
+			StartsAt time.Time `json:"starts_at"`
+			EndsAt   time.Time `json:"ends_at"`
+			Location string    `json:"location"`
+		} `json:"event"`
+	}
+	admin.must("GET", fmt.Sprintf("/api/v1/x/content.events/events/%v", x.Data["event"]), nil, &evr, 200)
+	ev := evr.Event
+	vienna, _ := time.LoadLocation("Europe/Vienna")
+	if ev.Title != "Talk with Ana" || !ev.StartsAt.Equal(time.Date(2026, 12, 3, 14, 0, 0, 0, vienna)) || ev.EndsAt.Sub(ev.StartsAt) != 30*time.Minute || ev.Location != "Room 1" {
+		t.Fatalf("event: %+v", ev)
+	}
+
+	// someone who may create workflows here but not upload into the records
+	var gus idResp
+	admin.must("POST", "/api/v1/admin/users", map[string]any{"username": "gus", "password": pw, "display_name": "Gus", "roles": []int64{}}, &gus, 201)
+	admin.must("POST", fmt.Sprintf("/api/v1/categories/%d/acl", w.ID), map[string]any{"subject_type": "user", "subject_id": gus.ID, "preset": "editor"}, nil, 201)
+	g := e.client()
+	g.login("gus", pw)
+	var wfG elem
+	g.must("POST", "/api/v1/elements", map[string]any{"category_id": w.ID, "type": "workflow.process", "title": "Gus", "body": def}, &wfG, 201)
+	var cg wfCase
+	g.must("POST", fmt.Sprintf("/api/v1/x/workflow.process/elements/%d/instances", wfG.ID), map[string]any{"data": map[string]any{"who": "Bo", "date": "+1d"}}, &cg, 201)
+	if err := e.app.Workers.RunOnce(ctx, "workflow.process.timers"); err != nil {
+		t.Fatal(err)
+	}
+	x = wfCase{}
+	g.must("GET", fmt.Sprintf("/api/v1/x/workflow.process/instances/%d", cg.ID), nil, &x, 200)
+	if x.Status != "open" || x.Step != "doc" || x.LastError == "" {
+		t.Fatalf("file with gus's rights: %+v", x)
+	}
+	var n int
+	_ = e.app.DB.QueryRow(ctx, `SELECT count(*) FROM media WHERE name LIKE 'Request Bo.%'`).Scan(&n)
+	if n != 0 {
+		t.Fatalf("%d files written without the right", n)
+	}
+}

@@ -211,6 +211,53 @@ export function extraStepFields(s: EStep, kit: Kit): (HTMLElement | null)[] {
         field(t('workflow.person'), kit.text(() => m.user, (v) => { m.user = v; }, { max: 200, ph: true, placeholder: '{{trigger.data.username}}' }), { required: true, help: t('workflow.person_help') }),
         runAs(s), kit.placeholderHelp(), next()];
     }
+    case 'file': {
+      const f = (s.file ??= { category: 0, name: '', formats: ['pdf'], data: true });
+      const fmts = h('fieldset', { class: 'ew-fieldset' }, h('legend', null, t('workflow.file_formats')),
+        ...(['pdf', 'docx', 'xlsx', 'csv', 'json', 'txt', 'md'] as const).map((ff) => {
+          const cb = checkbox(t(`workflow.file_format.${ff}`), f.formats.includes(ff));
+          cb.input.addEventListener('change', () => {
+            f.formats = cb.input.checked ? [...new Set([...f.formats, ff])] : f.formats.filter((x) => x !== ff);
+          });
+          return cb.el;
+        }));
+      const data = checkbox(t('workflow.file_data'), !!f.data, { help: t('workflow.file_data_help') });
+      data.input.addEventListener('change', () => { f.data = data.input.checked || undefined; });
+      return [h('p', { class: 'ew-help' }, t('workflow.file_help')),
+        categoryBox(t('workflow.file_category'), f.category, (id) => { f.category = id; }, t('workflow.file_category_help')),
+        field(t('workflow.file_name'), kit.text(() => f.name, (v) => { f.name = v; }, { max: 200, ph: true, placeholder: '{{case.title}}' })),
+        fmts,
+        field(t('workflow.file_content'), kit.area(() => f.content, (v) => { f.content = v; }, 8, true), { help: t('workflow.file_content_help') }),
+        data.el,
+        grid(field(t('workflow.create_store_id'), kit.text(() => f.store_id, (v) => { f.store_id = v.trim() || undefined; }, { max: 40 }), { help: t('workflow.file_store_help') }),
+          field(t('workflow.create_store_url'), kit.text(() => f.store_url, (v) => { f.store_url = v.trim() || undefined; }, { max: 40 }))),
+        runAs(s), kit.placeholderHelp(), next()];
+    }
+    case 'calendar': {
+      const c = (s.calendar ??= { calendar: 0, title: '', start: '' });
+      const calBox = h('div');
+      void elementSelect({ selected: c.calendar || 0, type: 'content.events', onChange: (id) => { c.calendar = id; } })
+        .then((es) => calBox.append(field(t('workflow.calendar_calendar'), es.el)));
+      const minutes = textInput({ type: 'number', value: c.minutes ? String(c.minutes) : '' });
+      minutes.min = '0';
+      minutes.addEventListener('input', () => { c.minutes = Number(minutes.value) > 0 ? Math.round(Number(minutes.value)) : undefined; });
+      const allDay = checkbox(t('workflow.calendar_all_day'), !!c.all_day);
+      allDay.input.addEventListener('change', () => { c.all_day = allDay.input.checked || undefined; });
+      const reg = checkbox(t('workflow.calendar_registration'), !!c.registration);
+      reg.input.addEventListener('change', () => { c.registration = reg.input.checked || undefined; });
+      return [h('p', { class: 'ew-help' }, t('workflow.calendar_help')), calBox,
+        field(t('workflow.calendar_title'), kit.text(() => c.title, (v) => { c.title = v; }, { max: 200, ph: true }), { required: true }),
+        grid(field(t('workflow.calendar_start'), kit.text(() => c.start, (v) => { c.start = v; }, { max: 100, ph: true, placeholder: '{{field.date}}' }), { required: true, help: t('workflow.calendar_start_help') }),
+          field(t('workflow.calendar_minutes'), minutes, { help: t('workflow.calendar_minutes_help') })),
+        allDay.el,
+        field(t('workflow.calendar_location'), kit.text(() => c.location, (v) => { c.location = v; }, { max: 300, ph: true })),
+        field(t('workflow.calendar_description'), kit.area(() => c.description, (v) => { c.description = v; }, 4, true)),
+        grid(field(t('workflow.calendar_tz'), kit.text(() => c.tz, (v) => { c.tz = v.trim() || undefined; }, { max: 60, placeholder: 'Europe/Vienna' }), { help: t('workflow.calendar_tz_help') }),
+          reg.el),
+        grid(field(t('workflow.create_store_id'), kit.text(() => c.store_id, (v) => { c.store_id = v.trim() || undefined; }, { max: 40 })),
+          field(t('workflow.create_store_url'), kit.text(() => c.store_url, (v) => { c.store_url = v.trim() || undefined; }, { max: 40 }))),
+        runAs(s), kit.placeholderHelp(), next()];
+    }
     case 'move': {
       const m = (s.move ??= { element: '', category: 0 });
       return [h('p', { class: 'ew-help' }, t('workflow.move_help')),

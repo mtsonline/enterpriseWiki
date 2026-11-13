@@ -745,12 +745,7 @@ func buildDemo(d *demoRun) {
 				"triggers": []map[string]any{
 					{"id": "new", "type": "event", "event": "user.created", "name": tr("New account", "Neues Konto"),
 						"title": tr("Welcome {{trigger.data.display_name}}", "Willkommen {{trigger.data.display_name}}"), "data": map[string]string{"who": "{{trigger.data.username}}"}}},
-				"steps": []map[string]any{
-					{"id": "read", "name": tr("Read the documents", "Dokumente lesen"), "type": "access", "next": "tell",
-						"access": map[string]any{"mode": "grant", "category": docs, "subject": "user", "user": "{{field.who}}", "level": "reader", "days": 90}},
-					{"id": "tell", "name": tr("Tell the editors", "Redaktion informieren"), "type": "notify", "next": "done",
-						"notify": map[string]any{"to": "group:" + editors, "channel": "inbox", "subject": tr("New colleague: {{field.who}}", "Neu im Team: {{field.who}}")}},
-					end(tr)}}
+				"steps": accountSteps(tr, docs, mediaCat, calID, editors, end(tr))}
 		}), nil)
 	})
 	d.optional("forms", func() {
@@ -873,4 +868,31 @@ func buildDemo(d *demoRun) {
 				"image": "/api/v1/media/" + picIDs[i] + "/view", "image_alt": t}, nil)
 		}
 	})
+}
+
+// accountSteps are the steps of the demo "New colleagues (accounts)": read
+// permission for 90 days, a welcome letter (Word and PDF) in the media
+// library, a welcome meeting in the event calendar (if there is one) and a
+// message to the editors.
+func accountSteps(tr func(en, de string) string, docs, media, cal int64, editors string, end map[string]any) []map[string]any {
+	steps := []map[string]any{
+		{"id": "read", "name": tr("Read the documents", "Dokumente lesen"), "type": "access", "next": "letter",
+			"access": map[string]any{"mode": "grant", "category": docs, "subject": "user", "user": "{{field.who}}", "level": "reader", "days": 90}},
+		{"id": "letter", "name": tr("Welcome letter", "Willkommensbrief"), "type": "file", "next": "meet",
+			"file": map[string]any{"category": media, "name": tr("Welcome {{field.who}}", "Willkommen {{field.who}}"), "formats": []string{"docx", "pdf"},
+				"content": tr("# Welcome, {{trigger.data.display_name}}\n\nYou can read “Documents and processes” for the next 90 days. Your editors will contact you.",
+					"# Willkommen, {{trigger.data.display_name}}\n\nDu kannst „Dokumente und Abläufe“ in den nächsten 90 Tagen lesen. Die Redaktion meldet sich bei dir."),
+				"store_url": "letter"}},
+		{"id": "meet", "name": tr("Welcome meeting", "Willkommensgespräch"), "type": "calendar", "next": "tell",
+			"calendar": map[string]any{"calendar": cal, "title": tr("Welcome meeting {{trigger.data.display_name}}", "Willkommensgespräch {{trigger.data.display_name}}"),
+				"start": "+3d", "minutes": 30, "store_url": "meeting"}},
+		{"id": "tell", "name": tr("Tell the editors", "Redaktion informieren"), "type": "notify", "next": "done",
+			"notify": map[string]any{"to": "group:" + editors, "channel": "inbox", "subject": tr("New colleague: {{field.who}}", "Neu im Team: {{field.who}}"),
+				"body": tr("Welcome letter: {{field.letter}}\nMeeting: {{field.meeting}}", "Willkommensbrief: {{field.letter}}\nTermin: {{field.meeting}}")}},
+		end}
+	if cal == 0 { // no event calendar in this demo
+		steps[1]["next"] = "tell"
+		steps = append(steps[:2], steps[3:]...)
+	}
+	return steps
 }

@@ -111,18 +111,20 @@ const (
 	StepAccess    = "access"     // automatic: grant (optionally for some days) or revoke permissions on a category
 	StepMember    = "membership" // automatic: put a person into a group or take them out
 	StepMove      = "move"       // automatic: move a page to another category (e.g. an archive)
+	StepFile      = "file"       // automatic: write a document (PDF, Word, Excel …) into the media library
+	StepCalendar  = "calendar"   // automatic: create an entry in a calendar
 	StepParallel  = "parallel"   // automatic: branches at the same time, continue when they ended
 	StepEnd       = "end"        // closes the case
 )
 
 // StepTypes lists all step types.
 var StepTypes = []string{StepTask, StepApproval, StepCondition, StepEmail, StepNotify, StepSet, StepWebhook, StepHTTP,
-	StepCreate, StepProps, StepAccess, StepMember, StepMove, StepSubflow, StepParallel, StepDelay, StepEnd}
+	StepCreate, StepProps, StepFile, StepCalendar, StepAccess, StepMember, StepMove, StepSubflow, StepParallel, StepDelay, StepEnd}
 
 // apiStep reports whether a step type acts through the wiki's API with the
 // rights of the definer or starter (run by the worker, may be retried).
 func apiStep(t string) bool {
-	return in(t, StepHTTP, StepCreate, StepProps, StepSubflow, StepAccess, StepMember, StepMove)
+	return in(t, StepHTTP, StepCreate, StepProps, StepSubflow, StepAccess, StepMember, StepMove, StepFile, StepCalendar)
 }
 
 // deferred steps are run by the background worker (they call other
@@ -186,22 +188,24 @@ type Step struct {
 	// Next: following step of approval (approved), condition (true), email,
 	// webhook and delay steps. NextElse: approval rejected, condition false,
 	// webhook failed (optional).
-	Next     string       `json:"next,omitempty"`
-	NextElse string       `json:"next_else,omitempty"`
-	Match    string       `json:"match,omitempty"` // condition: all (default) | any
-	Rules    []Rule       `json:"rules,omitempty"`
-	Email    *EmailSpec   `json:"email,omitempty"`
-	Webhook  *WebhookSpec `json:"webhook,omitempty"`
-	Delay    *DelaySpec   `json:"delay,omitempty"`
-	Notify   *NotifySpec  `json:"notify,omitempty"`
-	Set      []Assign     `json:"set,omitempty"`
-	HTTP     *HTTPSpec    `json:"http,omitempty"`
-	Create   *CreateSpec  `json:"create,omitempty"`
-	Props    *PropsSpec   `json:"props,omitempty"`
-	Subflow  *SubflowSpec `json:"subflow,omitempty"`
-	Access   *AccessSpec  `json:"access,omitempty"`
-	Member   *MemberSpec  `json:"membership,omitempty"`
-	Move     *MoveSpec    `json:"move,omitempty"`
+	Next     string        `json:"next,omitempty"`
+	NextElse string        `json:"next_else,omitempty"`
+	Match    string        `json:"match,omitempty"` // condition: all (default) | any
+	Rules    []Rule        `json:"rules,omitempty"`
+	Email    *EmailSpec    `json:"email,omitempty"`
+	Webhook  *WebhookSpec  `json:"webhook,omitempty"`
+	Delay    *DelaySpec    `json:"delay,omitempty"`
+	Notify   *NotifySpec   `json:"notify,omitempty"`
+	Set      []Assign      `json:"set,omitempty"`
+	HTTP     *HTTPSpec     `json:"http,omitempty"`
+	Create   *CreateSpec   `json:"create,omitempty"`
+	Props    *PropsSpec    `json:"props,omitempty"`
+	Subflow  *SubflowSpec  `json:"subflow,omitempty"`
+	Access   *AccessSpec   `json:"access,omitempty"`
+	Member   *MemberSpec   `json:"membership,omitempty"`
+	Move     *MoveSpec     `json:"move,omitempty"`
+	File     *FileSpec     `json:"file,omitempty"`
+	Calendar *CalendarSpec `json:"calendar,omitempty"`
 	// RunAs of http, create, props and subflow steps: "definer" (default:
 	// the person who saved the version of the workflow) or "starter".
 	RunAs string `json:"run_as,omitempty"`
@@ -711,6 +715,10 @@ var msgs = map[string]map[string]string{
 	"access":     {"en": "Automatic permissions", "de": "Automatische Berechtigungen"},
 	"membership": {"en": "Automatic group membership", "de": "Automatische Gruppenmitgliedschaft"},
 	"move":       {"en": "Automatically move a page", "de": "Seite automatisch verschieben"},
+	"file":       {"en": "Automatically write a file", "de": "Datei automatisch erzeugen"},
+	"calendar":   {"en": "Automatic calendar entry", "de": "Automatischer Kalendereintrag"},
+	"field":      {"en": "Field", "de": "Feld"},
+	"value":      {"en": "Value", "de": "Wert"},
 	"parallel":   {"en": "Branches at the same time", "de": "Zweige gleichzeitig"},
 	"deadline":   {"en": "With a deadline", "de": "Mit Frist"},
 	"triggers":   {"en": "Starts automatically", "de": "Startet automatisch"},
