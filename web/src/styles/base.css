@@ -325,6 +325,7 @@ html { scroll-padding-top: calc(var(--ew-sticky-top, var(--ew-header-h)) + .5rem
 .ew-media-grid { list-style: none; padding: 0; margin: 1rem 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(10rem, 1fr)); gap: .75rem; }
 .ew-media-tile { display: flex; flex-direction: column; width: 100%; padding: .25rem; gap: .25rem; background: var(--ew-bg-subtle); border: 1px solid var(--ew-border); border-radius: var(--ew-radius); cursor: pointer; color: var(--ew-text); font: inherit; text-align: left; }
 .ew-media-tile:hover { border-color: var(--ew-primary); }
+.ew-media-thumb { display: block; }
 .ew-media-tile img, .ew-media-icon { width: 100%; aspect-ratio: 4 / 3; object-fit: cover; border-radius: calc(var(--ew-radius) - 2px); }
 .ew-media-icon { display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 1.25rem; background: var(--ew-bg); color: var(--ew-text-muted); }
 .ew-media-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: .9rem; }

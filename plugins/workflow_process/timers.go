@@ -90,7 +90,7 @@ func (pl *Plugin) wakeOne(ctx context.Context) (done bool, err error) {
 			}
 			_, err := tx.Exec(ctx, `UPDATE plugin_workflow_instances SET attempts=$2, last_error=$3, wake_at=NULL, updated_at=now() WHERE id=$1`, id, attempts, msg)
 			return err
-		case StepHTTP, StepCreate, StepProps, StepSubflow, StepParallel, StepAccess, StepMember, StepMove:
+		case StepHTTP, StepCreate, StepProps, StepSubflow, StepParallel, StepAccess, StepMember, StepMove, StepFile, StepCalendar:
 			var attempts int
 			if err := tx.QueryRow(ctx, `SELECT attempts FROM plugin_workflow_instances WHERE id=$1`, id).Scan(&attempts); err != nil {
 				return err

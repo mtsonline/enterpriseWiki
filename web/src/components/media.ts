@@ -471,8 +471,11 @@ export async function mediaBrowser(opts: { categoryId?: number; type?: string; o
     try {
       const list = await api.get<Medium[]>(`media${qs({ category: cat.value() || undefined, recursive: cat.value() ? 1 : undefined, q: q.value.trim() || undefined, type: type.value || undefined, limit: 120 })}`);
       grid.replaceChildren(...list.map((m) => h('li', { class: 'ew-media-item' },
-        h('button', { type: 'button', class: 'ew-media-tile', 'aria-label': `${m.title || m.name}${m.view_only ? ` (${t('media.view_only')})` : ''}` },
-          mediaThumb(m), h('span', { class: 'ew-media-name' }, m.title || m.name)))));
+        // the name comes from the visible text (WCAG 2.5.3); type and view-only for screen readers
+        h('button', { type: 'button', class: 'ew-media-tile' },
+          h('span', { class: 'ew-media-thumb', 'aria-hidden': 'true' }, mediaThumb(m)), h('span', { class: 'ew-media-name' }, m.title || m.name),
+          m.name.includes('.') ? h('span', { class: 'sr-only' }, ` (${m.name.split('.').pop()!.toUpperCase()})`) : null,
+          m.view_only ? h('span', { class: 'sr-only' }, ` (${t('media.view_only')})`) : null))));
       grid.querySelectorAll<HTMLButtonElement>('.ew-media-tile').forEach((b, i) => b.addEventListener('click', () => {
         const m = list[i];
         if (opts.onPick) opts.onPick(m); else void openMedium(m, () => void load());

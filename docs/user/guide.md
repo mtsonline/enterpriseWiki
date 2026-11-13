@@ -118,11 +118,13 @@ Wählen Sie bei *Neue Seite* den Elementtyp **Workflow**. Mit *Vorlage* überneh
 | Berechtigungen | vergibt einer Person (Benutzername, Alias, E-Mail oder ID, meist ein Platzhalter wie `{{trigger.data.username}}`) oder Gruppe Lese-, Bearbeitungs- oder Verwaltungsrechte auf eine Kategorie – auf Wunsch nur für **N Tage**, danach werden sie automatisch entzogen – oder entzieht sie |
 | Gruppenmitgliedschaft | nimmt eine Person in eine Gruppe auf oder entfernt sie daraus |
 | Seite verschieben | verschiebt eine Seite in eine andere Kategorie, z. B. ins Archiv |
+| Datei erzeugen | schreibt ein Dokument aus einer Vorlage in die Medienbibliothek: PDF, Word (.docx), Excel (.xlsx), CSV, JSON, Text oder Markdown – Zeilen mit `#`, `##`, `###` werden Überschriften, auf Wunsch mit allen Feldern des Vorgangs (Excel und CSV immer als Tabelle). ID und Adresse der Datei landen in Feldern (`{{field.file}}`) |
+| Kalendereintrag | legt einen Termin in einem Kalender an: Titel, Beginn (Datum, Datum mit Uhrzeit, Platzhalter wie `{{field.date}}` oder relativ `+3d`, `+2h`), Dauer, ganztägig, Ort, Zeitzone, Anmeldung. Einladungen schickt ein folgender Nachrichten-Schritt mit der gespeicherten Adresse |
 | Weiterer Workflow | startet einen Vorgang eines anderen Workflows mit Werten; wartet auf Wunsch, bis er beendet ist, übernimmt dann Werte und verzweigt bei Misserfolg |
 | Parallele Zweige | startet mehrere Zweige gleichzeitig – feste Schritte oder **ein Zweig je Wert** eines Felds (z. B. eine Prüfung je Abteilung, der Wert ist `{{field.item}}`); jeder Zweig endet am **Treffpunkt** (nächster Schritt). Optional reichen *k* von *n* Zweigen, die übrigen werden dann beendet; Werte der Zweige werden übernommen |
 | Ende | schließt den Vorgang mit einem Ergebnis (erfolgreich, nicht erfolgreich, neutral) |
 
-Automatische Schritte mit Rechten (HTTP-Abfrage, Seite anlegen, Eigenschaften, Berechtigungen, Gruppenmitgliedschaft, Seite verschieben, weiterer Workflow) handeln mit den Rechten der Person, die den Workflow gespeichert hat (oder der startenden Person) – niemand bekommt über einen Workflow mehr, als diese Person selbst darf.
+Automatische Schritte mit Rechten (HTTP-Abfrage, Seite anlegen, Eigenschaften, Datei erzeugen, Kalendereintrag, Berechtigungen, Gruppenmitgliedschaft, Seite verschieben, weiterer Workflow) handeln mit den Rechten der Person, die den Workflow gespeichert hat (oder der startenden Person) – niemand bekommt über einen Workflow mehr, als diese Person selbst darf.
 
 Bei Aufgaben und Freigaben kann eine **Erinnerung nach X Tagen** eingestellt werden. Zuständige erhalten bei neuen Aufgaben eine E-Mail (abschaltbar im Profil).
 

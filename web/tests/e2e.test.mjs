@@ -1078,6 +1078,56 @@ test('workflow 3: a new account starts onboarding with permissions, group and ar
   assert.ok((await call('GET', `/api/v1/admin/groups/${grp.id}/members`)).includes(u.id), 'member again');
 });
 
+test('workflow 3b: a case writes Word, PDF and Excel files and a calendar entry', async () => {
+  const job = (name) => call('POST', `/api/v1/admin/jobs/${name}/run`, {});
+  const cat = (await call('POST', '/api/v1/categories', { titles: { en: `Requests ${run}` } })).id;
+  const recs = (await call('POST', '/api/v1/categories', { titles: { en: `Records ${run}` } })).id;
+  const cal = await call('POST', '/api/v1/elements', { category_id: cat, type: 'content.events', title: `Dates ${run}`, body: { view: 'list' } });
+  const wf = await call('POST', '/api/v1/elements', { category_id: cat, type: 'workflow.process', title: `Records ${run}`, body: {
+    description: 'E2E', fields: [{ id: 'who', label: 'Name', type: 'text', required: true }],
+    steps: [
+      { id: 'doc', name: 'Record', type: 'file', next: 'meet', file: { category: recs, name: 'Record {{field.who}}', formats: ['docx', 'pdf', 'xlsx'], content: '# Record\nFor {{field.who}}', data: true, store_url: 'doc' } },
+      { id: 'meet', name: 'Meeting', type: 'calendar', next: 'done', calendar: { calendar: cal.id, title: 'Talk {{field.who}}', start: '+2d', minutes: 45, store_id: 'event' } },
+      { id: 'done', name: 'Done', type: 'end', outcome: 'success' }] } });
+  await page.goto(`${BASE}/e/${wf.id}/edit`);
+  await idle();
+  const rows = page.locator('.ewf-step-row');
+  await rows.first().getByRole('group', { name: /^(formats|formate)$/i }).waitFor();
+  assert.ok(await rows.first().getByLabel(/^word \(\.docx\)$/i).isChecked(), 'Word chosen');
+  await rows.nth(1).getByLabel(/^(start|beginn)/i).waitFor();
+  assert.equal(await rows.nth(1).getByLabel(/^(start|beginn)/i).inputValue(), '+2d');
+  await a11y('workflow editor with file and calendar steps');
+  // a case from the page
+  await page.goto(`${BASE}/e/${wf.id}`);
+  await idle();
+  await page.getByRole('button', { name: /^(start|starten)/i }).first().click();
+  const form = page.locator('dialog[open] form');
+  await form.getByLabel(/^name/i).fill(`Lea ${run}`);
+  await form.locator('button[type=submit]').click();
+  await page.locator('dialog[open]').waitFor();
+  await page.keyboard.press('Escape');
+  for (let i = 0; i < 3; i++) await job('workflow.process.timers');
+  const list = await call('GET', `/api/v1/x/workflow.process/elements/${wf.id}/instances?status=`);
+  const x = await call('GET', `/api/v1/x/workflow.process/instances/${list.instances[0].id}`);
+  assert.equal(x.status, 'done', `files and calendar: ${x.status} ${x.last_error ?? ''}`);
+  // the files are in the media library with their category
+  await page.goto(`${BASE}/media?category=${recs}`);
+  await idle();
+  for (const ext of ['docx', 'pdf', 'xlsx']) await page.getByRole('button', { name: `Record Lea ${run} (${ext.toUpperCase()})` }).waitFor();
+  await a11y('media library with generated files');
+  const ev = await call('GET', `/api/v1/x/content.events/events/${x.data.event}`);
+  assert.equal(ev.event.title, `Talk Lea ${run}`);
+  assert.equal((new Date(ev.event.ends_at) - new Date(ev.event.starts_at)) / 60000, 45);
+  // the history of the case names both steps
+  await page.goto(`${BASE}/e/${wf.id}?case=${x.id}`);
+  await idle();
+  const dlg = page.locator('dialog[open]');
+  await dlg.getByText(/file written|datei erzeugt/i).waitFor();
+  await dlg.getByText(/calendar entry created|kalendereintrag angelegt/i).waitFor();
+  await a11y('case with file and calendar steps');
+  await page.keyboard.press('Escape');
+});
+
 test('drafts, preview, templates and publishing with options', async () => {
   const cat = await m6Category();
   await page.goto(`${BASE}/c/${cat}/new`);

@@ -129,7 +129,7 @@ func (pl *Plugin) enter(ctx context.Context, tx pgx.Tx, x *Instance, id string, 
 			x.Status = "open"
 			wake := pl.wakeTime(x, s)
 			return pl.setStep(ctx, tx, x, &wake)
-		case StepWebhook, StepHTTP, StepCreate, StepProps, StepSubflow, StepParallel, StepAccess, StepMember, StepMove:
+		case StepWebhook, StepHTTP, StepCreate, StepProps, StepSubflow, StepParallel, StepAccess, StepMember, StepMove, StepFile, StepCalendar:
 			x.Status = "open"
 			now := time.Now()
 			return pl.setStep(ctx, tx, x, &now) // the worker carries the step out

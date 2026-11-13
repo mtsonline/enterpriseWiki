@@ -305,7 +305,7 @@ func (pl *Plugin) decorate(ctx context.Context, w *who, x *Instance, manage bool
 				{ID: "reject", Label: s.RejectLabel, Next: s.NextElse, Note: "required"}}
 			x.Form = s.Form
 		}
-	case StepWebhook, StepHTTP, StepCreate, StepProps, StepSubflow, StepAccess, StepMember, StepMove:
+	case StepWebhook, StepHTTP, StepCreate, StepProps, StepSubflow, StepAccess, StepMember, StepMove, StepFile, StepCalendar:
 		if x.WakeAt == nil && x.LastError != "" && (manage || w.p.Admin()) { // failed, waiting for a decision
 			x.Actions = []Action{{ID: ActRetry, Next: s.ID}, {ID: ActSkip, Next: s.Next, Note: "optional"}}
 		}

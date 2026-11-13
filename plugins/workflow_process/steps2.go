@@ -123,6 +123,12 @@ func (s *Step) targets() []string {
 	if s.Create != nil {
 		out = append(out, s.Create.StoreID, s.Create.StoreURL)
 	}
+	if s.File != nil {
+		out = append(out, s.File.StoreID, s.File.StoreURL)
+	}
+	if s.Calendar != nil {
+		out = append(out, s.Calendar.StoreID, s.Calendar.StoreURL)
+	}
 	if s.Subflow != nil {
 		for k := range s.Subflow.Return {
 			out = append(out, k)
@@ -190,6 +196,8 @@ func (s *Step) validateExtra(fieldType map[string]string) error {
 	s.Notify, s.Set, s.HTTP, s.Create, s.Props, s.Subflow = nil, nil, nil, nil, nil, nil
 	ac, mb, mv := s.Access, s.Member, s.Move
 	s.Access, s.Member, s.Move = nil, nil, nil
+	fs, cs := s.File, s.Calendar
+	s.File, s.Calendar = nil, nil
 	runAs := s.RunAs
 	s.RunAs = ""
 	if !in(s.Type, StepNotify, StepSet, StepParallel) && !apiStep(s.Type) {
@@ -365,6 +373,8 @@ func (s *Step) validateExtra(fieldType map[string]string) error {
 		s.Subflow = &f
 	case StepAccess, StepMember, StepMove:
 		return s.validatePart3(ac, mb, mv)
+	case StepFile, StepCalendar:
+		return s.validatePart3b(fs, cs)
 	}
 	return nil
 }
