@@ -4,7 +4,7 @@
 //   import { registerEditor, h } from '@ewiki/sdk';
 //   export function register() { registerEditor('my.type', (el, body) => ...); }
 //
-// See docs/developer/plugins.md.
+// See docs/en/developer/plugins.md.
 import { state, onChange } from './core/state';
 import { t } from './core/i18n';
 

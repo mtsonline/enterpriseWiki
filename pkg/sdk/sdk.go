@@ -6,7 +6,7 @@
 //
 // and implements Plugin plus any of the optional interfaces (Setup,
 // Migrations, Locales). Plugins are compiled into the binary (see
-// docs/developer/plugins.md); enabling and disabling takes effect immediately
+// docs/en/developer/plugins.md); enabling and disabling takes effect immediately
 // without a restart. A plugin's frontend part lives in plugins/<dir>/web.
 package sdk
 
@@ -87,14 +87,14 @@ type Manifest struct {
 	MinCore string `json:"min_core"`
 	// Frontend is true if plugins/<dir>/web/index.ts exists.
 	Frontend bool `json:"frontend"`
-	// Permissions the plugin checks (see docs/developer/plugins.md#permissions).
+	// Permissions the plugin checks (see docs/en/developer/plugins.md#permissions-required).
 	// Every permission a plugin uses must be declared here; keys start with
 	// the plugin id. Labels are English (translations: UI key perm.<key>).
 	Permissions []perm.Def `json:"permissions,omitempty"`
 	// Limits are the technical limits of the plugin (sizes, counts, waiting
 	// times). Keys start with the plugin id. Administrators see and change
 	// them under Administration → Expert settings; read them with
-	// Host.Limit (see docs/developer/plugins.md#limits).
+	// Host.Limit (see docs/en/developer/plugins.md#limits).
 	Limits []limits.Def `json:"limits,omitempty"`
 }
 

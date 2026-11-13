@@ -8,4 +8,4 @@ released as soon as possible and announced in a security advisory.
 
 Supported versions: the latest release.
 
-How the project tests for vulnerabilities: [docs/developer/security-testing.md](docs/developer/security-testing.md).
+How the project tests for vulnerabilities: [docs/en/developer/security-testing.md](docs/en/developer/security-testing.md).

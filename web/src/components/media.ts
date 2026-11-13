@@ -1,6 +1,6 @@
 // Media library: upload with rights and watermark, details with versions
 // and usage, image editor, view-only viewer and a picker for editors.
-// Server: /api/v1/media (docs/developer/media.md).
+// Server: /api/v1/media (docs/en/developer/media.md).
 import { api, ApiError, humanSize, qs } from '../core/api';
 import { append, fmtDate, h, uid, type Child } from '../core/dom';
 import { t } from '../core/i18n';

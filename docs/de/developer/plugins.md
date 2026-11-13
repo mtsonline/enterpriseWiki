@@ -179,7 +179,7 @@ Wichtig:
 - `Setup` wird beim Start für **jedes** kompilierte Plugin aufgerufen. Alles, was über den `Host` registriert wird (Routen, Elementtypen, Anmeldeverfahren), ist automatisch inaktiv, solange das Plugin deaktiviert ist. Routen antworten dann mit 404.
 - **Berechtigungen immer selbst prüfen**: `identity.From(ctx)` liefert den Aufrufer (nil = Gast), `host.ACL.Can(...)` die Kategorie-Rechte, `sdk.RequireAdmin(r)` prüft Administratoren. Die Dienste in `host.Content` prüfen Berechtigungen bereits selbst.
 - Handler geben `(Wert, error)` zurück. Der Wert wird als JSON gesendet, `apperr`-Fehler werden mit passendem Status gesendet. Mit `h.NoContent{}` und `h.Created{V: x}` steuern Sie Status 204 und 201.
-- Migrationen heißen `NNNN_name.sql`, laufen einmal je Datenbank in einer Transaktion und werden nie verändert. Für Änderungen legen Sie eine neue Datei an. Präfixen Sie Tabellennamen (`plugin_acme_…`).
+- Migrationen heißen `NNNN_name.sql` und laufen einmal je Datenbank in einer Transaktion. Bis zum ersten Release des Wikis werden Änderungen direkt in die bestehenden Dateien geschrieben (es gibt keine alten Stände); ab dann wird eine veröffentlichte Migration nie mehr verändert, Änderungen kommen in eine neue Datei (Regeln in `CLAUDE.md`). Präfixen Sie Tabellennamen (`plugin_acme_…`).
 - Einstellungen: `host.Settings()` liefert den Abschnitt `plugin_settings.<id>` aus `config.yaml`.
 - Für Änderungen am Inhalt schreiben Sie mit `audit.Log(...)` ins Protokoll.
 

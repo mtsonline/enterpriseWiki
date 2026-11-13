@@ -1,7 +1,7 @@
 # Enterprise Wiki configuration - this file is the single source of truth.
 # Settings changed in the admin UI or via "ewiki config set" are written here.
 # Values can reference environment variables (e.g. from .env): ${NAME} or ${NAME:-default}.
-# Reference: docs/admin/configuration.md
+# Reference: docs/en/admin/configuration.md
 server:
     listen: :8080
     base_url: https://wiki.example.com

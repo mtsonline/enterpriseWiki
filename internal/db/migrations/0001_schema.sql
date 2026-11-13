@@ -385,7 +385,7 @@ CREATE TABLE files (
 -- ---------------------------------------------------------------- media library
 -- A medium is a file in a category with versions (image editor, new uploads),
 -- its own rights (optional), a download switch and a watermark mode.
--- See docs/developer/media.md.
+-- See docs/en/developer/media.md.
 CREATE TABLE media (
     id          bigserial PRIMARY KEY,
     category_id bigint NOT NULL REFERENCES categories(id) ON DELETE CASCADE,

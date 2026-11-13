@@ -1,81 +1,83 @@
 # Enterprise Wiki
 
-Ein selbst gehostetes, modulares Wiki und CMS: Wissensdatenbank mit beliebig tief verschachtelten Kategorien, versionierten und mehrsprachigen Seiten, fein granularen Berechtigungen und einem Plugin-System, über das praktisch alles erweitert werden kann (Elementtypen, Anmeldeverfahren, Menüs, Templates, Admin-Seiten, API-Endpunkte).
+**English** · [Deutsch](README.de.md)
 
-- **Backend:** Go, eine einzige statisch gelinkte Binärdatei (Server + CLI), PostgreSQL
-- **Frontend:** TypeScript ohne Framework und **ohne Laufzeit-Abhängigkeiten**, in die Binärdatei eingebettet
-- **Barrierefrei:** Ziel WCAG 2.2 AA, automatisch mit axe-core in der CI geprüft
-- **Config-first:** `config.yaml` ist die einzige maßgebliche Quelle. Admin-Oberfläche und CLI schreiben in diese Datei.
+A secure and flexible alternative to traditional enterprise wikis and CMS systems, self-hosted and modular: knowledge base with categories nested to any depth, versioned and multilingual pages, fine-grained permissions and a plugin system through which practically everything can be extended (element types, sign-in methods, menus, templates, admin pages, API endpoints).
 
-> Status: **Version 7.5, Meilensteine 1 bis 6.** Was bereits enthalten ist und was noch folgt, steht in [docs/ROADMAP.md](docs/ROADMAP.md).
+- **Backend:** Go, a single statically linked binary (server + CLI), PostgreSQL
+- **Frontend:** TypeScript without a framework and **without runtime dependencies**, embedded in the binary
+- **Accessible:** target WCAG 2.2 AA, checked automatically with axe-core in the CI
+- **Config-first:** without a cluster, `config.yaml` is the authoritative source; the admin interface and the CLI write into this file. In cluster mode, the settings that can be changed in the interface are stored in the database.
 
-## Funktionen
+> Status: **development version 7.5.0-dev.** What is already included and what follows is in the [roadmap](docs/en/ROADMAP.md).
 
-| Bereich | Enthalten |
+## Features
+
+| Area | Included |
 |---|---|
-| Inhalte | Kategorien mit unbegrenzter Tiefe (stabile IDs, Gliederungsnummern 1.2.3), Standardseite je Kategorie, Elemente als Plugin-Typen, verschieben, duplizieren, sortieren, Papierkorb |
-| Seiten | Elementtyp `core.html`: WYSIWYG-Editor oder Markdown, Bilder mit Pflicht-Alternativtext, serverseitige HTML-Bereinigung (XSS-Schutz), Vorschau |
-| Dateien | Elementtyp `core.attachment`: PDF, Office, Bilder, Video. Vorschau im Browser, jede neue Datei ist eine Version, PDF- und Textinhalt in der Volltextsuche, inhaltsadressierte Ablage (SHA-256) |
-| Versionierung | Jede Änderung ist eine unveränderliche Version, Wiederherstellen einzelner Versionen, Zurücksetzen ganzer Kategorien (mit/ohne Unterkategorien) auf einen Zeitpunkt, Audit-Protokoll, konfigurierbare Aufbewahrung |
-| Mehrsprachigkeit | Inhalte je Sprache versioniert, Übersetzungsstatus (aktuell / veraltet / fehlt) mit Prozentanzeige, Fallback auf die Originalsprache; UI-Texte von Kern und Plugins im Admin-Bereich übersetzbar mit Fortschrittsanzeige |
-| Berechtigungen | Regeln je Kategorie für Benutzer, Gruppen, Rollen, Gäste und angemeldete Benutzer, optional vererbt. Ohne Regel ist nichts erlaubt, Gäste sehen nur die erste Ebene. Prüfung im Backend bei jeder Anfrage, im Speicher gecacht |
-| Anmeldung | Lokale Konten (Argon2id, Sperre nach Fehlversuchen, Mehrfaktor als Plugins: App, E-Mail-Code, Sicherheitsschlüssel/Passkeys, erlaubte Netze, frei wählbare Kette pro Anmeldeverfahren) werden immer zuerst geprüft. **LDAP/Active Directory**, **OpenID Connect** (Keycloak, Entra ID, …) und **Shibboleth/SAML 2.0** (nativ oder über mod_shib) als Plugins, mit einheitlicher Zuordnung externer Gruppen zu lokalen Gruppen und Rollen. API-Keys (Ablaufdatum, Rechte-Maske, Kategorie-Beschränkung), SSH-Schlüssel-Login wie bei GitHub |
-| Abläufe | Elementtyp `workflow.process` für Prozesse wie Bewerbungen oder Genehmigungen: Startformular mit Datei-Upload, Aufgaben, Freigaben (Vier-Augen-Prinzip), Bedingungen, automatische E-Mails mit Platzhaltern, Webhooks, Wartezeiten, Erinnerungen, lückenloser Verlauf, „Meine Aufgaben“ |
-| E-Mail | Postausgang mit Wiederholungen, SMTP (STARTTLS/TLS), sendmail, Benachrichtigungen zu Aufgaben, Vorgängen und Kommentaren (im Profil abschaltbar), Beobachten von Seiten und Kategorien – sofort oder als tägliche/wöchentliche Zusammenfassung |
-| Webhooks | Microsoft Teams, Slack und signiertes JSON bei Seitenänderungen, Anmeldungen und geänderten Terminen, mit Warteschlange, Wiederholungen und Zustellprotokoll |
-| Gäste und Suchmaschinen | Vorgerenderte Seiten mit Titel, Beschreibung, kanonischer Adresse und Open-Graph-Angaben, optionaler Gäste-Cache, Kurz-URLs |
-| Eigenschaften | Strukturierte Eigenschaften für Elemente jedes Typs (`core.properties`): über 30 Typen von Text, Zahl, Geldbetrag und Datum bis Status, Person, Ort, laufender Nummer und Formel; Definitionen global oder pro Kategorie (vererbt), freie Eigenschaften, Rechte pro Eigenschaft, Verlauf; Schlagwörter als Standard-Eigenschaft. Eigenschaften-Datenbank (`content.propdb`) und Makro „Eigenschaften-Bericht“: Tabelle mit Summen, Board, Kalender, Zeitleiste, Diagramme, Kennzahlen, Pivot, Vollständigkeit, Fälligkeiten – stets mit den Rechten der Lesenden |
-| Makros | Inhaltsverzeichnis, Unterseiten, Zuletzt geändert, Hinweis-Boxen, Aufklappbereich, Status-Label, Spalten, Layout-Bausteine (Abschnitt, Hero, Karten, Button), **Shell-Befehl** (nur exakt vom Superadmin freigegeben) und **HTTP-Abruf** (Allow-Liste, interne Adressen gesperrt), eigene Makros per Plugin |
-| Zusammenarbeit | Kommentare und Antworten unter Seiten (`core.comments`), Änderungen im Audit-Protokoll |
-| Suche | Volltextsuche über alle Sprachen mit Hervorhebung, Tags auf Kategorien und Seiten, Tag-Wolke; optional OpenSearch/Elasticsearch oder Meilisearch (`search.external`) für sehr große Wikis |
-| Plugins | Werden mit dem Kern kompiliert, sofort aktivier- und deaktivierbar, Installation aus GitHub, Git oder lokalem Ordner per Oberfläche, API oder CLI, Neubau und Neustart aus der Oberfläche, Vererbung (`extends`), Update-Prüfung über GitHub-Releases mit 1-Klick-Update |
-| Mitgeliefert | `auth.local`, `auth.ldap`, `auth.oidc`, `auth.shib`, `core.html`, `core.attachment`, `core.menu` (Menüs an Template-Positionen), `core.macros`, `core.layout`, `macro.shell`, `macro.http`, `core.comments`, `workflow.process`, `search.external`, die Templates `theme.wiki` (Dokumentation), `theme.cms` (Website, klassisch) und `theme.cms.modern` (Website, modern), Beispiele: `theme.wiki.dark` (erbt von einem Template), `example.notice` (erbt von einem Elementtyp) |
-| Betrieb | Setup-Assistent (interaktiv oder headless), Docker/Compose, systemd-Installation, sicheres Update-Skript mit Backup und automatischem Rollback, Single- und Cluster-Modus |
-| CLI | Jede API-Funktion über `ewiki api`, dazu Befehle für Benutzer, Plugins und Konfiguration |
-| Tests | Unit-Tests, API-Integrationstest gegen PostgreSQL (prüft auch, dass jede API-Route eine Frontend-Anbindung hat), Browser-E2E-Tests mit WCAG-Prüfung, alles in GitHub Actions |
+| Content | Categories with unlimited depth (stable IDs, outline numbers 1.2.3), default page per category, elements as plugin types, move, duplicate, sort, trash |
+| Pages | Element type `core.html`: WYSIWYG editor or Markdown, images with required alternative text, server-side HTML sanitisation (XSS protection), preview |
+| Files | Element type `core.attachment`: PDF, office, images, video. Preview in the browser, every new file is a version, PDF and text content in the full-text search, content-addressed storage (SHA-256) |
+| Versioning | Every change is an immutable version, restoring single versions, resetting whole categories (with/without sub-categories) to a point in time, audit log, configurable retention |
+| Multilingual | Content versioned per language, translation status (current / outdated / missing) with percentage, fallback to the original language; UI texts of core and plugins translatable in the admin area with progress display |
+| Permissions | Rules per category for users, groups, roles, guests and signed-in users, optionally inherited. Without a rule nothing is allowed, guests only see the first level. Checked in the backend on every request, cached in memory |
+| Sign-in | Local accounts (Argon2id, lockout after failed attempts, multi-factor as plugins: app, e-mail code, security keys/passkeys, allowed networks, freely selectable chain per sign-in method) are always checked first. **LDAP/Active Directory**, **OpenID Connect** (Keycloak, Entra ID, …) and **Shibboleth/SAML 2.0** (native or through mod_shib) as plugins, with uniform mapping of external groups to local groups and roles. API keys (expiry date, permission mask, category restriction), SSH key login as on GitHub |
+| Processes | Element type `workflow.process` for processes such as applications or approvals: start form with file upload, tasks, approvals (four-eyes principle), conditions, automatic e-mails with placeholders, webhooks, waiting times, reminders, complete history, "My tasks" |
+| E-mail | Outbox with retries, SMTP (STARTTLS/TLS), sendmail, notifications about tasks, cases and comments (can be switched off in the profile), watching pages and categories – immediately or as a daily/weekly summary |
+| Webhooks | Microsoft Teams, Slack and signed JSON on page changes, registrations and changed events, with queue, retries and delivery log |
+| Guests and search engines | Pre-rendered pages with title, description, canonical address and Open Graph data, optional guest cache, short URLs |
+| Properties | Structured properties for elements of every type (`core.properties`): over 30 types from text, number, amount of money and date to status, person, location, sequential number and formula; definitions global or per category (inherited), free properties, permissions per property, history; tags as the standard property. Property database (`content.propdb`) and macro "Property report": table with totals, board, calendar, timeline, charts, key figures, pivot, completeness, due dates – always with the permissions of the readers |
+| Macros | Table of contents, sub-pages, recently changed, notice boxes, expand section, status label, columns, layout blocks (section, hero, cards, button), **shell command** (only exactly approved by the super administrator) and **HTTP request** (allow list, internal addresses blocked), own macros through plugins |
+| Collaboration | Comments and answers below pages (`core.comments`), changes in the audit log |
+| Search | Full-text search across all languages with highlighting, tags on categories and pages, tag cloud; optionally OpenSearch/Elasticsearch or Meilisearch (`search.external`) for very large wikis |
+| Plugins | Compiled with the core, can be enabled and disabled immediately, installation from GitHub, Git or a local folder through interface, API or CLI, rebuild and restart from the interface, inheritance (`extends`), update check through GitHub releases with one-click update |
+| Bundled | `auth.local`, `auth.ldap`, `auth.oidc`, `auth.shib`, `core.html`, `core.attachment`, `core.menu` (menus at template positions), `core.macros`, `core.layout`, `macro.shell`, `macro.http`, `core.comments`, `workflow.process`, `search.external`, the templates `theme.wiki` (documentation), `theme.cms` (website, classic) and `theme.cms.modern` (website, modern), examples: `theme.wiki.dark` (inherits from a template), `example.notice` (inherits from an element type) |
+| Operations | Setup assistant (interactive or headless), Docker/Compose, systemd installation, safe update script with backup and automatic rollback, single and cluster mode |
+| CLI | Every API function through `ewiki api`, plus commands for users, plugins and configuration |
+| Tests | Unit tests, API integration test against PostgreSQL (also checks that every API route is used by the frontend), browser E2E tests with WCAG check, all in GitHub Actions |
 
-## Schnellstart mit Docker
+## Quick start with Docker
 
 ```bash
-./docker-setup.sh           # .env mit Passwörtern, Ordner ./data, eigener Benutzer statt root
-docker compose up -d        # lädt das aktuelle Image (ghcr.io/mtsonline/enterprisewiki)
-# http://localhost:8080 – Anmeldung mit admin / EWIKI_ADMIN_PASSWORD
+./docker-setup.sh           # .env with passwords, folder ./data, own user instead of root
+docker compose up -d        # loads the current image (ghcr.io/mtsonline/enterprisewiki)
+# http://localhost:8080 – sign in with admin / EWIKI_ADMIN_PASSWORD
 ```
 
-## Installation auf einem Server (systemd)
+## Installation on a server (systemd)
 
 ```bash
 git clone https://github.com/mtsonline/enterpriseWiki.git && cd enterpriseWiki
-sudo ./scripts/install.sh            # baut, fragt Datenbank und Admin-Passwort ab, richtet den Dienst ein
-sudo ./scripts/update.sh --enable-timer   # optional: automatische Updates
+sudo ./scripts/install.sh            # builds, asks for database and admin password, sets up the service
+sudo ./scripts/update.sh --enable-timer   # optional: automatic updates
 ```
 
-Details: [docs/admin/installation.md](docs/admin/installation.md)
+Details: [docs/en/admin/installation.md](docs/en/admin/installation.md)
 
-## Entwicklung
+## Development
 
-Voraussetzungen: Go ≥ 1.27, Node.js ≥ 22 (empfohlen: aktuelle LTS, derzeit 26), PostgreSQL ≥ 16 (empfohlen und in der CI getestet: 18).
+Requirements: Go ≥ 1.27, Node.js ≥ 22 (recommended: current LTS, currently 26), PostgreSQL ≥ 16 (recommended and tested in the CI: 18).
 
 ```bash
-./scripts/build.sh                                   # Frontend + Backend -> bin/ewiki
+./scripts/build.sh                                   # frontend + backend -> bin/ewiki
 EWIKI_DATABASE_URL=postgres://user:pass@localhost/wiki ./bin/ewiki setup
 ./bin/ewiki serve
-(cd web && npm run watch)                            # Frontend neu bauen bei Änderungen
-EWIKI_TEST_DATABASE_URL=postgres://…/wiki_test go test ./...   # löscht die Testdatenbank!
+(cd web && npm run watch)                            # rebuild the frontend on changes
+EWIKI_TEST_DATABASE_URL=postgres://…/wiki_test go test ./...   # deletes the test database!
 ```
 
-## Dokumentation
+## Documentation
 
-| Für | Dokument |
+| For | Document |
 |---|---|
-| Benutzer:innen | [Benutzerhandbuch](docs/user/guide.md) |
-| Administration | [Installation](docs/admin/installation.md) · [Konfiguration](docs/admin/configuration.md) · [Anmeldung: LDAP, OIDC, SAML, 2FA](docs/admin/authentication.md) · [Betrieb, Updates, Backup, CLI](docs/admin/operations.md) · [Sicherheit & Berechtigungen](docs/admin/security.md) · [Plugins verwalten](docs/admin/plugins.md) · [Office-Programme](docs/admin/office.md) |
-| Entwicklung | [Architektur](docs/developer/architecture.md) · [Plugins entwickeln](docs/developer/plugins.md) · [REST-API](docs/developer/api.md) |
-| Planung | [Roadmap](docs/ROADMAP.md) |
+| Users | [User guide](docs/en/user/guide.md) |
+| Administration | [Installation](docs/en/admin/installation.md) · [Configuration](docs/en/admin/configuration.md) · [Sign-in: LDAP, OIDC, SAML, 2FA](docs/en/admin/authentication.md) · [Operations, updates, backup, CLI](docs/en/admin/operations.md) · [Security & permissions](docs/en/admin/security.md) · [Managing plugins](docs/en/admin/plugins.md) · [Office programs](docs/en/admin/office.md) |
+| Development | [Architecture](docs/en/developer/architecture.md) · [Developing plugins](docs/en/developer/plugins.md) · [REST API](docs/en/developer/api.md) |
+| Planning | [Roadmap](docs/en/ROADMAP.md) |
 
-## Lizenz
+## License
 
-Enterprise Wiki steht unter der **Business Source License 1.1** ([LICENSE](LICENSE)): kostenlos für die private Nutzung
-durch natürliche Personen, für Unternehmen, öffentliche Einrichtungen, Bildungseinrichtungen und Vereine mit
-(vergünstigter) Lizenz. Jede Version wird vier Jahre nach Erscheinen zusätzlich unter der AGPL-3.0 frei.
-Details, Lizenzschlüssel und enthaltene Komponenten: [LICENSING.md](LICENSING.md). Mitwirken: [CONTRIBUTING.md](CONTRIBUTING.md), [CLA.md](CLA.md).
+Enterprise Wiki is licensed under the **Business Source License 1.1** ([LICENSE](LICENSE)): free of charge for private use
+by natural persons, for companies, public bodies, educational institutions and associations with a
+(discounted) license. Every version additionally becomes free under the AGPL-3.0 four years after its release.
+Details, license keys and contained components: [LICENSING.md](LICENSING.md). Contributing: [CONTRIBUTING.md](CONTRIBUTING.md), [CLA.md](CLA.md).

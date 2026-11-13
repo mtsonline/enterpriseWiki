@@ -112,7 +112,7 @@ API: `GET|PUT /api/v1/admin/i18n/{lang}`, `GET /api/v1/admin/i18n/{lang}/export?
 
 ## Geheimnisse in der Datenbank
 
-Signaturschlüssel von Webhooks, Geheimnisse von Authenticator-Apps, Geheimnisse eingehender und ausgehender Webhooks von Workflows und Formularen sowie der Schlüssel der Formular-Tokens liegen in der Datenbank. Wie sie gespeichert werden, legt `secrets.mode` in `config.yaml` fest (für die ganze Instanz):
+Signaturschlüssel von Webhooks, Geheimnisse von Authenticator-Apps, Geheimnisse eingehender und ausgehender Webhooks von Workflows und Formularen, der Schlüssel der Formular-Tokens, der Schlüssel der Entscheidungslinks, die Siegel-Schlüssel für Signaturen und die privaten Schlüssel von S/MIME-Zertifikaten liegen in der Datenbank. Wie sie gespeichert werden, legt `secrets.mode` in `config.yaml` fest (für die ganze Instanz):
 
 | Modus | Schutz |
 |---|---|
@@ -180,7 +180,7 @@ Das Shell- und das HTTP-Makro sind die einzigen Stellen, an denen Seiteninhalte 
 
 - Benachrichtigungen (Aufgaben, Erinnerungen, Kommentare) gehen nur an Benutzer, die die betroffene Seite sehen dürfen, und lassen sich im Profil abschalten.
 - Workflow-E-Mails dürfen nur die konfigurierte Absenderadresse oder Adressen aus `mail.allowed_from` als Absender verwenden; alles andere wird zur Antwortadresse (Schutz vor gefälschten Absendern). Kopfzeilen werden von Zeilenumbrüchen bereinigt (keine Header-Injection), Empfängeradressen geprüft, höchstens 50 Empfänger je Nachricht.
-- Webhooks von Workflows unterliegen denselben Regeln wie das HTTP-Makro (Allow-Liste `plugins.macros.http_allow`, interne Adressen gesperrt). Mit einem Geheimnis wird jede Anfrage per HMAC-SHA256 signiert (`X-Ewiki-Signature: sha256=…`), damit der Empfänger die Herkunft prüfen kann. Das Geheimnis steht im Workflow und ist für Bearbeiter des Workflows sichtbar.
+- Webhooks von Workflows unterliegen denselben Regeln wie das HTTP-Makro (Allow-Liste `plugins.macros.http_allow`, interne Adressen gesperrt). Mit einem Geheimnis wird jede Anfrage per HMAC-SHA256 signiert (`X-Ewiki-Signature: sha256=…`), damit der Empfänger die Herkunft prüfen kann. Das Geheimnis ist nicht Teil des Workflows (siehe [Geheimnisse in der Datenbank](#geheimnisse-in-der-datenbank)); Bearbeitende sehen nur, dass eines gespeichert ist.
 - Das SMTP-Passwort wird in der Oberfläche maskiert; empfohlen ist `${EWIKI_SMTP_PASSWORD}` mit dem Wert in `.env`.
 
 ## Workflows und Kommentare

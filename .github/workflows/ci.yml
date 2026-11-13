@@ -49,6 +49,8 @@ jobs:
       - run: go vet ./...
       - name: licenses of all linked modules are allowed (LICENSING.md)
         run: go run ./tools/notices -check
+      - name: documentation complete in German and English, links valid
+        run: go run ./tools/docscheck
       - name: tests (race detector, real PostgreSQL)
         run: go test -race -count=1 ./...
         env:

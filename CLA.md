@@ -1,58 +1,60 @@
-# Beitragsvereinbarung (Contributor License Agreement, CLA)
+# Contributor License Agreement (CLA)
 
-Version 1.0 – gültig für Beiträge zu Enterprise Wiki und für Plugins im offiziellen Plugin-Katalog.
+> Translation for information. Only the German version [CLA.de.md](CLA.de.md) is legally binding.
 
-Diese Vereinbarung wird geschlossen zwischen **thinking systems, Inh. Martin Thomas Schrott, Höhenweg 114, 9073 Klagenfurt am Wörthersee, Österreich** („Lizenzgeber“) und der Person oder Organisation, die
-einen Beitrag einreicht („Sie“). Sie stimmen ihr zu, indem Sie in einem Pull Request das Kästchen „Ich stimme der
-Beitragsvereinbarung (CLA.md) zu“ ankreuzen oder dem Lizenzgeber die Zustimmung schriftlich (auch per E-Mail) erklären.
-Die Zustimmung gilt für alle Ihre künftigen Beiträge, bis Sie sie schriftlich für künftige Beiträge widerrufen.
+Version 1.0 – valid for contributions to Enterprise Wiki and for plugins in the official plugin catalogue.
 
-## 1. Begriffe
+This agreement is concluded between **thinking systems, owner Martin Thomas Schrott, Höhenweg 114, 9073 Klagenfurt am Wörthersee, Austria** ("licensor") and the person or organisation
+submitting a contribution ("you"). You agree to it by ticking the box "I agree to the Contributor License
+Agreement (CLA.md)" in a pull request or by declaring your agreement to the licensor in writing (also by e-mail).
+The agreement applies to all your future contributions until you revoke it in writing for future contributions.
 
-**Beitrag**: jedes Werk, das Sie dem Lizenzgeber zur Aufnahme in Enterprise Wiki oder in den offiziellen Plugin-Katalog
-übermitteln – z. B. Quellcode, Plugins, Übersetzungen, Dokumentation, Grafiken, Tests – einschließlich späterer Änderungen.
+## 1. Definitions
 
-## 2. Einräumung von Nutzungsrechten
+**Contribution**: every work you submit to the licensor for inclusion in Enterprise Wiki or in the official plugin catalogue
+– e.g. source code, plugins, translations, documentation, graphics, tests – including later changes.
 
-Sie räumen dem Lizenzgeber an Ihren Beiträgen ein **nicht ausschließliches, weltweites, zeitlich unbefristetes,
-unwiderrufliches, unentgeltliches und übertragbares** Recht ein, die Beiträge in allen bekannten und unbekannten
-Nutzungsarten zu nutzen, insbesondere sie zu vervielfältigen, zu bearbeiten, mit anderen Werken zu verbinden, zu
-verbreiten, öffentlich zugänglich zu machen und **unter beliebigen Lizenzbedingungen zu lizenzieren** – auch unter
-proprietären bzw. kommerziellen Lizenzen, unter der Business Source License und unter Open-Source-Lizenzen. Der
-Lizenzgeber darf Dritten Unterlizenzen einräumen.
+## 2. Grant of rights of use
 
-Sie behalten Ihr Urheberrecht und dürfen Ihre Beiträge auch selbst weiter beliebig verwenden.
+You grant the licensor a **non-exclusive, worldwide, unlimited in time,
+irrevocable, free of charge and transferable** right to your contributions to use the contributions in all known and unknown
+types of use, in particular to reproduce, adapt, combine with other works,
+distribute, make publicly available and **license them under any license terms** – also under
+proprietary or commercial licenses, under the Business Source License and under open source licenses. The
+licensor may grant sublicenses to third parties.
 
-## 3. Patente
+You keep your copyright and may continue to use your contributions yourself as you like.
 
-Soweit Ihnen Patente zustehen, die durch Ihren Beitrag oder dessen Verbindung mit Enterprise Wiki verletzt würden,
-räumen Sie dem Lizenzgeber und allen Empfängern von Enterprise Wiki ein weltweites, unbefristetes, unentgeltliches,
-unwiderrufliches Recht ein, den Beitrag herzustellen, zu nutzen, anzubieten und zu verbreiten.
+## 3. Patents
 
-## 4. Ihre Zusicherungen
+Insofar as you hold patents that would be infringed by your contribution or its combination with Enterprise Wiki,
+you grant the licensor and all recipients of Enterprise Wiki a worldwide, unlimited, free of charge,
+irrevocable right to make, use, offer and distribute the contribution.
 
-Sie sichern zu, dass
+## 4. Your assurances
 
-1. Sie berechtigt sind, diese Rechte einzuräumen. Ist ein Beitrag im Rahmen eines Arbeits- oder Dienstverhältnisses
-   entstanden, haben Sie die Zustimmung Ihres Arbeitgebers bzw. Dienstgebers, oder dieser stimmt der Vereinbarung selbst zu;
-2. der Beitrag Ihr eigenes Werk ist bzw. Sie Teile Dritter (z. B. übernommene Bibliotheken) im Beitrag kenntlich machen
-   und diese unter einer Lizenz stehen, die nach [LICENSING.md](LICENSING.md) erlaubt ist;
-3. Ihnen keine Rechte Dritter bekannt sind, die der Nutzung entgegenstehen.
+You assure that
 
-Darüber hinaus wird der Beitrag „wie besehen“ ohne Gewährleistung eingeräumt, soweit gesetzlich zulässig.
+1. you are entitled to grant these rights. If a contribution was created within an employment or service relationship,
+   you have the consent of your employer, or the employer agrees to the agreement itself;
+2. the contribution is your own work, or you mark parts of third parties (e.g. adopted libraries) in the contribution
+   and these are under a license allowed according to [LICENSING.md](LICENSING.md);
+3. you are not aware of any third-party rights that conflict with the use.
+
+Beyond that, the contribution is granted "as is" without warranty, as far as legally permitted.
 
 ## 5. Plugins
 
-Für Plugins, die in den offiziellen Plugin-Katalog aufgenommen oder mit Enterprise Wiki ausgeliefert werden sollen,
-gelten die Abschnitte 2 bis 4 ebenso. Sie dürfen Ihr Plugin zusätzlich unter einer eigenen Lizenz anbieten. Plugins für
-den reinen Eigengebrauch, die Sie nicht einreichen, fallen nicht unter diese Vereinbarung.
+For plugins that are to be included in the official plugin catalogue or delivered with Enterprise Wiki,
+sections 2 to 4 apply as well. You may additionally offer your plugin under your own license. Plugins for
+purely your own use that you do not submit are not covered by this agreement.
 
-## 6. Keine Verpflichtung
+## 6. No obligation
 
-Der Lizenzgeber ist nicht verpflichtet, einen Beitrag aufzunehmen oder zu verwenden. Eine Vergütung ist nicht vereinbart.
-Bei Aufnahme wird Ihr Name auf Wunsch in der Liste der Mitwirkenden genannt.
+The licensor is not obliged to include or use a contribution. No remuneration is agreed.
+On inclusion your name is mentioned in the list of contributors on request.
 
-## 7. Recht
+## 7. Law
 
-Es gilt österreichisches Recht unter Ausschluss der Verweisungsnormen und des UN-Kaufrechts. Sollte eine Bestimmung
-unwirksam sein, bleiben die übrigen wirksam.
+Austrian law applies, excluding its conflict-of-law rules and the UN Convention on Contracts for the International Sale of Goods. Should a provision
+be invalid, the remaining provisions remain valid.

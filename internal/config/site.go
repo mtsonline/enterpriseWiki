@@ -174,7 +174,7 @@ func (s *Store) reloadSite() error {
 
 const siteHeader = `# Settings of one site - only the differences to the instance settings
 # (config.yaml). Instance settings (database, license, server.listen)
-# are ignored here. Reference: docs/admin/sites.md
+# are ignored here. Reference: docs/en/admin/sites.md
 `
 
 func (s *Store) writeSite(c *Config) error {

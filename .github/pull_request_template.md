@@ -1,9 +1,10 @@
-## Was ändert sich?
+## What changes? / Was ändert sich?
 
-<!-- kurze Beschreibung -->
+<!-- short description / kurze Beschreibung -->
 
-## Checkliste
+## Checklist / Checkliste
 
-- [ ] Ich stimme der Beitragsvereinbarung ([CLA.md](../blob/main/CLA.md)) zu.
-- [ ] Neue Funktionen sind in API, CLI und Oberfläche verfügbar.
-- [ ] Tests und Dokumentation sind ergänzt.
+- [ ] I agree to the Contributor License Agreement ([CLA.md](../blob/main/CLA.md), binding: [CLA.de.md](../blob/main/CLA.de.md)). / Ich stimme der Beitragsvereinbarung ([CLA.de.md](../blob/main/CLA.de.md)) zu.
+- [ ] New features are available in API, CLI and interface. / Neue Funktionen sind in API, CLI und Oberfläche verfügbar.
+- [ ] Tests and documentation (German and English) are added. / Tests und Dokumentation (Deutsch und Englisch) sind ergänzt.
+- [ ] AI agents involved are named (co-author line, note here). / Beteiligte KI-Agenten sind genannt (Co-Author-Zeile, Hinweis hier).

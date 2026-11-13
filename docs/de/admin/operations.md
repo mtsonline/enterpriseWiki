@@ -207,14 +207,14 @@ ein deaktiviertes Plugin braucht, wird ausgelassen.
 - Alles, was die Demo anlegt, wird in `demo_objects` vermerkt. **Demo entfernen** löscht genau das restlos:
   Inhalte samt Versionen, Übersetzungen, Adressen, Kommentaren, Reaktionen, Favoriten, Benachrichtigungen,
   Medien und gespeicherten Dateien, Konten und Gruppen der Demo sowie ihre Einträge im Audit-Log. Eigene Inhalte
-  bleiben unberührt – auch eigene Seiten, die du in Demo-Kategorien angelegt hast, verschwinden mit ihnen.
+  bleiben unberührt – auch eigene Seiten, die Sie in Demo-Kategorien angelegt haben, verschwinden mit ihnen.
 
 **Site auf den ersten Start zurücksetzen** (auf derselben Seite) löscht alle Inhalte, Medien, Dateien, Versionen, den
-Papierkorb, das Audit-Log und die Einstellungen der Site. Übrig bleiben dein Administratorkonto, die Rollen und die
+Papierkorb, das Audit-Log und die Einstellungen der Site. Übrig bleiben Ihr Administratorkonto, die Rollen und die
 Willkommensseite – wie nach `ewiki setup`. Instanz-Einstellungen, Adresse, Sprachen, E-Mail-Versand, Name der Site und
 Lizenz bleiben. Bei mehreren Sites mit gemeinsamen Konten bleiben die Konten erhalten (sie gehören allen Sites).
 Bestätigung: Name der Site eintippen und (bei lokalem Konto) das eigene Passwort; mit API-Schlüsseln ist das nicht
-möglich. Danach meldest du dich neu an. Vorher eine Sicherung machen!
+möglich. Danach melden Sie sich neu an. Vorher eine Sicherung machen!
 
 ```bash
 ewiki demo status

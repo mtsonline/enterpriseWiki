@@ -23,7 +23,7 @@ Das Wiki entscheidet bei jedem Öffnen anhand der **Rechte der Datei** – nie m
 - **Wasserzeichen für Betrachter:** nur geschützt ansehen und nur in Programmen, die den Namen einblenden
   (Collabora). Das Original bearbeiten nur Verwalter der Datei.
 
-Unter *Administration → Einstellungen → Medien* wählst du die **Standard-Anzeige** (Browser oder ein aktives
+Unter *Administration → Einstellungen → Medien* wählen Sie die **Standard-Anzeige** (Browser oder ein aktives
 Office-Programm). *Dateien immer direkt im Standard-Programm öffnen* gilt nur für dieses eine Programm: Ein Klick
 auf eine passende Datei öffnet sie sofort dort. Die anderen Programme bietet die Detailansicht an („In … ansehen“,
 „In … bearbeiten“).

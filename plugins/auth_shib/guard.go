@@ -22,7 +22,7 @@ import (
 // library does) must have exactly one Issuer, Subject and Conditions, a
 // SubjectConfirmationData, and every element with a SAML assertion name
 // must be in the SAML assertion namespace. Remove once a fixed release is
-// available (see docs/developer/security-testing.md).
+// available (see docs/en/developer/security-testing.md).
 
 const (
 	nsAssertion = "urn:oasis:names:tc:SAML:2.0:assertion"

@@ -42,4 +42,4 @@ Zusätzlich zu den Prüfungen oben gibt es eine Routine, die eine laufende Insta
 tests/qa/local.sh        # frische Wegwerf-Instanz, alle Tests, Bericht in /tmp/ewiki-qa/results/report.md
 ```
 
-Vor jeder Version ausführen; neue Funktionen bekommen dort einen Schritt im Funktionstest. Der Bericht beschreibt offene Schwachstellen und gehört nicht ins Repository. Einzelheiten: [tests/qa/README.md](../../tests/qa/README.md).
+Vor jeder Version ausführen; neue Funktionen bekommen dort einen Schritt im Funktionstest. Der Bericht beschreibt offene Schwachstellen und gehört nicht ins Repository. Einzelheiten: [tests/qa/README.md](../../../tests/qa/README.md).

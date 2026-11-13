@@ -68,7 +68,7 @@ type Sites struct {
 // (default), aes (AES-256-GCM with a key file) or pq (hybrid ML-KEM-1024 +
 // X25519 with a key file). The key file can be protected by a password from
 // the environment variable PasswordEnv. Instance-wide; see
-// docs/admin/security.md.
+// docs/en/admin/security.md.
 type Secrets struct {
 	Mode string `yaml:"mode,omitempty" json:"mode"`
 	// KeyFile: default secrets.key next to config.yaml.
@@ -589,7 +589,6 @@ func (s *Store) Reload() error {
 		if err := yaml.Unmarshal(b, raw); err != nil {
 			return fmt.Errorf("config %s: %w", s.path, err)
 		}
-		migrateLegacy(raw)
 		if st, err := os.Stat(s.path); err == nil {
 			mt = st.ModTime()
 		}
@@ -675,7 +674,7 @@ func (s *Store) Changed() bool {
 const header = `# Enterprise Wiki configuration - this file is the single source of truth.
 # Settings changed in the admin UI or via "ewiki config set" are written here.
 # Values can reference environment variables (e.g. from .env): ${NAME} or ${NAME:-default}.
-# Reference: docs/admin/configuration.md
+# Reference: docs/en/admin/configuration.md
 `
 
 // WriteFile writes c to path atomically.
@@ -821,30 +820,6 @@ func Validate(c *Config) error {
 		}
 	}
 	return nil
-}
-
-// renamedPlugins maps former plugin ids to their current ids.
-var renamedPlugins = map[string]string{"theme.confluence": "theme.wiki", "theme.confluence.dark": "theme.wiki.dark"}
-
-// migrateLegacy updates settings written by older versions (renamed plugins).
-// The file is rewritten with the new ids on the next save.
-func migrateLegacy(c *Config) {
-	if n, ok := renamedPlugins[c.UI.Template]; ok {
-		c.UI.Template = n
-	}
-	for i, id := range c.Plugins.Disabled {
-		if n, ok := renamedPlugins[id]; ok {
-			c.Plugins.Disabled[i] = n
-		}
-	}
-	for old, n := range renamedPlugins {
-		if v, ok := c.Settings[old]; ok {
-			if _, exists := c.Settings[n]; !exists {
-				c.Settings[n] = v
-			}
-			delete(c.Settings, old)
-		}
-	}
 }
 
 func clone(c *Config) (*Config, error) {
