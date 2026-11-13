@@ -1,6 +1,7 @@
 // Category settings: texts, default page, permissions, history and rollback.
 import { shortOnlyBox, shortURLInput } from '../components/shorturl';
 import { api } from '../core/api';
+import { newest } from '../core/newest';
 import { fmtDate, h, mount, uid } from '../core/dom';
 import { pick, pluginName, t } from '../core/i18n';
 import { navigate, rerender, type RouteCtx } from '../core/router';
@@ -237,9 +238,12 @@ async function addRuleDialog(c: Category, groups: Group[], roles: Role[]): Promi
   const userList = h('datalist', { id: uid('users') });
   userInput.setAttribute('list', userList.id);
   const userMap = new Map<string, number>();
+  const freshUsers = newest();
   userInput.addEventListener('input', async () => {
+    const current = freshUsers();
     if (userInput.value.length < 2) return;
-    const res = await api.get<{ id: number; handle: string; display_name: string }[]>(`users/lookup?q=${encodeURIComponent(userInput.value)}`);
+    const res = await api.get<{ id: number; handle: string; display_name: string }[]>(`users/lookup?q=${encodeURIComponent(userInput.value)}`).catch(() => null);
+    if (!res || !current()) return;
     userList.replaceChildren(...res.map((u) => { userMap.set(u.handle, u.id); return h('option', { value: u.handle }, u.display_name); }));
   });
   const subjectWrap = h('div');

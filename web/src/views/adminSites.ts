@@ -1,6 +1,7 @@
 // Administration → Sites (instance administrators): sites of the instance
 // with their host names, and the instance administrators.
 import { api } from '../core/api';
+import { newest } from '../core/newest';
 import { fmtDate, h, mount, uid } from '../core/dom';
 import { t } from '../core/i18n';
 import { toast } from '../core/announce';
@@ -91,10 +92,13 @@ function addAdminDialog(): void {
   const list = h('datalist', { id: uid('instadm') });
   input.setAttribute('list', list.id);
   const ids = new Map<string, number>();
+  const freshUsers = newest();
   input.addEventListener('input', async () => {
+    const current = freshUsers();
     if (input.value.length < 2) return;
     try {
       const res = await api.get<{ id: number; handle: string; display_name: string }[]>(`users/lookup?q=${encodeURIComponent(input.value)}`);
+      if (!current()) return;
       list.replaceChildren(...res.map((u) => { ids.set(u.handle, u.id); return h('option', { value: u.handle }, u.display_name); }));
     } catch { /* lookup is optional */ }
   });

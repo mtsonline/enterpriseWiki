@@ -1,5 +1,6 @@
 // Administration → Elements: all elements with search, filters and actions.
 import { api, qs } from '../core/api';
+import { newest } from '../core/newest';
 import { h, mount } from '../core/dom';
 import { t } from '../core/i18n';
 import { state } from '../core/state';
@@ -27,14 +28,17 @@ export async function elementsAdmin(panel: HTMLElement): Promise<void> {
   const status = h('p', { role: 'status', class: 'ew-help' });
   let offset = 0;
   let timer = 0;
+  const fresh = newest();
   const load = async () => {
+    const current = fresh();
     let data: { items: Found[]; total: number };
     try {
       data = await api.get(`elements${qs({ q: q.value.trim(), type: type.value, category: cats.value() || undefined, sort: sort.value, limit: PAGE, offset, lang: state.lang })}`);
     } catch (e) {
-      mount(results, h('p', { role: 'alert' }, errorText(e)));
+      if (current()) mount(results, h('p', { role: 'alert' }, errorText(e)));
       return;
     }
+    if (!current()) return; // a newer search has started meanwhile
     status.textContent = data.total ? t('elements.range', { from: offset + 1, to: offset + data.items.length, total: data.total }) : t('elements.none');
     mount(results, data.items.length ? h('div', { class: 'ew-table-wrap' }, h('table', { class: 'ew-table ew-table--compact' }, h('caption', { class: 'sr-only' }, t('admin.elements')),
       h('thead', null, h('tr', null, ...[t('common.title'), t('element.type'), t('picker.category'), t('shorturl.label'), t('elements.updated'), t('common.actions')].map((x) => h('th', { scope: 'col' }, x)))),

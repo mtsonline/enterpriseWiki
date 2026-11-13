@@ -2,6 +2,7 @@
 // and usage, image editor, view-only viewer and a picker for editors.
 // Server: /api/v1/media (docs/en/developer/media.md).
 import { api, ApiError, humanSize, qs } from '../core/api';
+import { newest } from '../core/newest';
 import { append, fmtDate, h, uid, type Child } from '../core/dom';
 import { t } from '../core/i18n';
 import { navigate } from '../core/router';
@@ -104,10 +105,13 @@ async function rightsFields(own: boolean, rules: MediaRule[]): Promise<{ el: HTM
     userInput.setAttribute('list', dl.id);
     let userId = r.subject_type === 'user' ? r.subject_id ?? null : null;
     if (userId) userInput.value = `#${userId}`;
+    const freshUsers = newest();
     userInput.addEventListener('input', async () => {
       userId = userNames.get(userInput.value) ?? null;
+      const current = freshUsers();
       if (userInput.value.length < 2) return;
-      const res = await api.get<{ id: number; handle: string; display_name: string }[]>(`users/lookup?q=${encodeURIComponent(userInput.value)}`);
+      const res = await api.get<{ id: number; handle: string; display_name: string }[]>(`users/lookup?q=${encodeURIComponent(userInput.value)}`).catch(() => null);
+      if (!res || !current()) return;
       dl.replaceChildren(...res.map((u) => { userNames.set(u.handle, u.id); return h('option', { value: u.handle }, u.display_name); }));
     });
     const who = h('span', { class: 'ew-media-rule-who' });
@@ -466,10 +470,13 @@ export async function mediaBrowser(opts: { categoryId?: number; type?: string; o
   const grid = h('ul', { class: 'ew-media-grid', 'aria-live': 'polite' });
   const status = h('p', { class: 'ew-help', role: 'status' });
   let timer = 0;
+  const fresh = newest();
   const load = async () => {
+    const current = fresh();
     status.textContent = t('common.loading');
     try {
       const list = await api.get<Medium[]>(`media${qs({ category: cat.value() || undefined, recursive: cat.value() ? 1 : undefined, q: q.value.trim() || undefined, type: type.value || undefined, limit: 120 })}`);
+      if (!current()) return;
       grid.replaceChildren(...list.map((m) => h('li', { class: 'ew-media-item' },
         // the name comes from the visible text (WCAG 2.5.3); type and view-only for screen readers
         h('button', { type: 'button', class: 'ew-media-tile' },
@@ -482,7 +489,7 @@ export async function mediaBrowser(opts: { categoryId?: number; type?: string; o
       }));
       status.textContent = list.length ? t('media.count', { n: String(list.length) }) : t('media.none');
     } catch (e) {
-      status.textContent = errorText(e);
+      if (current()) status.textContent = errorText(e);
     }
   };
   q.addEventListener('input', () => { clearTimeout(timer); timer = window.setTimeout(() => void load(), 300); });

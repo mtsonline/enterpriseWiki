@@ -1711,10 +1711,26 @@ test('menu item pointing to an existing element; new blog from the menu dialog',
 test('short URL and the elements administration', async () => {
   const cat = await m6Category();
   const el = await call('POST', '/api/v1/elements', { category_id: cat, type: 'core.html', title: `Shorty ${run}`, body: { format: 'html', source: '<p>short</p>' } });
-  await page.goto(BASE + '/admin/elements');
-  await idle();
-  await page.getByRole('searchbox', { name: /search element|element suchen/i }).fill(`Shorty ${run}`);
-  await page.waitForFunction((n) => document.querySelectorAll('.ew-admin-results tbody tr').length === 1 && document.querySelector('.ew-admin-results tbody')?.textContent?.includes(n), `Shorty ${run}`);
+  // record the element requests: if the search ever times out again, the message shows what happened
+  const seen = [];
+  const note = (kind) => (r) => { if (r.url().includes('/api/v1/elements?')) seen.push(`${kind} q=${new URL(r.url()).searchParams.get('q') ?? ''}`); };
+  const onReq = note('request');
+  const onRes = note('response');
+  page.on('request', onReq);
+  page.on('response', onRes);
+  try {
+    await page.goto(BASE + '/admin/elements');
+    await idle();
+    await page.getByRole('searchbox', { name: /search element|element suchen/i }).fill(`Shorty ${run}`);
+    await page.waitForFunction((n) => document.querySelectorAll('.ew-admin-results tbody tr').length === 1 && document.querySelector('.ew-admin-results tbody')?.textContent?.includes(n), `Shorty ${run}`);
+  } catch (e) {
+    const state = await page.evaluate(() => ({ url: location.href, rows: document.querySelectorAll('.ew-admin-results tbody tr').length,
+      search: [...document.querySelectorAll('input[type=search]')].map((x) => x.value), status: document.querySelector('.ew-admin-panel [role=status]')?.textContent })).catch(() => null);
+    throw new Error(`${e.message}\npage: ${JSON.stringify(state)}\nrequests: ${seen.join(' | ')}`);
+  } finally {
+    page.off('request', onReq);
+    page.off('response', onRes);
+  }
   await a11y('elements administration');
   await page.getByRole('button', { name: new RegExp(`^(properties|eigenschaften): Shorty ${run}`, 'i') }).click();
   const dlg = page.locator('dialog[open]');
