@@ -372,7 +372,17 @@ func (pl *Plugin) vars(ctx context.Context, tx pgx.Tx, x *Instance, a actorInfo)
 			}
 		}
 		v["field."+f.ID] = val
+		v["label."+f.ID] = f.Label
 	}
+	// {{all}}: every field with its label, one per line (like in forms)
+	var all []string
+	for _, f := range x.Definition.Fields {
+		if f.Type == "section" {
+			continue
+		}
+		all = append(all, f.Label+": "+v["field."+f.ID])
+	}
+	v["all"] = strings.Join(all, "\n")
 	return v
 }
 
