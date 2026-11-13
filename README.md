@@ -54,7 +54,7 @@ Details: [docs/admin/installation.md](docs/admin/installation.md)
 
 ## Entwicklung
 
-Voraussetzungen: Go ≥ 1.24, Node.js ≥ 20, PostgreSQL ≥ 14.
+Voraussetzungen: Go ≥ 1.27, Node.js ≥ 22 (empfohlen: aktuelle LTS, derzeit 26), PostgreSQL ≥ 16 (empfohlen und in der CI getestet: 18).
 
 ```bash
 ./scripts/build.sh                                   # Frontend + Backend -> bin/ewiki

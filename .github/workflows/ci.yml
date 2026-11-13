@@ -242,3 +242,18 @@ jobs:
       - uses: actions/checkout@v7
       - name: upgrade test with the official images (copy and --link)
         run: scripts/test-docker-postgres.sh ${{ matrix.from }} ${{ matrix.from == needs.pg-versions.outputs.oldest && '--full' || '' }}
+
+  # One stable check for the branch protection of main: the names of the
+  # matrix jobs change with the PostgreSQL versions, this one never does.
+  result:
+    name: CI result
+    if: always()
+    needs: [backend, security, e2e, docker, office, pg-versions, compose]
+    runs-on: ubuntu-latest
+    steps:
+      - name: all jobs succeeded
+        env:
+          RESULTS: ${{ join(needs.*.result, ' ') }}
+        run: |
+          echo "results: $RESULTS"
+          for r in $RESULTS; do [ "$r" = success ] || exit 1; done
