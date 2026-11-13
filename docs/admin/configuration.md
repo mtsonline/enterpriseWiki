@@ -183,6 +183,19 @@ Mit `transport: auto` gilt:
 
 **Rückläufer (Bounces).** Viele Mailserver nehmen eine Nachricht zuerst an und melden erst später per E-Mail, dass sie nicht zustellbar war. Mit `bounce` wird als Absender im Umschlag (Return-Path) die Bounce-Adresse verwendet, mit `verp: true` je Empfänger eindeutig (`bounces+m<Nachricht>r<Empfänger>@…`). Das Wiki liest das Postfach alle 5 Minuten per IMAP, erkennt Zustellberichte (DSN, RFC 3464) und markiert den Empfänger als fehlgeschlagen; der Absender wird wie bei 5xx informiert. Die Bounce-Adresse muss beim Mailserver als Absender erlaubt sein (bei VERP: Plus-Adressen bzw. Catch-all für `bounces+*`).
 
+**S/MIME (Plugin `signature.smime`).** Ausgehende E-Mails werden signiert, wenn ein gültiges Zertifikat zur Absenderadresse passt: zuerst ein persönliches Zertifikat der Person, der die Adresse gehört (bestätigte Adresse), sonst eines der Organisation. Zertifikate lädt man unter *Administration → S/MIME* bzw. *Mein Profil → S/MIME-Zertifikat* hoch (PKCS#12 mit Passwort oder PEM; das Passwort wird nicht gespeichert, der private Schlüssel liegt wie alle Geheimnisse mit `secrets.mode` in der Datenbank). Mehrere Zertifikate je Adresse sind möglich: Es gilt immer das neueste gültige, ein erneuertes Zertifikat übernimmt also ab seinem Gültigkeitsbeginn. 60, 30, 14, 7 und 1 Tag vor dem Ablauf und einmal danach erhalten Administratoren (bzw. die Person) eine Benachrichtigung im Wiki und per E-Mail. Einstellungen:
+
+```yaml
+plugin_settings:
+  signature.smime:
+    mail_signing: true      # E-Mails signieren (Vorgabe)
+    on_expired: unsigned    # oder hold: E-Mails eines Absenders ohne gültiges Zertifikat im Postausgang anhalten (Neuversuch alle 15 Minuten)
+    personal: true          # persönliche Zertifikate erlauben
+    seal_evidence: false    # Signatur-Nachweise zusätzlich mit dem Zertifikat der Organisation siegeln
+```
+
+Signiert wird nach RFC 8551 (`multipart/signed`, CMS mit SHA-256, Zertifikatskette ohne Wurzel). Zertifikate der Organisation müssen eine Adresse enthalten, die das Wiki als Absender verwendet (`from` oder `allowed_from`); persönliche Zertifikate eine bestätigte Adresse der Person. Akzeptiert werden RSA ab 2048 Bit und ECDSA P-256/P-384/P-521 mit Verwendungszweck „E-Mail-Schutz“.
+
 Absender: Workflow-E-Mails dürfen nur `from` oder Adressen aus `allowed_from` als Absender verwenden; andere gewünschte Absender werden als Antwortadresse (Reply-To) gesetzt, damit keine fremden Absender gefälscht werden und SPF/DMARC nicht scheitern.
 
 **Zusammenfassungen von Beobachtungen.** Beobachtungen mit `frequency: daily` bzw. `weekly` werden einmal täglich um `digest_hour` Uhr bzw. wöchentlich am `digest_weekday` (0 = Sonntag, 1 = Montag …) verschickt, in der Zeitzone `digest_timezone` (IANA-Name, leer = Zeitzone des Servers). Standard: 7 Uhr, Montag.

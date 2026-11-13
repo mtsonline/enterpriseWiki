@@ -476,6 +476,14 @@ Verlangt das Konto einen zweiten Faktor, antwortet die Anmeldung mit `mfa_requir
 | `DELETE` | `/api/v1/x/mfa.totp/me` |
 | `GET` | `/api/v1/x/mfa.webauthn/credentials` |
 | `DELETE` | `/api/v1/x/mfa.webauthn/credentials/{id}` |
+| `GET` | `/api/v1/x/signature.smime/settings` |
+| `PUT` | `/api/v1/x/signature.smime/settings` |
+| `GET` | `/api/v1/x/signature.smime/certs` |
+| `POST` | `/api/v1/x/signature.smime/certs` |
+| `GET` | `/api/v1/x/signature.smime/certs/{id}` |
+| `PATCH` | `/api/v1/x/signature.smime/certs/{id}` |
+| `DELETE` | `/api/v1/x/signature.smime/certs/{id}` |
+| `GET` | `/api/v1/x/signature.smime/me` |
 | `POST` | `/api/v1/x/office.collabora/test` |
 | `POST` | `/api/v1/x/office.m365/test` |
 | `GET` | `/api/v1/x/office.onlyoffice/file/{id}` |

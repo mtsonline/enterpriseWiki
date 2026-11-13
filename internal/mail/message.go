@@ -128,6 +128,14 @@ type BuildInput struct {
 
 // BuildMessage renders the RFC 5322 message (CRLF line endings).
 func BuildMessage(in BuildInput) []byte {
+	head, entity := buildParts(in)
+	return append([]byte(head), entity...)
+}
+
+// buildParts renders the header of a message (without Content-Type) and
+// its MIME entity (Content-Type header, blank line and body) separately, so
+// the entity can be signed (S/MIME).
+func buildParts(in BuildInput) (string, []byte) {
 	from, fromName, replyTo, to, cc, subject, text, now := in.From, in.FromName, in.ReplyTo, in.To, in.Cc, in.Subject, in.Text, in.Now
 	rnd := make([]byte, 12)
 	_, _ = rand.Read(rnd)
@@ -166,6 +174,8 @@ func BuildMessage(in BuildInput) []byte {
 	for _, k := range keys {
 		h(CleanHeader(k), CleanHeader(in.Headers[k]))
 	}
+	head := b.String()
+	b.Reset()
 	h("Content-Type", `multipart/alternative; boundary="`+boundary+`"`)
 	b.WriteString("\r\n")
 	b.WriteString("--" + boundary + "\r\nContent-Type: text/plain; charset=utf-8\r\nContent-Transfer-Encoding: quoted-printable\r\n\r\n")
@@ -194,5 +204,5 @@ func BuildMessage(in BuildInput) []byte {
 		b.WriteString(enc + "\r\n")
 	}
 	b.WriteString("--" + boundary + "--\r\n")
-	return []byte(b.String())
+	return head, []byte(b.String())
 }

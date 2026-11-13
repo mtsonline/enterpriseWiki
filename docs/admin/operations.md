@@ -127,6 +127,10 @@ ewiki plugin list|enable|disable|install|remove|generate|build ...
 ewiki config show|path|validate|get|set ...
 ewiki retention run
 ewiki signature verify DATEI [--offline] | ewiki signature keys
+ewiki smime list [--all | --mine --as BENUTZER]
+ewiki smime add DATEI [--label TEXT] [--password-file PFAD | --password-stdin] [--seal] [--no-sign] [--mine --as BENUTZER]
+ewiki smime set ID [--label TEXT] [--sign | --no-sign] [--seal | --no-seal] | ewiki smime remove ID
+ewiki smime settings [mail_signing=true|false] [on_expired=unsigned|hold] [personal=true|false] [seal_evidence=true|false]
 ewiki mail status|list|show|retry|delete|test|send|bounces ...
 ewiki jobs list | ewiki jobs run NAME
 ewiki cache status|clear
