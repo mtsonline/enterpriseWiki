@@ -138,6 +138,40 @@ plugin_settings:
 - Empty passwords are always rejected (protection against "unauthenticated bind").
 - With **Test sign-in** in the admin area you see which values and groups arrive, without creating a session.
 
+### Directory sync (without a sign-in)
+
+The sync takes people and groups from the directory, also for people who never signed in. So you can give rights, watches and workflows to groups at once, and people who leave the company lose access at the next sync, not only when their password no longer works.
+
+Set it up under *Administration → LDAP / Active Directory*. There you also find **Preview** (shows all changes, changes nothing), **Sync now** and the recent syncs. With the CLI:
+
+```bash
+ewiki directory sync ldap --dry-run      # preview
+ewiki directory sync ldap                # sync; ldap-<id> for further instances
+ewiki directory runs ldap                # recent syncs
+ewiki directory adopt ldap anna          # same person with a new directory id (see below)
+```
+
+```yaml
+plugin_settings:
+  auth.ldap:
+    # … connection as above …
+    sync_enabled: true               # automatic; otherwise only with the button or the CLI
+    sync_interval_minutes: 60        # at least 5
+    sync_filter: (objectClass=inetOrgPerson)   # empty: user_filter with * instead of {username}
+    disabled_filter: (userAccountControl:1.2.840.113556.1.4.803:=2)   # AD only: locked accounts
+    sync_create_users: true          # create accounts for new people
+    sync_disable_missing: true       # people who are missing are disabled
+    sync_max_disable_percent: 10     # protection, see below
+```
+
+- **Same values as at a sign-in:** attributes, the group search (also nested AD groups) and the group and role mapping are the same. An account from the sync is the same account as after a sign-in.
+- **What the sync changes:** name and e-mail, the groups and roles this directory gives, and whether the account is active. **Groups given by hand in the wiki stay.** Accounts that SCIM manages are left out.
+- **Disabling:** people who are no longer in the directory (or whom the `disabled_filter` finds) are disabled and signed out at once. Pages and contributions stay. If the person comes back, the sync enables the account again. An account an administrator disabled is never enabled by the sync. The last active administrator account is never disabled.
+- **Protection against mistakes:** if a sync would disable more than `sync_max_disable_percent` percent of the active accounts (for example because of a wrong filter or an empty search result), it stops and changes nothing. Only if that many people really left, start it with **Sync anyway** (CLI: `--force`). If the directory has more entries than the limit *People per directory sync* (expert settings, default 100,000), the sync stops as well instead of syncing only a part.
+- **Conflicts:** if the user name already belongs to another account of this directory (typically: a person deleted and created again in the directory, so with a new id), the wiki does not merge the accounts itself. It could be another person, who would otherwise get someone else's pages and rights. The sync reports a conflict, and the sign-in is refused with a note. If it is the same person, choose **Same person: keep the account** (CLI: `ewiki directory adopt`). The new id is read from the directory, never typed in. If it is another person, delete the old account; the next sync creates a new one.
+- **Rights and log:** only people with the rights *Manage users* and *Change settings* may sync and keep accounts. Every run is in the audit log with a summary (`auth.directory.sync`, `auth.directory.adopt`); the newest 100 runs per directory are kept with all changes.
+- The whole sync is one transaction: if it stops, everything stays as before. Rights apply at once, also in running sessions.
+
 ## OpenID Connect (`auth.oidc`)
 
 Authorization code flow with PKCE, nonce, signature and audience checks of the ID token. Register as redirect URI at the provider:

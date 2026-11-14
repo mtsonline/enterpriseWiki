@@ -66,7 +66,9 @@ func (p *Plugin) Setup(host *sdk.Host) error {
 		return &Provider{id: id, settings: s}
 	})
 	sdk.RegisterAuthInstances(host, set)
+	registerSync(host, set)
 	// Admin: test a login with the current settings without creating a session.
+	// action: auth.ldap.test
 	host.Handle("POST", "/test", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		if err := perm.Require(r.Context(), "core.settings.manage"); err != nil {
 			return nil, err
@@ -169,22 +171,9 @@ func (p *Provider) Authenticate(ctx context.Context, username, password string) 
 	if err := p.serviceBind(conn, s); err != nil {
 		return nil, err
 	}
-	attrUser := auth.Setting(s, "attr_username", "uid")
-	attrMail := auth.Setting(s, "attr_email", "mail")
-	attrName := auth.Setting(s, "attr_display_name", "cn")
-	attrSubject := auth.Setting(s, "attr_subject", "")
-	groupAttr := auth.Setting(s, "group_attribute", "memberOf")
 	filter := strings.ReplaceAll(auth.Setting(s, "user_filter", "(uid={username})"), "{username}", ldap.EscapeFilter(username))
-	attrs := []string{"dn", attrUser, attrMail, attrName, groupAttr}
-	if attrSubject != "" {
-		attrs = append(attrs, attrSubject)
-	}
-	attrAlias := auth.Setting(s, "username_from", "")
-	if attrAlias != "" {
-		attrs = append(attrs, attrAlias)
-	}
 	res, err := conn.Search(ldap.NewSearchRequest(auth.Setting(s, "base_dn", ""), ldap.ScopeWholeSubtree, ldap.NeverDerefAliases,
-		2, 10, false, filter, attrs, nil))
+		2, 10, false, filter, entryAttributes(s), nil))
 	if err != nil && !ldap.IsErrorWithCode(err, ldap.LDAPResultNoSuchObject) {
 		return nil, fmt.Errorf("user search: %w", err)
 	}
@@ -204,36 +193,75 @@ func (p *Provider) Authenticate(ctx context.Context, username, password string) 
 		}
 		return nil, fmt.Errorf("user bind: %w", err)
 	}
+	id := p.entryIdentity(s, e, username)
+	if err := p.lookupGroups(conn, s, e, id); err != nil {
+		return nil, err
+	}
+	auth.MappingFromSettings(s).Apply(id)
+	return id, nil
+}
+
+// entryAttributes are the attributes read from a person's entry.
+func entryAttributes(s map[string]any) []string {
+	attrs := []string{"dn", auth.Setting(s, "attr_username", "uid"), auth.Setting(s, "attr_email", "mail"),
+		auth.Setting(s, "attr_display_name", "cn"), auth.Setting(s, "group_attribute", "memberOf")}
+	if a := auth.Setting(s, "attr_subject", ""); a != "" {
+		attrs = append(attrs, a)
+	}
+	if a := auth.Setting(s, "username_from", ""); a != "" {
+		attrs = append(attrs, a)
+	}
+	return attrs
+}
+
+// entryIdentity builds the identity of a directory entry (without groups).
+// The sign-in and the directory sync use it, so both see the same values.
+func (p *Provider) entryIdentity(s map[string]any, e *ldap.Entry, fallbackUser string) *auth.ExternalIdentity {
+	attrUser := auth.Setting(s, "attr_username", "uid")
 	id := &auth.ExternalIdentity{Provider: p.id, Subject: e.DN, Username: e.GetAttributeValue(attrUser),
-		Email: e.GetAttributeValue(attrMail), DisplayName: e.GetAttributeValue(attrName),
+		Email: e.GetAttributeValue(auth.Setting(s, "attr_email", "mail")), DisplayName: e.GetAttributeValue(auth.Setting(s, "attr_display_name", "cn")),
 		Attributes: map[string]any{"dn": e.DN}}
-	if attrAlias != "" {
-		id.Attributes[attrAlias] = e.GetAttributeValue(attrAlias)
+	if a := auth.Setting(s, "username_from", ""); a != "" {
+		id.Attributes[a] = e.GetAttributeValue(a)
 	}
 	if id.Username == "" {
-		id.Username = username
+		id.Username = fallbackUser
 	}
 	id.Username = sanitizeUsername(id.Username)
-	if attrSubject != "" {
-		if raw := e.GetRawAttributeValue(attrSubject); len(raw) > 0 {
-			if utf8.Valid(raw) {
-				id.Subject = string(raw)
-			} else {
-				id.Subject = hex.EncodeToString(raw) // binary ids such as objectGUID
-			}
-		}
+	if a := auth.Setting(s, "attr_subject", ""); a != "" {
+		id.Subject = subjectOf(e, a)
 	}
-	groups := e.GetAttributeValues(groupAttr)
+	return id
+}
+
+// subjectOf reads the stable id of an entry; binary ids (objectGUID) as hex.
+// Without the attribute the DN is the id.
+func subjectOf(e *ldap.Entry, attr string) string {
+	raw := e.GetRawAttributeValue(attr)
+	switch {
+	case len(raw) == 0:
+		return e.DN
+	case utf8.Valid(raw):
+		return string(raw)
+	default:
+		return hex.EncodeToString(raw) // binary ids such as objectGUID
+	}
+}
+
+// lookupGroups sets id.Groups: the values of group_attribute in the entry
+// and, with group_base_dn, the groups a search with group_filter finds.
+func (p *Provider) lookupGroups(conn *ldap.Conn, s map[string]any, e *ldap.Entry, id *auth.ExternalIdentity) error {
+	groups := e.GetAttributeValues(auth.Setting(s, "group_attribute", "memberOf"))
 	if base := auth.Setting(s, "group_base_dn", ""); base != "" {
 		if err := p.serviceBind(conn, s); err != nil {
-			return nil, err
+			return err
 		}
 		gf := auth.Setting(s, "group_filter", "(|(member={dn})(uniqueMember={dn})(memberUid={username}))")
 		gf = strings.ReplaceAll(strings.ReplaceAll(gf, "{dn}", ldap.EscapeFilter(e.DN)), "{username}", ldap.EscapeFilter(id.Username))
 		nameAttr := auth.Setting(s, "group_name_attribute", "cn")
 		gres, err := conn.Search(ldap.NewSearchRequest(base, ldap.ScopeWholeSubtree, ldap.NeverDerefAliases, 1000, 10, false, gf, []string{nameAttr}, nil))
 		if err != nil && !ldap.IsErrorWithCode(err, ldap.LDAPResultNoSuchObject) {
-			return nil, fmt.Errorf("group search: %w", err)
+			return fmt.Errorf("group search: %w", err)
 		}
 		if gres != nil {
 			for _, g := range gres.Entries {
@@ -246,8 +274,7 @@ func (p *Provider) Authenticate(ctx context.Context, username, password string) 
 		}
 	}
 	id.Groups = groups
-	auth.MappingFromSettings(s).Apply(id)
-	return id, nil
+	return nil
 }
 
 // sanitizeUsername keeps the characters allowed for user names.

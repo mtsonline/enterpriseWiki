@@ -25,6 +25,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/go-ldap/ldap/v3"
+
+	"github.com/mtsonline/enterprisewiki/internal/auth"
 	"github.com/mtsonline/enterprisewiki/internal/config"
 )
 
@@ -764,5 +767,236 @@ func TestRealShibbolethHeaderMode(t *testing.T) {
 		default:
 			t.Fatalf("forged header %s with a real session signed in as %q", name, who)
 		}
+	}
+}
+
+// ------------------------------------------------------------------ directory sync
+
+// syncRun calls the directory sync of the LDAP plugin through the API.
+func syncRun(t *testing.T, c *client, instance string, dryRun, force bool) auth.DirectoryReport {
+	t.Helper()
+	var rep auth.DirectoryReport
+	c.must("POST", "/api/v1/x/auth.ldap/sync", map[string]any{"instance": instance, "dry_run": dryRun, "force": force}, &rep, 200)
+	return rep
+}
+
+func groupsOf(t *testing.T, e *env, provider, username string) []string {
+	t.Helper()
+	var groups []string
+	if err := e.app.DB.QueryRow(t.Context(), `SELECT COALESCE((SELECT array_agg(g.name ORDER BY g.name) FROM user_groups ug JOIN groups g ON g.id=ug.group_id
+		WHERE ug.user_id=u.id), '{}') FROM users u WHERE provider=$1 AND username=$2`, provider, username).Scan(&groups); err != nil {
+		t.Fatalf("%s: %v", username, err)
+	}
+	return groups
+}
+
+// TestRealLDAPDirectorySync syncs users and groups from OpenLDAP without a
+// sign-in, disables a person who leaves the directory and enables them again.
+func TestRealLDAPDirectorySync(t *testing.T) {
+	env := realEnv(t, "EWIKI_TEST_LDAP_URL", "EWIKI_TEST_LDAP_BIND_DN", "EWIKI_TEST_LDAP_BIND_PASSWORD", "EWIKI_TEST_LDAP_USER_PASSWORD")
+	e := setup(t)
+	settings := map[string]any{
+		"url": env["EWIKI_TEST_LDAP_URL"], "bind_dn": env["EWIKI_TEST_LDAP_BIND_DN"], "bind_password": env["EWIKI_TEST_LDAP_BIND_PASSWORD"],
+		"base_dn": "ou=people,dc=example,dc=com", "user_filter": "(uid={username})", "attr_subject": "entryUUID",
+		"group_mapping": map[string]any{"engineering": "Engineers", "sales": "Sales"}, "keep_unmapped_groups": false,
+		"sync_max_disable_percent": 50,
+	}
+	e.setPluginSettings(t, "auth.ldap", settings)
+	admin := e.client()
+	admin.login("admin", adminPW)
+
+	// a person of this test, written into the real directory
+	dir, err := ldap.DialURL(env["EWIKI_TEST_LDAP_URL"])
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = dir.Close() }) // after the clean-up below
+	if err := dir.Bind(env["EWIKI_TEST_LDAP_BIND_DN"], env["EWIKI_TEST_LDAP_BIND_PASSWORD"]); err != nil {
+		t.Fatal(err)
+	}
+	carl := "carl" + randomHex(t, 3)
+	dn := "uid=" + carl + ",ou=people,dc=example,dc=com"
+	addCarl := func() {
+		t.Helper()
+		req := ldap.NewAddRequest(dn, nil)
+		req.Attribute("objectClass", []string{"inetOrgPerson"})
+		req.Attribute("uid", []string{carl})
+		req.Attribute("cn", []string{"Carl Example"})
+		req.Attribute("sn", []string{"Example"})
+		req.Attribute("mail", []string{carl + "@example.com"})
+		req.Attribute("userPassword", []string{env["EWIKI_TEST_LDAP_USER_PASSWORD"]})
+		if err := dir.Add(req); err != nil {
+			t.Fatal(err)
+		}
+		if err := dir.Modify(&ldap.ModifyRequest{DN: "cn=sales,ou=groups,dc=example,dc=com",
+			Changes: []ldap.Change{{Operation: ldap.AddAttribute, Modification: ldap.PartialAttribute{Type: "member", Vals: []string{dn}}}}}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	// OpenLDAP without the refint overlay keeps the membership; remove both
+	removeCarl := func() error {
+		_ = dir.Modify(&ldap.ModifyRequest{DN: "cn=sales,ou=groups,dc=example,dc=com",
+			Changes: []ldap.Change{{Operation: ldap.DeleteAttribute, Modification: ldap.PartialAttribute{Type: "member", Vals: []string{dn}}}}})
+		return dir.Del(ldap.NewDelRequest(dn, nil))
+	}
+	addCarl()
+	t.Cleanup(func() { _ = removeCarl() })
+
+	// a preview lists the accounts, without creating them
+	rep := syncRun(t, admin, "", true, false)
+	if rep.Status != "ok" || !rep.DryRun || rep.Created < 3 {
+		t.Fatalf("preview %+v", rep)
+	}
+	var n int
+	if err := e.app.DB.QueryRow(t.Context(), `SELECT count(*) FROM users WHERE provider='ldap'`).Scan(&n); err != nil || n != 0 {
+		t.Fatalf("preview created %d accounts", n)
+	}
+	// the real run: accounts and groups before anyone signs in
+	rep = syncRun(t, admin, "", false, false)
+	if rep.Status != "ok" || rep.Created != rep.Directory {
+		t.Fatalf("sync %+v", rep)
+	}
+	if g := groupsOf(t, e, "ldap", carl); !slices.Equal(g, []string{"Sales"}) {
+		t.Fatalf("%s groups %v", carl, g)
+	}
+	if g := groupsOf(t, e, "ldap", "alice"); !slices.Equal(g, []string{"Engineers"}) {
+		t.Fatalf("alice groups %v", g)
+	}
+	// the sign-in finds the same account and the same groups
+	alice := e.client()
+	alice.login("alice", env["EWIKI_TEST_LDAP_USER_PASSWORD"])
+	if g := groupNames(t, e, meOf(t, alice).User.Groups); !slices.Equal(g, []string{"Engineers"}) {
+		t.Fatalf("groups after sign-in %v", g)
+	}
+	if err := e.app.DB.QueryRow(t.Context(), `SELECT count(*) FROM users WHERE provider='ldap' AND username='alice'`).Scan(&n); err != nil || n != 1 {
+		t.Fatalf("sign-in made a second account: %d", n)
+	}
+
+	// carl leaves the synced part of the directory (here: marked as left,
+	// in practice often moved to another unit): disabled, signed out
+	settings["sync_filter"] = "(&(objectClass=inetOrgPerson)(!(description=left)))"
+	e.setPluginSettings(t, "auth.ldap", settings)
+	c := e.client()
+	c.login(carl, env["EWIKI_TEST_LDAP_USER_PASSWORD"])
+	mark := func(op uint) {
+		t.Helper()
+		if err := dir.Modify(&ldap.ModifyRequest{DN: dn, Changes: []ldap.Change{{Operation: op,
+			Modification: ldap.PartialAttribute{Type: "description", Vals: []string{"left"}}}}}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	mark(ldap.AddAttribute)
+	rep = syncRun(t, admin, "", false, false)
+	if rep.Disabled != 1 {
+		t.Fatalf("leaving %+v", rep)
+	}
+	if me := meOf(t, c); me.User != nil {
+		t.Fatal("session of a person who left the directory still works")
+	}
+	// back: enabled again
+	mark(ldap.DeleteAttribute)
+	if rep = syncRun(t, admin, "", false, false); rep.Enabled != 1 {
+		t.Fatalf("return %+v", rep)
+	}
+
+	// deleted and created again: a new id with the old name. It may be another
+	// person, so the old account is not handed over - the sync reports a
+	// conflict and the sign-in says so, until an administrator decides.
+	if err := removeCarl(); err != nil {
+		t.Fatal(err)
+	}
+	addCarl()
+	rep = syncRun(t, admin, "", false, false)
+	if rep.Conflicts != 1 || rep.Created != 0 || rep.Disabled != 1 {
+		t.Fatalf("recreated person %+v", rep)
+	}
+	if !slices.ContainsFunc(rep.Changes, func(ch auth.DirectoryChange) bool { return ch.Username == carl && ch.Action == "conflict" }) {
+		t.Fatalf("conflict not listed: %+v", rep.Changes)
+	}
+	if got := e.client().do("POST", "/api/v1/auth/login", map[string]any{"username": carl, "password": env["EWIKI_TEST_LDAP_USER_PASSWORD"]}, nil); got != 409 {
+		t.Fatalf("sign-in of the recreated person: %d", got)
+	}
+	// the administrator decides it is the same person (here with the CLI,
+	// which goes through the same API): the account keeps pages and rights
+	if got := alice.do("POST", "/api/v1/x/auth.ldap/sync/adopt", map[string]any{"instance": "", "username": carl}, nil); got != 403 {
+		t.Fatalf("adopt by a normal user: %d", got)
+	}
+	if code, out := runCLI(t, e.cfg, "directory", "adopt", "ldap", "nobody-here"); code == 0 {
+		t.Fatalf("adopted a name the directory does not have: %s", out)
+	}
+	if code, out := runCLI(t, e.cfg, "directory", "adopt", "ldap", carl); code != 0 {
+		t.Fatalf("adopt: exit %d %s", code, out)
+	}
+	if rep = syncRun(t, admin, "", false, false); rep.Enabled != 1 || rep.Conflicts != 0 {
+		t.Fatalf("after adopting %+v", rep)
+	}
+	c = e.client()
+	c.login(carl, env["EWIKI_TEST_LDAP_USER_PASSWORD"])
+	if g := groupNames(t, e, meOf(t, c).User.Groups); !slices.Equal(g, []string{"Sales"}) {
+		t.Fatalf("groups after adopting %v", g)
+	}
+	if code, out := runCLI(t, e.cfg, "directory", "sync", "ldap", "--dry-run"); code != 0 || !strings.Contains(out, `"dry_run": true`) {
+		t.Fatalf("cli preview: exit %d %s", code, out)
+	}
+
+	// a filter that finds nobody must not disable everyone
+	settings["sync_filter"] = "(uid=nobody-at-all)"
+	e.setPluginSettings(t, "auth.ldap", settings)
+	rep = syncRun(t, admin, "", false, false)
+	if rep.Status != "refused" || rep.Disabled != 0 {
+		t.Fatalf("mass disabling not refused: %+v", rep)
+	}
+	// the runs are listed
+	var list struct {
+		Runs []auth.DirectoryRun `json:"runs"`
+	}
+	admin.must("GET", "/api/v1/x/auth.ldap/sync?instance=", nil, &list, 200)
+	if len(list.Runs) < 5 || list.Runs[0].Status != "refused" || list.Runs[0].TriggeredBy != "admin@local" {
+		t.Fatalf("runs %+v", list.Runs)
+	}
+	// only administrators of users and settings may run it
+	reader := e.client()
+	reader.login("alice", env["EWIKI_TEST_LDAP_USER_PASSWORD"])
+	if got := reader.do("POST", "/api/v1/x/auth.ldap/sync", map[string]any{"instance": ""}, nil); got != 403 {
+		t.Fatalf("sync by a normal user: %d", got)
+	}
+}
+
+// TestRealADDirectorySync syncs from Active Directory: disabled accounts,
+// nested groups, the same groups as at a sign-in.
+func TestRealADDirectorySync(t *testing.T) {
+	env := realEnv(t, "EWIKI_TEST_AD_URL", "EWIKI_TEST_AD_CA", "EWIKI_TEST_AD_BIND_DN", "EWIKI_TEST_AD_BIND_PASSWORD", "EWIKI_TEST_AD_USER_PASSWORD")
+	e := setup(t)
+	e.setPluginSettings(t, "auth.ldap", map[string]any{
+		"url": env["EWIKI_TEST_AD_URL"], "ca_cert": env["EWIKI_TEST_AD_CA"],
+		"bind_dn": env["EWIKI_TEST_AD_BIND_DN"], "bind_password": env["EWIKI_TEST_AD_BIND_PASSWORD"],
+		"base_dn": "DC=example,DC=test", "user_filter": "(&(objectCategory=person)(objectClass=user)(sAMAccountName={username}))",
+		"attr_username": "sAMAccountName", "attr_display_name": "displayName", "attr_email": "mail", "attr_subject": "objectGUID",
+		"group_attribute": "", "group_base_dn": "DC=example,DC=test", "group_filter": "(member:1.2.840.113556.1.4.1941:={dn})",
+		"group_mapping": map[string]any{"Wiki Editors": "Editors", "Staff": "Staff"}, "keep_unmapped_groups": false,
+		"disabled_filter": "(userAccountControl:1.2.840.113556.1.4.803:=2)",
+	})
+	admin := e.client()
+	admin.login("admin", adminPW)
+	rep := syncRun(t, admin, "", false, false)
+	if rep.Status != "ok" {
+		t.Fatalf("sync %+v", rep)
+	}
+	if g := groupsOf(t, e, "ldap", "anna"); !slices.Equal(g, []string{"Editors", "Staff"}) {
+		t.Fatalf("anna groups from the sync %v", g)
+	}
+	// the disabled account (and the built-in disabled ones) get no account
+	var n int
+	if err := e.app.DB.QueryRow(t.Context(), `SELECT count(*) FROM users WHERE provider='ldap' AND NOT disabled AND username IN ('bernd','Guest','krbtgt')`).Scan(&n); err != nil || n != 0 {
+		t.Fatalf("disabled AD accounts active in the wiki: %d", n)
+	}
+	// signing in gives exactly the same groups
+	c := e.client()
+	c.login("anna", env["EWIKI_TEST_AD_USER_PASSWORD"])
+	if g := groupNames(t, e, meOf(t, c).User.Groups); !slices.Equal(g, []string{"Editors", "Staff"}) {
+		t.Fatalf("anna groups after sign-in %v", g)
+	}
+	if rep = syncRun(t, admin, "", false, false); rep.GroupChanges != 0 || rep.Created != 0 || rep.Updated != 0 {
+		t.Fatalf("sync after sign-in changed something: %+v", rep)
 	}
 }

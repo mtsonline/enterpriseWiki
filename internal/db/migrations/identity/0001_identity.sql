@@ -28,6 +28,9 @@ CREATE TABLE users (
     password_hash  text,                          -- only for provider 'local'
     language       text NOT NULL DEFAULT '',
     disabled       boolean NOT NULL DEFAULT false,
+    -- who disabled the account: '' (an administrator) or 'directory' (the
+    -- directory sync; it enables the account again when it reappears)
+    disabled_by    text NOT NULL DEFAULT '' CHECK (disabled_by IN ('', 'directory')),
     failed_logins  int NOT NULL DEFAULT 0,
     locked_until   timestamptz,
     attributes     jsonb NOT NULL DEFAULT '{}',
@@ -82,6 +85,21 @@ CREATE TABLE user_groups (
     PRIMARY KEY (user_id, group_id)
 );
 CREATE INDEX user_groups_group ON user_groups(group_id);
+
+-- runs of the directory sync (users and groups from LDAP/AD and other
+-- directories without a sign-in); the newest 100 per provider are kept
+CREATE TABLE directory_sync_runs (
+    id           bigserial PRIMARY KEY,
+    provider     text NOT NULL,
+    dry_run      boolean NOT NULL,
+    status       text NOT NULL CHECK (status IN ('ok', 'failed', 'refused')),
+    triggered_by text NOT NULL DEFAULT '',          -- user name or 'schedule'
+    started_at   timestamptz NOT NULL,
+    finished_at  timestamptz NOT NULL DEFAULT now(),
+    summary      jsonb NOT NULL DEFAULT '{}',
+    error        text NOT NULL DEFAULT ''
+);
+CREATE INDEX directory_sync_runs_provider ON directory_sync_runs(provider, started_at DESC);
 
 CREATE TABLE ssh_keys (
     id           bigserial PRIMARY KEY,

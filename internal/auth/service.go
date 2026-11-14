@@ -338,6 +338,14 @@ func (s *Service) syncIdentity(ctx context.Context, ext *ExternalIdentity) (int6
 			last_login_at = now(), updated_at = now()
 		RETURNING id, disabled`,
 		ext.Username, ext.Provider, ext.Subject, ext.DisplayName, ext.Email, nullableJSON(ext.Attributes)).Scan(&id, &disabled)
+	if db.IsUniqueViolation(err) {
+		// another account of this provider has the name, for example a person
+		// deleted and created again in the directory (new id), or a name given
+		// to a new person; merging them could hand one person's pages and
+		// rights to another, so an administrator decides
+		s.log.Warn("sign-in refused: user name belongs to another account of the provider", "provider", ext.Provider, "user", ext.Username)
+		return 0, apperr.Conflict("the user name %q already belongs to another account of this sign-in; please ask an administrator", ext.Username)
+	}
 	if err != nil {
 		return 0, err
 	}

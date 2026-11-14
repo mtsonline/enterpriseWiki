@@ -138,6 +138,40 @@ plugin_settings:
 - Leere Passwörter werden immer abgelehnt (Schutz vor „unauthenticated bind“).
 - Mit **Anmeldung testen** im Admin-Bereich sehen Sie, welche Werte und Gruppen ankommen, ohne dass eine Sitzung entsteht.
 
+### Verzeichnis-Abgleich (ohne Anmeldung)
+
+Der Abgleich übernimmt Personen und Gruppen aus dem Verzeichnis, auch für Personen, die sich noch nie angemeldet haben. So können Sie Rechte, Beobachtungen und Workflows sofort an Gruppen vergeben, und wer das Unternehmen verlässt, verliert den Zugang beim nächsten Abgleich und nicht erst, wenn das Passwort nicht mehr passt.
+
+Einrichten unter *Administration → LDAP / Active Directory*. Dort finden Sie auch **Vorschau** (zeigt alle Änderungen, ändert nichts), **Jetzt abgleichen** und die letzten Abgleiche. Per CLI:
+
+```bash
+ewiki directory sync ldap --dry-run      # Vorschau
+ewiki directory sync ldap                # abgleichen; ldap-<id> für weitere Instanzen
+ewiki directory runs ldap                # letzte Abgleiche
+ewiki directory adopt ldap anna          # gleiche Person mit neuer Verzeichnis-ID (siehe unten)
+```
+
+```yaml
+plugin_settings:
+  auth.ldap:
+    # … Verbindung wie oben …
+    sync_enabled: true               # automatisch; sonst nur per Knopf oder CLI
+    sync_interval_minutes: 60        # mindestens 5
+    sync_filter: (objectClass=inetOrgPerson)   # leer: user_filter mit * statt {username}
+    disabled_filter: (userAccountControl:1.2.840.113556.1.4.803:=2)   # nur AD: gesperrte Konten
+    sync_create_users: true          # Konten für neue Personen anlegen
+    sync_disable_missing: true       # wer fehlt, wird deaktiviert
+    sync_max_disable_percent: 10     # Schutz, siehe unten
+```
+
+- **Gleiche Werte wie bei der Anmeldung:** Attribute, Gruppensuche (auch verschachtelte AD-Gruppen) und die Gruppen- und Rollen-Zuordnung sind dieselben. Ein Konto aus dem Abgleich ist dasselbe Konto wie nach einer Anmeldung.
+- **Was der Abgleich ändert:** Name und E-Mail, die Gruppen und Rollen, die dieses Verzeichnis vergibt, und ob das Konto aktiv ist. **Gruppen, die im Wiki von Hand vergeben wurden, bleiben.** Konten, die SCIM verwaltet, lässt der Abgleich aus.
+- **Deaktivieren:** Wer nicht mehr im Verzeichnis steht (oder vom `disabled_filter` gefunden wird), wird deaktiviert und sofort abgemeldet. Seiten und Beiträge bleiben. Kommt die Person zurück, aktiviert der Abgleich das Konto wieder. Ein Konto, das eine Administratorin oder ein Administrator deaktiviert hat, aktiviert der Abgleich nie. Das letzte aktive Administratorkonto wird nie deaktiviert.
+- **Schutz vor Fehlern:** Würde ein Abgleich mehr als `sync_max_disable_percent` Prozent der aktiven Konten deaktivieren (zum Beispiel wegen eines falschen Filters oder eines leeren Suchergebnisses), bricht er ab und ändert nichts. Nur wenn wirklich so viele Personen gegangen sind, starten Sie ihn mit **Trotzdem abgleichen** (CLI: `--force`). Hat das Verzeichnis mehr Einträge als die Grenze *Personen je Verzeichnis-Abgleich* (Experteneinstellungen, Vorgabe 100 000), bricht der Abgleich ebenfalls ab, statt nur einen Teil abzugleichen.
+- **Konflikte:** Gehört der Benutzername schon einem anderen Konto dieses Verzeichnisses (typisch: Person im Verzeichnis gelöscht und neu angelegt, also mit neuer ID), führt das Wiki die Konten nicht selbst zusammen. Es könnte eine andere Person sein, die sonst fremde Seiten und Rechte bekäme. Der Abgleich meldet einen Konflikt, die Anmeldung wird mit einem Hinweis abgelehnt. Ist es dieselbe Person, wählen Sie **Gleiche Person: Konto zuordnen** (CLI: `ewiki directory adopt`). Die neue ID wird dabei aus dem Verzeichnis gelesen, nicht eingegeben. Ist es eine andere Person, löschen Sie das alte Konto; der nächste Abgleich legt ein neues an.
+- **Rechte und Protokoll:** Abgleichen und Zuordnen dürfen nur Personen mit den Rechten *Benutzer verwalten* und *Einstellungen ändern*. Jeder Lauf steht mit Zusammenfassung im Audit-Log (`auth.directory.sync`, `auth.directory.adopt`); die letzten 100 Läufe je Verzeichnis werden mit allen Änderungen aufbewahrt.
+- Der ganze Abgleich ist eine Transaktion: Bricht er ab, bleibt alles wie vorher. Die Rechte gelten sofort, auch in laufenden Sitzungen.
+
 ## OpenID Connect (`auth.oidc`)
 
 Authorization Code Flow mit PKCE, Nonce, Signatur- und Audience-Prüfung des ID-Tokens. Registrieren Sie beim Anbieter als Redirect-URI:

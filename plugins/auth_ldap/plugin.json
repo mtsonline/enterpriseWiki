@@ -2,8 +2,22 @@
   "id": "auth.ldap",
   "name": "LDAP / Active Directory",
   "version": "1.0.0",
-  "description": "Sign in with LDAP or Active Directory accounts (username/password, also for the API). Groups are synchronized and mapped to local groups and roles.",
+  "description": "Sign in with LDAP or Active Directory accounts (username/password, also for the API). Groups are synchronized at every sign-in and, with the directory sync, also without one; they are mapped to local groups and roles.",
   "author": "Enterprise Wiki",
-  "kinds": ["auth"],
-  "frontend": true
+  "kinds": [
+    "auth"
+  ],
+  "frontend": true,
+  "limits": [
+    {
+      "key": "auth.ldap.sync_max_entries",
+      "group": "directory",
+      "unit": "count",
+      "default": 100000,
+      "min": 100,
+      "max": 1000000,
+      "label": "People per directory sync",
+      "help": "Most entries one directory sync reads. A directory with more entries stops the run instead of syncing only a part."
+    }
+  ]
 }

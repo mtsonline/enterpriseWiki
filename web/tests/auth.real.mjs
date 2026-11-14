@@ -1,7 +1,8 @@
 // Browser test of the sign-in with a real identity provider: a person opens
 // the sign-in page of the wiki, chooses "Sign in with Keycloak", signs in at
 // Keycloak and later signs out again (single logout). With axe checks of the
-// pages of the wiki.
+// pages of the wiki. With OpenLDAP also the directory sync on the admin
+// page: preview, sync, the list of runs.
 //
 //   eval "$(tests/auth/start.sh)"
 //   cd web && EWIKI_E2E_URL=http://localhost:8080 npm run test:auth
@@ -125,5 +126,46 @@ test('sign in with a real identity provider and sign out again', async () => {
   await sso.click();
   await page.waitForURL((u) => u.href.startsWith(KC));
   await page.locator('#password').waitFor();
+  assert.deepEqual(errors, []);
+});
+
+test('directory sync on the admin page (OpenLDAP)', { skip: !process.env.EWIKI_TEST_LDAP_URL && 'no OpenLDAP' }, async () => {
+  await page.context().clearCookies();
+  await page.goto(BASE + '/');
+  const api = (method, path, body) => page.evaluate(async ([method, path, body]) => {
+    const res = await fetch(path, { method, headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'ewiki' }, body: body === undefined ? undefined : JSON.stringify(body) });
+    const text = await res.text();
+    if (!res.ok) throw new Error(`${method} ${path}: ${res.status} ${text}`);
+    return text ? JSON.parse(text) : null;
+  }, [method, path, body]);
+  await api('POST', '/api/v1/auth/login', { username: ADMIN, password: ADMIN_PW });
+  const st = await api('GET', '/api/v1/admin/settings');
+  const settings = st.config.plugin_settings ?? {};
+  settings['auth.ldap'] = {
+    name: 'Directory', url: process.env.EWIKI_TEST_LDAP_URL, bind_dn: process.env.EWIKI_TEST_LDAP_BIND_DN,
+    bind_password: process.env.EWIKI_TEST_LDAP_BIND_PASSWORD, base_dn: 'ou=people,dc=example,dc=com', user_filter: '(uid={username})',
+    attr_subject: 'entryUUID', sync_max_disable_percent: 100,
+  };
+  await api('PUT', '/api/v1/admin/settings', { plugin_settings: settings });
+
+  await page.goto(BASE + '/admin/ldap');
+  const panel = page.getByRole('region', { name: /directory sync|verzeichnis-abgleich/i });
+  await panel.waitFor();
+  // the preview shows what would happen, without changing anything
+  await panel.getByRole('button', { name: /^(preview|vorschau)$/i }).click();
+  const result = panel.getByRole('status');
+  await result.getByText(/nothing was changed|es wurde nichts geändert/i).waitFor();
+  await panel.getByRole('table', { name: /^(changes|änderungen)$/i }).getByRole('cell', { name: 'alice', exact: true }).first().waitFor();
+  const before = await api('GET', '/api/v1/admin/users?q=alice');
+  assert.ok(!JSON.stringify(before).includes('"provider":"ldap"'), 'the preview created an account');
+  await a11y('directory sync preview');
+
+  // the real run; afterwards the runs list it
+  await panel.getByRole('button', { name: /^(sync now|jetzt abgleichen)$/i }).click();
+  await result.getByText(/sync finished|abgleich abgeschlossen/i).waitFor();
+  await panel.getByRole('table', { name: /recent syncs|letzte abgleiche/i }).getByRole('cell', { name: /^(sync|abgleich)$/i }).first().waitFor();
+  const users = await api('GET', '/api/v1/admin/users?q=alice');
+  assert.ok(JSON.stringify(users).includes('"provider":"ldap"'), 'the sync created no account for alice');
+  await a11y('directory sync result');
   assert.deepEqual(errors, []);
 });
