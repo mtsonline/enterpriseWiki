@@ -112,7 +112,7 @@ API: `GET|PUT /api/v1/admin/i18n/{lang}`, `GET /api/v1/admin/i18n/{lang}/export?
 
 ## Secrets in the database
 
-Signing keys of webhooks, secrets of authenticator apps, secrets of incoming and outgoing webhooks of workflows and forms, the key of the form tokens, the key of the decision links, the seal keys for signatures and the private keys of S/MIME certificates are stored in the database. How they are stored is set by `secrets.mode` in `config.yaml` (for the whole instance):
+Signing keys of webhooks, secrets of authenticator apps, secrets of incoming and outgoing webhooks of workflows and forms, the key of the form tokens, the key of the decision links, the seal keys for signatures, the private keys of S/MIME certificates and the private key of the SAML service provider (plugin `auth.shib`) are stored in the database. How they are stored is set by `secrets.mode` in `config.yaml` (for the whole instance):
 
 | Mode | Protection |
 |---|---|
