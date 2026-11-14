@@ -2,7 +2,9 @@
 
 > English version: [README.md](README.md)
 
-**Stand: im Aufbau.** Dieses Modul enthält noch keine Schnittstelle.
+**Stand: im Aufbau.** Dieses Modul enthält noch keine Schnittstelle. Der Vertrag liegt als **Entwurf zur Durchsicht** vor:
+[`proto/ewiki/plugin/v1`](proto/ewiki/plugin/v1) (Dienste `Host` und `Plugin`, das Manifest und das Aktionsregister),
+mit Beispielen in [`proto/examples`](proto/examples). Vor SDK 1.0 ist daran nichts stabil.
 
 Das SDK wird die stabile Schnittstelle für Plugins, die als eigener, abgeschotteter Prozess neben Enterprise Wiki
 laufen: ein versionierter Vertrag (`ewiki.plugin.v1`, Protobuf über gRPC auf einem Unix-Socket), signierte Pakete,

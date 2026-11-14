@@ -1,0 +1,290 @@
+// DRAFT for review (phase P2).
+//
+// Service the PLUGIN offers; the host calls it. The plugin listens on the
+// Unix socket the host names at the start (see Host.Hello for the
+// handshake). Every call carries the session token from the handshake in
+// the metadata "ewiki-session"; the SDK refuses calls without it.
+//
+// Every call has a deadline. Calls on the path of a page view (macros,
+// views) must answer within the plugin's call timeout; the host shows an
+// honest notice instead of waiting longer.
+syntax = "proto3";
+
+package ewiki.plugin.v1;
+
+import "ewiki/plugin/v1/common.proto";
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/mtsonline/enterprisewiki/sdk/proto/ewiki/plugin/v1;pluginv1";
+
+service Plugin {
+  // Lifecycle. Start comes once after a successful Hello, Stop before the
+  // host ends the process (it waits for running calls up to the deadline).
+  rpc Start(StartRequest) returns (StartResponse);
+  rpc Stop(StopRequest) returns (StopResponse);
+  // Sign of life, every few seconds. Missing answers or a crash make the
+  // host restart the plugin with growing waits; after repeated crashes it
+  // switches the plugin off and tells the administrators. Data stays.
+  rpc Ping(PingRequest) returns (PingResponse);
+
+  // Settings changed by an administrator; the plugin may refuse them
+  // (ValidateSettings is asked first, before anything is stored).
+  rpc ValidateSettings(ValidateSettingsRequest) returns (ValidateSettingsResponse);
+  rpc SettingsChanged(SettingsChangedRequest) returns (SettingsChangedResponse);
+
+  // A request to one of the plugin's actions (/api/v1/x/<plugin-id>/...).
+  // The host has already checked sign-in, CSRF, rate limits, size, the
+  // permission and the parameters against the action's schema, and it
+  // writes the audit entry. First message: the head, then body chunks.
+  rpc HandleHTTP(stream HttpRequestPart) returns (stream HttpResponsePart);
+
+  // A timed job or a manual run of one.
+  rpc RunJob(RunJobRequest) returns (RunJobResponse);
+
+  // Render a macro when a page is saved (static) or for the editor's
+  // preview. The host cleans the HTML (same rules as all content) and
+  // keeps it; it is not called on every page view.
+  rpc RenderMacro(RenderMacroRequest) returns (RenderMacroResponse);
+
+  // Element types (manifest: element_types). Called when an element is
+  // saved, never on a page view: the host keeps the cleaned HTML.
+  rpc ValidateElement(ValidateElementRequest) returns (ValidateElementResponse);
+  rpc RenderElement(RenderElementRequest) returns (RenderElementResponse);
+
+  // Describe a view made of building blocks (UI way 1). The tree format
+  // ewiki.ui.v1 is designed in phase P4.
+  rpc DescribeView(DescribeViewRequest) returns (DescribeViewResponse);
+
+  // Sign-in providers (manifest: auth_providers).
+  rpc Authenticate(AuthenticateRequest) returns (AuthenticateResponse);
+  // The directory sync: the plugin lists the people of its directory; the
+  // host maps them like at a sign-in and applies its safety rules (share
+  // of accounts to disable, dry run, conflicts). The host starts it
+  // (schedule, by hand, in a cluster on one node only).
+  rpc ReadDirectory(ReadDirectoryRequest) returns (stream DirectoryEntry);
+}
+
+message StartRequest {
+  // What the administrator confirmed and the host offers.
+  repeated string granted = 1;
+  repeated string capabilities = 2;
+  // Current settings (JSON matching the settings schema) and limits.
+  string settings_json = 3;
+  map<string, int64> limits = 4;
+  // Version of the wiki, for logs only: plugins check capabilities, not
+  // versions.
+  string host_version = 5;
+  // True in development mode (preview APIs allowed, no signature check).
+  bool development = 6;
+}
+
+message StartResponse {}
+
+message StopRequest {
+  google.protobuf.Timestamp deadline = 1;
+}
+
+message StopResponse {}
+
+message PingRequest {}
+
+message PingResponse {
+  enum State {
+    STATE_UNSPECIFIED = 0;
+    STATE_OK = 1;
+    // Running, but a part does not work (e.g. its directory server is
+    // unreachable); the administration shows the message.
+    STATE_DEGRADED = 2;
+  }
+  State state = 1;
+  string message = 2;
+}
+
+message ValidateSettingsRequest {
+  // Also for an instance of a sign-in provider: instance id and its
+  // settings.
+  string instance = 1;
+  string settings_json = 2;
+}
+
+message ValidateSettingsResponse {
+  // Empty when the settings are fine; one entry per problem, with field.
+  repeated ErrorInfo problems = 1;
+}
+
+message SettingsChangedRequest {
+  string instance = 1;
+  string settings_json = 2;
+}
+
+message SettingsChangedResponse {}
+
+message HttpRequestPart {
+  oneof part {
+    HttpRequestHead head = 1;
+    // Body in chunks of at most 64 KiB; the total is limited by the
+    // action's body limit.
+    bytes body = 2;
+  }
+}
+
+message HttpRequestHead {
+  CallContext context = 1;
+  // Id of the action from the register the request matched.
+  string action_id = 2;
+  string method = 3;
+  // Path below /api/v1/x/<plugin-id>/ and the raw query.
+  string path = 4;
+  string query = 5;
+  // Path parameters, already checked against the schema (JSON object).
+  string path_params_json = 6;
+  // Only harmless headers (Accept, Accept-Language, Content-Type,
+  // If-Match, If-None-Match, Range); never cookies, Authorization or the
+  // client's address.
+  map<string, string> headers = 7;
+}
+
+message HttpResponsePart {
+  oneof part {
+    HttpResponseHead head = 1;
+    bytes body = 2;
+  }
+}
+
+message HttpResponseHead {
+  int32 status = 1;
+  // Allowed: Content-Type, Content-Disposition, Cache-Control, ETag,
+  // Last-Modified, Location (inside the wiki). The host sets the security
+  // headers itself and refuses others.
+  map<string, string> headers = 2;
+}
+
+message RunJobRequest {
+  string name = 1;
+  // "schedule" or the handle of the person who started it.
+  string triggered_by = 2;
+  bool dry_run = 3;
+}
+
+message RunJobResponse {
+  // Summary for the job history in the administration.
+  string summary = 1;
+}
+
+message RenderMacroRequest {
+  CallContext context = 1;
+  string name = 2;
+  // Parameters checked against the macro's schema.
+  string params_json = 3;
+  // Body of macros that wrap content (Markdown).
+  string body = 4;
+  // Element the macro sits in.
+  int64 element_id = 5;
+  // Editor preview: may be called while typing; answer fast.
+  bool preview = 6;
+}
+
+message RenderMacroResponse {
+  // HTML; the host cleans it with the rules for content.
+  string html = 1;
+  // Plain text for search and screen readers if the HTML is not enough.
+  string text = 2;
+  // How long the result may be reused before the host asks again
+  // (0: until the page is saved again).
+  int64 max_age_seconds = 3;
+}
+
+message DescribeViewRequest {
+  CallContext context = 1;
+  // Id of the UI contribution and the parameters of its slot (for
+  // example the element shown).
+  string view = 2;
+  string params_json = 3;
+}
+
+message DescribeViewResponse {
+  // Tree of building blocks in the format ewiki.ui.v1 (phase P4).
+  string tree_json = 1;
+}
+
+message AuthenticateRequest {
+  // Provider instance ("ldap", "ldap-corp").
+  string instance = 1;
+  string username = 2;
+  // Only ever in this call, never stored or logged by the host; the SDK
+  // clears it after use.
+  string password = 3;
+  string request_id = 4;
+}
+
+message AuthenticateResponse {
+  enum Result {
+    RESULT_UNSPECIFIED = 0;
+    RESULT_OK = 1;
+    // Wrong user name or password: the host counts it for the lockout and
+    // answers like for every wrong sign-in (no hint which part was wrong).
+    RESULT_INVALID = 2;
+    // The account is disabled in the directory.
+    RESULT_DISABLED = 3;
+    // The directory cannot be reached: the host tries the next provider
+    // and shows the administrators a notice.
+    RESULT_UNAVAILABLE = 4;
+  }
+  Result result = 1;
+  ExternalIdentity identity = 2;
+}
+
+// ExternalIdentity is a person as the directory reports it. The host
+// maps groups and roles (mapping per provider instance, in the core).
+message ExternalIdentity {
+  // Stable id in the directory (entryUUID, objectGUID, sub).
+  string subject = 1;
+  string username = 2;
+  string display_name = 3;
+  string email = 4;
+  // The directory confirms the address belongs to the person.
+  bool email_verified = 5;
+  // Group names as the directory has them (before mapping).
+  repeated string groups = 6;
+  // Further attributes for the mapping (JSON object, strings and lists
+  // of strings only).
+  string attributes_json = 7;
+}
+
+message ReadDirectoryRequest {
+  string instance = 1;
+  string request_id = 2;
+}
+
+message DirectoryEntry {
+  ExternalIdentity identity = 1;
+  // The directory reports the person as disabled.
+  bool disabled = 2;
+}
+
+message ValidateElementRequest {
+  CallContext context = 1;
+  string type = 2;
+  // 0 for a new element.
+  int64 element_id = 3;
+  // Body already checked against the type's schema.
+  string body_json = 4;
+}
+
+message ValidateElementResponse {
+  repeated ErrorInfo problems = 1;
+}
+
+message RenderElementRequest {
+  CallContext context = 1;
+  string type = 2;
+  int64 element_id = 3;
+  string body_json = 4;
+  string language = 5;
+}
+
+message RenderElementResponse {
+  // HTML, cleaned by the host; plain text for the search index.
+  string html = 1;
+  string text = 2;
+}

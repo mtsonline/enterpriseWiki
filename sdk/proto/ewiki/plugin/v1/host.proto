@@ -1,0 +1,446 @@
+// DRAFT for review (phase P2).
+//
+// Service the HOST (the wiki) offers; the plugin calls it on the host's
+// Unix socket. Every access goes through here and is checked: rights,
+// limits, inputs, audit (concept rule 3). The only way around it is the
+// plugin's own database schema (and the outbox functions in it).
+//
+// Metadata on every call:
+//   ewiki-session     session token from Hello (required)
+//   ewiki-call-token  when acting for the person of a request (from its
+//                     CallContext); then the rights are the intersection
+//                     of the person's and the plugin's. Without it the
+//                     call acts as the plugin account "plugin:<id>".
+//
+// Failed calls carry an ErrorInfo detail. PERMISSION_DENIED names the
+// missing grant ("grant mail.send is missing in the manifest").
+syntax = "proto3";
+
+package ewiki.plugin.v1;
+
+import "ewiki/plugin/v1/common.proto";
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/mtsonline/enterprisewiki/sdk/proto/ewiki/plugin/v1;pluginv1";
+
+service Host {
+  // Handshake, the first call. The host started the process and handed
+  // it a one-time start secret on standard input (never in the
+  // environment or the command line). The plugin proves it with the
+  // secret; the host answers with the session and what was granted.
+  rpc Hello(HelloRequest) returns (HelloResponse);
+
+  // Settings and limits (current values; changes also come as
+  // Plugin.SettingsChanged).
+  rpc GetSettings(GetSettingsRequest) returns (GetSettingsResponse);
+
+  // Content (grants content.read / content.write; with a call token only
+  // what the person may see or change).
+  rpc GetElement(GetElementRequest) returns (Element);
+  rpc ListElements(ListElementsRequest) returns (ListElementsResponse);
+  rpc CreateElement(CreateElementRequest) returns (Element);
+  // Optimistic: base_revision must be the current one, otherwise
+  // ABORTED with code "conflict". Nothing is overwritten silently.
+  rpc UpdateElement(UpdateElementRequest) returns (Element);
+  // Moves to the trash; nothing is deleted for good.
+  rpc TrashElement(TrashElementRequest) returns (TrashElementResponse);
+  rpc Search(SearchRequest) returns (SearchResponse);
+
+  // People and groups (grants users.read / groups.read). Never secrets,
+  // never more than the person of the call token may see.
+  rpc GetUser(GetUserRequest) returns (User);
+  rpc ListUsers(ListUsersRequest) returns (ListUsersResponse);
+  rpc ListGroups(ListGroupsRequest) returns (ListGroupsResponse);
+
+  // Does the person of the call token have a permission (core or the
+  // plugin's own)?
+  rpc CheckPermission(CheckPermissionRequest) returns (CheckPermissionResponse);
+
+  // Consequences of a change: notification, e-mail, audit event, an
+  // event of the plugin. Stored by the host in one transaction, then
+  // processed by the host's durable queues. Repeating with the same
+  // idempotency key has no further effect. For consequences that must be
+  // in the same transaction as the plugin's own data, the plugin uses the
+  // SQL functions ewiki_outbox.* in its schema instead (concept 5.4a).
+  rpc Enqueue(EnqueueRequest) returns (EnqueueResponse);
+
+  // Core events the plugin subscribed to (inbox, at least once). Waits
+  // up to wait_ms for new events. The position only moves on Ack; after a
+  // crash the plugin gets the unacknowledged events again. The SDK
+  // records handled event ids in ewiki_inbox in the plugin's schema, so
+  // the effect happens exactly once.
+  rpc PullEvents(PullEventsRequest) returns (PullEventsResponse);
+  rpc AckEvents(AckEventsRequest) returns (AckEventsResponse);
+
+  // The plugin's own file area (grants files.read / files.write), with
+  // quota. First message of PutFile: the head, then chunks.
+  rpc PutFile(stream PutFilePart) returns (FileInfo);
+  rpc GetFile(GetFileRequest) returns (stream GetFilePart);
+  rpc DeleteFile(DeleteFileRequest) returns (DeleteFileResponse);
+  rpc ListFiles(ListFilesRequest) returns (ListFilesResponse);
+
+  // Keys never leave the key store: the plugin names a key reference it
+  // was granted (keys.sign:<ref>) and gets the signature.
+  rpc Sign(SignRequest) returns (SignResponse);
+  rpc GetPublicKey(GetPublicKeyRequest) returns (GetPublicKeyResponse);
+}
+
+message HelloRequest {
+  // Versions of the contract the plugin speaks ("v1"); the host picks one.
+  repeated string protocols = 1;
+  // Transport version, so the transport can change without changing the
+  // contract.
+  string transport = 2;
+  string start_secret = 3;
+  string plugin_id = 4;
+  string plugin_version = 5;
+  // SHA-256 of the manifest the plugin was built with; must match the
+  // installed package.
+  bytes manifest_sha256 = 6;
+}
+
+message HelloResponse {
+  string protocol = 1;
+  // Session token for the metadata "ewiki-session" of every call in both
+  // directions. Valid until the process ends.
+  string session = 2;
+  repeated string granted = 3;
+  repeated string capabilities = 4;
+  // Connection to the plugin's own database schema (own role, only this
+  // schema); empty if the manifest has no database.
+  string database_url = 5;
+  // Outgoing connections only through this proxy (HTTP CONNECT on a Unix
+  // socket), to the targets the administrator confirmed (net:<host>).
+  string net_proxy = 6;
+  string net_proxy_token = 7;
+}
+
+message GetSettingsRequest {
+  // Instance of a sign-in provider; empty for the plugin's settings.
+  string instance = 1;
+}
+
+message GetSettingsResponse {
+  string settings_json = 1;
+  map<string, int64> limits = 2;
+}
+
+// Element is a page or another element type. The body depends on the
+// type; for pages: {"format": "markdown", "source": "..."}.
+message Element {
+  int64 id = 1;
+  string type = 2;
+  int64 category_id = 3;
+  LocalizedText title = 4;
+  string body_json = 5;
+  // Cleaned HTML for display (read only).
+  string html = 6;
+  // Properties as a JSON object (key -> value).
+  string properties_json = 7;
+  repeated string tags = 8;
+  int64 revision = 9;
+  google.protobuf.Timestamp updated_at = 10;
+  string updated_by = 11;
+}
+
+message GetElementRequest {
+  int64 id = 1;
+  // Include body_json (needs the right to edit).
+  bool with_body = 2;
+}
+
+message ListElementsRequest {
+  int64 category_id = 1;
+  // Include subcategories.
+  bool recursive = 2;
+  repeated string types = 3;
+  google.protobuf.Timestamp updated_since = 4;
+  PageRequest page = 5;
+}
+
+message ListElementsResponse {
+  repeated Element elements = 1;
+  PageResponse page = 2;
+}
+
+message CreateElementRequest {
+  string type = 1;
+  int64 category_id = 2;
+  LocalizedText title = 3;
+  string body_json = 4;
+  string properties_json = 5;
+  repeated string tags = 6;
+  // Repeating with the same key returns the element created first.
+  string idempotency_key = 7;
+}
+
+message UpdateElementRequest {
+  int64 id = 1;
+  int64 base_revision = 2;
+  // Only the fields that are set change.
+  LocalizedText title = 3;
+  optional string body_json = 4;
+  optional string properties_json = 5;
+  repeated string tags = 6;
+  bool set_tags = 7;
+}
+
+message TrashElementRequest {
+  int64 id = 1;
+}
+
+message TrashElementResponse {}
+
+message SearchRequest {
+  string query = 1;
+  repeated string types = 2;
+  int64 category_id = 3;
+  PageRequest page = 4;
+}
+
+message SearchResponse {
+  message Hit {
+    int64 element_id = 1;
+    LocalizedText title = 2;
+    // Short excerpt, plain text.
+    string excerpt = 3;
+  }
+  repeated Hit hits = 1;
+  PageResponse page = 2;
+}
+
+message User {
+  int64 id = 1;
+  string handle = 2;
+  string display_name = 3;
+  // Only with the right to see addresses.
+  repeated string emails = 4;
+  string language = 5;
+  bool disabled = 6;
+  repeated int64 group_ids = 7;
+}
+
+message GetUserRequest {
+  oneof by {
+    int64 id = 1;
+    string handle = 2;
+  }
+}
+
+message ListUsersRequest {
+  string query = 1;
+  int64 group_id = 2;
+  bool include_disabled = 3;
+  PageRequest page = 4;
+}
+
+message ListUsersResponse {
+  repeated User users = 1;
+  PageResponse page = 2;
+}
+
+message ListGroupsRequest {
+  string query = 1;
+  PageRequest page = 2;
+}
+
+message ListGroupsResponse {
+  message Group {
+    int64 id = 1;
+    string name = 2;
+  }
+  repeated Group groups = 1;
+  PageResponse page = 2;
+}
+
+message CheckPermissionRequest {
+  string key = 1;
+  // For category permissions.
+  int64 category_id = 2;
+}
+
+message CheckPermissionResponse {
+  bool allowed = 1;
+}
+
+message EnqueueRequest {
+  // Unique per plugin; a second entry with the same key is skipped
+  // without error (the answer says so).
+  string idempotency_key = 1;
+  // Entries with the same ordering key are processed strictly one after
+  // the other; others in parallel.
+  string ordering_key = 2;
+  oneof entry {
+    Notification notification = 3;
+    Mail mail = 4;
+    AuditEvent audit = 5;
+    PluginEvent event = 6;
+  }
+}
+
+message EnqueueResponse {
+  // False if an entry with this idempotency key already existed.
+  bool created = 1;
+}
+
+// Notification in the wiki (bell) and, depending on the person's
+// settings, by e-mail. Grant notify.send.
+message Notification {
+  repeated int64 user_ids = 1;
+  repeated int64 group_ids = 2;
+  // Kind declared by the plugin ("<plugin-id>.<kind>"); people can switch
+  // kinds on and off.
+  string kind = 3;
+  LocalizedText title = 4;
+  LocalizedText text = 5;
+  // Link inside the wiki.
+  string link = 6;
+}
+
+// E-mail through the wiki's mail queue (signing per the wiki's settings).
+// Grant mail.send. Recipients only as users or groups of the wiki, or
+// addresses the administrator allowed for the plugin.
+message Mail {
+  repeated int64 user_ids = 1;
+  repeated int64 group_ids = 2;
+  repeated string addresses = 3;
+  LocalizedText subject = 4;
+  LocalizedText text = 5;
+  // Optional HTML; the host cleans it.
+  LocalizedText html = 6;
+}
+
+// AuditEvent for the wiki's audit log. Grant audit.write. The host adds
+// who, when and the plugin id; the action starts with the plugin id.
+message AuditEvent {
+  string action = 1;
+  string object_type = 2;
+  string object_id = 3;
+  // Details as a JSON object; secret fields are not allowed.
+  string detail_json = 4;
+}
+
+// PluginEvent: an event of the plugin other plugins and webhooks can
+// subscribe to ("<plugin-id>.<name>", declared in the manifest later).
+message PluginEvent {
+  string type = 1;
+  string payload_json = 2;
+}
+
+message PullEventsRequest {
+  int32 max = 1;
+  int32 wait_ms = 2;
+}
+
+message PullEventsResponse {
+  repeated Event events = 1;
+  // Events were removed after the retention period before the plugin
+  // read them: it must sync again fully through the API instead of
+  // silently missing data (concept 5.4a).
+  bool resync_required = 2;
+}
+
+message Event {
+  // Increasing per plugin; acknowledge up to this id.
+  int64 id = 1;
+  string type = 2;
+  google.protobuf.Timestamp occurred_at = 3;
+  string site = 4;
+  // Object the event is about ("element", "user", "group", ...); events
+  // of the same object come in the order of the changes.
+  string object_type = 5;
+  string object_id = 6;
+  Principal actor = 7;
+  string payload_json = 8;
+}
+
+message AckEventsRequest {
+  int64 up_to_id = 1;
+}
+
+message AckEventsResponse {}
+
+message PutFilePart {
+  oneof part {
+    PutFileHead head = 1;
+    bytes chunk = 2;
+  }
+}
+
+message PutFileHead {
+  // Path inside the plugin's file area ("boards/3/cover.png"); no "..".
+  string path = 1;
+  string content_type = 2;
+  // Expected size; the host refuses more and checks the quota first.
+  int64 size = 3;
+}
+
+message FileInfo {
+  string path = 1;
+  int64 size = 2;
+  bytes sha256 = 3;
+  string content_type = 4;
+  google.protobuf.Timestamp modified_at = 5;
+}
+
+message GetFileRequest {
+  string path = 1;
+}
+
+message GetFilePart {
+  oneof part {
+    FileInfo info = 1;
+    bytes chunk = 2;
+  }
+}
+
+message DeleteFileRequest {
+  string path = 1;
+}
+
+message DeleteFileResponse {}
+
+message ListFilesRequest {
+  string prefix = 1;
+  PageRequest page = 2;
+}
+
+message ListFilesResponse {
+  repeated FileInfo files = 1;
+  PageResponse page = 2;
+}
+
+message SignRequest {
+  // Key reference the plugin was granted (keys.sign:<ref>).
+  string key_ref = 1;
+  // Data to sign (at most the limit "core.plugins.sign_kb"); the host
+  // hashes it with the key's procedure. Hybrid keys give both signatures.
+  bytes data = 2;
+  // Purpose for the audit log ("sign invoice 2026-17").
+  string purpose = 3;
+}
+
+message SignResponse {
+  message Signature {
+    // Procedure, e.g. "ed25519", "ml-dsa-65", "ecdsa-p256-sha256".
+    string algorithm = 1;
+    bytes signature = 2;
+  }
+  repeated Signature signatures = 1;
+  // Id of the key version used, for verification later.
+  string key_version = 2;
+}
+
+message GetPublicKeyRequest {
+  string key_ref = 1;
+}
+
+message GetPublicKeyResponse {
+  message PublicKey {
+    string algorithm = 1;
+    // DER (SubjectPublicKeyInfo) or the raw key for ed25519 and ML-DSA.
+    bytes key = 2;
+  }
+  repeated PublicKey keys = 1;
+  string key_version = 2;
+}

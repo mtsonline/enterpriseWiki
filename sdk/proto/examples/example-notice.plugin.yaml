@@ -1,0 +1,74 @@
+# DRAFT: the example plugin "example.notice" as an SDK plugin (phase P4).
+# Manifest of the package (plugin.yaml), read into ewiki.plugin.v1.Manifest.
+manifest_version: "1"
+id: example.notice
+version: 2.0.0
+name:
+  text: {en: Notice box (example plugin), de: Hinweisbox (Beispiel-Plugin)}
+description:
+  text:
+    en: A highlighted info, warning or success box. Shows an element type, an action, a macro, settings and translations.
+    de: Eine hervorgehobene Box für Info, Warnung oder Erfolg. Zeigt einen Elementtyp, eine Aktion, ein Makro, Einstellungen und Übersetzungen.
+author: Enterprise Wiki
+license: Apache-2.0
+kinds: [element, macro]
+sdk: ">=1.0"
+requires: [content.element_types@1, content.macros@1, actions@1]
+grants:
+  - key: content.read
+    reason:
+      text: {en: Shows notices of other pages in the macro., de: Zeigt Hinweise anderer Seiten im Makro.}
+settings:
+  json: |
+    {"type": "object", "additionalProperties": false,
+     "properties": {"default_tone": {"type": "string", "enum": ["info", "warning", "success"], "default": "info",
+       "title": "Default tone", "x-ewiki-i18n": {"de": {"title": "Standard-Ton"}}}}}
+limits:
+  - key: example.notice.text_kb
+    label: {text: {en: Size of a notice, de: Größe eines Hinweises}}
+    unit: kb
+    default: 64
+    min: 1
+    max: 1024
+element_types:
+  - type: example.notice
+    label: {text: {en: Notice, de: Hinweis}}
+    extends: core.html
+    body:
+      json: |
+        {"type": "object", "additionalProperties": false, "required": ["tone", "source"],
+         "properties": {"tone": {"type": "string", "enum": ["info", "warning", "success"]},
+                        "format": {"type": "string", "enum": ["markdown"]},
+                        "source": {"type": "string", "maxLength": 65536}}}
+    render: true
+macros:
+  - name: notice
+    label: {text: {en: Notice, de: Hinweis}}
+    group: formatting
+    keywords: [info, warning, box]
+    params:
+      json: '{"type": "object", "additionalProperties": false, "properties": {"tone": {"type": "string", "enum": ["info", "warning", "success"]}}}'
+    has_body: true
+    rendering: RENDERING_STATIC
+actions:
+  - id: example.notice.tones.list
+    category: CATEGORY_ACTION
+    method: GET
+    path: tones
+    summary: {text: {en: List the tones of notices, de: Töne der Hinweise auflisten}}
+    signed_in: true
+    response:
+      json: '{"type": "array", "items": {"type": "string"}}'
+    success_status: 200
+    cli: {command: [notice, tones]}
+    ui: {entry: "/new?type=example.notice", control: {text: {en: Tone, de: Ton}}}
+    examples:
+      - name: default
+        as: member
+        status: 200
+        expect_json: '["info", "warning", "success"]'
+resources:
+  memory_mb: 64
+  cpu_percent: 25
+  max_concurrent_calls: 16
+  call_timeout_ms: 2000

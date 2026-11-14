@@ -1,0 +1,106 @@
+// DRAFT for review (phase P2). Nothing here is stable until the SDK is
+// released as 1.0; after that, v1 only grows (concept 5.10).
+//
+// Shared types of the contract between the wiki (the host) and an SDK
+// plugin, which runs as its own process and talks gRPC over Unix sockets.
+syntax = "proto3";
+
+package ewiki.plugin.v1;
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/mtsonline/enterprisewiki/sdk/proto/ewiki/plugin/v1;pluginv1";
+
+// LocalizedText holds a text per language. "en" is required; the wiki
+// falls back to it. Keys are BCP 47 tags ("de", "en", "pt-BR").
+message LocalizedText {
+  map<string, string> text = 1;
+}
+
+// Principal is who a call acts for, as the host checked it. The plugin
+// never decides this itself.
+message Principal {
+  enum Kind {
+    KIND_UNSPECIFIED = 0;
+    // A person, signed in. Calls back to the host with the call token act
+    // with the intersection of the person's and the plugin's rights.
+    KIND_USER = 1;
+    // A guest without sign-in (public pages).
+    KIND_GUEST = 2;
+    // The plugin's own technical account "plugin:<id>" (jobs, events):
+    // only the rights the administrator confirmed, never administrator
+    // rights.
+    KIND_PLUGIN = 3;
+  }
+  Kind kind = 1;
+  // Wiki user id; 0 for guests and the plugin account.
+  int64 user_id = 2;
+  // Stable handle "name@provider" for display and audit; empty for guests.
+  string handle = 3;
+  string display_name = 4;
+  // Preferred language of the person (BCP 47).
+  string language = 5;
+}
+
+// CallContext comes with every call from the host to the plugin that
+// acts for someone.
+message CallContext {
+  // Id of the request, for logs and audit (also in the host's logs).
+  string request_id = 1;
+  Principal principal = 2;
+  // Short-lived token bound to this request, this person and this plugin.
+  // The plugin sends it back in the metadata "ewiki-call-token" when it
+  // calls the host for this request. It is useless to anyone else and
+  // expires with the request (at the latest after the limit
+  // "core.plugins.call_token_seconds").
+  string call_token = 3;
+  // Site the request belongs to (multi-site); empty for the main site.
+  string site = 4;
+  // Language of the interface for this request.
+  string language = 5;
+  // Deadline of the request as the host sees it; gRPC deadlines are set
+  // as well.
+  google.protobuf.Timestamp deadline = 6;
+}
+
+// ErrorInfo is attached to failed calls as a gRPC status detail, in both
+// directions. Code is stable and machine readable, the same codes as in
+// the wiki's HTTP API ("not_found", "forbidden", "conflict",
+// "bad_request", "too_large", "rate_limited", "busy", ...). Plugins use
+// their own codes prefixed with their id ("acme.kanban.board_full").
+message ErrorInfo {
+  string code = 1;
+  // Message for people, English; translated by the UI key "error.<code>"
+  // when one exists.
+  string message = 2;
+  // Field the error refers to (path in the request, "settings.url").
+  string field = 3;
+  // True if repeating the same call later can succeed (busy, rate limit).
+  bool retryable = 4;
+}
+
+// PageRequest and PageResponse page through long lists. The cursor is
+// opaque; a list never returns more than the host's limit, whatever is
+// asked.
+message PageRequest {
+  int32 size = 1;
+  string cursor = 2;
+}
+
+message PageResponse {
+  // Empty when there is nothing more.
+  string next_cursor = 1;
+}
+
+// Schema is a JSON Schema in the subset the wiki supports (see the review
+// document, section "Schemas"): type, properties, required, enum, const,
+// minimum, maximum, minLength, maxLength, pattern (RE2), format (email,
+// uri, date, date-time, uuid), items, minItems, maxItems,
+// additionalProperties (always false unless set), title and description
+// (with "x-ewiki-i18n" for translations), default. Anything outside the
+// subset is refused when the plugin is installed, so the host can check
+// every input and build accessible forms from it.
+message Schema {
+  // The schema as JSON text.
+  string json = 1;
+}
