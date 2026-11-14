@@ -139,6 +139,16 @@
       "depNameTemplate": "postgres",
       "datasourceTemplate": "docker",
       "versioningTemplate": "docker"
+    },
+    {
+      "customType": "regex",
+      "description": "versions of test systems in scripts (annotated with '# renovate: datasource=… depName=…')",
+      "managerFilePatterns": [
+        "/^tests/auth/start\\.sh$/"
+      ],
+      "matchStrings": [
+        "# renovate: datasource=(?<datasource>[a-z-]+) depName=(?<depName>\\S+)\\n[A-Z_]+=(?<currentValue>\\S+)"
+      ]
     }
   ]
 }

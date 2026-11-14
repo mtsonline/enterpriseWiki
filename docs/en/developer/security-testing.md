@@ -34,6 +34,25 @@ OnlyOffice only with a valid JWT and downloads only from the configured server (
 proof keys (key rotation, overflow, too short keys included), `internal/pagecache` that token URLs never end up in the
 guest cache.
 
+## Sign-in against real systems
+
+In addition to the tests with replicated sign-in providers (`sso_test.go`), the CI (job "auth") runs tests against
+real systems: Keycloak as OpenID Connect and SAML provider and OpenLDAP with `memberOf`. Both run as normal
+processes without containers, locally just as in the CI.
+
+```bash
+eval "$(tests/auth/start.sh)"           # starts Keycloak and OpenLDAP, prints the environment
+EWIKI_TEST_DATABASE_URL=… go test -race -run TestReal ./internal/server/
+(cd web && EWIKI_E2E_URL=http://localhost:8080 npm run test:auth)   # browser test against a freshly set-up wiki
+tests/auth/start.sh stop
+```
+
+Checked among other things: sign-in through the real sign-in form, wrong password, mapping of groups and
+roles, back-channel logout (ending the session at the provider ends it in the wiki), signing out in the wiki also ends
+the session at the provider, a SAML response counts only once, LDAP filter injection, groups through `memberOf` and
+through a group search. Every test creates its own realm in Keycloak; passwords are generated anew on every
+start. Without the environment the tests are skipped, with `EWIKI_TEST_REQUIRE_REAL_AUTH=1` they fail.
+
 ## Test routine against a running instance (`tests/qa`)
 
 In addition to the checks above, a routine checks a running instance from outside: a functional test with 100 simultaneous users, a load test in stages up to 10,000 users and a penetration test with about 100 checks following OWASP WSTG, ASVS and API Security Top 10 (each with severity and CVSS vector), among them a sweep over all routes from `api.md` with the IDs of private objects.

@@ -1,0 +1,49 @@
+# Test directory for tests/auth/start.sh (OpenLDAP with the memberof overlay).
+# @USER_PASSWORD@ is replaced with a password generated on every start.
+
+dn: dc=example,dc=com
+objectClass: dcObject
+objectClass: organization
+o: Example
+dc: example
+
+dn: ou=people,dc=example,dc=com
+objectClass: organizationalUnit
+ou: people
+
+dn: ou=groups,dc=example,dc=com
+objectClass: organizationalUnit
+ou: groups
+
+dn: uid=alice,ou=people,dc=example,dc=com
+objectClass: inetOrgPerson
+uid: alice
+cn: Alice Example
+sn: Example
+givenName: Alice
+mail: alice@example.com
+userPassword: @USER_PASSWORD@
+
+dn: uid=bob,ou=people,dc=example,dc=com
+objectClass: inetOrgPerson
+uid: bob
+cn: Bob Example
+sn: Example
+givenName: Bob
+mail: bob@example.com
+userPassword: @USER_PASSWORD@
+
+dn: cn=engineering,ou=groups,dc=example,dc=com
+objectClass: groupOfNames
+cn: engineering
+member: uid=alice,ou=people,dc=example,dc=com
+
+dn: cn=wiki-admins,ou=groups,dc=example,dc=com
+objectClass: groupOfNames
+cn: wiki-admins
+member: uid=alice,ou=people,dc=example,dc=com
+
+dn: cn=sales,ou=groups,dc=example,dc=com
+objectClass: groupOfNames
+cn: sales
+member: uid=bob,ou=people,dc=example,dc=com

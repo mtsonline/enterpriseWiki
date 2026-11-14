@@ -82,5 +82,5 @@ For reliable capacity figures start the load generator on a **second computer** 
 
 - The proxy variant checks the interaction with the reverse proxy (addresses, compression, WebSocket, HTTP/2), not its certificate retrieval (ACME) and not HTTP/3. With HTTP/2 the load generator bundles many users onto few connections; real browsers open one per user.
 - An HTTP test does not see script in the browser (DOM-based XSS): browser tests and a browser scanner (e.g. OWASP ZAP) complement this.
-- The Go tests check sign-in through real identity providers, SCIM clients and office servers with replicated servers.
+- Sign-in is checked by the Go tests with replicated providers and additionally against real Keycloak (OIDC, SAML) and OpenLDAP (`tests/auth/start.sh`, CI job "auth"); office servers run for real in the CI job "office". SCIM clients are only replicated so far.
 - An automatic test does not replace a penetration test by an independent body, as certifications require.

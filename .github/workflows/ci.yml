@@ -214,6 +214,74 @@ jobs:
             /tmp/office-logs/
           retention-days: 7
 
+  auth:
+    name: Sign-in against real systems (Keycloak OIDC and SAML, OpenLDAP)
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:${{ inputs.latest && 'latest' || '18' }} # renovate: postgres 18
+        env: { POSTGRES_USER: wiki, POSTGRES_PASSWORD: wiki, POSTGRES_DB: wiki }
+        ports: ["5432:5432"]
+        options: --health-cmd pg_isready --health-interval 5s --health-timeout 5s --health-retries 20
+    env:
+      EWIKI_CONFIG: /tmp/wiki/config.yaml
+      EWIKI_DATABASE_URL: postgres://wiki:wiki@localhost:5432/wiki?sslmode=disable
+      EWIKI_ADMIN_PASSWORD: Admin-Passw0rd!
+      EWIKI_TEST_REQUIRE_REAL_AUTH: "1"
+    steps:
+      - uses: actions/checkout@v7
+      - name: Go version from go.mod
+        id: gover
+        run: echo "version=$(sed -n 's/^toolchain go//p' go.mod | grep . || sed -n 's/^go //p' go.mod)" >> "$GITHUB_OUTPUT"
+      - uses: actions/setup-go@v7
+        with: { go-version: "${{ steps.gover.outputs.version }}" }
+      - uses: actions/setup-node@v7
+        with: { node-version: "26" }
+      # Keycloak needs Java 21
+      - uses: actions/setup-java@v6
+        with: { distribution: temurin, java-version: "21" }
+      - name: OpenLDAP
+        run: |
+          sudo apt-get update -q
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -q slapd ldap-utils
+      - name: start Keycloak and OpenLDAP
+        run: |
+          tests/auth/start.sh > /tmp/auth.env
+          # the generated passwords never appear in the log
+          sed -n 's/^export EWIKI_TEST_[A-Z_]*PASSWORD=\(.*\)$/::add-mask::\1/p' /tmp/auth.env
+          sed 's/^export //' /tmp/auth.env >> "$GITHUB_ENV"
+          rm /tmp/auth.env
+      - name: Go tests against the real systems (race detector)
+        run: go test -race -count=1 -run 'TestReal' -v ./internal/server/
+        env:
+          EWIKI_TEST_DATABASE_URL: ${{ env.DB_URL }}
+      - name: build and start the wiki
+        run: |
+          (cd web && npm ci --no-audit --no-fund)
+          ./scripts/build.sh
+          mkdir -p /tmp/wiki
+          ./bin/ewiki setup --non-interactive
+          nohup ./bin/ewiki serve > /tmp/wiki/server.log 2>&1 &
+          for i in $(seq 1 30); do curl -fs http://localhost:8080/readyz && break; sleep 1; done
+      - name: install browser
+        working-directory: web
+        # the package mirrors fail now and then: up to three tries
+        run: for try in 1 2 3; do npx playwright install --with-deps chromium && break; [ "$try" = 3 ] && exit 1; sleep $((try * 30)); done
+      - name: browser test (sign in at Keycloak, single logout, axe)
+        working-directory: web
+        run: npm run test:auth
+        env:
+          EWIKI_E2E_URL: http://localhost:8080
+      - name: logs of a failed test
+        if: failure()
+        run: |
+          tail -n 80 /tmp/wiki/server.log || true
+          tail -n 80 /tmp/ewiki-auth/keycloak.log || true
+          tail -n 40 /tmp/ewiki-auth/slapd.log || true
+      - name: stop the systems
+        if: always()
+        run: tests/auth/start.sh stop
+
   pg-versions:
     name: PostgreSQL versions for the upgrade test
     runs-on: ubuntu-latest
@@ -250,7 +318,7 @@ jobs:
   result:
     name: CI result
     if: always()
-    needs: [backend, security, e2e, docker, office, pg-versions, compose]
+    needs: [backend, security, e2e, docker, office, auth, pg-versions, compose]
     runs-on: ubuntu-latest
     steps:
       - name: all jobs succeeded
