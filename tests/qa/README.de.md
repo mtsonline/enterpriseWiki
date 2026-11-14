@@ -82,5 +82,5 @@ Für belastbare Kapazitätszahlen den Lastgenerator auf einem **zweiten Rechner*
 
 - Die Proxy-Variante prüft das Zusammenspiel mit dem Reverse Proxy (Adressen, Kompression, WebSocket, HTTP/2), nicht dessen Zertifikatsbezug (ACME) und nicht HTTP/3. Der Lastgenerator bündelt mit HTTP/2 viele Benutzer auf wenige Verbindungen; echte Browser öffnen je Benutzer eine eigene.
 - Skript im Browser (DOM-basiertes XSS) sieht ein HTTP-Test nicht: Browser-Tests und ein Browser-Scanner (z. B. OWASP ZAP) ergänzen das.
-- Anmeldung über echte Identity Provider, SCIM-Clients und Office-Server prüfen die Go-Tests mit nachgebauten Servern.
+- Die Anmeldung prüfen die Go-Tests mit nachgebauten Anbietern und zusätzlich gegen echtes Keycloak (OIDC, SAML) und OpenLDAP (`tests/auth/start.sh`, CI-Job „auth“); Office-Server laufen echt im CI-Job „office“. SCIM-Clients sind bisher nur nachgebaut.
 - Ein automatischer Test ersetzt keinen Penetrationstest durch eine unabhängige Stelle, wie ihn Zertifizierungen verlangen.

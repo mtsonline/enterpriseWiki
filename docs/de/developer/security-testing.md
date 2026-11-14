@@ -34,6 +34,25 @@ OnlyOffice nur mit gültigem JWT und Downloads nur vom eingestellten Server (SSR
 Proof-Keys (inkl. Schlüsselwechsel, Überlauf, zu kurze Schlüssel), `internal/pagecache` dass Token-URLs nie im
 Gast-Cache landen.
 
+## Anmeldung gegen echte Systeme
+
+Zusätzlich zu den Tests mit nachgebauten Anmeldeanbietern (`sso_test.go`) laufen in der CI (Job „auth“) Tests gegen
+echte Systeme: Keycloak als OpenID-Connect- und SAML-Anbieter und OpenLDAP mit `memberOf`. Beide laufen als normale
+Prozesse ohne Container, lokal genauso wie in der CI.
+
+```bash
+eval "$(tests/auth/start.sh)"           # startet Keycloak und OpenLDAP, gibt die Umgebung aus
+EWIKI_TEST_DATABASE_URL=… go test -race -run TestReal ./internal/server/
+(cd web && EWIKI_E2E_URL=http://localhost:8080 npm run test:auth)   # Browser-Test gegen ein frisch eingerichtetes Wiki
+tests/auth/start.sh stop
+```
+
+Geprüft wird unter anderem: Anmeldung über das echte Anmeldeformular, falsches Passwort, Zuordnung von Gruppen und
+Rollen, Back-Channel-Logout (Ende der Sitzung beim Anbieter beendet sie im Wiki), Abmelden im Wiki beendet auch die
+Sitzung beim Anbieter, eine SAML-Antwort gilt nur einmal, LDAP-Filter-Einschleusung, Gruppen über `memberOf` und
+über eine Gruppensuche. Jeder Test legt in Keycloak einen eigenen Realm an; Passwörter werden bei jedem Start neu
+erzeugt. Ohne die Umgebung werden die Tests übersprungen, mit `EWIKI_TEST_REQUIRE_REAL_AUTH=1` schlagen sie fehl.
+
 ## Testroutine gegen eine laufende Instanz (`tests/qa`)
 
 Zusätzlich zu den Prüfungen oben gibt es eine Routine, die eine laufende Instanz von außen prüft: Funktionstest mit 100 gleichzeitigen Benutzern, Lasttest in Stufen bis 10.000 Benutzer und ein Penetrationstest mit rund 100 Prüfungen nach OWASP WSTG, ASVS und API Security Top 10 (jede mit Schweregrad und CVSS-Vektor), darunter ein Durchlauf über alle Routen aus `api.md` mit den IDs privater Objekte.
