@@ -49,6 +49,12 @@ plugins:
     #       ref: v1.2.0
     #       description: Agile board as element type
     catalog: []
+    # Core plugins from these sources count as your organisation's and need
+    # no extra confirmation (docs/en/admin/plugins.md#origin-of-core-plugins):
+    # trusted_sources:
+    #     - prefix: https://git.example.com/wiki-plugins
+    #       note: Plugins of our team
+    # allow_external: true          # false: only official and trusted sources
     macros:
         shell_enabled: false
         http_allow: []

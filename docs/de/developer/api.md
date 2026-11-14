@@ -325,6 +325,11 @@ Verlangt das Konto einen zweiten Faktor, antwortet die Anmeldung mit `mfa_requir
 | `POST` | `/api/v1/admin/plugins/install` |
 | `DELETE` | `/api/v1/admin/plugins/{id}` |
 | `POST` | `/api/v1/admin/plugins/build` |
+| `POST` | `/api/v1/admin/plugins/origin` |
+| `GET` | `/api/v1/admin/plugins/sources` |
+| `POST` | `/api/v1/admin/plugins/sources` |
+| `DELETE` | `/api/v1/admin/plugins/sources` |
+| `PUT` | `/api/v1/admin/plugins/sources/external` |
 | `POST` | `/api/v1/admin/restart` |
 | `GET` | `/api/v1/admin/audit/search` |
 | `GET` | `/api/v1/admin/audit/export` |
@@ -372,6 +377,12 @@ Verlangt das Konto einen zweiten Faktor, antwortet die Anmeldung mit `mfa_requir
 | `POST` | `/api/v1/admin/demo` |
 | `DELETE` | `/api/v1/admin/demo` |
 | `POST` | `/api/v1/admin/reset` |
+
+**Herkunft von Core-Plugins** (nur Instanz-Administratoren, siehe [Plugins verwalten](../admin/plugins.md#herkunft-von-core-plugins)):
+
+- `POST /api/v1/admin/plugins/origin` mit `{"source": "…"}` prüft eine Quelle vor dem Installieren und antwortet `{"level": "official"|"organisation"|"external", "source": "…", "trusted": "…", "allowed": true}`.
+- `POST /api/v1/admin/plugins/install` und `POST /api/v1/admin/updates/{id}` nehmen `"accept_external": true` an. Fehlt die Bestätigung bei einer externen Quelle, antwortet das Wiki mit 400 und dem Code `external_not_accepted`; sind externe Quellen ausgeschaltet, mit 403. Die Antwort der Installation enthält `origin` (Stufe, Quelle, Commit, wer installiert hat). `GET /api/v1/admin/plugins` liefert `origins` je Plugin-ID.
+- `GET /api/v1/admin/plugins/sources` liefert `{"sources": [{"prefix", "note"}], "allow_external": true}`. `POST …/sources` mit `{"prefix", "note"}` trägt eine Quelle ein, `DELETE …/sources?prefix=…` entfernt sie, `PUT …/sources/external` mit `{"allow": false}` schaltet externe Quellen aus. Eintragen und Erlauben brauchen eine Browser-Sitzung mit Anmeldung in den letzten 15 Minuten (sonst 403 mit `reauth_required`) oder die Kommandozeile; API-Schlüssel werden abgelehnt.
 
 ### Plugins
 

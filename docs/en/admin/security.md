@@ -167,6 +167,17 @@ API: `GET /api/v1/admin/audit/search`, `/admin/audit/export`, `GET|PUT /admin/au
 - Configuration secrets are only in the environment or in `.env`. The database URL is masked in the interface.
 - All security-relevant changes end up in the audit log.
 
+## Installing core plugins
+
+Core plugins run inside the wiki process with all rights of the wiki. Therefore:
+
+- Installing, updating and trusted sources are for instance administrators only; site administrators can only switch plugins on and off for their site.
+- Every installation shows a warning first. The wiki decides the origin (official, organisation, external) from the source, never from what the plugin says. External sources additionally need an explicit confirmation, again on every update, and can be switched off completely (`plugins.allow_external: false`).
+- Trusted sources only apply at path boundaries. Adding one and allowing external sources again need a sign-in within the last 15 minutes or the command line on the server; a stolen API key is not enough.
+- The audit log records the origin, source, commit, the confirmation and the person acting.
+
+Details: [plugins.md](plugins.md#origin-of-core-plugins). SDK plugins, by contrast, run as a separate, isolated process.
+
 ## Macros with system access
 
 The shell and the HTTP macro are the only places where page content triggers something on the server. That is why:

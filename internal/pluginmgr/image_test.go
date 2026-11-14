@@ -122,7 +122,7 @@ func TestImageLayoutBuildAndLaunch(t *testing.T) {
 	if lm.BuildUnavailable() != "lite" {
 		t.Fatalf("lite can build: %q", lm.BuildUnavailable())
 	}
-	if _, err := lm.Install(context.Background(), root, ""); err == nil || !strings.Contains(err.Error(), "lite") {
+	if _, err := lm.Install(context.Background(), root, "", InstallOptions{}); err == nil || !strings.Contains(err.Error(), "lite") {
 		t.Fatalf("lite install: %v", err)
 	}
 }

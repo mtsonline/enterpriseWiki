@@ -106,6 +106,8 @@ Die jeweils aktuelle Version wird nie gelöscht. Gelöscht wird nur aus dem Papi
 | `dir` | Plugin-Verzeichnis im Quellbaum |
 | `catalog` | Plugins, die unter *Plugins* mit einem Klick installiert werden können (`id`, `name`, `repo`, optional `ref`, `description`) |
 | `macros.*` | Sicherheitsschalter für Shell- und HTTP-Makro, siehe unten. **Nur in dieser Datei änderbar**, nicht über Oberfläche oder API |
+| `trusted_sources` | vertrauenswürdige Quellen für Core-Plugins (`prefix`, optional `note`), siehe [plugins.md](plugins.md#herkunft-von-core-plugins); Änderungen in der Oberfläche brauchen eine frische Anmeldung |
+| `allow_external` | Core-Plugins aus externen Quellen erlauben, mit Warnung und Bestätigung (Standard `true`) |
 | `auto_restart_on_drop` | nach dem automatischen Bau von Plugins, die in den Plugin-Ordner kopiert wurden, sofort neu starten (Standard `false`: *Administration → Plugins* bietet **Neu starten** an); auch unter *Administration → Plugins* einstellbar |
 | `updates.check` | automatische Update-Prüfung beim Öffnen von *Administration → Updates* (Standard `true`) |
 | `updates.core_repo` | Repository des Kerns (Standard `github.com/mtsonline/enterpriseWiki`) |

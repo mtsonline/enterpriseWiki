@@ -1,6 +1,7 @@
 package server
 
 import (
+	"fmt"
 	"net/http"
 	"strconv"
 
@@ -9,6 +10,7 @@ import (
 
 	"github.com/mtsonline/enterprisewiki/internal/apperr"
 	"github.com/mtsonline/enterprisewiki/internal/coreplugin"
+	"github.com/mtsonline/enterprisewiki/internal/pluginmgr"
 	"github.com/mtsonline/enterprisewiki/internal/version"
 )
 
@@ -47,18 +49,27 @@ func (s *Server) routesM3() {
 	// POST /api/v1/admin/updates/{id} installs the latest release of a
 	// plugin and starts the rebuild (1-click update).
 	s.handle("POST /api/v1/admin/updates/{id}", func(w http.ResponseWriter, r *http.Request) (any, error) {
-		if err := requireAdmin(r); err != nil {
+		if err := requireInstance(r); err != nil { // replaces code shared by all sites
 			return nil, err
 		}
 		id := r.PathValue("id")
 		if id == "core" {
 			return nil, apperr.BadRequest("the core is updated with scripts/update.sh (or the update timer) on the server")
 		}
-		res, err := s.plugins.UpdatePlugin(r.Context(), id)
+		var in struct {
+			AcceptExternal bool `json:"accept_external"` // external plugins: confirm every update
+		}
+		if r.ContentLength != 0 {
+			if err := h.Decode(r, &in); err != nil {
+				return nil, err
+			}
+		}
+		res, err := s.plugins.UpdatePlugin(r.Context(), id, pluginmgr.InstallOptions{AcceptExternal: in.AcceptExternal, By: handleOf(r)})
 		if err != nil {
 			return nil, err
 		}
-		s.auditSettings(r, "plugin.update", id)
+		s.auditSettings(r, "plugin.update", fmt.Sprintf("%s level=%s source=%s commit=%s accepted=%v",
+			id, res.Origin.Level, res.Origin.Source, res.Origin.Commit, res.Origin.Accepted))
 		return res, nil
 	})
 }

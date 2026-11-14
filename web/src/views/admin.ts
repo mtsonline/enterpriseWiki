@@ -26,6 +26,7 @@ import { watchesAdmin } from './adminWatches';
 import { languagesAdmin } from './adminLanguages';
 import { sitesAdmin } from './adminSites';
 import { askFactor, mfaAdmin } from './adminMFA';
+import { askExternal, confirmInstall, isExternalRefusal, originBadge, originDetails, trustedSources, type Origin } from './adminPluginOrigin';
 
 interface User { id: number; username: string; provider: string; handle: string; display_name: string; email: string; language: string; disabled: boolean; locked_until: string | null; created_at: string; last_login_at: string | null; groups: number[]; roles: number[]; alias: string | null; alias_source: string; mfa: boolean }
 
@@ -346,6 +347,7 @@ interface PluginsResponse {
   auto_restart_on_drop: boolean;
   cluster: boolean;
   removable: string[];
+  origins: Record<string, Origin>;
 }
 
 /** waitForRestart reloads the page once the server answers again after a restart. */
@@ -404,7 +406,9 @@ async function plugins(panel: HTMLElement): Promise<void> {
   };
   const install = async (source: string, ref = '') => {
     try {
-      const res = await api.post<{ id: string; version: string; upgrade: boolean; building: boolean }>('admin/plugins/install', { source, ref });
+      const ok = await confirmInstall(source);
+      if (!ok) return;
+      const res = await api.post<{ id: string; version: string; upgrade: boolean; building: boolean }>('admin/plugins/install', { source, ref, accept_external: ok.acceptExternal });
       if (res.building) {
         toast(t(res.upgrade ? 'plugins.upgraded_building' : 'plugins.installed_building', { id: res.id, version: res.version }));
         followBuild(reload);
@@ -416,6 +420,7 @@ async function plugins(panel: HTMLElement): Promise<void> {
     } catch (e) { toast(errorText(e), 'error'); }
   };
   const lite = data.build_unavailable === 'lite';
+  const sources = isInstanceAdmin() ? await trustedSources(reload) : null;
   const removable = new Set(data.removable);
   const src = textInput({ placeholder: 'github.com/owner/repo' });
   const ref = textInput({ placeholder: 'v1.0.0' });
@@ -451,10 +456,10 @@ async function plugins(panel: HTMLElement): Promise<void> {
     // grouped by the type of the plugin (first kind)
     ...KIND_ORDER.filter((k) => data.installed.some((p) => (p.kinds[0] ?? 'general') === k)).map((k) => h('section', { class: 'ew-section', 'aria-labelledby': `pk-${k}` },
       h('h2', { id: `pk-${k}` }, t(`plugins.group.${k}`)),
-      table(t(`plugins.group.${k}`), [t('common.name'), t('plugins.version'), t('plugins.kinds'), t('plugins.extends'), t('common.status'), t('common.actions')],
+      table(t(`plugins.group.${k}`), [t('common.name'), t('plugins.version'), t('plugins.origin.column'), t('plugins.kinds'), t('plugins.extends'), t('common.status'), t('common.actions')],
       data.installed.filter((p) => (p.kinds[0] ?? 'general') === k).map((p) => h('tr', null,
         h('th', { scope: 'row' }, h('span', null, pluginName(p.id, p.name)), h('br'), h('code', null, p.id), h('p', { class: 'ew-help' }, p.description)),
-        h('td', null, p.version), h('td', null, p.kinds.map((k) => t(`plugins.kind.${k}`)).join(', ')),
+        h('td', null, p.version), h('td', null, originBadge(data.origins?.[p.id]), originDetails(data.origins?.[p.id])), h('td', null, p.kinds.map((k) => t(`plugins.kind.${k}`)).join(', ')),
         h('td', null, p.extends.join(', ') || '–', p.missing.length ? h('p', { class: 'ew-field-error' }, t('plugins.missing', { ids: p.missing.join(', ') })) : null),
         h('td', null, p.required ? h('span', { class: 'ew-badge ew-badge--info' }, t('plugins.required')) : null, ' ',
           p.active ? h('span', { class: 'ew-badge ew-badge--ok' }, t('plugins.active')) : h('span', { class: 'ew-badge ew-badge--warn' }, p.enabled ? t('plugins.inactive_deps') : t('plugins.inactive')),
@@ -475,6 +480,7 @@ async function plugins(panel: HTMLElement): Promise<void> {
             } catch (e) { toast(errorText(e), 'error'); }
           }, { variant: 'link', ariaLabel: t('plugins.remove_named', { name: pluginName(p.id, p.name) }) })))), '–'))),
     buildBox,
+    sources,
     data.catalog.length ? h('section', { class: 'ew-section', 'aria-labelledby': 'cat-h' }, h('h2', { id: 'cat-h' }, t('plugins.catalog')),
       table(t('plugins.catalog'), [t('common.name'), t('common.description'), t('plugins.source'), t('common.actions')],
         data.catalog.map((c) => h('tr', null, h('th', { scope: 'row' }, c.name, h('br'), h('code', null, c.id)), h('td', null, c.description ?? ''), h('td', null, c.repo),
@@ -496,7 +502,14 @@ async function updates(panel: HTMLElement, force: boolean): Promise<void> {
   const update = async (it: UpdateInfo) => {
     if (!(await confirmDialog(t('updates.confirm', { name: it.name, version: it.latest ?? '' }), t('updates.update')))) return;
     try {
-      await api.post(`admin/updates/${encodeURIComponent(it.id)}`);
+      try {
+        await api.post(`admin/updates/${encodeURIComponent(it.id)}`);
+      } catch (e) {
+        // an external source: the warning is confirmed again for every update
+        if (!isExternalRefusal(e)) throw e;
+        if (!(await askExternal(it.repo))) return;
+        await api.post(`admin/updates/${encodeURIComponent(it.id)}`, { accept_external: true });
+      }
       toast(t('updates.installing', { name: it.name }));
       navigate('/admin/plugins');
     } catch (e) { toast(errorText(e), 'error'); }

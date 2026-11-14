@@ -454,14 +454,25 @@ func (e *env) user(args []string) error {
 	})
 }
 
+// externalWarning is shown before an external core plugin is installed.
+const externalWarning = `Warning: this source is neither official nor entered as trusted.
+The code was not reviewed by anyone and runs with full rights in the wiki:
+it can read, change or pass on all content, accounts and secrets.
+Install it only if you reviewed the code yourself or trust the vendor,
+then repeat the command with --accept-external.`
+
 func (e *env) plugin(args []string) error {
 	if len(args) == 0 {
 		args = []string{"list"}
 	}
 	sub, args := args[0], args[1:]
+	if sub == "sources" {
+		return e.pluginSources(args)
+	}
 	fs := flag.NewFlagSet("plugin", flag.ContinueOnError)
 	ref := fs.String("ref", "", "git tag or branch")
 	build := fs.Bool("build", false, "rebuild the binary afterwards")
+	acceptExternal := fs.Bool("accept-external", false, "confirm the warning for a source that is neither official nor trusted")
 	var arg string
 	if len(args) > 0 && !strings.HasPrefix(args[0], "-") {
 		arg, args = args[0], args[1:]
@@ -510,9 +521,12 @@ func (e *env) plugin(args []string) error {
 			return nil
 		case "install":
 			if arg == "" {
-				return errors.New("usage: ewiki plugin install SOURCE [--ref TAG] [--build]")
+				return errors.New("usage: ewiki plugin install SOURCE [--ref TAG] [--build] [--accept-external]")
 			}
-			res, err := pm.Install(ctx, arg, *ref)
+			res, err := pm.Install(ctx, arg, *ref, pluginmgr.InstallOptions{AcceptExternal: *acceptExternal, By: "cli"})
+			if errors.Is(err, pluginmgr.ErrExternalNotAccepted) {
+				e.println(externalWarning)
+			}
 			if err != nil {
 				return err
 			}
@@ -553,7 +567,10 @@ func (e *env) plugin(args []string) error {
 			if it == nil || !it.Available {
 				return fmt.Errorf("no update available for %s", arg)
 			}
-			res, err := pm.Install(ctx, it.Repo, it.Tag)
+			res, err := pm.Install(ctx, it.Repo, it.Tag, pluginmgr.InstallOptions{AcceptExternal: *acceptExternal, By: "cli"})
+			if errors.Is(err, pluginmgr.ErrExternalNotAccepted) {
+				e.println(externalWarning)
+			}
 			if err != nil {
 				return err
 			}

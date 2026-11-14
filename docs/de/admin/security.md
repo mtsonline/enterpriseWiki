@@ -167,6 +167,17 @@ API: `GET /api/v1/admin/audit/search`, `/admin/audit/export`, `GET|PUT /admin/au
 - Konfigurationsgeheimnisse stehen nur in der Umgebung bzw. in `.env`. Die Datenbank-URL wird in der Oberfläche maskiert.
 - Alle sicherheitsrelevanten Änderungen landen im Audit-Protokoll.
 
+## Core-Plugins installieren
+
+Core-Plugins laufen im Wiki-Prozess mit allen Rechten des Wikis. Darum gilt:
+
+- Installieren, Aktualisieren und vertrauenswürdige Quellen sind nur für Instanz-Administratoren; Site-Administratoren können Plugins nur für ihre Site ein- und ausschalten.
+- Vor jeder Installation steht eine Warnung. Die Herkunft (offiziell, Organisation, extern) bestimmt das Wiki aus der Quelle, nie aus Angaben im Plugin. Externe Quellen brauchen zusätzlich eine ausdrückliche Bestätigung, bei jedem Update erneut, und lassen sich ganz ausschalten (`plugins.allow_external: false`).
+- Vertrauenswürdige Quellen gelten nur an Pfadgrenzen. Eintragen und das Wiedererlauben externer Quellen brauchen eine Anmeldung in den letzten 15 Minuten oder die Kommandozeile auf dem Server; ein gestohlener API-Schlüssel reicht dafür nicht.
+- Das Protokoll hält Herkunft, Quelle, Commit, die Bestätigung und die handelnde Person fest.
+
+Details: [plugins.md](plugins.md#herkunft-von-core-plugins). SDK-Plugins laufen dagegen als eigener, abgeschotteter Prozess.
+
 ## Makros mit Systemzugriff
 
 Das Shell- und das HTTP-Makro sind die einzigen Stellen, an denen Seiteninhalte etwas auf dem Server auslösen. Deshalb gilt:

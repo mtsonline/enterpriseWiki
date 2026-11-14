@@ -219,6 +219,18 @@ type InstallResult struct {
 	Dir             string `json:"dir"`
 	Upgrade         bool   `json:"upgrade"`
 	RebuildRequired bool   `json:"rebuild_required"`
+	Origin          Origin `json:"origin"`
+}
+
+// gitHead returns the commit of a git working tree, or "" when dir is none.
+func gitHead(ctx context.Context, dir string) string {
+	cctx, cancel := context.WithTimeout(ctx, 10*time.Second)
+	defer cancel()
+	out, err := exec.CommandContext(cctx, "git", "-C", dir, "rev-parse", "HEAD").Output() // #nosec G204 -- fixed git arguments, dir is the plugin source
+	if err != nil {
+		return ""
+	}
+	return strings.TrimSpace(string(out))
 }
 
 func (m *Manager) resolve(source, ref string) (gitURL, localDir, outRef string, err error) {
@@ -247,7 +259,11 @@ func (m *Manager) resolve(source, ref string) (gitURL, localDir, outRef string, 
 
 // Install installs or upgrades a plugin from source (catalog id, git URL,
 // github.com/owner/repo or local directory). A rebuild is required afterwards.
-func (m *Manager) Install(ctx context.Context, source, ref string) (*InstallResult, error) {
+//
+// The source decides the origin level (see CheckSource): an external source
+// is refused unless opt.AcceptExternal confirms the warning, and always when
+// external core plugins are switched off.
+func (m *Manager) Install(ctx context.Context, source, ref string, opt InstallOptions) (*InstallResult, error) {
 	if m.layout.Mode == ModeLite {
 		return nil, apperr.BadRequest("the lite image cannot install plugins: use the full image (ghcr.io/mtsonline/enterprisewiki:full) or your own build")
 	}
@@ -260,12 +276,25 @@ func (m *Manager) Install(ctx context.Context, source, ref string) (*InstallResu
 	if err != nil {
 		return nil, err
 	}
+	check, err := m.CheckSource(source)
+	if err != nil {
+		return nil, err
+	}
+	if check.Level == LevelExternal {
+		if !check.Allowed {
+			return nil, apperr.Forbidden("core plugins from external sources are switched off (plugins.allow_external)")
+		}
+		if !opt.AcceptExternal {
+			return nil, ErrExternalNotAccepted
+		}
+	}
 	tmp, err := os.MkdirTemp("", "ewiki-plugin-*")
 	if err != nil {
 		return nil, err
 	}
 	defer func() { _ = os.RemoveAll(tmp) }()
 	src := filepath.Join(tmp, "src")
+	var commit string
 	if gitURL != "" {
 		args := []string{"clone", "--depth", "1"}
 		if ref != "" {
@@ -279,8 +308,16 @@ func (m *Manager) Install(ctx context.Context, source, ref string) (*InstallResu
 		if out, err := cmd.CombinedOutput(); err != nil {
 			return nil, apperr.BadRequest("git clone failed: %s", strings.TrimSpace(string(out)))
 		}
+		commit = gitHead(ctx, src)
 		_ = os.RemoveAll(filepath.Join(src, ".git"))
-	} else if err := copyDir(local, src); err != nil {
+	} else {
+		commit = gitHead(ctx, local)
+		if err := copyDir(local, src); err != nil {
+			return nil, err
+		}
+	}
+	// a record coming with the sources is never trusted
+	if err := os.Remove(filepath.Join(src, originFile)); err != nil && !errors.Is(err, os.ErrNotExist) {
 		return nil, err
 	}
 	mf, err := ReadManifest(src)
@@ -307,6 +344,11 @@ func (m *Manager) Install(ctx context.Context, source, ref string) (*InstallResu
 		}
 	}
 	if err := copyDir(src, target); err != nil {
+		return nil, err
+	}
+	res.Origin = Origin{Level: check.Level, Source: check.Source, Trusted: check.Trusted, Ref: ref, Commit: commit,
+		InstalledBy: opt.By, InstalledAt: time.Now().UTC(), Accepted: check.Level == LevelExternal && opt.AcceptExternal}
+	if err := writeOrigin(target, res.Origin); err != nil {
 		return nil, err
 	}
 	if !m.layout.Image() {

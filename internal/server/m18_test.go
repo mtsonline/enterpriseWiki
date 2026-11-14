@@ -108,6 +108,12 @@ func TestMultiSite(t *testing.T) {
 	sa.must("PUT", fmt.Sprintf("/api/v1/admin/users/%d", u.ID), map[string]any{"display_name": "Renamed"}, nil, 403)
 	sa.must("GET", "/api/v1/instance/sites", nil, nil, 403)
 	sa.must("PUT", "/api/v1/admin/license", map[string]string{"key": "x"}, nil, 403)
+	// installing and updating code, trusted sources: instance only
+	sa.must("POST", "/api/v1/admin/plugins/install", map[string]any{"source": "https://git.example.com/team/x"}, nil, 403)
+	sa.must("POST", "/api/v1/admin/updates/core.reactions", nil, nil, 403)
+	sa.must("POST", "/api/v1/admin/plugins/sources", map[string]any{"prefix": "https://git.example.com/team"}, nil, 403)
+	sa.must("PUT", "/api/v1/admin/plugins/sources/external", map[string]any{"allow": true}, nil, 403)
+	sa.must("DELETE", "/api/v1/admin/plugins/sources?prefix=https://git.example.com/team", nil, nil, 403)
 	// role assignments of the own site are allowed
 	sa.must("PUT", fmt.Sprintf("/api/v1/admin/users/%d", u.ID), map[string]any{"roles": []int64{adminRole}}, nil, 200)
 	// on main the same user has no rights
