@@ -1,0 +1,237 @@
+// DRAFT for review (phase P2, SDK 1.0.0-preview).
+//
+// Files:
+// - FileHandlers: viewers for file types the browser cannot show (CAD,
+//   diagrams, archives, ...), drawn as building blocks, remote UI or a
+//   sandboxed frame.
+// - Thumbnails: preview pictures and text extraction for search.
+// - UploadScanner: checks before an upload is stored (virus scanner, data
+//   loss prevention). What happens when the scanner does not answer in
+//   time, the administrator chooses (refuse is the default).
+// - StorageDriver: where the wiki keeps files (object stores, network
+//   drives, cloud drives). Chosen by the administrator per site and
+//   purpose; the host keeps the index, checksums and rights.
+// - OfficeProgram: office servers (WOPI or own protocol). The host serves
+//   the WOPI endpoints, checks tokens and rights and writes the versions;
+//   the plugin says how to start the program and checks the server's
+//   proof keys.
+syntax = "proto3";
+
+package ewiki.plugin.v1;
+
+import "ewiki/plugin/v1/common.proto";
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/mtsonline/enterprisewiki/sdk/proto/ewiki/plugin/v1;pluginv1";
+
+service FileHandlers {
+  rpc View(ViewFileRequest) returns (ViewFileResponse);
+}
+
+service Thumbnails {
+  // The file comes as a stream (head, then chunks); the answer is a
+  // picture (WebP or PNG) and optional text.
+  rpc Thumbnail(stream FileStreamPart) returns (ThumbnailResponse);
+}
+
+service UploadScanner {
+  rpc Scan(stream FileStreamPart) returns (ScanResponse);
+}
+
+service StorageDriver {
+  rpc Put(stream StoragePutPart) returns (StorageObject);
+  rpc Get(StorageGetRequest) returns (stream Chunk);
+  rpc Stat(StorageKeyRequest) returns (StorageObject);
+  rpc Delete(StorageKeyRequest) returns (StorageDeleteResponse);
+  rpc List(StorageListRequest) returns (StorageListResponse);
+  // Health and free space, for the administration.
+  rpc Status(StorageStatusRequest) returns (StorageStatusResponse);
+}
+
+service OfficeProgram {
+  rpc Supports(OfficeSupportsRequest) returns (OfficeSupportsResponse);
+  rpc Launch(OfficeLaunchRequest) returns (OfficeLaunchResponse);
+  // Check the proof signature of a WOPI request from the office server.
+  rpc VerifyProof(VerifyProofRequest) returns (VerifyProofResponse);
+  // Program-specific fields of WOPI CheckFileInfo.
+  rpc ExtendFileInfo(ExtendFileInfoRequest) returns (ExtendFileInfoResponse);
+}
+
+message FileStreamPart {
+  oneof part {
+    FileHead head = 1;
+    Chunk chunk = 2;
+  }
+}
+
+message FileHead {
+  ObjectRef ref = 1;
+  string name = 2;
+  string content_type = 3;
+  int64 size = 4;
+  // Who uploads (for scanners that log it); empty for thumbnails.
+  Principal uploader = 5;
+}
+
+message ViewFileRequest {
+  CallContext context = 1;
+  ObjectRef file = 2;
+  string name = 3;
+  string content_type = 4;
+  // The person may download it (otherwise the view must not offer it).
+  bool download = 5;
+}
+
+message ViewFileResponse {
+  // Tree of building blocks (ewiki.ui.v1, phase P4), or the id of a UI
+  // contribution (remote UI or frame) with its parameters.
+  string tree_json = 1;
+  string ui = 2;
+  string params_json = 3;
+}
+
+message ThumbnailResponse {
+  FileData picture = 1;
+  // Text for the search index (at most the limit
+  // "core.plugins.extract_kb").
+  string text = 2;
+  int32 pages = 3;
+}
+
+message ScanResponse {
+  enum Verdict {
+    VERDICT_UNSPECIFIED = 0;
+    VERDICT_CLEAN = 1;
+    VERDICT_INFECTED = 2;
+    // Breaks a rule (e.g. contains macros, personal data); refused with
+    // the reason.
+    VERDICT_POLICY = 3;
+    // Could not check (e.g. encrypted archive); the administrator's
+    // setting decides.
+    VERDICT_UNKNOWN = 4;
+  }
+  Verdict verdict = 1;
+  string finding = 2;
+  string engine = 3;
+}
+
+message StoragePutPart {
+  oneof part {
+    StoragePutHead head = 1;
+    Chunk chunk = 2;
+  }
+}
+
+message StoragePutHead {
+  // Instance of the driver (settings) and the object key the host chose
+  // (content address, e.g. "sha256/ab/cd/abcd...").
+  string instance = 1;
+  string key = 2;
+  int64 size = 3;
+  bytes sha256 = 4;
+  string content_type = 5;
+}
+
+message StorageObject {
+  string key = 1;
+  int64 size = 2;
+  bytes sha256 = 3;
+  google.protobuf.Timestamp modified_at = 4;
+}
+
+message StorageGetRequest {
+  string instance = 1;
+  string key = 2;
+  int64 offset = 3;
+  int64 length = 4;
+}
+
+message StorageKeyRequest {
+  string instance = 1;
+  string key = 2;
+}
+
+message StorageDeleteResponse {}
+
+message StorageListRequest {
+  string instance = 1;
+  string prefix = 2;
+  PageRequest page = 3;
+}
+
+message StorageListResponse {
+  repeated StorageObject objects = 1;
+  PageResponse page = 2;
+}
+
+message StorageStatusRequest {
+  string instance = 1;
+}
+
+message StorageStatusResponse {
+  bool ok = 1;
+  string message = 2;
+  // -1 when unknown.
+  int64 free_bytes = 3;
+}
+
+message OfficeSupportsRequest {
+  string name = 1;
+  string content_type = 2;
+}
+
+message OfficeSupportsResponse {
+  bool view = 1;
+  bool edit = 2;
+}
+
+message OfficeLaunchRequest {
+  CallContext context = 1;
+  ObjectRef file = 2;
+  string name = 3;
+  // "edit" or "view".
+  string mode = 4;
+  // No download, print, export or copy.
+  bool restricted = 5;
+  // Text to show over the document ("" = none).
+  string watermark = 6;
+  // Access token for the office server only (secret).
+  string token = 7;
+  google.protobuf.Timestamp expires_at = 8;
+  // Public address of the site and the WOPI address of the file.
+  string base_url = 9;
+  string wopi_src = 10;
+}
+
+message OfficeLaunchResponse {
+  // How the browser starts the program: "wopi" (form posted into a
+  // frame) or a kind the plugin's frame handles.
+  string kind = 1;
+  string url = 2;
+  map<string, string> form = 3;
+  string config_json = 4;
+  // Origin of the office server (frame-src, form-action).
+  string origin = 5;
+}
+
+message VerifyProofRequest {
+  string token = 1;
+  string full_url = 2;
+  map<string, string> headers = 3;
+}
+
+message VerifyProofResponse {
+  bool valid = 1;
+}
+
+message ExtendFileInfoRequest {
+  ObjectRef file = 1;
+  string mode = 2;
+  // CheckFileInfo as the host built it.
+  string info_json = 3;
+}
+
+message ExtendFileInfoResponse {
+  // Fields to add (the host refuses fields that would widen rights).
+  string add_json = 1;
+}

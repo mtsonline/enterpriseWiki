@@ -1,0 +1,299 @@
+// DRAFT for review (phase P2, SDK 1.0.0-preview).
+//
+// Sign-in and accounts:
+// - PasswordProvider: user name or e-mail and password (LDAP, Active
+//   Directory, other directories).
+// - RedirectProvider: sign-in at another service (OpenID Connect, SAML,
+//   social sign-in with own adapters).
+// - Directory: the people and groups of a directory, for the sync
+//   without sign-in.
+// - Provisioning: mapping for incoming provisioning (SCIM) where a
+//   provider needs its own rules.
+// - AccessDecision: decisions from outside (e.g. classification, attribute
+//   rules). Only with a cache and "refuse when in doubt".
+//
+// Rules the host keeps in every case: mapping of groups and roles, linking
+// by confirmed e-mail of trusted providers, lockout, second factors,
+// sessions and single logout. The identity of a person is the e-mail
+// address: the host resolves what was entered (any confirmed address, or
+// the user name) to the account first and then asks that account's
+// provider; a provider suffix is never needed.
+syntax = "proto3";
+
+package ewiki.plugin.v1;
+
+import "ewiki/plugin/v1/common.proto";
+
+option go_package = "github.com/mtsonline/enterprisewiki/sdk/proto/ewiki/plugin/v1;pluginv1";
+
+service PasswordProvider {
+  rpc Authenticate(AuthenticateRequest) returns (AuthenticateResponse);
+  // Optional: change the password at the directory (if the instance
+  // allows it).
+  rpc ChangePassword(ChangePasswordRequest) returns (ChangePasswordResponse);
+}
+
+service RedirectProvider {
+  // Where to send the browser; the host keeps state, nonce and PKCE
+  // verifier and checks them on return.
+  rpc StartSignIn(StartSignInRequest) returns (StartSignInResponse);
+  // The browser came back to the host's callback; the host passes on what
+  // the provider sent (query or form fields).
+  rpc FinishSignIn(FinishSignInRequest) returns (FinishSignInResponse);
+  // Sign out at the provider (single logout), if supported.
+  rpc StartSignOut(StartSignOutRequest) returns (StartSignOutResponse);
+  // A sign-out the provider started (back channel or front channel).
+  rpc HandleSignOut(HandleSignOutRequest) returns (HandleSignOutResponse);
+  // Metadata the provider needs from the wiki (e.g. SAML service provider
+  // metadata), served by the host.
+  rpc Metadata(MetadataRequest) returns (MetadataResponse);
+}
+
+service Directory {
+  // The plugin lists the people of its directory; the host maps them like
+  // at a sign-in and applies its safety rules (share of accounts to
+  // disable, dry run, conflicts, never merging accounts on its own). The
+  // host starts it (schedule, by hand, in a cluster on one node only).
+  rpc ReadDirectory(ReadDirectoryRequest) returns (stream DirectoryEntry);
+  // One person, by subject (e.g. to re-read after a change).
+  rpc ReadPerson(ReadPersonRequest) returns (DirectoryEntry);
+}
+
+service Provisioning {
+  rpc MapUser(MapUserRequest) returns (MapUserResponse);
+}
+
+// MfaMethod: an additional second factor. The host keeps the chain of
+// factors, the rules per sign-in instance, rate limits and lockout; the
+// plugin checks one factor.
+service MfaMethod {
+  // The person sets the factor up (in the browser, within 15 minutes of
+  // signing in).
+  rpc BeginEnroll(MfaBeginRequest) returns (MfaChallenge);
+  rpc FinishEnroll(MfaFinishRequest) returns (MfaEnrollResponse);
+  // Checking at sign-in.
+  rpc BeginVerify(MfaBeginRequest) returns (MfaChallenge);
+  rpc FinishVerify(MfaFinishRequest) returns (MfaVerifyResponse);
+}
+
+service AccessDecision {
+  // Is the person allowed this action on this object, in addition to the
+  // wiki's own rights (never instead of them)? The host caches the answer
+  // for max_age and refuses when the plugin does not answer in time.
+  rpc Decide(DecideRequest) returns (DecideResponse);
+}
+
+// ExternalIdentity is a person as the provider reports it. The host maps
+// groups and roles (mapping per provider instance, in the core).
+message ExternalIdentity {
+  // Stable id at the provider (entryUUID, objectGUID, sub, NameID).
+  string subject = 1;
+  string username = 2;
+  string display_name = 3;
+  // All addresses the provider knows; the first is the primary one.
+  repeated string emails = 4;
+  // The provider confirms the addresses belong to the person.
+  bool email_verified = 5;
+  // Group names as the provider has them (before mapping).
+  repeated string groups = 6;
+  // Further attributes for the mapping (JSON object, strings and lists of
+  // strings only).
+  string attributes_json = 7;
+  string language = 8;
+}
+
+message AuthenticateRequest {
+  // Provider instance ("ldap-corp").
+  string instance = 1;
+  // What the host resolved: the account's subject and user name at this
+  // provider if the person is known, otherwise what was entered.
+  string login = 2;
+  string subject = 3;
+  // Only ever in this call, never stored or logged by the host; the SDK
+  // clears it after use.
+  string password = 4;
+  string request_id = 5;
+}
+
+message AuthenticateResponse {
+  enum Result {
+    RESULT_UNSPECIFIED = 0;
+    RESULT_OK = 1;
+    // Wrong user name or password: the host counts it for the lockout and
+    // answers like for every wrong sign-in (no hint which part was wrong).
+    RESULT_INVALID = 2;
+    // The account is disabled at the provider.
+    RESULT_DISABLED = 3;
+    // The password expired and must be changed at the provider.
+    RESULT_PASSWORD_EXPIRED = 4;
+    // The provider cannot be reached: the host tries the next provider
+    // and shows the administrators a notice.
+    RESULT_UNAVAILABLE = 5;
+  }
+  Result result = 1;
+  ExternalIdentity identity = 2;
+}
+
+message ChangePasswordRequest {
+  string instance = 1;
+  string subject = 2;
+  string old_password = 3;
+  string new_password = 4;
+}
+
+message ChangePasswordResponse {
+  repeated ErrorInfo problems = 1;
+}
+
+message StartSignInRequest {
+  string instance = 1;
+  // Host's callback address, state and nonce, PKCE challenge.
+  string callback_url = 2;
+  string state = 3;
+  string nonce = 4;
+  string code_challenge = 5;
+  // Hint which account to use (e.g. an e-mail address), if known.
+  string login_hint = 6;
+  string language = 7;
+}
+
+message StartSignInResponse {
+  // Address to send the browser to; or a form to post (SAML).
+  string redirect_url = 1;
+  string form_action = 2;
+  map<string, string> form_fields = 3;
+}
+
+message FinishSignInRequest {
+  string instance = 1;
+  string callback_url = 2;
+  // Query or form fields from the provider.
+  map<string, string> params = 3;
+  // What the host stored for this sign-in (checked by the host already).
+  string nonce = 4;
+  string code_verifier = 5;
+}
+
+message FinishSignInResponse {
+  ExternalIdentity identity = 1;
+  // Session at the provider, for single logout (OIDC sid, SAML
+  // SessionIndex), and what is needed to end it.
+  string provider_session = 2;
+  string logout_hint = 3;
+}
+
+message StartSignOutRequest {
+  string instance = 1;
+  string provider_session = 2;
+  string logout_hint = 3;
+  string return_url = 4;
+}
+
+message StartSignOutResponse {
+  // Empty when the provider has no sign-out.
+  string redirect_url = 1;
+}
+
+message HandleSignOutRequest {
+  string instance = 1;
+  map<string, string> params = 2;
+  // Raw body of a back-channel call (e.g. a logout token).
+  bytes body = 3;
+}
+
+message HandleSignOutResponse {
+  // Sessions at the provider that ended; the host ends the wiki's
+  // sessions belonging to them.
+  repeated string provider_sessions = 1;
+  repeated string subjects = 2;
+  // What to answer the provider (status, body).
+  int32 status = 3;
+  bytes body = 4;
+  string content_type = 5;
+}
+
+message MetadataRequest {
+  string instance = 1;
+}
+
+message MetadataResponse {
+  string content_type = 1;
+  bytes body = 2;
+}
+
+message ReadDirectoryRequest {
+  string instance = 1;
+  string request_id = 2;
+}
+
+message DirectoryEntry {
+  ExternalIdentity identity = 1;
+  // The directory reports the person as disabled.
+  bool disabled = 2;
+}
+
+message ReadPersonRequest {
+  string instance = 1;
+  string subject = 2;
+}
+
+message MapUserRequest {
+  // Provisioning client (SCIM access) and the user resource as sent.
+  string client = 1;
+  string resource_json = 2;
+}
+
+message MapUserResponse {
+  ExternalIdentity identity = 1;
+}
+
+message MfaBeginRequest {
+  PersonRef person = 1;
+  // What the plugin stored at enrolment (sealed by the host).
+  bytes enrolment = 2;
+  string language = 3;
+}
+
+message MfaChallenge {
+  // For the browser (shown with building blocks or the plugin's frame).
+  string challenge_json = 1;
+  // Kept by the host until Finish.
+  bytes state = 2;
+}
+
+message MfaFinishRequest {
+  PersonRef person = 1;
+  bytes enrolment = 2;
+  bytes state = 3;
+  string answer_json = 4;
+}
+
+message MfaEnrollResponse {
+  bool ok = 1;
+  // Stored sealed by the host, passed back on every check.
+  bytes enrolment = 2;
+  // Name the person sees in their list of factors.
+  string label = 3;
+}
+
+message MfaVerifyResponse {
+  bool ok = 1;
+  // Updated enrolment (e.g. a counter), if it changed.
+  bytes enrolment = 2;
+}
+
+message DecideRequest {
+  Principal principal = 1;
+  ObjectRef object = 2;
+  // "read", "edit", "download", "share", ...
+  string action = 3;
+  // Properties of the object relevant to the decision (as declared).
+  string properties_json = 4;
+}
+
+message DecideResponse {
+  bool allowed = 1;
+  // Reason for the person if refused (shown, translated by key).
+  string reason_key = 2;
+  int64 max_age_seconds = 3;
+}

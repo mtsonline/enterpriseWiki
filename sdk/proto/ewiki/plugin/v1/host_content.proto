@@ -1,0 +1,362 @@
+// DRAFT for review (phase P2, SDK 1.0.0-preview).
+//
+// Content ("content@1"): elements (pages and other element types),
+// categories and spaces, properties, comments, and the plugin's own data
+// attached to elements. Grants content.read / content.write; with a call
+// token only what the person may see or change. Objects of federated
+// wikis are read live through the federation (scope.instance set), never
+// mirrored.
+syntax = "proto3";
+
+package ewiki.plugin.v1;
+
+import "ewiki/plugin/v1/common.proto";
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/mtsonline/enterprisewiki/sdk/proto/ewiki/plugin/v1;pluginv1";
+
+service Content {
+  rpc GetElement(GetElementRequest) returns (Element);
+  rpc ListElements(ListElementsRequest) returns (ListElementsResponse);
+  // Query by properties (the property database): filters, sort, paging.
+  rpc QueryElements(QueryElementsRequest) returns (ListElementsResponse);
+  rpc CreateElement(CreateElementRequest) returns (Element);
+  // Optimistic: base_revision must be the current one, otherwise ABORTED
+  // with code "conflict". Nothing is overwritten silently.
+  rpc UpdateElement(UpdateElementRequest) returns (Element);
+  // Moves to the trash; nothing is deleted for good.
+  rpc TrashElement(TrashElementRequest) returns (TrashElementResponse);
+  rpc ListRevisions(ListRevisionsRequest) returns (ListRevisionsResponse);
+  rpc Search(SearchRequest) returns (SearchResponse);
+
+  rpc GetCategory(GetCategoryRequest) returns (Category);
+  rpc ListCategories(ListCategoriesRequest) returns (ListCategoriesResponse);
+
+  rpc ListComments(ListCommentsRequest) returns (ListCommentsResponse);
+  rpc AddComment(AddCommentRequest) returns (Comment);
+
+  // Resolve a source definition (the flexible sources of reading plugins
+  // and macros: categories, tags, properties, search, other plugins'
+  // source types) to elements the person may see.
+  rpc ResolveSource(ResolveSourceRequest) returns (ListElementsResponse);
+
+  // The plugin's own data on an element (manifest: element_data). It is
+  // versioned with the element, copied with it, exported, imported and
+  // federated, and deleted with it. Only this plugin reads and writes it;
+  // the host checks it against the declared schema.
+  rpc GetElementData(GetElementDataRequest) returns (ElementData);
+  rpc PutElementData(PutElementDataRequest) returns (ElementData);
+  rpc DeleteElementData(DeleteElementDataRequest) returns (DeleteElementDataResponse);
+}
+
+// Element is a page or another element type. The body depends on the
+// type; for pages: {"format": "markdown", "source": "..."}.
+message Element {
+  ObjectRef ref = 1;
+  string type = 2;
+  ObjectRef category = 3;
+  LocalizedText title = 4;
+  // Only with with_body and the right to edit.
+  string body_json = 5;
+  // Cleaned HTML for display (read only).
+  string html = 6;
+  // Properties as a JSON object (key -> value); only those the person may
+  // see.
+  string properties_json = 7;
+  repeated string tags = 8;
+  int64 revision = 9;
+  google.protobuf.Timestamp created_at = 10;
+  google.protobuf.Timestamp updated_at = 11;
+  PersonRef created_by = 12;
+  PersonRef updated_by = 13;
+  // Address inside the wiki ("/p/17-title" or the short address).
+  string path = 14;
+  // Language of this version (translations are elements of their own
+  // linked by translation_of).
+  string language = 15;
+  ObjectRef translation_of = 16;
+}
+
+message GetElementRequest {
+  ObjectRef ref = 1;
+  bool with_body = 2;
+  // A past revision; 0 for the current one.
+  int64 revision = 3;
+}
+
+message ListElementsRequest {
+  ObjectRef category = 1;
+  // Include subcategories.
+  bool recursive = 2;
+  repeated string types = 3;
+  google.protobuf.Timestamp updated_since = 4;
+  PageRequest page = 5;
+}
+
+message QueryElementsRequest {
+  // Filter in the wiki's query format (the same as the property report):
+  // a JSON object, e.g. {"and": [{"prop": "status", "eq": "open"},
+  // {"type": "core.html"}]}.
+  string filter_json = 1;
+  // Sort keys: property or field names, "-" for descending.
+  repeated string sort = 2;
+  ObjectRef category = 3;
+  bool recursive = 4;
+  PageRequest page = 5;
+}
+
+message ListElementsResponse {
+  repeated Element elements = 1;
+  PageResponse page = 2;
+}
+
+message CreateElementRequest {
+  string type = 1;
+  ObjectRef category = 2;
+  LocalizedText title = 3;
+  string body_json = 4;
+  string properties_json = 5;
+  repeated string tags = 6;
+  // Repeating with the same key returns the element created first.
+  string idempotency_key = 7;
+  // Create as a draft (not visible until published).
+  bool draft = 8;
+}
+
+message UpdateElementRequest {
+  ObjectRef ref = 1;
+  int64 base_revision = 2;
+  // Only the fields that are set change.
+  LocalizedText title = 3;
+  optional string body_json = 4;
+  optional string properties_json = 5;
+  repeated string tags = 6;
+  bool set_tags = 7;
+  // Short note for the version history.
+  string comment = 8;
+}
+
+message TrashElementRequest {
+  ObjectRef ref = 1;
+}
+
+message TrashElementResponse {}
+
+message ListRevisionsRequest {
+  ObjectRef ref = 1;
+  PageRequest page = 2;
+}
+
+message ListRevisionsResponse {
+  message Revision {
+    int64 revision = 1;
+    google.protobuf.Timestamp at = 2;
+    PersonRef by = 3;
+    string comment = 4;
+  }
+  repeated Revision revisions = 1;
+  PageResponse page = 2;
+}
+
+message SearchRequest {
+  string query = 1;
+  repeated string types = 2;
+  ObjectRef category = 3;
+  string language = 4;
+  // Also search the federated wikis the person can use.
+  bool federated = 5;
+  PageRequest page = 6;
+}
+
+message SearchResponse {
+  message Hit {
+    ObjectRef ref = 1;
+    LocalizedText title = 2;
+    // Short excerpt, plain text.
+    string excerpt = 3;
+    string path = 4;
+    float score = 5;
+  }
+  repeated Hit hits = 1;
+  PageResponse page = 2;
+}
+
+message Category {
+  ObjectRef ref = 1;
+  ObjectRef parent = 2;
+  LocalizedText title = 3;
+  // Top-level categories are spaces (key and short address).
+  bool space = 4;
+  string key = 5;
+  string path = 6;
+}
+
+message GetCategoryRequest {
+  ObjectRef ref = 1;
+}
+
+message ListCategoriesRequest {
+  // Empty: top level.
+  ObjectRef parent = 1;
+  PageRequest page = 2;
+}
+
+message ListCategoriesResponse {
+  repeated Category categories = 1;
+  PageResponse page = 2;
+}
+
+message Comment {
+  ObjectRef ref = 1;
+  ObjectRef element = 2;
+  // Reply to.
+  ObjectRef parent = 3;
+  PersonRef author = 4;
+  // Markdown; the host cleans what it renders.
+  string text = 5;
+  google.protobuf.Timestamp at = 6;
+}
+
+message ListCommentsRequest {
+  ObjectRef element = 1;
+  PageRequest page = 2;
+}
+
+message ListCommentsResponse {
+  repeated Comment comments = 1;
+  PageResponse page = 2;
+}
+
+message AddCommentRequest {
+  ObjectRef element = 1;
+  ObjectRef parent = 2;
+  string text = 3;
+  string idempotency_key = 4;
+}
+
+message ResolveSourceRequest {
+  // Source definition as stored by the source picker (JSON).
+  string source_json = 1;
+  // Narrowing by the viewer (filters chosen on the page).
+  string narrowing_json = 2;
+  PageRequest page = 3;
+}
+
+message ElementData {
+  ObjectRef element = 1;
+  // Key declared in the manifest (element_data).
+  string key = 2;
+  string value_json = 3;
+  // Version of this value, for optimistic updates.
+  int64 version = 4;
+}
+
+message GetElementDataRequest {
+  ObjectRef element = 1;
+  string key = 2;
+}
+
+message PutElementDataRequest {
+  ObjectRef element = 1;
+  string key = 2;
+  string value_json = 3;
+  // 0 to create; otherwise must be the current version.
+  int64 base_version = 4;
+}
+
+message DeleteElementDataRequest {
+  ObjectRef element = 1;
+  string key = 2;
+}
+
+message DeleteElementDataResponse {}
+
+// Media ("media@1"): the wiki's media library, with its rights (category
+// rights, own rights of a medium, watermarks, "view only"). Grants
+// content.read / content.write.
+service Media {
+  rpc GetMedium(GetMediumRequest) returns (Medium);
+  // Content of a medium, streamed (with watermark if the person gets it
+  // only that way).
+  rpc ReadMedium(ReadMediumRequest) returns (stream Chunk);
+  // Upload into the media library (head first, then chunks); the wiki's
+  // upload checks run first.
+  rpc Upload(stream UploadPart) returns (Medium);
+  // Store a new version of a medium (e.g. saved in an office program).
+  rpc SaveVersion(stream SaveVersionPart) returns (Medium);
+  // Office programs with their own protocol: check an access token the
+  // office server sent and get the context it was issued for.
+  rpc ResolveOfficeToken(ResolveOfficeTokenRequest) returns (ResolveOfficeTokenResponse);
+}
+
+message Medium {
+  ObjectRef ref = 1;
+  ObjectRef category = 2;
+  string name = 3;
+  string content_type = 4;
+  int64 size = 5;
+  bytes sha256 = 6;
+  int64 version = 7;
+  google.protobuf.Timestamp updated_at = 8;
+  PersonRef updated_by = 9;
+  // The person may download it (otherwise view only).
+  bool download = 10;
+  string path = 11;
+}
+
+message GetMediumRequest {
+  ObjectRef ref = 1;
+}
+
+message ReadMediumRequest {
+  ObjectRef ref = 1;
+  int64 version = 2;
+}
+
+message UploadPart {
+  oneof part {
+    UploadHead head = 1;
+    Chunk chunk = 2;
+  }
+}
+
+message UploadHead {
+  ObjectRef category = 1;
+  string name = 2;
+  string content_type = 3;
+  int64 size = 4;
+  // Own rights of the medium (only rights the person has), as JSON in the
+  // format of the media library; empty: those of the category.
+  string rights_json = 5;
+  string idempotency_key = 6;
+}
+
+message SaveVersionPart {
+  oneof part {
+    SaveVersionHead head = 1;
+    Chunk chunk = 2;
+  }
+}
+
+message SaveVersionHead {
+  ObjectRef ref = 1;
+  // Must be the current version; otherwise "conflict".
+  int64 base_version = 2;
+  int64 size = 3;
+  // Note for the version history ("saved in Collabora Online").
+  string note = 4;
+  // For office programs: the access token the save belongs to.
+  string office_token = 5;
+}
+
+message ResolveOfficeTokenRequest {
+  string token = 1;
+}
+
+message ResolveOfficeTokenResponse {
+  CallContext context = 1;
+  ObjectRef medium = 2;
+  // "edit" or "view".
+  string mode = 3;
+  google.protobuf.Timestamp expires_at = 4;
+}

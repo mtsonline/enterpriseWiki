@@ -1,0 +1,121 @@
+// DRAFT for review (phase P2, SDK 1.0.0-preview).
+//
+// People and groups ("people@1"). Grants users.read / groups.read. Never
+// secrets; never more than the person of the call token may see (profile
+// visibility applies). People of federated wikis appear with their home
+// instance in the scope, individually or only as their federation group,
+// as the administrators of the federation chose.
+syntax = "proto3";
+
+package ewiki.plugin.v1;
+
+import "ewiki/plugin/v1/common.proto";
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/mtsonline/enterprisewiki/sdk/proto/ewiki/plugin/v1;pluginv1";
+
+service People {
+  // Find a person by any of their confirmed e-mail addresses, their user
+  // name, or a reference ("ewiki:user:42;site=intra"). Never by a
+  // provider suffix: the identity is the e-mail address.
+  rpc Resolve(ResolveRequest) returns (Person);
+  rpc GetPerson(GetPersonRequest) returns (Person);
+  rpc ListPeople(ListPeopleRequest) returns (ListPeopleResponse);
+
+  rpc GetGroup(GetGroupRequest) returns (Group);
+  rpc ListGroups(ListGroupsRequest) returns (ListGroupsResponse);
+  // Members, with nested groups resolved.
+  rpc ListMembers(ListMembersRequest) returns (ListPeopleResponse);
+
+  // The plugin's own data about a person (manifest: person_data), e.g.
+  // preferences. Declared as personal data; exported and erased with the
+  // person (Privacy).
+  rpc GetPersonData(GetPersonDataRequest) returns (PersonData);
+  rpc PutPersonData(PutPersonDataRequest) returns (PersonData);
+}
+
+message Person {
+  PersonRef ref = 1;
+  // All confirmed addresses (only with the right to see addresses);
+  // ref.email is the primary one.
+  repeated string emails = 2;
+  string language = 3;
+  string time_zone = 4;
+  bool disabled = 5;
+  repeated GroupRef groups = 6;
+  // Profile fields the person may be seen with (job title, department,
+  // ...), as a JSON object.
+  string profile_json = 7;
+  google.protobuf.Timestamp last_seen_at = 8;
+}
+
+message ResolveRequest {
+  // E-mail address, user name or reference.
+  string identifier = 1;
+}
+
+message GetPersonRequest {
+  PersonRef ref = 1;
+}
+
+message ListPeopleRequest {
+  // Search in names, user names and addresses.
+  string query = 1;
+  GroupRef group = 2;
+  bool include_disabled = 3;
+  // Also people of federated wikis.
+  bool federated = 4;
+  PageRequest page = 5;
+}
+
+message ListPeopleResponse {
+  repeated Person people = 1;
+  PageResponse page = 2;
+}
+
+message Group {
+  GroupRef ref = 1;
+  string description = 2;
+  // Group of a federation (all people of a partner wiki).
+  bool federation = 3;
+  int64 member_count = 4;
+}
+
+message GetGroupRequest {
+  GroupRef ref = 1;
+}
+
+message ListGroupsRequest {
+  string query = 1;
+  PageRequest page = 2;
+}
+
+message ListGroupsResponse {
+  repeated Group groups = 1;
+  PageResponse page = 2;
+}
+
+message ListMembersRequest {
+  GroupRef group = 1;
+  PageRequest page = 2;
+}
+
+message PersonData {
+  PersonRef person = 1;
+  string key = 2;
+  string value_json = 3;
+  int64 version = 4;
+}
+
+message GetPersonDataRequest {
+  // Empty: the person of the call token.
+  PersonRef person = 1;
+  string key = 2;
+}
+
+message PutPersonDataRequest {
+  PersonRef person = 1;
+  string key = 2;
+  string value_json = 3;
+  int64 base_version = 4;
+}

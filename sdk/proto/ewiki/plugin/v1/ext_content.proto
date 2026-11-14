@@ -1,0 +1,322 @@
+// DRAFT for review (phase P2, SDK 1.0.0-preview).
+//
+// Content extension points a plugin can serve (declared in the manifest):
+// - ElementTypes: own element types (body checked and rendered on save).
+// - Macros: macros for the editor (rendered on save, live islands via UI).
+// - ContentPolicy: checks before any content is saved (data loss
+//   prevention, classification, link checks). Runs within a time limit;
+//   what happens on timeout the administrator chooses (allow or refuse).
+// - LinkPreviews: link previews ("smart links") for addresses the plugin
+//   declares, e.g. tickets of an issue tracker.
+// - EditorCommands: slash commands, paste and drop handlers, mention
+//   sources (@-mention objects of other systems).
+// - PropertyTypes: own property types (check, format, sort key).
+// - Templates: templates with an assistant (questions, then content).
+//
+// None of these runs on a plain page view: results are stored by the host.
+syntax = "proto3";
+
+package ewiki.plugin.v1;
+
+import "ewiki/plugin/v1/common.proto";
+
+option go_package = "github.com/mtsonline/enterprisewiki/sdk/proto/ewiki/plugin/v1;pluginv1";
+
+service ElementTypes {
+  rpc ValidateElement(ValidateElementRequest) returns (ValidateElementResponse);
+  // Render the body when it is saved; the host cleans and keeps the HTML.
+  rpc RenderElement(RenderElementRequest) returns (RenderElementResponse);
+}
+
+service Macros {
+  // Render a macro when a page is saved, or for the editor's preview.
+  rpc RenderMacro(RenderMacroRequest) returns (RenderMacroResponse);
+}
+
+service ContentPolicy {
+  rpc CheckContent(CheckContentRequest) returns (CheckContentResponse);
+}
+
+service LinkPreviews {
+  rpc Preview(PreviewRequest) returns (PreviewResponse);
+}
+
+service EditorCommands {
+  // A slash command or toolbar command was chosen.
+  rpc RunCommand(RunCommandRequest) returns (EditorInsert);
+  // Something was pasted or dropped that matches a declared pattern
+  // (address or file type); answer what to insert instead, or nothing.
+  rpc HandlePaste(HandlePasteRequest) returns (EditorInsert);
+  // Suggestions for an @-mention of the plugin's objects.
+  rpc Mentions(MentionsRequest) returns (MentionsResponse);
+}
+
+service PropertyTypes {
+  rpc ValidateValue(ValidateValueRequest) returns (ValidateValueResponse);
+  rpc FormatValue(FormatValueRequest) returns (FormatValueResponse);
+}
+
+// SourceResolvers: own kinds of sources for reading plugins and macros
+// (e.g. "tickets of a project" from another system as a source for a
+// list or a calendar).
+service SourceResolvers {
+  rpc Resolve(SourceResolveRequest) returns (SourceResolveResponse);
+}
+
+service Templates {
+  // Questions of the assistant (a form schema), if the template has one.
+  rpc Questions(TemplateQuestionsRequest) returns (TemplateQuestionsResponse);
+  // Content made from the answers; the host creates the elements.
+  rpc Instantiate(InstantiateRequest) returns (InstantiateResponse);
+}
+
+// ---------------------------------------------------------------- element types
+
+message ValidateElementRequest {
+  CallContext context = 1;
+  string type = 2;
+  // Empty for a new element.
+  ObjectRef element = 3;
+  // Body already checked against the type's schema.
+  string body_json = 4;
+}
+
+message ValidateElementResponse {
+  repeated ErrorInfo problems = 1;
+}
+
+message RenderElementRequest {
+  CallContext context = 1;
+  string type = 2;
+  ObjectRef element = 3;
+  string body_json = 4;
+  string language = 5;
+}
+
+message RenderElementResponse {
+  // HTML, cleaned by the host; plain text for the search index and
+  // screen readers.
+  string html = 1;
+  string text = 2;
+}
+
+// ---------------------------------------------------------------- macros
+
+message RenderMacroRequest {
+  CallContext context = 1;
+  string name = 2;
+  // Parameters checked against the macro's schema.
+  string params_json = 3;
+  // Body of macros that wrap content (Markdown).
+  string body = 4;
+  // Element the macro sits in.
+  ObjectRef element = 5;
+  // Editor preview: may be called while typing; answer fast.
+  bool preview = 6;
+}
+
+message RenderMacroResponse {
+  string html = 1;
+  string text = 2;
+  // How long the result may be reused before the host asks again
+  // (0: until the page is saved again).
+  int64 max_age_seconds = 3;
+}
+
+// ---------------------------------------------------------------- policy
+
+message CheckContentRequest {
+  CallContext context = 1;
+  ObjectRef element = 2;
+  string type = 3;
+  LocalizedText title = 4;
+  string body_json = 5;
+  string properties_json = 6;
+  // Files attached in this change (name, type, size; content via Files
+  // only if the policy declared it reads files).
+  repeated FileRef files = 7;
+}
+
+message FileRef {
+  ObjectRef ref = 1;
+  string name = 2;
+  string content_type = 3;
+  int64 size = 4;
+}
+
+message CheckContentResponse {
+  enum Verdict {
+    VERDICT_UNSPECIFIED = 0;
+    VERDICT_ALLOW = 1;
+    // Allow, but show the person a warning (e.g. "contains an IBAN").
+    VERDICT_WARN = 2;
+    // Refuse; the person sees the problems and nothing is lost (the input
+    // stays in the editor).
+    VERDICT_REFUSE = 3;
+  }
+  Verdict verdict = 1;
+  repeated ErrorInfo problems = 2;
+  // Properties the policy sets (e.g. a classification), JSON object; only
+  // properties the plugin declared.
+  string set_properties_json = 3;
+}
+
+// ---------------------------------------------------------------- link previews
+
+message PreviewRequest {
+  CallContext context = 1;
+  string url = 2;
+}
+
+message PreviewResponse {
+  LocalizedText title = 1;
+  string description = 2;
+  // Status shown as a badge ("open", "done").
+  string status = 3;
+  // Icon from the package or a picture address the proxy may load.
+  string icon = 4;
+  // How long the preview may be cached for this person.
+  int64 max_age_seconds = 5;
+  // Turn the link into this macro instead (e.g. a live ticket view).
+  string macro_name = 6;
+  string macro_params_json = 7;
+}
+
+// ---------------------------------------------------------------- editor
+
+message RunCommandRequest {
+  CallContext context = 1;
+  string command = 2;
+  ObjectRef element = 3;
+  // Selected text (Markdown) and answers of the command's form.
+  string selection = 4;
+  string params_json = 5;
+}
+
+message EditorInsert {
+  oneof insert {
+    // Markdown to insert or to replace the selection with.
+    string markdown = 1;
+    // A macro with parameters.
+    MacroCall macro = 2;
+  }
+  // Nothing to do (e.g. the pasted address is not the plugin's).
+  bool none = 3;
+}
+
+message MacroCall {
+  string name = 1;
+  string params_json = 2;
+  string body = 3;
+}
+
+message HandlePasteRequest {
+  CallContext context = 1;
+  ObjectRef element = 2;
+  // A pasted address, or a dropped file (small files only).
+  string url = 3;
+  FileData file = 4;
+}
+
+message MentionsRequest {
+  CallContext context = 1;
+  string source = 2;
+  string query = 3;
+  int32 limit = 4;
+}
+
+message MentionsResponse {
+  message Mention {
+    string id = 1;
+    string label = 2;
+    string description = 3;
+    // Address the mention links to.
+    string url = 4;
+  }
+  repeated Mention mentions = 1;
+}
+
+// ---------------------------------------------------------------- property types
+
+message ValidateValueRequest {
+  string type = 1;
+  string value_json = 2;
+  // Options of the property definition (JSON).
+  string options_json = 3;
+}
+
+message ValidateValueResponse {
+  repeated ErrorInfo problems = 1;
+  // Normalised value to store.
+  string value_json = 2;
+}
+
+message FormatValueRequest {
+  string type = 1;
+  string value_json = 2;
+  string options_json = 3;
+  string language = 4;
+}
+
+message FormatValueResponse {
+  // Plain text for lists, search and screen readers.
+  string text = 1;
+  // Key the host sorts and filters by (e.g. a number or ISO date).
+  string sort_key = 2;
+}
+
+// ---------------------------------------------------------------- sources
+
+message SourceResolveRequest {
+  CallContext context = 1;
+  // Kind declared in the manifest (source_kinds) and its definition.
+  string kind = 2;
+  string source_json = 3;
+  string narrowing_json = 4;
+  PageRequest page = 5;
+}
+
+message SourceResolveResponse {
+  message Item {
+    // An element of the wiki, or an outside object shown with title and
+    // address.
+    ObjectRef ref = 1;
+    LocalizedText title = 2;
+    string url = 3;
+    string excerpt = 4;
+    string properties_json = 5;
+  }
+  repeated Item items = 1;
+  PageResponse page = 2;
+}
+
+// ---------------------------------------------------------------- templates
+
+message TemplateQuestionsRequest {
+  CallContext context = 1;
+  string template = 2;
+}
+
+message TemplateQuestionsResponse {
+  Schema form = 1;
+}
+
+message InstantiateRequest {
+  CallContext context = 1;
+  string template = 2;
+  string answers_json = 3;
+  ObjectRef category = 4;
+}
+
+message InstantiateResponse {
+  message NewElement {
+    string type = 1;
+    LocalizedText title = 2;
+    string body_json = 3;
+    string properties_json = 4;
+    repeated string tags = 5;
+    // Index of the parent element in this list, or -1 for the category.
+    int32 parent_index = 6;
+  }
+  repeated NewElement elements = 1;
+}

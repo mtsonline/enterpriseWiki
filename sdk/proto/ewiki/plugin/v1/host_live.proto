@@ -1,0 +1,191 @@
+// DRAFT for review (phase P2, SDK 1.0.0-preview).
+//
+// Live and distributed work:
+// - Live ("live@1"): push updates to the plugin's views in browsers over
+//   the wiki's WebSocket, and rooms of the core's live collaboration for
+//   the plugin's own documents (e.g. a whiteboard). The relay stays in
+//   the core (decision E10); the plugin never handles keystrokes on the
+//   hot path.
+// - Cluster ("cluster@1"): messages to the plugin's instances on the other
+//   nodes, locks and "run on one node only".
+// - Federation ("federation@1"): messages to the same plugin on partner
+//   wikis, over the federation's channel (signed, mutual TLS with hybrid
+//   key exchange), only to partners the administrators confirmed. The
+//   federation itself is a (Pro) plugin; this is what every plugin uses.
+syntax = "proto3";
+
+package ewiki.plugin.v1;
+
+import "ewiki/plugin/v1/common.proto";
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/mtsonline/enterprisewiki/sdk/proto/ewiki/plugin/v1;pluginv1";
+
+service Live {
+  // Send a message to the plugin's views (remote UI or frame) that are
+  // open in browsers. Audience is checked by the host: only people who may
+  // see the object get it. Not stored: views reload their state on
+  // reconnect.
+  rpc Publish(PublishRequest) returns (PublishResponse);
+  // Who is looking at an object right now (presence), as far as the
+  // person of the call token may see.
+  rpc Presence(PresenceRequest) returns (PresenceResponse);
+
+  // Collaboration rooms for the plugin's documents (manifest:
+  // collab_documents). The browser joins with a token from OpenRoom; the
+  // core relays and stores the updates.
+  rpc OpenRoom(OpenRoomRequest) returns (OpenRoomResponse);
+  // Current state of a room as one update (format of the document type,
+  // e.g. a Yjs update), for server-side work such as export or search.
+  rpc ReadRoom(ReadRoomRequest) returns (RoomState);
+  // Apply a change from the server side (e.g. an import); it reaches
+  // everyone in the room.
+  rpc WriteRoom(WriteRoomRequest) returns (RoomState);
+}
+
+service Cluster {
+  // To the plugin's instances on all other nodes (Plugin.ClusterMessage);
+  // at most once, for hints such as "cache changed". Durable work goes
+  // through the database or Events.
+  rpc Broadcast(BroadcastRequest) returns (BroadcastResponse);
+  // A lock across the cluster with a lease. The lease ends with the time
+  // or when the process ends; the plugin renews it with Renew.
+  rpc Lock(LockRequest) returns (LockResponse);
+  rpc Renew(RenewRequest) returns (LockResponse);
+  rpc Unlock(UnlockRequest) returns (UnlockResponse);
+}
+
+service Federation {
+  // Partner wikis the plugin may reach (confirmed by the administrators
+  // of both sides, and the same plugin installed there).
+  rpc ListPartners(ListPartnersRequest) returns (ListPartnersResponse);
+  // Send to the same plugin on a partner wiki (Plugin.FederationMessage
+  // there). Request and answer, signed by both wikis; with a call token
+  // the person's identity travels along and the partner applies its own
+  // rights for that person.
+  rpc Send(FederationSendRequest) returns (FederationSendResponse);
+}
+
+// ---------------------------------------------------------------- live
+
+message PublishRequest {
+  // Channel declared in the manifest (realtime_channels).
+  string channel = 1;
+  // Only views showing this object, and only people who may see it.
+  ObjectRef object = 2;
+  // Or explicitly these people (still only if they may see the object).
+  repeated PersonRef people = 3;
+  string payload_json = 4;
+}
+
+message PublishResponse {
+  // Number of open views reached on all nodes (approximate).
+  int32 reached = 1;
+}
+
+message PresenceRequest {
+  ObjectRef object = 1;
+}
+
+message PresenceResponse {
+  repeated PersonRef people = 1;
+}
+
+message OpenRoomRequest {
+  ObjectRef object = 1;
+  // Document type declared in the manifest.
+  string document_type = 2;
+  // Read only for this person (the host also checks the rights).
+  bool read_only = 3;
+}
+
+message OpenRoomResponse {
+  // Token for the browser to join the room; bound to person, object and
+  // plugin, short-lived.
+  string token = 1;
+  google.protobuf.Timestamp expires_at = 2;
+}
+
+message ReadRoomRequest {
+  ObjectRef object = 1;
+  string document_type = 2;
+}
+
+message RoomState {
+  bytes state = 1;
+  int64 version = 2;
+}
+
+message WriteRoomRequest {
+  ObjectRef object = 1;
+  string document_type = 2;
+  bytes update = 3;
+}
+
+// ---------------------------------------------------------------- cluster
+
+message BroadcastRequest {
+  string topic = 1;
+  bytes payload = 2;
+}
+
+message BroadcastResponse {
+  int32 nodes = 1;
+}
+
+message LockRequest {
+  string name = 1;
+  int64 lease_ms = 2;
+  // Wait up to this long for the lock; 0: fail at once if taken.
+  int64 wait_ms = 3;
+}
+
+message LockResponse {
+  bool acquired = 1;
+  // Fencing token: increases with every grant; pass it to writes that
+  // must not come from an old holder.
+  int64 fence = 2;
+  google.protobuf.Timestamp expires_at = 3;
+}
+
+message RenewRequest {
+  string name = 1;
+  int64 fence = 2;
+  int64 lease_ms = 3;
+}
+
+message UnlockRequest {
+  string name = 1;
+  int64 fence = 2;
+}
+
+message UnlockResponse {}
+
+// ---------------------------------------------------------------- federation
+
+message ListPartnersRequest {}
+
+message ListPartnersResponse {
+  message Partner {
+    // Host name of the partner wiki.
+    string instance = 1;
+    string name = 2;
+    // Version of this plugin on the partner.
+    string plugin_version = 3;
+    // What the local administrators allow the partner: read or edit.
+    string access = 4;
+  }
+  repeated Partner partners = 1;
+}
+
+message FederationSendRequest {
+  string instance = 1;
+  // Message type declared in the manifest (federation_messages).
+  string type = 2;
+  bytes payload = 3;
+  string idempotency_key = 4;
+}
+
+message FederationSendResponse {
+  bytes payload = 1;
+}

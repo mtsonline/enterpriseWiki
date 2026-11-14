@@ -1,0 +1,95 @@
+# DRAFT: "auth.ldap" as an SDK plugin (phase P6, Pro). The sync runs,
+# previews, adopting accounts and their actions belong to the host
+# (core.directory.*); the plugin only reads the directory and checks
+# passwords. "Test connection" is Plugin.TestSettings.
+manifest_version: "1"
+id: auth.ldap
+version: 2.0.0
+name: {text: {en: LDAP / Active Directory, de: LDAP / Active Directory}}
+description:
+  text:
+    en: Sign in with LDAP or Active Directory accounts and keep people and groups in step with the directory.
+    de: Anmeldung mit LDAP- oder Active-Directory-Konten; Personen und Gruppen bleiben mit dem Verzeichnis abgeglichen.
+author: Enterprise Wiki
+license: LicenseRef-ewiki-pro
+kinds: [auth]
+license_feature: pro.auth
+sdk: ">=1.0"
+requires: [host@1, people@1]
+serves: [PasswordProvider, Directory]
+grants:
+  - key: auth.provide
+    reason:
+      text:
+        en: Receives the passwords entered at its sign-in, to check them at the directory.
+        de: Erhält die bei seiner Anmeldung eingegebenen Passwörter, um sie beim Verzeichnis zu prüfen.
+  - key: directory.sync
+    reason:
+      text:
+        en: Creates, updates and disables accounts as the directory says.
+        de: Legt Konten nach dem Verzeichnis an, ändert und deaktiviert sie.
+  - key: "net:{instance.url}"
+    reason:
+      text:
+        en: Connects to the directory server you enter.
+        de: Verbindet sich mit dem Verzeichnis-Server, den Sie eintragen.
+limits:
+  - key: auth.ldap.sync_max_entries
+    label: {text: {en: People per directory sync, de: Personen je Verzeichnis-Abgleich}}
+    help:
+      text:
+        en: Most entries one sync reads; more stops the run.
+        de: Höchstzahl Einträge je Abgleich; mehr bricht den Lauf ab.
+    unit: count
+    default: 100000
+    min: 100
+    max: 1000000
+personal_data:
+  - what:
+      text:
+        en: Directory attributes of people (name, e-mail addresses, groups) while syncing.
+        de: Verzeichnis-Merkmale von Personen (Name, E-Mail-Adressen, Gruppen) während des Abgleichs.
+    purpose:
+      text:
+        en: Sign-in and accounts.
+        de: Anmeldung und Konten.
+    retention:
+      text:
+        en: Not stored by the plugin; the wiki keeps the accounts.
+        de: Das Plugin speichert nichts; die Konten führt das Wiki.
+auth_providers:
+  - kind: KIND_PASSWORD
+    id: ldap
+    name: {text: {en: LDAP, de: LDAP}}
+    directory: true
+    instance_settings:
+      json: |
+        {"type": "object", "additionalProperties": false, "required": ["url", "base_dn"],
+         "properties": {
+          "url": {"type": "string", "format": "uri", "pattern": "^ldaps?://", "title": "Server address"},
+          "start_tls": {"type": "boolean", "default": true},
+          "ca_cert": {"type": "string", "maxLength": 65536},
+          "bind_dn": {"type": "string", "maxLength": 1024},
+          "bind_password": {"type": "string", "maxLength": 1024, "x-ewiki-secret": true},
+          "base_dn": {"type": "string", "maxLength": 1024},
+          "user_filter": {"type": "string", "maxLength": 1024, "default": "(|(uid={login})(mail={login}))"},
+          "attr_subject": {"type": "string", "default": "entryUUID"},
+          "attr_username": {"type": "string", "default": "uid"},
+          "attr_email": {"type": "string", "default": "mail"},
+          "attr_display_name": {"type": "string", "default": "cn"},
+          "group_base_dn": {"type": "string", "maxLength": 1024},
+          "group_filter": {"type": "string", "maxLength": 1024},
+          "group_attribute": {"type": "string", "default": "memberOf"},
+          "disabled_filter": {"type": "string", "maxLength": 1024},
+          "sync_filter": {"type": "string", "maxLength": 1024},
+          "timeout_seconds": {"type": "integer", "minimum": 1, "maximum": 120, "default": 10}}}
+    presets:
+      - name: active-directory
+        label: {text: {en: Active Directory, de: Active Directory}}
+        config:
+          json: '{"type": "object", "properties": {"attr_subject": {"const": "objectGUID"}, "attr_username": {"const": "sAMAccountName"}}}'
+resources:
+  memory_mb: 128
+  cpu_percent: 50
+  max_concurrent_calls: 32
+  call_timeout_ms: 15000

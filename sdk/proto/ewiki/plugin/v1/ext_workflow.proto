@@ -1,0 +1,133 @@
+// DRAFT for review (phase P2, SDK 1.0.0-preview).
+//
+// Workflows and forms. The wiki's workflow engine runs the cases (state,
+// deadlines, hand-over, deputies, audit); plugins add building blocks:
+// - WorkflowSteps: automatic steps ("create ticket", "send to ERP"). A
+//   step runs at least once; the host passes an idempotency key that stays
+//   the same for retries of the same step.
+// - WorkflowConditions: conditions for branches.
+// - WorkflowTriggers: triggers from other systems; the plugin starts or
+//   continues cases through the actions core.workflow.* with its account
+//   (or reports matches here when the host polls a declared trigger).
+// - FormFields: own field types for forms (check and format; the input is
+//   drawn with building blocks or remote UI).
+syntax = "proto3";
+
+package ewiki.plugin.v1;
+
+import "ewiki/plugin/v1/common.proto";
+
+option go_package = "github.com/mtsonline/enterprisewiki/sdk/proto/ewiki/plugin/v1;pluginv1";
+
+service WorkflowSteps {
+  rpc RunStep(RunStepRequest) returns (RunStepResponse);
+}
+
+service WorkflowConditions {
+  rpc Evaluate(EvaluateRequest) returns (EvaluateResponse);
+}
+
+service WorkflowTriggers {
+  // For triggers declared as "poll": the host asks at the declared
+  // interval (one node only); each match starts a case once (the match id
+  // is the idempotency key).
+  rpc Poll(PollRequest) returns (PollResponse);
+}
+
+service FormFields {
+  rpc ValidateField(ValidateFieldRequest) returns (ValidateFieldResponse);
+  rpc FormatField(FormatFieldRequest) returns (FormatFieldResponse);
+}
+
+message WorkflowContext {
+  // The case and its workflow.
+  ObjectRef case = 1;
+  ObjectRef workflow = 2;
+  // Data of the case (form answers, results of earlier steps) as JSON.
+  string data_json = 3;
+  // Who started it, and for steps: who the step acts for.
+  PersonRef starter = 4;
+  CallContext context = 5;
+}
+
+message RunStepRequest {
+  WorkflowContext workflow = 1;
+  // Step type declared in the manifest and its configuration (checked
+  // against the declared schema).
+  string step = 2;
+  string config_json = 3;
+  // Same for every retry of this step in this case.
+  string idempotency_key = 4;
+  int32 attempt = 5;
+}
+
+message RunStepResponse {
+  enum Result {
+    RESULT_UNSPECIFIED = 0;
+    RESULT_DONE = 1;
+    // Waits for something outside; the plugin continues the case later
+    // through the action core.workflow.case.continue with the wait token.
+    RESULT_WAITING = 2;
+    // Failed for good; the case follows the workflow's error path.
+    RESULT_FAILED = 3;
+    // Try again later (the host waits with backoff, then RESULT_FAILED).
+    RESULT_RETRY = 4;
+  }
+  Result result = 1;
+  // Results for later steps (JSON object, merged into the case data
+  // under the step's name).
+  string output_json = 2;
+  string wait_token = 3;
+  string message = 4;
+}
+
+message EvaluateRequest {
+  WorkflowContext workflow = 1;
+  string condition = 2;
+  string config_json = 3;
+}
+
+message EvaluateResponse {
+  bool result = 1;
+}
+
+message PollRequest {
+  string trigger = 1;
+  string config_json = 2;
+  // Position the plugin returned last time (opaque).
+  string cursor = 3;
+}
+
+message PollResponse {
+  message Match {
+    // Unique per trigger; a match is only started once.
+    string id = 1;
+    string data_json = 2;
+  }
+  repeated Match matches = 1;
+  string cursor = 2;
+}
+
+message ValidateFieldRequest {
+  string type = 1;
+  string value_json = 2;
+  string options_json = 3;
+  CallContext context = 4;
+}
+
+message ValidateFieldResponse {
+  repeated ErrorInfo problems = 1;
+  string value_json = 2;
+}
+
+message FormatFieldRequest {
+  string type = 1;
+  string value_json = 2;
+  string options_json = 3;
+  string language = 4;
+}
+
+message FormatFieldResponse {
+  string text = 1;
+  string html = 2;
+}

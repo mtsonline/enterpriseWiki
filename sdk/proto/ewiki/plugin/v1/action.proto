@@ -1,5 +1,5 @@
-// DRAFT for review (phase P2, together with phase 2 of the action register
-// plan).
+// DRAFT for review (phase P2, SDK 1.0.0-preview, together with phase 2 of
+// the action register plan).
 //
 // The action register: one entry per action, the same format for the core
 // and for plugins. The core keeps its entries as YAML files next to the
@@ -78,6 +78,57 @@ message Action {
 
   // Preview actions only work in development mode (concept 5.10).
   bool preview = 20;
+
+  // Offered as a tool to AI assistants (the wiki's MCP server and its own
+  // assistant), always with the rights of the person, never more.
+  // Changing actions are only run after the person confirmed them.
+  bool tool = 21;
+  // Description for the model, if the summary is not enough (English).
+  string tool_description = 22;
+
+  // Inbound endpoint (category PROTOCOL) for another system: how the host
+  // verifies each request before the plugin sees it.
+  Inbound inbound = 23;
+}
+
+// Inbound describes how the host checks requests of another system
+// (webhooks, chat services). Requests that fail the check get 401 from the
+// host and never reach the plugin; repeated requests (same signature
+// within the tolerance) are refused as replays.
+message Inbound {
+  enum Verification {
+    VERIFICATION_UNSPECIFIED = 0;
+    // HMAC-SHA256 over the signed payload with a shared secret.
+    VERIFICATION_HMAC_SHA256 = 1;
+    // Ed25519 signature with the other system's public key.
+    VERIFICATION_ED25519 = 2;
+    // A secret token in a header (only where the other system offers
+    // nothing better; compared in constant time).
+    VERIFICATION_TOKEN = 3;
+    // A JSON Web Token signed by the other system (keys from its JWKS
+    // address, which must be a net grant).
+    VERIFICATION_JWT = 4;
+    // The plugin checks itself (e.g. one secret per workflow). The caller
+    // stays anonymous, no session or key counts; the host still limits
+    // rate and size and logs every request. Needs the administrator's
+    // confirmation at installation.
+    VERIFICATION_PLUGIN = 5;
+  }
+  Verification verification = 1;
+  // Header with the signature or token, and with the timestamp.
+  string signature_header = 2;
+  string timestamp_header = 3;
+  // What is signed, e.g. "{timestamp}.{body}" or "v0:{timestamp}:{body}".
+  string signed_payload = 4;
+  int64 tolerance_seconds = 5;
+  // Settings key (a secret field) with the secret or public key; for JWT
+  // the JWKS address, issuer and audience.
+  string key_setting = 6;
+  string jwks_setting = 7;
+  string issuer_setting = 8;
+  string audience_setting = 9;
+  // Further headers passed to the plugin.
+  repeated string pass_headers = 10;
 }
 
 message Permission {

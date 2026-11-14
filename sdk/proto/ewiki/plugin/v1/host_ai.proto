@@ -1,0 +1,107 @@
+// DRAFT for review (phase P2, SDK 1.0.0-preview).
+//
+// AI the wiki offers to plugins ("ai@1", grant ai.use): the language and
+// embedding models and the translation service the administrators set up
+// (through provider plugins, ext_ai.proto, or a local model). The host
+// applies the administrators' rules (which data may go to which provider),
+// limits and audit. With a call token the request carries only what the
+// person may see.
+syntax = "proto3";
+
+package ewiki.plugin.v1;
+
+import "ewiki/plugin/v1/common.proto";
+
+option go_package = "github.com/mtsonline/enterprisewiki/sdk/proto/ewiki/plugin/v1;pluginv1";
+
+service AI {
+  // Text generation, streamed.
+  rpc Complete(CompleteRequest) returns (stream CompleteChunk);
+  rpc Embed(EmbedRequest) returns (EmbedResponse);
+  rpc TranslateText(TranslateTextRequest) returns (TranslateTextResponse);
+}
+
+message ChatMessage {
+  enum Role {
+    ROLE_UNSPECIFIED = 0;
+    ROLE_SYSTEM = 1;
+    ROLE_USER = 2;
+    ROLE_ASSISTANT = 3;
+    ROLE_TOOL = 4;
+  }
+  Role role = 1;
+  string text = 2;
+  // Files the model may read (images, PDFs), if the model supports them.
+  repeated FileData files = 3;
+  // For tool results: id of the tool call answered.
+  string tool_call_id = 4;
+}
+
+// Tool the model may call: an action of the register, run by the host
+// with the rights of the person (never more).
+message Tool {
+  string action_id = 1;
+}
+
+message ToolCall {
+  string id = 1;
+  string action_id = 2;
+  string arguments_json = 3;
+}
+
+message CompleteRequest {
+  // Purpose declared in the manifest (ai_purposes); the administrators
+  // choose the model per purpose.
+  string purpose = 1;
+  repeated ChatMessage messages = 2;
+  repeated Tool tools = 3;
+  int32 max_tokens = 4;
+  // Wiki content to ground the answer in (the host adds what the person
+  // may see).
+  repeated ObjectRef context = 5;
+  // Answer as JSON matching this schema.
+  Schema response_schema = 6;
+}
+
+message CompleteChunk {
+  oneof part {
+    string text = 1;
+    ToolCall tool_call = 2;
+    CompleteDone done = 3;
+  }
+}
+
+message CompleteDone {
+  string model = 1;
+  int32 input_tokens = 2;
+  int32 output_tokens = 3;
+  // Stop reason: "end", "length", "tool", "refused".
+  string reason = 4;
+}
+
+message EmbedRequest {
+  string purpose = 1;
+  repeated string texts = 2;
+}
+
+message EmbedResponse {
+  message Vector {
+    repeated float values = 1;
+  }
+  repeated Vector vectors = 1;
+  string model = 2;
+}
+
+message TranslateTextRequest {
+  repeated string texts = 1;
+  // Empty: detect.
+  string source_language = 2;
+  string target_language = 3;
+  // "text", "markdown" or "html" (markup is kept).
+  string format = 4;
+}
+
+message TranslateTextResponse {
+  repeated string texts = 1;
+  string detected_language = 2;
+}
