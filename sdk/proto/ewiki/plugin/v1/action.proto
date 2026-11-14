@@ -1,0 +1,182 @@
+// DRAFT for review (phase P2, together with phase 2 of the action register
+// plan).
+//
+// The action register: one entry per action, the same format for the core
+// and for plugins. The core keeps its entries as YAML files next to the
+// routes; a plugin lists them in its manifest. From the register the wiki
+// checks that every action is reachable by API, CLI and interface
+// (stage 1), runs the examples on all ways (stage 2), and later generates
+// the CLI, OpenAPI, the API reference and an MCP server.
+syntax = "proto3";
+
+package ewiki.plugin.v1;
+
+import "ewiki/plugin/v1/common.proto";
+
+option go_package = "github.com/mtsonline/enterprisewiki/sdk/proto/ewiki/plugin/v1;pluginv1";
+
+message Action {
+  // Id after the namespace rule: "core.<area>.<verb>" for the core,
+  // "<plugin-id>.<...>" for a plugin, e.g. "acme.kanban.card.move".
+  // Lower case, digits, dots, hyphens and underscores; at most 120
+  // characters. The route carries the same id as a comment.
+  string id = 1;
+
+  enum Category {
+    CATEGORY_UNSPECIFIED = 0;
+    // Something a person or a program does: needs API, CLI and interface
+    // (or an approved exception).
+    CATEGORY_ACTION = 1;
+    // A protocol endpoint for other systems (SCIM, WOPI, OIDC and SAML
+    // callbacks, incoming webhooks): own tests, no CLI or interface.
+    CATEGORY_PROTOCOL = 2;
+  }
+  Category category = 2;
+
+  // HTTP method and path. Core paths start with "/api/v1/", plugin paths
+  // are relative to "/api/v1/x/<plugin-id>/" and must not leave it.
+  // Path parameters in braces: "boards/{board}/cards/{card}".
+  string method = 3;
+  string path = 4;
+
+  // Short summary and longer description for the API reference, the help
+  // and later MCP. English required, German expected (both are checked
+  // like the UI texts).
+  LocalizedText summary = 5;
+  LocalizedText description = 6;
+
+  // The permission the host checks before the action runs. Empty only
+  // for actions every signed-in person may use; such actions must say so
+  // with public = true or signed_in = true.
+  Permission permission = 7;
+  bool signed_in = 8;
+  bool public = 9;
+
+  // Parameters: path parameters, query and body. The host validates the
+  // request against these before the plugin sees it; invalid input gets
+  // 400 from the host, never reaches the plugin and never yields a 500.
+  Schema path_params = 10;
+  Schema query = 11;
+  Schema body = 12;
+  // What the action answers (for documentation and the generated CLI).
+  Schema response = 13;
+  // Success status: 200, 201 or 204.
+  int32 success_status = 14;
+
+  // Safety properties the host enforces.
+  Safety safety = 15;
+
+  // The three ways. Each is set or has an exception below.
+  CliWay cli = 16;
+  UiWay ui = 17;
+
+  // At least one example per action (stage 2 fails without one).
+  repeated Example examples = 18;
+
+  // Approved exceptions: a way that is missing on purpose.
+  repeated Exception exceptions = 19;
+
+  // Preview actions only work in development mode (concept 5.10).
+  bool preview = 20;
+}
+
+message Permission {
+  // Key of a core permission ("core.users.manage") or one the plugin
+  // declares in its manifest ("acme.kanban.edit").
+  string key = 1;
+  enum Scope {
+    SCOPE_UNSPECIFIED = 0;
+    SCOPE_GLOBAL = 1;
+    // Checked on a category; the request names it in the parameter
+    // category_param (a path, query or body field).
+    SCOPE_CATEGORY = 2;
+  }
+  Scope scope = 2;
+  string category_param = 3;
+  // Additionally only for instance administrators (multi-site: installed
+  // code, processes and data shared by all sites). Core only; refused in
+  // plugin manifests.
+  bool instance = 4;
+}
+
+message Safety {
+  // Changes something (anything but reading). Changing actions need CSRF
+  // protection in the browser and are written to the audit log.
+  bool changes = 1;
+  // Critical: needs a sign-in within the last 15 minutes in the browser
+  // or the command line on the server; API keys are refused.
+  bool recent_sign_in = 2;
+  // Repeating the same request has no further effect (PUT, DELETE, or a
+  // POST with an idempotency key).
+  bool idempotent = 3;
+  // Key of the limit for the body size ("acme.kanban.card_kb"); default
+  // is the core's general request limit.
+  string body_limit = 4;
+  // Name of the audit event; default is the action id.
+  string audit_event = 5;
+  // Fields of body or response that are secrets: masked in logs, audit,
+  // examples and the generated documentation.
+  repeated string secret_fields = 6;
+}
+
+message CliWay {
+  // Words of the command after "ewiki", e.g. ["kanban", "card", "move"].
+  // Path and query parameters become arguments and flags; the body can be
+  // given as flags or as JSON with --json. The CLI always goes through the
+  // API, so rights, checks and audit are the same.
+  repeated string command = 1;
+  // Parameters given as positional arguments, in order (the rest are
+  // flags).
+  repeated string args = 2;
+}
+
+message UiWay {
+  // Where the action starts in the interface: a route of the wiki
+  // ("/admin/plugins") or of the plugin ("x/acme.kanban/boards/{board}").
+  string entry = 1;
+  // Accessible name of the control that starts it, used by the generic
+  // browser test of stage 2 to find it ("Move card").
+  LocalizedText control = 2;
+  // Hand-built views (editor, drag and drop) keep written browser tests;
+  // they name the action id so the coverage counts them.
+  bool written_test = 3;
+}
+
+message Example {
+  string name = 1;
+  // What must exist before (created through other actions of the
+  // register, referenced by their ids and example names), e.g.
+  // ["acme.kanban.board.create#default"].
+  repeated string given = 2;
+  // Who runs it: "admin", "member" (has the permission), "outsider"
+  // (lacks it: must be refused on every way), "guest".
+  string as = 3;
+  // Request values as JSON objects; "${given.<name>.<field>}" refers to
+  // results of the given examples.
+  string path_params_json = 4;
+  string query_json = 5;
+  string body_json = 6;
+  // Expected status and a JSON object the answer must contain (subset
+  // match). Secret fields are never compared or shown.
+  int32 status = 7;
+  string expect_json = 8;
+  // A read action that shows the effect, run afterwards on every way;
+  // the state must be the same after API, CLI and interface.
+  string verify_action = 9;
+}
+
+message Exception {
+  enum Way {
+    WAY_UNSPECIFIED = 0;
+    WAY_CLI = 1;
+    WAY_UI = 2;
+    WAY_API = 3;
+  }
+  Way way = 1;
+  // Why, in plain words (shown to the administrator at installation).
+  string reason = 2;
+  // Core: approved by the project owner (file reviewed via CODEOWNERS).
+  // Plugin: confirmed by the administrator at installation; for the
+  // official catalog approved by the project owner.
+  string approved_by = 3;
+}

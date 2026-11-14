@@ -1,0 +1,50 @@
+# DRAFT: entries of the core's action register (phase 2 of the action
+# register plan), for the routes added in PR #54. Core entries live next to
+# the routes, one file per area; each entry is an ewiki.plugin.v1.Action.
+actions:
+  - id: core.plugins.sources.add
+    category: CATEGORY_ACTION
+    method: POST
+    path: /api/v1/admin/plugins/sources
+    summary:
+      text: {en: Add a trusted source for core plugins, de: Vertrauenswürdige Quelle für Core-Plugins eintragen}
+    permission: {key: core.plugins.manage, scope: SCOPE_GLOBAL, instance: true}
+    body:
+      json: |
+        {"type": "object", "additionalProperties": false, "required": ["prefix"],
+         "properties": {"prefix": {"type": "string", "minLength": 2, "maxLength": 500},
+                        "note": {"type": "string", "maxLength": 200}}}
+    success_status: 200
+    safety: {changes: true, recent_sign_in: true, idempotent: true, audit_event: plugin.sources.add}
+    cli: {command: [plugin, sources, add], args: [prefix]}
+    ui: {entry: /admin/plugins, control: {text: {en: Add, de: Eintragen}}}
+    examples:
+      - name: team
+        as: admin
+        body_json: '{"prefix": "https://git.example.com/team", "note": "our team"}'
+        status: 200
+        verify_action: core.plugins.sources.list
+      - name: whole-host-refused
+        as: admin
+        body_json: '{"prefix": "https://git.example.com"}'
+        status: 400
+      - name: site-admin-refused
+        as: outsider
+        body_json: '{"prefix": "https://git.example.com/team"}'
+        status: 403
+  - id: core.plugins.sources.list
+    category: CATEGORY_ACTION
+    method: GET
+    path: /api/v1/admin/plugins/sources
+    summary:
+      text: {en: List the trusted sources for core plugins, de: Vertrauenswürdige Quellen für Core-Plugins auflisten}
+    permission: {key: core.plugins.manage, scope: SCOPE_GLOBAL, instance: true}
+    success_status: 200
+    cli: {command: [plugin, sources, list]}
+    ui: {entry: /admin/plugins}
+    examples:
+      - name: after-add
+        given: [core.plugins.sources.add#team]
+        as: admin
+        status: 200
+        expect_json: '{"sources": [{"prefix": "https://git.example.com/team"}]}'

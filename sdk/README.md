@@ -2,7 +2,9 @@
 
 > Deutsche Fassung: [README.de.md](README.de.md)
 
-**Status: under construction.** This module does not contain an API yet.
+**Status: under construction.** This module does not contain an API yet. The contract is a **draft for review**:
+[`proto/ewiki/plugin/v1`](proto/ewiki/plugin/v1) (services `Host` and `Plugin`, the manifest and the action register),
+with examples in [`proto/examples`](proto/examples). Nothing in it is stable before SDK 1.0.
 
 The SDK will be the stable interface for plugins that run as their own, isolated process next to Enterprise Wiki:
 a versioned contract (`ewiki.plugin.v1`, Protobuf over gRPC on a Unix socket), signed packages, permissions that an
