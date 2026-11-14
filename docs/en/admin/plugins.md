@@ -45,6 +45,42 @@ Building requires one of the following variants:
 - Builds run as the user from `.env`, not as root.
 - **Cluster**: all nodes share the data folder. Only one node builds at a time (file lock in `bin/`), the others wait and take over the result. Nodes restart one after another; the next one only when the previous one accepts requests again (coordinated through the database), so the wiki stays reachable.
 
+## Origin of core plugins
+
+The plugins on this page are **core plugins**: they are compiled with the wiki, run inside the wiki process and have the same rights as the wiki itself. That is why the wiki shows a warning before every installation and checks where the code comes from. The check looks only at the source, never at what the plugin says about itself.
+
+| Origin | From | Installing |
+|---|---|---|
+| **Official** | shipped with the wiki (later also with a verified signature of the project) | with a warning |
+| **Organisation** | from a source an instance administrator entered as trusted beforehand | with a warning |
+| **External** | any other source, for example an unknown GitHub repository | with a warning **and** a checkbox that must be ticked; again on every update |
+| **Unknown** | a folder copied into the plugin folder by hand | treated like *External* |
+
+**SDK plugins are not affected.** They run as a separate, isolated process and reach the wiki only through the SDK.
+
+### Trusted sources
+
+*Administration → Plugins → Trusted sources* (instance administrators only):
+
+- An entry is an address (`https://…` or `ssh://…`, also `git@host:path`) or a directory on the server. It covers the address and everything below it, only at path boundaries: `https://git.example.com/team` covers `https://git.example.com/team/kanban`, but not `https://git.example.com/team-other/kanban`.
+- A whole server without a path is not accepted. Addresses with a password, a query (`?`), `..`, empty path segments (`//`), `%` encoding, `\`, control characters or `http://` are refused, so the wiki checks exactly the address git fetches. Upper and lower case of the server, `.git` at the end, the default port and a user name before the server do not matter.
+- **Allow external sources** (`plugins.allow_external`, default: on): switched off, only official core plugins and those from trusted sources can be installed.
+- Adding a source and allowing external sources again needs a **sign-in within the last 15 minutes** in the browser, or the command line on the server; API keys cannot do it. Removing and switching off is always possible.
+- Core plugins already installed stay installed when their source is removed.
+
+The plugin list shows the level, the source and the commit in the *Origin* column. For this the wiki writes the file `.ewiki-origin.json` into the folder of every plugin it installs. A file of that name in the sources of a plugin is removed when installing.
+
+In `config.yaml`:
+
+```yaml
+plugins:
+  allow_external: true
+  trusted_sources:
+    - prefix: https://git.example.com/wiki-plugins
+      note: Plugins of our team
+    - prefix: /srv/ewiki-plugins
+```
+
 ## Catalogue (1-click installation)
 
 Plugins listed in `config.yaml` appear under *Catalogue* with an install button:
@@ -69,7 +105,17 @@ ewiki plugin enable acme.kanban
 ewiki plugin disable acme.kanban
 ewiki plugin remove acme.kanban --build
 ewiki plugin build              # rebuild, then: systemctl restart enterprisewiki
+
+# origin
+ewiki plugin install github.com/other/plugin --accept-external   # external source: confirm the warning
+ewiki plugin sources list
+ewiki plugin sources add https://git.example.com/wiki-plugins --note "our team"
+ewiki plugin sources remove https://git.example.com/wiki-plugins
+ewiki plugin sources check github.com/acme/ewiki-kanban
+ewiki plugin sources external forbid   # or: allow
 ```
+
+Without `--accept-external` an installation from an external source stops with the warning.
 
 ## Updates
 
@@ -139,7 +185,7 @@ Copy the plugin directory (with `plugin.json`, Go files and optionally `web/`, `
 
 ## Security
 
-Plugins are full code with access to the database and the server. Only install plugins from trusted sources and with a fixed version (`ref`). Every installation, removal and enabling or disabling is logged.
+Core plugins are full code with access to the database and the server. Only install core plugins from trusted sources and with a fixed version (`ref`), see [Origin of core plugins](#origin-of-core-plugins). Installing, updating and trusted sources are for instance administrators. Every installation (with origin, source, commit and confirmation), removal, enabling or disabling and every change of the trusted sources is logged.
 
 ## Bundled plugins
 

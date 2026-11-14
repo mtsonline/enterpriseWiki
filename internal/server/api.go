@@ -1050,11 +1050,107 @@ func (s *Server) routes() {
 		if err := requireAdmin(r); err != nil {
 			return nil, err
 		}
-		return map[string]any{"installed": s.app.Kernel.List(), "catalog": s.app.Config.Get().Plugins.Catalog,
+		return map[string]any{"installed": s.app.Kernel.List(), "origins": s.plugins.Origins(), "catalog": s.app.Config.Get().Plugins.Catalog,
 			"pending": s.plugins.Pending(), "build": s.plugins.BuildStatus(), "can_build": s.plugins.CanBuild(),
 			"build_unavailable": s.plugins.BuildUnavailable(), "mode": s.plugins.Mode(), "plugins_dir": s.plugins.PluginsDir(),
 			"restart_pending": s.plugins.RestartPending(), "auto_restart_on_drop": s.app.Config.Get().Plugins.AutoRestartOnDrop,
 			"cluster": s.app.Config.Get().Mode == "cluster", "removable": s.removablePlugins()}, nil
+	})
+	// action: core.plugins.sources.check (origin level of a source before installing)
+	s.handle("POST /api/v1/admin/plugins/origin", func(w http.ResponseWriter, r *http.Request) (any, error) {
+		if err := requireInstance(r); err != nil {
+			return nil, err
+		}
+		var in struct {
+			Source string `json:"source"`
+		}
+		if err := h.Decode(r, &in); err != nil {
+			return nil, err
+		}
+		return s.plugins.CheckSource(in.Source)
+	})
+	// action: core.plugins.sources.list
+	s.handle("GET /api/v1/admin/plugins/sources", func(w http.ResponseWriter, r *http.Request) (any, error) {
+		if err := requireInstance(r); err != nil {
+			return nil, err
+		}
+		c := s.app.Config.Get().Plugins
+		list := c.TrustedSources
+		if list == nil {
+			list = []config.TrustedSource{}
+		}
+		return map[string]any{"sources": list, "allow_external": c.ExternalAllowed()}, nil
+	})
+	// action: core.plugins.sources.add (critical: needs a recent sign-in)
+	s.handle("POST /api/v1/admin/plugins/sources", func(w http.ResponseWriter, r *http.Request) (any, error) {
+		if err := requireInstance(r); err != nil {
+			return nil, err
+		}
+		if err := requireRecentSignIn(r); err != nil {
+			return nil, err
+		}
+		var in config.TrustedSource
+		if err := h.Decode(r, &in); err != nil {
+			return nil, err
+		}
+		norm, err := pluginmgr.NormalizeTrusted(in.Prefix)
+		if err != nil {
+			return nil, apperr.BadRequest("%s", err.Error())
+		}
+		if err := s.app.Config.Base().Update(func(c *config.Config) error {
+			return pluginmgr.SetTrustedSources(c, append(slices.Clone(c.Plugins.TrustedSources), config.TrustedSource{Prefix: norm, Note: in.Note}))
+		}); err != nil {
+			return nil, err
+		}
+		s.auditSettings(r, "plugin.sources.add", norm)
+		return config.TrustedSource{Prefix: norm, Note: strings.TrimSpace(in.Note)}, nil
+	})
+	// action: core.plugins.sources.remove
+	s.handle("DELETE /api/v1/admin/plugins/sources", func(w http.ResponseWriter, r *http.Request) (any, error) {
+		if err := requireInstance(r); err != nil {
+			return nil, err
+		}
+		prefix := r.URL.Query().Get("prefix")
+		found := false
+		if err := s.app.Config.Base().Update(func(c *config.Config) error {
+			c.Plugins.TrustedSources = slices.DeleteFunc(slices.Clone(c.Plugins.TrustedSources), func(t config.TrustedSource) bool {
+				if t.Prefix == prefix {
+					found = true
+				}
+				return t.Prefix == prefix
+			})
+			return nil
+		}); err != nil {
+			return nil, err
+		}
+		if !found {
+			return nil, apperr.NotFound("trusted source")
+		}
+		s.auditSettings(r, "plugin.sources.remove", prefix)
+		return h.NoContent{}, nil
+	})
+	// action: core.plugins.sources.external (allow or forbid external core
+	// plugins; allowing needs a recent sign-in)
+	s.handle("PUT /api/v1/admin/plugins/sources/external", func(w http.ResponseWriter, r *http.Request) (any, error) {
+		if err := requireInstance(r); err != nil {
+			return nil, err
+		}
+		var in struct {
+			Allow bool `json:"allow"`
+		}
+		if err := h.Decode(r, &in); err != nil {
+			return nil, err
+		}
+		if in.Allow {
+			if err := requireRecentSignIn(r); err != nil {
+				return nil, err
+			}
+		}
+		if err := s.app.Config.Base().Update(func(c *config.Config) error { c.Plugins.AllowExternal = &in.Allow; return nil }); err != nil {
+			return nil, err
+		}
+		s.auditSettings(r, "plugin.sources.external", fmt.Sprintf("allow=%v", in.Allow))
+		return in, nil
 	})
 	s.handle("PUT /api/v1/admin/plugins/options", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		if err := requireInstance(r); err != nil { // installed plugins and the process are shared by all sites
@@ -1095,15 +1191,19 @@ func (s *Server) routes() {
 		var in struct {
 			Source string `json:"source"` // git URL, github.com/owner/repo, catalog id or local directory
 			Ref    string `json:"ref"`
+			// AcceptExternal confirms the warning for a source that is
+			// neither official nor trusted (needed for every installation).
+			AcceptExternal bool `json:"accept_external"`
 		}
 		if err := h.Decode(r, &in); err != nil {
 			return nil, err
 		}
-		res, err := s.plugins.Install(r.Context(), in.Source, in.Ref)
-		s.auditSettings(r, "plugin.install", in.Source)
+		res, err := s.plugins.Install(r.Context(), in.Source, in.Ref, pluginmgr.InstallOptions{AcceptExternal: in.AcceptExternal, By: handleOf(r)})
 		if err != nil {
 			return nil, err
 		}
+		s.auditSettings(r, "plugin.install", fmt.Sprintf("%s level=%s source=%s commit=%s accepted=%v",
+			res.ID, res.Origin.Level, res.Origin.Source, res.Origin.Commit, res.Origin.Accepted))
 		return s.buildAfterChange(r.Context(), res, "install"), nil
 	})
 	s.handle("DELETE /api/v1/admin/plugins/{id}", func(w http.ResponseWriter, r *http.Request) (any, error) {
@@ -1144,6 +1244,7 @@ func (s *Server) buildAfterChange(ctx context.Context, res *pluginmgr.InstallRes
 	out := map[string]any{"building": false}
 	if res != nil {
 		out["id"], out["name"], out["version"], out["dir"], out["upgrade"] = res.ID, res.Name, res.Version, res.Dir, res.Upgrade
+		out["origin"] = res.Origin
 	}
 	if !s.plugins.CanBuild() {
 		out["rebuild_required"] = true

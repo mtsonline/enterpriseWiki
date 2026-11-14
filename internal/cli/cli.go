@@ -129,11 +129,20 @@ Translations of the user interface
 Plugins
   plugin list
   plugin enable ID | plugin disable ID
-  plugin install SOURCE [--ref TAG] [--build]   SOURCE: catalog id, git URL,
-                                                github.com/owner/repo or directory
+  plugin install SOURCE [--ref TAG] [--build] [--accept-external]
+                                SOURCE: catalog id, git URL, github.com/owner/repo
+                                or directory; core plugins run with full rights,
+                                sources neither official nor trusted need
+                                --accept-external
   plugin remove ID [--build]
   plugin updates                check core and plugins for new GitHub releases
-  plugin update ID [--build]    install the latest release of a plugin
+  plugin update ID [--build] [--accept-external]
+                                install the latest release of a plugin
+  plugin sources list | add PREFIX [--note TEXT] | remove PREFIX
+                                trusted sources of the organisation's core plugins
+  plugin sources check SOURCE   origin level of a source (official, organisation, external)
+  plugin sources external allow|forbid
+                                allow or forbid core plugins from external sources
   plugin generate               regenerate plugins/all/zz_generated.go
   plugin build                  rebuild the binary (scripts/build.sh)
 

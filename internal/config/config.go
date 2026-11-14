@@ -299,6 +299,25 @@ type Plugins struct {
 	// AutoRestartOnDrop restarts automatically after plugins copied into the
 	// plugin folder were built (default: the administration offers "Restart now").
 	AutoRestartOnDrop bool `yaml:"auto_restart_on_drop" json:"auto_restart_on_drop"`
+	// TrustedSources are the sources of the organisation's own core plugins
+	// (address prefixes or local directories). Core plugins from any other
+	// source are "external" and need an explicit confirmation.
+	TrustedSources []TrustedSource `yaml:"trusted_sources,omitempty" json:"trusted_sources"`
+	// AllowExternal permits core plugins from external sources at all
+	// (default true; each installation still needs a confirmation).
+	AllowExternal *bool `yaml:"allow_external,omitempty" json:"allow_external,omitempty"`
+}
+
+// ExternalAllowed reports whether core plugins from external sources may be
+// installed (with confirmation).
+func (p Plugins) ExternalAllowed() bool { return p.AllowExternal == nil || *p.AllowExternal }
+
+// TrustedSource is a source of the organisation's own core plugins.
+type TrustedSource struct {
+	// Prefix is an address prefix (https://git.example.com/wiki-plugins,
+	// ssh://git@git.example.com/team) or an absolute local directory.
+	Prefix string `yaml:"prefix" json:"prefix"`
+	Note   string `yaml:"note,omitempty" json:"note,omitempty"`
 }
 
 // Updates configures the update check against GitHub releases.

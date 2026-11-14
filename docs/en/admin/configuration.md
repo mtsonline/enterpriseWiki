@@ -106,6 +106,8 @@ The current version is never deleted. Only items in the trash are deleted. The r
 | `dir` | plugin directory in the source tree |
 | `catalog` | plugins that can be installed with one click under *Plugins* (`id`, `name`, `repo`, optional `ref`, `description`) |
 | `macros.*` | security switches for the shell and HTTP macro, see below. **Can only be changed in this file**, not through the interface or the API |
+| `trusted_sources` | trusted sources for core plugins (`prefix`, optional `note`), see [plugins.md](plugins.md#origin-of-core-plugins); changes in the interface need a fresh sign-in |
+| `allow_external` | allow core plugins from external sources, with warning and confirmation (default `true`) |
 | `auto_restart_on_drop` | restart at once after the automatic build of plugins copied into the plugin folder (default `false`: *Administration → Plugins* offers **Restart**); also settable under *Administration → Plugins* |
 | `updates.check` | automatic update check when opening *Administration → Updates* (default `true`) |
 | `updates.core_repo` | repository of the core (default `github.com/mtsonline/enterpriseWiki`) |

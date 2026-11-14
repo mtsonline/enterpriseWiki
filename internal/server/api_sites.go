@@ -2,12 +2,14 @@ package server
 
 import (
 	"net/http"
+	"time"
 
 	"github.com/jackc/pgx/v5"
 
 	"github.com/mtsonline/enterprisewiki/internal/app"
 	"github.com/mtsonline/enterprisewiki/internal/apperr"
 	"github.com/mtsonline/enterprisewiki/internal/audit"
+	"github.com/mtsonline/enterprisewiki/internal/auth"
 	h "github.com/mtsonline/enterprisewiki/internal/httpx"
 	"github.com/mtsonline/enterprisewiki/internal/identity"
 )
@@ -23,6 +25,39 @@ func requireInstance(r *http.Request) error {
 		return apperr.Forbidden("only instance administrators can do this")
 	}
 	return nil
+}
+
+// requireRecentSignIn guards critical changes: a browser session signed in
+// during the last 15 minutes or the command line on the server; API keys
+// and older sessions are refused (a stolen session or key cannot widen what
+// counts as trusted).
+func requireRecentSignIn(r *http.Request) error {
+	p := identity.From(r.Context())
+	if p == nil {
+		return apperr.ErrUnauthorized
+	}
+	if p.Via == "cli" {
+		return nil
+	}
+	if p.Via != "session" {
+		return apperr.Forbidden("this change is only possible in the browser or with the command line on the server")
+	}
+	if time.Since(p.SignedIn) > auth.RecentSignIn {
+		return &apperr.Error{Status: 403, Code: "reauth_required", Msg: "please sign in again to make this change"}
+	}
+	return nil
+}
+
+// handleOf names the caller for records (user@provider, or "cli").
+func handleOf(r *http.Request) string {
+	p := identity.From(r.Context())
+	if p == nil {
+		return ""
+	}
+	if p.Via == "cli" {
+		return "cli"
+	}
+	return p.Username + "@" + p.Provider
 }
 
 // InstanceAdmin is a user with instance administration rights.

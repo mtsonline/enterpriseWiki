@@ -45,6 +45,42 @@ Bauen setzt eine der folgenden Varianten voraus:
 - Gebaut wird als der Benutzer aus `.env`, nicht als root.
 - **Cluster**: Alle Knoten teilen den Datenordner. Es baut immer nur ein Knoten (Dateisperre in `bin/`), die anderen warten und übernehmen das Ergebnis. Neu gestartet wird ein Knoten nach dem anderen; der nächste erst, wenn der vorige wieder Anfragen annimmt (Abstimmung über die Datenbank), so bleibt das Wiki erreichbar.
 
+## Herkunft von Core-Plugins
+
+Die Plugins auf dieser Seite sind **Core-Plugins**: Sie werden mit dem Wiki kompiliert, laufen im Wiki-Prozess und haben dieselben Rechte wie das Wiki selbst. Deshalb zeigt das Wiki vor jeder Installation eine Warnung und prüft, woher der Code kommt. Die Prüfung richtet sich nur nach der Quelle, nie nach Angaben im Plugin selbst.
+
+| Herkunft | Woher | Installieren |
+|---|---|---|
+| **Offiziell** | mit dem Wiki ausgeliefert (später zusätzlich mit geprüfter Signatur des Projekts) | mit Warnung |
+| **Organisation** | aus einer Quelle, die ein Instanz-Administrator vorher als vertrauenswürdig eingetragen hat | mit Warnung |
+| **Extern** | jede andere Quelle, zum Beispiel ein unbekanntes GitHub-Repository | mit Warnung **und** einem Kontrollkästchen, das angehakt werden muss; bei jedem Update erneut |
+| **Unbekannt** | ein Ordner, der von Hand in den Plugin-Ordner kopiert wurde | wird wie *Extern* behandelt |
+
+**SDK-Plugins sind davon nicht betroffen.** Sie laufen als eigener, abgeschotteter Prozess und greifen nur über das SDK auf das Wiki zu.
+
+### Vertrauenswürdige Quellen
+
+*Administration → Plugins → Vertrauenswürdige Quellen* (nur Instanz-Administratoren):
+
+- Ein Eintrag ist eine Adresse (`https://…` oder `ssh://…`, auch `git@host:pfad`) oder ein Verzeichnis auf dem Server. Er gilt für die Adresse und alles darunter, nur an Pfadgrenzen: `https://git.example.com/team` umfasst `https://git.example.com/team/kanban`, aber nicht `https://git.example.com/team-fremd/kanban`.
+- Ein ganzer Server ohne Pfad wird nicht angenommen. Adressen mit Passwort, Abfrage (`?`), `..`, leeren Pfadteilen (`//`), `%`-Kodierung, `\`, Steuerzeichen oder `http://` werden abgelehnt, damit das Wiki genau die Adresse prüft, die Git abruft. Groß- und Kleinschreibung des Servers, `.git` am Ende, der Standard-Port und ein Benutzername vor dem Server spielen keine Rolle.
+- **Externe Quellen erlauben** (`plugins.allow_external`, Standard: an): Ausgeschaltet lassen sich nur offizielle Core-Plugins und solche aus vertrauenswürdigen Quellen installieren.
+- Eine Quelle eintragen und externe Quellen wieder erlauben geht nur mit einer **Anmeldung in den letzten 15 Minuten** im Browser oder mit der Kommandozeile auf dem Server, nicht mit API-Schlüsseln. Entfernen und Ausschalten geht jederzeit.
+- Bereits installierte Core-Plugins bleiben installiert, wenn ihre Quelle entfernt wird.
+
+Die Liste der Plugins zeigt in der Spalte *Herkunft* die Stufe, die Quelle und den Stand (Commit). Das Wiki legt dazu im Ordner jedes installierten Plugins die Datei `.ewiki-origin.json` an. Eine Datei dieses Namens in den Quellen eines Plugins wird beim Installieren entfernt.
+
+In `config.yaml`:
+
+```yaml
+plugins:
+  allow_external: true
+  trusted_sources:
+    - prefix: https://git.example.com/wiki-plugins
+      note: Plugins unseres Teams
+    - prefix: /srv/ewiki-plugins
+```
+
 ## Katalog (1-Klick-Installation)
 
 Plugins, die in `config.yaml` gelistet sind, erscheinen unter *Katalog* mit einem Installations-Knopf:
@@ -69,7 +105,17 @@ ewiki plugin enable acme.kanban
 ewiki plugin disable acme.kanban
 ewiki plugin remove acme.kanban --build
 ewiki plugin build              # Neubau, danach: systemctl restart enterprisewiki
+
+# Herkunft
+ewiki plugin install github.com/fremd/plugin --accept-external   # externe Quelle: Warnung bestätigen
+ewiki plugin sources list
+ewiki plugin sources add https://git.example.com/wiki-plugins --note "unser Team"
+ewiki plugin sources remove https://git.example.com/wiki-plugins
+ewiki plugin sources check github.com/acme/ewiki-kanban
+ewiki plugin sources external forbid   # oder: allow
 ```
+
+Ohne `--accept-external` bricht die Installation aus einer externen Quelle mit der Warnung ab.
 
 ## Updates
 
@@ -139,7 +185,7 @@ Plugin-Verzeichnis (mit `plugin.json`, Go-Dateien und optional `web/`, `locales/
 
 ## Sicherheit
 
-Plugins sind vollwertiger Code mit Zugriff auf Datenbank und Server. Installieren Sie nur Plugins aus vertrauenswürdigen Quellen und mit fester Version (`ref`). Jede Installation, Entfernung und (De-)Aktivierung wird protokolliert.
+Core-Plugins sind vollwertiger Code mit Zugriff auf Datenbank und Server. Installieren Sie nur Core-Plugins aus vertrauenswürdigen Quellen und mit fester Version (`ref`), siehe [Herkunft von Core-Plugins](#herkunft-von-core-plugins). Installieren, Aktualisieren und vertrauenswürdige Quellen sind Sache der Instanz-Administratoren. Jede Installation (mit Herkunft, Quelle, Commit und Bestätigung), Entfernung, (De-)Aktivierung und jede Änderung der vertrauenswürdigen Quellen wird protokolliert.
 
 ## Mitgelieferte Plugins
 

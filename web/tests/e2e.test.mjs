@@ -168,6 +168,69 @@ test('administration pages are accessible', async () => {
   await a11y('trash');
 });
 
+test('core plugins: origin check, warning, confirmation for external sources, trusted sources', async () => {
+  // runs early: entering a trusted source needs a sign-in within 15 minutes
+  await page.goto(BASE + '/admin/plugins');
+  await idle();
+  const install = async (source) => {
+    const form = page.locator('form', { has: page.getByRole('heading', { name: /^(install a core plugin|core-plugin installieren)$/i }) });
+    await form.getByLabel(/^(source|quelle)/i).fill(source);
+    await form.locator('button[type=submit]').click();
+    return page.getByRole('dialog', { name: /^(install core plugin|core-plugin installieren)$/i });
+  };
+  // an unknown source: warning, the box must be ticked
+  let dlg = await install(`https://git.example.com/e2e-${run}/kanban`);
+  await dlg.waitFor();
+  await dlg.getByText(/same rights as the wiki|dieselben rechte wie das wiki/i).waitFor();
+  await dlg.locator('.ew-badge', { hasText: /^(external|extern)$/i }).waitFor();
+  const accept = dlg.getByRole('checkbox', { name: /install this core plugin anyway|installiere dieses core-plugin trotzdem/i });
+  assert.equal(await accept.isChecked(), false);
+  await a11y('external core plugin warning');
+  await dlg.locator('button[type=submit]').click();
+  await dlg.locator('.ew-form-alert', { hasText: /checkbox|kontrollkästchen/i }).waitFor();
+  await dlg.getByRole('button', { name: /^(cancel|abbrechen)$/i }).click();
+  await dlg.waitFor({ state: 'detached' });
+
+  // enter the source as trusted: the same address is now the organisation's
+  const panel = page.locator('section', { has: page.getByRole('heading', { name: /^(trusted sources|vertrauenswürdige quellen)$/i }) });
+  await panel.getByLabel(/^(address or directory|adresse oder verzeichnis)/i).fill(`https://git.example.com/e2e-${run}`);
+  await panel.getByLabel(/^(note|notiz)/i).fill('E2E team');
+  await panel.getByRole('button', { name: /^(add|eintragen)$/i }).click();
+  await page.locator('section code', { hasText: `https://git.example.com/e2e-${run}` }).first().waitFor();
+  await idle();
+  await a11y('trusted sources');
+  dlg = await install(`https://git.example.com/e2e-${run}/kanban.git`);
+  await dlg.waitFor();
+  await dlg.locator('.ew-badge', { hasText: /^organisation$/i }).waitFor();
+  assert.equal(await dlg.getByRole('checkbox').count(), 0, 'no confirmation box for a trusted source');
+  await dlg.getByText(/same rights as the wiki|dieselben rechte wie das wiki/i).waitFor();
+  await dlg.getByRole('button', { name: /^(cancel|abbrechen)$/i }).click();
+  await dlg.waitFor({ state: 'detached' });
+  // a sibling address is not covered by the entry
+  dlg = await install(`https://git.example.com/e2e-${run}-evil/kanban`);
+  await dlg.locator('.ew-badge', { hasText: /^(external|extern)$/i }).waitFor();
+  await dlg.getByRole('button', { name: /^(cancel|abbrechen)$/i }).click();
+  await dlg.waitFor({ state: 'detached' });
+
+  // the origin of the installed core plugins is shown
+  assert.ok(await page.locator('table .ew-badge', { hasText: /^(official|offiziell)$/i }).count() >= 1);
+
+  // switch external sources off and on again, remove the entry
+  const allow = page.getByRole('checkbox', { name: /allow core plugins from external sources|core-plugins aus externen quellen erlauben/i });
+  await allow.uncheck();
+  await page.locator('.ew-toasts', { hasText: /saved|gespeichert/i }).waitFor();
+  dlg = null;
+  const form = page.locator('form', { has: page.getByRole('heading', { name: /^(install a core plugin|core-plugin installieren)$/i }) });
+  await form.getByLabel(/^(source|quelle)/i).fill('https://git.example.com/elsewhere/x');
+  await form.locator('button[type=submit]').click();
+  await page.locator('.ew-toasts', { hasText: /switched off|ausgeschaltet/i }).waitFor();
+  assert.equal(await page.getByRole('dialog').count(), 0);
+  await allow.check();
+  await page.getByRole('button', { name: new RegExp(`^(remove source|quelle) https://git.example.com/e2e-${run}`, 'i') }).click();
+  await page.getByRole('dialog').getByRole('button', { name: /^(remove|entfernen)$/i }).click();
+  await page.locator('.ew-toasts', { hasText: /source removed|quelle entfernt/i }).waitFor();
+});
+
 test('upload a PDF as file element and find its text', async () => {
   await page.goto(BASE + '/');
   await idle();

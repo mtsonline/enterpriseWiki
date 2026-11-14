@@ -325,6 +325,11 @@ If the account requires a second factor, the sign-in answers with `mfa_required`
 | `POST` | `/api/v1/admin/plugins/install` |
 | `DELETE` | `/api/v1/admin/plugins/{id}` |
 | `POST` | `/api/v1/admin/plugins/build` |
+| `POST` | `/api/v1/admin/plugins/origin` |
+| `GET` | `/api/v1/admin/plugins/sources` |
+| `POST` | `/api/v1/admin/plugins/sources` |
+| `DELETE` | `/api/v1/admin/plugins/sources` |
+| `PUT` | `/api/v1/admin/plugins/sources/external` |
 | `POST` | `/api/v1/admin/restart` |
 | `GET` | `/api/v1/admin/audit/search` |
 | `GET` | `/api/v1/admin/audit/export` |
@@ -372,6 +377,12 @@ If the account requires a second factor, the sign-in answers with `mfa_required`
 | `POST` | `/api/v1/admin/demo` |
 | `DELETE` | `/api/v1/admin/demo` |
 | `POST` | `/api/v1/admin/reset` |
+
+**Origin of core plugins** (instance administrators only, see [Managing plugins](../admin/plugins.md#origin-of-core-plugins)):
+
+- `POST /api/v1/admin/plugins/origin` with `{"source": "…"}` checks a source before installing and answers `{"level": "official"|"organisation"|"external", "source": "…", "trusted": "…", "allowed": true}`.
+- `POST /api/v1/admin/plugins/install` and `POST /api/v1/admin/updates/{id}` accept `"accept_external": true`. Without that confirmation for an external source the wiki answers 400 with the code `external_not_accepted`; when external sources are switched off, 403. The answer of an installation contains `origin` (level, source, commit, who installed). `GET /api/v1/admin/plugins` returns `origins` per plugin id.
+- `GET /api/v1/admin/plugins/sources` returns `{"sources": [{"prefix", "note"}], "allow_external": true}`. `POST …/sources` with `{"prefix", "note"}` adds a source, `DELETE …/sources?prefix=…` removes it, `PUT …/sources/external` with `{"allow": false}` switches external sources off. Adding and allowing need a browser session signed in within the last 15 minutes (otherwise 403 with `reauth_required`) or the command line; API keys are refused.
 
 ### Plugins
 

@@ -195,7 +195,7 @@ func (m *Manager) LastUpdateReport() *UpdateReport {
 
 // UpdatePlugin installs the latest release of a plugin (from the last check)
 // and starts a rebuild.
-func (m *Manager) UpdatePlugin(ctx context.Context, id string) (*InstallResult, error) {
+func (m *Manager) UpdatePlugin(ctx context.Context, id string, opt InstallOptions) (*InstallResult, error) {
 	rep := m.LastUpdateReport()
 	if rep == nil {
 		return nil, apperr.BadRequest("check for updates first")
@@ -207,7 +207,7 @@ func (m *Manager) UpdatePlugin(ctx context.Context, id string) (*InstallResult, 
 		if !it.Available {
 			return nil, apperr.BadRequest("no update available for %s", id)
 		}
-		res, err := m.Install(ctx, it.Repo, it.Tag)
+		res, err := m.Install(ctx, it.Repo, it.Tag, opt)
 		if err != nil {
 			return nil, err
 		}
