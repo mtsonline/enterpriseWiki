@@ -41,7 +41,7 @@ real systems: Keycloak as OpenID Connect and SAML provider and OpenLDAP with `me
 processes without containers, locally just as in the CI.
 
 ```bash
-eval "$(tests/auth/start.sh)"           # starts Keycloak and OpenLDAP, prints the environment
+eval "$(EWIKI_AUTH_AD=1 EWIKI_AUTH_SHIB=1 tests/auth/start.sh)"   # Keycloak, OpenLDAP, AD, Apache with mod_shib
 EWIKI_TEST_DATABASE_URL=… go test -race -run TestReal ./internal/server/
 (cd web && EWIKI_E2E_URL=http://localhost:8080 npm run test:auth)   # browser test against a freshly set-up wiki
 tests/auth/start.sh stop
@@ -49,8 +49,15 @@ tests/auth/start.sh stop
 
 Checked among other things: sign-in through the real sign-in form, wrong password, mapping of groups and
 roles, back-channel logout (ending the session at the provider ends it in the wiki), signing out in the wiki also ends
-the session at the provider, a SAML response counts only once, LDAP filter injection, groups through `memberOf` and
-through a group search. Every test creates its own realm in Keycloak; passwords are generated anew on every
+the session at the provider, a SAML response counts only once, SAML logout in both directions, LDAP filter injection,
+groups through `memberOf` and through a group search.
+
+With `EWIKI_AUTH_AD=1` Samba starts in addition as Active Directory (package `samba-ad-dc`, needs `sudo`): LDAPS with
+an own test CA, disabled accounts, `objectGUID` as stable id, nested groups, StartTLS, no sign-in without a trusted
+certificate or without encryption. With `EWIKI_AUTH_SHIB=1` Apache with mod_shib starts in front of the wiki (packages
+`apache2`, `libapache2-mod-shib`), set up as in the admin documentation: the test signs in through Keycloak and tries
+to forge the identity headers – directly past the proxy, through unprotected path variants and with a real
+session. Every test creates its own realm in Keycloak; passwords are generated anew on every
 start. Without the environment the tests are skipped, with `EWIKI_TEST_REQUIRE_REAL_AUTH=1` they fail.
 
 ## Test routine against a running instance (`tests/qa`)

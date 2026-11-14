@@ -1,0 +1,25 @@
+<!-- Shibboleth service provider for tests/auth/start.sh (EWIKI_AUTH_SHIB=1).
+     @WORK@, @SP@ and @IDP@ are replaced by the script. Plain HTTP on
+     localhost: a throw-away test system, not a template for production. -->
+<SPConfig xmlns="urn:mace:shibboleth:3.0:native:sp:config"
+    xmlns:conf="urn:mace:shibboleth:3.0:native:sp:config" clockSkew="180">
+    <OutOfProcess logger="@WORK@/shibd.logger"/>
+    <UnixListener address="@WORK@/shibd.sock"/>
+    <ApplicationDefaults entityID="@SP@/shibboleth" REMOTE_USER="uid">
+        <Sessions lifetime="28800" timeout="3600" relayState="ss:mem"
+                  checkAddress="false" handlerSSL="false" cookieProps="http" redirectLimit="exact">
+            <SSO entityID="@IDP@">SAML2</SSO>
+            <Logout>SAML2 Local</Logout>
+            <Handler type="MetadataGenerator" Location="/Metadata" signing="false"/>
+            <Handler type="Status" Location="/Status" acl="127.0.0.1 ::1"/>
+            <Handler type="Session" Location="/Session" showAttributeValues="false"/>
+        </Sessions>
+        <Errors supportContact="root@localhost" helpLocation="/about.html" styleSheet="/shibboleth-sp/main.css"/>
+        <MetadataProvider type="XML" validate="true" path="@WORK@/idp-metadata.xml"/>
+        <AttributeExtractor type="XML" validate="true" reloadChanges="false" path="@WORK@/attribute-map.xml"/>
+        <CredentialResolver type="File" use="signing" key="@WORK@/sp-key.pem" certificate="@WORK@/sp-cert.pem"/>
+        <CredentialResolver type="File" use="encryption" key="@WORK@/sp-key.pem" certificate="@WORK@/sp-cert.pem"/>
+    </ApplicationDefaults>
+    <SecurityPolicyProvider type="XML" validate="true" path="/etc/shibboleth/security-policy.xml"/>
+    <ProtocolProvider type="XML" validate="true" reloadChanges="false" path="/etc/shibboleth/protocols.xml"/>
+</SPConfig>

@@ -132,6 +132,8 @@ plugin_settings:
 ```
 
 - `ldap://` mit `start_tls: true` ist ebenso möglich. `insecure_skip_verify` nur für Tests verwenden.
+- Eine eigene Zertifizierungsstelle (zum Beispiel die Unternehmens-CA) tragen Sie als `ca_cert` ein (PEM oder Pfad zur Datei). Das Serverzertifikat braucht den Servernamen als alternativen Namen (SAN); Zertifikate nur mit CN werden abgelehnt.
+- `memberOf` nennt nur die **direkten** Gruppen. **Verschachtelte Gruppen** (eine Gruppe in einer Gruppe) findet das AD mit einer eigenen Suchregel; dafür `group_attribute` leer lassen und `group_base_dn: DC=corp,DC=example,DC=com` sowie `group_filter: (member:1.2.840.113556.1.4.1941:={dn})` setzen.
 - Ohne `bind_dn` wird anonym gesucht.
 - Leere Passwörter werden immer abgelehnt (Schutz vor „unauthenticated bind“).
 - Mit **Anmeldung testen** im Admin-Bereich sehen Sie, welche Werte und Gruppen ankommen, ohne dass eine Sitzung entsteht.

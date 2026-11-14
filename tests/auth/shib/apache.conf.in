@@ -1,0 +1,34 @@
+# Apache with mod_shib in front of the wiki for tests/auth/start.sh
+# (EWIKI_AUTH_SHIB=1). The <Location> block and the proxy lines are the
+# configuration from the documentation (admin/authentication.md, header mode).
+ServerRoot /etc/apache2
+ServerName localhost
+Listen 127.0.0.1:@PORT@
+PidFile @WORK@/apache.pid
+ErrorLog @WORK@/apache-error.log
+LogLevel warn
+LoadModule mpm_event_module /usr/lib/apache2/modules/mod_mpm_event.so
+LoadModule authz_core_module /usr/lib/apache2/modules/mod_authz_core.so
+LoadModule authn_core_module /usr/lib/apache2/modules/mod_authn_core.so
+LoadModule headers_module /usr/lib/apache2/modules/mod_headers.so
+LoadModule proxy_module /usr/lib/apache2/modules/mod_proxy.so
+LoadModule proxy_http_module /usr/lib/apache2/modules/mod_proxy_http.so
+LoadModule mod_shib /usr/lib/apache2/modules/mod_shib.so
+@USER@
+ShibConfig @WORK@/shibboleth2.xml
+ShibCompatValidUser Off
+
+<Location /Shibboleth.sso>
+  SetHandler shib
+</Location>
+
+<Location /api/v1/auth/sso/shib/start>
+  AuthType shibboleth
+  ShibRequestSetting requireSession true
+  ShibUseHeaders On
+  Require shib-session
+</Location>
+ProxyPass /Shibboleth.sso !
+ProxyPass / http://@BACKEND@/
+ProxyPassReverse / http://@BACKEND@/
+RequestHeader unset eppn early
