@@ -28,6 +28,7 @@ import (
 	"github.com/jimlambrt/gldap/testdirectory"
 
 	"github.com/mtsonline/enterprisewiki/internal/config"
+	"github.com/mtsonline/enterprisewiki/internal/secrets"
 )
 
 // browser is a client that does not follow redirects automatically.
@@ -430,5 +431,44 @@ func TestShibHeaderMode(t *testing.T) {
 	c.must("GET", "/api/v1/auth/me", nil, &me, 200)
 	if me.User == nil || me.User.Username != "erin@uni.example" || len(me.User.Groups) != 2 {
 		t.Fatalf("header user %+v", me.User)
+	}
+}
+
+// TestSAMLSPKeySealed: the private key of the SAML service provider is
+// stored sealed with secrets.mode like every other secret, sign-in works
+// with it, and rewrap brings an old plain key into the current mode.
+func TestSAMLSPKeySealed(t *testing.T) {
+	e := setupWith(t, func(c *config.Config) { c.Secrets.Mode = "pq" })
+	ctx := t.Context()
+	f := newFakeSAML(t, e, map[string]any{"attr_username": "uid"})
+	var stored string
+	if err := e.app.DB.QueryRow(ctx, `SELECT key_pem FROM plugin_shib_sp WHERE id=1`).Scan(&stored); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.HasPrefix(stored, "ews1:q:") || strings.Contains(stored, "PRIVATE KEY") {
+		t.Fatalf("SP key not sealed: %.40q", stored)
+	}
+	// bound to its row: copied elsewhere it does not open
+	if _, err := e.app.Instance.Secrets.OpenString(stored, secrets.AAD("plugin_shib_sp", "2")); err == nil {
+		t.Fatal("sealed SP key opens for another row")
+	}
+	c := e.client()
+	if loc := f.login(t, e, c, "/"); loc != "/" {
+		t.Fatalf("sign-in with the sealed key: %s", loc)
+	}
+
+	// a key stored in plain (mode plain before) still works and rewrap seals it
+	plain, err := e.app.Instance.Secrets.OpenString(stored, secrets.AAD("plugin_shib_sp", "1"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := e.app.DB.Exec(ctx, `UPDATE plugin_shib_sp SET key_pem=$1`, plain); err != nil {
+		t.Fatal(err)
+	}
+	admin := e.client()
+	admin.login("admin", adminPW)
+	admin.must("POST", "/api/v1/admin/secrets/rewrap", nil, nil, 200)
+	if err := e.app.DB.QueryRow(ctx, `SELECT key_pem FROM plugin_shib_sp WHERE id=1`).Scan(&stored); err != nil || !strings.HasPrefix(stored, "ews1:q:") {
+		t.Fatalf("rewrap left the SP key plain: %.40q %v", stored, err)
 	}
 }
