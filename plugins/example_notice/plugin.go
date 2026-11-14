@@ -18,7 +18,7 @@ import (
 	"net/http"
 
 	"github.com/mtsonline/enterprisewiki/internal/content"
-	"github.com/mtsonline/enterprisewiki/pkg/sdk"
+	"github.com/mtsonline/enterprisewiki/internal/coreplugin"
 	core_html "github.com/mtsonline/enterprisewiki/plugins/core_html"
 )
 
@@ -31,19 +31,19 @@ var locales embed.FS
 // Plugin is the example plugin.
 type Plugin struct{}
 
-func init() { sdk.Register(&Plugin{}) }
+func init() { coreplugin.Register(&Plugin{}) }
 
-// Manifest implements sdk.Plugin.
-func (p *Plugin) Manifest() sdk.Manifest { return sdk.ParseManifest(manifest) }
+// Manifest implements coreplugin.Plugin.
+func (p *Plugin) Manifest() coreplugin.Manifest { return coreplugin.ParseManifest(manifest) }
 
-// Locales implements sdk.LocalesPlugin.
+// Locales implements coreplugin.LocalesPlugin.
 func (p *Plugin) Locales() fs.FS { sub, _ := fs.Sub(locales, "locales"); return sub }
 
 // Tones are the available box styles.
 var Tones = []string{"info", "success", "warning", "danger"}
 
 // Setup registers the element type and an API route.
-func (p *Plugin) Setup(h *sdk.Host) error {
+func (p *Plugin) Setup(h *coreplugin.Host) error {
 	h.RegisterElementType(&Type{})
 	h.Handle("GET", "/tones", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		return Tones, nil

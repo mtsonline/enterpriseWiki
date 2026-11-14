@@ -9,8 +9,8 @@ import (
 	"github.com/jackc/pgx/v5"
 
 	"github.com/mtsonline/enterprisewiki/internal/content"
+	"github.com/mtsonline/enterprisewiki/internal/coreplugin"
 	"github.com/mtsonline/enterprisewiki/internal/identity"
-	"github.com/mtsonline/enterprisewiki/pkg/sdk"
 )
 
 // ConvertComment is the version note of the one-time conversion.
@@ -20,7 +20,7 @@ const ConvertComment = "Converted to Markdown"
 // once: the current version of every language becomes a new version (the
 // history keeps the HTML), drafts and templates are converted in place.
 // It returns the number of converted versions, drafts and templates.
-func ConvertAll(ctx context.Context, h *sdk.Host) (int, error) {
+func ConvertAll(ctx context.Context, h *coreplugin.Host) (int, error) {
 	ctx = identity.With(ctx, identity.CLI())
 	type cur struct {
 		id    int64
@@ -96,7 +96,7 @@ func ConvertAll(ctx context.Context, h *sdk.Host) (int, error) {
 // registerConversion runs ConvertAll as a background job (cancelled on
 // shutdown, one node at a time in a cluster) until nothing is left to
 // convert; afterwards the job does nothing.
-func registerConversion(h *sdk.Host) {
+func registerConversion(h *coreplugin.Host) {
 	var done atomic.Bool
 	h.RegisterWorker("convert-markdown", 10*time.Minute, func(ctx context.Context) error {
 		if done.Load() {

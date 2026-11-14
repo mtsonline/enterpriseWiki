@@ -38,7 +38,7 @@ export interface MFAMethodUI {
 
 const methods: MFAMethodUI[] = [];
 
-/** Adds the browser part of a factor (plugins: see sdk). */
+/** Adds the browser part of a factor (plugins: see coreplugin.ts). */
 export function registerMFAMethodUI(m: MFAMethodUI): void {
   const i = methods.findIndex((x) => x.id === m.id);
   if (i >= 0) methods[i] = m;

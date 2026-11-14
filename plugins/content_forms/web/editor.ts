@@ -1,7 +1,7 @@
 // Form editor: settings, the field list (add by click or drag from the
 // palette, order by drag or buttons, edit in place), the free layout as a
 // canvas (drag or arrow keys; numbers as alternative) and the targets.
-import { announce, api, button, categorySelect, checkbox, elementSelect, field, h, select, t, textArea, textInput, type EditorContext, type EditorInstance } from '@ewiki/sdk';
+import { announce, api, button, categorySelect, checkbox, elementSelect, field, h, select, t, textArea, textInput, type EditorContext, type EditorInstance } from '@ewiki/coreplugin';
 import { BASE } from './widget';
 
 interface Option { value: string; label: string }

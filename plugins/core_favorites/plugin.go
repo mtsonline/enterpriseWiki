@@ -13,10 +13,10 @@ import (
 
 	"github.com/mtsonline/enterprisewiki/internal/acl"
 	"github.com/mtsonline/enterprisewiki/internal/apperr"
+	"github.com/mtsonline/enterprisewiki/internal/coreplugin"
 	h "github.com/mtsonline/enterprisewiki/internal/httpx"
 	"github.com/mtsonline/enterprisewiki/internal/identity"
 	"github.com/mtsonline/enterprisewiki/internal/perm"
-	"github.com/mtsonline/enterprisewiki/pkg/sdk"
 )
 
 //go:embed plugin.json
@@ -32,17 +32,17 @@ var locales embed.FS
 const Max = 200
 
 // Plugin is the favorites plugin.
-type Plugin struct{ host *sdk.Host }
+type Plugin struct{ host *coreplugin.Host }
 
-func init() { sdk.Register(&Plugin{}) }
+func init() { coreplugin.Register(&Plugin{}) }
 
-// Manifest implements sdk.Plugin.
-func (p *Plugin) Manifest() sdk.Manifest { return sdk.ParseManifest(manifest) }
+// Manifest implements coreplugin.Plugin.
+func (p *Plugin) Manifest() coreplugin.Manifest { return coreplugin.ParseManifest(manifest) }
 
-// Migrations implements sdk.MigrationsPlugin.
+// Migrations implements coreplugin.MigrationsPlugin.
 func (p *Plugin) Migrations() fs.FS { s, _ := fs.Sub(migrations, "migrations"); return s }
 
-// Locales implements sdk.LocalesPlugin.
+// Locales implements coreplugin.LocalesPlugin.
 func (p *Plugin) Locales() fs.FS { s, _ := fs.Sub(locales, "locales"); return s }
 
 // Favorite is one entry of the list.
@@ -135,8 +135,8 @@ func (p *Plugin) items(ctx context.Context, uid int64) ([]Favorite, error) {
 	return out, nil
 }
 
-// Setup implements sdk.SetupPlugin.
-func (p *Plugin) Setup(host *sdk.Host) error {
+// Setup implements coreplugin.SetupPlugin.
+func (p *Plugin) Setup(host *coreplugin.Host) error {
 	p.host = host
 	// GET / – my favorites
 	host.Handle("GET", "/", func(w http.ResponseWriter, r *http.Request) (any, error) {

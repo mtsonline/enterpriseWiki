@@ -10,7 +10,7 @@ import { categorySelect, newElement } from '../components/pickers';
 import { shortOnlyBox, shortURLInput, hrefOf } from '../components/shorturl';
 import { invalidateTree } from '../components/widgets';
 import { previewImageInput } from '../components/previewimage';
-import { typeLabel } from '../sdk';
+import { typeLabel } from '../coreplugin';
 
 interface Found {
   id: number; title: string; type: string; category_id: number; category_path: string[]; short_url: string; short_only?: boolean; preview_image: string; tags: string[];

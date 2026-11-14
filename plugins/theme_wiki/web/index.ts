@@ -10,7 +10,7 @@
 //   content-top      above the content of every page
 //   content-bottom   below the content of every page
 //   footer           footer
-import { h, registerTemplate, state, t } from '@ewiki/sdk';
+import { h, registerTemplate, state, t } from '@ewiki/coreplugin';
 import './style.css';
 
 export const POSITIONS = ['top-bar', 'header-nav', 'header-tools', 'sidebar', 'sidebar-bottom', 'content-top', 'content-bottom', 'footer'];

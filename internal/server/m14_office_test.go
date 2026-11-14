@@ -22,7 +22,7 @@ import (
 	"time"
 
 	"github.com/mtsonline/enterprisewiki/internal/config"
-	"github.com/mtsonline/enterprisewiki/pkg/wopi"
+	"github.com/mtsonline/enterprisewiki/internal/wopi"
 )
 
 // fakeOffice is a WOPI client (like Collabora): it serves the discovery

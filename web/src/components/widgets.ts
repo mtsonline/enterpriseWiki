@@ -7,7 +7,7 @@ import { navigate, rerender } from '../core/router';
 import { changed, isAdmin, hasPerm, rememberLang, setEditMode, state } from '../core/state';
 import type { Category, SpaceInfo } from '../core/types';
 import { announce, toast } from '../core/announce';
-import { refreshPositions } from '../sdk';
+import { refreshPositions } from '../coreplugin';
 import { button, errorText } from './ui';
 
 /** Context of the current page (set by category and element views). */

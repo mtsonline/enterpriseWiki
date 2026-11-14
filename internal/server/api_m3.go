@@ -8,8 +8,8 @@ import (
 	"github.com/mtsonline/enterprisewiki/internal/mail"
 
 	"github.com/mtsonline/enterprisewiki/internal/apperr"
+	"github.com/mtsonline/enterprisewiki/internal/coreplugin"
 	"github.com/mtsonline/enterprisewiki/internal/version"
-	"github.com/mtsonline/enterprisewiki/pkg/sdk"
 )
 
 func (s *Server) routesM3() {
@@ -20,8 +20,8 @@ func (s *Server) routesM3() {
 	})
 
 	// ---------------------------------------------------------------- updates
-	manifests := func() []sdk.Manifest {
-		ms := []sdk.Manifest{}
+	manifests := func() []coreplugin.Manifest {
+		ms := []coreplugin.Manifest{}
 		for _, p := range s.app.Kernel.List() {
 			ms = append(ms, p.Manifest)
 		}

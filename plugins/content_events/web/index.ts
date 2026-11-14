@@ -4,7 +4,7 @@
 // subscription.
 import {
   announce, api, button, checkbox, confirmDialog, errorText, feedURL, field, formDialog, h, mount, newest, openDialog, qs, registerEditor, registerWidget, select, state, t, textArea, textInput, toast, trustedHTML, uid, type EditorInstance, sourcesEditor, registerSourceKind, registerMacroParamControl, elementSelect,
-} from '@ewiki/sdk';
+} from '@ewiki/coreplugin';
 import './style.css';
 
 const BASE = '/api/v1/x/content.events';

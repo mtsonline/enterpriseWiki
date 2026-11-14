@@ -9,9 +9,9 @@ import (
 	"time"
 
 	"github.com/mtsonline/enterprisewiki/internal/apperr"
+	"github.com/mtsonline/enterprisewiki/internal/coreplugin"
 	"github.com/mtsonline/enterprisewiki/internal/feed"
 	h "github.com/mtsonline/enterprisewiki/internal/httpx"
-	"github.com/mtsonline/enterprisewiki/pkg/sdk"
 )
 
 // icalEscape escapes TEXT values (RFC 5545 3.3.11).
@@ -166,7 +166,7 @@ func Calendar(name string, events []*Event, linkOf func(*Event) string) string {
 	return b.String()
 }
 
-func (p *Plugin) icalRoutes(hs *sdk.Host) {
+func (p *Plugin) icalRoutes(hs *coreplugin.Host) {
 	link := func(r *http.Request) func(e *Event) string {
 		base := feed.BaseURL(hs.Config.Get().Server.BaseURL, r)
 		return func(e *Event) string { return fmt.Sprintf("%s/e/%d#event-%d", base, e.CalendarID, e.ID) }

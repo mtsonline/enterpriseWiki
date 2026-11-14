@@ -1,6 +1,6 @@
 // Allowed networks: a factor without a question (the address of the
 // sign-in). The profile part sets the own networks.
-import { api, button, errorText, field, h, registerMFAMethodUI, registerUserAdminField, t, textArea, toast } from '@ewiki/sdk';
+import { api, button, errorText, field, h, registerMFAMethodUI, registerUserAdminField, t, textArea, toast } from '@ewiki/coreplugin';
 
 const BASE = '/api/v1/x/mfa.network';
 

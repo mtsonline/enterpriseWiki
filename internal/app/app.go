@@ -23,6 +23,7 @@ import (
 	"github.com/mtsonline/enterprisewiki/internal/auth"
 	"github.com/mtsonline/enterprisewiki/internal/config"
 	"github.com/mtsonline/enterprisewiki/internal/content"
+	"github.com/mtsonline/enterprisewiki/internal/coreplugin"
 	"github.com/mtsonline/enterprisewiki/internal/db"
 	"github.com/mtsonline/enterprisewiki/internal/db/migrations"
 	"github.com/mtsonline/enterprisewiki/internal/events"
@@ -40,7 +41,6 @@ import (
 	"github.com/mtsonline/enterprisewiki/internal/watch"
 	"github.com/mtsonline/enterprisewiki/internal/webhook"
 	"github.com/mtsonline/enterprisewiki/internal/worker"
-	"github.com/mtsonline/enterprisewiki/pkg/sdk"
 )
 
 // App holds all services.
@@ -344,7 +344,7 @@ func newSite(ctx context.Context, in *Instance, site string, migrate bool) (*App
 		return nil, err
 	}
 	a.Signatures.Enabled = a.Kernel.Enabled
-	base := sdk.Host{Notify: a.Notify, Signatures: a.Signatures, Webhooks: a.Webhooks, Secrets: in.Secrets, Config: cfg, DB: pool, ACL: a.ACL, Content: a.Content, Auth: a.Auth, I18n: a.I18n, Files: a.Files, Media: a.Media, Mail: a.Mail, Feeds: a.Feeds, Workers: a.Workers,
+	base := coreplugin.Host{Notify: a.Notify, Signatures: a.Signatures, Webhooks: a.Webhooks, Secrets: in.Secrets, Config: cfg, DB: pool, ACL: a.ACL, Content: a.Content, Auth: a.Auth, I18n: a.I18n, Files: a.Files, Media: a.Media, Mail: a.Mail, Feeds: a.Feeds, Workers: a.Workers,
 		Log: log, Mux: a.Mux, IsEnabled: a.Kernel.Enabled}
 	if err := a.Kernel.Setup(base, a.I18n); err != nil {
 		a.close()

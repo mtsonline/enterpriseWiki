@@ -11,7 +11,7 @@ import (
 	"strconv"
 
 	"github.com/mtsonline/enterprisewiki/internal/content"
-	"github.com/mtsonline/enterprisewiki/pkg/sdk"
+	"github.com/mtsonline/enterprisewiki/internal/coreplugin"
 	core_html "github.com/mtsonline/enterprisewiki/plugins/core_html"
 )
 
@@ -27,16 +27,16 @@ const TypeID = "content.notes"
 // Plugin is the shared notes plugin.
 type Plugin struct{}
 
-func init() { sdk.Register(&Plugin{}) }
+func init() { coreplugin.Register(&Plugin{}) }
 
-// Manifest implements sdk.Plugin.
-func (p *Plugin) Manifest() sdk.Manifest { return sdk.ParseManifest(manifest) }
+// Manifest implements coreplugin.Plugin.
+func (p *Plugin) Manifest() coreplugin.Manifest { return coreplugin.ParseManifest(manifest) }
 
-// Locales implements sdk.LocalesPlugin.
+// Locales implements coreplugin.LocalesPlugin.
 func (p *Plugin) Locales() fs.FS { sub, _ := fs.Sub(locales, "locales"); return sub }
 
 // Setup registers the element type.
-func (p *Plugin) Setup(h *sdk.Host) error {
+func (p *Plugin) Setup(h *coreplugin.Host) error {
 	h.RegisterElementType(&Type{})
 	return nil
 }

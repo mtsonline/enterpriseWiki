@@ -1,5 +1,5 @@
 // Admin page of the external search engine.
-import { api, button, errorText, fmtDate, h, mount, pageHeader, pluginSettingsForm, registerAdminPage, state, t, toast } from '@ewiki/sdk';
+import { api, button, errorText, fmtDate, h, mount, pageHeader, pluginSettingsForm, registerAdminPage, state, t, toast } from '@ewiki/coreplugin';
 
 const BASE = 'x/search.external';
 

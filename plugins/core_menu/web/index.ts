@@ -4,7 +4,7 @@
 import {
   activeTemplate, api, button, categorySelect, checkbox, confirmDialog, elementSelect, errorText, field, formDialog, h, mount, pageHeader, pick,
   listMenuStyles, positionLabel, positionOptions, refreshPositions, registerAdminPage, registerSlot, rerender, select, state, t, templateLabel, textInput, toast, type TreeNode,
-} from '@ewiki/sdk';
+} from '@ewiki/coreplugin';
 import './style.css';
 
 type ItemType = 'url' | 'category' | 'element' | 'menu' | 'heading';

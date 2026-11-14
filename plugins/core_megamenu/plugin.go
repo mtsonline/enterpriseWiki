@@ -8,7 +8,7 @@ import (
 	"embed"
 	"io/fs"
 
-	"github.com/mtsonline/enterprisewiki/pkg/sdk"
+	"github.com/mtsonline/enterprisewiki/internal/coreplugin"
 )
 
 //go:embed plugin.json
@@ -20,10 +20,10 @@ var locales embed.FS
 // Plugin is the mega menu plugin.
 type Plugin struct{}
 
-func init() { sdk.Register(&Plugin{}) }
+func init() { coreplugin.Register(&Plugin{}) }
 
-// Manifest implements sdk.Plugin.
-func (p *Plugin) Manifest() sdk.Manifest { return sdk.ParseManifest(manifest) }
+// Manifest implements coreplugin.Plugin.
+func (p *Plugin) Manifest() coreplugin.Manifest { return coreplugin.ParseManifest(manifest) }
 
-// Locales implements sdk.LocalesPlugin.
+// Locales implements coreplugin.LocalesPlugin.
 func (p *Plugin) Locales() fs.FS { s, _ := fs.Sub(locales, "locales"); return s }

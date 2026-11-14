@@ -14,7 +14,7 @@ import { rememberedLang, state, stored } from './core/state';
 import type { Principal, Site } from './core/types';
 import { categoryTree, ctx, currentSpace, setSpace, editToggle, languageSwitcher, searchBox, userMenu } from './components/widgets';
 import { pluginModules } from './generated/plugins';
-import { positionContainer, refreshPositions, registerSlot, registerTemplate, resolveTemplate, setShownTemplate } from './sdk';
+import { positionContainer, refreshPositions, registerSlot, registerTemplate, resolveTemplate, setShownTemplate } from './coreplugin';
 import { adminView } from './views/admin';
 import { registerSourceControls } from './components/sources';
 import { installMacroPager } from './core/pager';

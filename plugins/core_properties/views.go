@@ -12,9 +12,9 @@ import (
 
 	"github.com/mtsonline/enterprisewiki/internal/acl"
 	"github.com/mtsonline/enterprisewiki/internal/apperr"
+	"github.com/mtsonline/enterprisewiki/internal/coreplugin"
 	h "github.com/mtsonline/enterprisewiki/internal/httpx"
 	"github.com/mtsonline/enterprisewiki/internal/identity"
-	"github.com/mtsonline/enterprisewiki/pkg/sdk"
 )
 
 // Saved views of a property database: personal ones and shared ones
@@ -40,7 +40,7 @@ type SavedView struct {
 
 const maxViewsPerDatabase = 100
 
-func viewRoutes(host *sdk.Host) {
+func viewRoutes(host *coreplugin.Host) {
 	// database element: readers may see its views
 	dbCategory := func(ctx context.Context, id int64, want acl.Perm) (int64, error) {
 		var typ string

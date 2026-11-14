@@ -21,11 +21,11 @@ import (
 
 	"github.com/mtsonline/enterprisewiki/internal/app"
 	"github.com/mtsonline/enterprisewiki/internal/auth"
+	"github.com/mtsonline/enterprisewiki/internal/coreplugin"
 	"github.com/mtsonline/enterprisewiki/internal/identity"
 	"github.com/mtsonline/enterprisewiki/internal/pluginmgr"
 	"github.com/mtsonline/enterprisewiki/internal/server"
 	"github.com/mtsonline/enterprisewiki/internal/version"
-	"github.com/mtsonline/enterprisewiki/pkg/sdk"
 )
 
 func printJSON(w io.Writer, v any) {
@@ -518,7 +518,7 @@ func (e *env) plugin(args []string) error {
 			}
 			printJSON(e.stdout, res)
 		case "updates":
-			ms := []sdk.Manifest{}
+			ms := []coreplugin.Manifest{}
 			for _, p := range a.Kernel.List() {
 				ms = append(ms, p.Manifest)
 			}
@@ -536,7 +536,7 @@ func (e *env) plugin(args []string) error {
 			if arg == "" {
 				return errors.New("usage: ewiki plugin update ID [--build]")
 			}
-			ms := []sdk.Manifest{}
+			ms := []coreplugin.Manifest{}
 			for _, p := range a.Kernel.List() {
 				ms = append(ms, p.Manifest)
 			}

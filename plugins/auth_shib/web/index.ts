@@ -1,5 +1,5 @@
 // Admin page for Shibboleth / SAML (several identity providers possible).
-import { h, MAPPING_FIELDS, registerAdminPage, renderAuthProviderPage, t } from '@ewiki/sdk';
+import { h, MAPPING_FIELDS, registerAdminPage, renderAuthProviderPage, t } from '@ewiki/coreplugin';
 
 export function register(): void {
   registerAdminPage({

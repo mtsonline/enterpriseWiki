@@ -27,8 +27,8 @@ import (
 
 	"github.com/mtsonline/enterprisewiki/internal/config"
 	"github.com/mtsonline/enterprisewiki/internal/content"
+	"github.com/mtsonline/enterprisewiki/internal/coreplugin"
 	"github.com/mtsonline/enterprisewiki/internal/netguard"
-	"github.com/mtsonline/enterprisewiki/pkg/sdk"
 
 	_ "embed"
 )
@@ -51,18 +51,18 @@ type entry struct {
 	expires time.Time
 }
 
-func init() { sdk.Register(newPlugin()) }
+func init() { coreplugin.Register(newPlugin()) }
 
 func newPlugin() *Plugin { return &Plugin{cache: map[string]entry{}} }
 
-// NewInstance implements sdk.Factory (one cache per site).
-func (p *Plugin) NewInstance() sdk.Plugin { return newPlugin() }
+// NewInstance implements coreplugin.Factory (one cache per site).
+func (p *Plugin) NewInstance() coreplugin.Plugin { return newPlugin() }
 
-// Manifest implements sdk.Plugin.
-func (p *Plugin) Manifest() sdk.Manifest { return sdk.ParseManifest(manifest) }
+// Manifest implements coreplugin.Plugin.
+func (p *Plugin) Manifest() coreplugin.Manifest { return coreplugin.ParseManifest(manifest) }
 
 // Setup registers the macro.
-func (p *Plugin) Setup(h *sdk.Host) error {
+func (p *Plugin) Setup(h *coreplugin.Host) error {
 	p.cfg = h.Config
 	h.RegisterMacro(&macro{p: p})
 	return nil

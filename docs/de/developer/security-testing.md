@@ -30,7 +30,7 @@ Proof-Key-Pflicht (unsigniert, fremder Schlüssel, alter Zeitstempel), Schlüsse
 zählen am WOPI-Endpunkt nicht, Ansehen-Schlüssel können weder speichern noch sperren, Sperrkonflikte, Rechteentzug
 und deaktiviertes Plugin machen Schlüssel sofort ungültig, ohne Download nur geschützt, Wasserzeichen-Originale nur
 für Verwalter, API-Schlüssel und CLI ohne `--as` erzeugen keine Office-Schlüssel, CSP enthält nur aktive Programme,
-OnlyOffice nur mit gültigem JWT und Downloads nur vom eingestellten Server (SSRF). `pkg/wopi` testet Discovery und
+OnlyOffice nur mit gültigem JWT und Downloads nur vom eingestellten Server (SSRF). `internal/wopi` testet Discovery und
 Proof-Keys (inkl. Schlüsselwechsel, Überlauf, zu kurze Schlüssel), `internal/pagecache` dass Token-URLs nie im
 Gast-Cache landen.
 

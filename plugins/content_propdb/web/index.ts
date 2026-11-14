@@ -1,6 +1,6 @@
 // Property database: the editor of its settings (sources, filters, columns,
 // sorting, view, new entries) with the controls of the property report.
-import { categorySelect, field, getMacroParamControl, h, mount, registerEditor, select, state, t, textArea, textInput, typeLabel, currentCategory, type EditorInstance } from '@ewiki/sdk';
+import { categorySelect, field, getMacroParamControl, h, mount, registerEditor, select, state, t, textArea, textInput, typeLabel, currentCategory, type EditorInstance } from '@ewiki/coreplugin';
 
 interface Body {
   intro: { format: string; source: string }; source: string; filter: string; columns_text: string; sort_text: string;

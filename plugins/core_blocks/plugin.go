@@ -20,9 +20,9 @@ import (
 	"github.com/mtsonline/enterprisewiki/internal/apperr"
 	"github.com/mtsonline/enterprisewiki/internal/audit"
 	"github.com/mtsonline/enterprisewiki/internal/content"
+	"github.com/mtsonline/enterprisewiki/internal/coreplugin"
 	h "github.com/mtsonline/enterprisewiki/internal/httpx"
 	"github.com/mtsonline/enterprisewiki/internal/identity"
-	"github.com/mtsonline/enterprisewiki/pkg/sdk"
 	"github.com/mtsonline/enterprisewiki/plugins/core_html"
 
 	_ "embed"
@@ -40,15 +40,15 @@ var locales embed.FS
 // Plugin is the blocks plugin.
 type Plugin struct{}
 
-func init() { sdk.Register(&Plugin{}) }
+func init() { coreplugin.Register(&Plugin{}) }
 
-// Manifest implements sdk.Plugin.
-func (p *Plugin) Manifest() sdk.Manifest { return sdk.ParseManifest(manifest) }
+// Manifest implements coreplugin.Plugin.
+func (p *Plugin) Manifest() coreplugin.Manifest { return coreplugin.ParseManifest(manifest) }
 
-// Migrations implements sdk.MigrationsPlugin.
+// Migrations implements coreplugin.MigrationsPlugin.
 func (p *Plugin) Migrations() fs.FS { s, _ := fs.Sub(migrations, "migrations"); return s }
 
-// Locales implements sdk.LocalesPlugin.
+// Locales implements coreplugin.LocalesPlugin.
 func (p *Plugin) Locales() fs.FS { s, _ := fs.Sub(locales, "locales"); return s }
 
 // Block is a stored block.
@@ -123,7 +123,7 @@ func (b *Block) validate(langs []string) error {
 	return nil
 }
 
-func list(ctx context.Context, q *sdk.Host) ([]Block, error) {
+func list(ctx context.Context, q *coreplugin.Host) ([]Block, error) {
 	rows, err := q.DB.Query(ctx, `SELECT id, name, location, position, audience, enabled, titles, bodies, updated_at FROM plugin_blocks ORDER BY location, position, id`)
 	if err != nil {
 		return nil, err
@@ -132,7 +132,7 @@ func list(ctx context.Context, q *sdk.Host) ([]Block, error) {
 }
 
 // Setup registers the API.
-func (p *Plugin) Setup(host *sdk.Host) error {
+func (p *Plugin) Setup(host *coreplugin.Host) error {
 	// GET /blocks?lang=de lists the blocks for the caller, rendered
 	// (?all=1: all blocks with their sources, administrators only).
 	host.Handle("GET", "/blocks", func(w http.ResponseWriter, r *http.Request) (any, error) {

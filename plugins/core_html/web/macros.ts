@@ -1,7 +1,7 @@
 // Macro placeholders of the simple editor:
 // <div data-macro="name" data-params="{...}">body</div>. The dialog is the
 // one of the core (macroDialog from the SDK).
-import type { MacroChoice } from '@ewiki/sdk';
+import type { MacroChoice } from '@ewiki/coreplugin';
 
 /** Escapes a value for a double quoted HTML attribute. */
 export function attr(s: string): string {

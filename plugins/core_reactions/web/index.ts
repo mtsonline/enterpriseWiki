@@ -2,7 +2,7 @@
 // hook reactionBar). Toggle buttons per emoji (aria-pressed) with the names
 // of the people, a picker with common emojis (arrow keys move, Escape
 // closes) and a field for any other emoji.
-import { api, button, errorText, field, h, openDialog, registerAdminPage, registerCategoryExtension, registerElementExtension, registerReactions, state, t, textInput, toast, uid, pick } from '@ewiki/sdk';
+import { api, button, errorText, field, h, openDialog, registerAdminPage, registerCategoryExtension, registerElementExtension, registerReactions, state, t, textInput, toast, uid, pick } from '@ewiki/coreplugin';
 import './style.css';
 
 const BASE = 'x/core.reactions';

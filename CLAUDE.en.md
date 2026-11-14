@@ -16,7 +16,7 @@ In every conflict this order applies: security, no data loss, stability, accessi
 - **Every feature on all paths:** API, CLI and interface. **All** CLI commands go through the API path (`serveInProcess`), so permissions, checks and audit are the same; existing direct commands are converted. Exceptions only with documented approval of the project owner.
 - **Accessibility** according to the current WCAG version, level AA (as of 13 Nov 2026: WCAG 2.2), in every view; checked with axe in the browser tests.
 - **Fast:** no queries in loops, limits for everything that can grow. Limits belong in the expert settings (`limits`); plugins register theirs in the manifest.
-- **Modular:** features outside the core are plugins. Bundled plugins may use internal packages; the stable interface for plugins is `pkg/sdk`. The model for external plugins is still to be decided.
+- **Modular:** features outside the core are plugins. **Core plugins** are compiled in, run in the wiki process and may use internal packages (`internal/coreplugin`, `@ewiki/coreplugin`); this interface has no stability promise. **SDK plugins** run as their own isolated process and only use the stable SDK (`sdk/`, own Go module under Apache-2.0, under construction).
 - **Honest:** what the interface shows or the documentation describes exists and works as one expects. No simulations, no dummies, no announcements presented as features.
 - **Foreign product names:** names of competing products only appear in import functions for the respective system, their tests and coverage comparisons, nowhere else. Names of systems the wiki connects to (for example office servers, sign-in providers, directory services, chat services) are allowed.
 - **Namespaces:** everything a plugin registers (routes, permissions, settings, events, actions) carries its plugin ID; instances are called `plugin-id/instance-id`; `core.` is reserved for the core.
@@ -28,6 +28,7 @@ In every conflict this order applies: security, no data loss, stability, accessi
 - Always the newest stable version. Renovate updates; the CI fails if an update is open for longer than 7 days.
 - Everything delivered is under a permissive license: MIT, BSD, Apache-2.0, ISC, Zlib, Unlicense, CC0. This also applies to fonts, images and icons; fonts are under OFL-1.1 or one of the licenses named. Fonts are delivered by the wiki itself, never loaded from other servers. For OFL fonts with a reserved name, check before subsetting or converting whether they must be renamed. Tools that only run when building or testing and are not delivered are exempt. `go run ./tools/notices -check` checks the Go modules.
 - New libraries only with a reason; check the state of maintenance beforehand. Prefer the Go standard library.
+- **Patents are not infringed.** Only use methods and libraries with a known patent situation, preferably standards with royalty-free commitments (e.g. NIST algorithms, IETF standards without restrictive IPR disclosures; check the IETF IPR database). When in doubt, report first instead of building it in. Before the first release a patent attorney reviews the core areas.
 
 ## 3. Working in the repository
 

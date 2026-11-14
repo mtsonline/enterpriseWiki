@@ -30,7 +30,7 @@ proof keys are required (unsigned, foreign key, old timestamp), keys only for on
 do not count at the WOPI endpoint, view keys can neither save nor lock, lock conflicts, revoked rights
 and a disabled plugin invalidate keys at once, without download only protected, watermark originals only
 for managers, API keys and the CLI without `--as` create no office keys, the CSP contains only active programs,
-OnlyOffice only with a valid JWT and downloads only from the configured server (SSRF). `pkg/wopi` tests discovery and
+OnlyOffice only with a valid JWT and downloads only from the configured server (SSRF). `internal/wopi` tests discovery and
 proof keys (key rotation, overflow, too short keys included), `internal/pagecache` that token URLs never end up in the
 guest cache.
 

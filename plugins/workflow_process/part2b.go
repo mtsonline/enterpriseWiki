@@ -24,11 +24,11 @@ import (
 	"github.com/mtsonline/enterprisewiki/internal/acl"
 	"github.com/mtsonline/enterprisewiki/internal/apperr"
 	"github.com/mtsonline/enterprisewiki/internal/audit"
+	"github.com/mtsonline/enterprisewiki/internal/coreplugin"
 	h "github.com/mtsonline/enterprisewiki/internal/httpx"
 	"github.com/mtsonline/enterprisewiki/internal/identity"
 	"github.com/mtsonline/enterprisewiki/internal/mail"
 	"github.com/mtsonline/enterprisewiki/internal/secrets"
-	"github.com/mtsonline/enterprisewiki/pkg/sdk"
 )
 
 func init() {
@@ -215,7 +215,7 @@ func linkHash(tok string) string {
 	return hex.EncodeToString(s[:])
 }
 
-func (pl *Plugin) linkRoutes(host *sdk.Host) {
+func (pl *Plugin) linkRoutes(host *coreplugin.Host) {
 	withoutLogin := func(ctx context.Context, x *Instance) bool {
 		on, _ := host.Settings()["links_without_login"].(bool)
 		return on && host.ACL.Classification(ctx, x.CategoryID) < acl.Confidential
@@ -421,7 +421,7 @@ func (pl *Plugin) stats(ctx context.Context, element int64, def *Definition) (*S
 	return st, nil
 }
 
-func (pl *Plugin) statsRoutes(host *sdk.Host) {
+func (pl *Plugin) statsRoutes(host *coreplugin.Host) {
 	// GET /elements/{id}/stats: evaluation (case managers and who may change the workflow)
 	host.Handle("GET", "/elements/{id}/stats", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		id, err := h.PathID(r, "id")

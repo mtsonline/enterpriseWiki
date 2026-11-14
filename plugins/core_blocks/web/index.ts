@@ -2,7 +2,7 @@
 import {
   activeTemplate, api, button, checkbox, confirmDialog, errorText, field, formDialog, h, mount, pageHeader, pick, positionLabel, positionOptions,
   refreshPositions, registerAdminPage, registerSlot, select, state, t, templateLabel, textArea, textInput, toast, trustedHTML,
-} from '@ewiki/sdk';
+} from '@ewiki/coreplugin';
 import './style.css';
 
 const BASE = 'x/core.blocks';

@@ -1,5 +1,7 @@
 # Plugins entwickeln
 
+Diese Seite beschreibt **Core-Plugins**: Sie werden mit dem Wiki kompiliert, laufen im Wiki-Prozess und nutzen die interne Schnittstelle `internal/coreplugin` (Go) und `@ewiki/coreplugin` (Frontend). Beide ändern sich mit dem Kern. Für Plugins anderer Anbieter entsteht ein stabiles SDK, bei dem jedes Plugin als eigener, abgeschotteter Prozess läuft; es ist noch nicht verfügbar.
+
 Ein Plugin ist ein Verzeichnis unter `plugins/` mit:
 
 ```
@@ -133,7 +135,7 @@ import (
 	"github.com/mtsonline/enterprisewiki/internal/apperr"
 	h "github.com/mtsonline/enterprisewiki/internal/httpx"
 	"github.com/mtsonline/enterprisewiki/internal/identity"
-	"github.com/mtsonline/enterprisewiki/pkg/sdk"
+	"github.com/mtsonline/enterprisewiki/internal/coreplugin"
 )
 
 //go:embed plugin.json
@@ -147,13 +149,13 @@ var locales embed.FS
 
 type Plugin struct{}
 
-func init() { sdk.Register(&Plugin{}) }
+func init() { coreplugin.Register(&Plugin{}) }
 
-func (p *Plugin) Manifest() sdk.Manifest   { return sdk.ParseManifest(manifest) }
+func (p *Plugin) Manifest() coreplugin.Manifest   { return coreplugin.ParseManifest(manifest) }
 func (p *Plugin) Migrations() fs.FS        { s, _ := fs.Sub(migrations, "migrations"); return s }
 func (p *Plugin) Locales() fs.FS           { s, _ := fs.Sub(locales, "locales"); return s }
 
-func (p *Plugin) Setup(host *sdk.Host) error {
+func (p *Plugin) Setup(host *coreplugin.Host) error {
 	host.RegisterElementType(&BoardType{})
 	// -> GET /api/v1/x/acme.kanban/boards/{id}
 	host.Handle("GET", "/boards/{id}", func(w http.ResponseWriter, r *http.Request) (any, error) {
@@ -177,7 +179,7 @@ func (p *Plugin) Setup(host *sdk.Host) error {
 Wichtig:
 
 - `Setup` wird beim Start für **jedes** kompilierte Plugin aufgerufen. Alles, was über den `Host` registriert wird (Routen, Elementtypen, Anmeldeverfahren), ist automatisch inaktiv, solange das Plugin deaktiviert ist. Routen antworten dann mit 404.
-- **Berechtigungen immer selbst prüfen**: `identity.From(ctx)` liefert den Aufrufer (nil = Gast), `host.ACL.Can(...)` die Kategorie-Rechte, `sdk.RequireAdmin(r)` prüft Administratoren. Die Dienste in `host.Content` prüfen Berechtigungen bereits selbst.
+- **Berechtigungen immer selbst prüfen**: `identity.From(ctx)` liefert den Aufrufer (nil = Gast), `host.ACL.Can(...)` die Kategorie-Rechte, `coreplugin.RequireAdmin(r)` prüft Administratoren. Die Dienste in `host.Content` prüfen Berechtigungen bereits selbst.
 - Handler geben `(Wert, error)` zurück. Der Wert wird als JSON gesendet, `apperr`-Fehler werden mit passendem Status gesendet. Mit `h.NoContent{}` und `h.Created{V: x}` steuern Sie Status 204 und 201.
 - Migrationen heißen `NNNN_name.sql` und laufen einmal je Datenbank in einer Transaktion. Bis zum ersten Release des Wikis werden Änderungen direkt in die bestehenden Dateien geschrieben (es gibt keine alten Stände); ab dann wird eine veröffentlichte Migration nie mehr verändert, Änderungen kommen in eine neue Datei (Regeln in `CLAUDE.md`). Präfixen Sie Tabellennamen (`plugin_acme_…`).
 - Einstellungen: `host.Settings()` liefert den Abschnitt `plugin_settings.<id>` aus `config.yaml`.
@@ -257,13 +259,13 @@ Speichert ein Plugin Datei-Hashes außerhalb von Element-Inhalten, meldet es die
 Technische Grenzen eines Plugins (Größen, Anzahlen, Wartezeiten) stehen nicht fest im Code, sondern im Manifest. Administratoren sehen und ändern sie zusammen mit denen des Kerns unter **Administration → Experteneinstellungen**.
 
 ```go
-func (p *Plugin) Manifest() sdk.Manifest {
-	return sdk.Manifest{ID: "acme.forms", /* … */
+func (p *Plugin) Manifest() coreplugin.Manifest {
+	return coreplugin.Manifest{ID: "acme.forms", /* … */
 		Limits: []limits.Def{{Key: "acme.forms.answer_kb", Group: "requests", Unit: "kb", Default: 256, Min: 16, Max: 16384,
 			Label: "Size of a form answer", Help: "Largest answer a form accepts."}}}
 }
 
-func (p *Plugin) Setup(h *sdk.Host) error {
+func (p *Plugin) Setup(h *coreplugin.Host) error {
 	// die Route nimmt Körper bis zu diesem Grenzwert an (sonst gilt die allgemeine Grenze: 64 kB ohne Anmeldung, 1 MB mit)
 	h.BodyLimit("POST", "/forms/{id}/answers", "acme.forms.answer_kb")
 	h.Handle("POST", "/forms/{id}/answers", p.answer)
@@ -296,7 +298,7 @@ Geheimnisse in eigenen Tabellen mit `host.Secrets.Seal(wert, secrets.AAD("tabell
 - `host.Content.ElementBody(ctx, id, lang)` liefert Typ, gespeicherten Inhalt und Kategorie eines Elements für alle, die es sehen dürfen. So lesen Elementtypen ihre Einstellungen in eigenen API-Routen.
 - `host.Content.Scope(ctx, categoryID, recursive)` liefert die Kategorie und (mit `recursive`) die sichtbaren Unterkategorien. `host.Content.ListIn(ctx, content.ListOptions{Categories, Lang, Order, Tag, Limit, Offset, WithContent, Exclude})` listet deren Elemente mit Titel, Anrisstext, Autor und optional gerendertem Inhalt. `host.Content.SearchIn(ctx, q, tags, lang, limit, scope)` sucht nur in diesen Kategorien.
 - Das Paket `internal/feed` schreibt Atom und RSS (`feed.Write` mit ETag und 304) und baut Einträge aus Listen (`feed.FromListing`). Persönliche Feed-Links: `host.Auth.FeedContext(r)` wertet `?token=` aus (nur für Feed- und Kalender-Routen verwenden).
-- `pkg/catlist` bündelt, was kategoriebasierte Elementtypen brauchen (Konfiguration mit Kategorie und Einleitung, Rechte im Bereich, Routen zum Anlegen von Einträgen und Unterkategorien, Feed). Beispiele sind `plugins/content_blog` und `plugins/content_faq`.
+- `internal/catlist` bündelt, was kategoriebasierte Elementtypen brauchen (Konfiguration mit Kategorie und Einleitung, Rechte im Bereich, Routen zum Anlegen von Einträgen und Unterkategorien, Feed). Beispiele sind `plugins/content_blog` und `plugins/content_faq`.
 - Ein Elementtyp kann `content.Preparer` implementieren (`Prepare(ctx, svc, categoryID, lang, title, body)`), um einen Inhalt vor der Prüfung mit den Rechten des Aufrufers zu ergänzen. Blog und FAQ legen so die Quell-Kategorie an, wenn keine gewählt wurde (`catlist.PrepareSource`).
 - Speichert ein Elementtyp Daten außerhalb seiner Versionen (z. B. Termine eines Kalenders), meldet er Änderungen mit `host.Content.Touch(ctx, elementID)`. Dann werden Beobachter informiert und der Gäste-Cache geleert. Änderungen über die API (POST/PUT/DELETE) leeren den Cache ohnehin.
 
@@ -313,7 +315,7 @@ host.RegisterAuthProvider(&MyProvider{})
 
 Für Browser-Verfahren (OAuth, SAML, …) implementieren Sie `auth.RedirectProvider` (`Start`, `Callback`) und registrieren ihn mit `host.RegisterRedirectProvider`. Der Kern kümmert sich um State, Nonce und PKCE-Verifier (serverseitig gespeichert), um die Einmalverwendung, die Sitzung und den Rücksprung. Mit `Configured() bool` blenden Sie ein unkonfiguriertes Verfahren auf der Login-Seite aus. Gruppen und Rollen ordnen Sie mit `auth.MappingFromSettings(settings).Apply(identity)` zu (siehe `plugins/auth_oidc`).
 
-**Mehrere Instanzen:** Soll ein Verfahren mehrfach einrichtbar sein, bauen Sie mit `auth.NewInstanceSet(base, host.Settings, mk)` einen Satz von Providern, einen je Eintrag in `instances` plus den Basis-Provider, und registrieren ihn mit `sdk.RegisterAuthInstances(host, set)` bzw. `sdk.RegisterRedirectInstances(host, set)`. `mk(id, settings)` erhält die Anbieter-ID (`base` oder `base-<id>`) und eine Funktion, die immer die aktuellen Einstellungen dieser Instanz liefert. `ID()` muss diese ID zurückgeben und `ExternalIdentity.Provider` auf sie setzen. Mit `Settings()` (Interface `auth.SettingsProvider`) steht die Instanz in der Vorschau zur Verfügung. Die Admin-Seite baut `renderAuthProviderPage(el, {pluginId, base, title, help, fields, extra})` aus dem Frontend-SDK: Auswahl, Anlegen und Entfernen von Instanzen, Einstellungsformular und Vorschau.
+**Mehrere Instanzen:** Soll ein Verfahren mehrfach einrichtbar sein, bauen Sie mit `auth.NewInstanceSet(base, host.Settings, mk)` einen Satz von Providern, einen je Eintrag in `instances` plus den Basis-Provider, und registrieren ihn mit `coreplugin.RegisterAuthInstances(host, set)` bzw. `coreplugin.RegisterRedirectInstances(host, set)`. `mk(id, settings)` erhält die Anbieter-ID (`base` oder `base-<id>`) und eine Funktion, die immer die aktuellen Einstellungen dieser Instanz liefert. `ID()` muss diese ID zurückgeben und `ExternalIdentity.Provider` auf sie setzen. Mit `Settings()` (Interface `auth.SettingsProvider`) steht die Instanz in der Vorschau zur Verfügung. Die Admin-Seite baut `renderAuthProviderPage(el, {pluginId, base, title, help, fields, extra})` aus dem Frontend-SDK: Auswahl, Anlegen und Entfernen von Instanzen, Einstellungsformular und Vorschau.
 
 **Faktoren der Anmeldung (MFA-Plugins, Typ `mfa`):** Implementieren Sie `auth.MFAMethod` (`ID`, `DefaultFactor`, `Enrolled`, `Challenge`, `Verify`) und registrieren Sie sie mit `host.RegisterMFAMethod`. Die Faktornummer legt die Administration fest (Plugin-Einstellung `factor`, Vorschlag `DefaultFactor`); der Kern fragt die Kette ab und hält den Zustand von `Challenge` bis `Verify` serverseitig fest. Optionale Schnittstellen: `auth.MFAEnroller` (`BeginEnroll`/`FinishEnroll`: Einrichten im Profil und während einer Anmeldung, die mehr Faktoren braucht), `auth.MFASilent` (`Passes`: ohne Abfrage, z. B. Netz), `auth.MFAResetter` (Zurücksetzen durch Administratoren), `auth.MFABulk` (`EnrolledAmong` für Listen), `auth.PasswordlessMethod` (darf Faktor 1 sein und stellt die Person selbst fest) und `auth.AccessGuard` (`host.RegisterAccessGuard`: prüft jede Anmeldung und Anfrage). Eigene Endpunkte zum Ändern von Faktoren rufen `auth.RequireRecentSignIn` auf. Im Frontend fügt `registerMFAMethodUI({id, label, render, enroll, profile})` den Schritt der Anmeldung, das Einrichten und den Teil in *Mein Profil → Anmeldefaktoren* hinzu; `mfaCodeForm` und `enrollFactor` helfen dabei, `registerUserAdminField` ergänzt den Dialog „Benutzer bearbeiten“ (Beispiele: `plugins/mfa_totp`, `mfa_email`, `mfa_network`, `mfa_webauthn`). `webauthnCreate`/`webauthnGet` übernehmen die Umwandlung der WebAuthn-Optionen.
 
@@ -328,7 +330,7 @@ Geben Sie `auth.ErrUnknownUser` zurück, wenn der Benutzer unbekannt ist (dann w
 ## Frontend-Teil (`web/index.ts`)
 
 ```ts
-import { api, h, registerEditor, registerSlot, registerAdminPage, registerTemplate, getEditor, t } from '@ewiki/sdk';
+import { api, h, registerEditor, registerSlot, registerAdminPage, registerTemplate, getEditor, t } from '@ewiki/coreplugin';
 import './style.css';
 
 export function register(): void {
@@ -355,7 +357,7 @@ export function register(): void {
 - Dateien hochladen: `uploadFile(file)` liefert `{hash, name, mime, size}`.
 - Auswahl von Kategorien und Elementen mit „Neu anlegen“: `categorySelect({ selected, perm, noneLabel, allowCreate, onChange })` (`.field(label)` liefert das beschriftete Feld), `elementSelect({ selected, allowCreate, type, onChange })` (Suche über alle Kategorien), `newCategory(parent, done)`, `newElement(category, done)`.
 - `watchButton(type, id, title)` (Beobachten), `feedButton(apiPath, title)` (Feed-Dialog mit persönlichem Link) und `feedURL(path, format)` für eigene Feeds bzw. Abos.
-- Das SDK (`web/src/sdk.ts`) stellt DOM-Helfer (`h`), API-Client (`api` mit CSRF-Header), Übersetzungen (`t`, `pick`), barrierefreie Bausteine (`field`, `textInput`, `select`, `checkbox`, `button`, `formDialog`, `confirmDialog`, `openDialog`), `toast`/`announce` und `navigate` bereit.
+- Das SDK (`web/src/coreplugin.ts`) stellt DOM-Helfer (`h`), API-Client (`api` mit CSRF-Header), Übersetzungen (`t`, `pick`), barrierefreie Bausteine (`field`, `textInput`, `select`, `checkbox`, `button`, `formDialog`, `confirmDialog`, `openDialog`), `toast`/`announce` und `navigate` bereit.
 - Erzeugen Sie DOM mit `h()`. Verwenden Sie `innerHTML` nie für Benutzerdaten, sondern `trustedHTML()` nur für HTML, das der Server gerendert und bereinigt hat.
 - **Barrierefreiheit:** Jedes Eingabefeld braucht ein Label (`field()`), Icon-Knöpfe ein `ariaLabel`, Dialoge über `formDialog`/`openDialog`. Die CI prüft alle Seiten mit axe-core auf WCAG 2.2 AA.
 - Editoren anderer Typen lassen sich mit `getEditor('core.html')` wiederverwenden und erweitern (siehe `example_notice/web/index.ts`).
@@ -417,7 +419,7 @@ EWIKI_TEST_DATABASE_URL=… go test ./internal/server/   # prüft u. a., dass je
 
 Veröffentlichen: ein Git-Repository, dessen Wurzel das Plugin-Verzeichnis ist (`plugin.json` im Root), mit Versions-Tags (`v1.0.0`). Installation: `ewiki plugin install github.com/acme/ewiki-kanban --ref v1.0.0` oder über den Katalog.
 
-Das Go-Paket des Plugins gehört zum Modul `github.com/mtsonline/enterprisewiki`. Imports aus `internal/…` und `pkg/sdk` sind daher erlaubt. Halten Sie sich bevorzugt an `pkg/sdk` und die dort referenzierten Dienste, denn das ist die stabile Schnittstelle.
+Das Go-Paket des Plugins gehört zum Modul `github.com/mtsonline/enterprisewiki` und ist damit ein Core-Plugin: Imports aus `internal/…` sind erlaubt, auch `internal/coreplugin`. Diese Schnittstelle ändert sich mit dem Kern und hat **keine Stabilitätszusage**. Plugins, die über Versionen des Wikis hinweg stabil laufen sollen, werden künftig als eigener Prozess über das stabile SDK gebaut (Verzeichnis `sdk/`, eigenes Modul unter Apache-2.0, im Aufbau).
 
 ### Eigenschaften in eigenen Plugins
 

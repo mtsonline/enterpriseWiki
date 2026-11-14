@@ -19,9 +19,9 @@ import (
 
 	"github.com/mtsonline/enterprisewiki/internal/apperr"
 	"github.com/mtsonline/enterprisewiki/internal/audit"
+	"github.com/mtsonline/enterprisewiki/internal/coreplugin"
 	h "github.com/mtsonline/enterprisewiki/internal/httpx"
 	"github.com/mtsonline/enterprisewiki/internal/identity"
-	"github.com/mtsonline/enterprisewiki/pkg/sdk"
 )
 
 // startFields are the fields of the start form (without the later ones).
@@ -466,7 +466,7 @@ func withDeputies(ctx context.Context, q pgx.Tx, ids []int64) ([]int64, error) {
 	return out, nil
 }
 
-func (pl *Plugin) deputyRoutes(host *sdk.Host) {
+func (pl *Plugin) deputyRoutes(host *coreplugin.Host) {
 	get := func(ctx context.Context, uid int64) (*Deputy, error) {
 		var d Deputy
 		var from, until time.Time

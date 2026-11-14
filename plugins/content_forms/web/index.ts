@@ -1,7 +1,7 @@
 // Frontend of the forms plugin: the form on the page, the editor and the
 // submissions below the form (creator and "See submissions").
-import { ApiError, api, button, confirmDialog, elementSelect, fmtDate, h, humanSize, pageHeader, pluginSettingsForm, registerAdminPage, registerEditor, registerElementExtension, registerMacroParamControl, registerWidget, state, t, textInput, toast, errorText } from '@ewiki/sdk';
-import type { ElementView } from '@ewiki/sdk';
+import { ApiError, api, button, confirmDialog, elementSelect, fmtDate, h, humanSize, pageHeader, pluginSettingsForm, registerAdminPage, registerEditor, registerElementExtension, registerMacroParamControl, registerWidget, state, t, textInput, toast, errorText } from '@ewiki/coreplugin';
+import type { ElementView } from '@ewiki/coreplugin';
 import { createFormEditor, type FField } from './editor';
 import { BASE, formWidget } from './widget';
 import './style.css';

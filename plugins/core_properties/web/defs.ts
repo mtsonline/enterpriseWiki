@@ -1,6 +1,6 @@
 // Definitions of properties: the list (own, inherited, global) and the
 // dialog to define one (type, options, choices, rights, element types).
-import { api, button, checkbox, confirmDialog, errorText, field, formDialog, h, langFields, pageHeader, qs, select, state, subjectsEditor, t, textArea, textInput, toast, typeLabel as elementTypeLabel } from '@ewiki/sdk';
+import { api, button, checkbox, confirmDialog, errorText, field, formDialog, h, langFields, pageHeader, qs, select, state, subjectsEditor, t, textArea, textInput, toast, typeLabel as elementTypeLabel } from '@ewiki/coreplugin';
 import { BASE, choiceLabel, loadTypes, plainValue, typeLabel, type Choice, type Def, type TypeDef } from './model';
 import { valueInput } from './inputs';
 

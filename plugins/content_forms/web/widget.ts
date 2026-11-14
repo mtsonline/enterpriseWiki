@@ -1,7 +1,7 @@
 // The form on the page: conditions, prefilling, files by drag and drop or
 // the file dialog, checks with an error summary (WCAG 3.3.1/3.3.3) and the
 // submission. The server checks everything again.
-import { announce, button, h, humanSize, state, t } from '@ewiki/sdk';
+import { announce, button, h, humanSize, state, t } from '@ewiki/coreplugin';
 
 export const BASE = 'x/content.forms';
 

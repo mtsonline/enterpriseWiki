@@ -1,5 +1,5 @@
 // Administration of Microsoft 365 for the web (settings and connection test).
-import { officeAdminRender, registerAdminPage, t } from '@ewiki/sdk';
+import { officeAdminRender, registerAdminPage, t } from '@ewiki/coreplugin';
 
 const ID = 'office.m365';
 

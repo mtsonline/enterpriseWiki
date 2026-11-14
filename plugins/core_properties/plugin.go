@@ -29,7 +29,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/mtsonline/enterprisewiki/pkg/sdk"
+	"github.com/mtsonline/enterprisewiki/internal/coreplugin"
 )
 
 //go:embed plugin.json
@@ -51,28 +51,28 @@ const (
 
 // Plugin is the properties plugin.
 type Plugin struct {
-	host *sdk.Host
+	host *coreplugin.Host
 	mu   sync.Mutex
 	// parsed formulas by definition id and its options' text
 	formulas map[string]*Formula
 }
 
 func init() {
-	sdk.Register(&Plugin{})
+	coreplugin.Register(&Plugin{})
 	content.RegisterElementSourceKind("props")
 }
 
-// Manifest implements sdk.Plugin.
-func (p *Plugin) Manifest() sdk.Manifest { return sdk.ParseManifest(manifest) }
+// Manifest implements coreplugin.Plugin.
+func (p *Plugin) Manifest() coreplugin.Manifest { return coreplugin.ParseManifest(manifest) }
 
-// Migrations implements sdk.MigrationsPlugin.
+// Migrations implements coreplugin.MigrationsPlugin.
 func (p *Plugin) Migrations() fs.FS { s, _ := fs.Sub(migrations, "migrations"); return s }
 
-// Locales implements sdk.LocalesPlugin.
+// Locales implements coreplugin.LocalesPlugin.
 func (p *Plugin) Locales() fs.FS { s, _ := fs.Sub(locales, "locales"); return s }
 
-// Setup implements sdk.SetupPlugin.
-func (p *Plugin) Setup(host *sdk.Host) error {
+// Setup implements coreplugin.SetupPlugin.
+func (p *Plugin) Setup(host *coreplugin.Host) error {
 	p.host = host
 	instances.Set(host.Site, p)
 	p.formulas = map[string]*Formula{}

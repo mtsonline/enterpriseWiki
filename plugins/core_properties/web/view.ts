@@ -1,6 +1,6 @@
 // The properties above the content of an element, the quick editing and the
 // history of changes.
-import { api, button, fmtDate, formDialog, h, openDialog, qs, state, t, toast, type ElementView } from '@ewiki/sdk';
+import { api, button, fmtDate, formDialog, h, openDialog, qs, state, t, toast, type ElementView } from '@ewiki/coreplugin';
 import { BASE, formatValue, plainValue, type Props } from './model';
 import { propertiesForm } from './edit';
 

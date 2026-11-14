@@ -21,9 +21,9 @@ import (
 
 	"github.com/mtsonline/enterprisewiki/internal/apperr"
 	"github.com/mtsonline/enterprisewiki/internal/content"
+	"github.com/mtsonline/enterprisewiki/internal/coreplugin"
 	h "github.com/mtsonline/enterprisewiki/internal/httpx"
 	"github.com/mtsonline/enterprisewiki/internal/storage"
-	"github.com/mtsonline/enterprisewiki/pkg/sdk"
 )
 
 //go:embed plugin.json
@@ -35,12 +35,12 @@ var locales embed.FS
 // Plugin is the attachment plugin.
 type Plugin struct{}
 
-func init() { sdk.Register(&Plugin{}) }
+func init() { coreplugin.Register(&Plugin{}) }
 
-// Manifest implements sdk.Plugin.
-func (p *Plugin) Manifest() sdk.Manifest { return sdk.ParseManifest(manifest) }
+// Manifest implements coreplugin.Plugin.
+func (p *Plugin) Manifest() coreplugin.Manifest { return coreplugin.ParseManifest(manifest) }
 
-// Locales implements sdk.LocalesPlugin.
+// Locales implements coreplugin.LocalesPlugin.
 func (p *Plugin) Locales() fs.FS { s, _ := fs.Sub(locales, "locales"); return s }
 
 // FileRef points to a stored file.
@@ -59,7 +59,7 @@ type Body struct {
 }
 
 // Setup registers the element type and the download route.
-func (p *Plugin) Setup(host *sdk.Host) error {
+func (p *Plugin) Setup(host *coreplugin.Host) error {
 	host.RegisterElementType(&Type{files: host.Files})
 	// GET /api/v1/x/core.attachment/elements/{id}/file?hash=&inline=1
 	// Delivers the file of an element (latest or a given version) after a

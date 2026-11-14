@@ -36,7 +36,7 @@ import (
 
 	"github.com/mtsonline/enterprisewiki/internal/apperr"
 	"github.com/mtsonline/enterprisewiki/internal/auth"
-	"github.com/mtsonline/enterprisewiki/pkg/sdk"
+	"github.com/mtsonline/enterprisewiki/internal/coreplugin"
 )
 
 //go:embed plugin.json
@@ -48,22 +48,22 @@ var locales embed.FS
 // Plugin is the OIDC plugin.
 type Plugin struct{}
 
-func init() { sdk.Register(&Plugin{}) }
+func init() { coreplugin.Register(&Plugin{}) }
 
-// Manifest implements sdk.Plugin.
-func (p *Plugin) Manifest() sdk.Manifest { return sdk.ParseManifest(manifest) }
+// Manifest implements coreplugin.Plugin.
+func (p *Plugin) Manifest() coreplugin.Manifest { return coreplugin.ParseManifest(manifest) }
 
-// Locales implements sdk.LocalesPlugin.
+// Locales implements coreplugin.LocalesPlugin.
 func (p *Plugin) Locales() fs.FS { s, _ := fs.Sub(locales, "locales"); return s }
 
 // Setup registers one provider per configured instance ("oidc",
 // "oidc-<id>") and an admin check endpoint (?instance=<provider id>).
-func (p *Plugin) Setup(host *sdk.Host) error {
+func (p *Plugin) Setup(host *coreplugin.Host) error {
 	replay := host.Auth.ReplayCache("oidc")
 	set := auth.NewInstanceSet("oidc", host.Settings, func(id string, s func() map[string]any) *Provider {
 		return &Provider{id: id, settings: s, replay: replay}
 	})
-	sdk.RegisterRedirectInstances(host, set)
+	coreplugin.RegisterRedirectInstances(host, set)
 	host.Handle("GET", "/check", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		if err := perm.Require(r.Context(), "core.settings.manage"); err != nil {
 			return nil, err

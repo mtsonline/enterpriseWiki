@@ -1,5 +1,5 @@
 // The page behind the decision links of task e-mails (/workflow/link?t=…).
-import { api, button, errorText, field, fmtDate, h, mount, state, t, textArea } from '@ewiki/sdk';
+import { api, button, errorText, field, fmtDate, h, mount, state, t, textArea } from '@ewiki/coreplugin';
 import { BASE } from './widget';
 
 interface LinkInfo {

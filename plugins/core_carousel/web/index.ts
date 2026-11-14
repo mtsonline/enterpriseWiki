@@ -3,7 +3,7 @@
 // region with aria-roledescription, previous/next and slide buttons, a
 // pause button for automatic rotation (which also stops on hover, focus and
 // with prefers-reduced-motion), live announcements only when not rotating.
-import { activeTemplate, api, button, checkbox, confirmDialog, errorText, field, fmtDate, formDialog, h, pageHeader, pluginSettingsForm, positionOptions, registerAdminPage, registerPublishOption, registerSlot, select, state, t, textArea, textInput, toast, uid, uploadFile, sourcesEditor } from '@ewiki/sdk';
+import { activeTemplate, api, button, checkbox, confirmDialog, errorText, field, fmtDate, formDialog, h, pageHeader, pluginSettingsForm, positionOptions, registerAdminPage, registerPublishOption, registerSlot, select, state, t, textArea, textInput, toast, uid, uploadFile, sourcesEditor } from '@ewiki/coreplugin';
 import './style.css';
 
 const BASE = 'x/core.carousel';

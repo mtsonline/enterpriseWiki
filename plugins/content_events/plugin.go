@@ -32,8 +32,8 @@ import (
 	"github.com/mtsonline/enterprisewiki/internal/acl"
 	"github.com/mtsonline/enterprisewiki/internal/apperr"
 	"github.com/mtsonline/enterprisewiki/internal/content"
+	"github.com/mtsonline/enterprisewiki/internal/coreplugin"
 	"github.com/mtsonline/enterprisewiki/internal/identity"
-	"github.com/mtsonline/enterprisewiki/pkg/sdk"
 	"github.com/mtsonline/enterprisewiki/plugins/core_html"
 )
 
@@ -51,23 +51,23 @@ const TypeID = "content.events"
 
 // Plugin is the event calendar plugin.
 type Plugin struct {
-	host  *sdk.Host
+	host  *coreplugin.Host
 	icsMu sync.Mutex
 	ics   map[string][]*Event // parsed subscribed calendars
 }
 
 // plugins holds the plugin instance of each site (for renderers).
-var plugins sdk.PerSite[*Plugin]
+var plugins coreplugin.PerSite[*Plugin]
 
-func init() { sdk.Register(&Plugin{}) }
+func init() { coreplugin.Register(&Plugin{}) }
 
-// Manifest implements sdk.Plugin.
-func (p *Plugin) Manifest() sdk.Manifest { return sdk.ParseManifest(manifest) }
+// Manifest implements coreplugin.Plugin.
+func (p *Plugin) Manifest() coreplugin.Manifest { return coreplugin.ParseManifest(manifest) }
 
-// Migrations implements sdk.MigrationsPlugin.
+// Migrations implements coreplugin.MigrationsPlugin.
 func (p *Plugin) Migrations() fs.FS { s, _ := fs.Sub(migrations, "migrations"); return s }
 
-// Locales implements sdk.LocalesPlugin.
+// Locales implements coreplugin.LocalesPlugin.
 func (p *Plugin) Locales() fs.FS { s, _ := fs.Sub(locales, "locales"); return s }
 
 // ---------------------------------------------------------------- calendar settings

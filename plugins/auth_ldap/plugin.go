@@ -37,9 +37,9 @@ import (
 
 	"github.com/mtsonline/enterprisewiki/internal/apperr"
 	"github.com/mtsonline/enterprisewiki/internal/auth"
+	"github.com/mtsonline/enterprisewiki/internal/coreplugin"
 	h "github.com/mtsonline/enterprisewiki/internal/httpx"
 	"github.com/mtsonline/enterprisewiki/internal/tlsutil"
-	"github.com/mtsonline/enterprisewiki/pkg/sdk"
 )
 
 //go:embed plugin.json
@@ -51,21 +51,21 @@ var locales embed.FS
 // Plugin is the LDAP plugin.
 type Plugin struct{}
 
-func init() { sdk.Register(&Plugin{}) }
+func init() { coreplugin.Register(&Plugin{}) }
 
-// Manifest implements sdk.Plugin.
-func (p *Plugin) Manifest() sdk.Manifest { return sdk.ParseManifest(manifest) }
+// Manifest implements coreplugin.Plugin.
+func (p *Plugin) Manifest() coreplugin.Manifest { return coreplugin.ParseManifest(manifest) }
 
-// Locales implements sdk.LocalesPlugin.
+// Locales implements coreplugin.LocalesPlugin.
 func (p *Plugin) Locales() fs.FS { s, _ := fs.Sub(locales, "locales"); return s }
 
 // Setup registers one provider per configured instance ("ldap",
 // "ldap-<id>") and the admin test endpoint.
-func (p *Plugin) Setup(host *sdk.Host) error {
+func (p *Plugin) Setup(host *coreplugin.Host) error {
 	set := auth.NewInstanceSet("ldap", host.Settings, func(id string, s func() map[string]any) *Provider {
 		return &Provider{id: id, settings: s}
 	})
-	sdk.RegisterAuthInstances(host, set)
+	coreplugin.RegisterAuthInstances(host, set)
 	registerSync(host, set)
 	// Admin: test a login with the current settings without creating a session.
 	// action: auth.ldap.test

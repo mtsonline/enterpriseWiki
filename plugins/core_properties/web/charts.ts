@@ -2,7 +2,7 @@
 // text summary for screen readers, direct value labels, a legend with the
 // values, and the data as a table (in a disclosure), so colour is never the
 // only carrier of meaning.
-import { h, state, t, uid } from '@ewiki/sdk';
+import { h, state, t, uid } from '@ewiki/coreplugin';
 
 export interface Series { name: string; values: number[] }
 export interface ChartData { categories: string[]; series: Series[]; valueLabel: string; format: (n: number) => string }

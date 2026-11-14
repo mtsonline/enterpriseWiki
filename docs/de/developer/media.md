@@ -1,6 +1,6 @@
 # Medien (M13) – Entwurf
 
-Umgesetzt in `internal/media` (Dienst, Rechte, Auslieferung, Bildbearbeitung, Wasserzeichen), `internal/server/api_media.go`, `internal/cli/media.go`, `web/src/components/media.ts` (Bibliothek, Hochladen, Details, Bildeditor, Anzeige, Auswahl) und dem Makro `gallery` (`plugins/core_macros`). Plugins erreichen den Dienst über `sdk.Host.Media`, im Frontend über `pickMedium`, `uploadDialog`, `mediaURL`, `mediaViewer` aus `@ewiki/sdk`. Offen: Registrierung von Anzeigeprogrammen (mit M14).
+Umgesetzt in `internal/media` (Dienst, Rechte, Auslieferung, Bildbearbeitung, Wasserzeichen), `internal/server/api_media.go`, `internal/cli/media.go`, `web/src/components/media.ts` (Bibliothek, Hochladen, Details, Bildeditor, Anzeige, Auswahl) und dem Makro `gallery` (`plugins/core_macros`). Plugins erreichen den Dienst über `coreplugin.Host.Media`, im Frontend über `pickMedium`, `uploadDialog`, `mediaURL`, `mediaViewer` aus `@ewiki/coreplugin`. Offen: Registrierung von Anzeigeprogrammen (mit M14).
 
 ## Datenmodell (Site-Schema)
 
@@ -38,7 +38,7 @@ Office-Plugins registrieren in `Setup` ein `media.Opener` (`host.Media.RegisterO
 CSP). Optional: `OptionsProvider` (z. B. schreibgeschützt ohne Download), `ProofVerifier` (WOPI-Proof-Keys),
 `FileInfoExtender` (eigene CheckFileInfo-Felder).
 
-Für WOPI-Programme gibt es `pkg/wopi`: Discovery (Cache, Schlüsselwechsel), Proof-Key-Prüfung und `wopi.Opener`,
+Für WOPI-Programme gibt es `internal/wopi`: Discovery (Cache, Schlüsselwechsel), Proof-Key-Prüfung und `wopi.Opener`,
 der ein vollständiges `media.Opener` ist – ein WOPI-Plugin braucht nur Einstellungen und Namen (siehe
 `plugins/office_collabora`). Den WOPI-Host (`/api/v1/wopi/files/{id}`: CheckFileInfo, GetFile, PutFile, Lock,
 GetLock, RefreshLock, Unlock) stellt der Kern.

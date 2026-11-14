@@ -12,7 +12,7 @@ import { watchButton } from '../components/watch';
 import { shortOnlyBox, shortURLInput } from '../components/shorturl';
 import { imagesOf, previewImageInput } from '../components/previewimage';
 import { feedButton } from '../components/feeds';
-import { getEditor, pageActionButtons, renderCategoryExtensions, renderElementExtensions, typeLabel, type EditorInstance } from '../sdk';
+import { getEditor, pageActionButtons, renderCategoryExtensions, renderElementExtensions, typeLabel, type EditorInstance } from '../coreplugin';
 import { draftNotice, publishDialog, publishVia, saveDraft, saveTemplateDialog, showPreview, templatePicker, type Draft, type EditorState } from '../components/publishing';
 import { tagInput } from '../components/tags';
 import { editFields } from '../components/editfields';

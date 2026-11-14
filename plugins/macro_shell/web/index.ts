@@ -1,5 +1,5 @@
 // Admin page: approve or revoke shell commands used by the shell macro.
-import { api, button, checkbox, confirmDialog, errorText, field, fmtDate, formDialog, h, mount, pageHeader, registerAdminPage, state, t, textArea, toast } from '@ewiki/sdk';
+import { api, button, checkbox, confirmDialog, errorText, field, fmtDate, formDialog, h, mount, pageHeader, registerAdminPage, state, t, textArea, toast } from '@ewiki/coreplugin';
 import './style.css';
 
 const BASE = 'x/macro.shell';

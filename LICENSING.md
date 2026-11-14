@@ -82,6 +82,9 @@ licensor needs the necessary rights to every contribution. Therefore:
   the licensor a comprehensive, unlimited right of use including sublicensing and relicensing.
 - **Plugins in the official plugin catalogue** or plugins delivered with Enterprise Wiki also require
   agreement to the CLA (section "Plugins" of the CLA).
+- **The plugin SDK** in the directory [`sdk/`](sdk/) is licensed differently, under the **Apache License 2.0**. This
+  lets plugins of other vendors that run as their own process on the SDK use their own license. The SDK is still
+  under construction.
 - **Own plugins for your own use** (e.g. an internal plugin of an organisation) do not need a CLA. They
   may be under any license compatible with the BSL. A program that contains Enterprise Wiki together with
   the plugin is still subject as a whole to the BSL or the license agreement.

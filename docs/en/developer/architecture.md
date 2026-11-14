@@ -18,11 +18,12 @@ internal/
   pluginmgr/          install/remove plugins, rebuild, restart
   server/             REST API, security middleware, delivery of the frontend
   cli/                commands (serve, setup, api, user, plugin, config, …)
-pkg/sdk/              plugin API (Go)
+  coreplugin/         interface of core plugins (Go, no stability promise)
+sdk/                  stable SDK for plugins as their own process (own module, Apache-2.0, under construction)
 plugins/              bundled plugins (one Go package per plugin + optional web/, locales/, migrations/)
   all/zz_generated.go imports all plugins (generated)
 web/                  frontend (TypeScript, no framework, esbuild), dist/ is embedded
-  src/sdk.ts          plugin API (frontend)
+  src/coreplugin.ts   interface of core plugins (frontend)
 scripts/              build, install, update, SSH login
 ```
 

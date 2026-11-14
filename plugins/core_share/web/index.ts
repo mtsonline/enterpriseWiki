@@ -1,5 +1,5 @@
 // Share pages and categories with users, groups and roles.
-import { api, button, checkbox, errorText, field, h, hasPerm, newest, openDialog, registerPageAction, state, t, textArea, textInput, toast, uid, type Group, type Role } from '@ewiki/sdk';
+import { api, button, checkbox, errorText, field, h, hasPerm, newest, openDialog, registerPageAction, state, t, textArea, textInput, toast, uid, type Group, type Role } from '@ewiki/coreplugin';
 
 interface Result { recipients: number; without_access: string[]; sent: boolean }
 

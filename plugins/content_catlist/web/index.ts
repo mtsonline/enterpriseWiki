@@ -1,5 +1,5 @@
 // Category overview: editor (category or top level, depth, layout, elements).
-import { categorySelect, checkbox, field, h, mount, registerEditor, select, t, textArea, textInput, type EditorInstance } from '@ewiki/sdk';
+import { categorySelect, checkbox, field, h, mount, registerEditor, select, t, textArea, textInput, type EditorInstance } from '@ewiki/coreplugin';
 import './style.css';
 
 interface Body { intro: { format: string; source: string }; category_id: number; depth: number; layout: string; descriptions: boolean; elements: boolean; max_elements: number }

@@ -1,6 +1,6 @@
 // The properties in the editing of an element (every type) and the quick
 // editing on the page: inputs for the definitions, free properties.
-import { button, field, formDialog, h, select, t, textInput, uid } from '@ewiki/sdk';
+import { button, field, formDialog, h, select, t, textInput, uid } from '@ewiki/coreplugin';
 import { loadTypes, typeLabel, type Props, type Shown } from './model';
 import { valueInput, type ValueInput } from './inputs';
 

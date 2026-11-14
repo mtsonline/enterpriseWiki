@@ -9,7 +9,7 @@ import type { ElementView } from '../core/types';
 import { toast } from '../core/announce';
 import { button, field, formDialog, langFields, select, textInput } from './ui';
 import { invalidateTree, langName, type TreeNode } from './widgets';
-import { typeLabel } from '../sdk';
+import { typeLabel } from '../coreplugin';
 
 // the tree is shared by all pickers on a page for a few seconds
 let tree: { at: number; p: Promise<TreeNode[]> } | null = null;

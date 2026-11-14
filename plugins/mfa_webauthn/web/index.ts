@@ -3,8 +3,8 @@
 import {
   api, ApiError, button, checkbox, confirmDialog, enrollFactor, errorText, field, fmtDate, h, registerMFAMethodUI, state, t, textInput, toast,
   webauthnCancelled, webauthnCreate, webauthnGet, webauthnSupported,
-} from '@ewiki/sdk';
-import type { MFAEnrollContext } from '@ewiki/sdk';
+} from '@ewiki/coreplugin';
+import type { MFAEnrollContext } from '@ewiki/coreplugin';
 
 interface Credential { id: number; name: string; passkey: boolean; created_at: string; last_used_at: string | null }
 

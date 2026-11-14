@@ -17,10 +17,10 @@ import (
 	"time"
 
 	"github.com/mtsonline/enterprisewiki/internal/apperr"
+	"github.com/mtsonline/enterprisewiki/internal/catlist"
 	"github.com/mtsonline/enterprisewiki/internal/content"
+	"github.com/mtsonline/enterprisewiki/internal/coreplugin"
 	h "github.com/mtsonline/enterprisewiki/internal/httpx"
-	"github.com/mtsonline/enterprisewiki/pkg/catlist"
-	"github.com/mtsonline/enterprisewiki/pkg/sdk"
 )
 
 //go:embed plugin.json
@@ -36,14 +36,14 @@ const TypeID = "content.faq"
 const MaxQuestions = 1000
 
 // Plugin is the FAQ plugin.
-type Plugin struct{ host *sdk.Host }
+type Plugin struct{ host *coreplugin.Host }
 
-func init() { sdk.Register(&Plugin{}) }
+func init() { coreplugin.Register(&Plugin{}) }
 
-// Manifest implements sdk.Plugin.
-func (p *Plugin) Manifest() sdk.Manifest { return sdk.ParseManifest(manifest) }
+// Manifest implements coreplugin.Plugin.
+func (p *Plugin) Manifest() coreplugin.Manifest { return coreplugin.ParseManifest(manifest) }
 
-// Locales implements sdk.LocalesPlugin.
+// Locales implements coreplugin.LocalesPlugin.
 func (p *Plugin) Locales() fs.FS { s, _ := fs.Sub(locales, "locales"); return s }
 
 // Config is the body of a FAQ element.
@@ -362,7 +362,7 @@ func (p *Plugin) load(ctx context.Context, id int64, lang string) (*Config, stri
 }
 
 // Setup registers the element type and the API.
-func (p *Plugin) Setup(hs *sdk.Host) error {
+func (p *Plugin) Setup(hs *coreplugin.Host) error {
 	p.host = hs
 	hs.RegisterElementType(Type{})
 	hs.RegisterMacro(faqMacro{})

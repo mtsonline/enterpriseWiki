@@ -1,5 +1,5 @@
 // OnlyOffice Docs: administration and the editor of the OnlyOffice API.
-import { officeAdminRender, officeReady, registerAdminPage, registerOfficeRenderer, t } from '@ewiki/sdk';
+import { officeAdminRender, officeReady, registerAdminPage, registerOfficeRenderer, t } from '@ewiki/coreplugin';
 
 const ID = 'office.onlyoffice';
 

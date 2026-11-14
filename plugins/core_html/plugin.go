@@ -21,10 +21,10 @@ import (
 
 	"github.com/mtsonline/enterprisewiki/internal/apperr"
 	"github.com/mtsonline/enterprisewiki/internal/content"
+	"github.com/mtsonline/enterprisewiki/internal/coreplugin"
 	"github.com/mtsonline/enterprisewiki/internal/httpx"
 	"github.com/mtsonline/enterprisewiki/internal/identity"
 	"github.com/mtsonline/enterprisewiki/internal/markdown"
-	"github.com/mtsonline/enterprisewiki/pkg/sdk"
 )
 
 //go:embed plugin.json
@@ -36,16 +36,16 @@ var locales embed.FS
 // Plugin is the core.html plugin.
 type Plugin struct{}
 
-func init() { sdk.Register(&Plugin{}) }
+func init() { coreplugin.Register(&Plugin{}) }
 
-// Manifest implements sdk.Plugin.
-func (p *Plugin) Manifest() sdk.Manifest { return sdk.ParseManifest(manifest) }
+// Manifest implements coreplugin.Plugin.
+func (p *Plugin) Manifest() coreplugin.Manifest { return coreplugin.ParseManifest(manifest) }
 
-// Locales implements sdk.LocalesPlugin.
+// Locales implements coreplugin.LocalesPlugin.
 func (p *Plugin) Locales() fs.FS { sub, _ := fs.Sub(locales, "locales"); return sub }
 
 // Setup registers the element type.
-func (p *Plugin) Setup(h *sdk.Host) error {
+func (p *Plugin) Setup(h *coreplugin.Host) error {
 	h.RegisterElementType(&Type{})
 	// Conversions for the editors (no macro is executed): the simple editor
 	// edits HTML with macro placeholders, both save Markdown.

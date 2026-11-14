@@ -20,7 +20,7 @@ import { toast } from '../core/announce';
 import { button, checkbox, confirmDialog, errorText, field, formDialog, openDialog, pageHeader, select, textArea, textInput } from '../components/ui';
 import { langName, setContext } from '../components/widgets';
 import { previewImageInput } from '../components/previewimage';
-import { listAdminPages, listTemplates, listUserAdminFields, templateLabel } from '../sdk';
+import { listAdminPages, listTemplates, listUserAdminFields, templateLabel } from '../coreplugin';
 import { errorPage } from './content';
 import { watchesAdmin } from './adminWatches';
 import { languagesAdmin } from './adminLanguages';

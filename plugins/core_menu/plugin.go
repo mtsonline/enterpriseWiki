@@ -24,9 +24,9 @@ import (
 	"github.com/mtsonline/enterprisewiki/internal/acl"
 	"github.com/mtsonline/enterprisewiki/internal/apperr"
 	"github.com/mtsonline/enterprisewiki/internal/audit"
+	"github.com/mtsonline/enterprisewiki/internal/coreplugin"
 	h "github.com/mtsonline/enterprisewiki/internal/httpx"
 	"github.com/mtsonline/enterprisewiki/internal/identity"
-	"github.com/mtsonline/enterprisewiki/pkg/sdk"
 )
 
 //go:embed plugin.json
@@ -41,15 +41,15 @@ var locales embed.FS
 // Plugin is the menu plugin.
 type Plugin struct{}
 
-func init() { sdk.Register(&Plugin{}) }
+func init() { coreplugin.Register(&Plugin{}) }
 
-// Manifest implements sdk.Plugin.
-func (p *Plugin) Manifest() sdk.Manifest { return sdk.ParseManifest(manifest) }
+// Manifest implements coreplugin.Plugin.
+func (p *Plugin) Manifest() coreplugin.Manifest { return coreplugin.ParseManifest(manifest) }
 
-// Migrations implements sdk.MigrationsPlugin.
+// Migrations implements coreplugin.MigrationsPlugin.
 func (p *Plugin) Migrations() fs.FS { sub, _ := fs.Sub(migrations, "migrations"); return sub }
 
-// Locales implements sdk.LocalesPlugin.
+// Locales implements coreplugin.LocalesPlugin.
 func (p *Plugin) Locales() fs.FS { sub, _ := fs.Sub(locales, "locales"); return sub }
 
 // Item is a menu entry. Type is the kind of target:
@@ -261,7 +261,7 @@ func collect(items []Item, cats, els map[int64]bool) {
 	}
 }
 
-func newResolver(ctx context.Context, hs *sdk.Host, all []Menu) (*resolver, error) {
+func newResolver(ctx context.Context, hs *coreplugin.Host, all []Menu) (*resolver, error) {
 	r := &resolver{ctx: ctx, acl: hs.ACL, menus: map[int64]Menu{}, cats: map[int64]map[string]string{}, short: map[string]string{}, elements: map[int64]struct {
 		cat    int64
 		titles map[string]string
@@ -413,7 +413,7 @@ func list(ctx context.Context, q querier, location string) ([]Menu, error) {
 }
 
 // Setup registers the API.
-func (p *Plugin) Setup(hs *sdk.Host) error {
+func (p *Plugin) Setup(hs *coreplugin.Host) error {
 	// Public: placed menus (of one location), resolved for the caller:
 	// permissions applied, labels and links filled, submenus expanded.
 	// all=1 (admins): every menu as stored, including submenu-only menus.

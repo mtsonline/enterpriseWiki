@@ -1,6 +1,6 @@
 // Editor parts of Workflow 2: triggers, the automatic steps notify, set,
 // http, create, props and subflow, deadlines with escalation and notices.
-import { api, button, categorySelect, checkbox, elementSelect, field, h, select, sourcesEditor, state, t, textInput, toast } from '@ewiki/sdk';
+import { api, button, categorySelect, checkbox, elementSelect, field, h, select, sourcesEditor, state, t, textInput, toast } from '@ewiki/coreplugin';
 import type { Channel, Deadline, Field, Meta, Notice, NotifySpec, StepField, Trigger, TriggerStatus, TriggerType } from './types';
 import type { EStep, Model } from './editor';
 

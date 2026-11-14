@@ -3,7 +3,7 @@
 import {
   api, button, checkbox, confirmDialog, errorText, field, formDialog, h, registerAdminPage, registerProfileSection,
   select, t, textInput, toast, uiLang,
-} from '@ewiki/sdk';
+} from '@ewiki/coreplugin';
 
 const BASE = '/api/v1/x/signature.smime';
 

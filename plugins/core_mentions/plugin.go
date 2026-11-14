@@ -14,10 +14,10 @@ import (
 	"strings"
 
 	"github.com/mtsonline/enterprisewiki/internal/acl"
+	"github.com/mtsonline/enterprisewiki/internal/coreplugin"
 	"github.com/mtsonline/enterprisewiki/internal/identity"
 	"github.com/mtsonline/enterprisewiki/internal/notify"
 	"github.com/mtsonline/enterprisewiki/internal/perm"
-	"github.com/mtsonline/enterprisewiki/pkg/sdk"
 )
 
 //go:embed plugin.json
@@ -30,24 +30,24 @@ var locales embed.FS
 var migrations embed.FS
 
 // Plugin is the mentions plugin.
-type Plugin struct{ host *sdk.Host }
+type Plugin struct{ host *coreplugin.Host }
 
 // instances holds the plugin instance of each site (for Notify).
-var instances sdk.PerSite[*Plugin]
+var instances coreplugin.PerSite[*Plugin]
 
-func init() { sdk.Register(&Plugin{}) }
+func init() { coreplugin.Register(&Plugin{}) }
 
-// Manifest implements sdk.Plugin.
-func (p *Plugin) Manifest() sdk.Manifest { return sdk.ParseManifest(manifest) }
+// Manifest implements coreplugin.Plugin.
+func (p *Plugin) Manifest() coreplugin.Manifest { return coreplugin.ParseManifest(manifest) }
 
-// Locales implements sdk.LocalesPlugin.
+// Locales implements coreplugin.LocalesPlugin.
 func (p *Plugin) Locales() fs.FS { s, _ := fs.Sub(locales, "locales"); return s }
 
-// Migrations implements sdk.MigrationsPlugin.
+// Migrations implements coreplugin.MigrationsPlugin.
 func (p *Plugin) Migrations() fs.FS { s, _ := fs.Sub(migrations, "migrations"); return s }
 
-// Setup implements sdk.SetupPlugin.
-func (p *Plugin) Setup(host *sdk.Host) error {
+// Setup implements coreplugin.SetupPlugin.
+func (p *Plugin) Setup(host *coreplugin.Host) error {
 	instances.Set(host.Site, p)
 	p.host = host
 	notify.RegisterKind("mention", "core.mentions.kind")

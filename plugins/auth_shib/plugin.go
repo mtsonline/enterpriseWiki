@@ -58,9 +58,9 @@ import (
 	"github.com/mtsonline/enterprisewiki/internal/apperr"
 	"github.com/mtsonline/enterprisewiki/internal/auth"
 	"github.com/mtsonline/enterprisewiki/internal/config"
+	"github.com/mtsonline/enterprisewiki/internal/coreplugin"
 	h "github.com/mtsonline/enterprisewiki/internal/httpx"
 	"github.com/mtsonline/enterprisewiki/internal/secrets"
-	"github.com/mtsonline/enterprisewiki/pkg/sdk"
 )
 
 //go:embed plugin.json
@@ -76,7 +76,7 @@ var locales embed.FS
 type Plugin struct{}
 
 func init() {
-	sdk.Register(&Plugin{})
+	coreplugin.Register(&Plugin{})
 	// the private key of the SP is a secret like any other: sealed with
 	// secrets.mode, bound to its row, part of "rewrap"
 	secrets.Register(secrets.Column{Table: "plugin_shib_sp", Key: "id", Value: "key_pem", Text: true})
@@ -85,22 +85,22 @@ func init() {
 // spKeyAAD binds the sealed SP key to its row.
 var spKeyAAD = secrets.AAD("plugin_shib_sp", "1")
 
-// Manifest implements sdk.Plugin.
-func (p *Plugin) Manifest() sdk.Manifest { return sdk.ParseManifest(manifest) }
+// Manifest implements coreplugin.Plugin.
+func (p *Plugin) Manifest() coreplugin.Manifest { return coreplugin.ParseManifest(manifest) }
 
-// Migrations implements sdk.MigrationsPlugin.
+// Migrations implements coreplugin.MigrationsPlugin.
 func (p *Plugin) Migrations() fs.FS { s, _ := fs.Sub(migrations, "migrations"); return s }
 
-// Locales implements sdk.LocalesPlugin.
+// Locales implements coreplugin.LocalesPlugin.
 func (p *Plugin) Locales() fs.FS { s, _ := fs.Sub(locales, "locales"); return s }
 
 // Setup registers the provider and the metadata endpoint.
-func (p *Plugin) Setup(host *sdk.Host) error {
+func (p *Plugin) Setup(host *coreplugin.Host) error {
 	replay := host.Auth.ReplayCache("saml")
 	set := auth.NewInstanceSet("shib", host.Settings, func(id string, s func() map[string]any) *Provider {
 		return &Provider{id: id, settings: s, cfg: host.Config, pool: host.DB, box: host.Secrets, replay: replay, log: host.Log}
 	})
-	sdk.RegisterRedirectInstances(host, set)
+	coreplugin.RegisterRedirectInstances(host, set)
 	// SP metadata of an instance: /metadata?instance=<provider id> ("" = shib)
 	host.Handle("GET", "/metadata", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		prov, ok := set.Get(r.URL.Query().Get("instance"))

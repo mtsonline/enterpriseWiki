@@ -1,7 +1,7 @@
 // Styles of the standard macros (rendered on the server) and the lightbox
 // of the image gallery.
 import './style.css';
-import { button, h, openDialog, t } from '@ewiki/sdk';
+import { button, h, openDialog, t } from '@ewiki/coreplugin';
 
 function lightbox(links: HTMLAnchorElement[], start: number): void {
   let i = start;

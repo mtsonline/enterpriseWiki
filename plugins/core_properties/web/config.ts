@@ -1,7 +1,7 @@
 // Controls of the macro dialog for the property report: sources, filters
 // with operators fitting the type, columns, sorting and keys. They write the
 // short text parameters of the macro (readable in Markdown).
-import { api, button, checkbox, field, h, qs, registerMacroParamControl, registerSourceKind, select, sourcesEditor, state, t, textArea, textInput, uid, type MacroParamContext } from '@ewiki/sdk';
+import { api, button, checkbox, field, h, qs, registerMacroParamControl, registerSourceKind, select, sourcesEditor, state, t, textArea, textInput, uid, type MacroParamContext } from '@ewiki/coreplugin';
 import { BASE, builtinLabel, type Def } from './model';
 
 interface Key { key: string; label: string; type: string }

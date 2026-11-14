@@ -1,6 +1,6 @@
 // Frontend of example.notice: reuses the core.html editor (inheritance on the
 // frontend side) and adds a tone selector.
-import { api, field, getEditor, h, registerEditor, select, t } from '@ewiki/sdk';
+import { api, field, getEditor, h, registerEditor, select, t } from '@ewiki/coreplugin';
 
 export function register(): void {
   registerEditor('example.notice', (container, body, ctx) => {

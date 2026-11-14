@@ -12,7 +12,7 @@ import { toast } from '../core/announce';
 import { button, checkbox, confirmDialog, errorText, field, formDialog, langFields, select, textInput } from '../components/ui';
 import { breadcrumbs, can, ctx, invalidateTree, setContext, setSpace } from '../components/widgets';
 import { errorPage, splitTags } from './content';
-import { listCategorySettingsTabs } from '../sdk';
+import { listCategorySettingsTabs } from '../coreplugin';
 import { insightsPanel, spaceSettings } from './spaces';
 
 interface CategoryResponse { category: Category; breadcrumbs: Category[]; elements: ElementSummary[]; space?: SpaceInfo | null }

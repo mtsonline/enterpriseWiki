@@ -1,6 +1,6 @@
 # Media (M13) – design
 
-Implemented in `internal/media` (service, permissions, delivery, image editing, watermarks), `internal/server/api_media.go`, `internal/cli/media.go`, `web/src/components/media.ts` (library, upload, details, image editor, display, selection) and the macro `gallery` (`plugins/core_macros`). Plugins reach the service through `sdk.Host.Media`, in the frontend through `pickMedium`, `uploadDialog`, `mediaURL`, `mediaViewer` from `@ewiki/sdk`. Open: registration of viewer programs (with M14).
+Implemented in `internal/media` (service, permissions, delivery, image editing, watermarks), `internal/server/api_media.go`, `internal/cli/media.go`, `web/src/components/media.ts` (library, upload, details, image editor, display, selection) and the macro `gallery` (`plugins/core_macros`). Plugins reach the service through `coreplugin.Host.Media`, in the frontend through `pickMedium`, `uploadDialog`, `mediaURL`, `mediaViewer` from `@ewiki/coreplugin`. Open: registration of viewer programs (with M14).
 
 ## Data model (site schema)
 
@@ -38,7 +38,7 @@ Office plugins register a `media.Opener` in `Setup` (`host.Media.RegisterOpener`
 CSP). Optional: `OptionsProvider` (e.g. read-only without download), `ProofVerifier` (WOPI proof keys),
 `FileInfoExtender` (own CheckFileInfo fields).
 
-For WOPI programs there is `pkg/wopi`: discovery (cache, key rotation), proof key checks and `wopi.Opener`,
+For WOPI programs there is `internal/wopi`: discovery (cache, key rotation), proof key checks and `wopi.Opener`,
 which is a complete `media.Opener` – a WOPI plugin only needs settings and names (see
 `plugins/office_collabora`). The core provides the WOPI host (`/api/v1/wopi/files/{id}`: CheckFileInfo, GetFile, PutFile, Lock,
 GetLock, RefreshLock, Unlock).

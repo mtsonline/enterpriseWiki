@@ -1,5 +1,5 @@
 // Types of the properties API and the display of values.
-import { api, fmtDate, h, state, t } from '@ewiki/sdk';
+import { api, fmtDate, h, state, t } from '@ewiki/coreplugin';
 
 export const BASE = 'x/core.properties';
 

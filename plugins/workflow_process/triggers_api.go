@@ -12,9 +12,9 @@ import (
 
 	"github.com/mtsonline/enterprisewiki/internal/acl"
 	"github.com/mtsonline/enterprisewiki/internal/apperr"
+	"github.com/mtsonline/enterprisewiki/internal/coreplugin"
 	h "github.com/mtsonline/enterprisewiki/internal/httpx"
 	"github.com/mtsonline/enterprisewiki/internal/identity"
-	"github.com/mtsonline/enterprisewiki/pkg/sdk"
 )
 
 // mayChange reports whether the caller may change the workflow (its
@@ -51,7 +51,7 @@ type TriggerStatus struct {
 	Starts24h int        `json:"starts_24h"`
 }
 
-func (pl *Plugin) triggerRoutes(host *sdk.Host) {
+func (pl *Plugin) triggerRoutes(host *coreplugin.Host) {
 	// POST /hooks/{id}/{trigger}: incoming webhook (signed; see receiveHook)
 	host.Handle("POST", "/hooks/{id}/{trigger}", pl.receiveHook)
 	host.Signed("POST", "/hooks/{id}/{trigger}")

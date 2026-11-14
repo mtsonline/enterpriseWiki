@@ -32,14 +32,14 @@ JSON
 	cat > "$1/plugin.go" <<GO
 package $pkg
 
-import "github.com/mtsonline/enterprisewiki/pkg/sdk"
+import "github.com/mtsonline/enterprisewiki/internal/coreplugin"
 
 type Plugin struct{}
 
-func init() { sdk.Register(&Plugin{}) }
+func init() { coreplugin.Register(&Plugin{}) }
 
-func (p *Plugin) Manifest() sdk.Manifest {
-	return sdk.Manifest{ID: "$2", Name: "Test $2", Version: "1.0.0", Kinds: []string{"general"}}
+func (p *Plugin) Manifest() coreplugin.Manifest {
+	return coreplugin.Manifest{ID: "$2", Name: "Test $2", Version: "1.0.0", Kinds: []string{"general"}}
 }
 GO
 }
