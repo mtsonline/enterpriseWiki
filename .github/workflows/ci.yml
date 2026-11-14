@@ -215,7 +215,7 @@ jobs:
           retention-days: 7
 
   auth:
-    name: Sign-in against real systems (Keycloak OIDC and SAML, OpenLDAP)
+    name: Sign-in against real systems (Keycloak OIDC and SAML, OpenLDAP, Active Directory, Shibboleth SP)
     runs-on: ubuntu-latest
     services:
       postgres:
@@ -240,13 +240,15 @@ jobs:
       # Keycloak needs Java 21
       - uses: actions/setup-java@v6
         with: { distribution: temurin, java-version: "21" }
-      - name: OpenLDAP
+      - name: OpenLDAP, Samba (Active Directory), Apache with mod_shib
         run: |
           sudo apt-get update -q
-          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -q slapd ldap-utils
-      - name: start Keycloak and OpenLDAP
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -q slapd ldap-utils samba-ad-dc apache2 libapache2-mod-shib
+          # the packages start their own services; the test starts its own instances
+          sudo systemctl disable --now slapd samba-ad-dc smbd nmbd winbind apache2 shibd 2>/dev/null || true
+      - name: start Keycloak, OpenLDAP, Active Directory and Apache with mod_shib
         run: |
-          tests/auth/start.sh > /tmp/auth.env
+          EWIKI_AUTH_AD=1 EWIKI_AUTH_SHIB=1 tests/auth/start.sh > /tmp/auth.env
           # the generated passwords never appear in the log
           sed -n 's/^export EWIKI_TEST_[A-Z_]*PASSWORD=\(.*\)$/::add-mask::\1/p' /tmp/auth.env
           sed 's/^export //' /tmp/auth.env >> "$GITHUB_ENV"
@@ -278,6 +280,8 @@ jobs:
           tail -n 80 /tmp/wiki/server.log || true
           tail -n 80 /tmp/ewiki-auth/keycloak.log || true
           tail -n 40 /tmp/ewiki-auth/slapd.log || true
+          tail -n 40 /tmp/ewiki-auth/samba.log || true
+          tail -n 40 /tmp/ewiki-auth/shib/shibd.log /tmp/ewiki-auth/shib/apache-error.log || true
       - name: stop the systems
         if: always()
         run: tests/auth/start.sh stop

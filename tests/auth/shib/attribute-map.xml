@@ -1,0 +1,7 @@
+<!-- Attributes as Keycloak sends them in tests/auth/start.sh (basic name format). -->
+<Attributes xmlns="urn:mace:shibboleth:2.0:attribute-map">
+    <Attribute name="uid" nameFormat="urn:oasis:names:tc:SAML:2.0:attrname-format:basic" id="uid"/>
+    <Attribute name="email" nameFormat="urn:oasis:names:tc:SAML:2.0:attrname-format:basic" id="mail"/>
+    <Attribute name="displayName" nameFormat="urn:oasis:names:tc:SAML:2.0:attrname-format:basic" id="displayName"/>
+    <Attribute name="groups" nameFormat="urn:oasis:names:tc:SAML:2.0:attrname-format:basic" id="isMemberOf"/>
+</Attributes>

@@ -41,7 +41,7 @@ echte Systeme: Keycloak als OpenID-Connect- und SAML-Anbieter und OpenLDAP mit `
 Prozesse ohne Container, lokal genauso wie in der CI.
 
 ```bash
-eval "$(tests/auth/start.sh)"           # startet Keycloak und OpenLDAP, gibt die Umgebung aus
+eval "$(EWIKI_AUTH_AD=1 EWIKI_AUTH_SHIB=1 tests/auth/start.sh)"   # Keycloak, OpenLDAP, AD, Apache mit mod_shib
 EWIKI_TEST_DATABASE_URL=… go test -race -run TestReal ./internal/server/
 (cd web && EWIKI_E2E_URL=http://localhost:8080 npm run test:auth)   # Browser-Test gegen ein frisch eingerichtetes Wiki
 tests/auth/start.sh stop
@@ -49,8 +49,15 @@ tests/auth/start.sh stop
 
 Geprüft wird unter anderem: Anmeldung über das echte Anmeldeformular, falsches Passwort, Zuordnung von Gruppen und
 Rollen, Back-Channel-Logout (Ende der Sitzung beim Anbieter beendet sie im Wiki), Abmelden im Wiki beendet auch die
-Sitzung beim Anbieter, eine SAML-Antwort gilt nur einmal, LDAP-Filter-Einschleusung, Gruppen über `memberOf` und
-über eine Gruppensuche. Jeder Test legt in Keycloak einen eigenen Realm an; Passwörter werden bei jedem Start neu
+Sitzung beim Anbieter, eine SAML-Antwort gilt nur einmal, SAML-Abmeldung in beide Richtungen, LDAP-Filter-Einschleusung,
+Gruppen über `memberOf` und über eine Gruppensuche.
+
+Mit `EWIKI_AUTH_AD=1` startet zusätzlich Samba als Active Directory (Paket `samba-ad-dc`, braucht `sudo`): LDAPS mit
+einer eigenen Test-CA, gesperrte Konten, `objectGUID` als feste Kennung, verschachtelte Gruppen, StartTLS, kein
+Anmelden ohne vertrauenswürdiges Zertifikat oder ohne Verschlüsselung. Mit `EWIKI_AUTH_SHIB=1` startet Apache mit
+mod_shib vor dem Wiki (Pakete `apache2`, `libapache2-mod-shib`), eingerichtet wie in der Admin-Dokumentation: Der Test
+meldet sich über Keycloak an und versucht, die Kopfzeilen mit der Identität zu fälschen – direkt am Wiki vorbei, über
+ungeschützte Pfad-Varianten und mit einer echten Sitzung. Jeder Test legt in Keycloak einen eigenen Realm an; Passwörter werden bei jedem Start neu
 erzeugt. Ohne die Umgebung werden die Tests übersprungen, mit `EWIKI_TEST_REQUIRE_REAL_AUTH=1` schlagen sie fehl.
 
 ## Testroutine gegen eine laufende Instanz (`tests/qa`)
