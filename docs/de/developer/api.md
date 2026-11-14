@@ -378,6 +378,9 @@ Verlangt das Konto einen zweiten Faktor, antwortet die Anmeldung mit `mfa_requir
 | Methode | Pfad |
 |---|---|
 | `POST` | `/api/v1/x/auth.ldap/test` |
+| `GET` | `/api/v1/x/auth.ldap/sync` |
+| `POST` | `/api/v1/x/auth.ldap/sync` |
+| `POST` | `/api/v1/x/auth.ldap/sync/adopt` |
 | `GET` | `/api/v1/x/auth.oidc/check` |
 | `GET` | `/api/v1/x/auth.shib/metadata` |
 | `GET` | `/api/v1/x/content.blog/elements/{id}/posts` |

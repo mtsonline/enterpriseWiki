@@ -336,7 +336,8 @@ func (s *Service) UpdateUser(ctx context.Context, id int64, in UserUpdate) (*Use
 	err = db.Tx(ctx, s.pool, func(tx pgx.Tx) error {
 		if _, err := tx.Exec(ctx, `UPDATE users SET
 				display_name = COALESCE($2, display_name), language = COALESCE($3, language),
-				disabled = COALESCE($4, disabled), password_hash = COALESCE($5, password_hash),
+				disabled = COALESCE($4, disabled), disabled_by = CASE WHEN $4 IS NULL THEN disabled_by ELSE '' END,
+				password_hash = COALESCE($5, password_hash),
 				failed_logins = CASE WHEN $6 THEN 0 ELSE failed_logins END,
 				locked_until = CASE WHEN $6 THEN NULL ELSE locked_until END, updated_at = now()
 			WHERE id=$1`, id, in.DisplayName, in.Language, in.Disabled, hash, in.Unlock); err != nil {

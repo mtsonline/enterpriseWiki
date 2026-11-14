@@ -62,6 +62,9 @@ Users
   user email-primary NAME ADDRESS | user email-remove NAME ADDRESS
   user identities NAME | user unlink NAME PROVIDER SUBJECT
   user alias NAME [ALIAS]       wiki user name (sign-in with it); without ALIAS: remove
+  directory sync PROVIDER [--dry-run] [--force]   users and groups from LDAP/AD without a sign-in
+  directory runs PROVIDER       newest runs of the directory sync
+  directory adopt PROVIDER USER same person with a new directory id: keep the account
   user sessions NAME | user logout NAME [SESSION-ID]   sessions; sign out one or all
   scim list | scim create NAME --provider P [--subject-from userName|externalId] [--on-delete disable|delete]
   scim token ID | scim delete ID   SCIM 2.0 provisioning clients (Entra ID, Okta, ...)
@@ -257,6 +260,8 @@ func Main(args []string) int {
 		err = e.signatureCmd(args[1:])
 	case "smime":
 		err = e.smimeCmd(args[1:])
+	case "directory":
+		err = e.directoryCmd(args[1:])
 	case "retention":
 		err = e.withApp(false, func(ctx context.Context, a *app.App) error {
 			res, err := a.Content.RunRetention(ctx)
