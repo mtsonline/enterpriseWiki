@@ -28,15 +28,15 @@ jobs:
         ports: ["5432:5432"]
         options: --health-cmd pg_isready --health-interval 5s --health-timeout 5s --health-retries 20
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       # the toolchain line of go.mod is the Go version to use (the go line is only the minimum)
       - name: Go version from go.mod
         id: gover
         run: echo "version=$(sed -n 's/^toolchain go//p' go.mod | grep . || sed -n 's/^go //p' go.mod)" >> "$GITHUB_OUTPUT"
-      - uses: actions/setup-go@v7
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
         if: ${{ !inputs.latest }}
         with: { go-version: "${{ steps.gover.outputs.version }}" }
-      - uses: actions/setup-go@v7
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
         if: ${{ inputs.latest }}
         with: { go-version: stable, check-latest: true }
       - name: upgrade all Go modules to the newest versions (canary)
@@ -60,11 +60,11 @@ jobs:
     name: Security (govulncheck, gosec, npm audit, security tests)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - name: Go version from go.mod
         id: gover
         run: echo "version=$(sed -n 's/^toolchain go//p' go.mod | grep . || sed -n 's/^go //p' go.mod)" >> "$GITHUB_OUTPUT"
-      - uses: actions/setup-go@v7
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
         with: { go-version: "${{ steps.gover.outputs.version }}" }
       - name: known vulnerabilities in Go code and modules (govulncheck)
         run: scripts/govulncheck.sh
@@ -92,21 +92,21 @@ jobs:
       EWIKI_DATABASE_URL: postgres://wiki:wiki@localhost:5432/wiki?sslmode=disable
       EWIKI_ADMIN_PASSWORD: Admin-Passw0rd!
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       # the toolchain line of go.mod is the Go version to use (the go line is only the minimum)
       - name: Go version from go.mod
         id: gover
         run: echo "version=$(sed -n 's/^toolchain go//p' go.mod | grep . || sed -n 's/^go //p' go.mod)" >> "$GITHUB_OUTPUT"
-      - uses: actions/setup-go@v7
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
         if: ${{ !inputs.latest }}
         with: { go-version: "${{ steps.gover.outputs.version }}" }
-      - uses: actions/setup-go@v7
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
         if: ${{ inputs.latest }}
         with: { go-version: stable, check-latest: true }
       - name: upgrade all Go modules to the newest versions (canary)
         if: ${{ inputs.latest }}
         run: go get -u -t ./... && go mod tidy && git diff --stat go.mod
-      - uses: actions/setup-node@v7
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
         with: { node-version: "${{ inputs.latest && 'latest' || '26' }}" }
       - name: upgrade all npm packages to the newest versions (canary)
         if: ${{ inputs.latest }}
@@ -155,7 +155,7 @@ jobs:
     name: Docker images (lite, full and plugin builds)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - name: newest base images (canary)
         if: ${{ inputs.latest }}
         # keep the image variant: golang:1.27-alpine → golang:alpine (golang:latest is
@@ -190,8 +190,8 @@ jobs:
     name: Office servers (real Collabora Online and OnlyOffice Docs)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-node@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
         with: { node-version: "26" }
       - name: install browser tooling
         working-directory: web
@@ -206,7 +206,7 @@ jobs:
           scripts/test-docker-office.sh
       - name: screenshots and logs of a failed office test
         if: failure()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: office-test
           path: |
@@ -229,13 +229,13 @@ jobs:
       EWIKI_ADMIN_PASSWORD: Admin-Passw0rd!
       EWIKI_TEST_REQUIRE_REAL_AUTH: "1"
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - name: Go version from go.mod
         id: gover
         run: echo "version=$(sed -n 's/^toolchain go//p' go.mod | grep . || sed -n 's/^go //p' go.mod)" >> "$GITHUB_OUTPUT"
-      - uses: actions/setup-go@v7
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
         with: { go-version: "${{ steps.gover.outputs.version }}" }
-      - uses: actions/setup-node@v7
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
         with: { node-version: "26" }
       # Keycloak needs Java 21
       - uses: actions/setup-java@v6
@@ -293,7 +293,7 @@ jobs:
       from: ${{ steps.v.outputs.from }}
       oldest: ${{ steps.v.outputs.oldest }}
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       # the two major versions before the recommended one (internal/pgversion,
       # updated by Renovate): with 19 recommended the test runs 17 → 19 and 18 → 19
       - id: v
@@ -313,7 +313,7 @@ jobs:
       matrix:
         from: ${{ fromJSON(needs.pg-versions.outputs.from) }}
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - name: upgrade test with the official images (copy and --link)
         run: scripts/test-docker-postgres.sh ${{ matrix.from }} ${{ matrix.from == needs.pg-versions.outputs.oldest && '--full' || '' }}
 

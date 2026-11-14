@@ -10,7 +10,7 @@ COPY web web
 COPY plugins plugins
 RUN cd web && node build.mjs
 
-FROM --platform=$BUILDPLATFORM golang:1.27-alpine AS backend
+FROM --platform=$BUILDPLATFORM golang:1.27-alpine@sha256:eb61c3873c97416fff0116553fff65d67a3549f72e11d9758849a689cdd8b523 AS backend
 ARG TARGETOS=linux
 ARG TARGETARCH
 WORKDIR /src
@@ -33,7 +33,7 @@ RUN CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH go build -trimpath \
 # esbuild, Go toolchain of the target).
 FROM node:26-alpine AS node
 
-FROM golang:1.27-alpine AS full
+FROM golang:1.27-alpine@sha256:eb61c3873c97416fff0116553fff65d67a3549f72e11d9758849a689cdd8b523 AS full
 RUN apk add --no-cache ca-certificates tzdata poppler-utils git bash libstdc++ libgcc libatomic \
  && adduser -D -H -u 10001 ewiki \
  && mkdir -p /data && chown ewiki /data
@@ -66,7 +66,7 @@ CMD ["serve"]
 # ---------------------------------------------------------------- lite
 # Lite image (default, ghcr.io/…/enterprisewiki:latest): only the binary.
 # Plugins can be enabled and disabled; installing needs the full image.
-FROM alpine:3.24 AS lite
+FROM alpine:3.24@sha256:f59abe656b692d901e184be3445e084786602108599d2a51d229c0f5a48c71bf AS lite
 RUN apk add --no-cache ca-certificates tzdata poppler-utils \
  && adduser -D -H -u 10001 ewiki \
  && mkdir -p /data && chown ewiki /data
