@@ -112,7 +112,7 @@ API: `GET|PUT /api/v1/admin/i18n/{lang}`, `GET /api/v1/admin/i18n/{lang}/export?
 
 ## Geheimnisse in der Datenbank
 
-Signaturschlüssel von Webhooks, Geheimnisse von Authenticator-Apps, Geheimnisse eingehender und ausgehender Webhooks von Workflows und Formularen, der Schlüssel der Formular-Tokens, der Schlüssel der Entscheidungslinks, die Siegel-Schlüssel für Signaturen und die privaten Schlüssel von S/MIME-Zertifikaten liegen in der Datenbank. Wie sie gespeichert werden, legt `secrets.mode` in `config.yaml` fest (für die ganze Instanz):
+Signaturschlüssel von Webhooks, Geheimnisse von Authenticator-Apps, Geheimnisse eingehender und ausgehender Webhooks von Workflows und Formularen, der Schlüssel der Formular-Tokens, der Schlüssel der Entscheidungslinks, die Siegel-Schlüssel für Signaturen, die privaten Schlüssel von S/MIME-Zertifikaten und der private Schlüssel des SAML-Dienstanbieters (Plugin `auth.shib`) liegen in der Datenbank. Wie sie gespeichert werden, legt `secrets.mode` in `config.yaml` fest (für die ganze Instanz):
 
 | Modus | Schutz |
 |---|---|

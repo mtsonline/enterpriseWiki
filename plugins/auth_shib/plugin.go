@@ -59,6 +59,7 @@ import (
 	"github.com/mtsonline/enterprisewiki/internal/auth"
 	"github.com/mtsonline/enterprisewiki/internal/config"
 	h "github.com/mtsonline/enterprisewiki/internal/httpx"
+	"github.com/mtsonline/enterprisewiki/internal/secrets"
 	"github.com/mtsonline/enterprisewiki/pkg/sdk"
 )
 
@@ -74,7 +75,15 @@ var locales embed.FS
 // Plugin is the Shibboleth / SAML plugin.
 type Plugin struct{}
 
-func init() { sdk.Register(&Plugin{}) }
+func init() {
+	sdk.Register(&Plugin{})
+	// the private key of the SP is a secret like any other: sealed with
+	// secrets.mode, bound to its row, part of "rewrap"
+	secrets.Register(secrets.Column{Table: "plugin_shib_sp", Key: "id", Value: "key_pem", Text: true})
+}
+
+// spKeyAAD binds the sealed SP key to its row.
+var spKeyAAD = secrets.AAD("plugin_shib_sp", "1")
 
 // Manifest implements sdk.Plugin.
 func (p *Plugin) Manifest() sdk.Manifest { return sdk.ParseManifest(manifest) }
@@ -89,7 +98,7 @@ func (p *Plugin) Locales() fs.FS { s, _ := fs.Sub(locales, "locales"); return s 
 func (p *Plugin) Setup(host *sdk.Host) error {
 	replay := host.Auth.ReplayCache("saml")
 	set := auth.NewInstanceSet("shib", host.Settings, func(id string, s func() map[string]any) *Provider {
-		return &Provider{id: id, settings: s, cfg: host.Config, pool: host.DB, replay: replay, log: host.Log}
+		return &Provider{id: id, settings: s, cfg: host.Config, pool: host.DB, box: host.Secrets, replay: replay, log: host.Log}
 	})
 	sdk.RegisterRedirectInstances(host, set)
 	// SP metadata of an instance: /metadata?instance=<provider id> ("" = shib)
@@ -120,6 +129,7 @@ type Provider struct {
 	settings func() map[string]any
 	cfg      *config.Store
 	pool     *pgxpool.Pool
+	box      *secrets.Box
 	replay   saml.AssertionReplayCache
 	log      *slog.Logger
 
@@ -500,7 +510,11 @@ func (p *Provider) keyPair(ctx context.Context) (*rsa.PrivateKey, *x509.Certific
 		}
 		keyPEM = string(pem.EncodeToMemory(&pem.Block{Type: "RSA PRIVATE KEY", Bytes: x509.MarshalPKCS1PrivateKey(key)}))
 		certPEM = string(pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: der}))
-		if _, err := p.pool.Exec(ctx, `INSERT INTO plugin_shib_sp(id, key_pem, cert_pem) VALUES (1,$1,$2) ON CONFLICT (id) DO NOTHING`, keyPEM, certPEM); err != nil {
+		sealed, err := p.box.SealString(keyPEM, spKeyAAD)
+		if err != nil {
+			return nil, nil, err
+		}
+		if _, err := p.pool.Exec(ctx, `INSERT INTO plugin_shib_sp(id, key_pem, cert_pem) VALUES (1,$1,$2) ON CONFLICT (id) DO NOTHING`, sealed, certPEM); err != nil {
 			return nil, nil, err
 		}
 		if err := p.pool.QueryRow(ctx, `SELECT key_pem, cert_pem FROM plugin_shib_sp WHERE id=1`).Scan(&keyPEM, &certPEM); err != nil {
@@ -508,6 +522,9 @@ func (p *Provider) keyPair(ctx context.Context) (*rsa.PrivateKey, *x509.Certific
 		}
 	} else if err != nil {
 		return nil, nil, err
+	}
+	if keyPEM, err = p.box.OpenString(keyPEM, spKeyAAD); err != nil {
+		return nil, nil, fmt.Errorf("SAML key pair: %w", err)
 	}
 	kb, _ := pem.Decode([]byte(keyPEM))
 	cb, _ := pem.Decode([]byte(certPEM))
