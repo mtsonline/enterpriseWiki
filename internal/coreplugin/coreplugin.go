@@ -1,20 +1,24 @@
-// Package sdk is the plugin API of Enterprise Wiki.
+// Package coreplugin is the interface of core plugins: plugins that are
+// compiled into the binary and run in the wiki process (plugins/<dir>).
 //
-// A plugin is a Go package below plugins/ that registers itself in init():
+// It hands out internal services (database pool, content, auth …) and makes
+// no stability promise: it changes together with the core. The stable
+// interface for plugins that run as their own process is the separate SDK
+// module (sdk/, Apache-2.0); see docs/en/developer/plugins.md.
 //
-//	func init() { sdk.Register(&Plugin{}) }
+// A core plugin registers itself in init():
+//
+//	func init() { coreplugin.Register(&Plugin{}) }
 //
 // and implements Plugin plus any of the optional interfaces (Setup,
-// Migrations, Locales). Plugins are compiled into the binary (see
-// docs/en/developer/plugins.md); enabling and disabling takes effect immediately
+// Migrations, Locales). Enabling and disabling takes effect immediately
 // without a restart. A plugin's frontend part lives in plugins/<dir>/web.
-package sdk
+package coreplugin
 
 import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/mtsonline/enterprisewiki/internal/feedfetch"
 	"io/fs"
 	"log/slog"
 	"net/http"
@@ -33,6 +37,7 @@ import (
 	"github.com/mtsonline/enterprisewiki/internal/auth"
 	"github.com/mtsonline/enterprisewiki/internal/config"
 	"github.com/mtsonline/enterprisewiki/internal/content"
+	"github.com/mtsonline/enterprisewiki/internal/feedfetch"
 	"github.com/mtsonline/enterprisewiki/internal/httpx"
 	"github.com/mtsonline/enterprisewiki/internal/i18n"
 	"github.com/mtsonline/enterprisewiki/internal/identity"
@@ -132,11 +137,11 @@ func Register(p Plugin) {
 	defer regMu.Unlock()
 	m := p.Manifest()
 	if err := m.Validate(); err != nil {
-		panic("sdk.Register: " + err.Error())
+		panic("coreplugin.Register: " + err.Error())
 	}
 	id := m.ID
 	if _, dup := registry[id]; dup {
-		panic("sdk.Register: duplicate plugin id " + id)
+		panic("coreplugin.Register: duplicate plugin id " + id)
 	}
 	registry[id] = p
 }

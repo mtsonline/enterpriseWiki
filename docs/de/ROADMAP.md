@@ -33,7 +33,7 @@ Offen aus diesem Bereich: S3-kompatibler Objektspeicher als Alternative zum Date
 ## Meilenstein 3 – Abläufe, Makros, CMS (fertig, v7.2)
 
 - Elementtyp `workflow.process`: Startformular (Text, E-Mail, Datum, Zahl, Auswahl, Bestätigung, Datei-Upload), Schritte mit Zuständigen (Starter, Benutzer, Gruppe, Rolle), Aktionen mit optionaler oder Pflicht-Notiz, Endzustände mit Ergebnis. Jeder Vorgang speichert eine Momentaufnahme des Ablaufs, jeder Schritt wird protokolliert. „Meine Aufgaben“ in der Seitenleiste und unter `/tasks`. Strukturierter Editor mit Vorlagen (Bewerbung, Genehmigungsantrag)
-- Makro-System (Plugin-basiert, `sdk.Host.RegisterMacro`): Makros werden bei jeder Anzeige mit den Rechten des Betrachters gerendert, Makro-Dialog im Editor (WYSIWYG und Markdown)
+- Makro-System (Plugin-basiert, `coreplugin.Host.RegisterMacro`): Makros werden bei jeder Anzeige mit den Rechten des Betrachters gerendert, Makro-Dialog im Editor (WYSIWYG und Markdown)
   - `core.macros`: Inhaltsverzeichnis, Unterseiten, Zuletzt geändert, Hinweis-Boxen (Info, Notiz, Tipp, Warnung, Erfolg), Aufklappbereich, Status-Label, Spalten
   - `core.layout`: Abschnitt (Hintergrund, Breite), Hero-Banner, Karten-Raster, Button-Link, Abstand
   - `macro.shell`: Shell-Befehl; nur exakt freigegebene Befehle (SHA-256 des Befehlstexts), Freigabe nur durch Superadmins aus `config.yaml` oder die CLI, Timeout, eigene Prozessgruppe, unprivilegierter Benutzer, begrenzte Ausgabe, standardmäßig aus

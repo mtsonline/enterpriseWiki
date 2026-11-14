@@ -26,9 +26,9 @@ import (
 	"github.com/mtsonline/enterprisewiki/internal/acl"
 	"github.com/mtsonline/enterprisewiki/internal/apperr"
 	"github.com/mtsonline/enterprisewiki/internal/content"
+	"github.com/mtsonline/enterprisewiki/internal/coreplugin"
 	"github.com/mtsonline/enterprisewiki/internal/identity"
 	"github.com/mtsonline/enterprisewiki/internal/secrets"
-	"github.com/mtsonline/enterprisewiki/pkg/sdk"
 )
 
 //go:embed plugin.json
@@ -52,36 +52,36 @@ const (
 
 // Plugin is the forms plugin (one instance per site).
 type Plugin struct {
-	host    *sdk.Host
+	host    *coreplugin.Host
 	limiter *limiter
 }
 
-func init() { sdk.Register(&Plugin{}) }
+func init() { coreplugin.Register(&Plugin{}) }
 
-// NewInstance implements sdk.Factory (one plugin per site).
-func (p *Plugin) NewInstance() sdk.Plugin { return &Plugin{} }
+// NewInstance implements coreplugin.Factory (one plugin per site).
+func (p *Plugin) NewInstance() coreplugin.Plugin { return &Plugin{} }
 
-// Manifest implements sdk.Plugin.
-func (p *Plugin) Manifest() sdk.Manifest { return sdk.ParseManifest(manifest) }
+// Manifest implements coreplugin.Plugin.
+func (p *Plugin) Manifest() coreplugin.Manifest { return coreplugin.ParseManifest(manifest) }
 
-// Migrations implements sdk.MigrationsPlugin.
+// Migrations implements coreplugin.MigrationsPlugin.
 func (p *Plugin) Migrations() fs.FS { s, _ := fs.Sub(migrations, "migrations"); return s }
 
-// Locales implements sdk.LocalesPlugin.
+// Locales implements coreplugin.LocalesPlugin.
 func (p *Plugin) Locales() fs.FS { s, _ := fs.Sub(locales, "locales"); return s }
 
 // hosts of the sites (the element type is registered once per process)
 var hosts sync.Map
 
-func hostOf(ctx context.Context) *sdk.Host {
-	if h, ok := hosts.Load(sdk.SiteOf(ctx)); ok {
-		return h.(*sdk.Host)
+func hostOf(ctx context.Context) *coreplugin.Host {
+	if h, ok := hosts.Load(coreplugin.SiteOf(ctx)); ok {
+		return h.(*coreplugin.Host)
 	}
 	return nil
 }
 
-// Setup implements sdk.SetupPlugin.
-func (p *Plugin) Setup(host *sdk.Host) error {
+// Setup implements coreplugin.SetupPlugin.
+func (p *Plugin) Setup(host *coreplugin.Host) error {
 	p.host = host
 	p.limiter = newLimiter()
 	hosts.Store(host.Site, host)
@@ -204,7 +204,7 @@ func (Type) CheckChange(ctx context.Context, _ *content.Service, el *content.Ele
 // checkTargets: e-mail to addresses outside the wiki and webhooks need
 // "Send submissions outside"; the property database and the workflow must
 // be usable by the editor; media categories need the right to upload.
-func checkTargets(ctx context.Context, gh *sdk.Host, cat int64, f *Form) error {
+func checkTargets(ctx context.Context, gh *coreplugin.Host, cat int64, f *Form) error {
 	external := gh.Can(ctx, cat, permExternal)
 	for _, e := range f.Targets.Email {
 		for _, r := range Recipients(e.To) {

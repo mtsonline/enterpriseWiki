@@ -15,8 +15,8 @@
     "isolatedModules": true,
     "noEmit": true,
     "paths": {
-      "@ewiki/sdk": [
-        "./src/sdk.ts"
+      "@ewiki/coreplugin": [
+        "./src/coreplugin.ts"
       ]
     },
     "types": []

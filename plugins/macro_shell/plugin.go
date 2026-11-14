@@ -34,9 +34,9 @@ import (
 	"github.com/mtsonline/enterprisewiki/internal/apperr"
 	"github.com/mtsonline/enterprisewiki/internal/audit"
 	"github.com/mtsonline/enterprisewiki/internal/content"
+	"github.com/mtsonline/enterprisewiki/internal/coreplugin"
 	h "github.com/mtsonline/enterprisewiki/internal/httpx"
 	"github.com/mtsonline/enterprisewiki/internal/identity"
-	"github.com/mtsonline/enterprisewiki/pkg/sdk"
 
 	_ "embed"
 )
@@ -55,7 +55,7 @@ const MaxOutput = 64 << 10
 
 // Plugin is the shell macro plugin.
 type Plugin struct {
-	host  *sdk.Host
+	host  *coreplugin.Host
 	mu    sync.Mutex
 	cache map[string]cached
 	locks map[string]*sync.Mutex
@@ -67,22 +67,22 @@ type cached struct {
 	expires time.Time
 }
 
-func init() { sdk.Register(newPlugin()) }
+func init() { coreplugin.Register(newPlugin()) }
 
 func newPlugin() *Plugin {
 	return &Plugin{cache: map[string]cached{}, locks: map[string]*sync.Mutex{}}
 }
 
-// NewInstance implements sdk.Factory (one cache per site).
-func (p *Plugin) NewInstance() sdk.Plugin { return newPlugin() }
+// NewInstance implements coreplugin.Factory (one cache per site).
+func (p *Plugin) NewInstance() coreplugin.Plugin { return newPlugin() }
 
-// Manifest implements sdk.Plugin.
-func (p *Plugin) Manifest() sdk.Manifest { return sdk.ParseManifest(manifest) }
+// Manifest implements coreplugin.Plugin.
+func (p *Plugin) Manifest() coreplugin.Manifest { return coreplugin.ParseManifest(manifest) }
 
-// Migrations implements sdk.MigrationsPlugin.
+// Migrations implements coreplugin.MigrationsPlugin.
 func (p *Plugin) Migrations() fs.FS { s, _ := fs.Sub(migrations, "migrations"); return s }
 
-// Locales implements sdk.LocalesPlugin.
+// Locales implements coreplugin.LocalesPlugin.
 func (p *Plugin) Locales() fs.FS { s, _ := fs.Sub(locales, "locales"); return s }
 
 // Hash returns the approval hash of a command.
@@ -109,7 +109,7 @@ func CanApprove(p *identity.Principal, approvers []string) bool {
 }
 
 // Setup registers the macro and the approval API.
-func (p *Plugin) Setup(host *sdk.Host) error {
+func (p *Plugin) Setup(host *coreplugin.Host) error {
 	p.host = host
 	host.RegisterMacro(&macro{p: p})
 

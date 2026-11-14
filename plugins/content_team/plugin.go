@@ -19,9 +19,9 @@ import (
 
 	"github.com/mtsonline/enterprisewiki/internal/apperr"
 	"github.com/mtsonline/enterprisewiki/internal/content"
+	"github.com/mtsonline/enterprisewiki/internal/coreplugin"
 	h "github.com/mtsonline/enterprisewiki/internal/httpx"
 	"github.com/mtsonline/enterprisewiki/internal/identity"
-	"github.com/mtsonline/enterprisewiki/pkg/sdk"
 	"github.com/mtsonline/enterprisewiki/plugins/core_html"
 )
 
@@ -35,17 +35,17 @@ var locales embed.FS
 const TypeID = "content.team"
 
 // Plugin is the team plugin.
-type Plugin struct{ host *sdk.Host }
+type Plugin struct{ host *coreplugin.Host }
 
 // plugins holds the plugin instance of each site (for renderers).
-var plugins sdk.PerSite[*Plugin]
+var plugins coreplugin.PerSite[*Plugin]
 
-func init() { sdk.Register(&Plugin{}) }
+func init() { coreplugin.Register(&Plugin{}) }
 
-// Manifest implements sdk.Plugin.
-func (p *Plugin) Manifest() sdk.Manifest { return sdk.ParseManifest(manifest) }
+// Manifest implements coreplugin.Plugin.
+func (p *Plugin) Manifest() coreplugin.Manifest { return coreplugin.ParseManifest(manifest) }
 
-// Locales implements sdk.LocalesPlugin.
+// Locales implements coreplugin.LocalesPlugin.
 func (p *Plugin) Locales() fs.FS { s, _ := fs.Sub(locales, "locales"); return s }
 
 // Fields that can be shown. "attr:<name>" shows an attribute delivered by
@@ -146,7 +146,7 @@ func has(list []string, s string) bool {
 
 // members loads the members of the configured groups. Profile photos are
 // only included if the viewer (ctx) may see them.
-func members(ctx context.Context, hs *sdk.Host, c *Config) ([]Section, error) {
+func members(ctx context.Context, hs *coreplugin.Host, c *Config) ([]Section, error) {
 	q := hs.DB
 	if len(c.Groups) == 0 {
 		return []Section{}, nil
@@ -472,7 +472,7 @@ func (Type) Render(ctx context.Context, rc content.RenderContext, raw json.RawMe
 }
 
 // Setup registers the element type and the API.
-func (p *Plugin) Setup(hs *sdk.Host) error {
+func (p *Plugin) Setup(hs *coreplugin.Host) error {
 	p.host = hs
 	plugins.Set(hs.Site, p)
 	hs.RegisterElementType(Type{})

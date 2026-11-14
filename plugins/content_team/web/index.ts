@@ -1,6 +1,6 @@
 // Team element: editor (description, groups, fields, layout) and the
 // "team" widget (filter by name when the team is large).
-import { announce, api, button, checkbox, errorText, field, h, mount, registerEditor, registerWidget, select, state, t, textArea, textInput, toast, type EditorInstance } from '@ewiki/sdk';
+import { announce, api, button, checkbox, errorText, field, h, mount, registerEditor, registerWidget, select, state, t, textArea, textInput, toast, type EditorInstance } from '@ewiki/coreplugin';
 import './style.css';
 
 const BASE = '/api/v1/x/content.team';

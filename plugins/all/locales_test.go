@@ -6,21 +6,21 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/mtsonline/enterprisewiki/pkg/sdk"
+	"github.com/mtsonline/enterprisewiki/internal/coreplugin"
 )
 
 // TestPluginLocales checks that every plugin shipping UI strings ships
 // English (the reference language) and that other languages only translate
 // keys that exist in English. Plugin permissions need an English label.
 func TestPluginLocales(t *testing.T) {
-	for _, p := range sdk.Registered() {
+	for _, p := range coreplugin.Registered() {
 		m := p.Manifest()
 		for _, d := range m.Permissions {
 			if strings.TrimSpace(d.Label) == "" {
 				t.Errorf("%s: permission %s has no label", m.ID, d.Key)
 			}
 		}
-		l, ok := p.(sdk.LocalesPlugin)
+		l, ok := p.(coreplugin.LocalesPlugin)
 		if !ok {
 			continue
 		}

@@ -1,7 +1,7 @@
 // The property report in the browser: the views of the macro "properties"
 // with sorting, filters for readers, paging and CSV download. The data comes
 // from POST /report with the rights of the reader.
-import { api, button, errorText, field, formDialog, h, select, state, t, textInput, toast, uid } from '@ewiki/sdk';
+import { api, button, errorText, field, formDialog, h, select, state, t, textInput, toast, uid } from '@ewiki/coreplugin';
 import { BASE, builtinLabel, choiceLabel, formatNumber, formatValue, plainValue, type Options, type Ref } from './model';
 import { chart, type ChartData } from './charts';
 

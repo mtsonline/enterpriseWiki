@@ -15,10 +15,10 @@ import (
 	"github.com/mtsonline/enterprisewiki/internal/acl"
 	"github.com/mtsonline/enterprisewiki/internal/apperr"
 	"github.com/mtsonline/enterprisewiki/internal/content"
+	"github.com/mtsonline/enterprisewiki/internal/coreplugin"
 	"github.com/mtsonline/enterprisewiki/internal/feed"
 	h "github.com/mtsonline/enterprisewiki/internal/httpx"
 	"github.com/mtsonline/enterprisewiki/internal/identity"
-	"github.com/mtsonline/enterprisewiki/pkg/sdk"
 	"github.com/mtsonline/enterprisewiki/plugins/core_html"
 )
 
@@ -76,7 +76,7 @@ func (s *Source) Sources(ctx context.Context, svc *content.Service) (*content.So
 
 // Load reads the configuration of element id (of type typeID) into dst for
 // a caller who may view the element. dst must embed Source.
-func Load(ctx context.Context, hs *sdk.Host, id int64, typeID, lang string, dst any) (shown string, err error) {
+func Load(ctx context.Context, hs *coreplugin.Host, id int64, typeID, lang string, dst any) (shown string, err error) {
 	typ, body, shown, _, err := hs.Content.ElementBody(ctx, id, lang)
 	if err != nil {
 		return "", err
@@ -114,7 +114,7 @@ type Info struct {
 }
 
 // Describe returns the categories of the scope with the caller's rights.
-func Describe(ctx context.Context, hs *sdk.Host, src *Source) (*Info, error) {
+func Describe(ctx context.Context, hs *coreplugin.Host, src *Source) (*Info, error) {
 	info := &Info{Categories: []Cat{}}
 	scope, err := hs.Content.Scope(ctx, src.CategoryID, src.Recursive)
 	if err != nil {
@@ -159,7 +159,7 @@ func (i *Info) contains(id int64) bool {
 // /elements/{id}: POST entries (a core.html element in the scope), POST
 // categories (a subcategory) and GET feed. load returns the source of an
 // element (permission checked).
-func Routes(hs *sdk.Host, typeID, entries string, load func(ctx context.Context, id int64, lang string) (*Source, string, error)) {
+func Routes(hs *coreplugin.Host, typeID, entries string, load func(ctx context.Context, id int64, lang string) (*Source, string, error)) {
 	// POST /elements/{id}/<entries> {"title", "body": {...}, "category_id", "lang", "tags", "type"}
 	hs.Handle("POST", "/elements/{id}/"+entries, func(w http.ResponseWriter, r *http.Request) (any, error) {
 		id, err := h.PathID(r, "id")
@@ -237,7 +237,7 @@ type FeedOptions struct {
 }
 
 // WriteFeed answers GET /elements/{id}/feed (format, lang, token).
-func WriteFeed(w http.ResponseWriter, r *http.Request, hs *sdk.Host, id int64, src *Source, o FeedOptions) (any, error) {
+func WriteFeed(w http.ResponseWriter, r *http.Request, hs *coreplugin.Host, id int64, src *Source, o FeedOptions) (any, error) {
 	if !src.Feed {
 		return nil, apperr.NotFound("feed (switch it on in the element settings)")
 	}
@@ -273,7 +273,7 @@ func WriteFeed(w http.ResponseWriter, r *http.Request, hs *sdk.Host, id int64, s
 }
 
 // FeedContext applies a personal feed token (?token=) to the request.
-func FeedContext(hs *sdk.Host, r *http.Request) (*http.Request, error) {
+func FeedContext(hs *coreplugin.Host, r *http.Request) (*http.Request, error) {
 	ctx, _, err := hs.Auth.FeedContext(r)
 	if err != nil {
 		return nil, err

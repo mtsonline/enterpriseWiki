@@ -22,12 +22,12 @@ import (
 
 	"github.com/mtsonline/enterprisewiki/internal/acl"
 	"github.com/mtsonline/enterprisewiki/internal/apperr"
+	"github.com/mtsonline/enterprisewiki/internal/coreplugin"
 	"github.com/mtsonline/enterprisewiki/internal/identity"
 	"github.com/mtsonline/enterprisewiki/internal/media"
 	"github.com/mtsonline/enterprisewiki/internal/netguard"
 	"github.com/mtsonline/enterprisewiki/internal/pdfdoc"
 	"github.com/mtsonline/enterprisewiki/internal/secrets"
-	"github.com/mtsonline/enterprisewiki/pkg/sdk"
 )
 
 // The further targets (webhook, property database, workflow, media library)
@@ -269,7 +269,7 @@ func (p *Plugin) sendWebhook(ctx context.Context, f *Form, cat int64, d *due, ti
 // ---------------------------------------------------------------- property database
 
 // propDB reads where a property database adds entries.
-func propDB(ctx context.Context, gh *sdk.Host, el int64) (cat int64, typ string, err error) {
+func propDB(ctx context.Context, gh *coreplugin.Host, el int64) (cat int64, typ string, err error) {
 	var dbType string
 	var body []byte
 	err = gh.DB.QueryRow(ctx, `SELECT e.category_id, e.type, r.body FROM elements e JOIN element_revisions r ON r.element_id=e.id AND r.lang=e.original_lang
@@ -293,7 +293,7 @@ func propDB(ctx context.Context, gh *sdk.Host, el int64) (cat int64, typ string,
 }
 
 // propDBUsable: the caller sees the database and may create its entries.
-func propDBUsable(ctx context.Context, gh *sdk.Host, el int64) error {
+func propDBUsable(ctx context.Context, gh *coreplugin.Host, el int64) error {
 	if _, err := gh.Content.ElementCategory(ctx, el, acl.View); err != nil {
 		return apperr.BadRequest("property database %d not found", el)
 	}
@@ -348,7 +348,7 @@ func (p *Plugin) addEntry(ctx context.Context, f *Form, d *due, title string) er
 // ---------------------------------------------------------------- workflow
 
 // workflowUsable: the caller sees the workflow (and may start cases).
-func workflowUsable(ctx context.Context, gh *sdk.Host, el int64) error {
+func workflowUsable(ctx context.Context, gh *coreplugin.Host, el int64) error {
 	if _, err := gh.Content.ElementCategory(ctx, el, acl.View); err != nil {
 		return apperr.BadRequest("workflow %d not found", el)
 	}

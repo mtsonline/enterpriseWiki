@@ -12,9 +12,9 @@ import (
 
 	"github.com/mtsonline/enterprisewiki/internal/apperr"
 	"github.com/mtsonline/enterprisewiki/internal/auth"
+	"github.com/mtsonline/enterprisewiki/internal/coreplugin"
 	h "github.com/mtsonline/enterprisewiki/internal/httpx"
 	"github.com/mtsonline/enterprisewiki/internal/perm"
-	"github.com/mtsonline/enterprisewiki/pkg/sdk"
 )
 
 // Directory sync: users and groups from the directory without a sign-in.
@@ -142,7 +142,7 @@ func (p *Provider) directory(maxEntries int) ([]*auth.ExternalIdentity, []string
 }
 
 // syncRun reads the directory of a provider and syncs its accounts.
-func (p *Provider) syncRun(ctx context.Context, host *sdk.Host, dryRun, force bool) (*auth.DirectoryReport, error) {
+func (p *Provider) syncRun(ctx context.Context, host *coreplugin.Host, dryRun, force bool) (*auth.DirectoryReport, error) {
 	st := readSyncSettings(p.settings())
 	entries, disabled, err := p.directory(int(host.Limit(limitMaxEntries)))
 	if err != nil {
@@ -154,7 +154,7 @@ func (p *Provider) syncRun(ctx context.Context, host *sdk.Host, dryRun, force bo
 }
 
 // registerSync adds the API routes and the background job of the sync.
-func registerSync(host *sdk.Host, set *auth.InstanceSet[*Provider]) {
+func registerSync(host *coreplugin.Host, set *auth.InstanceSet[*Provider]) {
 	// people and their groups are changed: managing users is required, as is
 	// managing settings (the sync uses the stored connection)
 	allowed := func(r *http.Request) error {

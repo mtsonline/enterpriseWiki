@@ -5,7 +5,7 @@
 //   simple  a minimal contenteditable editor (HTML, converted on save)
 // The server sanitizes everything on save and render, so the editors are not
 // a security boundary; HTML for editing comes sanitized from the server.
-import { api, button, editorKind, state, errorText, formatAttrs, macroDialog, field, formDialog, h, isImage, loadMarkdownEditor, loading, mediaURL, pickMedium, registerEditor, select, t, textInput, toast, trustedHTML, type EditorContext, type EditorInstance, type MarkdownEditor } from '@ewiki/sdk';
+import { api, button, editorKind, state, errorText, formatAttrs, macroDialog, field, formDialog, h, isImage, loadMarkdownEditor, loading, mediaURL, pickMedium, registerEditor, select, t, textInput, toast, trustedHTML, type EditorContext, type EditorInstance, type MarkdownEditor } from '@ewiki/coreplugin';
 import { macroAt, macroHTML, parseParams } from './macros';
 import './style.css';
 

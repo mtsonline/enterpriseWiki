@@ -1,6 +1,6 @@
 // Editor for core.attachment: upload a file (each upload becomes a new
 // version when saved) and describe it.
-import { errorText, field, h, humanSize, registerEditor, t, textArea, uploadFile, type UploadedFile } from '@ewiki/sdk';
+import { errorText, field, h, humanSize, registerEditor, t, textArea, uploadFile, type UploadedFile } from '@ewiki/coreplugin';
 import './style.css';
 
 interface Body { file: UploadedFile | null; description: string }

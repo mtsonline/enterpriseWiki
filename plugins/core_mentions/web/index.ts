@@ -1,6 +1,6 @@
 // Suggestions for @mentions while typing in rich text editors and text
 // fields (comments): ArrowUp/ArrowDown choose, Enter or Tab insert, Escape closes.
-import { announce, api, h, hasPerm, state, t } from '@ewiki/sdk';
+import { announce, api, h, hasPerm, state, t } from '@ewiki/coreplugin';
 import './style.css';
 
 interface User { id: number; handle: string; display_name: string }

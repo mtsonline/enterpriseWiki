@@ -1,5 +1,5 @@
 // Search, login, profile and trash.
-import { renderProfileSections } from '../sdk';
+import { renderProfileSections } from '../coreplugin';
 import { assignedWatchesSection } from './adminWatches';
 import { api, ApiError, qs } from '../core/api';
 import { fmtDate, h, mount } from '../core/dom';
@@ -10,7 +10,7 @@ import { PERMS, type Principal } from '../core/types';
 import { announce, toast } from '../core/announce';
 import { button, checkbox, confirmDialog, errorText, field, formDialog, openDialog, pageHeader, select, textArea, textInput } from '../components/ui';
 import { invalidateTree, langName, setContext } from '../components/widgets';
-import { typeLabel } from '../sdk';
+import { typeLabel } from '../coreplugin';
 import { categoryView, elementView, errorPage, notFoundPage } from './content';
 import { watchDialog, type Watch } from '../components/watch';
 import { feedTokenSection } from '../components/feeds';

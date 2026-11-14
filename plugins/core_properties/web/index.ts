@@ -1,7 +1,7 @@
 // Properties of elements: the part in every editor, the properties above the
 // content, the definitions (administration and category settings), the
 // report widget and the controls of its macro dialog.
-import { api, hasPerm, qs, registerAdminPage, registerCategorySettingsTab, registerEditField, registerElementExtension, registerWidget, state, t } from '@ewiki/sdk';
+import { api, hasPerm, qs, registerAdminPage, registerCategorySettingsTab, registerEditField, registerElementExtension, registerWidget, state, t } from '@ewiki/coreplugin';
 import './style.css';
 import { BASE, type Props } from './model';
 import { propertiesForm } from './edit';

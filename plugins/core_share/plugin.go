@@ -16,11 +16,11 @@ import (
 	"github.com/mtsonline/enterprisewiki/internal/acl"
 	"github.com/mtsonline/enterprisewiki/internal/apperr"
 	"github.com/mtsonline/enterprisewiki/internal/audit"
+	"github.com/mtsonline/enterprisewiki/internal/coreplugin"
 	h "github.com/mtsonline/enterprisewiki/internal/httpx"
 	"github.com/mtsonline/enterprisewiki/internal/identity"
 	"github.com/mtsonline/enterprisewiki/internal/notify"
 	"github.com/mtsonline/enterprisewiki/internal/perm"
-	"github.com/mtsonline/enterprisewiki/pkg/sdk"
 )
 
 //go:embed plugin.json
@@ -30,14 +30,14 @@ var manifest []byte
 var locales embed.FS
 
 // Plugin is the share plugin.
-type Plugin struct{ host *sdk.Host }
+type Plugin struct{ host *coreplugin.Host }
 
-func init() { sdk.Register(&Plugin{}) }
+func init() { coreplugin.Register(&Plugin{}) }
 
-// Manifest implements sdk.Plugin.
-func (p *Plugin) Manifest() sdk.Manifest { return sdk.ParseManifest(manifest) }
+// Manifest implements coreplugin.Plugin.
+func (p *Plugin) Manifest() coreplugin.Manifest { return coreplugin.ParseManifest(manifest) }
 
-// Locales implements sdk.LocalesPlugin.
+// Locales implements coreplugin.LocalesPlugin.
 func (p *Plugin) Locales() fs.FS { s, _ := fs.Sub(locales, "locales"); return s }
 
 // Input names the target and the recipients.
@@ -63,8 +63,8 @@ type target struct {
 	link     string
 }
 
-// Setup implements sdk.SetupPlugin.
-func (p *Plugin) Setup(host *sdk.Host) error {
+// Setup implements coreplugin.SetupPlugin.
+func (p *Plugin) Setup(host *coreplugin.Host) error {
 	p.host = host
 	notify.RegisterKind("share", "core.share.kind")
 	// POST /check – who would be notified (without sending)

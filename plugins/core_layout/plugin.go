@@ -11,7 +11,7 @@ import (
 	"strings"
 
 	"github.com/mtsonline/enterprisewiki/internal/content"
-	"github.com/mtsonline/enterprisewiki/pkg/sdk"
+	"github.com/mtsonline/enterprisewiki/internal/coreplugin"
 	"github.com/mtsonline/enterprisewiki/plugins/core_macros"
 
 	_ "embed"
@@ -23,13 +23,13 @@ var manifest []byte
 // Plugin is the layout plugin.
 type Plugin struct{}
 
-func init() { sdk.Register(&Plugin{}) }
+func init() { coreplugin.Register(&Plugin{}) }
 
-// Manifest implements sdk.Plugin.
-func (p *Plugin) Manifest() sdk.Manifest { return sdk.ParseManifest(manifest) }
+// Manifest implements coreplugin.Plugin.
+func (p *Plugin) Manifest() coreplugin.Manifest { return coreplugin.ParseManifest(manifest) }
 
 // Setup registers the macros.
-func (p *Plugin) Setup(h *sdk.Host) error {
+func (p *Plugin) Setup(h *coreplugin.Host) error {
 	for _, m := range []content.Macro{section{}, hero{}, cards{}, button{}, spacer{}} {
 		h.RegisterMacro(m)
 	}

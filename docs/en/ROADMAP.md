@@ -33,7 +33,7 @@ Open from this area: S3-compatible object storage as an alternative to the file 
 ## Milestone 3 – Processes, macros, CMS (done, v7.2)
 
 - Element type `workflow.process`: start form (text, e-mail, date, number, choice, confirmation, file upload), steps with those responsible (starter, user, group, role), actions with optional or required note, end states with result. Every case stores a snapshot of the process, every step is logged. "My tasks" in the sidebar and under `/tasks`. Structured editor with templates (application, approval request)
-- Macro system (plugin-based, `sdk.Host.RegisterMacro`): macros are rendered on every display with the permissions of the viewer, macro dialog in the editor (WYSIWYG and Markdown)
+- Macro system (plugin-based, `coreplugin.Host.RegisterMacro`): macros are rendered on every display with the permissions of the viewer, macro dialog in the editor (WYSIWYG and Markdown)
   - `core.macros`: table of contents, sub-pages, recently changed, notice boxes (info, note, tip, warning, success), expand section, status label, columns
   - `core.layout`: section (background, width), hero banner, card grid, button link, spacing
   - `macro.shell`: shell command; only exactly approved commands (SHA-256 of the command text), approval only by super administrators from `config.yaml` or the CLI, timeout, own process group, unprivileged user, limited output, off by default

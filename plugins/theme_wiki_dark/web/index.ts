@@ -1,7 +1,7 @@
 // theme.wiki.dark: example of template inheritance. It reuses the
 // layout of theme.wiki (no layout function here) and only adds a CSS
 // class that overrides the color variables.
-import { registerTemplate } from '@ewiki/sdk';
+import { registerTemplate } from '@ewiki/coreplugin';
 import './style.css';
 
 export function register(): void {

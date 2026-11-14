@@ -18,9 +18,9 @@ import (
 	"io/fs"
 	"net/http"
 
+	"github.com/mtsonline/enterprisewiki/internal/coreplugin"
 	"github.com/mtsonline/enterprisewiki/internal/perm"
-	"github.com/mtsonline/enterprisewiki/pkg/sdk"
-	"github.com/mtsonline/enterprisewiki/pkg/wopi"
+	"github.com/mtsonline/enterprisewiki/internal/wopi"
 
 	_ "embed"
 )
@@ -36,16 +36,16 @@ const Production = "https://onenote.officeapps.live.com/hosting/discovery"
 
 // Plugin is the Microsoft 365 plugin (one instance per site).
 type Plugin struct {
-	host *sdk.Host
+	host *coreplugin.Host
 	op   *wopi.Opener
 }
 
-func init() { sdk.Register(&Plugin{}) }
+func init() { coreplugin.Register(&Plugin{}) }
 
-// Manifest implements sdk.Plugin.
-func (p *Plugin) Manifest() sdk.Manifest { return sdk.ParseManifest(manifest) }
+// Manifest implements coreplugin.Plugin.
+func (p *Plugin) Manifest() coreplugin.Manifest { return coreplugin.ParseManifest(manifest) }
 
-// Locales implements sdk.LocalesPlugin.
+// Locales implements coreplugin.LocalesPlugin.
 func (p *Plugin) Locales() fs.FS { s, _ := fs.Sub(locales, "locales"); return s }
 
 func (p *Plugin) settings() wopi.Settings {
@@ -61,7 +61,7 @@ func (p *Plugin) settings() wopi.Settings {
 }
 
 // Setup registers the program and the connection test.
-func (p *Plugin) Setup(host *sdk.Host) error {
+func (p *Plugin) Setup(host *coreplugin.Host) error {
 	p.host = host
 	p.op = &wopi.Opener{PluginID: host.Manifest.ID, Name: "Microsoft 365", Settings: p.settings}
 	host.Media.RegisterOpener(p.op)

@@ -1,5 +1,5 @@
 // Admin page for OpenID Connect (several providers possible).
-import { api, button, errorText, h, MAPPING_FIELDS, registerAdminPage, renderAuthProviderPage, t } from '@ewiki/sdk';
+import { api, button, errorText, h, MAPPING_FIELDS, registerAdminPage, renderAuthProviderPage, t } from '@ewiki/coreplugin';
 
 export function register(): void {
   registerAdminPage({

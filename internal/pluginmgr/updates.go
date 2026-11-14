@@ -12,7 +12,7 @@ import (
 	"time"
 
 	"github.com/mtsonline/enterprisewiki/internal/apperr"
-	"github.com/mtsonline/enterprisewiki/pkg/sdk"
+	"github.com/mtsonline/enterprisewiki/internal/coreplugin"
 )
 
 // DefaultCoreRepo is the repository of the core.
@@ -132,7 +132,7 @@ func (m *Manager) latestRelease(ctx context.Context, ownerRepo string) (tag, url
 // CheckUpdates checks the core and all plugins that name a GitHub repository
 // (manifest "repo" or the catalog entry). Results are cached for an hour
 // unless force is set.
-func (m *Manager) CheckUpdates(ctx context.Context, coreVersion string, plugins []sdk.Manifest, force bool) (*UpdateReport, error) {
+func (m *Manager) CheckUpdates(ctx context.Context, coreVersion string, plugins []coreplugin.Manifest, force bool) (*UpdateReport, error) {
 	m.updates.mu.Lock()
 	defer m.updates.mu.Unlock()
 	if !force && m.updates.report != nil && time.Since(m.updates.report.CheckedAt) < time.Hour {

@@ -23,9 +23,9 @@ import (
 	"github.com/mtsonline/enterprisewiki/internal/apperr"
 	"github.com/mtsonline/enterprisewiki/internal/audit"
 	"github.com/mtsonline/enterprisewiki/internal/content"
+	"github.com/mtsonline/enterprisewiki/internal/coreplugin"
 	"github.com/mtsonline/enterprisewiki/internal/identity"
 	"github.com/mtsonline/enterprisewiki/internal/mail"
-	"github.com/mtsonline/enterprisewiki/pkg/sdk"
 )
 
 const (
@@ -36,12 +36,12 @@ const (
 
 // guardHosts are the hosts of the sites, set in Setup (the element type is
 // registered once per process, the plugin once per site).
-var guardHosts sync.Map // site name -> *sdk.Host
+var guardHosts sync.Map // site name -> *coreplugin.Host
 
 // guardHost returns the host of the site of ctx (nil before Setup).
-func guardHost(ctx context.Context) *sdk.Host {
-	if h, ok := guardHosts.Load(sdk.SiteOf(ctx)); ok {
-		return h.(*sdk.Host)
+func guardHost(ctx context.Context) *coreplugin.Host {
+	if h, ok := guardHosts.Load(coreplugin.SiteOf(ctx)); ok {
+		return h.(*coreplugin.Host)
 	}
 	return nil
 }

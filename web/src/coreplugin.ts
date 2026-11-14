@@ -1,7 +1,9 @@
-// Frontend plugin SDK. Plugins import from "@ewiki/sdk" and export a
-// register() function from plugins/<dir>/web/index.ts.
+// Frontend interface of core plugins: plugins compiled into the wiki. It
+// changes together with the core (no stability promise). Core plugins import
+// from "@ewiki/coreplugin" and export a register() function from
+// plugins/<dir>/web/index.ts.
 //
-//   import { registerEditor, h } from '@ewiki/sdk';
+//   import { registerEditor, h } from '@ewiki/coreplugin';
 //   export function register() { registerEditor('my.type', (el, body) => ...); }
 //
 // See docs/en/developer/plugins.md.

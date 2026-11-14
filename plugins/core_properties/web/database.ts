@@ -1,7 +1,7 @@
 // The element "Property database" in the browser: search, filters, views,
 // grouping, changing the properties of a row, new entries, managing the
 // definitions — everything with the rights of the reader (POST /query).
-import { announce, api, button, checkbox, errorText, field, formDialog, h, newest, qs, select, state, t, textInput, toast } from '@ewiki/sdk';
+import { announce, api, button, checkbox, errorText, field, formDialog, h, newest, qs, select, state, t, textInput, toast } from '@ewiki/coreplugin';
 import { BASE, type Props } from './model';
 import { propertiesForm } from './edit';
 import { chart } from './charts';

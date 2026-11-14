@@ -1,5 +1,5 @@
 // Admin page for LDAP / Active Directory (several directories possible).
-import { api, button, confirmDialog, errorText, field, fmtDate, h, MAPPING_FIELDS, mount, registerAdminPage, renderAuthProviderPage, t, textInput, toast, uiLang } from '@ewiki/sdk';
+import { api, button, confirmDialog, errorText, field, fmtDate, h, MAPPING_FIELDS, mount, registerAdminPage, renderAuthProviderPage, t, textInput, toast, uiLang } from '@ewiki/coreplugin';
 
 export function register(): void {
   registerAdminPage({

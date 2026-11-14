@@ -1,5 +1,5 @@
 // Administration of Collabora Online (settings and connection test).
-import { officeAdminRender, registerAdminPage, t } from '@ewiki/sdk';
+import { officeAdminRender, registerAdminPage, t } from '@ewiki/coreplugin';
 
 const ID = 'office.collabora';
 

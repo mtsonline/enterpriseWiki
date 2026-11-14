@@ -27,11 +27,11 @@ import (
 	"time"
 
 	"github.com/mtsonline/enterprisewiki/internal/apperr"
+	"github.com/mtsonline/enterprisewiki/internal/coreplugin"
 	h "github.com/mtsonline/enterprisewiki/internal/httpx"
 	"github.com/mtsonline/enterprisewiki/internal/media"
 	"github.com/mtsonline/enterprisewiki/internal/perm"
-	"github.com/mtsonline/enterprisewiki/pkg/sdk"
-	"github.com/mtsonline/enterprisewiki/pkg/wopi"
+	"github.com/mtsonline/enterprisewiki/internal/wopi"
 
 	_ "embed"
 )
@@ -44,17 +44,17 @@ var locales embed.FS
 
 // Plugin is the OnlyOffice plugin (one instance per site).
 type Plugin struct {
-	host *sdk.Host
+	host *coreplugin.Host
 	wop  *wopi.Opener
 	http *http.Client
 }
 
-func init() { sdk.Register(&Plugin{}) }
+func init() { coreplugin.Register(&Plugin{}) }
 
-// Manifest implements sdk.Plugin.
-func (p *Plugin) Manifest() sdk.Manifest { return sdk.ParseManifest(manifest) }
+// Manifest implements coreplugin.Plugin.
+func (p *Plugin) Manifest() coreplugin.Manifest { return coreplugin.ParseManifest(manifest) }
 
-// Locales implements sdk.LocalesPlugin.
+// Locales implements coreplugin.LocalesPlugin.
 func (p *Plugin) Locales() fs.FS { s, _ := fs.Sub(locales, "locales"); return s }
 
 // Settings of the plugin.
@@ -89,7 +89,7 @@ func (p *Plugin) wopiSettings() wopi.Settings {
 
 // Setup registers the program, the endpoints of the Document Server and
 // the connection test.
-func (p *Plugin) Setup(host *sdk.Host) error {
+func (p *Plugin) Setup(host *coreplugin.Host) error {
 	p.host = host
 	p.http = &http.Client{Timeout: 60 * time.Second, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}
 	p.wop = &wopi.Opener{PluginID: host.Manifest.ID, Name: "OnlyOffice", Restrict: true, Settings: p.wopiSettings}

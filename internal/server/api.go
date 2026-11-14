@@ -24,6 +24,7 @@ import (
 	"github.com/mtsonline/enterprisewiki/internal/auth"
 	"github.com/mtsonline/enterprisewiki/internal/config"
 	"github.com/mtsonline/enterprisewiki/internal/content"
+	"github.com/mtsonline/enterprisewiki/internal/coreplugin"
 	h "github.com/mtsonline/enterprisewiki/internal/httpx"
 	"github.com/mtsonline/enterprisewiki/internal/i18n"
 	"github.com/mtsonline/enterprisewiki/internal/identity"
@@ -32,7 +33,6 @@ import (
 	"github.com/mtsonline/enterprisewiki/internal/perm"
 	"github.com/mtsonline/enterprisewiki/internal/pluginmgr"
 	"github.com/mtsonline/enterprisewiki/internal/version"
-	"github.com/mtsonline/enterprisewiki/pkg/sdk"
 )
 
 func (s *Server) handle(pattern string, fn h.Handler) {
@@ -1186,7 +1186,7 @@ func (s *Server) site(w http.ResponseWriter, r *http.Request) (any, error) {
 		if p.Active && p.Frontend {
 			frontend = append(frontend, p.ID)
 		}
-		if p.Active && slices.Contains(p.Kinds, sdk.KindTemplate) {
+		if p.Active && slices.Contains(p.Kinds, coreplugin.KindTemplate) {
 			templates = append(templates, map[string]string{"id": p.ID, "name": p.Name})
 		}
 	}

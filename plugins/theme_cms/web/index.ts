@@ -7,7 +7,7 @@
 // Website template (plugin settings, public via GET /api/v1/x/theme.cms/config).
 import {
   api, h, mount, pick, pluginSettingsForm, registerAdminPage, registerSlot, registerTemplate, state, t, type Category, type SettingField,
-} from '@ewiki/sdk';
+} from '@ewiki/coreplugin';
 import './style.css';
 
 interface Config {

@@ -1,6 +1,6 @@
 // Authenticator app: the sign-in step, the setup and the profile part.
-import { api, button, confirmDialog, enrollFactor, errorText, h, mfaCodeForm, registerMFAMethodUI, t, toast } from '@ewiki/sdk';
-import type { MFAEnrollContext } from '@ewiki/sdk';
+import { api, button, confirmDialog, enrollFactor, errorText, h, mfaCodeForm, registerMFAMethodUI, t, toast } from '@ewiki/coreplugin';
+import type { MFAEnrollContext } from '@ewiki/coreplugin';
 
 const BASE = '/api/v1/x/mfa.totp';
 

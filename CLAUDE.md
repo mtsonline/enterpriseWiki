@@ -14,7 +14,7 @@ Bei jedem Konflikt gilt diese Reihenfolge: Sicherheit, kein Datenverlust, Stabil
 - **Jede Funktion auf allen Wegen:** API, CLI und Oberfläche. **Alle** CLI-Befehle gehen über den API-Weg (`serveInProcess`), damit Rechte, Prüfungen und Audit dieselben sind; bestehende direkte Befehle werden umgestellt. Ausnahmen nur mit dokumentierter Genehmigung des Projektinhabers.
 - **Barrierefreiheit** nach der jeweils aktuellen WCAG-Version, Stufe AA (Stand 13.11.2026: WCAG 2.2), in jeder Ansicht; geprüft mit axe in den Browser-Tests.
 - **Schnell:** keine Abfragen in Schleifen, Grenzwerte für alles, was wachsen kann. Grenzwerte gehören in die Experteneinstellungen (`limits`), Plugins melden ihre im Manifest an.
-- **Modular:** Funktionen außerhalb des Kerns sind Plugins. Mitgelieferte Plugins dürfen interne Pakete nutzen; die stabile Schnittstelle für Plugins ist `pkg/sdk`. Das Modell für externe Plugins wird noch festgelegt.
+- **Modular:** Funktionen außerhalb des Kerns sind Plugins. **Core-Plugins** werden mitkompiliert, laufen im Wiki-Prozess und dürfen interne Pakete nutzen (`internal/coreplugin`, `@ewiki/coreplugin`); diese Schnittstelle hat keine Stabilitätszusage. **SDK-Plugins** laufen als eigener, abgeschotteter Prozess und nutzen nur das stabile SDK (`sdk/`, eigenes Go-Modul unter Apache-2.0, im Aufbau).
 - **Ehrlich:** Was die Oberfläche zeigt oder die Dokumentation beschreibt, existiert und funktioniert so, wie man es erwartet. Keine Simulationen, keine Attrappen, keine Ankündigungen als Funktion.
 - **Fremde Produktnamen:** Namen von Konkurrenzprodukten stehen nur in Import-Funktionen für das jeweilige System, deren Tests und Abdeckungsvergleichen, sonst nirgends. Namen von Systemen, die das Wiki anbindet (zum Beispiel Office-Server, Anmeldeanbieter, Verzeichnisdienste, Chat-Dienste), sind erlaubt.
 - **Namensräume:** Alles, was ein Plugin anmeldet (Routen, Rechte, Einstellungen, Ereignisse, Aktionen), trägt seine Plugin-ID; Instanzen heißen `plugin-id/instanz-id`; `core.` ist dem Kern vorbehalten.
@@ -26,6 +26,7 @@ Bei jedem Konflikt gilt diese Reihenfolge: Sicherheit, kein Datenverlust, Stabil
 - Immer die neueste stabile Version. Renovate aktualisiert; die CI scheitert, wenn ein Update länger als 7 Tage offen ist.
 - Alles, was ausgeliefert wird, steht unter einer freizügigen Lizenz: MIT, BSD, Apache-2.0, ISC, Zlib, Unlicense, CC0. Das gilt auch für Schriften, Bilder und Icons; Schriften stehen unter OFL-1.1 oder einer der genannten Lizenzen. Schriften werden selbst ausgeliefert, nie von fremden Servern geladen. Bei OFL-Schriften mit reserviertem Namen vor dem Verkleinern oder Umwandeln prüfen, ob sie umbenannt werden müssen. Werkzeuge, die nur beim Bauen oder Testen laufen und nicht ausgeliefert werden, sind davon ausgenommen. `go run ./tools/notices -check` prüft die Go-Module.
 - Neue Bibliotheken nur mit Begründung; Pflegezustand vorher prüfen. Lieber die Go-Standardbibliothek.
+- **Patente werden nicht verletzt.** Nur Verfahren und Bibliotheken mit bekannter Patentlage verwenden, bevorzugt Normen mit lizenzfreien Zusagen (z. B. NIST-Verfahren, IETF-Normen ohne einschränkende IPR-Erklärungen; die IPR-Datenbank der IETF prüfen). Bei Zweifeln vorher melden statt einbauen. Vor dem ersten Release prüft eine Patentanwältin oder ein Patentanwalt die Kernbereiche.
 
 ## 3. Arbeitsweise im Repository
 

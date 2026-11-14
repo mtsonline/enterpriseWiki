@@ -27,7 +27,7 @@ import (
 
 	"github.com/mtsonline/enterprisewiki/internal/apperr"
 	"github.com/mtsonline/enterprisewiki/internal/config"
-	"github.com/mtsonline/enterprisewiki/pkg/sdk"
+	"github.com/mtsonline/enterprisewiki/internal/coreplugin"
 )
 
 // ModulePath is the Go module path of the core.
@@ -112,12 +112,12 @@ func (m *Manager) BuildUnavailable() string {
 }
 
 // ReadManifest reads plugin.json of a plugin directory.
-func ReadManifest(dir string) (*sdk.Manifest, error) {
+func ReadManifest(dir string) (*coreplugin.Manifest, error) {
 	b, err := os.ReadFile(filepath.Join(dir, "plugin.json")) // #nosec G304 -- manifest in the plugin directory
 	if err != nil {
 		return nil, fmt.Errorf("plugin.json not found in %s", dir)
 	}
-	var mf sdk.Manifest
+	var mf coreplugin.Manifest
 	if err := json.Unmarshal(b, &mf); err != nil {
 		return nil, fmt.Errorf("plugin.json: %w", err)
 	}
@@ -140,8 +140,8 @@ func DirName(id string) string { return strings.NewReplacer(".", "_", "-", "_").
 // In the Docker images these are the bundled plugins of the image plus the
 // additional ones in <data>/plugins (which win); dirs then only lists the
 // additional ones.
-func (m *Manager) OnDisk() (map[string]*sdk.Manifest, map[string]string, error) {
-	mans := map[string]*sdk.Manifest{}
+func (m *Manager) OnDisk() (map[string]*coreplugin.Manifest, map[string]string, error) {
+	mans := map[string]*coreplugin.Manifest{}
 	dirs := map[string]string{}
 	if m.layout.Image() {
 		bundled := filepath.Join(m.root, "plugins")
@@ -151,7 +151,7 @@ func (m *Manager) OnDisk() (map[string]*sdk.Manifest, map[string]string, error) 
 			}
 		}
 		if len(mans) == 0 { // no source in the image (lite): the compiled plugins are the bundled ones
-			for _, p := range sdk.Registered() {
+			for _, p := range coreplugin.Registered() {
 				mf := p.Manifest()
 				mans[mf.ID] = &mf
 			}
@@ -189,8 +189,8 @@ func (m *Manager) Pending() []Change {
 	if err != nil {
 		return out
 	}
-	compiled := map[string]sdk.Manifest{}
-	for _, p := range sdk.Registered() {
+	compiled := map[string]coreplugin.Manifest{}
+	for _, p := range coreplugin.Registered() {
 		compiled[p.Manifest().ID] = p.Manifest()
 	}
 	for id, mf := range disk {

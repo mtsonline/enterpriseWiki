@@ -10,7 +10,7 @@ import type { Category, SpaceInfo } from '../core/types';
 import { button, checkbox, errorText, field, formDialog, langFields, openDialog, pageHeader, select, textInput } from '../components/ui';
 import { invalidateTree, langName, setContext } from '../components/widgets';
 import { errorPage } from './content';
-import { typeLabel } from '../sdk';
+import { typeLabel } from '../coreplugin';
 import { previewImageInput } from '../components/previewimage';
 import { label as macroLabel, loadMacros } from '../editor/macros';
 import type { MacroInfo } from '../core/types';

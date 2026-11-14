@@ -1,7 +1,7 @@
 // Package notify stores notifications in the wiki (the bell in the header)
 // and sends them by e-mail unless the recipient switched that off for the
 // kind of notification in the profile (default: on). Plugins use it through
-// sdk.Host.Notify (e.g. mentions, sharing).
+// coreplugin.Host.Notify (e.g. mentions, sharing).
 package notify
 
 import (

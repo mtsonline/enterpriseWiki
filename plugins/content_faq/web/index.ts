@@ -3,7 +3,7 @@
 import {
   announce, api, button, categorySelect, checkbox, confirmDialog, errorText, feedButton, field, formDialog, h, langFields, mount, pick,
   registerEditor, registerWidget, rerender, select, state, t, textArea, textInput, toast, type EditorInstance, sourcesEditor,
-} from '@ewiki/sdk';
+} from '@ewiki/coreplugin';
 import './style.css';
 
 const BASE = '/api/v1/x/content.faq';

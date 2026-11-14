@@ -4,7 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/mtsonline/enterprisewiki/pkg/sdk"
+	"github.com/mtsonline/enterprisewiki/internal/coreplugin"
 	"html"
 	"math"
 	"strconv"
@@ -275,7 +275,7 @@ func (r report) Render(ctx context.Context, mc content.MacroContext) (string, er
 }
 
 // the plugin of each site (for other plugins rendering property tables)
-var instances sdk.PerSite[*Plugin]
+var instances coreplugin.PerSite[*Plugin]
 
 // RenderTable renders the rows of a query as an accessible table with the
 // rights of the caller (e.g. the fallback of the property database).

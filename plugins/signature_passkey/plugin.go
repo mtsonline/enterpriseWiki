@@ -24,8 +24,8 @@ import (
 	"github.com/go-webauthn/webauthn/protocol/webauthncose"
 
 	"github.com/mtsonline/enterprisewiki/internal/auth"
+	"github.com/mtsonline/enterprisewiki/internal/coreplugin"
 	"github.com/mtsonline/enterprisewiki/internal/signature"
-	"github.com/mtsonline/enterprisewiki/pkg/sdk"
 )
 
 //go:embed plugin.json
@@ -41,23 +41,23 @@ const ID = "signature.passkey"
 type Plugin struct{}
 
 func init() {
-	sdk.Register(&Plugin{})
+	coreplugin.Register(&Plugin{})
 	signature.RegisterVerifier(ID, Verify)
 }
 
-// Manifest implements sdk.Plugin.
-func (p *Plugin) Manifest() sdk.Manifest { return sdk.ParseManifest(manifest) }
+// Manifest implements coreplugin.Plugin.
+func (p *Plugin) Manifest() coreplugin.Manifest { return coreplugin.ParseManifest(manifest) }
 
-// Locales implements sdk.LocalesPlugin.
+// Locales implements coreplugin.LocalesPlugin.
 func (p *Plugin) Locales() fs.FS { s, _ := fs.Sub(locales, "locales"); return s }
 
 // Setup registers the method.
-func (p *Plugin) Setup(host *sdk.Host) error {
+func (p *Plugin) Setup(host *coreplugin.Host) error {
 	host.RegisterSignatureMethod(&method{host: host})
 	return nil
 }
 
-type method struct{ host *sdk.Host }
+type method struct{ host *coreplugin.Host }
 
 func (m *method) ID() string    { return ID }
 func (m *method) Level() string { return signature.LevelAdvanced }

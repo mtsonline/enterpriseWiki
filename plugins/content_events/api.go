@@ -14,12 +14,12 @@ import (
 
 	"github.com/mtsonline/enterprisewiki/internal/apperr"
 	"github.com/mtsonline/enterprisewiki/internal/audit"
+	"github.com/mtsonline/enterprisewiki/internal/coreplugin"
 	"github.com/mtsonline/enterprisewiki/internal/db"
 	h "github.com/mtsonline/enterprisewiki/internal/httpx"
 	"github.com/mtsonline/enterprisewiki/internal/identity"
 	"github.com/mtsonline/enterprisewiki/internal/mail"
 	"github.com/mtsonline/enterprisewiki/internal/webhook"
-	"github.com/mtsonline/enterprisewiki/pkg/sdk"
 )
 
 func parseRange(r *http.Request, def int) (time.Time, time.Time, error) {
@@ -54,7 +54,7 @@ func parseTime(v string) (time.Time, error) {
 }
 
 // Setup registers the element type, macro, worker and API.
-func (p *Plugin) Setup(hs *sdk.Host) error {
+func (p *Plugin) Setup(hs *coreplugin.Host) error {
 	p.host = hs
 	plugins.Set(hs.Site, p)
 	hs.RegisterElementType(Type{})

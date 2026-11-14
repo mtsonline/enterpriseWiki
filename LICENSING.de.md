@@ -83,6 +83,9 @@ Lizenzgeber an jedem Beitrag die nötigen Rechte. Deshalb gilt:
   Lizenzgeber aber ein umfassendes, unbefristetes Nutzungsrecht inkl. Unterlizenzierung und Neulizenzierung ein.
 - **Plugins im offiziellen Plugin-Katalog** bzw. Plugins, die mit Enterprise Wiki ausgeliefert werden, setzen ebenfalls
   die Zustimmung zur CLA voraus (Abschnitt „Plugins“ der CLA).
+- **Das Plugin-SDK** im Verzeichnis [`sdk/`](sdk/) steht abweichend unter der **Apache License 2.0**. So können
+  Plugins anderer Anbieter, die als eigener Prozess über das SDK laufen, unter einer eigenen Lizenz entstehen. Das SDK
+  ist noch im Aufbau.
 - **Eigene Plugins für den Eigengebrauch** (z. B. ein internes Plugin einer Organisation) brauchen keine CLA. Sie
   dürfen unter einer beliebigen, mit der BSL vereinbaren Lizenz stehen. Ein Programm, das Enterprise Wiki zusammen mit
   dem Plugin enthält, unterliegt als Ganzes weiterhin der BSL bzw. dem Lizenzvertrag.

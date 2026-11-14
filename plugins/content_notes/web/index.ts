@@ -1,6 +1,6 @@
 // Shared notes: editors write directly in the page view, live together
 // with the others; the first editor (leader) saves automatically.
-import { api, ApiError, errorText, getEditor, h, loadMarkdownEditor, registerEditor, registerWidget, state, t, uid, type ElementView } from '@ewiki/sdk';
+import { api, ApiError, errorText, getEditor, h, loadMarkdownEditor, registerEditor, registerWidget, state, t, uid, type ElementView } from '@ewiki/coreplugin';
 import './style.css';
 
 const QUIET = 4000; // save this long after the last change …

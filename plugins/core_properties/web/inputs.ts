@@ -1,5 +1,5 @@
 // An input for a value of each type (with its label, help and required mark).
-import { checkbox, elementSelect, field, groupPicker, h, select, state, t, textArea, textInput, userPicker, categorySelect, pickMedium, button, mediaURL } from '@ewiki/sdk';
+import { checkbox, elementSelect, field, groupPicker, h, select, state, t, textArea, textInput, userPicker, categorySelect, pickMedium, button, mediaURL } from '@ewiki/coreplugin';
 import { choiceLabel, formatDuration, type Options, type Ref } from './model';
 
 export interface ValueInput {

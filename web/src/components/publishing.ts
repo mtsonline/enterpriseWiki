@@ -7,7 +7,7 @@ import { toast } from '../core/announce';
 import { button, checkbox, field, formDialog, openDialog, select, textArea, textInput } from './ui';
 import { categorySelect } from './pickers';
 import { currentSpace } from './widgets';
-import { listPublishOptions } from '../sdk';
+import { listPublishOptions } from '../coreplugin';
 
 export interface Draft { id: number; element_id: number | null; category_id: number; type: string; lang: string; title: string; body?: unknown; tags: string[] | null; comment: string; base_rev: number; created_by: string; updated_by: string; updated_at: string; publish_at: string | null; fields?: Record<string, unknown> | null }
 export interface Template { id: number; name: string; description: string; type: string; lang: string; title: string; body?: unknown; tags: string[]; global: boolean; mine: boolean; space_id?: number }

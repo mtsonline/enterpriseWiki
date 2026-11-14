@@ -9,7 +9,7 @@ import (
 	"net/http"
 	"regexp"
 
-	"github.com/mtsonline/enterprisewiki/pkg/sdk"
+	"github.com/mtsonline/enterprisewiki/internal/coreplugin"
 )
 
 //go:embed plugin.json
@@ -21,12 +21,12 @@ var locales embed.FS
 // Plugin is the template plugin.
 type Plugin struct{}
 
-func init() { sdk.Register(&Plugin{}) }
+func init() { coreplugin.Register(&Plugin{}) }
 
-// Manifest implements sdk.Plugin.
-func (p *Plugin) Manifest() sdk.Manifest { return sdk.ParseManifest(manifest) }
+// Manifest implements coreplugin.Plugin.
+func (p *Plugin) Manifest() coreplugin.Manifest { return coreplugin.ParseManifest(manifest) }
 
-// Locales implements sdk.LocalesPlugin.
+// Locales implements coreplugin.LocalesPlugin.
 func (p *Plugin) Locales() fs.FS { s, _ := fs.Sub(locales, "locales"); return s }
 
 // Public lists the settings visitors may read (everything else stays admin-only).
@@ -39,7 +39,7 @@ var (
 )
 
 // Setup registers GET /config (public template settings).
-func (p *Plugin) Setup(hs *sdk.Host) error {
+func (p *Plugin) Setup(hs *coreplugin.Host) error {
 	hs.Handle("GET", "/config", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		s := hs.Settings()
 		out := map[string]any{}

@@ -3,7 +3,7 @@
 // descriptions). One panel is open at a time; Escape closes it and returns
 // focus, leaving the menu with Tab or a click outside closes it; on devices
 // with a mouse panels open on hover after a short delay.
-import { h, pick, registerMenuStyle, state, t, uid, type MenuItem } from '@ewiki/sdk';
+import { h, pick, registerMenuStyle, state, t, uid, type MenuItem } from '@ewiki/coreplugin';
 import './style.css';
 
 const desc = (it: MenuItem) => (it.description ? pick(it.description, state.lang, state.site.default_language) : '');

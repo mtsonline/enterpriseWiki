@@ -13,24 +13,24 @@ import (
 
 	"github.com/mtsonline/enterprisewiki/internal/apperr"
 	"github.com/mtsonline/enterprisewiki/internal/config"
+	"github.com/mtsonline/enterprisewiki/internal/coreplugin"
 	"github.com/mtsonline/enterprisewiki/internal/db"
 	"github.com/mtsonline/enterprisewiki/internal/i18n"
 	"github.com/mtsonline/enterprisewiki/internal/limits"
-	"github.com/mtsonline/enterprisewiki/pkg/sdk"
 )
 
 // Kernel owns the plugins.
 type Kernel struct {
 	cfg     *config.Store
 	log     *slog.Logger
-	plugins map[string]sdk.Plugin
+	plugins map[string]coreplugin.Plugin
 	active  atomic.Pointer[map[string]bool]
 	site    string
 }
 
 // sorted returns the plugins of this kernel ordered by id.
-func (k *Kernel) sorted() []sdk.Plugin {
-	out := make([]sdk.Plugin, 0, len(k.plugins))
+func (k *Kernel) sorted() []coreplugin.Plugin {
+	out := make([]coreplugin.Plugin, 0, len(k.plugins))
 	for _, p := range k.plugins {
 		out = append(out, p)
 	}
@@ -38,19 +38,19 @@ func (k *Kernel) sorted() []sdk.Plugin {
 	return out
 }
 
-// New creates a kernel for all plugins registered via sdk.Register (site
+// New creates a kernel for all plugins registered via coreplugin.Register (site
 // "main": the registered instances).
 func New(cfg *config.Store, log *slog.Logger) *Kernel {
 	return NewSite(cfg, log, "main")
 }
 
 // NewSite creates the kernel of a site; further sites get fresh plugin
-// instances (sdk.NewInstance).
+// instances (coreplugin.NewInstance).
 func NewSite(cfg *config.Store, log *slog.Logger, site string) *Kernel {
-	k := &Kernel{cfg: cfg, log: log, plugins: map[string]sdk.Plugin{}, site: site}
-	for _, p := range sdk.Registered() {
+	k := &Kernel{cfg: cfg, log: log, plugins: map[string]coreplugin.Plugin{}, site: site}
+	for _, p := range coreplugin.Registered() {
 		if site != "main" {
-			p = sdk.NewInstance(p)
+			p = coreplugin.NewInstance(p)
 		}
 		k.plugins[p.Manifest().ID] = p
 	}
@@ -100,18 +100,18 @@ func (k *Kernel) Enabled(id string) bool {
 // IsTemplate reports whether id is an active website template plugin.
 func (k *Kernel) IsTemplate(id string) bool {
 	p, ok := k.plugins[id]
-	return ok && k.Enabled(id) && slices.Contains(p.Manifest().Kinds, sdk.KindTemplate)
+	return ok && k.Enabled(id) && slices.Contains(p.Manifest().Kinds, coreplugin.KindTemplate)
 }
 
 // Get returns a compiled plugin.
-func (k *Kernel) Get(id string) (sdk.Plugin, bool) {
+func (k *Kernel) Get(id string) (coreplugin.Plugin, bool) {
 	p, ok := k.plugins[id]
 	return p, ok
 }
 
 // Info is the admin view of a plugin.
 type Info struct {
-	sdk.Manifest
+	coreplugin.Manifest
 	Enabled    bool     `json:"enabled"`    // switched on in the configuration
 	Active     bool     `json:"active"`     // enabled and all dependencies active
 	Missing    []string `json:"missing"`    // extended plugins that are not installed
@@ -186,7 +186,7 @@ func (k *Kernel) SetEnabled(_ context.Context, id string, on bool) error {
 func (k *Kernel) Migrations() []db.MigrationSource {
 	var out []db.MigrationSource
 	for _, p := range k.sorted() {
-		if m, ok := p.(sdk.MigrationsPlugin); ok {
+		if m, ok := p.(coreplugin.MigrationsPlugin); ok {
 			out = append(out, db.MigrationSource{Name: "plugin:" + p.Manifest().ID, Files: m.Migrations()})
 		}
 	}
@@ -194,7 +194,7 @@ func (k *Kernel) Migrations() []db.MigrationSource {
 }
 
 // Setup calls Setup on every compiled plugin and loads their locales.
-func (k *Kernel) Setup(base sdk.Host, tr *i18n.Service) error {
+func (k *Kernel) Setup(base coreplugin.Host, tr *i18n.Service) error {
 	base.Site = k.site
 	for _, p := range k.sorted() {
 		m := p.Manifest()
@@ -206,12 +206,12 @@ func (k *Kernel) Setup(base sdk.Host, tr *i18n.Service) error {
 				return fmt.Errorf("plugin %s: %w", m.ID, err)
 			}
 		}
-		if l, ok := p.(sdk.LocalesPlugin); ok {
+		if l, ok := p.(coreplugin.LocalesPlugin); ok {
 			if err := tr.Register(m.ID, l.Locales()); err != nil {
 				return fmt.Errorf("plugin %s locales: %w", m.ID, err)
 			}
 		}
-		if s, ok := p.(sdk.SetupPlugin); ok {
+		if s, ok := p.(coreplugin.SetupPlugin); ok {
 			h := base
 			h.Manifest = m
 			h.Log = k.log.With("plugin", m.ID)

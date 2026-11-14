@@ -1,6 +1,6 @@
 // Structured editor for workflow definitions: start form, steps of all
 // types (task, approval, condition, e-mail, webhook, waiting time, end).
-import { api, button, checkbox, confirmDialog, field, h, select, t, textArea, textInput, type EditorContext, type EditorInstance } from '@ewiki/sdk';
+import { api, button, checkbox, confirmDialog, field, h, select, t, textArea, textInput, type EditorContext, type EditorInstance } from '@ewiki/coreplugin';
 import { TEMPLATES } from './templates';
 import { cleanTrigger, deadlineFields, optionsSection, signField, extraStepFields, noticeFields, stepFormFields, triggersSection, validateExtra, type Kit } from './editor2';
 import type { Action, Definition, Field, Meta, Rule, Step, StepType, Trigger } from './types';

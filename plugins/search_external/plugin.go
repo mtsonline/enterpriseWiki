@@ -24,8 +24,8 @@ import (
 	"github.com/mtsonline/enterprisewiki/internal/apperr"
 	"github.com/mtsonline/enterprisewiki/internal/audit"
 	"github.com/mtsonline/enterprisewiki/internal/content"
+	"github.com/mtsonline/enterprisewiki/internal/coreplugin"
 	h "github.com/mtsonline/enterprisewiki/internal/httpx"
-	"github.com/mtsonline/enterprisewiki/pkg/sdk"
 
 	_ "embed"
 )
@@ -44,19 +44,19 @@ const MaxText = 100000
 
 // Plugin is the external search plugin.
 type Plugin struct {
-	host *sdk.Host
+	host *coreplugin.Host
 	mu   sync.Mutex // one sync at a time in this process
 }
 
-func init() { sdk.Register(&Plugin{}) }
+func init() { coreplugin.Register(&Plugin{}) }
 
-// Manifest implements sdk.Plugin.
-func (p *Plugin) Manifest() sdk.Manifest { return sdk.ParseManifest(manifest) }
+// Manifest implements coreplugin.Plugin.
+func (p *Plugin) Manifest() coreplugin.Manifest { return coreplugin.ParseManifest(manifest) }
 
-// Migrations implements sdk.MigrationsPlugin.
+// Migrations implements coreplugin.MigrationsPlugin.
 func (p *Plugin) Migrations() fs.FS { s, _ := fs.Sub(migrations, "migrations"); return s }
 
-// Locales implements sdk.LocalesPlugin.
+// Locales implements coreplugin.LocalesPlugin.
 func (p *Plugin) Locales() fs.FS { s, _ := fs.Sub(locales, "locales"); return s }
 
 func str(m map[string]any, k string) string {
@@ -270,7 +270,7 @@ func (p *Plugin) sync(ctx context.Context, s Settings) error {
 // ---------------------------------------------------------------- setup and API
 
 // Setup registers the backend, the worker and the admin API.
-func (p *Plugin) Setup(host *sdk.Host) error {
+func (p *Plugin) Setup(host *coreplugin.Host) error {
 	p.host = host
 	host.RegisterSearchBackend(backend{p})
 	host.RegisterWorker("sync", 10*time.Second, p.Sync)

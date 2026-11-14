@@ -29,11 +29,11 @@ import (
 	"github.com/jackc/pgx/v5"
 
 	"github.com/mtsonline/enterprisewiki/internal/audit"
+	"github.com/mtsonline/enterprisewiki/internal/coreplugin"
 	"github.com/mtsonline/enterprisewiki/internal/db"
 	"github.com/mtsonline/enterprisewiki/internal/mail"
 	"github.com/mtsonline/enterprisewiki/internal/notify"
 	"github.com/mtsonline/enterprisewiki/internal/secrets"
-	"github.com/mtsonline/enterprisewiki/pkg/sdk"
 )
 
 //go:embed plugin.json
@@ -53,28 +53,28 @@ const table = "plugin_smime_certs"
 
 // Plugin is the S/MIME plugin.
 type Plugin struct {
-	host *sdk.Host
+	host *coreplugin.Host
 	now  func() time.Time
 }
 
 func init() {
-	sdk.Register(&Plugin{})
+	coreplugin.Register(&Plugin{})
 	secrets.Register(secrets.Column{Table: table, Key: "id", Value: "key"})
 	notify.RegisterKind(ID+".expiry", "signature.smime.notify_expiry")
 }
 
-// Manifest implements sdk.Plugin.
-func (p *Plugin) Manifest() sdk.Manifest { return sdk.ParseManifest(manifest) }
+// Manifest implements coreplugin.Plugin.
+func (p *Plugin) Manifest() coreplugin.Manifest { return coreplugin.ParseManifest(manifest) }
 
-// Migrations implements sdk.MigrationsPlugin.
+// Migrations implements coreplugin.MigrationsPlugin.
 func (p *Plugin) Migrations() fs.FS { s, _ := fs.Sub(migrations, "migrations"); return s }
 
-// Locales implements sdk.LocalesPlugin.
+// Locales implements coreplugin.LocalesPlugin.
 func (p *Plugin) Locales() fs.FS { s, _ := fs.Sub(locales, "locales"); return s }
 
 // Setup registers the signer of e-mails, the seal, the routes and the
 // check of expiring certificates. Every site gets its own instance.
-func (p *Plugin) Setup(host *sdk.Host) error {
+func (p *Plugin) Setup(host *coreplugin.Host) error {
 	q := &Plugin{host: host, now: time.Now}
 	host.Mail.SetSigner(q)
 	host.Signatures.SetCMSSealer(q.seal)

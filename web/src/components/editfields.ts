@@ -1,6 +1,6 @@
 // The parts of plugins in the editing of an element (see registerEditField).
 import { h } from '../core/dom';
-import { listEditFields, type EditFieldContext } from '../sdk';
+import { listEditFields, type EditFieldContext } from '../coreplugin';
 
 export interface EditFields {
   el: HTMLElement;

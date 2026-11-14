@@ -3,7 +3,7 @@
 import {
   announce, api, button, categorySelect, checkbox, errorText, feedButton, field, formDialog, h, langFields, mount, navigate, pick,
   registerEditor, registerWidget, select, state, t, textArea, textInput, toast, trustedHTML, type EditorInstance, sourcesEditor,
-} from '@ewiki/sdk';
+} from '@ewiki/coreplugin';
 import './style.css';
 
 const BASE = '/api/v1/x/content.blog';

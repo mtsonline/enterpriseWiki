@@ -1,7 +1,7 @@
 // Favorites: a star button in the actions of pages and categories, the list
 // at a template position (setting, default sidebar) and in the profile
 // (remove, change the order with buttons).
-import { api, button, errorText, h, pageHeader, pick, pluginSettingsForm, positionOptions, registerAdminPage, registerPageAction, registerProfileSection, registerSlot, state, t, toast } from '@ewiki/sdk';
+import { api, button, errorText, h, pageHeader, pick, pluginSettingsForm, positionOptions, registerAdminPage, registerPageAction, registerProfileSection, registerSlot, state, t, toast } from '@ewiki/coreplugin';
 import './style.css';
 
 const BASE = 'x/core.favorites';

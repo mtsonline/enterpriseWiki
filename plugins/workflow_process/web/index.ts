@@ -1,5 +1,5 @@
 // Frontend of the workflow plugin: editor, page widget, "My tasks".
-import { api, button, errorText, field, fmtDate, h, mount, pageHeader, pick, pluginSettingsForm, registerAdminPage, registerEditor, registerSlot, registerWidget, route, state, t, textInput, toast } from '@ewiki/sdk';
+import { api, button, errorText, field, fmtDate, h, mount, pageHeader, pick, pluginSettingsForm, registerAdminPage, registerEditor, registerSlot, registerWidget, route, state, t, textInput, toast } from '@ewiki/coreplugin';
 import { createWorkflowEditor } from './editor';
 import { linkView } from './link';
 import type { Instance } from './types';

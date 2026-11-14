@@ -1,5 +1,5 @@
 // Comments below element pages.
-import { api, ApiError, button, prefetchReactions, reactionBar, confirmDialog, errorText, field, fmtDate, h, registerElementExtension, state, t, textArea, toast, trustedHTML, type ElementView } from '@ewiki/sdk';
+import { api, ApiError, button, prefetchReactions, reactionBar, confirmDialog, errorText, field, fmtDate, h, registerElementExtension, state, t, textArea, toast, trustedHTML, type ElementView } from '@ewiki/coreplugin';
 import './style.css';
 
 const BASE = 'x/core.comments';

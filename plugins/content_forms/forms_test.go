@@ -15,7 +15,7 @@ import (
 	"testing"
 
 	"github.com/mtsonline/enterprisewiki/internal/config"
-	"github.com/mtsonline/enterprisewiki/pkg/sdk"
+	"github.com/mtsonline/enterprisewiki/internal/coreplugin"
 )
 
 func form(t *testing.T, js string) *Form {
@@ -266,7 +266,7 @@ func TestVirusScanners(t *testing.T) {
 }
 
 // testHost is a host with plugin settings (written to a temporary config).
-func testHost(settings map[string]any) *sdk.Host {
+func testHost(settings map[string]any) *coreplugin.Host {
 	dir, _ := os.MkdirTemp("", "forms-test")
 	path := filepath.Join(dir, "config.yaml")
 	c := config.Defaults()
@@ -276,7 +276,7 @@ func testHost(settings map[string]any) *sdk.Host {
 	if err != nil {
 		panic(err)
 	}
-	return &sdk.Host{Manifest: sdk.Manifest{ID: "content.forms"}, Config: st, Log: slog.New(slog.NewTextHandler(io.Discard, nil))}
+	return &coreplugin.Host{Manifest: coreplugin.Manifest{ID: "content.forms"}, Config: st, Log: slog.New(slog.NewTextHandler(io.Discard, nil))}
 }
 
 func TestRepeat(t *testing.T) {

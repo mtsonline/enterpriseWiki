@@ -1,6 +1,6 @@
 // Interactive part of a workflow page: start a case, list cases, act on them.
-import { openSignature, signatureMethods, signChallenge, api, button, checkbox, errorText, field, fmtDate, formDialog, h, humanSize, mount, openDialog, select, state, t, textArea, textInput, toast, uploadFile } from '@ewiki/sdk';
-import type { SignChallenge } from '@ewiki/sdk';
+import { openSignature, signatureMethods, signChallenge, api, button, checkbox, errorText, field, fmtDate, formDialog, h, humanSize, mount, openDialog, select, state, t, textArea, textInput, toast, uploadFile } from '@ewiki/coreplugin';
+import type { SignChallenge } from '@ewiki/coreplugin';
 import type { Action, Event, Field, Instance } from './types';
 
 export const BASE = 'x/workflow.process';
