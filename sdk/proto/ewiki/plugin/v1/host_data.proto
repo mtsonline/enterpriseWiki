@@ -1,0 +1,282 @@
+// DRAFT for review (phase P2, SDK 1.0.0-preview).
+//
+// Data the host keeps for the plugin, each with quota:
+// - Files ("files@1"): the plugin's own file area (grants files.read /
+//   files.write), stored with the wiki's storage driver (local, S3,
+//   cluster), backed up with the wiki.
+// - KeyValue ("kv@1"): small values for plugins without own database;
+//   secret values are sealed like the wiki's other secrets.
+// - Connections ("connections@1"): OAuth 2.0 and API-key connections to
+//   other services, per person or for the whole wiki. The host runs the
+//   sign-in flow, stores and refreshes the tokens; the plugin never sees
+//   them: the outgoing proxy adds them (header "Ewiki-Connection").
+// - Keys ("keys@1"): keys never leave the key store; the plugin names a
+//   key reference it was granted (keys.sign:<ref>, keys.decrypt:<ref>).
+syntax = "proto3";
+
+package ewiki.plugin.v1;
+
+import "ewiki/plugin/v1/common.proto";
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/mtsonline/enterprisewiki/sdk/proto/ewiki/plugin/v1;pluginv1";
+
+service Files {
+  // First message: the head, then chunks.
+  rpc PutFile(stream PutFilePart) returns (FileInfo);
+  rpc GetFile(GetFileRequest) returns (stream GetFilePart);
+  rpc StatFile(StatFileRequest) returns (FileInfo);
+  rpc DeleteFile(DeleteFileRequest) returns (DeleteFileResponse);
+  rpc ListFiles(ListFilesRequest) returns (ListFilesResponse);
+  // A short-lived address the browser can download the file from (with
+  // the host's checks and headers), for views of the plugin.
+  rpc FileLink(FileLinkRequest) returns (FileLinkResponse);
+}
+
+service KeyValue {
+  rpc Get(KVGetRequest) returns (KVEntry);
+  // Optimistic: base_version 0 creates, otherwise must match.
+  rpc Put(KVPutRequest) returns (KVEntry);
+  rpc Delete(KVDeleteRequest) returns (KVDeleteResponse);
+  rpc List(KVListRequest) returns (KVListResponse);
+}
+
+service Connections {
+  // Status of a connection (manifest: connections) for the person of the
+  // call token, or for the wiki.
+  rpc GetConnection(GetConnectionRequest) returns (Connection);
+  // Address to send the person to for connecting (the host's consent and
+  // callback pages); after it the person returns to return_path.
+  rpc StartConnect(StartConnectRequest) returns (StartConnectResponse);
+  rpc Disconnect(DisconnectRequest) returns (DisconnectResponse);
+}
+
+service Keys {
+  rpc Sign(SignRequest) returns (SignResponse);
+  rpc Verify(VerifyRequest) returns (VerifyResponse);
+  rpc GetPublicKey(GetPublicKeyRequest) returns (GetPublicKeyResponse);
+  // Decrypt data encrypted to a key of the store (grant
+  // keys.decrypt:<ref>); hybrid keys (X25519 + ML-KEM) by default.
+  rpc Decrypt(DecryptRequest) returns (DecryptResponse);
+}
+
+// ---------------------------------------------------------------- files
+
+message PutFilePart {
+  oneof part {
+    PutFileHead head = 1;
+    Chunk chunk = 2;
+  }
+}
+
+message PutFileHead {
+  // Path inside the plugin's file area ("boards/3/cover.png"); no "..",
+  // no absolute paths.
+  string path = 1;
+  string content_type = 2;
+  // Expected size; the host refuses more and checks the quota first.
+  int64 size = 3;
+  // Run the wiki's upload checks (virus scanner, file type) first.
+  bool scan = 4;
+}
+
+message FileInfo {
+  string path = 1;
+  int64 size = 2;
+  bytes sha256 = 3;
+  string content_type = 4;
+  google.protobuf.Timestamp modified_at = 5;
+}
+
+message GetFileRequest {
+  string path = 1;
+  // Byte range; 0/0 for the whole file.
+  int64 offset = 2;
+  int64 length = 3;
+}
+
+message GetFilePart {
+  oneof part {
+    FileInfo info = 1;
+    Chunk chunk = 2;
+  }
+}
+
+message StatFileRequest {
+  string path = 1;
+}
+
+message DeleteFileRequest {
+  string path = 1;
+}
+
+message DeleteFileResponse {}
+
+message ListFilesRequest {
+  string prefix = 1;
+  PageRequest page = 2;
+}
+
+message ListFilesResponse {
+  repeated FileInfo files = 1;
+  PageResponse page = 2;
+}
+
+message FileLinkRequest {
+  string path = 1;
+  // Offer as download (attachment) instead of showing it.
+  bool download = 2;
+}
+
+message FileLinkResponse {
+  string url = 1;
+  google.protobuf.Timestamp expires_at = 2;
+}
+
+// ---------------------------------------------------------------- key-value
+
+message KVEntry {
+  string key = 1;
+  bytes value = 2;
+  int64 version = 3;
+  google.protobuf.Timestamp expires_at = 4;
+}
+
+message KVGetRequest {
+  string key = 1;
+  // Personal value of the person of the call token (declared as personal
+  // data, exported and erased with the person).
+  bool personal = 2;
+}
+
+message KVPutRequest {
+  string key = 1;
+  bytes value = 2;
+  int64 base_version = 3;
+  bool personal = 4;
+  // Sealed like the wiki's secrets; never shown in exports or logs.
+  bool secret = 5;
+  // 0: keep forever.
+  int64 ttl_seconds = 6;
+}
+
+message KVDeleteRequest {
+  string key = 1;
+  bool personal = 2;
+}
+
+message KVDeleteResponse {}
+
+message KVListRequest {
+  string prefix = 1;
+  bool personal = 2;
+  PageRequest page = 3;
+}
+
+message KVListResponse {
+  // Keys and versions; values with Get.
+  repeated KVEntry entries = 1;
+  PageResponse page = 2;
+}
+
+// ---------------------------------------------------------------- connections
+
+message Connection {
+  // Name declared in the manifest.
+  string name = 1;
+  enum Status {
+    STATUS_UNSPECIFIED = 0;
+    STATUS_CONNECTED = 1;
+    STATUS_NOT_CONNECTED = 2;
+    // The service refused the stored grant; the person must connect again.
+    STATUS_EXPIRED = 3;
+  }
+  Status status = 2;
+  // Account at the other service, for display ("alice@example.com").
+  string account = 3;
+  repeated string scopes = 4;
+  google.protobuf.Timestamp connected_at = 5;
+}
+
+message GetConnectionRequest {
+  string name = 1;
+  // The wiki's connection instead of the person's.
+  bool instance = 2;
+}
+
+message StartConnectRequest {
+  string name = 1;
+  string return_path = 2;
+  // Ask for more scopes than before (incremental consent).
+  repeated string scopes = 3;
+}
+
+message StartConnectResponse {
+  string url = 1;
+}
+
+message DisconnectRequest {
+  string name = 1;
+  bool instance = 2;
+}
+
+message DisconnectResponse {}
+
+// ---------------------------------------------------------------- keys
+
+message SignRequest {
+  string key_ref = 1;
+  // Data to sign (at most the limit "core.plugins.sign_kb"); the host
+  // hashes it with the key's procedure. Hybrid keys give all signatures.
+  bytes data = 2;
+  // Purpose for the audit log ("sign invoice 2026-17").
+  string purpose = 3;
+}
+
+message Signature {
+  // Procedure, e.g. "ed25519", "ml-dsa-65", "ecdsa-p256-sha256".
+  string algorithm = 1;
+  bytes signature = 2;
+}
+
+message SignResponse {
+  repeated Signature signatures = 1;
+  // Id of the key version used, for verification later.
+  string key_version = 2;
+}
+
+message VerifyRequest {
+  string key_ref = 1;
+  string key_version = 2;
+  bytes data = 3;
+  repeated Signature signatures = 4;
+}
+
+message VerifyResponse {
+  // True only if every signature is valid.
+  bool valid = 1;
+}
+
+message GetPublicKeyRequest {
+  string key_ref = 1;
+}
+
+message GetPublicKeyResponse {
+  message PublicKey {
+    string algorithm = 1;
+    // DER (SubjectPublicKeyInfo) or the raw key for ed25519 and ML-DSA.
+    bytes key = 2;
+  }
+  repeated PublicKey keys = 1;
+  string key_version = 2;
+}
+
+message DecryptRequest {
+  string key_ref = 1;
+  bytes ciphertext = 2;
+  string purpose = 3;
+}
+
+message DecryptResponse {
+  bytes plaintext = 1;
+}

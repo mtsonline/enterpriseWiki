@@ -1,8 +1,18 @@
-// DRAFT for review (phase P2). Nothing here is stable until the SDK is
-// released as 1.0; after that, v1 only grows (concept 5.10).
+// DRAFT for review (phase P2, SDK 1.0.0-preview). Until 1.0.0 the contract
+// may still change; after that, v1 only grows (concept 5.10).
 //
 // Shared types of the contract between the wiki (the host) and an SDK
 // plugin, which runs as its own process and talks gRPC over Unix sockets.
+//
+// Conventions for every call in both directions:
+// - Metadata "ewiki-session": session token from Host.Hello (required).
+// - Metadata "ewiki-call-token": when acting for the person of a request.
+// - W3C trace context ("traceparent", "tracestate") in the metadata; the
+//   SDK continues the host's trace, so one request can be followed from
+//   the browser through the host into the plugin and back (OpenTelemetry).
+// - Failed calls carry an ErrorInfo as gRPC status detail.
+// - Every list is paged and every size is limited; limits are expert
+//   settings of the host.
 syntax = "proto3";
 
 package ewiki.plugin.v1;
@@ -17,33 +27,98 @@ message LocalizedText {
   map<string, string> text = 1;
 }
 
+// ---------------------------------------------------------------- references
+//
+// Every reference to a person, group or object is qualified, so the same
+// contract works on one wiki, with sites that keep their own accounts, in a
+// cluster and in a federation. Plugins store references as a whole (or as
+// the canonical string form) and never only the number.
+//
+// Canonical string form, also used in URLs and exports:
+//   ewiki:<kind>:<id>[;site=<site>][;instance=<host>]
+//   e.g. "ewiki:user:42", "ewiki:element:17;site=intra",
+//        "ewiki:user:9;instance=wiki.partner.example"
+
+// Scope says where a reference lives. Empty fields mean "here".
+message Scope {
+  // Federation: host name of the wiki the object belongs to (its home);
+  // empty for this wiki.
+  string instance = 1;
+  // Site of a multi-site wiki. For people and groups it is only set when
+  // that site keeps its own accounts (separate account scope); with shared
+  // accounts people belong to the whole instance.
+  string site = 2;
+}
+
+// PersonRef identifies a person.
+//
+// The identity of a person is the e-mail address: within one account
+// scope (instance, or a site with its own accounts) every address belongs
+// to exactly one person, and a person can sign in with any of their
+// confirmed addresses or with their user name, never with a provider
+// suffix. The numeric id is the stable internal key; addresses can be
+// added and removed, the id never changes.
+message PersonRef {
+  Scope scope = 1;
+  // Internal, stable within the scope; 0 when not resolved yet.
+  int64 id = 2;
+  // Primary e-mail address (lower case). For display and matching; to
+  // find a person by any of their addresses use People.Resolve.
+  string email = 3;
+  // User name, if the person has one (unique within the scope).
+  string username = 4;
+  string display_name = 5;
+}
+
+message GroupRef {
+  Scope scope = 1;
+  int64 id = 2;
+  string name = 3;
+}
+
+// ObjectRef identifies any other object: an element, a category, a file,
+// a comment, or an object of a plugin ("<plugin-id>.<kind>").
+message ObjectRef {
+  Scope scope = 1;
+  // "element", "category", "file", "comment", "space", ... or a plugin
+  // kind starting with the plugin id.
+  string kind = 2;
+  string id = 3;
+}
+
 // Principal is who a call acts for, as the host checked it. The plugin
 // never decides this itself.
 message Principal {
   enum Kind {
     KIND_UNSPECIFIED = 0;
-    // A person, signed in. Calls back to the host with the call token act
-    // with the intersection of the person's and the plugin's rights.
-    KIND_USER = 1;
+    // A person, signed in on this wiki or (federation) on its home wiki.
+    // Calls back to the host with the call token act with the intersection
+    // of the person's and the plugin's rights.
+    KIND_PERSON = 1;
     // A guest without sign-in (public pages).
     KIND_GUEST = 2;
     // The plugin's own technical account "plugin:<id>" (jobs, events):
     // only the rights the administrator confirmed, never administrator
     // rights.
     KIND_PLUGIN = 3;
+    // An external system calling an inbound endpoint whose signature the
+    // host verified; only that endpoint's rights.
+    KIND_SYSTEM = 4;
   }
   Kind kind = 1;
-  // Wiki user id; 0 for guests and the plugin account.
-  int64 user_id = 2;
-  // Stable handle "name@provider" for display and audit; empty for guests.
-  string handle = 3;
-  string display_name = 4;
+  PersonRef person = 2;
+  // Sign-in provider instance used for this session ("local",
+  // "ldap-corp", "oidc-entra"); for audit and display only, never part of
+  // the identity.
+  string provider = 3;
   // Preferred language of the person (BCP 47).
-  string language = 5;
+  string language = 4;
+  // For KIND_SYSTEM: name of the inbound endpoint.
+  string system = 5;
 }
 
-// CallContext comes with every call from the host to the plugin that
-// acts for someone.
+// CallContext comes with every call from the host to the plugin that acts
+// for someone.
 message CallContext {
   // Id of the request, for logs and audit (also in the host's logs).
   string request_id = 1;
@@ -54,20 +129,21 @@ message CallContext {
   // expires with the request (at the latest after the limit
   // "core.plugins.call_token_seconds").
   string call_token = 3;
-  // Site the request belongs to (multi-site); empty for the main site.
+  // Site the request belongs to; empty for the main site.
   string site = 4;
   // Language of the interface for this request.
   string language = 5;
-  // Deadline of the request as the host sees it; gRPC deadlines are set
-  // as well.
   google.protobuf.Timestamp deadline = 6;
+  // Id of the action from the register, if the call belongs to one.
+  string action_id = 7;
 }
 
 // ErrorInfo is attached to failed calls as a gRPC status detail, in both
 // directions. Code is stable and machine readable, the same codes as in
 // the wiki's HTTP API ("not_found", "forbidden", "conflict",
-// "bad_request", "too_large", "rate_limited", "busy", ...). Plugins use
-// their own codes prefixed with their id ("acme.kanban.board_full").
+// "bad_request", "too_large", "rate_limited", "busy", "reauth_required",
+// ...). Plugins use their own codes prefixed with their id
+// ("acme.kanban.board_full").
 message ErrorInfo {
   string code = 1;
   // Message for people, English; translated by the UI key "error.<code>"
@@ -77,6 +153,8 @@ message ErrorInfo {
   string field = 3;
   // True if repeating the same call later can succeed (busy, rate limit).
   bool retryable = 4;
+  // Suggested wait before repeating, in milliseconds.
+  int64 retry_after_ms = 5;
 }
 
 // PageRequest and PageResponse page through long lists. The cursor is
@@ -95,12 +173,27 @@ message PageResponse {
 // Schema is a JSON Schema in the subset the wiki supports (see the review
 // document, section "Schemas"): type, properties, required, enum, const,
 // minimum, maximum, minLength, maxLength, pattern (RE2), format (email,
-// uri, date, date-time, uuid), items, minItems, maxItems,
+// uri, date, date-time, uuid, ewiki-ref), items, minItems, maxItems,
 // additionalProperties (always false unless set), title and description
-// (with "x-ewiki-i18n" for translations), default. Anything outside the
-// subset is refused when the plugin is installed, so the host can check
-// every input and build accessible forms from it.
+// (with "x-ewiki-i18n" for translations), default, "x-ewiki-secret"
+// (stored by the host, never shown again, masked in logs). Anything
+// outside the subset is refused when the plugin is installed, so the host
+// can check every input and build accessible forms from it.
 message Schema {
   // The schema as JSON text.
   string json = 1;
+}
+
+// FileData is a file passed inline (small files only, up to the limit
+// "core.plugins.inline_file_kb"); larger files go through the file
+// services as streams.
+message FileData {
+  string name = 1;
+  string content_type = 2;
+  bytes data = 3;
+}
+
+// Chunk is a part of a stream of bytes (at most 64 KiB per message).
+message Chunk {
+  bytes data = 1;
 }

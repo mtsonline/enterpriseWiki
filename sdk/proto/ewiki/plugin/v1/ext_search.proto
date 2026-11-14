@@ -1,0 +1,134 @@
+// DRAFT for review (phase P2, SDK 1.0.0-preview).
+//
+// Search:
+// - SearchBackend: an external search engine as the wiki's index. The
+//   wiki keeps checking rights, trash and tags itself; the engine never
+//   gets rights information and filters only by what the host sends.
+// - SearchSource: results from other systems shown in the wiki's search
+//   (e.g. tickets, files of a cloud drive), checked by the plugin with the
+//   person's connection; and documents of the plugin's own objects for
+//   the wiki's index (with the object's rights).
+// - Suggestions: suggestions while typing.
+syntax = "proto3";
+
+package ewiki.plugin.v1;
+
+import "ewiki/plugin/v1/common.proto";
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/mtsonline/enterprisewiki/sdk/proto/ewiki/plugin/v1;pluginv1";
+
+service SearchBackend {
+  rpc Index(stream IndexDocument) returns (IndexResponse);
+  rpc Remove(RemoveRequest) returns (RemoveResponse);
+  // Candidates for a query; the host checks rights and drops what the
+  // person may not see, then asks for more if needed.
+  rpc Query(BackendQueryRequest) returns (BackendQueryResponse);
+  // Remove everything (before a full rebuild).
+  rpc Clear(ClearRequest) returns (ClearResponse);
+}
+
+service SearchSource {
+  rpc Search(SourceSearchRequest) returns (SourceSearchResponse);
+  // Documents of the plugin's objects for the wiki's own index; the host
+  // calls it for a full rebuild, changes come as Events.
+  rpc ListDocuments(ListDocumentsRequest) returns (stream IndexDocument);
+}
+
+service Suggestions {
+  rpc Suggest(SuggestRequest) returns (SuggestResponse);
+}
+
+message IndexDocument {
+  ObjectRef ref = 1;
+  string type = 2;
+  string language = 3;
+  LocalizedText title = 4;
+  string text = 5;
+  repeated string tags = 6;
+  // Properties to filter by (JSON object).
+  string properties_json = 7;
+  google.protobuf.Timestamp updated_at = 8;
+  // For SearchSource documents: the object whose rights apply (e.g. the
+  // element a calendar event belongs to); the host checks them.
+  ObjectRef rights_from = 9;
+  string path = 10;
+  // Embedding for semantic search, if the host computed one.
+  repeated float vector = 11;
+}
+
+message IndexResponse {
+  int64 indexed = 1;
+}
+
+message RemoveRequest {
+  repeated ObjectRef refs = 1;
+}
+
+message RemoveResponse {}
+
+message BackendQueryRequest {
+  string query = 1;
+  string language = 2;
+  repeated string types = 3;
+  string filter_json = 4;
+  // Embedding of the query for semantic or hybrid search.
+  repeated float vector = 5;
+  int32 limit = 6;
+  string cursor = 7;
+}
+
+message BackendQueryResponse {
+  message Candidate {
+    ObjectRef ref = 1;
+    float score = 2;
+    // Excerpt with the match (plain text).
+    string excerpt = 3;
+  }
+  repeated Candidate candidates = 1;
+  string next_cursor = 2;
+}
+
+message ClearRequest {}
+
+message ClearResponse {}
+
+message SourceSearchRequest {
+  CallContext context = 1;
+  string query = 2;
+  string language = 3;
+  int32 limit = 4;
+}
+
+message SourceSearchResponse {
+  message Hit {
+    string id = 1;
+    LocalizedText title = 2;
+    string excerpt = 3;
+    // Address of the hit (in the wiki or at the other system).
+    string url = 4;
+    string icon = 5;
+    float score = 6;
+  }
+  repeated Hit hits = 1;
+  // The person must connect first (Connections); the host shows a button.
+  string connect = 2;
+}
+
+message ListDocumentsRequest {
+  string site = 1;
+}
+
+message SuggestRequest {
+  CallContext context = 1;
+  string prefix = 2;
+  int32 limit = 3;
+}
+
+message SuggestResponse {
+  message Suggestion {
+    string text = 1;
+    string url = 2;
+  }
+  repeated Suggestion suggestions = 1;
+}

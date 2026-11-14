@@ -1,0 +1,292 @@
+// DRAFT for review (phase P2, SDK 1.0.0-preview).
+//
+// Further extension points:
+// - AIProvider: language and embedding models (cloud services or a local
+//   OpenAI-compatible server) and translation services. The wiki uses
+//   them through host_ai.proto, with its rules about which data may go
+//   where.
+// - Privacy: every plugin that stores personal data serves this (manifest:
+//   personal_data). The host calls it for a person's request for access
+//   (GDPR art. 15, 20) and when a person is deleted or anonymised
+//   (art. 17); it tracks that every plugin answered.
+// - SignatureMethod: procedures for signing decisions and documents
+//   (advanced or qualified, e.g. remote signing services); the proof is
+//   stored by the host and checked offline with Verify.
+// - FederationProvider: the federation itself (a Pro plugin). The host
+//   asks it for everything that belongs to a partner wiki; the plugin
+//   keeps the partners, their certificates and the agreed rules.
+// - Views: building blocks described by the server (UI way 1), for every
+//   UI contribution of WAY_BLOCKS, including dashboard tiles.
+syntax = "proto3";
+
+package ewiki.plugin.v1;
+
+import "ewiki/plugin/v1/common.proto";
+import "ewiki/plugin/v1/ext_io.proto";
+import "ewiki/plugin/v1/host_ai.proto";
+import "ewiki/plugin/v1/host_content.proto";
+import "ewiki/plugin/v1/host_people.proto";
+
+option go_package = "github.com/mtsonline/enterprisewiki/sdk/proto/ewiki/plugin/v1;pluginv1";
+
+service AIProvider {
+  rpc Complete(ProviderCompleteRequest) returns (stream CompleteChunk);
+  rpc Embed(ProviderEmbedRequest) returns (EmbedResponse);
+  rpc Translate(TranslateTextRequest) returns (TranslateTextResponse);
+  rpc Models(ModelsRequest) returns (ModelsResponse);
+}
+
+service Privacy {
+  // Everything the plugin stores about the person, as files (JSON or
+  // other formats), streamed.
+  rpc ExportPersonalData(PersonalDataRequest) returns (stream PersonalDataPart);
+  // Delete or anonymise the person's data. Must be idempotent; the host
+  // repeats until it succeeds and records it.
+  rpc ErasePersonalData(ErasePersonalDataRequest) returns (ErasePersonalDataResponse);
+}
+
+service SignatureMethod {
+  rpc Available(SignatureAvailableRequest) returns (SignatureAvailableResponse);
+  // Start signing; the challenge goes to the browser (or the person is
+  // sent to the signing service). State is kept by the host.
+  rpc Begin(SignatureBeginRequest) returns (SignatureBeginResponse);
+  rpc Finish(SignatureFinishRequest) returns (SignatureFinishResponse);
+  // Offline check of a proof (also from the command line).
+  rpc Verify(SignatureVerifyRequest) returns (SignatureVerifyResponse);
+}
+
+service FederationProvider {
+  rpc ListPartners(ProviderPartnersRequest) returns (ProviderPartnersResponse);
+  // Read objects of a partner live (no mirroring), for the person of the
+  // call context (the partner applies its rights for them).
+  rpc GetRemoteElement(RemoteElementRequest) returns (Element);
+  rpc SearchRemote(RemoteSearchRequest) returns (SearchResponse);
+  rpc ResolveRemotePerson(RemotePersonRequest) returns (Person);
+  // Carry a plugin's message to a partner (Federation.Send).
+  rpc Relay(RelayRequest) returns (RelayResponse);
+  // Check a request that came from a partner (signature, certificate,
+  // agreement) and say who sent it.
+  rpc VerifyIncoming(VerifyIncomingRequest) returns (VerifyIncomingResponse);
+}
+
+service Views {
+  rpc DescribeView(DescribeViewRequest) returns (DescribeViewResponse);
+}
+
+// ---------------------------------------------------------------- AI
+
+message ProviderCompleteRequest {
+  string model = 1;
+  repeated ChatMessage messages = 2;
+  // Tools as JSON schemas (the host turned register actions into these).
+  message ToolSpec {
+    string name = 1;
+    string description = 2;
+    Schema params = 3;
+  }
+  repeated ToolSpec tools = 3;
+  int32 max_tokens = 4;
+  Schema response_schema = 5;
+  // Instance of the provider (settings).
+  string instance = 6;
+}
+
+message ProviderEmbedRequest {
+  string model = 1;
+  repeated string texts = 2;
+  string instance = 3;
+}
+
+message ModelsRequest {
+  string instance = 1;
+}
+
+message ModelsResponse {
+  message Model {
+    string id = 1;
+    string label = 2;
+    // "complete", "embed", "translate"; and "vision", "tools".
+    repeated string abilities = 3;
+    int32 context_tokens = 4;
+    // Where data goes (country or "local"), shown to administrators.
+    string region = 5;
+  }
+  repeated Model models = 1;
+}
+
+// ---------------------------------------------------------------- privacy
+
+message PersonalDataRequest {
+  PersonRef person = 1;
+  string request_id = 2;
+}
+
+message PersonalDataPart {
+  oneof part {
+    ExportHead file = 1;
+    Chunk chunk = 2;
+  }
+}
+
+message ErasePersonalDataRequest {
+  PersonRef person = 1;
+  enum Mode {
+    MODE_UNSPECIFIED = 0;
+    // Delete everything about the person.
+    MODE_DELETE = 1;
+    // Keep records but replace the person by an anonymous reference (e.g.
+    // authorship of shared content).
+    MODE_ANONYMISE = 2;
+  }
+  Mode mode = 2;
+  // Reference to use instead of the person when anonymising.
+  PersonRef replacement = 3;
+  string request_id = 4;
+}
+
+message ErasePersonalDataResponse {
+  int64 erased = 1;
+  int64 anonymised = 2;
+}
+
+// ---------------------------------------------------------------- signatures
+
+message SignatureContext {
+  CallContext context = 1;
+  // What is signed: digest and a description shown to the person.
+  bytes digest = 2;
+  string digest_algorithm = 3;
+  string description = 4;
+  ObjectRef object = 5;
+}
+
+message SignatureAvailableRequest {
+  PersonRef person = 1;
+}
+
+message SignatureAvailableResponse {
+  bool available = 1;
+  // "advanced" or "qualified".
+  string level = 2;
+}
+
+message SignatureBeginRequest {
+  SignatureContext signing = 1;
+}
+
+message SignatureBeginResponse {
+  // For the browser (e.g. WebAuthn options), or an address to send the
+  // person to.
+  string challenge_json = 1;
+  string redirect_url = 2;
+  // Kept by the host until Finish.
+  bytes state = 3;
+}
+
+message SignatureFinishRequest {
+  SignatureContext signing = 1;
+  bytes state = 2;
+  string answer_json = 3;
+}
+
+message SignatureFinishResponse {
+  // Everything needed to verify the signature later, offline (JSON).
+  string proof_json = 1;
+}
+
+message SignatureVerifyRequest {
+  bytes digest = 1;
+  string proof_json = 2;
+}
+
+message SignatureVerifyResponse {
+  message Check {
+    string name = 1;
+    bool ok = 2;
+    string message = 3;
+  }
+  repeated Check checks = 1;
+}
+
+// ---------------------------------------------------------------- federation
+
+message ProviderPartnersRequest {}
+
+message ProviderPartnersResponse {
+  message Partner {
+    string instance = 1;
+    string name = 2;
+    // "read" or "edit": the upper limit the local administrators set.
+    string access = 3;
+    // People of the partner individually visible, or only as a group.
+    bool individuals = 4;
+    GroupRef group = 5;
+  }
+  repeated Partner partners = 1;
+}
+
+message RemoteElementRequest {
+  CallContext context = 1;
+  ObjectRef ref = 2;
+  bool with_body = 3;
+}
+
+message RemoteSearchRequest {
+  CallContext context = 1;
+  string instance = 2;
+  SearchRequest search = 3;
+}
+
+message RemotePersonRequest {
+  CallContext context = 1;
+  string instance = 2;
+  // E-mail address, user name or reference on the partner.
+  string identifier = 3;
+}
+
+message RelayRequest {
+  CallContext context = 1;
+  string instance = 2;
+  string plugin_id = 3;
+  string type = 4;
+  bytes payload = 5;
+  string idempotency_key = 6;
+}
+
+message RelayResponse {
+  bytes payload = 1;
+}
+
+message VerifyIncomingRequest {
+  // Request as received by the host (method, path, headers, body hash);
+  // the transport's client certificate.
+  string method = 1;
+  string path = 2;
+  map<string, string> headers = 3;
+  bytes body_sha256 = 4;
+  bytes client_certificate = 5;
+}
+
+message VerifyIncomingResponse {
+  bool valid = 1;
+  string instance = 2;
+  // The person on the partner who acts, if any.
+  PersonRef person = 3;
+}
+
+// ---------------------------------------------------------------- views
+
+message DescribeViewRequest {
+  CallContext context = 1;
+  // Id of the UI contribution and the parameters of its slot (e.g. the
+  // element shown, the size of a dashboard tile).
+  string view = 2;
+  string params_json = 3;
+}
+
+message DescribeViewResponse {
+  // Tree of building blocks in the format ewiki.ui.v1 (phase P4).
+  string tree_json = 1;
+  // Live updates for this view come through Live.Publish on this channel.
+  string channel = 2;
+}

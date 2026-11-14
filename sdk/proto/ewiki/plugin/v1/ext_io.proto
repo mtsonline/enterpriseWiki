@@ -1,0 +1,191 @@
+// DRAFT for review (phase P2, SDK 1.0.0-preview).
+//
+// Data in and out, and observation:
+// - Importer: content from other systems (other wikis, file shares,
+//   archives). The plugin reads the source and streams elements; the
+//   host creates them with the rights of the person importing, keeps a
+//   mapping of source ids for repeated imports, and reports.
+// - Exporter: formats for elements and categories (PDF, Word, EPUB,
+//   static HTML, ...); the host passes what the person may see.
+// - AuditSink: copies of audit events to other systems (SIEM, archive);
+//   at least once, in order, with the host's retry.
+// - Analytics: page views and searches for reports (only if the
+//   administrators switch it on; people can be anonymised).
+syntax = "proto3";
+
+package ewiki.plugin.v1;
+
+import "ewiki/plugin/v1/common.proto";
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/mtsonline/enterprisewiki/sdk/proto/ewiki/plugin/v1;pluginv1";
+
+service Importer {
+  // Questions for the import (source, account, what to import), as a
+  // form schema; answers are passed to Import.
+  rpc Describe(ImportDescribeRequest) returns (ImportDescribeResponse);
+  rpc Import(ImportRequest) returns (stream ImportItem);
+}
+
+service Exporter {
+  rpc Export(ExportRequest) returns (stream ExportPart);
+}
+
+service AuditSink {
+  rpc Write(AuditBatch) returns (AuditBatchResponse);
+}
+
+service Analytics {
+  rpc Record(AnalyticsBatch) returns (AnalyticsBatchResponse);
+  // Report for the administration or a dashboard tile.
+  rpc Report(AnalyticsReportRequest) returns (AnalyticsReportResponse);
+}
+
+message ImportDescribeRequest {
+  string importer = 1;
+}
+
+message ImportDescribeResponse {
+  Schema form = 1;
+  // What the importer covers and what not, for the coverage overview
+  // shown before importing (honest list).
+  repeated string covered = 2;
+  repeated string not_covered = 3;
+}
+
+message ImportRequest {
+  CallContext context = 1;
+  string importer = 2;
+  string answers_json = 3;
+  ObjectRef target_category = 4;
+  // Only report what would be imported.
+  bool dry_run = 5;
+  // Where a previous run stopped (opaque), to continue.
+  string resume = 6;
+}
+
+message ImportItem {
+  oneof item {
+    ImportElement element = 1;
+    ImportFile file = 2;
+    ImportProgress progress = 3;
+    ImportWarning warning = 4;
+  }
+}
+
+message ImportElement {
+  // Id in the source; the host maps it to the new element and replaces
+  // links between imported items.
+  string source_id = 1;
+  string parent_source_id = 2;
+  // True for a category (space, folder), false for an element.
+  bool category = 3;
+  string type = 4;
+  LocalizedText title = 5;
+  string body_json = 6;
+  string properties_json = 7;
+  repeated string tags = 8;
+  // Authors and times from the source (people matched by e-mail).
+  string created_by_email = 9;
+  google.protobuf.Timestamp created_at = 10;
+  string updated_by_email = 11;
+  google.protobuf.Timestamp updated_at = 12;
+  // Earlier versions, oldest first (body_json each).
+  repeated string history_json = 13;
+  // Rights in the source, mapped to the wiki's (JSON, reviewed in the dry
+  // run).
+  string permissions_json = 14;
+}
+
+message ImportFile {
+  string source_id = 1;
+  string element_source_id = 2;
+  string name = 3;
+  string content_type = 4;
+  // Small files inline; larger ones through the plugin's file area, the
+  // host moves them.
+  bytes data = 5;
+  string staged_path = 6;
+}
+
+message ImportProgress {
+  int64 done = 1;
+  int64 total = 2;
+  // Where to continue after an interruption.
+  string resume = 3;
+}
+
+message ImportWarning {
+  string source_id = 1;
+  string message = 2;
+}
+
+message ExportRequest {
+  CallContext context = 1;
+  string format = 2;
+  repeated ObjectRef objects = 3;
+  bool recursive = 4;
+  string options_json = 5;
+  string language = 6;
+}
+
+message ExportPart {
+  oneof part {
+    ExportHead head = 1;
+    Chunk chunk = 2;
+  }
+}
+
+message ExportHead {
+  string name = 1;
+  string content_type = 2;
+}
+
+message AuditBatch {
+  message Entry {
+    int64 id = 1;
+    google.protobuf.Timestamp at = 2;
+    Principal actor = 3;
+    string action = 4;
+    ObjectRef object = 5;
+    string detail_json = 6;
+    string ip = 7;
+    // Hash chain of the audit log (tamper evidence).
+    bytes chain_hash = 8;
+  }
+  repeated Entry entries = 1;
+}
+
+message AuditBatchResponse {
+  // Highest id stored for good; the host resends the rest.
+  int64 stored_up_to = 1;
+}
+
+message AnalyticsBatch {
+  message Hit {
+    google.protobuf.Timestamp at = 1;
+    // "view", "search", "download".
+    string kind = 2;
+    ObjectRef object = 3;
+    // Empty when anonymised.
+    PersonRef person = 4;
+    string query = 5;
+    string site = 6;
+  }
+  repeated Hit hits = 1;
+}
+
+message AnalyticsBatchResponse {}
+
+message AnalyticsReportRequest {
+  CallContext context = 1;
+  string report = 2;
+  google.protobuf.Timestamp from = 3;
+  google.protobuf.Timestamp to = 4;
+  ObjectRef scope = 5;
+}
+
+message AnalyticsReportResponse {
+  // Rows as JSON; shown as a table or chart by the host.
+  string rows_json = 1;
+}

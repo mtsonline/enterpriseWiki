@@ -1,10 +1,12 @@
-// DRAFT for review (phase P2).
+// DRAFT for review (phase P2, SDK 1.0.0-preview).
 //
 // The manifest of an SDK plugin: everything it needs and offers, declared
 // up front (concept rule 4: declare, consent, enforce). It is written as
 // plugin.yaml in the package and read into this message. The host refuses
 // a package whose manifest is invalid, uses names outside the plugin's
-// namespace, or needs capabilities the host does not have.
+// namespace, or needs capabilities the host does not have. Every name a
+// plugin declares starts with its id (namespace rule); instances are
+// "<plugin-id>/<instance-id>".
 syntax = "proto3";
 
 package ewiki.plugin.v1;
@@ -18,9 +20,10 @@ message Manifest {
   // Format of this file; "1" for v1.
   string manifest_version = 1;
 
+  // ---------------------------------------------------------- identity
+
   // Plugin id: lower case, dots and hyphens, at least two parts
-  // ("acme.kanban"); "core." is reserved. Everything the plugin registers
-  // starts with it.
+  // ("acme.kanban"); "core." is reserved.
   string id = 2;
   // Semantic version of the plugin.
   string version = 3;
@@ -34,53 +37,192 @@ message Manifest {
   // Kinds, as for core plugins (auth, element, macro, workflow, ...); the
   // administration groups plugins by the first one.
   repeated string kinds = 9;
+  // License feature that covers this plugin ("pro.federation"), for the
+  // display "licensed / not licensed". Nothing is ever locked.
+  string license_feature = 10;
 
-  // SDK range the plugin was built for (">=1.4"). There is no upper bound
+  // ---------------------------------------------------------- contract
+
+  // SDK range the plugin was built for (">=1.0"). There is no upper bound
   // on the wiki version (concept 5.10).
-  string sdk = 10;
-  // Capabilities the plugin needs; without them it does not start. And
-  // capabilities it uses if present.
-  repeated string requires = 11;
-  repeated string optional = 12;
+  string sdk = 11;
+  // Capabilities the plugin needs ("content@1", "events@1", ...); without
+  // them it does not start. And capabilities it uses if present.
+  repeated string requires = 12;
+  repeated string optional = 13;
+  // Extension services the plugin serves (e.g. "ElementTypes",
+  // "PasswordProvider"); the host checks after Hello that they answer.
+  repeated string serves = 14;
 
   // Rights the plugin asks for; the administrator confirms them at
   // installation. More rights in an update need a new confirmation; until
   // then the old version keeps running.
-  repeated Grant grants = 13;
+  repeated Grant grants = 15;
 
-  // What the plugin adds to the wiki.
-  repeated PermissionDef permissions = 14;
-  repeated LimitDef limits = 15;
-  Schema settings = 16;
-  repeated Action actions = 17;
-  repeated EventSubscription events = 18;
-  repeated Job jobs = 19;
-  repeated MacroDef macros = 20;
-  repeated AuthProviderDef auth_providers = 21;
-  repeated UiContribution ui = 22;
-  repeated ElementTypeDef element_types = 25;
+  // ---------------------------------------------------------- operation
 
-  // Resource limits the plugin is built for; the administrator can lower
-  // or raise them under Administration → Expert settings.
-  Resources resources = 23;
+  repeated PermissionDef permissions = 16;
+  repeated LimitDef limits = 17;
+  // Settings of the plugin (per site if the plugin allows it).
+  Schema settings = 18;
+  bool settings_per_site = 19;
+  repeated Action actions = 20;
+  repeated Job jobs = 21;
+  Resources resources = 22;
+  repeated NotificationKindDef notification_kinds = 23;
+  repeated LanguageDef languages = 24;
 
-  // The plugin keeps data in its own database schema (with its own role,
-  // migrations in the package, run by the host, forward only).
-  bool database = 24;
+  // ---------------------------------------------------------- data
+
+  // Own database schema (own role, migrations in the package, run by the
+  // host, forward only, backup first).
+  bool database = 25;
+  repeated DataDef element_data = 26;
+  repeated DataDef person_data = 27;
+  // Personal data the plugin keeps (required when it keeps any; the
+  // plugin must then serve Privacy).
+  repeated PersonalDataDef personal_data = 28;
+  repeated ConnectionDef connections = 29;
+  repeated EventSubscription events = 30;
+  // Events the plugin emits.
+  repeated NamedDef emits = 31;
+
+  // ---------------------------------------------------------- live
+
+  repeated NamedDef realtime_channels = 32;
+  repeated NamedDef collab_documents = 33;
+  repeated NamedDef federation_messages = 34;
+
+  // ---------------------------------------------------------- content
+
+  repeated ElementTypeDef element_types = 35;
+  repeated MacroDef macros = 36;
+  repeated NamedDef property_types = 37;
+  repeated NamedDef templates = 38;
+  repeated ContentPolicyDef content_policies = 39;
+  repeated LinkPreviewDef link_previews = 40;
+  repeated EditorCommandDef editor_commands = 41;
+  // Options in the publish dialog (e.g. "as news"); the chosen values
+  // come with the event core.element.published.
+  repeated NamedDef publish_options = 70;
+  // Own kinds of sources for reading plugins and macros.
+  repeated NamedDef source_kinds = 71;
+
+  // ---------------------------------------------------------- sign-in
+
+  repeated AuthProviderDef auth_providers = 42;
+  repeated NamedDef access_decisions = 43;
+
+  // ---------------------------------------------------------- search
+
+  bool search_backend = 44;
+  repeated NamedDef search_sources = 45;
+  bool suggestions = 46;
+
+  // ---------------------------------------------------------- communication
+
+  repeated NamedDef notification_channels = 47;
+  repeated NamedDef chat_integrations = 48;
+  repeated InboundMailDef inbound_mail = 49;
+  repeated NamedDef calendar_providers = 50;
+  bool mail_signer = 72;
+
+  // ---------------------------------------------------------- workflows, forms
+
+  repeated NamedDef workflow_steps = 51;
+  repeated NamedDef workflow_conditions = 52;
+  repeated WorkflowTriggerDef workflow_triggers = 53;
+  repeated NamedDef form_field_types = 54;
+
+  // ---------------------------------------------------------- files
+
+  repeated NamedDef file_handlers = 55;
+  repeated NamedDef thumbnails = 56;
+  bool upload_scanner = 57;
+  repeated NamedDef storage_drivers = 58;
+  repeated NamedDef office_programs = 59;
+
+  // ---------------------------------------------------------- data in and out
+
+  repeated NamedDef importers = 60;
+  repeated NamedDef exporters = 61;
+  bool audit_sink = 62;
+  repeated NamedDef analytics_reports = 63;
+
+  // ---------------------------------------------------------- AI, signatures, federation
+
+  repeated NamedDef ai_providers = 64;
+  repeated AIPurposeDef ai_purposes = 65;
+  repeated NamedDef signature_methods = 66;
+  bool federation_provider = 67;
+
+  // ---------------------------------------------------------- interface
+
+  repeated UiContribution ui = 68;
+  repeated ThemeDef themes = 69;
+}
+
+// NamedDef describes an extension point that needs a name, texts and
+// optionally a configuration and patterns. What "patterns" means depends
+// on the list: address patterns (link previews, search sources), content
+// types (file handlers, thumbnails: "application/vnd.dwg", "image/*").
+message NamedDef {
+  // "<plugin-id>.<name>" or, where it is unambiguous, the plain name.
+  string name = 1;
+  LocalizedText label = 2;
+  LocalizedText description = 3;
+  // Configuration per use (a workflow step's settings, a provider
+  // instance's settings, ...).
+  Schema config = 4;
+  // What it returns (workflow steps, events), for documentation and
+  // checks.
+  Schema output = 5;
+  repeated string patterns = 6;
+  // Icon from the package (SVG).
+  string icon = 7;
+  // Preview: only in development mode (concept 5.10).
+  bool preview = 8;
 }
 
 // Grant is a right the plugin asks for. Kinds (first part of the key):
-//   content.read, content.write        pages and other elements
+//   content.read, content.write        elements, categories, comments
 //   users.read, groups.read            people and groups (no secrets)
+//   emails.read                        e-mail addresses of people
 //   directory.sync                     keep accounts in step with a directory
 //   files.read, files.write            the plugin's own file area
 //   mail.send, notify.send             e-mail and notifications
 //   audit.write                        own audit events
-//   keys.sign:<key-ref>                sign with a key of the key store
+//   keys.sign:<ref>, keys.decrypt:<ref>  use a key of the key store
 //   net:<host>[:<port>]                outgoing connections via the host
+//   connection:<name>                  use a declared connection
+//   ai.use                             the wiki's AI services
+//   live.publish                       live updates to the plugin's views
+//   federation.send                    messages to partner wikis
 //   schedule                           timed jobs
 //   ui.slot:<place>                    an extension point of the interface
-// The consent dialog shows each with a plain-language explanation.
+//   workflow.run                       start and continue workflow cases
+//
+// Provider grants: the plugin sees ALL data of an area, not only what one
+// person may see. The consent dialog shows them separately and plainly
+// ("this plugin receives every password entered at its sign-in"), and the
+// administration lists which plugins hold them:
+//   auth.provide          passwords and identities at its sign-in
+//   content.index         all content, for a search engine
+//   content.inspect       all content when it is saved (content policies)
+//   files.inspect         all uploaded files (scanners, previews)
+//   storage.provide       all stored files (storage drivers)
+//   office.provide        files opened in its office program
+//   mail.sign             all outgoing e-mail (mail signers)
+//   audit.export          all audit events (audit sinks)
+//   analytics.read        page views and searches
+//   ai.provide            everything sent to its models
+//   federation.provide    all traffic with partner wikis, and the identity
+//                         of their people
+// Provider grants are only possible for plugins of the trust levels
+// "official", "verified" and "organisation" (concept 5.8), never for
+// unsigned plugins outside development mode.
+//
+// The consent dialog shows each grant with a plain-language explanation.
 message Grant {
   string key = 1;
   // Why the plugin needs it, shown in the consent dialog.
@@ -90,9 +232,9 @@ message Grant {
 }
 
 // PermissionDef: a permission the plugin checks; it appears in the rights
-// administration like the core's. Same fields as core plugins today.
+// administration like the core's.
 message PermissionDef {
-  string key = 1; // "<plugin-id>.<name>"
+  string key = 1;
   Permission.Scope scope = 2;
   LocalizedText label = 3;
   LocalizedText description = 4;
@@ -104,7 +246,7 @@ message PermissionDef {
 
 // LimitDef: a technical limit, shown under Expert settings.
 message LimitDef {
-  string key = 1; // "<plugin-id>.<name>"
+  string key = 1;
   LocalizedText label = 2;
   LocalizedText help = 3;
   // kb, mb, bytes, count, seconds, per_second, days
@@ -114,9 +256,8 @@ message LimitDef {
   int64 max = 7;
 }
 
-// EventSubscription: core events the plugin wants to receive, from the
-// inbox queue (concept 5.4a). Event types are versioned by name
-// ("core.element.changed"); new fields only ever get added.
+// EventSubscription: events the plugin wants to receive (core events
+// "core.*" or events other plugins emit).
 message EventSubscription {
   string type = 1;
   // Optional filter, e.g. element types or categories, as a JSON object
@@ -134,6 +275,103 @@ message Job {
   // The administrator can start it by hand (it becomes an action
   // "<plugin-id>.job.<name>.run" with API, CLI and interface).
   bool manual = 4;
+  // Run once per site where the plugin is enabled.
+  bool per_site = 5;
+}
+
+message Resources {
+  int64 memory_mb = 1;
+  // Share of one CPU in percent (100 = one core).
+  int32 cpu_percent = 2;
+  int32 max_concurrent_calls = 3;
+  int64 call_timeout_ms = 4;
+  int64 max_request_kb = 5;
+  int64 files_quota_mb = 6;
+  int64 kv_quota_kb = 7;
+}
+
+message NotificationKindDef {
+  // "<plugin-id>.<kind>"
+  string kind = 1;
+  LocalizedText label = 2;
+  // On by default for e-mail (people can change it). The default is off,
+  // like the core's own kinds.
+  bool email_default = 3;
+}
+
+// LanguageDef: translations the plugin brings for a language (its own
+// texts, or a language pack for the whole interface).
+message LanguageDef {
+  // BCP 47 tag.
+  string language = 1;
+  // Package file with the texts (same format as the wiki's locales).
+  string file = 2;
+  // True for a language pack (texts of the core and other plugins).
+  bool pack = 3;
+}
+
+// DataDef: data the plugin attaches to elements or people.
+message DataDef {
+  string key = 1;
+  Schema schema = 2;
+  // Copied when the element is copied; exported and federated with it.
+  bool portable = 3;
+}
+
+message PersonalDataDef {
+  // What is stored and why, in plain words (shown to the person in their
+  // privacy overview and to administrators).
+  LocalizedText what = 1;
+  LocalizedText purpose = 2;
+  // How long it is kept ("until the account is deleted", "90 days").
+  LocalizedText retention = 3;
+  // Leaves the wiki (to a connected service)? Where to.
+  repeated string recipients = 4;
+}
+
+// ConnectionDef: a connection to another service. The host runs the
+// sign-in flow, stores and refreshes the credentials and adds them to
+// outgoing requests through the proxy; the plugin never sees them.
+message ConnectionDef {
+  string name = 1;
+  LocalizedText label = 2;
+  enum Kind {
+    KIND_UNSPECIFIED = 0;
+    // OAuth 2.0 authorization code with PKCE.
+    KIND_OAUTH2 = 1;
+    // A key the administrator or the person enters.
+    KIND_API_KEY = 2;
+  }
+  Kind kind = 3;
+  // Per person (each person connects their own account) or one for the
+  // whole wiki (an administrator connects it).
+  bool per_person = 4;
+  // OAuth 2.0 endpoints; may contain settings references
+  // ("{settings.tenant}") the host fills in.
+  string authorize_url = 5;
+  string token_url = 6;
+  repeated string scopes = 7;
+  // Hosts the credentials may be sent to (each must also be a net grant).
+  repeated string hosts = 8;
+  // How the credential is added: "bearer" (Authorization header) or a
+  // header name for API keys.
+  string apply_as = 9;
+}
+
+message ElementTypeDef {
+  // "<plugin-id>.<name>" or, with a single type, the plugin id itself.
+  string type = 1;
+  LocalizedText label = 2;
+  LocalizedText description = 3;
+  // Core type it builds on ("core.html"): the editor, search and export
+  // of that type are reused; the plugin adds to them.
+  string extends = 4;
+  Schema body = 5;
+  // ElementTypes.ValidateElement is asked before saving.
+  bool validate = 6;
+  // ElementTypes.RenderElement renders the body when it is saved.
+  bool render = 7;
+  string icon = 8;
 }
 
 // MacroDef: a macro for the editor (concept 5.6, way 4). Stored as a
@@ -152,74 +390,175 @@ message MacroDef {
   bool inline = 8;
   enum Rendering {
     RENDERING_UNSPECIFIED = 0;
-    // Rendered by the plugin when the page is saved; the host cleans the
-    // HTML and keeps it.
+    // Rendered when the page is saved; the host cleans and keeps the HTML.
     RENDERING_STATIC = 1;
-    // Static HTML plus a live island with remote UI (way 2).
+    // Static HTML plus a live island with remote UI (way 2): id of the
+    // UI contribution in `island`.
     RENDERING_LIVE = 2;
   }
   Rendering rendering = 9;
+  string island = 10;
+  // Own button in the editor's toolbar.
+  bool toolbar = 11;
+  string icon = 12;
 }
 
-// ElementTypeDef: an element type (page-like content with its own body).
-// Stored, versioned, searched, trashed and protected by the core like
-// every element; the plugin only checks and renders the body.
-message ElementTypeDef {
-  // "<plugin-id>.<name>" or, with a single type, the plugin id itself.
-  string type = 1;
+message ContentPolicyDef {
+  string name = 1;
   LocalizedText label = 2;
-  LocalizedText description = 3;
-  // Core type it builds on ("core.html"): the editor, search and export
-  // of that type are reused; the plugin adds to them.
-  string extends = 4;
-  // Schema of the body; the host checks every save against it.
-  Schema body = 5;
-  // Plugin.ValidateElement is asked before saving (rules the schema
-  // cannot express).
-  bool validate = 6;
-  // Plugin.RenderElement renders the body when it is saved; otherwise the
-  // rendering of the extended type is used.
-  bool render = 7;
+  // Element types it checks; empty: all.
+  repeated string types = 3;
+  // Time limit per check; at most the limit
+  // "core.plugins.policy_timeout_ms".
+  int64 timeout_ms = 4;
+  // Suggested behaviour on timeout; the administrator decides.
+  bool refuse_on_timeout = 5;
+  // Reads the content of attached files.
+  bool reads_files = 6;
+  // Properties it may set (e.g. a classification).
+  repeated string sets_properties = 7;
 }
 
-// AuthProviderDef: a sign-in provider (first in v1: password providers
-// and directory sync, needed for auth.ldap as the first SDK plugin).
+message LinkPreviewDef {
+  string name = 1;
+  // Address patterns ("https://jira.example.com/browse/*"); settings
+  // references allowed.
+  repeated string patterns = 2;
+  // Connection used to read the target for the person.
+  string connection = 3;
+}
+
+message EditorCommandDef {
+  string name = 1;
+  LocalizedText label = 2;
+  enum Kind {
+    KIND_UNSPECIFIED = 0;
+    // In the "/" menu and the command palette.
+    KIND_SLASH = 1;
+    KIND_TOOLBAR = 2;
+    // Pasted addresses or dropped files matching patterns.
+    KIND_PASTE = 3;
+    // A source for @-mentions (prefix in the editor, e.g. "#" or "@jira").
+    KIND_MENTION = 4;
+  }
+  Kind kind = 3;
+  repeated string patterns = 4;
+  // Form asked before the command runs.
+  Schema params = 5;
+  string icon = 6;
+  // Keyboard shortcut suggestion ("Mod-Shift-K"); people can change it.
+  string shortcut = 7;
+}
+
+// AuthProviderDef: a sign-in provider.
 message AuthProviderDef {
   enum Kind {
     KIND_UNSPECIFIED = 0;
     KIND_PASSWORD = 1;
-    KIND_REDIRECT = 2; // OIDC, SAML: preview in v1
+    // OpenID Connect, SAML, social sign-in.
+    KIND_REDIRECT = 2;
   }
   Kind kind = 1;
-  // Short id used in handles "name@id"; several instances get their own
-  // ids from the administrator.
+  // Short id of the provider type ("ldap", "oidc"); instances get their
+  // own ids from the administrator ("ldap-corp", immutable).
   string id = 2;
   LocalizedText name = 3;
-  // Supports the directory sync (needs the grant directory.sync).
+  // Serves Directory (needs the grant directory.sync).
   bool directory = 4;
+  // Serves Provisioning for incoming provisioning.
+  bool provisioning = 5;
+  // Serves MfaMethod: an additional second factor (e.g. a hardware token
+  // or a push confirmation). The wiki's own factors stay in the core.
+  bool mfa = 9;
+  // Supports single logout.
+  bool single_logout = 6;
   // Settings per instance (server, filters, mapping, ...).
-  Schema instance_settings = 5;
+  Schema instance_settings = 7;
+  // Presets for common services (e.g. Microsoft, Google), shown as
+  // choices when adding an instance.
+  repeated NamedDef presets = 8;
+}
+
+message InboundMailDef {
+  // Local part of the address at the wiki's mail domain
+  // ("kanban+{board}"); the administrator sets the domain.
+  string address = 1;
+  LocalizedText label = 2;
+  // Largest message in KiB (at most the core's limit).
+  int64 max_kb = 3;
+}
+
+message WorkflowTriggerDef {
+  NamedDef trigger = 1;
+  // The host asks WorkflowTriggers.Poll at this interval; 0: the plugin
+  // starts cases itself (events, inbound endpoints).
+  int64 poll_seconds = 2;
+}
+
+message AIPurposeDef {
+  // "<plugin-id>.<purpose>" ("acme.kanban.summarise").
+  string purpose = 1;
+  LocalizedText label = 2;
+  // What data goes to the model, in plain words (shown to administrators
+  // when they choose a provider for the purpose).
+  LocalizedText data = 3;
+  // Needs: "complete", "embed", "translate", "vision", "tools".
+  repeated string needs = 4;
+}
+
+message ThemeDef {
+  string id = 1;
+  LocalizedText label = 2;
+  // Package file with design tokens (colours, fonts, spacing; same format
+  // as the wiki's design system). Fonts come with the package, never from
+  // other servers.
+  string tokens = 3;
+  // A dark variant. Every theme must meet the contrast of the current
+  // WCAG level AA; the host checks it at installation and refuses it
+  // otherwise.
+  bool dark = 4;
+  // A page template (site layout) and not only colours: its positions
+  // ("header", "sidebar", "content-top", ...) and the layout as a package
+  // file in the format ewiki.ui.v1 (phase P4). Menus, blocks and plugin
+  // parts are placed on the positions by the administrators.
+  repeated string positions = 5;
+  string layout = 6;
+  // Kind of site the template is made for: "wiki", "cms" or both.
+  repeated string for_sites = 7;
 }
 
 // UiContribution: a part of the interface (concept 5.6). The tree format
-// of the building blocks (ewiki.ui.v1) is designed in phase P4; here only
-// where a part goes and how it is made.
+// of the building blocks (ewiki.ui.v1) is designed in phase P4.
+//
+// Slots (places) in v1:
+//   admin.page, admin.dashboard.tile, settings (the plugin's settings page)
+//   global.page, global.settings, home.feed, dashboard.tile (personal)
+//   space.page, space.settings, space.sidebar
+//   element.field (an input on every element's edit form, with element_data)
+//   element.view:<type>, element.edit:<type>, element.panel (below or beside
+//     a page), element.byline, element.banner, element.action (menu of a
+//     page), selection.action (menu for selected text)
+//   category.view, category.action
+//   profile.section, profile.card
+//   property.input:<type>, property.display:<type>, property.view (views of
+//     the property database: board, calendar, gallery, ...)
+//   form.field:<type>, macro.island, macro.editor, file.view
+//   command (command palette), template.block, menu.display (how a menu
+//   is drawn: dropdown, mega menu, ...)
+// Places outside the plugin's own pages need the grant ui.slot:<place>.
 message UiContribution {
   // Id within the plugin.
   string id = 1;
-  // Extension point: "admin.page", "settings", "element.view:<type>",
-  // "page.sidebar", "template.block", ... (needs the grant ui.slot:<place>
-  // for places outside the plugin's own pages).
   string slot = 2;
   LocalizedText title = 3;
   enum Way {
     WAY_UNSPECIFIED = 0;
-    // 1: building blocks described by the server (DescribeView).
+    // 1: building blocks described by the server (Views.DescribeView).
     WAY_BLOCKS = 1;
     // 2: building blocks driven by sandboxed code (remote UI); the script
     // comes from the package.
     WAY_REMOTE = 2;
-    // 3: sandboxed iframe (preview in v1).
+    // 3: sandboxed frame.
     WAY_FRAME = 3;
   }
   Way way = 4;
@@ -227,14 +566,13 @@ message UiContribution {
   string asset = 5;
   // Permission needed to see it.
   string permission = 6;
-}
-
-message Resources {
-  int64 memory_mb = 1;
-  // Share of one CPU in percent (100 = one core).
-  int32 cpu_percent = 2;
-  int32 max_concurrent_calls = 3;
-  int64 call_timeout_ms = 4;
-  int64 max_request_kb = 5;
-  int64 files_quota_mb = 6;
+  // Action started by the contribution (command palette, menus): its id
+  // in the register.
+  string action = 7;
+  string icon = 8;
+  // Keyboard shortcut suggestion.
+  string shortcut = 9;
+  // Origins the frame may load from (WAY_FRAME only, e.g. an office
+  // server); each must also be a net grant.
+  repeated string frame_origins = 10;
 }

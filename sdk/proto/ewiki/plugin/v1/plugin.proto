@@ -1,13 +1,16 @@
-// DRAFT for review (phase P2).
+// DRAFT for review (phase P2, SDK 1.0.0-preview).
 //
-// Service the PLUGIN offers; the host calls it. The plugin listens on the
-// Unix socket the host names at the start (see Host.Hello for the
-// handshake). Every call carries the session token from the handshake in
-// the metadata "ewiki-session"; the SDK refuses calls without it.
+// Service EVERY plugin offers; the host calls it on the Unix socket the
+// host named at the start. The extension points of the areas (element
+// types, sign-in, search, ...) are separate services in ext_*.proto; a
+// plugin serves those it declares in its manifest, and the host checks
+// after Hello that they answer.
 //
-// Every call has a deadline. Calls on the path of a page view (macros,
-// views) must answer within the plugin's call timeout; the host shows an
-// honest notice instead of waiting longer.
+// Every call carries the session token from the handshake in the metadata
+// "ewiki-session"; the SDK refuses calls without it. Every call has a
+// deadline; calls on the path of a page view must answer within the
+// plugin's call timeout, otherwise the host shows an honest notice instead
+// of waiting longer.
 syntax = "proto3";
 
 package ewiki.plugin.v1;
@@ -27,41 +30,27 @@ service Plugin {
   // switches the plugin off and tells the administrators. Data stays.
   rpc Ping(PingRequest) returns (PingResponse);
 
-  // Settings changed by an administrator; the plugin may refuse them
-  // (ValidateSettings is asked first, before anything is stored).
+  // Settings changed by an administrator. ValidateSettings is asked first,
+  // before anything is stored; the plugin may refuse.
   rpc ValidateSettings(ValidateSettingsRequest) returns (ValidateSettingsResponse);
   rpc SettingsChanged(SettingsChangedRequest) returns (SettingsChangedResponse);
+  // "Test connection" in the settings (to a directory, a server, ...).
+  rpc TestSettings(TestSettingsRequest) returns (TestSettingsResponse);
 
-  // A request to one of the plugin's actions (/api/v1/x/<plugin-id>/...).
-  // The host has already checked sign-in, CSRF, rate limits, size, the
+  // A request to one of the plugin's actions (/api/v1/x/<plugin-id>/...)
+  // or inbound endpoints. The host has already checked sign-in (or the
+  // signature of an inbound endpoint), CSRF, rate limits, size, the
   // permission and the parameters against the action's schema, and it
   // writes the audit entry. First message: the head, then body chunks.
   rpc HandleHTTP(stream HttpRequestPart) returns (stream HttpResponsePart);
 
-  // A timed job or a manual run of one.
+  // A timed job or a manual run of one (in a cluster on one node only).
   rpc RunJob(RunJobRequest) returns (RunJobResponse);
 
-  // Render a macro when a page is saved (static) or for the editor's
-  // preview. The host cleans the HTML (same rules as all content) and
-  // keeps it; it is not called on every page view.
-  rpc RenderMacro(RenderMacroRequest) returns (RenderMacroResponse);
-
-  // Element types (manifest: element_types). Called when an element is
-  // saved, never on a page view: the host keeps the cleaned HTML.
-  rpc ValidateElement(ValidateElementRequest) returns (ValidateElementResponse);
-  rpc RenderElement(RenderElementRequest) returns (RenderElementResponse);
-
-  // Describe a view made of building blocks (UI way 1). The tree format
-  // ewiki.ui.v1 is designed in phase P4.
-  rpc DescribeView(DescribeViewRequest) returns (DescribeViewResponse);
-
-  // Sign-in providers (manifest: auth_providers).
-  rpc Authenticate(AuthenticateRequest) returns (AuthenticateResponse);
-  // The directory sync: the plugin lists the people of its directory; the
-  // host maps them like at a sign-in and applies its safety rules (share
-  // of accounts to disable, dry run, conflicts). The host starts it
-  // (schedule, by hand, in a cluster on one node only).
-  rpc ReadDirectory(ReadDirectoryRequest) returns (stream DirectoryEntry);
+  // Messages from the plugin's instances on other nodes and from the same
+  // plugin on partner wikis (see host_live.proto).
+  rpc ClusterMessage(ClusterMessageRequest) returns (ClusterMessageResponse);
+  rpc FederationMessage(FederationMessageRequest) returns (FederationMessageResponse);
 }
 
 message StartRequest {
@@ -76,6 +65,9 @@ message StartRequest {
   string host_version = 5;
   // True in development mode (preview APIs allowed, no signature check).
   bool development = 6;
+  // Sites the plugin is enabled on (multi-site); empty: only the main
+  // site.
+  repeated string sites = 7;
 }
 
 message StartResponse {}
@@ -101,10 +93,10 @@ message PingResponse {
 }
 
 message ValidateSettingsRequest {
-  // Also for an instance of a sign-in provider: instance id and its
-  // settings.
+  // Instance of a provider ("ldap-corp"); empty for the plugin's settings.
   string instance = 1;
-  string settings_json = 2;
+  string site = 2;
+  string settings_json = 3;
 }
 
 message ValidateSettingsResponse {
@@ -114,40 +106,59 @@ message ValidateSettingsResponse {
 
 message SettingsChangedRequest {
   string instance = 1;
-  string settings_json = 2;
+  string site = 2;
+  string settings_json = 3;
 }
 
 message SettingsChangedResponse {}
+
+message TestSettingsRequest {
+  string instance = 1;
+  string site = 2;
+  // Settings as entered, not yet stored.
+  string settings_json = 3;
+}
+
+message TestSettingsResponse {
+  bool ok = 1;
+  // Steps of the test with their result, for the administration
+  // ("connect", "bind", "search").
+  message Step {
+    string name = 1;
+    bool ok = 2;
+    string message = 3;
+  }
+  repeated Step steps = 2;
+}
 
 message HttpRequestPart {
   oneof part {
     HttpRequestHead head = 1;
     // Body in chunks of at most 64 KiB; the total is limited by the
     // action's body limit.
-    bytes body = 2;
+    Chunk body = 2;
   }
 }
 
 message HttpRequestHead {
   CallContext context = 1;
-  // Id of the action from the register the request matched.
-  string action_id = 2;
-  string method = 3;
+  string method = 2;
   // Path below /api/v1/x/<plugin-id>/ and the raw query.
-  string path = 4;
-  string query = 5;
+  string path = 3;
+  string query = 4;
   // Path parameters, already checked against the schema (JSON object).
-  string path_params_json = 6;
+  string path_params_json = 5;
   // Only harmless headers (Accept, Accept-Language, Content-Type,
-  // If-Match, If-None-Match, Range); never cookies, Authorization or the
-  // client's address.
-  map<string, string> headers = 7;
+  // If-Match, If-None-Match, Range, and for inbound endpoints the headers
+  // the endpoint declares); never cookies, Authorization or the client's
+  // address.
+  map<string, string> headers = 6;
 }
 
 message HttpResponsePart {
   oneof part {
     HttpResponseHead head = 1;
-    bytes body = 2;
+    Chunk body = 2;
   }
 }
 
@@ -161,130 +172,39 @@ message HttpResponseHead {
 
 message RunJobRequest {
   string name = 1;
-  // "schedule" or the handle of the person who started it.
-  string triggered_by = 2;
+  // The plugin account for the schedule, or the person who started it.
+  Principal triggered_by = 2;
   bool dry_run = 3;
+  // Site the job runs for (jobs run per site where the plugin is
+  // enabled).
+  string site = 4;
 }
 
 message RunJobResponse {
   // Summary for the job history in the administration.
   string summary = 1;
+  // Details as JSON (shown and exported as they are).
+  string report_json = 2;
 }
 
-message RenderMacroRequest {
-  CallContext context = 1;
-  string name = 2;
-  // Parameters checked against the macro's schema.
-  string params_json = 3;
-  // Body of macros that wrap content (Markdown).
-  string body = 4;
-  // Element the macro sits in.
-  int64 element_id = 5;
-  // Editor preview: may be called while typing; answer fast.
-  bool preview = 6;
+message ClusterMessageRequest {
+  string topic = 1;
+  bytes payload = 2;
+  string from_node = 3;
 }
 
-message RenderMacroResponse {
-  // HTML; the host cleans it with the rules for content.
-  string html = 1;
-  // Plain text for search and screen readers if the HTML is not enough.
-  string text = 2;
-  // How long the result may be reused before the host asks again
-  // (0: until the page is saved again).
-  int64 max_age_seconds = 3;
-}
+message ClusterMessageResponse {}
 
-message DescribeViewRequest {
-  CallContext context = 1;
-  // Id of the UI contribution and the parameters of its slot (for
-  // example the element shown).
-  string view = 2;
-  string params_json = 3;
-}
-
-message DescribeViewResponse {
-  // Tree of building blocks in the format ewiki.ui.v1 (phase P4).
-  string tree_json = 1;
-}
-
-message AuthenticateRequest {
-  // Provider instance ("ldap", "ldap-corp").
+message FederationMessageRequest {
+  // Partner wiki the message comes from (verified by the federation).
   string instance = 1;
-  string username = 2;
-  // Only ever in this call, never stored or logged by the host; the SDK
-  // clears it after use.
-  string password = 3;
-  string request_id = 4;
-}
-
-message AuthenticateResponse {
-  enum Result {
-    RESULT_UNSPECIFIED = 0;
-    RESULT_OK = 1;
-    // Wrong user name or password: the host counts it for the lockout and
-    // answers like for every wrong sign-in (no hint which part was wrong).
-    RESULT_INVALID = 2;
-    // The account is disabled in the directory.
-    RESULT_DISABLED = 3;
-    // The directory cannot be reached: the host tries the next provider
-    // and shows the administrators a notice.
-    RESULT_UNAVAILABLE = 4;
-  }
-  Result result = 1;
-  ExternalIdentity identity = 2;
-}
-
-// ExternalIdentity is a person as the directory reports it. The host
-// maps groups and roles (mapping per provider instance, in the core).
-message ExternalIdentity {
-  // Stable id in the directory (entryUUID, objectGUID, sub).
-  string subject = 1;
-  string username = 2;
-  string display_name = 3;
-  string email = 4;
-  // The directory confirms the address belongs to the person.
-  bool email_verified = 5;
-  // Group names as the directory has them (before mapping).
-  repeated string groups = 6;
-  // Further attributes for the mapping (JSON object, strings and lists
-  // of strings only).
-  string attributes_json = 7;
-}
-
-message ReadDirectoryRequest {
-  string instance = 1;
-  string request_id = 2;
-}
-
-message DirectoryEntry {
-  ExternalIdentity identity = 1;
-  // The directory reports the person as disabled.
-  bool disabled = 2;
-}
-
-message ValidateElementRequest {
-  CallContext context = 1;
   string type = 2;
-  // 0 for a new element.
-  int64 element_id = 3;
-  // Body already checked against the type's schema.
-  string body_json = 4;
+  bytes payload = 3;
+  // With a person: who on the partner wiki sent it, and the context to
+  // call the host for them (the rights of this wiki apply).
+  CallContext context = 4;
 }
 
-message ValidateElementResponse {
-  repeated ErrorInfo problems = 1;
-}
-
-message RenderElementRequest {
-  CallContext context = 1;
-  string type = 2;
-  int64 element_id = 3;
-  string body_json = 4;
-  string language = 5;
-}
-
-message RenderElementResponse {
-  // HTML, cleaned by the host; plain text for the search index.
-  string html = 1;
-  string text = 2;
+message FederationMessageResponse {
+  bytes payload = 1;
 }

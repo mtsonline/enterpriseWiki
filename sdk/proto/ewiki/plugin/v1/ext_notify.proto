@@ -1,0 +1,206 @@
+// DRAFT for review (phase P2, SDK 1.0.0-preview).
+//
+// Notifications and communication:
+// - NotificationChannel: deliver the wiki's notifications through another
+//   channel (chat services, push, SMS). The host decides who gets what
+//   (people's settings, rights, digests) and retries; the plugin only
+//   delivers.
+// - ChatIntegration: commands and button presses coming from chat services
+//   (e.g. "/wiki search ..."), answered with messages. The host verifies
+//   the service's signature (inbound endpoint) and maps the chat account
+//   to a person through a connection.
+// - InboundMail: e-mail to addresses the plugin declares (e.g. mail to a
+//   page or a comment); the host receives, checks (size, sender
+//   authentication results) and hands it over.
+// - CalendarProvider: calendars of people at other services (personal
+//   calendar connection): free/busy and writing events.
+syntax = "proto3";
+
+package ewiki.plugin.v1;
+
+import "ewiki/plugin/v1/common.proto";
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/mtsonline/enterprisewiki/sdk/proto/ewiki/plugin/v1;pluginv1";
+
+service NotificationChannel {
+  rpc Deliver(DeliverRequest) returns (DeliverResponse);
+}
+
+service ChatIntegration {
+  rpc Command(ChatCommandRequest) returns (ChatReply);
+  rpc Interaction(ChatInteractionRequest) returns (ChatReply);
+}
+
+service InboundMail {
+  rpc Receive(ReceiveMailRequest) returns (ReceiveMailResponse);
+}
+
+// MailSigner: signs (and if wanted encrypts) outgoing e-mail, e.g.
+// S/MIME. The host calls it for every message it sends, after the queue,
+// with the key reference of the sender's certificate.
+service MailSigner {
+  rpc SignMail(SignMailRequest) returns (SignMailResponse);
+}
+
+service CalendarProvider {
+  rpc FreeBusy(FreeBusyRequest) returns (FreeBusyResponse);
+  rpc PutEvent(PutEventRequest) returns (PutEventResponse);
+  rpc DeleteEvent(DeleteEventRequest) returns (DeleteEventResponse);
+}
+
+message DeliverRequest {
+  // Channel declared in the manifest.
+  string channel = 1;
+  PersonRef person = 2;
+  // Already in the person's language.
+  string title = 3;
+  string text = 4;
+  // Absolute address in the wiki.
+  string url = 5;
+  // Kind of the notification ("core.mention", "acme.kanban.assigned").
+  string kind = 6;
+  // Unique per delivery; the plugin passes it to the service if it
+  // supports deduplication.
+  string delivery_id = 7;
+}
+
+message DeliverResponse {
+  enum Result {
+    RESULT_UNSPECIFIED = 0;
+    RESULT_DELIVERED = 1;
+    // The person has no account at the service or switched it off: the
+    // host stops trying this channel for them and tells them.
+    RESULT_NOT_REACHABLE = 2;
+    // Try again later (the host waits with backoff).
+    RESULT_RETRY = 3;
+  }
+  Result result = 1;
+  string message = 2;
+}
+
+message ChatCommandRequest {
+  CallContext context = 1;
+  // Service and its ids (workspace, channel, user), for the answer.
+  string service = 2;
+  string channel_id = 3;
+  string command = 4;
+  string text = 5;
+}
+
+message ChatInteractionRequest {
+  CallContext context = 1;
+  string service = 2;
+  string channel_id = 3;
+  // Id of the button or menu and its value.
+  string action = 4;
+  string value = 5;
+  string message_id = 6;
+}
+
+message ChatReply {
+  // Only for the person, or visible in the channel.
+  bool public = 1;
+  // Markdown; the plugin converts to the service's format.
+  string text = 2;
+  message Button {
+    string action = 1;
+    string value = 2;
+    string label = 3;
+  }
+  repeated Button buttons = 3;
+  // Replace the message the interaction came from.
+  bool replace = 4;
+}
+
+message ReceiveMailRequest {
+  // Address it was sent to (one the plugin declared).
+  string to = 1;
+  // The sender, resolved to a person if the address belongs to one and
+  // the message passed DMARC; otherwise empty and from_address only.
+  PersonRef from = 2;
+  string from_address = 3;
+  // DMARC, SPF and DKIM results as the host saw them.
+  string authentication_results = 4;
+  string subject = 5;
+  string text = 6;
+  // HTML, cleaned by the host.
+  string html = 7;
+  repeated FileData attachments = 8;
+  string message_id = 9;
+  string in_reply_to = 10;
+}
+
+message ReceiveMailResponse {
+  // What happened, for the sender's reply (optional) and the audit log.
+  bool accepted = 1;
+  string reply = 2;
+  ObjectRef created = 3;
+}
+
+message SignMailRequest {
+  // The complete MIME message as the host built it.
+  bytes mime = 1;
+  string from = 2;
+  repeated string recipients = 3;
+}
+
+message SignMailResponse {
+  enum Result {
+    RESULT_UNSPECIFIED = 0;
+    RESULT_SIGNED = 1;
+    // No certificate for this sender: the host sends unsigned or holds
+    // the message, as the administrator chose.
+    RESULT_NO_CERTIFICATE = 2;
+    RESULT_RETRY = 3;
+  }
+  Result result = 1;
+  bytes mime = 2;
+  string message = 3;
+}
+
+message FreeBusyRequest {
+  CallContext context = 1;
+  repeated PersonRef people = 2;
+  google.protobuf.Timestamp from = 3;
+  google.protobuf.Timestamp to = 4;
+}
+
+message FreeBusyResponse {
+  message Busy {
+    PersonRef person = 1;
+    google.protobuf.Timestamp start = 2;
+    google.protobuf.Timestamp end = 3;
+    bool tentative = 4;
+  }
+  repeated Busy busy = 1;
+  // People without a connected calendar.
+  repeated PersonRef unknown = 2;
+}
+
+message PutEventRequest {
+  CallContext context = 1;
+  // Stable id from the wiki (an event of a calendar element or a
+  // workflow); the same id updates the same event.
+  string uid = 2;
+  string title = 3;
+  string description = 4;
+  google.protobuf.Timestamp start = 5;
+  google.protobuf.Timestamp end = 6;
+  bool all_day = 7;
+  string location = 8;
+  repeated PersonRef attendees = 9;
+  // iCalendar (RFC 5545) of the event, for services that take it as is.
+  string ical = 10;
+}
+
+message PutEventResponse {
+  string provider_id = 1;
+}
+
+message DeleteEventRequest {
+  CallContext context = 1;
+  string uid = 2;
+}
+
+message DeleteEventResponse {}

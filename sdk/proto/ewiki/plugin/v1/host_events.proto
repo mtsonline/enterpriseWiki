@@ -1,0 +1,178 @@
+// DRAFT for review (phase P2, SDK 1.0.0-preview).
+//
+// Events in and consequences out ("events@1"), after concept 5.4a.
+//
+// In: the core's events the plugin subscribed to (manifest: events), over
+// one long-lived stream, like Pub/Sub StreamingPull or a NATS pull
+// consumer: the host pushes each event as soon as it is stored, within the
+// credit the plugin granted; nothing is lost because the position only
+// moves with the plugin's acknowledgement. The SDK records handled event
+// ids in the table ewiki_inbox of the plugin's schema, in the same
+// transaction as the plugin's work, so each event takes effect exactly
+// once.
+//
+// Out: consequences of a change (notification, e-mail, audit event,
+// event of the plugin). With own data: the SQL functions ewiki_outbox.* in
+// the plugin's transaction. Without: Enqueue.
+syntax = "proto3";
+
+package ewiki.plugin.v1;
+
+import "ewiki/plugin/v1/common.proto";
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/mtsonline/enterprisewiki/sdk/proto/ewiki/plugin/v1;pluginv1";
+
+service Events {
+  // One stream per plugin process. The plugin starts with a Subscribe
+  // message, then grants credit and acknowledges. The host sends events
+  // and heartbeats. When the stream breaks, the SDK reconnects and the
+  // host resends everything not acknowledged.
+  rpc Subscribe(stream EventFlow) returns (stream EventDelivery);
+
+  // Store a consequence. Repeating with the same idempotency key has no
+  // further effect.
+  rpc Enqueue(EnqueueRequest) returns (EnqueueResponse);
+}
+
+message EventFlow {
+  oneof msg {
+    SubscribeStart start = 1;
+    // Credit: the host may send this many more events than were
+    // acknowledged (like MaxAckPending). The plugin grants more as it
+    // finishes work.
+    int32 credit = 2;
+    EventAck ack = 3;
+    // Not now: deliver again after the given wait (e.g. a remote system is
+    // down). Counts as a delivery attempt.
+    EventRetry retry = 4;
+  }
+}
+
+message SubscribeStart {
+  // Credit to start with; at most the limit "core.plugins.event_credit".
+  int32 credit = 1;
+}
+
+message EventAck {
+  // Acknowledges these events (they may be acknowledged out of order;
+  // events of the same object are only delivered after the previous one
+  // was acknowledged).
+  repeated int64 ids = 1;
+}
+
+message EventRetry {
+  int64 id = 1;
+  int64 after_ms = 2;
+  // Why, for the administration.
+  string reason = 3;
+}
+
+message EventDelivery {
+  oneof msg {
+    Event event = 1;
+    // Sent when nothing else was sent for a few seconds; a stream without
+    // heartbeats is considered broken by the SDK.
+    google.protobuf.Timestamp heartbeat = 2;
+    // Events were removed after the retention period before the plugin
+    // read them: it must sync again fully through the API instead of
+    // silently missing data (concept 5.4a).
+    ResyncRequired resync_required = 3;
+  }
+}
+
+message ResyncRequired {
+  // Event types affected.
+  repeated string types = 1;
+}
+
+message Event {
+  // Unique per plugin; acknowledge with it.
+  int64 id = 1;
+  // "core.element.changed", "core.person.disabled", ... or a plugin's
+  // event ("acme.kanban.card.moved"). Types are versioned by name; new
+  // fields only ever get added.
+  string type = 2;
+  google.protobuf.Timestamp occurred_at = 3;
+  // Site the event happened on; empty for the main site.
+  string site = 4;
+  // Object the event is about; events of the same object come in the
+  // order of the changes.
+  ObjectRef object = 5;
+  Principal actor = 6;
+  string payload_json = 7;
+  // 1 for the first delivery; the SDK passes it on so plugins can see
+  // repeated deliveries.
+  int32 attempt = 8;
+  // Deliveries not acknowledged within this time are sent again (the
+  // limit "core.plugins.event_ack_seconds"); after
+  // "core.plugins.event_max_attempts" the event goes to the area
+  // "failed" of the administration, never away.
+  google.protobuf.Timestamp ack_deadline = 9;
+}
+
+message EnqueueRequest {
+  // Unique per plugin; a second entry with the same key is skipped
+  // without error (the answer says so).
+  string idempotency_key = 1;
+  // Entries with the same ordering key are processed strictly one after
+  // the other; others in parallel.
+  string ordering_key = 2;
+  oneof entry {
+    Notification notification = 3;
+    Mail mail = 4;
+    AuditEvent audit = 5;
+    PluginEvent event = 6;
+  }
+}
+
+message EnqueueResponse {
+  // False if an entry with this idempotency key already existed.
+  bool created = 1;
+}
+
+// Notification in the wiki (bell) and, depending on the person's
+// settings, by e-mail, push or a chat channel. Grant notify.send.
+message Notification {
+  repeated PersonRef people = 1;
+  repeated GroupRef groups = 2;
+  // Kind declared by the plugin ("<plugin-id>.<kind>"); people can switch
+  // kinds on and off per channel.
+  string kind = 3;
+  LocalizedText title = 4;
+  LocalizedText text = 5;
+  // Link inside the wiki.
+  string link = 6;
+  ObjectRef object = 7;
+}
+
+// E-mail through the wiki's mail queue (signing per the wiki's settings).
+// Grant mail.send. Recipients only as people or groups of the wiki, or
+// addresses the administrator allowed for the plugin.
+message Mail {
+  repeated PersonRef people = 1;
+  repeated GroupRef groups = 2;
+  repeated string addresses = 3;
+  LocalizedText subject = 4;
+  LocalizedText text = 5;
+  // Optional HTML; the host cleans it.
+  LocalizedText html = 6;
+  repeated FileData attachments = 7;
+}
+
+// AuditEvent for the wiki's audit log. Grant audit.write. The host adds
+// who, when and the plugin id; the action starts with the plugin id.
+message AuditEvent {
+  string action = 1;
+  ObjectRef object = 2;
+  // Details as a JSON object; fields marked secret are refused.
+  string detail_json = 3;
+}
+
+// PluginEvent: an event of the plugin (declared in the manifest) other
+// plugins, webhooks and workflows can subscribe to.
+message PluginEvent {
+  string type = 1;
+  ObjectRef object = 2;
+  string payload_json = 3;
+}
