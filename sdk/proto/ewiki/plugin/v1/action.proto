@@ -225,6 +225,25 @@ message Example {
   // A read action that shows the effect, run afterwards on every way;
   // the state must be the same after API, CLI and interface.
   string verify_action = 9;
+  // Uploads: the request is multipart/form-data with the text fields of
+  // form (in this order, placeholders allowed) followed by files. Not
+  // together with body_json.
+  repeated FormField form = 10;
+  repeated ExampleFile files = 11;
+}
+
+message FormField {
+  string name = 1;
+  string value = 2;
+}
+
+// A file of an example upload (small and made up, never real data).
+message ExampleFile {
+  string field = 1;        // form field, e.g. "file"
+  string name = 2;         // file name, e.g. "notes.txt"
+  string content_type = 3; // default application/octet-stream
+  string text = 4;         // content as text, or
+  string base64 = 5;       // content in base64 (binary files)
 }
 
 message Exception {

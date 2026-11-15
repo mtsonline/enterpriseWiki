@@ -209,9 +209,11 @@ ewiki smime show --help                     # Aufruf, Route und Recht eines Befe
 ewiki smime show 7 --as anna                # Pfad-Parameter als Argument, mit den Rechten von anna
 ewiki auth password-reset request --email anna@example.com
 ewiki ldap test --json @test.json           # Inhalt als JSON (Datei, inline oder - für stdin)
+ewiki file upload --file file=@notizen.txt  # Hochladen (multipart): --form NAME=WERT, --file FELD=@DATEI
 ```
 
 - Pfad-Parameter stehen als Argument oder als Option (`--id 7`), Felder von Abfrage und Inhalt als Optionen (`--email …`), soweit das Register sie beschreibt; sonst `--json` bzw. `--query NAME=WERT`.
+- Hochladen: `--form NAME=WERT` für Textfelder (in der angegebenen Reihenfolge) und `--file FELD=@DATEI` für Dateien; nicht zusammen mit `--json`.
 - Passwörter und andere Geheimnisse besser mit `--json -` über die Standardeingabe übergeben, nicht als Option (sie stünden sonst im Verlauf der Shell).
 - Handgeschriebene Befehle (`ewiki smime list` usw.) haben Vorrang und bleiben, wie sie sind.
 

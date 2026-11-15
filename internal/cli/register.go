@@ -1,12 +1,15 @@
 package cli
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
+	"mime/multipart"
 	"net/url"
 	"os"
+	"path/filepath"
 	"slices"
 	"sort"
 	"strconv"
@@ -117,7 +120,7 @@ func actionUsage(a actions.Action) string {
 		b.WriteString(" [--query NAME=VALUE]...")
 	}
 	if a.Method != "GET" && a.Method != "DELETE" {
-		b.WriteString(" [--json BODY|@FILE|-]")
+		b.WriteString(" [--json BODY|@FILE|-] [--form NAME=VALUE]... [--file FIELD=@PATH]...")
 	}
 	b.WriteString(" [--as USER]\n\n")
 	fmt.Fprintf(&b, "%s\n\n%s %s\n", a.Summary.In("en"), a.Method, a.FullPath())
@@ -141,6 +144,9 @@ func (e *env) runAction(a actions.Action, args []string) error {
 	fields := map[string]any{}
 	var rawBody []byte
 	as := ""
+	// uploads: text fields and files of a multipart body, in this order
+	var form [][2]string
+	var files [][2]string // field, path
 	var pos []string
 	for i := 0; i < len(args); i++ {
 		arg := args[i]
@@ -169,6 +175,18 @@ func (e *env) runAction(a actions.Action, args []string) error {
 				return err
 			}
 			rawBody = b
+		case name == "form" && a.Method != "GET" && a.Method != "DELETE":
+			k, v, ok := strings.Cut(val, "=")
+			if !ok || k == "" {
+				return errors.New("--form NAME=VALUE")
+			}
+			form = append(form, [2]string{k, v})
+		case name == "file" && a.Method != "GET" && a.Method != "DELETE":
+			k, v, ok := strings.Cut(val, "=@")
+			if !ok || k == "" || v == "" {
+				return errors.New("--file FIELD=@PATH")
+			}
+			files = append(files, [2]string{k, v})
 		case name == "query" && len(query) == 0:
 			k, v, ok := strings.Cut(val, "=")
 			if !ok {
@@ -228,6 +246,16 @@ func (e *env) runAction(a actions.Action, args []string) error {
 			return err
 		}
 		rawBody = b
+	}
+	if len(form) > 0 || len(files) > 0 {
+		if rawBody != nil {
+			return errors.New("give either a JSON body (--json, options) or an upload (--form, --file), not both")
+		}
+		body, ct, err := multipartBody(form, files)
+		if err != nil {
+			return err
+		}
+		return e.apiBodyType(a.Method, p, body, ct, as)
 	}
 	return e.apiBody(a.Method, p, rawBody, as)
 }
@@ -290,4 +318,33 @@ func RunAction(id string, args []string, stdin io.Reader, stdout, stderr io.Writ
 		return 1
 	}
 	return 0
+}
+
+// multipartBody builds a multipart/form-data body: the text fields in the
+// given order, then the files (uploads of generated commands).
+func multipartBody(form, files [][2]string) ([]byte, string, error) {
+	var buf bytes.Buffer
+	w := multipart.NewWriter(&buf)
+	for _, f := range form {
+		if err := w.WriteField(f[0], f[1]); err != nil {
+			return nil, "", err
+		}
+	}
+	for _, f := range files {
+		data, err := os.ReadFile(f[1]) // #nosec G304 -- a file the person names on their own command line
+		if err != nil {
+			return nil, "", err
+		}
+		part, err := w.CreateFormFile(f[0], filepath.Base(f[1]))
+		if err != nil {
+			return nil, "", err
+		}
+		if _, err := part.Write(data); err != nil {
+			return nil, "", err
+		}
+	}
+	if err := w.Close(); err != nil {
+		return nil, "", err
+	}
+	return buf.Bytes(), w.FormDataContentType(), nil
 }

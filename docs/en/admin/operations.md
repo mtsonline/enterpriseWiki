@@ -209,9 +209,11 @@ ewiki smime show --help                     # usage, route and permission of a c
 ewiki smime show 7 --as anna                # path parameter as an argument, with the permissions of anna
 ewiki auth password-reset request --email anna@example.com
 ewiki ldap test --json @test.json           # body as JSON (file, inline or - for stdin)
+ewiki file upload --file file=@notes.txt    # upload (multipart): --form NAME=VALUE, --file FIELD=@FILE
 ```
 
 - Path parameters are arguments or options (`--id 7`), fields of query and body are options (`--email …`) where the register describes them; otherwise `--json` or `--query NAME=VALUE`.
+- Uploads: `--form NAME=VALUE` for text fields (in the given order) and `--file FIELD=@FILE` for files; not together with `--json`.
 - Pass passwords and other secrets with `--json -` on standard input rather than as an option (they would end up in the shell history).
 - Hand-written commands (`ewiki smime list` etc.) take precedence and stay as they are.
 
