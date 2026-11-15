@@ -280,3 +280,39 @@ func TestIdentityCLI(t *testing.T) {
 		t.Fatalf("identities: %d %s", code, out)
 	}
 }
+
+// TestPrimaryEmailRowOrder: changing the primary address works whatever
+// the order of the rows in the table (one UPDATE moving the flag met the
+// unique index half way and answered 500).
+func TestPrimaryEmailRowOrder(t *testing.T) {
+	e := setup(t)
+	admin := e.client()
+	admin.login("admin", adminPW)
+	var u struct {
+		ID int64 `json:"id"`
+	}
+	admin.must("POST", "/api/v1/admin/users", map[string]any{"username": "olav", "password": "Olav-Passw0rd!x", "display_name": "Olav", "email": "olav@example.org"}, &u, 201)
+	var second emailRow
+	admin.must("POST", "/api/v1/admin/users/"+strconv.FormatInt(u.ID, 10)+"/emails", map[string]any{"email": "olav.two@example.org", "verified": true}, &second, 201)
+	// move the current primary address behind the new one in the table
+	ctx := context.Background()
+	if _, err := e.app.DB.Exec(ctx, `UPDATE user_emails SET email=email WHERE user_id=$1 AND is_primary`, u.ID); err != nil {
+		t.Fatal(err)
+	}
+	admin.must("POST", "/api/v1/admin/users/"+strconv.FormatInt(u.ID, 10)+"/emails/"+strconv.FormatInt(second.ID, 10)+"/primary", nil, nil, 204)
+	var list []emailRow
+	admin.must("GET", "/api/v1/admin/users/"+strconv.FormatInt(u.ID, 10)+"/emails", nil, &list, 200)
+	for _, m := range list {
+		if m.Primary != (m.ID == second.ID) {
+			t.Fatalf("primary after the change: %+v", list)
+		}
+	}
+	// and back again through the address given by the administrator
+	admin.must("PUT", "/api/v1/admin/users/"+strconv.FormatInt(u.ID, 10), map[string]any{"email": "olav@example.org"}, nil, 200)
+	admin.must("GET", "/api/v1/admin/users/"+strconv.FormatInt(u.ID, 10)+"/emails", nil, &list, 200)
+	for _, m := range list {
+		if m.Primary != (m.Email == "olav@example.org") {
+			t.Fatalf("primary after setting it back: %+v", list)
+		}
+	}
+}

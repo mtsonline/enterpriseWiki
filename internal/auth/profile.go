@@ -109,10 +109,11 @@ func (s *Service) Profile(ctx context.Context, uid int64) (map[string]string, er
 }
 
 // SetProfile replaces the given fields of a profile (empty = remove). The
-// caller must be the user or an administrator.
+// caller must be the user or manage accounts (core.users.manage, which
+// also changes names, addresses and passwords).
 func (s *Service) SetProfile(ctx context.Context, uid int64, in map[string]string) (map[string]string, error) {
 	p := identity.From(ctx)
-	if p == nil || (p.UserID != uid && !p.Admin()) {
+	if p == nil || (p.UserID != uid && !perm.HasP(p, "core.users.manage")) {
 		return nil, apperr.ErrForbidden
 	}
 	if p.UserID != uid {

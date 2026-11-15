@@ -30,6 +30,9 @@ actions:
     public: true
     cli: {command: [auth, providers]}
     ui: {entry: /login}
+    examples:
+      - name: default
+        as: guest
   - id: core.auth.me
     category: CATEGORY_ACTION
     method: GET
@@ -41,6 +44,12 @@ actions:
     public: true
     cli: {command: [auth, me]}
     ui: {entry: /profile}
+    examples:
+      - name: default
+        as: self
+        expect_json: '{"user": {"username": "${self.name}"}}'
+      - name: guest
+        as: guest
   - id: core.auth.ssh.challenge
     category: CATEGORY_PROTOCOL
     method: POST
@@ -212,6 +221,10 @@ actions:
     safety: {changes: true}
     cli: {command: [me, update]}
     ui: {entry: /profile}
+    examples:
+      - name: default
+        as: self
+        body_json: '{"display_name": "My New Name"}'
   - id: core.me.prefs
     category: CATEGORY_ACTION
     method: GET
@@ -223,6 +236,9 @@ actions:
     signed_in: true
     cli: {command: [pref, list], builtin: true}
     ui: {entry: /profile}
+    examples:
+      - name: default
+        as: self
   - id: core.me.password
     category: CATEGORY_ACTION
     method: PUT
@@ -235,6 +251,15 @@ actions:
     safety: {changes: true}
     cli: {command: [me, password]}
     ui: {entry: /profile}
+    examples:
+      - name: default
+        as: self
+        body_json: '{"current": "${self.password}", "new": "Another-Passw0rd!${unique}"}'
+        status: 204
+      - name: wrong_current
+        as: self
+        body_json: '{"current": "not-my-password", "new": "Another-Passw0rd!${unique}"}'
+        status: 400
   - id: core.me.alias
     category: CATEGORY_ACTION
     method: PUT
@@ -247,6 +272,10 @@ actions:
     safety: {changes: true}
     cli: {command: [me, alias]}
     ui: {entry: /profile}
+    examples:
+      - name: default
+        as: self
+        body_json: '{"alias": "me${unique}"}'
   - id: core.me.api_keys.list
     category: CATEGORY_ACTION
     method: GET
@@ -258,6 +287,9 @@ actions:
     signed_in: true
     cli: {command: [me, api-keys, list]}
     ui: {entry: /profile}
+    examples:
+      - name: default
+        as: self
   - id: core.me.api_keys.create
     category: CATEGORY_ACTION
     method: POST
@@ -270,6 +302,14 @@ actions:
     safety: {changes: true}
     cli: {command: [me, api-keys, create]}
     ui: {entry: /profile}
+    examples:
+      - name: default
+        as: self
+        body_json: '{"name": "Example key", "permissions": 1}'
+        status: 201
+      - name: admin
+        body_json: '{"name": "Admin key ${unique}", "permissions": 1}'
+        status: 201
   - id: core.me.api_keys.delete
     category: CATEGORY_ACTION
     method: DELETE
@@ -282,6 +322,12 @@ actions:
     safety: {changes: true}
     cli: {command: [me, api-keys, delete], args: [id]}
     ui: {entry: /profile}
+    examples:
+      - name: default
+        given: ['core.me.api_keys.create#default']
+        as: self
+        path_params_json: '{"id": "${given.core.me.api_keys.create#default.id}"}'
+        status: 204
   - id: core.me.api_keys.rate
     category: CATEGORY_ACTION
     method: PUT
@@ -294,6 +340,13 @@ actions:
     safety: {changes: true}
     cli: {command: [me, api-keys, rate], args: [id]}
     ui: {entry: /profile}
+    examples:
+      - name: default
+        given: ['core.me.api_keys.create#default']
+        as: self
+        path_params_json: '{"id": "${given.core.me.api_keys.create#default.id}"}'
+        body_json: '{"rate_per_second": 5}'
+        status: 204
   - id: core.me.ssh_keys.list
     category: CATEGORY_ACTION
     method: GET
@@ -305,6 +358,9 @@ actions:
     signed_in: true
     cli: {command: [me, ssh-keys, list]}
     ui: {entry: /profile}
+    examples:
+      - name: default
+        as: self
   - id: core.me.ssh_keys.add
     category: CATEGORY_ACTION
     method: POST
@@ -317,6 +373,11 @@ actions:
     safety: {changes: true}
     cli: {command: [me, ssh-keys, add]}
     ui: {entry: /profile}
+    examples:
+      - name: default
+        as: self
+        body_json: '{"name": "Laptop", "public_key": "${ssh_key}"}'
+        status: 201
   - id: core.me.ssh_keys.delete
     category: CATEGORY_ACTION
     method: DELETE
@@ -329,6 +390,12 @@ actions:
     safety: {changes: true}
     cli: {command: [me, ssh-keys, delete], args: [id]}
     ui: {entry: /profile}
+    examples:
+      - name: default
+        given: ['core.me.ssh_keys.add#default']
+        as: self
+        path_params_json: '{"id": "${given.core.me.ssh_keys.add#default.id}"}'
+        status: 204
   - id: core.me.emails.list
     category: CATEGORY_ACTION
     method: GET
@@ -340,6 +407,9 @@ actions:
     signed_in: true
     cli: {command: [me, emails, list]}
     ui: {entry: /profile}
+    examples:
+      - name: default
+        as: self
   - id: core.me.emails.add
     category: CATEGORY_ACTION
     method: POST
@@ -352,6 +422,11 @@ actions:
     safety: {changes: true}
     cli: {command: [me, emails, add]}
     ui: {entry: /profile}
+    examples:
+      - name: default
+        as: self
+        body_json: '{"email": "mine${unique}@example.com"}'
+        status: 201
   - id: core.me.emails.resend
     category: CATEGORY_ACTION
     method: POST
@@ -364,6 +439,12 @@ actions:
     safety: {changes: true}
     cli: {command: [me, emails, resend], args: [id]}
     ui: {entry: /profile}
+    examples:
+      - name: default
+        given: ['core.me.emails.add#default']
+        as: self
+        path_params_json: '{"id": "${given.core.me.emails.add#default.id}"}'
+        status: 204
   - id: core.me.emails.primary
     category: CATEGORY_ACTION
     method: POST
@@ -376,6 +457,11 @@ actions:
     safety: {changes: true}
     cli: {command: [me, emails, primary], args: [id]}
     ui: {entry: /profile}
+    examples:
+      - name: default
+        given: ['core.users.emails.add#self_verified']
+        as: self
+        path_params_json: '{"id": "${given.core.users.emails.add#self_verified.id}"}'
   - id: core.me.emails.remove
     category: CATEGORY_ACTION
     method: DELETE
@@ -388,6 +474,12 @@ actions:
     safety: {changes: true}
     cli: {command: [me, emails, remove], args: [id]}
     ui: {entry: /profile}
+    examples:
+      - name: default
+        given: ['core.users.emails.add#self_verified', 'core.me.emails.add#default']
+        as: self
+        path_params_json: '{"id": "${given.core.me.emails.add#default.id}"}'
+        status: 204
   - id: core.me.identities.list
     category: CATEGORY_ACTION
     method: GET
@@ -399,6 +491,9 @@ actions:
     signed_in: true
     cli: {command: [me, identities, list]}
     ui: {entry: /profile}
+    examples:
+      - name: default
+        as: self
   - id: core.me.identities.unlink
     category: CATEGORY_ACTION
     method: DELETE
@@ -434,6 +529,9 @@ actions:
     signed_in: true
     cli: {command: [me, feed-token, show]}
     ui: {entry: /profile}
+    examples:
+      - name: default
+        as: self
   - id: core.me.feed_token.renew
     category: CATEGORY_ACTION
     method: POST
@@ -446,6 +544,9 @@ actions:
     safety: {changes: true}
     cli: {command: [me, feed-token, renew]}
     ui: {entry: /profile}
+    examples:
+      - name: default
+        as: self
   - id: core.me.feed_token.delete
     category: CATEGORY_ACTION
     method: DELETE
@@ -458,6 +559,11 @@ actions:
     safety: {changes: true}
     cli: {command: [me, feed-token, delete]}
     ui: {entry: /profile}
+    examples:
+      - name: default
+        given: ['core.me.feed_token.renew#default']
+        as: self
+        status: 204
   - id: core.me.watches.list
     category: CATEGORY_ACTION
     method: GET
@@ -469,6 +575,9 @@ actions:
     signed_in: true
     cli: {command: [watch, list], builtin: true}
     ui: {entry: /profile}
+    examples:
+      - name: default
+        as: self
   - id: core.me.watches.set
     category: CATEGORY_ACTION
     method: PUT
@@ -481,6 +590,11 @@ actions:
     safety: {changes: true}
     cli: {command: [watch, add], builtin: true}
     ui: {entry: /profile}
+    examples:
+      - name: default
+        given: ['core.categories.create#default', 'core.categories.acl.add#self_view']
+        as: self
+        body_json: '{"target_type": "category", "target_id": ${given.core.categories.create#default.id}, "mode": "link", "frequency": "weekly"}'
   - id: core.me.watches.remove
     category: CATEGORY_ACTION
     method: DELETE
@@ -493,6 +607,12 @@ actions:
     safety: {changes: true}
     cli: {command: [watch, remove], builtin: true}
     ui: {entry: /profile}
+    examples:
+      - name: default
+        given: ['core.me.watches.set#default']
+        as: self
+        path_params_json: '{"id": "${given.core.me.watches.set#default.id}"}'
+        status: 204
   - id: core.me.watch_assignments.list
     category: CATEGORY_ACTION
     method: GET
@@ -504,6 +624,10 @@ actions:
     signed_in: true
     cli: {command: [me, watch-assignments, list]}
     ui: {entry: /profile}
+    examples:
+      - name: default
+        given: ['core.watches.assign.add#to_self']
+        as: self
   - id: core.me.watch_assignments.set
     category: CATEGORY_ACTION
     method: PUT
@@ -516,6 +640,12 @@ actions:
     safety: {changes: true}
     cli: {command: [me, watch-assignments, set], args: [id]}
     ui: {entry: /profile}
+    examples:
+      - name: default
+        given: ['core.watches.assign.add#to_self']
+        as: self
+        path_params_json: '{"id": "${given.core.watches.assign.add#to_self.id}"}'
+        body_json: '{"subscribed": false}'
   - id: core.me.notifications.show
     category: CATEGORY_ACTION
     method: GET
@@ -527,6 +657,9 @@ actions:
     signed_in: true
     cli: {command: [me, notifications, show]}
     ui: {entry: /profile}
+    examples:
+      - name: default
+        as: self
   - id: core.me.notifications.set
     category: CATEGORY_ACTION
     method: PUT
@@ -539,6 +672,11 @@ actions:
     safety: {changes: true}
     cli: {command: [me, notifications, set]}
     ui: {entry: /profile}
+    examples:
+      - name: default
+        as: self
+        body_json: '{"share": false}'
+        status: 204
   - id: core.me.inbox.list
     category: CATEGORY_ACTION
     method: GET
@@ -550,6 +688,10 @@ actions:
     signed_in: true
     cli: {command: [inbox, list], builtin: true}
     ui: {entry: /}
+    examples:
+      - name: default
+        given: ['core.share.send#to_self']
+        as: self
   - id: core.me.inbox.read
     category: CATEGORY_ACTION
     method: POST
@@ -562,6 +704,11 @@ actions:
     safety: {changes: true}
     cli: {command: [inbox, read], builtin: true}
     ui: {entry: /}
+    examples:
+      - name: default
+        given: ['core.share.send#to_self']
+        as: self
+        body_json: '{"ids": []}'
   - id: core.me.inbox.delete
     category: CATEGORY_ACTION
     method: DELETE
@@ -574,6 +721,12 @@ actions:
     safety: {changes: true}
     cli: {command: [me, inbox, delete], args: [id]}
     ui: {entry: /}
+    examples:
+      - name: default
+        given: ['core.share.send#to_self', 'core.me.inbox.list#default']
+        as: self
+        path_params_json: '{"id": "${given.core.me.inbox.list#default.items.0.id}"}'
+        status: 204
   - id: core.me.profile.show
     category: CATEGORY_ACTION
     method: GET
@@ -585,6 +738,9 @@ actions:
     signed_in: true
     cli: {command: [me, profile, show]}
     ui: {entry: /profile}
+    examples:
+      - name: default
+        as: self
   - id: core.me.profile.set
     category: CATEGORY_ACTION
     method: PUT
@@ -597,6 +753,10 @@ actions:
     safety: {changes: true}
     cli: {command: [me, profile, set]}
     ui: {entry: /profile}
+    examples:
+      - name: default
+        as: self
+        body_json: '{"phone": "+43 1 234 567"}'
   - id: core.me.sessions.list
     category: CATEGORY_ACTION
     method: GET
@@ -608,6 +768,9 @@ actions:
     signed_in: true
     cli: {command: [me, sessions, list]}
     ui: {entry: /profile}
+    examples:
+      - name: default
+        as: self
   - id: core.me.sessions.end_others
     category: CATEGORY_ACTION
     method: DELETE
@@ -620,6 +783,10 @@ actions:
     safety: {changes: true}
     cli: {command: [me, sessions, end-others]}
     ui: {entry: /profile}
+    examples:
+      - name: default
+        as: self
+        status: 204
   - id: core.me.sessions.end
     category: CATEGORY_ACTION
     method: DELETE
@@ -632,6 +799,12 @@ actions:
     safety: {changes: true}
     cli: {command: [me, sessions, end], args: [id]}
     ui: {entry: /profile}
+    examples:
+      - name: default
+        given: ['core.me.sessions.list#default']
+        as: self
+        path_params_json: '{"id": "${given.core.me.sessions.list#default.0.id}"}'
+        status: 204
   - id: core.me.mfa
     category: CATEGORY_ACTION
     method: GET
@@ -643,6 +816,9 @@ actions:
     signed_in: true
     cli: {command: [me, mfa]}
     ui: {entry: /profile}
+    examples:
+      - name: default
+        as: self
   - id: core.me.mfa.setup.begin
     category: CATEGORY_ACTION
     method: POST

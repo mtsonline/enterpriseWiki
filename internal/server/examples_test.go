@@ -4,7 +4,9 @@ import (
 	"bufio"
 	"bytes"
 	"context"
+	"crypto/ed25519"
 	"encoding/base64"
+	"encoding/binary"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -31,6 +33,7 @@ import (
 const examplesMissing = "../actions/examples-missing.txt"
 
 var (
+	personRe  = regexp.MustCompile(`\$\{(self|other)\.([a-z]+)\}`)
 	givenRe   = regexp.MustCompile(`\$\{given\.([^#}]+#[^.}]+)\.([^}]+)\}`)
 	httpErrRe = regexp.MustCompile(`HTTP (\d{3})`)
 )
@@ -150,9 +153,15 @@ func (r *exampleRunner) run(a actions.Action, ex actions.Example) {
 	}
 	for _, way := range []string{"api", "cli"} {
 		vars := map[string]any{}
+		if ex.As == "self" { // a fresh account of its own; its givens run as it too
+			vars[selfKey] = r.person()
+		}
 		r.given(ex.Given, vars, 0)
 		path, query, body, up := r.request(a, ex, vars)
 		who := r.who(a, ex, path, query, body)
+		if ex.As == "self" {
+			who = vars[selfKey].(*person).who
+		}
 		res := r.do(way, a, who, path, query, body, up)
 		if (want < 300) != res.ok || (way == "api" && want != 0 && res.status != want) || (way == "cli" && !res.ok && res.status != want) {
 			t.Fatalf("%s: status %d (ok=%v), want %d: %s", way, res.status, res.ok, want, res.raw)
@@ -203,7 +212,15 @@ func (r *exampleRunner) given(refs []string, vars map[string]any, depth int) {
 		}
 		r.given(ex.Given, vars, depth+1)
 		path, query, body, up := r.request(a, *ex, vars)
-		res := r.do("api", a, who{cl: r.admin, name: "admin"}, path, query, body, up)
+		w := who{cl: r.admin, name: "admin"}
+		if ex.As == "self" {
+			p, ok := vars[selfKey].(*person)
+			if !ok {
+				t.Fatalf("given %s runs as self: the example needs as: self", ref)
+			}
+			w = p.who
+		}
+		res := r.do("api", a, w, path, query, body, up)
 		if !res.ok {
 			t.Fatalf("given %s: %d %s", ref, res.status, res.raw)
 		}
@@ -303,8 +320,28 @@ func (u *upload) encode() ([]byte, string) {
 	return buf.Bytes(), w.FormDataContentType()
 }
 
-// subst fills in ${given.REF.FIELD} and ${unique}.
+// subst fills in ${given.REF.FIELD}, ${self.FIELD}, ${other.FIELD} and
+// ${unique}.
 func (r *exampleRunner) subst(s string, vars map[string]any) string {
+	s = personRe.ReplaceAllStringFunc(s, func(m string) string {
+		sm := personRe.FindStringSubmatch(m)
+		key := map[string]string{"self": selfKey, "other": otherKey}[sm[1]]
+		p, ok := vars[key].(*person)
+		if !ok { // run on its own (not as a given of an example as self)
+			p = r.person()
+			vars[key] = p
+		}
+		switch sm[2] {
+		case "id":
+			return fmt.Sprint(p.id)
+		case "name":
+			return p.name
+		case "password":
+			return p.password
+		}
+		r.t.Fatalf("%s: id, name or password", m)
+		return ""
+	})
 	s = givenRe.ReplaceAllStringFunc(s, func(m string) string {
 		p := givenRe.FindStringSubmatch(m)
 		res, ok := vars[p[1]]
@@ -336,6 +373,18 @@ func (r *exampleRunner) subst(s string, vars map[string]any) string {
 		}
 		return fmt.Sprint(v)
 	})
+	for strings.Contains(s, "${ssh_key}") { // a fresh public key (keys are unique)
+		pub, _, err := ed25519.GenerateKey(nil)
+		if err != nil {
+			r.t.Fatal(err)
+		}
+		var blob []byte
+		for _, part := range [][]byte{[]byte("ssh-ed25519"), pub} {
+			blob = binary.BigEndian.AppendUint32(blob, uint32(len(part))) // #nosec G115 -- short constant parts
+			blob = append(blob, part...)
+		}
+		s = strings.Replace(s, "${ssh_key}", "ssh-ed25519 "+base64.StdEncoding.EncodeToString(blob)+" example@ewiki", 1)
+	}
 	for strings.Contains(s, "${unique_lang}") { // ISO 639-2 codes for local use (qaa–qtz)
 		r.unique++
 		n := r.unique % (20 * 26)
@@ -361,6 +410,8 @@ func (r *exampleRunner) who(a actions.Action, ex actions.Example, path string, q
 		return who{cl: r.admin, name: "admin"}
 	case "guest":
 		return who{cl: r.e.client()}
+	case "self":
+		return who{} // replaced by the account of the example
 	case "outsider":
 		return r.outsider()
 	case "member":
@@ -394,6 +445,26 @@ func (r *exampleRunner) who(a actions.Action, ex actions.Example, path string, q
 	}
 	cl.login(name, "Example-Passw0rd!"+name) // after the grants: the session carries them
 	return who{cl: cl, name: name}
+}
+
+// person is a signed-in account with no permissions of its own: the
+// account of an example as self, or another person (${other.…}).
+type person struct {
+	who
+	id             int64
+	name, password string
+}
+
+const (
+	selfKey  = "\x00self" // keys in vars beside the given references
+	otherKey = "\x00other"
+)
+
+func (r *exampleRunner) person() *person {
+	name, cl := r.user()
+	pw := "Example-Passw0rd!" + name
+	cl.login(name, pw)
+	return &person{who: who{cl: cl, name: name}, id: r.userID(name), name: name, password: pw}
 }
 
 func (r *exampleRunner) outsider() who {

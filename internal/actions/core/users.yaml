@@ -11,6 +11,11 @@ actions:
     permission: {key: core.users.manage, scope: SCOPE_GLOBAL}
     cli: {command: [user, list], builtin: true}
     ui: {entry: /admin/users}
+    examples:
+      - name: default
+        given: ['core.users.create#default']
+        as: member
+        query_json: '{"q": "${given.core.users.create#default.username}"}'
   - id: core.users.create
     category: CATEGORY_ACTION
     method: POST
@@ -39,6 +44,12 @@ actions:
     permission: {key: core.users.manage, scope: SCOPE_GLOBAL}
     cli: {command: [user, show], args: [id]}
     ui: {entry: /admin/users}
+    examples:
+      - name: default
+        given: ['core.users.create#default']
+        as: member
+        path_params_json: '{"id": "${given.core.users.create#default.id}"}'
+        expect_json: '{"username": "${given.core.users.create#default.username}"}'
   - id: core.users.update
     category: CATEGORY_ACTION
     method: PUT
@@ -51,6 +62,13 @@ actions:
     safety: {changes: true}
     cli: {command: [user, update], args: [id]}
     ui: {entry: /admin/users}
+    examples:
+      - name: default
+        given: ['core.users.create#default']
+        as: member
+        path_params_json: '{"id": "${given.core.users.create#default.id}"}'
+        body_json: '{"display_name": "Renamed User"}'
+        expect_json: '{"display_name": "Renamed User"}'
   - id: core.users.delete
     category: CATEGORY_ACTION
     method: DELETE
@@ -63,6 +81,12 @@ actions:
     safety: {changes: true}
     cli: {command: [user, delete], args: [id]}
     ui: {entry: /admin/users}
+    examples:
+      - name: default
+        given: ['core.users.create#default']
+        as: member
+        path_params_json: '{"id": "${given.core.users.create#default.id}"}'
+        status: 204
   - id: core.users.invite
     category: CATEGORY_ACTION
     method: POST
@@ -75,6 +99,10 @@ actions:
     safety: {changes: true}
     cli: {command: [user, invite], builtin: true}
     ui: {entry: /admin/users}
+    examples:
+      - name: default
+        as: member
+        body_json: '{"email": "invited${unique}@example.com", "display_name": "Invited Person"}'
   - id: core.users.alias
     category: CATEGORY_ACTION
     method: PUT
@@ -87,6 +115,12 @@ actions:
     safety: {changes: true}
     cli: {command: [user, alias], builtin: true}
     ui: {entry: /admin/users}
+    examples:
+      - name: default
+        given: ['core.users.create#default']
+        as: member
+        path_params_json: '{"id": "${given.core.users.create#default.id}"}'
+        body_json: '{"alias": "alias${unique}"}'
   - id: core.users.emails.list
     category: CATEGORY_ACTION
     method: GET
@@ -98,6 +132,11 @@ actions:
     permission: {key: core.users.manage, scope: SCOPE_GLOBAL}
     cli: {command: [user, emails], builtin: true}
     ui: {entry: /admin/users}
+    examples:
+      - name: default
+        given: ['core.users.create#default']
+        as: member
+        path_params_json: '{"id": "${given.core.users.create#default.id}"}'
   - id: core.users.emails.add
     category: CATEGORY_ACTION
     method: POST
@@ -110,6 +149,15 @@ actions:
     safety: {changes: true}
     cli: {command: [user, email-add], builtin: true}
     ui: {entry: /admin/users}
+    examples:
+      - name: default
+        given: ['core.users.create#default']
+        as: member
+        path_params_json: '{"id": "${given.core.users.create#default.id}"}'
+        body_json: '{"email": "extra${unique}@example.com", "verified": true}'
+      - name: self_verified
+        path_params_json: '{"id": "${self.id}"}'
+        body_json: '{"email": "self${unique}@example.com", "verified": true}'
   - id: core.users.emails.primary
     category: CATEGORY_ACTION
     method: POST
@@ -122,6 +170,11 @@ actions:
     safety: {changes: true}
     cli: {command: [user, email-primary], builtin: true}
     ui: {entry: /admin/users}
+    examples:
+      - name: default
+        given: ['core.users.create#default', 'core.users.emails.add#default']
+        as: member
+        path_params_json: '{"id": "${given.core.users.create#default.id}", "eid": "${given.core.users.emails.add#default.id}"}'
   - id: core.users.emails.remove
     category: CATEGORY_ACTION
     method: DELETE
@@ -134,6 +187,12 @@ actions:
     safety: {changes: true}
     cli: {command: [user, email-remove], builtin: true}
     ui: {entry: /admin/users}
+    examples:
+      - name: default
+        given: ['core.users.create#default', 'core.users.emails.add#default']
+        as: member
+        path_params_json: '{"id": "${given.core.users.create#default.id}", "eid": "${given.core.users.emails.add#default.id}"}'
+        status: 204
   - id: core.users.identities.list
     category: CATEGORY_ACTION
     method: GET
@@ -145,6 +204,11 @@ actions:
     permission: {key: core.users.manage, scope: SCOPE_GLOBAL}
     cli: {command: [user, identities], builtin: true}
     ui: {entry: /admin/users}
+    examples:
+      - name: default
+        given: ['core.users.create#default']
+        as: member
+        path_params_json: '{"id": "${given.core.users.create#default.id}"}'
   - id: core.users.identities.unlink
     category: CATEGORY_ACTION
     method: DELETE
@@ -168,6 +232,11 @@ actions:
     permission: {key: core.users.manage, scope: SCOPE_GLOBAL}
     cli: {command: [user, profile, show], args: [id]}
     ui: {entry: /admin/users}
+    examples:
+      - name: default
+        given: ['core.users.create#default']
+        as: member
+        path_params_json: '{"id": "${given.core.users.create#default.id}"}'
   - id: core.users.profile.set
     category: CATEGORY_ACTION
     method: PUT
@@ -180,6 +249,12 @@ actions:
     safety: {changes: true}
     cli: {command: [user, profile, set], args: [id]}
     ui: {entry: /admin/users}
+    examples:
+      - name: default
+        given: ['core.users.create#default']
+        as: member
+        path_params_json: '{"id": "${given.core.users.create#default.id}"}'
+        body_json: '{"phone": "+43 1 234 567"}'
   - id: core.users.sessions.list
     category: CATEGORY_ACTION
     method: GET
@@ -191,6 +266,12 @@ actions:
     permission: {key: core.users.manage, scope: SCOPE_GLOBAL}
     cli: {command: [user, sessions], builtin: true}
     ui: {entry: /admin/users}
+    examples:
+      - name: default
+        as: member
+        path_params_json: '{"id": "${other.id}"}'
+      - name: other
+        path_params_json: '{"id": "${other.id}"}'
   - id: core.users.sessions.end_all
     category: CATEGORY_ACTION
     method: DELETE
@@ -203,6 +284,11 @@ actions:
     safety: {changes: true}
     cli: {command: [user, logout], builtin: true}
     ui: {entry: /admin/users}
+    examples:
+      - name: default
+        as: member
+        path_params_json: '{"id": "${other.id}"}'
+        status: 204
   - id: core.users.sessions.end
     category: CATEGORY_ACTION
     method: DELETE
@@ -215,6 +301,12 @@ actions:
     safety: {changes: true}
     cli: {command: [user, logout], builtin: true}
     ui: {entry: /admin/users}
+    examples:
+      - name: default
+        given: ['core.users.sessions.list#other']
+        as: member
+        path_params_json: '{"id": "${other.id}", "sid": "${given.core.users.sessions.list#other.0.id}"}'
+        status: 204
   - id: core.groups.create
     category: CATEGORY_ACTION
     method: POST
@@ -227,6 +319,10 @@ actions:
     safety: {changes: true}
     cli: {command: [group, create]}
     ui: {entry: /admin/groups}
+    examples:
+      - name: default
+        as: member
+        body_json: '{"name": "Group ${unique}", "description": "Example group"}'
   - id: core.groups.update
     category: CATEGORY_ACTION
     method: PUT
@@ -239,6 +335,12 @@ actions:
     safety: {changes: true}
     cli: {command: [group, update], args: [id]}
     ui: {entry: /admin/groups}
+    examples:
+      - name: default
+        given: ['core.groups.create#default']
+        as: member
+        path_params_json: '{"id": "${given.core.groups.create#default.id}"}'
+        body_json: '{"name": "Renamed ${unique}", "description": "Changed"}'
   - id: core.groups.delete
     category: CATEGORY_ACTION
     method: DELETE
@@ -251,6 +353,12 @@ actions:
     safety: {changes: true}
     cli: {command: [group, delete], args: [id]}
     ui: {entry: /admin/groups}
+    examples:
+      - name: default
+        given: ['core.groups.create#default']
+        as: member
+        path_params_json: '{"id": "${given.core.groups.create#default.id}"}'
+        status: 204
   - id: core.groups.members.list
     category: CATEGORY_ACTION
     method: GET
@@ -262,6 +370,11 @@ actions:
     permission: {key: core.groups.manage, scope: SCOPE_GLOBAL}
     cli: {command: [group, members, list], args: [id]}
     ui: {entry: /admin/groups}
+    examples:
+      - name: default
+        given: ['core.groups.create#default']
+        as: member
+        path_params_json: '{"id": "${given.core.groups.create#default.id}"}'
   - id: core.groups.members.add
     category: CATEGORY_ACTION
     method: PUT
@@ -274,6 +387,12 @@ actions:
     safety: {changes: true}
     cli: {command: [group, members, add], args: [id, user]}
     ui: {entry: /admin/groups}
+    examples:
+      - name: default
+        given: ['core.groups.create#default', 'core.users.create#default']
+        as: member
+        path_params_json: '{"id": "${given.core.groups.create#default.id}", "user": "${given.core.users.create#default.id}"}'
+        expect_json: '{"changed": true}'
   - id: core.groups.members.remove
     category: CATEGORY_ACTION
     method: DELETE
@@ -286,6 +405,12 @@ actions:
     safety: {changes: true}
     cli: {command: [group, members, remove], args: [id, user]}
     ui: {entry: /admin/groups}
+    examples:
+      - name: default
+        given: ['core.groups.create#default', 'core.users.create#default', 'core.groups.members.add#default']
+        as: member
+        path_params_json: '{"id": "${given.core.groups.create#default.id}", "user": "${given.core.users.create#default.id}"}'
+        expect_json: '{"changed": true}'
   - id: core.roles.create
     category: CATEGORY_ACTION
     method: POST
@@ -298,6 +423,14 @@ actions:
     safety: {changes: true}
     cli: {command: [role, create]}
     ui: {entry: /admin/roles}
+    examples:
+      - name: default
+        as: member
+        body_json: '{"name": "Role ${unique}", "description": "Example role", "permissions": []}'
+      - name: escalation
+        as: member
+        body_json: '{"name": "Role ${unique}", "permissions": ["core.users.manage"]}'
+        status: 403
   - id: core.roles.update
     category: CATEGORY_ACTION
     method: PUT
@@ -310,6 +443,12 @@ actions:
     safety: {changes: true}
     cli: {command: [role, update], args: [id]}
     ui: {entry: /admin/roles}
+    examples:
+      - name: default
+        given: ['core.roles.create#default']
+        as: member
+        path_params_json: '{"id": "${given.core.roles.create#default.id}"}'
+        body_json: '{"name": "Renamed ${unique}", "permissions": []}'
   - id: core.roles.delete
     category: CATEGORY_ACTION
     method: DELETE
@@ -322,6 +461,12 @@ actions:
     safety: {changes: true}
     cli: {command: [role, delete], args: [id]}
     ui: {entry: /admin/roles}
+    examples:
+      - name: default
+        given: ['core.roles.create#default']
+        as: member
+        path_params_json: '{"id": "${given.core.roles.create#default.id}"}'
+        status: 204
   - id: core.permissions.global
     category: CATEGORY_ACTION
     method: GET
@@ -333,6 +478,9 @@ actions:
     permission: {key: core.roles.manage, scope: SCOPE_GLOBAL}
     cli: {command: [perm, catalog]}
     ui: {entry: /admin/permissions}
+    examples:
+      - name: default
+        as: member
   - id: core.permissions.defaults
     category: CATEGORY_ACTION
     method: PUT
@@ -345,6 +493,10 @@ actions:
     safety: {changes: true}
     cli: {command: [perm, defaults, set], builtin: true}
     ui: {entry: /admin/permissions}
+    examples:
+      - name: default
+        as: member
+        body_json: '{"permissions": ["core.groups.list_own", "core.roles.list_own", "core.users.list_own"]}'
   - id: core.mfa.settings.show
     category: CATEGORY_ACTION
     method: GET
@@ -356,6 +508,9 @@ actions:
     permission: {key: core.settings.manage, scope: SCOPE_GLOBAL}
     cli: {command: [mfa, settings, show]}
     ui: {entry: /admin/mfa}
+    examples:
+      - name: default
+        as: member
   - id: core.mfa.settings.set
     category: CATEGORY_ACTION
     method: PUT
@@ -368,6 +523,10 @@ actions:
     safety: {changes: true}
     cli: {command: [mfa, settings, set]}
     ui: {entry: /admin/mfa}
+    examples:
+      - name: default
+        as: member
+        body_json: '{}'
   - id: core.api_keys.list
     category: CATEGORY_ACTION
     method: GET
@@ -379,6 +538,8 @@ actions:
     permission: {key: core.admin, scope: SCOPE_GLOBAL}
     cli: {command: [api-keys, list]}
     ui: {entry: /admin/limits}
+    examples:
+      - name: default
   - id: core.api_keys.rate
     category: CATEGORY_ACTION
     method: PUT
@@ -391,6 +552,12 @@ actions:
     safety: {changes: true}
     cli: {command: [api-keys, rate], args: [id]}
     ui: {entry: /admin/limits}
+    examples:
+      - name: default
+        given: ['core.me.api_keys.create#admin']
+        path_params_json: '{"id": "${given.core.me.api_keys.create#admin.id}"}'
+        body_json: '{"rate_per_second": 20}'
+        status: 204
   - id: core.scim.clients.list
     category: CATEGORY_ACTION
     method: GET
@@ -402,6 +569,9 @@ actions:
     permission: {key: core.users.manage, scope: SCOPE_GLOBAL}
     cli: {command: [scim, list], builtin: true}
     ui: {entry: /admin/scim}
+    examples:
+      - name: default
+        as: member
   - id: core.scim.clients.create
     category: CATEGORY_ACTION
     method: POST
