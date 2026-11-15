@@ -13,6 +13,8 @@ export interface SettingField {
   /** Default for color fields (string) and bool fields (boolean). */
   default?: string | boolean;
   help?: string;
+  /** Security warning shown with the field at all times (e.g. a setting that weakens TLS). */
+  warning?: string;
   placeholder?: string;
   options?: { value: string; label: string }[];
   /** Field is only shown when this predicate (on current values) is true. */
@@ -144,6 +146,13 @@ export async function pluginSettingsForm(pluginId: string, fields: SettingField[
         getters[f.key] = () => inp.value.trim();
         el = field(f.label, inp, { help: [f.help, f.type === 'secret' ? t('settings.secret_help') : ''].filter(Boolean).join(' ') });
       }
+    }
+    if (f.warning) {
+      // a permanent, clearly styled warning, announced with the control
+      const wid = `warn-${pluginId.replace(/[^a-z0-9]/gi, '-')}-${f.key}`;
+      const ctl = el.querySelector('input, textarea, select');
+      if (ctl) ctl.setAttribute('aria-describedby', [ctl.getAttribute('aria-describedby'), wid].filter(Boolean).join(' '));
+      el = h('div', null, el, h('p', { class: 'ew-notice ew-notice--warning', id: wid }, f.warning));
     }
     rows.push({ f, el });
   }

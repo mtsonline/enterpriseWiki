@@ -4,7 +4,7 @@
  "auth.ldap.url": "Server-URL",
  "auth.ldap.url_help": "ldaps://ldap.example.com:636 oder ldap://ldap.example.com:389",
  "auth.ldap.start_tls": "StartTLS verwenden (bei ldap://)",
- "auth.ldap.insecure": "TLS-Zertifikat nicht prüfen (nur für Tests)",
+ "auth.ldap.insecure": "TLS-Zertifikat nicht prüfen (unsicher)",
  "auth.ldap.bind_dn": "DN des Dienstkontos",
  "auth.ldap.bind_password": "Passwort des Dienstkontos",
  "auth.ldap.base_dn": "Suchbasis für Benutzer",
@@ -94,5 +94,6 @@
  "auth.ldap.sync_adopt_for": "Gleiche Person: Konto {user} zuordnen",
  "auth.ldap.sync_adopt_confirm": "Ist {user} im Verzeichnis dieselbe Person wie im Wiki? Dann behält das Konto alle Seiten, Gruppen und Rechte. Ordnen Sie nur zu, wenn Sie sicher sind.",
  "auth.ldap.sync_adopted": "Das Konto {user} ist zugeordnet. Der nächste Abgleich aktualisiert es.",
- "auth.ldap.sync_adopted_short": "Zugeordnet"
+ "auth.ldap.sync_adopted_short": "Zugeordnet",
+ "auth.ldap.insecure_warning": "Achtung: Ist dies eingeschaltet, prüft das Wiki nicht, ob es wirklich mit Ihrem Verzeichnis-Server spricht. Ein Angreifer im Netz kann sich dann als Server ausgeben und die Passwörter aller Personen mitlesen, die sich anmelden. Nutzen Sie das nur, wenn es nicht anders geht, und nur in einem Netz, dem Sie vertrauen. Besser: Tragen Sie das Zertifikat Ihrer Zertifizierungsstelle oder das selbst signierte Zertifikat des Servers oben unter „CA-Zertifikat“ ein. Das Wiki protokolliert jede Verbindung ohne Prüfung."
 }

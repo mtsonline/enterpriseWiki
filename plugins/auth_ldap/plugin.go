@@ -24,8 +24,8 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"github.com/mtsonline/enterprisewiki/internal/perm"
 	"io/fs"
+	"log/slog"
 	"net/http"
 	neturl "net/url"
 	"strconv"
@@ -39,6 +39,7 @@ import (
 	"github.com/mtsonline/enterprisewiki/internal/auth"
 	"github.com/mtsonline/enterprisewiki/internal/coreplugin"
 	h "github.com/mtsonline/enterprisewiki/internal/httpx"
+	"github.com/mtsonline/enterprisewiki/internal/perm"
 	"github.com/mtsonline/enterprisewiki/internal/tlsutil"
 )
 
@@ -63,7 +64,7 @@ func (p *Plugin) Locales() fs.FS { s, _ := fs.Sub(locales, "locales"); return s 
 // "ldap-<id>") and the admin test endpoint.
 func (p *Plugin) Setup(host *coreplugin.Host) error {
 	set := auth.NewInstanceSet("ldap", host.Settings, func(id string, s func() map[string]any) *Provider {
-		return &Provider{id: id, settings: s}
+		return &Provider{id: id, settings: s, log: host.Log}
 	})
 	coreplugin.RegisterAuthInstances(host, set)
 	registerSync(host, set)
@@ -103,6 +104,7 @@ func (p *Plugin) Setup(host *coreplugin.Host) error {
 type Provider struct {
 	id       string // "ldap" or "ldap-<instance>"
 	settings func() map[string]any
+	log      *slog.Logger
 }
 
 // Settings implements auth.SettingsProvider.
@@ -130,9 +132,16 @@ func (p *Provider) dial(s map[string]any) (*ldap.Conn, error) {
 	if u, err := neturl.Parse(url); err == nil {
 		host = u.Hostname()
 	}
-	tlsConf, err := tlsutil.Client(host, auth.Setting(s, "ca_cert", ""), auth.BoolSetting(s, "insecure_skip_verify", false))
+	insecure := auth.BoolSetting(s, "insecure_skip_verify", false)
+	tlsConf, err := tlsutil.Client(host, auth.Setting(s, "ca_cert", ""), insecure)
 	if err != nil {
 		return nil, err
+	}
+	if insecure && p.log != nil {
+		// allowed for setups without a verifiable certificate, but never
+		// silently: every such connection is logged
+		p.log.Warn("LDAP connection without TLS certificate verification (insecure_skip_verify): passwords can be read by anyone posing as the server",
+			"provider", p.id, "url", url)
 	}
 	conn, err := ldap.DialURL(url, ldap.DialWithTLSConfig(tlsConf), ldap.DialWithDialer(dialer(timeout)))
 	if err != nil {

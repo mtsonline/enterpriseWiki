@@ -131,7 +131,8 @@ plugin_settings:
     group_attribute: memberOf
 ```
 
-- `ldap://` mit `start_tls: true` ist ebenso möglich. `insecure_skip_verify` nur für Tests verwenden.
+- `ldap://` mit `start_tls: true` ist ebenso möglich.
+- **Warnung zu `insecure_skip_verify`:** Damit prüft das Wiki nicht, ob es wirklich mit Ihrem Verzeichnis-Server spricht. Ein Angreifer im Netz kann sich als Server ausgeben und die Passwörter aller Personen mitlesen, die sich anmelden. Die Einstellung gibt es für Umgebungen ohne prüfbares Zertifikat. Nutzen Sie sie nur, wenn es nicht anders geht, und nur in einem Netz, dem Sie vertrauen. Besser ist fast immer, das Zertifikat der Zertifizierungsstelle oder das selbst signierte Zertifikat des Servers als `ca_cert` einzutragen. Die Oberfläche zeigt die Warnung neben der Einstellung; jede Verbindung ohne Prüfung steht als Warnung im Server-Protokoll.
 - Eine eigene Zertifizierungsstelle (zum Beispiel die Unternehmens-CA) tragen Sie als `ca_cert` ein (PEM oder Pfad zur Datei). Das Serverzertifikat braucht den Servernamen als alternativen Namen (SAN); Zertifikate nur mit CN werden abgelehnt.
 - `memberOf` nennt nur die **direkten** Gruppen. **Verschachtelte Gruppen** (eine Gruppe in einer Gruppe) findet das AD mit einer eigenen Suchregel; dafür `group_attribute` leer lassen und `group_base_dn: DC=corp,DC=example,DC=com` sowie `group_filter: (member:1.2.840.113556.1.4.1941:={dn})` setzen.
 - Ohne `bind_dn` wird anonym gesucht.
