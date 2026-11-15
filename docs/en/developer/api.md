@@ -94,6 +94,7 @@ Every route is an **action** with an entry in the action register, in the format
 - **Comment at the route:** `// action: <id>` directly above `s.handle(…)` or `host.Handle(…)`.
 - **Checks:**
   - `TestActionRegister` (stage 1): register and routes agree, the comments match. Every route has an entry; a new route without one fails the CI. The tables under "Endpoints" must list exactly the routes of the register. A route only on the mux and not recorded (`h.RecordRoute`) is found as well. Routes a shared helper registers name their action where the helper is called: `// action: <id> for <METHOD> <path>`.
+  - `TestNoServerErrors` (stage 2, "no crash"): every route of the register gets wrong input (invalid or too large ids, broken JSON, wrong types, nonsense parameters), as administrator, as signed-in person without permissions and as guest. No answer may be a 5xx. Exceptions are listed with a reason in `notProbed`.
   - `go run ./tools/protocheck` in the folder `sdk`: compiles the contract and reads all register files and example manifests with the real messages (unknown fields, wrong values and invalid JSON in schemas are errors).
 - **Texts with a comma** go in block form (`text:` with `en:` and `de:` below); in the short form `{en: a, b}` the comma would split the text. The check detects this.
 

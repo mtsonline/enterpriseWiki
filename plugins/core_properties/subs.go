@@ -49,7 +49,7 @@ func subRoutes(p *Plugin) {
 		}
 		el := h.QueryInt(r, "element", 0)
 		rows, err := host.DB.Query(r.Context(), `SELECT id, element_id, title, params, frequency, next_at FROM plugin_prop_subs
-			WHERE user_id=$1 AND ($2 = 0 OR element_id = $2) ORDER BY created_at`, me.ID(), el)
+			WHERE user_id=$1 AND ($2::bigint = 0 OR element_id = $2::bigint) ORDER BY created_at`, me.ID(), el)
 		if err != nil {
 			return nil, err
 		}

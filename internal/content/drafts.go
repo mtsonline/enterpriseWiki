@@ -205,7 +205,7 @@ func (s *Service) Drafts(ctx context.Context, categoryID, elementID int64) ([]Dr
 		return []Draft{}, nil
 	}
 	rows, err := s.pool.Query(ctx, `SELECT `+draftCols+` FROM element_drafts d
-		WHERE ($1 = 0 OR d.category_id = $1) AND ($2 = 0 OR d.element_id = $2) AND ($1 <> 0 OR $2 <> 0 OR d.created_by = $3 OR d.updated_by = $3)
+		WHERE ($1::bigint = 0 OR d.category_id = $1::bigint) AND ($2::bigint = 0 OR d.element_id = $2::bigint) AND ($1::bigint <> 0 OR $2::bigint <> 0 OR d.created_by = $3 OR d.updated_by = $3)
 		ORDER BY d.updated_at DESC LIMIT 200`, categoryID, elementID, identity.From(ctx).ID())
 	if err != nil {
 		return nil, err
@@ -453,12 +453,12 @@ func (s *Service) Templates(ctx context.Context, typ string, id, categoryID int6
 	if categoryID != 0 && s.require(ctx, categoryID, acl.View) == nil {
 		space, _ = s.topOf(ctx, categoryID)
 	}
-	rows, err := s.pool.Query(ctx, `SELECT t.id, t.name, t.description, t.type, t.lang, t.title, CASE WHEN $3 <> 0 THEN t.body END, t.tags,
+	rows, err := s.pool.Query(ctx, `SELECT t.id, t.name, t.description, t.type, t.lang, t.title, CASE WHEN $3::bigint <> 0 THEN t.body END, t.tags,
 			t.owner_id IS NULL AND t.space_id IS NULL, COALESCE(t.space_id, 0),
 			COALESCE(t.owner_id = $1, false), COALESCE((SELECT u.display_name FROM users u WHERE u.id = t.created_by), ''), t.updated_at
 		FROM element_templates t
-		WHERE (t.owner_id = $1 OR (t.owner_id IS NULL AND t.space_id IS NULL) OR t.space_id = $4 OR ($3 <> 0 AND t.space_id IS NOT NULL))
-			AND ($2 = '' OR t.type = $2) AND ($3 = 0 OR t.id = $3)
+		WHERE (t.owner_id = $1 OR (t.owner_id IS NULL AND t.space_id IS NULL) OR t.space_id = $4 OR ($3::bigint <> 0 AND t.space_id IS NOT NULL))
+			AND ($2 = '' OR t.type = $2) AND ($3::bigint = 0 OR t.id = $3::bigint)
 		ORDER BY t.space_id IS NULL, t.owner_id IS NULL, t.name`, p.ID(), typ, id, space)
 	if err != nil {
 		return nil, err

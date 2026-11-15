@@ -424,7 +424,7 @@ func (s *Service) Recent(ctx context.Context, category int64, limit int) ([]Rece
 	}
 	rows, err := s.pool.Query(ctx, `SELECT e.id, e.category_id, e.titles, e.updated_at FROM elements e JOIN categories c ON c.id=e.category_id
 		WHERE e.deleted_at IS NULL AND c.deleted_at IS NULL
-		AND ($1 = 0 OR c.path <@ (SELECT path FROM categories WHERE id=$1))
+		AND ($1::bigint = 0 OR c.path <@ (SELECT path FROM categories WHERE id=$1::bigint))
 		ORDER BY e.updated_at DESC LIMIT 500`, category)
 	if err != nil {
 		return nil, err
