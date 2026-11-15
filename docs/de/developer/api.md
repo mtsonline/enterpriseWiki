@@ -93,7 +93,7 @@ Jede Route ist eine **Aktion** mit einem Eintrag im Aktionsregister, im Format `
 - **Pflicht je Eintrag:** `id` nach der Namensraum-Regel, `category` (`CATEGORY_ACTION` oder `CATEGORY_PROTOCOL` für Aufrufe anderer Systeme), `method`, `path`, `summary` auf Deutsch **und** Englisch, genau eines von `permission`, `signed_in`, `public`, bei Aktionen `cli` und `ui` oder eine vom Projektinhaber genehmigte Ausnahme (`exceptions`).
 - **Kommentar an der Route:** `// action: <id>` direkt über `s.handle(…)` bzw. `host.Handle(…)`.
 - **Prüfungen:**
-  - `TestActionRegister` (Stufe 1): Register und Routen stimmen überein, die Kommentare passen. Jede Route hat einen Eintrag; eine neue Route ohne Eintrag lässt die CI scheitern. Auch eine Route, die nur am Mux hängt und nicht erfasst ist (`h.RecordRoute`), fällt auf. Routen, die eine gemeinsame Hilfsfunktion anlegt, nennen ihre Aktion beim Aufruf: `// action: <id> for <METHODE> <Pfad>`.
+  - `TestActionRegister` (Stufe 1): Register und Routen stimmen überein, die Kommentare passen. Jede Route hat einen Eintrag; eine neue Route ohne Eintrag lässt die CI scheitern. Die Tabellen unter „Endpunkte“ müssen genau die Routen des Registers enthalten. Auch eine Route, die nur am Mux hängt und nicht erfasst ist (`h.RecordRoute`), fällt auf. Routen, die eine gemeinsame Hilfsfunktion anlegt, nennen ihre Aktion beim Aufruf: `// action: <id> for <METHODE> <Pfad>`.
   - `go run ./tools/protocheck` im Ordner `sdk`: übersetzt den Vertrag und liest alle Register-Dateien und Beispiel-Manifeste mit den echten Nachrichten (unbekannte Felder, falsche Werte und ungültiges JSON in Schemas sind Fehler).
 - **Texte mit Komma** in Block-Form schreiben (`text:` mit `en:` und `de:` darunter); in der Kurzform `{en: a, b}` würde das Komma den Text trennen. Die Prüfung erkennt das.
 
@@ -259,6 +259,28 @@ actions:
 | `DELETE` | `/api/v1/admin/users/{id}/sessions` |
 | `DELETE` | `/api/v1/admin/users/{id}/sessions/{sid}` |
 
+### SCIM 2.0 (Verzeichnisse)
+
+Aufgerufen von Verzeichnissen wie Entra ID oder Okta mit dem Token eines SCIM-Zugangs (siehe Admin-Dokumentation).
+
+| Methode | Pfad |
+|---|---|
+| `GET` | `/scim/v2/ServiceProviderConfig` |
+| `GET` | `/scim/v2/ResourceTypes` |
+| `GET` | `/scim/v2/Schemas` |
+| `GET` | `/scim/v2/Users` |
+| `POST` | `/scim/v2/Users` |
+| `GET` | `/scim/v2/Users/{id}` |
+| `PUT` | `/scim/v2/Users/{id}` |
+| `PATCH` | `/scim/v2/Users/{id}` |
+| `DELETE` | `/scim/v2/Users/{id}` |
+| `GET` | `/scim/v2/Groups` |
+| `POST` | `/scim/v2/Groups` |
+| `GET` | `/scim/v2/Groups/{id}` |
+| `PUT` | `/scim/v2/Groups/{id}` |
+| `PATCH` | `/scim/v2/Groups/{id}` |
+| `DELETE` | `/scim/v2/Groups/{id}` |
+
 ### Kategorien & Berechtigungen
 
 | Methode | Pfad |
@@ -275,10 +297,22 @@ actions:
 | `POST` | `/api/v1/categories/{id}/reorder` |
 | `GET` | `/api/v1/categories/{id}/acl` |
 | `POST` | `/api/v1/categories/{id}/acl` |
+| `GET` | `/api/v1/categories/{id}/access-requests` |
+| `POST` | `/api/v1/categories/{id}/archive` |
 | `DELETE` | `/api/v1/acl/{id}` |
 | `GET` | `/api/v1/categories/{id}/history` |
 | `POST` | `/api/v1/categories/{id}/rollback` |
+| `GET` | `/api/v1/categories/{id}/export` |
+| `GET` | `/api/v1/categories/{id}/insights` |
+| `PUT` | `/api/v1/categories/{id}/space` |
+| `POST` | `/api/v1/categories/import` |
 | `PUT` | `/api/v1/acl/{id}` |
+| `POST` | `/api/v1/access-requests` |
+| `POST` | `/api/v1/access-requests/{id}` |
+| `GET` | `/api/v1/spaces` |
+| `POST` | `/api/v1/spaces` |
+| `POST` | `/api/v1/spaces/personal` |
+| `GET` | `/api/v1/spaces/{key}` |
 
 ### Elemente & Versionen
 
@@ -298,7 +332,9 @@ actions:
 | `GET` | `/api/v1/elements/{id}/revisions` |
 | `GET` | `/api/v1/elements/{id}/revisions/{lang}/{rev}` |
 | `POST` | `/api/v1/elements/{id}/restore` |
+| `POST` | `/api/v1/elements/{id}/view` |
 | `GET` | `/api/v1/elements` |
+| `GET` | `/api/v1/collab/elements/{id}/{lang}` |
 
 ### Makros
 
@@ -480,6 +516,8 @@ actions:
 | `DELETE` | `/api/v1/x/core.comments/comments/{id}` |
 | `DELETE` | `/api/v1/x/core.favorites/{type}/{id}` |
 | `PUT` | `/api/v1/x/core.favorites/order` |
+| `GET` | `/api/v1/x/core.favorites/` |
+| `POST` | `/api/v1/x/core.favorites/` |
 | `POST` | `/api/v1/x/core.html/edit-html` |
 | `POST` | `/api/v1/x/core.html/to-markdown` |
 | `GET` | `/api/v1/x/core.menu/menus` |
@@ -488,14 +526,23 @@ actions:
 | `PUT` | `/api/v1/x/core.menu/menus/{id}` |
 | `DELETE` | `/api/v1/x/core.menu/menus/{id}` |
 | `GET` | `/api/v1/x/core.properties/types` |
+| `POST` | `/api/v1/x/core.properties/trend` |
 | `GET` | `/api/v1/x/core.properties/defs` |
 | `POST` | `/api/v1/x/core.properties/defs` |
 | `PUT` | `/api/v1/x/core.properties/defs/{id}` |
 | `DELETE` | `/api/v1/x/core.properties/defs/{id}` |
+| `GET` | `/api/v1/x/core.properties/databases/{id}/views` |
+| `POST` | `/api/v1/x/core.properties/databases/{id}/views` |
 | `PUT` | `/api/v1/x/core.properties/settings/{id}` |
+| `GET` | `/api/v1/x/core.properties/subscriptions` |
+| `POST` | `/api/v1/x/core.properties/subscriptions` |
+| `DELETE` | `/api/v1/x/core.properties/subscriptions/{id}` |
 | `POST` | `/api/v1/x/core.properties/query` |
+| `POST` | `/api/v1/x/core.properties/query.csv` |
+| `POST` | `/api/v1/x/core.properties/query.xlsx` |
 | `POST` | `/api/v1/x/core.properties/report` |
 | `GET` | `/api/v1/x/core.properties/values` |
+| `DELETE` | `/api/v1/x/core.properties/views/{id}` |
 | `GET` | `/api/v1/x/core.properties/keys` |
 | `GET` | `/api/v1/x/core.properties/elements/{id}` |
 | `GET` | `/api/v1/x/core.properties/new` |
@@ -513,7 +560,6 @@ actions:
 | `GET` | `/api/v1/x/example.notice/tones` |
 | `GET` | `/api/v1/x/macro.shell/commands` |
 | `POST` | `/api/v1/x/macro.shell/commands` |
-| `POST` | `/api/v1/x/macro.shell/commands/{hash}/` |
 | `DELETE` | `/api/v1/x/macro.shell/commands/{hash}` |
 | `POST` | `/api/v1/x/macro.shell/commands/{hash}/approve` |
 | `POST` | `/api/v1/x/macro.shell/commands/{hash}/revoke` |

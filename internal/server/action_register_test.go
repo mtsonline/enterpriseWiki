@@ -65,6 +65,7 @@ func TestActionRegister(t *testing.T) {
 			t.Errorf("route %s is in the source but not recorded: register it with s.handle, host.Handle or h.RecordRoute", r)
 		}
 	}
+	checkAPIDoc(t, all)
 	t.Logf("action register: %d entries, %d routes without an entry", len(all), missing)
 }
 
@@ -175,5 +176,44 @@ func checkActionPermission(t *testing.T, a actions.Action) {
 	}
 	if want := server.RoutePerm(a.Route()); want != "" && want != p.Key {
 		t.Errorf("%s: %s: permission %q, but the server checks %q (adminPerms)", a.Source, a.ID, p.Key, want)
+	}
+}
+
+var apiDocRowRe = regexp.MustCompile("^\\| `(GET|POST|PUT|PATCH|DELETE)` \\| `([^`]+)` \\|")
+
+// checkAPIDoc compares the endpoint tables of the API reference (German and
+// English) with the register: every action is listed once, nothing else.
+func checkAPIDoc(t *testing.T, all []actions.Action) {
+	t.Helper()
+	want := map[string]bool{}
+	for _, a := range all {
+		want[a.Route()] = true
+	}
+	for _, lang := range []string{"de", "en"} {
+		path := filepath.Join("..", "..", "docs", lang, "developer", "api.md")
+		b, err := os.ReadFile(path) // #nosec G304 -- file of this repository
+		if err != nil {
+			t.Fatal(err)
+		}
+		seen := map[string]bool{}
+		for _, l := range strings.Split(string(b), "\n") {
+			m := apiDocRowRe.FindStringSubmatch(l)
+			if m == nil {
+				continue
+			}
+			r := m[1] + " " + m[2]
+			switch {
+			case seen[r]:
+				t.Errorf("%s: %s is listed twice", path, r)
+			case !want[r]:
+				t.Errorf("%s: %s is not in the action register", path, r)
+			}
+			seen[r] = true
+		}
+		for r := range want {
+			if !seen[r] {
+				t.Errorf("%s: %s is missing in the endpoint tables", path, r)
+			}
+		}
 	}
 }
