@@ -63,6 +63,10 @@ actions:
         as: member
         body_json: '{"titles": {"en": "Example ${unique}"}}'
         status: 201
+      - name: second
+        as: member
+        body_json: '{"titles": {"en": "Second ${unique}"}}'
+        status: 201
   - id: core.categories.update
     category: CATEGORY_ACTION
     method: PUT
@@ -94,6 +98,12 @@ actions:
     safety: {changes: true}
     cli: {command: [category, delete], args: [id]}
     ui: {entry: /c/:id/settings}
+    examples:
+      - name: default
+        given: ['core.categories.create#default']
+        as: admin
+        path_params_json: '{"id": "${given.core.categories.create#default.id}"}'
+        status: 204
   - id: core.categories.move
     category: CATEGORY_ACTION
     method: POST
@@ -106,6 +116,12 @@ actions:
     safety: {changes: true}
     cli: {command: [category, move], args: [id]}
     ui: {entry: /c/:id/settings}
+    examples:
+      - name: default
+        given: ['core.categories.create#default', 'core.categories.create#second']
+        as: admin
+        path_params_json: '{"id": "${given.core.categories.create#default.id}"}'
+        body_json: '{"parent_id": ${given.core.categories.create#second.id}, "position": 0}'
   - id: core.categories.duplicate
     category: CATEGORY_ACTION
     method: POST
@@ -118,6 +134,12 @@ actions:
     safety: {changes: true}
     cli: {command: [category, duplicate], args: [id]}
     ui: {entry: /c/:id/settings}
+    examples:
+      - name: default
+        given: ['core.categories.create#default']
+        as: admin
+        path_params_json: '{"id": "${given.core.categories.create#default.id}"}'
+        body_json: '{"parent_id": 0}'
   - id: core.categories.reorder
     category: CATEGORY_ACTION
     method: POST
@@ -130,6 +152,13 @@ actions:
     safety: {changes: true}
     cli: {command: [category, reorder], args: [id]}
     ui: {entry: /c/:id}
+    examples:
+      - name: default
+        given: ['core.categories.create#default', 'core.categories.create#second']
+        as: admin
+        path_params_json: '{"id": "${given.core.categories.create#default.id}"}'
+        body_json: '{"order": []}'
+        status: 204
   - id: core.categories.space
     category: CATEGORY_ACTION
     method: PUT
@@ -142,6 +171,12 @@ actions:
     safety: {changes: true}
     cli: {command: [category, space], args: [id]}
     ui: {entry: /c/:id/settings}
+    examples:
+      - name: default
+        given: ['core.categories.create#default']
+        as: member
+        path_params_json: '{"id": "${given.core.categories.create#default.id}"}'
+        body_json: '{"key": "SP${unique}"}'
   - id: core.categories.archive
     category: CATEGORY_ACTION
     method: POST
@@ -154,6 +189,12 @@ actions:
     safety: {changes: true}
     cli: {command: [category, archive], args: [id]}
     ui: {entry: /c/:id/settings}
+    examples:
+      - name: default
+        given: ['core.categories.create#default']
+        as: member
+        path_params_json: '{"id": "${given.core.categories.create#default.id}"}'
+        body_json: '{"archived": true}'
   - id: core.categories.translate
     category: CATEGORY_ACTION
     method: PUT
@@ -166,6 +207,12 @@ actions:
     safety: {changes: true}
     cli: {command: [category, translate], builtin: true}
     ui: {entry: /c/:id/settings}
+    examples:
+      - name: default
+        given: ['core.categories.create#default']
+        as: member
+        path_params_json: '{"id": "${given.core.categories.create#default.id}", "lang": "de"}'
+        body_json: '{"title": "Beispiel", "confirm": true}'
   - id: core.categories.acl.list
     category: CATEGORY_ACTION
     method: GET
@@ -177,6 +224,11 @@ actions:
     permission: {key: core.category.manage, scope: SCOPE_CATEGORY, category_param: "id"}
     cli: {command: [category, acl, list], args: [id]}
     ui: {entry: /c/:id/settings}
+    examples:
+      - name: default
+        given: ['core.categories.create#default']
+        as: member
+        path_params_json: '{"id": "${given.core.categories.create#default.id}"}'
   - id: core.categories.acl.add
     category: CATEGORY_ACTION
     method: POST
@@ -189,6 +241,13 @@ actions:
     safety: {changes: true}
     cli: {command: [category, acl, add], args: [id]}
     ui: {entry: /c/:id/settings}
+    examples:
+      - name: default
+        given: ['core.categories.create#default']
+        as: member
+        path_params_json: '{"id": "${given.core.categories.create#default.id}"}'
+        body_json: '{"subject_type": "authenticated", "permissions": 1}'
+        status: 201
   - id: core.categories.acl.update
     category: CATEGORY_ACTION
     method: PUT
@@ -201,6 +260,12 @@ actions:
     safety: {changes: true}
     cli: {command: [category, acl, update], args: [id]}
     ui: {entry: /c/:id/settings}
+    examples:
+      - name: default
+        given: ['core.categories.acl.add#default']
+        as: admin
+        path_params_json: '{"id": "${given.core.categories.acl.add#default.id}"}'
+        body_json: '{"subject_type": "authenticated", "permissions": 3}'
   - id: core.categories.acl.remove
     category: CATEGORY_ACTION
     method: DELETE
@@ -213,6 +278,12 @@ actions:
     safety: {changes: true}
     cli: {command: [category, acl, remove], args: [id]}
     ui: {entry: /c/:id/settings}
+    examples:
+      - name: default
+        given: ['core.categories.acl.add#default']
+        as: admin
+        path_params_json: '{"id": "${given.core.categories.acl.add#default.id}"}'
+        status: 204
   - id: core.categories.history
     category: CATEGORY_ACTION
     method: GET
@@ -224,29 +295,45 @@ actions:
     permission: {key: core.category.view, scope: SCOPE_CATEGORY, category_param: "id"}
     cli: {command: [category, history], args: [id]}
     ui: {entry: /c/:id/settings}
+    examples:
+      - name: default
+        given: ['core.elements.create#default']
+        as: member
+        path_params_json: '{"id": "${given.core.categories.create#default.id}"}'
   - id: core.categories.rollback
     category: CATEGORY_ACTION
     method: POST
     path: /api/v1/categories/{id}/rollback
     summary:
       text:
-        en: Set a category with its elements back to an earlier point in time
-        de: Kategorie mit ihren Elementen auf einen früheren Zeitpunkt zurücksetzen
-    permission: {key: core.category.edit, scope: SCOPE_CATEGORY, category_param: "id"}
+        en: Set a category with its elements back to an earlier point in time (needs edit and delete)
+        de: Kategorie mit ihren Elementen auf einen früheren Zeitpunkt zurücksetzen (braucht Bearbeiten und Löschen)
+    permission: {key: core.category.delete, scope: SCOPE_CATEGORY, category_param: "id"}
     safety: {changes: true}
     cli: {command: [category, rollback], args: [id]}
     ui: {entry: /c/:id/settings}
+    examples:
+      - name: default
+        given: ['core.elements.create#default']
+        as: admin
+        path_params_json: '{"id": "${given.core.categories.create#default.id}"}'
+        body_json: '{"at": "2026-01-01T00:00:00Z"}'
   - id: core.categories.export
     category: CATEGORY_ACTION
     method: GET
     path: /api/v1/categories/{id}/export
     summary:
       text:
-        en: Export a category with its elements and files
-        de: Kategorie mit Elementen und Dateien exportieren
-    permission: {key: core.category.view, scope: SCOPE_CATEGORY, category_param: "id"}
+        en: Export a category with its elements and files (needs manage)
+        de: Kategorie mit Elementen und Dateien exportieren (braucht Verwalten)
+    permission: {key: core.category.manage, scope: SCOPE_CATEGORY, category_param: "id"}
     cli: {command: [category, export], args: [id]}
     ui: {entry: /c/:id/settings}
+    examples:
+      - name: default
+        given: ['core.elements.create#default']
+        as: member
+        path_params_json: '{"id": "${given.core.categories.create#default.id}"}'
   - id: core.categories.import
     category: CATEGORY_ACTION
     method: POST
@@ -270,6 +357,11 @@ actions:
     permission: {key: core.category.manage, scope: SCOPE_CATEGORY, category_param: "id"}
     cli: {command: [category, insights], args: [id]}
     ui: {entry: /c/:id/settings}
+    examples:
+      - name: default
+        given: ['core.categories.create#default']
+        as: member
+        path_params_json: '{"id": "${given.core.categories.create#default.id}"}'
   - id: core.categories.access_requests
     category: CATEGORY_ACTION
     method: GET
@@ -281,6 +373,11 @@ actions:
     permission: {key: core.category.manage, scope: SCOPE_CATEGORY, category_param: "id"}
     cli: {command: [category, access-requests], args: [id]}
     ui: {entry: /c/:id/settings}
+    examples:
+      - name: default
+        given: ['core.categories.create#default']
+        as: member
+        path_params_json: '{"id": "${given.core.categories.create#default.id}"}'
   - id: core.elements.list
     category: CATEGORY_ACTION
     method: GET
@@ -292,6 +389,9 @@ actions:
     public: true
     cli: {command: [element, list]}
     ui: {entry: /search}
+    examples:
+      - name: default
+        as: guest
   - id: core.elements.get
     category: CATEGORY_ACTION
     method: GET
@@ -339,6 +439,13 @@ actions:
     safety: {changes: true}
     cli: {command: [element, update], args: [id]}
     ui: {entry: /e/:id/edit}
+    examples:
+      - name: default
+        given: ['core.elements.create#default']
+        as: member
+        path_params_json: '{"id": "${given.core.elements.create#default.id}"}'
+        body_json: '{"title": "Changed", "body": {"format": "html", "source": "<p>Changed</p>"}, "base_rev": 1}'
+        expect_json: '{"rev": 2}'
   - id: core.elements.patch
     category: CATEGORY_ACTION
     method: PATCH
@@ -351,6 +458,13 @@ actions:
     safety: {changes: true}
     cli: {command: [element, patch], args: [id]}
     ui: {entry: /e/:id}
+    examples:
+      - name: default
+        given: ['core.elements.create#default']
+        as: member
+        path_params_json: '{"id": "${given.core.elements.create#default.id}"}'
+        body_json: '{"tags": ["example"]}'
+        expect_json: '{"tags": ["example"]}'
   - id: core.elements.delete
     category: CATEGORY_ACTION
     method: DELETE
@@ -381,6 +495,12 @@ actions:
     safety: {changes: true}
     cli: {command: [element, move], args: [id]}
     ui: {entry: /e/:id}
+    examples:
+      - name: default
+        given: ['core.elements.create#default', 'core.categories.create#second']
+        as: admin
+        path_params_json: '{"id": "${given.core.elements.create#default.id}"}'
+        body_json: '{"category_id": ${given.core.categories.create#second.id}}'
   - id: core.elements.duplicate
     category: CATEGORY_ACTION
     method: POST
@@ -393,6 +513,13 @@ actions:
     safety: {changes: true}
     cli: {command: [element, duplicate], args: [id]}
     ui: {entry: /e/:id}
+    examples:
+      - name: default
+        given: ['core.elements.create#default']
+        as: member
+        path_params_json: '{"id": "${given.core.elements.create#default.id}"}'
+        body_json: '{"category_id": ${given.core.categories.create#default.id}}'
+        status: 201
   - id: core.elements.restore
     category: CATEGORY_ACTION
     method: POST
@@ -405,6 +532,12 @@ actions:
     safety: {changes: true}
     cli: {command: [element, restore], args: [id]}
     ui: {entry: /e/:id/history}
+    examples:
+      - name: default
+        given: ['core.elements.update#default']
+        as: member
+        path_params_json: '{"id": "${given.core.elements.create#default.id}"}'
+        body_json: '{"lang": "en", "rev": 1}'
   - id: core.elements.view
     category: CATEGORY_ACTION
     method: POST
@@ -417,6 +550,11 @@ actions:
     safety: {changes: true}
     cli: {command: [element, view], args: [id]}
     ui: {entry: /e/:id}
+    examples:
+      - name: default
+        given: ['core.elements.create#default']
+        as: member
+        path_params_json: '{"id": "${given.core.elements.create#default.id}"}'
   - id: core.elements.revisions
     category: CATEGORY_ACTION
     method: GET
@@ -428,6 +566,11 @@ actions:
     permission: {key: core.category.view, scope: SCOPE_CATEGORY, category_param: "element:id"}
     cli: {command: [element, revisions], args: [id]}
     ui: {entry: /e/:id/history}
+    examples:
+      - name: default
+        given: ['core.elements.create#default']
+        as: member
+        path_params_json: '{"id": "${given.core.elements.create#default.id}"}'
   - id: core.elements.revision
     category: CATEGORY_ACTION
     method: GET
@@ -439,6 +582,11 @@ actions:
     permission: {key: core.category.view, scope: SCOPE_CATEGORY, category_param: "element:id"}
     cli: {command: [element, revision], args: [id, lang, rev]}
     ui: {entry: /e/:id/history}
+    examples:
+      - name: default
+        given: ['core.elements.create#default']
+        as: member
+        path_params_json: '{"id": "${given.core.elements.create#default.id}", "lang": "en", "rev": 1}'
   - id: core.elements.macro
     category: CATEGORY_ACTION
     method: GET
@@ -462,6 +610,10 @@ actions:
     safety: {changes: true}
     cli: {command: [element, preview]}
     ui: {entry: /e/:id/edit}
+    examples:
+      - name: default
+        as: member
+        body_json: '{"type": "core.html", "lang": "en", "body": {"format": "html", "source": "<p>Preview</p>"}}'
   - id: core.drafts.list
     category: CATEGORY_ACTION
     method: GET
@@ -473,6 +625,9 @@ actions:
     signed_in: true
     cli: {command: [draft, list], builtin: true}
     ui: {entry: /}
+    examples:
+      - name: default
+        as: member
   - id: core.drafts.get
     category: CATEGORY_ACTION
     method: GET
@@ -484,6 +639,11 @@ actions:
     signed_in: true
     cli: {command: [draft, show], builtin: true}
     ui: {entry: /d/:id/edit}
+    examples:
+      - name: default
+        given: ['core.drafts.create#default']
+        as: admin
+        path_params_json: '{"id": "${given.core.drafts.create#default.id}"}'
   - id: core.drafts.create
     category: CATEGORY_ACTION
     method: POST
@@ -496,6 +656,12 @@ actions:
     safety: {changes: true}
     cli: {command: [draft, create]}
     ui: {entry: /c/:id/new}
+    examples:
+      - name: default
+        given: ['core.categories.create#default']
+        as: admin
+        body_json: '{"category_id": ${given.core.categories.create#default.id}, "type": "core.html", "lang": "en", "title": "Draft", "body": {"format": "html", "source": "<p>Draft</p>"}}'
+        status: 201
   - id: core.drafts.update
     category: CATEGORY_ACTION
     method: PUT
@@ -508,6 +674,12 @@ actions:
     safety: {changes: true}
     cli: {command: [draft, update], args: [id]}
     ui: {entry: /d/:id/edit}
+    examples:
+      - name: default
+        given: ['core.drafts.create#default']
+        as: admin
+        path_params_json: '{"id": "${given.core.drafts.create#default.id}"}'
+        body_json: '{"category_id": ${given.core.categories.create#default.id}, "type": "core.html", "lang": "en", "title": "Draft 2", "body": {"format": "html", "source": "<p>Draft 2</p>"}}'
   - id: core.drafts.delete
     category: CATEGORY_ACTION
     method: DELETE
@@ -520,6 +692,12 @@ actions:
     safety: {changes: true}
     cli: {command: [draft, delete], builtin: true}
     ui: {entry: /d/:id/edit}
+    examples:
+      - name: default
+        given: ['core.drafts.create#default']
+        as: admin
+        path_params_json: '{"id": "${given.core.drafts.create#default.id}"}'
+        status: 204
   - id: core.drafts.publish
     category: CATEGORY_ACTION
     method: POST
@@ -532,6 +710,17 @@ actions:
     safety: {changes: true}
     cli: {command: [draft, publish], builtin: true}
     ui: {entry: /d/:id/edit}
+    examples:
+      - name: default
+        given: ['core.drafts.create#default']
+        as: admin
+        path_params_json: '{"id": "${given.core.drafts.create#default.id}"}'
+        body_json: '{}'
+      - name: later
+        given: ['core.drafts.create#default']
+        as: admin
+        path_params_json: '{"id": "${given.core.drafts.create#default.id}"}'
+        body_json: '{"at": "2099-01-01T00:00:00Z"}'
   - id: core.drafts.unschedule
     category: CATEGORY_ACTION
     method: DELETE
@@ -544,6 +733,11 @@ actions:
     safety: {changes: true}
     cli: {command: [draft, unschedule], args: [id]}
     ui: {entry: /d/:id/edit}
+    examples:
+      - name: default
+        given: ['core.drafts.publish#later']
+        as: admin
+        path_params_json: '{"id": "${given.core.drafts.create#default.id}"}'
   - id: core.templates.list
     category: CATEGORY_ACTION
     method: GET
@@ -555,6 +749,9 @@ actions:
     signed_in: true
     cli: {command: [template, list]}
     ui: {entry: /c/:id/new}
+    examples:
+      - name: default
+        as: member
   - id: core.templates.get
     category: CATEGORY_ACTION
     method: GET
@@ -566,6 +763,11 @@ actions:
     signed_in: true
     cli: {command: [template, show], args: [id]}
     ui: {entry: /c/:id/new}
+    examples:
+      - name: default
+        given: ['core.templates.create#default']
+        as: admin
+        path_params_json: '{"id": "${given.core.templates.create#default.id}"}'
   - id: core.templates.create
     category: CATEGORY_ACTION
     method: POST
@@ -578,6 +780,11 @@ actions:
     safety: {changes: true}
     cli: {command: [template, create]}
     ui: {entry: /c/:id/settings}
+    examples:
+      - name: default
+        as: member
+        body_json: '{"name": "Template ${unique}", "type": "core.html", "lang": "en", "title": "From a template", "body": {"format": "html", "source": "<p>T</p>"}}'
+        status: 201
   - id: core.templates.update
     category: CATEGORY_ACTION
     method: PUT
@@ -590,6 +797,12 @@ actions:
     safety: {changes: true}
     cli: {command: [template, update], args: [id]}
     ui: {entry: /c/:id/settings}
+    examples:
+      - name: default
+        given: ['core.templates.create#default']
+        as: admin
+        path_params_json: '{"id": "${given.core.templates.create#default.id}"}'
+        body_json: '{"name": "Renamed ${unique}", "type": "core.html", "lang": "en", "title": "T2", "body": {"format": "html", "source": "<p>T2</p>"}}'
   - id: core.templates.delete
     category: CATEGORY_ACTION
     method: DELETE
@@ -602,6 +815,12 @@ actions:
     safety: {changes: true}
     cli: {command: [template, delete], args: [id]}
     ui: {entry: /c/:id/settings}
+    examples:
+      - name: default
+        given: ['core.templates.create#default']
+        as: admin
+        path_params_json: '{"id": "${given.core.templates.create#default.id}"}'
+        status: 204
   - id: core.spaces.list
     category: CATEGORY_ACTION
     method: GET
@@ -613,6 +832,9 @@ actions:
     public: true
     cli: {command: [space, list]}
     ui: {entry: /spaces}
+    examples:
+      - name: default
+        as: guest
   - id: core.spaces.get
     category: CATEGORY_ACTION
     method: GET
@@ -624,6 +846,11 @@ actions:
     public: true
     cli: {command: [space, show], args: [key]}
     ui: {entry: /s/:key}
+    examples:
+      - name: default
+        given: ['core.categories.space#default']
+        as: admin
+        path_params_json: '{"key": "${given.core.categories.space#default.key}"}'
   - id: core.spaces.create
     category: CATEGORY_ACTION
     method: POST
@@ -648,6 +875,9 @@ actions:
     safety: {changes: true}
     cli: {command: [space, personal]}
     ui: {entry: /spaces}
+    examples:
+      - name: default
+        as: member
   - id: core.trash.list
     category: CATEGORY_ACTION
     method: GET
@@ -659,6 +889,9 @@ actions:
     signed_in: true
     cli: {command: [trash, list]}
     ui: {entry: /trash}
+    examples:
+      - name: default
+        as: member
   - id: core.trash.restore
     category: CATEGORY_ACTION
     method: POST
@@ -671,6 +904,11 @@ actions:
     safety: {changes: true}
     cli: {command: [trash, restore], args: [type, id]}
     ui: {entry: /trash}
+    examples:
+      - name: default
+        given: ['core.elements.delete#default']
+        as: admin
+        path_params_json: '{"type": "element", "id": "${given.core.elements.create#default.id}"}'
   - id: core.trash.purge
     category: CATEGORY_ACTION
     method: DELETE
@@ -683,6 +921,11 @@ actions:
     safety: {changes: true}
     cli: {command: [trash, purge], args: [type, id]}
     ui: {entry: /trash}
+    examples:
+      - name: default
+        given: ['core.elements.delete#default']
+        as: admin
+        path_params_json: '{"type": "element", "id": "${given.core.elements.create#default.id}"}'
   - id: core.search
     category: CATEGORY_ACTION
     method: GET
@@ -723,6 +966,9 @@ actions:
     public: true
     cli: {command: [i18n, status], builtin: true}
     ui: {entry: /admin/languages}
+    examples:
+      - name: default
+        as: guest
   - id: core.i18n.texts
     category: CATEGORY_ACTION
     method: GET
@@ -734,6 +980,10 @@ actions:
     public: true
     cli: {command: [i18n, texts], args: [lang]}
     ui: {entry: /}
+    examples:
+      - name: default
+        as: guest
+        path_params_json: '{"lang": "de"}'
   - id: core.files.get
     category: CATEGORY_ACTION
     method: GET
@@ -757,6 +1007,12 @@ actions:
     safety: {changes: true}
     cli: {command: [file, upload]}
     ui: {entry: /e/:id/edit}
+    examples:
+      - name: default
+        as: member
+        status: 201
+        files:
+          - {field: file, name: 'notes.txt', content_type: 'text/plain', text: 'Example file'}
   - id: core.feeds.category
     category: CATEGORY_ACTION
     method: GET
@@ -779,6 +1035,10 @@ actions:
     permission: {key: core.settings.manage, scope: SCOPE_GLOBAL}
     cli: {command: [prerender]}
     ui: {entry: /admin/settings}
+    examples:
+      - name: default
+        as: member
+        query_json: '{"path": "/"}'
   - id: core.media.list
     category: CATEGORY_ACTION
     method: GET
@@ -790,6 +1050,10 @@ actions:
     signed_in: true
     cli: {command: [media, list], builtin: true}
     ui: {entry: /media}
+    examples:
+      - name: default
+        given: ['core.media.upload#default']
+        as: admin
   - id: core.media.upload
     category: CATEGORY_ACTION
     method: POST
@@ -802,6 +1066,15 @@ actions:
     safety: {changes: true}
     cli: {command: [media, upload], builtin: true}
     ui: {entry: /media}
+    examples:
+      - name: default
+        given: ['core.categories.create#default']
+        as: admin
+        status: 201
+        form:
+          - {name: meta, value: '{"category_id": ${given.core.categories.create#default.id}, "title": "Pixel"}'}
+        files:
+          - {field: file, name: 'pixel.png', content_type: 'image/png', base64: 'iVBORw0KGgoAAAANSUhEUgAAAAQAAAAECAIAAAAmkwkpAAAAEElEQVR4nGP4z8AARwzEcQCukw/x0F8jngAAAABJRU5ErkJggg=='}
   - id: core.media.get
     category: CATEGORY_ACTION
     method: GET
@@ -813,6 +1086,11 @@ actions:
     signed_in: true
     cli: {command: [media, info], builtin: true}
     ui: {entry: /media}
+    examples:
+      - name: default
+        given: ['core.media.upload#default']
+        as: admin
+        path_params_json: '{"id": "${given.core.media.upload#default.id}"}'
   - id: core.media.update
     category: CATEGORY_ACTION
     method: PATCH
@@ -825,6 +1103,12 @@ actions:
     safety: {changes: true}
     cli: {command: [media, update], builtin: true}
     ui: {entry: /media}
+    examples:
+      - name: default
+        given: ['core.media.upload#default']
+        as: admin
+        path_params_json: '{"id": "${given.core.media.upload#default.id}"}'
+        body_json: '{"title": "Red pixel"}'
   - id: core.media.delete
     category: CATEGORY_ACTION
     method: DELETE
@@ -837,6 +1121,12 @@ actions:
     safety: {changes: true}
     cli: {command: [media, delete], builtin: true}
     ui: {entry: /media}
+    examples:
+      - name: default
+        given: ['core.media.upload#default']
+        as: admin
+        path_params_json: '{"id": "${given.core.media.upload#default.id}"}'
+        status: 204
   - id: core.media.replace
     category: CATEGORY_ACTION
     method: POST
@@ -849,6 +1139,13 @@ actions:
     safety: {changes: true}
     cli: {command: [media, replace], builtin: true}
     ui: {entry: /media}
+    examples:
+      - name: default
+        given: ['core.media.upload#default']
+        as: admin
+        path_params_json: '{"id": "${given.core.media.upload#default.id}"}'
+        files:
+          - {field: file, name: 'pixel.png', content_type: 'image/png', base64: 'iVBORw0KGgoAAAANSUhEUgAAAAQAAAAECAIAAAAmkwkpAAAAEElEQVR4nGP4z8AARwzEcQCukw/x0F8jngAAAABJRU5ErkJggg=='}
   - id: core.media.edit
     category: CATEGORY_ACTION
     method: POST
@@ -861,6 +1158,12 @@ actions:
     safety: {changes: true}
     cli: {command: [media, edit], builtin: true}
     ui: {entry: /media}
+    examples:
+      - name: default
+        given: ['core.media.upload#default']
+        as: admin
+        path_params_json: '{"id": "${given.core.media.upload#default.id}"}'
+        body_json: '{"ops": [{"type": "rotate", "deg": 90}]}'
   - id: core.media.versions
     category: CATEGORY_ACTION
     method: GET
@@ -872,6 +1175,11 @@ actions:
     signed_in: true
     cli: {command: [media, versions], builtin: true}
     ui: {entry: /media}
+    examples:
+      - name: default
+        given: ['core.media.upload#default']
+        as: admin
+        path_params_json: '{"id": "${given.core.media.upload#default.id}"}'
   - id: core.media.restore
     category: CATEGORY_ACTION
     method: POST
@@ -884,6 +1192,11 @@ actions:
     safety: {changes: true}
     cli: {command: [media, restore], builtin: true}
     ui: {entry: /media}
+    examples:
+      - name: default
+        given: ['core.media.edit#default']
+        as: admin
+        path_params_json: '{"id": "${given.core.media.upload#default.id}", "v": 1}'
   - id: core.media.usage
     category: CATEGORY_ACTION
     method: GET
@@ -895,6 +1208,11 @@ actions:
     signed_in: true
     cli: {command: [media, usage], builtin: true}
     ui: {entry: /media}
+    examples:
+      - name: default
+        given: ['core.media.upload#default']
+        as: admin
+        path_params_json: '{"id": "${given.core.media.upload#default.id}"}'
   - id: core.media.acl
     category: CATEGORY_ACTION
     method: GET
@@ -906,6 +1224,11 @@ actions:
     signed_in: true
     cli: {command: [media, acl], builtin: true}
     ui: {entry: /media}
+    examples:
+      - name: default
+        given: ['core.media.upload#default']
+        as: admin
+        path_params_json: '{"id": "${given.core.media.upload#default.id}"}'
   - id: core.media.download
     category: CATEGORY_ACTION
     method: GET
@@ -917,6 +1240,11 @@ actions:
     public: true
     cli: {command: [media, download], builtin: true}
     ui: {entry: /media}
+    examples:
+      - name: default
+        given: ['core.media.upload#default']
+        as: admin
+        path_params_json: '{"id": "${given.core.media.upload#default.id}"}'
   - id: core.media.view
     category: CATEGORY_ACTION
     method: GET
@@ -928,6 +1256,11 @@ actions:
     public: true
     cli: {command: [media, view], args: [id]}
     ui: {entry: /media}
+    examples:
+      - name: default
+        given: ['core.media.upload#default']
+        as: admin
+        path_params_json: '{"id": "${given.core.media.upload#default.id}"}'
   - id: core.media.viewers
     category: CATEGORY_ACTION
     method: GET
@@ -939,6 +1272,9 @@ actions:
     signed_in: true
     cli: {command: [media, viewers], builtin: true}
     ui: {entry: /media}
+    examples:
+      - name: default
+        as: member
   - id: core.media.open.options
     category: CATEGORY_ACTION
     method: GET
@@ -950,6 +1286,11 @@ actions:
     signed_in: true
     cli: {command: [media, open], builtin: true}
     ui: {entry: /media}
+    examples:
+      - name: default
+        given: ['core.media.upload#default']
+        as: admin
+        path_params_json: '{"id": "${given.core.media.upload#default.id}"}'
   - id: core.media.open
     category: CATEGORY_ACTION
     method: POST

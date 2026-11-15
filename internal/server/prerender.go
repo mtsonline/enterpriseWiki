@@ -377,6 +377,11 @@ func replaceTag(b []byte, open, close, repl string) []byte {
 // prerenderAPI is GET /api/v1/prerender?path=/e/1&lang=de: the guest view of
 // a page (for checking what search engines see).
 func (s *Server) prerenderAPI(w http.ResponseWriter, r *http.Request) (any, error) {
+	// core.settings.manage (adminPerms): the settings show the guest view;
+	// rendering is not for everybody to trigger
+	if err := requireAdmin(r); err != nil {
+		return nil, err
+	}
 	path := r.URL.Query().Get("path")
 	if path == "" || !strings.HasPrefix(path, "/") || strings.HasPrefix(path, "//") {
 		path = "/"

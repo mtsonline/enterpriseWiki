@@ -4,11 +4,15 @@ import (
 	"bufio"
 	"bytes"
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io"
+	"mime/multipart"
 	"net/http"
+	"net/textproto"
 	"os"
+	"path/filepath"
 	"reflect"
 	"regexp"
 	"sort"
@@ -140,9 +144,9 @@ func (r *exampleRunner) run(a actions.Action, ex actions.Example) {
 	for _, way := range []string{"api", "cli"} {
 		vars := map[string]any{}
 		r.given(ex.Given, vars, 0)
-		path, query, body := r.request(a, ex, vars)
+		path, query, body, up := r.request(a, ex, vars)
 		who := r.who(a, ex, path, query, body)
-		res := r.do(way, a, who, path, query, body)
+		res := r.do(way, a, who, path, query, body, up)
 		if (want < 300) != res.ok || (way == "api" && want != 0 && res.status != want) || (way == "cli" && !res.ok && res.status != want) {
 			t.Fatalf("%s: status %d (ok=%v), want %d: %s", way, res.status, res.ok, want, res.raw)
 		}
@@ -158,7 +162,7 @@ func (r *exampleRunner) run(a actions.Action, ex actions.Example) {
 		// the same request by someone without the permission is refused
 		if ex.As == "member" && a.Permission != nil {
 			out := r.outsider()
-			if res := r.do(way, a, out, path, query, body); res.ok || (res.status != 401 && res.status != 403 && res.status != 404) {
+			if res := r.do(way, a, out, path, query, body, up); res.ok || (res.status != 401 && res.status != 403 && res.status != 404) {
 				t.Fatalf("%s: a person without the permission was not refused: %d %s", way, res.status, res.raw)
 			}
 		}
@@ -191,8 +195,8 @@ func (r *exampleRunner) given(refs []string, vars map[string]any, depth int) {
 			t.Fatalf("given %s: no such example", ref)
 		}
 		r.given(ex.Given, vars, depth+1)
-		path, query, body := r.request(a, *ex, vars)
-		res := r.do("api", a, who{cl: r.admin, name: "admin"}, path, query, body)
+		path, query, body, up := r.request(a, *ex, vars)
+		res := r.do("api", a, who{cl: r.admin, name: "admin"}, path, query, body, up)
 		if !res.ok {
 			t.Fatalf("given %s: %d %s", ref, res.status, res.raw)
 		}
@@ -201,7 +205,7 @@ func (r *exampleRunner) given(refs []string, vars map[string]any, depth int) {
 }
 
 // request fills in path, query and body of an example.
-func (r *exampleRunner) request(a actions.Action, ex actions.Example, vars map[string]any) (string, map[string]string, string) {
+func (r *exampleRunner) request(a actions.Action, ex actions.Example, vars map[string]any) (string, map[string]string, string, *upload) {
 	t := r.t
 	path := a.FullPath()
 	if ex.PathParamsJSON != "" {
@@ -233,7 +237,58 @@ func (r *exampleRunner) request(a actions.Action, ex actions.Example, vars map[s
 			t.Fatalf("body_json is not valid JSON after filling in: %s", body)
 		}
 	}
-	return path, query, body
+	var up *upload
+	if len(ex.Form) > 0 || len(ex.Files) > 0 {
+		up = &upload{}
+		for _, f := range ex.Form {
+			up.form = append(up.form, [2]string{f.Name, r.subst(f.Value, vars)})
+		}
+		for _, f := range ex.Files {
+			data := []byte(f.Text)
+			if f.Base64 != "" {
+				b, err := base64.StdEncoding.DecodeString(f.Base64)
+				if err != nil {
+					t.Fatalf("file %s: base64: %v", f.Name, err)
+				}
+				data = b
+			}
+			up.files = append(up.files, upFile{field: f.Field, name: f.Name, ctype: f.ContentType, data: data})
+		}
+	}
+	return path, query, body, up
+}
+
+// upload is the multipart body of an example.
+type upload struct {
+	form  [][2]string
+	files []upFile
+}
+
+type upFile struct {
+	field, name, ctype string
+	data               []byte
+}
+
+// encode builds the multipart body (text fields first, then files).
+func (u *upload) encode() ([]byte, string) {
+	var buf bytes.Buffer
+	w := multipart.NewWriter(&buf)
+	for _, f := range u.form {
+		_ = w.WriteField(f[0], f[1])
+	}
+	for _, f := range u.files {
+		hdr := textproto.MIMEHeader{}
+		hdr.Set("Content-Disposition", fmt.Sprintf(`form-data; name=%q; filename=%q`, f.field, f.name))
+		ct := f.ctype
+		if ct == "" {
+			ct = "application/octet-stream"
+		}
+		hdr.Set("Content-Type", ct)
+		part, _ := w.CreatePart(hdr)
+		_, _ = part.Write(f.data)
+	}
+	_ = w.Close()
+	return buf.Bytes(), w.FormDataContentType()
 }
 
 // subst fills in ${given.REF.FIELD} and ${unique}.
@@ -373,7 +428,7 @@ func (r *exampleRunner) categoryOf(param string, a actions.Action, path string, 
 }
 
 // do runs the request on one way as w.
-func (r *exampleRunner) do(way string, a actions.Action, w who, path string, query map[string]string, body string) exResult {
+func (r *exampleRunner) do(way string, a actions.Action, w who, path string, query map[string]string, body string, up *upload) exResult {
 	if way == "api" {
 		cl := w.cl
 		if cl == nil {
@@ -388,11 +443,16 @@ func (r *exampleRunner) do(way string, a actions.Action, w who, path string, que
 			}
 		}
 		var rd io.Reader
+		ctype := "application/json"
 		if body != "" {
 			rd = strings.NewReader(body)
 		}
+		if up != nil {
+			b, ct := up.encode()
+			rd, ctype = bytes.NewReader(b), ct
+		}
 		req, _ := http.NewRequest(a.Method, r.e.srv.URL+u, rd)
-		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("Content-Type", ctype)
 		req.Header.Set("X-Requested-With", "ewiki")
 		res, err := cl.http.Do(req)
 		if err != nil {
@@ -419,11 +479,28 @@ func (r *exampleRunner) do(way string, a actions.Action, w who, path string, que
 	if body != "" {
 		args = append(args, "--json", body)
 	}
-	if w.name != "" && w.name != "admin" {
+	if up != nil {
+		dir := r.t.TempDir()
+		for _, f := range up.form {
+			args = append(args, "--form", f[0]+"="+f[1])
+		}
+		for i, f := range up.files {
+			sub := filepath.Join(dir, fmt.Sprint(i))
+			if err := os.MkdirAll(sub, 0o700); err != nil {
+				r.t.Fatal(err)
+			}
+			p := filepath.Join(sub, f.name)
+			if err := os.WriteFile(p, f.data, 0o600); err != nil {
+				r.t.Fatal(err)
+			}
+			args = append(args, "--file", f.field+"=@"+p)
+		}
+	}
+	if w.name != "" { // the same account as on the API (also "admin")
 		args = append(args, "--as", w.name)
 	}
 	if w.cl == nil || w.name == "" { // a guest: the command line always has an account
-		return r.do("api", a, w, path, query, body)
+		return r.do("api", a, w, path, query, body, up)
 	}
 	r.t.Setenv("EWIKI_CONFIG", r.e.cfg)
 	var stdout, stderr bytes.Buffer

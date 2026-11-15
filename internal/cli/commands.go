@@ -83,7 +83,12 @@ func (e *env) api(args []string) error {
 // apiBody calls the API in-process (as the CLI superuser or as USER) and
 // prints the answer (JSON indented).
 func (e *env) apiBody(method, path string, body []byte, as string) error {
-	code, out, err := e.call(method, path, body, as)
+	return e.apiBodyType(method, path, body, "application/json", as)
+}
+
+// apiBodyType is apiBody with a content type (uploads).
+func (e *env) apiBodyType(method, path string, body []byte, contentType, as string) error {
+	code, out, _, err := e.callType(method, path, body, contentType, as)
 	if err != nil {
 		return err
 	}

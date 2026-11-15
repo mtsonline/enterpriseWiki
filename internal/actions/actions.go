@@ -91,6 +91,24 @@ type Example struct {
 	Status         int      `yaml:"status,omitempty"`
 	ExpectJSON     string   `yaml:"expect_json,omitempty"`
 	VerifyAction   string   `yaml:"verify_action,omitempty"`
+	// Form and Files make the request multipart/form-data (uploads).
+	Form  []FormField   `yaml:"form,omitempty"`
+	Files []ExampleFile `yaml:"files,omitempty"`
+}
+
+// FormField is ewiki.plugin.v1.FormField.
+type FormField struct {
+	Name  string `yaml:"name"`
+	Value string `yaml:"value"`
+}
+
+// ExampleFile is ewiki.plugin.v1.ExampleFile.
+type ExampleFile struct {
+	Field       string `yaml:"field"`
+	Name        string `yaml:"name"`
+	ContentType string `yaml:"content_type,omitempty"`
+	Text        string `yaml:"text,omitempty"`
+	Base64      string `yaml:"base64,omitempty"`
 }
 
 // Exception is ewiki.plugin.v1.Exception: a way that is missing on purpose.
@@ -383,6 +401,14 @@ func Validate(all []Action) error {
 		for _, ex := range a.Examples {
 			if ex.Name == "" {
 				fail(a, "examples need a name")
+			}
+			if (len(ex.Form) > 0 || len(ex.Files) > 0) && ex.BodyJSON != "" {
+				fail(a, "example %s: form/files (multipart) and body_json exclude each other", ex.Name)
+			}
+			for _, f := range ex.Files {
+				if f.Field == "" || f.Name == "" || (f.Text != "" && f.Base64 != "") {
+					fail(a, "example %s: a file needs field and name, and text or base64", ex.Name)
+				}
 			}
 		}
 	}
