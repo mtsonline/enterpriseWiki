@@ -319,8 +319,8 @@ func Validate(all []Action) error {
 			if a.Permission.Key == "" || !scopes[a.Permission.Scope] {
 				fail(a, "permission needs a key and a valid scope")
 			}
-			if a.Permission.Scope == "SCOPE_CATEGORY" && a.Permission.CategoryParam == "" {
-				fail(a, "permission.category_param names the category parameter")
+			if a.Permission.Scope == "SCOPE_CATEGORY" {
+				checkCategoryPermission(a, fail)
 			}
 		}
 		access := 0
@@ -447,3 +447,28 @@ func Commands(all []Action, prefix []string) []Action {
 // MatchRoute reports whether a route pattern of the server ("POST
 // /api/v1/pages/{id}") is the route of the action.
 func (a Action) MatchRoute(route string) bool { return route == a.Route() }
+
+// CategoryRights are the permission keys of the core for SCOPE_CATEGORY:
+// the access bits of a category (see internal/acl).
+var CategoryRights = map[string]bool{
+	"core.category.view": true, "core.category.edit": true, "core.category.create": true,
+	"core.category.delete": true, "core.category.manage": true,
+}
+
+// checkCategoryPermission checks a category-scoped permission: a known
+// right of the core, and a parameter that the request really carries. A
+// parameter that is not in the path is a query or body field.
+func checkCategoryPermission(a Action, fail func(Action, string, ...any)) {
+	p := a.Permission
+	if strings.HasPrefix(p.Key, "core.") && !CategoryRights[p.Key] {
+		fail(a, "permission %q is no category right (core.category.view, .edit, .create, .delete, .manage)", p.Key)
+	}
+	param, ok := strings.CutPrefix(p.CategoryParam, "element:")
+	if param == "" || strings.ContainsAny(param, "{}/: ") {
+		fail(a, "permission.category_param names the category parameter, or element:<param>")
+		return
+	}
+	if ok && !strings.Contains(a.Path, "{"+param+"}") {
+		fail(a, "permission.category_param %q: the element is named in the path", p.CategoryParam)
+	}
+}

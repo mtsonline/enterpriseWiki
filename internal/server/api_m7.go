@@ -12,6 +12,7 @@ import (
 func (s *Server) routesM7() {
 	// GET /api/v1/elements?q=&type=&category=&recursive=1&sort=title|updated|created|type&limit=&offset=&lang=
 	// lists the elements the caller may view (all for administrators).
+	// action: core.elements.list
 	s.handle("GET /api/v1/elements", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		q := r.URL.Query()
 		cat, _ := strconv.ParseInt(q.Get("category"), 10, 64)

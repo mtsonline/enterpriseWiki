@@ -79,6 +79,7 @@ func (s *Server) routesM6() {
 		}
 		return h.NoContent{}, s.app.Auth.RevokeFeedToken(r.Context(), p.ID())
 	})
+	// action: core.feeds.category
 	s.handle("GET /api/v1/feeds/categories/{id}", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		id, err := h.PathID(r, "id")
 		if err != nil {

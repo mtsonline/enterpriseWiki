@@ -83,7 +83,7 @@ Guest cache
   cache status | cache clear
 
 Media library
-  media list|upload|info|update|replace|edit|versions|restore|usage|acl|download|delete   (ewiki media for details)
+  media list|upload|info|update|replace|edit|versions|restore|usage|acl|download|delete|viewers|open   (ewiki media for details)
   demo status|create|remove|reset-site   demo content of all features; reset the site to its first start
 
 License (Business Source License 1.1, free for private use of natural persons)

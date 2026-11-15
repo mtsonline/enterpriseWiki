@@ -109,6 +109,7 @@ func (s *Server) routesAccess() {
 		return map[string]any{"sent": true}, nil
 	})
 	// GET /api/v1/categories/{id}/access-requests – open requests (Manage)
+	// action: core.categories.access_requests
 	s.handle("GET /api/v1/categories/{id}/access-requests", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		id, err := h.PathID(r, "id")
 		if err != nil {

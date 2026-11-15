@@ -1,0 +1,959 @@
+# Action register (ewiki.plugin.v1.Action, see sdk/proto/ewiki/plugin/v1/action.proto).
+actions:
+  - id: core.categories.list
+    category: CATEGORY_ACTION
+    method: GET
+    path: /api/v1/categories
+    summary:
+      text:
+        en: List categories (only what you may see)
+        de: "Kategorien auflisten (nur, was Sie sehen dürfen)"
+    public: true
+    cli: {command: [category, list]}
+    ui: {entry: /}
+  - id: core.categories.tree
+    category: CATEGORY_ACTION
+    method: GET
+    path: /api/v1/categories/tree
+    summary:
+      text:
+        en: Show the tree of categories (only what you may see)
+        de: "Baum der Kategorien anzeigen (nur, was Sie sehen dürfen)"
+    public: true
+    cli: {command: [category, tree]}
+    ui: {entry: /}
+  - id: core.categories.get
+    category: CATEGORY_ACTION
+    method: GET
+    path: /api/v1/categories/{id}
+    summary:
+      text:
+        en: Show a category with its elements
+        de: Kategorie mit ihren Elementen anzeigen
+    permission: {key: core.category.view, scope: SCOPE_CATEGORY, category_param: "id"}
+    cli: {command: [category, show], args: [id]}
+    ui: {entry: /c/:id}
+  - id: core.categories.create
+    category: CATEGORY_ACTION
+    method: POST
+    path: /api/v1/categories
+    summary:
+      text:
+        en: Create a category (needs manage on the parent as well)
+        de: Kategorie anlegen (braucht zusätzlich Verwalten der übergeordneten)
+    permission: {key: core.categories.admin, scope: SCOPE_GLOBAL}
+    safety: {changes: true}
+    cli: {command: [category, create]}
+    ui: {entry: /}
+  - id: core.categories.update
+    category: CATEGORY_ACTION
+    method: PUT
+    path: /api/v1/categories/{id}
+    summary:
+      text:
+        en: "Change a category (texts, settings, display)"
+        de: "Kategorie ändern (Texte, Einstellungen, Darstellung)"
+    permission: {key: core.category.manage, scope: SCOPE_CATEGORY, category_param: "id"}
+    safety: {changes: true}
+    cli: {command: [category, update], args: [id]}
+    ui: {entry: /c/:id/settings}
+  - id: core.categories.delete
+    category: CATEGORY_ACTION
+    method: DELETE
+    path: /api/v1/categories/{id}
+    summary:
+      text:
+        en: Move a category to the trash (needs manage on it as well)
+        de: Kategorie in den Papierkorb legen (braucht zusätzlich Verwalten)
+    permission: {key: core.categories.admin, scope: SCOPE_GLOBAL}
+    safety: {changes: true}
+    cli: {command: [category, delete], args: [id]}
+    ui: {entry: /c/:id/settings}
+  - id: core.categories.move
+    category: CATEGORY_ACTION
+    method: POST
+    path: /api/v1/categories/{id}/move
+    summary:
+      text:
+        en: Move a category to another parent or position
+        de: Kategorie unter eine andere Kategorie oder an eine andere Stelle verschieben
+    permission: {key: core.categories.admin, scope: SCOPE_GLOBAL}
+    safety: {changes: true}
+    cli: {command: [category, move], args: [id]}
+    ui: {entry: /c/:id/settings}
+  - id: core.categories.duplicate
+    category: CATEGORY_ACTION
+    method: POST
+    path: /api/v1/categories/{id}/duplicate
+    summary:
+      text:
+        en: Duplicate a category with its elements
+        de: Kategorie mit ihren Elementen duplizieren
+    permission: {key: core.categories.admin, scope: SCOPE_GLOBAL}
+    safety: {changes: true}
+    cli: {command: [category, duplicate], args: [id]}
+    ui: {entry: /c/:id/settings}
+  - id: core.categories.reorder
+    category: CATEGORY_ACTION
+    method: POST
+    path: /api/v1/categories/{id}/reorder
+    summary:
+      text:
+        en: Change the order of the subcategories and elements
+        de: Reihenfolge von Unterkategorien und Elementen ändern
+    permission: {key: core.categories.admin, scope: SCOPE_GLOBAL}
+    safety: {changes: true}
+    cli: {command: [category, reorder], args: [id]}
+    ui: {entry: /c/:id}
+  - id: core.categories.space
+    category: CATEGORY_ACTION
+    method: PUT
+    path: /api/v1/categories/{id}/space
+    summary:
+      text:
+        en: Make a category a space or change its space settings
+        de: Kategorie zum Bereich machen oder Bereichs-Einstellungen ändern
+    permission: {key: core.category.manage, scope: SCOPE_CATEGORY, category_param: "id"}
+    safety: {changes: true}
+    cli: {command: [category, space], args: [id]}
+    ui: {entry: /c/:id/settings}
+  - id: core.categories.archive
+    category: CATEGORY_ACTION
+    method: POST
+    path: /api/v1/categories/{id}/archive
+    summary:
+      text:
+        en: Archive a space or take it out of the archive
+        de: Bereich archivieren oder aus dem Archiv holen
+    permission: {key: core.category.manage, scope: SCOPE_CATEGORY, category_param: "id"}
+    safety: {changes: true}
+    cli: {command: [category, archive], args: [id]}
+    ui: {entry: /c/:id/settings}
+  - id: core.categories.translate
+    category: CATEGORY_ACTION
+    method: PUT
+    path: /api/v1/categories/{id}/translations/{lang}
+    summary:
+      text:
+        en: Translate the texts of a category
+        de: Texte einer Kategorie übersetzen
+    permission: {key: core.category.manage, scope: SCOPE_CATEGORY, category_param: "id"}
+    safety: {changes: true}
+    cli: {command: [category, translate], builtin: true}
+    ui: {entry: /c/:id/settings}
+  - id: core.categories.acl.list
+    category: CATEGORY_ACTION
+    method: GET
+    path: /api/v1/categories/{id}/acl
+    summary:
+      text:
+        en: List the permission rules of a category
+        de: Rechte-Regeln einer Kategorie auflisten
+    permission: {key: core.category.manage, scope: SCOPE_CATEGORY, category_param: "id"}
+    cli: {command: [category, acl, list], args: [id]}
+    ui: {entry: /c/:id/settings}
+  - id: core.categories.acl.add
+    category: CATEGORY_ACTION
+    method: POST
+    path: /api/v1/categories/{id}/acl
+    summary:
+      text:
+        en: Add a permission rule to a category
+        de: Rechte-Regel zu einer Kategorie hinzufügen
+    permission: {key: core.category.manage, scope: SCOPE_CATEGORY, category_param: "id"}
+    safety: {changes: true}
+    cli: {command: [category, acl, add], args: [id]}
+    ui: {entry: /c/:id/settings}
+  - id: core.categories.acl.update
+    category: CATEGORY_ACTION
+    method: PUT
+    path: /api/v1/acl/{id}
+    summary:
+      text:
+        en: Change a permission rule (needs manage on its category)
+        de: Rechte-Regel ändern (braucht Verwalten ihrer Kategorie)
+    signed_in: true
+    safety: {changes: true}
+    cli: {command: [category, acl, update], args: [id]}
+    ui: {entry: /c/:id/settings}
+  - id: core.categories.acl.remove
+    category: CATEGORY_ACTION
+    method: DELETE
+    path: /api/v1/acl/{id}
+    summary:
+      text:
+        en: Remove a permission rule (needs manage on its category)
+        de: Rechte-Regel entfernen (braucht Verwalten ihrer Kategorie)
+    signed_in: true
+    safety: {changes: true}
+    cli: {command: [category, acl, remove], args: [id]}
+    ui: {entry: /c/:id/settings}
+  - id: core.categories.history
+    category: CATEGORY_ACTION
+    method: GET
+    path: /api/v1/categories/{id}/history
+    summary:
+      text:
+        en: Show the change history of a category
+        de: Änderungsverlauf einer Kategorie anzeigen
+    permission: {key: core.category.view, scope: SCOPE_CATEGORY, category_param: "id"}
+    cli: {command: [category, history], args: [id]}
+    ui: {entry: /c/:id/settings}
+  - id: core.categories.rollback
+    category: CATEGORY_ACTION
+    method: POST
+    path: /api/v1/categories/{id}/rollback
+    summary:
+      text:
+        en: Set a category with its elements back to an earlier point in time
+        de: Kategorie mit ihren Elementen auf einen früheren Zeitpunkt zurücksetzen
+    permission: {key: core.category.edit, scope: SCOPE_CATEGORY, category_param: "id"}
+    safety: {changes: true}
+    cli: {command: [category, rollback], args: [id]}
+    ui: {entry: /c/:id/settings}
+  - id: core.categories.export
+    category: CATEGORY_ACTION
+    method: GET
+    path: /api/v1/categories/{id}/export
+    summary:
+      text:
+        en: Export a category with its elements and files
+        de: Kategorie mit Elementen und Dateien exportieren
+    permission: {key: core.category.view, scope: SCOPE_CATEGORY, category_param: "id"}
+    cli: {command: [category, export], args: [id]}
+    ui: {entry: /c/:id/settings}
+  - id: core.categories.import
+    category: CATEGORY_ACTION
+    method: POST
+    path: /api/v1/categories/import
+    summary:
+      text:
+        en: Import an exported category
+        de: Exportierte Kategorie importieren
+    permission: {key: core.categories.admin, scope: SCOPE_GLOBAL}
+    safety: {changes: true}
+    cli: {command: [category, import]}
+    ui: {entry: /c/:id/settings}
+  - id: core.categories.insights
+    category: CATEGORY_ACTION
+    method: GET
+    path: /api/v1/categories/{id}/insights
+    summary:
+      text:
+        en: Show views and activity of a category
+        de: Aufrufe und Aktivität einer Kategorie anzeigen
+    permission: {key: core.category.manage, scope: SCOPE_CATEGORY, category_param: "id"}
+    cli: {command: [category, insights], args: [id]}
+    ui: {entry: /c/:id/settings}
+  - id: core.categories.access_requests
+    category: CATEGORY_ACTION
+    method: GET
+    path: /api/v1/categories/{id}/access-requests
+    summary:
+      text:
+        en: List the open access requests of a category
+        de: Offene Zugriffsanfragen einer Kategorie auflisten
+    permission: {key: core.category.manage, scope: SCOPE_CATEGORY, category_param: "id"}
+    cli: {command: [category, access-requests], args: [id]}
+    ui: {entry: /c/:id/settings}
+  - id: core.elements.list
+    category: CATEGORY_ACTION
+    method: GET
+    path: /api/v1/elements
+    summary:
+      text:
+        en: List elements with filters (only what you may see)
+        de: "Elemente mit Filtern auflisten (nur, was Sie sehen dürfen)"
+    public: true
+    cli: {command: [element, list]}
+    ui: {entry: /search}
+  - id: core.elements.get
+    category: CATEGORY_ACTION
+    method: GET
+    path: /api/v1/elements/{id}
+    summary:
+      text:
+        en: Show an element
+        de: Element anzeigen
+    permission: {key: core.category.view, scope: SCOPE_CATEGORY, category_param: "element:id"}
+    cli: {command: [element, show], args: [id]}
+    ui: {entry: /e/:id}
+  - id: core.elements.create
+    category: CATEGORY_ACTION
+    method: POST
+    path: /api/v1/elements
+    summary:
+      text:
+        en: Create an element in a category
+        de: Element in einer Kategorie anlegen
+    permission: {key: core.category.create, scope: SCOPE_CATEGORY, category_param: "category_id"}
+    safety: {changes: true}
+    cli: {command: [element, create]}
+    ui: {entry: /c/:id/new}
+  - id: core.elements.update
+    category: CATEGORY_ACTION
+    method: PUT
+    path: /api/v1/elements/{id}
+    summary:
+      text:
+        en: Save an element (new version)
+        de: Element speichern (neue Version)
+    permission: {key: core.category.edit, scope: SCOPE_CATEGORY, category_param: "element:id"}
+    safety: {changes: true}
+    cli: {command: [element, update], args: [id]}
+    ui: {entry: /e/:id/edit}
+  - id: core.elements.patch
+    category: CATEGORY_ACTION
+    method: PATCH
+    path: /api/v1/elements/{id}
+    summary:
+      text:
+        en: "Change single fields of an element (title, tags, properties)"
+        de: "Einzelne Felder eines Elements ändern (Titel, Schlagwörter, Eigenschaften)"
+    permission: {key: core.category.edit, scope: SCOPE_CATEGORY, category_param: "element:id"}
+    safety: {changes: true}
+    cli: {command: [element, patch], args: [id]}
+    ui: {entry: /e/:id}
+  - id: core.elements.delete
+    category: CATEGORY_ACTION
+    method: DELETE
+    path: /api/v1/elements/{id}
+    summary:
+      text:
+        en: Move an element to the trash
+        de: Element in den Papierkorb legen
+    permission: {key: core.category.delete, scope: SCOPE_CATEGORY, category_param: "element:id"}
+    safety: {changes: true}
+    cli: {command: [element, delete], args: [id]}
+    ui: {entry: /e/:id}
+  - id: core.elements.move
+    category: CATEGORY_ACTION
+    method: POST
+    path: /api/v1/elements/{id}/move
+    summary:
+      text:
+        en: Move an element to another category
+        de: Element in eine andere Kategorie verschieben
+    permission: {key: core.category.delete, scope: SCOPE_CATEGORY, category_param: "element:id"}
+    safety: {changes: true}
+    cli: {command: [element, move], args: [id]}
+    ui: {entry: /e/:id}
+  - id: core.elements.duplicate
+    category: CATEGORY_ACTION
+    method: POST
+    path: /api/v1/elements/{id}/duplicate
+    summary:
+      text:
+        en: Duplicate an element
+        de: Element duplizieren
+    permission: {key: core.category.create, scope: SCOPE_CATEGORY, category_param: "element:id"}
+    safety: {changes: true}
+    cli: {command: [element, duplicate], args: [id]}
+    ui: {entry: /e/:id}
+  - id: core.elements.restore
+    category: CATEGORY_ACTION
+    method: POST
+    path: /api/v1/elements/{id}/restore
+    summary:
+      text:
+        en: Restore an earlier version of an element
+        de: Frühere Version eines Elements wiederherstellen
+    permission: {key: core.category.edit, scope: SCOPE_CATEGORY, category_param: "element:id"}
+    safety: {changes: true}
+    cli: {command: [element, restore], args: [id]}
+    ui: {entry: /e/:id/history}
+  - id: core.elements.view
+    category: CATEGORY_ACTION
+    method: POST
+    path: /api/v1/elements/{id}/view
+    summary:
+      text:
+        en: Count a view of an element (for insights)
+        de: Aufruf eines Elements zählen (für die Statistik)
+    permission: {key: core.category.view, scope: SCOPE_CATEGORY, category_param: "element:id"}
+    safety: {changes: true}
+    cli: {command: [element, view], args: [id]}
+    ui: {entry: /e/:id}
+  - id: core.elements.revisions
+    category: CATEGORY_ACTION
+    method: GET
+    path: /api/v1/elements/{id}/revisions
+    summary:
+      text:
+        en: List the versions of an element
+        de: Versionen eines Elements auflisten
+    permission: {key: core.category.view, scope: SCOPE_CATEGORY, category_param: "element:id"}
+    cli: {command: [element, revisions], args: [id]}
+    ui: {entry: /e/:id/history}
+  - id: core.elements.revision
+    category: CATEGORY_ACTION
+    method: GET
+    path: /api/v1/elements/{id}/revisions/{lang}/{rev}
+    summary:
+      text:
+        en: Show one version of an element
+        de: Eine Version eines Elements anzeigen
+    permission: {key: core.category.view, scope: SCOPE_CATEGORY, category_param: "element:id"}
+    cli: {command: [element, revision], args: [id, lang, rev]}
+    ui: {entry: /e/:id/history}
+  - id: core.elements.macro
+    category: CATEGORY_ACTION
+    method: GET
+    path: /api/v1/elements/{id}/macro/{index}
+    summary:
+      text:
+        en: Render one macro of an element again (live content)
+        de: Ein Makro eines Elements neu darstellen (Live-Inhalt)
+    permission: {key: core.category.view, scope: SCOPE_CATEGORY, category_param: "element:id"}
+    cli: {command: [element, macro], args: [id, index]}
+    ui: {entry: /e/:id}
+  - id: core.elements.preview
+    category: CATEGORY_ACTION
+    method: POST
+    path: /api/v1/elements/preview
+    summary:
+      text:
+        en: Show how a text will look (preview while editing)
+        de: Vorschau eines Textes beim Bearbeiten
+    signed_in: true
+    safety: {changes: true}
+    cli: {command: [element, preview]}
+    ui: {entry: /e/:id/edit}
+  - id: core.drafts.list
+    category: CATEGORY_ACTION
+    method: GET
+    path: /api/v1/drafts
+    summary:
+      text:
+        en: List your drafts
+        de: Eigene Entwürfe auflisten
+    signed_in: true
+    cli: {command: [draft, list], builtin: true}
+    ui: {entry: /}
+  - id: core.drafts.get
+    category: CATEGORY_ACTION
+    method: GET
+    path: /api/v1/drafts/{id}
+    summary:
+      text:
+        en: Show one of your drafts
+        de: Eigenen Entwurf anzeigen
+    signed_in: true
+    cli: {command: [draft, show], builtin: true}
+    ui: {entry: /d/:id/edit}
+  - id: core.drafts.create
+    category: CATEGORY_ACTION
+    method: POST
+    path: /api/v1/drafts
+    summary:
+      text:
+        en: Create a draft
+        de: Entwurf anlegen
+    signed_in: true
+    safety: {changes: true}
+    cli: {command: [draft, create]}
+    ui: {entry: /c/:id/new}
+  - id: core.drafts.update
+    category: CATEGORY_ACTION
+    method: PUT
+    path: /api/v1/drafts/{id}
+    summary:
+      text:
+        en: Save a draft
+        de: Entwurf speichern
+    signed_in: true
+    safety: {changes: true}
+    cli: {command: [draft, update], args: [id]}
+    ui: {entry: /d/:id/edit}
+  - id: core.drafts.delete
+    category: CATEGORY_ACTION
+    method: DELETE
+    path: /api/v1/drafts/{id}
+    summary:
+      text:
+        en: Delete a draft
+        de: Entwurf löschen
+    signed_in: true
+    safety: {changes: true}
+    cli: {command: [draft, delete], builtin: true}
+    ui: {entry: /d/:id/edit}
+  - id: core.drafts.publish
+    category: CATEGORY_ACTION
+    method: POST
+    path: /api/v1/drafts/{id}/publish
+    summary:
+      text:
+        en: Publish a draft now or at a time (needs create or edit in the category)
+        de: Entwurf jetzt oder zu einem Zeitpunkt veröffentlichen (braucht Anlegen oder Bearbeiten in der Kategorie)
+    signed_in: true
+    safety: {changes: true}
+    cli: {command: [draft, publish], builtin: true}
+    ui: {entry: /d/:id/edit}
+  - id: core.drafts.unschedule
+    category: CATEGORY_ACTION
+    method: DELETE
+    path: /api/v1/drafts/{id}/schedule
+    summary:
+      text:
+        en: Cancel the planned publication of a draft
+        de: Geplante Veröffentlichung eines Entwurfs aufheben
+    signed_in: true
+    safety: {changes: true}
+    cli: {command: [draft, unschedule], args: [id]}
+    ui: {entry: /d/:id/edit}
+  - id: core.templates.list
+    category: CATEGORY_ACTION
+    method: GET
+    path: /api/v1/templates
+    summary:
+      text:
+        en: List the templates you may use
+        de: Nutzbare Vorlagen auflisten
+    signed_in: true
+    cli: {command: [template, list]}
+    ui: {entry: /c/:id/new}
+  - id: core.templates.get
+    category: CATEGORY_ACTION
+    method: GET
+    path: /api/v1/templates/{id}
+    summary:
+      text:
+        en: Show a template
+        de: Vorlage anzeigen
+    signed_in: true
+    cli: {command: [template, show], args: [id]}
+    ui: {entry: /c/:id/new}
+  - id: core.templates.create
+    category: CATEGORY_ACTION
+    method: POST
+    path: /api/v1/templates
+    summary:
+      text:
+        en: Create a template (category templates need manage on the category)
+        de: Vorlage anlegen (Kategorie-Vorlagen brauchen Verwalten der Kategorie)
+    signed_in: true
+    safety: {changes: true}
+    cli: {command: [template, create]}
+    ui: {entry: /c/:id/settings}
+  - id: core.templates.update
+    category: CATEGORY_ACTION
+    method: PUT
+    path: /api/v1/templates/{id}
+    summary:
+      text:
+        en: Change a template
+        de: Vorlage ändern
+    signed_in: true
+    safety: {changes: true}
+    cli: {command: [template, update], args: [id]}
+    ui: {entry: /c/:id/settings}
+  - id: core.templates.delete
+    category: CATEGORY_ACTION
+    method: DELETE
+    path: /api/v1/templates/{id}
+    summary:
+      text:
+        en: Delete a template
+        de: Vorlage löschen
+    signed_in: true
+    safety: {changes: true}
+    cli: {command: [template, delete], args: [id]}
+    ui: {entry: /c/:id/settings}
+  - id: core.spaces.list
+    category: CATEGORY_ACTION
+    method: GET
+    path: /api/v1/spaces
+    summary:
+      text:
+        en: List the spaces (only what you may see)
+        de: "Bereiche auflisten (nur, was Sie sehen dürfen)"
+    public: true
+    cli: {command: [space, list]}
+    ui: {entry: /spaces}
+  - id: core.spaces.get
+    category: CATEGORY_ACTION
+    method: GET
+    path: /api/v1/spaces/{key}
+    summary:
+      text:
+        en: Find a space by its key
+        de: Bereich über seinen Schlüssel finden
+    public: true
+    cli: {command: [space, show], args: [key]}
+    ui: {entry: /s/:key}
+  - id: core.spaces.create
+    category: CATEGORY_ACTION
+    method: POST
+    path: /api/v1/spaces
+    summary:
+      text:
+        en: Create a space from a category or a template (needs manage or category administration)
+        de: Bereich aus einer Kategorie oder Vorlage anlegen (braucht Verwalten bzw. Kategorien-Verwaltung)
+    signed_in: true
+    safety: {changes: true}
+    cli: {command: [space, create]}
+    ui: {entry: /spaces}
+  - id: core.spaces.personal
+    category: CATEGORY_ACTION
+    method: POST
+    path: /api/v1/spaces/personal
+    summary:
+      text:
+        en: Create your personal space
+        de: Eigenen persönlichen Bereich anlegen
+    permission: {key: core.spaces.personal, scope: SCOPE_GLOBAL}
+    safety: {changes: true}
+    cli: {command: [space, personal]}
+    ui: {entry: /spaces}
+  - id: core.trash.list
+    category: CATEGORY_ACTION
+    method: GET
+    path: /api/v1/trash
+    summary:
+      text:
+        en: List the trash (only what you may see)
+        de: "Papierkorb auflisten (nur, was Sie sehen dürfen)"
+    signed_in: true
+    cli: {command: [trash, list]}
+    ui: {entry: /trash}
+  - id: core.trash.restore
+    category: CATEGORY_ACTION
+    method: POST
+    path: /api/v1/trash/{type}/{id}/restore
+    summary:
+      text:
+        en: Restore a category or an element from the trash
+        de: Kategorie oder Element aus dem Papierkorb wiederherstellen
+    permission: {key: core.categories.admin, scope: SCOPE_GLOBAL}
+    safety: {changes: true}
+    cli: {command: [trash, restore], args: [type, id]}
+    ui: {entry: /trash}
+  - id: core.trash.purge
+    category: CATEGORY_ACTION
+    method: DELETE
+    path: /api/v1/trash/{type}/{id}
+    summary:
+      text:
+        en: Delete for good from the trash
+        de: Endgültig aus dem Papierkorb löschen
+    permission: {key: core.trash.manage, scope: SCOPE_GLOBAL}
+    safety: {changes: true}
+    cli: {command: [trash, purge], args: [type, id]}
+    ui: {entry: /trash}
+  - id: core.search
+    category: CATEGORY_ACTION
+    method: GET
+    path: /api/v1/search
+    summary:
+      text:
+        en: Search the wiki (only what you may see)
+        de: "Im Wiki suchen (nur, was Sie sehen dürfen)"
+    public: true
+    cli: {command: [search]}
+    ui: {entry: /search}
+  - id: core.tags
+    category: CATEGORY_ACTION
+    method: GET
+    path: /api/v1/tags
+    summary:
+      text:
+        en: List tags with their count (only what you may see)
+        de: "Schlagwörter mit Anzahl auflisten (nur, was Sie sehen dürfen)"
+    public: true
+    cli: {command: [tags]}
+    ui: {entry: /search}
+  - id: core.i18n.status
+    category: CATEGORY_ACTION
+    method: GET
+    path: /api/v1/i18n/status
+    summary:
+      text:
+        en: Show how complete every language is
+        de: "Anzeigen, wie vollständig jede Sprache ist"
+    public: true
+    cli: {command: [i18n, status], builtin: true}
+    ui: {entry: /admin/languages}
+  - id: core.i18n.texts
+    category: CATEGORY_ACTION
+    method: GET
+    path: /api/v1/i18n/{lang}
+    summary:
+      text:
+        en: Texts of the interface in one language
+        de: Texte der Oberfläche in einer Sprache
+    public: true
+    cli: {command: [i18n, texts], args: [lang]}
+    ui: {entry: /}
+  - id: core.files.get
+    category: CATEGORY_ACTION
+    method: GET
+    path: /api/v1/files/{hash}
+    summary:
+      text:
+        en: Download a file of an element (only what you may see)
+        de: "Datei eines Elements herunterladen (nur, was Sie sehen dürfen)"
+    public: true
+    cli: {command: [file, get], args: [hash]}
+    ui: {entry: /e/:id}
+  - id: core.files.upload
+    category: CATEGORY_ACTION
+    method: POST
+    path: /api/v1/files
+    summary:
+      text:
+        en: Upload a file for an element
+        de: Datei für ein Element hochladen
+    signed_in: true
+    safety: {changes: true}
+    cli: {command: [file, upload]}
+    ui: {entry: /e/:id/edit}
+  - id: core.feeds.category
+    category: CATEGORY_ACTION
+    method: GET
+    path: /api/v1/feeds/categories/{id}
+    summary:
+      text:
+        en: Feed of a category (RSS/Atom; with the personal feed link also for private content)
+        de: Feed einer Kategorie (RSS/Atom; mit persönlichem Feed-Link auch für private Inhalte)
+    public: true
+    cli: {command: [feed, category], args: [id]}
+    ui: {entry: /c/:id}
+  - id: core.prerender
+    category: CATEGORY_ACTION
+    method: GET
+    path: /api/v1/prerender
+    summary:
+      text:
+        en: Show the pre-rendered page of a path as guests see it
+        de: "Vorgerenderte Seite eines Pfads anzeigen, wie Gäste sie sehen"
+    permission: {key: core.settings.manage, scope: SCOPE_GLOBAL}
+    cli: {command: [prerender]}
+    ui: {entry: /admin/settings}
+  - id: core.media.list
+    category: CATEGORY_ACTION
+    method: GET
+    path: /api/v1/media
+    summary:
+      text:
+        en: List the media library (only what you may see)
+        de: "Medienbibliothek auflisten (nur, was Sie sehen dürfen)"
+    signed_in: true
+    cli: {command: [media, list], builtin: true}
+    ui: {entry: /media}
+  - id: core.media.upload
+    category: CATEGORY_ACTION
+    method: POST
+    path: /api/v1/media
+    summary:
+      text:
+        en: Upload a file to the media library
+        de: Datei in die Medienbibliothek hochladen
+    signed_in: true
+    safety: {changes: true}
+    cli: {command: [media, upload], builtin: true}
+    ui: {entry: /media}
+  - id: core.media.get
+    category: CATEGORY_ACTION
+    method: GET
+    path: /api/v1/media/{id}
+    summary:
+      text:
+        en: Show a file of the media library
+        de: Datei der Medienbibliothek anzeigen
+    signed_in: true
+    cli: {command: [media, info], builtin: true}
+    ui: {entry: /media}
+  - id: core.media.update
+    category: CATEGORY_ACTION
+    method: PATCH
+    path: /api/v1/media/{id}
+    summary:
+      text:
+        en: "Change name, description and rights of a file"
+        de: "Name, Beschreibung und Rechte einer Datei ändern"
+    signed_in: true
+    safety: {changes: true}
+    cli: {command: [media, update], builtin: true}
+    ui: {entry: /media}
+  - id: core.media.delete
+    category: CATEGORY_ACTION
+    method: DELETE
+    path: /api/v1/media/{id}
+    summary:
+      text:
+        en: Delete a file of the media library
+        de: Datei der Medienbibliothek löschen
+    signed_in: true
+    safety: {changes: true}
+    cli: {command: [media, delete], builtin: true}
+    ui: {entry: /media}
+  - id: core.media.replace
+    category: CATEGORY_ACTION
+    method: POST
+    path: /api/v1/media/{id}/file
+    summary:
+      text:
+        en: Replace the content of a file (new version)
+        de: Inhalt einer Datei ersetzen (neue Version)
+    signed_in: true
+    safety: {changes: true}
+    cli: {command: [media, replace], builtin: true}
+    ui: {entry: /media}
+  - id: core.media.edit
+    category: CATEGORY_ACTION
+    method: POST
+    path: /api/v1/media/{id}/edit
+    summary:
+      text:
+        en: "Edit an image (crop, rotate, resize)"
+        de: "Bild bearbeiten (zuschneiden, drehen, Größe ändern)"
+    signed_in: true
+    safety: {changes: true}
+    cli: {command: [media, edit], builtin: true}
+    ui: {entry: /media}
+  - id: core.media.versions
+    category: CATEGORY_ACTION
+    method: GET
+    path: /api/v1/media/{id}/versions
+    summary:
+      text:
+        en: List the versions of a file
+        de: Versionen einer Datei auflisten
+    signed_in: true
+    cli: {command: [media, versions], builtin: true}
+    ui: {entry: /media}
+  - id: core.media.restore
+    category: CATEGORY_ACTION
+    method: POST
+    path: /api/v1/media/{id}/versions/{v}/restore
+    summary:
+      text:
+        en: Restore an earlier version of a file
+        de: Frühere Version einer Datei wiederherstellen
+    signed_in: true
+    safety: {changes: true}
+    cli: {command: [media, restore], builtin: true}
+    ui: {entry: /media}
+  - id: core.media.usage
+    category: CATEGORY_ACTION
+    method: GET
+    path: /api/v1/media/{id}/usage
+    summary:
+      text:
+        en: Show where a file is used
+        de: "Anzeigen, wo eine Datei verwendet wird"
+    signed_in: true
+    cli: {command: [media, usage], builtin: true}
+    ui: {entry: /media}
+  - id: core.media.acl
+    category: CATEGORY_ACTION
+    method: GET
+    path: /api/v1/media/{id}/acl
+    summary:
+      text:
+        en: Show who may see and change a file
+        de: "Anzeigen, wer eine Datei sehen und ändern darf"
+    signed_in: true
+    cli: {command: [media, acl], builtin: true}
+    ui: {entry: /media}
+  - id: core.media.download
+    category: CATEGORY_ACTION
+    method: GET
+    path: /api/v1/media/{id}/download
+    summary:
+      text:
+        en: Download a file of the media library (only what you may see)
+        de: "Datei der Medienbibliothek herunterladen (nur, was Sie sehen dürfen)"
+    public: true
+    cli: {command: [media, download], builtin: true}
+    ui: {entry: /media}
+  - id: core.media.view
+    category: CATEGORY_ACTION
+    method: GET
+    path: /api/v1/media/{id}/view
+    summary:
+      text:
+        en: Show a file in the browser (only what you may see)
+        de: "Datei im Browser anzeigen (nur, was Sie sehen dürfen)"
+    public: true
+    cli: {command: [media, view], args: [id]}
+    ui: {entry: /media}
+  - id: core.media.viewers
+    category: CATEGORY_ACTION
+    method: GET
+    path: /api/v1/media/viewers
+    summary:
+      text:
+        en: List the programs that can open files (office servers)
+        de: "Programme auflisten, die Dateien öffnen können (Office-Server)"
+    signed_in: true
+    cli: {command: [media, viewers], builtin: true}
+    ui: {entry: /media}
+  - id: core.media.open.options
+    category: CATEGORY_ACTION
+    method: GET
+    path: /api/v1/media/{id}/open
+    summary:
+      text:
+        en: "Show how a file can be opened (viewer, office program)"
+        de: "Anzeigen, wie eine Datei geöffnet werden kann (Anzeige, Office-Programm)"
+    signed_in: true
+    cli: {command: [media, open], builtin: true}
+    ui: {entry: /media}
+  - id: core.media.open
+    category: CATEGORY_ACTION
+    method: POST
+    path: /api/v1/media/{id}/open
+    summary:
+      text:
+        en: Open a file in an office program (view or edit)
+        de: Datei in einem Office-Programm öffnen (ansehen oder bearbeiten)
+    signed_in: true
+    safety: {changes: true}
+    cli: {command: [media, open], builtin: true}
+    ui: {entry: /office/:id}
+  - id: core.signatures.get
+    category: CATEGORY_ACTION
+    method: GET
+    path: /api/v1/signatures/{id}
+    summary:
+      text:
+        en: Show a signature record
+        de: Signatur-Nachweis anzeigen
+    signed_in: true
+    cli: {command: [signature, show], args: [id]}
+    ui: {entry: /signatures/verify}
+  - id: core.signatures.check
+    category: CATEGORY_ACTION
+    method: GET
+    path: /api/v1/signatures/{id}/verify
+    summary:
+      text:
+        en: Check a signature record stored in the wiki
+        de: Im Wiki gespeicherten Signatur-Nachweis prüfen
+    signed_in: true
+    cli: {command: [signature, check], args: [id]}
+    ui: {entry: /signatures/verify}
+  - id: core.signatures.export
+    category: CATEGORY_ACTION
+    method: GET
+    path: /api/v1/signatures/{id}/export
+    summary:
+      text:
+        en: Export a signature record (for checking elsewhere)
+        de: Signatur-Nachweis exportieren (zum Prüfen an anderer Stelle)
+    signed_in: true
+    cli: {command: [signature, export], args: [id]}
+    ui: {entry: /signatures/verify}
+  - id: core.signatures.verify
+    category: CATEGORY_ACTION
+    method: POST
+    path: /api/v1/signatures/verify
+    summary:
+      text:
+        en: Check an exported signature record
+        de: Exportierten Signatur-Nachweis prüfen
+    signed_in: true
+    safety: {changes: true}
+    cli: {command: [signature, verify], builtin: true}
+    ui: {entry: /signatures/verify}

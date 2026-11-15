@@ -12,6 +12,7 @@ import (
 
 func (s *Server) routesM8() {
 	// GET /api/v1/prerender?path=/e/1 – the page as guests and search engines receive it
+	// action: core.prerender
 	s.handle("GET /api/v1/prerender", s.prerenderAPI)
 
 	// ---------------------------------------------------------------- webhooks (administrators)
