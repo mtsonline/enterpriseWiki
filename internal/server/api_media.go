@@ -81,12 +81,14 @@ func (s *Server) readUpload(w http.ResponseWriter, r *http.Request, fn func(meta
 func (s *Server) routesMedia() {
 	m := func() *media.Service { return s.app.Media }
 
+	// action: core.media.list
 	s.handle("GET /api/v1/media", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		q := r.URL.Query()
 		cat, _ := strconv.ParseInt(q.Get("category"), 10, 64)
 		return m().List(r.Context(), media.ListInput{CategoryID: cat, Recursive: q.Get("recursive") == "1", Query: q.Get("q"),
 			Type: q.Get("type"), Limit: qInt(r, "limit"), Offset: qInt(r, "offset")})
 	})
+	// action: core.media.upload
 	s.handle("POST /api/v1/media", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		return s.readUpload(w, r, func(meta mediaMeta, name string, body io.Reader) (any, error) {
 			if meta.CategoryID <= 0 {
@@ -100,6 +102,7 @@ func (s *Server) routesMedia() {
 			return h.Created{V: md}, nil
 		})
 	})
+	// action: core.media.get
 	s.handle("GET /api/v1/media/{id}", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		id, err := pathID(r)
 		if err != nil {
@@ -107,6 +110,7 @@ func (s *Server) routesMedia() {
 		}
 		return m().Get(r.Context(), id)
 	})
+	// action: core.media.update
 	s.handle("PATCH /api/v1/media/{id}", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		id, err := pathID(r)
 		if err != nil {
@@ -118,6 +122,7 @@ func (s *Server) routesMedia() {
 		}
 		return m().Update(r.Context(), id, in)
 	})
+	// action: core.media.delete
 	s.handle("DELETE /api/v1/media/{id}", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		id, err := pathID(r)
 		if err != nil {
@@ -125,6 +130,7 @@ func (s *Server) routesMedia() {
 		}
 		return h.NoContent{}, m().Delete(r.Context(), id)
 	})
+	// action: core.media.replace
 	s.handle("POST /api/v1/media/{id}/file", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		id, err := pathID(r)
 		if err != nil {
@@ -134,6 +140,7 @@ func (s *Server) routesMedia() {
 			return m().Replace(r.Context(), id, body, meta.Note)
 		})
 	})
+	// action: core.media.edit
 	s.handle("POST /api/v1/media/{id}/edit", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		id, err := pathID(r)
 		if err != nil {
@@ -148,6 +155,7 @@ func (s *Server) routesMedia() {
 		}
 		return m().EditImage(r.Context(), id, in.Ops, in.Note)
 	})
+	// action: core.media.versions
 	s.handle("GET /api/v1/media/{id}/versions", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		id, err := pathID(r)
 		if err != nil {
@@ -155,6 +163,7 @@ func (s *Server) routesMedia() {
 		}
 		return m().Versions(r.Context(), id)
 	})
+	// action: core.media.restore
 	s.handle("POST /api/v1/media/{id}/versions/{v}/restore", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		id, err := pathID(r)
 		if err != nil {
@@ -166,6 +175,7 @@ func (s *Server) routesMedia() {
 		}
 		return m().Restore(r.Context(), id, v)
 	})
+	// action: core.media.usage
 	s.handle("GET /api/v1/media/{id}/usage", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		id, err := pathID(r)
 		if err != nil {
@@ -173,6 +183,7 @@ func (s *Server) routesMedia() {
 		}
 		return m().Usage(r.Context(), id)
 	})
+	// action: core.media.acl
 	s.handle("GET /api/v1/media/{id}/acl", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		id, err := pathID(r)
 		if err != nil {
@@ -203,8 +214,10 @@ func (s *Server) routesMedia() {
 			storage.ServeBytes(w, r, d.Data, d.Mime, d.Name, d.Inline, cacheable)
 		}
 	}
+	// action: core.media.view
 	h.RecordRoute("GET /api/v1/media/{id}/view")
 	s.app.Mux.HandleFunc("GET /api/v1/media/{id}/view", deliver(false))
+	// action: core.media.download
 	h.RecordRoute("GET /api/v1/media/{id}/download")
 	s.app.Mux.HandleFunc("GET /api/v1/media/{id}/download", deliver(true))
 }

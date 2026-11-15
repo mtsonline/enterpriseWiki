@@ -41,14 +41,23 @@ func TestValidate(t *testing.T) {
 		"two accesses":      {func(a *Action) { a.Public = true }, "exactly one"},
 		"scope":             {func(a *Action) { a.Permission.Scope = "SCOPE_SITE" }, "valid scope"},
 		"category param":    {func(a *Action) { a.Permission.Scope = "SCOPE_CATEGORY" }, "category_param"},
-		"no cli":            {func(a *Action) { a.CLI = nil }, "no CLI command"},
-		"no ui":             {func(a *Action) { a.UI = nil }, "no entry in the interface"},
-		"bad exception":     {func(a *Action) { a.CLI = nil; a.Exceptions = []Exception{{Way: "WAY_CLI", Reason: "later"}} }, "who approved"},
-		"cli word":          {func(a *Action) { a.CLI.Command = []string{"Thing"} }, "word"},
-		"cli arg":           {func(a *Action) { a.CLI.Args = []string{"name"} }, "no path, query or body parameter"},
-		"category":          {func(a *Action) { a.Category = "CATEGORY_OTHER" }, "category"},
-		"protocol ways":     {func(a *Action) { a.Category = "CATEGORY_PROTOCOL" }, "no CLI or interface way"},
-		"example name":      {func(a *Action) { a.Examples = []Example{{Status: 200}} }, "need a name"},
+		"category right": {func(a *Action) {
+			*a.Permission = Permission{Key: "core.things.make", Scope: "SCOPE_CATEGORY", CategoryParam: "id"}
+		}, "no category right"},
+		"element param": {func(a *Action) {
+			*a.Permission = Permission{Key: "core.category.view", Scope: "SCOPE_CATEGORY", CategoryParam: "element:eid"}
+		}, "named in the path"},
+		"param syntax": {func(a *Action) {
+			*a.Permission = Permission{Key: "core.category.view", Scope: "SCOPE_CATEGORY", CategoryParam: "{id}"}
+		}, "category_param"},
+		"no cli":        {func(a *Action) { a.CLI = nil }, "no CLI command"},
+		"no ui":         {func(a *Action) { a.UI = nil }, "no entry in the interface"},
+		"bad exception": {func(a *Action) { a.CLI = nil; a.Exceptions = []Exception{{Way: "WAY_CLI", Reason: "later"}} }, "who approved"},
+		"cli word":      {func(a *Action) { a.CLI.Command = []string{"Thing"} }, "word"},
+		"cli arg":       {func(a *Action) { a.CLI.Args = []string{"name"} }, "no path, query or body parameter"},
+		"category":      {func(a *Action) { a.Category = "CATEGORY_OTHER" }, "category"},
+		"protocol ways": {func(a *Action) { a.Category = "CATEGORY_PROTOCOL" }, "no CLI or interface way"},
+		"example name":  {func(a *Action) { a.Examples = []Example{{Status: 200}} }, "need a name"},
 	}
 	for name, c := range cases {
 		a := valid()

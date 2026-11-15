@@ -142,7 +142,10 @@ message Permission {
     SCOPE_UNSPECIFIED = 0;
     SCOPE_GLOBAL = 1;
     // Checked on a category; the request names it in the parameter
-    // category_param (a path, query or body field).
+    // category_param (a path, query or body field), or "element:<param>"
+    // for the category of the element in that parameter. The core's keys
+    // for categories are core.category.view, .edit, .create, .delete and
+    // .manage.
     SCOPE_CATEGORY = 2;
   }
   Scope scope = 2;

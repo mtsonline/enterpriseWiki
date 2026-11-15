@@ -45,6 +45,7 @@ func (s *Server) routesM15() {
 		}
 		return map[string]any{"permissions": perm.All(), "presets": presets, "bits": acl.Names, "groups": groups}, nil
 	})
+	// action: core.categories.acl.update
 	s.handle("PUT /api/v1/acl/{id}", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		id, err := h.PathID(r, "id")
 		if err != nil {

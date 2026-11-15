@@ -13,9 +13,11 @@ import (
 func (s *Server) routesDrafts() {
 	// ---------------------------------------------------------------- drafts
 	// GET /api/v1/drafts?category=ID|element=ID – drafts the caller may see (without both: own drafts)
+	// action: core.drafts.list
 	s.handle("GET /api/v1/drafts", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		return s.app.Content.Drafts(r.Context(), int64(h.QueryInt(r, "category", 0)), int64(h.QueryInt(r, "element", 0)))
 	})
+	// action: core.drafts.create
 	s.handle("POST /api/v1/drafts", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		var in content.DraftInput
 		if err := h.Decode(r, &in); err != nil {
@@ -24,6 +26,7 @@ func (s *Server) routesDrafts() {
 		d, err := s.app.Content.SaveDraft(r.Context(), 0, in)
 		return h.Created{V: d}, err
 	})
+	// action: core.drafts.get
 	s.handle("GET /api/v1/drafts/{id}", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		id, err := h.PathID(r, "id")
 		if err != nil {
@@ -31,6 +34,7 @@ func (s *Server) routesDrafts() {
 		}
 		return s.app.Content.GetDraft(r.Context(), id)
 	})
+	// action: core.drafts.update
 	s.handle("PUT /api/v1/drafts/{id}", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		id, err := h.PathID(r, "id")
 		if err != nil {
@@ -42,6 +46,7 @@ func (s *Server) routesDrafts() {
 		}
 		return s.app.Content.SaveDraft(r.Context(), id, in)
 	})
+	// action: core.drafts.delete
 	s.handle("DELETE /api/v1/drafts/{id}", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		id, err := h.PathID(r, "id")
 		if err != nil {
@@ -50,6 +55,7 @@ func (s *Server) routesDrafts() {
 		return h.NoContent{}, s.app.Content.DeleteDraft(r.Context(), id)
 	})
 	// POST /api/v1/drafts/{id}/publish {category_id, at, notify, options}
+	// action: core.drafts.publish
 	s.handle("POST /api/v1/drafts/{id}/publish", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		id, err := h.PathID(r, "id")
 		if err != nil {
@@ -61,6 +67,7 @@ func (s *Server) routesDrafts() {
 		}
 		return s.app.Content.PublishDraft(r.Context(), id, in)
 	})
+	// action: core.drafts.unschedule
 	s.handle("DELETE /api/v1/drafts/{id}/schedule", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		id, err := h.PathID(r, "id")
 		if err != nil {
@@ -70,10 +77,12 @@ func (s *Server) routesDrafts() {
 	})
 
 	// ---------------------------------------------------------------- templates
+	// action: core.templates.list
 	s.handle("GET /api/v1/templates", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		cat, _ := strconv.ParseInt(r.URL.Query().Get("category"), 10, 64)
 		return s.app.Content.Templates(r.Context(), r.URL.Query().Get("type"), 0, cat)
 	})
+	// action: core.templates.get
 	s.handle("GET /api/v1/templates/{id}", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		id, err := h.PathID(r, "id")
 		if err != nil {
@@ -88,6 +97,7 @@ func (s *Server) routesDrafts() {
 		}
 		return list[0], nil
 	})
+	// action: core.templates.create
 	s.handle("POST /api/v1/templates", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		var in content.TemplateInput
 		if err := h.Decode(r, &in); err != nil {
@@ -96,6 +106,7 @@ func (s *Server) routesDrafts() {
 		t, err := s.app.Content.SaveTemplate(r.Context(), 0, in)
 		return h.Created{V: t}, err
 	})
+	// action: core.templates.update
 	s.handle("PUT /api/v1/templates/{id}", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		id, err := h.PathID(r, "id")
 		if err != nil {
@@ -107,6 +118,7 @@ func (s *Server) routesDrafts() {
 		}
 		return s.app.Content.SaveTemplate(r.Context(), id, in)
 	})
+	// action: core.templates.delete
 	s.handle("DELETE /api/v1/templates/{id}", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		id, err := h.PathID(r, "id")
 		if err != nil {

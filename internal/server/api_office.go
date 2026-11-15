@@ -31,6 +31,7 @@ type viewerInfo struct {
 }
 
 func (s *Server) routesOffice() {
+	// action: core.media.viewers
 	s.handle("GET /api/v1/media/viewers", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		cfg := s.app.Config.Get()
 		out := []viewerInfo{{ID: media.Internal, Label: "Browser"}}
@@ -43,6 +44,7 @@ func (s *Server) routesOffice() {
 		}
 		return map[string]any{"viewers": out, "default": def, "open_external": cfg.Media.OpenExternal && def != media.Internal}, nil
 	})
+	// action: core.media.open.options
 	s.handle("GET /api/v1/media/{id}/open", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		id, err := pathID(r)
 		if err != nil {
@@ -51,6 +53,7 @@ func (s *Server) routesOffice() {
 		cfg := s.app.Config.Get()
 		return s.app.Media.OpenOptions(r.Context(), id, cfg.Media.Viewer, cfg.Media.OpenExternal)
 	})
+	// action: core.media.open
 	s.handle("POST /api/v1/media/{id}/open", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		id, err := pathID(r)
 		if err != nil {

@@ -180,6 +180,7 @@ func (s *Server) routesM2() {
 	s.app.Mux.HandleFunc("POST /api/v1/auth/sso/{provider}/callback", callback)
 
 	// ---------------------------------------------------------------- files
+	// action: core.files.upload
 	s.handle("POST /api/v1/files", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		p := identity.From(r.Context())
 		if p == nil {
@@ -214,6 +215,7 @@ func (s *Server) routesM2() {
 	// the caller may see and images embedded in elements the caller may see
 	// (content from before the media library). Other file types are only
 	// delivered through their medium or element (permission checked).
+	// action: core.files.get
 	h.RecordRoute("GET /api/v1/files/{hash}")
 	s.app.Mux.HandleFunc("GET /api/v1/files/{hash}", func(w http.ResponseWriter, r *http.Request) {
 		store := s.app.Files

@@ -41,10 +41,12 @@ func (s *Server) routesSignatures() {
 	}
 	// GET /api/v1/signatures/{id}: the evidence (signer, administrators and
 	// who may see what was signed).
+	// action: core.signatures.get
 	s.handle("GET /api/v1/signatures/{id}", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		return get(r)
 	})
 	// GET /api/v1/signatures/{id}/verify: record, method proof and seal.
+	// action: core.signatures.check
 	s.handle("GET /api/v1/signatures/{id}/verify", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		e, err := get(r)
 		if err != nil {
@@ -63,6 +65,7 @@ func (s *Server) routesSignatures() {
 	})
 	// GET /api/v1/signatures/{id}/export: the evidence with its public key
 	// as a JSON file (verify elsewhere: ewiki signature verify FILE).
+	// action: core.signatures.export
 	s.handle("GET /api/v1/signatures/{id}/export", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		e, err := get(r)
 		if err != nil {
@@ -83,6 +86,7 @@ func (s *Server) routesSignatures() {
 	})
 	// POST /api/v1/signatures/verify: verify an exported signature (JSON
 	// body) against the keys of this wiki.
+	// action: core.signatures.verify
 	s.handle("POST /api/v1/signatures/verify", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		if _, err := requireUser(r); err != nil {
 			return nil, err

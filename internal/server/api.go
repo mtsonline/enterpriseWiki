@@ -499,13 +499,16 @@ func (s *Server) routes() {
 	})
 
 	// ---------------------------------------------------------------- categories
+	// action: core.categories.list
 	s.handle("GET /api/v1/categories", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		parent, _ := strconv.ParseInt(r.URL.Query().Get("parent"), 10, 64)
 		return s.app.Content.ChildrenOpt(r.Context(), parent, r.URL.Query().Get("hidden") == "1")
 	})
+	// action: core.categories.tree
 	s.handle("GET /api/v1/categories/tree", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		return s.app.Content.Tree(r.Context(), h.QueryInt(r, "limit", 5000))
 	})
+	// action: core.categories.create
 	s.handle("POST /api/v1/categories", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		var in content.CategoryInput
 		if err := h.Decode(r, &in); err != nil {
@@ -514,6 +517,7 @@ func (s *Server) routes() {
 		c, err := s.app.Content.CreateCategory(r.Context(), in)
 		return h.Created{V: c}, err
 	})
+	// action: core.categories.get
 	s.handle("GET /api/v1/categories/{id}", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		id, err := h.PathID(r, "id")
 		if err != nil {
@@ -540,9 +544,11 @@ func (s *Server) routes() {
 		return map[string]any{"category": c, "breadcrumbs": bc, "elements": els, "space": space}, nil
 	})
 	// spaces: the top-level categories (directory, address /s/KEY, settings)
+	// action: core.spaces.list
 	s.handle("GET /api/v1/spaces", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		return s.app.Content.Spaces(r.Context())
 	})
+	// action: core.spaces.create
 	s.handle("POST /api/v1/spaces", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		var in content.NewSpaceInput
 		if err := h.Decode(r, &in); err != nil {
@@ -555,6 +561,7 @@ func (s *Server) routes() {
 		return h.Created{V: sp}, nil
 	})
 	// page views (counted per element and day only) and the evaluation of a category
+	// action: core.elements.view
 	s.handle("POST /api/v1/elements/{id}/view", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		id, err := h.PathID(r, "id")
 		if err != nil {
@@ -562,6 +569,7 @@ func (s *Server) routes() {
 		}
 		return h.NoContent{}, s.app.Content.CountView(r.Context(), id)
 	})
+	// action: core.categories.insights
 	s.handle("GET /api/v1/categories/{id}/insights", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		id, err := h.PathID(r, "id")
 		if err != nil {
@@ -569,12 +577,15 @@ func (s *Server) routes() {
 		}
 		return s.app.Content.Insights(r.Context(), id, h.QueryInt(r, "days", 30), r.URL.Query().Get("lang"))
 	})
+	// action: core.spaces.personal
 	s.handle("POST /api/v1/spaces/personal", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		return s.app.Content.CreatePersonalSpace(r.Context())
 	})
+	// action: core.spaces.get
 	s.handle("GET /api/v1/spaces/{key}", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		return s.app.Content.SpaceByKey(r.Context(), r.PathValue("key"))
 	})
+	// action: core.categories.archive
 	s.handle("POST /api/v1/categories/{id}/archive", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		id, err := h.PathID(r, "id")
 		if err != nil {
@@ -589,6 +600,7 @@ func (s *Server) routes() {
 		return s.app.Content.SetArchived(r.Context(), id, in.Archived)
 	})
 	// export a category tree as JSON Lines; import one below ?parent= (0 = new space)
+	// action: core.categories.export
 	h.RecordRoute("GET /api/v1/categories/{id}/export")
 	s.app.Mux.HandleFunc("GET /api/v1/categories/{id}/export", func(w http.ResponseWriter, r *http.Request) {
 		id, err := h.PathID(r, "id")
@@ -601,6 +613,7 @@ func (s *Server) routes() {
 			h.WriteError(w, r, err)
 		}
 	})
+	// action: core.categories.import
 	s.handle("POST /api/v1/categories/import", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		parent, _ := strconv.ParseInt(r.URL.Query().Get("parent"), 10, 64)
 		res, err := s.app.Content.ImportTree(r.Context(), parent, r.Body)
@@ -609,6 +622,7 @@ func (s *Server) routes() {
 		}
 		return h.Created{V: res}, nil
 	})
+	// action: core.categories.space
 	s.handle("PUT /api/v1/categories/{id}/space", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		id, err := h.PathID(r, "id")
 		if err != nil {
@@ -620,6 +634,7 @@ func (s *Server) routes() {
 		}
 		return s.app.Content.SetSpace(r.Context(), id, in)
 	})
+	// action: core.categories.update
 	s.handle("PUT /api/v1/categories/{id}", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		id, err := h.PathID(r, "id")
 		if err != nil {
@@ -632,6 +647,7 @@ func (s *Server) routes() {
 		return s.app.Content.UpdateCategory(r.Context(), id, in)
 	})
 	// PUT {"title": "…", "description": "…"} translates the category into lang; {"confirm": true} marks an outdated translation as current
+	// action: core.categories.translate
 	s.handle("PUT /api/v1/categories/{id}/translations/{lang}", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		id, err := h.PathID(r, "id")
 		if err != nil {
@@ -643,6 +659,7 @@ func (s *Server) routes() {
 		}
 		return s.app.Content.TranslateCategory(r.Context(), id, r.PathValue("lang"), in)
 	})
+	// action: core.categories.delete
 	s.handle("DELETE /api/v1/categories/{id}", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		id, err := h.PathID(r, "id")
 		if err != nil {
@@ -650,6 +667,7 @@ func (s *Server) routes() {
 		}
 		return h.NoContent{}, s.app.Content.DeleteCategory(r.Context(), id)
 	})
+	// action: core.categories.move
 	s.handle("POST /api/v1/categories/{id}/move", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		id, err := h.PathID(r, "id")
 		if err != nil {
@@ -664,6 +682,7 @@ func (s *Server) routes() {
 		}
 		return s.app.Content.MoveCategory(r.Context(), id, in.ParentID, in.Position)
 	})
+	// action: core.categories.duplicate
 	s.handle("POST /api/v1/categories/{id}/duplicate", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		id, err := h.PathID(r, "id")
 		if err != nil {
@@ -678,6 +697,7 @@ func (s *Server) routes() {
 		c, err := s.app.Content.DuplicateCategory(r.Context(), id, in.ParentID)
 		return h.Created{V: c}, err
 	})
+	// action: core.categories.reorder
 	s.handle("POST /api/v1/categories/{id}/reorder", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		id, err := h.PathID(r, "id")
 		if err != nil {
@@ -691,6 +711,7 @@ func (s *Server) routes() {
 		}
 		return h.NoContent{}, s.app.Content.Reorder(r.Context(), id, in.Order)
 	})
+	// action: core.categories.acl.list
 	s.handle("GET /api/v1/categories/{id}/acl", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		id, err := h.PathID(r, "id")
 		if err != nil {
@@ -698,6 +719,7 @@ func (s *Server) routes() {
 		}
 		return s.app.Content.GetACL(r.Context(), id)
 	})
+	// action: core.categories.acl.add
 	s.handle("POST /api/v1/categories/{id}/acl", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		id, err := h.PathID(r, "id")
 		if err != nil {
@@ -710,6 +732,7 @@ func (s *Server) routes() {
 		rule, err := s.app.Content.AddRule(r.Context(), id, in)
 		return h.Created{V: rule}, err
 	})
+	// action: core.categories.acl.remove
 	s.handle("DELETE /api/v1/acl/{id}", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		id, err := h.PathID(r, "id")
 		if err != nil {
@@ -717,6 +740,7 @@ func (s *Server) routes() {
 		}
 		return h.NoContent{}, s.app.Content.DeleteRule(r.Context(), id)
 	})
+	// action: core.categories.history
 	s.handle("GET /api/v1/categories/{id}/history", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		id, err := h.PathID(r, "id")
 		if err != nil {
@@ -724,6 +748,7 @@ func (s *Server) routes() {
 		}
 		return s.app.Content.CategoryHistory(r.Context(), id, h.QueryInt(r, "limit", 200))
 	})
+	// action: core.categories.rollback
 	s.handle("POST /api/v1/categories/{id}/rollback", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		id, err := h.PathID(r, "id")
 		if err != nil {
@@ -738,6 +763,7 @@ func (s *Server) routes() {
 
 	// ---------------------------------------------------------------- elements
 	s.handle("GET /api/v1/element-types", func(w http.ResponseWriter, r *http.Request) (any, error) { return s.app.Content.Types(), nil })
+	// action: core.elements.create
 	s.handle("POST /api/v1/elements", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		var in content.ElementInput
 		if err := h.Decode(r, &in); err != nil {
@@ -746,6 +772,7 @@ func (s *Server) routes() {
 		e, err := s.app.Content.CreateElement(r.Context(), in)
 		return h.Created{V: e}, err
 	})
+	// action: core.elements.preview
 	s.handle("POST /api/v1/elements/preview", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		var in struct {
 			Type string          `json:"type"`
@@ -758,6 +785,7 @@ func (s *Server) routes() {
 		html, err := s.app.Content.Preview(r.Context(), in.Type, in.Lang, in.Body)
 		return map[string]string{"html": html}, err
 	})
+	// action: core.elements.get
 	s.handle("GET /api/v1/elements/{id}", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		id, err := h.PathID(r, "id")
 		if err != nil {
@@ -810,6 +838,7 @@ func (s *Server) routes() {
 		return out, nil
 	})
 	// one macro of an element again at another page of its list
+	// action: core.elements.macro
 	s.handle("GET /api/v1/elements/{id}/macro/{index}", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		id, err := h.PathID(r, "id")
 		if err != nil {
@@ -832,6 +861,7 @@ func (s *Server) routes() {
 		}
 		return map[string]string{"html": out}, nil
 	})
+	// action: core.elements.update
 	s.handle("PUT /api/v1/elements/{id}", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		id, err := h.PathID(r, "id")
 		if err != nil {
@@ -843,6 +873,7 @@ func (s *Server) routes() {
 		}
 		return s.app.Content.SaveElement(r.Context(), id, in)
 	})
+	// action: core.elements.patch
 	s.handle("PATCH /api/v1/elements/{id}", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		id, err := h.PathID(r, "id")
 		if err != nil {
@@ -854,6 +885,7 @@ func (s *Server) routes() {
 		}
 		return s.app.Content.UpdateElementMeta(r.Context(), id, in)
 	})
+	// action: core.elements.delete
 	s.handle("DELETE /api/v1/elements/{id}", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		id, err := h.PathID(r, "id")
 		if err != nil {
@@ -861,6 +893,7 @@ func (s *Server) routes() {
 		}
 		return h.NoContent{}, s.app.Content.DeleteElement(r.Context(), id)
 	})
+	// action: core.elements.move
 	s.handle("POST /api/v1/elements/{id}/move", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		id, err := h.PathID(r, "id")
 		if err != nil {
@@ -874,6 +907,7 @@ func (s *Server) routes() {
 		}
 		return s.app.Content.MoveElement(r.Context(), id, in.CategoryID)
 	})
+	// action: core.elements.duplicate
 	s.handle("POST /api/v1/elements/{id}/duplicate", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		id, err := h.PathID(r, "id")
 		if err != nil {
@@ -888,6 +922,7 @@ func (s *Server) routes() {
 		e, err := s.app.Content.DuplicateElement(r.Context(), id, in.CategoryID)
 		return h.Created{V: e}, err
 	})
+	// action: core.elements.revisions
 	s.handle("GET /api/v1/elements/{id}/revisions", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		id, err := h.PathID(r, "id")
 		if err != nil {
@@ -895,6 +930,7 @@ func (s *Server) routes() {
 		}
 		return s.app.Content.Revisions(r.Context(), id, r.URL.Query().Get("lang"))
 	})
+	// action: core.elements.revision
 	s.handle("GET /api/v1/elements/{id}/revisions/{lang}/{rev}", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		id, err := h.PathID(r, "id")
 		if err != nil {
@@ -906,6 +942,7 @@ func (s *Server) routes() {
 		}
 		return s.app.Content.GetRevision(r.Context(), id, r.PathValue("lang"), int(rev))
 	})
+	// action: core.elements.restore
 	s.handle("POST /api/v1/elements/{id}/restore", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		id, err := h.PathID(r, "id")
 		if err != nil {
@@ -922,7 +959,9 @@ func (s *Server) routes() {
 	})
 
 	// ---------------------------------------------------------------- trash, search, tags
+	// action: core.trash.list
 	s.handle("GET /api/v1/trash", func(w http.ResponseWriter, r *http.Request) (any, error) { return s.app.Content.Trash(r.Context()) })
+	// action: core.trash.restore
 	s.handle("POST /api/v1/trash/{type}/{id}/restore", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		id, err := h.PathID(r, "id")
 		if err != nil {
@@ -930,6 +969,7 @@ func (s *Server) routes() {
 		}
 		return h.NoContent{}, s.app.Content.Restore(r.Context(), r.PathValue("type"), id)
 	})
+	// action: core.trash.purge
 	s.handle("DELETE /api/v1/trash/{type}/{id}", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		id, err := h.PathID(r, "id")
 		if err != nil {
@@ -937,6 +977,7 @@ func (s *Server) routes() {
 		}
 		return h.NoContent{}, s.app.Content.Purge(r.Context(), r.PathValue("type"), id)
 	})
+	// action: core.search
 	s.handle("GET /api/v1/search", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		q := r.URL.Query()
 		var scope []int64
@@ -952,12 +993,15 @@ func (s *Server) routes() {
 		}
 		return s.app.Content.SearchIn(r.Context(), q.Get("q"), h.QueryList(r, "tags"), q.Get("lang"), h.QueryInt(r, "limit", 30), scope)
 	})
+	// action: core.tags
 	s.handle("GET /api/v1/tags", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		return s.app.Content.Tags(r.Context(), r.URL.Query().Get("prefix"), h.QueryInt(r, "limit", 50))
 	})
 
 	// ---------------------------------------------------------------- i18n
+	// action: core.i18n.status
 	s.handle("GET /api/v1/i18n/status", func(w http.ResponseWriter, r *http.Request) (any, error) { return s.app.I18n.Status(r.Context()) })
+	// action: core.i18n.texts
 	s.handle("GET /api/v1/i18n/{lang}", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		lang := r.PathValue("lang")
 		if !config.ValidLanguage(lang) {

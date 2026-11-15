@@ -4,6 +4,8 @@ import (
 	"bufio"
 	"encoding/json"
 	"fmt"
+	"github.com/mtsonline/enterprisewiki/internal/perm"
+	"github.com/mtsonline/enterprisewiki/internal/server"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -35,6 +37,7 @@ func TestActionRegister(t *testing.T) {
 	byRoute := map[string]actions.Action{}
 	for _, a := range all {
 		byRoute[a.Route()] = a
+		checkActionPermission(t, a)
 		if !slices.Contains(routes, a.Route()) {
 			t.Errorf("%s: %s: the server has no route %s", a.Source, a.ID, a.Route())
 		}
@@ -176,4 +179,24 @@ func pluginID(dir, name string) string {
 		}
 	}
 	return strings.ReplaceAll(name, "_", ".")
+}
+
+// checkActionPermission checks that a global permission of the register
+// exists, and that it is the one the server checks for an administrative
+// route (adminPerms).
+func checkActionPermission(t *testing.T, a actions.Action) {
+	t.Helper()
+	p := a.Permission
+	if p == nil || p.Scope != "SCOPE_GLOBAL" {
+		return
+	}
+	if _, ok := perm.Lookup(p.Key); !ok && p.Key != "core.admin" {
+		t.Errorf("%s: %s: permission %q does not exist", a.Source, a.ID, p.Key)
+	}
+	if a.Plugin != "" {
+		return
+	}
+	if want := server.RoutePerm(a.Route()); want != "" && want != p.Key {
+		t.Errorf("%s: %s: permission %q, but the server checks %q (adminPerms)", a.Source, a.ID, p.Key, want)
+	}
 }
