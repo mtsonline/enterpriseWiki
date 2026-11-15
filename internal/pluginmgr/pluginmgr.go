@@ -50,6 +50,17 @@ type Manager struct {
 	restartPending bool
 	trigger        string // trigger of the running build
 	fp             string // fingerprint of the plugin folder (watch)
+	// noBuild: never start a build in the background (the command line:
+	// its process ends with the command, it builds itself with --build)
+	noBuild bool
+}
+
+// NoBackgroundBuild makes the manager report changes as "rebuild required"
+// instead of starting a build in the background. For the command line,
+// whose process ends right after the command.
+func (m *Manager) NoBackgroundBuild() *Manager {
+	m.noBuild = true
+	return m
 }
 
 // BuildStatus reports the last build.
@@ -94,8 +105,12 @@ func (m *Manager) PluginsDir() string {
 func (m *Manager) CanBuild() bool { return m.BuildUnavailable() == "" }
 
 // BuildUnavailable explains why plugins cannot be built here ("" = they can):
-// lite (lite image) or toolchain (no source tree, go or npm).
+// lite (lite image), toolchain (no source tree, go or npm) or cli (the
+// command line builds itself, see NoBackgroundBuild).
 func (m *Manager) BuildUnavailable() string {
+	if m.noBuild {
+		return "cli"
+	}
 	if m.layout.Mode == ModeLite {
 		return "lite"
 	}

@@ -117,7 +117,14 @@ systemctl start enterprisewiki
 
 ## Command line (`ewiki`)
 
-The CLI is the same binary. It works directly with the configuration and the database and runs with superadmin rights. Whoever can run it as the service user has full control. With `--config` or `EWIKI_CONFIG` you choose the installation.
+The CLI is the same binary. It runs with superadmin rights; whoever can run it as the service user has full control. With `--config` or `EWIKI_CONFIG` you choose the installation.
+
+**All commands go through the API** (in the same process, through the normal server handler): the same checks, limits and audit entries apply as in the interface; the audit log shows them with "cli". With `--as USER` exactly that user's rights apply. Exceptions, approved by the project owner because they work with files instead of the wiki:
+
+- `serve`, `setup`, `migrate` (start or set up the wiki);
+- `config show|path|validate|get|set` (edits `config.yaml` directly and also works when the database cannot be reached). `config set` writes an entry to the audit log (`settings.config_set`, only the key) when the database can be reached. When a running wiki picks up a file changed from outside, it logs the changed keys (`settings.file_changed`), never the values;
+- `plugin generate|build` (source tree and building the program);
+- `signature verify FILE --offline` (checks an exported file without the wiki).
 
 ```text
 ewiki serve | setup [--non-interactive] | migrate | version

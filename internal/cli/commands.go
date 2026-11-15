@@ -11,21 +11,23 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
+	"sync"
 	"text/tabwriter"
 	"time"
 
 	"github.com/mtsonline/enterprisewiki/internal/app"
 	"github.com/mtsonline/enterprisewiki/internal/auth"
-	"github.com/mtsonline/enterprisewiki/internal/coreplugin"
 	"github.com/mtsonline/enterprisewiki/internal/identity"
+	"github.com/mtsonline/enterprisewiki/internal/kernel"
 	"github.com/mtsonline/enterprisewiki/internal/pluginmgr"
 	"github.com/mtsonline/enterprisewiki/internal/server"
-	"github.com/mtsonline/enterprisewiki/internal/version"
 )
 
 func printJSON(w io.Writer, v any) {
@@ -116,13 +118,24 @@ func (e *env) call(method, path string, body []byte, as string) (int, []byte, er
 	return code, out, err
 }
 
+// handlers are the in-process servers, one per app: a server registers its
+// routes on the app's mux, which works only once.
+var handlers sync.Map // *app.App -> http.Handler
+
 // serveInProcess runs one API request against the app as principal p.
 func serveInProcess(ctx context.Context, a *app.App, p *identity.Principal, method, path string, body []byte, contentType string) (int, []byte, http.Header) {
-	srv := server.New(a, nil, pluginmgr.New(a.Root, a.Config, nil))
+	hd, ok := handlers.Load(a)
+	if !ok {
+		// the plugin manager of the command line: same source tree as
+		// "serve", never a build in the background (the process ends
+		// with the command)
+		srv := server.New(a, nil, pluginmgr.New(sourceRoot(a.Root), a.Config, nil).NoBackgroundBuild())
+		hd, _ = handlers.LoadOrStore(a, srv.Handler())
+	}
 	req := httptest.NewRequest(method, path, bytes.NewReader(body)).WithContext(identity.With(ctx, p))
 	req.Header.Set("Content-Type", contentType)
 	rec := httptest.NewRecorder()
-	srv.Handler().ServeHTTP(rec, req)
+	hd.(http.Handler).ServeHTTP(rec, req)
 	return rec.Code, rec.Body.Bytes(), rec.Header()
 }
 
@@ -135,13 +148,9 @@ func (e *env) callType(method, path string, body []byte, contentType, as string)
 	err := e.withApp(false, func(ctx context.Context, a *app.App) error {
 		p := identity.CLI()
 		if as != "" {
-			name, prov, _ := strings.Cut(as, "@")
-			if prov == "" {
-				prov = "local"
-			}
-			var uid int64
-			if err := a.DB.QueryRow(ctx, `SELECT id FROM users WHERE lower(username)=lower($1) AND provider=$2`, name, prov).Scan(&uid); err != nil {
-				return fmt.Errorf("user %s@%s not found", name, prov)
+			uid, err := lookupUser(ctx, a, as)
+			if err != nil {
+				return err
 			}
 			up, err := a.Auth.LoadPrincipal(ctx, uid)
 			if err != nil {
@@ -191,29 +200,20 @@ func (e *env) user(args []string) error {
 		return err
 	}
 	return e.withApp(false, func(ctx context.Context, a *app.App) error {
-		findID := func() (int64, error) {
-			n, prov, _ := strings.Cut(name, "@")
-			if prov == "" {
-				prov = "local"
-			}
-			var id int64
-			err := a.DB.QueryRow(ctx, `SELECT id FROM users WHERE lower(username)=lower($1) AND provider=$2`, n, prov).Scan(&id)
+		c := cliAPI(ctx, a)
+		findID := func() (int64, error) { return lookupUser(ctx, a, name) }
+		userPath := func(id int64, rest string) string { return fmt.Sprintf("/api/v1/admin/users/%d%s", id, rest) }
+		update := func(in map[string]any) error {
+			id, err := findID()
 			if err != nil {
-				// NAME may also be an e-mail address or the wiki user name
-				err = a.DB.QueryRow(ctx, `SELECT user_id FROM user_emails WHERE email=lower($1) ORDER BY verified DESC LIMIT 1`, name).Scan(&id)
+				return err
 			}
-			if err != nil {
-				err = a.DB.QueryRow(ctx, `SELECT id FROM users WHERE lower(alias)=lower($1)`, name).Scan(&id)
-			}
-			if err != nil {
-				return 0, fmt.Errorf("user %s not found", name)
-			}
-			return id, nil
+			return c.do("PUT", userPath(id, ""), in, nil)
 		}
 		switch sub {
 		case "list":
-			us, err := a.Auth.ListUsers(ctx, name, 500, 0)
-			if err != nil {
+			var us []auth.User
+			if err := c.do("GET", "/api/v1/admin/users?limit=500&q="+url.QueryEscape(name), nil, &us); err != nil {
 				return err
 			}
 			tw := tabwriter.NewWriter(e.stdout, 0, 4, 2, ' ', 0)
@@ -230,35 +230,33 @@ func (e *env) user(args []string) error {
 			if err != nil {
 				return err
 			}
-			in := auth.NewUser{Username: name, Password: pw, DisplayName: *display, Email: *email}
+			in := map[string]any{"username": name, "password": pw, "display_name": *display, "email": *email}
 			if *admin {
-				rid, err := a.Auth.EnsureRole(ctx, "Administrators", "Full access to everything", true)
+				rid, err := adminRole(c)
 				if err != nil {
 					return err
 				}
-				in.Roles = []int64{rid}
+				in["roles"] = []int64{rid}
 			}
-			u, err := a.Auth.CreateLocalUser(ctx, in)
-			if err != nil {
+			var u struct {
+				ID     int64  `json:"id"`
+				Handle string `json:"handle"`
+			}
+			if err := c.do("POST", "/api/v1/admin/users", in, &u); err != nil {
 				return err
 			}
 			e.printf("created %s (id %d)\n", u.Handle, u.ID)
 			return nil
 		case "invite":
 			// ewiki user invite ADDRESS [--display-name N] [--groups A,B]
-			in := auth.Invite{Email: name, DisplayName: *display}
-			for _, g := range strings.Split(*groups, ",") {
-				if g = strings.TrimSpace(g); g == "" {
-					continue
-				}
-				var gid int64
-				if err := a.DB.QueryRow(ctx, `SELECT id FROM groups WHERE lower(name)=lower($1)`, g).Scan(&gid); err != nil {
-					return fmt.Errorf("group %q not found", g)
-				}
-				in.Groups = append(in.Groups, gid)
-			}
-			u, err := a.Auth.InviteUser(ctx, in)
+			gids, err := groupIDs(c, *groups)
 			if err != nil {
+				return err
+			}
+			var u struct {
+				ID int64 `json:"id"`
+			}
+			if err := c.do("POST", "/api/v1/admin/users/invite", map[string]any{"email": name, "display_name": *display, "groups": gids}, &u); err != nil {
 				return err
 			}
 			e.printf("invited %s (id %d)\n", name, u.ID)
@@ -268,7 +266,7 @@ func (e *env) user(args []string) error {
 			if err != nil {
 				return err
 			}
-			list, err := a.Auth.UserEmails(ctx, id)
+			list, err := userEmails(c, id)
 			if err != nil {
 				return err
 			}
@@ -289,19 +287,18 @@ func (e *env) user(args []string) error {
 			}
 			addr := fs.Arg(0)
 			if sub == "email-add" {
-				_, err := a.Auth.AddUserEmail(ctx, id, addr, !*unconfirmed)
-				return err
+				return c.do("POST", userPath(id, "/emails"), map[string]any{"email": addr, "verified": !*unconfirmed}, nil)
 			}
-			list, err := a.Auth.UserEmails(ctx, id)
+			list, err := userEmails(c, id)
 			if err != nil {
 				return err
 			}
 			for _, x := range list {
 				if strings.EqualFold(x.Email, addr) {
 					if sub == "email-primary" {
-						return a.Auth.SetUserPrimaryEmail(ctx, id, x.ID)
+						return c.do("POST", userPath(id, fmt.Sprintf("/emails/%d/primary", x.ID)), nil, nil)
 					}
-					return a.Auth.RemoveUserEmail(ctx, id, x.ID)
+					return c.do("DELETE", userPath(id, fmt.Sprintf("/emails/%d", x.ID)), nil, nil)
 				}
 			}
 			return fmt.Errorf("%s has no address %s", name, addr)
@@ -310,11 +307,8 @@ func (e *env) user(args []string) error {
 			if err != nil {
 				return err
 			}
-			if _, err := a.Auth.UserEmails(ctx, id); err != nil { // permission
-				return err
-			}
-			list, err := a.Auth.Identities(ctx, id)
-			if err != nil {
+			var list []auth.Identity
+			if err := c.do("GET", userPath(id, "/identities"), nil, &list); err != nil {
 				return err
 			}
 			tw := tabwriter.NewWriter(e.stdout, 0, 4, 2, ' ', 0)
@@ -332,7 +326,8 @@ func (e *env) user(args []string) error {
 			if fs.NArg() != 2 {
 				return errors.New("usage: ewiki user unlink NAME PROVIDER SUBJECT")
 			}
-			return a.Auth.UnlinkUserIdentity(ctx, id, fs.Arg(0), fs.Arg(1))
+			q := url.Values{"provider": {fs.Arg(0)}, "subject": {fs.Arg(1)}}
+			return c.do("DELETE", userPath(id, "/identities?"+q.Encode()), nil, nil)
 		case "signin-preview":
 			// ewiki user signin-preview PROVIDER USERNAME [--email E] [--verified] [--groups A,B] [--subject S]
 			if fs.NArg() != 1 {
@@ -344,12 +339,11 @@ func (e *env) user(args []string) error {
 					in.Groups = append(in.Groups, g)
 				}
 			}
-			pv, err := a.Auth.PreviewSignIn(ctx, name, in)
-			if err != nil {
+			var pv json.RawMessage
+			if err := c.do("POST", "/api/v1/admin/auth/providers/"+url.PathEscape(name)+"/preview", in, &pv); err != nil {
 				return err
 			}
-			b, _ := json.MarshalIndent(pv, "", "  ")
-			e.println(string(b))
+			printJSON(e.stdout, pv)
 			return nil
 		case "alias":
 			// ewiki user alias NAME [ALIAS]: set or (without ALIAS) remove the wiki user name
@@ -357,14 +351,14 @@ func (e *env) user(args []string) error {
 			if err != nil {
 				return err
 			}
-			return a.Auth.SetUserAlias(ctx, id, strings.Join(fs.Args(), ""))
+			return c.do("PUT", userPath(id, "/alias"), map[string]string{"alias": strings.Join(fs.Args(), "")}, nil)
 		case "sessions":
 			id, err := findID()
 			if err != nil {
 				return err
 			}
-			list, err := a.Auth.UserSessions(ctx, id)
-			if err != nil {
+			var list []auth.Session
+			if err := c.do("GET", userPath(id, "/sessions"), nil, &list); err != nil {
 				return err
 			}
 			tw := tabwriter.NewWriter(e.stdout, 0, 4, 2, ' ', 0)
@@ -379,53 +373,38 @@ func (e *env) user(args []string) error {
 			if err != nil {
 				return err
 			}
-			var sid int64
+			path := userPath(id, "/sessions")
 			if fs.NArg() == 1 {
-				if sid, err = strconv.ParseInt(fs.Arg(0), 10, 64); err != nil || sid <= 0 {
+				sid, err := strconv.ParseInt(fs.Arg(0), 10, 64)
+				if err != nil || sid <= 0 {
 					return errors.New("usage: ewiki user logout NAME [SESSION-ID]")
 				}
+				path += "/" + strconv.FormatInt(sid, 10)
 			}
-			if err := a.Auth.EndUserSession(ctx, id, sid); err != nil {
+			if err := c.do("DELETE", path, nil, nil); err != nil {
 				return err
 			}
 			e.println("signed out")
 			return nil
 		case "passwd":
-			id, err := findID()
-			if err != nil {
+			if _, err := findID(); err != nil {
 				return err
 			}
 			pw, err := e.readPassword(*stdinPw, "New password: ")
 			if err != nil {
 				return err
 			}
-			_, err = a.Auth.UpdateUser(ctx, id, auth.UserUpdate{Password: &pw, Unlock: true})
-			if err == nil {
-				e.println("password changed, sessions revoked")
+			if err := update(map[string]any{"password": pw, "unlock": true}); err != nil {
+				return err
 			}
-			return err
+			e.println("password changed, sessions revoked")
+			return nil
 		case "disable", "enable":
-			id, err := findID()
-			if err != nil {
-				return err
-			}
-			d := sub == "disable"
-			_, err = a.Auth.UpdateUser(ctx, id, auth.UserUpdate{Disabled: &d})
-			return err
+			return update(map[string]any{"disabled": sub == "disable"})
 		case "unlock":
-			id, err := findID()
-			if err != nil {
-				return err
-			}
-			_, err = a.Auth.UpdateUser(ctx, id, auth.UserUpdate{Unlock: true})
-			return err
+			return update(map[string]any{"unlock": true})
 		case "mfa-reset":
-			id, err := findID()
-			if err != nil {
-				return err
-			}
-			_, err = a.Auth.UpdateUser(ctx, id, auth.UserUpdate{ResetMFA: true})
-			return err
+			return update(map[string]any{"reset_mfa": true})
 		case "networks":
 			// ewiki user networks NAME [NET...]: without networks the restriction is removed
 			id, err := findID()
@@ -433,15 +412,12 @@ func (e *env) user(args []string) error {
 				return err
 			}
 			// stored by the plugin mfa.network
-			body, _ := json.Marshal(map[string]any{"networks": fs.Args()})
-			code, out, _ := serveInProcess(ctx, a, identity.CLI(), "PUT", "/api/v1/x/mfa.network/users/"+strconv.FormatInt(id, 10), body, "application/json")
-			if code >= 300 {
-				return fmt.Errorf("%s", strings.TrimSpace(string(out)))
-			}
 			var res struct {
 				Networks []string `json:"networks"`
 			}
-			_ = json.Unmarshal(out, &res)
+			if err := c.do("PUT", "/api/v1/x/mfa.network/users/"+strconv.FormatInt(id, 10), map[string]any{"networks": fs.Args()}, &res); err != nil {
+				return err
+			}
 			if len(res.Networks) == 0 {
 				e.println("no network restriction")
 			}
@@ -452,6 +428,74 @@ func (e *env) user(args []string) error {
 		}
 		return fmt.Errorf("unknown user command %q", sub)
 	})
+}
+
+// adminRole returns the id of an administrator role, created if there is
+// none (first administrator from the command line).
+func adminRole(c apiClient) (int64, error) {
+	var roles []struct {
+		ID      int64  `json:"id"`
+		Name    string `json:"name"`
+		IsAdmin bool   `json:"is_admin"`
+	}
+	if err := c.do("GET", "/api/v1/roles", nil, &roles); err != nil {
+		return 0, err
+	}
+	for _, r := range roles {
+		if r.IsAdmin && r.Name == "Administrators" {
+			return r.ID, nil
+		}
+	}
+	for _, r := range roles {
+		if r.IsAdmin {
+			return r.ID, nil
+		}
+	}
+	var created struct {
+		ID int64 `json:"id"`
+	}
+	err := c.do("POST", "/api/v1/admin/roles", map[string]any{"name": "Administrators", "description": "Full access to everything", "is_admin": true}, &created)
+	return created.ID, err
+}
+
+// groupIDs turns comma separated group names into ids.
+func groupIDs(c apiClient, names string) ([]int64, error) {
+	var want []string
+	for _, g := range strings.Split(names, ",") {
+		if g = strings.TrimSpace(g); g != "" {
+			want = append(want, g)
+		}
+	}
+	if len(want) == 0 {
+		return nil, nil
+	}
+	var all []struct {
+		ID   int64  `json:"id"`
+		Name string `json:"name"`
+	}
+	if err := c.do("GET", "/api/v1/groups", nil, &all); err != nil {
+		return nil, err
+	}
+	var ids []int64
+	for _, g := range want {
+		i := slices.IndexFunc(all, func(x struct {
+			ID   int64  `json:"id"`
+			Name string `json:"name"`
+		}) bool {
+			return strings.EqualFold(x.Name, g)
+		})
+		if i < 0 {
+			return nil, fmt.Errorf("group %q not found", g)
+		}
+		ids = append(ids, all[i].ID)
+	}
+	return ids, nil
+}
+
+func userEmails(c apiClient, id int64) ([]auth.Email, error) {
+	var list []auth.Email
+	err := c.do("GET", fmt.Sprintf("/api/v1/admin/users/%d/emails", id), nil, &list)
+	return list, err
 }
 
 // externalWarning is shown before an external core plugin is installed.
@@ -495,26 +539,40 @@ func (e *env) plugin(args []string) error {
 		return runBuild(sourceRoot(root), e.stdout, e.stderr)
 	}
 	return e.withApp(false, func(ctx context.Context, a *app.App) error {
-		pm := pluginmgr.New(sourceRoot(a.Root), a.Config, nil)
+		c := cliAPI(ctx, a)
+		external := func(err error) error {
+			if isAPICode(err, "external_not_accepted") {
+				e.println(externalWarning)
+			}
+			return err
+		}
 		switch sub {
 		case "list":
+			var res struct {
+				Installed []kernel.Info      `json:"installed"`
+				Pending   []pluginmgr.Change `json:"pending"`
+			}
+			if err := c.do("GET", "/api/v1/admin/plugins", nil, &res); err != nil {
+				return err
+			}
+			slices.SortFunc(res.Installed, func(x, y kernel.Info) int { return strings.Compare(x.ID, y.ID) })
 			tw := tabwriter.NewWriter(e.stdout, 0, 4, 2, ' ', 0)
 			rowln(tw, "ID\tVERSION\tACTIVE\tKINDS\tEXTENDS\tNAME")
-			for _, p := range a.Kernel.List() {
+			for _, p := range res.Installed {
 				row(tw, "%s\t%s\t%v\t%s\t%s\t%s\n", p.ID, p.Version, p.Active, strings.Join(p.Kinds, ","), strings.Join(p.Extends, ","), p.Name)
 			}
 			if err := tw.Flush(); err != nil {
 				return err
 			}
-			for _, c := range pm.Pending() {
-				e.printf("pending %s: %s %s (run: ewiki plugin build)\n", c.Action, c.ID, c.Version)
+			for _, x := range res.Pending {
+				e.printf("pending %s: %s %s (run: ewiki plugin build)\n", x.Action, x.ID, x.Version)
 			}
 			return nil
 		case "enable", "disable":
 			if arg == "" {
 				return fmt.Errorf("usage: ewiki plugin %s ID", sub)
 			}
-			if err := a.Kernel.SetEnabled(ctx, arg, sub == "enable"); err != nil {
+			if err := c.do("POST", "/api/v1/admin/plugins/"+url.PathEscape(arg)+"/"+sub, nil, nil); err != nil {
 				return err
 			}
 			e.printf("%s %sd (takes effect immediately)\n", arg, sub)
@@ -523,21 +581,14 @@ func (e *env) plugin(args []string) error {
 			if arg == "" {
 				return errors.New("usage: ewiki plugin install SOURCE [--ref TAG] [--build] [--accept-external]")
 			}
-			res, err := pm.Install(ctx, arg, *ref, pluginmgr.InstallOptions{AcceptExternal: *acceptExternal, By: "cli"})
-			if errors.Is(err, pluginmgr.ErrExternalNotAccepted) {
-				e.println(externalWarning)
-			}
-			if err != nil {
+			var res json.RawMessage
+			if err := external(c.do("POST", "/api/v1/admin/plugins/install", map[string]any{"source": arg, "ref": *ref, "accept_external": *acceptExternal}, &res)); err != nil {
 				return err
 			}
 			printJSON(e.stdout, res)
 		case "updates":
-			ms := []coreplugin.Manifest{}
-			for _, p := range a.Kernel.List() {
-				ms = append(ms, p.Manifest)
-			}
-			rep, err := pm.CheckUpdates(ctx, version.Version, ms, true)
-			if err != nil {
+			var rep pluginmgr.UpdateReport
+			if err := c.do("GET", "/api/v1/admin/updates?force=1", nil, &rep); err != nil {
 				return err
 			}
 			tw := tabwriter.NewWriter(e.stdout, 0, 4, 2, ' ', 0)
@@ -550,28 +601,8 @@ func (e *env) plugin(args []string) error {
 			if arg == "" {
 				return errors.New("usage: ewiki plugin update ID [--build]")
 			}
-			ms := []coreplugin.Manifest{}
-			for _, p := range a.Kernel.List() {
-				ms = append(ms, p.Manifest)
-			}
-			if _, err := pm.CheckUpdates(ctx, version.Version, ms, true); err != nil {
-				return err
-			}
-			var it *pluginmgr.UpdateInfo
-			for _, x := range pm.LastUpdateReport().Items {
-				if x.ID == arg {
-					x := x
-					it = &x
-				}
-			}
-			if it == nil || !it.Available {
-				return fmt.Errorf("no update available for %s", arg)
-			}
-			res, err := pm.Install(ctx, it.Repo, it.Tag, pluginmgr.InstallOptions{AcceptExternal: *acceptExternal, By: "cli"})
-			if errors.Is(err, pluginmgr.ErrExternalNotAccepted) {
-				e.println(externalWarning)
-			}
-			if err != nil {
+			var res json.RawMessage
+			if err := external(c.do("POST", "/api/v1/admin/updates/"+url.PathEscape(arg), map[string]any{"accept_external": *acceptExternal}, &res)); err != nil {
 				return err
 			}
 			printJSON(e.stdout, res)
@@ -579,7 +610,7 @@ func (e *env) plugin(args []string) error {
 			if arg == "" {
 				return errors.New("usage: ewiki plugin remove ID")
 			}
-			if err := pm.Remove(ctx, arg); err != nil {
+			if err := c.do("DELETE", "/api/v1/admin/plugins/"+url.PathEscape(arg), nil, nil); err != nil {
 				return err
 			}
 			e.printf("%s removed from the source tree (backup in plugins/.backup)\n", arg)

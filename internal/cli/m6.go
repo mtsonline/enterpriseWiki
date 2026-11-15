@@ -2,9 +2,11 @@ package cli
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
+	"net/url"
 	"strconv"
 	"text/tabwriter"
 
@@ -40,16 +42,20 @@ func (e *env) mailCmd(args []string) error {
 		return strconv.ParseInt(pos[0], 10, 64)
 	}
 	return e.withApp(false, func(ctx context.Context, a *app.App) error {
+		c := cliAPI(ctx, a)
+		outbox := func(n int64, rest string) string { return fmt.Sprintf("/api/v1/admin/mail/outbox/%d%s", n, rest) }
 		switch sub {
 		case "status":
-			st, err := a.Mail.GetStatus(ctx)
-			if err == nil {
-				printJSON(e.stdout, st)
+			var st json.RawMessage
+			if err := c.do("GET", "/api/v1/admin/mail", nil, &st); err != nil {
+				return err
 			}
-			return err
+			printJSON(e.stdout, st)
+			return nil
 		case "list":
-			list, err := a.Mail.Outbox(ctx, *status, *q, *limit, 0)
-			if err != nil {
+			var list []mail.OutboxEntry
+			q := url.Values{"status": {*status}, "q": {*q}, "limit": {strconv.Itoa(*limit)}}
+			if err := c.do("GET", "/api/v1/admin/mail/outbox?"+q.Encode(), nil, &list); err != nil {
 				return err
 			}
 			tw := tabwriter.NewWriter(e.stdout, 0, 4, 2, ' ', 0)
@@ -63,17 +69,18 @@ func (e *env) mailCmd(args []string) error {
 			if err != nil {
 				return err
 			}
-			m, err := a.Mail.Get(ctx, n)
-			if err == nil {
-				printJSON(e.stdout, m)
+			var m json.RawMessage
+			if err := c.do("GET", outbox(n, ""), nil, &m); err != nil {
+				return err
 			}
-			return err
+			printJSON(e.stdout, m)
+			return nil
 		case "retry":
 			n, err := id()
 			if err != nil {
 				return err
 			}
-			if err := a.Mail.Retry(ctx, n); err != nil {
+			if err := c.do("POST", outbox(n, "/retry"), nil, nil); err != nil {
 				return err
 			}
 			e.printf("message %d queued again\n", n)
@@ -83,25 +90,24 @@ func (e *env) mailCmd(args []string) error {
 			if err != nil {
 				return err
 			}
-			return a.Mail.Delete(ctx, n)
+			return c.do("DELETE", outbox(n, ""), nil, nil)
 		case "test":
 			if len(pos) == 0 {
 				return errors.New("usage: ewiki mail test ADDRESS")
 			}
-			site := a.Config.Get().UI.SiteName
-			if err := a.Mail.SendNow(ctx, mail.Message{To: []string{pos[0]}, Subject: site + ": test message", Text: "Outgoing e-mail works.", Source: "test"}); err != nil {
+			if err := c.do("POST", "/api/v1/admin/mail/test", map[string]string{"to": pos[0]}, nil); err != nil {
 				return err
 			}
 			e.println("test message sent")
 			return nil
-		case "send":
-			n, err := a.Mail.Process(ctx)
-			e.printf("%d recipients delivered\n", n)
-			return err
-		case "bounces":
-			n, err := a.Mail.ProcessBounces(ctx)
-			e.printf("%d failed recipients found in bounces\n", n)
-			return err
+		case "send", "bounces":
+			// the background jobs "mail" and "mail.bounces", run now
+			job := map[string]string{"send": "mail", "bounces": "mail.bounces"}[sub]
+			if err := c.do("POST", "/api/v1/admin/jobs/"+job+"/run", nil, nil); err != nil {
+				return err
+			}
+			e.printf("%s finished (see ewiki mail status)\n", job)
+			return nil
 		}
 		return fmt.Errorf("unknown mail command %q", sub)
 	})
@@ -110,14 +116,19 @@ func (e *env) mailCmd(args []string) error {
 // jobsCmd lists and runs background jobs.
 func (e *env) jobsCmd(args []string) error {
 	return e.withApp(false, func(ctx context.Context, a *app.App) error {
+		c := cliAPI(ctx, a)
 		if len(args) == 0 || args[0] == "list" {
-			for _, n := range a.Workers.Names() {
+			var names []string
+			if err := c.do("GET", "/api/v1/admin/jobs", nil, &names); err != nil {
+				return err
+			}
+			for _, n := range names {
 				e.println(n)
 			}
 			return nil
 		}
 		if args[0] == "run" && len(args) > 1 {
-			if err := a.Workers.RunOnce(ctx, args[1]); err != nil {
+			if err := c.do("POST", "/api/v1/admin/jobs/"+url.PathEscape(args[1])+"/run", nil, nil); err != nil {
 				return err
 			}
 			e.printf("%s finished\n", args[1])
@@ -133,20 +144,19 @@ func (e *env) cacheCmd(args []string) error {
 		return errors.New("usage: ewiki cache status|clear")
 	}
 	return e.withApp(false, func(ctx context.Context, a *app.App) error {
-		c := a.Config.Get().Cache
+		c := cliAPI(ctx, a)
 		if args[0] == "clear" {
-			if !c.Enabled {
-				e.println("the guest cache is switched off (cache.enabled: false)")
-				return nil
+			if err := c.do("DELETE", "/api/v1/admin/cache", nil, nil); err != nil {
+				return err
 			}
-			a.Cache.Invalidate(ctx, "cli")
 			e.println("guest cache cleared on all servers (within a few seconds)")
 			return nil
 		}
-		var gen int64
-		_ = a.DB.QueryRow(ctx, `SELECT generation FROM cache_state WHERE id = 1`).Scan(&gen)
-		e.printf("enabled:     %v\nttl:         %ds (0 = until the next change)\nmax entries: %d\nmax size:    %d MB\ngeneration:  %d\n",
-			c.Enabled, c.TTLSeconds, c.MaxEntries, c.MaxMB, gen)
+		var st json.RawMessage
+		if err := c.do("GET", "/api/v1/admin/cache", nil, &st); err != nil {
+			return err
+		}
+		printJSON(e.stdout, st)
 		e.println("hit statistics are kept per server process: GET /api/v1/admin/cache on the running server")
 		return nil
 	})

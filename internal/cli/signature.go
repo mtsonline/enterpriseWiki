@@ -52,19 +52,20 @@ func (e *env) signatureCmd(args []string) error {
 			return check(nil)
 		}
 		return e.withApp(false, func(ctx context.Context, a *app.App) error {
-			keys, err := a.Signatures.Keys(ctx)
-			if err != nil {
+			var keys []signature.PublicKey
+			if err := cliAPI(ctx, a).do("GET", "/api/v1/signature-keys", nil, &keys); err != nil {
 				return err
 			}
 			return check(keys)
 		})
 	case "keys":
 		return e.withApp(false, func(ctx context.Context, a *app.App) error {
-			keys, err := a.Signatures.Keys(ctx)
-			if err == nil {
-				printJSON(e.stdout, keys)
+			var keys json.RawMessage
+			if err := cliAPI(ctx, a).do("GET", "/api/v1/signature-keys", nil, &keys); err != nil {
+				return err
 			}
-			return err
+			printJSON(e.stdout, keys)
+			return nil
 		})
 	}
 	return fmt.Errorf("unknown signature command %q", args[0])

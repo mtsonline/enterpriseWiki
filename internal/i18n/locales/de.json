@@ -2224,5 +2224,7 @@
  "perm.core.roles.list_all": "Alle Rollen auflisten",
  "perm.core.roles.list_all_help": "Die Namen aller Rollen sehen, z. B. in Rechte- und Teilen-Dialogen.",
  "perm.core.roles.list_own": "Eigene Rollen auflisten",
- "perm.core.roles.list_own_help": "Die Namen der Rollen sehen, die man selbst hat (direkt oder über eine Gruppe)."
+ "perm.core.roles.list_own_help": "Die Namen der Rollen sehen, die man selbst hat (direkt oder über eine Gruppe).",
+ "audit.action.settings.config_set": "Einstellung auf der Kommandozeile geändert",
+ "audit.action.settings.file_changed": "Konfigurationsdatei außerhalb des Wikis geändert"
 }
