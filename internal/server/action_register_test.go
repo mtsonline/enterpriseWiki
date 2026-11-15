@@ -102,7 +102,7 @@ func readMissing(t *testing.T) map[string]bool {
 }
 
 var (
-	coreRouteRe   = regexp.MustCompile(`(?:s\.handle|s\.wopiRoute|h\.RecordRoute|Mux\.HandleFunc)\("((?:GET|POST|PUT|PATCH|DELETE) /[^"]*)"`)
+	coreRouteRe   = regexp.MustCompile(`(?:s\.handle\(|s\.wopiRoute\(|h\.RecordRoute\(|Mux\.HandleFunc\(|^\s*)"((?:GET|POST|PUT|PATCH|DELETE) /[^"]*)"`)
 	pluginRouteRe = regexp.MustCompile(`\.Handle\("(GET|POST|PUT|PATCH|DELETE)", "/([^"]*)"`)
 	actionRe      = regexp.MustCompile(`^\s*// action: (\S+)`)
 )

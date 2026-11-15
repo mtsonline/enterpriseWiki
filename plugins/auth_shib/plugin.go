@@ -102,6 +102,7 @@ func (p *Plugin) Setup(host *coreplugin.Host) error {
 	})
 	coreplugin.RegisterRedirectInstances(host, set)
 	// SP metadata of an instance: /metadata?instance=<provider id> ("" = shib)
+	// action: auth.shib.metadata
 	host.Handle("GET", "/metadata", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		prov, ok := set.Get(r.URL.Query().Get("instance"))
 		if !ok {

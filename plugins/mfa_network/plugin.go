@@ -65,6 +65,7 @@ func (p *Plugin) Setup(host *coreplugin.Host) error {
 	type netsIn struct {
 		Networks []string `json:"networks"`
 	}
+	// action: mfa.network.me
 	host.Handle("GET", "/me", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		pr := identity.From(r.Context())
 		if pr == nil || pr.UserID == 0 {
@@ -75,6 +76,7 @@ func (p *Plugin) Setup(host *coreplugin.Host) error {
 	})
 	// changing the own networks needs a recent sign-in; the current address
 	// must be included (nobody locks themselves out by accident)
+	// action: mfa.network.set
 	host.Handle("PUT", "/me", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		uid, err := auth.RequireRecentSignIn(r.Context())
 		if err != nil {
@@ -93,6 +95,7 @@ func (p *Plugin) Setup(host *coreplugin.Host) error {
 		}
 		return map[string]any{"networks": nets}, m.set(r.Context(), uid, nets)
 	})
+	// action: mfa.network.user.show
 	host.Handle("GET", "/users/{id}", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		id, err := h.PathID(r, "id")
 		if err != nil {
@@ -104,6 +107,7 @@ func (p *Plugin) Setup(host *coreplugin.Host) error {
 		nets, err := m.networks(r.Context(), id)
 		return map[string]any{"networks": nets}, err
 	})
+	// action: mfa.network.user.set
 	host.Handle("PUT", "/users/{id}", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		id, err := h.PathID(r, "id")
 		if err != nil {

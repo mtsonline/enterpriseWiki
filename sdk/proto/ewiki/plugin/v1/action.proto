@@ -134,7 +134,9 @@ message Inbound {
 
 message Permission {
   // Key of a core permission ("core.users.manage") or one the plugin
-  // declares in its manifest ("acme.kanban.edit").
+  // declares in its manifest ("acme.kanban.edit"). The core reserves
+  // "core.admin" for actions that need the administrator role itself
+  // rather than one permission (refused in plugin manifests).
   string key = 1;
   enum Scope {
     SCOPE_UNSPECIFIED = 0;

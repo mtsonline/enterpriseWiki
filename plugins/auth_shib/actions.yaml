@@ -1,0 +1,11 @@
+# Action register (ewiki.plugin.v1.Action, see sdk/proto/ewiki/plugin/v1/action.proto).
+actions:
+  - id: auth.shib.metadata
+    category: CATEGORY_PROTOCOL
+    method: GET
+    path: metadata
+    summary:
+      text:
+        en: SAML metadata of the wiki as service provider
+        de: SAML-Metadaten des Wikis als Dienstanbieter
+    public: true

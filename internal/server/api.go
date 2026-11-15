@@ -162,10 +162,13 @@ func (s *Server) routes() {
 	s.handle("GET /api/v1/site", s.site)
 
 	// ---------------------------------------------------------------- auth
+	// action: core.auth.providers
 	s.handle("GET /api/v1/auth/providers", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		return s.app.Auth.ProviderInfos(), nil
 	})
+	// action: core.auth.login
 	s.handle("POST /api/v1/auth/login", s.login)
+	// action: core.auth.logout
 	s.handle("POST /api/v1/auth/logout", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		if p := identity.From(r.Context()); p != nil {
 			_ = audit.Log(r.Context(), s.app.DB, "auth.logout", "user", p.ID(), nil, nil)
@@ -184,6 +187,7 @@ func (s *Server) routes() {
 		}
 		return h.NoContent{}, nil
 	})
+	// action: core.auth.me
 	s.handle("GET /api/v1/auth/me", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		p := identity.From(r.Context())
 		if p == nil {
@@ -191,6 +195,7 @@ func (s *Server) routes() {
 		}
 		return map[string]any{"user": p, "handle": p.Handle(), "manages_categories": s.app.ACL.Any(r.Context(), p, acl.Manage)}, nil
 	})
+	// action: core.auth.ssh.challenge
 	s.handle("POST /api/v1/auth/ssh/challenge", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		var in struct {
 			Username string `json:"username"`
@@ -205,6 +210,7 @@ func (s *Server) routes() {
 		return map[string]string{"challenge": c, "namespace": auth.SSHNamespace,
 			"hint": "printf %s CHALLENGE | ssh-keygen -Y sign -f ~/.ssh/id_ed25519 -n " + auth.SSHNamespace}, nil
 	})
+	// action: core.auth.ssh.verify
 	s.handle("POST /api/v1/auth/ssh/verify", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		var in struct {
 			Challenge string `json:"challenge"`
@@ -221,6 +227,7 @@ func (s *Server) routes() {
 	})
 
 	// ---------------------------------------------------------------- me
+	// action: core.me.update
 	s.handle("PUT /api/v1/me", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		var in struct {
 			DisplayName *string `json:"display_name"`
@@ -242,6 +249,7 @@ func (s *Server) routes() {
 		}
 		return h.NoContent{}, nil
 	})
+	// action: core.me.prefs
 	s.handle("GET /api/v1/me/prefs", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		p := identity.From(r.Context())
 		if p == nil || p.UserID == 0 {
@@ -253,6 +261,7 @@ func (s *Server) routes() {
 		}
 		return map[string]any{"prefs": cur, "options": auth.PrefOptions()}, nil
 	})
+	// action: core.me.password
 	s.handle("PUT /api/v1/me/password", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		var in struct {
 			Current string `json:"current"`
@@ -263,7 +272,9 @@ func (s *Server) routes() {
 		}
 		return h.NoContent{}, s.app.Auth.ChangeOwnPassword(r.Context(), in.Current, in.New, s.sessionToken(r))
 	})
+	// action: core.me.api_keys.list
 	s.handle("GET /api/v1/me/api-keys", func(w http.ResponseWriter, r *http.Request) (any, error) { return s.app.Auth.ListAPIKeys(r.Context()) })
+	// action: core.me.api_keys.create
 	s.handle("POST /api/v1/me/api-keys", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		var in auth.NewAPIKey
 		if err := h.Decode(r, &in); err != nil {
@@ -272,6 +283,7 @@ func (s *Server) routes() {
 		k, err := s.app.Auth.CreateAPIKey(r.Context(), in)
 		return h.Created{V: k}, err
 	})
+	// action: core.me.api_keys.delete
 	s.handle("DELETE /api/v1/me/api-keys/{id}", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		id, err := h.PathID(r, "id")
 		if err != nil {
@@ -279,7 +291,9 @@ func (s *Server) routes() {
 		}
 		return h.NoContent{}, s.app.Auth.RevokeAPIKey(r.Context(), id)
 	})
+	// action: core.me.ssh_keys.list
 	s.handle("GET /api/v1/me/ssh-keys", func(w http.ResponseWriter, r *http.Request) (any, error) { return s.app.Auth.ListSSHKeys(r.Context()) })
+	// action: core.me.ssh_keys.add
 	s.handle("POST /api/v1/me/ssh-keys", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		var in struct {
 			Name      string `json:"name"`
@@ -291,6 +305,7 @@ func (s *Server) routes() {
 		k, err := s.app.Auth.AddSSHKey(r.Context(), in.Name, in.PublicKey)
 		return h.Created{V: k}, err
 	})
+	// action: core.me.ssh_keys.delete
 	s.handle("DELETE /api/v1/me/ssh-keys/{id}", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		id, err := h.PathID(r, "id")
 		if err != nil {
@@ -300,9 +315,11 @@ func (s *Server) routes() {
 	})
 
 	// ---------------------------------------------------------------- users, groups, roles
+	// action: core.users.list
 	s.handle("GET /api/v1/admin/users", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		return s.app.Auth.ListUsers(r.Context(), r.URL.Query().Get("q"), h.QueryInt(r, "limit", 100), h.QueryInt(r, "offset", 0))
 	})
+	// action: core.users.create
 	s.handle("POST /api/v1/admin/users", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		var in auth.NewUser
 		if err := h.Decode(r, &in); err != nil {
@@ -311,6 +328,7 @@ func (s *Server) routes() {
 		u, err := s.app.Auth.CreateLocalUser(r.Context(), in)
 		return h.Created{V: u}, err
 	})
+	// action: core.users.get
 	s.handle("GET /api/v1/admin/users/{id}", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		id, err := h.PathID(r, "id")
 		if err != nil {
@@ -318,6 +336,7 @@ func (s *Server) routes() {
 		}
 		return s.app.Auth.GetUser(r.Context(), id)
 	})
+	// action: core.users.update
 	s.handle("PUT /api/v1/admin/users/{id}", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		id, err := h.PathID(r, "id")
 		if err != nil {
@@ -329,6 +348,7 @@ func (s *Server) routes() {
 		}
 		return s.app.Auth.UpdateUser(r.Context(), id, in)
 	})
+	// action: core.users.delete
 	s.handle("DELETE /api/v1/admin/users/{id}", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		id, err := h.PathID(r, "id")
 		if err != nil {
@@ -386,8 +406,11 @@ func (s *Server) routes() {
 		nid, err := s.app.Auth.SaveGroup(r.Context(), id, in.Name, in.Description, in.Roles)
 		return map[string]int64{"id": nid}, err
 	}
+	// action: core.groups.create
 	s.handle("POST /api/v1/admin/groups", groupSave)
+	// action: core.groups.update
 	s.handle("PUT /api/v1/admin/groups/{id}", groupSave)
+	// action: core.groups.delete
 	s.handle("DELETE /api/v1/admin/groups/{id}", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		id, err := h.PathID(r, "id")
 		if err != nil {
@@ -395,6 +418,7 @@ func (s *Server) routes() {
 		}
 		return h.NoContent{}, s.app.Auth.DeleteGroup(r.Context(), id)
 	})
+	// action: core.groups.members.list
 	s.handle("GET /api/v1/admin/groups/{id}/members", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		id, err := h.PathID(r, "id")
 		if err != nil {
@@ -420,7 +444,9 @@ func (s *Server) routes() {
 			return map[string]bool{"changed": changed}, err
 		}
 	}
+	// action: core.groups.members.add
 	s.handle("PUT /api/v1/admin/groups/{id}/members/{user}", memberSet(true))
+	// action: core.groups.members.remove
 	s.handle("DELETE /api/v1/admin/groups/{id}/members/{user}", memberSet(false))
 	roleSave := func(w http.ResponseWriter, r *http.Request) (any, error) {
 		var id int64
@@ -438,6 +464,7 @@ func (s *Server) routes() {
 		return map[string]int64{"id": nid}, err
 	}
 	// global permissions: the declared permissions and the defaults of every signed-in user
+	// action: core.permissions.global
 	s.handle("GET /api/v1/admin/permissions", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		if err := requireAdmin(r); err != nil {
 			return nil, err
@@ -445,6 +472,7 @@ func (s *Server) routes() {
 		defaults, err := s.app.Auth.DefaultPermissions(r.Context())
 		return map[string]any{"permissions": perm.All(), "authenticated": defaults}, err
 	})
+	// action: core.permissions.defaults
 	s.handle("PUT /api/v1/admin/permissions/authenticated", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		if err := requireAdmin(r); err != nil {
 			return nil, err
@@ -457,8 +485,11 @@ func (s *Server) routes() {
 		}
 		return h.NoContent{}, s.app.Auth.SetDefaultPermissions(r.Context(), in.Permissions)
 	})
+	// action: core.roles.create
 	s.handle("POST /api/v1/admin/roles", roleSave)
+	// action: core.roles.update
 	s.handle("PUT /api/v1/admin/roles/{id}", roleSave)
+	// action: core.roles.delete
 	s.handle("DELETE /api/v1/admin/roles/{id}", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		id, err := h.PathID(r, "id")
 		if err != nil {

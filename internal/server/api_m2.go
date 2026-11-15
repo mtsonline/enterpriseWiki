@@ -147,6 +147,7 @@ func (s *Server) isTrustedProxy(r *http.Request) bool {
 
 func (s *Server) routesM2() {
 	// ---------------------------------------------------------------- single sign-on
+	// action: core.auth.sso.start
 	h.RecordRoute("GET /api/v1/auth/sso/{provider}/start")
 	s.app.Mux.HandleFunc("GET /api/v1/auth/sso/{provider}/start", func(w http.ResponseWriter, r *http.Request) {
 		next := r.URL.Query().Get("next")
@@ -171,7 +172,9 @@ func (s *Server) routesM2() {
 		s.finishSSO(w, r, res)
 	}
 	// Called by the identity provider (redirect or HTTP-POST binding).
+	// action: core.auth.sso.callback
 	h.RecordRoute("GET /api/v1/auth/sso/{provider}/callback")
+	// action: core.auth.sso.callback.post
 	h.RecordRoute("POST /api/v1/auth/sso/{provider}/callback")
 	s.app.Mux.HandleFunc("GET /api/v1/auth/sso/{provider}/callback", callback)
 	s.app.Mux.HandleFunc("POST /api/v1/auth/sso/{provider}/callback", callback)

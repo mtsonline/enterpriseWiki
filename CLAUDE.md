@@ -70,6 +70,7 @@ go vet ./...
 go run ./tools/genplugins               # nach neuen oder entfernten Plugins; Ergebnis committen
 go run ./tools/notices -check           # Lizenzen der Go-Module
 go run ./tools/docscheck                # Doku Deutsch und Englisch vollständig, Links gültig
+(cd sdk && go run ./tools/protocheck)   # Plugin-Vertrag übersetzt; Aktionsregister und Manifeste passen dazu
 
 # Go-Tests; mit Datenbank auch die API-Integrationstests
 EWIKI_TEST_DATABASE_URL=postgres://USER:PASS@localhost:5432/DB?sslmode=disable go test -race ./...

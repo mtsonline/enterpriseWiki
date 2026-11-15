@@ -1,0 +1,51 @@
+# Action register (ewiki.plugin.v1.Action, see sdk/proto/ewiki/plugin/v1/action.proto).
+actions:
+  - id: mfa.network.me
+    category: CATEGORY_ACTION
+    method: GET
+    path: me
+    summary:
+      text:
+        en: Show the networks you may sign in from
+        de: "Netze anzeigen, aus denen Sie sich anmelden dürfen"
+    signed_in: true
+    cli: {command: [me, networks]}
+    ui: {entry: /profile}
+  - id: mfa.network.set
+    category: CATEGORY_ACTION
+    method: PUT
+    path: me
+    summary:
+      text:
+        en: Change the networks you may sign in from
+        de: "Netze ändern, aus denen Sie sich anmelden dürfen"
+    signed_in: true
+    safety: {changes: true}
+    ui: {entry: /profile}
+    exceptions:
+      - way: WAY_CLI
+        reason: "Second factors are set up and removed only in the browser, within 15 minutes after signing in (passkeys need the browser anyway)."
+        approved_by: "project owner, decision of 2026-11-11 (second factors are only changed in the browser)"
+  - id: mfa.network.user.show
+    category: CATEGORY_ACTION
+    method: GET
+    path: users/{id}
+    summary:
+      text:
+        en: Show the allowed networks of a person
+        de: Erlaubte Netze einer Person anzeigen
+    permission: {key: core.users.manage, scope: SCOPE_GLOBAL}
+    cli: {command: [user, networks], builtin: true}
+    ui: {entry: /admin/users}
+  - id: mfa.network.user.set
+    category: CATEGORY_ACTION
+    method: PUT
+    path: users/{id}
+    summary:
+      text:
+        en: Set the allowed networks of a person
+        de: Erlaubte Netze einer Person festlegen
+    permission: {key: core.users.manage, scope: SCOPE_GLOBAL}
+    safety: {changes: true}
+    cli: {command: [user, networks], builtin: true}
+    ui: {entry: /admin/users}

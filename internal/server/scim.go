@@ -104,9 +104,36 @@ func scimBad(scimType, format string, a ...any) error {
 
 func (s *Server) routesSCIM() {
 	for _, r := range []string{
-		"GET /scim/v2/ServiceProviderConfig", "GET /scim/v2/ResourceTypes", "GET /scim/v2/Schemas",
-		"GET /scim/v2/Users", "POST /scim/v2/Users", "GET /scim/v2/Users/{id}", "PUT /scim/v2/Users/{id}", "PATCH /scim/v2/Users/{id}", "DELETE /scim/v2/Users/{id}",
-		"GET /scim/v2/Groups", "POST /scim/v2/Groups", "GET /scim/v2/Groups/{id}", "PUT /scim/v2/Groups/{id}", "PATCH /scim/v2/Groups/{id}", "DELETE /scim/v2/Groups/{id}",
+		// action: core.scim.service_provider_config
+		"GET /scim/v2/ServiceProviderConfig",
+		// action: core.scim.resource_types
+		"GET /scim/v2/ResourceTypes",
+		// action: core.scim.schemas
+		"GET /scim/v2/Schemas",
+		// action: core.scim.users.list
+		"GET /scim/v2/Users",
+		// action: core.scim.users.create
+		"POST /scim/v2/Users",
+		// action: core.scim.users.get
+		"GET /scim/v2/Users/{id}",
+		// action: core.scim.users.replace
+		"PUT /scim/v2/Users/{id}",
+		// action: core.scim.users.patch
+		"PATCH /scim/v2/Users/{id}",
+		// action: core.scim.users.delete
+		"DELETE /scim/v2/Users/{id}",
+		// action: core.scim.groups.list
+		"GET /scim/v2/Groups",
+		// action: core.scim.groups.create
+		"POST /scim/v2/Groups",
+		// action: core.scim.groups.get
+		"GET /scim/v2/Groups/{id}",
+		// action: core.scim.groups.replace
+		"PUT /scim/v2/Groups/{id}",
+		// action: core.scim.groups.patch
+		"PATCH /scim/v2/Groups/{id}",
+		// action: core.scim.groups.delete
+		"DELETE /scim/v2/Groups/{id}",
 	} {
 		h.RecordRoute(r)
 	}

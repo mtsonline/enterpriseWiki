@@ -1,0 +1,28 @@
+# Action register (ewiki.plugin.v1.Action, see sdk/proto/ewiki/plugin/v1/action.proto).
+actions:
+  - id: mfa.webauthn.list
+    category: CATEGORY_ACTION
+    method: GET
+    path: credentials
+    summary:
+      text:
+        en: List your passkeys and security keys
+        de: Eigene Passkeys und Sicherheitsschlüssel auflisten
+    signed_in: true
+    cli: {command: [me, passkeys]}
+    ui: {entry: /profile}
+  - id: mfa.webauthn.remove
+    category: CATEGORY_ACTION
+    method: DELETE
+    path: credentials/{id}
+    summary:
+      text:
+        en: Remove a passkey or security key
+        de: Passkey oder Sicherheitsschlüssel entfernen
+    signed_in: true
+    safety: {changes: true}
+    ui: {entry: /profile}
+    exceptions:
+      - way: WAY_CLI
+        reason: "Second factors are set up and removed only in the browser, within 15 minutes after signing in (passkeys need the browser anyway)."
+        approved_by: "project owner, decision of 2026-11-11 (second factors are only changed in the browser)"

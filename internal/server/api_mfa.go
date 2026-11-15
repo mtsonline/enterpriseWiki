@@ -82,6 +82,7 @@ func (s *Server) mfaAnswer(w http.ResponseWriter, r *http.Request, method string
 
 func (s *Server) routesMFA() {
 	// ---------------------------------------------------------------- during the sign-in
+	// action: core.auth.mfa.info
 	s.handle("POST /api/v1/auth/mfa/info", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		tok, _, _, err := s.mfaRequest(r)
 		if err != nil {
@@ -89,6 +90,7 @@ func (s *Server) routesMFA() {
 		}
 		return s.app.Auth.MFAPendingInfo(r.Context(), tok, s.clientIP(r))
 	})
+	// action: core.auth.mfa.challenge
 	s.handle("POST /api/v1/auth/mfa/challenge", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		tok, method, _, err := s.mfaRequest(r)
 		if err != nil {
@@ -103,6 +105,7 @@ func (s *Server) routesMFA() {
 		}
 		return pub, nil
 	})
+	// action: core.auth.mfa.verify
 	s.handle("POST /api/v1/auth/mfa/verify", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		tok, method, body, err := s.mfaRequest(r)
 		if err != nil {
@@ -115,6 +118,7 @@ func (s *Server) routesMFA() {
 		}
 		return s.mfaAnswer(w, r, method, res), nil
 	})
+	// action: core.auth.mfa.enroll.begin
 	s.handle("POST /api/v1/auth/mfa/enroll/begin", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		tok, method, body, err := s.mfaRequest(r)
 		if err != nil {
@@ -122,6 +126,7 @@ func (s *Server) routesMFA() {
 		}
 		return s.app.Auth.MFAEnrollBegin(r.Context(), tok, method, body, s.clientIP(r))
 	})
+	// action: core.auth.mfa.enroll.finish
 	s.handle("POST /api/v1/auth/mfa/enroll/finish", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		tok, method, body, err := s.mfaRequest(r)
 		if err != nil {
@@ -136,9 +141,11 @@ func (s *Server) routesMFA() {
 	})
 
 	// ---------------------------------------------------------------- own factors
+	// action: core.me.mfa
 	s.handle("GET /api/v1/me/mfa", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		return s.app.Auth.MFA(r.Context())
 	})
+	// action: core.me.mfa.setup.begin
 	s.handle("POST /api/v1/me/mfa/{method}/begin", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		raw, err := io.ReadAll(io.LimitReader(r.Body, 64<<10))
 		if err != nil {
@@ -146,6 +153,7 @@ func (s *Server) routesMFA() {
 		}
 		return s.app.Auth.MyEnrollBegin(r.Context(), r.PathValue("method"), raw)
 	})
+	// action: core.me.mfa.setup.finish
 	s.handle("POST /api/v1/me/mfa/{method}/finish", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		raw, err := io.ReadAll(io.LimitReader(r.Body, 64<<10))
 		if err != nil {
@@ -155,9 +163,11 @@ func (s *Server) routesMFA() {
 	})
 
 	// ---------------------------------------------------------------- administration
+	// action: core.mfa.settings.show
 	s.handle("GET /api/v1/admin/mfa", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		return s.app.Auth.MFAConfig(r.Context())
 	})
+	// action: core.mfa.settings.set
 	s.handle("PUT /api/v1/admin/mfa", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		var in auth.MFAConfigUpdate
 		if err := h.Decode(r, &in); err != nil {
@@ -172,6 +182,7 @@ func (s *Server) routesMFA() {
 
 // routesPasswordless: sign-in without password (passkeys as factor 1).
 func (s *Server) routesPasswordless() {
+	// action: core.auth.passwordless.begin
 	s.handle("POST /api/v1/auth/passwordless/{method}/begin", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		// {"autofill": true}: the request of the user name field (own limit)
 		var in struct {
@@ -188,6 +199,7 @@ func (s *Server) routesPasswordless() {
 		}
 		return map[string]any{"token": tok, "options": pub}, nil
 	})
+	// action: core.auth.passwordless.finish
 	s.handle("POST /api/v1/auth/passwordless/{method}/finish", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		raw, err := io.ReadAll(io.LimitReader(r.Body, 64<<10))
 		if err != nil {

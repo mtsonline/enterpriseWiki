@@ -15,6 +15,7 @@ import (
 
 func (s *Server) routesM6() {
 	// ---------------------------------------------------------------- watches
+	// action: core.me.watches.list
 	s.handle("GET /api/v1/me/watches", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		q := r.URL.Query()
 		if t := q.Get("target_type"); t != "" {
@@ -34,6 +35,7 @@ func (s *Server) routesM6() {
 		}
 		return map[string]any{"items": list, "enabled": s.app.Mail.Enabled()}, nil
 	})
+	// action: core.me.watches.set
 	s.handle("PUT /api/v1/me/watches", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		var in watch.Input
 		if err := h.Decode(r, &in); err != nil {
@@ -41,6 +43,7 @@ func (s *Server) routesM6() {
 		}
 		return s.app.Watch.Set(r.Context(), in)
 	})
+	// action: core.me.watches.remove
 	s.handle("DELETE /api/v1/me/watches/{id}", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		id, err := h.PathID(r, "id")
 		if err != nil {
@@ -50,6 +53,7 @@ func (s *Server) routesM6() {
 	})
 
 	// ---------------------------------------------------------------- feeds
+	// action: core.me.feed_token.show
 	s.handle("GET /api/v1/me/feed-token", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		p, err := requireUser(r)
 		if err != nil {
@@ -58,6 +62,7 @@ func (s *Server) routesM6() {
 		tok, err := s.app.Auth.FeedToken(r.Context(), p.ID())
 		return map[string]string{"token": tok}, err
 	})
+	// action: core.me.feed_token.renew
 	s.handle("POST /api/v1/me/feed-token", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		p, err := requireUser(r)
 		if err != nil {
@@ -66,6 +71,7 @@ func (s *Server) routesM6() {
 		tok, err := s.app.Auth.RotateFeedToken(r.Context(), p.ID())
 		return map[string]string{"token": tok}, err
 	})
+	// action: core.me.feed_token.delete
 	s.handle("DELETE /api/v1/me/feed-token", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		p, err := requireUser(r)
 		if err != nil {
@@ -113,6 +119,7 @@ func (s *Server) routesM6() {
 	})
 
 	// ---------------------------------------------------------------- profile (business card)
+	// action: core.me.profile.show
 	s.handle("GET /api/v1/me/profile", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		p, err := requireUser(r)
 		if err != nil {
@@ -121,6 +128,7 @@ func (s *Server) routesM6() {
 		prof, err := s.app.Auth.Profile(r.Context(), p.ID())
 		return map[string]any{"profile": prof, "fields": auth.ProfileFields, "photo_policy": s.app.Auth.PhotoPolicy()}, err
 	})
+	// action: core.me.profile.set
 	s.handle("PUT /api/v1/me/profile", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		p, err := requireUser(r)
 		if err != nil {
@@ -132,6 +140,7 @@ func (s *Server) routesM6() {
 		}
 		return s.app.Auth.SetProfile(r.Context(), p.ID(), in)
 	})
+	// action: core.users.profile.show
 	s.handle("GET /api/v1/admin/users/{id}/profile", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		if err := requireAdmin(r); err != nil {
 			return nil, err
@@ -143,6 +152,7 @@ func (s *Server) routesM6() {
 		prof, err := s.app.Auth.Profile(r.Context(), id)
 		return map[string]any{"profile": prof, "fields": auth.ProfileFields, "photo_policy": s.app.Auth.PhotoPolicy()}, err
 	})
+	// action: core.users.profile.set
 	s.handle("PUT /api/v1/admin/users/{id}/profile", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		if err := requireAdmin(r); err != nil {
 			return nil, err

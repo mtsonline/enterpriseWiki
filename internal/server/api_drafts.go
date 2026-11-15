@@ -117,10 +117,12 @@ func (s *Server) routesDrafts() {
 }
 
 func (s *Server) routesNotifications() {
+	// action: core.me.inbox.list
 	s.handle("GET /api/v1/me/inbox", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		list, unread, err := s.app.Notify.List(r.Context(), h.QueryInt(r, "limit", 30))
 		return map[string]any{"items": list, "unread": unread}, err
 	})
+	// action: core.me.inbox.read
 	s.handle("POST /api/v1/me/inbox/read", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		var in struct {
 			IDs []int64 `json:"ids"` // empty: all
@@ -133,6 +135,7 @@ func (s *Server) routesNotifications() {
 		}
 		return h.NoContent{}, s.app.Notify.MarkRead(r.Context(), in.IDs)
 	})
+	// action: core.me.inbox.delete
 	s.handle("DELETE /api/v1/me/inbox/{id}", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		id, err := h.PathID(r, "id")
 		if err != nil {
@@ -172,9 +175,11 @@ func (s *Server) routesWatchAssignments() {
 		}
 		return h.NoContent{}, s.app.Watch.DeleteAssignment(r.Context(), id)
 	})
+	// action: core.me.watch_assignments.list
 	s.handle("GET /api/v1/me/watch-assignments", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		return s.app.Watch.MyAssignments(r.Context())
 	})
+	// action: core.me.watch_assignments.set
 	s.handle("PUT /api/v1/me/watch-assignments/{id}", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		id, err := h.PathID(r, "id")
 		if err != nil {

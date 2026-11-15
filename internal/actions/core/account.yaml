@@ -1,0 +1,675 @@
+# Action register (ewiki.plugin.v1.Action, see sdk/proto/ewiki/plugin/v1/action.proto).
+actions:
+  - id: core.auth.login
+    category: CATEGORY_PROTOCOL
+    method: POST
+    path: /api/v1/auth/login
+    summary:
+      text:
+        en: Sign in with user name or e-mail address and password (starts a session; scripts use an API key instead)
+        de: Mit Benutzername oder E-Mail-Adresse und Passwort anmelden (startet eine Sitzung; Skripte nutzen einen API-Schlüssel)
+    public: true
+    safety: {changes: true}
+  - id: core.auth.logout
+    category: CATEGORY_PROTOCOL
+    method: POST
+    path: /api/v1/auth/logout
+    summary:
+      text:
+        en: "Sign out (ends the session, also at the provider if single logout is on)"
+        de: "Abmelden (beendet die Sitzung, mit Single Logout auch beim Anbieter)"
+    safety: {changes: true}
+  - id: core.auth.providers
+    category: CATEGORY_ACTION
+    method: GET
+    path: /api/v1/auth/providers
+    summary:
+      text:
+        en: List the sign-in methods of the sign-in page
+        de: Anmeldewege der Anmeldeseite auflisten
+    public: true
+    cli: {command: [auth, providers]}
+    ui: {entry: /login}
+  - id: core.auth.me
+    category: CATEGORY_ACTION
+    method: GET
+    path: /api/v1/auth/me
+    summary:
+      text:
+        en: "Show the signed-in person, permissions and site (empty for guests)"
+        de: "Angemeldete Person, Rechte und Site anzeigen (leer für Gäste)"
+    public: true
+    cli: {command: [auth, me]}
+    ui: {entry: /profile}
+  - id: core.auth.ssh.challenge
+    category: CATEGORY_PROTOCOL
+    method: POST
+    path: /api/v1/auth/ssh/challenge
+    summary:
+      text:
+        en: "Sign-in with an SSH key, step 1: get a challenge"
+        de: "Anmeldung mit SSH-Schlüssel, Schritt 1: Aufgabe holen"
+    public: true
+    safety: {changes: true}
+  - id: core.auth.ssh.verify
+    category: CATEGORY_PROTOCOL
+    method: POST
+    path: /api/v1/auth/ssh/verify
+    summary:
+      text:
+        en: "Sign-in with an SSH key, step 2: answer with the signature"
+        de: "Anmeldung mit SSH-Schlüssel, Schritt 2: mit der Signatur antworten"
+    public: true
+    safety: {changes: true}
+  - id: core.auth.verify_email
+    category: CATEGORY_ACTION
+    method: POST
+    path: /api/v1/auth/verify-email
+    summary:
+      text:
+        en: Confirm an e-mail address with the link from the e-mail
+        de: E-Mail-Adresse mit dem Link aus der E-Mail bestätigen
+    public: true
+    safety: {changes: true}
+    cli: {command: [auth, verify-email]}
+    ui: {entry: /verify-email}
+  - id: core.auth.link.info
+    category: CATEGORY_PROTOCOL
+    method: POST
+    path: /api/v1/auth/link/info
+    summary:
+      text:
+        en: "Linking a further sign-in: show what the link token would connect"
+        de: "Weitere Anmeldung verknüpfen: anzeigen, was das Token verbinden würde"
+    public: true
+    safety: {changes: true}
+  - id: core.auth.sso.start
+    category: CATEGORY_PROTOCOL
+    method: GET
+    path: /api/v1/auth/sso/{provider}/start
+    summary:
+      text:
+        en: Start the sign-in at a provider with its own sign-in page (redirect)
+        de: Anmeldung bei einem Anbieter mit eigener Anmeldeseite starten (Weiterleitung)
+    public: true
+  - id: core.auth.sso.callback
+    category: CATEGORY_PROTOCOL
+    method: GET
+    path: /api/v1/auth/sso/{provider}/callback
+    summary:
+      text:
+        en: Return from the provider after signing in (OpenID Connect)
+        de: Rückkehr vom Anbieter nach der Anmeldung (OpenID Connect)
+    public: true
+  - id: core.auth.sso.callback.post
+    category: CATEGORY_PROTOCOL
+    method: POST
+    path: /api/v1/auth/sso/{provider}/callback
+    summary:
+      text:
+        en: "Return from the provider after signing in (SAML, form post)"
+        de: "Rückkehr vom Anbieter nach der Anmeldung (SAML, Formular)"
+    public: true
+    safety: {changes: true}
+  - id: core.auth.sso.logout
+    category: CATEGORY_PROTOCOL
+    method: GET
+    path: /api/v1/auth/sso/{provider}/logout
+    summary:
+      text:
+        en: Single logout started by the provider (front channel)
+        de: Vom Anbieter ausgelöstes Single Logout (Front-Channel)
+    public: true
+  - id: core.auth.sso.logout.post
+    category: CATEGORY_PROTOCOL
+    method: POST
+    path: /api/v1/auth/sso/{provider}/logout
+    summary:
+      text:
+        en: Single logout started by the provider (back channel)
+        de: Vom Anbieter ausgelöstes Single Logout (Back-Channel)
+    public: true
+    safety: {changes: true}
+  - id: core.auth.mfa.info
+    category: CATEGORY_PROTOCOL
+    method: POST
+    path: /api/v1/auth/mfa/info
+    summary:
+      text:
+        en: "Sign-in with further factors: show the factors that are still needed"
+        de: "Anmeldung mit weiteren Faktoren: noch nötige Faktoren anzeigen"
+    public: true
+    safety: {changes: true}
+  - id: core.auth.mfa.challenge
+    category: CATEGORY_PROTOCOL
+    method: POST
+    path: /api/v1/auth/mfa/challenge
+    summary:
+      text:
+        en: "Sign-in with further factors: ask for a factor (e.g. send the e-mail code)"
+        de: "Anmeldung mit weiteren Faktoren: Faktor anfordern (z. B. E-Mail-Code senden)"
+    public: true
+    safety: {changes: true}
+  - id: core.auth.mfa.verify
+    category: CATEGORY_PROTOCOL
+    method: POST
+    path: /api/v1/auth/mfa/verify
+    summary:
+      text:
+        en: "Sign-in with further factors: check a factor"
+        de: "Anmeldung mit weiteren Faktoren: Faktor prüfen"
+    public: true
+    safety: {changes: true}
+  - id: core.auth.mfa.enroll.begin
+    category: CATEGORY_PROTOCOL
+    method: POST
+    path: /api/v1/auth/mfa/enroll/begin
+    summary:
+      text:
+        en: "Sign-in: set up a missing factor, step 1"
+        de: "Anmeldung: fehlenden Faktor einrichten, Schritt 1"
+    public: true
+    safety: {changes: true}
+  - id: core.auth.mfa.enroll.finish
+    category: CATEGORY_PROTOCOL
+    method: POST
+    path: /api/v1/auth/mfa/enroll/finish
+    summary:
+      text:
+        en: "Sign-in: set up a missing factor, step 2"
+        de: "Anmeldung: fehlenden Faktor einrichten, Schritt 2"
+    public: true
+    safety: {changes: true}
+  - id: core.auth.passwordless.begin
+    category: CATEGORY_PROTOCOL
+    method: POST
+    path: /api/v1/auth/passwordless/{method}/begin
+    summary:
+      text:
+        en: "Sign-in without password (passkey), step 1"
+        de: "Anmeldung ohne Passwort (Passkey), Schritt 1"
+    public: true
+    safety: {changes: true}
+  - id: core.auth.passwordless.finish
+    category: CATEGORY_PROTOCOL
+    method: POST
+    path: /api/v1/auth/passwordless/{method}/finish
+    summary:
+      text:
+        en: "Sign-in without password (passkey), step 2"
+        de: "Anmeldung ohne Passwort (Passkey), Schritt 2"
+    public: true
+    safety: {changes: true}
+  - id: core.me.update
+    category: CATEGORY_ACTION
+    method: PUT
+    path: /api/v1/me
+    summary:
+      text:
+        en: "Change your own name, e-mail address, language and personal settings"
+        de: "Eigenen Namen, E-Mail-Adresse, Sprache und persönliche Einstellungen ändern"
+    signed_in: true
+    safety: {changes: true}
+    cli: {command: [me, update]}
+    ui: {entry: /profile}
+  - id: core.me.prefs
+    category: CATEGORY_ACTION
+    method: GET
+    path: /api/v1/me/prefs
+    summary:
+      text:
+        en: Show your personal settings and the allowed values
+        de: Persönliche Einstellungen und erlaubte Werte anzeigen
+    signed_in: true
+    cli: {command: [pref, list], builtin: true}
+    ui: {entry: /profile}
+  - id: core.me.password
+    category: CATEGORY_ACTION
+    method: PUT
+    path: /api/v1/me/password
+    summary:
+      text:
+        en: Change your own password (other sessions end)
+        de: Eigenes Passwort ändern (andere Sitzungen enden)
+    signed_in: true
+    safety: {changes: true}
+    cli: {command: [me, password]}
+    ui: {entry: /profile}
+  - id: core.me.alias
+    category: CATEGORY_ACTION
+    method: PUT
+    path: /api/v1/me/alias
+    summary:
+      text:
+        en: Set or remove your own user name (alias)
+        de: Eigenen Benutzernamen (Alias) festlegen oder entfernen
+    signed_in: true
+    safety: {changes: true}
+    cli: {command: [me, alias]}
+    ui: {entry: /profile}
+  - id: core.me.api_keys.list
+    category: CATEGORY_ACTION
+    method: GET
+    path: /api/v1/me/api-keys
+    summary:
+      text:
+        en: List your own API keys
+        de: Eigene API-Schlüssel auflisten
+    signed_in: true
+    cli: {command: [me, api-keys, list]}
+    ui: {entry: /profile}
+  - id: core.me.api_keys.create
+    category: CATEGORY_ACTION
+    method: POST
+    path: /api/v1/me/api-keys
+    summary:
+      text:
+        en: Create an API key (the key is shown once)
+        de: API-Schlüssel anlegen (der Schlüssel wird einmal gezeigt)
+    signed_in: true
+    safety: {changes: true}
+    cli: {command: [me, api-keys, create]}
+    ui: {entry: /profile}
+  - id: core.me.api_keys.delete
+    category: CATEGORY_ACTION
+    method: DELETE
+    path: /api/v1/me/api-keys/{id}
+    summary:
+      text:
+        en: Delete one of your API keys
+        de: Eigenen API-Schlüssel löschen
+    signed_in: true
+    safety: {changes: true}
+    cli: {command: [me, api-keys, delete], args: [id]}
+    ui: {entry: /profile}
+  - id: core.me.api_keys.rate
+    category: CATEGORY_ACTION
+    method: PUT
+    path: /api/v1/me/api-keys/{id}/rate
+    summary:
+      text:
+        en: Limit the requests per second of one of your API keys
+        de: Anfragen je Sekunde eines eigenen API-Schlüssels begrenzen
+    signed_in: true
+    safety: {changes: true}
+    cli: {command: [me, api-keys, rate], args: [id]}
+    ui: {entry: /profile}
+  - id: core.me.ssh_keys.list
+    category: CATEGORY_ACTION
+    method: GET
+    path: /api/v1/me/ssh-keys
+    summary:
+      text:
+        en: List your own SSH keys for signing in
+        de: Eigene SSH-Schlüssel für die Anmeldung auflisten
+    signed_in: true
+    cli: {command: [me, ssh-keys, list]}
+    ui: {entry: /profile}
+  - id: core.me.ssh_keys.add
+    category: CATEGORY_ACTION
+    method: POST
+    path: /api/v1/me/ssh-keys
+    summary:
+      text:
+        en: Add an SSH key for signing in
+        de: SSH-Schlüssel für die Anmeldung hinzufügen
+    signed_in: true
+    safety: {changes: true}
+    cli: {command: [me, ssh-keys, add]}
+    ui: {entry: /profile}
+  - id: core.me.ssh_keys.delete
+    category: CATEGORY_ACTION
+    method: DELETE
+    path: /api/v1/me/ssh-keys/{id}
+    summary:
+      text:
+        en: Remove one of your SSH keys
+        de: Eigenen SSH-Schlüssel entfernen
+    signed_in: true
+    safety: {changes: true}
+    cli: {command: [me, ssh-keys, delete], args: [id]}
+    ui: {entry: /profile}
+  - id: core.me.emails.list
+    category: CATEGORY_ACTION
+    method: GET
+    path: /api/v1/me/emails
+    summary:
+      text:
+        en: List your own e-mail addresses
+        de: Eigene E-Mail-Adressen auflisten
+    signed_in: true
+    cli: {command: [me, emails, list]}
+    ui: {entry: /profile}
+  - id: core.me.emails.add
+    category: CATEGORY_ACTION
+    method: POST
+    path: /api/v1/me/emails
+    summary:
+      text:
+        en: Add an e-mail address (sends a confirmation link)
+        de: E-Mail-Adresse hinzufügen (schickt einen Bestätigungslink)
+    signed_in: true
+    safety: {changes: true}
+    cli: {command: [me, emails, add]}
+    ui: {entry: /profile}
+  - id: core.me.emails.resend
+    category: CATEGORY_ACTION
+    method: POST
+    path: /api/v1/me/emails/{id}/resend
+    summary:
+      text:
+        en: Send the confirmation link of an address again
+        de: Bestätigungslink einer Adresse erneut senden
+    signed_in: true
+    safety: {changes: true}
+    cli: {command: [me, emails, resend], args: [id]}
+    ui: {entry: /profile}
+  - id: core.me.emails.primary
+    category: CATEGORY_ACTION
+    method: POST
+    path: /api/v1/me/emails/{id}/primary
+    summary:
+      text:
+        en: Make a confirmed address your main address
+        de: Bestätigte Adresse zur Hauptadresse machen
+    signed_in: true
+    safety: {changes: true}
+    cli: {command: [me, emails, primary], args: [id]}
+    ui: {entry: /profile}
+  - id: core.me.emails.remove
+    category: CATEGORY_ACTION
+    method: DELETE
+    path: /api/v1/me/emails/{id}
+    summary:
+      text:
+        en: Remove one of your e-mail addresses
+        de: Eigene E-Mail-Adresse entfernen
+    signed_in: true
+    safety: {changes: true}
+    cli: {command: [me, emails, remove], args: [id]}
+    ui: {entry: /profile}
+  - id: core.me.identities.list
+    category: CATEGORY_ACTION
+    method: GET
+    path: /api/v1/me/identities
+    summary:
+      text:
+        en: List the sign-ins linked to your account
+        de: Mit dem eigenen Konto verknüpfte Anmeldungen auflisten
+    signed_in: true
+    cli: {command: [me, identities, list]}
+    ui: {entry: /profile}
+  - id: core.me.identities.unlink
+    category: CATEGORY_ACTION
+    method: DELETE
+    path: /api/v1/me/identities
+    summary:
+      text:
+        en: Unlink a sign-in from your account
+        de: Anmeldung vom eigenen Konto lösen
+    signed_in: true
+    safety: {changes: true}
+    cli: {command: [me, identities, unlink]}
+    ui: {entry: /profile}
+  - id: core.me.identities.link
+    category: CATEGORY_ACTION
+    method: POST
+    path: /api/v1/me/identities/link
+    summary:
+      text:
+        en: Link a further sign-in to your account with its link token
+        de: Weitere Anmeldung mit dem Verknüpfungs-Token mit dem eigenen Konto verbinden
+    signed_in: true
+    safety: {changes: true}
+    cli: {command: [me, identities, link]}
+    ui: {entry: /profile}
+  - id: core.me.feed_token.show
+    category: CATEGORY_ACTION
+    method: GET
+    path: /api/v1/me/feed-token
+    summary:
+      text:
+        en: Show whether you have a personal feed link
+        de: "Anzeigen, ob ein persönlicher Feed-Link besteht"
+    signed_in: true
+    cli: {command: [me, feed-token, show]}
+    ui: {entry: /profile}
+  - id: core.me.feed_token.renew
+    category: CATEGORY_ACTION
+    method: POST
+    path: /api/v1/me/feed-token
+    summary:
+      text:
+        en: Create a new personal feed link (the old one stops working)
+        de: Neuen persönlichen Feed-Link erzeugen (der alte gilt nicht mehr)
+    signed_in: true
+    safety: {changes: true}
+    cli: {command: [me, feed-token, renew]}
+    ui: {entry: /profile}
+  - id: core.me.feed_token.delete
+    category: CATEGORY_ACTION
+    method: DELETE
+    path: /api/v1/me/feed-token
+    summary:
+      text:
+        en: Remove your personal feed link
+        de: Persönlichen Feed-Link entfernen
+    signed_in: true
+    safety: {changes: true}
+    cli: {command: [me, feed-token, delete]}
+    ui: {entry: /profile}
+  - id: core.me.watches.list
+    category: CATEGORY_ACTION
+    method: GET
+    path: /api/v1/me/watches
+    summary:
+      text:
+        en: List what you watch
+        de: Eigene Beobachtungen auflisten
+    signed_in: true
+    cli: {command: [watch, list], builtin: true}
+    ui: {entry: /profile}
+  - id: core.me.watches.set
+    category: CATEGORY_ACTION
+    method: PUT
+    path: /api/v1/me/watches
+    summary:
+      text:
+        en: Watch a category or an element
+        de: Kategorie oder Element beobachten
+    signed_in: true
+    safety: {changes: true}
+    cli: {command: [watch, add], builtin: true}
+    ui: {entry: /profile}
+  - id: core.me.watches.remove
+    category: CATEGORY_ACTION
+    method: DELETE
+    path: /api/v1/me/watches/{id}
+    summary:
+      text:
+        en: Stop watching
+        de: Beobachtung beenden
+    signed_in: true
+    safety: {changes: true}
+    cli: {command: [watch, remove], builtin: true}
+    ui: {entry: /profile}
+  - id: core.me.watch_assignments.list
+    category: CATEGORY_ACTION
+    method: GET
+    path: /api/v1/me/watch-assignments
+    summary:
+      text:
+        en: List the watches assigned to you
+        de: Ihnen zugewiesene Beobachtungen auflisten
+    signed_in: true
+    cli: {command: [me, watch-assignments, list]}
+    ui: {entry: /profile}
+  - id: core.me.watch_assignments.set
+    category: CATEGORY_ACTION
+    method: PUT
+    path: /api/v1/me/watch-assignments/{id}
+    summary:
+      text:
+        en: Pause or resume an assigned watch
+        de: Zugewiesene Beobachtung pausieren oder fortsetzen
+    signed_in: true
+    safety: {changes: true}
+    cli: {command: [me, watch-assignments, set], args: [id]}
+    ui: {entry: /profile}
+  - id: core.me.notifications.show
+    category: CATEGORY_ACTION
+    method: GET
+    path: /api/v1/me/notifications
+    summary:
+      text:
+        en: Show your notification settings
+        de: Eigene Benachrichtigungs-Einstellungen anzeigen
+    signed_in: true
+    cli: {command: [me, notifications, show]}
+    ui: {entry: /profile}
+  - id: core.me.notifications.set
+    category: CATEGORY_ACTION
+    method: PUT
+    path: /api/v1/me/notifications
+    summary:
+      text:
+        en: Change your notification settings
+        de: Eigene Benachrichtigungs-Einstellungen ändern
+    signed_in: true
+    safety: {changes: true}
+    cli: {command: [me, notifications, set]}
+    ui: {entry: /profile}
+  - id: core.me.inbox.list
+    category: CATEGORY_ACTION
+    method: GET
+    path: /api/v1/me/inbox
+    summary:
+      text:
+        en: List your notifications
+        de: Eigene Benachrichtigungen auflisten
+    signed_in: true
+    cli: {command: [inbox, list], builtin: true}
+    ui: {entry: /}
+  - id: core.me.inbox.read
+    category: CATEGORY_ACTION
+    method: POST
+    path: /api/v1/me/inbox/read
+    summary:
+      text:
+        en: Mark notifications as read
+        de: Benachrichtigungen als gelesen markieren
+    signed_in: true
+    safety: {changes: true}
+    cli: {command: [inbox, read], builtin: true}
+    ui: {entry: /}
+  - id: core.me.inbox.delete
+    category: CATEGORY_ACTION
+    method: DELETE
+    path: /api/v1/me/inbox/{id}
+    summary:
+      text:
+        en: Delete a notification
+        de: Benachrichtigung löschen
+    signed_in: true
+    safety: {changes: true}
+    cli: {command: [me, inbox, delete], args: [id]}
+    ui: {entry: /}
+  - id: core.me.profile.show
+    category: CATEGORY_ACTION
+    method: GET
+    path: /api/v1/me/profile
+    summary:
+      text:
+        en: "Show your profile (photo, contact, visibility)"
+        de: "Eigenes Profil anzeigen (Foto, Kontakt, Sichtbarkeit)"
+    signed_in: true
+    cli: {command: [me, profile, show]}
+    ui: {entry: /profile}
+  - id: core.me.profile.set
+    category: CATEGORY_ACTION
+    method: PUT
+    path: /api/v1/me/profile
+    summary:
+      text:
+        en: Change your profile
+        de: Eigenes Profil ändern
+    signed_in: true
+    safety: {changes: true}
+    cli: {command: [me, profile, set]}
+    ui: {entry: /profile}
+  - id: core.me.sessions.list
+    category: CATEGORY_ACTION
+    method: GET
+    path: /api/v1/me/sessions
+    summary:
+      text:
+        en: List your sessions
+        de: Eigene Sitzungen auflisten
+    signed_in: true
+    cli: {command: [me, sessions, list]}
+    ui: {entry: /profile}
+  - id: core.me.sessions.end_others
+    category: CATEGORY_ACTION
+    method: DELETE
+    path: /api/v1/me/sessions
+    summary:
+      text:
+        en: Sign out everywhere else (end all other sessions)
+        de: Überall sonst abmelden (alle anderen Sitzungen beenden)
+    signed_in: true
+    safety: {changes: true}
+    cli: {command: [me, sessions, end-others]}
+    ui: {entry: /profile}
+  - id: core.me.sessions.end
+    category: CATEGORY_ACTION
+    method: DELETE
+    path: /api/v1/me/sessions/{id}
+    summary:
+      text:
+        en: End one of your sessions
+        de: Eine eigene Sitzung beenden
+    signed_in: true
+    safety: {changes: true}
+    cli: {command: [me, sessions, end], args: [id]}
+    ui: {entry: /profile}
+  - id: core.me.mfa
+    category: CATEGORY_ACTION
+    method: GET
+    path: /api/v1/me/mfa
+    summary:
+      text:
+        en: Show your sign-in factors and which are needed
+        de: Eigene Anmeldefaktoren anzeigen und welche nötig sind
+    signed_in: true
+    cli: {command: [me, mfa]}
+    ui: {entry: /profile}
+  - id: core.me.mfa.setup.begin
+    category: CATEGORY_ACTION
+    method: POST
+    path: /api/v1/me/mfa/{method}/begin
+    summary:
+      text:
+        en: "Set up a sign-in factor, step 1"
+        de: "Anmeldefaktor einrichten, Schritt 1"
+    signed_in: true
+    safety: {changes: true}
+    ui: {entry: /profile}
+    exceptions:
+      - way: WAY_CLI
+        reason: "Second factors are set up and removed only in the browser, within 15 minutes after signing in (passkeys need the browser anyway)."
+        approved_by: "project owner, decision of 2026-11-11 (second factors are only changed in the browser)"
+  - id: core.me.mfa.setup.finish
+    category: CATEGORY_ACTION
+    method: POST
+    path: /api/v1/me/mfa/{method}/finish
+    summary:
+      text:
+        en: "Set up a sign-in factor, step 2"
+        de: "Anmeldefaktor einrichten, Schritt 2"
+    signed_in: true
+    safety: {changes: true}
+    ui: {entry: /profile}
+    exceptions:
+      - way: WAY_CLI
+        reason: "Second factors are set up and removed only in the browser, within 15 minutes after signing in (passkeys need the browser anyway)."
+        approved_by: "project owner, decision of 2026-11-11 (second factors are only changed in the browser)"
