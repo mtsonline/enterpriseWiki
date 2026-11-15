@@ -94,6 +94,7 @@ func keepSecrets(in, stored []config.AuditForward) {
 
 func (s *Server) routesAudit() {
 	// GET /api/v1/admin/audit/search – entries with total and the known areas
+	// action: core.audit.search
 	s.handle("GET /api/v1/admin/audit/search", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		if err := requireAdmin(r); err != nil {
 			return nil, err
@@ -106,6 +107,7 @@ func (s *Server) routesAudit() {
 		return map[string]any{"entries": entries, "total": total, "areas": areas}, err
 	})
 	// GET /api/v1/admin/audit/export?format=csv|jsonl&… – the filtered entries as a file
+	// action: core.audit.export
 	h.RecordRoute("GET /api/v1/admin/audit/export")
 	s.app.Mux.HandleFunc("GET /api/v1/admin/audit/export", func(w http.ResponseWriter, r *http.Request) {
 		if err := requireAdmin(r); err != nil {
@@ -157,6 +159,7 @@ func (s *Server) routesAudit() {
 			f.Offset += f.Limit
 		}
 	})
+	// action: core.audit.settings.get
 	s.handle("GET /api/v1/admin/audit/settings", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		if err := requireAdmin(r); err != nil {
 			return nil, err
@@ -177,6 +180,7 @@ func (s *Server) routesAudit() {
 		return map[string]any{"settings": auditSettings{Disabled: disabled, LogLogins: c.Logins(), LogDenied: c.LogDenied, LogViews: c.LogViews, Forward: maskForward(c.Forward)},
 			"status": status, "areas": areas, "always": audit.Always, "types": audit.ForwardTypes}, nil
 	})
+	// action: core.audit.settings.update
 	s.handle("PUT /api/v1/admin/audit/settings", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		if err := requireAdmin(r); err != nil {
 			return nil, err
@@ -220,6 +224,7 @@ func (s *Server) routesAudit() {
 		return h.NoContent{}, nil
 	})
 	// POST /api/v1/admin/audit/forward/test – sends a test entry to a destination (masked secrets: stored values)
+	// action: core.audit.forward_test
 	s.handle("POST /api/v1/admin/audit/forward/test", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		if err := requireAdmin(r); err != nil {
 			return nil, err

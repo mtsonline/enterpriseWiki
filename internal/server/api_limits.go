@@ -35,6 +35,7 @@ func (s *Server) routesLimits() {
 		return out
 	}
 	// GET /admin/limits lists the limits with default, range and value.
+	// action: core.limits.get
 	s.handle("GET /api/v1/admin/limits", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		if err := requireAdmin(r); err != nil {
 			return nil, err
@@ -48,6 +49,7 @@ func (s *Server) routesLimits() {
 	// PUT /admin/limits {"values": {"core.request.guest_kb": 128, "core.request.body_kb": null}}
 	// changes limits (null: back to the default). They apply to the whole
 	// instance, so only its administrators change them.
+	// action: core.limits.update
 	s.handle("PUT /api/v1/admin/limits", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		if err := requireAdmin(r); err != nil {
 			return nil, err

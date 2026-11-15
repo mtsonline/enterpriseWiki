@@ -1,0 +1,84 @@
+# Action register (ewiki.plugin.v1.Action, see sdk/proto/ewiki/plugin/v1/action.proto).
+actions:
+  - id: core.instance.sites.list
+    category: CATEGORY_ACTION
+    method: GET
+    path: /api/v1/instance/sites
+    summary:
+      text:
+        en: List the sites of the instance
+        de: Sites der Instanz auflisten
+    permission: {key: core.admin, scope: SCOPE_GLOBAL, instance: true}
+    cli: {command: [site, list], builtin: true}
+    ui: {entry: /admin/sites}
+  - id: core.instance.sites.create
+    category: CATEGORY_ACTION
+    method: POST
+    path: /api/v1/instance/sites
+    summary:
+      text:
+        en: Create a site
+        de: Site anlegen
+    permission: {key: core.admin, scope: SCOPE_GLOBAL, instance: true}
+    safety: {changes: true}
+    cli: {command: [site, create], builtin: true}
+    ui: {entry: /admin/sites}
+  - id: core.instance.sites.update
+    category: CATEGORY_ACTION
+    method: PATCH
+    path: /api/v1/instance/sites/{name}
+    summary:
+      text:
+        en: "Change a site (hosts, title)"
+        de: "Site ändern (Hostnamen, Titel)"
+    permission: {key: core.admin, scope: SCOPE_GLOBAL, instance: true}
+    safety: {changes: true}
+    cli: {command: [site, update], builtin: true}
+    ui: {entry: /admin/sites}
+  - id: core.instance.sites.delete
+    category: CATEGORY_ACTION
+    method: DELETE
+    path: /api/v1/instance/sites/{name}
+    summary:
+      text:
+        en: Delete a site with all its content
+        de: Site mit allen Inhalten löschen
+    permission: {key: core.admin, scope: SCOPE_GLOBAL, instance: true}
+    safety: {changes: true}
+    cli: {command: [site, delete], builtin: true}
+    ui: {entry: /admin/sites}
+  - id: core.instance.admins.list
+    category: CATEGORY_ACTION
+    method: GET
+    path: /api/v1/instance/admins
+    summary:
+      text:
+        en: List the instance administrators
+        de: Instanz-Administratoren auflisten
+    permission: {key: core.admin, scope: SCOPE_GLOBAL, instance: true}
+    cli: {command: [site, admins], builtin: true}
+    ui: {entry: /admin/sites}
+  - id: core.instance.admins.add
+    category: CATEGORY_ACTION
+    method: POST
+    path: /api/v1/instance/admins
+    summary:
+      text:
+        en: Make a user an instance administrator
+        de: Benutzer zum Instanz-Administrator machen
+    permission: {key: core.admin, scope: SCOPE_GLOBAL, instance: true}
+    safety: {changes: true}
+    cli: {command: [site, admins, add], builtin: true}
+    ui: {entry: /admin/sites}
+  - id: core.instance.admins.remove
+    category: CATEGORY_ACTION
+    method: DELETE
+    path: /api/v1/instance/admins/{id}
+    summary:
+      text:
+        en: Take the instance administration from a user
+        de: Instanz-Verwaltung einem Benutzer entziehen
+    permission: {key: core.admin, scope: SCOPE_GLOBAL, instance: true}
+    safety: {changes: true}
+    cli: {command: [site, admins, remove], builtin: true}
+    ui: {entry: /admin/sites}

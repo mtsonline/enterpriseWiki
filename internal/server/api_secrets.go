@@ -25,6 +25,7 @@ func (s *Server) routesSecrets() {
 		return nil
 	}
 	// GET /admin/secrets: mode, key file and the values by kind
+	// action: core.secrets.status
 	s.handle("GET /api/v1/admin/secrets", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		if err := instanceAdmin(r); err != nil {
 			return nil, err
@@ -44,6 +45,7 @@ func (s *Server) routesSecrets() {
 				(box.Mode() == secrets.ModeAES && st.Plain+st.PQ > 0) || (box.Mode() == secrets.ModePQ && st.Plain+st.AES > 0)}, nil
 	})
 	// POST /admin/secrets/rewrap: stores all values in the current mode
+	// action: core.secrets.rewrap
 	s.handle("POST /api/v1/admin/secrets/rewrap", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		if err := instanceAdmin(r); err != nil {
 			return nil, err

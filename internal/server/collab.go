@@ -29,8 +29,9 @@ const CollabPath = "/api/v1/collab/"
 // same origin) connect; the session and the right are checked again every
 // collab.RecheckEvery while connected.
 func (s *Server) routesCollab() {
-	pattern := "GET " + CollabPath + "elements/{id}/{lang}"
-	h.RecordRoute(pattern)
+	const pattern = "GET " + CollabPath + "elements/{id}/{lang}"
+	// action: core.collab
+	h.RecordRoute("GET /api/v1/collab/elements/{id}/{lang}")
 	s.app.Mux.HandleFunc(pattern, func(w http.ResponseWriter, r *http.Request) {
 		if err := s.serveCollab(w, r); err != nil {
 			h.WriteError(w, r, err)

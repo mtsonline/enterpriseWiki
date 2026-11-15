@@ -17,6 +17,7 @@ import (
 func (s *Server) routesM3() {
 	// ---------------------------------------------------------------- macros
 	// Lists the macros of active plugins (used by the editor's macro dialog).
+	// action: core.macros
 	s.handle("GET /api/v1/macros", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		return s.app.Content.Macros(), nil
 	})
@@ -31,6 +32,7 @@ func (s *Server) routesM3() {
 	}
 	// GET /api/v1/admin/updates?force=1 checks GitHub releases of the core
 	// and all plugins with a repository (cached for an hour).
+	// action: core.updates.list
 	s.handle("GET /api/v1/admin/updates", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		if err := requireAdmin(r); err != nil {
 			return nil, err
@@ -48,6 +50,7 @@ func (s *Server) routesM3() {
 	})
 	// POST /api/v1/admin/updates/{id} installs the latest release of a
 	// plugin and starts the rebuild (1-click update).
+	// action: core.updates.install
 	s.handle("POST /api/v1/admin/updates/{id}", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		if err := requireInstance(r); err != nil { // replaces code shared by all sites
 			return nil, err
@@ -76,6 +79,7 @@ func (s *Server) routesM3() {
 
 func (s *Server) routesM4() {
 	// ---------------------------------------------------------------- e-mail (admin)
+	// action: core.mail.status
 	s.handle("GET /api/v1/admin/mail", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		if err := requireAdmin(r); err != nil {
 			return nil, err
@@ -83,6 +87,7 @@ func (s *Server) routesM4() {
 		return s.app.Mail.GetStatus(r.Context())
 	})
 	// POST /api/v1/admin/mail/test {"to": "..."} sends a test message right away.
+	// action: core.mail.test
 	s.handle("POST /api/v1/admin/mail/test", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		if err := requireAdmin(r); err != nil {
 			return nil, err
@@ -106,6 +111,7 @@ func (s *Server) routesM4() {
 		s.auditSettings(r, "mail.test", in.To)
 		return map[string]string{"status": "sent"}, nil
 	})
+	// action: core.mail.list
 	s.handle("GET /api/v1/admin/mail/outbox", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		if err := requireAdmin(r); err != nil {
 			return nil, err
@@ -113,6 +119,7 @@ func (s *Server) routesM4() {
 		return s.app.Mail.Outbox(r.Context(), r.URL.Query().Get("status"), r.URL.Query().Get("q"), h.QueryInt(r, "limit", 100), h.QueryInt(r, "offset", 0))
 	})
 	// GET /api/v1/admin/mail/outbox/{id} returns a message with the delivery state of every recipient.
+	// action: core.mail.get
 	s.handle("GET /api/v1/admin/mail/outbox/{id}", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		if err := requireAdmin(r); err != nil {
 			return nil, err
@@ -123,6 +130,7 @@ func (s *Server) routesM4() {
 		}
 		return s.app.Mail.Get(r.Context(), id)
 	})
+	// action: core.mail.retry
 	s.handle("POST /api/v1/admin/mail/outbox/{id}/retry", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		if err := requireAdmin(r); err != nil {
 			return nil, err
@@ -133,6 +141,7 @@ func (s *Server) routesM4() {
 		}
 		return h.NoContent{}, s.app.Mail.Retry(r.Context(), id)
 	})
+	// action: core.mail.delete
 	s.handle("DELETE /api/v1/admin/mail/outbox/{id}", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		if err := requireAdmin(r); err != nil {
 			return nil, err
@@ -148,12 +157,14 @@ func (s *Server) routesM4() {
 		return h.NoContent{}, nil
 	})
 	// POST /api/v1/admin/jobs/{name}/run runs a background job now (e.g. "mail").
+	// action: core.jobs.list
 	s.handle("GET /api/v1/admin/jobs", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		if err := requireAdmin(r); err != nil {
 			return nil, err
 		}
 		return s.app.Workers.Names(), nil
 	})
+	// action: core.jobs.run
 	s.handle("POST /api/v1/admin/jobs/{name}/run", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		if err := requireAdmin(r); err != nil {
 			return nil, err

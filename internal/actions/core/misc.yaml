@@ -1,0 +1,220 @@
+# Action register (ewiki.plugin.v1.Action, see sdk/proto/ewiki/plugin/v1/action.proto).
+actions:
+  - id: core.site
+    category: CATEGORY_ACTION
+    method: GET
+    path: /api/v1/site
+    summary:
+      text:
+        en: "Public information about the wiki (name, languages, active plugins)"
+        de: "Öffentliche Angaben zum Wiki (Name, Sprachen, aktive Plugins)"
+    public: true
+    cli: {command: [wiki, info]}
+    ui: {entry: /}
+  - id: core.ready
+    category: CATEGORY_PROTOCOL
+    method: GET
+    path: /readyz
+    summary:
+      text:
+        en: Readiness check for load balancers (database reachable)
+        de: Bereitschaftsprüfung für Lastverteiler (Datenbank erreichbar)
+  - id: core.resolve
+    category: CATEGORY_ACTION
+    method: GET
+    path: /api/v1/resolve
+    summary:
+      text:
+        en: Find the element or category of a readable address
+        de: Element oder Kategorie zu einer lesbaren Adresse finden
+    public: true
+    cli: {command: [resolve]}
+    ui: {entry: /}
+  - id: core.not_found
+    category: CATEGORY_ACTION
+    method: GET
+    path: /api/v1/not-found
+    summary:
+      text:
+        en: "Explain a missing address (deleted page, suggestions)"
+        de: "Fehlende Adresse erklären (gelöschte Seite, Vorschläge)"
+    public: true
+    cli: {command: [not-found]}
+    ui: {entry: /}
+  - id: core.elements.types
+    category: CATEGORY_ACTION
+    method: GET
+    path: /api/v1/element-types
+    summary:
+      text:
+        en: List the types of elements
+        de: Arten von Elementen auflisten
+    public: true
+    cli: {command: [element, types]}
+    ui: {entry: /c/:id/new}
+  - id: core.macros
+    category: CATEGORY_ACTION
+    method: GET
+    path: /api/v1/macros
+    summary:
+      text:
+        en: List the macros of the active plugins
+        de: Makros der aktiven Plugins auflisten
+    public: true
+    cli: {command: [macro, list]}
+    ui: {entry: /e/:id/edit}
+  - id: core.sources.preview
+    category: CATEGORY_ACTION
+    method: POST
+    path: /api/v1/sources/preview
+    summary:
+      text:
+        en: Preview the content a source selects (with your rights)
+        de: "Vorschau der Inhalte, die eine Quelle auswählt (mit Ihren Rechten)"
+    signed_in: true
+    safety: {changes: true}
+    cli: {command: [source, preview]}
+    ui: {entry: /e/:id/edit}
+  - id: core.groups.names
+    category: CATEGORY_ACTION
+    method: GET
+    path: /api/v1/groups
+    summary:
+      text:
+        en: List the groups (for permission dialogs)
+        de: Gruppen auflisten (für Rechte-Dialoge)
+    signed_in: true
+    cli: {command: [perm, groups]}
+    ui: {entry: /c/:id/settings}
+  - id: core.roles.names
+    category: CATEGORY_ACTION
+    method: GET
+    path: /api/v1/roles
+    summary:
+      text:
+        en: List the roles (for permission dialogs)
+        de: Rollen auflisten (für Rechte-Dialoge)
+    signed_in: true
+    cli: {command: [perm, roles]}
+    ui: {entry: /c/:id/settings}
+  - id: core.users.lookup
+    category: CATEGORY_ACTION
+    method: GET
+    path: /api/v1/users/lookup
+    summary:
+      text:
+        en: Find users by name (for permission dialogs)
+        de: Benutzer nach Namen finden (für Rechte-Dialoge)
+    signed_in: true
+    cli: {command: [perm, users]}
+    ui: {entry: /c/:id/settings}
+  - id: core.permissions.list
+    category: CATEGORY_ACTION
+    method: GET
+    path: /api/v1/permissions
+    summary:
+      text:
+        en: List all permissions of the core and the plugins
+        de: Alle Rechte des Kerns und der Plugins auflisten
+    signed_in: true
+    cli: {command: [perm, list], builtin: true}
+    ui: {entry: /c/:id/settings}
+  - id: core.permissions.overview
+    category: CATEGORY_ACTION
+    method: GET
+    path: /api/v1/permissions/overview
+    summary:
+      text:
+        en: "Show the permissions of a user, group or role in the categories you manage"
+        de: "Rechte eines Benutzers, einer Gruppe oder Rolle in den Kategorien zeigen, die Sie verwalten"
+    signed_in: true
+    cli: {command: [perm, overview], builtin: true}
+    ui: {entry: /admin/permissions}
+  - id: core.access.request
+    category: CATEGORY_ACTION
+    method: POST
+    path: /api/v1/access-requests
+    summary:
+      text:
+        en: Ask for access to a category or an element
+        de: Zugriff auf eine Kategorie oder ein Element anfragen
+    signed_in: true
+    safety: {changes: true}
+    cli: {command: [access, request]}
+    ui: {entry: /e/:id}
+  - id: core.access.answer
+    category: CATEGORY_ACTION
+    method: POST
+    path: /api/v1/access-requests/{id}
+    summary:
+      text:
+        en: Grant or refuse an access request (needs manage on the category)
+        de: Zugriffsanfrage gewähren oder ablehnen (braucht Verwalten der Kategorie)
+    signed_in: true
+    safety: {changes: true}
+    cli: {command: [access, answer], args: [id]}
+    ui: {entry: /c/:id/settings}
+  - id: core.signatures.methods
+    category: CATEGORY_ACTION
+    method: GET
+    path: /api/v1/signature-methods
+    summary:
+      text:
+        en: List the methods to sign
+        de: Verfahren zum Signieren auflisten
+    signed_in: true
+    cli: {command: [signature, methods]}
+    ui: {entry: /e/:id}
+  - id: core.signatures.keys
+    category: CATEGORY_ACTION
+    method: GET
+    path: /api/v1/signature-keys
+    summary:
+      text:
+        en: List the public seal keys of the wiki
+        de: Öffentliche Siegel-Schlüssel des Wikis auflisten
+    signed_in: true
+    cli: {command: [signature, keys], builtin: true}
+    ui: {entry: /signatures/verify}
+  - id: core.collab
+    category: CATEGORY_PROTOCOL
+    method: GET
+    path: /api/v1/collab/elements/{id}/{lang}
+    summary:
+      text:
+        en: Live editing of a page together (WebSocket; needs edit on the element)
+        de: Gemeinsames Bearbeiten einer Seite in Echtzeit (WebSocket; braucht Bearbeiten des Elements)
+  - id: core.wopi.check_file_info
+    category: CATEGORY_PROTOCOL
+    method: GET
+    path: /api/v1/wopi/files/{id}
+    summary:
+      text:
+        en: "WOPI: information about a file (for office servers, with access token)"
+        de: "WOPI: Angaben zu einer Datei (für Office-Server, mit Zugriffstoken)"
+  - id: core.wopi.file_operation
+    category: CATEGORY_PROTOCOL
+    method: POST
+    path: /api/v1/wopi/files/{id}
+    summary:
+      text:
+        en: "WOPI: lock, unlock and other file operations (for office servers)"
+        de: "WOPI: Sperren, Entsperren und weitere Dateivorgänge (für Office-Server)"
+    safety: {changes: true}
+  - id: core.wopi.get_file
+    category: CATEGORY_PROTOCOL
+    method: GET
+    path: /api/v1/wopi/files/{id}/contents
+    summary:
+      text:
+        en: "WOPI: content of a file (for office servers)"
+        de: "WOPI: Inhalt einer Datei (für Office-Server)"
+  - id: core.wopi.put_file
+    category: CATEGORY_PROTOCOL
+    method: POST
+    path: /api/v1/wopi/files/{id}/contents
+    summary:
+      text:
+        en: "WOPI: store a new content of a file (for office servers)"
+        de: "WOPI: Neuen Inhalt einer Datei speichern (für Office-Server)"
+    safety: {changes: true}

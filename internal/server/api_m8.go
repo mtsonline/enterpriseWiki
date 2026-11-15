@@ -24,6 +24,7 @@ func (s *Server) routesM8() {
 			return fn(w, r)
 		}
 	}
+	// action: core.webhooks.list
 	s.handle("GET /api/v1/admin/webhooks", admin(func(w http.ResponseWriter, r *http.Request) (any, error) {
 		list, err := s.app.Webhooks.List(r.Context())
 		return map[string]any{"webhooks": list, "events": webhook.Events, "formats": webhook.Formats,
@@ -31,6 +32,7 @@ func (s *Server) routesM8() {
 	}))
 	// PUT /api/v1/admin/webhooks/options {"accounts_in_all": false}: whether
 	// webhooks with "all events" also get the events of accounts
+	// action: core.webhooks.options
 	s.handle("PUT /api/v1/admin/webhooks/options", admin(func(w http.ResponseWriter, r *http.Request) (any, error) {
 		var in struct {
 			AccountsInAll bool `json:"accounts_in_all"`
@@ -44,6 +46,7 @@ func (s *Server) routesM8() {
 		s.auditSettings(r, "webhooks.options", fmt.Sprintf("accounts_in_all=%v", in.AccountsInAll))
 		return map[string]bool{"accounts_in_all": in.AccountsInAll}, nil
 	}))
+	// action: core.webhooks.create
 	s.handle("POST /api/v1/admin/webhooks", admin(func(w http.ResponseWriter, r *http.Request) (any, error) {
 		var in webhook.Input
 		if err := h.Decode(r, &in); err != nil {
@@ -56,6 +59,7 @@ func (s *Server) routesM8() {
 		_ = audit.Log(r.Context(), s.app.DB, "webhook.create", "webhook", c.ID, nil, c.Hook)
 		return h.Created{V: c}, nil
 	}))
+	// action: core.webhooks.get
 	s.handle("GET /api/v1/admin/webhooks/{id}", admin(func(w http.ResponseWriter, r *http.Request) (any, error) {
 		id, err := h.PathID(r, "id")
 		if err != nil {
@@ -68,6 +72,7 @@ func (s *Server) routesM8() {
 		del, err := s.app.Webhooks.Deliveries(r.Context(), id, h.QueryInt(r, "limit", 50))
 		return map[string]any{"webhook": hook, "deliveries": del}, err
 	}))
+	// action: core.webhooks.update
 	s.handle("PUT /api/v1/admin/webhooks/{id}", admin(func(w http.ResponseWriter, r *http.Request) (any, error) {
 		id, err := h.PathID(r, "id")
 		if err != nil {
@@ -88,6 +93,7 @@ func (s *Server) routesM8() {
 		_ = audit.Log(r.Context(), s.app.DB, "webhook.update", "webhook", id, before, c.Hook)
 		return c, nil
 	}))
+	// action: core.webhooks.delete
 	s.handle("DELETE /api/v1/admin/webhooks/{id}", admin(func(w http.ResponseWriter, r *http.Request) (any, error) {
 		id, err := h.PathID(r, "id")
 		if err != nil {
@@ -104,6 +110,7 @@ func (s *Server) routesM8() {
 		return h.NoContent{}, nil
 	}))
 	// POST /api/v1/admin/webhooks/{id}/test sends a test event
+	// action: core.webhooks.test
 	s.handle("POST /api/v1/admin/webhooks/{id}/test", admin(func(w http.ResponseWriter, r *http.Request) (any, error) {
 		id, err := h.PathID(r, "id")
 		if err != nil {
@@ -112,6 +119,7 @@ func (s *Server) routesM8() {
 		return h.NoContent{}, s.app.Webhooks.Test(r.Context(), id)
 	}))
 	// POST /api/v1/admin/webhooks/{id}/deliveries/{did}/retry sends a delivery again
+	// action: core.webhooks.retry
 	s.handle("POST /api/v1/admin/webhooks/{id}/deliveries/{did}/retry", admin(func(w http.ResponseWriter, r *http.Request) (any, error) {
 		id, err := h.PathID(r, "id")
 		if err != nil {

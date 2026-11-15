@@ -30,6 +30,7 @@ type overviewRow struct {
 
 func (s *Server) routesM15() {
 	// declared permissions (for the permission dialogs of categories and roles)
+	// action: core.permissions.list
 	s.handle("GET /api/v1/permissions", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		if _, err := requireUser(r); err != nil {
 			return nil, err
@@ -60,6 +61,7 @@ func (s *Server) routesM15() {
 	// GET /api/v1/permissions/overview?subject_type=user&subject_id=3 – the
 	// categories the caller may manage with the rules and effective
 	// permissions of one user, group or role
+	// action: core.permissions.overview
 	s.handle("GET /api/v1/permissions/overview", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		me, err := requireUser(r)
 		if err != nil {

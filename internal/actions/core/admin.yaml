@@ -1,0 +1,700 @@
+# Action register (ewiki.plugin.v1.Action, see sdk/proto/ewiki/plugin/v1/action.proto).
+actions:
+  - id: core.settings.get
+    category: CATEGORY_ACTION
+    method: GET
+    path: /api/v1/admin/settings
+    summary:
+      text:
+        en: Show the settings of the wiki
+        de: Einstellungen des Wikis anzeigen
+    permission: {key: core.settings.manage, scope: SCOPE_GLOBAL}
+    cli: {command: [settings, show]}
+    ui: {entry: /admin/settings}
+  - id: core.settings.update
+    category: CATEGORY_ACTION
+    method: PUT
+    path: /api/v1/admin/settings
+    summary:
+      text:
+        en: Change the settings of the wiki
+        de: Einstellungen des Wikis ändern
+    permission: {key: core.settings.manage, scope: SCOPE_GLOBAL}
+    safety: {changes: true}
+    cli: {command: [settings, update]}
+    ui: {entry: /admin/settings}
+  - id: core.retention.run
+    category: CATEGORY_ACTION
+    method: POST
+    path: /api/v1/admin/retention/run
+    summary:
+      text:
+        en: "Apply the retention rules now (versions, trash, audit log)"
+        de: "Aufbewahrungsregeln jetzt anwenden (Versionen, Papierkorb, Protokoll)"
+    permission: {key: core.settings.manage, scope: SCOPE_GLOBAL}
+    safety: {changes: true}
+    cli: {command: [retention, run], builtin: true}
+    ui: {entry: /admin/settings}
+  - id: core.database.status
+    category: CATEGORY_ACTION
+    method: GET
+    path: /api/v1/admin/database
+    summary:
+      text:
+        en: Show the database version and whether an upgrade is due
+        de: Datenbank-Version anzeigen und ob ein Upgrade fällig ist
+    permission: {key: core.system.manage, scope: SCOPE_GLOBAL}
+    cli: {command: [database, status]}
+    ui: {entry: /admin/settings}
+  - id: core.limits.get
+    category: CATEGORY_ACTION
+    method: GET
+    path: /api/v1/admin/limits
+    summary:
+      text:
+        en: Show the limits (expert settings)
+        de: Grenzwerte anzeigen (Experteneinstellungen)
+    permission: {key: core.settings.manage, scope: SCOPE_GLOBAL}
+    cli: {command: [limits, show]}
+    ui: {entry: /admin/limits}
+  - id: core.limits.update
+    category: CATEGORY_ACTION
+    method: PUT
+    path: /api/v1/admin/limits
+    summary:
+      text:
+        en: Change the limits (expert settings)
+        de: Grenzwerte ändern (Experteneinstellungen)
+    permission: {key: core.settings.manage, scope: SCOPE_GLOBAL}
+    safety: {changes: true}
+    cli: {command: [limits, update]}
+    ui: {entry: /admin/limits}
+  - id: core.secrets.status
+    category: CATEGORY_ACTION
+    method: GET
+    path: /api/v1/admin/secrets
+    summary:
+      text:
+        en: Show how secrets are stored (on other sites than the main site only for instance administrators)
+        de: "Anzeigen, wie Geheimnisse gespeichert werden (auf anderen Sites als der Haupt-Site nur für Instanz-Administratoren)"
+    permission: {key: core.admin, scope: SCOPE_GLOBAL}
+    cli: {command: [secrets, status]}
+    ui: {entry: /admin/limits}
+  - id: core.secrets.rewrap
+    category: CATEGORY_ACTION
+    method: POST
+    path: /api/v1/admin/secrets/rewrap
+    summary:
+      text:
+        en: Store all secrets again in the chosen mode
+        de: Alle Geheimnisse erneut in der gewählten Art speichern
+    permission: {key: core.admin, scope: SCOPE_GLOBAL}
+    safety: {changes: true}
+    cli: {command: [secrets, rewrap]}
+    ui: {entry: /admin/limits}
+  - id: core.cache.status
+    category: CATEGORY_ACTION
+    method: GET
+    path: /api/v1/admin/cache
+    summary:
+      text:
+        en: Show the state of the caches
+        de: Zustand der Zwischenspeicher anzeigen
+    permission: {key: core.system.manage, scope: SCOPE_GLOBAL}
+    cli: {command: [cache, status], builtin: true}
+    ui: {entry: /admin/cache}
+  - id: core.cache.clear
+    category: CATEGORY_ACTION
+    method: DELETE
+    path: /api/v1/admin/cache
+    summary:
+      text:
+        en: Clear the caches
+        de: Zwischenspeicher leeren
+    permission: {key: core.system.manage, scope: SCOPE_GLOBAL}
+    safety: {changes: true}
+    cli: {command: [cache, clear], builtin: true}
+    ui: {entry: /admin/cache}
+  - id: core.mail.status
+    category: CATEGORY_ACTION
+    method: GET
+    path: /api/v1/admin/mail
+    summary:
+      text:
+        en: "Show transport, queue and the oldest undelivered message"
+        de: "Versand, Warteschlange und älteste nicht zugestellte Nachricht anzeigen"
+    permission: {key: core.mail.manage, scope: SCOPE_GLOBAL}
+    cli: {command: [mail, status], builtin: true}
+    ui: {entry: /admin/mail}
+  - id: core.mail.list
+    category: CATEGORY_ACTION
+    method: GET
+    path: /api/v1/admin/mail/outbox
+    summary:
+      text:
+        en: List the outgoing messages
+        de: Ausgehende Nachrichten auflisten
+    permission: {key: core.mail.manage, scope: SCOPE_GLOBAL}
+    cli: {command: [mail, list], builtin: true}
+    ui: {entry: /admin/mail}
+  - id: core.mail.get
+    category: CATEGORY_ACTION
+    method: GET
+    path: /api/v1/admin/mail/outbox/{id}
+    summary:
+      text:
+        en: Show a message with the delivery state of every recipient
+        de: Nachricht mit dem Zustellstatus jedes Empfängers anzeigen
+    permission: {key: core.mail.manage, scope: SCOPE_GLOBAL}
+    cli: {command: [mail, show], builtin: true}
+    ui: {entry: /admin/mail}
+  - id: core.mail.retry
+    category: CATEGORY_ACTION
+    method: POST
+    path: /api/v1/admin/mail/outbox/{id}/retry
+    summary:
+      text:
+        en: Send a message again
+        de: Nachricht erneut senden
+    permission: {key: core.mail.manage, scope: SCOPE_GLOBAL}
+    safety: {changes: true}
+    cli: {command: [mail, retry], builtin: true}
+    ui: {entry: /admin/mail}
+  - id: core.mail.delete
+    category: CATEGORY_ACTION
+    method: DELETE
+    path: /api/v1/admin/mail/outbox/{id}
+    summary:
+      text:
+        en: Delete a message from the queue
+        de: Nachricht aus der Warteschlange löschen
+    permission: {key: core.mail.manage, scope: SCOPE_GLOBAL}
+    safety: {changes: true}
+    cli: {command: [mail, delete], builtin: true}
+    ui: {entry: /admin/mail}
+  - id: core.mail.test
+    category: CATEGORY_ACTION
+    method: POST
+    path: /api/v1/admin/mail/test
+    summary:
+      text:
+        en: Send a test message now
+        de: Testnachricht jetzt senden
+    permission: {key: core.mail.manage, scope: SCOPE_GLOBAL}
+    safety: {changes: true}
+    cli: {command: [mail, test], builtin: true}
+    ui: {entry: /admin/mail}
+  - id: core.jobs.list
+    category: CATEGORY_ACTION
+    method: GET
+    path: /api/v1/admin/jobs
+    summary:
+      text:
+        en: List the background jobs
+        de: Hintergrundaufgaben auflisten
+    permission: {key: core.plugins.manage, scope: SCOPE_GLOBAL}
+    cli: {command: [jobs, list], builtin: true}
+    ui: {entry: /admin/mail}
+  - id: core.jobs.run
+    category: CATEGORY_ACTION
+    method: POST
+    path: /api/v1/admin/jobs/{name}/run
+    summary:
+      text:
+        en: Run a background job now
+        de: Hintergrundaufgabe jetzt ausführen
+    permission: {key: core.plugins.manage, scope: SCOPE_GLOBAL}
+    safety: {changes: true}
+    cli: {command: [jobs, run], builtin: true}
+    ui: {entry: /admin/mail}
+  - id: core.webhooks.list
+    category: CATEGORY_ACTION
+    method: GET
+    path: /api/v1/admin/webhooks
+    summary:
+      text:
+        en: List the webhooks
+        de: Webhooks auflisten
+    permission: {key: core.webhooks.manage, scope: SCOPE_GLOBAL}
+    cli: {command: [webhook, list]}
+    ui: {entry: /admin/webhooks}
+  - id: core.webhooks.get
+    category: CATEGORY_ACTION
+    method: GET
+    path: /api/v1/admin/webhooks/{id}
+    summary:
+      text:
+        en: Show a webhook with its last deliveries
+        de: Webhook mit seinen letzten Zustellungen anzeigen
+    permission: {key: core.webhooks.manage, scope: SCOPE_GLOBAL}
+    cli: {command: [webhook, show], args: [id]}
+    ui: {entry: /admin/webhooks}
+  - id: core.webhooks.create
+    category: CATEGORY_ACTION
+    method: POST
+    path: /api/v1/admin/webhooks
+    summary:
+      text:
+        en: Create a webhook
+        de: Webhook anlegen
+    permission: {key: core.webhooks.manage, scope: SCOPE_GLOBAL}
+    safety: {changes: true}
+    cli: {command: [webhook, create]}
+    ui: {entry: /admin/webhooks}
+  - id: core.webhooks.update
+    category: CATEGORY_ACTION
+    method: PUT
+    path: /api/v1/admin/webhooks/{id}
+    summary:
+      text:
+        en: Change a webhook
+        de: Webhook ändern
+    permission: {key: core.webhooks.manage, scope: SCOPE_GLOBAL}
+    safety: {changes: true}
+    cli: {command: [webhook, update], args: [id]}
+    ui: {entry: /admin/webhooks}
+  - id: core.webhooks.delete
+    category: CATEGORY_ACTION
+    method: DELETE
+    path: /api/v1/admin/webhooks/{id}
+    summary:
+      text:
+        en: Delete a webhook
+        de: Webhook löschen
+    permission: {key: core.webhooks.manage, scope: SCOPE_GLOBAL}
+    safety: {changes: true}
+    cli: {command: [webhook, delete], args: [id]}
+    ui: {entry: /admin/webhooks}
+  - id: core.webhooks.test
+    category: CATEGORY_ACTION
+    method: POST
+    path: /api/v1/admin/webhooks/{id}/test
+    summary:
+      text:
+        en: Send a test event to a webhook
+        de: Testereignis an einen Webhook senden
+    permission: {key: core.webhooks.manage, scope: SCOPE_GLOBAL}
+    safety: {changes: true}
+    cli: {command: [webhook, test], args: [id]}
+    ui: {entry: /admin/webhooks}
+  - id: core.webhooks.retry
+    category: CATEGORY_ACTION
+    method: POST
+    path: /api/v1/admin/webhooks/{id}/deliveries/{did}/retry
+    summary:
+      text:
+        en: Deliver an event to a webhook again
+        de: Ereignis erneut an einen Webhook zustellen
+    permission: {key: core.webhooks.manage, scope: SCOPE_GLOBAL}
+    safety: {changes: true}
+    cli: {command: [webhook, retry], args: [id, did]}
+    ui: {entry: /admin/webhooks}
+  - id: core.webhooks.options
+    category: CATEGORY_ACTION
+    method: PUT
+    path: /api/v1/admin/webhooks/options
+    summary:
+      text:
+        en: Change the options of all webhooks
+        de: Optionen aller Webhooks ändern
+    permission: {key: core.webhooks.manage, scope: SCOPE_GLOBAL}
+    safety: {changes: true}
+    cli: {command: [webhook, options]}
+    ui: {entry: /admin/webhooks}
+  - id: core.plugins.list
+    category: CATEGORY_ACTION
+    method: GET
+    path: /api/v1/admin/plugins
+    summary:
+      text:
+        en: List the plugins with their state
+        de: Plugins mit ihrem Zustand auflisten
+    permission: {key: core.plugins.manage, scope: SCOPE_GLOBAL}
+    cli: {command: [plugin, list], builtin: true}
+    ui: {entry: /admin/plugins}
+  - id: core.plugins.enable
+    category: CATEGORY_ACTION
+    method: POST
+    path: /api/v1/admin/plugins/{id}/enable
+    summary:
+      text:
+        en: Switch a plugin on
+        de: Plugin einschalten
+    permission: {key: core.plugins.manage, scope: SCOPE_GLOBAL}
+    safety: {changes: true}
+    cli: {command: [plugin, enable], builtin: true}
+    ui: {entry: /admin/plugins}
+  - id: core.plugins.disable
+    category: CATEGORY_ACTION
+    method: POST
+    path: /api/v1/admin/plugins/{id}/disable
+    summary:
+      text:
+        en: Switch a plugin off
+        de: Plugin ausschalten
+    permission: {key: core.plugins.manage, scope: SCOPE_GLOBAL}
+    safety: {changes: true}
+    cli: {command: [plugin, disable], builtin: true}
+    ui: {entry: /admin/plugins}
+  - id: core.plugins.install
+    category: CATEGORY_ACTION
+    method: POST
+    path: /api/v1/admin/plugins/install
+    summary:
+      text:
+        en: Install a plugin from a source
+        de: Plugin aus einer Quelle installieren
+    permission: {key: core.plugins.manage, scope: SCOPE_GLOBAL, instance: true}
+    safety: {changes: true}
+    cli: {command: [plugin, install], builtin: true}
+    ui: {entry: /admin/plugins}
+  - id: core.plugins.remove
+    category: CATEGORY_ACTION
+    method: DELETE
+    path: /api/v1/admin/plugins/{id}
+    summary:
+      text:
+        en: Remove an installed plugin
+        de: Installiertes Plugin entfernen
+    permission: {key: core.plugins.manage, scope: SCOPE_GLOBAL, instance: true}
+    safety: {changes: true}
+    cli: {command: [plugin, remove], builtin: true}
+    ui: {entry: /admin/plugins}
+  - id: core.plugins.build
+    category: CATEGORY_ACTION
+    method: POST
+    path: /api/v1/admin/plugins/build
+    summary:
+      text:
+        en: Rebuild the program with the installed plugins
+        de: Programm mit den installierten Plugins neu bauen
+    permission: {key: core.plugins.manage, scope: SCOPE_GLOBAL, instance: true}
+    safety: {changes: true}
+    cli: {command: [plugin, build], builtin: true}
+    ui: {entry: /admin/plugins}
+  - id: core.plugins.options
+    category: CATEGORY_ACTION
+    method: PUT
+    path: /api/v1/admin/plugins/options
+    summary:
+      text:
+        en: Change the options for plugins (restart after a dropped plugin)
+        de: Optionen für Plugins ändern (Neustart nach weggefallenem Plugin)
+    permission: {key: core.plugins.manage, scope: SCOPE_GLOBAL, instance: true}
+    safety: {changes: true}
+    cli: {command: [plugin, options]}
+    ui: {entry: /admin/plugins}
+  - id: core.plugins.restart
+    category: CATEGORY_ACTION
+    method: POST
+    path: /api/v1/admin/restart
+    summary:
+      text:
+        en: Restart the wiki (to load new plugins)
+        de: Wiki neu starten (um neue Plugins zu laden)
+    permission: {key: core.plugins.manage, scope: SCOPE_GLOBAL, instance: true}
+    safety: {changes: true}
+    cli: {command: [plugin, restart]}
+    ui: {entry: /admin/plugins}
+  - id: core.updates.list
+    category: CATEGORY_ACTION
+    method: GET
+    path: /api/v1/admin/updates
+    summary:
+      text:
+        en: Check core and plugins for new releases
+        de: Kern und Plugins auf neue Versionen prüfen
+    permission: {key: core.plugins.manage, scope: SCOPE_GLOBAL}
+    cli: {command: [plugin, updates], builtin: true}
+    ui: {entry: /admin/updates}
+  - id: core.updates.install
+    category: CATEGORY_ACTION
+    method: POST
+    path: /api/v1/admin/updates/{id}
+    summary:
+      text:
+        en: Update the core or a plugin
+        de: Kern oder ein Plugin aktualisieren
+    permission: {key: core.plugins.manage, scope: SCOPE_GLOBAL, instance: true}
+    safety: {changes: true}
+    cli: {command: [plugin, update], builtin: true}
+    ui: {entry: /admin/updates}
+  - id: core.audit.list
+    category: CATEGORY_ACTION
+    method: GET
+    path: /api/v1/admin/audit
+    summary:
+      text:
+        en: List the latest entries of the audit log
+        de: Neueste Einträge des Protokolls auflisten
+    permission: {key: core.audit.view, scope: SCOPE_GLOBAL}
+    cli: {command: [audit, list]}
+    ui: {entry: /admin/audit}
+  - id: core.audit.search
+    category: CATEGORY_ACTION
+    method: GET
+    path: /api/v1/admin/audit/search
+    summary:
+      text:
+        en: Search the audit log
+        de: Protokoll durchsuchen
+    permission: {key: core.audit.view, scope: SCOPE_GLOBAL}
+    cli: {command: [audit, search], builtin: true}
+    ui: {entry: /admin/audit}
+  - id: core.audit.export
+    category: CATEGORY_ACTION
+    method: GET
+    path: /api/v1/admin/audit/export
+    summary:
+      text:
+        en: Export the audit log (CSV or JSON Lines)
+        de: Protokoll exportieren (CSV oder JSON Lines)
+    permission: {key: core.audit.view, scope: SCOPE_GLOBAL}
+    cli: {command: [audit, export], builtin: true}
+    ui: {entry: /admin/audit}
+  - id: core.audit.settings.get
+    category: CATEGORY_ACTION
+    method: GET
+    path: /api/v1/admin/audit/settings
+    summary:
+      text:
+        en: Show the settings of the audit log (forwarding)
+        de: Einstellungen des Protokolls anzeigen (Weiterleitung)
+    permission: {key: core.audit.manage, scope: SCOPE_GLOBAL}
+    cli: {command: [audit, settings], builtin: true}
+    ui: {entry: /admin/audit}
+  - id: core.audit.settings.update
+    category: CATEGORY_ACTION
+    method: PUT
+    path: /api/v1/admin/audit/settings
+    summary:
+      text:
+        en: Change the settings of the audit log (forwarding)
+        de: Einstellungen des Protokolls ändern (Weiterleitung)
+    permission: {key: core.audit.manage, scope: SCOPE_GLOBAL}
+    safety: {changes: true}
+    cli: {command: [audit, settings, set], builtin: true}
+    ui: {entry: /admin/audit}
+  - id: core.audit.forward_test
+    category: CATEGORY_ACTION
+    method: POST
+    path: /api/v1/admin/audit/forward/test
+    summary:
+      text:
+        en: Send a test entry to a forwarding target
+        de: Testeintrag an ein Weiterleitungsziel senden
+    permission: {key: core.audit.manage, scope: SCOPE_GLOBAL}
+    safety: {changes: true}
+    cli: {command: [audit, forward-test], builtin: true}
+    ui: {entry: /admin/audit}
+  - id: core.languages.add
+    category: CATEGORY_ACTION
+    method: POST
+    path: /api/v1/admin/languages
+    summary:
+      text:
+        en: Add a language
+        de: Sprache hinzufügen
+    permission: {key: core.i18n.manage, scope: SCOPE_GLOBAL}
+    safety: {changes: true}
+    cli: {command: [i18n, add], builtin: true}
+    ui: {entry: /admin/languages}
+  - id: core.languages.remove
+    category: CATEGORY_ACTION
+    method: DELETE
+    path: /api/v1/admin/languages/{code}
+    summary:
+      text:
+        en: Remove a language
+        de: Sprache entfernen
+    permission: {key: core.i18n.manage, scope: SCOPE_GLOBAL}
+    safety: {changes: true}
+    cli: {command: [i18n, remove], builtin: true}
+    ui: {entry: /admin/languages}
+  - id: core.i18n.strings
+    category: CATEGORY_ACTION
+    method: GET
+    path: /api/v1/admin/i18n/{lang}
+    summary:
+      text:
+        en: List the texts of a language with their state (needs language administration or translating this language)
+        de: Texte einer Sprache mit ihrem Stand auflisten (braucht Sprachverwaltung oder Übersetzen dieser Sprache)
+    signed_in: true
+    cli: {command: [i18n, strings], builtin: true}
+    ui: {entry: /admin/languages}
+  - id: core.i18n.set
+    category: CATEGORY_ACTION
+    method: PUT
+    path: /api/v1/admin/i18n/{lang}
+    summary:
+      text:
+        en: Change texts of a language (needs language administration or translating this language)
+        de: Texte einer Sprache ändern (braucht Sprachverwaltung oder Übersetzen dieser Sprache)
+    signed_in: true
+    safety: {changes: true}
+    cli: {command: [i18n, set], builtin: true}
+    ui: {entry: /admin/languages}
+  - id: core.i18n.export
+    category: CATEGORY_ACTION
+    method: GET
+    path: /api/v1/admin/i18n/{lang}/export
+    summary:
+      text:
+        en: "Export the texts of a language (JSON, XLIFF, PO)"
+        de: "Texte einer Sprache exportieren (JSON, XLIFF, PO)"
+    signed_in: true
+    cli: {command: [i18n, export], builtin: true}
+    ui: {entry: /admin/languages}
+  - id: core.i18n.import
+    category: CATEGORY_ACTION
+    method: POST
+    path: /api/v1/admin/i18n/{lang}/import
+    summary:
+      text:
+        en: "Import texts of a language (JSON, XLIFF, PO)"
+        de: "Texte einer Sprache importieren (JSON, XLIFF, PO)"
+    signed_in: true
+    safety: {changes: true}
+    cli: {command: [i18n, import], builtin: true}
+    ui: {entry: /admin/languages}
+  - id: core.license.get
+    category: CATEGORY_ACTION
+    method: GET
+    path: /api/v1/admin/license
+    summary:
+      text:
+        en: Show the state of the license
+        de: Zustand der Lizenz anzeigen
+    permission: {key: core.license.manage, scope: SCOPE_GLOBAL}
+    cli: {command: [license, show], builtin: true}
+    ui: {entry: /admin/license}
+  - id: core.license.install
+    category: CATEGORY_ACTION
+    method: PUT
+    path: /api/v1/admin/license
+    summary:
+      text:
+        en: Install a license key (checked first)
+        de: Lizenzschlüssel installieren (wird vorher geprüft)
+    permission: {key: core.license.manage, scope: SCOPE_GLOBAL, instance: true}
+    safety: {changes: true}
+    cli: {command: [license, install], builtin: true}
+    ui: {entry: /admin/license}
+  - id: core.license.remove
+    category: CATEGORY_ACTION
+    method: DELETE
+    path: /api/v1/admin/license
+    summary:
+      text:
+        en: Remove the license key
+        de: Lizenzschlüssel entfernen
+    permission: {key: core.license.manage, scope: SCOPE_GLOBAL, instance: true}
+    safety: {changes: true}
+    cli: {command: [license, remove], builtin: true}
+    ui: {entry: /admin/license}
+  - id: core.watches.assign.list
+    category: CATEGORY_ACTION
+    method: GET
+    path: /api/v1/admin/watch-assignments
+    summary:
+      text:
+        en: "List the watches assigned to users, groups and roles"
+        de: "Zugewiesene Beobachtungen für Benutzer, Gruppen und Rollen auflisten"
+    permission: {key: core.watches.assign, scope: SCOPE_GLOBAL}
+    cli: {command: [watch, assign, list], builtin: true}
+    ui: {entry: /admin/watches}
+  - id: core.watches.assign.add
+    category: CATEGORY_ACTION
+    method: POST
+    path: /api/v1/admin/watch-assignments
+    summary:
+      text:
+        en: "Assign a watch to a user, group or role"
+        de: "Beobachtung einem Benutzer, einer Gruppe oder Rolle zuweisen"
+    permission: {key: core.watches.assign, scope: SCOPE_GLOBAL}
+    safety: {changes: true}
+    cli: {command: [watch, assign, add], builtin: true}
+    ui: {entry: /admin/watches}
+  - id: core.watches.assign.update
+    category: CATEGORY_ACTION
+    method: PUT
+    path: /api/v1/admin/watch-assignments/{id}
+    summary:
+      text:
+        en: Change an assigned watch
+        de: Zugewiesene Beobachtung ändern
+    permission: {key: core.watches.assign, scope: SCOPE_GLOBAL}
+    safety: {changes: true}
+    cli: {command: [watch, assign, update], args: [id]}
+    ui: {entry: /admin/watches}
+  - id: core.watches.assign.remove
+    category: CATEGORY_ACTION
+    method: DELETE
+    path: /api/v1/admin/watch-assignments/{id}
+    summary:
+      text:
+        en: Remove an assigned watch
+        de: Zugewiesene Beobachtung entfernen
+    permission: {key: core.watches.assign, scope: SCOPE_GLOBAL}
+    safety: {changes: true}
+    cli: {command: [watch, assign, remove], builtin: true}
+    ui: {entry: /admin/watches}
+  - id: core.demo.status
+    category: CATEGORY_ACTION
+    method: GET
+    path: /api/v1/admin/demo
+    summary:
+      text:
+        en: Show whether the demo content exists
+        de: "Anzeigen, ob der Demo-Inhalt vorhanden ist"
+    permission: {key: core.admin, scope: SCOPE_GLOBAL}
+    cli: {command: [demo, status], builtin: true}
+    ui: {entry: /admin/demo}
+  - id: core.demo.create
+    category: CATEGORY_ACTION
+    method: POST
+    path: /api/v1/admin/demo
+    summary:
+      text:
+        en: Create the demo content of all features
+        de: Demo-Inhalt aller Funktionen anlegen
+    permission: {key: core.admin, scope: SCOPE_GLOBAL}
+    safety: {changes: true}
+    cli: {command: [demo, create], builtin: true}
+    ui: {entry: /admin/demo}
+  - id: core.demo.remove
+    category: CATEGORY_ACTION
+    method: DELETE
+    path: /api/v1/admin/demo
+    summary:
+      text:
+        en: Remove the demo content
+        de: Demo-Inhalt entfernen
+    permission: {key: core.admin, scope: SCOPE_GLOBAL}
+    safety: {changes: true}
+    cli: {command: [demo, remove], builtin: true}
+    ui: {entry: /admin/demo}
+  - id: core.demo.reset
+    category: CATEGORY_ACTION
+    method: POST
+    path: /api/v1/admin/reset
+    summary:
+      text:
+        en: Reset the site to its first start (deletes all content)
+        de: Site auf den ersten Start zurücksetzen (löscht alle Inhalte)
+    permission: {key: core.admin, scope: SCOPE_GLOBAL}
+    safety: {changes: true}
+    cli: {command: [demo, reset-site], builtin: true}
+    ui: {entry: /admin/demo}
+  - id: core.auth.providers.preview
+    category: CATEGORY_ACTION
+    method: POST
+    path: /api/v1/admin/auth/providers/{id}/preview
+    summary:
+      text:
+        en: Try the mapping of a sign-in provider without signing in (needs user administration as well)
+        de: Zuordnung eines Anmeldeanbieters ohne Anmeldung ausprobieren (braucht zusätzlich Benutzerverwaltung)
+    permission: {key: core.settings.manage, scope: SCOPE_GLOBAL}
+    safety: {changes: true}
+    cli: {command: [auth, provider, preview], args: [id]}
+    ui: {entry: /admin/oidc}

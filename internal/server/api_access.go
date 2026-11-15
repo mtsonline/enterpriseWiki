@@ -77,6 +77,7 @@ type accessRequest struct {
 func (s *Server) routesAccess() {
 	limiter := &dayLimiter{hits: map[int64][]time.Time{}} // per site
 	// POST /api/v1/access-requests {"type": "category"|"element", "id": 12, "message": "…"}
+	// action: core.access.request
 	s.handle("POST /api/v1/access-requests", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		me, err := requireUser(r)
 		if err != nil {
@@ -126,6 +127,7 @@ func (s *Server) routesAccess() {
 		return pgx.CollectRows(rows, pgx.RowToStructByPos[accessRequest])
 	})
 	// POST /api/v1/access-requests/{id} {"grant": true, "preset": "reader"|"editor"} or {"grant": false}
+	// action: core.access.answer
 	s.handle("POST /api/v1/access-requests/{id}", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		id, err := h.PathID(r, "id")
 		if err != nil {

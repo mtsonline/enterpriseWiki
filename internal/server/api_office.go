@@ -75,9 +75,13 @@ func (s *Server) routesOffice() {
 
 	// WOPI host: called by the office server, authenticated by access_token
 	// (plus proof keys when the plugin verifies them). Never cookies.
+	// action: core.wopi.check_file_info
 	s.wopiRoute("GET /api/v1/wopi/files/{id}", s.wopiCheckFileInfo)
+	// action: core.wopi.file_operation
 	s.wopiRoute("POST /api/v1/wopi/files/{id}", s.wopiFileOp)
+	// action: core.wopi.get_file
 	s.wopiRoute("GET /api/v1/wopi/files/{id}/contents", s.wopiGetFile)
+	// action: core.wopi.put_file
 	s.wopiRoute("POST /api/v1/wopi/files/{id}/contents", s.wopiPutFile)
 }
 
