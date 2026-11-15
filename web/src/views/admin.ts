@@ -4,6 +4,7 @@ import { elementsAdmin } from './adminElements';
 import { webhooksAdmin } from './adminWebhooks';
 import { licenseAdmin, licenseNotice, type LicenseStatus } from './adminLicense';
 import { limitsAdmin } from './adminLimits';
+import { loginPageAdmin } from './adminLogin';
 import { databaseFacts, databaseNotice, type DatabaseStatus } from './adminDatabase';
 import { categorySelect, elementSelect } from '../components/pickers';
 import { api, qs } from '../core/api';
@@ -649,7 +650,7 @@ async function settings(panel: HTMLElement): Promise<void> {
   mount(panel, pageHeader(t('admin.settings')), h('p', null, t('settings.file_note', { path: s.path })),
     db ? databaseFacts(db) : null,
     h('dl', { class: 'ew-dl' }, h('dt', null, t('settings.mode')), h('dd', null, c.mode), h('dt', null, t('settings.listen')), h('dd', null, c.server.listen), h('dt', null, t('settings.base_url')), h('dd', null, c.server.base_url)),
-    form);
+    form, h('div', { class: 'ew-panel' }, await loginPageAdmin()));
 }
 
 // ---------------------------------------------------------------- e-mail

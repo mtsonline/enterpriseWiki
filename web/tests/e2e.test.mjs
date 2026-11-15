@@ -681,7 +681,10 @@ test('second factor at sign-in and passkeys', async () => {
     // a passkey with a virtual authenticator of the browser
     const cdp = await ctx2.newCDPSession(p2);
     await cdp.send('WebAuthn.enable');
-    await cdp.send('WebAuthn.addVirtualAuthenticator', { options: { protocol: 'ctap2', transport: 'internal', hasResidentKey: true, hasUserVerification: true, isUserVerified: true, automaticPresenceSimulation: true } });
+    const { authenticatorId } = await cdp.send('WebAuthn.addVirtualAuthenticator', { options: { protocol: 'ctap2', transport: 'internal', hasResidentKey: true, hasUserVerification: true, isUserVerified: true, automaticPresenceSimulation: true } });
+    // the virtual authenticator answers passkey requests at once, also the offer
+    // in the user name field: switch that off where a person would not pick it
+    const presence = (enabled) => cdp.send('WebAuthn.setAutomaticPresenceSimulation', { authenticatorId, enabled });
     await p2.goto(BASE + '/profile');
     await p2.locator('#mfa-h').waitFor();
     await a11y('sign-in factors in the profile', p2);
@@ -695,6 +698,7 @@ test('second factor at sign-in and passkeys', async () => {
     await p2.locator('.ew-subsection table th', { hasText: 'Virtual' }).waitFor();
     // sign out: the password alone is not enough any more
     await p2.evaluate(() => fetch('/api/v1/auth/logout', { method: 'POST', headers: { 'X-Requested-With': 'ewiki' } }));
+    await presence(false);
     await login();
     await p2.getByRole('heading', { name: /^(confirm sign-in|anmeldung bestätigen)$/i }).waitFor();
     await a11y('second factor step', p2);
@@ -708,16 +712,92 @@ test('second factor at sign-in and passkeys', async () => {
     await p2.getByRole('button', { name: /^(remove the authenticator app|authenticator-app entfernen)$/i }).click();
     await p2.locator('dialog[open]').getByRole('button', { name: /^(remove the authenticator app|authenticator-app entfernen)$/i }).click();
     await p2.getByRole('button', { name: /^(set up the authenticator app|authenticator-app einrichten)$/i }).waitFor();
-    // the passkey: sign-in without password
-    await p2.evaluate(() => fetch('/api/v1/auth/logout', { method: 'POST', headers: { 'X-Requested-With': 'ewiki' } }));
+    const me = async () => p2.evaluate(async () => (await (await fetch('/api/v1/auth/me')).json()).user?.username);
+    const logout = () => p2.evaluate(() => fetch('/api/v1/auth/logout', { method: 'POST', headers: { 'X-Requested-With': 'ewiki' } }));
+    // the passkey from the suggestions of the user name field (picked at once by the virtual authenticator)
+    await logout();
+    await presence(true);
     await p2.goto(BASE + '/login');
-    await p2.getByRole('button', { name: /^(sign in with a passkey|mit passkey anmelden)$/i }).click();
     await p2.waitForURL((u) => !u.pathname.startsWith('/login'));
-    const me = await p2.evaluate(async () => (await (await fetch('/api/v1/auth/me')).json()).user?.username);
-    assert.equal(me, name);
+    assert.equal(await me(), name);
+    // the passkey button: sign-in without password (offer in the field switched off)
+    await call('PUT', '/api/v1/admin/auth/login', { passkey_autofill: false, auto_redirect: '', buttons: {} });
+    try {
+      await logout();
+      await p2.goto(BASE + '/login');
+      await p2.getByRole('button', { name: /^(sign in with a passkey|mit passkey anmelden)$/i }).click();
+      await p2.waitForURL((u) => !u.pathname.startsWith('/login'));
+      assert.equal(await me(), name);
+    } finally {
+      await call('PUT', '/api/v1/admin/auth/login', { passkey_autofill: true, auto_redirect: '', buttons: {} });
+    }
   } finally {
     await ctx2.close();
   }
+});
+
+test('sign-in page: provider buttons, direct link, automatic redirect, passkeys in the user name field', async () => {
+  const logged = errors.length;
+  const before = (await call('GET', '/api/v1/admin/settings')).config.plugin_settings?.['auth.oidc'] ?? {};
+  // a provider with its own sign-in page that cannot be reached: every start ends on the sign-in page with an error
+  await call('PUT', '/api/v1/admin/settings', { plugin_settings: { 'auth.oidc': { ...before, name: `IdP ${run}`, issuer: 'http://127.0.0.1:9', client_id: 'wiki', instances: [] } } });
+  const label = `Company ${run}`;
+  await call('PUT', '/api/v1/admin/auth/login', { passkey_autofill: true, auto_redirect: '', buttons: { oidc: { order: 1, label, hidden: false } } });
+  const ctx2 = await browser.newContext({ viewport: { width: 1280, height: 900 }, bypassCSP: true });
+  const p2 = await ctx2.newPage();
+  p2.on('pageerror', (e) => errors.push(`sign-in page: ${e.message}`));
+  const user = () => p2.getByLabel(/user ?name|benutzername/i);
+  try {
+    await p2.goto(BASE + '/login');
+    await p2.getByRole('link', { name: new RegExp(label) }).waitFor();
+    // passkeys in the suggestions of the user name field (where the browser offers it)
+    const conditional = await p2.evaluate(async () => !!(await window.PublicKeyCredential?.isConditionalMediationAvailable?.()));
+    assert.equal(await user().getAttribute('autocomplete'), conditional ? 'username webauthn' : 'username');
+    await a11y('sign-in page with a provider button', p2);
+    // hidden button, autofill off
+    await call('PUT', '/api/v1/admin/auth/login', { passkey_autofill: false, auto_redirect: '', buttons: { oidc: { order: 1, label, hidden: true } } });
+    await p2.goto(BASE + '/login');
+    await user().waitFor();
+    assert.equal(await user().getAttribute('autocomplete'), 'username');
+    assert.equal(await p2.getByRole('link', { name: new RegExp(label) }).count(), 0, 'hidden button');
+    // the direct link still leads to the hidden provider (here: back with an error, no loop)
+    await p2.goto(BASE + '/login?via=oidc');
+    await p2.waitForURL((u) => u.pathname === '/login' && u.searchParams.has('error'));
+    await user().waitFor();
+    // automatic redirect: straight to the provider, back on errors without a loop
+    await call('PUT', '/api/v1/admin/auth/login', { passkey_autofill: false, auto_redirect: 'oidc', buttons: { oidc: { order: 1, label, hidden: true } } });
+    await p2.goto(BASE + '/login');
+    await p2.waitForURL((u) => u.pathname === '/login' && u.searchParams.has('error'));
+    await p2.locator('.ew-form-alert').filter({ hasText: /\S/ }).first().waitFor();
+    // emergency access: the full page
+    await p2.goto(BASE + '/login?local=1');
+    await user().waitFor();
+    assert.ok(new URL(p2.url()).searchParams.has('local'), 'stays on the page');
+    await a11y('sign-in page, emergency access', p2);
+  } finally {
+    await ctx2.close();
+  }
+  // the administration: settings of the sign-in page
+  await page.goto(`${BASE}/admin/settings`);
+  await idle();
+  const form = page.locator('form[aria-labelledby="ew-login-admin-h"]');
+  await form.waitFor();
+  await a11y('settings of the sign-in page');
+  assert.equal(await form.getByLabel(/^(redirect automatically to|automatisch weiterleiten zu)/i).inputValue(), 'oidc');
+  await form.getByLabel(/^(redirect automatically to|automatisch weiterleiten zu)/i).selectOption('');
+  await form.getByLabel(/suggest passkeys|passkeys im feld/i).check();
+  await form.getByLabel(/^(show the button|knopf auf der anmeldeseite)/i).check();
+  await form.getByLabel(/^(text of the button|text des knopfs)/i).fill(`Staff ${run}`);
+  await form.getByRole('button', { name: /^(save|speichern)$/i }).click();
+  await page.locator('.ew-toasts', { hasText: /sign-in page is saved|anmeldeseite ist gespeichert/i }).waitFor();
+  const lp = await call('GET', '/api/v1/admin/auth/login');
+  assert.equal(lp.auto_redirect, '');
+  assert.equal(lp.passkey_autofill, true);
+  assert.deepEqual(lp.buttons.oidc, { order: 1, hidden: false, label: `Staff ${run}` });
+  // clean up
+  await call('PUT', '/api/v1/admin/auth/login', { passkey_autofill: true, auto_redirect: '', buttons: {} });
+  await call('PUT', '/api/v1/admin/settings', { plugin_settings: { 'auth.oidc': before } });
+  errors.splice(logged, errors.length - logged, ...errors.slice(logged).filter((e) => !/status of (4\d\d|502)/.test(e)));
 });
 
 test('a decision signed with a passkey, its verification and the verify page', async () => {

@@ -369,6 +369,8 @@ If the account requires a second factor, the sign-in answers with `mfa_required`
 | `GET` | `/api/v1/admin/mfa` |
 | `PUT` | `/api/v1/admin/mfa` |
 | `POST` | `/api/v1/admin/auth/providers/{id}/preview` |
+| `GET` | `/api/v1/admin/auth/login` |
+| `PUT` | `/api/v1/admin/auth/login` |
 | `GET` | `/api/v1/admin/scim/clients` |
 | `POST` | `/api/v1/admin/scim/clients` |
 | `POST` | `/api/v1/admin/scim/clients/{id}/token` |

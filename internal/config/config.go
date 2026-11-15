@@ -37,6 +37,7 @@ type Config struct {
 	I18n      I18n                      `yaml:"i18n" json:"i18n"`
 	UI        UI                        `yaml:"ui" json:"ui"`
 	Auth      Auth                      `yaml:"auth" json:"auth"`
+	Login     Login                     `yaml:"login,omitempty" json:"login"`
 	Retention Retention                 `yaml:"retention" json:"retention"`
 	Plugins   Plugins                   `yaml:"plugins" json:"plugins"`
 	Mail      Mail                      `yaml:"mail" json:"mail"`
@@ -276,6 +277,35 @@ type Auth struct {
 	PhotoVisibilityMax   string `yaml:"photo_visibility_max" json:"photo_visibility_max"`
 	PhotoVisibilityFixed bool   `yaml:"photo_visibility_fixed" json:"photo_visibility_fixed"`
 }
+
+// Login configures the sign-in page.
+type Login struct {
+	// PasskeyAutofill offers passkeys in the suggestions of the user name
+	// field (WebAuthn conditional mediation), next to the passkey button.
+	// Default on; switch it off if it causes trouble with assistive
+	// technology.
+	PasskeyAutofill *bool `yaml:"passkey_autofill,omitempty" json:"passkey_autofill,omitempty"`
+	// AutoRedirect sends the sign-in page straight to this redirect provider
+	// (e.g. "oidc-entra"). The page itself stays reachable at
+	// /login?local=1, after a sign-out and after errors.
+	AutoRedirect string `yaml:"auto_redirect,omitempty" json:"auto_redirect"`
+	// Buttons: how each redirect provider appears on the sign-in page.
+	Buttons map[string]LoginButton `yaml:"buttons,omitempty" json:"buttons"`
+}
+
+// LoginButton is the sign-in button of one redirect provider.
+type LoginButton struct {
+	// Order on the page: lower first, then by name.
+	Order int `yaml:"order,omitempty" json:"order"`
+	// Hidden: no button; the provider stays usable through its direct link
+	// /login?via=<id>.
+	Hidden bool `yaml:"hidden,omitempty" json:"hidden"`
+	// Label replaces the provider name on the button ("Sign in with ...").
+	Label string `yaml:"label,omitempty" json:"label"`
+}
+
+// Autofill reports whether passkeys are offered in the user name field.
+func (l Login) Autofill() bool { return l.PasskeyAutofill == nil || *l.PasskeyAutofill }
 
 // Retention configures automatic cleanup. Nothing is ever deleted that is the
 // current state of an object: only older revisions and trashed objects.

@@ -280,6 +280,26 @@ In the directory enter `<server.base_url>/scim/v2` as **tenant URL** and the tok
 - Supported: users and groups with GET (filter `attribute eq "value"` on `userName`, `externalId`, `emails.value`, `displayName`, `id`; paging), POST, PUT, PATCH (as sent by Entra ID and Okta), DELETE. Not supported: bulk, sorting, ETags. Attributes the wiki does not know (e.g. the enterprise extension) are ignored.
 - Security: only the token of the access authenticates, no session and no API key. Only its hash is stored. After 30 wrong tokens in 5 minutes the IP address is rejected temporarily. Every change is in the audit log as `scim:<name>`. With several sites with shared accounts, SCIM only exists on the main site.
 
+## Sign-in page
+
+Under *Administration → Settings → Sign-in page* (API `GET/PUT /api/v1/admin/auth/login`, CLI `ewiki login-page`). The settings apply at once and are stored in `config.yaml` under `login`.
+
+- **User name and password** are checked in the same form by all providers without their own sign-in page (local, LDAP). They need no button of their own.
+- **Providers with their own sign-in page** (OpenID Connect, SAML) get one button each. For each provider you can set: the order (lower number first, −1000 to 1000), the text of the button (at most 80 characters, empty: name of the provider) and whether the button is shown.
+- **Direct link:** `/login?via=<provider id>` goes straight to a provider, even if its button is hidden. This way a provider can be offered to certain people only, for example with a link in the intranet.
+- **Redirect automatically:** the sign-in page sends everyone straight to one provider. This does not happen after errors, after signing out (`?logged_out=1`), while confirming further factors and while linking. **Emergency access:** `/login?local=1` always shows the full sign-in page, for example when the provider is down.
+- **Passkeys in the “User name” field** (default: on): the browser shows saved passkeys among the suggestions of the field (`autocomplete="username webauthn"`). Only when the person picks one does it ask for fingerprint, face or PIN. The button “Sign in with a passkey” always stays. If assistive technology (for example a screen reader) has problems with the suggestions, switch the option off. Every view of the sign-in page starts a passkey request for this. It has its own limit per address (*Expert settings → `core.auth.passkey_autofill_per_5min`*, default 600 in 5 minutes), so many people behind one address do not block the button. A request alone signs nobody in.
+- Saved settings for a provider that is removed or incomplete at the moment are kept and apply again once it is set up.
+- Every change is in the audit log as `auth.login_page.update`.
+
+```bash
+ewiki login-page show
+ewiki login-page set --passkey-autofill off --auto-redirect oidc
+ewiki login-page set --auto-redirect none
+ewiki login-page button oidc-partner --order 10 --label "Partner sign-in" --hidden
+ewiki login-page button oidc-partner --reset
+```
+
 ## Sessions
 
 - A browser session ends after `auth.session_ttl` (default 7 days) and after `auth.session_idle` without activity (default 12 hours). Automatic requests of the interface (notifications) do not keep a session alive.

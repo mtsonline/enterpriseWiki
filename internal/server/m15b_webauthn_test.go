@@ -180,6 +180,13 @@ func TestWebAuthn(t *testing.T) {
 	if !signedIn(p) {
 		t.Fatal("not signed in with the passkey")
 	}
+	// the same through the suggestions of the user name field (own limit)
+	pa := e.client()
+	pa.must("POST", "/api/v1/auth/passwordless/webauthn/begin", map[string]any{"autofill": true}, &begin, 200)
+	pa.must("POST", "/api/v1/auth/passwordless/webauthn/finish", map[string]any{"token": begin.Token, "credential": key.get(begin.Options)}, nil, 200)
+	if !signedIn(pa) {
+		t.Fatal("not signed in with the passkey of the user name field")
+	}
 	// the password alone works too (factor 1 alternatives)
 	e.client().login("wendy", "Wendy-Passw0rd!")
 	// without user verification the passkey is refused

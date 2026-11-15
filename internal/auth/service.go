@@ -4,6 +4,7 @@
 package auth
 
 import (
+	"cmp"
 	"context"
 	"encoding/base64"
 	"encoding/hex"
@@ -149,6 +150,10 @@ type ProviderInfo struct {
 	ID   string `json:"id"`
 	Name string `json:"name"`
 	Kind string `json:"kind"` // password | redirect | passwordless
+	// Hidden: no button on the sign-in page (direct link only); only in
+	// AllProviderInfos.
+	Hidden bool `json:"hidden,omitempty"`
+	Order  int  `json:"order,omitempty"`
 }
 
 // Providers returns the active providers in evaluation order (local first).
@@ -189,21 +194,53 @@ func (s *Service) Providers() []PasswordProvider {
 
 // ProviderInfos lists active providers.
 func (s *Service) ProviderInfos() []ProviderInfo {
+	all := s.AllProviderInfos()
+	out := all[:0:0]
+	for _, p := range all {
+		if !p.Hidden {
+			out = append(out, p)
+		}
+	}
+	return out
+}
+
+// AllProviderInfos is ProviderInfos including redirect providers hidden on
+// the sign-in page; redirect providers come in the configured button order
+// with the configured label.
+func (s *Service) AllProviderInfos() []ProviderInfo {
 	out := []ProviderInfo{}
 	for _, p := range s.Providers() {
 		if configured(p) {
-			out = append(out, ProviderInfo{p.ID(), p.Name(), "password"})
+			out = append(out, ProviderInfo{ID: p.ID(), Name: p.Name(), Kind: "password"})
 		}
 	}
+	buttons := s.cfg.Get().Login.Buttons
+	var redirect []ProviderInfo
 	for _, p := range s.RedirectProviders() {
 		if configured(p) {
-			out = append(out, ProviderInfo{p.ID(), p.Name(), "redirect"})
+			b := buttons[p.ID()]
+			redirect = append(redirect, ProviderInfo{ID: p.ID(), Name: cmp.Or(strings.TrimSpace(b.Label), p.Name()), Kind: "redirect", Hidden: b.Hidden, Order: b.Order})
 		}
 	}
+	slices.SortStableFunc(redirect, func(a, b ProviderInfo) int {
+		return cmp.Or(cmp.Compare(a.Order, b.Order), strings.Compare(strings.ToLower(a.Name), strings.ToLower(b.Name)), strings.Compare(a.ID, b.ID))
+	})
+	out = append(out, redirect...)
 	for _, id := range s.PasswordlessMethods() {
-		out = append(out, ProviderInfo{id, id, "passwordless"})
+		out = append(out, ProviderInfo{ID: id, Name: id, Kind: "passwordless"})
 	}
 	return out
+}
+
+// RedirectProviderConfigured reports whether id is a configured redirect
+// provider (visible or hidden).
+func (s *Service) RedirectProviderConfigured(id string) bool {
+	for _, p := range s.RedirectProviders() {
+		if p.ID() == id && configured(p) {
+			return true
+		}
+	}
+	return false
 }
 
 // Configurable is implemented by providers that need settings before they

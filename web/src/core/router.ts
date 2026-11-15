@@ -70,6 +70,14 @@ export function setMain(main: HTMLElement): void { mainEl = main; }
 /** Runs before a page is rendered (e.g. to reset page context). */
 export function onBeforeRender(fn: () => void): void { beforeRender = fn; }
 
+let leaving: (() => void)[] = [];
+
+/**
+ * Registers clean-up work of the current page (e.g. cancelling a pending
+ * passkey request); it runs once, before the next page is rendered.
+ */
+export function onLeave(fn: () => void): void { leaving.push(fn); }
+
 async function render(keepFocus = false): Promise<void> {
   if (!mainEl) return;
   const seq = ++renderSeq;
@@ -86,6 +94,11 @@ async function render(keepFocus = false): Promise<void> {
       params = Object.fromEntries(r.keys.map((k, i) => [k, decodeURIComponent(m[i + 1])]));
       break;
     }
+  }
+  const done = leaving;
+  leaving = [];
+  for (const fn of done) {
+    try { fn(); } catch { /* clean-up must not stop the next page */ }
   }
   beforeRender?.();
   const target = document.createElement('div');

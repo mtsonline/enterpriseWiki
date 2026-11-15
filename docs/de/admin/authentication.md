@@ -280,6 +280,26 @@ Im Verzeichnis tragen Sie als **Tenant-URL** `<server.base_url>/scim/v2` und als
 - Unterstützt: Users und Groups mit GET (Filter `attribut eq "wert"` auf `userName`, `externalId`, `emails.value`, `displayName`, `id`; Paging), POST, PUT, PATCH (wie von Entra ID und Okta gesendet), DELETE. Nicht unterstützt: Bulk, Sortierung, ETags. Attribute, die das Wiki nicht kennt (z. B. die Enterprise-Erweiterung), werden ignoriert.
 - Sicherheit: Nur das Token des Zugangs authentifiziert, keine Sitzung und kein API-Key. Gespeichert wird nur sein Hash. Nach 30 falschen Tokens in 5 Minuten wird die IP-Adresse vorübergehend abgewiesen. Jede Änderung steht im Audit-Log als `scim:<Name>`. Bei mehreren Sites mit gemeinsamen Konten gibt es SCIM nur auf der Haupt-Site.
 
+## Anmeldeseite
+
+Unter *Administration → Einstellungen → Anmeldeseite* (API `GET/PUT /api/v1/admin/auth/login`, CLI `ewiki login-page`). Die Einstellungen gelten sofort und stehen in `config.yaml` unter `login`.
+
+- **Benutzername und Passwort** prüfen alle Anbieter ohne eigene Anmeldeseite (lokal, LDAP) im selben Formular. Dafür gibt es keinen eigenen Knopf.
+- **Anbieter mit eigener Anmeldeseite** (OpenID Connect, SAML) bekommen je einen Knopf. Je Anbieter einstellbar: Reihenfolge (kleinere Zahl weiter oben, −1000 bis 1000), Text des Knopfs (höchstens 80 Zeichen, leer: Name des Anbieters) und ob der Knopf gezeigt wird.
+- **Direktlink:** `/login?via=<Anbieter-ID>` führt sofort zu einem Anbieter, auch wenn sein Knopf ausgeblendet ist. So lässt sich ein Anbieter nur für bestimmte Personen anbieten, zum Beispiel über einen Link im Intranet.
+- **Automatisch weiterleiten:** Die Anmeldeseite leitet alle sofort zu einem Anbieter weiter. Das passiert nicht nach Fehlern, nach dem Abmelden (`?logged_out=1`), beim Bestätigen weiterer Faktoren und beim Verknüpfen. **Notfall-Zugang:** `/login?local=1` zeigt immer die ganze Anmeldeseite, zum Beispiel wenn der Anbieter ausfällt.
+- **Passkeys im Feld „Benutzername“** (Vorgabe: ein): Der Browser zeigt gespeicherte Passkeys in den Vorschlägen des Felds (`autocomplete="username webauthn"`). Erst wenn die Person einen auswählt, fragt er nach Fingerabdruck, Gesicht oder PIN. Der Knopf „Mit Passkey anmelden“ bleibt immer. Haben Hilfstechniken (zum Beispiel ein Screenreader) mit den Vorschlägen Probleme, schalten Sie die Option aus. Jeder Aufruf der Anmeldeseite startet dafür eine Passkey-Anfrage. Sie hat ein eigenes Limit je Adresse (*Experteneinstellungen → `core.auth.passkey_autofill_per_5min`*, Vorgabe 600 in 5 Minuten), damit viele Personen hinter einer Adresse den Knopf nicht blockieren. Eine Anfrage allein meldet niemanden an.
+- Gespeicherte Einstellungen für einen Anbieter, der gerade entfernt oder unvollständig ist, bleiben erhalten und gelten wieder, sobald er eingerichtet ist.
+- Jede Änderung steht im Audit-Log als `auth.login_page.update`.
+
+```bash
+ewiki login-page show
+ewiki login-page set --passkey-autofill off --auto-redirect oidc
+ewiki login-page set --auto-redirect none
+ewiki login-page button oidc-partner --order 10 --label "Partner-Anmeldung" --hidden
+ewiki login-page button oidc-partner --reset
+```
+
 ## Sitzungen
 
 - Eine Browser-Sitzung endet nach `auth.session_ttl` (Standard 7 Tage) und nach `auth.session_idle` ohne Aktivität (Standard 12 Stunden). Automatische Abfragen der Oberfläche (Benachrichtigungen) halten eine Sitzung nicht am Leben.
