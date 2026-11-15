@@ -50,6 +50,9 @@ type Hub struct {
 	mu    sync.Mutex
 	rooms map[string]*room
 	seq   uint64
+	// Limits returns the persons per document and the connections per
+	// person and document (expert settings of the app; nil: 50 and 5).
+	Limits func() (persons, perPerson int)
 }
 
 // NewHub creates a hub.
@@ -80,7 +83,6 @@ func (p *peer) close() { p.once.Do(func() { close(p.quit) }) }
 // Limits returns the persons per document and the connections of one
 // person per document (tabs, devices); set by the application (expert
 // settings).
-var Limits = func() (persons, perPerson int) { return 50, 5 }
 
 // ErrTooManyConnections: the person has too many connections to the room.
 var ErrTooManyConnections = errors.New("too many connections of this person to the document")
@@ -115,7 +117,10 @@ func (h *Hub) join(key string, u User) (*peer, error) {
 			mine++
 		}
 	}
-	maxPersons, perPerson := Limits()
+	maxPersons, perPerson := 50, 5
+	if h.Limits != nil {
+		maxPersons, perPerson = h.Limits()
+	}
 	if mine >= perPerson {
 		return nil, ErrTooManyConnections
 	}

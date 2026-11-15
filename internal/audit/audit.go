@@ -14,7 +14,6 @@ import (
 	"fmt"
 	"slices"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/mtsonline/enterprisewiki/internal/db"
@@ -50,24 +49,24 @@ var Always = []string{"auth", "site", "instance", "user", "group", "role", "perm
 // the configuration; nil = everything).
 type Filter func(action string) bool
 
-var filters sync.Map // site -> Filter
+// filters holds the filter of every open app (by its scope, see
+// identity.PerScope).
+var filters identity.PerScope[Filter]
 
-// SetFilter installs the filter of the site "main".
-func SetFilter(f Filter) { SetSiteFilter("main", f) }
+// SetAppFilter installs the filter of the app with scope s on site; the
+// app removes it again when it closes (RemoveAppFilter).
+func SetAppFilter(s identity.Scope, site string, f Filter) { filters.Set(s, site, f) }
 
-// SetSiteFilter installs the filter of a site.
-func SetSiteFilter(site string, f Filter) { filters.Store(site, f) }
+// RemoveAppFilter removes the filter of a closed app.
+func RemoveAppFilter(s identity.Scope) { filters.Remove(s) }
 
-// Enabled reports whether an action is logged on the site "main".
-func Enabled(action string) bool { return SiteEnabled("main", action) }
-
-// SiteEnabled reports whether an action is logged on a site.
-func SiteEnabled(site, action string) bool {
+// enabled reports whether an action is logged in the app of ctx.
+func enabled(ctx context.Context, action string) bool {
 	if slices.Contains(Always, Area(action)) {
 		return true
 	}
-	if f, ok := filters.Load(site); ok && f.(Filter) != nil {
-		return f.(Filter)(action)
+	if f, ok := filters.Get(ctx); ok && f != nil {
+		return f(action)
 	}
 	return true
 }
@@ -108,15 +107,43 @@ func toJSON(v any) any {
 	return b
 }
 
-// ValueLimit returns the longest before/after value of an entry in bytes
-// (guest: the event has no signed-in user, e.g. a failed sign-in). The
-// application sets it to the limits core.audit.value_guest_bytes and
-// core.audit.value_bytes (expert settings).
-var ValueLimit = func(guest bool) int {
+// Limits of the audit log of an app (expert settings).
+type Limits struct {
+	// Value returns the longest before/after value of an entry in bytes
+	// (guest: the event has no signed-in user, e.g. a failed sign-in):
+	// core.audit.value_guest_bytes and core.audit.value_bytes.
+	Value func(guest bool) int
+	// SearchDays is the period of the text search in the snapshots when
+	// no start is given: core.audit.search_days.
+	SearchDays func() int
+}
+
+var appLimits identity.PerScope[Limits]
+
+// SetAppLimits installs the limits of the app with scope s on site; the app
+// removes them when it closes (RemoveAppLimits).
+func SetAppLimits(s identity.Scope, site string, l Limits) { appLimits.Set(s, site, l) }
+
+// RemoveAppLimits removes the limits of a closed app.
+func RemoveAppLimits(s identity.Scope) { appLimits.Remove(s) }
+
+// valueLimit: see Limits.Value (1 kB for guests and 64 kB without settings).
+func valueLimit(ctx context.Context, guest bool) int {
+	if l, ok := appLimits.Get(ctx); ok && l.Value != nil {
+		return l.Value(guest)
+	}
 	if guest {
 		return 1 << 10
 	}
 	return 64 << 10
+}
+
+// searchDays: see Limits.SearchDays (90 without settings).
+func searchDays(ctx context.Context) int {
+	if l, ok := appLimits.Get(ctx); ok && l.SearchDays != nil {
+		return l.SearchDays()
+	}
+	return 90
 }
 
 // bound keeps a value of an entry within max bytes (S-03): a larger one
@@ -159,7 +186,7 @@ func shorten(v any, max int) any {
 // Log appends an audit record using q (pass the transaction so the record is
 // committed atomically with the change).
 func Log(ctx context.Context, q db.Querier, action, entityType string, entityID int64, before, after any) error {
-	if !SiteEnabled(identity.Site(ctx), action) {
+	if !enabled(ctx, action) {
 		return nil
 	}
 	p := identity.From(ctx)
@@ -181,13 +208,9 @@ func Log(ctx context.Context, q db.Querier, action, entityType string, entityID 
 	}
 	_, err := q.Exec(ctx, `INSERT INTO audit_log(user_id, actor, action, entity_type, entity_id, before, after, ip, user_agent, via)
 		VALUES ($1,$2,$3,$4,$5,$6,$7,NULLIF($8,''),NULLIF($9,''),$10)`, uid, p.Handle(), action, entityType, eid,
-		bound(toJSON(before), ValueLimit(p == nil)), bound(toJSON(after), ValueLimit(p == nil)), req.ip, clip(req.ua, 512), via)
+		bound(toJSON(before), valueLimit(ctx, p == nil)), bound(toJSON(after), valueLimit(ctx, p == nil)), req.ip, clip(req.ua, 512), via)
 	return err
 }
-
-// SnapshotSearchDays is the period of the text search in the snapshots
-// when no start is given; set by the application (expert settings).
-var SnapshotSearchDays = func() int { return 90 }
 
 // Search filters audit entries.
 type Search struct {
@@ -207,7 +230,7 @@ type Search struct {
 
 const cols = `id, at, user_id, actor, action, entity_type, entity_id, before, after, COALESCE(ip, ''), COALESCE(user_agent, ''), COALESCE(via, '')`
 
-func (s Search) where() (string, []any) {
+func (s Search) where(ctx context.Context) (string, []any) {
 	conds := []string{"true"}
 	args := []any{}
 	add := func(cond string, v any) {
@@ -254,7 +277,7 @@ func (s Search) where() (string, []any) {
 		// address always
 		since := s.From
 		if since.IsZero() {
-			since = time.Now().AddDate(0, 0, -SnapshotSearchDays())
+			since = time.Now().AddDate(0, 0, -searchDays(ctx))
 		}
 		like := strings.NewReplacer(`\`, `\\`, "%", `\%`, "_", `\_`).Replace(t)
 		add("(actor ILIKE ? OR action ILIKE $X OR entity_type ILIKE $X OR COALESCE(ip,'') ILIKE $X OR (at >= $Y AND (before::text ILIKE $X OR after::text ILIKE $X)))", "%"+like+"%")
@@ -270,7 +293,7 @@ func Find(ctx context.Context, q db.Querier, s Search) ([]Entry, int, error) {
 	if s.Limit <= 0 || s.Limit > 1000 {
 		s.Limit = 100
 	}
-	where, args := s.where()
+	where, args := s.where(ctx)
 	total := 0
 	if s.AfterID == 0 {
 		if err := q.QueryRow(ctx, `SELECT count(*) FROM audit_log WHERE `+where, args...).Scan(&total); err != nil {

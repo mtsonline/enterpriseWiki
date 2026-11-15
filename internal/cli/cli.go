@@ -11,7 +11,6 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
-	"net/http"
 	"os"
 	"os/signal"
 	"path/filepath"
@@ -260,27 +259,8 @@ func newLogger() *slog.Logger {
 	return slog.New(slog.NewTextHandler(os.Stderr, opts))
 }
 
-// testApp, when set, is used by commands instead of a new app (tests that
-// run commands inside a test server: some plugins keep one instance per
-// site and process, which a second app of the same site would replace).
-var testApp *app.App
-
-// UseAppForTests makes commands use a and its server handler h (and not
-// close them) until the returned function is called. Only for tests.
-func UseAppForTests(a *app.App, h http.Handler) func() {
-	testApp = a
-	handlers.Store(a, h)
-	return func() {
-		testApp = nil
-		handlers.Delete(a)
-	}
-}
-
 func (e *env) withApp(migrate bool, fn func(ctx context.Context, a *app.App) error) error {
 	ctx := identity.WithSite(identity.With(context.Background(), identity.CLI()), e.siteName())
-	if a := testApp; a != nil {
-		return fn(identity.WithSite(identity.With(context.Background(), identity.CLI()), a.Site), a)
-	}
 	a, err := app.New(ctx, app.Options{ConfigPath: e.configPath, Log: e.log, Migrate: migrate, Site: e.siteName()})
 	if err != nil {
 		return err
@@ -289,7 +269,7 @@ func (e *env) withApp(migrate bool, fn func(ctx context.Context, a *app.App) err
 		handlers.Delete(a)
 		a.Close()
 	}()
-	return fn(ctx, a)
+	return fn(identity.WithScope(ctx, a.Scope), a)
 }
 
 // serve runs the server with background jobs, config reloading and restart support.
@@ -398,7 +378,7 @@ func (e *env) jobs(ctx context.Context, a *app.App) {
 	t := time.NewTicker(time.Hour)
 	defer t.Stop()
 	run := func() {
-		jctx := identity.WithSite(identity.With(ctx, identity.CLI()), a.Site)
+		jctx := identity.WithScope(identity.WithSite(identity.With(ctx, identity.CLI()), a.Site), a.Scope)
 		if a.Config.Get().Mode == "cluster" {
 			conn, err := a.DB.Acquire(jctx)
 			if err != nil {

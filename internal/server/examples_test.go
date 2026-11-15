@@ -46,7 +46,6 @@ func TestActionExamples(t *testing.T) {
 	checkExampleCoverage(t, all)
 
 	e := setup(t)
-	t.Cleanup(cli.UseAppForTests(e.app, e.srv.Config.Handler)) // the command line runs in the app of the test server
 	r := &exampleRunner{t: t, e: e, byID: byID}
 	r.admin = e.client()
 	r.admin.login("admin", adminPW)

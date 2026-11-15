@@ -48,7 +48,7 @@ func (p *Plugin) Migrations() fs.FS { s, _ := fs.Sub(migrations, "migrations"); 
 
 // Setup implements coreplugin.SetupPlugin.
 func (p *Plugin) Setup(host *coreplugin.Host) error {
-	instances.Set(host.Site, p)
+	instances.Set(host, p)
 	p.host = host
 	notify.RegisterKind("mention", "core.mentions.kind")
 	// durable: a mention in a saved page is never lost (repeated after an error)

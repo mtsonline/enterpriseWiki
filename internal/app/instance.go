@@ -354,7 +354,7 @@ func (in *Instance) createSiteAdmin(ctx context.Context, site string, adm SiteAd
 	if a == nil {
 		return fmt.Errorf("site %s is not open", site)
 	}
-	cctx := identity.WithSite(identity.With(ctx, identity.CLI()), site)
+	cctx := identity.WithScope(identity.WithSite(identity.With(ctx, identity.CLI()), site), a.Scope)
 	rid, err := a.Auth.EnsureRole(cctx, "Administrators", "", true)
 	if err != nil {
 		return err

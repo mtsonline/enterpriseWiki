@@ -185,6 +185,10 @@ Important:
 - Settings: `host.Settings()` delivers the section `plugin_settings.<id>` from `config.yaml`.
 - For changes to content write to the log with `audit.Log(...)`.
 
+### Instances and state
+
+Every app (every site in a process) gets its own instance of your plugin: the object registered with `coreplugin.Register` is only the template. If the zero value of your type lacks something it needs, return a ready instance from `NewInstance()` (`coreplugin.Factory`). Keep state in the plugin object (`p.host` from `Setup`), not in package variables. If code without access to the instance (renderers, hooks) needs it anyway, use `coreplugin.PerSite[T]`: `Set(host, v)` in `Setup`, `Get(ctx)` when called. It finds the instance of the app of the context (`identity.Scope`); it is removed when the app closes. So two apps of the same site in one process do not disturb each other (tests, a command line in the server process).
+
 ### Element types
 
 ```go
