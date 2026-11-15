@@ -14,10 +14,12 @@
 //
 // Rules the host keeps in every case: mapping of groups and roles, linking
 // by confirmed e-mail of trusted providers, lockout, second factors,
-// sessions and single logout. The identity of a person is the e-mail
-// address: the host resolves what was entered (any confirmed address, or
-// the user name) to the account first and then asks that account's
-// provider; a provider suffix is never needed.
+// sessions and single logout; every e-mail address belongs to exactly one
+// person (a provider reporting an address of another person leads to the
+// confirmation flow, never to a silent merge). Sign-in needs no provider
+// suffix: the host asks the providers in their configured order with what
+// was entered, and each provider decides what it accepts (its user names,
+// its addresses). A person can have a different address at each provider.
 syntax = "proto3";
 
 package ewiki.plugin.v1;
@@ -105,10 +107,9 @@ message ExternalIdentity {
 message AuthenticateRequest {
   // Provider instance ("ldap-corp").
   string instance = 1;
-  // What the host resolved: the account's subject and user name at this
-  // provider if the person is known, otherwise what was entered.
+  // What the person entered (user name or e-mail address), as entered.
   string login = 2;
-  string subject = 3;
+  reserved 3;
   // Only ever in this call, never stored or logged by the host; the SDK
   // clears it after use.
   string password = 4;

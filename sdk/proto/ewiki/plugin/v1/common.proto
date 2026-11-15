@@ -52,12 +52,14 @@ message Scope {
 
 // PersonRef identifies a person.
 //
-// The identity of a person is the e-mail address: within one account
-// scope (instance, or a site with its own accounts) every address belongs
-// to exactly one person, and a person can sign in with any of their
-// confirmed addresses or with their user name, never with a provider
-// suffix. The numeric id is the stable internal key; addresses can be
-// added and removed, the id never changes.
+// The internal key is the numeric id: it never changes. E-mail addresses
+// are NOT keys: a person can have several, and addresses change (also at
+// the sign-in provider, when the person may not change them in the wiki).
+// Within one account scope (the instance, or a site with its own
+// accounts) every address belongs to exactly one person, so an address
+// finds the person (People.Resolve); store the reference, never the
+// address alone. Sign-in needs no provider suffix: the providers are asked
+// in their configured order and each decides what it accepts.
 message PersonRef {
   Scope scope = 1;
   // Internal, stable within the scope; 0 when not resolved yet.
