@@ -47,7 +47,11 @@ const (
 	permCreate      = "content.forms.create"
 	permAdmin       = "content.forms.admin"
 	permSubmissions = "content.forms.submissions"
-	permExternal    = "content.forms.external"
+	// permSubmissionsExport exports submissions as CSV and Excel.
+	permSubmissionsExport = "content.forms.submissions_export"
+	// permSubmissionsDelete deletes submissions.
+	permSubmissionsDelete = "content.forms.submissions_delete"
+	permExternal          = "content.forms.external"
 )
 
 // Plugin is the forms plugin (one instance per site).

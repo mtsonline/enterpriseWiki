@@ -2212,5 +2212,17 @@
  "login_admin.reset_help": "Personen mit lokalem Konto bekommen einen Link per E-Mail (1 Stunde gültig). Die Antwort verrät nie, ob eine Adresse ein Konto hat. Schalten Sie das aus, wenn Passwörter nur die Verwaltung zurücksetzen soll.",
  "login_admin.reset_no_mail": "Der E-Mail-Versand ist nicht eingerichtet. Ohne E-Mail sind „Passwort vergessen?“ und die Registrierung nicht verfügbar.",
  "limit.core.auth.password_reset_per_hour": "Passwort-Zurücksetzungen je Adresse",
- "limit.core.auth.password_reset_per_hour.help": "Anfragen „Passwort vergessen?“ je Absender-Adresse in einer Stunde."
+ "limit.core.auth.password_reset_per_hour.help": "Anfragen „Passwort vergessen?“ je Absender-Adresse in einer Stunde.",
+ "perm.core.users.list_all": "Alle Benutzer auflisten",
+ "perm.core.users.list_all_help": "Jeden aktiven Benutzer über den Namen finden, z. B. in Rechte- und Teilen-Dialogen.",
+ "perm.core.users.list_own": "Benutzer der eigenen Gruppen auflisten",
+ "perm.core.users.list_own_help": "Die Benutzer finden, die mit einem selbst in einer Gruppe sind.",
+ "perm.core.groups.list_all": "Alle Gruppen auflisten",
+ "perm.core.groups.list_all_help": "Die Namen aller Gruppen sehen, z. B. in Rechte- und Teilen-Dialogen.",
+ "perm.core.groups.list_own": "Eigene Gruppen auflisten",
+ "perm.core.groups.list_own_help": "Die Namen der Gruppen sehen, in denen man selbst ist.",
+ "perm.core.roles.list_all": "Alle Rollen auflisten",
+ "perm.core.roles.list_all_help": "Die Namen aller Rollen sehen, z. B. in Rechte- und Teilen-Dialogen.",
+ "perm.core.roles.list_own": "Eigene Rollen auflisten",
+ "perm.core.roles.list_own_help": "Die Namen der Rollen sehen, die man selbst hat (direkt oder über eine Gruppe)."
 }

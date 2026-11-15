@@ -18,6 +18,7 @@ import (
 	"github.com/jackc/pgx/v5"
 
 	"github.com/mtsonline/enterprisewiki/internal/apperr"
+	"github.com/mtsonline/enterprisewiki/internal/auth"
 	"github.com/mtsonline/enterprisewiki/internal/content"
 	"github.com/mtsonline/enterprisewiki/internal/coreplugin"
 	h "github.com/mtsonline/enterprisewiki/internal/httpx"
@@ -480,11 +481,21 @@ func (p *Plugin) Setup(hs *coreplugin.Host) error {
 	// GET /groups – groups to choose from (signed-in users; editors are not always admins)
 	// action: content.team.groups
 	hs.Handle("GET", "/groups", func(w http.ResponseWriter, r *http.Request) (any, error) {
-		if identity.From(r.Context()).ID() == 0 && !identity.From(r.Context()).Admin() {
+		me := identity.From(r.Context())
+		if me.ID() == 0 && !me.Admin() {
 			return nil, apperr.ErrUnauthorized
 		}
+		// the groups the caller may list (all or the own ones)
+		scope := auth.ListScope(me, "groups")
+		if scope == auth.ListNone {
+			return nil, apperr.Forbidden("listing groups needs the permission core.groups.list_all or core.groups.list_own")
+		}
+		var own []int64
+		if me != nil {
+			own = me.Groups
+		}
 		rows, err := hs.DB.Query(r.Context(), `SELECT g.id, g.name, g.description, (SELECT count(*) FROM user_groups ug JOIN users u ON u.id = ug.user_id
-			WHERE ug.group_id = g.id AND NOT u.disabled) FROM groups g ORDER BY g.name`)
+			WHERE ug.group_id = g.id AND NOT u.disabled) FROM groups g WHERE $1 OR g.id = ANY($2) ORDER BY g.name`, scope == auth.ListAll, own)
 		if err != nil {
 			return nil, err
 		}

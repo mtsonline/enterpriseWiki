@@ -51,6 +51,8 @@ Es gibt zwei Arten von Rechten:
 - **Globale Rechte** erhalten **Rollen** (*Administration → Rollen*), z. B. *Benutzer verwalten*, *Protokoll ansehen*, *Kategorie-Administrator*. Rechte, die alle angemeldeten Benutzer standardmäßig haben (z. B. *Seiten teilen*, *Personen erwähnen*), stellen Sie unter *Administration → Rollen → Standardrechte* ein. Rollen mit „Administratorrolle“ haben alle Rechte.
 - **Kategorierechte** werden in Regeln je Kategorie vergeben (*Kategorie → Einstellungen → Berechtigungen* oder zentral unter *Administration → Berechtigungen*).
 
+**Wer Benutzer, Gruppen und Rollen auflisten darf** (Personen-Auswahl, Rechte- und Teilen-Dialoge), legen je drei Rechte fest: *Alle … auflisten* oder *Eigene … auflisten*; ohne beide sieht man keine. „Eigene“ sind die Gruppen, in denen man ist, die Rollen, die man hat (direkt oder über eine Gruppe), und die Benutzer, die mit einem in einer Gruppe sind. Standard für angemeldete Benutzer: nur die eigenen. Wer die Liste nicht sehen darf, kann auch nicht mit diesen Personen, Gruppen oder Rollen teilen. *Benutzer verwalten*, *Gruppen verwalten*, *Beobachtungen zuweisen* und *Kategorie-Administrator* schließen *alle auflisten* ein. Mitgliederzahlen, Rollen einer Gruppe und Rechte einer Rolle sehen nur Personen mit *Gruppen verwalten* bzw. *Rollen verwalten*. Hinweis: Wer Kategorien verwaltet, aber nur die eigenen Gruppen sieht, kann auch nur diesen Rechte geben.
+
 Plugins bringen eigene Rechte mit (z. B. *Workflows anlegen*, *Kommentare moderieren*); sie erscheinen automatisch in beiden Auswahllisten, gruppiert nach Plugin.
 
 ### Kategorierechte

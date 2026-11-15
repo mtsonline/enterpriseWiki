@@ -25,14 +25,16 @@ async function submissions(el: ElementView): Promise<Node | null> {
   search.setAttribute('aria-label', t('forms.search'));
   const body = h('div', { 'aria-live': 'polite' });
   let offset = 0;
+  let canExport = false;
   const load = async () => {
-    let data: { total: number; items: Submission[]; fields: FField[] };
+    let data: { total: number; items: Submission[]; fields: FField[]; can: { export: boolean; delete: boolean } };
     try {
       data = await api.get(`${BASE}/elements/${el.id}/submissions?limit=50&offset=${offset}&q=${encodeURIComponent(search.value.trim())}&lang=${state.lang}`);
     } catch (e) {
       if (e instanceof ApiError && (e.status === 403 || e.status === 401)) { box.remove(); return false; }
       throw e;
     }
+    canExport = data.can.export;
     const cols = data.fields.filter((f) => !['heading', 'paragraph', 'divider'].includes(f.type));
     heading.textContent = `${t('forms.submissions')} (${data.total})`;
     if (!data.items.length) { body.replaceChildren(h('p', { class: 'ew-muted' }, t('forms.no_submissions'))); return true; }
@@ -48,10 +50,10 @@ async function submissions(el: ElementView): Promise<Node | null> {
             s.last_error ? h('p', { class: 'ewfm-error' }, t('forms.failed', { error: s.last_error })) : null),
           h('td', null, s.author || '—'),
           ...cols.map((c) => h('td', null, c.type === 'file' ? files(s, c) : valueText(c, s.data[c.id]))),
-          h('td', null, button(t('common.delete'), async () => {
+          h('td', null, data.can.delete ? button(t('common.delete'), async () => {
             if (!(await confirmDialog(t('forms.delete_confirm')))) return;
             try { await api.del(`${BASE}/submissions/${s.id}`); await load(); } catch (e) { toast(errorText(e), 'error'); }
-          }, { variant: 'subtle', ariaLabel: `${t('forms.delete_submission')} ${fmtDate(s.created_at, state.lang)}` }))))))),
+          }, { variant: 'subtle', ariaLabel: `${t('forms.delete_submission')} ${fmtDate(s.created_at, state.lang)}` }) : null)))))),
     data.total > offset + 50 || offset > 0 ? h('p', { class: 'ewfm-subs-pager' },
       offset > 0 ? button(t('common.previous'), () => { offset -= 50; void load(); }, { variant: 'secondary' }) : null,
       data.total > offset + 50 ? button(t('common.next'), () => { offset += 50; void load(); }, { variant: 'secondary' }) : null) : '');
@@ -67,8 +69,8 @@ async function submissions(el: ElementView): Promise<Node | null> {
   search.addEventListener('input', () => { window.clearTimeout(timer); timer = window.setTimeout(() => { offset = 0; void load(); }, 300); });
   if (!(await load())) return null;
   box.append(heading, h('div', { class: 'ewfm-subs-tools' }, search,
-    h('a', { class: 'ew-btn ew-btn--secondary', href: `/api/v1/${BASE}/elements/${el.id}/submissions.csv?lang=${state.lang}`, download: '' }, t('forms.export_csv')),
-    h('a', { class: 'ew-btn ew-btn--secondary', href: `/api/v1/${BASE}/elements/${el.id}/submissions.xlsx?lang=${state.lang}`, download: '' }, t('forms.export_xlsx'))), body);
+    canExport ? h('a', { class: 'ew-btn ew-btn--secondary', href: `/api/v1/${BASE}/elements/${el.id}/submissions.csv?lang=${state.lang}`, download: '' }, t('forms.export_csv')) : null,
+    canExport ? h('a', { class: 'ew-btn ew-btn--secondary', href: `/api/v1/${BASE}/elements/${el.id}/submissions.xlsx?lang=${state.lang}`, download: '' }, t('forms.export_xlsx')) : null), body);
   return box;
 }
 

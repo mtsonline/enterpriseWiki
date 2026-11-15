@@ -18,8 +18,8 @@ actions:
     path: share
     summary:
       text:
-        en: "Share a page: notify people, groups or roles"
-        de: "Seite teilen: Personen, Gruppen oder Rollen benachrichtigen"
+        en: "Share a page: notify people, groups or roles (only those you may list)"
+        de: "Seite teilen: Personen, Gruppen oder Rollen benachrichtigen (nur die, die Sie auflisten dürfen)"
     permission: {key: core.share.use, scope: SCOPE_GLOBAL}
     safety: {changes: true}
     cli: {command: [share, send]}

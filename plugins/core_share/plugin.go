@@ -131,6 +131,10 @@ func (p *Plugin) share(ctx context.Context, in Input, send bool) (*Result, error
 	if err != nil {
 		return nil, err
 	}
+	// only people, groups and roles the caller may list (no probing of others)
+	if err := p.host.Auth.SubjectsVisible(ctx, in.Users, in.Groups, in.Roles); err != nil {
+		return nil, err
+	}
 	ids, err := p.host.Members(ctx, in.Users, in.Groups, in.Roles)
 	if err != nil {
 		return nil, err

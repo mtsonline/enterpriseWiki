@@ -51,6 +51,8 @@ There are two kinds of permissions:
 - **Global permissions** are given to **roles** (*Administration → Roles*), e.g. *Manage users*, *View log*, *Category administrator*. Permissions all signed-in users have by default (e.g. *Share pages*, *Mention people*) are set under *Administration → Roles → Default permissions*. Roles with "administrator role" have all permissions.
 - **Category permissions** are given in rules per category (*Category → Settings → Permissions* or centrally under *Administration → Permissions*).
 
+**Who may list users, groups and roles** (people pickers, permission and share dialogs) is set by three permissions each: *List all …* or *List the own …*; with neither, none are shown. "Own" are the groups one belongs to, the roles one has (directly or through a group) and the users who share a group with oneself. Default for signed-in users: only the own ones. Who may not see the list cannot share with these people, groups or roles either. *Manage users*, *Manage groups*, *Assign watches* and *Category administrator* include *list all*. Member counts, the roles of a group and the permissions of a role are only shown with *Manage groups* or *Manage roles*. Note: who manages categories but only sees the own groups can only give permissions to those.
+
 Plugins bring their own permissions (e.g. *Create workflows*, *Moderate comments*); they appear automatically in both selection lists, grouped by plugin.
 
 ### Category permissions

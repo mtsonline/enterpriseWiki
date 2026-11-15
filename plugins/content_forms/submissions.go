@@ -46,9 +46,27 @@ func scanSubmission(r pgx.CollectableRow) (*Submission, error) {
 	return s, err
 }
 
+// What the caller wants to do with the submissions of a form.
+const (
+	subView   = "view"   // list, open, download files
+	subExport = "export" // CSV and Excel
+	subDelete = "delete"
+)
+
+// subRights maps what the caller wants to the permission it needs
+// (content.forms.submissions_manage and content.forms.admin imply them).
+var subRights = map[string]string{subView: permSubmissions, subExport: permSubmissionsExport, subDelete: permSubmissionsDelete}
+
 // canSee reports whether the caller sees the submissions of form element id
-// (creator of the form, "See submissions" or forms administrator).
+// and returns its category.
 func (p *Plugin) canSee(ctx context.Context, id int64) (int64, error) {
+	return p.mayHandle(ctx, id, subView)
+}
+
+// mayHandle reports whether the caller may do what with the submissions of
+// form element id and returns its category. The creator of a form sees and
+// exports its submissions; deleting always needs the permission.
+func (p *Plugin) mayHandle(ctx context.Context, id int64, what string) (int64, error) {
 	cat, err := p.host.Content.ElementCategory(ctx, id, acl.View)
 	if err != nil {
 		return 0, err
@@ -62,10 +80,14 @@ func (p *Plugin) canSee(ctx context.Context, id int64) (int64, error) {
 	if err := p.host.DB.QueryRow(ctx, `SELECT created_by, type FROM elements WHERE id=$1`, id).Scan(&creator, &typ); err != nil || typ != TypeID {
 		return 0, apperr.NotFound("form")
 	}
-	if creator != nil && *creator == me.ID() || p.host.Can(ctx, cat, permSubmissions) || p.host.Can(ctx, cat, permAdmin) {
+	key := subRights[what]
+	if key == "" {
+		return 0, apperr.ErrForbidden
+	}
+	if what != subDelete && creator != nil && *creator == me.ID() || p.host.Can(ctx, cat, key) {
 		return cat, nil
 	}
-	return 0, apperr.Forbidden("seeing the submissions needs the permission %q", "See submissions")
+	return 0, apperr.Forbidden("this needs the permission %q", key)
 }
 
 func (p *Plugin) routes() {
@@ -117,7 +139,10 @@ func (p *Plugin) routes() {
 		if err != nil {
 			return nil, err
 		}
-		return map[string]any{"total": total, "items": list, "fields": f.Fields}, nil
+		_, noExport := p.mayHandle(ctx, id, subExport)
+		_, noDelete := p.mayHandle(ctx, id, subDelete)
+		return map[string]any{"total": total, "items": list, "fields": f.Fields,
+			"can": map[string]bool{"export": noExport == nil, "delete": noDelete == nil}}, nil
 	})
 
 	// GET /submissions/{sid} (marks it as seen)
@@ -141,6 +166,9 @@ func (p *Plugin) routes() {
 			return nil, err
 		}
 		ctx := r.Context()
+		if _, err := p.mayHandle(ctx, s.ElementID, subDelete); err != nil {
+			return nil, err
+		}
 		err = pgx.BeginFunc(ctx, host.DB, func(tx pgx.Tx) error {
 			if _, err := tx.Exec(ctx, `DELETE FROM plugin_form_submissions WHERE id=$1`, s.ID); err != nil {
 				return err
@@ -182,7 +210,7 @@ func (p *Plugin) routes() {
 				return nil, err
 			}
 			ctx := r.Context()
-			if _, err := p.canSee(ctx, id); err != nil {
+			if _, err := p.mayHandle(ctx, id, subExport); err != nil {
 				return nil, err
 			}
 			f, _, _, title, err := p.load(ctx, id, r.URL.Query().Get("lang"))

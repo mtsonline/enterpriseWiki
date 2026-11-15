@@ -231,6 +231,66 @@ func TestForms(t *testing.T) {
 	if list.Total != 1 {
 		t.Fatalf("after delete: %d", list.Total)
 	}
+	formSubmissionRights(t, admin, carl, c.ID, form.ID, list.Items[0].ID)
+}
+
+// formSubmissionRights checks the separate permissions on submissions:
+// seeing, exporting and deleting are granted one by one; exporting and
+// deleting include seeing, managing includes all three.
+func formSubmissionRights(t *testing.T, admin, carl *client, catID, formID, sid int64) {
+	t.Helper()
+	var me struct {
+		User struct {
+			ID int64 `json:"id"`
+		} `json:"user"`
+	}
+	carl.must("GET", "/api/v1/auth/me", nil, &me, 200)
+	subs := fmt.Sprintf("/api/v1/x/content.forms/elements/%d/submissions", formID)
+	one := fmt.Sprintf("/api/v1/x/content.forms/submissions/%d", sid)
+	var rule struct {
+		ID int64 `json:"id"`
+	}
+	grant := func(actions ...string) {
+		if rule.ID != 0 {
+			admin.must("DELETE", fmt.Sprintf("/api/v1/acl/%d", rule.ID), nil, nil, 204)
+		}
+		admin.must("POST", fmt.Sprintf("/api/v1/categories/%d/acl", catID),
+			map[string]any{"subject_type": "user", "subject_id": me.User.ID, "permissions": 1, "actions": actions, "inherit": true}, &rule, 201)
+	}
+	type canList struct {
+		Can struct {
+			Export bool `json:"export"`
+			Delete bool `json:"delete"`
+		} `json:"can"`
+	}
+	check := func(step string, see, export, del bool) {
+		t.Helper()
+		var l canList
+		code := carl.do("GET", subs, nil, &l)
+		if (code == 200) != see {
+			t.Fatalf("%s: see %d", step, code)
+		}
+		if see && (l.Can.Export != export || l.Can.Delete != del) {
+			t.Fatalf("%s: can %+v", step, l.Can)
+		}
+		if code := carl.do("GET", subs+".csv", nil, nil); (code == 200) != export {
+			t.Fatalf("%s: export %d", step, code)
+		}
+	}
+	grant("content.forms.submissions")
+	check("see", true, false, false)
+	if code := carl.do("DELETE", one, nil, nil); code != 403 {
+		t.Fatalf("seeing deletes: %d", code)
+	}
+	grant("content.forms.submissions_export")
+	check("export", true, true, false)
+	grant("content.forms.submissions_delete")
+	check("delete", true, false, true)
+	grant("content.forms.submissions_manage")
+	check("manage", true, true, true)
+	carl.must("DELETE", one, nil, nil, 204)
+	admin.must("DELETE", fmt.Sprintf("/api/v1/acl/%d", rule.ID), nil, nil, 204)
+	check("none", false, false, false)
 }
 
 // TestFormsPart3 covers computed fields, signatures, the proof of work,

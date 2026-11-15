@@ -595,22 +595,118 @@ type Role struct {
 	Permissions []string `json:"permissions"`
 }
 
-// ListGroups lists all groups (any authenticated user, needed for ACL editing).
-func (s *Service) ListGroups(ctx context.Context) ([]Group, error) {
-	if identity.From(ctx) == nil {
+// GroupName is a group as people without core.groups.manage see it.
+type GroupName struct {
+	ID          int64  `json:"id"`
+	Name        string `json:"name"`
+	Description string `json:"description"`
+}
+
+// Which users, groups or roles the caller may list (see ListScope).
+const (
+	ListNone = iota
+	ListOwn
+	ListAll
+)
+
+// ListScope tells which users, groups or roles (kind "users", "groups",
+// "roles") the caller may list: core.<kind>.list_all, core.<kind>.list_own
+// or none of them.
+func ListScope(p *identity.Principal, kind string) int {
+	switch {
+	case perm.HasP(p, "core."+kind+".list_all"):
+		return ListAll
+	case perm.HasP(p, "core."+kind+".list_own"):
+		return ListOwn
+	}
+	return ListNone
+}
+
+func listForbidden(kind string) error {
+	return apperr.Forbidden("listing %s needs the permission core.%s.list_all or core.%s.list_own", kind, kind, kind)
+}
+
+// ListGroups lists the groups the caller may list (all or the own ones).
+// Members, roles and source are shown with core.groups.manage only.
+func (s *Service) ListGroups(ctx context.Context) (any, error) {
+	p := identity.From(ctx)
+	if p == nil {
 		return nil, apperr.ErrUnauthorized
+	}
+	scope := ListScope(p, "groups")
+	if scope == ListNone {
+		return nil, listForbidden("groups")
 	}
 	rows, err := s.pool.Query(ctx, `SELECT g.id, g.name, g.description, g.source,
 		(SELECT count(*) FROM user_groups WHERE group_id=g.id),
 		COALESCE((SELECT array_agg(role_id ORDER BY role_id) FROM group_roles WHERE group_id=g.id), '{}')
-		FROM groups g ORDER BY g.name`)
+		FROM groups g WHERE $1 OR g.id = ANY($2) ORDER BY g.name`, scope == ListAll, p.Groups)
 	if err != nil {
 		return nil, err
 	}
-	return pgx.CollectRows(rows, func(r pgx.CollectableRow) (Group, error) {
+	list, err := pgx.CollectRows(rows, func(r pgx.CollectableRow) (Group, error) {
 		var g Group
 		return g, r.Scan(&g.ID, &g.Name, &g.Description, &g.Source, &g.Members, &g.Roles)
 	})
+	if err != nil || perm.HasP(p, "core.groups.manage") {
+		return list, err
+	}
+	out := make([]GroupName, len(list))
+	for i, g := range list {
+		out[i] = GroupName{g.ID, g.Name, g.Description}
+	}
+	return out, nil
+}
+
+// SubjectsVisible returns an error unless the caller may list all the
+// given users, groups and roles (e.g. before sharing with them), so that
+// people who may not list them cannot probe them either.
+func (s *Service) SubjectsVisible(ctx context.Context, users, groups, roles []int64) error {
+	p := identity.From(ctx)
+	if p == nil {
+		return apperr.ErrUnauthorized
+	}
+	check := func(kind string, ids, own []int64) error {
+		if len(ids) == 0 {
+			return nil
+		}
+		switch ListScope(p, kind) {
+		case ListAll:
+			return nil
+		case ListOwn:
+			for _, id := range ids {
+				if !slices.Contains(own, id) {
+					return apperr.Forbidden("%s %d is not one of your %s", strings.TrimSuffix(kind, "s"), id, kind)
+				}
+			}
+			return nil
+		}
+		return listForbidden(kind)
+	}
+	if err := check("groups", groups, p.Groups); err != nil {
+		return err
+	}
+	if err := check("roles", roles, p.Roles); err != nil {
+		return err
+	}
+	if len(users) == 0 {
+		return nil
+	}
+	switch ListScope(p, "users") {
+	case ListAll:
+		return nil
+	case ListNone:
+		return listForbidden("users")
+	}
+	var n int
+	if err := s.pool.QueryRow(ctx, `SELECT count(*) FROM unnest($1::bigint[]) x(id) WHERE x.id <> $2 AND NOT EXISTS (
+		SELECT 1 FROM user_groups a JOIN user_groups b ON a.group_id = b.group_id WHERE a.user_id = x.id AND b.user_id = $2)`, users, p.UserID).Scan(&n); err != nil {
+		return err
+	}
+	if n > 0 {
+		return apperr.Forbidden("you may only choose users of your own groups")
+	}
+	return nil
 }
 
 // SaveGroup creates (id==0) or updates a group (admin only).
@@ -771,20 +867,42 @@ func (s *Service) SetGroupMember(ctx context.Context, group, user int64, member 
 	return changed, err
 }
 
-// ListRoles lists all roles.
-func (s *Service) ListRoles(ctx context.Context) ([]Role, error) {
-	if identity.From(ctx) == nil {
+// RoleName is a role as people without core.roles.manage see it.
+type RoleName struct {
+	ID          int64  `json:"id"`
+	Name        string `json:"name"`
+	Description string `json:"description"`
+	IsAdmin     bool   `json:"is_admin"`
+}
+
+// ListRoles lists the roles the caller may list (all or the own ones).
+// Members and permissions are shown with core.roles.manage only.
+func (s *Service) ListRoles(ctx context.Context) (any, error) {
+	p := identity.From(ctx)
+	if p == nil {
 		return nil, apperr.ErrUnauthorized
 	}
+	scope := ListScope(p, "roles")
+	if scope == ListNone {
+		return nil, listForbidden("roles")
+	}
 	rows, err := s.pool.Query(ctx, `SELECT r.id, r.name, r.description, r.is_admin, (SELECT count(*) FROM user_roles WHERE role_id=r.id), r.permissions
-		FROM roles r ORDER BY r.name`)
+		FROM roles r WHERE $1 OR r.id = ANY($2) ORDER BY r.name`, scope == ListAll, p.Roles)
 	if err != nil {
 		return nil, err
 	}
-	return pgx.CollectRows(rows, func(r pgx.CollectableRow) (Role, error) {
+	list, err := pgx.CollectRows(rows, func(r pgx.CollectableRow) (Role, error) {
 		var x Role
 		return x, r.Scan(&x.ID, &x.Name, &x.Description, &x.IsAdmin, &x.Members, &x.Permissions)
 	})
+	if err != nil || perm.HasP(p, "core.roles.manage") {
+		return list, err
+	}
+	out := make([]RoleName, len(list))
+	for i, x := range list {
+		out[i] = RoleName{x.ID, x.Name, x.Description, x.IsAdmin}
+	}
+	return out, nil
 }
 
 // RoleInput creates or changes a role.

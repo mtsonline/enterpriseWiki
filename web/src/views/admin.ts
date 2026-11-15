@@ -230,8 +230,8 @@ async function groups(panel: HTMLElement): Promise<void> {
   };
   mount(panel, pageHeader(t('admin.groups'), sharedEditable() ? button(t('admin.group_create'), () => dialog(null), { variant: 'primary' }) : null), sharedNotice(), h('p', null, t('admin.groups_help')),
     table(t('admin.groups'), [t('common.name'), t('common.description'), t('admin.source'), t('admin.members'), t('admin.roles'), t('common.actions')],
-      gs.map((g) => h('tr', null, h('th', { scope: 'row' }, g.name), h('td', null, g.description), h('td', null, g.source), h('td', null, String(g.members)),
-        h('td', null, g.roles.map((id) => rs.find((r) => r.id === id)?.name ?? id).join(', ')),
+      gs.map((g) => h('tr', null, h('th', { scope: 'row' }, g.name), h('td', null, g.description), h('td', null, g.source ?? ''), h('td', null, String(g.members ?? '–')),
+        h('td', null, (g.roles ?? []).map((id) => rs.find((r) => r.id === id)?.name ?? id).join(', ')),
         h('td', { class: 'ew-actions' },
           button(t('admin.show_members'), () => void membersDialog(g, reload), { variant: 'link', ariaLabel: t('admin.members_of', { name: g.name }) }),
           button(t('common.edit'), () => dialog(g), { variant: 'link', ariaLabel: t('admin.edit_named', { name: g.name }) }),
@@ -319,7 +319,7 @@ async function roles(panel: HTMLElement): Promise<void> {
   mount(panel, pageHeader(t('admin.roles'), sharedEditable() ? button(t('admin.role_create'), () => void dialog(null), { variant: 'primary' }) : null), sharedNotice(), h('p', null, t('admin.roles_help')),
     table(t('admin.roles'), [t('common.name'), t('common.description'), t('admin.role_permissions'), t('admin.members'), t('common.actions')],
       rs.map((r) => h('tr', null, h('th', { scope: 'row' }, r.name), h('td', null, r.description),
-        h('td', null, r.is_admin ? h('strong', null, t('admin.is_admin')) : (r.permissions.map(label).join(', ') || '–')), h('td', null, String(r.members)),
+        h('td', null, r.is_admin ? h('strong', null, t('admin.is_admin')) : ((r.permissions ?? []).map(label).join(', ') || '–')), h('td', null, String(r.members ?? '–')),
         h('td', { class: 'ew-actions' },
           button(t('common.edit'), () => void dialog(r), { variant: 'link', ariaLabel: t('admin.edit_named', { name: r.name }) }),
           button(t('common.delete'), async () => {

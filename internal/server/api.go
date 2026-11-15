@@ -371,16 +371,26 @@ func (s *Server) routes() {
 	s.handle("GET /api/v1/roles", func(w http.ResponseWriter, r *http.Request) (any, error) { return s.app.Auth.ListRoles(r.Context()) })
 	// action: core.users.lookup
 	s.handle("GET /api/v1/users/lookup", func(w http.ResponseWriter, r *http.Request) (any, error) {
-		// Minimal user search for permission dialogs (any user with manage rights somewhere).
-		if _, err := requireUser(r); err != nil {
+		// Minimal user search for permission, share and mention dialogs:
+		// all users (core.users.list_all) or those of the own groups
+		// (core.users.list_own).
+		me, err := requireUser(r)
+		if err != nil {
 			return nil, err
+		}
+		scope := auth.ListScope(me, "users")
+		if scope == auth.ListNone {
+			return nil, apperr.Forbidden("finding users needs the permission core.users.list_all or core.users.list_own")
 		}
 		q := strings.TrimSpace(r.URL.Query().Get("q"))
 		if len(q) < 2 {
 			return []any{}, nil
 		}
-		rows, err := s.app.DB.Query(r.Context(), `SELECT id, username || '@' || provider, display_name FROM users
-			WHERE NOT disabled AND (username ILIKE $1 || '%' OR display_name ILIKE '%' || $1 || '%') ORDER BY username LIMIT 20`, q)
+		like := strings.NewReplacer(`\`, `\\`, "%", `\%`, "_", `\_`).Replace(q)
+		rows, err := s.app.DB.Query(r.Context(), `SELECT id, username || '@' || provider, display_name FROM users u
+			WHERE NOT disabled AND (username ILIKE $1 || '%' OR display_name ILIKE '%' || $1 || '%')
+			AND ($2 OR u.id = $3 OR EXISTS (SELECT 1 FROM user_groups a JOIN user_groups b ON a.group_id = b.group_id WHERE a.user_id = u.id AND b.user_id = $3))
+			ORDER BY username LIMIT 20`, like, scope == auth.ListAll, me.UserID)
 		if err != nil {
 			return nil, err
 		}

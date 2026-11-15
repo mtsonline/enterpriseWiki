@@ -3,9 +3,9 @@
  "perm.content.forms.create": "Create forms",
  "perm.content.forms.create_help": "Create forms and change or delete the own ones.",
  "perm.content.forms.admin": "Forms administrator",
- "perm.content.forms.admin_help": "Change and delete all forms of the category.",
+ "perm.content.forms.admin_help": "Change and delete all forms of the category; includes managing their submissions.",
  "perm.content.forms.submissions": "See submissions",
- "perm.content.forms.submissions_help": "See, export and delete the submissions of the forms of the category (the creator of a form always sees its submissions).",
+ "perm.content.forms.submissions_help": "See the submissions of the forms of the category and download their files (the creator of a form always sees its submissions).",
  "perm.content.forms.external": "Send submissions outside",
  "perm.content.forms.external_help": "Send submissions to any e-mail address and to webhooks (without it only to members of the wiki).",
  "forms.required_note": "Fields marked with * are required.",
@@ -242,5 +242,11 @@
  "limit.content.forms.submit_mb.help": "Upper bound for one submission with all its files (also for guests). Each form allows at most the files its fields accept; this limit caps every form.",
  "limits.group.forms": "Forms",
  "forms.ed.webhook_secret_kept": "A secret is stored – leave empty to keep it",
- "forms.ed.webhook_secret_help": "Signs each request (X-Ewiki-Signature). It is stored outside of the form and never shown again."
+ "forms.ed.webhook_secret_help": "Signs each request (X-Ewiki-Signature). It is stored outside of the form and never shown again.",
+ "perm.content.forms.submissions_export": "Export submissions",
+ "perm.content.forms.submissions_export_help": "Export the submissions of the forms of the category as CSV or Excel file (the creator of a form always may). Includes seeing them.",
+ "perm.content.forms.submissions_delete": "Delete submissions",
+ "perm.content.forms.submissions_delete_help": "Delete submissions of the forms of the category. Deleted submissions cannot be restored. Includes seeing them.",
+ "perm.content.forms.submissions_manage": "Manage submissions",
+ "perm.content.forms.submissions_manage_help": "See, export and delete the submissions of the forms of the category."
 }

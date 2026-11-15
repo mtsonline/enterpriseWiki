@@ -3,9 +3,9 @@
  "perm.content.forms.create": "Formulare anlegen",
  "perm.content.forms.create_help": "Formulare anlegen und die eigenen ändern oder löschen.",
  "perm.content.forms.admin": "Formular-Admin",
- "perm.content.forms.admin_help": "Alle Formulare der Kategorie ändern und löschen.",
+ "perm.content.forms.admin_help": "Alle Formulare der Kategorie ändern und löschen; schließt das Verwalten ihrer Einsendungen ein.",
  "perm.content.forms.submissions": "Einsendungen ansehen",
- "perm.content.forms.submissions_help": "Die Einsendungen der Formulare der Kategorie ansehen, exportieren und löschen (wer ein Formular angelegt hat, sieht seine Einsendungen immer).",
+ "perm.content.forms.submissions_help": "Die Einsendungen der Formulare der Kategorie ansehen und ihre Dateien herunterladen (wer ein Formular angelegt hat, sieht seine Einsendungen immer).",
  "perm.content.forms.external": "Einsendungen nach außen senden",
  "perm.content.forms.external_help": "Einsendungen an beliebige E-Mail-Adressen und Webhooks senden (ohne dieses Recht nur an Mitglieder des Wikis).",
  "forms.required_note": "Mit * markierte Felder sind Pflichtfelder.",
@@ -242,5 +242,11 @@
  "limit.content.forms.submit_mb.help": "Obergrenze für eine Einsendung mit allen Dateien (auch für Gäste). Jedes Formular erlaubt höchstens die Dateien, die seine Felder annehmen; diese Grenze gilt für alle Formulare.",
  "limits.group.forms": "Formulare",
  "forms.ed.webhook_secret_kept": "Ein Geheimnis ist gespeichert – leer lassen, um es zu behalten",
- "forms.ed.webhook_secret_help": "Signiert jede Anfrage (X-Ewiki-Signature). Es wird außerhalb des Formulars gespeichert und nie wieder angezeigt."
+ "forms.ed.webhook_secret_help": "Signiert jede Anfrage (X-Ewiki-Signature). Es wird außerhalb des Formulars gespeichert und nie wieder angezeigt.",
+ "perm.content.forms.submissions_export": "Einsendungen exportieren",
+ "perm.content.forms.submissions_export_help": "Die Einsendungen der Formulare der Kategorie als CSV- oder Excel-Datei exportieren (wer ein Formular angelegt hat, darf das immer). Schließt das Ansehen ein.",
+ "perm.content.forms.submissions_delete": "Einsendungen löschen",
+ "perm.content.forms.submissions_delete_help": "Einsendungen der Formulare der Kategorie löschen. Gelöschte Einsendungen lassen sich nicht wiederherstellen. Schließt das Ansehen ein.",
+ "perm.content.forms.submissions_manage": "Einsendungen verwalten",
+ "perm.content.forms.submissions_manage_help": "Die Einsendungen der Formulare der Kategorie ansehen, exportieren und löschen."
 }

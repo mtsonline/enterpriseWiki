@@ -530,6 +530,14 @@ func TestNotificationsShareMentionsAssignedWatches(t *testing.T) {
 		ID int64 `json:"id"`
 	}
 	admin.must("POST", "/api/v1/admin/groups", map[string]any{"name": "Staff"}, &grp, 200)
+	// by default people share only with their own groups: anna gets a role
+	// that may list all groups (she is not in the group; see TestListRights)
+	var sharers struct {
+		ID int64 `json:"id"`
+	}
+	admin.must("POST", "/api/v1/admin/roles", map[string]any{"name": "Sharers", "permissions": []string{"core.groups.list_all"}}, &sharers, 200)
+	admin.must("PUT", fmt.Sprintf("/api/v1/admin/users/%d", annaID), map[string]any{"roles": []int64{sharers.ID}}, nil, 200)
+	anna.login("anna", pw) // the new role is in the next session
 	admin.must("PUT", fmt.Sprintf("/api/v1/admin/users/%d", benID), map[string]any{"groups": []int64{grp.ID}}, nil, 200)
 	admin.must("PUT", fmt.Sprintf("/api/v1/admin/users/%d", carlID), map[string]any{"groups": []int64{grp.ID}}, nil, 200)
 	admin.must("POST", fmt.Sprintf("/api/v1/categories/%d/acl", c.ID), map[string]any{"subject_type": "user", "subject_id": annaID, "preset": "editor"}, nil, 201)
