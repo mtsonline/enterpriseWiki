@@ -133,7 +133,12 @@ func setAdminPrimary(ctx context.Context, q db.Querier, uid int64, addr string) 
 	if _, err := adoptEmail(ctx, q, uid, addr, true); err != nil {
 		return err
 	}
-	if _, err := q.Exec(ctx, `UPDATE user_emails SET is_primary = (email=$2) WHERE user_id=$1`, uid, addr); err != nil {
+	// two steps: one UPDATE that moves the flag can meet the unique index
+	// user_emails_primary half way (depends on the order of the rows)
+	if _, err := q.Exec(ctx, `UPDATE user_emails SET is_primary=false WHERE user_id=$1 AND is_primary AND email<>$2`, uid, addr); err != nil {
+		return err
+	}
+	if _, err := q.Exec(ctx, `UPDATE user_emails SET is_primary=true WHERE user_id=$1 AND email=$2`, uid, addr); err != nil {
 		return err
 	}
 	return choosePrimary(ctx, q, uid)
@@ -315,7 +320,11 @@ func (s *Service) setPrimary(ctx context.Context, uid, id int64) error {
 		return apperr.BadRequest("only a confirmed address can be the primary one")
 	}
 	err = db.Tx(ctx, s.pool, func(tx pgx.Tx) error {
-		if _, err := tx.Exec(ctx, `UPDATE user_emails SET is_primary = (id=$2) WHERE user_id=$1`, uid, id); err != nil {
+		// two steps (see setAdminPrimary)
+		if _, err := tx.Exec(ctx, `UPDATE user_emails SET is_primary=false WHERE user_id=$1 AND is_primary AND id<>$2`, uid, id); err != nil {
+			return err
+		}
+		if _, err := tx.Exec(ctx, `UPDATE user_emails SET is_primary=true WHERE user_id=$1 AND id=$2`, uid, id); err != nil {
 			return err
 		}
 		return choosePrimary(ctx, tx, uid)

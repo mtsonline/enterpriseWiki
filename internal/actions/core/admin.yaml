@@ -821,6 +821,10 @@ actions:
         as: member
         body_json: '{"subject_type": "user", "subject_id": ${given.core.users.create#default.id}, "target_type": "category", "target_id": ${given.core.categories.create#default.id}, "mode": "link", "frequency": "daily"}'
         status: 201
+      - name: to_self
+        given: ['core.categories.create#default', 'core.categories.acl.add#self_view']
+        body_json: '{"subject_type": "user", "subject_id": ${self.id}, "target_type": "category", "target_id": ${given.core.categories.create#default.id}, "mode": "link", "frequency": "daily"}'
+        status: 201
   - id: core.watches.assign.update
     category: CATEGORY_ACTION
     method: PUT

@@ -34,3 +34,7 @@ actions:
         given: ['core.users.create#default', 'core.categories.create#default', 'core.categories.acl.add#user_view']
         body_json: '{"target_type": "category", "target_id": ${given.core.categories.create#default.id}, "users": [${given.core.users.create#default.id}], "message": "Please have a look."}'
         expect_json: '{"recipients": 1}'
+      - name: to_self
+        given: ['core.categories.create#default', 'core.categories.acl.add#self_view']
+        body_json: '{"target_type": "category", "target_id": ${given.core.categories.create#default.id}, "users": [${self.id}], "message": "For you."}'
+        expect_json: '{"recipients": 1}'
