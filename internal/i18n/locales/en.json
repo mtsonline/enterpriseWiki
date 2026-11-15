@@ -2212,5 +2212,17 @@
  "login_admin.reset_help": "People with a local account get a link by e-mail (valid for 1 hour). The answer never tells whether an address has an account. Switch this off if only the administrators should reset passwords.",
  "login_admin.reset_no_mail": "Sending e-mail is not set up. Without e-mail, “Forgot your password?” and registration are not available.",
  "limit.core.auth.password_reset_per_hour": "Password resets of an address",
- "limit.core.auth.password_reset_per_hour.help": "Requests of “Forgot your password?” per sender address in one hour."
+ "limit.core.auth.password_reset_per_hour.help": "Requests of “Forgot your password?” per sender address in one hour.",
+ "perm.core.users.list_all": "List all users",
+ "perm.core.users.list_all_help": "Find every active user by name, e.g. in permission and share dialogs.",
+ "perm.core.users.list_own": "List users of the own groups",
+ "perm.core.users.list_own_help": "Find the users who share a group with oneself.",
+ "perm.core.groups.list_all": "List all groups",
+ "perm.core.groups.list_all_help": "See the names of all groups, e.g. in permission and share dialogs.",
+ "perm.core.groups.list_own": "List the own groups",
+ "perm.core.groups.list_own_help": "See the names of the groups one belongs to.",
+ "perm.core.roles.list_all": "List all roles",
+ "perm.core.roles.list_all_help": "See the names of all roles, e.g. in permission and share dialogs.",
+ "perm.core.roles.list_own": "List the own roles",
+ "perm.core.roles.list_own_help": "See the names of the roles one has (directly or through a group)."
 }

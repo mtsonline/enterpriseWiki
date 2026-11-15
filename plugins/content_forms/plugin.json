@@ -18,16 +18,37 @@
       "key": "content.forms.admin",
       "scope": "category",
       "label": "Forms administrator",
-      "description": "Change and delete all forms of the category.",
+      "description": "Change and delete all forms of the category; includes managing their submissions.",
       "presets": ["manager"],
-      "implies": ["content.forms.create", "content.forms.submissions"]
+      "implies": ["content.forms.create", "content.forms.submissions_manage"]
     },
     {
       "key": "content.forms.submissions",
       "scope": "category",
       "label": "See submissions",
-      "description": "See, export and delete the submissions of the forms of the category (the creator of a form always sees its submissions).",
-      "presets": ["manager"]
+      "description": "See the submissions of the forms of the category and download their files (the creator of a form always sees its submissions)."
+    },
+    {
+      "key": "content.forms.submissions_export",
+      "scope": "category",
+      "label": "Export submissions",
+      "description": "Export the submissions of the forms of the category as CSV or Excel file (the creator of a form always may). Includes seeing them.",
+      "implies": ["content.forms.submissions"]
+    },
+    {
+      "key": "content.forms.submissions_delete",
+      "scope": "category",
+      "label": "Delete submissions",
+      "description": "Delete submissions of the forms of the category. Deleted submissions cannot be restored. Includes seeing them.",
+      "implies": ["content.forms.submissions"]
+    },
+    {
+      "key": "content.forms.submissions_manage",
+      "scope": "category",
+      "label": "Manage submissions",
+      "description": "See, export and delete the submissions of the forms of the category.",
+      "presets": ["manager"],
+      "implies": ["content.forms.submissions", "content.forms.submissions_export", "content.forms.submissions_delete"]
     },
     {
       "key": "content.forms.external",

@@ -57,7 +57,7 @@ export async function loginPageAdmin(): Promise<HTMLElement> {
   regOn.input.disabled = !s.registration_here && !reg.enabled;
   const domains = textInput({ value: reg.domains.join(', '), placeholder: 'example.com, *.example.org' });
   const adminRoles = new Set(roles.filter((r) => r.is_admin).map((r) => r.id));
-  const groupBoxes = groups.filter((g) => !g.roles.some((r) => adminRoles.has(r)))
+  const groupBoxes = groups.filter((g) => !(g.roles ?? []).some((r) => adminRoles.has(r)))
     .map((g) => ({ id: g.id, box: checkbox(g.name, reg.groups.includes(g.id)) }));
   const regBox = h('fieldset', null, h('legend', null, t('login_admin.reg_title')),
     !s.registration_here ? h('p', { class: 'ew-notice ew-notice--info' }, t('login_admin.reg_not_here')) : null,

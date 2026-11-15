@@ -51,9 +51,9 @@ actions:
     path: "elements/{id}/submissions.csv"
     summary:
       text:
-        en: Export the submissions as CSV
-        de: Einsendungen als CSV exportieren
-    permission: {key: content.forms.submissions, scope: SCOPE_CATEGORY, category_param: "element:id"}
+        en: Export the submissions as CSV (also for the creator of the form)
+        de: Einsendungen als CSV exportieren (auch für die Person, die das Formular angelegt hat)
+    permission: {key: content.forms.submissions_export, scope: SCOPE_CATEGORY, category_param: "element:id"}
     cli: {command: [form, export-csv], args: [id]}
     ui: {entry: /e/:id}
   - id: content.forms.submissions.xlsx
@@ -62,9 +62,9 @@ actions:
     path: "elements/{id}/submissions.xlsx"
     summary:
       text:
-        en: Export the submissions as Excel file
-        de: Einsendungen als Excel-Datei exportieren
-    permission: {key: content.forms.submissions, scope: SCOPE_CATEGORY, category_param: "element:id"}
+        en: Export the submissions as Excel file (also for the creator of the form)
+        de: Einsendungen als Excel-Datei exportieren (auch für die Person, die das Formular angelegt hat)
+    permission: {key: content.forms.submissions_export, scope: SCOPE_CATEGORY, category_param: "element:id"}
     cli: {command: [form, export-xlsx], args: [id]}
     ui: {entry: /e/:id}
   - id: content.forms.submissions.get
@@ -84,8 +84,8 @@ actions:
     path: "submissions/{sid}"
     summary:
       text:
-        en: Delete a submission (needs content.forms.submissions)
-        de: Einsendung löschen (braucht content.forms.submissions)
+        en: Delete a submission (needs content.forms.submissions_delete)
+        de: Einsendung löschen (braucht content.forms.submissions_delete)
     signed_in: true
     safety: {changes: true}
     cli: {command: [form, submission-delete], args: [sid]}

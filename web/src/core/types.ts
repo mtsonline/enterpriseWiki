@@ -262,8 +262,10 @@ export interface Rule {
   inherit: boolean;
 }
 
-export interface Group { id: number; name: string; description: string; source: string; members: number; roles: number[] }
-export interface Role { id: number; name: string; description: string; is_admin: boolean; members: number; permissions: string[] }
+/** A group; source, members and roles only for people with core.groups.manage. */
+export interface Group { id: number; name: string; description: string; source?: string; members?: number; roles?: number[] }
+/** A role; members and permissions only for people with core.roles.manage. */
+export interface Role { id: number; name: string; description: string; is_admin: boolean; members?: number; permissions?: string[] }
 
 export interface AuditEntry {
   id: number;
