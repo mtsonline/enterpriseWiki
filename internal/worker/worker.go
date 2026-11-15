@@ -40,6 +40,8 @@ type Registry struct {
 	kick    map[string]chan struct{}
 	// Site separates the cluster locks of the sites of an instance.
 	Site string
+	// Scope of the app (see identity.Scope), carried by the contexts of jobs
+	Scope identity.Scope
 }
 
 // New creates a registry.
@@ -104,6 +106,9 @@ func (r *Registry) RunOnce(ctx context.Context, name string) error {
 	if r.Site != "" {
 		ctx = identity.WithSite(ctx, r.Site)
 	}
+	if r.Scope != 0 {
+		ctx = identity.WithScope(ctx, r.Scope)
+	}
 	r.mu.Lock()
 	j, ok := r.jobs[name]
 	mu := r.running[name]
@@ -136,6 +141,9 @@ func (r *Registry) RunOnce(ctx context.Context, name string) error {
 func (r *Registry) Start(ctx context.Context) {
 	if r.Site != "" {
 		ctx = identity.WithSite(ctx, r.Site)
+	}
+	if r.Scope != 0 {
+		ctx = identity.WithScope(ctx, r.Scope)
 	}
 	r.mu.Lock()
 	jobs := make([]*Job, 0, len(r.jobs))

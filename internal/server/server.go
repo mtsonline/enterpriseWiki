@@ -17,6 +17,7 @@ import (
 	"github.com/mtsonline/enterprisewiki/internal/auth"
 	"github.com/mtsonline/enterprisewiki/internal/collab"
 	"github.com/mtsonline/enterprisewiki/internal/identity"
+	"github.com/mtsonline/enterprisewiki/internal/limits"
 	"github.com/mtsonline/enterprisewiki/internal/pluginmgr"
 )
 
@@ -39,7 +40,7 @@ type Server struct {
 
 // New creates the server. web contains the built frontend (may be nil).
 func New(a *app.App, web fs.FS, pm *pluginmgr.Manager) *Server {
-	s := &Server{app: a, log: a.Log, web: web, plugins: pm, started: time.Now(), collab: collab.NewHub(), limits: newRateLimiter()}
+	s := &Server{app: a, log: a.Log, web: web, plugins: pm, started: time.Now(), collab: newHub(a), limits: newRateLimiter()}
 	s.collabDone, s.closeLive = context.WithCancel(context.Background())
 	s.routes()
 	a.Mux.HandleFunc("/", s.serveFrontend)
@@ -147,4 +148,15 @@ func (s *Server) serveFrontend(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	_, _ = w.Write(b)
+}
+
+// newHub creates the live-editing hub of the app with its limits (expert
+// settings: persons per document, connections per person).
+func newHub(a *app.App) *collab.Hub {
+	h := collab.NewHub()
+	h.Limits = func() (int, int) {
+		c := a.Config.Get()
+		return int(limits.Value(c, limits.LivePersons)), int(limits.Value(c, limits.LivePerPerson))
+	}
+	return h
 }

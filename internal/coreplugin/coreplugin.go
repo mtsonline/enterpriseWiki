@@ -191,6 +191,10 @@ type Host struct {
 	// Site is the name of the site this host belongs to ("main" for the
 	// first site). Each site gets its own plugin instance and host.
 	Site string
+	// Scope identifies the app of this host in the process (see
+	// identity.Scope); OnClose registers work for when the app closes.
+	Scope   identity.Scope
+	OnClose func(func())
 }
 
 // Active reports whether this plugin is currently enabled.
@@ -438,13 +442,14 @@ func ParseManifest(b []byte) Manifest {
 }
 
 // Factory is implemented by plugins whose zero value is not ready to use:
-// NewInstance returns a fresh instance for a further site. Other plugins
-// get a new zero value of their type.
+// NewInstance returns a fresh instance for an app. Other plugins get a new
+// zero value of their type.
 type Factory interface {
 	NewInstance() Plugin
 }
 
-// NewInstance returns a fresh instance of p for a further site.
+// NewInstance returns a fresh instance of p for an app (every app gets its
+// own; the registered instance is only a template).
 func NewInstance(p Plugin) Plugin {
 	if f, ok := p.(Factory); ok {
 		return f.NewInstance()
@@ -459,20 +464,28 @@ func NewInstance(p Plugin) Plugin {
 // SiteOf returns the site of a request or job context ("main" if unset).
 func SiteOf(ctx context.Context) string { return identity.Site(ctx) }
 
-// PerSite keeps one value per site, for package-level state that code
-// without access to the plugin instance needs (renderers, hooks).
+// PerSite keeps one value per app (site in a process), for package-level
+// state that code without access to the plugin instance needs (renderers,
+// hooks). Get finds the value of the app of the context (its scope); a
+// context without one gets the newest open app of its site. The value of
+// an app is removed when the app closes, so a closed app never shadows an
+// open one (two apps of the same site in one process: tests, a command
+// line inside a server process).
 type PerSite[T any] struct {
-	m sync.Map
+	m identity.PerScope[T]
 }
 
-// Set stores the value of a site.
-func (p *PerSite[T]) Set(site string, v T) { p.m.Store(site, v) }
-
-// Get returns the value of the site of ctx (zero value if none).
-func (p *PerSite[T]) Get(ctx context.Context) T {
-	if v, ok := p.m.Load(SiteOf(ctx)); ok {
-		return v.(T)
+// Set stores the value of the app of host h.
+func (p *PerSite[T]) Set(h *Host, v T) {
+	p.m.Set(h.Scope, h.Site, v)
+	if h.OnClose != nil {
+		s := h.Scope
+		h.OnClose(func() { p.m.Remove(s) })
 	}
-	var zero T
-	return zero
+}
+
+// Get returns the value of the app of ctx (zero value if none).
+func (p *PerSite[T]) Get(ctx context.Context) T {
+	v, _ := p.m.Get(ctx)
+	return v
 }

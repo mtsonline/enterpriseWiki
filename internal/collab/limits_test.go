@@ -9,7 +9,8 @@ import (
 // counted, not connections.
 func TestJoinLimits(t *testing.T) {
 	h := NewHub()
-	n, perPerson := Limits()
+	n, perPerson := 4, 2 // the limits of this hub (expert settings of its app)
+	h.Limits = func() (int, int) { return n, perPerson }
 	persons := int64(n)
 	for i := range perPerson {
 		if _, err := h.join("doc", User{ID: 1}); err != nil {

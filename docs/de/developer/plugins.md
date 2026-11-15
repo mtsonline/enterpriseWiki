@@ -185,6 +185,10 @@ Wichtig:
 - Einstellungen: `host.Settings()` liefert den Abschnitt `plugin_settings.<id>` aus `config.yaml`.
 - Für Änderungen am Inhalt schreiben Sie mit `audit.Log(...)` ins Protokoll.
 
+### Instanzen und Zustand
+
+Jede App (jede Site in einem Prozess) bekommt eine eigene Instanz Ihres Plugins: Das mit `coreplugin.Register` angemeldete Objekt ist nur die Vorlage. Hat die Nullform Ihres Typs nicht alles, was er braucht, liefern Sie mit `NewInstance()` eine fertige Instanz (`coreplugin.Factory`). Halten Sie Zustand im Plugin-Objekt (`p.host` aus `Setup`), nicht in Paketvariablen. Braucht Code ohne Zugriff auf die Instanz (Renderer, Hooks) sie trotzdem, nutzen Sie `coreplugin.PerSite[T]`: `Set(host, v)` in `Setup`, `Get(ctx)` beim Aufruf. Gefunden wird die Instanz der App aus dem Kontext (`identity.Scope`); sie wird entfernt, wenn die App schließt. So stören sich zwei Apps derselben Site in einem Prozess nicht (Tests, eine Kommandozeile im Server-Prozess).
+
 ### Elementtypen
 
 ```go

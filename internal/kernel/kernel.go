@@ -38,20 +38,21 @@ func (k *Kernel) sorted() []coreplugin.Plugin {
 	return out
 }
 
-// New creates a kernel for all plugins registered via coreplugin.Register (site
-// "main": the registered instances).
+// New creates a kernel for all plugins registered via coreplugin.Register
+// (site "main").
 func New(cfg *config.Store, log *slog.Logger) *Kernel {
 	return NewSite(cfg, log, "main")
 }
 
-// NewSite creates the kernel of a site; further sites get fresh plugin
-// instances (coreplugin.NewInstance).
+// NewSite creates the kernel of a site with fresh plugin instances
+// (coreplugin.NewInstance): every app has its own, the registered ones are
+// only templates. So two apps never share a plugin instance – not two
+// sites, and not two apps of the same site in one process (tests, a
+// command line inside a server process).
 func NewSite(cfg *config.Store, log *slog.Logger, site string) *Kernel {
 	k := &Kernel{cfg: cfg, log: log, plugins: map[string]coreplugin.Plugin{}, site: site}
 	for _, p := range coreplugin.Registered() {
-		if site != "main" {
-			p = coreplugin.NewInstance(p)
-		}
+		p = coreplugin.NewInstance(p)
 		k.plugins[p.Manifest().ID] = p
 	}
 	k.recompute(cfg.Get())

@@ -475,7 +475,7 @@ func (Type) Render(ctx context.Context, rc content.RenderContext, raw json.RawMe
 // Setup registers the element type and the API.
 func (p *Plugin) Setup(hs *coreplugin.Host) error {
 	p.host = hs
-	plugins.Set(hs.Site, p)
+	plugins.Set(hs, p)
 	hs.RegisterElementType(Type{})
 
 	// GET /groups – groups to choose from (signed-in users; editors are not always admins)

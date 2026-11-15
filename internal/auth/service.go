@@ -77,10 +77,13 @@ type registered struct {
 
 // Service is the authentication service.
 type Service struct {
-	pool *pgxpool.Pool
-	cfg  *config.Store
-	bus  *events.Bus
-	log  *slog.Logger
+	// KeyRateMax returns the limits for API keys (expert settings of the
+	// app; see keyRateMax).
+	KeyRateMax func() (owner, admin int)
+	pool       *pgxpool.Pool
+	cfg        *config.Store
+	bus        *events.Bus
+	log        *slog.Logger
 	// background: mails of "Forgot your password?" still being sent
 	background sync.WaitGroup
 	mu         sync.RWMutex

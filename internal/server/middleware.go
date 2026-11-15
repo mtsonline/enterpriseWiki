@@ -207,7 +207,7 @@ func (s *Server) noteUntrustedForward(r *http.Request) {
 		return
 	}
 	s.log.Warn("forwarding header from an address that is not a trusted proxy: ignored (server.trusted_proxies)", "peer", peer, "header", name)
-	ctx := identity.WithSite(context.Background(), s.app.Site) // the system reports, not the visitor
+	ctx := identity.WithScope(identity.WithSite(context.Background(), s.app.Site), s.app.Scope) // the system reports, not the visitor
 	go func() {
 		if err := audit.Log(ctx, s.app.DB, "server.proxy_untrusted", "server", 0, nil, map[string]any{"peer": peer, "header": name}); err != nil {
 			s.log.Warn("audit: untrusted proxy", "err", err)
@@ -239,7 +239,7 @@ func (s *Server) wrap(next http.Handler) http.Handler {
 				s.log.Debug("request", "method", r.Method, "path", r.URL.Path, "status", sw.status, "dur", time.Since(start))
 			}
 		}()
-		r = r.WithContext(identity.WithSite(r.Context(), s.app.Site))
+		r = r.WithContext(identity.WithScope(identity.WithSite(r.Context(), s.app.Site), s.app.Scope))
 		cfg := s.app.Config.Get()
 		h := sw.Header()
 		h.Set("X-Content-Type-Options", "nosniff")

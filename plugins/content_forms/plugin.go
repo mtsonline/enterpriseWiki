@@ -20,7 +20,6 @@ import (
 	"html"
 	"io/fs"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/mtsonline/enterprisewiki/internal/acl"
@@ -74,21 +73,16 @@ func (p *Plugin) Migrations() fs.FS { s, _ := fs.Sub(migrations, "migrations"); 
 // Locales implements coreplugin.LocalesPlugin.
 func (p *Plugin) Locales() fs.FS { s, _ := fs.Sub(locales, "locales"); return s }
 
-// hosts of the sites (the element type is registered once per process)
-var hosts sync.Map
+// hosts of the apps (the element type is registered once per process)
+var hosts coreplugin.PerSite[*coreplugin.Host]
 
-func hostOf(ctx context.Context) *coreplugin.Host {
-	if h, ok := hosts.Load(coreplugin.SiteOf(ctx)); ok {
-		return h.(*coreplugin.Host)
-	}
-	return nil
-}
+func hostOf(ctx context.Context) *coreplugin.Host { return hosts.Get(ctx) }
 
 // Setup implements coreplugin.SetupPlugin.
 func (p *Plugin) Setup(host *coreplugin.Host) error {
 	p.host = host
 	p.limiter = newLimiter()
-	hosts.Store(host.Site, host)
+	hosts.Set(host, host)
 	host.RegisterElementType(Type{})
 	host.RegisterMacro(resultsMacro{p})
 	host.Files.AddReference("plugin_form_submissions", "files")

@@ -1106,10 +1106,16 @@ type NewAPIKey struct {
 	RatePerSecond *int `json:"rate_per_second"`
 }
 
-// KeyRateMax returns the highest limit of requests per second the owner
+// keyRateMax returns the highest limit of requests per second the owner
 // of a key may choose (that of accounts) and the highest an administrator
-// may grant; set by the application (expert settings).
-var KeyRateMax = func() (owner, admin int) { return 50, 10000 }
+// may grant (Service.KeyRateMax, set by the application from the expert
+// settings; 50 and 10000 without).
+func (s *Service) keyRateMax() (owner, admin int) {
+	if s.KeyRateMax != nil {
+		return s.KeyRateMax()
+	}
+	return 50, 10000
+}
 
 // CreateAPIKey creates a key for the caller. Keys can never exceed the
 // caller's own rights: permissions are intersected at request time.
@@ -1138,7 +1144,7 @@ func (s *Service) CreateAPIKey(ctx context.Context, in NewAPIKey) (*APIKey, erro
 	if in.AllowAdmin && !p.IsAdmin {
 		return nil, apperr.ErrForbidden
 	}
-	if own, _ := KeyRateMax(); in.RatePerSecond != nil && (*in.RatePerSecond < 1 || *in.RatePerSecond > own) {
+	if own, _ := s.keyRateMax(); in.RatePerSecond != nil && (*in.RatePerSecond < 1 || *in.RatePerSecond > own) {
 		return nil, apperr.BadRequest("rate_per_second must be between 1 and %d", own)
 	}
 	tok := NewToken("ewk_")
@@ -1203,7 +1209,7 @@ func (s *Service) SetAPIKeyRate(ctx context.Context, id int64, rate *int, asAdmi
 	if p.Via == "apikey" || (asAdmin && !p.Admin()) {
 		return apperr.ErrForbidden // a key never changes limits, not even its own
 	}
-	own, admin := KeyRateMax()
+	own, admin := s.keyRateMax()
 	max := own
 	if asAdmin {
 		max = admin

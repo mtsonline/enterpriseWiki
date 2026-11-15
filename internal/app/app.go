@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"github.com/jackc/pgx/v5"
 	"github.com/mtsonline/enterprisewiki/internal/audit"
-	"github.com/mtsonline/enterprisewiki/internal/collab"
 	"github.com/mtsonline/enterprisewiki/internal/feedfetch"
 	"github.com/mtsonline/enterprisewiki/internal/notify"
 	"log/slog"
@@ -15,6 +14,7 @@ import (
 	"path/filepath"
 	"slices"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -87,6 +87,20 @@ type App struct {
 	hostnames []string
 	// stop cancels the site's background work (set by the server)
 	stop func()
+	// Scope identifies this app in its process: contexts of its requests
+	// and jobs carry it, so process-wide registries find its instances.
+	Scope identity.Scope
+	// closers run when the app closes (registries forget this app)
+	closersMu sync.Mutex
+	closers   []func()
+}
+
+// OnClose registers fn to run when the app closes, before its database
+// connections are closed.
+func (a *App) OnClose(fn func()) {
+	a.closersMu.Lock()
+	a.closers = append(a.closers, fn)
+	a.closersMu.Unlock()
 }
 
 // SetStop registers the function that stops the site's background work
@@ -141,7 +155,7 @@ func newSite(ctx context.Context, in *Instance, site string, migrate bool) (*App
 	if err != nil {
 		return nil, err
 	}
-	a := &App{Config: cfg, DB: pool, Log: log, Mux: http.NewServeMux(), Root: in.Root, Site: site, Instance: in}
+	a := &App{Config: cfg, DB: pool, Log: log, Mux: http.NewServeMux(), Root: in.Root, Site: site, Instance: in, Scope: identity.NewScope()}
 	if site != "main" {
 		if err := in.Shared.QueryRow(ctx, `SELECT accounts = 'separate' FROM sites WHERE name=$1`, site).Scan(&a.SeparateAccounts); err != nil {
 			pool.Close()
@@ -161,24 +175,24 @@ func newSite(ctx context.Context, in *Instance, site string, migrate bool) (*App
 		pool.Close()
 		return nil, err
 	}
-	auth.KeyRateMax = func() (int, int) {
-		d, _ := limits.Get(limits.RateUser)
-		return int(limits.Value(in.Config.Get(), limits.RateUser)), int(d.Max)
-	}
-	audit.SnapshotSearchDays = func() int { return int(limits.Value(in.Config.Get(), limits.AuditSearchDays)) }
-	collab.Limits = func() (int, int) {
-		c := in.Config.Get()
-		return int(limits.Value(c, limits.LivePersons)), int(limits.Value(c, limits.LivePerPerson))
-	}
-	audit.ValueLimit = func(guest bool) int {
-		if guest {
-			return int(limits.Value(in.Config.Get(), limits.AuditValueGuest))
-		}
-		return int(limits.Value(in.Config.Get(), limits.AuditValue))
-	}
+	// limits of the audit log of this app (expert settings of the instance)
+	audit.SetAppLimits(a.Scope, site, audit.Limits{
+		Value: func(guest bool) int {
+			if guest {
+				return int(limits.Value(in.Config.Get(), limits.AuditValueGuest))
+			}
+			return int(limits.Value(in.Config.Get(), limits.AuditValue))
+		},
+		SearchDays: func() int { return int(limits.Value(in.Config.Get(), limits.AuditSearchDays)) },
+	})
+	a.OnClose(func() { audit.RemoveAppLimits(a.Scope) })
 	a.Bus = events.NewSite(pool, c.Mode == "cluster", log, site)
 	a.ACL = acl.New(pool, a.Bus, log)
 	a.Auth = auth.New(pool, cfg, a.Bus, log)
+	a.Auth.KeyRateMax = func() (int, int) {
+		d, _ := limits.Get(limits.RateUser)
+		return int(limits.Value(in.Config.Get(), limits.RateUser)), int(d.Max)
+	}
 	a.Auth.SeparateAccounts = a.SeparateAccounts
 	a.Content = content.New(pool, a.ACL, a.Bus, cfg, log)
 	a.I18n = i18n.New(pool, cfg, a.Bus)
@@ -188,6 +202,7 @@ func newSite(ctx context.Context, in *Instance, site string, migrate bool) (*App
 	a.Feeds = feedfetch.NewCache(pool, log, func() bool { return cfg.Get().Feeds.AllowPrivate })
 	a.Workers = worker.New(pool, log, func() bool { return cfg.Get().Mode == "cluster" })
 	a.Workers.Site = site
+	a.Workers.Scope = a.Scope
 	a.Workers.Register(worker.Job{Name: "mail", Interval: 10 * time.Second, Run: func(ctx context.Context) error {
 		n, err := a.Mail.Process(ctx)
 		if n > 0 {
@@ -336,7 +351,8 @@ func newSite(ctx context.Context, in *Instance, site string, migrate bool) (*App
 		return secrets.Cleanup(ctx, a.DB)
 	}})
 	// audit log: areas switched off in the settings, forwarding to other systems
-	audit.SetSiteFilter(site, func(action string) bool {
+	a.OnClose(func() { audit.RemoveAppFilter(a.Scope) })
+	audit.SetAppFilter(a.Scope, site, func(action string) bool {
 		c := cfg.Get().Audit
 		switch {
 		case strings.HasPrefix(action, "auth.login") || action == "auth.logout":
@@ -369,7 +385,7 @@ func newSite(ctx context.Context, in *Instance, site string, migrate bool) (*App
 	}
 	a.Signatures.Enabled = a.Kernel.Enabled
 	base := coreplugin.Host{Notify: a.Notify, Signatures: a.Signatures, Webhooks: a.Webhooks, Secrets: in.Secrets, Config: cfg, DB: pool, ACL: a.ACL, Content: a.Content, Auth: a.Auth, I18n: a.I18n, Files: a.Files, Media: a.Media, Mail: a.Mail, Feeds: a.Feeds, Workers: a.Workers,
-		Log: log, Mux: a.Mux, IsEnabled: a.Kernel.Enabled}
+		Log: log, Mux: a.Mux, IsEnabled: a.Kernel.Enabled, Scope: a.Scope, OnClose: a.OnClose}
 	if err := a.Kernel.Setup(base, a.I18n); err != nil {
 		a.close()
 		return nil, err
@@ -417,6 +433,15 @@ func (a *App) Close() {
 }
 
 func (a *App) close() {
+	// registries forget this app first: nothing may reach it once its
+	// connections are closed
+	a.closersMu.Lock()
+	cl := a.closers
+	a.closers = nil
+	a.closersMu.Unlock()
+	for i := len(cl) - 1; i >= 0; i-- {
+		cl[i]()
+	}
 	// mails still on their way ("Forgot your password?"), at most a minute
 	if a.Auth != nil {
 		a.Auth.WaitBackground()
