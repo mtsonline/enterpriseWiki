@@ -267,3 +267,27 @@ func registerHelp() string {
 	}
 	return b.String()
 }
+
+// RunAction runs the register action id with command-line arguments
+// ([--PARAM VALUE]... [--json BODY] [--as USER]) the way generated
+// commands do, also for actions with a hand-written command. It returns
+// the exit code like Main. Used by the example runner of the parity check
+// (phase 4), which runs every example on the API and on the command line.
+func RunAction(id string, args []string, stdin io.Reader, stdout, stderr io.Writer) int {
+	e := &env{stdout: stdout, stderr: stderr, stdin: stdin, configPath: os.Getenv("EWIKI_CONFIG"), log: newLogger()}
+	all, err := actions.All()
+	if err != nil {
+		e.eprintln("error:", err)
+		return 1
+	}
+	i := slices.IndexFunc(all, func(a actions.Action) bool { return a.ID == id })
+	if i < 0 {
+		e.eprintln("error: unknown action", id)
+		return 2
+	}
+	if err := e.runAction(all[i], args); err != nil {
+		e.eprintln("error:", err)
+		return 1
+	}
+	return 0
+}
