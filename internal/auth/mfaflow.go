@@ -15,6 +15,7 @@ import (
 	"github.com/mtsonline/enterprisewiki/internal/audit"
 	"github.com/mtsonline/enterprisewiki/internal/config"
 	"github.com/mtsonline/enterprisewiki/internal/identity"
+	"github.com/mtsonline/enterprisewiki/internal/limits"
 )
 
 // Multi-factor sign-in as a chain of factors. Every factor is an MFA
@@ -802,12 +803,21 @@ func (s *Service) passwordless(id string) PasswordlessMethod {
 
 // PasswordlessBegin starts a password-less sign-in; the token identifies
 // it at PasswordlessFinish (5 minutes, once).
-func (s *Service) PasswordlessBegin(ctx context.Context, method, ip string) (string, any, error) {
+//
+// autofill marks the request the sign-in page starts for the suggestions of
+// the user name field on every view: it has its own, higher limit, so many
+// people behind one address do not use up the requests of the passkey
+// button (a request alone signs nobody in).
+func (s *Service) PasswordlessBegin(ctx context.Context, method, ip string, autofill bool) (string, any, error) {
 	m := s.passwordless(method)
 	if m == nil {
 		return "", nil, apperr.NotFound("sign-in method " + method)
 	}
-	if !s.limiter.allow("pwless:"+ip, 60, 5*time.Minute) {
+	key, max := "pwless:"+ip, 60
+	if autofill {
+		key, max = "pwless-autofill:"+ip, int(limits.Value(s.cfg.Get(), limits.PasskeyAutofill))
+	}
+	if !s.limiter.allow(key, max, 5*time.Minute) {
 		return "", nil, apperr.TooMany("too many login attempts, try again later")
 	}
 	pub, state, err := m.Begin(ctx)

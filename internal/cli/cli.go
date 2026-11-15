@@ -65,6 +65,9 @@ Users
   directory sync PROVIDER [--dry-run] [--force]   users and groups from LDAP/AD without a sign-in
   directory runs PROVIDER       newest runs of the directory sync
   directory adopt PROVIDER USER same person with a new directory id: keep the account
+  login-page show               settings of the sign-in page
+  login-page set [--passkey-autofill on|off] [--auto-redirect PROVIDER|none]
+  login-page button PROVIDER [--order N] [--label TEXT] [--hidden|--visible] [--reset]
   user sessions NAME | user logout NAME [SESSION-ID]   sessions; sign out one or all
   scim list | scim create NAME --provider P [--subject-from userName|externalId] [--on-delete disable|delete]
   scim token ID | scim delete ID   SCIM 2.0 provisioning clients (Entra ID, Okta, ...)
@@ -271,6 +274,8 @@ func Main(args []string) int {
 		err = e.smimeCmd(args[1:])
 	case "directory":
 		err = e.directoryCmd(args[1:])
+	case "login-page":
+		err = e.loginPage(args[1:])
 	case "retention":
 		err = e.withApp(false, func(ctx context.Context, a *app.App) error {
 			res, err := a.Content.RunRetention(ctx)

@@ -4,7 +4,7 @@ import { assignedWatchesSection } from './adminWatches';
 import { api, ApiError, qs } from '../core/api';
 import { fmtDate, h, mount } from '../core/dom';
 import { loadMessages, pick, t } from '../core/i18n';
-import { navigate, type RouteCtx } from '../core/router';
+import { navigate, onLeave, type RouteCtx } from '../core/router';
 import { changed, isAdmin, hasPerm, state } from '../core/state';
 import { PERMS, type Principal } from '../core/types';
 import { announce, toast } from '../core/announce';
@@ -17,7 +17,7 @@ import { feedTokenSection } from '../components/feeds';
 import { profileCardForm } from '../components/profilecard';
 import { goLink, linkNotice, profileIdentitySections } from './identity';
 import { mfaApi, mfaMethodUI, type MFAAnswer, type MFAStep } from '../core/mfa';
-import { webauthnCancelled, webauthnGet, webauthnSupported } from '../core/webauthn';
+import { passkeyAutofillAvailable, webauthnCancelled, webauthnGet, webauthnSupported } from '../core/webauthn';
 
 // ---------------------------------------------------------------- search
 
@@ -101,6 +101,20 @@ export async function loginView({ query, main }: RouteCtx): Promise<void> {
     navigate(safeNext, { replace: true });
     return;
   }
+  // direct link to one provider (/login?via=oidc-entra), and the automatic
+  // redirect the administrators chose. The page itself stays reachable
+  // (?local=1, after signing out, after errors), so nobody is locked out.
+  const startOf = (id: string) => `/api/v1/auth/sso/${encodeURIComponent(id)}/start?next=${encodeURIComponent(safeNext)}`;
+  const via = query.get('via') ?? '';
+  const auto = state.site.login?.auto_redirect ?? '';
+  const stay = ['local', 'error', 'logged_out', 'mfa', 'link'].some((k) => query.has(k));
+  const go = /^[a-z0-9][a-z0-9-]{0,63}$/.test(via) ? via : !stay && auto ? auto : '';
+  if (go) {
+    mount(main, h('div', { class: 'ew-narrow' }, h('p', { role: 'status' }, t('auth.redirecting')),
+      h('p', null, h('a', { href: '/login?local=1' }, t('auth.other_ways')))));
+    location.assign(startOf(go));
+    return;
+  }
   let providers = state.site.auth_providers;
   try { providers = await api.get<{ id: string; name: string; kind: string }[]>('auth/providers'); } catch { /* use site info */ }
   const kind = (p: { id: string }) => (p as { kind?: string }).kind ?? 'password';
@@ -108,6 +122,12 @@ export async function loginView({ query, main }: RouteCtx): Promise<void> {
   const sso = providers.filter((p) => kind(p) === 'redirect');
   const passkey = providers.some((p) => kind(p) === 'passwordless' && p.id === 'webauthn') && webauthnSupported();
   const user = textInput({ name: 'username', autocomplete: 'username', required: true });
+  // passkeys among the suggestions of the user name field (the browser asks
+  // only when the person picks one); an option of the administrators
+  const autofill = passkey && state.site.login?.passkey_autofill !== false && await passkeyAutofillAvailable();
+  let pending: AbortController | null = null;
+  const stopAutofill = () => { pending?.abort(); pending = null; };
+  onLeave(stopAutofill);
   const pw = textInput({ name: 'password', type: 'password', autocomplete: 'current-password', required: true });
   const alert = h('div', { class: 'ew-form-alert', role: 'alert' }, query.get('error') ?? '');
   // a sign-in waits to be linked to the account the person signs in with now
@@ -120,6 +140,7 @@ export async function loginView({ query, main }: RouteCtx): Promise<void> {
     h('div', { class: 'ew-form-actions' }, button(t('auth.login'), () => undefined, { type: 'submit', variant: 'primary' })));
   form.addEventListener('submit', async (ev) => {
     ev.preventDefault();
+    stopAutofill();
     alert.textContent = '';
     if (!user.value.trim() || !pw.value) {
       alert.textContent = t('auth.missing');
@@ -147,9 +168,10 @@ export async function loginView({ query, main }: RouteCtx): Promise<void> {
   });
   const ssoBox = sso.length ? h('section', { class: 'ew-sso', 'aria-labelledby': 'sso-h' }, h('h2', { id: 'sso-h' }, t('auth.sso_title')),
     h('ul', { class: 'ew-sso-list' }, ...sso.map((p) => h('li', null,
-      h('a', { class: 'ew-btn ew-btn--secondary ew-sso-btn', href: `/api/v1/auth/sso/${encodeURIComponent(p.id)}/start?next=${encodeURIComponent(safeNext)}` }, t('auth.sso_with', { name: p.name })))))) : null;
+      h('a', { class: 'ew-btn ew-btn--secondary ew-sso-btn', href: startOf(p.id) }, t('auth.sso_with', { name: p.name })))))) : null;
   const passkeyBox = passkey ? h('section', { class: 'ew-sso', 'aria-labelledby': 'pk-h' }, h('h2', { id: 'pk-h', class: 'sr-only' }, t('auth.passkey_title')),
     button(t('auth.passkey_login'), async () => {
+      stopAutofill(); // only one passkey request at a time
       alert.textContent = '';
       try {
         const b = await api.post<{ token: string; options: Record<string, unknown> }>('auth/passwordless/webauthn/begin');
@@ -167,6 +189,25 @@ export async function loginView({ query, main }: RouteCtx): Promise<void> {
     link?.el ?? null, ssoBox, passkeyBox, sso.length || passkeyBox ? h('h2', { class: 'ew-login-local' }, t('auth.local_title')) : null, form,
     h('p', { class: 'ew-help' }, t('auth.ssh_hint'))));
   if (query.get('error')) alert.focus?.();
+  if (autofill) {
+    user.setAttribute('autocomplete', 'username webauthn');
+    const ac = new AbortController();
+    pending = ac;
+    void (async () => {
+      try {
+        const b = await api.post<{ token: string; options: Record<string, unknown> }>('auth/passwordless/webauthn/begin', { autofill: true });
+        if (ac.signal.aborted) return;
+        const credential = await webauthnGet(b.options, { mediation: 'conditional', signal: ac.signal });
+        pending = null;
+        const res = await api.post<{ user: Principal }>('auth/passwordless/webauthn/finish', { token: b.token, credential });
+        await signedIn(res.user, safeNext, link);
+      } catch (e) {
+        if (ac.signal.aborted || webauthnCancelled(e)) return;
+        if (e instanceof ApiError && e.code === 'mfa_required' && e.detail) { await mfaStep(main, e.detail, safeNext, link); return; }
+        alert.textContent = errorText(e);
+      }
+    })();
+  }
   // single sign-on that waits for the second factor (token in a cookie)
   if (query.get('mfa')) await mfaStep(main, '', safeNext, link);
 }

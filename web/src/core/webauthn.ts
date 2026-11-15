@@ -51,11 +51,29 @@ export async function webauthnCreate(options: Json): Promise<Json> {
   };
 }
 
-/** Signs a challenge with the options of the server ({publicKey}). */
-export async function webauthnGet(options: Json): Promise<Json> {
+/** True if the browser can offer passkeys in the suggestions of a user name field (conditional mediation). */
+export async function passkeyAutofillAvailable(): Promise<boolean> {
+  if (!webauthnSupported()) return false;
+  const pkc = window.PublicKeyCredential as unknown as { isConditionalMediationAvailable?: () => Promise<boolean> };
+  try {
+    return typeof pkc.isConditionalMediationAvailable === 'function' && await pkc.isConditionalMediationAvailable();
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Signs a challenge with the options of the server ({publicKey}). With
+ * mediation "conditional" the browser waits until the person picks a passkey
+ * from the suggestions of a field marked autocomplete="username webauthn";
+ * abort it with signal before starting another ceremony.
+ */
+export async function webauthnGet(options: Json, opts: { mediation?: CredentialMediationRequirement; signal?: AbortSignal } = {}): Promise<Json> {
   const pk = (options.publicKey ?? options) as Json;
   const cred = await navigator.credentials.get({
     publicKey: { ...(pk as object), challenge: b64urlToBuf(String(pk.challenge)), allowCredentials: descriptors(pk.allowCredentials) } as PublicKeyCredentialRequestOptions,
+    ...(opts.mediation ? { mediation: opts.mediation } : {}),
+    ...(opts.signal ? { signal: opts.signal } : {}),
   }) as PublicKeyCredential | null;
   if (!cred) throw new DOMException('no credential', 'NotAllowedError');
   const r = cred.response as AuthenticatorAssertionResponse;

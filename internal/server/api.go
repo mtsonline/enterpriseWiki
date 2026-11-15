@@ -48,6 +48,7 @@ var adminPerms = []struct{ prefix, perm string }{
 	{"/api/v1/admin/roles", "core.roles.manage"},
 	{"/api/v1/admin/permissions", "core.roles.manage"},
 	{"/api/v1/admin/settings", "core.settings.manage"},
+	{"/api/v1/admin/auth/login", "core.settings.manage"},
 	{"/api/v1/admin/limits", "core.settings.manage"},
 	{"/api/v1/admin/languages", "core.i18n.manage"},
 	{"/api/v1/admin/retention", "core.settings.manage"},
@@ -107,6 +108,7 @@ func requireUser(r *http.Request) (*identity.Principal, error) {
 
 func (s *Server) routes() {
 	s.routesM2()
+	s.routesLogin()
 	s.routesMedia()
 	s.routesOffice()
 	s.routesDemo()
@@ -1303,6 +1305,7 @@ func (s *Server) site(w http.ResponseWriter, r *http.Request) (any, error) {
 		// instance administrators change (in config.yaml of the instance)
 		"site": s.app.Site, "instance_only": config.InstanceOnly, "sites_accounts": s.app.Config.Get().Sites.Accounts,
 		"separate_accounts": s.app.SeparateAccounts,
+		"login":             s.loginPage(),
 	}, nil
 }
 

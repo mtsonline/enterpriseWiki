@@ -173,7 +173,16 @@ func (s *Server) routesMFA() {
 // routesPasswordless: sign-in without password (passkeys as factor 1).
 func (s *Server) routesPasswordless() {
 	s.handle("POST /api/v1/auth/passwordless/{method}/begin", func(w http.ResponseWriter, r *http.Request) (any, error) {
-		tok, pub, err := s.app.Auth.PasswordlessBegin(r.Context(), r.PathValue("method"), s.clientIP(r))
+		// {"autofill": true}: the request of the user name field (own limit)
+		var in struct {
+			Autofill bool `json:"autofill"`
+		}
+		if r.ContentLength != 0 {
+			if err := h.Decode(r, &in); err != nil {
+				return nil, err
+			}
+		}
+		tok, pub, err := s.app.Auth.PasswordlessBegin(r.Context(), r.PathValue("method"), s.clientIP(r), in.Autofill)
 		if err != nil {
 			return nil, err
 		}
