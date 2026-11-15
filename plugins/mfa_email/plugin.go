@@ -62,6 +62,7 @@ const (
 func (p *Plugin) Setup(host *coreplugin.Host) error {
 	m := &Method{host: host, sent: map[int64][]time.Time{}}
 	host.RegisterMFAMethod(m)
+	// action: mfa.email.me
 	host.Handle("GET", "/me", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		pr := identity.From(r.Context())
 		if pr == nil || pr.UserID == 0 {
@@ -69,6 +70,7 @@ func (p *Plugin) Setup(host *coreplugin.Host) error {
 		}
 		return map[string]any{"enabled": m.Enrolled(r.Context(), pr.UserID), "address": pr.Email, "mail": host.Mail.Enabled()}, nil
 	})
+	// action: mfa.email.remove
 	host.Handle("DELETE", "/me", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		uid, err := auth.RequireRecentSignIn(r.Context())
 		if err != nil {

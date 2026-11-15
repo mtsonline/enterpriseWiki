@@ -1,0 +1,28 @@
+# Action register (ewiki.plugin.v1.Action, see sdk/proto/ewiki/plugin/v1/action.proto).
+actions:
+  - id: mfa.email.me
+    category: CATEGORY_ACTION
+    method: GET
+    path: me
+    summary:
+      text:
+        en: Show whether codes by e-mail are set up
+        de: "Anzeigen, ob Codes per E-Mail eingerichtet sind"
+    signed_in: true
+    cli: {command: [me, email-code]}
+    ui: {entry: /profile}
+  - id: mfa.email.remove
+    category: CATEGORY_ACTION
+    method: DELETE
+    path: me
+    summary:
+      text:
+        en: Remove codes by e-mail as a factor
+        de: Codes per E-Mail als Faktor entfernen
+    signed_in: true
+    safety: {changes: true}
+    ui: {entry: /profile}
+    exceptions:
+      - way: WAY_CLI
+        reason: "Second factors are set up and removed only in the browser, within 15 minutes after signing in (passkeys need the browser anyway)."
+        approved_by: "project owner, decision of 2026-11-11 (second factors are only changed in the browser)"

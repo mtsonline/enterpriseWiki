@@ -135,7 +135,9 @@ func (s *Server) routesKeyLimits() {
 			return h.NoContent{}, s.app.Auth.SetAPIKeyRate(r.Context(), id, body.RatePerSecond, admin)
 		}
 	}
+	// action: core.me.api_keys.rate
 	s.handle("PUT /api/v1/me/api-keys/{id}/rate", set(false))
+	// action: core.api_keys.list
 	s.handle("GET /api/v1/admin/api-keys", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		keys, err := s.app.Auth.AllAPIKeys(r.Context())
 		if keys == nil {
@@ -143,5 +145,6 @@ func (s *Server) routesKeyLimits() {
 		}
 		return keys, err
 	})
+	// action: core.api_keys.rate
 	s.handle("PUT /api/v1/admin/api-keys/{id}/rate", set(true))
 }

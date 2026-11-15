@@ -64,6 +64,7 @@ func (p *Plugin) Setup(host *coreplugin.Host) error {
 		return &Provider{id: id, settings: s, replay: replay}
 	})
 	coreplugin.RegisterRedirectInstances(host, set)
+	// action: auth.oidc.check
 	host.Handle("GET", "/check", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		if err := perm.Require(r.Context(), "core.settings.manage"); err != nil {
 			return nil, err

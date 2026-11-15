@@ -21,13 +21,16 @@ func (s *Server) sessionToken(r *http.Request) string {
 // routesSessions: own sessions, sessions of a user (administrators) and
 // logout messages of single sign-on providers (M15b).
 func (s *Server) routesSessions() {
+	// action: core.me.sessions.list
 	s.handle("GET /api/v1/me/sessions", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		return s.app.Auth.MySessions(r.Context(), s.sessionToken(r))
 	})
 	// sign out everywhere else (the current session stays)
+	// action: core.me.sessions.end_others
 	s.handle("DELETE /api/v1/me/sessions", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		return h.NoContent{}, s.app.Auth.EndMyOtherSessions(r.Context(), s.sessionToken(r))
 	})
+	// action: core.me.sessions.end
 	s.handle("DELETE /api/v1/me/sessions/{id}", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		id, err := h.PathID(r, "id")
 		if err != nil {
@@ -35,6 +38,7 @@ func (s *Server) routesSessions() {
 		}
 		return h.NoContent{}, s.app.Auth.EndMySession(r.Context(), id)
 	})
+	// action: core.users.sessions.list
 	s.handle("GET /api/v1/admin/users/{id}/sessions", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		id, err := h.PathID(r, "id")
 		if err != nil {
@@ -42,6 +46,7 @@ func (s *Server) routesSessions() {
 		}
 		return s.app.Auth.UserSessions(r.Context(), id)
 	})
+	// action: core.users.sessions.end_all
 	s.handle("DELETE /api/v1/admin/users/{id}/sessions", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		id, err := h.PathID(r, "id")
 		if err != nil {
@@ -49,6 +54,7 @@ func (s *Server) routesSessions() {
 		}
 		return h.NoContent{}, s.app.Auth.EndUserSession(r.Context(), id, 0)
 	})
+	// action: core.users.sessions.end
 	s.handle("DELETE /api/v1/admin/users/{id}/sessions/{sid}", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		id, err := h.PathID(r, "id")
 		if err != nil {
@@ -84,7 +90,9 @@ func (s *Server) routesSessions() {
 		}
 		w.WriteHeader(http.StatusOK)
 	}
+	// action: core.auth.sso.logout
 	h.RecordRoute("GET /api/v1/auth/sso/{provider}/logout")
+	// action: core.auth.sso.logout.post
 	h.RecordRoute("POST /api/v1/auth/sso/{provider}/logout")
 	s.app.Mux.HandleFunc("GET /api/v1/auth/sso/{provider}/logout", logout)
 	s.app.Mux.HandleFunc("POST /api/v1/auth/sso/{provider}/logout", logout)
@@ -103,9 +111,11 @@ func (s *Server) routesProviderAdmin() {
 
 // routesScimAdmin: SCIM clients (administrators).
 func (s *Server) routesScimAdmin() {
+	// action: core.scim.clients.list
 	s.handle("GET /api/v1/admin/scim/clients", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		return s.app.Auth.ScimClients(r.Context())
 	})
+	// action: core.scim.clients.create
 	s.handle("POST /api/v1/admin/scim/clients", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		var in auth.ScimClient
 		if err := h.Decode(r, &in); err != nil {
@@ -117,6 +127,7 @@ func (s *Server) routesScimAdmin() {
 		}
 		return h.Created{V: map[string]any{"client": c, "token": tok, "url": s.scimBase()}}, nil
 	})
+	// action: core.scim.clients.token
 	s.handle("POST /api/v1/admin/scim/clients/{id}/token", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		id, err := h.PathID(r, "id")
 		if err != nil {
@@ -128,6 +139,7 @@ func (s *Server) routesScimAdmin() {
 		}
 		return map[string]any{"token": tok, "url": s.scimBase()}, nil
 	})
+	// action: core.scim.clients.delete
 	s.handle("DELETE /api/v1/admin/scim/clients/{id}", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		id, err := h.PathID(r, "id")
 		if err != nil {

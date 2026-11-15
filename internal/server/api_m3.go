@@ -165,6 +165,7 @@ func (s *Server) routesM4() {
 	})
 
 	// ---------------------------------------------------------------- notification preferences
+	// action: core.me.notifications.show
 	s.handle("GET /api/v1/me/notifications", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		p, err := requireUser(r)
 		if err != nil {
@@ -184,6 +185,7 @@ func (s *Server) routesM4() {
 		}
 		return map[string]any{"email": us[0].Email, "prefs": prefs, "kinds": mail.NotificationKinds, "labels": mail.KindLabels, "enabled": s.app.Mail.Enabled()}, nil
 	})
+	// action: core.me.notifications.set
 	s.handle("PUT /api/v1/me/notifications", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		p, err := requireUser(r)
 		if err != nil {

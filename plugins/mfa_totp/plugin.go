@@ -60,6 +60,7 @@ func (p *Plugin) Locales() fs.FS { s, _ := fs.Sub(locales, "locales"); return s 
 func (p *Plugin) Setup(host *coreplugin.Host) error {
 	m := &Method{pool: host.DB, cfg: host.Config, box: host.Secrets}
 	host.RegisterMFAMethod(m)
+	// action: mfa.totp.me
 	host.Handle("GET", "/me", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		pr := identity.From(r.Context())
 		if pr == nil || pr.UserID == 0 {
@@ -68,6 +69,7 @@ func (p *Plugin) Setup(host *coreplugin.Host) error {
 		return map[string]bool{"enabled": m.Enrolled(r.Context(), pr.UserID)}, nil
 	})
 	// switching it off needs a recent sign-in (like setting it up)
+	// action: mfa.totp.remove
 	host.Handle("DELETE", "/me", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		uid, err := auth.RequireRecentSignIn(r.Context())
 		if err != nil {

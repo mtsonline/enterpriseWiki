@@ -70,6 +70,7 @@ func (p *Plugin) Setup(host *coreplugin.Host) error {
 	wa := &WebAuthn{pool: host.DB, cfg: host.Config, settings: host.Settings, site: host.Site}
 	host.RegisterMFAMethod(wa)
 
+	// action: mfa.webauthn.list
 	host.Handle("GET", "/credentials", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		pr := identity.From(r.Context())
 		if pr == nil || pr.UserID == 0 {
@@ -80,6 +81,7 @@ func (p *Plugin) Setup(host *coreplugin.Host) error {
 		}
 		return wa.list(r.Context(), pr.UserID)
 	})
+	// action: mfa.webauthn.remove
 	host.Handle("DELETE", "/credentials/{id}", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		uid, err := auth.RequireRecentSignIn(r.Context())
 		if err != nil {

@@ -2,9 +2,11 @@ package server_test
 
 import (
 	"bytes"
+	"slices"
 	"strings"
 	"testing"
 
+	"github.com/mtsonline/enterprisewiki/internal/actions"
 	"github.com/mtsonline/enterprisewiki/internal/cli"
 )
 
@@ -62,5 +64,38 @@ func TestCLIFromRegister(t *testing.T) {
 	// unknown words are still unknown
 	if code, _ = runCLIAll(t, e.cfg, "no-such-command"); code != 2 {
 		t.Fatalf("unknown command: %d", code)
+	}
+}
+
+// TestCLIRegisterDoesNotHide: a command generated from the action register
+// never starts with a hand-written command (it would hide it), and an entry
+// that claims a hand-written command names one that exists.
+func TestCLIRegisterDoesNotHide(t *testing.T) {
+	_ = setup(t)
+	all, err := actions.All()
+	if err != nil {
+		t.Fatal(err)
+	}
+	builtin := cli.BuiltinCommands()
+	if len(builtin) < 50 {
+		t.Fatalf("only %d hand-written commands read from the usage text", len(builtin))
+	}
+	prefix := func(p, w []string) bool { return len(p) <= len(w) && slices.Equal(p, w[:len(p)]) }
+	for _, a := range all {
+		if a.CLI == nil || len(a.CLI.Command) == 0 {
+			continue
+		}
+		w := a.CLI.Command
+		if a.CLI.Builtin {
+			if !slices.ContainsFunc(builtin, func(p []string) bool { return prefix(p, w) || prefix(w, p) }) {
+				t.Errorf("%s: no hand-written command %q", a.ID, strings.Join(w, " "))
+			}
+			continue
+		}
+		for _, p := range builtin {
+			if prefix(p, w) {
+				t.Errorf("%s: generated command %q would hide the hand-written %q", a.ID, strings.Join(w, " "), strings.Join(p, " "))
+			}
+		}
 	}
 }

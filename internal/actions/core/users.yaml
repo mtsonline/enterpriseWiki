@@ -1,0 +1,563 @@
+# Action register (ewiki.plugin.v1.Action, see sdk/proto/ewiki/plugin/v1/action.proto).
+actions:
+  - id: core.users.list
+    category: CATEGORY_ACTION
+    method: GET
+    path: /api/v1/admin/users
+    summary:
+      text:
+        en: List and search accounts
+        de: Konten auflisten und suchen
+    permission: {key: core.users.manage, scope: SCOPE_GLOBAL}
+    cli: {command: [user, list], builtin: true}
+    ui: {entry: /admin/users}
+  - id: core.users.create
+    category: CATEGORY_ACTION
+    method: POST
+    path: /api/v1/admin/users
+    summary:
+      text:
+        en: Create a local account
+        de: Lokales Konto anlegen
+    permission: {key: core.users.manage, scope: SCOPE_GLOBAL}
+    safety: {changes: true}
+    cli: {command: [user, create], builtin: true}
+    ui: {entry: /admin/users}
+  - id: core.users.get
+    category: CATEGORY_ACTION
+    method: GET
+    path: /api/v1/admin/users/{id}
+    summary:
+      text:
+        en: Show an account
+        de: Konto anzeigen
+    permission: {key: core.users.manage, scope: SCOPE_GLOBAL}
+    cli: {command: [user, show], args: [id]}
+    ui: {entry: /admin/users}
+  - id: core.users.update
+    category: CATEGORY_ACTION
+    method: PUT
+    path: /api/v1/admin/users/{id}
+    summary:
+      text:
+        en: "Change an account (name, groups, roles, disabled, password)"
+        de: "Konto ändern (Name, Gruppen, Rollen, gesperrt, Passwort)"
+    permission: {key: core.users.manage, scope: SCOPE_GLOBAL}
+    safety: {changes: true}
+    cli: {command: [user, update], args: [id]}
+    ui: {entry: /admin/users}
+  - id: core.users.delete
+    category: CATEGORY_ACTION
+    method: DELETE
+    path: /api/v1/admin/users/{id}
+    summary:
+      text:
+        en: Delete an account
+        de: Konto löschen
+    permission: {key: core.users.manage, scope: SCOPE_GLOBAL}
+    safety: {changes: true}
+    cli: {command: [user, delete], args: [id]}
+    ui: {entry: /admin/users}
+  - id: core.users.invite
+    category: CATEGORY_ACTION
+    method: POST
+    path: /api/v1/admin/users/invite
+    summary:
+      text:
+        en: Invite a person (account before the first sign-in)
+        de: Person einladen (Konto vor der ersten Anmeldung)
+    permission: {key: core.users.manage, scope: SCOPE_GLOBAL}
+    safety: {changes: true}
+    cli: {command: [user, invite], builtin: true}
+    ui: {entry: /admin/users}
+  - id: core.users.alias
+    category: CATEGORY_ACTION
+    method: PUT
+    path: /api/v1/admin/users/{id}/alias
+    summary:
+      text:
+        en: Set the user name (alias) of an account
+        de: Benutzernamen (Alias) eines Kontos festlegen
+    permission: {key: core.users.manage, scope: SCOPE_GLOBAL}
+    safety: {changes: true}
+    cli: {command: [user, alias], builtin: true}
+    ui: {entry: /admin/users}
+  - id: core.users.emails.list
+    category: CATEGORY_ACTION
+    method: GET
+    path: /api/v1/admin/users/{id}/emails
+    summary:
+      text:
+        en: List the e-mail addresses of an account
+        de: E-Mail-Adressen eines Kontos auflisten
+    permission: {key: core.users.manage, scope: SCOPE_GLOBAL}
+    cli: {command: [user, emails], builtin: true}
+    ui: {entry: /admin/users}
+  - id: core.users.emails.add
+    category: CATEGORY_ACTION
+    method: POST
+    path: /api/v1/admin/users/{id}/emails
+    summary:
+      text:
+        en: Add an e-mail address to an account
+        de: E-Mail-Adresse zu einem Konto hinzufügen
+    permission: {key: core.users.manage, scope: SCOPE_GLOBAL}
+    safety: {changes: true}
+    cli: {command: [user, email-add], builtin: true}
+    ui: {entry: /admin/users}
+  - id: core.users.emails.primary
+    category: CATEGORY_ACTION
+    method: POST
+    path: /api/v1/admin/users/{id}/emails/{eid}/primary
+    summary:
+      text:
+        en: Make an address the main address of an account
+        de: Adresse zur Hauptadresse eines Kontos machen
+    permission: {key: core.users.manage, scope: SCOPE_GLOBAL}
+    safety: {changes: true}
+    cli: {command: [user, email-primary], builtin: true}
+    ui: {entry: /admin/users}
+  - id: core.users.emails.remove
+    category: CATEGORY_ACTION
+    method: DELETE
+    path: /api/v1/admin/users/{id}/emails/{eid}
+    summary:
+      text:
+        en: Remove an e-mail address from an account
+        de: E-Mail-Adresse von einem Konto entfernen
+    permission: {key: core.users.manage, scope: SCOPE_GLOBAL}
+    safety: {changes: true}
+    cli: {command: [user, email-remove], builtin: true}
+    ui: {entry: /admin/users}
+  - id: core.users.identities.list
+    category: CATEGORY_ACTION
+    method: GET
+    path: /api/v1/admin/users/{id}/identities
+    summary:
+      text:
+        en: List the sign-ins linked to an account
+        de: Mit einem Konto verknüpfte Anmeldungen auflisten
+    permission: {key: core.users.manage, scope: SCOPE_GLOBAL}
+    cli: {command: [user, identities], builtin: true}
+    ui: {entry: /admin/users}
+  - id: core.users.identities.unlink
+    category: CATEGORY_ACTION
+    method: DELETE
+    path: /api/v1/admin/users/{id}/identities
+    summary:
+      text:
+        en: Unlink a sign-in from an account
+        de: Anmeldung von einem Konto lösen
+    permission: {key: core.users.manage, scope: SCOPE_GLOBAL}
+    safety: {changes: true}
+    cli: {command: [user, unlink], builtin: true}
+    ui: {entry: /admin/users}
+  - id: core.users.profile.show
+    category: CATEGORY_ACTION
+    method: GET
+    path: /api/v1/admin/users/{id}/profile
+    summary:
+      text:
+        en: Show the profile of an account
+        de: Profil eines Kontos anzeigen
+    permission: {key: core.users.manage, scope: SCOPE_GLOBAL}
+    cli: {command: [user, profile, show], args: [id]}
+    ui: {entry: /admin/users}
+  - id: core.users.profile.set
+    category: CATEGORY_ACTION
+    method: PUT
+    path: /api/v1/admin/users/{id}/profile
+    summary:
+      text:
+        en: Change the profile of an account
+        de: Profil eines Kontos ändern
+    permission: {key: core.users.manage, scope: SCOPE_GLOBAL}
+    safety: {changes: true}
+    cli: {command: [user, profile, set], args: [id]}
+    ui: {entry: /admin/users}
+  - id: core.users.sessions.list
+    category: CATEGORY_ACTION
+    method: GET
+    path: /api/v1/admin/users/{id}/sessions
+    summary:
+      text:
+        en: List the sessions of an account
+        de: Sitzungen eines Kontos auflisten
+    permission: {key: core.users.manage, scope: SCOPE_GLOBAL}
+    cli: {command: [user, sessions], builtin: true}
+    ui: {entry: /admin/users}
+  - id: core.users.sessions.end_all
+    category: CATEGORY_ACTION
+    method: DELETE
+    path: /api/v1/admin/users/{id}/sessions
+    summary:
+      text:
+        en: Sign an account out everywhere
+        de: Ein Konto überall abmelden
+    permission: {key: core.users.manage, scope: SCOPE_GLOBAL}
+    safety: {changes: true}
+    cli: {command: [user, logout], builtin: true}
+    ui: {entry: /admin/users}
+  - id: core.users.sessions.end
+    category: CATEGORY_ACTION
+    method: DELETE
+    path: /api/v1/admin/users/{id}/sessions/{sid}
+    summary:
+      text:
+        en: End one session of an account
+        de: Eine Sitzung eines Kontos beenden
+    permission: {key: core.users.manage, scope: SCOPE_GLOBAL}
+    safety: {changes: true}
+    cli: {command: [user, logout], builtin: true}
+    ui: {entry: /admin/users}
+  - id: core.groups.create
+    category: CATEGORY_ACTION
+    method: POST
+    path: /api/v1/admin/groups
+    summary:
+      text:
+        en: Create a group
+        de: Gruppe anlegen
+    permission: {key: core.groups.manage, scope: SCOPE_GLOBAL}
+    safety: {changes: true}
+    cli: {command: [group, create]}
+    ui: {entry: /admin/groups}
+  - id: core.groups.update
+    category: CATEGORY_ACTION
+    method: PUT
+    path: /api/v1/admin/groups/{id}
+    summary:
+      text:
+        en: "Change a group (name, roles)"
+        de: "Gruppe ändern (Name, Rollen)"
+    permission: {key: core.groups.manage, scope: SCOPE_GLOBAL}
+    safety: {changes: true}
+    cli: {command: [group, update], args: [id]}
+    ui: {entry: /admin/groups}
+  - id: core.groups.delete
+    category: CATEGORY_ACTION
+    method: DELETE
+    path: /api/v1/admin/groups/{id}
+    summary:
+      text:
+        en: Delete a group
+        de: Gruppe löschen
+    permission: {key: core.groups.manage, scope: SCOPE_GLOBAL}
+    safety: {changes: true}
+    cli: {command: [group, delete], args: [id]}
+    ui: {entry: /admin/groups}
+  - id: core.groups.members.list
+    category: CATEGORY_ACTION
+    method: GET
+    path: /api/v1/admin/groups/{id}/members
+    summary:
+      text:
+        en: List the members of a group
+        de: Mitglieder einer Gruppe auflisten
+    permission: {key: core.groups.manage, scope: SCOPE_GLOBAL}
+    cli: {command: [group, members, list], args: [id]}
+    ui: {entry: /admin/groups}
+  - id: core.groups.members.add
+    category: CATEGORY_ACTION
+    method: PUT
+    path: /api/v1/admin/groups/{id}/members/{user}
+    summary:
+      text:
+        en: Add a person to a group
+        de: Person zu einer Gruppe hinzufügen
+    permission: {key: core.groups.manage, scope: SCOPE_GLOBAL}
+    safety: {changes: true}
+    cli: {command: [group, members, add], args: [id, user]}
+    ui: {entry: /admin/groups}
+  - id: core.groups.members.remove
+    category: CATEGORY_ACTION
+    method: DELETE
+    path: /api/v1/admin/groups/{id}/members/{user}
+    summary:
+      text:
+        en: Remove a person from a group
+        de: Person aus einer Gruppe entfernen
+    permission: {key: core.groups.manage, scope: SCOPE_GLOBAL}
+    safety: {changes: true}
+    cli: {command: [group, members, remove], args: [id, user]}
+    ui: {entry: /admin/groups}
+  - id: core.roles.create
+    category: CATEGORY_ACTION
+    method: POST
+    path: /api/v1/admin/roles
+    summary:
+      text:
+        en: Create a role with permissions
+        de: Rolle mit Rechten anlegen
+    permission: {key: core.roles.manage, scope: SCOPE_GLOBAL}
+    safety: {changes: true}
+    cli: {command: [role, create]}
+    ui: {entry: /admin/roles}
+  - id: core.roles.update
+    category: CATEGORY_ACTION
+    method: PUT
+    path: /api/v1/admin/roles/{id}
+    summary:
+      text:
+        en: Change a role
+        de: Rolle ändern
+    permission: {key: core.roles.manage, scope: SCOPE_GLOBAL}
+    safety: {changes: true}
+    cli: {command: [role, update], args: [id]}
+    ui: {entry: /admin/roles}
+  - id: core.roles.delete
+    category: CATEGORY_ACTION
+    method: DELETE
+    path: /api/v1/admin/roles/{id}
+    summary:
+      text:
+        en: Delete a role
+        de: Rolle löschen
+    permission: {key: core.roles.manage, scope: SCOPE_GLOBAL}
+    safety: {changes: true}
+    cli: {command: [role, delete], args: [id]}
+    ui: {entry: /admin/roles}
+  - id: core.permissions.global
+    category: CATEGORY_ACTION
+    method: GET
+    path: /api/v1/admin/permissions
+    summary:
+      text:
+        en: List all permissions and the defaults of every signed-in person
+        de: Alle Rechte und die Vorgaben für jede angemeldete Person auflisten
+    permission: {key: core.roles.manage, scope: SCOPE_GLOBAL}
+    cli: {command: [perm, catalog]}
+    ui: {entry: /admin/permissions}
+  - id: core.permissions.defaults
+    category: CATEGORY_ACTION
+    method: PUT
+    path: /api/v1/admin/permissions/authenticated
+    summary:
+      text:
+        en: Set the global permissions of every signed-in person
+        de: Globale Rechte jeder angemeldeten Person festlegen
+    permission: {key: core.roles.manage, scope: SCOPE_GLOBAL}
+    safety: {changes: true}
+    cli: {command: [perm, defaults, set], builtin: true}
+    ui: {entry: /admin/permissions}
+  - id: core.mfa.settings.show
+    category: CATEGORY_ACTION
+    method: GET
+    path: /api/v1/admin/mfa
+    summary:
+      text:
+        en: Show the factor chain and its settings
+        de: Faktorkette und ihre Einstellungen anzeigen
+    permission: {key: core.settings.manage, scope: SCOPE_GLOBAL}
+    cli: {command: [mfa, settings, show]}
+    ui: {entry: /admin/mfa}
+  - id: core.mfa.settings.set
+    category: CATEGORY_ACTION
+    method: PUT
+    path: /api/v1/admin/mfa
+    summary:
+      text:
+        en: Change the factor chain and its settings
+        de: Faktorkette und ihre Einstellungen ändern
+    permission: {key: core.settings.manage, scope: SCOPE_GLOBAL}
+    safety: {changes: true}
+    cli: {command: [mfa, settings, set]}
+    ui: {entry: /admin/mfa}
+  - id: core.api_keys.list
+    category: CATEGORY_ACTION
+    method: GET
+    path: /api/v1/admin/api-keys
+    summary:
+      text:
+        en: List the API keys of all accounts with their limits (administrators)
+        de: API-Schlüssel aller Konten mit ihren Grenzen auflisten (Administratoren)
+    permission: {key: core.admin, scope: SCOPE_GLOBAL}
+    cli: {command: [api-keys, list]}
+    ui: {entry: /admin/limits}
+  - id: core.api_keys.rate
+    category: CATEGORY_ACTION
+    method: PUT
+    path: /api/v1/admin/api-keys/{id}/rate
+    summary:
+      text:
+        en: Give an API key its own request budget (administrators)
+        de: Einem API-Schlüssel ein eigenes Anfrage-Kontingent geben (Administratoren)
+    permission: {key: core.admin, scope: SCOPE_GLOBAL}
+    safety: {changes: true}
+    cli: {command: [api-keys, rate], args: [id]}
+    ui: {entry: /admin/limits}
+  - id: core.scim.clients.list
+    category: CATEGORY_ACTION
+    method: GET
+    path: /api/v1/admin/scim/clients
+    summary:
+      text:
+        en: List the SCIM clients
+        de: SCIM-Zugänge auflisten
+    permission: {key: core.users.manage, scope: SCOPE_GLOBAL}
+    cli: {command: [scim, list], builtin: true}
+    ui: {entry: /admin/scim}
+  - id: core.scim.clients.create
+    category: CATEGORY_ACTION
+    method: POST
+    path: /api/v1/admin/scim/clients
+    summary:
+      text:
+        en: Create a SCIM client (the token is shown once)
+        de: SCIM-Zugang anlegen (das Token wird einmal gezeigt)
+    permission: {key: core.users.manage, scope: SCOPE_GLOBAL}
+    safety: {changes: true}
+    cli: {command: [scim, create], builtin: true}
+    ui: {entry: /admin/scim}
+  - id: core.scim.clients.token
+    category: CATEGORY_ACTION
+    method: POST
+    path: /api/v1/admin/scim/clients/{id}/token
+    summary:
+      text:
+        en: Create a new token for a SCIM client
+        de: Neues Token für einen SCIM-Zugang erzeugen
+    permission: {key: core.users.manage, scope: SCOPE_GLOBAL}
+    safety: {changes: true}
+    cli: {command: [scim, token], builtin: true}
+    ui: {entry: /admin/scim}
+  - id: core.scim.clients.delete
+    category: CATEGORY_ACTION
+    method: DELETE
+    path: /api/v1/admin/scim/clients/{id}
+    summary:
+      text:
+        en: Delete a SCIM client
+        de: SCIM-Zugang löschen
+    permission: {key: core.users.manage, scope: SCOPE_GLOBAL}
+    safety: {changes: true}
+    cli: {command: [scim, delete], builtin: true}
+    ui: {entry: /admin/scim}
+  - id: core.scim.service_provider_config
+    category: CATEGORY_PROTOCOL
+    method: GET
+    path: /scim/v2/ServiceProviderConfig
+    summary:
+      text:
+        en: "What the SCIM service supports (SCIM 2.0, for directories)"
+        de: "Was der SCIM-Dienst unterstützt (SCIM 2.0, für Verzeichnisse)"
+  - id: core.scim.resource_types
+    category: CATEGORY_PROTOCOL
+    method: GET
+    path: /scim/v2/ResourceTypes
+    summary:
+      text:
+        en: "SCIM resource types (SCIM 2.0, for directories)"
+        de: "SCIM-Ressourcentypen (SCIM 2.0, für Verzeichnisse)"
+  - id: core.scim.schemas
+    category: CATEGORY_PROTOCOL
+    method: GET
+    path: /scim/v2/Schemas
+    summary:
+      text:
+        en: "SCIM schemas (SCIM 2.0, for directories)"
+        de: "SCIM-Schemas (SCIM 2.0, für Verzeichnisse)"
+  - id: core.scim.users.list
+    category: CATEGORY_PROTOCOL
+    method: GET
+    path: /scim/v2/Users
+    summary:
+      text:
+        en: "List users (SCIM 2.0, for directories)"
+        de: "Personen auflisten (SCIM 2.0, für Verzeichnisse)"
+  - id: core.scim.users.create
+    category: CATEGORY_PROTOCOL
+    method: POST
+    path: /scim/v2/Users
+    summary:
+      text:
+        en: "Create a user (SCIM 2.0, for directories)"
+        de: "Person anlegen (SCIM 2.0, für Verzeichnisse)"
+    safety: {changes: true}
+  - id: core.scim.users.get
+    category: CATEGORY_PROTOCOL
+    method: GET
+    path: /scim/v2/Users/{id}
+    summary:
+      text:
+        en: "Show a user (SCIM 2.0, for directories)"
+        de: "Person anzeigen (SCIM 2.0, für Verzeichnisse)"
+  - id: core.scim.users.replace
+    category: CATEGORY_PROTOCOL
+    method: PUT
+    path: /scim/v2/Users/{id}
+    summary:
+      text:
+        en: "Replace a user (SCIM 2.0, for directories)"
+        de: "Person ersetzen (SCIM 2.0, für Verzeichnisse)"
+    safety: {changes: true}
+  - id: core.scim.users.patch
+    category: CATEGORY_PROTOCOL
+    method: PATCH
+    path: /scim/v2/Users/{id}
+    summary:
+      text:
+        en: "Change a user (SCIM 2.0, for directories)"
+        de: "Person ändern (SCIM 2.0, für Verzeichnisse)"
+    safety: {changes: true}
+  - id: core.scim.users.delete
+    category: CATEGORY_PROTOCOL
+    method: DELETE
+    path: /scim/v2/Users/{id}
+    summary:
+      text:
+        en: "Delete a user (accounts are disabled by default) (SCIM 2.0, for directories)"
+        de: "Person löschen (Konten werden standardmäßig gesperrt) (SCIM 2.0, für Verzeichnisse)"
+    safety: {changes: true}
+  - id: core.scim.groups.list
+    category: CATEGORY_PROTOCOL
+    method: GET
+    path: /scim/v2/Groups
+    summary:
+      text:
+        en: "List groups (SCIM 2.0, for directories)"
+        de: "Gruppen auflisten (SCIM 2.0, für Verzeichnisse)"
+  - id: core.scim.groups.create
+    category: CATEGORY_PROTOCOL
+    method: POST
+    path: /scim/v2/Groups
+    summary:
+      text:
+        en: "Create a group (SCIM 2.0, for directories)"
+        de: "Gruppe anlegen (SCIM 2.0, für Verzeichnisse)"
+    safety: {changes: true}
+  - id: core.scim.groups.get
+    category: CATEGORY_PROTOCOL
+    method: GET
+    path: /scim/v2/Groups/{id}
+    summary:
+      text:
+        en: "Show a group (SCIM 2.0, for directories)"
+        de: "Gruppe anzeigen (SCIM 2.0, für Verzeichnisse)"
+  - id: core.scim.groups.replace
+    category: CATEGORY_PROTOCOL
+    method: PUT
+    path: /scim/v2/Groups/{id}
+    summary:
+      text:
+        en: "Replace a group (SCIM 2.0, for directories)"
+        de: "Gruppe ersetzen (SCIM 2.0, für Verzeichnisse)"
+    safety: {changes: true}
+  - id: core.scim.groups.patch
+    category: CATEGORY_PROTOCOL
+    method: PATCH
+    path: /scim/v2/Groups/{id}
+    summary:
+      text:
+        en: "Change a group (SCIM 2.0, for directories)"
+        de: "Gruppe ändern (SCIM 2.0, für Verzeichnisse)"
+    safety: {changes: true}
+  - id: core.scim.groups.delete
+    category: CATEGORY_PROTOCOL
+    method: DELETE
+    path: /scim/v2/Groups/{id}
+    summary:
+      text:
+        en: "Delete a group (SCIM 2.0, for directories)"
+        de: "Gruppe löschen (SCIM 2.0, für Verzeichnisse)"
+    safety: {changes: true}

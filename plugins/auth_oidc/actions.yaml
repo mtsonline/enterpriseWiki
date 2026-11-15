@@ -1,0 +1,13 @@
+# Action register (ewiki.plugin.v1.Action, see sdk/proto/ewiki/plugin/v1/action.proto).
+actions:
+  - id: auth.oidc.check
+    category: CATEGORY_ACTION
+    method: GET
+    path: check
+    summary:
+      text:
+        en: "Check the settings of an OpenID Connect provider (discovery, keys)"
+        de: "Einstellungen eines OpenID-Connect-Anbieters prüfen (Discovery, Schlüssel)"
+    permission: {key: core.settings.manage, scope: SCOPE_GLOBAL}
+    cli: {command: [oidc, check]}
+    ui: {entry: /admin/oidc}

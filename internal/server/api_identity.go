@@ -10,9 +10,11 @@ import (
 // routesIdentity: e-mail addresses, linked sign-ins and invitations (M15b).
 func (s *Server) routesIdentity() {
 	// ---------------------------------------------------------------- own addresses
+	// action: core.me.emails.list
 	s.handle("GET /api/v1/me/emails", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		return s.app.Auth.MyEmails(r.Context())
 	})
+	// action: core.me.emails.add
 	s.handle("POST /api/v1/me/emails", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		var in struct {
 			Email string `json:"email"`
@@ -26,6 +28,7 @@ func (s *Server) routesIdentity() {
 		}
 		return h.Created{V: e}, nil
 	})
+	// action: core.me.emails.resend
 	s.handle("POST /api/v1/me/emails/{id}/resend", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		id, err := h.PathID(r, "id")
 		if err != nil {
@@ -33,6 +36,7 @@ func (s *Server) routesIdentity() {
 		}
 		return h.NoContent{}, s.app.Auth.ResendConfirmation(r.Context(), id)
 	})
+	// action: core.me.emails.primary
 	s.handle("POST /api/v1/me/emails/{id}/primary", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		id, err := h.PathID(r, "id")
 		if err != nil {
@@ -40,6 +44,7 @@ func (s *Server) routesIdentity() {
 		}
 		return h.NoContent{}, s.app.Auth.SetMyPrimaryEmail(r.Context(), id)
 	})
+	// action: core.me.emails.remove
 	s.handle("DELETE /api/v1/me/emails/{id}", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		id, err := h.PathID(r, "id")
 		if err != nil {
@@ -48,6 +53,7 @@ func (s *Server) routesIdentity() {
 		return h.NoContent{}, s.app.Auth.RemoveMyEmail(r.Context(), id)
 	})
 	// the confirmation link (anyone holding it; the token is the secret)
+	// action: core.auth.verify_email
 	s.handle("POST /api/v1/auth/verify-email", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		var in struct {
 			Token string `json:"token"`
@@ -63,15 +69,18 @@ func (s *Server) routesIdentity() {
 	})
 
 	// ---------------------------------------------------------------- linked sign-ins
+	// action: core.me.identities.list
 	s.handle("GET /api/v1/me/identities", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		return s.app.Auth.MyIdentities(r.Context())
 	})
 	// ?provider=…&subject=… (subjects may contain any characters, e.g. LDAP DNs)
+	// action: core.me.identities.unlink
 	s.handle("DELETE /api/v1/me/identities", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		q := r.URL.Query()
 		return h.NoContent{}, s.app.Auth.UnlinkMyIdentity(r.Context(), q.Get("provider"), q.Get("subject"))
 	})
 	// a sign-in waiting for confirmation: what it is (before signing in)
+	// action: core.auth.link.info
 	s.handle("POST /api/v1/auth/link/info", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		var in struct {
 			Token string `json:"token"`
@@ -81,6 +90,7 @@ func (s *Server) routesIdentity() {
 		}
 		return s.app.Auth.PendingLink(r.Context(), in.Token)
 	})
+	// action: core.me.identities.link
 	s.handle("POST /api/v1/me/identities/link", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		var in struct {
 			Token string `json:"token"`
@@ -92,6 +102,7 @@ func (s *Server) routesIdentity() {
 	})
 
 	// ---------------------------------------------------------------- administration
+	// action: core.users.emails.list
 	s.handle("GET /api/v1/admin/users/{id}/emails", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		id, err := h.PathID(r, "id")
 		if err != nil {
@@ -99,6 +110,7 @@ func (s *Server) routesIdentity() {
 		}
 		return s.app.Auth.UserEmails(r.Context(), id)
 	})
+	// action: core.users.emails.add
 	s.handle("POST /api/v1/admin/users/{id}/emails", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		id, err := h.PathID(r, "id")
 		if err != nil {
@@ -117,6 +129,7 @@ func (s *Server) routesIdentity() {
 		}
 		return h.Created{V: e}, nil
 	})
+	// action: core.users.emails.primary
 	s.handle("POST /api/v1/admin/users/{id}/emails/{eid}/primary", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		id, err := h.PathID(r, "id")
 		if err != nil {
@@ -128,6 +141,7 @@ func (s *Server) routesIdentity() {
 		}
 		return h.NoContent{}, s.app.Auth.SetUserPrimaryEmail(r.Context(), id, eid)
 	})
+	// action: core.users.emails.remove
 	s.handle("DELETE /api/v1/admin/users/{id}/emails/{eid}", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		id, err := h.PathID(r, "id")
 		if err != nil {
@@ -139,6 +153,7 @@ func (s *Server) routesIdentity() {
 		}
 		return h.NoContent{}, s.app.Auth.RemoveUserEmail(r.Context(), id, eid)
 	})
+	// action: core.users.identities.list
 	s.handle("GET /api/v1/admin/users/{id}/identities", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		id, err := h.PathID(r, "id")
 		if err != nil {
@@ -149,6 +164,7 @@ func (s *Server) routesIdentity() {
 		}
 		return s.app.Auth.Identities(r.Context(), id)
 	})
+	// action: core.users.identities.unlink
 	s.handle("DELETE /api/v1/admin/users/{id}/identities", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		id, err := h.PathID(r, "id")
 		if err != nil {
@@ -157,6 +173,7 @@ func (s *Server) routesIdentity() {
 		q := r.URL.Query()
 		return h.NoContent{}, s.app.Auth.UnlinkUserIdentity(r.Context(), id, q.Get("provider"), q.Get("subject"))
 	})
+	// action: core.users.invite
 	s.handle("POST /api/v1/admin/users/invite", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		var in auth.Invite
 		if err := h.Decode(r, &in); err != nil {
@@ -172,6 +189,7 @@ func (s *Server) routesIdentity() {
 
 // routesAlias: the optional wiki user name.
 func (s *Server) routesAlias() {
+	// action: core.me.alias
 	s.handle("PUT /api/v1/me/alias", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		var in struct {
 			Alias string `json:"alias"`
@@ -181,6 +199,7 @@ func (s *Server) routesAlias() {
 		}
 		return h.NoContent{}, s.app.Auth.SetMyAlias(r.Context(), in.Alias)
 	})
+	// action: core.users.alias
 	s.handle("PUT /api/v1/admin/users/{id}/alias", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		id, err := h.PathID(r, "id")
 		if err != nil {
