@@ -25,6 +25,7 @@ const (
 	PasskeyAutofill    = "core.auth.passkey_autofill_per_5min" // #nosec G101 -- name of a limit, not a credential
 	RegisterPerHour    = "core.auth.register_per_hour"
 	RegisterPending    = "core.auth.registrations_pending"
+	ResetPerHour       = "core.auth.password_reset_per_hour"
 )
 
 // LargeBody is the size from which a request counts as large (limited
@@ -55,6 +56,8 @@ func init() {
 			Label: "Registrations of an address", Help: "Requests for a new local account per address in one hour (only when registration is switched on)."},
 		Def{Key: RegisterPending, Group: "rate", Unit: "count", Default: 10000, Min: 10, Max: 1000000,
 			Label: "Unconfirmed registrations", Help: "Registrations waiting for their confirmation link at the same time. Beyond it new registrations wait; unconfirmed ones expire after 48 hours."},
+		Def{Key: ResetPerHour, Group: "rate", Unit: "count", Default: 10, Min: 1, Max: 10000,
+			Label: "Password resets of an address", Help: "Requests of \"Forgot your password?\" per sender address in one hour."},
 		Def{Key: PasskeyAutofill, Group: "rate", Unit: "count", Default: 600, Min: 10, Max: 100000,
 			Label: "Passkey offers on the sign-in page", Help: "Passkey requests of the user name field per address in 5 minutes. Every view of the sign-in page starts one, so many people behind one address (company network) need a high value; a request alone signs nobody in."},
 		Def{Key: WaitNoticeSeconds, Group: "requests", Unit: "seconds", Default: 5, Min: 1, Max: 300,

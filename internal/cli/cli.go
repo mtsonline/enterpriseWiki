@@ -67,7 +67,7 @@ Users
   directory adopt PROVIDER USER same person with a new directory id: keep the account
   login-page show               settings of the sign-in page
   login-page set [--passkey-autofill on|off] [--auto-redirect PROVIDER|none]
-                 [--registration on|off] [--registration-domains D,D|none] [--registration-groups ID,ID|none]
+                 [--password-reset on|off] [--registration on|off] [--registration-domains D,D|none] [--registration-groups ID,ID|none]
   login-page button PROVIDER [--order N] [--label TEXT] [--hidden|--visible] [--reset]
   user sessions NAME | user logout NAME [SESSION-ID]   sessions; sign out one or all
   scim list | scim create NAME --provider P [--subject-from userName|externalId] [--on-delete disable|delete]

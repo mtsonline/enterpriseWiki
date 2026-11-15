@@ -17,6 +17,7 @@ interface LoginSettings {
   buttons: Record<string, LoginButton>;
   providers: { id: string; name: string; kind: string; hidden?: boolean; order?: number }[];
   registration: Registration;
+  password_reset: boolean;
   /** false on a further site that shares the accounts of the main site */
   registration_here: boolean;
   mail_ready: boolean;
@@ -49,6 +50,7 @@ export async function loginPageAdmin(): Promise<HTMLElement> {
       h('p', { class: 'ew-help' }, t('login_admin.direct_link'), ' ', h('code', null, link)));
     return { id: p.id, el, value: (): LoginButton => ({ order: Number(order.value) || 0, hidden: !shown.input.checked, label: label.value.trim() }) };
   });
+  const reset = checkbox(t('login_admin.reset'), s.password_reset, { help: t('login_admin.reset_help') });
   // registration of local accounts by the people themselves
   const reg = s.registration;
   const regOn = checkbox(t('login_admin.reg_enabled'), reg.enabled, { help: t('login_admin.reg_enabled_help') });
@@ -71,6 +73,8 @@ export async function loginPageAdmin(): Promise<HTMLElement> {
     field(t('login_admin.auto'), auto, { help: t('login_admin.auto_help') }),
     rows.length ? h('fieldset', null, h('legend', null, t('login_admin.buttons')), ...rows.map((r) => r.el))
       : h('p', { class: 'ew-help' }, t('login_admin.no_buttons')),
+    h('fieldset', null, h('legend', null, t('login_admin.local_title')),
+      !s.mail_ready ? h('p', { class: 'ew-notice ew-notice--warning' }, t('login_admin.reset_no_mail')) : null, reset.el),
     regBox,
     h('div', { class: 'ew-form-actions' }, button(t('common.save'), () => undefined, { type: 'submit', variant: 'primary' })));
   form.addEventListener('submit', async (ev) => {
@@ -86,7 +90,7 @@ export async function loginPageAdmin(): Promise<HTMLElement> {
         domains: domains.value.split(',').map((x) => x.trim()).filter(Boolean),
         groups: groupBoxes.filter((g) => g.box.input.checked).map((g) => g.id),
       };
-      await api.put('admin/auth/login', { passkey_autofill: autofill.input.checked, auto_redirect: auto.value, buttons, registration });
+      await api.put('admin/auth/login', { passkey_autofill: autofill.input.checked, auto_redirect: auto.value, buttons, registration, password_reset: reset.input.checked });
       toast(t('login_admin.saved'));
     } catch (e) { alert.textContent = errorText(e); }
   });

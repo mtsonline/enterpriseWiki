@@ -233,6 +233,18 @@ func newSite(ctx context.Context, in *Instance, site string, migrate bool) (*App
 	a.Auth.MailReady = func() bool { return a.Mail.Enabled() && a.Mail.Transport() != nil }
 	// registrations: the link (secret, sent directly) or, for an address that
 	// already has an account, a note saying so
+	// "Forgot your password?": the link (secret, sent directly) or, for an
+	// account without a wiki password, who manages it
+	a.Auth.SendPasswordReset = func(ctx context.Context, addr, name, lang, link, provider string) error {
+		p := map[string]string{"link": link, "site": cfg.Get().UI.SiteName, "name": name, "email": addr, "minutes": "60",
+			"provider": provider, "login": strings.TrimRight(cfg.Get().Server.BaseURL, "/") + "/login"}
+		key := "email.password_reset"
+		if link == "" {
+			key = "email.password_reset_external"
+		}
+		return a.Mail.SendNow(ctx, mail.Message{To: []string{addr}, Subject: a.I18n.T(ctx, lang, key+"_subject", p),
+			Text: a.I18n.T(ctx, lang, key+"_text", p), Source: "auth", NoReport: true})
+	}
 	a.Auth.SendRegistration = func(ctx context.Context, addr, name, lang, link string) error {
 		p := map[string]string{"link": link, "site": cfg.Get().UI.SiteName, "name": name, "email": addr, "hours": "48",
 			"login": strings.TrimRight(cfg.Get().Server.BaseURL, "/") + "/login"}
@@ -405,6 +417,10 @@ func (a *App) Close() {
 }
 
 func (a *App) close() {
+	// mails still on their way ("Forgot your password?"), at most a minute
+	if a.Auth != nil {
+		a.Auth.WaitBackground()
+	}
 	if a.Bus != nil {
 		a.Bus.Close()
 	}

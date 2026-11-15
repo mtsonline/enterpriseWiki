@@ -119,6 +119,8 @@ If the account requires a second factor, the sign-in answers with `mfa_required`
 | `POST` | `/api/v1/auth/passwordless/{method}/finish` |
 | `POST` | `/api/v1/auth/register` |
 | `POST` | `/api/v1/auth/register/confirm` |
+| `POST` | `/api/v1/auth/password-reset` |
+| `POST` | `/api/v1/auth/password-reset/confirm` |
 | `GET` | `/api/v1/auth/sso/{provider}/logout` |
 | `POST` | `/api/v1/auth/sso/{provider}/logout` |
 

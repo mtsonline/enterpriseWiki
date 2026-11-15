@@ -342,6 +342,7 @@ Die Grenzwerte gelten für die ganze Instanz; in weiteren Sites ändern sie nur 
 | `core.rate.expensive_per_second`, `core.rate.expensive_burst` | zusätzlich für Suche, Vorschau, Export und Upload | 5 / 50 |
 | `core.auth.passkey_autofill_per_5min` | Passkey-Anfragen des Benutzernamen-Felds je Adresse in 5 Minuten (Anmeldeseite) | 600 |
 | `core.auth.register_per_hour`, `core.auth.registrations_pending` | Registrierungen je Adresse in einer Stunde; gleichzeitig wartende Registrierungen | 10 / 10 000 |
+| `core.auth.password_reset_per_hour` | „Passwort vergessen?“ je Absender-Adresse in einer Stunde | 10 |
 | `core.live.persons` | Personen, die eine Seite gleichzeitig gemeinsam bearbeiten | 50 |
 | `core.live.connections_per_person` | Fenster oder Geräte einer Person an derselben Seite | 5 |
 | `core.audit.search_days` | so weit reicht die Textsuche in den Vorher-/Nachher-Werten des Audit-Protokolls zurück, wenn kein Startdatum angegeben ist (mit Startdatum: jeder Zeitraum) | 90 Tage |

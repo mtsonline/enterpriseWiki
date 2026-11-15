@@ -872,6 +872,67 @@ test('create an account yourself: switched on by the administrators, link by e-m
   }
 });
 
+test('forgot your password: link by e-mail, new password, switch off in the administration', async () => {
+  const smtp = await smtpFake();
+  const prevMail = await call('GET', '/api/v1/admin/settings');
+  await call('PUT', '/api/v1/admin/settings', { mail: { ...prevMail.config.mail, enabled: true, transport: 'smtp', from: prevMail.config.mail.from || 'wiki@example.invalid',
+    smtp: { ...prevMail.config.mail.smtp, host: '127.0.0.1', port: smtp.port, security: 'none', username: '', password: '' } } });
+  const addr = `self${run}@example.invalid`; // created by the registration test
+  const pw = `Neu-Gesetzt-${run}!`;
+  const ctx2 = await browser.newContext({ viewport: { width: 1280, height: 900 }, bypassCSP: true });
+  const p2 = await ctx2.newPage();
+  p2.on('pageerror', (e) => errors.push(`password reset: ${e.message}`));
+  try {
+    await p2.goto(BASE + '/login');
+    await p2.getByRole('link', { name: /^(forgot your password\?|passwort vergessen\?)$/i }).click();
+    await p2.locator('input[name=email]').waitFor();
+    await a11y('forgot password form', p2);
+    await p2.locator('input[name=email]').fill(addr);
+    await p2.getByRole('button', { name: /^(send link|link senden)$/i }).click();
+    await p2.locator('.ew-notice--ok', { hasText: addr }).waitFor();
+    // the mail goes out in the background (same answer for every address)
+    const deadline = Date.now() + 15000;
+    let mail;
+    while (!(mail = smtp.mails.find((m) => m.to.includes(addr))) && Date.now() < deadline) await p2.waitForTimeout(50);
+    const link = /\/password-reset\/confirm\?token=[A-Za-z0-9_-]+/.exec(mail?.text ?? '')?.[0];
+    assert.ok(link, `link in the e-mail: ${mail?.text}`);
+    await p2.goto(BASE + link);
+    await p2.locator('input[name=new-password]').waitFor();
+    assert.equal(new URL(p2.url()).search, '', 'token left the address bar');
+    await a11y('new password form', p2);
+    await p2.locator('input[name=new-password]').fill(pw);
+    await p2.locator('input[name=new-password-2]').fill(pw);
+    await p2.getByRole('button', { name: /^(save password|passwort speichern)$/i }).click();
+    await p2.locator('.ew-notice--ok').waitFor();
+    await p2.locator('main a[href="/login?local=1"]').click();
+    await p2.locator('input[name=username]').fill(addr);
+    await p2.locator('input[type=password]').fill(pw);
+    await p2.keyboard.press('Enter');
+    await p2.waitForURL((u) => !u.pathname.startsWith('/login'));
+    // switched off in the administration: no link any more
+    await page.goto(`${BASE}/admin/settings`);
+    await idle();
+    const form = page.locator('form[aria-labelledby="ew-login-admin-h"]');
+    await form.getByLabel(/^(offer .forgot your password|„passwort vergessen)/i).uncheck();
+    await form.getByRole('button', { name: /^(save|speichern)$/i }).click();
+    await page.locator('.ew-toasts', { hasText: /sign-in page is saved|anmeldeseite ist gespeichert/i }).waitFor();
+    assert.equal((await call('GET', '/api/v1/admin/auth/login')).password_reset, false);
+    const guest = await browser.newContext({ viewport: { width: 1280, height: 900 }, bypassCSP: true });
+    try {
+      const g = await guest.newPage();
+      await g.goto(BASE + '/login');
+      await g.locator('input[name=username]').waitFor();
+      assert.equal(await g.getByRole('link', { name: /^(forgot your password\?|passwort vergessen\?)$/i }).count(), 0);
+    } finally { await guest.close(); }
+  } finally {
+    await ctx2.close();
+    const lp = await call('GET', '/api/v1/admin/auth/login');
+    await call('PUT', '/api/v1/admin/auth/login', { ...lp, providers: undefined, registration_here: undefined, mail_ready: undefined, password_reset: true });
+    await call('PUT', '/api/v1/admin/settings', { mail: prevMail.config.mail });
+    smtp.close();
+  }
+});
+
 test('a decision signed with a passkey, its verification and the verify page', async () => {
   const name = `sig${run}`;
   const pw = 'Sig-Passw0rd-1!x';

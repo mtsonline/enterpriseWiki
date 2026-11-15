@@ -187,6 +187,7 @@ export async function loginView({ query, main }: RouteCtx): Promise<void> {
   mount(main, h('div', { class: 'ew-narrow' }, h('h1', null, t('auth.login_title', { site: state.site.name })),
     query.get('logged_out') ? h('p', { class: 'ew-notice ew-notice--info', role: 'status' }, t('auth.logged_out')) : null,
     link?.el ?? null, ssoBox, passkeyBox, sso.length || passkeyBox ? h('h2', { class: 'ew-login-local' }, t('auth.local_title')) : null, form,
+    state.site.login?.password_reset ? h('p', null, h('a', { href: '/password-reset' }, t('reset.link'))) : null,
     state.site.login?.registration ? h('p', null, t('register.no_account'), ' ',
       h('a', { href: `/register?next=${encodeURIComponent(safeNext)}` }, t('register.link'))) : null,
     h('p', { class: 'ew-help' }, t('auth.ssh_hint'))));

@@ -300,6 +300,20 @@ ewiki login-page button oidc-partner --order 10 --label "Partner-Anmeldung" --hi
 ewiki login-page button oidc-partner --reset
 ```
 
+### Passwort vergessen
+
+Personen mit **lokalem** Konto können sich einen Link schicken lassen, mit dem sie ein neues Passwort festlegen (Vorgabe: ein, wenn der E-Mail-Versand eingerichtet ist). Ausschalten unter *Einstellungen → Anmeldeseite → Lokale Konten*, in `config.yaml` mit `login.password_reset: false` oder per CLI mit `ewiki login-page set --password-reset off`.
+
+- **Ablauf:** Die Person gibt eine bestätigte Adresse ihres Kontos ein. Der Link gilt **eine Stunde** und nur einmal; nur der neueste Link eines Kontos gilt. Mit dem neuen Passwort enden **alle Sitzungen**, eine Sperre nach Fehlversuchen wird aufgehoben. Weitere Faktoren der Faktorkette (App, Passkey) gelten weiter.
+- **Kein Ausspähen:** Die Antwort ist für jede Adresse gleich, und die E-Mail geht im Hintergrund hinaus. So verraten weder Antwort noch Antwortzeit, ob es ein Konto gibt. Unbekannte und gesperrte Adressen bekommen keine E-Mail. Konten ohne Wiki-Passwort (LDAP, Single Sign-on) bekommen einen Hinweis, wer das Passwort verwaltet, aber keinen Link.
+- **Grenzen:** höchstens 3 Links je Adresse in einer Stunde, je Absender-Adresse `core.auth.password_reset_per_hour` (Vorgabe 10).
+- Bei mehreren Sites mit gemeinsamen Konten gibt es die Funktion nur auf der Haupt-Site.
+- Jede Änderung steht im Audit-Log als `user.password_reset`.
+
+```bash
+ewiki login-page set --password-reset off
+```
+
 ### Konto selbst anlegen (Registrierung)
 
 Personen dürfen auf Wunsch selbst ein **lokales** Konto anlegen (Vorgabe: aus). Einstellung unter *Einstellungen → Anmeldeseite → Konto selbst anlegen*, in `config.yaml` unter `login.registration`, per CLI mit `ewiki login-page set --registration on`.
