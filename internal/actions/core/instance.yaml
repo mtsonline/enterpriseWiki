@@ -11,6 +11,8 @@ actions:
     permission: {key: core.admin, scope: SCOPE_GLOBAL, instance: true}
     cli: {command: [site, list], builtin: true}
     ui: {entry: /admin/sites}
+    examples:
+      - name: default
   - id: core.instance.sites.create
     category: CATEGORY_ACTION
     method: POST
@@ -23,6 +25,14 @@ actions:
     safety: {changes: true}
     cli: {command: [site, create], builtin: true}
     ui: {entry: /admin/sites}
+    examples:
+      - name: default
+        body_json: '{"name": "ex${unique}", "title": "Example site", "hostnames": ["ex${unique}.example.com"]}'
+        status: 201
+      - name: refused
+        as: outsider
+        body_json: '{"name": "nope"}'
+        status: 403
   - id: core.instance.sites.update
     category: CATEGORY_ACTION
     method: PATCH
@@ -35,6 +45,11 @@ actions:
     safety: {changes: true}
     cli: {command: [site, update], builtin: true}
     ui: {entry: /admin/sites}
+    examples:
+      - name: default
+        given: ['core.instance.sites.create#default']
+        path_params_json: '{"name": "${given.core.instance.sites.create#default.name}"}'
+        body_json: '{"title": "Renamed site"}'
   - id: core.instance.sites.delete
     category: CATEGORY_ACTION
     method: DELETE
@@ -47,6 +62,11 @@ actions:
     safety: {changes: true}
     cli: {command: [site, delete], builtin: true}
     ui: {entry: /admin/sites}
+    examples:
+      - name: default
+        given: ['core.instance.sites.create#default']
+        path_params_json: '{"name": "${given.core.instance.sites.create#default.name}"}'
+        status: 204
   - id: core.instance.admins.list
     category: CATEGORY_ACTION
     method: GET
@@ -58,6 +78,8 @@ actions:
     permission: {key: core.admin, scope: SCOPE_GLOBAL, instance: true}
     cli: {command: [site, admins], builtin: true}
     ui: {entry: /admin/sites}
+    examples:
+      - name: default
   - id: core.instance.admins.add
     category: CATEGORY_ACTION
     method: POST
@@ -70,6 +92,16 @@ actions:
     safety: {changes: true}
     cli: {command: [site, admins, add], builtin: true}
     ui: {entry: /admin/sites}
+    examples:
+      - name: default
+        given: ['core.users.create#default']
+        body_json: '{"user_id": ${given.core.users.create#default.id}}'
+        status: 204
+      - name: refused
+        given: ['core.users.create#default']
+        as: outsider
+        body_json: '{"user_id": ${given.core.users.create#default.id}}'
+        status: 403
   - id: core.instance.admins.remove
     category: CATEGORY_ACTION
     method: DELETE
@@ -82,3 +114,8 @@ actions:
     safety: {changes: true}
     cli: {command: [site, admins, remove], builtin: true}
     ui: {entry: /admin/sites}
+    examples:
+      - name: default
+        given: ['core.instance.admins.add#default']
+        path_params_json: '{"id": "${given.core.instance.admins.add#default.user_id}"}'
+        status: 204
