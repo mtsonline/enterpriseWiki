@@ -32,46 +32,54 @@ func (e *env) scim(args []string) error {
 		return err
 	}
 	return e.withApp(false, func(ctx context.Context, a *app.App) error {
-		base := strings.TrimRight(a.Config.Get().Server.BaseURL, "/") + "/scim/v2"
+		c := cliAPI(ctx, a)
 		switch sub {
 		case "list":
-			list, err := a.Auth.ScimClients(ctx)
-			if err != nil {
+			var list []auth.ScimClient
+			if err := c.do("GET", "/api/v1/admin/scim/clients", nil, &list); err != nil {
 				return err
 			}
 			tw := tabwriter.NewWriter(e.stdout, 0, 4, 2, ' ', 0)
 			rowln(tw, "ID\tNAME\tPROVIDER\tSUBJECT FROM\tON DELETE\tLAST USED")
-			for _, c := range list {
+			for _, x := range list {
 				last := "-"
-				if c.LastUsedAt != nil {
-					last = c.LastUsedAt.Format(time.RFC3339)
+				if x.LastUsedAt != nil {
+					last = x.LastUsedAt.Format(time.RFC3339)
 				}
-				row(tw, "%d\t%s\t%s\t%s\t%s\t%s\n", c.ID, c.Name, c.Provider, c.SubjectFrom, c.OnDelete, last)
+				row(tw, "%d\t%s\t%s\t%s\t%s\t%s\n", x.ID, x.Name, x.Provider, x.SubjectFrom, x.OnDelete, last)
 			}
 			return tw.Flush()
 		case "create":
 			if arg == "" {
 				return usage
 			}
-			c, tok, err := a.Auth.CreateScimClient(ctx, auth.ScimClient{Name: arg, Provider: *provider, SubjectFrom: *subjectFrom, OnDelete: *onDelete})
-			if err != nil {
+			var res struct {
+				Client auth.ScimClient `json:"client"`
+				Token  string          `json:"token"`
+				URL    string          `json:"url"`
+			}
+			in := auth.ScimClient{Name: arg, Provider: *provider, SubjectFrom: *subjectFrom, OnDelete: *onDelete}
+			if err := c.do("POST", "/api/v1/admin/scim/clients", in, &res); err != nil {
 				return err
 			}
-			e.printf("created SCIM client %s (id %d)\ntenant URL: %s\ntoken (shown once): %s\n", c.Name, c.ID, base, tok)
+			e.printf("created SCIM client %s (id %d)\ntenant URL: %s\ntoken (shown once): %s\n", res.Client.Name, res.Client.ID, res.URL, res.Token)
 			return nil
 		case "token", "delete":
 			id, err := strconv.ParseInt(arg, 10, 64)
 			if err != nil || id <= 0 {
 				return usage
 			}
+			path := "/api/v1/admin/scim/clients/" + strconv.FormatInt(id, 10)
 			if sub == "delete" {
-				return a.Auth.DeleteScimClient(ctx, id)
+				return c.do("DELETE", path, nil, nil)
 			}
-			tok, err := a.Auth.RenewScimToken(ctx, id)
-			if err != nil {
+			var res struct {
+				Token string `json:"token"`
+			}
+			if err := c.do("POST", path+"/token", nil, &res); err != nil {
 				return err
 			}
-			e.printf("new token (shown once): %s\n", tok)
+			e.printf("new token (shown once): %s\n", res.Token)
 			return nil
 		}
 		return usage

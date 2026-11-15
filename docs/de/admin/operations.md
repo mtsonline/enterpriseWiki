@@ -117,7 +117,14 @@ systemctl start enterprisewiki
 
 ## Kommandozeile (`ewiki`)
 
-Die CLI ist dieselbe Binärdatei. Sie arbeitet direkt mit der Konfiguration und der Datenbank und läuft mit Superadmin-Rechten. Wer sie als Dienstbenutzer ausführen kann, hat volle Kontrolle. Mit `--config` bzw. `EWIKI_CONFIG` wählen Sie die Installation.
+Die CLI ist dieselbe Binärdatei. Sie läuft mit Superadmin-Rechten; wer sie als Dienstbenutzer ausführen kann, hat volle Kontrolle. Mit `--config` bzw. `EWIKI_CONFIG` wählen Sie die Installation.
+
+**Alle Befehle gehen über die API** (im selben Prozess, durch den normalen Server-Handler): Es gelten dieselben Prüfungen, Grenzwerte und Audit-Einträge wie in der Oberfläche; im Audit-Protokoll stehen sie mit „cli“. Mit `--as BENUTZER` gelten genau dessen Rechte. Ausnahmen, vom Projektinhaber genehmigt, weil sie nicht mit dem Wiki, sondern mit Dateien arbeiten:
+
+- `serve`, `setup`, `migrate` (starten oder richten das Wiki ein);
+- `config show|path|validate|get|set` (bearbeitet `config.yaml` direkt und funktioniert auch, wenn die Datenbank nicht erreichbar ist). `config set` schreibt einen Eintrag ins Audit-Protokoll (`settings.config_set`, nur der Schlüssel), wenn die Datenbank erreichbar ist. Übernimmt ein laufendes Wiki eine von außen geänderte Datei, protokolliert es die geänderten Schlüssel (`settings.file_changed`), nie die Werte;
+- `plugin generate|build` (Quellbaum und Bauen des Programms);
+- `signature verify DATEI --offline` (prüft eine exportierte Datei ohne Wiki).
 
 ```text
 ewiki serve | setup [--non-interactive] | migrate | version

@@ -5,6 +5,7 @@ package cli
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
@@ -21,6 +22,7 @@ import (
 
 	"github.com/mtsonline/enterprisewiki/internal/app"
 	"github.com/mtsonline/enterprisewiki/internal/apperr"
+	"github.com/mtsonline/enterprisewiki/internal/audit"
 	"github.com/mtsonline/enterprisewiki/internal/config"
 	"github.com/mtsonline/enterprisewiki/internal/db"
 	"github.com/mtsonline/enterprisewiki/internal/identity"
@@ -263,7 +265,10 @@ func (e *env) withApp(migrate bool, fn func(ctx context.Context, a *app.App) err
 	if err != nil {
 		return err
 	}
-	defer a.Close()
+	defer func() {
+		handlers.Delete(a)
+		a.Close()
+	}()
 	return fn(ctx, a)
 }
 
@@ -351,11 +356,19 @@ func (e *env) watchConfig(ctx context.Context, a *app.App) {
 				continue
 			}
 		}
+		before := a.Config.Get()
 		if err := a.Config.Reload(); err != nil {
 			e.log.Error("config reload failed, keeping previous configuration", "err", err)
 			continue
 		}
 		e.log.Info("configuration reloaded")
+		// changes from outside the wiki (ewiki config set, editing the
+		// file) are recorded: the keys only, values can be secrets
+		if keys := config.ChangedKeys(before, a.Config.Get()); len(keys) > 0 {
+			if err := audit.Log(identity.WithSite(ctx, a.Site), a.DB, "settings.file_changed", "settings", 0, nil, map[string]any{"keys": keys}); err != nil {
+				e.log.Error("audit of the changed configuration failed", "err", err)
+			}
+		}
 	}
 }
 
@@ -475,6 +488,16 @@ func (e *env) config(args []string) error {
 			return err
 		}
 		e.printf("%s updated (running servers reload it automatically)\n", args[1])
+		// approved exception (15.11.2026): the command edits the file
+		// directly, so it also works while the database is down; it is
+		// recorded in the audit log when the database is reachable
+		err = e.withApp(false, func(ctx context.Context, a *app.App) error {
+			ctx = identity.WithSite(identity.With(ctx, identity.CLI()), a.Site)
+			return audit.Log(ctx, a.DB, "settings.config_set", "settings", 0, nil, map[string]string{"key": args[1]})
+		})
+		if err != nil {
+			e.eprintf("note: not recorded in the audit log (%v)\n", err)
+		}
 		return nil
 	}
 	return fmt.Errorf("unknown config command %q", args[0])
@@ -619,11 +642,12 @@ func (e *env) dispatch(args []string) error {
 		err = e.loginPage(args[1:])
 	case "retention":
 		err = e.withApp(false, func(ctx context.Context, a *app.App) error {
-			res, err := a.Content.RunRetention(ctx)
-			if err == nil {
-				printJSON(e.stdout, res)
+			var res json.RawMessage
+			if err := cliAPI(ctx, a).do("POST", "/api/v1/admin/retention/run", nil, &res); err != nil {
+				return err
 			}
-			return err
+			printJSON(e.stdout, res)
+			return nil
 		})
 	default:
 		return errUnknownCommand

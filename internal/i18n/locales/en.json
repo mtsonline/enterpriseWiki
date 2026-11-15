@@ -2224,5 +2224,7 @@
  "perm.core.roles.list_all": "List all roles",
  "perm.core.roles.list_all_help": "See the names of all roles, e.g. in permission and share dialogs.",
  "perm.core.roles.list_own": "List the own roles",
- "perm.core.roles.list_own_help": "See the names of the roles one has (directly or through a group)."
+ "perm.core.roles.list_own_help": "See the names of the roles one has (directly or through a group).",
+ "audit.action.settings.config_set": "Setting changed on the command line",
+ "audit.action.settings.file_changed": "Configuration file changed outside the wiki"
 }
