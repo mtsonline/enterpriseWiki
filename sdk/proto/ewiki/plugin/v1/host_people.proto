@@ -15,9 +15,10 @@ import "google/protobuf/timestamp.proto";
 option go_package = "github.com/mtsonline/enterprisewiki/sdk/proto/ewiki/plugin/v1;pluginv1";
 
 service People {
-  // Find a person by any of their confirmed e-mail addresses, their user
-  // name, or a reference ("ewiki:user:42;site=intra"). Never by a
-  // provider suffix: the identity is the e-mail address.
+  // Find a person by any of their confirmed e-mail addresses (each belongs
+  // to exactly one person), their user name, or a reference
+  // ("ewiki:user:42;site=intra"). Keep the returned reference; the
+  // address can change.
   rpc Resolve(ResolveRequest) returns (Person);
   rpc GetPerson(GetPersonRequest) returns (Person);
   rpc ListPeople(ListPeopleRequest) returns (ListPeopleResponse);
