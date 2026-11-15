@@ -1305,7 +1305,7 @@ func (s *Server) site(w http.ResponseWriter, r *http.Request) (any, error) {
 		// instance administrators change (in config.yaml of the instance)
 		"site": s.app.Site, "instance_only": config.InstanceOnly, "sites_accounts": s.app.Config.Get().Sites.Accounts,
 		"separate_accounts": s.app.SeparateAccounts,
-		"login":             s.loginPage(),
+		"login":             s.loginPage(r.Context()),
 	}, nil
 }
 

@@ -341,6 +341,7 @@ The limits apply to the whole instance; in further sites only administrators of 
 | `core.rate.guest_per_second`, `core.rate.guest_burst` | requests per address without sign-in | 20 / 200 |
 | `core.rate.expensive_per_second`, `core.rate.expensive_burst` | additionally for search, preview, export and upload | 5 / 50 |
 | `core.auth.passkey_autofill_per_5min` | passkey requests of the user name field per address in 5 minutes (sign-in page) | 600 |
+| `core.auth.register_per_hour`, `core.auth.registrations_pending` | registrations per address in one hour; registrations waiting at the same time | 10 / 10,000 |
 | `core.live.persons` | people who edit a page together at the same time | 50 |
 | `core.live.connections_per_person` | windows or devices of one person on the same page | 5 |
 | `core.audit.search_days` | how far back the text search in the before/after values of the audit log reaches when no start date is given (with a start date: any period) | 90 days |

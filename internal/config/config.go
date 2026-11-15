@@ -291,6 +291,19 @@ type Login struct {
 	AutoRedirect string `yaml:"auto_redirect,omitempty" json:"auto_redirect"`
 	// Buttons: how each redirect provider appears on the sign-in page.
 	Buttons map[string]LoginButton `yaml:"buttons,omitempty" json:"buttons"`
+	// Registration: people may create a local account themselves (off by
+	// default). The account exists only after the confirmation link was used.
+	Registration Registration `yaml:"registration,omitempty" json:"registration"`
+}
+
+// Registration of local accounts by the people themselves.
+type Registration struct {
+	Enabled bool `yaml:"enabled,omitempty" json:"enabled"`
+	// Domains: only addresses of these domains ("example.com", or
+	// "*.example.com" for its subdomains); empty: any address.
+	Domains []string `yaml:"domains,omitempty" json:"domains"`
+	// Groups new accounts join (never groups with an administrator role).
+	Groups []int64 `yaml:"groups,omitempty" json:"groups"`
 }
 
 // LoginButton is the sign-in button of one redirect provider.

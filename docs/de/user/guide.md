@@ -374,6 +374,8 @@ Mit dem Recht *Verwalten* legen Sie unter *Kategorie-Einstellungen → Berechtig
 
 Je nach Einrichtung melden Sie sich mit Benutzername und Passwort an (lokales Konto oder LDAP/Active Directory) oder mit einem Knopf **Anmelden mit …** über den zentralen Login Ihrer Organisation (OpenID Connect oder Shibboleth/SAML). Haben Sie weitere Faktoren eingerichtet (oder verlangt die Administration sie), fragt das Formular danach Schritt für Schritt nach ihnen, z. B. nach dem Code aus Ihrer App; fehlt Ihnen ein verlangter Faktor, richten Sie ihn gleich dort ein. Mit einem **Passkey** melden Sie sich, wo erlaubt, ganz ohne Passwort an.
 
+**Konto selbst anlegen:** Wenn die Verwaltung das erlaubt, steht auf der Anmeldeseite **Konto anlegen**. Geben Sie Ihre E-Mail-Adresse, Ihren Namen und ein Passwort ein. Sie bekommen eine E-Mail mit einem Link, der 48 Stunden gilt. Erst mit diesem Link wird Ihr Konto angelegt; danach melden Sie sich mit Ihrer E-Mail-Adresse und dem Passwort an. Hat die Adresse schon ein Konto, steht das in der E-Mail.
+
 ## Mein Profil
 
 - Anzeigename und bevorzugte Sprache, **E-Mail-Adressen** (mehrere möglich, eine davon die Hauptadresse) und **verknüpfte Anmeldungen**,

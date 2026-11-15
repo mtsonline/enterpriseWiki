@@ -100,6 +100,9 @@ type Service struct {
 	// MailReady reports whether e-mails can be sent at all.
 	SendConfirmation func(ctx context.Context, uid int64, addr, link string) error
 	MailReady        func() bool
+	// SendRegistration e-mails the confirmation link of a registration; an
+	// empty link means the address already has an account (the mail says so).
+	SendRegistration func(ctx context.Context, addr, name, lang, link string) error
 }
 
 type cachedPrincipal struct {
@@ -773,6 +776,9 @@ func (s *Service) Cleanup(ctx context.Context) error {
 		return err
 	}
 	if _, err := s.pool.Exec(ctx, `DELETE FROM passwordless_pending WHERE expires_at < now()`); err != nil {
+		return err
+	}
+	if _, err := s.pool.Exec(ctx, `DELETE FROM registrations_pending WHERE expires_at < now()`); err != nil {
 		return err
 	}
 	return s.CleanupSSO(ctx)

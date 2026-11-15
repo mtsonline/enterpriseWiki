@@ -55,8 +55,8 @@ export interface Site {
   plugins: string[] | null;
   element_types: ElementTypeInfo[];
   auth_providers: { id: string; name: string; kind?: string }[];
-  /** Sign-in page: passkeys in the user name field, automatic redirect to one provider. */
-  login?: { passkey_autofill: boolean; auto_redirect: string };
+  /** Sign-in page: passkeys in the user name field, automatic redirect to one provider, self-registration. */
+  login?: { passkey_autofill: boolean; auto_redirect: string; registration?: boolean };
   version: string;
 }
 
