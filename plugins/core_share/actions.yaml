@@ -12,6 +12,11 @@ actions:
     safety: {changes: true}
     cli: {command: [share, check]}
     ui: {entry: /e/:id}
+    examples:
+      - name: default
+        given: ['core.users.create#default', 'core.categories.create#default', 'core.categories.acl.add#user_view']
+        body_json: '{"target_type": "category", "target_id": ${given.core.categories.create#default.id}, "users": [${given.core.users.create#default.id}]}'
+        expect_json: '{"recipients": 1}'
   - id: core.share.send
     category: CATEGORY_ACTION
     method: POST
@@ -24,3 +29,8 @@ actions:
     safety: {changes: true}
     cli: {command: [share, send]}
     ui: {entry: /e/:id}
+    examples:
+      - name: default
+        given: ['core.users.create#default', 'core.categories.create#default', 'core.categories.acl.add#user_view']
+        body_json: '{"target_type": "category", "target_id": ${given.core.categories.create#default.id}, "users": [${given.core.users.create#default.id}], "message": "Please have a look."}'
+        expect_json: '{"recipients": 1}'

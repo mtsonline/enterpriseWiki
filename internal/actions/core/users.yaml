@@ -23,6 +23,11 @@ actions:
     safety: {changes: true}
     cli: {command: [user, create], builtin: true}
     ui: {entry: /admin/users}
+    examples:
+      - name: default
+        as: member
+        body_json: '{"username": "user${unique}", "password": "Example-Passw0rd!1", "display_name": "Example User", "email": "user${unique}@example.com"}'
+        status: 201
   - id: core.users.get
     category: CATEGORY_ACTION
     method: GET

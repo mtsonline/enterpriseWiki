@@ -248,6 +248,11 @@ actions:
         path_params_json: '{"id": "${given.core.categories.create#default.id}"}'
         body_json: '{"subject_type": "authenticated", "permissions": 1}'
         status: 201
+      - name: user_view
+        given: ['core.categories.create#default', 'core.users.create#default']
+        path_params_json: '{"id": "${given.core.categories.create#default.id}"}'
+        body_json: '{"subject_type": "user", "subject_id": ${given.core.users.create#default.id}, "permissions": 1}'
+        status: 201
   - id: core.categories.acl.update
     category: CATEGORY_ACTION
     method: PUT

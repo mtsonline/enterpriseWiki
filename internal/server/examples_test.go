@@ -16,12 +16,14 @@ import (
 	"reflect"
 	"regexp"
 	"sort"
+	"strconv"
 	"strings"
 	"testing"
 
 	"github.com/mtsonline/enterprisewiki/internal/acl"
 	"github.com/mtsonline/enterprisewiki/internal/actions"
 	"github.com/mtsonline/enterprisewiki/internal/cli"
+	"github.com/mtsonline/enterprisewiki/internal/license"
 )
 
 // examplesMissing lists the actions that have no example yet (phase 4 fills
@@ -48,6 +50,11 @@ func TestActionExamples(t *testing.T) {
 		byID[a.ID] = a
 	}
 	checkExampleCoverage(t, all)
+	// the example of core.license.install uses a key signed for the tests
+	// only; its private key was thrown away after signing
+	old := license.PublicKeys
+	license.PublicKeys = append([]string{"Z4F+JgROb9aqvWoHoiAuUDQgz3wu5ahthXBydt4/XbQ="}, old...)
+	t.Cleanup(func() { license.PublicKeys = old })
 
 	e := setup(t)
 	r := &exampleRunner{t: t, e: e, byID: byID}
@@ -201,6 +208,11 @@ func (r *exampleRunner) given(refs []string, vars map[string]any, depth int) {
 			t.Fatalf("given %s: %d %s", ref, res.status, res.raw)
 		}
 		vars[ref] = res.body
+		if res.body == nil && body != "" { // no answer (204): the request names what was done
+			var in any
+			_ = json.Unmarshal([]byte(body), &in)
+			vars[ref] = in
+		}
 	}
 }
 
@@ -301,8 +313,18 @@ func (r *exampleRunner) subst(s string, vars map[string]any) string {
 		}
 		v := res
 		for _, f := range strings.Split(p[2], ".") {
-			mm, _ := v.(map[string]any)
-			v = mm[f]
+			switch x := v.(type) {
+			case map[string]any:
+				v = x[f]
+			case []any: // list element by position
+				i, err := strconv.Atoi(f)
+				if err != nil || i < 0 || i >= len(x) {
+					r.t.Fatalf("%s: no element %s in %v", m, f, res)
+				}
+				v = x[i]
+			default:
+				v = nil
+			}
 		}
 		switch x := v.(type) {
 		case nil:
@@ -314,6 +336,11 @@ func (r *exampleRunner) subst(s string, vars map[string]any) string {
 		}
 		return fmt.Sprint(v)
 	})
+	for strings.Contains(s, "${unique_lang}") { // ISO 639-2 codes for local use (qaa–qtz)
+		r.unique++
+		n := r.unique % (20 * 26)
+		s = strings.Replace(s, "${unique_lang}", string([]byte{'q', byte('a' + n/26), byte('a' + n%26)}), 1)
+	}
 	for strings.Contains(s, "${unique}") {
 		r.unique++
 		s = strings.Replace(s, "${unique}", fmt.Sprintf("x%d", r.unique), 1)

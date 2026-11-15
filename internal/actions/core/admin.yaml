@@ -11,6 +11,9 @@ actions:
     permission: {key: core.settings.manage, scope: SCOPE_GLOBAL}
     cli: {command: [settings, show]}
     ui: {entry: /admin/settings}
+    examples:
+      - name: default
+        as: member
   - id: core.settings.update
     category: CATEGORY_ACTION
     method: PUT
@@ -23,6 +26,15 @@ actions:
     safety: {changes: true}
     cli: {command: [settings, update]}
     ui: {entry: /admin/settings}
+    examples:
+      - name: default
+        as: member
+        body_json: '{"lists": {"max_items": 2000}}'
+        expect_json: '{"config": {"lists": {"max_items": 2000}}}'
+      - name: mail_log
+        body_json: '{"mail": {"transport": "log", "from": "wiki@example.com"}}'
+      - name: mail_off
+        body_json: '{"mail": {"transport": "none", "from": "wiki@example.com"}}'
   - id: core.retention.run
     category: CATEGORY_ACTION
     method: POST
@@ -35,6 +47,9 @@ actions:
     safety: {changes: true}
     cli: {command: [retention, run], builtin: true}
     ui: {entry: /admin/settings}
+    examples:
+      - name: default
+        as: member
   - id: core.database.status
     category: CATEGORY_ACTION
     method: GET
@@ -46,6 +61,9 @@ actions:
     permission: {key: core.system.manage, scope: SCOPE_GLOBAL}
     cli: {command: [database, status]}
     ui: {entry: /admin/settings}
+    examples:
+      - name: default
+        as: member
   - id: core.limits.get
     category: CATEGORY_ACTION
     method: GET
@@ -57,6 +75,9 @@ actions:
     permission: {key: core.settings.manage, scope: SCOPE_GLOBAL}
     cli: {command: [limits, show]}
     ui: {entry: /admin/limits}
+    examples:
+      - name: default
+        as: member
   - id: core.limits.update
     category: CATEGORY_ACTION
     method: PUT
@@ -69,6 +90,14 @@ actions:
     safety: {changes: true}
     cli: {command: [limits, update]}
     ui: {entry: /admin/limits}
+    examples:
+      - name: default
+        as: member
+        body_json: '{"values": {"core.request.body_kb": null}}'
+      - name: refused
+        as: outsider
+        body_json: '{"values": {}}'
+        status: 403
   - id: core.secrets.status
     category: CATEGORY_ACTION
     method: GET
@@ -80,6 +109,8 @@ actions:
     permission: {key: core.admin, scope: SCOPE_GLOBAL}
     cli: {command: [secrets, status]}
     ui: {entry: /admin/limits}
+    examples:
+      - name: default
   - id: core.secrets.rewrap
     category: CATEGORY_ACTION
     method: POST
@@ -92,6 +123,11 @@ actions:
     safety: {changes: true}
     cli: {command: [secrets, rewrap]}
     ui: {entry: /admin/limits}
+    examples:
+      - name: default
+      - name: refused
+        as: outsider
+        status: 403
   - id: core.cache.status
     category: CATEGORY_ACTION
     method: GET
@@ -103,6 +139,9 @@ actions:
     permission: {key: core.system.manage, scope: SCOPE_GLOBAL}
     cli: {command: [cache, status], builtin: true}
     ui: {entry: /admin/cache}
+    examples:
+      - name: default
+        as: member
   - id: core.cache.clear
     category: CATEGORY_ACTION
     method: DELETE
@@ -115,6 +154,10 @@ actions:
     safety: {changes: true}
     cli: {command: [cache, clear], builtin: true}
     ui: {entry: /admin/cache}
+    examples:
+      - name: default
+        as: member
+        status: 204
   - id: core.mail.status
     category: CATEGORY_ACTION
     method: GET
@@ -126,6 +169,9 @@ actions:
     permission: {key: core.mail.manage, scope: SCOPE_GLOBAL}
     cli: {command: [mail, status], builtin: true}
     ui: {entry: /admin/mail}
+    examples:
+      - name: default
+        as: member
   - id: core.mail.list
     category: CATEGORY_ACTION
     method: GET
@@ -137,6 +183,12 @@ actions:
     permission: {key: core.mail.manage, scope: SCOPE_GLOBAL}
     cli: {command: [mail, list], builtin: true}
     ui: {entry: /admin/mail}
+    examples:
+      - name: default
+        as: member
+      - name: held
+        given: ['core.settings.update#mail_off', 'core.share.send#default']
+        query_json: '{"q": "${given.core.users.create#default.email}"}'
   - id: core.mail.get
     category: CATEGORY_ACTION
     method: GET
@@ -148,6 +200,11 @@ actions:
     permission: {key: core.mail.manage, scope: SCOPE_GLOBAL}
     cli: {command: [mail, show], builtin: true}
     ui: {entry: /admin/mail}
+    examples:
+      - name: default
+        given: ['core.mail.list#held']
+        as: member
+        path_params_json: '{"id": "${given.core.mail.list#held.0.id}"}'
   - id: core.mail.retry
     category: CATEGORY_ACTION
     method: POST
@@ -160,6 +217,12 @@ actions:
     safety: {changes: true}
     cli: {command: [mail, retry], builtin: true}
     ui: {entry: /admin/mail}
+    examples:
+      - name: default
+        given: ['core.mail.list#held']
+        as: member
+        path_params_json: '{"id": "${given.core.mail.list#held.0.id}"}'
+        status: 204
   - id: core.mail.delete
     category: CATEGORY_ACTION
     method: DELETE
@@ -172,6 +235,12 @@ actions:
     safety: {changes: true}
     cli: {command: [mail, delete], builtin: true}
     ui: {entry: /admin/mail}
+    examples:
+      - name: default
+        given: ['core.mail.list#held']
+        as: member
+        path_params_json: '{"id": "${given.core.mail.list#held.0.id}"}'
+        status: 204
   - id: core.mail.test
     category: CATEGORY_ACTION
     method: POST
@@ -184,6 +253,12 @@ actions:
     safety: {changes: true}
     cli: {command: [mail, test], builtin: true}
     ui: {entry: /admin/mail}
+    examples:
+      - name: default
+        given: ['core.settings.update#mail_log']
+        as: member
+        body_json: '{"to": "test@example.com"}'
+        expect_json: '{"status": "sent"}'
   - id: core.jobs.list
     category: CATEGORY_ACTION
     method: GET
@@ -195,6 +270,9 @@ actions:
     permission: {key: core.plugins.manage, scope: SCOPE_GLOBAL}
     cli: {command: [jobs, list], builtin: true}
     ui: {entry: /admin/mail}
+    examples:
+      - name: default
+        as: member
   - id: core.jobs.run
     category: CATEGORY_ACTION
     method: POST
@@ -207,6 +285,11 @@ actions:
     safety: {changes: true}
     cli: {command: [jobs, run], builtin: true}
     ui: {entry: /admin/mail}
+    examples:
+      - name: default
+        as: member
+        path_params_json: '{"name": "mail"}'
+        status: 204
   - id: core.webhooks.list
     category: CATEGORY_ACTION
     method: GET
@@ -218,6 +301,9 @@ actions:
     permission: {key: core.webhooks.manage, scope: SCOPE_GLOBAL}
     cli: {command: [webhook, list]}
     ui: {entry: /admin/webhooks}
+    examples:
+      - name: default
+        as: member
   - id: core.webhooks.get
     category: CATEGORY_ACTION
     method: GET
@@ -229,6 +315,11 @@ actions:
     permission: {key: core.webhooks.manage, scope: SCOPE_GLOBAL}
     cli: {command: [webhook, show], args: [id]}
     ui: {entry: /admin/webhooks}
+    examples:
+      - name: default
+        given: ['core.webhooks.create#default']
+        as: member
+        path_params_json: '{"id": "${given.core.webhooks.create#default.id}"}'
   - id: core.webhooks.create
     category: CATEGORY_ACTION
     method: POST
@@ -241,6 +332,11 @@ actions:
     safety: {changes: true}
     cli: {command: [webhook, create]}
     ui: {entry: /admin/webhooks}
+    examples:
+      - name: default
+        as: member
+        body_json: '{"name": "Example ${unique}", "url": "https://hooks.example.com/ewiki", "format": "json", "events": ["element.create"]}'
+        status: 201
   - id: core.webhooks.update
     category: CATEGORY_ACTION
     method: PUT
@@ -253,6 +349,12 @@ actions:
     safety: {changes: true}
     cli: {command: [webhook, update], args: [id]}
     ui: {entry: /admin/webhooks}
+    examples:
+      - name: default
+        given: ['core.webhooks.create#default']
+        as: member
+        path_params_json: '{"id": "${given.core.webhooks.create#default.id}"}'
+        body_json: '{"name": "Renamed", "url": "https://hooks.example.com/ewiki2", "format": "json", "events": []}'
   - id: core.webhooks.delete
     category: CATEGORY_ACTION
     method: DELETE
@@ -265,6 +367,12 @@ actions:
     safety: {changes: true}
     cli: {command: [webhook, delete], args: [id]}
     ui: {entry: /admin/webhooks}
+    examples:
+      - name: default
+        given: ['core.webhooks.create#default']
+        as: member
+        path_params_json: '{"id": "${given.core.webhooks.create#default.id}"}'
+        status: 204
   - id: core.webhooks.test
     category: CATEGORY_ACTION
     method: POST
@@ -277,6 +385,12 @@ actions:
     safety: {changes: true}
     cli: {command: [webhook, test], args: [id]}
     ui: {entry: /admin/webhooks}
+    examples:
+      - name: default
+        given: ['core.webhooks.create#default']
+        as: member
+        path_params_json: '{"id": "${given.core.webhooks.create#default.id}"}'
+        status: 204
   - id: core.webhooks.retry
     category: CATEGORY_ACTION
     method: POST
@@ -289,6 +403,12 @@ actions:
     safety: {changes: true}
     cli: {command: [webhook, retry], args: [id, did]}
     ui: {entry: /admin/webhooks}
+    examples:
+      - name: default
+        given: ['core.webhooks.create#default', 'core.webhooks.test#default', 'core.webhooks.get#default']
+        as: member
+        path_params_json: '{"id": "${given.core.webhooks.create#default.id}", "did": "${given.core.webhooks.get#default.deliveries.0.id}"}'
+        status: 204
   - id: core.webhooks.options
     category: CATEGORY_ACTION
     method: PUT
@@ -301,6 +421,11 @@ actions:
     safety: {changes: true}
     cli: {command: [webhook, options]}
     ui: {entry: /admin/webhooks}
+    examples:
+      - name: default
+        as: member
+        body_json: '{"accounts_in_all": false}'
+        expect_json: '{"accounts_in_all": false}'
   - id: core.plugins.list
     category: CATEGORY_ACTION
     method: GET
@@ -430,6 +555,9 @@ actions:
     permission: {key: core.audit.view, scope: SCOPE_GLOBAL}
     cli: {command: [audit, list]}
     ui: {entry: /admin/audit}
+    examples:
+      - name: default
+        as: member
   - id: core.audit.search
     category: CATEGORY_ACTION
     method: GET
@@ -441,6 +569,10 @@ actions:
     permission: {key: core.audit.view, scope: SCOPE_GLOBAL}
     cli: {command: [audit, search], builtin: true}
     ui: {entry: /admin/audit}
+    examples:
+      - name: default
+        as: member
+        query_json: '{"q": "settings"}'
   - id: core.audit.export
     category: CATEGORY_ACTION
     method: GET
@@ -452,6 +584,10 @@ actions:
     permission: {key: core.audit.view, scope: SCOPE_GLOBAL}
     cli: {command: [audit, export], builtin: true}
     ui: {entry: /admin/audit}
+    examples:
+      - name: default
+        as: member
+        query_json: '{"format": "jsonl"}'
   - id: core.audit.settings.get
     category: CATEGORY_ACTION
     method: GET
@@ -463,6 +599,9 @@ actions:
     permission: {key: core.audit.manage, scope: SCOPE_GLOBAL}
     cli: {command: [audit, settings], builtin: true}
     ui: {entry: /admin/audit}
+    examples:
+      - name: default
+        as: member
   - id: core.audit.settings.update
     category: CATEGORY_ACTION
     method: PUT
@@ -475,6 +614,11 @@ actions:
     safety: {changes: true}
     cli: {command: [audit, settings, set], builtin: true}
     ui: {entry: /admin/audit}
+    examples:
+      - name: default
+        as: member
+        body_json: '{"disabled": [], "log_logins": true, "log_denied": false, "log_views": false, "forward": []}'
+        status: 204
   - id: core.audit.forward_test
     category: CATEGORY_ACTION
     method: POST
@@ -487,6 +631,14 @@ actions:
     safety: {changes: true}
     cli: {command: [audit, forward-test], builtin: true}
     ui: {entry: /admin/audit}
+    examples:
+      - name: default
+        as: member
+        body_json: '{"name": "Test file", "type": "file", "address": "audit-test.jsonl", "enabled": true}'
+        expect_json: '{"status": "sent"}'
+      - name: outside_logs
+        body_json: '{"name": "Bad", "type": "file", "address": "../escape.jsonl", "enabled": true}'
+        status: 400
   - id: core.languages.add
     category: CATEGORY_ACTION
     method: POST
@@ -499,6 +651,11 @@ actions:
     safety: {changes: true}
     cli: {command: [i18n, add], builtin: true}
     ui: {entry: /admin/languages}
+    examples:
+      - name: default
+        as: member
+        body_json: '{"code": "${unique_lang}"}'
+        status: 204
   - id: core.languages.remove
     category: CATEGORY_ACTION
     method: DELETE
@@ -511,6 +668,12 @@ actions:
     safety: {changes: true}
     cli: {command: [i18n, remove], builtin: true}
     ui: {entry: /admin/languages}
+    examples:
+      - name: default
+        given: ['core.languages.add#default']
+        as: member
+        path_params_json: '{"code": "${given.core.languages.add#default.code}"}'
+        status: 204
   - id: core.i18n.strings
     category: CATEGORY_ACTION
     method: GET
@@ -522,6 +685,9 @@ actions:
     signed_in: true
     cli: {command: [i18n, strings], builtin: true}
     ui: {entry: /admin/languages}
+    examples:
+      - name: default
+        path_params_json: '{"lang": "de"}'
   - id: core.i18n.set
     category: CATEGORY_ACTION
     method: PUT
@@ -534,6 +700,10 @@ actions:
     safety: {changes: true}
     cli: {command: [i18n, set], builtin: true}
     ui: {entry: /admin/languages}
+    examples:
+      - name: default
+        path_params_json: '{"lang": "de"}'
+        body_json: '{"acl.add": "Recht hinzufügen"}'
   - id: core.i18n.export
     category: CATEGORY_ACTION
     method: GET
@@ -545,6 +715,10 @@ actions:
     signed_in: true
     cli: {command: [i18n, export], builtin: true}
     ui: {entry: /admin/languages}
+    examples:
+      - name: default
+        path_params_json: '{"lang": "de"}'
+        query_json: '{"format": "json", "filter": "custom"}'
   - id: core.i18n.import
     category: CATEGORY_ACTION
     method: POST
@@ -557,6 +731,11 @@ actions:
     safety: {changes: true}
     cli: {command: [i18n, import], builtin: true}
     ui: {entry: /admin/languages}
+    examples:
+      - name: default
+        path_params_json: '{"lang": "de"}'
+        query_json: '{"format": "json"}'
+        body_json: '{"acl.added": "Recht hinzugefügt."}'
   - id: core.license.get
     category: CATEGORY_ACTION
     method: GET
@@ -568,6 +747,9 @@ actions:
     permission: {key: core.license.manage, scope: SCOPE_GLOBAL}
     cli: {command: [license, show], builtin: true}
     ui: {entry: /admin/license}
+    examples:
+      - name: default
+        as: member
   - id: core.license.install
     category: CATEGORY_ACTION
     method: PUT
@@ -580,6 +762,17 @@ actions:
     safety: {changes: true}
     cli: {command: [license, install], builtin: true}
     ui: {entry: /admin/license}
+    examples:
+      - name: default
+        body_json: '{"key": "EWL1.eyJpZCI6IkwtRVhBTVBMRSIsImxpY2Vuc2VlIjoiRXhhbXBsZSBMdGQgKHRlc3Qga2V5KSIsImVkaXRpb24iOiJidXNpbmVzcyIsInVzZXJzIjoxMCwiaXNzdWVkIjoiMjAyNi0wMS0wMSIsImV4cGlyZXMiOiIyMDk5LTEyLTMxIn0.QxV1XedlpkgxTnJfG1qDzcsEau-njJDXTmuyDUWn8SQ_V3tD2GZCYi0SRSB79Qlm1C-XW5N5A_IJKVD9uWMoDg"}'
+        expect_json: '{"valid": true}'
+      - name: invalid
+        body_json: '{"key": "EWL1.not.valid"}'
+        status: 400
+      - name: refused
+        as: outsider
+        body_json: '{"key": "EWL1.eyJpZCI6IkwtRVhBTVBMRSIsImxpY2Vuc2VlIjoiRXhhbXBsZSBMdGQgKHRlc3Qga2V5KSIsImVkaXRpb24iOiJidXNpbmVzcyIsInVzZXJzIjoxMCwiaXNzdWVkIjoiMjAyNi0wMS0wMSIsImV4cGlyZXMiOiIyMDk5LTEyLTMxIn0.QxV1XedlpkgxTnJfG1qDzcsEau-njJDXTmuyDUWn8SQ_V3tD2GZCYi0SRSB79Qlm1C-XW5N5A_IJKVD9uWMoDg"}'
+        status: 403
   - id: core.license.remove
     category: CATEGORY_ACTION
     method: DELETE
@@ -592,6 +785,10 @@ actions:
     safety: {changes: true}
     cli: {command: [license, remove], builtin: true}
     ui: {entry: /admin/license}
+    examples:
+      - name: default
+        given: ['core.license.install#default']
+        status: 204
   - id: core.watches.assign.list
     category: CATEGORY_ACTION
     method: GET
@@ -603,6 +800,9 @@ actions:
     permission: {key: core.watches.assign, scope: SCOPE_GLOBAL}
     cli: {command: [watch, assign, list], builtin: true}
     ui: {entry: /admin/watches}
+    examples:
+      - name: default
+        as: member
   - id: core.watches.assign.add
     category: CATEGORY_ACTION
     method: POST
@@ -615,6 +815,12 @@ actions:
     safety: {changes: true}
     cli: {command: [watch, assign, add], builtin: true}
     ui: {entry: /admin/watches}
+    examples:
+      - name: default
+        given: ['core.users.create#default', 'core.categories.create#default']
+        as: member
+        body_json: '{"subject_type": "user", "subject_id": ${given.core.users.create#default.id}, "target_type": "category", "target_id": ${given.core.categories.create#default.id}, "mode": "link", "frequency": "daily"}'
+        status: 201
   - id: core.watches.assign.update
     category: CATEGORY_ACTION
     method: PUT
@@ -627,6 +833,13 @@ actions:
     safety: {changes: true}
     cli: {command: [watch, assign, update], args: [id]}
     ui: {entry: /admin/watches}
+    examples:
+      - name: default
+        given: ['core.watches.assign.add#default', 'core.users.create#default', 'core.categories.create#default']
+        as: member
+        path_params_json: '{"id": "${given.core.watches.assign.add#default.id}"}'
+        body_json: '{"subject_type": "user", "subject_id": ${given.core.users.create#default.id}, "target_type": "category", "target_id": ${given.core.categories.create#default.id}, "mode": "content", "frequency": "weekly"}'
+        expect_json: '{"frequency": "weekly"}'
   - id: core.watches.assign.remove
     category: CATEGORY_ACTION
     method: DELETE
@@ -639,6 +852,12 @@ actions:
     safety: {changes: true}
     cli: {command: [watch, assign, remove], builtin: true}
     ui: {entry: /admin/watches}
+    examples:
+      - name: default
+        given: ['core.watches.assign.add#default']
+        as: member
+        path_params_json: '{"id": "${given.core.watches.assign.add#default.id}"}'
+        status: 204
   - id: core.demo.status
     category: CATEGORY_ACTION
     method: GET
@@ -650,6 +869,8 @@ actions:
     permission: {key: core.admin, scope: SCOPE_GLOBAL}
     cli: {command: [demo, status], builtin: true}
     ui: {entry: /admin/demo}
+    examples:
+      - name: default
   - id: core.demo.create
     category: CATEGORY_ACTION
     method: POST
@@ -662,6 +883,9 @@ actions:
     safety: {changes: true}
     cli: {command: [demo, create], builtin: true}
     ui: {entry: /admin/demo}
+    examples:
+      - name: default
+        given: ['core.demo.remove#cleanup']
   - id: core.demo.remove
     category: CATEGORY_ACTION
     method: DELETE
@@ -674,6 +898,10 @@ actions:
     safety: {changes: true}
     cli: {command: [demo, remove], builtin: true}
     ui: {entry: /admin/demo}
+    examples:
+      - name: default
+        given: ['core.demo.create#default']
+      - name: cleanup
   - id: core.demo.reset
     category: CATEGORY_ACTION
     method: POST
@@ -686,6 +914,14 @@ actions:
     safety: {changes: true}
     cli: {command: [demo, reset-site], builtin: true}
     ui: {entry: /admin/demo}
+    examples:
+      - name: wrong_confirmation
+        body_json: '{"confirm": "no", "password": "x"}'
+        status: 400
+      - name: refused
+        as: outsider
+        body_json: '{"confirm": "RESET", "password": "x"}'
+        status: 403
   - id: core.auth.providers.preview
     category: CATEGORY_ACTION
     method: POST
