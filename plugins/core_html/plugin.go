@@ -51,6 +51,7 @@ func (p *Plugin) Setup(h *coreplugin.Host) error {
 	// edits HTML with macro placeholders, both save Markdown.
 	h.BodyLimit("POST", "/edit-html", limits.RequestContentKB)
 	h.BodyLimit("POST", "/to-markdown", limits.RequestContentKB)
+	// action: core.html.to_html
 	h.Handle("POST", "/edit-html", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		src, err := convertInput(r)
 		if err != nil {
@@ -58,6 +59,7 @@ func (p *Plugin) Setup(h *coreplugin.Host) error {
 		}
 		return map[string]string{"html": ToHTML(&Body{Format: "markdown", Source: src})}, nil
 	})
+	// action: core.html.to_markdown
 	h.Handle("POST", "/to-markdown", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		src, err := convertInput(r)
 		if err != nil {

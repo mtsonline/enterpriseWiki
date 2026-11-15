@@ -172,6 +172,7 @@ func (p *Plugin) icalRoutes(hs *coreplugin.Host) {
 		return func(e *Event) string { return fmt.Sprintf("%s/e/%d#event-%d", base, e.CalendarID, e.ID) }
 	}
 	// GET /calendars/{id}/ical?token= – subscription (personal link with token)
+	// action: content.events.calendar_ical
 	hs.Handle("GET", "/calendars/{id}/ical", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		id, err := h.PathID(r, "id")
 		if err != nil {
@@ -208,6 +209,7 @@ func (p *Plugin) icalRoutes(hs *coreplugin.Host) {
 		return h.Handled{}, nil
 	})
 	// GET /events/{id}/ical – one event as .ics download ("add to my calendar")
+	// action: content.events.ical
 	hs.Handle("GET", "/events/{id}/ical", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		id, err := h.PathID(r, "id")
 		if err != nil {

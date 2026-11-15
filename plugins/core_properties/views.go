@@ -61,6 +61,7 @@ func viewRoutes(host *coreplugin.Host) {
 		return cat, nil
 	}
 	// GET /databases/{id}/views – own and shared views
+	// action: core.properties.views.list
 	host.Handle("GET", "/databases/{id}/views", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		id, err := h.PathID(r, "id")
 		if err != nil {
@@ -87,6 +88,7 @@ func viewRoutes(host *coreplugin.Host) {
 		})
 	})
 	// POST /databases/{id}/views {"name": "…", "shared": false, "state": {...}}
+	// action: core.properties.views.create
 	host.Handle("POST", "/databases/{id}/views", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		id, err := h.PathID(r, "id")
 		if err != nil {
@@ -140,6 +142,7 @@ func viewRoutes(host *coreplugin.Host) {
 		return h.Created{V: v}, nil
 	})
 	// DELETE /views/{id} – own views; shared ones with the permission to edit the database
+	// action: core.properties.views.delete
 	host.Handle("DELETE", "/views/{id}", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		id, err := h.PathID(r, "id")
 		if err != nil {

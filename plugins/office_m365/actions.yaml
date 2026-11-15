@@ -1,0 +1,14 @@
+# Action register (ewiki.plugin.v1.Action, see sdk/proto/ewiki/plugin/v1/action.proto).
+actions:
+  - id: office.m365.test
+    category: CATEGORY_ACTION
+    method: POST
+    path: test
+    summary:
+      text:
+        en: Test the connection to the office service
+        de: Verbindung zum Office-Dienst testen
+    permission: {key: core.settings.manage, scope: SCOPE_GLOBAL}
+    safety: {changes: true}
+    cli: {command: [office, m365-test]}
+    ui: {entry: /admin/m365}

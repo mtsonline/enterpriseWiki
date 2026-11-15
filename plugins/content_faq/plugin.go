@@ -366,6 +366,8 @@ func (p *Plugin) Setup(hs *coreplugin.Host) error {
 	p.host = hs
 	hs.RegisterElementType(Type{})
 	hs.RegisterMacro(faqMacro{})
+	// action: content.faq.questions.create for POST /elements/{id}/questions
+	// action: content.faq.categories.create for POST /elements/{id}/categories
 	catlist.Routes(hs, "FAQ", "questions", func(ctx context.Context, id int64, lang string) (*catlist.Source, string, error) {
 		c, shown, err := p.load(ctx, id, lang)
 		if err != nil {
@@ -376,6 +378,7 @@ func (p *Plugin) Setup(hs *coreplugin.Host) error {
 
 	// GET /elements/{id}/questions?q=&lang= returns sections with questions
 	// and answers; q searches within the FAQ.
+	// action: content.faq.questions.list
 	hs.Handle("GET", "/elements/{id}/questions", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		id, err := h.PathID(r, "id")
 		if err != nil {
@@ -422,6 +425,7 @@ func (p *Plugin) Setup(hs *coreplugin.Host) error {
 		return out, nil
 	})
 
+	// action: content.faq.feed
 	hs.Handle("GET", "/elements/{id}/feed", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		id, err := h.PathID(r, "id")
 		if err != nil {

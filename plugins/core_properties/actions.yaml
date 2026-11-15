@@ -1,0 +1,280 @@
+# Action register (ewiki.plugin.v1.Action, see sdk/proto/ewiki/plugin/v1/action.proto).
+actions:
+  - id: core.properties.types
+    category: CATEGORY_ACTION
+    method: GET
+    path: types
+    summary:
+      text:
+        en: List the types of properties
+        de: Arten von Eigenschaften auflisten
+    public: true
+    cli: {command: [properties, types]}
+    ui: {entry: /e/:id}
+  - id: core.properties.defs.list
+    category: CATEGORY_ACTION
+    method: GET
+    path: defs
+    summary:
+      text:
+        en: List the defined properties of a category (only what you may see)
+        de: "Definierte Eigenschaften einer Kategorie auflisten (nur, was Sie sehen dürfen)"
+    public: true
+    cli: {command: [properties, defs]}
+    ui: {entry: /e/:id}
+  - id: core.properties.defs.create
+    category: CATEGORY_ACTION
+    method: POST
+    path: defs
+    summary:
+      text:
+        en: "Define a property (global ones need core.properties.admin, others core.properties.define in the category)"
+        de: "Eigenschaft definieren (globale brauchen core.properties.admin, andere core.properties.define in der Kategorie)"
+    signed_in: true
+    safety: {changes: true}
+    cli: {command: [properties, define]}
+    ui: {entry: /admin/properties}
+  - id: core.properties.defs.update
+    category: CATEGORY_ACTION
+    method: PUT
+    path: "defs/{id}"
+    summary:
+      text:
+        en: Change the definition of a property (same rights as defining)
+        de: Definition einer Eigenschaft ändern (gleiche Rechte wie beim Definieren)
+    signed_in: true
+    safety: {changes: true}
+    cli: {command: [properties, redefine], args: [id]}
+    ui: {entry: /admin/properties}
+  - id: core.properties.defs.delete
+    category: CATEGORY_ACTION
+    method: DELETE
+    path: "defs/{id}"
+    summary:
+      text:
+        en: Remove the definition of a property (same rights as defining)
+        de: Definition einer Eigenschaft entfernen (gleiche Rechte wie beim Definieren)
+    signed_in: true
+    safety: {changes: true}
+    cli: {command: [properties, undefine], args: [id]}
+    ui: {entry: /admin/properties}
+  - id: core.properties.settings
+    category: CATEGORY_ACTION
+    method: PUT
+    path: "settings/{id}"
+    summary:
+      text:
+        en: Allow or forbid free properties in a category
+        de: Freie Eigenschaften in einer Kategorie erlauben oder verbieten
+    permission: {key: core.properties.define, scope: SCOPE_CATEGORY, category_param: "id"}
+    safety: {changes: true}
+    cli: {command: [properties, settings], args: [id]}
+    ui: {entry: /c/:id/settings}
+  - id: core.properties.get
+    category: CATEGORY_ACTION
+    method: GET
+    path: "elements/{id}"
+    summary:
+      text:
+        en: Show the properties of an element
+        de: Eigenschaften eines Elements anzeigen
+    permission: {key: core.category.view, scope: SCOPE_CATEGORY, category_param: "element:id"}
+    cli: {command: [properties, show], args: [id]}
+    ui: {entry: /e/:id}
+  - id: core.properties.set
+    category: CATEGORY_ACTION
+    method: PUT
+    path: "elements/{id}"
+    summary:
+      text:
+        en: Change the properties of an element
+        de: Eigenschaften eines Elements ändern
+    permission: {key: core.category.edit, scope: SCOPE_CATEGORY, category_param: "element:id"}
+    safety: {changes: true}
+    cli: {command: [properties, set], args: [id]}
+    ui: {entry: /e/:id/edit}
+  - id: core.properties.new
+    category: CATEGORY_ACTION
+    method: GET
+    path: new
+    summary:
+      text:
+        en: Properties of a new element in a category (needs create there)
+        de: Eigenschaften eines neuen Elements in einer Kategorie (braucht dort Anlegen)
+    signed_in: true
+    cli: {command: [properties, new]}
+    ui: {entry: /c/:id/new}
+  - id: core.properties.history
+    category: CATEGORY_ACTION
+    method: GET
+    path: "history/{id}"
+    summary:
+      text:
+        en: Show the changes of the properties of an element
+        de: Änderungen der Eigenschaften eines Elements anzeigen
+    permission: {key: core.category.view, scope: SCOPE_CATEGORY, category_param: "element:id"}
+    cli: {command: [properties, history], args: [id]}
+    ui: {entry: /e/:id/history}
+  - id: core.properties.refs
+    category: CATEGORY_ACTION
+    method: GET
+    path: refs
+    summary:
+      text:
+        en: Elements that refer to an element (only what you may see)
+        de: "Elemente, die auf ein Element verweisen (nur, was Sie sehen dürfen)"
+    public: true
+    cli: {command: [properties, refs]}
+    ui: {entry: /e/:id}
+  - id: core.properties.keys
+    category: CATEGORY_ACTION
+    method: GET
+    path: keys
+    summary:
+      text:
+        en: Keys of properties in use (only what you may see)
+        de: "Verwendete Schlüssel von Eigenschaften (nur, was Sie sehen dürfen)"
+    public: true
+    cli: {command: [properties, keys]}
+    ui: {entry: /e/:id}
+  - id: core.properties.values
+    category: CATEGORY_ACTION
+    method: GET
+    path: values
+    summary:
+      text:
+        en: Values of a property in use (only what you may see)
+        de: "Verwendete Werte einer Eigenschaft (nur, was Sie sehen dürfen)"
+    public: true
+    cli: {command: [properties, values]}
+    ui: {entry: /e/:id}
+  - id: core.properties.query
+    category: CATEGORY_ACTION
+    method: POST
+    path: query
+    summary:
+      text:
+        en: Query elements by their properties (only what you may see)
+        de: "Elemente nach ihren Eigenschaften abfragen (nur, was Sie sehen dürfen)"
+    public: true
+    safety: {changes: true}
+    cli: {command: [properties, query]}
+    ui: {entry: /e/:id}
+  - id: core.properties.report
+    category: CATEGORY_ACTION
+    method: POST
+    path: report
+    summary:
+      text:
+        en: Rows of a report as on the page (only what you may see)
+        de: "Zeilen eines Berichts wie auf der Seite (nur, was Sie sehen dürfen)"
+    public: true
+    safety: {changes: true}
+    cli: {command: [properties, report]}
+    ui: {entry: /e/:id}
+  - id: core.properties.trend
+    category: CATEGORY_ACTION
+    method: POST
+    path: trend
+    summary:
+      text:
+        en: Course of a report over time (only what you may see)
+        de: "Verlauf eines Berichts über die Zeit (nur, was Sie sehen dürfen)"
+    public: true
+    safety: {changes: true}
+    cli: {command: [properties, trend]}
+    ui: {entry: /e/:id}
+  - id: core.properties.export.csv
+    category: CATEGORY_ACTION
+    method: POST
+    path: query.csv
+    summary:
+      text:
+        en: Export a query or report as CSV (only what you may see)
+        de: "Abfrage oder Bericht als CSV exportieren (nur, was Sie sehen dürfen)"
+    public: true
+    safety: {changes: true}
+    cli: {command: [properties, export-csv]}
+    ui: {entry: /e/:id}
+  - id: core.properties.export.xlsx
+    category: CATEGORY_ACTION
+    method: POST
+    path: query.xlsx
+    summary:
+      text:
+        en: Export a query or report as Excel file (only what you may see)
+        de: "Abfrage oder Bericht als Excel-Datei exportieren (nur, was Sie sehen dürfen)"
+    public: true
+    safety: {changes: true}
+    cli: {command: [properties, export-xlsx]}
+    ui: {entry: /e/:id}
+  - id: core.properties.views.list
+    category: CATEGORY_ACTION
+    method: GET
+    path: "databases/{id}/views"
+    summary:
+      text:
+        en: List the saved views of a database
+        de: Gespeicherte Ansichten einer Datenbank auflisten
+    permission: {key: core.category.view, scope: SCOPE_CATEGORY, category_param: "element:id"}
+    cli: {command: [properties, views], args: [id]}
+    ui: {entry: /e/:id}
+  - id: core.properties.views.create
+    category: CATEGORY_ACTION
+    method: POST
+    path: "databases/{id}/views"
+    summary:
+      text:
+        en: Save a view of a database (shared views need edit)
+        de: Ansicht einer Datenbank speichern (gemeinsame Ansichten brauchen Bearbeiten)
+    permission: {key: core.category.view, scope: SCOPE_CATEGORY, category_param: "element:id"}
+    safety: {changes: true}
+    cli: {command: [properties, view-save], args: [id]}
+    ui: {entry: /e/:id}
+  - id: core.properties.views.delete
+    category: CATEGORY_ACTION
+    method: DELETE
+    path: "views/{id}"
+    summary:
+      text:
+        en: Delete a saved view (own ones; shared ones need edit)
+        de: Gespeicherte Ansicht löschen (eigene; gemeinsame brauchen Bearbeiten)
+    signed_in: true
+    safety: {changes: true}
+    cli: {command: [properties, view-delete], args: [id]}
+    ui: {entry: /e/:id}
+  - id: core.properties.subscriptions.list
+    category: CATEGORY_ACTION
+    method: GET
+    path: subscriptions
+    summary:
+      text:
+        en: List your report subscriptions
+        de: Eigene Bericht-Abos auflisten
+    signed_in: true
+    cli: {command: [properties, subscriptions]}
+    ui: {entry: /e/:id}
+  - id: core.properties.subscriptions.create
+    category: CATEGORY_ACTION
+    method: POST
+    path: subscriptions
+    summary:
+      text:
+        en: Subscribe to a report by e-mail
+        de: Bericht per E-Mail abonnieren
+    signed_in: true
+    safety: {changes: true}
+    cli: {command: [properties, subscribe]}
+    ui: {entry: /e/:id}
+  - id: core.properties.subscriptions.delete
+    category: CATEGORY_ACTION
+    method: DELETE
+    path: "subscriptions/{id}"
+    summary:
+      text:
+        en: End a report subscription
+        de: Bericht-Abo beenden
+    signed_in: true
+    safety: {changes: true}
+    cli: {command: [properties, unsubscribe], args: [id]}
+    ui: {entry: /e/:id}

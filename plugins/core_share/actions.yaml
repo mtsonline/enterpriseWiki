@@ -1,0 +1,26 @@
+# Action register (ewiki.plugin.v1.Action, see sdk/proto/ewiki/plugin/v1/action.proto).
+actions:
+  - id: core.share.check
+    category: CATEGORY_ACTION
+    method: POST
+    path: check
+    summary:
+      text:
+        en: Who would be notified when sharing (without sending)
+        de: Wer beim Teilen benachrichtigt würde (ohne zu senden)
+    permission: {key: core.share.use, scope: SCOPE_GLOBAL}
+    safety: {changes: true}
+    cli: {command: [share, check]}
+    ui: {entry: /e/:id}
+  - id: core.share.send
+    category: CATEGORY_ACTION
+    method: POST
+    path: share
+    summary:
+      text:
+        en: "Share a page: notify people, groups or roles"
+        de: "Seite teilen: Personen, Gruppen oder Rollen benachrichtigen"
+    permission: {key: core.share.use, scope: SCOPE_GLOBAL}
+    safety: {changes: true}
+    cli: {command: [share, send]}
+    ui: {entry: /e/:id}

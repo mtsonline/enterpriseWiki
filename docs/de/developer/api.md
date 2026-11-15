@@ -93,7 +93,7 @@ Jede Route ist eine **Aktion** mit einem Eintrag im Aktionsregister, im Format `
 - **Pflicht je Eintrag:** `id` nach der Namensraum-Regel, `category` (`CATEGORY_ACTION` oder `CATEGORY_PROTOCOL` für Aufrufe anderer Systeme), `method`, `path`, `summary` auf Deutsch **und** Englisch, genau eines von `permission`, `signed_in`, `public`, bei Aktionen `cli` und `ui` oder eine vom Projektinhaber genehmigte Ausnahme (`exceptions`).
 - **Kommentar an der Route:** `// action: <id>` direkt über `s.handle(…)` bzw. `host.Handle(…)`.
 - **Prüfungen:**
-  - `TestActionRegister` (Stufe 1): Register und Routen stimmen überein, die Kommentare passen. Routen ohne Eintrag stehen in `internal/actions/missing.txt`; die Liste darf nur kürzer werden. Eine neue Route ohne Eintrag lässt die CI scheitern.
+  - `TestActionRegister` (Stufe 1): Register und Routen stimmen überein, die Kommentare passen. Jede Route hat einen Eintrag; eine neue Route ohne Eintrag lässt die CI scheitern. Auch eine Route, die nur am Mux hängt und nicht erfasst ist (`h.RecordRoute`), fällt auf. Routen, die eine gemeinsame Hilfsfunktion anlegt, nennen ihre Aktion beim Aufruf: `// action: <id> for <METHODE> <Pfad>`.
   - `go run ./tools/protocheck` im Ordner `sdk`: übersetzt den Vertrag und liest alle Register-Dateien und Beispiel-Manifeste mit den echten Nachrichten (unbekannte Felder, falsche Werte und ungültiges JSON in Schemas sind Fehler).
 - **Texte mit Komma** in Block-Form schreiben (`text:` mit `en:` und `de:` darunter); in der Kurzform `{en: a, b}` würde das Komma den Text trennen. Die Prüfung erkennt das.
 

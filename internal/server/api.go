@@ -139,9 +139,13 @@ func (s *Server) routes() {
 	s.routesNotifications()
 	s.routesWatchAssignments()
 	// ---------------------------------------------------------------- system
+	// action: core.health
+	h.RecordRoute("GET /healthz")
 	s.app.Mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, r *http.Request) { h.Write(w, 200, map[string]string{"status": "ok"}) })
 	// on-demand TLS of the bundled reverse proxy (Caddy "ask"): 200 only for
 	// the wiki's own host names, so no certificates are requested for others
+	// action: core.tls_allowed
+	h.RecordRoute("GET /tls-allowed")
 	s.app.Mux.HandleFunc("GET /tls-allowed", func(w http.ResponseWriter, r *http.Request) {
 		ok, err := s.app.Instance.AllowedHost(r.Context(), r.URL.Query().Get("domain"))
 		switch {

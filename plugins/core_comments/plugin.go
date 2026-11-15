@@ -149,6 +149,7 @@ func (p *Plugin) Setup(host *coreplugin.Host) error {
 	p.host = host
 
 	// GET /elements/{id}/comments lists the comments of a page (oldest first).
+	// action: core.comments.list
 	host.Handle("GET", "/elements/{id}/comments", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		id, err := h.PathID(r, "id")
 		if err != nil {
@@ -183,6 +184,7 @@ func (p *Plugin) Setup(host *coreplugin.Host) error {
 	})
 
 	// POST /elements/{id}/comments adds a comment: {"body": "...", "parent_id": null}.
+	// action: core.comments.create
 	host.Handle("POST", "/elements/{id}/comments", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		id, err := h.PathID(r, "id")
 		if err != nil {
@@ -259,6 +261,7 @@ func (p *Plugin) Setup(host *coreplugin.Host) error {
 	})
 
 	// PUT /comments/{id} edits an own comment: {"body": "..."}.
+	// action: core.comments.update
 	host.Handle("PUT", "/comments/{id}", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		id, err := h.PathID(r, "id")
 		if err != nil {
@@ -303,6 +306,7 @@ func (p *Plugin) Setup(host *coreplugin.Host) error {
 	})
 
 	// DELETE /comments/{id} deletes a comment (author, Manage permission or admin).
+	// action: core.comments.delete
 	host.Handle("DELETE", "/comments/{id}", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		id, err := h.PathID(r, "id")
 		if err != nil {

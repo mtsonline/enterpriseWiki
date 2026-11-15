@@ -1,0 +1,48 @@
+# Action register (ewiki.plugin.v1.Action, see sdk/proto/ewiki/plugin/v1/action.proto).
+actions:
+  - id: content.blog.posts.list
+    category: CATEGORY_ACTION
+    method: GET
+    path: "elements/{id}/posts"
+    summary:
+      text:
+        en: List the posts of a blog
+        de: Beiträge eines Blogs auflisten
+    permission: {key: core.category.view, scope: SCOPE_CATEGORY, category_param: "element:id"}
+    cli: {command: [blog, posts], args: [id]}
+    ui: {entry: /e/:id}
+  - id: content.blog.posts.create
+    category: CATEGORY_ACTION
+    method: POST
+    path: "elements/{id}/posts"
+    summary:
+      text:
+        en: Write a post in a blog (needs create in the category)
+        de: Beitrag in einem Blog schreiben (braucht Anlegen in der Kategorie)
+    signed_in: true
+    safety: {changes: true}
+    cli: {command: [blog, post], args: [id]}
+    ui: {entry: /e/:id}
+  - id: content.blog.categories.create
+    category: CATEGORY_ACTION
+    method: POST
+    path: "elements/{id}/categories"
+    summary:
+      text:
+        en: Add a subcategory to a blog (needs create)
+        de: Unterkategorie zu einem Blog hinzufügen (braucht Anlegen)
+    signed_in: true
+    safety: {changes: true}
+    cli: {command: [blog, category], args: [id]}
+    ui: {entry: /e/:id}
+  - id: content.blog.feed
+    category: CATEGORY_ACTION
+    method: GET
+    path: "elements/{id}/feed"
+    summary:
+      text:
+        en: Feed of a blog (RSS/Atom; with the personal feed link also private)
+        de: Feed eines Blogs (RSS/Atom; mit persönlichem Feed-Link auch privat)
+    public: true
+    cli: {command: [blog, feed], args: [id]}
+    ui: {entry: /e/:id}

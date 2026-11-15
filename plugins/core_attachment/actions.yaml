@@ -1,0 +1,13 @@
+# Action register (ewiki.plugin.v1.Action, see sdk/proto/ewiki/plugin/v1/action.proto).
+actions:
+  - id: core.attachment.file
+    category: CATEGORY_ACTION
+    method: GET
+    path: "elements/{id}/file"
+    summary:
+      text:
+        en: Download the file of an attachment element
+        de: Datei eines Anhang-Elements herunterladen
+    permission: {key: core.category.view, scope: SCOPE_CATEGORY, category_param: "element:id"}
+    cli: {command: [attachment, download], args: [id]}
+    ui: {entry: /e/:id}

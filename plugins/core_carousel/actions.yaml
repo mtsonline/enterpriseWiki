@@ -1,0 +1,142 @@
+# Action register (ewiki.plugin.v1.Action, see sdk/proto/ewiki/plugin/v1/action.proto).
+actions:
+  - id: core.carousel.position
+    category: CATEGORY_ACTION
+    method: GET
+    path: "position/{position}"
+    summary:
+      text:
+        en: Carousels of a position with their slides (only what you may see)
+        de: "Karussells einer Position mit ihren Folien (nur, was Sie sehen dürfen)"
+    public: true
+    cli: {command: [carousel, position], args: [position]}
+    ui: {entry: /}
+  - id: core.carousel.targets
+    category: CATEGORY_ACTION
+    method: GET
+    path: targets
+    summary:
+      text:
+        en: Carousels news can be published to (also with core.carousel.manage)
+        de: "Karussells, in denen Neuigkeiten erscheinen können (auch mit core.carousel.manage)"
+    permission: {key: core.carousel.publish, scope: SCOPE_GLOBAL}
+    cli: {command: [carousel, targets]}
+    ui: {entry: /e/:id}
+  - id: core.carousel.list
+    category: CATEGORY_ACTION
+    method: GET
+    path: carousels
+    summary:
+      text:
+        en: List the carousels
+        de: Karussells auflisten
+    permission: {key: core.carousel.manage, scope: SCOPE_GLOBAL}
+    cli: {command: [carousel, list]}
+    ui: {entry: /admin/carousels}
+  - id: core.carousel.create
+    category: CATEGORY_ACTION
+    method: POST
+    path: carousels
+    summary:
+      text:
+        en: Create a carousel
+        de: Karussell anlegen
+    permission: {key: core.carousel.manage, scope: SCOPE_GLOBAL}
+    safety: {changes: true}
+    cli: {command: [carousel, create]}
+    ui: {entry: /admin/carousels}
+  - id: core.carousel.update
+    category: CATEGORY_ACTION
+    method: PUT
+    path: "carousels/{id}"
+    summary:
+      text:
+        en: Change a carousel
+        de: Karussell ändern
+    permission: {key: core.carousel.manage, scope: SCOPE_GLOBAL}
+    safety: {changes: true}
+    cli: {command: [carousel, update], args: [id]}
+    ui: {entry: /admin/carousels}
+  - id: core.carousel.delete
+    category: CATEGORY_ACTION
+    method: DELETE
+    path: "carousels/{id}"
+    summary:
+      text:
+        en: Delete a carousel
+        de: Karussell löschen
+    permission: {key: core.carousel.manage, scope: SCOPE_GLOBAL}
+    safety: {changes: true}
+    cli: {command: [carousel, delete], args: [id]}
+    ui: {entry: /admin/carousels}
+  - id: core.carousel.slides.list
+    category: CATEGORY_ACTION
+    method: GET
+    path: "carousels/{id}/slides"
+    summary:
+      text:
+        en: List the slides of a carousel
+        de: Folien eines Karussells auflisten
+    permission: {key: core.carousel.manage, scope: SCOPE_GLOBAL}
+    cli: {command: [carousel, slides], args: [id]}
+    ui: {entry: /admin/carousels}
+  - id: core.carousel.slides.create
+    category: CATEGORY_ACTION
+    method: POST
+    path: "carousels/{id}/slides"
+    summary:
+      text:
+        en: Add a slide
+        de: Folie hinzufügen
+    permission: {key: core.carousel.manage, scope: SCOPE_GLOBAL}
+    safety: {changes: true}
+    cli: {command: [carousel, slide-add], args: [id]}
+    ui: {entry: /admin/carousels}
+  - id: core.carousel.slides.update
+    category: CATEGORY_ACTION
+    method: PUT
+    path: "carousels/{id}/slides/{slide}"
+    summary:
+      text:
+        en: Change a slide
+        de: Folie ändern
+    permission: {key: core.carousel.manage, scope: SCOPE_GLOBAL}
+    safety: {changes: true}
+    cli: {command: [carousel, slide-update], args: [id, slide]}
+    ui: {entry: /admin/carousels}
+  - id: core.carousel.slides.delete
+    category: CATEGORY_ACTION
+    method: DELETE
+    path: "carousels/{id}/slides/{slide}"
+    summary:
+      text:
+        en: Remove a slide
+        de: Folie entfernen
+    permission: {key: core.carousel.manage, scope: SCOPE_GLOBAL}
+    safety: {changes: true}
+    cli: {command: [carousel, slide-remove], args: [id, slide]}
+    ui: {entry: /admin/carousels}
+  - id: core.carousel.order
+    category: CATEGORY_ACTION
+    method: PUT
+    path: "carousels/{id}/order"
+    summary:
+      text:
+        en: Change the order of the slides
+        de: Reihenfolge der Folien ändern
+    permission: {key: core.carousel.manage, scope: SCOPE_GLOBAL}
+    safety: {changes: true}
+    cli: {command: [carousel, order], args: [id]}
+    ui: {entry: /admin/carousels}
+  - id: core.carousel.refresh
+    category: CATEGORY_ACTION
+    method: POST
+    path: "carousels/{id}/refresh"
+    summary:
+      text:
+        en: Fill a carousel again from its source
+        de: Karussell erneut aus seiner Quelle füllen
+    permission: {key: core.carousel.manage, scope: SCOPE_GLOBAL}
+    safety: {changes: true}
+    cli: {command: [carousel, refresh], args: [id]}
+    ui: {entry: /admin/carousels}

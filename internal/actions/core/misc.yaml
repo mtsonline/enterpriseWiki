@@ -218,3 +218,19 @@ actions:
         en: "WOPI: store a new content of a file (for office servers)"
         de: "WOPI: Neuen Inhalt einer Datei speichern (für Office-Server)"
     safety: {changes: true}
+  - id: core.health
+    category: CATEGORY_PROTOCOL
+    method: GET
+    path: /healthz
+    summary:
+      text:
+        en: Liveness check (the process answers)
+        de: Lebenszeichen (der Prozess antwortet)
+  - id: core.tls_allowed
+    category: CATEGORY_PROTOCOL
+    method: GET
+    path: /tls-allowed
+    summary:
+      text:
+        en: Asks whether a TLS certificate may be requested for a host (bundled reverse proxy)
+        de: "Fragt, ob für einen Hostnamen ein TLS-Zertifikat angefordert werden darf (mitgelieferter Reverse Proxy)"

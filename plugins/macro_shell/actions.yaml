@@ -1,0 +1,61 @@
+# Action register (ewiki.plugin.v1.Action, see sdk/proto/ewiki/plugin/v1/action.proto).
+actions:
+  - id: macro.shell.list
+    category: CATEGORY_ACTION
+    method: GET
+    path: commands
+    summary:
+      text:
+        en: List the known shell commands
+        de: Bekannte Shell-Befehle auflisten
+    permission: {key: macro.shell.manage, scope: SCOPE_GLOBAL}
+    cli: {command: [shell, list]}
+    ui: {entry: /admin/shell}
+  - id: macro.shell.add
+    category: CATEGORY_ACTION
+    method: POST
+    path: commands
+    summary:
+      text:
+        en: Register a shell command (approving needs a listed approver)
+        de: Shell-Befehl eintragen (Freigeben braucht eine eingetragene freigebende Person)
+    permission: {key: macro.shell.manage, scope: SCOPE_GLOBAL}
+    safety: {changes: true}
+    cli: {command: [shell, add]}
+    ui: {entry: /admin/shell}
+  - id: macro.shell.approve
+    category: CATEGORY_ACTION
+    method: POST
+    path: "commands/{hash}/approve"
+    summary:
+      text:
+        en: Approve a shell command (only approvers listed in config.yaml)
+        de: Shell-Befehl freigeben (nur in config.yaml eingetragene freigebende Personen)
+    permission: {key: macro.shell.manage, scope: SCOPE_GLOBAL}
+    safety: {changes: true}
+    cli: {command: [shell, approve], args: [hash]}
+    ui: {entry: /admin/shell}
+  - id: macro.shell.revoke
+    category: CATEGORY_ACTION
+    method: POST
+    path: "commands/{hash}/revoke"
+    summary:
+      text:
+        en: Revoke a shell command (only approvers listed in config.yaml)
+        de: Shell-Befehl sperren (nur in config.yaml eingetragene freigebende Personen)
+    permission: {key: macro.shell.manage, scope: SCOPE_GLOBAL}
+    safety: {changes: true}
+    cli: {command: [shell, revoke], args: [hash]}
+    ui: {entry: /admin/shell}
+  - id: macro.shell.delete
+    category: CATEGORY_ACTION
+    method: DELETE
+    path: "commands/{hash}"
+    summary:
+      text:
+        en: Delete a shell command (only approvers listed in config.yaml)
+        de: Shell-Befehl löschen (nur in config.yaml eingetragene freigebende Personen)
+    permission: {key: macro.shell.manage, scope: SCOPE_GLOBAL}
+    safety: {changes: true}
+    cli: {command: [shell, delete], args: [hash]}
+    ui: {entry: /admin/shell}

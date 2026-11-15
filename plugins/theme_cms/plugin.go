@@ -40,6 +40,7 @@ var (
 
 // Setup registers GET /config (public template settings).
 func (p *Plugin) Setup(hs *coreplugin.Host) error {
+	// action: theme.cms.config
 	hs.Handle("GET", "/config", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		s := hs.Settings()
 		out := map[string]any{}

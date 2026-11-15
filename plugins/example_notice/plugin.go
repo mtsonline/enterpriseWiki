@@ -45,6 +45,7 @@ var Tones = []string{"info", "success", "warning", "danger"}
 // Setup registers the element type and an API route.
 func (p *Plugin) Setup(h *coreplugin.Host) error {
 	h.RegisterElementType(&Type{})
+	// action: example.notice.tones
 	h.Handle("GET", "/tones", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		return Tones, nil
 	})

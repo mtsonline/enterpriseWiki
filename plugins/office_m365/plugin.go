@@ -66,6 +66,7 @@ func (p *Plugin) Setup(host *coreplugin.Host) error {
 	p.op = &wopi.Opener{PluginID: host.Manifest.ID, Name: "Microsoft 365", Settings: p.settings}
 	host.Media.RegisterOpener(p.op)
 	p.op.Warm()
+	// action: office.m365.test
 	host.Handle("POST", "/test", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		if err := perm.Require(r.Context(), "core.settings.manage"); err != nil {
 			return nil, err

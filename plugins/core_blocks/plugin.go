@@ -135,6 +135,7 @@ func list(ctx context.Context, q *coreplugin.Host) ([]Block, error) {
 func (p *Plugin) Setup(host *coreplugin.Host) error {
 	// GET /blocks?lang=de lists the blocks for the caller, rendered
 	// (?all=1: all blocks with their sources, administrators only).
+	// action: core.blocks.list
 	host.Handle("GET", "/blocks", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		ctx := r.Context()
 		bs, err := list(ctx, host)
@@ -212,8 +213,11 @@ func (p *Plugin) Setup(host *coreplugin.Host) error {
 		_ = audit.Log(ctx, host.DB, "block.create", "block", in.ID, nil, in)
 		return h.Created{V: in}, nil
 	}
+	// action: core.blocks.create
 	host.Handle("POST", "/blocks", save)
+	// action: core.blocks.update
 	host.Handle("PUT", "/blocks/{id}", save)
+	// action: core.blocks.delete
 	host.Handle("DELETE", "/blocks/{id}", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		if err := perm.Require(r.Context(), "core.blocks.edit"); err != nil {
 			return nil, err

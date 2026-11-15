@@ -1,0 +1,71 @@
+# Action register (ewiki.plugin.v1.Action, see sdk/proto/ewiki/plugin/v1/action.proto).
+actions:
+  - id: core.reactions.get
+    category: CATEGORY_ACTION
+    method: GET
+    path: "{type}/{id}"
+    summary:
+      text:
+        en: Reactions of a page or comment (only what you may see)
+        de: "Reaktionen einer Seite oder eines Kommentars (nur, was Sie sehen dürfen)"
+    public: true
+    cli: {command: [reaction, show], args: [type, id]}
+    ui: {entry: /e/:id}
+  - id: core.reactions.batch
+    category: CATEGORY_ACTION
+    method: GET
+    path: batch
+    summary:
+      text:
+        en: Reactions of several targets (only what you may see)
+        de: "Reaktionen mehrerer Ziele (nur, was Sie sehen dürfen)"
+    public: true
+    cli: {command: [reaction, batch]}
+    ui: {entry: /e/:id}
+  - id: core.reactions.react
+    category: CATEGORY_ACTION
+    method: POST
+    path: "{type}/{id}"
+    summary:
+      text:
+        en: Add or remove your reaction
+        de: Eigene Reaktion hinzufügen oder entfernen
+    permission: {key: core.reactions.use, scope: SCOPE_GLOBAL}
+    safety: {changes: true}
+    cli: {command: [reaction, set], args: [type, id]}
+    ui: {entry: /e/:id}
+  - id: core.reactions.remove
+    category: CATEGORY_ACTION
+    method: DELETE
+    path: "{type}/{id}/users/{uid}"
+    summary:
+      text:
+        en: Remove the reactions of another person
+        de: Reaktionen einer anderen Person entfernen
+    permission: {key: core.reactions.manage, scope: SCOPE_GLOBAL}
+    safety: {changes: true}
+    cli: {command: [reaction, remove], args: [type, id, uid]}
+    ui: {entry: /e/:id}
+  - id: core.reactions.settings.get
+    category: CATEGORY_ACTION
+    method: GET
+    path: settings
+    summary:
+      text:
+        en: Show the blocked emoji
+        de: Gesperrte Emoji anzeigen
+    signed_in: true
+    cli: {command: [reaction, settings]}
+    ui: {entry: /admin/reactions}
+  - id: core.reactions.settings.update
+    category: CATEGORY_ACTION
+    method: PUT
+    path: settings
+    summary:
+      text:
+        en: Change the blocked emoji
+        de: Gesperrte Emoji ändern
+    permission: {key: core.reactions.manage, scope: SCOPE_GLOBAL}
+    safety: {changes: true}
+    cli: {command: [reaction, settings-set]}
+    ui: {entry: /admin/reactions}

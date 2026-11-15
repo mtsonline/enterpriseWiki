@@ -1,0 +1,206 @@
+# Action register (ewiki.plugin.v1.Action, see sdk/proto/ewiki/plugin/v1/action.proto).
+actions:
+  - id: workflow.process.meta
+    category: CATEGORY_ACTION
+    method: GET
+    path: meta
+    summary:
+      text:
+        en: "Steps, actions and your rights of a workflow (only what you may see)"
+        de: "Schritte, Aktionen und Ihre Rechte eines Workflows (nur, was Sie sehen dürfen)"
+    public: true
+    cli: {command: [workflow, meta]}
+    ui: {entry: /e/:id}
+  - id: workflow.process.cases.list
+    category: CATEGORY_ACTION
+    method: GET
+    path: "elements/{id}/instances"
+    summary:
+      text:
+        en: List the cases of a workflow you may see
+        de: "Fälle eines Workflows auflisten, die Sie sehen dürfen"
+    permission: {key: core.category.view, scope: SCOPE_CATEGORY, category_param: "element:id"}
+    cli: {command: [workflow, cases], args: [id]}
+    ui: {entry: /e/:id}
+  - id: workflow.process.cases.start
+    category: CATEGORY_ACTION
+    method: POST
+    path: "elements/{id}/instances"
+    summary:
+      text:
+        en: Start a case (test runs need the right to change the workflow)
+        de: "Fall starten (Testläufe brauchen das Recht, den Workflow zu ändern)"
+    permission: {key: core.category.view, scope: SCOPE_CATEGORY, category_param: "element:id"}
+    safety: {changes: true}
+    cli: {command: [workflow, start], args: [id]}
+    ui: {entry: /e/:id}
+  - id: workflow.process.stats
+    category: CATEGORY_ACTION
+    method: GET
+    path: "elements/{id}/stats"
+    summary:
+      text:
+        en: Show figures of a workflow (needs the right to change it)
+        de: "Kennzahlen eines Workflows anzeigen (braucht das Recht, ihn zu ändern)"
+    permission: {key: core.category.view, scope: SCOPE_CATEGORY, category_param: "element:id"}
+    cli: {command: [workflow, stats], args: [id]}
+    ui: {entry: /e/:id}
+  - id: workflow.process.triggers
+    category: CATEGORY_ACTION
+    method: GET
+    path: "elements/{id}/triggers"
+    summary:
+      text:
+        en: List the triggers of a workflow (needs the right to change it)
+        de: "Auslöser eines Workflows auflisten (braucht das Recht, ihn zu ändern)"
+    permission: {key: core.category.view, scope: SCOPE_CATEGORY, category_param: "element:id"}
+    cli: {command: [workflow, triggers], args: [id]}
+    ui: {entry: /e/:id/edit}
+  - id: workflow.process.triggers.secret
+    category: CATEGORY_ACTION
+    method: POST
+    path: "elements/{id}/triggers/{trigger}/secret"
+    summary:
+      text:
+        en: Create a new secret for a webhook trigger (needs the right to change the workflow)
+        de: "Neues Geheimnis für einen Webhook-Auslöser erzeugen (braucht das Recht, den Workflow zu ändern)"
+    permission: {key: core.category.view, scope: SCOPE_CATEGORY, category_param: "element:id"}
+    safety: {changes: true}
+    cli: {command: [workflow, trigger-secret], args: [id, trigger]}
+    ui: {entry: /e/:id/edit}
+  - id: workflow.process.hook
+    category: CATEGORY_PROTOCOL
+    method: POST
+    path: "hooks/{id}/{trigger}"
+    summary:
+      text:
+        en: Webhook trigger of a workflow (signed with the secret of the trigger)
+        de: Webhook-Auslöser eines Workflows (mit dem Geheimnis des Auslösers signiert)
+    safety: {changes: true}
+  - id: workflow.process.cases.get
+    category: CATEGORY_ACTION
+    method: GET
+    path: "instances/{id}"
+    summary:
+      text:
+        en: Show a case with its history (only what you may see)
+        de: "Fall mit seinem Verlauf anzeigen (nur, was Sie sehen dürfen)"
+    public: true
+    cli: {command: [workflow, case], args: [id]}
+    ui: {entry: /e/:id}
+  - id: workflow.process.cases.file
+    category: CATEGORY_ACTION
+    method: GET
+    path: "instances/{id}/files/{field}"
+    summary:
+      text:
+        en: Download a file of a case form (only what you may see)
+        de: "Datei eines Fall-Formulars herunterladen (nur, was Sie sehen dürfen)"
+    public: true
+    cli: {command: [workflow, case-file], args: [id, field]}
+    ui: {entry: /e/:id}
+  - id: workflow.process.cases.act
+    category: CATEGORY_ACTION
+    method: POST
+    path: "instances/{id}/actions"
+    summary:
+      text:
+        en: "Decide a step of a case (approve, reject, delegate …)"
+        de: "Schritt eines Falls entscheiden (genehmigen, ablehnen, weitergeben …)"
+    signed_in: true
+    safety: {changes: true}
+    cli: {command: [workflow, act], args: [id]}
+    ui: {entry: /tasks}
+  - id: workflow.process.cases.cancel
+    category: CATEGORY_ACTION
+    method: POST
+    path: "instances/{id}/cancel"
+    summary:
+      text:
+        en: Cancel an open case
+        de: Offenen Fall abbrechen
+    signed_in: true
+    safety: {changes: true}
+    cli: {command: [workflow, cancel], args: [id]}
+    ui: {entry: /tasks}
+  - id: workflow.process.cases.sign
+    category: CATEGORY_ACTION
+    method: POST
+    path: "instances/{id}/sign"
+    summary:
+      text:
+        en: Begin the signature of a decision
+        de: Signatur einer Entscheidung beginnen
+    signed_in: true
+    safety: {changes: true}
+    cli: {command: [workflow, sign], args: [id]}
+    ui: {entry: /tasks}
+  - id: workflow.process.tasks
+    category: CATEGORY_ACTION
+    method: GET
+    path: tasks
+    summary:
+      text:
+        en: List your open tasks and the cases you started
+        de: Eigene offene Aufgaben und gestartete Fälle auflisten
+    signed_in: true
+    cli: {command: [workflow, tasks]}
+    ui: {entry: /tasks}
+  - id: workflow.process.links.info
+    category: CATEGORY_ACTION
+    method: GET
+    path: links/info
+    summary:
+      text:
+        en: What a link of a task e-mail stands for (with the link token)
+        de: Wofür ein Link aus einer Aufgaben-E-Mail steht (mit dem Link-Token)
+    public: true
+    cli: {command: [workflow, link-info]}
+    ui: {entry: /workflow/link}
+  - id: workflow.process.links.act
+    category: CATEGORY_ACTION
+    method: POST
+    path: links/act
+    summary:
+      text:
+        en: Decide with a link of a task e-mail (with the link token)
+        de: Mit einem Link aus einer Aufgaben-E-Mail entscheiden (mit dem Link-Token)
+    public: true
+    safety: {changes: true}
+    cli: {command: [workflow, link-act]}
+    ui: {entry: /workflow/link}
+  - id: workflow.process.deputy.get
+    category: CATEGORY_ACTION
+    method: GET
+    path: me/deputy
+    summary:
+      text:
+        en: Show your deputy and whom you stand in for
+        de: Eigene Vertretung anzeigen und für wen Sie vertreten
+    signed_in: true
+    cli: {command: [workflow, deputy]}
+    ui: {entry: /tasks}
+  - id: workflow.process.deputy.set
+    category: CATEGORY_ACTION
+    method: PUT
+    path: me/deputy
+    summary:
+      text:
+        en: Set your deputy for a time
+        de: Eigene Vertretung für einen Zeitraum festlegen
+    signed_in: true
+    safety: {changes: true}
+    cli: {command: [workflow, deputy-set]}
+    ui: {entry: /tasks}
+  - id: workflow.process.deputy.remove
+    category: CATEGORY_ACTION
+    method: DELETE
+    path: me/deputy
+    summary:
+      text:
+        en: Remove your deputy
+        de: Eigene Vertretung entfernen
+    signed_in: true
+    safety: {changes: true}
+    cli: {command: [workflow, deputy-remove]}
+    ui: {entry: /tasks}

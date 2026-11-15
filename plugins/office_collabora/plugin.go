@@ -63,6 +63,7 @@ func (p *Plugin) Setup(host *coreplugin.Host) error {
 		}}
 	host.Media.RegisterOpener(p.op)
 	p.op.Warm()
+	// action: office.collabora.test
 	host.Handle("POST", "/test", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		if err := perm.Require(r.Context(), "core.settings.manage"); err != nil {
 			return nil, err

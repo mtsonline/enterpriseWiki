@@ -221,6 +221,7 @@ func (pl *Plugin) linkRoutes(host *coreplugin.Host) {
 		return on && host.ACL.Classification(ctx, x.CategoryID) < acl.Confidential
 	}
 	// GET /links/info?t=…: what a link of a task e-mail stands for
+	// action: workflow.process.links.info
 	host.Handle("GET", "/links/info", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		ctx := r.Context()
 		l, x, err := pl.linkTarget(ctx, r.URL.Query().Get("t"))
@@ -249,6 +250,7 @@ func (pl *Plugin) linkRoutes(host *coreplugin.Host) {
 	})
 	// POST /links/act {"t": "…", "note": ""}: the decision of the link without
 	// signing in (only when allowed, below confidential, once)
+	// action: workflow.process.links.act
 	host.Handle("POST", "/links/act", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		ctx := r.Context()
 		var in struct {
@@ -423,6 +425,7 @@ func (pl *Plugin) stats(ctx context.Context, element int64, def *Definition) (*S
 
 func (pl *Plugin) statsRoutes(host *coreplugin.Host) {
 	// GET /elements/{id}/stats: evaluation (case managers and who may change the workflow)
+	// action: workflow.process.stats
 	host.Handle("GET", "/elements/{id}/stats", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		id, err := h.PathID(r, "id")
 		if err != nil {

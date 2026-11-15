@@ -125,6 +125,7 @@ func (p *Plugin) Setup(host *coreplugin.Host) error {
 	}
 
 	// GET /commands lists all known commands (admins).
+	// action: macro.shell.list
 	host.Handle("GET", "/commands", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		if err := perm.Require(r.Context(), "macro.shell.manage"); err != nil {
 			return nil, err
@@ -144,6 +145,7 @@ func (p *Plugin) Setup(host *coreplugin.Host) error {
 			"can_approve": CanApprove(identity.From(r.Context()), cfg.ShellApprovers)}, nil
 	})
 	// POST /commands registers a command ({"command": "...", "approve": true}).
+	// action: macro.shell.add
 	host.Handle("POST", "/commands", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		if err := perm.Require(r.Context(), "macro.shell.manage"); err != nil {
 			return nil, err
@@ -175,15 +177,19 @@ func (p *Plugin) Setup(host *coreplugin.Host) error {
 		}
 		return map[string]string{"hash": hash}, nil
 	})
-	for _, action := range []string{"approve", "revoke"} {
-		status := map[string]string{"approve": "approved", "revoke": "revoked"}[action]
-		host.Handle("POST", "/commands/{hash}/"+action, func(w http.ResponseWriter, r *http.Request) (any, error) {
+	decide := func(status string) h.Handler {
+		return func(w http.ResponseWriter, r *http.Request) (any, error) {
 			if err := requireSuper(r); err != nil {
 				return nil, err
 			}
 			return h.NoContent{}, p.decide(r.Context(), r.PathValue("hash"), status)
-		})
+		}
 	}
+	// action: macro.shell.approve
+	host.Handle("POST", "/commands/{hash}/approve", decide("approved"))
+	// action: macro.shell.revoke
+	host.Handle("POST", "/commands/{hash}/revoke", decide("revoked"))
+	// action: macro.shell.delete
 	host.Handle("DELETE", "/commands/{hash}", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		if err := requireSuper(r); err != nil {
 			return nil, err

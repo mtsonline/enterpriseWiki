@@ -1,0 +1,49 @@
+# Action register (ewiki.plugin.v1.Action, see sdk/proto/ewiki/plugin/v1/action.proto).
+actions:
+  - id: core.comments.list
+    category: CATEGORY_ACTION
+    method: GET
+    path: "elements/{id}/comments"
+    summary:
+      text:
+        en: List the comments of an element
+        de: Kommentare eines Elements auflisten
+    permission: {key: core.category.view, scope: SCOPE_CATEGORY, category_param: "element:id"}
+    cli: {command: [comment, list], args: [id]}
+    ui: {entry: /e/:id}
+  - id: core.comments.create
+    category: CATEGORY_ACTION
+    method: POST
+    path: "elements/{id}/comments"
+    summary:
+      text:
+        en: "Write a comment (signed in, as the category allows)"
+        de: "Kommentar schreiben (angemeldet, wie die Kategorie es erlaubt)"
+    permission: {key: core.category.view, scope: SCOPE_CATEGORY, category_param: "element:id"}
+    safety: {changes: true}
+    cli: {command: [comment, add], args: [id]}
+    ui: {entry: /e/:id}
+  - id: core.comments.update
+    category: CATEGORY_ACTION
+    method: PUT
+    path: "comments/{id}"
+    summary:
+      text:
+        en: Change your comment
+        de: Eigenen Kommentar ändern
+    signed_in: true
+    safety: {changes: true}
+    cli: {command: [comment, update], args: [id]}
+    ui: {entry: /e/:id}
+  - id: core.comments.delete
+    category: CATEGORY_ACTION
+    method: DELETE
+    path: "comments/{id}"
+    summary:
+      text:
+        en: Delete a comment (own ones or with core.comments.moderate)
+        de: Kommentar löschen (eigene oder mit core.comments.moderate)
+    signed_in: true
+    safety: {changes: true}
+    cli: {command: [comment, delete], args: [id]}
+    ui: {entry: /e/:id}

@@ -1,7 +1,6 @@
 package server_test
 
 import (
-	"bufio"
 	"encoding/json"
 	"fmt"
 	"github.com/mtsonline/enterprisewiki/internal/perm"
@@ -17,12 +16,6 @@ import (
 	"github.com/mtsonline/enterprisewiki/internal/actions"
 	"github.com/mtsonline/enterprisewiki/internal/httpx"
 )
-
-// missingFile lists the routes that have no register entry yet (phase 2 of
-// the action register plan fills it area by area). It may only shrink: a
-// new route without an entry, or a listed route that has an entry or no
-// longer exists, fails the test. EWIKI_ACTIONS_UPDATE=1 rewrites it.
-const missingFile = "../actions/missing.txt"
 
 // TestActionRegister is stage 1 of the parity check: the register and the
 // routes of the server agree, every route names its action id in a comment,
@@ -43,31 +36,12 @@ func TestActionRegister(t *testing.T) {
 		}
 	}
 
-	// routes without an entry: only those still listed as missing
-	var missing []string
+	// every route has an entry
+	missing := 0
 	for _, r := range routes {
 		if _, ok := byRoute[r]; !ok {
-			missing = append(missing, r)
-		}
-	}
-	if os.Getenv("EWIKI_ACTIONS_UPDATE") == "1" {
-		header := "# Routes without an entry in the action register (phase 2 fills them area\n# by area; the list may only shrink). Rewritten with EWIKI_ACTIONS_UPDATE=1.\n"
-		if err := os.WriteFile(missingFile, []byte(header+strings.Join(missing, "\n")+"\n"), 0o600); err != nil {
-			t.Fatal(err)
-		}
-	}
-	listed := readMissing(t)
-	for _, r := range missing {
-		if !listed[r] {
+			missing++
 			t.Errorf("route %s has no entry in the action register (internal/actions/core/*.yaml or plugins/<plugin>/actions.yaml)", r)
-		}
-	}
-	for r := range listed {
-		switch _, has := byRoute[r]; {
-		case has:
-			t.Errorf("%s has an entry now: remove it from internal/actions/missing.txt", r)
-		case !slices.Contains(routes, r):
-			t.Errorf("%s no longer exists: remove it from internal/actions/missing.txt", r)
 		}
 	}
 
@@ -84,30 +58,24 @@ func TestActionRegister(t *testing.T) {
 			t.Errorf("route %s: comment says %q, register says %q", a.Route(), id, a.ID)
 		}
 	}
-	t.Logf("action register: %d entries, %d routes still without an entry", len(all), len(missing))
-}
-
-func readMissing(t *testing.T) map[string]bool {
-	t.Helper()
-	f, err := os.Open(missingFile)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer f.Close()
-	out := map[string]bool{}
-	sc := bufio.NewScanner(f)
-	for sc.Scan() {
-		if l := strings.TrimSpace(sc.Text()); l != "" && !strings.HasPrefix(l, "#") {
-			out[l] = true
+	// every route in the source is recorded (h.RecordRoute), so none escapes
+	// the register: a route on the mux alone would not be listed above
+	for r := range comments {
+		if !slices.Contains(routes, r) {
+			t.Errorf("route %s is in the source but not recorded: register it with s.handle, host.Handle or h.RecordRoute", r)
 		}
 	}
-	return out
+	t.Logf("action register: %d entries, %d routes without an entry", len(all), missing)
 }
 
 var (
 	coreRouteRe   = regexp.MustCompile(`(?:s\.handle\(|s\.wopiRoute\(|h\.RecordRoute\(|Mux\.HandleFunc\(|^\s*)"((?:GET|POST|PUT|PATCH|DELETE) /[^"]*)"`)
 	pluginRouteRe = regexp.MustCompile(`\.Handle\("(GET|POST|PUT|PATCH|DELETE)", "/([^"]*)"`)
 	actionRe      = regexp.MustCompile(`^\s*// action: (\S+)`)
+	// a route that a shared helper registers names its action where the
+	// helper is called: "// action: <id> for <METHOD> <path>" (path as in
+	// host.Handle for a plugin)
+	actionForRe = regexp.MustCompile(`^\s*// action: (\S+) for ((?:GET|POST|PUT|PATCH|DELETE) /\S*)$`)
 )
 
 // routeComments finds the routes in the source of the server and the core
@@ -123,8 +91,17 @@ func routeComments(t *testing.T) map[string]string {
 		}
 		lines := strings.Split(string(b), "\n")
 		for i, l := range lines {
+			if m := actionForRe.FindStringSubmatch(l); m != nil {
+				route := m[2]
+				if plugin != "" {
+					method, path, _ := strings.Cut(route, " ")
+					route = method + " /api/v1/x/" + plugin + path
+				}
+				out[route] = m[1]
+				continue
+			}
 			var route string
-			if m := coreRouteRe.FindStringSubmatch(l); m != nil && plugin == "" {
+			if m := coreRouteRe.FindStringSubmatch(l); m != nil && (plugin == "" || strings.Contains(m[1], " /api/v1/x/"+plugin+"/")) {
 				route = m[1]
 			} else if m := pluginRouteRe.FindStringSubmatch(l); m != nil && plugin != "" {
 				route = fmt.Sprintf("%s /api/v1/x/%s/%s", m[1], plugin, m[2])

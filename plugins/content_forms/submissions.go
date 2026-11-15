@@ -70,18 +70,22 @@ func (p *Plugin) canSee(ctx context.Context, id int64) (int64, error) {
 
 func (p *Plugin) routes() {
 	host := p.host
+	// action: content.forms.meta
 	host.Handle("GET", "/meta", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		return map[string]any{"input_types": InputTypes, "static_types": StaticTypes, "cond_ops": CondOps, "file_kinds": FileKinds,
 			"autocomplete": AutocompleteValues, "http_allow": len(host.Config.Get().Plugins.Macros.HTTPAllow) > 0,
 			"virus_scan": p.clamd() != "" || p.icap() != ""}, nil
 	})
+	// action: content.forms.start
 	host.Handle("GET", "/elements/{id}/start", p.start)
+	// action: content.forms.submit
 	host.Handle("POST", "/elements/{id}/submit", p.submit)
 	// guests upload files too: the route has its own limit instead of the
 	// small one for guests; the handler narrows it to the files of the form
 	host.BodyLimit("POST", "/elements/{id}/submit", LimitSubmitMB)
 
 	// GET /elements/{id}/submissions?limit=&offset=&q=
+	// action: content.forms.submissions.list
 	host.Handle("GET", "/elements/{id}/submissions", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		id, err := h.PathID(r, "id")
 		if err != nil {
@@ -117,6 +121,7 @@ func (p *Plugin) routes() {
 	})
 
 	// GET /submissions/{sid} (marks it as seen)
+	// action: content.forms.submissions.get
 	host.Handle("GET", "/submissions/{sid}", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		s, err := p.submission(r)
 		if err != nil {
@@ -129,6 +134,7 @@ func (p *Plugin) routes() {
 	})
 
 	// DELETE /submissions/{sid}
+	// action: content.forms.submissions.delete
 	host.Handle("DELETE", "/submissions/{sid}", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		s, err := p.submission(r)
 		if err != nil {
@@ -145,6 +151,7 @@ func (p *Plugin) routes() {
 	})
 
 	// GET /submissions/{sid}/files/{n}: an uploaded file (always as download)
+	// action: content.forms.submissions.file
 	host.Handle("GET", "/submissions/{sid}/files/{n}", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		s, err := p.submission(r)
 		if err != nil {
@@ -251,7 +258,9 @@ func (p *Plugin) routes() {
 			return h.Handled{}, nil
 		}
 	}
+	// action: content.forms.submissions.csv
 	host.Handle("GET", "/elements/{id}/submissions.csv", export("csv"))
+	// action: content.forms.submissions.xlsx
 	host.Handle("GET", "/elements/{id}/submissions.xlsx", export("xlsx"))
 
 }

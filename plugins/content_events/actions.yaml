@@ -1,0 +1,175 @@
+# Action register (ewiki.plugin.v1.Action, see sdk/proto/ewiki/plugin/v1/action.proto).
+actions:
+  - id: content.events.list
+    category: CATEGORY_ACTION
+    method: GET
+    path: "calendars/{id}/events"
+    summary:
+      text:
+        en: List the events of a calendar in a time range
+        de: Termine eines Kalenders in einem Zeitraum auflisten
+    permission: {key: core.category.view, scope: SCOPE_CATEGORY, category_param: "element:id"}
+    cli: {command: [event, list], args: [id]}
+    ui: {entry: /e/:id}
+  - id: content.events.create
+    category: CATEGORY_ACTION
+    method: POST
+    path: "calendars/{id}/events"
+    summary:
+      text:
+        en: Create an event in a calendar (as the calendar allows)
+        de: Termin in einem Kalender anlegen (wie der Kalender es erlaubt)
+    permission: {key: core.category.view, scope: SCOPE_CATEGORY, category_param: "element:id"}
+    safety: {changes: true}
+    cli: {command: [event, create], args: [id]}
+    ui: {entry: /e/:id}
+  - id: content.events.calendar_ical
+    category: CATEGORY_ACTION
+    method: GET
+    path: "calendars/{id}/ical"
+    summary:
+      text:
+        en: Calendar as iCalendar subscription (with the personal feed link also private)
+        de: Kalender als iCalendar-Abo (mit persönlichem Feed-Link auch privat)
+    public: true
+    cli: {command: [event, calendar-ical], args: [id]}
+    ui: {entry: /e/:id}
+  - id: content.events.get
+    category: CATEGORY_ACTION
+    method: GET
+    path: "events/{id}"
+    summary:
+      text:
+        en: Show an event (only what you may see)
+        de: "Termin anzeigen (nur, was Sie sehen dürfen)"
+    public: true
+    cli: {command: [event, show], args: [id]}
+    ui: {entry: /e/:id}
+  - id: content.events.update
+    category: CATEGORY_ACTION
+    method: PUT
+    path: "events/{id}"
+    summary:
+      text:
+        en: Change an event (own ones or as manager of the calendar)
+        de: Termin ändern (eigene oder als Verwalter des Kalenders)
+    signed_in: true
+    safety: {changes: true}
+    cli: {command: [event, update], args: [id]}
+    ui: {entry: /e/:id}
+  - id: content.events.delete
+    category: CATEGORY_ACTION
+    method: DELETE
+    path: "events/{id}"
+    summary:
+      text:
+        en: Delete an event (own ones or as manager of the calendar)
+        de: Termin löschen (eigene oder als Verwalter des Kalenders)
+    signed_in: true
+    safety: {changes: true}
+    cli: {command: [event, delete], args: [id]}
+    ui: {entry: /e/:id}
+  - id: content.events.ical
+    category: CATEGORY_ACTION
+    method: GET
+    path: "events/{id}/ical"
+    summary:
+      text:
+        en: Download an event as .ics (only what you may see)
+        de: "Termin als .ics herunterladen (nur, was Sie sehen dürfen)"
+    public: true
+    cli: {command: [event, ical], args: [id]}
+    ui: {entry: /e/:id}
+  - id: content.events.occurrence.update
+    category: CATEGORY_ACTION
+    method: PUT
+    path: "events/{id}/occurrences/{date}"
+    summary:
+      text:
+        en: Change one occurrence of a series
+        de: Einen Termin einer Serie ändern
+    signed_in: true
+    safety: {changes: true}
+    cli: {command: [event, occurrence-update], args: [id, date]}
+    ui: {entry: /e/:id}
+  - id: content.events.occurrence.reset
+    category: CATEGORY_ACTION
+    method: DELETE
+    path: "events/{id}/occurrences/{date}"
+    summary:
+      text:
+        en: Reset one occurrence to the series
+        de: Einen Termin einer Serie zurücksetzen
+    signed_in: true
+    safety: {changes: true}
+    cli: {command: [event, occurrence-reset], args: [id, date]}
+    ui: {entry: /e/:id}
+  - id: content.events.registrations.list
+    category: CATEGORY_ACTION
+    method: GET
+    path: "events/{id}/registrations"
+    summary:
+      text:
+        en: List the registrations of an event (managers of the event)
+        de: Anmeldungen zu einem Termin auflisten (Verwalter des Termins)
+    signed_in: true
+    cli: {command: [event, registrations], args: [id]}
+    ui: {entry: /e/:id}
+  - id: content.events.register
+    category: CATEGORY_ACTION
+    method: POST
+    path: "events/{id}/registrations"
+    summary:
+      text:
+        en: Register for an event
+        de: Zu einem Termin anmelden
+    signed_in: true
+    safety: {changes: true}
+    cli: {command: [event, register], args: [id]}
+    ui: {entry: /e/:id}
+  - id: content.events.unregister
+    category: CATEGORY_ACTION
+    method: DELETE
+    path: "events/{id}/registrations"
+    summary:
+      text:
+        en: Cancel your registration for an event
+        de: Eigene Anmeldung zu einem Termin zurückziehen
+    signed_in: true
+    safety: {changes: true}
+    cli: {command: [event, unregister], args: [id]}
+    ui: {entry: /e/:id}
+  - id: content.events.registrations.remove
+    category: CATEGORY_ACTION
+    method: DELETE
+    path: "events/{id}/registrations/{rid}"
+    summary:
+      text:
+        en: Remove a registration (managers of the event)
+        de: Anmeldung entfernen (Verwalter des Termins)
+    signed_in: true
+    safety: {changes: true}
+    cli: {command: [event, registration-remove], args: [id, rid]}
+    ui: {entry: /e/:id}
+  - id: content.events.my_registrations
+    category: CATEGORY_ACTION
+    method: GET
+    path: me/registrations
+    summary:
+      text:
+        en: List your registrations
+        de: Eigene Anmeldungen auflisten
+    signed_in: true
+    cli: {command: [event, my-registrations]}
+    ui: {entry: /e/:id}
+  - id: content.events.upcoming
+    category: CATEGORY_ACTION
+    method: GET
+    path: upcoming
+    summary:
+      text:
+        en: List the upcoming events (only what you may see)
+        de: "Kommende Termine auflisten (nur, was Sie sehen dürfen)"
+    public: true
+    cli: {command: [event, upcoming]}
+    ui: {entry: /}

@@ -1,0 +1,49 @@
+# Action register (ewiki.plugin.v1.Action, see sdk/proto/ewiki/plugin/v1/action.proto).
+actions:
+  - id: core.favorites.list
+    category: CATEGORY_ACTION
+    method: GET
+    path: ""
+    summary:
+      text:
+        en: List your favorites
+        de: Eigene Favoriten auflisten
+    permission: {key: core.favorites.use, scope: SCOPE_GLOBAL}
+    cli: {command: [favorite, list]}
+    ui: {entry: /profile}
+  - id: core.favorites.add
+    category: CATEGORY_ACTION
+    method: POST
+    path: ""
+    summary:
+      text:
+        en: Mark a page or category as favorite
+        de: Seite oder Kategorie als Favorit markieren
+    permission: {key: core.favorites.use, scope: SCOPE_GLOBAL}
+    safety: {changes: true}
+    cli: {command: [favorite, add]}
+    ui: {entry: /e/:id}
+  - id: core.favorites.remove
+    category: CATEGORY_ACTION
+    method: DELETE
+    path: "{type}/{id}"
+    summary:
+      text:
+        en: Remove a favorite
+        de: Favorit entfernen
+    permission: {key: core.favorites.use, scope: SCOPE_GLOBAL}
+    safety: {changes: true}
+    cli: {command: [favorite, remove], args: [type, id]}
+    ui: {entry: /e/:id}
+  - id: core.favorites.order
+    category: CATEGORY_ACTION
+    method: PUT
+    path: order
+    summary:
+      text:
+        en: Change the order of your favorites
+        de: Reihenfolge der eigenen Favoriten ändern
+    permission: {key: core.favorites.use, scope: SCOPE_GLOBAL}
+    safety: {changes: true}
+    cli: {command: [favorite, order]}
+    ui: {entry: /profile}

@@ -1,0 +1,60 @@
+# Action register (ewiki.plugin.v1.Action, see sdk/proto/ewiki/plugin/v1/action.proto).
+actions:
+  - id: core.menu.list
+    category: CATEGORY_ACTION
+    method: GET
+    path: menus
+    summary:
+      text:
+        en: List the menus
+        de: Menüs auflisten
+    permission: {key: core.menu.edit, scope: SCOPE_GLOBAL}
+    cli: {command: [menu, list]}
+    ui: {entry: /admin/menus}
+  - id: core.menu.get
+    category: CATEGORY_ACTION
+    method: GET
+    path: "menus/{id}"
+    summary:
+      text:
+        en: Show a menu
+        de: Menü anzeigen
+    permission: {key: core.menu.edit, scope: SCOPE_GLOBAL}
+    cli: {command: [menu, show], args: [id]}
+    ui: {entry: /admin/menus}
+  - id: core.menu.create
+    category: CATEGORY_ACTION
+    method: POST
+    path: menus
+    summary:
+      text:
+        en: Create a menu
+        de: Menü anlegen
+    permission: {key: core.menu.edit, scope: SCOPE_GLOBAL}
+    safety: {changes: true}
+    cli: {command: [menu, create]}
+    ui: {entry: /admin/menus}
+  - id: core.menu.update
+    category: CATEGORY_ACTION
+    method: PUT
+    path: "menus/{id}"
+    summary:
+      text:
+        en: Change a menu
+        de: Menü ändern
+    permission: {key: core.menu.edit, scope: SCOPE_GLOBAL}
+    safety: {changes: true}
+    cli: {command: [menu, update], args: [id]}
+    ui: {entry: /admin/menus}
+  - id: core.menu.delete
+    category: CATEGORY_ACTION
+    method: DELETE
+    path: "menus/{id}"
+    summary:
+      text:
+        en: Delete a menu
+        de: Menü löschen
+    permission: {key: core.menu.edit, scope: SCOPE_GLOBAL}
+    safety: {changes: true}
+    cli: {command: [menu, delete], args: [id]}
+    ui: {entry: /admin/menus}

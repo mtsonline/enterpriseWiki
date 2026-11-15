@@ -275,11 +275,13 @@ func (p *Plugin) check(d *Def) error {
 func (p *Plugin) routesDefs() {
 	host := p.host
 	// GET /types – the types with their options
+	// action: core.properties.types
 	host.Handle("GET", "/types", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		return map[string]any{"types": Types, "palette": Palette, "builtins": Builtins}, nil
 	})
 	// GET /defs?category=ID – definitions that apply there (with own=true for
 	// those of the category itself); without category: the global ones.
+	// action: core.properties.defs.list
 	host.Handle("GET", "/defs", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		ctx := r.Context()
 		cat, _ := strconv.ParseInt(r.URL.Query().Get("category"), 10, 64)
@@ -329,6 +331,7 @@ func (p *Plugin) routesDefs() {
 		return map[string]any{"defs": res, "can_define": canDefine, "free": free, "free_setting": own}, nil
 	})
 	// POST /defs – a new definition (category_id null: global)
+	// action: core.properties.defs.create
 	host.Handle("POST", "/defs", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		ctx := r.Context()
 		var d Def
@@ -373,6 +376,7 @@ func (p *Plugin) routesDefs() {
 		return h.Created{V: d}, nil
 	})
 	// PUT /defs/{id} – change a definition (key and category stay)
+	// action: core.properties.defs.update
 	host.Handle("PUT", "/defs/{id}", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		ctx := r.Context()
 		id, err := h.PathID(r, "id")
@@ -427,6 +431,7 @@ func (p *Plugin) routesDefs() {
 	})
 	// DELETE /defs/{id}?values=keep|delete – the values become free
 	// properties (keep, default) or are deleted
+	// action: core.properties.defs.delete
 	host.Handle("DELETE", "/defs/{id}", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		ctx := r.Context()
 		id, err := h.PathID(r, "id")
@@ -465,6 +470,7 @@ func (p *Plugin) routesDefs() {
 		return h.NoContent{}, nil
 	})
 	// PUT /settings/{category} {"free": "inherit|allow|deny"}
+	// action: core.properties.settings
 	host.Handle("PUT", "/settings/{id}", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		ctx := r.Context()
 		cat, err := h.PathID(r, "id")

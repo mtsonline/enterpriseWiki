@@ -41,6 +41,7 @@ const (
 func subRoutes(p *Plugin) {
 	host := p.host
 	// GET /subscriptions?element=ID – own subscriptions
+	// action: core.properties.subscriptions.list
 	host.Handle("GET", "/subscriptions", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		me := identity.From(r.Context())
 		if me == nil || me.ID() <= 0 {
@@ -61,6 +62,7 @@ func subRoutes(p *Plugin) {
 		})
 	})
 	// POST /subscriptions {"element_id": 5, "category_id": 3, "params": {...}, "title": "…", "frequency": "weekly"}
+	// action: core.properties.subscriptions.create
 	host.Handle("POST", "/subscriptions", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		ctx := r.Context()
 		me := identity.From(ctx)
@@ -109,6 +111,7 @@ func subRoutes(p *Plugin) {
 		return h.Created{V: s}, nil
 	})
 	// DELETE /subscriptions/{id} – own subscriptions
+	// action: core.properties.subscriptions.delete
 	host.Handle("DELETE", "/subscriptions/{id}", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		id, err := h.PathID(r, "id")
 		if err != nil {

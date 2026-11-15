@@ -654,6 +654,8 @@ func checkRouteCoverage(t *testing.T) {
 	src := corpus.String()
 	exempt := map[string]bool{
 		"/readyz":                              true, // used by load balancers / orchestrators
+		"/healthz":                             true, // liveness check of orchestrators and container health checks
+		"/tls-allowed":                         true, // asked by the bundled reverse proxy (on-demand TLS)
 		"/api/v1/auth/sso/{provider}/callback": true, // called by the identity provider
 		"/api/v1/auth/sso/{provider}/logout":   true, // called by the identity provider (single logout)
 		// SCIM 2.0 service provider: called by directories (Entra ID, Okta)
