@@ -93,7 +93,7 @@ Every route is an **action** with an entry in the action register, in the format
 - **Required per entry:** `id` after the namespace rule, `category` (`CATEGORY_ACTION`, or `CATEGORY_PROTOCOL` for calls of other systems), `method`, `path`, `summary` in German **and** English, exactly one of `permission`, `signed_in`, `public`, and for actions `cli` and `ui` or an exception approved by the project owner (`exceptions`).
 - **Comment at the route:** `// action: <id>` directly above `s.handle(…)` or `host.Handle(…)`.
 - **Checks:**
-  - `TestActionRegister` (stage 1): register and routes agree, the comments match. Every route has an entry; a new route without one fails the CI. A route only on the mux and not recorded (`h.RecordRoute`) is found as well. Routes a shared helper registers name their action where the helper is called: `// action: <id> for <METHOD> <path>`.
+  - `TestActionRegister` (stage 1): register and routes agree, the comments match. Every route has an entry; a new route without one fails the CI. The tables under "Endpoints" must list exactly the routes of the register. A route only on the mux and not recorded (`h.RecordRoute`) is found as well. Routes a shared helper registers name their action where the helper is called: `// action: <id> for <METHOD> <path>`.
   - `go run ./tools/protocheck` in the folder `sdk`: compiles the contract and reads all register files and example manifests with the real messages (unknown fields, wrong values and invalid JSON in schemas are errors).
 - **Texts with a comma** go in block form (`text:` with `en:` and `de:` below); in the short form `{en: a, b}` the comma would split the text. The check detects this.
 
@@ -259,6 +259,28 @@ actions:
 | `DELETE` | `/api/v1/admin/users/{id}/sessions` |
 | `DELETE` | `/api/v1/admin/users/{id}/sessions/{sid}` |
 
+### SCIM 2.0 (directories)
+
+Called by directories such as Entra ID or Okta with the token of a SCIM client (see the admin documentation).
+
+| Method | Path |
+|---|---|
+| `GET` | `/scim/v2/ServiceProviderConfig` |
+| `GET` | `/scim/v2/ResourceTypes` |
+| `GET` | `/scim/v2/Schemas` |
+| `GET` | `/scim/v2/Users` |
+| `POST` | `/scim/v2/Users` |
+| `GET` | `/scim/v2/Users/{id}` |
+| `PUT` | `/scim/v2/Users/{id}` |
+| `PATCH` | `/scim/v2/Users/{id}` |
+| `DELETE` | `/scim/v2/Users/{id}` |
+| `GET` | `/scim/v2/Groups` |
+| `POST` | `/scim/v2/Groups` |
+| `GET` | `/scim/v2/Groups/{id}` |
+| `PUT` | `/scim/v2/Groups/{id}` |
+| `PATCH` | `/scim/v2/Groups/{id}` |
+| `DELETE` | `/scim/v2/Groups/{id}` |
+
 ### Categories & permissions
 
 | Method | Path |
@@ -275,10 +297,22 @@ actions:
 | `POST` | `/api/v1/categories/{id}/reorder` |
 | `GET` | `/api/v1/categories/{id}/acl` |
 | `POST` | `/api/v1/categories/{id}/acl` |
+| `GET` | `/api/v1/categories/{id}/access-requests` |
+| `POST` | `/api/v1/categories/{id}/archive` |
 | `DELETE` | `/api/v1/acl/{id}` |
 | `GET` | `/api/v1/categories/{id}/history` |
 | `POST` | `/api/v1/categories/{id}/rollback` |
+| `GET` | `/api/v1/categories/{id}/export` |
+| `GET` | `/api/v1/categories/{id}/insights` |
+| `PUT` | `/api/v1/categories/{id}/space` |
+| `POST` | `/api/v1/categories/import` |
 | `PUT` | `/api/v1/acl/{id}` |
+| `POST` | `/api/v1/access-requests` |
+| `POST` | `/api/v1/access-requests/{id}` |
+| `GET` | `/api/v1/spaces` |
+| `POST` | `/api/v1/spaces` |
+| `POST` | `/api/v1/spaces/personal` |
+| `GET` | `/api/v1/spaces/{key}` |
 
 ### Elements & versions
 
@@ -298,7 +332,9 @@ actions:
 | `GET` | `/api/v1/elements/{id}/revisions` |
 | `GET` | `/api/v1/elements/{id}/revisions/{lang}/{rev}` |
 | `POST` | `/api/v1/elements/{id}/restore` |
+| `POST` | `/api/v1/elements/{id}/view` |
 | `GET` | `/api/v1/elements` |
+| `GET` | `/api/v1/collab/elements/{id}/{lang}` |
 
 ### Macros
 
@@ -480,6 +516,8 @@ actions:
 | `DELETE` | `/api/v1/x/core.comments/comments/{id}` |
 | `DELETE` | `/api/v1/x/core.favorites/{type}/{id}` |
 | `PUT` | `/api/v1/x/core.favorites/order` |
+| `GET` | `/api/v1/x/core.favorites/` |
+| `POST` | `/api/v1/x/core.favorites/` |
 | `POST` | `/api/v1/x/core.html/edit-html` |
 | `POST` | `/api/v1/x/core.html/to-markdown` |
 | `GET` | `/api/v1/x/core.menu/menus` |
@@ -488,14 +526,23 @@ actions:
 | `PUT` | `/api/v1/x/core.menu/menus/{id}` |
 | `DELETE` | `/api/v1/x/core.menu/menus/{id}` |
 | `GET` | `/api/v1/x/core.properties/types` |
+| `POST` | `/api/v1/x/core.properties/trend` |
 | `GET` | `/api/v1/x/core.properties/defs` |
 | `POST` | `/api/v1/x/core.properties/defs` |
 | `PUT` | `/api/v1/x/core.properties/defs/{id}` |
 | `DELETE` | `/api/v1/x/core.properties/defs/{id}` |
+| `GET` | `/api/v1/x/core.properties/databases/{id}/views` |
+| `POST` | `/api/v1/x/core.properties/databases/{id}/views` |
 | `PUT` | `/api/v1/x/core.properties/settings/{id}` |
+| `GET` | `/api/v1/x/core.properties/subscriptions` |
+| `POST` | `/api/v1/x/core.properties/subscriptions` |
+| `DELETE` | `/api/v1/x/core.properties/subscriptions/{id}` |
 | `POST` | `/api/v1/x/core.properties/query` |
+| `POST` | `/api/v1/x/core.properties/query.csv` |
+| `POST` | `/api/v1/x/core.properties/query.xlsx` |
 | `POST` | `/api/v1/x/core.properties/report` |
 | `GET` | `/api/v1/x/core.properties/values` |
+| `DELETE` | `/api/v1/x/core.properties/views/{id}` |
 | `GET` | `/api/v1/x/core.properties/keys` |
 | `GET` | `/api/v1/x/core.properties/elements/{id}` |
 | `GET` | `/api/v1/x/core.properties/new` |
@@ -513,7 +560,6 @@ actions:
 | `GET` | `/api/v1/x/example.notice/tones` |
 | `GET` | `/api/v1/x/macro.shell/commands` |
 | `POST` | `/api/v1/x/macro.shell/commands` |
-| `POST` | `/api/v1/x/macro.shell/commands/{hash}/` |
 | `DELETE` | `/api/v1/x/macro.shell/commands/{hash}` |
 | `POST` | `/api/v1/x/macro.shell/commands/{hash}/approve` |
 | `POST` | `/api/v1/x/macro.shell/commands/{hash}/revoke` |
