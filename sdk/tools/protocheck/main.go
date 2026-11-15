@@ -15,6 +15,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strings"
 
@@ -24,6 +25,9 @@ import (
 	"google.golang.org/protobuf/types/dynamicpb"
 	"gopkg.in/yaml.v3"
 )
+
+// placeholderRe matches a placeholder of an example.
+var placeholderRe = regexp.MustCompile(`\$\{[^}]+\}`)
 
 func main() {
 	if err := run(); err != nil {
@@ -151,7 +155,9 @@ func embeddedJSON(m protoreflect.Message, at string) error {
 				errs = append(errs, err)
 			}
 		case fd.Kind() == protoreflect.StringKind && (fd.Name() == "json" || strings.HasSuffix(string(fd.Name()), "_json")):
-			if !json.Valid([]byte(v.String())) {
+			// placeholders of examples (${given.…}, ${unique}) stand for a
+			// value, also for a number outside quotes
+			if !json.Valid([]byte(placeholderRe.ReplaceAllString(v.String(), "0"))) {
 				errs = append(errs, fmt.Errorf("%s: not valid JSON", name))
 			}
 		}

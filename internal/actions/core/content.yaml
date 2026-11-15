@@ -11,6 +11,10 @@ actions:
     public: true
     cli: {command: [category, list]}
     ui: {entry: /}
+    examples:
+      - name: default
+        given: ['core.categories.create#default']
+        as: guest
   - id: core.categories.tree
     category: CATEGORY_ACTION
     method: GET
@@ -22,6 +26,9 @@ actions:
     public: true
     cli: {command: [category, tree]}
     ui: {entry: /}
+    examples:
+      - name: default
+        as: guest
   - id: core.categories.get
     category: CATEGORY_ACTION
     method: GET
@@ -33,6 +40,12 @@ actions:
     permission: {key: core.category.view, scope: SCOPE_CATEGORY, category_param: "id"}
     cli: {command: [category, show], args: [id]}
     ui: {entry: /c/:id}
+    examples:
+      - name: default
+        given: ['core.categories.create#default']
+        as: member
+        path_params_json: '{"id": "${given.core.categories.create#default.id}"}'
+        expect_json: '{"category": {"id": ${given.core.categories.create#default.id}}}'
   - id: core.categories.create
     category: CATEGORY_ACTION
     method: POST
@@ -45,6 +58,11 @@ actions:
     safety: {changes: true}
     cli: {command: [category, create]}
     ui: {entry: /}
+    examples:
+      - name: default
+        as: member
+        body_json: '{"titles": {"en": "Example ${unique}"}}'
+        status: 201
   - id: core.categories.update
     category: CATEGORY_ACTION
     method: PUT
@@ -57,6 +75,13 @@ actions:
     safety: {changes: true}
     cli: {command: [category, update], args: [id]}
     ui: {entry: /c/:id/settings}
+    examples:
+      - name: default
+        given: ['core.categories.create#default']
+        as: member
+        path_params_json: '{"id": "${given.core.categories.create#default.id}"}'
+        body_json: '{"titles": {"en": "Renamed"}}'
+        expect_json: '{"titles": {"en": "Renamed"}}'
   - id: core.categories.delete
     category: CATEGORY_ACTION
     method: DELETE
@@ -278,6 +303,12 @@ actions:
     permission: {key: core.category.view, scope: SCOPE_CATEGORY, category_param: "element:id"}
     cli: {command: [element, show], args: [id]}
     ui: {entry: /e/:id}
+    examples:
+      - name: default
+        given: ['core.elements.create#default']
+        as: member
+        path_params_json: '{"id": "${given.core.elements.create#default.id}"}'
+        expect_json: '{"type": "core.html", "rev": 1, "category_id": ${given.core.categories.create#default.id}}'
   - id: core.elements.create
     category: CATEGORY_ACTION
     method: POST
@@ -290,6 +321,12 @@ actions:
     safety: {changes: true}
     cli: {command: [element, create]}
     ui: {entry: /c/:id/new}
+    examples:
+      - name: default
+        given: ['core.categories.create#default']
+        as: member
+        body_json: '{"category_id": ${given.core.categories.create#default.id}, "type": "core.html", "title": "Page ${unique}", "body": {"format": "html", "source": "<p>Hello</p>"}}'
+        status: 201
   - id: core.elements.update
     category: CATEGORY_ACTION
     method: PUT
@@ -326,6 +363,12 @@ actions:
     safety: {changes: true}
     cli: {command: [element, delete], args: [id]}
     ui: {entry: /e/:id}
+    examples:
+      - name: default
+        given: ['core.elements.create#default']
+        as: member
+        path_params_json: '{"id": "${given.core.elements.create#default.id}"}'
+        status: 204
   - id: core.elements.move
     category: CATEGORY_ACTION
     method: POST
@@ -651,6 +694,10 @@ actions:
     public: true
     cli: {command: [search]}
     ui: {entry: /search}
+    examples:
+      - name: default
+        as: guest
+        query_json: '{"q": "Hello"}'
   - id: core.tags
     category: CATEGORY_ACTION
     method: GET
@@ -662,6 +709,9 @@ actions:
     public: true
     cli: {command: [tags]}
     ui: {entry: /search}
+    examples:
+      - name: default
+        as: guest
   - id: core.i18n.status
     category: CATEGORY_ACTION
     method: GET
