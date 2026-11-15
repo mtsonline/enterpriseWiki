@@ -800,6 +800,78 @@ test('sign-in page: provider buttons, direct link, automatic redirect, passkeys 
   errors.splice(logged, errors.length - logged, ...errors.slice(logged).filter((e) => !/status of (4\d\d|502)/.test(e)));
 });
 
+test('create an account yourself: switched on by the administrators, link by e-mail, then sign in', async () => {
+  const smtp = await smtpFake();
+  const prevMail = await call('GET', '/api/v1/admin/settings');
+  await call('PUT', '/api/v1/admin/settings', { mail: { ...prevMail.config.mail, enabled: true, transport: 'smtp', from: prevMail.config.mail.from || 'wiki@example.invalid',
+    smtp: { ...prevMail.config.mail.smtp, host: '127.0.0.1', port: smtp.port, security: 'none', username: '', password: '' } } });
+  const addr = `self${run}@example.invalid`;
+  const pw = 'Selbst-Angelegt-2026!';
+  const ctx2 = await browser.newContext({ viewport: { width: 1280, height: 900 }, bypassCSP: true });
+  const p2 = await ctx2.newPage();
+  p2.on('pageerror', (e) => errors.push(`registration: ${e.message}`));
+  try {
+    // switched off: no link on the sign-in page
+    await p2.goto(BASE + '/login');
+    await p2.locator('input[name=username]').waitFor();
+    assert.equal(await p2.getByRole('link', { name: /^(create an account|konto anlegen)$/i }).count(), 0);
+    // the administrators switch it on (only this domain)
+    await page.goto(`${BASE}/admin/settings`);
+    await idle();
+    const form = page.locator('form[aria-labelledby="ew-login-admin-h"]');
+    await form.getByLabel(/^(people may create a local account|personen dürfen selbst)/i).check();
+    await form.getByLabel(/^(allowed domains|erlaubte domains)/i).fill('example.invalid');
+    await a11y('settings of the registration');
+    await form.getByRole('button', { name: /^(save|speichern)$/i }).click();
+    await page.locator('.ew-toasts', { hasText: /sign-in page is saved|anmeldeseite ist gespeichert/i }).waitFor();
+    const lp = await call('GET', '/api/v1/admin/auth/login');
+    assert.deepEqual(lp.registration, { enabled: true, domains: ['example.invalid'], groups: [] });
+    // the person registers
+    await p2.goto(BASE + '/login');
+    await p2.getByRole('link', { name: /^(create an account|konto anlegen)$/i }).click();
+    await p2.locator('input[name=email]').waitFor();
+    await a11y('registration form', p2);
+    await p2.locator('input[name=email]').fill(`self${run}@other.invalid`);
+    await p2.locator('input[name=name]').fill(`Self ${run}`);
+    await p2.locator('input[name=new-password]').fill(pw);
+    await p2.locator('input[name=new-password-2]').fill(pw);
+    await p2.getByRole('button', { name: /^(create account|konto anlegen)$/i }).click();
+    await p2.locator('.ew-form-alert', { hasText: /domain/i }).waitFor();
+    await p2.locator('input[name=email]').fill(addr);
+    await p2.locator('input[name=new-password-2]').fill(pw + 'x');
+    await p2.getByRole('button', { name: /^(create account|konto anlegen)$/i }).click();
+    await p2.locator('.ew-form-alert', { hasText: /not the same|nicht gleich/i }).waitFor();
+    await p2.locator('input[name=new-password-2]').fill(pw);
+    await p2.getByRole('button', { name: /^(create account|konto anlegen)$/i }).click();
+    await p2.locator('.ew-notice--ok', { hasText: addr }).waitFor();
+    await a11y('registration sent', p2);
+    // the link from the e-mail creates the account
+    // sent before the answer (the link is secret and never queued)
+    const mail = smtp.mails.find((m) => m.to.includes(addr));
+    const link = /\/register\/confirm\?token=[A-Za-z0-9_-]+/.exec(mail?.text ?? '')?.[0];
+    assert.ok(link, `link in the e-mail: ${mail?.text}`);
+    await p2.goto(BASE + link);
+    await p2.locator('.ew-notice--ok', { hasText: addr }).waitFor();
+    assert.equal(new URL(p2.url()).search, '', 'token left the address bar');
+    await a11y('registration confirmed', p2);
+    // sign in with the address
+    await p2.locator('main a[href="/login?local=1"]').click();
+    await p2.locator('input[name=username]').fill(addr);
+    await p2.locator('input[type=password]').fill(pw);
+    await p2.keyboard.press('Enter');
+    await p2.waitForURL((u) => !u.pathname.startsWith('/login'));
+    const me = await p2.evaluate(async () => (await (await fetch('/api/v1/auth/me')).json()).user);
+    assert.equal(me?.email, addr);
+    assert.ok(!me?.is_admin, 'no administrator');
+  } finally {
+    await ctx2.close();
+    const lp = await call('GET', '/api/v1/admin/auth/login');
+    await call('PUT', '/api/v1/admin/auth/login', { passkey_autofill: lp.passkey_autofill, auto_redirect: lp.auto_redirect, buttons: lp.buttons, registration: { enabled: false, domains: [], groups: [] } });
+    await call('PUT', '/api/v1/admin/settings', { mail: prevMail.config.mail });
+    smtp.close();
+  }
+});
+
 test('a decision signed with a passkey, its verification and the verify page', async () => {
   const name = `sig${run}`;
   const pw = 'Sig-Passw0rd-1!x';

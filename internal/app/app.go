@@ -231,6 +231,18 @@ func newSite(ctx context.Context, in *Instance, site string, migrate bool) (*App
 			Text: a.I18n.T(ctx, lang, "email.confirm_text", p), Source: "auth", NoReport: true})
 	}
 	a.Auth.MailReady = func() bool { return a.Mail.Enabled() && a.Mail.Transport() != nil }
+	// registrations: the link (secret, sent directly) or, for an address that
+	// already has an account, a note saying so
+	a.Auth.SendRegistration = func(ctx context.Context, addr, name, lang, link string) error {
+		p := map[string]string{"link": link, "site": cfg.Get().UI.SiteName, "name": name, "email": addr, "hours": "48",
+			"login": strings.TrimRight(cfg.Get().Server.BaseURL, "/") + "/login"}
+		key := "email.register"
+		if link == "" {
+			key = "email.register_exists"
+		}
+		return a.Mail.SendNow(ctx, mail.Message{To: []string{addr}, Subject: a.I18n.T(ctx, lang, key+"_subject", p),
+			Text: a.I18n.T(ctx, lang, key+"_text", p), Source: "auth", NoReport: true})
+	}
 	a.Workers.Register(worker.Job{Name: "auth.emails", Interval: 24 * time.Hour, Run: func(ctx context.Context) error {
 		if err := a.Auth.BackfillEmails(ctx); err != nil {
 			return err

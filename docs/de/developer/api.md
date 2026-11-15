@@ -117,6 +117,8 @@ Verlangt das Konto einen zweiten Faktor, antwortet die Anmeldung mit `mfa_requir
 | `POST` | `/api/v1/auth/mfa/enroll/finish` |
 | `POST` | `/api/v1/auth/passwordless/{method}/begin` |
 | `POST` | `/api/v1/auth/passwordless/{method}/finish` |
+| `POST` | `/api/v1/auth/register` |
+| `POST` | `/api/v1/auth/register/confirm` |
 | `GET` | `/api/v1/auth/sso/{provider}/logout` |
 | `POST` | `/api/v1/auth/sso/{provider}/logout` |
 

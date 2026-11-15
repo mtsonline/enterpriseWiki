@@ -129,6 +129,20 @@ CREATE UNIQUE INDEX user_emails_verified ON user_emails(email) WHERE verified;  
 CREATE UNIQUE INDEX user_emails_primary ON user_emails(user_id) WHERE is_primary;
 CREATE INDEX user_emails_email ON user_emails(email);
 
+-- local accounts people asked for themselves, waiting for the confirmation
+-- link: the account is created only when the link is used (only the hash of
+-- the token and of the password are stored)
+CREATE TABLE registrations_pending (
+    token_hash    bytea PRIMARY KEY,
+    email         text NOT NULL,
+    display_name  text NOT NULL,
+    language      text NOT NULL DEFAULT '',
+    password_hash text NOT NULL,
+    created_at    timestamptz NOT NULL DEFAULT now(),
+    expires_at    timestamptz NOT NULL
+);
+CREATE INDEX registrations_pending_email ON registrations_pending(email);
+
 -- confirmation links (only the hash of the token is stored)
 CREATE TABLE email_tokens (
     token_hash bytea PRIMARY KEY,

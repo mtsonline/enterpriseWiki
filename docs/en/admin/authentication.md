@@ -300,6 +300,23 @@ ewiki login-page button oidc-partner --order 10 --label "Partner sign-in" --hidd
 ewiki login-page button oidc-partner --reset
 ```
 
+### Create an account yourself (registration)
+
+If you want, people may create a **local** account themselves (default: off). Set it under *Settings → Sign-in page → Create an account yourself*, in `config.yaml` under `login.registration`, or with the CLI: `ewiki login-page set --registration on`.
+
+- **How it works:** the person enters address, name and password. They get a link that is valid for 48 hours. **Only the link creates the account**; until then the wiki stores only the hash of the link and of the password (`registrations_pending`). Afterwards they sign in with the address. Further factors of the factor chain apply as for every local account. Only the newest link of an address is valid.
+- **No snooping:** the answer is always the same, also if the address already has an account. The person then gets an e-mail pointing to their account instead of the link.
+- **Allowed domains** (`domains`): only addresses of these domains, `*.example.com` for all subdomains. Empty: any address.
+- **Groups for new accounts** (`groups`): groups with an administrator role are refused, and never given even if they are written into `config.yaml` directly.
+- **Requirements:** sending e-mail must be set up, otherwise registration is not available. With several sites sharing accounts, only the main site offers registration; sites with their own accounts have their own.
+- **Limits:** at most 3 links per address in one hour, per sender address `core.auth.register_per_hour` (default 10), registrations waiting at the same time `core.auth.registrations_pending` (default 10,000). There is deliberately no picture puzzle (captcha): it would be a barrier for people with disabilities, and outside services for it would pass on data. The link and the limits protect instead.
+- Every new account is in the audit log as `user.register`.
+
+```bash
+ewiki login-page set --registration on --registration-domains example.com,*.example.org --registration-groups 3
+ewiki login-page set --registration off
+```
+
 ## Sessions
 
 - A browser session ends after `auth.session_ttl` (default 7 days) and after `auth.session_idle` without activity (default 12 hours). Automatic requests of the interface (notifications) do not keep a session alive.
