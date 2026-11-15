@@ -1785,9 +1785,14 @@ test('short URL and the elements administration', async () => {
   const el = await call('POST', '/api/v1/elements', { category_id: cat, type: 'core.html', title: `Shorty ${run}`, body: { format: 'html', source: '<p>short</p>' } });
   // record the element requests: if the search ever times out again, the message shows what happened
   const seen = [];
-  const note = (kind) => (r) => { if (r.url().includes('/api/v1/elements?')) seen.push(`${kind} q=${new URL(r.url()).searchParams.get('q') ?? ''}`); };
-  const onReq = note('request');
-  const onRes = note('response');
+  // with the category filter and, for answers, how many rows came back
+  const describe = (u) => { const p = new URL(u).searchParams; return `q=${p.get('q') ?? ''} category=${p.get('category') ?? ''}`; };
+  const onReq = (r) => { if (r.url().includes('/api/v1/elements?')) seen.push(`request ${describe(r.url())}`); };
+  const onRes = (r) => {
+    if (!r.url().includes('/api/v1/elements?')) return;
+    const i = seen.push(`response ${describe(r.url())} status=${r.status()}`) - 1;
+    r.json().then((j) => { seen[i] += ` total=${j.total} rows=${j.items?.length} ids=${(j.items ?? []).map((x) => x.id).join(',')}`; }).catch(() => undefined);
+  };
   page.on('request', onReq);
   page.on('response', onRes);
   try {
@@ -1797,7 +1802,9 @@ test('short URL and the elements administration', async () => {
     await page.waitForFunction((n) => document.querySelectorAll('.ew-admin-results tbody tr').length === 1 && document.querySelector('.ew-admin-results tbody')?.textContent?.includes(n), `Shorty ${run}`);
   } catch (e) {
     const state = await page.evaluate(() => ({ url: location.href, rows: document.querySelectorAll('.ew-admin-results tbody tr').length,
-      search: [...document.querySelectorAll('input[type=search]')].map((x) => x.value), status: document.querySelector('.ew-admin-panel [role=status]')?.textContent })).catch(() => null);
+      search: [...document.querySelectorAll('input[type=search]')].map((x) => x.value), status: document.querySelector('.ew-admin-panel [role=status]')?.textContent,
+      filters: [...document.querySelectorAll('.ew-filters select, .ew-filters input:not([type=search])')].map((x) => `${x.name || x.id}=${x.value}`),
+      titles: [...document.querySelectorAll('.ew-admin-results tbody th')].map((x) => x.textContent) })).catch(() => null);
     throw new Error(`${e.message}\npage: ${JSON.stringify(state)}\nrequests: ${seen.join(' | ')}`);
   } finally {
     page.off('request', onReq);
