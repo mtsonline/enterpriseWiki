@@ -143,6 +143,16 @@ CREATE TABLE registrations_pending (
 );
 CREATE INDEX registrations_pending_email ON registrations_pending(email);
 
+-- links of "Forgot your password?" (only the hash of the token is stored;
+-- valid for one hour, used once)
+CREATE TABLE password_resets (
+    token_hash bytea PRIMARY KEY,
+    user_id    bigint NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    created_at timestamptz NOT NULL DEFAULT now(),
+    expires_at timestamptz NOT NULL
+);
+CREATE INDEX password_resets_user ON password_resets(user_id);
+
 -- confirmation links (only the hash of the token is stored)
 CREATE TABLE email_tokens (
     token_hash bytea PRIMARY KEY,

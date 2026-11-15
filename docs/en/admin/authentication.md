@@ -300,6 +300,20 @@ ewiki login-page button oidc-partner --order 10 --label "Partner sign-in" --hidd
 ewiki login-page button oidc-partner --reset
 ```
 
+### Forgot your password
+
+People with a **local** account can have a link sent to them to set a new password (default: on, when sending e-mail is set up). Switch it off under *Settings → Sign-in page → Local accounts*, in `config.yaml` with `login.password_reset: false`, or with the CLI: `ewiki login-page set --password-reset off`.
+
+- **How it works:** the person enters a confirmed address of their account. The link is valid for **one hour** and only once; only the newest link of an account is valid. With the new password, **all sessions end** and a lockout after failed attempts is lifted. Further factors of the factor chain (app, passkey) still apply.
+- **No snooping:** the answer is the same for every address, and the e-mail goes out in the background. So neither the answer nor its timing tells whether there is an account. Unknown and disabled addresses get no e-mail. Accounts without a wiki password (LDAP, single sign-on) get a note on who manages the password, but no link.
+- **Limits:** at most 3 links per address in one hour, per sender address `core.auth.password_reset_per_hour` (default 10).
+- With several sites sharing accounts, only the main site offers it.
+- Every change is in the audit log as `user.password_reset`.
+
+```bash
+ewiki login-page set --password-reset off
+```
+
 ### Create an account yourself (registration)
 
 If you want, people may create a **local** account themselves (default: off). Set it under *Settings → Sign-in page → Create an account yourself*, in `config.yaml` under `login.registration`, or with the CLI: `ewiki login-page set --registration on`.

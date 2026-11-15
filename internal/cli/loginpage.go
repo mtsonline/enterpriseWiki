@@ -11,7 +11,7 @@ import (
 
 const loginPageUsage = `usage: ewiki login-page show [--as USER]
        ewiki login-page set [--passkey-autofill on|off] [--auto-redirect PROVIDER|none]
-                            [--registration on|off] [--registration-domains D,D|none] [--registration-groups ID,ID|none] [--as USER]
+                            [--password-reset on|off] [--registration on|off] [--registration-domains D,D|none] [--registration-groups ID,ID|none] [--as USER]
        ewiki login-page button PROVIDER [--order N] [--label TEXT] [--hidden|--visible] [--reset] [--as USER]`
 
 // loginPageSettings mirrors the answer and body of /api/v1/admin/auth/login.
@@ -19,6 +19,7 @@ type loginPageSettings struct {
 	PasskeyAutofill bool                       `json:"passkey_autofill"`
 	AutoRedirect    string                     `json:"auto_redirect"`
 	Buttons         map[string]loginPageButton `json:"buttons"`
+	PasswordReset   bool                       `json:"password_reset"`
 	Registration    struct {
 		Enabled bool     `json:"enabled"`
 		Domains []string `json:"domains"`
@@ -50,6 +51,7 @@ func (e *env) loginPage(args []string) error {
 	hidden := fs.Bool("hidden", false, "no button; the provider stays usable at /login?via=PROVIDER")
 	visible := fs.Bool("visible", false, "show the button again")
 	reset := fs.Bool("reset", false, "back to the defaults for this button")
+	pwReset := fs.String("password-reset", "", "on or off: \"Forgot your password?\" for local accounts")
 	reg := fs.String("registration", "", "on or off: people may create a local account themselves")
 	regDomains := fs.String("registration-domains", "", "only addresses of these domains (comma separated, *.example.com for subdomains), or none")
 	regGroups := fs.String("registration-groups", "", "IDs of the groups new accounts join (comma separated), or none")
@@ -83,6 +85,15 @@ func (e *env) loginPage(args []string) error {
 			cur.PasskeyAutofill = false
 		default:
 			return errors.New("--passkey-autofill: on or off")
+		}
+		switch {
+		case !set["password-reset"]:
+		case *pwReset == "on":
+			cur.PasswordReset = true
+		case *pwReset == "off":
+			cur.PasswordReset = false
+		default:
+			return errors.New("--password-reset: on or off")
 		}
 		switch {
 		case !set["registration"]:

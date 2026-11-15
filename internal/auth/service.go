@@ -77,16 +77,18 @@ type registered struct {
 
 // Service is the authentication service.
 type Service struct {
-	pool      *pgxpool.Pool
-	cfg       *config.Store
-	bus       *events.Bus
-	log       *slog.Logger
-	mu        sync.RWMutex
-	providers []registered
-	redirects []registeredRedirect
-	mfa       []registeredMFA
-	guards    []registeredGuard
-	enabled   func(pluginID string) bool
+	pool *pgxpool.Pool
+	cfg  *config.Store
+	bus  *events.Bus
+	log  *slog.Logger
+	// background: mails of "Forgot your password?" still being sent
+	background sync.WaitGroup
+	mu         sync.RWMutex
+	providers  []registered
+	redirects  []registeredRedirect
+	mfa        []registeredMFA
+	guards     []registeredGuard
+	enabled    func(pluginID string) bool
 
 	cache   sync.Map // token hash (string) -> cachedPrincipal
 	limiter *limiter
@@ -103,6 +105,10 @@ type Service struct {
 	// SendRegistration e-mails the confirmation link of a registration; an
 	// empty link means the address already has an account (the mail says so).
 	SendRegistration func(ctx context.Context, addr, name, lang, link string) error
+	// SendPasswordReset e-mails the link of "Forgot your password?"; an empty
+	// link means the account has no wiki password (provider names who
+	// manages it).
+	SendPasswordReset func(ctx context.Context, addr, name, lang, link, provider string) error
 }
 
 type cachedPrincipal struct {
@@ -779,6 +785,9 @@ func (s *Service) Cleanup(ctx context.Context) error {
 		return err
 	}
 	if _, err := s.pool.Exec(ctx, `DELETE FROM registrations_pending WHERE expires_at < now()`); err != nil {
+		return err
+	}
+	if _, err := s.pool.Exec(ctx, `DELETE FROM password_resets WHERE expires_at < now()`); err != nil {
 		return err
 	}
 	return s.CleanupSSO(ctx)

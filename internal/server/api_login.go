@@ -32,7 +32,8 @@ func (s *Server) loginPage(ctx context.Context) map[string]any {
 	if c.AutoRedirect != "" && s.app.Auth.RedirectProviderConfigured(c.AutoRedirect) {
 		auto = c.AutoRedirect
 	}
-	return map[string]any{"passkey_autofill": c.Autofill(), "auto_redirect": auto, "registration": s.app.Auth.RegistrationOpen(ctx)}
+	return map[string]any{"passkey_autofill": c.Autofill(), "auto_redirect": auto, "registration": s.app.Auth.RegistrationOpen(ctx),
+		"password_reset": s.app.Auth.PasswordResetOpen(ctx)}
 }
 
 func (s *Server) routesLogin() {
@@ -56,7 +57,7 @@ func (s *Server) routesLogin() {
 		// the main site registers); mail_ready: e-mail can be sent
 		mailReady := s.app.Auth.MailReady == nil || s.app.Auth.MailReady()
 		return map[string]any{"passkey_autofill": c.Autofill(), "auto_redirect": c.AutoRedirect, "buttons": c.Buttons,
-			"providers": s.app.Auth.AllProviderInfos(), "registration": reg,
+			"providers": s.app.Auth.AllProviderInfos(), "registration": reg, "password_reset": c.ResetEnabled(),
 			"registration_here": s.app.Auth.RegistrationAllowedHere(r.Context()), "mail_ready": mailReady}, nil
 	})
 	// action: core.auth.login_page.update
@@ -93,8 +94,39 @@ func (s *Server) routesLogin() {
 		if err := s.app.Auth.Register(r.Context(), in, s.clientIP(r)); err != nil {
 			return nil, err
 		}
-		w.WriteHeader(http.StatusAccepted)
-		return map[string]string{"status": "check_mail"}, nil
+		h.Write(w, http.StatusAccepted, map[string]string{"status": "check_mail"})
+		return h.Handled{}, nil
+	})
+	// "Forgot your password?" for local accounts: the same answer for every
+	// address; the mail goes out in the background
+	// action: core.auth.password_reset
+	s.handle("POST /api/v1/auth/password-reset", func(w http.ResponseWriter, r *http.Request) (any, error) {
+		var in struct {
+			Email string `json:"email"`
+		}
+		if err := h.Decode(r, &in); err != nil {
+			return nil, err
+		}
+		if err := s.app.Auth.RequestPasswordReset(r.Context(), in.Email, s.clientIP(r)); err != nil {
+			return nil, err
+		}
+		h.Write(w, http.StatusAccepted, map[string]string{"status": "check_mail"})
+		return h.Handled{}, nil
+	})
+	// action: core.auth.password_reset.confirm
+	s.handle("POST /api/v1/auth/password-reset/confirm", func(w http.ResponseWriter, r *http.Request) (any, error) {
+		var in struct {
+			Token    string `json:"token"`
+			Password string `json:"password"`
+		}
+		if err := h.Decode(r, &in); err != nil {
+			return nil, err
+		}
+		u, err := s.app.Auth.ResetPassword(r.Context(), in.Token, in.Password)
+		if err != nil {
+			return nil, err
+		}
+		return map[string]string{"username": u.Username}, nil
 	})
 	// action: core.auth.register.confirm
 	s.handle("POST /api/v1/auth/register/confirm", func(w http.ResponseWriter, r *http.Request) (any, error) {
@@ -153,6 +185,9 @@ func (s *Server) checkLogin(ctx context.Context, in *config.Login, stored config
 	}
 	if in.Autofill() {
 		in.PasskeyAutofill = nil // the default
+	}
+	if in.ResetEnabled() {
+		in.PasswordReset = nil // the default
 	}
 	return nil
 }

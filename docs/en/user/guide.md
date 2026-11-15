@@ -374,6 +374,8 @@ With the permission *Manage* you set under *Category settings → Permissions* w
 
 Depending on the setup you sign in with user name and password (local account or LDAP/Active Directory) or with a button **Sign in with …** through the central login of your organisation (OpenID Connect or Shibboleth/SAML). If you have set up further factors (or the administration requires them), the form then asks for them step by step, e.g. for the code from your app; if you lack a required factor, you set it up right there. With a **passkey** you sign in, where allowed, completely without a password.
 
+**Forgot your password:** If the administrators offer it and you have a local account, choose **Forgot your password?** on the sign-in page and enter your e-mail address. You get a link that is valid for one hour. Afterwards you are signed out everywhere and sign in with the new password.
+
 **Create an account yourself:** If the administrators allow it, the sign-in page shows **Create an account**. Enter your e-mail address, your name and a password. You get an e-mail with a link that is valid for 48 hours. Your account is created only with this link; then you sign in with your e-mail address and the password. If the address already has an account, the e-mail says so.
 
 ## My profile

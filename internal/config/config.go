@@ -294,7 +294,13 @@ type Login struct {
 	// Registration: people may create a local account themselves (off by
 	// default). The account exists only after the confirmation link was used.
 	Registration Registration `yaml:"registration,omitempty" json:"registration"`
+	// PasswordReset offers "Forgot your password?" for local accounts (a
+	// link by e-mail). Default on; switch it off to hide it.
+	PasswordReset *bool `yaml:"password_reset,omitempty" json:"password_reset,omitempty"`
 }
+
+// ResetEnabled reports whether "Forgot your password?" is switched on.
+func (l Login) ResetEnabled() bool { return l.PasswordReset == nil || *l.PasswordReset }
 
 // Registration of local accounts by the people themselves.
 type Registration struct {

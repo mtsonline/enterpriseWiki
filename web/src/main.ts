@@ -1,6 +1,7 @@
 // Application bootstrap.
 import { verifyEmailView } from './views/identity';
 import { registerConfirmView, registerView } from './views/register';
+import { resetConfirmView, resetView } from './views/passwordReset';
 import './styles/base.css';
 import './editor/editor.css';
 import { mediaView } from './views/media';
@@ -46,6 +47,8 @@ function registerCore(): void {
   route('/verify-email', verifyEmailView);
   route('/register', registerView);
   route('/register/confirm', registerConfirmView);
+  route('/password-reset', resetView);
+  route('/password-reset/confirm', resetConfirmView);
   route('/profile', profileView);
   route('/trash', trashView);
   route('/signatures/verify', signatureVerifyView);
