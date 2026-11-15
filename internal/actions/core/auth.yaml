@@ -1,0 +1,88 @@
+# Action register: sign-in (ewiki.plugin.v1.Action, see
+# sdk/proto/ewiki/plugin/v1/action.proto).
+actions:
+  - id: core.auth.login_page.view
+    category: CATEGORY_ACTION
+    method: GET
+    path: /api/v1/admin/auth/login
+    summary:
+      text:
+        en: Show the settings of the sign-in page
+        de: Einstellungen der Anmeldeseite anzeigen
+    permission: {key: core.settings.manage, scope: SCOPE_GLOBAL}
+    success_status: 200
+    cli: {command: [login-page, show], builtin: true}
+    ui: {entry: /admin/settings}
+  - id: core.auth.login_page.update
+    category: CATEGORY_ACTION
+    method: PUT
+    path: /api/v1/admin/auth/login
+    summary:
+      text:
+        en: Change the settings of the sign-in page (buttons, redirect, passkeys, registration, password reset)
+        de: Einstellungen der Anmeldeseite ändern (Knöpfe, Weiterleitung, Passkeys, Registrierung, Passwort vergessen)
+    permission: {key: core.settings.manage, scope: SCOPE_GLOBAL}
+    success_status: 200
+    safety: {changes: true, idempotent: true, audit_event: auth.login_page.update}
+    cli: {command: [login-page, set], builtin: true}
+    ui: {entry: /admin/settings, control: {text: {en: Save, de: Speichern}}}
+  - id: core.auth.register
+    category: CATEGORY_ACTION
+    method: POST
+    path: /api/v1/auth/register
+    summary:
+      text:
+        en: Ask for a local account (sends the confirmation link)
+        de: Lokales Konto beantragen (schickt den Bestätigungslink)
+    public: true
+    body:
+      json: '{"type": "object", "required": ["email", "display_name", "password"], "properties": {"email": {"type": "string"}, "display_name": {"type": "string", "maxLength": 100}, "password": {"type": "string", "maxLength": 1024}, "language": {"type": "string"}}}'
+    success_status: 202
+    safety: {changes: true, secret_fields: [password]}
+    cli: {command: [auth, registration, request]}
+    ui: {entry: /register, control: {text: {en: Create account, de: Konto anlegen}}}
+  - id: core.auth.register.confirm
+    category: CATEGORY_ACTION
+    method: POST
+    path: /api/v1/auth/register/confirm
+    summary:
+      text:
+        en: Create the account of a registration with its confirmation link
+        de: Konto einer Registrierung mit dem Bestätigungslink anlegen
+    public: true
+    body:
+      json: '{"type": "object", "required": ["token"], "properties": {"token": {"type": "string"}}}'
+    success_status: 200
+    safety: {changes: true, audit_event: user.register, secret_fields: [token]}
+    cli: {command: [auth, registration, confirm]}
+    ui: {entry: /register/confirm}
+  - id: core.auth.password_reset
+    category: CATEGORY_ACTION
+    method: POST
+    path: /api/v1/auth/password-reset
+    summary:
+      text:
+        en: Ask for a link to set a new password (local accounts)
+        de: Link für ein neues Passwort anfordern (lokale Konten)
+    public: true
+    body:
+      json: '{"type": "object", "required": ["email"], "properties": {"email": {"type": "string"}}}'
+    success_status: 202
+    safety: {changes: true}
+    cli: {command: [auth, password-reset, request]}
+    ui: {entry: /password-reset, control: {text: {en: Send link, de: Link senden}}}
+  - id: core.auth.password_reset.confirm
+    category: CATEGORY_ACTION
+    method: POST
+    path: /api/v1/auth/password-reset/confirm
+    summary:
+      text:
+        en: Set a new password with the link
+        de: Neues Passwort mit dem Link festlegen
+    public: true
+    body:
+      json: '{"type": "object", "required": ["token", "password"], "properties": {"token": {"type": "string"}, "password": {"type": "string", "maxLength": 1024}}}'
+    success_status: 200
+    safety: {changes: true, audit_event: user.password_reset, secret_fields: [token, password]}
+    cli: {command: [auth, password-reset, confirm]}
+    ui: {entry: /password-reset/confirm, control: {text: {en: Save password, de: Passwort speichern}}}

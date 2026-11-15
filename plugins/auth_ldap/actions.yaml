@@ -1,0 +1,58 @@
+# Action register of auth.ldap (ewiki.plugin.v1.Action); paths are relative
+# to /api/v1/x/auth.ldap/.
+actions:
+  - id: auth.ldap.test
+    category: CATEGORY_ACTION
+    method: POST
+    path: test
+    summary:
+      text:
+        en: Test a sign-in against LDAP with the current settings (no session is created)
+        de: Anmeldung gegen LDAP mit den aktuellen Einstellungen testen (ohne Sitzung)
+    permission: {key: core.settings.manage, scope: SCOPE_GLOBAL}
+    body:
+      json: '{"type": "object", "required": ["username", "password"], "properties": {"instance": {"type": "string"}, "username": {"type": "string"}, "password": {"type": "string"}}}'
+    success_status: 200
+    safety: {secret_fields: [password]}
+    cli: {command: [ldap, test]}
+    ui: {entry: /admin/ldap, control: {text: {en: Test sign-in, de: Anmeldung testen}}}
+  - id: auth.ldap.sync.list
+    category: CATEGORY_ACTION
+    method: GET
+    path: sync
+    summary:
+      text:
+        en: Show the directory sync of an LDAP instance and its newest runs (needs core.users.manage as well)
+        de: Verzeichnis-Abgleich einer LDAP-Instanz und die letzten Läufe anzeigen (braucht zusätzlich core.users.manage)
+    permission: {key: core.settings.manage, scope: SCOPE_GLOBAL}
+    query:
+      json: '{"type": "object", "properties": {"instance": {"type": "string"}}}'
+    success_status: 200
+    cli: {command: [directory, runs], builtin: true}
+    ui: {entry: /admin/ldap}
+  - id: auth.ldap.sync.run
+    category: CATEGORY_ACTION
+    method: POST
+    path: sync
+    summary:
+      text:
+        en: Run the directory sync now (dry_run for a preview; needs core.users.manage as well)
+        de: Verzeichnis-Abgleich jetzt ausführen (dry_run für eine Vorschau; braucht zusätzlich core.users.manage)
+    permission: {key: core.settings.manage, scope: SCOPE_GLOBAL}
+    success_status: 200
+    safety: {changes: true, audit_event: auth.directory.sync}
+    cli: {command: [directory, sync], builtin: true}
+    ui: {entry: /admin/ldap, control: {text: {en: Sync now, de: Jetzt abgleichen}}}
+  - id: auth.ldap.sync.adopt
+    category: CATEGORY_ACTION
+    method: POST
+    path: sync/adopt
+    summary:
+      text:
+        en: Keep an account when the same person has a new directory id (needs core.users.manage as well)
+        de: Konto behalten, wenn dieselbe Person eine neue Verzeichnis-ID hat (braucht zusätzlich core.users.manage)
+    permission: {key: core.settings.manage, scope: SCOPE_GLOBAL}
+    success_status: 200
+    safety: {changes: true, audit_event: auth.directory.adopt}
+    cli: {command: [directory, adopt], builtin: true}
+    ui: {entry: /admin/ldap}

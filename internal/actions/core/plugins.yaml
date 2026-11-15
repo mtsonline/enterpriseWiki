@@ -1,0 +1,74 @@
+# Action register: core plugins (ewiki.plugin.v1.Action, see
+# sdk/proto/ewiki/plugin/v1/action.proto).
+actions:
+  - id: core.plugins.sources.check
+    category: CATEGORY_ACTION
+    method: POST
+    path: /api/v1/admin/plugins/origin
+    summary:
+      text:
+        en: Show the origin level of a plugin source before installing
+        de: Herkunftsstufe einer Plugin-Quelle vor der Installation anzeigen
+    permission: {key: core.plugins.manage, scope: SCOPE_GLOBAL, instance: true}
+    body:
+      json: '{"type": "object", "required": ["source"], "properties": {"source": {"type": "string"}}}'
+    success_status: 200
+    cli: {command: [plugin, sources, check], args: [source], builtin: true}
+    ui: {entry: /admin/plugins}
+  - id: core.plugins.sources.list
+    category: CATEGORY_ACTION
+    method: GET
+    path: /api/v1/admin/plugins/sources
+    summary:
+      text:
+        en: List the trusted sources for core plugins
+        de: Vertrauenswürdige Quellen für Core-Plugins auflisten
+    permission: {key: core.plugins.manage, scope: SCOPE_GLOBAL, instance: true}
+    success_status: 200
+    cli: {command: [plugin, sources, list], builtin: true}
+    ui: {entry: /admin/plugins}
+  - id: core.plugins.sources.add
+    category: CATEGORY_ACTION
+    method: POST
+    path: /api/v1/admin/plugins/sources
+    summary:
+      text:
+        en: Add a trusted source for core plugins
+        de: Vertrauenswürdige Quelle für Core-Plugins eintragen
+    permission: {key: core.plugins.manage, scope: SCOPE_GLOBAL, instance: true}
+    body:
+      json: '{"type": "object", "required": ["prefix"], "properties": {"prefix": {"type": "string", "minLength": 2, "maxLength": 500}, "note": {"type": "string", "maxLength": 200}}}'
+    success_status: 200
+    safety: {changes: true, recent_sign_in: true, idempotent: true, audit_event: plugin.sources.add}
+    cli: {command: [plugin, sources, add], args: [prefix], builtin: true}
+    ui: {entry: /admin/plugins, control: {text: {en: Add, de: Eintragen}}}
+  - id: core.plugins.sources.remove
+    category: CATEGORY_ACTION
+    method: DELETE
+    path: /api/v1/admin/plugins/sources
+    summary:
+      text:
+        en: Remove a trusted source for core plugins
+        de: Vertrauenswürdige Quelle für Core-Plugins entfernen
+    permission: {key: core.plugins.manage, scope: SCOPE_GLOBAL, instance: true}
+    query:
+      json: '{"type": "object", "required": ["prefix"], "properties": {"prefix": {"type": "string"}}}'
+    success_status: 200
+    safety: {changes: true, idempotent: true, audit_event: plugin.sources.remove}
+    cli: {command: [plugin, sources, remove], args: [prefix], builtin: true}
+    ui: {entry: /admin/plugins}
+  - id: core.plugins.sources.external
+    category: CATEGORY_ACTION
+    method: PUT
+    path: /api/v1/admin/plugins/sources/external
+    summary:
+      text:
+        en: Allow or forbid core plugins from external sources
+        de: Core-Plugins aus externen Quellen erlauben oder verbieten
+    permission: {key: core.plugins.manage, scope: SCOPE_GLOBAL, instance: true}
+    body:
+      json: '{"type": "object", "required": ["allow"], "properties": {"allow": {"type": "boolean"}}}'
+    success_status: 200
+    safety: {changes: true, idempotent: true}
+    cli: {command: [plugin, sources, external], builtin: true}
+    ui: {entry: /admin/plugins}

@@ -192,6 +192,22 @@ ewiki api PATCH /api/v1/elements/12 '{"short_url":"kalender"}' # Kurz-URL setzen
 ewiki config set ui.home_element 12                    # Element 12 als Startseite
 ```
 
+### Befehle aus dem Aktionsregister
+
+Für jede Aktion des Aktionsregisters (siehe [API: Aktionsregister](../developer/api.md#aktionsregister)) gibt es einen eigenen Befehl, auch wenn kein handgeschriebener existiert. Er geht wie alle Befehle über die API, mit denselben Rechten, Prüfungen und Audit-Einträgen.
+
+```bash
+ewiki help                                  # alle Befehle, unten die aus dem Register
+ewiki smime show --help                     # Aufruf, Route und Recht eines Befehls
+ewiki smime show 7 --as anna                # Pfad-Parameter als Argument, mit den Rechten von anna
+ewiki auth password-reset request --email anna@example.com
+ewiki ldap test --json @test.json           # Inhalt als JSON (Datei, inline oder - für stdin)
+```
+
+- Pfad-Parameter stehen als Argument oder als Option (`--id 7`), Felder von Abfrage und Inhalt als Optionen (`--email …`), soweit das Register sie beschreibt; sonst `--json` bzw. `--query NAME=WERT`.
+- Passwörter und andere Geheimnisse besser mit `--json -` über die Standardeingabe übergeben, nicht als Option (sie stünden sonst im Verlauf der Shell).
+- Handgeschriebene Befehle (`ewiki smime list` usw.) haben Vorrang und bleiben, wie sie sind.
+
 ## Demo-Inhalte und Zurücksetzen
 
 Unter *Administration → Demo* (nur Administratoren) legt **Demo anlegen** einen Bereich „Demo: Enterprise Wiki“ an,

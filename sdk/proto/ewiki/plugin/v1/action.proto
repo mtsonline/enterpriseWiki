@@ -33,8 +33,9 @@ message Action {
   }
   Category category = 2;
 
-  // HTTP method and path. Core paths start with "/api/v1/", plugin paths
-  // are relative to "/api/v1/x/<plugin-id>/" and must not leave it.
+  // HTTP method and path. Core actions live below "/api/v1/" (protocol
+  // endpoints of the core may lie outside, e.g. "/scim/v2/Users"); plugin
+  // paths are relative to "/api/v1/x/<plugin-id>/" and must not leave it.
   // Path parameters in braces: "boards/{board}/cards/{card}".
   string method = 3;
   string path = 4;
@@ -60,7 +61,7 @@ message Action {
   Schema body = 12;
   // What the action answers (for documentation and the generated CLI).
   Schema response = 13;
-  // Success status: 200, 201 or 204.
+  // Success status: 200, 201, 202 (accepted, e.g. a mail goes out) or 204.
   int32 success_status = 14;
 
   // Safety properties the host enforces.
@@ -179,6 +180,11 @@ message CliWay {
   // Parameters given as positional arguments, in order (the rest are
   // flags).
   repeated string args = 2;
+  // Served by a hand-written command of the wiki's CLI with the same words
+  // (the core and its compiled-in core plugins only; refused in the
+  // manifest of an SDK plugin). Such a command may serve several actions,
+  // e.g. "show" and "set".
+  bool builtin = 3;
 }
 
 message UiWay {
