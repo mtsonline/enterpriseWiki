@@ -131,7 +131,8 @@ plugin_settings:
     group_attribute: memberOf
 ```
 
-- `ldap://` with `start_tls: true` is possible as well. Only use `insecure_skip_verify` for tests.
+- `ldap://` with `start_tls: true` is possible as well.
+- **Warning about `insecure_skip_verify`:** with it, the wiki does not check that it really talks to your directory server. An attacker on the network can pose as the server and read the passwords of everyone who signs in. The setting exists for environments without a verifiable certificate. Use it only when there is no other way, and only on a network you trust. Almost always it is better to enter the certificate of the certificate authority, or the server's self-signed certificate, as `ca_cert`. The interface shows the warning next to the setting; every connection without verification is logged as a warning in the server log.
 - Enter an own certificate authority (for example the company CA) as `ca_cert` (PEM or path to the file). The server certificate needs the server name as subject alternative name (SAN); certificates with a CN only are refused.
 - `memberOf` names the **direct** groups only. AD finds **nested groups** (a group in a group) with its own search rule; for this leave `group_attribute` empty and set `group_base_dn: DC=corp,DC=example,DC=com` and `group_filter: (member:1.2.840.113556.1.4.1941:={dn})`.
 - Without `bind_dn` the search is anonymous.

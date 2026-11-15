@@ -160,6 +160,15 @@ test('administration pages are accessible', async () => {
     await page.waitForSelector('.ew-admin-panel h1');
     await a11y(`admin/${section}`);
   }
+  // the insecure TLS setting of LDAP carries a permanent warning, announced with it
+  await page.goto(`${BASE}/admin/ldap`);
+  await idle();
+  const insecure = page.getByRole('checkbox', { name: /do not verify the tls certificate|tls-zertifikat nicht prüfen/i });
+  const described = await insecure.getAttribute('aria-describedby');
+  assert.ok(described, 'warning not linked to the checkbox');
+  const warning = page.locator(`[id="${described.split(' ').pop()}"]`);
+  assert.match(await warning.innerText(), /read the passwords|passwörter aller personen mitlesen/i);
+  assert.ok(await warning.evaluate((el) => el.classList.contains('ew-notice--warning')));
   await page.goto(`${BASE}/profile`);
   await idle();
   await a11y('profile');

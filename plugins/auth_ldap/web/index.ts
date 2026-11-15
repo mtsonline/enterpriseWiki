@@ -12,7 +12,7 @@ export function register(): void {
         { key: 'url', label: t('auth.ldap.url'), help: t('auth.ldap.url_help'), placeholder: 'ldaps://ldap.example.com:636' },
         { key: 'start_tls', label: t('auth.ldap.start_tls'), type: 'bool' },
         { key: 'ca_cert', label: t('auth.ldap.ca_cert'), type: 'textarea', help: t('auth.ldap.ca_cert_help') },
-        { key: 'insecure_skip_verify', label: t('auth.ldap.insecure'), type: 'bool' },
+        { key: 'insecure_skip_verify', label: t('auth.ldap.insecure'), type: 'bool', warning: t('auth.ldap.insecure_warning') },
         { key: 'bind_dn', label: t('auth.ldap.bind_dn'), placeholder: 'cn=wiki,ou=services,dc=example,dc=com' },
         { key: 'bind_password', label: t('auth.ldap.bind_password'), type: 'secret', placeholder: '${LDAP_BIND_PASSWORD}' },
         { key: 'base_dn', label: t('auth.ldap.base_dn'), placeholder: 'ou=people,dc=example,dc=com' },
