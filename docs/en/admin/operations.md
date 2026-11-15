@@ -192,6 +192,22 @@ ewiki api PATCH /api/v1/elements/12 '{"short_url":"calendar"}' # set a short URL
 ewiki config set ui.home_element 12                    # element 12 as home page
 ```
 
+### Commands from the action register
+
+Every action of the action register (see [API: action register](../developer/api.md#action-register)) has its own command, also where no hand-written one exists. Like all commands it goes through the API, with the same permissions, checks and audit entries.
+
+```bash
+ewiki help                                  # all commands, those from the register at the end
+ewiki smime show --help                     # usage, route and permission of a command
+ewiki smime show 7 --as anna                # path parameter as an argument, with the permissions of anna
+ewiki auth password-reset request --email anna@example.com
+ewiki ldap test --json @test.json           # body as JSON (file, inline or - for stdin)
+```
+
+- Path parameters are arguments or options (`--id 7`), fields of query and body are options (`--email …`) where the register describes them; otherwise `--json` or `--query NAME=VALUE`.
+- Pass passwords and other secrets with `--json -` on standard input rather than as an option (they would end up in the shell history).
+- Hand-written commands (`ewiki smime list` etc.) take precedence and stay as they are.
+
 ## Demo content and reset
 
 Under *Administration → Demo* (administrators only) **Create demo** creates a space "Demo: Enterprise Wiki"

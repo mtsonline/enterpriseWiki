@@ -85,6 +85,37 @@ If the account requires a second factor, the sign-in answers with `mfa_required`
 - **Events:** `POST /api/v1/x/content.events/calendars/{id}/events {"title", "starts_at", "ends_at", "all_day", "tz": "Europe/Vienna", "rrule": "FREQ=WEEKLY;BYDAY=MO", "registration": true, "capacity": 20, "reminders": [1440]}`; events of a period with `GET …/calendars/{id}/events?from=…&to=…` (series are expanded, `occurrences[].date` is the key for registrations). Registering: `POST …/events/{id}/registrations {"occurrence": "2026-11-23"}` (`interested: true` only for reminders).
 - **E-mail queue (admin):** `GET /api/v1/admin/mail` (status with counters per recipient), `GET /api/v1/admin/mail/outbox?status=failed&q=…`, `GET /api/v1/admin/mail/outbox/{id}` (with recipients and the last server answer).
 
+## Action register
+
+Every route is an **action** with an entry in the action register, in the format `ewiki.plugin.v1.Action` (`sdk/proto/ewiki/plugin/v1/action.proto`). From it the wiki checks that every action is reachable by API, CLI and interface, and builds the CLI commands for actions without a hand-written command.
+
+- **Where:** the core in `internal/actions/core/<area>.yaml`, core plugins in `plugins/<plugin>/actions.yaml` (paths relative to `/api/v1/x/<plugin-id>/`, added with `actions.Add` in `actions.go`).
+- **Required per entry:** `id` after the namespace rule, `category` (`CATEGORY_ACTION`, or `CATEGORY_PROTOCOL` for calls of other systems), `method`, `path`, `summary` in German **and** English, exactly one of `permission`, `signed_in`, `public`, and for actions `cli` and `ui` or an exception approved by the project owner (`exceptions`).
+- **Comment at the route:** `// action: <id>` directly above `s.handle(…)` or `host.Handle(…)`.
+- **Checks:**
+  - `TestActionRegister` (stage 1): register and routes agree, the comments match. Routes without an entry are listed in `internal/actions/missing.txt`; the list may only get shorter. A new route without an entry fails the CI.
+  - `go run ./tools/protocheck` in the folder `sdk`: compiles the contract and reads all register files and example manifests with the real messages (unknown fields, wrong values and invalid JSON in schemas are errors).
+- **Texts with a comma** go in block form (`text:` with `en:` and `de:` below); in the short form `{en: a, b}` the comma would split the text. The check detects this.
+
+```yaml
+actions:
+  - id: core.auth.password_reset
+    category: CATEGORY_ACTION
+    method: POST
+    path: /api/v1/auth/password-reset
+    summary:
+      text:
+        en: Ask for a link to set a new password (local accounts)
+        de: Link für ein neues Passwort anfordern (lokale Konten)
+    public: true
+    body:
+      json: '{"type": "object", "required": ["email"], "properties": {"email": {"type": "string"}}}'
+    success_status: 202
+    safety: {changes: true}
+    cli: {command: [auth, password-reset, request]}
+    ui: {entry: /password-reset}
+```
+
 ## Endpoints
 
 ### System

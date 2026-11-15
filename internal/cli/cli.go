@@ -178,8 +178,11 @@ EWIKI_LOG_FORMAT (text|json). Variables from .env next to config.yaml are loaded
 `
 
 // Main runs the CLI and returns the exit code.
-func Main(args []string) int {
-	e := &env{stdout: os.Stdout, stderr: os.Stderr, stdin: os.Stdin}
+func Main(args []string) int { return MainIO(args, os.Stdin, os.Stdout, os.Stderr) }
+
+// MainIO runs the CLI with its own input and outputs (tests, embedding).
+func MainIO(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
+	e := &env{stdout: stdout, stderr: stderr, stdin: stdin}
 	e.configPath = os.Getenv("EWIKI_CONFIG")
 	if e.configPath == "" {
 		e.configPath = "config.yaml"
@@ -217,75 +220,8 @@ func Main(args []string) int {
 			e.log.Error("starting the binary with the additional plugins failed; continuing without them", "exe", exe, "err", err)
 		}
 	}
-	var err error
-	switch args[0] {
-	case "help":
-		e.printf(usage, version.Version)
-	case "version":
-		e.printf("ewiki %s (%s)\n", version.Version, version.Commit)
-	case "serve":
-		err = e.serve(args[1:])
-	case "setup":
-		err = e.setup(args[1:])
-	case "migrate":
-		err = e.withApp(true, func(ctx context.Context, a *app.App) error { return nil })
-	case "api":
-		err = e.api(args[1:])
-	case "user":
-		err = e.user(args[1:])
-	case "scim":
-		err = e.scim(args[1:])
-	case "plugin":
-		err = e.plugin(args[1:])
-	case "config":
-		err = e.config(args[1:])
-	case "mail":
-		err = e.mailCmd(args[1:])
-	case "jobs":
-		err = e.jobsCmd(args[1:])
-	case "watch":
-		err = e.watchCmd(args[1:])
-	case "audit":
-		err = e.auditCmd(args[1:])
-	case "perm":
-		err = e.permCmd(args[1:])
-	case "draft":
-		err = e.draftCmd(args[1:])
-	case "inbox":
-		err = e.inboxCmd(args[1:])
-	case "i18n":
-		err = e.i18nCmd(args[1:])
-	case "pref":
-		err = e.prefCmd(args[1:])
-	case "category":
-		err = e.categoryCmd(args[1:])
-	case "cache":
-		err = e.cacheCmd(args[1:])
-	case "media":
-		err = e.media(args[1:])
-	case "demo":
-		err = e.demoCmd(args[1:])
-	case "site":
-		err = e.siteCmd(args[1:])
-	case "license":
-		err = e.licenseCmd(args[1:])
-	case "signature":
-		err = e.signatureCmd(args[1:])
-	case "smime":
-		err = e.smimeCmd(args[1:])
-	case "directory":
-		err = e.directoryCmd(args[1:])
-	case "login-page":
-		err = e.loginPage(args[1:])
-	case "retention":
-		err = e.withApp(false, func(ctx context.Context, a *app.App) error {
-			res, err := a.Content.RunRetention(ctx)
-			if err == nil {
-				printJSON(e.stdout, res)
-			}
-			return err
-		})
-	default:
+	err := e.dispatch(args)
+	if errors.Is(err, errUnknownCommand) {
 		e.eprintf("unknown command %q (see ewiki help)\n", args[0])
 		return 2
 	}
@@ -603,3 +539,94 @@ func (e *env) ewrite(b []byte)                 { _, _ = e.stderr.Write(b) }
 // reported by its Flush, which every caller checks.
 func row(tw *tabwriter.Writer, format string, a ...any) { _, _ = fmt.Fprintf(tw, format, a...) }
 func rowln(tw *tabwriter.Writer, a ...any)              { _, _ = fmt.Fprintln(tw, a...) }
+
+// errUnknownCommand: no hand-written command and no command of the action
+// register matches.
+var errUnknownCommand = errors.New("unknown command")
+
+// dispatch runs a command: a command of the action register for actions
+// without a hand-written one, else the hand-written commands.
+func (e *env) dispatch(args []string) error {
+	if a, n, ok := generated(args); ok {
+		return e.runAction(a, args[n:])
+	}
+	if len(args) > 1 && args[0] == "help" {
+		if a, _, ok := generated(args[1:]); ok {
+			e.printf("%s", actionUsage(a))
+			return nil
+		}
+	}
+	var err error
+	switch args[0] {
+	case "help":
+		e.printf(usage, version.Version)
+		e.printf("%s", registerHelp())
+	case "version":
+		e.printf("ewiki %s (%s)\n", version.Version, version.Commit)
+	case "serve":
+		err = e.serve(args[1:])
+	case "setup":
+		err = e.setup(args[1:])
+	case "migrate":
+		err = e.withApp(true, func(ctx context.Context, a *app.App) error { return nil })
+	case "api":
+		err = e.api(args[1:])
+	case "user":
+		err = e.user(args[1:])
+	case "scim":
+		err = e.scim(args[1:])
+	case "plugin":
+		err = e.plugin(args[1:])
+	case "config":
+		err = e.config(args[1:])
+	case "mail":
+		err = e.mailCmd(args[1:])
+	case "jobs":
+		err = e.jobsCmd(args[1:])
+	case "watch":
+		err = e.watchCmd(args[1:])
+	case "audit":
+		err = e.auditCmd(args[1:])
+	case "perm":
+		err = e.permCmd(args[1:])
+	case "draft":
+		err = e.draftCmd(args[1:])
+	case "inbox":
+		err = e.inboxCmd(args[1:])
+	case "i18n":
+		err = e.i18nCmd(args[1:])
+	case "pref":
+		err = e.prefCmd(args[1:])
+	case "category":
+		err = e.categoryCmd(args[1:])
+	case "cache":
+		err = e.cacheCmd(args[1:])
+	case "media":
+		err = e.media(args[1:])
+	case "demo":
+		err = e.demoCmd(args[1:])
+	case "site":
+		err = e.siteCmd(args[1:])
+	case "license":
+		err = e.licenseCmd(args[1:])
+	case "signature":
+		err = e.signatureCmd(args[1:])
+	case "smime":
+		err = e.smimeCmd(args[1:])
+	case "directory":
+		err = e.directoryCmd(args[1:])
+	case "login-page":
+		err = e.loginPage(args[1:])
+	case "retention":
+		err = e.withApp(false, func(ctx context.Context, a *app.App) error {
+			res, err := a.Content.RunRetention(ctx)
+			if err == nil {
+				printJSON(e.stdout, res)
+			}
+			return err
+		})
+	default:
+		return errUnknownCommand
+	}
+	return err
+}

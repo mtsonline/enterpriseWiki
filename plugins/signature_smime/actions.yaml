@@ -1,0 +1,105 @@
+# Action register of signature.smime (ewiki.plugin.v1.Action); paths are
+# relative to /api/v1/x/signature.smime/.
+actions:
+  - id: signature.smime.settings.get
+    category: CATEGORY_ACTION
+    method: GET
+    path: settings
+    summary:
+      text:
+        en: Show the S/MIME settings
+        de: S/MIME-Einstellungen anzeigen
+    permission: {key: signature.smime.manage, scope: SCOPE_GLOBAL}
+    success_status: 200
+    cli: {command: [smime, settings], builtin: true}
+    ui: {entry: /admin/smime}
+  - id: signature.smime.settings.set
+    category: CATEGORY_ACTION
+    method: PUT
+    path: settings
+    summary:
+      text:
+        en: Change the S/MIME settings
+        de: S/MIME-Einstellungen ändern
+    permission: {key: signature.smime.manage, scope: SCOPE_GLOBAL}
+    success_status: 200
+    safety: {changes: true, idempotent: true}
+    cli: {command: [smime, settings], builtin: true}
+    ui: {entry: /admin/smime, control: {text: {en: Save, de: Speichern}}}
+  - id: signature.smime.cert.list
+    category: CATEGORY_ACTION
+    method: GET
+    path: certs
+    summary:
+      text:
+        en: List S/MIME certificates (scope=mine for your own; org or all needs signature.smime.manage)
+        de: S/MIME-Zertifikate auflisten (scope=mine für eigene; org oder all braucht signature.smime.manage)
+    signed_in: true
+    query:
+      json: '{"type": "object", "properties": {"scope": {"type": "string", "enum": ["org", "all", "mine"]}}}'
+    success_status: 200
+    cli: {command: [smime, list], builtin: true}
+    ui: {entry: /admin/smime}
+  - id: signature.smime.cert.add
+    category: CATEGORY_ACTION
+    method: POST
+    path: certs
+    summary:
+      text:
+        en: Add an S/MIME certificate with its key (PKCS#12)
+        de: S/MIME-Zertifikat mit Schlüssel hinzufügen (PKCS#12)
+    signed_in: true
+    success_status: 201
+    safety: {changes: true, secret_fields: [password, file]}
+    cli: {command: [smime, add], builtin: true}
+    ui: {entry: /admin/smime, control: {text: {en: Add certificate, de: Zertifikat hinzufügen}}}
+  - id: signature.smime.cert.get
+    category: CATEGORY_ACTION
+    method: GET
+    path: certs/{id}
+    summary:
+      text:
+        en: Show an S/MIME certificate (own, or any with signature.smime.manage)
+        de: S/MIME-Zertifikat anzeigen (eigenes oder jedes mit signature.smime.manage)
+    signed_in: true
+    success_status: 200
+    cli: {command: [smime, show], args: [id]}
+    ui: {entry: /admin/smime}
+  - id: signature.smime.cert.change
+    category: CATEGORY_ACTION
+    method: PATCH
+    path: certs/{id}
+    summary:
+      text:
+        en: Change the label and use of an S/MIME certificate
+        de: Bezeichnung und Verwendung eines S/MIME-Zertifikats ändern
+    signed_in: true
+    success_status: 200
+    safety: {changes: true, idempotent: true}
+    cli: {command: [smime, set], builtin: true}
+    ui: {entry: /admin/smime}
+  - id: signature.smime.cert.delete
+    category: CATEGORY_ACTION
+    method: DELETE
+    path: certs/{id}
+    summary:
+      text:
+        en: Remove an S/MIME certificate
+        de: S/MIME-Zertifikat entfernen
+    signed_in: true
+    success_status: 204
+    safety: {changes: true, idempotent: true}
+    cli: {command: [smime, remove], builtin: true}
+    ui: {entry: /admin/smime}
+  - id: signature.smime.me
+    category: CATEGORY_ACTION
+    method: GET
+    path: me
+    summary:
+      text:
+        en: Show your own S/MIME options (personal certificates allowed, your addresses)
+        de: Eigene S/MIME-Möglichkeiten anzeigen (persönliche Zertifikate erlaubt, eigene Adressen)
+    signed_in: true
+    success_status: 200
+    cli: {command: [smime, me]}
+    ui: {entry: /profile}

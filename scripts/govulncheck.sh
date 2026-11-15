@@ -5,7 +5,9 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 out="$(mktemp)"
 trap 'rm -f "$out"' EXIT
+# both modules: the wiki and the plugin SDK
 go run golang.org/x/vuln/cmd/govulncheck@latest -format json ./... >"$out"
+(cd sdk && go run golang.org/x/vuln/cmd/govulncheck@latest -format json ./...) >>"$out"
 # findings whose trace reaches a function (= our code calls the vulnerable symbol)
 mapfile -t ids < <(jq -r 'select(.finding != null) | select(.finding.trace[0].function != null) | .finding.osv' "$out" | sort -u)
 today="$(date -u +%F)"
@@ -23,6 +25,7 @@ for id in "${ids[@]}"; do
 done
 if [ "$fail" = 1 ]; then
 	go run golang.org/x/vuln/cmd/govulncheck@latest ./... || true
+	(cd sdk && go run golang.org/x/vuln/cmd/govulncheck@latest ./...) || true
 	exit 1
 fi
 echo "govulncheck: no unmitigated vulnerabilities"

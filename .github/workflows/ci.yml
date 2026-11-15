@@ -47,6 +47,9 @@ jobs:
       - name: generated plugin imports are up to date
         run: go run ./tools/genplugins && git diff --exit-code plugins/all
       - run: go vet ./...
+      - name: plugin contract (sdk) compiles; examples and action register match its messages
+        working-directory: sdk
+        run: go vet ./... && go run ./tools/protocheck
       - name: licenses of all linked modules are allowed (LICENSING.md)
         run: go run ./tools/notices -check
       - name: documentation complete in German and English, links valid

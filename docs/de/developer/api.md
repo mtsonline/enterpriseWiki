@@ -85,6 +85,37 @@ Verlangt das Konto einen zweiten Faktor, antwortet die Anmeldung mit `mfa_requir
 - **Termine:** `POST /api/v1/x/content.events/calendars/{id}/events {"title", "starts_at", "ends_at", "all_day", "tz": "Europe/Vienna", "rrule": "FREQ=WEEKLY;BYDAY=MO", "registration": true, "capacity": 20, "reminders": [1440]}`; Termine eines Zeitraums mit `GET …/calendars/{id}/events?from=…&to=…` (Serien sind aufgelöst, `occurrences[].date` ist der Schlüssel für Anmeldungen). Anmelden: `POST …/events/{id}/registrations {"occurrence": "2026-11-23"}` (`interested: true` nur für Erinnerungen).
 - **E-Mail-Warteschlange (Admin):** `GET /api/v1/admin/mail` (Status mit Zählern pro Empfänger), `GET /api/v1/admin/mail/outbox?status=failed&q=…`, `GET /api/v1/admin/mail/outbox/{id}` (mit Empfängern und letzter Serverantwort).
 
+## Aktionsregister
+
+Jede Route ist eine **Aktion** mit einem Eintrag im Aktionsregister, im Format `ewiki.plugin.v1.Action` (`sdk/proto/ewiki/plugin/v1/action.proto`). Daraus prüft das Wiki, dass jede Aktion über API, CLI und Oberfläche erreichbar ist, und baut die CLI-Befehle für Aktionen ohne handgeschriebenen Befehl.
+
+- **Ablage:** Kern in `internal/actions/core/<bereich>.yaml`, Core-Plugins in `plugins/<plugin>/actions.yaml` (Pfade relativ zu `/api/v1/x/<plugin-id>/`, eingebunden mit `actions.Add` in `actions.go`).
+- **Pflicht je Eintrag:** `id` nach der Namensraum-Regel, `category` (`CATEGORY_ACTION` oder `CATEGORY_PROTOCOL` für Aufrufe anderer Systeme), `method`, `path`, `summary` auf Deutsch **und** Englisch, genau eines von `permission`, `signed_in`, `public`, bei Aktionen `cli` und `ui` oder eine vom Projektinhaber genehmigte Ausnahme (`exceptions`).
+- **Kommentar an der Route:** `// action: <id>` direkt über `s.handle(…)` bzw. `host.Handle(…)`.
+- **Prüfungen:**
+  - `TestActionRegister` (Stufe 1): Register und Routen stimmen überein, die Kommentare passen. Routen ohne Eintrag stehen in `internal/actions/missing.txt`; die Liste darf nur kürzer werden. Eine neue Route ohne Eintrag lässt die CI scheitern.
+  - `go run ./tools/protocheck` im Ordner `sdk`: übersetzt den Vertrag und liest alle Register-Dateien und Beispiel-Manifeste mit den echten Nachrichten (unbekannte Felder, falsche Werte und ungültiges JSON in Schemas sind Fehler).
+- **Texte mit Komma** in Block-Form schreiben (`text:` mit `en:` und `de:` darunter); in der Kurzform `{en: a, b}` würde das Komma den Text trennen. Die Prüfung erkennt das.
+
+```yaml
+actions:
+  - id: core.auth.password_reset
+    category: CATEGORY_ACTION
+    method: POST
+    path: /api/v1/auth/password-reset
+    summary:
+      text:
+        en: Ask for a link to set a new password (local accounts)
+        de: Link für ein neues Passwort anfordern (lokale Konten)
+    public: true
+    body:
+      json: '{"type": "object", "required": ["email"], "properties": {"email": {"type": "string"}}}'
+    success_status: 202
+    safety: {changes: true}
+    cli: {command: [auth, password-reset, request]}
+    ui: {entry: /password-reset}
+```
+
 ## Endpunkte
 
 ### System
