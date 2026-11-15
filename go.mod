@@ -13,12 +13,12 @@ require (
 	github.com/go-jose/go-jose/v4 v4.1.9
 	github.com/go-ldap/ldap/v3 v3.4.15
 	github.com/go-webauthn/webauthn v0.18.2
-	github.com/jackc/pgx/v5 v5.12.0
+	github.com/jackc/pgx/v5 v5.13.0
 	github.com/jimlambrt/gldap v0.1.14
 	github.com/microcosm-cc/bluemonday v1.0.27
 	github.com/smallstep/pkcs7 v0.2.3
 	github.com/yuin/goldmark/v2 v2.1.16
-	golang.org/x/crypto v0.58.0
+	golang.org/x/crypto v0.59.0
 	golang.org/x/image v0.48.0
 	golang.org/x/net v0.62.0
 	golang.org/x/oauth2 v0.38.0
