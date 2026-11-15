@@ -82,9 +82,11 @@ func (s *Server) routesSites() {
 			return fn(w, r)
 		}
 	}
+	// action: core.instance.sites.list
 	s.handle("GET /api/v1/instance/sites", inst(func(w http.ResponseWriter, r *http.Request) (any, error) {
 		return in.ListSites(r.Context())
 	}))
+	// action: core.instance.sites.create
 	s.handle("POST /api/v1/instance/sites", inst(func(w http.ResponseWriter, r *http.Request) (any, error) {
 		var body app.SiteInput
 		if err := h.Decode(r, &body); err != nil {
@@ -97,6 +99,7 @@ func (s *Server) routesSites() {
 		_ = audit.Log(r.Context(), s.app.DB, "site.create", "site", 0, nil, si)
 		return h.Created{V: si}, nil
 	}))
+	// action: core.instance.sites.update
 	s.handle("PATCH /api/v1/instance/sites/{name}", inst(func(w http.ResponseWriter, r *http.Request) (any, error) {
 		var body app.SiteInput
 		if err := h.Decode(r, &body); err != nil {
@@ -114,6 +117,7 @@ func (s *Server) routesSites() {
 		_ = audit.Log(r.Context(), s.app.DB, "site.update", "site", 0, before, si)
 		return si, nil
 	}))
+	// action: core.instance.sites.delete
 	s.handle("DELETE /api/v1/instance/sites/{name}", inst(func(w http.ResponseWriter, r *http.Request) (any, error) {
 		name := r.PathValue("name")
 		if name == s.app.Site {
@@ -125,6 +129,7 @@ func (s *Server) routesSites() {
 		_ = audit.Log(r.Context(), s.app.DB, "site.delete", "site", 0, map[string]string{"name": name}, nil)
 		return h.NoContent{}, nil
 	}))
+	// action: core.instance.admins.list
 	s.handle("GET /api/v1/instance/admins", inst(func(w http.ResponseWriter, r *http.Request) (any, error) {
 		rows, err := in.Shared.Query(r.Context(), `SELECT u.id, u.username, u.display_name, NOT EXISTS(SELECT 1 FROM instance_admins a WHERE a.user_id=u.id)
 			FROM users u WHERE u.id IN (SELECT user_id FROM instance_admins)
@@ -140,6 +145,7 @@ func (s *Server) routesSites() {
 			return a, err
 		})
 	}))
+	// action: core.instance.admins.add
 	s.handle("POST /api/v1/instance/admins", inst(func(w http.ResponseWriter, r *http.Request) (any, error) {
 		var body struct {
 			UserID int64 `json:"user_id"`
@@ -157,6 +163,7 @@ func (s *Server) routesSites() {
 		}
 		return h.NoContent{}, nil
 	}))
+	// action: core.instance.admins.remove
 	s.handle("DELETE /api/v1/instance/admins/{id}", inst(func(w http.ResponseWriter, r *http.Request) (any, error) {
 		id, err := h.PathID(r, "id")
 		if err != nil {

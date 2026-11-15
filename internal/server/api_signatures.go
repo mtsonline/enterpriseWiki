@@ -14,6 +14,7 @@ import (
 // routesSignatures: signature methods, evidence, verification and export.
 func (s *Server) routesSignatures() {
 	// GET /api/v1/signature-methods: the active methods, those the caller can use first.
+	// action: core.signatures.methods
 	s.handle("GET /api/v1/signature-methods", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		p, err := requireUser(r)
 		if err != nil {
@@ -23,6 +24,7 @@ func (s *Server) routesSignatures() {
 	})
 	// GET /api/v1/signature-keys: the public seal keys of the wiki (to compare
 	// with an export).
+	// action: core.signatures.keys
 	s.handle("GET /api/v1/signature-keys", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		if _, err := requireUser(r); err != nil {
 			return nil, err

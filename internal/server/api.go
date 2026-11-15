@@ -153,12 +153,14 @@ func (s *Server) routes() {
 			http.Error(w, "unknown host", http.StatusNotFound)
 		}
 	})
+	// action: core.ready
 	s.handle("GET /readyz", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		if err := s.app.DB.Ping(r.Context()); err != nil {
 			return nil, &apperr.Error{Status: 503, Code: "db_unavailable", Msg: "database unavailable"}
 		}
 		return map[string]string{"status": "ready"}, nil
 	})
+	// action: core.site
 	s.handle("GET /api/v1/site", s.site)
 
 	// ---------------------------------------------------------------- auth
@@ -359,8 +361,11 @@ func (s *Server) routes() {
 		}
 		return h.NoContent{}, s.app.Auth.DeleteUser(r.Context(), id)
 	})
+	// action: core.groups.names
 	s.handle("GET /api/v1/groups", func(w http.ResponseWriter, r *http.Request) (any, error) { return s.app.Auth.ListGroups(r.Context()) })
+	// action: core.roles.names
 	s.handle("GET /api/v1/roles", func(w http.ResponseWriter, r *http.Request) (any, error) { return s.app.Auth.ListRoles(r.Context()) })
+	// action: core.users.lookup
 	s.handle("GET /api/v1/users/lookup", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		// Minimal user search for permission dialogs (any user with manage rights somewhere).
 		if _, err := requireUser(r); err != nil {
@@ -762,6 +767,7 @@ func (s *Server) routes() {
 	})
 
 	// ---------------------------------------------------------------- elements
+	// action: core.elements.types
 	s.handle("GET /api/v1/element-types", func(w http.ResponseWriter, r *http.Request) (any, error) { return s.app.Content.Types(), nil })
 	// action: core.elements.create
 	s.handle("POST /api/v1/elements", func(w http.ResponseWriter, r *http.Request) (any, error) {
@@ -802,6 +808,7 @@ func (s *Server) routes() {
 		return v, err
 	})
 	// preview of sources for their editor: count and first titles with the caller's rights
+	// action: core.sources.preview
 	s.handle("POST /api/v1/sources/preview", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		if _, err := requireUser(r); err != nil {
 			return nil, err
@@ -1009,10 +1016,12 @@ func (s *Server) routes() {
 		}
 		return s.app.I18n.Messages(r.Context(), lang)
 	})
+	// action: core.i18n.strings
 	s.handle("GET /api/v1/admin/i18n/{lang}", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		return s.app.I18n.Strings(r.Context(), r.PathValue("lang"))
 	})
 	// PUT {"key": "text", "plural.key_few": "…"}: translations; "" removes a custom text
+	// action: core.i18n.set
 	s.handle("PUT /api/v1/admin/i18n/{lang}", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		var in map[string]string
 		if err := h.Decode(r, &in); err != nil {
@@ -1026,6 +1035,7 @@ func (s *Server) routes() {
 		return res, err
 	})
 	// GET …/export?format=json|xliff|po&source=core&filter=all|missing|custom
+	// action: core.i18n.export
 	h.RecordRoute("GET /api/v1/admin/i18n/{lang}/export")
 	s.app.Mux.HandleFunc("GET /api/v1/admin/i18n/{lang}/export", func(w http.ResponseWriter, r *http.Request) {
 		q := r.URL.Query()
@@ -1039,6 +1049,7 @@ func (s *Server) routes() {
 		_, _ = w.Write(data) // #nosec G705 -- download (attachment, nosniff), not rendered
 	})
 	// POST …/import?format=json|xliff|po (body: the file; format detected when omitted)
+	// action: core.i18n.import
 	s.handle("POST /api/v1/admin/i18n/{lang}/import", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		data, err := io.ReadAll(http.MaxBytesReader(w, r.Body, 20<<20))
 		if err != nil {
@@ -1051,6 +1062,7 @@ func (s *Server) routes() {
 		}
 		return res, err
 	})
+	// action: core.languages.add
 	s.handle("POST /api/v1/admin/languages", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		if err := requireAdmin(r); err != nil {
 			return nil, err
@@ -1074,6 +1086,7 @@ func (s *Server) routes() {
 		s.auditSettings(r, "settings.language_add", in.Code)
 		return h.NoContent{}, err
 	})
+	// action: core.languages.remove
 	s.handle("DELETE /api/v1/admin/languages/{code}", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		if err := requireAdmin(r); err != nil {
 			return nil, err
@@ -1094,6 +1107,7 @@ func (s *Server) routes() {
 	})
 
 	// ---------------------------------------------------------------- settings, audit, maintenance
+	// action: core.settings.get
 	s.handle("GET /api/v1/admin/settings", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		if err := requireAdmin(r); err != nil {
 			return nil, err
@@ -1102,7 +1116,9 @@ func (s *Server) routes() {
 		maskConfig(c)
 		return map[string]any{"config": c, "path": s.app.Config.Path()}, nil
 	})
+	// action: core.settings.update
 	s.handle("PUT /api/v1/admin/settings", s.updateSettings)
+	// action: core.audit.list
 	s.handle("GET /api/v1/admin/audit", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		if err := requireAdmin(r); err != nil {
 			return nil, err
@@ -1110,6 +1126,7 @@ func (s *Server) routes() {
 		entries, _, err := audit.Find(r.Context(), s.app.DB, auditSearch(r))
 		return entries, err
 	})
+	// action: core.retention.run
 	s.handle("POST /api/v1/admin/retention/run", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		if err := requireAdmin(r); err != nil {
 			return nil, err
@@ -1123,6 +1140,7 @@ func (s *Server) routes() {
 	})
 
 	// ---------------------------------------------------------------- plugins
+	// action: core.plugins.list
 	s.handle("GET /api/v1/admin/plugins", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		if err := requireAdmin(r); err != nil {
 			return nil, err
@@ -1229,6 +1247,7 @@ func (s *Server) routes() {
 		s.auditSettings(r, "plugin.sources.external", fmt.Sprintf("allow=%v", in.Allow))
 		return in, nil
 	})
+	// action: core.plugins.options
 	s.handle("PUT /api/v1/admin/plugins/options", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		if err := requireInstance(r); err != nil { // installed plugins and the process are shared by all sites
 			return nil, err
@@ -1245,6 +1264,7 @@ func (s *Server) routes() {
 		s.auditSettings(r, "plugin.options", fmt.Sprintf("auto_restart_on_drop=%v", in.AutoRestartOnDrop))
 		return in, nil
 	})
+	// action: core.plugins.enable
 	s.handle("POST /api/v1/admin/plugins/{id}/enable", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		if err := requireAdmin(r); err != nil {
 			return nil, err
@@ -1253,6 +1273,7 @@ func (s *Server) routes() {
 		s.auditSettings(r, "plugin.enable", r.PathValue("id"))
 		return h.NoContent{}, err
 	})
+	// action: core.plugins.disable
 	s.handle("POST /api/v1/admin/plugins/{id}/disable", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		if err := requireAdmin(r); err != nil {
 			return nil, err
@@ -1261,6 +1282,7 @@ func (s *Server) routes() {
 		s.auditSettings(r, "plugin.disable", r.PathValue("id"))
 		return h.NoContent{}, err
 	})
+	// action: core.plugins.install
 	s.handle("POST /api/v1/admin/plugins/install", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		if err := requireInstance(r); err != nil { // installed plugins and the process are shared by all sites
 			return nil, err
@@ -1283,6 +1305,7 @@ func (s *Server) routes() {
 			res.ID, res.Origin.Level, res.Origin.Source, res.Origin.Commit, res.Origin.Accepted))
 		return s.buildAfterChange(r.Context(), res, "install"), nil
 	})
+	// action: core.plugins.remove
 	s.handle("DELETE /api/v1/admin/plugins/{id}", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		if err := requireInstance(r); err != nil { // installed plugins and the process are shared by all sites
 			return nil, err
@@ -1293,12 +1316,14 @@ func (s *Server) routes() {
 		s.auditSettings(r, "plugin.remove", r.PathValue("id"))
 		return s.buildAfterChange(r.Context(), nil, "remove"), nil
 	})
+	// action: core.plugins.build
 	s.handle("POST /api/v1/admin/plugins/build", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		if err := requireInstance(r); err != nil { // installed plugins and the process are shared by all sites
 			return nil, err
 		}
 		return s.plugins.StartBuild(r.Context(), "manual")
 	})
+	// action: core.plugins.restart
 	s.handle("POST /api/v1/admin/restart", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		if err := requireInstance(r); err != nil { // installed plugins and the process are shared by all sites
 			return nil, err

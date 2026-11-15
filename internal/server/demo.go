@@ -61,12 +61,14 @@ type demoStatus struct {
 }
 
 func (s *Server) routesDemo() {
+	// action: core.demo.status
 	s.handle("GET /api/v1/admin/demo", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		if err := requireAdmin(r); err != nil {
 			return nil, err
 		}
 		return s.demoStatus(r.Context())
 	})
+	// action: core.demo.create
 	s.handle("POST /api/v1/admin/demo", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		if err := requireAdmin(r); err != nil {
 			return nil, err
@@ -76,6 +78,7 @@ func (s *Server) routesDemo() {
 		}
 		return s.demoStatus(r.Context())
 	})
+	// action: core.demo.remove
 	s.handle("DELETE /api/v1/admin/demo", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		if err := requireAdmin(r); err != nil {
 			return nil, err
@@ -85,6 +88,7 @@ func (s *Server) routesDemo() {
 		}
 		return s.demoStatus(r.Context())
 	})
+	// action: core.demo.reset
 	s.handle("POST /api/v1/admin/reset", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		if err := requireAdmin(r); err != nil {
 			return nil, err

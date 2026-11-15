@@ -27,10 +27,12 @@ func (s *Server) routesM7() {
 		return map[string]any{"items": list, "total": total}, nil
 	})
 	// GET /api/v1/resolve?path=kalender → {"type": "element"|"category", "id": 12}
+	// action: core.resolve
 	s.handle("GET /api/v1/resolve", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		return s.app.Content.Resolve(r.Context(), r.URL.Query().Get("path"))
 	})
 	// GET /api/v1/not-found?path=wiki/a/b | ?type=element&id=12&lang=de – deleted page and suggestions for a missing address
+	// action: core.not_found
 	s.handle("GET /api/v1/not-found", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		q := r.URL.Query()
 		id, _ := strconv.ParseInt(q.Get("id"), 10, 64)

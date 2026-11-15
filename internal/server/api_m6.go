@@ -170,12 +170,14 @@ func (s *Server) routesM6() {
 	})
 
 	// ---------------------------------------------------------------- guest cache
+	// action: core.cache.status
 	s.handle("GET /api/v1/admin/cache", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		if err := requireAdmin(r); err != nil {
 			return nil, err
 		}
 		return s.app.Cache.GetStatus(), nil
 	})
+	// action: core.cache.clear
 	s.handle("DELETE /api/v1/admin/cache", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		if err := requireAdmin(r); err != nil {
 			return nil, err

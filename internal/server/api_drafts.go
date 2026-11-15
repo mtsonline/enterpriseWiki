@@ -158,9 +158,11 @@ func (s *Server) routesNotifications() {
 }
 
 func (s *Server) routesWatchAssignments() {
+	// action: core.watches.assign.list
 	s.handle("GET /api/v1/admin/watch-assignments", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		return s.app.Watch.Assignments(r.Context())
 	})
+	// action: core.watches.assign.add
 	s.handle("POST /api/v1/admin/watch-assignments", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		var in watch.AssignmentInput
 		if err := h.Decode(r, &in); err != nil {
@@ -169,6 +171,7 @@ func (s *Server) routesWatchAssignments() {
 		a, err := s.app.Watch.SaveAssignment(r.Context(), 0, in)
 		return h.Created{V: a}, err
 	})
+	// action: core.watches.assign.update
 	s.handle("PUT /api/v1/admin/watch-assignments/{id}", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		id, err := h.PathID(r, "id")
 		if err != nil {
@@ -180,6 +183,7 @@ func (s *Server) routesWatchAssignments() {
 		}
 		return s.app.Watch.SaveAssignment(r.Context(), id, in)
 	})
+	// action: core.watches.assign.remove
 	s.handle("DELETE /api/v1/admin/watch-assignments/{id}", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		id, err := h.PathID(r, "id")
 		if err != nil {

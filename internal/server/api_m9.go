@@ -23,6 +23,7 @@ func (s *Server) LicenseStatus(ctx context.Context) license.Status {
 
 func (s *Server) routesM9() {
 	// GET /api/v1/admin/database – PostgreSQL version, recommended version, end of support
+	// action: core.database.status
 	s.handle("GET /api/v1/admin/database", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		if err := requireAdmin(r); err != nil {
 			return nil, err
@@ -30,6 +31,7 @@ func (s *Server) routesM9() {
 		return pgversion.Check(r.Context(), s.app.DB, time.Now())
 	})
 	// GET /api/v1/admin/license – license state (offline check of the key)
+	// action: core.license.get
 	s.handle("GET /api/v1/admin/license", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		if err := requireAdmin(r); err != nil {
 			return nil, err
@@ -37,6 +39,7 @@ func (s *Server) routesM9() {
 		return s.LicenseStatus(r.Context()), nil
 	})
 	// PUT /api/v1/admin/license {"key": "EWL1…"} installs a key (checked first)
+	// action: core.license.install
 	s.handle("PUT /api/v1/admin/license", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		if err := requireAdmin(r); err != nil {
 			return nil, err
@@ -60,6 +63,7 @@ func (s *Server) routesM9() {
 		_ = audit.Log(r.Context(), s.app.DB, "license.install", "license", 0, nil, l)
 		return s.LicenseStatus(r.Context()), nil
 	})
+	// action: core.license.remove
 	s.handle("DELETE /api/v1/admin/license", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		if err := requireAdmin(r); err != nil {
 			return nil, err

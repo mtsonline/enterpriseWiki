@@ -100,6 +100,7 @@ func (s *Server) routesSessions() {
 
 // routesProviderAdmin: mapping and JIT preview of a provider instance.
 func (s *Server) routesProviderAdmin() {
+	// action: core.auth.providers.preview
 	s.handle("POST /api/v1/admin/auth/providers/{id}/preview", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		var in auth.PreviewInput
 		if err := h.Decode(r, &in); err != nil {
