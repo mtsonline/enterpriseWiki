@@ -1617,7 +1617,7 @@ test('share a page, notification bell, assigned watches', async () => {
   await idle();
   await page.getByRole('button', { name: /^(share|teilen):/i }).click();
   const dlg = page.locator('dialog[open]');
-  await dlg.getByRole('checkbox', { name: 'hr' }).check();
+  await dlg.getByRole('checkbox', { name: 'hr', exact: true }).check();
   await dlg.getByRole('button', { name: /^(check recipients|empfänger prüfen)$/i }).click();
   await dlg.getByText(/recipient|empfänger/i).first().waitFor();
   await a11y('share dialog');
