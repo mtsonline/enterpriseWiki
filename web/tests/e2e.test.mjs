@@ -884,7 +884,10 @@ test('workflow: HR application from template, start and handle a case', async ()
 });
 
 test('workflow 2: automatic steps, deadline, triggers and a signed webhook really work', async () => {
-  const cat = await m6Category();
+  // an own category: the trigger "new page here" plus the step "create a page
+  // here" form a chain (stopped after 5 links) that keeps adding pages in the
+  // background; in a shared category those pages leaked into other tests
+  const cat = (await call('POST', '/api/v1/categories', { titles: { en: `Workflow 2 ${run}` } })).id;
   const job = (name) => call('POST', `/api/v1/admin/jobs/${name}/run`, {});
   const me = await call('GET', '/api/v1/auth/me');
   const wf = await call('POST', '/api/v1/elements', { category_id: cat, type: 'workflow.process', title: `Onboarding ${run}`, body: {
