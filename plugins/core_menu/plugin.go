@@ -417,6 +417,7 @@ func (p *Plugin) Setup(hs *coreplugin.Host) error {
 	// Public: placed menus (of one location), resolved for the caller:
 	// permissions applied, labels and links filled, submenus expanded.
 	// all=1 (admins): every menu as stored, including submenu-only menus.
+	// action: core.menu.list
 	hs.Handle("GET", "/menus", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		ctx := r.Context()
 		all, err := list(ctx, hs.DB, "*")
@@ -447,6 +448,7 @@ func (p *Plugin) Setup(hs *coreplugin.Host) error {
 		}
 		return out, nil
 	})
+	// action: core.menu.get
 	hs.Handle("GET", "/menus/{id}", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		if err := perm.Require(r.Context(), "core.menu.edit"); err != nil {
 			return nil, err
@@ -517,8 +519,11 @@ func (p *Plugin) Setup(hs *coreplugin.Host) error {
 		_ = audit.Log(ctx, hs.DB, "menu.save", "menu", in.ID, nil, in)
 		return in, nil
 	}
+	// action: core.menu.create
 	hs.Handle("POST", "/menus", save)
+	// action: core.menu.update
 	hs.Handle("PUT", "/menus/{id}", save)
+	// action: core.menu.delete
 	hs.Handle("DELETE", "/menus/{id}", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		if err := perm.Require(r.Context(), "core.menu.edit"); err != nil {
 			return nil, err

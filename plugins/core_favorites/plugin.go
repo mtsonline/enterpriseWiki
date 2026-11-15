@@ -139,6 +139,7 @@ func (p *Plugin) items(ctx context.Context, uid int64) ([]Favorite, error) {
 func (p *Plugin) Setup(host *coreplugin.Host) error {
 	p.host = host
 	// GET / – my favorites
+	// action: core.favorites.list
 	host.Handle("GET", "/", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		uid, err := me(r.Context())
 		if err != nil {
@@ -147,6 +148,7 @@ func (p *Plugin) Setup(host *coreplugin.Host) error {
 		return p.list(r.Context(), uid)
 	})
 	// POST / {"type": "element", "id": 12} – add (at the end)
+	// action: core.favorites.add
 	host.Handle("POST", "/", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		ctx := r.Context()
 		uid, err := me(ctx)
@@ -174,6 +176,7 @@ func (p *Plugin) Setup(host *coreplugin.Host) error {
 		return p.list(ctx, uid)
 	})
 	// DELETE /{type}/{id} – remove
+	// action: core.favorites.remove
 	host.Handle("DELETE", "/{type}/{id}", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		ctx := r.Context()
 		uid, err := me(ctx)
@@ -190,6 +193,7 @@ func (p *Plugin) Setup(host *coreplugin.Host) error {
 		return p.list(ctx, uid)
 	})
 	// PUT /order {"items": [{"type": "element", "id": 12}, …]} – new order
+	// action: core.favorites.order
 	host.Handle("PUT", "/order", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		ctx := r.Context()
 		uid, err := me(ctx)

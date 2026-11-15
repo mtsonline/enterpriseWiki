@@ -1,0 +1,13 @@
+# Action register (ewiki.plugin.v1.Action, see sdk/proto/ewiki/plugin/v1/action.proto).
+actions:
+  - id: theme.cms.config
+    category: CATEGORY_ACTION
+    method: GET
+    path: config
+    summary:
+      text:
+        en: Public settings of the CMS template
+        de: Öffentliche Einstellungen der CMS-Vorlage
+    public: true
+    cli: {command: [theme, config]}
+    ui: {entry: /}

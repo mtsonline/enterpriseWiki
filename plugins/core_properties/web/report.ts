@@ -47,7 +47,8 @@ function csvSafe(s: string): string {
 
 /** Downloads rows as CSV or Excel file made by the server (body: a query or a report). */
 export async function serverDownload(format: 'csv' | 'xlsx', body: unknown, name: string): Promise<void> {
-  const res = await fetch(`/api/v1/${BASE}/query.${format}`, {
+  const route = format === 'csv' ? 'query.csv' : 'query.xlsx';
+  const res = await fetch(`/api/v1/${BASE}/${route}`, {
     method: 'POST', credentials: 'same-origin',
     headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'ewiki' }, body: JSON.stringify(body),
   });

@@ -1,0 +1,35 @@
+# Action register (ewiki.plugin.v1.Action, see sdk/proto/ewiki/plugin/v1/action.proto).
+actions:
+  - id: content.team.members
+    category: CATEGORY_ACTION
+    method: GET
+    path: "elements/{id}/members"
+    summary:
+      text:
+        en: List the members of a team page
+        de: Mitglieder einer Team-Seite auflisten
+    permission: {key: core.category.view, scope: SCOPE_CATEGORY, category_param: "element:id"}
+    cli: {command: [team, members], args: [id]}
+    ui: {entry: /e/:id}
+  - id: content.team.fields
+    category: CATEGORY_ACTION
+    method: GET
+    path: fields
+    summary:
+      text:
+        en: Fields of people that a team page can show
+        de: "Angaben zu Personen, die eine Team-Seite zeigen kann"
+    signed_in: true
+    cli: {command: [team, fields]}
+    ui: {entry: /e/:id/edit}
+  - id: content.team.groups
+    category: CATEGORY_ACTION
+    method: GET
+    path: groups
+    summary:
+      text:
+        en: Groups to choose for a team page
+        de: Gruppen zur Auswahl für eine Team-Seite
+    signed_in: true
+    cli: {command: [team, groups]}
+    ui: {entry: /e/:id/edit}

@@ -1,0 +1,48 @@
+# Action register (ewiki.plugin.v1.Action, see sdk/proto/ewiki/plugin/v1/action.proto).
+actions:
+  - id: content.faq.questions.list
+    category: CATEGORY_ACTION
+    method: GET
+    path: "elements/{id}/questions"
+    summary:
+      text:
+        en: List the questions of an FAQ
+        de: Fragen einer FAQ auflisten
+    permission: {key: core.category.view, scope: SCOPE_CATEGORY, category_param: "element:id"}
+    cli: {command: [faq, questions], args: [id]}
+    ui: {entry: /e/:id}
+  - id: content.faq.questions.create
+    category: CATEGORY_ACTION
+    method: POST
+    path: "elements/{id}/questions"
+    summary:
+      text:
+        en: Add a question to an FAQ (needs create in the category)
+        de: Frage zu einer FAQ hinzufügen (braucht Anlegen in der Kategorie)
+    signed_in: true
+    safety: {changes: true}
+    cli: {command: [faq, question], args: [id]}
+    ui: {entry: /e/:id}
+  - id: content.faq.categories.create
+    category: CATEGORY_ACTION
+    method: POST
+    path: "elements/{id}/categories"
+    summary:
+      text:
+        en: Add a section to an FAQ (needs create)
+        de: Abschnitt zu einer FAQ hinzufügen (braucht Anlegen)
+    signed_in: true
+    safety: {changes: true}
+    cli: {command: [faq, category], args: [id]}
+    ui: {entry: /e/:id}
+  - id: content.faq.feed
+    category: CATEGORY_ACTION
+    method: GET
+    path: "elements/{id}/feed"
+    summary:
+      text:
+        en: Feed of an FAQ (RSS/Atom; with the personal feed link also private)
+        de: Feed einer FAQ (RSS/Atom; mit persönlichem Feed-Link auch privat)
+    public: true
+    cli: {command: [faq, feed], args: [id]}
+    ui: {entry: /e/:id}

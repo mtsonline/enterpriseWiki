@@ -1,0 +1,31 @@
+# Action register (ewiki.plugin.v1.Action, see sdk/proto/ewiki/plugin/v1/action.proto).
+actions:
+  - id: office.onlyoffice.test
+    category: CATEGORY_ACTION
+    method: POST
+    path: test
+    summary:
+      text:
+        en: Test the connection to the office server
+        de: Verbindung zum Office-Server testen
+    permission: {key: core.settings.manage, scope: SCOPE_GLOBAL}
+    safety: {changes: true}
+    cli: {command: [office, onlyoffice-test]}
+    ui: {entry: /admin/onlyoffice}
+  - id: office.onlyoffice.file
+    category: CATEGORY_PROTOCOL
+    method: GET
+    path: "file/{id}"
+    summary:
+      text:
+        en: Content of a file for the office server (signed token)
+        de: Inhalt einer Datei für den Office-Server (signiertes Token)
+  - id: office.onlyoffice.callback
+    category: CATEGORY_PROTOCOL
+    method: POST
+    path: "callback/{id}"
+    summary:
+      text:
+        en: The office server stores a changed file (signed token)
+        de: Der Office-Server speichert eine geänderte Datei (signiertes Token)
+    safety: {changes: true}

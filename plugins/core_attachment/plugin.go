@@ -64,6 +64,7 @@ func (p *Plugin) Setup(host *coreplugin.Host) error {
 	// GET /api/v1/x/core.attachment/elements/{id}/file?hash=&inline=1
 	// Delivers the file of an element (latest or a given version) after a
 	// permission check on the element.
+	// action: core.attachment.file
 	host.Handle("GET", "/elements/{id}/file", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		id, err := h.PathID(r, "id")
 		if err != nil {

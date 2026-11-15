@@ -1,0 +1,103 @@
+# Action register (ewiki.plugin.v1.Action, see sdk/proto/ewiki/plugin/v1/action.proto).
+actions:
+  - id: content.forms.meta
+    category: CATEGORY_ACTION
+    method: GET
+    path: meta
+    summary:
+      text:
+        en: Field types and options of forms
+        de: Feldarten und Optionen von Formularen
+    public: true
+    cli: {command: [form, meta]}
+    ui: {entry: /e/:id}
+  - id: content.forms.start
+    category: CATEGORY_ACTION
+    method: GET
+    path: "elements/{id}/start"
+    summary:
+      text:
+        en: Open a form for filling in
+        de: Formular zum Ausfüllen öffnen
+    permission: {key: core.category.view, scope: SCOPE_CATEGORY, category_param: "element:id"}
+    cli: {command: [form, start], args: [id]}
+    ui: {entry: /e/:id}
+  - id: content.forms.submit
+    category: CATEGORY_ACTION
+    method: POST
+    path: "elements/{id}/submit"
+    summary:
+      text:
+        en: Submit a form
+        de: Formular absenden
+    permission: {key: core.category.view, scope: SCOPE_CATEGORY, category_param: "element:id"}
+    safety: {changes: true}
+    cli: {command: [form, submit], args: [id]}
+    ui: {entry: /e/:id}
+  - id: content.forms.submissions.list
+    category: CATEGORY_ACTION
+    method: GET
+    path: "elements/{id}/submissions"
+    summary:
+      text:
+        en: List the submissions of a form (also for the creator of the form)
+        de: "Einsendungen eines Formulars auflisten (auch für die Person, die es angelegt hat)"
+    permission: {key: content.forms.submissions, scope: SCOPE_CATEGORY, category_param: "element:id"}
+    cli: {command: [form, submissions], args: [id]}
+    ui: {entry: /e/:id}
+  - id: content.forms.submissions.csv
+    category: CATEGORY_ACTION
+    method: GET
+    path: "elements/{id}/submissions.csv"
+    summary:
+      text:
+        en: Export the submissions as CSV
+        de: Einsendungen als CSV exportieren
+    permission: {key: content.forms.submissions, scope: SCOPE_CATEGORY, category_param: "element:id"}
+    cli: {command: [form, export-csv], args: [id]}
+    ui: {entry: /e/:id}
+  - id: content.forms.submissions.xlsx
+    category: CATEGORY_ACTION
+    method: GET
+    path: "elements/{id}/submissions.xlsx"
+    summary:
+      text:
+        en: Export the submissions as Excel file
+        de: Einsendungen als Excel-Datei exportieren
+    permission: {key: content.forms.submissions, scope: SCOPE_CATEGORY, category_param: "element:id"}
+    cli: {command: [form, export-xlsx], args: [id]}
+    ui: {entry: /e/:id}
+  - id: content.forms.submissions.get
+    category: CATEGORY_ACTION
+    method: GET
+    path: "submissions/{sid}"
+    summary:
+      text:
+        en: Show a submission (needs content.forms.submissions)
+        de: Einsendung anzeigen (braucht content.forms.submissions)
+    signed_in: true
+    cli: {command: [form, submission], args: [sid]}
+    ui: {entry: /e/:id}
+  - id: content.forms.submissions.delete
+    category: CATEGORY_ACTION
+    method: DELETE
+    path: "submissions/{sid}"
+    summary:
+      text:
+        en: Delete a submission (needs content.forms.submissions)
+        de: Einsendung löschen (braucht content.forms.submissions)
+    signed_in: true
+    safety: {changes: true}
+    cli: {command: [form, submission-delete], args: [sid]}
+    ui: {entry: /e/:id}
+  - id: content.forms.submissions.file
+    category: CATEGORY_ACTION
+    method: GET
+    path: "submissions/{sid}/files/{n}"
+    summary:
+      text:
+        en: Download a file of a submission (needs content.forms.submissions)
+        de: Datei einer Einsendung herunterladen (braucht content.forms.submissions)
+    signed_in: true
+    cli: {command: [form, submission-file], args: [sid, n]}
+    ui: {entry: /e/:id}

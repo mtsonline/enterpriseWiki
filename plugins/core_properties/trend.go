@@ -129,6 +129,7 @@ func (p *Plugin) Trend(ctx context.Context, q *Query, key string, weeks int) (*T
 
 func trendRoutes(p *Plugin) {
 	// POST /trend {"report": {params…}, "key": "status", "weeks": 12} or {"query": {...}, …}
+	// action: core.properties.trend
 	p.host.Handle("POST", "/trend", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		var in struct {
 			Report *reportInput `json:"report"`

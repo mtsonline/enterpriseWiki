@@ -182,10 +182,12 @@ func (p *Plugin) Setup(host *coreplugin.Host) error {
 
 	// ---------------------------------------------------------------- public
 	// GET /position/{position}?lang= – carousels of a position with the slides the caller may see
+	// action: core.carousel.position
 	host.Handle("GET", "/position/{position}", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		return p.atPosition(r.Context(), r.PathValue("position"), r.URL.Query().Get("lang"))
 	})
 	// GET /targets – carousels news can be published to (for the publish dialog)
+	// action: core.carousel.targets
 	host.Handle("GET", "/targets", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		ctx := r.Context()
 		if !perm.Has(ctx, "core.carousel.publish") && !perm.Has(ctx, "core.carousel.manage") {
@@ -199,6 +201,7 @@ func (p *Plugin) Setup(host *coreplugin.Host) error {
 	})
 
 	// ---------------------------------------------------------------- administration
+	// action: core.carousel.list
 	host.Handle("GET", "/carousels", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		if err := manage(r.Context()); err != nil {
 			return nil, err
@@ -246,7 +249,9 @@ func (p *Plugin) Setup(host *coreplugin.Host) error {
 		}
 		return c, nil
 	}
+	// action: core.carousel.create
 	host.Handle("POST", "/carousels", func(w http.ResponseWriter, r *http.Request) (any, error) { return save(r, 0) })
+	// action: core.carousel.update
 	host.Handle("PUT", "/carousels/{id}", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		id, err := h.PathID(r, "id")
 		if err != nil {
@@ -254,6 +259,7 @@ func (p *Plugin) Setup(host *coreplugin.Host) error {
 		}
 		return save(r, id)
 	})
+	// action: core.carousel.delete
 	host.Handle("DELETE", "/carousels/{id}", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		ctx := r.Context()
 		if err := manage(ctx); err != nil {
@@ -270,6 +276,7 @@ func (p *Plugin) Setup(host *coreplugin.Host) error {
 		return h.NoContent{}, nil
 	})
 	// GET /carousels/{id}/slides – all slides (also future and expired ones) and the feed state
+	// action: core.carousel.slides.list
 	host.Handle("GET", "/carousels/{id}/slides", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		ctx := r.Context()
 		if err := manage(ctx); err != nil {
@@ -342,6 +349,7 @@ func (p *Plugin) Setup(host *coreplugin.Host) error {
 		_ = audit.Log(ctx, host.DB, "carousel.slide", "carousel", carousel, nil, s)
 		return s, nil
 	}
+	// action: core.carousel.slides.create
 	host.Handle("POST", "/carousels/{id}/slides", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		id, err := h.PathID(r, "id")
 		if err != nil {
@@ -349,6 +357,7 @@ func (p *Plugin) Setup(host *coreplugin.Host) error {
 		}
 		return saveSlide(r, id, 0)
 	})
+	// action: core.carousel.slides.update
 	host.Handle("PUT", "/carousels/{id}/slides/{slide}", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		id, err := h.PathID(r, "id")
 		if err != nil {
@@ -360,6 +369,7 @@ func (p *Plugin) Setup(host *coreplugin.Host) error {
 		}
 		return saveSlide(r, id, sid)
 	})
+	// action: core.carousel.slides.delete
 	host.Handle("DELETE", "/carousels/{id}/slides/{slide}", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		ctx := r.Context()
 		if err := manage(ctx); err != nil {
@@ -380,6 +390,7 @@ func (p *Plugin) Setup(host *coreplugin.Host) error {
 		return h.NoContent{}, nil
 	})
 	// PUT /carousels/{id}/order {"slides": [3, 1, 2]}
+	// action: core.carousel.order
 	host.Handle("PUT", "/carousels/{id}/order", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		ctx := r.Context()
 		if err := manage(ctx); err != nil {
@@ -406,6 +417,7 @@ func (p *Plugin) Setup(host *coreplugin.Host) error {
 		return h.NoContent{}, err
 	})
 	// POST /carousels/{id}/refresh – fetch the feeds now
+	// action: core.carousel.refresh
 	host.Handle("POST", "/carousels/{id}/refresh", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		ctx := r.Context()
 		if err := manage(ctx); err != nil {

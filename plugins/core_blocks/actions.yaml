@@ -1,0 +1,49 @@
+# Action register (ewiki.plugin.v1.Action, see sdk/proto/ewiki/plugin/v1/action.proto).
+actions:
+  - id: core.blocks.list
+    category: CATEGORY_ACTION
+    method: GET
+    path: blocks
+    summary:
+      text:
+        en: List the blocks
+        de: Blöcke auflisten
+    permission: {key: core.blocks.edit, scope: SCOPE_GLOBAL}
+    cli: {command: [block, list]}
+    ui: {entry: /admin/blocks}
+  - id: core.blocks.create
+    category: CATEGORY_ACTION
+    method: POST
+    path: blocks
+    summary:
+      text:
+        en: Create a block
+        de: Block anlegen
+    permission: {key: core.blocks.edit, scope: SCOPE_GLOBAL}
+    safety: {changes: true}
+    cli: {command: [block, create]}
+    ui: {entry: /admin/blocks}
+  - id: core.blocks.update
+    category: CATEGORY_ACTION
+    method: PUT
+    path: "blocks/{id}"
+    summary:
+      text:
+        en: Change a block
+        de: Block ändern
+    permission: {key: core.blocks.edit, scope: SCOPE_GLOBAL}
+    safety: {changes: true}
+    cli: {command: [block, update], args: [id]}
+    ui: {entry: /admin/blocks}
+  - id: core.blocks.delete
+    category: CATEGORY_ACTION
+    method: DELETE
+    path: "blocks/{id}"
+    summary:
+      text:
+        en: Delete a block
+        de: Block löschen
+    permission: {key: core.blocks.edit, scope: SCOPE_GLOBAL}
+    safety: {changes: true}
+    cli: {command: [block, delete], args: [id]}
+    ui: {entry: /admin/blocks}

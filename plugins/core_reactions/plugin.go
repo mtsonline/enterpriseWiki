@@ -89,6 +89,7 @@ func (p *Plugin) Setup(host *coreplugin.Host) error {
 	notify.RegisterKindOff("reaction", "core.reactions.kind")
 
 	// GET /{type}/{id} – the reactions of one target
+	// action: core.reactions.get
 	host.Handle("GET", "/{type}/{id}", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		id, err := h.PathID(r, "id")
 		if err != nil {
@@ -101,6 +102,7 @@ func (p *Plugin) Setup(host *coreplugin.Host) error {
 		return list[0], nil
 	})
 	// GET /batch?type=comment&ids=1,2,3 – reactions of several targets (invisible ones are left out)
+	// action: core.reactions.batch
 	host.Handle("GET", "/batch", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		var ids []int64
 		for _, s := range strings.Split(r.URL.Query().Get("ids"), ",") {
@@ -114,6 +116,7 @@ func (p *Plugin) Setup(host *coreplugin.Host) error {
 		return p.summaries(r.Context(), r.URL.Query().Get("type"), ids)
 	})
 	// POST /{type}/{id} {"emoji": "👍", "on": true} – add or remove an own reaction
+	// action: core.reactions.react
 	host.Handle("POST", "/{type}/{id}", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		id, err := h.PathID(r, "id")
 		if err != nil {
@@ -130,6 +133,7 @@ func (p *Plugin) Setup(host *coreplugin.Host) error {
 		return p.react(r.Context(), r.PathValue("type"), id, in.Emoji, on)
 	})
 	// DELETE /{type}/{id}/users/{uid}?emoji=… – remove reactions of others (manage permission)
+	// action: core.reactions.remove
 	host.Handle("DELETE", "/{type}/{id}/users/{uid}", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		ctx := r.Context()
 		if err := perm.Require(ctx, "core.reactions.manage"); err != nil {
@@ -152,12 +156,14 @@ func (p *Plugin) Setup(host *coreplugin.Host) error {
 		return h.NoContent{}, nil
 	})
 	// GET/PUT /settings {"blocked": ["🖕"]}
+	// action: core.reactions.settings.get
 	host.Handle("GET", "/settings", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		if identity.From(r.Context()) == nil {
 			return nil, apperr.ErrUnauthorized
 		}
 		return map[string]any{"blocked": p.blocked()}, nil
 	})
+	// action: core.reactions.settings.update
 	host.Handle("PUT", "/settings", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		ctx := r.Context()
 		if err := perm.Require(ctx, "core.reactions.manage"); err != nil {

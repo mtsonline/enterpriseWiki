@@ -228,6 +228,8 @@ func (p *Plugin) Setup(hs *coreplugin.Host) error {
 	p.host = hs
 	hs.RegisterElementType(Type{})
 	hs.RegisterMacro(postsMacro{})
+	// action: content.blog.posts.create for POST /elements/{id}/posts
+	// action: content.blog.categories.create for POST /elements/{id}/categories
 	catlist.Routes(hs, "blog", "posts", func(ctx context.Context, id int64, lang string) (*catlist.Source, string, error) {
 		c, shown, err := p.load(ctx, id, lang)
 		if err != nil {
@@ -237,6 +239,7 @@ func (p *Plugin) Setup(hs *coreplugin.Host) error {
 	})
 
 	// GET /elements/{id}/posts?page=1&q=&tag=&lang= lists posts (search within the blog with q).
+	// action: content.blog.posts.list
 	hs.Handle("GET", "/elements/{id}/posts", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		id, err := h.PathID(r, "id")
 		if err != nil {
@@ -297,6 +300,7 @@ func (p *Plugin) Setup(hs *coreplugin.Host) error {
 	})
 
 	// GET /elements/{id}/feed?format=atom|rss&lang=&token= (personal link with token).
+	// action: content.blog.feed
 	hs.Handle("GET", "/elements/{id}/feed", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		id, err := h.PathID(r, "id")
 		if err != nil {

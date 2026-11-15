@@ -1,0 +1,37 @@
+# Action register (ewiki.plugin.v1.Action, see sdk/proto/ewiki/plugin/v1/action.proto).
+actions:
+  - id: search.external.status
+    category: CATEGORY_ACTION
+    method: GET
+    path: status
+    summary:
+      text:
+        en: Show the state of the external search
+        de: Zustand der externen Suche anzeigen
+    permission: {key: search.external.manage, scope: SCOPE_GLOBAL}
+    cli: {command: [external-search, status]}
+    ui: {entry: /admin/search}
+  - id: search.external.test
+    category: CATEGORY_ACTION
+    method: POST
+    path: test
+    summary:
+      text:
+        en: Test the connection to the external search
+        de: Verbindung zur externen Suche testen
+    permission: {key: search.external.manage, scope: SCOPE_GLOBAL}
+    safety: {changes: true}
+    cli: {command: [external-search, test]}
+    ui: {entry: /admin/search}
+  - id: search.external.reindex
+    category: CATEGORY_ACTION
+    method: POST
+    path: reindex
+    summary:
+      text:
+        en: Index all content again
+        de: Alle Inhalte neu indizieren
+    permission: {key: search.external.manage, scope: SCOPE_GLOBAL}
+    safety: {changes: true}
+    cli: {command: [external-search, reindex]}
+    ui: {entry: /admin/search}

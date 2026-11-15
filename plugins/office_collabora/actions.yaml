@@ -1,0 +1,14 @@
+# Action register (ewiki.plugin.v1.Action, see sdk/proto/ewiki/plugin/v1/action.proto).
+actions:
+  - id: office.collabora.test
+    category: CATEGORY_ACTION
+    method: POST
+    path: test
+    summary:
+      text:
+        en: Test the connection to the office server
+        de: Verbindung zum Office-Server testen
+    permission: {key: core.settings.manage, scope: SCOPE_GLOBAL}
+    safety: {changes: true}
+    cli: {command: [office, collabora-test]}
+    ui: {entry: /admin/collabora}

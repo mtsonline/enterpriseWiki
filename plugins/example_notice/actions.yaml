@@ -1,0 +1,13 @@
+# Action register (ewiki.plugin.v1.Action, see sdk/proto/ewiki/plugin/v1/action.proto).
+actions:
+  - id: example.notice.tones
+    category: CATEGORY_ACTION
+    method: GET
+    path: tones
+    summary:
+      text:
+        en: Tones of the notice macro (example plugin)
+        de: Tönungen des Hinweis-Makros (Beispiel-Plugin)
+    public: true
+    cli: {command: [notice, tones]}
+    ui: {entry: /e/:id}

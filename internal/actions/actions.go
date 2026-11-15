@@ -460,8 +460,9 @@ var CategoryRights = map[string]bool{
 // parameter that is not in the path is a query or body field.
 func checkCategoryPermission(a Action, fail func(Action, string, ...any)) {
 	p := a.Permission
-	if strings.HasPrefix(p.Key, "core.") && !CategoryRights[p.Key] {
-		fail(a, "permission %q is no category right (core.category.view, .edit, .create, .delete, .manage)", p.Key)
+	// the core's rights, or (in a plugin) one of the plugin's own rights
+	if !CategoryRights[p.Key] && (a.Plugin == "" || !strings.HasPrefix(p.Key, a.Plugin+".")) {
+		fail(a, "permission %q is no category right (core.category.view, .edit, .create, .delete, .manage, or one of the plugin)", p.Key)
 	}
 	param, ok := strings.CutPrefix(p.CategoryParam, "element:")
 	if param == "" || strings.ContainsAny(param, "{}/: ") {

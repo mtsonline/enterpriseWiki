@@ -478,6 +478,7 @@ func (p *Plugin) Setup(hs *coreplugin.Host) error {
 	hs.RegisterElementType(Type{})
 
 	// GET /groups – groups to choose from (signed-in users; editors are not always admins)
+	// action: content.team.groups
 	hs.Handle("GET", "/groups", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		if identity.From(r.Context()).ID() == 0 && !identity.From(r.Context()).Admin() {
 			return nil, apperr.ErrUnauthorized
@@ -499,6 +500,7 @@ func (p *Plugin) Setup(hs *coreplugin.Host) error {
 		})
 	})
 	// GET /fields – fields and the identity-provider attributes in use
+	// action: content.team.fields
 	hs.Handle("GET", "/fields", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		if identity.From(r.Context()).ID() == 0 {
 			return nil, apperr.ErrUnauthorized
@@ -518,6 +520,7 @@ func (p *Plugin) Setup(hs *coreplugin.Host) error {
 		return map[string]any{"fields": Fields, "attributes": attrs}, nil
 	})
 	// GET /elements/{id}/members – the members as shown on the page (JSON)
+	// action: content.team.members
 	hs.Handle("GET", "/elements/{id}/members", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		id, err := h.PathID(r, "id")
 		if err != nil {

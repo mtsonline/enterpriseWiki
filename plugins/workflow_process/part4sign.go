@@ -120,6 +120,7 @@ func (pl *Plugin) signRoutes(host interface {
 	// POST /instances/{id}/sign {"action", "note", "to", "data", "method", "lang"}
 	// → {"token", "challenge"}: sign the decision, then send it with
 	// POST /instances/{id}/actions and {"signature": {"token", "answer"}}.
+	// action: workflow.process.cases.sign
 	host.Handle("POST", "/instances/{id}/sign", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		id, err := h.PathID(r, "id")
 		if err != nil {

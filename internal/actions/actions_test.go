@@ -44,6 +44,10 @@ func TestValidate(t *testing.T) {
 		"category right": {func(a *Action) {
 			*a.Permission = Permission{Key: "core.things.make", Scope: "SCOPE_CATEGORY", CategoryParam: "id"}
 		}, "no category right"},
+		"foreign plugin right": {func(a *Action) {
+			a.ID, a.Plugin, a.Path = "acme.kanban.x", "acme.kanban", "boards/{id}"
+			*a.Permission = Permission{Key: "other.plugin.edit", Scope: "SCOPE_CATEGORY", CategoryParam: "element:id"}
+		}, "no category right"},
 		"element param": {func(a *Action) {
 			*a.Permission = Permission{Key: "core.category.view", Scope: "SCOPE_CATEGORY", CategoryParam: "element:eid"}
 		}, "named in the path"},

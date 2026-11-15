@@ -490,6 +490,7 @@ func (pl *Plugin) deputyRoutes(host *coreplugin.Host) {
 		return p, nil
 	}
 	// GET /me/deputy: my deputy and the people I stand in for
+	// action: workflow.process.deputy.get
 	host.Handle("GET", "/me/deputy", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		p, err := user(r)
 		if err != nil {
@@ -516,6 +517,7 @@ func (pl *Plugin) deputyRoutes(host *coreplugin.Host) {
 		return map[string]any{"deputy": d, "stand_in_for": list}, nil
 	})
 	// PUT /me/deputy {"deputy": "name", "from": "2026-12-20", "until": "2027-01-06"}
+	// action: workflow.process.deputy.set
 	host.Handle("PUT", "/me/deputy", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		p, err := user(r)
 		if err != nil {
@@ -560,6 +562,7 @@ func (pl *Plugin) deputyRoutes(host *coreplugin.Host) {
 		}
 		return get(ctx, p.ID())
 	})
+	// action: workflow.process.deputy.remove
 	host.Handle("DELETE", "/me/deputy", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		p, err := user(r)
 		if err != nil {

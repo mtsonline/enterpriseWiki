@@ -62,6 +62,7 @@ func (p *Plugin) Setup(hs *coreplugin.Host) error {
 	hs.RegisterWorker("reminders", time.Minute, p.sendReminders)
 
 	// GET /calendars/{id}/events?from=&to=&category=&q=&lang= → events and their occurrences
+	// action: content.events.list
 	hs.Handle("GET", "/calendars/{id}/events", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		id, err := h.PathID(r, "id")
 		if err != nil {
@@ -141,6 +142,7 @@ func (p *Plugin) Setup(hs *coreplugin.Host) error {
 	})
 
 	// POST /calendars/{id}/events creates an event (Create permission).
+	// action: content.events.create
 	hs.Handle("POST", "/calendars/{id}/events", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		id, err := h.PathID(r, "id")
 		if err != nil {
@@ -190,6 +192,7 @@ func (p *Plugin) Setup(hs *coreplugin.Host) error {
 	})
 
 	// GET /events/{id} → the event with its next occurrences
+	// action: content.events.get
 	hs.Handle("GET", "/events/{id}", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		id, err := h.PathID(r, "id")
 		if err != nil {
@@ -212,6 +215,7 @@ func (p *Plugin) Setup(hs *coreplugin.Host) error {
 	})
 
 	// PUT /events/{id} changes an event (creator with Create, or Edit).
+	// action: content.events.update
 	hs.Handle("PUT", "/events/{id}", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		id, err := h.PathID(r, "id")
 		if err != nil {
@@ -263,6 +267,7 @@ func (p *Plugin) Setup(hs *coreplugin.Host) error {
 	})
 
 	// DELETE /events/{id}?notify=1 deletes an event (and tells registered people).
+	// action: content.events.delete
 	hs.Handle("DELETE", "/events/{id}", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		id, err := h.PathID(r, "id")
 		if err != nil {
@@ -298,6 +303,7 @@ func (p *Plugin) Setup(hs *coreplugin.Host) error {
 	// POST /events/{id}/registrations {"occurrence": "YYYY-MM-DD", "note": "", "interested": false}
 	// registers the caller (or the waiting list when full); interested=true
 	// only asks for reminders.
+	// action: content.events.register
 	hs.Handle("POST", "/events/{id}/registrations", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		id, err := h.PathID(r, "id")
 		if err != nil {
@@ -314,6 +320,7 @@ func (p *Plugin) Setup(hs *coreplugin.Host) error {
 		return p.register(r.Context(), id, in.Occurrence, strings.TrimSpace(in.Note), in.Interested)
 	})
 	// DELETE /events/{id}/registrations?occurrence= cancels the caller's registration.
+	// action: content.events.unregister
 	hs.Handle("DELETE", "/events/{id}/registrations", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		id, err := h.PathID(r, "id")
 		if err != nil {
@@ -326,6 +333,7 @@ func (p *Plugin) Setup(hs *coreplugin.Host) error {
 		return h.NoContent{}, p.cancel(r.Context(), id, r.URL.Query().Get("occurrence"), uid)
 	})
 	// GET /events/{id}/registrations?occurrence= lists participants (managers).
+	// action: content.events.registrations.list
 	hs.Handle("GET", "/events/{id}/registrations", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		id, err := h.PathID(r, "id")
 		if err != nil {
@@ -364,6 +372,7 @@ func (p *Plugin) Setup(hs *coreplugin.Host) error {
 		})
 	})
 	// DELETE /events/{id}/registrations/{rid} removes a participant (managers).
+	// action: content.events.registrations.remove
 	hs.Handle("DELETE", "/events/{id}/registrations/{rid}", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		id, err := h.PathID(r, "id")
 		if err != nil {
@@ -390,6 +399,7 @@ func (p *Plugin) Setup(hs *coreplugin.Host) error {
 	})
 
 	// GET /me/registrations → the caller's upcoming registrations
+	// action: content.events.my_registrations
 	hs.Handle("GET", "/me/registrations", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		ctx := r.Context()
 		uid := identity.From(ctx).ID()
@@ -416,6 +426,7 @@ func (p *Plugin) Setup(hs *coreplugin.Host) error {
 	})
 
 	// GET /upcoming?calendar=&limit=&days= → next events of all visible calendars
+	// action: content.events.upcoming
 	hs.Handle("GET", "/upcoming", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		var cals []int64
 		if c := h.QueryInt(r, "calendar", 0); c > 0 {
@@ -446,6 +457,7 @@ func (p *Plugin) Setup(hs *coreplugin.Host) error {
 	// PUT /events/{id}/occurrences/{date} changes one occurrence of a series
 	// (title, description, location, start and end; empty = as the series).
 	// DELETE resets it to the series.
+	// action: content.events.occurrence.update
 	hs.Handle("PUT", "/events/{id}/occurrences/{date}", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		var ov Override
 		if err := h.Decode(r, &ov); err != nil {
@@ -453,6 +465,7 @@ func (p *Plugin) Setup(hs *coreplugin.Host) error {
 		}
 		return p.setOverride(r.Context(), r, &ov, r.URL.Query().Get("notify") != "0")
 	})
+	// action: content.events.occurrence.reset
 	hs.Handle("DELETE", "/events/{id}/occurrences/{date}", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		if _, err := p.setOverride(r.Context(), r, nil, r.URL.Query().Get("notify") != "0"); err != nil {
 			return nil, err

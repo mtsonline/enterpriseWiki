@@ -614,6 +614,7 @@ func (pl *Plugin) Setup(host *coreplugin.Host) error {
 	host.RegisterWorker("grants", 10*time.Minute, pl.expireGrants)
 
 	// GET /meta describes step types, rule operators and placeholders (editor).
+	// action: workflow.process.meta
 	host.Handle("GET", "/meta", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		st, err := host.Mail.GetStatus(r.Context())
 		mailOK := err == nil && st.Transport != ""
@@ -624,6 +625,7 @@ func (pl *Plugin) Setup(host *coreplugin.Host) error {
 	})
 
 	// GET /elements/{id}/instances lists the cases of a workflow the caller can see.
+	// action: workflow.process.cases.list
 	host.Handle("GET", "/elements/{id}/instances", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		id, err := h.PathID(r, "id")
 		if err != nil {
@@ -668,6 +670,7 @@ func (pl *Plugin) Setup(host *coreplugin.Host) error {
 	})
 
 	// POST /elements/{id}/instances starts a case: {"data": {...}, "title": "", "lang": ""}.
+	// action: workflow.process.cases.start
 	host.Handle("POST", "/elements/{id}/instances", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		id, err := h.PathID(r, "id")
 		if err != nil {
@@ -711,6 +714,7 @@ func (pl *Plugin) Setup(host *coreplugin.Host) error {
 	})
 
 	// GET /instances/{id} returns a case with its history.
+	// action: workflow.process.cases.get
 	host.Handle("GET", "/instances/{id}", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		id, err := h.PathID(r, "id")
 		if err != nil {
@@ -728,6 +732,7 @@ func (pl *Plugin) Setup(host *coreplugin.Host) error {
 
 	// GET /instances/{id}/files/{field} downloads a file of a case form
 	// (only for people who can see the case).
+	// action: workflow.process.cases.file
 	host.Handle("GET", "/instances/{id}/files/{field}", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		id, err := h.PathID(r, "id")
 		if err != nil {
@@ -752,6 +757,7 @@ func (pl *Plugin) Setup(host *coreplugin.Host) error {
 	})
 
 	// POST /instances/{id}/actions performs an action: {"action": "approve", "note": ""}.
+	// action: workflow.process.cases.act
 	host.Handle("POST", "/instances/{id}/actions", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		id, err := h.PathID(r, "id")
 		if err != nil {
@@ -773,6 +779,7 @@ func (pl *Plugin) Setup(host *coreplugin.Host) error {
 	})
 
 	// POST /instances/{id}/cancel cancels an open case: {"note": ""}.
+	// action: workflow.process.cases.cancel
 	host.Handle("POST", "/instances/{id}/cancel", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		id, err := h.PathID(r, "id")
 		if err != nil {
@@ -789,6 +796,7 @@ func (pl *Plugin) Setup(host *coreplugin.Host) error {
 
 	// GET /tasks lists the open cases waiting for the caller and the cases
 	// the caller started.
+	// action: workflow.process.tasks
 	host.Handle("GET", "/tasks", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		ctx := r.Context()
 		me, err := pl.caller(ctx)

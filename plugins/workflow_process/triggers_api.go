@@ -53,10 +53,12 @@ type TriggerStatus struct {
 
 func (pl *Plugin) triggerRoutes(host *coreplugin.Host) {
 	// POST /hooks/{id}/{trigger}: incoming webhook (signed; see receiveHook)
+	// action: workflow.process.hook
 	host.Handle("POST", "/hooks/{id}/{trigger}", pl.receiveHook)
 	host.Signed("POST", "/hooks/{id}/{trigger}")
 
 	// GET /elements/{id}/triggers: the saved triggers with their status
+	// action: workflow.process.triggers
 	host.Handle("GET", "/elements/{id}/triggers", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		id, err := h.PathID(r, "id")
 		if err != nil {
@@ -130,6 +132,7 @@ func (pl *Plugin) triggerRoutes(host *coreplugin.Host) {
 
 	// POST /elements/{id}/triggers/{trigger}/secret: a new secret for an
 	// incoming webhook (shown once; the old one stops working)
+	// action: workflow.process.triggers.secret
 	host.Handle("POST", "/elements/{id}/triggers/{trigger}/secret", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		id, err := h.PathID(r, "id")
 		if err != nil {

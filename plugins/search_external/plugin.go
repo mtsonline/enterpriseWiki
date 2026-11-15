@@ -276,6 +276,7 @@ func (p *Plugin) Setup(host *coreplugin.Host) error {
 	host.RegisterWorker("sync", 10*time.Second, p.Sync)
 
 	// GET /status: configuration, synchronization state and pending changes.
+	// action: search.external.status
 	host.Handle("GET", "/status", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		if err := perm.Require(r.Context(), "search.external.manage"); err != nil {
 			return nil, err
@@ -307,6 +308,7 @@ func (p *Plugin) Setup(host *coreplugin.Host) error {
 		return out, nil
 	})
 	// POST /test checks the connection.
+	// action: search.external.test
 	host.Handle("POST", "/test", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		if err := perm.Require(r.Context(), "search.external.manage"); err != nil {
 			return nil, err
@@ -323,6 +325,7 @@ func (p *Plugin) Setup(host *coreplugin.Host) error {
 		return map[string]string{"status": "ok"}, nil
 	})
 	// POST /reindex rebuilds the index (in the background).
+	// action: search.external.reindex
 	host.Handle("POST", "/reindex", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		if err := perm.Require(r.Context(), "search.external.manage"); err != nil {
 			return nil, err

@@ -615,6 +615,7 @@ func (p *Plugin) routesValues() {
 	// GET /elements/{id}?lang= – the properties of an element (and
 	// definitions without value), names of references, whether the caller
 	// may change them and add free properties
+	// action: core.properties.get
 	host.Handle("GET", "/elements/{id}", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		id, err := h.PathID(r, "id")
 		if err != nil {
@@ -648,6 +649,7 @@ func (p *Plugin) routesValues() {
 			"can_add_free": canEdit && free && host.Can(ctx, cat, "core.properties.free"), "category_id": cat}, nil
 	})
 	// GET /new?category=ID&type=T&lang= – the definitions for a new element
+	// action: core.properties.new
 	host.Handle("GET", "/new", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		ctx := r.Context()
 		cat, _ := strconv.ParseInt(r.URL.Query().Get("category"), 10, 64)
@@ -682,6 +684,7 @@ func (p *Plugin) routesValues() {
 	})
 	// PUT /elements/{id} – change properties without a new version of the
 	// element (Input: values, free)
+	// action: core.properties.set
 	host.Handle("PUT", "/elements/{id}", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		id, err := h.PathID(r, "id")
 		if err != nil {
@@ -735,6 +738,7 @@ func (p *Plugin) routesValues() {
 		return map[string]any{"items": items, "refs": names, "can_edit": true}, nil
 	})
 	// GET /refs?user=1,2&group=…&element=…&category=… – names for pickers
+	// action: core.properties.refs
 	host.Handle("GET", "/refs", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		ids := map[string][]int64{}
 		n := 0
@@ -752,6 +756,7 @@ func (p *Plugin) routesValues() {
 		return p.refNames(r.Context(), ids, r.URL.Query().Get("lang"))
 	})
 	// GET /history/{id} – changes of the visible properties of an element
+	// action: core.properties.history
 	host.Handle("GET", "/history/{id}", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		id, err := h.PathID(r, "id")
 		if err != nil {

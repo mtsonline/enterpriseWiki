@@ -100,8 +100,11 @@ func (p *Plugin) Setup(host *coreplugin.Host) error {
 	base := "/api/v1/x/" + host.Manifest.ID
 	host.Media.RegisterTokenPath(base + "/file/")
 	host.Media.RegisterTokenPath(base + "/callback/")
+	// action: office.onlyoffice.file
 	host.Handle("GET", "/file/{id}", p.file)
+	// action: office.onlyoffice.callback
 	host.Handle("POST", "/callback/{id}", p.callback)
+	// action: office.onlyoffice.test
 	host.Handle("POST", "/test", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		if err := perm.Require(r.Context(), "core.settings.manage"); err != nil {
 			return nil, err

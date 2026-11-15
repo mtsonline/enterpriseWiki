@@ -961,6 +961,7 @@ func (p *Plugin) groups(ctx context.Context, q *Query, sc *scope, res *Result) (
 func (p *Plugin) routesQuery() {
 	host := p.host
 	// POST /query – rows or groups (see Query)
+	// action: core.properties.query
 	host.Handle("POST", "/query", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		var q Query
 		if err := h.Decode(r, &q); err != nil {
@@ -971,6 +972,7 @@ func (p *Plugin) routesQuery() {
 	// POST /report – a report from the parameters of the macro (as in the
 	// page), with filters of the reader added, another sorting or page:
 	// {"params": {...}, "category_id": 1, "element_id": 2, "filters": [...], "sort": [...], "offset": 0, "lang": "de", "rows": true}
+	// action: core.properties.report
 	host.Handle("POST", "/report", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		var in reportInput
 		if err := h.Decode(r, &in); err != nil {
@@ -1093,9 +1095,14 @@ func (p *Plugin) routesQuery() {
 			cw.Flush()
 		}
 	}
+	// action: core.properties.export.csv
+	h.RecordRoute("POST /api/v1/x/core.properties/query.csv")
 	host.Mux.HandleFunc("POST /api/v1/x/core.properties/query.csv", export("csv"))
+	// action: core.properties.export.xlsx
+	h.RecordRoute("POST /api/v1/x/core.properties/query.xlsx")
 	host.Mux.HandleFunc("POST /api/v1/x/core.properties/query.xlsx", export("xlsx"))
 	// GET /values?key=K&category=ID – values in use (for filter forms)
+	// action: core.properties.values
 	host.Handle("GET", "/values", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		ctx := r.Context()
 		key := r.URL.Query().Get("key")
@@ -1110,6 +1117,7 @@ func (p *Plugin) routesQuery() {
 		return p.Run(ctx, q)
 	})
 	// GET /keys?category=ID – keys in use there (suggestions), with type and label
+	// action: core.properties.keys
 	host.Handle("GET", "/keys", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		ctx := r.Context()
 		cat, _ := strconv.ParseInt(r.URL.Query().Get("category"), 10, 64)

@@ -68,6 +68,7 @@ func (p *Plugin) Setup(host *coreplugin.Host) error {
 	p.host = host
 	notify.RegisterKind("share", "core.share.kind")
 	// POST /check – who would be notified (without sending)
+	// action: core.share.check
 	host.Handle("POST", "/check", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		var in Input
 		if err := h.Decode(r, &in); err != nil {
@@ -76,6 +77,7 @@ func (p *Plugin) Setup(host *coreplugin.Host) error {
 		return p.share(r.Context(), in, false)
 	})
 	// POST /share – notify the recipients
+	// action: core.share.send
 	host.Handle("POST", "/share", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		var in Input
 		if err := h.Decode(r, &in); err != nil {

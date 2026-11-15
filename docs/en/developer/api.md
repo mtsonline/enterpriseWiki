@@ -93,7 +93,7 @@ Every route is an **action** with an entry in the action register, in the format
 - **Required per entry:** `id` after the namespace rule, `category` (`CATEGORY_ACTION`, or `CATEGORY_PROTOCOL` for calls of other systems), `method`, `path`, `summary` in German **and** English, exactly one of `permission`, `signed_in`, `public`, and for actions `cli` and `ui` or an exception approved by the project owner (`exceptions`).
 - **Comment at the route:** `// action: <id>` directly above `s.handle(…)` or `host.Handle(…)`.
 - **Checks:**
-  - `TestActionRegister` (stage 1): register and routes agree, the comments match. Routes without an entry are listed in `internal/actions/missing.txt`; the list may only get shorter. A new route without an entry fails the CI.
+  - `TestActionRegister` (stage 1): register and routes agree, the comments match. Every route has an entry; a new route without one fails the CI. A route only on the mux and not recorded (`h.RecordRoute`) is found as well. Routes a shared helper registers name their action where the helper is called: `// action: <id> for <METHOD> <path>`.
   - `go run ./tools/protocheck` in the folder `sdk`: compiles the contract and reads all register files and example manifests with the real messages (unknown fields, wrong values and invalid JSON in schemas are errors).
 - **Texts with a comma** go in block form (`text:` with `en:` and `de:` below); in the short form `{en: a, b}` the comma would split the text. The check detects this.
 
