@@ -1,6 +1,7 @@
 package acl
 
 import (
+	"context"
 	"testing"
 
 	"github.com/mtsonline/enterprisewiki/internal/identity"
@@ -64,5 +65,35 @@ func TestParsePerms(t *testing.T) {
 	}
 	if _, err := ParsePerms("fly"); err == nil {
 		t.Fatal("unknown permission accepted")
+	}
+}
+
+// TestRebuildDuringChange: a rebuild that read the database before a
+// change (and its invalidation) is not kept. Before 16.11.2026 it was
+// stored, so a new category stayed invisible to its creator (404) and a
+// revoked permission could stay in force until the next change.
+func TestRebuildDuringChange(t *testing.T) {
+	stale, fresh := snap(), snap()
+	fresh.ancestors[5] = []int64{5} // the category created meanwhile
+	s := &Service{}
+	calls := 0
+	s.builder = func(context.Context) (*snapshot, error) {
+		calls++
+		if calls == 1 {
+			s.Invalidate() // the change commits while the first rebuild reads
+			return stale, nil
+		}
+		return fresh, nil
+	}
+	got, err := s.load(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got != fresh || s.snap.Load() != fresh {
+		t.Fatalf("the rebuild from before the change was kept (calls %d)", calls)
+	}
+	// later loads use the stored snapshot
+	if got, _ := s.load(context.Background()); got != fresh || calls != 2 {
+		t.Fatalf("calls %d", calls)
 	}
 }

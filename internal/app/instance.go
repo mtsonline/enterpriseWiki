@@ -80,7 +80,7 @@ func OpenInstance(ctx context.Context, o InstanceOptions) (*Instance, error) {
 	if log == nil {
 		log = slog.Default()
 	}
-	httpx.Logger = log
+	httpx.SetLogger(log)
 	root := filepath.Dir(o.ConfigPath)
 	_ = config.LoadDotEnv(filepath.Join(root, ".env"))
 	cfg, err := config.Open(o.ConfigPath)

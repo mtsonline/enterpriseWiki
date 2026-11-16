@@ -18,3 +18,5 @@
 # test routine against a running instance: binary and results (reports describe open weaknesses)
 /tests/qa/qa
 qa-results/
+*.test
+*.prof

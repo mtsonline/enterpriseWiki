@@ -5,6 +5,8 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"maps"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -827,24 +829,53 @@ func (s *Service) Users(ctx context.Context, q db.Querier, ids []int64) ([]User,
 	return pgx.CollectRows(rows, pgx.RowToStructByPos[User])
 }
 
-// NotificationKinds are the kinds users can switch on and off.
-var NotificationKinds = []string{"tasks", "cases", "comments", "watches"}
+// The kinds of notifications users can switch on and off. Plugins
+// register theirs while a site is set up, which can happen while other
+// sites answer requests: the lists are guarded.
+var (
+	kindsMu sync.RWMutex
+	kinds   = []string{"tasks", "cases", "comments", "watches"}
+	labels  = map[string]string{} // kinds of plugins -> UI label key (core: notify.kind.<kind>)
+	offs    = map[string]bool{}   // e-mails off until a user switches them on (e.g. reactions)
+)
 
-// KindLabels maps kinds registered by plugins to their UI label keys
-// (core kinds: notify.kind.<kind>).
-var KindLabels = map[string]string{}
+// RegisterKind declares a kind of notification with its label key; on
+// tells whether its e-mails are on until a user switches them off.
+func RegisterKind(kind, labelKey string, on bool) {
+	kindsMu.Lock()
+	defer kindsMu.Unlock()
+	offs[kind] = !on
+	if !slices.Contains(kinds, kind) {
+		kinds = append(kinds, kind)
+	}
+	labels[kind] = labelKey
+}
 
-// KindsOffByDefault lists kinds whose e-mails users have to switch on
-// (e.g. reactions); all other kinds are on until switched off.
-var KindsOffByDefault = map[string]bool{}
+// NotificationKinds returns the kinds users can switch on and off.
+func NotificationKinds() []string {
+	kindsMu.RLock()
+	defer kindsMu.RUnlock()
+	return slices.Clone(kinds)
+}
+
+// KindLabels returns the UI label keys of the kinds registered by plugins.
+func KindLabels() map[string]string {
+	kindsMu.RLock()
+	defer kindsMu.RUnlock()
+	return maps.Clone(labels)
+}
 
 // DefaultOn reports whether e-mails of kind are on without a preference.
-func DefaultOn(kind string) bool { return !KindsOffByDefault[kind] }
+func DefaultOn(kind string) bool {
+	kindsMu.RLock()
+	defer kindsMu.RUnlock()
+	return !offs[kind]
+}
 
 // SetPreferences stores the notification preferences of a user.
 func (s *Service) SetPreferences(ctx context.Context, uid int64, prefs map[string]bool) error {
 	clean := map[string]bool{}
-	for _, k := range NotificationKinds {
+	for _, k := range NotificationKinds() {
 		if v, ok := prefs[k]; ok {
 			clean[k] = v
 		}

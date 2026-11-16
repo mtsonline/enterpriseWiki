@@ -7,7 +7,6 @@ package notify
 import (
 	"context"
 	"fmt"
-	"slices"
 	"strings"
 	"time"
 
@@ -54,13 +53,7 @@ func RegisterKind(kind, labelKey string) { registerKind(kind, labelKey, true) }
 // switches them on (notifications in the wiki are always shown).
 func RegisterKindOff(kind, labelKey string) { registerKind(kind, labelKey, false) }
 
-func registerKind(kind, labelKey string, on bool) {
-	mail.KindsOffByDefault[kind] = !on
-	if !slices.Contains(mail.NotificationKinds, kind) {
-		mail.NotificationKinds = append(mail.NotificationKinds, kind)
-	}
-	mail.KindLabels[kind] = labelKey
-}
+func registerKind(kind, labelKey string, on bool) { mail.RegisterKind(kind, labelKey, on) }
 
 // Service stores and sends notifications.
 type Service struct {

@@ -11,6 +11,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 
 	"github.com/mtsonline/enterprisewiki/internal/apperr"
 )
@@ -28,8 +29,19 @@ type Created struct{ V any }
 // (files, XML, redirects).
 type Handled struct{}
 
-// Logger is used for internal errors.
-var Logger = slog.Default()
+// logger is used for internal errors. Opening an instance sets it while
+// requests of another app of the process may read it: atomic.
+var logger atomic.Pointer[slog.Logger]
+
+// SetLogger sets the logger for internal errors.
+func SetLogger(l *slog.Logger) { logger.Store(l) }
+
+func logErr() *slog.Logger {
+	if l := logger.Load(); l != nil {
+		return l
+	}
+	return slog.Default()
+}
 
 // JSON adapts a Handler to http.HandlerFunc.
 func JSON(h Handler) http.HandlerFunc {
@@ -66,7 +78,7 @@ func Write(w http.ResponseWriter, status int, v any) {
 func WriteError(w http.ResponseWriter, r *http.Request, err error) {
 	status, code, msg := apperr.Status(err)
 	if status >= 500 {
-		Logger.Error("request failed", "method", r.Method, "path", r.URL.Path, "err", err)
+		logErr().Error("request failed", "method", r.Method, "path", r.URL.Path, "err", err)
 	}
 	body := map[string]string{"code": code, "message": msg}
 	var ae *apperr.Error
