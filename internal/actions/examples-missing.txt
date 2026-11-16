@@ -25,5 +25,3 @@ core.users.identities.unlink
 office.collabora.test
 office.m365.test
 office.onlyoffice.test
-search.external.reindex
-search.external.test

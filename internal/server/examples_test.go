@@ -44,6 +44,7 @@ var (
 	webauthnRe = regexp.MustCompile(`\$\{webauthn\.(create|get):([^#}]+#[^.}]+)\.?([^}]*)\}`)
 	mailLinkRe = regexp.MustCompile(`\$\{mail_link:([^:}]+):([a-z_]+)\}`)
 	pkcs12Re   = regexp.MustCompile(`\$\{pkcs12:([^}]+)\}`)
+	systemRe   = regexp.MustCompile(`\$\{system\.([a-z]+)\.([a-z]+)\}`)
 	personRe   = regexp.MustCompile(`\$\{(self|other)\.([a-z]+)\}`)
 	givenRe    = regexp.MustCompile(`\$\{given\.([^#}]+#[^.}]+)\.([^}]+)\}`)
 	httpErrRe  = regexp.MustCompile(`HTTP (\d{3})`)
@@ -85,7 +86,7 @@ func TestActionExamples(t *testing.T) {
 		c.Mail.From = "wiki@example.com" // the address of S/MIME certificates of the organisation
 	})
 	t.Setenv("EWIKI_CONFIG", e.cfg) // the command line way (set before the parallel examples)
-	r := &exampleRunner{t: t, e: e, byID: byID, seq: new(atomic.Int64), out: &sharedWho{}, smtp: smtp,
+	r := &exampleRunner{t: t, e: e, byID: byID, seq: new(atomic.Int64), out: &sharedWho{}, smtp: smtp, systems: testSystems(),
 		shared: &struct {
 			caOnce sync.Once
 			ca     *testCA
@@ -117,10 +118,47 @@ func TestActionExamples(t *testing.T) {
 		a  actions.Action
 		ex actions.Example
 	}
+	// examples that need real test systems run where they are started;
+	// with EWIKI_TEST_EXAMPLE_SYSTEMS (CI jobs with real systems) only those
+	// for the listed systems run, and the systems must be there
+	only := map[string]bool{}
+	for _, sys := range strings.Split(os.Getenv("EWIKI_TEST_EXAMPLE_SYSTEMS"), ",") {
+		if sys = strings.TrimSpace(sys); sys != "" {
+			only[sys] = true
+			if _, ok := r.systems[sys]; !ok {
+				t.Fatalf("test system %s is not running (EWIKI_TEST_%s_…, see actions.TestSystems)", sys, strings.ToUpper(sys))
+			}
+		}
+	}
+	var skipped []string
 	var serial, parallel []item
+	usedSearch := false
 	for _, id := range ids {
 		a := byID[id]
 		for _, ex := range a.Examples {
+			needs := r.needs(a.ID, ex, 0)
+			if len(only) > 0 {
+				match := false
+				for sys := range needs {
+					match = match || only[sys]
+				}
+				if !match {
+					continue
+				}
+			}
+			missing := ""
+			for sys := range needs {
+				if _, ok := r.systems[sys]; !ok {
+					missing = sys
+				}
+			}
+			if missing != "" {
+				skipped = append(skipped, a.ID+"#"+ex.Name+" ("+missing+")")
+				continue
+			}
+			if needs["opensearch"] || needs["elasticsearch"] || needs["meilisearch"] {
+				usedSearch = true
+			}
 			if r.global(a.ID, ex, 0) {
 				serial = append(serial, item{a, ex})
 			} else {
@@ -128,11 +166,19 @@ func TestActionExamples(t *testing.T) {
 			}
 		}
 	}
+	if len(skipped) > 0 {
+		t.Logf("%d examples need test systems that are not running: %s", len(skipped), strings.Join(skipped, ", "))
+	}
 	t.Run("serial", func(t *testing.T) {
 		for _, it := range serial {
 			t.Run(it.a.ID+"#"+it.ex.Name, func(t *testing.T) { r.with(t).run(it.a, it.ex) })
 		}
 	})
+	// the search examples connect the external search: the examples that
+	// follow search with the built-in search again
+	if usedSearch {
+		r.admin.must("PUT", "/api/v1/admin/settings", map[string]any{"plugin_settings": map[string]any{"search.external": map[string]any{"engine": ""}}}, nil, 200)
+	}
 	t.Run("parallel", func(t *testing.T) {
 		for _, it := range parallel {
 			t.Run(it.a.ID+"#"+it.ex.Name, func(t *testing.T) {
@@ -175,6 +221,46 @@ func (r *exampleRunner) global(id string, ex actions.Example, depth int) bool {
 		}
 	}
 	return false
+}
+
+// needs returns the test systems an example and its givens require.
+func (r *exampleRunner) needs(id string, ex actions.Example, depth int) map[string]bool {
+	out := map[string]bool{}
+	for _, sys := range ex.Requires {
+		out[sys] = true
+	}
+	if depth > 8 {
+		return out
+	}
+	for _, ref := range ex.Given {
+		gid, name, _ := strings.Cut(ref, "#")
+		for _, gex := range r.byID[gid].Examples {
+			if gex.Name == name {
+				for sys := range r.needs(gid, gex, depth+1) {
+					out[sys] = true
+				}
+			}
+		}
+	}
+	return out
+}
+
+// testSystems reads the running test systems from the environment
+// (EWIKI_TEST_<SYSTEM>_<FIELD>, as printed by the start scripts).
+func testSystems() map[string]map[string]string {
+	out := map[string]map[string]string{}
+	for name, fields := range actions.TestSystems {
+		vals := map[string]string{}
+		for _, f := range fields {
+			if v := os.Getenv("EWIKI_TEST_" + strings.ToUpper(name) + "_" + strings.ToUpper(f)); v != "" {
+				vals[f] = v
+			}
+		}
+		if len(vals) == len(fields) {
+			out[name] = vals
+		}
+	}
+	return out
 }
 
 // with returns a copy of the runner for one (sub)test.
@@ -244,7 +330,9 @@ type exampleRunner struct {
 		ca     *testCA
 	}
 	origin string // of the passkeys (the server is reached as localhost)
-	smtp   *smtpFake
+	// systems are the real test systems that are running (field -> value)
+	systems map[string]map[string]string
+	smtp    *smtpFake
 	// permissions every signed-in person has by default
 	defaults map[string]bool
 }
@@ -501,6 +589,14 @@ func (r *exampleRunner) ca() *testCA {
 // subst fills in ${given.REF.FIELD}, ${self.FIELD}, ${other.FIELD} and
 // ${unique}.
 func (r *exampleRunner) subst(s string, vars map[string]any) string {
+	s = systemRe.ReplaceAllStringFunc(s, func(m string) string {
+		sm := systemRe.FindStringSubmatch(m)
+		v, ok := r.systems[sm[1]][sm[2]]
+		if !ok {
+			r.t.Fatalf("%s: test system or field unknown (add it to requires)", m)
+		}
+		return v
+	})
 	s = personRe.ReplaceAllStringFunc(s, func(m string) string {
 		sm := personRe.FindStringSubmatch(m)
 		key := map[string]string{"self": selfKey, "other": otherKey}[sm[1]]
@@ -869,8 +965,10 @@ func (r *exampleRunner) do(way string, a actions.Action, w who, path string, que
 	var stdout, stderr bytes.Buffer
 	code := cli.RunAction(a.ID, args, strings.NewReader(""), &stdout, &stderr)
 	out := exResult{ok: code == 0, raw: stdout.String() + stderr.String()}
-	if m := httpErrRe.FindStringSubmatch(stderr.String()); m != nil {
-		_, _ = fmt.Sscan(m[1], &out.status)
+	// the status of the wiki comes last ("message (HTTP 400)"); the message
+	// may quote another one (e.g. of an external system)
+	if ms := httpErrRe.FindAllStringSubmatch(stderr.String(), -1); ms != nil {
+		_, _ = fmt.Sscan(ms[len(ms)-1][1], &out.status)
 	}
 	_ = json.Unmarshal(stdout.Bytes(), &out.body)
 	return out

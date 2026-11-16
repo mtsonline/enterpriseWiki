@@ -96,6 +96,17 @@ type Example struct {
 	Files []ExampleFile `yaml:"files,omitempty"`
 	// BodyText is a body that is not JSON (e.g. JSON Lines).
 	BodyText string `yaml:"body_text,omitempty"`
+	// Requires names real test systems the example needs (TestSystems).
+	Requires []string `yaml:"requires,omitempty"`
+}
+
+// TestSystems are the real systems examples may require, with the fields
+// of ${system.<name>.<field>}. Start them with tests/search/start.sh
+// (search engines) or tests/auth/start.sh (sign-in systems).
+var TestSystems = map[string][]string{
+	"opensearch":    {"url"},
+	"elasticsearch": {"url", "password"},
+	"meilisearch":   {"url", "key"},
 }
 
 // FormField is ewiki.plugin.v1.FormField.
@@ -403,6 +414,11 @@ func Validate(all []Action) error {
 		for _, ex := range a.Examples {
 			if ex.Name == "" {
 				fail(a, "examples need a name")
+			}
+			for _, sys := range ex.Requires {
+				if _, ok := TestSystems[sys]; !ok {
+					fail(a, "example %s: unknown test system %q", ex.Name, sys)
+				}
 			}
 			if ex.BodyText != "" && (ex.BodyJSON != "" || len(ex.Form) > 0 || len(ex.Files) > 0) {
 				fail(a, "example %s: body_text excludes body_json and form/files", ex.Name)

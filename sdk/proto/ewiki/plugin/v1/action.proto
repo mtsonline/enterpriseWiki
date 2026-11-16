@@ -237,6 +237,11 @@ message Example {
   // allowed; "${given.<name>.$raw}" is the whole answer of a given
   // example. Not together with body_json or an upload.
   string body_text = 12;
+  // Real test systems the example needs, e.g. ["meilisearch"] (see
+  // TestSystems in internal/actions). It runs only where they are started
+  // (the CI jobs with real systems) and is skipped elsewhere; their
+  // addresses and keys are "${system.<name>.<field>}".
+  repeated string requires = 13;
 }
 
 message FormField {

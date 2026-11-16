@@ -26,6 +26,24 @@ actions:
     safety: {changes: true}
     cli: {command: [external-search, test]}
     ui: {entry: /admin/search}
+    examples:
+      - name: opensearch
+        as: member
+        requires: [opensearch]
+        given: [core.settings.update#search_opensearch]
+      - name: elasticsearch
+        as: member
+        requires: [elasticsearch]
+        given: [core.settings.update#search_elasticsearch]
+      - name: meilisearch
+        as: member
+        requires: [meilisearch]
+        given: [core.settings.update#search_meilisearch]
+      - name: wrong_key
+        as: member
+        requires: [meilisearch]
+        given: [core.settings.update#search_meilisearch_wrong_key]
+        status: 400
   - id: search.external.reindex
     category: CATEGORY_ACTION
     method: POST
@@ -38,3 +56,16 @@ actions:
     safety: {changes: true}
     cli: {command: [external-search, reindex]}
     ui: {entry: /admin/search}
+    examples:
+      - name: opensearch
+        as: member
+        requires: [opensearch]
+        given: [core.settings.update#search_opensearch]
+      - name: elasticsearch
+        as: member
+        requires: [elasticsearch]
+        given: [core.settings.update#search_elasticsearch]
+      - name: meilisearch
+        as: member
+        requires: [meilisearch]
+        given: [core.settings.update#search_meilisearch]

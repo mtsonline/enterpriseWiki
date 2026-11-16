@@ -328,6 +328,11 @@ jobs:
         run: go test -race -count=1 -timeout 20m -run 'TestRealExternalSearch' -v ./internal/server/
         env:
           EWIKI_TEST_DATABASE_URL: ${{ env.DB_URL }}
+      - name: examples of the action register that need the search engines
+        run: go test -race -count=1 -timeout 20m -run 'TestActionExamples' ./internal/server/
+        env:
+          EWIKI_TEST_EXAMPLE_SYSTEMS: opensearch,elasticsearch,meilisearch
+          EWIKI_TEST_DATABASE_URL: ${{ env.DB_URL }}
       - name: logs of a failed test
         if: failure()
         run: tail -n 60 /tmp/ewiki-search/*.log || true
