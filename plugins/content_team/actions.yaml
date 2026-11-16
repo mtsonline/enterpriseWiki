@@ -11,6 +11,11 @@ actions:
     permission: {key: core.category.view, scope: SCOPE_CATEGORY, category_param: "element:id"}
     cli: {command: [team, members], args: [id]}
     ui: {entry: /e/:id}
+    examples:
+      - name: default
+        given: ['core.elements.create#team']
+        as: member
+        path_params_json: '{"id": "${given.core.elements.create#team.id}"}'
   - id: content.team.fields
     category: CATEGORY_ACTION
     method: GET
@@ -22,6 +27,9 @@ actions:
     signed_in: true
     cli: {command: [team, fields]}
     ui: {entry: /e/:id/edit}
+    examples:
+      - name: default
+        as: member
   - id: content.team.groups
     category: CATEGORY_ACTION
     method: GET
@@ -33,3 +41,6 @@ actions:
     signed_in: true
     cli: {command: [team, groups]}
     ui: {entry: /e/:id/edit}
+    examples:
+      - name: default
+        as: member

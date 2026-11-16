@@ -18,7 +18,6 @@ import (
 	"fmt"
 	"reflect"
 	"strings"
-	"sync"
 
 	"github.com/mtsonline/enterprisewiki/internal/apperr"
 	"github.com/mtsonline/enterprisewiki/internal/audit"
@@ -34,16 +33,13 @@ const (
 	permCases  = "workflow.process.cases"
 )
 
-// guardHosts are the hosts of the sites, set in Setup (the element type is
-// registered once per process, the plugin once per site).
-var guardHosts sync.Map // site name -> *coreplugin.Host
+// guardHosts are the hosts of the apps, set in Setup (the element type is
+// registered once per process, the plugin once per app).
+var guardHosts coreplugin.PerSite[*coreplugin.Host] // per app: a closed app's host is never used
 
 // guardHost returns the host of the site of ctx (nil before Setup).
 func guardHost(ctx context.Context) *coreplugin.Host {
-	if h, ok := guardHosts.Load(coreplugin.SiteOf(ctx)); ok {
-		return h.(*coreplugin.Host)
-	}
-	return nil
+	return guardHosts.Get(ctx)
 }
 
 // CheckCreate implements content.Guard.

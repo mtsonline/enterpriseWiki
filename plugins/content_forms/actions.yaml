@@ -11,6 +11,9 @@ actions:
     public: true
     cli: {command: [form, meta]}
     ui: {entry: /e/:id}
+    examples:
+      - name: default
+        as: member
   - id: content.forms.start
     category: CATEGORY_ACTION
     method: GET
@@ -22,6 +25,18 @@ actions:
     permission: {key: core.category.view, scope: SCOPE_CATEGORY, category_param: "element:id"}
     cli: {command: [form, start], args: [id]}
     ui: {entry: /e/:id}
+    examples:
+      - name: default
+        given: ['core.elements.create#form']
+        as: member
+        path_params_json: '{"id": "${given.core.elements.create#form.id}"}'
+      - name: admin
+        given: ['core.elements.create#form']
+        path_params_json: '{"id": "${given.core.elements.create#form.id}"}'
+      - name: self
+        given: ['core.elements.create#form', 'core.categories.acl.add#self_view']
+        as: self
+        path_params_json: '{"id": "${given.core.elements.create#form.id}"}'
   - id: content.forms.submit
     category: CATEGORY_ACTION
     method: POST
@@ -34,6 +49,23 @@ actions:
     safety: {changes: true}
     cli: {command: [form, submit], args: [id]}
     ui: {entry: /e/:id}
+    examples:
+      - name: default
+        given: ['core.elements.create#form', 'core.categories.acl.add#self_view', 'content.forms.start#self']
+        as: self
+        path_params_json: '{"id": "${given.core.elements.create#form.id}"}'
+        query_json: '{"lang": "en"}'
+        body_json: '{"token": "${given.content.forms.start#self.token}", "values": {"name": "Ann"}}'
+        status: 201
+      - name: admin
+        given: ['core.elements.create#form', 'content.forms.start#admin']
+        path_params_json: '{"id": "${given.core.elements.create#form.id}"}'
+        query_json: '{"lang": "en"}'
+        status: 201
+        form:
+          - {name: data, value: '{"token": "${given.content.forms.start#admin.token}", "values": {"name": "Ann"}}'}
+        files:
+          - {field: file.doc, name: 'note.txt', content_type: 'text/plain', text: 'Hello'}
   - id: content.forms.submissions.list
     category: CATEGORY_ACTION
     method: GET
@@ -45,6 +77,14 @@ actions:
     permission: {key: content.forms.submissions, scope: SCOPE_CATEGORY, category_param: "element:id"}
     cli: {command: [form, submissions], args: [id]}
     ui: {entry: /e/:id}
+    examples:
+      - name: default
+        given: ['core.elements.create#form', 'content.forms.submit#admin']
+        as: member
+        path_params_json: '{"id": "${given.core.elements.create#form.id}"}'
+      - name: admin
+        given: ['core.elements.create#form', 'content.forms.submit#admin']
+        path_params_json: '{"id": "${given.core.elements.create#form.id}"}'
   - id: content.forms.submissions.csv
     category: CATEGORY_ACTION
     method: GET
@@ -56,6 +96,11 @@ actions:
     permission: {key: content.forms.submissions_export, scope: SCOPE_CATEGORY, category_param: "element:id"}
     cli: {command: [form, export-csv], args: [id]}
     ui: {entry: /e/:id}
+    examples:
+      - name: default
+        given: ['core.elements.create#form', 'content.forms.submit#admin']
+        as: member
+        path_params_json: '{"id": "${given.core.elements.create#form.id}"}'
   - id: content.forms.submissions.xlsx
     category: CATEGORY_ACTION
     method: GET
@@ -67,6 +112,11 @@ actions:
     permission: {key: content.forms.submissions_export, scope: SCOPE_CATEGORY, category_param: "element:id"}
     cli: {command: [form, export-xlsx], args: [id]}
     ui: {entry: /e/:id}
+    examples:
+      - name: default
+        given: ['core.elements.create#form', 'content.forms.submit#admin']
+        as: member
+        path_params_json: '{"id": "${given.core.elements.create#form.id}"}'
   - id: content.forms.submissions.get
     category: CATEGORY_ACTION
     method: GET
@@ -78,6 +128,10 @@ actions:
     signed_in: true
     cli: {command: [form, submission], args: [sid]}
     ui: {entry: /e/:id}
+    examples:
+      - name: default
+        given: ['content.forms.submissions.list#admin']
+        path_params_json: '{"sid": "${given.content.forms.submissions.list#admin.items.0.id}"}'
   - id: content.forms.submissions.delete
     category: CATEGORY_ACTION
     method: DELETE
@@ -90,6 +144,11 @@ actions:
     safety: {changes: true}
     cli: {command: [form, submission-delete], args: [sid]}
     ui: {entry: /e/:id}
+    examples:
+      - name: default
+        given: ['content.forms.submissions.list#admin']
+        path_params_json: '{"sid": "${given.content.forms.submissions.list#admin.items.0.id}"}'
+        status: 204
   - id: content.forms.submissions.file
     category: CATEGORY_ACTION
     method: GET
@@ -101,3 +160,7 @@ actions:
     signed_in: true
     cli: {command: [form, submission-file], args: [sid, n]}
     ui: {entry: /e/:id}
+    examples:
+      - name: default
+        given: ['content.forms.submissions.list#admin']
+        path_params_json: '{"sid": "${given.content.forms.submissions.list#admin.items.0.id}", "n": "0"}'

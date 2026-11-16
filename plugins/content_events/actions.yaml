@@ -11,6 +11,12 @@ actions:
     permission: {key: core.category.view, scope: SCOPE_CATEGORY, category_param: "element:id"}
     cli: {command: [event, list], args: [id]}
     ui: {entry: /e/:id}
+    examples:
+      - name: default
+        given: ['core.elements.create#calendar', 'content.events.create#default']
+        as: member
+        path_params_json: '{"id": "${given.core.elements.create#calendar.id}"}'
+        query_json: '{"from": "2030-01-01", "to": "2030-02-01"}'
   - id: content.events.create
     category: CATEGORY_ACTION
     method: POST
@@ -19,10 +25,22 @@ actions:
       text:
         en: Create an event in a calendar (as the calendar allows)
         de: Termin in einem Kalender anlegen (wie der Kalender es erlaubt)
-    permission: {key: core.category.view, scope: SCOPE_CATEGORY, category_param: "element:id"}
+    permission: {key: core.category.create, scope: SCOPE_CATEGORY, category_param: "element:id"}
     safety: {changes: true}
     cli: {command: [event, create], args: [id]}
     ui: {entry: /e/:id}
+    examples:
+      - name: default
+        given: ['core.elements.create#calendar']
+        as: member
+        path_params_json: '{"id": "${given.core.elements.create#calendar.id}"}'
+        body_json: '{"title": "Team meeting", "location": "Room 1", "starts_at": "2030-01-07T09:00:00Z", "ends_at": "2030-01-07T10:00:00Z", "tz": "Europe/Vienna", "registration": true, "capacity": 10}'
+        status: 201
+      - name: series
+        given: ['core.elements.create#calendar']
+        path_params_json: '{"id": "${given.core.elements.create#calendar.id}"}'
+        body_json: '{"title": "Weekly", "starts_at": "2030-01-07T09:00:00Z", "ends_at": "2030-01-07T10:00:00Z", "tz": "Europe/Vienna", "rrule": "FREQ=WEEKLY;COUNT=4"}'
+        status: 201
   - id: content.events.calendar_ical
     category: CATEGORY_ACTION
     method: GET
@@ -34,6 +52,10 @@ actions:
     public: true
     cli: {command: [event, calendar-ical], args: [id]}
     ui: {entry: /e/:id}
+    examples:
+      - name: default
+        given: ['core.elements.create#calendar', 'content.events.create#default']
+        path_params_json: '{"id": "${given.core.elements.create#calendar.id}"}'
   - id: content.events.get
     category: CATEGORY_ACTION
     method: GET
@@ -45,6 +67,11 @@ actions:
     public: true
     cli: {command: [event, show], args: [id]}
     ui: {entry: /e/:id}
+    examples:
+      - name: default
+        given: ['content.events.create#default']
+        path_params_json: '{"id": "${given.content.events.create#default.id}"}'
+        expect_json: '{"event": {"title": "Team meeting"}}'
   - id: content.events.update
     category: CATEGORY_ACTION
     method: PUT
@@ -57,6 +84,11 @@ actions:
     safety: {changes: true}
     cli: {command: [event, update], args: [id]}
     ui: {entry: /e/:id}
+    examples:
+      - name: default
+        given: ['content.events.create#default']
+        path_params_json: '{"id": "${given.content.events.create#default.id}"}'
+        body_json: '{"title": "Team meeting (moved)", "starts_at": "2030-01-08T09:00:00Z", "ends_at": "2030-01-08T10:00:00Z", "tz": "Europe/Vienna"}'
   - id: content.events.delete
     category: CATEGORY_ACTION
     method: DELETE
@@ -69,6 +101,11 @@ actions:
     safety: {changes: true}
     cli: {command: [event, delete], args: [id]}
     ui: {entry: /e/:id}
+    examples:
+      - name: default
+        given: ['content.events.create#default']
+        path_params_json: '{"id": "${given.content.events.create#default.id}"}'
+        status: 204
   - id: content.events.ical
     category: CATEGORY_ACTION
     method: GET
@@ -80,6 +117,10 @@ actions:
     public: true
     cli: {command: [event, ical], args: [id]}
     ui: {entry: /e/:id}
+    examples:
+      - name: default
+        given: ['content.events.create#default']
+        path_params_json: '{"id": "${given.content.events.create#default.id}"}'
   - id: content.events.occurrence.update
     category: CATEGORY_ACTION
     method: PUT
@@ -92,6 +133,11 @@ actions:
     safety: {changes: true}
     cli: {command: [event, occurrence-update], args: [id, date]}
     ui: {entry: /e/:id}
+    examples:
+      - name: default
+        given: ['content.events.create#series']
+        path_params_json: '{"id": "${given.content.events.create#series.id}", "date": "2030-01-14"}'
+        body_json: '{"location": "Room 2"}'
   - id: content.events.occurrence.reset
     category: CATEGORY_ACTION
     method: DELETE
@@ -104,6 +150,11 @@ actions:
     safety: {changes: true}
     cli: {command: [event, occurrence-reset], args: [id, date]}
     ui: {entry: /e/:id}
+    examples:
+      - name: default
+        given: ['content.events.create#series', 'content.events.occurrence.update#default']
+        path_params_json: '{"id": "${given.content.events.create#series.id}", "date": "2030-01-14"}'
+        status: 204
   - id: content.events.registrations.list
     category: CATEGORY_ACTION
     method: GET
@@ -115,6 +166,13 @@ actions:
     signed_in: true
     cli: {command: [event, registrations], args: [id]}
     ui: {entry: /e/:id}
+    examples:
+      - name: default
+        given: ['content.events.create#default', 'content.events.register#admin']
+        path_params_json: '{"id": "${given.content.events.create#default.id}"}'
+      - name: admin
+        given: ['content.events.create#default', 'content.events.register#admin']
+        path_params_json: '{"id": "${given.content.events.create#default.id}"}'
   - id: content.events.register
     category: CATEGORY_ACTION
     method: POST
@@ -127,6 +185,16 @@ actions:
     safety: {changes: true}
     cli: {command: [event, register], args: [id]}
     ui: {entry: /e/:id}
+    examples:
+      - name: default
+        given: ['content.events.create#default', 'core.categories.acl.add#self_view']
+        as: self
+        path_params_json: '{"id": "${given.content.events.create#default.id}"}'
+        body_json: '{"occurrence": "2030-01-07", "note": "Vegetarian"}'
+      - name: admin
+        given: ['content.events.create#default']
+        path_params_json: '{"id": "${given.content.events.create#default.id}"}'
+        body_json: '{"occurrence": "2030-01-07"}'
   - id: content.events.unregister
     category: CATEGORY_ACTION
     method: DELETE
@@ -139,6 +207,13 @@ actions:
     safety: {changes: true}
     cli: {command: [event, unregister], args: [id]}
     ui: {entry: /e/:id}
+    examples:
+      - name: default
+        given: ['content.events.register#default']
+        as: self
+        path_params_json: '{"id": "${given.content.events.create#default.id}"}'
+        query_json: '{"occurrence": "2030-01-07"}'
+        status: 204
   - id: content.events.registrations.remove
     category: CATEGORY_ACTION
     method: DELETE
@@ -151,6 +226,11 @@ actions:
     safety: {changes: true}
     cli: {command: [event, registration-remove], args: [id, rid]}
     ui: {entry: /e/:id}
+    examples:
+      - name: default
+        given: ['content.events.create#default', 'content.events.registrations.list#admin']
+        path_params_json: '{"id": "${given.content.events.create#default.id}", "rid": "${given.content.events.registrations.list#admin.0.id}"}'
+        status: 204
   - id: content.events.my_registrations
     category: CATEGORY_ACTION
     method: GET
@@ -162,6 +242,10 @@ actions:
     signed_in: true
     cli: {command: [event, my-registrations]}
     ui: {entry: /e/:id}
+    examples:
+      - name: default
+        given: ['content.events.register#default']
+        as: self
   - id: content.events.upcoming
     category: CATEGORY_ACTION
     method: GET
@@ -173,3 +257,6 @@ actions:
     public: true
     cli: {command: [event, upcoming]}
     ui: {entry: /}
+    examples:
+      - name: default
+        given: ['content.events.create#default']

@@ -39,4 +39,9 @@ func TestTwoAppsOfOneSite(t *testing.T) {
 	admin.must("POST", "/api/v1/categories", map[string]any{"titles": map[string]string{"en": "Still here"}}, &c, 201)
 	admin.must("POST", "/api/v1/elements", map[string]any{"category_id": c.ID, "type": "core.html", "title": "Page", "body": htmlBody("<p>x</p>")}, nil, 201)
 	admin.must("POST", "/api/v1/elements", map[string]any{"category_id": c.ID, "type": "content.events", "title": "Calendar", "body": map[string]any{}}, nil, 201)
+	// the check of the workflow type used the host of the app set up last
+	// (16.11.2026: refused with 403 after the second app closed)
+	admin.must("POST", "/api/v1/elements", map[string]any{"category_id": c.ID, "type": "workflow.process", "title": "Request",
+		"body": map[string]any{"fields": []map[string]any{{"id": "subject", "label": "Subject", "type": "text"}},
+			"steps": []map[string]any{{"id": "done", "name": "Done", "actions": []any{}, "outcome": "success"}}}}, nil, 201)
 }

@@ -21,6 +21,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"sync/atomic"
 	"time"
 	"unicode/utf8"
 
@@ -47,7 +48,10 @@ var migrations embed.FS
 var locales embed.FS
 
 // Plugin is the workflow plugin.
-type Plugin struct{ host *coreplugin.Host }
+type Plugin struct {
+	host   *coreplugin.Host
+	synced atomic.Bool // all triggers copied (once per app)
+}
 
 func init() { coreplugin.Register(&Plugin{}) }
 
@@ -578,7 +582,7 @@ func titleFrom(fields []Field, data map[string]any) string {
 // Setup registers the element type and the API.
 func (pl *Plugin) Setup(host *coreplugin.Host) error {
 	pl.host = host
-	guardHosts.Store(host.Site, host)
+	guardHosts.Set(host, host)
 	host.RegisterElementType(Type{name: func(ctx context.Context, kind, value string) string {
 		id, err := strconv.ParseInt(strings.TrimPrefix(value, "#"), 10, 64)
 		if err != nil {
