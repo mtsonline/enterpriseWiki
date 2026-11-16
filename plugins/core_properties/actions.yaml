@@ -11,6 +11,9 @@ actions:
     public: true
     cli: {command: [properties, types]}
     ui: {entry: /e/:id}
+    examples:
+      - name: default
+        as: guest
   - id: core.properties.defs.list
     category: CATEGORY_ACTION
     method: GET
@@ -22,6 +25,10 @@ actions:
     public: true
     cli: {command: [properties, defs]}
     ui: {entry: /e/:id}
+    examples:
+      - name: default
+        given: ['core.properties.defs.create#default']
+        query_json: '{"category": "${given.core.categories.create#default.id}"}'
   - id: core.properties.defs.create
     category: CATEGORY_ACTION
     method: POST
@@ -34,6 +41,15 @@ actions:
     safety: {changes: true}
     cli: {command: [properties, define]}
     ui: {entry: /admin/properties}
+    examples:
+      - name: done
+        given: ['core.categories.create#default']
+        body_json: '{"category_id": ${given.core.categories.create#default.id}, "key": "done", "type": "boolean", "labels": {"en": "Done"}}'
+        status: 201
+      - name: default
+        given: ['core.categories.create#default']
+        body_json: '{"category_id": ${given.core.categories.create#default.id}, "key": "room", "type": "text", "labels": {"en": "Room", "de": "Raum"}}'
+        status: 201
   - id: core.properties.defs.update
     category: CATEGORY_ACTION
     method: PUT
@@ -46,6 +62,11 @@ actions:
     safety: {changes: true}
     cli: {command: [properties, redefine], args: [id]}
     ui: {entry: /admin/properties}
+    examples:
+      - name: default
+        given: ['core.properties.defs.create#default']
+        path_params_json: '{"id": "${given.core.properties.defs.create#default.id}"}'
+        body_json: '{"category_id": ${given.core.categories.create#default.id}, "key": "room", "type": "text", "labels": {"en": "Meeting room"}}'
   - id: core.properties.defs.delete
     category: CATEGORY_ACTION
     method: DELETE
@@ -58,6 +79,11 @@ actions:
     safety: {changes: true}
     cli: {command: [properties, undefine], args: [id]}
     ui: {entry: /admin/properties}
+    examples:
+      - name: default
+        given: ['core.properties.defs.create#default']
+        path_params_json: '{"id": "${given.core.properties.defs.create#default.id}"}'
+        status: 204
   - id: core.properties.settings
     category: CATEGORY_ACTION
     method: PUT
@@ -70,6 +96,12 @@ actions:
     safety: {changes: true}
     cli: {command: [properties, settings], args: [id]}
     ui: {entry: /c/:id/settings}
+    examples:
+      - name: default
+        given: ['core.categories.create#default']
+        as: member
+        path_params_json: '{"id": "${given.core.categories.create#default.id}"}'
+        body_json: '{"free": "deny"}'
   - id: core.properties.get
     category: CATEGORY_ACTION
     method: GET
@@ -81,6 +113,11 @@ actions:
     permission: {key: core.category.view, scope: SCOPE_CATEGORY, category_param: "element:id"}
     cli: {command: [properties, show], args: [id]}
     ui: {entry: /e/:id}
+    examples:
+      - name: default
+        given: ['core.elements.create#default', 'core.properties.set#default']
+        as: member
+        path_params_json: '{"id": "${given.core.elements.create#default.id}"}'
   - id: core.properties.set
     category: CATEGORY_ACTION
     method: PUT
@@ -93,6 +130,12 @@ actions:
     safety: {changes: true}
     cli: {command: [properties, set], args: [id]}
     ui: {entry: /e/:id/edit}
+    examples:
+      - name: default
+        given: ['core.elements.create#default', 'core.properties.defs.create#default']
+        as: member
+        path_params_json: '{"id": "${given.core.elements.create#default.id}"}'
+        body_json: '{"values": {"room": "A1"}}'
   - id: core.properties.new
     category: CATEGORY_ACTION
     method: GET
@@ -104,6 +147,10 @@ actions:
     signed_in: true
     cli: {command: [properties, new]}
     ui: {entry: /c/:id/new}
+    examples:
+      - name: default
+        given: ['core.properties.defs.create#default']
+        query_json: '{"category": "${given.core.categories.create#default.id}", "type": "core.html"}'
   - id: core.properties.history
     category: CATEGORY_ACTION
     method: GET
@@ -115,6 +162,11 @@ actions:
     permission: {key: core.category.view, scope: SCOPE_CATEGORY, category_param: "element:id"}
     cli: {command: [properties, history], args: [id]}
     ui: {entry: /e/:id/history}
+    examples:
+      - name: default
+        given: ['core.elements.create#default', 'core.properties.set#default']
+        as: member
+        path_params_json: '{"id": "${given.core.elements.create#default.id}"}'
   - id: core.properties.refs
     category: CATEGORY_ACTION
     method: GET
@@ -126,6 +178,10 @@ actions:
     public: true
     cli: {command: [properties, refs]}
     ui: {entry: /e/:id}
+    examples:
+      - name: default
+        given: ['core.elements.create#default']
+        query_json: '{"element": "${given.core.elements.create#default.id}", "category": "${given.core.categories.create#default.id}"}'
   - id: core.properties.keys
     category: CATEGORY_ACTION
     method: GET
@@ -137,6 +193,10 @@ actions:
     public: true
     cli: {command: [properties, keys]}
     ui: {entry: /e/:id}
+    examples:
+      - name: default
+        given: ['core.properties.set#default']
+        query_json: '{"category": "${given.core.categories.create#default.id}"}'
   - id: core.properties.values
     category: CATEGORY_ACTION
     method: GET
@@ -148,6 +208,10 @@ actions:
     public: true
     cli: {command: [properties, values]}
     ui: {entry: /e/:id}
+    examples:
+      - name: default
+        given: ['core.properties.set#default']
+        query_json: '{"key": "room", "category": "${given.core.categories.create#default.id}"}'
   - id: core.properties.query
     category: CATEGORY_ACTION
     method: POST
@@ -160,6 +224,10 @@ actions:
     safety: {changes: true}
     cli: {command: [properties, query]}
     ui: {entry: /e/:id}
+    examples:
+      - name: default
+        given: ['core.elements.create#default', 'core.properties.set#default']
+        body_json: '{"sources": [{"kind": "category", "id": ${given.core.categories.create#default.id}, "sub": true}], "columns": ["room"]}'
   - id: core.properties.report
     category: CATEGORY_ACTION
     method: POST
@@ -172,6 +240,10 @@ actions:
     safety: {changes: true}
     cli: {command: [properties, report]}
     ui: {entry: /e/:id}
+    examples:
+      - name: default
+        given: ['core.elements.create#default', 'core.properties.set#default']
+        body_json: '{"params": {"source": "category:${given.core.categories.create#default.id}"}, "category_id": ${given.core.categories.create#default.id}}'
   - id: core.properties.trend
     category: CATEGORY_ACTION
     method: POST
@@ -184,6 +256,10 @@ actions:
     safety: {changes: true}
     cli: {command: [properties, trend]}
     ui: {entry: /e/:id}
+    examples:
+      - name: default
+        given: ['core.elements.create#default', 'core.properties.defs.create#done']
+        body_json: '{"report": {"params": {"source": "category:${given.core.categories.create#default.id}"}, "category_id": ${given.core.categories.create#default.id}}, "key": "done", "weeks": 2}'
   - id: core.properties.export.csv
     category: CATEGORY_ACTION
     method: POST
@@ -196,6 +272,10 @@ actions:
     safety: {changes: true}
     cli: {command: [properties, export-csv]}
     ui: {entry: /e/:id}
+    examples:
+      - name: default
+        given: ['core.elements.create#default', 'core.properties.set#default']
+        body_json: '{"sources": [{"kind": "category", "id": ${given.core.categories.create#default.id}, "sub": true}], "columns": ["room"]}'
   - id: core.properties.export.xlsx
     category: CATEGORY_ACTION
     method: POST
@@ -208,6 +288,10 @@ actions:
     safety: {changes: true}
     cli: {command: [properties, export-xlsx]}
     ui: {entry: /e/:id}
+    examples:
+      - name: default
+        given: ['core.elements.create#default', 'core.properties.set#default']
+        body_json: '{"sources": [{"kind": "category", "id": ${given.core.categories.create#default.id}, "sub": true}], "columns": ["room"]}'
   - id: core.properties.views.list
     category: CATEGORY_ACTION
     method: GET
@@ -219,6 +303,11 @@ actions:
     permission: {key: core.category.view, scope: SCOPE_CATEGORY, category_param: "element:id"}
     cli: {command: [properties, views], args: [id]}
     ui: {entry: /e/:id}
+    examples:
+      - name: default
+        given: ['core.elements.create#propdb', 'core.properties.views.create#default']
+        as: member
+        path_params_json: '{"id": "${given.core.elements.create#propdb.id}"}'
   - id: core.properties.views.create
     category: CATEGORY_ACTION
     method: POST
@@ -231,6 +320,13 @@ actions:
     safety: {changes: true}
     cli: {command: [properties, view-save], args: [id]}
     ui: {entry: /e/:id}
+    examples:
+      - name: default
+        given: ['core.elements.create#propdb']
+        as: member
+        path_params_json: '{"id": "${given.core.elements.create#propdb.id}"}'
+        body_json: '{"name": "My board", "state": {"search": "", "view": "board", "group": "room"}}'
+        status: 201
   - id: core.properties.views.delete
     category: CATEGORY_ACTION
     method: DELETE
@@ -243,6 +339,11 @@ actions:
     safety: {changes: true}
     cli: {command: [properties, view-delete], args: [id]}
     ui: {entry: /e/:id}
+    examples:
+      - name: default
+        given: ['core.properties.views.create#default']
+        path_params_json: '{"id": "${given.core.properties.views.create#default.id}"}'
+        status: 204
   - id: core.properties.subscriptions.list
     category: CATEGORY_ACTION
     method: GET
@@ -254,6 +355,11 @@ actions:
     signed_in: true
     cli: {command: [properties, subscriptions]}
     ui: {entry: /e/:id}
+    examples:
+      - name: default
+        given: ['core.properties.subscriptions.create#default']
+        as: self
+        query_json: '{"element": "${given.core.elements.create#report_page.id}"}'
   - id: core.properties.subscriptions.create
     category: CATEGORY_ACTION
     method: POST
@@ -266,6 +372,12 @@ actions:
     safety: {changes: true}
     cli: {command: [properties, subscribe]}
     ui: {entry: /e/:id}
+    examples:
+      - name: default
+        given: ['core.users.emails.add#self_verified', 'core.elements.create#report_page', 'core.categories.acl.add#self_view']
+        as: self
+        body_json: '{"element_id": ${given.core.elements.create#report_page.id}, "params": {"source": "category:${given.core.categories.create#default.id}+sub", "title": "Rooms"}, "title": "Rooms", "frequency": "weekly"}'
+        status: 201
   - id: core.properties.subscriptions.delete
     category: CATEGORY_ACTION
     method: DELETE
@@ -278,3 +390,9 @@ actions:
     safety: {changes: true}
     cli: {command: [properties, unsubscribe], args: [id]}
     ui: {entry: /e/:id}
+    examples:
+      - name: default
+        given: ['core.properties.subscriptions.create#default']
+        as: self
+        path_params_json: '{"id": "${given.core.properties.subscriptions.create#default.id}"}'
+        status: 204

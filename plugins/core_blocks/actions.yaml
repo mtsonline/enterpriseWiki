@@ -6,11 +6,22 @@ actions:
     path: blocks
     summary:
       text:
-        en: List the blocks
-        de: Blöcke auflisten
-    permission: {key: core.blocks.edit, scope: SCOPE_GLOBAL}
+        en: List the blocks shown to you (all=1 with their sources needs core.blocks.edit)
+        de: Blöcke auflisten, die Sie sehen (all=1 mit Quelltext braucht core.blocks.edit)
+    public: true
     cli: {command: [block, list]}
     ui: {entry: /admin/blocks}
+    examples:
+      - name: default
+        given: ['core.blocks.create#default']
+        as: guest
+      - name: all
+        given: ['core.blocks.create#default']
+        query_json: '{"all": "1"}'
+      - name: all_refused
+        as: outsider
+        query_json: '{"all": "1"}'
+        status: 403
   - id: core.blocks.create
     category: CATEGORY_ACTION
     method: POST
@@ -23,6 +34,11 @@ actions:
     safety: {changes: true}
     cli: {command: [block, create]}
     ui: {entry: /admin/blocks}
+    examples:
+      - name: default
+        as: member
+        body_json: '{"name": "Notice ${unique}", "location": "sidebar", "position": 1, "audience": "all", "enabled": true, "titles": {"en": "Notice"}, "bodies": {"en": {"format": "html", "source": "<p>Office closed on Friday.</p>"}}}'
+        status: 201
   - id: core.blocks.update
     category: CATEGORY_ACTION
     method: PUT
@@ -35,6 +51,12 @@ actions:
     safety: {changes: true}
     cli: {command: [block, update], args: [id]}
     ui: {entry: /admin/blocks}
+    examples:
+      - name: default
+        given: ['core.blocks.create#default']
+        as: member
+        path_params_json: '{"id": "${given.core.blocks.create#default.id}"}'
+        body_json: '{"name": "Notice ${unique}", "location": "sidebar", "position": 2, "audience": "users", "enabled": false, "titles": {"en": "Changed"}, "bodies": {"en": {"format": "html", "source": "<p>Changed.</p>"}}}'
   - id: core.blocks.delete
     category: CATEGORY_ACTION
     method: DELETE
@@ -47,3 +69,9 @@ actions:
     safety: {changes: true}
     cli: {command: [block, delete], args: [id]}
     ui: {entry: /admin/blocks}
+    examples:
+      - name: default
+        given: ['core.blocks.create#default']
+        as: member
+        path_params_json: '{"id": "${given.core.blocks.create#default.id}"}'
+        status: 204

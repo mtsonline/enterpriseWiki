@@ -6,11 +6,21 @@ actions:
     path: menus
     summary:
       text:
-        en: List the menus
-        de: Menüs auflisten
-    permission: {key: core.menu.edit, scope: SCOPE_GLOBAL}
+        en: List the placed menus as you see them (all=1, every menu as stored, needs core.menu.edit)
+        de: Platzierte Menüs so auflisten, wie Sie sie sehen (all=1, alle Menüs wie gespeichert, braucht core.menu.edit)
+    public: true
     cli: {command: [menu, list]}
     ui: {entry: /admin/menus}
+    examples:
+      - name: default
+        as: guest
+      - name: all
+        given: ['core.menu.create#default']
+        query_json: '{"all": "1"}'
+      - name: all_refused
+        as: outsider
+        query_json: '{"all": "1"}'
+        status: 403
   - id: core.menu.get
     category: CATEGORY_ACTION
     method: GET
@@ -22,6 +32,11 @@ actions:
     permission: {key: core.menu.edit, scope: SCOPE_GLOBAL}
     cli: {command: [menu, show], args: [id]}
     ui: {entry: /admin/menus}
+    examples:
+      - name: default
+        given: ['core.menu.create#default']
+        as: member
+        path_params_json: '{"id": "${given.core.menu.create#default.id}"}'
   - id: core.menu.create
     category: CATEGORY_ACTION
     method: POST
@@ -34,6 +49,11 @@ actions:
     safety: {changes: true}
     cli: {command: [menu, create]}
     ui: {entry: /admin/menus}
+    examples:
+      - name: default
+        as: member
+        body_json: '{"name": "Links ${unique}", "location": "", "items": [{"label": {"en": "Example"}, "type": "url", "url": "https://example.com/"}]}'
+        status: 201
   - id: core.menu.update
     category: CATEGORY_ACTION
     method: PUT
@@ -46,6 +66,12 @@ actions:
     safety: {changes: true}
     cli: {command: [menu, update], args: [id]}
     ui: {entry: /admin/menus}
+    examples:
+      - name: default
+        given: ['core.menu.create#default']
+        as: member
+        path_params_json: '{"id": "${given.core.menu.create#default.id}"}'
+        body_json: '{"name": "Links ${unique}", "location": "", "items": []}'
   - id: core.menu.delete
     category: CATEGORY_ACTION
     method: DELETE
@@ -58,3 +84,9 @@ actions:
     safety: {changes: true}
     cli: {command: [menu, delete], args: [id]}
     ui: {entry: /admin/menus}
+    examples:
+      - name: default
+        given: ['core.menu.create#default']
+        as: member
+        path_params_json: '{"id": "${given.core.menu.create#default.id}"}'
+        status: 204

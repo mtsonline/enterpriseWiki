@@ -69,7 +69,7 @@ func TestShortURLsListingAndOverview(t *testing.T) {
 	}
 	// menus link to short URLs
 	admin.must("POST", "/api/v1/x/core.menu/menus", map[string]any{"name": "Main", "location": "header-nav", "items": []map[string]any{
-		{"type": "element", "element_id": page.ID}, {"type": "category", "category_id": sub.ID}}}, nil, 200)
+		{"type": "element", "element_id": page.ID}, {"type": "category", "category_id": sub.ID}}}, nil, 201)
 	var ms []struct {
 		Items []struct {
 			Href string `json:"href"`

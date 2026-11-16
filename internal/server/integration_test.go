@@ -582,7 +582,7 @@ func TestAPI(t *testing.T) {
 		ID int64 `json:"id"`
 	}
 	admin.must("POST", "/api/v1/x/core.menu/menus", map[string]any{"name": "Main", "location": "header-nav",
-		"items": []map[string]any{{"label": map[string]string{"en": "Handbook"}, "category_id": root.ID}, {"label": map[string]string{"en": "Secret"}, "category_id": sub.ID}}}, &menu, 200)
+		"items": []map[string]any{{"label": map[string]string{"en": "Handbook"}, "category_id": root.ID}, {"label": map[string]string{"en": "Secret"}, "category_id": sub.ID}}}, &menu, 201)
 	var menus []struct {
 		Items []any `json:"items"`
 	}

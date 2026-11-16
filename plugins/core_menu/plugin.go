@@ -517,6 +517,9 @@ func (p *Plugin) Setup(hs *coreplugin.Host) error {
 			return nil, err
 		}
 		_ = audit.Log(ctx, hs.DB, "menu.save", "menu", in.ID, nil, in)
+		if mid == 0 {
+			return h.Created{V: in}, nil
+		}
 		return in, nil
 	}
 	// action: core.menu.create

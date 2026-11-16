@@ -50,6 +50,7 @@ actions:
         expect_json: '{"user": {"username": "${self.name}"}}'
       - name: guest
         as: guest
+      - name: admin
   - id: core.auth.ssh.challenge
     category: CATEGORY_PROTOCOL
     method: POST

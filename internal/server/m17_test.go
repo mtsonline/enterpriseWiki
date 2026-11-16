@@ -297,13 +297,13 @@ func TestCarousel(t *testing.T) {
 	}
 	var c car
 	// feeds on internal addresses are blocked until allowed
-	admin.must("POST", "/api/v1/x/core.carousel/carousels", map[string]any{"name": "Home", "position": "content-top", "feeds": []string{feed.URL + "/rss"}, "enabled": true}, &c, 200)
+	admin.must("POST", "/api/v1/x/core.carousel/carousels", map[string]any{"name": "Home", "position": "content-top", "feeds": []string{feed.URL + "/rss"}, "enabled": true}, &c, 201)
 	if code := admin.do("POST", fmt.Sprintf("/api/v1/x/core.carousel/carousels/%d/refresh", c.ID), nil, nil); code < 400 {
 		t.Fatalf("internal feed fetched without allow_private: %d", code)
 	}
 	admin.must("PUT", "/api/v1/admin/settings", map[string]any{"plugin_settings": map[string]any{"core.carousel": map[string]any{"allow_private": true}}}, nil, 200)
 	admin.must("POST", fmt.Sprintf("/api/v1/x/core.carousel/carousels/%d/refresh", c.ID), nil, nil, 204)
-	admin.must("POST", fmt.Sprintf("/api/v1/x/core.carousel/carousels/%d/slides", c.ID), map[string]any{"title": "Welcome", "text": "Hello", "link": "/search"}, nil, 200)
+	admin.must("POST", fmt.Sprintf("/api/v1/x/core.carousel/carousels/%d/slides", c.ID), map[string]any{"title": "Welcome", "text": "Hello", "link": "/search"}, nil, 201)
 	if code := admin.do("POST", fmt.Sprintf("/api/v1/x/core.carousel/carousels/%d/slides", c.ID), map[string]any{"title": "Bad", "link": "javascript:alert(1)"}, nil); code != 400 {
 		t.Fatalf("unsafe link accepted: %d", code)
 	}

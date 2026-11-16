@@ -11,6 +11,10 @@ actions:
     public: true
     cli: {command: [reaction, show], args: [type, id]}
     ui: {entry: /e/:id}
+    examples:
+      - name: default
+        given: ['core.elements.create#default']
+        path_params_json: '{"type": "element", "id": "${given.core.elements.create#default.id}"}'
   - id: core.reactions.batch
     category: CATEGORY_ACTION
     method: GET
@@ -22,6 +26,10 @@ actions:
     public: true
     cli: {command: [reaction, batch]}
     ui: {entry: /e/:id}
+    examples:
+      - name: default
+        given: ['core.elements.create#default']
+        query_json: '{"type": "element", "ids": "${given.core.elements.create#default.id}"}'
   - id: core.reactions.react
     category: CATEGORY_ACTION
     method: POST
@@ -34,6 +42,16 @@ actions:
     safety: {changes: true}
     cli: {command: [reaction, set], args: [type, id]}
     ui: {entry: /e/:id}
+    examples:
+      - name: default
+        given: ['core.elements.create#default', 'core.categories.acl.add#self_view']
+        as: self
+        path_params_json: '{"type": "element", "id": "${given.core.elements.create#default.id}"}'
+        body_json: '{"emoji": "👍", "on": true}'
+      - name: admin
+        given: ['core.elements.create#default']
+        path_params_json: '{"type": "element", "id": "${given.core.elements.create#default.id}"}'
+        body_json: '{"emoji": "🎉", "on": true}'
   - id: core.reactions.remove
     category: CATEGORY_ACTION
     method: DELETE
@@ -46,6 +64,12 @@ actions:
     safety: {changes: true}
     cli: {command: [reaction, remove], args: [type, id, uid]}
     ui: {entry: /e/:id}
+    examples:
+      - name: default
+        given: ['core.elements.create#default', 'core.reactions.react#admin', 'core.auth.me#admin']
+        as: member
+        path_params_json: '{"type": "element", "id": "${given.core.elements.create#default.id}", "uid": "${given.core.auth.me#admin.user.id}"}'
+        status: 204
   - id: core.reactions.settings.get
     category: CATEGORY_ACTION
     method: GET
@@ -57,6 +81,9 @@ actions:
     signed_in: true
     cli: {command: [reaction, settings]}
     ui: {entry: /admin/reactions}
+    examples:
+      - name: default
+        as: member
   - id: core.reactions.settings.update
     category: CATEGORY_ACTION
     method: PUT
@@ -69,3 +96,7 @@ actions:
     safety: {changes: true}
     cli: {command: [reaction, settings-set]}
     ui: {entry: /admin/reactions}
+    examples:
+      - name: default
+        as: member
+        body_json: '{"blocked": ["🍆"]}'

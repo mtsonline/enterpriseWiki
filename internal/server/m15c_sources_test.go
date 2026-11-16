@@ -212,7 +212,7 @@ func TestFlexibleSources(t *testing.T) {
 		ID int64 `json:"id"`
 	}
 	admin.must("POST", "/api/v1/x/core.carousel/carousels", map[string]any{"name": "Home", "position": "content-top", "enabled": true, "feed_items": 10,
-		"sources": fmt.Sprintf("tag:hr; category:%d", news.ID)}, &c, 200)
+		"sources": fmt.Sprintf("tag:hr; category:%d", news.ID)}, &c, 201)
 	if code := admin.do("PUT", fmt.Sprintf("/api/v1/x/core.carousel/carousels/%d", c.ID), map[string]any{"name": "Home", "position": "content-top", "sources": "tag:"}, nil); code != 400 {
 		t.Fatalf("invalid carousel source accepted: %d", code)
 	}

@@ -11,6 +11,9 @@ actions:
     permission: {key: core.favorites.use, scope: SCOPE_GLOBAL}
     cli: {command: [favorite, list]}
     ui: {entry: /profile}
+    examples:
+      - name: default
+        as: member
   - id: core.favorites.add
     category: CATEGORY_ACTION
     method: POST
@@ -23,6 +26,11 @@ actions:
     safety: {changes: true}
     cli: {command: [favorite, add]}
     ui: {entry: /e/:id}
+    examples:
+      - name: default
+        given: ['core.elements.create#default', 'core.categories.acl.add#self_view']
+        as: self
+        body_json: '{"type": "element", "id": ${given.core.elements.create#default.id}}'
   - id: core.favorites.remove
     category: CATEGORY_ACTION
     method: DELETE
@@ -35,6 +43,12 @@ actions:
     safety: {changes: true}
     cli: {command: [favorite, remove], args: [type, id]}
     ui: {entry: /e/:id}
+    examples:
+      - name: default
+        given: ['core.favorites.add#default']
+        as: self
+        path_params_json: '{"type": "element", "id": "${given.core.elements.create#default.id}"}'
+        expect_json: '{"items": []}'
   - id: core.favorites.order
     category: CATEGORY_ACTION
     method: PUT
@@ -47,3 +61,8 @@ actions:
     safety: {changes: true}
     cli: {command: [favorite, order]}
     ui: {entry: /profile}
+    examples:
+      - name: default
+        given: ['core.favorites.add#default']
+        as: self
+        body_json: '{"items": [{"type": "element", "id": ${given.core.elements.create#default.id}}]}'

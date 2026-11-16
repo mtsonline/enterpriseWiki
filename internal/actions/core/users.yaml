@@ -495,8 +495,9 @@ actions:
     ui: {entry: /admin/permissions}
     examples:
       - name: default
+        given: ['core.permissions.global#default']  # writes back the current defaults (no change for the other examples)
         as: member
-        body_json: '{"permissions": ["core.groups.list_own", "core.roles.list_own", "core.users.list_own"]}'
+        body_json: '{"permissions": ${given.core.permissions.global#default.authenticated}}'
   - id: core.mfa.settings.show
     category: CATEGORY_ACTION
     method: GET

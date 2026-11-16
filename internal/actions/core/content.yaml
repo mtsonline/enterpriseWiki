@@ -461,6 +461,18 @@ actions:
         given: ['core.categories.create#default']
         body_json: '{"category_id": ${given.core.categories.create#default.id}, "type": "workflow.process", "title": "Request ${unique}", "body": {"description": "Example request", "fields": [{"id": "subject", "label": "Subject", "type": "text"}, {"id": "doc", "label": "Document", "type": "file"}], "steps": [{"id": "check", "name": "Check", "assignee": {"type": "role", "value": "Administrators"}, "actions": [{"id": "ok", "label": "OK", "next": "done"}]}, {"id": "done", "name": "Done", "actions": [], "outcome": "success"}], "triggers": [{"id": "hook", "type": "webhook", "title": "From outside"}]}}'
         status: 201
+      - name: attachment
+        given: ['core.categories.create#default', 'core.files.upload#default']
+        body_json: '{"category_id": ${given.core.categories.create#default.id}, "type": "core.attachment", "title": "Notes ${unique}", "body": {"file": {"hash": "${given.core.files.upload#default.hash}", "name": "notes.txt", "mime": "text/plain", "size": 12}, "description": "Example file"}}'
+        status: 201
+      - name: propdb
+        given: ['core.categories.create#default']
+        body_json: '{"category_id": ${given.core.categories.create#default.id}, "type": "content.propdb", "title": "Rooms ${unique}", "body": {"source": "category:${given.core.categories.create#default.id}"}}'
+        status: 201
+      - name: report_page
+        given: ['core.categories.create#default']
+        body_json: '{"category_id": ${given.core.categories.create#default.id}, "type": "core.html", "title": "Report ${unique}", "body": {"format": "html", "source": "<div data-macro=\"properties\" data-params=''{\"source\":\"category:${given.core.categories.create#default.id}+sub\",\"title\":\"Rooms\"}''></div>"}}'
+        status: 201
   - id: core.elements.update
     category: CATEGORY_ACTION
     method: PUT
