@@ -174,7 +174,8 @@ For very large amounts of data the full-text search can use **OpenSearch/Elastic
 - PostgreSQL stays the reference. Every change (save, move, tags, trash, restore, delete) ends up in a change log through database triggers; a background job transfers it every 10 seconds. After a change of search engine, URL or index and with *Rebuild index* the index is created completely anew.
 - The external engine is only used once the index is completely built. Until then, on errors of the search engine and with the plugin disabled, the built-in search answers automatically. The answer of the search API contains `engine` for this.
 - The wiki itself always checks permissions, trash and tags; the search engine gets no permission information and does not need to be publicly reachable (it should not be).
-- The connection is tested against the documented APIs with test servers; before production use please check with your version (*Test connection*, *Rebuild index*, compare the number of documents).
+- The automatic tests run against the newest version of OpenSearch, Elasticsearch and Meilisearch (building the index, changes, permissions, tags, typos, engine failure). Older versions from the ones named above are not tested automatically; before production use please check with your version (*Test connection*, *Rebuild index*, compare the number of documents).
+- For Elasticsearch choose the search engine *OpenSearch / Elasticsearch*.
 
 ## Manual installation
 

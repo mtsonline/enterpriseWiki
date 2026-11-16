@@ -45,6 +45,10 @@ eval "$(EWIKI_AUTH_AD=1 EWIKI_AUTH_SHIB=1 tests/auth/start.sh)"   # Keycloak, Op
 EWIKI_TEST_DATABASE_URL=… go test -race -run TestReal ./internal/server/
 (cd web && EWIKI_E2E_URL=http://localhost:8080 npm run test:auth)   # Browser-Test gegen ein frisch eingerichtetes Wiki
 tests/auth/start.sh stop
+
+eval "$(tests/search/start.sh)"   # OpenSearch, Elasticsearch, Meilisearch (externe Suche)
+EWIKI_TEST_DATABASE_URL=… go test -race -run TestRealExternalSearch ./internal/server/
+tests/search/start.sh stop   # Suchmaschinen beenden
 ```
 
 Geprüft wird unter anderem: Anmeldung über das echte Anmeldeformular, falsches Passwort, Zuordnung von Gruppen und
