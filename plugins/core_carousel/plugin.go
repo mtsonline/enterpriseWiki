@@ -247,6 +247,9 @@ func (p *Plugin) Setup(host *coreplugin.Host) error {
 		if len(c.Feeds) > 0 {
 			go func() { _ = p.fetchCarousel(context.WithoutCancel(ctx), c) }()
 		}
+		if id == 0 {
+			return h.Created{V: c}, nil
+		}
 		return c, nil
 	}
 	// action: core.carousel.create
@@ -347,6 +350,9 @@ func (p *Plugin) Setup(host *coreplugin.Host) error {
 			return nil, err
 		}
 		_ = audit.Log(ctx, host.DB, "carousel.slide", "carousel", carousel, nil, s)
+		if id == 0 {
+			return h.Created{V: s}, nil
+		}
 		return s, nil
 	}
 	// action: core.carousel.slides.create

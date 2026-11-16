@@ -11,6 +11,11 @@ actions:
     permission: {key: core.category.view, scope: SCOPE_CATEGORY, category_param: "element:id"}
     cli: {command: [comment, list], args: [id]}
     ui: {entry: /e/:id}
+    examples:
+      - name: default
+        given: ['core.elements.create#default', 'core.comments.create#default']
+        as: member
+        path_params_json: '{"id": "${given.core.elements.create#default.id}"}'
   - id: core.comments.create
     category: CATEGORY_ACTION
     method: POST
@@ -23,6 +28,13 @@ actions:
     safety: {changes: true}
     cli: {command: [comment, add], args: [id]}
     ui: {entry: /e/:id}
+    examples:
+      - name: default
+        given: ['core.elements.create#default']
+        as: member
+        path_params_json: '{"id": "${given.core.elements.create#default.id}"}'
+        body_json: '{"body": "Looks good to me."}'
+        status: 201
   - id: core.comments.update
     category: CATEGORY_ACTION
     method: PUT
@@ -35,6 +47,11 @@ actions:
     safety: {changes: true}
     cli: {command: [comment, update], args: [id]}
     ui: {entry: /e/:id}
+    examples:
+      - name: default
+        given: ['core.comments.create#default']
+        path_params_json: '{"id": "${given.core.comments.create#default.id}"}'
+        body_json: '{"body": "Looks good (edited)."}'
   - id: core.comments.delete
     category: CATEGORY_ACTION
     method: DELETE
@@ -47,3 +64,8 @@ actions:
     safety: {changes: true}
     cli: {command: [comment, delete], args: [id]}
     ui: {entry: /e/:id}
+    examples:
+      - name: default
+        given: ['core.comments.create#default']
+        path_params_json: '{"id": "${given.core.comments.create#default.id}"}'
+        status: 204

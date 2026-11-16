@@ -36,13 +36,13 @@ func TestMultilevelMenus(t *testing.T) {
 		{"type": "element", "element_id": page.ID},
 		{"type": "element", "element_id": secret.ID},
 		{"type": "url", "label": map[string]string{"en": "Status"}, "url": "https://status.example.com", "new_tab": true},
-	}}, &sub, 200)
+	}}, &sub, 201)
 	admin.must("POST", "/api/v1/x/core.menu/menus", map[string]any{"name": "Main", "location": "header-nav", "items": []map[string]any{
 		{"type": "category", "category_id": pub.ID, "children": []map[string]any{{"type": "element", "element_id": page.ID, "label": map[string]string{"en": "Write to us"}}}},
 		{"type": "menu", "menu_id": sub.ID, "label": map[string]string{"en": "Service"}},
 		{"type": "heading", "label": map[string]string{"en": "Internal"}, "children": []map[string]any{{"type": "category", "category_id": hidden.ID}}},
 		{"label": map[string]string{"en": "Legacy"}, "url": "/search"}, // item without type (older menus)
-	}}, &main, 200)
+	}}, &main, 201)
 
 	var ms []struct {
 		Name  string     `json:"name"`

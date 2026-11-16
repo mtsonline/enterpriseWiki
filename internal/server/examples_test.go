@@ -72,6 +72,14 @@ func TestActionExamples(t *testing.T) {
 	r := &exampleRunner{t: t, e: e, byID: byID, seq: new(atomic.Int64), out: &sharedWho{}}
 	r.admin = e.client()
 	r.admin.login("admin", adminPW)
+	var perms struct {
+		Authenticated []string `json:"authenticated"`
+	}
+	r.admin.must("GET", "/api/v1/admin/permissions", nil, &perms, 200)
+	r.defaults = map[string]bool{}
+	for _, k := range perms.Authenticated {
+		r.defaults[k] = true
+	}
 	ids := make([]string, 0, len(byID))
 	for id, a := range byID {
 		if len(a.Examples) > 0 {
@@ -206,6 +214,8 @@ type exampleRunner struct {
 	admin *client
 	seq   *atomic.Int64 // shared by the parallel examples: unique names
 	out   *sharedWho    // the outsider (one for the run)
+	// permissions every signed-in person has by default
+	defaults map[string]bool
 }
 
 type sharedWho struct {
@@ -253,7 +263,8 @@ func (r *exampleRunner) run(a actions.Action, ex actions.Example) {
 			}
 		}
 		// the same request by someone without the permission is refused
-		if ex.As == "member" && a.Permission != nil {
+		// (not for permissions every signed-in person has by default)
+		if ex.As == "member" && a.Permission != nil && !(a.Permission.Scope == "SCOPE_GLOBAL" && r.defaults[a.Permission.Key]) {
 			out := r.outsider()
 			if res := r.do(way, a, out, path, query, body, up); res.ok || (res.status != 401 && res.status != 403 && res.status != 404) {
 				t.Fatalf("%s: a person without the permission was not refused: %d %s", way, res.status, res.raw)
@@ -447,6 +458,12 @@ func (r *exampleRunner) subst(s string, vars map[string]any) string {
 			return fmt.Sprint(int64(x))
 		case string:
 			return x
+		case []any, map[string]any: // a list or object as JSON (outside quotes)
+			b, err := json.Marshal(x)
+			if err != nil {
+				r.t.Fatal(err)
+			}
+			return string(b)
 		}
 		return fmt.Sprint(v)
 	})

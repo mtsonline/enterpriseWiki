@@ -11,3 +11,8 @@ actions:
     permission: {key: core.category.view, scope: SCOPE_CATEGORY, category_param: "element:id"}
     cli: {command: [attachment, download], args: [id]}
     ui: {entry: /e/:id}
+    examples:
+      - name: default
+        given: ['core.elements.create#attachment']
+        as: member
+        path_params_json: '{"id": "${given.core.elements.create#attachment.id}"}'

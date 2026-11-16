@@ -12,6 +12,10 @@ actions:
     safety: {changes: true}
     cli: {command: [html, to-html]}
     ui: {entry: /e/:id/edit}
+    examples:
+      - name: default
+        as: member
+        body_json: '{"source": "# Title\n\nSome *text*."}'
   - id: core.html.to_markdown
     category: CATEGORY_ACTION
     method: POST
@@ -24,3 +28,7 @@ actions:
     safety: {changes: true}
     cli: {command: [html, to-markdown]}
     ui: {entry: /e/:id/edit}
+    examples:
+      - name: default
+        as: member
+        body_json: '{"source": "<h1>Title</h1><p>Some <em>text</em>.</p>"}'
