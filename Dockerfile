@@ -2,7 +2,7 @@
 # and "full" (docker build --target full).
 # The build stages run on the build machine (BUILDPLATFORM) and cross-compile
 # for the target (multi-arch images: linux/amd64, linux/arm64).
-FROM --platform=$BUILDPLATFORM node:26-alpine AS web
+FROM --platform=$BUILDPLATFORM node:26-alpine@sha256:6bd9ab43c0ec0190ca7b2d193906cb8b7edf6e7f4afa43ddeccd6452710bffb5 AS web
 WORKDIR /src
 COPY web/package.json web/package-lock.json web/
 RUN cd web && npm ci --no-audit --no-fund
@@ -10,7 +10,7 @@ COPY web web
 COPY plugins plugins
 RUN cd web && node build.mjs
 
-FROM --platform=$BUILDPLATFORM golang:1.27-alpine AS backend
+FROM --platform=$BUILDPLATFORM golang:1.27-alpine@sha256:70bd7ddea8b6cbe5d6943cde279d6b67feb10cc924fb9100d1d8757c1575b280 AS backend
 ARG TARGETOS=linux
 ARG TARGETARCH
 WORKDIR /src
@@ -31,9 +31,9 @@ RUN CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH go build -trimpath \
 # or copied into /data/plugins are built into /data/bin (see
 # internal/pluginmgr/image.go). Built for the target platform (native
 # esbuild, Go toolchain of the target).
-FROM node:26-alpine AS node
+FROM node:26-alpine@sha256:6bd9ab43c0ec0190ca7b2d193906cb8b7edf6e7f4afa43ddeccd6452710bffb5 AS node
 
-FROM golang:1.27-alpine AS full
+FROM golang:1.27-alpine@sha256:70bd7ddea8b6cbe5d6943cde279d6b67feb10cc924fb9100d1d8757c1575b280 AS full
 RUN apk add --no-cache ca-certificates tzdata poppler-utils git bash libstdc++ libgcc libatomic \
  && adduser -D -H -u 10001 ewiki \
  && mkdir -p /data && chown ewiki /data
@@ -66,7 +66,7 @@ CMD ["serve"]
 # ---------------------------------------------------------------- lite
 # Lite image (default, ghcr.io/…/enterprisewiki:latest): only the binary.
 # Plugins can be enabled and disabled; installing needs the full image.
-FROM alpine:3.24 AS lite
+FROM alpine:3.24@sha256:f59abe656b692d901e184be3445e084786602108599d2a51d229c0f5a48c71bf AS lite
 RUN apk add --no-cache ca-certificates tzdata poppler-utils \
  && adduser -D -H -u 10001 ewiki \
  && mkdir -p /data && chown ewiki /data
