@@ -49,6 +49,12 @@ actions:
     safety: {changes: true, secret_fields: [password]}
     cli: {command: [auth, registration, request]}
     ui: {entry: /register, control: {text: {en: Create account, de: Konto anlegen}}}
+    examples:
+      - name: default
+        given: ['core.settings.update#mail_smtp']
+        as: guest
+        body_json: '{"email": "reg-${other.name}@example.com", "display_name": "New Person", "password": "Example-Passw0rd!new"}'
+        status: 202
   - id: core.auth.register.confirm
     category: CATEGORY_ACTION
     method: POST
@@ -64,6 +70,11 @@ actions:
     safety: {changes: true, audit_event: user.register, secret_fields: [token]}
     cli: {command: [auth, registration, confirm]}
     ui: {entry: /register/confirm}
+    examples:
+      - name: default
+        given: ['core.auth.register#default']
+        as: guest
+        body_json: '{"token": "${mail_link:reg-${other.name}@example.com:token}"}'
   - id: core.auth.password_reset
     category: CATEGORY_ACTION
     method: POST
@@ -79,6 +90,12 @@ actions:
     safety: {changes: true}
     cli: {command: [auth, password-reset, request]}
     ui: {entry: /password-reset, control: {text: {en: Send link, de: Link senden}}}
+    examples:
+      - name: default
+        given: ['core.settings.update#mail_smtp', 'core.me.emails.primary#default']
+        as: guest
+        body_json: '{"email": "${given.core.users.emails.add#self_verified.email}"}'
+        status: 202
   - id: core.auth.password_reset.confirm
     category: CATEGORY_ACTION
     method: POST
@@ -94,3 +111,12 @@ actions:
     safety: {changes: true, audit_event: user.password_reset, secret_fields: [token, password]}
     cli: {command: [auth, password-reset, confirm]}
     ui: {entry: /password-reset/confirm, control: {text: {en: Save password, de: Passwort speichern}}}
+    examples:
+      - name: default
+        given: ['core.auth.password_reset#default']
+        as: guest
+        body_json: '{"token": "${mail_link:${given.core.users.emails.add#self_verified.email}:token}", "password": "Another-Passw0rd!${unique}"}'
+      - name: bad_token
+        as: guest
+        body_json: '{"token": "not-a-token", "password": "Another-Passw0rd!x1"}'
+        status: 400

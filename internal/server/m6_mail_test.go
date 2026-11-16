@@ -25,6 +25,7 @@ type smtpFake struct {
 	data    string // answer to the end of DATA ("" = 250)
 	got     map[string]int
 	froms   []string
+	msgs    map[string][]string // recipient -> messages as received (newest last)
 }
 
 func newSMTPFake(t *testing.T) *smtpFake {
@@ -87,6 +88,7 @@ func (f *smtpFake) serve(c net.Conn) {
 			w("250 ok")
 		case up == "DATA":
 			w("354 go")
+			var msg strings.Builder
 			for {
 				l, err := r.ReadString('\n')
 				if err != nil {
@@ -95,12 +97,17 @@ func (f *smtpFake) serve(c net.Conn) {
 				if l == ".\r\n" {
 					break
 				}
+				msg.WriteString(strings.TrimPrefix(l, ".")) // dot stuffing
 			}
 			f.mu.Lock()
 			ans := f.data
 			if ans == "" {
 				for _, x := range rcpts {
 					f.got[x]++
+					if f.msgs == nil {
+						f.msgs = map[string][]string{}
+					}
+					f.msgs[x] = append(f.msgs[x], msg.String())
 				}
 				f.froms = append(f.froms, from)
 				ans = "250 queued"
@@ -454,4 +461,15 @@ Status: 4.4.1
 	if f.count("olga@example.com") != 1 {
 		t.Fatal("owner not informed about the bounce")
 	}
+}
+
+// last returns the newest message to addr ("" if none).
+func (f *smtpFake) last(addr string) string {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	ms := f.msgs[addr]
+	if len(ms) == 0 {
+		return ""
+	}
+	return ms[len(ms)-1]
 }

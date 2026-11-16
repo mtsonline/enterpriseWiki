@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"io"
 	"mime/multipart"
+	"mime/quotedprintable"
 	"net/http"
 	"net/textproto"
 	"os"
@@ -41,6 +42,7 @@ const examplesMissing = "../actions/examples-missing.txt"
 var (
 	totpRe     = regexp.MustCompile(`\$\{totp:([A-Za-z2-7= ]+)\}`)
 	webauthnRe = regexp.MustCompile(`\$\{webauthn\.(create|get):([^#}]+#[^.}]+)\.?([^}]*)\}`)
+	mailLinkRe = regexp.MustCompile(`\$\{mail_link:([^:}]+):([a-z_]+)\}`)
 	pkcs12Re   = regexp.MustCompile(`\$\{pkcs12:([^}]+)\}`)
 	personRe   = regexp.MustCompile(`\$\{(self|other)\.([a-z]+)\}`)
 	givenRe    = regexp.MustCompile(`\$\{given\.([^#}]+#[^.}]+)\.([^}]+)\}`)
@@ -75,12 +77,15 @@ func TestActionExamples(t *testing.T) {
 
 	// the administrator approves shell commands (plugins.macros.shell_approvers);
 	// a member who may manage them but is not listed is refused
+	smtp := newSMTPFake(t) // receives the e-mails of the examples (links in them)
 	e := setupWith(t, func(c *config.Config) {
+		c.Login.Registration.Enabled = true // people register themselves (with a link by e-mail)
+		c.Login.Registration.Domains = []string{"example.com"}
 		c.Plugins.Macros.ShellApprovers = []string{"admin@local"}
 		c.Mail.From = "wiki@example.com" // the address of S/MIME certificates of the organisation
 	})
 	t.Setenv("EWIKI_CONFIG", e.cfg) // the command line way (set before the parallel examples)
-	r := &exampleRunner{t: t, e: e, byID: byID, seq: new(atomic.Int64), out: &sharedWho{},
+	r := &exampleRunner{t: t, e: e, byID: byID, seq: new(atomic.Int64), out: &sharedWho{}, smtp: smtp,
 		shared: &struct {
 			caOnce sync.Once
 			ca     *testCA
@@ -239,6 +244,7 @@ type exampleRunner struct {
 		ca     *testCA
 	}
 	origin string // of the passkeys (the server is reached as localhost)
+	smtp   *smtpFake
 	// permissions every signed-in person has by default
 	defaults map[string]bool
 }
@@ -569,6 +575,32 @@ func (r *exampleRunner) subst(s string, vars map[string]any) string {
 	s = pkcs12Re.ReplaceAllStringFunc(s, func(m string) string {
 		c, k := r.ca().issue(r.t, []string{pkcs12Re.FindStringSubmatch(m)[1]}, 365*24*time.Hour, false)
 		return r.ca().p12(r.t, c, k, "s")
+	})
+	// ${smtp_port}: the port of the mail server of the examples
+	s = strings.ReplaceAll(s, "${smtp_port}", r.smtp.addr[strings.LastIndex(r.smtp.addr, ":")+1:])
+	// ${mail_link:ADDRESS:PARAM}: PARAM of the link in the newest e-mail to
+	// ADDRESS (the mail queue is sent first)
+	s = mailLinkRe.ReplaceAllStringFunc(s, func(m string) string {
+		sm := mailLinkRe.FindStringSubmatch(m)
+		re := regexp.MustCompile(`[?&]` + regexp.QuoteMeta(sm[2]) + `=([A-Za-z0-9._~-]+)`)
+		// some e-mails leave in the background (password reset: the answer
+		// must not reveal whether the account exists): wait for it
+		var text []byte
+		for deadline := time.Now().Add(10 * time.Second); ; {
+			r.e.flushMail(r.t)
+			raw := r.smtp.last(strings.ToLower(sm[1]))
+			var err error
+			if text, err = io.ReadAll(quotedprintable.NewReader(strings.NewReader(raw))); err != nil {
+				r.t.Fatalf("%s: %v", m, err)
+			}
+			if v := re.FindSubmatch(text); v != nil {
+				return string(v[1])
+			}
+			if time.Now().After(deadline) {
+				r.t.Fatalf("%s: no link in the e-mail to %s:\n%s", m, sm[1], text)
+			}
+			time.Sleep(20 * time.Millisecond)
+		}
 	})
 	// ${totp:SECRET}: the current code of an authenticator app (after
 	// ${given…} is filled in, e.g. ${totp:${given.….secret}})

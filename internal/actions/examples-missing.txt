@@ -5,12 +5,7 @@ auth.ldap.sync.list
 auth.ldap.sync.run
 auth.ldap.test
 auth.oidc.check
-core.auth.password_reset
-core.auth.password_reset.confirm
 core.auth.providers.preview
-core.auth.register
-core.auth.register.confirm
-core.auth.verify_email
 core.me.identities.link
 core.me.identities.unlink
 core.media.open
@@ -32,5 +27,3 @@ office.m365.test
 office.onlyoffice.test
 search.external.reindex
 search.external.test
-workflow.process.links.act
-workflow.process.links.info

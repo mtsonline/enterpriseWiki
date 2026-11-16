@@ -83,6 +83,11 @@ actions:
     safety: {changes: true}
     cli: {command: [auth, verify-email]}
     ui: {entry: /verify-email}
+    examples:
+      - name: default
+        given: ['core.me.emails.add#default']
+        as: self
+        body_json: '{"token": "${mail_link:${given.core.me.emails.add#default.email}:token}"}'
   - id: core.auth.link.info
     category: CATEGORY_PROTOCOL
     method: POST
@@ -425,7 +430,7 @@ actions:
     ui: {entry: /profile}
     examples:
       - name: default
-        given: ['core.settings.update#mail_log']  # confirmation links need a mail transport
+        given: ['core.settings.update#mail_smtp']  # the confirmation link is sent by e-mail
         as: self
         body_json: '{"email": "mine${unique}@example.com"}'
         status: 201
