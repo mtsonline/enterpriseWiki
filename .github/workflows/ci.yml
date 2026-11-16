@@ -54,6 +54,16 @@ jobs:
         run: go run ./tools/notices -check
       - name: documentation complete in German and English, links valid
         run: go run ./tools/docscheck
+      # Renovate waits 3 days before it proposes a new version, but cannot for
+      # lock file maintenance and pinning: this covers every lock file change
+      - name: new npm package versions are at least 3 days old
+        if: ${{ !inputs.latest }}
+        env:
+          BASE: ${{ github.base_ref || 'main' }}
+        run: |
+          git fetch -q --depth=1 origin "$BASE"
+          git show FETCH_HEAD:web/package-lock.json > /tmp/old-lock.json
+          go run ./tools/releaseage -old /tmp/old-lock.json -new web/package-lock.json
       - name: tests (race detector, real PostgreSQL)
         run: go test -race -count=1 -timeout 30m ./...
         env:

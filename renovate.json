@@ -30,7 +30,9 @@
     "enabled": true,
     "schedule": [
       "before 6am on monday"
-    ]
+    ],
+    "minimumReleaseAge": null,
+    "description": "Renovate cannot work out the age of the versions in a lock file refresh (its check would stay pending forever); the CI step tools/releaseage refuses versions younger than 3 days instead"
   },
   "vulnerabilityAlerts": {
     "enabled": true,
@@ -59,6 +61,14 @@
         "major"
       ],
       "automerge": true
+    },
+    {
+      "description": "Pinning fixes versions and digests that are already in use (no new versions): no waiting time; Renovate cannot work out an age for it anyway",
+      "matchUpdateTypes": [
+        "pin",
+        "pinDigest"
+      ],
+      "minimumReleaseAge": null
     },
     {
       "description": "Keep the minimum language version ('go' directive) so the module still builds with older local Go versions; the toolchain line, the Dockerfile and CI always get the newest Go",
