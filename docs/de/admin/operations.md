@@ -36,7 +36,10 @@ npm-Pakete, Docker-Basis-Images, GitHub Actions):
 
 1. **Renovate** (`renovate.json`) prüft täglich vor 6 Uhr und öffnet Pull Requests: kleinere Updates gesammelt in einem,
    große Versionssprünge einzeln. Neue Versionen werden erst nach **3 Tagen** übernommen (zurückgezogene oder
-   kompromittierte Pakete erreichen das Produkt so nicht), **Sicherheitsupdates sofort**.
+   kompromittierte Pakete erreichen das Produkt so nicht), **Sicherheitsupdates sofort**. Versionen und Docker-Images
+   sind exakt festgeschrieben (bei Images und GitHub Actions mit Prüfwert); jedes Update ändert sie per Pull Request.
+   Bei der wöchentlichen Auffrischung der Lock-Datei kann Renovate das Alter nicht prüfen; das übernimmt ein
+   CI-Schritt (`go run ./tools/releaseage`), der jede Paketversion ablehnt, die jünger als 3 Tage ist.
 2. Die **CI** prüft jeden Pull Request vollständig: Build, Go-Tests mit PostgreSQL, Browser-Tests mit
    Barrierefreiheitsprüfung, Docker-Build und Lizenzprüfung der Abhängigkeiten. Nur wenn alles grün ist, führt
    Renovate den Pull Request **automatisch** zusammen – auch bei großen Versionssprüngen. Rote Pull Requests bleiben

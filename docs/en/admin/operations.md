@@ -36,7 +36,10 @@ npm packages, Docker base images, GitHub Actions) without manual intervention:
 
 1. **Renovate** (`renovate.json`) checks daily before 6 a.m. and opens pull requests: smaller updates collected in one,
    big version jumps one by one. New versions are only taken after **3 days** (withdrawn or
-   compromised packages do not reach the product this way), **security updates at once**.
+   compromised packages do not reach the product this way), **security updates at once**. Versions and Docker images
+   are pinned exactly (images and GitHub Actions with their digest); every update changes them by pull request.
+   For the weekly refresh of the lock file Renovate cannot check the age; a CI step
+   (`go run ./tools/releaseage`) does that and refuses every package version younger than 3 days.
 2. The **CI** checks every pull request completely: build, Go tests with PostgreSQL, browser tests with
    accessibility checks, Docker build and license check of the dependencies. Only if everything is green does
    Renovate merge the pull request **automatically** – also for big version jumps. Red pull requests stay
