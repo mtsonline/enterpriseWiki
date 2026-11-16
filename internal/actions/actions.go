@@ -102,7 +102,8 @@ type Example struct {
 
 // TestSystems are the real systems examples may require, with the fields
 // of ${system.<name>.<field>}. Start them with tests/search/start.sh
-// (search engines) or tests/auth/start.sh (sign-in systems).
+// (search engines), tests/auth/start.sh (sign-in systems) or
+// tests/office/start.sh (office servers).
 var TestSystems = map[string][]string{
 	"opensearch":    {"url"},
 	"elasticsearch": {"url", "password"},
@@ -111,6 +112,11 @@ var TestSystems = map[string][]string{
 	"ldap": {"url", "bind_dn", "bind_password", "user_password"},
 	// Keycloak (OpenID Connect, SAML 2.0)
 	"keycloak": {"url", "admin", "password"},
+	// office servers (tests/office/start.sh)
+	"collabora":  {"url"},
+	"onlyoffice": {"url", "secret"},
+	// the public WOPI discovery of Microsoft 365 for the web (CI only)
+	"microsoft365": {"url"},
 }
 
 // FormField is ewiki.plugin.v1.FormField.

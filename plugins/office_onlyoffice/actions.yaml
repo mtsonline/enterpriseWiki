@@ -12,6 +12,17 @@ actions:
     safety: {changes: true}
     cli: {command: [office, onlyoffice-test]}
     ui: {entry: /admin/onlyoffice}
+    examples:
+      - name: api
+        as: member
+        requires: [onlyoffice]
+        given: [core.settings.update#onlyoffice]
+        expect_json: '{"ok": true, "configured": true, "mode": "api", "secret": true}'
+      - name: wopi
+        as: member
+        requires: [onlyoffice]
+        given: [core.settings.update#onlyoffice_wopi]
+        expect_json: '{"ok": true, "configured": true, "mode": "wopi"}'
   - id: office.onlyoffice.file
     category: CATEGORY_PROTOCOL
     method: GET

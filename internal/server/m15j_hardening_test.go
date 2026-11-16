@@ -228,11 +228,16 @@ func TestRateLimit(t *testing.T) {
 	admin := e.client()
 	admin.login("admin", adminPW) // before the guest uses up the address
 	guest := e.client()
+	// the bucket refills with 1 per second: under load (race detector, many
+	// tests at once) the requests take longer and more may pass, never more
+	// than the burst plus the refill of the elapsed time
+	allowed := func(burst int, start time.Time) int { return burst + int(time.Since(start).Seconds()) + 1 }
 	codes := map[int]int{}
+	start := time.Now()
 	for range 20 {
 		codes[guest.do("GET", "/api/v1/site", nil, nil)]++
 	}
-	if codes[429] == 0 || codes[200] > 11 {
+	if codes[429] == 0 || codes[200] > allowed(10, start) {
 		t.Fatalf("guest: %v", codes)
 	}
 	req, _ := http.NewRequest("GET", e.srv.URL+"/api/v1/site", nil)
@@ -246,10 +251,11 @@ func TestRateLimit(t *testing.T) {
 	}
 	// expensive requests have their own, stricter bucket (per account)
 	codes = map[int]int{}
+	start = time.Now()
 	for range 6 {
 		codes[admin.do("GET", "/api/v1/search?q=x", nil, nil)]++
 	}
-	if codes[429] == 0 || codes[200] > 4 {
+	if codes[429] == 0 || codes[200] > allowed(3, start) {
 		t.Fatalf("search: %v", codes)
 	}
 }

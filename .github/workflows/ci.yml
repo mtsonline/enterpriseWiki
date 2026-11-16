@@ -202,8 +202,35 @@ jobs:
   office:
     name: Office servers (real Collabora Online and OnlyOffice Docs)
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:${{ inputs.latest && 'latest' || '18' }} # renovate: postgres 18
+        env: { POSTGRES_USER: wiki, POSTGRES_PASSWORD: wiki, POSTGRES_DB: wiki }
+        ports: ["5432:5432"]
+        options: --health-cmd pg_isready --health-interval 5s --health-timeout 5s --health-retries 20
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - name: Go version from go.mod
+        id: gover
+        run: echo "version=$(sed -n 's/^toolchain go//p' go.mod | grep . || sed -n 's/^go //p' go.mod)" >> "$GITHUB_OUTPUT"
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
+        with: { go-version: "${{ steps.gover.outputs.version }}" }
+      - name: start Collabora Online and OnlyOffice Docs for the examples
+        run: |
+          tests/office/start.sh > /tmp/office.env
+          # the generated secret never appears in the log
+          sed -n 's/^export EWIKI_TEST_[A-Z_]*SECRET=\(.*\)$/::add-mask::\1/p' /tmp/office.env
+          sed 's/^export //' /tmp/office.env >> "$GITHUB_ENV"
+          rm /tmp/office.env
+      - name: examples of the action register that need the office servers (and the discovery of Microsoft 365)
+        run: go test -race -count=1 -timeout 20m -run 'TestActionExamples' ./internal/server/
+        env:
+          EWIKI_TEST_EXAMPLE_SYSTEMS: collabora,onlyoffice,microsoft365
+          EWIKI_TEST_MICROSOFT365_URL: https://onenote.officeapps.live.com/hosting/discovery
+          EWIKI_TEST_DATABASE_URL: ${{ env.DB_URL }}
+      - name: stop the office servers of the examples
+        if: always()
+        run: tests/office/start.sh stop
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
         with: { node-version: "26" }
       - name: install browser tooling

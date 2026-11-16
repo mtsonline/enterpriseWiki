@@ -12,3 +12,14 @@ actions:
     safety: {changes: true}
     cli: {command: [office, m365-test]}
     ui: {entry: /admin/m365}
+    examples:
+      # Microsoft serves only wikis of its partner program: the discovery
+      # (what it offers, its proof key) is the part that can be tested
+      - name: microsoft
+        as: member
+        requires: [microsoft365]
+        given: [core.settings.update#microsoft365]
+        expect_json: '{"ok": true, "configured": true, "proof_key": true}'
+      - name: disabled
+        as: member
+        expect_json: '{"ok": false, "configured": false}'

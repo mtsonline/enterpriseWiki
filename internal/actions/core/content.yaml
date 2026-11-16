@@ -1177,6 +1177,14 @@ actions:
           - {name: meta, value: '{"category_id": ${given.core.categories.create#default.id}, "title": "Pixel"}'}
         files:
           - {field: file, name: 'pixel.png', content_type: 'image/png', base64: 'iVBORw0KGgoAAAANSUhEUgAAAAQAAAAECAIAAAAmkwkpAAAAEElEQVR4nGP4z8AARwzEcQCukw/x0F8jngAAAABJRU5ErkJggg=='}
+      - name: docx
+        given: ['core.categories.create#default']
+        as: admin
+        status: 201
+        form:
+          - {name: meta, value: '{"category_id": ${given.core.categories.create#default.id}, "title": "Letter"}'}
+        files:
+          - {field: file, name: 'letter.docx', content_type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', base64: 'UEsDBBQAAAAIALO6cF3MVIwQ4QAAAJwBAAATAAAAW0NvbnRlbnRfVHlwZXNdLnhtbH2QTU7DMBCFr2J5i2KHLhBCSbqAsgQW5QCWM0ks7BnLMw3h9iht6QIV1u/ne3rNdklRzVA4ELb61tRaAXrqA46tft8/V/d62zX7rwyslhSRWz2J5Adr2U+QHBvKgEuKA5XkhA2V0WbnP9wIdlPXd9YTCqBUsnbornmCwR2iqN0igCdsgchaPZ6MK6vVLucYvJNAaGfsf1GqM8EUiEcPTyHzzZKitlcJq/I34Jx7naGU0IN6c0VeXIJW208qve3JHxKgmP9rruykYQgeLvm1LRfywBxwTNFclOQC/uy3x7u7b1BLAwQUAAAACACzunBdNlfe3KQAAAAYAQAACwAAAF9yZWxzLy5yZWxzjc+xCsIwFAXQXwlvN2kdRKRpFxG6Sv2AkLy2wSQvJFHr37s4WHFwvVzO5Tbd4h27Y8qWgoSaV8AwaDI2TBIuw2mzh65tzuhUsRTybGNmi3chS5hLiQchsp7Rq8wpYli8Gyl5VTKnNImo9FVNKLZVtRPp04C1yXojIfWmBjY8I/5j0zhajUfSN4+h/Jj4agAbVJqwSHhQMsK8Y754B6JtxOpi+wJQSwMEFAAAAAgAs7pwXUP2Z0aSAAAAvwAAABEAAAB3b3JkL2RvY3VtZW50LnhtbEXOMQ7CMAwF0KtU2WkKA0JVWyY4ARwgJKaNFNtRHGi4PUoZWN6Xh//l4VwwNG9I4plGtW871QBZdp7mUd1v191Jnadh7R3bFwLlpmAg6ddRLTnHXmuxC6CRliNQwfDkhCZLy2nWKycXE1sQ8TRj0IeuO2o0nlSdfLD71IyVVMnTpRiMAQZdj2rajJu/gv4/M30BUEsBAhQDFAAAAAgAs7pwXcxUjBDhAAAAnAEAABMAAAAAAAAAAAAAAIABAAAAAFtDb250ZW50X1R5cGVzXS54bWxQSwECFAMUAAAACACzunBdNlfe3KQAAAAYAQAACwAAAAAAAAAAAAAAgAESAQAAX3JlbHMvLnJlbHNQSwECFAMUAAAACACzunBdQ/ZnRpIAAAC/AAAAEQAAAAAAAAAAAAAAgAHfAQAAd29yZC9kb2N1bWVudC54bWxQSwUGAAAAAAMAAwC5AAAAoAIAAAAA'}
   - id: core.media.get
     category: CATEGORY_ACTION
     method: GET
@@ -1405,6 +1413,20 @@ actions:
     safety: {changes: true}
     cli: {command: [media, open], builtin: true}
     ui: {entry: /office/:id}
+    examples:
+      - name: internal
+        given: ['core.media.upload#default']
+        as: admin
+        path_params_json: '{"id": ${given.core.media.upload#default.id}}'
+        body_json: '{}'
+        expect_json: '{"viewer": "internal", "mode": "view"}'
+      - name: onlyoffice
+        requires: [onlyoffice]
+        given: ['core.settings.update#onlyoffice', 'core.media.upload#docx']
+        as: admin
+        path_params_json: '{"id": ${given.core.media.upload#docx.id}}'
+        body_json: '{"viewer": "office.onlyoffice", "mode": "edit"}'
+        expect_json: '{"viewer": "office.onlyoffice", "mode": "edit"}'
   - id: core.signatures.get
     category: CATEGORY_ACTION
     method: GET
