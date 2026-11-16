@@ -266,15 +266,19 @@ jobs:
           sed -n 's/^export EWIKI_TEST_[A-Z_]*PASSWORD=\(.*\)$/::add-mask::\1/p' /tmp/auth.env
           sed 's/^export //' /tmp/auth.env >> "$GITHUB_ENV"
           rm /tmp/auth.env
+      # the Go tests reset their database: an own one, so that nothing they
+      # leave behind reaches the wiki of the browser test below
+      - name: database of the Go tests
+        run: PGPASSWORD=wiki psql -h localhost -U wiki -d wiki -c 'CREATE DATABASE wiki_gotest'
       - name: Go tests against the real systems (race detector)
         run: go test -race -count=1 -timeout 30m -run 'TestReal' -v ./internal/server/
         env:
-          EWIKI_TEST_DATABASE_URL: ${{ env.DB_URL }}
+          EWIKI_TEST_DATABASE_URL: postgres://wiki:wiki@localhost:5432/wiki_gotest?sslmode=disable
       - name: examples of the action register that need LDAP or Keycloak
         run: go test -race -count=1 -timeout 20m -run 'TestActionExamples' ./internal/server/
         env:
           EWIKI_TEST_EXAMPLE_SYSTEMS: ldap,keycloak
-          EWIKI_TEST_DATABASE_URL: ${{ env.DB_URL }}
+          EWIKI_TEST_DATABASE_URL: postgres://wiki:wiki@localhost:5432/wiki_gotest?sslmode=disable
       - name: build and start the wiki
         run: |
           (cd web && npm ci --no-audit --no-fund)
