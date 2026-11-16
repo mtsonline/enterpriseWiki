@@ -44,7 +44,7 @@ var (
 	webauthnRe = regexp.MustCompile(`\$\{webauthn\.(create|get):([^#}]+#[^.}]+)\.?([^}]*)\}`)
 	mailLinkRe = regexp.MustCompile(`\$\{mail_link:([^:}]+):([a-z_]+)\}`)
 	pkcs12Re   = regexp.MustCompile(`\$\{pkcs12:([^}]+)\}`)
-	systemRe   = regexp.MustCompile(`\$\{system\.([a-z]+)\.([a-z_]+)\}`)
+	systemRe   = regexp.MustCompile(`\$\{system\.([a-z0-9]+)\.([a-z_]+)\}`)
 	personRe   = regexp.MustCompile(`\$\{(self|other)\.([a-z]+)\}`)
 	givenRe    = regexp.MustCompile(`\$\{given\.([^#}]+#[^.}]+)\.([^}]+)\}`)
 	httpErrRe  = regexp.MustCompile(`HTTP (\d{3})`)
@@ -615,6 +615,9 @@ func (r *exampleRunner) subst(s string, vars map[string]any) string {
 		}
 		return v
 	})
+	if strings.Contains(s, "${system.") { // a name or field the pattern does not match
+		r.t.Fatalf("placeholder not filled in: %s", s)
+	}
 	s = personRe.ReplaceAllStringFunc(s, func(m string) string {
 		sm := personRe.FindStringSubmatch(m)
 		key := map[string]string{"self": selfKey, "other": otherKey}[sm[1]]
