@@ -11,6 +11,11 @@ actions:
     permission: {key: core.category.view, scope: SCOPE_CATEGORY, category_param: "element:id"}
     cli: {command: [blog, posts], args: [id]}
     ui: {entry: /e/:id}
+    examples:
+      - name: default
+        given: ['core.elements.create#blog']
+        as: member
+        path_params_json: '{"id": "${given.core.elements.create#blog.id}"}'
   - id: content.blog.posts.create
     category: CATEGORY_ACTION
     method: POST
@@ -19,22 +24,36 @@ actions:
       text:
         en: Write a post in a blog (needs create in the category)
         de: Beitrag in einem Blog schreiben (braucht Anlegen in der Kategorie)
-    signed_in: true
     safety: {changes: true}
+    permission: {key: core.category.create, scope: SCOPE_CATEGORY, category_param: "element:id"}
     cli: {command: [blog, post], args: [id]}
     ui: {entry: /e/:id}
+    examples:
+      - name: default
+        given: ['core.elements.create#blog']
+        as: member
+        path_params_json: '{"id": "${given.core.elements.create#blog.id}"}'
+        body_json: '{"title": "First post ${unique}", "body": {"format": "html", "source": "<p>Hello blog</p>"}}'
+        status: 201
   - id: content.blog.categories.create
     category: CATEGORY_ACTION
     method: POST
     path: "elements/{id}/categories"
     summary:
       text:
-        en: Add a subcategory to a blog (needs create)
-        de: Unterkategorie zu einem Blog hinzufügen (braucht Anlegen)
-    signed_in: true
+        en: Add a subcategory to a blog (needs manage)
+        de: Unterkategorie zu einem Blog hinzufügen (braucht Verwalten)
     safety: {changes: true}
+    permission: {key: core.category.manage, scope: SCOPE_CATEGORY, category_param: "element:id"}
     cli: {command: [blog, category], args: [id]}
     ui: {entry: /e/:id}
+    examples:
+      - name: default
+        given: ['core.elements.create#blog']
+        as: member
+        path_params_json: '{"id": "${given.core.elements.create#blog.id}"}'
+        body_json: '{"titles": {"en": "Topic ${unique}"}}'
+        status: 201
   - id: content.blog.feed
     category: CATEGORY_ACTION
     method: GET
@@ -46,3 +65,7 @@ actions:
     public: true
     cli: {command: [blog, feed], args: [id]}
     ui: {entry: /e/:id}
+    examples:
+      - name: default
+        given: ['core.elements.create#blog', 'content.blog.posts.create#default']
+        path_params_json: '{"id": "${given.core.elements.create#blog.id}"}'

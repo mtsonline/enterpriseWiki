@@ -437,6 +437,30 @@ actions:
         as: member
         body_json: '{"category_id": ${given.core.categories.create#default.id}, "type": "core.html", "title": "Page ${unique}", "body": {"format": "html", "source": "<p>Hello</p>"}}'
         status: 201
+      - name: blog
+        given: ['core.categories.create#default']
+        body_json: '{"category_id": ${given.core.categories.create#default.id}, "type": "content.blog", "title": "Blog ${unique}", "body": {"category_id": ${given.core.categories.create#default.id}, "feed": true}}'
+        status: 201
+      - name: faq
+        given: ['core.categories.create#default']
+        body_json: '{"category_id": ${given.core.categories.create#default.id}, "type": "content.faq", "title": "Faq ${unique}", "body": {"category_id": ${given.core.categories.create#default.id}, "feed": true}}'
+        status: 201
+      - name: calendar
+        given: ['core.categories.create#default']
+        body_json: '{"category_id": ${given.core.categories.create#default.id}, "type": "content.events", "title": "Calendar ${unique}", "body": {"view": "list", "ical": true}}'
+        status: 201
+      - name: form
+        given: ['core.categories.create#default']
+        body_json: '{"category_id": ${given.core.categories.create#default.id}, "type": "content.forms", "title": "Form ${unique}", "body": {"intro": "Write to us.", "submit_label": "Send", "success_message": "Thanks!", "fields": [{"id": "name", "type": "text", "label": "Your name", "required": true}, {"id": "doc", "type": "file", "label": "Document", "accept": [".txt"], "max_files": 1, "max_size_mb": 1}], "targets": {"store": true}}}'
+        status: 201
+      - name: team
+        given: ['core.categories.create#default', 'core.groups.create#default']
+        body_json: '{"category_id": ${given.core.categories.create#default.id}, "type": "content.team", "title": "Team ${unique}", "body": {"groups": [${given.core.groups.create#default.id}], "fields": ["job_title", "email"], "layout": "cards"}}'
+        status: 201
+      - name: workflow
+        given: ['core.categories.create#default']
+        body_json: '{"category_id": ${given.core.categories.create#default.id}, "type": "workflow.process", "title": "Request ${unique}", "body": {"description": "Example request", "fields": [{"id": "subject", "label": "Subject", "type": "text"}, {"id": "doc", "label": "Document", "type": "file"}], "steps": [{"id": "check", "name": "Check", "assignee": {"type": "role", "value": "Administrators"}, "actions": [{"id": "ok", "label": "OK", "next": "done"}]}, {"id": "done", "name": "Done", "actions": [], "outcome": "success"}], "triggers": [{"id": "hook", "type": "webhook", "title": "From outside"}]}}'
+        status: 201
   - id: core.elements.update
     category: CATEGORY_ACTION
     method: PUT

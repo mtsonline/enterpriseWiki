@@ -11,6 +11,9 @@ actions:
     public: true
     cli: {command: [workflow, meta]}
     ui: {entry: /e/:id}
+    examples:
+      - name: default
+        as: member
   - id: workflow.process.cases.list
     category: CATEGORY_ACTION
     method: GET
@@ -22,6 +25,11 @@ actions:
     permission: {key: core.category.view, scope: SCOPE_CATEGORY, category_param: "element:id"}
     cli: {command: [workflow, cases], args: [id]}
     ui: {entry: /e/:id}
+    examples:
+      - name: default
+        given: ['core.elements.create#workflow', 'workflow.process.cases.start#admin']
+        as: member
+        path_params_json: '{"id": "${given.core.elements.create#workflow.id}"}'
   - id: workflow.process.cases.start
     category: CATEGORY_ACTION
     method: POST
@@ -34,40 +42,67 @@ actions:
     safety: {changes: true}
     cli: {command: [workflow, start], args: [id]}
     ui: {entry: /e/:id}
+    examples:
+      - name: default
+        given: ['core.elements.create#workflow']
+        as: member
+        path_params_json: '{"id": "${given.core.elements.create#workflow.id}"}'
+        body_json: '{"data": {"subject": "New laptop"}}'
+        status: 201
+      - name: admin
+        given: ['core.elements.create#workflow', 'core.files.upload#default']
+        path_params_json: '{"id": "${given.core.elements.create#workflow.id}"}'
+        body_json: '{"data": {"subject": "Holiday", "doc": {"hash": "${given.core.files.upload#default.hash}", "name": "notes.txt"}}}'
+        status: 201
   - id: workflow.process.stats
     category: CATEGORY_ACTION
     method: GET
     path: "elements/{id}/stats"
     summary:
       text:
-        en: Show figures of a workflow (needs the right to change it)
-        de: "Kennzahlen eines Workflows anzeigen (braucht das Recht, ihn zu ändern)"
-    permission: {key: core.category.view, scope: SCOPE_CATEGORY, category_param: "element:id"}
+        en: Show figures of a workflow (creator of the workflow or workflow administrator)
+        de: "Kennzahlen eines Workflows anzeigen (wer ihn angelegt hat oder Workflow-Administrator)"
+    permission: {key: workflow.process.admin, scope: SCOPE_CATEGORY, category_param: "element:id"}
     cli: {command: [workflow, stats], args: [id]}
     ui: {entry: /e/:id}
+    examples:
+      - name: default
+        given: ['core.elements.create#workflow', 'workflow.process.cases.start#admin']
+        as: member
+        path_params_json: '{"id": "${given.core.elements.create#workflow.id}"}'
   - id: workflow.process.triggers
     category: CATEGORY_ACTION
     method: GET
     path: "elements/{id}/triggers"
     summary:
       text:
-        en: List the triggers of a workflow (needs the right to change it)
-        de: "Auslöser eines Workflows auflisten (braucht das Recht, ihn zu ändern)"
-    permission: {key: core.category.view, scope: SCOPE_CATEGORY, category_param: "element:id"}
+        en: List the triggers of a workflow (creator of the workflow or workflow administrator)
+        de: "Auslöser eines Workflows auflisten (wer ihn angelegt hat oder Workflow-Administrator)"
+    permission: {key: workflow.process.admin, scope: SCOPE_CATEGORY, category_param: "element:id"}
     cli: {command: [workflow, triggers], args: [id]}
     ui: {entry: /e/:id/edit}
+    examples:
+      - name: default
+        given: ['core.elements.create#workflow']
+        as: member
+        path_params_json: '{"id": "${given.core.elements.create#workflow.id}"}'
   - id: workflow.process.triggers.secret
     category: CATEGORY_ACTION
     method: POST
     path: "elements/{id}/triggers/{trigger}/secret"
     summary:
       text:
-        en: Create a new secret for a webhook trigger (needs the right to change the workflow)
-        de: "Neues Geheimnis für einen Webhook-Auslöser erzeugen (braucht das Recht, den Workflow zu ändern)"
-    permission: {key: core.category.view, scope: SCOPE_CATEGORY, category_param: "element:id"}
+        en: Create a new secret for a webhook trigger (creator of the workflow or workflow administrator)
+        de: "Neues Geheimnis für einen Webhook-Auslöser erzeugen (wer den Workflow angelegt hat oder Workflow-Administrator)"
+    permission: {key: workflow.process.admin, scope: SCOPE_CATEGORY, category_param: "element:id"}
     safety: {changes: true}
     cli: {command: [workflow, trigger-secret], args: [id, trigger]}
     ui: {entry: /e/:id/edit}
+    examples:
+      - name: default
+        given: ['core.elements.create#workflow']
+        as: member
+        path_params_json: '{"id": "${given.core.elements.create#workflow.id}", "trigger": "hook"}'
   - id: workflow.process.hook
     category: CATEGORY_PROTOCOL
     method: POST
@@ -88,6 +123,10 @@ actions:
     public: true
     cli: {command: [workflow, case], args: [id]}
     ui: {entry: /e/:id}
+    examples:
+      - name: default
+        given: ['workflow.process.cases.start#admin']
+        path_params_json: '{"id": "${given.workflow.process.cases.start#admin.id}"}'
   - id: workflow.process.cases.file
     category: CATEGORY_ACTION
     method: GET
@@ -99,6 +138,10 @@ actions:
     public: true
     cli: {command: [workflow, case-file], args: [id, field]}
     ui: {entry: /e/:id}
+    examples:
+      - name: default
+        given: ['workflow.process.cases.start#admin']
+        path_params_json: '{"id": "${given.workflow.process.cases.start#admin.id}", "field": "doc"}'
   - id: workflow.process.cases.act
     category: CATEGORY_ACTION
     method: POST
@@ -111,6 +154,11 @@ actions:
     safety: {changes: true}
     cli: {command: [workflow, act], args: [id]}
     ui: {entry: /tasks}
+    examples:
+      - name: default
+        given: ['workflow.process.cases.start#admin']
+        path_params_json: '{"id": "${given.workflow.process.cases.start#admin.id}"}'
+        body_json: '{"action": "ok", "note": "Fine"}'
   - id: workflow.process.cases.cancel
     category: CATEGORY_ACTION
     method: POST
@@ -123,6 +171,11 @@ actions:
     safety: {changes: true}
     cli: {command: [workflow, cancel], args: [id]}
     ui: {entry: /tasks}
+    examples:
+      - name: default
+        given: ['workflow.process.cases.start#admin']
+        path_params_json: '{"id": "${given.workflow.process.cases.start#admin.id}"}'
+        body_json: '{"note": "No longer needed"}'
   - id: workflow.process.cases.sign
     category: CATEGORY_ACTION
     method: POST
@@ -146,6 +199,9 @@ actions:
     signed_in: true
     cli: {command: [workflow, tasks]}
     ui: {entry: /tasks}
+    examples:
+      - name: default
+        given: ['workflow.process.cases.start#admin']
   - id: workflow.process.links.info
     category: CATEGORY_ACTION
     method: GET
@@ -180,6 +236,9 @@ actions:
     signed_in: true
     cli: {command: [workflow, deputy]}
     ui: {entry: /tasks}
+    examples:
+      - name: default
+        as: self
   - id: workflow.process.deputy.set
     category: CATEGORY_ACTION
     method: PUT
@@ -192,6 +251,10 @@ actions:
     safety: {changes: true}
     cli: {command: [workflow, deputy-set]}
     ui: {entry: /tasks}
+    examples:
+      - name: default
+        as: self
+        body_json: '{"deputy": "${other.name}", "from": "2030-01-01", "until": "2030-01-31"}'
   - id: workflow.process.deputy.remove
     category: CATEGORY_ACTION
     method: DELETE
@@ -204,3 +267,8 @@ actions:
     safety: {changes: true}
     cli: {command: [workflow, deputy-remove]}
     ui: {entry: /tasks}
+    examples:
+      - name: default
+        given: ['workflow.process.deputy.set#default']
+        as: self
+        status: 204

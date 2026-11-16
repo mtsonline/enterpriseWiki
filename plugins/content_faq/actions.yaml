@@ -11,6 +11,11 @@ actions:
     permission: {key: core.category.view, scope: SCOPE_CATEGORY, category_param: "element:id"}
     cli: {command: [faq, questions], args: [id]}
     ui: {entry: /e/:id}
+    examples:
+      - name: default
+        given: ['core.elements.create#faq']
+        as: member
+        path_params_json: '{"id": "${given.core.elements.create#faq.id}"}'
   - id: content.faq.questions.create
     category: CATEGORY_ACTION
     method: POST
@@ -19,22 +24,36 @@ actions:
       text:
         en: Add a question to an FAQ (needs create in the category)
         de: Frage zu einer FAQ hinzufügen (braucht Anlegen in der Kategorie)
-    signed_in: true
     safety: {changes: true}
+    permission: {key: core.category.create, scope: SCOPE_CATEGORY, category_param: "element:id"}
     cli: {command: [faq, question], args: [id]}
     ui: {entry: /e/:id}
+    examples:
+      - name: default
+        given: ['core.elements.create#faq']
+        as: member
+        path_params_json: '{"id": "${given.core.elements.create#faq.id}"}'
+        body_json: '{"title": "How do I start? ${unique}", "body": {"format": "html", "source": "<p>Like this.</p>"}}'
+        status: 201
   - id: content.faq.categories.create
     category: CATEGORY_ACTION
     method: POST
     path: "elements/{id}/categories"
     summary:
       text:
-        en: Add a section to an FAQ (needs create)
-        de: Abschnitt zu einer FAQ hinzufügen (braucht Anlegen)
-    signed_in: true
+        en: Add a section to an FAQ (needs manage)
+        de: Abschnitt zu einer FAQ hinzufügen (braucht Verwalten)
     safety: {changes: true}
+    permission: {key: core.category.manage, scope: SCOPE_CATEGORY, category_param: "element:id"}
     cli: {command: [faq, category], args: [id]}
     ui: {entry: /e/:id}
+    examples:
+      - name: default
+        given: ['core.elements.create#faq']
+        as: member
+        path_params_json: '{"id": "${given.core.elements.create#faq.id}"}'
+        body_json: '{"titles": {"en": "Section ${unique}"}}'
+        status: 201
   - id: content.faq.feed
     category: CATEGORY_ACTION
     method: GET
@@ -46,3 +65,7 @@ actions:
     public: true
     cli: {command: [faq, feed], args: [id]}
     ui: {entry: /e/:id}
+    examples:
+      - name: default
+        given: ['core.elements.create#faq', 'content.faq.questions.create#default']
+        path_params_json: '{"id": "${given.core.elements.create#faq.id}"}'

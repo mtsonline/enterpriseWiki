@@ -26,6 +26,7 @@ import (
 	"github.com/mtsonline/enterprisewiki/internal/actions"
 	"github.com/mtsonline/enterprisewiki/internal/cli"
 	"github.com/mtsonline/enterprisewiki/internal/license"
+	"github.com/mtsonline/enterprisewiki/plugins/content_forms"
 )
 
 // examplesMissing lists the actions that have no example yet (phase 4 fills
@@ -58,6 +59,11 @@ func TestActionExamples(t *testing.T) {
 	old := license.PublicKeys
 	license.PublicKeys = append([]string{"Z4F+JgROb9aqvWoHoiAuUDQgz3wu5ahthXBydt4/XbQ="}, old...)
 	t.Cleanup(func() { license.PublicKeys = old })
+	// form examples submit right after opening the form; the waiting time
+	// against bots is checked in TestForms
+	oldAge := content_forms.MinAge
+	content_forms.MinAge = 0
+	t.Cleanup(func() { content_forms.MinAge = oldAge })
 
 	e := setup(t)
 	r := &exampleRunner{t: t, e: e, byID: byID}

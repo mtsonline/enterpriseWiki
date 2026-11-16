@@ -11,3 +11,6 @@ actions:
     public: true
     cli: {command: [theme, config]}
     ui: {entry: /}
+    examples:
+      - name: default
+        as: guest

@@ -11,3 +11,6 @@ actions:
     public: true
     cli: {command: [notice, tones]}
     ui: {entry: /e/:id}
+    examples:
+      - name: default
+        as: guest

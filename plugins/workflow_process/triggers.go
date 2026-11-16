@@ -31,7 +31,6 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 	"unicode/utf8"
 
@@ -415,15 +414,13 @@ func (pl *Plugin) listenQ(ctx context.Context, q db.Querier, ev webhook.Event) e
 
 // ---------------------------------------------------------------- worker
 
-var synced sync.Map // site -> true once all triggers were copied
-
 // runTriggers handles queued events and due schedules (background worker).
 func (pl *Plugin) runTriggers(ctx context.Context) error {
-	if _, done := synced.Load(pl.host.Site); !done {
+	if !pl.synced.Load() { // once per app: all triggers copied
 		if err := pl.syncAll(ctx); err != nil {
 			return err
 		}
-		synced.Store(pl.host.Site, true)
+		pl.synced.Store(true)
 	}
 	for i := 0; i < 100; i++ {
 		done, err := pl.queueOne(ctx)
