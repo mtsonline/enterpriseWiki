@@ -8,6 +8,9 @@
 #     user "elastic"), http://localhost:9202
 #   - Meilisearch (official release from GitHub), http://localhost:7701
 #
+# The disk watermarks are off: on machines with little free space the
+# engines would otherwise refuse to create indexes (test data is small).
+#
 # All run as normal processes, without containers, like tests/auth/start.sh,
 # so the tests work the same locally and in the CI. OpenSearch and
 # Elasticsearch refuse to run as root. Only the engines named in
@@ -85,6 +88,7 @@ case " $engines " in *" opensearch "*)
 	OPENSEARCH_JAVA_OPTS="-Xms512m -Xmx512m" "$work/opensearch/bin/opensearch" \
 		-Ediscovery.type=single-node -Ehttp.port=$os_port -Enetwork.host=127.0.0.1 \
 		-Eplugins.security.disabled=true -Epath.data="$work/opensearch/data" \
+		-Ecluster.routing.allocation.disk.threshold_enabled=false \
 		>"$work/opensearch.log" 2>&1 &
 	echo $! >"$work/opensearch.pid"
 	wait_http opensearch "http://127.0.0.1:$os_port/"
@@ -103,6 +107,7 @@ case " $engines " in *" elasticsearch "*)
 		-Ediscovery.type=single-node -Ehttp.port=$es_port -Enetwork.host=127.0.0.1 \
 		-Expack.security.enabled=true -Expack.security.http.ssl.enabled=false \
 		-Expack.security.transport.ssl.enabled=false -Expack.ml.enabled=false \
+		-Ecluster.routing.allocation.disk.threshold_enabled=false \
 		-Epath.data="$work/elasticsearch/data" >"$work/elasticsearch.log" 2>&1 &
 	echo $! >"$work/elasticsearch.pid"
 	wait_http elasticsearch "http://127.0.0.1:$es_port/" -u "elastic:$es_pw"
@@ -115,9 +120,10 @@ case " $engines " in *" meilisearch "*)
 	fetch "https://github.com/meilisearch/meilisearch/releases/download/v$MEILISEARCH_VERSION/meilisearch-linux-amd64" "meilisearch-$MEILISEARCH_VERSION"
 	chmod +x "$work/meilisearch-$MEILISEARCH_VERSION"
 	meili_key=$(secret)
-	rm -rf "$work/meili-data"
+	rm -rf "$work/meili-data" "$work/meili-dumps" "$work/meili-snapshots"
 	"$work/meilisearch-$MEILISEARCH_VERSION" --http-addr "127.0.0.1:$meili_port" --master-key "$meili_key" \
-		--db-path "$work/meili-data" --no-analytics --env development >"$work/meilisearch.log" 2>&1 &
+		--db-path "$work/meili-data" --dump-dir "$work/meili-dumps" --snapshot-dir "$work/meili-snapshots" \
+		--no-analytics --env development >"$work/meilisearch.log" 2>&1 &
 	echo $! >"$work/meilisearch.pid"
 	wait_http meilisearch "http://127.0.0.1:$meili_port/health"
 	echo "export EWIKI_TEST_MEILISEARCH_URL=http://127.0.0.1:$meili_port"
