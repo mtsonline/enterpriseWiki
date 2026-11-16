@@ -11,6 +11,9 @@ actions:
     signed_in: true
     cli: {command: [me, networks]}
     ui: {entry: /profile}
+    examples:
+      - name: default
+        as: self
   - id: mfa.network.set
     category: CATEGORY_ACTION
     method: PUT
@@ -26,6 +29,10 @@ actions:
       - way: WAY_CLI
         reason: "Second factors are set up and removed only in the browser, within 15 minutes after signing in (passkeys need the browser anyway)."
         approved_by: "project owner, decision of 2026-11-11 (second factors are only changed in the browser)"
+    examples:
+      - name: default
+        as: self
+        body_json: '{"networks": ["127.0.0.0/8", "192.0.2.0/24"]}'
   - id: mfa.network.user.show
     category: CATEGORY_ACTION
     method: GET
@@ -37,6 +44,10 @@ actions:
     permission: {key: core.users.manage, scope: SCOPE_GLOBAL}
     cli: {command: [user, networks], builtin: true}
     ui: {entry: /admin/users}
+    examples:
+      - name: default
+        as: member
+        path_params_json: '{"id": "${other.id}"}'
   - id: mfa.network.user.set
     category: CATEGORY_ACTION
     method: PUT
@@ -49,3 +60,8 @@ actions:
     safety: {changes: true}
     cli: {command: [user, networks], builtin: true}
     ui: {entry: /admin/users}
+    examples:
+      - name: default
+        as: member
+        path_params_json: '{"id": "${other.id}"}'
+        body_json: '{"networks": ["198.51.100.0/24"]}'

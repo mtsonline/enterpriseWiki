@@ -9,8 +9,14 @@ actions:
         en: List your passkeys and security keys
         de: Eigene Passkeys und Sicherheitsschlüssel auflisten
     signed_in: true
-    cli: {command: [me, passkeys]}
     ui: {entry: /profile}
+    exceptions:
+      - way: WAY_CLI
+        reason: "Passkeys and security keys are listed and managed only in a browser session (the API answers other callers with 403)."
+        approved_by: "project owner, decision of 2026-11-11 (second factors are only changed in the browser)"
+    examples:
+      - name: default
+        as: self
   - id: mfa.webauthn.remove
     category: CATEGORY_ACTION
     method: DELETE

@@ -11,6 +11,9 @@ actions:
     permission: {key: macro.shell.manage, scope: SCOPE_GLOBAL}
     cli: {command: [shell, list]}
     ui: {entry: /admin/shell}
+    examples:
+      - name: default
+        as: member
   - id: macro.shell.add
     category: CATEGORY_ACTION
     method: POST
