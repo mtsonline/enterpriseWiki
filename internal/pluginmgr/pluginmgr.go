@@ -174,7 +174,8 @@ func (m *Manager) OnDisk() (map[string]*coreplugin.Manifest, map[string]string, 
 	}
 	dir := m.PluginsDir()
 	if _, err := os.Stat(dir); err != nil {
-		if m.layout.Image() && errors.Is(err, os.ErrNotExist) {
+		// no folder yet: nothing installed (also without a source tree)
+		if errors.Is(err, os.ErrNotExist) {
 			return mans, dirs, nil
 		}
 		return nil, nil, err
@@ -410,6 +411,11 @@ func (m *Manager) Remove(_ context.Context, id string) error {
 	}
 	mf, ok := disk[id]
 	if !ok {
+		for _, p := range coreplugin.Registered() {
+			if p.Manifest().ID == id {
+				return apperr.BadRequest("plugin %s is part of the program and can only be disabled", id)
+			}
+		}
 		return apperr.NotFound("plugin source " + id)
 	}
 	if _, extra := dirs[id]; !extra {
@@ -454,6 +460,9 @@ func (m *Manager) StartBuild(_ context.Context, trigger string) (*BuildStatus, e
 		return nil, apperr.BadRequest("the lite image cannot build plugins: use the full image (ghcr.io/mtsonline/enterprisewiki:full) or your own build")
 	case "toolchain":
 		return nil, apperr.BadRequest("building requires the source tree with go.mod and the go and npm toolchains on this server")
+	case "cli":
+		// the command line is a short process: it builds in the foreground
+		return nil, apperr.BadRequest("the command line builds in the foreground: ewiki plugin build")
 	}
 	if trigger == "" {
 		trigger = "manual"

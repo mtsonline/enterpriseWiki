@@ -15,6 +15,11 @@ actions:
     success_status: 200
     cli: {command: [plugin, sources, check], args: [source], builtin: true}
     ui: {entry: /admin/plugins}
+    examples:
+      - name: default
+        as: admin
+        body_json: '{"source": "${local_plugin:acme.check${unique}}"}'
+        expect_json: '{"level": "external", "allowed": true}'
   - id: core.plugins.sources.list
     category: CATEGORY_ACTION
     method: GET
@@ -47,6 +52,15 @@ actions:
     safety: {changes: true, recent_sign_in: true, idempotent: true, audit_event: plugin.sources.add}
     cli: {command: [plugin, sources, add], args: [prefix], builtin: true}
     ui: {entry: /admin/plugins, control: {text: {en: Add, de: Eintragen}}}
+    examples:
+      - name: default
+        as: admin
+        body_json: '{"prefix": "${plugin_root}/team${unique}", "note": "Our team"}'
+        expect_json: '{"note": "Our team"}'
+      - name: whole_host
+        as: admin
+        body_json: '{"prefix": "https://git.example.com"}'
+        status: 400
   - id: core.plugins.sources.remove
     category: CATEGORY_ACTION
     method: DELETE
@@ -58,10 +72,15 @@ actions:
     permission: {key: core.plugins.manage, scope: SCOPE_GLOBAL, instance: true}
     query:
       json: '{"type": "object", "required": ["prefix"], "properties": {"prefix": {"type": "string"}}}'
-    success_status: 200
+    success_status: 204
     safety: {changes: true, idempotent: true, audit_event: plugin.sources.remove}
     cli: {command: [plugin, sources, remove], args: [prefix], builtin: true}
     ui: {entry: /admin/plugins}
+    examples:
+      - name: default
+        as: admin
+        given: [core.plugins.sources.add#default]
+        query_json: '{"prefix": "${given.core.plugins.sources.add#default.prefix}"}'
   - id: core.plugins.sources.external
     category: CATEGORY_ACTION
     method: PUT
@@ -77,3 +96,9 @@ actions:
     safety: {changes: true, idempotent: true}
     cli: {command: [plugin, sources, external], builtin: true}
     ui: {entry: /admin/plugins}
+    examples:
+      # forbidding needs no fresh sign-in (allowing does: TestCorePluginOrigin)
+      - name: forbid
+        as: admin
+        body_json: '{"allow": false}'
+        expect_json: '{"allow": false}'
