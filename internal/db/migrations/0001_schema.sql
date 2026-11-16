@@ -476,6 +476,23 @@ CREATE TABLE acl_rules (
 );
 CREATE INDEX acl_rules_category ON acl_rules(category_id);
 
+-- who may view a page is part of external search indexes (viewers): a
+-- changed rule sends the pages of the category and everything below again
+CREATE FUNCTION search_changes_acl() RETURNS trigger LANGUAGE plpgsql AS $$
+BEGIN
+    INSERT INTO search_changes(element_id)
+        SELECT e.id FROM elements e JOIN categories c ON c.id = e.category_id
+        WHERE c.path <@ (SELECT path FROM categories WHERE id = CASE WHEN TG_OP = 'DELETE' THEN OLD.category_id ELSE NEW.category_id END);
+    IF TG_OP = 'UPDATE' AND NEW.category_id <> OLD.category_id THEN
+        INSERT INTO search_changes(element_id)
+            SELECT e.id FROM elements e JOIN categories c ON c.id = e.category_id
+            WHERE c.path <@ (SELECT path FROM categories WHERE id = OLD.category_id);
+    END IF;
+    RETURN NULL;
+END $$;
+CREATE TRIGGER acl_rules_search_changed AFTER INSERT OR UPDATE OR DELETE ON acl_rules
+    FOR EACH ROW EXECUTE FUNCTION search_changes_acl();
+
 CREATE TABLE api_keys (
     id           bigserial PRIMARY KEY,
     user_id      bigint NOT NULL REFERENCES users(id) ON DELETE CASCADE,

@@ -12,6 +12,9 @@ type SearchQuery struct {
 	Lang   string // preferred language
 	Limit  int
 	Offset int
+	// Viewers restricts the matches to documents one of whose viewers is in
+	// the list (see acl.Tokens and acl.Viewers); nil means no restriction.
+	Viewers []string
 }
 
 // BackendHit is a document found by a search backend. Snippet and Title are

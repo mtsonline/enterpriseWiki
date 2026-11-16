@@ -52,7 +52,7 @@ Open from this area: deputies in workflows, automatic core update from the inter
 - Notifications: new workflow tasks, reminders, completion/cancellation of own cases, comments and answers; only to those entitled, can be switched off per user
 - Workflow step kinds: task, approval (four eyes, number or all), condition (branching by form data), send e-mail (recipients, Cc, sender, reply address, subject, text with placeholders for form, applicant, editor etc.), webhook (signed, with retries and error path), waiting time (fixed or until a date from the form), end; reminders after X days; templates application, approval, onboarding
 - Background jobs for core and plugins (`RegisterWorker`), coordinated in the cluster
-- `search.external`: OpenSearch/Elasticsearch or Meilisearch with automatic synchronisation through a change log, rebuild, fallback to PostgreSQL, permission check in the wiki
+- `search.external`: OpenSearch/Elasticsearch or Meilisearch with automatic synchronisation through a change log, rebuild, fallback to PostgreSQL; permissions already in the query (allowed people per document) and once more in the wiki
 
 Improvements after the first test (v7.3.1): *Edit category* and *Edit page* directly in the category view, menu dialog with positions of the active template, category selection and check of the entries, display of the template used on the plugin page, more positions in both templates, position preview, plugin `core.blocks` for text blocks at every position.
 

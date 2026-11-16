@@ -52,7 +52,7 @@ Offen aus diesem Bereich: Vertretungen in Workflows, automatisches Kern-Update a
 - Benachrichtigungen: neue Workflow-Aufgaben, Erinnerungen, Abschluss/Abbruch eigener Vorgänge, Kommentare und Antworten; nur an Berechtigte, je Benutzer abschaltbar
 - Workflow-Schrittarten: Aufgabe, Freigabe (Vier-Augen, Anzahl oder alle), Bedingung (Verzweigung nach Formularangaben), E-Mail senden (Empfänger, Cc, Absender, Antwortadresse, Betreff, Text mit Platzhaltern für Formular, Antragsteller, Bearbeiter usw.), Webhook (signiert, mit Wiederholungen und Fehlerpfad), Wartezeit (fest oder bis zu einem Datum aus dem Formular), Ende; Erinnerungen nach X Tagen; Vorlagen Bewerbung, Genehmigung, Einarbeitung
 - Hintergrundjobs für Kern und Plugins (`RegisterWorker`), im Cluster koordiniert
-- `search.external`: OpenSearch/Elasticsearch oder Meilisearch mit automatischer Synchronisation über ein Änderungsprotokoll, Neuaufbau, Rückfall auf PostgreSQL, Rechteprüfung im Wiki
+- `search.external`: OpenSearch/Elasticsearch oder Meilisearch mit automatischer Synchronisation über ein Änderungsprotokoll, Neuaufbau, Rückfall auf PostgreSQL; Rechte schon in der Abfrage (Berechtigte je Dokument) und noch einmal im Wiki
 
 Nachbesserungen nach dem ersten Test (v7.3.1): *Kategorie bearbeiten* und *Seite bearbeiten* direkt in der Kategorieansicht, Menü-Dialog mit Positionen der aktiven Vorlage, Kategorie-Auswahl und Prüfung der Einträge, Anzeige der verwendeten Vorlage auf der Plugin-Seite, mehr Positionen in beiden Vorlagen, Positionsvorschau, Plugin `core.blocks` für Textblöcke an jeder Position.
 

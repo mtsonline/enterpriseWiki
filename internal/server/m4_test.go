@@ -14,6 +14,7 @@ import (
 	"net"
 	"net/http"
 	"net/http/httptest"
+	"slices"
 	"sort"
 	"strings"
 	"sync"
@@ -561,7 +562,16 @@ type fakeEngine struct {
 	auth string
 }
 
-func (f *fakeEngine) match(q string, d map[string]any, tags []string) bool {
+func (f *fakeEngine) match(q string, d map[string]any, tags, viewers []string) bool {
+	if viewers != nil {
+		found := false
+		for _, v := range d["viewers"].([]any) {
+			found = found || slices.Contains(viewers, v.(string))
+		}
+		if !found {
+			return false
+		}
+	}
 	text := strings.ToLower(fmt.Sprint(d["title"], " ", d["text"], " ", d["tags"]))
 	for _, w := range strings.Fields(strings.ToLower(q)) {
 		if !strings.Contains(text, w) {
@@ -647,14 +657,22 @@ func (f *fakeEngine) meili() http.Handler {
 			fmt.Fprintf(w, `{"numberOfDocuments":%d}`, len(f.docs))
 		case strings.HasSuffix(p, "/search"):
 			tags := []string{}
+			var viewers []string
 			if fs, ok := body["filter"].(string); ok {
 				for _, part := range strings.Split(fs, " AND ") {
+					if list, ok := strings.CutPrefix(part, "viewers IN ["); ok {
+						viewers = []string{}
+						for _, v := range strings.Split(strings.TrimSuffix(list, "]"), ", ") {
+							viewers = append(viewers, strings.Trim(v, `"`))
+						}
+						continue
+					}
 					tags = append(tags, strings.Trim(strings.TrimPrefix(part, "tags = "), `"`))
 				}
 			}
 			hits := []map[string]any{}
 			for _, d := range f.sorted() {
-				if f.match(body["q"].(string), d, tags) {
+				if f.match(body["q"].(string), d, tags, viewers) {
 					hits = append(hits, map[string]any{"element_id": d["element_id"], "lang": d["lang"], "title": d["title"], "_rankingScore": 0.9,
 						"_formatted": map[string]any{"text": "\x01" + body["q"].(string) + "\x02 <b>bold</b>"}})
 				}
@@ -710,12 +728,20 @@ func (f *fakeEngine) opensearch() http.Handler {
 			b := body["query"].(map[string]any)["bool"].(map[string]any)
 			q := b["must"].([]any)[0].(map[string]any)["multi_match"].(map[string]any)["query"].(string)
 			tags := []string{}
+			var viewers []string
 			for _, x := range b["filter"].([]any) {
+				if t, ok := x.(map[string]any)["terms"]; ok {
+					viewers = []string{}
+					for _, v := range t.(map[string]any)["viewers"].([]any) {
+						viewers = append(viewers, v.(string))
+					}
+					continue
+				}
 				tags = append(tags, x.(map[string]any)["term"].(map[string]any)["tags"].(string))
 			}
 			hits := []map[string]any{}
 			for _, d := range f.sorted() {
-				if f.match(q, d, tags) {
+				if f.match(q, d, tags, viewers) {
 					hits = append(hits, map[string]any{"_score": 3.2, "_source": map[string]any{"element_id": d["element_id"], "lang": d["lang"], "title": d["title"]},
 						"highlight": map[string]any{"text": []string{"…\x01" + q + "\x02…"}}})
 				}
@@ -786,6 +812,29 @@ func TestExternalSearch(t *testing.T) {
 			if len(res.Elements) != 1 {
 				t.Fatalf("tag filter: %+v", res)
 			}
+			// a wrong index cannot show more: the wiki checks every hit itself
+			f.mu.Lock()
+			for _, d := range f.docs {
+				d["viewers"] = []any{"guest"}
+			}
+			f.mu.Unlock()
+			guest.must("GET", "/api/v1/search?q=zebra", nil, &res, 200)
+			if len(res.Elements) != 1 || res.Elements[0].ElementID != e1.ID {
+				t.Fatalf("index with wrong viewers: %+v", res)
+			}
+			// the query carries the viewers of the caller
+			f.mu.Lock()
+			for _, d := range f.docs {
+				d["viewers"] = []any{"user:999999"}
+			}
+			f.mu.Unlock()
+			guest.must("GET", "/api/v1/search?q=zebra", nil, &res, 200)
+			if res.Engine != engine || len(res.Elements) != 0 {
+				t.Fatalf("viewers not filtered: %+v", res)
+			}
+			// back to the real viewers
+			admin.must("POST", "/api/v1/x/search.external/reindex", nil, nil, 204)
+			run()
 			// changes follow: new page, trash
 			var e3 elem
 			admin.must("POST", "/api/v1/elements", map[string]any{"category_id": root.ID, "type": "core.html", "title": "Okapi", "body": htmlBody("<p>okapi facts</p>")}, &e3, 201)
