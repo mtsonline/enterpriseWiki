@@ -845,6 +845,10 @@ actions:
         as: self
         path_params_json: '{"method": "totp"}'
         body_json: '{}'
+      - name: webauthn
+        as: self
+        path_params_json: '{"method": "webauthn"}'
+        body_json: '{"passkey": false}'
   - id: core.me.mfa.setup.finish
     category: CATEGORY_ACTION
     method: POST
@@ -873,3 +877,9 @@ actions:
         path_params_json: '{"method": "totp"}'
         body_json: '{"code": "000000"}'
         status: 401
+      - name: webauthn
+        given: ['core.me.mfa.setup.begin#webauthn']
+        as: self
+        path_params_json: '{"method": "webauthn"}'
+        body_json: '{"name": "Laptop", "credential": ${webauthn.create:core.me.mfa.setup.begin#webauthn}}'
+        status: 204

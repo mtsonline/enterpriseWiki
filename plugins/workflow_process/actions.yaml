@@ -54,6 +54,11 @@ actions:
         path_params_json: '{"id": "${given.core.elements.create#workflow.id}"}'
         body_json: '{"data": {"subject": "Holiday", "doc": {"hash": "${given.core.files.upload#default.hash}", "name": "notes.txt"}}}'
         status: 201
+      - name: signed
+        given: ['core.elements.create#signed_workflow']
+        path_params_json: '{"id": "${given.core.elements.create#signed_workflow.id}"}'
+        body_json: '{"data": {}}'
+        status: 201
   - id: workflow.process.stats
     category: CATEGORY_ACTION
     method: GET
@@ -159,6 +164,17 @@ actions:
         given: ['workflow.process.cases.start#admin']
         path_params_json: '{"id": "${given.workflow.process.cases.start#admin.id}"}'
         body_json: '{"action": "ok", "note": "Fine"}'
+      - name: signed
+        given: ['workflow.process.cases.sign#default']
+        as: self
+        path_params_json: '{"id": "${given.workflow.process.cases.start#signed.id}"}'
+        body_json: '{"action": "ok", "note": "Agreed", "signature": {"token": "${given.workflow.process.cases.sign#default.token}", "answer": ${webauthn.get:workflow.process.cases.sign#default.challenge.public}}}'
+      - name: unsigned
+        given: ['core.me.mfa.setup.finish#webauthn', 'workflow.process.cases.start#signed', 'core.categories.acl.add#self_view']
+        as: self
+        path_params_json: '{"id": "${given.workflow.process.cases.start#signed.id}"}'
+        body_json: '{"action": "ok", "note": "Agreed"}'
+        status: 428
   - id: workflow.process.cases.cancel
     category: CATEGORY_ACTION
     method: POST
@@ -188,6 +204,12 @@ actions:
     safety: {changes: true}
     cli: {command: [workflow, sign], args: [id]}
     ui: {entry: /tasks}
+    examples:
+      - name: default
+        given: ['core.me.mfa.setup.finish#webauthn', 'workflow.process.cases.start#signed', 'core.categories.acl.add#self_view']
+        as: self
+        path_params_json: '{"id": "${given.workflow.process.cases.start#signed.id}"}'
+        body_json: '{"action": "ok", "note": "Agreed", "method": "signature.passkey"}'
   - id: workflow.process.tasks
     category: CATEGORY_ACTION
     method: GET

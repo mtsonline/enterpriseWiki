@@ -185,6 +185,10 @@ actions:
         as: member
         path_params_json: '{"id": "${given.core.categories.create#default.id}"}'
         body_json: '{"key": "SP${unique}"}'
+      - name: template
+        given: ['core.categories.create#default']
+        path_params_json: '{"id": "${given.core.categories.create#default.id}"}'
+        body_json: '{"key": "TPL${unique}", "is_template": true}'
   - id: core.categories.archive
     category: CATEGORY_ACTION
     method: POST
@@ -364,6 +368,12 @@ actions:
     safety: {changes: true}
     cli: {command: [category, import]}
     ui: {entry: /c/:id/settings}
+    examples:
+      - name: default
+        given: ['core.categories.export#default']
+        as: member
+        body_text: '${given.core.categories.export#default.$raw}'
+        status: 201
   - id: core.categories.insights
     category: CATEGORY_ACTION
     method: GET
@@ -487,6 +497,10 @@ actions:
       - name: with_image
         given: ['core.categories.create#default', 'core.files.upload#png']
         body_json: '{"category_id": ${given.core.categories.create#default.id}, "type": "core.html", "title": "Picture ${unique}", "body": {"format": "html", "source": "<p><img src=\"/api/v1/files/${given.core.files.upload#png.hash}\" alt=\"Dot\"></p>"}}'
+        status: 201
+      - name: signed_workflow
+        given: ['core.categories.create#default']
+        body_json: '{"category_id": ${given.core.categories.create#default.id}, "type": "workflow.process", "title": "Contract ${unique}", "body": {"description": "Contract", "fields": [], "steps": [{"id": "check", "name": "Check", "type": "task", "sign": "advanced", "assignee": {"type": "user", "value": "${self.name}"}, "actions": [{"id": "ok", "label": "Agree", "next": "done"}]}, {"id": "done", "name": "Done", "type": "end", "outcome": "success"}]}}'
         status: 201
   - id: core.elements.update
     category: CATEGORY_ACTION
@@ -659,6 +673,11 @@ actions:
     permission: {key: core.category.view, scope: SCOPE_CATEGORY, category_param: "element:id"}
     cli: {command: [element, macro], args: [id, index]}
     ui: {entry: /e/:id}
+    examples:
+      - name: default
+        given: ['core.elements.create#report_page']
+        as: member
+        path_params_json: '{"id": "${given.core.elements.create#report_page.id}", "index": "1"}'
   - id: core.elements.preview
     category: CATEGORY_ACTION
     method: POST
@@ -924,6 +943,11 @@ actions:
     safety: {changes: true}
     cli: {command: [space, create]}
     ui: {entry: /spaces}
+    examples:
+      - name: default
+        given: ['core.categories.space#template']
+        body_json: '{"template_id": ${given.core.categories.create#default.id}, "titles": {"en": "Project ${unique}"}, "key": "P${unique}"}'
+        status: 201
   - id: core.spaces.personal
     category: CATEGORY_ACTION
     method: POST
@@ -1388,6 +1412,11 @@ actions:
     signed_in: true
     cli: {command: [signature, show], args: [id]}
     ui: {entry: /signatures/verify}
+    examples:
+      - name: default
+        given: ['workflow.process.cases.act#signed']
+        as: self
+        path_params_json: '{"id": "${given.workflow.process.cases.act#signed.events.-1.signature}"}'
   - id: core.signatures.check
     category: CATEGORY_ACTION
     method: GET
@@ -1399,6 +1428,12 @@ actions:
     signed_in: true
     cli: {command: [signature, check], args: [id]}
     ui: {entry: /signatures/verify}
+    examples:
+      - name: default
+        given: ['workflow.process.cases.act#signed']
+        as: self
+        path_params_json: '{"id": "${given.workflow.process.cases.act#signed.events.-1.signature}"}'
+        expect_json: '{"valid": true}'
   - id: core.signatures.export
     category: CATEGORY_ACTION
     method: GET
@@ -1410,6 +1445,11 @@ actions:
     signed_in: true
     cli: {command: [signature, export], args: [id]}
     ui: {entry: /signatures/verify}
+    examples:
+      - name: default
+        given: ['workflow.process.cases.act#signed']
+        as: self
+        path_params_json: '{"id": "${given.workflow.process.cases.act#signed.events.-1.signature}"}'
   - id: core.signatures.verify
     category: CATEGORY_ACTION
     method: POST
@@ -1422,3 +1462,9 @@ actions:
     safety: {changes: true}
     cli: {command: [signature, verify], builtin: true}
     ui: {entry: /signatures/verify}
+    examples:
+      - name: default
+        given: ['core.signatures.export#default']
+        as: self
+        expect_json: '{"valid": true}'
+        body_text: '${given.core.signatures.export#default.$raw}'

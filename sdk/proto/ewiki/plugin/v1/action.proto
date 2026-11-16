@@ -233,6 +233,10 @@ message Example {
   // together with body_json.
   repeated FormField form = 10;
   repeated ExampleFile files = 11;
+  // A body that is not JSON (e.g. JSON Lines of an export), placeholders
+  // allowed; "${given.<name>.$raw}" is the whole answer of a given
+  // example. Not together with body_json or an upload.
+  string body_text = 12;
 }
 
 message FormField {

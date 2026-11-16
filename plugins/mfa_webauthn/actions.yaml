@@ -17,6 +17,9 @@ actions:
     examples:
       - name: default
         as: self
+      - name: after
+        given: ['core.me.mfa.setup.finish#webauthn']
+        as: self
   - id: mfa.webauthn.remove
     category: CATEGORY_ACTION
     method: DELETE
@@ -32,3 +35,9 @@ actions:
       - way: WAY_CLI
         reason: "Second factors are set up and removed only in the browser, within 15 minutes after signing in (passkeys need the browser anyway)."
         approved_by: "project owner, decision of 2026-11-11 (second factors are only changed in the browser)"
+    examples:
+      - name: default
+        given: ['core.me.mfa.setup.finish#webauthn', 'mfa.webauthn.list#after']
+        as: self
+        path_params_json: '{"id": "${given.mfa.webauthn.list#after.0.id}"}'
+        status: 204
