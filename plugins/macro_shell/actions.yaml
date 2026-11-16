@@ -26,6 +26,12 @@ actions:
     safety: {changes: true}
     cli: {command: [shell, add]}
     ui: {entry: /admin/shell}
+    examples:
+      - name: default
+        as: member
+        body_json: '{"command": "echo hello ${unique}"}'
+      - name: approved
+        body_json: '{"command": "date +%Y-%m-%d ${unique}", "approve": true}'
   - id: macro.shell.approve
     category: CATEGORY_ACTION
     method: POST
@@ -38,6 +44,16 @@ actions:
     safety: {changes: true}
     cli: {command: [shell, approve], args: [hash]}
     ui: {entry: /admin/shell}
+    examples:
+      - name: default
+        given: ['macro.shell.add#default']
+        path_params_json: '{"hash": "${given.macro.shell.add#default.hash}"}'
+        status: 204
+      - name: not_listed
+        given: ['macro.shell.add#default']
+        as: member
+        path_params_json: '{"hash": "${given.macro.shell.add#default.hash}"}'
+        status: 403
   - id: macro.shell.revoke
     category: CATEGORY_ACTION
     method: POST
@@ -50,6 +66,11 @@ actions:
     safety: {changes: true}
     cli: {command: [shell, revoke], args: [hash]}
     ui: {entry: /admin/shell}
+    examples:
+      - name: default
+        given: ['macro.shell.add#approved']
+        path_params_json: '{"hash": "${given.macro.shell.add#approved.hash}"}'
+        status: 204
   - id: macro.shell.delete
     category: CATEGORY_ACTION
     method: DELETE
@@ -62,3 +83,8 @@ actions:
     safety: {changes: true}
     cli: {command: [shell, delete], args: [hash]}
     ui: {entry: /admin/shell}
+    examples:
+      - name: default
+        given: ['macro.shell.add#default']
+        path_params_json: '{"hash": "${given.macro.shell.add#default.hash}"}'
+        status: 204

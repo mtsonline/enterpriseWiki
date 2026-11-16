@@ -28,6 +28,7 @@ import (
 	"github.com/mtsonline/enterprisewiki/internal/acl"
 	"github.com/mtsonline/enterprisewiki/internal/actions"
 	"github.com/mtsonline/enterprisewiki/internal/cli"
+	"github.com/mtsonline/enterprisewiki/internal/config"
 	"github.com/mtsonline/enterprisewiki/internal/license"
 	"github.com/mtsonline/enterprisewiki/plugins/content_forms"
 	"github.com/mtsonline/enterprisewiki/plugins/mfa_totp"
@@ -38,10 +39,12 @@ import (
 const examplesMissing = "../actions/examples-missing.txt"
 
 var (
-	totpRe    = regexp.MustCompile(`\$\{totp:([A-Za-z2-7= ]+)\}`)
-	personRe  = regexp.MustCompile(`\$\{(self|other)\.([a-z]+)\}`)
-	givenRe   = regexp.MustCompile(`\$\{given\.([^#}]+#[^.}]+)\.([^}]+)\}`)
-	httpErrRe = regexp.MustCompile(`HTTP (\d{3})`)
+	totpRe     = regexp.MustCompile(`\$\{totp:([A-Za-z2-7= ]+)\}`)
+	webauthnRe = regexp.MustCompile(`\$\{webauthn\.(create|get):([^#}]+#[^.}]+)\.?([^}]*)\}`)
+	pkcs12Re   = regexp.MustCompile(`\$\{pkcs12:([^}]+)\}`)
+	personRe   = regexp.MustCompile(`\$\{(self|other)\.([a-z]+)\}`)
+	givenRe    = regexp.MustCompile(`\$\{given\.([^#}]+#[^.}]+)\.([^}]+)\}`)
+	httpErrRe  = regexp.MustCompile(`HTTP (\d{3})`)
 )
 
 // TestActionExamples (phase 4, stage 2): every example of the action
@@ -70,9 +73,21 @@ func TestActionExamples(t *testing.T) {
 	content_forms.MinAge = 0
 	t.Cleanup(func() { content_forms.MinAge = oldAge })
 
-	e := setup(t)
+	// the administrator approves shell commands (plugins.macros.shell_approvers);
+	// a member who may manage them but is not listed is refused
+	e := setupWith(t, func(c *config.Config) {
+		c.Plugins.Macros.ShellApprovers = []string{"admin@local"}
+		c.Mail.From = "wiki@example.com" // the address of S/MIME certificates of the organisation
+	})
 	t.Setenv("EWIKI_CONFIG", e.cfg) // the command line way (set before the parallel examples)
-	r := &exampleRunner{t: t, e: e, byID: byID, seq: new(atomic.Int64), out: &sharedWho{}}
+	r := &exampleRunner{t: t, e: e, byID: byID, seq: new(atomic.Int64), out: &sharedWho{},
+		shared: &struct {
+			caOnce sync.Once
+			ca     *testCA
+		}{}}
+	// passkeys (setting up, signing): the authenticator of the tests
+	r.origin = "http://localhost:" + mustPort(e.srv.URL)
+	e.setPluginSettings(t, "mfa.webauthn", map[string]any{"rp_id": "localhost", "origins": []any{r.origin}})
 	r.admin = e.client()
 	r.admin.login("admin", adminPW)
 	var perms struct {
@@ -218,6 +233,12 @@ type exampleRunner struct {
 	admin *client
 	seq   *atomic.Int64 // shared by the parallel examples: unique names
 	out   *sharedWho    // the outsider (one for the run)
+	// shared by the parallel examples
+	shared *struct {
+		caOnce sync.Once
+		ca     *testCA
+	}
+	origin string // of the passkeys (the server is reached as localhost)
 	// permissions every signed-in person has by default
 	defaults map[string]bool
 }
@@ -327,6 +348,7 @@ func (r *exampleRunner) given(refs []string, vars map[string]any, depth int) {
 			t.Fatalf("given %s: %d %s", ref, res.status, res.raw)
 		}
 		vars[ref] = res.body
+		vars[ref+rawSuffix] = res.raw      // ${given.REF.$raw}
 		if res.body == nil && body != "" { // no answer (204): the request names what was done
 			var in any
 			_ = json.Unmarshal([]byte(body), &in)
@@ -367,6 +389,9 @@ func (r *exampleRunner) request(a actions.Action, ex actions.Example, vars map[s
 		if !json.Valid([]byte(body)) {
 			t.Fatalf("body_json is not valid JSON after filling in: %s", body)
 		}
+	}
+	if ex.BodyText != "" { // not JSON (e.g. JSON Lines of an export)
+		body = r.subst(ex.BodyText, vars)
 	}
 	var up *upload
 	if len(ex.Form) > 0 || len(ex.Files) > 0 {
@@ -422,6 +447,51 @@ func (u *upload) encode() ([]byte, string) {
 	return buf.Bytes(), w.FormDataContentType()
 }
 
+// field follows a path (a.b.0.c; -1 is the last element of a list) in
+// an answer.
+func (r *exampleRunner) field(m string, res any, path string) any {
+	v := res
+	if path == "" {
+		return v
+	}
+	for _, f := range strings.Split(path, ".") {
+		switch x := v.(type) {
+		case map[string]any:
+			v = x[f]
+		case []any: // list element by position
+			i, err := strconv.Atoi(f)
+			if err == nil && i < 0 {
+				i += len(x)
+			}
+			if err != nil || i < 0 || i >= len(x) {
+				r.t.Fatalf("%s: no element %s in %v", m, f, res)
+			}
+			v = x[i]
+		default:
+			v = nil
+		}
+	}
+	return v
+}
+
+// authenticator is the software passkey of the example's own account.
+func (r *exampleRunner) authenticator(vars map[string]any) *authenticator {
+	p, ok := vars[selfKey].(*person)
+	if !ok {
+		r.t.Fatal("webauthn placeholders need an example as self")
+	}
+	if p.key == nil {
+		p.key = newAuthenticator(r.t, r.origin)
+	}
+	return p.key
+}
+
+// ca is the certification authority of the tests (one for the run).
+func (r *exampleRunner) ca() *testCA {
+	r.shared.caOnce.Do(func() { r.shared.ca = newTestCA(r.t) })
+	return r.shared.ca
+}
+
 // subst fills in ${given.REF.FIELD}, ${self.FIELD}, ${other.FIELD} and
 // ${unique}.
 func (r *exampleRunner) subst(s string, vars map[string]any) string {
@@ -450,21 +520,11 @@ func (r *exampleRunner) subst(s string, vars map[string]any) string {
 		if !ok {
 			r.t.Fatalf("%s: %s is not given", m, p[1])
 		}
-		v := res
-		for _, f := range strings.Split(p[2], ".") {
-			switch x := v.(type) {
-			case map[string]any:
-				v = x[f]
-			case []any: // list element by position
-				i, err := strconv.Atoi(f)
-				if err != nil || i < 0 || i >= len(x) {
-					r.t.Fatalf("%s: no element %s in %v", m, f, res)
-				}
-				v = x[i]
-			default:
-				v = nil
-			}
+		if p[2] == "$raw" { // the whole answer as it came
+			raw, _ := vars[p[1]+rawSuffix].(string)
+			return raw
 		}
+		v := r.field(m, res, p[2])
 		switch x := v.(type) {
 		case nil:
 			r.t.Fatalf("%s: no such field in %v", m, res)
@@ -480,6 +540,35 @@ func (r *exampleRunner) subst(s string, vars map[string]any) string {
 			return string(b)
 		}
 		return fmt.Sprint(v)
+	})
+	// ${webauthn.create:REF} and ${webauthn.get:REF.PATH}: the answer of
+	// the software authenticator of the example's own account to the
+	// options of a given example (setting up a passkey, signing)
+	s = webauthnRe.ReplaceAllStringFunc(s, func(m string) string {
+		sm := webauthnRe.FindStringSubmatch(m)
+		res, ok := vars[sm[2]]
+		if !ok {
+			r.t.Fatalf("%s: %s is not given", m, sm[2])
+		}
+		opts, _ := r.field(m, res, sm[3]).(map[string]any)
+		if opts == nil {
+			r.t.Fatalf("%s: no options", m)
+		}
+		key := r.authenticator(vars)
+		var answer map[string]any
+		if sm[1] == "create" {
+			answer = key.create(opts)
+		} else {
+			answer = key.get(opts)
+		}
+		b, _ := json.Marshal(answer)
+		return string(b)
+	})
+	// ${pkcs12:ADDRESS}: a certificate with its key for ADDRESS from a
+	// certification authority of the tests, as PKCS#12 (password "s")
+	s = pkcs12Re.ReplaceAllStringFunc(s, func(m string) string {
+		c, k := r.ca().issue(r.t, []string{pkcs12Re.FindStringSubmatch(m)[1]}, 365*24*time.Hour, false)
+		return r.ca().p12(r.t, c, k, "s")
 	})
 	// ${totp:SECRET}: the current code of an authenticator app (after
 	// ${given…} is filled in, e.g. ${totp:${given.….secret}})
@@ -571,11 +660,13 @@ type person struct {
 	who
 	id             int64
 	name, password string
+	key            *authenticator // software passkey (created when first used)
 }
 
 const (
-	selfKey  = "\x00self" // keys in vars beside the given references
-	otherKey = "\x00other"
+	rawSuffix = "\x00raw"  // the whole answer of a given reference
+	selfKey   = "\x00self" // keys in vars beside the given references
+	otherKey  = "\x00other"
 )
 
 // other returns the other person of an example (created when first used).
@@ -676,6 +767,9 @@ func (r *exampleRunner) do(way string, a actions.Action, w who, path string, que
 		ctype := "application/json"
 		if body != "" {
 			rd = strings.NewReader(body)
+			if !json.Valid([]byte(body)) {
+				ctype = "text/plain; charset=utf-8"
+			}
 		}
 		if up != nil {
 			b, ct := up.encode()
@@ -707,7 +801,15 @@ func (r *exampleRunner) do(way string, a actions.Action, w who, path string, que
 		}
 	}
 	if body != "" {
-		args = append(args, "--json", body)
+		if json.Valid([]byte(body)) {
+			args = append(args, "--json", body)
+		} else { // the command line takes other bodies from a file
+			p := filepath.Join(r.t.TempDir(), "body")
+			if err := os.WriteFile(p, []byte(body), 0o600); err != nil {
+				r.t.Fatal(err)
+			}
+			args = append(args, "--json", "@"+p)
+		}
 	}
 	if up != nil {
 		dir := r.t.TempDir()

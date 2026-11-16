@@ -94,6 +94,8 @@ type Example struct {
 	// Form and Files make the request multipart/form-data (uploads).
 	Form  []FormField   `yaml:"form,omitempty"`
 	Files []ExampleFile `yaml:"files,omitempty"`
+	// BodyText is a body that is not JSON (e.g. JSON Lines).
+	BodyText string `yaml:"body_text,omitempty"`
 }
 
 // FormField is ewiki.plugin.v1.FormField.
@@ -401,6 +403,9 @@ func Validate(all []Action) error {
 		for _, ex := range a.Examples {
 			if ex.Name == "" {
 				fail(a, "examples need a name")
+			}
+			if ex.BodyText != "" && (ex.BodyJSON != "" || len(ex.Form) > 0 || len(ex.Files) > 0) {
+				fail(a, "example %s: body_text excludes body_json and form/files", ex.Name)
 			}
 			if (len(ex.Form) > 0 || len(ex.Files) > 0) && ex.BodyJSON != "" {
 				fail(a, "example %s: form/files (multipart) and body_json exclude each other", ex.Name)

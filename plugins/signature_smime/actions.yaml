@@ -65,6 +65,10 @@ actions:
     safety: {changes: true, secret_fields: [password, file]}
     cli: {command: [smime, add], builtin: true}
     ui: {entry: /admin/smime, control: {text: {en: Add certificate, de: Zertifikat hinzufügen}}}
+    examples:
+      - name: default
+        body_json: '{"scope": "org", "label": "Seal ${unique}", "file": "${pkcs12:wiki@example.com}", "password": "s", "seal": false}'
+        status: 201
   - id: signature.smime.cert.get
     category: CATEGORY_ACTION
     method: GET
@@ -77,6 +81,10 @@ actions:
     success_status: 200
     cli: {command: [smime, show], args: [id]}
     ui: {entry: /admin/smime}
+    examples:
+      - name: default
+        given: ['signature.smime.cert.add#default']
+        path_params_json: '{"id": "${given.signature.smime.cert.add#default.id}"}'
   - id: signature.smime.cert.change
     category: CATEGORY_ACTION
     method: PATCH
@@ -90,6 +98,11 @@ actions:
     safety: {changes: true, idempotent: true}
     cli: {command: [smime, set], builtin: true}
     ui: {entry: /admin/smime}
+    examples:
+      - name: default
+        given: ['signature.smime.cert.add#default']
+        path_params_json: '{"id": "${given.signature.smime.cert.add#default.id}"}'
+        body_json: '{"label": "Renamed"}'
   - id: signature.smime.cert.delete
     category: CATEGORY_ACTION
     method: DELETE
@@ -103,6 +116,11 @@ actions:
     safety: {changes: true, idempotent: true}
     cli: {command: [smime, remove], builtin: true}
     ui: {entry: /admin/smime}
+    examples:
+      - name: default
+        given: ['signature.smime.cert.add#default']
+        path_params_json: '{"id": "${given.signature.smime.cert.add#default.id}"}'
+        status: 204
   - id: signature.smime.me
     category: CATEGORY_ACTION
     method: GET
