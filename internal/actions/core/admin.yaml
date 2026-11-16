@@ -35,6 +35,12 @@ actions:
         body_json: '{"mail": {"transport": "log", "from": "wiki@example.com"}}'
       - name: mail_off
         body_json: '{"mail": {"transport": "none", "from": "wiki@example.com"}}'
+      - name: links_without_login
+        body_json: '{"plugin_settings": {"workflow.process": {"links_without_login": true}}}'
+      - name: links_need_login
+        body_json: '{"plugin_settings": {"workflow.process": {"links_without_login": false}}}'
+      - name: mail_smtp
+        body_json: '{"mail": {"transport": "smtp", "from": "wiki@example.com", "smtp": {"host": "127.0.0.1", "port": ${smtp_port}, "security": "none"}}}'
   - id: core.retention.run
     category: CATEGORY_ACTION
     method: POST

@@ -59,6 +59,11 @@ actions:
         path_params_json: '{"id": "${given.core.elements.create#signed_workflow.id}"}'
         body_json: '{"data": {}}'
         status: 201
+      - name: links
+        given: ['core.settings.update#mail_smtp', 'core.me.emails.primary#default', 'core.elements.create#link_workflow', 'core.categories.acl.add#self_view']
+        path_params_json: '{"id": "${given.core.elements.create#link_workflow.id}"}'
+        body_json: '{"data": {}}'
+        status: 201
   - id: workflow.process.stats
     category: CATEGORY_ACTION
     method: GET
@@ -235,6 +240,11 @@ actions:
     public: true
     cli: {command: [workflow, link-info]}
     ui: {entry: /workflow/link}
+    examples:
+      - name: default
+        given: ['workflow.process.cases.start#links']
+        as: guest
+        query_json: '{"t": "${mail_link:${given.core.users.emails.add#self_verified.email}:t}"}'
   - id: workflow.process.links.act
     category: CATEGORY_ACTION
     method: POST
@@ -247,6 +257,16 @@ actions:
     safety: {changes: true}
     cli: {command: [workflow, link-act]}
     ui: {entry: /workflow/link}
+    examples:
+      - name: default
+        given: ['workflow.process.cases.start#links', 'core.settings.update#links_without_login']
+        as: guest
+        body_json: '{"t": "${mail_link:${given.core.users.emails.add#self_verified.email}:t}", "note": "Approved by e-mail"}'
+      - name: guest_refused
+        given: ['workflow.process.cases.start#links', 'core.settings.update#links_need_login']
+        as: guest
+        body_json: '{"t": "${mail_link:${given.core.users.emails.add#self_verified.email}:t}"}'
+        status: 403
   - id: workflow.process.deputy.get
     category: CATEGORY_ACTION
     method: GET
