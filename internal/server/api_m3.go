@@ -187,14 +187,15 @@ func (s *Server) routesM4() {
 			return nil, apperr.NotFound("user")
 		}
 		prefs := map[string]bool{}
-		for _, k := range mail.NotificationKinds {
+		kinds := mail.NotificationKinds()
+		for _, k := range kinds {
 			v, ok := us[0].Notify[k]
 			if !ok {
 				v = mail.DefaultOn(k)
 			}
 			prefs[k] = v
 		}
-		return map[string]any{"email": us[0].Email, "prefs": prefs, "kinds": mail.NotificationKinds, "labels": mail.KindLabels, "enabled": s.app.Mail.Enabled()}, nil
+		return map[string]any{"email": us[0].Email, "prefs": prefs, "kinds": kinds, "labels": mail.KindLabels(), "enabled": s.app.Mail.Enabled()}, nil
 	})
 	// action: core.me.notifications.set
 	s.handle("PUT /api/v1/me/notifications", func(w http.ResponseWriter, r *http.Request) (any, error) {

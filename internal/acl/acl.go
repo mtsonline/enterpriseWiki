@@ -24,6 +24,7 @@ import (
 	"sync"
 	"sync/atomic"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/mtsonline/enterprisewiki/internal/events"
@@ -85,20 +86,28 @@ type Service struct {
 	pool *pgxpool.Pool
 	log  *slog.Logger
 	snap atomic.Pointer[snapshot]
-	mu   sync.Mutex // serializes rebuilds
+	gen  atomic.Uint64 // bumped by every invalidation
+	mu   sync.Mutex    // serializes rebuilds
+	// builder reads a snapshot (s.build; replaced in tests)
+	builder func(context.Context) (*snapshot, error)
 }
 
 // New creates the ACL service.
 func New(pool *pgxpool.Pool, bus *events.Bus, log *slog.Logger) *Service {
 	s := &Service{pool: pool, log: log}
-	inv := func(string) { s.snap.Store(nil) }
+	s.builder = s.build
+	inv := func(string) { s.Invalidate() }
 	bus.Subscribe("acl", inv)
 	bus.Subscribe("*", inv)
 	return s
 }
 
 // Invalidate drops the snapshot (local node only; publish "acl" for cluster).
-func (s *Service) Invalidate() { s.snap.Store(nil) }
+// A rebuild that started before is not kept (see load).
+func (s *Service) Invalidate() {
+	s.gen.Add(1)
+	s.snap.Store(nil)
+}
 
 func (s *Service) load(ctx context.Context) (*snapshot, error) {
 	if sn := s.snap.Load(); sn != nil {
@@ -109,8 +118,38 @@ func (s *Service) load(ctx context.Context) (*snapshot, error) {
 	if sn := s.snap.Load(); sn != nil {
 		return sn, nil
 	}
+	// a rebuild that read the database before an invalidation is not kept
+	// (it could miss a new category or keep a revoked permission): build
+	// again, a few times at most under constant changes
+	var sn *snapshot
+	for range 3 {
+		gen := s.gen.Load()
+		var err error
+		if sn, err = s.builder(ctx); err != nil {
+			return nil, err
+		}
+		if s.gen.Load() != gen {
+			continue
+		}
+		s.snap.Store(sn)
+		if s.gen.Load() != gen { // invalidated meanwhile
+			s.snap.CompareAndSwap(sn, nil)
+			continue
+		}
+		break
+	}
+	return sn, nil
+}
+
+// build reads categories and rules of one moment from the database.
+func (s *Service) build(ctx context.Context) (*snapshot, error) {
+	tx, err := s.pool.BeginTx(ctx, pgx.TxOptions{IsoLevel: pgx.RepeatableRead, AccessMode: pgx.ReadOnly})
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = tx.Rollback(context.WithoutCancel(ctx)) }()
 	sn := &snapshot{ancestors: map[int64][]int64{}, deleted: map[int64]bool{}, archived: map[int64]bool{}, class: map[int64]int{}, watermark: map[int64]string{}, downloads: map[int64]string{}, rules: map[int64][]Rule{}}
-	rows, err := s.pool.Query(ctx, `SELECT id, path::text, deleted_at IS NOT NULL, archived_at IS NOT NULL, COALESCE(classification, 0), COALESCE(watermark, ''), COALESCE(downloads, '') FROM categories`)
+	rows, err := tx.Query(ctx, `SELECT id, path::text, deleted_at IS NOT NULL, archived_at IS NOT NULL, COALESCE(classification, 0), COALESCE(watermark, ''), COALESCE(downloads, '') FROM categories`)
 	if err != nil {
 		return nil, err
 	}
@@ -151,7 +190,7 @@ func (s *Service) load(ctx context.Context) (*snapshot, error) {
 	if err := rows.Err(); err != nil {
 		return nil, err
 	}
-	rows, err = s.pool.Query(ctx, `SELECT id, category_id, subject_type, subject_id, permissions, actions, inherit FROM acl_rules`)
+	rows, err = tx.Query(ctx, `SELECT id, category_id, subject_type, subject_id, permissions, actions, inherit FROM acl_rules`)
 	if err != nil {
 		return nil, err
 	}
@@ -166,7 +205,6 @@ func (s *Service) load(ctx context.Context) (*snapshot, error) {
 	if err := rows.Err(); err != nil {
 		return nil, err
 	}
-	s.snap.Store(sn)
 	return sn, nil
 }
 

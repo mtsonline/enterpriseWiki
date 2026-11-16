@@ -424,6 +424,7 @@ actions:
     ui: {entry: /profile}
     examples:
       - name: default
+        given: ['core.settings.update#mail_log']  # confirmation links need a mail transport
         as: self
         body_json: '{"email": "mine${unique}@example.com"}'
         status: 201

@@ -20,6 +20,8 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
+	"sync/atomic"
 	"testing"
 
 	"github.com/mtsonline/enterprisewiki/internal/acl"
@@ -66,7 +68,8 @@ func TestActionExamples(t *testing.T) {
 	t.Cleanup(func() { content_forms.MinAge = oldAge })
 
 	e := setup(t)
-	r := &exampleRunner{t: t, e: e, byID: byID}
+	t.Setenv("EWIKI_CONFIG", e.cfg) // the command line way (set before the parallel examples)
+	r := &exampleRunner{t: t, e: e, byID: byID, seq: new(atomic.Int64), out: &sharedWho{}}
 	r.admin = e.client()
 	r.admin.login("admin", adminPW)
 	ids := make([]string, 0, len(byID))
@@ -76,15 +79,77 @@ func TestActionExamples(t *testing.T) {
 		}
 	}
 	sort.Strings(ids)
+	// examples that change settings of the whole wiki (or build on such a
+	// change) run one after the other first; all others run in parallel,
+	// each in its own categories and accounts
+	type item struct {
+		a  actions.Action
+		ex actions.Example
+	}
+	var serial, parallel []item
 	for _, id := range ids {
 		a := byID[id]
 		for _, ex := range a.Examples {
-			t.Run(id+"#"+ex.Name, func(t *testing.T) {
-				r.t = t
-				r.run(a, ex)
-			})
+			if r.global(a.ID, ex, 0) {
+				serial = append(serial, item{a, ex})
+			} else {
+				parallel = append(parallel, item{a, ex})
+			}
 		}
 	}
+	t.Run("serial", func(t *testing.T) {
+		for _, it := range serial {
+			t.Run(it.a.ID+"#"+it.ex.Name, func(t *testing.T) { r.with(t).run(it.a, it.ex) })
+		}
+	})
+	t.Run("parallel", func(t *testing.T) {
+		for _, it := range parallel {
+			t.Run(it.a.ID+"#"+it.ex.Name, func(t *testing.T) {
+				t.Parallel()
+				r.with(t).run(it.a, it.ex)
+			})
+		}
+	})
+}
+
+// globalActions change settings of the whole wiki (mail transport,
+// default permissions, languages, license, …): their examples, and those
+// that build on them, do not run beside others.
+var globalActions = map[string]bool{
+	"core.settings.update": true, "core.limits.update": true, "core.permissions.defaults": true,
+	"core.mfa.settings.set": true, "core.audit.settings.update": true, "core.webhooks.options": true,
+	"core.languages.add": true, "core.languages.remove": true, "core.i18n.set": true, "core.i18n.import": true,
+	"core.license.install": true, "core.license.remove": true, "core.license.get": true,
+	"core.secrets.rewrap": true, "core.cache.clear": true, "core.retention.run": true, "core.jobs.run": true,
+	"core.demo.create": true, "core.demo.remove": true, "core.demo.reset": true, "core.demo.status": true,
+	"core.instance.sites.create": true, "core.instance.sites.update": true, "core.instance.sites.delete": true,
+	"core.instance.admins.add": true, "core.instance.admins.remove": true,
+	"core.mail.status": true, "core.mail.test": true, "core.mail.list": true, "core.mail.get": true,
+	"core.mail.retry": true, "core.mail.delete": true,
+}
+
+// global reports whether an example changes settings of the whole wiki
+// or builds on such a change.
+func (r *exampleRunner) global(id string, ex actions.Example, depth int) bool {
+	if globalActions[id] || depth > 8 {
+		return true
+	}
+	for _, ref := range ex.Given {
+		gid, name, _ := strings.Cut(ref, "#")
+		for _, gex := range r.byID[gid].Examples {
+			if gex.Name == name && r.global(gid, gex, depth+1) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// with returns a copy of the runner for one (sub)test.
+func (r *exampleRunner) with(t *testing.T) *exampleRunner {
+	c := *r
+	c.t = t
+	return &c
 }
 
 // checkExampleCoverage: every action of the category ACTION has an example
@@ -135,11 +200,17 @@ func checkExampleCoverage(t *testing.T, all []actions.Action) {
 }
 
 type exampleRunner struct {
-	t      *testing.T
-	e      *env
-	byID   map[string]actions.Action
-	admin  *client
-	unique int
+	t     *testing.T
+	e     *env
+	byID  map[string]actions.Action
+	admin *client
+	seq   *atomic.Int64 // shared by the parallel examples: unique names
+	out   *sharedWho    // the outsider (one for the run)
+}
+
+type sharedWho struct {
+	once sync.Once
+	who  who
 }
 
 // result of one request
@@ -164,7 +235,7 @@ func (r *exampleRunner) run(a actions.Action, ex actions.Example) {
 		}
 		r.given(ex.Given, vars, 0)
 		path, query, body, up := r.request(a, ex, vars)
-		who := r.who(a, ex, path, query, body)
+		who := r.who(a, ex, path, query, body, way == "api")
 		if ex.As == "self" {
 			who = vars[selfKey].(*person).who
 		}
@@ -392,13 +463,11 @@ func (r *exampleRunner) subst(s string, vars map[string]any) string {
 		s = strings.Replace(s, "${ssh_key}", "ssh-ed25519 "+base64.StdEncoding.EncodeToString(blob)+" example@ewiki", 1)
 	}
 	for strings.Contains(s, "${unique_lang}") { // ISO 639-2 codes for local use (qaa–qtz)
-		r.unique++
-		n := r.unique % (20 * 26)
+		n := r.seq.Add(1) % (20 * 26)
 		s = strings.Replace(s, "${unique_lang}", string([]byte{'q', byte('a' + n/26), byte('a' + n%26)}), 1)
 	}
 	for strings.Contains(s, "${unique}") {
-		r.unique++
-		s = strings.Replace(s, "${unique}", fmt.Sprintf("x%d", r.unique), 1)
+		s = strings.Replace(s, "${unique}", fmt.Sprintf("x%d", r.seq.Add(1)), 1)
 	}
 	return s
 }
@@ -410,7 +479,8 @@ type who struct {
 
 // who returns the person an example runs as. A member gets exactly the
 // permission of the register entry.
-func (r *exampleRunner) who(a actions.Action, ex actions.Example, path string, query map[string]string, body string) who {
+// The command line needs no session (--as): login only for the API.
+func (r *exampleRunner) who(a actions.Action, ex actions.Example, path string, query map[string]string, body string, login bool) who {
 	switch ex.As {
 	case "", "admin":
 		return who{cl: r.admin, name: "admin"}
@@ -449,7 +519,9 @@ func (r *exampleRunner) who(a actions.Action, ex actions.Example, path string, q
 		}
 		r.admin.must("POST", fmt.Sprintf("/api/v1/categories/%d/acl", cat), rule, nil, 201)
 	}
-	cl.login(name, "Example-Passw0rd!"+name) // after the grants: the session carries them
+	if login {
+		cl.login(name, "Example-Passw0rd!"+name) // after the grants: the session carries them
+	}
 	return who{cl: cl, name: name}
 }
 
@@ -473,15 +545,19 @@ func (r *exampleRunner) person() *person {
 	return &person{who: who{cl: cl, name: name}, id: r.userID(name), name: name, password: pw}
 }
 
+// outsider is one signed-in account without any permission for the whole
+// run (password hashes are what the examples spend most time on).
 func (r *exampleRunner) outsider() who {
-	name, cl := r.user()
-	cl.login(name, "Example-Passw0rd!"+name)
-	return who{cl: cl, name: name}
+	r.out.once.Do(func() {
+		name, cl := r.user()
+		cl.login(name, "Example-Passw0rd!"+name)
+		r.out.who = who{cl: cl, name: name}
+	})
+	return r.out.who
 }
 
 func (r *exampleRunner) user() (string, *client) {
-	r.unique++
-	name := fmt.Sprintf("ex%d", r.unique)
+	name := fmt.Sprintf("ex%d", r.seq.Add(1))
 	r.admin.must("POST", "/api/v1/admin/users", map[string]any{"username": name, "password": "Example-Passw0rd!" + name, "display_name": name}, nil, 201)
 	return name, r.e.client()
 }
@@ -606,7 +682,6 @@ func (r *exampleRunner) do(way string, a actions.Action, w who, path string, que
 	if w.cl == nil || w.name == "" { // a guest: the command line always has an account
 		return r.do("api", a, w, path, query, body, up)
 	}
-	r.t.Setenv("EWIKI_CONFIG", r.e.cfg)
 	var stdout, stderr bytes.Buffer
 	code := cli.RunAction(a.ID, args, strings.NewReader(""), &stdout, &stderr)
 	out := exResult{ok: code == 0, raw: stdout.String() + stderr.String()}
