@@ -12,3 +12,9 @@ actions:
     safety: {changes: true}
     cli: {command: [office, collabora-test]}
     ui: {entry: /admin/collabora}
+    examples:
+      - name: default
+        as: member
+        requires: [collabora]
+        given: [core.settings.update#collabora]
+        expect_json: '{"ok": true, "configured": true, "proof_key": true}'

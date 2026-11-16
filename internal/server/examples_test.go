@@ -65,6 +65,11 @@ func TestActionExamples(t *testing.T) {
 		byID[a.ID] = a
 	}
 	checkExampleCoverage(t, all)
+	for sys := range actions.TestSystems {
+		if _, ok := systemPlugins[sys]; !ok {
+			t.Errorf("test system %s: add the plugins its examples configure to systemPlugins", sys)
+		}
+	}
 	// the example of core.license.install uses a key signed for the tests
 	// only; its private key was thrown away after signing
 	old := license.PublicKeys
@@ -132,7 +137,7 @@ func TestActionExamples(t *testing.T) {
 	}
 	var skipped []string
 	var serial, parallel []item
-	usedSearch := false
+	used := map[string]bool{} // test systems of the examples that run
 	for _, id := range ids {
 		a := byID[id]
 		for _, ex := range a.Examples {
@@ -156,8 +161,8 @@ func TestActionExamples(t *testing.T) {
 				skipped = append(skipped, a.ID+"#"+ex.Name+" ("+missing+")")
 				continue
 			}
-			if needs["opensearch"] || needs["elasticsearch"] || needs["meilisearch"] {
-				usedSearch = true
+			for sys := range needs {
+				used[sys] = true
 			}
 			if r.global(a.ID, ex, 0) {
 				serial = append(serial, item{a, ex})
@@ -174,10 +179,16 @@ func TestActionExamples(t *testing.T) {
 			t.Run(it.a.ID+"#"+it.ex.Name, func(t *testing.T) { r.with(t).run(it.a, it.ex) })
 		}
 	})
-	// the search examples connect the external search: the examples that
-	// follow search with the built-in search again
-	if usedSearch {
-		r.admin.must("PUT", "/api/v1/admin/settings", map[string]any{"plugin_settings": map[string]any{"search.external": map[string]any{"engine": ""}}}, nil, 200)
+	// the examples with test systems connect plugins to them: the examples
+	// that follow run without (built-in search, no office program, …)
+	reset := map[string]any{}
+	for sys := range used {
+		for _, plugin := range systemPlugins[sys] {
+			reset[plugin] = map[string]any{}
+		}
+	}
+	if len(reset) > 0 {
+		r.admin.must("PUT", "/api/v1/admin/settings", map[string]any{"plugin_settings": reset}, nil, 200)
 	}
 	t.Run("parallel", func(t *testing.T) {
 		for _, it := range parallel {
@@ -221,6 +232,13 @@ func (r *exampleRunner) global(id string, ex actions.Example, depth int) bool {
 		}
 	}
 	return false
+}
+
+// systemPlugins are the plugins the examples of a test system configure.
+var systemPlugins = map[string][]string{
+	"opensearch": {"search.external"}, "elasticsearch": {"search.external"}, "meilisearch": {"search.external"},
+	"ldap": {"auth.ldap"}, "keycloak": {"auth.oidc"},
+	"collabora": {"office.collabora"}, "onlyoffice": {"office.onlyoffice"}, "microsoft365": {"office.m365"},
 }
 
 // needs returns the test systems an example and its givens require.

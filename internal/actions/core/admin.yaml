@@ -56,6 +56,18 @@ actions:
       - name: oidc_keycloak
         requires: [keycloak]
         body_json: '{"plugin_settings": {"auth.oidc": {"issuer": "${system.keycloak.url}/realms/master", "client_id": "enterprise-wiki", "client_secret": "not-used-by-the-check"}}}'
+      - name: onlyoffice
+        requires: [onlyoffice]
+        body_json: '{"plugin_settings": {"office.onlyoffice": {"url": "${system.onlyoffice.url}", "jwt_secret": "${system.onlyoffice.secret}"}}}'
+      - name: onlyoffice_wopi
+        requires: [onlyoffice]
+        body_json: '{"plugin_settings": {"office.onlyoffice": {"url": "${system.onlyoffice.url}", "mode": "wopi"}}}'
+      - name: collabora
+        requires: [collabora]
+        body_json: '{"plugin_settings": {"office.collabora": {"url": "${system.collabora.url}"}}}'
+      - name: microsoft365
+        requires: [microsoft365]
+        body_json: '{"plugin_settings": {"office.m365": {"enabled": true, "url": "${system.microsoft365.url}"}}}'
       - name: search_meilisearch_wrong_key
         requires: [meilisearch]
         body_json: '{"plugin_settings": {"search.external": {"engine": "meilisearch", "url": "${system.meilisearch.url}", "api_key": "wrong", "index": "ewiki_ex_${unique}"}}}'

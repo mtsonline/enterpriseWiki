@@ -1,6 +1,5 @@
 # Actions without an example (phase 4 adds them area by area; the list may
 # only shrink). Rewritten with EWIKI_ACTIONS_UPDATE=1.
-core.media.open
 core.plugins.build
 core.plugins.install
 core.plugins.remove
@@ -10,6 +9,3 @@ core.plugins.sources.check
 core.plugins.sources.external
 core.plugins.sources.remove
 core.updates.install
-office.collabora.test
-office.m365.test
-office.onlyoffice.test
