@@ -44,7 +44,7 @@ var (
 	webauthnRe = regexp.MustCompile(`\$\{webauthn\.(create|get):([^#}]+#[^.}]+)\.?([^}]*)\}`)
 	mailLinkRe = regexp.MustCompile(`\$\{mail_link:([^:}]+):([a-z_]+)\}`)
 	pkcs12Re   = regexp.MustCompile(`\$\{pkcs12:([^}]+)\}`)
-	systemRe   = regexp.MustCompile(`\$\{system\.([a-z]+)\.([a-z]+)\}`)
+	systemRe   = regexp.MustCompile(`\$\{system\.([a-z]+)\.([a-z_]+)\}`)
 	personRe   = regexp.MustCompile(`\$\{(self|other)\.([a-z]+)\}`)
 	givenRe    = regexp.MustCompile(`\$\{given\.([^#}]+#[^.}]+)\.([^}]+)\}`)
 	httpErrRe  = regexp.MustCompile(`HTTP (\d{3})`)

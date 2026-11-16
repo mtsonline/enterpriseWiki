@@ -513,6 +513,12 @@ actions:
     safety: {changes: true}
     cli: {command: [me, identities, unlink]}
     ui: {entry: /profile}
+    examples:
+      # the whole way is in TestIdentityLinking (see core.users.identities.unlink)
+      - name: not_linked
+        as: self
+        query_json: '{"provider": "ldap", "subject": "nobody"}'
+        status: 404
   - id: core.me.identities.link
     category: CATEGORY_ACTION
     method: POST
@@ -525,6 +531,13 @@ actions:
     safety: {changes: true}
     cli: {command: [me, identities, link]}
     ui: {entry: /profile}
+    examples:
+      # a token comes from a sign-in with another provider; the whole way
+      # (and that nobody else can take the sign-in) is in TestIdentityLinking
+      - name: expired
+        as: self
+        body_json: '{"token": "no-such-request"}'
+        status: 400
   - id: core.me.feed_token.show
     category: CATEGORY_ACTION
     method: GET

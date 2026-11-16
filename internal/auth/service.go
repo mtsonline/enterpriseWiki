@@ -62,6 +62,21 @@ type ExternalIdentity struct {
 	SessionID, LogoutHint string
 }
 
+// View is what an answer of the API may show of a sign-in (e.g. the test of
+// a provider): never the session id or the logout hint (an id token).
+func (x *ExternalIdentity) View() map[string]any {
+	groups, roles := x.Groups, x.Roles
+	if groups == nil {
+		groups = []string{}
+	}
+	if roles == nil {
+		roles = []string{}
+	}
+	return map[string]any{"provider": x.Provider, "subject": x.Subject, "username": x.Username,
+		"display_name": x.DisplayName, "email": x.Email, "email_verified": x.EmailVerified,
+		"alias": x.Alias, "groups": groups, "roles": roles, "attributes": x.Attributes}
+}
+
 // PasswordProvider authenticates username/password credentials.
 type PasswordProvider interface {
 	ID() string   // short id used in name@id handles, e.g. "local", "ldap"
