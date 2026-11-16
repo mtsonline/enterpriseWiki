@@ -42,6 +42,10 @@ type Server struct {
 func New(a *app.App, web fs.FS, pm *pluginmgr.Manager) *Server {
 	s := &Server{app: a, log: a.Log, web: web, plugins: pm, started: time.Now(), collab: newHub(a), limits: newRateLimiter()}
 	s.collabDone, s.closeLive = context.WithCancel(context.Background())
+	// the places a file is embedded change with the pages: the cache of
+	// GET /api/v1/files must not hand out a file of a page that was moved
+	// or deleted, nor refuse one that was just embedded
+	a.Content.OnChange(func(context.Context, string, string, int64) { s.legacy.clear() })
 	s.routes()
 	a.Mux.HandleFunc("/", s.serveFrontend)
 	s.handler = s.wrap(a.Mux)

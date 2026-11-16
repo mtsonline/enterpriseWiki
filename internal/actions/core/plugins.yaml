@@ -27,6 +27,11 @@ actions:
     success_status: 200
     cli: {command: [plugin, sources, list], builtin: true}
     ui: {entry: /admin/plugins}
+    examples:
+      - name: default
+      - name: refused
+        as: outsider
+        status: 403
   - id: core.plugins.sources.add
     category: CATEGORY_ACTION
     method: POST

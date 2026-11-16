@@ -244,6 +244,14 @@ func (l *legacyRefs) get(key string) ([]int64, bool) {
 	return e.cats, true
 }
 
+// clear forgets everything: a page that embeds a file was created,
+// changed, moved or deleted.
+func (l *legacyRefs) clear() {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	l.m = nil
+}
+
 func (l *legacyRefs) put(key string, cats []int64) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
