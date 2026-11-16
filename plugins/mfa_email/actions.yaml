@@ -11,6 +11,9 @@ actions:
     signed_in: true
     cli: {command: [me, email-code]}
     ui: {entry: /profile}
+    examples:
+      - name: default
+        as: self
   - id: mfa.email.remove
     category: CATEGORY_ACTION
     method: DELETE
@@ -26,3 +29,7 @@ actions:
       - way: WAY_CLI
         reason: "Second factors are set up and removed only in the browser, within 15 minutes after signing in (passkeys need the browser anyway)."
         approved_by: "project owner, decision of 2026-11-11 (second factors are only changed in the browser)"
+    examples:
+      - name: default
+        as: self
+        status: 204

@@ -137,6 +137,9 @@ func actionUsage(a actions.Action) string {
 
 // runAction runs a register action with its arguments.
 func (e *env) runAction(a actions.Action, args []string) error {
+	if a.CLI == nil { // an approved exception: no command line way
+		return fmt.Errorf("%s has no command (exception: %s)", a.ID, exceptionReason(a, "WAY_CLI"))
+	}
 	params := a.PathParamNames()
 	query, body := schemaProps(a.Query), schemaProps(a.Body)
 	values := map[string]string{} // path parameters
@@ -347,4 +350,14 @@ func multipartBody(form, files [][2]string) ([]byte, string, error) {
 		return nil, "", err
 	}
 	return buf.Bytes(), w.FormDataContentType(), nil
+}
+
+// exceptionReason returns the reason of the approved exception for way.
+func exceptionReason(a actions.Action, way string) string {
+	for _, x := range a.Exceptions {
+		if x.Way == way {
+			return x.Reason
+		}
+	}
+	return "none registered"
 }

@@ -836,6 +836,15 @@ actions:
       - way: WAY_CLI
         reason: "Second factors are set up and removed only in the browser, within 15 minutes after signing in (passkeys need the browser anyway)."
         approved_by: "project owner, decision of 2026-11-11 (second factors are only changed in the browser)"
+    examples:
+      - name: default
+        as: self
+        path_params_json: '{"method": "totp"}'
+        body_json: '{}'
+      - name: totp
+        as: self
+        path_params_json: '{"method": "totp"}'
+        body_json: '{}'
   - id: core.me.mfa.setup.finish
     category: CATEGORY_ACTION
     method: POST
@@ -851,3 +860,16 @@ actions:
       - way: WAY_CLI
         reason: "Second factors are set up and removed only in the browser, within 15 minutes after signing in (passkeys need the browser anyway)."
         approved_by: "project owner, decision of 2026-11-11 (second factors are only changed in the browser)"
+    examples:
+      - name: default
+        given: ['core.me.mfa.setup.begin#totp']
+        as: self
+        path_params_json: '{"method": "totp"}'
+        body_json: '{"code": "${totp:${given.core.me.mfa.setup.begin#totp.secret}}"}'
+        status: 204
+      - name: wrong_code
+        given: ['core.me.mfa.setup.begin#totp']
+        as: self
+        path_params_json: '{"method": "totp"}'
+        body_json: '{"code": "000000"}'
+        status: 401

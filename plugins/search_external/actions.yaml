@@ -11,6 +11,9 @@ actions:
     permission: {key: search.external.manage, scope: SCOPE_GLOBAL}
     cli: {command: [external-search, status]}
     ui: {entry: /admin/search}
+    examples:
+      - name: default
+        as: member
   - id: search.external.test
     category: CATEGORY_ACTION
     method: POST

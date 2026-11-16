@@ -23,12 +23,14 @@ import (
 	"sync"
 	"sync/atomic"
 	"testing"
+	"time"
 
 	"github.com/mtsonline/enterprisewiki/internal/acl"
 	"github.com/mtsonline/enterprisewiki/internal/actions"
 	"github.com/mtsonline/enterprisewiki/internal/cli"
 	"github.com/mtsonline/enterprisewiki/internal/license"
 	"github.com/mtsonline/enterprisewiki/plugins/content_forms"
+	"github.com/mtsonline/enterprisewiki/plugins/mfa_totp"
 )
 
 // examplesMissing lists the actions that have no example yet (phase 4 fills
@@ -36,6 +38,7 @@ import (
 const examplesMissing = "../actions/examples-missing.txt"
 
 var (
+	totpRe    = regexp.MustCompile(`\$\{totp:([A-Za-z2-7= ]+)\}`)
 	personRe  = regexp.MustCompile(`\$\{(self|other)\.([a-z]+)\}`)
 	givenRe   = regexp.MustCompile(`\$\{given\.([^#}]+#[^.}]+)\.([^}]+)\}`)
 	httpErrRe = regexp.MustCompile(`HTTP (\d{3})`)
@@ -134,7 +137,7 @@ var globalActions = map[string]bool{
 	"core.instance.admins.add": true, "core.instance.admins.remove": true,
 	"core.mail.status": true, "core.mail.test": true, "core.mail.list": true, "core.mail.get": true,
 	"core.mail.retry": true, "core.mail.delete": true,
-	"core.auth.login_page.update": true, "core.plugins.options": true, "core.plugins.enable": true, "core.plugins.disable": true,
+	"signature.smime.settings.set": true, "core.auth.login_page.update": true, "core.plugins.options": true, "core.plugins.enable": true, "core.plugins.disable": true,
 }
 
 // global reports whether an example changes settings of the whole wiki
@@ -239,7 +242,11 @@ func (r *exampleRunner) run(a actions.Action, ex actions.Example) {
 	if want == 0 {
 		want = a.SuccessStatus
 	}
-	for _, way := range []string{"api", "cli"} {
+	ways := []string{"api", "cli"}
+	if a.HasException("WAY_CLI") { // approved: no command line way (TestCLIWithoutCommand)
+		ways = ways[:1]
+	}
+	for _, way := range ways {
 		vars := map[string]any{}
 		if ex.As == "self" { // a fresh account of its own; its givens run as it too
 			vars[selfKey] = r.person()
@@ -473,6 +480,15 @@ func (r *exampleRunner) subst(s string, vars map[string]any) string {
 			return string(b)
 		}
 		return fmt.Sprint(v)
+	})
+	// ${totp:SECRET}: the current code of an authenticator app (after
+	// ${given…} is filled in, e.g. ${totp:${given.….secret}})
+	s = totpRe.ReplaceAllStringFunc(s, func(m string) string {
+		code, err := mfa_totp.TOTPCode(totpRe.FindStringSubmatch(m)[1], time.Now().Unix()/30)
+		if err != nil {
+			r.t.Fatalf("%s: %v", m, err)
+		}
+		return code
 	})
 	for strings.Contains(s, "${ssh_key}") { // a fresh public key (keys are unique)
 		pub, _, err := ed25519.GenerateKey(nil)

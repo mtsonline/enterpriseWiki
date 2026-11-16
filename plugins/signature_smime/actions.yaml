@@ -13,6 +13,9 @@ actions:
     success_status: 200
     cli: {command: [smime, settings], builtin: true}
     ui: {entry: /admin/smime}
+    examples:
+      - name: default
+        as: member
   - id: signature.smime.settings.set
     category: CATEGORY_ACTION
     method: PUT
@@ -26,6 +29,11 @@ actions:
     safety: {changes: true, idempotent: true}
     cli: {command: [smime, settings], builtin: true}
     ui: {entry: /admin/smime, control: {text: {en: Save, de: Speichern}}}
+    examples:
+      - name: default
+        given: ['signature.smime.settings.get#default']
+        as: member
+        body_json: '{"mail_signing": ${given.signature.smime.settings.get#default.mail_signing}, "on_expired": "${given.signature.smime.settings.get#default.on_expired}", "personal": ${given.signature.smime.settings.get#default.personal}, "seal_evidence": ${given.signature.smime.settings.get#default.seal_evidence}}'
   - id: signature.smime.cert.list
     category: CATEGORY_ACTION
     method: GET
@@ -40,6 +48,10 @@ actions:
     success_status: 200
     cli: {command: [smime, list], builtin: true}
     ui: {entry: /admin/smime}
+    examples:
+      - name: default
+        as: self
+        query_json: '{"scope": "mine"}'
   - id: signature.smime.cert.add
     category: CATEGORY_ACTION
     method: POST
@@ -103,3 +115,6 @@ actions:
     success_status: 200
     cli: {command: [smime, me]}
     ui: {entry: /profile}
+    examples:
+      - name: default
+        as: self
