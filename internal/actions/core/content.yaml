@@ -86,6 +86,14 @@ actions:
         path_params_json: '{"id": "${given.core.categories.create#default.id}"}'
         body_json: '{"titles": {"en": "Renamed"}}'
         expect_json: '{"titles": {"en": "Renamed"}}'
+      - name: feed
+        given: ['core.categories.create#default']
+        path_params_json: '{"id": "${given.core.categories.create#default.id}"}'
+        body_json: '{"feed": "on"}'
+      - name: short
+        given: ['core.categories.create#default']
+        path_params_json: '{"id": "${given.core.categories.create#default.id}"}'
+        body_json: '{"short_url": "ex-${unique}"}'
   - id: core.categories.delete
     category: CATEGORY_ACTION
     method: DELETE
@@ -388,6 +396,9 @@ actions:
         given: ['core.categories.create#default']
         as: member
         path_params_json: '{"id": "${given.core.categories.create#default.id}"}'
+      - name: open
+        given: ['core.categories.create#default', 'core.access.request#other']
+        path_params_json: '{"id": "${given.core.categories.create#default.id}"}'
   - id: core.elements.list
     category: CATEGORY_ACTION
     method: GET
@@ -472,6 +483,10 @@ actions:
       - name: report_page
         given: ['core.categories.create#default']
         body_json: '{"category_id": ${given.core.categories.create#default.id}, "type": "core.html", "title": "Report ${unique}", "body": {"format": "html", "source": "<div data-macro=\"properties\" data-params=''{\"source\":\"category:${given.core.categories.create#default.id}+sub\",\"title\":\"Rooms\"}''></div>"}}'
+        status: 201
+      - name: with_image
+        given: ['core.categories.create#default', 'core.files.upload#png']
+        body_json: '{"category_id": ${given.core.categories.create#default.id}, "type": "core.html", "title": "Picture ${unique}", "body": {"format": "html", "source": "<p><img src=\"/api/v1/files/${given.core.files.upload#png.hash}\" alt=\"Dot\"></p>"}}'
         status: 201
   - id: core.elements.update
     category: CATEGORY_ACTION
@@ -1036,11 +1051,16 @@ actions:
     path: /api/v1/files/{hash}
     summary:
       text:
-        en: Download a file of an element (only what you may see)
-        de: "Datei eines Elements herunterladen (nur, was Sie sehen dürfen)"
+        en: Show an image embedded in a page (only what you may see)
+        de: "Bild anzeigen, das in einer Seite steht (nur, was Sie sehen dürfen)"
     public: true
     cli: {command: [file, get], args: [hash]}
     ui: {entry: /e/:id}
+    examples:
+      - name: default
+        given: ['core.elements.create#with_image', 'core.categories.acl.add#self_view']
+        as: self
+        path_params_json: '{"hash": "${given.core.files.upload#png.hash}"}'
   - id: core.files.upload
     category: CATEGORY_ACTION
     method: POST
@@ -1059,6 +1079,10 @@ actions:
         status: 201
         files:
           - {field: file, name: 'notes.txt', content_type: 'text/plain', text: 'Example file'}
+      - name: png
+        status: 201
+        files:
+          - {field: file, name: 'dot.png', content_type: 'image/png', base64: 'iVBORw0KGgoAAAANSUhEUgAAAAQAAAAECAIAAAAmkwkpAAAAEElEQVR4nGP4z8AARwzEcQCukw/x0F8jngAAAABJRU5ErkJggg=='}
   - id: core.feeds.category
     category: CATEGORY_ACTION
     method: GET
@@ -1070,6 +1094,10 @@ actions:
     public: true
     cli: {command: [feed, category], args: [id]}
     ui: {entry: /c/:id}
+    examples:
+      - name: default
+        given: ['core.categories.create#default', 'core.categories.update#feed', 'core.elements.create#default']
+        path_params_json: '{"id": "${given.core.categories.create#default.id}"}'
   - id: core.prerender
     category: CATEGORY_ACTION
     method: GET

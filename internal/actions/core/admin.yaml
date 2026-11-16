@@ -437,6 +437,9 @@ actions:
     permission: {key: core.plugins.manage, scope: SCOPE_GLOBAL}
     cli: {command: [plugin, list], builtin: true}
     ui: {entry: /admin/plugins}
+    examples:
+      - name: default
+        as: member
   - id: core.plugins.enable
     category: CATEGORY_ACTION
     method: POST
@@ -449,6 +452,11 @@ actions:
     safety: {changes: true}
     cli: {command: [plugin, enable], builtin: true}
     ui: {entry: /admin/plugins}
+    examples:
+      - name: default
+        given: ['core.plugins.disable#off']
+        as: member
+        path_params_json: '{"id": "content.notes"}'
   - id: core.plugins.disable
     category: CATEGORY_ACTION
     method: POST
@@ -461,6 +469,12 @@ actions:
     safety: {changes: true}
     cli: {command: [plugin, disable], builtin: true}
     ui: {entry: /admin/plugins}
+    examples:
+      - name: default
+        as: member
+        path_params_json: '{"id": "content.notes"}'
+      - name: off
+        path_params_json: '{"id": "content.notes"}'
   - id: core.plugins.install
     category: CATEGORY_ACTION
     method: POST
@@ -509,6 +523,13 @@ actions:
     safety: {changes: true}
     cli: {command: [plugin, options]}
     ui: {entry: /admin/plugins}
+    examples:
+      - name: default
+        body_json: '{"auto_restart_on_drop": false}'
+      - name: refused
+        as: outsider
+        body_json: '{"auto_restart_on_drop": true}'
+        status: 403
   - id: core.plugins.restart
     category: CATEGORY_ACTION
     method: POST
@@ -532,6 +553,9 @@ actions:
     permission: {key: core.plugins.manage, scope: SCOPE_GLOBAL}
     cli: {command: [plugin, updates], builtin: true}
     ui: {entry: /admin/updates}
+    examples:
+      - name: default
+        as: member
   - id: core.updates.install
     category: CATEGORY_ACTION
     method: POST

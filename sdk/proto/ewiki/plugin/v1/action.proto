@@ -213,7 +213,8 @@ message Example {
   // Who runs it: "admin", "member" (has the permission), "outsider"
   // (lacks it: must be refused on every way), "guest", or "self" (a fresh
   // account without permissions, for actions on your own account; given
-  // examples that run as self run as the same account).
+  // examples that run as self run as the same account) or "other" (a
+  // second such account, the one of ${other.…}).
   string as = 3;
   // Request values as JSON objects; "${given.<name>.<field>}" refers to
   // results of the given examples.

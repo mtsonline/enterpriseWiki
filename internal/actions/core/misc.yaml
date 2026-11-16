@@ -11,6 +11,9 @@ actions:
     public: true
     cli: {command: [wiki, info]}
     ui: {entry: /}
+    examples:
+      - name: default
+        as: guest
   - id: core.ready
     category: CATEGORY_PROTOCOL
     method: GET
@@ -30,6 +33,10 @@ actions:
     public: true
     cli: {command: [resolve]}
     ui: {entry: /}
+    examples:
+      - name: default
+        given: ['core.categories.create#default', 'core.categories.update#short']
+        query_json: '{"path": "/${given.core.categories.update#short.short_url}"}'
   - id: core.not_found
     category: CATEGORY_ACTION
     method: GET
@@ -41,6 +48,10 @@ actions:
     public: true
     cli: {command: [not-found]}
     ui: {entry: /}
+    examples:
+      - name: default
+        as: guest
+        query_json: '{"path": "/no/such/page"}'
   - id: core.elements.types
     category: CATEGORY_ACTION
     method: GET
@@ -52,6 +63,9 @@ actions:
     public: true
     cli: {command: [element, types]}
     ui: {entry: /c/:id/new}
+    examples:
+      - name: default
+        as: guest
   - id: core.macros
     category: CATEGORY_ACTION
     method: GET
@@ -63,6 +77,9 @@ actions:
     public: true
     cli: {command: [macro, list]}
     ui: {entry: /e/:id/edit}
+    examples:
+      - name: default
+        as: guest
   - id: core.sources.preview
     category: CATEGORY_ACTION
     method: POST
@@ -75,6 +92,10 @@ actions:
     safety: {changes: true}
     cli: {command: [source, preview]}
     ui: {entry: /e/:id/edit}
+    examples:
+      - name: default
+        given: ['core.categories.create#default', 'core.elements.create#default']
+        body_json: '{"sources": "category:${given.core.categories.create#default.id}", "lang": "en"}'
   - id: core.groups.names
     category: CATEGORY_ACTION
     method: GET
@@ -86,6 +107,9 @@ actions:
     signed_in: true
     cli: {command: [perm, groups]}
     ui: {entry: /c/:id/settings}
+    examples:
+      - name: default
+        as: self
   - id: core.roles.names
     category: CATEGORY_ACTION
     method: GET
@@ -97,6 +121,9 @@ actions:
     signed_in: true
     cli: {command: [perm, roles]}
     ui: {entry: /c/:id/settings}
+    examples:
+      - name: default
+        as: self
   - id: core.users.lookup
     category: CATEGORY_ACTION
     method: GET
@@ -108,6 +135,10 @@ actions:
     signed_in: true
     cli: {command: [perm, users]}
     ui: {entry: /c/:id/settings}
+    examples:
+      - name: default
+        as: self
+        query_json: '{"q": "${self.name}"}'
   - id: core.permissions.list
     category: CATEGORY_ACTION
     method: GET
@@ -119,6 +150,9 @@ actions:
     signed_in: true
     cli: {command: [perm, list], builtin: true}
     ui: {entry: /c/:id/settings}
+    examples:
+      - name: default
+        as: self
   - id: core.permissions.overview
     category: CATEGORY_ACTION
     method: GET
@@ -130,6 +164,10 @@ actions:
     signed_in: true
     cli: {command: [perm, overview], builtin: true}
     ui: {entry: /admin/permissions}
+    examples:
+      - name: default
+        given: ['core.categories.create#default']
+        query_json: '{"subject_type": "user", "subject_id": "${other.id}"}'
   - id: core.access.request
     category: CATEGORY_ACTION
     method: POST
@@ -142,6 +180,17 @@ actions:
     safety: {changes: true}
     cli: {command: [access, request]}
     ui: {entry: /e/:id}
+    examples:
+      - name: default
+        given: ['core.categories.create#default']
+        as: self
+        body_json: '{"type": "category", "id": ${given.core.categories.create#default.id}, "message": "I work on this project."}'
+        expect_json: '{"sent": true}'
+      - name: other
+        given: ['core.categories.create#default']
+        as: other
+        body_json: '{"type": "category", "id": ${given.core.categories.create#default.id}, "message": "Please let me in."}'
+        expect_json: '{"sent": true}'
   - id: core.access.answer
     category: CATEGORY_ACTION
     method: POST
@@ -154,6 +203,12 @@ actions:
     safety: {changes: true}
     cli: {command: [access, answer], args: [id]}
     ui: {entry: /c/:id/settings}
+    examples:
+      - name: default
+        given: ['core.categories.create#default', 'core.access.request#other', 'core.categories.access_requests#open']
+        path_params_json: '{"id": "${given.core.categories.access_requests#open.0.id}"}'
+        body_json: '{"grant": true, "preset": "reader"}'
+        status: 204
   - id: core.signatures.methods
     category: CATEGORY_ACTION
     method: GET
@@ -165,6 +220,9 @@ actions:
     signed_in: true
     cli: {command: [signature, methods]}
     ui: {entry: /e/:id}
+    examples:
+      - name: default
+        as: self
   - id: core.signatures.keys
     category: CATEGORY_ACTION
     method: GET
@@ -176,6 +234,9 @@ actions:
     signed_in: true
     cli: {command: [signature, keys], builtin: true}
     ui: {entry: /signatures/verify}
+    examples:
+      - name: default
+        as: self
   - id: core.collab
     category: CATEGORY_PROTOCOL
     method: GET

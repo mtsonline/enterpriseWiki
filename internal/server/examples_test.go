@@ -134,6 +134,7 @@ var globalActions = map[string]bool{
 	"core.instance.admins.add": true, "core.instance.admins.remove": true,
 	"core.mail.status": true, "core.mail.test": true, "core.mail.list": true, "core.mail.get": true,
 	"core.mail.retry": true, "core.mail.delete": true,
+	"core.auth.login_page.update": true, "core.plugins.options": true, "core.plugins.enable": true, "core.plugins.disable": true,
 }
 
 // global reports whether an example changes settings of the whole wiki
@@ -246,8 +247,11 @@ func (r *exampleRunner) run(a actions.Action, ex actions.Example) {
 		r.given(ex.Given, vars, 0)
 		path, query, body, up := r.request(a, ex, vars)
 		who := r.who(a, ex, path, query, body, way == "api")
-		if ex.As == "self" {
+		switch ex.As {
+		case "self":
 			who = vars[selfKey].(*person).who
+		case "other":
+			who = r.other(vars).who
 		}
 		res := r.do(way, a, who, path, query, body, up)
 		if (want < 300) != res.ok || (way == "api" && want != 0 && res.status != want) || (way == "cli" && !res.ok && res.status != want) {
@@ -301,12 +305,15 @@ func (r *exampleRunner) given(refs []string, vars map[string]any, depth int) {
 		r.given(ex.Given, vars, depth+1)
 		path, query, body, up := r.request(a, *ex, vars)
 		w := who{cl: r.admin, name: "admin"}
-		if ex.As == "self" {
+		switch ex.As {
+		case "self":
 			p, ok := vars[selfKey].(*person)
 			if !ok {
 				t.Fatalf("given %s runs as self: the example needs as: self", ref)
 			}
 			w = p.who
+		case "other": // another signed-in person (${other.…})
+			w = r.other(vars).who
 		}
 		res := r.do("api", a, w, path, query, body, up)
 		if !res.ok {
@@ -503,7 +510,7 @@ func (r *exampleRunner) who(a actions.Action, ex actions.Example, path string, q
 		return who{cl: r.admin, name: "admin"}
 	case "guest":
 		return who{cl: r.e.client()}
-	case "self":
+	case "self", "other":
 		return who{} // replaced by the account of the example
 	case "outsider":
 		return r.outsider()
@@ -554,6 +561,16 @@ const (
 	selfKey  = "\x00self" // keys in vars beside the given references
 	otherKey = "\x00other"
 )
+
+// other returns the other person of an example (created when first used).
+func (r *exampleRunner) other(vars map[string]any) *person {
+	p, ok := vars[otherKey].(*person)
+	if !ok {
+		p = r.person()
+		vars[otherKey] = p
+	}
+	return p
+}
 
 func (r *exampleRunner) person() *person {
 	name, cl := r.user()
