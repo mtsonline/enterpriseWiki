@@ -1,10 +1,13 @@
 package pluginmgr
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/mtsonline/enterprisewiki/internal/apperr"
 )
 
 func TestGenerateAndManifest(t *testing.T) {
@@ -30,5 +33,33 @@ func TestGenerateAndManifest(t *testing.T) {
 	}
 	if DirName("theme.wiki.dark") != "theme_wiki_dark" {
 		t.Fatal("dirname")
+	}
+}
+
+// A wiki without a plugins folder (no source tree, nothing installed yet)
+// lists no extra plugins and refuses removals clearly, without exposing the
+// path of the server (it used to answer 500 with "stat …: no such file").
+func TestNoPluginsFolder(t *testing.T) {
+	m := New(t.TempDir(), nil, nil)
+	m.SetLayout(Layout{Mode: ModeSource})
+	mans, dirs, err := m.OnDisk()
+	if err != nil || len(dirs) != 0 {
+		t.Fatalf("on disk: %v %v %v", mans, dirs, err)
+	}
+	err = m.Remove(context.Background(), "nothing.here")
+	if code, _, _ := apperr.Status(err); code != 404 {
+		t.Fatalf("remove unknown: %v (%d)", err, code)
+	}
+}
+
+// The command line never starts a background build in its own short
+// process (the API of the command line, e.g. "ewiki api POST …/build").
+func TestNoBackgroundBuildOnTheCommandLine(t *testing.T) {
+	m := New(t.TempDir(), nil, nil).NoBackgroundBuild()
+	if _, err := m.StartBuild(context.Background(), "manual"); err == nil {
+		t.Fatal("the command line started a background build")
+	}
+	if m.BuildStatus().Running {
+		t.Fatal("build running")
 	}
 }

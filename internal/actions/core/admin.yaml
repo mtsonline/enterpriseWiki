@@ -523,6 +523,17 @@ actions:
     safety: {changes: true}
     cli: {command: [plugin, install], builtin: true}
     ui: {entry: /admin/plugins}
+    examples:
+      # the test wiki has no source tree: the plugin is installed and a
+      # rebuild is required (building: core.plugins.build)
+      - name: external
+        as: admin
+        body_json: '{"source": "${local_plugin:acme.inst${unique}}", "accept_external": true}'
+        expect_json: '{"rebuild_required": true, "origin": {"level": "external", "accepted": true}}'
+      - name: external_not_accepted
+        as: admin
+        body_json: '{"source": "${local_plugin:acme.inst${unique}}"}'
+        status: 400
   - id: core.plugins.remove
     category: CATEGORY_ACTION
     method: DELETE
@@ -535,6 +546,16 @@ actions:
     safety: {changes: true}
     cli: {command: [plugin, remove], builtin: true}
     ui: {entry: /admin/plugins}
+    examples:
+      - name: default
+        as: admin
+        given: [core.plugins.install#external]
+        path_params_json: '{"id": "${given.core.plugins.install#external.id}"}'
+        expect_json: '{"rebuild_required": true}'
+      - name: part_of_the_program
+        as: admin
+        path_params_json: '{"id": "content.notes"}'
+        status: 400
   - id: core.plugins.build
     category: CATEGORY_ACTION
     method: POST

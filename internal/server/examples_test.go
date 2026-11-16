@@ -40,14 +40,15 @@ import (
 const examplesMissing = "../actions/examples-missing.txt"
 
 var (
-	totpRe     = regexp.MustCompile(`\$\{totp:([A-Za-z2-7= ]+)\}`)
-	webauthnRe = regexp.MustCompile(`\$\{webauthn\.(create|get):([^#}]+#[^.}]+)\.?([^}]*)\}`)
-	mailLinkRe = regexp.MustCompile(`\$\{mail_link:([^:}]+):([a-z_]+)\}`)
-	pkcs12Re   = regexp.MustCompile(`\$\{pkcs12:([^}]+)\}`)
-	systemRe   = regexp.MustCompile(`\$\{system\.([a-z0-9]+)\.([a-z_]+)\}`)
-	personRe   = regexp.MustCompile(`\$\{(self|other)\.([a-z]+)\}`)
-	givenRe    = regexp.MustCompile(`\$\{given\.([^#}]+#[^.}]+)\.([^}]+)\}`)
-	httpErrRe  = regexp.MustCompile(`HTTP (\d{3})`)
+	totpRe        = regexp.MustCompile(`\$\{totp:([A-Za-z2-7= ]+)\}`)
+	webauthnRe    = regexp.MustCompile(`\$\{webauthn\.(create|get):([^#}]+#[^.}]+)\.?([^}]*)\}`)
+	mailLinkRe    = regexp.MustCompile(`\$\{mail_link:([^:}]+):([a-z_]+)\}`)
+	pkcs12Re      = regexp.MustCompile(`\$\{pkcs12:([^}]+)\}`)
+	localPluginRe = regexp.MustCompile(`\$\{local_plugin:([a-z0-9.]+)\}`)
+	systemRe      = regexp.MustCompile(`\$\{system\.([a-z0-9]+)\.([a-z_]+)\}`)
+	personRe      = regexp.MustCompile(`\$\{(self|other)\.([a-z]+)\}`)
+	givenRe       = regexp.MustCompile(`\$\{given\.([^#}]+#[^.}]+)\.([^}]+)\}`)
+	httpErrRe     = regexp.MustCompile(`HTTP (\d{3})`)
 )
 
 // TestActionExamples (phase 4, stage 2): every example of the action
@@ -91,7 +92,7 @@ func TestActionExamples(t *testing.T) {
 		c.Mail.From = "wiki@example.com" // the address of S/MIME certificates of the organisation
 	})
 	t.Setenv("EWIKI_CONFIG", e.cfg) // the command line way (set before the parallel examples)
-	r := &exampleRunner{t: t, e: e, byID: byID, seq: new(atomic.Int64), out: &sharedWho{}, smtp: smtp, systems: testSystems(),
+	r := &exampleRunner{t: t, e: e, byID: byID, seq: new(atomic.Int64), out: &sharedWho{}, smtp: smtp, systems: testSystems(), pluginRoot: t.TempDir(),
 		shared: &struct {
 			caOnce sync.Once
 			ca     *testCA
@@ -214,6 +215,8 @@ var globalActions = map[string]bool{
 	"core.instance.admins.add": true, "core.instance.admins.remove": true,
 	"core.mail.status": true, "core.mail.test": true, "core.mail.list": true, "core.mail.get": true,
 	"core.mail.retry": true, "core.mail.delete": true,
+	"core.plugins.sources.add": true, "core.plugins.sources.remove": true, "core.plugins.sources.external": true, "core.plugins.sources.check": true,
+	"core.plugins.install": true, "core.plugins.remove": true,
 	"signature.smime.settings.set": true, "core.auth.login_page.update": true, "core.plugins.options": true, "core.plugins.enable": true, "core.plugins.disable": true,
 }
 
@@ -348,6 +351,8 @@ type exampleRunner struct {
 		ca     *testCA
 	}
 	origin string // of the passkeys (the server is reached as localhost)
+	// pluginRoot holds the local plugins of the examples (${local_plugin:ID})
+	pluginRoot string
 	// systems are the real test systems that are running (field -> value)
 	systems map[string]map[string]string
 	smtp    *smtpFake
@@ -392,6 +397,14 @@ func (r *exampleRunner) run(a actions.Action, ex actions.Example) {
 			who = vars[selfKey].(*person).who
 		case "other":
 			who = r.other(vars).who
+		}
+		critical := a.Safety != nil && a.Safety.RecentSignIn && (ex.As == "" || ex.As == "admin")
+		if critical && way == "cli" {
+			// --as is no sign-in: refused; the command line on the server may
+			if res := r.do(way, a, who, path, query, body, up); res.ok || res.status != 403 {
+				t.Fatalf("cli --as on a critical action: %d %s", res.status, res.raw)
+			}
+			who.server = true
 		}
 		res := r.do(way, a, who, path, query, body, up)
 		if (want < 300) != res.ok || (way == "api" && want != 0 && res.status != want) || (way == "cli" && !res.ok && res.status != want) {
@@ -747,12 +760,21 @@ func (r *exampleRunner) subst(s string, vars map[string]any) string {
 	for strings.Contains(s, "${unique}") {
 		s = strings.Replace(s, "${unique}", fmt.Sprintf("x%d", r.seq.Add(1)), 1)
 	}
-	return s
+	// local plugins and their folder (after ${unique}: ids are unique)
+	s = localPluginRe.ReplaceAllStringFunc(s, func(m string) string {
+		id := localPluginRe.FindStringSubmatch(m)[1]
+		dir := filepath.Join(r.pluginRoot, "src"+fmt.Sprint(r.seq.Add(1)), strings.ReplaceAll(id, ".", "-"))
+		return localPlugin(r.t, dir, id)
+	})
+	return strings.ReplaceAll(s, "${plugin_root}", r.pluginRoot)
 }
 
 type who struct {
 	cl   *client // nil: guest
 	name string  // user name for --as ("" = CLI superuser)
+	// server: the command line on the server itself (no --as), the way of
+	// critical actions (safety.recent_sign_in) besides a fresh sign-in
+	server bool
 }
 
 // who returns the person an example runs as. A member gets exactly the
@@ -977,10 +999,10 @@ func (r *exampleRunner) do(way string, a actions.Action, w who, path string, que
 			args = append(args, "--file", f.field+"=@"+p)
 		}
 	}
-	if w.name != "" { // the same account as on the API (also "admin")
+	if w.name != "" && !w.server { // the same account as on the API (also "admin")
 		args = append(args, "--as", w.name)
 	}
-	if w.cl == nil || w.name == "" { // a guest: the command line always has an account
+	if !w.server && (w.cl == nil || w.name == "") { // a guest: the command line always has an account
 		return r.do("api", a, w, path, query, body, up)
 	}
 	var stdout, stderr bytes.Buffer
