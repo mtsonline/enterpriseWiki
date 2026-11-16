@@ -1,13 +1,5 @@
 # Actions without an example (phase 4 adds them area by area; the list may
 # only shrink). Rewritten with EWIKI_ACTIONS_UPDATE=1.
-auth.ldap.sync.adopt
-auth.ldap.sync.list
-auth.ldap.sync.run
-auth.ldap.test
-auth.oidc.check
-core.auth.providers.preview
-core.me.identities.link
-core.me.identities.unlink
 core.media.open
 core.plugins.build
 core.plugins.install
@@ -17,11 +9,7 @@ core.plugins.sources.add
 core.plugins.sources.check
 core.plugins.sources.external
 core.plugins.sources.remove
-core.scim.clients.create
-core.scim.clients.delete
-core.scim.clients.token
 core.updates.install
-core.users.identities.unlink
 office.collabora.test
 office.m365.test
 office.onlyoffice.test

@@ -11,3 +11,9 @@ actions:
     permission: {key: core.settings.manage, scope: SCOPE_GLOBAL}
     cli: {command: [oidc, check]}
     ui: {entry: /admin/oidc}
+    examples:
+      - name: keycloak
+        as: member
+        requires: [keycloak]
+        given: [core.settings.update#oidc_keycloak]
+        expect_json: '{"ok": true}'

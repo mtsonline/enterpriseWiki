@@ -107,6 +107,10 @@ var TestSystems = map[string][]string{
 	"opensearch":    {"url"},
 	"elasticsearch": {"url", "password"},
 	"meilisearch":   {"url", "key"},
+	// OpenLDAP with the people alice, bob, … (dc=example,dc=com)
+	"ldap": {"url", "bind_dn", "bind_password", "user_password"},
+	// Keycloak (OpenID Connect, SAML 2.0)
+	"keycloak": {"url", "admin", "password"},
 }
 
 // FormField is ewiki.plugin.v1.FormField.

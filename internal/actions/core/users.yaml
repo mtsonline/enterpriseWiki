@@ -221,6 +221,16 @@ actions:
     safety: {changes: true}
     cli: {command: [user, unlink], builtin: true}
     ui: {entry: /admin/users}
+    examples:
+      # the whole way (sign in with a provider, link, unlink) is in
+      # TestIdentityLinking: a confirmed address belongs to one account only,
+      # so it cannot run again for the second way
+      - name: not_linked
+        as: member
+        given: [core.users.create#default]
+        path_params_json: '{"id": ${given.core.users.create#default.id}}'
+        query_json: '{"provider": "ldap", "subject": "nobody"}'
+        status: 404
   - id: core.users.profile.show
     category: CATEGORY_ACTION
     method: GET
@@ -585,6 +595,17 @@ actions:
     safety: {changes: true}
     cli: {command: [scim, create], builtin: true}
     ui: {entry: /admin/scim}
+    examples:
+      - name: ldap
+        as: member
+        requires: [ldap]
+        given: [core.settings.update#ldap]
+        body_json: '{"name": "Directory ${unique}", "provider": "ldap", "subject_from": "externalId", "on_delete": "disable"}'
+        expect_json: '{"client": {"provider": "ldap", "subject_from": "externalId"}}'
+      - name: unknown_provider
+        as: member
+        body_json: '{"name": "Directory ${unique}", "provider": "nowhere"}'
+        status: 400
   - id: core.scim.clients.token
     category: CATEGORY_ACTION
     method: POST
@@ -597,6 +618,12 @@ actions:
     safety: {changes: true}
     cli: {command: [scim, token], builtin: true}
     ui: {entry: /admin/scim}
+    examples:
+      - name: ldap
+        as: member
+        requires: [ldap]
+        given: [core.scim.clients.create#ldap]
+        path_params_json: '{"id": ${given.core.scim.clients.create#ldap.client.id}}'
   - id: core.scim.clients.delete
     category: CATEGORY_ACTION
     method: DELETE
@@ -609,6 +636,12 @@ actions:
     safety: {changes: true}
     cli: {command: [scim, delete], builtin: true}
     ui: {entry: /admin/scim}
+    examples:
+      - name: ldap
+        as: member
+        requires: [ldap]
+        given: [core.scim.clients.create#ldap]
+        path_params_json: '{"id": ${given.core.scim.clients.create#ldap.client.id}}'
   - id: core.scim.service_provider_config
     category: CATEGORY_PROTOCOL
     method: GET

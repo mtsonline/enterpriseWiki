@@ -95,7 +95,7 @@ func (p *Plugin) Setup(host *coreplugin.Host) error {
 		case err != nil:
 			return map[string]any{"ok": false, "message": err.Error()}, nil
 		}
-		return map[string]any{"ok": true, "identity": id}, nil
+		return map[string]any{"ok": true, "identity": id.View()}, nil
 	})
 	return nil
 }

@@ -16,6 +16,25 @@ actions:
     safety: {secret_fields: [password]}
     cli: {command: [ldap, test]}
     ui: {entry: /admin/ldap, control: {text: {en: Test sign-in, de: Anmeldung testen}}}
+    examples:
+      - name: default
+        as: member
+        requires: [ldap]
+        given: [core.settings.update#ldap]
+        body_json: '{"username": "alice", "password": "${system.ldap.user_password}"}'
+        expect_json: '{"ok": true, "identity": {"provider": "ldap", "username": "alice", "email": "alice@example.com", "groups": ["Engineers", "wiki-admins"]}}'
+      - name: wrong_password
+        as: member
+        requires: [ldap]
+        given: [core.settings.update#ldap]
+        body_json: '{"username": "alice", "password": "wrong"}'
+        expect_json: '{"ok": false}'
+      - name: filter_injection
+        as: member
+        requires: [ldap]
+        given: [core.settings.update#ldap]
+        body_json: '{"username": "*", "password": "${system.ldap.user_password}"}'
+        expect_json: '{"ok": false}'
   - id: auth.ldap.sync.list
     category: CATEGORY_ACTION
     method: GET
@@ -30,6 +49,11 @@ actions:
     success_status: 200
     cli: {command: [directory, runs], builtin: true}
     ui: {entry: /admin/ldap}
+    examples:
+      - name: default
+        as: admin
+        requires: [ldap]
+        given: [auth.ldap.sync.run#dry_run]
   - id: auth.ldap.sync.run
     category: CATEGORY_ACTION
     method: POST
@@ -43,6 +67,19 @@ actions:
     safety: {changes: true, audit_event: auth.directory.sync}
     cli: {command: [directory, sync], builtin: true}
     ui: {entry: /admin/ldap, control: {text: {en: Sync now, de: Jetzt abgleichen}}}
+    examples:
+      - name: dry_run
+        as: admin
+        requires: [ldap]
+        given: [core.settings.update#ldap]
+        body_json: '{"dry_run": true}'
+        expect_json: '{"status": "ok", "dry_run": true, "directory": 2, "conflicts": 0}'
+      - name: default
+        as: admin
+        requires: [ldap]
+        given: [core.settings.update#ldap]
+        body_json: '{}'
+        expect_json: '{"status": "ok", "dry_run": false, "directory": 2, "conflicts": 0}'
   - id: auth.ldap.sync.adopt
     category: CATEGORY_ACTION
     method: POST
@@ -56,3 +93,12 @@ actions:
     safety: {changes: true, audit_event: auth.directory.adopt}
     cli: {command: [directory, adopt], builtin: true}
     ui: {entry: /admin/ldap}
+    examples:
+      # adopting a new directory id needs an account whose id changed in the
+      # directory: the whole way is in TestRealLDAPDirectorySync
+      - name: not_in_directory
+        as: admin
+        requires: [ldap]
+        given: [core.settings.update#ldap]
+        body_json: '{"username": "nobody-${unique}"}'
+        status: 404

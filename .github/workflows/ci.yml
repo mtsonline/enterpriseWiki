@@ -270,6 +270,11 @@ jobs:
         run: go test -race -count=1 -timeout 30m -run 'TestReal' -v ./internal/server/
         env:
           EWIKI_TEST_DATABASE_URL: ${{ env.DB_URL }}
+      - name: examples of the action register that need LDAP or Keycloak
+        run: go test -race -count=1 -timeout 20m -run 'TestActionExamples' ./internal/server/
+        env:
+          EWIKI_TEST_EXAMPLE_SYSTEMS: ldap,keycloak
+          EWIKI_TEST_DATABASE_URL: ${{ env.DB_URL }}
       - name: build and start the wiki
         run: |
           (cd web && npm ci --no-audit --no-fund)

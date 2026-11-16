@@ -50,6 +50,12 @@ actions:
       - name: search_meilisearch
         requires: [meilisearch]
         body_json: '{"plugin_settings": {"search.external": {"engine": "meilisearch", "url": "${system.meilisearch.url}", "api_key": "${system.meilisearch.key}", "index": "ewiki_ex_${unique}"}}}'
+      - name: ldap
+        requires: [ldap]
+        body_json: '{"plugin_settings": {"auth.ldap": {"url": "${system.ldap.url}", "bind_dn": "${system.ldap.bind_dn}", "bind_password": "${system.ldap.bind_password}", "base_dn": "ou=people,dc=example,dc=com", "user_filter": "(uid={username})", "attr_subject": "entryUUID", "group_mapping": {"engineering": "Engineers"}}}}'
+      - name: oidc_keycloak
+        requires: [keycloak]
+        body_json: '{"plugin_settings": {"auth.oidc": {"issuer": "${system.keycloak.url}/realms/master", "client_id": "enterprise-wiki", "client_secret": "not-used-by-the-check"}}}'
       - name: search_meilisearch_wrong_key
         requires: [meilisearch]
         body_json: '{"plugin_settings": {"search.external": {"engine": "meilisearch", "url": "${system.meilisearch.url}", "api_key": "wrong", "index": "ewiki_ex_${unique}"}}}'
@@ -980,3 +986,10 @@ actions:
     safety: {changes: true}
     cli: {command: [auth, provider, preview], args: [id]}
     ui: {entry: /admin/oidc}
+    examples:
+      - name: ldap
+        requires: [ldap]
+        given: [core.settings.update#ldap]
+        path_params_json: '{"id": "ldap"}'
+        body_json: '{"username": "preview-${unique}", "email": "preview-${unique}@example.com", "groups": ["engineering"]}'
+        expect_json: '{"provider": "ldap"}'
