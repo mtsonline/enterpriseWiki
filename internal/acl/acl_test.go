@@ -97,3 +97,61 @@ func TestRebuildDuringChange(t *testing.T) {
 		t.Fatalf("calls %d", calls)
 	}
 }
+
+// Viewers and Tokens decide in the search index what perms decides in the
+// wiki: both must agree for every person and category.
+func TestViewersMatchPerms(t *testing.T) {
+	s := &Service{}
+	sn := snap()
+	sn.ancestors[5] = []int64{4, 5}
+	sn.ancestors[6] = []int64{6}
+	sn.class = map[int64]int{6: Internal}
+	sn.rules[6] = []Rule{{CategoryID: 6, SubjectType: "guest", Permissions: View, Inherit: true}}
+	sn.rules[5] = []Rule{{CategoryID: 5, SubjectType: "authenticated", Permissions: Edit, Inherit: true}} // no view bit
+	people := []*identity.Principal{nil, {UserID: 5, Groups: []int64{10}}, {UserID: 9, Roles: []int64{7}}, {UserID: 9},
+		{UserID: 3, Groups: []int64{11}, Roles: []int64{8}}}
+	check := func() {
+		t.Helper()
+		for _, p := range people {
+			tokens := map[string]bool{}
+			for _, x := range Tokens(p) {
+				tokens[x] = true
+			}
+			for cat := range sn.ancestors {
+				match := false
+				for _, v := range sn.viewers(cat) {
+					match = match || tokens[v]
+				}
+				if want := s.perms(sn, p, cat)&View != 0; match != want {
+					t.Errorf("person %+v, category %d: index says %v, wiki says %v (viewers %v)", p, cat, match, want, sn.viewers(cat))
+				}
+			}
+		}
+	}
+	check()
+	sn.deleted[2] = true
+	check()
+	if Tokens(&identity.Principal{UserID: 1, IsAdmin: true}) != nil {
+		t.Error("administrators need no restriction")
+	}
+	if Tokens(&identity.Principal{UserID: 1, IsAdmin: true, Via: "apikey"}) == nil {
+		t.Error("API keys of administrators are narrowed")
+	}
+}
+
+func TestVisible(t *testing.T) {
+	s := &Service{}
+	sn := snap()
+	s.snap.Store(sn)
+	ids, all, err := s.Visible(context.Background(), &identity.Principal{UserID: 9, Roles: []int64{7}})
+	// the guest rule on 1 applies to everybody
+	if err != nil || all || len(ids) != 2 || ids[0] != 1 || ids[1] != 4 {
+		t.Fatalf("visible: %v %v %v", ids, all, err)
+	}
+	if ids, all, _ = s.Visible(context.Background(), nil); all || len(ids) != 1 || ids[0] != 1 {
+		t.Fatalf("guest: %v %v", ids, all)
+	}
+	if _, all, _ = s.Visible(context.Background(), &identity.Principal{UserID: 1, IsAdmin: true}); !all {
+		t.Fatal("admin restricted")
+	}
+}

@@ -572,6 +572,104 @@ func (s *Service) PermsMap(ctx context.Context, p *identity.Principal, ids []int
 	return out, nil
 }
 
+// Visible returns the categories on which p may view content. all is true
+// for administrators (no restriction needed; ids is nil then). Searches
+// restrict their query with it, so that matches someone may see are never
+// crowded out by matches they may not see.
+func (s *Service) Visible(ctx context.Context, p *identity.Principal) (ids []int64, all bool, err error) {
+	if p != nil && p.IsAdmin && p.Via != "apikey" {
+		return nil, true, nil
+	}
+	sn, err := s.load(ctx)
+	if err != nil {
+		return nil, false, err
+	}
+	ids = make([]int64, 0, len(sn.ancestors))
+	for id := range sn.ancestors {
+		if s.perms(sn, p, id)&View != 0 {
+			ids = append(ids, id)
+		}
+	}
+	slices.Sort(ids)
+	return ids, false, nil
+}
+
+// Tokens names who p is for a search index that stores Viewers per
+// document: "guest" (everybody), "authenticated", "user:ID", "group:ID",
+// "role:ID". nil means no restriction (administrators). A document matches
+// when one of its viewers is one of the tokens.
+func Tokens(p *identity.Principal) []string {
+	if p != nil && p.IsAdmin && p.Via != "apikey" {
+		return nil
+	}
+	out := []string{"guest"}
+	if p == nil || p.UserID <= 0 {
+		return out
+	}
+	out = append(out, "authenticated", "user:"+strconv.FormatInt(p.UserID, 10))
+	for _, g := range p.Groups {
+		out = append(out, "group:"+strconv.FormatInt(g, 10))
+	}
+	for _, r := range p.Roles {
+		out = append(out, "role:"+strconv.FormatInt(r, 10))
+	}
+	return out
+}
+
+// Viewers returns for each category the subjects that may view it (see
+// Tokens); administrators are not listed, they see everything. A trashed
+// category has no viewers. It is a superset of the exact check in perms
+// for API keys, which the search narrows afterwards.
+func (s *Service) Viewers(ctx context.Context, ids []int64) (map[int64][]string, error) {
+	sn, err := s.load(ctx)
+	if err != nil {
+		return nil, err
+	}
+	out := make(map[int64][]string, len(ids))
+	for _, id := range ids {
+		out[id] = sn.viewers(id)
+	}
+	return out, nil
+}
+
+func (sn *snapshot) viewers(id int64) []string {
+	anc, ok := sn.ancestors[id]
+	if !ok {
+		return []string{}
+	}
+	for _, cid := range anc {
+		if sn.deleted[cid] {
+			return []string{}
+		}
+	}
+	internal := sn.level(anc) >= Internal
+	seen := map[string]bool{}
+	out := []string{}
+	for i, cid := range anc {
+		self := i == len(anc)-1
+		for _, r := range sn.rules[cid] {
+			if (!self && !r.Inherit) || r.Permissions&View == 0 {
+				continue
+			}
+			t := r.SubjectType
+			if r.SubjectID != nil {
+				t += ":" + strconv.FormatInt(*r.SubjectID, 10)
+			}
+			// internal and above: never for guests, but a guest rule still
+			// applies to everybody signed in
+			if t == "guest" && internal {
+				t = "authenticated"
+			}
+			if !seen[t] {
+				seen[t] = true
+				out = append(out, t)
+			}
+		}
+	}
+	slices.Sort(out)
+	return out
+}
+
 // Rules returns the rules attached directly to categoryID and the rules
 // inherited from its ancestors.
 func (s *Service) Rules(ctx context.Context, categoryID int64) (own []Rule, inherited []Rule, err error) {

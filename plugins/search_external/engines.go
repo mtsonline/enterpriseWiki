@@ -21,6 +21,9 @@ type Doc struct {
 	Title      string   `json:"title"`
 	Text       string   `json:"text"`
 	Tags       []string `json:"tags"`
+	// Viewers are who may view the document (acl.Viewers); searches filter
+	// by them, the wiki checks the permissions once more afterwards.
+	Viewers []string `json:"viewers"`
 }
 
 // Hit is a search result of an engine.
@@ -40,7 +43,8 @@ type Engine interface {
 	Reset(ctx context.Context) error
 	Upsert(ctx context.Context, docs []Doc) error
 	DeleteElements(ctx context.Context, ids []int64) error
-	Search(ctx context.Context, q string, tags []string, limit, offset int) ([]Hit, error)
+	// Search finds documents; viewers nil means no restriction (see Doc.Viewers).
+	Search(ctx context.Context, q string, tags, viewers []string, limit, offset int) ([]Hit, error)
 	Count(ctx context.Context) (int64, error)
 }
 
@@ -59,9 +63,13 @@ func (s Settings) Configured() bool {
 	return s.URL != "" && (s.Engine == "opensearch" || s.Engine == "meilisearch")
 }
 
+// indexVersion changes with the document layout: an index of an older
+// layout is rebuilt automatically (2: viewers).
+const indexVersion = "2"
+
 // Signature identifies the index (a change triggers a rebuild).
 func (s Settings) Signature() string {
-	return s.Engine + "|" + strings.TrimSuffix(s.URL, "/") + "|" + s.Index
+	return indexVersion + "|" + s.Engine + "|" + strings.TrimSuffix(s.URL, "/") + "|" + s.Index
 }
 
 // NewEngine creates the configured engine.
@@ -160,7 +168,7 @@ func (o *opensearch) Reset(ctx context.Context) error {
 	return o.c.do(ctx, "PUT", "/"+o.c.s.Index, map[string]any{
 		"mappings": map[string]any{"properties": map[string]any{
 			"element_id": map[string]string{"type": "long"}, "category_id": map[string]string{"type": "long"},
-			"lang": map[string]string{"type": "keyword"}, "tags": map[string]string{"type": "keyword"},
+			"lang": map[string]string{"type": "keyword"}, "tags": map[string]string{"type": "keyword"}, "viewers": map[string]string{"type": "keyword"},
 			"title": map[string]string{"type": "text"}, "text": map[string]string{"type": "text"},
 		}},
 	}, "", nil)
@@ -206,10 +214,13 @@ func (o *opensearch) DeleteElements(ctx context.Context, ids []int64) error {
 		map[string]any{"query": map[string]any{"terms": map[string]any{"element_id": ids}}}, "", nil)
 }
 
-func (o *opensearch) Search(ctx context.Context, q string, tags []string, limit, offset int) ([]Hit, error) {
+func (o *opensearch) Search(ctx context.Context, q string, tags, viewers []string, limit, offset int) ([]Hit, error) {
 	filter := []any{}
 	for _, t := range tags {
 		filter = append(filter, map[string]any{"term": map[string]string{"tags": t}})
+	}
+	if viewers != nil {
+		filter = append(filter, map[string]any{"terms": map[string]any{"viewers": viewers}})
 	}
 	body := map[string]any{
 		"from": offset, "size": limit, "_source": []string{"element_id", "lang", "title"},
@@ -327,7 +338,7 @@ func (m *meili) Reset(ctx context.Context) error {
 	}
 	if err := m.c.do(ctx, "PATCH", "/indexes/"+idx+"/settings", map[string]any{
 		"searchableAttributes": []string{"title", "tags", "text"},
-		"filterableAttributes": []string{"element_id", "category_id", "lang", "tags"},
+		"filterableAttributes": []string{"element_id", "category_id", "lang", "tags", "viewers"},
 	}, "", &t); err != nil {
 		return err
 	}
@@ -365,10 +376,17 @@ func quoteFilter(s string) string {
 	return `"` + strings.NewReplacer(`\`, `\\`, `"`, `\"`).Replace(s) + `"`
 }
 
-func (m *meili) Search(ctx context.Context, q string, tags []string, limit, offset int) ([]Hit, error) {
+func (m *meili) Search(ctx context.Context, q string, tags, viewers []string, limit, offset int) ([]Hit, error) {
 	filters := []string{}
 	for _, t := range tags {
 		filters = append(filters, "tags = "+quoteFilter(t))
+	}
+	if viewers != nil {
+		vs := make([]string, len(viewers))
+		for i, v := range viewers {
+			vs[i] = quoteFilter(v)
+		}
+		filters = append(filters, "viewers IN ["+strings.Join(vs, ", ")+"]")
 	}
 	body := map[string]any{
 		"q": q, "limit": limit, "offset": offset, "attributesToRetrieve": []string{"element_id", "lang", "title"},

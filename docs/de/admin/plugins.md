@@ -173,7 +173,10 @@ Für sehr große Datenbestände kann die Volltextsuche **OpenSearch/Elasticsearc
 
 - PostgreSQL bleibt die Referenz. Jede Änderung (Speichern, Verschieben, Tags, Papierkorb, Wiederherstellen, Löschen) landet über Datenbank-Trigger in einem Änderungsprotokoll; ein Hintergrundjob überträgt sie alle 10 Sekunden. Nach einer Änderung von Suchmaschine, URL oder Index sowie mit *Index neu aufbauen* wird der Index vollständig neu erstellt.
 - Gesucht wird extern erst, wenn der Index vollständig aufgebaut ist. Bis dahin, bei Fehlern der Suchmaschine und bei deaktiviertem Plugin antwortet automatisch die eingebaute Suche. Die Antwort der Such-API enthält dazu `engine`.
-- Berechtigungen, Papierkorb und Tags prüft immer das Wiki selbst; die Suchmaschine bekommt keine Rechteinformationen und muss nicht öffentlich erreichbar sein (sie sollte es auch nicht sein).
+- Zu jedem Dokument speichert die Suchmaschine, wer es sehen darf (Benutzer, Gruppen, Rollen, angemeldete Personen, Gäste; Administratoren sehen alles). Jede Suche filtert danach. So findet jede Person ihre Seiten, auch wenn es zum Suchbegriff viel mehr Seiten gibt, die sie nicht sehen darf. Eine Änderung der Rechte überträgt das Wiki innerhalb von Sekunden in den Index.
+- Danach prüft das Wiki jeden Treffer noch einmal selbst mit den aktuellen Rechten, ebenso Papierkorb und Tags. Ein veralteter oder fehlerhafter Index zeigt deshalb nie mehr, als jemand sehen darf.
+- Die Suchmaschine enthält Seiteninhalte und die Kennungen der Berechtigten. Sie muss nicht öffentlich erreichbar sein und sollte es auch nicht sein; schützen Sie sie mit Zugangsdaten.
+- Die eingebaute Suche (PostgreSQL) filtert genauso schon in der Abfrage nach den Bereichen, die jemand sehen darf.
 - Die automatischen Tests laufen gegen die jeweils neueste Version von OpenSearch, Elasticsearch und Meilisearch (Indexaufbau, Änderungen, Rechte, Tags, Tippfehler, Ausfall der Suchmaschine). Ältere Versionen ab den oben genannten werden nicht automatisch getestet; bitte vor dem Produktiveinsatz mit Ihrer Version prüfen (*Verbindung testen*, *Index neu aufbauen*, Anzahl der Dokumente vergleichen).
 - Für Elasticsearch wählen Sie die Suchmaschine *OpenSearch / Elasticsearch*.
 

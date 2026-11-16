@@ -168,6 +168,9 @@ func TestRealExternalSearch(t *testing.T) {
 				t.Fatalf("after reindex: %+v", res)
 			}
 
+			// people find what they may see, however much else matches
+			crowdedSearch(t, e, admin, settings["engine"].(string), run)
+
 			// engine unreachable: the built-in search answers
 			down := eng.settings("http://127.0.0.1:1")
 			down["index"] = settings["index"]

@@ -110,7 +110,7 @@ func (b backend) Ready(ctx context.Context) bool {
 func (b backend) Search(ctx context.Context, q content.SearchQuery) ([]content.BackendHit, error) {
 	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
-	hits, err := NewEngine(b.p.settings()).Search(ctx, q.Q, q.Tags, q.Limit, q.Offset)
+	hits, err := NewEngine(b.p.settings()).Search(ctx, q.Q, q.Tags, q.Viewers, q.Limit, q.Offset)
 	if err != nil {
 		return nil, err
 	}
@@ -134,7 +134,7 @@ func (p *Plugin) docs(ctx context.Context, ids []int64, after int64, limit int) 
 	if err != nil {
 		return nil, err
 	}
-	return pgx.CollectRows(rows, func(r pgx.CollectableRow) (Doc, error) {
+	docs, err := pgx.CollectRows(rows, func(r pgx.CollectableRow) (Doc, error) {
 		var d Doc
 		err := r.Scan(&d.ElementID, &d.CategoryID, &d.Lang, &d.Title, &d.Text, &d.Tags)
 		d.ID = fmt.Sprintf("e%d_%s", d.ElementID, d.Lang)
@@ -143,6 +143,21 @@ func (p *Plugin) docs(ctx context.Context, ids []int64, after int64, limit int) 
 		}
 		return d, err
 	})
+	if err != nil {
+		return nil, err
+	}
+	cats := make([]int64, len(docs))
+	for i, d := range docs {
+		cats[i] = d.CategoryID
+	}
+	viewers, err := p.host.ACL.Viewers(ctx, cats)
+	if err != nil {
+		return nil, err
+	}
+	for i := range docs {
+		docs[i].Viewers = viewers[docs[i].CategoryID]
+	}
+	return docs, nil
 }
 
 // rebuild creates the index from scratch.
@@ -154,6 +169,7 @@ func (p *Plugin) rebuild(ctx context.Context, e Engine, sig string) error {
 	if _, err := p.host.DB.Exec(ctx, `UPDATE plugin_search_state SET ready=false, signature=$1, indexed=0 WHERE id=1`, sig); err != nil {
 		return err
 	}
+	p.host.ACL.Invalidate() // permissions as of now (see sync)
 	if err := e.Reset(ctx); err != nil {
 		return fmt.Errorf("create index: %w", err)
 	}
@@ -249,6 +265,9 @@ func (p *Plugin) sync(ctx context.Context, s Settings) error {
 		for id := range set {
 			ids = append(ids, id)
 		}
+		// the permissions as of now (they are part of the documents): a
+		// cached snapshot of this node may predate the changes just read
+		p.host.ACL.Invalidate()
 		if err := e.DeleteElements(ctx, ids); err != nil {
 			return fmt.Errorf("delete documents: %w", err)
 		}

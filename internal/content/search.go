@@ -86,6 +86,17 @@ func (s *Service) SearchIn(ctx context.Context, q string, tags []string, lang st
 			res.Elements = []SearchHit{}
 		}
 	}
+	// only categories the caller may view: otherwise matches they may not
+	// see could fill the result window and hide the ones they may see
+	visible, all, err := s.acl.Visible(ctx, p)
+	if err != nil {
+		return nil, err
+	}
+	if all {
+		visible = nil
+	} else if len(visible) == 0 {
+		return s.searchCategories(ctx, q, tags, res, scope)
+	}
 	if tsq != "" {
 		rows, err = s.pool.Query(ctx, `SELECT d.element_id, d.category_id, d.lang, e.type, d.title,
 				ts_headline('simple', left(d.body_text, 20000), q, 'StartSel=⟦, StopSel=⟧, MaxFragments=2, MaxWords=24, MinWords=8, FragmentDelimiter=" … "'),
@@ -93,14 +104,16 @@ func (s *Service) SearchIn(ctx context.Context, q string, tags []string, lang st
 			FROM search_docs d JOIN elements e ON e.id = d.element_id, to_tsquery('simple', $1) q
 			WHERE d.tsv @@ q AND e.deleted_at IS NULL AND (cardinality($2::text[]) = 0 OR e.tags @> $2)
 				AND ($4::bigint[] IS NULL OR d.category_id = ANY($4))
+				AND ($5::bigint[] IS NULL OR d.category_id IN (SELECT unnest($5::bigint[])))
 				AND ($4::bigint[] IS NOT NULL OR NOT EXISTS (SELECT 1 FROM categories hc JOIN categories hx ON hx.id = d.category_id WHERE (hc.hidden OR hc.archived_at IS NOT NULL OR hc.classification >= 3) AND hx.path <@ hc.path)) -- hidden categories only when searched explicitly
-			ORDER BY ts_rank(d.tsv, q) DESC, (d.lang = $3) DESC LIMIT 1000`, tsq, tags, lang, scope)
+			ORDER BY ts_rank(d.tsv, q) DESC, (d.lang = $3) DESC LIMIT 1000`, tsq, tags, lang, scope, visible)
 	} else {
 		rows, err = s.pool.Query(ctx, `SELECT d.element_id, d.category_id, d.lang, e.type, d.title, left(d.body_text, 200), e.tags, 1::real
 			FROM search_docs d JOIN elements e ON e.id = d.element_id
 			WHERE e.deleted_at IS NULL AND e.tags @> $1 AND ($3::bigint[] IS NULL OR d.category_id = ANY($3))
+				AND ($4::bigint[] IS NULL OR d.category_id IN (SELECT unnest($4::bigint[])))
 				AND ($3::bigint[] IS NOT NULL OR NOT EXISTS (SELECT 1 FROM categories hc JOIN categories hx ON hx.id = d.category_id WHERE (hc.hidden OR hc.archived_at IS NOT NULL OR hc.classification >= 3) AND hx.path <@ hc.path))
-			ORDER BY e.updated_at DESC, (d.lang = $2) DESC LIMIT 1000`, tags, lang, scope)
+			ORDER BY e.updated_at DESC, (d.lang = $2) DESC LIMIT 1000`, tags, lang, scope, visible)
 	}
 	if err != nil {
 		return nil, err
@@ -463,7 +476,7 @@ func (s *Service) searchExternal(ctx context.Context, b SearchBackend, q string,
 	best := map[int64]int{}
 	const page = 100
 	for off := 0; off < 5*page && len(res.Elements) < limit; off += page {
-		hits, err := b.Search(ctx, SearchQuery{Q: q, Tags: tags, Lang: lang, Limit: page, Offset: off})
+		hits, err := b.Search(ctx, SearchQuery{Q: q, Tags: tags, Lang: lang, Limit: page, Offset: off, Viewers: acl.Tokens(p)})
 		if err != nil {
 			return err
 		}
