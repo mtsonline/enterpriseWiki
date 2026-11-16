@@ -41,6 +41,18 @@ actions:
         body_json: '{"plugin_settings": {"workflow.process": {"links_without_login": false}}}'
       - name: mail_smtp
         body_json: '{"mail": {"transport": "smtp", "from": "wiki@example.com", "smtp": {"host": "127.0.0.1", "port": ${smtp_port}, "security": "none"}}}'
+      - name: search_opensearch
+        requires: [opensearch]
+        body_json: '{"plugin_settings": {"search.external": {"engine": "opensearch", "url": "${system.opensearch.url}", "index": "ewiki_ex_${unique}"}}}'
+      - name: search_elasticsearch
+        requires: [elasticsearch]
+        body_json: '{"plugin_settings": {"search.external": {"engine": "opensearch", "url": "${system.elasticsearch.url}", "username": "elastic", "password": "${system.elasticsearch.password}", "index": "ewiki_ex_${unique}"}}}'
+      - name: search_meilisearch
+        requires: [meilisearch]
+        body_json: '{"plugin_settings": {"search.external": {"engine": "meilisearch", "url": "${system.meilisearch.url}", "api_key": "${system.meilisearch.key}", "index": "ewiki_ex_${unique}"}}}'
+      - name: search_meilisearch_wrong_key
+        requires: [meilisearch]
+        body_json: '{"plugin_settings": {"search.external": {"engine": "meilisearch", "url": "${system.meilisearch.url}", "api_key": "wrong", "index": "ewiki_ex_${unique}"}}}'
   - id: core.retention.run
     category: CATEGORY_ACTION
     method: POST
