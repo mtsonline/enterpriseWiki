@@ -9,6 +9,7 @@ import (
 	"io"
 	"net/http"
 	"strings"
+	"sync"
 	"testing"
 )
 
@@ -583,12 +584,12 @@ func TestAccessRequests(t *testing.T) {
 	}
 	// existing and missing targets answer the same
 	var a, b map[string]any
-	rosa.must("POST", "/api/v1/access-requests", map[string]any{"type": "element", "id": page.ID, "message": "I prepare the budget"}, &a, 200)
-	rosa.must("POST", "/api/v1/access-requests", map[string]any{"type": "element", "id": 999999}, &b, 200)
+	rosa.must("POST", "/api/v1/access-requests", map[string]any{"type": "element", "id": page.ID, "message": "I prepare the budget"}, &a, 202)
+	rosa.must("POST", "/api/v1/access-requests", map[string]any{"type": "element", "id": 999999}, &b, 202)
 	if fmt.Sprint(a) != fmt.Sprint(b) {
 		t.Fatalf("answers differ: %v %v", a, b)
 	}
-	rosa.must("POST", "/api/v1/access-requests", map[string]any{"type": "element", "id": page.ID}, nil, 200) // no second open request
+	rosa.must("POST", "/api/v1/access-requests", map[string]any{"type": "element", "id": page.ID}, nil, 202) // no second open request
 	var open []struct {
 		ID      int64  `json:"id"`
 		User    string `json:"user"`
@@ -652,7 +653,7 @@ func TestPersonalSpaces(t *testing.T) {
 	var role struct {
 		ID int64 `json:"id"`
 	}
-	admin.must("POST", "/api/v1/admin/roles", map[string]any{"name": "Staff", "permissions": []string{"core.spaces.personal"}}, &role, 200)
+	admin.must("POST", "/api/v1/admin/roles", map[string]any{"name": "Staff", "permissions": []string{"core.spaces.personal"}}, &role, 201)
 	var lena, max struct {
 		ID int64 `json:"id"`
 	}
@@ -673,7 +674,35 @@ func TestPersonalSpaces(t *testing.T) {
 		OwnTree   bool              `json:"own_tree"`
 	}
 	var a, b sp
-	l.must("POST", "/api/v1/spaces/personal", nil, &a, 200)
+	// requests at the same time: one space, created once (201), else returned (200)
+	const n = 8
+	got := make([]sp, n)
+	codes := make([]int, n)
+	var wg sync.WaitGroup
+	for i := range n {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			codes[i] = l.do("POST", "/api/v1/spaces/personal", nil, &got[i])
+		}()
+	}
+	wg.Wait()
+	created := 0
+	for i := range n {
+		switch {
+		case codes[i] == 201:
+			created++
+		case codes[i] != 200:
+			t.Fatalf("personal space at the same time: %d", codes[i])
+		}
+		if got[i].ID != got[0].ID {
+			t.Fatalf("two personal spaces: %d and %d", got[0].ID, got[i].ID)
+		}
+	}
+	if created != 1 {
+		t.Fatalf("created %d times", created)
+	}
+	a = got[0]
 	l.must("POST", "/api/v1/spaces/personal", nil, &b, 200)
 	if a.ID != b.ID || a.Personal != lena.ID || a.Titles["en"] != "Lena" || !a.CanManage || !a.OwnTree || !a.Member {
 		t.Fatalf("personal space: %+v %+v", a, b)
@@ -1074,7 +1103,7 @@ func TestPropertyTrend(t *testing.T) {
 	var role struct {
 		ID int64 `json:"id"`
 	}
-	admin.must("POST", "/api/v1/admin/roles", map[string]any{"name": "Payroll"}, &role, 200)
+	admin.must("POST", "/api/v1/admin/roles", map[string]any{"name": "Payroll"}, &role, 201)
 	admin.must("POST", "/api/v1/x/core.properties/defs", map[string]any{"category_id": c.ID, "key": "salary", "type": "integer", "view_subjects": []map[string]any{{"type": "role", "id": role.ID}}}, nil, 201)
 	fields := func(v map[string]any) map[string]any {
 		return map[string]any{"core.properties": map[string]any{"values": v}}

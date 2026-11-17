@@ -64,7 +64,7 @@ func TestUITranslations(t *testing.T) {
 		}
 	}
 	var role struct{ ID int64 }
-	admin.must("POST", "/api/v1/admin/roles", map[string]any{"name": "French translators", "permissions": []string{"core.i18n.translate.fr"}}, &role, 200)
+	admin.must("POST", "/api/v1/admin/roles", map[string]any{"name": "French translators", "permissions": []string{"core.i18n.translate.fr"}}, &role, 201)
 	admin.must("POST", "/api/v1/admin/users", map[string]any{"username": "marie", "password": pw, "display_name": "Marie", "roles": []int64{role.ID}}, nil, 201)
 	marie := e.client()
 	marie.login("marie", pw)

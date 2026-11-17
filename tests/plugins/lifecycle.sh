@@ -137,7 +137,7 @@ wait_version 1.0.0
 
 log "build over the API, then restart over the API"
 res=$(api POST /api/v1/admin/plugins/build)
-[ "$(status "$res")" = 200 ] || fail "build: $(body "$res")"
+[ "$(status "$res")" = 202 ] || fail "build: $(body "$res")"
 for _ in $(seq 1 120); do
 	sleep 5
 	res=$(api GET /api/v1/admin/plugins)
@@ -146,7 +146,7 @@ done
 [ "$(body "$res" | jq -r '.build.ok')" = true ] || fail "manual build: $(body "$res" | jq -r '.build.log')"
 [ "$(body "$res" | jq -r '.restart_pending')" = true ] || fail "no restart pending after a manual build: $(body "$res")"
 res=$(api POST /api/v1/admin/restart)
-[ "$(status "$res")" = 200 ] || fail "restart: $(body "$res")"
+[ "$(status "$res")" = 202 ] || fail "restart: $(body "$res")"
 sleep 3
 ready 120 || fail "no restart"
 res=$(api GET /api/v1/admin/plugins)

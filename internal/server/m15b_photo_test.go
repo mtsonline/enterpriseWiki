@@ -74,7 +74,7 @@ func TestPhotoVisibility(t *testing.T) {
 	var role struct {
 		ID int64 `json:"id"`
 	}
-	admin.must("POST", "/api/v1/admin/roles", map[string]any{"name": "Identity check", "permissions": []string{"core.photos.view"}}, &role, 200)
+	admin.must("POST", "/api/v1/admin/roles", map[string]any{"name": "Identity check", "permissions": []string{"core.photos.view"}}, &role, 201)
 	var ida struct {
 		ID int64 `json:"id"`
 	}

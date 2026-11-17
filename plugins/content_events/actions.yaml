@@ -4,6 +4,7 @@ actions:
     category: CATEGORY_ACTION
     method: GET
     path: "calendars/{id}/events"
+    success_status: 200
     summary:
       text:
         en: List the events of a calendar in a time range
@@ -21,6 +22,7 @@ actions:
     category: CATEGORY_ACTION
     method: POST
     path: "calendars/{id}/events"
+    success_status: 201
     summary:
       text:
         en: Create an event in a calendar (as the calendar allows)
@@ -45,6 +47,7 @@ actions:
     category: CATEGORY_ACTION
     method: GET
     path: "calendars/{id}/ical"
+    success_status: 200
     summary:
       text:
         en: Calendar as iCalendar subscription (with the personal feed link also private)
@@ -60,6 +63,7 @@ actions:
     category: CATEGORY_ACTION
     method: GET
     path: "events/{id}"
+    success_status: 200
     summary:
       text:
         en: Show an event (only what you may see)
@@ -76,6 +80,7 @@ actions:
     category: CATEGORY_ACTION
     method: PUT
     path: "events/{id}"
+    success_status: 200
     summary:
       text:
         en: Change an event (own ones or as manager of the calendar)
@@ -93,6 +98,7 @@ actions:
     category: CATEGORY_ACTION
     method: DELETE
     path: "events/{id}"
+    success_status: 204
     summary:
       text:
         en: Delete an event (own ones or as manager of the calendar)
@@ -110,6 +116,7 @@ actions:
     category: CATEGORY_ACTION
     method: GET
     path: "events/{id}/ical"
+    success_status: 200
     summary:
       text:
         en: Download an event as .ics (only what you may see)
@@ -125,6 +132,7 @@ actions:
     category: CATEGORY_ACTION
     method: PUT
     path: "events/{id}/occurrences/{date}"
+    success_status: 200
     summary:
       text:
         en: Change one occurrence of a series
@@ -142,6 +150,7 @@ actions:
     category: CATEGORY_ACTION
     method: DELETE
     path: "events/{id}/occurrences/{date}"
+    success_status: 204
     summary:
       text:
         en: Reset one occurrence to the series
@@ -159,6 +168,7 @@ actions:
     category: CATEGORY_ACTION
     method: GET
     path: "events/{id}/registrations"
+    success_status: 200
     summary:
       text:
         en: List the registrations of an event (managers of the event)
@@ -177,6 +187,7 @@ actions:
     category: CATEGORY_ACTION
     method: POST
     path: "events/{id}/registrations"
+    success_status: 200
     summary:
       text:
         en: Register for an event
@@ -199,6 +210,7 @@ actions:
     category: CATEGORY_ACTION
     method: DELETE
     path: "events/{id}/registrations"
+    success_status: 204
     summary:
       text:
         en: Cancel your registration for an event
@@ -218,6 +230,7 @@ actions:
     category: CATEGORY_ACTION
     method: DELETE
     path: "events/{id}/registrations/{rid}"
+    success_status: 204
     summary:
       text:
         en: Remove a registration (managers of the event)
@@ -235,6 +248,7 @@ actions:
     category: CATEGORY_ACTION
     method: GET
     path: me/registrations
+    success_status: 200
     summary:
       text:
         en: List your registrations
@@ -250,6 +264,7 @@ actions:
     category: CATEGORY_ACTION
     method: GET
     path: upcoming
+    success_status: 200
     summary:
       text:
         en: List the upcoming events (only what you may see)

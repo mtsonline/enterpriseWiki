@@ -355,7 +355,7 @@ Below every page, signed-in users can comment and answer comments. Your own comm
 
 Every save creates a new version. Nothing is ever overwritten. Under **History** you can view every version and **restore** it. This creates a new version with the old content.
 
-You reset a whole category to a **point in time** under *Category settings → History & reset*, optionally with all sub-categories. Titles, texts and pages get the state of that time, pages created later go into the trash. This too can be undone again.
+You reset a whole category to a **point in time** under *Category settings → History & reset*, optionally with all sub-categories. Titles, texts and pages get the state of that time, pages created later go into the trash. With **Include moved and new categories** (only together with all sub-categories) the structure gets the state of that time too: categories and pages moved since then go back to their former place and order, also into or out of the category; categories created since then (also copies) go into the trash with their pages. The category itself keeps its place. If a former place no longer exists, nothing is changed and the message names it; restore it from the trash first. This too can be undone again.
 
 ## Trash
 

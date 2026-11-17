@@ -284,10 +284,18 @@ async function history(panel: HTMLElement, c: Category): Promise<void> {
   if (can('edit') && can('delete')) {
     const at = h('input', { type: 'datetime-local', class: 'ew-input', required: true });
     const rec = checkbox(t('rollback.recursive'), true, { help: t('rollback.recursive_help') });
+    // the structure is the subcategories: only together with them
+    const struct = checkbox(t('rollback.structure'), false, { help: t('rollback.structure_help') });
+    const syncStruct = () => {
+      struct.input.disabled = !rec.input.checked;
+      if (!rec.input.checked) struct.input.checked = false;
+    };
+    rec.input.addEventListener('change', syncStruct);
+    syncStruct();
     const alert = h('div', { class: 'ew-form-alert', role: 'alert' });
     const form = h('form', { class: 'ew-form ew-panel', novalidate: true },
       h('h2', null, t('rollback.title')), h('p', null, t('rollback.help')), alert,
-      field(t('rollback.at'), at, { required: true }), rec.el,
+      field(t('rollback.at'), at, { required: true }), rec.el, struct.el,
       h('div', { class: 'ew-form-actions' }, button(t('rollback.submit'), () => undefined, { type: 'submit', variant: 'danger' })));
     form.addEventListener('submit', async (ev) => {
       ev.preventDefault();
@@ -300,8 +308,12 @@ async function history(panel: HTMLElement, c: Category): Promise<void> {
       const when = new Date(at.value);
       if (!(await confirmDialog(t('rollback.confirm', { date: fmtDate(when.toISOString(), state.lang) }), t('rollback.submit'), true))) return;
       try {
-        const res = await api.post<{ categories: number; revisions: number; trashed: number }>(`categories/${c.id}/rollback`, { at: when.toISOString(), recursive: rec.input.checked });
-        toast(t('rollback.done', { categories: res.categories, revisions: res.revisions, trashed: res.trashed }));
+        const res = await api.post<{ categories: number; revisions: number; trashed: number; moved: number; categories_trashed: number }>(`categories/${c.id}/rollback`,
+          { at: when.toISOString(), recursive: rec.input.checked, structure: struct.input.checked });
+        toast(struct.input.checked
+          ? t('rollback.done_structure', { categories: res.categories, revisions: res.revisions, trashed: res.trashed, moved: res.moved, categories_trashed: res.categories_trashed })
+          : t('rollback.done', { categories: res.categories, revisions: res.revisions, trashed: res.trashed }));
+        if (struct.input.checked) invalidateTree();
         navigate(location.pathname + location.search, { replace: true });
       } catch (e) {
         alert.textContent = errorText(e);

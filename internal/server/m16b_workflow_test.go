@@ -437,7 +437,7 @@ func TestWorkflow2Part2(t *testing.T) {
 	admin.login("admin", adminPW)
 	const pw = "Passw0rd!Passw0rd"
 	var team idResp
-	admin.must("POST", "/api/v1/admin/groups", map[string]any{"name": "team"}, &team, 200)
+	admin.must("POST", "/api/v1/admin/groups", map[string]any{"name": "team"}, &team, 201)
 	user := func(name string, groups ...int64) (*client, int64) {
 		var u idResp
 		if groups == nil {

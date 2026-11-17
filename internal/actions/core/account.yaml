@@ -23,6 +23,7 @@ actions:
     category: CATEGORY_ACTION
     method: GET
     path: /api/v1/auth/providers
+    success_status: 200
     summary:
       text:
         en: List the sign-in methods of the sign-in page
@@ -37,6 +38,7 @@ actions:
     category: CATEGORY_ACTION
     method: GET
     path: /api/v1/auth/me
+    success_status: 200
     summary:
       text:
         en: "Show the signed-in person, permissions and site (empty for guests)"
@@ -75,6 +77,7 @@ actions:
     category: CATEGORY_ACTION
     method: POST
     path: /api/v1/auth/verify-email
+    success_status: 200
     summary:
       text:
         en: Confirm an e-mail address with the link from the e-mail
@@ -219,6 +222,7 @@ actions:
     category: CATEGORY_ACTION
     method: PUT
     path: /api/v1/me
+    success_status: 204
     summary:
       text:
         en: "Change your own name, e-mail address, language and personal settings"
@@ -235,6 +239,7 @@ actions:
     category: CATEGORY_ACTION
     method: GET
     path: /api/v1/me/prefs
+    success_status: 200
     summary:
       text:
         en: Show your personal settings and the allowed values
@@ -249,6 +254,7 @@ actions:
     category: CATEGORY_ACTION
     method: PUT
     path: /api/v1/me/password
+    success_status: 204
     summary:
       text:
         en: Change your own password (other sessions end)
@@ -270,6 +276,7 @@ actions:
     category: CATEGORY_ACTION
     method: PUT
     path: /api/v1/me/alias
+    success_status: 204
     summary:
       text:
         en: Set or remove your own user name (alias)
@@ -286,6 +293,7 @@ actions:
     category: CATEGORY_ACTION
     method: GET
     path: /api/v1/me/api-keys
+    success_status: 200
     summary:
       text:
         en: List your own API keys
@@ -300,6 +308,7 @@ actions:
     category: CATEGORY_ACTION
     method: POST
     path: /api/v1/me/api-keys
+    success_status: 201
     summary:
       text:
         en: Create an API key (the key is shown once)
@@ -320,6 +329,7 @@ actions:
     category: CATEGORY_ACTION
     method: DELETE
     path: /api/v1/me/api-keys/{id}
+    success_status: 204
     summary:
       text:
         en: Delete one of your API keys
@@ -338,6 +348,7 @@ actions:
     category: CATEGORY_ACTION
     method: PUT
     path: /api/v1/me/api-keys/{id}/rate
+    success_status: 204
     summary:
       text:
         en: Limit the requests per second of one of your API keys
@@ -357,6 +368,7 @@ actions:
     category: CATEGORY_ACTION
     method: GET
     path: /api/v1/me/ssh-keys
+    success_status: 200
     summary:
       text:
         en: List your own SSH keys for signing in
@@ -371,6 +383,7 @@ actions:
     category: CATEGORY_ACTION
     method: POST
     path: /api/v1/me/ssh-keys
+    success_status: 201
     summary:
       text:
         en: Add an SSH key for signing in
@@ -388,6 +401,7 @@ actions:
     category: CATEGORY_ACTION
     method: DELETE
     path: /api/v1/me/ssh-keys/{id}
+    success_status: 204
     summary:
       text:
         en: Remove one of your SSH keys
@@ -406,6 +420,7 @@ actions:
     category: CATEGORY_ACTION
     method: GET
     path: /api/v1/me/emails
+    success_status: 200
     summary:
       text:
         en: List your own e-mail addresses
@@ -420,6 +435,7 @@ actions:
     category: CATEGORY_ACTION
     method: POST
     path: /api/v1/me/emails
+    success_status: 201
     summary:
       text:
         en: Add an e-mail address (sends a confirmation link)
@@ -438,6 +454,7 @@ actions:
     category: CATEGORY_ACTION
     method: POST
     path: /api/v1/me/emails/{id}/resend
+    success_status: 204
     summary:
       text:
         en: Send the confirmation link of an address again
@@ -456,6 +473,7 @@ actions:
     category: CATEGORY_ACTION
     method: POST
     path: /api/v1/me/emails/{id}/primary
+    success_status: 204
     summary:
       text:
         en: Make a confirmed address your main address
@@ -473,6 +491,7 @@ actions:
     category: CATEGORY_ACTION
     method: DELETE
     path: /api/v1/me/emails/{id}
+    success_status: 204
     summary:
       text:
         en: Remove one of your e-mail addresses
@@ -491,6 +510,7 @@ actions:
     category: CATEGORY_ACTION
     method: GET
     path: /api/v1/me/identities
+    success_status: 200
     summary:
       text:
         en: List the sign-ins linked to your account
@@ -505,6 +525,7 @@ actions:
     category: CATEGORY_ACTION
     method: DELETE
     path: /api/v1/me/identities
+    success_status: 204
     summary:
       text:
         en: Unlink a sign-in from your account
@@ -523,6 +544,7 @@ actions:
     category: CATEGORY_ACTION
     method: POST
     path: /api/v1/me/identities/link
+    success_status: 200
     summary:
       text:
         en: Link a further sign-in to your account with its link token
@@ -542,6 +564,7 @@ actions:
     category: CATEGORY_ACTION
     method: GET
     path: /api/v1/me/feed-token
+    success_status: 200
     summary:
       text:
         en: Show whether you have a personal feed link
@@ -556,6 +579,7 @@ actions:
     category: CATEGORY_ACTION
     method: POST
     path: /api/v1/me/feed-token
+    success_status: 200
     summary:
       text:
         en: Create a new personal feed link (the old one stops working)
@@ -571,6 +595,7 @@ actions:
     category: CATEGORY_ACTION
     method: DELETE
     path: /api/v1/me/feed-token
+    success_status: 204
     summary:
       text:
         en: Remove your personal feed link
@@ -588,6 +613,7 @@ actions:
     category: CATEGORY_ACTION
     method: GET
     path: /api/v1/me/watches
+    success_status: 200
     summary:
       text:
         en: List what you watch
@@ -602,6 +628,7 @@ actions:
     category: CATEGORY_ACTION
     method: PUT
     path: /api/v1/me/watches
+    success_status: 200
     summary:
       text:
         en: Watch a category or an element
@@ -619,6 +646,7 @@ actions:
     category: CATEGORY_ACTION
     method: DELETE
     path: /api/v1/me/watches/{id}
+    success_status: 204
     summary:
       text:
         en: Stop watching
@@ -637,6 +665,7 @@ actions:
     category: CATEGORY_ACTION
     method: GET
     path: /api/v1/me/watch-assignments
+    success_status: 200
     summary:
       text:
         en: List the watches assigned to you
@@ -652,6 +681,7 @@ actions:
     category: CATEGORY_ACTION
     method: PUT
     path: /api/v1/me/watch-assignments/{id}
+    success_status: 204
     summary:
       text:
         en: Pause or resume an assigned watch
@@ -670,6 +700,7 @@ actions:
     category: CATEGORY_ACTION
     method: GET
     path: /api/v1/me/notifications
+    success_status: 200
     summary:
       text:
         en: Show your notification settings
@@ -684,6 +715,7 @@ actions:
     category: CATEGORY_ACTION
     method: PUT
     path: /api/v1/me/notifications
+    success_status: 204
     summary:
       text:
         en: Change your notification settings
@@ -701,6 +733,7 @@ actions:
     category: CATEGORY_ACTION
     method: GET
     path: /api/v1/me/inbox
+    success_status: 200
     summary:
       text:
         en: List your notifications
@@ -716,6 +749,7 @@ actions:
     category: CATEGORY_ACTION
     method: POST
     path: /api/v1/me/inbox/read
+    success_status: 204
     summary:
       text:
         en: Mark notifications as read
@@ -733,6 +767,7 @@ actions:
     category: CATEGORY_ACTION
     method: DELETE
     path: /api/v1/me/inbox/{id}
+    success_status: 204
     summary:
       text:
         en: Delete a notification
@@ -751,6 +786,7 @@ actions:
     category: CATEGORY_ACTION
     method: GET
     path: /api/v1/me/profile
+    success_status: 200
     summary:
       text:
         en: "Show your profile (photo, contact, visibility)"
@@ -765,6 +801,7 @@ actions:
     category: CATEGORY_ACTION
     method: PUT
     path: /api/v1/me/profile
+    success_status: 200
     summary:
       text:
         en: Change your profile
@@ -781,6 +818,7 @@ actions:
     category: CATEGORY_ACTION
     method: GET
     path: /api/v1/me/sessions
+    success_status: 200
     summary:
       text:
         en: List your sessions
@@ -795,6 +833,7 @@ actions:
     category: CATEGORY_ACTION
     method: DELETE
     path: /api/v1/me/sessions
+    success_status: 204
     summary:
       text:
         en: Sign out everywhere else (end all other sessions)
@@ -811,6 +850,7 @@ actions:
     category: CATEGORY_ACTION
     method: DELETE
     path: /api/v1/me/sessions/{id}
+    success_status: 204
     summary:
       text:
         en: End one of your sessions
@@ -829,6 +869,7 @@ actions:
     category: CATEGORY_ACTION
     method: GET
     path: /api/v1/me/mfa
+    success_status: 200
     summary:
       text:
         en: Show your sign-in factors and which are needed
@@ -843,6 +884,7 @@ actions:
     category: CATEGORY_ACTION
     method: POST
     path: /api/v1/me/mfa/{method}/begin
+    success_status: 200
     summary:
       text:
         en: "Set up a sign-in factor, step 1"
@@ -871,6 +913,7 @@ actions:
     category: CATEGORY_ACTION
     method: POST
     path: /api/v1/me/mfa/{method}/finish
+    success_status: 204
     summary:
       text:
         en: "Set up a sign-in factor, step 2"

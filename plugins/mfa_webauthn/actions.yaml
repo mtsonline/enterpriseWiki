@@ -4,6 +4,7 @@ actions:
     category: CATEGORY_ACTION
     method: GET
     path: credentials
+    success_status: 200
     summary:
       text:
         en: List your passkeys and security keys
@@ -24,6 +25,7 @@ actions:
     category: CATEGORY_ACTION
     method: DELETE
     path: credentials/{id}
+    success_status: 204
     summary:
       text:
         en: Remove a passkey or security key

@@ -4,6 +4,7 @@ actions:
     category: CATEGORY_ACTION
     method: GET
     path: /api/v1/instance/sites
+    success_status: 200
     summary:
       text:
         en: List the sites of the instance
@@ -17,6 +18,7 @@ actions:
     category: CATEGORY_ACTION
     method: POST
     path: /api/v1/instance/sites
+    success_status: 201
     summary:
       text:
         en: Create a site
@@ -37,6 +39,7 @@ actions:
     category: CATEGORY_ACTION
     method: PATCH
     path: /api/v1/instance/sites/{name}
+    success_status: 200
     summary:
       text:
         en: "Change a site (hosts, title)"
@@ -54,6 +57,7 @@ actions:
     category: CATEGORY_ACTION
     method: DELETE
     path: /api/v1/instance/sites/{name}
+    success_status: 204
     summary:
       text:
         en: Delete a site with all its content
@@ -71,6 +75,7 @@ actions:
     category: CATEGORY_ACTION
     method: GET
     path: /api/v1/instance/admins
+    success_status: 200
     summary:
       text:
         en: List the instance administrators
@@ -84,6 +89,7 @@ actions:
     category: CATEGORY_ACTION
     method: POST
     path: /api/v1/instance/admins
+    success_status: 204
     summary:
       text:
         en: Make a user an instance administrator
@@ -106,6 +112,7 @@ actions:
     category: CATEGORY_ACTION
     method: DELETE
     path: /api/v1/instance/admins/{id}
+    success_status: 204
     summary:
       text:
         en: Take the instance administration from a user

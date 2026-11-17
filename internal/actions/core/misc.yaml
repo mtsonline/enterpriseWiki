@@ -4,6 +4,7 @@ actions:
     category: CATEGORY_ACTION
     method: GET
     path: /api/v1/site
+    success_status: 200
     summary:
       text:
         en: "Public information about the wiki (name, languages, active plugins)"
@@ -26,6 +27,7 @@ actions:
     category: CATEGORY_ACTION
     method: GET
     path: /api/v1/resolve
+    success_status: 200
     summary:
       text:
         en: Find the element or category of a readable address
@@ -41,6 +43,7 @@ actions:
     category: CATEGORY_ACTION
     method: GET
     path: /api/v1/not-found
+    success_status: 200
     summary:
       text:
         en: "Explain a missing address (deleted page, suggestions)"
@@ -56,6 +59,7 @@ actions:
     category: CATEGORY_ACTION
     method: GET
     path: /api/v1/element-types
+    success_status: 200
     summary:
       text:
         en: List the types of elements
@@ -70,6 +74,7 @@ actions:
     category: CATEGORY_ACTION
     method: GET
     path: /api/v1/macros
+    success_status: 200
     summary:
       text:
         en: List the macros of the active plugins
@@ -84,6 +89,7 @@ actions:
     category: CATEGORY_ACTION
     method: POST
     path: /api/v1/sources/preview
+    success_status: 200
     summary:
       text:
         en: Preview the content a source selects (with your rights)
@@ -100,6 +106,7 @@ actions:
     category: CATEGORY_ACTION
     method: GET
     path: /api/v1/groups
+    success_status: 200
     summary:
       text:
         en: "List the groups: all or the own ones (core.groups.list_all or core.groups.list_own)"
@@ -114,6 +121,7 @@ actions:
     category: CATEGORY_ACTION
     method: GET
     path: /api/v1/roles
+    success_status: 200
     summary:
       text:
         en: "List the roles: all or the own ones (core.roles.list_all or core.roles.list_own)"
@@ -128,6 +136,7 @@ actions:
     category: CATEGORY_ACTION
     method: GET
     path: /api/v1/users/lookup
+    success_status: 200
     summary:
       text:
         en: "Find users by name: all or those of the own groups (core.users.list_all or core.users.list_own)"
@@ -148,6 +157,7 @@ actions:
     category: CATEGORY_ACTION
     method: GET
     path: /api/v1/permissions
+    success_status: 200
     summary:
       text:
         en: List all permissions of the core and the plugins
@@ -162,6 +172,7 @@ actions:
     category: CATEGORY_ACTION
     method: GET
     path: /api/v1/permissions/overview
+    success_status: 200
     summary:
       text:
         en: "Show the permissions of a user, group or role in the categories you manage"
@@ -177,6 +188,7 @@ actions:
     category: CATEGORY_ACTION
     method: POST
     path: /api/v1/access-requests
+    success_status: 202
     summary:
       text:
         en: Ask for access to a category or an element
@@ -200,6 +212,7 @@ actions:
     category: CATEGORY_ACTION
     method: POST
     path: /api/v1/access-requests/{id}
+    success_status: 204
     summary:
       text:
         en: Grant or refuse an access request (needs manage on the category)
@@ -218,6 +231,7 @@ actions:
     category: CATEGORY_ACTION
     method: GET
     path: /api/v1/signature-methods
+    success_status: 200
     summary:
       text:
         en: List the methods to sign
@@ -232,6 +246,7 @@ actions:
     category: CATEGORY_ACTION
     method: GET
     path: /api/v1/signature-keys
+    success_status: 200
     summary:
       text:
         en: List the public seal keys of the wiki

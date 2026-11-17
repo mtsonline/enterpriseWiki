@@ -7,7 +7,7 @@ Die Umsetzung erfolgt in Meilensteinen. Jeder Meilenstein ist lauffähig und dur
 - Plugin-System (Go und Frontend), Aktivieren/Deaktivieren zur Laufzeit, Installation aus GitHub, Git oder Ordner, Neubau und Neustart aus der Oberfläche, Vererbung von Plugins
 - Kategorien (unbegrenzte Tiefe, stabile IDs), Elemente, Standardseite, Verschieben, Duplizieren, Sortieren, Papierkorb
 - Elementtyp `core.html` (WYSIWYG/Markdown) und Beispiel `example.notice`
-- Versionierung aller Inhalte, Wiederherstellen, Zurücksetzen auf einen Zeitpunkt (einzeln oder je Ebene), Audit-Protokoll, Aufbewahrungsregeln
+- Versionierung aller Inhalte, Wiederherstellen, Zurücksetzen auf einen Zeitpunkt (einzeln oder je Ebene, wahlweise mit Struktur: Verschiebungen, Reihenfolge, neue Kategorien), Audit-Protokoll, Aufbewahrungsregeln
 - Mehrsprachigkeit von Inhalten (mit Übersetzungsstatus) und Oberfläche (Übersetzungseditor mit Fortschritt)
 - Berechtigungen für Benutzer, Gruppen, Rollen, Gäste und Angemeldete mit Vererbung
 - Lokale Anmeldung (immer zuerst), Sessions, API-Keys, SSH-Schlüssel-Login

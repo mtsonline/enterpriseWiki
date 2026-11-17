@@ -67,7 +67,7 @@ func TestCorePluginOrigin(t *testing.T) {
 	if code := admin.do("POST", "/api/v1/admin/plugins/sources", map[string]any{"prefix": "https://git.example.com"}, nil); code != 400 {
 		t.Fatalf("whole host accepted: %d", code)
 	}
-	admin.must("POST", "/api/v1/admin/plugins/sources", map[string]any{"prefix": own, "note": "own team"}, nil, 200)
+	admin.must("POST", "/api/v1/admin/plugins/sources", map[string]any{"prefix": own, "note": "own team"}, nil, 201)
 	admin.must("POST", "/api/v1/admin/plugins/install", map[string]any{"source": kanban}, &res, 200)
 	if res.Origin.Level != "organisation" {
 		t.Fatalf("trusted install %+v", res)

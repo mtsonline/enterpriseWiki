@@ -4,6 +4,7 @@ actions:
     category: CATEGORY_ACTION
     method: POST
     path: check
+    success_status: 200
     summary:
       text:
         en: Who would be notified when sharing (without sending)
@@ -21,6 +22,7 @@ actions:
     category: CATEGORY_ACTION
     method: POST
     path: share
+    success_status: 200
     summary:
       text:
         en: "Share a page: notify people, groups or roles (only those you may list)"

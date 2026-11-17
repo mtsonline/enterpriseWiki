@@ -4,6 +4,7 @@ actions:
     category: CATEGORY_ACTION
     method: GET
     path: types
+    success_status: 200
     summary:
       text:
         en: List the types of properties
@@ -18,6 +19,7 @@ actions:
     category: CATEGORY_ACTION
     method: GET
     path: defs
+    success_status: 200
     summary:
       text:
         en: List the defined properties of a category (only what you may see)
@@ -33,6 +35,7 @@ actions:
     category: CATEGORY_ACTION
     method: POST
     path: defs
+    success_status: 201
     summary:
       text:
         en: "Define a property (global ones need core.properties.admin, others core.properties.define in the category)"
@@ -54,6 +57,7 @@ actions:
     category: CATEGORY_ACTION
     method: PUT
     path: "defs/{id}"
+    success_status: 200
     summary:
       text:
         en: Change the definition of a property (same rights as defining)
@@ -71,6 +75,7 @@ actions:
     category: CATEGORY_ACTION
     method: DELETE
     path: "defs/{id}"
+    success_status: 204
     summary:
       text:
         en: Remove the definition of a property (same rights as defining)
@@ -88,6 +93,7 @@ actions:
     category: CATEGORY_ACTION
     method: PUT
     path: "settings/{id}"
+    success_status: 200
     summary:
       text:
         en: Allow or forbid free properties in a category
@@ -106,6 +112,7 @@ actions:
     category: CATEGORY_ACTION
     method: GET
     path: "elements/{id}"
+    success_status: 200
     summary:
       text:
         en: Show the properties of an element
@@ -122,6 +129,7 @@ actions:
     category: CATEGORY_ACTION
     method: PUT
     path: "elements/{id}"
+    success_status: 200
     summary:
       text:
         en: Change the properties of an element
@@ -140,6 +148,7 @@ actions:
     category: CATEGORY_ACTION
     method: GET
     path: new
+    success_status: 200
     summary:
       text:
         en: Properties of a new element in a category (needs create there)
@@ -155,6 +164,7 @@ actions:
     category: CATEGORY_ACTION
     method: GET
     path: "history/{id}"
+    success_status: 200
     summary:
       text:
         en: Show the changes of the properties of an element
@@ -171,6 +181,7 @@ actions:
     category: CATEGORY_ACTION
     method: GET
     path: refs
+    success_status: 200
     summary:
       text:
         en: Elements that refer to an element (only what you may see)
@@ -186,6 +197,7 @@ actions:
     category: CATEGORY_ACTION
     method: GET
     path: keys
+    success_status: 200
     summary:
       text:
         en: Keys of properties in use (only what you may see)
@@ -201,6 +213,7 @@ actions:
     category: CATEGORY_ACTION
     method: GET
     path: values
+    success_status: 200
     summary:
       text:
         en: Values of a property in use (only what you may see)
@@ -216,6 +229,7 @@ actions:
     category: CATEGORY_ACTION
     method: POST
     path: query
+    success_status: 200
     summary:
       text:
         en: Query elements by their properties (only what you may see)
@@ -232,6 +246,7 @@ actions:
     category: CATEGORY_ACTION
     method: POST
     path: report
+    success_status: 200
     summary:
       text:
         en: Rows of a report as on the page (only what you may see)
@@ -248,6 +263,7 @@ actions:
     category: CATEGORY_ACTION
     method: POST
     path: trend
+    success_status: 200
     summary:
       text:
         en: Course of a report over time (only what you may see)
@@ -264,6 +280,7 @@ actions:
     category: CATEGORY_ACTION
     method: POST
     path: query.csv
+    success_status: 200
     summary:
       text:
         en: Export a query or report as CSV (only what you may see)
@@ -280,6 +297,7 @@ actions:
     category: CATEGORY_ACTION
     method: POST
     path: query.xlsx
+    success_status: 200
     summary:
       text:
         en: Export a query or report as Excel file (only what you may see)
@@ -296,6 +314,7 @@ actions:
     category: CATEGORY_ACTION
     method: GET
     path: "databases/{id}/views"
+    success_status: 200
     summary:
       text:
         en: List the saved views of a database
@@ -312,6 +331,7 @@ actions:
     category: CATEGORY_ACTION
     method: POST
     path: "databases/{id}/views"
+    success_status: 201
     summary:
       text:
         en: Save a view of a database (shared views need edit)
@@ -331,6 +351,7 @@ actions:
     category: CATEGORY_ACTION
     method: DELETE
     path: "views/{id}"
+    success_status: 204
     summary:
       text:
         en: Delete a saved view (own ones; shared ones need edit)
@@ -348,6 +369,7 @@ actions:
     category: CATEGORY_ACTION
     method: GET
     path: subscriptions
+    success_status: 200
     summary:
       text:
         en: List your report subscriptions
@@ -364,6 +386,7 @@ actions:
     category: CATEGORY_ACTION
     method: POST
     path: subscriptions
+    success_status: 201
     summary:
       text:
         en: Subscribe to a report by e-mail
@@ -382,6 +405,7 @@ actions:
     category: CATEGORY_ACTION
     method: DELETE
     path: "subscriptions/{id}"
+    success_status: 204
     summary:
       text:
         en: End a report subscription

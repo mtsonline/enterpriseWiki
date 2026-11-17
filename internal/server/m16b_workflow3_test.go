@@ -31,7 +31,7 @@ func TestWorkflow3Accounts(t *testing.T) {
 	const pw = "Passw0rd!Passw0rd"
 	var eveID, grp, arch idResp
 	admin.must("POST", "/api/v1/admin/users", map[string]any{"username": "eve", "password": pw, "display_name": "Eve", "roles": []int64{}}, &eveID, 201)
-	admin.must("POST", "/api/v1/admin/groups", map[string]any{"name": "Newcomers"}, &grp, 200)
+	admin.must("POST", "/api/v1/admin/groups", map[string]any{"name": "Newcomers"}, &grp, 201)
 	var w, docs cat
 	admin.must("POST", "/api/v1/categories", map[string]any{"titles": map[string]string{"en": "HR"}}, &w, 201)
 	admin.must("POST", "/api/v1/categories", map[string]any{"titles": map[string]string{"en": "Docs"}}, &docs, 201)
@@ -61,7 +61,7 @@ func TestWorkflow3Accounts(t *testing.T) {
 	admin.must("POST", "/api/v1/elements", map[string]any{"category_id": w.ID, "type": "workflow.process", "title": "Onboarding", "body": onboarding}, &wf, 201)
 	// a group trigger with a filter
 	var other idResp
-	admin.must("POST", "/api/v1/admin/groups", map[string]any{"name": "Others"}, &other, 200)
+	admin.must("POST", "/api/v1/admin/groups", map[string]any{"name": "Others"}, &other, 201)
 	var wfG elem
 	admin.must("POST", "/api/v1/elements", map[string]any{"category_id": w.ID, "type": "workflow.process", "title": "Joined", "body": map[string]any{
 		"description": "", "fields": []map[string]any{{"id": "who", "label": "Who", "type": "text"}},
@@ -125,7 +125,7 @@ func TestWorkflow3Accounts(t *testing.T) {
 	if len(list.Instances) != 1 || list.Instances[0].Data["who"] != "nia in Newcomers" {
 		t.Fatalf("group trigger: %+v", list.Instances)
 	}
-	admin.must("PUT", fmt.Sprintf("/api/v1/admin/groups/%d/members/%d", other.ID, nia.ID), nil, nil, 200)
+	admin.must("PUT", fmt.Sprintf("/api/v1/admin/groups/%d/members/%d", other.ID, nia.ID), nil, nil, 204)
 	run("identity.events", "workflow.process.triggers")
 	admin.must("GET", fmt.Sprintf("/api/v1/x/workflow.process/elements/%d/instances?status=", wfG.ID), nil, &list, 200)
 	if len(list.Instances) != 1 {

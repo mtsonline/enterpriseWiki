@@ -4,6 +4,7 @@ actions:
     category: CATEGORY_ACTION
     method: GET
     path: commands
+    success_status: 200
     summary:
       text:
         en: List the known shell commands
@@ -18,6 +19,7 @@ actions:
     category: CATEGORY_ACTION
     method: POST
     path: commands
+    success_status: 200
     summary:
       text:
         en: Register a shell command (approving needs a listed approver)
@@ -36,6 +38,7 @@ actions:
     category: CATEGORY_ACTION
     method: POST
     path: "commands/{hash}/approve"
+    success_status: 204
     summary:
       text:
         en: Approve a shell command (only approvers listed in config.yaml)
@@ -58,6 +61,7 @@ actions:
     category: CATEGORY_ACTION
     method: POST
     path: "commands/{hash}/revoke"
+    success_status: 204
     summary:
       text:
         en: Revoke a shell command (only approvers listed in config.yaml)
@@ -75,6 +79,7 @@ actions:
     category: CATEGORY_ACTION
     method: DELETE
     path: "commands/{hash}"
+    success_status: 204
     summary:
       text:
         en: Delete a shell command (only approvers listed in config.yaml)

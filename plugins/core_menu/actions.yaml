@@ -4,6 +4,7 @@ actions:
     category: CATEGORY_ACTION
     method: GET
     path: menus
+    success_status: 200
     summary:
       text:
         en: List the placed menus as you see them (all=1, every menu as stored, needs core.menu.edit)
@@ -25,6 +26,7 @@ actions:
     category: CATEGORY_ACTION
     method: GET
     path: "menus/{id}"
+    success_status: 200
     summary:
       text:
         en: Show a menu
@@ -41,6 +43,7 @@ actions:
     category: CATEGORY_ACTION
     method: POST
     path: menus
+    success_status: 201
     summary:
       text:
         en: Create a menu
@@ -58,6 +61,7 @@ actions:
     category: CATEGORY_ACTION
     method: PUT
     path: "menus/{id}"
+    success_status: 200
     summary:
       text:
         en: Change a menu
@@ -76,6 +80,7 @@ actions:
     category: CATEGORY_ACTION
     method: DELETE
     path: "menus/{id}"
+    success_status: 204
     summary:
       text:
         en: Delete a menu

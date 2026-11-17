@@ -7,7 +7,7 @@ import (
 
 func valid() Action {
 	return Action{
-		ID: "core.things.make", Category: "CATEGORY_ACTION", Method: "POST", Path: "/api/v1/things/{id}",
+		ID: "core.things.make", Category: "CATEGORY_ACTION", Method: "POST", Path: "/api/v1/things/{id}", SuccessStatus: 201,
 		Summary:    Text{Text: map[string]string{"en": "Make a thing", "de": "Ein Ding machen"}},
 		Permission: &Permission{Key: "core.things.manage", Scope: "SCOPE_GLOBAL"},
 		CLI:        &CLI{Command: []string{"thing", "make"}, Args: []string{"id"}},
@@ -37,6 +37,8 @@ func TestValidate(t *testing.T) {
 		"english":           {func(a *Action) { a.Summary.Text["en"] = " " }, "summary.text.en"},
 		"comma in flow map": {func(a *Action) { a.Summary.Text["redirect"] = "" }, "keys are languages"},
 		"status":            {func(a *Action) { a.SuccessStatus = 302 }, "success_status"},
+		"no status":         {func(a *Action) { a.SuccessStatus = 0 }, "no success_status"},
+		"delete with body":  {func(a *Action) { a.Method = "DELETE"; a.SuccessStatus = 200 }, "DELETE answers 204"},
 		"no access":         {func(a *Action) { a.Permission = nil }, "exactly one"},
 		"two accesses":      {func(a *Action) { a.Public = true }, "exactly one"},
 		"scope":             {func(a *Action) { a.Permission.Scope = "SCOPE_SITE" }, "valid scope"},

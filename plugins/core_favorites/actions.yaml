@@ -4,6 +4,7 @@ actions:
     category: CATEGORY_ACTION
     method: GET
     path: ""
+    success_status: 200
     summary:
       text:
         en: List your favorites
@@ -18,6 +19,7 @@ actions:
     category: CATEGORY_ACTION
     method: POST
     path: ""
+    success_status: 200
     summary:
       text:
         en: Mark a page or category as favorite
@@ -35,6 +37,9 @@ actions:
     category: CATEGORY_ACTION
     method: DELETE
     path: "{type}/{id}"
+    response:
+      json: '{"type": "object", "properties": {"items": {"type": "array", "description": "the favorites left, in their order"}}}'
+    success_status: 200
     summary:
       text:
         en: Remove a favorite
@@ -53,6 +58,7 @@ actions:
     category: CATEGORY_ACTION
     method: PUT
     path: order
+    success_status: 200
     summary:
       text:
         en: Change the order of your favorites

@@ -383,9 +383,12 @@ type exResult struct {
 // run runs one example on both ways.
 func (r *exampleRunner) run(a actions.Action, ex actions.Example) {
 	t := r.t
-	want := ex.Status // 0: any success
+	want := ex.Status // 0: the success status of the action (exact)
 	if want == 0 {
 		want = a.SuccessStatus
+	}
+	if want == 0 {
+		t.Fatalf("no success_status in the register")
 	}
 	ways := []string{"api", "cli"}
 	// approved: no command line way (TestCLIWithoutCommand), or a command
@@ -814,7 +817,7 @@ func (r *exampleRunner) who(a actions.Action, ex actions.Example, path string, q
 		var role struct {
 			ID int64 `json:"id"`
 		}
-		r.admin.must("POST", "/api/v1/admin/roles", map[string]any{"name": "role " + name, "permissions": []string{p.Key}}, &role, 200)
+		r.admin.must("POST", "/api/v1/admin/roles", map[string]any{"name": "role " + name, "permissions": []string{p.Key}}, &role, 201)
 		uid := r.userID(name)
 		r.admin.must("PUT", fmt.Sprintf("/api/v1/admin/users/%d", uid), map[string]any{"roles": []int64{role.ID}}, nil, 200)
 	case p.Scope == "SCOPE_CATEGORY":

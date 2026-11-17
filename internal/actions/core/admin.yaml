@@ -4,6 +4,7 @@ actions:
     category: CATEGORY_ACTION
     method: GET
     path: /api/v1/admin/settings
+    success_status: 200
     summary:
       text:
         en: Show the settings of the wiki
@@ -18,6 +19,7 @@ actions:
     category: CATEGORY_ACTION
     method: PUT
     path: /api/v1/admin/settings
+    success_status: 200
     summary:
       text:
         en: Change the settings of the wiki
@@ -75,6 +77,7 @@ actions:
     category: CATEGORY_ACTION
     method: POST
     path: /api/v1/admin/retention/run
+    success_status: 200
     summary:
       text:
         en: "Apply the retention rules now (versions, trash, audit log)"
@@ -90,6 +93,7 @@ actions:
     category: CATEGORY_ACTION
     method: GET
     path: /api/v1/admin/database
+    success_status: 200
     summary:
       text:
         en: Show the database version and whether an upgrade is due
@@ -104,6 +108,7 @@ actions:
     category: CATEGORY_ACTION
     method: GET
     path: /api/v1/admin/limits
+    success_status: 200
     summary:
       text:
         en: Show the limits (expert settings)
@@ -118,6 +123,7 @@ actions:
     category: CATEGORY_ACTION
     method: PUT
     path: /api/v1/admin/limits
+    success_status: 200
     summary:
       text:
         en: Change the limits (expert settings)
@@ -138,6 +144,7 @@ actions:
     category: CATEGORY_ACTION
     method: GET
     path: /api/v1/admin/secrets
+    success_status: 200
     summary:
       text:
         en: Show how secrets are stored (on other sites than the main site only for instance administrators)
@@ -151,6 +158,7 @@ actions:
     category: CATEGORY_ACTION
     method: POST
     path: /api/v1/admin/secrets/rewrap
+    success_status: 200
     summary:
       text:
         en: Store all secrets again in the chosen mode
@@ -168,6 +176,7 @@ actions:
     category: CATEGORY_ACTION
     method: GET
     path: /api/v1/admin/cache
+    success_status: 200
     summary:
       text:
         en: Show the state of the caches
@@ -182,6 +191,7 @@ actions:
     category: CATEGORY_ACTION
     method: DELETE
     path: /api/v1/admin/cache
+    success_status: 204
     summary:
       text:
         en: Clear the caches
@@ -198,6 +208,7 @@ actions:
     category: CATEGORY_ACTION
     method: GET
     path: /api/v1/admin/mail
+    success_status: 200
     summary:
       text:
         en: "Show transport, queue and the oldest undelivered message"
@@ -212,6 +223,7 @@ actions:
     category: CATEGORY_ACTION
     method: GET
     path: /api/v1/admin/mail/outbox
+    success_status: 200
     summary:
       text:
         en: List the outgoing messages
@@ -229,6 +241,7 @@ actions:
     category: CATEGORY_ACTION
     method: GET
     path: /api/v1/admin/mail/outbox/{id}
+    success_status: 200
     summary:
       text:
         en: Show a message with the delivery state of every recipient
@@ -245,6 +258,7 @@ actions:
     category: CATEGORY_ACTION
     method: POST
     path: /api/v1/admin/mail/outbox/{id}/retry
+    success_status: 204
     summary:
       text:
         en: Send a message again
@@ -263,6 +277,7 @@ actions:
     category: CATEGORY_ACTION
     method: DELETE
     path: /api/v1/admin/mail/outbox/{id}
+    success_status: 204
     summary:
       text:
         en: Delete a message from the queue
@@ -281,6 +296,7 @@ actions:
     category: CATEGORY_ACTION
     method: POST
     path: /api/v1/admin/mail/test
+    success_status: 200
     summary:
       text:
         en: Send a test message now
@@ -299,6 +315,7 @@ actions:
     category: CATEGORY_ACTION
     method: GET
     path: /api/v1/admin/jobs
+    success_status: 200
     summary:
       text:
         en: List the background jobs
@@ -313,6 +330,7 @@ actions:
     category: CATEGORY_ACTION
     method: POST
     path: /api/v1/admin/jobs/{name}/run
+    success_status: 204
     summary:
       text:
         en: Run a background job now
@@ -330,6 +348,7 @@ actions:
     category: CATEGORY_ACTION
     method: GET
     path: /api/v1/admin/webhooks
+    success_status: 200
     summary:
       text:
         en: List the webhooks
@@ -344,6 +363,7 @@ actions:
     category: CATEGORY_ACTION
     method: GET
     path: /api/v1/admin/webhooks/{id}
+    success_status: 200
     summary:
       text:
         en: Show a webhook with its last deliveries
@@ -360,6 +380,7 @@ actions:
     category: CATEGORY_ACTION
     method: POST
     path: /api/v1/admin/webhooks
+    success_status: 201
     summary:
       text:
         en: Create a webhook
@@ -377,6 +398,7 @@ actions:
     category: CATEGORY_ACTION
     method: PUT
     path: /api/v1/admin/webhooks/{id}
+    success_status: 200
     summary:
       text:
         en: Change a webhook
@@ -395,6 +417,7 @@ actions:
     category: CATEGORY_ACTION
     method: DELETE
     path: /api/v1/admin/webhooks/{id}
+    success_status: 204
     summary:
       text:
         en: Delete a webhook
@@ -413,6 +436,7 @@ actions:
     category: CATEGORY_ACTION
     method: POST
     path: /api/v1/admin/webhooks/{id}/test
+    success_status: 204
     summary:
       text:
         en: Send a test event to a webhook
@@ -431,6 +455,7 @@ actions:
     category: CATEGORY_ACTION
     method: POST
     path: /api/v1/admin/webhooks/{id}/deliveries/{did}/retry
+    success_status: 204
     summary:
       text:
         en: Deliver an event to a webhook again
@@ -449,6 +474,7 @@ actions:
     category: CATEGORY_ACTION
     method: PUT
     path: /api/v1/admin/webhooks/options
+    success_status: 200
     summary:
       text:
         en: Change the options of all webhooks
@@ -466,6 +492,7 @@ actions:
     category: CATEGORY_ACTION
     method: GET
     path: /api/v1/admin/plugins
+    success_status: 200
     summary:
       text:
         en: List the plugins with their state
@@ -480,6 +507,7 @@ actions:
     category: CATEGORY_ACTION
     method: POST
     path: /api/v1/admin/plugins/{id}/enable
+    success_status: 204
     summary:
       text:
         en: Switch a plugin on
@@ -497,6 +525,7 @@ actions:
     category: CATEGORY_ACTION
     method: POST
     path: /api/v1/admin/plugins/{id}/disable
+    success_status: 204
     summary:
       text:
         en: Switch a plugin off
@@ -515,6 +544,7 @@ actions:
     category: CATEGORY_ACTION
     method: POST
     path: /api/v1/admin/plugins/install
+    success_status: 200
     summary:
       text:
         en: Install a plugin from a source
@@ -538,6 +568,9 @@ actions:
     category: CATEGORY_ACTION
     method: DELETE
     path: /api/v1/admin/plugins/{id}
+    response:
+      json: '{"type": "object", "properties": {"building": {"type": "boolean", "description": "a build without the plugin started; the wiki restarts when it succeeds"}}}'
+    success_status: 200
     summary:
       text:
         en: Remove an installed plugin
@@ -560,6 +593,7 @@ actions:
     category: CATEGORY_ACTION
     method: POST
     path: /api/v1/admin/plugins/build
+    success_status: 202
     summary:
       text:
         en: Rebuild the program with the installed plugins
@@ -578,6 +612,7 @@ actions:
     category: CATEGORY_ACTION
     method: PUT
     path: /api/v1/admin/plugins/options
+    success_status: 200
     summary:
       text:
         en: Change the options for plugins (restart after a dropped plugin)
@@ -597,6 +632,7 @@ actions:
     category: CATEGORY_ACTION
     method: POST
     path: /api/v1/admin/restart
+    success_status: 202
     summary:
       text:
         en: Restart the wiki (to load new plugins)
@@ -615,6 +651,7 @@ actions:
     category: CATEGORY_ACTION
     method: GET
     path: /api/v1/admin/updates
+    success_status: 200
     summary:
       text:
         en: Check core and plugins for new releases
@@ -629,6 +666,7 @@ actions:
     category: CATEGORY_ACTION
     method: POST
     path: /api/v1/admin/updates/{id}
+    success_status: 200
     summary:
       text:
         en: Update the core or a plugin
@@ -648,6 +686,7 @@ actions:
     category: CATEGORY_ACTION
     method: GET
     path: /api/v1/admin/audit
+    success_status: 200
     summary:
       text:
         en: List the latest entries of the audit log
@@ -662,6 +701,7 @@ actions:
     category: CATEGORY_ACTION
     method: GET
     path: /api/v1/admin/audit/search
+    success_status: 200
     summary:
       text:
         en: Search the audit log
@@ -677,6 +717,7 @@ actions:
     category: CATEGORY_ACTION
     method: GET
     path: /api/v1/admin/audit/export
+    success_status: 200
     summary:
       text:
         en: Export the audit log (CSV or JSON Lines)
@@ -692,6 +733,7 @@ actions:
     category: CATEGORY_ACTION
     method: GET
     path: /api/v1/admin/audit/settings
+    success_status: 200
     summary:
       text:
         en: Show the settings of the audit log (forwarding)
@@ -706,6 +748,7 @@ actions:
     category: CATEGORY_ACTION
     method: PUT
     path: /api/v1/admin/audit/settings
+    success_status: 204
     summary:
       text:
         en: Change the settings of the audit log (forwarding)
@@ -723,6 +766,7 @@ actions:
     category: CATEGORY_ACTION
     method: POST
     path: /api/v1/admin/audit/forward/test
+    success_status: 200
     summary:
       text:
         en: Send a test entry to a forwarding target
@@ -743,6 +787,7 @@ actions:
     category: CATEGORY_ACTION
     method: POST
     path: /api/v1/admin/languages
+    success_status: 204
     summary:
       text:
         en: Add a language
@@ -760,6 +805,7 @@ actions:
     category: CATEGORY_ACTION
     method: DELETE
     path: /api/v1/admin/languages/{code}
+    success_status: 204
     summary:
       text:
         en: Remove a language
@@ -778,6 +824,7 @@ actions:
     category: CATEGORY_ACTION
     method: GET
     path: /api/v1/admin/i18n/{lang}
+    success_status: 200
     summary:
       text:
         en: List the texts of a language with their state (needs language administration or translating this language)
@@ -792,6 +839,7 @@ actions:
     category: CATEGORY_ACTION
     method: PUT
     path: /api/v1/admin/i18n/{lang}
+    success_status: 200
     summary:
       text:
         en: Change texts of a language (needs language administration or translating this language)
@@ -808,6 +856,7 @@ actions:
     category: CATEGORY_ACTION
     method: GET
     path: /api/v1/admin/i18n/{lang}/export
+    success_status: 200
     summary:
       text:
         en: "Export the texts of a language (JSON, XLIFF, PO)"
@@ -823,6 +872,7 @@ actions:
     category: CATEGORY_ACTION
     method: POST
     path: /api/v1/admin/i18n/{lang}/import
+    success_status: 200
     summary:
       text:
         en: "Import texts of a language (JSON, XLIFF, PO)"
@@ -840,6 +890,7 @@ actions:
     category: CATEGORY_ACTION
     method: GET
     path: /api/v1/admin/license
+    success_status: 200
     summary:
       text:
         en: Show the state of the license
@@ -854,6 +905,7 @@ actions:
     category: CATEGORY_ACTION
     method: PUT
     path: /api/v1/admin/license
+    success_status: 200
     summary:
       text:
         en: Install a license key (checked first)
@@ -877,6 +929,7 @@ actions:
     category: CATEGORY_ACTION
     method: DELETE
     path: /api/v1/admin/license
+    success_status: 204
     summary:
       text:
         en: Remove the license key
@@ -893,6 +946,7 @@ actions:
     category: CATEGORY_ACTION
     method: GET
     path: /api/v1/admin/watch-assignments
+    success_status: 200
     summary:
       text:
         en: "List the watches assigned to users, groups and roles"
@@ -907,6 +961,7 @@ actions:
     category: CATEGORY_ACTION
     method: POST
     path: /api/v1/admin/watch-assignments
+    success_status: 201
     summary:
       text:
         en: "Assign a watch to a user, group or role"
@@ -929,6 +984,7 @@ actions:
     category: CATEGORY_ACTION
     method: PUT
     path: /api/v1/admin/watch-assignments/{id}
+    success_status: 200
     summary:
       text:
         en: Change an assigned watch
@@ -948,6 +1004,7 @@ actions:
     category: CATEGORY_ACTION
     method: DELETE
     path: /api/v1/admin/watch-assignments/{id}
+    success_status: 204
     summary:
       text:
         en: Remove an assigned watch
@@ -966,6 +1023,7 @@ actions:
     category: CATEGORY_ACTION
     method: GET
     path: /api/v1/admin/demo
+    success_status: 200
     summary:
       text:
         en: Show whether the demo content exists
@@ -979,6 +1037,7 @@ actions:
     category: CATEGORY_ACTION
     method: POST
     path: /api/v1/admin/demo
+    success_status: 200
     summary:
       text:
         en: Create the demo content of all features
@@ -994,6 +1053,7 @@ actions:
     category: CATEGORY_ACTION
     method: DELETE
     path: /api/v1/admin/demo
+    success_status: 204
     summary:
       text:
         en: Remove the demo content
@@ -1010,6 +1070,7 @@ actions:
     category: CATEGORY_ACTION
     method: POST
     path: /api/v1/admin/reset
+    success_status: 200
     summary:
       text:
         en: Reset the site to its first start (deletes all content)
@@ -1030,6 +1091,7 @@ actions:
     category: CATEGORY_ACTION
     method: POST
     path: /api/v1/admin/auth/providers/{id}/preview
+    success_status: 200
     summary:
       text:
         en: Try the mapping of a sign-in provider without signing in (needs user administration as well)

@@ -699,63 +699,7 @@ func (s *Service) MoveCategory(ctx context.Context, id, newParent int64, positio
 	_ = s.pool.QueryRow(ctx, `SELECT COALESCE(parent_id, 0) FROM categories WHERE id=$1`, id).Scan(&fromParent)
 	var noted int64
 	err := db.Tx(ctx, s.pool, func(tx pgx.Tx) error {
-		var oldPath string
-		var oldParent *int64
-		var oldPos int
-		if err := tx.QueryRow(ctx, `SELECT path::text, parent_id, position FROM categories WHERE id=$1 AND deleted_at IS NULL FOR UPDATE`, id).Scan(&oldPath, &oldParent, &oldPos); err != nil {
-			return apperr.NotFound("category")
-		}
-		newPrefix := ""
-		var parentPtr *int64
-		if newParent != 0 {
-			if err := tx.QueryRow(ctx, `SELECT path::text FROM categories WHERE id=$1 AND deleted_at IS NULL`, newParent).Scan(&newPrefix); err != nil {
-				return apperr.NotFound("target category")
-			}
-			for _, a := range parsePath(newPrefix) {
-				if a == id {
-					return apperr.BadRequest("a category cannot be moved into itself or its subcategories")
-				}
-			}
-			parentPtr = &newParent
-			// the space it moves into may limit the element types
-			if err := typesAllowedIn(ctx, tx, oldPath, newPrefix); err != nil {
-				return err
-			}
-		}
-		pos := 0
-		if position != nil {
-			pos = *position
-		} else if err := tx.QueryRow(ctx, `SELECT COALESCE(max(position)+1,0) FROM categories WHERE parent_id IS NOT DISTINCT FROM $1`, parentPtr).Scan(&pos); err != nil {
-			return err
-		}
-		depth := len(parsePath(oldPath))
-		var err error
-		if newPrefix == "" {
-			_, err = tx.Exec(ctx, `UPDATE categories SET path = subpath(path, $2 - 1) WHERE path <@ $1::ltree`, oldPath, depth)
-		} else {
-			_, err = tx.Exec(ctx, `UPDATE categories SET path = $3::ltree || subpath(path, $2 - 1) WHERE path <@ $1::ltree`, oldPath, depth, newPrefix)
-		}
-		if err != nil {
-			return err
-		}
-		if _, err := tx.Exec(ctx, `UPDATE categories SET parent_id=$2, position=$3, updated_at=now() WHERE id=$1`, id, parentPtr, pos); err != nil {
-			return err
-		}
-		// the classification may change with the new place: external indexes take the elements again
-		if _, err := tx.Exec(ctx, `INSERT INTO search_changes(element_id) SELECT e.id FROM elements e JOIN categories c ON c.id = e.category_id
-			WHERE c.path <@ (SELECT path FROM categories WHERE id=$1)`, id); err != nil {
-			return err
-		}
-		// a space that becomes a subcategory gives up its key (/s/KEY, free for
-		// others); its other space settings and page templates rest and apply
-		// again when it becomes a top-level category (a space) again
-		var key *string
-		if oldParent == nil && parentPtr != nil {
-			if err := tx.QueryRow(ctx, `UPDATE categories c SET space_key = NULL FROM categories o WHERE c.id=$1 AND o.id=c.id RETURNING o.space_key`, id).Scan(&key); err != nil {
-				return err
-			}
-		}
-		return s.andNote(ctx, tx, &noted, "move", "category", id, audit.Log(ctx, tx, "category.move", "category", id, map[string]any{"parent_id": oldParent, "position": oldPos, "space_key": key}, map[string]any{"parent_id": parentPtr, "position": pos}))
+		return s.andNote(ctx, tx, &noted, "move", "category", id, s.moveCategoryTx(ctx, tx, id, newParent, position))
 	})
 	if err != nil {
 		return nil, err
@@ -764,6 +708,68 @@ func (s *Service) MoveCategory(ctx context.Context, id, newParent int64, positio
 	_ = s.syncSlug(ctx, "category", id, fromParent)
 	s.fireNoted(ctx, noted, "move", "category", id)
 	return s.GetCategory(ctx, id)
+}
+
+// moveCategoryTx moves a category inside a transaction (the checks of the
+// caller apply) and writes the audit entry.
+func (s *Service) moveCategoryTx(ctx context.Context, tx pgx.Tx, id, newParent int64, position *int) error {
+	var oldPath string
+	var oldParent *int64
+	var oldPos int
+	if err := tx.QueryRow(ctx, `SELECT path::text, parent_id, position FROM categories WHERE id=$1 AND deleted_at IS NULL FOR UPDATE`, id).Scan(&oldPath, &oldParent, &oldPos); err != nil {
+		return apperr.NotFound("category")
+	}
+	newPrefix := ""
+	var parentPtr *int64
+	if newParent != 0 {
+		if err := tx.QueryRow(ctx, `SELECT path::text FROM categories WHERE id=$1 AND deleted_at IS NULL`, newParent).Scan(&newPrefix); err != nil {
+			return apperr.NotFound("target category")
+		}
+		for _, a := range parsePath(newPrefix) {
+			if a == id {
+				return apperr.BadRequest("a category cannot be moved into itself or its subcategories")
+			}
+		}
+		parentPtr = &newParent
+		// the space it moves into may limit the element types
+		if err := typesAllowedIn(ctx, tx, oldPath, newPrefix); err != nil {
+			return err
+		}
+	}
+	pos := 0
+	if position != nil {
+		pos = *position
+	} else if err := tx.QueryRow(ctx, `SELECT COALESCE(max(position)+1,0) FROM categories WHERE parent_id IS NOT DISTINCT FROM $1`, parentPtr).Scan(&pos); err != nil {
+		return err
+	}
+	depth := len(parsePath(oldPath))
+	var err error
+	if newPrefix == "" {
+		_, err = tx.Exec(ctx, `UPDATE categories SET path = subpath(path, $2 - 1) WHERE path <@ $1::ltree`, oldPath, depth)
+	} else {
+		_, err = tx.Exec(ctx, `UPDATE categories SET path = $3::ltree || subpath(path, $2 - 1) WHERE path <@ $1::ltree`, oldPath, depth, newPrefix)
+	}
+	if err != nil {
+		return err
+	}
+	if _, err := tx.Exec(ctx, `UPDATE categories SET parent_id=$2, position=$3, updated_at=now() WHERE id=$1`, id, parentPtr, pos); err != nil {
+		return err
+	}
+	// the classification may change with the new place: external indexes take the elements again
+	if _, err := tx.Exec(ctx, `INSERT INTO search_changes(element_id) SELECT e.id FROM elements e JOIN categories c ON c.id = e.category_id
+			WHERE c.path <@ (SELECT path FROM categories WHERE id=$1)`, id); err != nil {
+		return err
+	}
+	// a space that becomes a subcategory gives up its key (/s/KEY, free for
+	// others); its other space settings and page templates rest and apply
+	// again when it becomes a top-level category (a space) again
+	var key *string
+	if oldParent == nil && parentPtr != nil {
+		if err := tx.QueryRow(ctx, `UPDATE categories c SET space_key = NULL FROM categories o WHERE c.id=$1 AND o.id=c.id RETURNING o.space_key`, id).Scan(&key); err != nil {
+			return err
+		}
+	}
+	return audit.Log(ctx, tx, "category.move", "category", id, map[string]any{"parent_id": oldParent, "position": oldPos, "space_key": key}, map[string]any{"parent_id": parentPtr, "position": pos})
 }
 
 // typesAllowedIn checks the elements below subtree against the element
@@ -792,13 +798,32 @@ func (s *Service) Reorder(ctx context.Context, parent int64, ids []int64) error 
 		return err
 	}
 	return db.Tx(ctx, s.pool, func(tx pgx.Tx) error {
-		for i, id := range ids {
-			if _, err := tx.Exec(ctx, `UPDATE categories SET position=$2 WHERE id=$1 AND parent_id IS NOT DISTINCT FROM $3`, id, i, nilIfZero(parent)); err != nil {
-				return err
-			}
+		before, err := siblingOrder(ctx, tx, parent)
+		if err != nil {
+			return err
 		}
-		return audit.Log(ctx, tx, "category.reorder", "category", parent, nil, map[string]any{"order": ids})
+		if err := setOrder(ctx, tx, parent, ids); err != nil {
+			return err
+		}
+		// the order before, so a rollback can restore it
+		return audit.Log(ctx, tx, "category.reorder", "category", parent, map[string]any{"order": before}, map[string]any{"order": ids})
 	})
+}
+
+// siblingOrder lists the categories below parent (0: top level) in their order.
+func siblingOrder(ctx context.Context, tx pgx.Tx, parent int64) ([]int64, error) {
+	var ids []int64
+	err := tx.QueryRow(ctx, `SELECT COALESCE(array_agg(id ORDER BY position, id), '{}') FROM categories
+		WHERE parent_id IS NOT DISTINCT FROM $1 AND deleted_at IS NULL`, nilIfZero(parent)).Scan(&ids)
+	return ids, err
+}
+
+// setOrder gives the listed siblings of parent the positions of their order
+// (one statement; ids below another parent are left alone).
+func setOrder(ctx context.Context, tx pgx.Tx, parent int64, ids []int64) error {
+	_, err := tx.Exec(ctx, `UPDATE categories c SET position = o.n - 1 FROM unnest($1::bigint[]) WITH ORDINALITY AS o(id, n)
+		WHERE c.id = o.id AND c.parent_id IS NOT DISTINCT FROM $2`, ids, nilIfZero(parent))
+	return err
 }
 
 func nilIfZero(id int64) *int64 {

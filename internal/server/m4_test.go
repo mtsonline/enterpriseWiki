@@ -323,7 +323,7 @@ func TestWorkflowStepTypes(t *testing.T) {
 	admin.must("POST", "/api/v1/categories", map[string]any{"titles": map[string]string{"en": "Requests"}}, &root, 201)
 	admin.must("POST", fmt.Sprintf("/api/v1/categories/%d/acl", root.ID), map[string]any{"subject_type": "authenticated", "permissions": 1, "inherit": true}, nil, 201)
 	var mgr idResp
-	admin.must("POST", "/api/v1/admin/groups", map[string]any{"name": "managers"}, &mgr, 200)
+	admin.must("POST", "/api/v1/admin/groups", map[string]any{"name": "managers"}, &mgr, 201)
 	users := map[string]idResp{}
 	for _, u := range []struct{ name, email string }{{"ann", "ann@example.com"}, {"ben", "ben@example.com"}, {"cid", "cid@example.com"}} {
 		var x idResp

@@ -4,6 +4,7 @@ actions:
     category: CATEGORY_ACTION
     method: GET
     path: "{type}/{id}"
+    success_status: 200
     summary:
       text:
         en: Reactions of a page or comment (only what you may see)
@@ -19,6 +20,7 @@ actions:
     category: CATEGORY_ACTION
     method: GET
     path: batch
+    success_status: 200
     summary:
       text:
         en: Reactions of several targets (only what you may see)
@@ -34,6 +36,7 @@ actions:
     category: CATEGORY_ACTION
     method: POST
     path: "{type}/{id}"
+    success_status: 200
     summary:
       text:
         en: Add or remove your reaction
@@ -56,6 +59,7 @@ actions:
     category: CATEGORY_ACTION
     method: DELETE
     path: "{type}/{id}/users/{uid}"
+    success_status: 204
     summary:
       text:
         en: Remove the reactions of another person
@@ -74,6 +78,7 @@ actions:
     category: CATEGORY_ACTION
     method: GET
     path: settings
+    success_status: 200
     summary:
       text:
         en: Show the blocked emoji
@@ -88,6 +93,7 @@ actions:
     category: CATEGORY_ACTION
     method: PUT
     path: settings
+    success_status: 200
     summary:
       text:
         en: Change the blocked emoji

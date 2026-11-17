@@ -3,7 +3,8 @@ package content
 import (
 	"context"
 	"encoding/json"
-	"github.com/mtsonline/enterprisewiki/internal/perm"
+	"fmt"
+	"net/http"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -13,6 +14,8 @@ import (
 	"github.com/mtsonline/enterprisewiki/internal/audit"
 	"github.com/mtsonline/enterprisewiki/internal/db"
 	"github.com/mtsonline/enterprisewiki/internal/identity"
+	"github.com/mtsonline/enterprisewiki/internal/limits"
+	"github.com/mtsonline/enterprisewiki/internal/perm"
 )
 
 // TrashItem is a deleted category or element.
@@ -229,6 +232,10 @@ func (s *Service) purge(ctx context.Context, typ string, id int64) error {
 type RollbackInput struct {
 	At        time.Time `json:"at"`
 	Recursive bool      `json:"recursive"`
+	// Structure also restores the structure below the category (needs
+	// Recursive): categories and pages moved since go back to their place
+	// and order, categories created since go to the trash with their pages.
+	Structure bool `json:"structure"`
 }
 
 // RollbackResult reports what a rollback changed.
@@ -236,6 +243,9 @@ type RollbackResult struct {
 	Categories int `json:"categories"`
 	Revisions  int `json:"revisions"`
 	Trashed    int `json:"trashed"`
+	// with Structure: moves and orders undone, categories moved to the trash
+	Moved             int `json:"moved"`
+	CategoriesTrashed int `json:"categories_trashed"`
 }
 
 // RollbackCategory restores a category (and optionally its whole subtree) to
@@ -250,6 +260,9 @@ func (s *Service) RollbackCategory(ctx context.Context, id int64, in RollbackInp
 	if in.At.IsZero() || in.At.After(time.Now()) {
 		return nil, apperr.BadRequest("'at' must be a time in the past")
 	}
+	if in.Structure && !in.Recursive {
+		return nil, apperr.BadRequest("'structure' needs 'recursive': the structure is the subcategories")
+	}
 	root, err := s.loadCategory(ctx, s.pool, id, false)
 	if err != nil {
 		return nil, err
@@ -257,6 +270,11 @@ func (s *Service) RollbackCategory(ctx context.Context, id int64, in RollbackInp
 	res := &RollbackResult{}
 	var noted int64
 	err = db.Tx(ctx, s.pool, func(tx pgx.Tx) error {
+		if in.Structure {
+			if err := s.rollbackStructure(ctx, tx, root, in.At, res); err != nil {
+				return err
+			}
+		}
 		q := `SELECT id FROM categories WHERE id=$1 AND deleted_at IS NULL`
 		arg := any(id)
 		if in.Recursive {
@@ -350,8 +368,211 @@ func (s *Service) RollbackCategory(ctx context.Context, id int64, in RollbackInp
 	if err != nil {
 		return nil, err
 	}
+	if in.Structure {
+		s.aclChanged(ctx)
+	}
 	s.fireNoted(ctx, noted, "rollback", "category", id)
 	return res, nil
+}
+
+// rollbackStructure restores the structure below root to the point in time
+// at, inside the transaction of the rollback (all or nothing):
+//   - moves of categories and pages and orders of subcategories since then
+//     are undone, the newest first, so every step is a valid move with the
+//     checks of a normal move (permissions, no move into itself);
+//   - categories created since then go to the trash with their pages.
+//
+// The category itself keeps its place. A former place that no longer exists
+// stops the rollback with a clear message (restore it from the trash first).
+func (s *Service) rollbackStructure(ctx context.Context, tx pgx.Tx, root *Category, at time.Time, res *RollbackResult) error {
+	rootPath := pathString(root.Path)
+	// what is in the subtree now; a change is part of the rollback when it
+	// concerns this subtree (moved within, out of or into it)
+	rows, err := tx.Query(ctx, `SELECT id FROM categories WHERE path <@ $1::ltree AND deleted_at IS NULL`, rootPath)
+	if err != nil {
+		return err
+	}
+	ids, err := pgx.CollectRows(rows, pgx.RowTo[int64])
+	if err != nil {
+		return err
+	}
+	inside := make(map[int64]bool, len(ids))
+	for _, id := range ids {
+		inside[id] = true
+	}
+	type change struct {
+		Action   string
+		Entity   int64
+		Before   map[string]any
+		After    map[string]any
+		Category int64 // pages: their category now
+	}
+	maxChanges := limits.Value(s.cfg.Get(), limits.RollbackChanges)
+	rows, err = tx.Query(ctx, `SELECT a.action, a.entity_id, COALESCE(a.before, '{}'), COALESCE(a.after, '{}'), COALESCE(e.category_id, 0)
+		FROM audit_log a LEFT JOIN elements e ON a.entity_type='element' AND e.id=a.entity_id AND e.deleted_at IS NULL
+		WHERE a.at > $1 AND (
+			(a.action IN ('category.move', 'category.reorder') AND (a.entity_id = ANY($2)
+				OR (a.before->>'parent_id')::bigint = ANY($2) OR (a.after->>'parent_id')::bigint = ANY($2)))
+			OR (a.action = 'element.move' AND (e.category_id = ANY($2)
+				OR (a.before->>'category_id')::bigint = ANY($2) OR (a.after->>'category_id')::bigint = ANY($2))))
+		ORDER BY a.at DESC, a.id DESC LIMIT $3`, at, ids, maxChanges+1)
+	if err != nil {
+		return err
+	}
+	changes, err := pgx.CollectRows(rows, func(r pgx.CollectableRow) (change, error) {
+		var c change
+		return c, r.Scan(&c.Action, &c.Entity, &c.Before, &c.After, &c.Category)
+	})
+	if err != nil {
+		return err
+	}
+	if int64(len(changes)) > maxChanges {
+		return apperr.BadRequest("more than %d moves and orders since this point in time: choose a later one (expert setting %s)", maxChanges, limits.RollbackChanges)
+	}
+	// a check of a normal move: a place that is gone is a conflict (restore it
+	// first); a missing permission is refused without naming categories the
+	// person may not see
+	refused := apperr.Forbidden("the rollback would change categories or pages you may not manage here")
+	check := func(id int64, p acl.Perm, what string) error {
+		if id == 0 {
+			if err := perm.Require(ctx, "core.categories.admin"); err != nil {
+				return refused
+			}
+			return nil
+		}
+		if err := s.require(ctx, id, p); err != nil {
+			var alive bool
+			if qerr := tx.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM categories WHERE id=$1 AND deleted_at IS NULL)`, id).Scan(&alive); qerr != nil {
+				return qerr
+			}
+			if !alive {
+				return apperr.Conflict("%s no longer exists: restore it from the trash first", what)
+			}
+			return refused
+		}
+		return nil
+	}
+	num := func(m map[string]any, k string) (int64, bool) {
+		v, ok := m[k].(float64)
+		return int64(v), ok
+	}
+	for _, c := range changes {
+		switch c.Action {
+		case "category.move":
+			if c.Entity == root.ID {
+				continue // the category itself keeps its place
+			}
+			before, _ := num(c.Before, "parent_id") // nil: top level (0)
+			after, _ := num(c.After, "parent_id")
+			if !inside[c.Entity] && !inside[before] && !inside[after] {
+				continue
+			}
+			var exists bool
+			if err := tx.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM categories WHERE id=$1 AND deleted_at IS NULL)`, c.Entity).Scan(&exists); err != nil {
+				return err
+			}
+			if !exists {
+				continue // in the trash now: not part of the structure
+			}
+			// the same checks as a move by hand
+			if err := check(c.Entity, acl.Manage, "a moved category"); err != nil {
+				return err
+			}
+			if err := check(before, acl.Manage, fmt.Sprintf("the former place (category %d) of category %d", before, c.Entity)); err != nil {
+				return err
+			}
+			var pos *int
+			if p, ok := num(c.Before, "position"); ok {
+				v := int(p)
+				pos = &v
+			}
+			if err := s.moveCategoryTx(ctx, tx, c.Entity, before, pos); err != nil {
+				if isNotFound(err) {
+					return apperr.Conflict("the former place (category %d) of category %d no longer exists: restore it from the trash first", before, c.Entity)
+				}
+				return err
+			}
+			inside[c.Entity] = true
+			res.Moved++
+		case "category.reorder":
+			if !inside[c.Entity] {
+				continue // top level or another subtree
+			}
+			raw, ok := c.Before["order"].([]any)
+			if !ok {
+				continue // logged before the order was kept
+			}
+			order := make([]int64, 0, len(raw))
+			for _, x := range raw {
+				if f, ok := x.(float64); ok {
+					order = append(order, int64(f))
+				}
+			}
+			if err := setOrder(ctx, tx, c.Entity, order); err != nil {
+				return err
+			}
+			res.Moved++
+		case "element.move":
+			before, _ := num(c.Before, "category_id")
+			after, _ := num(c.After, "category_id")
+			if c.Category == 0 || (!inside[before] && !inside[after] && !inside[c.Category]) {
+				continue // in the trash, or not about this subtree
+			}
+			if err := check(c.Category, acl.Delete, "the category of a moved page"); err != nil {
+				return err
+			}
+			if err := check(before, acl.Create, fmt.Sprintf("the former category %d of page %d", before, c.Entity)); err != nil {
+				return err
+			}
+			var pos *int
+			if p, ok := num(c.Before, "position"); ok {
+				v := int(p)
+				pos = &v
+			}
+			if err := s.moveElementTx(ctx, tx, c.Entity, before, pos); err != nil {
+				if isNotFound(err) {
+					return apperr.Conflict("the former category %d of page %d no longer exists: restore it from the trash first", before, c.Entity)
+				}
+				return err
+			}
+			res.Moved++
+		}
+	}
+	// categories created since then (also copies) go to the trash with their pages
+	rows, err = tx.Query(ctx, `SELECT id FROM categories n WHERE path <@ $1::ltree AND id <> $2 AND deleted_at IS NULL AND created_at > $3
+		AND NOT EXISTS (SELECT 1 FROM categories p WHERE p.id = n.parent_id AND p.created_at > $3 AND p.id <> $2)`, rootPath, root.ID, at)
+	if err != nil {
+		return err
+	}
+	tops, err := pgx.CollectRows(rows, pgx.RowTo[int64])
+	if err != nil {
+		return err
+	}
+	for _, id := range tops {
+		if err := check(id, acl.Delete, "a new category"); err != nil {
+			return err
+		}
+	}
+	if len(tops) == 0 {
+		return nil
+	}
+	now, uid := time.Now(), nullID(ctx)
+	sub := `SELECT c.id FROM categories c JOIN categories t ON c.path <@ t.path WHERE t.id = ANY($1) AND c.deleted_at IS NULL`
+	tag, err := tx.Exec(ctx, `UPDATE elements SET deleted_at=$2, deleted_by=$3, trash_root=false WHERE deleted_at IS NULL AND category_id IN (`+sub+`)`, tops, now, uid)
+	if err != nil {
+		return err
+	}
+	res.Trashed += int(tag.RowsAffected()) // pages that go with the new categories
+	if _, err := tx.Exec(ctx, `UPDATE categories SET deleted_at=$2, deleted_by=$3, trash_root=(id = ANY($1)) WHERE id IN (`+sub+`)`, tops, now, uid); err != nil {
+		return err
+	}
+	for _, id := range tops {
+		if err := audit.Log(ctx, tx, "category.trash", "category", id, map[string]any{"rollback_to": at}, nil); err != nil {
+			return err
+		}
+	}
+	res.CategoriesTrashed = len(tops)
+	return nil
 }
 
 // CategoryHistory lists audit entries of a category and its elements.
@@ -434,4 +655,10 @@ func (s *Service) RunRetention(ctx context.Context) (*RetentionResult, error) {
 		s.aclChanged(ctx)
 	}
 	return res, nil
+}
+
+// isNotFound reports whether err means that something does not exist.
+func isNotFound(err error) bool {
+	st, _, _ := apperr.Status(err)
+	return st == http.StatusNotFound
 }

@@ -4,6 +4,7 @@ actions:
     category: CATEGORY_ACTION
     method: GET
     path: blocks
+    success_status: 200
     summary:
       text:
         en: List the blocks shown to you (all=1 with their sources needs core.blocks.edit)
@@ -26,6 +27,7 @@ actions:
     category: CATEGORY_ACTION
     method: POST
     path: blocks
+    success_status: 201
     summary:
       text:
         en: Create a block
@@ -43,6 +45,7 @@ actions:
     category: CATEGORY_ACTION
     method: PUT
     path: "blocks/{id}"
+    success_status: 200
     summary:
       text:
         en: Change a block
@@ -61,6 +64,7 @@ actions:
     category: CATEGORY_ACTION
     method: DELETE
     path: "blocks/{id}"
+    success_status: 204
     summary:
       text:
         en: Delete a block

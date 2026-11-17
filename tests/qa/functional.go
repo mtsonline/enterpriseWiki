@@ -429,7 +429,7 @@ func (v *vu) journey(st *sharedState) {
 		}
 		v.ok("live editing", "reader cannot join live editing", err != nil && status == 403, "status %d, err %v", status, err)
 		v.want("permissions", "reader asks for access (request is sent)", c.DoOp("write: access request", "POST", "/api/v1/access-requests",
-			map[string]any{"type": "category", "id": w.Private, "message": "QA"}), 200)
+			map[string]any{"type": "category", "id": w.Private, "message": "QA"}), 202)
 	}
 
 	// ---- personal functions (everybody)

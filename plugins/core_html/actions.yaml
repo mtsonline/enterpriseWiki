@@ -4,6 +4,7 @@ actions:
     category: CATEGORY_ACTION
     method: POST
     path: edit-html
+    success_status: 200
     summary:
       text:
         en: Turn Markdown into HTML for the HTML editor
@@ -20,6 +21,7 @@ actions:
     category: CATEGORY_ACTION
     method: POST
     path: to-markdown
+    success_status: 200
     summary:
       text:
         en: Turn HTML into Markdown

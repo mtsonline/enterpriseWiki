@@ -742,11 +742,11 @@ func scaleAccountLimits(adm *Client, factor int64) (func(), error) {
 	if len(scaled) == 0 {
 		return func() {}, nil
 	}
-	if err := must(adm.Do("PUT", "/api/v1/admin/limits", map[string]any{"values": scaled}), 200, 204); err != nil {
+	if err := must(adm.Do("PUT", "/api/v1/admin/limits", map[string]any{"values": scaled}), 200); err != nil {
 		return nil, fmt.Errorf("raising the limits per account: %w", err)
 	}
 	return func() {
-		if err := must(adm.Do("PUT", "/api/v1/admin/limits", map[string]any{"values": before}), 200, 204); err != nil {
+		if err := must(adm.Do("PUT", "/api/v1/admin/limits", map[string]any{"values": before}), 200); err != nil {
 			fmt.Fprintln(os.Stderr, "load: the limits per account were not restored:", err)
 		}
 	}, nil

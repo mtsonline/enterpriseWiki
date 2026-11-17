@@ -83,10 +83,7 @@ func (s *Server) routesDemo() {
 		if err := requireAdmin(r); err != nil {
 			return nil, err
 		}
-		if err := s.removeDemo(r.Context()); err != nil {
-			return nil, err
-		}
-		return s.demoStatus(r.Context())
+		return h.NoContent{}, s.removeDemo(r.Context())
 	})
 	// action: core.demo.reset
 	s.handle("POST /api/v1/admin/reset", func(w http.ResponseWriter, r *http.Request) (any, error) {

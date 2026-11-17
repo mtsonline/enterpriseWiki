@@ -4,6 +4,7 @@ actions:
     category: CATEGORY_ACTION
     method: GET
     path: "elements/{id}/members"
+    success_status: 200
     summary:
       text:
         en: List the members of a team page
@@ -20,6 +21,7 @@ actions:
     category: CATEGORY_ACTION
     method: GET
     path: fields
+    success_status: 200
     summary:
       text:
         en: Fields of people that a team page can show
@@ -34,6 +36,7 @@ actions:
     category: CATEGORY_ACTION
     method: GET
     path: groups
+    success_status: 200
     summary:
       text:
         en: Groups to choose for a team page

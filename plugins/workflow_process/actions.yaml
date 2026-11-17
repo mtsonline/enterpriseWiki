@@ -4,6 +4,7 @@ actions:
     category: CATEGORY_ACTION
     method: GET
     path: meta
+    success_status: 200
     summary:
       text:
         en: "Steps, actions and your rights of a workflow (only what you may see)"
@@ -18,6 +19,7 @@ actions:
     category: CATEGORY_ACTION
     method: GET
     path: "elements/{id}/instances"
+    success_status: 200
     summary:
       text:
         en: List the cases of a workflow you may see
@@ -34,6 +36,7 @@ actions:
     category: CATEGORY_ACTION
     method: POST
     path: "elements/{id}/instances"
+    success_status: 201
     summary:
       text:
         en: Start a case (test runs need the right to change the workflow)
@@ -68,6 +71,7 @@ actions:
     category: CATEGORY_ACTION
     method: GET
     path: "elements/{id}/stats"
+    success_status: 200
     summary:
       text:
         en: Show figures of a workflow (creator of the workflow or workflow administrator)
@@ -84,6 +88,7 @@ actions:
     category: CATEGORY_ACTION
     method: GET
     path: "elements/{id}/triggers"
+    success_status: 200
     summary:
       text:
         en: List the triggers of a workflow (creator of the workflow or workflow administrator)
@@ -100,6 +105,7 @@ actions:
     category: CATEGORY_ACTION
     method: POST
     path: "elements/{id}/triggers/{trigger}/secret"
+    success_status: 200
     summary:
       text:
         en: Create a new secret for a webhook trigger (creator of the workflow or workflow administrator)
@@ -126,6 +132,7 @@ actions:
     category: CATEGORY_ACTION
     method: GET
     path: "instances/{id}"
+    success_status: 200
     summary:
       text:
         en: Show a case with its history (only what you may see)
@@ -141,6 +148,7 @@ actions:
     category: CATEGORY_ACTION
     method: GET
     path: "instances/{id}/files/{field}"
+    success_status: 200
     summary:
       text:
         en: Download a file of a case form (only what you may see)
@@ -156,6 +164,7 @@ actions:
     category: CATEGORY_ACTION
     method: POST
     path: "instances/{id}/actions"
+    success_status: 200
     summary:
       text:
         en: "Decide a step of a case (approve, reject, delegate …)"
@@ -184,6 +193,7 @@ actions:
     category: CATEGORY_ACTION
     method: POST
     path: "instances/{id}/cancel"
+    success_status: 200
     summary:
       text:
         en: Cancel an open case
@@ -201,6 +211,7 @@ actions:
     category: CATEGORY_ACTION
     method: POST
     path: "instances/{id}/sign"
+    success_status: 200
     summary:
       text:
         en: Begin the signature of a decision
@@ -219,6 +230,7 @@ actions:
     category: CATEGORY_ACTION
     method: GET
     path: tasks
+    success_status: 200
     summary:
       text:
         en: List your open tasks and the cases you started
@@ -233,6 +245,7 @@ actions:
     category: CATEGORY_ACTION
     method: GET
     path: links/info
+    success_status: 200
     summary:
       text:
         en: What a link of a task e-mail stands for (with the link token)
@@ -249,6 +262,7 @@ actions:
     category: CATEGORY_ACTION
     method: POST
     path: links/act
+    success_status: 200
     summary:
       text:
         en: Decide with a link of a task e-mail (with the link token)
@@ -271,6 +285,7 @@ actions:
     category: CATEGORY_ACTION
     method: GET
     path: me/deputy
+    success_status: 200
     summary:
       text:
         en: Show your deputy and whom you stand in for
@@ -285,6 +300,7 @@ actions:
     category: CATEGORY_ACTION
     method: PUT
     path: me/deputy
+    success_status: 200
     summary:
       text:
         en: Set your deputy for a time
@@ -301,6 +317,7 @@ actions:
     category: CATEGORY_ACTION
     method: DELETE
     path: me/deputy
+    success_status: 204
     summary:
       text:
         en: Remove your deputy

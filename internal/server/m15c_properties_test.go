@@ -100,7 +100,7 @@ func TestProperties(t *testing.T) {
 	var role struct {
 		ID int64 `json:"id"`
 	}
-	admin.must("POST", "/api/v1/admin/roles", map[string]any{"name": "Controllers"}, &role, 200)
+	admin.must("POST", "/api/v1/admin/roles", map[string]any{"name": "Controllers"}, &role, 201)
 	def(map[string]any{"category_id": c.ID, "key": "secret", "type": "text", "view_subjects": []map[string]any{{"type": "role", "id": role.ID}}}, 201)
 
 	// saving with the element (field core.properties); autonumber and formula

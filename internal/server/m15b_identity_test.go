@@ -218,7 +218,7 @@ func TestIdentityLinking(t *testing.T) {
 	var staff struct {
 		ID int64 `json:"id"`
 	}
-	admin.must("POST", "/api/v1/admin/groups", map[string]any{"name": "Staff"}, &staff, 200)
+	admin.must("POST", "/api/v1/admin/groups", map[string]any{"name": "Staff"}, &staff, 201)
 	var inv struct {
 		ID       int64  `json:"id"`
 		Provider string `json:"provider"`

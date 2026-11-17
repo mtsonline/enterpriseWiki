@@ -25,6 +25,9 @@ type NoContent struct{}
 // Created wraps a value to send 201.
 type Created struct{ V any }
 
+// Accepted wraps a value to send 202: the work goes on in the background.
+type Accepted struct{ V any }
+
 // Handled is returned by handlers that wrote the response themselves
 // (files, XML, redirects).
 type Handled struct{}
@@ -57,6 +60,8 @@ func JSON(h Handler) http.HandlerFunc {
 			w.WriteHeader(http.StatusNoContent)
 		case Created:
 			Write(w, http.StatusCreated, x.V)
+		case Accepted:
+			Write(w, http.StatusAccepted, x.V)
 		case nil:
 			w.WriteHeader(http.StatusNoContent)
 		default:
