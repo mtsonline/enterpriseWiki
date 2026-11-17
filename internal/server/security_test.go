@@ -93,7 +93,7 @@ func TestSecurityBaseline(t *testing.T) {
 	})
 
 	t.Run("access control", func(t *testing.T) {
-		for _, p := range []string{"/api/v1/admin/users", "/api/v1/admin/settings", "/api/v1/admin/audit", "/api/v1/admin/sites", "/api/v1/admin/plugins"} {
+		for _, p := range []string{"/api/v1/admin/users", "/api/v1/admin/settings", "/api/v1/admin/audit/search", "/api/v1/admin/sites", "/api/v1/admin/plugins"} {
 			if c := guest.do("GET", p, nil, nil); c != 401 && c != 404 {
 				t.Errorf("guest GET %s: %d", p, c)
 			}

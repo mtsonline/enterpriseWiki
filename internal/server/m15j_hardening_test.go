@@ -211,9 +211,11 @@ func TestHardening(t *testing.T) {
 	}
 
 	// P-02: the text search in snapshots finds recent entries
-	var res []map[string]any
-	admin.must("GET", "/api/v1/admin/audit?q=Approvers", nil, &res, 200)
-	if len(res) < 2 {
+	var res struct {
+		Entries []map[string]any `json:"entries"`
+	}
+	admin.must("GET", "/api/v1/admin/audit/search?q=Approvers", nil, &res, 200)
+	if len(res.Entries) < 2 {
 		t.Fatal("audit text search finds nothing")
 	}
 }

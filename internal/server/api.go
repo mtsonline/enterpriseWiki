@@ -1142,14 +1142,6 @@ func (s *Server) routes() {
 	})
 	// action: core.settings.update
 	s.handle("PUT /api/v1/admin/settings", s.updateSettings)
-	// action: core.audit.list
-	s.handle("GET /api/v1/admin/audit", func(w http.ResponseWriter, r *http.Request) (any, error) {
-		if err := requireAdmin(r); err != nil {
-			return nil, err
-		}
-		entries, _, err := audit.Find(r.Context(), s.app.DB, auditSearch(r))
-		return entries, err
-	})
 	// action: core.retention.run
 	s.handle("POST /api/v1/admin/retention/run", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		if err := requireAdmin(r); err != nil {

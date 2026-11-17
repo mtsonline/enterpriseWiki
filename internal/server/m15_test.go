@@ -179,12 +179,14 @@ func TestPermissionModel(t *testing.T) {
 	if code := save(harry, def2); code != 200 {
 		t.Fatalf("workflow admin changed the workflow: %d", code)
 	}
-	var log []struct {
-		Action string `json:"action"`
+	var log struct {
+		Entries []struct {
+			Action string `json:"action"`
+		} `json:"entries"`
 	}
-	admin.must("GET", "/api/v1/admin/audit?action=workflow.admin_change", nil, &log, 200)
+	admin.must("GET", "/api/v1/admin/audit/search?action=workflow.admin_change", nil, &log, 200)
 	found := false
-	for _, l := range log {
+	for _, l := range log.Entries {
 		found = found || l.Action == "workflow.admin_change"
 	}
 	if !found {

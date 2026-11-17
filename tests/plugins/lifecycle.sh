@@ -123,7 +123,7 @@ log "set the access data (token through stdin only)"
 res=$(jq -n --arg t "$EWIKI_TESTPLUGIN_TOKEN" '{prefix:"https://github.com/mtsonline/enterprisewiki-testplugin", token:$t, note:"lifecycle test"}' |
 	api PUT /api/v1/admin/plugins/credentials -)
 [ "$(status "$res")" = 200 ] || fail "access data: $(body "$res")"
-for where in "$(api GET /api/v1/admin/plugins/credentials)" "$(cat "$work/server.log")" "$(api GET '/api/v1/admin/audit?limit=50')"; do
+for where in "$(api GET /api/v1/admin/plugins/credentials)" "$(cat "$work/server.log")" "$(api GET '/api/v1/admin/audit/search?limit=50')"; do
 	if grep -qF "$EWIKI_TESTPLUGIN_TOKEN" <<<"$where"; then fail "the token shows in an answer or the log"; fi
 done
 

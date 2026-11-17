@@ -2717,6 +2717,44 @@ test('mail outbox: a failed message sent again, details, test message, delete, r
   }
 });
 
+test('property definitions: define, edit, only defined properties in a category, remove the definition', async () => {
+  const toastOn = (re) => page.locator('.ew-toast', { hasText: re }).first().waitFor();
+  const dialog = () => page.getByRole('dialog');
+  const name = `Cost ${run}`;
+  await page.goto(`${BASE}/admin/properties`);
+  await idle();
+  await page.getByRole('button', { name: /^(define a property|eigenschaft definieren)$/i }).click();
+  await dialog().getByLabel(/^(key|schlüssel)/i).fill(`cost_${run}`);
+  await dialog().locator('input[lang="en"]').first().fill(name);
+  await dialog().getByRole('button', { name: /^(define|definieren)$/i }).click();
+  await toastOn(/property saved|eigenschaft gespeichert/i);
+  await page.getByRole('rowheader', { name: new RegExp(`^${name}`) }).waitFor();
+  await a11y('property definitions');
+  // edit: another name
+  await page.getByRole('button', { name: new RegExp(`^(edit|bearbeiten): ${name}$`, 'i') }).click();
+  await dialog().locator('input[lang="en"]').first().fill(`${name} total`);
+  await dialog().getByRole('button', { name: /^(save|speichern)$/i }).click();
+  await toastOn(/property saved|eigenschaft gespeichert/i);
+  await page.getByRole('rowheader', { name: new RegExp(`^${name} total`) }).waitFor();
+
+  // a category that only takes defined properties
+  const cat = (await call('POST', '/api/v1/categories', { titles: { en: `Props ${run}` } })).id;
+  await page.goto(`${BASE}/c/${cat}/settings?tab=properties`);
+  await idle();
+  await page.locator('.ew-toast').evaluateAll((els) => els.forEach((e) => e.remove()));
+  await page.getByLabel(/^(free properties|freie eigenschaften)/i).selectOption('deny');
+  await toastOn(/^(saved\.|gespeichert\.)$/i);
+  await a11y('properties of a category');
+
+  // remove the definition (the values stay as free properties)
+  await page.goto(`${BASE}/admin/properties`);
+  await idle();
+  await page.getByRole('button', { name: new RegExp(`^(delete|löschen): ${name} total$`, 'i') }).click();
+  await dialog().getByRole('button', { name: /^(remove definition|definition entfernen)$/i }).click();
+  await toastOn(/definition removed|definition entfernt/i);
+  await page.getByRole('rowheader', { name: new RegExp(`^${name} total`) }).waitFor({ state: 'detached' });
+});
+
 test('users, groups and roles: created in the administration, the permissions take effect', async () => {
   const name = `adm${run}`;
   const pw = 'Adm-Passw0rd-1!';
@@ -2725,7 +2763,7 @@ test('users, groups and roles: created in the administration, the permissions ta
   p2.on('pageerror', (e) => errors.push(`administered user: ${e.message}`));
   const toastOn = (re) => page.locator('.ew-toast', { hasText: re }).first().waitFor();
   const clearToasts = () => page.evaluate(() => document.querySelectorAll('.ew-toast').forEach((e) => e.remove()));
-  const audit = () => p2.evaluate(async () => (await __e2eFetch('/api/v1/admin/audit')).status);
+  const audit = () => p2.evaluate(async () => (await __e2eFetch('/api/v1/admin/audit/search')).status);
   const signIn = async (p = p2) => {
     await p.goto(BASE + '/login?local=1');
     await p.locator('input[name=username]').fill(name);

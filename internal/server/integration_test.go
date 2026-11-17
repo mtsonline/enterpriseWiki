@@ -574,7 +574,7 @@ func TestAPI(t *testing.T) {
 	}
 	var strs []map[string]any
 	admin.must("GET", "/api/v1/admin/i18n/fr", nil, &strs, 200)
-	admin.must("GET", "/api/v1/admin/audit?limit=5", nil, nil, 200)
+	admin.must("GET", "/api/v1/admin/audit/search?limit=5", nil, nil, 200)
 	admin.must("POST", "/api/v1/admin/retention/run", nil, nil, 200)
 
 	// ------------------------------------------------------------ menus (plugin API)
