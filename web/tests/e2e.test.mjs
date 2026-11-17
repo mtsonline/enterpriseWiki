@@ -61,7 +61,7 @@ before(async () => {
   const newContext = browser.newContext.bind(browser);
   browser.newContext = async (opts) => { const ctx = await newContext(opts); await recordContext(ctx); return ctx; };
   // like Browser.newPage: a context of its own that closes with the page
-  browser.newPage = async (opts) => { const ctx = await browser.newContext(opts); const p = await ctx.newPage(); p.on('close', () => ctx.close()); return p; };
+  browser.newPage = async (opts) => { const ctx = await browser.newContext(opts); const p = await ctx.newPage(); p.on('close', () => { ctx.close().catch(() => {}); }); return p; };
   // bypassCSP: the strict CSP of the wiki (script-src 'self') would block injecting axe-core
   page = await browser.newPage({ viewport: { width: 1280, height: 900 }, bypassCSP: true });
   page.on('pageerror', (e) => errors.push(e.message));
