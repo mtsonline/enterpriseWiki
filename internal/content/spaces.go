@@ -69,13 +69,19 @@ type SpaceInfo struct {
 	CanManage bool `json:"can_manage"`
 	// Member: the caller has own permissions here (as user, group or role)
 	Member bool `json:"member"`
+	// TreeRoot: the category the own navigation starts from (0: the space
+	// itself or no own navigation; see effectiveSettings)
+	TreeRoot int64 `json:"tree_root,omitempty"`
 	Space
 }
 
-// SpaceInput changes a space (nil fields stay).
+// SpaceInput changes a space (nil fields stay). The general settings in
+// Space are only taken when Present names them (they can also be set for
+// every category with SetCategorySettings).
 type SpaceInput struct {
 	Key *string `json:"key"`
 	Space
+	Present map[string]bool `json:"-"`
 }
 
 var (
@@ -150,7 +156,19 @@ func (s *Service) SpaceOf(ctx context.Context, categoryID int64) (*SpaceInfo, er
 	if s.require(ctx, top, acl.View) != nil {
 		return nil, nil
 	}
-	return s.loadSpace(ctx, top)
+	info, err := s.loadSpace(ctx, top)
+	if err != nil {
+		return nil, err
+	}
+	// the general settings apply as the category and its ancestors set them
+	st, err := s.effectiveSettings(ctx, s.pool, categoryID)
+	if err != nil {
+		return nil, err
+	}
+	e := st.Effective
+	info.OwnTree, info.Shortcuts, info.AllowedTypes, info.AllowedMacros = e.OwnTree, e.Shortcuts, e.AllowedTypes, e.AllowedMacros
+	info.Accent, info.Logo, info.Language, info.TreeRoot = e.Accent, e.Logo, e.Language, st.TreeRoot
+	return info, nil
 }
 
 // SpaceByKey finds a space the caller may view by its key.
@@ -207,6 +225,35 @@ func (s *Service) SetSpace(ctx context.Context, id int64, in SpaceInput) (*Space
 	sp, err := s.cleanSpace(in.Space)
 	if err != nil {
 		return nil, err
+	}
+	// general settings not sent stay as they are (the tab "Appearance and
+	// content" changes them for every category)
+	if in.Present != nil {
+		keep := func(k string) bool { return !in.Present[k] }
+		if keep("own_tree") {
+			sp.OwnTree = before.OwnTree
+		}
+		if keep("shortcuts") {
+			sp.Shortcuts = before.Shortcuts
+		}
+		if keep("allowed_types") {
+			sp.AllowedTypes = before.AllowedTypes
+		}
+		if keep("allowed_macros") {
+			sp.AllowedMacros = before.AllowedMacros
+		}
+		if keep("accent") {
+			sp.Accent = before.Accent
+		}
+		if keep("logo") {
+			sp.Logo = before.Logo
+		}
+		if keep("language") {
+			sp.Language = before.Language
+		}
+		if keep("is_template") {
+			sp.IsTemplate = before.IsTemplate
+		}
 	}
 	sp.Personal = before.Personal // fixed when created
 	if sp.IsTemplate != before.IsTemplate && !perm.HasP(identity.From(ctx), "core.categories.admin") {
@@ -318,32 +365,26 @@ func safeLink(u string) bool {
 	return err == nil && (p.Scheme == "https" || p.Scheme == "http") && p.Host != ""
 }
 
-// spaceAllows checks the element types allowed in the space of a category.
+// spaceAllows checks the element types allowed in a category (its own
+// setting and those above, see effectiveSettings).
 func (s *Service) spaceAllows(ctx context.Context, typ string, categoryID int64) error {
-	var raw []byte
-	err := s.pool.QueryRow(ctx, `SELECT t.space FROM categories c JOIN categories t ON t.id = split_part(c.path::text, '.', 1)::bigint WHERE c.id=$1`, categoryID).Scan(&raw)
-	if errors.Is(err, pgx.ErrNoRows) {
-		return nil // the caller reports the missing category
-	}
+	st, err := s.effectiveSettings(ctx, s.pool, categoryID)
 	if err != nil {
 		return err
 	}
-	var sp Space
-	_ = json.Unmarshal(raw, &sp)
-	if len(sp.AllowedTypes) > 0 && !slices.Contains(sp.AllowedTypes, typ) {
-		return apperr.BadRequest("element type %q is not allowed in this space", typ)
+	if a := st.Effective.AllowedTypes; len(a) > 0 && !slices.Contains(a, typ) {
+		return apperr.BadRequest("element type %q is not allowed in this category", typ)
 	}
 	return nil
 }
 
 // spaceLanguage is the language of new elements in a category.
 func (s *Service) spaceLanguage(ctx context.Context, categoryID int64) string {
-	var lang string
-	_ = s.pool.QueryRow(ctx, `SELECT COALESCE(t.space->>'language', '') FROM categories c JOIN categories t ON t.id = split_part(c.path::text, '.', 1)::bigint WHERE c.id=$1`, categoryID).Scan(&lang)
-	if lang == "" || !s.validLang(lang) {
+	st, err := s.effectiveSettings(ctx, s.pool, categoryID)
+	if err != nil || st.Effective.Language == "" || !s.validLang(st.Effective.Language) {
 		return s.DefaultLanguage()
 	}
-	return lang
+	return st.Effective.Language
 }
 
 // SetArchived archives a category with everything below it (read-only for
@@ -504,16 +545,15 @@ func (s *Service) CreatePersonalSpace(ctx context.Context) (space *SpaceInfo, cr
 	return sp, err == nil, err
 }
 
-// spaceMacros returns the macros allowed in the space of a category (nil: all).
+// spaceMacros returns the macros allowed in a category (nil: all; see
+// effectiveSettings).
 func (s *Service) spaceMacros(ctx context.Context, categoryID int64) []string {
 	if categoryID == 0 {
 		return nil
 	}
-	var raw []byte
-	if err := s.pool.QueryRow(ctx, `SELECT t.space->'allowed_macros' FROM categories c JOIN categories t ON t.id = split_part(c.path::text, '.', 1)::bigint WHERE c.id=$1`, categoryID).Scan(&raw); err != nil {
+	st, err := s.effectiveSettings(ctx, s.pool, categoryID)
+	if err != nil || len(st.Effective.AllowedMacros) == 0 {
 		return nil
 	}
-	var list []string
-	_ = json.Unmarshal(raw, &list)
-	return list
+	return st.Effective.AllowedMacros
 }

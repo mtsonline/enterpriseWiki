@@ -2720,13 +2720,21 @@ test('spaces: settings, own navigation, /s/KEY, directory, archive', async () =>
   await page.goto(`${BASE}/c/${top.id}/settings?tab=space`);
   await idle();
   await page.getByLabel(/^(space key|bereichsschlüssel)/i).fill(key);
+  await page.getByRole('button', { name: /^(save|speichern)$/i }).first().click();
+  await page.locator('.ew-toast', { hasText: /^(saved\.|gespeichert\.)$/i }).first().waitFor();
+  await a11y('space settings');
+  // appearance and content (every category): own navigation with a shortcut
+  await page.goto(`${BASE}/c/${top.id}/settings?tab=appearance`);
+  await idle();
   await page.getByLabel(/^(own navigation|eigene navigation)/i).check();
   await page.getByRole('button', { name: /^(add shortcut|verknüpfung hinzufügen)$/i }).click();
   await page.getByLabel(/^(label of shortcut 1|bezeichnung der verknüpfung 1)$/i).fill('Search');
   await page.getByLabel(/^(address of shortcut 1|adresse der verknüpfung 1)$/i).fill('/search');
+  await page.evaluate(() => document.querySelectorAll('.ew-toast').forEach((e) => e.remove()));
   await page.getByRole('button', { name: /^(save|speichern)$/i }).first().click();
-  await idle();
-  await a11y('space settings');
+  await page.locator('.ew-toast', { hasText: /^(saved\.|gespeichert\.)$/i }).first().waitFor();
+  await a11y('appearance and content of a category');
+  assert.equal((await call('GET', `/api/v1/categories/${top.id}/settings`)).effective.own_tree, true, 'own navigation saved');
   await page.goto(`${BASE}/s/${key}`);
   await idle();
   assert.match(page.url(), new RegExp(`/(c/${top.id}|wiki/)`));

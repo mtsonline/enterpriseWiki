@@ -123,7 +123,8 @@ export function importDialog(parent: number): void {
   });
 }
 
-/** The "Space" tab of the settings of a top-level category. */
+/** The "Space" tab of a top-level category: what makes it a space (key,
+ * directory, template for new spaces, export and import). */
 export async function spaceSettings(panel: HTMLElement, c: Category): Promise<void> {
   let sp: SpaceInfo | null;
   try {
@@ -135,16 +136,67 @@ export async function spaceSettings(panel: HTMLElement, c: Category): Promise<vo
   if (!sp) return;
   const key = textInput({ value: sp.key, maxlength: 16, autocomplete: 'off' });
   key.setAttribute('pattern', '[A-Za-z][A-Za-z0-9]{1,15}');
-  const own = checkbox(t('space.own_tree'), sp.own_tree, { help: t('space.own_tree_help') });
   const isTpl = hasPerm('core.categories.admin') ? checkbox(t('space.is_template'), !!sp.is_template, { help: t('space.is_template_help') }) : null;
-  const logo = previewImageInput(sp.logo ?? '', { label: t('space.logo'), help: t('space.logo_help') });
+  const alert = h('div', { class: 'ew-form-alert', role: 'alert' });
+  const form = h('form', { class: 'ew-form', novalidate: true }, alert,
+    h('p', null, t('space.help_only_space')),
+    field(t('space.key'), key, { help: t('space.key_help', { origin: location.origin }) }),
+    isTpl?.el ?? null,
+    h('p', { class: 'ew-help' }, h('a', { href: `/c/${c.id}/settings?tab=appearance` }, t('space.see_appearance'))),
+    h('div', { class: 'ew-form-actions' }, button(t('common.save'), () => undefined, { type: 'submit', variant: 'primary' })));
+  const io = h('section', { class: 'ew-section', 'aria-labelledby': 'ew-io-h' }, h('h2', { id: 'ew-io-h' }, t('space.io')),
+    h('p', null, t('space.io_help')),
+    h('div', { class: 'ew-actions' },
+      h('a', { class: 'ew-btn ew-btn--secondary', href: `/api/v1/categories/${c.id}/export`, download: '' }, t('space.export')),
+      button(t('space.import_below'), () => importDialog(c.id), { variant: 'secondary' })));
+  form.addEventListener('submit', async (ev) => {
+    ev.preventDefault();
+    alert.textContent = '';
+    try {
+      // only the parts of a space; the general settings stay (tab "Appearance and content")
+      sp = await api.put<SpaceInfo>(`categories/${c.id}/space`, { key: key.value.trim(), ...(isTpl ? { is_template: isTpl.input.checked } : {}) });
+      key.value = sp.key;
+      invalidateTree();
+      toast(t('common.saved'));
+    } catch (e) {
+      alert.textContent = errorText(e);
+      alert.focus?.();
+    }
+  });
+  panel.append(form, io);
+}
+
+interface Settings { own: SpaceInfo; effective: SpaceInfo; from: Record<string, number>; tree_root: number }
+
+/** The "Appearance and content" tab of every category: settings inherited
+ * by the subcategories (the nearest one applies; allowed types and macros
+ * can only be narrowed below). */
+export async function appearanceSettings(panel: HTMLElement, c: Category, ancestors: Category[]): Promise<void> {
+  let st: Settings;
+  try {
+    st = await api.get<Settings>(`categories/${c.id}/settings`);
+  } catch (e) {
+    panel.append(h('p', { role: 'alert' }, errorText(e)));
+    return;
+  }
+  const sp = st.own;
+  // "inherited from": a link to the category that sets it
+  const from = (key: string): HTMLElement | null => {
+    const id = st.from[key];
+    if (!id || id === c.id) return null;
+    const a = ancestors.find((x) => x.id === id);
+    return h('p', { class: 'ew-help ew-inherited' }, t('settings.inherited_from'), ' ',
+      h('a', { href: `/c/${id}/settings?tab=appearance` }, a ? pick(a.titles, L(), D()) : `#${id}`));
+  };
+  const own = checkbox(t('space.own_tree'), sp.own_tree, { help: t('settings.own_tree_help') });
+  const logo = previewImageInput(sp.logo ?? '', { label: t('space.logo'), help: t('settings.logo_help') });
   const useAccent = checkbox(t('space.accent_use'), !!sp.accent);
-  const accent = textInput({ type: 'color', value: sp.accent || '#0b5cad' });
+  const accent = textInput({ type: 'color', value: sp.accent || st.effective.accent || '#0b5cad' });
   const accentField = field(t('space.accent'), accent, { help: t('space.accent_help') });
   const syncAccent = () => { accent.disabled = !useAccent.input.checked; };
   useAccent.input.addEventListener('change', syncAccent);
   syncAccent();
-  const lang = select([{ value: '', label: t('space.language_site') }, ...state.site.languages.map((l) => ({ value: l, label: langName(l) }))], sp.language);
+  const lang = select([{ value: '', label: t('settings.language_inherit') }, ...state.site.languages.map((l) => ({ value: l, label: langName(l) }))], sp.language);
   // shortcuts: label (UI language) and address
   const rows = h('ol', { class: 'ew-space-shortcuts' });
   const addRow = (l?: { label: Record<string, string>; url: string }) => {
@@ -163,45 +215,41 @@ export async function spaceSettings(panel: HTMLElement, c: Category): Promise<vo
     return label;
   };
   sp.shortcuts.forEach((l) => addRow(l));
-  // allowed macros (none checked = all)
+  // allowed macros and types (none checked = as above); only what is allowed above can be chosen
   let macros: MacroInfo[] = [];
   try { macros = await loadMacros(); } catch { /* none */ }
-  const macroBoxes = macros.slice().sort((a, b) => macroLabel(a.labels).localeCompare(macroLabel(b.labels)))
-    .map((m) => ({ id: m.name, cb: checkbox(macroLabel(m.labels) || m.name, (sp!.allowed_macros ?? []).includes(m.name)) }));
+  const aboveMacros = st.from.allowed_macros && st.from.allowed_macros !== c.id ? st.effective.allowed_macros ?? [] : [];
+  const macroBoxes = macros.filter((m) => !aboveMacros.length || aboveMacros.includes(m.name) || (sp.allowed_macros ?? []).includes(m.name))
+    .sort((a, b) => macroLabel(a.labels).localeCompare(macroLabel(b.labels)))
+    .map((m) => ({ id: m.name, cb: checkbox(macroLabel(m.labels) || m.name, (sp.allowed_macros ?? []).includes(m.name)) }));
   const macrosId = uid('macros');
-  // allowed element types (none checked = all)
-  const typeBoxes = state.site.element_types.map((x) => ({ id: x.id, cb: checkbox(typeLabel(x.id), sp!.allowed_types.includes(x.id)) }));
+  const aboveTypes = st.from.allowed_types && st.from.allowed_types !== c.id ? st.effective.allowed_types : [];
+  const typeBoxes = state.site.element_types.filter((x) => !aboveTypes.length || aboveTypes.includes(x.id) || sp.allowed_types.includes(x.id))
+    .map((x) => ({ id: x.id, cb: checkbox(typeLabel(x.id), sp.allowed_types.includes(x.id)) }));
   const typesId = uid('types');
   const alert = h('div', { class: 'ew-form-alert', role: 'alert' });
   const form = h('form', { class: 'ew-form', novalidate: true }, alert,
-    h('p', null, t('space.help')),
-    field(t('space.key'), key, { help: t('space.key_help', { origin: location.origin }) }),
-    own.el, isTpl?.el ?? null, logo.el, useAccent.el, accentField,
+    h('p', null, t('settings.help')),
+    own.el, from('own_tree'), logo.el, from('logo'), useAccent.el, accentField, from('accent'),
     h('fieldset', { class: 'ew-fieldset' }, h('legend', null, t('space.shortcuts')), h('p', { class: 'ew-help' }, t('space.shortcuts_help')), rows,
       button(t('space.shortcut_add'), () => addRow().focus(), { variant: 'secondary' })),
     h('fieldset', { class: 'ew-fieldset', 'aria-describedby': typesId }, h('legend', null, t('space.allowed_types')),
-      h('p', { class: 'ew-help', id: typesId }, t('space.allowed_types_help')), h('div', { class: 'ew-checks' }, ...typeBoxes.map((b) => b.cb.el))),
+      h('p', { class: 'ew-help', id: typesId }, t('settings.allowed_types_help')), from('allowed_types'), h('div', { class: 'ew-checks' }, ...typeBoxes.map((b) => b.cb.el))),
     macroBoxes.length ? h('fieldset', { class: 'ew-fieldset', 'aria-describedby': macrosId }, h('legend', null, t('space.allowed_macros')),
-      h('p', { class: 'ew-help', id: macrosId }, t('space.allowed_macros_help')), h('div', { class: 'ew-checks' }, ...macroBoxes.map((b) => b.cb.el))) : '',
-    field(t('space.language'), lang, { help: t('space.language_help') }),
+      h('p', { class: 'ew-help', id: macrosId }, t('settings.allowed_macros_help')), from('allowed_macros'), h('div', { class: 'ew-checks' }, ...macroBoxes.map((b) => b.cb.el))) : '',
+    field(t('space.language'), lang, { help: t('settings.language_help') }), from('language'),
     h('div', { class: 'ew-form-actions' }, button(t('common.save'), () => undefined, { type: 'submit', variant: 'primary' })));
-  const io = h('section', { class: 'ew-section', 'aria-labelledby': 'ew-io-h' }, h('h2', { id: 'ew-io-h' }, t('space.io')),
-    h('p', null, t('space.io_help')),
-    h('div', { class: 'ew-actions' },
-      h('a', { class: 'ew-btn ew-btn--secondary', href: `/api/v1/categories/${c.id}/export`, download: '' }, t('space.export')),
-      button(t('space.import_below'), () => importDialog(c.id), { variant: 'secondary' })));
   form.addEventListener('submit', async (ev) => {
     ev.preventDefault();
     alert.textContent = '';
     const shortcuts = [...rows.children].map((li) => (li as HTMLElement & { get: () => { label: Record<string, string>; url: string } | null }).get()).filter((x) => x !== null);
     try {
-      sp = await api.put<SpaceInfo>(`categories/${c.id}/space`, {
-        key: key.value.trim(), own_tree: own.input.checked, shortcuts, language: lang.value, is_template: isTpl ? isTpl.input.checked : !!sp?.is_template,
+      await api.put(`categories/${c.id}/settings`, {
+        own_tree: own.input.checked, shortcuts, language: lang.value,
         allowed_types: typeBoxes.filter((b) => b.cb.input.checked).map((b) => b.id),
         allowed_macros: macroBoxes.filter((b) => b.cb.input.checked).map((b) => b.id),
         logo: logo.value(), accent: useAccent.input.checked ? accent.value : '',
       });
-      key.value = sp.key;
       invalidateTree();
       toast(t('common.saved'));
     } catch (e) {
@@ -209,7 +257,7 @@ export async function spaceSettings(panel: HTMLElement, c: Category): Promise<vo
       alert.focus?.();
     }
   });
-  panel.append(form, io);
+  panel.append(form);
 }
 
 interface InsightRow { id: number; title: string; views?: number; updated_at: string }

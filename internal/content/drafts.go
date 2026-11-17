@@ -12,6 +12,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"slices"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -480,7 +481,8 @@ type TemplateInput struct {
 	Body        json.RawMessage `json:"body"`
 	Tags        []string        `json:"tags"`
 	Global      bool            `json:"global"` // for everybody (core.templates.global)
-	// SpaceID: for everybody in a space (Manage on its top-level category)
+	// SpaceID: for everybody in this category and below (Manage on it; named space_id
+	// because it started with spaces)
 	SpaceID int64 `json:"space_id"`
 }
 
@@ -492,17 +494,20 @@ func (s *Service) Templates(ctx context.Context, typ string, id, categoryID int6
 	if p == nil {
 		return nil, apperr.ErrUnauthorized
 	}
-	var space int64
+	// templates of a category apply to it and everything below
+	path := []int64{}
 	if categoryID != 0 && s.require(ctx, categoryID, acl.View) == nil {
-		space, _ = s.topOf(ctx, categoryID)
+		if c, err := s.loadCategory(ctx, s.pool, categoryID, false); err == nil {
+			path = c.Path
+		}
 	}
 	rows, err := s.pool.Query(ctx, `SELECT t.id, t.name, t.description, t.type, t.lang, t.title, CASE WHEN $3::bigint <> 0 THEN t.body END, t.tags,
 			t.owner_id IS NULL AND t.space_id IS NULL, COALESCE(t.space_id, 0),
 			COALESCE(t.owner_id = $1, false), COALESCE((SELECT u.display_name FROM users u WHERE u.id = t.created_by), ''), t.updated_at
 		FROM element_templates t
-		WHERE (t.owner_id = $1 OR (t.owner_id IS NULL AND t.space_id IS NULL) OR t.space_id = $4 OR ($3::bigint <> 0 AND t.space_id IS NOT NULL))
+		WHERE (t.owner_id = $1 OR (t.owner_id IS NULL AND t.space_id IS NULL) OR t.space_id = ANY($4::bigint[]) OR ($3::bigint <> 0 AND t.space_id IS NOT NULL))
 			AND ($2 = '' OR t.type = $2) AND ($3::bigint = 0 OR t.id = $3::bigint)
-		ORDER BY t.space_id IS NULL, t.owner_id IS NULL, t.name`, p.ID(), typ, id, space)
+		ORDER BY t.space_id IS NULL, t.owner_id IS NULL, t.name`, p.ID(), typ, id, path)
 	if err != nil {
 		return nil, err
 	}
@@ -515,8 +520,8 @@ func (s *Service) Templates(ctx context.Context, typ string, id, categoryID int6
 	}
 	enabled := out[:0]
 	for _, t := range out {
-		// templates of other spaces only for readers of that space
-		if s.Type(t.Type) != nil && (t.SpaceID == 0 || t.SpaceID == space || s.require(ctx, t.SpaceID, acl.View) == nil) {
+		// templates of other categories only for readers of that category
+		if s.Type(t.Type) != nil && (t.SpaceID == 0 || slices.Contains(path, t.SpaceID) || s.require(ctx, t.SpaceID, acl.View) == nil) {
 			enabled = append(enabled, t)
 		}
 	}
@@ -538,9 +543,7 @@ func (s *Service) SaveTemplate(ctx context.Context, id int64, in TemplateInput) 
 		if err := s.require(ctx, in.SpaceID, acl.Manage); err != nil {
 			return nil, err
 		}
-		if top, err := s.topOf(ctx, in.SpaceID); err != nil || top != in.SpaceID {
-			return nil, apperr.BadRequest("space templates belong to a top-level category")
-		}
+
 	} else if in.Global && !perm.HasP(p, "core.templates.global") {
 		return nil, apperr.Forbidden("saving templates for everybody needs the permission %q", "Save templates for everybody")
 	}

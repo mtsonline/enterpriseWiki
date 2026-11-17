@@ -258,19 +258,25 @@ Elements and categories can get a **short URL**: pages through *Properties* (the
 Under *Administration → Settings → Start page*, administrators choose what appears under `/`: the overview of the top categories, a category or an element. New installations show the welcome page. The element type **Category overview** is suitable for an overview of areas: one category or the top level, with 1–5 levels of sub-categories, as cards or list, if desired with descriptions and the pages of every category.
 
 ### Areas
-Every top-level category is an **area**. Whoever has the permission *Manage* there is area management – without any administrator permissions – and sets in *Category settings → Area*:
+Every top-level category is an **area**. Whoever has the permission *Manage* there is area management – without any administrator permissions. Under *Category settings → Area* they set what makes an area:
 
 - **Area key** (e.g. `HR`): the area can then be reached under the short address `/s/HR`; keys are unique.
-- **Own navigation**: within the area the sidebar only shows its categories, with name and key of the area at the top.
-- **Shortcuts**: important pages or external addresses at the top of the navigation of the area.
-- **Allowed element types**: only these types can be created in the area or moved there; *New element* only offers them.
-- **Language of new elements**: default language for new pages in the area.
-- **Allowed macros**: the editor only offers these macros in the area; others are not executed in the area, but shown as a notice.
-- **Logo** and **accent colour**: logo in the navigation and in the directory; the accent colour applies to links and buttons in the area and must have a contrast of at least 4.5:1 with white.
+- **Offer as template for new areas** (only with the permission of category administration), export and import.
+
+Under *Category settings → Appearance and content*, **every category** (with *Manage*) sets what applies to it and its subcategories, as long as nothing of their own is set below; a note shows from which category a value is inherited:
+
+- **Own navigation**: from here the sidebar only shows the categories below, with name, logo and shortcuts at the top.
+- **Shortcuts**: important pages or external addresses at the top of this navigation.
+- **Allowed element types**: only these types can be created here or moved here; *New element* only offers them. Below, the choice can only be narrowed further.
+- **Language of new elements**: default language for new pages.
+- **Allowed macros**: the editor only offers these macros here; others are not executed, but shown as a notice. Below, the choice can only be narrowed further.
+- **Logo** and **accent colour**: logo in the navigation and in the directory; the accent colour applies to links and buttons and must have a contrast of at least 4.5:1 with white.
+
+If a category is moved to the top level, it becomes an area; if an area is moved below another category, it is no longer one (the key becomes free). The settings under *Appearance and content* stay in both cases.
 
 *All areas* (`/spaces`, link at the bottom of the navigation) lists all areas you may see, with a filter. Name and shortcuts of an area are only seen by whoever may see its top category.
 
-**Page templates of an area:** with *Save as template*, area management chooses "Everyone in the area …". Such templates are only offered when creating pages in this area.
+**Page templates of an area or a category:** with *Save as template*, whoever manages the category chooses "Everyone in this category and below" (area management also "Everyone in the area …"). Such templates are only offered when creating pages there and below.
 
 **Archiving** (*Category settings → General → Archive*): the category with everything below becomes read-only for everyone – also for administrators –, disappears from navigation, overviews and search and shows a notice. Direct links keep working; archived areas are listed under *All areas* in their own section. *Restore* makes everything editable again.
 
