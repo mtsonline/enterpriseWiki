@@ -30,14 +30,54 @@ try {
 let browser, page;
 const errors = [];
 
+// Interface coverage: every API request the pages send is recorded and
+// mapped to the actions of the register (tools/uicoverage). Requests the test
+// sends itself from a page go through __e2eFetch, which marks them, so they
+// do not count as use of the interface.
+const DIRECT = 'X-Ewiki-E2E';
+const uiRequests = [];
+const markDirect = () => {
+  // same origin only: a custom header would turn a cross-origin call into a preflight
+  window.__e2eFetch = (u, o = {}) => {
+    const url = new URL(u instanceof Request ? u.url : String(u), location.href);
+    if (url.origin !== location.origin) return fetch(u, o); // e2e: the marking wrapper
+    const headers = new Headers(o.headers ?? {});
+    headers.set('X-Ewiki-E2E', 'direct');
+    return fetch(u, { ...o, headers }); // e2e: the marking wrapper
+  };
+};
+function recordContext(ctx) {
+  ctx.addInitScript(markDirect);
+  ctx.on('response', (res) => {
+    const req = res.request();
+    const url = new URL(req.url());
+    if (!url.pathname.startsWith('/api/') || req.headers()[DIRECT.toLowerCase()]) return;
+    uiRequests.push({ method: req.method(), path: url.pathname, status: res.status() });
+  });
+}
+
 before(async () => {
   browser = await chromium.launch();
+  const newContext = browser.newContext.bind(browser);
+  browser.newContext = async (opts) => { const ctx = await newContext(opts); await recordContext(ctx); return ctx; };
+  // like Browser.newPage: a context of its own that closes with the page
+  browser.newPage = async (opts) => { const ctx = await browser.newContext(opts); const p = await ctx.newPage(); p.on('close', () => ctx.close()); return p; };
   // bypassCSP: the strict CSP of the wiki (script-src 'self') would block injecting axe-core
   page = await browser.newPage({ viewport: { width: 1280, height: 900 }, bypassCSP: true });
   page.on('pageerror', (e) => errors.push(e.message));
   page.on('console', (m) => { if (m.type() === 'error' && !/status of 40[134]/.test(m.text())) errors.push(m.text()); });
 });
-after(async () => { await browser?.close(); });
+after(async () => {
+  await browser?.close();
+  if (process.env.EWIKI_E2E_UI_REQUESTS) writeFileSync(process.env.EWIKI_E2E_UI_REQUESTS, JSON.stringify(uiRequests));
+});
+
+test('requests of the test itself are marked, so they do not count as interface coverage', () => {
+  const src = readFileSync(new URL(import.meta.url), 'utf8');
+  // a bare fetch in a page would be counted as use of the interface
+  const bare = src.split('\n').filter((l) => /(?<![\w.$])fetch\(/.test(l) && !l.includes('// e2e: the marking wrapper')); // e2e: the marking wrapper
+  assert.deepEqual(bare, []);
+});
 
 async function a11y(name, pg = page) {
   if (!axeSource) return;
@@ -605,7 +645,7 @@ test('sessions: see where one is signed in and sign out elsewhere', async () => 
     await page.locator('dialog[open]').getByRole('button', { name: /^(sign out everywhere else|überall sonst abmelden)$/i }).click();
     await sec.getByRole('button', { name: /^(sign out|abmelden):/i }).first().waitFor({ state: 'detached' });
     // the other browser is signed out, this one is not
-    const me2 = await p2.evaluate(async () => (await (await fetch('/api/v1/auth/me')).json()).user);
+    const me2 = await p2.evaluate(async () => (await (await __e2eFetch('/api/v1/auth/me')).json()).user);
     assert.equal(me2, null, 'other session ended');
     assert.ok((await call('GET', '/api/v1/auth/me')).user, 'own session kept');
   } finally {
@@ -701,10 +741,10 @@ test('second factor at sign-in and passkeys', async () => {
     await p2.waitForURL((u) => !u.pathname.startsWith('/login'));
     // the authenticator app (set up through the API of the signed-in browser)
     const secret = await p2.evaluate(async () => {
-      const r = await fetch('/api/v1/me/mfa/totp/begin', { method: 'POST', headers: { 'X-Requested-With': 'ewiki', 'Content-Type': 'application/json' }, body: '{}' });
+      const r = await __e2eFetch('/api/v1/me/mfa/totp/begin', { method: 'POST', headers: { 'X-Requested-With': 'ewiki', 'Content-Type': 'application/json' }, body: '{}' });
       return (await r.json()).secret;
     });
-    const enabled = await p2.evaluate(async (code) => (await fetch('/api/v1/me/mfa/totp/finish', { method: 'POST', headers: { 'X-Requested-With': 'ewiki', 'Content-Type': 'application/json' }, body: JSON.stringify({ code }) })).status, totpCode(secret));
+    const enabled = await p2.evaluate(async (code) => (await __e2eFetch('/api/v1/me/mfa/totp/finish', { method: 'POST', headers: { 'X-Requested-With': 'ewiki', 'Content-Type': 'application/json' }, body: JSON.stringify({ code }) })).status, totpCode(secret));
     assert.equal(enabled, 204);
     // a passkey with a virtual authenticator of the browser
     const cdp = await ctx2.newCDPSession(p2);
@@ -725,7 +765,7 @@ test('second factor at sign-in and passkeys', async () => {
     await dlg.waitFor({ state: 'detached' });
     await p2.locator('.ew-subsection table th', { hasText: 'Virtual' }).waitFor();
     // sign out: the password alone is not enough any more
-    await p2.evaluate(() => fetch('/api/v1/auth/logout', { method: 'POST', headers: { 'X-Requested-With': 'ewiki' } }));
+    await p2.evaluate(() => __e2eFetch('/api/v1/auth/logout', { method: 'POST', headers: { 'X-Requested-With': 'ewiki' } }));
     await presence(false);
     await login();
     await p2.getByRole('heading', { name: /^(confirm sign-in|anmeldung bestätigen)$/i }).waitFor();
@@ -740,8 +780,8 @@ test('second factor at sign-in and passkeys', async () => {
     await p2.getByRole('button', { name: /^(remove the authenticator app|authenticator-app entfernen)$/i }).click();
     await p2.locator('dialog[open]').getByRole('button', { name: /^(remove the authenticator app|authenticator-app entfernen)$/i }).click();
     await p2.getByRole('button', { name: /^(set up the authenticator app|authenticator-app einrichten)$/i }).waitFor();
-    const me = async () => p2.evaluate(async () => (await (await fetch('/api/v1/auth/me')).json()).user?.username);
-    const logout = () => p2.evaluate(() => fetch('/api/v1/auth/logout', { method: 'POST', headers: { 'X-Requested-With': 'ewiki' } }));
+    const me = async () => p2.evaluate(async () => (await (await __e2eFetch('/api/v1/auth/me')).json()).user?.username);
+    const logout = () => p2.evaluate(() => __e2eFetch('/api/v1/auth/logout', { method: 'POST', headers: { 'X-Requested-With': 'ewiki' } }));
     // the passkey from the suggestions of the user name field (picked at once by the virtual authenticator)
     await logout();
     await presence(true);
@@ -888,7 +928,7 @@ test('create an account yourself: switched on by the administrators, link by e-m
     await p2.locator('input[type=password]').fill(pw);
     await p2.keyboard.press('Enter');
     await p2.waitForURL((u) => !u.pathname.startsWith('/login'));
-    const me = await p2.evaluate(async () => (await (await fetch('/api/v1/auth/me')).json()).user);
+    const me = await p2.evaluate(async () => (await (await __e2eFetch('/api/v1/auth/me')).json()).user);
     assert.equal(me?.email, addr);
     assert.ok(!me?.is_admin, 'no administrator');
   } finally {
@@ -1023,7 +1063,7 @@ test('a decision signed with a passkey, its verification and the verify page', a
     await sd.getByText(/the signature is valid|die signatur ist gültig/i).waitFor();
     await sd.getByText(/ml-dsa-65/i).waitFor();
     await a11y('signature verification', p2);
-    const exp = await p2.evaluate(async (id) => (await fetch(`/api/v1/signatures/${id}/export`)).text(), sig);
+    const exp = await p2.evaluate(async (id) => (await __e2eFetch(`/api/v1/signatures/${id}/export`)).text(), sig);
     assert.match(exp, /"public_key"/);
     // the verify page: the export is valid, a changed one is not
     await p2.goto(BASE + '/signatures/verify');
@@ -1204,7 +1244,7 @@ test('workflow 2: automatic steps, deadline, triggers and a signed webhook reall
   const sig = createHmac('sha256', secret).update(`${ts}.${body}`).digest('hex');
   const url = `${BASE}/api/v1/x/workflow.process/hooks/${wf.id}/pages`;
   const hook = `${BASE}/api/v1/x/workflow.process/hooks/${wf.id}/hook`;
-  const post = (u, s) => fetch(u, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Ewiki-Timestamp': ts, 'X-Ewiki-Signature': `sha256=${s}` }, body });
+  const post = (u, s) => globalThis.fetch(u, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Ewiki-Timestamp': ts, 'X-Ewiki-Signature': `sha256=${s}` }, body });
   assert.equal((await post(hook, '0'.repeat(64))).status, 403, 'wrong signature');
   assert.equal((await post(url, sig)).status, 403, 'not a webhook trigger');
   assert.equal((await post(hook, sig)).status, 202, 'signed webhook accepted');
@@ -1303,7 +1343,7 @@ test('workflow 2: decision links in e-mails, test run, evaluation and retention 
   await allow.check();
   await a11y('workflow admin page');
   await page.getByRole('button', { name: /^(save|speichern)$/i }).click();
-  await page.waitForFunction(async () => (await (await fetch('/api/v1/admin/settings')).json()).config.plugin_settings?.['workflow.process']?.links_without_login === true);
+  await page.waitForFunction(async () => (await (await __e2eFetch('/api/v1/admin/settings')).json()).config.plugin_settings?.['workflow.process']?.links_without_login === true);
   try {
     const wf = await call('POST', '/api/v1/elements', { category_id: cat, type: 'workflow.process', title: `Leave ${run}`, body: {
       description: 'E2E', links: true, link_hours: 48, retention: { days: 365, mode: 'anonymize' }, fields: [{ id: 'reason', label: 'Reason', type: 'text', required: true }],
@@ -1758,8 +1798,8 @@ test('menus, blocks and positions', async () => {
 test('CMS template', async () => {
   const set = (tpl) => page.evaluate(async (tpl) => {
     const h = { 'Content-Type': 'application/json', 'X-Requested-With': 'ewiki' };
-    const cur = await (await fetch('/api/v1/admin/settings', { headers: h })).json();
-    const res = await fetch('/api/v1/admin/settings', { method: 'PUT', headers: h, body: JSON.stringify({ ui: { ...cur.config.ui, template: tpl } }) });
+    const cur = await (await __e2eFetch('/api/v1/admin/settings', { headers: h })).json();
+    const res = await __e2eFetch('/api/v1/admin/settings', { method: 'PUT', headers: h, body: JSON.stringify({ ui: { ...cur.config.ui, template: tpl } }) });
     if (!res.ok) throw new Error(await res.text());
   }, tpl);
   await set('theme.cms');
@@ -1791,7 +1831,7 @@ test('CMS template', async () => {
 
 /** Calls the API with the browser session (the page must be on the wiki). */
 const call = (method, path, body) => page.evaluate(async ([method, path, body]) => {
-  const res = await fetch(path, { method, headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'ewiki' }, body: body === undefined ? undefined : JSON.stringify(body) });
+  const res = await __e2eFetch(path, { method, headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'ewiki' }, body: body === undefined ? undefined : JSON.stringify(body) });
   const text = await res.text();
   if (!res.ok) throw new Error(`${method} ${path}: ${res.status} ${text}`);
   return text ? JSON.parse(text) : null;
@@ -2260,10 +2300,10 @@ test('a further site on its own host name: separate content, shared account', as
   await page.getByLabel(/^(password|passwort)/i).fill(PASSWORD);
   await page.locator('form.ew-login button[type=submit]').click();
   await page.waitForSelector('.ew-user-menu');
-  const site = await page.evaluate(async () => (await fetch('/api/v1/site')).json());
+  const site = await page.evaluate(async () => (await __e2eFetch('/api/v1/site')).json());
   assert.equal(site.site, name, 'site of the host name');
   // pages of the main site do not exist here
-  const hits = async (origin) => page.evaluate(async (u) => (await (await fetch(u, { credentials: 'include' })).json()).elements?.length ?? 0, `${origin}/api/v1/search?q=quokka${run}`);
+  const hits = async (origin) => page.evaluate(async (u) => (await (await __e2eFetch(u, { credentials: 'include' })).json()).elements?.length ?? 0, `${origin}/api/v1/search?q=quokka${run}`);
   assert.equal(await hits(other.origin), 0, 'content of another site is not visible');
   await a11y('further site');
   // back on the main site: delete it
@@ -2324,11 +2364,11 @@ test('office programs: default viewer setting, refusal without a configured serv
   await a11y('settings with media');
   // a document; Collabora is active but has no server: the office page refuses with a message
   const id = await page.evaluate(async (name) => {
-    const cats = await (await fetch('/api/v1/categories')).json();
+    const cats = await (await __e2eFetch('/api/v1/categories')).json();
     const fd = new FormData();
     fd.append('meta', JSON.stringify({ category_id: cats[0].id, title: name }));
     fd.append('file', new File(['PK not really a docx'], `${name}.docx`));
-    const r = await fetch('/api/v1/media', { method: 'POST', body: fd, headers: { 'X-Requested-With': 'ewiki' } });
+    const r = await __e2eFetch('/api/v1/media', { method: 'POST', body: fd, headers: { 'X-Requested-With': 'ewiki' } });
     return (await r.json()).id;
   }, `doc-${run}`);
   assert.ok(id > 0);
@@ -2393,7 +2433,7 @@ test('demo content: create, browse accessibly, remove', async () => {
   await page.getByRole('button', { name: /^(Remove demo|Demo entfernen)$/ }).click();
   await page.getByRole('dialog').getByRole('button', { name: /^(Remove demo|Demo entfernen)$/ }).click();
   await page.getByRole('button', { name: /^(Create demo|Demo anlegen)$/ }).waitFor();
-  const res = await page.evaluate(async () => (await fetch('/api/v1/resolve?path=/demo')).status);
+  const res = await page.evaluate(async () => (await __e2eFetch('/api/v1/resolve?path=/demo')).status);
   assert.equal(res, 404);
 });
 
