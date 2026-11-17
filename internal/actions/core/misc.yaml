@@ -139,6 +139,11 @@ actions:
       - name: default
         as: self
         query_json: '{"q": "${self.name}"}'
+      # the full handle as the list shows it (regression: found nobody)
+      - name: handle
+        as: self
+        query_json: '{"q": "${self.name}@local"}'
+        expect_json: '[{"handle": "${self.name}@local"}]'
   - id: core.permissions.list
     category: CATEGORY_ACTION
     method: GET

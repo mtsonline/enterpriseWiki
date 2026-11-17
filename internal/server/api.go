@@ -388,7 +388,7 @@ func (s *Server) routes() {
 		}
 		like := strings.NewReplacer(`\`, `\\`, "%", `\%`, "_", `\_`).Replace(q)
 		rows, err := s.app.DB.Query(r.Context(), `SELECT id, username || '@' || provider, display_name FROM users u
-			WHERE NOT disabled AND (username ILIKE $1 || '%' OR display_name ILIKE '%' || $1 || '%')
+			WHERE NOT disabled AND (username ILIKE $1 || '%' OR username || '@' || provider ILIKE $1 || '%' OR display_name ILIKE '%' || $1 || '%')
 			AND ($2 OR u.id = $3 OR EXISTS (SELECT 1 FROM user_groups a JOIN user_groups b ON a.group_id = b.group_id WHERE a.user_id = u.id AND b.user_id = $3))
 			ORDER BY username LIMIT 20`, like, scope == auth.ListAll, me.UserID)
 		if err != nil {

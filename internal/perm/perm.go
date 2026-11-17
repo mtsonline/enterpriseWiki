@@ -192,7 +192,7 @@ func Expand(keys []string) []string {
 // Preset returns the named category actions of a preset (the core bits are
 // handled by acl).
 func Preset(name string) []string {
-	var out []string
+	out := []string{} // a list in JSON, also when empty (the interface iterates over it)
 	for _, d := range All() {
 		if d.Scope != Category {
 			continue
