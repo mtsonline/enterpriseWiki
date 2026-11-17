@@ -178,7 +178,7 @@ func fetch(ctx context.Context, u *url.URL, format, path string, allow []string,
 		if errors.As(err, &ue) {
 			err = ue.Err
 		}
-		return "", err
+		return "", netguard.Hint(err, "plugins.macros.http_allow_private in config.yaml")
 	}
 	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode < 200 || resp.StatusCode > 299 {

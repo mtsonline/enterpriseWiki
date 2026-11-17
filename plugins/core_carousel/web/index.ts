@@ -192,6 +192,10 @@ async function adminPage(panel: HTMLElement): Promise<void> {
   const reload = () => void adminPage(panel);
   const positions = new Set(activeTemplate()?.positions ?? []);
   const settings = await pluginSettingsForm('core.carousel', [{ key: 'allow_private', label: t('core.carousel.allow_private'), type: 'bool', help: t('core.carousel.allow_private_help') }]);
+  // first stage: config.yaml decides whether internal addresses may be allowed at all
+  let configAllows = false;
+  try { configAllows = (await api.get<{ config: { feeds?: { allow_private?: boolean } } }>('admin/settings')).config.feeds?.allow_private === true; } catch { /* shown as not allowed */ }
+  if (!configAllows) settings.el.prepend(h('p', { class: 'ew-notice ew-notice--info', role: 'note' }, t('core.carousel.private_off_in_config')));
   panel.replaceChildren(
     pageHeader(t('core.carousel.admin'), button(t('core.carousel.create'), () => carouselDialog(null, reload), { variant: 'primary' })),
     h('p', null, t('core.carousel.admin_help')),

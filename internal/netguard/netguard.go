@@ -51,7 +51,17 @@ func Internal(ip net.IP) bool {
 }
 
 // ErrBlocked is returned for connections to internal addresses.
-var ErrBlocked = errors.New("address is internal (set plugins.macros.http_allow_private to allow)")
+var ErrBlocked = errors.New("address is internal (blocked unless the configuration allows internal addresses for this function)")
+
+// Hint adds to a blocked connection which setting allows internal addresses
+// for the calling function (e.g. "feeds.allow_private in config.yaml");
+// other errors are returned unchanged.
+func Hint(err error, setting string) error {
+	if err == nil || !errors.Is(err, ErrBlocked) {
+		return err
+	}
+	return fmt.Errorf("%w; allowed by %s", err, setting)
+}
 
 // Client builds an HTTP client enforcing the rules.
 func Client(allow []string, allowPrivate bool, timeout time.Duration) *http.Client {

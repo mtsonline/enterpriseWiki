@@ -63,7 +63,7 @@ func Fetch(ctx context.Context, feed string, allowPrivate bool) ([]Item, error) 
 	req.Header.Set("User-Agent", "EnterpriseWiki-Feeds/1.0")
 	res, err := client.Do(req)
 	if err != nil {
-		return nil, err
+		return nil, netguard.Hint(err, "feeds.allow_private in config.yaml")
 	}
 	defer func() { _ = res.Body.Close() }()
 	if res.StatusCode != http.StatusOK {
@@ -187,7 +187,7 @@ func FetchCalendar(ctx context.Context, address string, allowPrivate bool) (stri
 	req.Header.Set("User-Agent", "EnterpriseWiki-Feeds/1.0")
 	res, err := netguard.Client([]string{address}, allowPrivate, 15*time.Second).Do(req)
 	if err != nil {
-		return "", err
+		return "", netguard.Hint(err, "feeds.allow_private in config.yaml")
 	}
 	defer func() { _ = res.Body.Close() }()
 	if res.StatusCode != http.StatusOK {
