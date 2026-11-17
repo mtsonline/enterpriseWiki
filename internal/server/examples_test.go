@@ -218,7 +218,7 @@ var globalActions = map[string]bool{
 	"core.plugins.sources.add": true, "core.plugins.sources.remove": true, "core.plugins.sources.external": true, "core.plugins.sources.check": true,
 	"core.plugins.install": true, "core.plugins.remove": true,
 	"core.plugins.credentials.set": true, "core.plugins.credentials.remove": true,
-	"signature.smime.settings.set": true, "core.auth.login_page.update": true, "core.plugins.options": true, "core.plugins.enable": true, "core.plugins.disable": true,
+	"core.placements.set": true, "signature.smime.settings.set": true, "core.auth.login_page.update": true, "core.plugins.options": true, "core.plugins.enable": true, "core.plugins.disable": true,
 }
 
 // global reports whether an example changes settings of the whole wiki

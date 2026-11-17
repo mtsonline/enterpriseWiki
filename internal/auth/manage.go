@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"slices"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -421,6 +422,9 @@ func (s *Service) DeleteUser(ctx context.Context, id int64) error {
 			return err
 		}
 		if _, err := tx.Exec(ctx, `DELETE FROM instance_rules WHERE subject_type='user' AND subject_id=$1`, id); err != nil {
+			return err
+		}
+		if _, err := tx.Exec(ctx, `DELETE FROM placements WHERE level='user' AND target=$1`, strconv.FormatInt(id, 10)); err != nil {
 			return err
 		}
 		if _, err := tx.Exec(ctx, `DELETE FROM users WHERE id=$1`, id); err != nil {

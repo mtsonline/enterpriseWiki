@@ -366,6 +366,10 @@ Deleted categories (with all content) and pages end up in the **trash** (user me
 - The **search** finds words and word beginnings in titles, tags and content of all languages. Hits are highlighted.
 - You assign **tags** to categories (settings) and pages (*Tags*). A click on a tag shows all content with this tag. On the search page there is a list of popular tags.
 
+## Placement
+
+Where search, language, edit mode, notifications, user menu, category tree and the building blocks of plugins appear is set by the administration under *Administration → Placement*: per block the position of the template, the order (buttons ↑ ↓) or *Not shown*; *Required* prevents changes further down. Whoever manages a category changes this under *Category settings → Placement* for it and its subcategories; what is not changed there is inherited. If the administration allows it, every person arranges the blocks for themselves under *My profile → My arrangement*. The user menu always stays reachable.
+
 ## Permissions of a category
 
 With the permission *Manage* you set under *Category settings → Permissions* who may do what: user, group, role, all signed-in people or guests. Choose a template (**Reader**, **Category editor**, **Category manager**) or single permissions, also the permissions of plugins (e.g. *Create workflows*). Optionally a rule also applies to all sub-categories. Inherited rules are shown with their origin. Details: [docs/en/admin/security.md](../admin/security.md#permissions).

@@ -15,6 +15,86 @@ actions:
     examples:
       - name: default
         as: guest
+  - id: core.placements.resolve
+    category: CATEGORY_ACTION
+    method: GET
+    path: /api/v1/placements
+    success_status: 200
+    summary:
+      text:
+        en: Where the building blocks of the interface appear on a page (levels template, site, category, own)
+        de: Wo die Bausteine der Oberfläche auf einer Seite erscheinen (Ebenen Vorlage, Website, Kategorie, eigene)
+    public: true
+    cli: {command: [placement, resolve]}
+    ui: {entry: /}
+    examples:
+      - name: default
+        given: ['core.placements.set#site']
+        as: guest
+        expect_json: '[{"level": "site", "target": ""}]'
+      - name: category
+        given: ['core.placements.set#category']
+        as: admin
+        query_json: '{"category": "${given.core.categories.create#default.id}"}'
+  - id: core.placements.get
+    category: CATEGORY_ACTION
+    method: GET
+    path: /api/v1/placements/{level}
+    success_status: 200
+    summary:
+      text:
+        en: Show the placements of one level (template and site need the settings permission, a category its manage permission, the own level personal placement)
+        de: Platzierungen einer Ebene anzeigen (Vorlage und Website brauchen das Einstellungs-Recht, eine Kategorie ihr Verwalten-Recht, die eigene Ebene persönliche Platzierung)
+    signed_in: true
+    cli: {command: [placement, show], args: [level]}
+    ui: {entry: /admin/placement}
+    examples:
+      - name: default
+        given: ['core.placements.set#site']
+        as: admin
+        path_params_json: '{"level": "site"}'
+        expect_json: '{"level": "site", "placements": [{"block": "core.search", "position": "footer"}]}'
+      - name: category_without_manage
+        given: ['core.categories.create#default']
+        as: other
+        path_params_json: '{"level": "category"}'
+        query_json: '{"target": "${given.core.categories.create#default.id}"}'
+        status: 404
+  - id: core.placements.set
+    category: CATEGORY_ACTION
+    method: PUT
+    path: /api/v1/placements/{level}
+    success_status: 200
+    summary:
+      text:
+        en: "Replace the placements of one level (who may: see core.placements.get)"
+        de: "Platzierungen einer Ebene ersetzen (wer darf: siehe core.placements.get)"
+    signed_in: true
+    safety: {changes: true}
+    cli: {command: [placement, set], args: [level]}
+    ui: {entry: /admin/placement}
+    examples:
+      - name: site
+        as: admin
+        path_params_json: '{"level": "site"}'
+        body_json: '{"placements": [{"block": "core.search", "position": "footer", "sort": 10}, {"block": "core.user", "position": "header-tools", "sort": 40, "required": true}]}'
+      - name: category
+        given: ['core.categories.create#default']
+        as: admin
+        path_params_json: '{"level": "category"}'
+        query_json: '{"target": "${given.core.categories.create#default.id}"}'
+        body_json: '{"placements": [{"block": "core.tree", "position": ""}]}'
+      - name: unknown_block
+        as: admin
+        path_params_json: '{"level": "site"}'
+        body_json: '{"placements": [{"block": "nobody.thing", "position": "footer"}]}'
+        status: 400
+      - name: own_switched_off
+        as: self
+        path_params_json: '{"level": "user"}'
+        query_json: '{"target": "${self.id}"}'
+        body_json: '{"placements": []}'
+        status: 403
   - id: core.ready
     category: CATEGORY_PROTOCOL
     method: GET

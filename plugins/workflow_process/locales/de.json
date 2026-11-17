@@ -592,5 +592,6 @@
  "workflow.sign.with": "Sie signieren mit: {method}",
  "workflow.sign.submit": "Signieren und {action}",
  "workflow.sign.signed": "signiert – prüfen",
- "workflow.link.sign": "Diese Entscheidung wird signiert: Bitte melden Sie sich an und entscheiden Sie im Fall."
+ "workflow.link.sign": "Diese Entscheidung wird signiert: Bitte melden Sie sich an und entscheiden Sie im Fall.",
+ "workflow.process.block_tasks": "Meine Aufgaben (Workflows)"
 }

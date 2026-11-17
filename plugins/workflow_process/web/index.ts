@@ -73,7 +73,7 @@ export function register(): void {
   route('/tasks', tasksView);
   route('/workflow/link', linkView);
   registerSlot({
-    id: 'workflow.tasks', position: 'sidebar', order: 5,
+    id: 'workflow.process.tasks', position: 'sidebar', order: 5, label: () => t('workflow.process.block_tasks'),
     render: async () => {
       if (!state.user) return null;
       let n = 0;

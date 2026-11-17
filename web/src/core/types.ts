@@ -50,6 +50,8 @@ export interface Site {
   editor?: 'visual' | 'simple';
   /** live editing of pages (several editors at the same time) */
   collaboration?: boolean;
+  /** people may arrange the building blocks for themselves */
+  personal_placement?: boolean;
   /** seconds without an answer to a change after which the user is asked whether to keep waiting */
   wait_notice_s?: number;
   languages: string[];

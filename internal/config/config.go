@@ -252,6 +252,11 @@ type UI struct {
 	// Collaboration lets several users edit a page at the same time in the
 	// visual editor (live, with their cursors). Default true.
 	Collaboration bool `yaml:"collaboration" json:"collaboration"`
+	// PersonalPlacement lets signed-in people arrange the building blocks of
+	// the interface for themselves (search, notifications …) at the
+	// positions of the template. Default false; the own dashboard is always
+	// arranged by its owner.
+	PersonalPlacement bool `yaml:"personal_placement,omitempty" json:"personal_placement"`
 }
 
 // Auth configures authentication.

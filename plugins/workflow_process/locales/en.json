@@ -592,5 +592,6 @@
  "workflow.sign.with": "You sign with: {method}",
  "workflow.sign.submit": "Sign and {action}",
  "workflow.sign.signed": "signed – check",
- "workflow.link.sign": "This decision is signed: please sign in and decide in the case."
+ "workflow.link.sign": "This decision is signed: please sign in and decide in the case.",
+ "workflow.process.block_tasks": "My tasks (workflows)"
 }
