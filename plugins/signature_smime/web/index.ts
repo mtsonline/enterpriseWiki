@@ -1,7 +1,7 @@
 // S/MIME: certificates of the organisation (administration) and personal
 // certificates (profile) for signed e-mails.
 import {
-  api, button, checkbox, confirmDialog, errorText, field, formDialog, h, registerAdminPage, registerProfileSection,
+  api, button, checkbox, confirmDialog, errorText, field, formDialog, h, openDialog, registerAdminPage, registerProfileSection,
   select, t, textInput, toast, uiLang,
 } from '@ewiki/coreplugin';
 
@@ -64,13 +64,31 @@ function certTable(list: Cert[], opts: { owner: boolean; seal: boolean; reload: 
       ...(opts.owner ? [h('td', null, c.owner || t('signature.smime.organisation'))] : []),
       h('td', null, warn ? h('strong', null, stateText(c)) : stateText(c)),
       h('td', null, ...use),
-      h('td', null, button(t('common.remove'), async () => {
+      h('td', { class: 'ew-actions' }, button(t('signature.smime.details'), () => void detailsDialog(c.id), { variant: 'link', ariaLabel: `${t('signature.smime.details')}: ${name}` }),
+        button(t('common.remove'), async () => {
         if (!(await confirmDialog(t('signature.smime.remove_confirm', { name }), t('common.remove'), true))) return;
         try { await api.del(`${BASE}/certs/${c.id}`); toast(t('signature.smime.removed')); opts.reload(); } catch (e) { toast(errorText(e), 'error'); }
       }, { variant: 'link', ariaLabel: `${t('common.remove')}: ${name}` })));
   });
   return h('table', { class: 'ew-table' }, h('caption', { class: 'sr-only' }, t('signature.smime.title')),
     h('thead', null, h('tr', null, ...head.map((x) => h('th', { scope: 'col' }, x)))), h('tbody', null, ...rows));
+}
+
+/** Shows the details of a certificate, as the server has them now (to compare the fingerprint, for example). */
+async function detailsDialog(id: number): Promise<void> {
+  let c: Cert;
+  try { c = await api.get<Cert>(`${BASE}/certs/${id}`); } catch (e) { toast(errorText(e), 'error'); return; }
+  const row = (k: string, v: string | HTMLElement) => [h('dt', null, k), h('dd', null, v)];
+  openDialog(t('signature.smime.details_title', { name: c.label || c.emails.join(', ') }), h('dl', { class: 'ew-dl' },
+    ...row(t('signature.smime.d_subject'), c.subject),
+    ...row(t('signature.smime.d_issuer'), c.issuer),
+    ...row(t('signature.smime.col_addresses'), c.emails.join(', ')),
+    ...row(t('signature.smime.d_serial'), h('code', null, c.serial)),
+    ...row(t('signature.smime.d_fingerprint'), h('code', { class: 'ew-break' }, c.fingerprint)),
+    ...row(t('signature.smime.d_from'), fmtDate(c.not_before)),
+    ...row(t('signature.smime.col_valid'), stateText(c)),
+    ...row(t('signature.smime.d_trusted'), c.trusted ? t('common.yes') : t('signature.smime.untrusted')),
+    ...row(t('signature.smime.d_added'), fmtDate(c.created_at))));
 }
 
 /** Dialog to upload a certificate (PKCS#12 or PEM). */

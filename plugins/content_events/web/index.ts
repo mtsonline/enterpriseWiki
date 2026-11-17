@@ -181,7 +181,13 @@ async function showEvent(series: Ev, o: Occ, cfg: Config, reload: () => Promise<
         }, { variant: 'secondary' }));
       }
     }
-    actions.push(button(e.rrule ? t('content.events.edit_series') : t('common.edit'), () => { close(); void eventForm(e.calendar_id, cfg, series, null, reload); }, { variant: 'secondary' }));
+    // the series is edited in its current state (someone else may have changed it since the calendar was loaded)
+    actions.push(button(e.rrule ? t('content.events.edit_series') : t('common.edit'), async () => {
+      let cur: Ev;
+      try { cur = (await api.get<{ event: Ev }>(`${BASE}/events/${e.id}${qs({ lang: L() })}`)).event; } catch (err) { toast(errorText(err), 'error'); return; }
+      close();
+      await eventForm(e.calendar_id, cfg, cur, null, reload);
+    }, { variant: 'secondary' }));
     if (e.rrule) {
       actions.push(button(t('content.events.cancel_occurrence'), async () => {
         if (!(await confirmDialog(t('content.events.cancel_occurrence_confirm', { date: new Date(o.start).toLocaleDateString(L()) }), t('content.events.cancel_occurrence'), true))) return;

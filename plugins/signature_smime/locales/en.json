@@ -56,5 +56,14 @@
  "signature.smime.expiry_after_unsigned": "After it expires, e-mails of this sender are sent unsigned.",
  "signature.smime.expiry_after_hold": "After it expires, e-mails of this sender are held in the outbox until a valid certificate is available.",
  "perm.signature.smime.manage": "Manage S/MIME certificates",
- "perm.signature.smime.manage_help": "Upload and remove the certificates of the organisation and change the S/MIME settings."
+ "perm.signature.smime.manage_help": "Upload and remove the certificates of the organisation and change the S/MIME settings.",
+ "signature.smime.details": "Details",
+ "signature.smime.details_title": "Certificate “{name}”",
+ "signature.smime.d_subject": "Subject",
+ "signature.smime.d_issuer": "Issuer",
+ "signature.smime.d_serial": "Serial number",
+ "signature.smime.d_fingerprint": "Fingerprint (SHA-256)",
+ "signature.smime.d_from": "Valid from",
+ "signature.smime.d_trusted": "Trusted",
+ "signature.smime.d_added": "Added on"
 }

@@ -796,7 +796,7 @@ async function newOrDraftView({ params, query, main }: RouteCtx, draft: Draft | 
       editor.destroy?.();
       editorBox.replaceChildren();
       editor = mountEditor(editorBox, typeId, tpl.body, lang, labelId);
-    }, catId).then((p) => { if (p) tplBox.append(p); });
+    }, catId, current).then((p) => { if (p) tplBox.append(p); });
   }
   form.addEventListener('submit', (ev) => {
     ev.preventDefault();

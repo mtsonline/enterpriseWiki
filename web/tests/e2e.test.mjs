@@ -1463,7 +1463,16 @@ test('S/MIME: certificate of the organisation in the administration, signed e-ma
     // valid for 20 days: shown as expiring soon
     await row.getByText(/in 20 (days|tagen)/i).waitFor();
     await a11y('S/MIME certificate list');
-    certID = (await call('GET', '/api/v1/x/signature.smime/certs?scope=org')).find((c) => c.label === `E2E ${run}`).id;
+    const cert = (await call('GET', '/api/v1/x/signature.smime/certs?scope=org')).find((c) => c.label === `E2E ${run}`);
+    certID = cert.id;
+    // the details show the fingerprint to compare
+    await row.getByRole('button', { name: /^details:/i }).click();
+    const det = page.locator('dialog[open]');
+    await det.getByText(cert.fingerprint).waitFor();
+    await det.getByText(cert.serial).waitFor();
+    await a11y('S/MIME certificate details');
+    await det.getByRole('button', { name: /close|schließen/i }).first().click();
+    await det.waitFor({ state: 'detached' });
     // the test e-mail is signed, and OpenSSL verifies it with the CA
     await call('POST', '/api/v1/admin/mail/test', { to: `rcpt${run}@example.invalid` });
     const m = smtp.mails.find((x) => x.to.includes(`rcpt${run}@example.invalid`));
@@ -1675,6 +1684,24 @@ test('drafts, preview, templates and publishing with options', async () => {
   await tpl.waitFor();
   await tpl.selectOption({ label: `Template ${run}` });
   await page.waitForFunction((n) => document.querySelector('.ewe-prose')?.textContent?.includes(n), `wombat${run}`);
+  // the template is changed: name, description and the content from the editor
+  await page.locator('.ewe-prose').first().click();
+  await page.keyboard.press('End');
+  await page.keyboard.type(` numbat${run}`);
+  await page.getByRole('button', { name: /^(manage templates|vorlagen verwalten)$/i }).click();
+  const mgr = page.locator('dialog[open]').first();
+  await mgr.getByRole('button', { name: new RegExp(`^(edit|bearbeiten): Template ${run}$`, 'i') }).click();
+  const ed = page.locator('dialog[open]').last();
+  await ed.getByLabel(/^name/i).fill(`Template ${run} v2`);
+  await ed.getByLabel(/^(description|beschreibung)/i).fill(`changed ${run}`);
+  await ed.getByRole('checkbox', { name: /^(replace title, content and tags|titel, inhalt und schlagwörter)/i }).check();
+  await a11y('change a template');
+  await ed.getByRole('button', { name: /^(save|speichern)$/i }).click();
+  await mgr.getByText(`Template ${run} v2`).waitFor();
+  const changed = (await call('GET', '/api/v1/templates')).find((x) => x.name === `Template ${run} v2`);
+  assert.equal(changed?.description, `changed ${run}`, 'description changed');
+  assert.match(JSON.stringify((await call('GET', `/api/v1/templates/${changed.id}`)).body), new RegExp(`numbat${run}`), 'content from the editor');
+  await mgr.getByRole('button', { name: /close|schließen/i }).first().click();
 });
 
 test('share a page, notification bell, assigned watches', async () => {
@@ -1696,10 +1723,18 @@ test('share a page, notification bell, assigned watches', async () => {
   await dlg.getByText(/recipient|empfänger/i).first().waitFor();
   await a11y('share dialog');
   await dlg.getByRole('button', { name: /close|schließen/i }).first().click();
-  // the bell opens the notification panel
+  // the bell opens the notification panel (the workflow test left a message of its notify step)
+  const shared = (await call('GET', '/api/v1/me/inbox?limit=20')).items[0];
+  assert.ok(shared, 'there is a notification');
   await page.getByRole('button', { name: /^(notifications|benachrichtigungen)/i }).click();
   await page.locator('.ew-inbox').waitFor();
   await a11y('notification panel');
+  // a notification is deleted; the panel stays open
+  await page.locator('.ew-inbox').getByRole('button', { name: `${/^de/.test(await page.evaluate(() => document.documentElement.lang)) ? 'Benachrichtigung löschen' : 'Delete notification'}: ${shared.title}` }).first().click();
+  await page.locator('.ew-inbox').getByRole('heading', { name: /^(notifications|benachrichtigungen)$/i }).waitFor();
+  for (const deadline = Date.now() + 5000; (await call('GET', '/api/v1/me/inbox?limit=20')).items.some((n) => n.id === shared.id) && Date.now() < deadline;) await page.waitForTimeout(100);
+  assert.equal((await call('GET', '/api/v1/me/inbox?limit=20')).items.some((n) => n.id === shared.id), false, 'notification deleted');
+  assert.equal(await page.locator('.ew-inbox').isVisible(), true, 'the panel stays open');
   await page.keyboard.press('Escape');
   // assign a watch to the group hr (the test user is a member) and see it in the profile
   const a = await call('POST', '/api/v1/admin/watch-assignments', { subject_type: 'group', subject_id: hr.id, target_type: 'category', target_id: cat, mode: 'link', frequency: 'daily', mandatory: false, note: `note ${run}` });
@@ -2428,7 +2463,42 @@ test('media library: upload with rights options, details, image editor', async (
   await editor.waitFor({ state: 'detached' });
   // version 2, now 6×8
   await details.getByText(/6×8/).first().waitFor();
-  await details.getByRole('button', { name: /^(Close|Schließen)$/ }).first().click();
+  const inner = () => page.getByRole('dialog').last();
+  // texts
+  await details.getByRole('button', { name: /^(edit texts|texte bearbeiten)$/i }).click();
+  await inner().getByLabel(/^(title|titel)/i).fill(`Pic renamed ${run}`);
+  await inner().getByRole('button', { name: /^(save|speichern)$/i }).click();
+  await page.locator('.ew-toast', { hasText: /^(saved\.|gespeichert\.)$/i }).first().waitFor();
+  // the dialog is named after the new title (heading and accessible name)
+  const det = page.getByRole('dialog', { name: `Pic renamed ${run}` });
+  await det.waitFor();
+  // version 1 back (as a new version): 8×6 again
+  await det.getByRole('button', { name: /^(restore|wiederherstellen)$/i }).last().click();
+  await page.locator('.ew-toast', { hasText: /version restored|version wiederhergestellt/i }).first().waitFor();
+  await det.getByText(/8×6/).first().waitFor();
+  // a new version uploaded
+  await det.getByRole('button', { name: /^(upload a new version|neue version hochladen)$/i }).click();
+  await inner().locator('input[type=file]').setInputFiles({ name: `pic-${run}.png`, mimeType: 'image/png', buffer: png });
+  await inner().locator('form').getByRole('button', { name: /^(upload|hochladen)$/i }).click();
+  await page.locator('.ew-toast', { hasText: /saved as version 4|als version 4 gespeichert/i }).first().waitFor();
+  // own rights for this file, then shown again in the settings
+  await det.getByRole('button', { name: /^(rights and protection|rechte und schutz)$/i }).click();
+  await inner().getByRole('checkbox', { name: /^(own rights for this file|eigene rechte für diese datei)/i }).check();
+  await inner().getByRole('button', { name: /^(save|speichern)$/i }).click();
+  await det.getByRole('button', { name: /^(rights and protection|rechte und schutz)$/i }).click();
+  await inner().getByRole('checkbox', { name: /^(own rights for this file|eigene rechte für diese datei)/i }).waitFor();
+  assert.equal(await inner().getByRole('checkbox', { name: /^(own rights for this file|eigene rechte für diese datei)/i }).isChecked(), true);
+  await a11y('media rights');
+  await inner().getByRole('button', { name: /^(cancel|abbrechen)$/i }).click();
+  // download
+  const dl = page.waitForEvent('download');
+  await det.getByRole('link', { name: /^(download|herunterladen)$/i }).click();
+  assert.equal(readFileSync(await (await dl).path()).subarray(1, 4).toString(), 'PNG');
+  // delete
+  await det.getByRole('button', { name: /^(delete|löschen)$/i }).click();
+  await page.getByRole('dialog').last().getByRole('button', { name: /^(delete|löschen)$/i }).click();
+  await page.locator('.ew-toast', { hasText: /file deleted|datei gelöscht/i }).first().waitFor();
+  await page.getByRole('button', { name: new RegExp(`^Pic renamed ${run}`) }).waitFor({ state: 'detached' });
 });
 
 test('office programs: default viewer setting, refusal without a configured server', async () => {
@@ -2666,6 +2736,8 @@ test('expert settings: a limit, the limit of an API key, secrets stored again; c
     assert.equal(await value(), before + 1);
     await idle();
     await page.getByRole('button', { name: /^(set the default|vorgabe einsetzen): (period of the text search|zeitraum der textsuche)$/i }).click();
+    // the toast of the first save may still be there: remove it, so that the next one belongs to this save
+    await page.evaluate(() => document.querySelectorAll('.ew-toast').forEach((e) => e.remove()));
     await page.locator('form.ew-form').getByRole('button', { name: /^(save|speichern)$/i }).last().click();
     await toastOn(/limits saved|grenzwerte gespeichert/i);
     assert.equal(await value(), before);
@@ -2891,6 +2963,109 @@ test('forms: a person sends a form with a file; submissions, file, CSV and Excel
     await ctx2.close();
     rmSync(dir, { recursive: true, force: true });
   }
+});
+
+test('carousel: create, edit, slides added, ordered, edited and removed, a feed fetched, delete', async () => {
+  // a feed of the test on this machine (internal addresses need the switch of the carousel)
+  const rss = http.createServer((req, res) => {
+    res.writeHead(200, { 'Content-Type': 'application/rss+xml' }).end(`<?xml version="1.0"?><rss version="2.0"><channel><title>Feed ${run}</title><link>https://example.com/</link><description>x</description>
+<item><title>Feed news ${run}</title><link>https://example.com/news</link><description>From the feed</description><pubDate>${new Date().toUTCString()}</pubDate></item></channel></rss>`);
+  });
+  await new Promise((r) => rss.listen(0, '127.0.0.1', r));
+  const feed = `http://127.0.0.1:${rss.address().port}/feed.xml`;
+  const prev = (await call('GET', '/api/v1/admin/settings')).config.plugin_settings?.['core.carousel'] ?? {};
+  await call('PUT', '/api/v1/admin/settings', { plugin_settings: { 'core.carousel': { ...prev, allow_private: true } } });
+  const toastOn = (re) => page.locator('.ew-toast', { hasText: re }).first().waitFor();
+  const dialog = () => page.getByRole('dialog').last();
+  const name = `Teaser ${run}`;
+  try {
+    await page.goto(`${BASE}/admin/carousels`);
+    await idle();
+    await page.getByRole('button', { name: /^(new carousel|neues karussell)$/i }).click();
+    await dialog().getByLabel(/^name/i).fill(name);
+    await dialog().getByLabel(/^(external feeds|externe feeds)/i).fill(feed);
+    await dialog().getByRole('button', { name: /^(save|speichern)$/i }).click();
+    await page.getByRole('rowheader', { name }).waitFor();
+    await page.getByRole('button', { name: new RegExp(`^(edit|bearbeiten): ${name}$`, 'i') }).click();
+    await dialog().getByLabel(/^name/i).fill(`${name} 2`);
+    await dialog().getByRole('button', { name: /^(save|speichern)$/i }).click();
+    await page.getByRole('rowheader', { name: `${name} 2` }).waitFor();
+
+    // slides
+    await page.getByRole('button', { name: new RegExp(`^(slides|folien): ${name} 2$`, 'i') }).click();
+    for (const title of [`Slide A ${run}`, `Slide B ${run}`]) {
+      await page.getByRole('button', { name: /^(add slide|folie hinzufügen)$/i }).click();
+      await dialog().getByLabel(/^(title|titel)/i).fill(title);
+      await dialog().getByRole('button', { name: /^(save|speichern)$/i }).click();
+      await page.getByRole('rowheader', { name: title }).waitFor();
+    }
+    await a11y('carousel slides');
+    await page.getByRole('button', { name: new RegExp(`^(up|nach oben): Slide B ${run}$`, 'i') }).click();
+    await page.waitForFunction((b) => document.querySelector('table tbody tr th')?.textContent === b, `Slide B ${run}`);
+    await page.getByRole('button', { name: new RegExp(`^(edit|bearbeiten): Slide A ${run}$`, 'i') }).click();
+    await dialog().getByLabel(/^(title|titel)/i).fill(`Slide A2 ${run}`);
+    await dialog().getByRole('button', { name: /^(save|speichern)$/i }).click();
+    await page.getByRole('rowheader', { name: `Slide A2 ${run}` }).waitFor();
+    await page.getByRole('button', { name: new RegExp(`^(remove|entfernen): Slide A2 ${run}$`, 'i') }).click();
+    await page.getByRole('dialog').last().getByRole('button', { name: /^(remove|entfernen)$/i }).click();
+    await page.getByRole('rowheader', { name: `Slide A2 ${run}` }).waitFor({ state: 'detached' });
+
+    // the feed, fetched now
+    await page.getByRole('button', { name: /^(fetch feeds now|feeds jetzt abrufen)$/i }).click();
+    await toastOn(/feeds fetched|feeds abgerufen/i);
+    const slides = await call('GET', `/api/v1/x/core.carousel/carousels/${(await call('GET', '/api/v1/x/core.carousel/carousels')).find((c) => c.name === `${name} 2`).id}/slides`);
+    assert.ok(slides.feeds.some((f) => f.feed === feed && !f.error && f.items >= 1), `feed fetched: ${JSON.stringify(slides.feeds)}`);
+
+    // back and delete
+    await page.getByRole('button', { name: /^(back to carousels|zurück zu den karussells)$/i }).click();
+    await page.getByRole('button', { name: new RegExp(`^(delete|löschen): ${name} 2$`, 'i') }).click();
+    await page.getByRole('dialog').last().getByRole('button', { name: /^(delete|löschen)$/i }).click();
+    await page.getByRole('rowheader', { name: `${name} 2` }).waitFor({ state: 'detached' });
+  } finally {
+    await call('PUT', '/api/v1/admin/settings', { plugin_settings: { 'core.carousel': prev } });
+    rss.close();
+  }
+});
+
+test('languages: add, export and import translations, remove', async () => {
+  const toastOn = (re) => page.locator('.ew-toast', { hasText: re }).first().waitFor();
+  const had = (await call('GET', '/api/v1/site')).languages ?? [];
+  assert.equal(had.includes('it'), false, 'Italian not there yet');
+  await page.goto(`${BASE}/admin/languages`);
+  await idle();
+  await page.getByLabel(/^(language code|sprachcode)/i).fill('it');
+  // the page reloads itself shortly after adding or removing a language: wait for that reload
+  let reloaded = page.waitForEvent('load');
+  await page.getByRole('button', { name: /^(add language|sprache hinzufügen)$/i }).click();
+  await toastOn(/language added|sprache hinzugefügt/i);
+  await reloaded;
+  await page.goto(`${BASE}/admin/languages?edit=it`);
+  await idle();
+  const exchange = page.locator('details', { has: page.getByText(/^(import and export|import und export)$/i) });
+  await exchange.locator('summary').click();
+  await exchange.getByLabel(/^format/i).first().selectOption('json');
+  const dl = page.waitForEvent('download');
+  await exchange.getByRole('link', { name: /^(export|exportieren)$/i }).click();
+  const file = await (await dl).path();
+  assert.ok(Object.keys(JSON.parse(readFileSync(file, 'utf8'))).length > 0 || readFileSync(file, 'utf8').length > 2, 'export has texts');
+  // the same file back: nothing unknown
+  const dir = mkdtempSync(join(tmpdir(), 'ewlang-'));
+  try {
+    writeFileSync(join(dir, 'it.json'), readFileSync(file));
+    await exchange.locator('input[type=file]').setInputFiles(join(dir, 'it.json'));
+    await exchange.getByRole('button', { name: /^(import|importieren)$/i }).click();
+    await exchange.getByRole('status').filter({ hasText: /0 unknown keys skipped|0 unbekannte schlüssel übersprungen/i }).waitFor();
+    await a11y('translations of a language');
+  } finally { rmSync(dir, { recursive: true, force: true }); }
+  // remove it again
+  await page.goto(`${BASE}/admin/languages`);
+  await idle();
+  await page.getByRole('button', { name: /^(remove|entfernen) (italian|italienisch|italiano)$/i }).click();
+  reloaded = page.waitForEvent('load');
+  await page.getByRole('dialog').last().getByRole('button', { name: /^(remove|entfernen)$/i }).click();
+  await reloaded;
+  for (const deadline = Date.now() + 10000; (await call('GET', '/api/v1/site')).languages.includes('it') && Date.now() < deadline;) await page.waitForTimeout(200);
+  assert.equal((await call('GET', '/api/v1/site')).languages.includes('it'), false, 'removed');
 });
 
 test('users, groups and roles: created in the administration, the permissions take effect', async () => {

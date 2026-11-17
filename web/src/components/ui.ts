@@ -116,15 +116,18 @@ export function langFields(label: string, values: Record<string, string>, opts: 
 export interface DialogHandle {
   dialog: HTMLDialogElement;
   close: () => void;
+  /** changes the heading, which also names the dialog for screen readers */
+  setTitle: (title: string) => void;
 }
 
 /** Opens a modal dialog (native <dialog>: focus trap, Escape to close). */
 export function openDialog(title: string, content: Child, actions: Child[] = [], opts: { onClose?: () => void; wide?: boolean } = {}): DialogHandle {
   const opener = document.activeElement as HTMLElement | null;
   const titleId = uid('dlg');
+  const heading = h('h2', { id: titleId }, title);
   const dialog = h('dialog', { class: ['ew-dialog', opts.wide && 'ew-dialog--wide'], 'aria-labelledby': titleId },
     h('div', { class: 'ew-dialog-head' },
-      h('h2', { id: titleId }, title),
+      heading,
       button(h('span', { 'aria-hidden': 'true' }, '×'), () => close(), { variant: 'subtle', ariaLabel: t('common.close') })),
     h('div', { class: 'ew-dialog-body' }, content),
     actions.length ? h('div', { class: 'ew-dialog-actions' }, ...actions) : null,
@@ -141,7 +144,7 @@ export function openDialog(title: string, content: Child, actions: Child[] = [],
   dialog.showModal();
   const first = dialog.querySelector<HTMLElement>('.ew-dialog-body input, .ew-dialog-body select, .ew-dialog-body textarea, .ew-dialog-body button, .ew-dialog-actions button');
   first?.focus();
-  return { dialog, close };
+  return { dialog, close, setTitle: (x: string) => { heading.textContent = x; } };
 }
 
 /**
