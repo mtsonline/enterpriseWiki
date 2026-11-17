@@ -7,7 +7,7 @@
 import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { chromium } from 'playwright';
-import { createHmac } from 'node:crypto';
+import { createHmac, generateKeyPairSync } from 'node:crypto';
 import { execFileSync } from 'node:child_process';
 import { mkdtempSync, readFileSync, writeFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -2476,6 +2476,187 @@ test('spaces: settings, own navigation, /s/KEY, directory, archive', async () =>
   await page.locator('.ew-archived').waitFor();
   await a11y('archived space');
   await call('POST', `/api/v1/categories/${top.id}/archive`, { archived: false });
+});
+
+test('own profile: data, e-mail addresses, notifications, watches, feed key, API keys, SSH keys, sessions, password', async () => {
+  const name = `prof${run}`;
+  const pw = 'Prof-Passw0rd-1!';
+  const pw2 = 'Prof-Passw0rd-2!';
+  await call('POST', '/api/v1/admin/users', { username: name, password: pw, display_name: `Profile ${run}` });
+  const smtp = await smtpFake();
+  const prevMail = await call('GET', '/api/v1/admin/settings');
+  await call('PUT', '/api/v1/admin/settings', { mail: { ...prevMail.config.mail, enabled: true, transport: 'smtp', from: prevMail.config.mail.from || 'wiki@example.invalid',
+    smtp: { ...prevMail.config.mail.smtp, host: '127.0.0.1', port: smtp.port, security: 'none', username: '', password: '' } } });
+  const login = async (p, password) => {
+    await p.goto(BASE + '/login?local=1');
+    await p.locator('input[name=username]').fill(name);
+    await p.locator('input[type=password]').fill(password);
+    await p.keyboard.press('Enter');
+    await p.waitForURL((u) => !u.pathname.startsWith('/login'));
+  };
+  const ctx2 = await browser.newContext({ viewport: { width: 1280, height: 900 }, bypassCSP: true });
+  const ctx3 = await browser.newContext({ viewport: { width: 1280, height: 900 }, bypassCSP: true });
+  const p2 = await ctx2.newPage();
+  const p3 = await ctx3.newPage();
+  p2.on('pageerror', (e) => errors.push(`profile: ${e.message}`));
+  const logged = errors.length;
+  // one toast of its own; old toasts are cleared first where the text repeats
+  const toastOn = (p, re) => p.locator('.ew-toast', { hasText: re }).first().waitFor();
+  const clearToasts = (p) => p.evaluate(() => document.querySelectorAll('.ew-toast').forEach((e) => e.remove()));
+  const confirm = (p, re) => p.getByRole('dialog').getByRole('button', { name: re }).click();
+  try {
+    await login(p2, pw);
+    await login(p3, pw); // a second session, ended from the profile below
+    // a watch to remove later (set where the category is shown)
+    const cat = (await call('GET', '/api/v1/categories'))[0];
+    await p2.evaluate(async (id) => (await __e2eFetch('/api/v1/me/watches', { method: 'PUT', headers: { 'X-Requested-With': 'ewiki', 'Content-Type': 'application/json' },
+      body: JSON.stringify({ target_type: 'category', target_id: id, mode: 'link', frequency: 'weekly' }) })).status, cat.id);
+    await p2.goto(BASE + '/profile');
+    await p2.locator('#ak-h').waitFor();
+    await idle();
+
+    // data and user name
+    const data = p2.locator('section[aria-labelledby="pr-h"]');
+    await data.getByLabel(/^(display name|anzeigename)/i).fill(`Profile renamed ${run}`);
+    await data.getByLabel(/^(user name|benutzername)/i).fill(`alias${run}`);
+    await clearToasts(p2);
+    await data.getByRole('button', { name: /^(save|speichern)$/i }).click();
+    await toastOn(p2, /^(saved\.|gespeichert\.)/i);
+    const me = await p2.evaluate(async () => (await (await __e2eFetch('/api/v1/auth/me')).json()).user);
+    assert.equal(me.display_name, `Profile renamed ${run}`);
+    assert.equal(me.alias, `alias${run}`);
+
+    // a further e-mail address: confirmation link, then primary, then the old one is removed
+    const addr = `prof${run}@example.invalid`;
+    const addr2 = `prof${run}-2@example.invalid`;
+    const emails = p2.locator('section', { has: p2.getByRole('heading', { name: /^(e-mail addresses|e-mail-adressen)$/i }) });
+    const addMail = async (a) => {
+      await emails.getByLabel(/^(add an address|adresse hinzufügen)/i).fill(a);
+      await emails.getByRole('button', { name: /^(add|hinzufügen)$/i }).click();
+      await toastOn(p2, new RegExp(a.replace(/[.+]/g, '\\$&')));
+    };
+    const linkFor = async (a, after = 0) => {
+      const deadline = Date.now() + 15000;
+      let mail;
+      while (!(mail = smtp.mails.slice(after).find((m) => m.to.includes(a))) && Date.now() < deadline) await p2.waitForTimeout(50);
+      const link = /\/verify-email\?token=[A-Za-z0-9_-]+/.exec(mail?.text ?? '')?.[0];
+      assert.ok(link, `confirmation link in the e-mail: ${mail?.text}`);
+      return link;
+    };
+    await addMail(addr);
+    // send the confirmation again: a second mail with a fresh link
+    const before = smtp.mails.length;
+    await emails.getByRole('button', { name: new RegExp(`^(send confirmation again|bestätigung erneut senden): ${addr}$`, 'i') }).click();
+    await toastOn(p2, new RegExp(addr.replace(/[.+]/g, '\\$&')));
+    await p2.goto(BASE + await linkFor(addr, before));
+    await p2.locator('.ew-notice--ok', { hasText: addr }).waitFor();
+    await a11y('e-mail address confirmed', p2);
+    await p2.goto(BASE + '/profile');
+    await p2.locator('#ak-h').waitFor();
+    await addMail(addr2);
+    await p2.goto(BASE + await linkFor(addr2));
+    await p2.locator('.ew-notice--ok', { hasText: addr2 }).waitFor();
+    await p2.goto(BASE + '/profile');
+    await p2.locator('#ak-h').waitFor();
+    const row = (a) => emails.getByRole('row').filter({ hasText: a });
+    await row(addr2).getByRole('button', { name: /^(make primary|als primär festlegen)/i }).click();
+    await toastOn(p2, /primary address changed|primäre adresse geändert/i);
+    await row(addr).getByRole('button', { name: /^(remove|entfernen)/i }).click();
+    await confirm(p2, /^(remove|entfernen)$/i);
+    await toastOn(p2, /address removed|adresse entfernt/i);
+    await row(addr).waitFor({ state: 'detached' });
+
+    // e-mail notifications
+    const notify = p2.locator('section[aria-labelledby="nt-h"]');
+    const box = notify.getByRole('checkbox').first();
+    const was = await box.isChecked();
+    await box.setChecked(!was);
+    await clearToasts(p2);
+    await notify.getByRole('button', { name: /^(save|speichern)$/i }).click();
+    await toastOn(p2, /^(saved\.|gespeichert\.)/i);
+
+    // stop watching
+    const watches = p2.locator('section[aria-labelledby="wt-h"]');
+    await watches.getByRole('button', { name: /^(stop watching|nicht mehr beobachten):/i }).first().click();
+    await toastOn(p2, /watch removed|beobachtung beendet/i);
+
+    // an action that fails says so (regression: the feed buttons swallowed errors)
+    await p2.route('**/api/v1/me/feed-token', (route) => route.fulfill({ status: 422, contentType: 'application/json',
+      body: JSON.stringify({ error: { code: 'e2e', message: `E2E refused ${run}` } }) }), { times: 1 });
+    await p2.getByRole('button', { name: /^(renew key|schlüssel erneuern)$/i }).first().click();
+    await confirm(p2, /^(renew key|schlüssel erneuern)$/i);
+    await toastOn(p2, new RegExp(`E2E refused ${run}`));
+
+    // the personal feed key: renew and delete
+    await p2.getByRole('button', { name: /^(renew key|schlüssel erneuern)$/i }).first().click();
+    await confirm(p2, /^(renew key|schlüssel erneuern)$/i);
+    await toastOn(p2, /new key created|neuer schlüssel erzeugt/i);
+    await p2.getByRole('button', { name: /^(delete key|schlüssel löschen)$/i }).first().click();
+    await confirm(p2, /^(delete key|schlüssel löschen)$/i);
+    await toastOn(p2, /key deleted|schlüssel gelöscht/i);
+
+    // API key: create, show once, change its limit, revoke
+    await p2.getByRole('button', { name: /^(create api key|api-key erstellen)$/i }).click();
+    let dlg = p2.getByRole('dialog');
+    await dlg.getByLabel(/^name/i).fill(`Key ${run}`);
+    await dlg.getByLabel(/^(requests per second|anfragen pro sekunde)/i).fill('5');
+    await dlg.getByRole('button', { name: /^(create|erstellen)$/i }).click();
+    dlg = p2.getByRole('dialog', { name: /api key created|api-key erstellt/i });
+    const token = (await dlg.locator('pre').textContent()).trim();
+    assert.ok(token.length > 20, 'the token is shown once');
+    await a11y('API key created', p2);
+    await dlg.getByRole('button', { name: /^(close|schließen)$/i }).last().click();
+    await p2.getByRole('rowheader', { name: `Key ${run}`, exact: true }).waitFor();
+    assert.equal((await p2.content()).includes(token), false, 'the token is not shown again');
+    await p2.getByRole('button', { name: new RegExp(`^(change the limit of|grenze von) .Key ${run}`, 'i') }).click();
+    dlg = p2.getByRole('dialog');
+    await dlg.getByLabel(/^(requests per second|anfragen pro sekunde)/i).fill('7');
+    await dlg.getByRole('button', { name: /^(save|speichern)$/i }).click();
+    await p2.getByRole('row').filter({ has: p2.getByRole('rowheader', { name: `Key ${run}`, exact: true }) }).filter({ hasText: /(^|[^0-9])7\/s/ }).waitFor();
+    await p2.getByRole('button', { name: new RegExp(`^(revoke Key ${run}|Key ${run} widerrufen)$`, 'i') }).click();
+    await confirm(p2, /^(revoke|widerrufen)$/i);
+    await toastOn(p2, /^(revoked|widerrufen)$/i);
+
+    // SSH key: add and remove
+    const { publicKey } = generateKeyPairSync('ed25519');
+    const raw = Buffer.from(publicKey.export({ format: 'jwk' }).x, 'base64url');
+    const str = (b) => { const l = Buffer.alloc(4); l.writeUInt32BE(b.length); return Buffer.concat([l, b]); };
+    const sshKey = `ssh-ed25519 ${Buffer.concat([str(Buffer.from('ssh-ed25519')), str(raw)]).toString('base64')} e2e`;
+    await p2.getByRole('button', { name: /^(add ssh key|ssh-schlüssel hinzufügen)$/i }).click();
+    dlg = p2.getByRole('dialog');
+    await dlg.getByLabel(/^name/i).fill(`Laptop ${run}`);
+    await dlg.getByLabel(/^(public key|öffentlicher schlüssel)/i).fill(sshKey);
+    await dlg.getByRole('button', { name: /^(add ssh key|ssh-schlüssel hinzufügen)$/i }).click();
+    await toastOn(p2, /ssh key added|ssh-schlüssel hinzugefügt/i);
+    await p2.getByRole('button', { name: new RegExp(`^(remove Laptop ${run}|Laptop ${run} entfernen)$`, 'i') }).click();
+    await confirm(p2, /^(remove|entfernen)$/i);
+    await p2.getByRole('rowheader', { name: `Laptop ${run}`, exact: true }).waitFor({ state: 'detached' });
+
+    // end the other session: that browser is signed out
+    const sessions = p2.locator('section', { has: p2.getByRole('heading', { name: /^(sessions|sitzungen)$/i }) });
+    await sessions.getByRole('button', { name: /^(sign out|abmelden):/i }).first().click();
+    await confirm(p2, /^(sign out|abmelden)$/i);
+    await toastOn(p2, /session ended|sitzung beendet/i);
+    assert.equal(await p3.evaluate(async () => (await (await __e2eFetch('/api/v1/auth/me')).json()).user), null, 'the ended session is signed out');
+    assert.equal(await p3.evaluate(async () => (await __e2eFetch('/api/v1/me/sessions')).status), 401, 'the ended session gets no data');
+
+    // password: wrong repetition refused in the form, then changed
+    const pwf = p2.locator('section[aria-labelledby="pw-h"]');
+    await pwf.getByLabel(/^(current password|aktuelles passwort)/i).fill(pw);
+    await pwf.getByLabel(/^(new password|neues passwort)$/i).fill(pw2);
+    await pwf.getByLabel(/^(repeat new password|neues passwort wiederholen)/i).fill(pw2);
+    await pwf.getByRole('button', { name: /^(change password|passwort ändern)$/i }).click();
+    await toastOn(p2, /password changed|passwort geändert/i);
+    await a11y('own profile', p2);
+    await login(p3, pw2);
+  } finally {
+    await ctx2.close();
+    await ctx3.close();
+    await call('PUT', '/api/v1/admin/settings', { mail: prevMail.config.mail });
+    smtp.close();
+    // ended sessions answer 401 on purpose
+    errors.splice(logged, errors.length - logged, ...errors.slice(logged).filter((e) => !/status of (401|422)/.test(e)));
+  }
 });
 
 test('no JavaScript errors occurred', () => {

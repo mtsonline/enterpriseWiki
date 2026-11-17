@@ -159,10 +159,10 @@ jobs:
           EWIKI_E2E_URL: http://localhost:8080
           EWIKI_E2E_USER: admin
           EWIKI_E2E_UI_REQUESTS: /tmp/wiki/ui-requests.json
-      - name: every action of the interface is used by the browser test
-        run: go run ./tools/uicoverage -requests /tmp/wiki/ui-requests.json
           EWIKI_E2E_PASSWORD: Admin-Passw0rd!
           EWIKI_E2E_REQUIRE_AXE: "1"
+      - name: every action of the interface is used by the browser test
+        run: go run ./tools/uicoverage -requests /tmp/wiki/ui-requests.json
       - name: server log
         if: always()
         run: cat /tmp/wiki/server.log || true

@@ -7,8 +7,9 @@ import './editor/editor.css';
 import { mediaView } from './views/media';
 import { signatureVerifyView } from './views/signatures';
 import { officeView } from './components/office';
-import { api, setWaitNotice, setWaitPrompt } from './core/api';
-import { waitDialog } from './components/ui';
+import { api, ApiError, setWaitNotice, setWaitPrompt } from './core/api';
+import { errorText, waitDialog } from './components/ui';
+import { toast } from './core/announce';
 import { h, mount } from './core/dom';
 import { loadMessages, t } from './core/i18n';
 import { onBeforeRender, onNavigate, rerender, route, setMain, setNotFound, start } from './core/router';
@@ -79,6 +80,12 @@ function registerCore(): void {
     },
   });
 }
+
+// A failed request that no code handled is shown instead of failing silently.
+// It is not suppressed: the browser tests still count it as an error.
+window.addEventListener('unhandledrejection', (ev) => {
+  if (ev.reason instanceof ApiError) toast(errorText(ev.reason), 'error');
+});
 
 async function boot(): Promise<void> {
   installMacroPager();
