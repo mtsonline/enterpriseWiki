@@ -256,10 +256,13 @@ test('core plugins: origin check, warning, confirmation for external sources, tr
   assert.equal(await creds.getByLabel(/^token/i).inputValue(), '', 'the field is emptied after saving');
   await a11y('access data for plugin sources');
   // a reference to the environment of the server is refused
+  const logged = errors.length;
   await creds.getByLabel(/^(address \(prefix\)|adresse \(präfix\))/i).fill(`https://git.example.com/env-${run}`);
   await creds.getByLabel(/^token/i).fill('${EWIKI_DATABASE_URL}');
   await creds.getByRole('button', { name: /^(save access data|zugangsdaten speichern)$/i }).click();
   await page.locator('.ew-toasts', { hasText: /config\.yaml/i }).waitFor();
+  // the refusal above is expected (400): not counted as an error
+  errors.splice(logged, errors.length - logged, ...errors.slice(logged).filter((e) => !/status of 400/.test(e)));
   await page.getByRole('button', { name: new RegExp(`^(remove the access data for|zugangsdaten für) https://git.example.com/private-${run}`, 'i') }).click();
   await page.getByRole('dialog').getByRole('button', { name: /^(remove|entfernen)$/i }).click();
   await page.locator('.ew-toasts', { hasText: /access data removed|zugangsdaten entfernt/i }).waitFor();
