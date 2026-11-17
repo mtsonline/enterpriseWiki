@@ -238,6 +238,9 @@ test('core plugins: origin check, warning, confirmation for external sources, tr
   await page.getByRole('button', { name: new RegExp(`^(remove source|quelle) https://git.example.com/e2e-${run}`, 'i') }).click();
   await page.getByRole('dialog').getByRole('button', { name: /^(remove|entfernen)$/i }).click();
   await page.locator('.ew-toasts', { hasText: /source removed|quelle entfernt/i }).waitFor();
+  // removing the source re-renders the view: wait for it, or the form filled below is replaced
+  await page.locator('section code', { hasText: `https://git.example.com/e2e-${run}` }).first().waitFor({ state: 'detached' });
+  await idle();
 
   // access data for private sources: saved, never shown again, removable
   const creds = page.locator('section', { has: page.getByRole('heading', { name: /^(access data for plugin sources|zugangsdaten für plugin-quellen)$/i }) });
