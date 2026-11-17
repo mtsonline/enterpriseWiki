@@ -478,8 +478,6 @@ Aufgerufen von Verzeichnissen wie Entra ID oder Okta mit dem Token eines SCIM-Zu
 | `GET` | `/api/v1/x/auth.shib/metadata` |
 | `GET` | `/api/v1/x/content.blog/elements/{id}/posts` |
 | `GET` | `/api/v1/x/content.blog/elements/{id}/feed` |
-| `POST` | `/api/v1/x/content.blog/elements/{id}/posts` |
-| `POST` | `/api/v1/x/content.blog/elements/{id}/categories` |
 | `GET` | `/api/v1/x/content.events/calendars/{id}/events` |
 | `POST` | `/api/v1/x/content.events/calendars/{id}/events` |
 | `GET` | `/api/v1/x/content.events/events/{id}` |
@@ -497,8 +495,6 @@ Aufgerufen von Verzeichnissen wie Entra ID oder Okta mit dem Token eines SCIM-Zu
 | `GET` | `/api/v1/x/content.events/events/{id}/ical` |
 | `GET` | `/api/v1/x/content.faq/elements/{id}/questions` |
 | `GET` | `/api/v1/x/content.faq/elements/{id}/feed` |
-| `POST` | `/api/v1/x/content.faq/elements/{id}/questions` |
-| `POST` | `/api/v1/x/content.faq/elements/{id}/categories` |
 | `GET` | `/api/v1/x/content.team/groups` |
 | `GET` | `/api/v1/x/content.team/fields` |
 | `GET` | `/api/v1/x/content.team/elements/{id}/members` |

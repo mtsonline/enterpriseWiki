@@ -4,11 +4,8 @@ auth.ldap.sync.adopt
 auth.ldap.sync.run
 auth.ldap.test
 auth.oidc.check
-content.blog.categories.create
 content.blog.feed
-content.blog.posts.create
 content.events.ical
-content.faq.categories.create
 content.faq.feed
 content.forms.meta
 content.forms.submissions.csv

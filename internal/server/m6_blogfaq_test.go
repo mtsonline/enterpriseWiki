@@ -27,12 +27,12 @@ func TestBlogAndFAQ(t *testing.T) {
 		"body": map[string]any{"category_id": blogCat.ID, "recursive": true, "per_page": 2, "feed": true, "show_date": true, "show_author": true,
 			"intro": map[string]string{"format": "markdown", "source": "Welcome <script>x</script>**all**"}}}, &blog, 201)
 	for i, title := range []string{"First post", "Second post", "Third post"} {
-		admin.must("POST", fmt.Sprintf("/api/v1/x/content.blog/elements/%d/posts", blog.ID), map[string]any{"title": title, "lang": "en",
+		admin.must("POST", "/api/v1/elements", map[string]any{"via": blog.ID, "category_id": blogCat.ID, "type": "core.html", "title": title, "lang": "en",
 			"body": htmlBody(fmt.Sprintf("<p>Body %d about zebras</p>", i)), "tags": []string{"t" + fmt.Sprint(i%2)}}, nil, 201)
 	}
-	admin.must("POST", fmt.Sprintf("/api/v1/x/content.blog/elements/%d/categories", blog.ID), map[string]any{"titles": map[string]string{"en": "Events"}}, &sub, 201)
-	admin.must("POST", fmt.Sprintf("/api/v1/x/content.blog/elements/%d/posts", blog.ID), map[string]any{"title": "Summer party", "category_id": sub.ID, "body": htmlBody("<p>Party</p>")}, nil, 201)
-	if code := admin.do("POST", fmt.Sprintf("/api/v1/x/content.blog/elements/%d/posts", blog.ID), map[string]any{"title": "Elsewhere", "category_id": site.ID}, nil); code != 400 {
+	admin.must("POST", "/api/v1/categories", map[string]any{"via": blog.ID, "parent_id": blogCat.ID, "titles": map[string]string{"en": "Events"}}, &sub, 201)
+	admin.must("POST", "/api/v1/elements", map[string]any{"via": blog.ID, "type": "core.html", "title": "Summer party", "category_id": sub.ID, "body": htmlBody("<p>Party</p>")}, nil, 201)
+	if code := admin.do("POST", "/api/v1/elements", map[string]any{"via": blog.ID, "type": "core.html", "title": "Elsewhere", "category_id": site.ID}, nil); code != 400 {
 		t.Fatalf("post outside the blog accepted: %d", code)
 	}
 	var page struct {
@@ -89,11 +89,11 @@ func TestBlogAndFAQ(t *testing.T) {
 	var faq elem
 	admin.must("POST", "/api/v1/elements", map[string]any{"category_id": faqCat.ID, "type": "content.faq", "title": "FAQ",
 		"body": map[string]any{"category_id": faqCat.ID, "recursive": true, "numbering": true, "feed": false}}, &faq, 201)
-	admin.must("POST", fmt.Sprintf("/api/v1/x/content.faq/elements/%d/categories", faq.ID), map[string]any{"titles": map[string]string{"en": "Accounts"}}, &faqSec, 201)
+	admin.must("POST", "/api/v1/categories", map[string]any{"via": faq.ID, "parent_id": faqCat.ID, "titles": map[string]string{"en": "Accounts"}}, &faqSec, 201)
 	var nested cat
-	admin.must("POST", fmt.Sprintf("/api/v1/x/content.faq/elements/%d/categories", faq.ID), map[string]any{"parent_id": faqSec.ID, "titles": map[string]string{"en": "Passwords"}}, &nested, 201)
-	admin.must("POST", fmt.Sprintf("/api/v1/x/content.faq/elements/%d/questions", faq.ID), map[string]any{"title": "Who answers questions?", "body": map[string]string{"format": "markdown", "source": "The **help desk**."}}, nil, 201)
-	admin.must("POST", fmt.Sprintf("/api/v1/x/content.faq/elements/%d/questions", faq.ID), map[string]any{"title": "How do I reset my password?", "category_id": nested.ID, "body": map[string]string{"format": "markdown", "source": "Use the reset link."}}, nil, 201)
+	admin.must("POST", "/api/v1/categories", map[string]any{"via": faq.ID, "parent_id": faqSec.ID, "titles": map[string]string{"en": "Passwords"}}, &nested, 201)
+	admin.must("POST", "/api/v1/elements", map[string]any{"via": faq.ID, "category_id": faqCat.ID, "type": "core.html", "title": "Who answers questions?", "body": map[string]string{"format": "markdown", "source": "The **help desk**."}}, nil, 201)
+	admin.must("POST", "/api/v1/elements", map[string]any{"via": faq.ID, "type": "core.html", "title": "How do I reset my password?", "category_id": nested.ID, "body": map[string]string{"format": "markdown", "source": "Use the reset link."}}, nil, 201)
 	var faqData struct {
 		Sections []struct {
 			Title     string `json:"title"`

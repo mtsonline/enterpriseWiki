@@ -11,7 +11,6 @@ import (
 
 	"github.com/coder/websocket"
 
-	"github.com/mtsonline/enterprisewiki/internal/acl"
 	"github.com/mtsonline/enterprisewiki/internal/apperr"
 	"github.com/mtsonline/enterprisewiki/internal/collab"
 	h "github.com/mtsonline/enterprisewiki/internal/httpx"
@@ -58,7 +57,7 @@ func (s *Server) serveCollab(w http.ResponseWriter, r *http.Request) error {
 	if !slices.Contains(s.app.Config.Get().I18n.Languages, lang) {
 		return apperr.BadRequest("unknown language %q", lang)
 	}
-	if _, err := s.app.Content.ElementCategory(r.Context(), id, acl.Edit); err != nil {
+	if err := s.app.Content.CanEditElement(r.Context(), id); err != nil {
 		return err
 	}
 	if !strings.EqualFold(r.Header.Get("Upgrade"), "websocket") {
@@ -87,8 +86,7 @@ func (s *Server) serveCollab(w http.ResponseWriter, r *http.Request) error {
 		if err != nil || cp.UserID != p.UserID {
 			return false
 		}
-		_, err = s.app.Content.ElementCategory(identity.With(ctx, cp), id, acl.Edit)
-		return err == nil
+		return s.app.Content.CanEditElement(identity.With(ctx, cp), id) == nil
 	}
 	ctx, stop := context.WithCancel(r.Context())
 	defer stop()

@@ -165,9 +165,15 @@ CREATE TABLE elements (
     trash_root    boolean NOT NULL DEFAULT false,
     short_url     text,
     preview_image text NOT NULL DEFAULT '',          -- og:image for link previews (file hash or URL; empty = automatic)
-    short_only    boolean NOT NULL DEFAULT false     -- only the short URL (no readable paths /wiki/…)
+    short_only    boolean NOT NULL DEFAULT false,    -- only the short URL (no readable paths /wiki/…)
+    -- the instance (a blog, a FAQ …) this element was created through; its
+    -- instance permissions apply to it (see content.Service.mayChange)
+    owner_instance bigint REFERENCES elements(id) ON DELETE SET NULL
 );
 CREATE INDEX elements_category ON elements(category_id, position);
+CREATE INDEX elements_owner_instance ON elements(owner_instance) WHERE owner_instance IS NOT NULL;
+-- the instance a category (e.g. a section of a FAQ) was created through
+ALTER TABLE categories ADD COLUMN owner_instance bigint REFERENCES elements(id) ON DELETE SET NULL;
 CREATE INDEX elements_tags ON elements USING gin(tags);
 CREATE UNIQUE INDEX elements_short_url ON elements(short_url) WHERE short_url IS NOT NULL;
 
@@ -347,7 +353,8 @@ CREATE TABLE element_drafts (
     publish_at      timestamptz,                   -- scheduled publication
     publish_by      bigint REFERENCES users(id) ON DELETE SET NULL,
     publish_options jsonb NOT NULL DEFAULT '{}',
-    fields          jsonb NOT NULL DEFAULT '{}'    -- fields of plugins (e.g. properties) to store on publishing
+    fields          jsonb NOT NULL DEFAULT '{}',   -- fields of plugins (e.g. properties) to store on publishing
+    via             bigint REFERENCES elements(id) ON DELETE CASCADE -- new element on behalf of this instance
 );
 CREATE UNIQUE INDEX element_drafts_element ON element_drafts(element_id, lang) WHERE element_id IS NOT NULL;
 CREATE INDEX element_drafts_category ON element_drafts(category_id);

@@ -12,7 +12,6 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/mtsonline/enterprisewiki/internal/acl"
 	"github.com/mtsonline/enterprisewiki/internal/apperr"
 	"github.com/mtsonline/enterprisewiki/internal/content"
 	"github.com/mtsonline/enterprisewiki/internal/coreplugin"
@@ -105,16 +104,20 @@ type Cat struct {
 type Info struct {
 	Scope      []int64 `json:"-"`
 	Categories []Cat   `json:"categories"`
-	// CanCreate: the caller may add entries somewhere in the scope.
+	// CanCreate: the caller may add entries somewhere in the scope
+	// (contribute permission of the instance).
 	CanCreate bool `json:"can_create"`
-	// CanManage: the caller may add subcategories below the source category.
+	// CanManage: the caller may add sections (manage permission of the
+	// instance).
 	CanManage bool `json:"can_manage"`
 	// Missing: the source category does not exist or is hidden.
 	Missing bool `json:"missing"`
 }
 
-// Describe returns the categories of the scope with the caller's rights.
-func Describe(ctx context.Context, hs *coreplugin.Host, src *Source) (*Info, error) {
+// Describe returns the categories of the scope with the caller's rights:
+// entries are written on behalf of the instance (element id), so its
+// permissions decide (contribute: new entries; manage: new sections).
+func Describe(ctx context.Context, hs *coreplugin.Host, src *Source, id int64, typeID string) (*Info, error) {
 	info := &Info{Categories: []Cat{}}
 	scope, err := hs.Content.Scope(ctx, src.CategoryID, src.Recursive)
 	if err != nil {
@@ -122,11 +125,8 @@ func Describe(ctx context.Context, hs *coreplugin.Host, src *Source) (*Info, err
 		return info, nil
 	}
 	info.Scope = scope
-	p := identity.From(ctx)
-	perms, err := hs.ACL.PermsMap(ctx, p, scope)
-	if err != nil {
-		return nil, err
-	}
+	contribute := hs.CanInstance(ctx, id, typeID+".contribute")
+	info.CanManage = hs.CanInstance(ctx, id, typeID+".manage")
 	rows, err := hs.DB.Query(ctx, `SELECT c.id, c.parent_id, nlevel(c.path) - nlevel(r.path), c.titles, c.descriptions, c.position
 		FROM categories c, categories r WHERE r.id = $1 AND c.id = ANY($2) ORDER BY c.path`, src.CategoryID, scope)
 	if err != nil {
@@ -138,93 +138,11 @@ func Describe(ctx context.Context, hs *coreplugin.Host, src *Source) (*Info, err
 		if err := rows.Scan(&c.ID, &c.ParentID, &c.Depth, &c.Titles, &c.Descriptions, &c.Position); err != nil {
 			return nil, err
 		}
-		c.CanCreate = perms[c.ID]&acl.Create != 0
+		c.CanCreate = contribute && !hs.ACL.Archived(ctx, c.ID)
 		info.CanCreate = info.CanCreate || c.CanCreate
 		info.Categories = append(info.Categories, c)
 	}
-	info.CanManage = perms[src.CategoryID]&acl.Create != 0
 	return info, rows.Err()
-}
-
-func (i *Info) contains(id int64) bool {
-	for _, c := range i.Scope {
-		if c == id {
-			return true
-		}
-	}
-	return false
-}
-
-// Routes registers the shared API of a category-backed element type below
-// /elements/{id}: POST entries (a core.html element in the scope), POST
-// categories (a subcategory) and GET feed. load returns the source of an
-// element (permission checked).
-func Routes(hs *coreplugin.Host, typeID, entries string, load func(ctx context.Context, id int64, lang string) (*Source, string, error)) {
-	// POST /elements/{id}/<entries> {"title", "body": {...}, "category_id", "lang", "tags", "type"}
-	hs.Handle("POST", "/elements/{id}/"+entries, func(w http.ResponseWriter, r *http.Request) (any, error) {
-		id, err := h.PathID(r, "id")
-		if err != nil {
-			return nil, err
-		}
-		var in content.ElementInput
-		if err := h.Decode(r, &in); err != nil {
-			return nil, err
-		}
-		ctx := r.Context()
-		src, _, err := load(ctx, id, in.Lang)
-		if err != nil {
-			return nil, err
-		}
-		info, err := Describe(ctx, hs, src)
-		if err != nil {
-			return nil, err
-		}
-		if in.CategoryID == 0 {
-			in.CategoryID = src.CategoryID
-		}
-		if info.Missing || !info.contains(in.CategoryID) {
-			return nil, apperr.BadRequest("category %d is not part of this %s", in.CategoryID, typeID)
-		}
-		if in.Type == "" {
-			in.Type = "core.html"
-		}
-		el, err := hs.Content.CreateElement(ctx, in)
-		if err != nil {
-			return nil, err
-		}
-		return h.Created{V: el}, nil
-	})
-	// POST /elements/{id}/categories {"parent_id" (default: source), "titles", "descriptions"}
-	hs.Handle("POST", "/elements/{id}/categories", func(w http.ResponseWriter, r *http.Request) (any, error) {
-		id, err := h.PathID(r, "id")
-		if err != nil {
-			return nil, err
-		}
-		var in content.CategoryInput
-		if err := h.Decode(r, &in); err != nil {
-			return nil, err
-		}
-		ctx := r.Context()
-		src, _, err := load(ctx, id, "")
-		if err != nil {
-			return nil, err
-		}
-		if in.ParentID == nil || *in.ParentID == 0 {
-			in.ParentID = &src.CategoryID
-		}
-		info, err := Describe(ctx, hs, src)
-		if err != nil {
-			return nil, err
-		}
-		if info.Missing || !info.contains(*in.ParentID) {
-			return nil, apperr.BadRequest("category %d is not part of this %s", *in.ParentID, typeID)
-		}
-		c, err := hs.Content.CreateCategory(ctx, in)
-		if err != nil {
-			return nil, err
-		}
-		return h.Created{V: c}, nil
-	})
 }
 
 // FeedOptions configures WriteFeed.
@@ -298,4 +216,30 @@ func PrepareSource(ctx context.Context, svc *content.Service, parent int64, lang
 	}
 	m["category_id"] = c.ID
 	return json.Marshal(m)
+}
+
+// InstanceScope is where the entries of a blog or FAQ (element id of type
+// typeID) live: its category (with subcategories if recursive), as pages
+// (core.html). Categories the caller cannot see are left out; a missing or
+// hidden source category gives an empty scope.
+func InstanceScope(ctx context.Context, s *content.Service, id int64, typeID string) (*content.InstanceScope, error) {
+	typ, body, _, _, err := s.ElementBody(ctx, id, "")
+	if err != nil {
+		return nil, err
+	}
+	if typ != typeID {
+		return nil, apperr.NotFound("element of type " + typeID)
+	}
+	var src Source
+	if err := json.Unmarshal(body, &src); err != nil {
+		return nil, apperr.BadRequest("invalid configuration: %v", err)
+	}
+	out := &content.InstanceScope{Types: []string{"core.html"}}
+	if src.CategoryID <= 0 {
+		return out, nil
+	}
+	if out.Categories, err = s.Scope(ctx, src.CategoryID, src.Recursive); err != nil {
+		out.Categories = nil
+	}
+	return out, nil
 }

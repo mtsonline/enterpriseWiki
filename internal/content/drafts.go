@@ -43,19 +43,21 @@ type Draft struct {
 	PublishAt *time.Time      `json:"publish_at"`
 	Options   json.RawMessage `json:"publish_options"`
 	// Fields of plugins (e.g. properties) to store on publishing.
-	Fields    map[string]json.RawMessage `json:"fields"`
+	Fields map[string]json.RawMessage `json:"fields"`
+	// Via: a new element on behalf of this instance (see ElementInput.Via).
+	Via       *int64 `json:"via,omitempty"`
 	createdBy *int64
 	publishBy *int64
 }
 
 const draftCols = `d.id, d.element_id, d.category_id, d.type, d.lang, d.title, d.body, d.tags, d.comment, d.base_rev,
 	COALESCE((SELECT u.display_name FROM users u WHERE u.id = d.created_by), ''), COALESCE((SELECT u.display_name FROM users u WHERE u.id = d.updated_by), ''),
-	d.created_at, d.updated_at, d.publish_at, d.publish_options, d.fields, d.created_by, d.publish_by`
+	d.created_at, d.updated_at, d.publish_at, d.publish_options, d.fields, d.created_by, d.publish_by, d.via`
 
 func scanDraft(r pgx.CollectableRow) (Draft, error) {
 	var d Draft
 	err := r.Scan(&d.ID, &d.ElementID, &d.CategoryID, &d.Type, &d.Lang, &d.Title, &d.Body, &d.Tags, &d.Comment, &d.BaseRev,
-		&d.CreatedBy, &d.UpdatedBy, &d.CreatedAt, &d.UpdatedAt, &d.PublishAt, &d.Options, &d.Fields, &d.createdBy, &d.publishBy)
+		&d.CreatedBy, &d.UpdatedBy, &d.CreatedAt, &d.UpdatedAt, &d.PublishAt, &d.Options, &d.Fields, &d.createdBy, &d.publishBy, &d.Via)
 	return d, err
 }
 
@@ -73,13 +75,27 @@ type DraftInput struct {
 	BaseRev int      `json:"base_rev"`
 	// Fields of plugins (e.g. properties); null or missing keeps them.
 	Fields map[string]json.RawMessage `json:"fields"`
+	// Via: a new element on behalf of an instance (see ElementInput.Via).
+	Via int64 `json:"via,omitempty"`
 }
 
-// canSeeDraft: the author, or edit permission in the category.
+// canSeeDraft: the author, or edit permission in the category (for a new
+// element on behalf of an instance: its contributors see their own, its
+// editors all).
 func (s *Service) canSeeDraft(ctx context.Context, d *Draft) bool {
 	p := identity.From(ctx)
 	if p == nil {
 		return false
+	}
+	if d.Via != nil {
+		if inst, err := s.Instance(ctx, *d.Via); err == nil {
+			if d.createdBy != nil && *d.createdBy == p.ID() && s.acl.CanInstance(ctx, p, inst, instanceKey(inst.Type, "contribute")) {
+				return true
+			}
+			if s.acl.CanInstance(ctx, p, inst, instanceKey(inst.Type, "edit")) {
+				return true
+			}
+		}
 	}
 	if d.createdBy != nil && *d.createdBy == p.ID() && (s.acl.Can(ctx, p, d.CategoryID, acl.Create) || s.acl.Can(ctx, p, d.CategoryID, acl.Edit)) {
 		return true
@@ -100,6 +116,10 @@ func (s *Service) SaveDraft(ctx context.Context, id int64, in DraftInput) (*Draf
 			return nil, err
 		}
 		in.ElementID, in.CategoryID, in.Type = d.ElementID, d.CategoryID, d.Type
+		in.Via = 0
+		if d.Via != nil {
+			in.Via = *d.Via
+		}
 		if in.Lang == "" {
 			in.Lang = d.Lang
 		}
@@ -109,15 +129,19 @@ func (s *Service) SaveDraft(ctx context.Context, id int64, in DraftInput) (*Draf
 		if err != nil {
 			return nil, err
 		}
-		if err := s.require(ctx, e.CategoryID, acl.Edit); err != nil {
+		if err := s.requireElement(ctx, e, acl.Edit); err != nil {
 			return nil, err
 		}
-		in.CategoryID, in.Type = e.CategoryID, e.Type
+		in.CategoryID, in.Type, in.Via = e.CategoryID, e.Type, 0
 		if in.Lang == "" {
 			in.Lang = e.OriginalLang
 		}
 	} else {
-		if err := s.require(ctx, in.CategoryID, acl.Create); err != nil {
+		if in.Via != 0 {
+			if _, err := s.requireVia(ctx, in.Via, in.CategoryID, in.Type); err != nil {
+				return nil, err
+			}
+		} else if err := s.require(ctx, in.CategoryID, acl.Create); err != nil {
 			return nil, err
 		}
 		if err := s.guardCreate(ctx, in.Type, in.CategoryID); err != nil {
@@ -169,8 +193,12 @@ func (s *Service) SaveDraft(ctx context.Context, id int64, in DraftInput) (*Draf
 				fields = CASE WHEN $11::jsonb IS NULL THEN element_drafts.fields ELSE element_drafts.fields || $11::jsonb END
 			RETURNING id`, *in.ElementID, in.CategoryID, in.Type, in.Lang, in.Title, body, tags, in.Comment, in.BaseRev, uid, draftFields(in.Fields, checked)).Scan(&id)
 	default:
-		err = s.pool.QueryRow(ctx, `INSERT INTO element_drafts(category_id, type, lang, title, body, tags, comment, created_by, updated_by, fields)
-			VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$8,COALESCE($9::jsonb, '{}')) RETURNING id`, in.CategoryID, in.Type, in.Lang, in.Title, body, tags, in.Comment, uid, draftFields(in.Fields, checked)).Scan(&id)
+		var via *int64
+		if in.Via != 0 {
+			via = &in.Via
+		}
+		err = s.pool.QueryRow(ctx, `INSERT INTO element_drafts(category_id, type, lang, title, body, tags, comment, created_by, updated_by, fields, via)
+			VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$8,COALESCE($9::jsonb, '{}'),$10) RETURNING id`, in.CategoryID, in.Type, in.Lang, in.Title, body, tags, in.Comment, uid, draftFields(in.Fields, checked), via).Scan(&id)
 	}
 	if err != nil {
 		return nil, err
@@ -288,12 +316,23 @@ func (s *Service) PublishDraft(ctx context.Context, id int64, in PublishInput) (
 	if d.ElementID == nil && in.CategoryID != 0 {
 		target = in.CategoryID
 	}
-	need := acl.Edit
-	if d.ElementID == nil {
-		need = acl.Create
-	}
-	if err := s.require(ctx, target, need); err != nil {
-		return nil, err
+	switch {
+	case d.ElementID != nil:
+		e, err := s.loadElement(ctx, s.pool, *d.ElementID, false)
+		if err != nil {
+			return nil, err
+		}
+		if err := s.requireElement(ctx, e, acl.Edit); err != nil {
+			return nil, err
+		}
+	case d.Via != nil:
+		if _, err := s.requireVia(ctx, *d.Via, target, d.Type); err != nil {
+			return nil, err
+		}
+	default:
+		if err := s.require(ctx, target, acl.Create); err != nil {
+			return nil, err
+		}
 	}
 	if in.At != nil && in.At.After(time.Now().Add(30*time.Second)) {
 		opts, _ := json.Marshal(in)
@@ -329,7 +368,11 @@ func (s *Service) publish(ctx context.Context, d *Draft, target int64, in Publis
 			_, err = s.UpdateElementMeta(ctx, *d.ElementID, MetaInput{Tags: d.Tags})
 		}
 	} else {
-		el, err = s.CreateElement(ctx, ElementInput{CategoryID: target, Type: d.Type, Lang: d.Lang, Title: d.Title, Body: d.Body, Tags: d.Tags, Comment: d.Comment, Fields: d.Fields})
+		in := ElementInput{CategoryID: target, Type: d.Type, Lang: d.Lang, Title: d.Title, Body: d.Body, Tags: d.Tags, Comment: d.Comment, Fields: d.Fields}
+		if d.Via != nil {
+			in.Via = *d.Via
+		}
+		el, err = s.CreateElement(ctx, in)
 	}
 	if err != nil {
 		return nil, err

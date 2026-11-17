@@ -37,6 +37,9 @@ type Element struct {
 	// PreviewImage is shown in link previews (Open Graph); "" = first image of the page.
 	PreviewImage string `json:"preview_image"`
 	CreatedByID  *int64 `json:"created_by_id"`
+	// OwnerInstance is the instance (a blog …) the element was created
+	// through; its instance permissions apply to the element too.
+	OwnerInstance *int64 `json:"owner_instance,omitempty"`
 }
 
 // LangStatus is the translation state of one language.
@@ -69,12 +72,12 @@ type ElementView struct {
 
 const elemCols = `e.id, e.category_id, e.type, e.position, e.original_lang, e.titles, e.tags, e.created_at, e.updated_at,
 	COALESCE((SELECT u.display_name || ' (' || u.username || '@' || u.provider || ')' FROM users u WHERE u.id = e.updated_by), ''),
-	e.deleted_at, EXISTS (SELECT 1 FROM categories c WHERE c.id = e.category_id AND c.default_element_id = e.id), COALESCE(e.short_url, ''), e.preview_image, e.created_by, e.short_only`
+	e.deleted_at, EXISTS (SELECT 1 FROM categories c WHERE c.id = e.category_id AND c.default_element_id = e.id), COALESCE(e.short_url, ''), e.preview_image, e.created_by, e.short_only, e.owner_instance`
 
 func scanElement(r pgx.CollectableRow) (Element, error) {
 	var e Element
 	err := r.Scan(&e.ID, &e.CategoryID, &e.Type, &e.Position, &e.OriginalLang, &e.Titles, &e.Tags, &e.CreatedAt, &e.UpdatedAt,
-		&e.UpdatedBy, &e.DeletedAt, &e.IsDefault, &e.ShortURL, &e.PreviewImage, &e.CreatedByID, &e.ShortOnly)
+		&e.UpdatedBy, &e.DeletedAt, &e.IsDefault, &e.ShortURL, &e.PreviewImage, &e.CreatedByID, &e.ShortOnly, &e.OwnerInstance)
 	return e, err
 }
 
@@ -180,7 +183,7 @@ func (s *Service) GetElement(ctx context.Context, id int64, lang string, withBod
 		lang = s.DefaultLanguage()
 	}
 	v := &ElementView{Element: *e, Lang: lang}
-	perms, _ := s.acl.Perms(ctx, identity.From(ctx), e.CategoryID)
+	perms := s.elementPerms(ctx, e)
 	v.Permissions = perms.Strings()
 	var body json.RawMessage
 	err = s.pool.QueryRow(ctx, `SELECT lang, rev, title, body FROM element_revisions WHERE element_id=$1 AND lang = ANY($2)
@@ -245,6 +248,10 @@ type ElementInput struct {
 	ShortURL   string          `json:"short_url"`
 	// Fields of plugins (e.g. properties), by field id
 	Fields map[string]json.RawMessage `json:"fields"`
+	// Via is an instance (a blog, a FAQ …) the element is created on behalf
+	// of: its instance permissions apply instead of the page permissions of
+	// the category (see requireVia).
+	Via int64 `json:"via,omitempty"`
 }
 
 func cleanTitle(t string) (string, error) {
@@ -260,7 +267,14 @@ func cleanTitle(t string) (string, error) {
 
 // CreateElement creates a new element with revision 1 in in.Lang.
 func (s *Service) CreateElement(ctx context.Context, in ElementInput) (*ElementView, error) {
-	if err := s.require(ctx, in.CategoryID, acl.Create); err != nil {
+	var owner *int64
+	if in.Via != 0 {
+		inst, err := s.requireVia(ctx, in.Via, in.CategoryID, in.Type)
+		if err != nil {
+			return nil, err
+		}
+		owner = &inst.ID
+	} else if err := s.require(ctx, in.CategoryID, acl.Create); err != nil {
 		return nil, err
 	}
 	t := s.Type(in.Type)
@@ -317,8 +331,8 @@ func (s *Service) CreateElement(ctx context.Context, in ElementInput) (*ElementV
 			return err
 		}
 		uid := nullID(ctx)
-		if err := tx.QueryRow(ctx, `INSERT INTO elements(category_id, type, position, original_lang, titles, tags, created_by, updated_by)
-			VALUES ($1,$2,$3,$4,$5,$6,$7,$7) RETURNING id`, in.CategoryID, in.Type, pos, in.Lang, map[string]string{in.Lang: title}, tags, uid).Scan(&id); err != nil {
+		if err := tx.QueryRow(ctx, `INSERT INTO elements(category_id, type, position, original_lang, titles, tags, created_by, updated_by, owner_instance)
+			VALUES ($1,$2,$3,$4,$5,$6,$7,$7,$8) RETURNING id`, in.CategoryID, in.Type, pos, in.Lang, map[string]string{in.Lang: title}, tags, uid, owner).Scan(&id); err != nil {
 			return err
 		}
 		if _, err := tx.Exec(ctx, `INSERT INTO element_revisions(element_id, lang, rev, title, body, comment, created_by) VALUES ($1,$2,1,$3,$4,$5,$6)`,
@@ -343,7 +357,7 @@ func (s *Service) CreateElement(ctx context.Context, in ElementInput) (*ElementV
 		if _, err := tx.Exec(ctx, `UPDATE categories SET default_element_id=$2 WHERE id=$1 AND default_element_id IS NULL`, in.CategoryID, id); err != nil {
 			return err
 		}
-		if err := audit.Log(ctx, tx, "element.create", "element", id, nil, map[string]any{"category_id": in.CategoryID, "type": in.Type, "lang": in.Lang, "title": title}); err != nil {
+		if err := audit.Log(ctx, tx, "element.create", "element", id, nil, map[string]any{"category_id": in.CategoryID, "type": in.Type, "lang": in.Lang, "title": title, "via": owner}); err != nil {
 			return err
 		}
 		noted, err = s.note(ctx, tx, "create", "element", id) // what follows (notifications) commits with the page
@@ -394,7 +408,7 @@ func (s *Service) SaveElement(ctx context.Context, id int64, in SaveInput) (*Ele
 	if err != nil {
 		return nil, err
 	}
-	if err := s.require(ctx, e.CategoryID, acl.Edit); err != nil {
+	if err := s.requireElement(ctx, e, acl.Edit); err != nil {
 		return nil, err
 	}
 	if in.Tags != nil {
@@ -513,7 +527,7 @@ func (s *Service) UpdateElementMeta(ctx context.Context, id int64, in MetaInput)
 	if err != nil {
 		return nil, err
 	}
-	if err := s.require(ctx, e.CategoryID, acl.Edit); err != nil {
+	if err := s.requireElement(ctx, e, acl.Edit); err != nil {
 		return nil, err
 	}
 	tags, pos, preview := e.Tags, e.Position, e.PreviewImage
@@ -572,10 +586,7 @@ func (s *Service) MoveElement(ctx context.Context, id, categoryID int64) (*Eleme
 	if err != nil {
 		return nil, err
 	}
-	if err := s.require(ctx, e.CategoryID, acl.Delete); err != nil {
-		return nil, err
-	}
-	if err := s.require(ctx, categoryID, acl.Create); err != nil {
+	if err := s.requireMove(ctx, e, categoryID); err != nil {
 		return nil, err
 	}
 	if err := s.guardChange(ctx, e); err != nil {
@@ -666,7 +677,7 @@ func (s *Service) DeleteElement(ctx context.Context, id int64) error {
 	if err != nil {
 		return err
 	}
-	if err := s.require(ctx, e.CategoryID, acl.Delete); err != nil {
+	if err := s.requireElement(ctx, e, acl.Delete); err != nil {
 		return err
 	}
 	if err := s.guardChange(ctx, e); err != nil {
@@ -747,7 +758,7 @@ func (s *Service) GetRevision(ctx context.Context, id int64, lang string, rev in
 	if t := s.Type(e.Type); t != nil {
 		x.HTML, _ = t.Render(ctx, RenderContext{ElementID: id, CategoryID: e.CategoryID, Lang: lang, Principal: identity.From(ctx), Service: s}, x.Body)
 	}
-	if !s.acl.Can(ctx, identity.From(ctx), e.CategoryID, acl.Edit) {
+	if s.elementPerms(ctx, e)&acl.Edit == 0 {
 		x.Body = nil
 	}
 	return &x, nil
@@ -759,7 +770,7 @@ func (s *Service) RestoreRevision(ctx context.Context, id int64, lang string, re
 	if err != nil {
 		return nil, err
 	}
-	if err := s.require(ctx, e.CategoryID, acl.Edit); err != nil {
+	if err := s.requireElement(ctx, e, acl.Edit); err != nil {
 		return nil, err
 	}
 	var noted int64
