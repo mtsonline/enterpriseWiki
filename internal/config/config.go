@@ -355,6 +355,22 @@ type Plugins struct {
 	// AllowExternal permits core plugins from external sources at all
 	// (default true; each installation still needs a confirmation).
 	AllowExternal *bool `yaml:"allow_external,omitempty" json:"allow_external,omitempty"`
+	// Credentials are access data for plugin sources in private
+	// repositories (installing, updating, the update check). They are never
+	// part of an answer of the API.
+	Credentials []SourceCredential `yaml:"credentials,omitempty" json:"-"`
+}
+
+// SourceCredential is the access data for the sources below an https
+// address prefix (https://github.com/acme or https://git.example.com).
+type SourceCredential struct {
+	Prefix string `yaml:"prefix" json:"prefix"`
+	// Username for the address (default x-access-token, as GitHub expects
+	// for tokens).
+	Username string `yaml:"username,omitempty" json:"username,omitempty"`
+	// Token (or password); ${ENV} references are expanded.
+	Token string `yaml:"token" json:"-"`
+	Note  string `yaml:"note,omitempty" json:"note,omitempty"`
 }
 
 // ExternalAllowed reports whether core plugins from external sources may be

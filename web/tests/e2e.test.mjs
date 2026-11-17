@@ -238,6 +238,28 @@ test('core plugins: origin check, warning, confirmation for external sources, tr
   await page.getByRole('button', { name: new RegExp(`^(remove source|quelle) https://git.example.com/e2e-${run}`, 'i') }).click();
   await page.getByRole('dialog').getByRole('button', { name: /^(remove|entfernen)$/i }).click();
   await page.locator('.ew-toasts', { hasText: /source removed|quelle entfernt/i }).waitFor();
+
+  // access data for private sources: saved, never shown again, removable
+  const creds = page.locator('section', { has: page.getByRole('heading', { name: /^(access data for plugin sources|zugangsdaten für plugin-quellen)$/i }) });
+  const secret = `e2e-token-${run}`;
+  await creds.getByLabel(/^(address \(prefix\)|adresse \(präfix\))/i).fill(`https://git.example.com/private-${run}`);
+  await creds.getByLabel(/^token/i).fill(secret);
+  await creds.getByRole('button', { name: /^(save access data|zugangsdaten speichern)$/i }).click();
+  await page.locator('.ew-toasts', { hasText: /access data saved|zugangsdaten gespeichert/i }).waitFor();
+  await creds.locator('code', { hasText: `https://git.example.com/private-${run}` }).waitFor();
+  await creds.getByRole('cell', { name: 'x-access-token' }).waitFor();
+  await idle();
+  assert.equal(await page.content().then((html) => html.includes(secret)), false, 'the token is never shown again');
+  assert.equal(await creds.getByLabel(/^token/i).inputValue(), '', 'the field is emptied after saving');
+  await a11y('access data for plugin sources');
+  // a reference to the environment of the server is refused
+  await creds.getByLabel(/^(address \(prefix\)|adresse \(präfix\))/i).fill(`https://git.example.com/env-${run}`);
+  await creds.getByLabel(/^token/i).fill('${EWIKI_DATABASE_URL}');
+  await creds.getByRole('button', { name: /^(save access data|zugangsdaten speichern)$/i }).click();
+  await page.locator('.ew-toasts', { hasText: /config\.yaml/i }).waitFor();
+  await page.getByRole('button', { name: new RegExp(`^(remove the access data for|zugangsdaten für) https://git.example.com/private-${run}`, 'i') }).click();
+  await page.getByRole('dialog').getByRole('button', { name: /^(remove|entfernen)$/i }).click();
+  await page.locator('.ew-toasts', { hasText: /access data removed|zugangsdaten entfernt/i }).waitFor();
 });
 
 test('upload a PDF as file element and find its text', async () => {

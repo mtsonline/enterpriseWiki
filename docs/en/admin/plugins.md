@@ -81,6 +81,27 @@ plugins:
     - prefix: /srv/ewiki-plugins
 ```
 
+### Access data for private sources
+
+Plugins from private repositories (for example Pro plugins or the organisation's own plugins) need access data. *Administration → Plugins → Access data for plugin sources* (instance administrators only):
+
+- An entry covers all repositories below an **https address**, e.g. `https://github.com/acme` or `https://git.example.com/team`, at path boundaries as for trusted sources. When several entries match, the longest wins. Nothing is sent without `https://`.
+- **Token:** preferably a read-only token for the repositories needed only (on GitHub a "fine-grained token" with *Contents: Read-only*). The user name is `x-access-token` when not given, as GitHub expects for tokens.
+- The wiki uses the access data when **installing**, **updating** and **checking for updates**. Git gets them through the environment only, never in the command line or the address; redirects are not followed, so the token does not go to another server. Error messages show it blanked out.
+- The token is **never shown again** after saving, neither in the API nor in the audit log (which records the address only). To change it, save a new entry with the same address.
+- Saving needs a **sign-in within the last 15 minutes** or the command line on the server. Removing is always possible.
+- On the command line, without the token in the shell history: `printf '{"prefix":"https://github.com/acme","token":"%s"}' "$TOKEN" | ewiki plugin credentials set --json -`; `ewiki plugin credentials list`, `ewiki plugin credentials remove --prefix …`.
+
+In `config.yaml` (stored like other secrets; a reference to an environment variable is possible here only, not through the interface or the API):
+
+```yaml
+plugins:
+  credentials:
+    - prefix: https://github.com/acme
+      token: ${ACME_PLUGIN_TOKEN}
+      note: Pro plugins
+```
+
 ## Catalogue (1-click installation)
 
 Plugins listed in `config.yaml` appear under *Catalogue* with an install button:
@@ -124,7 +145,7 @@ Without `--accept-external` an installation from an external source stops with t
 - **Plugins:** *Update* downloads the release, keeps the old version under `plugins/.backup` and rebuilds the wiki. Then restart under *Plugins*. With the CLI: `ewiki plugin updates`, `ewiki plugin update ID --build`.
 - **Core:** is updated on the server with `scripts/update.sh` (or the update timer), with backup and automatic rollback; the interface only shows that an update is available.
 
-For GitHub Enterprise or private repositories see `plugins.updates` in [configuration.md](configuration.md).
+Private repositories: see [Access data for private sources](#access-data-for-private-sources). For GitHub Enterprise see `plugins.updates` in [configuration.md](configuration.md).
 
 ## Templates and positions
 
