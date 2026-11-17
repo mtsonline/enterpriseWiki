@@ -5,7 +5,7 @@ import { h, uid } from '../core/dom';
 import { t } from '../core/i18n';
 import { state } from '../core/state';
 import { toast } from '../core/announce';
-import { button, confirmDialog, openDialog } from './ui';
+import { button, confirmDialog, errorText, openDialog } from './ui';
 
 let token: Promise<string> | null = null;
 
@@ -59,24 +59,27 @@ async function feedDialog(path: string, title: string, params: Record<string, st
   ]);
 }
 
-/** Profile section: show, renew and revoke the personal feed link. */
+/** Profile section: renew and revoke the key of the personal feed links. */
 export function feedTokenSection(): HTMLElement {
-  const status = h('p');
   const sec = h('section', { class: 'ew-section', id: 'feeds', 'aria-labelledby': 'fd-h' }, h('h2', { id: 'fd-h' }, t('feed.profile_title')),
-    h('p', null, t('feed.profile_help')), status,
+    h('p', null, t('feed.profile_help')),
     h('div', { class: 'ew-actions' },
       button(t('feed.rotate'), async () => {
         if (!(await confirmDialog(t('feed.rotate_confirm'), t('feed.rotate')))) return;
-        await api.post('me/feed-token');
-        resetFeedToken();
-        toast(t('feed.rotated'));
+        try {
+          await api.post('me/feed-token');
+          resetFeedToken();
+          toast(t('feed.rotated'));
+        } catch (e) { toast(errorText(e), 'error'); }
       }, { variant: 'secondary' }),
       button(t('feed.revoke'), async () => {
         if (!(await confirmDialog(t('feed.revoke_confirm'), t('feed.revoke'), true))) return;
-        await api.del('me/feed-token');
-        resetFeedToken();
-        token = Promise.resolve('');
-        toast(t('feed.revoked'));
+        try {
+          await api.del('me/feed-token');
+          resetFeedToken();
+          token = Promise.resolve('');
+          toast(t('feed.revoked'));
+        } catch (e) { toast(errorText(e), 'error'); }
       }, { variant: 'danger' })));
   return sec;
 }

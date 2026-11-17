@@ -4,7 +4,7 @@ import { fmtDate, h, trustedHTML } from '../core/dom';
 import { pick, t } from '../core/i18n';
 import { hasPerm, state } from '../core/state';
 import { toast } from '../core/announce';
-import { button, checkbox, field, formDialog, openDialog, select, textArea, textInput } from './ui';
+import { button, checkbox, errorText, field, formDialog, openDialog, select, textArea, textInput } from './ui';
 import { categorySelect } from './pickers';
 import { currentSpace } from './widgets';
 import { listPublishOptions } from '../coreplugin';
@@ -56,9 +56,11 @@ export async function templatePicker(type: string, onPick: (tpl: Template) => vo
   const sel = select([{ value: '', label: t('template.none') }, ...list.map((x) => ({ value: String(x.id), label: `${x.name}${scopeLabel(x)}` }))], '');
   sel.addEventListener('change', async () => {
     if (!sel.value) return;
-    const tpl = await api.get<Template>(`templates/${sel.value}`);
-    onPick(tpl);
-    toast(t('template.applied', { name: tpl.name }));
+    try {
+      const tpl = await api.get<Template>(`templates/${sel.value}`);
+      onPick(tpl);
+      toast(t('template.applied', { name: tpl.name }));
+    } catch (e) { toast(errorText(e), 'error'); }
   });
   const del = button(t('template.manage'), () => void manageTemplates(type, categoryId), { variant: 'link' });
   return h('div', { class: 'ew-template-picker' }, field(t('template.label'), sel, { help: t('template.help') }), del);

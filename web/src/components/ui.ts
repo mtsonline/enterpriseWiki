@@ -3,11 +3,12 @@ import { ApiError } from '../core/api';
 import { h, uid, type Child } from '../core/dom';
 import { t } from '../core/i18n';
 import { state } from '../core/state';
+import { toast } from '../core/announce';
 
 type Variant = 'primary' | 'secondary' | 'danger' | 'link' | 'subtle';
 
 /** A button. Icon-only buttons must pass ariaLabel. */
-export function button(label: Child, onClick: (ev: MouseEvent) => void, opts: { variant?: Variant; ariaLabel?: string; type?: 'button' | 'submit'; pressed?: boolean; disabled?: boolean; id?: string; describedBy?: string } = {}): HTMLButtonElement {
+export function button(label: Child, onClick: (ev: MouseEvent) => void | Promise<void>, opts: { variant?: Variant; ariaLabel?: string; type?: 'button' | 'submit'; pressed?: boolean; disabled?: boolean; id?: string; describedBy?: string } = {}): HTMLButtonElement {
   return h('button', {
     type: opts.type ?? 'button',
     class: ['ew-btn', `ew-btn--${opts.variant ?? 'secondary'}`],
@@ -16,7 +17,11 @@ export function button(label: Child, onClick: (ev: MouseEvent) => void, opts: { 
     'aria-describedby': opts.describedBy,
     disabled: opts.disabled,
     id: opts.id,
-    onclick: onClick,
+    // an action that fails must say so: a rejected promise is shown, never swallowed
+    onclick: (ev: MouseEvent) => {
+      const r = onClick(ev);
+      if (r instanceof Promise) r.catch((e: unknown) => toast(errorText(e), 'error'));
+    },
   }, label);
 }
 
