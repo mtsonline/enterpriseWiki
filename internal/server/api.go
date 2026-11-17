@@ -1584,10 +1584,19 @@ func (s *Server) updateSettings(w http.ResponseWriter, r *http.Request) (any, er
 			c.Plugins.Catalog = in.Catalog
 		}
 		if in.Mail != nil {
+			// the stored password only for the same server and protection (else enter it again)
 			if in.Mail.SMTP.Password == secretMask {
+				n, o := in.Mail.SMTP, c.Mail.SMTP
+				if n.Host != o.Host || n.Port != o.Port || n.Security != o.Security || (n.SkipVerify && !o.SkipVerify) {
+					return errSecretAgain("mail.smtp.password")
+				}
 				in.Mail.SMTP.Password = c.Mail.SMTP.Password
 			}
 			if in.Mail.Bounce.Password == secretMask {
+				n, o := in.Mail.Bounce, c.Mail.Bounce
+				if n.IMAPHost != o.IMAPHost || n.IMAPPort != o.IMAPPort || n.Security != o.Security || (n.SkipVerify && !o.SkipVerify) {
+					return errSecretAgain("mail.bounce.password")
+				}
 				in.Mail.Bounce.Password = c.Mail.Bounce.Password
 			}
 			c.Mail = *in.Mail
@@ -1600,7 +1609,9 @@ func (s *Server) updateSettings(w http.ResponseWriter, r *http.Request) (any, er
 				return err
 			}
 			// keep stored secrets the UI only saw masked
-			keepMasked(m, c.Settings[id])
+			if err := keepMasked(m, c.Settings[id], id); err != nil {
+				return err
+			}
 			c.Settings[id] = m
 		}
 		return nil

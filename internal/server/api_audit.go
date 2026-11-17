@@ -72,24 +72,41 @@ func maskForward(fs []config.AuditForward) []config.AuditForward {
 	return out
 }
 
-// keepSecrets restores masked secrets and headers from the stored destinations.
-func keepSecrets(in, stored []config.AuditForward) {
+// keepSecrets restores masked secrets and headers from the stored
+// destinations – only while type, address and protocol are unchanged, so a
+// stored secret never goes to a new address.
+func keepSecrets(in, stored []config.AuditForward) error {
 	for i := range in {
 		f := &in[i]
-		for _, o := range stored {
-			if o.ID != f.ID {
-				continue
+		masked := f.Secret == secretMask
+		for _, v := range f.Headers {
+			masked = masked || v == secretMask
+		}
+		if !masked {
+			continue
+		}
+		var old *config.AuditForward
+		for j := range stored {
+			if stored[j].ID == f.ID && f.ID != "" {
+				old = &stored[j]
 			}
-			if f.Secret == secretMask {
-				f.Secret = o.Secret
-			}
-			for k, v := range f.Headers {
-				if v == secretMask {
-					f.Headers[k] = o.Headers[k]
-				}
+		}
+		if old == nil {
+			return apperr.BadRequest("%s: enter the secret (a new destination has none stored)", f.Name)
+		}
+		if f.Type != old.Type || f.Address != old.Address || f.Protocol != old.Protocol {
+			return errSecretAgain("audit forward " + f.Name)
+		}
+		if f.Secret == secretMask {
+			f.Secret = old.Secret
+		}
+		for k, v := range f.Headers {
+			if v == secretMask {
+				f.Headers[k] = old.Headers[k]
 			}
 		}
 	}
+	return nil
 }
 
 func (s *Server) routesAudit() {
@@ -208,7 +225,9 @@ func (s *Server) routesAudit() {
 			}
 		}
 		before := s.app.Config.Get().Audit
-		keepSecrets(in.Forward, before.Forward)
+		if err := keepSecrets(in.Forward, before.Forward); err != nil {
+			return nil, err
+		}
 		logins := in.LogLogins
 		err := s.app.Config.Update(func(c *config.Config) error {
 			c.Audit.Disabled, c.Audit.LogLogins, c.Audit.LogDenied, c.Audit.LogViews, c.Audit.Forward = in.Disabled, &logins, in.LogDenied, in.LogViews, in.Forward
@@ -234,7 +253,9 @@ func (s *Server) routesAudit() {
 			return nil, err
 		}
 		list := []config.AuditForward{in}
-		keepSecrets(list, s.app.Config.Get().Audit.Forward)
+		if err := keepSecrets(list, s.app.Config.Get().Audit.Forward); err != nil {
+			return nil, err
+		}
 		if err := s.app.AuditForward.Test(r.Context(), list[0], identity.From(r.Context()).Handle()); err != nil {
 			return nil, apperr.BadRequest("test failed: %s", err.Error())
 		}

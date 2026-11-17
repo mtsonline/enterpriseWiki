@@ -85,6 +85,19 @@ func TestSetGetKey(t *testing.T) {
 	if v, _ := GetKey(c, "retention.trash_days"); v != "60" {
 		t.Fatalf("get %q", v)
 	}
+	// a key that is empty now and left out when written (omitempty) is still
+	// a key (regression: "unknown key webhooks.allow_private")
+	if v, err := GetKey(c, "webhooks.allow_private"); err != nil || v != "false" {
+		t.Fatalf("get empty key: %q %v", v, err)
+	}
+	if err := SetKey(c, "webhooks.allow_private", "true"); err != nil || !c.Webhooks.AllowPrivate {
+		t.Fatalf("set empty key: %v", err)
+	}
+	for _, bad := range []string{"webhooks.nope", "retention.trash_days.deeper", "ui.site_name.x"} {
+		if err := SetKey(c, bad, "1"); err == nil {
+			t.Fatalf("%s accepted", bad)
+		}
+	}
 }
 
 func TestDotEnv(t *testing.T) {

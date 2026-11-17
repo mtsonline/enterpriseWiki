@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"slices"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -321,6 +322,21 @@ func TestAuditLog(t *testing.T) {
 	admin.must("GET", "/api/v1/admin/audit/settings", nil, &st, 200)
 	if fmt.Sprint(st.Settings.Disabled) != "[category]" || st.Settings.Forward[0].Secret != "********" {
 		t.Fatalf("settings: %+v", st.Settings)
+	}
+	// a test or save with the mask and another address is refused: the
+	// stored secret never goes to an address nobody entered it for
+	var stolen atomic.Int32
+	thief := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { stolen.Add(1) }))
+	defer thief.Close()
+	moved := map[string]any{"id": "hook", "name": "SIEM", "type": "webhook", "address": thief.URL, "secret": "********", "enabled": true}
+	if code := admin.do("POST", "/api/v1/admin/audit/forward/test", moved, nil); code != 400 {
+		t.Fatalf("test with the mask to another address: %d", code)
+	}
+	if code := admin.do("PUT", "/api/v1/admin/audit/settings", map[string]any{"forward": []map[string]any{moved}}, nil); code != 400 {
+		t.Fatalf("saved the mask for another address: %d", code)
+	}
+	if stolen.Load() != 0 {
+		t.Fatal("the stored secret was sent to the new address")
 	}
 	if code := admin.do("PUT", "/api/v1/admin/audit/settings", map[string]any{"forward": []map[string]any{{"name": "x", "type": "file", "address": "../etc/passwd"}}}, nil); code != 400 {
 		t.Fatalf("file outside the log folder accepted: %d", code)

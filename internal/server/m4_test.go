@@ -132,6 +132,33 @@ func TestMailOutbox(t *testing.T) {
 	if e.app.Config.Get().Mail.SMTP.Password != "s3cret" || e.app.Config.Get().Mail.FromName != "Wiki" {
 		t.Fatalf("password lost: %+v", e.app.Config.Get().Mail)
 	}
+	// the mask with another server (or weaker protection) is refused: the
+	// stored password would go to an address nobody entered it for
+	for _, change := range []func(*config.Mail){
+		func(m *config.Mail) { m.SMTP.Host = "attacker.example.com" },
+		func(m *config.Mail) { m.SMTP.Port = 2526 },
+		func(m *config.Mail) { m.SMTP.Security = "tls" },
+		func(m *config.Mail) { m.SMTP.SkipVerify = true },
+	} {
+		moved := m
+		change(&moved)
+		if got := admin.do("PUT", "/api/v1/admin/settings", map[string]any{"mail": moved}, nil); got != 400 {
+			t.Fatalf("masked password for a changed server: %d", got)
+		}
+	}
+	if g := e.app.Config.Get().Mail.SMTP; g.Password != "s3cret" || g.Host != "127.0.0.1" {
+		t.Fatalf("refused change stored: %+v", g)
+	}
+	// entered again, the new server is fine
+	moved := m
+	moved.SMTP.Host, moved.SMTP.Password = "mail.example.com", "n3w"
+	admin.must("PUT", "/api/v1/admin/settings", map[string]any{"mail": moved}, nil, 200)
+	if g := e.app.Config.Get().Mail.SMTP; g.Password != "n3w" || g.Host != "mail.example.com" {
+		t.Fatalf("new server not stored: %+v", g)
+	}
+	back := m
+	back.SMTP.Password = "s3cret"
+	admin.must("PUT", "/api/v1/admin/settings", map[string]any{"mail": back}, nil, 200)
 	if got := admin.do("PUT", "/api/v1/admin/settings", map[string]any{"mail": map[string]any{"transport": "carrier-pigeon"}}, nil); got != 400 {
 		t.Fatalf("invalid transport accepted: %d", got)
 	}
