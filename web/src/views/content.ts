@@ -467,7 +467,7 @@ export async function elementView({ params, main }: RouteCtx): Promise<void> {
   }
   const watchE = watchButton('element', el.id, el.title);
   if (watchE) actions.push(watchE);
-  actions.push(...pageActionButtons({ type: 'element', id: el.id, title: el.title, categoryId: el.category_id }));
+  actions.push(...pageActionButtons({ type: 'element', id: el.id, title: el.title, categoryId: el.category_id, elementType: el.type }));
   const extensions = h('div', { class: 'ew-element-extensions', lang: state.lang });
   const topExtensions = h('div', { class: 'ew-element-extensions ew-element-extensions--top', lang: state.lang });
   mount(main, h('article', { class: 'ew-element', lang: el.shown_lang },

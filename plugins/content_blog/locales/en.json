@@ -44,5 +44,11 @@
  "content.blog.search_placeholder": "Search term …",
  "content.blog.new_source": "– Create a new category with the title –",
  "content.blog.more_sources": "Further sources",
- "content.blog.more_sources_help": "Show the posts of further categories, tags or element types too (only to readers who may see them). New posts still go into the category above."
+ "content.blog.more_sources_help": "Show the posts of further categories, tags or element types too (only to readers who may see them). New posts still go into the category above.",
+ "perm.content.blog.manage": "Manage the blog",
+ "perm.content.blog.manage_help": "Change the settings, sections and permissions of the blog; includes editing all its posts.",
+ "perm.content.blog.edit": "Edit all posts",
+ "perm.content.blog.edit_help": "Write, change, move within the blog and delete all posts of the blog.",
+ "perm.content.blog.contribute": "Contribute posts",
+ "perm.content.blog.contribute_help": "Write new posts and change or delete the own ones."
 }

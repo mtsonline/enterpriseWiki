@@ -5,6 +5,7 @@ package content
 import (
 	"context"
 	"encoding/json"
+	"github.com/mtsonline/enterprisewiki/internal/perm"
 	"sort"
 	"sync"
 
@@ -76,6 +77,9 @@ type TypeInfo struct {
 	PluginID string            `json:"plugin"`
 	Labels   map[string]string `json:"labels"`
 	Empty    json.RawMessage   `json:"empty_body"`
+	// Instance: elements of this type have permissions of their own
+	// (GET /elements/{id}/rights).
+	Instance bool `json:"instance"`
 }
 
 type typeRegistry struct {
@@ -133,7 +137,7 @@ func (s *Service) Types() []TypeInfo {
 	out := []TypeInfo{}
 	for id, r := range s.types.types {
 		if s.enabled(r.pluginID) {
-			out = append(out, TypeInfo{ID: id, PluginID: r.pluginID, Labels: r.t.Labels(), Empty: r.t.EmptyBody()})
+			out = append(out, TypeInfo{ID: id, PluginID: r.pluginID, Labels: r.t.Labels(), Empty: r.t.EmptyBody(), Instance: len(perm.InstanceKeys(id)) > 0})
 		}
 	}
 	sort.Slice(out, func(i, j int) bool { return out[i].ID < out[j].ID })

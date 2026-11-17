@@ -4,6 +4,44 @@
   "version": "1.0.0",
   "description": "Element type that shows the elements of a category and its subcategories as FAQ: subcategories become collapsible sections, pages become collapsible questions with their content as answer. With search within the FAQ, quick adding of questions and sections and an Atom/RSS feed. The macro ::faq shows questions of several sources together.",
   "author": "Enterprise Wiki",
-  "kinds": ["element", "macro"],
-  "frontend": true
+  "kinds": [
+    "element",
+    "macro"
+  ],
+  "frontend": true,
+  "permissions": [
+    {
+      "key": "content.faq.manage",
+      "scope": "category",
+      "instance": "content.faq",
+      "label": "Manage the FAQ",
+      "description": "Change the settings, sections and permissions of the FAQ; includes editing all its questions and answers.",
+      "presets": [
+        "manager"
+      ],
+      "implies": [
+        "content.faq.edit"
+      ]
+    },
+    {
+      "key": "content.faq.edit",
+      "scope": "category",
+      "instance": "content.faq",
+      "label": "Edit all questions and answers",
+      "description": "Write, change, move within the FAQ and delete all questions and answers of the FAQ.",
+      "presets": [
+        "editor"
+      ],
+      "implies": [
+        "content.faq.contribute"
+      ]
+    },
+    {
+      "key": "content.faq.contribute",
+      "scope": "category",
+      "instance": "content.faq",
+      "label": "Contribute questions and answers",
+      "description": "Write new questions and answers and change or delete the own ones."
+    }
+  ]
 }

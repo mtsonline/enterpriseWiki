@@ -75,6 +75,8 @@ There are templates for granting them:
 
 Rules apply to a **user**, a **group**, a **role**, **all signed-in users** or **guests**. With "also applies to sub-categories" a rule is inherited. The effective permissions are the union of all matching rules of the category and its ancestors.
 
+**Permissions of an instance.** Plugins with instances (a blog, a FAQ …) declare permissions for one instance: *manage* (settings and permissions of the instance), *edit all content*, *contribute content*. They are granted on the instance (*Permissions* on its page) or, for all instances in it, on a category. Managers of the category by a rule (not the global category administration, which is for the structure) and administrators have all of them. Without *View* on the category of the instance, in archived categories and for API keys without *Edit*, there are none. Nobody grants an instance permission they do not have; every change is in the audit log (`instance.rights`). Rules of deleted people, groups and roles are removed with them.
+
 Principles:
 - **Without a rule nothing is allowed.** A new sub-category inherits the permissions of the parent category. A new top-level category only gets a rule for its creator (category manager); guests only see it once you allow it.
 - *Administration → Permissions* shows for a user, a group or a role all categories with direct and effective permissions and their origin; rules can be changed there.

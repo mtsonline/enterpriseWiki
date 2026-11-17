@@ -28,6 +28,8 @@ export interface ElementTypeInfo {
   plugin: string;
   labels: LangMap;
   empty_body: unknown;
+  /** elements of this type have permissions of their own (a blog, a FAQ …) */
+  instance: boolean;
 }
 
 export interface Site {

@@ -66,6 +66,7 @@ Every plugin that allows or forbids something **declares its permissions in the 
 - `presets`: which templates contain the permission. Category: `reader` ⊂ `editor` ⊂ `manager` (a permission in the editor preset is also in the manager preset). Global: `authenticated` = all signed-in users have it by default (changeable in the administration).
 - `implies`: whoever has this permission also has the ones named (e.g. *admin* → *create*).
 - `group` (optional): heading in the permission selection; the default is the plugin name.
+- `instance` (optional): the element type of the plugin whose instances (one blog, one form …) this category permission can also be granted on, one instance at a time (*Permissions* on the page of the instance, `GET`/`PUT /api/v1/elements/{id}/rights`). Plugins with instances declare `<plugin>.manage` (settings and permissions of the instance) and usually `.edit` (all content) and `.contribute` (new and own content); check them with `host.CanInstance` (the core adds permissions from the category: its managers have all of them). Model: `plugins/content_blog/plugin.json`.
 
 The five basic permissions of a category stay in the core: `view`, `edit`, `create`, `delete` (for **elements**) and `manage` (the **category itself**: texts, settings, sub-categories, permissions). Category administrators (`core.categories.admin`) have `manage` everywhere, but only see content with `view`.
 

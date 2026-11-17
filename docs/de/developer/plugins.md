@@ -66,6 +66,7 @@ Jedes Plugin, das etwas erlaubt oder verbietet, **deklariert seine Rechte im Man
 - `presets`: in welchen Vorlagen das Recht enthalten ist. Kategorie: `reader` ⊂ `editor` ⊂ `manager` (ein Recht im Editor-Preset ist auch im Manager-Preset). Global: `authenticated` = alle angemeldeten Benutzer haben es standardmäßig (in der Administration änderbar).
 - `implies`: wer dieses Recht hat, hat auch die genannten (z. B. *admin* → *create*).
 - `group` (optional): Überschrift in der Rechte-Auswahl; Standard ist der Plugin-Name.
+- `instance` (optional): der Elementtyp des Plugins, auf dessen Instanzen (ein Blog, ein Formular …) dieses Kategorie-Recht auch einzeln vergeben werden kann (*Rechte* auf der Seite der Instanz, `GET`/`PUT /api/v1/elements/{id}/rights`). Plugins mit Instanzen melden `<plugin>.manage` an (Einstellungen und Rechte der Instanz), meist auch `.edit` (alle Inhalte) und `.contribute` (neue und eigene Inhalte); geprüft wird mit `host.CanInstance` (der Kern ergänzt die Rechte aus der Kategorie: wer sie verwaltet, hat alle). Vorbild: `plugins/content_blog/plugin.json`.
 
 Die fünf Grundrechte einer Kategorie bleiben im Kern: `view`, `edit`, `create`, `delete` (für **Elemente**) und `manage` (die **Kategorie selbst**: Texte, Einstellungen, Unterkategorien, Berechtigungen). Kategorie-Administratoren (`core.categories.admin`) haben überall `manage`, sehen aber Inhalte nur mit `view`.
 

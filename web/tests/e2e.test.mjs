@@ -1954,6 +1954,51 @@ test('blog: posts, search and new post', async () => {
   await page.waitForURL(/\/c\/\d+\/new\?type=core\.html&return=/);
 });
 
+test('permissions of an instance: a blog editor without page permissions, own permissions', async () => {
+  const cat = await m6Category();
+  const blog = await call('POST', '/api/v1/elements', { category_id: cat, type: 'content.blog', title: `Rights blog ${run}`, body: { category_id: cat } });
+  const name = `blogger${run}`;
+  const pw = 'Blog-Passw0rd-1!';
+  const u = await call('POST', '/api/v1/admin/users', { username: name, password: pw, display_name: `Blogger ${run}` });
+  await call('POST', `/api/v1/categories/${cat}/acl`, { subject_type: 'user', subject_id: u.id, permissions: 1 });
+  await page.goto(BASE + `/e/${blog.id}`);
+  await idle();
+  await page.getByRole('button', { name: /^(permissions|rechte)$/i }).click();
+  const dlg = page.locator('dialog[open]');
+  await dlg.getByText(/independent of the permissions for pages|unabhängig von den rechten für seiten/i).waitFor();
+  await dlg.getByLabel(/^(applies to|gilt für)/i).selectOption('user');
+  const who = dlg.getByPlaceholder(/name or user name|name oder benutzername/i);
+  await who.fill(name);
+  await page.waitForFunction((n) => [...document.querySelectorAll('dialog[open] datalist option')].some((o) => o.value.includes(n)), name);
+  await who.fill(await page.evaluate((n) => [...document.querySelectorAll('dialog[open] datalist option')].find((o) => o.value.includes(n)).value, name));
+  await dlg.getByRole('button', { name: /^(add a person, group or role|person, gruppe oder rolle hinzufügen)$/i }).click();
+  const rule = dlg.getByRole('group', { name: new RegExp(`Blogger ${run}`) });
+  await rule.getByRole('checkbox', { name: /^(edit all posts|alle beiträge bearbeiten)/i }).check();
+  await a11y('permissions of an instance');
+  await dlg.getByRole('button', { name: /^(save|speichern)$/i }).click();
+  await page.locator('.ew-toast', { hasText: /permissions saved|rechte gespeichert/i }).first().waitFor();
+  const r = await call('GET', `/api/v1/elements/${blog.id}/rights`);
+  assert.deepEqual(r.rules.map((x) => [x.subject_id, x.actions]), [[u.id, ['content.blog.edit']]]);
+  // the person sees their own permissions (no rules of others)
+  const ctx2 = await browser.newContext({ viewport: { width: 1280, height: 900 }, bypassCSP: true });
+  const p2 = await ctx2.newPage();
+  p2.on('pageerror', (e) => errors.push(`blogger: ${e.message}`));
+  try {
+    await p2.goto(BASE + '/login?local=1');
+    await p2.locator('input[name=username]').fill(name);
+    await p2.locator('input[type=password]').fill(pw);
+    await p2.keyboard.press('Enter');
+    await p2.waitForURL((x) => !x.pathname.startsWith('/login'));
+    await p2.goto(BASE + `/e/${blog.id}`);
+    await p2.getByRole('button', { name: /^(permissions|rechte)$/i }).click();
+    const own = p2.locator('dialog[open]');
+    await own.getByText(/you have these permissions here|diese rechte haben sie hier/i).waitFor();
+    await own.getByText(/^(edit all posts|alle beiträge bearbeiten)$/i).waitFor();
+    await own.getByText(/^(contribute posts|beiträge beitragen)$/i).waitFor();
+    assert.equal(await own.getByRole('checkbox').count(), 0, 'no rules to change');
+  } finally { await ctx2.close(); }
+});
+
 test('FAQ: sections, questions, filter and quick add', async () => {
   const cat = await m6Category();
   const faqCat = await call('POST', '/api/v1/categories', { parent_id: cat, titles: { en: `Help ${run}` } });

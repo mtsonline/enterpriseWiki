@@ -79,6 +79,7 @@ type snapshot struct {
 	watermark map[int64]string
 	downloads map[int64]string
 	rules     map[int64][]Rule
+	instance  map[int64][]InstanceRule // element id -> rules of that instance
 }
 
 // Service evaluates permissions.
@@ -148,7 +149,7 @@ func (s *Service) build(ctx context.Context) (*snapshot, error) {
 		return nil, err
 	}
 	defer func() { _ = tx.Rollback(context.WithoutCancel(ctx)) }()
-	sn := &snapshot{ancestors: map[int64][]int64{}, deleted: map[int64]bool{}, archived: map[int64]bool{}, class: map[int64]int{}, watermark: map[int64]string{}, downloads: map[int64]string{}, rules: map[int64][]Rule{}}
+	sn := &snapshot{ancestors: map[int64][]int64{}, deleted: map[int64]bool{}, archived: map[int64]bool{}, class: map[int64]int{}, watermark: map[int64]string{}, downloads: map[int64]string{}, rules: map[int64][]Rule{}, instance: map[int64][]InstanceRule{}}
 	rows, err := tx.Query(ctx, `SELECT id, path::text, deleted_at IS NOT NULL, archived_at IS NOT NULL, COALESCE(classification, 0), COALESCE(watermark, ''), COALESCE(downloads, '') FROM categories`)
 	if err != nil {
 		return nil, err
@@ -201,6 +202,22 @@ func (s *Service) build(ctx context.Context) (*snapshot, error) {
 			return nil, err
 		}
 		sn.rules[r.CategoryID] = append(sn.rules[r.CategoryID], r)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	rows.Close()
+	rows, err = tx.Query(ctx, `SELECT id, element_id, subject_type, subject_id, actions FROM instance_rules`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var r InstanceRule
+		if err := rows.Scan(&r.ID, &r.ElementID, &r.SubjectType, &r.SubjectID, &r.Actions); err != nil {
+			return nil, err
+		}
+		sn.instance[r.ElementID] = append(sn.instance[r.ElementID], r)
 	}
 	if err := rows.Err(); err != nil {
 		return nil, err
@@ -719,4 +736,127 @@ func ParsePerms(s string) (Perm, error) {
 		}
 	}
 	return p, nil
+}
+
+// InstanceRule grants named permissions on one instance of a plugin (an
+// element of a type with instance permissions, e.g. a blog).
+type InstanceRule struct {
+	ID          int64    `json:"id"`
+	ElementID   int64    `json:"element_id"`
+	SubjectType string   `json:"subject_type"` // user, group, role, authenticated
+	SubjectID   *int64   `json:"subject_id"`
+	Actions     []string `json:"actions"`
+}
+
+// Instance identifies an instance: the element, its type and its category.
+type Instance struct {
+	ID         int64
+	Type       string
+	CategoryID int64
+}
+
+// InstanceActions returns the instance permissions of p on inst: those
+// granted on the instance, those granted on its category (and above), and
+// all of them with Manage on its category. Nothing without View on the
+// category, in an archived or deleted category, or for API keys without
+// Edit or outside their category.
+func (s *Service) InstanceActions(ctx context.Context, p *identity.Principal, inst Instance) ([]string, error) {
+	sn, err := s.load(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return s.instanceActions(sn, p, inst), nil
+}
+
+func (s *Service) instanceActions(sn *snapshot, p *identity.Principal, inst Instance) []string {
+	keys := perm.InstanceKeys(inst.Type)
+	if len(keys) == 0 || p == nil || (p.UserID <= 0 && !p.IsAdmin) {
+		return nil // guests never have instance permissions
+	}
+	cat := s.perms(sn, p, inst.CategoryID)
+	if cat&View == 0 {
+		return nil
+	}
+	if anc := sn.ancestors[inst.CategoryID]; sn.isArchived(anc) {
+		return nil
+	}
+	if p != nil && p.Via == "apikey" && Perm(p.KeyPerms)&Edit == 0 {
+		return nil // API keys need edit permission for named actions (as on categories)
+	}
+	// administrators and managers of the category (by a rule; the global
+	// core.categories.admin is for the structure only) manage its instances
+	if cat&Manage != 0 && ((p != nil && p.IsAdmin) || s.manageByRule(sn, p, inst.CategoryID)) {
+		return slices.Clone(keys)
+	}
+	set := map[string]bool{}
+	for _, a := range s.actions(sn, p, inst.CategoryID) {
+		set[a] = true
+	}
+	for _, r := range sn.instance[inst.ID] {
+		if matches(Rule{SubjectType: r.SubjectType, SubjectID: r.SubjectID}, p) {
+			for _, a := range r.Actions {
+				set[a] = true
+			}
+		}
+	}
+	out := []string{}
+	for _, k := range perm.Expand(keysOf(set)) {
+		if slices.Contains(keys, k) {
+			out = append(out, k)
+		}
+	}
+	slices.Sort(out)
+	return out
+}
+
+// manageByRule reports whether Manage on the category comes from a rule
+// (not only from the global permission core.categories.admin, which is for
+// the structure of categories, not their content).
+func (s *Service) manageByRule(sn *snapshot, p *identity.Principal, categoryID int64) bool {
+	anc := sn.ancestors[categoryID]
+	for i, cid := range anc {
+		self := i == len(anc)-1
+		for _, r := range sn.rules[cid] {
+			if (self || r.Inherit) && r.Permissions&Manage != 0 && matches(r, p) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func keysOf(m map[string]bool) []string {
+	out := make([]string, 0, len(m))
+	for k := range m {
+		out = append(out, k)
+	}
+	return out
+}
+
+// CanInstance reports whether p has the instance permission action (declared
+// with "instance" for the type of inst) on inst.
+func (s *Service) CanInstance(ctx context.Context, p *identity.Principal, inst Instance, action string) bool {
+	if d, ok := perm.Lookup(action); !ok || d.Instance == "" || d.Instance != inst.Type {
+		s.log.Error("instance permission check for a permission not declared for this element type", "permission", action, "type", inst.Type)
+		return false
+	}
+	acts, err := s.InstanceActions(ctx, p, inst)
+	if err != nil {
+		s.log.Error("acl check failed", "err", err)
+		return false
+	}
+	return slices.Contains(acts, action)
+}
+
+// InstanceRules returns the rules of an instance.
+func (s *Service) InstanceRules(ctx context.Context, elementID int64) ([]InstanceRule, error) {
+	sn, err := s.load(ctx)
+	if err != nil {
+		return nil, err
+	}
+	out := slices.Clone(sn.instance[elementID])
+	if out == nil {
+		out = []InstanceRule{}
+	}
+	return out, nil
 }

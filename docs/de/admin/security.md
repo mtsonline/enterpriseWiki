@@ -75,6 +75,8 @@ Für die Vergabe gibt es Vorlagen:
 
 Regeln gelten für einen **Benutzer**, eine **Gruppe**, eine **Rolle**, **alle angemeldeten Benutzer** oder **Gäste**. Mit „gilt auch für Unterkategorien“ wird eine Regel vererbt. Die wirksamen Rechte sind die Vereinigung aller passenden Regeln der Kategorie und ihrer Vorfahren.
 
+**Rechte einer Instanz.** Plugins mit Instanzen (ein Blog, eine FAQ …) melden Rechte für eine einzelne Instanz an: *verwalten* (Einstellungen und Rechte der Instanz), *alle Inhalte bearbeiten*, *Inhalte beitragen*. Vergeben werden sie an der Instanz (*Rechte* auf ihrer Seite) oder für alle Instanzen darin an einer Kategorie. Wer die Kategorie über eine Regel verwaltet (nicht die globale Kategorie-Verwaltung, die nur für die Struktur gilt) und Administratoren haben alle. Ohne *Ansehen* auf der Kategorie der Instanz, in archivierten Kategorien und für API-Schlüssel ohne *Bearbeiten* gibt es keine. Niemand vergibt ein Instanz-Recht, das er nicht hat; jede Änderung steht im Audit-Protokoll (`instance.rights`). Regeln gelöschter Personen, Gruppen und Rollen werden mit ihnen entfernt.
+
 Grundsätze:
 - **Ohne Regel ist nichts erlaubt.** Eine neue Unterkategorie erbt die Rechte der übergeordneten Kategorie. Eine neue Kategorie der obersten Ebene erhält nur eine Regel für ihren Ersteller (Kategorie-Manager); Gäste sehen sie erst, wenn Sie es erlauben.
 - *Administration → Berechtigungen* zeigt für einen Benutzer, eine Gruppe oder Rolle alle Kategorien mit direkten und wirksamen Rechten und ihrer Herkunft; Regeln lassen sich dort ändern.

@@ -362,6 +362,17 @@ func (h *Host) Can(ctx context.Context, categoryID int64, action string) bool {
 	return h.ACL.CanAction(ctx, identity.From(ctx), categoryID, action)
 }
 
+// CanInstance reports whether the caller has the instance permission action
+// (declared with "instance" in plugin.json) on the instance element id that
+// the caller may view (see acl.Service.CanInstance).
+func (h *Host) CanInstance(ctx context.Context, elementID int64, action string) bool {
+	inst, err := h.Content.Instance(ctx, elementID)
+	if err != nil {
+		return false
+	}
+	return h.ACL.CanInstance(ctx, identity.From(ctx), inst, action)
+}
+
 // Members returns the (active) users among users and in groups and roles.
 func (h *Host) Members(ctx context.Context, users, groups, roles []int64) ([]int64, error) {
 	rows, err := h.DB.Query(ctx, `SELECT DISTINCT u.id FROM users u WHERE NOT u.disabled AND (u.id = ANY($1)

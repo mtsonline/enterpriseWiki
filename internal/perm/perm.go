@@ -57,6 +57,10 @@ type Def struct {
 	Group   string   `json:"group"` // plugin id or "core"
 	// Implies lists permissions that are included (e.g. admin implies create).
 	Implies []string `json:"implies,omitempty"`
+	// Instance is the element type (of the same plugin) whose instances
+	// this category permission can also be granted on, one instance at a
+	// time (a blog, a form …; see acl.Service.CanInstance).
+	Instance string `json:"instance,omitempty"`
 }
 
 var keyRe = regexp.MustCompile(`^[a-z0-9][a-z0-9._-]{1,62}\.[a-z0-9_]{1,40}$`)
@@ -81,6 +85,9 @@ func Register(group string, list ...Def) error {
 		}
 		if d.Label == "" {
 			return fmt.Errorf("permission %s: label is required", d.Key)
+		}
+		if d.Instance != "" && (d.Scope != Category || (d.Instance != group && !strings.HasPrefix(d.Instance, group+"."))) {
+			return fmt.Errorf("permission %s: instance permissions are category permissions for an element type of %s", d.Key, group)
 		}
 		for _, p := range d.Presets {
 			ok := p == Reader || p == Editor || p == Manager
@@ -269,4 +276,16 @@ func RequireAny(ctx context.Context, keys ...string) error {
 		}
 	}
 	return apperr.ErrForbidden
+}
+
+// InstanceKeys returns the permissions that can be granted on instances of
+// element type typeID.
+func InstanceKeys(typeID string) []string {
+	var out []string
+	for _, d := range All() {
+		if d.Instance != "" && d.Instance == typeID {
+			out = append(out, d.Key)
+		}
+	}
+	return out
 }
