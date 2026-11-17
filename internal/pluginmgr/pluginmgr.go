@@ -323,7 +323,7 @@ func (m *Manager) Install(ctx context.Context, source, ref string, opt InstallOp
 		cmd.Env = append(os.Environ(), "GIT_TERMINAL_PROMPT=0")
 		cred, withCred := credentialFor(m.cfg.Get().Plugins.Credentials, gitURL)
 		if withCred {
-			cmd.Env = append(cmd.Env, gitAuthEnv(cred)...)
+			cmd.Env = append(cmd.Env, gitAuthEnv(cred, gitURL)...)
 		}
 		if out, err := cmd.CombinedOutput(); err != nil {
 			return nil, apperr.BadRequest("git clone failed: %s", redact(strings.TrimSpace(string(out)), cred))
