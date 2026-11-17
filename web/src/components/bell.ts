@@ -6,7 +6,7 @@ import { t } from '../core/i18n';
 import { navigate } from '../core/router';
 import { state } from '../core/state';
 import { announce } from '../core/announce';
-import { button } from './ui';
+import { button, errorText } from './ui';
 
 interface Item { id: number; kind: string; title: string; body: string; link: string; actor: string; created_at: string; read_at: string | null }
 
@@ -21,10 +21,16 @@ export function notificationBell(): HTMLElement | null {
   const toggle = h('button', { type: 'button', class: 'ew-btn ew-btn--subtle ew-bell', 'aria-expanded': 'false', 'aria-controls': panelId },
     h('span', { 'aria-hidden': 'true', class: 'ew-bell-icon' }, '🔔'), label, count);
   const list = h('ul', { class: 'ew-inbox-list' });
+  const markAll = button(t('inbox.mark_all'), async () => { await api.post('me/inbox/read', {}); await load(true); }, { variant: 'link' });
   const panel = h('div', { id: panelId, class: 'ew-inbox', hidden: true, role: 'region', 'aria-label': t('inbox.title') },
-    h('div', { class: 'ew-inbox-head' }, h('h2', null, t('inbox.title')),
-      button(t('inbox.mark_all'), async () => { await api.post('me/inbox/read', {}); await load(true); }, { variant: 'link' })),
+    h('div', { class: 'ew-inbox-head' }, h('h2', null, t('inbox.title')), markAll),
     list);
+  const remove = async (n: Item) => {
+    markAll.focus(); // keeps the focus in the open list while the entry goes away
+    try { await api.del(`me/inbox/${n.id}`); } catch (e) { announce(errorText(e)); return; }
+    announce(t('inbox.deleted'));
+    await load(true);
+  };
   const wrap = h('div', { class: 'ew-bell-wrap' }, toggle, panel);
   const setCount = (n: number) => {
     count.hidden = n === 0;
@@ -48,7 +54,9 @@ export function notificationBell(): HTMLElement | null {
           if (n.link) navigate(n.link);
         },
       }, h('strong', null, n.title), n.body ? h('span', { class: 'ew-inbox-body' }, n.body.length > 160 ? `${n.body.slice(0, 160)} …` : n.body) : null,
-      h('span', { class: 'ew-meta' }, fmtDate(n.created_at, state.lang), n.read_at ? '' : ` · ${t('inbox.unread')}`)))) : [h('li', null, t('inbox.empty'))]));
+      h('span', { class: 'ew-meta' }, fmtDate(n.created_at, state.lang), n.read_at ? '' : ` · ${t('inbox.unread')}`)),
+      h('button', { type: 'button', class: 'ew-btn ew-btn--subtle ew-inbox-del', 'aria-label': t('inbox.delete', { title: n.title }), onclick: () => void remove(n) },
+        h('span', { 'aria-hidden': 'true' }, '✕')))) : [h('li', null, t('inbox.empty'))]));
   };
   const setOpen = (open: boolean) => {
     panel.hidden = !open;

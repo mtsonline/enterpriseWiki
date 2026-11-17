@@ -56,5 +56,14 @@
  "signature.smime.expiry_after_unsigned": "Nach dem Ablauf werden E-Mails dieses Absenders unsigniert gesendet.",
  "signature.smime.expiry_after_hold": "Nach dem Ablauf werden E-Mails dieses Absenders im Postausgang angehalten, bis ein gültiges Zertifikat vorhanden ist.",
  "perm.signature.smime.manage": "S/MIME-Zertifikate verwalten",
- "perm.signature.smime.manage_help": "Zertifikate der Organisation hochladen und entfernen und die S/MIME-Einstellungen ändern."
+ "perm.signature.smime.manage_help": "Zertifikate der Organisation hochladen und entfernen und die S/MIME-Einstellungen ändern.",
+ "signature.smime.details": "Details",
+ "signature.smime.details_title": "Zertifikat „{name}“",
+ "signature.smime.d_subject": "Inhaber",
+ "signature.smime.d_issuer": "Aussteller",
+ "signature.smime.d_serial": "Seriennummer",
+ "signature.smime.d_fingerprint": "Fingerabdruck (SHA-256)",
+ "signature.smime.d_from": "Gültig ab",
+ "signature.smime.d_trusted": "Vertrauenswürdig",
+ "signature.smime.d_added": "Hinzugefügt am"
 }

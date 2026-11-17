@@ -21,7 +21,7 @@ As long as edit mode is off, every page looks as it does for all readers. With *
 **On a page:** *Edit*, *History*, *Tags*, *Set as default page*, *Move*, *Duplicate*, *Delete* and the overview **Translations**.
 
 ### Drafts, preview, templates and publishing
-In the editor, **Save as draft** stores the state without publishing it. Only you and the editors of the category see drafts; they are listed in the category under *Drafts*. **Preview** shows the page as readers will see it. **Save as template** stores the content as a template (for you, the category or – with the permission to do so – for everyone); with *New page* you choose a template.
+In the editor, **Save as draft** stores the state without publishing it. Only you and the editors of the category see drafts; they are listed in the category under *Drafts*. **Preview** shows the page as readers will see it. **Save as template** stores the content as a template (for you, the category or – with the permission to do so – for everyone); with *New page* you choose a template. Under *Manage templates* you change the name and description of a template or replace its title, content and tags with what is in the editor now; you also delete templates there.
 
 **Publish** applies the change immediately. **Publish with options** asks for the target category (only categories in which you may create), a point in time (scheduled publishing) and whether watchers are notified. Plugins can add further options, e.g. "as news" in a carousel.
 
@@ -334,7 +334,7 @@ The administration can also **assign** watches to you (e.g. for a department). T
 
 ## Notifications, sharing and @mentions
 
-The **bell** next to your name shows notifications in the wiki, the number of unread ones is next to it. A click on a notification opens the target and marks it as read; *Mark all as read* empties the list of unread ones.
+The **bell** next to your name shows notifications in the wiki, the number of unread ones is next to it. A click on a notification opens the target and marks it as read; *Mark all as read* empties the list of unread ones. The ✕ next to a notification deletes it.
 
 - **Share** (button on every page) points people, groups or roles to the page with an optional message. Sharing gives **no permissions**: whoever may not see the page is not notified – *Check recipients* shows this beforehand.
 - **@mentions:** type `@` and the name in a page or a comment; the mentioned person receives a notification if they may see the page.

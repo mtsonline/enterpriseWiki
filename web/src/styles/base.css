@@ -161,6 +161,7 @@ legend { font-weight: 700; padding: 0 .25rem; }
 .ew-dl { display: grid; grid-template-columns: max-content 1fr; gap: .25rem 1rem; }
 .ew-dl dt { font-weight: 700; }
 .ew-dl dd { margin: 0; }
+.ew-break { overflow-wrap: anywhere; }
 progress { width: 8rem; vertical-align: middle; }
 .ew-original { margin: 1rem 0; border: 1px solid var(--ew-border); border-radius: var(--ew-radius); padding: .5rem 1rem; }
 .ew-original summary { cursor: pointer; font-weight: 600; }
@@ -298,7 +299,9 @@ th .ew-help { font-weight: 400; }
 .ew-inbox-head { display: flex; justify-content: space-between; align-items: center; padding: .5rem .75rem; border-bottom: 1px solid var(--ew-border); }
 .ew-inbox-head h2 { font-size: 1rem; margin: 0; }
 .ew-inbox-list { list-style: none; margin: 0; padding: 0; }
-.ew-inbox-list li { border-bottom: 1px solid var(--ew-border); }
+.ew-inbox-list li { border-bottom: 1px solid var(--ew-border); display: flex; align-items: flex-start; }
+.ew-inbox-list li > a { flex: 1; min-width: 0; }
+.ew-inbox-del { flex: none; margin: .35rem .35rem 0 0; min-width: 24px; min-height: 24px; }
 .ew-inbox-list li > a { display: block; padding: .6rem .75rem; color: inherit; text-decoration: none; }
 .ew-inbox-list li > a:hover, .ew-inbox-list li > a:focus-visible { background: var(--ew-hover, rgb(0 0 0 / .05)); }
 .ew-inbox-list li.is-unread > a { border-inline-start: 4px solid var(--ew-primary); }

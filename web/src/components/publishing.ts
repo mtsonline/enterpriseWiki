@@ -48,8 +48,9 @@ export function saveTemplateDialog(s: EditorState): void {
   });
 }
 
-/** templatePicker offers the templates of a type; onPick receives the full template. */
-export async function templatePicker(type: string, onPick: (tpl: Template) => void, categoryId = 0): Promise<HTMLElement | null> {
+/** templatePicker offers the templates of a type; onPick receives the full template.
+ * current (optional) returns what is in the editor now, so that a template can be updated from it. */
+export async function templatePicker(type: string, onPick: (tpl: Template) => void, categoryId = 0, current?: () => EditorState): Promise<HTMLElement | null> {
   let list: Template[] = [];
   try { list = await api.get<Template[]>(`templates${qs({ type, category: categoryId || undefined })}`); } catch { return null; }
   if (!list.length) return null;
@@ -62,22 +63,41 @@ export async function templatePicker(type: string, onPick: (tpl: Template) => vo
       toast(t('template.applied', { name: tpl.name }));
     } catch (e) { toast(errorText(e), 'error'); }
   });
-  const del = button(t('template.manage'), () => void manageTemplates(type, categoryId), { variant: 'link' });
-  return h('div', { class: 'ew-template-picker' }, field(t('template.label'), sel, { help: t('template.help') }), del);
+  const manage = button(t('template.manage'), () => void manageTemplates(type, categoryId, current), { variant: 'link' });
+  return h('div', { class: 'ew-template-picker' }, field(t('template.label'), sel, { help: t('template.help') }), manage);
 }
 
 const scopeLabel = (x: Template) => (x.space_id ? ` (${t('template.for_space')})` : x.global ? ` (${t('template.for_all')})` : '');
 
-async function manageTemplates(type: string, categoryId = 0): Promise<void> {
+async function manageTemplates(type: string, categoryId = 0, current?: () => EditorState): Promise<void> {
   const list = await api.get<Template[]>(`templates${qs({ type, category: categoryId || undefined })}`);
   const rows = h('ul', { class: 'ew-plain-list' });
-  const mayDelete = (x: Template) => x.mine || (x.global && hasPerm('core.templates.global')) || (!!x.space_id && x.space_id === currentSpace?.id && currentSpace.can_manage);
-  const draw = (items: Template[]) => rows.replaceChildren(...items.map((x) => h('li', null, x.name, scopeLabel(x),
-    mayDelete(x) ? button(t('common.delete'), async () => {
+  // changing and deleting need the same right: own template, global ones with core.templates.global, those of the space for its managers
+  const mayChange = (x: Template) => x.mine || (x.global && hasPerm('core.templates.global')) || (!!x.space_id && x.space_id === currentSpace?.id && currentSpace.can_manage);
+  const edit = async (x: Template, items: Template[]) => {
+    const full = await api.get<Template>(`templates/${x.id}`);
+    const name = textInput({ value: full.name, required: true, maxlength: 200 });
+    const desc = textArea({ rows: 2 });
+    desc.value = full.description ?? '';
+    const replace = current ? checkbox(t('template.replace_content'), false, { help: t('template.replace_content_help') }) : null;
+    formDialog(t('template.edit_title', { name: full.name }), [field(t('common.name'), name, { required: true }), field(t('common.description'), desc), replace?.el ?? null], t('common.save'), async () => {
+      if (!name.value.trim()) throw new Error(t('error.title_required'));
+      const now = replace?.input.checked && current ? current() : null;
+      const saved = await api.put<Template>(`templates/${x.id}`, {
+        name: name.value.trim(), description: desc.value, type: full.type, lang: now?.lang ?? full.lang,
+        title: now ? now.title : full.title, body: now ? now.body : full.body, tags: now ? (now.tags ?? []) : full.tags,
+        global: full.global, space_id: full.space_id ?? 0 });
+      draw(items.map((y) => (y.id === x.id ? { ...y, name: saved.name, description: saved.description } : y)));
+      toast(t('template.saved'));
+    });
+  };
+  const draw = (items: Template[]): void => { rows.replaceChildren(...items.map((x) => h('li', null, x.name, scopeLabel(x),
+    mayChange(x) ? button(t('common.edit'), () => edit(x, items), { variant: 'link', ariaLabel: `${t('common.edit')}: ${x.name}` }) : null,
+    mayChange(x) ? button(t('common.delete'), async () => {
       await api.del(`templates/${x.id}`);
       draw(items.filter((y) => y.id !== x.id));
       toast(t('template.deleted'));
-    }, { variant: 'link', ariaLabel: `${t('common.delete')}: ${x.name}` }) : null)));
+    }, { variant: 'link', ariaLabel: `${t('common.delete')}: ${x.name}` }) : null))); };
   draw(list);
   openDialog(t('template.manage'), rows);
 }

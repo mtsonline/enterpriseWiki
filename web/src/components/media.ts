@@ -379,6 +379,7 @@ export async function mediaDetails(id: number, changed: () => void): Promise<voi
   const body = h('div', { class: 'ew-media-details' });
   const dlg = openDialog(m.title || m.name, body, [], { wide: true, onClose: changed });
   const draw = async () => {
+    dlg.setTitle(m.title || m.name); // after renaming too
     const parts: Child[] = [await mediaViewer(m)];
     const meta = h('dl', { class: 'ew-media-meta' },
       h('dt', null, t('media.file')), h('dd', null, m.name),

@@ -21,7 +21,7 @@ Solange der Bearbeitungsmodus aus ist, sieht jede Seite so aus wie für alle Les
 **Auf einer Seite:** *Bearbeiten*, *Verlauf*, *Tags*, *Als Standardseite festlegen*, *Verschieben*, *Duplizieren*, *Löschen* und die Übersicht **Übersetzungen**.
 
 ### Entwürfe, Vorschau, Vorlagen und Veröffentlichen
-Im Editor speichert **Als Entwurf speichern** den Stand, ohne ihn zu veröffentlichen. Entwürfe sehen nur Sie und die Editoren der Kategorie; sie stehen in der Kategorie unter *Entwürfe*. **Vorschau** zeigt die Seite so, wie Leser:innen sie sehen werden. **Als Vorlage speichern** legt den Inhalt als Vorlage ab (für Sie, die Kategorie oder – mit dem Recht dazu – für alle); bei *Neue Seite* wählen Sie eine Vorlage aus.
+Im Editor speichert **Als Entwurf speichern** den Stand, ohne ihn zu veröffentlichen. Entwürfe sehen nur Sie und die Editoren der Kategorie; sie stehen in der Kategorie unter *Entwürfe*. **Vorschau** zeigt die Seite so, wie Leser:innen sie sehen werden. **Als Vorlage speichern** legt den Inhalt als Vorlage ab (für Sie, die Kategorie oder – mit dem Recht dazu – für alle); bei *Neue Seite* wählen Sie eine Vorlage aus. Unter *Vorlagen verwalten* ändern Sie Name und Beschreibung einer Vorlage oder ersetzen Titel, Inhalt und Schlagwörter durch das, was gerade im Editor steht; dort löschen Sie Vorlagen auch.
 
 **Veröffentlichen** übernimmt die Änderung sofort. **Veröffentlichen mit Optionen** fragt nach der Zielkategorie (nur Kategorien, in denen Sie anlegen dürfen), einem Zeitpunkt (geplante Veröffentlichung) und ob Beobachter:innen benachrichtigt werden. Plugins können weitere Optionen ergänzen, z. B. „als Neuigkeit“ in einem Karussell.
 
@@ -334,7 +334,7 @@ Die Administration kann Ihnen Beobachtungen auch **zuweisen** (z. B. für eine A
 
 ## Benachrichtigungen, Teilen und @Erwähnungen
 
-Die **Glocke** neben Ihrem Namen zeigt Benachrichtigungen im Wiki, die Zahl ungelesener steht daneben. Ein Klick auf eine Benachrichtigung öffnet das Ziel und markiert sie als gelesen; *Alle als gelesen markieren* leert die Liste der ungelesenen.
+Die **Glocke** neben Ihrem Namen zeigt Benachrichtigungen im Wiki, die Zahl ungelesener steht daneben. Ein Klick auf eine Benachrichtigung öffnet das Ziel und markiert sie als gelesen; *Alle als gelesen markieren* leert die Liste der ungelesenen. Das ✕ neben einer Benachrichtigung löscht sie.
 
 - **Teilen** (Knopf auf jeder Seite) weist Personen, Gruppen oder Rollen mit einer optionalen Nachricht auf die Seite hin. Teilen gibt **keine Rechte**: Wer die Seite nicht sehen darf, wird nicht benachrichtigt – *Empfänger prüfen* zeigt das vorher.
 - **@Erwähnungen:** Tippen Sie in einer Seite oder einem Kommentar `@` und den Namen; die erwähnte Person erhält eine Benachrichtigung, wenn sie die Seite sehen darf.

@@ -363,7 +363,9 @@ async function adminPage(container: HTMLElement): Promise<void> {
   let ms: Menu[];
   try { ms = await api.get<Menu[]>(`${BASE}/menus?all=1`); } catch (e) { mount(container, h('p', { role: 'alert' }, errorText(e))); return; }
   const offered = new Set(activeTemplate()?.positions ?? []);
-  const open = (m: Menu | null) => void menuDialog(m, ms).catch((e) => toast(errorText(e), 'error'));
+  // a menu is edited in its current state (someone else may have changed it since the list was loaded)
+  const open = (m: Menu | null) => void (m ? api.get<Menu>(`${BASE}/menus/${m.id}`) : Promise.resolve(null))
+    .then((cur) => menuDialog(cur, ms)).catch((e) => toast(errorText(e), 'error'));
   const usedAsSub = new Set<number>();
   const scan = (xs: Item[]) => xs.forEach((x) => { if (x.menu_id) usedAsSub.add(x.menu_id); scan(x.children ?? []); });
   ms.forEach((m) => scan(m.items));
