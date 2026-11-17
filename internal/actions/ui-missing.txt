@@ -114,7 +114,6 @@ core.me.identities.link
 core.me.identities.unlink
 core.me.inbox.delete
 core.me.inbox.read
-core.me.mfa.setup.finish
 core.me.notifications.set
 core.me.password
 core.me.sessions.end
@@ -165,11 +164,8 @@ core.scim.clients.token
 core.secrets.rewrap
 core.secrets.status
 core.share.send
-core.signatures.check
 core.signatures.export
 core.signatures.get
-core.signatures.keys
-core.signatures.verify
 core.spaces.create
 core.spaces.personal
 core.tags
@@ -211,7 +207,6 @@ mfa.email.remove
 mfa.network.set
 mfa.network.user.set
 mfa.network.user.show
-mfa.totp.remove
 mfa.webauthn.remove
 office.collabora.test
 office.m365.test
@@ -224,4 +219,3 @@ signature.smime.cert.get
 signature.smime.settings.set
 workflow.process.cases.cancel
 workflow.process.cases.file
-workflow.process.cases.sign
