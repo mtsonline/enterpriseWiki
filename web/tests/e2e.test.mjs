@@ -1938,7 +1938,7 @@ test('blog: posts, search and new post', async () => {
   const blog = await call('POST', '/api/v1/elements', { category_id: cat, type: 'content.blog', title: `Blog ${run}`,
     body: { category_id: blogCat.id, recursive: true, per_page: 2, layout: 'cards', feed: true, show_date: true, show_author: true, intro: { format: 'markdown', source: 'Our **news**' } } });
   for (const n of [1, 2, 3]) {
-    await call('POST', `/api/v1/x/content.blog/elements/${blog.id}/posts`, { title: `Post ${n} ${run}`, body: { format: 'html', source: `<p>About giraffes ${n}</p>` }, tags: [`tag${n % 2}`] });
+    await call('POST', '/api/v1/elements', { via: blog.id, category_id: blogCat.id, type: 'core.html', title: `Post ${n} ${run}`, body: { format: 'html', source: `<p>About giraffes ${n}</p>` }, tags: [`tag${n % 2}`] });
   }
   await page.goto(BASE + `/e/${blog.id}`);
   await idle();
@@ -1951,7 +1951,7 @@ test('blog: posts, search and new post', async () => {
   await page.locator('.ewb-search button[type=submit]').click();
   await page.waitForFunction(() => document.querySelectorAll('.ewb-hit').length === 3);
   await page.getByRole('button', { name: /^(new post|neuer beitrag)$/i }).click();
-  await page.waitForURL(/\/c\/\d+\/new\?type=core\.html&return=/);
+  await page.waitForURL(/\/c\/\d+\/new\?type=core\.html&via=\d+&return=/);
 });
 
 test('permissions of an instance: a blog editor without page permissions, own permissions', async () => {
@@ -1996,6 +1996,19 @@ test('permissions of an instance: a blog editor without page permissions, own pe
     await own.getByText(/^(edit all posts|alle beiträge bearbeiten)$/i).waitFor();
     await own.getByText(/^(contribute posts|beiträge beitragen)$/i).waitFor();
     assert.equal(await own.getByRole('checkbox').count(), 0, 'no rules to change');
+    await own.getByRole('button', { name: /close|schließen/i }).first().click();
+    // a post in the real editor on behalf of the blog, without page permissions
+    await p2.getByRole('button', { name: /^(new post|neuer beitrag)$/i }).click();
+    await p2.waitForURL(/\/c\/\d+\/new\?type=core\.html&via=\d+&return=/);
+    await p2.getByLabel(/^(title|titel)/i).fill(`Via ${run}`);
+    await p2.locator('.ewe-prose').click();
+    await p2.keyboard.type(`Written by the blogger ${run}`);
+    await p2.locator('form.ew-edit-form button[type=submit]').first().click();
+    await p2.waitForURL(new RegExp(`/e/${blog.id}$`));
+    const posts = await call('GET', `/api/v1/x/content.blog/elements/${blog.id}/posts?lang=en`);
+    const written = posts.items.find((x) => x.title === `Via ${run}`);
+    assert.ok(written, 'the post is in the blog');
+    assert.equal((await call('GET', `/api/v1/elements/${written.id}`)).owner_instance, blog.id, 'written on behalf of the blog');
   } finally { await ctx2.close(); }
 });
 
@@ -2004,9 +2017,9 @@ test('FAQ: sections, questions, filter and quick add', async () => {
   const faqCat = await call('POST', '/api/v1/categories', { parent_id: cat, titles: { en: `Help ${run}` } });
   const faq = await call('POST', '/api/v1/elements', { category_id: cat, type: 'content.faq', title: `FAQ ${run}`,
     body: { category_id: faqCat.id, recursive: true, search: true, feed: true } });
-  const sec = await call('POST', `/api/v1/x/content.faq/elements/${faq.id}/categories`, { titles: { en: `Accounts ${run}` } });
-  await call('POST', `/api/v1/x/content.faq/elements/${faq.id}/questions`, { title: 'How do I reset my password?', category_id: sec.id, body: { format: 'markdown', source: 'Use the **reset** link.' } });
-  await call('POST', `/api/v1/x/content.faq/elements/${faq.id}/questions`, { title: 'Who helps me?', body: { format: 'markdown', source: 'The help desk.' } });
+  const sec = await call('POST', '/api/v1/categories', { via: faq.id, parent_id: faqCat.id, titles: { en: `Accounts ${run}` } });
+  await call('POST', '/api/v1/elements', { via: faq.id, type: 'core.html', title: 'How do I reset my password?', category_id: sec.id, body: { format: 'markdown', source: 'Use the **reset** link.' } });
+  await call('POST', '/api/v1/elements', { via: faq.id, category_id: faqCat.id, type: 'core.html', title: 'Who helps me?', body: { format: 'markdown', source: 'The help desk.' } });
   await page.goto(BASE + `/e/${faq.id}`);
   await idle();
   await page.locator('.ewq-toolbar').waitFor();

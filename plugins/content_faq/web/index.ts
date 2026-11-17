@@ -55,13 +55,17 @@ function newQuestion(id: number, info: Info, preselect?: number): void {
   const sec = select(catOptions(info.categories), preselect ? String(preselect) : undefined);
   const q = textInput({ required: true, maxlength: 250 });
   const a = textArea({ rows: 8 });
+  // the full editor, in the section chosen above, on behalf of the FAQ (via)
+  const editorHref = () => `/c/${sec.value}/new?type=core.html&via=${id}&return=${encodeURIComponent(`/e/${id}`)}`;
+  const editorLink = h('a', { href: editorHref() }, t('content.faq.open_editor')) as HTMLAnchorElement;
+  sec.addEventListener('change', () => { editorLink.href = editorHref(); });
   formDialog(t('content.faq.new_question'), [
     info.categories.length > 1 ? field(t('content.faq.section'), sec) : null,
     field(t('content.faq.question'), q, { required: true }),
     field(t('content.faq.answer'), a, { help: t('content.faq.answer_help') }),
-    h('p', { class: 'ew-help' }, h('a', { href: `/c/${sec.value}/new?type=core.html&return=${encodeURIComponent(`/e/${id}`)}` }, t('content.faq.open_editor'))),
+    h('p', { class: 'ew-help' }, editorLink),
   ], t('common.create'), async () => {
-    await api.post(`${BASE}/elements/${id}/questions`, { category_id: Number(sec.value), lang: L(), title: q.value, body: { format: 'markdown', source: a.value } });
+    await api.post('elements', { via: id, category_id: Number(sec.value), type: 'core.html', lang: L(), title: q.value, body: { format: 'markdown', source: a.value } });
     toast(t('content.faq.created'));
     await rerender();
   }, { wide: true });
@@ -71,7 +75,7 @@ function newSection(id: number, info: Info): void {
   const parent = select(catOptions(info.categories));
   const titles = langFields(t('common.title'), {}, { required: true });
   formDialog(t('content.faq.new_section'), [field(t('content.faq.parent_section'), parent), titles.el], t('common.create'), async () => {
-    await api.post(`${BASE}/elements/${id}/categories`, { parent_id: Number(parent.value), titles: titles.get() });
+    await api.post('categories', { parent_id: Number(parent.value), titles: titles.get(), via: id });
     toast(t('content.faq.section_created'));
     await rerender();
   }, { wide: true });

@@ -9,14 +9,14 @@ import { categorySelect } from './pickers';
 import { currentSpace } from './widgets';
 import { listPublishOptions } from '../coreplugin';
 
-export interface Draft { id: number; element_id: number | null; category_id: number; type: string; lang: string; title: string; body?: unknown; tags: string[] | null; comment: string; base_rev: number; created_by: string; updated_by: string; updated_at: string; publish_at: string | null; fields?: Record<string, unknown> | null }
+export interface Draft { id: number; element_id: number | null; category_id: number; type: string; lang: string; title: string; body?: unknown; tags: string[] | null; comment: string; base_rev: number; created_by: string; updated_by: string; updated_at: string; publish_at: string | null; fields?: Record<string, unknown> | null; via?: number | null }
 export interface Template { id: number; name: string; description: string; type: string; lang: string; title: string; body?: unknown; tags: string[]; global: boolean; mine: boolean; space_id?: number }
 
-export interface EditorState { type: string; lang: string; title: string; body: unknown; tags?: string[]; comment?: string; baseRev?: number; elementId?: number; categoryId: number; fields?: Record<string, unknown> }
+export interface EditorState { type: string; lang: string; title: string; body: unknown; tags?: string[]; comment?: string; baseRev?: number; elementId?: number; categoryId: number; fields?: Record<string, unknown>; via?: number }
 
 /** saveDraft stores the editor content as draft (new or existing draft). */
 export async function saveDraft(draftId: number | null, s: EditorState): Promise<Draft> {
-  const body = { element_id: s.elementId ?? null, category_id: s.categoryId, type: s.type, lang: s.lang, title: s.title, body: s.body, tags: s.tags ?? null, comment: s.comment ?? '', base_rev: s.baseRev ?? 0, fields: s.fields ?? null };
+  const body = { element_id: s.elementId ?? null, category_id: s.categoryId, type: s.type, lang: s.lang, title: s.title, body: s.body, tags: s.tags ?? null, comment: s.comment ?? '', base_rev: s.baseRev ?? 0, fields: s.fields ?? null, via: s.elementId ? undefined : s.via };
   const d = draftId ? await api.put<Draft>(`drafts/${draftId}`, body) : await api.post<Draft>('drafts', body);
   toast(t('draft.saved'));
   return d;

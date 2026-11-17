@@ -91,7 +91,8 @@ function catOptions(cats: Cat[], onlyCreate: boolean): { value: string; label: s
 /** Asks for the category (if there are several) and opens the editor for a new post. */
 function newPost(id: number, cats: Cat[]): void {
   const allowed = cats.filter((c) => c.can_create);
-  const go = (cat: string) => navigate(`/c/${cat}/new?type=core.html&return=${encodeURIComponent(`/e/${id}`)}`);
+  // written on behalf of the blog (via): its permissions apply
+  const go = (cat: string) => navigate(`/c/${cat}/new?type=core.html&via=${id}&return=${encodeURIComponent(`/e/${id}`)}`);
   if (allowed.length === 1) {
     go(String(allowed[0].id));
     return;
@@ -104,7 +105,7 @@ function newCategory(id: number, cats: Cat[], done: () => void): void {
   const parent = select(catOptions(cats, true));
   const titles = langFields(t('common.title'), {}, { required: true });
   formDialog(t('content.blog.new_category'), [field(t('category.parent'), parent), titles.el], t('common.create'), async () => {
-    await api.post(`${BASE}/elements/${id}/categories`, { parent_id: Number(parent.value), titles: titles.get() });
+    await api.post('categories', { parent_id: Number(parent.value), titles: titles.get(), via: id });
     toast(t('category.created'));
     done();
   }, { wide: true });

@@ -56,8 +56,8 @@ actions:
     success_status: 201
     summary:
       text:
-        en: Create a category (needs manage on the parent as well)
-        de: Kategorie anlegen (braucht zusätzlich Verwalten der übergeordneten)
+        en: Create a category (needs manage on the parent as well; with via the manage permission of the instance instead)
+        de: Kategorie anlegen (braucht zusätzlich Verwalten der übergeordneten; mit via stattdessen das Verwalten-Recht der Instanz)
     permission: {key: core.categories.admin, scope: SCOPE_GLOBAL}
     safety: {changes: true}
     cli: {command: [category, create]}
@@ -75,6 +75,12 @@ actions:
       - name: second
         as: member
         body_json: '{"titles": {"en": "Second ${unique}"}}'
+        status: 201
+      # a section of a FAQ on behalf of the FAQ (its manage permission)
+      - name: faq_section
+        given: ['core.elements.create#faq']
+        as: admin
+        body_json: '{"titles": {"en": "Section ${unique}"}, "parent_id": ${given.core.elements.create#faq.category_id}, "via": ${given.core.elements.create#faq.id}}'
         status: 201
   - id: core.categories.update
     category: CATEGORY_ACTION
@@ -549,8 +555,8 @@ actions:
     success_status: 201
     summary:
       text:
-        en: Create an element in a category
-        de: Element in einer Kategorie anlegen
+        en: Create an element in a category (with via on behalf of an instance such as a blog, with its permissions)
+        de: Element in einer Kategorie anlegen (mit via im Auftrag einer Instanz wie eines Blogs, mit deren Rechten)
     permission: {key: core.category.create, scope: SCOPE_CATEGORY, category_param: "category_id"}
     safety: {changes: true}
     cli: {command: [element, create]}
@@ -569,6 +575,29 @@ actions:
         given: ['core.categories.create#default']
         body_json: '{"category_id": ${given.core.categories.create#default.id}, "type": "content.faq", "title": "Faq ${unique}", "body": {"category_id": ${given.core.categories.create#default.id}, "feed": true}}'
         status: 201
+      # a post on behalf of the blog (its permissions instead of the page permissions)
+      - name: blog_post
+        given: ['core.elements.create#blog']
+        body_json: '{"category_id": ${given.core.elements.create#blog.category_id}, "via": ${given.core.elements.create#blog.id}, "type": "core.html", "title": "Post ${unique}", "body": {"format": "html", "source": "<p>Hello blog</p>"}}'
+        status: 201
+        expect_json: '{"owner_instance": ${given.core.elements.create#blog.id}}'
+      - name: faq_question
+        given: ['core.elements.create#faq']
+        body_json: '{"category_id": ${given.core.elements.create#faq.category_id}, "via": ${given.core.elements.create#faq.id}, "type": "core.html", "title": "Question ${unique}?", "body": {"format": "markdown", "source": "The answer."}}'
+        status: 201
+      # only into the categories of the instance, only its element types
+      - name: via_outside
+        given: ['core.elements.create#blog', 'core.categories.create#second']
+        body_json: '{"category_id": ${given.core.categories.create#second.id}, "via": ${given.core.elements.create#blog.id}, "type": "core.html", "title": "Elsewhere", "body": {"format": "html", "source": "<p>x</p>"}}'
+        status: 400
+      - name: via_other_type
+        given: ['core.elements.create#blog']
+        body_json: '{"category_id": ${given.core.elements.create#blog.category_id}, "via": ${given.core.elements.create#blog.id}, "type": "content.blog", "title": "Blog in a blog", "body": {"category_id": ${given.core.elements.create#blog.category_id}}}'
+        status: 400
+      - name: via_page
+        given: ['core.elements.create#default']
+        body_json: '{"category_id": ${given.core.elements.create#default.category_id}, "via": ${given.core.elements.create#default.id}, "type": "core.html", "title": "Via a page", "body": {"format": "html", "source": "<p>x</p>"}}'
+        status: 400
       - name: calendar
         given: ['core.categories.create#default']
         body_json: '{"category_id": ${given.core.categories.create#default.id}, "type": "content.events", "title": "Calendar ${unique}", "body": {"view": "list", "ical": true}}'

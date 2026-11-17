@@ -216,6 +216,11 @@ func (Type) EmptyBody() json.RawMessage {
 }
 
 // Normalize implements content.ElementType.
+// InstanceScope: entries are pages in the category of the faq (content.InstanceScoper).
+func (Type) InstanceScope(ctx context.Context, s *content.Service, id int64) (*content.InstanceScope, error) {
+	return catlist.InstanceScope(ctx, s, id, TypeID)
+}
+
 func (Type) Normalize(raw json.RawMessage) (json.RawMessage, error) {
 	c, err := decode(raw)
 	if err != nil {
@@ -366,15 +371,6 @@ func (p *Plugin) Setup(hs *coreplugin.Host) error {
 	p.host = hs
 	hs.RegisterElementType(Type{})
 	hs.RegisterMacro(faqMacro{})
-	// action: content.faq.questions.create for POST /elements/{id}/questions
-	// action: content.faq.categories.create for POST /elements/{id}/categories
-	catlist.Routes(hs, "FAQ", "questions", func(ctx context.Context, id int64, lang string) (*catlist.Source, string, error) {
-		c, shown, err := p.load(ctx, id, lang)
-		if err != nil {
-			return nil, "", err
-		}
-		return &c.Source, shown, nil
-	})
 
 	// GET /elements/{id}/questions?q=&lang= returns sections with questions
 	// and answers; q searches within the FAQ.
@@ -394,7 +390,7 @@ func (p *Plugin) Setup(hs *coreplugin.Host) error {
 		if lang == "" {
 			lang = shown
 		}
-		info, err := catlist.Describe(ctx, hs, &c.Source)
+		info, err := catlist.Describe(ctx, hs, &c.Source, id, TypeID)
 		if err != nil {
 			return nil, err
 		}

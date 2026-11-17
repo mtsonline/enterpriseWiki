@@ -668,9 +668,9 @@ func (v *vu) editor(st *sharedState, joined *[5]bool) {
 	}
 
 	// ---- blog, FAQ, calendar
-	r = c.DoOp("write: blog post", "POST", p("/api/v1/x/content.blog/elements/%d/posts", w.Blog), map[string]any{"title": "QA post of " + v.u.Name, "lang": "de", "body": mdBody("Post")})
+	r = c.DoOp("write: blog post", "POST", "/api/v1/elements", map[string]any{"via": w.Blog, "category_id": w.BlogCat, "type": "core.html", "title": "QA post of " + v.u.Name, "lang": "de", "body": mdBody("Post")})
 	v.want("element types", "blog: write a post", r, 201, 200)
-	r = c.DoOp("write: faq question", "POST", p("/api/v1/x/content.faq/elements/%d/questions", w.FAQ), map[string]any{"title": "QA question of " + v.u.Name + "?", "lang": "de", "body": mdBody("Answer")})
+	r = c.DoOp("write: faq question", "POST", "/api/v1/elements", map[string]any{"via": w.FAQ, "category_id": w.FAQCat, "type": "core.html", "title": "QA question of " + v.u.Name + "?", "lang": "de", "body": mdBody("Answer")})
 	v.want("element types", "FAQ: add a question", r, 201, 200)
 	start := time.Now().Add(time.Duration(48+v.n) * time.Hour).UTC().Truncate(time.Hour)
 	r = c.DoOp("write: event", "POST", p("/api/v1/x/content.events/calendars/%d/events", w.Calendar), map[string]any{"title": "QA event of " + v.u.Name, "starts_at": start, "ends_at": start.Add(time.Hour),

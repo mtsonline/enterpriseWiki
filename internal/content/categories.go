@@ -339,11 +339,28 @@ type CategoryInput struct {
 	// OriginalLang is the language the texts were written in (default: the
 	// default language if it has a title); translations are compared with it.
 	OriginalLang *string `json:"original_lang"`
+	// Via: a section of an instance (a blog, a FAQ …), created with its
+	// manage permission (see requireViaCategory); only texts, tags, slug and
+	// position are taken then.
+	Via int64 `json:"via,omitempty"`
 }
 
 // CreateCategory creates a category below in.ParentID (nil = root, admin only).
 func (s *Service) CreateCategory(ctx context.Context, in CategoryInput) (*Category, error) {
-	if in.ParentID == nil || *in.ParentID == 0 {
+	var owner *int64
+	if in.Via != 0 {
+		// a section of an instance (e.g. of a FAQ): its manage permission
+		// instead of managing the parent; only texts, tags and position
+		if in.ParentID == nil || *in.ParentID == 0 {
+			return nil, apperr.BadRequest("parent_id is required with via")
+		}
+		inst, err := s.requireViaCategory(ctx, in.Via, *in.ParentID)
+		if err != nil {
+			return nil, err
+		}
+		owner = &inst.ID
+		in = CategoryInput{ParentID: in.ParentID, Titles: in.Titles, Descriptions: in.Descriptions, Tags: in.Tags, Position: in.Position, Slug: in.Slug}
+	} else if in.ParentID == nil || *in.ParentID == 0 {
 		in.ParentID = nil
 		if ok, _ := ctx.Value(personalSpaceKey{}).(bool); !ok { // see CreatePersonalSpace
 			if err := perm.Require(ctx, "core.categories.admin"); err != nil {
@@ -406,8 +423,8 @@ func (s *Service) CreateCategory(ctx context.Context, in CategoryInput) (*Catego
 				revs[l] = 1 // written together with the original
 			}
 		}
-		if _, err := tx.Exec(ctx, `INSERT INTO categories(id, parent_id, path, position, slug, titles, descriptions, tags, created_by, original_lang, translation_revs)
-			VALUES ($1,$2,$3::ltree,$4,$5,$6,$7,$8,$9,$10,$11)`, id, in.ParentID, path, pos, slug, titles, descs, tags, nullID(ctx), orig, revs); err != nil {
+		if _, err := tx.Exec(ctx, `INSERT INTO categories(id, parent_id, path, position, slug, titles, descriptions, tags, created_by, original_lang, translation_revs, owner_instance)
+			VALUES ($1,$2,$3::ltree,$4,$5,$6,$7,$8,$9,$10,$11,$12)`, id, in.ParentID, path, pos, slug, titles, descs, tags, nullID(ctx), orig, revs, owner); err != nil {
 			return err
 		}
 		if in.ParentID == nil {

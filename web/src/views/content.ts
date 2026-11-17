@@ -706,7 +706,9 @@ async function newOrDraftView({ params, query, main }: RouteCtx, draft: Draft | 
   }
   setContext(catId, cat.category.path, cat.category.permissions, cat.category.effective_template);
   setSpace(cat.space ?? null);
-  if (!can('create') && !draft) {
+  // on behalf of an instance (a blog, a FAQ …): its permissions apply, the server checks them
+  const via = draft?.via ?? (Number(query.get('via')) || 0);
+  if (!can('create') && !draft && !via) {
     errorPage(main, new ApiError(403, 'forbidden', t('error.forbidden')));
     return;
   }
@@ -717,7 +719,7 @@ async function newOrDraftView({ params, query, main }: RouteCtx, draft: Draft | 
   if (allowed.length) types = types.filter((x) => allowed.includes(x.id) || x.id === draft?.type);
   const typeId = draft?.type ?? (query.get('type') && types.some((x) => x.id === query.get('type')) ? query.get('type')! : (types.find((x) => x.id === 'core.html')?.id ?? types[0]?.id));
   const typeSel = select(types.map((x) => ({ value: x.id, label: typeLabel(x.id) })), typeId);
-  if (draft) typeSel.disabled = true;
+  if (draft || via) typeSel.disabled = true;
   typeSel.addEventListener('change', () => navigate(`/c/${catId}/new${qs({ type: typeSel.value, return: query.get('return') ?? undefined })}`, { replace: true }));
   const lang = draft?.lang ?? L();
   const title = textInput({ required: true, maxlength: 250, value: draft?.title ?? '' });
@@ -731,7 +733,7 @@ async function newOrDraftView({ params, query, main }: RouteCtx, draft: Draft | 
   const ret = query.get('return');
   const back = ret?.startsWith('/') && !ret.startsWith('//') ? ret : `/c/${catId}`;
   const fields = editFields({ type: typeId, categoryId: catId, elementId: null, lang }, draft?.fields);
-  const current = (): EditorState => ({ type: typeId, lang, title: title.value, body: editor.getBody(), tags: splitTags(tags.value), categoryId: catId, fields: fields.values() });
+  const current = (): EditorState => ({ type: typeId, lang, title: title.value, body: editor.getBody(), tags: splitTags(tags.value), categoryId: catId, fields: fields.values(), via: via || undefined });
   const valid = (): boolean => {
     alert.textContent = '';
     if (!title.value.trim()) { alert.textContent = t('error.title_required'); title.focus(); return false; }
@@ -807,7 +809,7 @@ async function newOrDraftView({ params, query, main }: RouteCtx, draft: Draft | 
         finish(res.elementId);
         return;
       }
-      const el = await api.post<ElementView>('elements', { category_id: catId, type: typeId, lang, title: title.value, body: editor.getBody(), tags: splitTags(tags.value), fields: fields.values() });
+      const el = await api.post<ElementView>('elements', { category_id: catId, type: typeId, lang, title: title.value, body: editor.getBody(), tags: splitTags(tags.value), fields: fields.values(), via: via || undefined });
       finish(el.id);
     });
   });
