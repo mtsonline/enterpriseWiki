@@ -39,7 +39,10 @@ expect "read its tags" 200 "$(call GET "/repos/$repo/tags")"
 expect "no write access to the repository (code)" "403|404" \
 	"$(call POST "/repos/$repo/git/refs" '{"ref":"refs/heads/token-check-probe","sha":"0000000000000000000000000000000000000001"}')"
 expect "no access to issues" "403|404|410" "$(call POST "/repos/$repo/issues" '{}')"
-expect "no access to the settings of the repository" "403|404" "$(call GET "/repos/$repo/collaborators")"
+# (the list of collaborators is readable with "Metadata: read", which
+# GitHub gives every token; the Actions settings need "Administration")
+expect "no access to the settings of the repository" "403|404" "$(call GET "/repos/$repo/actions/permissions")"
+expect "no access to its deploy keys" "403|404" "$(call GET "/repos/$repo/keys")"
 expect "no access to its secrets" "403|404" "$(call GET "/repos/$repo/actions/secrets")"
 expect "no access to webhooks" "403|404" "$(call GET "/repos/$repo/hooks")"
 
