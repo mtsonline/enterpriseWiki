@@ -2018,6 +2018,83 @@ test('event calendar: views, details and registration', async () => {
   await a11y('event form');
   await form.locator('button[type=submit]').click();
   await page.getByRole('button', { name: new RegExp(`New ${run}`) }).first().waitFor();
+
+  const toastOn = (re) => page.locator('.ew-toast', { hasText: re }).first().waitFor();
+  // closes the open dialogs one after the other, as a person would
+  const closeAll = async () => {
+    await idle();
+    while (await page.locator('dialog[open]').count()) {
+      // a dialog may close itself meanwhile (after reloading): then the next one
+      await page.locator('dialog[open]').last().getByRole('button', { name: /^(close|schließen)$/i }).first().click({ timeout: 3000 }).catch(() => undefined);
+    }
+  };
+  const details = async (title) => {
+    await page.getByRole('button', { name: new RegExp(title) }).first().click();
+    const d = page.locator('dialog[open]').last();
+    await d.waitFor();
+    return d;
+  };
+  // the event as a file for the own calendar
+  let d = await details(`Workshop ${run}`);
+  const ics = page.waitForEvent('download');
+  await d.getByRole('link', { name: /^(add to my calendar \(\.ics\)|in meinen kalender \(\.ics\))$/i }).click();
+  assert.match(readFileSync(await (await ics).path(), 'utf8'), /BEGIN:VCALENDAR[\s\S]*Workshop/);
+  // participants: the own registration, removed by the manager
+  await d.getByRole('button', { name: /^(participants|teilnehmende)$/i }).click();
+  const parts = page.locator('dialog[open]').last();
+  await parts.getByRole('button', { name: /^(remove|entfernen)/i }).first().click();
+  await page.getByRole('dialog').last().getByRole('button', { name: /^(remove|entfernen)$/i }).click();
+  await toastOn(/^(removed|abgemeldet)$/i);
+  // registered again, seen in "my registrations", then cancelled
+  await closeAll();
+  d = await details(`Workshop ${run}`);
+  await d.getByRole('button', { name: /^(register|anmelden)$/i }).click();
+  await page.locator('dialog[open]').last().locator('button[type=submit]').click();
+  await closeAll();
+  await page.getByRole('button', { name: /^(my registrations|meine anmeldungen)$/i }).click();
+  const mine = page.locator('dialog[open]').last();
+  await mine.getByText(`Workshop ${run}`).first().waitFor();
+  await a11y('my registrations');
+  await mine.getByRole('button', { name: /^(close|schließen)$/i }).last().click();
+  d = await details(`Workshop ${run}`);
+  await d.getByRole('button', { name: /^(cancel registration|abmelden)$/i }).click();
+  await toastOn(/^(cancelled|abgemeldet)$/i);
+  // edit the event
+  await closeAll();
+  d = await details(`Workshop ${run}`);
+  await d.getByRole('button', { name: /^(edit|bearbeiten)$/i }).click();
+  const ef = page.locator('dialog[open]').last();
+  await ef.getByLabel(/^(location|ort)/i).fill('Room 2');
+  await ef.locator('button[type=submit]').click();
+  await toastOn(/event saved|termin gespeichert/i);
+  // one date of the series changed, then like the series again
+  await closeAll();
+  d = await details(`Stand-up ${run}`);
+  await d.getByRole('button', { name: /^(edit this occurrence only|nur diesen termin bearbeiten)$/i }).click();
+  const of = page.locator('dialog[open]').last();
+  await of.getByLabel(/^(title|titel)/i).fill(`Stand-up moved ${run}`);
+  await of.locator('button[type=submit]').click();
+  await page.getByRole('button', { name: new RegExp(`Stand-up moved ${run}`) }).first().waitFor();
+  d = await details(`Stand-up moved ${run}`);
+  await d.getByRole('button', { name: /^(reset changes|änderung zurücksetzen)$/i }).click();
+  await page.getByRole('dialog').last().getByRole('button', { name: /^(reset changes|änderung zurücksetzen)$/i }).click();
+  await toastOn(/follows the series again|entspricht wieder der serie/i);
+  // the subscription address of the calendar answers with the calendar
+  await closeAll();
+  await page.getByRole('button', { name: /^(subscribe|abonnieren)$/i }).click();
+  const feed = await page.locator('dialog[open]').last().getByLabel(/^(calendar address|adresse des kalenders)$/i).inputValue();
+  await page.locator('dialog[open]').last().getByRole('button', { name: /^(close|schließen)$/i }).last().click();
+  // opened in the browser, the address delivers the calendar as a file
+  const sub = page.waitForEvent('download');
+  await page.goto(feed).catch(() => undefined);
+  assert.match(readFileSync(await (await sub).path(), 'utf8'), /BEGIN:VCALENDAR[\s\S]*Workshop/);
+  // delete the event
+  await page.goto(BASE + `/e/${cal.id}`);
+  await idle();
+  d = await details(`Workshop ${run}`);
+  await d.getByRole('button', { name: /^(delete|löschen)$/i }).click();
+  await page.getByRole('dialog').last().getByRole('button', { name: /^(delete|löschen)$/i }).click();
+  await toastOn(/event deleted|termin gelöscht/i);
 });
 
 test('team page and business card', async () => {
@@ -2593,7 +2670,10 @@ test('expert settings: a limit, the limit of an API key, secrets stored again; c
     await toastOn(/limits saved|grenzwerte gespeichert/i);
     assert.equal(await value(), before);
 
-    // the own limit of an API key, set by the administration
+    // the own limit of an API key, set by the administration (on the page as
+    // saved: saving the limits draws the page anew)
+    await page.goto(`${BASE}/admin/limits`);
+    await idle();
     await page.locator('.ew-toast').evaluateAll((els) => els.forEach((e) => e.remove()));
     const label = new RegExp(`Limited ${run}`);
     await page.getByRole('spinbutton', { name: label }).fill('3');
@@ -2753,6 +2833,64 @@ test('property definitions: define, edit, only defined properties in a category,
   await dialog().getByRole('button', { name: /^(remove definition|definition entfernen)$/i }).click();
   await toastOn(/definition removed|definition entfernt/i);
   await page.getByRole('rowheader', { name: new RegExp(`^${name} total`) }).waitFor({ state: 'detached' });
+});
+
+test('forms: a person sends a form with a file; submissions, file, CSV and Excel export, delete', async () => {
+  const cat = (await call('POST', '/api/v1/categories', { titles: { en: `Forms ${run}` } })).id;
+  const form = await call('POST', '/api/v1/elements', { category_id: cat, type: 'content.forms', title: `Contact ${run}`, body: {
+    intro: 'Write to us.', submit_label: 'Send', success_message: `Thanks ${run}!`,
+    fields: [{ id: 'name', type: 'text', label: 'Your name', required: true }, { id: 'doc', type: 'file', label: 'Document', accept: ['.txt'], max_files: 1, max_size_mb: 1 }],
+    targets: { store: true } } });
+  const name = `sender${run}`;
+  const pw = 'Sender-Passw0rd-1!';
+  const u = await call('POST', '/api/v1/admin/users', { username: name, password: pw, display_name: `Sender ${run}` });
+  await call('POST', `/api/v1/categories/${cat}/acl`, { subject_type: 'user', subject_id: u.id, permissions: 1, inherit: true });
+  const ctx2 = await browser.newContext({ viewport: { width: 1280, height: 900 }, bypassCSP: true });
+  const p2 = await ctx2.newPage();
+  p2.on('pageerror', (e) => errors.push(`form sender: ${e.message}`));
+  const dir = mkdtempSync(join(tmpdir(), 'ewform-'));
+  try {
+    writeFileSync(join(dir, 'note.txt'), `attached ${run}\n`);
+    await p2.goto(BASE + '/login?local=1');
+    await p2.locator('input[name=username]').fill(name);
+    await p2.locator('input[type=password]').fill(pw);
+    await p2.keyboard.press('Enter');
+    await p2.waitForURL((x) => !x.pathname.startsWith('/login'));
+    await p2.goto(`${BASE}/e/${form.id}`);
+    await p2.getByLabel(/^your name/i).waitFor();
+    const opened = Date.now();
+    await a11y('form for a person', p2);
+    // required field missing: the form says so
+    await p2.getByRole('button', { name: /^send$/i }).click();
+    await p2.locator('[aria-invalid="true"]').first().waitFor();
+    await p2.getByLabel(/^your name/i).fill(`Ann ${run}`);
+    await p2.locator('input[type=file]').setInputFiles(join(dir, 'note.txt'));
+    // the form refuses what is sent faster than a person can (2 s, against bots)
+    await p2.waitForTimeout(Math.max(0, 2500 - (Date.now() - opened)));
+    await p2.getByRole('button', { name: /^send$/i }).click();
+    await p2.getByRole('status').filter({ hasText: `Thanks ${run}!` }).waitFor();
+
+    // the submissions on the page of the form
+    await page.goto(`${BASE}/e/${form.id}`);
+    await idle();
+    const subs = page.locator('table', { has: page.getByRole('columnheader', { name: 'Your name' }) });
+    await subs.getByRole('cell', { name: `Ann ${run}` }).waitFor();
+    await a11y('form submissions');
+    for (const [link, check] of [[page.getByRole('link', { name: 'note.txt' }), (b) => b.includes(`attached ${run}`)],
+      [page.getByRole('link', { name: /^(export csv|csv exportieren)$/i }), (b) => b.includes(`Ann ${run}`)],
+      [page.getByRole('link', { name: /^(export excel|excel exportieren)$/i }), (b) => b.startsWith('PK')]]) {
+      const dl = page.waitForEvent('download');
+      await link.click();
+      const file = await (await dl).path();
+      assert.ok(check(readFileSync(file, 'latin1')), `download of ${await link.innerText()}`);
+    }
+    await subs.getByRole('button', { name: /^(delete submission|einsendung löschen)/i }).first().click();
+    await page.getByRole('dialog').getByRole('button', { name: /^(confirm|bestätigen)$/i }).click();
+    await page.getByText(/no submissions|keine einsendungen/i).waitFor();
+  } finally {
+    await ctx2.close();
+    rmSync(dir, { recursive: true, force: true });
+  }
 });
 
 test('users, groups and roles: created in the administration, the permissions take effect', async () => {

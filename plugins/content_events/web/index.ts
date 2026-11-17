@@ -170,7 +170,7 @@ async function showEvent(series: Ev, o: Occ, cfg: Config, reload: () => Promise<
     }
   }
   if (!e.external) actions.push(h('a', { href: `${BASE}/events/${e.id}/ical`, class: 'ew-btn ew-btn--secondary', download: '' }, t('content.events.add_to_calendar')));
-  if (e.can_manage && e.registration) actions.push(button(t('content.events.participants'), () => void participants(e, o), { variant: 'secondary' }));
+  if (e.can_manage && e.registration) actions.push(button(t('content.events.participants'), () => void participants(e, o, async () => { close(); await reload(); }), { variant: 'secondary' }));
   if (e.can_edit) {
     if (e.rrule) {
       actions.push(button(t('content.events.edit_occurrence'), () => { close(); occurrenceForm(series, o, reload); }, { variant: 'secondary' }));
@@ -213,7 +213,8 @@ async function showEvent(series: Ev, o: Occ, cfg: Config, reload: () => Promise<
   history.replaceState(history.state, '', `#event-${e.id}-${o.date}`);
 }
 
-async function participants(e: Ev, o: Occ): Promise<void> {
+/** The participants of a date; changed is called after one was removed (the counts and states change). */
+async function participants(e: Ev, o: Occ, changed: () => Promise<void>): Promise<void> {
   interface Reg { id: number; occurrence: string; status: string; note: string; name: string; email: string; created_at: string }
   let list: Reg[];
   try { list = await api.get<Reg[]>(`${BASE}/events/${e.id}/registrations${qs({ occurrence: o.date })}`); } catch (err) { toast(errorText(err), 'error'); return; }
@@ -229,7 +230,7 @@ async function participants(e: Ev, o: Occ): Promise<void> {
       h('td', null, t(`content.events.st_${r.status}`)), h('td', null, r.note),
       h('td', null, button(t('content.events.remove'), async () => {
         if (!(await confirmDialog(t('content.events.remove_participant', { name: r.name }), t('content.events.remove'), true))) return;
-        try { await api.del(`${BASE}/events/${e.id}/registrations/${r.id}`); toast(t('content.events.removed')); dlg.close(); } catch (err) { toast(errorText(err), 'error'); }
+        try { await api.del(`${BASE}/events/${e.id}/registrations/${r.id}`); toast(t('content.events.removed')); dlg.close(); await changed(); } catch (err) { toast(errorText(err), 'error'); }
       }, { variant: 'link', ariaLabel: `${t('content.events.remove')}: ${r.name}` }))))))
     : h('p', null, t('content.events.no_participants'));
   const dlg = openDialog(`${t('content.events.participants')}: ${e.title}`, [h('p', null, whenText(e, o), ' · ', statusText(e, o)), body],
