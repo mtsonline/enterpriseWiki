@@ -2049,6 +2049,32 @@ test('placement: search in the footer for the site, no category tree in one cate
   }
 });
 
+test('a hidden page: not listed for readers, marked for editors, reachable by its link', async () => {
+  const cat = await m6Category();
+  const el = await call('POST', '/api/v1/elements', { category_id: cat, type: 'core.html', title: `Quiet ${run}`, body: { format: 'html', source: '<p>quiet</p>' } });
+  await page.goto(`${BASE}/e/${el.id}`);
+  await idle();
+  const edit = page.locator('.ew-pos--header-tools button[aria-pressed]');
+  if ((await edit.getAttribute('aria-pressed')) !== 'true') { await edit.click(); await idle(); }
+  await page.getByRole('button', { name: /^(properties|eigenschaften)$/i }).click();
+  const dlg = page.locator('dialog[open]');
+  await dlg.getByRole('checkbox', { name: /^(hidden|unsichtbar)/i }).check();
+  await a11y('element properties with hidden');
+  await dlg.locator('button[type=submit]').click();
+  await page.getByRole('note').filter({ hasText: /this page is hidden|diese seite ist unsichtbar/i }).waitFor();
+  assert.equal((await call('GET', `/api/v1/elements/${el.id}`)).hidden, true);
+  await page.goto(`${BASE}/c/${cat}`);
+  await idle();
+  // the editor sees it in the category, marked
+  const item = page.locator('.ew-list li', { hasText: `Quiet ${run}` });
+  await item.getByText(/^(hidden|unsichtbar)$/i).waitFor();
+  // readers: not listed (checked through the API of the category)
+  assert.ok((await call('GET', `/api/v1/categories/${cat}`)).elements.some((x) => x.id === el.id && x.hidden), 'listed for editors, marked');
+  // leave the edit mode as it was for the next tests
+  const off = page.locator('.ew-pos--header-tools button[aria-pressed]');
+  if ((await off.getAttribute('aria-pressed')) === 'true') { await off.click(); await idle(); }
+});
+
 test('FAQ: sections, questions, filter and quick add', async () => {
   const cat = await m6Category();
   const faqCat = await call('POST', '/api/v1/categories', { parent_id: cat, titles: { en: `Help ${run}` } });

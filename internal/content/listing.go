@@ -134,7 +134,7 @@ func (s *Service) ListIn(ctx context.Context, o ListOptions) ([]ListedElement, i
 	nw := len(wargs)
 	arg := func(i int) string { return "$" + strconv.Itoa(nw+i) }
 	var total int
-	if err := s.pool.QueryRow(ctx, `SELECT count(*) FROM elements e WHERE e.deleted_at IS NULL AND `+where+`
+	if err := s.pool.QueryRow(ctx, `SELECT count(*) FROM elements e WHERE e.deleted_at IS NULL AND NOT e.hidden AND `+where+`
 		AND (`+arg(1)+` = '' OR `+arg(1)+` = ANY(e.tags)) AND e.id <> `+arg(2), append(wargs, o.Tag, o.Exclude)...).Scan(&total); err != nil {
 		return nil, 0, err
 	}
@@ -144,7 +144,7 @@ func (s *Service) ListIn(ctx context.Context, o ListOptions) ([]ListedElement, i
 		JOIN LATERAL (SELECT lang, title, body_text FROM search_docs WHERE element_id = e.id AND lang IN (`+arg(1)+`, e.original_lang)
 			ORDER BY (lang = `+arg(1)+`) DESC LIMIT 1) d ON true
 		LEFT JOIN users u ON u.id = e.created_by
-		WHERE e.deleted_at IS NULL AND `+where+` AND (`+arg(3)+` = '' OR `+arg(3)+` = ANY(e.tags)) AND e.id <> `+arg(6)+`
+		WHERE e.deleted_at IS NULL AND NOT e.hidden AND `+where+` AND (`+arg(3)+` = '' OR `+arg(3)+` = ANY(e.tags)) AND e.id <> `+arg(6)+`
 		ORDER BY `+order+` LIMIT `+arg(4)+` OFFSET `+arg(5), append(wargs, o.Lang, o.SummaryLen+1, o.Tag, o.Limit, o.Offset, o.Exclude)...)
 	if err != nil {
 		return nil, 0, err

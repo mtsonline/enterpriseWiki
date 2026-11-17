@@ -453,7 +453,7 @@ func (s *Service) searchIDs(ctx context.Context, q string, limit int) ([]int64, 
 	}
 	rows, err := s.pool.Query(ctx, `SELECT x.element_id FROM (
 			SELECT d.element_id, max(ts_rank(d.tsv, q)) AS r FROM search_docs d JOIN elements e ON e.id = d.element_id, to_tsquery('simple', $1) q
-			WHERE d.tsv @@ q AND e.deleted_at IS NULL
+			WHERE d.tsv @@ q AND e.deleted_at IS NULL AND NOT e.hidden
 				AND NOT EXISTS (SELECT 1 FROM categories hc JOIN categories hx ON hx.id = d.category_id WHERE (hc.hidden OR hc.archived_at IS NOT NULL OR hc.classification >= 3) AND hx.path <@ hc.path)
 			GROUP BY d.element_id) x ORDER BY x.r DESC, x.element_id LIMIT $2`, tsq, limit)
 	if err != nil {

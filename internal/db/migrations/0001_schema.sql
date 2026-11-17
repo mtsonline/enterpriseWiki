@@ -168,7 +168,10 @@ CREATE TABLE elements (
     short_only    boolean NOT NULL DEFAULT false,    -- only the short URL (no readable paths /wiki/…)
     -- the instance (a blog, a FAQ …) this element was created through; its
     -- instance permissions apply to it (see content.Service.mayChange)
-    owner_instance bigint REFERENCES elements(id) ON DELETE SET NULL
+    owner_instance bigint REFERENCES elements(id) ON DELETE SET NULL,
+    -- hidden: not in listings, sources, feeds and the search; reachable by
+    -- its link with view permission (not a protection – permissions are)
+    hidden        boolean NOT NULL DEFAULT false
 );
 CREATE INDEX elements_category ON elements(category_id, position);
 CREATE INDEX elements_owner_instance ON elements(owner_instance) WHERE owner_instance IS NOT NULL;

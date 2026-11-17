@@ -40,6 +40,9 @@ type Element struct {
 	// OwnerInstance is the instance (a blog …) the element was created
 	// through; its instance permissions apply to the element too.
 	OwnerInstance *int64 `json:"owner_instance,omitempty"`
+	// Hidden: not in listings, sources, feeds and the search (reachable by
+	// its link with view permission).
+	Hidden bool `json:"hidden"`
 }
 
 // LangStatus is the translation state of one language.
@@ -72,12 +75,12 @@ type ElementView struct {
 
 const elemCols = `e.id, e.category_id, e.type, e.position, e.original_lang, e.titles, e.tags, e.created_at, e.updated_at,
 	COALESCE((SELECT u.display_name || ' (' || u.username || '@' || u.provider || ')' FROM users u WHERE u.id = e.updated_by), ''),
-	e.deleted_at, EXISTS (SELECT 1 FROM categories c WHERE c.id = e.category_id AND c.default_element_id = e.id), COALESCE(e.short_url, ''), e.preview_image, e.created_by, e.short_only, e.owner_instance`
+	e.deleted_at, EXISTS (SELECT 1 FROM categories c WHERE c.id = e.category_id AND c.default_element_id = e.id), COALESCE(e.short_url, ''), e.preview_image, e.created_by, e.short_only, e.owner_instance, e.hidden`
 
 func scanElement(r pgx.CollectableRow) (Element, error) {
 	var e Element
 	err := r.Scan(&e.ID, &e.CategoryID, &e.Type, &e.Position, &e.OriginalLang, &e.Titles, &e.Tags, &e.CreatedAt, &e.UpdatedAt,
-		&e.UpdatedBy, &e.DeletedAt, &e.IsDefault, &e.ShortURL, &e.PreviewImage, &e.CreatedByID, &e.ShortOnly, &e.OwnerInstance)
+		&e.UpdatedBy, &e.DeletedAt, &e.IsDefault, &e.ShortURL, &e.PreviewImage, &e.CreatedByID, &e.ShortOnly, &e.OwnerInstance, &e.Hidden)
 	return e, err
 }
 
@@ -101,7 +104,9 @@ func (s *Service) ListElements(ctx context.Context, categoryID int64) ([]Element
 	if err := s.require(ctx, categoryID, acl.View); err != nil {
 		return nil, err
 	}
-	rows, err := s.pool.Query(ctx, `SELECT `+elemCols+` FROM elements e WHERE e.category_id=$1 AND e.deleted_at IS NULL ORDER BY e.position, e.id`, categoryID)
+	// hidden elements: only for those who may edit them (marked as hidden)
+	editors := s.acl.Can(ctx, identity.From(ctx), categoryID, acl.Edit)
+	rows, err := s.pool.Query(ctx, `SELECT `+elemCols+` FROM elements e WHERE e.category_id=$1 AND e.deleted_at IS NULL AND ($2 OR NOT e.hidden) ORDER BY e.position, e.id`, categoryID, editors)
 	if err != nil {
 		return nil, err
 	}
@@ -519,6 +524,8 @@ type MetaInput struct {
 	ShortOnly *bool `json:"short_only"`
 	// PreviewImage: image for link previews (path like /api/v1/files/… or https URL; "" = automatic)
 	PreviewImage *string `json:"preview_image"`
+	// Hidden: not in listings, sources, feeds and the search.
+	Hidden *bool `json:"hidden"`
 }
 
 // UpdateElementMeta changes tags and position.
@@ -566,13 +573,22 @@ func (s *Service) UpdateElementMeta(ctx context.Context, id int64, in MetaInput)
 				return err
 			}
 		}
+		if in.Hidden != nil {
+			if _, err := tx.Exec(ctx, `UPDATE elements SET hidden=$2 WHERE id=$1`, id, *in.Hidden); err != nil {
+				return err
+			}
+		}
 		if _, err := tx.Exec(ctx, `UPDATE search_docs SET tags=$2, tsv=setweight(to_tsvector('simple', title), 'A') ||
 			setweight(to_tsvector('simple', array_to_string($2::text[], ' ')), 'B') || setweight(to_tsvector('simple', body_text), 'C')
 			WHERE element_id=$1`, id, tags); err != nil {
 			return err
 		}
-		return audit.Log(ctx, tx, "element.meta", "element", id, map[string]any{"tags": e.Tags, "position": e.Position, "preview_image": e.PreviewImage},
-			map[string]any{"tags": tags, "position": pos, "preview_image": preview})
+		hidden := e.Hidden
+		if in.Hidden != nil {
+			hidden = *in.Hidden
+		}
+		return audit.Log(ctx, tx, "element.meta", "element", id, map[string]any{"tags": e.Tags, "position": e.Position, "preview_image": e.PreviewImage, "hidden": e.Hidden},
+			map[string]any{"tags": tags, "position": pos, "preview_image": preview, "hidden": hidden})
 	})
 	if err != nil {
 		return nil, err

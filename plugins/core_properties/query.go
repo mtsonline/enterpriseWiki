@@ -527,6 +527,12 @@ func builtinCond(b *qb, f Filter, lang string, me int64) (string, error) {
 func (p *Plugin) where(ctx context.Context, q *Query, sc *scope, b *qb) (string, error) {
 	me := identity.From(ctx).ID()
 	parts := []string{"e.deleted_at IS NULL", "e.category_id = ANY(" + b.arg(sc.cats) + ")"}
+	// hidden elements: only for those who may edit them
+	editable, err := p.host.ACL.Filter(ctx, identity.From(ctx), sc.cats, acl.Edit)
+	if err != nil {
+		return "", err
+	}
+	parts = append(parts, "(NOT e.hidden OR e.category_id = ANY("+b.arg(editable)+"))")
 	if q.Exclude > 0 {
 		parts = append(parts, "e.id <> "+b.arg(q.Exclude))
 	}
