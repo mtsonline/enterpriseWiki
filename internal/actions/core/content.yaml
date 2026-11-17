@@ -294,6 +294,59 @@ actions:
         path_params_json: '{"id": "${given.core.categories.create#default.id}"}'
         body_json: '{"subject_type": "user", "subject_id": ${self.id}, "permissions": 1}'
         status: 201
+  - id: core.instances.rights.get
+    category: CATEGORY_ACTION
+    method: GET
+    path: /api/v1/elements/{id}/rights
+    success_status: 200
+    summary:
+      text:
+        en: Show the permissions of an instance (a blog, a FAQ …) – the own ones; all rules with the manage permission of the instance
+        de: Rechte einer Instanz (ein Blog, eine FAQ …) anzeigen – die eigenen; alle Regeln mit dem Verwalten-Recht der Instanz
+    permission: {key: core.category.view, scope: SCOPE_CATEGORY, category_param: "element:id"}
+    cli: {command: [instance, rights, show], args: [id]}
+    ui: {entry: /e/:id}
+    examples:
+      - name: default
+        given: ['core.elements.create#blog']
+        as: member
+        path_params_json: '{"id": "${given.core.elements.create#blog.id}"}'
+        expect_json: '{"type": "content.blog", "mine": [], "manage": false}'
+      - name: manager
+        given: ['core.instances.rights.set#default']
+        path_params_json: '{"id": "${given.core.elements.create#blog.id}"}'
+        expect_json: '{"manage": true, "rules": [{"subject_type": "user", "actions": ["content.blog.edit"]}]}'
+  - id: core.instances.rights.set
+    category: CATEGORY_ACTION
+    method: PUT
+    path: /api/v1/elements/{id}/rights
+    success_status: 200
+    summary:
+      text:
+        en: Replace the permission rules of an instance (needs its manage permission; nobody grants more than they have)
+        de: Rechte-Regeln einer Instanz ersetzen (braucht ihr Verwalten-Recht; niemand vergibt mehr, als er hat)
+    signed_in: true
+    safety: {changes: true}
+    cli: {command: [instance, rights, set], args: [id]}
+    ui: {entry: /e/:id}
+    examples:
+      - name: default
+        given: ['core.elements.create#blog', 'core.users.create#default']
+        as: admin
+        path_params_json: '{"id": "${given.core.elements.create#blog.id}"}'
+        body_json: '{"rules": [{"subject_type": "user", "subject_id": ${given.core.users.create#default.id}, "actions": ["content.blog.edit"]}]}'
+      - name: unknown_permission
+        given: ['core.elements.create#blog']
+        as: admin
+        path_params_json: '{"id": "${given.core.elements.create#blog.id}"}'
+        body_json: '{"rules": [{"subject_type": "authenticated", "actions": ["content.faq.edit"]}]}'
+        status: 400
+      - name: without_manage
+        given: ['core.elements.create#blog']
+        as: other
+        path_params_json: '{"id": "${given.core.elements.create#blog.id}"}'
+        body_json: '{"rules": []}'
+        status: 404
   - id: core.categories.acl.update
     category: CATEGORY_ACTION
     method: PUT

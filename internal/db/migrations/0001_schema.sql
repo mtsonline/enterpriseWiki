@@ -476,6 +476,21 @@ CREATE TABLE acl_rules (
 );
 CREATE INDEX acl_rules_category ON acl_rules(category_id);
 
+-- permissions on one instance of a plugin (a blog, a FAQ, a form …): named
+-- permissions declared with "instance" for the element type; in addition to
+-- the same permissions granted on categories (acl_rules.actions)
+CREATE TABLE instance_rules (
+    id           bigserial PRIMARY KEY,
+    element_id   bigint NOT NULL REFERENCES elements(id) ON DELETE CASCADE,
+    subject_type text NOT NULL CHECK (subject_type IN ('user','group','role','authenticated')),
+    subject_id   bigint,
+    actions      text[] NOT NULL CHECK (cardinality(actions) > 0),
+    created_by   bigint REFERENCES users(id) ON DELETE SET NULL,
+    created_at   timestamptz NOT NULL DEFAULT now(),
+    CHECK ((subject_type = 'authenticated') = (subject_id IS NULL))
+);
+CREATE INDEX instance_rules_element ON instance_rules(element_id);
+
 -- who may view a page is part of external search indexes (viewers): a
 -- changed rule sends the pages of the category and everything below again
 CREATE FUNCTION search_changes_acl() RETURNS trigger LANGUAGE plpgsql AS $$

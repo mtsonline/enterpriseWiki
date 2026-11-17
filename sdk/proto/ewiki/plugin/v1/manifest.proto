@@ -242,6 +242,12 @@ message PermissionDef {
   // global permissions "authenticated".
   repeated string presets = 5;
   repeated string implies = 6;
+  // Element type of the plugin whose instances (one blog, one form …) this
+  // category permission can also be granted on, one instance at a time.
+  // Plugins with instances declare at least <plugin>.manage (settings and
+  // permissions of the instance), usually also .edit (all content) and
+  // .contribute (new and own content).
+  string instance = 7;
 }
 
 // LimitDef: a technical limit, shown under Expert settings.

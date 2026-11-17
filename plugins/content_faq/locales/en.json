@@ -43,5 +43,11 @@
  "content.faq.delete_section_confirm": "Move the section “{title}” with all its questions to the trash?",
  "content.faq.section_deleted": "Section moved to the trash.",
  "content.faq.more_sources": "Further sources",
- "content.faq.more_sources_help": "Show the questions of further categories, tags or element types too (only to readers who may see them). New questions still go into the category above."
+ "content.faq.more_sources_help": "Show the questions of further categories, tags or element types too (only to readers who may see them). New questions still go into the category above.",
+ "perm.content.faq.manage": "Manage the FAQ",
+ "perm.content.faq.manage_help": "Change the settings, sections and permissions of the FAQ; includes editing all its questions and answers.",
+ "perm.content.faq.edit": "Edit all questions and answers",
+ "perm.content.faq.edit_help": "Write, change, move within the FAQ and delete all questions and answers of the FAQ.",
+ "perm.content.faq.contribute": "Contribute questions and answers",
+ "perm.content.faq.contribute_help": "Write new questions and answers and change or delete the own ones."
 }

@@ -136,6 +136,7 @@ func (s *Server) routes() {
 	s.routesKeyLimits()
 	s.routesSecrets()
 	s.routesDrafts()
+	s.routesInstances()
 	s.routesNotifications()
 	s.routesWatchAssignments()
 	// ---------------------------------------------------------------- system

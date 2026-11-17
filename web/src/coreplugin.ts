@@ -570,12 +570,15 @@ export function listEditFields(): EditField[] {
 
 // ---------------------------------------------------------------- page actions
 
+/** PageTarget is the page an action is for; elementType only for elements. */
+export interface PageTarget { type: 'element' | 'category'; id: number; title: string; categoryId: number; elementType?: string }
+
 /** PageAction adds a button to the actions of element and category pages
  * (e.g. "Share"); render returns null when it does not apply. */
 export interface PageAction {
   id: string;
   order?: number;
-  render: (target: { type: 'element' | 'category'; id: number; title: string; categoryId: number }) => HTMLElement | null;
+  render: (target: PageTarget) => HTMLElement | null;
 }
 
 const pageActions: PageAction[] = [];
@@ -586,7 +589,7 @@ export function registerPageAction(a: PageAction): void {
 }
 
 /** pageActionButtons renders the registered page actions for a target. */
-export function pageActionButtons(target: { type: 'element' | 'category'; id: number; title: string; categoryId: number }): HTMLElement[] {
+export function pageActionButtons(target: PageTarget): HTMLElement[] {
   const out: HTMLElement[] = [];
   for (const a of pageActions) {
     try {

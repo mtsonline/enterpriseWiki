@@ -43,5 +43,11 @@
  "content.faq.delete_section_confirm": "Den Abschnitt „{title}“ mit allen Fragen in den Papierkorb verschieben?",
  "content.faq.section_deleted": "Abschnitt in den Papierkorb verschoben.",
  "content.faq.more_sources": "Weitere Quellen",
- "content.faq.more_sources_help": "Auch die Fragen weiterer Kategorien, Schlagwörter oder Elementtypen zeigen (nur für Lesende, die sie sehen dürfen). Neue Fragen kommen weiterhin in die Kategorie oben."
+ "content.faq.more_sources_help": "Auch die Fragen weiterer Kategorien, Schlagwörter oder Elementtypen zeigen (nur für Lesende, die sie sehen dürfen). Neue Fragen kommen weiterhin in die Kategorie oben.",
+ "perm.content.faq.manage": "FAQ verwalten",
+ "perm.content.faq.manage_help": "Einstellungen, Abschnitte und Rechte der FAQ ändern; schließt das Bearbeiten aller Fragen und Antworten ein.",
+ "perm.content.faq.edit": "Alle Fragen und Antworten bearbeiten",
+ "perm.content.faq.edit_help": "Alle Fragen und Antworten der FAQ schreiben, ändern, darin verschieben und löschen.",
+ "perm.content.faq.contribute": "Fragen und Antworten beitragen",
+ "perm.content.faq.contribute_help": "Neue Fragen und Antworten schreiben und die eigenen ändern oder löschen."
 }

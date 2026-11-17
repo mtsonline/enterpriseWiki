@@ -44,5 +44,11 @@
  "content.blog.search_placeholder": "Suchbegriff …",
  "content.blog.new_source": "– Neue Kategorie mit dem Titel anlegen –",
  "content.blog.more_sources": "Weitere Quellen",
- "content.blog.more_sources_help": "Auch die Beiträge weiterer Kategorien, Schlagwörter oder Elementtypen zeigen (nur für Lesende, die sie sehen dürfen). Neue Beiträge kommen weiterhin in die Kategorie oben."
+ "content.blog.more_sources_help": "Auch die Beiträge weiterer Kategorien, Schlagwörter oder Elementtypen zeigen (nur für Lesende, die sie sehen dürfen). Neue Beiträge kommen weiterhin in die Kategorie oben.",
+ "perm.content.blog.manage": "Blog verwalten",
+ "perm.content.blog.manage_help": "Einstellungen, Abschnitte und Rechte des Blogs ändern; schließt das Bearbeiten aller Beiträge ein.",
+ "perm.content.blog.edit": "Alle Beiträge bearbeiten",
+ "perm.content.blog.edit_help": "Alle Beiträge des Blogs schreiben, ändern, darin verschieben und löschen.",
+ "perm.content.blog.contribute": "Beiträge beitragen",
+ "perm.content.blog.contribute_help": "Neue Beiträge schreiben und die eigenen ändern oder löschen."
 }

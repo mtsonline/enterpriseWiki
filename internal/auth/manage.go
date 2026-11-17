@@ -420,6 +420,9 @@ func (s *Service) DeleteUser(ctx context.Context, id int64) error {
 		if _, err := tx.Exec(ctx, `DELETE FROM acl_rules WHERE subject_type='user' AND subject_id=$1`, id); err != nil {
 			return err
 		}
+		if _, err := tx.Exec(ctx, `DELETE FROM instance_rules WHERE subject_type='user' AND subject_id=$1`, id); err != nil {
+			return err
+		}
 		if _, err := tx.Exec(ctx, `DELETE FROM users WHERE id=$1`, id); err != nil {
 			return err
 		}
@@ -781,6 +784,9 @@ func (s *Service) DeleteGroup(ctx context.Context, id int64) error {
 		if _, err := tx.Exec(ctx, `DELETE FROM acl_rules WHERE subject_type='group' AND subject_id=$1`, id); err != nil {
 			return err
 		}
+		if _, err := tx.Exec(ctx, `DELETE FROM instance_rules WHERE subject_type='group' AND subject_id=$1`, id); err != nil {
+			return err
+		}
 		tag, err := tx.Exec(ctx, `DELETE FROM groups WHERE id=$1`, id)
 		if err != nil {
 			return err
@@ -1044,6 +1050,9 @@ func (s *Service) DeleteRole(ctx context.Context, id int64) error {
 			}
 		}
 		if _, err := tx.Exec(ctx, `DELETE FROM acl_rules WHERE subject_type='role' AND subject_id=$1`, id); err != nil {
+			return err
+		}
+		if _, err := tx.Exec(ctx, `DELETE FROM instance_rules WHERE subject_type='role' AND subject_id=$1`, id); err != nil {
 			return err
 		}
 		tag, err := tx.Exec(ctx, `DELETE FROM roles WHERE id=$1`, id)

@@ -4,6 +4,44 @@
   "version": "1.0.0",
   "description": "Element type that shows the elements of a category (optionally with subcategories) as a blog: newest first, with teaser, author and date, paging, search within the blog, tags and an Atom/RSS feed. The macro ::blog shows posts of several sources together. Posts are normal pages of the category.",
   "author": "Enterprise Wiki",
-  "kinds": ["element", "macro"],
-  "frontend": true
+  "kinds": [
+    "element",
+    "macro"
+  ],
+  "frontend": true,
+  "permissions": [
+    {
+      "key": "content.blog.manage",
+      "scope": "category",
+      "instance": "content.blog",
+      "label": "Manage the blog",
+      "description": "Change the settings, sections and permissions of the blog; includes editing all its posts.",
+      "presets": [
+        "manager"
+      ],
+      "implies": [
+        "content.blog.edit"
+      ]
+    },
+    {
+      "key": "content.blog.edit",
+      "scope": "category",
+      "instance": "content.blog",
+      "label": "Edit all posts",
+      "description": "Write, change, move within the blog and delete all posts of the blog.",
+      "presets": [
+        "editor"
+      ],
+      "implies": [
+        "content.blog.contribute"
+      ]
+    },
+    {
+      "key": "content.blog.contribute",
+      "scope": "category",
+      "instance": "content.blog",
+      "label": "Contribute posts",
+      "description": "Write new posts and change or delete the own ones."
+    }
+  ]
 }

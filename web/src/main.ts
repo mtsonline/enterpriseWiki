@@ -17,7 +17,8 @@ import { rememberedLang, state, stored } from './core/state';
 import type { Principal, Site } from './core/types';
 import { categoryTree, ctx, currentSpace, setSpace, editToggle, languageSwitcher, searchBox, userMenu } from './components/widgets';
 import { pluginModules } from './generated/plugins';
-import { positionContainer, refreshPositions, registerSlot, registerTemplate, resolveTemplate, setShownTemplate } from './coreplugin';
+import { positionContainer, refreshPositions, registerPageAction, registerSlot, registerTemplate, resolveTemplate, setShownTemplate } from './coreplugin';
+import { instanceRightsButton } from './components/instanceRights';
 import { adminView } from './views/admin';
 import { registerSourceControls } from './components/sources';
 import { installMacroPager } from './core/pager';
@@ -59,6 +60,7 @@ function registerCore(): void {
   route('/admin/:section', adminView);
   setNotFound(notFoundView);
 
+  registerPageAction({ id: 'core.instance-rights', order: 90, render: instanceRightsButton });
   registerSlot({ id: 'core.search', position: 'header-tools', order: 10, render: searchBox });
   registerSlot({ id: 'core.lang', position: 'header-tools', order: 20, render: languageSwitcher });
   registerSlot({ id: 'core.edit', position: 'header-tools', order: 30, render: editToggle });

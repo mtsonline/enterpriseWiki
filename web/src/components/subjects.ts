@@ -26,7 +26,7 @@ function chips(label: string, items: Chip[], onChange: () => void): { el: HTMLEl
 }
 
 /** Picks one or more users by searching (name or user name). */
-export function userPicker(opts: { label: string; multiple?: boolean; initial?: Chip[]; help?: string; required?: boolean }): { el: HTMLElement; value: () => number[]; focus: () => void } {
+export function userPicker(opts: { label: string; multiple?: boolean; initial?: Chip[]; help?: string; required?: boolean }): { el: HTMLElement; value: () => number[]; names: () => string[]; focus: () => void } {
   const items: Chip[] = [...(opts.initial ?? [])];
   const input = textInput({ placeholder: t('acl.user_search'), autocomplete: 'off' });
   const dl = h('datalist', { id: uid('users') });
@@ -64,7 +64,7 @@ export function userPicker(opts: { label: string; multiple?: boolean; initial?: 
   input.addEventListener('keydown', (ev) => { if (ev.key === 'Enter') { ev.preventDefault(); take(); } });
   sync();
   const box = h('div', { class: 'ew-picker' }, list.el, input, dl, status);
-  return { el: field(opts.label, box, { help: opts.help, required: opts.required }), value: () => items.map((x) => x.id), focus: () => input.focus() };
+  return { el: field(opts.label, box, { help: opts.help, required: opts.required }), value: () => items.map((x) => x.id), names: () => items.map((x) => x.name), focus: () => input.focus() };
 }
 
 /** Picks one or more groups. */
