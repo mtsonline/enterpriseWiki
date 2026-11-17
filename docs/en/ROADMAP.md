@@ -7,7 +7,7 @@ The implementation happens in milestones. Every milestone runs and is tested by 
 - Plugin system (Go and frontend), enabling/disabling at runtime, installation from GitHub, Git or a folder, rebuild and restart from the interface, inheritance of plugins
 - Categories (unlimited depth, stable IDs), elements, default page, moving, duplicating, sorting, trash
 - Element type `core.html` (WYSIWYG/Markdown) and example `example.notice`
-- Versioning of all content, restoring, resetting to a point in time (single or per level), audit log, retention rules
+- Versioning of all content, restoring, resetting to a point in time (single or per level, optionally with the structure: moves, order, new categories), audit log, retention rules
 - Multilingual content (with translation status) and interface (translation editor with progress)
 - Permissions for users, groups, roles, guests and signed-in people with inheritance
 - Local sign-in (always first), sessions, API keys, SSH key login

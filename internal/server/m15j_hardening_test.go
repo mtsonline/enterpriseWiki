@@ -171,7 +171,7 @@ func TestHardening(t *testing.T) {
 	var g struct {
 		ID int64 `json:"id"`
 	}
-	admin.must("POST", "/api/v1/admin/groups", map[string]any{"name": "Approvers"}, &g, 200)
+	admin.must("POST", "/api/v1/admin/groups", map[string]any{"name": "Approvers"}, &g, 201)
 	admin.must("POST", "/api/v1/admin/users", map[string]any{"username": "appr", "password": "Appr-Passw0rd!", "display_name": "Appr", "roles": []int64{}, "groups": []int64{g.ID}}, nil, 201)
 	admin.must("POST", fmt.Sprintf("/api/v1/categories/%d/acl", c.ID), map[string]any{"subject_type": "authenticated", "permissions": 1, "inherit": true}, nil, 201)
 	def := map[string]any{"description": "", "fields": []any{},

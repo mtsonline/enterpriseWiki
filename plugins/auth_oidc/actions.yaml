@@ -4,6 +4,7 @@ actions:
     category: CATEGORY_ACTION
     method: GET
     path: check
+    success_status: 200
     summary:
       text:
         en: "Check the settings of an OpenID Connect provider (discovery, keys)"

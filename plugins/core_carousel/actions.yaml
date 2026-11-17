@@ -4,6 +4,7 @@ actions:
     category: CATEGORY_ACTION
     method: GET
     path: "position/{position}"
+    success_status: 200
     summary:
       text:
         en: Carousels of a position with their slides (only what you may see)
@@ -20,6 +21,7 @@ actions:
     category: CATEGORY_ACTION
     method: GET
     path: targets
+    success_status: 200
     summary:
       text:
         en: Carousels news can be published to (empty without core.carousel.publish or core.carousel.manage)
@@ -37,6 +39,7 @@ actions:
     category: CATEGORY_ACTION
     method: GET
     path: carousels
+    success_status: 200
     summary:
       text:
         en: List the carousels
@@ -51,6 +54,7 @@ actions:
     category: CATEGORY_ACTION
     method: POST
     path: carousels
+    success_status: 201
     summary:
       text:
         en: Create a carousel
@@ -68,6 +72,7 @@ actions:
     category: CATEGORY_ACTION
     method: PUT
     path: "carousels/{id}"
+    success_status: 200
     summary:
       text:
         en: Change a carousel
@@ -86,6 +91,7 @@ actions:
     category: CATEGORY_ACTION
     method: DELETE
     path: "carousels/{id}"
+    success_status: 204
     summary:
       text:
         en: Delete a carousel
@@ -104,6 +110,7 @@ actions:
     category: CATEGORY_ACTION
     method: GET
     path: "carousels/{id}/slides"
+    success_status: 200
     summary:
       text:
         en: List the slides of a carousel
@@ -120,6 +127,7 @@ actions:
     category: CATEGORY_ACTION
     method: POST
     path: "carousels/{id}/slides"
+    success_status: 201
     summary:
       text:
         en: Add a slide
@@ -144,6 +152,7 @@ actions:
     category: CATEGORY_ACTION
     method: PUT
     path: "carousels/{id}/slides/{slide}"
+    success_status: 200
     summary:
       text:
         en: Change a slide
@@ -162,6 +171,7 @@ actions:
     category: CATEGORY_ACTION
     method: DELETE
     path: "carousels/{id}/slides/{slide}"
+    success_status: 204
     summary:
       text:
         en: Remove a slide
@@ -180,6 +190,7 @@ actions:
     category: CATEGORY_ACTION
     method: PUT
     path: "carousels/{id}/order"
+    success_status: 204
     summary:
       text:
         en: Change the order of the slides
@@ -198,6 +209,7 @@ actions:
     category: CATEGORY_ACTION
     method: POST
     path: "carousels/{id}/refresh"
+    success_status: 204
     summary:
       text:
         en: Fill a carousel again from its source

@@ -4,6 +4,7 @@ actions:
     category: CATEGORY_ACTION
     method: GET
     path: me
+    success_status: 200
     summary:
       text:
         en: Show whether codes by e-mail are set up
@@ -18,6 +19,7 @@ actions:
     category: CATEGORY_ACTION
     method: DELETE
     path: me
+    success_status: 204
     summary:
       text:
         en: Remove codes by e-mail as a factor

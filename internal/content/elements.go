@@ -586,21 +586,7 @@ func (s *Service) MoveElement(ctx context.Context, id, categoryID int64) (*Eleme
 	}
 	var noted int64
 	err = db.Tx(ctx, s.pool, func(tx pgx.Tx) error {
-		var ok bool
-		if err := tx.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM categories WHERE id=$1 AND deleted_at IS NULL)`, categoryID).Scan(&ok); err != nil || !ok {
-			return apperr.NotFound("target category")
-		}
-		if _, err := tx.Exec(ctx, `UPDATE elements SET category_id=$2, position=(SELECT COALESCE(max(position)+1,0) FROM elements WHERE category_id=$2),
-			updated_at=now() WHERE id=$1`, id, categoryID); err != nil {
-			return err
-		}
-		if _, err := tx.Exec(ctx, `UPDATE categories SET default_element_id=NULL WHERE default_element_id=$1`, id); err != nil {
-			return err
-		}
-		if _, err := tx.Exec(ctx, `UPDATE search_docs SET category_id=$2 WHERE element_id=$1`, id, categoryID); err != nil {
-			return err
-		}
-		return s.andNote(ctx, tx, &noted, "move", "element", id, audit.Log(ctx, tx, "element.move", "element", id, map[string]any{"category_id": e.CategoryID}, map[string]any{"category_id": categoryID}))
+		return s.andNote(ctx, tx, &noted, "move", "element", id, s.moveElementTx(ctx, tx, id, categoryID, nil))
 	})
 	if err != nil {
 		return nil, err
@@ -608,6 +594,31 @@ func (s *Service) MoveElement(ctx context.Context, id, categoryID int64) (*Eleme
 	_ = s.syncSlug(ctx, "element", id, e.CategoryID)
 	s.fireNoted(ctx, noted, "move", "element", id)
 	return s.loadElement(ctx, s.pool, id, false)
+}
+
+// moveElementTx moves an element inside a transaction (the checks of the
+// caller apply) and writes the audit entry; position nil puts it last.
+func (s *Service) moveElementTx(ctx context.Context, tx pgx.Tx, id, categoryID int64, position *int) error {
+	var ok bool
+	if err := tx.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM categories WHERE id=$1 AND deleted_at IS NULL)`, categoryID).Scan(&ok); err != nil || !ok {
+		return apperr.NotFound("target category")
+	}
+	var oldCat int64
+	var oldPos int
+	if err := tx.QueryRow(ctx, `SELECT category_id, position FROM elements WHERE id=$1 AND deleted_at IS NULL FOR UPDATE`, id).Scan(&oldCat, &oldPos); err != nil {
+		return apperr.NotFound("element")
+	}
+	if _, err := tx.Exec(ctx, `UPDATE elements SET category_id=$2,
+		position=COALESCE($3, (SELECT COALESCE(max(position)+1,0) FROM elements WHERE category_id=$2)), updated_at=now() WHERE id=$1`, id, categoryID, position); err != nil {
+		return err
+	}
+	if _, err := tx.Exec(ctx, `UPDATE categories SET default_element_id=NULL WHERE default_element_id=$1`, id); err != nil {
+		return err
+	}
+	if _, err := tx.Exec(ctx, `UPDATE search_docs SET category_id=$2 WHERE element_id=$1`, id, categoryID); err != nil {
+		return err
+	}
+	return audit.Log(ctx, tx, "element.move", "element", id, map[string]any{"category_id": oldCat, "position": oldPos}, map[string]any{"category_id": categoryID})
 }
 
 // DuplicateElement copies an element (latest revision of each language).

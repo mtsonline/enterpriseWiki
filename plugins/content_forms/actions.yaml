@@ -4,6 +4,7 @@ actions:
     category: CATEGORY_ACTION
     method: GET
     path: meta
+    success_status: 200
     summary:
       text:
         en: Field types and options of forms
@@ -18,6 +19,7 @@ actions:
     category: CATEGORY_ACTION
     method: GET
     path: "elements/{id}/start"
+    success_status: 200
     summary:
       text:
         en: Open a form for filling in
@@ -41,6 +43,7 @@ actions:
     category: CATEGORY_ACTION
     method: POST
     path: "elements/{id}/submit"
+    success_status: 201
     summary:
       text:
         en: Submit a form
@@ -70,6 +73,7 @@ actions:
     category: CATEGORY_ACTION
     method: GET
     path: "elements/{id}/submissions"
+    success_status: 200
     summary:
       text:
         en: List the submissions of a form (also for the creator of the form)
@@ -89,6 +93,7 @@ actions:
     category: CATEGORY_ACTION
     method: GET
     path: "elements/{id}/submissions.csv"
+    success_status: 200
     summary:
       text:
         en: Export the submissions as CSV (also for the creator of the form)
@@ -105,6 +110,7 @@ actions:
     category: CATEGORY_ACTION
     method: GET
     path: "elements/{id}/submissions.xlsx"
+    success_status: 200
     summary:
       text:
         en: Export the submissions as Excel file (also for the creator of the form)
@@ -121,6 +127,7 @@ actions:
     category: CATEGORY_ACTION
     method: GET
     path: "submissions/{sid}"
+    success_status: 200
     summary:
       text:
         en: Show a submission (needs content.forms.submissions)
@@ -136,6 +143,7 @@ actions:
     category: CATEGORY_ACTION
     method: DELETE
     path: "submissions/{sid}"
+    success_status: 204
     summary:
       text:
         en: Delete a submission (needs content.forms.submissions_delete)
@@ -153,6 +161,7 @@ actions:
     category: CATEGORY_ACTION
     method: GET
     path: "submissions/{sid}/files/{n}"
+    success_status: 200
     summary:
       text:
         en: Download a file of a submission (needs content.forms.submissions)

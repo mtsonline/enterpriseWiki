@@ -115,7 +115,7 @@ func seed(o Options) (*World, error) {
 	_ = adm.Do("GET", "/api/v1/categories/tree", nil).JSON(&tree)
 	demo := findTop(tree, "Demo:")
 	if demo == 0 {
-		if err := must(adm.Do("POST", "/api/v1/admin/demo", nil), 200, 201); err != nil {
+		if err := must(adm.Do("POST", "/api/v1/admin/demo", nil), 200); err != nil {
 			return nil, fmt.Errorf("create demo content: %w", err)
 		}
 		_ = adm.Do("GET", "/api/v1/categories/tree", nil).JSON(&tree)
@@ -137,7 +137,7 @@ func seed(o Options) (*World, error) {
 		}
 		var g idObj
 		r := adm.Do("POST", "/api/v1/admin/groups", map[string]string{"name": name, "description": "QA suite"})
-		if err := must(r, 200, 201); err != nil {
+		if err := must(r, 201); err != nil {
 			return 0, err
 		}
 		_ = r.JSON(&g)
@@ -172,7 +172,7 @@ func seed(o Options) (*World, error) {
 			r := adm.Do("POST", "/api/v1/admin/users", in)
 			var x idObj
 			switch {
-			case r.Status == 201 || r.Status == 200:
+			case r.Status == 201:
 				_ = r.JSON(&x)
 			case r.Status == 409:
 				var us []struct {
@@ -212,7 +212,7 @@ func seed(o Options) (*World, error) {
 			in["parent_id"] = parent
 		}
 		r := adm.Do("POST", "/api/v1/categories", in)
-		if err := must(r, 201, 200); err != nil {
+		if err := must(r, 201); err != nil {
 			return 0, fmt.Errorf("category %q: %w", title, err)
 		}
 		var c idObj
@@ -220,7 +220,7 @@ func seed(o Options) (*World, error) {
 		return c.ID, nil
 	}
 	rule := func(cat int64, in map[string]any) error {
-		return must(adm.Do("POST", fmt.Sprintf("/api/v1/categories/%d/acl", cat), in), 201, 200)
+		return must(adm.Do("POST", fmt.Sprintf("/api/v1/categories/%d/acl", cat), in), 201)
 	}
 	page := func(cat int64, title, html string) (int64, error) {
 		r := adm.Do("POST", "/api/v1/elements", map[string]any{"category_id": cat, "type": "core.html", "lang": "de", "title": title, "body": htmlBody(html)})
@@ -236,7 +236,7 @@ func seed(o Options) (*World, error) {
 	}
 	// team: a copy of the demo area with every element type
 	r := adm.Do("POST", fmt.Sprintf("/api/v1/categories/%d/duplicate", demo), map[string]any{"parent_id": w.Root})
-	if err := must(r, 201, 200); err != nil {
+	if err := must(r, 201); err != nil {
 		return nil, fmt.Errorf("copy the demo area: %w", err)
 	}
 	var team idObj
@@ -316,7 +316,7 @@ func seed(o Options) (*World, error) {
 	r = adm.Do("POST", fmt.Sprintf("/api/v1/x/content.events/calendars/%d/events", w.Calendar), map[string]any{"title": "QA event with limited seats",
 		"starts_at": start, "ends_at": start.Add(time.Hour), "tz": "UTC", "registration": true, "capacity": w.EventCapacity, "waitlist": true})
 	w.EventDate = start.Format("2006-01-02")
-	if err := must(r, 201, 200); err != nil {
+	if err := must(r, 201); err != nil {
 		return nil, fmt.Errorf("shared event: %w", err)
 	}
 	var ev idObj
@@ -330,7 +330,7 @@ func seed(o Options) (*World, error) {
 		return nil, err
 	}
 	r = adm.Do("POST", fmt.Sprintf("/api/v1/x/workflow.process/elements/%d/instances", w.Workflow), map[string]any{"data": map[string]any{"subject": "shared"}})
-	if err := must(r, 201, 200); err != nil {
+	if err := must(r, 201); err != nil {
 		return nil, fmt.Errorf("shared case: %w", err)
 	}
 	var cs idObj
@@ -386,7 +386,7 @@ func removeArea(adm *Client) error {
 	_ = adm.Do("GET", "/api/v1/categories/tree", nil).JSON(&tree)
 	for _, n := range tree {
 		if n.ParentID == nil && hasTitle(n, "QA Suite") {
-			if err := must(adm.Do("DELETE", fmt.Sprintf("/api/v1/categories/%d", n.ID), nil), 200, 204); err != nil {
+			if err := must(adm.Do("DELETE", fmt.Sprintf("/api/v1/categories/%d", n.ID), nil), 204); err != nil {
 				return fmt.Errorf("remove old QA area: %w", err)
 			}
 			_ = adm.Do("DELETE", fmt.Sprintf("/api/v1/trash/category/%d", n.ID), nil)

@@ -4,6 +4,7 @@ actions:
     category: CATEGORY_ACTION
     method: GET
     path: "elements/{id}/comments"
+    success_status: 200
     summary:
       text:
         en: List the comments of an element
@@ -20,6 +21,7 @@ actions:
     category: CATEGORY_ACTION
     method: POST
     path: "elements/{id}/comments"
+    success_status: 201
     summary:
       text:
         en: "Write a comment (signed in, as the category allows)"
@@ -39,6 +41,7 @@ actions:
     category: CATEGORY_ACTION
     method: PUT
     path: "comments/{id}"
+    success_status: 200
     summary:
       text:
         en: Change your comment
@@ -56,6 +59,7 @@ actions:
     category: CATEGORY_ACTION
     method: DELETE
     path: "comments/{id}"
+    success_status: 204
     summary:
       text:
         en: Delete a comment (own ones or with core.comments.moderate)

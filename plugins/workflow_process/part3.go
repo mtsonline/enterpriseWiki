@@ -218,7 +218,7 @@ func (pl *Plugin) runAccess(ctx context.Context, tx pgx.Tx, x *Instance, s *Step
 			if err != nil {
 				return result{}, err
 			}
-			if code != http.StatusNoContent && code != http.StatusOK && code != http.StatusNotFound {
+			if code != http.StatusNoContent && code != http.StatusNotFound { // gone already: fine
 				return result{}, apiError(code, b)
 			}
 		}
@@ -267,7 +267,7 @@ func (pl *Plugin) runMember(ctx context.Context, tx pgx.Tx, x *Instance, s *Step
 	if err != nil {
 		return result{}, err
 	}
-	if code != http.StatusOK {
+	if code != http.StatusNoContent {
 		return result{}, apiError(code, b)
 	}
 	return result{next: s.Next, action: "membership", label: m.Mode, note: fmt.Sprintf("%s · group %d", name, m.Group)}, nil

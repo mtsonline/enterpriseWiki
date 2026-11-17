@@ -26,6 +26,7 @@ const (
 	RegisterPerHour    = "core.auth.register_per_hour"
 	RegisterPending    = "core.auth.registrations_pending"
 	ResetPerHour       = "core.auth.password_reset_per_hour"
+	RollbackChanges    = "core.rollback.structure_changes"
 )
 
 // LargeBody is the size from which a request counts as large (limited
@@ -78,6 +79,8 @@ func init() {
 			Label: "Persons per page", Help: "How many persons edit one page together at the same time. Further ones see the page and are told that it is full."},
 		Def{Key: LivePerPerson, Group: "live", Unit: "count", Default: 5, Min: 1, Max: 50,
 			Label: "Connections per person and page", Help: "How many windows or devices of one person edit the same page at once."},
+		Def{Key: RollbackChanges, Group: "database", Unit: "count", Default: 10000, Min: 100, Max: 1000000,
+			Label: "Changes undone by a rollback of the structure", Help: "Most moves and orders since the chosen point in time that one rollback of a category with its structure undoes; more are refused (choose a later point in time)."},
 		Def{Key: AuditSearchDays, Group: "audit", Unit: "days", Default: 90, Min: 1, Max: 3650,
 			Label: "Period of the text search", Help: "How far back the text search in before/after values of the audit log looks when no start date is given. With a start date any period is searched."},
 	)

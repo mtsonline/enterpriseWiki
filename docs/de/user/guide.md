@@ -355,7 +355,7 @@ Unter jeder Seite können angemeldete Benutzer kommentieren und auf Kommentare a
 
 Jede Speicherung erzeugt eine neue Version. Es wird nie etwas überschrieben. Unter **Verlauf** können Sie jede Version ansehen und **wiederherstellen**. Dabei entsteht eine neue Version mit dem alten Inhalt.
 
-Eine ganze Kategorie setzen Sie unter *Kategorie-Einstellungen → Verlauf & Zurücksetzen* auf einen **Zeitpunkt** zurück, wahlweise mit allen Unterkategorien. Titel, Texte und Seiten bekommen den damaligen Stand, später angelegte Seiten kommen in den Papierkorb. Auch das lässt sich wieder rückgängig machen.
+Eine ganze Kategorie setzen Sie unter *Kategorie-Einstellungen → Verlauf & Zurücksetzen* auf einen **Zeitpunkt** zurück, wahlweise mit allen Unterkategorien. Titel, Texte und Seiten bekommen den damaligen Stand, später angelegte Seiten kommen in den Papierkorb. Mit **Verschobene und neue Kategorien einbeziehen** (nur zusammen mit allen Unterkategorien) bekommt auch die Struktur den damaligen Stand: Kategorien und Seiten, die seitdem verschoben wurden, kommen an ihren früheren Platz und in ihre frühere Reihenfolge zurück, auch in die Kategorie hinein oder aus ihr heraus; seitdem angelegte Kategorien (auch Kopien) kommen samt ihren Seiten in den Papierkorb. Die Kategorie selbst bleibt, wo sie ist. Gibt es einen früheren Platz nicht mehr, wird nichts geändert und die Meldung nennt ihn; stellen Sie ihn zuerst aus dem Papierkorb wieder her. Auch das lässt sich wieder rückgängig machen.
 
 ## Papierkorb
 

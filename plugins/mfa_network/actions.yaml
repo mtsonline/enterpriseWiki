@@ -4,6 +4,7 @@ actions:
     category: CATEGORY_ACTION
     method: GET
     path: me
+    success_status: 200
     summary:
       text:
         en: Show the networks you may sign in from
@@ -18,6 +19,7 @@ actions:
     category: CATEGORY_ACTION
     method: PUT
     path: me
+    success_status: 200
     summary:
       text:
         en: Change the networks you may sign in from
@@ -37,6 +39,7 @@ actions:
     category: CATEGORY_ACTION
     method: GET
     path: users/{id}
+    success_status: 200
     summary:
       text:
         en: Show the allowed networks of a person
@@ -52,6 +55,7 @@ actions:
     category: CATEGORY_ACTION
     method: PUT
     path: users/{id}
+    success_status: 200
     summary:
       text:
         en: Set the allowed networks of a person

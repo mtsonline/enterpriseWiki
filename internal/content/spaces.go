@@ -450,23 +450,31 @@ func (s *Service) CreateSpaceFrom(ctx context.Context, in NewSpaceInput) (*Space
 type personalSpaceKey struct{}
 
 // CreatePersonalSpace creates the personal space of the caller (permission
-// core.spaces.personal; one per person) or returns the existing one. Only
-// its owner has permissions until they share it.
-func (s *Service) CreatePersonalSpace(ctx context.Context) (*SpaceInfo, error) {
+// core.spaces.personal; one per person) or returns the existing one; created
+// tells which. Only its owner has permissions until they share it.
+func (s *Service) CreatePersonalSpace(ctx context.Context) (space *SpaceInfo, created bool, err error) {
 	p := identity.From(ctx)
 	if p == nil || p.ID() <= 0 {
-		return nil, apperr.ErrUnauthorized
+		return nil, false, apperr.ErrUnauthorized
 	}
 	if err := perm.Require(ctx, "core.spaces.personal"); err != nil {
-		return nil, err
+		return nil, false, err
 	}
-	var id int64
-	err := s.pool.QueryRow(ctx, `SELECT id FROM categories WHERE parent_id IS NULL AND deleted_at IS NULL AND space->>'personal' = $1`, strconv.FormatInt(p.ID(), 10)).Scan(&id)
+	owner := strconv.FormatInt(p.ID(), 10)
+	existing := func() (*SpaceInfo, bool, error) {
+		var id int64
+		if err := s.pool.QueryRow(ctx, `SELECT id FROM categories WHERE parent_id IS NULL AND deleted_at IS NULL AND space->>'personal' = $1`, owner).Scan(&id); err != nil {
+			return nil, false, err
+		}
+		sp, err := s.loadSpace(ctx, id)
+		return sp, false, err
+	}
+	sp, _, err := existing()
 	if err == nil {
-		return s.loadSpace(ctx, id)
+		return sp, false, nil
 	}
 	if !errors.Is(err, pgx.ErrNoRows) {
-		return nil, err
+		return nil, false, err
 	}
 	name := p.DisplayName
 	if name == "" {
@@ -478,15 +486,22 @@ func (s *Service) CreatePersonalSpace(ctx context.Context) (*SpaceInfo, error) {
 	}
 	c, err := s.CreateCategory(context.WithValue(ctx, personalSpaceKey{}, true), CategoryInput{Titles: titles})
 	if err != nil {
-		return nil, err
+		return nil, false, err
 	}
 	raw, _ := json.Marshal(Space{OwnTree: true, Personal: p.ID(), Shortcuts: []SpaceLink{}, AllowedTypes: []string{}})
 	if _, err := s.pool.Exec(ctx, `UPDATE categories SET space=$2 WHERE id=$1`, c.ID, raw); err != nil {
 		_, _ = s.pool.Exec(ctx, `DELETE FROM categories WHERE id=$1`, c.ID)
-		return nil, err
+		// a second request of the same person was faster (unique index
+		// categories_personal): theirs is the space
+		var pe *pgconn.PgError
+		if errors.As(err, &pe) && pe.Code == "23505" {
+			return existing()
+		}
+		return nil, false, err
 	}
 	_ = audit.Log(ctx, s.pool, "space.personal", "category", c.ID, nil, nil)
-	return s.loadSpace(ctx, c.ID)
+	sp, err = s.loadSpace(ctx, c.ID)
+	return sp, err == nil, err
 }
 
 // spaceMacros returns the macros allowed in the space of a category (nil: all).

@@ -29,7 +29,7 @@ func TestPermissionModel(t *testing.T) {
 		var r struct {
 			ID int64 `json:"id"`
 		}
-		admin.must("POST", "/api/v1/admin/roles", map[string]any{"name": name, "permissions": perms}, &r, 200)
+		admin.must("POST", "/api/v1/admin/roles", map[string]any{"name": name, "permissions": perms}, &r, 201)
 		return r.ID
 	}
 	user := func(name string, roles ...int64) (*client, int64) {
@@ -85,7 +85,7 @@ func TestPermissionModel(t *testing.T) {
 	}
 	// role manager cannot grant what they do not have
 	carol, _ := user("carol", rolemgr)
-	carol.must("POST", "/api/v1/admin/roles", map[string]any{"name": "Helpers", "permissions": []string{"core.users.manage"}}, nil, 200)
+	carol.must("POST", "/api/v1/admin/roles", map[string]any{"name": "Helpers", "permissions": []string{"core.users.manage"}}, nil, 201)
 	if code := carol.do("POST", "/api/v1/admin/roles", map[string]any{"name": "Too much", "permissions": []string{"core.settings.manage"}}, nil); code != 403 {
 		t.Fatalf("role manager granted a permission they do not have: %d", code)
 	}
@@ -343,7 +343,7 @@ func TestAuditLog(t *testing.T) {
 	if err := e.app.Workers.RunOnce(context.Background(), "audit.forward"); err != nil {
 		t.Fatal(err)
 	}
-	admin.must("POST", "/api/v1/admin/roles", map[string]any{"name": "Forwarded role"}, nil, 200)
+	admin.must("POST", "/api/v1/admin/roles", map[string]any{"name": "Forwarded role"}, nil, 201)
 	if err := e.app.Workers.RunOnce(context.Background(), "audit.forward"); err != nil {
 		t.Fatal(err)
 	}
@@ -529,13 +529,13 @@ func TestNotificationsShareMentionsAssignedWatches(t *testing.T) {
 	var grp struct {
 		ID int64 `json:"id"`
 	}
-	admin.must("POST", "/api/v1/admin/groups", map[string]any{"name": "Staff"}, &grp, 200)
+	admin.must("POST", "/api/v1/admin/groups", map[string]any{"name": "Staff"}, &grp, 201)
 	// by default people share only with their own groups: anna gets a role
 	// that may list all groups (she is not in the group; see TestListRights)
 	var sharers struct {
 		ID int64 `json:"id"`
 	}
-	admin.must("POST", "/api/v1/admin/roles", map[string]any{"name": "Sharers", "permissions": []string{"core.groups.list_all"}}, &sharers, 200)
+	admin.must("POST", "/api/v1/admin/roles", map[string]any{"name": "Sharers", "permissions": []string{"core.groups.list_all"}}, &sharers, 201)
 	admin.must("PUT", fmt.Sprintf("/api/v1/admin/users/%d", annaID), map[string]any{"roles": []int64{sharers.ID}}, nil, 200)
 	anna.login("anna", pw) // the new role is in the next session
 	admin.must("PUT", fmt.Sprintf("/api/v1/admin/users/%d", benID), map[string]any{"groups": []int64{grp.ID}}, nil, 200)

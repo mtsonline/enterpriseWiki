@@ -4,6 +4,7 @@ actions:
     category: CATEGORY_ACTION
     method: GET
     path: me
+    success_status: 200
     summary:
       text:
         en: Show whether your authenticator app is set up
@@ -20,6 +21,7 @@ actions:
     category: CATEGORY_ACTION
     method: DELETE
     path: me
+    success_status: 204
     summary:
       text:
         en: Remove your authenticator app as a factor

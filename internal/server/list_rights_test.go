@@ -20,17 +20,17 @@ func TestListRights(t *testing.T) {
 	var r1, r2, ga, gb struct {
 		ID int64 `json:"id"`
 	}
-	admin.must("POST", "/api/v1/admin/roles", map[string]any{"name": "Readers", "permissions": []string{}}, &r1, 200)
-	admin.must("POST", "/api/v1/admin/roles", map[string]any{"name": "Secret role", "permissions": []string{}}, &r2, 200)
-	admin.must("POST", "/api/v1/admin/groups", map[string]any{"name": "Team A", "roles": []int64{r1.ID}}, &ga, 200)
-	admin.must("POST", "/api/v1/admin/groups", map[string]any{"name": "Team B"}, &gb, 200)
+	admin.must("POST", "/api/v1/admin/roles", map[string]any{"name": "Readers", "permissions": []string{}}, &r1, 201)
+	admin.must("POST", "/api/v1/admin/roles", map[string]any{"name": "Secret role", "permissions": []string{}}, &r2, 201)
+	admin.must("POST", "/api/v1/admin/groups", map[string]any{"name": "Team A", "roles": []int64{r1.ID}}, &ga, 201)
+	admin.must("POST", "/api/v1/admin/groups", map[string]any{"name": "Team B"}, &gb, 201)
 	user := func(name string, groups ...int64) int64 {
 		var u struct {
 			ID int64 `json:"id"`
 		}
 		admin.must("POST", "/api/v1/admin/users", map[string]any{"username": name, "password": "List-Passw0rd!" + name, "display_name": name}, &u, 201)
 		for _, g := range groups {
-			admin.must("PUT", fmt.Sprintf("/api/v1/admin/groups/%d/members/%d", g, u.ID), nil, nil, 200)
+			admin.must("PUT", fmt.Sprintf("/api/v1/admin/groups/%d/members/%d", g, u.ID), nil, nil, 204)
 		}
 		return u.ID
 	}

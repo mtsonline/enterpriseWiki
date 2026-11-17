@@ -4,6 +4,7 @@ actions:
     category: CATEGORY_ACTION
     method: POST
     path: test
+    success_status: 200
     summary:
       text:
         en: Test the connection to the office service

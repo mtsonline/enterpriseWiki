@@ -151,7 +151,8 @@ func TestDemo(t *testing.T) {
 			t.Fatal(err)
 		}
 		admin.must("POST", "/api/v1/elements", map[string]any{"category_id": demoCat, "type": "core.html", "title": "Added", "body": htmlBody("<p>x</p>")}, nil, 201)
-		admin.must("DELETE", "/api/v1/admin/demo", nil, &st, 200)
+		admin.must("DELETE", "/api/v1/admin/demo", nil, nil, 204)
+		admin.must("GET", "/api/v1/admin/demo", nil, &st, 200)
 		if st.Installed {
 			t.Fatalf("still installed: %+v", st)
 		}

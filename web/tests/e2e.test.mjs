@@ -2623,7 +2623,7 @@ test('users, groups and roles: created in the administration, the permissions ta
   }
 });
 
-test('category administration: a permission for a person takes effect and ends, order, move, duplicate, history and rollback of texts, insights', async () => {
+test('category administration: a permission for a person takes effect and ends, order, move, duplicate, history, rollback of texts and of the structure, insights', async () => {
   const name = `catu${run}`;
   const pw = 'Catu-Passw0rd-1!';
   await call('POST', '/api/v1/admin/users', { username: name, password: pw, display_name: `Cat User ${run}` });
@@ -2725,9 +2725,26 @@ test('category administration: a permission for a person takes effect and ends, 
     await page.getByRole('dialog').getByRole('button', { name: /^(reset to this point in time|auf diesen zeitpunkt zurücksetzen)$/i }).click();
     await toastOn(/rollback done|zurückgesetzt/i);
     assert.equal((await call('GET', `/api/v1/categories/${one}`)).category.titles.en, `One ${run}`, 'title as before');
-    // the structure (moved or new categories) is not part of a rollback, as the help says
+    // without the structure, moved or new categories stay
     assert.equal((await call('GET', `/api/v1/categories/${two}`)).category.parent_id, one, 'moves stay');
+
+    // with the structure: only together with all subcategories
+    await page.goto(`${BASE}/c/${top}/settings?tab=history`);
+    await idle();
+    const structure = page.getByRole('checkbox', { name: /include moved and new categories|verschobene und neue kategorien einbeziehen/i });
+    const recursive = page.getByRole('checkbox', { name: /include all subcategories|alle unterkategorien einbeziehen/i });
+    await recursive.uncheck();
+    assert.equal(await structure.isDisabled(), true, 'structure needs all subcategories');
+    await recursive.check();
+    await structure.check();
     await a11y('category history');
+    await page.getByLabel(/^(point in time|zeitpunkt)/i).fill(before);
+    await page.getByRole('button', { name: /^(reset to this point in time|auf diesen zeitpunkt zurücksetzen)$/i }).click();
+    await page.getByRole('dialog').getByRole('button', { name: /^(reset to this point in time|auf diesen zeitpunkt zurücksetzen)$/i }).click();
+    await toastOn(/1 newer categories moved to the trash|1 neuere kategorien in den papierkorb/i);
+    assert.equal((await call('GET', `/api/v1/categories/${two}`)).category.parent_id, top, 'the move is undone');
+    assert.deepEqual((await call('GET', `/api/v1/categories?parent=${top}`)).map((x) => x.id), [two, one], 'place and order as then');
+    assert.equal((await page.evaluate(async (id) => (await __e2eFetch(`/api/v1/categories/${id}`)).status, copy)), 404, 'the later copy is in the trash');
   } finally {
     await ctx2.close();
   }

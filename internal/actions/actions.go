@@ -356,6 +356,15 @@ func Validate(all []Action) error {
 		if !statuses[a.SuccessStatus] {
 			fail(a, "success_status %d (200, 201, 202 or 204)", a.SuccessStatus)
 		}
+		// the contract is exact: every action names its success status, and the
+		// examples check it on every way
+		if a.Category == "CATEGORY_ACTION" && a.SuccessStatus == 0 {
+			fail(a, "no success_status (200, 201, 202 or 204)")
+		}
+		// removing answers without content, unless the answer is documented
+		if a.Method == "DELETE" && a.SuccessStatus != 0 && a.SuccessStatus != 204 && a.Response == nil {
+			fail(a, "DELETE answers 204; another status needs a documented response")
+		}
 		if a.Permission != nil {
 			if a.Permission.Key == "" || !scopes[a.Permission.Scope] {
 				fail(a, "permission needs a key and a valid scope")

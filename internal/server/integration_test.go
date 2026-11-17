@@ -353,7 +353,7 @@ func TestAPI(t *testing.T) {
 	var group struct {
 		ID int64 `json:"id"`
 	}
-	admin.must("POST", "/api/v1/admin/groups", map[string]any{"name": "HR", "description": "Human resources"}, &group, 200)
+	admin.must("POST", "/api/v1/admin/groups", map[string]any{"name": "HR", "description": "Human resources"}, &group, 201)
 	var bob struct {
 		ID int64 `json:"id"`
 	}
@@ -602,7 +602,7 @@ func TestAPI(t *testing.T) {
 	var role struct {
 		ID int64 `json:"id"`
 	}
-	admin.must("POST", "/api/v1/admin/roles", map[string]any{"name": "Editors"}, &role, 200)
+	admin.must("POST", "/api/v1/admin/roles", map[string]any{"name": "Editors"}, &role, 201)
 	admin.must("PUT", fmt.Sprintf("/api/v1/admin/roles/%d", role.ID), map[string]any{"name": "Editors", "description": "x"}, nil, 200)
 	admin.must("PUT", fmt.Sprintf("/api/v1/admin/groups/%d", group.ID), map[string]any{"name": "HR", "roles": []int64{role.ID}}, nil, 200)
 	admin.must("DELETE", fmt.Sprintf("/api/v1/admin/roles/%d", role.ID), nil, nil, 204)

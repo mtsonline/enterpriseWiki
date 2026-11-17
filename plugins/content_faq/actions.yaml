@@ -4,6 +4,7 @@ actions:
     category: CATEGORY_ACTION
     method: GET
     path: "elements/{id}/questions"
+    success_status: 200
     summary:
       text:
         en: List the questions of an FAQ
@@ -20,6 +21,7 @@ actions:
     category: CATEGORY_ACTION
     method: POST
     path: "elements/{id}/questions"
+    success_status: 201
     summary:
       text:
         en: Add a question to an FAQ (needs create in the category)
@@ -39,6 +41,7 @@ actions:
     category: CATEGORY_ACTION
     method: POST
     path: "elements/{id}/categories"
+    success_status: 201
     summary:
       text:
         en: Add a section to an FAQ (needs manage)
@@ -58,6 +61,7 @@ actions:
     category: CATEGORY_ACTION
     method: GET
     path: "elements/{id}/feed"
+    success_status: 200
     summary:
       text:
         en: Feed of an FAQ (RSS/Atom; with the personal feed link also private)

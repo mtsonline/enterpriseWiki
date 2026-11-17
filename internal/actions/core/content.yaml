@@ -4,6 +4,7 @@ actions:
     category: CATEGORY_ACTION
     method: GET
     path: /api/v1/categories
+    success_status: 200
     summary:
       text:
         en: List categories (only what you may see)
@@ -19,6 +20,7 @@ actions:
     category: CATEGORY_ACTION
     method: GET
     path: /api/v1/categories/tree
+    success_status: 200
     summary:
       text:
         en: Show the tree of categories (only what you may see)
@@ -33,6 +35,7 @@ actions:
     category: CATEGORY_ACTION
     method: GET
     path: /api/v1/categories/{id}
+    success_status: 200
     summary:
       text:
         en: Show a category with its elements
@@ -50,6 +53,7 @@ actions:
     category: CATEGORY_ACTION
     method: POST
     path: /api/v1/categories
+    success_status: 201
     summary:
       text:
         en: Create a category (needs manage on the parent as well)
@@ -63,6 +67,11 @@ actions:
         as: member
         body_json: '{"titles": {"en": "Example ${unique}"}}'
         status: 201
+      - name: sub
+        given: ['core.categories.create#default']
+        as: admin
+        body_json: '{"titles": {"en": "Sub ${unique}"}, "parent_id": ${given.core.categories.create#default.id}}'
+        status: 201
       - name: second
         as: member
         body_json: '{"titles": {"en": "Second ${unique}"}}'
@@ -71,6 +80,7 @@ actions:
     category: CATEGORY_ACTION
     method: PUT
     path: /api/v1/categories/{id}
+    success_status: 200
     summary:
       text:
         en: "Change a category (texts, settings, display)"
@@ -98,6 +108,7 @@ actions:
     category: CATEGORY_ACTION
     method: DELETE
     path: /api/v1/categories/{id}
+    success_status: 204
     summary:
       text:
         en: Move a category to the trash (needs manage on it as well)
@@ -116,6 +127,7 @@ actions:
     category: CATEGORY_ACTION
     method: POST
     path: /api/v1/categories/{id}/move
+    success_status: 200
     summary:
       text:
         en: Move a category to another parent or position
@@ -134,6 +146,7 @@ actions:
     category: CATEGORY_ACTION
     method: POST
     path: /api/v1/categories/{id}/duplicate
+    success_status: 201
     summary:
       text:
         en: Duplicate a category with its elements
@@ -152,6 +165,7 @@ actions:
     category: CATEGORY_ACTION
     method: POST
     path: /api/v1/categories/{id}/reorder
+    success_status: 204
     summary:
       text:
         en: Change the order of the subcategories and elements
@@ -171,6 +185,7 @@ actions:
     category: CATEGORY_ACTION
     method: PUT
     path: /api/v1/categories/{id}/space
+    success_status: 200
     summary:
       text:
         en: Make a category a space or change its space settings
@@ -193,6 +208,7 @@ actions:
     category: CATEGORY_ACTION
     method: POST
     path: /api/v1/categories/{id}/archive
+    success_status: 200
     summary:
       text:
         en: Archive a space or take it out of the archive
@@ -211,6 +227,7 @@ actions:
     category: CATEGORY_ACTION
     method: PUT
     path: /api/v1/categories/{id}/translations/{lang}
+    success_status: 200
     summary:
       text:
         en: Translate the texts of a category
@@ -229,6 +246,7 @@ actions:
     category: CATEGORY_ACTION
     method: GET
     path: /api/v1/categories/{id}/acl
+    success_status: 200
     summary:
       text:
         en: List the permission rules of a category
@@ -250,6 +268,7 @@ actions:
     category: CATEGORY_ACTION
     method: POST
     path: /api/v1/categories/{id}/acl
+    success_status: 201
     summary:
       text:
         en: Add a permission rule to a category
@@ -279,6 +298,7 @@ actions:
     category: CATEGORY_ACTION
     method: PUT
     path: /api/v1/acl/{id}
+    success_status: 200
     summary:
       text:
         en: Change a permission rule (needs manage on its category)
@@ -297,6 +317,7 @@ actions:
     category: CATEGORY_ACTION
     method: DELETE
     path: /api/v1/acl/{id}
+    success_status: 204
     summary:
       text:
         en: Remove a permission rule (needs manage on its category)
@@ -315,6 +336,7 @@ actions:
     category: CATEGORY_ACTION
     method: GET
     path: /api/v1/categories/{id}/history
+    success_status: 200
     summary:
       text:
         en: Show the change history of a category
@@ -331,12 +353,15 @@ actions:
     category: CATEGORY_ACTION
     method: POST
     path: /api/v1/categories/{id}/rollback
+    success_status: 200
     summary:
       text:
         en: Set a category with its elements back to an earlier point in time (needs edit and delete)
         de: Kategorie mit ihren Elementen auf einen früheren Zeitpunkt zurücksetzen (braucht Bearbeiten und Löschen)
     permission: {key: core.category.delete, scope: SCOPE_CATEGORY, category_param: "id"}
     safety: {changes: true}
+    body:
+      json: '{"type": "object", "required": ["at"], "properties": {"at": {"type": "string"}, "recursive": {"type": "boolean"}, "structure": {"type": "boolean"}}}'
     cli: {command: [category, rollback], args: [id]}
     ui: {entry: /c/:id/settings}
     examples:
@@ -345,10 +370,24 @@ actions:
         as: admin
         path_params_json: '{"id": "${given.core.categories.create#default.id}"}'
         body_json: '{"at": "2026-01-01T00:00:00Z"}'
+      # with the structure: the subcategory created later goes to the trash
+      - name: structure
+        given: ['core.categories.create#sub']
+        as: admin
+        path_params_json: '{"id": "${given.core.categories.create#sub.parent_id}"}'
+        body_json: '{"at": "2026-01-01T00:00:00Z", "recursive": true, "structure": true}'
+        expect_json: '{"categories_trashed": 1}'
+      - name: structure_needs_recursive
+        given: ['core.categories.create#default']
+        as: admin
+        path_params_json: '{"id": "${given.core.categories.create#default.id}"}'
+        body_json: '{"at": "2026-01-01T00:00:00Z", "structure": true}'
+        status: 400
   - id: core.categories.export
     category: CATEGORY_ACTION
     method: GET
     path: /api/v1/categories/{id}/export
+    success_status: 200
     summary:
       text:
         en: Export a category with its elements and files (needs manage)
@@ -365,6 +404,7 @@ actions:
     category: CATEGORY_ACTION
     method: POST
     path: /api/v1/categories/import
+    success_status: 201
     summary:
       text:
         en: Import an exported category
@@ -383,6 +423,7 @@ actions:
     category: CATEGORY_ACTION
     method: GET
     path: /api/v1/categories/{id}/insights
+    success_status: 200
     summary:
       text:
         en: Show views and activity of a category
@@ -399,6 +440,7 @@ actions:
     category: CATEGORY_ACTION
     method: GET
     path: /api/v1/categories/{id}/access-requests
+    success_status: 200
     summary:
       text:
         en: List the open access requests of a category
@@ -418,6 +460,7 @@ actions:
     category: CATEGORY_ACTION
     method: GET
     path: /api/v1/elements
+    success_status: 200
     summary:
       text:
         en: List elements with filters (only what you may see)
@@ -432,6 +475,7 @@ actions:
     category: CATEGORY_ACTION
     method: GET
     path: /api/v1/elements/{id}
+    success_status: 200
     summary:
       text:
         en: Show an element
@@ -449,6 +493,7 @@ actions:
     category: CATEGORY_ACTION
     method: POST
     path: /api/v1/elements
+    success_status: 201
     summary:
       text:
         en: Create an element in a category
@@ -515,6 +560,7 @@ actions:
     category: CATEGORY_ACTION
     method: PUT
     path: /api/v1/elements/{id}
+    success_status: 200
     summary:
       text:
         en: Save an element (new version)
@@ -534,6 +580,7 @@ actions:
     category: CATEGORY_ACTION
     method: PATCH
     path: /api/v1/elements/{id}
+    success_status: 200
     summary:
       text:
         en: "Change single fields of an element (title, tags, properties)"
@@ -553,6 +600,7 @@ actions:
     category: CATEGORY_ACTION
     method: DELETE
     path: /api/v1/elements/{id}
+    success_status: 204
     summary:
       text:
         en: Move an element to the trash
@@ -571,6 +619,7 @@ actions:
     category: CATEGORY_ACTION
     method: POST
     path: /api/v1/elements/{id}/move
+    success_status: 200
     summary:
       text:
         en: Move an element to another category
@@ -589,6 +638,7 @@ actions:
     category: CATEGORY_ACTION
     method: POST
     path: /api/v1/elements/{id}/duplicate
+    success_status: 201
     summary:
       text:
         en: Duplicate an element
@@ -608,6 +658,7 @@ actions:
     category: CATEGORY_ACTION
     method: POST
     path: /api/v1/elements/{id}/restore
+    success_status: 200
     summary:
       text:
         en: Restore an earlier version of an element
@@ -626,6 +677,7 @@ actions:
     category: CATEGORY_ACTION
     method: POST
     path: /api/v1/elements/{id}/view
+    success_status: 204
     summary:
       text:
         en: Count a view of an element (for insights)
@@ -643,6 +695,7 @@ actions:
     category: CATEGORY_ACTION
     method: GET
     path: /api/v1/elements/{id}/revisions
+    success_status: 200
     summary:
       text:
         en: List the versions of an element
@@ -659,6 +712,7 @@ actions:
     category: CATEGORY_ACTION
     method: GET
     path: /api/v1/elements/{id}/revisions/{lang}/{rev}
+    success_status: 200
     summary:
       text:
         en: Show one version of an element
@@ -675,6 +729,7 @@ actions:
     category: CATEGORY_ACTION
     method: GET
     path: /api/v1/elements/{id}/macro/{index}
+    success_status: 200
     summary:
       text:
         en: Render one macro of an element again (live content)
@@ -691,6 +746,7 @@ actions:
     category: CATEGORY_ACTION
     method: POST
     path: /api/v1/elements/preview
+    success_status: 200
     summary:
       text:
         en: Show how a text will look (preview while editing)
@@ -707,6 +763,7 @@ actions:
     category: CATEGORY_ACTION
     method: GET
     path: /api/v1/drafts
+    success_status: 200
     summary:
       text:
         en: List your drafts
@@ -721,6 +778,7 @@ actions:
     category: CATEGORY_ACTION
     method: GET
     path: /api/v1/drafts/{id}
+    success_status: 200
     summary:
       text:
         en: Show one of your drafts
@@ -737,6 +795,7 @@ actions:
     category: CATEGORY_ACTION
     method: POST
     path: /api/v1/drafts
+    success_status: 201
     summary:
       text:
         en: Create a draft
@@ -755,6 +814,7 @@ actions:
     category: CATEGORY_ACTION
     method: PUT
     path: /api/v1/drafts/{id}
+    success_status: 200
     summary:
       text:
         en: Save a draft
@@ -773,6 +833,7 @@ actions:
     category: CATEGORY_ACTION
     method: DELETE
     path: /api/v1/drafts/{id}
+    success_status: 204
     summary:
       text:
         en: Delete a draft
@@ -791,6 +852,7 @@ actions:
     category: CATEGORY_ACTION
     method: POST
     path: /api/v1/drafts/{id}/publish
+    success_status: 200
     summary:
       text:
         en: Publish a draft now or at a time (needs create or edit in the category)
@@ -814,6 +876,7 @@ actions:
     category: CATEGORY_ACTION
     method: DELETE
     path: /api/v1/drafts/{id}/schedule
+    success_status: 204
     summary:
       text:
         en: Cancel the planned publication of a draft
@@ -831,6 +894,7 @@ actions:
     category: CATEGORY_ACTION
     method: GET
     path: /api/v1/templates
+    success_status: 200
     summary:
       text:
         en: List the templates you may use
@@ -845,6 +909,7 @@ actions:
     category: CATEGORY_ACTION
     method: GET
     path: /api/v1/templates/{id}
+    success_status: 200
     summary:
       text:
         en: Show a template
@@ -861,6 +926,7 @@ actions:
     category: CATEGORY_ACTION
     method: POST
     path: /api/v1/templates
+    success_status: 201
     summary:
       text:
         en: Create a template (category templates need manage on the category)
@@ -878,6 +944,7 @@ actions:
     category: CATEGORY_ACTION
     method: PUT
     path: /api/v1/templates/{id}
+    success_status: 200
     summary:
       text:
         en: Change a template
@@ -896,6 +963,7 @@ actions:
     category: CATEGORY_ACTION
     method: DELETE
     path: /api/v1/templates/{id}
+    success_status: 204
     summary:
       text:
         en: Delete a template
@@ -914,6 +982,7 @@ actions:
     category: CATEGORY_ACTION
     method: GET
     path: /api/v1/spaces
+    success_status: 200
     summary:
       text:
         en: List the spaces (only what you may see)
@@ -928,6 +997,7 @@ actions:
     category: CATEGORY_ACTION
     method: GET
     path: /api/v1/spaces/{key}
+    success_status: 200
     summary:
       text:
         en: Find a space by its key
@@ -944,6 +1014,7 @@ actions:
     category: CATEGORY_ACTION
     method: POST
     path: /api/v1/spaces
+    success_status: 201
     summary:
       text:
         en: Create a space from a category or a template (needs manage or category administration)
@@ -961,6 +1032,7 @@ actions:
     category: CATEGORY_ACTION
     method: POST
     path: /api/v1/spaces/personal
+    success_status: 201
     summary:
       text:
         en: Create your personal space
@@ -976,6 +1048,7 @@ actions:
     category: CATEGORY_ACTION
     method: GET
     path: /api/v1/trash
+    success_status: 200
     summary:
       text:
         en: List the trash (only what you may see)
@@ -990,6 +1063,7 @@ actions:
     category: CATEGORY_ACTION
     method: POST
     path: /api/v1/trash/{type}/{id}/restore
+    success_status: 204
     summary:
       text:
         en: Restore a category or an element from the trash
@@ -1007,6 +1081,7 @@ actions:
     category: CATEGORY_ACTION
     method: DELETE
     path: /api/v1/trash/{type}/{id}
+    success_status: 204
     summary:
       text:
         en: Delete for good from the trash
@@ -1024,6 +1099,7 @@ actions:
     category: CATEGORY_ACTION
     method: GET
     path: /api/v1/search
+    success_status: 200
     summary:
       text:
         en: Search the wiki (only what you may see)
@@ -1039,6 +1115,7 @@ actions:
     category: CATEGORY_ACTION
     method: GET
     path: /api/v1/tags
+    success_status: 200
     summary:
       text:
         en: List tags with their count (only what you may see)
@@ -1053,6 +1130,7 @@ actions:
     category: CATEGORY_ACTION
     method: GET
     path: /api/v1/i18n/status
+    success_status: 200
     summary:
       text:
         en: Show how complete every language is
@@ -1067,6 +1145,7 @@ actions:
     category: CATEGORY_ACTION
     method: GET
     path: /api/v1/i18n/{lang}
+    success_status: 200
     summary:
       text:
         en: Texts of the interface in one language
@@ -1082,6 +1161,7 @@ actions:
     category: CATEGORY_ACTION
     method: GET
     path: /api/v1/files/{hash}
+    success_status: 200
     summary:
       text:
         en: Show an image embedded in a page (only what you may see)
@@ -1098,6 +1178,7 @@ actions:
     category: CATEGORY_ACTION
     method: POST
     path: /api/v1/files
+    success_status: 201
     summary:
       text:
         en: Upload a file for an element
@@ -1120,6 +1201,7 @@ actions:
     category: CATEGORY_ACTION
     method: GET
     path: /api/v1/feeds/categories/{id}
+    success_status: 200
     summary:
       text:
         en: Feed of a category (RSS/Atom; with the personal feed link also for private content)
@@ -1135,6 +1217,7 @@ actions:
     category: CATEGORY_ACTION
     method: GET
     path: /api/v1/prerender
+    success_status: 200
     summary:
       text:
         en: Show the pre-rendered page of a path as guests see it
@@ -1150,6 +1233,7 @@ actions:
     category: CATEGORY_ACTION
     method: GET
     path: /api/v1/media
+    success_status: 200
     summary:
       text:
         en: List the media library (only what you may see)
@@ -1165,6 +1249,7 @@ actions:
     category: CATEGORY_ACTION
     method: POST
     path: /api/v1/media
+    success_status: 201
     summary:
       text:
         en: Upload a file to the media library
@@ -1194,6 +1279,7 @@ actions:
     category: CATEGORY_ACTION
     method: GET
     path: /api/v1/media/{id}
+    success_status: 200
     summary:
       text:
         en: Show a file of the media library
@@ -1210,6 +1296,7 @@ actions:
     category: CATEGORY_ACTION
     method: PATCH
     path: /api/v1/media/{id}
+    success_status: 200
     summary:
       text:
         en: "Change name, description and rights of a file"
@@ -1228,6 +1315,7 @@ actions:
     category: CATEGORY_ACTION
     method: DELETE
     path: /api/v1/media/{id}
+    success_status: 204
     summary:
       text:
         en: Delete a file of the media library
@@ -1246,6 +1334,7 @@ actions:
     category: CATEGORY_ACTION
     method: POST
     path: /api/v1/media/{id}/file
+    success_status: 200
     summary:
       text:
         en: Replace the content of a file (new version)
@@ -1265,6 +1354,7 @@ actions:
     category: CATEGORY_ACTION
     method: POST
     path: /api/v1/media/{id}/edit
+    success_status: 200
     summary:
       text:
         en: "Edit an image (crop, rotate, resize)"
@@ -1283,6 +1373,7 @@ actions:
     category: CATEGORY_ACTION
     method: GET
     path: /api/v1/media/{id}/versions
+    success_status: 200
     summary:
       text:
         en: List the versions of a file
@@ -1299,6 +1390,7 @@ actions:
     category: CATEGORY_ACTION
     method: POST
     path: /api/v1/media/{id}/versions/{v}/restore
+    success_status: 200
     summary:
       text:
         en: Restore an earlier version of a file
@@ -1316,6 +1408,7 @@ actions:
     category: CATEGORY_ACTION
     method: GET
     path: /api/v1/media/{id}/usage
+    success_status: 200
     summary:
       text:
         en: Show where a file is used
@@ -1332,6 +1425,7 @@ actions:
     category: CATEGORY_ACTION
     method: GET
     path: /api/v1/media/{id}/acl
+    success_status: 200
     summary:
       text:
         en: Show who may see and change a file
@@ -1348,6 +1442,7 @@ actions:
     category: CATEGORY_ACTION
     method: GET
     path: /api/v1/media/{id}/download
+    success_status: 200
     summary:
       text:
         en: Download a file of the media library (only what you may see)
@@ -1364,6 +1459,7 @@ actions:
     category: CATEGORY_ACTION
     method: GET
     path: /api/v1/media/{id}/view
+    success_status: 200
     summary:
       text:
         en: Show a file in the browser (only what you may see)
@@ -1380,6 +1476,7 @@ actions:
     category: CATEGORY_ACTION
     method: GET
     path: /api/v1/media/viewers
+    success_status: 200
     summary:
       text:
         en: List the programs that can open files (office servers)
@@ -1394,6 +1491,7 @@ actions:
     category: CATEGORY_ACTION
     method: GET
     path: /api/v1/media/{id}/open
+    success_status: 200
     summary:
       text:
         en: "Show how a file can be opened (viewer, office program)"
@@ -1410,6 +1508,7 @@ actions:
     category: CATEGORY_ACTION
     method: POST
     path: /api/v1/media/{id}/open
+    success_status: 200
     summary:
       text:
         en: Open a file in an office program (view or edit)
@@ -1436,6 +1535,7 @@ actions:
     category: CATEGORY_ACTION
     method: GET
     path: /api/v1/signatures/{id}
+    success_status: 200
     summary:
       text:
         en: Show a signature record
@@ -1452,6 +1552,7 @@ actions:
     category: CATEGORY_ACTION
     method: GET
     path: /api/v1/signatures/{id}/verify
+    success_status: 200
     summary:
       text:
         en: Check a signature record stored in the wiki
@@ -1469,6 +1570,7 @@ actions:
     category: CATEGORY_ACTION
     method: GET
     path: /api/v1/signatures/{id}/export
+    success_status: 200
     summary:
       text:
         en: Export a signature record (for checking elsewhere)
@@ -1485,6 +1587,7 @@ actions:
     category: CATEGORY_ACTION
     method: POST
     path: /api/v1/signatures/verify
+    success_status: 200
     summary:
       text:
         en: Check an exported signature record

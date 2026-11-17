@@ -86,7 +86,7 @@ func TestRegistration(t *testing.T) {
 	var staff, admins struct {
 		ID int64 `json:"id"`
 	}
-	admin.must("POST", "/api/v1/admin/groups", map[string]any{"name": "Staff"}, &staff, 200)
+	admin.must("POST", "/api/v1/admin/groups", map[string]any{"name": "Staff"}, &staff, 201)
 	var roles []struct {
 		ID      int64 `json:"id"`
 		IsAdmin bool  `json:"is_admin"`
@@ -98,7 +98,7 @@ func TestRegistration(t *testing.T) {
 			adminRole = r.ID
 		}
 	}
-	admin.must("POST", "/api/v1/admin/groups", map[string]any{"name": "Admins", "roles": []int64{adminRole}}, &admins, 200)
+	admin.must("POST", "/api/v1/admin/groups", map[string]any{"name": "Admins", "roles": []int64{adminRole}}, &admins, 201)
 	for name, body := range map[string]map[string]any{
 		"admin group":   {"enabled": true, "groups": []int64{admins.ID}},
 		"missing group": {"enabled": true, "groups": []int64{999999}},

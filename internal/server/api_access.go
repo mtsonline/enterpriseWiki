@@ -107,7 +107,7 @@ func (s *Server) routesAccess() {
 			s.log.Warn("access request", "err", err)
 		}
 		// the same answer whether the target exists or not
-		return map[string]any{"sent": true}, nil
+		return h.Accepted{V: map[string]any{"sent": true}}, nil
 	})
 	// GET /api/v1/categories/{id}/access-requests – open requests (Manage)
 	// action: core.categories.access_requests

@@ -281,7 +281,7 @@ func TestWorkflow(t *testing.T) {
 	admin.must("POST", "/api/v1/categories", map[string]any{"titles": map[string]string{"en": "Jobs"}}, &root, 201)
 	admin.must("POST", fmt.Sprintf("/api/v1/categories/%d/acl", root.ID), map[string]any{"subject_type": "authenticated", "permissions": 1, "inherit": true}, nil, 201)
 	var hr idResp
-	admin.must("POST", "/api/v1/admin/groups", map[string]any{"name": "hr"}, &hr, 200)
+	admin.must("POST", "/api/v1/admin/groups", map[string]any{"name": "hr"}, &hr, 201)
 	var ann, bob, carl idResp
 	admin.must("POST", "/api/v1/admin/users", map[string]any{"username": "ann", "password": "Ann-Passw0rd!x", "display_name": "Ann", "groups": []int64{hr.ID}}, &ann, 201)
 	admin.must("POST", "/api/v1/admin/users", map[string]any{"username": "bob", "password": "Bob-Passw0rd!x", "display_name": "Bob"}, &bob, 201)

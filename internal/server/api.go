@@ -423,6 +423,9 @@ func (s *Server) routes() {
 			return nil, err
 		}
 		nid, err := s.app.Auth.SaveGroup(r.Context(), id, in.Name, in.Description, in.Roles)
+		if r.Method == http.MethodPost {
+			return h.Created{V: map[string]int64{"id": nid}}, err
+		}
 		return map[string]int64{"id": nid}, err
 	}
 	// action: core.groups.create
@@ -459,8 +462,8 @@ func (s *Server) routes() {
 			if err != nil {
 				return nil, err
 			}
-			changed, err := s.app.Auth.SetGroupMember(r.Context(), gid, uid, member)
-			return map[string]bool{"changed": changed}, err
+			_, err = s.app.Auth.SetGroupMember(r.Context(), gid, uid, member)
+			return h.NoContent{}, err
 		}
 	}
 	// action: core.groups.members.add
@@ -480,6 +483,9 @@ func (s *Server) routes() {
 			return nil, err
 		}
 		nid, err := s.app.Auth.SaveRole(r.Context(), id, in)
+		if r.Method == http.MethodPost {
+			return h.Created{V: map[string]int64{"id": nid}}, err
+		}
 		return map[string]int64{"id": nid}, err
 	}
 	// global permissions: the declared permissions and the defaults of every signed-in user
@@ -598,7 +604,11 @@ func (s *Server) routes() {
 	})
 	// action: core.spaces.personal
 	s.handle("POST /api/v1/spaces/personal", func(w http.ResponseWriter, r *http.Request) (any, error) {
-		return s.app.Content.CreatePersonalSpace(r.Context())
+		sp, created, err := s.app.Content.CreatePersonalSpace(r.Context())
+		if created {
+			return h.Created{V: sp}, err
+		}
+		return sp, err
 	})
 	// action: core.spaces.get
 	s.handle("GET /api/v1/spaces/{key}", func(w http.ResponseWriter, r *http.Request) (any, error) {
@@ -1212,7 +1222,7 @@ func (s *Server) routes() {
 			return nil, err
 		}
 		s.auditSettings(r, "plugin.sources.add", norm)
-		return config.TrustedSource{Prefix: norm, Note: strings.TrimSpace(in.Note)}, nil
+		return h.Created{V: config.TrustedSource{Prefix: norm, Note: strings.TrimSpace(in.Note)}}, nil
 	})
 	// action: core.plugins.sources.remove
 	s.handle("DELETE /api/v1/admin/plugins/sources", func(w http.ResponseWriter, r *http.Request) (any, error) {
@@ -1400,7 +1410,8 @@ func (s *Server) routes() {
 		if err := requireInstance(r); err != nil { // installed plugins and the process are shared by all sites
 			return nil, err
 		}
-		return s.plugins.StartBuild(r.Context(), "manual")
+		st, err := s.plugins.StartBuild(r.Context(), "manual")
+		return h.Accepted{V: st}, err
 	})
 	// action: core.plugins.restart
 	s.handle("POST /api/v1/admin/restart", func(w http.ResponseWriter, r *http.Request) (any, error) {
@@ -1415,7 +1426,7 @@ func (s *Server) routes() {
 			s.plugins.RestartAll(r.Context()) // one node after the other
 		}
 		s.auditSettings(r, "system.restart", "")
-		return map[string]string{"status": "restarting"}, nil
+		return h.Accepted{V: map[string]string{"status": "restarting"}}, nil
 	})
 }
 

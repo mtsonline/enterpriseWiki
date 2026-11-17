@@ -19,8 +19,8 @@ func TestTeamAndProfile(t *testing.T) {
 	var sales, it struct {
 		ID int64 `json:"id"`
 	}
-	admin.must("POST", "/api/v1/admin/groups", map[string]any{"name": "Sales", "description": "We sell"}, &sales, 200)
-	admin.must("POST", "/api/v1/admin/groups", map[string]any{"name": "IT"}, &it, 200)
+	admin.must("POST", "/api/v1/admin/groups", map[string]any{"name": "Sales", "description": "We sell"}, &sales, 201)
+	admin.must("POST", "/api/v1/admin/groups", map[string]any{"name": "IT"}, &it, 201)
 	var zoe, adam struct {
 		ID int64 `json:"id"`
 	}
