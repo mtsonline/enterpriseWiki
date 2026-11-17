@@ -109,6 +109,32 @@ func TestProviderInstances(t *testing.T) {
 	if secret != "p4rtner" {
 		t.Fatalf("instance secret after save: %q", secret)
 	}
+	// the mask with another issuer is refused: the client secret would go to
+	// the token endpoint of a server nobody entered it for
+	evil := map[string]any{}
+	for k, v := range inst {
+		evil[k] = v
+	}
+	evil["issuer"] = "https://attacker.example.com"
+	moved := map[string]any{}
+	for k, v := range oidc {
+		moved[k] = v
+	}
+	moved["instances"] = []any{evil}
+	if got := admin.do("PUT", "/api/v1/admin/settings", map[string]any{"plugin_settings": map[string]any{"auth.oidc": moved}}, nil); got != 400 {
+		t.Fatalf("masked secret for a changed issuer: %d", got)
+	}
+	_ = e.app.Config.Update(func(c *config.Config) error {
+		in := c.Settings["auth.oidc"]["instances"].([]any)[0].(map[string]any)
+		secret, _ = in["client_secret"].(string)
+		if in["issuer"] == "https://attacker.example.com" {
+			secret = "moved"
+		}
+		return nil
+	})
+	if secret != "p4rtner" {
+		t.Fatalf("refused change stored: %q", secret)
+	}
 	admin.must("POST", "/api/v1/admin/auth/providers/oidc-partner/preview", map[string]any{"username": "dan"}, &pv, 200)
 	if pv.Outcome != "refused" || pv.JIT {
 		t.Fatalf("preview without JIT %+v", pv)

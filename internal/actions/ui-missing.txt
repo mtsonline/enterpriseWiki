@@ -144,14 +144,6 @@ core.users.identities.unlink
 core.watches.assign.add
 core.watches.assign.remove
 core.watches.assign.update
-core.webhooks.create
-core.webhooks.delete
-core.webhooks.get
-core.webhooks.list
-core.webhooks.options
-core.webhooks.retry
-core.webhooks.test
-core.webhooks.update
 example.notice.tones
 macro.shell.add
 macro.shell.approve

@@ -13,6 +13,7 @@ import { mkdtempSync, readFileSync, writeFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import net from 'node:net';
+import http from 'node:http';
 
 const BASE = process.env.EWIKI_E2E_URL ?? 'http://localhost:8080';
 const USER = process.env.EWIKI_E2E_USER ?? 'admin';
@@ -2476,6 +2477,94 @@ test('spaces: settings, own navigation, /s/KEY, directory, archive', async () =>
   await page.locator('.ew-archived').waitFor();
   await a11y('archived space');
   await call('POST', `/api/v1/categories/${top.id}/archive`, { archived: false });
+});
+
+test('webhooks: create with a signing key, signed test delivery, deliveries, send again, edit, delete', async () => {
+  // a receiver of the test: internal addresses need webhooks.allow_private,
+  // set on the server for the browser tests (ci.yml); the wiki refuses them otherwise
+  const got = [];
+  const server = http.createServer((req, res) => {
+    let body = '';
+    req.on('data', (c) => { body += c; });
+    req.on('end', () => { got.push({ headers: req.headers, body }); res.writeHead(204).end(); });
+  });
+  await new Promise((r) => server.listen(0, '127.0.0.1', r));
+  const target = `http://127.0.0.1:${server.address().port}/hook`;
+  const toastOn = (re) => page.locator('.ew-toast', { hasText: re }).first().waitFor();
+  const dialog = () => page.getByRole('dialog');
+  const name = `Hook ${run}`;
+  const delivered = async (n) => {
+    const deadline = Date.now() + 20000;
+    while (got.length < n && Date.now() < deadline) await page.waitForTimeout(100);
+    assert.ok(got.length >= n, `delivery ${n} arrived`);
+    return got[n - 1];
+  };
+  try {
+    await page.goto(`${BASE}/admin/webhooks`);
+    await idle();
+    await a11y('webhooks');
+    await page.getByRole('button', { name: /^(new webhook|neuer webhook)$/i }).click();
+    await dialog().getByLabel(/^name/i).fill(name);
+    await dialog().getByLabel(/^(address \(url\)|adresse \(url\))/i).fill(target);
+    // a signing key is offered for the JSON format
+    await dialog().getByLabel(/^format/i).selectOption('json');
+    await dialog().getByLabel(/^(signing key|signaturschlüssel)/i).selectOption('generate');
+    await dialog().getByRole('button', { name: /^(save|speichern)$/i }).click();
+    await toastOn(/webhook saved|webhook gespeichert/i);
+    // the key is shown once
+    const shown = await page.getByRole('dialog').locator('code').innerText();
+    const key = /([0-9a-f]{32,})\s*$/.exec(shown)?.[1];
+    assert.ok(key, `signing key shown once: ${shown}`);
+    await page.getByRole('dialog').getByRole('button', { name: /^(close|schließen)$/i }).first().click();
+    await page.getByRole('rowheader', { name: new RegExp(`^${name}\\b`) }).waitFor();
+    assert.equal((await page.content()).includes(key), false, 'the key is not shown again');
+
+    // test delivery, signed with the key
+    await page.getByRole('button', { name: new RegExp(`^(send test|test senden): ${name}$`, 'i') }).click();
+    await toastOn(/sending a test message|testnachricht wird gesendet/i);
+    const first = await delivered(1);
+    const sig = createHmac('sha256', key).update(first.body).digest('hex');
+    assert.equal(first.headers['x-ewiki-signature'], `sha256=${sig}`, 'signature of the body');
+    assert.ok(first.headers['x-ewiki-delivery'], 'delivery id');
+
+    // the deliveries, one sent again
+    await page.waitForTimeout(500);
+    await page.getByRole('button', { name: new RegExp(`^(deliveries|zustellungen): ${name}$`, 'i') }).click();
+    const retry = dialog().getByRole('button', { name: /^(send again|erneut senden)/i }).first();
+    await retry.waitFor();
+    await a11y('webhook deliveries');
+    await retry.click();
+    await toastOn(/sending again|wird erneut gesendet/i);
+    const again = await delivered(2);
+    assert.equal(again.body, first.body, 'the same message again');
+
+    // edit: no longer active
+    await page.goto(`${BASE}/admin/webhooks`);
+    await idle();
+    await page.getByRole('button', { name: new RegExp(`^(edit|bearbeiten): ${name}$`, 'i') }).click();
+    await dialog().getByRole('checkbox', { name: /^(active|aktiv)$/i }).uncheck();
+    await dialog().getByRole('button', { name: /^(save|speichern)$/i }).click();
+    await toastOn(/webhook saved|webhook gespeichert/i);
+    const hooks = (await call('GET', '/api/v1/admin/webhooks')).webhooks;
+    assert.equal(hooks.find((h) => h.name === name).enabled, false);
+
+    // account events for webhooks with all events: switched on and off again
+    const accounts = page.getByRole('checkbox', { name: /also send changes of accounts|änderungen an konten auch/i });
+    const was = await accounts.isChecked();
+    await accounts.setChecked(!was);
+    await toastOn(/^(saved\.|gespeichert\.)$/i);
+    await page.locator('.ew-toast').evaluateAll((els) => els.forEach((e) => e.remove()));
+    await accounts.setChecked(was);
+    await toastOn(/^(saved\.|gespeichert\.)$/i);
+
+    // delete
+    await page.getByRole('button', { name: new RegExp(`^(delete|löschen): ${name}$`, 'i') }).click();
+    await page.getByRole('dialog').getByRole('button', { name: /^(delete|löschen)$/i }).click();
+    await toastOn(/webhook deleted|webhook gelöscht/i);
+    await page.getByRole('rowheader', { name: new RegExp(`^${name}\\b`) }).waitFor({ state: 'detached' });
+  } finally {
+    server.close();
+  }
 });
 
 test('users, groups and roles: created in the administration, the permissions take effect', async () => {

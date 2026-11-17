@@ -3,6 +3,7 @@ package server
 import (
 	"cmp"
 	"context"
+	"fmt"
 	"io"
 	"time"
 
@@ -98,23 +99,74 @@ func checkInstances(m map[string]any) error {
 	return nil
 }
 
+// errSecretAgain refuses a masked secret for a changed destination: the
+// stored secret would go to the new address, which the person was never
+// allowed to read it for (the mask hides it from them).
+func errSecretAgain(where string) error {
+	return apperr.BadRequest("%s: the address changed, so enter the secret again (the stored one is not sent to a new address)", where)
+}
+
+// destinationKey reports whether a settings key says where a secret goes.
+func destinationKey(k string) bool {
+	lk := strings.ToLower(k)
+	if lk == "port" || strings.HasSuffix(lk, "_port") {
+		return true
+	}
+	// where it goes and how it is protected on the way
+	for _, w := range []string{"url", "host", "address", "server", "endpoint", "issuer", "domain", "tenant", "realm", "security", "skip_verify", "insecure", "tls"} {
+		if strings.Contains(lk, w) {
+			return true
+		}
+	}
+	return false
+}
+
+// destinationChanged reports whether a destination key of the map differs
+// from the stored one (a key that is new or removed counts as a change).
+func destinationChanged(in, stored map[string]any) bool {
+	for k, v := range in {
+		if destinationKey(k) && !secretKey(k) && fmt.Sprint(v) != fmt.Sprint(stored[k]) {
+			return true
+		}
+	}
+	for k, v := range stored {
+		if _, ok := in[k]; !ok && destinationKey(k) && !secretKey(k) && v != nil && fmt.Sprint(v) != "" {
+			return true
+		}
+	}
+	return false
+}
+
 // keepMasked puts the stored secret back wherever the client sent the mask
-// it was shown. Lists of maps are matched by their "id" (provider
-// instances), so reordering or removing entries keeps the right secrets.
-func keepMasked(in, stored map[string]any) {
+// it was shown – but only while the destination of the secret (address,
+// host, port … of the same map or of a map above) is unchanged. Lists of
+// maps are matched by their "id" (provider instances), so reordering or
+// removing entries keeps the right secrets.
+func keepMasked(in, stored map[string]any, where string) error {
+	return keepMaskedBelow(in, stored, where, false)
+}
+
+func keepMaskedBelow(in, stored map[string]any, where string, moved bool) error {
+	moved = moved || destinationChanged(in, stored)
 	for k, v := range in {
 		switch x := v.(type) {
 		case string:
 			if x == secretMask {
-				if old, ok := stored[k].(string); ok && secretKey(k) {
-					in[k] = old
-				} else {
+				old, ok := stored[k].(string)
+				switch {
+				case !ok || !secretKey(k):
 					delete(in, k) // never store the mask itself
+				case moved && old != "":
+					return errSecretAgain(where + "." + k)
+				default:
+					in[k] = old
 				}
 			}
 		case map[string]any:
 			old, _ := stored[k].(map[string]any)
-			keepMasked(x, old)
+			if err := keepMaskedBelow(x, old, where+"."+k, moved); err != nil {
+				return err
+			}
 		case []any:
 			olds := map[string]map[string]any{}
 			if ol, ok := stored[k].([]any); ok {
@@ -129,11 +181,16 @@ func keepMasked(in, stored map[string]any) {
 			for _, e := range x {
 				if em, ok := e.(map[string]any); ok {
 					id, _ := em["id"].(string)
-					keepMasked(em, olds[id])
+					old := olds[id]
+					// a new entry has no stored secret: the mask is dropped
+					if err := keepMaskedBelow(em, old, where+"."+k+"."+id, moved && old != nil); err != nil {
+						return err
+					}
 				}
 			}
 		}
 	}
+	return nil
 }
 
 // isTrustedProxy reports whether the direct peer is a configured trusted proxy.
