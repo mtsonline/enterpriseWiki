@@ -10,7 +10,7 @@ import { langName } from './widgets';
 import { checkbox, field, select } from './ui';
 
 export interface PermDef { key: string; scope: 'global' | 'category'; label: string; description?: string; presets?: string[]; group: string; implies?: string[] }
-interface Catalog { permissions: PermDef[]; presets: Record<string, { permissions: number; actions: string[] }>; groups: Record<string, string> }
+interface Catalog { permissions: PermDef[]; presets: Record<string, { permissions: number; actions: string[] | null }>; groups: Record<string, string> }
 
 let groupNames: Record<string, string> = {};
 
@@ -75,7 +75,7 @@ export async function ruleEditor(bits: number, actions: string[], opts: { guest?
     const curBits = core.filter((c) => c.cb.input.checked).reduce((a, c) => a | c.p.bit, 0);
     const curActs = acts.filter((a) => a.cb.input.checked).map((a) => a.d.key).sort().join(',');
     for (const [name, p] of Object.entries(cat.presets)) {
-      if (p.permissions === curBits && [...p.actions].sort().join(',') === curActs) return name;
+      if (p.permissions === curBits && [...(p.actions ?? [])].sort().join(',') === curActs) return name;
     }
     return 'custom';
   };
@@ -85,7 +85,7 @@ export async function ruleEditor(bits: number, actions: string[], opts: { guest?
     const p = cat.presets[preset.value];
     if (!p) return;
     for (const c of core) c.cb.input.checked = (p.permissions & c.p.bit) !== 0;
-    for (const a of acts) a.cb.input.checked = p.actions.includes(a.d.key);
+    for (const a of acts) a.cb.input.checked = (p.actions ?? []).includes(a.d.key);
   });
   for (const x of [...core.map((c) => c.cb.input), ...acts.map((a) => a.cb.input)]) x.addEventListener('change', () => { preset.value = presetOf(); });
   if (opts.guest) { // guests may only view

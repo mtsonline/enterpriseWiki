@@ -254,6 +254,15 @@ func (s *Service) Tags(ctx context.Context, prefix string, limit int) ([]TagCoun
 type ACLView struct {
 	Own       []acl.Rule `json:"own"`
 	Inherited []acl.Rule `json:"inherited"`
+	// Users names the people the rules are for, so a manager sees whom a
+	// rule gives access (not only an id).
+	Users map[int64]RuleUser `json:"users"`
+}
+
+// RuleUser is a person a rule is for.
+type RuleUser struct {
+	Handle      string `json:"handle"`
+	DisplayName string `json:"display_name"`
 }
 
 // GetACL returns the rules of a category (requires manage).
@@ -265,7 +274,32 @@ func (s *Service) GetACL(ctx context.Context, id int64) (*ACLView, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &ACLView{own, inh}, nil
+	var ids []int64
+	for _, r := range append(append([]acl.Rule{}, own...), inh...) {
+		if r.SubjectType == "user" && r.SubjectID != nil {
+			ids = append(ids, *r.SubjectID)
+		}
+	}
+	users := map[int64]RuleUser{}
+	if len(ids) > 0 {
+		rows, err := s.pool.Query(ctx, `SELECT id, username || '@' || provider, display_name FROM users WHERE id = ANY($1)`, ids)
+		if err != nil {
+			return nil, err
+		}
+		defer rows.Close()
+		for rows.Next() {
+			var uid int64
+			var u RuleUser
+			if err := rows.Scan(&uid, &u.Handle, &u.DisplayName); err != nil {
+				return nil, err
+			}
+			users[uid] = u
+		}
+		if err := rows.Err(); err != nil {
+			return nil, err
+		}
+	}
+	return &ACLView{Own: own, Inherited: inh, Users: users}, nil
 }
 
 // RuleInput adds or changes a rule.

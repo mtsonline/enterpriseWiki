@@ -241,6 +241,11 @@ actions:
         given: ['core.categories.create#default']
         as: member
         path_params_json: '{"id": "${given.core.categories.create#default.id}"}'
+      # a rule for a person names the person, not only an id
+      - name: user_names
+        given: ['core.categories.acl.add#user_view']
+        path_params_json: '{"id": "${given.core.categories.acl.add#user_view.category_id}"}'
+        expect_json: '{"users": {"${given.core.categories.acl.add#user_view.subject_id}": {"display_name": "Example User"}}}'
   - id: core.categories.acl.add
     category: CATEGORY_ACTION
     method: POST

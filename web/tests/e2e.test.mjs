@@ -2478,6 +2478,261 @@ test('spaces: settings, own navigation, /s/KEY, directory, archive', async () =>
   await call('POST', `/api/v1/categories/${top.id}/archive`, { archived: false });
 });
 
+test('users, groups and roles: created in the administration, the permissions take effect', async () => {
+  const name = `adm${run}`;
+  const pw = 'Adm-Passw0rd-1!';
+  const ctx2 = await browser.newContext({ viewport: { width: 1280, height: 900 }, bypassCSP: true });
+  const p2 = await ctx2.newPage();
+  p2.on('pageerror', (e) => errors.push(`administered user: ${e.message}`));
+  const toastOn = (re) => page.locator('.ew-toast', { hasText: re }).first().waitFor();
+  const clearToasts = () => page.evaluate(() => document.querySelectorAll('.ew-toast').forEach((e) => e.remove()));
+  const audit = () => p2.evaluate(async () => (await __e2eFetch('/api/v1/admin/audit')).status);
+  const signIn = async (p = p2) => {
+    await p.goto(BASE + '/login?local=1');
+    await p.locator('input[name=username]').fill(name);
+    await p.locator('input[type=password]').fill(pw);
+    await p.keyboard.press('Enter');
+    await p.waitForURL((u) => !u.pathname.startsWith('/login'));
+  };
+  const dialog = () => page.getByRole('dialog');
+  const save = async () => { await clearToasts(); await dialog().getByRole('button', { name: /^(save|speichern)$/i }).click(); await toastOn(/^(saved\.|gespeichert\.)$/i); };
+  try {
+    // a role with one global permission
+    await page.goto(`${BASE}/admin/roles`);
+    await idle();
+    await page.getByRole('button', { name: /^(new role|neue rolle)$/i }).click();
+    await dialog().getByLabel(/^name/i).fill(`Auditors ${run}`);
+    await dialog().getByRole('checkbox', { name: /^(view the audit log|protokoll ansehen)/i }).check();
+    await save();
+    await page.getByRole('rowheader', { name: `Auditors ${run}`, exact: true }).waitFor();
+    await a11y('roles');
+    // a group with that role
+    await page.goto(`${BASE}/admin/groups`);
+    await idle();
+    await page.getByRole('button', { name: /^(new group|neue gruppe)$/i }).click();
+    await dialog().getByLabel(/^name/i).fill(`Audit team ${run}`);
+    await dialog().getByRole('checkbox', { name: `Auditors ${run}` }).check();
+    await save();
+    await page.getByRole('rowheader', { name: `Audit team ${run}`, exact: true }).waitFor();
+
+    // a person, created in the administration
+    await page.goto(`${BASE}/admin/users`);
+    await idle();
+    await page.getByRole('button', { name: /^(new user|neuer benutzer)$/i }).click();
+    await dialog().getByLabel(/^(username|benutzername)/i).fill(name);
+    await dialog().getByLabel(/^(display name|anzeigename)/i).fill(`Administered ${run}`);
+    await dialog().getByLabel(/^(password|passwort)/i).fill(pw);
+    await save();
+    await signIn();
+    assert.equal(await audit(), 403, 'no permission yet');
+
+    // member of the group: the permission of its role applies
+    await page.goto(`${BASE}/admin/groups`);
+    await idle();
+    await page.getByRole('button', { name: new RegExp(`^(members of|mitglieder von) Audit team ${run}$`, 'i') }).click();
+    await dialog().getByLabel(/^(add to the group|zur gruppe hinzufügen)/i).selectOption({ label: `${name}@local` });
+    await dialog().getByRole('button', { name: /^(add to the group|zur gruppe hinzufügen)$/i }).click();
+    await dialog().getByRole('button', { name: new RegExp(`^(remove ${name}@local from the group|${name}@local aus der gruppe entfernen)$`, 'i') }).waitFor();
+    await a11y('group members');
+    assert.equal(await audit(), 200, 'the permission of the group role applies');
+    const removed = page.waitForResponse((r) => r.request().method() === 'DELETE' && r.url().includes('/members/'));
+    await dialog().getByRole('button', { name: new RegExp(`^(remove ${name}@local from the group|${name}@local aus der gruppe entfernen)$`, 'i') }).click();
+    assert.ok((await removed).ok(), 'removed');
+    assert.equal(await audit(), 403, 'removed from the group: the permission ends');
+    await dialog().getByRole('button', { name: /^(close|schließen)$/i }).last().click();
+
+    // edit the person: name, user name and the role directly
+    await page.goto(`${BASE}/admin/users${'?q=' + name}`);
+    await idle();
+    await page.getByRole('button', { name: new RegExp(`^(edit ${name}@local|${name}@local bearbeiten)$`, 'i') }).click();
+    await dialog().getByLabel(/^(display name|anzeigename)/i).fill(`Administered renamed ${run}`);
+    await dialog().getByLabel(/^(user name|benutzername)/i).fill(`admalias${run}`);
+    await dialog().getByRole('group', { name: /^(roles|rollen)$/i }).getByRole('checkbox', { name: `Auditors ${run}` }).check();
+    await save();
+    assert.equal(await audit(), 200, 'the role given directly applies');
+    const me = await p2.evaluate(async () => (await (await __e2eFetch('/api/v1/auth/me')).json()).user);
+    assert.equal(me.display_name, `Administered renamed ${run}`);
+
+    // business card of the person
+    await page.getByRole('button', { name: new RegExp(`^(business card|visitenkarte): ${name}@local$`, 'i') }).click();
+    await dialog().getByRole('button', { name: /^(save|speichern)$/i }).waitFor();
+    await save();
+    await dialog().getByRole('button', { name: /^(close|schließen)$/i }).first().click();
+
+    // e-mail addresses and sessions of the person
+    await page.getByRole('button', { name: new RegExp(`^(e-mail & sign-ins|e-mail & anmeldungen): ${name}@local$`, 'i') }).click();
+    const id = dialog();
+    const addMail = async (a) => {
+      await id.getByLabel(/^(add an address|adresse hinzufügen)/i).fill(a);
+      await clearToasts();
+      await id.getByRole('button', { name: /^(add|hinzufügen)$/i }).click();
+      await toastOn(/address added and confirmed|adresse hinzugefügt und bestätigt/i);
+    };
+    await addMail(`adm${run}@example.invalid`);
+    await addMail(`adm${run}-2@example.invalid`);
+    await id.getByRole('button', { name: new RegExp(`^(make primary|als primär festlegen): adm${run}-2@example.invalid$`, 'i') }).click();
+    await toastOn(/primary address changed|primäre adresse geändert/i);
+    await id.getByRole('button', { name: new RegExp(`^(remove|entfernen)`, 'i') }).first().click();
+    await page.getByRole('dialog').filter({ hasText: `adm${run}@example.invalid` }).getByRole('button', { name: /^(remove|entfernen)$/i }).last().click();
+    await toastOn(/address removed|adresse entfernt/i);
+    await a11y('e-mail and sign-ins of a person');
+    // a single session, then all
+    await id.getByRole('button', { name: /^(sign out|abmelden):/i }).first().click();
+    await page.getByRole('dialog').getByRole('button', { name: /^(sign out|abmelden)$/i }).last().click();
+    await toastOn(/session ended|sitzung beendet/i);
+    assert.equal(await p2.evaluate(async () => (await (await __e2eFetch('/api/v1/auth/me')).json()).user), null, 'the session was ended');
+    await signIn();
+    const ctx3 = await browser.newContext({ viewport: { width: 1280, height: 900 }, bypassCSP: true });
+    const p3 = await ctx3.newPage();
+    await signIn(p3); // two sessions
+    await page.getByRole('dialog').getByRole('button', { name: /^(close|schließen)$/i }).first().click();
+    await page.getByRole('button', { name: new RegExp(`^(e-mail & sign-ins|e-mail & anmeldungen): ${name}@local$`, 'i') }).click();
+    await dialog().getByRole('button', { name: /^(end all sessions|alle sitzungen beenden)$/i }).click();
+    await page.getByRole('dialog').getByRole('button', { name: /^(end all sessions|alle sitzungen beenden)$/i }).last().click();
+    await toastOn(/sessions ended|sitzungen beendet/i);
+    for (const p of [p2, p3]) assert.equal(await p.evaluate(async () => (await (await __e2eFetch('/api/v1/auth/me')).json()).user), null, 'all sessions ended');
+    await ctx3.close();
+    await dialog().getByRole('button', { name: /^(close|schließen)$/i }).first().click();
+
+    // overview of the permissions of the person
+    await page.goto(`${BASE}/admin/permissions`);
+    await idle();
+    await a11y('permission overview');
+
+    // the defaults of all signed-in users: changed and set back
+    await page.goto(`${BASE}/admin/roles`);
+    await idle();
+    await page.getByRole('button', { name: /^(edit|bearbeiten): (permissions of all signed-in users|rechte aller angemeldeten benutzer)$/i }).click();
+    await save();
+
+    // delete person, group and role
+    await page.goto(`${BASE}/admin/users${'?q=' + name}`);
+    await idle();
+    await page.getByRole('button', { name: new RegExp(`^(delete ${name}@local|${name}@local löschen)$`, 'i') }).click();
+    await page.getByRole('dialog').getByRole('button', { name: /^(delete|löschen)$/i }).click();
+    await toastOn(/^(deleted\.|gelöscht\.)$/i);
+    for (const [path, label] of [['groups', `Audit team ${run}`], ['roles', `Auditors ${run}`]]) {
+      await page.goto(`${BASE}/admin/${path}`);
+      await idle();
+      await page.getByRole('button', { name: new RegExp(`^(delete ${label}|${label} löschen)$`, 'i') }).click();
+      await page.getByRole('dialog').getByRole('button', { name: /^(delete|löschen)$/i }).click();
+      await page.getByRole('rowheader', { name: label, exact: true }).waitFor({ state: 'detached' });
+    }
+  } finally {
+    await ctx2.close();
+  }
+});
+
+test('category administration: a permission for a person takes effect and ends, order, move, duplicate, history and rollback of texts, insights', async () => {
+  const name = `catu${run}`;
+  const pw = 'Catu-Passw0rd-1!';
+  await call('POST', '/api/v1/admin/users', { username: name, password: pw, display_name: `Cat User ${run}` });
+  const top = (await call('POST', '/api/v1/categories', { titles: { en: `Admin ${run}` } })).id;
+  const one = (await call('POST', '/api/v1/categories', { titles: { en: `One ${run}` }, parent_id: top })).id;
+  const two = (await call('POST', '/api/v1/categories', { titles: { en: `Two ${run}` }, parent_id: top })).id;
+  const ctx2 = await browser.newContext({ viewport: { width: 1280, height: 900 }, bypassCSP: true });
+  const p2 = await ctx2.newPage();
+  p2.on('pageerror', (e) => errors.push(`category user: ${e.message}`));
+  const toastOn = (re) => page.locator('.ew-toast', { hasText: re }).first().waitFor();
+  const sees = async (id) => p2.evaluate(async (id) => (await __e2eFetch(`/api/v1/categories/${id}`)).status, id);
+  try {
+    await p2.goto(BASE + '/login?local=1');
+    await p2.locator('input[name=username]').fill(name);
+    await p2.locator('input[type=password]').fill(pw);
+    await p2.keyboard.press('Enter');
+    await p2.waitForURL((u) => !u.pathname.startsWith('/login'));
+    assert.notEqual(await sees(top), 200, 'no access before the rule');
+
+    // a rule for the person, added in the interface
+    await page.goto(`${BASE}/c/${top}/settings?tab=permissions`);
+    await idle();
+    await page.getByRole('button', { name: /^(add permission|berechtigung hinzufügen)$/i }).click();
+    let dlg = page.getByRole('dialog');
+    await dlg.getByLabel(/^(applies to|gilt für)/i).selectOption('user');
+    const lookup = page.waitForResponse((r) => r.url().includes('/api/v1/users/lookup') && r.ok());
+    await dlg.getByLabel(/^(user|benutzer)$/i).fill(`${name}@local`);
+    await lookup;
+    await dlg.getByRole('button', { name: /^(add permission|berechtigung hinzufügen)$/i }).click();
+    await toastOn(/permission added|berechtigung hinzugefügt/i);
+    // the rule names the person, not only an id
+    const subject = `Cat User ${run} (${name}@local)`;
+    await page.getByRole('rowheader', { name: new RegExp(subject.replace(/[()]/g, '\\$&')) }).waitFor();
+    await a11y('category permissions');
+    assert.equal(await sees(top), 200, 'the rule gives access');
+    assert.equal(await sees(one), 200, 'inherited by subcategories');
+    // change the rule (here: no longer for subcategories)
+    await page.getByRole('button', { name: new RegExp(`^(edit permissions of|rechte von) .*${name}`, 'i') }).click();
+    dlg = page.getByRole('dialog');
+    await dlg.getByRole('checkbox', { name: /also applies to all subcategories|gilt auch für alle unterkategorien/i }).uncheck();
+    await dlg.getByRole('button', { name: /^(save|speichern)$/i }).click();
+    await toastOn(/^(saved\.|gespeichert\.)$/i);
+    assert.equal(await sees(top), 200, 'still on the category itself');
+    assert.notEqual(await sees(one), 200, 'no longer below it');
+    // remove it: the access ends at once
+    await page.getByRole('button', { name: new RegExp(`^(remove rule for|regel für) .*${name}`, 'i') }).click();
+    await page.getByRole('dialog').getByRole('button', { name: /^(remove|entfernen)$/i }).click();
+    await toastOn(/permission removed|berechtigung entfernt/i);
+    assert.notEqual(await sees(top), 200, 'access ends with the rule');
+
+    // insights of the category
+    const insights = page.waitForResponse((r) => r.url().includes(`/api/v1/categories/${top}/insights`) && r.ok());
+    await page.goto(`${BASE}/c/${top}/settings?tab=insights`);
+    await insights;
+    await idle();
+    await a11y('category insights');
+
+    // order of the subcategories (edit mode)
+    await page.goto(`${BASE}/c/${top}`);
+    await idle();
+    const edit = page.locator('.ew-pos--header-tools button[aria-pressed]');
+    if ((await edit.getAttribute('aria-pressed')) !== 'true') await edit.click();
+    await page.getByRole('button', { name: new RegExp(`^(move Two ${run} up|Two ${run} nach oben)$`, 'i') }).click();
+    await toastOn(/order changed|reihenfolge geändert/i);
+    const order = (await call('GET', `/api/v1/categories?parent=${top}`)).map((x) => x.id);
+    assert.deepEqual(order, [two, one], 'new order saved');
+
+    // a point in time to go back to, then a change
+    const before = await page.evaluate(() => { const d = new Date(Date.now() + 1000); const p = (n) => String(n).padStart(2, '0');
+      return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`; });
+    await page.waitForTimeout(1500); // the change below must be later than this point (seconds)
+    await call('PUT', `/api/v1/categories/${one}`, { titles: { en: `One changed ${run}` } });
+
+    // move Two into One, duplicate One to the top level
+    await page.goto(`${BASE}/c/${two}`);
+    await idle();
+    await page.getByRole('button', { name: /^(move|verschieben)$/i }).click();
+    dlg = page.getByRole('dialog');
+    await dlg.locator('select').selectOption(String(one));
+    await dlg.getByRole('button', { name: /^(move|verschieben)$/i }).click();
+    await toastOn(/category moved|kategorie verschoben/i);
+    assert.equal((await call('GET', `/api/v1/categories/${two}`)).category.parent_id, one);
+    await page.goto(`${BASE}/c/${one}`);
+    await idle();
+    await page.getByRole('button', { name: /^(duplicate|duplizieren)$/i }).click();
+    dlg = page.getByRole('dialog');
+    await dlg.locator('select').selectOption(String(top));
+    const duplicated = page.waitForResponse((r) => r.url().endsWith(`/api/v1/categories/${one}/duplicate`) && r.status() < 300);
+    await dlg.getByRole('button', { name: /^(duplicate|duplizieren)$/i }).click();
+    await toastOn(/category duplicated|kategorie dupliziert/i);
+    const copy = (await (await duplicated).json()).id;
+    assert.equal((await call('GET', `/api/v1/categories/${copy}`)).category.parent_id, top);
+
+    // history and rollback to the point in time: the title of One is back
+    await page.goto(`${BASE}/c/${top}/settings?tab=history`);
+    await idle();
+    await page.getByLabel(/^(point in time|zeitpunkt)/i).fill(before);
+    await page.getByRole('button', { name: /^(reset to this point in time|auf diesen zeitpunkt zurücksetzen)$/i }).click();
+    await page.getByRole('dialog').getByRole('button', { name: /^(reset to this point in time|auf diesen zeitpunkt zurücksetzen)$/i }).click();
+    await toastOn(/rollback done|zurückgesetzt/i);
+    assert.equal((await call('GET', `/api/v1/categories/${one}`)).category.titles.en, `One ${run}`, 'title as before');
+    // the structure (moved or new categories) is not part of a rollback, as the help says
+    assert.equal((await call('GET', `/api/v1/categories/${two}`)).category.parent_id, one, 'moves stay');
+    await a11y('category history');
+  } finally {
+    await ctx2.close();
+  }
+});
+
 test('own profile: data, e-mail addresses, notifications, watches, feed key, API keys, SSH keys, sessions, password', async () => {
   const name = `prof${run}`;
   const pw = 'Prof-Passw0rd-1!';

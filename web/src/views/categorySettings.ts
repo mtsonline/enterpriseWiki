@@ -143,19 +143,19 @@ async function permissions(panel: HTMLElement, c: Category): Promise<void> {
     panel.append(h('p', null, t('error.forbidden')));
     return;
   }
-  let acl: { own: Rule[]; inherited: Rule[] };
+  let acl: { own: Rule[]; inherited: Rule[]; users?: Record<string, { handle: string; display_name: string }> };
   let groups: Group[] = [];
   let roles: Role[] = [];
   let defs: PermDef[] = [];
   try {
     let catalog;
-    [acl, groups, roles, catalog] = await Promise.all([api.get<{ own: Rule[]; inherited: Rule[] }>(`categories/${c.id}/acl`), api.get<Group[]>('groups'), api.get<Role[]>('roles'), loadCatalog()]);
+    [acl, groups, roles, catalog] = await Promise.all([api.get<typeof acl>(`categories/${c.id}/acl`), api.get<Group[]>('groups'), api.get<Role[]>('roles'), loadCatalog()]);
     defs = catalog.permissions;
   } catch (e) {
     panel.append(h('p', { role: 'alert' }, errorText(e)));
     return;
   }
-  const users = new Map<number, string>();
+  const users = new Map<number, string>(Object.entries(acl.users ?? {}).map(([id, u]) => [Number(id), u.display_name ? `${u.display_name} (${u.handle})` : u.handle]));
   const subject = (r: Rule): string => {
     switch (r.subject_type) {
       case 'guest': return t('acl.guest');
