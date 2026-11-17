@@ -257,7 +257,7 @@ feeds:
   allow_private: false  # true allows feeds and calendars in the internal network (10.x, 192.168.x, localhost …)
 ```
 
-The feeds of the carousel have their own setting in the plugin (*Administration → Plugins → Carousel*).
+The carousel checks in two stages: `feeds.allow_private` in `config.yaml` decides whether internal addresses may be allowed at all; the carousel setting *Allow feeds on internal addresses* (*Administration → Carousel*) decides whether it uses that permission. Only when both are on does it fetch internal addresses, so nobody can open the internal network through the interface alone. When an address is blocked, the error names the setting that would allow it (also for webhooks, the HTTP macro, workflows and forms).
 
 ### `lists`
 Upper limit for lists from sources (macros news, blog, FAQ, property report …) and for search and filter sources. Below it, editors choose the maximum number and whether to page from a certain number in the macro itself. Also under *Administration → Settings → Lists*.

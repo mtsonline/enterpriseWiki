@@ -7,11 +7,13 @@ import (
 	"github.com/jackc/pgx/v5"
 
 	"github.com/mtsonline/enterprisewiki/internal/feedfetch"
+	"github.com/mtsonline/enterprisewiki/internal/netguard"
 )
 
 // External feeds are fetched every 10 minutes (and when a carousel is
-// saved). Only public addresses are reached unless the plugin setting
-// allow_private is set (netguard); at most 2 MB per feed.
+// saved). Only public addresses are reached unless feeds.allow_private is
+// set in config.yaml and the plugin setting allow_private too (netguard); at
+// most 2 MB per feed.
 
 func (p *Plugin) fetchAll(ctx context.Context) error {
 	rows, err := p.host.DB.Query(ctx, `SELECT `+carCols+` FROM plugin_carousels WHERE enabled AND cardinality(feeds) > 0`)
@@ -31,10 +33,15 @@ func (p *Plugin) fetchAll(ctx context.Context) error {
 }
 
 func (p *Plugin) fetchCarousel(ctx context.Context, c Carousel) error {
-	allowPrivate, _ := p.host.Settings()["allow_private"].(bool)
+	// two stages: config.yaml (feeds.allow_private) decides whether internal
+	// addresses may be allowed at all, the setting of the carousel whether
+	// it uses that permission
+	setting, _ := p.host.Settings()["allow_private"].(bool)
+	allowPrivate := setting && p.host.Config.Get().Feeds.AllowPrivate
 	var firstErr error
 	for _, f := range c.Feeds {
 		items, err := feedfetch.Fetch(ctx, f, allowPrivate)
+		err = netguard.Hint(err, `feeds.allow_private: true in config.yaml together with "Allow feeds on internal addresses" in the carousel settings`)
 		msg := ""
 		if err != nil {
 			msg = err.Error()

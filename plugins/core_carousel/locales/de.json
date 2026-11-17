@@ -64,7 +64,7 @@
  "core.carousel.delete_confirm": "Karussell „{name}“ mit allen Folien löschen?",
  "core.carousel.settings": "Einstellungen",
  "core.carousel.allow_private": "Feeds auf internen Adressen erlauben",
- "core.carousel.allow_private_help": "Nur für Feeds im eigenen Netz (z. B. ein Intranet-Server). Aus Sicherheitsgründen standardmäßig aus.",
+ "core.carousel.allow_private_help": "Nur für Feeds im eigenen Netz (z. B. ein Intranet-Server). Wirkt nur, wenn zusätzlich feeds.allow_private in config.yaml gesetzt ist. Aus Sicherheitsgründen standardmäßig aus.",
  "core.carousel.as_news": "Als Neuigkeit",
  "core.carousel.as_news_in": "Als Neuigkeit in „{name}“ zeigen",
  "core.carousel.news_until": "Angezeigt bis (optional)",
@@ -76,5 +76,6 @@
  "perm.group.core.carousel": "Karussell",
  "core.carousel.sources": "Elemente aus Quellen",
  "core.carousel.sources_help": "Die neuesten Elemente dieser Quellen werden zu Folien (Titel, Zusammenfassung, Vorschaubild). Angezeigt wird nur, was die Betrachtenden lesen dürfen.",
- "core.carousel.feed_items_help": "Pro Feed sowie für alle Quellen zusammen."
+ "core.carousel.feed_items_help": "Pro Feed sowie für alle Quellen zusammen.",
+ "core.carousel.private_off_in_config": "Interne Adressen sind in config.yaml gesperrt (feeds.allow_private). Die Einstellung unten wirkt erst, wenn sie dort erlaubt sind."
 }

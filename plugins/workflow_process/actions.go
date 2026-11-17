@@ -367,7 +367,7 @@ func (pl *Plugin) runHTTP(ctx context.Context, tx pgx.Tx, x *Instance, s *Step) 
 		if asURLError(err, &ue) {
 			err = ue.Err
 		}
-		return result{}, err
+		return result{}, netguard.Hint(err, "plugins.macros.http_allow_private in config.yaml")
 	}
 	defer func() { _ = resp.Body.Close() }()
 	raw, err := io.ReadAll(io.LimitReader(resp.Body, MaxAnswer+1))

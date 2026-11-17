@@ -257,7 +257,7 @@ feeds:
   allow_private: false  # true erlaubt Feeds und Kalender im internen Netz (10.x, 192.168.x, localhost …)
 ```
 
-Die Feeds des Karussells haben eine eigene Einstellung im Plugin (*Administration → Plugins → Karussell*).
+Das Karussell prüft zweistufig: `feeds.allow_private` in `config.yaml` legt fest, ob interne Adressen überhaupt erlaubt werden dürfen; die Einstellung *Feeds auf internen Adressen erlauben* des Karussells (*Administration → Karussell*) entscheidet, ob es diese Erlaubnis nutzt. Nur wenn beide an sind, ruft es interne Adressen ab. So kann niemand über die Oberfläche allein das interne Netz freigeben. Ist eine Adresse gesperrt, nennt die Fehlermeldung die Einstellung, die sie erlauben würde (gilt auch für Webhooks, HTTP-Makro, Workflows und Formulare).
 
 ### `lists`
 Obergrenze für Listen aus Quellen (Makros Neuigkeiten, Blog, FAQ, Eigenschaften-Bericht …) und für Such- und Filterquellen. Bearbeitende wählen darunter beim Makro selbst die Höchstzahl und ob ab einer Anzahl seitenweise geblättert wird. Auch unter *Administration → Einstellungen → Listen*.

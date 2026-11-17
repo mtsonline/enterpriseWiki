@@ -256,7 +256,7 @@ func (p *Plugin) sendWebhook(ctx context.Context, f *Form, cat int64, d *due, ti
 		if errors.As(err, &ue) {
 			err = ue.Err
 		}
-		return err
+		return netguard.Hint(err, "plugins.macros.http_allow_private in config.yaml")
 	}
 	defer func() { _ = resp.Body.Close() }()
 	_, _ = io.Copy(io.Discard, io.LimitReader(resp.Body, 1<<20))

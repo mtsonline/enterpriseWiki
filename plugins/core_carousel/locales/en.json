@@ -64,7 +64,7 @@
  "core.carousel.delete_confirm": "Delete the carousel “{name}” with all its slides?",
  "core.carousel.settings": "Settings",
  "core.carousel.allow_private": "Allow feeds on internal addresses",
- "core.carousel.allow_private_help": "Only for feeds in your own network (e.g. an intranet server). Off by default for security reasons.",
+ "core.carousel.allow_private_help": "Only for feeds in your own network (e.g. an intranet server). Takes effect only if feeds.allow_private is also set in config.yaml. Off by default for security reasons.",
  "core.carousel.as_news": "As news",
  "core.carousel.as_news_in": "Show as news in “{name}”",
  "core.carousel.news_until": "Shown until (optional)",
@@ -76,5 +76,6 @@
  "perm.group.core.carousel": "Carousel",
  "core.carousel.sources": "Elements from sources",
  "core.carousel.sources_help": "The newest elements of these sources become slides (title, summary, preview image). Only elements the viewer may read are shown.",
- "core.carousel.feed_items_help": "Per feed, and for all sources together."
+ "core.carousel.feed_items_help": "Per feed, and for all sources together.",
+ "core.carousel.private_off_in_config": "Internal addresses are blocked in config.yaml (feeds.allow_private). The setting below takes effect only after they are allowed there."
 }

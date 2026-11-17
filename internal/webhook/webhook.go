@@ -549,7 +549,7 @@ func (s *Service) send(ctx context.Context, d due) (int, string) {
 	}
 	res, err := s.httpClient(d.url).Do(req)
 	if err != nil {
-		msg := err.Error()
+		msg := netguard.Hint(err, "webhooks.allow_private in config.yaml").Error()
 		if len(msg) > 500 {
 			msg = msg[:500]
 		}
