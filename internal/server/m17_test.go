@@ -6,6 +6,8 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+
+	"github.com/mtsonline/enterprisewiki/internal/config"
 )
 
 // TestReactions covers emoji reactions on pages, categories and comments,
@@ -300,6 +302,10 @@ func TestCarousel(t *testing.T) {
 	admin.must("POST", "/api/v1/x/core.carousel/carousels", map[string]any{"name": "Home", "position": "content-top", "feeds": []string{feed.URL + "/rss"}, "enabled": true}, &c, 201)
 	if code := admin.do("POST", fmt.Sprintf("/api/v1/x/core.carousel/carousels/%d/refresh", c.ID), nil, nil); code < 400 {
 		t.Fatalf("internal feed fetched without allow_private: %d", code)
+	}
+	// both stages: config.yaml and the carousel setting (see TestCarouselPrivateFeedsNeedBothStages)
+	if err := e.app.Config.Update(func(x *config.Config) error { x.Feeds.AllowPrivate = true; return nil }); err != nil {
+		t.Fatal(err)
 	}
 	admin.must("PUT", "/api/v1/admin/settings", map[string]any{"plugin_settings": map[string]any{"core.carousel": map[string]any{"allow_private": true}}}, nil, 200)
 	admin.must("POST", fmt.Sprintf("/api/v1/x/core.carousel/carousels/%d/refresh", c.ID), nil, nil, 204)

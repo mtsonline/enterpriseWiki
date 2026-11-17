@@ -140,8 +140,9 @@ jobs:
         run: |
           mkdir -p /tmp/wiki
           ./bin/ewiki setup --non-interactive
-          # the webhook test delivers to a receiver on this machine (refused by default)
+          # the webhook and carousel tests use receivers and feeds on this machine (refused by default)
           ./bin/ewiki config set webhooks.allow_private true
+          ./bin/ewiki config set feeds.allow_private true
           nohup ./bin/ewiki serve > /tmp/wiki/server.log 2>&1 &
           for i in $(seq 1 30); do curl -fs http://localhost:8080/readyz && break; sleep 1; done
       - name: CLI smoke test
