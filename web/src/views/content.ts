@@ -6,7 +6,7 @@ import { navigate, type RouteCtx } from '../core/router';
 import { hasPerm, state } from '../core/state';
 import type { Category, ElementSummary, ElementView, Revision, SpaceInfo } from '../core/types';
 import { toast } from '../core/announce';
-import { button, confirmDialog, errorText, field, formDialog, langFields, loading, openDialog, pageHeader, textArea, textInput, select } from '../components/ui';
+import { button, checkbox, confirmDialog, errorText, field, formDialog, langFields, loading, openDialog, pageHeader, textArea, textInput, select } from '../components/ui';
 import { breadcrumbs, can, categoryPicker, ctx, invalidateTree, langName, setContext, setSpace } from '../components/widgets';
 import { watchButton } from '../components/watch';
 import { shortOnlyBox, shortURLInput } from '../components/shorturl';
@@ -230,7 +230,8 @@ export async function categoryView({ params, main }: RouteCtx): Promise<void> {
         h('a', { href: `/e/${e.id}` }, pick(e.titles, L(), e.original_lang)),
         edit && can('edit') ? [' ', h('a', { href: `/e/${e.id}/edit?lang=${L()}`, class: 'ew-inline-action', 'aria-label': t('element.edit_named', { title: pick(e.titles, L(), e.original_lang) }) }, t('common.edit'))] : null,
         ' ', h('span', { class: 'ew-badge' }, typeLabel(e.type)),
-        e.is_default ? h('span', { class: 'ew-badge ew-badge--info' }, t('element.default')) : null)))));
+        e.is_default ? h('span', { class: 'ew-badge ew-badge--info' }, t('element.default')) : null,
+        e.hidden ? h('span', { class: 'ew-badge ew-badge--warn' }, t('element.hidden_badge')) : null)))));
   }
   if (subs.length) {
     view.append(h('section', { class: 'ew-section', 'aria-labelledby': 'ew-subs-title' },
@@ -476,6 +477,7 @@ export async function elementView({ params, main }: RouteCtx): Promise<void> {
       actions.length ? h('div', { class: 'ew-actions', role: 'group', 'aria-label': t('common.actions') }, ...actions) : null),
     classificationNotice(cat.category),
     archivedNotice(cat.category),
+    el.hidden && el.permissions?.includes('edit') ? h('p', { class: 'ew-notice ew-notice--info', role: 'note' }, t('element.hidden_note')) : null,
     fallbackNotice(el),
     edit ? translationPanel(el) : null,
     topExtensions,
@@ -495,9 +497,10 @@ function tagsDialog(el: ElementView): void {
   const short = shortURLInput(el.short_url);
   const only = shortOnlyBox(!!el.short_only);
   const img = previewImageInput(el.preview_image ?? '', { candidates: imagesOf(el.html) });
+  const hidden = checkbox(t('element.hidden'), !!el.hidden, { help: t('element.hidden_help') });
   formDialog(t('element.properties'), [field(t('common.tags'), input, { help: t('common.tags_help') }),
-    field(t('shorturl.label'), short, { help: t('shorturl.help', { origin: location.origin }) }), only.el, img.el], t('common.save'), async () => {
-    await api.patch(`elements/${el.id}`, { tags: splitTags(input.value), short_url: short.value, short_only: only.input.checked, preview_image: img.value() });
+    field(t('shorturl.label'), short, { help: t('shorturl.help', { origin: location.origin }) }), only.el, hidden.el, img.el], t('common.save'), async () => {
+    await api.patch(`elements/${el.id}`, { tags: splitTags(input.value), short_url: short.value, short_only: only.input.checked, preview_image: img.value(), hidden: hidden.input.checked });
     toast(t('common.saved'));
     navigate(location.pathname, { replace: true });
   });

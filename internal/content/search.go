@@ -102,7 +102,7 @@ func (s *Service) SearchIn(ctx context.Context, q string, tags []string, lang st
 				ts_headline('simple', left(d.body_text, 20000), q, 'StartSel=⟦, StopSel=⟧, MaxFragments=2, MaxWords=24, MinWords=8, FragmentDelimiter=" … "'),
 				e.tags, ts_rank(d.tsv, q)
 			FROM search_docs d JOIN elements e ON e.id = d.element_id, to_tsquery('simple', $1) q
-			WHERE d.tsv @@ q AND e.deleted_at IS NULL AND (cardinality($2::text[]) = 0 OR e.tags @> $2)
+			WHERE d.tsv @@ q AND e.deleted_at IS NULL AND NOT e.hidden AND (cardinality($2::text[]) = 0 OR e.tags @> $2)
 				AND ($4::bigint[] IS NULL OR d.category_id = ANY($4))
 				AND ($5::bigint[] IS NULL OR d.category_id IN (SELECT unnest($5::bigint[])))
 				AND ($4::bigint[] IS NOT NULL OR NOT EXISTS (SELECT 1 FROM categories hc JOIN categories hx ON hx.id = d.category_id WHERE (hc.hidden OR hc.archived_at IS NOT NULL OR hc.classification >= 3) AND hx.path <@ hc.path)) -- hidden categories only when searched explicitly
@@ -110,7 +110,7 @@ func (s *Service) SearchIn(ctx context.Context, q string, tags []string, lang st
 	} else {
 		rows, err = s.pool.Query(ctx, `SELECT d.element_id, d.category_id, d.lang, e.type, d.title, left(d.body_text, 200), e.tags, 1::real
 			FROM search_docs d JOIN elements e ON e.id = d.element_id
-			WHERE e.deleted_at IS NULL AND e.tags @> $1 AND ($3::bigint[] IS NULL OR d.category_id = ANY($3))
+			WHERE e.deleted_at IS NULL AND NOT e.hidden AND e.tags @> $1 AND ($3::bigint[] IS NULL OR d.category_id = ANY($3))
 				AND ($4::bigint[] IS NULL OR d.category_id IN (SELECT unnest($4::bigint[])))
 				AND ($3::bigint[] IS NOT NULL OR NOT EXISTS (SELECT 1 FROM categories hc JOIN categories hx ON hx.id = d.category_id WHERE (hc.hidden OR hc.archived_at IS NOT NULL OR hc.classification >= 3) AND hx.path <@ hc.path))
 			ORDER BY e.updated_at DESC, (d.lang = $2) DESC LIMIT 1000`, tags, lang, scope, visible)
@@ -201,7 +201,7 @@ func (s *Service) Tags(ctx context.Context, prefix string, limit int) ([]TagCoun
 		limit = 50
 	}
 	rows, err := s.pool.Query(ctx, `SELECT t.tag, t.cat FROM (
-			SELECT unnest(tags) AS tag, category_id AS cat FROM elements WHERE deleted_at IS NULL
+			SELECT unnest(tags) AS tag, category_id AS cat FROM elements WHERE deleted_at IS NULL AND NOT hidden
 			UNION ALL SELECT unnest(tags), id FROM categories WHERE deleted_at IS NULL) t
 		WHERE t.tag LIKE $1 || '%'`, strings.ToLower(strings.TrimSpace(prefix)))
 	if err != nil {
@@ -470,7 +470,7 @@ func (s *Service) Recent(ctx context.Context, category int64, limit int) ([]Rece
 		limit = 10
 	}
 	rows, err := s.pool.Query(ctx, `SELECT e.id, e.category_id, e.titles, e.updated_at FROM elements e JOIN categories c ON c.id=e.category_id
-		WHERE e.deleted_at IS NULL AND c.deleted_at IS NULL
+		WHERE e.deleted_at IS NULL AND NOT e.hidden AND c.deleted_at IS NULL
 		AND ($1::bigint = 0 OR c.path <@ (SELECT path FROM categories WHERE id=$1::bigint))
 		ORDER BY e.updated_at DESC LIMIT 500`, category)
 	if err != nil {
@@ -522,7 +522,7 @@ func (s *Service) searchExternal(ctx context.Context, b SearchBackend, q string,
 			ids = append(ids, h.ElementID)
 		}
 		rows, err := s.pool.Query(ctx, `SELECT e.id, e.category_id, e.type, e.tags FROM elements e JOIN categories c ON c.id=e.category_id
-			WHERE e.id = ANY($1) AND e.deleted_at IS NULL AND c.deleted_at IS NULL AND (cardinality($2::text[]) = 0 OR e.tags @> $2)
+			WHERE e.id = ANY($1) AND e.deleted_at IS NULL AND NOT e.hidden AND c.deleted_at IS NULL AND (cardinality($2::text[]) = 0 OR e.tags @> $2)
 				AND NOT EXISTS (SELECT 1 FROM categories hc WHERE (hc.hidden OR hc.archived_at IS NOT NULL OR hc.classification >= 3) AND c.path <@ hc.path)`, ids, tags)
 		if err != nil {
 			return err

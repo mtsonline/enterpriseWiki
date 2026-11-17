@@ -366,6 +366,8 @@ Gelöschte Kategorien (mit allem Inhalt) und Seiten landen im **Papierkorb** (Be
 - Die **Suche** findet Wörter und Wortanfänge in Titeln, Tags und Inhalten aller Sprachen. Treffer sind hervorgehoben.
 - **Tags** vergeben Sie bei Kategorien (Einstellungen) und Seiten (*Tags*). Ein Klick auf einen Tag zeigt alle Inhalte mit diesem Tag. Auf der Suchseite gibt es eine Liste beliebter Tags.
 
+**Unsichtbar** (unter *Eigenschaften* einer Seite) nimmt sie aus Listen, Blogs, FAQs, Makros, Feeds und der Suche; über ihren Link bleibt sie für alle erreichbar, die sie lesen dürfen, und Bearbeitende sehen sie in der Kategorie gekennzeichnet. Unsichtbar ist kein Schutz – dafür gibt es Rechte.
+
 ## Platzierung
 
 Wo Suche, Sprache, Bearbeitungsmodus, Benachrichtigungen, Benutzermenü, Kategoriebaum und die Bausteine von Plugins erscheinen, legt die Verwaltung unter *Administration → Platzierung* fest: je Baustein die Position der Vorlage, die Reihenfolge (Knöpfe ↑ ↓) oder *Nicht anzeigen*; *Pflicht* verhindert Änderungen weiter unten. Wer eine Kategorie verwaltet, ändert das unter *Kategorie-Einstellungen → Platzierung* für sie und ihre Unterkategorien; was dort nicht geändert ist, wird geerbt. Wenn die Verwaltung es erlaubt, ordnet jede Person die Bausteine unter *Mein Profil → Meine Anordnung* für sich selbst an. Das Benutzermenü bleibt immer erreichbar.

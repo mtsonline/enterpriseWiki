@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"html"
 	"io/fs"
+	"slices"
 	"strings"
 
 	"github.com/mtsonline/enterprisewiki/internal/apperr"
@@ -193,6 +194,8 @@ func (Type) Render(ctx context.Context, rc content.RenderContext, raw json.RawMe
 			}
 			if c.Elements {
 				els, err := svc.ListElements(ctx, x.ID)
+				// an overview is a listing: hidden elements are left out (also for editors)
+				els = slices.DeleteFunc(els, func(e content.Element) bool { return e.Hidden })
 				if err == nil && len(els) > 0 {
 					b.WriteString(`<ul class="ewo-elements">`)
 					for i, e := range els {

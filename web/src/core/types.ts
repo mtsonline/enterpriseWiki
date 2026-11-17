@@ -214,6 +214,8 @@ export interface ElementSummary {
   short_url: string;
   short_only?: boolean;
   preview_image: string;
+  /** not in listings, sources, feeds and the search (reachable by its link) */
+  hidden?: boolean;
 }
 
 export interface LangStatus {

@@ -366,6 +366,8 @@ Deleted categories (with all content) and pages end up in the **trash** (user me
 - The **search** finds words and word beginnings in titles, tags and content of all languages. Hits are highlighted.
 - You assign **tags** to categories (settings) and pages (*Tags*). A click on a tag shows all content with this tag. On the search page there is a list of popular tags.
 
+**Hidden** (under *Properties* of a page) takes it out of lists, blogs, FAQs, macros, feeds and the search; it stays reachable by its link for everybody who may read it, and editors see it marked in the category. Hidden is not a protection – use permissions for that.
+
 ## Placement
 
 Where search, language, edit mode, notifications, user menu, category tree and the building blocks of plugins appear is set by the administration under *Administration → Placement*: per block the position of the template, the order (buttons ↑ ↓) or *Not shown*; *Required* prevents changes further down. Whoever manages a category changes this under *Category settings → Placement* for it and its subcategories; what is not changed there is inherited. If the administration allows it, every person arranges the blocks for themselves under *My profile → My arrangement*. The user menu always stays reachable.

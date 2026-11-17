@@ -678,6 +678,12 @@ actions:
         path_params_json: '{"id": "${given.core.elements.create#default.id}"}'
         body_json: '{"tags": ["example"]}'
         expect_json: '{"tags": ["example"]}'
+      - name: hidden
+        given: ['core.elements.create#default']
+        as: member
+        path_params_json: '{"id": "${given.core.elements.create#default.id}"}'
+        body_json: '{"hidden": true}'
+        expect_json: '{"hidden": true}'
   - id: core.elements.delete
     category: CATEGORY_ACTION
     method: DELETE
