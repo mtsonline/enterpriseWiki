@@ -31,6 +31,11 @@ func RemoveRefs(ctx context.Context, tx db.Querier, elements, categories []int64
 	if len(elements) == 0 && len(categories) == 0 {
 		return nil
 	}
+	// placements of the categories and instances that go away
+	if _, err := tx.Exec(ctx, `DELETE FROM placements WHERE (level='category' AND target = ANY($1::bigint[]::text[])) OR (level='instance' AND target = ANY($2::bigint[]::text[]))`,
+		categories, elements); err != nil {
+		return err
+	}
 	exists := func(t string) (bool, error) {
 		var ok bool
 		err := tx.QueryRow(ctx, `SELECT to_regclass($1) IS NOT NULL`, t).Scan(&ok)

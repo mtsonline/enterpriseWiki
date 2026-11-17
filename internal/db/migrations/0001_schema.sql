@@ -498,6 +498,24 @@ CREATE TABLE instance_rules (
 );
 CREATE INDEX instance_rules_element ON instance_rules(element_id);
 
+-- where the building blocks of the interface (search, notifications,
+-- category tree, buttons of plugins …) appear: one row places a block at a
+-- position of the template (empty position: not shown at this level). The
+-- rows of a level replace those of the levels above for the same block:
+-- template, site, category (and its subcategories), instance, user.
+CREATE TABLE placements (
+    id         bigserial PRIMARY KEY,
+    level      text NOT NULL CHECK (level IN ('template','site','category','instance','user')),
+    target     text NOT NULL DEFAULT '',   -- template id, '' (site), category, element or user id
+    block      text NOT NULL,
+    position   text NOT NULL DEFAULT '',
+    sort       int NOT NULL DEFAULT 0,
+    required   boolean NOT NULL DEFAULT false, -- lower levels cannot move or remove it (template and site)
+    updated_by bigint REFERENCES users(id) ON DELETE SET NULL,
+    updated_at timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX placements_target ON placements(level, target);
+
 -- who may view a page is part of external search indexes (viewers): a
 -- changed rule sends the pages of the category and everything below again
 CREATE FUNCTION search_changes_acl() RETURNS trigger LANGUAGE plpgsql AS $$

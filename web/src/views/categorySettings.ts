@@ -1,4 +1,5 @@
 // Category settings: texts, default page, permissions, history and rollback.
+import { placementEditor } from '../components/placement';
 import { shortOnlyBox, shortURLInput } from '../components/shorturl';
 import { api } from '../core/api';
 import { newest } from '../core/newest';
@@ -36,7 +37,7 @@ export async function categorySettingsView({ params, query, main }: RouteCtx): P
   const extra = listCategorySettingsTabs().filter((x) => x.visible?.(c) ?? true);
   // top-level categories are spaces
   const isSpace = !c.parent_id && can('manage');
-  const ids = [...TABS.slice(0, 1), ...(isSpace ? ['space'] : []), ...TABS.slice(1), ...(can('manage') ? ['insights'] : []), ...extra.map((x) => x.id)];
+  const ids = [...TABS.slice(0, 1), ...(isSpace ? ['space'] : []), ...TABS.slice(1), ...(can('manage') ? ['placement', 'insights'] : []), ...extra.map((x) => x.id)];
   const tabLabel = (id: string) => extra.find((x) => x.id === id)?.label() ?? t(`category.tab.${id}`);
   const tab = ids.includes(query.get('tab') ?? '') ? query.get('tab')! : 'general';
   const panel = h('div', { class: 'ew-tabpanel', id: 'ew-tabpanel', role: 'region', 'aria-label': tabLabel(tab) });
@@ -49,6 +50,8 @@ export async function categorySettingsView({ params, query, main }: RouteCtx): P
   if (tab === 'general') general(panel, c, data.elements);
   if (tab === 'space' && isSpace) await spaceSettings(panel, c);
   if (tab === 'insights' && can('manage')) await insightsPanel(panel, c);
+  // where the building blocks appear in this category and below
+  if (tab === 'placement' && can('manage')) panel.append(await placementEditor('category', String(c.id)));
   if (tab === 'permissions') await permissions(panel, c);
   if (tab === 'history') await history(panel, c);
   const x = extra.find((e) => e.id === tab);

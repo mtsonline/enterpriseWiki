@@ -71,8 +71,8 @@ function settingsFields(): SettingField[] {
 }
 
 export function register(): void {
-  registerSlot({ id: 'theme.cms.nav', position: 'cms-nav', order: 0, render: mainNav });
-  registerSlot({ id: 'theme.cms.hero', position: 'hero', order: 0, render: hero });
+  registerSlot({ id: 'theme.cms.nav', position: 'cms-nav', order: 0, label: () => t('theme.cms.block_nav'), render: mainNav });
+  registerSlot({ id: 'theme.cms.hero', position: 'hero', order: 0, label: () => t('theme.cms.block_hero'), render: hero });
   registerAdminPage({
     permission: 'core.settings.manage',
     id: 'website', label: () => t('cms.admin_title'), order: 30,

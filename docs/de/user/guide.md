@@ -366,6 +366,10 @@ Gelöschte Kategorien (mit allem Inhalt) und Seiten landen im **Papierkorb** (Be
 - Die **Suche** findet Wörter und Wortanfänge in Titeln, Tags und Inhalten aller Sprachen. Treffer sind hervorgehoben.
 - **Tags** vergeben Sie bei Kategorien (Einstellungen) und Seiten (*Tags*). Ein Klick auf einen Tag zeigt alle Inhalte mit diesem Tag. Auf der Suchseite gibt es eine Liste beliebter Tags.
 
+## Platzierung
+
+Wo Suche, Sprache, Bearbeitungsmodus, Benachrichtigungen, Benutzermenü, Kategoriebaum und die Bausteine von Plugins erscheinen, legt die Verwaltung unter *Administration → Platzierung* fest: je Baustein die Position der Vorlage, die Reihenfolge (Knöpfe ↑ ↓) oder *Nicht anzeigen*; *Pflicht* verhindert Änderungen weiter unten. Wer eine Kategorie verwaltet, ändert das unter *Kategorie-Einstellungen → Platzierung* für sie und ihre Unterkategorien; was dort nicht geändert ist, wird geerbt. Wenn die Verwaltung es erlaubt, ordnet jede Person die Bausteine unter *Mein Profil → Meine Anordnung* für sich selbst an. Das Benutzermenü bleibt immer erreichbar.
+
 ## Berechtigungen einer Kategorie
 
 Mit dem Recht *Verwalten* legen Sie unter *Kategorie-Einstellungen → Berechtigungen* fest, wer was darf: Benutzer, Gruppe, Rolle, alle Angemeldeten oder Gäste. Wählen Sie eine Vorlage (**Leser**, **Kategorie-Editor**, **Kategorie-Manager**) oder einzelne Rechte, auch die Rechte von Plugins (z. B. *Workflows anlegen*). Optional gilt eine Regel auch für alle Unterkategorien. Geerbte Regeln werden mit ihrer Herkunft angezeigt. Details: [docs/de/admin/security.md](../admin/security.md#berechtigungen).

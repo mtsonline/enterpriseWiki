@@ -72,6 +72,7 @@ Languages are added or removed in the interface under *Administration → Langua
 | `editor` | default editor for pages: `visual` (ProseMirror, with live editing) or `simple` (simple input field). Users can choose differently in their profile (`ewiki pref set editor simple --as NAME`). Both store Markdown. | `visual` |
 | `collaboration` | live editing: several people edit a page at the same time in the visual editor (WebSocket `/api/v1/collab/…`, only with edit permission, session and permission are checked every 30 s during the connection). In cluster operation only people connected to the same node see each other – use a reverse proxy with session affinity for `/api/v1/collab/`. | `true` |
 | `preview_image` | preview image for link previews (`og:image`) of pages without an own image: path like `/api/v1/files/<hash>` or an http(s) address, can also be uploaded under *Administration → Settings*. Pages first use their own preview image (*Properties*), then their first image. | empty |
+| `personal_placement` | every signed-in person may arrange the building blocks (search, notifications, category tree …) for themselves (*My profile → My arrangement*). Blocks marked as required stay where they are. The placement for everybody is set under *Administration → Placement*, for a category and its subcategories under *Category settings → Placement*. | `false` |
 
 ### `auth`
 | Key | Meaning | Default |

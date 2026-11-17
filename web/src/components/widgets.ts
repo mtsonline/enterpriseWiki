@@ -1,5 +1,4 @@
 // Core widgets placed into template positions.
-import { notificationBell } from './bell';
 import { api } from '../core/api';
 import { h, uid } from '../core/dom';
 import { loadMessages, pick, t } from '../core/i18n';
@@ -7,7 +6,7 @@ import { navigate, rerender } from '../core/router';
 import { changed, isAdmin, hasPerm, rememberLang, setEditMode, state } from '../core/state';
 import type { Category, SpaceInfo } from '../core/types';
 import { announce, toast } from '../core/announce';
-import { refreshPositions } from '../coreplugin';
+import { refreshPositions, setPlacementContext } from '../coreplugin';
 import { button, errorText } from './ui';
 
 /** Context of the current page (set by category and element views). */
@@ -21,6 +20,7 @@ export const ctx = {
 
 export function setContext(categoryId: number, path: number[], perms: string[] | null, template = ''): void {
   ctx.categoryId = categoryId;
+  setPlacementContext(categoryId);
   ctx.path = path;
   ctx.perms = perms ?? [];
   ctx.template = template;
@@ -139,7 +139,6 @@ export function userMenu(): HTMLElement {
     h('span', { class: 'ew-avatar', 'aria-hidden': 'true' }, name.slice(0, 1).toUpperCase()),
     h('span', null, name));
   const wrap = h('div', { class: 'ew-user-menu' }, toggle, list);
-  const bell = notificationBell();
   const setOpen = (open: boolean) => {
     list.hidden = !open;
     toggle.setAttribute('aria-expanded', String(open));
@@ -157,7 +156,7 @@ export function userMenu(): HTMLElement {
   list.addEventListener('click', (ev) => {
     if ((ev.target as Element).closest('a,button')) setOpen(false);
   });
-  return bell ? h('div', { class: 'ew-user-tools' }, bell, wrap) : wrap;
+  return wrap;
 }
 
 export async function logout(): Promise<void> {

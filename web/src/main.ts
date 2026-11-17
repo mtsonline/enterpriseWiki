@@ -8,7 +8,7 @@ import { mediaView } from './views/media';
 import { signatureVerifyView } from './views/signatures';
 import { officeView } from './components/office';
 import { api, ApiError, setWaitNotice, setWaitPrompt } from './core/api';
-import { errorText, waitDialog } from './components/ui';
+import { errorText, pageHeader, waitDialog } from './components/ui';
 import { toast } from './core/announce';
 import { h, mount } from './core/dom';
 import { loadMessages, t } from './core/i18n';
@@ -17,8 +17,10 @@ import { rememberedLang, state, stored } from './core/state';
 import type { Principal, Site } from './core/types';
 import { categoryTree, ctx, currentSpace, setSpace, editToggle, languageSwitcher, searchBox, userMenu } from './components/widgets';
 import { pluginModules } from './generated/plugins';
-import { positionContainer, refreshPositions, registerPageAction, registerSlot, registerTemplate, resolveTemplate, setShownTemplate } from './coreplugin';
+import { positionContainer, refreshPositions, registerAdminPage, registerPageAction, registerProfileSection, registerSlot, registerTemplate, resolveTemplate, setShownTemplate } from './coreplugin';
 import { instanceRightsButton } from './components/instanceRights';
+import { placementEditor } from './components/placement';
+import { notificationBell } from './components/bell';
 import { adminView } from './views/admin';
 import { registerSourceControls } from './components/sources';
 import { installMacroPager } from './core/pager';
@@ -61,11 +63,16 @@ function registerCore(): void {
   setNotFound(notFoundView);
 
   registerPageAction({ id: 'core.instance-rights', order: 90, render: instanceRightsButton });
-  registerSlot({ id: 'core.search', position: 'header-tools', order: 10, render: searchBox });
-  registerSlot({ id: 'core.lang', position: 'header-tools', order: 20, render: languageSwitcher });
-  registerSlot({ id: 'core.edit', position: 'header-tools', order: 30, render: editToggle });
-  registerSlot({ id: 'core.user', position: 'header-tools', order: 40, render: userMenu });
-  registerSlot({ id: 'core.tree', position: 'sidebar', order: 10, render: categoryTree });
+  registerAdminPage({ id: 'placement', permission: 'core.settings.manage', order: 15, label: () => t('placement.admin'), render: async (panel) => { panel.append(pageHeader(t('placement.admin')), await placementEditor('site', '')); } });
+  registerProfileSection({ id: 'core.placement', order: 60, render: async () => (state.site.personal_placement && state.user ? placementEditor('user', String(state.user.id)) : null) });
+  // building blocks of the core: default positions; the administration,
+  // categories and (if allowed) every person can place them elsewhere
+  registerSlot({ id: 'core.search', position: 'header-tools', order: 10, label: () => t('block.core.search'), render: searchBox });
+  registerSlot({ id: 'core.lang', position: 'header-tools', order: 20, label: () => t('block.core.lang'), render: languageSwitcher });
+  registerSlot({ id: 'core.edit', position: 'header-tools', order: 30, label: () => t('block.core.edit'), render: editToggle });
+  registerSlot({ id: 'core.bell', position: 'header-tools', order: 35, label: () => t('block.core.bell'), render: () => notificationBell() });
+  registerSlot({ id: 'core.user', position: 'header-tools', order: 40, label: () => t('block.core.user'), render: userMenu });
+  registerSlot({ id: 'core.tree', position: 'sidebar', order: 10, label: () => t('block.core.tree'), render: categoryTree });
 
   // Minimal fallback layout, used when no template plugin is active.
   registerTemplate({

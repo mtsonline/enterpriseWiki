@@ -1,0 +1,284 @@
+package content
+
+import (
+	"context"
+	"regexp"
+	"slices"
+	"strconv"
+	"strings"
+	"time"
+
+	"github.com/jackc/pgx/v5"
+
+	"github.com/mtsonline/enterprisewiki/internal/acl"
+	"github.com/mtsonline/enterprisewiki/internal/apperr"
+	"github.com/mtsonline/enterprisewiki/internal/audit"
+	"github.com/mtsonline/enterprisewiki/internal/identity"
+	"github.com/mtsonline/enterprisewiki/internal/limits"
+	"github.com/mtsonline/enterprisewiki/internal/perm"
+)
+
+// Placement puts a building block of the interface (search, notifications,
+// the category tree, a button of a plugin …) at a position of the template.
+// An empty position hides the block at this level. The placements of a
+// level replace those of the levels above for the same block: template,
+// site, category (inherited by subcategories), instance, user.
+type Placement struct {
+	Block    string `json:"block"`
+	Position string `json:"position"`
+	Sort     int    `json:"sort"`
+	// Required: lower levels can neither move nor remove the block
+	// (template and site only).
+	Required bool `json:"required,omitempty"`
+}
+
+// PlacementLevel is the placements of one level and target.
+type PlacementLevel struct {
+	Level      string      `json:"level"`
+	Target     string      `json:"target"`
+	Placements []Placement `json:"placements"`
+	UpdatedAt  *time.Time  `json:"updated_at,omitempty"`
+}
+
+// Placement levels.
+const (
+	LevelTemplate = "template"
+	LevelSite     = "site"
+	LevelCategory = "category"
+	LevelUser     = "user"
+)
+
+var (
+	blockRe    = regexp.MustCompile(`^[a-z0-9][a-z0-9._-]{0,62}\.[a-z0-9_-]{1,40}$`)
+	positionRe = regexp.MustCompile(`^[a-z0-9][a-z0-9-]{0,40}$`)
+)
+
+// pluginOf is the plugin of a block or template id ("workflow.process.tasks"
+// → "workflow.process"; "core.search" → "core").
+func pluginOf(id string) string {
+	if strings.HasPrefix(id, "core.") {
+		return "core"
+	}
+	if i := strings.LastIndexByte(id, '.'); i > 0 {
+		return id[:i]
+	}
+	return id
+}
+
+// knownOwner: the core or an enabled plugin (templates are plugins too).
+func (s *Service) knownOwner(plugin string) bool {
+	return plugin == "core" || (s.enabled != nil && s.enabled(plugin))
+}
+
+// ResolvedPlacements returns the levels that apply to a page: the template
+// (templateID, or the one of the site), the site, the category and its
+// ancestors (from the top; only categories the caller may view) and – if
+// personal placement is switched on – the caller's own. The interface
+// applies them in this order to the blocks it knows.
+func (s *Service) ResolvedPlacements(ctx context.Context, templateID string, categoryID int64) ([]PlacementLevel, error) {
+	type key struct{ level, target string }
+	want := []key{}
+	if templateID == "" {
+		templateID = s.cfg.Get().UI.Template
+	}
+	if templateID != "" {
+		want = append(want, key{LevelTemplate, templateID})
+	}
+	want = append(want, key{LevelSite, ""})
+	if categoryID > 0 {
+		if c, err := s.loadCategory(ctx, s.pool, categoryID, false); err == nil && s.acl.Can(ctx, identity.From(ctx), categoryID, acl.View) {
+			for _, id := range c.Path {
+				want = append(want, key{LevelCategory, strconv.FormatInt(id, 10)})
+			}
+		}
+	}
+	p := identity.From(ctx)
+	if p != nil && p.UserID > 0 && s.cfg.Get().UI.PersonalPlacement {
+		want = append(want, key{LevelUser, strconv.FormatInt(p.UserID, 10)})
+	}
+	levels := make([]string, len(want))
+	targets := make([]string, len(want))
+	for i, k := range want {
+		levels[i], targets[i] = k.level, k.target
+	}
+	rows, err := s.pool.Query(ctx, `SELECT p.level, p.target, p.block, p.position, p.sort, p.required
+		FROM placements p JOIN unnest($1::text[], $2::text[]) AS w(level, target) ON w.level = p.level AND w.target = p.target
+		ORDER BY p.sort, p.id`, levels, targets)
+	if err != nil {
+		return nil, err
+	}
+	byKey := map[key][]Placement{}
+	for rows.Next() {
+		var k key
+		var pl Placement
+		if err := rows.Scan(&k.level, &k.target, &pl.Block, &pl.Position, &pl.Sort, &pl.Required); err != nil {
+			rows.Close()
+			return nil, err
+		}
+		byKey[k] = append(byKey[k], pl)
+	}
+	rows.Close()
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	out := []PlacementLevel{}
+	for _, k := range want {
+		if pls := byKey[k]; len(pls) > 0 {
+			out = append(out, PlacementLevel{Level: k.level, Target: k.target, Placements: pls})
+		}
+	}
+	return out, nil
+}
+
+// requirePlacementLevel checks who may change a level: template and site
+// need the permission to change settings, a category its Manage permission,
+// a user level only the person and only with personal placement on.
+func (s *Service) requirePlacementLevel(ctx context.Context, level, target string) error {
+	p := identity.From(ctx)
+	if p == nil {
+		return apperr.ErrUnauthorized
+	}
+	switch level {
+	case LevelTemplate:
+		known := target == "core.basic" || s.knownOwner(target) // templates are plugins (theme.wiki …)
+		if !blockRe.MatchString(target) || !known {
+			return apperr.BadRequest("unknown template %q", target)
+		}
+		return perm.Require(ctx, "core.settings.manage")
+	case LevelSite:
+		if target != "" {
+			return apperr.BadRequest("the site level has no target")
+		}
+		return perm.Require(ctx, "core.settings.manage")
+	case LevelCategory:
+		id, err := strconv.ParseInt(target, 10, 64)
+		if err != nil || id <= 0 {
+			return apperr.BadRequest("target must be a category id")
+		}
+		if _, err := s.loadCategory(ctx, s.pool, id, false); err != nil {
+			return err
+		}
+		return s.require(ctx, id, acl.Manage)
+	case LevelUser:
+		if target != strconv.FormatInt(p.UserID, 10) || p.UserID <= 0 {
+			return apperr.Forbidden("only the own placements can be changed")
+		}
+		if !s.cfg.Get().UI.PersonalPlacement {
+			return apperr.Forbidden("personal placement is switched off (ui.personal_placement)")
+		}
+		return nil
+	}
+	return apperr.BadRequest("level must be template, site, category or user")
+}
+
+// GetPlacements returns the placements of one level (for editing).
+func (s *Service) GetPlacements(ctx context.Context, level, target string) (*PlacementLevel, error) {
+	if err := s.requirePlacementLevel(ctx, level, target); err != nil {
+		return nil, err
+	}
+	out := &PlacementLevel{Level: level, Target: target, Placements: []Placement{}}
+	rows, err := s.pool.Query(ctx, `SELECT block, position, sort, required, updated_at FROM placements WHERE level=$1 AND target=$2 ORDER BY sort, id`, level, target)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var pl Placement
+		var at time.Time
+		if err := rows.Scan(&pl.Block, &pl.Position, &pl.Sort, &pl.Required, &at); err != nil {
+			return nil, err
+		}
+		if out.UpdatedAt == nil || at.After(*out.UpdatedAt) {
+			out.UpdatedAt = &at
+		}
+		out.Placements = append(out.Placements, pl)
+	}
+	return out, rows.Err()
+}
+
+// requiredBlocks are the blocks that the template of the site and the site
+// itself made required: lower levels cannot change them.
+func (s *Service) requiredBlocks(ctx context.Context) (map[string]bool, error) {
+	rows, err := s.pool.Query(ctx, `SELECT DISTINCT block FROM placements WHERE required AND (level='site' OR (level='template' AND target=$1))`, s.cfg.Get().UI.Template)
+	if err != nil {
+		return nil, err
+	}
+	out := map[string]bool{}
+	for rows.Next() {
+		var b string
+		if err := rows.Scan(&b); err != nil {
+			rows.Close()
+			return nil, err
+		}
+		out[b] = true
+	}
+	rows.Close()
+	return out, rows.Err()
+}
+
+// SetPlacements replaces the placements of one level.
+func (s *Service) SetPlacements(ctx context.Context, level, target string, in []Placement) (*PlacementLevel, error) {
+	if err := s.requirePlacementLevel(ctx, level, target); err != nil {
+		return nil, err
+	}
+	if max := limits.Value(s.cfg.Get(), limits.PlacementRows); int64(len(in)) > max {
+		return nil, apperr.BadRequest("at most %d placements per level (expert setting %s)", max, limits.PlacementRows)
+	}
+	var required map[string]bool
+	if level == LevelCategory || level == LevelUser {
+		var err error
+		if required, err = s.requiredBlocks(ctx); err != nil {
+			return nil, err
+		}
+	}
+	seen := map[string]bool{}
+	for i, pl := range in {
+		if !blockRe.MatchString(pl.Block) || !s.knownOwner(pluginOf(pl.Block)) {
+			return nil, apperr.BadRequest("placement %d: unknown block %q", i+1, pl.Block)
+		}
+		if pl.Position != "" && !positionRe.MatchString(pl.Position) {
+			return nil, apperr.BadRequest("placement %d: invalid position %q", i+1, pl.Position)
+		}
+		if pl.Sort < 0 || pl.Sort > 10000 {
+			return nil, apperr.BadRequest("placement %d: sort must be between 0 and 10000", i+1)
+		}
+		if pl.Required && level != LevelTemplate && level != LevelSite {
+			return nil, apperr.BadRequest("placement %d: only the template and the site make blocks required", i+1)
+		}
+		if required[pl.Block] {
+			return nil, apperr.BadRequest("placement %d: the block %q is required by the administration and cannot be changed here", i+1, pl.Block)
+		}
+		k := pl.Block + "@" + pl.Position
+		if seen[k] {
+			return nil, apperr.BadRequest("placement %d: %q is placed twice at %q", i+1, pl.Block, pl.Position)
+		}
+		seen[k] = true
+		if pl.Position == "" && slices.ContainsFunc(in, func(x Placement) bool { return x.Block == pl.Block && x.Position != "" }) {
+			return nil, apperr.BadRequest("placement %d: %q is hidden and placed at the same time", i+1, pl.Block)
+		}
+	}
+	before, err := s.GetPlacements(ctx, level, target)
+	if err != nil {
+		return nil, err
+	}
+	err = pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
+		// one change of a level at a time
+		if _, err := tx.Exec(ctx, `SELECT pg_advisory_xact_lock(hashtext('placements:' || $1 || ':' || $2))`, level, target); err != nil {
+			return err
+		}
+		if _, err := tx.Exec(ctx, `DELETE FROM placements WHERE level=$1 AND target=$2`, level, target); err != nil {
+			return err
+		}
+		for _, pl := range in {
+			if _, err := tx.Exec(ctx, `INSERT INTO placements(level, target, block, position, sort, required, updated_by) VALUES ($1,$2,$3,$4,$5,$6,$7)`,
+				level, target, pl.Block, pl.Position, pl.Sort, pl.Required, nullID(ctx)); err != nil {
+				return err
+			}
+		}
+		return audit.Log(ctx, tx, "placements.set", "placements", 0, before, PlacementLevel{Level: level, Target: target, Placements: in})
+	})
+	if err != nil {
+		return nil, err
+	}
+	return s.GetPlacements(ctx, level, target)
+}

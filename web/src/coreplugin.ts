@@ -9,6 +9,7 @@
 // See docs/en/developer/plugins.md.
 import { state, onChange } from './core/state';
 import { t } from './core/i18n';
+import { api } from './core/api';
 
 export { h, mount, append, trustedHTML, uid, fmtDate, srOnly } from './core/dom';
 export type { Child } from './core/dom';
@@ -182,11 +183,75 @@ export function templateLabel(id: string): string {
 
 export interface SlotDef {
   id: string;
-  /** Position name, or "*" for every position (render receives the name). */
+  /** Default position, or "*" for every position (render receives the name;
+   * such slots place their own instances, e.g. menus, and are not moved). */
   position: string;
   order?: number;
+  /** Name of the building block in the placement administration. */
+  label?: () => string;
   render: (position: string) => Node | null | Promise<Node | null>;
 }
+
+// ---------------------------------------------------------------- placement
+
+/** One placement of a building block (see content.Placement on the server). */
+export interface Placement { block: string; position: string; sort: number; required?: boolean }
+export interface PlacementLevel { level: 'template' | 'site' | 'category' | 'instance' | 'user'; target: string; placements: Placement[] }
+
+let placementCategory = 0;
+let placementCache: { key: string; levels: Promise<PlacementLevel[]> } | null = null;
+
+/** Sets the category of the page shown (its placements apply). */
+export function setPlacementContext(categoryId: number): void {
+  if (placementCategory === categoryId) return;
+  placementCategory = categoryId;
+  // the positions may already be filled for the previous page: fill them
+  // again with the placements of this category (once per change)
+  queueMicrotask(() => void refreshPositions());
+}
+
+/** Drops the cached placements (after they were changed). */
+export function invalidatePlacements(): void {
+  placementCache = null;
+}
+
+function placementLevels(): Promise<PlacementLevel[]> {
+  const tpl = activeTemplate()?.id ?? '';
+  const key = `${tpl}|${placementCategory}|${state.user?.id ?? 0}`;
+  if (placementCache?.key !== key) {
+    const q = new URLSearchParams({ template: tpl });
+    if (placementCategory) q.set('category', String(placementCategory));
+    placementCache = { key, levels: api.get<PlacementLevel[]>(`placements?${q}`).catch(() => []) };
+  }
+  return placementCache.levels;
+}
+
+/** The blocks that can be placed (all registered slots except "*"). */
+export function placeableBlocks(): { id: string; label: string; position: string; order: number }[] {
+  return slots.filter((s) => s.position !== '*').map((s) => ({ id: s.id, label: s.label?.() ?? s.id, position: s.position, order: s.order ?? 50 }));
+}
+
+/** Applies levels (in order) to the default positions: a level that names a
+ * block replaces its positions from above, unless a level above made it
+ * required; an empty position hides it. */
+export function resolvePlacements(levels: PlacementLevel[]): Map<string, { position: string; sort: number }[]> {
+  const out = new Map<string, { position: string; sort: number }[]>();
+  for (const s of slots) if (s.position !== '*') out.set(s.id, [{ position: s.position, sort: s.order ?? 50 }]);
+  const locked = new Set<string>();
+  for (const l of levels) {
+    const byBlock = new Map<string, Placement[]>();
+    for (const p of l.placements) byBlock.set(p.block, [...(byBlock.get(p.block) ?? []), p]);
+    for (const [block, ps] of byBlock) {
+      if (locked.has(block)) continue;
+      out.set(block, ps.filter((p) => p.position).map((p) => ({ position: p.position, sort: p.sort })));
+      if (ps.some((p) => p.required) && (l.level === 'template' || l.level === 'site')) locked.add(block);
+    }
+  }
+  return out;
+}
+
+/** The block that must always be reachable (sign-in, profile, sign-out). */
+const ALWAYS = 'core.user';
 
 const slots: SlotDef[] = [];
 const positionEls = new Map<string, Set<HTMLElement>>();
@@ -211,7 +276,19 @@ function pathTo(root: Node, node: Node): number[] {
 
 async function fill(el: HTMLElement, name: string): Promise<void> {
   const nodes: Node[] = [];
-  for (const s of slots.filter((x) => x.position === name || x.position === '*')) {
+  const placed = resolvePlacements(await placementLevels());
+  const tplPositions = activeTemplate()?.positions ?? [];
+  const here: { s: SlotDef; sort: number }[] = [];
+  for (const s of slots) {
+    if (s.position === '*') { here.push({ s, sort: s.order ?? 50 }); continue; }
+    let ps = placed.get(s.id) ?? [];
+    // the user menu never gets lost: if it is nowhere in this template, it
+    // goes to the first position of the template
+    if (s.id === ALWAYS && !ps.some((p) => tplPositions.includes(p.position))) ps = [{ position: tplPositions[0] ?? s.position, sort: s.order ?? 50 }];
+    for (const p of ps) if (p.position === name) here.push({ s, sort: p.sort });
+  }
+  here.sort((a, b) => a.sort - b.sort);
+  for (const { s } of here) {
     try {
       const n = await s.render(name);
       if (n) {

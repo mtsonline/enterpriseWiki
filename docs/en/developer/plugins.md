@@ -99,7 +99,7 @@ Admin pages (`registerAdminPage`) state with `permission: 'acme.kanban.export'` 
 | `registerElementExtension({ id, order, placement: 'top' \| 'bottom', render(el) })` | area below (or with `top` above) the content of a page, e.g. comments, properties |
 | `registerCategoryExtension({ id, order, render(category) })` | area below the content of a category |
 | `registerPageAction({ id, order, render(target) })` | button in the actions of a page or category (share, favourite) |
-| `registerSlot({ id, position, render(position) })` | widget at a position of the template; `position: '*'` for all, `render` may return a promise – `null` leaves the position empty (important so empty positions stay hidden) |
+| `registerSlot({ id, position, label, render(position) })` | building block at a position of the template; `position` is only the default – the administration, categories and (if allowed) every person can place it elsewhere or hide it (*Placement*), so `id` follows the namespace rule (`<plugin id>.<name>`) and `label` names it there. `position: '*'` for all positions (the block places its own instances, e.g. menus). `render` may return a promise – `null` leaves the position empty (important so empty positions stay hidden) |
 | `registerProfileSection({ id, order, render() })` | section in "My profile" |
 | `registerPublishOption({ id, render(ctx) })` | field in the dialog "Publish with options"; in the backend `host.Content.RegisterPublishOption(id, option)` with `Apply(ctx, svc, el, value)` |
 | `registerReactions(provider)` / `reactionBar(type, id, title)` / `prefetchReactions(type, ids)` | show the reaction bar of a plugin (e.g. `core.reactions`) on own objects; without the plugin `reactionBar` returns `null` |

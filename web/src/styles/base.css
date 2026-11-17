@@ -291,7 +291,6 @@ th .ew-help { font-weight: 400; }
 .ew-check-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(14rem, 1fr)); gap: 0 1rem; }
 .ew-audit-table pre { max-height: 20rem; overflow: auto; max-width: 40rem; }
 /* notifications (bell) */
-.ew-user-tools { display: flex; align-items: center; gap: .25rem; }
 .ew-bell-wrap { position: relative; }
 .ew-bell { position: relative; min-width: 44px; min-height: 44px; }
 .ew-bell-count { position: absolute; top: 2px; right: 2px; min-width: 1.2rem; padding: 0 .25rem; border-radius: 999px; background: #b42318; color: #fff; font-size: .75rem; font-weight: 700; line-height: 1.2rem; text-align: center; }
@@ -429,3 +428,10 @@ html { scroll-padding-top: calc(var(--ew-sticky-top, var(--ew-header-h)) + .5rem
 .ew-limit > .ew-field { flex: 1 1 auto; min-width: 0; }
 .ew-limit > button { margin-top: 1.6rem; flex: none; }
 .ew-limit input[type="number"] { max-width: 12rem; }
+/* placement of building blocks (administration, category, profile) */
+.ew-placement-positions > li { margin-bottom: 1rem; }
+.ew-placement-positions h3 { font-size: 1rem; margin: .5rem 0 .25rem; }
+.ew-placement-list { margin: 0; padding-left: 1.5rem; }
+.ew-placement-item { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem 1rem; padding: .25rem 0; border-bottom: 1px solid var(--ew-border); }
+.ew-placement-name { flex: 1 1 12rem; }
+.ew-placement-item .ew-btn { min-width: 24px; min-height: 24px; }

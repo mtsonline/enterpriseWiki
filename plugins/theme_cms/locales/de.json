@@ -27,5 +27,7 @@
  "cms.banner_image_help": "Ohne eigenes Bild wird das Startbild verwendet.",
  "cms.copyright": "Copyright-Zeile",
  "cms.copyright_help": "z. B. „© {year} Universität Musterstadt“ – {year} wird durch das aktuelle Jahr ersetzt.",
- "cms.back_to_top": "Nach oben"
+ "cms.back_to_top": "Nach oben",
+ "theme.cms.block_nav": "Hauptnavigation der Website",
+ "theme.cms.block_hero": "Hero-Banner"
 }

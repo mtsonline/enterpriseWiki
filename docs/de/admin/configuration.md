@@ -72,6 +72,7 @@ Sprachen werden in der Oberfläche unter *Administration → Sprachen* hinzugef�
 | `editor` | Standard-Editor für Seiten: `visual` (ProseMirror, mit Live-Bearbeitung) oder `simple` (einfaches Eingabefeld). Benutzer können im Profil abweichen (`ewiki pref set editor simple --as NAME`). Beide speichern Markdown. | `visual` |
 | `collaboration` | Live-Bearbeitung: mehrere Personen bearbeiten eine Seite gleichzeitig im visuellen Editor (WebSocket `/api/v1/collab/…`, nur mit Bearbeitungsrecht, Sitzung und Recht werden während der Verbindung alle 30 s geprüft). Im Cluster-Betrieb sehen sich nur Personen, die mit demselben Knoten verbunden sind – Reverse Proxy mit Session-Affinität für `/api/v1/collab/` verwenden. | `true` |
 | `preview_image` | Vorschaubild für Link-Vorschauen (`og:image`) von Seiten ohne eigenes Bild: Pfad wie `/api/v1/files/<hash>` oder http(s)-Adresse, auch unter *Administration → Einstellungen* hochladbar. Seiten verwenden zuerst ihr eigenes Vorschaubild (*Eigenschaften*), dann ihr erstes Bild. | leer |
+| `personal_placement` | Jede angemeldete Person darf die Bausteine (Suche, Benachrichtigungen, Kategoriebaum …) für sich selbst anordnen (*Mein Profil → Meine Anordnung*). Als Pflicht markierte Bausteine bleiben, wo sie sind. Die Platzierung für alle legt *Administration → Platzierung* fest, für eine Kategorie und ihre Unterkategorien *Kategorie-Einstellungen → Platzierung*. | `false` |
 
 ### `auth`
 | Schlüssel | Bedeutung | Standard |

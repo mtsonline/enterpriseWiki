@@ -27,5 +27,7 @@
  "cms.banner_image_help": "Without its own image the start image is used.",
  "cms.copyright": "Copyright line",
  "cms.copyright_help": "e.g. “© {year} Example University” – {year} is replaced by the current year.",
- "cms.back_to_top": "Back to top"
+ "cms.back_to_top": "Back to top",
+ "theme.cms.block_nav": "Main navigation of the website",
+ "theme.cms.block_hero": "Hero banner"
 }

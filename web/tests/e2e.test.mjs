@@ -2012,6 +2012,43 @@ test('permissions of an instance: a blog editor without page permissions, own pe
   } finally { await ctx2.close(); }
 });
 
+test('placement: search in the footer for the site, no category tree in one category, the user menu stays', async () => {
+  const cat = await m6Category();
+  try {
+    await page.goto(`${BASE}/admin/placement`);
+    await idle();
+    await page.getByRole('heading', { name: /^(placement of the building blocks|platzierung der bausteine)$/i }).waitFor();
+    await a11y('placement administration');
+    await page.getByRole('combobox', { name: /^(position of search|position von suche)$/i }).selectOption('footer');
+    await page.getByRole('button', { name: /^(save|speichern)$/i }).click();
+    await page.locator('.ew-toast', { hasText: /placement saved|platzierung gespeichert/i }).first().waitFor();
+    await page.locator('.ew-pos--footer form[role=search]').waitFor();
+    assert.equal(await page.locator('.ew-pos--header-tools form[role=search]').count(), 0, 'search left the header');
+    // a category without the category tree (its subcategories too)
+    await page.goto(`${BASE}/c/${cat}/settings?tab=placement`);
+    await idle();
+    await page.getByRole('combobox', { name: /^(position of category tree|position von kategoriebaum)$/i }).selectOption('');
+    await a11y('placement of a category');
+    await page.getByRole('button', { name: /^(save|speichern)$/i }).click();
+    await page.locator('.ew-toast', { hasText: /placement saved|platzierung gespeichert/i }).first().waitFor();
+    await page.goto(`${BASE}/c/${cat}`);
+    await idle();
+    await page.locator('.ew-pos--footer form[role=search]').waitFor();
+    assert.equal(await page.locator('nav.ew-tree').count(), 0, 'no tree in the category');
+    await page.goto(`${BASE}/`);
+    await idle();
+    await page.locator('nav.ew-tree').waitFor();
+    // the user menu cannot get lost: hidden on the site, it still appears
+    await call('PUT', '/api/v1/placements/site', { placements: [{ block: 'core.user', position: '' }] });
+    await page.reload();
+    await idle();
+    await page.locator('.ew-user-menu').waitFor();
+  } finally {
+    await call('PUT', '/api/v1/placements/site', { placements: [] });
+    await call('PUT', `/api/v1/placements/category?target=${cat}`, { placements: [] });
+  }
+});
+
 test('FAQ: sections, questions, filter and quick add', async () => {
   const cat = await m6Category();
   const faqCat = await call('POST', '/api/v1/categories', { parent_id: cat, titles: { en: `Help ${run}` } });
