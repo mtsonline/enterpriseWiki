@@ -1238,6 +1238,71 @@ func (s *Server) routes() {
 		s.auditSettings(r, "plugin.sources.remove", prefix)
 		return h.NoContent{}, nil
 	})
+	// Access data of plugin sources (private repositories). The token is
+	// written once and never shown again (neither API nor audit log).
+	// action: core.plugins.credentials.list
+	s.handle("GET /api/v1/admin/plugins/credentials", func(w http.ResponseWriter, r *http.Request) (any, error) {
+		if err := requireInstance(r); err != nil {
+			return nil, err
+		}
+		out := []pluginmgr.CredentialView{}
+		for _, c := range s.app.Config.Base().Raw().Plugins.Credentials {
+			out = append(out, pluginmgr.ViewCredential(c))
+		}
+		return map[string]any{"credentials": out}, nil
+	})
+	// action: core.plugins.credentials.set (critical: needs a recent sign-in)
+	s.handle("PUT /api/v1/admin/plugins/credentials", func(w http.ResponseWriter, r *http.Request) (any, error) {
+		if err := requireInstance(r); err != nil {
+			return nil, err
+		}
+		if err := requireRecentSignIn(r); err != nil {
+			return nil, err
+		}
+		var in struct {
+			Prefix   string `json:"prefix"`
+			Username string `json:"username"`
+			Token    string `json:"token"`
+			Note     string `json:"note"`
+		}
+		if err := h.Decode(r, &in); err != nil {
+			return nil, err
+		}
+		var saved config.SourceCredential
+		if err := s.app.Config.Base().Update(func(c *config.Config) error {
+			var err error
+			saved, err = pluginmgr.SetCredential(c, config.SourceCredential{Prefix: in.Prefix, Username: in.Username, Token: in.Token, Note: in.Note})
+			return err
+		}); err != nil {
+			return nil, err
+		}
+		s.auditSettings(r, "plugin.credentials.set", saved.Prefix)
+		return pluginmgr.ViewCredential(saved), nil
+	})
+	// action: core.plugins.credentials.remove
+	s.handle("DELETE /api/v1/admin/plugins/credentials", func(w http.ResponseWriter, r *http.Request) (any, error) {
+		if err := requireInstance(r); err != nil {
+			return nil, err
+		}
+		prefix := r.URL.Query().Get("prefix")
+		found := false
+		if err := s.app.Config.Base().Update(func(c *config.Config) error {
+			c.Plugins.Credentials = slices.DeleteFunc(slices.Clone(c.Plugins.Credentials), func(x config.SourceCredential) bool {
+				if x.Prefix == prefix {
+					found = true
+				}
+				return x.Prefix == prefix
+			})
+			return nil
+		}); err != nil {
+			return nil, err
+		}
+		if !found {
+			return nil, apperr.NotFound("access data")
+		}
+		s.auditSettings(r, "plugin.credentials.remove", prefix)
+		return h.NoContent{}, nil
+	})
 	// action: core.plugins.sources.external (allow or forbid external core
 	// plugins; allowing needs a recent sign-in)
 	s.handle("PUT /api/v1/admin/plugins/sources/external", func(w http.ResponseWriter, r *http.Request) (any, error) {

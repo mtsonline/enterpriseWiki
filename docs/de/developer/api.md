@@ -403,6 +403,9 @@ Aufgerufen von Verzeichnissen wie Entra ID oder Okta mit dem Token eines SCIM-Zu
 | `POST` | `/api/v1/admin/plugins/sources` |
 | `DELETE` | `/api/v1/admin/plugins/sources` |
 | `PUT` | `/api/v1/admin/plugins/sources/external` |
+| `GET` | `/api/v1/admin/plugins/credentials` |
+| `PUT` | `/api/v1/admin/plugins/credentials` |
+| `DELETE` | `/api/v1/admin/plugins/credentials` |
 | `POST` | `/api/v1/admin/restart` |
 | `GET` | `/api/v1/admin/audit/search` |
 | `GET` | `/api/v1/admin/audit/export` |
@@ -458,6 +461,7 @@ Aufgerufen von Verzeichnissen wie Entra ID oder Okta mit dem Token eines SCIM-Zu
 - `POST /api/v1/admin/plugins/origin` mit `{"source": "…"}` prüft eine Quelle vor dem Installieren und antwortet `{"level": "official"|"organisation"|"external", "source": "…", "trusted": "…", "allowed": true}`.
 - `POST /api/v1/admin/plugins/install` und `POST /api/v1/admin/updates/{id}` nehmen `"accept_external": true` an. Fehlt die Bestätigung bei einer externen Quelle, antwortet das Wiki mit 400 und dem Code `external_not_accepted`; sind externe Quellen ausgeschaltet, mit 403. Die Antwort der Installation enthält `origin` (Stufe, Quelle, Commit, wer installiert hat). `GET /api/v1/admin/plugins` liefert `origins` je Plugin-ID.
 - `GET /api/v1/admin/plugins/sources` liefert `{"sources": [{"prefix", "note"}], "allow_external": true}`. `POST …/sources` mit `{"prefix", "note"}` trägt eine Quelle ein, `DELETE …/sources?prefix=…` entfernt sie, `PUT …/sources/external` mit `{"allow": false}` schaltet externe Quellen aus. Eintragen und Erlauben brauchen eine Browser-Sitzung mit Anmeldung in den letzten 15 Minuten (sonst 403 mit `reauth_required`) oder die Kommandozeile; API-Schlüssel werden abgelehnt.
+- `GET /api/v1/admin/plugins/credentials` liefert die Zugangsdaten für Plugin-Quellen ohne Token: `{"credentials": [{"prefix", "username", "note", "token_set", "from_env"}]}`. `PUT …/credentials` mit `{"prefix", "username", "token", "note"}` setzt sie für alle Quellen unter einer https-Adresse (ersetzt einen Eintrag mit demselben Präfix; Benutzername ohne Angabe `x-access-token`), `DELETE …/credentials?prefix=…` entfernt sie. Das Token wird nie wieder ausgegeben, auch nicht im Audit-Protokoll. Setzen braucht eine frische Anmeldung wie oben. Verweise auf Umgebungsvariablen (`${…}`) werden abgelehnt (400); die gibt es nur in `config.yaml`.
 
 ### Plugins
 

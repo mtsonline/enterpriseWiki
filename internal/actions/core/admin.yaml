@@ -568,6 +568,12 @@ actions:
     safety: {changes: true}
     cli: {command: [plugin, build], builtin: true}
     ui: {entry: /admin/plugins}
+    examples:
+      # the test wiki has no source tree: building is refused clearly; the
+      # real build (with restart) runs in tests/plugins/lifecycle.sh
+      - name: without_source_tree
+        as: admin
+        status: 400
   - id: core.plugins.options
     category: CATEGORY_ACTION
     method: PUT
@@ -599,6 +605,12 @@ actions:
     safety: {changes: true}
     cli: {command: [plugin, restart]}
     ui: {entry: /admin/plugins}
+    examples:
+      # the test server has no process to restart; the real restart runs in
+      # tests/plugins/lifecycle.sh
+      - name: not_supported_here
+        as: admin
+        status: 400
   - id: core.updates.list
     category: CATEGORY_ACTION
     method: GET
@@ -625,6 +637,13 @@ actions:
     safety: {changes: true}
     cli: {command: [plugin, update], builtin: true}
     ui: {entry: /admin/updates}
+    examples:
+      # the core is updated on the server (scripts/update.sh); installing a
+      # plugin update runs for real in tests/plugins/lifecycle.sh
+      - name: core
+        as: admin
+        path_params_json: '{"id": "core"}'
+        status: 400
   - id: core.audit.list
     category: CATEGORY_ACTION
     method: GET

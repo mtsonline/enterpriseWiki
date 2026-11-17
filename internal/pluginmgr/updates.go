@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	neturl "net/url"
 	"strconv"
 	"strings"
 	"sync"
@@ -64,10 +65,19 @@ func githubRepo(repo string) (string, bool) {
 // latestRelease asks the GitHub API for the latest release (falls back to
 // the newest tag if the repository has no releases).
 func (m *Manager) latestRelease(ctx context.Context, ownerRepo string) (tag, url, notes string, err error) {
-	cfg := m.cfg.Get().Plugins.Updates
+	plugins := m.cfg.Get().Plugins
+	cfg := plugins.Updates
 	base := strings.TrimSuffix(cfg.APIURL, "/")
+	gitHost := "github.com"
 	if base == "" {
 		base = "https://api.github.com"
+	} else if u, err := neturl.Parse(base); err == nil && u.Host != "" {
+		gitHost = u.Host // GitHub Enterprise: the API lives on the same host
+	}
+	// access data of the repository, else the general token
+	token := cfg.Token
+	if cred, ok := credentialFor(plugins.Credentials, "https://"+gitHost+"/"+ownerRepo); ok {
+		token = cred.Token
 	}
 	get := func(path string, v any) (int, error) {
 		req, err := http.NewRequestWithContext(ctx, "GET", base+path, nil)
@@ -76,8 +86,8 @@ func (m *Manager) latestRelease(ctx context.Context, ownerRepo string) (tag, url
 		}
 		req.Header.Set("Accept", "application/vnd.github+json")
 		req.Header.Set("User-Agent", "enterprise-wiki")
-		if cfg.Token != "" {
-			req.Header.Set("Authorization", "Bearer "+cfg.Token)
+		if token != "" {
+			req.Header.Set("Authorization", "Bearer "+token)
 		}
 		resp, err := httpClient.Do(req)
 		if err != nil {

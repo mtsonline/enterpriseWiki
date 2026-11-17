@@ -81,6 +81,27 @@ plugins:
     - prefix: /srv/ewiki-plugins
 ```
 
+### Zugangsdaten für private Quellen
+
+Plugins aus privaten Repositorys (zum Beispiel Pro-Plugins oder eigene Plugins der Organisation) brauchen Zugangsdaten. *Administration → Plugins → Zugangsdaten für Plugin-Quellen* (nur Instanz-Administratoren):
+
+- Ein Eintrag gilt für alle Repositorys unter einer **https-Adresse**, z. B. `https://github.com/acme` oder `https://git.example.com/team`, an Pfadgrenzen wie bei den vertrauenswürdigen Quellen. Passen mehrere Einträge, gilt der längste. Ohne `https://` wird nichts gesendet.
+- **Token:** am besten ein Token nur zum Lesen, nur für die nötigen Repositorys (bei GitHub ein „Fine-grained token“ mit *Contents: Read-only*). Der Benutzername ist ohne Angabe `x-access-token`, wie GitHub es für Tokens erwartet.
+- Das Wiki nutzt die Zugangsdaten beim **Installieren**, beim **Aktualisieren** und bei der **Suche nach Updates**. Git bekommt sie nur über die Umgebung, nie in der Befehlszeile oder in der Adresse; Weiterleitungen werden dabei nicht verfolgt, damit das Token nicht an einen anderen Server geht. In Fehlermeldungen wird es unkenntlich gemacht.
+- Das Token wird nach dem Speichern **nie wieder angezeigt**, auch nicht in der API oder im Audit-Protokoll (dort steht nur die Adresse). Zum Ändern einen neuen Eintrag mit derselben Adresse speichern.
+- Speichern braucht eine **Anmeldung in den letzten 15 Minuten** oder die Kommandozeile auf dem Server. Entfernen geht jederzeit.
+- Per CLI, ohne das Token in der Shell-Historie: `printf '{"prefix":"https://github.com/acme","token":"%s"}' "$TOKEN" | ewiki plugin credentials set --json -`; `ewiki plugin credentials list`, `ewiki plugin credentials remove --prefix …`.
+
+In `config.yaml` (gespeichert wie andere Geheimnisse; ein Verweis auf eine Umgebungsvariable ist nur hier möglich, nicht über Oberfläche oder API):
+
+```yaml
+plugins:
+  credentials:
+    - prefix: https://github.com/acme
+      token: ${ACME_PLUGIN_TOKEN}
+      note: Pro-Plugins
+```
+
 ## Katalog (1-Klick-Installation)
 
 Plugins, die in `config.yaml` gelistet sind, erscheinen unter *Katalog* mit einem Installations-Knopf:
@@ -124,7 +145,7 @@ Ohne `--accept-external` bricht die Installation aus einer externen Quelle mit d
 - **Plugins:** *Aktualisieren* lädt das Release herunter, legt die alte Version unter `plugins/.backup` ab und baut das Wiki neu. Danach unter *Plugins* neu starten. Per CLI: `ewiki plugin updates`, `ewiki plugin update ID --build`.
 - **Kern:** wird auf dem Server mit `scripts/update.sh` (oder dem Update-Timer) aktualisiert, mit Backup und automatischem Rollback; die Oberfläche zeigt nur an, dass ein Update verfügbar ist.
 
-Für GitHub Enterprise oder private Repositories siehe `plugins.updates` in [configuration.md](configuration.md).
+Private Repositorys: siehe [Zugangsdaten für private Quellen](#zugangsdaten-für-private-quellen). Für GitHub Enterprise siehe `plugins.updates` in [configuration.md](configuration.md).
 
 ## Vorlagen (Templates) und Positionen
 

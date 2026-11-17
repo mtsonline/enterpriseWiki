@@ -108,11 +108,12 @@ The current version is never deleted. Only items in the trash are deleted. The r
 | `macros.*` | security switches for the shell and HTTP macro, see below. **Can only be changed in this file**, not through the interface or the API |
 | `trusted_sources` | trusted sources for core plugins (`prefix`, optional `note`), see [plugins.md](plugins.md#origin-of-core-plugins); changes in the interface need a fresh sign-in |
 | `allow_external` | allow core plugins from external sources, with warning and confirmation (default `true`) |
+| `credentials` | access data for plugin sources in private repositories (`prefix` as https address, `token`, optional `username`, `note`), see [plugins.md](plugins.md#access-data-for-private-sources); references to environment variables only here |
 | `auto_restart_on_drop` | restart at once after the automatic build of plugins copied into the plugin folder (default `false`: *Administration → Plugins* offers **Restart**); also settable under *Administration → Plugins* |
 | `updates.check` | automatic update check when opening *Administration → Updates* (default `true`) |
 | `updates.core_repo` | repository of the core (default `github.com/mtsonline/enterpriseWiki`) |
 | `updates.api_url` | GitHub API (default `https://api.github.com`, for GitHub Enterprise e.g. `https://github.example.com/api/v3`) |
-| `updates.token` | optional GitHub token for private repositories and higher request limits, e.g. `${EWIKI_GITHUB_TOKEN}` |
+| `updates.token` | optional GitHub token for higher request limits of the update check, e.g. `${EWIKI_GITHUB_TOKEN}`; use `credentials` for private repositories |
 
 #### `plugins.macros`
 

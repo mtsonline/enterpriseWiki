@@ -403,6 +403,9 @@ Called by directories such as Entra ID or Okta with the token of a SCIM client (
 | `POST` | `/api/v1/admin/plugins/sources` |
 | `DELETE` | `/api/v1/admin/plugins/sources` |
 | `PUT` | `/api/v1/admin/plugins/sources/external` |
+| `GET` | `/api/v1/admin/plugins/credentials` |
+| `PUT` | `/api/v1/admin/plugins/credentials` |
+| `DELETE` | `/api/v1/admin/plugins/credentials` |
 | `POST` | `/api/v1/admin/restart` |
 | `GET` | `/api/v1/admin/audit/search` |
 | `GET` | `/api/v1/admin/audit/export` |
@@ -458,6 +461,7 @@ Called by directories such as Entra ID or Okta with the token of a SCIM client (
 - `POST /api/v1/admin/plugins/origin` with `{"source": "…"}` checks a source before installing and answers `{"level": "official"|"organisation"|"external", "source": "…", "trusted": "…", "allowed": true}`.
 - `POST /api/v1/admin/plugins/install` and `POST /api/v1/admin/updates/{id}` accept `"accept_external": true`. Without that confirmation for an external source the wiki answers 400 with the code `external_not_accepted`; when external sources are switched off, 403. The answer of an installation contains `origin` (level, source, commit, who installed). `GET /api/v1/admin/plugins` returns `origins` per plugin id.
 - `GET /api/v1/admin/plugins/sources` returns `{"sources": [{"prefix", "note"}], "allow_external": true}`. `POST …/sources` with `{"prefix", "note"}` adds a source, `DELETE …/sources?prefix=…` removes it, `PUT …/sources/external` with `{"allow": false}` switches external sources off. Adding and allowing need a browser session signed in within the last 15 minutes (otherwise 403 with `reauth_required`) or the command line; API keys are refused.
+- `GET /api/v1/admin/plugins/credentials` returns the access data of plugin sources without tokens: `{"credentials": [{"prefix", "username", "note", "token_set", "from_env"}]}`. `PUT …/credentials` with `{"prefix", "username", "token", "note"}` sets them for all sources below an https address (replaces an entry with the same prefix; user name `x-access-token` when not given), `DELETE …/credentials?prefix=…` removes them. The token is never shown again, not in the audit log either. Setting needs a fresh sign-in as above. References to environment variables (`${…}`) are refused (400); they exist in `config.yaml` only.
 
 ### Plugins
 

@@ -27,7 +27,7 @@ import { watchesAdmin } from './adminWatches';
 import { languagesAdmin } from './adminLanguages';
 import { sitesAdmin } from './adminSites';
 import { askFactor, mfaAdmin } from './adminMFA';
-import { askExternal, confirmInstall, isExternalRefusal, originBadge, originDetails, trustedSources, type Origin } from './adminPluginOrigin';
+import { askExternal, confirmInstall, isExternalRefusal, originBadge, originDetails, trustedSources, sourceCredentials, type Origin } from './adminPluginOrigin';
 
 interface User { id: number; username: string; provider: string; handle: string; display_name: string; email: string; language: string; disabled: boolean; locked_until: string | null; created_at: string; last_login_at: string | null; groups: number[]; roles: number[]; alias: string | null; alias_source: string; mfa: boolean }
 
@@ -422,6 +422,7 @@ async function plugins(panel: HTMLElement): Promise<void> {
   };
   const lite = data.build_unavailable === 'lite';
   const sources = isInstanceAdmin() ? await trustedSources(reload) : null;
+  const credentials = isInstanceAdmin() ? await sourceCredentials(reload) : null;
   const removable = new Set(data.removable);
   const src = textInput({ placeholder: 'github.com/owner/repo' });
   const ref = textInput({ placeholder: 'v1.0.0' });
@@ -482,6 +483,7 @@ async function plugins(panel: HTMLElement): Promise<void> {
           }, { variant: 'link', ariaLabel: t('plugins.remove_named', { name: pluginName(p.id, p.name) }) })))), '–'))),
     buildBox,
     sources,
+    credentials,
     data.catalog.length ? h('section', { class: 'ew-section', 'aria-labelledby': 'cat-h' }, h('h2', { id: 'cat-h' }, t('plugins.catalog')),
       table(t('plugins.catalog'), [t('common.name'), t('common.description'), t('plugins.source'), t('common.actions')],
         data.catalog.map((c) => h('tr', null, h('th', { scope: 'row' }, c.name, h('br'), h('code', null, c.id)), h('td', null, c.description ?? ''), h('td', null, c.repo),

@@ -134,3 +134,51 @@ export async function trustedSources(reload: () => void): Promise<HTMLElement> {
         }, { variant: 'link', ariaLabel: t('plugins.sources.remove_named', { prefix: s.prefix }) })))), t('plugins.sources.none')),
     form, allow.el);
 }
+
+interface Credential { prefix: string; username: string; note?: string; token_set: boolean; from_env: boolean }
+
+/**
+ * sourceCredentials is the panel for the access data of plugin sources in
+ * private repositories (instance administrators). The token is written once
+ * and never shown again.
+ */
+export async function sourceCredentials(reload: () => void): Promise<HTMLElement> {
+  const data = await api.get<{ credentials: Credential[] }>('admin/plugins/credentials');
+  const prefix = textInput({ placeholder: 'https://github.com/acme' });
+  const user = textInput({ placeholder: 'x-access-token', autocomplete: 'off', maxlength: 200 });
+  const token = textInput({ type: 'password', autocomplete: 'new-password', maxlength: 4096 });
+  const note = textInput({ maxlength: 200 });
+  const form = h('form', { class: 'ew-form', novalidate: true },
+    h('h3', null, t('plugins.credentials.add_title')),
+    field(t('plugins.credentials.prefix'), prefix, { required: true, help: t('plugins.credentials.prefix_help') }),
+    field(t('plugins.credentials.username'), user, { help: t('plugins.credentials.username_help') }),
+    field(t('plugins.credentials.token'), token, { required: true, help: t('plugins.credentials.token_help') }),
+    field(t('plugins.sources.note'), note),
+    h('div', { class: 'ew-form-actions' }, button(t('plugins.credentials.save'), () => undefined, { type: 'submit', variant: 'primary' })));
+  form.addEventListener('submit', async (ev) => {
+    ev.preventDefault();
+    if (!prefix.value.trim()) { prefix.focus(); return; }
+    if (!token.value) { token.focus(); return; }
+    try {
+      await api.put('admin/plugins/credentials', { prefix: prefix.value.trim(), username: user.value.trim(), token: token.value, note: note.value.trim() });
+      token.value = '';
+      toast(t('plugins.credentials.saved'));
+      reload();
+    } catch (e) { toast(errorText(e), 'error'); }
+  });
+  return h('section', { class: 'ew-panel', 'aria-labelledby': 'credentials-h' },
+    h('h2', { id: 'credentials-h' }, t('plugins.credentials.title')),
+    h('p', null, t('plugins.credentials.help')),
+    table(t('plugins.credentials.title'), [t('plugins.credentials.prefix'), t('plugins.credentials.username'), t('plugins.credentials.token'), t('plugins.sources.note'), t('common.actions')],
+      data.credentials.map((c) => h('tr', null, h('th', { scope: 'row' }, h('code', null, c.prefix)), h('td', null, c.username),
+        h('td', null, t(c.from_env ? 'plugins.credentials.from_env' : 'plugins.credentials.stored')), h('td', null, c.note ?? ''),
+        h('td', null, button(t('common.remove'), async () => {
+          if (!(await confirmDialog(t('plugins.credentials.remove_confirm', { prefix: c.prefix }), t('common.remove'), true))) return;
+          try {
+            await api.del(`admin/plugins/credentials?prefix=${encodeURIComponent(c.prefix)}`);
+            toast(t('plugins.credentials.removed'));
+            reload();
+          } catch (e) { toast(errorText(e), 'error'); }
+        }, { variant: 'link', ariaLabel: t('plugins.credentials.remove_named', { prefix: c.prefix }) })))), t('plugins.credentials.none')),
+    form);
+}

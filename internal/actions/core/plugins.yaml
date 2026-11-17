@@ -81,6 +81,69 @@ actions:
         as: admin
         given: [core.plugins.sources.add#default]
         query_json: '{"prefix": "${given.core.plugins.sources.add#default.prefix}"}'
+  - id: core.plugins.credentials.list
+    category: CATEGORY_ACTION
+    method: GET
+    path: /api/v1/admin/plugins/credentials
+    summary:
+      text:
+        en: List the access data of plugin sources (without tokens)
+        de: Zugangsdaten für Plugin-Quellen auflisten (ohne Token)
+    permission: {key: core.plugins.manage, scope: SCOPE_GLOBAL, instance: true}
+    success_status: 200
+    cli: {command: [plugin, credentials, list]}
+    ui: {entry: /admin/plugins}
+    examples:
+      - name: default
+        as: admin
+  - id: core.plugins.credentials.set
+    category: CATEGORY_ACTION
+    method: PUT
+    path: /api/v1/admin/plugins/credentials
+    summary:
+      text:
+        en: Set the access data for plugin sources below an https address (private repositories)
+        de: Zugangsdaten für Plugin-Quellen unter einer https-Adresse setzen (private Repositorys)
+    permission: {key: core.plugins.manage, scope: SCOPE_GLOBAL, instance: true}
+    body:
+      json: '{"type": "object", "required": ["prefix", "token"], "properties": {"prefix": {"type": "string", "minLength": 9, "maxLength": 500}, "username": {"type": "string", "maxLength": 200}, "token": {"type": "string", "minLength": 1, "maxLength": 4096}, "note": {"type": "string", "maxLength": 200}}}'
+    success_status: 200
+    safety: {changes: true, recent_sign_in: true, idempotent: true, audit_event: plugin.credentials.set, secret_fields: [token]}
+    cli: {command: [plugin, credentials, set]}
+    ui: {entry: /admin/plugins, control: {text: {en: Save access data, de: Zugangsdaten speichern}}}
+    examples:
+      - name: default
+        as: admin
+        body_json: '{"prefix": "https://git.example.com/team${unique}", "token": "example-token", "note": "Team"}'
+        expect_json: '{"username": "x-access-token", "token_set": true, "from_env": false, "note": "Team"}'
+      - name: environment_reference
+        as: admin
+        body_json: '{"prefix": "https://git.example.com/team${unique}", "token": "${EWIKI_DATABASE_URL}"}'
+        status: 400
+      - name: without_tls
+        as: admin
+        body_json: '{"prefix": "http://git.example.com/team", "token": "example-token"}'
+        status: 400
+  - id: core.plugins.credentials.remove
+    category: CATEGORY_ACTION
+    method: DELETE
+    path: /api/v1/admin/plugins/credentials
+    summary:
+      text:
+        en: Remove the access data of plugin sources
+        de: Zugangsdaten für Plugin-Quellen entfernen
+    permission: {key: core.plugins.manage, scope: SCOPE_GLOBAL, instance: true}
+    query:
+      json: '{"type": "object", "required": ["prefix"], "properties": {"prefix": {"type": "string"}}}'
+    success_status: 204
+    safety: {changes: true, idempotent: true, audit_event: plugin.credentials.remove}
+    cli: {command: [plugin, credentials, remove]}
+    ui: {entry: /admin/plugins}
+    examples:
+      - name: default
+        as: admin
+        given: [core.plugins.credentials.set#default]
+        query_json: '{"prefix": "${given.core.plugins.credentials.set#default.prefix}"}'
   - id: core.plugins.sources.external
     category: CATEGORY_ACTION
     method: PUT

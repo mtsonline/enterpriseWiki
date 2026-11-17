@@ -217,6 +217,7 @@ var globalActions = map[string]bool{
 	"core.mail.retry": true, "core.mail.delete": true,
 	"core.plugins.sources.add": true, "core.plugins.sources.remove": true, "core.plugins.sources.external": true, "core.plugins.sources.check": true,
 	"core.plugins.install": true, "core.plugins.remove": true,
+	"core.plugins.credentials.set": true, "core.plugins.credentials.remove": true,
 	"signature.smime.settings.set": true, "core.auth.login_page.update": true, "core.plugins.options": true, "core.plugins.enable": true, "core.plugins.disable": true,
 }
 
@@ -236,6 +237,12 @@ func (r *exampleRunner) global(id string, ex actions.Example, depth int) bool {
 	}
 	return false
 }
+
+// filesCommands are the commands approved to work on the files instead of
+// the wiki (15.11.2026, internal/cli/direct_test.go): their actions are
+// compared on the API only. "plugin build" builds in the foreground; the
+// real build runs in tests/plugins/lifecycle.sh.
+var filesCommands = map[string]bool{"plugin build": true}
 
 // systemPlugins are the plugins the examples of a test system configure.
 var systemPlugins = map[string][]string{
@@ -381,7 +388,9 @@ func (r *exampleRunner) run(a actions.Action, ex actions.Example) {
 		want = a.SuccessStatus
 	}
 	ways := []string{"api", "cli"}
-	if a.HasException("WAY_CLI") { // approved: no command line way (TestCLIWithoutCommand)
+	// approved: no command line way (TestCLIWithoutCommand), or a command
+	// that works on the files instead of the wiki (internal/cli/direct_test.go)
+	if a.HasException("WAY_CLI") || (a.CLI != nil && filesCommands[strings.Join(a.CLI.Command, " ")]) {
 		ways = ways[:1]
 	}
 	for _, way := range ways {

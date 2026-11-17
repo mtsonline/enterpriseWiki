@@ -376,6 +376,39 @@ jobs:
         if: always()
         run: tests/search/start.sh stop
 
+  plugins:
+    name: Plugin lifecycle (private source, build, restart, update)
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:${{ inputs.latest && 'latest' || '18' }} # renovate: postgres 18
+        env: { POSTGRES_USER: wiki, POSTGRES_PASSWORD: wiki, POSTGRES_DB: wiki }
+        ports: ["5432:5432"]
+        options: --health-cmd pg_isready --health-interval 5s --health-timeout 5s --health-retries 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - name: Go version from go.mod
+        id: gover
+        run: echo "version=$(sed -n 's/^toolchain go//p' go.mod | grep . || sed -n 's/^go //p' go.mod)" >> "$GITHUB_OUTPUT"
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
+        with: { go-version: "${{ steps.gover.outputs.version }}" }
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
+        with: { node-version: "26" }
+      - name: the token of the test plugin can only read that repository
+        run: tests/plugins/token_check.sh
+        env:
+          EWIKI_TESTPLUGIN_TOKEN: ${{ secrets.EWIKI_TESTPLUGIN_TOKEN }}
+      # the real chain with the private test plugin: access data, install,
+      # build, restart, update check, update (tests/plugins/lifecycle.sh)
+      - name: install, build, restart and update a core plugin from a private repository
+        run: tests/plugins/lifecycle.sh
+        env:
+          EWIKI_TESTPLUGIN_TOKEN: ${{ secrets.EWIKI_TESTPLUGIN_TOKEN }}
+          EWIKI_DATABASE_URL: postgres://wiki:wiki@localhost:5432/wiki?sslmode=disable
+      - name: server log
+        if: failure()
+        run: tail -n 100 /tmp/ewiki-lifecycle/server.log || true
+
   pg-versions:
     name: PostgreSQL versions for the upgrade test
     runs-on: ubuntu-latest
@@ -412,7 +445,7 @@ jobs:
   result:
     name: CI result
     if: always()
-    needs: [backend, security, e2e, docker, office, auth, search, pg-versions, compose]
+    needs: [backend, security, e2e, docker, office, auth, search, plugins, pg-versions, compose]
     runs-on: ubuntu-latest
     steps:
       - name: all jobs succeeded

@@ -108,11 +108,12 @@ Die jeweils aktuelle Version wird nie gelöscht. Gelöscht wird nur aus dem Papi
 | `macros.*` | Sicherheitsschalter für Shell- und HTTP-Makro, siehe unten. **Nur in dieser Datei änderbar**, nicht über Oberfläche oder API |
 | `trusted_sources` | vertrauenswürdige Quellen für Core-Plugins (`prefix`, optional `note`), siehe [plugins.md](plugins.md#herkunft-von-core-plugins); Änderungen in der Oberfläche brauchen eine frische Anmeldung |
 | `allow_external` | Core-Plugins aus externen Quellen erlauben, mit Warnung und Bestätigung (Standard `true`) |
+| `credentials` | Zugangsdaten für Plugin-Quellen in privaten Repositorys (`prefix` als https-Adresse, `token`, optional `username`, `note`), siehe [plugins.md](plugins.md#zugangsdaten-für-private-quellen); nur hier mit Verweis auf Umgebungsvariablen |
 | `auto_restart_on_drop` | nach dem automatischen Bau von Plugins, die in den Plugin-Ordner kopiert wurden, sofort neu starten (Standard `false`: *Administration → Plugins* bietet **Neu starten** an); auch unter *Administration → Plugins* einstellbar |
 | `updates.check` | automatische Update-Prüfung beim Öffnen von *Administration → Updates* (Standard `true`) |
 | `updates.core_repo` | Repository des Kerns (Standard `github.com/mtsonline/enterpriseWiki`) |
 | `updates.api_url` | GitHub-API (Standard `https://api.github.com`, für GitHub Enterprise z. B. `https://github.example.com/api/v3`) |
-| `updates.token` | optionales GitHub-Token für private Repositories und höhere Abfragegrenzen, z. B. `${EWIKI_GITHUB_TOKEN}` |
+| `updates.token` | optionales GitHub-Token für höhere Abfragegrenzen bei der Update-Suche, z. B. `${EWIKI_GITHUB_TOKEN}`; für private Repositorys `credentials` verwenden |
 
 #### `plugins.macros`
 
