@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"slices"
 	"strings"
 	"sync"
 	"testing"
@@ -295,9 +296,10 @@ func TestSpaceTemplates(t *testing.T) {
 	if code := mia.do("POST", "/api/v1/templates", tpl, nil); code != 403 {
 		t.Fatalf("editor saved a space template: %d", code)
 	}
+	// since 17.11.2026 every category can have page templates (for it and below)
 	tpl["space_id"] = sub.ID
-	if code := admin.do("POST", "/api/v1/templates", tpl, nil); code != 400 {
-		t.Fatalf("space template on a subcategory: %d", code)
+	if code := admin.do("POST", "/api/v1/templates", tpl, nil); code != 201 {
+		t.Fatalf("template of a subcategory: %d", code)
 	}
 	tpl["space_id"] = hr.ID
 	var saved struct {
@@ -310,7 +312,12 @@ func TestSpaceTemplates(t *testing.T) {
 	}
 	var list tl
 	mia.must("GET", fmt.Sprintf("/api/v1/templates?type=core.html&category=%d", sub.ID), nil, &list, 200)
-	if len(list) != 1 || list[0].ID != saved.ID {
+	// the template of the space and the one of the subcategory itself
+	if len(list) != 2 || !slices.ContainsFunc(list, func(x struct {
+		ID int64 `json:"id"`
+	}) bool {
+		return x.ID == saved.ID
+	}) {
 		t.Fatalf("in the space: %+v", list)
 	}
 	mia.must("GET", fmt.Sprintf("/api/v1/templates?type=core.html&category=%d", other.ID), nil, &list, 200)

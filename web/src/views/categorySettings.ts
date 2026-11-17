@@ -14,7 +14,7 @@ import { button, checkbox, confirmDialog, errorText, field, formDialog, langFiel
 import { breadcrumbs, can, ctx, invalidateTree, setContext, setSpace } from '../components/widgets';
 import { errorPage, splitTags } from './content';
 import { listCategorySettingsTabs } from '../coreplugin';
-import { insightsPanel, spaceSettings } from './spaces';
+import { appearanceSettings, insightsPanel, spaceSettings } from './spaces';
 
 interface CategoryResponse { category: Category; breadcrumbs: Category[]; elements: ElementSummary[]; space?: SpaceInfo | null }
 
@@ -37,7 +37,7 @@ export async function categorySettingsView({ params, query, main }: RouteCtx): P
   const extra = listCategorySettingsTabs().filter((x) => x.visible?.(c) ?? true);
   // top-level categories are spaces
   const isSpace = !c.parent_id && can('manage');
-  const ids = [...TABS.slice(0, 1), ...(isSpace ? ['space'] : []), ...TABS.slice(1), ...(can('manage') ? ['placement', 'insights'] : []), ...extra.map((x) => x.id)];
+  const ids = [...TABS.slice(0, 1), ...(can('manage') ? ['appearance'] : []), ...(isSpace ? ['space'] : []), ...TABS.slice(1), ...(can('manage') ? ['placement', 'insights'] : []), ...extra.map((x) => x.id)];
   const tabLabel = (id: string) => extra.find((x) => x.id === id)?.label() ?? t(`category.tab.${id}`);
   const tab = ids.includes(query.get('tab') ?? '') ? query.get('tab')! : 'general';
   const panel = h('div', { class: 'ew-tabpanel', id: 'ew-tabpanel', role: 'region', 'aria-label': tabLabel(tab) });
@@ -48,6 +48,7 @@ export async function categorySettingsView({ params, query, main }: RouteCtx): P
       h('ul', null, ...ids.map((tb) => h('li', null, h('a', { href: `/c/${c.id}/settings?tab=${tb}`, 'aria-current': tb === tab ? 'page' : undefined }, tabLabel(tb)))))),
     panel);
   if (tab === 'general') general(panel, c, data.elements);
+  if (tab === 'appearance' && can('manage')) await appearanceSettings(panel, c, data.breadcrumbs);
   if (tab === 'space' && isSpace) await spaceSettings(panel, c);
   if (tab === 'insights' && can('manage')) await insightsPanel(panel, c);
   // where the building blocks appear in this category and below

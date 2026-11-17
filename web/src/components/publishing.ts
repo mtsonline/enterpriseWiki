@@ -6,7 +6,7 @@ import { hasPerm, state } from '../core/state';
 import { toast } from '../core/announce';
 import { button, checkbox, errorText, field, formDialog, openDialog, select, textArea, textInput } from './ui';
 import { categorySelect } from './pickers';
-import { currentSpace } from './widgets';
+import { can, currentSpace } from './widgets';
 import { listPublishOptions } from '../coreplugin';
 
 export interface Draft { id: number; element_id: number | null; category_id: number; type: string; lang: string; title: string; body?: unknown; tags: string[] | null; comment: string; base_rev: number; created_by: string; updated_by: string; updated_at: string; publish_at: string | null; fields?: Record<string, unknown> | null; via?: number | null }
@@ -33,9 +33,12 @@ export async function showPreview(s: EditorState): Promise<void> {
 export function saveTemplateDialog(s: EditorState): void {
   const name = textInput({ value: s.title, required: true, maxlength: 200 });
   const desc = textArea({ rows: 2 });
-  // who may use it: only me, everybody in this space (space managers), everybody
+  // who may use it: only me, everybody in this category and below (its
+  // managers), everybody in this space (space managers), everybody
   const sp = currentSpace?.can_manage ? currentSpace : null;
+  const inCategory = s.categoryId && can('manage') && s.categoryId !== sp?.id;
   const scopes = [{ value: 'mine', label: t('template.scope_mine') },
+    ...(inCategory ? [{ value: 'category', label: t('template.scope_category') }] : []),
     ...(sp ? [{ value: 'space', label: t('template.scope_space', { name: pick(sp.titles, state.lang, state.site.default_language) }) }] : []),
     ...(hasPerm('core.templates.global') ? [{ value: 'global', label: t('template.scope_all') }] : [])];
   const scope = scopes.length > 1 ? select(scopes, 'mine') : null;
@@ -43,7 +46,7 @@ export function saveTemplateDialog(s: EditorState): void {
     scope ? field(t('template.scope'), scope) : null], t('common.save'), async () => {
     if (!name.value.trim()) throw new Error(t('error.title_required'));
     await api.post('templates', { name: name.value.trim(), description: desc.value, type: s.type, lang: s.lang, title: s.title, body: s.body, tags: s.tags ?? [],
-      global: scope?.value === 'global', space_id: scope?.value === 'space' && sp ? sp.id : 0 });
+      global: scope?.value === 'global', space_id: scope?.value === 'space' && sp ? sp.id : scope?.value === 'category' ? s.categoryId : 0 });
     toast(t('template.saved'));
   });
 }
@@ -73,7 +76,8 @@ async function manageTemplates(type: string, categoryId = 0, current?: () => Edi
   const list = await api.get<Template[]>(`templates${qs({ type, category: categoryId || undefined })}`);
   const rows = h('ul', { class: 'ew-plain-list' });
   // changing and deleting need the same right: own template, global ones with core.templates.global, those of the space for its managers
-  const mayChange = (x: Template) => x.mine || (x.global && hasPerm('core.templates.global')) || (!!x.space_id && x.space_id === currentSpace?.id && currentSpace.can_manage);
+  const mayChange = (x: Template) => x.mine || (x.global && hasPerm('core.templates.global')) || (!!x.space_id && x.space_id === currentSpace?.id && currentSpace.can_manage)
+    || (!!x.space_id && x.space_id === categoryId && can('manage'));
   const edit = async (x: Template, items: Template[]) => {
     const full = await api.get<Template>(`templates/${x.id}`);
     const name = textInput({ value: full.name, required: true, maxlength: 200 });

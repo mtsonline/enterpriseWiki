@@ -128,6 +128,8 @@ export interface SpaceInfo {
   language: string;
   /** offered as template for new spaces */
   is_template?: boolean;
+  /** the category the own navigation starts from (0: the space) */
+  tree_root?: number;
   archived: boolean;
   /** the reader may change the space (settings, templates) */
   can_manage: boolean;

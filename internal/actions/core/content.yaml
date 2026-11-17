@@ -82,6 +82,49 @@ actions:
         as: admin
         body_json: '{"titles": {"en": "Section ${unique}"}, "parent_id": ${given.core.elements.create#faq.category_id}, "via": ${given.core.elements.create#faq.id}}'
         status: 201
+  - id: core.categories.settings.get
+    category: CATEGORY_ACTION
+    method: GET
+    path: /api/v1/categories/{id}/settings
+    success_status: 200
+    summary:
+      text:
+        en: Show the settings of a category (language, logo, accent, own navigation, allowed types and macros) as set and as they apply, with where they come from
+        de: Einstellungen einer Kategorie anzeigen (Sprache, Logo, Akzentfarbe, eigene Navigation, erlaubte Typen und Makros), eigene und geltende, mit Herkunft
+    permission: {key: core.category.view, scope: SCOPE_CATEGORY, category_param: "id"}
+    cli: {command: [category, settings, show], args: [id]}
+    ui: {entry: /c/:id/settings}
+    examples:
+      - name: default
+        given: ['core.categories.settings.set#default']
+        as: member
+        path_params_json: '{"id": "${given.core.categories.create#sub.id}"}'
+        expect_json: '{"effective": {"language": "de"}}'
+  - id: core.categories.settings.set
+    category: CATEGORY_ACTION
+    method: PUT
+    path: /api/v1/categories/{id}/settings
+    success_status: 200
+    summary:
+      text:
+        en: Change the settings of a category, inherited by its subcategories (allowed types and macros can only be narrowed below)
+        de: Einstellungen einer Kategorie ändern, vererbt an die Unterkategorien (erlaubte Typen und Makros lassen sich darunter nur einschränken)
+    permission: {key: core.category.manage, scope: SCOPE_CATEGORY, category_param: "id"}
+    safety: {changes: true}
+    cli: {command: [category, settings, set], args: [id]}
+    ui: {entry: /c/:id/settings}
+    examples:
+      - name: default
+        given: ['core.categories.create#sub']
+        as: member
+        path_params_json: '{"id": "${given.core.categories.create#default.id}"}'
+        body_json: '{"language": "de", "allowed_types": ["core.html", "content.blog"]}'
+      - name: wrong_accent
+        given: ['core.categories.create#default']
+        as: member
+        path_params_json: '{"id": "${given.core.categories.create#default.id}"}'
+        body_json: '{"accent": "#ffffff"}'
+        status: 400
   - id: core.categories.update
     category: CATEGORY_ACTION
     method: PUT

@@ -258,19 +258,25 @@ Elemente und Kategorien können eine **Kurz-URL** bekommen: Seiten über *Eigens
 Unter *Administration → Einstellungen → Startseite* wählen Administratoren, was unter `/` erscheint: die Übersicht der obersten Kategorien, eine Kategorie oder ein Element. Neue Installationen zeigen die Willkommensseite. Für eine Übersicht von Bereichen eignet sich der Elementtyp **Kategorieübersicht**: eine Kategorie oder die oberste Ebene, mit 1–5 Ebenen Unterkategorien, als Karten oder Liste, auf Wunsch mit Beschreibungen und den Seiten jeder Kategorie.
 
 ### Bereiche
-Jede Kategorie der obersten Ebene ist ein **Bereich**. Wer dort das Recht *Verwalten* hat, ist Bereichsverwaltung – ganz ohne Administratorrechte – und stellt in den *Kategorie-Einstellungen → Bereich* ein:
+Jede Kategorie der obersten Ebene ist ein **Bereich**. Wer dort das Recht *Verwalten* hat, ist Bereichsverwaltung – ganz ohne Administratorrechte. Unter *Kategorie-Einstellungen → Bereich* stellt sie ein, was einen Bereich ausmacht:
 
 - **Bereichsschlüssel** (z. B. `HR`): Der Bereich ist dann unter der Kurzadresse `/s/HR` erreichbar; Schlüssel sind eindeutig.
-- **Eigene Navigation**: Innerhalb des Bereichs zeigt die Seitenleiste nur dessen Kategorien, mit Name und Schlüssel des Bereichs oben.
-- **Verknüpfungen**: wichtige Seiten oder externe Adressen oben in der Navigation des Bereichs.
-- **Erlaubte Elementtypen**: Nur diese Typen lassen sich im Bereich anlegen oder dorthin verschieben; *Neues Element* bietet nur sie an.
-- **Sprache neuer Elemente**: Standardsprache für neue Seiten im Bereich.
-- **Erlaubte Makros**: Nur diese Makros bietet der Editor im Bereich an; andere werden im Bereich nicht ausgeführt, sondern als Hinweis gezeigt.
-- **Logo** und **Akzentfarbe**: Logo in der Navigation und im Verzeichnis; die Akzentfarbe gilt für Links und Knöpfe im Bereich und muss mit Weiß einen Kontrast von mindestens 4,5:1 haben.
+- **Als Vorlage für neue Bereiche anbieten** (nur mit dem Recht der Kategorie-Administration), Export und Import.
+
+Unter *Kategorie-Einstellungen → Darstellung und Inhalte* stellt **jede Kategorie** (mit *Verwalten*) ein, was für sie und ihre Unterkategorien gilt, solange darunter nichts Eigenes festgelegt ist; ein Hinweis zeigt, von welcher Kategorie ein Wert geerbt ist:
+
+- **Eigene Navigation**: Ab hier zeigt die Seitenleiste nur die Kategorien darunter, mit Name, Logo und Verknüpfungen oben.
+- **Verknüpfungen**: wichtige Seiten oder externe Adressen oben in dieser Navigation.
+- **Erlaubte Elementtypen**: Nur diese Typen lassen sich hier anlegen oder hierher verschieben; *Neues Element* bietet nur sie an. Darunter lässt sich die Auswahl nur weiter einschränken.
+- **Sprache neuer Elemente**: Standardsprache für neue Seiten.
+- **Erlaubte Makros**: Nur diese Makros bietet der Editor hier an; andere werden nicht ausgeführt, sondern als Hinweis gezeigt. Darunter lässt sich die Auswahl nur weiter einschränken.
+- **Logo** und **Akzentfarbe**: Logo in der Navigation und im Verzeichnis; die Akzentfarbe gilt für Links und Knöpfe und muss mit Weiß einen Kontrast von mindestens 4,5:1 haben.
+
+Wird eine Kategorie an die oberste Stelle verschoben, wird sie zum Bereich; wird ein Bereich unter eine andere Kategorie verschoben, ist er keiner mehr (der Schlüssel wird frei). Die Einstellungen unter *Darstellung und Inhalte* bleiben in beiden Fällen.
 
 *Alle Bereiche* (`/spaces`, Link unten in der Navigation) listet alle Bereiche, die Sie sehen dürfen, mit Filter. Name und Verknüpfungen eines Bereichs sieht nur, wer seine oberste Kategorie sehen darf.
 
-**Seitenvorlagen eines Bereichs:** Beim *Als Vorlage speichern* wählt die Bereichsverwaltung „Alle im Bereich …“. Solche Vorlagen werden nur beim Anlegen von Seiten in diesem Bereich angeboten.
+**Seitenvorlagen eines Bereichs oder einer Kategorie:** Beim *Als Vorlage speichern* wählt, wer die Kategorie verwaltet, „Alle in dieser Kategorie und darunter“ (die Bereichsverwaltung auch „Alle im Bereich …“). Solche Vorlagen werden nur beim Anlegen von Seiten dort und darunter angeboten.
 
 **Archivieren** (*Kategorie-Einstellungen → Allgemein → Archivieren*): Die Kategorie mit allem darunter wird für alle nur noch lesbar – auch für Administratoren –, verschwindet aus Navigation, Übersichten und Suche und zeigt einen Hinweis. Direkte Links funktionieren weiter; archivierte Bereiche stehen unter *Alle Bereiche* in einem eigenen Abschnitt. *Wiederherstellen* macht alles wieder bearbeitbar.
 

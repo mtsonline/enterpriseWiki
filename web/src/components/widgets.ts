@@ -244,10 +244,16 @@ export async function categoryTree(): Promise<HTMLElement> {
 
 /** Navigation of a space with its own tree: its name, shortcuts and categories. */
 async function spaceTree(sp: SpaceInfo): Promise<HTMLElement> {
-  const title = pick(sp.titles, state.lang, state.site.default_language);
+  // the own navigation may start at a subcategory (settings of every category)
+  const root = sp.tree_root || sp.id;
+  let titles = sp.titles;
+  if (root !== sp.id) {
+    try { titles = (await api.get<{ category: { titles: Record<string, string> } }>(`categories/${root}`)).category.titles; } catch { /* the space name */ }
+  }
+  const title = pick(titles, state.lang, state.site.default_language);
   const headId = uid('space');
   const nav = h('nav', { class: 'ew-tree ew-space-nav', 'aria-labelledby': headId },
-    h('h2', { class: 'ew-tree-title', id: headId }, h('a', { href: `/c/${sp.id}`, 'aria-current': ctx.categoryId === sp.id ? 'page' : undefined },
+    h('h2', { class: 'ew-tree-title', id: headId }, h('a', { href: `/c/${root}`, 'aria-current': ctx.categoryId === root ? 'page' : undefined },
       sp.logo ? h('img', { class: 'ew-space-logo', src: sp.logo, alt: '' }) : null, title)),
     sp.key ? h('p', { class: 'ew-space-key' }, h('span', { class: 'sr-only' }, t('space.key') + ': '), sp.key) : null);
   if (sp.shortcuts.length) {
@@ -257,7 +263,7 @@ async function spaceTree(sp: SpaceInfo): Promise<HTMLElement> {
     })));
   }
   try {
-    const level = await renderLevel(sp.id, ctx.categoryId);
+    const level = await renderLevel(root, ctx.categoryId);
     if (level.children.length) nav.append(level);
   } catch (e) {
     nav.append(h('p', { role: 'alert' }, errorText(e)));

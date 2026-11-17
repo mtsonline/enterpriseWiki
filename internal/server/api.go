@@ -659,11 +659,42 @@ func (s *Server) routes() {
 		if err != nil {
 			return nil, err
 		}
+		var raw json.RawMessage
+		if err := h.Decode(r, &raw); err != nil {
+			return nil, err
+		}
 		var in content.SpaceInput
+		if err := json.Unmarshal(raw, &in); err != nil {
+			return nil, apperr.BadRequest("invalid JSON: %v", err)
+		}
+		// which settings were sent (the others stay)
+		var keys map[string]json.RawMessage
+		_ = json.Unmarshal(raw, &keys)
+		in.Present = map[string]bool{}
+		for k := range keys {
+			in.Present[k] = true
+		}
+		return s.app.Content.SetSpace(r.Context(), id, in)
+	})
+	// action: core.categories.settings.get
+	s.handle("GET /api/v1/categories/{id}/settings", func(w http.ResponseWriter, r *http.Request) (any, error) {
+		id, err := h.PathID(r, "id")
+		if err != nil {
+			return nil, err
+		}
+		return s.app.Content.GetCategorySettings(r.Context(), id)
+	})
+	// action: core.categories.settings.set
+	s.handle("PUT /api/v1/categories/{id}/settings", func(w http.ResponseWriter, r *http.Request) (any, error) {
+		id, err := h.PathID(r, "id")
+		if err != nil {
+			return nil, err
+		}
+		var in content.Space
 		if err := h.Decode(r, &in); err != nil {
 			return nil, err
 		}
-		return s.app.Content.SetSpace(r.Context(), id, in)
+		return s.app.Content.SetCategorySettings(r.Context(), id, in)
 	})
 	// action: core.categories.update
 	s.handle("PUT /api/v1/categories/{id}", func(w http.ResponseWriter, r *http.Request) (any, error) {

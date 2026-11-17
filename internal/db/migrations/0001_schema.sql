@@ -129,7 +129,7 @@ CREATE TABLE categories (
     hidden             boolean NOT NULL DEFAULT false, -- not in navigation, menus, listings and search (e.g. folders for media)
     template           text NOT NULL DEFAULT '',       -- website template of this category and below ('' = inherited / site template)
     space_key          text,                           -- top level: key of the space (e.g. HR, address /s/HR)
-    space              jsonb NOT NULL DEFAULT '{}',    -- top level: settings of the space (see content.Space)
+    space              jsonb NOT NULL DEFAULT '{}',    -- settings (content.Space): general ones for every category (inherited), space parts at the top level
     archived_at        timestamptz,                    -- archived: read-only for everybody, out of navigation and search
     classification     smallint CHECK (classification BETWEEN 0 AND 3), -- 0 public, 1 internal, 2 confidential, 3 strictly confidential; NULL = as above (the strictest above applies)
     watermark          text CHECK (watermark IN ('auto', 'off')),     -- files of confidential content: 'auto' viewer watermark, 'off' original; NULL = as above
