@@ -35,7 +35,6 @@ core.access.answer
 core.access.request
 core.audit.export
 core.audit.forward_test
-core.audit.list
 core.audit.settings.get
 core.audit.settings.update
 core.blocks.delete
@@ -99,13 +98,10 @@ core.plugins.options
 core.plugins.remove
 core.plugins.restart
 core.prerender
-core.properties.defs.delete
-core.properties.defs.update
 core.properties.export.csv
 core.properties.export.xlsx
 core.properties.history
 core.properties.refs
-core.properties.settings
 core.properties.subscriptions.create
 core.properties.subscriptions.delete
 core.properties.trend

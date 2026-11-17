@@ -279,7 +279,7 @@ In cluster mode each job only runs on one instance at a time (advisory lock).
 
 - Logs go to stderr, so with systemd into the journal (`journalctl -u enterprisewiki -f`). JSON format with `EWIKI_LOG_FORMAT=json`, more details with `EWIKI_LOG_LEVEL=debug`.
 - `GET /healthz` reports that the process runs. `GET /readyz` also checks the database (for load balancers and Kubernetes).
-- The audit log of all changes (users, permissions, content, settings, plugins) is under *Administration → Log* or `GET /api/v1/admin/audit`.
+- The audit log of all changes (users, permissions, content, settings, plugins) is under *Administration → Log* or `GET /api/v1/admin/audit/search` (`ewiki audit search`).
 
 ## Performance and scaling
 

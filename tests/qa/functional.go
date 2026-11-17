@@ -266,7 +266,7 @@ func functional(o Options, w *World) error {
 	g.ok("live editing", "every editor received the changes of the others in the room", int(st.collabRecv.Load()) == editors,
 		"%d of %d editors received changes", st.collabRecv.Load(), editors)
 	g.ok("live editing", "names of cursors come from the server (a forged name is replaced)", st.collabSpoof.Load() == 0, "%d forged names relayed", st.collabSpoof.Load())
-	g.want("integrity", "audit log lists the changes", adm.Do("GET", "/api/v1/admin/audit?limit=5", nil), 200)
+	g.want("integrity", "audit log lists the changes", adm.Do("GET", "/api/v1/admin/audit/search?limit=5", nil), 200)
 	g.want("integrity", "wiki is healthy after the test (/readyz)", adm.Do("GET", "/readyz", nil), 200)
 
 	ops, total := rec.Results()
@@ -412,7 +412,7 @@ func (v *vu) journey(st *sharedState) {
 	v.want("permissions", "versions of the private page cannot be read", c.DoOp("denied: private revisions", "GET", p("/api/v1/elements/%d/revisions", w.SecretPage), nil), 403, 404)
 	v.want("permissions", "user administration is refused", c.DoOp("denied: admin users", "GET", "/api/v1/admin/users", nil), 403)
 	v.want("permissions", "settings are refused", c.DoOp("denied: admin settings", "GET", "/api/v1/admin/settings", nil), 403)
-	v.want("permissions", "audit log is refused", c.DoOp("denied: admin audit", "GET", "/api/v1/admin/audit", nil), 403)
+	v.want("permissions", "audit log is refused", c.DoOp("denied: admin audit", "GET", "/api/v1/admin/audit/search", nil), 403)
 	v.want("permissions", "rules of the team area cannot be changed", c.DoOp("denied: acl", "POST", p("/api/v1/categories/%d/acl", w.Team),
 		map[string]any{"subject_type": "user", "subject_id": v.u.ID, "preset": "manager"}), 403)
 	if !v.edit {

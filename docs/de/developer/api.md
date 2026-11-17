@@ -391,7 +391,6 @@ Aufgerufen von Verzeichnissen wie Entra ID oder Okta mit dem Token eines SCIM-Zu
 | `PUT` | `/api/v1/admin/permissions/authenticated` |
 | `GET` | `/api/v1/admin/settings` |
 | `PUT` | `/api/v1/admin/settings` |
-| `GET` | `/api/v1/admin/audit` |
 | `POST` | `/api/v1/admin/retention/run` |
 | `GET` | `/api/v1/admin/plugins` |
 | `PUT` | `/api/v1/admin/plugins/options` |

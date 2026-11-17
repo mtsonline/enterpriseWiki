@@ -391,7 +391,6 @@ Called by directories such as Entra ID or Okta with the token of a SCIM client (
 | `PUT` | `/api/v1/admin/permissions/authenticated` |
 | `GET` | `/api/v1/admin/settings` |
 | `PUT` | `/api/v1/admin/settings` |
-| `GET` | `/api/v1/admin/audit` |
 | `POST` | `/api/v1/admin/retention/run` |
 | `GET` | `/api/v1/admin/plugins` |
 | `PUT` | `/api/v1/admin/plugins/options` |

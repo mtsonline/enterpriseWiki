@@ -682,21 +682,6 @@ actions:
         as: admin
         path_params_json: '{"id": "core"}'
         status: 400
-  - id: core.audit.list
-    category: CATEGORY_ACTION
-    method: GET
-    path: /api/v1/admin/audit
-    success_status: 200
-    summary:
-      text:
-        en: List the latest entries of the audit log
-        de: Neueste Einträge des Protokolls auflisten
-    permission: {key: core.audit.view, scope: SCOPE_GLOBAL}
-    cli: {command: [audit, list]}
-    ui: {entry: /admin/audit}
-    examples:
-      - name: default
-        as: member
   - id: core.audit.search
     category: CATEGORY_ACTION
     method: GET

@@ -254,11 +254,13 @@ func TestComments(t *testing.T) {
 	if len(list.Comments) != 3 || list.Comments[0].DeletedAt == nil || list.Comments[0].Body != "" || !list.CanComment {
 		t.Fatalf("list after delete: %+v", list)
 	}
-	var audit []struct {
-		Action string `json:"action"`
+	var audit struct {
+		Entries []struct {
+			Action string `json:"action"`
+		} `json:"entries"`
 	}
-	admin.must("GET", "/api/v1/admin/audit?entity_type=comment", nil, &audit, 200)
-	if len(audit) < 5 {
+	admin.must("GET", "/api/v1/admin/audit/search?entity_type=comment", nil, &audit, 200)
+	if len(audit.Entries) < 5 {
 		t.Fatalf("comment changes not audited: %+v", audit)
 	}
 	// stricter setting: commenting needs Edit permission
