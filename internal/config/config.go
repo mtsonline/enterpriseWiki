@@ -544,6 +544,47 @@ func Expand(s string) string {
 // HasEnvRef reports whether s contains a ${VAR} reference.
 func HasEnvRef(s string) bool { return envRef.MatchString(s) }
 
+// EnvRefError refuses a ${VAR} reference written by the wiki itself.
+type EnvRefError struct{ Path string }
+
+func (e *EnvRefError) Error() string {
+	return fmt.Sprintf("%s: references to environment variables (${…}) can only be written in config.yaml on the server", e.Path)
+}
+
+// ClientError marks the error as one of the request (400).
+func (e *EnvRefError) ClientError() bool { return true }
+
+// envRefs calls fn for every string with a ${VAR} reference, with its path;
+// list positions are left out of the path, so that reordering a list keeps
+// its references.
+func envRefs(v reflect.Value, path string, fn func(path, value string)) {
+	switch v.Kind() {
+	case reflect.Pointer, reflect.Interface:
+		if !v.IsNil() {
+			envRefs(v.Elem(), path, fn)
+		}
+	case reflect.Struct:
+		t := v.Type()
+		for i := 0; i < v.NumField(); i++ {
+			if t.Field(i).IsExported() {
+				envRefs(v.Field(i), path+"."+t.Field(i).Name, fn)
+			}
+		}
+	case reflect.Slice, reflect.Array:
+		for i := 0; i < v.Len(); i++ {
+			envRefs(v.Index(i), path+"[]", fn)
+		}
+	case reflect.Map:
+		for _, k := range v.MapKeys() {
+			envRefs(v.MapIndex(k), path+"."+fmt.Sprint(k.Interface()), fn)
+		}
+	case reflect.String:
+		if HasEnvRef(v.String()) {
+			fn(path, v.String())
+		}
+	}
+}
+
 // expandAll walks the struct and expands every string field in place.
 func expandAll(v reflect.Value) {
 	switch v.Kind() {
@@ -708,10 +749,38 @@ func (s *Store) OnChange(f func(*Config)) {
 
 // Update applies fn to a copy of the raw document, validates it, writes the
 // file atomically and reloads.
-func (s *Store) Update(fn func(c *Config) error) error {
+//
+// It is the way of the wiki itself (API, interface, plugins, site
+// settings): a value it writes must not bring a new ${VAR} reference, which
+// would read the environment of the server (database password, key
+// passwords, …) and show it or send it elsewhere. References already in the
+// file stay. Only the operator writes new ones (UpdateTrusted).
+func (s *Store) Update(fn func(c *Config) error) error { return s.update(fn, false) }
+
+// UpdateTrusted is Update for the operator of the server (the command line
+// on the server, "ewiki config set"): values may reference the environment.
+func (s *Store) UpdateTrusted(fn func(c *Config) error) error { return s.update(fn, true) }
+
+func (s *Store) update(fn func(c *Config) error, trusted bool) error {
 	c := s.Raw()
+	before := s.Raw()
 	if err := fn(c); err != nil {
 		return err
+	}
+	if !trusted {
+		// every reference was already there, at the same place, at most as
+		// often (a copy into a new list entry is a new one)
+		known := map[string]int{}
+		envRefs(reflect.ValueOf(before), "", func(path, v string) { known[path+"\x00"+v]++ })
+		var bad string
+		envRefs(reflect.ValueOf(c), "", func(path, v string) {
+			if known[path+"\x00"+v]--; known[path+"\x00"+v] < 0 && bad == "" {
+				bad = path
+			}
+		})
+		if bad != "" {
+			return &EnvRefError{Path: strings.TrimPrefix(bad, ".")}
+		}
 	}
 	if err := Validate(c); err != nil {
 		return err

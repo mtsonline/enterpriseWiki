@@ -484,7 +484,8 @@ func (e *env) config(args []string) error {
 		if st.Site() != "" && config.IsInstanceOnly(args[1]) {
 			return fmt.Errorf("%s applies to the whole instance: set it without --site", args[1])
 		}
-		if err := st.Update(func(c *config.Config) error { return config.SetKey(c, args[1], args[2]) }); err != nil {
+		// the operator on the server: values may reference the environment
+		if err := st.UpdateTrusted(func(c *config.Config) error { return config.SetKey(c, args[1], args[2]) }); err != nil {
 			return err
 		}
 		e.printf("%s updated (running servers reload it automatically)\n", args[1])

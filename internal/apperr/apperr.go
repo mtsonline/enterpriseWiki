@@ -71,6 +71,11 @@ func Status(err error) (int, string, string) {
 	if errors.As(err, &e) {
 		return e.Status, e.Code, e.Msg
 	}
+	// errors of other packages that describe a wrong request
+	var ce interface{ ClientError() bool }
+	if errors.As(err, &ce) && ce.ClientError() {
+		return http.StatusBadRequest, "bad_request", err.Error()
+	}
 	// invalid input that only the database noticed (e.g. NUL characters,
 	// invalid UTF-8): a client error, not an internal one
 	var sc interface{ SQLState() string }

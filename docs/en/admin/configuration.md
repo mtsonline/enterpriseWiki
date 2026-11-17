@@ -4,7 +4,7 @@
 
 - The admin interface (*Administration → Settings*, *Languages*, *Plugins*) and `ewiki config set` change only this file. It is written atomically (temporary file, then rename).
 - Running servers reload the file automatically when it changes (also when edited by hand), or at once with `systemctl reload enterprisewiki` (SIGHUP). An invalid file is rejected, the previous configuration then stays active. The error message is in the log.
-- Values can refer to environment variables: `${NAME}` or `${NAME:-default}`. The reference is kept when writing back, so **secrets never end up in the file**. Variables from `.env` in the same directory are loaded automatically. Environment variables that are already set take precedence.
+- Values can refer to environment variables: `${NAME}` or `${NAME:-default}`. The reference is kept when writing back, so **secrets never end up in the file**. Variables from `.env` in the same directory are loaded automatically. Environment variables that are already set take precedence. New references are written by the operator only: in the file itself or with `ewiki config set`. Through the interface, the API and plugins they are refused (400), so nobody can read variables of the server such as the database password with them or send them to other servers; existing references are kept when saving.
 - Changes to `server`, `database` and `mode` need a restart.
 
 Complete example: [config.example.yaml](../../../config.example.yaml)

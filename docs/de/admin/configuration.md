@@ -4,7 +4,7 @@
 
 - Die Admin-Oberfläche (*Administration → Einstellungen*, *Sprachen*, *Plugins*) und `ewiki config set` ändern ausschließlich diese Datei. Geschrieben wird atomar (temporäre Datei, dann umbenennen).
 - Laufende Server laden die Datei automatisch neu, wenn sie sich ändert (auch bei manueller Bearbeitung), oder sofort per `systemctl reload enterprisewiki` (SIGHUP). Eine ungültige Datei wird abgelehnt, die vorherige Konfiguration bleibt dann aktiv. Die Fehlermeldung steht im Log.
-- Werte können Umgebungsvariablen referenzieren: `${NAME}` oder `${NAME:-standard}`. Die Referenz bleibt beim Zurückschreiben erhalten, so landen **Geheimnisse nie in der Datei**. Variablen aus `.env` im selben Verzeichnis werden automatisch geladen. Bereits gesetzte Umgebungsvariablen haben Vorrang.
+- Werte können Umgebungsvariablen referenzieren: `${NAME}` oder `${NAME:-standard}`. Die Referenz bleibt beim Zurückschreiben erhalten, so landen **Geheimnisse nie in der Datei**. Variablen aus `.env` im selben Verzeichnis werden automatisch geladen. Bereits gesetzte Umgebungsvariablen haben Vorrang. Neue Verweise schreibt nur der Betreiber: in der Datei selbst oder mit `ewiki config set`. Über Oberfläche, API und Plugins werden sie abgelehnt (400), damit niemand darüber Variablen des Servers wie das Datenbank-Passwort auslesen oder an fremde Server schicken kann; vorhandene Verweise bleiben beim Speichern erhalten.
 - Änderungen an `server`, `database` und `mode` erfordern einen Neustart.
 
 Vollständiges Beispiel: [config.example.yaml](../../../config.example.yaml)
