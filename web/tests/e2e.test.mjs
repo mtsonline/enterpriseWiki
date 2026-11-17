@@ -195,11 +195,16 @@ test('create, edit, translate and search a page', async () => {
 });
 
 test('administration pages are accessible', async () => {
-  for (const section of ['users', 'groups', 'roles', 'plugins', 'updates', 'settings', 'languages', 'audit', 'permissions', 'watches', 'menus', 'ldap', 'oidc', 'shibboleth', 'shell', 'mail', 'search', 'blocks', 'sites']) {
-    await page.goto(`${BASE}/admin/${section}`);
+  // every page the administration offers (from its navigation, so new pages are checked too)
+  await page.goto(`${BASE}/admin`);
+  await idle();
+  const sections = await page.locator('.ew-admin nav.ew-subnav a').evaluateAll((as) => as.map((a) => a.getAttribute('href')));
+  assert.ok(sections.length >= 20, `administration pages: ${sections}`);
+  for (const href of sections) {
+    await page.goto(BASE + href);
     await idle();
     await page.waitForSelector('.ew-admin-panel h1');
-    await a11y(`admin/${section}`);
+    await a11y(href.slice(1));
   }
   // the insecure TLS setting of LDAP carries a permanent warning, announced with it
   await page.goto(`${BASE}/admin/ldap`);
@@ -2564,6 +2569,151 @@ test('webhooks: create with a signing key, signed test delivery, deliveries, sen
     await page.getByRole('rowheader', { name: new RegExp(`^${name}\\b`) }).waitFor({ state: 'detached' });
   } finally {
     server.close();
+  }
+});
+
+test('expert settings: a limit, the limit of an API key, secrets stored again; cache; trash restore and delete permanently', async () => {
+  const toastOn = (re) => page.locator('.ew-toast', { hasText: re }).first().waitFor();
+  const key = await call('POST', '/api/v1/me/api-keys', { name: `Limited ${run}`, permissions: 1, allow_admin: false, category_id: null,
+    expires_at: new Date(Date.now() + 864e5).toISOString(), rate_per_second: null });
+  try {
+    await page.goto(`${BASE}/admin/limits`);
+    await idle();
+    // a limit: changed, then back to the default
+    const days = page.getByLabel(/^(period of the text search|zeitraum der textsuche)/i);
+    const before = Number(await days.inputValue());
+    await days.fill(String(before + 1));
+    await page.locator('form.ew-form').getByRole('button', { name: /^(save|speichern)$/i }).last().click();
+    await toastOn(/limits saved|grenzwerte gespeichert/i);
+    const value = async () => (await call('GET', '/api/v1/admin/limits')).limits.find((l) => l.key === 'core.audit.search_days').value;
+    assert.equal(await value(), before + 1);
+    await idle();
+    await page.getByRole('button', { name: /^(set the default|vorgabe einsetzen): (period of the text search|zeitraum der textsuche)$/i }).click();
+    await page.locator('form.ew-form').getByRole('button', { name: /^(save|speichern)$/i }).last().click();
+    await toastOn(/limits saved|grenzwerte gespeichert/i);
+    assert.equal(await value(), before);
+
+    // the own limit of an API key, set by the administration
+    await page.locator('.ew-toast').evaluateAll((els) => els.forEach((e) => e.remove()));
+    const label = new RegExp(`Limited ${run}`);
+    await page.getByRole('spinbutton', { name: label }).fill('3');
+    await page.getByRole('button', { name: new RegExp(`^(save|speichern): .*Limited ${run}`, 'i') }).click();
+    await toastOn(/^(limit saved\.|grenze gespeichert\.)$/i);
+    assert.equal((await call('GET', '/api/v1/admin/api-keys')).find((k) => k.id === key.id).rate_per_second, 3);
+
+    // secrets in the database stored again in the current mode
+    await page.getByRole('button', { name: /^(store all values in the current mode|alle werte im aktuellen modus speichern)$/i }).click();
+    await page.getByRole('status').filter({ hasText: /values stored again|werte neu gespeichert/i }).waitFor();
+    await a11y('expert settings after saving');
+
+    // cache
+    await page.goto(`${BASE}/admin/cache`);
+    await idle();
+    await page.getByRole('button', { name: /^(clear cache|cache leeren)$/i }).click();
+    await toastOn(/cache cleared|cache geleert/i);
+
+    // trash: one page restored, one deleted for good
+    const cat = (await call('POST', '/api/v1/categories', { titles: { en: `Trash ${run}` } })).id;
+    const back = (await call('POST', '/api/v1/elements', { category_id: cat, type: 'core.html', title: `Back ${run}`, body: { format: 'markdown', source: 'x' } })).id;
+    const gone = (await call('POST', '/api/v1/elements', { category_id: cat, type: 'core.html', title: `Gone ${run}`, body: { format: 'markdown', source: 'x' } })).id;
+    await call('DELETE', `/api/v1/elements/${back}`);
+    await call('DELETE', `/api/v1/elements/${gone}`);
+    await page.goto(`${BASE}/trash`);
+    await idle();
+    await page.getByRole('button', { name: new RegExp(`^(restore Back ${run}|Back ${run} wiederherstellen)$`, 'i') }).click();
+    await toastOn(/^(restored\.|wiederhergestellt\.)$/i);
+    assert.equal((await call('GET', `/api/v1/elements/${back}`)).title, `Back ${run}`);
+    await page.getByRole('button', { name: new RegExp(`^(delete permanently|endgültig löschen): Gone ${run}$`, 'i') }).click();
+    await page.getByRole('dialog').getByRole('button', { name: /^(delete permanently|endgültig löschen)/i }).click();
+    await toastOn(/deleted permanently|endgültig gelöscht/i);
+    assert.equal(await page.evaluate(async (id) => (await __e2eFetch(`/api/v1/elements/${id}`)).status, gone), 404);
+    assert.equal((await call('GET', '/api/v1/trash')).some((x) => x.id === gone), false, 'gone from the trash too');
+  } finally {
+    await call('DELETE', `/api/v1/me/api-keys/${key.id}`);
+  }
+});
+
+test('mail outbox: a failed message sent again, details, test message, delete, run a job', async () => {
+  const toastOn = (re) => page.locator('.ew-toast', { hasText: re }).first().waitFor();
+  const smtp = await smtpFake();
+  // a port nobody listens on: sending fails first
+  const closed = await new Promise((r) => { const sv = net.createServer().listen(0, '127.0.0.1', () => { const port = sv.address().port; sv.close(() => r(port)); }); });
+  const prevMail = await call('GET', '/api/v1/admin/settings');
+  const smtpAt = (port) => call('PUT', '/api/v1/admin/settings', { mail: { ...prevMail.config.mail, enabled: true, transport: 'smtp', from: prevMail.config.mail.from || 'wiki@example.invalid',
+    smtp: { ...prevMail.config.mail.smtp, host: '127.0.0.1', port, security: 'none', username: '', password: '' } } });
+  const addr = `outbox${run}@example.invalid`;
+  const ctx2 = await browser.newContext({ viewport: { width: 1280, height: 900 }, bypassCSP: true });
+  // notifications without the quiet period (expert setting)
+  await call('PUT', '/api/v1/admin/limits', { values: { 'core.watch.quiet_seconds': 0 } });
+  try {
+    await smtpAt(closed);
+    // a notification goes through the outbox: a person with a confirmed address
+    // watches a category, a page is created there
+    const u = await call('POST', '/api/v1/admin/users', { username: `outbox${run}`, password: 'Outbox-Passw0rd-1!', display_name: `Outbox ${run}` });
+    await call('POST', `/api/v1/admin/users/${u.id}/emails`, { email: addr, verified: true });
+    const cat = (await call('POST', '/api/v1/categories', { titles: { en: `Watched ${run}` } })).id;
+    await call('POST', `/api/v1/categories/${cat}/acl`, { subject_type: 'user', subject_id: u.id, permissions: 1, inherit: true });
+    const g = await ctx2.newPage();
+    await g.goto(BASE + '/login?local=1');
+    await g.locator('input[name=username]').fill(`outbox${run}`);
+    await g.locator('input[type=password]').fill('Outbox-Passw0rd-1!');
+    await g.keyboard.press('Enter');
+    await g.waitForURL((x) => !x.pathname.startsWith('/login'));
+    assert.ok((await g.evaluate(async (id) => (await __e2eFetch('/api/v1/me/watches', { method: 'PUT', headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'ewiki' },
+      body: JSON.stringify({ target_type: 'category', target_id: id, mode: 'link', frequency: 'instant' }) })).status, cat)) < 300);
+    await call('POST', '/api/v1/elements', { category_id: cat, type: 'core.html', title: `News ${run}`, body: { format: 'markdown', source: 'x' } });
+    // the watch job collects the change (every 30 s; here run by hand)
+    await page.goto(`${BASE}/admin/mail`);
+    await idle();
+    let entry;
+    for (const deadline = Date.now() + 20000; !entry && Date.now() < deadline; await page.waitForTimeout(500)) {
+      await page.locator('.ew-toast').evaluateAll((els) => els.forEach((e) => e.remove()));
+      await page.getByRole('button', { name: /^(run now|jetzt ausführen): watch$/i }).click();
+      await toastOn(/watch (finished|ausgeführt)/i);
+      entry = (await call('GET', '/api/v1/admin/mail/outbox?limit=100')).find((o) => JSON.stringify(o).includes(addr) || o.subject.includes(`Watched ${run}`) || o.subject.includes(`News ${run}`));
+    }
+    assert.ok(entry, 'message in the outbox');
+    const subject = entry.subject;
+    const esc = subject.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+    await page.goto(`${BASE}/admin/mail?q=${encodeURIComponent(addr)}`);
+    await idle();
+    await page.getByRole('button', { name: /^(send queued messages now|wartende nachrichten jetzt senden)$/i }).click();
+    await toastOn(/finished|ausgeführt/i);
+    // failed on the closed port: send again after the server is fixed
+    await smtpAt(smtp.port);
+    await page.goto(`${BASE}/admin/mail?q=${encodeURIComponent(addr)}`);
+    await idle();
+    await page.getByRole('button', { name: new RegExp(`^(send again|erneut senden): ${esc}$`, 'i') }).click();
+    await toastOn(/sent again|erneut gesendet/i);
+    await page.getByRole('button', { name: /^(send queued messages now|wartende nachrichten jetzt senden)$/i }).click();
+    for (const deadline = Date.now() + 15000; !smtp.mails.some((m) => m.to.includes(addr)) && Date.now() < deadline;) await page.waitForTimeout(100);
+    assert.ok(smtp.mails.some((m) => m.to.includes(addr)), 'the message arrived after sending it again');
+
+    // details of the message
+    await page.goto(`${BASE}/admin/mail?q=${encodeURIComponent(addr)}`);
+    await idle();
+    await page.getByRole('button', { name: new RegExp(`^${esc}$`) }).first().click();
+    await page.getByRole('dialog', { name: subject }).waitFor();
+    await a11y('outbox message', page);
+    await page.getByRole('dialog').getByRole('button', { name: /^(close|schließen)$/i }).first().click();
+
+    // a test message
+    await page.getByLabel(/^(send a test message to|testnachricht senden an)/i).fill(`test${run}@example.invalid`);
+    await page.getByRole('button', { name: /^(send test|test senden)$/i }).click();
+    await toastOn(/test message sent|testnachricht an/i);
+    assert.ok(smtp.mails.some((m) => m.to.includes(`test${run}@example.invalid`)), 'test message arrived');
+
+    // delete the message from the outbox
+    await page.getByRole('button', { name: new RegExp(`^(delete|löschen): ${esc}$`, 'i') }).first().click();
+    await page.getByRole('dialog').getByRole('button', { name: /^(delete|löschen)$/i }).click();
+    await page.getByRole('button', { name: new RegExp(`^(delete|löschen): ${esc}$`, 'i') }).first().waitFor({ state: 'detached' });
+
+  } finally {
+    await ctx2.close();
+    await call('PUT', '/api/v1/admin/limits', { values: { 'core.watch.quiet_seconds': null } });
+    await call('PUT', '/api/v1/admin/settings', { mail: prevMail.config.mail });
+    smtp.close();
   }
 });
 

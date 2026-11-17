@@ -347,6 +347,8 @@ The limits apply to the whole instance; in further sites only administrators of 
 | `core.live.persons` | people who edit a page together at the same time | 50 |
 | `core.live.connections_per_person` | windows or devices of one person on the same page | 5 |
 | `core.audit.search_days` | how far back the text search in the before/after values of the audit log reaches when no start date is given (with a start date: any period) | 90 days |
+| `core.rollback.structure_changes` | most moves and orders since the chosen point in time that one rollback of a category with its structure undoes; more are refused | 10,000 |
+| `core.watch.quiet_seconds` | how long an immediate watch notification waits after the last change of an object, so several saves become one e-mail | 120 seconds |
 | `core.reactions.per_person` | plugin *Reactions*: different emojis of one person per target | 10 |
 | `content.forms.submit_mb` | plugin *Forms*: largest submission with all files, guests included. Each form only accepts the files its fields allow (number × size); this limit caps all forms | 200 MB |
 | `workflow.process.trigger_per_hour` | plugin *Workflow*: starts of a trigger per hour (schedule, change, event, incoming webhook); further starts are left out and shown in the editor | 60 |
