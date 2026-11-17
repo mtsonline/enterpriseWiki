@@ -347,6 +347,8 @@ Die Grenzwerte gelten für die ganze Instanz; in weiteren Sites ändern sie nur 
 | `core.live.persons` | Personen, die eine Seite gleichzeitig gemeinsam bearbeiten | 50 |
 | `core.live.connections_per_person` | Fenster oder Geräte einer Person an derselben Seite | 5 |
 | `core.audit.search_days` | so weit reicht die Textsuche in den Vorher-/Nachher-Werten des Audit-Protokolls zurück, wenn kein Startdatum angegeben ist (mit Startdatum: jeder Zeitraum) | 90 Tage |
+| `core.rollback.structure_changes` | Höchstzahl an Verschiebungen und Umsortierungen seit dem gewählten Zeitpunkt, die ein Zurücksetzen einer Kategorie mit Struktur rückgängig macht; bei mehr wird abgelehnt | 10.000 |
+| `core.watch.quiet_seconds` | wie lange eine sofortige Benachrichtigung nach der letzten Änderung eines Objekts wartet, damit mehrere Speichervorgänge eine E-Mail ergeben | 120 Sekunden |
 | `core.reactions.per_person` | Plugin *Reaktionen*: verschiedene Emojis einer Person je Ziel | 10 |
 | `content.forms.submit_mb` | Plugin *Formulare*: größte Einsendung mit allen Dateien, auch von Gästen. Jedes Formular nimmt höchstens die Dateien an, die seine Felder erlauben (Anzahl × Größe), diese Grenze deckelt alle Formulare | 200 MB |
 | `workflow.process.trigger_per_hour` | Plugin *Workflow*: Starts eines Auslösers pro Stunde (Zeitplan, Änderung, Ereignis, eingehender Webhook); weitere Starts entfallen und werden im Editor angezeigt | 60 |

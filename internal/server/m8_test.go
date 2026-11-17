@@ -200,9 +200,16 @@ func TestEventOccurrenceOverrides(t *testing.T) {
 
 func TestWatchDigests(t *testing.T) {
 	e := setup(t)
-	old := watch.Delay
-	watch.Delay = 0
-	t.Cleanup(func() { watch.Delay = old })
+	// no quiet period (expert setting core.watch.quiet_seconds)
+	if err := e.app.Config.Update(func(c *config.Config) error {
+		if c.Limits == nil {
+			c.Limits = map[string]int64{}
+		}
+		c.Limits["core.watch.quiet_seconds"] = 0
+		return nil
+	}); err != nil {
+		t.Fatal(err)
+	}
 	c := &capture{}
 	e.app.Mail.SetTransport(c)
 	admin := e.client()

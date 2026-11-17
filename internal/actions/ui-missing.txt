@@ -33,8 +33,6 @@ content.forms.submit
 content.team.members
 core.access.answer
 core.access.request
-core.api_keys.list
-core.api_keys.rate
 core.audit.export
 core.audit.forward_test
 core.audit.list
@@ -42,7 +40,6 @@ core.audit.settings.get
 core.audit.settings.update
 core.blocks.delete
 core.blocks.update
-core.cache.clear
 core.carousel.create
 core.carousel.delete
 core.carousel.order
@@ -75,17 +72,10 @@ core.i18n.import
 core.instance.admins.add
 core.instance.admins.remove
 core.instance.sites.update
-core.jobs.run
 core.languages.add
 core.languages.remove
 core.license.install
 core.license.remove
-core.limits.get
-core.limits.update
-core.mail.delete
-core.mail.get
-core.mail.retry
-core.mail.test
 core.me.identities.link
 core.me.identities.unlink
 core.me.inbox.delete
@@ -127,8 +117,6 @@ core.reactions.settings.update
 core.retention.run
 core.roles.update
 core.scim.clients.token
-core.secrets.rewrap
-core.secrets.status
 core.share.send
 core.signatures.export
 core.signatures.get
@@ -137,8 +125,6 @@ core.spaces.personal
 core.tags
 core.templates.delete
 core.templates.update
-core.trash.purge
-core.trash.restore
 core.updates.install
 core.users.identities.unlink
 core.watches.assign.add

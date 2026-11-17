@@ -1,6 +1,6 @@
 // Package watch lets users follow categories and elements and sends them
 // e-mails about changes. Changes are recorded in watch_events right after
-// they happen, coalesced per user and object and sent after a quiet period
+// they happen, coalesced per user and object and sent after a quiet period (limit core.watch.quiet_seconds)
 // (default 2 minutes) as one e-mail per user through the mail queue.
 package watch
 
@@ -25,12 +25,9 @@ import (
 	"github.com/mtsonline/enterprisewiki/internal/content"
 	"github.com/mtsonline/enterprisewiki/internal/i18n"
 	"github.com/mtsonline/enterprisewiki/internal/identity"
+	"github.com/mtsonline/enterprisewiki/internal/limits"
 	"github.com/mtsonline/enterprisewiki/internal/mail"
 )
-
-// Delay is the quiet period before changes are sent (several saves in a
-// row become one e-mail).
-var Delay = 2 * time.Minute
 
 // Service manages watches.
 type Service struct {
@@ -264,7 +261,7 @@ func (s *Service) sendBatch(ctx context.Context) (int, bool, error) {
 				HAVING max(last_at) FILTER (WHERE freq = 0) < now() - make_interval(secs => $1)
 					OR min(first_at) FILTER (WHERE freq = 1) < $2 OR min(first_at) FILTER (WHERE freq = 2) < $3 LIMIT 50)
 			AND ((freq = 0 AND last_at < now() - make_interval(secs => $1)) OR (freq = 1 AND first_at < $2) OR (freq = 2 AND first_at < $3))
-			ORDER BY user_id, last_at FOR UPDATE SKIP LOCKED`, Delay.Seconds(), daily, weekly)
+			ORDER BY user_id, last_at FOR UPDATE SKIP LOCKED`, float64(limits.Value(s.cfg.Get(), limits.WatchQuietSeconds)), daily, weekly)
 		if err != nil {
 			return err
 		}
