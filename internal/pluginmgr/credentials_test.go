@@ -150,6 +150,18 @@ func TestInstallWithSourceCredentials(t *testing.T) {
 	if !authorised {
 		t.Fatalf("no authorised request: %v", hits())
 	}
+	// a prefix naming the repository itself also covers its ".git" address
+	// (found by tests/plugins/lifecycle.sh against GitHub)
+	if err := st.Update(func(c *config.Config) error {
+		c.Plugins.Credentials = nil
+		_, err := SetCredential(c, config.SourceCredential{Prefix: srv.URL + "/team/kanban", Token: token})
+		return err
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if res, err := m.Install(ctx, source, "", opt); err != nil || res.ID != "acme.kanban" {
+		t.Fatalf("prefix of the repository itself: %+v %v", res, err)
+	}
 	// access data of another prefix are not sent
 	if _, err := m.Install(ctx, srv.URL+"/other/kanban.git", "", opt); err == nil {
 		t.Fatal("installed from a prefix without access data")
@@ -160,8 +172,8 @@ func TestInstallWithSourceCredentials(t *testing.T) {
 // through arguments (the process list) or the address.
 func TestGitAuthEnv(t *testing.T) {
 	c := config.SourceCredential{Prefix: "https://git.example.com/team", Token: "secret-token"}
-	env := strings.Join(gitAuthEnv(c), "\n")
-	for _, want := range []string{"http.https://git.example.com/team/.extraHeader", "http.followRedirects", "credential.helper"} {
+	env := strings.Join(gitAuthEnv(c, "https://git.example.com/team/kanban.git"), "\n")
+	for _, want := range []string{"http.https://git.example.com/team/kanban.git/.extraHeader", "http.followRedirects", "credential.helper"} {
 		if !strings.Contains(env, want) {
 			t.Errorf("missing %s in %s", want, env)
 		}

@@ -83,11 +83,12 @@ func credentialFor(list []config.SourceCredential, source string) (config.Source
 }
 
 // gitAuthEnv returns the environment for git that sends the access data to
-// the addresses below the prefix only: as a header in the environment, never
+// the cloned address (below the prefix) only: as a header in the
+// environment, never
 // in the command line or the address (where logs, error messages and the
 // process list would show it). Redirects are not followed and credential
 // helpers of the server are not asked.
-func gitAuthEnv(cred config.SourceCredential) []string {
+func gitAuthEnv(cred config.SourceCredential, gitURL string) []string {
 	user := cred.Username
 	if user == "" {
 		user = DefaultCredentialUser
@@ -95,7 +96,9 @@ func gitAuthEnv(cred config.SourceCredential) []string {
 	header := "Authorization: Basic " + base64.StdEncoding.EncodeToString([]byte(user+":"+cred.Token))
 	return []string{
 		"GIT_CONFIG_COUNT=3",
-		"GIT_CONFIG_KEY_0=http." + cred.Prefix + "/.extraHeader", "GIT_CONFIG_VALUE_0=" + header,
+		// the address git fetches (with ".git"): a prefix naming the
+		// repository itself would not match it at a path boundary
+		"GIT_CONFIG_KEY_0=http." + strings.TrimSuffix(gitURL, "/") + "/.extraHeader", "GIT_CONFIG_VALUE_0=" + header,
 		"GIT_CONFIG_KEY_1=http.followRedirects", "GIT_CONFIG_VALUE_1=false",
 		"GIT_CONFIG_KEY_2=credential.helper", "GIT_CONFIG_VALUE_2=",
 	}
