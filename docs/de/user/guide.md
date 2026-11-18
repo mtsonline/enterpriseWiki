@@ -386,6 +386,8 @@ Mit dem Recht *Verwalten* legen Sie unter *Kategorie-Einstellungen → Berechtig
 
 **Rechte einer Instanz (Blog, FAQ …):** Ein Blog oder eine FAQ hat eigene Rechte, unabhängig von den Rechten für Seiten in der Kategorie: **verwalten** (Einstellungen, Abschnitte und Rechte), **alle Inhalte bearbeiten** und **Inhalte beitragen** (neue und eigene). Auf der Seite der Instanz öffnet **Rechte** die Regeln; wer die Instanz verwaltet, vergibt sie an Personen, Gruppen, Rollen oder alle Angemeldeten, alle anderen sehen dort ihre eigenen Rechte. Wer die Kategorie verwaltet, hat immer alle Rechte ihrer Instanzen; dieselben Rechte lassen sich auch in den Berechtigungen der Kategorie für alle Instanzen darin vergeben. Niemand vergibt Rechte, die er selbst nicht hat. In archivierten Kategorien gelten keine Instanz-Rechte.
 
+**Beschriftungen einer Instanz:** Wer einen Blog oder eine FAQ verwaltet, ändert unter **Beschriftungen** die Texte ihrer Bedienelemente (zum Beispiel „Neuer Beitrag“ oder „Frage stellen“) – je aktiver Sprache. Ein leeres Feld lässt den üblichen Text gelten.
+
 Mit diesen Rechten schreiben Sie im Blog oder in der FAQ auch ohne Seitenrechte in der Kategorie: **Neuer Beitrag** öffnet den Editor im Auftrag des Blogs. Wer *Inhalte beitragen* darf, ändert und löscht seine eigenen Beiträge, wer *alle Inhalte bearbeiten* darf, alle Beiträge, die über den Blog entstanden sind (andere Seiten in der Kategorie nicht). Neue Abschnitte und die Einstellungen eines Blogs oder einer FAQ brauchen *verwalten*; Seitenrechte in der Kategorie reichen dafür nicht.
 
 ## Anmelden

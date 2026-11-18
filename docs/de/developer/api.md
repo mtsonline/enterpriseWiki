@@ -315,6 +315,8 @@ Aufgerufen von Verzeichnissen wie Entra ID oder Okta mit dem Token eines SCIM-Zu
 | `PUT` | `/api/v1/categories/{id}/settings` |
 | `GET` | `/api/v1/elements/{id}/rights` |
 | `PUT` | `/api/v1/elements/{id}/rights` |
+| `GET` | `/api/v1/elements/{id}/labels` |
+| `PUT` | `/api/v1/elements/{id}/labels` |
 | `GET` | `/api/v1/elements/{id}/acl` |
 | `GET` | `/api/v1/elements/{id}/access-requests` |
 | `PUT` | `/api/v1/elements/{id}/acl` |

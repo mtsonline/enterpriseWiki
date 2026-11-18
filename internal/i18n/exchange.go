@@ -72,7 +72,7 @@ func (s *Service) Export(ctx context.Context, lang string, o ExportOptions) (dat
 	if err := s.requireTranslate(ctx, lang); err != nil {
 		return nil, "", "", err
 	}
-	list, err := s.loadStrings(ctx, lang)
+	list, err := s.loadStrings(ctx, lang, manages(ctx))
 	if err != nil {
 		return nil, "", "", err
 	}

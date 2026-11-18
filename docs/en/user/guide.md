@@ -386,6 +386,8 @@ With the permission *Manage* you set under *Category settings → Permissions* w
 
 **Permissions of an instance (blog, FAQ …):** A blog or a FAQ has permissions of its own, independent of the permissions for pages in the category: **manage** (settings, sections and permissions), **edit all content** and **contribute content** (new and own). On the page of the instance, **Permissions** opens the rules; whoever manages the instance grants them to people, groups, roles or all signed-in people, everybody else sees their own permissions there. Managers of the category always have all permissions of its instances; the same permissions can also be granted in the permissions of the category for all instances in it. Nobody grants permissions they do not have themselves. In archived categories, instance permissions do not apply.
 
+**Labels of an instance:** whoever manages a blog or a FAQ changes the texts of its controls (for example "New post" or "Ask a question") under **Labels** – per active language. An empty field keeps the usual text.
+
 With these permissions you write in the blog or FAQ even without page permissions in the category: **New post** opens the editor on behalf of the blog. Whoever may *contribute content* changes and deletes their own posts, whoever may *edit all content* all posts created through the blog (not other pages in the category). New sections and the settings of a blog or FAQ need *manage*; page permissions in the category are not enough for that.
 
 ## Signing in

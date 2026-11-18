@@ -32,6 +32,7 @@ export { navigate, route, rerender } from './core/router';
 export { button, field, textInput, textArea, select, checkbox, openDialog, confirmDialog, formDialog, langFields, errorText, loading, pageHeader } from './components/ui';
 export type * from './core/types';
 export { registerWidget, hydrate } from './core/widgets';
+export { instanceLabels } from './components/instanceLabels';
 export type { TreeNode } from './components/widgets';
 export { categorySelect, elementSelect, newCategory, newElement } from './components/pickers';
 export type { CategorySelect, ElementSelect } from './components/pickers';

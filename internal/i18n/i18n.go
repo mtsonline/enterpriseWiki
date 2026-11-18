@@ -22,6 +22,7 @@ import (
 	"fmt"
 	"io/fs"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 
@@ -59,6 +60,8 @@ type Service struct {
 	files map[string]map[string]string // lang -> key -> text (from all sources)
 	owner map[string]string            // key -> source (core / plugin id), English keys
 	cache map[string]map[string]string // merged per lang
+	// labelable: texts that may be changed per instance (key -> plugin)
+	labelable map[string]string
 }
 
 // New creates the i18n service.
@@ -422,10 +425,12 @@ func (s *Service) Strings(ctx context.Context, lang string) ([]String, error) {
 	if err := s.requireTranslate(ctx, lang); err != nil {
 		return nil, err
 	}
-	return s.loadStrings(ctx, lang)
+	return s.loadStrings(ctx, lang, manages(ctx))
 }
 
-func (s *Service) loadStrings(ctx context.Context, lang string) ([]String, error) {
+// loadStrings lists the texts of lang; withInstances adds the labels of
+// instances (only for those who manage all translations).
+func (s *Service) loadStrings(ctx context.Context, lang string, withInstances bool) ([]String, error) {
 	refOv, err := s.overrides(ctx, Reference)
 	if err != nil {
 		return nil, err
@@ -438,7 +443,48 @@ func (s *Service) loadStrings(ctx context.Context, lang string) ([]String, error
 	}
 	s.mu.RLock()
 	defer s.mu.RUnlock()
-	return s.strings(lang, refOv, ov), nil
+	out := s.strings(lang, refOv, ov)
+	if withInstances {
+		out = append(out, s.instanceStrings(lang, refOv, ov)...)
+	}
+	return out, nil
+}
+
+// instanceStrings lists the labels of instances set in lang or in English
+// (callers hold s.mu).
+func (s *Service) instanceStrings(lang string, refOv, ov map[string]override) []String {
+	keys := map[string]bool{}
+	for k := range refOv {
+		if s.knownInstanceKey(k) {
+			keys[k] = true
+		}
+	}
+	for k := range ov {
+		if s.knownInstanceKey(k) {
+			keys[k] = true
+		}
+	}
+	list := make([]string, 0, len(keys))
+	for k := range keys {
+		list = append(list, k)
+	}
+	sort.Strings(list)
+	out := make([]String, 0, len(list))
+	for _, k := range list {
+		base, plugin, id, _ := parseInstanceKey(k)
+		ref := s.files[Reference][base]
+		if o, ok := refOv[k]; ok && o.value != "" {
+			ref = o.value
+		}
+		st := String{Key: k, Source: plugin + "/" + strconv.FormatInt(id, 10), Reference: map[string]string{"": ref}, Value: map[string]string{}, Status: "missing"}
+		if o, ok := ov[k]; ok && o.value != "" {
+			st.Value[""] = o.value
+			st.Custom = []string{""}
+			st.Status = "custom"
+		}
+		out = append(out, st)
+	}
+	return out
 }
 
 // LangStatus describes the translation progress of a language.
@@ -459,7 +505,7 @@ func (s *Service) Status(ctx context.Context) ([]LangStatus, error) {
 	cfg := s.cfg.Get().I18n
 	out := []LangStatus{}
 	for _, lang := range cfg.Languages {
-		list, err := s.loadStrings(ctx, lang)
+		list, err := s.loadStrings(ctx, lang, false)
 		if err != nil {
 			return nil, err
 		}
@@ -545,9 +591,18 @@ func (s *Service) set(ctx context.Context, lang string, values map[string]string
 		keys = append(keys, k)
 	}
 	sort.Strings(keys)
+	withInstances := manages(ctx)
 	for _, k := range keys {
 		v := strings.TrimSpace(values[k])
 		h, ok := hashOf[k]
+		if !ok && withInstances && s.knownInstanceKey(k) {
+			// a label of an instance (administrators of all translations)
+			if err := checkLabel(k, v); err != nil {
+				s.mu.RUnlock()
+				return res, err
+			}
+			h, ok = "", true
+		}
 		if !ok {
 			res.Unknown = append(res.Unknown, k)
 			continue

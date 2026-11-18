@@ -2,7 +2,7 @@
 // (search within the blog, paging, tag filter, new post / subcategory, feed).
 import {
   announce, api, button, categorySelect, checkbox, errorText, feedButton, field, formDialog, h, langFields, mount, navigate, pick,
-  registerEditor, registerWidget, select, state, t, textArea, textInput, toast, trustedHTML, type EditorInstance, sourcesEditor,
+  instanceLabels, registerEditor, registerWidget, select, state, t, textArea, textInput, toast, trustedHTML, type EditorInstance, sourcesEditor,
 } from '@ewiki/coreplugin';
 import './style.css';
 
@@ -62,12 +62,15 @@ function createEditor(container: HTMLElement, raw: unknown): EditorInstance {
 
 // ---------------------------------------------------------------- widget
 
+/** Text lookup of one blog (its own labels, else the plugin's texts). */
+type Label = (key: string, params?: Record<string, string | number>) => string;
+
 function dateOf(p: Post, c: Body): string {
   const d = new Date(c.order === 'updated' ? p.updated_at : p.created_at);
   return d.toLocaleDateString(L(), { dateStyle: 'medium' });
 }
 
-function renderPost(p: Post, c: Body, onTag: (tag: string) => void): HTMLElement {
+function renderPost(p: Post, c: Body, onTag: (tag: string) => void, tl: Label): HTMLElement {
   const iso = c.order === 'updated' ? p.updated_at : p.created_at;
   const meta = c.show_date || (c.show_author && p.author)
     ? h('p', { class: 'ewb-meta' }, c.show_date ? h('time', { datetime: iso }, dateOf(p, c)) : null,
@@ -78,7 +81,7 @@ function renderPost(p: Post, c: Body, onTag: (tag: string) => void): HTMLElement
     meta,
     c.full_content && p.html ? h('div', { class: 'ewb-content' }, trustedHTML(p.html))
       : p.summary ? [h('p', { class: 'ewb-summary' }, p.summary),
-        h('p', { class: 'ewb-readmore' }, h('a', { href: `/e/${p.id}` }, t('content.blog.more'), h('span', { class: 'sr-only' }, `: ${p.title}`)))] : null,
+        h('p', { class: 'ewb-readmore' }, h('a', { href: `/e/${p.id}` }, tl('content.blog.more'), h('span', { class: 'sr-only' }, `: ${p.title}`)))] : null,
     p.tags.length ? h('ul', { class: 'ewb-tags', 'aria-label': t('common.tags') }, ...p.tags.map((x) => h('li', null,
       button(x, () => onTag(x), { variant: 'link', ariaLabel: `${x}: ${t('content.blog.filter_tag')}` })))) : null,
     state.editMode ? h('p', { class: 'ewb-edit' }, h('a', { href: `/e/${p.id}/edit?lang=${L()}` }, t('common.edit'), h('span', { class: 'sr-only' }, `: ${p.title}`))) : null);
@@ -89,7 +92,7 @@ function catOptions(cats: Cat[], onlyCreate: boolean): { value: string; label: s
 }
 
 /** Asks for the category (if there are several) and opens the editor for a new post. */
-function newPost(id: number, cats: Cat[]): void {
+function newPost(id: number, cats: Cat[], tl: Label): void {
   const allowed = cats.filter((c) => c.can_create);
   // written on behalf of the blog (via): its permissions apply
   const go = (cat: string) => navigate(`/c/${cat}/new?type=core.html&via=${id}&return=${encodeURIComponent(`/e/${id}`)}`);
@@ -98,13 +101,13 @@ function newPost(id: number, cats: Cat[]): void {
     return;
   }
   const sel = select(catOptions(cats, true));
-  formDialog(t('content.blog.new_post'), [field(t('content.blog.post_category'), sel)], t('common.next'), async () => go(sel.value));
+  formDialog(tl('content.blog.new_post'), [field(t('content.blog.post_category'), sel)], t('common.next'), async () => go(sel.value));
 }
 
-function newCategory(id: number, cats: Cat[], done: () => void): void {
+function newCategory(id: number, cats: Cat[], done: () => void, tl: Label): void {
   const parent = select(catOptions(cats, true));
   const titles = langFields(t('common.title'), {}, { required: true });
-  formDialog(t('content.blog.new_category'), [field(t('category.parent'), parent), titles.el], t('common.create'), async () => {
+  formDialog(tl('content.blog.new_category'), [field(t('category.parent'), parent), titles.el], t('common.create'), async () => {
     await api.post('categories', { parent_id: Number(parent.value), titles: titles.get(), via: id });
     toast(t('category.created'));
     done();
@@ -116,6 +119,8 @@ async function blogWidget(root: HTMLElement): Promise<void> {
   let data: Posts;
   try { data = await api.get<Posts>(`${BASE}/elements/${id}/posts?lang=${L()}`); } catch { return; }
   if (data.info.missing) return;
+  // the blog's own labels (per language), else the plugin's texts
+  const tl = await instanceLabels(id);
   const c = data.config;
   const posts = root.querySelector<HTMLElement>('.ewb-posts') ?? root.appendChild(h('div', { class: 'ewb-posts' }));
   root.querySelector('.ewb-more-static')?.remove();
@@ -132,12 +137,12 @@ async function blogWidget(root: HTMLElement): Promise<void> {
       pager.replaceChildren();
       return;
     }
-    posts.replaceChildren(...(d.items.length ? d.items.map((p) => renderPost(p, c, (x) => void load(1, x))) : [h('p', { class: 'ewb-empty' }, t('content.blog.empty'))]));
+    posts.replaceChildren(...(d.items.length ? d.items.map((p) => renderPost(p, c, (x) => void load(1, x), tl)) : [h('p', { class: 'ewb-empty' }, tl('content.blog.empty'))]));
     status.textContent = tag ? t('content.blog.tag_filter', { tag, n: d.total }) : '';
     mount(pager,
-      d.page > 1 ? button(t('content.blog.newer'), () => void load(d.page - 1), { variant: 'secondary' }) : null,
+      d.page > 1 ? button(tl('content.blog.newer'), () => void load(d.page - 1), { variant: 'secondary' }) : null,
       d.pages > 1 ? h('span', { class: 'ewb-page' }, t('content.blog.page_of', { page: d.page, pages: d.pages })) : null,
-      d.page < d.pages ? button(t('content.blog.older'), () => void load(d.page + 1), { variant: 'secondary' }) : null,
+      d.page < d.pages ? button(tl('content.blog.older'), () => void load(d.page + 1), { variant: 'secondary' }) : null,
       tag ? button(t('content.blog.clear_filter'), () => { tag = ''; void load(1); }, { variant: 'link' }) : null);
   };
   const load = async (page: number, newTag?: string) => {
@@ -153,9 +158,9 @@ async function blogWidget(root: HTMLElement): Promise<void> {
   };
 
   // search within the blog
-  const q = textInput({ type: 'search', placeholder: t('content.blog.search_placeholder') });
-  q.setAttribute('aria-label', t('content.blog.search'));
-  const form = h('form', { class: 'ewb-search', role: 'search' }, q, button(t('content.blog.search'), () => undefined, { type: 'submit', variant: 'secondary' }));
+  const q = textInput({ type: 'search', placeholder: tl('content.blog.search_placeholder') });
+  q.setAttribute('aria-label', tl('content.blog.search'));
+  const form = h('form', { class: 'ewb-search', role: 'search' }, q, button(tl('content.blog.search'), () => undefined, { type: 'submit', variant: 'secondary' }));
   form.addEventListener('submit', async (ev) => {
     ev.preventDefault();
     if (!q.value.trim()) { void load(1); return; }
@@ -165,8 +170,8 @@ async function blogWidget(root: HTMLElement): Promise<void> {
 
   const title = document.querySelector('h1')?.textContent ?? 'Blog';
   const actions = h('div', { class: 'ew-actions' },
-    data.info.can_create ? button(t('content.blog.new_post'), () => newPost(id, data.info.categories), { variant: 'primary' }) : null,
-    data.info.can_manage && c.recursive ? button(t('content.blog.new_category'), () => newCategory(id, data.info.categories, () => void load(1)), { variant: 'secondary' }) : null,
+    data.info.can_create ? button(tl('content.blog.new_post'), () => newPost(id, data.info.categories, tl), { variant: 'primary' }) : null,
+    data.info.can_manage && c.recursive ? button(tl('content.blog.new_category'), () => newCategory(id, data.info.categories, () => void load(1), tl), { variant: 'secondary' }) : null,
     c.feed ? feedButton(`${BASE}/elements/${id}/feed`, title) : null);
   posts.before(h('div', { class: 'ewb-toolbar' }, form, actions), status);
   posts.after(pager);

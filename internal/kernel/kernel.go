@@ -212,6 +212,9 @@ func (k *Kernel) Setup(base coreplugin.Host, tr *i18n.Service) error {
 				return fmt.Errorf("plugin %s locales: %w", m.ID, err)
 			}
 		}
+		if err := tr.RegisterInstanceLabels(m.ID, m.InstanceLabels); err != nil {
+			return fmt.Errorf("plugin %s: %w", m.ID, err)
+		}
 		if s, ok := p.(coreplugin.SetupPlugin); ok {
 			h := base
 			h.Manifest = m

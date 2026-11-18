@@ -378,6 +378,10 @@ message ElementTypeDef {
   // ElementTypes.RenderElement renders the body when it is saved.
   bool render = 7;
   string icon = 8;
+  // UI texts (keys of the plugin's locales) that each instance may change
+  // per language ("labels" of the instance); stored as UI texts
+  // "<key>@<plugin>/<instance>".
+  repeated string instance_labels = 9;
 }
 
 // MacroDef: a macro for the editor (concept 5.6, way 4). Stored as a

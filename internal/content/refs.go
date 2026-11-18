@@ -36,6 +36,13 @@ func RemoveRefs(ctx context.Context, tx db.Querier, elements, categories []int64
 		categories, elements); err != nil {
 		return err
 	}
+	// labels of the instances that go away (UI texts "<key>@<plugin>/<id>")
+	if len(elements) > 0 {
+		if _, err := tx.Exec(ctx, `DELETE FROM ui_translations WHERE key LIKE '%@%/%'
+			AND substring(key from '@[a-z0-9._-]+/([0-9]{1,19})$')::bigint = ANY($1)`, elements); err != nil {
+			return err
+		}
+	}
 	exists := func(t string) (bool, error) {
 		var ok bool
 		err := tx.QueryRow(ctx, `SELECT to_regclass($1) IS NOT NULL`, t).Scan(&ok)
