@@ -2110,11 +2110,13 @@ test('rights of a page: own rights only, a rule, the note on the page', async ()
   await ed.getByRole('checkbox', { name: /^(edit|bearbeiten)$/i }).check();
   await a11y('element rights: edit a rule');
   await ed.locator('button[type=submit]').click();
-  await page.waitForFunction(async (id) => (await (await fetch(`/api/v1/elements/${id}/acl`)).json()).rules[0]?.permissions === 3, el.id);
+  await page.locator('dialog[open]').last().locator('table').getByText(/^(view, edit|ansehen, bearbeiten)$/i).waitFor();
+  assert.equal((await call('GET', `/api/v1/elements/${el.id}/acl`)).rules[0].permissions, 3);
   // remove it
   await page.locator('dialog[open]').last().getByRole('button', { name: /^(remove rule for|regel für .* entfernen)/i }).click();
   await page.locator('dialog[open]').last().getByRole('button', { name: /^(remove|entfernen)$/i }).click();
-  await page.waitForFunction(async (id) => (await (await fetch(`/api/v1/elements/${id}/acl`)).json()).rules.length === 0, el.id);
+  await page.locator('dialog[open]').last().locator('table').getByText(/^(no rules|keine regeln)/i).waitFor();
+  assert.equal((await call('GET', `/api/v1/elements/${el.id}/acl`)).rules.length, 0);
   await page.keyboard.press('Escape');
   await page.reload();
   await idle();
