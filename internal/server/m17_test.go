@@ -248,12 +248,11 @@ func TestFavorites(t *testing.T) {
 			ID   int64  `json:"id"`
 			URL  string `json:"url"`
 		} `json:"items"`
-		Position string `json:"position"`
 	}
 	var l list
 	admin.must("POST", "/api/v1/x/core.favorites/", map[string]any{"type": "element", "id": page.ID}, &l, 200)
 	admin.must("POST", "/api/v1/x/core.favorites/", map[string]any{"type": "category", "id": b.ID}, &l, 200)
-	if len(l.Items) != 2 || l.Items[0].ID != page.ID || l.Items[0].URL != "/wiki/fav-a/fav-page" || l.Position != "sidebar" {
+	if len(l.Items) != 2 || l.Items[0].ID != page.ID || l.Items[0].URL != "/wiki/fav-a/fav-page" {
 		t.Fatalf("favorites: %+v", l)
 	}
 	admin.must("PUT", "/api/v1/x/core.favorites/order", map[string]any{"items": []map[string]any{{"type": "category", "id": b.ID}, {"type": "element", "id": page.ID}}}, &l, 200)

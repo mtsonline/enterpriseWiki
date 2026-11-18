@@ -68,5 +68,6 @@
  "core.menu.description_help": "A short text below the entry (shown by the mega menu).",
  "core.menu.style": "Display",
  "core.menu.style_default": "Dropdown menus (default)",
- "core.menu.style_help": "For horizontal positions such as the main navigation."
+ "core.menu.style_help": "For horizontal positions such as the main navigation.",
+ "core.menu.block": "Menu"
 }

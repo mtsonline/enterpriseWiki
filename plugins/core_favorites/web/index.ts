@@ -1,13 +1,13 @@
 // Favorites: a star button in the actions of pages and categories, the list
-// at a template position (setting, default sidebar) and in the profile
+// as a block of the placement (default: sidebar) and in the profile
 // (remove, change the order with buttons).
-import { api, button, errorText, h, pageHeader, pick, pluginSettingsForm, positionOptions, registerAdminPage, registerPageAction, registerProfileSection, registerSlot, state, t, toast } from '@ewiki/coreplugin';
+import { api, button, errorText, h, pick, registerPageAction, registerProfileSection, registerSlot, state, t, toast, uid } from '@ewiki/coreplugin';
 import './style.css';
 
 const BASE = 'x/core.favorites';
 
 interface Favorite { type: 'element' | 'category'; id: number; titles: Record<string, string>; url: string; urls?: Record<string, string> }
-interface List { items: Favorite[]; position: string }
+interface List { items: Favorite[] }
 
 let data: List | null = null;
 let loading: Promise<List | null> | null = null;
@@ -60,12 +60,14 @@ function starButton(target: { type: 'element' | 'category'; id: number; title: s
 async function widget(position: string): Promise<HTMLElement | null> {
   if (!state.user) return null;
   const l = await load();
-  if (!l || l.position !== position) return null; // other positions stay empty
-  const nav = h('nav', { class: 'ewfav', 'aria-labelledby': `ewfav-${position}` });
+  if (!l) return null;
+  // the list may be placed more than once on a page: unique ids
+  const headId = uid(`ewfav-${position}`);
+  const nav = h('nav', { class: 'ewfav', 'aria-labelledby': headId });
   const draw = () => {
-    if (!data || data.position !== position) { nav.hidden = true; return; }
+    if (!data) { nav.hidden = true; return; }
     nav.hidden = false;
-    nav.replaceChildren(h('h2', { id: `ewfav-${position}`, class: 'ewfav-title' }, t('core.favorites.title')),
+    nav.replaceChildren(h('h2', { id: headId, class: 'ewfav-title' }, t('core.favorites.title')),
       data.items.length
         ? h('ul', { class: 'ewfav-list' }, ...data.items.map((f) => h('li', null, h('a', { href: href(f), 'aria-current': location.pathname === href(f) ? 'page' : undefined }, title(f)))))
         : h('p', { class: 'ew-muted' }, t('core.favorites.empty')));
@@ -105,16 +107,8 @@ async function profile(): Promise<HTMLElement | null> {
 
 export function register(): void {
   registerPageAction({ id: 'core.favorites', order: 5, render: (target) => starButton(target) });
-  registerSlot({ id: 'core.favorites', position: '*', order: 20, render: (position) => widget(position) });
+  // a block of the placement: default in the sidebar; hidden there, the list
+  // is only in the profile
+  registerSlot({ id: 'core.favorites', position: 'sidebar', order: 20, label: () => t('core.favorites.title'), render: (position) => widget(position) });
   registerProfileSection({ id: 'core.favorites', order: 5, render: profile });
-  registerAdminPage({
-    id: 'favorites', label: () => t('core.favorites.admin'), permission: 'core.settings.manage',
-    render: async (panel) => {
-      const form = await pluginSettingsForm('core.favorites', [
-        { key: 'position', label: t('core.favorites.position'), type: 'select', help: t('core.favorites.position_help'),
-          options: [{ value: 'sidebar', label: t('core.favorites.default_position') }, ...positionOptions(), { value: 'none', label: t('core.favorites.only_profile') }] },
-      ]);
-      panel.replaceChildren(pageHeader(t('core.favorites.admin')), h('p', null, t('core.favorites.admin_help')), form.el);
-    },
-  });
 }

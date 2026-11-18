@@ -24,5 +24,6 @@
  "core.blocks.delete_confirm": "Delete the block \"{name}\"?",
  "core.blocks.empty": "No blocks yet.",
  "perm.core.blocks.edit": "Edit blocks",
- "perm.core.blocks.edit_help": "Place and change blocks in the positions of the template (header, sidebar, footer …)."
+ "perm.core.blocks.edit_help": "Place and change blocks in the positions of the template (header, sidebar, footer …).",
+ "core.blocks.block": "Content block"
 }

@@ -68,5 +68,6 @@
  "core.menu.description_help": "Ein kurzer Text unter dem Eintrag (wird im Mega-Menü angezeigt).",
  "core.menu.style": "Darstellung",
  "core.menu.style_default": "Ausklappmenüs (Standard)",
- "core.menu.style_help": "Für waagrechte Positionen wie die Hauptnavigation."
+ "core.menu.style_help": "Für waagrechte Positionen wie die Hauptnavigation.",
+ "core.menu.block": "Menü"
 }

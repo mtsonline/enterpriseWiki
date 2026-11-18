@@ -9,7 +9,7 @@ import './style.css';
 const BASE = 'x/core.carousel';
 
 interface Slide { id?: number; kind: 'manual' | 'news' | 'feed'; element_id?: number; title: string; text: string; link: string; image: string; image_alt: string; starts_at?: string | null; ends_at?: string | null; date?: string | null; source?: string }
-interface Shown { id: number; name: string; autoplay: number; slides: Slide[] }
+interface Shown { id: number; name: string; autoplay: number; position: string; order: number; slides: Slide[] }
 interface Carousel { id: number; name: string; position: string; audience: 'all' | 'guests' | 'users'; autoplay: number; max_slides: number; feeds: string[]; sources: string; feed_items: number; enabled: boolean; order: number }
 
 const reduced = () => window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
@@ -71,14 +71,18 @@ function carousel(c: Shown): HTMLElement {
   return root;
 }
 
+// all carousels the viewer sees (one request for all positions, per
+// language and person); each carousel is a block of the placement
 const cache = new Map<string, Promise<Shown[]>>();
+function shown(): Promise<Shown[]> {
+  const key = `${state.lang}|${state.user?.id ?? 0}`;
+  if (!cache.has(key)) cache.set(key, api.get<Shown[]>(`${BASE}/shown?lang=${encodeURIComponent(state.lang)}`).catch(() => []));
+  return cache.get(key)!;
+}
 
-// positions without carousels stay empty (the template may hide empty positions)
-async function widget(position: string): Promise<HTMLElement | null> {
-  const key = `${position}|${state.lang}|${state.user?.id ?? 0}`;
-  if (!cache.has(key)) cache.set(key, api.get<Shown[]>(`${BASE}/position/${encodeURIComponent(position)}?lang=${encodeURIComponent(state.lang)}`).catch(() => []));
-  const list = await cache.get(key)!;
-  return list.length ? h('div', { class: 'ewcar-pos' }, ...list.map(carousel)) : null;
+async function widget(position: string, key?: string): Promise<HTMLElement | null> {
+  const c = (await shown()).find((x) => String(x.id) === key);
+  return c ? h('div', { class: `ewcar-pos ewcar-pos--${position}` }, carousel(c)) : null;
 }
 
 // ---------------------------------------------------------------- administration
@@ -217,7 +221,11 @@ async function adminPage(panel: HTMLElement): Promise<void> {
 }
 
 export function register(): void {
-  registerSlot({ id: 'core.carousel', position: '*', order: 5, render: (position) => widget(position) });
+  registerSlot({
+    id: 'core.carousel', position: '*', order: 5, label: () => t('core.carousel.block'), render: widget,
+    // every carousel is a block of its own; its position is the default
+    instances: async () => (await shown()).map((c) => ({ key: String(c.id), label: `${t('core.carousel.block')}: ${c.name}`, position: c.position, order: 5 + c.order })),
+  });
   registerAdminPage({ id: 'carousels', label: () => t('core.carousel.admin'), permission: 'core.carousel.manage', render: adminPage });
   // "as news" when publishing: only carousels placed in the active template
   registerPublishOption({

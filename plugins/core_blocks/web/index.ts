@@ -1,7 +1,7 @@
 // Content blocks at template positions, and their administration page.
 import {
   activeTemplate, api, button, checkbox, confirmDialog, errorText, field, formDialog, h, mount, pageHeader, pick, positionLabel, positionOptions,
-  refreshPositions, registerAdminPage, registerSlot, select, state, t, templateLabel, textArea, textInput, toast, trustedHTML,
+  refreshPositions, registerAdminPage, registerSlot, select, state, t, templateLabel, textArea, textInput, toast, trustedHTML, uid,
 } from '@ewiki/coreplugin';
 import './style.css';
 
@@ -9,7 +9,7 @@ const BASE = 'x/core.blocks';
 
 interface Body { format: 'markdown' | 'html'; source: string }
 interface Block { id: number; name: string; location: string; position: number; audience: 'all' | 'users' | 'guests'; enabled: boolean; titles: Record<string, string>; bodies: Record<string, Body> }
-interface Rendered { id: number; location: string; position: number; title: string; lang: string; html: string }
+interface Rendered { id: number; name: string; location: string; position: number; title: string; lang: string; html: string }
 
 // one request for all positions (shared while it is running), cached 30 s
 let cache: { key: string; at: number; blocks: Promise<Rendered[]> } | null = null;
@@ -24,15 +24,17 @@ function blocks(): Promise<Rendered[]> {
   return cache.blocks;
 }
 
-async function slot(position: string): Promise<Node | null> {
-  let list: Rendered[];
-  try { list = (await blocks()).filter((b) => b.location === position); } catch { return null; }
-  if (!list.length) return null;
-  return h('div', { class: `ewb ewb--${position}` }, ...list.map((b) => {
-    const id = `ewb-${b.id}`;
-    return h('section', { class: 'ewb-block', 'aria-labelledby': b.title ? id : undefined, 'aria-label': b.title ? undefined : positionLabel(position), lang: b.lang },
-      b.title ? h('h2', { id, class: 'ewb-title' }, b.title) : null, trustedHTML(b.html, 'ew-content ewb-content'));
-  }));
+/** slot renders block key at a position (each block is a block of its own
+ * in the placement: "core.blocks/<id>"; its location is the default). */
+async function slot(position: string, key?: string): Promise<Node | null> {
+  let b: Rendered | undefined;
+  try { b = (await blocks()).find((x) => String(x.id) === key); } catch { return null; }
+  if (!b) return null;
+  // a block may be placed more than once on a page: unique ids
+  const id = uid(`ewb-${b.id}`);
+  return h('div', { class: `ewb ewb--${position}` },
+    h('section', { class: 'ewb-block', 'aria-labelledby': b.title ? id : undefined, 'aria-label': b.title ? undefined : positionLabel(position), lang: b.lang },
+      b.title ? h('h2', { id, class: 'ewb-title' }, b.title) : null, trustedHTML(b.html, 'ew-content ewb-content')));
 }
 
 // ---------------------------------------------------------------- admin
@@ -96,6 +98,10 @@ async function adminPage(el: HTMLElement): Promise<void> {
 }
 
 export function register(): void {
-  registerSlot({ id: 'core.blocks', position: '*', order: 30, render: slot });
+  registerSlot({
+    id: 'core.blocks', position: '*', order: 30, label: () => t('core.blocks.block'), render: slot,
+    // every content block is a block of its own; its location is the default position
+    instances: async () => (await blocks()).map((b) => ({ key: String(b.id), label: `${t('core.blocks.block')}: ${b.name}`, position: b.location, order: 30 + b.position })),
+  });
   registerAdminPage({ id: 'blocks', permission: 'core.blocks.edit', label: () => t('core.blocks.title_admin'), order: 11, render: adminPage });
 }

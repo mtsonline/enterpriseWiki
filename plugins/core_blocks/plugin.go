@@ -6,8 +6,9 @@ package core_blocks
 import (
 	"context"
 	"embed"
+	_ "embed"
 	"errors"
-	"github.com/mtsonline/enterprisewiki/internal/perm"
+	"fmt"
 	"io/fs"
 	"net/http"
 	"regexp"
@@ -21,11 +22,11 @@ import (
 	"github.com/mtsonline/enterprisewiki/internal/audit"
 	"github.com/mtsonline/enterprisewiki/internal/content"
 	"github.com/mtsonline/enterprisewiki/internal/coreplugin"
+	"github.com/mtsonline/enterprisewiki/internal/db"
 	h "github.com/mtsonline/enterprisewiki/internal/httpx"
 	"github.com/mtsonline/enterprisewiki/internal/identity"
+	"github.com/mtsonline/enterprisewiki/internal/perm"
 	"github.com/mtsonline/enterprisewiki/plugins/core_html"
-
-	_ "embed"
 )
 
 //go:embed plugin.json
@@ -67,6 +68,7 @@ type Block struct {
 // Rendered is a block as shown to a visitor.
 type Rendered struct {
 	ID       int64  `json:"id"`
+	Name     string `json:"name"`
 	Location string `json:"location"`
 	Position int    `json:"position"`
 	Title    string `json:"title"`
@@ -173,7 +175,7 @@ func (p *Plugin) Setup(host *coreplugin.Host) error {
 			}
 			html := core_html.ToHTML(&body)
 			html = host.Content.RenderMacros(ctx, content.RenderContext{Lang: shown, Principal: me, Service: host.Content}, html)
-			out = append(out, Rendered{ID: b.ID, Location: b.Location, Position: b.Position, Title: title, Lang: shown, HTML: html})
+			out = append(out, Rendered{ID: b.ID, Name: b.Name, Location: b.Location, Position: b.Position, Title: title, Lang: shown, HTML: html})
 		}
 		return out, nil
 	})
@@ -227,14 +229,23 @@ func (p *Plugin) Setup(host *coreplugin.Host) error {
 			return nil, err
 		}
 		var b Block
-		err = host.DB.QueryRow(r.Context(), `DELETE FROM plugin_blocks WHERE id=$1 RETURNING name, location, titles, bodies`, id).Scan(&b.Name, &b.Location, &b.Titles, &b.Bodies)
-		if errors.Is(err, pgx.ErrNoRows) {
-			return nil, apperr.NotFound("block")
-		}
+		// the block, its placements and the audit entry together
+		err = db.Tx(r.Context(), host.DB, func(tx pgx.Tx) error {
+			err := tx.QueryRow(r.Context(), `DELETE FROM plugin_blocks WHERE id=$1 RETURNING name, location, titles, bodies`, id).Scan(&b.Name, &b.Location, &b.Titles, &b.Bodies)
+			if errors.Is(err, pgx.ErrNoRows) {
+				return apperr.NotFound("block")
+			}
+			if err != nil {
+				return err
+			}
+			if err := content.RemovePlacementsTx(r.Context(), tx, fmt.Sprintf("core.blocks/%d", id)); err != nil {
+				return err
+			}
+			return audit.Log(r.Context(), tx, "block.delete", "block", id, b, nil)
+		})
 		if err != nil {
 			return nil, err
 		}
-		_ = audit.Log(r.Context(), host.DB, "block.delete", "block", id, b, nil)
 		return h.NoContent{}, nil
 	})
 	return nil

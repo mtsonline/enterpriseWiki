@@ -13,7 +13,6 @@ import (
 	"embed"
 	"encoding/json"
 	"fmt"
-	"github.com/mtsonline/enterprisewiki/internal/feedfetch"
 	"io/fs"
 	"net/http"
 	"net/url"
@@ -28,6 +27,8 @@ import (
 	"github.com/mtsonline/enterprisewiki/internal/audit"
 	"github.com/mtsonline/enterprisewiki/internal/content"
 	"github.com/mtsonline/enterprisewiki/internal/coreplugin"
+	"github.com/mtsonline/enterprisewiki/internal/db"
+	"github.com/mtsonline/enterprisewiki/internal/feedfetch"
 	h "github.com/mtsonline/enterprisewiki/internal/httpx"
 	"github.com/mtsonline/enterprisewiki/internal/identity"
 	"github.com/mtsonline/enterprisewiki/internal/perm"
@@ -186,6 +187,13 @@ func (p *Plugin) Setup(host *coreplugin.Host) error {
 	host.Handle("GET", "/position/{position}", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		return p.atPosition(r.Context(), r.PathValue("position"), r.URL.Query().Get("lang"))
 	})
+	// GET /shown – all carousels the caller sees, with their slides; each is
+	// a block of its own in the placement ("core.carousel/<id>", its
+	// position is the default)
+	// action: core.carousel.shown
+	host.Handle("GET", "/shown", func(w http.ResponseWriter, r *http.Request) (any, error) {
+		return p.atPosition(r.Context(), "", r.URL.Query().Get("lang"))
+	})
 	// GET /targets – carousels news can be published to (for the publish dialog)
 	// action: core.carousel.targets
 	host.Handle("GET", "/targets", func(w http.ResponseWriter, r *http.Request) (any, error) {
@@ -272,10 +280,19 @@ func (p *Plugin) Setup(host *coreplugin.Host) error {
 		if err != nil {
 			return nil, err
 		}
-		if _, err := host.DB.Exec(ctx, `DELETE FROM plugin_carousels WHERE id=$1`, id); err != nil {
+		// the carousel, its placements and the audit entry together
+		err = db.Tx(ctx, host.DB, func(tx pgx.Tx) error {
+			if _, err := tx.Exec(ctx, `DELETE FROM plugin_carousels WHERE id=$1`, id); err != nil {
+				return err
+			}
+			if err := content.RemovePlacementsTx(ctx, tx, fmt.Sprintf("core.carousel/%d", id)); err != nil {
+				return err
+			}
+			return audit.Log(ctx, tx, "carousel.delete", "carousel", id, nil, nil)
+		})
+		if err != nil {
 			return nil, err
 		}
-		_ = audit.Log(ctx, host.DB, "carousel.delete", "carousel", id, nil, nil)
 		return h.NoContent{}, nil
 	})
 	// GET /carousels/{id}/slides – all slides (also future and expired ones) and the feed state
@@ -468,11 +485,12 @@ func (p *Plugin) slides(ctx context.Context, carousel int64, active bool) ([]Sli
 	})
 }
 
-// atPosition returns the enabled carousels of a position with their visible slides.
+// atPosition returns the carousels of a position ("": of all positions) the
+// caller sees, with their slides.
 func (p *Plugin) atPosition(ctx context.Context, position, lang string) ([]map[string]any, error) {
 	me := identity.From(ctx)
 	signedIn := me != nil && me.ID() != 0
-	rows, err := p.host.DB.Query(ctx, `SELECT `+carCols+` FROM plugin_carousels WHERE enabled AND position=$1 ORDER BY position_order, id`, position)
+	rows, err := p.host.DB.Query(ctx, `SELECT `+carCols+` FROM plugin_carousels WHERE enabled AND ($1 = '' OR position=$1) ORDER BY position_order, id`, position)
 	if err != nil {
 		return nil, err
 	}
@@ -525,7 +543,7 @@ func (p *Plugin) atPosition(ctx context.Context, position, lang string) ([]map[s
 		if len(visible) == 0 {
 			continue
 		}
-		out = append(out, map[string]any{"id": c.ID, "name": c.Name, "autoplay": c.Autoplay, "slides": visible})
+		out = append(out, map[string]any{"id": c.ID, "name": c.Name, "autoplay": c.Autoplay, "position": c.Position, "order": c.Order, "slides": visible})
 	}
 	return out, nil
 }
