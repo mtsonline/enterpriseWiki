@@ -58,6 +58,8 @@ export interface Site {
   editor_tools?: string[];
   /** Tiles offered for the own dashboard (empty = all). */
   dashboard_tiles?: string[];
+  /** the own dashboard is the start page of signed-in people (ui.dashboard_home) */
+  dashboard_home?: boolean;
   /** seconds without an answer to a change after which the user is asked whether to keep waiting */
   wait_notice_s?: number;
   languages: string[];

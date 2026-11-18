@@ -28,7 +28,7 @@ import { registerSourceControls } from './components/sources';
 import { installMacroPager } from './core/pager';
 import { categorySettingsView } from './views/categorySettings';
 import { spaceKeyView, spacesView } from './views/spaces';
-import { categoryView, editElementView, elementView, draftEditView, historyView, homeView, newElementView, registerElementBlocks } from './views/content';
+import { categoryView, editElementView, elementView, draftEditView, historyView, homeView, newElementView, siteHomeView, registerElementBlocks } from './views/content';
 import { loginView, notFoundView, profileView, searchView, trashView } from './views/misc';
 
 function pickLanguage(site: Site, user: Principal | null): string {
@@ -39,6 +39,7 @@ function pickLanguage(site: Site, user: Principal | null): string {
 function registerCore(): void {
   registerSourceControls();
   route('/', homeView);
+  route('/start', siteHomeView);
   route('/c/:id', categoryView);
   route('/c/:id/new', newElementView);
   route('/c/:id/settings', categorySettingsView);

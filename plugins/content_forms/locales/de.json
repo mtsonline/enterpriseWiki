@@ -249,5 +249,9 @@
  "perm.content.forms.submissions_delete_help": "Einsendungen der Formulare der Kategorie löschen. Gelöschte Einsendungen lassen sich nicht wiederherstellen. Schließt das Ansehen ein.",
  "perm.content.forms.submissions_manage": "Einsendungen verwalten",
  "perm.content.forms.submissions_manage_help": "Die Einsendungen der Formulare der Kategorie ansehen, exportieren und löschen.",
- "content.forms.submissions_block": "Einsendungen des Formulars"
+ "content.forms.submissions_block": "Einsendungen des Formulars",
+ "forms.dashboard_title": "Neue Einsendungen",
+ "forms.dashboard_none": "In den letzten 90 Tagen gab es keine Einsendungen zu Formularen, die Sie sehen.",
+ "forms.unseen_n": "{n} neu",
+ "forms.untitled": "Formular ohne Titel"
 }

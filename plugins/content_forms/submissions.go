@@ -91,6 +91,90 @@ func (p *Plugin) mayHandle(ctx context.Context, id int64, what string) (int64, e
 	return 0, apperr.Forbidden("this needs the permission %q", key)
 }
 
+// RecentForm is a form with new submissions (tile of the dashboard).
+type RecentForm struct {
+	ElementID int64             `json:"element_id"`
+	Titles    map[string]string `json:"titles"`
+	Last      time.Time         `json:"last"`
+	Unseen    int               `json:"unseen"`
+}
+
+// recentForms returns the forms with the latest submissions (last 90 days)
+// whose submissions the caller sees, newest first. The rights are checked
+// as in mayHandle, for all candidates at once.
+func (p *Plugin) recentForms(ctx context.Context, limit int) ([]RecentForm, error) {
+	me := identity.From(ctx)
+	if me.ID() <= 0 {
+		return nil, apperr.ErrUnauthorized
+	}
+	limit = min(max(limit, 1), 50)
+	// acl: checked below (ElementPerms, creator or permission)
+	rows, err := p.host.DB.Query(ctx, `SELECT s.element_id, e.category_id, e.created_by, e.titles, s.last FROM
+		(SELECT element_id, max(created_at) AS last FROM plugin_form_submissions WHERE created_at > now() - interval '90 days'
+		 GROUP BY element_id ORDER BY last DESC LIMIT 200) s
+		JOIN elements e ON e.id = s.element_id JOIN categories c ON c.id = e.category_id
+		WHERE e.type = $1 AND e.deleted_at IS NULL AND c.deleted_at IS NULL ORDER BY s.last DESC`, TypeID)
+	if err != nil {
+		return nil, err
+	}
+	type cand struct {
+		RecentForm
+		cat     int64
+		creator *int64
+	}
+	all, err := pgx.CollectRows(rows, func(r pgx.CollectableRow) (cand, error) {
+		var c cand
+		return c, r.Scan(&c.ElementID, &c.cat, &c.creator, &c.Titles, &c.Last)
+	})
+	if err != nil {
+		return nil, err
+	}
+	out := []RecentForm{}
+	ids := []int64{}
+	for _, c := range all {
+		if len(out) == limit {
+			break
+		}
+		if p.host.Content.ElementPerms(ctx, c.ElementID, c.cat)&acl.View == 0 {
+			continue
+		}
+		if (c.creator == nil || *c.creator != me.ID()) && !p.host.CanElement(ctx, c.ElementID, c.cat, permSubmissions) {
+			continue
+		}
+		if c.Titles == nil {
+			c.Titles = map[string]string{}
+		}
+		out = append(out, c.RecentForm)
+		ids = append(ids, c.ElementID)
+	}
+	if len(ids) == 0 {
+		return out, nil
+	}
+	// acl: the ids were checked above
+	rows, err = p.host.DB.Query(ctx, `SELECT element_id, count(*) FROM plugin_form_submissions WHERE element_id = ANY($1) AND NOT seen GROUP BY element_id`, ids)
+	if err != nil {
+		return nil, err
+	}
+	unseen := map[int64]int{}
+	for rows.Next() {
+		var id int64
+		var n int
+		if err := rows.Scan(&id, &n); err != nil {
+			rows.Close()
+			return nil, err
+		}
+		unseen[id] = n
+	}
+	rows.Close()
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	for i := range out {
+		out[i].Unseen = unseen[out[i].ElementID]
+	}
+	return out, nil
+}
+
 func (p *Plugin) routes() {
 	host := p.host
 	// action: content.forms.meta
@@ -106,6 +190,13 @@ func (p *Plugin) routes() {
 	// guests upload files too: the route has its own limit instead of the
 	// small one for guests; the handler narrows it to the files of the form
 	host.BodyLimit("POST", "/elements/{id}/submit", LimitSubmitMB)
+
+	// GET /submissions/recent?limit= → forms with the latest submissions
+	// that the caller sees (tile of the dashboard)
+	// action: content.forms.submissions.recent
+	host.Handle("GET", "/submissions/recent", func(w http.ResponseWriter, r *http.Request) (any, error) {
+		return p.recentForms(r.Context(), h.QueryInt(r, "limit", 8))
+	})
 
 	// GET /elements/{id}/submissions?limit=&offset=&q=
 	// action: content.forms.submissions.list

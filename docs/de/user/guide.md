@@ -378,11 +378,12 @@ Gelöschte Kategorien (mit allem Inhalt) und Seiten landen im **Papierkorb** (Be
 
 ## Mein Dashboard
 
-Unter *Benutzermenü → Mein Dashboard* (`/dashboard`) sehen Sie Kacheln auf einen Blick: Benachrichtigungen, Ihre Aufgaben, zuletzt von Ihnen bearbeitete Seiten, Favoriten, zuletzt geänderte Seiten und beobachtete Seiten. Plugins können weitere Kacheln mitbringen. Jede Kachel zeigt nur, was Sie sehen dürfen.
+Unter *Benutzermenü → Mein Dashboard* (`/dashboard`) sehen Sie Kacheln auf einen Blick: Benachrichtigungen, Ihre Aufgaben, die von Ihnen gestarteten Vorgänge, zuletzt von Ihnen bearbeitete Seiten, Favoriten, neue Einsendungen zu Formularen, deren Einsendungen Sie sehen dürfen, die nächsten Termine, zuletzt geänderte Seiten und beobachtete Seiten. Administratoren sehen zusätzlich den *Zustand des Wikis*: Version und Updates, E-Mail und Warteschlange, fehlgeschlagene Anmeldungen der letzten 24 Stunden, Weiterleitung des Protokolls, Plugins, Lizenz und Datenbank; ein Problem ist mit *Achtung* oder *Fehler* markiert. Plugins können weitere Kacheln mitbringen. Jede Kachel zeigt nur, was Sie sehen dürfen.
 
 - **Mit der Maus:** *Mit der Maus verschieben* einschalten und eine Kachel an eine andere Stelle ziehen. Die Anordnung wird sofort gespeichert.
 - **Mit der Tastatur:** *Kacheln anordnen* öffnet eine Liste. Darin wählen Sie für jede Kachel die Position (*ganze Breite* oder *Spalte 1–3*) oder *Nicht anzeigen* und ändern die Reihenfolge mit ↑ ↓. Eine Kachel wird breit, wenn sie an der Position *ganze Breite* steht.
 - Ihr Dashboard ordnen Sie immer selbst an, auch wenn die persönliche Anordnung der übrigen Oberfläche ausgeschaltet ist. Die Verwaltung legt die Vorgabe und Pflicht-Kacheln fest, die Sie nicht verschieben können, und wählt, welche Kacheln angeboten werden. Auf kleinen Bildschirmen stehen die Spalten untereinander.
+- Wenn die Verwaltung das Dashboard zur Startseite macht, landen Sie nach der Anmeldung und unter `/` dort. Die Startseite des Wikis bleibt unter `/start` erreichbar (Link *Zur Startseite des Wikis* auf dem Dashboard).
 
 ## Platzierung
 

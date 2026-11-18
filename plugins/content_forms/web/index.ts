@@ -1,6 +1,6 @@
 // Frontend of the forms plugin: the form on the page, the editor and the
 // submissions below the form (creator and "See submissions").
-import { ApiError, api, button, confirmDialog, elementSelect, fmtDate, h, humanSize, pageHeader, pluginSettingsForm, registerAdminPage, registerEditor, registerElementExtension, registerMacroParamControl, registerWidget, state, t, textInput, toast, errorText } from '@ewiki/coreplugin';
+import { ApiError, api, button, confirmDialog, elementSelect, fmtDate, h, humanSize, pageHeader, pick, pluginSettingsForm, registerAdminPage, registerSlot, tile, registerEditor, registerElementExtension, registerMacroParamControl, registerWidget, state, t, textInput, toast, errorText } from '@ewiki/coreplugin';
 import type { ElementView } from '@ewiki/coreplugin';
 import { createFormEditor, type FField } from './editor';
 import { BASE, formWidget } from './widget';
@@ -92,6 +92,21 @@ export function register(): void {
     return { el: box, get: () => (id ? String(id) : '') };
   });
   registerWidget('form', formWidget);
+  // tile of the own dashboard: forms with the latest submissions the person sees
+  registerSlot({
+    id: 'content.forms.dashboard', kind: 'dashboard', position: 'dashboard-2', order: 40, label: () => t('forms.dashboard_title'),
+    render: async () => {
+      if (!state.user) return null;
+      let list: { element_id: number; titles: Record<string, string>; last: string; unseen: number }[];
+      try { list = await api.get(`${BASE}/submissions/recent?limit=8`); } catch { return null; }
+      return tile(t('forms.dashboard_title'), list.length
+        ? h('ul', { class: 'ew-tile-list' }, ...list.map((f) => h('li', null,
+          h('a', { href: `/e/${f.element_id}#ewfm-subs-${f.element_id}` }, pick(f.titles, state.lang, state.site.default_language) || t('forms.untitled')),
+          h('span', { class: 'ew-meta' }, ` · ${fmtDate(f.last, state.lang)}`),
+          f.unseen ? [' ', h('span', { class: 'ew-badge ew-badge--warn' }, t('forms.unseen_n', { n: f.unseen }))] : null)))
+        : h('p', { class: 'ew-muted' }, t('forms.dashboard_none')));
+    },
+  });
   registerEditor('content.forms', createFormEditor);
   registerElementExtension({ id: 'content.forms.submissions', order: 20, label: () => t('content.forms.submissions_block'), render: submissions });
 }

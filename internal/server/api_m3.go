@@ -3,13 +3,16 @@ package server
 import (
 	"fmt"
 	"net/http"
+	"slices"
 	"strconv"
+	"time"
 
 	h "github.com/mtsonline/enterprisewiki/internal/httpx"
 	"github.com/mtsonline/enterprisewiki/internal/mail"
 
 	"github.com/mtsonline/enterprisewiki/internal/apperr"
 	"github.com/mtsonline/enterprisewiki/internal/coreplugin"
+	"github.com/mtsonline/enterprisewiki/internal/pgversion"
 	"github.com/mtsonline/enterprisewiki/internal/pluginmgr"
 	"github.com/mtsonline/enterprisewiki/internal/version"
 )
@@ -47,6 +50,63 @@ func (s *Server) routesM3() {
 			}
 		}
 		return s.plugins.CheckUpdates(r.Context(), version.Version, manifests(), force)
+	})
+	// GET /api/v1/admin/status: the state of the wiki at a glance (tile of
+	// the dashboard): version, updates from the last check (no request to
+	// GitHub here), e-mails that failed or wait, the backlog of the change
+	// queue.
+	// action: core.admin.status
+	s.handle("GET /api/v1/admin/status", func(w http.ResponseWriter, r *http.Request) (any, error) {
+		if err := requireAdmin(r); err != nil {
+			return nil, err
+		}
+		out := map[string]any{"version": version.Version, "updates_checked_at": nil, "updates_available": 0}
+		if rep := s.plugins.LastUpdateReport(); rep != nil {
+			n := 0
+			for _, x := range rep.Items {
+				if x.Available {
+					n++
+				}
+			}
+			out["updates_checked_at"], out["updates_available"] = rep.CheckedAt, n
+		}
+		var failed, queued, pending int
+		var oldest *time.Time
+		if err := s.app.DB.QueryRow(r.Context(), `SELECT
+			(SELECT count(*) FROM mail_outbox WHERE status IN ('failed', 'partial')),
+			(SELECT count(*) FROM mail_outbox WHERE status = 'queued'),
+			(SELECT count(*) FROM change_events),
+			(SELECT min(created_at) FROM change_events)`).Scan(&failed, &queued, &pending, &oldest); err != nil {
+			return nil, err
+		}
+		out["mail_failed"], out["mail_queued"], out["queue_pending"], out["queue_oldest"] = failed, queued, pending, oldest
+		// security: failed sign-ins of the last 24 hours, audit forwarding
+		// that fails
+		var loginFailed, forwardErrors int
+		if err := s.app.DB.QueryRow(r.Context(), `SELECT
+			(SELECT count(*) FROM audit_log WHERE action = 'auth.login_failed' AND at > now() - interval '24 hours'),
+			(SELECT count(*) FROM audit_forward_state WHERE errors > 0)`).Scan(&loginFailed, &forwardErrors); err != nil {
+			return nil, err
+		}
+		out["login_failed_24h"], out["audit_forward_errors"] = loginFailed, forwardErrors
+		// plugins: switched on but not running (missing dependency), restart
+		// or failed build
+		inactive := []string{}
+		for _, p := range s.app.Kernel.List() {
+			if p.Enabled && !p.Active {
+				inactive = append(inactive, p.ID)
+			}
+		}
+		slices.Sort(inactive)
+		b := s.plugins.BuildStatus()
+		out["plugins_inactive"], out["restart_pending"] = inactive, s.plugins.RestartPending()
+		out["build_failed"] = !b.Running && b.FinishedAt != nil && !b.OK
+		out["license_level"] = s.LicenseStatus(r.Context()).Level
+		out["database_level"] = ""
+		if st, err := pgversion.Check(r.Context(), s.app.DB, time.Now()); err == nil {
+			out["database_level"] = st.Level
+		}
+		return out, nil
 	})
 	// POST /api/v1/admin/updates/{id} installs the latest release of a
 	// plugin and starts the rebuild (1-click update).

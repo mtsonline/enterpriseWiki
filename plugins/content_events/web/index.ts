@@ -3,7 +3,7 @@
 // .ics), the event form (series, registration, reminders) and iCal
 // subscription.
 import {
-  announce, api, button, checkbox, confirmDialog, errorText, feedURL, field, formDialog, h, mount, newest, openDialog, qs, registerEditor, registerWidget, select, state, t, textArea, textInput, toast, trustedHTML, uid, type EditorInstance, sourcesEditor, registerSourceKind, registerMacroParamControl, elementSelect,
+  announce, api, button, checkbox, confirmDialog, errorText, feedURL, field, formDialog, h, mount, newest, openDialog, qs, registerEditor, registerWidget, select, state, t, textArea, textInput, toast, trustedHTML, uid, type EditorInstance, sourcesEditor, registerSourceKind, registerMacroParamControl, elementSelect, registerSlot, tile,
 } from '@ewiki/coreplugin';
 import './style.css';
 
@@ -639,7 +639,7 @@ async function eventsWidget(root: HTMLElement): Promise<void> {
 
 async function myRegistrations(): Promise<void> {
   interface R { event_id: number; occurrence: string; status: string; title: string; calendar_id: number }
-  interface U { event_id: number; calendar_id: number; calendar: string; title: string; start: string; all_day: boolean }
+  interface U { event_id: number; calendar_id: number; calendar: string; title: string; start: string; all_day: boolean; date: string }
   let list: R[];
   let next: U[] = [];
   try {
@@ -652,7 +652,7 @@ async function myRegistrations(): Promise<void> {
       ' ', h('span', { class: 'ew-badge' }, t(`content.events.st_${r.status}`))))) : h('p', null, t('content.events.no_registrations')),
     next.length ? [h('h3', null, t('content.events.upcoming_all')), h('ul', { class: 'ewe-my' }, ...next.map((u) => {
       const s = new Date(u.start);
-      return h('li', null, h('a', { href: `/e/${u.calendar_id}#event-${u.event_id}-${ymd(s)}` },
+      return h('li', null, h('a', { href: `/e/${u.calendar_id}#event-${u.event_id}-${u.date || ymd(s)}` },
         `${day(s)}${u.all_day ? '' : `, ${hm(s)}`} – ${u.title}`), ' ', h('span', { class: 'ewe-up-cal' }, u.calendar));
     }))] : null,
   ]);
@@ -678,4 +678,22 @@ export function register(): void {
   registerMacroParamControl('events.sources', (value, ctx) => sourcesEditor(ctx.label, value, { kinds: ['calendar', 'ical'], help: t('content.events.more_sources_help') }));
   registerEditor('content.events', createEditor);
   registerWidget('events', eventsWidget);
+  // tile of the own dashboard: the next events of all calendars the person sees
+  registerSlot({
+    id: 'content.events.dashboard', kind: 'dashboard', position: 'dashboard-3', order: 30, label: () => t('content.events.dashboard_title'),
+    render: async () => {
+      if (!state.user) return null;
+      interface U { event_id: number; calendar_id: number; calendar: string; title: string; start: string; all_day: boolean; date: string }
+      let next: U[];
+      try { next = await api.get<U[]>(`${BASE}/upcoming?limit=8&days=30`); } catch { return null; }
+      const day = (d: Date) => d.toLocaleDateString(L(), { dateStyle: 'medium' });
+      return tile(t('content.events.dashboard_title'), next.length
+        ? h('ul', { class: 'ew-tile-list' }, ...next.map((u) => {
+          const s = new Date(u.start);
+          return h('li', null, h('a', { href: `/e/${u.calendar_id}#event-${u.event_id}-${u.date || ymd(s)}` }, u.title),
+            h('span', { class: 'ew-meta' }, ` · ${day(s)}${u.all_day ? '' : `, ${hm(s)}`} · ${u.calendar}`));
+        }))
+        : h('p', { class: 'ew-muted' }, t('content.events.none_upcoming')));
+    },
+  });
 }
