@@ -63,10 +63,10 @@ func (Type) CheckChange(ctx context.Context, _ *content.Service, el *content.Ele
 	}
 	p := identity.From(ctx)
 	own := p != nil && el.CreatedByID != nil && *el.CreatedByID == p.ID()
-	if own && (gh.Can(ctx, el.CategoryID, permCreate) || gh.Can(ctx, el.CategoryID, permAdmin)) {
+	if own && (gh.CanElement(ctx, el.ID, el.CategoryID, permCreate) || gh.CanElement(ctx, el.ID, el.CategoryID, permAdmin)) {
 		return nil
 	}
-	if !gh.Can(ctx, el.CategoryID, permAdmin) {
+	if !gh.CanElement(ctx, el.ID, el.CategoryID, permAdmin) {
 		return apperr.Forbidden("only the creator of the workflow or a workflow administrator may change it")
 	}
 	// workflow administrator changes a workflow of someone else

@@ -8,6 +8,8 @@ package watch
 
 import (
 	"context"
+	"github.com/mtsonline/enterprisewiki/internal/acl"
+	"github.com/mtsonline/enterprisewiki/internal/identity"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -36,7 +38,8 @@ type Assignment struct {
 	CreatedAt   time.Time         `json:"created_at"`
 	Members     int               `json:"members"`
 	// for the profile: whether the caller unsubscribed (optional assignments)
-	Unsubscribed bool `json:"unsubscribed"`
+	Unsubscribed bool  `json:"unsubscribed"`
+	targetCat    int64 // category of the target (to check whether its title may be shown)
 }
 
 // AssignmentInput creates or changes an assignment.
@@ -52,18 +55,20 @@ type AssignmentInput struct {
 	Note        string `json:"note"`
 }
 
+// acl: target titles are shown only if the caller may see the target (titlesFor)
 const assignCols = `a.id, a.subject_type, a.subject_id,
 	COALESCE(CASE a.subject_type WHEN 'user' THEN (SELECT COALESCE(NULLIF(u.display_name, ''), u.username) FROM users u WHERE u.id=a.subject_id)
 		WHEN 'group' THEN (SELECT g.name FROM groups g WHERE g.id=a.subject_id) ELSE (SELECT r.name FROM roles r WHERE r.id=a.subject_id) END, '#' || a.subject_id),
 	a.target_type, a.target_id,
 	COALESCE(CASE a.target_type WHEN 'category' THEN (SELECT c.titles FROM categories c WHERE c.id=a.target_id) ELSE (SELECT e.titles FROM elements e WHERE e.id=a.target_id) END, '{}'::jsonb),
 	a.mode, a.recursive, a.frequency, a.mandatory, a.note, COALESCE((SELECT u.display_name FROM users u WHERE u.id=a.created_by), ''), a.created_at,
-	(SELECT count(DISTINCT w.user_id) FROM watch_effective w WHERE w.assignment_id=a.id)`
+	(SELECT count(DISTINCT w.user_id) FROM watch_effective w WHERE w.assignment_id=a.id),
+	CASE a.target_type WHEN 'category' THEN a.target_id ELSE COALESCE((SELECT e.category_id FROM elements e WHERE e.id=a.target_id), 0) END`
 
 func scanAssignment(r pgx.CollectableRow) (Assignment, error) {
 	var a Assignment
 	err := r.Scan(&a.ID, &a.SubjectType, &a.SubjectID, &a.SubjectName, &a.TargetType, &a.TargetID, &a.TargetTitle, &a.Mode, &a.Recursive,
-		&a.Frequency, &a.Mandatory, &a.Note, &a.CreatedBy, &a.CreatedAt, &a.Members)
+		&a.Frequency, &a.Mandatory, &a.Note, &a.CreatedBy, &a.CreatedAt, &a.Members, &a.targetCat)
 	return a, err
 }
 
@@ -76,7 +81,24 @@ func (s *Service) Assignments(ctx context.Context) ([]Assignment, error) {
 	if err != nil {
 		return nil, err
 	}
-	return pgx.CollectRows(rows, scanAssignment)
+	list, err := pgx.CollectRows(rows, scanAssignment)
+	s.titlesFor(ctx, list)
+	return list, err
+}
+
+// titlesFor removes the titles of targets the caller may not see.
+func (s *Service) titlesFor(ctx context.Context, list []Assignment) {
+	p := identity.From(ctx)
+	for i := range list {
+		a := &list[i]
+		ok := s.acl.Can(ctx, p, a.targetCat, acl.View)
+		if a.TargetType == "element" {
+			ok = s.acl.CanElement(ctx, p, a.TargetID, a.targetCat, acl.View)
+		}
+		if !ok {
+			a.TargetTitle = map[string]string{}
+		}
+	}
 }
 
 func (in *AssignmentInput) validate() error {
@@ -149,7 +171,9 @@ func (s *Service) SaveAssignment(ctx context.Context, id int64, in AssignmentInp
 		return nil, err
 	}
 	a, err := pgx.CollectExactlyOneRow(rows, scanAssignment)
-	return &a, err
+	l := []Assignment{a}
+	s.titlesFor(ctx, l)
+	return &l[0], err
 }
 
 // DeleteAssignment removes an assignment.
@@ -182,12 +206,14 @@ func (s *Service) MyAssignments(ctx context.Context) ([]Assignment, error) {
 	if err != nil {
 		return nil, err
 	}
-	return pgx.CollectRows(rows, func(r pgx.CollectableRow) (Assignment, error) {
+	list, err := pgx.CollectRows(rows, func(r pgx.CollectableRow) (Assignment, error) {
 		var a Assignment
 		err := r.Scan(&a.ID, &a.SubjectType, &a.SubjectID, &a.SubjectName, &a.TargetType, &a.TargetID, &a.TargetTitle, &a.Mode, &a.Recursive,
-			&a.Frequency, &a.Mandatory, &a.Note, &a.CreatedBy, &a.CreatedAt, &a.Members, &a.Unsubscribed)
+			&a.Frequency, &a.Mandatory, &a.Note, &a.CreatedBy, &a.CreatedAt, &a.Members, &a.targetCat, &a.Unsubscribed)
 		return a, err
 	})
+	s.titlesFor(ctx, list)
+	return list, err
 }
 
 // SetSubscribed unsubscribes from (or subscribes again to) an optional

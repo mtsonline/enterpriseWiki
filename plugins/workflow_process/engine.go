@@ -438,7 +438,7 @@ func (pl *Plugin) canView(ctx context.Context, tx pgx.Tx, x *Instance, ids []int
 	out := []int64{}
 	for _, id := range ids {
 		p, err := pl.host.Auth.LoadPrincipalQ(ctx, tx, id) // inside the transaction (S-01)
-		if err == nil && pl.host.ACL.Can(ctx, p, x.CategoryID, acl.View) {
+		if err == nil && pl.host.ACL.CanElement(ctx, p, x.ElementID, x.CategoryID, acl.View) {
 			out = append(out, id)
 		}
 	}

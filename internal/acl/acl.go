@@ -43,15 +43,21 @@ const (
 	Manage                  // the category itself: texts, settings, subcategories, permissions
 	None   Perm = 0
 	All         = View | Edit | Create | Delete | Manage
+	// Grant gives permissions on one element ("Rechte vergeben"); only in
+	// element rules. Managers of the category (by a rule) and administrators
+	// always have it.
+	Grant Perm = Manage << 1
+	// ElementBits are the bits an element rule may give.
+	ElementBits = View | Edit | Delete | Grant
 )
 
 // Names maps permission bits to names (used by API and UI).
-var Names = map[Perm]string{View: "view", Edit: "edit", Create: "create", Delete: "delete", Manage: "manage"}
+var Names = map[Perm]string{View: "view", Edit: "edit", Create: "create", Delete: "delete", Manage: "manage", Grant: "grant"}
 
 // Strings returns the names of the set bits.
 func (p Perm) Strings() []string {
 	out := []string{}
-	for _, b := range []Perm{View, Edit, Create, Delete, Manage} {
+	for _, b := range []Perm{View, Edit, Create, Delete, Manage, Grant} {
 		if p&b != 0 {
 			out = append(out, Names[b])
 		}
@@ -80,6 +86,16 @@ type snapshot struct {
 	downloads map[int64]string
 	rules     map[int64][]Rule
 	instance  map[int64][]InstanceRule // element id -> rules of that instance
+	// elements with own rules, "own rights only" or an own classification
+	// (all others follow their category)
+	elems map[int64]*elemInfo
+}
+
+type elemInfo struct {
+	cat   int64 // category of the element (also when it is in the trash)
+	own   bool  // only the element's rules apply (not the category's)
+	class int   // classification set on the element
+	rules []ElementRule
 }
 
 // Service evaluates permissions.
@@ -149,7 +165,7 @@ func (s *Service) build(ctx context.Context) (*snapshot, error) {
 		return nil, err
 	}
 	defer func() { _ = tx.Rollback(context.WithoutCancel(ctx)) }()
-	sn := &snapshot{ancestors: map[int64][]int64{}, deleted: map[int64]bool{}, archived: map[int64]bool{}, class: map[int64]int{}, watermark: map[int64]string{}, downloads: map[int64]string{}, rules: map[int64][]Rule{}, instance: map[int64][]InstanceRule{}}
+	sn := &snapshot{ancestors: map[int64][]int64{}, deleted: map[int64]bool{}, archived: map[int64]bool{}, class: map[int64]int{}, watermark: map[int64]string{}, downloads: map[int64]string{}, rules: map[int64][]Rule{}, instance: map[int64][]InstanceRule{}, elems: map[int64]*elemInfo{}}
 	rows, err := tx.Query(ctx, `SELECT id, path::text, deleted_at IS NOT NULL, archived_at IS NOT NULL, COALESCE(classification, 0), COALESCE(watermark, ''), COALESCE(downloads, '') FROM categories`)
 	if err != nil {
 		return nil, err
@@ -222,6 +238,41 @@ func (s *Service) build(ctx context.Context) (*snapshot, error) {
 	if err := rows.Err(); err != nil {
 		return nil, err
 	}
+	rows.Close()
+	// acl: snapshot of the element settings themselves
+	rows, err = tx.Query(ctx, `SELECT e.id, e.category_id, e.own_rights_only, e.classification FROM elements e
+		WHERE e.own_rights_only OR e.classification > 0 OR EXISTS (SELECT 1 FROM element_rules r WHERE r.element_id = e.id)`)
+	if err != nil {
+		return nil, err
+	}
+	for rows.Next() {
+		ei := &elemInfo{}
+		var id int64
+		if err := rows.Scan(&id, &ei.cat, &ei.own, &ei.class); err != nil {
+			return nil, err
+		}
+		sn.elems[id] = ei
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	rows.Close()
+	rows, err = tx.Query(ctx, `SELECT id, element_id, subject_type, subject_id, permissions, actions FROM element_rules ORDER BY id`)
+	if err != nil {
+		return nil, err
+	}
+	for rows.Next() {
+		var r ElementRule
+		if err := rows.Scan(&r.ID, &r.ElementID, &r.SubjectType, &r.SubjectID, &r.Permissions, &r.Actions); err != nil {
+			return nil, err
+		}
+		if ei := sn.elems[r.ElementID]; ei != nil {
+			ei.rules = append(ei.rules, r)
+		}
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
 	return sn, nil
 }
 
@@ -274,6 +325,21 @@ func (s *Service) FileProtection(ctx context.Context, categoryID int64) (waterma
 	}
 	anc := sn.ancestors[categoryID]
 	l := sn.level(anc)
+	return l >= Confidential && nearest(sn.watermark, anc) != "off", l >= StrictConfidential && nearest(sn.downloads, anc) != "allow"
+}
+
+// ElementFileProtection is FileProtection for the files of an element: its
+// own classification applies too (the stricter one).
+func (s *Service) ElementFileProtection(ctx context.Context, elementID, categoryID int64) (watermark, noDownload bool) {
+	sn, err := s.load(ctx)
+	if err != nil {
+		return true, true // fail closed
+	}
+	anc := sn.ancestors[categoryID]
+	l := sn.level(anc)
+	if ei := sn.elems[elementID]; ei != nil && ei.class > l {
+		l = ei.class
+	}
 	return l >= Confidential && nearest(sn.watermark, anc) != "off", l >= StrictConfidential && nearest(sn.downloads, anc) != "allow"
 }
 
@@ -774,7 +840,8 @@ func (s *Service) instanceActions(sn *snapshot, p *identity.Principal, inst Inst
 		return nil // guests never have instance permissions
 	}
 	cat := s.perms(sn, p, inst.CategoryID)
-	if cat&View == 0 {
+	// the instance itself must be visible (its own rights apply)
+	if s.elemPerms(sn, p, inst.ID, inst.CategoryID)&View == 0 {
 		return nil
 	}
 	if anc := sn.ancestors[inst.CategoryID]; sn.isArchived(anc) {
@@ -789,8 +856,11 @@ func (s *Service) instanceActions(sn *snapshot, p *identity.Principal, inst Inst
 		return slices.Clone(keys)
 	}
 	set := map[string]bool{}
-	for _, a := range s.actions(sn, p, inst.CategoryID) {
-		set[a] = true
+	// "own rights only": permissions given on the category do not apply
+	if ei := sn.elems[inst.ID]; ei == nil || !ei.own {
+		for _, a := range s.actions(sn, p, inst.CategoryID) {
+			set[a] = true
+		}
 	}
 	for _, r := range sn.instance[inst.ID] {
 		if matches(Rule{SubjectType: r.SubjectType, SubjectID: r.SubjectID}, p) {

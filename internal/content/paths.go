@@ -41,6 +41,7 @@ func slugFor(title, fallback string) string {
 // children of parent (in any language; deleted targets free their segments).
 func slugTaken(ctx context.Context, q db.Querier, parent int64, slug, selfType string, selfID int64) (bool, error) {
 	var n int
+	// acl: internal – uniqueness of segments
 	err := q.QueryRow(ctx, `SELECT count(*) FROM path_slugs p
 		LEFT JOIN elements e ON p.target_type='element' AND e.id=p.target_id
 		LEFT JOIN categories c ON p.target_type='category' AND c.id=p.target_id
@@ -94,6 +95,7 @@ func (s *Service) slugState(ctx context.Context, q db.Querier, etype string, id 
 	st := &slugState{}
 	var err error
 	if etype == "element" {
+		// acl: internal – segments of a target
 		err = q.QueryRow(ctx, `SELECT category_id, titles, original_lang, deleted_at IS NOT NULL FROM elements WHERE id=$1`, id).
 			Scan(&st.parent, &st.titles, &st.orig, &st.deleted)
 	} else {
@@ -281,6 +283,7 @@ func (s *Service) Paths(ctx context.Context, etype string, id int64) map[string]
 	}
 	var cat int64
 	if etype == "element" {
+		// acl: internal – path of a target; callers show it only for visible targets
 		if s.pool.QueryRow(ctx, `SELECT category_id FROM elements WHERE id=$1`, id).Scan(&cat) != nil {
 			return out
 		}
@@ -320,6 +323,7 @@ func (s *Service) Paths(ctx context.Context, etype string, id int64) map[string]
 			return out
 		}
 		var orig string
+		// acl: internal – path of a target; callers show it only for visible targets
 		_ = s.pool.QueryRow(ctx, `SELECT original_lang FROM elements WHERE id=$1`, id).Scan(&orig)
 		segs, origs = append(segs, m), append(origs, orig)
 	}
@@ -363,6 +367,7 @@ func (s *Service) resolvePath(ctx context.Context, segs []string) (*Resolved, bo
 		last := i == len(segs)-1
 		var t, l string
 		var id int64
+		// acl: resolved targets are checked with checkVisible (CanElement)
 		err := s.pool.QueryRow(ctx, `SELECT p.target_type, p.target_id, p.lang FROM path_slugs p
 			LEFT JOIN elements e ON p.target_type='element' AND e.id=p.target_id
 			LEFT JOIN categories c ON p.target_type='category' AND c.id=p.target_id
@@ -404,6 +409,7 @@ func (s *Service) checkVisible(ctx context.Context, r *Resolved) error {
 	cat := r.ID
 	if r.Type == "element" {
 		var deleted bool
+		// acl: checked below (CanElement)
 		if err := s.pool.QueryRow(ctx, `SELECT category_id, deleted_at IS NOT NULL FROM elements WHERE id=$1`, r.ID).Scan(&cat, &deleted); err != nil || deleted {
 			return apperr.NotFound("page")
 		}
@@ -413,7 +419,11 @@ func (s *Service) checkVisible(ctx context.Context, r *Resolved) error {
 			return apperr.NotFound("page")
 		}
 	}
-	if !s.acl.Can(ctx, identity.From(ctx), cat, acl.View) {
+	ok := s.acl.Can(ctx, identity.From(ctx), cat, acl.View)
+	if r.Type == "element" {
+		ok = s.acl.CanElement(ctx, identity.From(ctx), r.ID, cat, acl.View)
+	}
+	if !ok {
 		if identity.From(ctx) == nil {
 			return apperr.ErrUnauthorized
 		}
@@ -452,6 +462,7 @@ func (s *Service) NotFound(ctx context.Context, path, etype string, id int64, la
 		var deleted bool
 		var title string
 		if etype == "element" {
+			// acl: checked below (ElementPerms)
 			err := s.pool.QueryRow(ctx, `SELECT e.category_id, e.deleted_at IS NOT NULL, COALESCE((SELECT title FROM element_revisions r WHERE r.element_id=e.id ORDER BY (r.lang=$2) DESC, r.created_at DESC LIMIT 1), '')
 				FROM elements e WHERE e.id=$1`, id, lang).Scan(&cat, &deleted, &title)
 			if err != nil {
@@ -466,6 +477,9 @@ func (s *Service) NotFound(ctx context.Context, path, etype string, id int64, la
 		}
 		// only who could see it learns that it was deleted
 		perms, err := s.acl.Perms(ctx, identity.From(ctx), cat)
+		if etype == "element" {
+			perms, err = s.acl.ElementPerms(ctx, identity.From(ctx), id, cat)
+		}
 		if err != nil || perms&acl.View == 0 {
 			return out, nil
 		}
@@ -487,6 +501,7 @@ func (s *Service) NotFound(ctx context.Context, path, etype string, id int64, la
 		var t string
 		var tid int64
 		last := segs[len(segs)-1]
+		// acl: the target is checked by NotFound (ElementPerms)
 		err := s.pool.QueryRow(ctx, `SELECT t, id FROM (
 			SELECT p.target_type AS t, p.target_id AS id, COALESCE(e.deleted_at, c.deleted_at) AS at FROM path_slugs p
 				LEFT JOIN elements e ON p.target_type='element' AND e.id=p.target_id

@@ -122,9 +122,11 @@ func (s *Service) Require(ctx context.Context, categoryID int64, want acl.Perm) 
 }
 
 // ElementCategory returns the category of a (not deleted) element after
-// checking that the caller has want on it.
+// checking that the caller has want on the element (its own rights apply,
+// see acl.Service.ElementPerms).
 func (s *Service) ElementCategory(ctx context.Context, elementID int64, want acl.Perm) (int64, error) {
 	var cat int64
+	// acl: checked below (requireOn: ElementPerms)
 	err := s.pool.QueryRow(ctx, `SELECT e.category_id FROM elements e JOIN categories c ON c.id=e.category_id
 		WHERE e.id=$1 AND e.deleted_at IS NULL AND c.deleted_at IS NULL`, elementID).Scan(&cat)
 	if err != nil {
@@ -133,13 +135,43 @@ func (s *Service) ElementCategory(ctx context.Context, elementID int64, want acl
 		}
 		return 0, apperr.NotFound("element")
 	}
-	if err := s.require(ctx, cat, want); err != nil {
+	if err := s.requireOn(ctx, elementID, cat, want); err != nil {
 		if errors.Is(err, apperr.ErrUnauthorized) || errors.Is(err, apperr.ErrForbidden) {
 			return cat, err
 		}
 		return 0, apperr.NotFound("element")
 	}
 	return cat, nil
+}
+
+// requireOn checks want on element id in category cat: 401 for guests, 404
+// without seeing it, else 403.
+func (s *Service) requireOn(ctx context.Context, id, cat int64, want acl.Perm) error {
+	p := identity.From(ctx)
+	got, err := s.acl.ElementPerms(ctx, p, id, cat)
+	if err != nil {
+		return err
+	}
+	if got&want == want {
+		return nil
+	}
+	if p == nil {
+		return apperr.ErrUnauthorized
+	}
+	if got&acl.View == 0 {
+		return apperr.NotFound("element")
+	}
+	return apperr.ErrForbidden
+}
+
+// ElementPerms returns the caller's permissions on element id in category
+// cat (for plugins; the element's own rights apply).
+func (s *Service) ElementPerms(ctx context.Context, id, cat int64) acl.Perm {
+	got, err := s.acl.ElementPerms(ctx, identity.From(ctx), id, cat)
+	if err != nil {
+		return acl.None
+	}
+	return got
 }
 
 func requireAdmin(ctx context.Context) error {

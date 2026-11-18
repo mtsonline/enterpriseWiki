@@ -150,7 +150,13 @@ func (p *Plugin) checkInput(ctx context.Context, svc *content.Service, elementID
 	if err != nil {
 		return nil, err
 	}
-	mayFree := free && p.host.Can(ctx, categoryID, "core.properties.free")
+	canFree := func() bool {
+		if elementID != 0 {
+			return p.host.CanElement(ctx, elementID, categoryID, "core.properties.free")
+		}
+		return p.host.Can(ctx, categoryID, "core.properties.free")
+	}
+	mayFree := free && canFree()
 	keys := make([]string, 0, len(in.Values))
 	for k := range in.Values {
 		keys = append(keys, k)
@@ -199,7 +205,7 @@ func (p *Plugin) checkInput(ctx context.Context, svc *content.Service, elementID
 		old, had := existing[k]
 		if remove {
 			if had {
-				if old.DefID == nil && !p.host.Can(ctx, categoryID, "core.properties.free") {
+				if old.DefID == nil && !canFree() {
 					return nil, apperr.Forbidden("you may not change free properties here")
 				}
 				ch.Del = append(ch.Del, k)
@@ -559,6 +565,7 @@ func (p *Plugin) refNames(ctx context.Context, ids map[string][]int64, lang stri
 		}
 	}
 	if len(ids["element"]) > 0 {
+		// acl: checked below (ElementFilter)
 		rows, err := p.host.DB.Query(ctx, `SELECT e.id, e.category_id, COALESCE(e.titles->>$2, e.titles->>e.original_lang, '') FROM elements e
 			JOIN categories c ON c.id = e.category_id WHERE e.id = ANY($1) AND e.deleted_at IS NULL AND c.deleted_at IS NULL`, ids["element"], lang)
 		if err != nil {
@@ -575,16 +582,12 @@ func (p *Plugin) refNames(ctx context.Context, ids map[string][]int64, lang stri
 		if err != nil {
 			return nil, err
 		}
-		cats := []int64{}
-		for _, x := range list {
-			cats = append(cats, x.cat)
-		}
-		ok, err := p.host.ACL.Filter(ctx, pr, cats, acl.View)
+		f, err := p.host.ACL.ElementFilter(ctx, pr, acl.View)
 		if err != nil {
 			return nil, err
 		}
 		for _, x := range list {
-			if slices.Contains(ok, x.cat) {
+			if f.Allows(x.id, x.cat) {
 				out["element:"+strconv.FormatInt(x.id, 10)] = Ref{Name: x.title, Link: "/e/" + strconv.FormatInt(x.id, 10)}
 			}
 		}
@@ -628,10 +631,11 @@ func (p *Plugin) routesValues() {
 			return nil, err
 		}
 		var typ string
+		// acl: checked above (ElementCategory)
 		if err := host.DB.QueryRow(ctx, `SELECT type FROM elements WHERE id=$1`, id).Scan(&typ); err != nil {
 			return nil, err
 		}
-		perms, _ := host.ACL.Perms(ctx, identity.From(ctx), cat)
+		perms, _ := host.ACL.ElementPerms(ctx, identity.From(ctx), id, cat)
 		canEdit := perms&acl.Edit != 0
 		items, err := p.visible(ctx, id, cat, typ, lang, canEdit)
 		if err != nil {
@@ -646,7 +650,7 @@ func (p *Plugin) routesValues() {
 			return nil, err
 		}
 		return map[string]any{"items": items, "refs": names, "can_edit": canEdit,
-			"can_add_free": canEdit && free && host.Can(ctx, cat, "core.properties.free"), "category_id": cat}, nil
+			"can_add_free": canEdit && free && host.CanElement(ctx, id, cat, "core.properties.free"), "category_id": cat}, nil
 	})
 	// GET /new?category=ID&type=T&lang= – the definitions for a new element
 	// action: core.properties.new
@@ -696,6 +700,7 @@ func (p *Plugin) routesValues() {
 			return nil, err
 		}
 		var typ string
+		// acl: checked above (ElementCategory)
 		if err := host.DB.QueryRow(ctx, `SELECT type FROM elements WHERE id=$1`, id).Scan(&typ); err != nil {
 			return nil, err
 		}
@@ -710,6 +715,7 @@ func (p *Plugin) routesValues() {
 		if ch != nil {
 			before, _ := p.load(ctx, host.DB, []int64{id})
 			err = db.Tx(ctx, host.DB, func(tx pgx.Tx) error {
+				// acl: internal – row lock after the check
 				if _, err := tx.Exec(ctx, `SELECT 1 FROM elements WHERE id=$1 FOR UPDATE`, id); err != nil {
 					return err
 				}
@@ -768,6 +774,7 @@ func (p *Plugin) routesValues() {
 			return nil, err
 		}
 		var typ string
+		// acl: checked above (ElementCategory)
 		if err := host.DB.QueryRow(ctx, `SELECT type FROM elements WHERE id=$1`, id).Scan(&typ); err != nil {
 			return nil, err
 		}

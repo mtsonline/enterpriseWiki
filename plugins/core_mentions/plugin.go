@@ -82,6 +82,7 @@ func (p *Plugin) element(ctx context.Context, id int64) error {
 	var typ string
 	var cat int64
 	var titles map[string]string
+	// acl: the mentioned people are checked in notify (CanElement)
 	err := p.host.DB.QueryRow(ctx, `SELECT type, category_id, titles FROM elements WHERE id=$1`, id).Scan(&typ, &cat, &titles)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil // gone in the meantime
@@ -114,23 +115,24 @@ func (p *Plugin) element(ctx context.Context, id int64) error {
 	}
 	// "mentioned once" and the notification are stored together
 	return pgx.BeginFunc(ctx, p.host.DB, func(tx pgx.Tx) error {
-		return p.notify(ctx, tx, "element", id, cat, title, fmt.Sprintf("/e/%d", id), text.String())
+		return p.notify(ctx, tx, "element", id, id, cat, title, fmt.Sprintf("/e/%d", id), text.String())
 	})
 }
 
 // NotifyTx notifies the people mentioned in text (e.g. a comment) once per
-// entity, inside the transaction tx that stores the text: the
+// entity (in element elementID, whose rights apply), inside the transaction
+// tx that stores the text: the
 // notification is stored with it or not at all. It is used by other
 // plugins and does nothing while this plugin is disabled.
-func NotifyTx(ctx context.Context, tx pgx.Tx, entityType string, entityID, categoryID int64, title, link, text string) error {
+func NotifyTx(ctx context.Context, tx pgx.Tx, entityType string, entityID, elementID, categoryID int64, title, link, text string) error {
 	instance := instances.Get(ctx)
 	if instance == nil || instance.host == nil || !instance.host.Active() {
 		return nil
 	}
-	return instance.notify(ctx, tx, entityType, entityID, categoryID, title, link, text)
+	return instance.notify(ctx, tx, entityType, entityID, elementID, categoryID, title, link, text)
 }
 
-func (p *Plugin) notify(ctx context.Context, tx pgx.Tx, entityType string, entityID, categoryID int64, title, link, text string) error {
+func (p *Plugin) notify(ctx context.Context, tx pgx.Tx, entityType string, entityID, elementID, categoryID int64, title, link, text string) error {
 	handles := Handles(text)
 	me := identity.From(ctx)
 	if len(handles) == 0 || me == nil || !perm.HasP(me, "core.mentions.use") {
@@ -155,7 +157,7 @@ func (p *Plugin) notify(ctx context.Context, tx pgx.Tx, entityType string, entit
 		// only people who may see it; loaded with the transaction (never a
 		// second connection while one is held)
 		pr, err := p.host.Auth.LoadPrincipalQ(ctx, tx, id)
-		if err != nil || !p.host.ACL.Can(ctx, pr, categoryID, acl.View) {
+		if err != nil || !p.host.ACL.CanElement(ctx, pr, elementID, categoryID, acl.View) {
 			continue
 		}
 		// once per entity and person

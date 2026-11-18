@@ -185,6 +185,7 @@ func (p *Plugin) load(ctx context.Context, id int64, lang string) (*Form, int64,
 	}
 	var typ, shown, title string
 	var body []byte
+	// acl: checked above (ElementCategory)
 	err = p.host.DB.QueryRow(ctx, `SELECT e.type, r.lang, r.title, r.body FROM elements e JOIN element_revisions r ON r.element_id = e.id
 		WHERE e.id=$1 AND r.lang = ANY(ARRAY[$2, e.original_lang]) ORDER BY (r.lang=$2) DESC, r.rev DESC LIMIT 1`, id, lang).Scan(&typ, &shown, &title, &body)
 	if err != nil {
@@ -611,7 +612,7 @@ func (p *Plugin) queueMails(ctx context.Context, tx pgx.Tx, f *Form, cat, id, si
 		author = me.DisplayName
 	}
 	vars := f.vars(title, formURL, subURL, values, files, author)
-	confidential := p.host.ACL.Classification(ctx, cat) >= acl.Confidential
+	confidential := p.host.ACL.ElementClassification(ctx, id, cat) >= acl.Confidential
 	tr := func(key string) string { return p.host.T(ctx, lang, key, map[string]string{"form": title}) }
 	for _, e := range f.Targets.Email {
 		to, err := p.resolveRecipients(ctx, tx, e.To, values)

@@ -59,6 +59,7 @@ func (s *Service) setShortURL(ctx context.Context, tx pgx.Tx, etype string, id i
 	if short != "" {
 		var otherType string
 		var otherID int64
+		// acl: internal – uniqueness of short URLs
 		err := tx.QueryRow(ctx, `SELECT 'element', id FROM elements WHERE short_url=$1 AND NOT ($2 = 'element' AND id = $3)
 			UNION ALL SELECT 'category', id FROM categories WHERE short_url=$1 AND NOT ($2 = 'category' AND id = $3) LIMIT 1`, short, etype, id).Scan(&otherType, &otherID)
 		if err == nil {
@@ -182,6 +183,7 @@ func (s *Service) Resolve(ctx context.Context, raw string) (*Resolved, error) {
 		return nil, apperr.NotFound("page")
 	}
 	r := &Resolved{}
+	// acl: checked below (checkVisible: CanElement)
 	err = s.pool.QueryRow(ctx, `SELECT 'element', e.id FROM elements e WHERE e.short_url=$1 AND e.deleted_at IS NULL
 		UNION ALL SELECT 'category', c.id FROM categories c WHERE c.short_url=$1 AND c.deleted_at IS NULL LIMIT 1`, short).Scan(&r.Type, &r.ID)
 	if errors.Is(err, pgx.ErrNoRows) {

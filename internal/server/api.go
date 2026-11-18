@@ -979,11 +979,13 @@ func (s *Server) routes() {
 		}
 		var in struct {
 			CategoryID int64 `json:"category_id"`
+			// WithRights copies the element's own rules and "own rights only"
+			WithRights bool `json:"with_rights"`
 		}
 		if err := h.Decode(r, &in); err != nil {
 			return nil, err
 		}
-		e, err := s.app.Content.DuplicateElement(r.Context(), id, in.CategoryID)
+		e, err := s.app.Content.DuplicateElement(r.Context(), id, in.CategoryID, in.WithRights)
 		return h.Created{V: e}, err
 	})
 	// action: core.elements.revisions

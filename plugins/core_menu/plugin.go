@@ -279,6 +279,7 @@ func newResolver(ctx context.Context, hs *coreplugin.Host, all []Menu) (*resolve
 		return out
 	}
 	if len(els) > 0 {
+		// acl: checked when resolving (CanElement)
 		rows, err := hs.DB.Query(ctx, `SELECT id, category_id, titles, COALESCE(short_url, '') FROM elements WHERE id = ANY($1) AND deleted_at IS NULL`, ids(els))
 		if err != nil {
 			return nil, err
@@ -355,7 +356,7 @@ func (r *resolver) resolve(items []Item, depth int, visited map[int64]bool) []It
 			it.Href, title = r.href("c", it.CategoryID), t
 		case it.Type == "element" || (it.Type == "" && it.ElementID != 0):
 			e, ok := r.elements[it.ElementID]
-			if !ok || !r.can(e.cat) {
+			if !ok || !r.acl.CanElement(r.ctx, identity.From(r.ctx), it.ElementID, e.cat, acl.View) {
 				continue
 			}
 			it.Href, title = r.href("e", it.ElementID), e.titles

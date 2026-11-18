@@ -130,7 +130,7 @@ func (p *Plugin) decorate(ctx context.Context, c *Comment, perms acl.Perm, cat i
 	}
 	c.HTML = Format(c.Body)
 	c.CanEdit = own && perms&p.minPerm() != 0 && !p.host.ACL.Archived(ctx, cat)
-	c.CanDelete = own || p.host.Can(ctx, cat, "core.comments.moderate")
+	c.CanDelete = own || p.host.CanElement(ctx, c.ElementID, cat, "core.comments.moderate")
 }
 
 func validBody(s string) (string, error) {
@@ -172,7 +172,7 @@ func (p *Plugin) Setup(host *coreplugin.Host) error {
 		if err != nil {
 			return nil, err
 		}
-		perms, err := host.ACL.Perms(ctx, identity.From(ctx), cat)
+		perms, err := host.ACL.ElementPerms(ctx, identity.From(ctx), id, cat)
 		if err != nil {
 			return nil, err
 		}
@@ -237,6 +237,7 @@ func (p *Plugin) Setup(host *coreplugin.Host) error {
 			}
 			// mentions: stored with the comment or not at all
 			var titles map[string]string
+			// acl: page checked above (ElementCategory); mentioned people are checked by core.mentions (CanElement)
 			if err := tx.QueryRow(ctx, `SELECT titles FROM elements WHERE id=$1`, c.ElementID).Scan(&titles); err != nil {
 				return err
 			}
@@ -246,7 +247,7 @@ func (p *Plugin) Setup(host *coreplugin.Host) error {
 					title = t
 				}
 			}
-			if err := core_mentions.NotifyTx(ctx, tx, "comment", c.ID, cat, title, fmt.Sprintf("/e/%d#comment-%d", c.ElementID, c.ID), body); err != nil {
+			if err := core_mentions.NotifyTx(ctx, tx, "comment", c.ID, c.ElementID, cat, title, fmt.Sprintf("/e/%d#comment-%d", c.ElementID, c.ID), body); err != nil {
 				return err
 			}
 			return audit.Log(ctx, tx, "comment.create", "comment", c.ID, nil, map[string]any{"element_id": id, "body": body})
@@ -254,7 +255,7 @@ func (p *Plugin) Setup(host *coreplugin.Host) error {
 		if err != nil {
 			return nil, err
 		}
-		perms, _ := host.ACL.Perms(ctx, me, cat)
+		perms, _ := host.ACL.ElementPerms(ctx, me, id, cat)
 		p.decorate(ctx, &c, perms, cat)
 		p.emitComment(ctx, &c, cat, body)
 		return h.Created{V: &c}, nil
@@ -272,7 +273,7 @@ func (p *Plugin) Setup(host *coreplugin.Host) error {
 		if err != nil {
 			return nil, err
 		}
-		perms, err := host.ACL.Perms(ctx, identity.From(ctx), cat)
+		perms, err := host.ACL.ElementPerms(ctx, identity.From(ctx), c.ElementID, cat)
 		if err != nil {
 			return nil, err
 		}
@@ -320,7 +321,7 @@ func (p *Plugin) Setup(host *coreplugin.Host) error {
 		if c.DeletedAt != nil {
 			return h.NoContent{}, nil
 		}
-		perms, err := host.ACL.Perms(ctx, identity.From(ctx), cat)
+		perms, err := host.ACL.ElementPerms(ctx, identity.From(ctx), c.ElementID, cat)
 		if err != nil {
 			return nil, err
 		}
@@ -349,6 +350,7 @@ func (p *Plugin) notify(ctx context.Context, tx pgx.Tx, c *Comment, cat int64) e
 	me := identity.From(ctx)
 	var creator *int64
 	var titles map[string]string
+	// acl: page checked by the caller; recipients are checked below (CanElement)
 	if err := tx.QueryRow(ctx, `SELECT created_by, titles FROM elements WHERE id=$1`, c.ElementID).Scan(&creator, &titles); err != nil {
 		return err
 	}
@@ -373,7 +375,7 @@ func (p *Plugin) notify(ctx context.Context, tx pgx.Tx, c *Comment, cat int64) e
 	list := []int64{}
 	for id := range ids {
 		pr, err := p.host.Auth.LoadPrincipalQ(ctx, tx, id) // inside the transaction (S-01)
-		if err == nil && p.host.ACL.Can(ctx, pr, cat, acl.View) {
+		if err == nil && p.host.ACL.CanElement(ctx, pr, c.ElementID, cat, acl.View) {
 			list = append(list, id)
 		}
 	}
@@ -423,6 +425,7 @@ func (p *Plugin) emitComment(ctx context.Context, c *Comment, cat int64, body st
 		return
 	}
 	var titles map[string]string
+	// acl: page checked by the caller; webhooks check their owner (see webhook)
 	_ = host.DB.QueryRow(ctx, `SELECT titles FROM elements WHERE id=$1`, c.ElementID).Scan(&titles)
 	title := titles[host.Config.Get().I18n.DefaultLanguage]
 	if title == "" {

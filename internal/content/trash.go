@@ -35,6 +35,7 @@ func (s *Service) Trash(ctx context.Context) ([]TrashItem, error) {
 	if p == nil {
 		return nil, apperr.ErrUnauthorized
 	}
+	// acl: filtered per item below (CanElement for pages; administrators see all)
 	rows, err := s.pool.Query(ctx, `
 		SELECT 'category', c.id, c.titles, c.parent_id, c.deleted_at, COALESCE(u.username || '@' || u.provider, ''),
 			(SELECT count(*) FROM categories x WHERE x.path <@ c.path AND x.deleted_at = c.deleted_at) - 1 +
@@ -59,11 +60,13 @@ func (s *Service) Trash(ctx context.Context) ([]TrashItem, error) {
 	}
 	out := []TrashItem{}
 	for _, it := range items {
-		need := acl.Delete // elements: delete permission in their category
-		if it.Type == "category" {
-			need = acl.Manage // categories: manage the parent
-		}
-		if it.ParentID != nil && s.acl.Can(ctx, p, *it.ParentID, need) {
+		switch {
+		case it.ParentID == nil:
+		case it.Type == "category":
+			if s.acl.Can(ctx, p, *it.ParentID, acl.Manage) { // categories: manage the parent
+				out = append(out, it)
+			}
+		case s.acl.CanElement(ctx, p, it.ID, *it.ParentID, acl.Delete): // elements: delete permission on them
 			out = append(out, it)
 		}
 	}
@@ -130,7 +133,7 @@ func (s *Service) Restore(ctx context.Context, typ string, id int64) error {
 		if catDeleted {
 			return apperr.Conflict("the category of this element is in the trash; restore it first")
 		}
-		if !s.acl.Can(ctx, identity.From(ctx), e.CategoryID, acl.Delete) {
+		if !s.acl.CanElement(ctx, identity.From(ctx), e.ID, e.CategoryID, acl.Delete) {
 			return apperr.ErrForbidden
 		}
 		var noted int64
@@ -163,6 +166,7 @@ func (s *Service) purge(ctx context.Context, typ string, id int64) error {
 			if err := RemoveRefs(ctx, tx, []int64{id}, nil); err != nil {
 				return err
 			}
+			// acl: internal – purge (core.trash.manage)
 			tag, err := tx.Exec(ctx, `DELETE FROM elements WHERE id=$1 AND deleted_at IS NOT NULL`, id)
 			if err != nil {
 				return err
@@ -183,6 +187,7 @@ func (s *Service) purge(ctx context.Context, typ string, id int64) error {
 				return apperr.Conflict("category still contains restored subcategories")
 			}
 			var liveElems int
+			// acl: internal – purge
 			if err := tx.QueryRow(ctx, `SELECT count(*) FROM elements WHERE deleted_at IS NULL AND category_id IN (SELECT id FROM categories WHERE path <@ $1::ltree)`, path).Scan(&liveElems); err != nil {
 				return err
 			}
@@ -200,6 +205,7 @@ func (s *Service) purge(ctx context.Context, typ string, id int64) error {
 			if cats, err = pgx.CollectRows(rows, pgx.RowTo[int64]); err != nil {
 				return err
 			}
+			// acl: internal – purge
 			rows, err = tx.Query(ctx, `SELECT id FROM elements WHERE category_id = ANY($1)`, cats)
 			if err != nil {
 				return err
@@ -210,6 +216,7 @@ func (s *Service) purge(ctx context.Context, typ string, id int64) error {
 			if err := RemoveRefs(ctx, tx, elems, cats); err != nil {
 				return err
 			}
+			// acl: internal – purge
 			if _, err := tx.Exec(ctx, `DELETE FROM elements WHERE category_id IN (SELECT id FROM categories WHERE path <@ $1::ltree)`, path); err != nil {
 				return err
 			}
@@ -246,6 +253,9 @@ type RollbackResult struct {
 	// with Structure: moves and orders undone, categories moved to the trash
 	Moved             int `json:"moved"`
 	CategoriesTrashed int `json:"categories_trashed"`
+	// Skipped: subcategories and pages left as they are, because the caller
+	// may not edit and delete there (own rights of a page or subcategory)
+	Skipped int `json:"skipped"`
 }
 
 // RollbackCategory restores a category (and optionally its whole subtree) to
@@ -289,7 +299,12 @@ func (s *Service) RollbackCategory(ctx context.Context, id int64, in RollbackInp
 		if err != nil {
 			return err
 		}
+		p := identity.From(ctx)
 		for _, cid := range cats {
+			if !s.acl.Can(ctx, p, cid, acl.Edit|acl.Delete) {
+				res.Skipped++
+				continue
+			}
 			// category texts
 			var snap json.RawMessage
 			err := tx.QueryRow(ctx, `SELECT after FROM audit_log WHERE entity_type='category' AND entity_id=$1 AND at <= $2
@@ -317,6 +332,7 @@ func (s *Service) RollbackCategory(ctx context.Context, id int64, in RollbackInp
 				}
 			}
 			// elements
+			// acl: checked per element (CanElement) below
 			erows, err := tx.Query(ctx, `SELECT `+elemCols+` FROM elements e WHERE e.category_id=$1 AND e.deleted_at IS NULL`, cid)
 			if err != nil {
 				return err
@@ -327,6 +343,10 @@ func (s *Service) RollbackCategory(ctx context.Context, id int64, in RollbackInp
 			}
 			for i := range elems {
 				e := &elems[i]
+				if !s.acl.CanElement(ctx, p, e.ID, e.CategoryID, acl.Edit|acl.Delete) {
+					res.Skipped++
+					continue
+				}
 				if e.CreatedAt.After(in.At) {
 					if _, err := tx.Exec(ctx, `UPDATE elements SET deleted_at=now(), deleted_by=$2, trash_root=true WHERE id=$1`, e.ID, nullID(ctx)); err != nil {
 						return err
@@ -408,6 +428,7 @@ func (s *Service) rollbackStructure(ctx context.Context, tx pgx.Tx, root *Catego
 		Category int64 // pages: their category now
 	}
 	maxChanges := limits.Value(s.cfg.Get(), limits.RollbackChanges)
+	// acl: internal – structure rollback; moved pages are checked with CanElement
 	rows, err = tx.Query(ctx, `SELECT a.action, a.entity_id, COALESCE(a.before, '{}'), COALESCE(a.after, '{}'), COALESCE(e.category_id, 0)
 		FROM audit_log a LEFT JOIN elements e ON a.entity_type='element' AND e.id=a.entity_id AND e.deleted_at IS NULL
 		WHERE a.at > $1 AND (
@@ -521,6 +542,10 @@ func (s *Service) rollbackStructure(ctx context.Context, tx pgx.Tx, root *Catego
 			if err := check(c.Category, acl.Delete, "the category of a moved page"); err != nil {
 				return err
 			}
+			// the page's own rights
+			if !s.acl.CanElement(ctx, identity.From(ctx), c.Entity, c.Category, acl.Delete) {
+				return refused
+			}
 			if err := check(before, acl.Create, fmt.Sprintf("the former category %d of page %d", before, c.Entity)); err != nil {
 				return err
 			}
@@ -583,10 +608,16 @@ func (s *Service) CategoryHistory(ctx context.Context, id int64, limit int) ([]a
 	if limit <= 0 || limit > 500 {
 		limit = 200
 	}
+	f, err := s.acl.ElementFilter(ctx, identity.From(ctx), acl.View)
+	if err != nil {
+		return nil, err
+	}
+	args := []any{id, limit}
+	// acl: filtered (ElementFilter) – entries of pages the caller may not see are left out
 	rows, err := s.pool.Query(ctx, `SELECT id, at, user_id, actor, action, entity_type, entity_id, before, after FROM audit_log
 		WHERE (entity_type='category' AND entity_id=$1)
-		   OR (entity_type='element' AND entity_id IN (SELECT id FROM elements WHERE category_id=$1))
-		ORDER BY at DESC, id DESC LIMIT $2`, id, limit)
+		   OR (entity_type='element' AND entity_id IN (SELECT e.id FROM elements e WHERE e.category_id=$1 AND `+f.SQL("e", &args)+`))
+		ORDER BY at DESC, id DESC LIMIT $2`, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -620,6 +651,7 @@ func (s *Service) RunRetention(ctx context.Context) (*RetentionResult, error) {
 		res.Revisions = tag.RowsAffected()
 	}
 	if cfg.TrashDays > 0 {
+		// acl: internal – retention (system)
 		rows, err := s.pool.Query(ctx, `SELECT 'element', id FROM elements WHERE trash_root AND deleted_at < now() - make_interval(days => $1)
 			UNION ALL SELECT 'category', id FROM categories WHERE trash_root AND deleted_at < now() - make_interval(days => $1)`, cfg.TrashDays)
 		if err != nil {

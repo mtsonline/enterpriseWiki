@@ -186,7 +186,7 @@ func (Type) CheckChange(ctx context.Context, _ *content.Service, el *content.Ele
 	}
 	p := identity.From(ctx)
 	own := p != nil && el.CreatedByID != nil && *el.CreatedByID == p.ID()
-	if !(own && gh.Can(ctx, el.CategoryID, permCreate)) && !gh.Can(ctx, el.CategoryID, permAdmin) {
+	if !(own && gh.CanElement(ctx, el.ID, el.CategoryID, permCreate)) && !gh.CanElement(ctx, el.ID, el.CategoryID, permAdmin) {
 		return apperr.Forbidden("only the creator of the form or a forms administrator may change it")
 	}
 	if newBody == nil {
@@ -196,14 +196,14 @@ func (Type) CheckChange(ctx context.Context, _ *content.Service, el *content.Ele
 	if err != nil {
 		return err
 	}
-	return checkTargets(ctx, gh, el.CategoryID, f)
+	return checkTargets(ctx, gh, el.ID, el.CategoryID, f)
 }
 
 // checkTargets: e-mail to addresses outside the wiki and webhooks need
 // "Send submissions outside"; the property database and the workflow must
 // be usable by the editor; media categories need the right to upload.
-func checkTargets(ctx context.Context, gh *coreplugin.Host, cat int64, f *Form) error {
-	external := gh.Can(ctx, cat, permExternal)
+func checkTargets(ctx context.Context, gh *coreplugin.Host, el, cat int64, f *Form) error {
+	external := gh.CanElement(ctx, el, cat, permExternal)
 	for _, e := range f.Targets.Email {
 		for _, r := range Recipients(e.To) {
 			if !strings.HasPrefix(r, "user:") && !strings.HasPrefix(r, "group:") && !external {

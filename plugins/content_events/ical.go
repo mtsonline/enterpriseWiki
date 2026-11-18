@@ -189,7 +189,7 @@ func (p *Plugin) icalRoutes(hs *coreplugin.Host) {
 		if !cal.Config.ICal {
 			return nil, apperr.NotFound("iCal subscription (switch it on in the calendar settings)")
 		}
-		if hs.ACL.Classification(ctx, cal.Category) >= acl.Confidential {
+		if hs.ACL.ElementClassification(ctx, cal.ID, cal.Category) >= acl.Confidential {
 			return nil, apperr.Forbidden("confidential calendars cannot be subscribed")
 		}
 		// events of the last 90 days and everything later

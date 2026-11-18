@@ -72,6 +72,7 @@ type Category struct {
 	URLs                 map[string]string `json:"urls,omitempty"` // readable path per language
 }
 
+// acl: the element count is internal – a number only (no titles); the trash and delete dialogs need all elements
 const catCols = `c.id, c.parent_id, c.path::text, c.position, c.slug, c.titles, c.descriptions, c.tags, c.default_element_id, c.feed, COALESCE(c.short_url, ''),
 	c.created_at, c.updated_at, c.deleted_at,
 	EXISTS (SELECT 1 FROM categories x WHERE x.parent_id=c.id AND x.deleted_at IS NULL),
@@ -567,6 +568,7 @@ func (s *Service) UpdateCategory(ctx context.Context, id int64, in CategoryInput
 			def = nil
 		} else {
 			var cat int64
+			// acl: internal – checks the element belongs to the category; showing it checks the element
 			if err := s.pool.QueryRow(ctx, `SELECT category_id FROM elements WHERE id=$1 AND deleted_at IS NULL`, *in.DefaultElementID).Scan(&cat); err != nil || cat != id {
 				return nil, apperr.BadRequest("default element must be an element of this category")
 			}
@@ -656,6 +658,7 @@ func (s *Service) UpdateCategory(ctx context.Context, id int64, in CategoryInput
 				}
 				classChanged = true
 				// external search indexes take the elements again (or drop them)
+				// acl: internal – queue for the search index
 				if _, err := tx.Exec(ctx, `INSERT INTO search_changes(element_id) SELECT e.id FROM elements e JOIN categories c ON c.id = e.category_id
 					WHERE c.path <@ (SELECT path FROM categories WHERE id=$1)`, id); err != nil {
 					return err
@@ -773,6 +776,7 @@ func (s *Service) moveCategoryTx(ctx context.Context, tx pgx.Tx, id, newParent i
 		return err
 	}
 	// the classification may change with the new place: external indexes take the elements again
+	// acl: internal – queue for the search index
 	if _, err := tx.Exec(ctx, `INSERT INTO search_changes(element_id) SELECT e.id FROM elements e JOIN categories c ON c.id = e.category_id
 			WHERE c.path <@ (SELECT path FROM categories WHERE id=$1)`, id); err != nil {
 		return err
@@ -793,6 +797,7 @@ func (s *Service) moveCategoryTx(ctx context.Context, tx pgx.Tx, id, newParent i
 // types allowed in the space of the category with path target.
 func typesAllowedIn(ctx context.Context, q db.Querier, subtree, target string) error {
 	var bad string
+	// acl: internal – type check of the whole subtree
 	if err := q.QueryRow(ctx, `SELECT COALESCE((SELECT e.type FROM elements e JOIN categories c ON c.id = e.category_id
 		WHERE c.path <@ $1::ltree AND e.deleted_at IS NULL AND jsonb_array_length(COALESCE(t.space->'allowed_types', '[]')) > 0
 			AND NOT (t.space->'allowed_types') ? e.type LIMIT 1), '')
@@ -953,7 +958,7 @@ func (s *Service) duplicateCategory(ctx context.Context, id, targetParent int64,
 			}
 			mapping[c.ID], paths[nid] = nid, path
 			if withElements {
-				if err := copyElements(ctx, tx, c.ID, nid, p); err != nil {
+				if err := s.copyElements(ctx, tx, c.ID, nid, p); err != nil {
 					return err
 				}
 			}
@@ -983,6 +988,7 @@ func remapCategoryRefs(ctx context.Context, tx pgx.Tx, mapping map[int64]int64) 
 	for _, n := range mapping {
 		newCats = append(newCats, n)
 	}
+	// acl: internal – references of the new copies
 	rows, err := tx.Query(ctx, `SELECT r.element_id, r.lang, r.rev, r.body FROM element_revisions r JOIN elements e ON e.id = r.element_id
 		WHERE e.category_id = ANY($1)`, newCats)
 	if err != nil {
@@ -1058,8 +1064,11 @@ func remapRefs(v any, mapping map[int64]int64, changed *bool) any {
 	return v
 }
 
-// copyElements copies the non-deleted elements of category from into to.
-func copyElements(ctx context.Context, tx pgx.Tx, from, to int64, p *identity.Principal) error {
+// copyElements copies the non-deleted elements of category from into to
+// that p may view, with their own rights (so that a copy is protected as
+// its original); strictly confidential elements are not copied.
+func (s *Service) copyElements(ctx context.Context, tx pgx.Tx, from, to int64, p *identity.Principal) error {
+	// acl: checked per element (ElementPerms) below
 	rows, err := tx.Query(ctx, `SELECT id FROM elements WHERE category_id=$1 AND deleted_at IS NULL ORDER BY position, id`, from)
 	if err != nil {
 		return err
@@ -1069,20 +1078,32 @@ func copyElements(ctx context.Context, tx pgx.Tx, from, to int64, p *identity.Pr
 		return err
 	}
 	for _, eid := range ids {
-		if _, err := copyElement(ctx, tx, eid, to, ""); err != nil {
+		if !s.acl.CanElement(ctx, p, eid, from, acl.View) || s.acl.ElementClassification(ctx, eid, from) >= acl.StrictConfidential {
+			continue
+		}
+		if _, err := copyElement(ctx, tx, eid, to, "", true); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-// copyElement copies the latest revision of every language of element eid.
-func copyElement(ctx context.Context, tx pgx.Tx, eid, to int64, titleSuffix string) (int64, error) {
+// copyElement copies the latest revision of every language of element eid
+// (with its classification and hidden flag; with its own rules and "own
+// rights only" if withRights).
+func copyElement(ctx context.Context, tx pgx.Tx, eid, to int64, titleSuffix string, withRights bool) (int64, error) {
 	var nid int64
 	uid := nullID(ctx)
-	if err := tx.QueryRow(ctx, `INSERT INTO elements(category_id, type, position, original_lang, titles, tags, created_by, updated_by)
-		SELECT $2, type, position, original_lang, titles, tags, $3, $3 FROM elements WHERE id=$1 RETURNING id`, eid, to, uid).Scan(&nid); err != nil {
+	// acl: internal – copy; callers check the element
+	if err := tx.QueryRow(ctx, `INSERT INTO elements(category_id, type, position, original_lang, titles, tags, created_by, updated_by, hidden, classification, own_rights_only)
+		SELECT $2, type, position, original_lang, titles, tags, $3, $3, hidden, classification, own_rights_only AND $4 FROM elements WHERE id=$1 RETURNING id`, eid, to, uid, withRights).Scan(&nid); err != nil {
 		return 0, err
+	}
+	if withRights {
+		if _, err := tx.Exec(ctx, `INSERT INTO element_rules(element_id, subject_type, subject_id, permissions, actions, created_by)
+			SELECT $2, subject_type, subject_id, permissions, actions, $3 FROM element_rules WHERE element_id=$1 ORDER BY id`, eid, nid, uid); err != nil {
+			return 0, err
+		}
 	}
 	if _, err := tx.Exec(ctx, `INSERT INTO element_revisions(element_id, lang, rev, source_rev, title, body, comment, created_by)
 		SELECT $2, r.lang, 1, CASE WHEN r.source_rev IS NULL THEN NULL ELSE 1 END, r.title || $4::text, r.body, 'Copied from element #' || $1::bigint::text, $3
@@ -1093,6 +1114,7 @@ func copyElement(ctx context.Context, tx pgx.Tx, eid, to int64, titleSuffix stri
 	if _, err := tx.Exec(ctx, `UPDATE elements e SET titles = (SELECT jsonb_object_agg(lang, title) FROM element_revisions WHERE element_id=$1 AND rev=1) WHERE id=$1`, nid); err != nil {
 		return 0, err
 	}
+	// acl: internal – copy; callers check the element
 	if _, err := tx.Exec(ctx, `INSERT INTO search_docs(element_id, lang, category_id, title, body_text, tags, tsv)
 		SELECT $2, d.lang, $3, d.title || $4::text, d.body_text, d.tags, d.tsv FROM search_docs d WHERE d.element_id=$1`, eid, nid, to, titleSuffix); err != nil {
 		return 0, err

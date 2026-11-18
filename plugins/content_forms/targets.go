@@ -128,6 +128,7 @@ func (p *Plugin) deliverTargets(ctx context.Context, d *due) ([]string, string) 
 	var owner int64
 	var cat int64
 	var created *int64
+	// acl: the creator's view is checked below (load: ElementCategory)
 	if err := p.host.DB.QueryRow(ctx, `SELECT category_id, created_by FROM elements WHERE id=$1 AND deleted_at IS NULL`, d.element).Scan(&cat, &created); err != nil {
 		return d.pending, "the form was deleted"
 	}
@@ -207,10 +208,10 @@ func (p *Plugin) sendWebhook(ctx context.Context, f *Form, cat int64, d *due, ti
 	if t == nil {
 		return nil
 	}
-	if !p.host.Can(ctx, cat, permExternal) {
+	if !p.host.CanElement(ctx, d.element, cat, permExternal) {
 		return errors.New("the creator of the form may no longer send submissions outside")
 	}
-	if p.host.ACL.Classification(ctx, cat) >= acl.Confidential {
+	if p.host.ACL.ElementClassification(ctx, d.element, cat) >= acl.Confidential {
 		return errors.New("confidential forms are not sent to webhooks")
 	}
 	sec := p.host.Config.Get().Plugins.Macros
@@ -272,6 +273,7 @@ func (p *Plugin) sendWebhook(ctx context.Context, f *Form, cat int64, d *due, ti
 func propDB(ctx context.Context, gh *coreplugin.Host, el int64) (cat int64, typ string, err error) {
 	var dbType string
 	var body []byte
+	// acl: callers check the element (propDBUsable: ElementCategory)
 	err = gh.DB.QueryRow(ctx, `SELECT e.category_id, e.type, r.body FROM elements e JOIN element_revisions r ON r.element_id=e.id AND r.lang=e.original_lang
 		WHERE e.id=$1 AND e.deleted_at IS NULL ORDER BY r.rev DESC LIMIT 1`, el).Scan(&cat, &dbType, &body)
 	if err != nil || dbType != "content.propdb" {
@@ -353,6 +355,7 @@ func workflowUsable(ctx context.Context, gh *coreplugin.Host, el int64) error {
 		return apperr.BadRequest("workflow %d not found", el)
 	}
 	var typ string
+	// acl: checked above (ElementCategory)
 	if err := gh.DB.QueryRow(ctx, `SELECT type FROM elements WHERE id=$1`, el).Scan(&typ); err != nil || typ != "workflow.process" {
 		return apperr.BadRequest("element %d is no workflow", el)
 	}

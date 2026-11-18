@@ -26,12 +26,13 @@ func (pl *Plugin) mayChange(ctx context.Context, element int64) (int64, error) {
 	}
 	var created *int64
 	var typ string
+	// acl: checked above (ElementCategory)
 	if err := pl.host.DB.QueryRow(ctx, `SELECT created_by, type FROM elements WHERE id=$1`, element).Scan(&created, &typ); err != nil || typ != "workflow.process" {
 		return 0, apperr.NotFound("workflow")
 	}
 	p := identity.From(ctx)
 	own := p != nil && created != nil && *created == p.ID()
-	if (own && (pl.host.Can(ctx, cat, permCreate) || pl.host.Can(ctx, cat, permAdmin))) || pl.host.Can(ctx, cat, permAdmin) {
+	if (own && (pl.host.CanElement(ctx, element, cat, permCreate) || pl.host.CanElement(ctx, element, cat, permAdmin))) || pl.host.CanElement(ctx, element, cat, permAdmin) {
 		return cat, nil
 	}
 	return 0, apperr.Forbidden("only the creator of the workflow or a workflow administrator may do this")

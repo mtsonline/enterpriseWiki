@@ -43,6 +43,15 @@ type Element struct {
 	// Hidden: not in listings, sources, feeds and the search (reachable by
 	// its link with view permission).
 	Hidden bool `json:"hidden"`
+	// OwnRightsOnly: only the element's own rules apply, not those of its
+	// category (managers of the category by a rule and administrators keep
+	// access).
+	OwnRightsOnly bool `json:"own_rights_only"`
+	// Classification set on the element (0–3); the strictest of the element
+	// and its categories applies.
+	Classification int `json:"classification"`
+	// OwnRules: the element has own permission rules.
+	OwnRules bool `json:"own_rules"`
 }
 
 // LangStatus is the translation state of one language.
@@ -75,16 +84,18 @@ type ElementView struct {
 
 const elemCols = `e.id, e.category_id, e.type, e.position, e.original_lang, e.titles, e.tags, e.created_at, e.updated_at,
 	COALESCE((SELECT u.display_name || ' (' || u.username || '@' || u.provider || ')' FROM users u WHERE u.id = e.updated_by), ''),
-	e.deleted_at, EXISTS (SELECT 1 FROM categories c WHERE c.id = e.category_id AND c.default_element_id = e.id), COALESCE(e.short_url, ''), e.preview_image, e.created_by, e.short_only, e.owner_instance, e.hidden`
+	e.deleted_at, EXISTS (SELECT 1 FROM categories c WHERE c.id = e.category_id AND c.default_element_id = e.id), COALESCE(e.short_url, ''), e.preview_image, e.created_by, e.short_only, e.owner_instance, e.hidden,
+	e.own_rights_only, e.classification, EXISTS (SELECT 1 FROM element_rules er WHERE er.element_id = e.id)`
 
 func scanElement(r pgx.CollectableRow) (Element, error) {
 	var e Element
 	err := r.Scan(&e.ID, &e.CategoryID, &e.Type, &e.Position, &e.OriginalLang, &e.Titles, &e.Tags, &e.CreatedAt, &e.UpdatedAt,
-		&e.UpdatedBy, &e.DeletedAt, &e.IsDefault, &e.ShortURL, &e.PreviewImage, &e.CreatedByID, &e.ShortOnly, &e.OwnerInstance, &e.Hidden)
+		&e.UpdatedBy, &e.DeletedAt, &e.IsDefault, &e.ShortURL, &e.PreviewImage, &e.CreatedByID, &e.ShortOnly, &e.OwnerInstance, &e.Hidden, &e.OwnRightsOnly, &e.Classification, &e.OwnRules)
 	return e, err
 }
 
 func (s *Service) loadElement(ctx context.Context, q db.Querier, id int64, includeDeleted bool) (*Element, error) {
+	// acl: loader without checks; every caller checks with requireElement/elementPerms
 	rows, err := q.Query(ctx, `SELECT `+elemCols+` FROM elements e WHERE e.id=$1 AND ($2 OR e.deleted_at IS NULL)`, id, includeDeleted)
 	if err != nil {
 		return nil, err
@@ -99,14 +110,42 @@ func (s *Service) loadElement(ctx context.Context, q db.Querier, id int64, inclu
 	return &e, nil
 }
 
+// loadElements loads (not deleted) elements by id, without checks.
+func (s *Service) loadElements(ctx context.Context, ids []int64) (map[int64]*Element, error) {
+	out := map[int64]*Element{}
+	if len(ids) == 0 {
+		return out, nil
+	}
+	// acl: checked by the callers
+	rows, err := s.pool.Query(ctx, `SELECT `+elemCols+` FROM elements e WHERE e.id = ANY($1) AND e.deleted_at IS NULL`, ids)
+	if err != nil {
+		return nil, err
+	}
+	list, err := pgx.CollectRows(rows, scanElement)
+	if err != nil {
+		return nil, err
+	}
+	for i := range list {
+		out[list[i].ID] = &list[i]
+	}
+	return out, nil
+}
+
 // ListElements lists the elements of a category.
 func (s *Service) ListElements(ctx context.Context, categoryID int64) ([]Element, error) {
 	if err := s.require(ctx, categoryID, acl.View); err != nil {
 		return nil, err
 	}
 	// hidden elements: only for those who may edit them (marked as hidden)
-	editors := s.acl.Can(ctx, identity.From(ctx), categoryID, acl.Edit)
-	rows, err := s.pool.Query(ctx, `SELECT `+elemCols+` FROM elements e WHERE e.category_id=$1 AND e.deleted_at IS NULL AND ($2 OR NOT e.hidden) ORDER BY e.position, e.id`, categoryID, editors)
+	p := identity.From(ctx)
+	editors := s.acl.Can(ctx, p, categoryID, acl.Edit)
+	f, err := s.acl.ElementFilter(ctx, p, acl.View)
+	if err != nil {
+		return nil, err
+	}
+	args := []any{categoryID, editors}
+	// acl: filtered (ElementFilter)
+	rows, err := s.pool.Query(ctx, `SELECT `+elemCols+` FROM elements e WHERE e.category_id=$1 AND e.deleted_at IS NULL AND ($2 OR NOT e.hidden) AND `+f.SQL("e", &args)+` ORDER BY e.position, e.id`, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -178,7 +217,7 @@ func (s *Service) GetElement(ctx context.Context, id int64, lang string, withBod
 	if err != nil {
 		return nil, err
 	}
-	if err := s.require(ctx, e.CategoryID, acl.View); err != nil {
+	if err := s.requireElement(ctx, e, acl.View); err != nil {
 		if errors.Is(err, apperr.ErrForbidden) {
 			return nil, apperr.NotFound("element")
 		}
@@ -332,6 +371,7 @@ func (s *Service) CreateElement(ctx context.Context, in ElementInput) (*ElementV
 		pos := 0
 		if in.Position != nil {
 			pos = *in.Position
+			// acl: internal – next position only
 		} else if err := tx.QueryRow(ctx, `SELECT COALESCE(max(position)+1,0) FROM elements WHERE category_id=$1`, in.CategoryID).Scan(&pos); err != nil {
 			return err
 		}
@@ -457,6 +497,7 @@ func (s *Service) SaveElement(ctx context.Context, id int64, in SaveInput) (*Ele
 	}
 	var noted int64
 	err = db.Tx(ctx, s.pool, func(tx pgx.Tx) error {
+		// acl: internal – row lock after requireElement
 		if _, err := tx.Exec(ctx, `SELECT 1 FROM elements WHERE id=$1 FOR UPDATE`, id); err != nil {
 			return err
 		}
@@ -618,6 +659,9 @@ func (s *Service) MoveElement(ctx context.Context, id, categoryID int64) (*Eleme
 	if err != nil {
 		return nil, err
 	}
+	if e.OwnRules || e.OwnRightsOnly || e.Classification > 0 {
+		s.aclChanged(ctx) // the snapshot knows the category of elements with own settings
+	}
 	_ = s.syncSlug(ctx, "element", id, e.CategoryID)
 	s.fireNoted(ctx, noted, "move", "element", id)
 	return s.loadElement(ctx, s.pool, id, false)
@@ -632,9 +676,11 @@ func (s *Service) moveElementTx(ctx context.Context, tx pgx.Tx, id, categoryID i
 	}
 	var oldCat int64
 	var oldPos int
+	// acl: internal – row lock; callers check requireMove
 	if err := tx.QueryRow(ctx, `SELECT category_id, position FROM elements WHERE id=$1 AND deleted_at IS NULL FOR UPDATE`, id).Scan(&oldCat, &oldPos); err != nil {
 		return apperr.NotFound("element")
 	}
+	// acl: internal – next position only
 	if _, err := tx.Exec(ctx, `UPDATE elements SET category_id=$2,
 		position=COALESCE($3, (SELECT COALESCE(max(position)+1,0) FROM elements WHERE category_id=$2)), updated_at=now() WHERE id=$1`, id, categoryID, position); err != nil {
 		return err
@@ -649,13 +695,25 @@ func (s *Service) moveElementTx(ctx context.Context, tx pgx.Tx, id, categoryID i
 }
 
 // DuplicateElement copies an element (latest revision of each language).
-func (s *Service) DuplicateElement(ctx context.Context, id, categoryID int64) (*Element, error) {
+// The copy keeps the classification and hidden flag; its own rules and
+// "own rights only" only with withRights. Without them, a copy of an
+// element with "own rights only" needs the permission to give rights on it
+// (the copy is visible to everybody in the target category).
+func (s *Service) DuplicateElement(ctx context.Context, id, categoryID int64, withRights bool) (*Element, error) {
 	e, err := s.loadElement(ctx, s.pool, id, false)
 	if err != nil {
 		return nil, err
 	}
-	if err := s.require(ctx, e.CategoryID, acl.View); err != nil {
+	if err := s.requireElement(ctx, e, acl.View); err != nil {
 		return nil, err
+	}
+	if s.acl.ElementClassification(ctx, e.ID, e.CategoryID) >= acl.StrictConfidential {
+		return nil, apperr.Forbidden("strictly confidential content is not copied")
+	}
+	if e.OwnRightsOnly && !withRights {
+		if err := s.requireElement(ctx, e, acl.Grant); err != nil {
+			return nil, apperr.Forbidden("this page has own rights only: copy it with its rights, or ask someone who may give rights on it")
+		}
 	}
 	if categoryID == 0 {
 		categoryID = e.CategoryID
@@ -673,16 +731,20 @@ func (s *Service) DuplicateElement(ctx context.Context, id, categoryID int64) (*
 			suffix = " (copy)"
 		}
 		var err error
-		if nid, err = copyElement(ctx, tx, id, categoryID, suffix); err != nil {
+		if nid, err = copyElement(ctx, tx, id, categoryID, suffix, withRights); err != nil {
 			return err
 		}
+		// acl: internal – next position only
 		if _, err := tx.Exec(ctx, `UPDATE elements SET position=(SELECT COALESCE(max(position)+1,0) FROM elements WHERE category_id=$2) WHERE id=$1`, nid, categoryID); err != nil {
 			return err
 		}
-		return audit.Log(ctx, tx, "element.duplicate", "element", nid, map[string]any{"source": id}, nil)
+		return audit.Log(ctx, tx, "element.duplicate", "element", nid, map[string]any{"source": id, "with_rights": withRights}, nil)
 	})
 	if err != nil {
 		return nil, err
+	}
+	if e.Classification > 0 || (withRights && (e.OwnRules || e.OwnRightsOnly)) {
+		s.aclChanged(ctx) // the copy has own settings
 	}
 	return s.loadElement(ctx, s.pool, nid, false)
 }
@@ -735,7 +797,7 @@ func (s *Service) Revisions(ctx context.Context, id int64, lang string) ([]Revis
 	if err != nil {
 		return nil, err
 	}
-	if err := s.require(ctx, e.CategoryID, acl.View); err != nil {
+	if err := s.requireElement(ctx, e, acl.View); err != nil {
 		return nil, err
 	}
 	rows, err := s.pool.Query(ctx, `SELECT r.lang, r.rev, r.source_rev, r.title, r.comment, r.restored_from,
@@ -757,7 +819,7 @@ func (s *Service) GetRevision(ctx context.Context, id int64, lang string, rev in
 	if err != nil {
 		return nil, err
 	}
-	if err := s.require(ctx, e.CategoryID, acl.View); err != nil {
+	if err := s.requireElement(ctx, e, acl.View); err != nil {
 		return nil, err
 	}
 	var x Revision
@@ -808,6 +870,7 @@ func (s *Service) RestoreRevision(ctx context.Context, id int64, lang string, re
 // restoreRev copies revision rev of lang to a new latest revision. It returns
 // false if rev already is the latest revision.
 func (s *Service) restoreRev(ctx context.Context, tx pgx.Tx, e *Element, lang string, rev int, comment string) (bool, error) {
+	// acl: internal – row lock after requireElement
 	if _, err := tx.Exec(ctx, `SELECT 1 FROM elements WHERE id=$1 FOR UPDATE`, e.ID); err != nil {
 		return false, err
 	}

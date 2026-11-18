@@ -125,11 +125,12 @@ func (b backend) Search(ctx context.Context, q content.SearchQuery) ([]content.B
 
 // docs loads the current documents of elements (nil ids = all, paged by after).
 func (p *Plugin) docs(ctx context.Context, ids []int64, after int64, limit int) ([]Doc, error) {
+	// acl: the index stores the viewers of every element (ElementViewers); the core checks every hit again
 	rows, err := p.host.DB.Query(ctx, `SELECT d.element_id, d.category_id, d.lang, d.title, left(d.body_text, $4), e.tags
 		FROM search_docs d JOIN elements e ON e.id=d.element_id
 		WHERE e.deleted_at IS NULL AND ($1::bigint[] IS NULL OR d.element_id = ANY($1)) AND d.element_id > $2
 			-- strictly confidential content is not copied into an external index
-			AND NOT EXISTS (SELECT 1 FROM categories cc JOIN categories cx ON cx.id = d.category_id WHERE cc.classification >= 3 AND cx.path <@ cc.path)
+			AND e.classification < 3 AND NOT EXISTS (SELECT 1 FROM categories cc JOIN categories cx ON cx.id = d.category_id WHERE cc.classification >= 3 AND cx.path <@ cc.path)
 		ORDER BY d.element_id, d.lang LIMIT $3`, ids, after, limit, MaxText)
 	if err != nil {
 		return nil, err
@@ -146,16 +147,11 @@ func (p *Plugin) docs(ctx context.Context, ids []int64, after int64, limit int) 
 	if err != nil {
 		return nil, err
 	}
-	cats := make([]int64, len(docs))
-	for i, d := range docs {
-		cats[i] = d.CategoryID
-	}
-	viewers, err := p.host.ACL.Viewers(ctx, cats)
-	if err != nil {
-		return nil, err
-	}
 	for i := range docs {
-		docs[i].Viewers = viewers[docs[i].CategoryID]
+		// the element's own rights apply (also "own rights only")
+		if docs[i].Viewers, err = p.host.ACL.ElementViewers(ctx, docs[i].ElementID, docs[i].CategoryID); err != nil {
+			return nil, err
+		}
 	}
 	return docs, nil
 }
@@ -176,6 +172,7 @@ func (p *Plugin) rebuild(ctx context.Context, e Engine, sig string) error {
 	var after, n int64
 	for {
 		// whole elements per batch: fetch ids first
+		// acl: internal – ids for the index; documents are built by docs
 		rows, err := p.host.DB.Query(ctx, `SELECT DISTINCT element_id FROM search_docs WHERE element_id > $1 ORDER BY element_id LIMIT 200`, after)
 		if err != nil {
 			return err
@@ -310,6 +307,7 @@ func (p *Plugin) Setup(host *coreplugin.Host) error {
 		if err := host.DB.QueryRow(ctx, `SELECT count(*) FROM search_changes WHERE seq > $1`, st.LastSeq).Scan(&pending); err != nil {
 			return nil, err
 		}
+		// acl: internal – a count for the status (core.search admin)
 		if err := host.DB.QueryRow(ctx, `SELECT count(*) FROM search_docs d JOIN elements e ON e.id=d.element_id WHERE e.deleted_at IS NULL`).Scan(&docs); err != nil {
 			return nil, err
 		}

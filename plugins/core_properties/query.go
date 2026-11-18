@@ -130,6 +130,8 @@ func (b *qb) arg(v any) string {
 // scope is what a caller may see for a query.
 type scope struct {
 	cats   []int64           // categories of the sources the caller may view
+	all    []int64           // all categories of the sources
+	elems  acl.ElementFilter // elements the caller may view (their own rights apply)
 	defs   map[string][]*Def // definitions by key (all categories)
 	vis    []int64           // definitions the caller may see
 	hidden map[string]bool   // keys whose every definition is hidden
@@ -177,6 +179,12 @@ func (p *Plugin) scope(ctx context.Context, q *Query) (*scope, error) {
 		return nil, err
 	}
 	if sc.cats, err = p.host.ACL.Filter(ctx, pr, all, acl.View); err != nil {
+		return nil, err
+	}
+	// elements with own rights: the filter applies in addition (and lets
+	// through elements of the sources the caller may see by their rights)
+	sc.all = all
+	if sc.elems, err = p.host.ACL.ElementFilter(ctx, pr, acl.View); err != nil {
 		return nil, err
 	}
 	// definitions
@@ -526,7 +534,7 @@ func builtinCond(b *qb, f Filter, lang string, me int64) (string, error) {
 // where builds the conditions of a query on elements e.
 func (p *Plugin) where(ctx context.Context, q *Query, sc *scope, b *qb) (string, error) {
 	me := identity.From(ctx).ID()
-	parts := []string{"e.deleted_at IS NULL", "e.category_id = ANY(" + b.arg(sc.cats) + ")"}
+	parts := []string{"e.deleted_at IS NULL", "e.category_id = ANY(" + b.arg(sc.all) + ")", sc.elems.SQLWith("e", b.arg)}
 	// hidden elements: only for those who may edit them
 	editable, err := p.host.ACL.Filter(ctx, identity.From(ctx), sc.cats, acl.Edit)
 	if err != nil {
@@ -682,6 +690,7 @@ func (p *Plugin) Run(ctx context.Context, q *Query) (*Result, error) {
 		order = append(order, a+".num"+dir+" NULLS LAST", a+".ts"+dir+" NULLS LAST", "lower("+a+".txt)"+dir+" NULLS LAST")
 	}
 	order = append(order, "lower(COALESCE(e.titles->>"+b.arg(q.Lang)+", e.titles->>e.original_lang))", "e.id")
+	// acl: filtered (scope.elems: ElementFilter in where)
 	sql := `SELECT e.id, COALESCE(e.titles->>` + b.arg(q.Lang) + `, e.titles->>e.original_lang, ''), e.type, e.category_id, e.tags, e.created_at, e.updated_at,
 		e.created_by, e.updated_by, count(*) OVER () FROM elements e ` + strings.Join(joins, " ") + ` WHERE ` + where +
 		` ORDER BY ` + strings.Join(order, ", ") + ` LIMIT ` + b.arg(q.Limit) + ` OFFSET ` + b.arg(q.Offset)
@@ -703,17 +712,15 @@ func (p *Plugin) Run(ctx context.Context, q *Query) (*Result, error) {
 		res.Rows = []Row{}
 	}
 	ids := make([]int64, len(res.Rows))
-	cats := make([]int64, 0, len(res.Rows))
 	for i, r := range res.Rows {
 		ids[i] = r.ID
-		cats = append(cats, r.CategoryID)
 	}
-	editable, err := p.host.ACL.Filter(ctx, identity.From(ctx), cats, acl.Edit)
+	editable, err := p.host.ACL.ElementFilter(ctx, identity.From(ctx), acl.Edit)
 	if err != nil {
 		return nil, err
 	}
 	for i := range res.Rows {
-		res.Rows[i].CanEdit = slices.Contains(editable, res.Rows[i].CategoryID)
+		res.Rows[i].CanEdit = editable.Allows(res.Rows[i].ID, res.Rows[i].CategoryID)
 	}
 	vals, err := p.load(ctx, p.host.DB, ids)
 	if err != nil {
@@ -898,6 +905,7 @@ func (p *Plugin) groups(ctx context.Context, q *Query, sc *scope, res *Result) (
 		return nil, apperr.BadRequest("agg: count, sum, avg, min or max")
 	}
 	// one row per group and element (unnested keys must not count an element twice)
+	// acl: filtered (scope.elems: ElementFilter in where)
 	sql := `SELECT k1, k2, ` + agg + `, count(DISTINCT eid) FROM (SELECT DISTINCT ` + g1 + ` AS k1, ` + g2 + ` AS k2, e.id AS eid, ` + num + ` AS n
 		FROM elements e ` + strings.Join(joins, " ") + ` WHERE ` + where + `) t GROUP BY 1, 2 ORDER BY 1 NULLS LAST, 2 NULLS LAST LIMIT ` + strconv.Itoa(maxGroups+1)
 	rows, err := p.host.DB.Query(ctx, sql, b.args...)
@@ -1136,8 +1144,9 @@ func (p *Plugin) routesQuery() {
 			return nil, err
 		}
 		b := &qb{}
+		// acl: filtered (scope.elems: ElementFilter)
 		rows, err := host.DB.Query(ctx, `SELECT v.key, min(v.type), max(v.label), count(*) FROM plugin_prop_values v JOIN elements e ON e.id = v.element_id
-			WHERE e.deleted_at IS NULL AND e.category_id = ANY(`+b.arg(sc.cats)+`) AND `+sc.visCond(b, "v")+`
+			WHERE e.deleted_at IS NULL AND e.category_id = ANY(`+b.arg(sc.all)+`) AND `+sc.elems.SQLWith("e", b.arg)+` AND `+sc.visCond(b, "v")+`
 			GROUP BY v.key ORDER BY count(*) DESC, v.key LIMIT 200`, b.args...)
 		if err != nil {
 			return nil, err

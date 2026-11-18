@@ -119,8 +119,14 @@ func (s *Service) ListIn(ctx context.Context, o ListOptions) ([]ListedElement, i
 	if o.Sources != nil {
 		where, wargs = sourceCond(o.Sources, 1)
 	}
+	// the elements' own rights apply (also to categories checked by the caller)
+	f, err := s.acl.ElementFilter(ctx, identity.From(ctx), acl.View)
+	if err != nil {
+		return nil, 0, err
+	}
+	where += " AND " + f.SQL("e", &wargs)
 	if o.NoConfidential {
-		where += " AND NOT EXISTS (SELECT 1 FROM categories cc JOIN categories cx ON cx.id = e.category_id WHERE cc.classification >= 2 AND cx.path <@ cc.path)"
+		where += " AND e.classification < 2 AND NOT EXISTS (SELECT 1 FROM categories cc JOIN categories cx ON cx.id = e.category_id WHERE cc.classification >= 2 AND cx.path <@ cc.path)"
 	}
 	if o.SkipListings {
 		types, ids := []string{}, []int64{}
@@ -134,6 +140,7 @@ func (s *Service) ListIn(ctx context.Context, o ListOptions) ([]ListedElement, i
 	nw := len(wargs)
 	arg := func(i int) string { return "$" + strconv.Itoa(nw+i) }
 	var total int
+	// acl: filtered (ElementFilter in where)
 	if err := s.pool.QueryRow(ctx, `SELECT count(*) FROM elements e WHERE e.deleted_at IS NULL AND NOT e.hidden AND `+where+`
 		AND (`+arg(1)+` = '' OR `+arg(1)+` = ANY(e.tags)) AND e.id <> `+arg(2), append(wargs, o.Tag, o.Exclude)...).Scan(&total); err != nil {
 		return nil, 0, err
@@ -178,6 +185,7 @@ func (s *Service) ElementBody(ctx context.Context, id int64, lang string) (typ s
 	if cat, err = s.ElementCategory(ctx, id, acl.View); err != nil {
 		return
 	}
+	// acl: checked above (ElementCategory)
 	err = s.pool.QueryRow(ctx, `SELECT e.type, r.body, r.lang FROM element_revisions r JOIN elements e ON e.id = r.element_id
 		WHERE r.element_id = $1 AND e.deleted_at IS NULL ORDER BY (r.lang = $2) DESC, (r.lang = e.original_lang) DESC, r.rev DESC LIMIT 1`, id, lang).
 		Scan(&typ, &body, &shown)

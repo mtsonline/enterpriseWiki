@@ -268,23 +268,25 @@ func (s *Service) Perms(ctx context.Context, m *Medium) (Perm, error) {
 		out = catPerms(cat)
 		if out&View == 0 {
 			// embedded in an element the caller may see
-			rows, err := s.pool.Query(ctx, `SELECT DISTINCT e.category_id FROM media_usage u JOIN elements e ON e.id = u.element_id
+			// acl: checked per element below (CanElement)
+			rows, err := s.pool.Query(ctx, `SELECT e.id, e.category_id FROM media_usage u JOIN elements e ON e.id = u.element_id
 				WHERE u.media_id=$1 AND e.deleted_at IS NULL`, m.ID)
 			if err != nil {
 				return 0, err
 			}
-			var cats []int64
+			type use struct{ el, cat int64 }
+			var uses []use
 			for rows.Next() {
-				var c int64
-				if err := rows.Scan(&c); err != nil {
+				var x use
+				if err := rows.Scan(&x.el, &x.cat); err != nil {
 					rows.Close()
 					return 0, err
 				}
-				cats = append(cats, c)
+				uses = append(uses, x)
 			}
 			rows.Close()
-			for _, c := range cats {
-				if s.acl.Can(ctx, p, c, acl.View) {
+			for _, x := range uses {
+				if s.acl.CanElement(ctx, p, x.el, x.cat, acl.View) {
 					out |= View | Download
 					break
 				}
@@ -898,6 +900,7 @@ func (s *Service) Usage(ctx context.Context, id int64) ([]int64, error) {
 	if _, err := s.Get(ctx, id); err != nil {
 		return nil, err
 	}
+	// acl: checked per element below (CanElement)
 	rows, err := s.pool.Query(ctx, `SELECT e.id, e.category_id FROM media_usage u JOIN elements e ON e.id = u.element_id
 		WHERE u.media_id=$1 AND e.deleted_at IS NULL ORDER BY e.id`, id)
 	if err != nil {
@@ -911,7 +914,7 @@ func (s *Service) Usage(ctx context.Context, id int64) ([]int64, error) {
 		if err := rows.Scan(&eid, &cid); err != nil {
 			return nil, err
 		}
-		if s.acl.Can(ctx, p, cid, acl.View) {
+		if s.acl.CanElement(ctx, p, eid, cid, acl.View) {
 			out = append(out, eid)
 		}
 	}

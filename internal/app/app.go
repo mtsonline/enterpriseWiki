@@ -460,6 +460,7 @@ func (a *App) emitContent(ctx context.Context, event, etype string, id int64) er
 	switch etype {
 	case "element":
 		var short string
+		// acl: webhooks are configured by administrators (who see everything)
 		if err := a.DB.QueryRow(context.WithoutCancel(ctx), `SELECT titles, category_id, COALESCE(short_url, '') FROM elements WHERE id=$1`, id).Scan(&titles, &ev.CategoryID, &short); err != nil {
 			return gone(err)
 		}

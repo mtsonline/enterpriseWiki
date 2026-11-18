@@ -99,7 +99,8 @@ func (s *Service) requireVia(ctx context.Context, via, categoryID int64, typ str
 // in the scope of the instance, never in archived categories and never
 // without seeing it.
 func (s *Service) instancePerms(ctx context.Context, e *Element, cat acl.Perm) acl.Perm {
-	if e.OwnerInstance == nil || cat&acl.View == 0 {
+	// "own rights only": the instance's permissions do not apply either
+	if e.OwnerInstance == nil || cat&acl.View == 0 || e.OwnRightsOnly {
 		return acl.None
 	}
 	p := identity.From(ctx)
@@ -131,7 +132,7 @@ func (s *Service) instancePerms(ctx context.Context, e *Element, cat acl.Perm) a
 // instance – editing pages in the category is not enough.
 func (s *Service) elementPerms(ctx context.Context, e *Element) acl.Perm {
 	p := identity.From(ctx)
-	cat, err := s.acl.Perms(ctx, p, e.CategoryID)
+	cat, err := s.acl.ElementPerms(ctx, p, e.ID, e.CategoryID)
 	if err != nil {
 		return acl.None
 	}

@@ -287,28 +287,31 @@ func (s *Server) fileVisible(r *http.Request, hash string) (bool, int) {
 			return true, 0
 		}
 	}
-	cats, ok := s.legacy.get(s.app.Site + "|" + hash)
+	// pairs of element and category
+	refs, ok := s.legacy.get(s.app.Site + "|" + hash)
 	if !ok {
-		rows, err := s.app.DB.Query(ctx, `SELECT DISTINCT e.category_id FROM element_revisions v JOIN elements e ON e.id = v.element_id
+		// acl: checked per element below (CanElement)
+		rows, err := s.app.DB.Query(ctx, `SELECT DISTINCT e.id, e.category_id FROM element_revisions v JOIN elements e ON e.id = v.element_id
 			WHERE e.deleted_at IS NULL AND strpos(v.body::text, $1) > 0 LIMIT 100`, hash)
 		if err != nil {
 			return false, 0
 		}
 		for rows.Next() {
-			var c int64
-			if rows.Scan(&c) == nil {
-				cats = append(cats, c)
+			var el, c int64
+			if rows.Scan(&el, &c) == nil {
+				refs = append(refs, el, c)
 			}
 		}
 		rows.Close()
-		s.legacy.put(s.app.Site+"|"+hash, cats)
+		s.legacy.put(s.app.Site+"|"+hash, refs)
 	}
 	// watermarked only when every place the caller sees it from asks for it
 	visible, marked := false, true
-	for _, c := range cats {
-		if s.app.ACL.Can(ctx, p, c, acl.View) {
+	for i := 0; i+1 < len(refs); i += 2 {
+		el, c := refs[i], refs[i+1]
+		if s.app.ACL.CanElement(ctx, p, el, c, acl.View) {
 			visible = true
-			if wm, _ := s.app.ACL.FileProtection(ctx, c); !wm {
+			if wm, _ := s.app.ACL.ElementFileProtection(ctx, el, c); !wm {
 				marked = false
 			}
 		}

@@ -106,6 +106,7 @@ func (p *Plugin) list(ctx context.Context, uid int64) (*List, error) {
 
 // items returns the visible favorites of the caller in their order.
 func (p *Plugin) items(ctx context.Context, uid int64) ([]Favorite, error) {
+	// acl: checked per item below (visible: ElementCategory)
 	rows, err := p.host.DB.Query(ctx, `SELECT f.target_type, f.target_id,
 			COALESCE(CASE f.target_type WHEN 'element' THEN (SELECT e.titles FROM elements e WHERE e.id=f.target_id AND e.deleted_at IS NULL)
 				ELSE (SELECT c.titles FROM categories c WHERE c.id=f.target_id AND c.deleted_at IS NULL) END, 'null'::jsonb)

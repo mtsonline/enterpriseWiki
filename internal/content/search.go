@@ -86,34 +86,37 @@ func (s *Service) SearchIn(ctx context.Context, q string, tags []string, lang st
 			res.Elements = []SearchHit{}
 		}
 	}
-	// only categories the caller may view: otherwise matches they may not
-	// see could fill the result window and hide the ones they may see
-	visible, all, err := s.acl.Visible(ctx, p)
+	// only pages the caller may view (their own rights apply): otherwise
+	// matches they may not see could fill the result window and hide the
+	// ones they may see
+	f, err := s.acl.ElementFilter(ctx, p, acl.View)
 	if err != nil {
 		return nil, err
 	}
-	if all {
-		visible = nil
-	} else if len(visible) == 0 {
+	if !f.All && len(f.Cats) == 0 && len(f.Extra) == 0 {
 		return s.searchCategories(ctx, q, tags, res, scope)
 	}
 	if tsq != "" {
+		args := []any{tsq, tags, lang, scope}
+		// acl: filtered (ElementFilter)
 		rows, err = s.pool.Query(ctx, `SELECT d.element_id, d.category_id, d.lang, e.type, d.title,
 				ts_headline('simple', left(d.body_text, 20000), q, 'StartSel=⟦, StopSel=⟧, MaxFragments=2, MaxWords=24, MinWords=8, FragmentDelimiter=" … "'),
 				e.tags, ts_rank(d.tsv, q)
 			FROM search_docs d JOIN elements e ON e.id = d.element_id, to_tsquery('simple', $1) q
 			WHERE d.tsv @@ q AND e.deleted_at IS NULL AND NOT e.hidden AND (cardinality($2::text[]) = 0 OR e.tags @> $2)
 				AND ($4::bigint[] IS NULL OR d.category_id = ANY($4))
-				AND ($5::bigint[] IS NULL OR d.category_id IN (SELECT unnest($5::bigint[])))
-				AND ($4::bigint[] IS NOT NULL OR NOT EXISTS (SELECT 1 FROM categories hc JOIN categories hx ON hx.id = d.category_id WHERE (hc.hidden OR hc.archived_at IS NOT NULL OR hc.classification >= 3) AND hx.path <@ hc.path)) -- hidden categories only when searched explicitly
-			ORDER BY ts_rank(d.tsv, q) DESC, (d.lang = $3) DESC LIMIT 1000`, tsq, tags, lang, scope, visible)
+				AND `+f.SQL("e", &args)+`
+				AND ($4::bigint[] IS NOT NULL OR (e.classification < 3 AND NOT EXISTS (SELECT 1 FROM categories hc JOIN categories hx ON hx.id = d.category_id WHERE (hc.hidden OR hc.archived_at IS NOT NULL OR hc.classification >= 3) AND hx.path <@ hc.path))) -- hidden categories only when searched explicitly
+			ORDER BY ts_rank(d.tsv, q) DESC, (d.lang = $3) DESC LIMIT 1000`, args...)
 	} else {
+		args := []any{tags, lang, scope}
+		// acl: filtered (ElementFilter)
 		rows, err = s.pool.Query(ctx, `SELECT d.element_id, d.category_id, d.lang, e.type, d.title, left(d.body_text, 200), e.tags, 1::real
 			FROM search_docs d JOIN elements e ON e.id = d.element_id
 			WHERE e.deleted_at IS NULL AND NOT e.hidden AND e.tags @> $1 AND ($3::bigint[] IS NULL OR d.category_id = ANY($3))
-				AND ($4::bigint[] IS NULL OR d.category_id IN (SELECT unnest($4::bigint[])))
-				AND ($3::bigint[] IS NOT NULL OR NOT EXISTS (SELECT 1 FROM categories hc JOIN categories hx ON hx.id = d.category_id WHERE (hc.hidden OR hc.archived_at IS NOT NULL OR hc.classification >= 3) AND hx.path <@ hc.path))
-			ORDER BY e.updated_at DESC, (d.lang = $2) DESC LIMIT 1000`, tags, lang, scope, visible)
+				AND `+f.SQL("e", &args)+`
+				AND ($3::bigint[] IS NOT NULL OR (e.classification < 3 AND NOT EXISTS (SELECT 1 FROM categories hc JOIN categories hx ON hx.id = d.category_id WHERE (hc.hidden OR hc.archived_at IS NOT NULL OR hc.classification >= 3) AND hx.path <@ hc.path)))
+			ORDER BY e.updated_at DESC, (d.lang = $2) DESC LIMIT 1000`, args...)
 	}
 	if err != nil {
 		return nil, err
@@ -125,17 +128,9 @@ func (s *Service) SearchIn(ctx context.Context, q string, tags []string, lang st
 	if err != nil {
 		return nil, err
 	}
-	cats := make([]int64, 0, len(hits))
-	for _, h := range hits {
-		cats = append(cats, h.CategoryID)
-	}
-	perms, err := s.acl.PermsMap(ctx, p, cats)
-	if err != nil {
-		return nil, err
-	}
 	best := map[int64]int{} // element -> index in res
 	for _, h := range hits {
-		if perms[h.CategoryID]&acl.View == 0 {
+		if !f.Allows(h.ElementID, h.CategoryID) {
 			continue
 		}
 		h.Snippet = strings.NewReplacer("⟦", "<mark>", "⟧", "</mark>").Replace(htmlEscape(h.Snippet))
@@ -200,20 +195,21 @@ func (s *Service) Tags(ctx context.Context, prefix string, limit int) ([]TagCoun
 	if limit <= 0 || limit > 200 {
 		limit = 50
 	}
-	rows, err := s.pool.Query(ctx, `SELECT t.tag, t.cat FROM (
-			SELECT unnest(tags) AS tag, category_id AS cat FROM elements WHERE deleted_at IS NULL AND NOT hidden
-			UNION ALL SELECT unnest(tags), id FROM categories WHERE deleted_at IS NULL) t
+	// acl: checked below (ElementFilter for pages, category permissions for categories)
+	rows, err := s.pool.Query(ctx, `SELECT t.tag, t.cat, t.el FROM (
+			SELECT unnest(tags) AS tag, category_id AS cat, id AS el FROM elements WHERE deleted_at IS NULL AND NOT hidden
+			UNION ALL SELECT unnest(tags), id, 0 FROM categories WHERE deleted_at IS NULL) t
 		WHERE t.tag LIKE $1 || '%'`, strings.ToLower(strings.TrimSpace(prefix)))
 	if err != nil {
 		return nil, err
 	}
 	type tc struct {
-		tag string
-		cat int64
+		tag     string
+		cat, el int64
 	}
 	all, err := pgx.CollectRows(rows, func(r pgx.CollectableRow) (tc, error) {
 		var x tc
-		return x, r.Scan(&x.tag, &x.cat)
+		return x, r.Scan(&x.tag, &x.cat, &x.el)
 	})
 	if err != nil {
 		return nil, err
@@ -226,9 +222,13 @@ func (s *Service) Tags(ctx context.Context, prefix string, limit int) ([]TagCoun
 	if err != nil {
 		return nil, err
 	}
+	f, err := s.acl.ElementFilter(ctx, identity.From(ctx), acl.View)
+	if err != nil {
+		return nil, err
+	}
 	counts := map[string]int{}
 	for _, x := range all {
-		if perms[x.cat]&acl.View != 0 {
+		if (x.el == 0 && perms[x.cat]&acl.View != 0) || (x.el != 0 && f.Allows(x.el, x.cat)) {
 			counts[x.tag]++
 		}
 	}
@@ -469,38 +469,28 @@ func (s *Service) Recent(ctx context.Context, category int64, limit int) ([]Rece
 	if limit <= 0 || limit > 100 {
 		limit = 10
 	}
+	f, err := s.acl.ElementFilter(ctx, identity.From(ctx), acl.View)
+	if err != nil {
+		return nil, err
+	}
+	args := []any{category, limit}
+	// acl: filtered (ElementFilter)
 	rows, err := s.pool.Query(ctx, `SELECT e.id, e.category_id, e.titles, e.updated_at FROM elements e JOIN categories c ON c.id=e.category_id
 		WHERE e.deleted_at IS NULL AND NOT e.hidden AND c.deleted_at IS NULL
 		AND ($1::bigint = 0 OR c.path <@ (SELECT path FROM categories WHERE id=$1::bigint))
-		ORDER BY e.updated_at DESC LIMIT 500`, category)
+		AND `+f.SQL("e", &args)+`
+		ORDER BY e.updated_at DESC LIMIT $2`, args...)
 	if err != nil {
 		return nil, err
 	}
-	items, err := pgx.CollectRows(rows, func(r pgx.CollectableRow) (RecentItem, error) {
+	out, err := pgx.CollectRows(rows, func(r pgx.CollectableRow) (RecentItem, error) {
 		var x RecentItem
 		return x, r.Scan(&x.ID, &x.CategoryID, &x.Titles, &x.UpdatedAt)
 	})
-	if err != nil {
-		return nil, err
+	if out == nil {
+		out = []RecentItem{}
 	}
-	ids := make([]int64, len(items))
-	for i, x := range items {
-		ids[i] = x.CategoryID
-	}
-	perms, err := s.acl.PermsMap(ctx, identity.From(ctx), ids)
-	if err != nil {
-		return nil, err
-	}
-	out := []RecentItem{}
-	for _, x := range items {
-		if perms[x.CategoryID]&acl.View != 0 {
-			out = append(out, x)
-			if len(out) >= limit {
-				break
-			}
-		}
-	}
-	return out, nil
+	return out, err
 }
 
 // searchExternal queries a search backend and applies tags, trash and
@@ -521,8 +511,9 @@ func (s *Service) searchExternal(ctx context.Context, b SearchBackend, q string,
 		for _, h := range hits {
 			ids = append(ids, h.ElementID)
 		}
+		// acl: checked below (ElementFilter for every hit; the index stores viewers per element)
 		rows, err := s.pool.Query(ctx, `SELECT e.id, e.category_id, e.type, e.tags FROM elements e JOIN categories c ON c.id=e.category_id
-			WHERE e.id = ANY($1) AND e.deleted_at IS NULL AND NOT e.hidden AND c.deleted_at IS NULL AND (cardinality($2::text[]) = 0 OR e.tags @> $2)
+			WHERE e.id = ANY($1) AND e.deleted_at IS NULL AND NOT e.hidden AND e.classification < 3 AND c.deleted_at IS NULL AND (cardinality($2::text[]) = 0 OR e.tags @> $2)
 				AND NOT EXISTS (SELECT 1 FROM categories hc WHERE (hc.hidden OR hc.archived_at IS NOT NULL OR hc.classification >= 3) AND c.path <@ hc.path)`, ids, tags)
 		if err != nil {
 			return err
@@ -533,7 +524,6 @@ func (s *Service) searchExternal(ctx context.Context, b SearchBackend, q string,
 			tags []string
 		}
 		known := map[int64]info{}
-		cats := []int64{}
 		for rows.Next() {
 			var id int64
 			var in info
@@ -542,13 +532,12 @@ func (s *Service) searchExternal(ctx context.Context, b SearchBackend, q string,
 				return err
 			}
 			known[id] = in
-			cats = append(cats, in.cat)
 		}
 		rows.Close()
 		if err := rows.Err(); err != nil {
 			return err
 		}
-		perms, err := s.acl.PermsMap(ctx, p, cats)
+		f, err := s.acl.ElementFilter(ctx, p, acl.View)
 		if err != nil {
 			return err
 		}
@@ -556,7 +545,7 @@ func (s *Service) searchExternal(ctx context.Context, b SearchBackend, q string,
 		strip := strings.NewReplacer("\x01", "", "\x02", "")
 		for _, h := range hits {
 			in, ok := known[h.ElementID]
-			if !ok || perms[in.cat]&acl.View == 0 {
+			if !ok || !f.Allows(h.ElementID, in.cat) {
 				continue
 			}
 			hit := SearchHit{ElementID: h.ElementID, CategoryID: in.cat, Lang: h.Lang, Type: in.typ, Title: strip.Replace(h.Title),
