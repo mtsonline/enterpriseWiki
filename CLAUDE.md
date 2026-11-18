@@ -70,6 +70,7 @@ go vet ./...
 go run ./tools/genplugins               # nach neuen oder entfernten Plugins; Ergebnis committen
 go run ./tools/notices -check           # Lizenzen der Go-Module
 go run ./tools/docscheck                # Doku Deutsch und Englisch vollständig, Links gültig, genannte Bezeichner existieren
+go run ./tools/traps                    # Fallen-Tests: absichtlich eingebaute Fehler müssen die Tests rot machen
 (cd sdk && go run ./tools/protocheck)   # Plugin-Vertrag übersetzt; Aktionsregister und Manifeste passen dazu
 
 # Go-Tests; mit Datenbank auch die API-Integrationstests
@@ -89,7 +90,7 @@ tests/qa/local.sh
 EWIKI_QA_PROXY=caddy EWIKI_QA_WORK=/tmp/ewiki-qa-caddy tests/qa/local.sh
 ```
 
-Die Browser-Tests bauen aufeinander auf und laufen nur vollständig. Vor einem Release laufen zusätzlich die Testroutine `tests/qa` und alle Sicherheitsprüfungen.
+Die Browser-Tests bauen aufeinander auf und laufen nur vollständig. Vor einem Release laufen zusätzlich die Testroutine `tests/qa`, alle Sicherheitsprüfungen, die Fallen-Tests (`tools/traps`) und die unabhängige Prüfung durch einen Agenten ohne Entwicklungskontext.
 
 ## 7. Sauber, ohne Warnungen
 
