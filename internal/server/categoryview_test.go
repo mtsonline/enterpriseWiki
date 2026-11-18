@@ -184,7 +184,9 @@ func TestCategoryPagePlacement(t *testing.T) {
 	}
 	welcome, contact, board := mk(c.ID, "Welcome"), mk(c.ID, "Contact"), mk(other.ID, "Board minutes")
 	path := fmt.Sprintf("/api/v1/placements/category_page?target=%d", c.ID)
-	pl := func(block, pos string) map[string]any { return map[string]any{"block": block, "position": pos, "sort": 10} }
+	pl := func(block, pos string) map[string]any {
+		return map[string]any{"block": block, "position": pos, "sort": 10}
+	}
 	put := func(cl *client, pls []map[string]any, want int) {
 		t.Helper()
 		if code := cl.do("PUT", path, map[string]any{"placements": pls}, nil); code != want {
