@@ -49,5 +49,8 @@
  "perm.content.faq.edit": "Alle Fragen und Antworten bearbeiten",
  "perm.content.faq.edit_help": "Alle Fragen und Antworten der FAQ schreiben, ändern, darin verschieben und löschen.",
  "perm.content.faq.contribute": "Fragen und Antworten beitragen",
- "perm.content.faq.contribute_help": "Neue Fragen und Antworten schreiben und die eigenen ändern oder löschen."
+ "perm.content.faq.contribute_help": "Neue Fragen und Antworten schreiben und die eigenen ändern oder löschen.",
+ "content.faq.block_search": "Suche in der FAQ",
+ "content.faq.block_expand": "Alle aufklappen / zuklappen",
+ "content.faq.block_feed": "Feed der FAQ"
 }

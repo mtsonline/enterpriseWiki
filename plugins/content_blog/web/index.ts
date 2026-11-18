@@ -1,8 +1,9 @@
 // Blog element: editor (category, layout, options) and the "blog" widget
 // (search within the blog, paging, tag filter, new post / subcategory, feed).
 import {
-  announce, api, button, categorySelect, checkbox, errorText, feedButton, field, formDialog, h, langFields, mount, navigate, pick,
-  instanceLabels, registerEditor, registerWidget, select, state, t, textArea, textInput, toast, trustedHTML, type EditorInstance, sourcesEditor,
+  announce, api, button, categorySelect, checkbox, claimWidgetControls, errorText, feedButton, field, formDialog, h, langFields, mount, navigate, pick,
+  instanceLabels, provideWidgetControls, registerEditor, registerWidget, registerWidgetControl, select, state, t, textArea, textInput, toast, trustedHTML,
+  type EditorInstance, type WidgetControl, sourcesEditor,
 } from '@ewiki/coreplugin';
 import './style.css';
 
@@ -116,6 +117,8 @@ function newCategory(id: number, cats: Cat[], done: () => void, tl: Label): void
 
 async function blogWidget(root: HTMLElement): Promise<void> {
   const id = Number(root.dataset.element);
+  // on its own page the controls are blocks of the page (placement)
+  const own = claimWidgetControls(id, root);
   let data: Posts;
   try { data = await api.get<Posts>(`${BASE}/elements/${id}/posts?lang=${L()}`); } catch { return; }
   if (data.info.missing) return;
@@ -151,29 +154,39 @@ async function blogWidget(root: HTMLElement): Promise<void> {
       const d = await api.get<Posts>(`${BASE}/elements/${id}/posts?lang=${L()}&page=${page}${tag ? `&tag=${encodeURIComponent(tag)}` : ''}`);
       show(d);
       if (page > 1 || newTag !== undefined) {
-        root.querySelector<HTMLElement>('.ewb-toolbar')?.scrollIntoView({ block: 'start' });
+        (root.querySelector<HTMLElement>('.ewb-toolbar') ?? posts).scrollIntoView({ block: 'start' });
         announce(status.textContent || t('content.blog.page_of', { page: d.page, pages: d.pages }));
       }
     } catch (e) { toast(errorText(e), 'error'); }
   };
 
-  // search within the blog
-  const q = textInput({ type: 'search', placeholder: tl('content.blog.search_placeholder') });
-  q.setAttribute('aria-label', tl('content.blog.search'));
-  const form = h('form', { class: 'ewb-search', role: 'search' }, q, button(tl('content.blog.search'), () => undefined, { type: 'submit', variant: 'secondary' }));
-  form.addEventListener('submit', async (ev) => {
-    ev.preventDefault();
-    if (!q.value.trim()) { void load(1); return; }
-    try { show(await api.get<Posts>(`${BASE}/elements/${id}/posts?lang=${L()}&q=${encodeURIComponent(q.value)}`)); } catch (e) { toast(errorText(e), 'error'); }
-  });
-  q.addEventListener('search', () => { if (!q.value) void load(1); });
-
-  const title = document.querySelector('h1')?.textContent ?? 'Blog';
-  const actions = h('div', { class: 'ew-actions' },
-    data.info.can_create ? button(tl('content.blog.new_post'), () => newPost(id, data.info.categories, tl), { variant: 'primary' }) : null,
-    data.info.can_manage && c.recursive ? button(tl('content.blog.new_category'), () => newCategory(id, data.info.categories, () => void load(1), tl), { variant: 'secondary' }) : null,
-    c.feed ? feedButton(`${BASE}/elements/${id}/feed`, title) : null);
-  posts.before(h('div', { class: 'ewb-toolbar' }, form, actions), status);
+  // search within the blog (each call a new form: it may be placed twice)
+  const search: WidgetControl = () => {
+    const q = textInput({ type: 'search', placeholder: tl('content.blog.search_placeholder') });
+    q.setAttribute('aria-label', tl('content.blog.search'));
+    const form = h('form', { class: 'ewb-search', role: 'search' }, q, button(tl('content.blog.search'), () => undefined, { type: 'submit', variant: 'secondary' }));
+    form.addEventListener('submit', async (ev) => {
+      ev.preventDefault();
+      if (!q.value.trim()) { void load(1); return; }
+      try { show(await api.get<Posts>(`${BASE}/elements/${id}/posts?lang=${L()}&q=${encodeURIComponent(q.value)}`)); } catch (e) { toast(errorText(e), 'error'); }
+    });
+    q.addEventListener('search', () => { if (!q.value) void load(1); });
+    return form;
+  };
+  const controls: Record<string, WidgetControl> = {
+    search,
+    new_post: () => (data.info.can_create ? button(tl('content.blog.new_post'), () => newPost(id, data.info.categories, tl), { variant: 'primary' }) : null),
+    new_category: () => (data.info.can_manage && c.recursive ? button(tl('content.blog.new_category'), () => newCategory(id, data.info.categories, () => void load(1), tl), { variant: 'secondary' }) : null),
+    feed: (page) => (c.feed ? feedButton(`${BASE}/elements/${id}/feed`, page.title) : null),
+  };
+  if (own) {
+    provideWidgetControls(id, root, controls);
+    posts.before(status);
+  } else {
+    // embedded in another page: the title of that page names the feed
+    const page = { title: root.closest('article')?.querySelector('h1')?.textContent ?? document.querySelector('h1')?.textContent ?? 'Blog' };
+    posts.before(h('div', { class: 'ewb-toolbar' }, controls.search(page), h('div', { class: 'ew-actions' }, controls.new_post(page), controls.new_category(page), controls.feed(page))), status);
+  }
   posts.after(pager);
   show(data);
 }
@@ -181,4 +194,11 @@ async function blogWidget(root: HTMLElement): Promise<void> {
 export function register(): void {
   registerEditor('content.blog', createEditor);
   registerWidget('blog', blogWidget);
+  // on the page of a blog its controls are blocks
+  const ctl = (key: string, label: string, position: 'element-header' | 'element-toolbar', order: number) =>
+    registerWidgetControl({ id: `content.blog.${key.replace('_', '-')}`, type: 'content.blog', key, label: () => t(label), position, order });
+  ctl('search', 'content.blog.block_search', 'element-header', 50);
+  ctl('new_post', 'content.blog.new_post', 'element-toolbar', 30);
+  ctl('new_category', 'content.blog.new_category', 'element-toolbar', 31);
+  ctl('feed', 'content.blog.block_feed', 'element-toolbar', 32);
 }

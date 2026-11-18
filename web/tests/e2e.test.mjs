@@ -959,7 +959,10 @@ test('forgot your password: link by e-mail, new password, switch off in the admi
   try {
     await p2.goto(BASE + '/login');
     await p2.getByRole('link', { name: /^(forgot your password\?|passwort vergessen\?)$/i }).click();
-    await p2.locator('input[name=email]').waitFor();
+    // (if this fails: where the page went and what it shows)
+    await p2.locator('input[name=email]').waitFor().catch(async (e) => {
+      throw new Error(`no form to ask for the link at ${p2.url()}: ${(await p2.locator('main').innerText().catch(() => '?')).slice(0, 300)} (${e.message.split('\n')[0]})`);
+    });
     await a11y('forgot password form', p2);
     await p2.locator('input[name=email]').fill(addr);
     await p2.getByRole('button', { name: /^(send link|link senden)$/i }).click();
@@ -1955,7 +1958,10 @@ test('blog: posts, search and new post', async () => {
   }
   await page.goto(BASE + `/e/${blog.id}`);
   await idle();
-  await page.locator('.ewb-toolbar').waitFor();
+  // on its own page the controls of the blog are blocks of the page
+  await page.locator('.ew-pos--element-header .ewb-search').waitFor();
+  await page.locator('.ew-pos--element-toolbar').getByRole('button', { name: /^(new post|neuer beitrag)$/i }).waitFor();
+  assert.equal(await page.locator('.ewb-toolbar').count(), 0, 'no toolbar of its own on the page of the blog');
   assert.equal(await page.locator('.ewb-post').count(), 2);
   await a11y('blog');
   await page.getByRole('button', { name: /older posts|ältere beiträge/i }).click();
@@ -1963,7 +1969,23 @@ test('blog: posts, search and new post', async () => {
   await page.getByRole('searchbox', { name: /search the blog|im blog suchen/i }).fill('giraffes');
   await page.locator('.ewb-search button[type=submit]').click();
   await page.waitForFunction(() => document.querySelectorAll('.ewb-hit').length === 3);
-  await page.getByRole('button', { name: /^(new post|neuer beitrag)$/i }).click();
+  // moved for this page: the search below the content, the feed hidden
+  await call('PUT', `/api/v1/placements/instance?target=${blog.id}`, { placements: [{ block: 'content.blog.search', position: 'element-footer', sort: 1 }, { block: 'content.blog.feed', position: '' }] });
+  await page.reload();
+  await idle();
+  await page.locator('.ew-pos--element-footer .ewb-search').waitFor();
+  assert.equal(await page.getByRole('button', { name: /^feed:/i }).count(), 0, 'feed hidden');
+  await page.getByRole('searchbox', { name: /search the blog|im blog suchen/i }).fill('giraffes');
+  await page.locator('.ewb-search button[type=submit]').click();
+  await page.waitForFunction(() => document.querySelectorAll('.ewb-hit').length === 3);
+  // embedded (default element of a category): the blog shows its controls itself
+  const front = await call('POST', '/api/v1/categories', { parent_id: cat, titles: { en: `Front ${run}` } });
+  const shown = await call('POST', '/api/v1/elements', { category_id: front.id, type: 'content.blog', title: `Front blog ${run}`, body: { category_id: blogCat.id, per_page: 2 } });
+  await call('PUT', `/api/v1/categories/${front.id}`, { default_element_id: shown.id });
+  await page.goto(BASE + `/c/${front.id}`);
+  await idle();
+  await page.locator('.ewb-toolbar .ewb-search').waitFor();
+  await page.locator('.ewb-toolbar').getByRole('button', { name: /^(new post|neuer beitrag)$/i }).click();
   await page.waitForURL(/\/c\/\d+\/new\?type=core\.html&via=\d+&return=/);
 });
 
@@ -1972,7 +1994,7 @@ test('labels of an instance: own texts of the blog per language', async () => {
   const blog = await call('POST', '/api/v1/elements', { category_id: cat, type: 'content.blog', title: `Labelled ${run}`, body: { category_id: cat } });
   await page.goto(`${BASE}/e/${blog.id}`);
   await idle();
-  await page.locator('.ewb-toolbar').waitFor();
+  await page.locator('.ew-pos--element-header .ewb-search').waitFor();
   await page.getByRole('button', { name: /^(labels|beschriftungen)$/i }).click();
   const dlg = page.locator('dialog[open]');
   const group = dlg.getByRole('group', { name: /^(new post|neuer beitrag)$/i });
@@ -2231,7 +2253,10 @@ test('FAQ: sections, questions, filter and quick add', async () => {
   await call('POST', '/api/v1/elements', { via: faq.id, category_id: faqCat.id, type: 'core.html', title: 'Who helps me?', body: { format: 'markdown', source: 'The help desk.' } });
   await page.goto(BASE + `/e/${faq.id}`);
   await idle();
-  await page.locator('.ewq-toolbar').waitFor();
+  // on its own page the controls of the FAQ are blocks of the page
+  await page.locator('.ew-pos--element-header .ewq-search').waitFor();
+  await page.locator('.ew-pos--element-toolbar').getByRole('button', { name: /^(expand all|alle aufklappen)$/i }).waitFor();
+  assert.equal(await page.locator('.ewq-toolbar').count(), 0, 'no toolbar of its own on the page of the FAQ');
   await a11y('faq');
   await page.getByRole('searchbox', { name: /search the faq|faq durchsuchen/i }).fill('password');
   await page.waitForFunction(() => /1/.test(document.querySelector('.ewq-status')?.textContent ?? ''));
