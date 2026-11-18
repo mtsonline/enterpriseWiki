@@ -396,6 +396,132 @@ actions:
         path_params_json: '{"id": "${given.core.elements.create#blog.id}"}'
         body_json: '{"rules": []}'
         status: 404
+  - id: core.elements.acl.get
+    category: CATEGORY_ACTION
+    method: GET
+    path: /api/v1/elements/{id}/acl
+    success_status: 200
+    summary:
+      text:
+        en: Show the own rights of a page – rules, "own rights only", classification (needs the permission to give rights on it)
+        de: Eigene Rechte einer Seite anzeigen – Regeln, „nur eigene Rechte“, Einstufung (braucht das Recht, Rechte darauf zu vergeben)
+    permission: {key: core.category.manage, scope: SCOPE_CATEGORY, category_param: "element:id"}
+    cli: {command: [element, acl, show], args: [id]}
+    ui: {entry: /e/:id}
+    examples:
+      - name: default
+        given: ['core.elements.create#default']
+        as: member
+        path_params_json: '{"id": "${given.core.elements.create#default.id}"}'
+        expect_json: '{"own_rights_only": false, "rules": []}'
+      - name: with_rule
+        given: ['core.elements.acl.add#default']
+        path_params_json: '{"id": "${given.core.elements.create#default.id}"}'
+        expect_json: '{"rules": [{"subject_type": "user", "permissions": 1}]}'
+  - id: core.elements.acl.set
+    category: CATEGORY_ACTION
+    method: PUT
+    path: /api/v1/elements/{id}/acl
+    success_status: 200
+    summary:
+      text:
+        en: Set "own rights only" and the classification of a page (the stricter classification of the page and its categories applies)
+        de: „Nur eigene Rechte“ und die Einstufung einer Seite setzen (es gilt die strengere Einstufung von Seite und Kategorien)
+    permission: {key: core.category.manage, scope: SCOPE_CATEGORY, category_param: "element:id"}
+    safety: {changes: true}
+    cli: {command: [element, acl, set], args: [id]}
+    ui: {entry: /e/:id}
+    examples:
+      - name: default
+        given: ['core.elements.create#default']
+        as: member
+        path_params_json: '{"id": "${given.core.elements.create#default.id}"}'
+        body_json: '{"own_rights_only": true, "classification": 2}'
+        expect_json: '{"own_rights_only": true, "classification": 2, "effective_classification": 2}'
+      - name: invalid_classification
+        given: ['core.elements.create#default']
+        path_params_json: '{"id": "${given.core.elements.create#default.id}"}'
+        body_json: '{"classification": 7}'
+        status: 400
+  - id: core.elements.acl.add
+    category: CATEGORY_ACTION
+    method: POST
+    path: /api/v1/elements/{id}/acl
+    success_status: 201
+    summary:
+      text:
+        en: Give permissions on one page (view, edit, delete, give rights; nobody gives more than they have)
+        de: Rechte auf eine Seite vergeben (ansehen, bearbeiten, löschen, Rechte vergeben; niemand vergibt mehr, als er hat)
+    permission: {key: core.category.manage, scope: SCOPE_CATEGORY, category_param: "element:id"}
+    safety: {changes: true}
+    cli: {command: [element, acl, add], args: [id]}
+    ui: {entry: /e/:id}
+    examples:
+      - name: default
+        given: ['core.elements.create#default', 'core.users.create#default']
+        as: member
+        path_params_json: '{"id": "${given.core.elements.create#default.id}"}'
+        body_json: '{"subject_type": "user", "subject_id": ${given.core.users.create#default.id}, "permissions": 1}'
+        expect_json: '{"subject_type": "user", "permissions": 1}'
+      - name: preset
+        given: ['core.elements.create#default', 'core.users.create#default']
+        path_params_json: '{"id": "${given.core.elements.create#default.id}"}'
+        body_json: '{"subject_type": "user", "subject_id": ${given.core.users.create#default.id}, "preset": "editor"}'
+        expect_json: '{"permissions": 11}'
+      - name: category_bits
+        given: ['core.elements.create#default']
+        path_params_json: '{"id": "${given.core.elements.create#default.id}"}'
+        body_json: '{"subject_type": "authenticated", "permissions": 16}'
+        status: 400
+      - name: guest_edit
+        given: ['core.elements.create#default']
+        path_params_json: '{"id": "${given.core.elements.create#default.id}"}'
+        body_json: '{"subject_type": "guest", "permissions": 3}'
+        status: 400
+  - id: core.elements.acl.update
+    category: CATEGORY_ACTION
+    method: PUT
+    path: /api/v1/element-acl/{id}
+    success_status: 200
+    summary:
+      text:
+        en: Change a permission rule of a page (needs the permission to give rights on the page)
+        de: Rechte-Regel einer Seite ändern (braucht das Recht, Rechte auf die Seite zu vergeben)
+    signed_in: true
+    safety: {changes: true}
+    cli: {command: [element, acl, update], args: [id]}
+    ui: {entry: /e/:id}
+    examples:
+      - name: default
+        given: ['core.elements.acl.add#default']
+        as: admin
+        path_params_json: '{"id": "${given.core.elements.acl.add#default.id}"}'
+        body_json: '{"permissions": 3}'
+        expect_json: '{"permissions": 3}'
+      - name: without_grant
+        given: ['core.elements.acl.add#default']
+        as: other
+        path_params_json: '{"id": "${given.core.elements.acl.add#default.id}"}'
+        body_json: '{"permissions": 3}'
+        status: 404
+  - id: core.elements.acl.remove
+    category: CATEGORY_ACTION
+    method: DELETE
+    path: /api/v1/element-acl/{id}
+    success_status: 204
+    summary:
+      text:
+        en: Remove a permission rule of a page (needs the permission to give rights on the page)
+        de: Rechte-Regel einer Seite entfernen (braucht das Recht, Rechte auf die Seite zu vergeben)
+    signed_in: true
+    safety: {changes: true}
+    cli: {command: [element, acl, remove], args: [id]}
+    ui: {entry: /e/:id}
+    examples:
+      - name: default
+        given: ['core.elements.acl.add#default']
+        as: admin
+        path_params_json: '{"id": "${given.core.elements.acl.add#default.id}"}'
   - id: core.categories.acl.update
     category: CATEGORY_ACTION
     method: PUT
@@ -772,8 +898,8 @@ actions:
     success_status: 201
     summary:
       text:
-        en: Duplicate an element
-        de: Element duplizieren
+        en: Duplicate an element (classification and hidden flag are copied; own rules only with with_rights)
+        de: Element duplizieren (Einstufung und Unsichtbarkeit werden übernommen; eigene Regeln nur mit with_rights)
     permission: {key: core.category.create, scope: SCOPE_CATEGORY, category_param: "element:id"}
     safety: {changes: true}
     cli: {command: [element, duplicate], args: [id]}
@@ -784,6 +910,12 @@ actions:
         as: member
         path_params_json: '{"id": "${given.core.elements.create#default.id}"}'
         body_json: '{"category_id": ${given.core.categories.create#default.id}}'
+        status: 201
+      - name: own_rights_with_rights
+        given: ['core.elements.acl.set#default']
+        path_params_json: '{"id": "${given.core.elements.create#default.id}"}'
+        body_json: '{"with_rights": true}'
+        expect_json: '{"own_rights_only": true, "classification": 2}'
         status: 201
   - id: core.elements.restore
     category: CATEGORY_ACTION

@@ -895,6 +895,16 @@ func (s *Service) manageByRule(sn *snapshot, p *identity.Principal, categoryID i
 	return false
 }
 
+// ManagesByRule reports whether p manages a category through a rule (not
+// only through the global core.categories.admin).
+func (s *Service) ManagesByRule(ctx context.Context, p *identity.Principal, categoryID int64) bool {
+	sn, err := s.load(ctx)
+	if err != nil {
+		return false
+	}
+	return s.manageByRule(sn, p, categoryID)
+}
+
 func keysOf(m map[string]bool) []string {
 	out := make([]string, 0, len(m))
 	for k := range m {

@@ -2079,6 +2079,8 @@
  "limit.core.watch.quiet_seconds.help": "How long after the last change of an object an immediate watch notification waits, so that several saves in a row become one e-mail.",
  "limit.core.placements.rows": "Placements per level",
  "limit.core.placements.rows.help": "How many placements of building blocks one level (template, site, category, instance or person) may have.",
+ "limit.core.elements.rules": "Rules per page",
+ "limit.core.elements.rules.help": "How many own permission rules one page (element) may have.",
  "limit.core.watch.quiet_seconds": "Quiet period of watch notifications",
  "limit.core.rollback.structure_changes.help": "Most moves and orders since the chosen point in time that one rollback of a category with its structure undoes; more are refused (choose a later point in time).",
  "limit.core.rollback.structure_changes": "Changes undone by a rollback of the structure",

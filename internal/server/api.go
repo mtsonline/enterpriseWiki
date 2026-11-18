@@ -137,6 +137,7 @@ func (s *Server) routes() {
 	s.routesSecrets()
 	s.routesDrafts()
 	s.routesInstances()
+	s.routesElementRights()
 	s.routesPlacements()
 	s.routesNotifications()
 	s.routesWatchAssignments()
