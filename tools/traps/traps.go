@@ -183,7 +183,7 @@ var traps = []trap{
 		ID: "category.overview-filter", About: "the overview of a category lists pages the reader may not view",
 		File: "internal/content/categoryview.go",
 		Old:  "		AND ` + f.SQL(\"e\", &args)",
-		New:  "		AND (` + f.SQL(\"e\", &args) + ` OR TRUE)",
+		New:  "		AND (` + f.SQL(\"e\", &args) + ` OR TRUE)`",
 		Pkg:  "./internal/server/", Tests: "^TestCategoryOverview$",
 	},
 	{
