@@ -3,7 +3,8 @@
 // may give rights on the page (managers of the category, administrators,
 // people with the permission "give rights" on the page).
 import { api } from '../core/api';
-import { h, uid } from '../core/dom';
+import { fmtDate, h, uid } from '../core/dom';
+import { state } from '../core/state';
 import { t } from '../core/i18n';
 import { toast } from '../core/announce';
 import type { Group, Role } from '../core/types';
@@ -32,8 +33,10 @@ export async function elementRightsDialog(id: number, title: string, done?: () =
   let acl: ElementACL;
   let groups: Group[] = [];
   let roles: Role[] = [];
+  let requests: { id: number; user: string; message: string; created_at: string }[] = [];
   try {
-    [acl, groups, roles] = await Promise.all([api.get<ElementACL>(`elements/${id}/acl`), api.get<Group[]>('groups').catch(() => []), api.get<Role[]>('roles').catch(() => []), loadCatalog()]);
+    [acl, groups, roles, requests] = await Promise.all([api.get<ElementACL>(`elements/${id}/acl`), api.get<Group[]>('groups').catch(() => []), api.get<Role[]>('roles').catch(() => []),
+      api.get<typeof requests>(`elements/${id}/access-requests`).catch(() => [])]);
   } catch (e) {
     toast(errorText(e), 'error');
     return;
@@ -132,8 +135,32 @@ export async function elementRightsDialog(id: number, title: string, done?: () =
     }, { wide: true });
   };
 
+  // open access requests: answered with a rule on the page
+  const reqHead = uid('ereq');
+  const reqSection = requests.length ? h('section', { class: 'ew-access-requests', 'aria-labelledby': reqHead },
+    h('h3', { id: reqHead }, t('access.open', { n: requests.length })),
+    h('ul', { class: 'ew-plain-list' }, ...requests.map((r) => {
+      const answer = async (grant: boolean, preset?: string) => {
+        try {
+          await api.post(`access-requests/${r.id}`, { grant, preset });
+          toast(grant ? t('access.granted', { user: r.user }) : t('access.declined'));
+          reopen();
+        } catch (e) {
+          toast(errorText(e), 'error');
+        }
+      };
+      return h('li', { class: 'ew-access-request' },
+        h('p', null, h('strong', null, r.user), ' · ', fmtDate(r.created_at, state.lang)),
+        r.message ? h('blockquote', null, r.message) : null,
+        h('div', { class: 'ew-actions', role: 'group', 'aria-label': t('access.answer_for', { user: r.user }) },
+          button(t('access.grant_read'), () => void answer(true, 'reader'), { variant: 'primary', ariaLabel: `${t('access.grant_read')}: ${r.user}` }),
+          (mine & 2) ? button(t('access.grant_edit'), () => void answer(true, 'editor'), { variant: 'secondary', ariaLabel: `${t('access.grant_edit')}: ${r.user}` }) : null,
+          button(t('access.decline'), () => void answer(false), { variant: 'link', ariaLabel: `${t('access.decline')}: ${r.user}` })));
+    }))) : null;
+
   const handle = openDialog(t('erights.title', { title }), h('div', { class: 'ew-element-rights' },
     h('p', { class: 'ew-help' }, t('erights.help')),
+    reqSection,
     acl.hidden ? h('p', { class: 'ew-notice ew-notice--info', role: 'note' }, t('erights.hidden_note')) : null,
     settingsForm,
     h('h3', { id: captionId }, t('erights.rules')),

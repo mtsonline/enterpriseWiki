@@ -26,6 +26,16 @@ type overviewRow struct {
 	Rules     []acl.Rule        `json:"rules"`     // rules of the subject attached here
 	Effective []string          `json:"effective"` // effective permissions (bits and actions)
 	Sources   []acl.Source      `json:"sources"`   // where they come from
+	// Elements of the category with rules of the subject (only those the
+	// caller may give rights on)
+	Elements []overviewElement `json:"elements"`
+}
+
+type overviewElement struct {
+	acl.SubjectElementRules
+	Titles map[string]string `json:"titles"`
+	// Effective are the subject's permissions on the element
+	Effective []string `json:"effective"`
 }
 
 func (s *Server) routesM15() {
@@ -143,6 +153,47 @@ func (s *Server) permissionOverview(ctx context.Context, me *identity.Principal,
 			return nil, err
 		}
 	}
+	// rules of the subject on single elements
+	erules, err := s.app.ACL.ElementRulesOf(ctx, typ, sid)
+	if err != nil {
+		return nil, err
+	}
+	byCatEl := map[int64][]overviewElement{}
+	if len(erules) > 0 {
+		eids := make([]int64, len(erules))
+		for i, x := range erules {
+			eids[i] = x.ElementID
+		}
+		titles := map[int64]map[string]string{}
+		// acl: checked below (CanElement with grant)
+		trows, err := s.app.DB.Query(ctx, `SELECT id, titles FROM elements WHERE id = ANY($1) AND deleted_at IS NULL`, eids)
+		if err != nil {
+			return nil, err
+		}
+		for trows.Next() {
+			var id int64
+			var t map[string]string
+			if err := trows.Scan(&id, &t); err != nil {
+				trows.Close()
+				return nil, err
+			}
+			titles[id] = t
+		}
+		trows.Close()
+		for _, x := range erules {
+			t, ok := titles[x.ElementID]
+			if !ok || !s.app.ACL.CanElement(ctx, me, x.ElementID, x.CategoryID, acl.Grant) {
+				continue
+			}
+			o := overviewElement{SubjectElementRules: x, Titles: t, Effective: []string{}}
+			if subject != nil {
+				perms, _ := s.app.ACL.ElementPerms(ctx, subject, x.ElementID, x.CategoryID)
+				acts, _ := s.app.ACL.ElementActions(ctx, subject, x.ElementID, x.CategoryID)
+				o.Effective = append(perms.Strings(), acts...)
+			}
+			byCatEl[x.CategoryID] = append(byCatEl[x.CategoryID], o)
+		}
+	}
 	out := []overviewRow{}
 	for _, c := range cats {
 		if mine[c.ID]&acl.Manage == 0 {
@@ -154,6 +205,10 @@ func (s *Server) permissionOverview(ctx context.Context, me *identity.Principal,
 		}
 		c.Effective = []string{}
 		c.Sources = []acl.Source{}
+		c.Elements = byCatEl[c.ID]
+		if c.Elements == nil {
+			c.Elements = []overviewElement{}
+		}
 		if subject != nil {
 			c.Effective = subjectPerms[c.ID].Strings()
 			acts, _ := s.app.ACL.Actions(ctx, subject, c.ID)
