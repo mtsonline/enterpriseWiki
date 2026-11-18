@@ -236,6 +236,7 @@ CREATE TABLE element_revisions (
     UNIQUE (element_id, lang, rev)
 );
 CREATE INDEX element_revisions_time ON element_revisions(element_id, created_at);
+CREATE INDEX element_revisions_author ON element_revisions(created_by, created_at DESC); -- pages edited by a person (dashboard)
 
 -- Secrets of element bodies (signing keys of webhooks of workflows and
 -- forms), kept outside of the body; sealed as secrets.mode says. A secret

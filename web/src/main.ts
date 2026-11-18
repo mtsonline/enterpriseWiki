@@ -1,4 +1,5 @@
 // Application bootstrap.
+import { dashboardView, offeredTilesForm, registerDashboardTiles } from './views/dashboard';
 import { verifyEmailView } from './views/identity';
 import { registerConfirmView, registerView } from './views/register';
 import { resetConfirmView, resetView } from './views/passwordReset';
@@ -55,6 +56,7 @@ function registerCore(): void {
   route('/password-reset', resetView);
   route('/password-reset/confirm', resetConfirmView);
   route('/profile', profileView);
+  route('/dashboard', dashboardView);
   route('/trash', trashView);
   route('/signatures/verify', signatureVerifyView);
   route('/media', mediaView);
@@ -66,7 +68,8 @@ function registerCore(): void {
   registerPageAction({ id: 'core.instance-rights', order: 90, label: () => t('instance.rights'), render: instanceRightsButton });
   registerPageAction({ id: 'core.instance-labels', order: 91, label: () => t('labels.button'), render: instanceLabelsButton });
   registerElementBlocks();
-  registerAdminPage({ id: 'placement', permission: 'core.settings.manage', order: 15, label: () => t('placement.admin'), render: async (panel) => { panel.append(pageHeader(t('placement.admin')), await placementEditor('site', '')); } });
+  registerDashboardTiles();
+  registerAdminPage({ id: 'placement', permission: 'core.settings.manage', order: 15, label: () => t('placement.admin'), render: async (panel) => { panel.append(pageHeader(t('placement.admin')), await placementEditor('site', ''), await offeredTilesForm()); } });
   registerProfileSection({ id: 'core.placement', order: 60, render: async () => (state.site.personal_placement && state.user ? placementEditor('user', String(state.user.id)) : null) });
   // building blocks of the core: default positions; the administration,
   // categories and (if allowed) every person can place them elsewhere

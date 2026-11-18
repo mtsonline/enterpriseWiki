@@ -1454,6 +1454,33 @@ actions:
       - name: default
         as: guest
         query_json: '{"q": "Hello"}'
+  - id: core.elements.recent
+    category: CATEGORY_ACTION
+    method: GET
+    path: /api/v1/recent
+    success_status: 200
+    summary:
+      text:
+        en: "Recently changed pages, or with by=me the pages you edited last (only what you may see)"
+        de: "Zuletzt geänderte Seiten oder mit by=me die zuletzt von Ihnen bearbeiteten (nur, was Sie sehen dürfen)"
+    public: true
+    cli: {command: [recent]}
+    ui: {entry: /dashboard}
+    examples:
+      - name: default
+        as: guest
+      - name: by_me
+        given: ['core.elements.create#default']
+        as: admin
+        query_json: '{"by": "me", "limit": "5"}'
+      - name: by_me_guest
+        as: guest
+        query_json: '{"by": "me"}'
+        status: 401
+      - name: invalid_limit
+        as: admin
+        query_json: '{"limit": "500"}'
+        status: 400
   - id: core.tags
     category: CATEGORY_ACTION
     method: GET

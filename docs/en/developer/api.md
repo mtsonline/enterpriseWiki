@@ -74,6 +74,7 @@ If the account requires a second factor, the sign-in answers with `mfa_required`
 - **Resetting:** `POST /api/v1/categories/{id}/rollback {"at": "2026-10-01T12:00:00Z", "recursive": true, "structure": true}`; `structure` (only with `recursive`) undoes moves and orders since then (newest first, with the checks of a normal move) and moves subcategories created since then to the trash; answer `{categories, revisions, trashed, moved, categories_trashed}`, a former place that no longer exists gives `409` and changes nothing. Most changes: limit `core.rollback.structure_changes`.
 - **Files:** `POST /api/v1/files` (multipart, field `file`) delivers `{hash, name, mime, size}`. An element `core.attachment` refers to the file with `{"file": {"hash": "…"}, "description": "…"}`. Downloading with permission check through `GET /api/v1/x/core.attachment/elements/{id}/file[?hash=…][&inline=1]`. Images are also available under `GET /api/v1/files/{hash}` (for images in pages).
 - **Search:** `GET /api/v1/search?q=word&tags=a,b&lang=en` delivers `snippet` as HTML-escaped text with `<mark>`. With `category=ID` only this category and its sub-categories are searched (`recursive=0`: only the category).
+- **Recently changed:** `GET /api/v1/recent?limit=10&category=ID` lists recently changed pages, `?by=me` the pages you edited last (newest own revision first); always only what you may see.
 - **Listing elements:** `GET /api/v1/elements?q=&type=&category=&recursive=1&sort=title|updated|created|type&limit=&offset=` delivers `{items, total}` with `category_path` (only visible elements, all for administrators).
 - **Short URLs:** `short_url` with `POST /elements`, `PATCH /elements/{id}`, `POST/PUT /categories` (empty = remove). `GET /api/v1/resolve?path=calendar` delivers `{type, id}`.
 - **Watching:** `PUT /api/v1/me/watches {"target_type": "category"|"element", "target_id": 12, "mode": "link"|"content", "recursive": true}`; status for a target: `GET /api/v1/me/watches?target_type=element&target_id=5`.
@@ -375,6 +376,7 @@ Called by directories such as Entra ID or Okta with the token of a SCIM client (
 | `GET` | `/api/v1/trash` |
 | `POST` | `/api/v1/trash/{type}/{id}/restore` |
 | `DELETE` | `/api/v1/trash/{type}/{id}` |
+| `GET` | `/api/v1/recent` |
 | `GET` | `/api/v1/search` |
 | `GET` | `/api/v1/tags` |
 

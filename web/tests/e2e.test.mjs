@@ -2076,7 +2076,7 @@ test('placement: search in the footer for the site, no category tree in one cate
     await page.getByRole('heading', { name: /^(placement of the building blocks|platzierung der bausteine)$/i }).waitFor();
     await a11y('placement administration');
     await page.getByRole('combobox', { name: /^(position of search|position von suche)$/i }).selectOption('footer');
-    await page.getByRole('button', { name: /^(save|speichern)$/i }).click();
+    await page.getByRole('region', { name: /^(placement of the building blocks|platzierung der bausteine)$/i }).getByRole('button', { name: /^(save|speichern)$/i }).click();
     await page.locator('.ew-toast', { hasText: /placement saved|platzierung gespeichert/i }).first().waitFor();
     await page.locator('.ew-pos--footer form[role=search]').waitFor();
     assert.equal(await page.locator('.ew-pos--header-tools form[role=search]').count(), 0, 'search left the header');
@@ -2245,6 +2245,55 @@ test('buttons of the formatting toolbar: chosen by a category; saving the settin
     assert.equal(after.retention.mail_days, 17, 'retention of the mail outbox kept');
   } finally {
     await call('PUT', '/api/v1/admin/settings', { ui: before.ui, retention: before.retention });
+  }
+});
+
+test('own dashboard: default tiles, arranged with the dialog and with the mouse, offered tiles', async () => {
+  const me = (await call('GET', '/api/v1/auth/me')).user;
+  const before = (await call('GET', '/api/v1/admin/settings')).config;
+  try {
+    await page.goto(`${BASE}/dashboard`);
+    await idle();
+    await page.getByRole('heading', { level: 1, name: /^(my dashboard|mein dashboard)$/i }).waitFor();
+    for (const n of [/^(notifications|benachrichtigungen)$/i, /^(edited by me last|zuletzt von mir bearbeitet)$/i, /^(changed recently|zuletzt geändert)$/i, /^(watched pages|beobachtete seiten)$/i]) {
+      await page.locator('.ew-dashboard').getByRole('heading', { level: 2, name: n }).waitFor();
+    }
+    await a11y('own dashboard');
+    // without the mouse: the dialog puts "Changed recently" over the full width
+    await page.getByRole('button', { name: /^(arrange tiles|kacheln anordnen)$/i }).click();
+    const dlg = page.locator('dialog[open]');
+    await dlg.getByRole('combobox', { name: /^(position of changed recently|position von zuletzt geändert)$/i }).selectOption('dashboard-wide');
+    // only positions of the dashboard are offered
+    const opts = await dlg.getByRole('combobox', { name: /^(position of changed recently|position von zuletzt geändert)$/i }).locator('option').evaluateAll((o) => o.map((x) => x.value));
+    assert.deepEqual(opts.filter(Boolean), ['dashboard-wide', 'dashboard-1', 'dashboard-2', 'dashboard-3']);
+    await a11y('arranging the dashboard');
+    await dlg.getByRole('button', { name: /^(save|speichern)$/i }).click();
+    await page.locator('dialog[open]').waitFor({ state: 'detached' });
+    await page.locator('.ew-pos--dashboard-wide').getByRole('heading', { name: /^(changed recently|zuletzt geändert)$/i }).waitFor();
+    // with the mouse: the notifications go to column 3
+    await page.getByRole('button', { name: /^(move with the mouse|mit der maus verschieben)$/i }).click();
+    await page.locator('.ew-tile[draggable="true"]').first().waitFor();
+    const saved = page.waitForResponse((r) => r.url().includes('/api/v1/placements/user') && r.request().method() === 'PUT');
+    await page.locator('.ew-tile', { has: page.getByRole('heading', { name: /^(notifications|benachrichtigungen)$/i }) }).dragTo(page.locator('.ew-pos--dashboard-3'));
+    assert.equal((await saved).status(), 200);
+    await page.locator('.ew-pos--dashboard-3').getByRole('heading', { name: /^(notifications|benachrichtigungen)$/i }).waitFor();
+    const own = await call('GET', `/api/v1/placements/user?target=${me.id}`);
+    assert.ok(own.placements.some((p) => p.block === 'core.dash.notifications' && p.position === 'dashboard-3'), 'notifications in column 3');
+    assert.ok(own.placements.some((p) => p.block === 'core.dash.recent' && p.position === 'dashboard-wide'), 'recent kept over the full width');
+    // the administration offers fewer tiles: watched pages disappear
+    await page.goto(`${BASE}/admin/placement`);
+    await idle();
+    const offered = page.getByRole('group', { name: /^(tiles for the own dashboard|kacheln für das eigene dashboard)$/i });
+    await offered.getByRole('checkbox', { name: /^(watched pages|beobachtete seiten)$/i }).uncheck();
+    await offered.getByRole('button', { name: /^(save|speichern)$/i }).click();
+    await page.locator('.ew-toast', { hasText: /offered tiles saved|angebotene kacheln gespeichert/i }).first().waitFor();
+    await page.goto(`${BASE}/dashboard`);
+    await idle();
+    await page.locator('.ew-dashboard').getByRole('heading', { level: 2, name: /^(edited by me last|zuletzt von mir bearbeitet)$/i }).waitFor();
+    assert.equal(await page.locator('.ew-dashboard').getByRole('heading', { name: /^(watched pages|beobachtete seiten)$/i }).count(), 0, 'not offered');
+  } finally {
+    await call('PUT', '/api/v1/admin/settings', { ui: before.ui });
+    await call('PUT', `/api/v1/placements/user?target=${me.id}`, { placements: [] });
   }
 });
 

@@ -493,6 +493,39 @@ func (s *Service) Recent(ctx context.Context, category int64, limit int) ([]Rece
 	return out, err
 }
 
+// RecentlyEditedByMe lists the elements the caller edited last (newest own
+// revision first) that the caller can still see.
+func (s *Service) RecentlyEditedByMe(ctx context.Context, limit int) ([]RecentItem, error) {
+	p := identity.From(ctx)
+	if p == nil || p.UserID <= 0 {
+		return nil, apperr.ErrUnauthorized
+	}
+	if limit <= 0 || limit > 100 {
+		limit = 10
+	}
+	f, err := s.acl.ElementFilter(ctx, p, acl.View)
+	if err != nil {
+		return nil, err
+	}
+	args := []any{p.UserID, limit}
+	// acl: filtered (ElementFilter)
+	rows, err := s.pool.Query(ctx, `SELECT e.id, e.category_id, e.titles, max(r.created_at) AS at
+		FROM element_revisions r JOIN elements e ON e.id = r.element_id JOIN categories c ON c.id = e.category_id
+		WHERE r.created_by = $1 AND e.deleted_at IS NULL AND c.deleted_at IS NULL AND `+f.SQL("e", &args)+`
+		GROUP BY e.id, e.category_id, e.titles ORDER BY at DESC LIMIT $2`, args...)
+	if err != nil {
+		return nil, err
+	}
+	out, err := pgx.CollectRows(rows, func(r pgx.CollectableRow) (RecentItem, error) {
+		var x RecentItem
+		return x, r.Scan(&x.ID, &x.CategoryID, &x.Titles, &x.UpdatedAt)
+	})
+	if out == nil {
+		out = []RecentItem{}
+	}
+	return out, err
+}
+
 // searchExternal queries a search backend and applies tags, trash and
 // permissions like the PostgreSQL search.
 func (s *Service) searchExternal(ctx context.Context, b SearchBackend, q string, tags []string, lang string, limit int, res *SearchResult) error {

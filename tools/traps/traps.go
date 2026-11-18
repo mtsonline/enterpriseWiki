@@ -98,6 +98,20 @@ var traps = []trap{
 		New:  `if false && level == LevelInstance && pl.Position != "" && !strings.HasPrefix(pl.Position, ElementPositionPrefix) {`,
 		Pkg:  "./internal/server/", Tests: "^TestPlacementsInstance$",
 	},
+	{
+		ID: "placement.user-dashboard-only", About: "without personal placement the own level moves blocks of the interface (not only the dashboard)",
+		File: "internal/content/placements.go",
+		Old:  `if level == LevelUser && !ui.PersonalPlacement && pl.Position != "" && !dash {`,
+		New:  `if false && level == LevelUser && !ui.PersonalPlacement && pl.Position != "" && !dash {`,
+		Pkg:  "./internal/server/", Tests: "^TestPlacements$",
+	},
+	{
+		ID: "placement.offered-tiles", About: "a person puts a tile on the own dashboard that the administration does not offer",
+		File: "internal/content/placements.go",
+		Old:  `if level == LevelUser && dash && len(ui.DashboardTiles) > 0 && !slices.Contains(ui.DashboardTiles, pl.Block) {`,
+		New:  `if false && level == LevelUser && dash && len(ui.DashboardTiles) > 0 && !slices.Contains(ui.DashboardTiles, pl.Block) {`,
+		Pkg:  "./internal/server/", Tests: "^TestPlacements$",
+	},
 	// ---------------------------------------------------------------- sign-in
 	{
 		ID: "auth.password-change-sessions", About: "changing the own password leaves the other sessions open",

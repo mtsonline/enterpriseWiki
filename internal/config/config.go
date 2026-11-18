@@ -261,6 +261,10 @@ type UI struct {
 	// editors (content.EditorTools; empty or ["*"] = all). Categories may
 	// choose their own; hiding a button does not forbid the formatting.
 	EditorTools []string `yaml:"editor_tools,omitempty" json:"editor_tools"`
+	// DashboardTiles are the tiles everybody may put on the own dashboard
+	// (block ids; empty = all). The default arrangement and required tiles
+	// are placements of the site.
+	DashboardTiles []string `yaml:"dashboard_tiles,omitempty" json:"dashboard_tiles"`
 }
 
 // Auth configures authentication.

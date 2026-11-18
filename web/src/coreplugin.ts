@@ -10,9 +10,11 @@
 import { state, onChange } from './core/state';
 import { t } from './core/i18n';
 import { api } from './core/api';
-import { ELEMENT_POSITIONS, EDITOR_POSITIONS, kindOf, resolvePlacements, type PagePosition, type PlacementLevel, type PositionKind } from './core/placement';
-export { ELEMENT_POSITIONS, EDITOR_POSITIONS, kindOf, positionFits, resolvePlacements, type PagePosition, type Placement, type PlacementLevel, type PositionKind } from './core/placement';
+import { DASHBOARD_POSITIONS, ELEMENT_POSITIONS, EDITOR_POSITIONS, kindOf, resolvePlacements, type PagePosition, type PlacementLevel, type PositionKind } from './core/placement';
+export { DASHBOARD_POSITIONS, ELEMENT_POSITIONS, EDITOR_POSITIONS, kindOf, positionFits, resolvePlacements, type PagePosition, type Placement, type PlacementLevel, type PositionKind } from './core/placement';
 
+import { h } from './core/dom';
+export { tile } from './components/tile';
 export { h, mount, append, trustedHTML, uid, fmtDate, srOnly } from './core/dom';
 export type { Child } from './core/dom';
 export { api, ApiError, qs, uploadFile, humanSize } from './core/api';
@@ -318,7 +320,7 @@ async function fill(el: HTMLElement, name: string): Promise<void> {
   fillGen.set(el, gen);
   const nodes: Node[] = [];
   const blocks = await placeableBlocks();
-  const placed = resolvePlacements(await placementLevels(), blocks);
+  const placed = resolvePlacements(await placementLevels(), blocks, { personal: !!state.site.personal_placement });
   const tplPositions = activeTemplate()?.positions ?? [];
   const ec = elementCtx.get(el);
   const kind = kindOf(name);
@@ -332,18 +334,23 @@ async function fill(el: HTMLElement, name: string): Promise<void> {
     // page …) never get lost: if one is nowhere in this template (or page),
     // it goes to the first position of the template (on a page: its default)
     if (b.always) {
-      const avail: readonly string[] = kind === 'element' ? ELEMENT_POSITIONS : kind === 'editor' ? EDITOR_POSITIONS : tplPositions;
+      const avail: readonly string[] = kind === 'element' ? ELEMENT_POSITIONS : kind === 'editor' ? EDITOR_POSITIONS : kind === 'dashboard' ? DASHBOARD_POSITIONS : tplPositions;
       if (!ps.some((p) => avail.includes(p.position))) ps = [{ position: kind === 'site' ? (tplPositions[0] ?? b.position) : b.position, sort: b.order }];
     }
     // a part of the editing page exists once (it keeps what was typed): only its first placement
     if (kind === 'editor') ps = ps.slice(0, 1);
+    // tiles the administration does not offer are on no dashboard
+    if (kind === 'dashboard' && !tileOffered(b.id)) continue;
     for (const p of ps) if (p.position === name) here.push({ s: b.slot, id: b.id, key: b.key, sort: p.sort });
   }
   here.sort((a, b) => a.sort - b.sort);
   // render all at once (each block loads its own data)
   const rendered = await Promise.all(here.map(async ({ s, id, key }) => {
     try {
-      return { id, n: await s.render(name, key, ec?.ctx) };
+      const n = await s.render(name, key, ec?.ctx);
+      // a tile of the dashboard: a frame (moving it with the mouse takes the frame)
+      if (n && kind === 'dashboard') return { id, n: h('div', { class: 'ew-tile', 'data-block': id }, n) };
+      return { id, n };
     } catch (e) {
       console.error(`slot ${id} failed`, e);
       return { id, n: null };
@@ -384,6 +391,13 @@ export function positionContainer(name: string, tag: keyof HTMLElementTagNameMap
   positionEls.get(name)!.add(el);
   void fill(el, name);
   return el;
+}
+
+/** Whether the administration offers a tile for the own dashboard
+ * (ui.dashboard_tiles; empty = all). */
+export function tileOffered(id: string): boolean {
+  const offered = state.site.dashboard_tiles ?? [];
+  return offered.length === 0 || offered.includes(id);
 }
 
 /** Creates a live position of an element page (element-header …) or of the

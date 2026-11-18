@@ -56,6 +56,8 @@ export interface Site {
   personal_placement?: boolean;
   /** Buttons of the formatting toolbar (['*'] = all). */
   editor_tools?: string[];
+  /** Tiles offered for the own dashboard (empty = all). */
+  dashboard_tiles?: string[];
   /** seconds without an answer to a change after which the user is asked whether to keep waiting */
   wait_notice_s?: number;
   languages: string[];
