@@ -684,6 +684,27 @@ actions:
       - name: open
         given: ['core.categories.create#default', 'core.access.request#other']
         path_params_json: '{"id": "${given.core.categories.create#default.id}"}'
+  - id: core.elements.access_requests
+    category: CATEGORY_ACTION
+    method: GET
+    path: /api/v1/elements/{id}/access-requests
+    success_status: 200
+    summary:
+      text:
+        en: List the open access requests of a page with own rights only (needs the permission to give rights on it)
+        de: Offene Zugriffsanfragen einer Seite mit nur eigenen Rechten auflisten (braucht das Recht, Rechte darauf zu vergeben)
+    permission: {key: core.category.manage, scope: SCOPE_CATEGORY, category_param: "element:id"}
+    cli: {command: [element, access-requests], args: [id]}
+    ui: {entry: /e/:id}
+    examples:
+      - name: default
+        given: ['core.elements.create#default']
+        as: member
+        path_params_json: '{"id": "${given.core.elements.create#default.id}"}'
+      - name: open
+        given: ['core.access.request#own_rights_page']
+        path_params_json: '{"id": "${given.core.elements.create#default.id}"}'
+        expect_json: '[{"message": "Please let me read it."}]'
   - id: core.elements.list
     category: CATEGORY_ACTION
     method: GET

@@ -316,6 +316,7 @@ Called by directories such as Entra ID or Okta with the token of a SCIM client (
 | `GET` | `/api/v1/elements/{id}/rights` |
 | `PUT` | `/api/v1/elements/{id}/rights` |
 | `GET` | `/api/v1/elements/{id}/acl` |
+| `GET` | `/api/v1/elements/{id}/access-requests` |
 | `PUT` | `/api/v1/elements/{id}/acl` |
 | `POST` | `/api/v1/elements/{id}/acl` |
 | `PUT` | `/api/v1/element-acl/{id}` |

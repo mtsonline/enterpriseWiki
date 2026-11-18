@@ -494,6 +494,10 @@ export async function elementView({ params, main }: RouteCtx): Promise<void> {
         h('a', { href: `/e/${el.id}/history` }, t('element.history')))),
     extensions));
   void renderElementExtensions(extensions, el, topExtensions);
+  // link of an access request (?rights=1): open the rights of the page
+  if (new URLSearchParams(location.search).get('rights') === '1' && el.permissions?.includes('grant')) {
+    void elementRightsDialog(el.id, el.title, () => navigate(`/e/${el.id}`, { replace: true }));
+  }
 }
 
 function tagsDialog(el: ElementView): void {

@@ -767,6 +767,9 @@ CREATE TABLE access_requests (
     id          bigserial PRIMARY KEY,
     user_id     bigint NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     category_id bigint NOT NULL REFERENCES categories(id) ON DELETE CASCADE,
+    -- a request for one page with "own rights only" (answered with a rule on
+    -- the page by people who may give rights on it); NULL: for the category
+    element_id  bigint REFERENCES elements(id) ON DELETE CASCADE,
     message     text NOT NULL DEFAULT '',
     status      text NOT NULL DEFAULT 'open' CHECK (status IN ('open', 'granted', 'declined')),
     handled_by  bigint REFERENCES users(id) ON DELETE SET NULL,
@@ -775,6 +778,7 @@ CREATE TABLE access_requests (
 );
 CREATE INDEX access_requests_category ON access_requests(category_id, status);
 CREATE INDEX access_requests_user ON access_requests(user_id, created_at);
+CREATE INDEX access_requests_element ON access_requests(element_id, status) WHERE element_id IS NOT NULL;
 
 -- notifications in the wiki (bell); e-mails per kind as set in the profile (users.notify)
 CREATE TABLE notifications (

@@ -273,6 +273,67 @@ func TestElementRights(t *testing.T) {
 		t.Fatalf("strictly confidential page in the general search: %+v", sr)
 	}
 
+	// --- the permission overview shows the rules of a person on single pages
+	type ovRow struct {
+		ID       int64 `json:"id"`
+		Elements []struct {
+			ID            int64    `json:"id"`
+			OwnRightsOnly bool     `json:"own_rights_only"`
+			Effective     []string `json:"effective"`
+		} `json:"elements"`
+	}
+	var ov []ovRow
+	man.must("GET", fmt.Sprintf("/api/v1/permissions/overview?subject_type=user&subject_id=%d", users["gra"]), nil, &ov, 200)
+	found := false
+	for _, r := range ov {
+		for _, x := range r.Elements {
+			if x.ID == secret.ID && r.ID == cat.ID && x.OwnRightsOnly && slices.Contains(x.Effective, "view") && slices.Contains(x.Effective, "grant") && !slices.Contains(x.Effective, "edit") {
+				found = true
+			}
+		}
+	}
+	if !found {
+		t.Fatalf("overview without the page rule: %+v", ov)
+	}
+	edi.must("GET", fmt.Sprintf("/api/v1/permissions/overview?subject_type=user&subject_id=%d", users["gra"]), nil, &ov, 200)
+	for _, r := range ov {
+		if len(r.Elements) > 0 {
+			t.Fatalf("editor sees page rules in the overview: %+v", r)
+		}
+	}
+
+	// --- access request for the page: the people who may give rights on it
+	// answer it with a rule on the page
+	rea.must("POST", "/api/v1/access-requests", map[string]any{"type": "element", "id": secret.ID, "message": "please"}, nil, 202)
+	var reqs []struct {
+		ID        int64  `json:"id"`
+		ElementID *int64 `json:"element_id"`
+	}
+	man.must("GET", fmt.Sprintf("/api/v1/elements/%d/access-requests", secret.ID), nil, &reqs, 200)
+	if len(reqs) != 1 || reqs[0].ElementID == nil || *reqs[0].ElementID != secret.ID {
+		t.Fatalf("requests: %+v", reqs)
+	}
+	var catReqs []any
+	man.must("GET", fmt.Sprintf("/api/v1/categories/%d/access-requests", cat.ID), nil, &catReqs, 200)
+	if len(catReqs) != 0 {
+		t.Fatalf("a page request in the category list: %+v", catReqs)
+	}
+	_ = e.app.DB.QueryRow(context.Background(), `SELECT count(*) FROM notifications WHERE kind='access_request' AND user_id = ANY($1)`, []int64{users["man"], users["gra"]}).Scan(&n)
+	if n != 2 {
+		t.Fatalf("notified granters: %d", n)
+	}
+	if code := edi.do("GET", fmt.Sprintf("/api/v1/elements/%d/access-requests", secret.ID), nil, nil); code != 404 {
+		t.Fatalf("editor sees the requests: %d", code)
+	}
+	if code := edi.do("POST", fmt.Sprintf("/api/v1/access-requests/%d", reqs[0].ID), map[string]any{"grant": true}, nil); code != 404 {
+		t.Fatalf("editor answered: %d", code)
+	}
+	gra.must("POST", fmt.Sprintf("/api/v1/access-requests/%d", reqs[0].ID), map[string]any{"grant": true, "preset": "reader"}, nil, 204)
+	rea.must("GET", fmt.Sprintf("/api/v1/elements/%d", secret.ID), nil, nil, 200)
+	if code := rea.do("GET", fmt.Sprintf("/api/v1/elements/%d/acl", secret.ID), nil, nil); code != 403 {
+		t.Fatalf("reader reads the rules: %d", code)
+	}
+
 	// --- own rights only off again: the category's rules apply
 	man.must("PUT", fmt.Sprintf("/api/v1/elements/%d/acl", secret.ID), map[string]any{"own_rights_only": false}, nil, 200)
 	edi.must("GET", fmt.Sprintf("/api/v1/elements/%d", secret.ID), nil, nil, 200)

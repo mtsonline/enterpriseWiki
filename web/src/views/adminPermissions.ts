@@ -12,11 +12,13 @@ import { toast } from '../core/announce';
 import { button, checkbox, confirmDialog, errorText, field, formDialog, pageHeader, select, textInput } from '../components/ui';
 import { loadCatalog, ruleEditor, summary, type PermDef } from '../components/permissions';
 import { editRuleDialog } from './categorySettings';
+import { elementRightsDialog } from '../components/elementRights';
 
 interface Source extends Rule { inherited: boolean }
-interface Row { id: number; parent_id: number | null; depth: number; titles: Record<string, string>; space_key?: string; personal?: boolean; rules: Rule[]; effective: string[]; sources: Source[] }
+interface ElementRow { id: number; category_id: number; own_rights_only: boolean; titles: Record<string, string>; rules: { id: number; permissions: number; actions: string[] }[]; effective: string[] }
+interface Row { id: number; parent_id: number | null; depth: number; titles: Record<string, string>; space_key?: string; personal?: boolean; rules: Rule[]; effective: string[]; sources: Source[]; elements?: ElementRow[] }
 
-const CORE_BITS: Record<string, number> = { view: 1, edit: 2, create: 4, delete: 8, manage: 16 };
+const CORE_BITS: Record<string, number> = { view: 1, edit: 2, create: 4, delete: 8, manage: 16, grant: 32 };
 
 export async function permissionsAdmin(panel: HTMLElement, query: URLSearchParams): Promise<void> {
   const [groups, roles, cat] = await Promise.all([api.get<Group[]>('groups'), api.get<Role[]>('roles'), loadCatalog()]);
@@ -58,6 +60,7 @@ export async function permissionsAdmin(panel: HTMLElement, query: URLSearchParam
         : t(`acl.${s.subject_type}`);
     return `${who}${s.inherited ? ` (${t('acl.inherited_short')})` : ''}`;
   };
+  let sub0: { type: string; id: number | null; name: string } = { type: 'group', id: null, name: '' };
   const show = async () => {
     const sub = subject();
     if (!sub) { mount(result, h('p', { role: 'alert' }, t('acl.user_not_found'))); return; }
@@ -69,31 +72,48 @@ export async function permissionsAdmin(panel: HTMLElement, query: URLSearchParam
     try {
       rows = await api.get<Row[]>(`permissions/overview${qs({ subject_type: sub.type, subject_id: sub.id ?? undefined })}`);
     } catch (e) { mount(result, h('p', { role: 'alert' }, errorText(e))); return; }
-    const titleOf = (r: Row) => pick(r.titles, state.lang) || `#${r.id}`;
-    const refresh = () => void show();
+    sub0 = sub;
     mount(result,
       h('table', { class: 'ew-table ew-perm-overview' },
         h('caption', null, t('permissions.overview_caption', { subject: sub.name })),
         h('thead', null, h('tr', null, ...[t('picker.category'), t('permissions.direct'), t('permissions.effective'), t('permissions.from'), t('common.actions')].map((x) => h('th', { scope: 'col' }, x)))),
-        h('tbody', null, ...(rows.length ? rows.map((r) => {
-          const bits = r.effective.filter((e) => e in CORE_BITS).reduce((a, e) => a | CORE_BITS[e], 0);
-          const acts = r.effective.filter((e) => !(e in CORE_BITS));
-          const own = r.rules[0];
-          return h('tr', null,
-            h('th', { scope: 'row', class: 'ew-perm-cat' }, h('span', { class: `ew-indent ew-indent-${Math.min(r.depth, 8)}` }, h('a', { href: `/c/${r.id}/settings?tab=permissions` }, titleOf(r)),
-              // top-level categories are spaces (their permissions are these rules)
-              r.parent_id === null ? h('span', { class: 'ew-badge ew-badge--info ew-space-badge' }, r.personal ? t('space.personal') : r.space_key ? `${t('category.tab.space')} ${r.space_key}` : t('category.tab.space')) : null)),
-            h('td', null, r.rules.length ? r.rules.map((x) => summary(x.permissions, x.actions ?? [], defs) + (x.inherit ? '' : ` (${t('permissions.this_only')})`)).join('; ') : '–'),
-            h('td', null, sub.type === 'guest' ? '–' : summary(bits, acts, defs)),
-            h('td', null, r.sources.length ? r.sources.map(sourceText).join(', ') : '–'),
-            h('td', { class: 'ew-actions' },
-              own ? button(t('common.edit'), () => void editRuleDialog(own, `${sub.name} – ${titleOf(r)}`, refresh), { variant: 'link', ariaLabel: t('permissions.edit_in', { category: titleOf(r) }) })
-                : button(t('permissions.grant'), () => void grant(r, sub, refresh), { variant: 'link', ariaLabel: t('permissions.grant_in', { category: titleOf(r) }) }),
-              own ? button(t('common.remove'), async () => {
-                if (!(await confirmDialog(t('acl.remove_confirm', { subject: sub.name }), t('common.remove'), true))) return;
-                try { await api.del(`acl/${own.id}`); toast(t('acl.removed')); refresh(); } catch (e) { toast(errorText(e), 'error'); }
-              }, { variant: 'link', ariaLabel: t('permissions.remove_in', { category: titleOf(r) }) }) : null));
-        }) : [h('tr', null, h('td', { colspan: '5' }, t('permissions.no_categories')))]))));
+        h('tbody', null, ...(rows.length ? rows.flatMap((r) => [catRow(r), ...(r.elements ?? []).map((x) => elementRow(r, x))]) : [h('tr', null, h('td', { colspan: '5' }, t('permissions.no_categories')))]))));
+  };
+  // rules of the subject on single pages of a category
+  const elementRow = (r: Row, x: ElementRow) => {
+    const bits = x.effective.filter((e) => e in CORE_BITS).reduce((a, e) => a | CORE_BITS[e], 0);
+    const acts = x.effective.filter((e) => !(e in CORE_BITS));
+    const title = pick(x.titles, state.lang) || `#${x.id}`;
+    return h('tr', { class: 'ew-perm-element' },
+      h('th', { scope: 'row', class: 'ew-perm-cat' }, h('span', { class: `ew-indent ew-indent-${Math.min(r.depth + 1, 8)}` },
+        `${t('permissions.page')}: `, h('a', { href: `/e/${x.id}` }, title),
+        x.own_rights_only ? h('span', { class: 'ew-badge ew-badge--info' }, t('erights.own_only')) : null)),
+      h('td', null, x.rules.map((y) => summary(y.permissions, y.actions ?? [], defs)).join('; ')),
+      h('td', null, sub0.type === 'guest' ? '–' : summary(bits, acts, defs)),
+      h('td', null, t('permissions.page_rule')),
+      h('td', { class: 'ew-actions' }, button(t('erights.button'), () => void elementRightsDialog(x.id, title, () => void show()), { variant: 'link', ariaLabel: t('permissions.page_rights', { page: title }) })));
+  };
+  const catRow = (r: Row) => {
+      const sub = sub0;
+      const titleOf = (x: Row) => pick(x.titles, state.lang) || `#${x.id}`;
+      const refresh = () => void show();
+      const bits = r.effective.filter((e) => e in CORE_BITS).reduce((a, e) => a | CORE_BITS[e], 0);
+      const acts = r.effective.filter((e) => !(e in CORE_BITS));
+      const own = r.rules[0];
+      return h('tr', null,
+        h('th', { scope: 'row', class: 'ew-perm-cat' }, h('span', { class: `ew-indent ew-indent-${Math.min(r.depth, 8)}` }, h('a', { href: `/c/${r.id}/settings?tab=permissions` }, titleOf(r)),
+          // top-level categories are spaces (their permissions are these rules)
+          r.parent_id === null ? h('span', { class: 'ew-badge ew-badge--info ew-space-badge' }, r.personal ? t('space.personal') : r.space_key ? `${t('category.tab.space')} ${r.space_key}` : t('category.tab.space')) : null)),
+        h('td', null, r.rules.length ? r.rules.map((x) => summary(x.permissions, x.actions ?? [], defs) + (x.inherit ? '' : ` (${t('permissions.this_only')})`)).join('; ') : '–'),
+        h('td', null, sub.type === 'guest' ? '–' : summary(bits, acts, defs)),
+        h('td', null, r.sources.length ? r.sources.map(sourceText).join(', ') : '–'),
+        h('td', { class: 'ew-actions' },
+          own ? button(t('common.edit'), () => void editRuleDialog(own, `${sub.name} – ${titleOf(r)}`, refresh), { variant: 'link', ariaLabel: t('permissions.edit_in', { category: titleOf(r) }) })
+            : button(t('permissions.grant'), () => void grant(r, sub, refresh), { variant: 'link', ariaLabel: t('permissions.grant_in', { category: titleOf(r) }) }),
+          own ? button(t('common.remove'), async () => {
+            if (!(await confirmDialog(t('acl.remove_confirm', { subject: sub.name }), t('common.remove'), true))) return;
+            try { await api.del(`acl/${own.id}`); toast(t('acl.removed')); refresh(); } catch (e) { toast(errorText(e), 'error'); }
+          }, { variant: 'link', ariaLabel: t('permissions.remove_in', { category: titleOf(r) }) }) : null));
   };
   const form = h('form', { class: 'ew-form ew-panel', novalidate: true },
     field(t('acl.subject_type'), type), subjectWrap,

@@ -286,7 +286,7 @@ If a category is moved to the top level, it becomes an area; if an area is moved
 
 **Moving:** every category can be moved at any time. If it becomes top level, it is an area (earlier area settings apply again, the key must be assigned again). If an area is moved below another category, it releases its key; its settings and page templates rest, and those of the new area apply. Moving and copying into an area is only possible if its allowed element types match.
 
-**Requesting access:** whoever may not see a page or category gets "Not found" (whether it exists is not revealed) and, when signed in, can *Request access*. The people who manage the category receive a notification and answer open requests under *Category settings → Permissions* with *Allow reading*, *Allow editing* or *Reject*; this becomes a normal permission rule. At most 10 requests per person and day.
+**Requesting access:** whoever may not see a page or category gets "Not found" (whether it exists is not revealed) and, when signed in, can *Request access*. The people who manage the category receive a notification and answer open requests under *Category settings → Permissions* with *Allow reading*, *Allow editing* or *Reject*; this becomes a normal permission rule. For a page with *own rights only*, the request goes to everybody who may give rights on that page; they answer it in the *Rights* of the page, and it becomes a rule on the page. At most 10 requests per person and day.
 
 **Personal area:** with the permission *Create personal area*, every person creates their own area under *All areas*, which only they see until they share it through the permissions.
 

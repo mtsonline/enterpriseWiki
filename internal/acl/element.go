@@ -1,6 +1,7 @@
 package acl
 
 import (
+	"cmp"
 	"context"
 	"slices"
 	"strconv"
@@ -344,4 +345,35 @@ func subjectToken(t string, id *int64) string {
 		return t + ":" + strconv.FormatInt(*id, 10)
 	}
 	return t
+}
+
+// SubjectElementRules are the rules of one subject on one element.
+type SubjectElementRules struct {
+	ElementID     int64         `json:"id"`
+	CategoryID    int64         `json:"category_id"`
+	OwnRightsOnly bool          `json:"own_rights_only"`
+	Rules         []ElementRule `json:"rules"`
+}
+
+// ElementRulesOf returns the element rules of a subject (for the permission
+// overview), per element.
+func (s *Service) ElementRulesOf(ctx context.Context, subjectType string, subjectID *int64) ([]SubjectElementRules, error) {
+	sn, err := s.load(ctx)
+	if err != nil {
+		return nil, err
+	}
+	out := []SubjectElementRules{}
+	for id, ei := range sn.elems {
+		var mine []ElementRule
+		for _, r := range ei.rules {
+			if r.SubjectType == subjectType && (subjectID == nil || (r.SubjectID != nil && *r.SubjectID == *subjectID)) {
+				mine = append(mine, r)
+			}
+		}
+		if len(mine) > 0 {
+			out = append(out, SubjectElementRules{ElementID: id, CategoryID: ei.cat, OwnRightsOnly: ei.own, Rules: mine})
+		}
+	}
+	slices.SortFunc(out, func(a, b SubjectElementRules) int { return cmp.Compare(a.ElementID, b.ElementID) })
+	return out, nil
 }

@@ -271,8 +271,8 @@ actions:
     success_status: 202
     summary:
       text:
-        en: Ask for access to a category or an element
-        de: Zugriff auf eine Kategorie oder ein Element anfragen
+        en: Ask for access to a category or an element (a page with own rights only is asked for itself)
+        de: Zugriff auf eine Kategorie oder ein Element anfragen (eine Seite mit nur eigenen Rechten wird selbst angefragt)
     signed_in: true
     safety: {changes: true}
     cli: {command: [access, request]}
@@ -287,6 +287,11 @@ actions:
         given: ['core.categories.create#default']
         as: other
         body_json: '{"type": "category", "id": ${given.core.categories.create#default.id}, "message": "Please let me in."}'
+        expect_json: '{"sent": true}'
+      - name: own_rights_page
+        given: ['core.elements.acl.set#default']
+        as: other
+        body_json: '{"type": "element", "id": ${given.core.elements.create#default.id}, "message": "Please let me read it."}'
         expect_json: '{"sent": true}'
   - id: core.access.answer
     category: CATEGORY_ACTION
