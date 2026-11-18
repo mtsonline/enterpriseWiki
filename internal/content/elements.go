@@ -746,6 +746,7 @@ func (s *Service) DuplicateElement(ctx context.Context, id, categoryID int64, wi
 	if e.Classification > 0 || (withRights && (e.OwnRules || e.OwnRightsOnly)) {
 		s.aclChanged(ctx) // the copy has own settings
 	}
+	s.bus.Publish(ctx, "i18n", "") // the labels of the copy
 	return s.loadElement(ctx, s.pool, nid, false)
 }
 

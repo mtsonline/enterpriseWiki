@@ -121,6 +121,14 @@ legend { font-weight: 700; padding: 0 .25rem; }
 /* ---------------------------------------------------------------- content */
 .ew-page-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 1rem; flex-wrap: wrap; }
 .ew-page-header h1 { margin-bottom: .5rem; }
+/* positions of an element page */
+.ew-pos--element-header { flex: 1 1 20rem; min-width: 0; }
+.ew-pos--element-toolbar { display: flex; flex-wrap: wrap; gap: .5rem; align-items: center; }
+.ew-actions-part { display: contents; }
+.ew-element-main { display: grid; grid-template-columns: minmax(0, 1fr); gap: 1.5rem; }
+.ew-element-main:has(> .ew-pos--element-aside:not(:empty)) { grid-template-columns: minmax(0, 1fr) minmax(12rem, 18rem); }
+@media (max-width: 48rem) { .ew-element-main:has(> .ew-pos--element-aside:not(:empty)) { grid-template-columns: minmax(0, 1fr); } }
+.ew-pos--element-header:empty, .ew-pos--element-toolbar:empty, .ew-pos--element-aside:empty, .ew-pos--element-footer:empty { display: none; }
 .ew-num { color: var(--ew-text-muted); font-weight: 500; }
 .ew-lead { font-size: 1.1rem; color: var(--ew-text-muted); }
 .ew-meta { color: var(--ew-text-muted); font-size: .92rem; }
@@ -222,7 +230,7 @@ progress { width: 8rem; vertical-align: middle; }
   *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; scroll-behavior: auto !important; }
 }
 @media print {
-  header, nav, aside, footer, .ew-actions, .ew-toasts { display: none !important; }
+  header, nav, aside, footer, .ew-actions, .ew-pos--element-toolbar, .ew-toasts { display: none !important; }
 }
 
 /* table action cells stay table cells */

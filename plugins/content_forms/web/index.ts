@@ -93,5 +93,5 @@ export function register(): void {
   });
   registerWidget('form', formWidget);
   registerEditor('content.forms', createFormEditor);
-  registerElementExtension({ id: 'content.forms.submissions', order: 20, render: submissions });
+  registerElementExtension({ id: 'content.forms.submissions', order: 20, label: () => t('content.forms.submissions_block'), render: submissions });
 }

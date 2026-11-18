@@ -22,8 +22,8 @@ actions:
     success_status: 200
     summary:
       text:
-        en: Where the building blocks of the interface appear on a page (levels template, site, category, own)
-        de: Wo die Bausteine der Oberfläche auf einer Seite erscheinen (Ebenen Vorlage, Website, Kategorie, eigene)
+        en: Where the building blocks of the interface appear on a page (levels template, site, category, page, own)
+        de: Wo die Bausteine der Oberfläche auf einer Seite erscheinen (Ebenen Vorlage, Website, Kategorie, Seite, eigene)
     public: true
     cli: {command: [placement, resolve]}
     ui: {entry: /}
@@ -36,6 +36,11 @@ actions:
         given: ['core.placements.set#category']
         as: admin
         query_json: '{"category": "${given.core.categories.create#default.id}"}'
+      - name: element
+        given: ['core.placements.set#instance']
+        as: admin
+        query_json: '{"element": "${given.core.elements.create#default.id}"}'
+        expect_json: '[{"level": "instance"}]'
   - id: core.placements.get
     category: CATEGORY_ACTION
     method: GET
@@ -43,8 +48,8 @@ actions:
     success_status: 200
     summary:
       text:
-        en: Show the placements of one level (template and site need the settings permission, a category its manage permission, the own level personal placement)
-        de: Platzierungen einer Ebene anzeigen (Vorlage und Website brauchen das Einstellungs-Recht, eine Kategorie ihr Verwalten-Recht, die eigene Ebene persönliche Platzierung)
+        en: Show the placements of one level (template and site need the settings permission, a category its manage permission, a page (instance) the permission to edit it or, for a blog, a FAQ …, to manage it; the own level personal placement)
+        de: Platzierungen einer Ebene anzeigen (Vorlage und Website brauchen das Einstellungs-Recht, eine Kategorie ihr Verwalten-Recht, eine Seite (instance) das Recht, sie zu bearbeiten, bei einem Blog, einer FAQ … sie zu verwalten; die eigene Ebene persönliche Platzierung)
     signed_in: true
     cli: {command: [placement, show], args: [level]}
     ui: {entry: /admin/placement}
@@ -84,6 +89,19 @@ actions:
         path_params_json: '{"level": "category"}'
         query_json: '{"target": "${given.core.categories.create#default.id}"}'
         body_json: '{"placements": [{"block": "core.tree", "position": ""}]}'
+      - name: instance
+        given: ['core.elements.create#default']
+        as: admin
+        path_params_json: '{"level": "instance"}'
+        query_json: '{"target": "${given.core.elements.create#default.id}"}'
+        body_json: '{"placements": [{"block": "core.element.title", "position": ""}, {"block": "core.element.watch", "position": "element-footer", "sort": 5}]}'
+      - name: instance_site_position
+        given: ['core.elements.create#default']
+        as: admin
+        path_params_json: '{"level": "instance"}'
+        query_json: '{"target": "${given.core.elements.create#default.id}"}'
+        body_json: '{"placements": [{"block": "core.search", "position": "sidebar"}]}'
+        status: 400
       - name: unknown_block
         as: admin
         path_params_json: '{"level": "site"}'

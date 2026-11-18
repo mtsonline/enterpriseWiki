@@ -13,7 +13,8 @@ import { elementRightsDialog, elementRightsNote } from '../components/elementRig
 import { shortOnlyBox, shortURLInput } from '../components/shorturl';
 import { imagesOf, previewImageInput } from '../components/previewimage';
 import { feedButton } from '../components/feeds';
-import { getEditor, pageActionButtons, renderCategoryExtensions, renderElementExtensions, typeLabel, type EditorInstance } from '../coreplugin';
+import { ELEMENT_POSITIONS, elementPositionContainer, getEditor, pageActionButtons, registerSlot, renderCategoryExtensions, typeLabel, type EditorInstance } from '../coreplugin';
+import { placementEditor } from '../components/placement';
 import { draftNotice, publishDialog, publishVia, saveDraft, saveTemplateDialog, showPreview, templatePicker, type Draft, type EditorState } from '../components/publishing';
 import { tagInput } from '../components/tags';
 import { editFields } from '../components/editfields';
@@ -451,53 +452,103 @@ export async function elementView({ params, main }: RouteCtx): Promise<void> {
     errorPage(main, e, { type: 'element', id });
     return;
   }
-  setContext(el.category_id, cat.category.path, el.permissions, cat.category.effective_template);
+  setContext(el.category_id, cat.category.path, el.permissions, cat.category.effective_template, el.id);
   setSpace(cat.space ?? null);
   showReadableURL(el.urls, el.url);
   const edit = state.editMode;
   // page views are counted per page and day only (no people)
   if (!edit) void api.post(`elements/${el.id}/view`).catch(() => undefined);
-  const actions: HTMLElement[] = [];
-  if (edit) {
-    if (can('edit')) actions.push(h('a', { href: `/e/${el.id}/edit?lang=${L()}`, class: 'ew-btn ew-btn--primary' }, t('common.edit')));
-    actions.push(h('a', { href: `/e/${el.id}/history`, class: 'ew-btn ew-btn--secondary' }, t('element.history')));
-    if (can('edit')) actions.push(button(t('element.properties'), () => tagsDialog(el), { variant: 'secondary' }));
-    if (can('edit') && !el.is_default) actions.push(button(t('element.make_default'), () => void makeDefault(el), { variant: 'secondary' }));
-    if (can('delete')) actions.push(button(t('common.move'), () => moveElementDialog(el), { variant: 'secondary' }));
-    actions.push(button(t('common.duplicate'), () => void duplicateElement(el), { variant: 'secondary' }));
-    if (el.permissions?.includes('grant')) {
-      actions.push(button(t('erights.button'), () => void elementRightsDialog(el.id, el.title, () => navigate(location.pathname + location.search, { replace: true })), { variant: 'secondary' }));
-    }
-    if (can('delete')) actions.push(button(t('common.delete'), () => void deleteElement(el), { variant: 'danger' }));
-  }
-  const watchE = watchButton('element', el.id, el.title);
-  if (watchE) actions.push(watchE);
-  actions.push(...pageActionButtons({ type: 'element', id: el.id, title: el.title, categoryId: el.category_id, elementType: el.type }));
-  const extensions = h('div', { class: 'ew-element-extensions', lang: state.lang });
-  const topExtensions = h('div', { class: 'ew-element-extensions ew-element-extensions--top', lang: state.lang });
-  mount(main, h('article', { class: 'ew-element', lang: el.shown_lang },
+  const target = { type: 'element' as const, id: el.id, title: el.title, categoryId: el.category_id, elementType: el.type };
+  const ectx = { target, view: el };
+  // the title is a block: placed nowhere, the page keeps a heading for
+  // screen readers
+  const srTitle = h('h1', { class: 'sr-only ew-sr-title' }, el.title);
+  let article: HTMLElement | null = null;
+  let header: HTMLElement | null = null;
+  const heading = () => {
+    if (!article || !header) return;
+    if (article.querySelector('h1:not(.ew-sr-title)')) srTitle.remove();
+    else if (!srTitle.isConnected) header.prepend(srTitle);
+  };
+  const pos = (name: (typeof ELEMENT_POSITIONS)[number]) => elementPositionContainer(name, ectx, heading);
+  article = h('article', { class: 'ew-element', lang: el.shown_lang },
     crumbs([...cat.breadcrumbs, cat.category], { title: el.title }),
-    h('div', { class: 'ew-page-header' }, h('h1', null, el.title),
-      actions.length ? h('div', { class: 'ew-actions', role: 'group', 'aria-label': t('common.actions') }, ...actions) : null),
+    header = h('div', { class: 'ew-page-header' }, pos('element-header'), pos('element-toolbar')),
     classificationNotice({ ...cat.category, effective_classification: Math.max(cat.category.effective_classification ?? 0, el.classification ?? 0) }),
     archivedNotice(cat.category),
     el.hidden && el.permissions?.includes('edit') ? h('p', { class: 'ew-notice ew-notice--info', role: 'note' }, t('element.hidden_note')) : null,
     elementRightsNote(el),
     fallbackNotice(el),
     edit ? translationPanel(el) : null,
-    topExtensions,
-    trustedHTML(el.html),
-    h('footer', { class: 'ew-meta' },
-      tagList(el.tags),
-      el.short_url ? h('p', null, t('shorturl.label'), ': ', h('a', { href: `/${el.short_url}` }, `${location.host}/${el.short_url}`)) : null,
-      h('p', null, t('element.updated_by', { date: fmtDate(el.updated_at, L()), user: el.updated_by || '–' }), ' · ', t('element.revision', { rev: el.rev }), ' · ',
-        h('a', { href: `/e/${el.id}/history` }, t('element.history')))),
-    extensions));
-  void renderElementExtensions(extensions, el, topExtensions);
+    h('div', { class: 'ew-element-main' }, h('div', { class: 'ew-element-body' }, trustedHTML(el.html)), pos('element-aside')),
+    pos('element-footer'));
+  mount(main, article);
   // link of an access request (?rights=1): open the rights of the page
   if (new URLSearchParams(location.search).get('rights') === '1' && el.permissions?.includes('grant')) {
     void elementRightsDialog(el.id, el.title, () => navigate(`/e/${el.id}`, { replace: true }));
   }
+}
+
+/** The blocks of the core on element pages: title, management (edit mode),
+ * watching and the page information. */
+export function registerElementBlocks(): void {
+  registerSlot({ id: 'core.element.title', kind: 'element', position: 'element-header', order: 10, label: () => t('block.core.element.title'),
+    render: (_p, _k, c) => (c ? h('h1', null, c.view.title) : null) });
+  registerSlot({ id: 'core.element.manage', kind: 'element', position: 'element-toolbar', order: 10, always: true, label: () => t('block.core.element.manage'),
+    render: (_p, _k, c) => (c ? manageActions(c.view) : null) });
+  registerSlot({ id: 'core.element.watch', kind: 'element', position: 'element-toolbar', order: 20, label: () => t('block.core.element.watch'),
+    render: (_p, _k, c) => (c ? watchButton('element', c.view.id, c.view.title) : null) });
+  registerSlot({ id: 'core.element.info', kind: 'element', position: 'element-footer', order: 10, label: () => t('block.core.element.info'),
+    render: (_p, _k, c) => (c ? elementInfo(c.view) : null) });
+}
+
+/** The buttons to manage an element page (edit mode only). */
+function manageActions(el: ElementView): HTMLElement | null {
+  if (!state.editMode) return null;
+  const actions: HTMLElement[] = [];
+  if (can('edit')) actions.push(h('a', { href: `/e/${el.id}/edit?lang=${L()}`, class: 'ew-btn ew-btn--primary' }, t('common.edit')));
+  actions.push(h('a', { href: `/e/${el.id}/history`, class: 'ew-btn ew-btn--secondary' }, t('element.history')));
+  if (can('edit')) actions.push(button(t('element.properties'), () => tagsDialog(el), { variant: 'secondary' }));
+  if (can('edit') && !el.is_default) actions.push(button(t('element.make_default'), () => void makeDefault(el), { variant: 'secondary' }));
+  if (can('delete')) actions.push(button(t('common.move'), () => moveElementDialog(el), { variant: 'secondary' }));
+  actions.push(button(t('common.duplicate'), () => void duplicateElement(el), { variant: 'secondary' }));
+  if (el.permissions?.includes('grant')) {
+    actions.push(button(t('erights.button'), () => void elementRightsDialog(el.id, el.title, () => navigate(location.pathname + location.search, { replace: true })), { variant: 'secondary' }));
+  }
+  const arrange = arrangeButton(el);
+  if (arrange) actions.push(arrange);
+  if (can('delete')) actions.push(button(t('common.delete'), () => void deleteElement(el), { variant: 'danger' }));
+  return h('span', { class: 'ew-actions-part' }, ...actions);
+}
+
+/** "Arrange page": the placement of this one page (instance level), for
+ * those who may edit it (a blog, a FAQ …: manage it). */
+function arrangeButton(el: ElementView): HTMLElement | null {
+  if (!state.user) return null;
+  const instance = !!state.site.element_types.find((x) => x.id === el.type)?.instance;
+  if (!instance && !can('edit')) return null;
+  const b = button(t('placement.arrange'), () => {
+    void (async () => {
+      let handle: { close: () => void } | null = null;
+      const editor = await placementEditor('instance', String(el.id), { heading: false, category: el.category_id, onSaved: () => handle?.close() });
+      handle = openDialog(t('placement.title_instance', { title: el.title }), editor, [], { wide: true });
+    })();
+  }, { variant: 'secondary' });
+  if (instance) {
+    // managing the instance is checked by the server: show the button only if allowed
+    b.hidden = true;
+    void api.get(`placements/instance?target=${el.id}`).then(() => { b.hidden = false; }, () => undefined);
+  }
+  return b;
+}
+
+/** Tags, short address, author and revision of an element page. */
+function elementInfo(el: ElementView): HTMLElement {
+  return h('footer', { class: 'ew-meta' },
+    tagList(el.tags),
+    el.short_url ? h('p', null, t('shorturl.label'), ': ', h('a', { href: `/${el.short_url}` }, `${location.host}/${el.short_url}`)) : null,
+    h('p', null, t('element.updated_by', { date: fmtDate(el.updated_at, L()), user: el.updated_by || '–' }), ' · ', t('element.revision', { rev: el.rev }), ' · ',
+      h('a', { href: `/e/${el.id}/history` }, t('element.history'))));
 }
 
 function tagsDialog(el: ElementView): void {

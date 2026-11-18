@@ -11,5 +11,6 @@
  "core.favorites.type.category": "Kategorie",
  "perm.core.favorites.use": "Favoriten nutzen",
  "perm.core.favorites.use_help": "Seiten und Kategorien als persönliche Favoriten markieren.",
- "perm.group.core.favorites": "Favoriten"
+ "perm.group.core.favorites": "Favoriten",
+ "core.favorites.star_block": "Knopf „Favorit“"
 }

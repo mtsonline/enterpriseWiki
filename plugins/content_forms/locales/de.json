@@ -248,5 +248,6 @@
  "perm.content.forms.submissions_delete": "Einsendungen löschen",
  "perm.content.forms.submissions_delete_help": "Einsendungen der Formulare der Kategorie löschen. Gelöschte Einsendungen lassen sich nicht wiederherstellen. Schließt das Ansehen ein.",
  "perm.content.forms.submissions_manage": "Einsendungen verwalten",
- "perm.content.forms.submissions_manage_help": "Die Einsendungen der Formulare der Kategorie ansehen, exportieren und löschen."
+ "perm.content.forms.submissions_manage_help": "Die Einsendungen der Formulare der Kategorie ansehen, exportieren und löschen.",
+ "content.forms.submissions_block": "Einsendungen des Formulars"
 }

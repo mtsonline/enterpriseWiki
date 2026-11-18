@@ -18,9 +18,9 @@ export const ctx = {
   template: '',
 };
 
-export function setContext(categoryId: number, path: number[], perms: string[] | null, template = ''): void {
+export function setContext(categoryId: number, path: number[], perms: string[] | null, template = '', elementId = 0): void {
   ctx.categoryId = categoryId;
-  setPlacementContext(categoryId);
+  setPlacementContext(categoryId, elementId);
   ctx.path = path;
   ctx.perms = perms ?? [];
   ctx.template = template;

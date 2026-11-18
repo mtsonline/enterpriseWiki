@@ -22,7 +22,8 @@ import (
 // the category tree, a button of a plugin …) at a position of the template.
 // An empty position hides the block at this level. The placements of a
 // level replace those of the levels above for the same block: template,
-// site, category (inherited by subcategories), instance, user.
+// site, category (inherited by subcategories), instance (one element: only
+// the element positions), user.
 type Placement struct {
 	Block    string `json:"block"`
 	Position string `json:"position"`
@@ -45,8 +46,14 @@ const (
 	LevelTemplate = "template"
 	LevelSite     = "site"
 	LevelCategory = "category"
+	LevelInstance = "instance"
 	LevelUser     = "user"
 )
+
+// ElementPositionPrefix starts the positions of an element page
+// (element-header, element-toolbar, element-aside, element-footer); the
+// instance level places blocks only there.
+const ElementPositionPrefix = "element-"
 
 var (
 	// a block, optionally one instance of it ("core.menu/12")
@@ -83,10 +90,11 @@ func (s *Service) knownOwner(plugin string) bool {
 
 // ResolvedPlacements returns the levels that apply to a page: the template
 // (templateID, or the one of the site), the site, the category and its
-// ancestors (from the top; only categories the caller may view) and – if
-// personal placement is switched on – the caller's own. The interface
+// ancestors (from the top; only categories the caller may view), the
+// element shown (if the caller may view it) and – if personal placement is
+// switched on – the caller's own. The interface
 // applies them in this order to the blocks it knows.
-func (s *Service) ResolvedPlacements(ctx context.Context, templateID string, categoryID int64) ([]PlacementLevel, error) {
+func (s *Service) ResolvedPlacements(ctx context.Context, templateID string, categoryID, elementID int64) ([]PlacementLevel, error) {
 	type key struct{ level, target string }
 	want := []key{}
 	if templateID == "" {
@@ -101,6 +109,11 @@ func (s *Service) ResolvedPlacements(ctx context.Context, templateID string, cat
 			for _, id := range c.Path {
 				want = append(want, key{LevelCategory, strconv.FormatInt(id, 10)})
 			}
+		}
+	}
+	if elementID > 0 {
+		if _, err := s.ElementCategory(ctx, elementID, acl.View); err == nil {
+			want = append(want, key{LevelInstance, strconv.FormatInt(elementID, 10)})
 		}
 	}
 	p := identity.From(ctx)
@@ -170,6 +183,12 @@ func (s *Service) requirePlacementLevel(ctx context.Context, level, target strin
 			return err
 		}
 		return s.require(ctx, id, acl.Manage)
+	case LevelInstance:
+		id, err := strconv.ParseInt(target, 10, 64)
+		if err != nil || id <= 0 || strconv.FormatInt(id, 10) != target {
+			return apperr.BadRequest("target must be an element id")
+		}
+		return s.requireArrange(ctx, id)
 	case LevelUser:
 		if target != strconv.FormatInt(p.UserID, 10) || p.UserID <= 0 {
 			return apperr.Forbidden("only the own placements can be changed")
@@ -179,7 +198,34 @@ func (s *Service) requirePlacementLevel(ctx context.Context, level, target strin
 		}
 		return nil
 	}
-	return apperr.BadRequest("level must be template, site, category or user")
+	return apperr.BadRequest("level must be template, site, category, instance or user")
+}
+
+// requireArrange checks who may arrange one element page: for elements of a
+// type with permissions of its own (a blog, a FAQ …) the permission to
+// manage the instance, for all others the permission to edit the element.
+func (s *Service) requireArrange(ctx context.Context, id int64) error {
+	cat, err := s.ElementCategory(ctx, id, acl.View)
+	if err != nil {
+		return err
+	}
+	var typ string
+	// acl: checked above (ElementCategory)
+	if err := s.pool.QueryRow(ctx, `SELECT type FROM elements WHERE id=$1`, id).Scan(&typ); err != nil {
+		return apperr.NotFound("element")
+	}
+	if len(perm.InstanceKeys(typ)) == 0 {
+		return s.requireOn(ctx, id, cat, acl.Edit)
+	}
+	mk := manageKey(typ)
+	mine, err := s.acl.InstanceActions(ctx, identity.From(ctx), acl.Instance{ID: id, Type: typ, CategoryID: cat})
+	if err != nil {
+		return err
+	}
+	if mk == "" || !slices.Contains(mine, mk) {
+		return apperr.Forbidden("arranging this page needs the permission to manage it")
+	}
+	return nil
 }
 
 // GetPlacements returns the placements of one level (for editing).
@@ -236,7 +282,7 @@ func (s *Service) SetPlacements(ctx context.Context, level, target string, in []
 		return nil, apperr.BadRequest("at most %d placements per level (expert setting %s)", max, limits.PlacementRows)
 	}
 	var required map[string]bool
-	if level == LevelCategory || level == LevelUser {
+	if level == LevelCategory || level == LevelInstance || level == LevelUser {
 		var err error
 		if required, err = s.requiredBlocks(ctx); err != nil {
 			return nil, err
@@ -249,6 +295,9 @@ func (s *Service) SetPlacements(ctx context.Context, level, target string, in []
 		}
 		if pl.Position != "" && !positionRe.MatchString(pl.Position) {
 			return nil, apperr.BadRequest("placement %d: invalid position %q", i+1, pl.Position)
+		}
+		if level == LevelInstance && pl.Position != "" && !strings.HasPrefix(pl.Position, ElementPositionPrefix) {
+			return nil, apperr.BadRequest("placement %d: one page places blocks only at the positions of the page (%s…)", i+1, ElementPositionPrefix)
 		}
 		if pl.Sort < 0 || pl.Sort > 10000 {
 			return nil, apperr.BadRequest("placement %d: sort must be between 0 and 10000", i+1)

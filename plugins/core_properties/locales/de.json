@@ -339,5 +339,6 @@
  "perm.core.properties.define": "Eigenschaften definieren",
  "perm.core.properties.define_help": "Definitionen von Eigenschaften dieser Kategorie (von Unterkategorien geerbt) anlegen, ändern und entfernen sowie freie Eigenschaften erlauben oder verbieten.",
  "perm.core.properties.free": "Freie Eigenschaften hinzufügen",
- "perm.core.properties.free_help": "Eigenschaften ohne Definition (Name und Typ) zu Elementen hinzufügen, die man bearbeiten darf."
+ "perm.core.properties.free_help": "Eigenschaften ohne Definition (Name und Typ) zu Elementen hinzufügen, die man bearbeiten darf.",
+ "core.properties.block": "Eigenschaften der Seite"
 }

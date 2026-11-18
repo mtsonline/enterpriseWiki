@@ -977,6 +977,7 @@ func (s *Service) duplicateCategory(ctx context.Context, id, targetParent int64,
 		return nil, err
 	}
 	s.aclChanged(ctx)
+	s.bus.Publish(ctx, "i18n", "") // the labels of the copied elements
 	return s.GetCategory(ctx, newRoot)
 }
 
@@ -1117,6 +1118,17 @@ func copyElement(ctx context.Context, tx pgx.Tx, eid, to int64, titleSuffix stri
 	// acl: internal – copy; callers check the element
 	if _, err := tx.Exec(ctx, `INSERT INTO search_docs(element_id, lang, category_id, title, body_text, tags, tsv)
 		SELECT $2, d.lang, $3, d.title || $4::text, d.body_text, d.tags, d.tsv FROM search_docs d WHERE d.element_id=$1`, eid, nid, to, titleSuffix); err != nil {
+		return 0, err
+	}
+	// the display of the page: its arrangement and its own labels
+	// ("<key>@<plugin>/<id>"; callers publish "i18n" afterwards)
+	if _, err := tx.Exec(ctx, `INSERT INTO placements(level, target, block, position, sort, required, updated_by)
+		SELECT level, $2::bigint::text, block, position, sort, false, $3 FROM placements WHERE level='instance' AND target=$1::bigint::text ORDER BY id`, eid, nid, uid); err != nil {
+		return 0, err
+	}
+	if _, err := tx.Exec(ctx, `INSERT INTO ui_translations(lang, key, value, source_hash, updated_by)
+		SELECT lang, left(key, length(key) - length($1::bigint::text)) || $2::bigint::text, value, source_hash, $3 FROM ui_translations
+		WHERE key LIKE '%@%/%' AND substring(key from '@[a-z0-9._-]+/([0-9]{1,19})$') = $1::bigint::text`, eid, nid, uid); err != nil {
 		return 0, err
 	}
 	return nid, nil

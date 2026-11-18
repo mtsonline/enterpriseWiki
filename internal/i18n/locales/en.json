@@ -2348,5 +2348,16 @@
  "perm.core.roles.list_own": "List the own roles",
  "perm.core.roles.list_own_help": "See the names of the roles one has (directly or through a group).",
  "audit.action.settings.config_set": "Setting changed on the command line",
- "audit.action.settings.file_changed": "Configuration file changed outside the wiki"
+ "audit.action.settings.file_changed": "Configuration file changed outside the wiki",
+ "position.element-header": "Page: header",
+ "position.element-toolbar": "Page: toolbar",
+ "position.element-aside": "Page: side column",
+ "position.element-footer": "Page: below the content",
+ "block.core.element.title": "Title of the page",
+ "block.core.element.manage": "Managing the page (edit mode)",
+ "block.core.element.watch": "Watch",
+ "block.core.element.info": "Page information (tags, author, revision)",
+ "placement.title_instance": "Arrange the page {title}",
+ "placement.help_instance": "Where the title, buttons and sections of this page appear. Blocks you do not change keep the placement of the category and the site (inherited).",
+ "placement.arrange": "Arrange page"
 }

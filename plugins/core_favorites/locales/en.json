@@ -11,5 +11,6 @@
  "core.favorites.type.category": "Category",
  "perm.core.favorites.use": "Use favorites",
  "perm.core.favorites.use_help": "Mark pages and categories as personal favorites.",
- "perm.group.core.favorites": "Favorites"
+ "perm.group.core.favorites": "Favorites",
+ "core.favorites.star_block": "Button \"Favorite\""
 }
