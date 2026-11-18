@@ -2178,13 +2178,17 @@ test('editing page: tags in the side column, no formatting toolbar, actions stay
     ] });
     await page.goto(`${BASE}/e/${el.id}/edit`);
     await idle();
-    const tags = page.locator('.ew-pos--editor-aside[role=complementary]').getByRole('textbox', { name: /^(tags|schlagwörter)/i });
+    // (found by its label: with suggestions the field becomes a combobox)
+    const tags = page.locator('.ew-pos--editor-aside[role=complementary]').getByLabel(/^(tags|schlagwörter)/i);
     await tags.waitFor();
     assert.equal(await page.locator('[role=toolbar]').count(), 0, 'no formatting toolbar');
     await page.locator('.ew-pos--editor-statusbar').getByRole('button', { name: /^(publish|veröffentlichen)$/i }).waitFor();
     await a11y('editing page arranged');
     // the parts keep what was typed when the positions are filled again
+    // typing asks for tag suggestions (wait for the answer: it must not be cut off by leaving the page)
+    const suggestions = page.waitForResponse((r) => r.url().includes('/api/v1/tags?prefix=') && r.ok());
     await tags.fill(`arranged${run}`);
+    await suggestions;
     // (as when the template is switched: all positions are filled again)
     await page.evaluate(() => document.dispatchEvent(new Event('ewiki:template')));
     await idle();
