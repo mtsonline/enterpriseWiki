@@ -950,3 +950,32 @@ func bindSecrets(ctx context.Context, tx pgx.Tx, t ElementType, id int64, body j
 	}
 	return secrets.BindRefs(ctx, tx, id, identity.From(ctx).ID(), h.SecretRefs(body))
 }
+
+// VisibleElements reports which of the (not deleted) elements ids the caller
+// may view (their own rights apply).
+func (s *Service) VisibleElements(ctx context.Context, ids []int64) (map[int64]bool, error) {
+	out := map[int64]bool{}
+	if len(ids) == 0 {
+		return out, nil
+	}
+	f, err := s.acl.ElementFilter(ctx, identity.From(ctx), acl.View)
+	if err != nil {
+		return nil, err
+	}
+	// acl: checked below (ElementFilter)
+	rows, err := s.pool.Query(ctx, `SELECT id, category_id FROM elements WHERE id = ANY($1) AND deleted_at IS NULL`, ids)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var id, cat int64
+		if err := rows.Scan(&id, &cat); err != nil {
+			return nil, err
+		}
+		if f.Allows(id, cat) {
+			out[id] = true
+		}
+	}
+	return out, rows.Err()
+}

@@ -415,7 +415,7 @@ Do not use these endings for other purposes (`…_other` would be read as a plur
 
 ### Labels per instance {#instance-labels}
 
-Element types with instance permissions (a blog, a FAQ …) can let each instance change the texts of its controls: list the keys in `plugin.json` under `"instance_labels"` (they must exist in `en.json`; no plural texts). The texts of one instance are stored as UI texts with the key `<key>@<plugin>/<instance>` in every active language – never in the instance itself – and fall back to the plugin's text. Those who manage the instance change them under *Labels* on the page (`GET`/`PUT /api/v1/elements/{id}/labels`); administrators of all translations also see them in the translation list, export and import. In the frontend, `instanceLabels(id)` returns the lookup:
+Element types with instance permissions (a blog, a FAQ …) can let each instance change the texts of its controls: list the keys in `plugin.json` under `"instance_labels"` (they must exist in `en.json`; no plural texts). The texts of one instance are stored as UI texts with the key `<key>@<plugin>/<instance>` in every active language – never in the instance itself – and fall back to the plugin's text. Those who manage the instance change them under *Labels* on the page (`GET`/`PUT /api/v1/elements/{id}/labels`); administrators of all translations also see and change them in the translation list, export and import – but only for instances they may view. In the frontend, `instanceLabels(id)` returns the lookup:
 
 ```ts
 const tl = await instanceLabels(id);

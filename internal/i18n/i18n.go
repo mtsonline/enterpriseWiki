@@ -62,6 +62,9 @@ type Service struct {
 	cache map[string]map[string]string // merged per lang
 	// labelable: texts that may be changed per instance (key -> plugin)
 	labelable map[string]string
+	// InstancesVisible reports which instances (element ids) the caller may
+	// view; labels of others are neither listed nor changed here.
+	InstancesVisible func(ctx context.Context, ids []int64) (map[int64]bool, error)
 }
 
 // New creates the i18n service.
@@ -441,27 +444,47 @@ func (s *Service) loadStrings(ctx context.Context, lang string, withInstances bo
 			return nil, err
 		}
 	}
+	var visible map[int64]bool
+	if withInstances {
+		if visible, err = s.visibleInstances(ctx, refOv, ov); err != nil {
+			return nil, err
+		}
+	}
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	out := s.strings(lang, refOv, ov)
 	if withInstances {
-		out = append(out, s.instanceStrings(lang, refOv, ov)...)
+		out = append(out, s.instanceStrings(lang, refOv, ov, visible)...)
 	}
 	return out, nil
 }
 
-// instanceStrings lists the labels of instances set in lang or in English
-// (callers hold s.mu).
-func (s *Service) instanceStrings(lang string, refOv, ov map[string]override) []String {
-	keys := map[string]bool{}
-	for k := range refOv {
-		if s.knownInstanceKey(k) {
-			keys[k] = true
+// visibleInstances returns which instances with labels in the overrides the
+// caller may view.
+func (s *Service) visibleInstances(ctx context.Context, maps ...map[string]override) (map[int64]bool, error) {
+	ids := []int64{}
+	for _, m := range maps {
+		for k := range m {
+			if _, _, id, ok := parseInstanceKey(k); ok {
+				ids = append(ids, id)
+			}
 		}
 	}
-	for k := range ov {
-		if s.knownInstanceKey(k) {
-			keys[k] = true
+	if len(ids) == 0 || s.InstancesVisible == nil {
+		return map[int64]bool{}, nil
+	}
+	return s.InstancesVisible(ctx, ids)
+}
+
+// instanceStrings lists the labels of instances set in lang or in English
+// (callers hold s.mu).
+func (s *Service) instanceStrings(lang string, refOv, ov map[string]override, visible map[int64]bool) []String {
+	keys := map[string]bool{}
+	for _, m := range []map[string]override{refOv, ov} {
+		for k := range m {
+			if _, _, id, ok := parseInstanceKey(k); ok && visible[id] && s.knownInstanceKey(k) {
+				keys[k] = true
+			}
 		}
 	}
 	list := make([]string, 0, len(keys))
@@ -575,6 +598,21 @@ func (s *Service) set(ctx context.Context, lang string, values map[string]string
 	type row struct{ key, value, hash string }
 	var writes []row
 	var removes []string
+	withInstances := manages(ctx)
+	visible := map[int64]bool{}
+	if withInstances {
+		ids := []int64{}
+		for k := range values {
+			if _, _, id, ok := parseInstanceKey(k); ok {
+				ids = append(ids, id)
+			}
+		}
+		if len(ids) > 0 && s.InstancesVisible != nil {
+			if visible, err = s.InstancesVisible(ctx, ids); err != nil {
+				return res, err
+			}
+		}
+	}
 	s.mu.RLock()
 	hashOf := map[string]string{} // translatable key -> hash of its English text
 	for _, u := range s.units(refOv) {
@@ -591,11 +629,10 @@ func (s *Service) set(ctx context.Context, lang string, values map[string]string
 		keys = append(keys, k)
 	}
 	sort.Strings(keys)
-	withInstances := manages(ctx)
 	for _, k := range keys {
 		v := strings.TrimSpace(values[k])
 		h, ok := hashOf[k]
-		if !ok && withInstances && s.knownInstanceKey(k) {
+		if _, _, iid, isInst := parseInstanceKey(k); !ok && withInstances && isInst && visible[iid] && s.knownInstanceKey(k) {
 			// a label of an instance (administrators of all translations)
 			if err := checkLabel(k, v); err != nil {
 				s.mu.RUnlock()
