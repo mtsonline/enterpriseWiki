@@ -2079,6 +2079,8 @@
  "limit.core.watch.quiet_seconds.help": "Wie lange eine sofortige Benachrichtigung nach der letzten Änderung eines Objekts wartet, damit mehrere Speichervorgänge hintereinander eine einzige E-Mail ergeben.",
  "limit.core.placements.rows": "Platzierungen je Ebene",
  "limit.core.placements.rows.help": "Wie viele Platzierungen von Bausteinen eine Ebene (Vorlage, Website, Kategorie, Instanz oder Person) haben darf.",
+ "limit.core.elements.rules": "Regeln je Seite",
+ "limit.core.elements.rules.help": "Wie viele eigene Rechte-Regeln eine Seite (ein Element) haben darf.",
  "limit.core.watch.quiet_seconds": "Ruhezeit der Beobachtungs-Benachrichtigungen",
  "limit.core.rollback.structure_changes.help": "Höchstzahl an Verschiebungen und Umsortierungen seit dem gewählten Zeitpunkt, die ein Zurücksetzen einer Kategorie mit Struktur rückgängig macht; bei mehr wird abgelehnt (späteren Zeitpunkt wählen).",
  "limit.core.rollback.structure_changes": "Rückgängig gemachte Änderungen beim Zurücksetzen der Struktur",
