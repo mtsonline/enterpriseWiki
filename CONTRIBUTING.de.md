@@ -12,4 +12,5 @@ Die verbindlichen Regeln für alle Beiträge stehen in [CLAUDE.md](CLAUDE.md) (f
 3. **Qualität**: `./scripts/build.sh`, Go-Tests (`go test ./...`, mit `EWIKI_TEST_DATABASE_URL` auch die
    API-Integrationstests) und die Browser-Tests mit Barrierefreiheitsprüfung müssen grün sein. Jede Funktion gehört in
    API, CLI und Oberfläche.
-4. **Plugins** für den offiziellen Katalog: siehe [docs/de/developer/plugins.md](docs/de/developer/plugins.md); auch hier gilt die CLA.
+4. **Dokumentation** auf Deutsch und Englisch: `go run ./tools/docscheck` prüft Seiten, Gliederung, Links und dass jeder in Backticks genannte Bezeichner (Bausteine, Aktionen, Rechte, Einstellungen …) wirklich existiert.
+5. **Plugins** für den offiziellen Katalog: siehe [docs/de/developer/plugins.md](docs/de/developer/plugins.md); auch hier gilt die CLA.
