@@ -376,6 +376,14 @@ Deleted categories (with all content) and pages end up in the **trash** (user me
 
 **Rights of a page** (button *Rights* in edit mode, for everybody who may give rights on it): rules for people, groups, roles, all signed-in people or guests apply in addition to the permissions of the category – for example, one person may edit exactly this page. Possible rights: *View*, *Edit*, *Delete* and *Give rights*; nobody gives more than they have. With **Own rights only**, the permissions of the category no longer apply to this page: only people with a rule see it, as well as administrators and people who manage the category through a rule. For everybody else such a page appears nowhere – not in lists, search, blog, feeds, macros, notifications or exports. The **classification** of a page can be stricter than that of its category (the strictest applies). Nobody can take the right *Give rights* away from themselves. When a page with rights of its own is copied, the rights are copied by default; only people who may give rights may copy it without them. Moving keeps the rights, so does the trash.
 
+## My dashboard
+
+Under *User menu → My dashboard* (`/dashboard`) you see tiles at a glance: notifications, your tasks, pages you edited last, favourites, recently changed pages and watched pages. Plugins can bring more tiles. Every tile shows only what you may see.
+
+- **With the mouse:** switch on *Move with the mouse* and drag a tile to another place. The arrangement is saved at once.
+- **With the keyboard:** *Arrange tiles* opens a list. In it you choose the position of every tile (*full width* or *column 1–3*) or *Not shown*, and change the order with ↑ ↓. A tile is wide when it is at the position *full width*.
+- You always arrange your dashboard yourself, also when the personal arrangement of the rest of the interface is switched off. The administration sets the default and required tiles, which you cannot move, and chooses which tiles are offered. On small screens the columns are shown one below the other.
+
 ## Placement
 
 Where search, language, edit mode, notifications, user menu, category tree and the building blocks of plugins appear is set by the administration under *Administration → Placement*: per block the position of the template, the order (buttons ↑ ↓) or *Not shown*; *Required* prevents changes further down. Whoever manages a category changes this under *Category settings → Placement* for it and its subcategories; what is not changed there is inherited. If the administration allows it, every person arranges the blocks for themselves under *My profile → My arrangement*. The user menu always stays reachable. Every menu, carousel and content block is a block of its own: the position chosen when creating it is its default; in the placement it can be moved, hidden or shown in several places for the site, a category or (if allowed) for oneself. The list of favourites is a block too (default: sidebar).

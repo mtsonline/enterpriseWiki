@@ -33,6 +33,11 @@ type Placement struct {
 	Required bool `json:"required,omitempty"`
 }
 
+// DashboardPositionPrefix starts the positions of the dashboard (dashboard-wide
+// over the full width, dashboard-1 … the columns); everybody arranges the own
+// dashboard, also when personal placement is switched off.
+const DashboardPositionPrefix = "dashboard-"
+
 // PlacementLevel is the placements of one level and target.
 type PlacementLevel struct {
 	Level      string      `json:"level"`
@@ -116,8 +121,10 @@ func (s *Service) ResolvedPlacements(ctx context.Context, templateID string, cat
 			want = append(want, key{LevelInstance, strconv.FormatInt(elementID, 10)})
 		}
 	}
+	// the own level: always (the own dashboard); without personal placement
+	// the interface applies only its tiles
 	p := identity.From(ctx)
-	if p != nil && p.UserID > 0 && s.cfg.Get().UI.PersonalPlacement {
+	if p != nil && p.UserID > 0 {
 		want = append(want, key{LevelUser, strconv.FormatInt(p.UserID, 10)})
 	}
 	levels := make([]string, len(want))
@@ -193,10 +200,7 @@ func (s *Service) requirePlacementLevel(ctx context.Context, level, target strin
 		if target != strconv.FormatInt(p.UserID, 10) || p.UserID <= 0 {
 			return apperr.Forbidden("only the own placements can be changed")
 		}
-		if !s.cfg.Get().UI.PersonalPlacement {
-			return apperr.Forbidden("personal placement is switched off (ui.personal_placement)")
-		}
-		return nil
+		return nil // without personal placement only the dashboard (SetPlacements)
 	}
 	return apperr.BadRequest("level must be template, site, category, instance or user")
 }
@@ -288,6 +292,7 @@ func (s *Service) SetPlacements(ctx context.Context, level, target string, in []
 			return nil, err
 		}
 	}
+	ui := s.cfg.Get().UI
 	seen := map[string]bool{}
 	for i, pl := range in {
 		if !blockRe.MatchString(pl.Block) || !s.knownOwner(pluginOf(pl.Block)) {
@@ -298,6 +303,13 @@ func (s *Service) SetPlacements(ctx context.Context, level, target string, in []
 		}
 		if level == LevelInstance && pl.Position != "" && !strings.HasPrefix(pl.Position, ElementPositionPrefix) {
 			return nil, apperr.BadRequest("placement %d: one page places blocks only at the positions of the page (%s…)", i+1, ElementPositionPrefix)
+		}
+		dash := strings.HasPrefix(pl.Position, DashboardPositionPrefix)
+		if level == LevelUser && !ui.PersonalPlacement && pl.Position != "" && !dash {
+			return nil, apperr.BadRequest("placement %d: personal placement is switched off (ui.personal_placement): only the own dashboard (%s…)", i+1, DashboardPositionPrefix)
+		}
+		if level == LevelUser && dash && len(ui.DashboardTiles) > 0 && !slices.Contains(ui.DashboardTiles, pl.Block) {
+			return nil, apperr.BadRequest("placement %d: the tile %q is not offered (ui.dashboard_tiles)", i+1, pl.Block)
 		}
 		if pl.Sort < 0 || pl.Sort > 10000 {
 			return nil, apperr.BadRequest("placement %d: sort must be between 0 and 10000", i+1)
@@ -342,3 +354,7 @@ func (s *Service) SetPlacements(ctx context.Context, level, target string, in []
 	}
 	return s.GetPlacements(ctx, level, target)
 }
+
+// ValidBlockID reports whether id has the form of a block id
+// (plugin-id.name, optionally /instance).
+func ValidBlockID(id string) bool { return blockRe.MatchString(id) }

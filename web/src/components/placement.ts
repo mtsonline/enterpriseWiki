@@ -7,7 +7,9 @@ import { api } from '../core/api';
 import { h, uid } from '../core/dom';
 import { t } from '../core/i18n';
 import { toast } from '../core/announce';
-import { activeTemplate, EDITOR_POSITIONS, ELEMENT_POSITIONS, invalidatePlacements, placeableBlocks, positionFits, positionLabel, refreshPositions, resolvePlacements, type PlaceableBlock, type Placement, type PlacementLevel } from '../coreplugin';
+import { activeTemplate, DASHBOARD_POSITIONS, EDITOR_POSITIONS, ELEMENT_POSITIONS, invalidatePlacements, placeableBlocks, positionFits, positionLabel, refreshPositions, resolvePlacements, tileOffered, type PlaceableBlock, type Placement, type PlacementLevel, type PositionKind } from '../coreplugin';
+import { state } from '../core/state';
+import { kindOf as positions0Kind } from '../core/placement';
 import { button, checkbox, errorText, field, select } from './ui';
 
 interface Row { block: string; position: string; required: boolean }
@@ -15,7 +17,10 @@ interface Row { block: string; position: string; required: boolean }
 /** placementEditor edits the placements of one level. Rows of the level
  * replace the placements from above for the same block; blocks without a
  * row keep what the levels above say ("inherited"). */
-export async function placementEditor(level: 'site' | 'category' | 'instance' | 'user', target: string, opts: { onSaved?: () => void; heading?: boolean; category?: number } = {}): Promise<HTMLElement> {
+export async function placementEditor(level: 'site' | 'category' | 'instance' | 'user', target: string, opts: { onSaved?: () => void; heading?: boolean; category?: number; kinds?: PositionKind[] } = {}): Promise<HTMLElement> {
+  // the own level without personal placement: only the own dashboard
+  const kinds: PositionKind[] | undefined = opts.kinds ?? (level === 'user' && !state.site.personal_placement ? ['dashboard'] : level === 'instance' ? ['element'] : undefined);
+  const kindOK = (k: PositionKind) => !kinds || kinds.includes(k);
   const box = h('section', { class: 'ew-placement', 'aria-labelledby': uid('pl') });
   const headingId = box.getAttribute('aria-labelledby')!;
   let current: PlacementLevel;
@@ -31,9 +36,9 @@ export async function placementEditor(level: 'site' | 'category' | 'instance' | 
       q.set('element', target);
     }
     const above = await api.get<PlacementLevel[]>(`placements?${q}`);
-    // one page arranges only the blocks of a page
-    blocks = (await placeableBlocks()).filter((b) => level !== 'instance' || b.kind === 'element');
-    resolvedAbove = resolvePlacements(above.filter((l) => !(l.level === level && l.target === target)), blocks);
+    // one page arranges only the blocks of a page; the own dashboard only offered tiles
+    blocks = (await placeableBlocks()).filter((b) => kindOK(b.kind) && (b.kind !== 'dashboard' || level !== 'user' || tileOffered(b.id)));
+    resolvedAbove = resolvePlacements(above.filter((l) => !(l.level === level && l.target === target)), blocks, { personal: !!state.site.personal_placement });
   } catch (e) {
     box.append(h('p', { role: 'alert' }, errorText(e)));
     return box;
@@ -41,7 +46,8 @@ export async function placementEditor(level: 'site' | 'category' | 'instance' | 
   const nameOf = (id: string) => blocks.find((b) => b.id === id)?.label ?? id;
   // the positions of the template, of a page and of the editing page (one
   // page: only its own)
-  const positions = level === 'instance' ? [...ELEMENT_POSITIONS] : [...(activeTemplate()?.positions ?? []), ...ELEMENT_POSITIONS, ...EDITOR_POSITIONS];
+  const positions = [...(activeTemplate()?.positions ?? []), ...ELEMENT_POSITIONS, ...EDITOR_POSITIONS, ...DASHBOARD_POSITIONS]
+    .filter((p) => kindOK(positions0Kind(p)));
   const fitting = (b: PlaceableBlock) => positions.filter((p) => positionFits(b.kind, p));
   const posOptionsOf = (b: PlaceableBlock) => [...fitting(b).map((p) => ({ value: p, label: `${positionLabel(p)} (${p})` })),
     ...(b.always ? [] : [{ value: '', label: t('placement.hidden') }])];
@@ -126,7 +132,9 @@ export async function placementEditor(level: 'site' | 'category' | 'instance' | 
         status.textContent = t('placement.moved_to', { block: nameOf(addSel.value), position: positionLabel(addPos.value) });
         draw();
       }, { variant: 'secondary' })) : null;
-    const reset = own.size ? button(t('placement.reset'), () => { own.clear(); order.clear(); status.textContent = t('placement.reset_done'); draw(); }, { variant: 'link' }) : null;
+    // reset: only the blocks shown here (the own level also holds the rest of the interface)
+    const shownOwn = blocks.filter((b) => own.has(b.id));
+    const reset = shownOwn.length ? button(t('placement.reset'), () => { for (const b of shownOwn) own.delete(b.id); status.textContent = t('placement.reset_done'); draw(); }, { variant: 'link' }) : null;
     list.replaceChildren(h('ul', { class: 'ew-plain-list ew-placement-positions' }, ...groups), add ?? '', reset ?? '');
     if (focusKey) list.querySelector<HTMLElement>(`[data-key="${CSS.escape(focusKey)}"]:not([disabled])`)?.focus();
   };

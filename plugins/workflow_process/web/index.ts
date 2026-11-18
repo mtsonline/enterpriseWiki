@@ -1,5 +1,5 @@
 // Frontend of the workflow plugin: editor, page widget, "My tasks".
-import { api, button, errorText, field, fmtDate, h, mount, pageHeader, pick, pluginSettingsForm, registerAdminPage, registerEditor, registerSlot, registerWidget, route, state, t, textInput, toast } from '@ewiki/coreplugin';
+import { api, button, errorText, field, fmtDate, h, mount, pageHeader, pick, pluginSettingsForm, registerAdminPage, registerEditor, registerSlot, registerWidget, route, state, t, textInput, tile, toast } from '@ewiki/coreplugin';
 import { createWorkflowEditor } from './editor';
 import { linkView } from './link';
 import type { Instance } from './types';
@@ -72,6 +72,20 @@ export function register(): void {
   registerWidget('workflow', workflowWidget);
   route('/tasks', tasksView);
   route('/workflow/link', linkView);
+  // tile of the own dashboard: the cases waiting for me
+  registerSlot({
+    id: 'workflow.process.dashboard', kind: 'dashboard', position: 'dashboard-1', order: 20, label: () => t('workflow.tasks'),
+    render: async () => {
+      if (!state.user) return null;
+      let data: { tasks: Instance[] };
+      try { data = await api.get<{ tasks: Instance[] }>(`${BASE}/tasks`); } catch { return null; }
+      return tile(`${t('workflow.tasks_waiting')} (${data.tasks.length})`, data.tasks.length
+        // (a case opens on the page of the tasks)
+        ? h('ul', { class: 'ew-tile-list' }, ...data.tasks.slice(0, 8).map((x) => h('li', null, h('a', { href: '/tasks' }, x.title),
+          h('span', { class: 'ew-meta' }, ` · ${pick(x.element_titles, state.lang, x.lang)} · ${fmtDate(x.updated_at, state.lang)}`))))
+        : h('p', { class: 'ew-muted' }, t('workflow.tasks_none')), { href: '/tasks', label: t('workflow.tasks') });
+    },
+  });
   registerSlot({
     id: 'workflow.process.tasks', position: 'sidebar', order: 5, label: () => t('workflow.process.block_tasks'),
     render: async () => {

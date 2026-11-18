@@ -58,8 +58,17 @@ func TestPlacements(t *testing.T) {
 	set(admin, "category", tgt, []map[string]any{{"block": "core.tree", "position": "", "required": true}}, 400)
 	set(admin, "category", tgt, []map[string]any{{"block": "core.tree", "position": ""}}, 200)
 	set(admin, "category", fmt.Sprint(secret.ID), []map[string]any{{"block": "core.lang", "position": ""}}, 200)
-	// the own level: only with personal placement switched on, only the own
-	set(pia, "user", fmt.Sprint(u.ID), []map[string]any{}, 403)
+	// the own level: the own dashboard always, the rest only with personal
+	// placement switched on; only the own
+	set(pia, "user", fmt.Sprint(u.ID), []map[string]any{{"block": "core.bell", "position": "sidebar"}}, 400)
+	set(pia, "user", fmt.Sprint(u.ID), []map[string]any{{"block": "core.dash.recent", "position": "dashboard-1"}}, 200)
+	set(pia, "user", "1", []map[string]any{{"block": "core.dash.recent", "position": "dashboard-1"}}, 403)
+	// only offered tiles
+	if err := e.app.Config.Update(func(c *config.Config) error { c.UI.DashboardTiles = []string{"core.dash.mine"}; return nil }); err != nil {
+		t.Fatal(err)
+	}
+	set(pia, "user", fmt.Sprint(u.ID), []map[string]any{{"block": "core.dash.recent", "position": "dashboard-1"}}, 400)
+	set(pia, "user", fmt.Sprint(u.ID), []map[string]any{{"block": "core.dash.mine", "position": "dashboard-wide"}}, 200)
 	if err := e.app.Config.Update(func(c *config.Config) error { c.UI.PersonalPlacement = true; return nil }); err != nil {
 		t.Fatal(err)
 	}
@@ -114,5 +123,53 @@ func TestPlacements(t *testing.T) {
 	admin.must("DELETE", fmt.Sprintf("/api/v1/x/core.blocks/blocks/%d", block.ID), nil, nil, 204)
 	if err := e.app.DB.QueryRow(t.Context(), `SELECT count(*) FROM placements WHERE block LIKE 'core.menu/%' OR block LIKE 'core.carousel/%' OR block LIKE 'core.blocks/%'`).Scan(&n); err != nil || n != 0 {
 		t.Fatalf("placements of deleted instances left: %d %v", n, err)
+	}
+}
+
+// TestRecent: recently changed pages and the pages the caller edited last,
+// only what the caller may see.
+func TestRecent(t *testing.T) {
+	e := setup(t)
+	admin := e.client()
+	admin.login("admin", adminPW)
+	type obj struct {
+		ID int64 `json:"id"`
+	}
+	var open, secret, page, other, u obj
+	admin.must("POST", "/api/v1/categories", map[string]any{"titles": map[string]string{"en": "Open"}}, &open, 201)
+	admin.must("POST", "/api/v1/categories", map[string]any{"titles": map[string]string{"en": "Board"}}, &secret, 201)
+	admin.must("POST", "/api/v1/admin/users", map[string]any{"username": "rita", "password": "Passw0rd!Passw0rd"}, &u, 201)
+	admin.must("POST", fmt.Sprintf("/api/v1/categories/%d/acl", open.ID), map[string]any{"subject_type": "user", "subject_id": u.ID, "permissions": 1 | 2 | 4}, nil, 201)
+	rita := e.client()
+	rita.login("rita", "Passw0rd!Passw0rd")
+	rita.must("POST", "/api/v1/elements", map[string]any{"category_id": open.ID, "type": "core.html", "title": "Rita's page", "body": map[string]any{"format": "html", "source": "<p>x</p>"}}, &page, 201)
+	admin.must("POST", "/api/v1/elements", map[string]any{"category_id": secret.ID, "type": "core.html", "title": "Board page", "body": map[string]any{"format": "html", "source": "<p>x</p>"}}, &other, 201)
+	ids := func(c *client, q string) []int64 {
+		var list []obj
+		c.must("GET", "/api/v1/recent"+q, nil, &list, 200)
+		out := []int64{}
+		for _, x := range list {
+			out = append(out, x.ID)
+		}
+		return out
+	}
+	if got := ids(rita, "?by=me"); fmt.Sprint(got) != fmt.Sprint([]int64{page.ID}) {
+		t.Fatalf("by me: %v", got)
+	}
+	for _, id := range ids(rita, "") {
+		if id == other.ID {
+			t.Fatal("recent shows a page of a category rita may not see")
+		}
+	}
+	// a page rita edited but may no longer see is not listed
+	admin.must("PUT", fmt.Sprintf("/api/v1/elements/%d/acl", page.ID), map[string]any{"own_rights_only": true}, nil, 200)
+	if got := ids(rita, "?by=me"); len(got) != 0 {
+		t.Fatalf("by me after losing the right: %v", got)
+	}
+	if code := e.client().do("GET", "/api/v1/recent?by=me", nil, nil); code != 401 {
+		t.Fatalf("guest by me: %d", code)
+	}
+	if code := rita.do("GET", "/api/v1/recent?by=you", nil, nil); code != 400 {
+		t.Fatalf("by you: %d", code)
 	}
 }

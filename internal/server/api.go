@@ -1044,6 +1044,32 @@ func (s *Server) routes() {
 		}
 		return h.NoContent{}, s.app.Content.Purge(r.Context(), r.PathValue("type"), id)
 	})
+	// action: core.elements.recent
+	s.handle("GET /api/v1/recent", func(w http.ResponseWriter, r *http.Request) (any, error) {
+		q := r.URL.Query()
+		limit := 10
+		if v := q.Get("limit"); v != "" {
+			n, err := strconv.Atoi(v)
+			if err != nil || n < 1 || n > 50 {
+				return nil, apperr.BadRequest("limit must be between 1 and 50")
+			}
+			limit = n
+		}
+		switch q.Get("by") {
+		case "":
+			var cat int64
+			if v := q.Get("category"); v != "" {
+				var err error
+				if cat, err = strconv.ParseInt(v, 10, 64); err != nil || cat < 0 {
+					return nil, apperr.BadRequest("category must be a category id")
+				}
+			}
+			return s.app.Content.Recent(r.Context(), cat, limit)
+		case "me":
+			return s.app.Content.RecentlyEditedByMe(r.Context(), limit)
+		}
+		return nil, apperr.BadRequest(`by must be empty or "me"`)
+	})
 	// action: core.search
 	s.handle("GET /api/v1/search", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		q := r.URL.Query()
@@ -1514,7 +1540,7 @@ func (s *Server) site(w http.ResponseWriter, r *http.Request) (any, error) {
 	slices.SortFunc(templates, func(a, b map[string]string) int { return strings.Compare(a["name"], b["name"]) })
 	home := c.UI.HomeCategory
 	return map[string]any{
-		"name": c.UI.SiteName, "template": c.UI.Template, "templates": templates, "home_category": home, "home_element": c.UI.HomeElement, "editor": cmp.Or(c.UI.Editor, "visual"), "collaboration": c.UI.Collaboration, "personal_placement": c.UI.PersonalPlacement, "editor_tools": siteEditorTools(c.UI.EditorTools),
+		"name": c.UI.SiteName, "template": c.UI.Template, "templates": templates, "home_category": home, "home_element": c.UI.HomeElement, "editor": cmp.Or(c.UI.Editor, "visual"), "collaboration": c.UI.Collaboration, "personal_placement": c.UI.PersonalPlacement, "editor_tools": siteEditorTools(c.UI.EditorTools), "dashboard_tiles": nonNil(c.UI.DashboardTiles),
 		"wait_notice_s": limits.Value(c, limits.WaitNoticeSeconds),
 		"languages":     c.I18n.Languages, "default_language": c.I18n.DefaultLanguage,
 		"plugins": frontend, "element_types": s.app.Content.Types(), "auth_providers": s.app.Auth.ProviderInfos(),
@@ -1572,6 +1598,14 @@ func (s *Server) updateSettings(w http.ResponseWriter, r *http.Request) (any, er
 	before := s.app.Config.Raw()
 	err := s.app.Config.Update(func(c *config.Config) error {
 		if in.UI != nil {
+			if len(in.UI.DashboardTiles) > 200 {
+				return apperr.BadRequest("ui.dashboard_tiles: at most 200 tiles")
+			}
+			for _, b := range in.UI.DashboardTiles {
+				if !content.ValidBlockID(b) {
+					return apperr.BadRequest("ui.dashboard_tiles: %q is no block id", b)
+				}
+			}
 			if len(in.UI.EditorTools) > 0 {
 				if err := content.CheckEditorTools(in.UI.EditorTools); err != nil {
 					return err
@@ -1754,6 +1788,14 @@ func clip(s string, n int) string {
 func siteEditorTools(list []string) []string {
 	if len(list) == 0 {
 		return []string{content.AllEditorTools}
+	}
+	return list
+}
+
+// nonNil returns an empty list for nil (JSON [] instead of null).
+func nonNil(list []string) []string {
+	if list == nil {
+		return []string{}
 	}
 	return list
 }

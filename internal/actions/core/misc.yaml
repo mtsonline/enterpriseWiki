@@ -107,12 +107,17 @@ actions:
         path_params_json: '{"level": "site"}'
         body_json: '{"placements": [{"block": "nobody.thing", "position": "footer"}]}'
         status: 400
+      - name: own_dashboard
+        as: self
+        path_params_json: '{"level": "user"}'
+        query_json: '{"target": "${self.id}"}'
+        body_json: '{"placements": [{"block": "core.dash.recent", "position": "dashboard-1", "sort": 10}]}'
       - name: own_switched_off
         as: self
         path_params_json: '{"level": "user"}'
         query_json: '{"target": "${self.id}"}'
-        body_json: '{"placements": []}'
-        status: 403
+        body_json: '{"placements": [{"block": "core.search", "position": "footer"}]}'
+        status: 400
   - id: core.ready
     category: CATEGORY_PROTOCOL
     method: GET

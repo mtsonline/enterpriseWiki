@@ -1,7 +1,7 @@
 // Favorites: a star button in the actions of pages and categories, the list
 // as a block of the placement (default: sidebar) and in the profile
 // (remove, change the order with buttons).
-import { api, button, errorText, h, pick, registerPageAction, registerProfileSection, registerSlot, state, t, toast, uid } from '@ewiki/coreplugin';
+import { api, button, errorText, h, pick, registerPageAction, registerProfileSection, registerSlot, state, t, tile, toast, uid } from '@ewiki/coreplugin';
 import './style.css';
 
 const BASE = 'x/core.favorites';
@@ -111,4 +111,15 @@ export function register(): void {
   // is only in the profile
   registerSlot({ id: 'core.favorites', position: 'sidebar', order: 20, label: () => t('core.favorites.title'), render: (position) => widget(position) });
   registerProfileSection({ id: 'core.favorites', order: 5, render: profile });
+  // tile of the own dashboard
+  registerSlot({
+    id: 'core.favorites.dashboard', kind: 'dashboard', position: 'dashboard-2', order: 20, label: () => t('core.favorites.title'),
+    render: async () => {
+      const l = state.user ? await load() : null;
+      if (!l) return null;
+      return tile(t('core.favorites.title'), l.items.length
+        ? h('ul', { class: 'ew-tile-list' }, ...l.items.map((f) => h('li', null, h('a', { href: href(f) }, title(f)))))
+        : h('p', { class: 'ew-muted' }, t('core.favorites.empty')));
+    },
+  });
 }
