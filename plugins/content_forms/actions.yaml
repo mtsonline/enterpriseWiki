@@ -69,6 +69,21 @@ actions:
           - {name: data, value: '{"token": "${given.content.forms.start#admin.token}", "values": {"name": "Ann"}}'}
         files:
           - {field: file.doc, name: 'note.txt', content_type: 'text/plain', text: 'Hello'}
+  - id: content.forms.submissions.recent
+    category: CATEGORY_ACTION
+    method: GET
+    path: "submissions/recent"
+    success_status: 200
+    summary:
+      text:
+        en: Forms with the latest submissions whose submissions you see, with the number of new ones
+        de: "Formulare mit den neuesten Einsendungen, die Sie sehen dürfen, mit der Zahl der neuen"
+    signed_in: true
+    cli: {command: [form, recent]}
+    ui: {entry: /dashboard}
+    examples:
+      - name: default
+        given: ['core.elements.create#form', 'content.forms.submit#admin']
   - id: content.forms.submissions.list
     category: CATEGORY_ACTION
     method: GET

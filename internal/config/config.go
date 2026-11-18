@@ -265,6 +265,10 @@ type UI struct {
 	// (block ids; empty = all). The default arrangement and required tiles
 	// are placements of the site.
 	DashboardTiles []string `yaml:"dashboard_tiles,omitempty" json:"dashboard_tiles"`
+	// DashboardHome makes the own dashboard the start page of signed-in
+	// people (also right after signing in). The start page of the site
+	// stays at /start. Default false.
+	DashboardHome bool `yaml:"dashboard_home,omitempty" json:"dashboard_home"`
 }
 
 // Auth configures authentication.

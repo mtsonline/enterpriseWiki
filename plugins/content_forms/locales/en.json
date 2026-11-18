@@ -249,5 +249,9 @@
  "perm.content.forms.submissions_delete_help": "Delete submissions of the forms of the category. Deleted submissions cannot be restored. Includes seeing them.",
  "perm.content.forms.submissions_manage": "Manage submissions",
  "perm.content.forms.submissions_manage_help": "See, export and delete the submissions of the forms of the category.",
- "content.forms.submissions_block": "Submissions of the form"
+ "content.forms.submissions_block": "Submissions of the form",
+ "forms.dashboard_title": "New submissions",
+ "forms.dashboard_none": "There were no submissions in the last 90 days to forms you see.",
+ "forms.unseen_n": "{n} new",
+ "forms.untitled": "Untitled form"
 }

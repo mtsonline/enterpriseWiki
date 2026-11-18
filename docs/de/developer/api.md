@@ -74,6 +74,8 @@ Verlangt das Konto einen zweiten Faktor, antwortet die Anmeldung mit `mfa_requir
 - **Zurücksetzen:** `POST /api/v1/categories/{id}/rollback {"at": "2026-10-01T12:00:00Z", "recursive": true, "structure": true}`; `structure` (nur mit `recursive`) macht seitdem erfolgte Verschiebungen und Umsortierungen rückgängig (neueste zuerst, mit den Prüfungen des normalen Verschiebens) und verschiebt seitdem angelegte Unterkategorien in den Papierkorb; Antwort `{categories, revisions, trashed, moved, categories_trashed}`, ein nicht mehr vorhandener früherer Platz gibt `409` und ändert nichts. Höchstzahl der Änderungen: Grenzwert `core.rollback.structure_changes`.
 - **Dateien:** `POST /api/v1/files` (multipart, Feld `file`) liefert `{hash, name, mime, size}`. Ein Element `core.attachment` referenziert die Datei mit `{"file": {"hash": "…"}, "description": "…"}`. Heruntergeladen wird mit Rechteprüfung über `GET /api/v1/x/core.attachment/elements/{id}/file[?hash=…][&inline=1]`. Bilder sind zusätzlich unter `GET /api/v1/files/{hash}` abrufbar (für Bilder in Seiten).
 - **Suche:** `GET /api/v1/search?q=wort&tags=a,b&lang=de` liefert `snippet` als HTML-escaped Text mit `<mark>`. Mit `category=ID` wird nur in dieser Kategorie und ihren Unterkategorien gesucht (`recursive=0`: nur in der Kategorie).
+- **Zustand des Wikis:** `GET /api/v1/admin/status` (nur für Administratoren) liefert `version`, `updates_available` und `updates_checked_at` aus der letzten Prüfung (ohne Anfrage an GitHub), `mail_failed` und `mail_queued`, `queue_pending` und `queue_oldest` der Warteschlange für Änderungen, `login_failed_24h`, `audit_forward_errors`, `plugins_inactive` (eingeschaltet, aber nicht aktiv), `restart_pending`, `build_failed`, `license_level` und `database_level` (`ok`, `info`, `warning`, `error`). CLI: `ewiki system status`.
+- **Neue Einsendungen:** `GET /api/v1/x/content.forms/submissions/recent?limit=8` listet die Formulare mit Einsendungen der letzten 90 Tage, deren Einsendungen Sie sehen dürfen (`element_id`, `titles`, `last`, `unseen`), neueste zuerst. CLI: `ewiki form recent`.
 - **Zuletzt geändert:** `GET /api/v1/recent?limit=10&category=ID` listet zuletzt geänderte Seiten, `?by=me` die zuletzt von Ihnen bearbeiteten (neueste eigene Version zuerst); immer nur, was Sie sehen dürfen.
 - **Elemente auflisten:** `GET /api/v1/elements?q=&type=&category=&recursive=1&sort=title|updated|created|type&limit=&offset=` liefert `{items, total}` mit `category_path` (nur sichtbare Elemente, für Administratoren alle).
 - **Kurz-URLs:** `short_url` bei `POST /elements`, `PATCH /elements/{id}`, `POST/PUT /categories` (leer = entfernen). `GET /api/v1/resolve?path=kalender` liefert `{type, id}`.
@@ -399,6 +401,7 @@ Aufgerufen von Verzeichnissen wie Entra ID oder Okta mit dem Token eines SCIM-Zu
 |---|---|
 | `GET` | `/api/v1/admin/updates` |
 | `POST` | `/api/v1/admin/updates/{id}` |
+| `GET` | `/api/v1/admin/status` |
 
 ### Administration
 
@@ -631,6 +634,7 @@ Aufgerufen von Verzeichnissen wie Entra ID oder Okta mit dem Token eines SCIM-Zu
 | `GET` | `/api/v1/x/content.forms/meta` |
 | `GET` | `/api/v1/x/content.forms/elements/{id}/start` |
 | `POST` | `/api/v1/x/content.forms/elements/{id}/submit` |
+| `GET` | `/api/v1/x/content.forms/submissions/recent` |
 | `GET` | `/api/v1/x/content.forms/elements/{id}/submissions` |
 | `GET` | `/api/v1/x/content.forms/elements/{id}/submissions.csv` |
 | `GET` | `/api/v1/x/content.forms/elements/{id}/submissions.xlsx` |

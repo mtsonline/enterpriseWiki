@@ -156,4 +156,26 @@ var traps = []trap{
 		New:  "own, admin := s.keyRateMax()\n\tmax := admin\n\t_ = own",
 		Pkg:  "./internal/server/", Tests: "^TestAPIKeyRateLimit$",
 	},
+	// ---------------------------------------------------------------- dashboard
+	{
+		ID: "dashboard.forms-view", About: "the tile of new submissions lists forms the caller may not view (creator without the right)",
+		File: "plugins/content_forms/submissions.go",
+		Old:  "if p.host.Content.ElementPerms(ctx, c.ElementID, c.cat)&acl.View == 0 {",
+		New:  "if false && p.host.Content.ElementPerms(ctx, c.ElementID, c.cat)&acl.View == 0 {",
+		Pkg:  "./internal/server/", Tests: "^TestRecentSubmissions$",
+	},
+	{
+		ID: "dashboard.forms-permission", About: "the tile of new submissions lists forms to everybody who may view them",
+		File: "plugins/content_forms/submissions.go",
+		Old:  "if (c.creator == nil || *c.creator != me.ID()) && !p.host.CanElement(ctx, c.ElementID, c.cat, permSubmissions) {",
+		New:  "if false && (c.creator == nil || *c.creator != me.ID()) && !p.host.CanElement(ctx, c.ElementID, c.cat, permSubmissions) {",
+		Pkg:  "./internal/server/", Tests: "^TestRecentSubmissions$",
+	},
+	{
+		ID: "dashboard.status-admin", About: "the state of the wiki is shown to every signed-in person",
+		File: "internal/server/api_m3.go",
+		Old:  "if err := requireAdmin(r); err != nil {\n\t\t\treturn nil, err\n\t\t}\n\t\tout := map[string]any{",
+		New:  "if err := requireAdmin(r); err != nil && r.Context() == nil {\n\t\t\treturn nil, err\n\t\t}\n\t\tout := map[string]any{",
+		Pkg:  "./internal/server/", Tests: "^TestDashboardHomeAndStatus$",
+	},
 }

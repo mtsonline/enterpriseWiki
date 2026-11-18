@@ -74,6 +74,8 @@ If the account requires a second factor, the sign-in answers with `mfa_required`
 - **Resetting:** `POST /api/v1/categories/{id}/rollback {"at": "2026-10-01T12:00:00Z", "recursive": true, "structure": true}`; `structure` (only with `recursive`) undoes moves and orders since then (newest first, with the checks of a normal move) and moves subcategories created since then to the trash; answer `{categories, revisions, trashed, moved, categories_trashed}`, a former place that no longer exists gives `409` and changes nothing. Most changes: limit `core.rollback.structure_changes`.
 - **Files:** `POST /api/v1/files` (multipart, field `file`) delivers `{hash, name, mime, size}`. An element `core.attachment` refers to the file with `{"file": {"hash": "…"}, "description": "…"}`. Downloading with permission check through `GET /api/v1/x/core.attachment/elements/{id}/file[?hash=…][&inline=1]`. Images are also available under `GET /api/v1/files/{hash}` (for images in pages).
 - **Search:** `GET /api/v1/search?q=word&tags=a,b&lang=en` delivers `snippet` as HTML-escaped text with `<mark>`. With `category=ID` only this category and its sub-categories are searched (`recursive=0`: only the category).
+- **State of the wiki:** `GET /api/v1/admin/status` (administrators only) returns `version`, `updates_available` and `updates_checked_at` from the last check (it does not ask GitHub), `mail_failed` and `mail_queued`, `queue_pending` and `queue_oldest` of the change queue, `login_failed_24h`, `audit_forward_errors`, `plugins_inactive` (switched on but not active), `restart_pending`, `build_failed`, `license_level` and `database_level` (`ok`, `info`, `warning`, `error`). CLI: `ewiki system status`.
+- **New submissions:** `GET /api/v1/x/content.forms/submissions/recent?limit=8` lists the forms with submissions of the last 90 days whose submissions you see (`element_id`, `titles`, `last`, `unseen`), newest first. CLI: `ewiki form recent`.
 - **Recently changed:** `GET /api/v1/recent?limit=10&category=ID` lists recently changed pages, `?by=me` the pages you edited last (newest own revision first); always only what you may see.
 - **Listing elements:** `GET /api/v1/elements?q=&type=&category=&recursive=1&sort=title|updated|created|type&limit=&offset=` delivers `{items, total}` with `category_path` (only visible elements, all for administrators).
 - **Short URLs:** `short_url` with `POST /elements`, `PATCH /elements/{id}`, `POST/PUT /categories` (empty = remove). `GET /api/v1/resolve?path=calendar` delivers `{type, id}`.
@@ -399,6 +401,7 @@ Called by directories such as Entra ID or Okta with the token of a SCIM client (
 |---|---|
 | `GET` | `/api/v1/admin/updates` |
 | `POST` | `/api/v1/admin/updates/{id}` |
+| `GET` | `/api/v1/admin/status` |
 
 ### Administration
 
@@ -631,6 +634,7 @@ Called by directories such as Entra ID or Okta with the token of a SCIM client (
 | `GET` | `/api/v1/x/content.forms/meta` |
 | `GET` | `/api/v1/x/content.forms/elements/{id}/start` |
 | `POST` | `/api/v1/x/content.forms/elements/{id}/submit` |
+| `GET` | `/api/v1/x/content.forms/submissions/recent` |
 | `GET` | `/api/v1/x/content.forms/elements/{id}/submissions` |
 | `GET` | `/api/v1/x/content.forms/elements/{id}/submissions.csv` |
 | `GET` | `/api/v1/x/content.forms/elements/{id}/submissions.xlsx` |

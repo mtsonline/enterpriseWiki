@@ -8,11 +8,12 @@ import { h, mount, fmtDate } from '../core/dom';
 import { tile } from '../components/tile';
 import { pick, t } from '../core/i18n';
 import { navigate, type RouteCtx } from '../core/router';
-import { state } from '../core/state';
+import { isAdmin, state } from '../core/state';
 import { announce, toast } from '../core/announce';
 import { button, checkbox, errorText, openDialog } from '../components/ui';
 import { setContext } from '../components/widgets';
 import { placementEditor } from '../components/placement';
+import { adminSections } from './admin';
 import {
   DASHBOARD_POSITIONS, invalidatePlacements, pagePositionContainer, placeableBlocks, refreshPositions, registerSlot,
   type Placement, type PlacementLevel, type PagePosition,
@@ -115,7 +116,9 @@ export async function dashboardView({ main }: RouteCtx): Promise<void> {
 
   mount(main, h('div', { class: 'ew-dashboard-page' },
     h('div', { class: 'ew-page-header' }, h('h1', null, t('dashboard.title')), h('div', { class: 'ew-actions' }, drag, arrange)),
-    h('p', { class: 'ew-help' }, t('dashboard.help')),
+    h('p', { class: 'ew-help' }, t('dashboard.help'),
+      // the dashboard is the start page: the start page of the site stays reachable
+      state.site.dashboard_home ? [' ', h('a', { href: '/start' }, t('dashboard.site_home'))] : null),
     empty, board));
 }
 
@@ -140,11 +143,51 @@ export function registerDashboardTiles(): void {
     const items = await api.get<{ id: number; titles: Record<string, string>; updated_at: string }[]>('recent?limit=8');
     return tile(t('block.core.dash.recent'), list(items.map((x) => item(`/e/${x.id}`, pick(x.titles, L(), D()), fmtDate(x.updated_at, L()))), t('dashboard.none_recent')));
   });
+  reg('core.dash.admin', 'dashboard-1', 30, adminStatusTile);
   reg('core.dash.watches', 'dashboard-3', 20, async () => {
     const data = await api.get<{ items: Watch[] }>('me/watches');
     return tile(t('block.core.dash.watches'), list(data.items.slice(0, 8).map((w) => item(w.target_type === 'category' ? `/c/${w.target_id}` : `/e/${w.target_id}`,
       pick(w.titles, L(), D()) || t('watch.deleted'), t(`watch.type.${w.target_type}`))), t('dashboard.none_watches')), { href: '/profile#wt-h', label: t('dashboard.all_watches') });
   });
+}
+
+interface AdminStatus {
+  version: string; updates_checked_at: string | null; updates_available: number;
+  mail_failed: number; mail_queued: number; queue_pending: number; queue_oldest: string | null;
+  login_failed_24h: number; audit_forward_errors: number;
+  plugins_inactive: string[]; restart_pending: boolean; build_failed: boolean;
+  license_level: string; database_level: string;
+}
+
+/** The state of the wiki for administrators (GET admin/status). Problems are
+ * marked with a word, not only with a colour (WCAG 1.4.1). */
+async function adminStatusTile(): Promise<HTMLElement | null> {
+  if (!isAdmin()) return null;
+  const st = await api.get<AdminStatus>('admin/status');
+  const L = state.lang;
+  const mark = (level: 'ok' | 'warn' | 'error') => (level === 'ok' ? null
+    : h('span', { class: ['ew-badge', 'ew-badge--warn'] }, t(level === 'error' ? 'dashboard.st_error' : 'dashboard.st_warn')));
+  const lvl = (l: string): 'ok' | 'warn' | 'error' => (l === 'error' ? 'error' : l === 'warning' ? 'warn' : 'ok');
+  const stale = st.queue_oldest !== null && Date.now() - new Date(st.queue_oldest).getTime() > 15 * 60 * 1000;
+  const rows: [string, string, 'ok' | 'warn' | 'error', string?][] = [
+    [t('dashboard.st_version'), st.version, 'ok'],
+    [t('dashboard.st_updates'), st.updates_checked_at ? t('dashboard.st_updates_n', { n: st.updates_available, date: fmtDate(st.updates_checked_at, L) }) : t('dashboard.st_not_checked'),
+      st.updates_available > 0 ? 'warn' : 'ok', '/admin/updates'],
+    [t('dashboard.st_mail'), t('dashboard.st_mail_n', { failed: st.mail_failed, queued: st.mail_queued }), st.mail_failed > 0 ? 'warn' : 'ok', '/admin/mail'],
+    [t('dashboard.st_queue'), t('dashboard.st_queue_n', { n: st.queue_pending }), stale ? 'warn' : 'ok'],
+    [t('dashboard.st_logins'), t('dashboard.st_logins_n', { n: st.login_failed_24h }), 'ok', '/admin/audit'],
+    [t('dashboard.st_forward'), st.audit_forward_errors ? t('dashboard.st_forward_errors') : t('dashboard.st_fine'), st.audit_forward_errors ? 'error' : 'ok', '/admin/audit'],
+    [t('dashboard.st_plugins'), [
+      st.plugins_inactive.length ? t('dashboard.st_plugins_inactive', { list: st.plugins_inactive.join(', ') }) : '',
+      st.restart_pending ? t('dashboard.st_restart') : '', st.build_failed ? t('dashboard.st_build_failed') : '',
+    ].filter(Boolean).join(' · ') || t('dashboard.st_fine'), st.build_failed || st.plugins_inactive.length ? 'error' : st.restart_pending ? 'warn' : 'ok', '/admin/plugins'],
+    [t('dashboard.st_license'), t(`dashboard.st_level_${lvl(st.license_level)}`), lvl(st.license_level), '/admin/license'],
+    [t('dashboard.st_database'), st.database_level ? t(`dashboard.st_level_${lvl(st.database_level)}`) : '–', lvl(st.database_level), '/admin/settings'],
+  ];
+  // links only to the administration pages the person may open
+  const open = new Set(adminSections().map((x) => `/admin/${x.id}`));
+  return tile(t('block.core.dash.admin'), h('dl', { class: 'ew-dl ew-tile-status' }, ...rows.flatMap(([k, v, l, href]) => [
+    h('dt', null, href && open.has(href) ? h('a', { href }, k) : k), h('dd', null, v, l === 'ok' ? null : ' ', mark(l))])));
 }
 
 /** Administration: which tiles everybody may put on the own dashboard

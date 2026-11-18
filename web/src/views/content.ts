@@ -97,6 +97,17 @@ function tagList(tags: string[]): HTMLElement | null {
 // ---------------------------------------------------------------- home
 
 export async function homeView(ctx: RouteCtx): Promise<void> {
+  // the own dashboard as the start page (ui.dashboard_home); the start page
+  // of the site stays at /start
+  if (state.user && state.site.dashboard_home) {
+    navigate('/dashboard', { replace: true });
+    return;
+  }
+  await siteHomeView(ctx);
+}
+
+/** siteHomeView is the start page of the site (/start, and / unless the dashboard is the start page). */
+export async function siteHomeView(ctx: RouteCtx): Promise<void> {
   const { main } = ctx;
   setContext(0, [], []);
   if (state.site.home_element) {

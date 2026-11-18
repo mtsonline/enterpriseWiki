@@ -2297,6 +2297,41 @@ test('own dashboard: default tiles, arranged with the dialog and with the mouse,
   }
 });
 
+test('dashboard as the start page: set in the settings, tiles of the plugins, the state of the wiki', async () => {
+  const before = (await call('GET', '/api/v1/admin/settings')).config;
+  try {
+    await page.goto(`${BASE}/admin/settings`);
+    await idle();
+    await page.getByRole('checkbox', { name: /^(own dashboard as the start page|eigenes dashboard als startseite)$/i }).check();
+    const put = page.waitForResponse((r) => r.url().endsWith('/api/v1/admin/settings') && r.request().method() === 'PUT');
+    await page.locator('form.ew-form button[type=submit]').first().click();
+    assert.equal((await put).status(), 200);
+    assert.equal((await call('GET', '/api/v1/admin/settings')).config.ui.dashboard_home, true, 'saved');
+    // the start page is the own dashboard now
+    const status = page.waitForResponse((r) => r.url().includes('/api/v1/admin/status'));
+    const forms = page.waitForResponse((r) => r.url().includes('/api/v1/x/content.forms/submissions/recent'));
+    const events = page.waitForResponse((r) => r.url().includes('/api/v1/x/content.events/upcoming'));
+    await page.goto(`${BASE}/`);
+    await page.waitForURL(/\/dashboard$/);
+    for (const r of await Promise.all([status, forms, events])) assert.equal(r.status(), 200, r.url());
+    const board = page.locator('.ew-dashboard');
+    for (const n of [/^(state of the wiki|zustand des wikis)$/i, /^(upcoming events|nächste termine)$/i, /^(new submissions|neue einsendungen)$/i, /^(cases i started|von mir gestartete vorgänge)$/i]) {
+      await board.getByRole('heading', { level: 2, name: n }).waitFor();
+    }
+    // the state names problems with a word, the version is there
+    await board.locator('.ew-tile-status').getByText(/^(version)$/i).waitFor();
+    await a11y('dashboard with all tiles');
+    // the start page of the site stays reachable
+    await page.getByRole('link', { name: /^(go to the start page of the wiki|zur startseite des wikis)$/i }).click();
+    // (the start page of the site may lead on to its only category)
+    await page.waitForURL(/\/(start|c\/\d+)$/);
+    await idle();
+    assert.equal(await page.locator('.ew-dashboard').count(), 0, 'the start page of the site, not the dashboard');
+  } finally {
+    await call('PUT', '/api/v1/admin/settings', { ui: before.ui });
+  }
+});
+
 test('a hidden page: not listed for readers, marked for editors, reachable by its link', async () => {
   const cat = await m6Category();
   const el = await call('POST', '/api/v1/elements', { category_id: cat, type: 'core.html', title: `Quiet ${run}`, body: { format: 'html', source: '<p>quiet</p>' } });

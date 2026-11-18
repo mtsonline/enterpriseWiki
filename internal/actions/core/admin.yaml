@@ -1004,6 +1004,20 @@ actions:
         as: member
         path_params_json: '{"id": "${given.core.watches.assign.add#default.id}"}'
         status: 204
+  - id: core.admin.status
+    category: CATEGORY_ACTION
+    method: GET
+    path: /api/v1/admin/status
+    success_status: 200
+    summary:
+      text:
+        en: "State of the wiki at a glance: version, updates, e-mail, queue, sign-in failures, plugins, license, database"
+        de: "Zustand des Wikis auf einen Blick: Version, Updates, E-Mail, Warteschlange, fehlgeschlagene Anmeldungen, Plugins, Lizenz, Datenbank"
+    permission: {key: core.admin, scope: SCOPE_GLOBAL}
+    cli: {command: [system, status]}
+    ui: {entry: /dashboard}
+    examples:
+      - name: default
   - id: core.demo.status
     category: CATEGORY_ACTION
     method: GET

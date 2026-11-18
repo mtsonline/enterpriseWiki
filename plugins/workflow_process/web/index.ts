@@ -72,18 +72,37 @@ export function register(): void {
   registerWidget('workflow', workflowWidget);
   route('/tasks', tasksView);
   route('/workflow/link', linkView);
+  // both tiles of the dashboard show the same answer: ask once per rendering
+  let shared: { at: number; data: Promise<{ tasks: Instance[]; started: Instance[] }> } | null = null;
+  const loadTasks = () => {
+    if (!shared || Date.now() - shared.at > 2000) shared = { at: Date.now(), data: api.get<{ tasks: Instance[]; started: Instance[] }>(`${BASE}/tasks`) };
+    return shared.data;
+  };
   // tile of the own dashboard: the cases waiting for me
   registerSlot({
     id: 'workflow.process.dashboard', kind: 'dashboard', position: 'dashboard-1', order: 20, label: () => t('workflow.tasks'),
     render: async () => {
       if (!state.user) return null;
       let data: { tasks: Instance[] };
-      try { data = await api.get<{ tasks: Instance[] }>(`${BASE}/tasks`); } catch { return null; }
+      try { data = await loadTasks(); } catch { return null; }
       return tile(`${t('workflow.tasks_waiting')} (${data.tasks.length})`, data.tasks.length
         // (a case opens on the page of the tasks)
         ? h('ul', { class: 'ew-tile-list' }, ...data.tasks.slice(0, 8).map((x) => h('li', null, h('a', { href: '/tasks' }, x.title),
           h('span', { class: 'ew-meta' }, ` · ${pick(x.element_titles, state.lang, x.lang)} · ${fmtDate(x.updated_at, state.lang)}`))))
         : h('p', { class: 'ew-muted' }, t('workflow.tasks_none')), { href: '/tasks', label: t('workflow.tasks') });
+    },
+  });
+  // tile of the own dashboard: the cases I started
+  registerSlot({
+    id: 'workflow.process.started', kind: 'dashboard', position: 'dashboard-2', order: 30, label: () => t('workflow.tasks_started'),
+    render: async () => {
+      if (!state.user) return null;
+      let data: { started: Instance[] };
+      try { data = await loadTasks(); } catch { return null; }
+      return tile(t('workflow.tasks_started'), data.started.length
+        ? h('ul', { class: 'ew-tile-list' }, ...data.started.slice(0, 8).map((x) => h('li', null, h('a', { href: '/tasks' }, x.title),
+          h('span', { class: 'ew-meta' }, ` · ${pick(x.element_titles, state.lang, x.lang)} · `), statusBadge(x))))
+        : h('p', { class: 'ew-muted' }, t('workflow.started_none')), { href: '/tasks', label: t('workflow.tasks') });
     },
   });
   registerSlot({

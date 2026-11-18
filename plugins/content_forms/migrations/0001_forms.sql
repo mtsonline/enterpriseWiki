@@ -20,6 +20,8 @@ CREATE TABLE plugin_form_submissions (
 );
 CREATE INDEX plugin_form_submissions_element ON plugin_form_submissions(element_id, created_at DESC);
 CREATE INDEX plugin_form_submissions_user ON plugin_form_submissions(element_id, user_id) WHERE user_id IS NOT NULL;
+-- the latest submissions of all forms (tile of the dashboard)
+CREATE INDEX plugin_form_submissions_recent ON plugin_form_submissions(created_at DESC);
 CREATE INDEX plugin_form_submissions_due ON plugin_form_submissions(next_at) WHERE next_at IS NOT NULL;
 
 -- Secret of the form tokens (one row; shared by all nodes of a cluster).
