@@ -2160,6 +2160,46 @@ test('arrange one page: title hidden (kept for screen readers), share below the 
   }
 });
 
+test('editing page: tags in the side column, no formatting toolbar, actions stay; typed text survives', async () => {
+  const cat = await m6Category();
+  const el = await call('POST', '/api/v1/elements', { category_id: cat, type: 'core.html', title: `Edited ${run}`, body: { format: 'html', source: '<p>edit me</p>' } });
+  try {
+    // default: the formatting toolbar above the content, tags and comment below, actions at the end
+    await page.goto(`${BASE}/e/${el.id}/edit`);
+    await idle();
+    await page.locator('.ew-pos--editor-toolbar [role=toolbar]').waitFor();
+    await page.locator('.ew-pos--editor-footer').getByRole('textbox', { name: /^(tags|schlagwörter)/i }).waitFor();
+    await page.locator('.ew-pos--editor-statusbar').getByRole('button', { name: /^(publish|veröffentlichen)$/i }).waitFor();
+    // the category arranges its editing page; hiding the actions is not possible (they come back)
+    await call('PUT', `/api/v1/placements/category?target=${cat}`, { placements: [
+      { block: 'core.editor.tags', position: 'editor-aside', sort: 1 },
+      { block: 'core.editor.format', position: '' },
+      { block: 'core.editor.actions', position: '' },
+    ] });
+    await page.goto(`${BASE}/e/${el.id}/edit`);
+    await idle();
+    const tags = page.locator('.ew-pos--editor-aside[role=complementary]').getByRole('textbox', { name: /^(tags|schlagwörter)/i });
+    await tags.waitFor();
+    assert.equal(await page.locator('[role=toolbar]').count(), 0, 'no formatting toolbar');
+    await page.locator('.ew-pos--editor-statusbar').getByRole('button', { name: /^(publish|veröffentlichen)$/i }).waitFor();
+    await a11y('editing page arranged');
+    // the parts keep what was typed when the positions are filled again
+    await tags.fill(`arranged${run}`);
+    // (as when the template is switched: all positions are filled again)
+    await page.evaluate(() => document.dispatchEvent(new Event('ewiki:template')));
+    await idle();
+    assert.equal(await tags.inputValue(), `arranged${run}`, 'typed text kept');
+    await page.getByRole('textbox', { name: /^(title|titel)/i }).fill(`Edited again ${run}`);
+    await page.getByRole('button', { name: /^(publish|veröffentlichen)$/i }).click();
+    await page.waitForURL(new RegExp(`/e/${el.id}$`));
+    const saved = await call('GET', `/api/v1/elements/${el.id}`);
+    assert.equal(saved.title, `Edited again ${run}`);
+    assert.deepEqual(saved.tags, [`arranged${run}`]);
+  } finally {
+    await call('PUT', `/api/v1/placements/category?target=${cat}`, { placements: [] });
+  }
+});
+
 test('a hidden page: not listed for readers, marked for editors, reachable by its link', async () => {
   const cat = await m6Category();
   const el = await call('POST', '/api/v1/elements', { category_id: cat, type: 'core.html', title: `Quiet ${run}`, body: { format: 'html', source: '<p>quiet</p>' } });

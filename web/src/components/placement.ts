@@ -7,7 +7,7 @@ import { api } from '../core/api';
 import { h, uid } from '../core/dom';
 import { t } from '../core/i18n';
 import { toast } from '../core/announce';
-import { activeTemplate, ELEMENT_POSITIONS, invalidatePlacements, placeableBlocks, positionFits, positionLabel, refreshPositions, resolvePlacements, type PlaceableBlock, type Placement, type PlacementLevel } from '../coreplugin';
+import { activeTemplate, EDITOR_POSITIONS, ELEMENT_POSITIONS, invalidatePlacements, placeableBlocks, positionFits, positionLabel, refreshPositions, resolvePlacements, type PlaceableBlock, type Placement, type PlacementLevel } from '../coreplugin';
 import { button, checkbox, errorText, field, select } from './ui';
 
 interface Row { block: string; position: string; required: boolean }
@@ -39,8 +39,9 @@ export async function placementEditor(level: 'site' | 'category' | 'instance' | 
     return box;
   }
   const nameOf = (id: string) => blocks.find((b) => b.id === id)?.label ?? id;
-  // the positions of the template (not for one page), then those of a page
-  const positions = [...(level === 'instance' ? [] : activeTemplate()?.positions ?? []), ...ELEMENT_POSITIONS];
+  // the positions of the template, of a page and of the editing page (one
+  // page: only its own)
+  const positions = level === 'instance' ? [...ELEMENT_POSITIONS] : [...(activeTemplate()?.positions ?? []), ...ELEMENT_POSITIONS, ...EDITOR_POSITIONS];
   const fitting = (b: PlaceableBlock) => positions.filter((p) => positionFits(b.kind, p));
   const posOptionsOf = (b: PlaceableBlock) => [...fitting(b).map((p) => ({ value: p, label: `${positionLabel(p)} (${p})` })),
     ...(b.always ? [] : [{ value: '', label: t('placement.hidden') }])];
