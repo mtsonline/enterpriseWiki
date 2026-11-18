@@ -80,6 +80,9 @@ type TypeInfo struct {
 	// Instance: elements of this type have permissions of their own
 	// (GET /elements/{id}/rights).
 	Instance bool `json:"instance"`
+	// InstanceLabels are the UI texts an instance may change ("Labels" of
+	// the instance, GET /elements/{id}/labels).
+	InstanceLabels []string `json:"instance_labels"`
 }
 
 type typeRegistry struct {
@@ -137,7 +140,11 @@ func (s *Service) Types() []TypeInfo {
 	out := []TypeInfo{}
 	for id, r := range s.types.types {
 		if s.enabled(r.pluginID) {
-			out = append(out, TypeInfo{ID: id, PluginID: r.pluginID, Labels: r.t.Labels(), Empty: r.t.EmptyBody(), Instance: len(perm.InstanceKeys(id)) > 0})
+			ti := TypeInfo{ID: id, PluginID: r.pluginID, Labels: r.t.Labels(), Empty: r.t.EmptyBody(), Instance: len(perm.InstanceKeys(id)) > 0, InstanceLabels: []string{}}
+			if s.labelKeys != nil && ti.Instance {
+				ti.InstanceLabels = s.labelKeys(r.pluginID)
+			}
+			out = append(out, ti)
 		}
 	}
 	sort.Slice(out, func(i, j int) bool { return out[i].ID < out[j].ID })

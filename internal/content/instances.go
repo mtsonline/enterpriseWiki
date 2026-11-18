@@ -225,3 +225,25 @@ func (s *Service) subjectExists(ctx context.Context, typ string, id int64) error
 	}
 	return nil
 }
+
+// InstanceLabelsOf returns what the labels of an instance need: its
+// plugin (owner of the texts) and whether the caller may change them
+// (manage of the instance). The caller must be able to view it.
+func (s *Service) InstanceLabelsOf(ctx context.Context, elementID int64) (plugin string, manage bool, err error) {
+	inst, err := s.Instance(ctx, elementID)
+	if err != nil {
+		return "", false, err
+	}
+	s.types.mu.RLock()
+	r, ok := s.types.types[inst.Type]
+	s.types.mu.RUnlock()
+	if !ok || !s.enabled(r.pluginID) {
+		return "", false, apperr.NotFound("element type")
+	}
+	mine, err := s.acl.InstanceActions(ctx, identity.From(ctx), inst)
+	if err != nil {
+		return "", false, err
+	}
+	mk := manageKey(inst.Type)
+	return r.pluginID, mk != "" && slices.Contains(mine, mk), nil
+}

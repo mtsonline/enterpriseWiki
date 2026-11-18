@@ -101,6 +101,11 @@ type Manifest struct {
 	// them under Administration → Expert settings; read them with
 	// Host.Limit (see docs/en/developer/plugins.md#limits).
 	Limits []limits.Def `json:"limits,omitempty"`
+	// InstanceLabels are UI texts of the plugin (keys of its en.json) that
+	// each instance may change, per language: buttons and headings of a
+	// blog, a FAQ … (see docs/en/developer/plugins.md#instance-labels). The
+	// texts are stored as UI translations "<key>@<plugin>/<instance>".
+	InstanceLabels []string `json:"instance_labels,omitempty"`
 }
 
 // Plugin is implemented by every plugin.

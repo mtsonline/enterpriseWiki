@@ -36,4 +36,52 @@ func (s *Server) routesInstances() {
 		}
 		return s.app.Content.SetInstanceRights(r.Context(), id, in.Rules)
 	})
+	// GET /api/v1/elements/{id}/labels – the texts the instance may change
+	// (per active language: the plugin's text and the instance's own)
+	// action: core.instances.labels.get
+	s.handle("GET /api/v1/elements/{id}/labels", func(w http.ResponseWriter, r *http.Request) (any, error) {
+		id, err := h.PathID(r, "id")
+		if err != nil {
+			return nil, err
+		}
+		plugin, manage, err := s.app.Content.InstanceLabelsOf(r.Context(), id)
+		if err != nil {
+			return nil, err
+		}
+		labels, err := s.app.I18n.InstanceLabels(r.Context(), plugin, id)
+		if err != nil {
+			return nil, err
+		}
+		return map[string]any{"labels": labels, "languages": s.app.Config.Get().I18n.Languages, "can_edit": manage}, nil
+	})
+	// PUT /api/v1/elements/{id}/labels {"values": {"de": {"content.blog.new_post": "Neuer Artikel"}}}
+	// – "" removes a text (the plugin's text applies); manage of the instance
+	// action: core.instances.labels.set
+	s.handle("PUT /api/v1/elements/{id}/labels", func(w http.ResponseWriter, r *http.Request) (any, error) {
+		id, err := h.PathID(r, "id")
+		if err != nil {
+			return nil, err
+		}
+		var in struct {
+			Values map[string]map[string]string `json:"values"`
+		}
+		if err := h.Decode(r, &in); err != nil {
+			return nil, err
+		}
+		plugin, manage, err := s.app.Content.InstanceLabelsOf(r.Context(), id)
+		if err != nil {
+			return nil, err
+		}
+		if !manage {
+			return nil, apperr.Forbidden("changing the labels needs the permission to manage this instance")
+		}
+		if err := s.app.I18n.SetInstanceLabels(r.Context(), plugin, id, in.Values); err != nil {
+			return nil, err
+		}
+		labels, err := s.app.I18n.InstanceLabels(r.Context(), plugin, id)
+		if err != nil {
+			return nil, err
+		}
+		return map[string]any{"labels": labels, "languages": s.app.Config.Get().I18n.Languages, "can_edit": true}, nil
+	})
 }

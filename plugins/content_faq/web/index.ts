@@ -2,7 +2,7 @@
 // all, quick adding of questions and sections, feed, deep links #q-ID).
 import {
   announce, api, button, categorySelect, checkbox, confirmDialog, errorText, feedButton, field, formDialog, h, langFields, mount, pick,
-  registerEditor, registerWidget, rerender, select, state, t, textArea, textInput, toast, type EditorInstance, sourcesEditor,
+  instanceLabels, registerEditor, registerWidget, rerender, select, state, t, textArea, textInput, toast, type EditorInstance, sourcesEditor,
 } from '@ewiki/coreplugin';
 import './style.css';
 
@@ -146,6 +146,8 @@ async function faqWidget(root: HTMLElement): Promise<void> {
   let data: { config: Body; info: Info };
   try { data = await api.get(`${BASE}/elements/${id}/questions?lang=${L()}&q=`); } catch { return; }
   if (data.info.missing) return;
+  // the FAQ's own labels (per language), else the plugin's texts
+  const tl = await instanceLabels(id);
   const c = data.config;
   const body = root.querySelector<HTMLElement>('.ewq-body');
   if (!body) return;
@@ -178,11 +180,11 @@ async function faqWidget(root: HTMLElement): Promise<void> {
       s.hidden = !any;
       s.open = any;
     }
-    status.textContent = n ? t('content.faq.matches', { n }) : t('content.faq.no_matches');
+    status.textContent = n ? t('content.faq.matches', { n }) : tl('content.faq.no_matches');
   };
   let timer = 0;
-  const q = textInput({ type: 'search', placeholder: t('content.faq.search_placeholder') });
-  q.setAttribute('aria-label', t('content.faq.search'));
+  const q = textInput({ type: 'search', placeholder: tl('content.faq.search_placeholder') });
+  q.setAttribute('aria-label', tl('content.faq.search'));
   q.addEventListener('input', () => { clearTimeout(timer); timer = window.setTimeout(() => { filter(q.value); if (q.value) announce(status.textContent ?? ''); }, 200); });
   const setAll = (open: boolean) => [...sections, ...questions].forEach((d) => { if (!d.hidden) d.open = open; });
 
@@ -190,10 +192,10 @@ async function faqWidget(root: HTMLElement): Promise<void> {
   const toolbar = h('div', { class: 'ewq-toolbar' },
     c.search && questions.length ? h('div', { class: 'ewq-search', role: 'search' }, q) : null,
     h('div', { class: 'ew-actions' },
-      questions.length ? button(t('content.faq.expand_all'), () => setAll(true), { variant: 'secondary' }) : null,
-      questions.length ? button(t('content.faq.collapse_all'), () => setAll(false), { variant: 'secondary' }) : null,
-      data.info.can_create ? button(t('content.faq.new_question'), () => newQuestion(id, data.info), { variant: 'primary' }) : null,
-      data.info.can_manage && c.recursive ? button(t('content.faq.new_section'), () => newSection(id, data.info), { variant: 'secondary' }) : null,
+      questions.length ? button(tl('content.faq.expand_all'), () => setAll(true), { variant: 'secondary' }) : null,
+      questions.length ? button(tl('content.faq.collapse_all'), () => setAll(false), { variant: 'secondary' }) : null,
+      data.info.can_create ? button(tl('content.faq.new_question'), () => newQuestion(id, data.info), { variant: 'primary' }) : null,
+      data.info.can_manage && c.recursive ? button(tl('content.faq.new_section'), () => newSection(id, data.info), { variant: 'secondary' }) : null,
       c.feed ? feedButton(`${BASE}/elements/${id}/feed`, title) : null));
   body.before(toolbar, status);
 

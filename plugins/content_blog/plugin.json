@@ -43,5 +43,15 @@
       "label": "Contribute posts",
       "description": "Write new posts and change or delete the own ones."
     }
+  ],
+  "instance_labels": [
+    "content.blog.new_post",
+    "content.blog.new_category",
+    "content.blog.search",
+    "content.blog.search_placeholder",
+    "content.blog.more",
+    "content.blog.empty",
+    "content.blog.newer",
+    "content.blog.older"
   ]
 }

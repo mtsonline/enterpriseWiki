@@ -365,8 +365,19 @@ func buildDemo(d *demoRun) {
 		d.page(news, p[0], p[1], p[2], p[3], nil)
 	}
 	d.optional("blog", func() {
-		d.element(news, "content.blog", d.tr("Wiki news", "Wiki-Neuigkeiten"), d.same(map[string]any{"category_id": news, "recursive": false,
+		blog := d.element(news, "content.blog", d.tr("Wiki news", "Wiki-Neuigkeiten"), d.same(map[string]any{"category_id": news, "recursive": false,
 			"intro": htmlBodyOf("<p>Demo-Blog</p>"), "per_page": 10, "layout": "cards", "show_author": true, "show_date": true, "summary_length": 200}), nil)
+		// labels of this blog (instead of the plugin's "New post")
+		if blog != 0 {
+			texts := map[string]string{"en": "Write news", "de": "Neuigkeit schreiben"}
+			values := map[string]any{}
+			for _, l := range d.s.app.Config.Get().I18n.Languages {
+				if v, ok := texts[l]; ok {
+					values[l] = map[string]string{"content.blog.new_post": v}
+				}
+			}
+			d.call(http.MethodPut, fmt.Sprintf("/api/v1/elements/%d/labels", blog), map[string]any{"values": values}, nil)
+		}
 	})
 
 	// ---- 3. FAQ: sections are subcategories, questions are pages

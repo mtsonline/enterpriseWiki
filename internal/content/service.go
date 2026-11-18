@@ -35,6 +35,8 @@ type Service struct {
 	macros  macroRegistry
 	backend backendRegistry
 	enabled func(pluginID string) bool
+	// labelKeys: texts a plugin's instances may change
+	labelKeys func(plugin string) []string
 	// templateOK reports whether id is an active template plugin
 	templateOK func(id string) bool
 	hooks      []Hook
@@ -61,6 +63,10 @@ func (s *Service) SetTemplateFunc(f func(string) bool) { s.templateOK = f }
 
 // SetEnabledFunc wires the plugin enabled check.
 func (s *Service) SetEnabledFunc(f func(string) bool) { s.enabled = f }
+
+// SetLabelKeysFunc sets where the texts come from that a plugin's
+// instances may change (i18n.Service.InstanceLabelKeys).
+func (s *Service) SetLabelKeysFunc(f func(plugin string) []string) { s.labelKeys = f }
 
 // OnChange registers a hook.
 func (s *Service) OnChange(h Hook) { s.hooks = append(s.hooks, h) }

@@ -365,6 +365,55 @@ actions:
         given: ['core.instances.rights.set#default']
         path_params_json: '{"id": "${given.core.elements.create#blog.id}"}'
         expect_json: '{"manage": true, "rules": [{"subject_type": "user", "actions": ["content.blog.edit"]}]}'
+  - id: core.instances.labels.get
+    category: CATEGORY_ACTION
+    method: GET
+    path: /api/v1/elements/{id}/labels
+    success_status: 200
+    summary:
+      text:
+        en: The texts an instance may change (per active language the plugin's text and the instance's own) and whether you may change them
+        de: Texte, die eine Instanz ändern darf (je aktiver Sprache der Text des Plugins und der eigene) und ob Sie sie ändern dürfen
+    permission: {key: core.category.view, scope: SCOPE_CATEGORY, category_param: "element:id"}
+    cli: {command: [instance, labels, show], args: [id]}
+    ui: {entry: /e/:id}
+    examples:
+      - name: default
+        given: ['core.elements.create#blog']
+        as: admin
+        path_params_json: '{"id": "${given.core.elements.create#blog.id}"}'
+        expect_json: '{"can_edit": true}'
+  - id: core.instances.labels.set
+    category: CATEGORY_ACTION
+    method: PUT
+    path: /api/v1/elements/{id}/labels
+    success_status: 200
+    summary:
+      text:
+        en: Change the texts of an instance per language (stored as UI texts "<key>@<plugin>/<id>"; empty = the plugin's text; needs the manage permission of the instance)
+        de: Texte einer Instanz je Sprache ändern (gespeichert als Oberflächentexte „<key>@<plugin>/<id>“; leer = Text des Plugins; braucht das Verwalten-Recht der Instanz)
+    signed_in: true
+    safety: {changes: true}
+    cli: {command: [instance, labels, set], args: [id]}
+    ui: {entry: /e/:id}
+    examples:
+      - name: default
+        given: ['core.elements.create#blog']
+        as: admin
+        path_params_json: '{"id": "${given.core.elements.create#blog.id}"}'
+        body_json: '{"values": {"en": {"content.blog.new_post": "Write an article"}, "de": {"content.blog.new_post": "Artikel schreiben"}}}'
+      - name: undeclared_text
+        given: ['core.elements.create#blog']
+        as: admin
+        path_params_json: '{"id": "${given.core.elements.create#blog.id}"}'
+        body_json: '{"values": {"en": {"content.blog.by": "x"}}}'
+        status: 400
+      - name: without_manage
+        given: ['core.elements.create#blog']
+        as: other
+        path_params_json: '{"id": "${given.core.elements.create#blog.id}"}'
+        body_json: '{"values": {"en": {"content.blog.new_post": "x"}}}'
+        status: 404
   - id: core.instances.rights.set
     category: CATEGORY_ACTION
     method: PUT

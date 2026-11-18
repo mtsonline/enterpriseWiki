@@ -376,6 +376,7 @@ func newSite(ctx context.Context, in *Instance, site string, migrate bool) (*App
 	}})
 	a.Auth.SetEnabledFunc(a.Kernel.Enabled)
 	a.Content.SetEnabledFunc(a.Kernel.Enabled)
+	a.Content.SetLabelKeysFunc(a.I18n.InstanceLabelKeys)
 	a.Content.SetTemplateFunc(a.Kernel.IsTemplate)
 	a.Media.Enabled = a.Kernel.Enabled
 	a.Media.LoadPrincipal = a.Auth.LoadPrincipal

@@ -1960,6 +1960,27 @@ test('blog: posts, search and new post', async () => {
   await page.waitForURL(/\/c\/\d+\/new\?type=core\.html&via=\d+&return=/);
 });
 
+test('labels of an instance: own texts of the blog per language', async () => {
+  const cat = await m6Category();
+  const blog = await call('POST', '/api/v1/elements', { category_id: cat, type: 'content.blog', title: `Labelled ${run}`, body: { category_id: cat } });
+  await page.goto(`${BASE}/e/${blog.id}`);
+  await idle();
+  await page.locator('.ewb-toolbar').waitFor();
+  await page.getByRole('button', { name: /^(labels|beschriftungen)$/i }).click();
+  const dlg = page.locator('dialog[open]');
+  const group = dlg.getByRole('group', { name: /^(new post|neuer beitrag)$/i });
+  await group.waitFor();
+  await a11y('labels of an instance');
+  await group.getByRole('textbox', { name: /^(english|englisch)$/i }).fill('Write an article');
+  await group.getByRole('textbox', { name: /^(german|deutsch)$/i }).fill('Artikel schreiben');
+  await dlg.locator('button[type=submit]').click();
+  await page.getByRole('button', { name: /^(write an article|artikel schreiben)$/i }).waitFor();
+  const l = await call('GET', `/api/v1/elements/${blog.id}/labels`);
+  const np = l.labels.find((x) => x.key === 'content.blog.new_post');
+  assert.equal(np.value.en, 'Write an article');
+  assert.equal(np.value.de, 'Artikel schreiben');
+});
+
 test('permissions of an instance: a blog editor without page permissions, own permissions', async () => {
   const cat = await m6Category();
   const blog = await call('POST', '/api/v1/elements', { category_id: cat, type: 'content.blog', title: `Rights blog ${run}`, body: { category_id: cat } });

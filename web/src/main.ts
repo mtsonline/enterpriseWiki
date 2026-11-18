@@ -19,6 +19,7 @@ import { categoryTree, ctx, currentSpace, setSpace, editToggle, languageSwitcher
 import { pluginModules } from './generated/plugins';
 import { positionContainer, refreshPositions, registerAdminPage, registerPageAction, registerProfileSection, registerSlot, registerTemplate, resolveTemplate, setShownTemplate } from './coreplugin';
 import { instanceRightsButton } from './components/instanceRights';
+import { instanceLabelsButton } from './components/instanceLabels';
 import { placementEditor } from './components/placement';
 import { notificationBell } from './components/bell';
 import { adminView } from './views/admin';
@@ -63,6 +64,7 @@ function registerCore(): void {
   setNotFound(notFoundView);
 
   registerPageAction({ id: 'core.instance-rights', order: 90, render: instanceRightsButton });
+  registerPageAction({ id: 'core.instance-labels', order: 91, render: instanceLabelsButton });
   registerAdminPage({ id: 'placement', permission: 'core.settings.manage', order: 15, label: () => t('placement.admin'), render: async (panel) => { panel.append(pageHeader(t('placement.admin')), await placementEditor('site', '')); } });
   registerProfileSection({ id: 'core.placement', order: 60, render: async () => (state.site.personal_placement && state.user ? placementEditor('user', String(state.user.id)) : null) });
   // building blocks of the core: default positions; the administration,

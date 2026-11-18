@@ -43,5 +43,14 @@
       "label": "Contribute questions and answers",
       "description": "Write new questions and answers and change or delete the own ones."
     }
+  ],
+  "instance_labels": [
+    "content.faq.new_question",
+    "content.faq.new_section",
+    "content.faq.search",
+    "content.faq.search_placeholder",
+    "content.faq.expand_all",
+    "content.faq.collapse_all",
+    "content.faq.no_matches"
   ]
 }

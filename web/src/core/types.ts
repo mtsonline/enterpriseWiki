@@ -30,6 +30,8 @@ export interface ElementTypeInfo {
   empty_body: unknown;
   /** elements of this type have permissions of their own (a blog, a FAQ …) */
   instance: boolean;
+  /** UI texts each instance may change (its "Labels") */
+  instance_labels?: string[];
 }
 
 export interface Site {

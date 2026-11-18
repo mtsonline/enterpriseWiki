@@ -413,6 +413,17 @@ Verwenden Sie diese Endungen nicht für andere Zwecke (`…_other` würde als Pl
 
 **`en.json` ist Pflicht**, sobald ein Plugin Locale-Dateien mitbringt (sonst startet es nicht); weitere Sprachen dürfen nur Schlüssel enthalten, die es in `en.json` gibt. Kern und mitgelieferte Plugins liefern Englisch und Deutsch. Fehlende Übersetzungen erscheinen im Admin-Bereich mit Fortschrittsanzeige (auch je Plugin) und können dort ergänzt oder als JSON, XLIFF 2.0 oder PO exportiert und wieder importiert werden. Ändern Sie in einem Update einen englischen Text, werden die in der Administration gemachten Übersetzungen dieses Textes als *veraltet* markiert.
 
+### Beschriftungen je Instanz {#instance-labels}
+
+Elementtypen mit Instanz-Rechten (ein Blog, eine FAQ …) können jede Instanz die Texte ihrer Bedienelemente ändern lassen: Die Schlüssel stehen in `plugin.json` unter `"instance_labels"` (sie müssen in `en.json` vorhanden sein; keine Plural-Texte). Die Texte einer Instanz werden als UI-Texte mit dem Schlüssel `<key>@<plugin>/<instanz>` in jeder aktiven Sprache gespeichert – nie in der Instanz selbst – und fallen auf den Text des Plugins zurück. Wer die Instanz verwaltet, ändert sie unter *Beschriftungen* auf der Seite (`GET`/`PUT /api/v1/elements/{id}/labels`); wer alle Übersetzungen verwaltet, sieht sie auch in der Übersetzungsliste, im Export und Import. Im Frontend liefert `instanceLabels(id)` die Nachschlage-Funktion:
+
+```ts
+const tl = await instanceLabels(id);
+button(tl('acme.board.new_card'), add);
+```
+
+Sie gehören nicht zu den Texten, die alle laden (`/api/v1/i18n/{lang}`); so bleiben die Beschriftungen einer Instanz in einer geschützten Kategorie geschützt.
+
 ## Bauen, testen, veröffentlichen
 
 ```bash

@@ -413,6 +413,17 @@ Do not use these endings for other purposes (`…_other` would be read as a plur
 
 **`en.json` is required** as soon as a plugin brings locale files (otherwise it does not start); further languages may only contain keys that exist in `en.json`. The core and the bundled plugins deliver English and German. Missing translations appear in the admin area with a progress display (also per plugin) and can be completed there or exported as JSON, XLIFF 2.0 or PO and imported again. If you change an English text in an update, the translations of this text made in the administration are marked as *outdated*.
 
+### Labels per instance {#instance-labels}
+
+Element types with instance permissions (a blog, a FAQ …) can let each instance change the texts of its controls: list the keys in `plugin.json` under `"instance_labels"` (they must exist in `en.json`; no plural texts). The texts of one instance are stored as UI texts with the key `<key>@<plugin>/<instance>` in every active language – never in the instance itself – and fall back to the plugin's text. Those who manage the instance change them under *Labels* on the page (`GET`/`PUT /api/v1/elements/{id}/labels`); administrators of all translations also see them in the translation list, export and import. In the frontend, `instanceLabels(id)` returns the lookup:
+
+```ts
+const tl = await instanceLabels(id);
+button(tl('acme.board.new_card'), add);
+```
+
+They are not part of the texts everybody loads (`/api/v1/i18n/{lang}`), so the labels of an instance in a protected category stay protected.
+
 ## Building, testing, publishing
 
 ```bash
