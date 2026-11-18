@@ -33,7 +33,8 @@ export { toast, announce } from './core/announce';
 export { navigate, route, rerender } from './core/router';
 export { button, field, textInput, textArea, select, checkbox, openDialog, confirmDialog, formDialog, langFields, errorText, loading, pageHeader } from './components/ui';
 export type * from './core/types';
-export { registerWidget, hydrate } from './core/widgets';
+export { registerWidget, hydrate, claimWidgetControls, provideWidgetControls, type WidgetControl } from './core/widgets';
+import { widgetControls } from './core/widgets';
 export { instanceLabels } from './components/instanceLabels';
 export type { TreeNode } from './components/widgets';
 export { categorySelect, elementSelect, newCategory, newElement } from './components/pickers';
@@ -518,6 +519,18 @@ export interface ElementExtension {
 }
 
 const elementExtensions: ElementExtension[] = [];
+
+/** Registers a control of a widget (search, "new post" …) as an element
+ * block of the pages of its element type: on its own page the widget hands
+ * the control over (provideWidgetControls under key); there it can be
+ * moved, hidden or repeated like any block. */
+export function registerWidgetControl(c: { id: string; type: string; key: string; label: () => string; position: (typeof ELEMENT_POSITIONS)[number]; order?: number }): void {
+  registerSlot({ id: c.id, kind: 'element', position: c.position, order: c.order ?? 50, label: c.label,
+    render: async (_p, _k, ctx) => {
+      if (!ctx || ctx.view.type !== c.type) return null;
+      return (await widgetControls(ctx.view.id))[c.key]?.({ title: ctx.view.title }) ?? null;
+    } });
+}
 
 /** Adds a section to every element page: an element block (id of the
  * extension) at element-footer, or element-header with placement "top". */

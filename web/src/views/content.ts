@@ -15,6 +15,7 @@ import { imagesOf, previewImageInput } from '../components/previewimage';
 import { feedButton } from '../components/feeds';
 import { ELEMENT_POSITIONS, elementPositionContainer, getEditor, pageActionButtons, registerSlot, renderCategoryExtensions, typeLabel, type EditorInstance } from '../coreplugin';
 import { placementEditor } from '../components/placement';
+import { expectWidgetControls, settleWidgetControls, widgetControlsClaimed } from '../core/widgets';
 import { draftNotice, publishDialog, publishVia, saveDraft, saveTemplateDialog, showPreview, templatePicker, type Draft, type EditorState } from '../components/publishing';
 import { tagInput } from '../components/tags';
 import { editFields } from '../components/editfields';
@@ -471,6 +472,10 @@ export async function elementView({ params, main }: RouteCtx): Promise<void> {
     else if (!srTitle.isConnected) header.prepend(srTitle);
   };
   const pos = (name: (typeof ELEMENT_POSITIONS)[number]) => elementPositionContainer(name, ectx, heading);
+  // the widget of the page (blog, FAQ …) may hand its controls to the page
+  expectWidgetControls(el.id);
+  const body = trustedHTML(el.html);
+  if (!widgetControlsClaimed(el.id)) settleWidgetControls(el.id);
   article = h('article', { class: 'ew-element', lang: el.shown_lang },
     crumbs([...cat.breadcrumbs, cat.category], { title: el.title }),
     header = h('div', { class: 'ew-page-header' }, pos('element-header'), pos('element-toolbar')),
@@ -480,7 +485,7 @@ export async function elementView({ params, main }: RouteCtx): Promise<void> {
     elementRightsNote(el),
     fallbackNotice(el),
     edit ? translationPanel(el) : null,
-    h('div', { class: 'ew-element-main' }, h('div', { class: 'ew-element-body' }, trustedHTML(el.html)), pos('element-aside')),
+    h('div', { class: 'ew-element-main' }, h('div', { class: 'ew-element-body' }, body), pos('element-aside')),
     pos('element-footer'));
   mount(main, article);
   // link of an access request (?rights=1): open the rights of the page

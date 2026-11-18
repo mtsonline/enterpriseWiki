@@ -2,7 +2,7 @@
 // all, quick adding of questions and sections, feed, deep links #q-ID).
 import {
   announce, api, button, categorySelect, checkbox, confirmDialog, errorText, feedButton, field, formDialog, h, langFields, mount, pick,
-  instanceLabels, registerEditor, registerWidget, rerender, select, state, t, textArea, textInput, toast, type EditorInstance, sourcesEditor,
+  instanceLabels, registerEditor, registerWidget, rerender, claimWidgetControls, provideWidgetControls, registerWidgetControl, type WidgetControl, select, state, t, textArea, textInput, toast, type EditorInstance, sourcesEditor,
 } from '@ewiki/coreplugin';
 import './style.css';
 
@@ -143,6 +143,8 @@ const norm = (s: string) => s.toLocaleLowerCase().normalize('NFD').replace(/[̀-
 
 async function faqWidget(root: HTMLElement): Promise<void> {
   const id = Number(root.dataset.element);
+  // on its own page the controls are blocks of the page (placement)
+  const own = claimWidgetControls(id, root);
   let data: { config: Body; info: Info };
   try { data = await api.get(`${BASE}/elements/${id}/questions?lang=${L()}&q=`); } catch { return; }
   if (data.info.missing) return;
@@ -183,21 +185,33 @@ async function faqWidget(root: HTMLElement): Promise<void> {
     status.textContent = n ? t('content.faq.matches', { n }) : tl('content.faq.no_matches');
   };
   let timer = 0;
-  const q = textInput({ type: 'search', placeholder: tl('content.faq.search_placeholder') });
-  q.setAttribute('aria-label', tl('content.faq.search'));
-  q.addEventListener('input', () => { clearTimeout(timer); timer = window.setTimeout(() => { filter(q.value); if (q.value) announce(status.textContent ?? ''); }, 200); });
+  // each call a new control: a block may be placed twice
+  const search: WidgetControl = () => {
+    if (!c.search || !questions.length) return null;
+    const q = textInput({ type: 'search', placeholder: tl('content.faq.search_placeholder') });
+    q.setAttribute('aria-label', tl('content.faq.search'));
+    q.addEventListener('input', () => { clearTimeout(timer); timer = window.setTimeout(() => { filter(q.value); if (q.value) announce(status.textContent ?? ''); }, 200); });
+    return h('div', { class: 'ewq-search', role: 'search' }, q);
+  };
   const setAll = (open: boolean) => [...sections, ...questions].forEach((d) => { if (!d.hidden) d.open = open; });
-
-  const title = document.querySelector('h1')?.textContent ?? 'FAQ';
-  const toolbar = h('div', { class: 'ewq-toolbar' },
-    c.search && questions.length ? h('div', { class: 'ewq-search', role: 'search' }, q) : null,
-    h('div', { class: 'ew-actions' },
-      questions.length ? button(tl('content.faq.expand_all'), () => setAll(true), { variant: 'secondary' }) : null,
-      questions.length ? button(tl('content.faq.collapse_all'), () => setAll(false), { variant: 'secondary' }) : null,
-      data.info.can_create ? button(tl('content.faq.new_question'), () => newQuestion(id, data.info), { variant: 'primary' }) : null,
-      data.info.can_manage && c.recursive ? button(tl('content.faq.new_section'), () => newSection(id, data.info), { variant: 'secondary' }) : null,
-      c.feed ? feedButton(`${BASE}/elements/${id}/feed`, title) : null));
-  body.before(toolbar, status);
+  const controls: Record<string, WidgetControl> = {
+    search,
+    expand: () => (questions.length ? h('span', { class: 'ew-actions-part' },
+      button(tl('content.faq.expand_all'), () => setAll(true), { variant: 'secondary' }),
+      button(tl('content.faq.collapse_all'), () => setAll(false), { variant: 'secondary' })) : null),
+    new_question: () => (data.info.can_create ? button(tl('content.faq.new_question'), () => newQuestion(id, data.info), { variant: 'primary' }) : null),
+    new_section: () => (data.info.can_manage && c.recursive ? button(tl('content.faq.new_section'), () => newSection(id, data.info), { variant: 'secondary' }) : null),
+    feed: (page) => (c.feed ? feedButton(`${BASE}/elements/${id}/feed`, page.title) : null),
+  };
+  if (own) {
+    provideWidgetControls(id, root, controls);
+    body.before(status);
+  } else {
+    // embedded in another page: the title of that page names the feed
+    const page = { title: root.closest('article')?.querySelector('h1')?.textContent ?? document.querySelector('h1')?.textContent ?? 'FAQ' };
+    body.before(h('div', { class: 'ewq-toolbar' }, controls.search(page),
+      h('div', { class: 'ew-actions' }, controls.expand(page), controls.new_question(page), controls.new_section(page), controls.feed(page))), status);
+  }
 
   // edit and delete in edit mode (the server checks the permissions)
   if (state.editMode && data.info.can_manage) {
@@ -235,4 +249,12 @@ async function faqWidget(root: HTMLElement): Promise<void> {
 export function register(): void {
   registerEditor('content.faq', createEditor);
   registerWidget('faq', faqWidget);
+  // on the page of a FAQ its controls are blocks
+  const ctl = (key: string, label: string, position: 'element-header' | 'element-toolbar', order: number) =>
+    registerWidgetControl({ id: `content.faq.${key.replace('_', '-')}`, type: 'content.faq', key, label: () => t(label), position, order });
+  ctl('search', 'content.faq.block_search', 'element-header', 50);
+  ctl('expand', 'content.faq.block_expand', 'element-toolbar', 30);
+  ctl('new_question', 'content.faq.new_question', 'element-toolbar', 31);
+  ctl('new_section', 'content.faq.new_section', 'element-toolbar', 32);
+  ctl('feed', 'content.faq.block_feed', 'element-toolbar', 33);
 }
