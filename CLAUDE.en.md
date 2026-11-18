@@ -72,6 +72,7 @@ go vet ./...
 go run ./tools/genplugins               # after new or removed plugins; commit the result
 go run ./tools/notices -check           # licenses of the Go modules
 go run ./tools/docscheck                # docs complete in German and English, links valid, named identifiers exist
+go run ./tools/traps                    # trap tests: deliberately built-in bugs must make the tests fail
 (cd sdk && go run ./tools/protocheck)   # plugin contract compiles; action register and manifests match it
 
 # Go tests; with a database also the API integration tests
@@ -91,7 +92,7 @@ tests/qa/local.sh
 EWIKI_QA_PROXY=caddy EWIKI_QA_WORK=/tmp/ewiki-qa-caddy tests/qa/local.sh
 ```
 
-The browser tests build on each other and only run completely. Before a release, the test routine `tests/qa` and all security checks run in addition.
+The browser tests build on each other and only run completely. Before a release, the test routine `tests/qa`, all security checks, the trap tests (`tools/traps`) and the independent review by an agent without the development context run in addition.
 
 ## 7. Clean, without warnings
 
