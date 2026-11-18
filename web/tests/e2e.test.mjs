@@ -1623,7 +1623,14 @@ test('workflow 3b: a case writes Word, PDF and Excel files and a calendar entry'
   await page.keyboard.press('Escape');
   // the steps run in the background: run the job until the case is done
   // (under load one run may not reach the end)
-  const list = await call('GET', `/api/v1/x/workflow.process/elements/${wf.id}/instances?status=`);
+  // the start may still be on its way: wait for the case to exist
+  let list;
+  for (let i = 0; i < 50; i++) {
+    list = await call('GET', `/api/v1/x/workflow.process/elements/${wf.id}/instances?status=`);
+    if (list.instances?.length) break;
+    await page.waitForTimeout(100);
+  }
+  assert.ok(list.instances?.length, 'the case was started');
   let x;
   for (let i = 0; i < 20; i++) {
     await job('workflow.process.timers');

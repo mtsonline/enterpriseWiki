@@ -415,7 +415,7 @@ Verwenden Sie diese Endungen nicht für andere Zwecke (`…_other` würde als Pl
 
 ### Beschriftungen je Instanz {#instance-labels}
 
-Elementtypen mit Instanz-Rechten (ein Blog, eine FAQ …) können jede Instanz die Texte ihrer Bedienelemente ändern lassen: Die Schlüssel stehen in `plugin.json` unter `"instance_labels"` (sie müssen in `en.json` vorhanden sein; keine Plural-Texte). Die Texte einer Instanz werden als UI-Texte mit dem Schlüssel `<key>@<plugin>/<instanz>` in jeder aktiven Sprache gespeichert – nie in der Instanz selbst – und fallen auf den Text des Plugins zurück. Wer die Instanz verwaltet, ändert sie unter *Beschriftungen* auf der Seite (`GET`/`PUT /api/v1/elements/{id}/labels`); wer alle Übersetzungen verwaltet, sieht sie auch in der Übersetzungsliste, im Export und Import. Im Frontend liefert `instanceLabels(id)` die Nachschlage-Funktion:
+Elementtypen mit Instanz-Rechten (ein Blog, eine FAQ …) können jede Instanz die Texte ihrer Bedienelemente ändern lassen: Die Schlüssel stehen in `plugin.json` unter `"instance_labels"` (sie müssen in `en.json` vorhanden sein; keine Plural-Texte). Die Texte einer Instanz werden als UI-Texte mit dem Schlüssel `<key>@<plugin>/<instanz>` in jeder aktiven Sprache gespeichert – nie in der Instanz selbst – und fallen auf den Text des Plugins zurück. Wer die Instanz verwaltet, ändert sie unter *Beschriftungen* auf der Seite (`GET`/`PUT /api/v1/elements/{id}/labels`); wer alle Übersetzungen verwaltet, sieht und ändert sie auch in der Übersetzungsliste, im Export und Import – aber nur für Instanzen, die er sehen darf. Im Frontend liefert `instanceLabels(id)` die Nachschlage-Funktion:
 
 ```ts
 const tl = await instanceLabels(id);

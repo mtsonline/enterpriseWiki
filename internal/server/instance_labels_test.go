@@ -98,6 +98,35 @@ func TestInstanceLabels(t *testing.T) {
 			t.Fatalf("set through the translations: %+v", x)
 		}
 	}
+	// someone who manages all translations but may not see a blog neither
+	// sees nor changes its labels
+	var secretCat, secretBlog, role obj
+	admin.must("POST", "/api/v1/categories", map[string]any{"titles": map[string]string{"en": "Board"}}, &secretCat, 201)
+	admin.must("POST", "/api/v1/elements", map[string]any{"category_id": secretCat.ID, "type": "content.blog", "title": "Board blog", "body": map[string]any{"category_id": secretCat.ID}}, &secretBlog, 201)
+	admin.must("PUT", fmt.Sprintf("/api/v1/elements/%d/labels", secretBlog.ID), map[string]any{"values": map[string]any{"en": map[string]string{"content.blog.new_post": "Board minutes"}}}, nil, 200)
+	admin.must("POST", "/api/v1/admin/roles", map[string]any{"name": "Translators", "permissions": []string{"core.i18n.manage"}}, &role, 201)
+	var tr obj
+	admin.must("POST", "/api/v1/admin/users", map[string]any{"username": "tom", "password": "Passw0rd!Passw0rd", "roles": []int64{role.ID}}, &tr, 201)
+	tom := e.client()
+	tom.login("tom", "Passw0rd!Passw0rd")
+	secretKey := fmt.Sprintf("content.blog.new_post@content.blog/%d", secretBlog.ID)
+	tom.must("GET", "/api/v1/admin/i18n/en", nil, &list, 200)
+	seen := false
+	for _, x := range list {
+		if x.Key == secretKey {
+			t.Fatal("translator sees the label of a blog they may not see")
+		}
+		if x.Key == key {
+			seen = true
+		}
+	}
+	if !seen {
+		t.Fatal("translator does not see the label of a visible blog")
+	}
+	if code := tom.do("PUT", "/api/v1/admin/i18n/en", map[string]string{secretKey: "changed"}, nil); code != 400 {
+		t.Fatalf("translator changed the label of a blog they may not see: %d", code)
+	}
+
 	// the type tells the interface which texts can be changed
 	var site struct {
 		ElementTypes []struct {
