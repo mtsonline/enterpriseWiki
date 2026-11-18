@@ -71,7 +71,7 @@ gofmt -l .                              # must be empty
 go vet ./...
 go run ./tools/genplugins               # after new or removed plugins; commit the result
 go run ./tools/notices -check           # licenses of the Go modules
-go run ./tools/docscheck                # docs complete in German and English, links valid
+go run ./tools/docscheck                # docs complete in German and English, links valid, named identifiers exist
 (cd sdk && go run ./tools/protocheck)   # plugin contract compiles; action register and manifests match it
 
 # Go tests; with a database also the API integration tests

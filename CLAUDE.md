@@ -69,7 +69,7 @@ gofmt -l .                              # muss leer sein
 go vet ./...
 go run ./tools/genplugins               # nach neuen oder entfernten Plugins; Ergebnis committen
 go run ./tools/notices -check           # Lizenzen der Go-Module
-go run ./tools/docscheck                # Doku Deutsch und Englisch vollständig, Links gültig
+go run ./tools/docscheck                # Doku Deutsch und Englisch vollständig, Links gültig, genannte Bezeichner existieren
 (cd sdk && go run ./tools/protocheck)   # Plugin-Vertrag übersetzt; Aktionsregister und Manifeste passen dazu
 
 # Go-Tests; mit Datenbank auch die API-Integrationstests
