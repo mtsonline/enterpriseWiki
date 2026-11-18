@@ -2121,6 +2121,13 @@ test('rights of a page: own rights only, a rule, the note on the page', async ()
   await page.reload();
   await idle();
   await page.getByRole('note').filter({ hasText: /only the page's own rights|nur ihre eigenen rechte/i }).waitFor();
+  // the central overview lists the rule on the page
+  await call('POST', `/api/v1/elements/${el.id}/acl`, { subject_type: 'authenticated', permissions: 1 });
+  await page.goto(`${BASE}/admin/permissions?subject_type=authenticated`);
+  await page.locator('tr.ew-perm-element').filter({ hasText: `Guarded ${run}` }).waitFor();
+  await a11y('permission overview with a page rule');
+  await page.goto(`${BASE}/e/${el.id}`);
+  await idle();
   const off = page.locator('.ew-pos--header-tools button[aria-pressed]');
   if ((await off.getAttribute('aria-pressed')) === 'true') { await off.click(); await idle(); }
 });
