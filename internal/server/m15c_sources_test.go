@@ -225,7 +225,7 @@ func TestFlexibleSources(t *testing.T) {
 	}
 	slides := func(cl *client) []string {
 		var s shown
-		cl.must("GET", "/api/v1/x/core.carousel/position/content-top?lang=en", nil, &s, 200)
+		cl.must("GET", "/api/v1/x/core.carousel/shown?lang=en", nil, &s, 200)
 		out := []string{}
 		if len(s) > 0 {
 			for _, x := range s[0].Slides {

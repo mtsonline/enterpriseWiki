@@ -182,17 +182,12 @@ func (p *Plugin) Setup(host *coreplugin.Host) error {
 	host.RegisterWorker("feeds", 10*time.Minute, p.fetchAll)
 
 	// ---------------------------------------------------------------- public
-	// GET /position/{position}?lang= – carousels of a position with the slides the caller may see
-	// action: core.carousel.position
-	host.Handle("GET", "/position/{position}", func(w http.ResponseWriter, r *http.Request) (any, error) {
-		return p.atPosition(r.Context(), r.PathValue("position"), r.URL.Query().Get("lang"))
-	})
 	// GET /shown – all carousels the caller sees, with their slides; each is
 	// a block of its own in the placement ("core.carousel/<id>", its
 	// position is the default)
 	// action: core.carousel.shown
 	host.Handle("GET", "/shown", func(w http.ResponseWriter, r *http.Request) (any, error) {
-		return p.atPosition(r.Context(), "", r.URL.Query().Get("lang"))
+		return p.shown(r.Context(), r.URL.Query().Get("lang"))
 	})
 	// GET /targets – carousels news can be published to (for the publish dialog)
 	// action: core.carousel.targets
@@ -485,12 +480,12 @@ func (p *Plugin) slides(ctx context.Context, carousel int64, active bool) ([]Sli
 	})
 }
 
-// atPosition returns the carousels of a position ("": of all positions) the
-// caller sees, with their slides.
-func (p *Plugin) atPosition(ctx context.Context, position, lang string) ([]map[string]any, error) {
+// shown returns the carousels the caller sees, with their slides and their
+// default position.
+func (p *Plugin) shown(ctx context.Context, lang string) ([]map[string]any, error) {
 	me := identity.From(ctx)
 	signedIn := me != nil && me.ID() != 0
-	rows, err := p.host.DB.Query(ctx, `SELECT `+carCols+` FROM plugin_carousels WHERE enabled AND ($1 = '' OR position=$1) ORDER BY position_order, id`, position)
+	rows, err := p.host.DB.Query(ctx, `SELECT `+carCols+` FROM plugin_carousels WHERE enabled ORDER BY position_order, id`)
 	if err != nil {
 		return nil, err
 	}
