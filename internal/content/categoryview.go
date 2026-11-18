@@ -85,10 +85,10 @@ type Overview struct {
 	// CategoryTitles: the title of the category (a navigation shows it)
 	CategoryTitles map[string]string `json:"category_titles"`
 	Display        CategoryDisplay   `json:"display"`
-	Items   []OverviewItem  `json:"items"`
-	Total   int             `json:"total"`
-	Page    int             `json:"page"`
-	Pages   int             `json:"pages"`
+	Items          []OverviewItem    `json:"items"`
+	Total          int               `json:"total"`
+	Page           int               `json:"page"`
+	Pages          int               `json:"pages"`
 	// PageSize: the pages per page that applied
 	PageSize int `json:"page_size"`
 }
