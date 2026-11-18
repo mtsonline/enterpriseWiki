@@ -22,6 +22,7 @@ func (s *Service) Instance(ctx context.Context, elementID int64) (acl.Instance, 
 		return acl.Instance{}, err
 	}
 	var typ string
+	// acl: checked above (ElementCategory)
 	if err := s.pool.QueryRow(ctx, `SELECT type FROM elements WHERE id=$1`, elementID).Scan(&typ); err != nil {
 		return acl.Instance{}, apperr.NotFound("element")
 	}
@@ -191,6 +192,7 @@ func (s *Service) SetInstanceRights(ctx context.Context, elementID int64, in []I
 	}
 	err = pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
 		// lock the instance: concurrent changes of its rules apply one after another
+		// acl: internal – row lock after the check
 		if _, err := tx.Exec(ctx, `SELECT 1 FROM elements WHERE id=$1 FOR UPDATE`, elementID); err != nil {
 			return err
 		}

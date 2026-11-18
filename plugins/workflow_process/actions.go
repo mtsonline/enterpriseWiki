@@ -272,7 +272,7 @@ func (pl *Plugin) runAs(ctx context.Context, tx pgx.Tx, x *Instance, s *Step) (c
 		return nil, fmt.Errorf("%s is no longer active", who)
 	}
 	p.Via = "workflow"
-	if !pl.host.ACL.Can(ctx, p, x.CategoryID, acl.View) {
+	if !pl.host.ACL.CanElement(ctx, p, x.ElementID, x.CategoryID, acl.View) {
 		return nil, fmt.Errorf("%s can no longer see the workflow", who)
 	}
 	return withDepth(identity.With(ctx, p), x.Depth+1), nil

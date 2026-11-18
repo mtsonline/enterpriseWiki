@@ -78,6 +78,7 @@ type Summary struct {
 // target is a reactable object.
 type target struct {
 	category int64
+	element  int64 // the page (of a comment); 0 for categories
 	author   *int64
 	title    string
 	link     string
@@ -238,7 +239,8 @@ func (p *Plugin) resolve(ctx context.Context, typ string, id int64) (*target, er
 		if err != nil {
 			return nil, err
 		}
-		t := &target{category: cat, link: fmt.Sprintf("/e/%d", id)}
+		t := &target{category: cat, element: id, link: fmt.Sprintf("/e/%d", id)}
+		// acl: checked above (ElementCategory)
 		_ = p.host.DB.QueryRow(ctx, `SELECT created_by, COALESCE(titles->>$2, (SELECT v FROM jsonb_each_text(titles) AS x(k, v) LIMIT 1), '')
 			FROM elements WHERE id=$1`, id, lang).Scan(&t.author, &t.title)
 		return t, nil
@@ -368,7 +370,8 @@ func (p *Plugin) react(ctx context.Context, typ string, id int64, emoji string, 
 				return nil
 			}
 			author, err := p.host.Auth.LoadPrincipalQ(ctx, tx, *t.author)
-			if err != nil || !p.host.ACL.Can(ctx, author, t.category, acl.View) {
+			if err != nil || (t.element == 0 && !p.host.ACL.Can(ctx, author, t.category, acl.View)) ||
+				(t.element != 0 && !p.host.ACL.CanElement(ctx, author, t.element, t.category, acl.View)) {
 				return nil // gone or without access: nobody to tell
 			}
 			by := me.DisplayName

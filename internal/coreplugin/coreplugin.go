@@ -362,6 +362,14 @@ func (h *Host) Can(ctx context.Context, categoryID int64, action string) bool {
 	return h.ACL.CanAction(ctx, identity.From(ctx), categoryID, action)
 }
 
+// CanElement reports whether the caller has the category permission action
+// on an element in categoryID: the element's own rights apply (see
+// acl.Service.ElementActions). Use it for everything about one element
+// (comments, reactions …) instead of Can.
+func (h *Host) CanElement(ctx context.Context, elementID, categoryID int64, action string) bool {
+	return h.ACL.CanElementAction(ctx, identity.From(ctx), elementID, categoryID, action)
+}
+
 // CanInstance reports whether the caller has the instance permission action
 // (declared with "instance" in plugin.json) on the instance element id that
 // the caller may view (see acl.Service.CanInstance).
@@ -402,6 +410,17 @@ func (h *Host) UserCan(ctx context.Context, uid, categoryID int64, want acl.Perm
 		return false
 	}
 	return h.ACL.Can(ctx, p, categoryID, want)
+}
+
+// UserCanElement reports whether user uid has want on an element in
+// categoryID (its own rights apply), e.g. to notify only people who may see
+// the page.
+func (h *Host) UserCanElement(ctx context.Context, uid, elementID, categoryID int64, want acl.Perm) bool {
+	p, err := h.Auth.LoadPrincipal(ctx, uid)
+	if err != nil {
+		return false
+	}
+	return h.ACL.CanElement(ctx, p, elementID, categoryID, want)
 }
 
 // RequireAdmin returns an error unless the caller of r is an administrator.

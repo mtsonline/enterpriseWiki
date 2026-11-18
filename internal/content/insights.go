@@ -49,6 +49,7 @@ func (s *Service) FlushViews(ctx context.Context) error {
 		for id, n := range counts {
 			ids, ns = append(ids, id), append(ns, int32(min(n, 1<<30))) // #nosec G115 -- capped
 		}
+		// acl: internal – view counts (counted after ElementCategory)
 		if _, err := s.pool.Exec(ctx, `INSERT INTO element_views(element_id, day, views)
 			SELECT v.id, current_date, v.n FROM unnest($1::bigint[], $2::int[]) AS v(id, n) JOIN elements e ON e.id = v.id
 			ON CONFLICT (element_id, day) DO UPDATE SET views = element_views.views + EXCLUDED.views`, ids, ns); err != nil {
@@ -112,18 +113,29 @@ func (s *Service) Insights(ctx context.Context, id int64, days int, lang string)
 	if err != nil {
 		return nil, err
 	}
-	cats, err := s.acl.Filter(ctx, identity.From(ctx), all, acl.View)
+	// pages the caller may see (their own rights apply)
+	f, err := s.acl.ElementFilter(ctx, identity.From(ctx), acl.View)
 	if err != nil {
 		return nil, err
 	}
+	// cond restricts e to the subtree and the visible pages; args are the
+	// other arguments of the query ($2 …)
+	cond := func(args ...any) (string, []any) {
+		a := append([]any{all}, args...)
+		return "e.category_id = ANY($1) AND " + f.SQL("e", &a), a
+	}
 	out := &Insights{Days: days, ViewsPerDay: []DayViews{}, Popular: []InsightRow{}, Stale: []InsightRow{}, Contributors: []Contributor{}}
+	w, a := cond(days)
+	// acl: filtered (ElementFilter)
 	if err := s.pool.QueryRow(ctx, `SELECT count(*), count(*) FILTER (WHERE created_at > now() - make_interval(days => $2))
-		FROM elements WHERE category_id = ANY($1) AND deleted_at IS NULL`, cats, days).Scan(&out.Pages, &out.NewPages); err != nil {
+		FROM elements e WHERE `+w+` AND deleted_at IS NULL`, a...).Scan(&out.Pages, &out.NewPages); err != nil {
 		return nil, err
 	}
 	title := `COALESCE(e.titles->>$3, e.titles->>e.original_lang, '')`
+	w, a = cond(days)
+	// acl: filtered (ElementFilter)
 	rows, err = s.pool.Query(ctx, `SELECT to_char(v.day, 'YYYY-MM-DD'), sum(v.views)::int FROM element_views v JOIN elements e ON e.id = v.element_id
-		WHERE e.category_id = ANY($1) AND e.deleted_at IS NULL AND v.day > current_date - $2::int GROUP BY v.day ORDER BY v.day`, cats, days)
+		WHERE `+w+` AND e.deleted_at IS NULL AND v.day > current_date - $2::int GROUP BY v.day ORDER BY v.day`, a...)
 	if err != nil {
 		return nil, err
 	}
@@ -133,28 +145,34 @@ func (s *Service) Insights(ctx context.Context, id int64, days int, lang string)
 	for _, d := range out.ViewsPerDay {
 		out.Views += d.Views
 	}
+	w, a = cond(days, lang)
+	// acl: filtered (ElementFilter)
 	rows, err = s.pool.Query(ctx, `SELECT e.id, `+title+`, sum(v.views)::int, e.updated_at FROM element_views v JOIN elements e ON e.id = v.element_id
-		WHERE e.category_id = ANY($1) AND e.deleted_at IS NULL AND v.day > current_date - $2::int
-		GROUP BY e.id ORDER BY 3 DESC, e.id LIMIT 10`, cats, days, lang)
+		WHERE `+w+` AND e.deleted_at IS NULL AND v.day > current_date - $2::int
+		GROUP BY e.id ORDER BY 3 DESC, e.id LIMIT 10`, a...)
 	if err != nil {
 		return nil, err
 	}
 	if out.Popular, err = pgx.CollectRows(rows, pgx.RowToStructByPos[InsightRow]); err != nil {
 		return nil, err
 	}
+	w, a = cond(days, lang)
+	// acl: filtered (ElementFilter)
 	rows, err = s.pool.Query(ctx, `SELECT e.id, `+title+`, 0, e.updated_at FROM elements e
-		WHERE e.category_id = ANY($1) AND e.deleted_at IS NULL AND e.updated_at < now() - interval '180 days' AND $2::int > 0
-		ORDER BY e.updated_at, e.id LIMIT 10`, cats, days, lang)
+		WHERE `+w+` AND e.deleted_at IS NULL AND e.updated_at < now() - interval '180 days' AND $2::int > 0
+		ORDER BY e.updated_at, e.id LIMIT 10`, a...)
 	if err != nil {
 		return nil, err
 	}
 	if out.Stale, err = pgx.CollectRows(rows, pgx.RowToStructByPos[InsightRow]); err != nil {
 		return nil, err
 	}
+	w, a = cond(days)
+	// acl: filtered (ElementFilter)
 	rows, err = s.pool.Query(ctx, `SELECT COALESCE(NULLIF(u.display_name, ''), u.username), count(*)::int FROM element_revisions r
 		JOIN elements e ON e.id = r.element_id JOIN users u ON u.id = r.created_by
-		WHERE e.category_id = ANY($1) AND e.deleted_at IS NULL AND r.created_at > now() - make_interval(days => $2)
-		GROUP BY u.id, 1 ORDER BY 2 DESC, 1 LIMIT 10`, cats, days)
+		WHERE `+w+` AND e.deleted_at IS NULL AND r.created_at > now() - make_interval(days => $2)
+		GROUP BY u.id, 1 ORDER BY 2 DESC, 1 LIMIT 10`, a...)
 	if err != nil {
 		return nil, err
 	}

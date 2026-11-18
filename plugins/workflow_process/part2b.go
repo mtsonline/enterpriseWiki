@@ -196,6 +196,7 @@ func (pl *Plugin) linkTarget(ctx context.Context, tok string) (link, *Instance, 
 	if err != nil {
 		return l, nil, err
 	}
+	// acl: a signed link of one person; acting runs as that person and checks the page (CanElement)
 	rows, err := pl.host.DB.Query(ctx, `SELECT `+instCols+` FROM plugin_workflow_instances i JOIN elements e ON e.id=i.element_id WHERE i.id=$1`, l.caseID)
 	if err != nil {
 		return l, nil, err
@@ -218,7 +219,7 @@ func linkHash(tok string) string {
 func (pl *Plugin) linkRoutes(host *coreplugin.Host) {
 	withoutLogin := func(ctx context.Context, x *Instance) bool {
 		on, _ := host.Settings()["links_without_login"].(bool)
-		return on && host.ACL.Classification(ctx, x.CategoryID) < acl.Confidential
+		return on && host.ACL.ElementClassification(ctx, x.ElementID, x.CategoryID) < acl.Confidential
 	}
 	// GET /links/info?t=…: what a link of a task e-mail stands for
 	// action: workflow.process.links.info
@@ -436,7 +437,7 @@ func (pl *Plugin) statsRoutes(host *coreplugin.Host) {
 		if err != nil {
 			return nil, err
 		}
-		if !pl.manage(ctx, cat) {
+		if !pl.manage(ctx, id, cat) {
 			if _, err := pl.mayChange(ctx, id); err != nil {
 				return nil, err
 			}

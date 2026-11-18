@@ -550,6 +550,7 @@ func (p *Plugin) freeSetting(ctx context.Context, q db.Querier, categoryID int64
 // a type stored the same way); values without one become free properties
 // named label.
 func (p *Plugin) reassign(ctx context.Context, tx pgx.Tx, categoryID *int64, key, label string) error {
+	// acl: internal – reassigning values after a definition change
 	rows, err := tx.Query(ctx, `SELECT v.element_id, e.category_id, e.type, v.type, v.def_id FROM plugin_prop_values v JOIN elements e ON e.id = v.element_id
 		WHERE v.key = $1 AND ($2::bigint IS NULL OR e.category_id IN (SELECT c.id FROM categories c, categories t WHERE t.id=$2 AND c.path <@ t.path))`, key, categoryID)
 	if err != nil {

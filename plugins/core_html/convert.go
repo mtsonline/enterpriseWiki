@@ -29,6 +29,7 @@ func ConvertAll(ctx context.Context, h *coreplugin.Host) (int, error) {
 		title string
 		body  json.RawMessage
 	}
+	// acl: internal – one-time conversion (command line)
 	rows, err := h.DB.Query(ctx, `SELECT DISTINCT ON (r.element_id, r.lang) r.element_id, r.lang, r.rev, r.title, r.body
 		FROM element_revisions r JOIN elements e ON e.id = r.element_id
 		WHERE e.type = 'core.html' ORDER BY r.element_id, r.lang, r.rev DESC`)

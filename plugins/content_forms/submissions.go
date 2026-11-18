@@ -77,6 +77,7 @@ func (p *Plugin) mayHandle(ctx context.Context, id int64, what string) (int64, e
 	}
 	var creator *int64
 	var typ string
+	// acl: checked above (ElementCategory)
 	if err := p.host.DB.QueryRow(ctx, `SELECT created_by, type FROM elements WHERE id=$1`, id).Scan(&creator, &typ); err != nil || typ != TypeID {
 		return 0, apperr.NotFound("form")
 	}
@@ -84,7 +85,7 @@ func (p *Plugin) mayHandle(ctx context.Context, id int64, what string) (int64, e
 	if key == "" {
 		return 0, apperr.ErrForbidden
 	}
-	if what != subDelete && creator != nil && *creator == me.ID() || p.host.Can(ctx, cat, key) {
+	if what != subDelete && creator != nil && *creator == me.ID() || p.host.CanElement(ctx, id, cat, key) {
 		return cat, nil
 	}
 	return 0, apperr.Forbidden("this needs the permission %q", key)
@@ -326,6 +327,7 @@ func (p *Plugin) retention(ctx context.Context) error {
 	}
 	for _, id := range ids {
 		var body []byte
+		// acl: internal – retention job
 		if err := p.host.DB.QueryRow(ctx, `SELECT r.body FROM elements e JOIN element_revisions r ON r.element_id=e.id AND r.lang=e.original_lang
 			WHERE e.id=$1 ORDER BY r.rev DESC LIMIT 1`, id).Scan(&body); err != nil {
 			continue

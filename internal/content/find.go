@@ -45,25 +45,11 @@ func (s *Service) FindElements(ctx context.Context, o FindOptions) ([]FoundEleme
 			return nil, 0, err
 		}
 		cats = scope
-	} else if p := identity.From(ctx); !p.Admin() {
-		rows, err := s.pool.Query(ctx, `SELECT id FROM categories WHERE deleted_at IS NULL`)
-		if err != nil {
-			return nil, 0, err
-		}
-		all, err := pgx.CollectRows(rows, pgx.RowTo[int64])
-		if err != nil {
-			return nil, 0, err
-		}
-		perms, err := s.acl.PermsMap(ctx, p, all)
-		if err != nil {
-			return nil, 0, err
-		}
-		cats = []int64{}
-		for _, id := range all {
-			if perms[id]&acl.View != 0 {
-				cats = append(cats, id)
-			}
-		}
+	}
+	// pages the caller may see (their own rights apply)
+	f, err := s.acl.ElementFilter(ctx, identity.From(ctx), acl.View)
+	if err != nil {
+		return nil, 0, err
 	}
 	order := "e.updated_at DESC, e.id DESC"
 	switch o.Sort {
@@ -77,12 +63,18 @@ func (s *Service) FindElements(ctx context.Context, o FindOptions) ([]FoundEleme
 	q := strings.ReplaceAll(strings.ReplaceAll(strings.TrimSpace(o.Q), "%", ""), "_", "")
 	where := `e.deleted_at IS NULL AND ($1::bigint[] IS NULL OR e.category_id = ANY($1)) AND ($2 = '' OR e.type = $2)
 		AND ($3 = '' OR e.short_url ILIKE '%' || $3 || '%' OR EXISTS (SELECT 1 FROM jsonb_each_text(e.titles) t WHERE t.value ILIKE '%' || $3 || '%'))`
+	args := []any{cats, o.Type, q, o.Limit, o.Lang, o.Offset}
+	fw := f.SQL("e", &args)
+	cargs := []any{cats, o.Type, q}
+	cw := f.SQL("e", &cargs)
 	var total int
-	if err := s.pool.QueryRow(ctx, `SELECT count(*) FROM elements e WHERE `+where, cats, o.Type, q).Scan(&total); err != nil {
+	// acl: filtered (ElementFilter)
+	if err := s.pool.QueryRow(ctx, `SELECT count(*) FROM elements e WHERE `+where+` AND `+cw, cargs...).Scan(&total); err != nil {
 		return nil, 0, err
 	}
+	// acl: filtered (ElementFilter)
 	rows, err := s.pool.Query(ctx, `SELECT `+elemCols+`, COALESCE(NULLIF(e.titles->>$5, ''), e.titles->>e.original_lang, '')
-		FROM elements e WHERE `+where+` ORDER BY `+order+` LIMIT $4 OFFSET $6`, cats, o.Type, q, o.Limit, o.Lang, o.Offset)
+		FROM elements e WHERE `+where+` AND `+fw+` ORDER BY `+order+` LIMIT $4 OFFSET $6`, args...)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -90,7 +82,7 @@ func (s *Service) FindElements(ctx context.Context, o FindOptions) ([]FoundEleme
 		var f FoundElement
 		e := &f.Element
 		err := r.Scan(&e.ID, &e.CategoryID, &e.Type, &e.Position, &e.OriginalLang, &e.Titles, &e.Tags, &e.CreatedAt, &e.UpdatedAt,
-			&e.UpdatedBy, &e.DeletedAt, &e.IsDefault, &e.ShortURL, &e.PreviewImage, &e.CreatedByID, &e.ShortOnly, &e.OwnerInstance, &e.Hidden, &f.Title)
+			&e.UpdatedBy, &e.DeletedAt, &e.IsDefault, &e.ShortURL, &e.PreviewImage, &e.CreatedByID, &e.ShortOnly, &e.OwnerInstance, &e.Hidden, &e.OwnRightsOnly, &e.Classification, &e.OwnRules, &f.Title)
 		return f, err
 	})
 	if err != nil {

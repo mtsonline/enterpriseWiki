@@ -522,14 +522,15 @@ func (p *Plugin) loadCalendar(ctx context.Context, id int64, lang string) (*cale
 	if err != nil {
 		return nil, err
 	}
-	perms, err := p.host.ACL.Perms(ctx, identity.From(ctx), cat)
+	perms, err := p.host.ACL.ElementPerms(ctx, identity.From(ctx), id, cat)
 	if err != nil {
 		return nil, err
 	}
 	var titles map[string]string
+	// acl: checked above (ElementBody)
 	_ = p.host.DB.QueryRow(ctx, `SELECT titles FROM elements WHERE id=$1`, id).Scan(&titles)
 	return &calendar{ID: id, Category: cat, Title: pickText(titles, lang), Config: cfg, Perms: perms,
-		Attendees: p.host.Can(ctx, cat, "content.events.attendees")}, nil
+		Attendees: p.host.CanElement(ctx, id, cat, "content.events.attendees")}, nil
 }
 
 func pickText(m map[string]string, lang string) string {
@@ -696,6 +697,7 @@ func (p *Plugin) eventsOf(ctx context.Context, calendars []int64, from, to time.
 
 // visibleCalendars returns calendar elements the caller may view (all or the given ones).
 func (p *Plugin) visibleCalendars(ctx context.Context, only []int64) (map[int64]string, error) {
+	// acl: checked below (ElementFilter)
 	rows, err := p.host.DB.Query(ctx, `SELECT e.id, e.category_id, e.titles FROM elements e JOIN categories c ON c.id = e.category_id
 		WHERE e.type = $1 AND e.deleted_at IS NULL AND c.deleted_at IS NULL AND (cardinality($2::bigint[]) = 0 OR e.id = ANY($2))`, TypeID, only)
 	if err != nil {
@@ -712,17 +714,13 @@ func (p *Plugin) visibleCalendars(ctx context.Context, only []int64) (map[int64]
 	if err != nil {
 		return nil, err
 	}
-	cats := make([]int64, 0, len(list))
-	for _, x := range list {
-		cats = append(cats, x.cat)
-	}
-	perms, err := p.host.ACL.PermsMap(ctx, identity.From(ctx), cats)
+	f, err := p.host.ACL.ElementFilter(ctx, identity.From(ctx), acl.View)
 	if err != nil {
 		return nil, err
 	}
 	out := map[int64]string{}
 	for _, x := range list {
-		if perms[x.cat]&acl.View != 0 {
+		if f.Allows(x.id, x.cat) {
 			out[x.id] = pickText(x.titles, "")
 		}
 	}

@@ -97,14 +97,36 @@ func (s *Service) List(ctx context.Context) ([]Watch, error) {
 	if err != nil {
 		return nil, err
 	}
+	// acl: titles only of targets the caller may still see (checked below)
 	rows, err := s.pool.Query(ctx, `SELECT w.id, w.target_type, w.target_id, w.mode, w.recursive, w.created_at,
 		COALESCE(CASE w.target_type WHEN 'category' THEN (SELECT titles FROM categories WHERE id=w.target_id AND deleted_at IS NULL)
-			ELSE (SELECT titles FROM elements WHERE id=w.target_id AND deleted_at IS NULL) END, '{}'), w.frequency
+			ELSE (SELECT titles FROM elements WHERE id=w.target_id AND deleted_at IS NULL) END, '{}'), w.frequency,
+			CASE w.target_type WHEN 'category' THEN w.target_id ELSE COALESCE((SELECT category_id FROM elements WHERE id=w.target_id), 0) END
 		FROM watches w WHERE w.user_id=$1 ORDER BY w.created_at DESC`, uid)
 	if err != nil {
 		return nil, err
 	}
-	return pgx.CollectRows(rows, pgx.RowToStructByPos[Watch])
+	p := identity.From(ctx)
+	out := []Watch{}
+	for rows.Next() {
+		var w Watch
+		var cat int64
+		if err := rows.Scan(&w.ID, &w.TargetType, &w.TargetID, &w.Mode, &w.Recursive, &w.CreatedAt, &w.Titles, &w.Frequency, &cat); err != nil {
+			rows.Close()
+			return nil, err
+		}
+		visible := s.acl.Can(ctx, p, cat, acl.View)
+		if w.TargetType == "element" {
+			visible = s.acl.CanElement(ctx, p, w.TargetID, cat, acl.View)
+		}
+		if !visible {
+			// the watch stays (access may come back); its title is not shown
+			w.Titles = map[string]string{}
+		}
+		out = append(out, w)
+	}
+	rows.Close()
+	return out, rows.Err()
 }
 
 // Get returns the watch of the current user for a target (nil if none).
@@ -175,6 +197,7 @@ func (s *Service) onChange(ctx context.Context, event, etype string, id int64) e
 	var err error
 	switch etype {
 	case "element":
+		// acl: queued for every watcher; each recipient is checked when sending (CanElement)
 		_, err = s.pool.Exec(ctx, `INSERT INTO watch_events(user_id, entity_type, entity_id, event, actor_id, mode, freq)
 			SELECT w.user_id, 'element', $1::bigint, $2::text, $3::bigint, max(w.mode), `+freqSQL+` FROM watch_effective w
 			WHERE w.user_id <> COALESCE($3::bigint, 0) AND ((w.target_type='element' AND w.target_id=$1) OR (w.target_type='category' AND (
@@ -398,10 +421,11 @@ func (s *Service) describe(ctx context.Context, tx pgx.Tx, c pending, lang, base
 	var titles map[string]string
 	var cat int64
 	var deleted *time.Time
+	// acl: checked below (CanElement for the recipient)
 	if err := tx.QueryRow(ctx, `SELECT titles, category_id, deleted_at FROM elements WHERE id=$1`, c.entityID).Scan(&titles, &cat, &deleted); err != nil {
 		return it, false
 	}
-	if !s.acl.Can(ctx, identity.From(ctx), cat, acl.View) {
+	if !s.acl.CanElement(ctx, identity.From(ctx), c.entityID, cat, acl.View) {
 		return it, false
 	}
 	it.title, it.url = pick(titles), fmt.Sprintf("%s/e/%d", base, c.entityID)
@@ -410,7 +434,7 @@ func (s *Service) describe(ctx context.Context, tx pgx.Tx, c pending, lang, base
 		return it, true
 	}
 	// confidential content does not leave the wiki by e-mail: title and link only
-	if c.mode == "content" && s.acl.Classification(ctx, cat) < acl.Confidential {
+	if c.mode == "content" && s.acl.ElementClassification(ctx, c.entityID, cat) < acl.Confidential {
 		view, err := s.content.GetElement(ctx, c.entityID, lang, false)
 		if err == nil {
 			it.title = view.Title

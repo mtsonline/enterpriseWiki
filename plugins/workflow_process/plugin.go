@@ -321,11 +321,12 @@ func (pl *Plugin) decorate(ctx context.Context, w *who, x *Instance, manage bool
 
 // manage reports whether the caller manages the cases of a category
 // (permission workflow.process.cases or workflow administrator).
-func (pl *Plugin) manage(ctx context.Context, category int64) bool {
-	return pl.host.Can(ctx, category, permCases)
+func (pl *Plugin) manage(ctx context.Context, element, category int64) bool {
+	return pl.host.CanElement(ctx, element, category, permCases)
 }
 
 func (pl *Plugin) load(ctx context.Context, id int64) (*Instance, *who, bool, error) {
+	// acl: checked below (ElementCategory and the case rules)
 	rows, err := pl.host.DB.Query(ctx, `SELECT `+instCols+` FROM plugin_workflow_instances i JOIN elements e ON e.id=i.element_id WHERE i.id=$1`, id)
 	if err != nil {
 		return nil, nil, false, err
@@ -344,7 +345,7 @@ func (pl *Plugin) load(ctx context.Context, id int64) (*Instance, *who, bool, er
 	if err != nil {
 		return nil, nil, false, err
 	}
-	m := pl.manage(ctx, x.CategoryID)
+	m := pl.manage(ctx, x.ElementID, x.CategoryID)
 	if !w.visible(x, m) {
 		return nil, nil, false, apperr.NotFound("case")
 	}
@@ -381,6 +382,7 @@ func definitionByQ(ctx context.Context, q db.Querier, element int64, lang string
 	var shown string
 	var by *int64
 	var rev int
+	// acl: callers check the workflow (ElementCategory)
 	err := q.QueryRow(ctx, `SELECT r.body, r.lang, r.created_by, r.rev FROM element_revisions r JOIN elements e ON e.id=r.element_id
 		WHERE r.element_id=$1 AND e.type='workflow.process' AND e.deleted_at IS NULL
 		ORDER BY (r.lang=$2) DESC, (r.lang=e.original_lang) DESC, r.rev DESC LIMIT 1`, element, lang).Scan(&raw, &shown, &by, &rev)
@@ -424,8 +426,9 @@ func (pl *Plugin) startTx(ctx context.Context, tx pgx.Tx, element int64, in star
 	}
 	// everything with tx: no second connection while the case is written (S-01)
 	var cat int64
+	// acl: checked here (CanElement)
 	if err := tx.QueryRow(ctx, `SELECT e.category_id FROM elements e JOIN categories c ON c.id=e.category_id
-		WHERE e.id=$1 AND e.deleted_at IS NULL AND c.deleted_at IS NULL`, element).Scan(&cat); err != nil || !pl.host.ACL.Can(ctx, p, cat, acl.View) {
+		WHERE e.id=$1 AND e.deleted_at IS NULL AND c.deleted_at IS NULL`, element).Scan(&cat); err != nil || !pl.host.ACL.CanElement(ctx, p, element, cat, acl.View) {
 		return 0, apperr.NotFound("workflow")
 	}
 	def, shown, definer, err := definitionByQ(ctx, tx, element, in.Lang)
@@ -649,6 +652,7 @@ func (pl *Plugin) Setup(host *coreplugin.Host) error {
 			return nil, err
 		}
 		status := r.URL.Query().Get("status")
+		// acl: checked above (ElementCategory)
 		rows, err := host.DB.Query(ctx, `SELECT `+instCols+` FROM plugin_workflow_instances i JOIN elements e ON e.id=i.element_id
 			WHERE i.element_id=$1 AND NOT i.branch AND i.test = $3 AND ($2='' OR i.status=$2) ORDER BY i.updated_at DESC LIMIT 1000`, id, status, r.URL.Query().Get("test") == "1")
 		if err != nil {
@@ -658,7 +662,7 @@ func (pl *Plugin) Setup(host *coreplugin.Host) error {
 		if err != nil {
 			return nil, err
 		}
-		m := pl.manage(ctx, cat)
+		m := pl.manage(ctx, id, cat)
 		list := []*Instance{}
 		for _, x := range all {
 			if me.visible(x, m) {
@@ -810,6 +814,7 @@ func (pl *Plugin) Setup(host *coreplugin.Host) error {
 		if me.p == nil || me.p.ID() == 0 {
 			return nil, apperr.ErrUnauthorized
 		}
+		// acl: checked below (ElementFilter)
 		rows, err := host.DB.Query(ctx, `SELECT `+instCols+` FROM plugin_workflow_instances i JOIN elements e ON e.id=i.element_id
 			WHERE e.deleted_at IS NULL AND (i.status='open' OR i.started_by=$1) ORDER BY i.updated_at DESC LIMIT 2000`, me.p.ID())
 		if err != nil {
@@ -819,20 +824,16 @@ func (pl *Plugin) Setup(host *coreplugin.Host) error {
 		if err != nil {
 			return nil, err
 		}
-		cats := make([]int64, len(all))
-		for i, x := range all {
-			cats[i] = x.CategoryID
-		}
-		perms, err := host.ACL.PermsMap(ctx, me.p, cats)
+		f, err := host.ACL.ElementFilter(ctx, me.p, acl.View)
 		if err != nil {
 			return nil, err
 		}
 		tasks, started := []*Instance{}, []*Instance{}
 		for _, x := range all {
-			if perms[x.CategoryID]&acl.View == 0 {
+			if !f.Allows(x.ElementID, x.CategoryID) {
 				continue
 			}
-			m := pl.host.Can(ctx, x.CategoryID, permCases)
+			m := pl.manage(ctx, x.ElementID, x.CategoryID)
 			if x.Status == "open" && me.assigned(x, x.Definition.Step(x.Step)) {
 				pl.decorate(ctx, me, x, m)
 				if len(x.Actions) > 0 { // e.g. not yet voted
@@ -852,6 +853,7 @@ func (pl *Plugin) Setup(host *coreplugin.Host) error {
 
 // loadTx loads a case inside a transaction and locks it.
 func (pl *Plugin) loadTx(ctx context.Context, tx pgx.Tx, id int64) (*Instance, error) {
+	// acl: internal – lock; callers loaded the case with its checks before (or the system runs it)
 	rows, err := tx.Query(ctx, `SELECT `+instCols+` FROM plugin_workflow_instances i JOIN elements e ON e.id=i.element_id WHERE i.id=$1 FOR NO KEY UPDATE OF i`, id)
 	if err != nil {
 		return nil, err

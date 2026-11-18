@@ -14,6 +14,7 @@ import (
 	"github.com/mtsonline/enterprisewiki/internal/acl"
 	"github.com/mtsonline/enterprisewiki/internal/apperr"
 	"github.com/mtsonline/enterprisewiki/internal/audit"
+	"github.com/mtsonline/enterprisewiki/internal/identity"
 )
 
 // Export and import of a category tree (e.g. a space) as JSON Lines: one
@@ -140,7 +141,16 @@ func (s *Service) ExportTree(ctx context.Context, id int64, w io.Writer) error {
 }
 
 func (s *Service) exportElements(ctx context.Context, cat int64, enc *json.Encoder) error {
-	rows, err := s.pool.Query(ctx, `SELECT e.id, e.type, e.original_lang, e.tags FROM elements e WHERE e.category_id=$1 AND e.deleted_at IS NULL ORDER BY e.position, e.id`, cat)
+	// pages the caller may view (their own rights apply); strictly
+	// confidential pages are not exported
+	f, err := s.acl.ElementFilter(ctx, identity.From(ctx), acl.View)
+	if err != nil {
+		return err
+	}
+	args := []any{cat}
+	// acl: filtered (ElementFilter)
+	rows, err := s.pool.Query(ctx, `SELECT e.id, e.type, e.original_lang, e.tags FROM elements e WHERE e.category_id=$1 AND e.deleted_at IS NULL
+		AND e.classification < 3 AND `+f.SQL("e", &args)+` ORDER BY e.position, e.id`, args...)
 	if err != nil {
 		return err
 	}

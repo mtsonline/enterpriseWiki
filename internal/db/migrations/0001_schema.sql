@@ -171,7 +171,14 @@ CREATE TABLE elements (
     owner_instance bigint REFERENCES elements(id) ON DELETE SET NULL,
     -- hidden: not in listings, sources, feeds and the search; reachable by
     -- its link with view permission (not a protection – permissions are)
-    hidden        boolean NOT NULL DEFAULT false
+    hidden        boolean NOT NULL DEFAULT false,
+    -- only the element's rules (element_rules) apply, not those of its
+    -- category; administrators and managers of the category by a rule keep
+    -- access (see acl.Service.ElementPerms)
+    own_rights_only boolean NOT NULL DEFAULT false,
+    -- classification of the element (0–3); the strictest of the element and
+    -- its categories applies
+    classification smallint NOT NULL DEFAULT 0 CHECK (classification BETWEEN 0 AND 3)
 );
 CREATE INDEX elements_category ON elements(category_id, position);
 CREATE INDEX elements_owner_instance ON elements(owner_instance) WHERE owner_instance IS NOT NULL;
@@ -500,6 +507,23 @@ CREATE TABLE instance_rules (
     CHECK ((subject_type = 'authenticated') = (subject_id IS NULL))
 );
 CREATE INDEX instance_rules_element ON instance_rules(element_id);
+
+-- permissions on one element: in addition to those of its category, or
+-- instead of them with elements.own_rights_only. Bits as acl_rules plus
+-- grant (32: give permissions on this element); named category permissions
+-- of plugins in actions.
+CREATE TABLE element_rules (
+    id           bigserial PRIMARY KEY,
+    element_id   bigint NOT NULL REFERENCES elements(id) ON DELETE CASCADE,
+    subject_type text NOT NULL CHECK (subject_type IN ('user','group','role','guest','authenticated')),
+    subject_id   bigint,
+    permissions  int NOT NULL CHECK (permissions > 0 AND (permissions & ~(1|2|8|32)) = 0),
+    actions      text[] NOT NULL DEFAULT '{}',
+    created_by   bigint REFERENCES users(id) ON DELETE SET NULL,
+    created_at   timestamptz NOT NULL DEFAULT now(),
+    CHECK ((subject_type IN ('guest','authenticated')) = (subject_id IS NULL))
+);
+CREATE INDEX element_rules_element ON element_rules(element_id);
 
 -- where the building blocks of the interface (search, notifications,
 -- category tree, buttons of plugins …) appear: one row places a block at a

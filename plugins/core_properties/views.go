@@ -45,6 +45,7 @@ func viewRoutes(host *coreplugin.Host) {
 	dbCategory := func(ctx context.Context, id int64, want acl.Perm) (int64, error) {
 		var typ string
 		var cat int64
+		// acl: checked below (CanElement)
 		err := host.DB.QueryRow(ctx, `SELECT type, category_id FROM elements WHERE id=$1 AND deleted_at IS NULL`, id).Scan(&typ, &cat)
 		if errors.Is(err, pgx.ErrNoRows) || (err == nil && typ != "content.propdb") {
 			return 0, apperr.NotFound("database")
@@ -52,10 +53,10 @@ func viewRoutes(host *coreplugin.Host) {
 		if err != nil {
 			return 0, err
 		}
-		if !host.ACL.Can(ctx, identity.From(ctx), cat, acl.View) {
+		if !host.ACL.CanElement(ctx, identity.From(ctx), id, cat, acl.View) {
 			return 0, apperr.NotFound("database")
 		}
-		if want != acl.View && !host.ACL.Can(ctx, identity.From(ctx), cat, want) {
+		if want != acl.View && !host.ACL.CanElement(ctx, identity.From(ctx), id, cat, want) {
 			return 0, apperr.ErrForbidden
 		}
 		return cat, nil

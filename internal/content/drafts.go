@@ -84,6 +84,12 @@ type DraftInput struct {
 // element on behalf of an instance: its contributors see their own, its
 // editors all).
 func (s *Service) canSeeDraft(ctx context.Context, d *Draft) bool {
+	return s.canSeeDraftOf(ctx, d, nil)
+}
+
+// canSeeDraftOf is canSeeDraft with the elements of the drafts loaded
+// before (elems; nil: load the element).
+func (s *Service) canSeeDraftOf(ctx context.Context, d *Draft, elems map[int64]*Element) bool {
 	p := identity.From(ctx)
 	if p == nil {
 		return false
@@ -97,6 +103,18 @@ func (s *Service) canSeeDraft(ctx context.Context, d *Draft) bool {
 				return true
 			}
 		}
+	}
+	if d.ElementID != nil {
+		// a draft of an existing element: its own rights apply (also for
+		// the author); instance permissions as for the element itself
+		e := elems[*d.ElementID]
+		if elems == nil {
+			var err error
+			if e, err = s.loadElement(ctx, s.pool, *d.ElementID, false); err != nil {
+				return false
+			}
+		}
+		return e != nil && s.elementPerms(ctx, e)&acl.Edit != 0
 	}
 	if d.createdBy != nil && *d.createdBy == p.ID() && (s.acl.Can(ctx, p, d.CategoryID, acl.Create) || s.acl.Can(ctx, p, d.CategoryID, acl.Edit)) {
 		return true
@@ -243,9 +261,19 @@ func (s *Service) Drafts(ctx context.Context, categoryID, elementID int64) ([]Dr
 	if err != nil {
 		return nil, err
 	}
+	ids := []int64{}
+	for _, d := range all {
+		if d.ElementID != nil {
+			ids = append(ids, *d.ElementID)
+		}
+	}
+	elems, err := s.loadElements(ctx, ids)
+	if err != nil {
+		return nil, err
+	}
 	out := []Draft{}
 	for i := range all {
-		if s.canSeeDraft(ctx, &all[i]) {
+		if s.canSeeDraftOf(ctx, &all[i], elems) {
 			all[i].Body = nil
 			out = append(out, all[i])
 		}

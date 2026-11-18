@@ -268,6 +268,7 @@ func (d *Definition) validateTriggers() error {
 func syncTriggers(ctx context.Context, q db.Querier, element int64) error {
 	var raw json.RawMessage
 	var deleted bool
+	// acl: internal – index of triggers
 	err := q.QueryRow(ctx, `SELECT r.body, e.deleted_at IS NOT NULL FROM elements e JOIN element_revisions r ON r.element_id=e.id
 		WHERE e.id=$1 AND e.type='workflow.process' ORDER BY (r.lang=e.original_lang) DESC, r.rev DESC LIMIT 1`, element).Scan(&raw, &deleted)
 	if errors.Is(err, pgx.ErrNoRows) {
@@ -319,6 +320,7 @@ func syncTriggers(ctx context.Context, q db.Querier, element int64) error {
 
 // syncAll copies the triggers of all workflows (at the start of the worker).
 func (pl *Plugin) syncAll(ctx context.Context) error {
+	// acl: internal – worker start
 	rows, err := pl.host.DB.Query(ctx, `SELECT id FROM elements WHERE type='workflow.process'`)
 	if err != nil {
 		return err
@@ -375,6 +377,7 @@ func (pl *Plugin) listen(ctx context.Context, q db.Querier, ev webhook.Event) er
 func (pl *Plugin) listenQ(ctx context.Context, q db.Querier, ev webhook.Event) error {
 	if ev.Object.Type == "element" && strings.HasPrefix(ev.Name, "element.") {
 		var typ string
+		// acl: internal – index of triggers
 		if err := q.QueryRow(ctx, `SELECT type FROM elements WHERE id=$1`, ev.Object.ID).Scan(&typ); err == nil && typ == "workflow.process" {
 			if err := syncTriggers(ctx, q, ev.Object.ID); err != nil {
 				return err
@@ -538,8 +541,15 @@ func (pl *Plugin) fire(ctx context.Context, qe *queued) error {
 		if ev.Name != t.Event {
 			return errSkip
 		}
-		if ev.CategoryID != 0 && !pl.host.UserCan(ctx, uid, ev.CategoryID, acl.View) {
-			return errSkip // nobody learns about what they may not see
+		if ev.CategoryID != 0 {
+			// nobody learns about what they may not see (a page's own rights apply)
+			visible := pl.host.UserCan(ctx, uid, ev.CategoryID, acl.View)
+			if ev.Object.Type == "element" {
+				visible = pl.host.UserCanElement(ctx, uid, ev.Object.ID, ev.CategoryID, acl.View)
+			}
+			if !visible {
+				return errSkip
+			}
 		}
 		if t.Category != 0 {
 			var below bool
@@ -600,6 +610,10 @@ func (pl *Plugin) inSources(ctx context.Context, sources string, element int64) 
 	if err != nil {
 		return false, nil
 	}
+	// the element itself must be visible (its own rights apply)
+	if _, err := pl.host.Content.ElementCategory(ctx, element, acl.View); err != nil {
+		return false, nil
+	}
 	set, err := pl.host.Content.ResolveSources(ctx, list)
 	if err != nil || set.Empty() {
 		return false, err
@@ -610,6 +624,7 @@ func (pl *Plugin) inSources(ctx context.Context, sources string, element int64) 
 		return "$" + strconv.Itoa(len(args))
 	}
 	var ok bool
+	// acl: checked above (ElementCategory) and by the source set
 	err = pl.host.DB.QueryRow(ctx, `SELECT EXISTS (SELECT 1 FROM elements e WHERE e.id=$1 AND `+content.SourceSQL(set, arg)+`)`, args...).Scan(&ok)
 	return ok, err
 }

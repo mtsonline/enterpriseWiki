@@ -61,6 +61,7 @@ type target struct {
 	category int64
 	title    string
 	link     string
+	element  int64 // 0 for a category
 }
 
 // Setup implements coreplugin.SetupPlugin.
@@ -100,7 +101,7 @@ func (p *Plugin) target(ctx context.Context, in Input) (*target, error) {
 		if err != nil {
 			return nil, err
 		}
-		return &target{cat, v.Title, fmt.Sprintf("/e/%d", in.TargetID)}, nil
+		return &target{cat, v.Title, fmt.Sprintf("/e/%d", in.TargetID), in.TargetID}, nil
 	case "category":
 		if err := p.host.Content.Require(ctx, in.TargetID, acl.View); err != nil {
 			return nil, err
@@ -115,7 +116,7 @@ func (p *Plugin) target(ctx context.Context, in Input) (*target, error) {
 				title = t
 			}
 		}
-		return &target{in.TargetID, title, fmt.Sprintf("/c/%d", in.TargetID)}, nil
+		return &target{in.TargetID, title, fmt.Sprintf("/c/%d", in.TargetID), 0}, nil
 	}
 	return nil, apperr.BadRequest("target_type must be element or category")
 }
@@ -149,7 +150,7 @@ func (p *Plugin) share(ctx context.Context, in Input, send bool) (*Result, error
 		if id == me.ID() {
 			continue
 		}
-		if p.host.UserCan(ctx, id, t.category, acl.View) {
+		if (t.element == 0 && p.host.UserCan(ctx, id, t.category, acl.View)) || (t.element != 0 && p.host.UserCanElement(ctx, id, t.element, t.category, acl.View)) {
 			ok = append(ok, id)
 			continue
 		}

@@ -149,6 +149,7 @@ func (s *Server) routesAccess() {
 func (s *Server) requestAccess(ctx context.Context, me *identity.Principal, typ string, id int64, msg string) error {
 	cat := id
 	if typ == "element" {
+		// acl: access requests are for categories; nothing is revealed about the page
 		if err := s.app.DB.QueryRow(ctx, `SELECT category_id FROM elements WHERE id=$1 AND deleted_at IS NULL`, id).Scan(&cat); err != nil {
 			return nil
 		}
