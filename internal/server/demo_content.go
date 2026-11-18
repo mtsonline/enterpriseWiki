@@ -811,6 +811,17 @@ func buildDemo(d *demoRun) {
 		"<p>All pages of the demo with their properties:</p>"+macro("properties", map[string]string{"source": "category:" + strconv.FormatInt(root, 10) + "+sub", "filter": "responsible notempty", "columns": "responsible,state,review", "limit": "50"}, ""),
 		"<p>Alle Seiten der Demo mit ihren Eigenschaften:</p>"+macro("properties", map[string]string{"source": "category:" + strconv.FormatInt(root, 10) + "+sub", "filter": "responsible notempty", "columns": "responsible,state,review", "limit": "50"}, ""), nil)
 
+	// a page with rights of its own: only administrators and managers of the
+	// category see it (own rights only), classified strictly confidential
+	d.optional("element_rights", func() {
+		id := d.page(docs, "Board decisions (own rights only)", "Vorstandsbeschlüsse (nur eigene Rechte)",
+			"<p>This page has rights of its own: only the people named in its <strong>Rights</strong> see it – plus administrators and managers of the category. It appears nowhere else: not in lists, the search or feeds.</p>",
+			"<p>Diese Seite hat eigene Rechte: Nur die in ihren <strong>Rechten</strong> genannten Personen sehen sie – dazu Administratoren und Verwalter der Kategorie. Sonst erscheint sie nirgends: nicht in Listen, der Suche oder Feeds.</p>", nil)
+		if id != 0 {
+			d.call(http.MethodPut, fmt.Sprintf("/api/v1/elements/%d/acl", id), map[string]any{"own_rights_only": true, "classification": 3}, nil)
+		}
+	})
+
 	// classification: the documents are confidential (marked on every page, not in feeds)
 	d.optional("classification", func() {
 		d.call(http.MethodPut, fmt.Sprintf("/api/v1/categories/%d", docs), map[string]any{"classification": 2}, nil)

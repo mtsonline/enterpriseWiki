@@ -1053,7 +1053,7 @@ func (p *Plugin) routesQuery() {
 			}
 			rows := res.Rows[:0:0]
 			for _, row := range res.Rows {
-				if host.ACL.Classification(r.Context(), row.CategoryID) < acl.StrictConfidential {
+				if host.ACL.ElementClassification(r.Context(), row.ID, row.CategoryID) < acl.StrictConfidential {
 					rows = append(rows, row)
 				}
 			}

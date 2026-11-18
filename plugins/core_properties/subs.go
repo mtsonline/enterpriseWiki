@@ -230,7 +230,7 @@ func (p *Plugin) sendOne(ctx context.Context, tx pgx.Tx, uid, el int64, params m
 	body.WriteString(`</tr>`)
 	left := 0
 	for _, row := range res.Rows {
-		level := p.host.ACL.Classification(uctx, row.CategoryID)
+		level := p.host.ACL.ElementClassification(uctx, row.ID, row.CategoryID)
 		if level >= acl.StrictConfidential {
 			left++
 			continue
