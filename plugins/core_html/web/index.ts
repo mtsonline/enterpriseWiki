@@ -5,13 +5,27 @@
 //   simple  a minimal contenteditable editor (HTML, converted on save)
 // The server sanitizes everything on save and render, so the editors are not
 // a security boundary; HTML for editing comes sanitized from the server.
-import { api, button, editorKind, state, errorText, formatAttrs, macroDialog, field, formDialog, h, isImage, loadMarkdownEditor, loading, mediaURL, pickMedium, registerEditor, select, t, textInput, toast, trustedHTML, type EditorContext, type EditorInstance, type MarkdownEditor } from '@ewiki/coreplugin';
+import { api, button, editorKind, state, errorText, formatAttrs, macroDialog, field, formDialog, h, isImage, loadMarkdownEditor, loading, mediaURL, pickMedium, registerEditor, select, t, textInput, toast, toolShown, trustedHTML, type EditorContext, type EditorInstance, type MarkdownEditor } from '@ewiki/coreplugin';
 import { macroAt, macroHTML, parseParams } from './macros';
 import './style.css';
 
 interface Body { format: 'html' | 'markdown'; source: string }
 
 interface Tool { cmd: string; arg?: string; key: string; icon: string; state?: boolean }
+
+/** Name of a button for the choice of the site and categories (content.EditorTools). */
+function toolName(tool: Tool): string {
+  switch (tool.cmd) {
+    case 'formatBlock': return tool.arg === 'blockquote' ? 'quote' : 'block';
+    case 'bold': return 'strong';
+    case 'italic': return 'em';
+    case 'strikeThrough': return 'strike';
+    case 'insertUnorderedList': return 'bullet';
+    case 'insertOrderedList': return 'ordered';
+    case 'insertHorizontalRule': return 'hr';
+    default: return tool.cmd; // underline, link, table, image, macro, undo, redo
+  }
+}
 
 const TOOLS: (Tool | '|')[] = [
   { cmd: 'formatBlock', arg: 'p', key: 'core.html.paragraph', icon: '¶' },
@@ -57,7 +71,7 @@ async function toMarkdown(html: string): Promise<string> {
   return (await api.post<{ markdown: string }>(BASE + 'to-markdown', { source: html })).markdown;
 }
 
-type Ctx = Pick<EditorContext, 'lang' | 'type' | 'labelId' | 'elementId' | 'onRemoteSave' | 'toolbarHost'>;
+type Ctx = Pick<EditorContext, 'lang' | 'type' | 'labelId' | 'elementId' | 'onRemoteSave' | 'toolbarHost' | 'tools'>;
 
 /** Creates the core.html editor (the user's choice). Exported so other plugins can reuse it. */
 export function createHtmlEditor(container: HTMLElement, body: unknown, ctx: Ctx): EditorInstance {
@@ -81,7 +95,7 @@ export function createVisualEditor(container: HTMLElement, body: unknown, ctx: C
     const collab = ctx.elementId && state.user && state.site.collaboration !== false
       ? { elementId: ctx.elementId, userId: state.user.id, onSaved: (rev: number, by?: { name: string }) => ctx.onRemoteSave?.(rev, by?.name) }
       : undefined;
-    ed = mod.createMarkdownEditor(box, { markdown: md, lang: ctx.lang, labelId: ctx.labelId, collab, toolbarHost: ctx.toolbarHost });
+    ed = mod.createMarkdownEditor(box, { markdown: md, lang: ctx.lang, labelId: ctx.labelId, collab, toolbarHost: ctx.toolbarHost, tools: ctx.tools });
   })().catch((e: unknown) => {
     if (gone) return;
     // e.g. the editor file could not be loaded: the simple editor still works
@@ -118,9 +132,12 @@ export function createSimpleEditor(container: HTMLElement, body: unknown, ctx: C
     const stateButtons: { tool: Tool; btn: HTMLButtonElement }[] = [];
     for (const tool of TOOLS) {
       if (tool === '|') {
-        toolbar.append(h('span', { class: 'ewh-sep', 'aria-hidden': 'true' }));
+        // no two separators in a row (or at the start) when buttons are hidden
+        if (toolbar.lastElementChild && !toolbar.lastElementChild.classList.contains('ewh-sep')) toolbar.append(h('span', { class: 'ewh-sep', 'aria-hidden': 'true' }));
         continue;
       }
+      // the site or category chooses the buttons (the formatting stays possible with shortcuts)
+      if (!toolShown(ctx.tools, toolName(tool))) continue;
       // WCAG 2.5.3 (label in name): visible letters/digits must be part of the accessible name.
       const name = /[A-Za-z0-9]/.test(tool.icon) && tool.icon.length > 1 ? `${tool.icon} ${t(tool.key)}` : t(tool.key);
       const btn = h('button', { type: 'button', class: 'ewh-tool', 'aria-label': name, title: name, 'aria-pressed': tool.state ? 'false' : undefined },

@@ -1514,7 +1514,7 @@ func (s *Server) site(w http.ResponseWriter, r *http.Request) (any, error) {
 	slices.SortFunc(templates, func(a, b map[string]string) int { return strings.Compare(a["name"], b["name"]) })
 	home := c.UI.HomeCategory
 	return map[string]any{
-		"name": c.UI.SiteName, "template": c.UI.Template, "templates": templates, "home_category": home, "home_element": c.UI.HomeElement, "editor": cmp.Or(c.UI.Editor, "visual"), "collaboration": c.UI.Collaboration, "personal_placement": c.UI.PersonalPlacement,
+		"name": c.UI.SiteName, "template": c.UI.Template, "templates": templates, "home_category": home, "home_element": c.UI.HomeElement, "editor": cmp.Or(c.UI.Editor, "visual"), "collaboration": c.UI.Collaboration, "personal_placement": c.UI.PersonalPlacement, "editor_tools": siteEditorTools(c.UI.EditorTools),
 		"wait_notice_s": limits.Value(c, limits.WaitNoticeSeconds),
 		"languages":     c.I18n.Languages, "default_language": c.I18n.DefaultLanguage,
 		"plugins": frontend, "element_types": s.app.Content.Types(), "auth_providers": s.app.Auth.ProviderInfos(),
@@ -1572,6 +1572,11 @@ func (s *Server) updateSettings(w http.ResponseWriter, r *http.Request) (any, er
 	before := s.app.Config.Raw()
 	err := s.app.Config.Update(func(c *config.Config) error {
 		if in.UI != nil {
+			if len(in.UI.EditorTools) > 0 {
+				if err := content.CheckEditorTools(in.UI.EditorTools); err != nil {
+					return err
+				}
+			}
 			c.UI = *in.UI
 		}
 		if in.I18n != nil {
@@ -1743,4 +1748,12 @@ func clip(s string, n int) string {
 	}
 	r := []rune(s[:n])
 	return string(r[:len(r)-1]) + "…"
+}
+
+// siteEditorTools is the site's choice of toolbar buttons (["*"] = all).
+func siteEditorTools(list []string) []string {
+	if len(list) == 0 {
+		return []string{content.AllEditorTools}
+	}
+	return list
 }

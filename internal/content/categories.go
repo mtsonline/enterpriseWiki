@@ -6,6 +6,7 @@ import (
 	"errors"
 	"github.com/mtsonline/enterprisewiki/internal/perm"
 	"regexp"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -42,6 +43,11 @@ type Category struct {
 	// ("" = inherited); EffectiveTemplate is the one that applies ("" = site template)
 	Template          string `json:"template"`
 	EffectiveTemplate string `json:"effective_template"`
+	// EditorTools: buttons of the formatting toolbar here and below (nil =
+	// inherited, ["*"] = all); EffectiveEditorTools is the choice that
+	// applies (nil = the site's)
+	EditorTools          []string `json:"editor_tools"`
+	EffectiveEditorTools []string `json:"effective_editor_tools"`
 	// SpaceKey: key of a space (top level only, address /s/KEY)
 	SpaceKey string `json:"space_key,omitempty"`
 	// ArchivedAt: archived itself; Archived: it or a category above (read-only)
@@ -80,13 +86,15 @@ const catCols = `c.id, c.parent_id, c.path::text, c.position, c.slug, c.titles, 
 	c.original_lang, c.text_rev, c.translation_revs, c.short_only, c.hidden, c.template, COALESCE(c.space_key, ''), c.archived_at,
 	EXISTS (SELECT 1 FROM categories a WHERE a.path @> c.path AND a.archived_at IS NOT NULL),
 	c.classification, (SELECT COALESCE(max(a.classification), 0) FROM categories a WHERE a.path @> c.path), c.watermark, c.downloads,
-	COALESCE((SELECT t.template FROM categories t WHERE t.path @> c.path AND t.template <> '' ORDER BY nlevel(t.path) DESC LIMIT 1), '')`
+	COALESCE((SELECT t.template FROM categories t WHERE t.path @> c.path AND t.template <> '' ORDER BY nlevel(t.path) DESC LIMIT 1), ''),
+	c.editor_tools, (SELECT t.editor_tools FROM categories t WHERE t.path @> c.path AND t.editor_tools IS NOT NULL ORDER BY nlevel(t.path) DESC LIMIT 1)`
 
 func scanCategory(r pgx.CollectableRow) (Category, error) {
 	var c Category
 	var path string
 	err := r.Scan(&c.ID, &c.ParentID, &path, &c.Position, &c.Slug, &c.Titles, &c.Descriptions, &c.Tags, &c.DefaultElementID, &c.Feed, &c.ShortURL,
-		&c.CreatedAt, &c.UpdatedAt, &c.DeletedAt, &c.HasChildren, &c.ElementCount, &c.OriginalLang, &c.TextRev, &c.TranslationRevs, &c.ShortOnly, &c.Hidden, &c.Template, &c.SpaceKey, &c.ArchivedAt, &c.Archived, &c.Classification, &c.EffectiveClassification, &c.Watermark, &c.Downloads, &c.EffectiveTemplate)
+		&c.CreatedAt, &c.UpdatedAt, &c.DeletedAt, &c.HasChildren, &c.ElementCount, &c.OriginalLang, &c.TextRev, &c.TranslationRevs, &c.ShortOnly, &c.Hidden, &c.Template, &c.SpaceKey, &c.ArchivedAt, &c.Archived, &c.Classification, &c.EffectiveClassification, &c.Watermark, &c.Downloads, &c.EffectiveTemplate,
+		&c.EditorTools, &c.EffectiveEditorTools)
 	c.Path = parsePath(path)
 	return c, err
 }
@@ -327,6 +335,9 @@ type CategoryInput struct {
 	Feed   *string `json:"feed"`
 	// Template: id of an active template plugin ("" = inherited)
 	Template *string `json:"template"`
+	// EditorTools: buttons of the formatting toolbar here and below; [] =
+	// inherited, ["*"] = all, otherwise the names (content.EditorTools)
+	EditorTools *[]string `json:"editor_tools"`
 	// Classification 0–3; -1 = as above (only a stricter one than above has an effect)
 	Classification *int `json:"classification"`
 	// Watermark: auto (viewer's name on files of confidential content) or off
@@ -523,6 +534,11 @@ func (s *Service) UpdateCategory(ctx context.Context, id int64, in CategoryInput
 	if in.Classification != nil && (*in.Classification < -1 || *in.Classification > 3) {
 		return nil, apperr.BadRequest("classification: -1 (as above) or 0–3")
 	}
+	if in.EditorTools != nil && len(*in.EditorTools) > 0 {
+		if err := CheckEditorTools(*in.EditorTools); err != nil {
+			return nil, err
+		}
+	}
 	if in.Watermark != nil && *in.Watermark != "" && *in.Watermark != "auto" && *in.Watermark != "off" {
 		return nil, apperr.BadRequest("watermark: auto, off or empty (as above)")
 	}
@@ -671,6 +687,20 @@ func (s *Service) UpdateCategory(ctx context.Context, id int64, in CategoryInput
 			}
 			if err := audit.Log(ctx, tx, "category.template", "category", id, map[string]any{"template": before.Template}, map[string]any{"template": *in.Template}); err != nil {
 				return err
+			}
+		}
+		if in.EditorTools != nil {
+			var v []string // nil: inherited
+			if len(*in.EditorTools) > 0 {
+				v = *in.EditorTools
+			}
+			if !slices.Equal(v, before.EditorTools) || (v == nil) != (before.EditorTools == nil) {
+				if _, err := tx.Exec(ctx, `UPDATE categories SET editor_tools=$2 WHERE id=$1`, id, v); err != nil {
+					return err
+				}
+				if err := audit.Log(ctx, tx, "category.editor_tools", "category", id, map[string]any{"editor_tools": before.EditorTools}, map[string]any{"editor_tools": v}); err != nil {
+					return err
+				}
 			}
 		}
 		if in.ShortOnly != nil {
@@ -947,9 +977,12 @@ func (s *Service) duplicateCategory(ctx context.Context, id, targetParent int64,
 					return err
 				}
 			}
-			if _, err := tx.Exec(ctx, `INSERT INTO categories(id, parent_id, path, position, slug, titles, descriptions, tags, created_by, original_lang, text_rev, translation_revs, template)
-				VALUES ($1,$2,$3::ltree,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)`, nid, parent, path, pos, c.Slug, titles, c.Descriptions, c.Tags, nullID(ctx),
-				c.OriginalLang, c.TextRev, c.TranslationRevs, c.Template); err != nil {
+			// the copy keeps the protection of the original (classification,
+			// watermark, downloads) and its display settings
+			if _, err := tx.Exec(ctx, `INSERT INTO categories(id, parent_id, path, position, slug, titles, descriptions, tags, created_by, original_lang, text_rev, translation_revs, template,
+				classification, watermark, downloads, editor_tools)
+				VALUES ($1,$2,$3::ltree,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17)`, nid, parent, path, pos, c.Slug, titles, c.Descriptions, c.Tags, nullID(ctx),
+				c.OriginalLang, c.TextRev, c.TranslationRevs, c.Template, c.Classification, c.Watermark, c.Downloads, c.EditorTools); err != nil {
 				return err
 			}
 			if _, err := tx.Exec(ctx, `INSERT INTO acl_rules(category_id, subject_type, subject_id, permissions, inherit, created_by)
