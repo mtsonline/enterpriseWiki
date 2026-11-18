@@ -1918,6 +1918,11 @@ test('multilevel menu: dropdown with a submenu', async () => {
   assert.equal(await toggle.getAttribute('aria-expanded'), 'false');
   await toggle.click();
   assert.equal(await toggle.getAttribute('aria-expanded'), 'true');
+  // every target at least 24 × 24 px (WCAG 2.5.8; found by axe in the CI)
+  for (const b of await page.locator('.ew-overview--tree .ew-tree-open, .ew-overview--tree .ew-tree-toggle').all()) {
+    const box = await b.boundingBox();
+    assert.ok(box && box.width >= 24 && box.height >= 24, `target of ${JSON.stringify(box)}`);
+  }
   const more = page.getByRole('button', { name: `More ${run}` });
   await more.click();
   await page.getByRole('link', { name: `Deep ${run}` }).waitFor();
