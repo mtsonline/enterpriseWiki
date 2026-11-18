@@ -153,6 +153,16 @@ actions:
         given: ['core.categories.create#default']
         path_params_json: '{"id": "${given.core.categories.create#default.id}"}'
         body_json: '{"short_url": "ex-${unique}"}'
+      - name: editor_tools
+        given: ['core.categories.create#default']
+        path_params_json: '{"id": "${given.core.categories.create#default.id}"}'
+        body_json: '{"editor_tools": ["strong", "em", "link"]}'
+        expect_json: '{"editor_tools": ["strong", "em", "link"]}'
+      - name: editor_tools_unknown
+        given: ['core.categories.create#default']
+        path_params_json: '{"id": "${given.core.categories.create#default.id}"}'
+        body_json: '{"editor_tools": ["blink"]}'
+        status: 400
   - id: core.categories.delete
     category: CATEGORY_ACTION
     method: DELETE

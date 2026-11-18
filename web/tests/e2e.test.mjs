@@ -2204,6 +2204,50 @@ test('editing page: tags in the side column, no formatting toolbar, actions stay
   }
 });
 
+test('buttons of the formatting toolbar: chosen by a category; saving the settings keeps the other values', async () => {
+  const cat = await m6Category();
+  const sub = await call('POST', '/api/v1/categories', { parent_id: cat, titles: { en: `Simple ${run}` } });
+  const el = await call('POST', '/api/v1/elements', { category_id: sub.id, type: 'core.html', title: `Few buttons ${run}`, body: { format: 'html', source: '<p>x</p>' } });
+  const before = (await call('GET', '/api/v1/admin/settings')).config;
+  try {
+    // the category chooses bold, italic and link
+    await page.goto(`${BASE}/c/${sub.id}/settings`);
+    await idle();
+    const fs = page.getByRole('group', { name: /^(buttons of the formatting toolbar|knöpfe der formatierungsleiste)$/i });
+    await fs.getByRole('radio', { name: /^(a choice|auswahl)$/i }).check();
+    for (const b of await fs.getByRole('checkbox').all()) await b.uncheck();
+    await a11y('choice of the toolbar buttons');
+    // nothing chosen is refused with a message
+    await page.getByRole('button', { name: /^(save|speichern)$/i }).click();
+    await page.locator('.ew-form-alert', { hasText: /at least one button|mindestens einen knopf/i }).waitFor();
+    for (const n of [/^(bold|fett)$/i, /^(italic|kursiv)$/i, /^link$/i]) await fs.getByRole('checkbox', { name: n }).check();
+    await page.getByRole('button', { name: /^(save|speichern)$/i }).click();
+    await page.locator('.ew-toast', { hasText: /saved|gespeichert/i }).first().waitFor();
+    assert.deepEqual((await call('GET', `/api/v1/categories/${sub.id}`)).category.editor_tools, ['strong', 'em', 'link']);
+    // the editor shows only these (and the switch to Markdown)
+    await page.goto(`${BASE}/e/${el.id}/edit`);
+    await idle();
+    const bar = page.locator('.ew-pos--editor-toolbar [role=toolbar]');
+    await bar.getByRole('button', { name: /^(bold|fett)$/i }).waitFor();
+    const names = await bar.locator('button, select').evaluateAll((xs) => xs.filter((x) => !x.hidden).map((x) => x.getAttribute('aria-label') ?? x.textContent));
+    assert.equal(names.length, 4, `bold, italic, link, Markdown: ${names}`);
+    assert.equal(await bar.getByRole('button', { name: /^(image|bild)$/i }).count(), 0, 'image hidden');
+    // the general settings keep values the form does not show (personal arrangement, the site's toolbar)
+    await call('PUT', '/api/v1/admin/settings', { ui: { ...before.ui, personal_placement: true, editor_tools: ['*'] }, retention: { ...before.retention, mail_days: 17 } });
+    await page.goto(`${BASE}/admin/settings`);
+    await idle();
+    await page.getByRole('checkbox', { name: /^(allow personal arrangement|persönliche anordnung erlauben)/i }).waitFor();
+    assert.equal(await page.getByRole('checkbox', { name: /^(allow personal arrangement|persönliche anordnung erlauben)/i }).isChecked(), true);
+    await page.locator('form').filter({ has: page.getByRole('checkbox', { name: /^(allow personal arrangement|persönliche anordnung erlauben)/i }) }).getByRole('button', { name: /^(save|speichern)$/i }).click();
+    await page.locator('.ew-toast', { hasText: /saved|gespeichert/i }).first().waitFor();
+    const after = (await call('GET', '/api/v1/admin/settings')).config;
+    assert.equal(after.ui.personal_placement, true, 'personal arrangement kept');
+    assert.equal(after.retention.mail_days, 17, 'retention of the mail outbox kept');
+  } finally {
+    await call('PUT', '/api/v1/admin/settings', { ui: before.ui, retention: before.retention });
+  }
+});
+
 test('a hidden page: not listed for readers, marked for editors, reachable by its link', async () => {
   const cat = await m6Category();
   const el = await call('POST', '/api/v1/elements', { category_id: cat, type: 'core.html', title: `Quiet ${run}`, body: { format: 'html', source: '<p>quiet</p>' } });

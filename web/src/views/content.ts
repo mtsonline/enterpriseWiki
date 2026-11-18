@@ -666,10 +666,15 @@ function jsonEditor(container: HTMLElement, body: unknown, labelId: string): Edi
   };
 }
 
-function mountEditor(container: HTMLElement, type: string, body: unknown, lang: string, labelId: string, toolbarHost: HTMLElement, elementId?: number, onRemoteSave?: (rev: number, by?: string) => void): EditorInstance {
+function mountEditor(container: HTMLElement, type: string, body: unknown, lang: string, labelId: string, toolbarHost: HTMLElement, tools: string[] | undefined, elementId?: number, onRemoteSave?: (rev: number, by?: string) => void): EditorInstance {
   const f = getEditor(type);
   toolbarHost.replaceChildren(); // the toolbar of an editor mounted before
-  return f ? f(container, body, { lang, type, labelId, elementId, onRemoteSave, toolbarHost }) : jsonEditor(container, body, labelId);
+  return f ? f(container, body, { lang, type, labelId, elementId, onRemoteSave, toolbarHost, tools }) : jsonEditor(container, body, labelId);
+}
+
+/** The buttons of the formatting toolbar for a category (its choice, else the site's). */
+function toolsOf(c: { effective_editor_tools?: string[] | null } | undefined): string[] | undefined {
+  return c?.effective_editor_tools ?? state.site.editor_tools ?? undefined;
 }
 
 /** editorActions are the buttons of the element editors. */
@@ -693,6 +698,8 @@ export async function editElementView({ params, query, main }: RouteCtx): Promis
     errorPage(main, e);
     return;
   }
+  // the category chooses the buttons of the formatting toolbar
+  const tools = toolsOf(await api.get<CategoryResponse>(`categories/${el.category_id}`).then((c) => c.category, () => undefined));
   if (!el.permissions?.includes('edit')) {
     errorPage(main, new ApiError(403, 'forbidden', t('error.forbidden')));
     return;
@@ -760,7 +767,7 @@ export async function editElementView({ params, query, main }: RouteCtx): Promis
       }),
     }));
   mount(main, form);
-  editor = mountEditor(editorBox, el.type, el.body, lang, labelId, formatHost, el.id, remoteSave);
+  editor = mountEditor(editorBox, el.type, el.body, lang, labelId, formatHost, tools, el.id, remoteSave);
   void draftNotice(id, lang, (d) => {
     draftId = d.id;
     title.value = d.title;
@@ -769,7 +776,7 @@ export async function editElementView({ params, query, main }: RouteCtx): Promis
     if (d.fields && Object.keys(d.fields).length) fields.reload(d.fields);
     editor.destroy?.();
     editorBox.replaceChildren();
-    editor = mountEditor(editorBox, el.type, d.body, lang, labelId, formatHost, el.id, remoteSave);
+    editor = mountEditor(editorBox, el.type, d.body, lang, labelId, formatHost, tools, el.id, remoteSave);
     toast(t('draft.loaded'));
   }).then((n) => { if (n) notices.append(n); });
   const orig = original?.querySelector<HTMLElement>('[data-original]');
@@ -910,14 +917,14 @@ async function newOrDraftView({ params, query, main }: RouteCtx, draft: Draft | 
     }));
   mount(main, form);
   const empty = draft?.body ?? types.find((x) => x.id === typeId)?.empty_body ?? {};
-  editor = mountEditor(editorBox, typeId, empty, lang, labelId, formatHost);
+  editor = mountEditor(editorBox, typeId, empty, lang, labelId, formatHost, toolsOf(cat.category));
   if (!draft) {
     void templatePicker(typeId, (tpl) => {
       if (!title.value.trim()) title.value = tpl.title;
       if (!tags.value.trim()) tags.value = tpl.tags.join(', ');
       editor.destroy?.();
       editorBox.replaceChildren();
-      editor = mountEditor(editorBox, typeId, tpl.body, lang, labelId, formatHost);
+      editor = mountEditor(editorBox, typeId, tpl.body, lang, labelId, formatHost, toolsOf(cat.category));
     }, catId, current).then((p) => { if (p) tplBox.append(p); });
   }
   form.addEventListener('submit', (ev) => {

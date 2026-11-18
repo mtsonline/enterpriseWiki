@@ -128,6 +128,7 @@ CREATE TABLE categories (
     short_only         boolean NOT NULL DEFAULT false, -- only the short URL (no readable path /wiki/… for this category)
     hidden             boolean NOT NULL DEFAULT false, -- not in navigation, menus, listings and search (e.g. folders for media)
     template           text NOT NULL DEFAULT '',       -- website template of this category and below ('' = inherited / site template)
+    editor_tools       text[],                         -- buttons of the formatting toolbar here and below (NULL = inherited, {*} = all)
     space_key          text,                           -- top level: key of the space (e.g. HR, address /s/HR)
     space              jsonb NOT NULL DEFAULT '{}',    -- settings (content.Space): general ones for every category (inherited), space parts at the top level
     archived_at        timestamptz,                    -- archived: read-only for everybody, out of navigation and search

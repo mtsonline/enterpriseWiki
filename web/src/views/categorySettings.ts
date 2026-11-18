@@ -1,4 +1,5 @@
 // Category settings: texts, default page, permissions, history and rollback.
+import { editorToolsField } from '../components/editorTools';
 import { placementEditor } from '../components/placement';
 import { shortOnlyBox, shortURLInput } from '../components/shorturl';
 import { api } from '../core/api';
@@ -90,6 +91,10 @@ function general(panel: HTMLElement, c: Category, elements: ElementSummary[]): v
   const tpl = select([{ value: '', label: inherited ? t('category.template_inherit_named', { name: tplName(inherited) }) : t('category.template_inherit') },
     ...tpls.map((x) => ({ value: x.id, label: tplName(x.id) + (x.id === state.site.template ? ` (${t('category.template_site')})` : '') })),
     ...(c.template && !tpls.some((x) => x.id === c.template) ? [{ value: c.template, label: t('category.template_inactive', { name: c.template }) }] : [])], c.template ?? '');
+  // buttons of the formatting toolbar here and below (inherited from above or the site)
+  // (what applies above is only known while this category inherits)
+  const parentTools = c.editor_tools ? undefined : (c.effective_editor_tools ?? state.site.editor_tools ?? ['*']);
+  const tools = editorToolsField(c.editor_tools, { inherit: true, inherited: parentTools });
   const alert = h('div', { class: 'ew-form-alert', role: 'alert' });
   const form = h('form', { class: 'ew-form', novalidate: true }, alert, titles.el, descs.el,
     field(t('common.tags'), tags, { help: t('common.tags_help') }),
@@ -97,6 +102,7 @@ function general(panel: HTMLElement, c: Category, elements: ElementSummary[]): v
     field(t('category.default_page'), def, { help: t('category.default_page_help') }),
     field(t('feed.setting'), feed, { help: t('feed.setting_help') }),
     field(t('category.template'), tpl, { help: t('category.template_help') }),
+    tools.el,
     field(t('class.label'), cls, { help: t('class.help') }),
     field(t('protect.wm'), wm, { help: t('protect.wm_help') }),
     field(t('protect.dl'), dl, { help: t('protect.dl_help') }),
@@ -105,7 +111,7 @@ function general(panel: HTMLElement, c: Category, elements: ElementSummary[]): v
     ev.preventDefault();
     alert.textContent = '';
     try {
-      const saved = await api.put<Category>(`categories/${c.id}`, { titles: titles.get(), descriptions: descs.get(), tags: splitTags(tags.value), short_url: short.value, short_only: only.input.checked, hidden: hidden.input.checked, default_element_id: Number(def.value), feed: feed.value, template: tpl.value, classification: Number(cls.value), watermark: wm.value, downloads: dl.value });
+      const saved = await api.put<Category>(`categories/${c.id}`, { titles: titles.get(), descriptions: descs.get(), tags: splitTags(tags.value), short_url: short.value, short_only: only.input.checked, hidden: hidden.input.checked, default_element_id: Number(def.value), feed: feed.value, template: tpl.value, editor_tools: tools.get(), classification: Number(cls.value), watermark: wm.value, downloads: dl.value });
       invalidateTree();
       c.template = saved.template;
       ctx.template = saved.effective_template ?? '';

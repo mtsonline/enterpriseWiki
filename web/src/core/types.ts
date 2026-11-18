@@ -54,6 +54,8 @@ export interface Site {
   collaboration?: boolean;
   /** people may arrange the building blocks for themselves */
   personal_placement?: boolean;
+  /** Buttons of the formatting toolbar (['*'] = all). */
+  editor_tools?: string[];
   /** seconds without an answer to a change after which the user is asked whether to keep waiting */
   wait_notice_s?: number;
   languages: string[];
@@ -100,6 +102,9 @@ export interface Category {
   template?: string;
   /** the template that applies ('' = the site template) */
   effective_template?: string;
+  /** Buttons of the formatting toolbar here (null = inherited; ["*"] = all) and the choice that applies (null = the site's). */
+  editor_tools?: string[] | null;
+  effective_editor_tools?: string[] | null;
   /** key of the space (top level only; address /s/KEY) */
   space_key?: string;
   /** archived itself (date) / it or a category above is archived: read-only */

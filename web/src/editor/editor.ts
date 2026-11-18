@@ -40,6 +40,8 @@ export interface MarkdownEditorOptions {
   labelId: string;
   /** Where the toolbar goes (a block of the editing page); default: above the surface. */
   toolbarHost?: HTMLElement;
+  /** Buttons to show (EditorContext.tools; undefined = all). */
+  tools?: string[];
   /** Initial mode (default: the user's last choice, else visual). */
   mode?: EditorMode;
   /** Called after every change of the content. */
@@ -374,6 +376,13 @@ class TaskItemView implements NodeView {
 
 // ---------------------------------------------------------------- toolbar
 
+/** Names of the buttons for the choice of the site and categories
+ * (content.EditorTools); buttons not listed have their id as name. */
+const TOOL_NAMES: Record<string, string> = {
+  row_before: 'table_edit', row_after: 'table_edit', col_before: 'table_edit', col_after: 'table_edit',
+  row_delete: 'table_edit', col_delete: 'table_edit', table_delete: 'table_edit',
+};
+
 interface Tool {
   id: string;
   icon: string;
@@ -625,7 +634,11 @@ export function createMarkdownEditor(container: HTMLElement, opts: MarkdownEdito
 
   const toolbar = h('div', { class: 'ewe-toolbar', role: 'toolbar', 'aria-label': t('editor.toolbar') });
   const buttons: { tool: Tool; btn: HTMLButtonElement }[] = [];
-  toolbar.append(blockSel);
+  // the site or category chooses the buttons (the formatting itself stays
+  // possible with shortcuts and Markdown); the mode switch always stays
+  const shown = (name: string) => !opts.tools || opts.tools.includes('*') || opts.tools.includes(name);
+  const nameOf = (id: string) => (id.startsWith('macro:') ? 'macro' : TOOL_NAMES[id] ?? id);
+  if (shown('block')) toolbar.append(blockSel);
   function makeButton(tool: Tool): HTMLButtonElement {
     const text = tool.label ?? t(tool.key);
     // WCAG 2.5.3 (label in name): visible letters must be part of the accessible name
@@ -640,13 +653,20 @@ export function createMarkdownEditor(container: HTMLElement, opts: MarkdownEdito
   }
   for (const tool of tools) {
     if (tool === '|') { toolbar.append(h('span', { class: 'ewe-sep', 'aria-hidden': 'true' })); continue; }
+    if (!shown(nameOf(tool.id))) continue;
     toolbar.append(makeButton(tool));
+  }
+  // no two separators in a row (or at the start) when buttons are hidden
+  for (const sep of Array.from(toolbar.querySelectorAll('.ewe-sep'))) {
+    const prev = sep.previousElementSibling;
+    if (!prev || prev.classList.contains('ewe-sep')) sep.remove();
   }
   toolbar.append(h('span', { class: 'ewe-spacer' }), modeBtn);
 
   // own buttons of macros (plugins declare them), after the macro button
   void loadMacros().then((ms) => {
     let after = buttons.find((b) => b.tool.id === 'macro')?.btn;
+    if (!shown('macro')) return;
     for (const m of allowedMacros(ms).filter((x) => x.toolbar)) {
       const btn = makeButton({ id: `macro:${m.name}`, icon: m.toolbar!, key: '', label: macroLabel(m.labels) || m.name, run: (v) => void macroInsert(v, m.name), markdown: true });
       after?.after(btn);

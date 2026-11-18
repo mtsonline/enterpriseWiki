@@ -439,6 +439,10 @@ export interface EditorContext {
    * page that can be moved or hidden); without it the toolbar stays above
    * the editing surface. */
   toolbarHost?: HTMLElement;
+  /** Buttons of the formatting toolbar to show (names as in
+   * content.EditorTools; undefined or ['*'] = all). Hiding a button does
+   * not forbid the formatting (shortcuts and Markdown keep working). */
+  tools?: string[];
   lang: string;
   type: string;
   /** Label id to reference from the editing surface (aria-labelledby). */
@@ -461,6 +465,11 @@ export interface EditorInstance {
 export type EditorFactory = (container: HTMLElement, body: unknown, ctx: EditorContext) => EditorInstance;
 
 const editors = new Map<string, EditorFactory>();
+
+/** Whether the toolbar shows button tool (see EditorContext.tools). */
+export function toolShown(tools: string[] | undefined, tool: string): boolean {
+  return !tools || tools.includes('*') || tools.includes(tool);
+}
 
 /** Registers the editor of an element type. */
 export function registerEditor(type: string, factory: EditorFactory): void {
