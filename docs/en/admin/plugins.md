@@ -241,7 +241,7 @@ Core plugins are full code with access to the database and the server. Only inst
 | `core.share` | general | share pages and categories with people, groups and roles (does not change permissions) |
 | `core.mentions` | general | @mentions in pages and comments with suggestions while typing |
 | `core.reactions` | general | emoji reactions to pages, categories and comments; any emoji, block list under *Administration → Reactions*; notification of the author (e-mail off by default) |
-| `core.favorites` | general | personal favourites (star on pages and categories), list at a position of the template (*Administration → Favourites*) and in the profile |
+| `core.favorites` | general | personal favourites (star on pages and categories), list as a block of the placement (default: sidebar; hidden there, only in the profile) and in the profile |
 | `core.properties` | general, macro | properties for elements of any type: definitions global and per category (inherited) with more than 30 types, required, default, element types, permissions (who sees, who changes); free properties (allowed or forbidden per category, plugin setting `free`); running numbers and formulas; history; macro "property report" with 13 views. Permissions: `core.properties.admin` (global), `core.properties.define` and `core.properties.free` (category) |
 | `content.propdb` | element | property database: elements from sources interactively as table, cards, board, calendar, timeline or chart, with filters, editing and new entries (needs `core.properties`) |
 | `core.carousel` | general | carousels at positions of the template: news (option "As news" when publishing), own slides, external RSS/Atom feeds, elements of any sources (*Administration → Carousels*) |

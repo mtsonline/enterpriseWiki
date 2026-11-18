@@ -378,7 +378,7 @@ Deleted categories (with all content) and pages end up in the **trash** (user me
 
 ## Placement
 
-Where search, language, edit mode, notifications, user menu, category tree and the building blocks of plugins appear is set by the administration under *Administration → Placement*: per block the position of the template, the order (buttons ↑ ↓) or *Not shown*; *Required* prevents changes further down. Whoever manages a category changes this under *Category settings → Placement* for it and its subcategories; what is not changed there is inherited. If the administration allows it, every person arranges the blocks for themselves under *My profile → My arrangement*. The user menu always stays reachable.
+Where search, language, edit mode, notifications, user menu, category tree and the building blocks of plugins appear is set by the administration under *Administration → Placement*: per block the position of the template, the order (buttons ↑ ↓) or *Not shown*; *Required* prevents changes further down. Whoever manages a category changes this under *Category settings → Placement* for it and its subcategories; what is not changed there is inherited. If the administration allows it, every person arranges the blocks for themselves under *My profile → My arrangement*. The user menu always stays reachable. Every menu, carousel and content block is a block of its own: the position chosen when creating it is its default; in the placement it can be moved, hidden or shown in several places for the site, a category or (if allowed) for oneself. The list of favourites is a block too (default: sidebar).
 
 ## Permissions of a category
 

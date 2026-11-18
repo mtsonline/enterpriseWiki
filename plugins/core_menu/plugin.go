@@ -10,7 +10,6 @@ import (
 	"embed"
 	"encoding/json"
 	"fmt"
-	"github.com/mtsonline/enterprisewiki/internal/perm"
 	"io/fs"
 	"net/http"
 	"net/url"
@@ -24,9 +23,12 @@ import (
 	"github.com/mtsonline/enterprisewiki/internal/acl"
 	"github.com/mtsonline/enterprisewiki/internal/apperr"
 	"github.com/mtsonline/enterprisewiki/internal/audit"
+	"github.com/mtsonline/enterprisewiki/internal/content"
 	"github.com/mtsonline/enterprisewiki/internal/coreplugin"
+	"github.com/mtsonline/enterprisewiki/internal/db"
 	h "github.com/mtsonline/enterprisewiki/internal/httpx"
 	"github.com/mtsonline/enterprisewiki/internal/identity"
+	"github.com/mtsonline/enterprisewiki/internal/perm"
 )
 
 //go:embed plugin.json
@@ -551,14 +553,23 @@ func (p *Plugin) Setup(hs *coreplugin.Host) error {
 		if len(users) > 0 {
 			return nil, apperr.Conflict("the menu is used as a submenu in: %s", strings.Join(users, ", "))
 		}
-		tag, err := hs.DB.Exec(r.Context(), `DELETE FROM plugin_menus WHERE id=$1`, id)
+		// the menu, its placements and the audit entry together
+		err = db.Tx(r.Context(), hs.DB, func(tx pgx.Tx) error {
+			tag, err := tx.Exec(r.Context(), `DELETE FROM plugin_menus WHERE id=$1`, id)
+			if err != nil {
+				return err
+			}
+			if tag.RowsAffected() == 0 {
+				return apperr.NotFound("menu")
+			}
+			if err := content.RemovePlacementsTx(r.Context(), tx, fmt.Sprintf("core.menu/%d", id)); err != nil {
+				return err
+			}
+			return audit.Log(r.Context(), tx, "menu.delete", "menu", id, nil, nil)
+		})
 		if err != nil {
 			return nil, err
 		}
-		if tag.RowsAffected() == 0 {
-			return nil, apperr.NotFound("menu")
-		}
-		_ = audit.Log(r.Context(), hs.DB, "menu.delete", "menu", id, nil, nil)
 		return h.NoContent{}, nil
 	})
 	return nil

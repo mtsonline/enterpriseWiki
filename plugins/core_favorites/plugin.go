@@ -82,11 +82,11 @@ func (p *Plugin) visible(ctx context.Context, typ string, id int64) error {
 	return apperr.BadRequest("type must be element or category")
 }
 
-// List is the answer of all routes: the favorites and where the list is shown.
+// List is the answer of all routes: the favorites. Where the list is shown
+// is decided by the placement of the block core.favorites (default: sidebar;
+// hidden there, the list is only in the profile).
 type List struct {
 	Items []Favorite `json:"items"`
-	// Position of the template where the list is shown (setting "position", default sidebar; "" = only in the profile)
-	Position string `json:"position"`
 }
 
 func (p *Plugin) list(ctx context.Context, uid int64) (*List, error) {
@@ -94,14 +94,7 @@ func (p *Plugin) list(ctx context.Context, uid int64) (*List, error) {
 	if err != nil {
 		return nil, err
 	}
-	pos, ok := p.host.Settings()["position"].(string)
-	if !ok {
-		pos = "sidebar"
-	}
-	if pos == "none" {
-		pos = ""
-	}
-	return &List{Items: items, Position: pos}, nil
+	return &List{Items: items}, nil
 }
 
 // items returns the visible favorites of the caller in their order.

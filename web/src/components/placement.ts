@@ -6,7 +6,7 @@ import { api } from '../core/api';
 import { h, uid } from '../core/dom';
 import { t } from '../core/i18n';
 import { toast } from '../core/announce';
-import { activeTemplate, invalidatePlacements, placeableBlocks, positionLabel, refreshPositions, resolvePlacements, type Placement, type PlacementLevel } from '../coreplugin';
+import { activeTemplate, invalidatePlacements, placeableBlocks, positionLabel, refreshPositions, resolvePlacements, type PlaceableBlock, type Placement, type PlacementLevel } from '../coreplugin';
 import { button, checkbox, errorText, field, select } from './ui';
 
 interface Row { block: string; position: string; required: boolean }
@@ -19,16 +19,17 @@ export async function placementEditor(level: 'site' | 'category' | 'user', targe
   const headingId = box.getAttribute('aria-labelledby')!;
   let current: PlacementLevel;
   let resolvedAbove = new Map<string, { position: string; sort: number }[]>();
+  let blocks: PlaceableBlock[] = [];
   try {
     current = await api.get<PlacementLevel>(`placements/${level}${target ? `?target=${encodeURIComponent(target)}` : ''}`);
     // what the levels above say (to show the inherited state)
     const above = await api.get<PlacementLevel[]>(`placements?template=${encodeURIComponent(activeTemplate()?.id ?? '')}${level === 'category' ? `&category=${target}` : ''}`);
-    resolvedAbove = resolvePlacements(above.filter((l) => !(l.level === level && l.target === target)));
+    blocks = await placeableBlocks();
+    resolvedAbove = resolvePlacements(above.filter((l) => !(l.level === level && l.target === target)), blocks);
   } catch (e) {
     box.append(h('p', { role: 'alert' }, errorText(e)));
     return box;
   }
-  const blocks = placeableBlocks();
   const nameOf = (id: string) => blocks.find((b) => b.id === id)?.label ?? id;
   const positions = activeTemplate()?.positions ?? [];
   const posOptions = [...positions.map((p) => ({ value: p, label: `${positionLabel(p)} (${p})` })), { value: '', label: t('placement.hidden') }];

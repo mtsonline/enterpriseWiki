@@ -92,4 +92,27 @@ func TestPlacements(t *testing.T) {
 	if err := e.app.DB.QueryRow(t.Context(), `SELECT count(*) FROM placements WHERE (level='category' AND target=$1) OR (level='user' AND target=$2)`, fmt.Sprint(secret.ID), fmt.Sprint(u.ID)).Scan(&n); err != nil || n != 0 {
 		t.Fatalf("placements left: %d %v", n, err)
 	}
+	// instances of a block (a menu, a carousel, a content block) are blocks of
+	// their own; deleting the instance removes its placements
+	var menu obj
+	admin.must("POST", "/api/v1/x/core.menu/menus", map[string]any{"name": "Side", "location": "sidebar", "items": []any{}}, &menu, 201)
+	var carousel, block obj
+	admin.must("POST", "/api/v1/x/core.carousel/carousels", map[string]any{"name": "Top", "position": "content-top", "audience": "all", "max_slides": 5, "enabled": true}, &carousel, 201)
+	admin.must("POST", "/api/v1/x/core.blocks/blocks", map[string]any{"name": "Note", "location": "footer", "audience": "all", "enabled": true, "bodies": map[string]any{"en": map[string]any{"format": "markdown", "source": "x"}}}, &block, 201)
+	inst := []map[string]any{
+		{"block": fmt.Sprintf("core.menu/%d", menu.ID), "position": "footer"},
+		{"block": fmt.Sprintf("core.menu/%d", menu.ID), "position": "sidebar", "sort": 5},
+		{"block": fmt.Sprintf("core.carousel/%d", carousel.ID), "position": ""},
+		{"block": fmt.Sprintf("core.blocks/%d", block.ID), "position": "sidebar"},
+	}
+	set(admin, "site", "", inst, 200)
+	for _, bad := range []string{"core.menu/", "core.menu/a/b", "core.menu/<x>", "nobody.thing/1"} {
+		set(admin, "site", "", []map[string]any{{"block": bad, "position": "footer"}}, 400)
+	}
+	admin.must("DELETE", fmt.Sprintf("/api/v1/x/core.menu/menus/%d", menu.ID), nil, nil, 204)
+	admin.must("DELETE", fmt.Sprintf("/api/v1/x/core.carousel/carousels/%d", carousel.ID), nil, nil, 204)
+	admin.must("DELETE", fmt.Sprintf("/api/v1/x/core.blocks/blocks/%d", block.ID), nil, nil, 204)
+	if err := e.app.DB.QueryRow(t.Context(), `SELECT count(*) FROM placements WHERE block LIKE 'core.menu/%' OR block LIKE 'core.carousel/%' OR block LIKE 'core.blocks/%'`).Scan(&n); err != nil || n != 0 {
+		t.Fatalf("placements of deleted instances left: %d %v", n, err)
+	}
 }

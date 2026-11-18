@@ -17,6 +17,22 @@ actions:
         given: ['core.carousel.create#default']
         as: guest
         path_params_json: '{"position": "home-top"}'
+  - id: core.carousel.shown
+    category: CATEGORY_ACTION
+    method: GET
+    path: shown
+    success_status: 200
+    summary:
+      text:
+        en: All carousels you see, with their slides and default position (each carousel is a block of the placement)
+        de: "Alle Karussells, die Sie sehen, mit Folien und Vorgabe-Position (jedes Karussell ist ein Baustein der Platzierung)"
+    public: true
+    cli: {command: [carousel, shown]}
+    ui: {entry: /}
+    examples:
+      - name: default
+        given: ['core.carousel.create#default']
+        as: guest
   - id: core.carousel.targets
     category: CATEGORY_ACTION
     method: GET

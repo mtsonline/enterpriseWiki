@@ -184,13 +184,25 @@ export function templateLabel(id: string): string {
 export interface SlotDef {
   id: string;
   /** Default position, or "*" for every position (render receives the name;
-   * such slots place their own instances, e.g. menus, and are not moved). */
+   * such slots are not moved). */
   position: string;
   order?: number;
   /** Name of the building block in the placement administration. */
   label?: () => string;
-  render: (position: string) => Node | null | Promise<Node | null>;
+  /** Instances of the block (menus, carousels, content blocks …): each is a
+   * block of its own ("<id>/<key>"; key "" is the block itself) with its
+   * own default position (empty: not placed) that the placement levels can
+   * change, hide or repeat. */
+  instances?: () => Promise<SlotInstance[]>;
+  /** Renders the block (an instance: its key) at a position. */
+  render: (position: string, key?: string) => Node | null | Promise<Node | null>;
 }
+
+/** An instance of a block (see SlotDef.instances). */
+export interface SlotInstance { key: string; label: string; position: string; order?: number }
+
+/** A block that can be placed: a slot or one instance of it. */
+export interface PlaceableBlock { id: string; label: string; position: string; order: number; slot: SlotDef; key?: string }
 
 // ---------------------------------------------------------------- placement
 
@@ -210,9 +222,35 @@ export function setPlacementContext(categoryId: number): void {
   queueMicrotask(() => void refreshPositions());
 }
 
-/** Drops the cached placements (after they were changed). */
+/** Drops the cached placements and instance lists (after they were changed). */
 export function invalidatePlacements(): void {
   placementCache = null;
+  blockCache = null;
+}
+
+let blockCache: Promise<PlaceableBlock[]> | null = null;
+
+/** The blocks that can be placed: every slot except "*", and the instances
+ * of slots with instances (loaded again with every refresh of the
+ * positions; plugins cache their own lists). */
+export function placeableBlocks(): Promise<PlaceableBlock[]> {
+  if (!blockCache) {
+    const p = (async () => {
+      const out: PlaceableBlock[] = [];
+      for (const s of slots) {
+        if (s.instances) {
+          let list: SlotInstance[] = [];
+          try { list = await s.instances(); } catch (e) { console.error(`instances of ${s.id} failed`, e); }
+          for (const i of list) out.push({ id: i.key ? `${s.id}/${i.key}` : s.id, label: i.label, position: i.position, order: i.order ?? s.order ?? 50, slot: s, key: i.key });
+        } else if (s.position !== '*') {
+          out.push({ id: s.id, label: s.label?.() ?? s.id, position: s.position, order: s.order ?? 50, slot: s });
+        }
+      }
+      return out;
+    })();
+    blockCache = p;
+  }
+  return blockCache;
 }
 
 function placementLevels(): Promise<PlacementLevel[]> {
@@ -226,23 +264,18 @@ function placementLevels(): Promise<PlacementLevel[]> {
   return placementCache.levels;
 }
 
-/** The blocks that can be placed (all registered slots except "*"). */
-export function placeableBlocks(): { id: string; label: string; position: string; order: number }[] {
-  return slots.filter((s) => s.position !== '*').map((s) => ({ id: s.id, label: s.label?.() ?? s.id, position: s.position, order: s.order ?? 50 }));
-}
-
 /** Applies levels (in order) to the default positions: a level that names a
  * block replaces its positions from above, unless a level above made it
  * required; an empty position hides it. */
-export function resolvePlacements(levels: PlacementLevel[]): Map<string, { position: string; sort: number }[]> {
+export function resolvePlacements(levels: PlacementLevel[], blocks: PlaceableBlock[]): Map<string, { position: string; sort: number }[]> {
   const out = new Map<string, { position: string; sort: number }[]>();
-  for (const s of slots) if (s.position !== '*') out.set(s.id, [{ position: s.position, sort: s.order ?? 50 }]);
+  for (const b of blocks) out.set(b.id, b.position ? [{ position: b.position, sort: b.order }] : []);
   const locked = new Set<string>();
   for (const l of levels) {
     const byBlock = new Map<string, Placement[]>();
     for (const p of l.placements) byBlock.set(p.block, [...(byBlock.get(p.block) ?? []), p]);
     for (const [block, ps] of byBlock) {
-      if (locked.has(block)) continue;
+      if (locked.has(block) || !out.has(block)) continue; // unknown blocks (plugin off, instance deleted) rest
       out.set(block, ps.filter((p) => p.position).map((p) => ({ position: p.position, sort: p.sort })));
       if (ps.some((p) => p.required) && (l.level === 'template' || l.level === 'site')) locked.add(block);
     }
@@ -276,27 +309,32 @@ function pathTo(root: Node, node: Node): number[] {
 
 async function fill(el: HTMLElement, name: string): Promise<void> {
   const nodes: Node[] = [];
-  const placed = resolvePlacements(await placementLevels());
+  const blocks = await placeableBlocks();
+  const placed = resolvePlacements(await placementLevels(), blocks);
   const tplPositions = activeTemplate()?.positions ?? [];
-  const here: { s: SlotDef; sort: number }[] = [];
-  for (const s of slots) {
-    if (s.position === '*') { here.push({ s, sort: s.order ?? 50 }); continue; }
-    let ps = placed.get(s.id) ?? [];
+  const here: { s: SlotDef; id: string; key?: string; sort: number }[] = [];
+  for (const s of slots) if (s.position === '*' && !s.instances) here.push({ s, id: s.id, sort: s.order ?? 50 });
+  for (const b of blocks) {
+    let ps = placed.get(b.id) ?? [];
     // the user menu never gets lost: if it is nowhere in this template, it
     // goes to the first position of the template
-    if (s.id === ALWAYS && !ps.some((p) => tplPositions.includes(p.position))) ps = [{ position: tplPositions[0] ?? s.position, sort: s.order ?? 50 }];
-    for (const p of ps) if (p.position === name) here.push({ s, sort: p.sort });
+    if (b.id === ALWAYS && !ps.some((p) => tplPositions.includes(p.position))) ps = [{ position: tplPositions[0] ?? b.position, sort: b.order }];
+    for (const p of ps) if (p.position === name) here.push({ s: b.slot, id: b.id, key: b.key, sort: p.sort });
   }
   here.sort((a, b) => a.sort - b.sort);
-  for (const { s } of here) {
+  // render all at once (each block loads its own data)
+  const rendered = await Promise.all(here.map(async ({ s, id, key }) => {
     try {
-      const n = await s.render(name);
-      if (n) {
-        slotOf.set(n, s.id);
-        nodes.push(n);
-      }
+      return { id, n: await s.render(name, key) };
     } catch (e) {
-      console.error(`slot ${s.id} failed`, e);
+      console.error(`slot ${id} failed`, e);
+      return { id, n: null };
+    }
+  }));
+  for (const { id, n } of rendered) {
+    if (n) {
+      slotOf.set(n, id);
+      nodes.push(n);
     }
   }
   // Keep the keyboard focus on the same control when a position is
@@ -330,6 +368,7 @@ export function positionContainer(name: string, tag: keyof HTMLElementTagNameMap
 
 /** Re-renders all positions (after navigation, login, language change). */
 export function refreshPositions(): Promise<void> {
+  blockCache = null; // instances may have changed (a new menu …)
   const jobs: Promise<void>[] = [];
   for (const [name, els] of positionEls) {
     for (const el of els) {

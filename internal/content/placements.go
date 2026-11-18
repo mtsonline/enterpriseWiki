@@ -49,13 +49,17 @@ const (
 )
 
 var (
-	blockRe    = regexp.MustCompile(`^[a-z0-9][a-z0-9._-]{0,62}\.[a-z0-9_-]{1,40}$`)
+	// a block, optionally one instance of it ("core.menu/12")
+	blockRe    = regexp.MustCompile(`^[a-z0-9][a-z0-9._-]{0,62}\.[a-z0-9_-]{1,40}(/[a-z0-9_-]{1,40})?$`)
 	positionRe = regexp.MustCompile(`^[a-z0-9][a-z0-9-]{0,40}$`)
 )
 
 // pluginOf is the plugin of a block or template id ("workflow.process.tasks"
 // → "workflow.process"; "core.search" → "core").
 func pluginOf(id string) string {
+	if i := strings.IndexByte(id, '/'); i > 0 {
+		id = id[:i] // an instance of a block
+	}
 	if strings.HasPrefix(id, "core.") {
 		return "core"
 	}
@@ -63,6 +67,13 @@ func pluginOf(id string) string {
 		return id[:i]
 	}
 	return id
+}
+
+// RemovePlacementsTx removes the placements of a block (e.g. of a deleted
+// instance "core.menu/12"), in the transaction that deletes it.
+func RemovePlacementsTx(ctx context.Context, tx pgx.Tx, block string) error {
+	_, err := tx.Exec(ctx, `DELETE FROM placements WHERE block=$1`, block)
+	return err
 }
 
 // knownOwner: the core or an enabled plugin (templates are plugins too).

@@ -114,22 +114,23 @@ function renderItems(items: Item[], mode: 'dropdown' | 'tree' | 'static', level 
 const HORIZONTAL = new Set(['header-nav', 'top-bar', 'cms-nav', 'header-tools']);
 const HEADING = /^(sidebar|footer-\d)/;
 
-async function slot(location: string): Promise<Node | null> {
-  let ms: Menu[];
-  try { ms = (await menus()).filter((m) => m.location === location && m.items.length); } catch { return null; }
-  if (!ms.length) return null;
+/** slot renders menu key at a position (each menu is a block of its own in
+ * the placement: "core.menu/<id>"; its location is the default position). */
+async function slot(location: string, key?: string): Promise<Node | null> {
+  let m: Menu | undefined;
+  try { m = (await menus()).find((x) => String(x.id) === key && x.items.length); } catch { return null; }
+  if (!m) return null;
   const mode = HORIZONTAL.has(location) ? 'dropdown' : location.startsWith('footer') ? 'static' : 'tree';
-  return h('div', { class: ['ewm', `ewm--${location}`, mode === 'dropdown' ? 'ewm--horizontal' : 'ewm--vertical', `ewm--${mode}`] },
-    ...ms.map((m) => {
-      const style = mode === 'dropdown' && m.style ? listMenuStyles().find((s) => s.id === m.style) : undefined;
-      if (style) {
-        try {
-          return h('nav', { 'aria-label': t('core.menu.nav_label', { name: m.name }), class: `ewm-style-${style.id}` }, style.render(m, { label, link }));
-        } catch (e) { console.error(`menu style ${style.id} failed`, e); }
-      }
-      return h('nav', { 'aria-label': t('core.menu.nav_label', { name: m.name }) },
-        HEADING.test(location) ? h('h2', { class: 'ew-tree-title' }, m.name) : null, renderItems(m.items, mode));
-    }));
+  const style = mode === 'dropdown' && m.style ? listMenuStyles().find((s) => s.id === m.style) : undefined;
+  let nav: HTMLElement | null = null;
+  if (style) {
+    try {
+      nav = h('nav', { 'aria-label': t('core.menu.nav_label', { name: m.name }), class: `ewm-style-${style.id}` }, style.render(m, { label, link }));
+    } catch (e) { console.error(`menu style ${style.id} failed`, e); }
+  }
+  nav ??= h('nav', { 'aria-label': t('core.menu.nav_label', { name: m.name }) },
+    HEADING.test(location) ? h('h2', { class: 'ew-tree-title' }, m.name) : null, renderItems(m.items, mode));
+  return h('div', { class: ['ewm', `ewm--${location}`, mode === 'dropdown' ? 'ewm--horizontal' : 'ewm--vertical', `ewm--${mode}`] }, nav);
 }
 
 // ---------------------------------------------------------------- admin
@@ -395,6 +396,10 @@ async function adminPage(container: HTMLElement): Promise<void> {
 
 export function register(): void {
   // menus can be placed at every position of the active template
-  registerSlot({ id: 'core.menu', position: '*', order: 20, render: slot });
+  registerSlot({
+    id: 'core.menu', position: '*', order: 20, label: () => t('core.menu.block'), render: slot,
+    // every menu is a block of its own; its location is the default position
+    instances: async () => (await menus()).map((m) => ({ key: String(m.id), label: `${t('core.menu.block')}: ${m.name}`, position: m.location, order: 20 + m.position })),
+  });
   registerAdminPage({ id: 'menus', permission: 'core.menu.edit', label: () => t('core.menu.admin_title'), order: 10, render: adminPage });
 }

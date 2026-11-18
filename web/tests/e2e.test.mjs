@@ -2044,6 +2044,21 @@ test('placement: search in the footer for the site, no category tree in one cate
     await page.goto(`${BASE}/`);
     await idle();
     await page.locator('nav.ew-tree').waitFor();
+    // a menu is a block of its own: placed a second time in the footer
+    const menu = await call('POST', '/api/v1/x/core.menu/menus', { name: `Placed ${run}`, location: 'sidebar', items: [{ label: { en: 'Home', de: 'Start' }, type: 'url', url: '/' }] });
+    try {
+      await page.goto(`${BASE}/admin/placement`);
+      await idle();
+      await page.getByRole('combobox', { name: new RegExp(`^(position of|position von) (menu|menü): placed ${run}$`, 'i') }).waitFor();
+      await call('PUT', '/api/v1/placements/site', { placements: [{ block: `core.menu/${menu.id}`, position: 'sidebar', sort: 1 }, { block: `core.menu/${menu.id}`, position: 'footer', sort: 1 }] });
+      await page.goto(`${BASE}/`);
+      await idle();
+      await page.locator('.ew-pos--footer nav', { hasText: 'Home' }).first().waitFor();
+      await page.locator('.ew-pos--sidebar nav', { hasText: 'Home' }).first().waitFor();
+      await a11y('a menu placed twice');
+    } finally {
+      await call('DELETE', `/api/v1/x/core.menu/menus/${menu.id}`);
+    }
     // the user menu cannot get lost: hidden on the site, it still appears
     await call('PUT', '/api/v1/placements/site', { placements: [{ block: 'core.user', position: '' }] });
     await page.reload();
@@ -2553,7 +2568,7 @@ test('carousel and mega menu', async () => {
   await call('DELETE', `/api/v1/x/core.menu/menus/${m.id}`);
   await call('DELETE', `/api/v1/x/core.carousel/carousels/${c.id}`);
   // administration pages
-  for (const section of ['carousels', 'reactions', 'favorites']) {
+  for (const section of ['carousels', 'reactions']) {
     await page.goto(`${BASE}/admin/${section}`);
     await idle();
     await page.waitForSelector('.ew-admin-panel h1');
