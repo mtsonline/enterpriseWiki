@@ -14,8 +14,9 @@ import { toast } from '../core/announce';
 import { button, checkbox, confirmDialog, errorText, field, formDialog, langFields, select, textInput } from '../components/ui';
 import { breadcrumbs, can, ctx, invalidateTree, setContext, setSpace } from '../components/widgets';
 import { errorPage, splitTags } from './content';
-import { listCategorySettingsTabs } from '../coreplugin';
+import { invalidatePlacements, listCategorySettingsTabs } from '../coreplugin';
 import { appearanceSettings, insightsPanel, spaceSettings } from './spaces';
+import { forgetFeatured, setShownCategory } from './category';
 
 interface CategoryResponse { category: Category; breadcrumbs: Category[]; elements: ElementSummary[]; space?: SpaceInfo | null }
 
@@ -49,7 +50,15 @@ export async function categorySettingsView({ params, query, main }: RouteCtx): P
       h('ul', null, ...ids.map((tb) => h('li', null, h('a', { href: `/c/${c.id}/settings?tab=${tb}`, 'aria-current': tb === tab ? 'page' : undefined }, tabLabel(tb)))))),
     panel);
   if (tab === 'general') general(panel, c, data.elements);
-  if (tab === 'appearance' && can('manage')) await appearanceSettings(panel, c, data.breadcrumbs);
+  if (tab === 'appearance' && can('manage')) {
+    await appearanceSettings(panel, c, data.breadcrumbs);
+    // the page of this category: its blocks and featured pages (not inherited)
+    setShownCategory({ category: c, elements: data.elements, subs: [] });
+    invalidatePlacements();
+    panel.append(h('section', { class: 'ew-section', 'aria-labelledby': 'ew-catpage-h' },
+      h('h2', { id: 'ew-catpage-h' }, t('category.arrange')), h('p', { class: 'ew-help' }, t('category.arrange_help')),
+      await placementEditor('category_page', String(c.id), { heading: false, onSaved: forgetFeatured })));
+  }
   if (tab === 'space' && isSpace) await spaceSettings(panel, c);
   if (tab === 'insights' && can('manage')) await insightsPanel(panel, c);
   // where the building blocks appear in this category and below

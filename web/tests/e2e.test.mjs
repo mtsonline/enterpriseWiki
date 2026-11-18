@@ -2142,7 +2142,7 @@ test('arrange one page: title hidden (kept for screen readers), share below the 
     await dlg.getByRole('combobox', { name: /^(position of share|position von teilen)$/i }).selectOption('element-footer');
     // the management of the page cannot be hidden, and only positions of a page are offered
     const manage = dlg.getByRole('combobox', { name: /^(position of managing the page|position von seite verwalten)/i });
-    assert.deepEqual(await manage.locator('option').evaluateAll((o) => o.map((x) => x.value)), ['element-header', 'element-toolbar', 'element-aside', 'element-footer']);
+    assert.deepEqual(await manage.locator('option').evaluateAll((o) => o.map((x) => x.value)), ['element-header', 'element-toolbar', 'element-content', 'element-aside', 'element-footer']);
     await a11y('arranging one page');
     await dlg.getByRole('button', { name: /^(save|speichern)$/i }).click();
     await page.locator('.ew-toast', { hasText: /placement saved|platzierung gespeichert/i }).first().waitFor();
@@ -2330,6 +2330,75 @@ test('dashboard as the start page: set in the settings, tiles of the plugins, th
   } finally {
     await call('PUT', '/api/v1/admin/settings', { ui: before.ui });
   }
+});
+
+test('category display: cards set in the settings, handbook navigation, tree, featured page arranged on the page', async () => {
+  const top = await call('POST', '/api/v1/categories', { titles: { en: `Manual ${run}` } });
+  const sub = await call('POST', '/api/v1/categories', { parent_id: top.id, titles: { en: `Chapter ${run}` } });
+  const mk = (c, title) => call('POST', '/api/v1/elements', { category_id: c, type: 'core.html', title, body: { format: 'markdown', source: `${title} text` } });
+  const one = await mk(top.id, `First ${run}`);
+  const two = await mk(top.id, `Second ${run}`);
+  const deep = await mk(sub.id, `Deep ${run}`);
+  // the display is chosen in the settings (tab "Appearance and content")
+  await page.goto(`${BASE}/c/${top.id}/settings?tab=appearance`);
+  await idle();
+  const fs = page.getByRole('group', { name: /^(display of the pages|darstellung der seiten)$/i });
+  await fs.getByLabel(/^(display|darstellung)$/i).selectOption('own');
+  await fs.getByLabel(/^(kind|art)$/i).selectOption('cards');
+  await a11y('category display settings');
+  const put = page.waitForResponse((r) => r.url().endsWith(`/api/v1/categories/${top.id}/settings`) && r.request().method() === 'PUT');
+  await page.locator('form.ew-form button[type=submit]').first().click();
+  assert.equal((await put).status(), 200);
+  assert.equal((await call('GET', `/api/v1/categories/${top.id}/settings`)).own.display.view, 'cards');
+  // the category page shows cards; the subcategory inherits them
+  const ov = page.waitForResponse((r) => r.url().includes(`/api/v1/categories/${top.id}/overview`));
+  await page.goto(`${BASE}/c/${top.id}`);
+  assert.equal((await ov).status(), 200);
+  await idle();
+  // (the first page is the default page of the category: shown in full above, not in the overview)
+  await page.locator('.ew-overview--cards').getByRole('link', { name: `Second ${run}` }).waitFor();
+  await page.locator('.ew-pos--category-content .ew-default-element').getByRole('heading', { name: `First ${run}` }).waitFor();
+  await a11y('category page with cards');
+  // the tree: the chapter opens with its pages
+  await call('PUT', `/api/v1/categories/${top.id}/settings`, { display: { view: 'tree' } });
+  await page.goto(`${BASE}/c/${top.id}`);
+  await idle();
+  const toggle = page.locator('.ew-overview--tree').getByRole('button', { name: `Chapter ${run}` });
+  await toggle.click();
+  await page.locator('.ew-overview--tree').getByRole('link', { name: `Deep ${run}` }).waitFor();
+  assert.equal(await toggle.getAttribute('aria-expanded'), 'true');
+  await a11y('category page with a tree');
+  // the handbook: the pages as navigation in the side column, also on a page
+  await call('PUT', `/api/v1/categories/${top.id}/settings`, { display: { view: 'handbook' } });
+  await page.goto(`${BASE}/e/${two.id}`);
+  await idle();
+  const nav = page.getByRole('navigation', { name: `Manual ${run}` });
+  await nav.getByRole('link', { name: `First ${run}` }).waitFor();
+  assert.equal(await nav.getByRole('link', { name: `Second ${run}` }).getAttribute('aria-current'), 'page');
+  await a11y('page with the handbook navigation');
+  // arranging the category page: the second page is featured in the side column
+  await call('PUT', `/api/v1/categories/${top.id}/settings`, { display: { view: 'list' } });
+  await page.goto(`${BASE}/c/${top.id}`);
+  await idle();
+  const edit = page.locator('.ew-pos--header-tools button[aria-pressed]');
+  if ((await edit.getAttribute('aria-pressed')) !== 'true') { await edit.click(); await idle(); }
+  await page.getByRole('button', { name: /^(arrange category page|kategorieseite anordnen)$/i }).click();
+  const dlg = page.locator('dialog[open]');
+  const add = dlg.getByRole('group', { name: /^(show a building block|baustein anzeigen)$/i });
+  await add.getByLabel(/^(building block|baustein)$/i).selectOption(`core.category.element/${two.id}`);
+  await add.getByLabel(/^(position)$/i).selectOption('category-aside');
+  await add.getByRole('button').click();
+  await a11y('arranging a category page');
+  const saved = page.waitForResponse((r) => r.url().includes(`/api/v1/placements/category_page`) && r.request().method() === 'PUT');
+  await dlg.getByRole('button', { name: /^(save|speichern)$/i }).click();
+  assert.equal((await saved).status(), 200);
+  const batch = page.waitForResponse((r) => r.url().includes('/api/v1/elements/batch'));
+  await page.locator('dialog[open]').waitFor({ state: 'detached' });
+  assert.equal((await batch).status(), 200);
+  await page.locator('.ew-pos--category-aside').getByRole('heading', { name: `Second ${run}` }).waitFor();
+  const off = page.locator('.ew-pos--header-tools button[aria-pressed]');
+  if ((await off.getAttribute('aria-pressed')) === 'true') { await off.click(); await idle(); }
+  assert.ok(one.id > 0 && deep.id > 0);
 });
 
 test('a hidden page: not listed for readers, marked for editors, reachable by its link', async () => {

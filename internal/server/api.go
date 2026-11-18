@@ -571,6 +571,21 @@ func (s *Server) routes() {
 		}
 		return map[string]any{"category": c, "breadcrumbs": bc, "elements": els, "space": space}, nil
 	})
+	// GET /api/v1/categories/{id}/overview?lang=&page=&view= → one page of
+	// the overview of the category with its display (only visible pages)
+	// action: core.categories.overview
+	s.handle("GET /api/v1/categories/{id}/overview", func(w http.ResponseWriter, r *http.Request) (any, error) {
+		id, err := h.PathID(r, "id")
+		if err != nil {
+			return nil, err
+		}
+		q := r.URL.Query()
+		lang := q.Get("lang")
+		if lang == "" {
+			lang = s.app.Config.Get().I18n.DefaultLanguage
+		}
+		return s.app.Content.CategoryOverview(r.Context(), id, clip(lang, 20), h.QueryInt(r, "page", 1), clip(q.Get("view"), 20))
+	})
 	// spaces: the top-level categories (directory, address /s/KEY, settings)
 	// action: core.spaces.list
 	s.handle("GET /api/v1/spaces", func(w http.ResponseWriter, r *http.Request) (any, error) {
@@ -864,6 +879,48 @@ func (s *Server) routes() {
 			_ = audit.Log(r.Context(), s.app.DB, "element.view", "element", id, nil, map[string]string{"lang": v.ShownLang})
 		}
 		return v, err
+	})
+	// GET /api/v1/elements/batch?ids=1,2,3&lang= → the pages (as GET
+	// /elements/{id}) the caller may view, in the order asked for; others
+	// are left out without saying why (featured pages of a category page).
+	// At most core.categories.featured ids.
+	// action: core.elements.batch
+	s.handle("GET /api/v1/elements/batch", func(w http.ResponseWriter, r *http.Request) (any, error) {
+		q := r.URL.Query()
+		max := limits.Value(s.app.Config.Get(), limits.CategoryFeatured)
+		ids := []int64{}
+		for _, part := range strings.Split(q.Get("ids"), ",") {
+			if part = strings.TrimSpace(part); part == "" {
+				continue
+			}
+			id, err := strconv.ParseInt(part, 10, 64)
+			if err != nil || id <= 0 {
+				return nil, apperr.BadRequest("ids: element ids separated by commas")
+			}
+			if !slices.Contains(ids, id) {
+				ids = append(ids, id)
+			}
+		}
+		if int64(len(ids)) > max {
+			return nil, apperr.BadRequest("at most %d ids (expert setting %s)", max, limits.CategoryFeatured)
+		}
+		ctx := r.Context()
+		items := []*content.ElementView{}
+		// bounded by the limit above; each page is rendered with its own checks
+		for _, id := range ids {
+			v, err := s.app.Content.GetElement(ctx, id, q.Get("lang"), false)
+			if err != nil {
+				if code, _, _ := apperr.Status(err); code >= 500 {
+					return nil, err
+				}
+				continue // not visible or gone: left out
+			}
+			if s.app.Config.Get().Audit.LogViews {
+				_ = audit.Log(ctx, s.app.DB, "element.view", "element", id, nil, map[string]string{"lang": v.ShownLang})
+			}
+			items = append(items, v)
+		}
+		return map[string]any{"items": items}, nil
 	})
 	// preview of sources for their editor: count and first titles with the caller's rights
 	// action: core.sources.preview

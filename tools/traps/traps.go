@@ -178,4 +178,33 @@ var traps = []trap{
 		New:  "if err := requireAdmin(r); err != nil && r.Context() == nil {\n\t\t\treturn nil, err\n\t\t}\n\t\tout := map[string]any{",
 		Pkg:  "./internal/server/", Tests: "^TestDashboardHomeAndStatus$",
 	},
+	// ---------------------------------------------------------------- category page (M19)
+	{
+		ID: "category.overview-filter", About: "the overview of a category lists pages the reader may not view",
+		File: "internal/content/categoryview.go",
+		Old:  "		AND ` + f.SQL(\"e\", &args)",
+		New:  "		AND (` + f.SQL(\"e\", &args) + ` OR TRUE)",
+		Pkg:  "./internal/server/", Tests: "^TestCategoryOverview$",
+	},
+	{
+		ID: "category.overview-hidden-subs", About: "the overview with subcategories lists pages of hidden or archived subcategories",
+		File: "internal/content/categoryview.go",
+		Old:  "AND (a.deleted_at IS NOT NULL OR a.hidden OR a.archived_at IS NOT NULL)",
+		New:  "AND (a.deleted_at IS NOT NULL)",
+		Pkg:  "./internal/server/", Tests: "^TestCategoryOverview$",
+	},
+	{
+		ID: "category.page-manage", About: "the page of a category can be arranged without the permission to manage it",
+		File: "internal/content/placements.go",
+		Old:  "			return apperr.BadRequest(\"target must be a category id\")\n		}\n		if _, err := s.loadCategory(ctx, s.pool, id, false); err != nil {\n			return err\n		}\n		return s.require(ctx, id, acl.Manage)\n	case LevelInstance:",
+		New:  "			return apperr.BadRequest(\"target must be a category id\")\n		}\n		if _, err := s.loadCategory(ctx, s.pool, id, false); err != nil {\n			return err\n		}\n		return s.require(ctx, id, acl.Edit)\n	case LevelInstance:",
+		Pkg:  "./internal/server/", Tests: "^TestCategoryPagePlacement$",
+	},
+	{
+		ID: "category.featured-visible", About: "a manager features a page he may not view",
+		File: "internal/content/placements.go",
+		Old:  "		if !vis[id] {",
+		New:  "		if false && !vis[id] {",
+		Pkg:  "./internal/server/", Tests: "^TestCategoryPagePlacement$",
+	},
 }

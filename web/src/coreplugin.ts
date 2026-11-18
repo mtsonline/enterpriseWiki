@@ -10,8 +10,8 @@
 import { state, onChange } from './core/state';
 import { t } from './core/i18n';
 import { api } from './core/api';
-import { DASHBOARD_POSITIONS, ELEMENT_POSITIONS, EDITOR_POSITIONS, kindOf, resolvePlacements, type PagePosition, type PlacementLevel, type PositionKind } from './core/placement';
-export { DASHBOARD_POSITIONS, ELEMENT_POSITIONS, EDITOR_POSITIONS, kindOf, positionFits, resolvePlacements, type PagePosition, type Placement, type PlacementLevel, type PositionKind } from './core/placement';
+import { CATEGORY_POSITIONS, DASHBOARD_POSITIONS, ELEMENT_POSITIONS, EDITOR_POSITIONS, kindOf, resolvePlacements, type PagePosition, type PlacementLevel, type PositionKind } from './core/placement';
+export { CATEGORY_POSITIONS, DASHBOARD_POSITIONS, ELEMENT_POSITIONS, EDITOR_POSITIONS, kindOf, positionFits, resolvePlacements, type PagePosition, type Placement, type PlacementLevel, type PositionKind } from './core/placement';
 
 import { h } from './core/dom';
 export { tile } from './components/tile';
@@ -191,7 +191,7 @@ export function templateLabel(id: string): string {
 /** The page a block of an element page or of the editing page is rendered
  * for: the element (if there is one) and the parts of the editing page
  * (editor blocks; each part exists once and keeps its state). */
-export interface PageContext { target?: PageTarget; view?: import('./core/types').ElementView; parts?: Map<string, Node | null> }
+export interface PageContext { target?: PageTarget; view?: import('./core/types').ElementView; parts?: Map<string, Node | null>; /** a category page: its data (views/category.ts) */ category?: unknown }
 
 /** The context of an element page. */
 export interface ElementContext extends PageContext { target: PageTarget; view: import('./core/types').ElementView }
@@ -210,6 +210,9 @@ export interface SlotDef {
   /** The block is never lost: placed nowhere (of its kind), it goes to the
    * first position (the user menu, the management of an element page). */
   always?: boolean;
+  /** The block exists once per page (the content of a page, a featured
+   * page): only its first placement applies. */
+  single?: boolean;
   /** Instances of the block (menus, carousels, content blocks …): each is a
    * block of its own ("<id>/<key>"; key "" is the block itself) with its
    * own default position (empty: not placed) that the placement levels can
@@ -276,6 +279,11 @@ export function placeableBlocks(): Promise<PlaceableBlock[]> {
   return blockCache;
 }
 
+/** The placement levels of the page shown (cached). */
+export function currentPlacementLevels(): Promise<PlacementLevel[]> {
+  return placementLevels();
+}
+
 function placementLevels(): Promise<PlacementLevel[]> {
   const tpl = activeTemplate()?.id ?? '';
   const key = `${tpl}|${placementCategory}|${placementElement}|${state.user?.id ?? 0}`;
@@ -334,11 +342,12 @@ async function fill(el: HTMLElement, name: string): Promise<void> {
     // page …) never get lost: if one is nowhere in this template (or page),
     // it goes to the first position of the template (on a page: its default)
     if (b.always) {
-      const avail: readonly string[] = kind === 'element' ? ELEMENT_POSITIONS : kind === 'editor' ? EDITOR_POSITIONS : kind === 'dashboard' ? DASHBOARD_POSITIONS : tplPositions;
+      const avail: readonly string[] = kind === 'element' ? ELEMENT_POSITIONS : kind === 'category' ? CATEGORY_POSITIONS : kind === 'editor' ? EDITOR_POSITIONS : kind === 'dashboard' ? DASHBOARD_POSITIONS : tplPositions;
       if (!ps.some((p) => avail.includes(p.position))) ps = [{ position: kind === 'site' ? (tplPositions[0] ?? b.position) : b.position, sort: b.order }];
     }
-    // a part of the editing page exists once (it keeps what was typed): only its first placement
-    if (kind === 'editor') ps = ps.slice(0, 1);
+    // a part of the editing page exists once (it keeps what was typed), so
+    // does the content of a page: only the first placement
+    if (kind === 'editor' || b.slot.single) ps = ps.slice(0, 1);
     // tiles the administration does not offer are on no dashboard
     if (kind === 'dashboard' && !tileOffered(b.id)) continue;
     for (const p of ps) if (p.position === name) here.push({ s: b.slot, id: b.id, key: b.key, sort: p.sort });
@@ -372,13 +381,25 @@ async function fill(el: HTMLElement, name: string): Promise<void> {
     if (top && slot) restore = { slot, path: pathTo(top, active) };
   }
   if (fillGen.get(el) !== gen || (!el.isConnected && ec)) return; // newer filling, or the page was left
-  el.replaceChildren(...nodes);
+  reconcile(el, nodes);
   if (restore) {
     let n: Node | undefined = nodes.find((x) => slotOf.get(x) === restore!.slot);
     for (const i of restore.path) n = n?.childNodes[i];
     if (n instanceof HTMLElement) n.focus();
   }
   ec?.filled?.();
+}
+
+/** Puts nodes as the children of el, moving only what is not in place: a
+ * node that stays (the content of a page with its editor) is not taken out
+ * of the page. */
+function reconcile(el: HTMLElement, nodes: Node[]): void {
+  const keep = new Set(nodes);
+  for (const c of Array.from(el.childNodes)) if (!keep.has(c)) c.remove();
+  nodes.forEach((n, i) => {
+    const at = el.childNodes[i];
+    if (at !== n) el.insertBefore(n, at ?? null);
+  });
 }
 
 /** Creates a live position container. */
@@ -409,8 +430,9 @@ export function pagePositionContainer(name: PagePosition, ctx: PageContext, fill
   el.dataset.position = name;
   el.dataset.label = positionLabel(name);
   // a group of buttons, a side column: named only when there is something in it
-  const role = name === 'element-toolbar' ? 'group' : name === 'element-aside' || name === 'editor-aside' ? 'complementary' : '';
-  const label = name === 'element-toolbar' ? t('common.actions') : positionLabel(name);
+  const toolbar = name === 'element-toolbar' || name === 'category-toolbar';
+  const role = toolbar ? 'group' : name === 'element-aside' || name === 'category-aside' || name === 'editor-aside' ? 'complementary' : '';
+  const label = toolbar ? t('common.actions') : positionLabel(name);
   elementCtx.set(el, {
     ctx, filled: () => {
       if (role && el.childNodes.length) {
@@ -797,11 +819,17 @@ const pageActions: PageAction[] = [];
 
 /** Registers a page action. On element pages it is an element block (id of
  * the action, default position element-toolbar) that can be moved, hidden
- * or repeated; on category pages it stays in the actions. */
+ * or repeated; on category pages it is the category block
+ * core.category.action/<id with "_" for ".">. */
 export function registerPageAction(a: PageAction): void {
   pageActions.push(a);
   pageActions.sort((x, y) => (x.order ?? 50) - (y.order ?? 50));
   registerSlot({ id: a.id, kind: 'element', position: 'element-toolbar', order: 100 + (a.order ?? 50), label: a.label ?? (() => a.id), render: (_p, _k, ctx) => (ctx?.target ? a.render(ctx.target) : null) });
+}
+
+/** pageActionList returns the registered page actions (in order). */
+export function pageActionList(): readonly PageAction[] {
+  return pageActions;
 }
 
 /** pageActionButtons renders the registered page actions for a target. */

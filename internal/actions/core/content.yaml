@@ -49,6 +49,23 @@ actions:
         as: member
         path_params_json: '{"id": "${given.core.categories.create#default.id}"}'
         expect_json: '{"category": {"id": ${given.core.categories.create#default.id}}}'
+  - id: core.categories.overview
+    category: CATEGORY_ACTION
+    method: GET
+    path: /api/v1/categories/{id}/overview
+    success_status: 200
+    summary:
+      text:
+        en: "One page of the overview of a category in its display (list, cards, tiles, tree, handbook; only what you may see)"
+        de: "Eine Seite der Übersicht einer Kategorie in ihrer Darstellung (Liste, Karten, Kacheln, Baum, Handbuch; nur, was Sie sehen dürfen)"
+    permission: {key: core.category.view, scope: SCOPE_CATEGORY, category_param: "id"}
+    cli: {command: [category, overview], args: [id]}
+    ui: {entry: /c/:id}
+    examples:
+      - name: default
+        given: ['core.categories.create#default']
+        as: member
+        path_params_json: '{"id": "${given.core.categories.create#default.id}"}'
   - id: core.categories.create
     category: CATEGORY_ACTION
     method: POST
@@ -797,6 +814,23 @@ actions:
         as: member
         path_params_json: '{"id": "${given.core.elements.create#default.id}"}'
         expect_json: '{"type": "core.html", "rev": 1, "category_id": ${given.core.categories.create#default.id}}'
+  - id: core.elements.batch
+    category: CATEGORY_ACTION
+    method: GET
+    path: /api/v1/elements/batch
+    success_status: 200
+    summary:
+      text:
+        en: "Show several elements at once (ids=1,2,3); those you may not view are left out"
+        de: "Mehrere Elemente auf einmal anzeigen (ids=1,2,3); die, die Sie nicht sehen dürfen, fehlen"
+    public: true
+    cli: {command: [element, batch]}
+    ui: {entry: /c/:id}
+    examples:
+      - name: default
+        given: ['core.elements.create#default']
+        as: member
+        query_json: '{"ids": "${given.core.elements.create#default.id}"}'
   - id: core.elements.create
     category: CATEGORY_ACTION
     method: POST

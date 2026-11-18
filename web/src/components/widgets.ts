@@ -12,6 +12,8 @@ import { button, errorText } from './ui';
 /** Context of the current page (set by category and element views). */
 export const ctx = {
   categoryId: 0,
+  /** the element page shown (0: none) */
+  elementId: 0,
   path: [] as number[],
   perms: [] as string[],
   /** website template of the category ('' = the site template) */
@@ -20,6 +22,7 @@ export const ctx = {
 
 export function setContext(categoryId: number, path: number[], perms: string[] | null, template = '', elementId = 0): void {
   ctx.categoryId = categoryId;
+  ctx.elementId = elementId;
   setPlacementContext(categoryId, elementId);
   ctx.path = path;
   ctx.perms = perms ?? [];

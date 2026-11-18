@@ -1,13 +1,14 @@
 // Placement of the building blocks of the interface (search, notifications,
 // category tree, blocks of plugins …) at the positions of the template, for
-// one level: the site, a category (and its subcategories), one page
+// one level: the site, a category (and its subcategories), the page of one
+// category (category_page: only the positions of that page), one page
 // (instance: only the positions of the page) or the own person. Operated
 // with buttons and selects only (no dragging, WCAG 2.5.7).
 import { api } from '../core/api';
 import { h, uid } from '../core/dom';
 import { t } from '../core/i18n';
 import { toast } from '../core/announce';
-import { activeTemplate, DASHBOARD_POSITIONS, EDITOR_POSITIONS, ELEMENT_POSITIONS, invalidatePlacements, placeableBlocks, positionFits, positionLabel, refreshPositions, resolvePlacements, tileOffered, type PlaceableBlock, type Placement, type PlacementLevel, type PositionKind } from '../coreplugin';
+import { activeTemplate, CATEGORY_POSITIONS, DASHBOARD_POSITIONS, EDITOR_POSITIONS, ELEMENT_POSITIONS, invalidatePlacements, placeableBlocks, positionFits, positionLabel, refreshPositions, resolvePlacements, tileOffered, type PlaceableBlock, type Placement, type PlacementLevel, type PositionKind } from '../coreplugin';
 import { state } from '../core/state';
 import { kindOf as positions0Kind } from '../core/placement';
 import { button, checkbox, errorText, field, select } from './ui';
@@ -17,9 +18,9 @@ interface Row { block: string; position: string; required: boolean }
 /** placementEditor edits the placements of one level. Rows of the level
  * replace the placements from above for the same block; blocks without a
  * row keep what the levels above say ("inherited"). */
-export async function placementEditor(level: 'site' | 'category' | 'instance' | 'user', target: string, opts: { onSaved?: () => void; heading?: boolean; category?: number; kinds?: PositionKind[] } = {}): Promise<HTMLElement> {
+export async function placementEditor(level: 'site' | 'category' | 'category_page' | 'instance' | 'user', target: string, opts: { onSaved?: () => void; heading?: boolean; category?: number; kinds?: PositionKind[] } = {}): Promise<HTMLElement> {
   // the own level without personal placement: only the own dashboard
-  const kinds: PositionKind[] | undefined = opts.kinds ?? (level === 'user' && !state.site.personal_placement ? ['dashboard'] : level === 'instance' ? ['element'] : undefined);
+  const kinds: PositionKind[] | undefined = opts.kinds ?? (level === 'user' && !state.site.personal_placement ? ['dashboard'] : level === 'instance' ? ['element'] : level === 'category_page' ? ['category'] : undefined);
   const kindOK = (k: PositionKind) => !kinds || kinds.includes(k);
   const box = h('section', { class: 'ew-placement', 'aria-labelledby': uid('pl') });
   const headingId = box.getAttribute('aria-labelledby')!;
@@ -30,7 +31,7 @@ export async function placementEditor(level: 'site' | 'category' | 'instance' | 
     current = await api.get<PlacementLevel>(`placements/${level}${target ? `?target=${encodeURIComponent(target)}` : ''}`);
     // what the levels above say (to show the inherited state)
     const q = new URLSearchParams({ template: activeTemplate()?.id ?? '' });
-    if (level === 'category') q.set('category', target);
+    if (level === 'category' || level === 'category_page') q.set('category', target);
     if (level === 'instance') {
       if (opts.category) q.set('category', String(opts.category));
       q.set('element', target);
@@ -46,7 +47,7 @@ export async function placementEditor(level: 'site' | 'category' | 'instance' | 
   const nameOf = (id: string) => blocks.find((b) => b.id === id)?.label ?? id;
   // the positions of the template, of a page and of the editing page (one
   // page: only its own)
-  const positions = [...(activeTemplate()?.positions ?? []), ...ELEMENT_POSITIONS, ...EDITOR_POSITIONS, ...DASHBOARD_POSITIONS]
+  const positions = [...(activeTemplate()?.positions ?? []), ...ELEMENT_POSITIONS, ...CATEGORY_POSITIONS, ...EDITOR_POSITIONS, ...DASHBOARD_POSITIONS]
     .filter((p) => kindOK(positions0Kind(p)));
   const fitting = (b: PlaceableBlock) => positions.filter((p) => positionFits(b.kind, p));
   const posOptionsOf = (b: PlaceableBlock) => [...fitting(b).map((p) => ({ value: p, label: `${positionLabel(p)} (${p})` })),

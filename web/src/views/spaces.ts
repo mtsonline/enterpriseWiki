@@ -6,7 +6,7 @@ import { h, mount, uid } from '../core/dom';
 import { pick, t } from '../core/i18n';
 import { navigate, type RouteCtx } from '../core/router';
 import { hasPerm, state } from '../core/state';
-import type { Category, SpaceInfo } from '../core/types';
+import type { Category, CategoryDisplay, SpaceInfo } from '../core/types';
 import { button, checkbox, errorText, field, formDialog, langFields, openDialog, pageHeader, select, textInput } from '../components/ui';
 import { invalidateTree, langName, setContext } from '../components/widgets';
 import { errorPage } from './content';
@@ -166,7 +166,7 @@ export async function spaceSettings(panel: HTMLElement, c: Category): Promise<vo
   panel.append(form, io);
 }
 
-interface Settings { own: SpaceInfo; effective: SpaceInfo; from: Record<string, number>; tree_root: number }
+interface Settings { own: SpaceInfo & { display?: CategoryDisplay }; effective: SpaceInfo & { display?: CategoryDisplay }; from: Record<string, number>; tree_root: number }
 
 /** The "Appearance and content" tab of every category: settings inherited
  * by the subcategories (the nearest one applies; allowed types and macros
@@ -227,9 +227,11 @@ export async function appearanceSettings(panel: HTMLElement, c: Category, ancest
   const typeBoxes = state.site.element_types.filter((x) => !aboveTypes.length || aboveTypes.includes(x.id) || sp.allowed_types.includes(x.id))
     .map((x) => ({ id: x.id, cb: checkbox(typeLabel(x.id), sp.allowed_types.includes(x.id)) }));
   const typesId = uid('types');
+  const display = displayFields(sp.display ?? null, st.effective.display ?? null, from('display'));
   const alert = h('div', { class: 'ew-form-alert', role: 'alert' });
   const form = h('form', { class: 'ew-form', novalidate: true }, alert,
     h('p', null, t('settings.help')),
+    display.el,
     own.el, from('own_tree'), logo.el, from('logo'), useAccent.el, accentField, from('accent'),
     h('fieldset', { class: 'ew-fieldset' }, h('legend', null, t('space.shortcuts')), h('p', { class: 'ew-help' }, t('space.shortcuts_help')), rows,
       button(t('space.shortcut_add'), () => addRow().focus(), { variant: 'secondary' })),
@@ -249,6 +251,7 @@ export async function appearanceSettings(panel: HTMLElement, c: Category, ancest
         allowed_types: typeBoxes.filter((b) => b.cb.input.checked).map((b) => b.id),
         allowed_macros: macroBoxes.filter((b) => b.cb.input.checked).map((b) => b.id),
         logo: logo.value(), accent: useAccent.input.checked ? accent.value : '',
+        display: display.get(),
       });
       invalidateTree();
       toast(t('common.saved'));
@@ -302,3 +305,31 @@ export async function insightsPanel(panel: HTMLElement, c: Category): Promise<vo
 }
 
 const fmtDay = (iso: string) => new Date(iso.length === 10 ? `${iso}T12:00:00` : iso).toLocaleDateString(state.lang);
+
+/** The display of the pages of a category: as above or an own choice
+ * (view, order, pages per page, subcategories, excerpts). */
+function displayFields(own: CategoryDisplay | null, effective: CategoryDisplay | null, inheritedFrom: HTMLElement | null): { el: HTMLElement; get: () => CategoryDisplay | undefined } {
+  const base: CategoryDisplay = own ?? effective ?? { view: 'list', sort: 'manual', page_size: 0, subcategories: false, excerpt: true };
+  const viewName = (v: string) => t(`display.view.${v}`);
+  const mode = select([{ value: 'inherit', label: t('display.inherit', { view: viewName((effective ?? base).view) }) }, { value: 'own', label: t('display.own') }], own ? 'own' : 'inherit');
+  const view = select(['list', 'cards', 'tiles', 'tree', 'handbook'].map((v) => ({ value: v, label: viewName(v) })), base.view);
+  const sort = select(['manual', 'title', 'updated', 'created'].map((v) => ({ value: v, label: t(`display.sort.${v}`) })), base.sort);
+  const size = textInput({ type: 'number', value: String(base.page_size || ''), placeholder: t('display.page_size_default') });
+  size.min = '0';
+  size.max = '1000';
+  const subs = checkbox(t('display.subcategories'), base.subcategories, { help: t('display.subcategories_help') });
+  const excerpt = checkbox(t('display.excerpt'), base.excerpt);
+  const details = h('div', { class: 'ew-subfield' },
+    field(t('display.view'), view, { help: t('display.view_help') }), field(t('display.sort'), sort),
+    field(t('display.page_size'), size, { help: t('display.page_size_help') }), subs.el, excerpt.el);
+  const sync = () => { details.hidden = mode.value !== 'own'; };
+  mode.addEventListener('change', sync);
+  sync();
+  const el = h('fieldset', { class: 'ew-fieldset' }, h('legend', null, t('display.title')),
+    h('p', { class: 'ew-help' }, t('display.help')), field(t('display.mode'), mode), inheritedFrom, details);
+  return {
+    el,
+    // null: as above (the server keeps no own display)
+    get: () => (mode.value === 'own' ? { view: view.value as CategoryDisplay['view'], sort: sort.value as CategoryDisplay['sort'], page_size: Number(size.value) || 0, subcategories: subs.input.checked, excerpt: excerpt.input.checked } : undefined),
+  };
+}

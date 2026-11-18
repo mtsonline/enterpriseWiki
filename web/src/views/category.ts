@@ -1,0 +1,309 @@
+// The blocks of a category page (M19): title, management, watching, page
+// actions, description, featured pages, the overview of the pages in the
+// display of the category (list, cards, tiles, tree, handbook) and the
+// subcategories, at the positions of the category page (category-…). The
+// handbook navigation is a block of the site (side column) on the category
+// page and on its pages.
+import { api, qs } from '../core/api';
+import { h, fmtDate, trustedHTML, uid } from '../core/dom';
+import { pick, t } from '../core/i18n';
+import { navigate } from '../core/router';
+import { state } from '../core/state';
+import type { Category, CategoryOverview, ElementSummary, ElementView } from '../core/types';
+import { button } from '../components/ui';
+import { ctx as pageCtx } from '../components/widgets';
+import { announce } from '../core/announce';
+import { currentPlacementLevels, pageActionList, registerSlot, typeLabel, type PageContext } from '../coreplugin';
+
+const L = () => state.lang;
+const D = () => state.site.default_language;
+
+/** The data of the category page shown (PageContext.category). */
+export interface CategoryPage {
+  category: Category;
+  elements: ElementSummary[];
+  subs: Category[];
+}
+
+/** The category page shown: its featured pages are blocks of their own. */
+let shown: CategoryPage | null = null;
+
+export function setShownCategory(c: CategoryPage | null): void {
+  shown = c;
+}
+
+const FEATURED = 'core.category.element';
+
+/** Featured pages of the page shown: the default page of the category (in
+ * the content), the pages placed on the category page and the other pages
+ * of the category (not placed: offered in the arrangement). */
+async function featuredInstances(): Promise<{ key: string; label: string; position: string; order?: number }[]> {
+  if (!shown) return [];
+  const c = shown.category;
+  const titleOf = new Map(shown.elements.map((e) => [String(e.id), pick(e.titles, L(), e.original_lang)]));
+  const keys = new Set<string>();
+  if (c.default_element_id) keys.add(String(c.default_element_id));
+  for (const l of await currentPlacementLevels()) {
+    if (l.level !== 'category_page' || l.target !== String(c.id)) continue;
+    for (const p of l.placements) if (p.block.startsWith(`${FEATURED}/`)) keys.add(p.block.slice(FEATURED.length + 1));
+  }
+  for (const e of shown.elements.slice(0, 200)) keys.add(String(e.id));
+  return [...keys].map((key) => ({
+    key, label: t('block.core.category.element', { title: titleOf.get(key) ?? `#${key}` }),
+    // the default page of the category: in the content (as before), the others not placed
+    position: key === String(c.default_element_id) ? 'category-content' : '', order: 20,
+  }));
+}
+
+/** Loads the featured pages of the page shown once (one request). */
+let featuredLoad: { key: string; asked: Set<number>; views: Promise<Map<number, ElementView>> } | null = null;
+function featuredView(id: number): Promise<ElementView | undefined> {
+  const key = `${shown?.category.id}|${L()}`;
+  if (!featuredLoad || featuredLoad.key !== key) {
+    const asked = new Set<number>();
+    featuredLoad = {
+      key, asked,
+      views: (async () => {
+        if (shown?.category.default_element_id) asked.add(shown.category.default_element_id);
+        for (const l of await currentPlacementLevels()) {
+          if (l.level !== 'category_page') continue;
+          for (const p of l.placements) if (p.position && p.block.startsWith(`${FEATURED}/`)) asked.add(Number(p.block.slice(FEATURED.length + 1)));
+        }
+        if (!asked.size) return new Map<number, ElementView>();
+        const res = await api.get<{ items: ElementView[] }>(`elements/batch${qs({ ids: [...asked].join(','), lang: L() })}`);
+        return new Map(res.items.map((v) => [v.id, v]));
+      })().catch(() => new Map<number, ElementView>()),
+    };
+  }
+  const load = featuredLoad;
+  // a page asked for but missing may not be viewed: no second request
+  return load.views.then((m) => m.get(id) ?? (load.asked.has(id) ? undefined : single(id)));
+}
+
+/** A featured page that was not in the first request (placed afterwards). */
+async function single(id: number): Promise<ElementView | undefined> {
+  try { return await api.get<ElementView>(`elements/${id}${qs({ lang: L() })}`); } catch { return undefined; }
+}
+
+/** Forgets the loaded featured pages (after arranging the page). */
+export function forgetFeatured(): void {
+  featuredLoad = null;
+}
+
+function featured(el: ElementView, title: string, edit: boolean): HTMLElement {
+  const elEdit = edit && el.permissions?.includes('edit');
+  const id = uid('feat');
+  return h('section', { class: ['ew-default-element', elEdit && 'ew-default-element--edit'], 'aria-labelledby': id },
+    h('h2', { id, class: el.title === title && !elEdit ? 'sr-only' : undefined }, el.title),
+    elEdit ? h('div', { class: 'ew-actions', role: 'group', 'aria-label': t('element.page_actions', { title: el.title }) },
+      h('a', { href: `/e/${el.id}/edit?lang=${L()}`, class: 'ew-btn ew-btn--primary' }, t('element.edit_page')),
+      h('a', { href: `/e/${el.id}/history`, class: 'ew-btn ew-btn--secondary' }, t('element.history'))) : null,
+    trustedHTML(el.html),
+    h('p', { class: 'ew-meta' },
+      h('a', { href: `/e/${el.id}` }, t('element.open_page')), ' · ',
+      t('element.updated', { date: fmtDate(el.updated_at, L()) })));
+}
+
+// ---------------------------------------------------------------- overview
+
+type Item = CategoryOverview['items'][number];
+
+/** Only pictures of the wiki (no requests to other servers when reading a list). */
+function localImage(src: string): string {
+  return src.startsWith('/') && !src.startsWith('//') ? src : '';
+}
+
+function itemTitle(x: Item): string {
+  return pick(x.titles, L(), x.original_lang) || t('element.untitled');
+}
+
+function pager(o: CategoryOverview): HTMLElement | null {
+  if (o.pages <= 1) return null;
+  const go = (n: number) => {
+    const q = new URLSearchParams(location.search);
+    if (n > 1) q.set('p', String(n));
+    else q.delete('p');
+    navigate(`${location.pathname}${q.size ? `?${q}` : ''}`);
+  };
+  return h('nav', { class: 'ew-pager', 'aria-label': t('category.pages_nav') },
+    o.page > 1 ? button(t('common.previous'), () => go(o.page - 1), { variant: 'secondary' }) : null,
+    h('span', { class: 'ew-meta', 'aria-current': 'page' }, ` ${t('category.page_of', { n: o.page, of: o.pages })} `),
+    o.page < o.pages ? button(t('common.next'), () => go(o.page + 1), { variant: 'secondary' }) : null);
+}
+
+function listView(o: CategoryOverview, cp: CategoryPage, edit: boolean): HTMLElement {
+  const canEdit = edit && !!cp.category.permissions?.includes('edit');
+  return h('ul', { class: 'ew-list ew-overview-list' }, ...o.items.map((x) => h('li', null,
+    h('a', { href: `/e/${x.id}` }, itemTitle(x)),
+    canEdit ? [' ', h('a', { href: `/e/${x.id}/edit?lang=${L()}`, class: 'ew-inline-action', 'aria-label': t('element.edit_named', { title: itemTitle(x) }) }, t('common.edit'))] : null,
+    edit ? [' ', h('span', { class: 'ew-badge' }, typeLabel(x.type))] : null,
+    edit && x.id === cp.category.default_element_id ? h('span', { class: 'ew-badge ew-badge--info' }, t('element.default')) : null,
+    x.hidden ? h('span', { class: 'ew-badge ew-badge--warn' }, t('element.hidden_badge')) : null,
+    h('span', { class: 'ew-meta' }, ` · ${fmtDate(x.updated_at, L())}`),
+    x.excerpt ? h('p', { class: 'ew-excerpt' }, x.excerpt) : null)));
+}
+
+function cardsView(o: CategoryOverview, tiles: boolean): HTMLElement {
+  return h('ul', { class: tiles ? 'ew-tiles' : 'ew-cards ew-overview-cards' }, ...o.items.map((x) => {
+    const img = localImage(x.preview_image);
+    // the picture belongs to the link of the page (its title names it): no own text
+    return h('li', { class: tiles ? 'ew-tile-item' : 'ew-card' },
+      img ? h('img', { src: img, alt: '', loading: 'lazy', class: tiles ? 'ew-tile-img' : 'ew-card-img' }) : null,
+      h('h3', null, h('a', { href: `/e/${x.id}` }, itemTitle(x))),
+      !tiles && x.excerpt ? h('p', null, x.excerpt) : null,
+      h('p', { class: 'ew-meta' }, fmtDate(x.updated_at, L())));
+  }));
+}
+
+/** The tree: the pages of the category and its subcategories to open (their
+ * content is loaded when opened). */
+function treeView(o: CategoryOverview, subs: Category[]): HTMLElement {
+  const pages = (items: Item[]) => items.map((x) => h('li', { class: 'ew-tree-page' }, h('a', { href: `/e/${x.id}` }, itemTitle(x))));
+  const node = (c: Category): HTMLElement => {
+    const title = pick(c.titles, L(), D());
+    const inner = h('ul', { class: 'ew-tree-children', hidden: true });
+    let loaded = false;
+    const toggle = button(title, () => void (async () => {
+      const open = toggle.getAttribute('aria-expanded') !== 'true';
+      toggle.setAttribute('aria-expanded', String(open));
+      inner.hidden = !open;
+      if (!open || loaded) return;
+      loaded = true;
+      try {
+        const [ov, kids] = await Promise.all([api.get<CategoryOverview>(`categories/${c.id}/overview${qs({ lang: L(), view: 'tree' })}`), api.get<Category[]>(`categories?parent=${c.id}`)]);
+        inner.replaceChildren(...kids.map(node), ...pages(ov.items),
+          ov.pages > 1 ? h('li', null, h('a', { href: `/c/${c.id}` }, t('category.all_pages', { n: ov.total }))) : '');
+        if (!kids.length && !ov.items.length) inner.append(h('li', { class: 'ew-muted' }, t('category.empty')));
+        announce(t('category.tree_loaded', { title }));
+      } catch {
+        loaded = false;
+        inner.replaceChildren(h('li', { class: 'ew-muted' }, t('error.title')));
+      }
+    })(), { variant: 'subtle' });
+    toggle.setAttribute('aria-expanded', 'false');
+    toggle.classList.add('ew-tree-toggle');
+    return h('li', { class: 'ew-tree-cat' }, toggle, ' ', h('a', { href: `/c/${c.id}`, class: 'ew-tree-open', 'aria-label': t('category.open_named', { title }) }, '→'), inner);
+  };
+  return h('ul', { class: 'ew-tree-view' }, ...subs.map(node), ...pages(o.items));
+}
+
+/** The overview of a category, asked once for the blocks of one page view
+ * (overview, subcategories, handbook). */
+let overviewMemo: { key: string; at: number; o: Promise<CategoryOverview> } | null = null;
+function loadOverview(id: number, page = 1): Promise<CategoryOverview> {
+  const key = `${id}|${page}|${L()}|${state.editMode}`;
+  if (!overviewMemo || overviewMemo.key !== key || Date.now() - overviewMemo.at > 2000) {
+    const o = api.get<CategoryOverview>(`categories/${id}/overview${qs({ lang: L(), page })}`);
+    overviewMemo = { key, at: Date.now(), o };
+    o.catch(() => { if (overviewMemo?.o === o) overviewMemo = null; });
+  }
+  return overviewMemo.o;
+}
+
+const currentPage = () => Number(new URLSearchParams(location.search).get('p') ?? '1') || 1;
+
+async function overview(cp: CategoryPage): Promise<HTMLElement | null> {
+  const o = await loadOverview(cp.category.id, currentPage());
+  const edit = state.editMode;
+  const v = o.display.view;
+  // the handbook shows its pages in the navigation of the side column
+  if (v === 'handbook' && !edit) return null;
+  if (!o.items.length && (v !== 'tree' || !cp.subs.length)) {
+    const nothing = !cp.category.default_element_id && !cp.subs.length;
+    return nothing ? h('p', { class: 'ew-muted' }, cp.category.permissions?.includes('create') ? t('category.empty_editor') : t('category.empty')) : null;
+  }
+  // without the edit mode the default page is shown in full already
+  const o2 = edit ? o : { ...o, items: o.items.filter((x) => x.id !== cp.category.default_element_id) };
+  if (!o2.items.length && v !== 'tree') return null;
+  const body = v === 'cards' ? cardsView(o2, false) : v === 'tiles' ? cardsView(o2, true) : v === 'tree' ? treeView(o2, cp.subs) : listView(o2, cp, edit);
+  return h('section', { class: ['ew-section', 'ew-overview', `ew-overview--${v}`], 'aria-labelledby': 'ew-pages-title' },
+    h('h2', { id: 'ew-pages-title' }, t('category.pages')), body, pager(o));
+}
+
+// ---------------------------------------------------------------- handbook
+
+/** The handbook navigation: the pages of the category (the current page
+ * marked), when its display is "handbook". */
+async function handbookNav(): Promise<HTMLElement | null> {
+  const id = pageCtx.categoryId;
+  if (!id) return null;
+  let o: CategoryOverview;
+  // on the category page: the page of the overview shown
+  try { o = await loadOverview(id, pageCtx.elementId === 0 ? currentPage() : 1); } catch { return null; }
+  if (o.display.view !== 'handbook') return null;
+  // (the address may be a readable path: the page shown is known by its id)
+  const shownEl = pageCtx.elementId;
+  const title = pick(o.category_titles, L(), D());
+  const hid = uid('hb');
+  return h('nav', { class: 'ew-handbook', 'aria-labelledby': hid },
+    h('h2', { id: hid, class: 'ew-handbook-title' }, h('a', { href: `/c/${id}`, 'aria-current': shownEl === 0 ? 'page' : undefined }, title)),
+    h('ol', { class: 'ew-handbook-list' }, ...o.items.map((x) => h('li', null,
+      h('a', { href: `/e/${x.id}`, 'aria-current': shownEl === x.id ? 'page' : undefined }, itemTitle(x))))),
+    o.pages > 1 ? h('p', null, h('a', { href: `/c/${id}` }, t('category.all_pages', { n: o.total }))) : null);
+}
+
+// ---------------------------------------------------------------- blocks
+
+/** registerCategoryBlocks registers the blocks of category pages; manage
+ * renders the buttons to manage the category (edit mode). */
+export function registerCategoryBlocks(manage: (cp: CategoryPage) => HTMLElement | null, info: (cp: CategoryPage) => (HTMLElement | null)[],
+  title: (cp: CategoryPage) => HTMLElement, watch: (cp: CategoryPage) => HTMLElement | null, feed: (cp: CategoryPage) => HTMLElement | null): void {
+  const cp = (c?: PageContext) => (c?.category as CategoryPage | undefined) ?? null;
+  const reg = (id: string, position: string, order: number, render: (x: CategoryPage) => Node | null | Promise<Node | null>, always = false) =>
+    registerSlot({ id, kind: 'category', position, order, always, label: () => t(`block.${id}`), render: (_p, _k, c) => { const x = cp(c); return x ? render(x) : null; } });
+  reg('core.category.title', 'category-header', 10, title);
+  reg('core.category.manage', 'category-toolbar', 10, manage, true);
+  reg('core.category.watch', 'category-toolbar', 20, watch);
+  reg('core.category.feed', 'category-toolbar', 30, feed);
+  reg('core.category.info', 'category-content', 10, (x) => {
+    const parts = info(x).filter((n): n is HTMLElement => !!n);
+    return parts.length ? h('div', { class: 'ew-category-info' }, ...parts) : null;
+  });
+  reg('core.category.overview', 'category-content', 30, (x) => overview(x).catch(() => null));
+  reg('core.category.subcategories', 'category-content', 40, (x) => subcategories(x));
+  // every page action (favourite, share …) is a block of its own here too
+  registerSlot({
+    id: 'core.category.action', kind: 'category', position: '*', order: 100,
+    label: () => t('block.core.category.action', { name: '' }),
+    instances: async () => pageActionList().map((a, i) => ({ key: a.id.replace(/[^a-z0-9_-]/g, '_'), label: t('block.core.category.action', { name: a.label?.() ?? a.id }), position: 'category-toolbar', order: 100 + (a.order ?? 50) + i / 100 })),
+    render: (_p, key, c) => {
+      const x = cp(c);
+      const a = pageActionList().find((y) => y.id.replace(/[^a-z0-9_-]/g, '_') === key);
+      if (!x || !a) return null;
+      const ttl = pick(x.category.titles, L(), D());
+      try { return a.render({ type: 'category', id: x.category.id, title: ttl, categoryId: x.category.id }); } catch { return null; }
+    },
+  });
+  // featured pages: each page shown in full is a block of its own
+  registerSlot({
+    id: FEATURED, kind: 'category', position: '*', order: 20, single: true,
+    label: () => t('block.core.category.element', { title: '' }),
+    instances: featuredInstances,
+    render: async (_p, key, c) => {
+      const x = cp(c);
+      if (!x || !key) return null;
+      const v = await featuredView(Number(key));
+      return v ? featured(v, pick(x.category.titles, L(), D()), state.editMode) : null;
+    },
+  });
+  // the handbook: a navigation in the side column (category page and its pages)
+  registerSlot({ id: 'core.category.nav', position: 'sidebar', order: 5, label: () => t('block.core.category.nav'), render: () => handbookNav() });
+}
+
+let subsRender: ((cp: CategoryPage) => HTMLElement | null) | null = null;
+
+/** setSubcategoriesRender sets how the subcategories are shown (cards with
+ * the buttons to order them in the edit mode). */
+export function setSubcategoriesRender(f: (cp: CategoryPage) => HTMLElement | null): void {
+  subsRender = f;
+}
+
+async function subcategories(cp: CategoryPage): Promise<HTMLElement | null> {
+  if (!cp.subs.length || !subsRender) return null;
+  // the tree shows the subcategories itself
+  try {
+    const o = await loadOverview(cp.category.id, currentPage());
+    if (o.display.view === 'tree' && !state.editMode) return null;
+  } catch { /* shown as cards */ }
+  return subsRender(cp);
+}

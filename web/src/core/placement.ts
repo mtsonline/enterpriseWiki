@@ -1,13 +1,16 @@
 // Resolution of the placement of building blocks (pure: no page, no DOM).
 
 /** Kinds of positions: those of the template (site), those of an element
- * page (element-…), of the editing page (editor-…) and the columns of the
- * own dashboard (dashboard-…); every template has the latter three. A block
- * names the kind it fits. */
-export type PositionKind = 'site' | 'element' | 'editor' | 'dashboard';
+ * page (element-…), of a category page (category-…), of the editing page
+ * (editor-…) and the columns of the own dashboard (dashboard-…); every
+ * template has all but the first. A block names the kind it fits. */
+export type PositionKind = 'site' | 'element' | 'category' | 'editor' | 'dashboard';
 
-/** The positions of an element page. */
-export const ELEMENT_POSITIONS = ['element-header', 'element-toolbar', 'element-aside', 'element-footer'] as const;
+/** The positions of an element page (element-content: the main area with the content). */
+export const ELEMENT_POSITIONS = ['element-header', 'element-toolbar', 'element-content', 'element-aside', 'element-footer'] as const;
+
+/** The positions of a category page (category-content: the main area). */
+export const CATEGORY_POSITIONS = ['category-header', 'category-toolbar', 'category-content', 'category-aside', 'category-footer'] as const;
 
 /** The positions of the page to edit or create an element. */
 export const EDITOR_POSITIONS = ['editor-header', 'editor-toolbar', 'editor-aside', 'editor-footer', 'editor-statusbar'] as const;
@@ -15,16 +18,16 @@ export const EDITOR_POSITIONS = ['editor-header', 'editor-toolbar', 'editor-asid
 /** The positions of the own dashboard: the full width above, then three columns. */
 export const DASHBOARD_POSITIONS = ['dashboard-wide', 'dashboard-1', 'dashboard-2', 'dashboard-3'] as const;
 
-export type PagePosition = (typeof ELEMENT_POSITIONS)[number] | (typeof EDITOR_POSITIONS)[number] | (typeof DASHBOARD_POSITIONS)[number];
+export type PagePosition = (typeof ELEMENT_POSITIONS)[number] | (typeof CATEGORY_POSITIONS)[number] | (typeof EDITOR_POSITIONS)[number] | (typeof DASHBOARD_POSITIONS)[number];
 
 /** The kind of a position (by its name). */
 export function kindOf(position: string): PositionKind {
-  return position.startsWith('element-') ? 'element' : position.startsWith('editor-') ? 'editor' : position.startsWith('dashboard-') ? 'dashboard' : 'site';
+  return position.startsWith('element-') ? 'element' : position.startsWith('category-') ? 'category' : position.startsWith('editor-') ? 'editor' : position.startsWith('dashboard-') ? 'dashboard' : 'site';
 }
 
 /** One placement of a building block (see content.Placement on the server). */
 export interface Placement { block: string; position: string; sort: number; required?: boolean }
-export interface PlacementLevel { level: 'template' | 'site' | 'category' | 'instance' | 'user'; target: string; placements: Placement[] }
+export interface PlacementLevel { level: 'template' | 'site' | 'category' | 'category_page' | 'instance' | 'user'; target: string; placements: Placement[] }
 
 /** What the resolution needs to know of a block. */
 export interface BlockDefault { id: string; position: string; order: number; kind: PositionKind }
@@ -38,7 +41,8 @@ export function positionFits(kind: PositionKind, position: string): boolean {
  * block replaces its positions from above, unless a level above made it
  * required; an empty position hides it. A position that does not fit the
  * kind of the block is ignored; the level of one page (instance) arranges
- * only element blocks; the own level (user) without personal placement
+ * only element blocks, that of one category page (category_page) only
+ * category blocks; the own level (user) without personal placement
  * (opts.personal false) only tiles of the dashboard. */
 export function resolvePlacements(levels: PlacementLevel[], blocks: BlockDefault[], opts: { personal?: boolean } = {}): Map<string, { position: string; sort: number }[]> {
   const out = new Map<string, { position: string; sort: number }[]>();
@@ -55,6 +59,7 @@ export function resolvePlacements(levels: PlacementLevel[], blocks: BlockDefault
       if (locked.has(block) || !out.has(block)) continue; // unknown blocks (plugin off, instance deleted) rest
       const k = kind.get(block)!;
       if (l.level === 'instance' && k !== 'element') continue;
+      if (l.level === 'category_page' && k !== 'category') continue;
       // the own level arranges the own dashboard always, the rest only with personal placement
       if (l.level === 'user' && k !== 'dashboard' && opts.personal === false) continue;
       out.set(block, ps.filter((p) => p.position && positionFits(k, p.position)).map((p) => ({ position: p.position, sort: p.sort })));

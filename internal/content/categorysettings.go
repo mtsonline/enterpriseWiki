@@ -13,8 +13,9 @@ import (
 )
 
 // Settings of every category, inherited by its subcategories (decision of
-// 17.11.2026): language of new elements, logo, accent color and the own
-// navigation (with shortcuts) – the nearest setting applies; allowed element
+// 17.11.2026): language of new elements, logo, accent color, the own
+// navigation (with shortcuts) and the display of the category page – the
+// nearest setting applies; allowed element
 // types and macros – each level can only narrow them (intersection), so
 // managing a subcategory never widens a limit of the space. The parts that
 // make a space (key, directory, template for new spaces, personal space)
@@ -38,7 +39,7 @@ type CategorySettings struct {
 // general keeps the fields every category may set.
 func general(sp Space) Space {
 	return Space{OwnTree: sp.OwnTree, Shortcuts: sp.Shortcuts, AllowedTypes: sp.AllowedTypes, AllowedMacros: sp.AllowedMacros,
-		Accent: sp.Accent, Logo: sp.Logo, Language: sp.Language}
+		Accent: sp.Accent, Logo: sp.Logo, Language: sp.Language, Display: sp.Display}
 }
 
 func intersect(acc, level []string) []string {
@@ -95,6 +96,10 @@ func (s *Service) effectiveSettings(ctx context.Context, q db.Querier, categoryI
 		if sp.Logo != "" {
 			e.Logo, out.From["logo"] = sp.Logo, l.id
 		}
+		if sp.Display != nil {
+			d := *sp.Display
+			e.Display, out.From["display"] = &d, l.id
+		}
 		if sp.OwnTree {
 			e.OwnTree, e.Shortcuts, out.TreeRoot, out.From["own_tree"] = true, sp.Shortcuts, l.id, l.id
 		}
@@ -116,6 +121,10 @@ func (s *Service) effectiveSettings(ctx context.Context, q db.Querier, categoryI
 	}
 	if e := &out.Effective; e.Shortcuts == nil {
 		e.Shortcuts = []SpaceLink{}
+	}
+	if out.Effective.Display == nil {
+		d := DefaultDisplay()
+		out.Effective.Display = &d
 	}
 	return out, nil
 }

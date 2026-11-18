@@ -122,6 +122,29 @@ export interface Category {
   downloads?: string | null;
 }
 
+/** How a category page shows its pages (inherited until a subcategory chooses its own). */
+export interface CategoryDisplay {
+  view: 'list' | 'cards' | 'tiles' | 'tree' | 'handbook';
+  sort: 'manual' | 'title' | 'updated' | 'created';
+  /** pages per page (0 = the expert setting) */
+  page_size: number;
+  /** also the pages of the subcategories */
+  subcategories: boolean;
+  /** the beginning of the text of each page */
+  excerpt: boolean;
+}
+
+/** One page of the overview of a category (GET categories/{id}/overview). */
+export interface CategoryOverview {
+  category_titles: LangMap;
+  display: CategoryDisplay;
+  items: { id: number; category_id: number; type: string; titles: LangMap; original_lang: string; preview_image: string; created_at: string; updated_at: string; hidden?: boolean; excerpt?: string }[];
+  total: number;
+  page: number;
+  pages: number;
+  page_size: number;
+}
+
 /** A space: a top-level category with settings for its whole subtree. */
 export interface SpaceInfo {
   id: number;
