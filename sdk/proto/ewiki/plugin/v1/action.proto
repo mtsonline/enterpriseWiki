@@ -143,7 +143,8 @@ message Permission {
     SCOPE_GLOBAL = 1;
     // Checked on a category; the request names it in the parameter
     // category_param (a path, query or body field), or "element:<param>"
-    // for the category of the element in that parameter. The core's keys
+    // for the element in that parameter (its own rights apply: rules of the
+    // element, "own rights only", see acl.Service.ElementPerms). The core's keys
     // for categories are core.category.view, .edit, .create, .delete and
     // .manage.
     SCOPE_CATEGORY = 2;

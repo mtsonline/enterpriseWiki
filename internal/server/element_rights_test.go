@@ -282,4 +282,3 @@ func TestElementRights(t *testing.T) {
 		t.Fatalf("audit of rule changes: %d", n)
 	}
 }
-

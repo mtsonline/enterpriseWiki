@@ -218,6 +218,12 @@ export interface ElementSummary {
   preview_image: string;
   /** not in listings, sources, feeds and the search (reachable by its link) */
   hidden?: boolean;
+  /** only the element's own rules apply, not those of its category */
+  own_rights_only?: boolean;
+  /** classification set on the element (the strictest of element and categories applies) */
+  classification?: number;
+  /** the element has own permission rules */
+  own_rules?: boolean;
 }
 
 export interface LangStatus {
@@ -293,6 +299,14 @@ export const PERMS = [
   { bit: 4, key: 'create' },
   { bit: 8, key: 'delete' },
   { bit: 16, key: 'manage' },
+] as const;
+
+/** Bits of a rule on one element (page): view, edit, delete, give rights. */
+export const ELEMENT_PERMS = [
+  { bit: 1, key: 'view' },
+  { bit: 2, key: 'edit' },
+  { bit: 8, key: 'delete' },
+  { bit: 32, key: 'grant' },
 ] as const;
 
 /** A parameter of a macro (for editors). */
