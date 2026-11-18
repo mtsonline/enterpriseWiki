@@ -514,7 +514,7 @@ Called by directories such as Entra ID or Okta with the token of a SCIM client (
 | `POST` | `/api/v1/x/core.blocks/blocks` |
 | `PUT` | `/api/v1/x/core.blocks/blocks/{id}` |
 | `DELETE` | `/api/v1/x/core.blocks/blocks/{id}` |
-| `GET` | `/api/v1/x/core.carousel/position/{position}` |
+| `GET` | `/api/v1/x/core.carousel/shown` |
 | `GET` | `/api/v1/x/core.carousel/targets` |
 | `GET` | `/api/v1/x/core.carousel/carousels` |
 | `POST` | `/api/v1/x/core.carousel/carousels` |

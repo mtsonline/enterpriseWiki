@@ -330,7 +330,7 @@ func TestCarousel(t *testing.T) {
 		} `json:"slides"`
 	}
 	var s shown
-	admin.must("GET", "/api/v1/x/core.carousel/position/content-top?lang=en", nil, &s, 200)
+	admin.must("GET", "/api/v1/x/core.carousel/shown?lang=en", nil, &s, 200)
 	kinds := []string{}
 	for _, x := range s[0].Slides {
 		kinds = append(kinds, x.Kind+":"+x.Title)
@@ -342,7 +342,7 @@ func TestCarousel(t *testing.T) {
 		t.Fatalf("news slide: %+v", s[0].Slides[0])
 	}
 	guest := e.client()
-	guest.must("GET", "/api/v1/x/core.carousel/position/content-top?lang=en", nil, &s, 200)
+	guest.must("GET", "/api/v1/x/core.carousel/shown?lang=en", nil, &s, 200)
 	for _, x := range s[0].Slides {
 		if x.Kind == "news" {
 			t.Fatal("guest sees news of an internal page")
@@ -350,7 +350,7 @@ func TestCarousel(t *testing.T) {
 	}
 	// audience: only signed-in users
 	admin.must("PUT", fmt.Sprintf("/api/v1/x/core.carousel/carousels/%d", c.ID), map[string]any{"name": "Home", "position": "content-top", "audience": "users", "feeds": []string{feed.URL + "/rss"}, "enabled": true}, nil, 200)
-	guest.must("GET", "/api/v1/x/core.carousel/position/content-top", nil, &s, 200)
+	guest.must("GET", "/api/v1/x/core.carousel/shown", nil, &s, 200)
 	if len(s) != 0 {
 		t.Fatalf("guest sees a carousel for users: %+v", s)
 	}

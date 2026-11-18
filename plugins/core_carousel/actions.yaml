@@ -1,22 +1,5 @@
 # Action register (ewiki.plugin.v1.Action, see sdk/proto/ewiki/plugin/v1/action.proto).
 actions:
-  - id: core.carousel.position
-    category: CATEGORY_ACTION
-    method: GET
-    path: "position/{position}"
-    success_status: 200
-    summary:
-      text:
-        en: Carousels of a position with their slides (only what you may see)
-        de: "Karussells einer Position mit ihren Folien (nur, was Sie sehen dürfen)"
-    public: true
-    cli: {command: [carousel, position], args: [position]}
-    ui: {entry: /}
-    examples:
-      - name: default
-        given: ['core.carousel.create#default']
-        as: guest
-        path_params_json: '{"position": "home-top"}'
   - id: core.carousel.shown
     category: CATEGORY_ACTION
     method: GET
