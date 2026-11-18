@@ -2075,6 +2075,43 @@ test('a hidden page: not listed for readers, marked for editors, reachable by it
   if ((await off.getAttribute('aria-pressed')) === 'true') { await off.click(); await idle(); }
 });
 
+test('rights of a page: own rights only, a rule, the note on the page', async () => {
+  const cat = await m6Category();
+  const el = await call('POST', '/api/v1/elements', { category_id: cat, type: 'core.html', title: `Guarded ${run}`, body: { format: 'html', source: '<p>guarded</p>' } });
+  await page.goto(`${BASE}/e/${el.id}`);
+  await idle();
+  const edit = page.locator('.ew-pos--header-tools button[aria-pressed]');
+  if ((await edit.getAttribute('aria-pressed')) !== 'true') { await edit.click(); await idle(); }
+  await page.getByRole('button', { name: /^(rights|rechte)$/i }).click();
+  let dlg = page.locator('dialog[open]');
+  await dlg.getByRole('checkbox', { name: /^(own rights only|nur eigene rechte)/i }).waitFor();
+  await a11y('element rights');
+  await dlg.getByRole('checkbox', { name: /^(own rights only|nur eigene rechte)/i }).check();
+  await dlg.getByLabel(/^(classification of the page|einstufung der seite)/i).selectOption('1');
+  await dlg.getByRole('button', { name: /^(save|speichern)$/i }).click();
+  await page.getByText(/^(applies|es gilt): (internal|intern)/i).waitFor();
+  const acl = await call('GET', `/api/v1/elements/${el.id}/acl`);
+  assert.equal(acl.own_rights_only, true);
+  assert.equal(acl.classification, 1);
+  // a rule for all signed-in people, view only
+  dlg = page.locator('dialog[open]');
+  await dlg.getByRole('button', { name: /^(add rule|regel hinzufügen)$/i }).click();
+  const add = page.locator('dialog[open]').last();
+  await add.getByLabel(/^(applies to|gilt für)/i).selectOption('authenticated');
+  await a11y('element rights: add a rule');
+  await add.locator('button[type=submit]').click();
+  await page.locator('dialog[open] table').getByText(/logged-in users|angemeldeten benutzer/i).first().waitFor();
+  const after = await call('GET', `/api/v1/elements/${el.id}/acl`);
+  assert.equal(after.rules.length, 1);
+  assert.equal(after.rules[0].subject_type, 'authenticated');
+  await page.keyboard.press('Escape');
+  await page.reload();
+  await idle();
+  await page.getByRole('note').filter({ hasText: /only the page's own rights|nur ihre eigenen rechte/i }).waitFor();
+  const off = page.locator('.ew-pos--header-tools button[aria-pressed]');
+  if ((await off.getAttribute('aria-pressed')) === 'true') { await off.click(); await idle(); }
+});
+
 test('FAQ: sections, questions, filter and quick add', async () => {
   const cat = await m6Category();
   const faqCat = await call('POST', '/api/v1/categories', { parent_id: cat, titles: { en: `Help ${run}` } });

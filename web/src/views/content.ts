@@ -9,6 +9,7 @@ import { toast } from '../core/announce';
 import { button, checkbox, confirmDialog, errorText, field, formDialog, langFields, loading, openDialog, pageHeader, textArea, textInput, select } from '../components/ui';
 import { breadcrumbs, can, categoryPicker, ctx, invalidateTree, langName, setContext, setSpace } from '../components/widgets';
 import { watchButton } from '../components/watch';
+import { elementRightsDialog, elementRightsNote } from '../components/elementRights';
 import { shortOnlyBox, shortURLInput } from '../components/shorturl';
 import { imagesOf, previewImageInput } from '../components/previewimage';
 import { feedButton } from '../components/feeds';
@@ -464,6 +465,9 @@ export async function elementView({ params, main }: RouteCtx): Promise<void> {
     if (can('edit') && !el.is_default) actions.push(button(t('element.make_default'), () => void makeDefault(el), { variant: 'secondary' }));
     if (can('delete')) actions.push(button(t('common.move'), () => moveElementDialog(el), { variant: 'secondary' }));
     actions.push(button(t('common.duplicate'), () => void duplicateElement(el), { variant: 'secondary' }));
+    if (el.permissions?.includes('grant')) {
+      actions.push(button(t('erights.button'), () => void elementRightsDialog(el.id, el.title, () => navigate(location.pathname + location.search, { replace: true })), { variant: 'secondary' }));
+    }
     if (can('delete')) actions.push(button(t('common.delete'), () => void deleteElement(el), { variant: 'danger' }));
   }
   const watchE = watchButton('element', el.id, el.title);
@@ -475,9 +479,10 @@ export async function elementView({ params, main }: RouteCtx): Promise<void> {
     crumbs([...cat.breadcrumbs, cat.category], { title: el.title }),
     h('div', { class: 'ew-page-header' }, h('h1', null, el.title),
       actions.length ? h('div', { class: 'ew-actions', role: 'group', 'aria-label': t('common.actions') }, ...actions) : null),
-    classificationNotice(cat.category),
+    classificationNotice({ ...cat.category, effective_classification: Math.max(cat.category.effective_classification ?? 0, el.classification ?? 0) }),
     archivedNotice(cat.category),
     el.hidden && el.permissions?.includes('edit') ? h('p', { class: 'ew-notice ew-notice--info', role: 'note' }, t('element.hidden_note')) : null,
+    elementRightsNote(el),
     fallbackNotice(el),
     edit ? translationPanel(el) : null,
     topExtensions,
@@ -528,6 +533,17 @@ function moveElementDialog(el: ElementView): void {
 }
 
 async function duplicateElement(el: ElementView): Promise<void> {
+  // a page with rights of its own: copy them too (otherwise everybody in the
+  // category could read the copy)
+  if (el.own_rights_only || el.own_rules) {
+    const withRights = checkbox(t('erights.copy_with'), true, { help: t('erights.copy_with_help') });
+    formDialog(t('common.duplicate'), [withRights.el], t('common.duplicate'), async () => {
+      const n = await api.post<ElementSummary>(`elements/${el.id}/duplicate`, { category_id: 0, with_rights: withRights.input.checked });
+      toast(t('element.duplicated'));
+      navigate(`/e/${n.id}`);
+    });
+    return;
+  }
   try {
     const n = await api.post<ElementSummary>(`elements/${el.id}/duplicate`, { category_id: 0 });
     toast(t('element.duplicated'));

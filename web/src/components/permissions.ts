@@ -4,7 +4,7 @@
 import { api } from '../core/api';
 import { h, uid } from '../core/dom';
 import { t } from '../core/i18n';
-import { PERMS } from '../core/types';
+import { ELEMENT_PERMS, PERMS } from '../core/types';
 import { state, translatePerm } from '../core/state';
 import { langName } from './widgets';
 import { checkbox, field, select } from './ui';
@@ -49,7 +49,7 @@ export function groupLabel(group: string): string {
 
 /** summary describes core bits and actions in words. */
 export function summary(bits: number, actions: string[], defs: PermDef[]): string {
-  const parts = PERMS.filter((p) => bits & p.bit).map((p) => t(`perm.${p.key}`));
+  const parts = [...PERMS, ELEMENT_PERMS[3]].filter((p) => bits & p.bit).map((p) => t(`perm.${p.key}`));
   for (const a of actions) {
     const d = defs.find((x) => x.key === a);
     parts.push(d ? permLabel(d) : a);
@@ -66,26 +66,36 @@ function byGroup(defs: PermDef[]): Map<string, PermDef[]> {
 export interface RuleEditor { el: HTMLElement; value: () => { permissions: number; actions: string[] } }
 
 /** ruleEditor edits the permissions of a category rule: a preset or single permissions. */
-export async function ruleEditor(bits: number, actions: string[], opts: { guest?: boolean } = {}): Promise<RuleEditor> {
+export async function ruleEditor(bits: number, actions: string[], opts: { guest?: boolean; element?: boolean; mine?: number; mineActions?: string[] } = {}): Promise<RuleEditor> {
   const cat = await loadCatalog();
   const defs = cat.permissions.filter((d) => d.scope === 'category');
-  const core = PERMS.map((p) => ({ p, cb: checkbox(t(`perm.${p.key}`), (bits & p.bit) !== 0, { help: t(`perm.${p.key}_help`) }) }));
+  // a rule of one page (element): view, edit, delete, give rights; presets
+  // reader and editor (manager is a permission of categories)
+  const list: readonly { bit: number; key: string }[] = opts.element ? ELEMENT_PERMS : PERMS;
+  const elementBits = ELEMENT_PERMS.reduce((a, p) => a | p.bit, 0);
+  const presets: Catalog['presets'] = opts.element
+    ? Object.fromEntries(['reader', 'editor'].filter((n) => cat.presets[n]).map((n) => [n, { permissions: cat.presets[n].permissions & elementBits, actions: cat.presets[n].actions }]))
+    : cat.presets;
+  const core = list.map((p) => ({ p, cb: checkbox(t(`perm.${p.key}`), (bits & p.bit) !== 0, { help: t(`perm.${p.key}_help`) }) }));
   const acts = defs.map((d) => ({ d, cb: checkbox(permLabel(d), actions.includes(d.key), { help: permHelp(d) }) }));
+  // nobody gives what they do not have themselves
+  if (opts.mine !== undefined) for (const c of core) c.cb.input.disabled = (opts.mine & c.p.bit) === 0 && (bits & c.p.bit) === 0;
+  if (opts.mineActions) for (const a of acts) a.cb.input.disabled = !opts.mineActions.includes(a.d.key) && !actions.includes(a.d.key);
   const presetOf = (): string => {
     const curBits = core.filter((c) => c.cb.input.checked).reduce((a, c) => a | c.p.bit, 0);
     const curActs = acts.filter((a) => a.cb.input.checked).map((a) => a.d.key).sort().join(',');
-    for (const [name, p] of Object.entries(cat.presets)) {
+    for (const [name, p] of Object.entries(presets)) {
       if (p.permissions === curBits && [...(p.actions ?? [])].sort().join(',') === curActs) return name;
     }
     return 'custom';
   };
-  const preset = select(['reader', 'editor', 'manager', 'custom'].map((x) => ({ value: x, label: t(`acl.preset.${x}`) })), 'custom');
+  const preset = select([...Object.keys(presets), 'custom'].map((x) => ({ value: x, label: t(`acl.preset.${x}`) })), 'custom');
   preset.value = presetOf();
   preset.addEventListener('change', () => {
-    const p = cat.presets[preset.value];
+    const p = presets[preset.value];
     if (!p) return;
-    for (const c of core) c.cb.input.checked = (p.permissions & c.p.bit) !== 0;
-    for (const a of acts) a.cb.input.checked = (p.actions ?? []).includes(a.d.key);
+    for (const c of core) if (!c.cb.input.disabled) c.cb.input.checked = (p.permissions & c.p.bit) !== 0;
+    for (const a of acts) if (!a.cb.input.disabled) a.cb.input.checked = (p.actions ?? []).includes(a.d.key);
   });
   for (const x of [...core.map((c) => c.cb.input), ...acts.map((a) => a.cb.input)]) x.addEventListener('change', () => { preset.value = presetOf(); });
   if (opts.guest) { // guests may only view

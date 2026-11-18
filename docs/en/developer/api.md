@@ -315,6 +315,11 @@ Called by directories such as Entra ID or Okta with the token of a SCIM client (
 | `PUT` | `/api/v1/categories/{id}/settings` |
 | `GET` | `/api/v1/elements/{id}/rights` |
 | `PUT` | `/api/v1/elements/{id}/rights` |
+| `GET` | `/api/v1/elements/{id}/acl` |
+| `PUT` | `/api/v1/elements/{id}/acl` |
+| `POST` | `/api/v1/elements/{id}/acl` |
+| `PUT` | `/api/v1/element-acl/{id}` |
+| `DELETE` | `/api/v1/element-acl/{id}` |
 | `GET` | `/api/v1/placements` |
 | `GET` | `/api/v1/placements/{level}` |
 | `PUT` | `/api/v1/placements/{level}` |
