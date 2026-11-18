@@ -506,15 +506,18 @@ export function registerElementBlocks(): void {
   registerSlot({ id: 'core.element.info', kind: 'element', position: 'element-footer', order: 10, label: () => t('block.core.element.info'),
     render: (_p, _k, c) => (c?.view ? elementInfo(c.view) : null) });
   // the editing page: each part exists once per page (it keeps what was typed)
-  const part = (id: string, position: PagePosition, order: number, always = false) =>
-    registerSlot({ id: `core.editor.${id}`, kind: 'editor', position, order, always, label: () => t(`block.core.editor.${id}`), render: (_p, _k, c) => c?.parts?.get(id) ?? null });
-  part('notices', 'editor-header', 10, true);
-  part('format', 'editor-toolbar', 10);
-  part('tags', 'editor-footer', 10);
-  part('fields', 'editor-footer', 20, true); // required properties must stay reachable
-  part('original', 'editor-footer', 30);
-  part('comment', 'editor-footer', 40);
-  part('actions', 'editor-statusbar', 10, true);
+  // (ids written out: the documentation check finds them)
+  const part = (id: string, position: PagePosition, order: number, always = false) => {
+    const name = id.slice('core.editor.'.length);
+    registerSlot({ id, kind: 'editor', position, order, always, label: () => t(`block.${id}`), render: (_p, _k, c) => c?.parts?.get(name) ?? null });
+  };
+  part('core.editor.notices', 'editor-header', 10, true);
+  part('core.editor.format', 'editor-toolbar', 10);
+  part('core.editor.tags', 'editor-footer', 10);
+  part('core.editor.fields', 'editor-footer', 20, true); // required properties must stay reachable
+  part('core.editor.original', 'editor-footer', 30);
+  part('core.editor.comment', 'editor-footer', 40);
+  part('core.editor.actions', 'editor-statusbar', 10, true);
 }
 
 /** The layout of the page to edit or create an element: title and content

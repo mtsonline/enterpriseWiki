@@ -9,6 +9,7 @@
 //     same number of code blocks and table rows
 //   - relative links point to existing files and, with #anchor, to an
 //     existing heading of that file
+//   - every identifier named in backticks exists (inventory.go)
 //
 // Run from the root of the repository: go run ./tools/docscheck
 package main
@@ -82,6 +83,7 @@ func main() {
 	for _, f := range files {
 		checkLinks(f, add)
 	}
+	ids := checkInventory(files, add)
 	if len(problems) > 0 {
 		sort.Strings(problems)
 		for _, p := range problems {
@@ -90,7 +92,7 @@ func main() {
 		fmt.Fprintf(os.Stderr, "docscheck: %d problem(s)\n", len(problems))
 		os.Exit(1)
 	}
-	fmt.Printf("docscheck: %d pages in German and English, structure and links ok\n", len(pairs))
+	fmt.Printf("docscheck: %d pages in German and English, structure, links and %d named identifiers ok\n", len(pairs), ids)
 }
 
 // findPairs lists the pages that must exist in both languages.

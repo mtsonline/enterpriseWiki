@@ -12,4 +12,5 @@ The binding rules for all contributions are in [CLAUDE.en.md](CLAUDE.en.md) (Ger
 3. **Quality**: `./scripts/build.sh`, Go tests (`go test ./...`, with `EWIKI_TEST_DATABASE_URL` also the
    API integration tests) and the browser tests with accessibility check must be green. Every feature belongs in
    API, CLI and interface.
-4. **Plugins** for the official catalogue: see [docs/en/developer/plugins.md](docs/en/developer/plugins.md); the CLA applies here too.
+4. **Documentation** in German and English: `go run ./tools/docscheck` checks pages, structure, links and that every identifier named in backticks (blocks, actions, permissions, settings …) really exists.
+5. **Plugins** for the official catalogue: see [docs/en/developer/plugins.md](docs/en/developer/plugins.md); the CLA applies here too.
