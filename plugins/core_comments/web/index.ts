@@ -101,5 +101,5 @@ async function section(el: ElementView): Promise<Node | null> {
 }
 
 export function register(): void {
-  registerElementExtension({ id: 'core.comments', order: 50, render: section });
+  registerElementExtension({ id: 'core.comments', order: 50, label: () => t('core.comments.title'), render: section });
 }

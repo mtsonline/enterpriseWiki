@@ -2098,6 +2098,46 @@ test('placement: search in the footer for the site, no category tree in one cate
   }
 });
 
+test('arrange one page: title hidden (kept for screen readers), share below the content', async () => {
+  const cat = await m6Category();
+  const el = await call('POST', '/api/v1/elements', { category_id: cat, type: 'core.html', title: `Arranged ${run}`, body: { format: 'html', source: '<p>arranged</p>' } });
+  try {
+    // the site placement offers the positions of a page
+    await page.goto(`${BASE}/admin/placement`);
+    await idle();
+    await page.getByRole('heading', { name: /^(page: toolbar|seite: werkzeugleiste) \(element-toolbar\)$/i }).waitFor();
+    await page.getByRole('combobox', { name: /^(position of title of the page|position von titel der seite)$/i }).waitFor();
+    // the page: title in the header, actions in the toolbar
+    await page.goto(`${BASE}/e/${el.id}`);
+    await idle();
+    await page.locator('.ew-pos--element-header h1', { hasText: `Arranged ${run}` }).waitFor();
+    await page.locator('.ew-pos--element-toolbar[role=group]').getByRole('button', { name: /^(share|teilen)/i }).waitFor();
+    const edit = page.locator('.ew-pos--header-tools button[aria-pressed]');
+    if ((await edit.getAttribute('aria-pressed')) !== 'true') { await edit.click(); await idle(); }
+    await page.getByRole('button', { name: /^(arrange page|seite anordnen)$/i }).click();
+    const dlg = page.locator('dialog[open]');
+    await dlg.getByRole('combobox', { name: /^(position of title of the page|position von titel der seite)$/i }).selectOption('');
+    await dlg.getByRole('combobox', { name: /^(position of share|position von teilen)$/i }).selectOption('element-footer');
+    // the management of the page cannot be hidden, and only positions of a page are offered
+    const manage = dlg.getByRole('combobox', { name: /^(position of managing the page|position von seite verwalten)/i });
+    assert.deepEqual(await manage.locator('option').evaluateAll((o) => o.map((x) => x.value)), ['element-header', 'element-toolbar', 'element-aside', 'element-footer']);
+    await a11y('arranging one page');
+    await dlg.getByRole('button', { name: /^(save|speichern)$/i }).click();
+    await page.locator('.ew-toast', { hasText: /placement saved|platzierung gespeichert/i }).first().waitFor();
+    await page.locator('dialog[open]').waitFor({ state: 'detached' });
+    await page.locator('.ew-pos--element-footer').getByRole('button', { name: /^(share|teilen)/i }).waitFor();
+    assert.equal(await page.locator('.ew-pos--element-header h1').count(), 0, 'no visible title');
+    assert.equal(await page.getByRole('heading', { level: 1, name: `Arranged ${run}` }).count(), 1, 'the heading stays for screen readers');
+    await a11y('page without a visible title');
+    const lv = await call('GET', `/api/v1/placements/instance?target=${el.id}`);
+    assert.deepEqual(lv.placements.map((x) => `${x.block}@${x.position}`).sort(), ['core.element.title@', 'core.share@element-footer']);
+    const off = page.locator('.ew-pos--header-tools button[aria-pressed]');
+    if ((await off.getAttribute('aria-pressed')) === 'true') { await off.click(); await idle(); }
+  } finally {
+    await call('PUT', `/api/v1/placements/instance?target=${el.id}`, { placements: [] });
+  }
+});
+
 test('a hidden page: not listed for readers, marked for editors, reachable by its link', async () => {
   const cat = await m6Category();
   const el = await call('POST', '/api/v1/elements', { category_id: cat, type: 'core.html', title: `Quiet ${run}`, body: { format: 'html', source: '<p>quiet</p>' } });

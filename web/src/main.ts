@@ -27,7 +27,7 @@ import { registerSourceControls } from './components/sources';
 import { installMacroPager } from './core/pager';
 import { categorySettingsView } from './views/categorySettings';
 import { spaceKeyView, spacesView } from './views/spaces';
-import { categoryView, editElementView, elementView, draftEditView, historyView, homeView, newElementView } from './views/content';
+import { categoryView, editElementView, elementView, draftEditView, historyView, homeView, newElementView, registerElementBlocks } from './views/content';
 import { loginView, notFoundView, profileView, searchView, trashView } from './views/misc';
 
 function pickLanguage(site: Site, user: Principal | null): string {
@@ -63,8 +63,9 @@ function registerCore(): void {
   route('/admin/:section', adminView);
   setNotFound(notFoundView);
 
-  registerPageAction({ id: 'core.instance-rights', order: 90, render: instanceRightsButton });
-  registerPageAction({ id: 'core.instance-labels', order: 91, render: instanceLabelsButton });
+  registerPageAction({ id: 'core.instance-rights', order: 90, label: () => t('instance.rights'), render: instanceRightsButton });
+  registerPageAction({ id: 'core.instance-labels', order: 91, label: () => t('labels.button'), render: instanceLabelsButton });
+  registerElementBlocks();
   registerAdminPage({ id: 'placement', permission: 'core.settings.manage', order: 15, label: () => t('placement.admin'), render: async (panel) => { panel.append(pageHeader(t('placement.admin')), await placementEditor('site', '')); } });
   registerProfileSection({ id: 'core.placement', order: 60, render: async () => (state.site.personal_placement && state.user ? placementEditor('user', String(state.user.id)) : null) });
   // building blocks of the core: default positions; the administration,
@@ -73,7 +74,7 @@ function registerCore(): void {
   registerSlot({ id: 'core.lang', position: 'header-tools', order: 20, label: () => t('block.core.lang'), render: languageSwitcher });
   registerSlot({ id: 'core.edit', position: 'header-tools', order: 30, label: () => t('block.core.edit'), render: editToggle });
   registerSlot({ id: 'core.bell', position: 'header-tools', order: 35, label: () => t('block.core.bell'), render: () => notificationBell() });
-  registerSlot({ id: 'core.user', position: 'header-tools', order: 40, label: () => t('block.core.user'), render: userMenu });
+  registerSlot({ id: 'core.user', position: 'header-tools', order: 40, always: true, label: () => t('block.core.user'), render: userMenu });
   registerSlot({ id: 'core.tree', position: 'sidebar', order: 10, label: () => t('block.core.tree'), render: categoryTree });
 
   // Minimal fallback layout, used when no template plugin is active.

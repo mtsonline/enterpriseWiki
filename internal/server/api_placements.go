@@ -11,8 +11,9 @@ import (
 
 // routesPlacements: where the building blocks of the interface appear.
 func (s *Server) routesPlacements() {
-	// GET /api/v1/placements?template=&category= – the levels that apply to
-	// a page (template, site, category and its ancestors, own if allowed)
+	// GET /api/v1/placements?template=&category=&element= – the levels that
+	// apply to a page (template, site, category and its ancestors, the
+	// element, own if allowed)
 	// action: core.placements.resolve
 	s.handle("GET /api/v1/placements", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		q := r.URL.Query()
@@ -23,7 +24,14 @@ func (s *Server) routesPlacements() {
 				return nil, apperr.BadRequest("category must be a category id")
 			}
 		}
-		return s.app.Content.ResolvedPlacements(r.Context(), q.Get("template"), cat)
+		var el int64
+		if v := q.Get("element"); v != "" {
+			var err error
+			if el, err = strconv.ParseInt(v, 10, 64); err != nil || el < 0 {
+				return nil, apperr.BadRequest("element must be an element id")
+			}
+		}
+		return s.app.Content.ResolvedPlacements(r.Context(), q.Get("template"), cat, el)
 	})
 	// action: core.placements.get
 	s.handle("GET /api/v1/placements/{level}", func(w http.ResponseWriter, r *http.Request) (any, error) {

@@ -10,6 +10,8 @@
 import { state, onChange } from './core/state';
 import { t } from './core/i18n';
 import { api } from './core/api';
+import { ELEMENT_POSITIONS, resolvePlacements, type PlacementLevel, type PositionKind } from './core/placement';
+export { ELEMENT_POSITIONS, positionFits, resolvePlacements, type Placement, type PlacementLevel, type PositionKind } from './core/placement';
 
 export { h, mount, append, trustedHTML, uid, fmtDate, srOnly } from './core/dom';
 export type { Child } from './core/dom';
@@ -182,44 +184,56 @@ export function templateLabel(id: string): string {
 
 // ---------------------------------------------------------------- positions (slots)
 
+
+/** The page an element block is rendered for. */
+export interface ElementContext { target: PageTarget; view: import('./core/types').ElementView }
+
 export interface SlotDef {
   id: string;
+  /** The kind of positions the block fits (default "site"). Element blocks
+   * render only on element pages and receive the element (ctx). */
+  kind?: PositionKind;
   /** Default position, or "*" for every position (render receives the name;
    * such slots are not moved). */
   position: string;
   order?: number;
   /** Name of the building block in the placement administration. */
   label?: () => string;
+  /** The block is never lost: placed nowhere (of its kind), it goes to the
+   * first position (the user menu, the management of an element page). */
+  always?: boolean;
   /** Instances of the block (menus, carousels, content blocks …): each is a
    * block of its own ("<id>/<key>"; key "" is the block itself) with its
    * own default position (empty: not placed) that the placement levels can
    * change, hide or repeat. */
   instances?: () => Promise<SlotInstance[]>;
   /** Renders the block (an instance: its key) at a position. */
-  render: (position: string, key?: string) => Node | null | Promise<Node | null>;
+  render: (position: string, key?: string, ctx?: ElementContext) => Node | null | Promise<Node | null>;
 }
 
 /** An instance of a block (see SlotDef.instances). */
 export interface SlotInstance { key: string; label: string; position: string; order?: number }
 
 /** A block that can be placed: a slot or one instance of it. */
-export interface PlaceableBlock { id: string; label: string; position: string; order: number; slot: SlotDef; key?: string }
+export interface PlaceableBlock { id: string; label: string; position: string; order: number; slot: SlotDef; key?: string; kind: PositionKind; always?: boolean }
 
 // ---------------------------------------------------------------- placement
 
-/** One placement of a building block (see content.Placement on the server). */
-export interface Placement { block: string; position: string; sort: number; required?: boolean }
-export interface PlacementLevel { level: 'template' | 'site' | 'category' | 'instance' | 'user'; target: string; placements: Placement[] }
 
 let placementCategory = 0;
+let placementElement = 0;
 let placementCache: { key: string; levels: Promise<PlacementLevel[]> } | null = null;
 
-/** Sets the category of the page shown (its placements apply). */
-export function setPlacementContext(categoryId: number): void {
-  if (placementCategory === categoryId) return;
+/** Sets the category (and element) of the page shown: their placements
+ * apply. */
+export function setPlacementContext(categoryId: number, elementId = 0): void {
+  if (placementCategory === categoryId && placementElement === elementId) return;
   placementCategory = categoryId;
+  placementElement = elementId;
   // the positions may already be filled for the previous page: fill them
-  // again with the placements of this category (once per change)
+  // again with the placements of this category (once per change; new
+  // positions wait for it)
+  refreshPending = true;
   queueMicrotask(() => void refreshPositions());
 }
 
@@ -242,9 +256,9 @@ export function placeableBlocks(): Promise<PlaceableBlock[]> {
         if (s.instances) {
           let list: SlotInstance[] = [];
           try { list = await s.instances(); } catch (e) { console.error(`instances of ${s.id} failed`, e); }
-          for (const i of list) out.push({ id: i.key ? `${s.id}/${i.key}` : s.id, label: i.label, position: i.position, order: i.order ?? s.order ?? 50, slot: s, key: i.key });
+          for (const i of list) out.push({ id: i.key ? `${s.id}/${i.key}` : s.id, label: i.label, position: i.position, order: i.order ?? s.order ?? 50, slot: s, key: i.key, kind: s.kind ?? 'site' });
         } else if (s.position !== '*') {
-          out.push({ id: s.id, label: s.label?.() ?? s.id, position: s.position, order: s.order ?? 50, slot: s });
+          out.push({ id: s.id, label: s.label?.() ?? s.id, position: s.position, order: s.order ?? 50, slot: s, kind: s.kind ?? 'site', always: s.always });
         }
       }
       return out;
@@ -256,36 +270,15 @@ export function placeableBlocks(): Promise<PlaceableBlock[]> {
 
 function placementLevels(): Promise<PlacementLevel[]> {
   const tpl = activeTemplate()?.id ?? '';
-  const key = `${tpl}|${placementCategory}|${state.user?.id ?? 0}`;
+  const key = `${tpl}|${placementCategory}|${placementElement}|${state.user?.id ?? 0}`;
   if (placementCache?.key !== key) {
     const q = new URLSearchParams({ template: tpl });
     if (placementCategory) q.set('category', String(placementCategory));
+    if (placementElement) q.set('element', String(placementElement));
     placementCache = { key, levels: api.get<PlacementLevel[]>(`placements?${q}`).catch(() => []) };
   }
   return placementCache.levels;
 }
-
-/** Applies levels (in order) to the default positions: a level that names a
- * block replaces its positions from above, unless a level above made it
- * required; an empty position hides it. */
-export function resolvePlacements(levels: PlacementLevel[], blocks: PlaceableBlock[]): Map<string, { position: string; sort: number }[]> {
-  const out = new Map<string, { position: string; sort: number }[]>();
-  for (const b of blocks) out.set(b.id, b.position ? [{ position: b.position, sort: b.order }] : []);
-  const locked = new Set<string>();
-  for (const l of levels) {
-    const byBlock = new Map<string, Placement[]>();
-    for (const p of l.placements) byBlock.set(p.block, [...(byBlock.get(p.block) ?? []), p]);
-    for (const [block, ps] of byBlock) {
-      if (locked.has(block) || !out.has(block)) continue; // unknown blocks (plugin off, instance deleted) rest
-      out.set(block, ps.filter((p) => p.position).map((p) => ({ position: p.position, sort: p.sort })));
-      if (ps.some((p) => p.required) && (l.level === 'template' || l.level === 'site')) locked.add(block);
-    }
-  }
-  return out;
-}
-
-/** The block that must always be reachable (sign-in, profile, sign-out). */
-const ALWAYS = 'core.user';
 
 const slots: SlotDef[] = [];
 const positionEls = new Map<string, Set<HTMLElement>>();
@@ -308,25 +301,41 @@ function pathTo(root: Node, node: Node): number[] {
   return path;
 }
 
+const elementCtx = new WeakMap<HTMLElement, { ctx: ElementContext; filled?: () => void }>();
+
+const fillGen = new WeakMap<HTMLElement, number>();
+let refreshPending = false;
+
 async function fill(el: HTMLElement, name: string): Promise<void> {
+  // only the latest filling of a container applies (an older one may finish later)
+  const gen = (fillGen.get(el) ?? 0) + 1;
+  fillGen.set(el, gen);
   const nodes: Node[] = [];
   const blocks = await placeableBlocks();
   const placed = resolvePlacements(await placementLevels(), blocks);
   const tplPositions = activeTemplate()?.positions ?? [];
+  const ec = elementCtx.get(el);
+  const isElement = name.startsWith('element-');
+  if (isElement && !ec) return; // element positions belong to an element page
   const here: { s: SlotDef; id: string; key?: string; sort: number }[] = [];
-  for (const s of slots) if (s.position === '*' && !s.instances) here.push({ s, id: s.id, sort: s.order ?? 50 });
+  if (!isElement) for (const s of slots) if (s.position === '*' && !s.instances) here.push({ s, id: s.id, sort: s.order ?? 50 });
   for (const b of blocks) {
+    if (b.kind !== (isElement ? 'element' : 'site')) continue;
     let ps = placed.get(b.id) ?? [];
-    // the user menu never gets lost: if it is nowhere in this template, it
-    // goes to the first position of the template
-    if (b.id === ALWAYS && !ps.some((p) => tplPositions.includes(p.position))) ps = [{ position: tplPositions[0] ?? b.position, sort: b.order }];
+    // blocks that must stay reachable (the user menu …) never get lost: if
+    // one is nowhere in this template (or page), it goes to the first
+    // position (of an element page: its toolbar)
+    if (b.always) {
+      const avail: readonly string[] = isElement ? ELEMENT_POSITIONS : tplPositions;
+      if (!ps.some((p) => avail.includes(p.position))) ps = [{ position: isElement ? 'element-toolbar' : (tplPositions[0] ?? b.position), sort: b.order }];
+    }
     for (const p of ps) if (p.position === name) here.push({ s: b.slot, id: b.id, key: b.key, sort: p.sort });
   }
   here.sort((a, b) => a.sort - b.sort);
   // render all at once (each block loads its own data)
   const rendered = await Promise.all(here.map(async ({ s, id, key }) => {
     try {
-      return { id, n: await s.render(name, key) };
+      return { id, n: await s.render(name, key, ec?.ctx) };
     } catch (e) {
       console.error(`slot ${id} failed`, e);
       return { id, n: null };
@@ -347,12 +356,14 @@ async function fill(el: HTMLElement, name: string): Promise<void> {
     const slot = top && slotOf.get(top);
     if (top && slot) restore = { slot, path: pathTo(top, active) };
   }
+  if (fillGen.get(el) !== gen || (!el.isConnected && ec)) return; // newer filling, or the page was left
   el.replaceChildren(...nodes);
   if (restore) {
     let n: Node | undefined = nodes.find((x) => slotOf.get(x) === restore!.slot);
     for (const i of restore.path) n = n?.childNodes[i];
     if (n instanceof HTMLElement) n.focus();
   }
+  ec?.filled?.();
 }
 
 /** Creates a live position container. */
@@ -367,13 +378,43 @@ export function positionContainer(name: string, tag: keyof HTMLElementTagNameMap
   return el;
 }
 
+/** Creates a live position of an element page (element-header …) for the
+ * element shown; filled is called after every filling. */
+export function elementPositionContainer(name: (typeof ELEMENT_POSITIONS)[number], ctx: ElementContext, filled?: () => void): HTMLElement {
+  const el = document.createElement('div');
+  el.className = `ew-pos ew-pos--${name}`;
+  el.dataset.position = name;
+  el.dataset.label = positionLabel(name);
+  // a group of buttons, a side column: named only when there is something in it
+  const role = name === 'element-toolbar' ? 'group' : name === 'element-aside' ? 'complementary' : '';
+  const label = name === 'element-toolbar' ? t('common.actions') : positionLabel(name);
+  elementCtx.set(el, {
+    ctx, filled: () => {
+      if (role && el.childNodes.length) {
+        el.setAttribute('role', role);
+        el.setAttribute('aria-label', label);
+      } else {
+        el.removeAttribute('role');
+        el.removeAttribute('aria-label');
+      }
+      filled?.();
+    },
+  });
+  if (!positionEls.has(name)) positionEls.set(name, new Set());
+  positionEls.get(name)!.add(el);
+  if (!refreshPending) void fill(el, name);
+  return el;
+}
+
 /** Re-renders all positions (after navigation, login, language change). */
 export function refreshPositions(): Promise<void> {
+  refreshPending = false;
   blockCache = null; // instances may have changed (a new menu …)
   const jobs: Promise<void>[] = [];
   for (const [name, els] of positionEls) {
     for (const el of els) {
-      if (!el.isConnected) els.delete(el);
+      // a new container not yet in the page is filled too (it waited for this)
+      if (!el.isConnected && fillGen.has(el)) els.delete(el);
       else jobs.push(fill(el, name));
     }
   }
@@ -469,6 +510,8 @@ export function typeLabel(id: string): string {
 export interface ElementExtension {
   id: string;
   order?: number;
+  /** Name in the placement administration. */
+  label?: () => string;
   /** Rendered below the content of an element page (e.g. comments), or above it with placement "top" (e.g. page properties). */
   render: (el: import('./core/types').ElementView) => Node | null | Promise<Node | null>;
   placement?: 'top' | 'bottom';
@@ -476,10 +519,12 @@ export interface ElementExtension {
 
 const elementExtensions: ElementExtension[] = [];
 
-/** Adds a section below every element page. */
+/** Adds a section to every element page: an element block (id of the
+ * extension) at element-footer, or element-header with placement "top". */
 export function registerElementExtension(x: ElementExtension): void {
   elementExtensions.push(x);
   elementExtensions.sort((a, b) => (a.order ?? 50) - (b.order ?? 50));
+  registerSlot({ id: x.id, kind: 'element', position: x.placement === 'top' ? 'element-header' : 'element-footer', order: 100 + (x.order ?? 50), label: x.label ?? (() => x.id), render: (_p, _k, ctx) => (ctx ? x.render(ctx.view) : null) });
 }
 
 /** Renders all element extensions into container. */
@@ -695,14 +740,20 @@ export interface PageTarget { type: 'element' | 'category'; id: number; title: s
 export interface PageAction {
   id: string;
   order?: number;
+  /** Name in the placement administration. */
+  label?: () => string;
   render: (target: PageTarget) => HTMLElement | null;
 }
 
 const pageActions: PageAction[] = [];
 
+/** Registers a page action. On element pages it is an element block (id of
+ * the action, default position element-toolbar) that can be moved, hidden
+ * or repeated; on category pages it stays in the actions. */
 export function registerPageAction(a: PageAction): void {
   pageActions.push(a);
   pageActions.sort((x, y) => (x.order ?? 50) - (y.order ?? 50));
+  registerSlot({ id: a.id, kind: 'element', position: 'element-toolbar', order: 100 + (a.order ?? 50), label: a.label ?? (() => a.id), render: (_p, _k, ctx) => (ctx ? a.render(ctx.target) : null) });
 }
 
 /** pageActionButtons renders the registered page actions for a target. */

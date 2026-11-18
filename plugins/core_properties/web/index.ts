@@ -36,7 +36,7 @@ export function register(): void {
       return { el: form.el, value: () => form.value(), validate: () => form.validate() };
     },
   });
-  registerElementExtension({ id: 'core.properties', order: 5, placement: 'top', render: section });
+  registerElementExtension({ id: 'core.properties', order: 5, label: () => t('core.properties.block'), placement: 'top', render: section });
   registerWidget('core.properties.report', reportWidget);
   registerWidget('core.properties.database', databaseWidget);
   registerControls();

@@ -2348,5 +2348,16 @@
  "perm.core.roles.list_own": "Eigene Rollen auflisten",
  "perm.core.roles.list_own_help": "Die Namen der Rollen sehen, die man selbst hat (direkt oder über eine Gruppe).",
  "audit.action.settings.config_set": "Einstellung auf der Kommandozeile geändert",
- "audit.action.settings.file_changed": "Konfigurationsdatei außerhalb des Wikis geändert"
+ "audit.action.settings.file_changed": "Konfigurationsdatei außerhalb des Wikis geändert",
+ "position.element-header": "Seite: Kopf",
+ "position.element-toolbar": "Seite: Werkzeugleiste",
+ "position.element-aside": "Seite: Seitenspalte",
+ "position.element-footer": "Seite: unter dem Inhalt",
+ "block.core.element.title": "Titel der Seite",
+ "block.core.element.manage": "Seite verwalten (Bearbeitungsmodus)",
+ "block.core.element.watch": "Beobachten",
+ "block.core.element.info": "Angaben zur Seite (Schlagwörter, Autor, Version)",
+ "placement.title_instance": "Seite {title} anordnen",
+ "placement.help_instance": "Wo Titel, Knöpfe und Abschnitte dieser Seite erscheinen. Bausteine, die Sie nicht ändern, behalten die Platzierung der Kategorie und der Website (geerbt).",
+ "placement.arrange": "Seite anordnen"
 }

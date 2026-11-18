@@ -62,7 +62,7 @@ async function shareDialog(target: { type: 'element' | 'category'; id: number; t
 
 export function register(): void {
   registerPageAction({
-    id: 'core.share', order: 20,
+    id: 'core.share', order: 20, label: () => t('core.share.button'),
     render: (target) => (state.user && hasPerm('core.share.use') ? button(t('core.share.button'), () => void shareDialog(target), { variant: 'secondary', ariaLabel: `${t('core.share.button')}: ${target.title}` }) : null),
   });
 }

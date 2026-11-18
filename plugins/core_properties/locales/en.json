@@ -339,5 +339,6 @@
  "perm.core.properties.define": "Define properties",
  "perm.core.properties.define_help": "Create, change and remove the definitions of properties of this category (inherited by subcategories) and allow or forbid free properties.",
  "perm.core.properties.free": "Add free properties",
- "perm.core.properties.free_help": "Add properties without a definition (a name and a type) to elements one may edit."
+ "perm.core.properties.free_help": "Add properties without a definition (a name and a type) to elements one may edit.",
+ "core.properties.block": "Page properties"
 }

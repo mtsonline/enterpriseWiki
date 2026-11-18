@@ -106,7 +106,7 @@ async function profile(): Promise<HTMLElement | null> {
 }
 
 export function register(): void {
-  registerPageAction({ id: 'core.favorites', order: 5, render: (target) => starButton(target) });
+  registerPageAction({ id: 'core.favorites.star', order: 5, label: () => t('core.favorites.star_block'), render: (target) => starButton(target) });
   // a block of the placement: default in the sidebar; hidden there, the list
   // is only in the profile
   registerSlot({ id: 'core.favorites', position: 'sidebar', order: 20, label: () => t('core.favorites.title'), render: (position) => widget(position) });
