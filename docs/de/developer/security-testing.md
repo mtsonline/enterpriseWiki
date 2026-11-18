@@ -73,3 +73,24 @@ tests/qa/local.sh        # frische Wegwerf-Instanz, alle Tests, Bericht in /tmp/
 ```
 
 Vor jeder Version ausführen; neue Funktionen bekommen dort einen Schritt im Funktionstest. Der Bericht beschreibt offene Schwachstellen und gehört nicht ins Repository. Einzelheiten: [tests/qa/README.md](../../../tests/qa/README.md).
+
+## Fallen-Tests: prüfen die Tests, was sie behaupten? (`tools/traps`)
+
+Ein grüner Test sagt nur etwas, wenn er rot würde, sobald das Geprüfte kaputt ist. `tools/traps` baut deshalb nacheinander absichtlich Fehler in sicherheitskritische Stellen ein und lässt die zuständigen Tests laufen. Die Liste steht in `tools/traps/traps.go`. Beispiele:
+- eine Rechteprüfung fehlt;
+- „nur eigene Rechte“ wird übergangen;
+- `--as` bekommt die Rechte der Kommandozeile;
+- eine Kopie verliert ihre Einstufung;
+- ein deaktiviertes Konto arbeitet weiter.
+
+```bash
+EWIKI_TEST_DATABASE_URL=postgres://USER:PASS@localhost:5432/DB?sslmode=disable go run ./tools/traps
+go run ./tools/traps -list                       # alle Fallen
+go run ./tools/traps -only cli.as,auth.csrf      # einzelne Fallen
+```
+
+- Zuerst laufen die Tests ohne Fallen und müssen grün sein. Ohne Datenbank bricht das Werkzeug ab, weil die Integrationstests sonst übersprungen würden und jede Falle als „gefangen“ gälte.
+- **caught:** Die Tests werden rot, wie erwartet. **MISSED:** Die Tests bleiben grün, also prüfen sie nicht, was sie behaupten; das ist ein Befund. **BROKEN:** Die Falle lässt sich nicht übersetzen.
+- **OUTDATED:** Die bewachte Stelle hat sich geändert. Dann wird die Falle angepasst, sie wird nie entfernt.
+- Jede geänderte Datei wird nach ihrer Falle wiederhergestellt, auch bei Strg+C. Dateien mit nicht eingecheckten Änderungen werden abgelehnt.
+- Läuft vor jedem Release. Jeder behobene Sicherheitsfehler bekommt eine Falle.

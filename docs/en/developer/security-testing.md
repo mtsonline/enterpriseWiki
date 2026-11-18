@@ -73,3 +73,24 @@ tests/qa/local.sh        # fresh throwaway instance, all tests, report in /tmp/e
 ```
 
 Run it before every version; new features get a step in the functional test there. The report describes open vulnerabilities and does not belong in the repository. Details: [tests/qa/README.md](../../../tests/qa/README.md).
+
+## Trap tests: do the tests check what they claim? (`tools/traps`)
+
+A green test only means something if it would turn red as soon as what it checks is broken. `tools/traps` therefore builds deliberate bugs into security-critical places, one after the other, and runs the tests responsible. The list is in `tools/traps/traps.go`. Examples:
+- a permission check is missing;
+- "own permissions only" is bypassed;
+- `--as` gets the rights of the command line;
+- a copy loses its classification;
+- a disabled account keeps working.
+
+```bash
+EWIKI_TEST_DATABASE_URL=postgres://USER:PASS@localhost:5432/DB?sslmode=disable go run ./tools/traps
+go run ./tools/traps -list                       # all traps
+go run ./tools/traps -only cli.as,auth.csrf      # single traps
+```
+
+- First the tests run without traps and must be green. Without a database the tool stops, because the integration tests would be skipped and every trap would count as "caught".
+- **caught:** the tests turn red, as expected. **MISSED:** the tests stay green, so they do not check what they claim; that is a finding. **BROKEN:** the trap does not compile.
+- **OUTDATED:** the guarded place has changed. Then the trap is adjusted, never removed.
+- Every changed file is restored after its trap, also on Ctrl+C. Files with uncommitted changes are refused.
+- Runs before every release. Every fixed security bug gets a trap.
