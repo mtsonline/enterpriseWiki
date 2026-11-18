@@ -30,6 +30,8 @@ const (
 	WatchQuietSeconds  = "core.watch.quiet_seconds"
 	PlacementRows      = "core.placements.rows"
 	ElementRules       = "core.elements.rules"
+	CategoryPageSize   = "core.categories.page_size"
+	CategoryFeatured   = "core.categories.featured"
 )
 
 // LargeBody is the size from which a request counts as large (limited
@@ -88,6 +90,10 @@ func init() {
 			Label: "Changes undone by a rollback of the structure", Help: "Most moves and orders since the chosen point in time that one rollback of a category with its structure undoes; more are refused (choose a later point in time)."},
 		Def{Key: PlacementRows, Group: "database", Unit: "count", Default: 300, Min: 20, Max: 5000,
 			Label: "Placements per level", Help: "How many placements of building blocks one level (template, site, category, instance or person) may have."},
+		Def{Key: CategoryPageSize, Group: "database", Unit: "count", Default: 100, Min: 10, Max: 1000,
+			Label: "Pages per page of a category overview", Help: "How many pages the overview of a category shows at most at once; more are paged. A category may choose fewer."},
+		Def{Key: CategoryFeatured, Group: "database", Unit: "count", Default: 20, Min: 1, Max: 200,
+			Label: "Featured pages of a category", Help: "How many pages a category page shows in full (featured pages) at most."},
 		Def{Key: ElementRules, Group: "database", Unit: "count", Default: 100, Min: 5, Max: 2000,
 			Label: "Rules per page", Help: "How many own permission rules one page (element) may have."},
 		Def{Key: AuditSearchDays, Group: "audit", Unit: "days", Default: 90, Min: 1, Max: 3650,

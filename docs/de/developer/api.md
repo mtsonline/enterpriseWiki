@@ -74,6 +74,8 @@ Verlangt das Konto einen zweiten Faktor, antwortet die Anmeldung mit `mfa_requir
 - **Zurücksetzen:** `POST /api/v1/categories/{id}/rollback {"at": "2026-10-01T12:00:00Z", "recursive": true, "structure": true}`; `structure` (nur mit `recursive`) macht seitdem erfolgte Verschiebungen und Umsortierungen rückgängig (neueste zuerst, mit den Prüfungen des normalen Verschiebens) und verschiebt seitdem angelegte Unterkategorien in den Papierkorb; Antwort `{categories, revisions, trashed, moved, categories_trashed}`, ein nicht mehr vorhandener früherer Platz gibt `409` und ändert nichts. Höchstzahl der Änderungen: Grenzwert `core.rollback.structure_changes`.
 - **Dateien:** `POST /api/v1/files` (multipart, Feld `file`) liefert `{hash, name, mime, size}`. Ein Element `core.attachment` referenziert die Datei mit `{"file": {"hash": "…"}, "description": "…"}`. Heruntergeladen wird mit Rechteprüfung über `GET /api/v1/x/core.attachment/elements/{id}/file[?hash=…][&inline=1]`. Bilder sind zusätzlich unter `GET /api/v1/files/{hash}` abrufbar (für Bilder in Seiten).
 - **Suche:** `GET /api/v1/search?q=wort&tags=a,b&lang=de` liefert `snippet` als HTML-escaped Text mit `<mark>`. Mit `category=ID` wird nur in dieser Kategorie und ihren Unterkategorien gesucht (`recursive=0`: nur in der Kategorie).
+- **Kategorieseite:** `GET /api/v1/categories/{id}/overview?lang=&page=&view=` liefert eine Seite der Übersicht einer Kategorie in ihrer Darstellung: `display` (`view`: `list`, `cards`, `tiles`, `tree`, `handbook`; `sort`: `manual`, `title`, `updated`, `created`; `page_size`, `subcategories`, `excerpt`), `items` (mit `excerpt` aus dem Textindex), `total`, `page`, `pages` und `category_titles`. Nur Seiten, die Sie sehen dürfen; unsichtbare Seiten nur für Bearbeitende der Kategorie; mit `subcategories` auch die Seiten der Unterkategorien, die weder unsichtbar noch archiviert sind. Die Darstellung wird mit `PUT /api/v1/categories/{id}/settings` gesetzt (`display`; ohne: wie darüber) und gilt für die Unterkategorien weiter. CLI: `ewiki category overview ID`.
+- **Hervorgehobene Seiten:** Die Seite einer einzelnen Kategorie ist eine eigene Ebene der Platzierung, `category_page` (Ziel: die Kategorie-ID, nicht vererbt; braucht *Verwalten*), mit den Positionen `category-header`, `category-toolbar`, `category-content`, `category-aside` und `category-footer`. Eine hervorgehobene Seite ist der Baustein `core.category.element/<Element-ID>` auf dieser Ebene; sie muss eine Seite sein, die Sie sehen dürfen, höchstens `core.categories.featured` (Experteneinstellung). `GET /api/v1/elements/batch?ids=1,2,3&lang=` lädt mehrere Seiten auf einmal (wie `GET /elements/{id}`); Seiten, die Sie nicht sehen dürfen, fehlen. CLI: `ewiki element batch --query ids=1,2`.
 - **Zustand des Wikis:** `GET /api/v1/admin/status` (nur für Administratoren) liefert `version`, `updates_available` und `updates_checked_at` aus der letzten Prüfung (ohne Anfrage an GitHub), `mail_failed` und `mail_queued`, `queue_pending` und `queue_oldest` der Warteschlange für Änderungen, `login_failed_24h`, `audit_forward_errors`, `plugins_inactive` (eingeschaltet, aber nicht aktiv), `restart_pending`, `build_failed`, `license_level` und `database_level` (`ok`, `info`, `warning`, `error`). CLI: `ewiki system status`.
 - **Neue Einsendungen:** `GET /api/v1/x/content.forms/submissions/recent?limit=8` listet die Formulare mit Einsendungen der letzten 90 Tage, deren Einsendungen Sie sehen dürfen (`element_id`, `titles`, `last`, `unseen`), neueste zuerst. CLI: `ewiki form recent`.
 - **Zuletzt geändert:** `GET /api/v1/recent?limit=10&category=ID` listet zuletzt geänderte Seiten, `?by=me` die zuletzt von Ihnen bearbeiteten (neueste eigene Version zuerst); immer nur, was Sie sehen dürfen.
@@ -296,6 +298,7 @@ Aufgerufen von Verzeichnissen wie Entra ID oder Okta mit dem Token eines SCIM-Zu
 | `GET` | `/api/v1/categories/tree` |
 | `POST` | `/api/v1/categories` |
 | `GET` | `/api/v1/categories/{id}` |
+| `GET` | `/api/v1/categories/{id}/overview` |
 | `PUT` | `/api/v1/categories/{id}` |
 | `PUT` | `/api/v1/categories/{id}/translations/{lang}` |
 | `DELETE` | `/api/v1/categories/{id}` |
@@ -344,6 +347,7 @@ Aufgerufen von Verzeichnissen wie Entra ID oder Okta mit dem Token eines SCIM-Zu
 | `POST` | `/api/v1/elements` |
 | `POST` | `/api/v1/elements/preview` |
 | `POST` | `/api/v1/sources/preview` |
+| `GET` | `/api/v1/elements/batch` |
 | `GET` | `/api/v1/elements/{id}` |
 | `GET` | `/api/v1/elements/{id}/macro/{index}` |
 | `PUT` | `/api/v1/elements/{id}` |

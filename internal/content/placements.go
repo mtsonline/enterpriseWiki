@@ -22,8 +22,9 @@ import (
 // the category tree, a button of a plugin …) at a position of the template.
 // An empty position hides the block at this level. The placements of a
 // level replace those of the levels above for the same block: template,
-// site, category (inherited by subcategories), instance (one element: only
-// the element positions), user.
+// site, category (inherited by subcategories), category page (one category,
+// only the category positions), instance (one element: only the element
+// positions), user.
 type Placement struct {
 	Block    string `json:"block"`
 	Position string `json:"position"`
@@ -52,8 +53,22 @@ const (
 	LevelSite     = "site"
 	LevelCategory = "category"
 	LevelInstance = "instance"
-	LevelUser     = "user"
+	// LevelCategoryPage arranges the page of one category (not inherited by
+	// the subcategories): its blocks and featured pages
+	LevelCategoryPage = "category_page"
+	LevelUser         = "user"
 )
+
+// CategoryPositionPrefix starts the positions of a category page
+// (category-header, category-toolbar, category-content, category-aside,
+// category-footer); the level of one category page places blocks only
+// there.
+const CategoryPositionPrefix = "category-"
+
+// FeaturedBlockPrefix starts the block of a featured page of a category
+// ("core.category.element/<element id>"): the page shown in full on the
+// category page.
+const FeaturedBlockPrefix = "core.category.element/"
 
 // ElementPositionPrefix starts the positions of an element page
 // (element-header, element-toolbar, element-aside, element-footer); the
@@ -114,6 +129,8 @@ func (s *Service) ResolvedPlacements(ctx context.Context, templateID string, cat
 			for _, id := range c.Path {
 				want = append(want, key{LevelCategory, strconv.FormatInt(id, 10)})
 			}
+			// the page of this category (on element pages its positions do not exist)
+			want = append(want, key{LevelCategoryPage, strconv.FormatInt(categoryID, 10)})
 		}
 	}
 	if elementID > 0 {
@@ -190,6 +207,15 @@ func (s *Service) requirePlacementLevel(ctx context.Context, level, target strin
 			return err
 		}
 		return s.require(ctx, id, acl.Manage)
+	case LevelCategoryPage:
+		id, err := strconv.ParseInt(target, 10, 64)
+		if err != nil || id <= 0 || strconv.FormatInt(id, 10) != target {
+			return apperr.BadRequest("target must be a category id")
+		}
+		if _, err := s.loadCategory(ctx, s.pool, id, false); err != nil {
+			return err
+		}
+		return s.require(ctx, id, acl.Manage)
 	case LevelInstance:
 		id, err := strconv.ParseInt(target, 10, 64)
 		if err != nil || id <= 0 || strconv.FormatInt(id, 10) != target {
@@ -202,7 +228,7 @@ func (s *Service) requirePlacementLevel(ctx context.Context, level, target strin
 		}
 		return nil // without personal placement only the dashboard (SetPlacements)
 	}
-	return apperr.BadRequest("level must be template, site, category, instance or user")
+	return apperr.BadRequest("level must be template, site, category, category_page, instance or user")
 }
 
 // requireArrange checks who may arrange one element page: for elements of a
@@ -286,7 +312,7 @@ func (s *Service) SetPlacements(ctx context.Context, level, target string, in []
 		return nil, apperr.BadRequest("at most %d placements per level (expert setting %s)", max, limits.PlacementRows)
 	}
 	var required map[string]bool
-	if level == LevelCategory || level == LevelInstance || level == LevelUser {
+	if level == LevelCategory || level == LevelCategoryPage || level == LevelInstance || level == LevelUser {
 		var err error
 		if required, err = s.requiredBlocks(ctx); err != nil {
 			return nil, err
@@ -303,6 +329,17 @@ func (s *Service) SetPlacements(ctx context.Context, level, target string, in []
 		}
 		if level == LevelInstance && pl.Position != "" && !strings.HasPrefix(pl.Position, ElementPositionPrefix) {
 			return nil, apperr.BadRequest("placement %d: one page places blocks only at the positions of the page (%s…)", i+1, ElementPositionPrefix)
+		}
+		if level == LevelCategoryPage && pl.Position != "" && !strings.HasPrefix(pl.Position, CategoryPositionPrefix) {
+			return nil, apperr.BadRequest("placement %d: one category page places blocks only at the positions of the page (%s…)", i+1, CategoryPositionPrefix)
+		}
+		if strings.HasPrefix(pl.Block, FeaturedBlockPrefix) {
+			if level != LevelCategoryPage {
+				return nil, apperr.BadRequest("placement %d: featured pages belong to the page of one category (level %s)", i+1, LevelCategoryPage)
+			}
+			if _, err := strconv.ParseInt(strings.TrimPrefix(pl.Block, FeaturedBlockPrefix), 10, 64); err != nil {
+				return nil, apperr.BadRequest("placement %d: %q names no page", i+1, pl.Block)
+			}
 		}
 		dash := strings.HasPrefix(pl.Position, DashboardPositionPrefix)
 		if level == LevelUser && !ui.PersonalPlacement && pl.Position != "" && !dash {
@@ -328,6 +365,9 @@ func (s *Service) SetPlacements(ctx context.Context, level, target string, in []
 		if pl.Position == "" && slices.ContainsFunc(in, func(x Placement) bool { return x.Block == pl.Block && x.Position != "" }) {
 			return nil, apperr.BadRequest("placement %d: %q is hidden and placed at the same time", i+1, pl.Block)
 		}
+	}
+	if err := s.checkFeatured(ctx, in); err != nil {
+		return nil, err
 	}
 	before, err := s.GetPlacements(ctx, level, target)
 	if err != nil {
@@ -358,3 +398,32 @@ func (s *Service) SetPlacements(ctx context.Context, level, target string, in []
 // ValidBlockID reports whether id has the form of a block id
 // (plugin-id.name, optionally /instance).
 func ValidBlockID(id string) bool { return blockRe.MatchString(id) }
+
+// checkFeatured checks the featured pages of a category page: each must be
+// a page the caller may view (all at once). Readers see a featured page only
+// when they may view it too (it is loaded with their permissions).
+func (s *Service) checkFeatured(ctx context.Context, in []Placement) error {
+	ids := []int64{}
+	for _, pl := range in {
+		if strings.HasPrefix(pl.Block, FeaturedBlockPrefix) && pl.Position != "" {
+			id, _ := strconv.ParseInt(strings.TrimPrefix(pl.Block, FeaturedBlockPrefix), 10, 64)
+			ids = append(ids, id)
+		}
+	}
+	if len(ids) == 0 {
+		return nil
+	}
+	if max := limits.Value(s.cfg.Get(), limits.CategoryFeatured); int64(len(ids)) > max {
+		return apperr.BadRequest("at most %d featured pages (expert setting %s)", max, limits.CategoryFeatured)
+	}
+	vis, err := s.VisibleElements(ctx, ids)
+	if err != nil {
+		return err
+	}
+	for _, id := range ids {
+		if !vis[id] {
+			return apperr.BadRequest("featured page %d: not found", id)
+		}
+	}
+	return nil
+}

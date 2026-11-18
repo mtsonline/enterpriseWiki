@@ -531,10 +531,11 @@ CREATE INDEX element_rules_element ON element_rules(element_id);
 -- category tree, buttons of plugins …) appear: one row places a block at a
 -- position of the template (empty position: not shown at this level). The
 -- rows of a level replace those of the levels above for the same block:
--- template, site, category (and its subcategories), instance, user.
+-- template, site, category (and its subcategories), category page (one
+-- category), instance, user.
 CREATE TABLE placements (
     id         bigserial PRIMARY KEY,
-    level      text NOT NULL CHECK (level IN ('template','site','category','instance','user')),
+    level      text NOT NULL CHECK (level IN ('template','site','category','category_page','instance','user')),
     target     text NOT NULL DEFAULT '',   -- template id, '' (site), category, element or user id
     block      text NOT NULL,
     position   text NOT NULL DEFAULT '',

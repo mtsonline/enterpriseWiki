@@ -1,7 +1,7 @@
 // Resolution of placements: kinds of positions and the level of one page.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { resolvePlacements, type BlockDefault } from '../../src/core/placement';
+import { kindOf, resolvePlacements, type BlockDefault } from '../../src/core/placement';
 
 const blocks: BlockDefault[] = [
   { id: 'core.search', position: 'header-tools', order: 10, kind: 'site' },
@@ -48,4 +48,21 @@ test('editor blocks fit only the positions of the editing page', () => {
     { level: 'category', target: '3', placements: [{ block: 'core.editor.tags', position: 'editor-aside', sort: 1 }] },
   ], ed);
   assert.deepEqual(r.get('core.editor.tags'), [{ position: 'editor-aside', sort: 1 }]);
+});
+
+test('one category page arranges only category blocks, at category positions', () => {
+  const bl: BlockDefault[] = [
+    { id: 'core.category.title', position: 'category-header', order: 10, kind: 'category' },
+    { id: 'core.search', position: 'header-tools', order: 10, kind: 'site' },
+  ];
+  const r = resolvePlacements([
+    { level: 'category_page', target: '4', placements: [
+      { block: 'core.category.title', position: 'category-aside', sort: 5 },
+      { block: 'core.search', position: 'footer', sort: 1 },
+    ] },
+  ], bl);
+  assert.deepEqual(r.get('core.category.title'), [{ position: 'category-aside', sort: 5 }]);
+  assert.deepEqual(r.get('core.search'), [{ position: 'header-tools', sort: 10 }]);
+  assert.equal(kindOf('category-content'), 'category');
+  assert.equal(kindOf('element-content'), 'element');
 });

@@ -844,6 +844,36 @@ func buildDemo(d *demoRun) {
 			"layout": "cards", "descriptions": true, "elements": true, "max_elements": 5}), map[string]any{"position": 0})
 	})
 
+	// ---- display of categories: a handbook (navigation in the side column,
+	// the first page in the content, a contact page featured beside it) and
+	// pages as cards
+	d.optional("category-display", func() {
+		hb := d.category(root, "Handbook", "Handbuch",
+			"The pages as navigation in the side column – like a manual.",
+			"Die Seiten als Navigation in der Seitenspalte – wie ein Handbuch.", nil)
+		first := d.page(hb, "Getting started", "Erste Schritte",
+			"<p>Start here. The navigation on the side leads through all chapters of the handbook.</p>",
+			"<p>Beginnen Sie hier. Die Navigation an der Seite führt durch alle Kapitel des Handbuchs.</p>", map[string]any{"position": 0})
+		d.page(hb, "Daily work", "Tägliche Arbeit", "<p>What you do every day.</p>", "<p>Was Sie jeden Tag tun.</p>", map[string]any{"position": 1})
+		d.page(hb, "Questions and help", "Fragen und Hilfe", "<p>Where to find help.</p>", "<p>Wo Sie Hilfe finden.</p>", map[string]any{"position": 2})
+		contact := d.page(hb, "Contact", "Kontakt", "<p>The editorial team: demo@example.com</p>", "<p>Die Redaktion: demo@example.com</p>", map[string]any{"position": 3})
+		d.call(http.MethodPut, fmt.Sprintf("/api/v1/categories/%d", hb), map[string]any{"default_element_id": first}, nil)
+		d.call(http.MethodPut, fmt.Sprintf("/api/v1/categories/%d/settings", hb), map[string]any{"display": map[string]any{"view": "handbook"}}, nil)
+		d.call(http.MethodPut, fmt.Sprintf("/api/v1/placements/category_page?target=%d", hb), map[string]any{"placements": []map[string]any{
+			{"block": fmt.Sprintf("core.category.element/%d", contact), "position": "category-aside", "sort": 10}}}, nil)
+		cards := d.category(root, "Pages as cards", "Seiten als Karten",
+			"The overview of this category shows its pages as cards with the beginning of the text.",
+			"Die Übersicht dieser Kategorie zeigt ihre Seiten als Karten mit dem Anfang des Textes.", nil)
+		for i, x := range [][4]string{
+			{"Onboarding", "Einarbeitung", "<p>The first weeks in the team: people, tools and places.</p>", "<p>Die ersten Wochen im Team: Menschen, Werkzeuge und Orte.</p>"},
+			{"Travel", "Dienstreisen", "<p>How to plan, book and settle a business trip.</p>", "<p>Wie Sie eine Dienstreise planen, buchen und abrechnen.</p>"},
+			{"Workplace", "Arbeitsplatz", "<p>Desk, laptop, phone: what you get and how to ask for it.</p>", "<p>Schreibtisch, Laptop, Telefon: was Sie bekommen und wie Sie es anfordern.</p>"},
+		} {
+			d.page(cards, x[0], x[1], x[2], x[3], map[string]any{"position": i})
+		}
+		d.call(http.MethodPut, fmt.Sprintf("/api/v1/categories/%d/settings", cards), map[string]any{"display": map[string]any{"view": "cards", "excerpt": true}}, nil)
+	})
+
 	// ---- outside the tree: a menu, a text block and a carousel
 	d.optional("menu", func() {
 		// shown as mega menu (wide panels with groups and descriptions) while

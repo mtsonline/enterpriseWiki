@@ -28,7 +28,7 @@ import { registerSourceControls } from './components/sources';
 import { installMacroPager } from './core/pager';
 import { categorySettingsView } from './views/categorySettings';
 import { spaceKeyView, spacesView } from './views/spaces';
-import { categoryView, editElementView, elementView, draftEditView, historyView, homeView, newElementView, siteHomeView, registerElementBlocks } from './views/content';
+import { categoryView, editElementView, elementView, draftEditView, historyView, homeView, newElementView, siteHomeView, registerCategoryPageBlocks, registerElementBlocks } from './views/content';
 import { loginView, notFoundView, profileView, searchView, trashView } from './views/misc';
 
 function pickLanguage(site: Site, user: Principal | null): string {
@@ -69,6 +69,7 @@ function registerCore(): void {
   registerPageAction({ id: 'core.instance-rights', order: 90, label: () => t('instance.rights'), render: instanceRightsButton });
   registerPageAction({ id: 'core.instance-labels', order: 91, label: () => t('labels.button'), render: instanceLabelsButton });
   registerElementBlocks();
+  registerCategoryPageBlocks();
   registerDashboardTiles();
   registerAdminPage({ id: 'placement', permission: 'core.settings.manage', order: 15, label: () => t('placement.admin'), render: async (panel) => { panel.append(pageHeader(t('placement.admin')), await placementEditor('site', ''), await offeredTilesForm()); } });
   registerProfileSection({ id: 'core.placement', order: 60, render: async () => (state.site.personal_placement && state.user ? placementEditor('user', String(state.user.id)) : null) });

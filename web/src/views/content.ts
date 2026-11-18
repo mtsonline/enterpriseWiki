@@ -13,7 +13,8 @@ import { elementRightsDialog, elementRightsNote } from '../components/elementRig
 import { shortOnlyBox, shortURLInput } from '../components/shorturl';
 import { imagesOf, previewImageInput } from '../components/previewimage';
 import { feedButton } from '../components/feeds';
-import { ELEMENT_POSITIONS, getEditor, pageActionButtons, pagePositionContainer, registerSlot, renderCategoryExtensions, typeLabel, type EditorInstance, type PagePosition } from '../coreplugin';
+import { CATEGORY_POSITIONS, ELEMENT_POSITIONS, getEditor, invalidatePlacements, pagePositionContainer, registerSlot, renderCategoryExtensions, typeLabel, type EditorInstance, type PagePosition } from '../coreplugin';
+import { forgetFeatured, registerCategoryBlocks, setShownCategory, setSubcategoriesRender, type CategoryPage } from './category';
 import { placementEditor } from '../components/placement';
 import { expectWidgetControls, settleWidgetControls, widgetControlsClaimed } from '../core/widgets';
 import { draftNotice, publishDialog, publishVia, saveDraft, saveTemplateDialog, showPreview, templatePicker, type Draft, type EditorState } from '../components/publishing';
@@ -179,86 +180,33 @@ export async function categoryView({ params, main }: RouteCtx): Promise<void> {
     return;
   }
   const c = data.category;
+  // the featured pages of this page are blocks: known before the positions fill
+  const cp: CategoryPage = { category: c, elements: data.elements, subs };
+  setShownCategory(cp);
+  forgetFeatured();
+  invalidatePlacements();
   setContext(c.id, c.path, c.permissions, c.effective_template);
   setSpace(data.space ?? null);
   showReadableURL(c.urls, c.url);
   const title = pick(c.titles, L(), D());
-  const edit = state.editMode;
-  const actions: HTMLElement[] = [];
-  if (edit) {
-    // editors work with elements, managers (and category administrators) with the category itself
-    if (can('create')) actions.push(h('a', { href: `/c/${c.id}/new`, class: 'ew-btn ew-btn--primary' }, t('element.new')));
-    if (can('manage')) {
-      actions.push(button(t('category.new_sub'), () => newCategoryDialog(c.id), { variant: 'secondary' }));
-      actions.push(button(t('category.edit'), () => editCategoryDialog(c), { variant: 'secondary' }));
-      if (state.site.languages.length > 1) {
-        actions.push(button([t('translation.title'), c.translations_up_to_date ? null : h('span', { class: 'ew-badge ew-badge--warn' }, ` ${c.translated_percent} %`)],
-          () => categoryTranslationsDialog(c), { variant: 'secondary', ariaLabel: `${t('translation.title')}: ${c.translated_percent} %` }));
-      }
-      actions.push(h('a', { href: `/c/${c.id}/settings`, class: 'ew-btn ew-btn--secondary' }, t('category.settings')));
-      actions.push(button(t('common.move'), () => moveCategoryDialog(c), { variant: 'secondary' }));
-      actions.push(button(t('common.delete'), () => void deleteCategory(c), { variant: 'danger' }));
-      actions.push(button(t('common.duplicate'), () => duplicateCategoryDialog(c), { variant: 'secondary' }));
-    }
-  }
-  const watchC = watchButton('category', c.id, title);
-  if (watchC) actions.push(watchC);
-  actions.push(...pageActionButtons({ type: 'category', id: c.id, title, categoryId: c.id }));
-  if (c.feed && c.feed !== 'off') actions.push(feedButton(`/api/v1/feeds/categories/${c.id}`, title));
-  const view = h('article', { class: 'ew-category' },
+  // the title is a block: placed nowhere, the page keeps a heading for screen readers
+  const srTitle = h('h1', { class: 'sr-only ew-sr-title' }, title);
+  let view: HTMLElement | null = null;
+  let header: HTMLElement | null = null;
+  const heading = () => {
+    if (!view || !header) return;
+    if (view.querySelector('h1:not(.ew-sr-title)')) srTitle.remove();
+    else if (!srTitle.isConnected) header.prepend(srTitle);
+  };
+  const cctx = { category: cp };
+  const pos = (name: (typeof CATEGORY_POSITIONS)[number]) => pagePositionContainer(name, cctx, heading);
+  view = h('article', { class: 'ew-category' },
     crumbs(data.breadcrumbs, { title }),
-    h('div', { class: 'ew-page-header' },
-      h('h1', null, edit ? h('span', { class: 'ew-num' }, `${c.number} `) : null, title),
-      actions.length ? h('div', { class: 'ew-actions', role: 'group', 'aria-label': t('common.actions') }, ...actions) : null),
+    header = h('div', { class: 'ew-page-header' }, pos('category-header'), pos('category-toolbar')),
     classificationNotice(c),
     archivedNotice(c),
-    pick(c.descriptions, L(), D()) ? h('p', { class: 'ew-lead' }, pick(c.descriptions, L(), D())) : null,
-    tagList(c.tags),
-  );
-  // default element shown inline
-  const others = data.elements.filter((e) => e.id !== c.default_element_id);
-  if (c.default_element_id) {
-    try {
-      const el = await api.get<ElementView>(`elements/${c.default_element_id}${qs({ lang: L() })}`);
-      const elEdit = edit && el.permissions?.includes('edit');
-      view.append(h('section', { class: ['ew-default-element', elEdit && 'ew-default-element--edit'], 'aria-labelledby': 'ew-default-title' },
-        h('h2', { id: 'ew-default-title', class: el.title === title && !elEdit ? 'sr-only' : undefined }, el.title),
-        elEdit ? h('div', { class: 'ew-actions', role: 'group', 'aria-label': t('element.page_actions', { title: el.title }) },
-          h('a', { href: `/e/${el.id}/edit?lang=${L()}`, class: 'ew-btn ew-btn--primary' }, t('element.edit_page')),
-          button(t('element.properties'), () => tagsDialog(el), { variant: 'secondary' }),
-          h('a', { href: `/e/${el.id}/history`, class: 'ew-btn ew-btn--secondary' }, t('element.history'))) : null,
-        fallbackNotice(el),
-        trustedHTML(el.html),
-        elEdit && el.tags.length ? tagList(el.tags) : null,
-        h('p', { class: 'ew-meta' },
-          h('a', { href: `/e/${el.id}` }, t('element.open_page')), ' · ',
-          t('element.updated', { date: fmtDate(el.updated_at, L()) }))));
-    } catch {
-      /* default element not visible */
-    }
-  }
-  if (others.length || (edit && data.elements.length)) {
-    view.append(h('section', { class: 'ew-section', 'aria-labelledby': 'ew-pages-title' },
-      h('h2', { id: 'ew-pages-title' }, t('category.pages')),
-      h('ul', { class: 'ew-list' }, ...(edit ? data.elements : others).map((e) => h('li', null,
-        h('a', { href: `/e/${e.id}` }, pick(e.titles, L(), e.original_lang)),
-        edit && can('edit') ? [' ', h('a', { href: `/e/${e.id}/edit?lang=${L()}`, class: 'ew-inline-action', 'aria-label': t('element.edit_named', { title: pick(e.titles, L(), e.original_lang) }) }, t('common.edit'))] : null,
-        ' ', h('span', { class: 'ew-badge' }, typeLabel(e.type)),
-        e.is_default ? h('span', { class: 'ew-badge ew-badge--info' }, t('element.default')) : null,
-        e.hidden ? h('span', { class: 'ew-badge ew-badge--warn' }, t('element.hidden_badge')) : null)))));
-  }
-  if (subs.length) {
-    view.append(h('section', { class: 'ew-section', 'aria-labelledby': 'ew-subs-title' },
-      h('h2', { id: 'ew-subs-title' }, t('category.subcategories')),
-      h('ul', { class: 'ew-cards' }, ...subs.map((s, i) => h('li', { class: 'ew-card' },
-        h('h3', null, h('a', { href: `/c/${s.id}` }, pick(s.titles, L(), D()))),
-        pick(s.descriptions, L(), D()) ? h('p', null, pick(s.descriptions, L(), D())) : null,
-        h('p', { class: 'ew-meta' }, t('category.counts', { pages: s.element_count })),
-        edit && can('manage') ? reorderButtons(c.id, subs, i) : null)))));
-  }
-  if (!c.default_element_id && !data.elements.length && !subs.length) {
-    view.append(h('p', { class: 'ew-muted' }, can('create') ? t('category.empty_editor') : t('category.empty')));
-  }
+    h('div', { class: 'ew-element-main' }, h('div', { class: 'ew-element-body' }, pos('category-content')), pos('category-aside')),
+    pos('category-footer'));
   const extensions = h('div', { class: 'ew-extensions' });
   view.append(extensions);
   mount(main, view);
@@ -276,6 +224,59 @@ export async function categoryView({ params, main }: RouteCtx): Promise<void> {
           h('span', { class: 'ew-meta' }, ' ', t('draft.updated', { user: d.updated_by || d.created_by || '–', date: fmtDate(d.updated_at, state.lang) })))))));
     }).catch(() => undefined);
   }
+}
+
+/** The buttons to manage a category (edit mode): for editors the new
+ * element, for managers the category itself and the arrangement of its page. */
+function categoryManage(cp: CategoryPage): HTMLElement | null {
+  if (!state.editMode) return null;
+  const c = cp.category;
+  const actions: HTMLElement[] = [];
+  if (can('create')) actions.push(h('a', { href: `/c/${c.id}/new`, class: 'ew-btn ew-btn--primary' }, t('element.new')));
+  if (can('manage')) {
+    actions.push(button(t('category.new_sub'), () => newCategoryDialog(c.id), { variant: 'secondary' }));
+    actions.push(button(t('category.edit'), () => editCategoryDialog(c), { variant: 'secondary' }));
+    if (state.site.languages.length > 1) {
+      actions.push(button([t('translation.title'), c.translations_up_to_date ? null : h('span', { class: 'ew-badge ew-badge--warn' }, ` ${c.translated_percent} %`)],
+        () => categoryTranslationsDialog(c), { variant: 'secondary', ariaLabel: `${t('translation.title')}: ${c.translated_percent} %` }));
+    }
+    actions.push(h('a', { href: `/c/${c.id}/settings`, class: 'ew-btn ew-btn--secondary' }, t('category.settings')));
+    actions.push(button(t('category.arrange'), () => arrangeCategoryDialog(c), { variant: 'secondary' }));
+    actions.push(button(t('common.move'), () => moveCategoryDialog(c), { variant: 'secondary' }));
+    actions.push(button(t('common.delete'), () => void deleteCategory(c), { variant: 'danger' }));
+    actions.push(button(t('common.duplicate'), () => duplicateCategoryDialog(c), { variant: 'secondary' }));
+  }
+  return actions.length ? h('div', { class: 'ew-actions' }, ...actions) : null;
+}
+
+/** Arranging the page of one category: its blocks and featured pages. */
+function arrangeCategoryDialog(c: Category): void {
+  void (async () => {
+    let handle: { close: () => void } | null = null;
+    const editor = await placementEditor('category_page', String(c.id), {
+      heading: false, onSaved: () => { handle?.close(); forgetFeatured(); navigate(location.pathname + location.search, { replace: true }); },
+    });
+    handle = openDialog(t('category.arrange_title', { title: pick(c.titles, L(), D()) }), [h('p', { class: 'ew-help' }, t('category.arrange_help')), editor], [], { wide: true });
+  })();
+}
+
+/** The blocks of category pages (views/category.ts) with the parts of this file. */
+export function registerCategoryPageBlocks(): void {
+  registerCategoryBlocks(categoryManage,
+    (cp) => [pick(cp.category.descriptions, L(), D()) ? h('p', { class: 'ew-lead' }, pick(cp.category.descriptions, L(), D())) : null, tagList(cp.category.tags)],
+    (cp) => h('h1', null, state.editMode ? h('span', { class: 'ew-num' }, `${cp.category.number} `) : null, pick(cp.category.titles, L(), D())),
+    (cp) => watchButton('category', cp.category.id, pick(cp.category.titles, L(), D())),
+    (cp) => (cp.category.feed && cp.category.feed !== 'off' ? feedButton(`/api/v1/feeds/categories/${cp.category.id}`, pick(cp.category.titles, L(), D())) : null));
+  setSubcategoriesRender((cp) => {
+    const edit = state.editMode && can('manage');
+    return h('section', { class: 'ew-section', 'aria-labelledby': 'ew-subs-title' },
+      h('h2', { id: 'ew-subs-title' }, t('category.subcategories')),
+      h('ul', { class: 'ew-cards' }, ...cp.subs.map((s, i) => h('li', { class: 'ew-card' },
+        h('h3', null, h('a', { href: `/c/${s.id}` }, pick(s.titles, L(), D()))),
+        pick(s.descriptions, L(), D()) ? h('p', null, pick(s.descriptions, L(), D())) : null,
+        h('p', { class: 'ew-meta' }, t('category.counts', { pages: s.element_count })),
+        edit ? reorderButtons(cp.category.id, cp.subs, i) : null))));
+  });
 }
 
 /** Up/down buttons that change the order of sibling categories. */
@@ -471,7 +472,9 @@ export async function elementView({ params, main }: RouteCtx): Promise<void> {
   // page views are counted per page and day only (no people)
   if (!edit) void api.post(`elements/${el.id}/view`).catch(() => undefined);
   const target = { type: 'element' as const, id: el.id, title: el.title, categoryId: el.category_id, elementType: el.type };
-  const ectx = { target, view: el };
+  // the content is the block core.element.body (once per page)
+  const parts = new Map<string, Node | null>();
+  const ectx = { target, view: el, parts };
   // the title is a block: placed nowhere, the page keeps a heading for
   // screen readers
   const srTitle = h('h1', { class: 'sr-only ew-sr-title' }, el.title);
@@ -486,6 +489,9 @@ export async function elementView({ params, main }: RouteCtx): Promise<void> {
   // the widget of the page (blog, FAQ …) may hand its controls to the page
   expectWidgetControls(el.id);
   const body = trustedHTML(el.html);
+  parts.set('body', body);
+  const contentPos = pos('element-content');
+  contentPos.append(body);
   if (!widgetControlsClaimed(el.id)) settleWidgetControls(el.id);
   article = h('article', { class: 'ew-element', lang: el.shown_lang },
     crumbs([...cat.breadcrumbs, cat.category], { title: el.title }),
@@ -496,7 +502,9 @@ export async function elementView({ params, main }: RouteCtx): Promise<void> {
     elementRightsNote(el),
     fallbackNotice(el),
     edit ? translationPanel(el) : null,
-    h('div', { class: 'ew-element-main' }, h('div', { class: 'ew-element-body' }, body), pos('element-aside')),
+    // the content is in the page at once (widgets in it start right away);
+    // the filling of the position only places blocks around it
+    h('div', { class: 'ew-element-main' }, h('div', { class: 'ew-element-body' }, contentPos), pos('element-aside')),
     pos('element-footer'));
   mount(main, article);
   // link of an access request (?rights=1): open the rights of the page
@@ -514,6 +522,9 @@ export function registerElementBlocks(): void {
     render: (_p, _k, c) => (c?.view ? manageActions(c.view) : null) });
   registerSlot({ id: 'core.element.watch', kind: 'element', position: 'element-toolbar', order: 20, label: () => t('block.core.element.watch'),
     render: (_p, _k, c) => (c?.view ? watchButton('element', c.view.id, c.view.title) : null) });
+  // the content of the page: in the main area (blocks can go before or after it)
+  registerSlot({ id: 'core.element.body', kind: 'element', position: 'element-content', order: 50, always: true, single: true, label: () => t('block.core.element.body'),
+    render: (_p, _k, c) => c?.parts?.get('body') ?? null });
   registerSlot({ id: 'core.element.info', kind: 'element', position: 'element-footer', order: 10, label: () => t('block.core.element.info'),
     render: (_p, _k, c) => (c?.view ? elementInfo(c.view) : null) });
   // the editing page: each part exists once per page (it keeps what was typed)

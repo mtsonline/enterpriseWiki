@@ -55,6 +55,9 @@ type Space struct {
 	IsTemplate bool `json:"is_template"`
 	// Personal: the owner of a personal space (set when it is created)
 	Personal int64 `json:"personal,omitempty"`
+	// Display: how the category page shows its pages (inherited as a whole
+	// until a subcategory chooses its own; nil = as above)
+	Display *CategoryDisplay `json:"display,omitempty"`
 }
 
 // SpaceInfo is a space with its category texts.
@@ -254,6 +257,9 @@ func (s *Service) SetSpace(ctx context.Context, id int64, in SpaceInput) (*Space
 		if keep("is_template") {
 			sp.IsTemplate = before.IsTemplate
 		}
+		if keep("display") {
+			sp.Display = before.Display
+		}
 	}
 	sp.Personal = before.Personal // fixed when created
 	if sp.IsTemplate != before.IsTemplate && !perm.HasP(identity.From(ctx), "core.categories.admin") {
@@ -350,6 +356,13 @@ func (s *Service) cleanSpace(in Space) (Space, error) {
 		return out, apperr.BadRequest("language %q is not enabled", in.Language)
 	}
 	out.Language = in.Language
+	if in.Display != nil {
+		d, err := cleanDisplay(*in.Display)
+		if err != nil {
+			return out, err
+		}
+		out.Display = &d
+	}
 	return out, nil
 }
 
