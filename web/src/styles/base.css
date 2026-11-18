@@ -486,3 +486,7 @@ html { scroll-padding-top: calc(var(--ew-sticky-top, var(--ew-header-h)) + .5rem
 .ew-handbook-list a { display: block; padding: 0.3rem 0.5rem; border-radius: 4px; }
 .ew-handbook a[aria-current="page"] { font-weight: 700; background: var(--ew-bg-subtle); border-left: 4px solid currentColor; }
 .ew-pager { display: flex; gap: 0.75rem; align-items: center; flex-wrap: wrap; margin-top: 1rem; }
+/* targets of at least 24 × 24 px (WCAG 2.5.8) */
+.ew-tree-open { display: inline-flex; align-items: center; justify-content: center; min-width: 1.75rem; min-height: 1.75rem; text-decoration: none; }
+.ew-tree-toggle { min-height: 1.75rem; }
+.ew-tree-page a { display: inline-block; min-height: 1.5rem; }
