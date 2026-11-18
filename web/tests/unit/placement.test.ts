@@ -40,3 +40,12 @@ test('required on the site: lower levels (also one page) keep it', () => {
   ], blocks);
   assert.deepEqual(r.get('core.share'), [{ position: 'element-header', sort: 1 }]);
 });
+
+test('editor blocks fit only the positions of the editing page', () => {
+  const ed: BlockDefault[] = [{ id: 'core.editor.tags', position: 'editor-footer', order: 10, kind: 'editor' }];
+  const r = resolvePlacements([
+    { level: 'site', target: '', placements: [{ block: 'core.editor.tags', position: 'element-aside', sort: 1 }] },
+    { level: 'category', target: '3', placements: [{ block: 'core.editor.tags', position: 'editor-aside', sort: 1 }] },
+  ], ed);
+  assert.deepEqual(r.get('core.editor.tags'), [{ position: 'editor-aside', sort: 1 }]);
+});

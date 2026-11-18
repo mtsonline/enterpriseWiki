@@ -81,7 +81,6 @@ core.signatures.export
 core.signatures.get
 core.spaces.create
 core.spaces.personal
-core.tags
 core.templates.delete
 core.updates.install
 core.users.identities.unlink

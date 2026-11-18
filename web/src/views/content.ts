@@ -13,7 +13,7 @@ import { elementRightsDialog, elementRightsNote } from '../components/elementRig
 import { shortOnlyBox, shortURLInput } from '../components/shorturl';
 import { imagesOf, previewImageInput } from '../components/previewimage';
 import { feedButton } from '../components/feeds';
-import { ELEMENT_POSITIONS, elementPositionContainer, getEditor, pageActionButtons, registerSlot, renderCategoryExtensions, typeLabel, type EditorInstance } from '../coreplugin';
+import { ELEMENT_POSITIONS, getEditor, pageActionButtons, pagePositionContainer, registerSlot, renderCategoryExtensions, typeLabel, type EditorInstance, type PagePosition } from '../coreplugin';
 import { placementEditor } from '../components/placement';
 import { expectWidgetControls, settleWidgetControls, widgetControlsClaimed } from '../core/widgets';
 import { draftNotice, publishDialog, publishVia, saveDraft, saveTemplateDialog, showPreview, templatePicker, type Draft, type EditorState } from '../components/publishing';
@@ -471,7 +471,7 @@ export async function elementView({ params, main }: RouteCtx): Promise<void> {
     if (article.querySelector('h1:not(.ew-sr-title)')) srTitle.remove();
     else if (!srTitle.isConnected) header.prepend(srTitle);
   };
-  const pos = (name: (typeof ELEMENT_POSITIONS)[number]) => elementPositionContainer(name, ectx, heading);
+  const pos = (name: (typeof ELEMENT_POSITIONS)[number]) => pagePositionContainer(name, ectx, heading);
   // the widget of the page (blog, FAQ …) may hand its controls to the page
   expectWidgetControls(el.id);
   const body = trustedHTML(el.html);
@@ -498,13 +498,40 @@ export async function elementView({ params, main }: RouteCtx): Promise<void> {
  * watching and the page information. */
 export function registerElementBlocks(): void {
   registerSlot({ id: 'core.element.title', kind: 'element', position: 'element-header', order: 10, label: () => t('block.core.element.title'),
-    render: (_p, _k, c) => (c ? h('h1', null, c.view.title) : null) });
+    render: (_p, _k, c) => (c?.view ? h('h1', null, c.view.title) : null) });
   registerSlot({ id: 'core.element.manage', kind: 'element', position: 'element-toolbar', order: 10, always: true, label: () => t('block.core.element.manage'),
-    render: (_p, _k, c) => (c ? manageActions(c.view) : null) });
+    render: (_p, _k, c) => (c?.view ? manageActions(c.view) : null) });
   registerSlot({ id: 'core.element.watch', kind: 'element', position: 'element-toolbar', order: 20, label: () => t('block.core.element.watch'),
-    render: (_p, _k, c) => (c ? watchButton('element', c.view.id, c.view.title) : null) });
+    render: (_p, _k, c) => (c?.view ? watchButton('element', c.view.id, c.view.title) : null) });
   registerSlot({ id: 'core.element.info', kind: 'element', position: 'element-footer', order: 10, label: () => t('block.core.element.info'),
-    render: (_p, _k, c) => (c ? elementInfo(c.view) : null) });
+    render: (_p, _k, c) => (c?.view ? elementInfo(c.view) : null) });
+  // the editing page: each part exists once per page (it keeps what was typed)
+  const part = (id: string, position: PagePosition, order: number, always = false) =>
+    registerSlot({ id: `core.editor.${id}`, kind: 'editor', position, order, always, label: () => t(`block.core.editor.${id}`), render: (_p, _k, c) => c?.parts?.get(id) ?? null });
+  part('notices', 'editor-header', 10, true);
+  part('format', 'editor-toolbar', 10);
+  part('tags', 'editor-footer', 10);
+  part('fields', 'editor-footer', 20, true); // required properties must stay reachable
+  part('original', 'editor-footer', 30);
+  part('comment', 'editor-footer', 40);
+  part('actions', 'editor-statusbar', 10, true);
+}
+
+/** The layout of the page to edit or create an element: title and content
+ * stay; all other parts are blocks at the positions of the editing page. */
+function editorLayout(head: Node[], main: Node[], content: { labelId: string; box: HTMLElement }, parts: Record<string, Node | null>): Node[] {
+  const ctx = { parts: new Map(Object.entries(parts)) };
+  const pos = (name: PagePosition) => pagePositionContainer(name, ctx);
+  return [
+    ...head,
+    pos('editor-header'),
+    h('div', { class: 'ew-editor-main' },
+      h('div', { class: 'ew-editor-col' }, ...main,
+        h('div', { class: 'ew-field' }, h('span', { class: 'ew-label', id: content.labelId }, t('core.html.content')), pos('editor-toolbar'), content.box),
+        pos('editor-footer')),
+      pos('editor-aside')),
+    pos('editor-statusbar'),
+  ];
 }
 
 /** The buttons to manage an element page (edit mode only). */
@@ -636,9 +663,10 @@ function jsonEditor(container: HTMLElement, body: unknown, labelId: string): Edi
   };
 }
 
-function mountEditor(container: HTMLElement, type: string, body: unknown, lang: string, labelId: string, elementId?: number, onRemoteSave?: (rev: number, by?: string) => void): EditorInstance {
+function mountEditor(container: HTMLElement, type: string, body: unknown, lang: string, labelId: string, toolbarHost: HTMLElement, elementId?: number, onRemoteSave?: (rev: number, by?: string) => void): EditorInstance {
   const f = getEditor(type);
-  return f ? f(container, body, { lang, type, labelId, elementId, onRemoteSave }) : jsonEditor(container, body, labelId);
+  toolbarHost.replaceChildren(); // the toolbar of an editor mounted before
+  return f ? f(container, body, { lang, type, labelId, elementId, onRemoteSave, toolbarHost }) : jsonEditor(container, body, labelId);
 }
 
 /** editorActions are the buttons of the element editors. */
@@ -696,17 +724,21 @@ export async function editElementView({ params, query, main }: RouteCtx): Promis
     return true;
   };
   const run = async (fn: () => Promise<void>) => { try { await fn(); } catch (e) { alert.textContent = errorText(e); alert.focus?.(); } };
-  const form = h('form', { class: 'ew-form ew-edit-form', novalidate: true },
-    h('div', { class: 'ew-page-header' }, h('h1', null, t(isNewTranslation ? 'element.translate_title' : 'element.edit_title', { title: el.title, lang: langName(lang) }))),
-    isNewTranslation ? h('p', { class: 'ew-notice-inline', role: 'note' }, t('element.translation_start', { lang: langName(el.shown_lang) })) : null,
-    notices, alert,
-    field(t('common.title'), title, { required: true }),
-    h('div', { class: 'ew-field' }, h('span', { class: 'ew-label', id: labelId }, t('core.html.content')), editorBox),
-    field(t('common.tags'), tags, { help: t('common.tags_help') }),
-    fields.el,
-    el.original_lang !== lang ? h('details', { class: 'ew-original' }, h('summary', null, t('element.show_original', { lang: langName(el.original_lang) })), h('div', { 'data-original': '1' }, loading())) : null,
-    field(t('element.comment'), comment, { help: t('element.comment_help') }),
-    editorActions({
+  const formatHost = h('div', { class: 'ew-format-host' });
+  const original = el.original_lang !== lang ? h('details', { class: 'ew-original' }, h('summary', null, t('element.show_original', { lang: langName(el.original_lang) })), h('div', { 'data-original': '1' }, loading())) : null;
+  const form = h('form', { class: 'ew-form ew-edit-form', novalidate: true }, ...editorLayout(
+    [h('div', { class: 'ew-page-header' }, h('h1', null, t(isNewTranslation ? 'element.translate_title' : 'element.edit_title', { title: el.title, lang: langName(lang) }))), alert],
+    [field(t('common.title'), title, { required: true })],
+    { labelId, box: editorBox },
+    {
+      notices: h('div', { class: 'ew-editor-notices' },
+        isNewTranslation ? h('p', { class: 'ew-notice-inline', role: 'note' }, t('element.translation_start', { lang: langName(el.shown_lang) })) : null, notices),
+      format: formatHost,
+      tags: field(t('common.tags'), tags, { help: t('common.tags_help') }),
+      fields: fields.el,
+      original,
+      comment: field(t('element.comment'), comment, { help: t('element.comment_help') }),
+      actions: editorActions({
       cancelHref: `/e/${id}`, publishLabel: t('publish.now_button'),
       onDraft: () => { if (valid()) void run(async () => { draftId = (await saveDraft(draftId, current())).id; }); },
       onPreview: () => { if (valid()) void run(() => showPreview(current())); },
@@ -722,9 +754,10 @@ export async function editElementView({ params, query, main }: RouteCtx): Promis
           navigate(`/e/${id}`);
         });
       },
+      }),
     }));
   mount(main, form);
-  editor = mountEditor(editorBox, el.type, el.body, lang, labelId, el.id, remoteSave);
+  editor = mountEditor(editorBox, el.type, el.body, lang, labelId, formatHost, el.id, remoteSave);
   void draftNotice(id, lang, (d) => {
     draftId = d.id;
     title.value = d.title;
@@ -733,10 +766,10 @@ export async function editElementView({ params, query, main }: RouteCtx): Promis
     if (d.fields && Object.keys(d.fields).length) fields.reload(d.fields);
     editor.destroy?.();
     editorBox.replaceChildren();
-    editor = mountEditor(editorBox, el.type, d.body, lang, labelId, el.id, remoteSave);
+    editor = mountEditor(editorBox, el.type, d.body, lang, labelId, formatHost, el.id, remoteSave);
     toast(t('draft.loaded'));
   }).then((n) => { if (n) notices.append(n); });
-  const orig = form.querySelector<HTMLElement>('[data-original]');
+  const orig = original?.querySelector<HTMLElement>('[data-original]');
   if (orig) {
     api.get<ElementView>(`elements/${id}${qs({ lang: el.original_lang })}`).then((o) => mount(orig, h('h2', null, o.title), trustedHTML(o.html))).catch(() => mount(orig, ''));
   }
@@ -828,19 +861,23 @@ async function newOrDraftView({ params, query, main }: RouteCtx, draft: Draft | 
     toast(t('element.created'));
     navigate(ret && ret.startsWith('/') && !ret.startsWith('//') ? ret : `/e/${elementId}`);
   };
-  const form = h('form', { class: 'ew-form ew-edit-form', novalidate: true },
-    crumbs([...cat.breadcrumbs, cat.category], { title: draft ? t('draft.label') : t('element.new') }),
-    h('div', { class: 'ew-page-header' }, h('h1', null, draft ? t('draft.edit_new', { title: draft.title }) : t('element.new_in', { title: pick(cat.category.titles, L(), D()) }))),
-    draft?.publish_at ? h('p', { class: 'ew-notice ew-notice--info' }, t('draft.scheduled_for', { date: fmtDate(draft.publish_at, state.lang) }), ' ',
-      button(t('draft.unschedule'), async () => { await api.del(`drafts/${draft.id}/schedule`); toast(t('draft.unscheduled')); navigate(location.pathname, { replace: true }); }, { variant: 'link' })) : null,
-    alert,
-    field(t('element.type'), typeSel),
-    tplBox,
-    field(t('common.title'), title, { required: true }),
-    h('div', { class: 'ew-field' }, h('span', { class: 'ew-label', id: labelId }, t('core.html.content')), editorBox),
-    field(t('common.tags'), tags, { help: t('common.tags_help') }),
-    fields.el,
-    editorActions({
+  const formatHost = h('div', { class: 'ew-format-host' });
+  const form = h('form', { class: 'ew-form ew-edit-form', novalidate: true }, ...editorLayout(
+    [crumbs([...cat.breadcrumbs, cat.category], { title: draft ? t('draft.label') : t('element.new') }),
+      h('div', { class: 'ew-page-header' }, h('h1', null, draft ? t('draft.edit_new', { title: draft.title }) : t('element.new_in', { title: pick(cat.category.titles, L(), D()) }))),
+      alert],
+    [field(t('element.type'), typeSel), tplBox, field(t('common.title'), title, { required: true })],
+    { labelId, box: editorBox },
+    {
+      notices: h('div', { class: 'ew-editor-notices' },
+        draft?.publish_at ? h('p', { class: 'ew-notice ew-notice--info' }, t('draft.scheduled_for', { date: fmtDate(draft.publish_at, state.lang) }), ' ',
+          button(t('draft.unschedule'), async () => { await api.del(`drafts/${draft.id}/schedule`); toast(t('draft.unscheduled')); navigate(location.pathname, { replace: true }); }, { variant: 'link' })) : null),
+      format: formatHost,
+      tags: field(t('common.tags'), tags, { help: t('common.tags_help') }),
+      fields: fields.el,
+      original: null,
+      comment: null,
+      actions: h('div', null, editorActions({
       cancelHref: back, publishLabel: t('publish.now_button'),
       onDraft: () => {
         if (!valid()) return;
@@ -861,22 +898,23 @@ async function newOrDraftView({ params, query, main }: RouteCtx, draft: Draft | 
           finish(res.elementId, res.scheduled);
         });
       },
-    }),
-    draft ? h('p', null, button(t('draft.discard'), async () => {
-      await api.del(`drafts/${draft.id}`);
-      toast(t('draft.discarded'));
-      navigate(back);
-    }, { variant: 'danger' })) : null);
+      }),
+      draft ? h('p', null, button(t('draft.discard'), async () => {
+        await api.del(`drafts/${draft.id}`);
+        toast(t('draft.discarded'));
+        navigate(back);
+      }, { variant: 'danger' })) : null),
+    }));
   mount(main, form);
   const empty = draft?.body ?? types.find((x) => x.id === typeId)?.empty_body ?? {};
-  editor = mountEditor(editorBox, typeId, empty, lang, labelId);
+  editor = mountEditor(editorBox, typeId, empty, lang, labelId, formatHost);
   if (!draft) {
     void templatePicker(typeId, (tpl) => {
       if (!title.value.trim()) title.value = tpl.title;
       if (!tags.value.trim()) tags.value = tpl.tags.join(', ');
       editor.destroy?.();
       editorBox.replaceChildren();
-      editor = mountEditor(editorBox, typeId, tpl.body, lang, labelId);
+      editor = mountEditor(editorBox, typeId, tpl.body, lang, labelId, formatHost);
     }, catId, current).then((p) => { if (p) tplBox.append(p); });
   }
   form.addEventListener('submit', (ev) => {

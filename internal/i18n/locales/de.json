@@ -2359,5 +2359,17 @@
  "block.core.element.info": "Angaben zur Seite (Schlagwörter, Autor, Version)",
  "placement.title_instance": "Seite {title} anordnen",
  "placement.help_instance": "Wo Titel, Knöpfe und Abschnitte dieser Seite erscheinen. Bausteine, die Sie nicht ändern, behalten die Platzierung der Kategorie und der Website (geerbt).",
- "placement.arrange": "Seite anordnen"
+ "placement.arrange": "Seite anordnen",
+ "position.editor-header": "Bearbeiten: Kopf",
+ "position.editor-toolbar": "Bearbeiten: über dem Inhalt",
+ "position.editor-aside": "Bearbeiten: Seitenspalte",
+ "position.editor-footer": "Bearbeiten: unter dem Inhalt",
+ "position.editor-statusbar": "Bearbeiten: Ende der Seite",
+ "block.core.editor.notices": "Hinweise (Entwurf, Live-Bearbeitung, Übersetzung)",
+ "block.core.editor.format": "Formatierungsleiste",
+ "block.core.editor.tags": "Schlagwörter",
+ "block.core.editor.fields": "Eigenschaften der Seite",
+ "block.core.editor.original": "Text in der Originalsprache",
+ "block.core.editor.comment": "Kommentar zur Änderung",
+ "block.core.editor.actions": "Veröffentlichen, Entwurf, Vorschau, Abbrechen"
 }

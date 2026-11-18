@@ -38,6 +38,8 @@ export interface MarkdownEditorOptions {
   lang: string;
   /** Id of the element labelling the editor. */
   labelId: string;
+  /** Where the toolbar goes (a block of the editing page); default: above the surface. */
+  toolbarHost?: HTMLElement;
   /** Initial mode (default: the user's last choice, else visual). */
   mode?: EditorMode;
   /** Called after every change of the content. */
@@ -712,7 +714,7 @@ export function createMarkdownEditor(container: HTMLElement, opts: MarkdownEdito
     Enter: chainCommands(editSelected, splitItem, liftEmptyItem),
     Tab: tab(chainCommands(goToNextCell(1), sinkListItem(nodes.list_item))),
     'Shift-Tab': tab(chainCommands(goToNextCell(-1), liftListItem(nodes.list_item))),
-    'Alt-F10': () => { (controls().find((c) => c.tabIndex === 0) ?? controls()[0])?.focus(); return true; },
+    'Alt-F10': () => { if (!toolbar.isConnected) return false; (controls().find((c) => c.tabIndex === 0) ?? controls()[0])?.focus(); return true; },
   };
 
   const rules = inputRules({ rules: [
@@ -774,7 +776,8 @@ export function createMarkdownEditor(container: HTMLElement, opts: MarkdownEdito
   const mdWrap = h('div', { class: 'ewe-md-wrap', hidden: true }, textarea);
   const help = h('p', { class: 'ew-help ewe-help', id: helpId });
   const liveBox = h('div', { class: 'ewe-live', hidden: true });
-  const root = h('div', { class: 'ewe-editor' }, toolbar, liveBox, surface, mdWrap, help);
+  const root = h('div', { class: 'ewe-editor' }, opts.toolbarHost ? null : toolbar, liveBox, surface, mdWrap, help);
+  opts.toolbarHost?.replaceChildren(toolbar);
   container.append(root);
 
   const view: EditorView = new EditorView(surface, {
@@ -983,7 +986,7 @@ export function createMarkdownEditor(container: HTMLElement, opts: MarkdownEdito
     saved: (rev: number) => { if (liveOn && opts.collab) live?.saved(rev, opts.collab.userId); },
     live: () => ({ on: liveOn, leader: liveOn && !!live?.leader, peers: livePeers }),
     // the view first: its plugins stop listening to the shared document
-    destroy: () => { unbindMd(); view.destroy(); live?.destroy(); root.remove(); },
+    destroy: () => { unbindMd(); view.destroy(); live?.destroy(); root.remove(); toolbar.remove(); },
   };
 }
 

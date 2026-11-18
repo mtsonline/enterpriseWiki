@@ -10,8 +10,8 @@
 import { state, onChange } from './core/state';
 import { t } from './core/i18n';
 import { api } from './core/api';
-import { ELEMENT_POSITIONS, resolvePlacements, type PlacementLevel, type PositionKind } from './core/placement';
-export { ELEMENT_POSITIONS, positionFits, resolvePlacements, type Placement, type PlacementLevel, type PositionKind } from './core/placement';
+import { ELEMENT_POSITIONS, EDITOR_POSITIONS, kindOf, resolvePlacements, type PagePosition, type PlacementLevel, type PositionKind } from './core/placement';
+export { ELEMENT_POSITIONS, EDITOR_POSITIONS, kindOf, positionFits, resolvePlacements, type PagePosition, type Placement, type PlacementLevel, type PositionKind } from './core/placement';
 
 export { h, mount, append, trustedHTML, uid, fmtDate, srOnly } from './core/dom';
 export type { Child } from './core/dom';
@@ -186,8 +186,13 @@ export function templateLabel(id: string): string {
 // ---------------------------------------------------------------- positions (slots)
 
 
-/** The page an element block is rendered for. */
-export interface ElementContext { target: PageTarget; view: import('./core/types').ElementView }
+/** The page a block of an element page or of the editing page is rendered
+ * for: the element (if there is one) and the parts of the editing page
+ * (editor blocks; each part exists once and keeps its state). */
+export interface PageContext { target?: PageTarget; view?: import('./core/types').ElementView; parts?: Map<string, Node | null> }
+
+/** The context of an element page. */
+export interface ElementContext extends PageContext { target: PageTarget; view: import('./core/types').ElementView }
 
 export interface SlotDef {
   id: string;
@@ -209,7 +214,7 @@ export interface SlotDef {
    * change, hide or repeat. */
   instances?: () => Promise<SlotInstance[]>;
   /** Renders the block (an instance: its key) at a position. */
-  render: (position: string, key?: string, ctx?: ElementContext) => Node | null | Promise<Node | null>;
+  render: (position: string, key?: string, ctx?: PageContext) => Node | null | Promise<Node | null>;
 }
 
 /** An instance of a block (see SlotDef.instances). */
@@ -302,7 +307,7 @@ function pathTo(root: Node, node: Node): number[] {
   return path;
 }
 
-const elementCtx = new WeakMap<HTMLElement, { ctx: ElementContext; filled?: () => void }>();
+const elementCtx = new WeakMap<HTMLElement, { ctx: PageContext; filled?: () => void }>();
 
 const fillGen = new WeakMap<HTMLElement, number>();
 let refreshPending = false;
@@ -316,20 +321,22 @@ async function fill(el: HTMLElement, name: string): Promise<void> {
   const placed = resolvePlacements(await placementLevels(), blocks);
   const tplPositions = activeTemplate()?.positions ?? [];
   const ec = elementCtx.get(el);
-  const isElement = name.startsWith('element-');
-  if (isElement && !ec) return; // element positions belong to an element page
+  const kind = kindOf(name);
+  if (kind !== 'site' && !ec) return; // positions of a page belong to that page
   const here: { s: SlotDef; id: string; key?: string; sort: number }[] = [];
-  if (!isElement) for (const s of slots) if (s.position === '*' && !s.instances) here.push({ s, id: s.id, sort: s.order ?? 50 });
+  if (kind === 'site') for (const s of slots) if (s.position === '*' && !s.instances) here.push({ s, id: s.id, sort: s.order ?? 50 });
   for (const b of blocks) {
-    if (b.kind !== (isElement ? 'element' : 'site')) continue;
+    if (b.kind !== kind) continue;
     let ps = placed.get(b.id) ?? [];
-    // blocks that must stay reachable (the user menu …) never get lost: if
-    // one is nowhere in this template (or page), it goes to the first
-    // position (of an element page: its toolbar)
+    // blocks that must stay reachable (the user menu, the management of a
+    // page …) never get lost: if one is nowhere in this template (or page),
+    // it goes to the first position of the template (on a page: its default)
     if (b.always) {
-      const avail: readonly string[] = isElement ? ELEMENT_POSITIONS : tplPositions;
-      if (!ps.some((p) => avail.includes(p.position))) ps = [{ position: isElement ? 'element-toolbar' : (tplPositions[0] ?? b.position), sort: b.order }];
+      const avail: readonly string[] = kind === 'element' ? ELEMENT_POSITIONS : kind === 'editor' ? EDITOR_POSITIONS : tplPositions;
+      if (!ps.some((p) => avail.includes(p.position))) ps = [{ position: kind === 'site' ? (tplPositions[0] ?? b.position) : b.position, sort: b.order }];
     }
+    // a part of the editing page exists once (it keeps what was typed): only its first placement
+    if (kind === 'editor') ps = ps.slice(0, 1);
     for (const p of ps) if (p.position === name) here.push({ s: b.slot, id: b.id, key: b.key, sort: p.sort });
   }
   here.sort((a, b) => a.sort - b.sort);
@@ -379,15 +386,16 @@ export function positionContainer(name: string, tag: keyof HTMLElementTagNameMap
   return el;
 }
 
-/** Creates a live position of an element page (element-header …) for the
- * element shown; filled is called after every filling. */
-export function elementPositionContainer(name: (typeof ELEMENT_POSITIONS)[number], ctx: ElementContext, filled?: () => void): HTMLElement {
+/** Creates a live position of an element page (element-header …) or of the
+ * editing page (editor-header …) for the page shown; filled is called after
+ * every filling. */
+export function pagePositionContainer(name: PagePosition, ctx: PageContext, filled?: () => void): HTMLElement {
   const el = document.createElement('div');
   el.className = `ew-pos ew-pos--${name}`;
   el.dataset.position = name;
   el.dataset.label = positionLabel(name);
   // a group of buttons, a side column: named only when there is something in it
-  const role = name === 'element-toolbar' ? 'group' : name === 'element-aside' ? 'complementary' : '';
+  const role = name === 'element-toolbar' ? 'group' : name === 'element-aside' || name === 'editor-aside' ? 'complementary' : '';
   const label = name === 'element-toolbar' ? t('common.actions') : positionLabel(name);
   elementCtx.set(el, {
     ctx, filled: () => {
@@ -427,6 +435,10 @@ onChange(() => void refreshPositions());
 // ---------------------------------------------------------------- element editors
 
 export interface EditorContext {
+  /** Where the editor puts its formatting toolbar (a block of the editing
+   * page that can be moved or hidden); without it the toolbar stays above
+   * the editing surface. */
+  toolbarHost?: HTMLElement;
   lang: string;
   type: string;
   /** Label id to reference from the editing surface (aria-labelledby). */
@@ -527,7 +539,7 @@ const elementExtensions: ElementExtension[] = [];
 export function registerWidgetControl(c: { id: string; type: string; key: string; label: () => string; position: (typeof ELEMENT_POSITIONS)[number]; order?: number }): void {
   registerSlot({ id: c.id, kind: 'element', position: c.position, order: c.order ?? 50, label: c.label,
     render: async (_p, _k, ctx) => {
-      if (!ctx || ctx.view.type !== c.type) return null;
+      if (!ctx?.view || ctx.view.type !== c.type) return null;
       return (await widgetControls(ctx.view.id))[c.key]?.({ title: ctx.view.title }) ?? null;
     } });
 }
@@ -537,7 +549,7 @@ export function registerWidgetControl(c: { id: string; type: string; key: string
 export function registerElementExtension(x: ElementExtension): void {
   elementExtensions.push(x);
   elementExtensions.sort((a, b) => (a.order ?? 50) - (b.order ?? 50));
-  registerSlot({ id: x.id, kind: 'element', position: x.placement === 'top' ? 'element-header' : 'element-footer', order: 100 + (x.order ?? 50), label: x.label ?? (() => x.id), render: (_p, _k, ctx) => (ctx ? x.render(ctx.view) : null) });
+  registerSlot({ id: x.id, kind: 'element', position: x.placement === 'top' ? 'element-header' : 'element-footer', order: 100 + (x.order ?? 50), label: x.label ?? (() => x.id), render: (_p, _k, ctx) => (ctx?.view ? x.render(ctx.view) : null) });
 }
 
 /** Renders all element extensions into container. */
@@ -766,7 +778,7 @@ const pageActions: PageAction[] = [];
 export function registerPageAction(a: PageAction): void {
   pageActions.push(a);
   pageActions.sort((x, y) => (x.order ?? 50) - (y.order ?? 50));
-  registerSlot({ id: a.id, kind: 'element', position: 'element-toolbar', order: 100 + (a.order ?? 50), label: a.label ?? (() => a.id), render: (_p, _k, ctx) => (ctx ? a.render(ctx.target) : null) });
+  registerSlot({ id: a.id, kind: 'element', position: 'element-toolbar', order: 100 + (a.order ?? 50), label: a.label ?? (() => a.id), render: (_p, _k, ctx) => (ctx?.target ? a.render(ctx.target) : null) });
 }
 
 /** pageActionButtons renders the registered page actions for a target. */

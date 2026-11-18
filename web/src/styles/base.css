@@ -129,6 +129,14 @@ legend { font-weight: 700; padding: 0 .25rem; }
 .ew-element-main:has(> .ew-pos--element-aside:not(:empty)) { grid-template-columns: minmax(0, 1fr) minmax(12rem, 18rem); }
 @media (max-width: 48rem) { .ew-element-main:has(> .ew-pos--element-aside:not(:empty)) { grid-template-columns: minmax(0, 1fr); } }
 .ew-pos--element-header:empty, .ew-pos--element-toolbar:empty, .ew-pos--element-aside:empty, .ew-pos--element-footer:empty { display: none; }
+/* positions of the editing page */
+.ew-editor-main { display: grid; grid-template-columns: minmax(0, 1fr); gap: 1.5rem; }
+.ew-editor-main:has(> .ew-pos--editor-aside:not(:empty)) { grid-template-columns: minmax(0, 1fr) minmax(14rem, 20rem); }
+@media (max-width: 56rem) { .ew-editor-main:has(> .ew-pos--editor-aside:not(:empty)) { grid-template-columns: minmax(0, 1fr); } }
+.ew-pos--editor-aside > * + *, .ew-pos--editor-footer > * + *, .ew-pos--editor-header > * + * { margin-top: 1rem; }
+.ew-format-host:empty { display: none; }
+.ew-format-host > [role=toolbar] { border: 1px solid #767e8a; border-radius: var(--ew-radius); margin-bottom: .5rem; }
+.ew-pos--editor-header:empty, .ew-pos--editor-toolbar:empty, .ew-pos--editor-aside:empty, .ew-pos--editor-footer:empty, .ew-pos--editor-statusbar:empty { display: none; }
 .ew-num { color: var(--ew-text-muted); font-weight: 500; }
 .ew-lead { font-size: 1.1rem; color: var(--ew-text-muted); }
 .ew-meta { color: var(--ew-text-muted); font-size: .92rem; }

@@ -57,7 +57,7 @@ async function toMarkdown(html: string): Promise<string> {
   return (await api.post<{ markdown: string }>(BASE + 'to-markdown', { source: html })).markdown;
 }
 
-type Ctx = Pick<EditorContext, 'lang' | 'type' | 'labelId' | 'elementId' | 'onRemoteSave'>;
+type Ctx = Pick<EditorContext, 'lang' | 'type' | 'labelId' | 'elementId' | 'onRemoteSave' | 'toolbarHost'>;
 
 /** Creates the core.html editor (the user's choice). Exported so other plugins can reuse it. */
 export function createHtmlEditor(container: HTMLElement, body: unknown, ctx: Ctx): EditorInstance {
@@ -81,7 +81,7 @@ export function createVisualEditor(container: HTMLElement, body: unknown, ctx: C
     const collab = ctx.elementId && state.user && state.site.collaboration !== false
       ? { elementId: ctx.elementId, userId: state.user.id, onSaved: (rev: number, by?: { name: string }) => ctx.onRemoteSave?.(rev, by?.name) }
       : undefined;
-    ed = mod.createMarkdownEditor(box, { markdown: md, lang: ctx.lang, labelId: ctx.labelId, collab });
+    ed = mod.createMarkdownEditor(box, { markdown: md, lang: ctx.lang, labelId: ctx.labelId, collab, toolbarHost: ctx.toolbarHost });
   })().catch((e: unknown) => {
     if (gone) return;
     // e.g. the editor file could not be loaded: the simple editor still works
@@ -130,7 +130,11 @@ export function createSimpleEditor(container: HTMLElement, body: unknown, ctx: C
       if (tool.state) stateButtons.push({ tool, btn });
       toolbar.append(btn);
     }
-    surface.replaceChildren(toolbar, editable);
+    // the toolbar goes where the page placed it (a block), else above the surface
+    if (ctx.toolbarHost) {
+      ctx.toolbarHost.replaceChildren(toolbar);
+      surface.replaceChildren(editable);
+    } else surface.replaceChildren(toolbar, editable);
     onSel = () => {
       if (!editable || !editable.contains(document.getSelection()?.anchorNode ?? null)) return;
       for (const { tool, btn } of stateButtons) {
@@ -262,6 +266,7 @@ export function createSimpleEditor(container: HTMLElement, body: unknown, ctx: C
   const mountMarkdown = (src: string) => {
     if (onSel) document.removeEventListener('selectionchange', onSel);
     editable = null;
+    ctx.toolbarHost?.replaceChildren(); // the toolbar is for the HTML surface
     textarea = h('textarea', { class: 'ew-input ewh-markdown', rows: 18, 'aria-labelledby': ctx.labelId, lang: ctx.lang, spellcheck: 'true' });
     textarea.value = src;
     const preview = h('div', { class: 'ewh-preview', 'aria-live': 'polite' });

@@ -1,12 +1,22 @@
 // Resolution of the placement of building blocks (pure: no page, no DOM).
 
-/** Kinds of positions: those of the template (site) and those of an
- * element page (element-…, every template has them). A block names the
- * kind it fits. */
-export type PositionKind = 'site' | 'element';
+/** Kinds of positions: those of the template (site), those of an element
+ * page (element-…) and those of the editing page (editor-…); every
+ * template has the latter two. A block names the kind it fits. */
+export type PositionKind = 'site' | 'element' | 'editor';
 
 /** The positions of an element page. */
 export const ELEMENT_POSITIONS = ['element-header', 'element-toolbar', 'element-aside', 'element-footer'] as const;
+
+/** The positions of the page to edit or create an element. */
+export const EDITOR_POSITIONS = ['editor-header', 'editor-toolbar', 'editor-aside', 'editor-footer', 'editor-statusbar'] as const;
+
+export type PagePosition = (typeof ELEMENT_POSITIONS)[number] | (typeof EDITOR_POSITIONS)[number];
+
+/** The kind of a position (by its name). */
+export function kindOf(position: string): PositionKind {
+  return position.startsWith('element-') ? 'element' : position.startsWith('editor-') ? 'editor' : 'site';
+}
 
 /** One placement of a building block (see content.Placement on the server). */
 export interface Placement { block: string; position: string; sort: number; required?: boolean }
@@ -17,7 +27,7 @@ export interface BlockDefault { id: string; position: string; order: number; kin
 
 /** Whether a position fits a kind of blocks. */
 export function positionFits(kind: PositionKind, position: string): boolean {
-  return (kind === 'element') === position.startsWith('element-');
+  return kindOf(position) === kind;
 }
 
 /** Applies levels (in order) to the default positions: a level that names a
