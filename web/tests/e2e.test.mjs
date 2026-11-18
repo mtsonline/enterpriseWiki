@@ -1621,9 +1621,15 @@ test('workflow 3b: a case writes Word, PDF and Excel files and a calendar entry'
   await form.locator('button[type=submit]').click();
   await page.locator('dialog[open]').waitFor();
   await page.keyboard.press('Escape');
-  for (let i = 0; i < 3; i++) await job('workflow.process.timers');
+  // the steps run in the background: run the job until the case is done
+  // (under load one run may not reach the end)
   const list = await call('GET', `/api/v1/x/workflow.process/elements/${wf.id}/instances?status=`);
-  const x = await call('GET', `/api/v1/x/workflow.process/instances/${list.instances[0].id}`);
+  let x;
+  for (let i = 0; i < 20; i++) {
+    await job('workflow.process.timers');
+    x = await call('GET', `/api/v1/x/workflow.process/instances/${list.instances[0].id}`);
+    if (x.status === 'done' || x.last_error) break;
+  }
   assert.equal(x.status, 'done', `files and calendar: ${x.status} ${x.last_error ?? ''}`);
   // the files are in the media library with their category
   await page.goto(`${BASE}/media?category=${recs}`);
