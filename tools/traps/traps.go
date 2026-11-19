@@ -258,6 +258,13 @@ var traps = []trap{
 		Pkg:  "./plugins/core_template/", Tests: "^TestParseDesignRefusesUnknownFields$",
 	},
 	{
+		ID: "template.positions-room", About: "positions side by side in a block are saved without room",
+		File: "plugins/core_template/design.go",
+		Old:  "	return float64(n)*limits.PositionMinRem + float64(n-1)*limits.PositionGapRem",
+		New:  "	return 0 * (float64(n)*limits.PositionMinRem + float64(n-1)*limits.PositionGapRem)",
+		Pkg:  "./plugins/core_template/", Tests: "^TestDesignProblems$",
+	},
+	{
 		ID: "template.room", About: "blocks are saved side by side on the desktop without room",
 		File: "plugins/core_template/design.go",
 		Old:  `if need, room := d.needRoom(r, "desktop", nil), d.room(r, "desktop"); need > room {`,

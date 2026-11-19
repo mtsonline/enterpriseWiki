@@ -7,6 +7,8 @@ import type { LayoutContext, Layout } from '@ewiki/coreplugin';
 import limitsFile from '../limits.json';
 
 export const LIMITS = limitsFile;
+export { positionsRoom, room, needRoom, viewOf, minRem } from './room';
+import { minRem, viewOf } from './room';
 
 export type ViewName = 'desktop' | 'tablet' | 'mobile';
 export const VIEWS: ViewName[] = ['desktop', 'tablet', 'mobile'];
@@ -34,53 +36,6 @@ export interface ViewState { stack: boolean; hidden: string[]; drawer: string[];
 /** The breakpoints: the narrowest window of the tablet and of the desktop. */
 const TABLET_MIN = LIMITS.views.tablet.min_px;
 const DESKTOP_MIN = LIMITS.views.desktop.min_px;
-
-function minRem(b: Block, view: ViewName): number {
-  return b.kind === 'content' ? LIMITS.views[view].content_min_rem : (LIMITS.block_min_rem as Record<string, number>)[b.kind];
-}
-
-/** The width (rem) a row has in the narrowest window of a view (as the server computes it). */
-export function room(d: Design, r: Row, view: ViewName): number {
-  let w = LIMITS.views[view].min_px / LIMITS.rem_px;
-  if (r.width === 'content' && d.tokens.content_width < w) w = d.tokens.content_width;
-  return w - 2 * LIMITS.padding_rem;
-}
-
-/** The width (rem) the blocks of a row need side by side in a view (as the server computes it). */
-export function needRoom(r: Row, view: ViewName, v?: Partial<View>): number {
-  let sum = 0;
-  let n = 0;
-  for (const b of r.blocks) {
-    if (v?.hidden?.includes(b.id) || v?.drawer?.includes(b.id)) continue;
-    n++;
-    const w = v?.widths && b.id in v.widths ? v.widths[b.id] : b.width;
-    sum += b.kind === 'content' ? minRem(b, view) : w > 0 ? w : minRem(b, view);
-  }
-  return sum + (n > 1 ? LIMITS.gap_rem * (n - 1) : 0);
-}
-
-/** The view of a row: the one designed by hand, else the rules:
- * - tablet: side columns beside the content go into a drawer when they do
- *   not fit; blocks go one below the other when they still do not fit;
- * - mobile: menus of the header and side columns beside the content go into
- *   drawers; blocks of the header take the rest; what does not fit goes one
- *   below the other. */
-export function viewOf(d: Design, r: Row, view: ViewName): ViewState {
-  if (view === 'desktop') return { stack: false, hidden: [], drawer: [], widths: {}, auto: false };
-  const manual = r[view];
-  if (manual) return { stack: manual.stack, hidden: manual.hidden ?? [], drawer: manual.drawer ?? [], widths: manual.widths ?? {}, auto: false };
-  const hasContent = r.blocks.some((b) => b.kind === 'content');
-  const drawer: string[] = [];
-  const widths: Record<string, number> = {};
-  if (view === 'mobile' && r.role === 'banner') {
-    for (const b of r.blocks) if (b.role === 'navigation') drawer.push(b.id);
-  }
-  if (hasContent && needRoom(r, view, { drawer, widths }) > room(d, r, view)) {
-    for (const b of r.blocks) if (b.role === 'complementary' || (view === 'mobile' && b.role === 'navigation')) drawer.push(b.id);
-  }
-  const stack = needRoom(r, view, { drawer, widths }) > room(d, r, view);
-  return { stack, hidden: [], drawer, widths, auto: true };
-}
 
 // ---------------------------------------------------------------- CSS
 
@@ -150,6 +105,19 @@ export function designCSS(d: Design, cls: string): string {
   return out.join('\n');
 }
 
+/** A sticky header may take at most sticky_max_vh of the height of the
+ * window; when it is higher (a phone held sideways, an open drawer, large
+ * text), it scrolls with the page so it never hides the content and the
+ * focus (WCAG 1.4.10, 2.4.11). */
+function keepStickyLow(el: HTMLElement): void {
+  const sync = () => {
+    const tall = el.getBoundingClientRect().height > (window.innerHeight * LIMITS.sticky_max_vh) / 100;
+    el.classList.toggle('ewd-sticky--off', tall);
+  };
+  new ResizeObserver(sync).observe(el);
+  window.addEventListener('resize', sync, { passive: true });
+}
+
 // ---------------------------------------------------------------- layout
 
 const pick = (m: Record<string, string> | undefined): string => (m ? m[state.lang] || m[state.site.default_language] || Object.values(m)[0] || '' : '');
@@ -201,7 +169,9 @@ export function buildLayout(d: Design, ctx: LayoutContext): Layout {
     if (r.role === 'banner' || r.role === 'contentinfo') {
       const group: HTMLElement[] = [];
       while (i < d.rows.length && d.rows[i].role === r.role) group.push(rowEl(d.rows[i++]));
-      parts.push(h(r.role === 'banner' ? 'header' : 'footer', { class: ['ewd-landmark', r.role === 'banner' && d.options.sticky_header && 'ewd-sticky'] }, ...group));
+      const landmark = h(r.role === 'banner' ? 'header' : 'footer', { class: ['ewd-landmark', r.role === 'banner' && d.options.sticky_header && 'ewd-sticky'] }, ...group);
+      if (r.role === 'banner' && d.options.sticky_header) keepStickyLow(landmark);
+      parts.push(landmark);
     } else {
       parts.push(rowEl(r));
       i++;

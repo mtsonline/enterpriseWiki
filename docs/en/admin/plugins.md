@@ -196,7 +196,8 @@ Besides templates of code (plugins, as references), the wiki has **templates of 
 - **Who:** the permission `core.template.design` (create, copy, import, change, trash). Which template applies is still chosen with the settings of the site (`core.settings.manage`) and of a category (*Manage*).
 - **Checks on the server**, the same as in the designer (`plugins/core_template/limits.json`):
   - exactly one block is the content of the page, and at least one more block (for the user menu);
-  - on the desktop the blocks of a row must have room side by side; on tablet and phone a view that keeps them side by side must have room too, otherwise they go one below the other;
+  - wherever parts stand side by side there must be room: the blocks of every row (not only beside the content) and the positions inside a block (layout `row`). On the desktop this is always checked; on tablet and phone when a view keeps them side by side, otherwise they go one below the other. The text says how much room is needed and how much there is;
+  - a sticky header takes at most a quarter of the height of the window (`sticky_max_vh`); when it is higher, for example on a phone held sideways or with an open drawer, it scrolls with the page, so it never hides the content or the focus;
   - every color pair has enough contrast (text 4.5:1, controls and focus 3:1);
   - header and footer are rows with the role `banner` or `contentinfo`; adjacent rows form one landmark;
   - several navigations or side columns need different labels; positions of the pages themselves (`element-…`, `category-…`) cannot be used;

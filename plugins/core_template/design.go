@@ -128,6 +128,9 @@ type Limits struct {
 	PaddingRem           float64        `json:"padding_rem"`
 	BlockMinRem          map[string]int `json:"block_min_rem"`
 	BlockMaxRem          int            `json:"block_max_rem"`
+	PositionMinRem       float64        `json:"position_min_rem"`
+	PositionGapRem       float64        `json:"position_gap_rem"`
+	StickyMaxVh          int            `json:"sticky_max_vh"`
 	MaxRows              int            `json:"max_rows"`
 	MaxBlocksPerRow      int            `json:"max_blocks_per_row"`
 	MaxBlocks            int            `json:"max_blocks"`
@@ -287,6 +290,8 @@ func (d *Design) Problems() []Problem {
 				}
 				if b.Width != 0 && (b.Width < min || b.Width > limits.BlockMaxRem) {
 					add(bw, "the width is %d to %d rem (or 0: the rest of the row)", min, limits.BlockMaxRem)
+				} else if need := positionsRoom(b); b.Width != 0 && need > float64(b.Width) {
+					add(bw, "its %d positions side by side need %.1f rem, the block is %d rem wide; make it wider or put the positions one below the other (layout column)", len(b.Positions), need, b.Width)
 				}
 				if len(b.After) > 0 {
 					add(bw, "only the content has positions after it")
@@ -430,6 +435,8 @@ func (d *Design) fitProblems(ri int, r Row, add func(where, format string, args 
 				add(where, "%s: the content takes the rest of the row (width 0)", v.name)
 			case w != 0 && (w < min || w > limits.BlockMaxRem):
 				add(where, "%s: the width of %q is %d to %d rem (or 0: the rest of the row)", v.name, id, min, limits.BlockMaxRem)
+			case w != 0 && positionsRoom(b) > float64(w):
+				add(where, "%s: the %d positions of %q side by side need %.1f rem, it is %d rem wide; make it wider or put the positions one below the other", v.name, len(b.Positions), id, positionsRoom(b), w)
 			}
 		}
 		if !v.view.Stack {
@@ -438,6 +445,23 @@ func (d *Design) fitProblems(ri int, r Row, add func(where, format string, args 
 			}
 		}
 	}
+}
+
+// positionsRoom is the width (rem) the positions of a block need side by
+// side (layout row): each at least position_min_rem, with the gap between
+// them. A block one below the other (layout column) needs no more than one.
+func positionsRoom(b Block) float64 {
+	n := len(b.Positions)
+	if b.Layout != "row" || n < 2 {
+		return 0
+	}
+	return float64(n)*limits.PositionMinRem + float64(n-1)*limits.PositionGapRem
+}
+
+// minWidth is the narrowest a block without a width of its own can be: the
+// minimum of its kind, or more when its positions stand side by side.
+func minWidth(b Block) float64 {
+	return max(float64(limits.BlockMinRem[b.Kind]), positionsRoom(b))
 }
 
 // needRoom is the width the blocks of a row need side by side in a view.
@@ -459,7 +483,7 @@ func (d *Design) needRoom(r Row, view string, v *View) float64 {
 		} else if w > 0 {
 			sum += float64(w)
 		} else {
-			sum += float64(limits.BlockMinRem[b.Kind])
+			sum += minWidth(b)
 		}
 	}
 	if n > 1 {

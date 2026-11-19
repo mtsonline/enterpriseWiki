@@ -2497,7 +2497,7 @@ test('category display: table with a property column, accordion, tabs with the k
   assert.ok(intro.id > 0);
 });
 
-test('templates of data: copy, check while typing, save, versions, use for the site, export, import, trash; desktop, tablet and phone without sideways scrolling, drawers', async () => {
+test('templates of data: copy, check while typing, save, versions, use for the site, export, import, trash; desktop, tablet and phone without sideways scrolling, drawers, sticky header only when low enough', async () => {
   const before = (await call('GET', '/api/v1/admin/settings')).config;
   const imports = [];
   let key = '';
@@ -2566,6 +2566,17 @@ test('templates of data: copy, check while typing, save, versions, use for the s
         assert.equal(await btn.getAttribute('aria-expanded'), 'false');
         assert.equal(await page.evaluate(() => document.activeElement?.getAttribute('aria-controls')), 'ewd-side', 'the focus returns to the button');
       }
+      // a sticky header takes at most a quarter of the height of the window,
+      // else it scrolls with the page (a phone held sideways, large text)
+      const headerPosition = () => page.evaluate(() => getComputedStyle(document.querySelector('header.ewd-landmark')).position);
+      await page.setViewportSize({ width: 1280, height: 800 });
+      await page.goto(`${BASE}/`);
+      await idle();
+      assert.equal(await headerPosition(), 'sticky');
+      await page.setViewportSize({ width: 900, height: 180 });
+      await page.waitForFunction(() => getComputedStyle(document.querySelector('header.ewd-landmark')).position === 'static');
+      await page.setViewportSize({ width: 1280, height: 800 });
+      await page.waitForFunction(() => getComputedStyle(document.querySelector('header.ewd-landmark')).position === 'sticky');
     } finally {
       if (size) await page.setViewportSize(size);
     }
