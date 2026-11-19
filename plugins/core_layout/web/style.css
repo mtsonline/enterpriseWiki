@@ -90,3 +90,24 @@
 .ewl-acc > summary { min-height: 2.75rem; display: flex; align-items: center; gap: .5rem; padding: .5rem 0; font-weight: 600; cursor: pointer; }
 .ewl-acc > summary:focus-visible { outline: 3px solid var(--ew-focus); outline-offset: 2px; }
 .ewl-acc-body { padding: 0 0 1rem; }
+
+/* icon box: with a link the whole box is one link (the title, stretched over the box) */
+.ewl-iconbox { position: relative; display: flex; gap: 1rem; flex-direction: column; padding: 1.25rem; border-radius: var(--ew-radius); }
+.ewl-iconbox--left { flex-direction: row; align-items: flex-start; }
+.ewl-iconbox.ewl-align--center { align-items: center; }
+.ewl-iconbox > .ew-icon { color: var(--ew-primary); }
+.ewl-iconbox-title { font-weight: 700; font-size: 1.15rem; margin: 0 0 .25rem; }
+.ewl-iconbox-body > :last-child { margin-bottom: 0; }
+.ewl-boxlink { color: inherit; text-decoration: underline; text-underline-offset: .15em; }
+.ewl-boxlink::after { content: ""; position: absolute; inset: 0; border-radius: inherit; }
+.ewl-boxlink:focus-visible { outline: none; }
+.ewl-iconbox:has(.ewl-boxlink:focus-visible) { outline: 3px solid var(--ew-focus); outline-offset: 2px; }
+.ewl-iconbox:has(.ewl-boxlink):hover { background: var(--ew-bg-subtle); }
+
+/* icon list: the icon is the bullet (inherited from the frame) */
+.ewl-iconlist :is(ul, ol) { list-style: none; padding-inline-start: 0; }
+.ewl-iconlist li { position: relative; padding-inline-start: 1.75em; margin: .35em 0; }
+.ewl-iconlist li::before { content: ""; position: absolute; inset-inline-start: 0; top: .15em; inline-size: 1.25em; block-size: 1.25em; background: var(--ew-primary);
+  -webkit-mask: var(--ew-icon, none) center / contain no-repeat; mask: var(--ew-icon, none) center / contain no-repeat; }
+.ewl-iconlist--s li::before { inline-size: 1em; block-size: 1em; } .ewl-iconlist--l li { padding-inline-start: 2.5em; } .ewl-iconlist--l li::before { inline-size: 2em; block-size: 2em; top: 0; }
+@media (forced-colors: active) { .ewl-iconlist li::before { background: CanvasText; } }

@@ -3,6 +3,8 @@ package server_test
 import (
 	"strings"
 	"testing"
+
+	"github.com/mtsonline/enterprisewiki/web"
 )
 
 // TestLayoutBlocks: the layout blocks render readable HTML without script,
@@ -116,6 +118,42 @@ Text
 	for _, want := range []string{"has a contrast of", "unknown option", "not a valid list of options"} {
 		if !strings.Contains(html, want) {
 			t.Errorf("no note %q: %s", want, html)
+		}
+	}
+	// icons: only the name in the HTML (the browser shows its file), decoration
+	// unless labelled; the whole icon box is one link
+	html = render(`::iconbox{name=home title="Start" link="/c/1"}
+
+::iconbox{name=home title="Evil" link="javascript:alert(1)"}
+
+Text :icon[Phone]{name=phone} and :icon{name=star style=filled}
+
+:::iconlist{name=check}
+- one
+- two
+:::
+
+::icon{name="bad name"}
+
+::gallery{category=1 layout=masonry tablet=2 mobile=1}
+`)
+	for _, want := range []string{
+		`<span class="ew-icon ew-icon--m" data-icon="home" data-icon-style="outline" aria-hidden="true"></span>`,
+		`<a class="ewl-boxlink" href="/c/1">Start</a>`,
+		`data-icon="phone" data-icon-style="outline" role="img" aria-label="Phone"`,
+		`data-icon="star" data-icon-style="filled" aria-hidden="true"`,
+		`<div class="ewl-iconlist ewl-iconlist--m" data-icon="check" data-icon-style="outline"><ul>`,
+		"choose an icon",
+		`<a class="ewl-boxlink" href="#">Evil</a>`,
+	} {
+		if !strings.Contains(html, want) {
+			t.Errorf("icons: missing %q in\n%s", want, html)
+		}
+	}
+	if _, built := web.HasIcon("outline", "home"); built {
+		// with the icons in the program: a name that does not exist is refused
+		if h := render("::icon{name=no-such-icon-xyz}"); !strings.Contains(h, `there is no icon \"no-such-icon-xyz\"`) && !strings.Contains(h, "there is no icon &#34;no-such-icon-xyz&#34;") {
+			t.Errorf("unknown icon: %s", h)
 		}
 	}
 	// room: more columns on the tablet than have room

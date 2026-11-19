@@ -1,6 +1,7 @@
 // Widgets hydrate server-rendered placeholders (<div data-ew-widget="name">)
 // inside content, e.g. the interactive part of a workflow element.
 import { hydrateOptionFrames } from './optionframes';
+import { hydrateIcons } from './icons';
 
 export type WidgetFactory = (el: HTMLElement) => void | Promise<void>;
 
@@ -14,6 +15,7 @@ export function registerWidget(name: string, factory: WidgetFactory): void {
 /** Activates all widget placeholders below root (each only once). */
 export function hydrate(root: ParentNode): void {
   hydrateOptionFrames(root);
+  hydrateIcons(root);
   root.querySelectorAll<HTMLElement>('[data-ew-widget]').forEach((el) => {
     if (el.dataset.ewHydrated) return;
     const f = widgets.get(el.dataset.ewWidget ?? '');

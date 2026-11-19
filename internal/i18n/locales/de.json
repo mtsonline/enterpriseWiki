@@ -2729,5 +2729,14 @@
  "bo.sample_wait": "Das Beispiel zeigt die Optionen, sobald kein Problem mehr besteht.",
  "bo.p.between": "Die Textfarbe {color} liegt innerhalb der Helligkeit ihres Hintergrunds ({from} bis {to}); wählen Sie eine viel hellere oder dunklere Textfarbe oder eine stärkere Überlagerung.",
  "bo.set_count": "{n} Option(en) gesetzt",
- "bo.none_set": "Keine Optionen gesetzt"
+ "bo.none_set": "Keine Optionen gesetzt",
+ "icon.pick": "Symbol auswählen",
+ "icon.search": "Suchen",
+ "icon.category": "Kategorie",
+ "icon.all_categories": "Alle Kategorien",
+ "icon.results": "Symbole",
+ "icon.found": "{n} Symbol(e)",
+ "icon.found_more": "{n} Symbole, die ersten {shown} werden gezeigt; suchen Sie genauer, um andere zu sehen.",
+ "icon.loading": "Die Symbole werden geladen …",
+ "icon.none": "keines gewählt"
 }

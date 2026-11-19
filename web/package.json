@@ -22,6 +22,7 @@
     "typescript": "7.0.2"
   },
   "dependencies": {
+    "@tabler/icons": "^3.52.0",
     "lib0": "^0.2.119",
     "markdown-it": "^15.0.3",
     "prosemirror-commands": "^1.7.2",

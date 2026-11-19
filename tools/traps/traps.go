@@ -336,4 +336,18 @@ var traps = []trap{
 		New:  "		b.WriteString(`<a class=\"ewl-cta ewl-cta--` + oneOf(style, buttonStyles) + `\" href=\"` + esc(mc.Params[\"link\"+n]) + `\">` + esc(text) + `</a>`)",
 		Pkg:  "./internal/server/", Tests: "^TestLayoutBlocks$",
 	},
+	{
+		ID: "layout.icon-name", About: "names of icons of any form go into the page",
+		File: "plugins/core_layout/icons.go",
+		Old:  "	if !iconNameRe.MatchString(name) {",
+		New:  "	if !iconNameRe.MatchString(name) && false {",
+		Pkg:  "./internal/server/", Tests: "^TestLayoutBlocks$",
+	},
+	{
+		ID: "layout.iconbox-url", About: "the link of an icon box is not made safe",
+		File: "plugins/core_layout/icons.go",
+		Old:  "esc(SafeURL(link))",
+		New:  "esc(link)",
+		Pkg:  "./internal/server/", Tests: "^TestLayoutBlocks$",
+	},
 }
