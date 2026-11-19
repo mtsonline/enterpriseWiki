@@ -104,6 +104,12 @@ func (c *conv) block(n *html.Node, colons int) string {
 				lang = ""
 			}
 		}
+		// the editor writes the whole info ("go lines") into data-lang
+		if d := strings.Join(strings.Fields(attr(n, "data-lang")), " "); d != "" && !strings.Contains(d, "`") {
+			lang = d
+		} else if _, ok := attrOK(n, "data-lines"); ok && lang != "" {
+			lang += " lines"
+		}
 		fence := "```"
 		for strings.Contains(code, fence) {
 			fence += "`"

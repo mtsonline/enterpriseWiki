@@ -24,6 +24,7 @@ import (
 	"html"
 	"io"
 	"regexp"
+	"slices"
 	"sort"
 	"strings"
 	"unicode"
@@ -374,5 +375,31 @@ func (RendererExtension) RendererOptions(*gmhtml.Config) []gmhtml.Option {
 	return []gmhtml.Option{gmhtml.WithNodeRenderers(map[ast.NodeKind]gmhtml.NodeRenderer{
 		KindDirective:       gmhtml.NodeRendererFunc(renderBlock),
 		KindInlineDirective: gmhtml.NodeRendererFunc(renderInline),
+		ast.KindCodeBlock:   gmhtml.NodeRendererFunc(renderCodeBlock),
 	})}
+}
+
+// renderCodeBlock is the code block of CommonMark, and data-lines on the pre
+// when the info string asks for line numbers ("```go lines").
+func renderCodeBlock(w io.Writer, source []byte, node ast.Node, entering bool, rc renderer.Context) (ast.WalkStatus, error) {
+	n := node.(*ast.CodeBlock)
+	if !entering {
+		_, err := io.WriteString(w, "</code></pre>\n")
+		return ast.WalkContinue, err
+	}
+	pre := "<pre>"
+	if words := strings.Fields(n.Info.Value(source)); len(words) > 1 && slices.Contains(words[1:], "lines") {
+		pre = `<pre data-lines="">`
+	}
+	if lang, ok := n.Language(source); ok && lang != "" {
+		pre += `<code class="language-` + html.EscapeString(lang) + `">`
+	} else {
+		pre += "<code>"
+	}
+	if _, err := io.WriteString(w, pre); err != nil {
+		return ast.WalkStop, err
+	}
+	tw := gmhtml.ContextTextWriter(rc)
+	_, err := n.Value.WriteTo(tw, source)
+	return ast.WalkContinue, err
 }

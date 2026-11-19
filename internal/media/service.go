@@ -352,10 +352,14 @@ func (s *Service) require(ctx context.Context, id int64, want Perm) (*Medium, Pe
 type ListInput struct {
 	CategoryID int64
 	Recursive  bool
-	Query      string
-	Type       string // image, video, audio, pdf, document, other
-	Limit      int
-	Offset     int
+	// UsedBy: only media that this element embeds (media_usage)
+	UsedBy int64
+	// Sort: "updated" (newest first, default), "name", "size", "type"
+	Sort   string
+	Query  string
+	Type   string // image, video, audio, pdf, document, other
+	Limit  int
+	Offset int
 }
 
 // List returns the media the caller may see.
@@ -376,6 +380,9 @@ func (s *Service) List(ctx context.Context, in ListInput) ([]*Medium, error) {
 			add(`m.category_id = $?`, in.CategoryID)
 		}
 	}
+	if in.UsedBy > 0 {
+		add(`m.id IN (SELECT media_id FROM media_usage WHERE element_id=$?)`, in.UsedBy)
+	}
 	if q := strings.TrimSpace(in.Query); q != "" {
 		add(`(m.name ILIKE $? OR m.title ILIKE $? OR m.description ILIKE $?)`, "%"+escapeLike(q)+"%")
 	}
@@ -390,12 +397,24 @@ func (s *Service) List(ctx context.Context, in ListInput) ([]*Medium, error) {
 	default:
 		return nil, apperr.BadRequest("unknown type %q", in.Type)
 	}
+	order := "m.updated_at DESC, m.id DESC"
+	switch in.Sort {
+	case "", "updated":
+	case "name":
+		order = "lower(m.name), m.id"
+	case "size":
+		order = "v.size DESC, m.id"
+	case "type":
+		order = "v.mime, lower(m.name), m.id"
+	default:
+		return nil, apperr.BadRequest("unknown order %q", in.Sort)
+	}
 	// filter by rights in Go; read in pages until the page is full
 	var out []*Medium
 	skip := in.Offset
 	for page := 0; len(out) < in.Limit && page < 50; page++ {
 		rows, err := s.pool.Query(ctx, `SELECT `+cols+from+` WHERE `+strings.Join(where, " AND ")+
-			fmt.Sprintf(` ORDER BY m.updated_at DESC, m.id DESC LIMIT 200 OFFSET %d`, page*200), args...)
+			fmt.Sprintf(` ORDER BY %s LIMIT 200 OFFSET %d`, order, page*200), args...)
 		if err != nil {
 			return nil, err
 		}

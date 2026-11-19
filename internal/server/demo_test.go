@@ -160,7 +160,7 @@ func TestDemo(t *testing.T) {
 			HTML string `json:"html"`
 		}
 		admin.must("GET", "/api/v1/elements/"+strconv.FormatInt(wb, 10), nil, &wbv, 200)
-		for _, want := range []string{"the last one out", `id="tree"`, `class="ew-searchbox"`, `class="ew-pagetree"`, "House rules", "New meeting minutes"} {
+		for _, want := range []string{"the last one out", `id="tree"`, `class="ew-searchbox"`, `class="ew-pagetree"`, "House rules", "New meeting minutes", `class="ew-attachments"`, "/download"} {
 			if !strings.Contains(wbv.HTML, want) {
 				t.Errorf("demo wiki blocks: %q missing", want)
 			}

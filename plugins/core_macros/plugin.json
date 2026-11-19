@@ -2,7 +2,7 @@
   "id": "core.macros",
   "name": "Standard macros",
   "version": "1.0.0",
-  "description": "Macros for pages: table of contents, child pages, recently changed, info/note/warning/tip panels, expandable section, status label, columns, gallery, include page, excerpt, anchor, page tree, search box, new page from a template.",
+  "description": "Macros for pages: table of contents, child pages, recently changed, info/note/warning/tip panels, expandable section, status label, columns, gallery, include page, excerpt, anchor, page tree, search box, new page from a template, attachments.",
   "author": "Enterprise Wiki",
   "kinds": [
     "macro"

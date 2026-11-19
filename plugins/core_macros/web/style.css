@@ -103,3 +103,8 @@
 .ew-searchbox { display: grid; gap: 0.25rem; margin-block: 1rem; }
 .ew-searchbox-row { display: flex; flex-wrap: wrap; gap: 0.5rem; }
 .ew-searchbox-row .ew-input { flex: 1 1 12rem; min-inline-size: 0; }
+
+/* attachments list */
+.ew-attachments { margin-block: 1rem; }
+.ew-attachments-dl { margin-inline-start: 0.5rem; font-size: 0.9em; }
+.ew-attachments [data-ew-widget] { margin-block-start: 0.5rem; }

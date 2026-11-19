@@ -12,6 +12,8 @@ func TestFromHTML(t *testing.T) {
 		{`<ol start="3"><li>a</li><li>b</li></ol>`, "3. a\n4. b\n"},
 		{`<blockquote><p>q1</p><p>q2</p></blockquote>`, "> q1\n>\n> q2\n"},
 		{`<pre><code class="language-go">x := "` + "`" + `"</code></pre>`, "```go\nx := \"`\"\n```\n"},
+		{`<pre data-lang="go lines"><code>a</code></pre>`, "```go lines\na\n```\n"},
+		{`<pre data-lines=""><code class="language-go">a</code></pre>`, "```go lines\na\n```\n"},
 		{`<table><thead><tr><th>A</th><th>B</th></tr></thead><tbody><tr><td>1</td><td>x|y</td></tr></tbody></table>`, "| A | B |\n| --- | --- |\n| 1 | x\\|y |\n"},
 		{`<table><tr><td colspan="2">merged</td></tr></table>`, `<table><tbody><tr><td colspan="2">merged</td></tr></tbody></table>`},
 		{`<div data-macro="toc" data-params='{"levels":"3"}'></div>`, "::toc{levels=3}\n"},
