@@ -1546,6 +1546,7 @@
  "demo.installed": "The demo is installed (since {date}, {count} objects).",
  "demo.not_installed": "The demo is not installed.",
  "demo.create": "Create demo",
+ "demo.created_without": "Demo created, without these parts (a plugin is switched off or a permission is missing): {parts}",
  "demo.created": "Demo created",
  "demo.remove": "Remove demo",
  "demo.removed": "Demo removed – no traces left.",

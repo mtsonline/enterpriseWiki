@@ -862,7 +862,7 @@ async function cacheAdmin(panel: HTMLElement): Promise<void> {
     h('section', { class: 'ew-section', 'aria-labelledby': 'cc-h' }, h('h2', { id: 'cc-h' }, t('cache.settings')), form));
 }
 
-interface DemoStatus { installed: boolean; created_at?: string; objects: Record<string, number>; site_name: string }
+interface DemoStatus { installed: boolean; created_at?: string; objects: Record<string, number>; site_name: string; skipped?: string[] }
 
 /** Demo content of all features, and the reset of the site to its first start. */
 async function demoAdmin(panel: HTMLElement): Promise<void> {
@@ -874,8 +874,10 @@ async function demoAdmin(panel: HTMLElement): Promise<void> {
     create.disabled = true;
     create.setAttribute('aria-busy', 'true');
     try {
-      await api.post('admin/demo');
-      toast(t('demo.created'));
+      const res = await api.post<DemoStatus>('admin/demo');
+      // parts that were not possible (a plugin switched off, no permission) are named
+      if (res?.skipped?.length) toast(t('demo.created_without', { parts: res.skipped.join(', ') }));
+      else toast(t('demo.created'));
       navigate(state.site.site === 'main' ? '/demo' : `/demo-${state.site.site}`);
     } catch (e) {
       toast(errorText(e), 'error');
