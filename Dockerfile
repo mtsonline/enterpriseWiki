@@ -8,6 +8,8 @@ COPY web/package.json web/package-lock.json web/
 RUN cd web && npm ci --no-audit --no-fund
 COPY web web
 COPY plugins plugins
+# shared with the server: the schema of the options of blocks
+COPY internal/content/blockoptions.json internal/content/blockoptions.json
 RUN cd web && node build.mjs
 
 FROM --platform=$BUILDPLATFORM golang:1.27-alpine@sha256:70bd7ddea8b6cbe5d6943cde279d6b67feb10cc924fb9100d1d8757c1575b280 AS backend
