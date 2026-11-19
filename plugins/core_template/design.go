@@ -63,6 +63,9 @@ type Row struct {
 	// Background: page, subtle, header or footer (colors of the tokens)
 	Background string  `json:"background"`
 	Blocks     []Block `json:"blocks"`
+	// Desktop: only the drawer (blocks behind a button, a menu as "burger"
+	// also on the desktop); what is in it is behind a button in every view
+	Desktop *View `json:"desktop,omitempty"`
 	// Tablet and Mobile change the row for these views; nil: automatic
 	Tablet *View `json:"tablet,omitempty"`
 	Mobile *View `json:"mobile,omitempty"`
@@ -402,13 +405,16 @@ func (d *Design) fitProblems(ri int, r Row, add func(where, format string, args 
 	for _, b := range r.Blocks {
 		ids[b.ID] = b
 	}
-	if need, room := d.needRoom(r, "desktop", nil), d.room(r, "desktop"); need > room {
+	if r.Desktop != nil && (r.Desktop.Stack || len(r.Desktop.Hidden) > 0 || len(r.Desktop.Widths) > 0) {
+		add(where, "desktop: only blocks behind a button can be chosen; the layout of the desktop is the row itself")
+	}
+	if need, room := d.needRoom(r, "desktop", r.Desktop), d.room(r, "desktop"); need > room {
 		add(where, "the blocks need %.0f rem side by side, the desktop has %.0f rem here; make blocks narrower or move one to another row", need, room)
 	}
 	for _, v := range []struct {
 		name string
 		view *View
-	}{{"tablet", r.Tablet}, {"mobile", r.Mobile}} {
+	}{{"desktop", r.Desktop}, {"tablet", r.Tablet}, {"mobile", r.Mobile}} {
 		if v.view == nil {
 			continue
 		}
@@ -440,8 +446,8 @@ func (d *Design) fitProblems(ri int, r Row, add func(where, format string, args 
 				add(where, "%s: the %d positions of %q side by side need %.1f rem, it is %d rem wide; make it wider or put the positions one below the other", v.name, len(b.Positions), id, positionsRoom(b), w)
 			}
 		}
-		if !v.view.Stack {
-			if need, room := d.needRoom(r, v.name, v.view), d.room(r, v.name); need > room {
+		if !v.view.Stack && v.name != "desktop" {
+			if need, room := d.needRoom(r, v.name, withDesktopDrawer(r, v.view)), d.room(r, v.name); need > room {
 				add(where, "%s: the blocks need %.0f rem side by side, but there are only %.0f rem; let them go one below the other", v.name, need, room)
 			}
 		}
@@ -463,6 +469,25 @@ func positionsRoom(b Block) float64 {
 // minimum of its kind, or more when its positions stand side by side.
 func minWidth(b Block) float64 {
 	return max(float64(limits.BlockMinRem[b.Kind]), positionsRoom(b))
+}
+
+// withDesktopDrawer adds the drawer of the desktop to a view: what is behind
+// a button on the desktop is behind one in every view.
+func withDesktopDrawer(r Row, v *View) *View {
+	if r.Desktop == nil || len(r.Desktop.Drawer) == 0 {
+		return v
+	}
+	x := View{}
+	if v != nil {
+		x = *v
+	}
+	x.Drawer = slices.Clone(x.Drawer)
+	for _, id := range r.Desktop.Drawer {
+		if !slices.Contains(x.Drawer, id) {
+			x.Drawer = append(x.Drawer, id)
+		}
+	}
+	return &x
 }
 
 // needRoom is the width the blocks of a row need side by side in a view.

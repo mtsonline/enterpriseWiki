@@ -121,6 +121,10 @@ legend { font-weight: 700; padding: 0 .25rem; }
 /* ---------------------------------------------------------------- content */
 .ew-page-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 1rem; flex-wrap: wrap; }
 .ew-page-header h1 { margin-bottom: .5rem; }
+/* the title bar: path and title in one band (background per category through the options of the block) */
+.ew-titlebar { padding: 1.25rem 1rem; background: var(--ew-bg-subtle); color: var(--ew-text); border-radius: var(--ew-radius); margin-block-end: .5rem; }
+.ew-titlebar h1 { margin: .25rem 0 0; }
+.ew-titlebar .ew-breadcrumbs { margin: 0; }
 /* positions of an element page */
 .ew-pos--element-header { flex: 1 1 20rem; min-width: 0; }
 .ew-pos--element-toolbar { display: flex; flex-wrap: wrap; gap: .5rem; align-items: center; }

@@ -469,4 +469,25 @@ var traps = []trap{
 		New:  "\t\t\t\tif !taken[id] {",
 		Pkg:  "./internal/server/", Tests: "^TestContentIDs$",
 	},
+	{
+		ID: "wiki.blocks-budget", About: "includes in content blocks are not limited",
+		File: "internal/content/macros.go",
+		Old:  "\tctx = s.withIncludeBudget(ctx)\n\tctxNode",
+		New:  "\tctxNode",
+		Pkg:  "./internal/server/", Tests: "^TestWikiBlocks$",
+	},
+	{
+		ID: "template.desktop-drawer-check", About: "the desktop of a template may change more than its drawers",
+		File: "plugins/core_template/design.go",
+		Old:  "\tif r.Desktop != nil && (r.Desktop.Stack || len(r.Desktop.Hidden) > 0 || len(r.Desktop.Widths) > 0) {",
+		New:  "\tif false {",
+		Pkg:  "./plugins/core_template/", Tests: "^TestDesign",
+	},
+	{
+		ID: "template.desktop-drawer-content", About: "the content may go into a drawer on the desktop",
+		File: "plugins/core_template/design.go",
+		Old:  "\t}{{\"desktop\", r.Desktop}, {\"tablet\", r.Tablet}, {\"mobile\", r.Mobile}} {",
+		New:  "\t}{{\"tablet\", r.Tablet}, {\"mobile\", r.Mobile}} {",
+		Pkg:  "./plugins/core_template/", Tests: "^TestDesign",
+	},
 }

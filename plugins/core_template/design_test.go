@@ -75,6 +75,10 @@ func TestDesignProblems(t *testing.T) {
 		{"content hidden", func(d *Design) { d.Rows[2].Mobile = &View{Stack: true, Hidden: []string{"content"}} }, "the content cannot be hidden"},
 		{"unknown block in a view", func(d *Design) { d.Rows[2].Mobile = &View{Stack: true, Drawer: []string{"nope"}} }, `no block "nope"`},
 		{"logo in a drawer", func(d *Design) { d.Rows[1].Mobile = &View{Drawer: []string{"brand"}} }, "the logo cannot"},
+		{"the menu in a drawer on the desktop", func(d *Design) { d.Rows[1].Desktop = &View{Drawer: []string{"menu"}} }, ""},
+		{"the logo in a drawer on the desktop", func(d *Design) { d.Rows[1].Desktop = &View{Drawer: []string{"brand"}} }, "desktop: the logo cannot"},
+		{"the content in a drawer on the desktop", func(d *Design) { d.Rows[2].Desktop = &View{Drawer: []string{"content"}} }, "desktop: the content cannot"},
+		{"the desktop changes the layout", func(d *Design) { d.Rows[1].Desktop = &View{Stack: true} }, "desktop: only blocks behind a button"},
 		{"positions side by side without room", func(d *Design) {
 			b := &d.Rows[1].Blocks[2]
 			b.Fit, b.Width, b.Layout = false, 10, "row"

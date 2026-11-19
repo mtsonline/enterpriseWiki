@@ -386,6 +386,19 @@ export async function designer(panel: HTMLElement, key: string, back: () => void
     return h('fieldset', { class: 'ewd-viewset' }, ...kids.filter((x): x is HTMLElement => !!x));
   };
 
+  // the desktop: only blocks behind a button (a menu as a button also there)
+  const desktopFields = (r: Row, ri: number): HTMLElement | null => {
+    const blocks = r.blocks.filter((b) => b.kind !== 'content' && b.kind !== 'brand');
+    if (!blocks.length) return null;
+    return h('fieldset', { class: 'ewd-viewset' }, h('legend', null, t('template.view_desktop')),
+      h('p', { class: 'ew-help' }, t('template.d_desktop_drawer_help')),
+      ...blocks.map((b) => chk(`r${ri}-desktop-${b.id}-drawer`, t('template.d_desktop_drawer', { name: pick(b.label) || b.id }), !!r.desktop?.drawer?.includes(b.id), (d, x) => {
+        const cur = new Set(d.rows[ri].desktop?.drawer ?? []);
+        if (x) cur.add(b.id); else cur.delete(b.id);
+        if (cur.size) d.rows[ri].desktop = { drawer: [...cur] }; else delete d.rows[ri].desktop;
+      })));
+  };
+
   const properties = (): HTMLElement => {
     const r = draft.rows[sel.row];
     const body: HTMLElement[] = [];
@@ -398,7 +411,7 @@ export async function designer(panel: HTMLElement, key: string, back: () => void
         sel1(`r${ri}-role`, t('template.d_rowrole'), ['banner', 'contentinfo', 'none'], r.role, (o) => t(`template.d_rowrole_${o}`), (d, v) => { d.rows[ri].role = v as Row['role']; }, t('template.d_rowrole_help')),
         sel1(`r${ri}-width`, t('template.d_rowwidth'), ['full', 'content'], r.width, (o) => t(`template.d_rowwidth_${o}`), (d, v) => { d.rows[ri].width = v as Row['width']; }),
         sel1(`r${ri}-bg`, t('template.d_rowbg'), ['page', 'subtle', 'header', 'footer'], r.background, (o) => t(`template.d_rowbg_${o}`), (d, v) => { d.rows[ri].background = v as Row['background']; }),
-        viewFields(r, ri, 'tablet'), viewFields(r, ri, 'mobile'));
+        ...[desktopFields(r, ri)].filter((x): x is HTMLElement => !!x), viewFields(r, ri, 'tablet'), viewFields(r, ri, 'mobile'));
     } else {
       const ri = sel.row;
       const bi = sel.block;

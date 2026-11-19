@@ -221,6 +221,9 @@ var nonSlug = regexp.MustCompile(`[^\p{L}\p{N}]+`)
 // RenderMacros renders all macros in sanitized HTML and gives headings
 // stable ids (for anchors and the table of contents).
 func (s *Service) RenderMacros(ctx context.Context, rc RenderContext, src string) string {
+	// one budget of included pages and one set of ids for everything shown
+	// together (content blocks, previews … render without a page around them)
+	ctx = s.withIncludeBudget(ctx)
 	ctxNode := &nethtml.Node{Type: nethtml.ElementNode, Data: "div", DataAtom: atom.Div}
 	nodes, err := nethtml.ParseFragment(strings.NewReader(src), ctxNode)
 	if err != nil {

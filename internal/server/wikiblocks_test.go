@@ -114,6 +114,28 @@ func TestWikiBlocks(t *testing.T) {
 		t.Errorf("includes per page: no note on the ones left out")
 	}
 
+	// --- a page as the footer: a content block that includes a page, read with
+	// the permissions of the visitor and with the same limit of includes
+	admin.must("POST", fmt.Sprintf("/api/v1/categories/%d/acl", sub.ID), map[string]any{"subject_type": "guest", "permissions": 1}, nil, 201)
+	footer := page(sub.ID, "Footer page", "Imprint walrus-footer")
+	var fb strings.Builder
+	fmt.Fprintf(&fb, "::include{page=%d title=false}\n\n::include{page=%d}\n\n", footer, secret)
+	for range 60 {
+		fmt.Fprintf(&fb, "::include{page=%d title=false}\n\n", footer)
+	}
+	admin.must("POST", "/api/v1/x/core.blocks/blocks", map[string]any{"name": "Footer", "location": "footer", "audience": "all", "enabled": true,
+		"bodies": map[string]any{"en": map[string]string{"format": "markdown", "source": fb.String()}}}, nil, 201)
+	var blocks []struct {
+		HTML string `json:"html"`
+	}
+	e.client().must("GET", "/api/v1/x/core.blocks/blocks?lang=en", nil, &blocks, 200)
+	if len(blocks) != 1 || !strings.Contains(blocks[0].HTML, "walrus-footer") || strings.Contains(blocks[0].HTML, "okapi-secret") {
+		t.Fatalf("a page as the footer for guests: %+v", blocks)
+	}
+	if n := strings.Count(blocks[0].HTML, "walrus-footer"); n != 49 {
+		t.Errorf("includes in a content block: %d shown, want the limit 50 (one of them the hidden page)", n)
+	}
+
 	// --- anchors: valid names, unique on a page, not like ids of the interface
 	h = view(admin, page(cat.ID, "Anchors", "Text :anchor{name=\"budget\"} and :anchor{name=\"budget\"} and :anchor{name=\"main\"} and :anchor{name=\"cb-3\"} and :anchor{name=\"step-2-a\"}"))
 	if strings.Count(h, `id="budget"`) != 1 || !strings.Contains(h, "twice") {
