@@ -188,6 +188,23 @@ With `?positions=1` on any address (or *Show positions on the page* under *Menus
 
 Multi-level menus: in horizontal positions (`header-nav`, `top-bar`, `cms-nav`, `header-tools`) sub-menus open as drop-down menus with side flyouts. In the sidebar they are shown as an expandable tree, in the footer completely. On narrow screens and in the off-canvas menu of the CMS template they expand below each other. Templates adapt the look with CSS variables: `--ewm-link`, `--ewm-link-hover-bg`, `--ewm-panel-bg`, `--ewm-panel-border`, `--ewm-accent`.
 
+### Templates of data (template designer)
+
+Besides templates of code (plugins, as references), the wiki has **templates of data**. Such a template is only a description: rows of blocks with positions, design values and the views for tablet and phone. The wiki builds the page from it with the same code in the designer and on every page, so what is designed is what is shown.
+
+- **Where:** *Administration → Templates* lists all templates. Templates of code cannot be changed or copied there. The two shipped templates of data (*Wiki (data)*, *Website (data)*) are read only; copy one to change it. For now the design is changed as text (JSON) and checked while typing; the visual designer follows.
+- **Who:** the permission `core.template.design` (create, copy, import, change, trash). Which template applies is still chosen with the settings of the site (`core.settings.manage`) and of a category (*Manage*).
+- **Checks on the server**, the same as in the designer (`plugins/core_template/limits.json`):
+  - exactly one block is the content of the page, and at least one more block (for the user menu);
+  - on the desktop the blocks of a row must have room side by side; on tablet and phone a view that keeps them side by side must have room too, otherwise they go one below the other;
+  - every color pair has enough contrast (text 4.5:1, controls and focus 3:1);
+  - header and footer are rows with the role `banner` or `contentinfo`; adjacent rows form one landmark;
+  - several navigations or side columns need different labels; positions of the pages themselves (`element-…`, `category-…`) cannot be used;
+  - only fonts of the wiki itself and pictures of the wiki (`/api/v1/files/…`); unknown fields are refused.
+- **Views:** tablet and phone follow from the desktop by rules: side columns beside the content and the menus of the header go into drawers (a button opens them, Escape closes them), blocks that do not fit go to the next line or one below the other. A row can set its view by hand (`tablet`, `mobile`: `stack`, `hidden`, `drawer`, `widths`).
+- **Versions and trash:** every save is a version (at most `core.template.versions`); a template in use cannot go to the trash. At most `core.template.count` templates.
+- **Export and import** as a file (`format: ewiki-template`).
+
 ## External search engine
 
 For very large amounts of data the full-text search can use **OpenSearch/Elasticsearch** (from 7.10 or OpenSearch 1.x) or **Meilisearch** (from 1.3): better relevance, tolerance of typos, relief for the database. Set it up under *Administration → Search engine*: choose the search engine, enter URL, index name and credentials, *Test connection*.

@@ -124,14 +124,19 @@ async function boot(): Promise<void> {
   document.documentElement.dataset.site = state.site.name;
   registerCore();
   const active = new Set(state.site.plugins ?? []);
+  // a plugin may need data before the page is built (templates of data):
+  // its register() returns a promise, waited for at most a few seconds
+  const waits: Promise<unknown>[] = [];
   for (const p of pluginModules) {
     if (!active.has(p.id)) continue;
     try {
-      p.mod.register?.();
+      const r: unknown = p.mod.register?.();
+      if (r instanceof Promise) waits.push(r.catch((e: unknown) => console.error(`plugin ${p.id} failed to register`, e)));
     } catch (e) {
       console.error(`plugin ${p.id} failed to register`, e);
     }
   }
+  if (waits.length) await Promise.race([Promise.allSettled(waits), new Promise((res) => { setTimeout(res, 4000); })]);
   let tpl = resolveTemplate(state.site.template) ?? resolveTemplate('core.basic')!;
   setShownTemplate(tpl.id);
   document.body.classList.add('ew', ...tpl.classNames);

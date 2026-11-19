@@ -47,6 +47,7 @@ type Service struct {
 	resolvers map[string]SourceResolver
 
 	mu             sync.Mutex
+	tplSources     []templateSource
 	publishOptions map[string]publishOption
 	fields         map[string]elementField
 }

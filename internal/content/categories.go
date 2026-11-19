@@ -384,7 +384,7 @@ func (s *Service) CreateCategory(ctx context.Context, in CategoryInput) (*Catego
 	} else if err := s.notArchived(ctx, *in.ParentID); err != nil {
 		return nil, err
 	}
-	if err := s.checkTemplate(in.Template); err != nil {
+	if err := s.checkTemplate(ctx, in.Template); err != nil {
 		return nil, err
 	}
 	titles, err := s.normalizeTexts(in.Titles, 200, true)
@@ -506,11 +506,11 @@ func intPtrEqual(a, b *int) bool {
 }
 
 // checkTemplate accepts "" (inherited) or an active template plugin.
-func (s *Service) checkTemplate(t *string) error {
+func (s *Service) checkTemplate(ctx context.Context, t *string) error {
 	if t == nil || *t == "" {
 		return nil
 	}
-	if s.templateOK == nil || !s.templateOK(*t) {
+	if !s.TemplateOK(ctx, *t) {
 		return apperr.BadRequest("template %q is not an active website template", *t)
 	}
 	return nil
@@ -525,7 +525,7 @@ func (s *Service) UpdateCategory(ctx context.Context, id int64, in CategoryInput
 	if err := s.require(ctx, id, acl.Manage); err != nil {
 		return nil, err
 	}
-	if err := s.checkTemplate(in.Template); err != nil {
+	if err := s.checkTemplate(ctx, in.Template); err != nil {
 		return nil, err
 	}
 	if err := s.notArchived(ctx, id); err != nil {

@@ -188,6 +188,23 @@ Mit `?positions=1` an einer beliebigen Adresse (oder *Positionen auf der Seite a
 
 Mehrstufige Menüs: In horizontalen Positionen (`header-nav`, `top-bar`, `cms-nav`, `header-tools`) öffnen sich Untermenüs als Ausklapp-Menüs mit seitlichen Flyouts. In der Seitenleiste werden sie als aufklappbarer Baum gezeigt, im Fußbereich vollständig. Auf schmalen Bildschirmen und im Off-Canvas-Menü des CMS-Templates klappen sie untereinander auf. Templates passen das Aussehen über CSS-Variablen an: `--ewm-link`, `--ewm-link-hover-bg`, `--ewm-panel-bg`, `--ewm-panel-border`, `--ewm-accent`.
 
+### Templates aus Daten (Template-Designer)
+
+Neben Templates aus Code (Plugins, als Referenz) kennt das Wiki **Templates aus Daten**. Ein solches Template ist nur eine Beschreibung: Zeilen mit Bausteinen und Positionen, Gestaltungswerte und die Ansichten für Tablet und Handy. Das Wiki baut daraus die Seite, mit demselben Code im Designer und auf jeder Seite. Was gestaltet wird, wird also genau so gezeigt.
+
+- **Wo:** *Administration → Templates* listet alle Templates. Templates aus Code lassen sich dort nicht ändern oder kopieren. Die beiden mitgelieferten Templates aus Daten (*Wiki (Daten)*, *Website (Daten)*) sind schreibgeschützt; zum Ändern kopieren Sie eines. Vorerst wird das Design als Text (JSON) geändert und beim Tippen geprüft; der visuelle Designer folgt.
+- **Wer:** das Recht `core.template.design` (anlegen, kopieren, importieren, ändern, Papierkorb). Welches Template gilt, wählen weiter die Einstellungen der Website (`core.settings.manage`) und einer Kategorie (*Verwalten*).
+- **Prüfungen im Server**, dieselben wie im Designer (`plugins/core_template/limits.json`):
+  - genau ein Baustein ist der Inhalt der Seite, dazu mindestens ein weiterer Baustein (für das Benutzermenü);
+  - auf dem Desktop müssen die Bausteine einer Zeile nebeneinander Platz haben; auf Tablet und Handy muss eine Ansicht, die sie nebeneinander lässt, ebenfalls Platz haben, sonst stehen sie untereinander;
+  - jedes Farbpaar hat genug Kontrast (Text 4,5:1, Bedienelemente und Fokus 3:1);
+  - Kopf und Fuß sind Zeilen mit der Rolle `banner` oder `contentinfo`; nebeneinanderliegende Zeilen bilden eine Landmarke;
+  - mehrere Navigationen oder Seitenspalten brauchen verschiedene Beschriftungen; Positionen der Seiten selbst (`element-…`, `category-…`) sind nicht erlaubt;
+  - nur Schriften des Wikis selbst und Bilder des Wikis (`/api/v1/files/…`); unbekannte Felder werden abgelehnt.
+- **Ansichten:** Tablet und Handy ergeben sich nach Regeln aus dem Desktop: Seitenspalten neben dem Inhalt und die Menüs des Kopfs kommen in Schubladen (ein Knopf öffnet sie, Escape schließt sie), Bausteine, die nicht passen, rutschen in die nächste Zeile oder untereinander. Eine Zeile kann ihre Ansicht auch von Hand festlegen (`tablet`, `mobile`: `stack`, `hidden`, `drawer`, `widths`).
+- **Versionen und Papierkorb:** Jedes Speichern ist eine Version (höchstens `core.template.versions`); ein verwendetes Template kann nicht in den Papierkorb. Höchstens `core.template.count` Templates.
+- **Export und Import** als Datei (`format: ewiki-template`).
+
 ## Externe Suchmaschine
 
 Für sehr große Datenbestände kann die Volltextsuche **OpenSearch/Elasticsearch** (ab 7.10 bzw. OpenSearch 1.x) oder **Meilisearch** (ab 1.3) verwenden: bessere Relevanz, Tippfehler-Toleranz, Entlastung der Datenbank. Einrichtung unter *Administration → Suchmaschine*: Suchmaschine wählen, URL, Indexname und Zugangsdaten eintragen, *Verbindung testen*.

@@ -188,9 +188,14 @@ func (s *Service) requirePlacementLevel(ctx context.Context, level, target strin
 	}
 	switch level {
 	case LevelTemplate:
-		known := target == "core.basic" || s.knownOwner(target) // templates are plugins (theme.wiki …)
+		// templates are plugins (theme.wiki …) or offered by a plugin (core.template/12)
+		known := target == "core.basic" || s.knownOwner(target) || s.TemplateOK(ctx, target)
 		if !blockRe.MatchString(target) || !known {
 			return apperr.BadRequest("unknown template %q", target)
+		}
+		// the default placements of a template of data belong to its design
+		if strings.Contains(target, "/") && perm.Has(ctx, "core.template.design") {
+			return nil
 		}
 		return perm.Require(ctx, "core.settings.manage")
 	case LevelSite:

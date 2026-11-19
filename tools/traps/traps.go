@@ -221,4 +221,47 @@ var traps = []trap{
 		New:  "if c == \"\" && !columnRe.MatchString(c) {",
 		Pkg:  "./internal/server/", Tests: "^TestCategoryOverview$",
 	},
+	// ---------------------------------------------------------------- templates of data
+	{
+		ID: "template.design-perm", About: "templates of data can be changed without the permission core.template.design",
+		File: "plugins/core_template/store.go",
+		Old:  "design := func(r *http.Request) error { return perm.Require(r.Context(), permDesign) }",
+		New:  "design := func(r *http.Request) error { return nil }",
+		Pkg:  "./internal/server/", Tests: "^TestDataTemplates$",
+	},
+	{
+		ID: "template.read-only", About: "the shipped templates of data can be changed",
+		File: "plugins/core_template/store.go",
+		Old:  "	if cur.ReadOnly {\n		return nil, apperr.Forbidden",
+		New:  "	if cur.ReadOnly && false {\n		return nil, apperr.Forbidden",
+		Pkg:  "./internal/server/", Tests: "^TestDataTemplates$",
+	},
+	{
+		ID: "template.in-use", About: "a template in use goes to the trash (pages fall back silently)",
+		File: "plugins/core_template/store.go",
+		Old:  "		if len(used) > 0 {",
+		New:  "		if false && len(used) > 0 {",
+		Pkg:  "./internal/server/", Tests: "^TestDataTemplates$",
+	},
+	{
+		ID: "template.contrast", About: "colors without enough contrast are saved",
+		File: "plugins/core_template/design.go",
+		Old:  "if c := Contrast(colors[p.Fore], colors[p.Back]); c < p.Min() {",
+		New:  "if c := Contrast(colors[p.Fore], colors[p.Back]); c < 0 {",
+		Pkg:  "./plugins/core_template/", Tests: "^TestDesignProblems$",
+	},
+	{
+		ID: "template.unknown-fields", About: "a design takes fields nobody checks",
+		File: "plugins/core_template/design.go",
+		Old:  "	dec.DisallowUnknownFields()\n	var d Design\n	if err := dec.Decode(&d); err != nil {\n		return nil, apperr.BadRequest",
+		New:  "	var d Design\n	if err := dec.Decode(&d); err != nil {\n		return nil, apperr.BadRequest",
+		Pkg:  "./plugins/core_template/", Tests: "^TestParseDesignRefusesUnknownFields$",
+	},
+	{
+		ID: "template.room", About: "blocks are saved side by side on the desktop without room",
+		File: "plugins/core_template/design.go",
+		Old:  `if need, room := d.needRoom(r, "desktop", nil), d.room(r, "desktop"); need > room {`,
+		New:  `if need, room := d.needRoom(r, "desktop", nil), d.room(r, "desktop"); need > room*10 {`,
+		Pkg:  "./plugins/core_template/", Tests: "^TestDesignProblems$",
+	},
 }

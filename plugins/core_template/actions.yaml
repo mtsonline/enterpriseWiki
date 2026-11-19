@@ -1,0 +1,205 @@
+# Action register (ewiki.plugin.v1.Action, see sdk/proto/ewiki/plugin/v1/action.proto).
+actions:
+  - id: core.template.designs
+    category: CATEGORY_ACTION
+    method: GET
+    path: designs
+    success_status: 200
+    summary:
+      text:
+        en: The website templates of data that can be used, with their designs (the wiki builds its pages from them)
+        de: Die Website-Templates aus Daten, die verwendet werden können, mit ihrem Design (das Wiki baut daraus seine Seiten)
+    public: true
+    cli: {command: [site-template, designs]}
+    ui: {entry: /}
+    examples:
+      - name: default
+        as: guest
+  - id: core.template.limits
+    category: CATEGORY_ACTION
+    method: GET
+    path: limits
+    success_status: 200
+    summary:
+      text:
+        en: The limits of templates of data (the same the server checks with)
+        de: Die Grenzen von Templates aus Daten (dieselben, mit denen der Server prüft)
+    public: true
+    cli: {command: [site-template, limits]}
+    ui: {entry: /admin/templates}
+    examples:
+      - name: default
+        as: guest
+  - id: core.template.list
+    category: CATEGORY_ACTION
+    method: GET
+    path: templates
+    success_status: 200
+    summary:
+      text:
+        en: List the website templates of data (deleted=1 the trash)
+        de: Website-Templates aus Daten auflisten (deleted=1 den Papierkorb)
+    permission: {key: core.template.design, scope: SCOPE_GLOBAL}
+    cli: {command: [site-template, list]}
+    ui: {entry: /admin/templates}
+    examples:
+      - name: default
+        as: member
+      - name: refused
+        as: outsider
+        status: 403
+  - id: core.template.get
+    category: CATEGORY_ACTION
+    method: GET
+    path: "templates/{key}"
+    success_status: 200
+    summary:
+      text:
+        en: Show a template with its design and where it is used
+        de: Ein Template mit Design zeigen und wo es verwendet wird
+    permission: {key: core.template.design, scope: SCOPE_GLOBAL}
+    cli: {command: [site-template, show], args: [key]}
+    ui: {entry: /admin/templates}
+    examples:
+      - name: default
+        as: member
+        path_params_json: '{"key": "example-wiki"}'
+  - id: core.template.check
+    category: CATEGORY_ACTION
+    method: POST
+    path: check
+    success_status: 200
+    summary:
+      text:
+        en: Check a design against the limits (problems with where and why; nothing is stored)
+        de: Ein Design gegen die Grenzen prüfen (Probleme mit Ort und Grund; nichts wird gespeichert)
+    permission: {key: core.template.design, scope: SCOPE_GLOBAL}
+    cli: {command: [site-template, check]}
+    ui: {entry: /admin/templates}
+    examples:
+      - name: default
+        as: member
+        body_json: '{"design": {"version": 1}}'
+  - id: core.template.create
+    category: CATEGORY_ACTION
+    method: POST
+    path: templates
+    success_status: 201
+    summary:
+      text:
+        en: Create a template (a copy of copy_of, or with a design)
+        de: Template anlegen (Kopie von copy_of oder mit Design)
+    permission: {key: core.template.design, scope: SCOPE_GLOBAL}
+    safety: {changes: true}
+    cli: {command: [site-template, create]}
+    ui: {entry: /admin/templates}
+    examples:
+      - name: default
+        as: member
+        body_json: '{"names": {"en": "Copy ${unique}"}, "copy_of": "core.template/example-wiki"}'
+  - id: core.template.update
+    category: CATEGORY_ACTION
+    method: PUT
+    path: "templates/{key}"
+    success_status: 200
+    summary:
+      text:
+        en: Change a template (a new version; version must be the one you loaded)
+        de: Template ändern (neue Version; version muss die geladene sein)
+    permission: {key: core.template.design, scope: SCOPE_GLOBAL}
+    safety: {changes: true}
+    cli: {command: [site-template, update], args: [key]}
+    ui: {entry: /admin/templates}
+    examples:
+      - name: default
+        given: ['core.template.create#default']
+        as: member
+        path_params_json: '{"key": "${given.core.template.create#default.key}"}'
+        body_json: '{"names": {"en": "Renamed ${unique}"}, "version": 1}'
+  - id: core.template.delete
+    category: CATEGORY_ACTION
+    method: DELETE
+    path: "templates/{key}"
+    success_status: 204
+    summary:
+      text:
+        en: Move a template to the trash (not while in use); purge=1 removes it from the trash for good
+        de: Template in den Papierkorb (nicht, solange es verwendet wird); purge=1 entfernt es endgültig aus dem Papierkorb
+    permission: {key: core.template.design, scope: SCOPE_GLOBAL}
+    safety: {changes: true}
+    cli: {command: [site-template, delete], args: [key]}
+    ui: {entry: /admin/templates}
+    examples:
+      - name: default
+        given: ['core.template.create#default']
+        as: member
+        path_params_json: '{"key": "${given.core.template.create#default.key}"}'
+  - id: core.template.restore
+    category: CATEGORY_ACTION
+    method: POST
+    path: "templates/{key}/restore"
+    success_status: 200
+    summary:
+      text:
+        en: Restore a template from the trash
+        de: Template aus dem Papierkorb wiederherstellen
+    permission: {key: core.template.design, scope: SCOPE_GLOBAL}
+    safety: {changes: true}
+    cli: {command: [site-template, restore], args: [key]}
+    ui: {entry: /admin/templates}
+    examples:
+      - name: default
+        given: ['core.template.create#default', 'core.template.delete#default']
+        as: member
+        path_params_json: '{"key": "${given.core.template.create#default.key}"}'
+  - id: core.template.versions
+    category: CATEGORY_ACTION
+    method: GET
+    path: "templates/{key}/versions"
+    success_status: 200
+    summary:
+      text:
+        en: The saved versions of a template (newest first)
+        de: Die gespeicherten Versionen eines Templates (neueste zuerst)
+    permission: {key: core.template.design, scope: SCOPE_GLOBAL}
+    cli: {command: [site-template, versions], args: [key]}
+    ui: {entry: /admin/templates}
+    examples:
+      - name: default
+        given: ['core.template.create#default']
+        as: member
+        path_params_json: '{"key": "${given.core.template.create#default.key}"}'
+  - id: core.template.export
+    category: CATEGORY_ACTION
+    method: GET
+    path: "templates/{key}/export"
+    success_status: 200
+    summary:
+      text:
+        en: Export a template as a file (names and design)
+        de: Template als Datei exportieren (Namen und Design)
+    permission: {key: core.template.design, scope: SCOPE_GLOBAL}
+    cli: {command: [site-template, export], args: [key]}
+    ui: {entry: /admin/templates}
+    examples:
+      - name: default
+        as: member
+        path_params_json: '{"key": "example-cms"}'
+  - id: core.template.import
+    category: CATEGORY_ACTION
+    method: POST
+    path: templates/import
+    success_status: 201
+    summary:
+      text:
+        en: Import a template file as a new template
+        de: Eine Template-Datei als neues Template importieren
+    permission: {key: core.template.design, scope: SCOPE_GLOBAL}
+    safety: {changes: true}
+    cli: {command: [site-template, import]}
+    ui: {entry: /admin/templates}
+    examples:
+      - name: bad_format
+        as: member
+        body_json: '{"format": "other", "version": 1}'
+        status: 400

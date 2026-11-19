@@ -1586,16 +1586,20 @@ func maskURL(u string) string {
 func (s *Server) site(w http.ResponseWriter, r *http.Request) (any, error) {
 	c := s.app.Config.Get()
 	var frontend []string
-	templates := []map[string]string{}
+	templates := []map[string]any{}
 	for _, p := range s.app.Kernel.List() {
 		if p.Active && p.Frontend {
 			frontend = append(frontend, p.ID)
 		}
 		if p.Active && slices.Contains(p.Kinds, coreplugin.KindTemplate) {
-			templates = append(templates, map[string]string{"id": p.ID, "name": p.Name})
+			templates = append(templates, map[string]any{"id": p.ID, "name": p.Name})
 		}
 	}
-	slices.SortFunc(templates, func(a, b map[string]string) int { return strings.Compare(a["name"], b["name"]) })
+	// templates offered by plugins (templates of data, core.template/12)
+	for _, t := range s.app.Content.ExtraTemplates(r.Context()) {
+		templates = append(templates, map[string]any{"id": t.ID, "name": t.Name, "names": t.Names})
+	}
+	slices.SortFunc(templates, func(a, b map[string]any) int { return strings.Compare(a["name"].(string), b["name"].(string)) })
 	home := c.UI.HomeCategory
 	return map[string]any{
 		"name": c.UI.SiteName, "template": c.UI.Template, "templates": templates, "home_category": home, "home_element": c.UI.HomeElement, "editor": cmp.Or(c.UI.Editor, "visual"), "collaboration": c.UI.Collaboration, "personal_placement": c.UI.PersonalPlacement, "editor_tools": siteEditorTools(c.UI.EditorTools), "dashboard_tiles": nonNil(c.UI.DashboardTiles), "dashboard_home": c.UI.DashboardHome,
@@ -1663,6 +1667,10 @@ func (s *Server) updateSettings(w http.ResponseWriter, r *http.Request) (any, er
 				if !content.ValidBlockID(b) {
 					return apperr.BadRequest("ui.dashboard_tiles: %q is no block id", b)
 				}
+			}
+			// the template of the site: an active one (an unchanged value may stay)
+			if in.UI.Template != "" && in.UI.Template != c.UI.Template && in.UI.Template != "core.basic" && !s.app.Content.TemplateOK(r.Context(), in.UI.Template) {
+				return apperr.BadRequest("ui.template: %q is not an active website template", in.UI.Template)
 			}
 			if len(in.UI.EditorTools) > 0 {
 				if err := content.CheckEditorTools(in.UI.EditorTools); err != nil {

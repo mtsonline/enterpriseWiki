@@ -1,0 +1,39 @@
+{
+  "id": "core.template",
+  "name": "Template designer",
+  "version": "1.0.0",
+  "description": "Website templates as data: rows of blocks with positions, colors, fonts and the views for tablet and phone, checked against limits that keep every template working and accessible. The same code builds the page in the designer and in the wiki.",
+  "author": "Enterprise Wiki",
+  "kinds": ["template", "general"],
+  "frontend": true,
+  "permissions": [
+    {
+      "key": "core.template.design",
+      "scope": "global",
+      "label": "Design templates",
+      "description": "Create, copy, import and change website templates of data. Which template applies is still chosen with the settings of the site or of a category."
+    }
+  ],
+  "limits": [
+    {
+      "key": "core.template.count",
+      "group": "templates",
+      "unit": "count",
+      "default": 100,
+      "min": 1,
+      "max": 1000,
+      "label": "Templates of data",
+      "help": "How many website templates of data the wiki keeps at most (also in the trash)."
+    },
+    {
+      "key": "core.template.versions",
+      "group": "templates",
+      "unit": "count",
+      "default": 200,
+      "min": 10,
+      "max": 5000,
+      "label": "Versions per template",
+      "help": "How many saved versions of a template are kept; older ones are removed when a new one is saved."
+    }
+  ]
+}

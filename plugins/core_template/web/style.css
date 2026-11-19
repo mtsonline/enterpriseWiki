@@ -1,0 +1,82 @@
+/* core.template – the page skeleton of templates of data. The values of a
+   template (colors, fonts, widths) come from its generated CSS (engine.ts);
+   this file has what all of them share. */
+
+/* fonts of the wiki itself (SIL Open Font License), never from other servers */
+@font-face {
+  font-family: 'Inter Variable'; font-style: normal; font-display: swap; font-weight: 100 900;
+  src: url(../../../web/node_modules/@fontsource-variable/inter/files/inter-latin-wght-normal.woff2) format('woff2-variations');
+  unicode-range: U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD;
+}
+@font-face {
+  font-family: 'Inter Variable'; font-style: normal; font-display: swap; font-weight: 100 900;
+  src: url(../../../web/node_modules/@fontsource-variable/inter/files/inter-latin-ext-wght-normal.woff2) format('woff2-variations');
+  unicode-range: U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C4,U+2113,U+2C60-2C7F,U+A720-A7FF;
+}
+@font-face {
+  font-family: 'Source Sans 3 Variable'; font-style: normal; font-display: swap; font-weight: 200 900;
+  src: url(../../../web/node_modules/@fontsource-variable/source-sans-3/files/source-sans-3-latin-wght-normal.woff2) format('woff2-variations');
+  unicode-range: U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD;
+}
+@font-face {
+  font-family: 'Source Sans 3 Variable'; font-style: normal; font-display: swap; font-weight: 200 900;
+  src: url(../../../web/node_modules/@fontsource-variable/source-sans-3/files/source-sans-3-latin-ext-wght-normal.woff2) format('woff2-variations');
+  unicode-range: U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C4,U+2113,U+2C60-2C7F,U+A720-A7FF;
+}
+
+.ewd-app { min-height: 100vh; display: flex; flex-direction: column; background: var(--ew-bg); color: var(--ew-text); }
+.ewd-app > .ewd-row:has(.ewd-main), .ewd-app > .ewd-row:has(.ewd-block--content) { flex: 1 0 auto; }
+.ewd-landmark.ewd-sticky { position: sticky; top: 0; z-index: 30; }
+/* a row with nothing in it takes no room (e.g. the top bar without a notice) */
+.ewd-row:not(:has(.ewd-brand, .ewd-main, .ew-pos:not(:empty))) { display: none; }
+
+/* rows: the background of the row spans the window; the inner part is limited */
+.ewd-row { padding-left: env(safe-area-inset-left); padding-right: env(safe-area-inset-right); }
+.ewd-inner { display: flex; flex-wrap: nowrap; gap: var(--ewd-gap); padding: .5rem var(--ewd-pad); margin: 0 auto; min-width: 0; }
+.ewd-width--content > .ewd-inner { max-width: var(--ewd-content-width); }
+.ewd-bg--page { background: var(--ew-bg); }
+.ewd-bg--subtle { background: var(--ew-bg-subtle); }
+.ewd-bg--header { background: var(--ewd-header-bg); color: var(--ewd-header-text); }
+.ewd-bg--footer { background: var(--ewd-footer-bg); color: var(--ewd-footer-text); }
+/* on the header and footer everything takes their colors: texts, links,
+   borders and the focus in their text color (whose contrast is checked), the
+   backgrounds of controls in their background; nothing of the page colors
+   (made for the page background) is left there */
+.ewd-bg--header { --ew-bg: var(--ewd-header-bg); --ew-bg-raised: var(--ewd-header-bg); --ew-bg-subtle: var(--ewd-header-bg);
+  --ew-text: var(--ewd-header-text); --ew-text-muted: var(--ewd-header-text); --ew-link: var(--ewd-header-text); --ew-border: var(--ewd-header-text); --ew-focus: var(--ewd-header-text); }
+.ewd-bg--footer { --ew-bg: var(--ewd-footer-bg); --ew-bg-raised: var(--ewd-footer-bg); --ew-bg-subtle: var(--ewd-footer-bg);
+  --ew-text: var(--ewd-footer-text); --ew-text-muted: var(--ewd-footer-text); --ew-link: var(--ewd-footer-text); --ew-border: var(--ewd-footer-text); --ew-focus: var(--ewd-footer-text); }
+.ewd-bg--header a, .ewd-bg--footer a { color: inherit; }
+.ewd-bg--header :focus-visible, .ewd-bg--footer :focus-visible { outline-color: currentColor; }
+.ewd-bg--header .ew-btn--subtle, .ewd-bg--footer .ew-btn--subtle { color: inherit; }
+/* controls of the header keep their words on one line */
+.ewd-block .ew-btn { white-space: nowrap; }
+
+/* blocks: their positions side by side or one below the other */
+.ewd-block { display: flex; gap: .5rem; min-width: 0; overflow-wrap: anywhere; }
+.ewd-layout--row { flex-direction: row; flex-wrap: wrap; align-items: center; }
+.ewd-layout--column { flex-direction: column; }
+.ewd-layout--row.ewd-align--start { justify-content: flex-start; }
+.ewd-layout--row.ewd-align--center { justify-content: center; }
+.ewd-layout--row.ewd-align--end { justify-content: flex-end; }
+.ewd-layout--row.ewd-align--between { justify-content: space-between; }
+.ewd-layout--column.ewd-align--center { align-items: center; text-align: center; }
+.ewd-layout--column.ewd-align--end { align-items: flex-end; }
+.ewd-block--content { display: block; padding: 1rem 0 2rem; }
+.ewd-main { min-width: 0; }
+.ewd-main:focus { outline: none; }
+.ewd-block > .ew-pos:empty { display: none; }
+
+.ewd-brand { display: inline-flex; align-items: center; gap: .6rem; font-weight: 700; font-size: 1.15rem; text-decoration: none; min-height: 2.75rem; }
+.ewd-logo { max-height: 2.5rem; width: auto; }
+
+/* drawers: only in the views where the template puts a block in one */
+.ewd-drawer-button { display: none; align-items: center; gap: .25rem; min-height: 2.75rem; min-width: 2.75rem; }
+/* a drawer with nothing in it has no button */
+.ewd-inner > .ewd-drawer-button:has(+ .ewd-block:not(:has(.ew-pos:not(:empty)))) { display: none !important; }
+
+.ewd-to-top { position: fixed; right: max(1rem, env(safe-area-inset-right)); bottom: max(1rem, env(safe-area-inset-bottom)); z-index: 25; }
+
+/* the text of a design in the administration */
+.ewd-json { font-family: var(--ew-mono); font-size: .9rem; width: 100%; white-space: pre; overflow-wrap: normal; }
+.ewd-problems ul { margin: .25rem 0 0; }
