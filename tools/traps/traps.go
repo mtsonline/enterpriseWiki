@@ -226,7 +226,7 @@ var traps = []trap{
 		ID: "template.design-perm", About: "templates of data can be changed without the permission core.template.design",
 		File: "plugins/core_template/store.go",
 		Old:  "design := func(r *http.Request) error { return perm.Require(r.Context(), permDesign) }",
-		New:  "design := func(r *http.Request) error { _ = r; return nil }",
+		New:  "design := func(r *http.Request) error { _ = perm.Require; return nil }",
 		Pkg:  "./internal/server/", Tests: "^TestDataTemplates$",
 	},
 	{
