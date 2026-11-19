@@ -350,4 +350,11 @@ var traps = []trap{
 		New:  "esc(link)",
 		Pkg:  "./internal/server/", Tests: "^TestLayoutBlocks$",
 	},
+	{
+		ID: "layout.icon-read", About: "icons without a label are hidden from screen readers",
+		File: "plugins/core_layout/icons.go",
+		Old:  "	if !decorative {",
+		New:  "	if decorative {",
+		Pkg:  "./internal/server/", Tests: "^TestLayoutBlocks$",
+	},
 }

@@ -4,8 +4,9 @@ package core_layout
 // a single icon (also inside a line), an icon box (icon, title, text, the
 // whole box as one link) and an icon list (a list with an icon per entry).
 // The HTML carries only the name of the icon; the browser shows its file.
-// An icon is decoration unless it has a label (then it is an image with
-// that name for screen readers).
+// Screen readers read an icon: its label, or else its name (an icon without
+// a description is not left out). Only an icon marked as decoration is
+// skipped; the bullets of an icon list are decoration (the list is a list).
 
 import (
 	"context"
@@ -35,11 +36,18 @@ func checkIcon(name, style string) error {
 	return nil
 }
 
-// iconHTML is one icon: decoration (hidden from screen readers) or, with a
-// label, an image with that name.
-func iconHTML(name, style, size, label string) string {
+// iconName is the name of an icon in words (as screen readers read it).
+func iconName(name string) string { return strings.ReplaceAll(name, "-", " ") }
+
+// iconHTML is one icon: an image named by its label or, without one, by the
+// name of the icon; decoration (hidden from screen readers) only when asked.
+func iconHTML(name, style, size, label string, decorative bool) string {
 	a11y := ` aria-hidden="true"`
-	if l := strings.TrimSpace(label); l != "" {
+	if !decorative {
+		l := strings.TrimSpace(label)
+		if l == "" {
+			l = iconName(name)
+		}
 		a11y = ` role="img" aria-label="` + esc(l) + `"`
 	}
 	return `<span class="ew-icon ew-icon--` + size + `" data-icon="` + esc(name) + `" data-icon-style="` + style + `"` + a11y + `></span>`
@@ -53,6 +61,14 @@ func iconParams() []content.MacroParam {
 	}
 }
 
+// labelParams: what screen readers read for the icon.
+func labelParams() []content.MacroParam {
+	return []content.MacroParam{
+		{Name: "label", Labels: lm("Label for screen readers (empty: the name of the icon)", "Beschriftung für Screenreader (leer: der Name des Symbols)"), Type: "text"},
+		{Name: "decorative", Labels: lm("Decoration only (screen readers skip it)", "Nur Schmuck (Screenreader überspringen es)"), Type: "bool"},
+	}
+}
+
 // ---------------------------------------------------------------- icon
 
 type icon struct{}
@@ -60,12 +76,12 @@ type icon struct{}
 func (icon) Name() string              { return "icon" }
 func (icon) Labels() map[string]string { return lm("Icon", "Symbol") }
 func (icon) Description() map[string]string {
-	return lm("An icon, also inside a line of text. Without a label it is decoration.", "Ein Symbol, auch in einer Textzeile. Ohne Beschriftung ist es Schmuck.")
+	return lm("An icon, also inside a line of text. Screen readers read its label, or else its name.", "Ein Symbol, auch in einer Textzeile. Screenreader lesen seine Beschriftung, sonst seinen Namen.")
 }
 func (icon) HasBody() bool { return false }
 func (icon) Inline() bool  { return true }
 func (icon) Params() []content.MacroParam {
-	return append(iconParams(), content.MacroParam{Name: "label", Labels: lm("Label for screen readers (empty: decoration)", "Beschriftung für Screenreader (leer: Schmuck)"), Type: "text"})
+	return append(iconParams(), labelParams()...)
 }
 func (icon) Render(_ context.Context, mc content.MacroContext) (string, error) {
 	name, style := strings.TrimSpace(mc.Params["name"]), oneOf(mc.Params["style"], iconStyles)
@@ -76,7 +92,7 @@ func (icon) Render(_ context.Context, mc content.MacroContext) (string, error) {
 	if strings.TrimSpace(label) == "" {
 		label = mc.Params["text"] // :icon[Home]{name=home}: the text in brackets names it
 	}
-	return iconHTML(name, style, oneOf(mc.Params["size"], iconSizes), label), nil
+	return iconHTML(name, style, oneOf(mc.Params["size"], iconSizes), label, mc.Params["decorative"] == "true"), nil
 }
 
 // ---------------------------------------------------------------- icon box
@@ -90,7 +106,7 @@ func (iconbox) Description() map[string]string {
 }
 func (iconbox) HasBody() bool { return true }
 func (iconbox) Params() []content.MacroParam {
-	return append(iconParams(),
+	return append(append(iconParams(), labelParams()...),
 		content.MacroParam{Name: "title", Labels: lm("Title", "Titel"), Type: "text", Required: true},
 		content.MacroParam{Name: "link", Labels: lm("Link (the whole box)", "Link (der ganze Kasten)"), Type: "url"},
 		content.MacroParam{Name: "position", Labels: lm("Icon", "Symbol"), Type: "select", Options: []string{"top", "left"}, Default: "top"},
@@ -108,7 +124,7 @@ func (iconbox) Render(_ context.Context, mc content.MacroContext) (string, error
 	}
 	pos := oneOf(mc.Params["position"], []string{"top", "left"})
 	var b strings.Builder
-	fmt.Fprintf(&b, `<div class="ewl-iconbox ewl-iconbox--%s ewl-align--%s">%s<div class="ewl-iconbox-text">`, pos, oneOf(mc.Params["align"], aligns3), iconHTML(name, style, oneOf(mc.Params["size"], iconSizes), ""))
+	fmt.Fprintf(&b, `<div class="ewl-iconbox ewl-iconbox--%s ewl-align--%s">%s<div class="ewl-iconbox-text">`, pos, oneOf(mc.Params["align"], aligns3), iconHTML(name, style, oneOf(mc.Params["size"], iconSizes), mc.Params["label"], mc.Params["decorative"] == "true"))
 	// the whole box as one link: the title is the link, its area covers the box
 	// (one link, one name, one focus – not the text inside as a link)
 	if link := strings.TrimSpace(mc.Params["link"]); link != "" {

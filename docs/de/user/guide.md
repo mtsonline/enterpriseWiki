@@ -90,9 +90,9 @@ Im Markdown-Quelltext stehen Makros als Direktiven: `::toc{levels=3}` (ohne Inha
 | Handlungsaufruf | ein Kasten mit Titel, Text und Schaltfläche |
 | Reiter | Teile als Reiter (Pfeiltasten, Pos1, Ende); Teile mit einer Trennlinie trennen, die erste Überschrift jedes Teils benennt seinen Reiter. Ohne Skript stehen sie als Abschnitte untereinander |
 | Akkordeon | Teile zum Auf- und Zuklappen, wahlweise immer nur einer offen und der erste offen |
-| Symbol | ein Symbol der mitgelieferten Sammlung (über 6.000, Umriss oder gefüllt), auch in einer Zeile (`:icon[Telefon]{name=phone}`); ausgewählt mit einer Suche. Ohne Beschriftung ist es Schmuck; mit einer lesen Screenreader die Beschriftung |
-| Symbolbox | ein Symbol mit Titel und Text; mit Link ist der ganze Kasten ein Link |
-| Symbolliste | eine Liste mit einem Symbol vor jedem Eintrag, zum Beispiel einem Häkchen |
+| Symbol | ein Symbol der mitgelieferten Sammlung (über 6.000, Umriss oder gefüllt), auch in einer Zeile (`:icon[Telefon]{name=phone}`); ausgewählt mit einer Suche. Screenreader lesen seine Beschriftung oder, ohne eine, den Namen des Symbols (auf Englisch, zum Beispiel „arrow right“); nur ein Symbol mit *Nur Schmuck* wird übersprungen |
+| Symbolbox | ein Symbol mit Titel und Text; mit Link ist der ganze Kasten ein Link. Das Symbol wird wie ein einzelnes Symbol vorgelesen |
+| Symbolliste | eine Liste mit einem Symbol vor jedem Eintrag, zum Beispiel einem Häkchen. Das Symbol ersetzt den Aufzählungspunkt: Screenreader lesen die Liste als Liste, ohne das Symbol |
 | Shell-Befehl | Ausgabe eines Befehls auf dem Server; läuft erst, wenn ein Superadmin genau diesen Befehl freigegeben hat |
 | HTTP-Abruf | Ergebnis einer Web-Adresse (Text, HTML, JSON als Tabelle); nur freigegebene Adressen |
 | Neuigkeiten aus mehreren Quellen | die neuesten Elemente beliebig vieler Quellen und Einträge externer RSS/Atom-Feeds gemeinsam, als Karten, Liste oder Schlagzeilen |
