@@ -3,6 +3,7 @@ package core_template
 import (
 	"encoding/json"
 	"flag"
+	"math"
 	"os"
 	"strings"
 	"testing"
@@ -227,5 +228,53 @@ func TestRoomShared(t *testing.T) {
 	}
 	if string(want) != string(out) {
 		t.Fatalf("testdata/room.json is not what the server computes; run with -update and check the browser unit test\n%s", out)
+	}
+}
+
+// TestContrastShared: the contrast the server computes for the pairs of the
+// shipped examples and a few fixed colors is in testdata/contrast.json; the
+// unit test of the browser checks the designer against the same file.
+func TestContrastShared(t *testing.T) {
+	type c struct {
+		A     string  `json:"a"`
+		B     string  `json:"b"`
+		Ratio float64 `json:"ratio"`
+	}
+	var got []c
+	add := func(a, b string) { got = append(got, c{a, b, math.Round(Contrast(a, b)*1e6) / 1e6}) }
+	for _, p := range [][2]string{{"#000000", "#ffffff"}, {"#777777", "#ffffff"}, {"#bbbbbb", "#ffffff"}, {"#7a1f5c", "#f6f7f9"}, {"#ff0000", "#00ff00"}} {
+		add(p[0], p[1])
+	}
+	for _, name := range []string{"wiki", "cms"} {
+		raw, err := os.ReadFile("examples/" + name + ".json")
+		if err != nil {
+			t.Fatal(err)
+		}
+		var d struct {
+			Tokens map[string]any `json:"tokens"`
+		}
+		if err := json.Unmarshal(raw, &d); err != nil {
+			t.Fatal(err)
+		}
+		for _, p := range ContrastPairs {
+			add(d.Tokens[p.Fore].(string), d.Tokens[p.Back].(string))
+		}
+	}
+	out, _ := json.MarshalIndent(got, "", " ")
+	out = append(out, '\n')
+	if *update {
+		if err := os.WriteFile("testdata/contrast.json", out, 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	want, err := os.ReadFile("testdata/contrast.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(want) != string(out) {
+		t.Fatalf("testdata/contrast.json is not what the server computes; run with -update\n%s", out)
+	}
+	if len(ContrastPairs) < 10 {
+		t.Fatalf("contrast pairs from limits.json: %d", len(ContrastPairs))
 	}
 }

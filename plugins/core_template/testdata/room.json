@@ -3,61 +3,61 @@
   {
    "row": "top",
    "view": "desktop",
-   "need": 8,
+   "need": 17,
    "room": 62,
    "positions": {
-    "notice": 0
+    "notice": 0,
+    "tools": 0
    }
   },
   {
    "row": "top",
    "view": "tablet",
-   "need": 8,
+   "need": 17,
    "room": 38,
    "positions": {
-    "notice": 0
+    "notice": 0,
+    "tools": 0
    }
   },
   {
    "row": "top",
    "view": "mobile",
-   "need": 8,
+   "need": 17,
    "room": 18,
    "positions": {
-    "notice": 0
+    "notice": 0,
+    "tools": 0
    }
   },
   {
    "row": "head",
    "view": "desktop",
-   "need": 26.5,
+   "need": 17.5,
    "room": 62,
    "positions": {
     "brand": 0,
-    "menu": 8.5,
-    "tools": 0
+    "menu": 8.5
    }
   },
   {
    "row": "head",
    "view": "tablet",
-   "need": 17,
+   "need": 8,
    "room": 38,
    "positions": {
     "brand": 0,
-    "menu": 8.5,
-    "tools": 0
+    "menu": 8.5
    }
   },
   {
    "row": "head",
    "view": "mobile",
-   "need": 17,
+   "need": 8,
    "room": 18,
    "positions": {
     "brand": 0,
-    "menu": 8.5,
-    "tools": 0
+    "menu": 8.5
    }
   },
   {

@@ -192,7 +192,12 @@ Multi-level menus: in horizontal positions (`header-nav`, `top-bar`, `cms-nav`, 
 
 Besides templates of code (plugins, as references), the wiki has **templates of data**. Such a template is only a description: rows of blocks with positions, design values and the views for tablet and phone. The wiki builds the page from it with the same code in the designer and on every page, so what is designed is what is shown.
 
-- **Where:** *Administration → Templates* lists all templates. Templates of code cannot be changed or copied there. The two shipped templates of data (*Wiki (data)*, *Website (data)*) are read only; copy one to change it. For now the design is changed as text (JSON) and checked while typing; the visual designer follows.
+- **Where:** *Administration → Templates* lists all templates. Templates of code cannot be changed or copied there. The two shipped templates of data (*Wiki (data)*, *Website (data)*) are read only; copy one to change it. The designer has two views of the same design, and a change in one is in the other at once:
+  - **visual:** the structure (rows from top to bottom, blocks side by side; choose, move with the arrow buttons, add, delete), the properties of a row or block, the views of tablet and phone (automatic, or adjusted by hand and *Automatic again*), colours with the contrast of every pair and the nearest colour that passes (*Take*), font, size, corners, logo and behaviour. Everything works with the keyboard; undo and redo also with Ctrl+Z and Ctrl+Y;
+  - **as text (JSON)**, checked while typing.
+
+  Every change is checked by the server at once. At each row the designer says how much room the blocks need and how much there is in each view.
+- **Preview:** the wiki itself with the design, as a desktop (1280 px), tablet (768 px) or phone (375 px), on any page of the wiki, also in a window of its own. It is shown only to you, with your permissions; nothing is saved until you save. The preview measures what really has room, for example how many entries of a menu fit on one line, and says it under *Hints*. The engine writes CSS only from values of a safe form, so a draft that is not checked yet cannot change anything else.
 - **Who:** the permission `core.template.design` (create, copy, import, change, trash). Which template applies is still chosen with the settings of the site (`core.settings.manage`) and of a category (*Manage*).
 - **Checks on the server**, the same as in the designer (`plugins/core_template/limits.json`):
   - exactly one block is the content of the page, and at least one more block (for the user menu);

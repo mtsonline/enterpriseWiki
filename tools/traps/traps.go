@@ -258,6 +258,13 @@ var traps = []trap{
 		Pkg:  "./plugins/core_template/", Tests: "^TestParseDesignRefusesUnknownFields$",
 	},
 	{
+		ID: "template.contrast-pairs", About: "the pairs of colors to check are lost (nothing is checked)",
+		File: "plugins/core_template/design.go",
+		Old:  "var ContrastPairs = limits.ContrastPairs\n",
+		New:  "var ContrastPairs = limits.ContrastPairs[:0]\n",
+		Pkg:  "./plugins/core_template/", Tests: "^TestDesignProblems$",
+	},
+	{
 		ID: "template.positions-room", About: "positions side by side in a block are saved without room",
 		File: "plugins/core_template/design.go",
 		Old:  "	return float64(n)*limits.PositionMinRem + float64(n-1)*limits.PositionGapRem",

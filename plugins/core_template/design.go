@@ -143,6 +143,7 @@ type Limits struct {
 	ContentWidthRem      [2]int         `json:"content_width_rem"`
 	ContrastText         float64        `json:"contrast_text"`
 	ContrastUI           float64        `json:"contrast_ui"`
+	ContrastPairs        []ContrastPair `json:"contrast_pairs"`
 	Fonts                []string       `json:"fonts"`
 	MaxBytes             int            `json:"max_bytes"`
 }
@@ -540,10 +541,11 @@ func (t *Tokens) problems(add func(where, format string, args ...any)) {
 
 // ContrastPair is a pair of colors whose contrast is checked.
 type ContrastPair struct {
-	Fore, Back string
+	Fore string `json:"fore"`
+	Back string `json:"back"`
 	// UI: a control or border (3:1, WCAG 1.4.11), else text (4.5:1, WCAG 1.4.3)
-	UI   bool
-	Rule string
+	UI   bool   `json:"ui"`
+	Rule string `json:"rule"`
 }
 
 // Min is the contrast the pair needs.
@@ -554,23 +556,9 @@ func (p ContrastPair) Min() float64 {
 	return limits.ContrastText
 }
 
-// ContrastPairs are all pairs of the tokens that are shown together.
-var ContrastPairs = []ContrastPair{
-	{Fore: "text", Back: "bg", Rule: "1.4.3"},
-	{Fore: "text", Back: "bg_subtle", Rule: "1.4.3"},
-	{Fore: "text_muted", Back: "bg", Rule: "1.4.3"},
-	{Fore: "text_muted", Back: "bg_subtle", Rule: "1.4.3"},
-	{Fore: "link", Back: "bg", Rule: "1.4.3"},
-	{Fore: "link", Back: "bg_subtle", Rule: "1.4.3"},
-	{Fore: "on_primary", Back: "primary", Rule: "1.4.3"},
-	{Fore: "header_text", Back: "header_bg", Rule: "1.4.3"},
-	{Fore: "footer_text", Back: "footer_bg", Rule: "1.4.3"},
-	{Fore: "primary", Back: "bg", UI: true, Rule: "1.4.11"},
-	{Fore: "border", Back: "bg", UI: true, Rule: "1.4.11"},
-	// on the header and footer the focus ring has their text color (checked above)
-	{Fore: "focus", Back: "bg", UI: true, Rule: "2.4.13"},
-	{Fore: "focus", Back: "bg_subtle", UI: true, Rule: "2.4.13"},
-}
+// ContrastPairs are all pairs of the tokens that are shown together (from
+// limits.json, so the designer checks the same pairs).
+var ContrastPairs = limits.ContrastPairs
 
 // Contrast is the contrast ratio of two colors #rrggbb (WCAG 2.2).
 func Contrast(a, b string) float64 {

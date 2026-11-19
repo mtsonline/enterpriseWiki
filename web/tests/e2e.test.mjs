@@ -2497,6 +2497,103 @@ test('category display: table with a property column, accordion, tabs with the k
   assert.ok(intro.id > 0);
 });
 
+test('template designer: visual and with the keyboard, room and contrast help, undo and redo, views by hand, live preview', async () => {
+  const before = (await call('GET', '/api/v1/admin/settings')).config;
+  let key = '';
+  try {
+    await page.goto(`${BASE}/admin/templates`);
+    await idle();
+    const created = page.waitForResponse((r) => r.url().endsWith('/api/v1/x/core.template/templates') && r.request().method() === 'POST');
+    await page.getByRole('button', { name: /^(duplicate|kopieren|duplizieren): (website \(data\)|website \(daten\))$/i }).click();
+    key = (await (await created).json()).key;
+    await page.locator('.ewd-structure').waitFor();
+    await page.getByText(/^(no problems|keine probleme)/i).waitFor();
+    // the preview is the wiki itself with the draft
+    await page.waitForFunction(() => document.querySelector('iframe.ewd-frame')?.contentDocument?.body?.classList.contains('ewd-preview'));
+    await a11y('the visual designer');
+    // choose a block with the keyboard and give it more positions side by side than it has room for
+    await page.getByRole('button', { name: /^tools \((area|bereich)\)$/i }).focus();
+    await page.keyboard.press('Enter');
+    const positions = page.getByLabel(/^(positions|positionen)$/i);
+    await positions.fill('header-tools, tool-b, tool-c');
+    await page.keyboard.press('Tab');
+    await page.locator('.ewd-props').getByText(/(3 positions side by side need at least 13|3 positionen nebeneinander brauchen mindestens 13)/i).waitFor();
+    const fit = page.getByLabel(/^(as wide as its content|so breit wie sein inhalt)$/i);
+    if (await fit.isChecked()) { await fit.uncheck(); }
+    const width = page.getByLabel(/^(width \(rem\)|breite \(rem\))$/i);
+    await width.fill('10');
+    await page.keyboard.press('Tab');
+    await page.locator('.ewd-problems').getByText(/its 3 positions side by side need 13.0 rem, the block is 10 rem wide/).waitFor();
+    await a11y('the visual designer with a problem');
+    // undo step by step back to the shipped state, redo once
+    const undo = page.getByRole('button', { name: /^(undo|rückgängig)/i });
+    while (await undo.isEnabled()) await undo.click();
+    await page.getByText(/^(no problems|keine probleme)/i).waitFor();
+    await page.getByRole('button', { name: /^(redo|wiederholen)/i }).click();
+    await page.getByRole('button', { name: /^tools \((area|bereich)\)$/i }).click();
+    assert.match(await page.getByLabel(/^(positions|positionen)$/i).inputValue(), /tool-b/);
+    while (await undo.isEnabled()) await undo.click();
+    // contrast help: a text color that is too light, then the suggestion
+    await page.getByLabel(/^text$/i).fill('#bbbbbb');
+    const take = page.getByRole('button', { name: /^(text – background: take |text – hintergrund: )#[0-9a-f]{6}( übernehmen)?$/i });
+    await take.waitFor();
+    await take.click();
+    // the text is also shown on the subtle background: take the suggestion there too
+    const more = page.locator('.ewd-contrast .ewd-bad button');
+    while (await more.count()) await more.first().click();
+    assert.equal(await page.locator('.ewd-contrast .ewd-bad').count(), 0);
+    await page.getByText(/^(no problems|keine probleme)/i).waitFor();
+    // a color shows in the preview at once
+    await page.getByLabel(/^(main colour|hauptfarbe)$/i).fill('#7a1f5c');
+    await page.waitForFunction(() => getComputedStyle(document.querySelector('iframe.ewd-frame').contentDocument.body).getPropertyValue('--ew-primary').trim() === '#7a1f5c');
+    // the phone: adjusted by hand, then automatic again
+    await page.getByRole('button', { name: /^(row 4 \(body\)|zeile 4 \(body\))$/i }).click();
+    await page.getByRole('button', { name: /^(adjust the phone by hand|handy von hand anpassen)$/i }).click();
+    await page.getByText(/^(adjusted by hand\.|von hand angepasst\.)$/i).waitFor();
+    await page.getByRole('button', { name: /^(automatic again|wieder automatisch)$/i }).click();
+    await page.getByRole('button', { name: /^(adjust the phone by hand|handy von hand anpassen)$/i }).waitFor();
+    // the preview as a phone
+    await page.getByRole('button', { name: /^(phone|handy) \(375 px\)$/i }).click();
+    await page.waitForFunction(() => {
+      const f = document.querySelector('iframe.ewd-frame');
+      return f?.getAttribute('width') === '375' && f.contentDocument?.body?.classList.contains('ewd-preview');
+    });
+    await page.locator('.ewd-hints h3', { hasText: /(phone|handy)/i }).waitFor();
+    // the text shows the same design
+    await page.getByRole('button', { name: /^(as text \(json\)|als text \(json\))$/i }).click();
+    const design = JSON.parse(await page.getByLabel(/^(design \(text\)|design \(text\))$/i).inputValue());
+    assert.equal(design.tokens.primary, '#7a1f5c');
+    assert.equal(design.rows[1].mobile.drawer[0], 'menu');
+    await page.getByRole('button', { name: /^(visual|visuell)$/i }).click();
+    const saved = page.waitForResponse((r) => r.url().endsWith(`/api/v1/x/core.template/templates/${key}`) && r.request().method() === 'PUT');
+    await page.getByRole('button', { name: /^(save|speichern)$/i }).click();
+    assert.equal((await saved).status(), 200);
+    await a11y('the visual designer, phone preview');
+    // the website template of data (dark header) for the whole wiki: every
+    // part has enough contrast there too, on the desktop and on a phone
+    await call('PUT', '/api/v1/admin/settings', { ui: { ...before.ui, template: `core.template/${key}` } });
+    await page.goto(`${BASE}/`);
+    await idle();
+    assert.ok(await page.evaluate((k) => document.body.classList.contains(`ewd-${k}`), String(key)));
+    await a11y('the wiki with the website template of data (desktop)');
+    const size = page.viewportSize();
+    try {
+      await page.setViewportSize({ width: 375, height: 800 });
+      await page.goto(`${BASE}/`);
+      await idle();
+      await a11y('the wiki with the website template of data (phone)');
+    } finally {
+      if (size) await page.setViewportSize(size);
+    }
+  } finally {
+    await call('PUT', '/api/v1/admin/settings', { ui: before.ui });
+    if (key) {
+      await call('DELETE', `/api/v1/x/core.template/templates/${key}`).catch(() => {});
+      await call('DELETE', `/api/v1/x/core.template/templates/${key}?purge=1`).catch(() => {});
+    }
+  }
+});
+
 test('templates of data: copy, check while typing, save, versions, use for the site, export, import, trash; desktop, tablet and phone without sideways scrolling, drawers, sticky header only when low enough', async () => {
   const before = (await call('GET', '/api/v1/admin/settings')).config;
   const imports = [];
@@ -2510,6 +2607,9 @@ test('templates of data: copy, check while typing, save, versions, use for the s
     await page.getByRole('button', { name: /^(duplicate|kopieren|duplizieren): wiki \((data|daten)\)$/i }).click();
     const tpl = await (await created).json();
     key = tpl.key;
+    // the designer opens visually; the text view shows the same design
+    await page.locator('.ewd-structure').waitFor();
+    await page.getByRole('button', { name: /^(as text \(json\)|als text \(json\))$/i }).click();
     const text = page.getByLabel(/^(design \(text\)|design \(text\))$/i);
     await text.waitFor();
     await page.getByText(/^(no problems|keine probleme)/i).waitFor();
@@ -2531,10 +2631,11 @@ test('templates of data: copy, check while typing, save, versions, use for the s
     assert.equal((await saved).status(), 200);
     // the versions: the saved one is current, the first can be taken back into the text
     await page.locator('.ewd-versions li', { hasText: /version 2/i }).getByText(/current|aktuell/i).waitFor();
-    await page.getByRole('button', { name: /^(take version 1 into the text|version 1 in den text übernehmen)$/i }).click();
+    await page.getByRole('button', { name: /^(take into the text: version 1|in den text übernehmen: version 1)$/i }).click();
     assert.ok(!(await text.inputValue()).includes('#7a1f5c'), 'version 1 is in the text');
-    // use it for the site (the page loads again)
+    // use it for the site (the page loads again); version 1 in the text is not saved, so leaving asks first
     await page.getByRole('button', { name: /^(← all templates|← alle templates)$/i }).click();
+    await page.locator('dialog[open]').getByRole('button', { name: /^(leave without saving|ohne speichern verlassen)$/i }).click();
     const reloaded = page.waitForEvent('load');
     await page.getByRole('button', { name: /^(use for the site|für die website verwenden): (copy of wiki \(data\)|kopie von wiki \(daten\))$/i }).click();
     await reloaded;
