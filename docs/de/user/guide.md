@@ -93,6 +93,12 @@ Im Markdown-Quelltext stehen Makros als Direktiven: `::toc{levels=3}` (ohne Inha
 | Symbol | ein Symbol der mitgelieferten Sammlung (über 6.000, Umriss oder gefüllt), auch in einer Zeile (`:icon[Telefon]{name=phone}`); ausgewählt mit einer Suche. Screenreader lesen seine Beschriftung oder, ohne eine, den Namen des Symbols (auf Englisch, zum Beispiel „arrow right“); nur ein Symbol mit *Nur Schmuck* wird übersprungen |
 | Symbolbox | ein Symbol mit Titel und Text; mit Link ist der ganze Kasten ein Link. Das Symbol wird wie ein einzelnes Symbol vorgelesen |
 | Symbolliste | eine Liste mit einem Symbol vor jedem Eintrag, zum Beispiel einem Häkchen. Das Symbol ersetzt den Aufzählungspunkt: Screenreader lesen die Liste als Liste, ohne das Symbol |
+| Seite einbinden | zeigt eine andere Seite (oder nur ihren Auszug) hier, immer im aktuellen Stand. Jede Person sieht nur, was sie sehen darf; eine Seite, die strenger eingestuft ist als diese, wird hier nicht gezeigt (auch nicht ihr Titel), damit sie nicht mit dieser Seite per E-Mail, Druck oder Export weiterwandert. Eine Seite bindet höchstens `core.content.includes_per_page` Seiten ein, über alle Ebenen gezählt (Experteneinstellung) |
+| Auszug | markiert einen Teil dieser Seite, den *Seite einbinden* mit *Nur den Auszug* zeigt; mit Namen gibt es mehrere Auszüge auf einer Seite |
+| Anker | eine Stelle im Text, zu der ein Link mit `#name` springt (`:anchor{name=budget}`). Namen: Kleinbuchstaben, Ziffern und Bindestriche, ohne `ew` am Anfang und ohne `-Zahl` am Ende (so heißen Felder des Wikis selbst); jeder Name einmal je Seite |
+| Seitenbaum | Unterkategorien und Seiten einer Kategorie als Baum zum Aufklappen, mit einem Feld zum Filtern; bis zu vier Ebenen |
+| Suchfeld | ein Suchfeld für diese (oder eine gewählte) Kategorie mit Unterkategorien oder für das ganze Wiki; die Treffer zeigt die Suchseite, dort lässt sich die Suche auf das ganze Wiki erweitern |
+| Seite aus Vorlage anlegen | ein Knopf, der eine neue Seite in einer Kategorie öffnet, gefüllt aus einer Seitenvorlage. Nur wer dort Seiten anlegen darf und die Vorlage nutzen kann, sieht ihn; nehmen Sie deshalb eine Vorlage für alle oder für den Bereich |
 | Shell-Befehl | Ausgabe eines Befehls auf dem Server; läuft erst, wenn ein Superadmin genau diesen Befehl freigegeben hat |
 | HTTP-Abruf | Ergebnis einer Web-Adresse (Text, HTML, JSON als Tabelle); nur freigegebene Adressen |
 | Neuigkeiten aus mehreren Quellen | die neuesten Elemente beliebig vieler Quellen und Einträge externer RSS/Atom-Feeds gemeinsam, als Karten, Liste oder Schlagzeilen |
@@ -390,6 +396,7 @@ Gelöschte Kategorien (mit allem Inhalt) und Seiten landen im **Papierkorb** (Be
 ## Suche und Tags
 
 - Die **Suche** findet Wörter und Wortanfänge in Titeln, Tags und Inhalten aller Sprachen. Treffer sind hervorgehoben.
+- **In einer Kategorie suchen:** Ein Suchfeld auf einer Seite (Baustein *Suchfeld*) sucht nur in seiner Kategorie und ihren Unterkategorien. Die Suchseite nennt die Kategorie; ohne den Haken bei *Nur in …* sucht sie im ganzen Wiki.
 - **Tags** vergeben Sie bei Kategorien (Einstellungen) und Seiten (*Tags*). Ein Klick auf einen Tag zeigt alle Inhalte mit diesem Tag. Auf der Suchseite gibt es eine Liste beliebter Tags.
 
 **Unsichtbar** (unter *Eigenschaften* einer Seite) nimmt sie aus Listen, Blogs, FAQs, Makros, Feeds und der Suche; über ihren Link bleibt sie für alle erreichbar, die sie lesen dürfen, und Bearbeitende sehen sie in der Kategorie gekennzeichnet. Unsichtbar ist kein Schutz – dafür gibt es Rechte.

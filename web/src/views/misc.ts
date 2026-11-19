@@ -46,14 +46,22 @@ export async function searchView({ query, main }: RouteCtx): Promise<void> {
   setContext(0, [], []);
   const q = query.get('q') ?? '';
   const tags = query.get('tags') ?? '';
+  // category=ID: search in one category and below (search box of a page)
+  const catId = /^[1-9][0-9]{0,17}$/.test(query.get('category') ?? '') ? query.get('category')! : '';
   const input = textInput({ value: q, type: 'search', name: 'q' });
   const tagInput = textInput({ value: tags, name: 'tags' });
+  let only: ReturnType<typeof checkbox> | null = null;
+  if (catId) {
+    let title = `#${catId}`;
+    try { const c = await api.get<{ category: { titles: Record<string, string> } }>(`categories/${catId}`); title = pick(c.category.titles, state.lang, state.site.default_language); } catch { /* the search says why */ }
+    only = checkbox(t('search.in_category', { title }), true, { help: t('search.in_category_help') });
+  }
   const form = h('form', { role: 'search', class: 'ew-form ew-search-form', 'aria-label': t('search.label') },
-    field(t('search.term'), input), field(t('common.tags'), tagInput, { help: t('search.tags_help') }),
+    field(t('search.term'), input), field(t('common.tags'), tagInput, { help: t('search.tags_help') }), only?.el ?? null,
     button(t('search.submit'), () => undefined, { type: 'submit', variant: 'primary' }));
   form.addEventListener('submit', (ev) => {
     ev.preventDefault();
-    navigate(`/search${qs({ q: input.value.trim(), tags: tagInput.value.trim() })}`);
+    navigate(`/search${qs({ q: input.value.trim(), tags: tagInput.value.trim(), category: only?.input.checked ? catId : undefined })}`);
   });
   const results = h('div', { class: 'ew-results' });
   mount(main, pageHeader(t('search.title')), form, results);
@@ -65,7 +73,7 @@ export async function searchView({ query, main }: RouteCtx): Promise<void> {
     return;
   }
   try {
-    const res = await api.get<SearchResult>(`search${qs({ q, tags, lang: state.lang })}`);
+    const res = await api.get<SearchResult>(`search${qs({ q, tags, lang: state.lang, category: catId || undefined })}`);
     const total = res.elements.length + res.categories.length;
     results.append(h('p', { role: 'status' }, t('search.count', { count: total })));
     if (res.categories.length) {

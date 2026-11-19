@@ -93,6 +93,12 @@ In the Markdown source, macros are directives: `::toc{levels=3}` (without conten
 | Icon | an icon of the shipped set (more than 6,000, outline or filled), also inside a line (`:icon[Phone]{name=phone}`); chosen with a search. Screen readers read its label or, without one, the name of the icon (in English, for example "arrow right"); only an icon marked *decoration only* is skipped |
 | Icon box | an icon with title and text; with a link the whole box is one link. The icon is read like a single icon |
 | Icon list | a list with an icon in front of every entry, for example a check mark. The icon takes the place of the bullet: screen readers read the list as a list, without the icon |
+| Include page | shows another page (or only its excerpt) here, always as it is now. Everybody sees only what they may see; a page classified stricter than this one is not shown here (not even its title), so it does not travel on with this page by e-mail, print or export. A page includes at most `core.content.includes_per_page` pages, counted over all levels (expert setting) |
+| Excerpt | marks a part of this page that *Include page* with *Only the excerpt* shows; with names there can be several excerpts on a page |
+| Anchor | a point in the text that a link with `#name` jumps to (`:anchor{name=budget}`). Names: lowercase letters, digits and hyphens, without `ew` at the start and without `-number` at the end (the wiki names its own fields like that); every name once per page |
+| Page tree | subcategories and pages of a category as a tree to open, with a field to filter it; up to four levels |
+| Search box | a search field for this (or a chosen) category with its subcategories, or for the whole wiki; the search page shows the results, and there the search can be widened to the whole wiki |
+| New page from a template | a button that opens a new page in a category, filled from a page template. Only people who may create pages there and can use the template see it; so take a template for everybody or for the space |
 | Shell command | output of a command on the server; only runs once a super administrator has approved exactly this command |
 | HTTP request | result of a web address (text, HTML, JSON as a table); only approved addresses |
 | News from several sources | the newest elements of any number of sources and entries of external RSS/Atom feeds together, as cards, list or headlines |
@@ -390,6 +396,7 @@ Deleted categories (with all content) and pages end up in the **trash** (user me
 ## Search and tags
 
 - The **search** finds words and word beginnings in titles, tags and content of all languages. Hits are highlighted.
+- **Search in a category:** a search box on a page (block *Search box*) searches only in its category and the subcategories. The search page names the category; without the tick at *Only in …* it searches the whole wiki.
 - You assign **tags** to categories (settings) and pages (*Tags*). A click on a tag shows all content with this tag. On the search page there is a list of popular tags.
 
 **Hidden** (under *Properties* of a page) takes it out of lists, blogs, FAQs, macros, feeds and the search; it stays reachable by its link for everybody who may read it, and editors see it marked in the category. Hidden is not a protection – use permissions for that.

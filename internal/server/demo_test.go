@@ -145,6 +145,23 @@ func TestDemo(t *testing.T) {
 		if seats, _ := db.CountActiveAccounts(context.Background(), e.app.Instance.Shared); seats != seats0+1 {
 			t.Fatalf("license seats %d, want %d", seats, seats0+1)
 		}
+		// the page of the wiki blocks shows them, without errors
+		var wb int64
+		if err := e.app.DB.QueryRow(context.Background(), `SELECT id FROM elements WHERE titles->>'en' = 'Wiki building blocks' AND deleted_at IS NULL`).Scan(&wb); err != nil {
+			t.Fatal(err)
+		}
+		var wbv struct {
+			HTML string `json:"html"`
+		}
+		admin.must("GET", "/api/v1/elements/"+strconv.FormatInt(wb, 10), nil, &wbv, 200)
+		for _, want := range []string{"the last one out", `id="tree"`, `class="ew-searchbox"`, `class="ew-pagetree"`, "House rules", "New meeting minutes"} {
+			if !strings.Contains(wbv.HTML, want) {
+				t.Errorf("demo wiki blocks: %q missing", want)
+			}
+		}
+		if strings.Contains(wbv.HTML, "ew-macro-error") {
+			t.Errorf("demo wiki blocks with an error: %s", wbv.HTML)
+		}
 		// a page somebody added inside the demo area goes with it
 		var demoCat int64
 		if err := e.app.DB.QueryRow(context.Background(), `SELECT min(ref::bigint) FROM demo_objects WHERE kind='category'`).Scan(&demoCat); err != nil {

@@ -256,7 +256,7 @@ Core plugins are full code with access to the database and the server. Only inst
 | `core.html` | element type | pages with WYSIWYG or Markdown |
 | `core.menu` | menu | any number of menus, also multi-level, at every position of the template. Targets are categories, elements, links or other menus (*Administration → Menus*). |
 | `core.blocks` | general | text blocks (Markdown/HTML, macros) at every position, per language, for everyone/guests/signed-in people (*Administration → Blocks*) |
-| `core.macros` | macros | table of contents, child pages, recently changed (with sources), news from several sources and RSS/Atom feeds, notice boxes, expandable section, status label, columns |
+| `core.macros` | macros | table of contents, child pages, recently changed (with sources), news from several sources and RSS/Atom feeds, notice boxes, expandable section, status label, columns, gallery, include page, excerpt, anchor, page tree, search box, new page from a template. *Include page* shows only what the reader may see and never content classified stricter than the including page; the limit `core.content.includes_per_page` counts includes over all levels |
 | `core.layout` | macros | layout building blocks: section, hero, cards, button, spacing, grid, heading, divider, buttons, call to action, tabs, accordion, icon, icon box, icon list (inherits from `core.macros`). The icons are a free set (MIT) shipped with the program and served by the wiki itself, one file per icon |
 | `macro.shell` | macro | output of a shell command, only after exact approval by a superadmin, off by default |
 | `macro.http` | macro | result of an HTTP request, only addresses from the allow list |

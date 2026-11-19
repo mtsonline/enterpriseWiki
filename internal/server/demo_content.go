@@ -456,11 +456,40 @@ func buildDemo(d *demoRun) {
 			}}, nil)
 	})
 	// a page template of the space (offered for new pages in the demo only)
+	var tplID int64
 	d.optional("space-template", func() {
+		var r idResp
+		defer func() { tplID = r.ID }()
 		d.call(http.MethodPost, "/api/v1/templates", map[string]any{"name": d.tr("Meeting minutes", "Besprechungsprotokoll")[d.lang()], "type": "core.html", "lang": d.lang(),
 			"title": d.tr("Minutes", "Protokoll")[d.lang()], "space_id": root,
 			"body": htmlBodyOf(d.tr("<h2>Participants</h2><p>…</p><h2>Decisions</h2><ul><li>…</li></ul><h2>To-dos</h2><ul><li>…</li></ul>",
-				"<h2>Teilnehmende</h2><p>…</p><h2>Beschlüsse</h2><ul><li>…</li></ul><h2>Aufgaben</h2><ul><li>…</li></ul>")[d.lang()])}, nil)
+				"<h2>Teilnehmende</h2><p>…</p><h2>Beschlüsse</h2><ul><li>…</li></ul><h2>Aufgaben</h2><ul><li>…</li></ul>")[d.lang()])}, &r)
+	})
+	// wiki blocks: a page with excerpts, a page that includes it, an anchor,
+	// the page tree, a search box and a button for new minutes
+	d.optional("wiki-blocks", func() {
+		rules := d.page(start, "House rules", "Hausordnung",
+			`<p>The full rules for the office.</p>`+macro("excerpt", nil, `<p><strong>In short:</strong> the last one out switches off the lights and locks the door.</p>`)+`<h2>Details</h2><p>Keys are at the reception.</p>`,
+			`<p>Die ganze Ordnung für das Büro.</p>`+macro("excerpt", nil, `<p><strong>Kurz gesagt:</strong> Wer zuletzt geht, schaltet das Licht aus und schließt ab.</p>`)+`<h2>Einzelheiten</h2><p>Schlüssel gibt es am Empfang.</p>`, nil)
+		id := strconv.FormatInt(rules, 10)
+		in := strconv.FormatInt(start, 10)
+		newpage := func(text string) string {
+			if tplID == 0 {
+				return ""
+			}
+			return macro("newpage", map[string]string{"template": strconv.FormatInt(tplID, 10), "text": text}, "")
+		}
+		d.page(start, "Wiki building blocks", "Wiki-Bausteine",
+			`<p>Jump to the <a href="#tree">page tree</a>.</p><h2>Included from another page</h2><p>Only the excerpt of the house rules, always as it is now:</p>`+
+				macro("include", map[string]string{"page": id, "excerpt": "true"}, "")+
+				`<h2>Search in this area</h2>`+macro("searchbox", map[string]string{"category": in, "label": "Search in Getting started"}, "")+
+				newpage("New meeting minutes")+
+				`<h2>Pages of this area <span data-macro="anchor" data-params='{"name":"tree"}'></span></h2>`+macro("pagetree", map[string]string{"category": in, "depth": "2"}, ""),
+			`<p>Zum <a href="#tree">Seitenbaum</a> springen.</p><h2>Aus einer anderen Seite eingebunden</h2><p>Nur der Auszug der Hausordnung, immer im aktuellen Stand:</p>`+
+				macro("include", map[string]string{"page": id, "excerpt": "true"}, "")+
+				`<h2>In diesem Bereich suchen</h2>`+macro("searchbox", map[string]string{"category": in, "label": "In Erste Schritte suchen"}, "")+
+				newpage("Neues Besprechungsprotokoll")+
+				`<h2>Seiten dieses Bereichs <span data-macro="anchor" data-params='{"name":"tree"}'></span></h2>`+macro("pagetree", map[string]string{"category": in, "depth": "2"}, ""), nil)
 	})
 	// a category with its own website template (the modern website look)
 	d.optional("category-template", func() {

@@ -88,3 +88,18 @@
 .ew-news--cards .ew-news-img { width: calc(100% + 2rem); max-width: none; margin: -1rem -1rem .75rem; aspect-ratio: 16 / 9; object-fit: cover; border-radius: 10px 10px 0 0; }
 .ew-news--cards .ew-news-meta { display: block; margin-top: .25rem; white-space: normal; }
 @media (forced-colors: active) { .ew-news--cards .ew-news-item { border-color: CanvasText; } }
+
+/* wiki blocks: include, page tree, search box */
+.ew-include { border-inline-start: 0.25rem solid var(--ew-border, #c8c8c8); padding-inline-start: 1rem; margin-block: 1rem; }
+.ew-include-title { font-weight: 600; margin-block-end: 0.5rem; }
+.ew-pagetree ul { list-style: none; margin: 0; padding-inline-start: 1.25rem; }
+.ew-pagetree > ul { padding-inline-start: 0; }
+.ew-pagetree li { margin-block: 0.25rem; }
+.ew-pagetree summary { cursor: pointer; display: inline-block; min-block-size: 1.5rem; padding-inline-start: 0.5rem; }
+.ew-pagetree details { display: inline; }
+.ew-pagetree details[open] { display: block; }
+.ew-pagetree a { display: inline-block; min-block-size: 1.5rem; padding-block: 0.125rem; }
+.ew-pagetree-filter { margin-block-end: 0.75rem; display: grid; gap: 0.25rem; max-inline-size: 24rem; }
+.ew-searchbox { display: grid; gap: 0.25rem; margin-block: 1rem; }
+.ew-searchbox-row { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+.ew-searchbox-row .ew-input { flex: 1 1 12rem; min-inline-size: 0; }
