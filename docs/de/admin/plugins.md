@@ -196,7 +196,8 @@ Neben Templates aus Code (Plugins, als Referenz) kennt das Wiki **Templates aus 
 - **Wer:** das Recht `core.template.design` (anlegen, kopieren, importieren, ändern, Papierkorb). Welches Template gilt, wählen weiter die Einstellungen der Website (`core.settings.manage`) und einer Kategorie (*Verwalten*).
 - **Prüfungen im Server**, dieselben wie im Designer (`plugins/core_template/limits.json`):
   - genau ein Baustein ist der Inhalt der Seite, dazu mindestens ein weiterer Baustein (für das Benutzermenü);
-  - auf dem Desktop müssen die Bausteine einer Zeile nebeneinander Platz haben; auf Tablet und Handy muss eine Ansicht, die sie nebeneinander lässt, ebenfalls Platz haben, sonst stehen sie untereinander;
+  - überall, wo Teile nebeneinander stehen, muss Platz sein: bei den Bausteinen jeder Zeile (nicht nur neben dem Inhalt) und bei den Positionen in einem Baustein (Anordnung `row`). Auf dem Desktop wird das immer geprüft, auf Tablet und Handy, wenn eine Ansicht sie nebeneinander lässt, sonst stehen sie untereinander. Die Meldung nennt, wie viel Platz nötig ist und wie viel es gibt;
+  - ein klebender Kopf belegt höchstens ein Viertel der Fensterhöhe (`sticky_max_vh`); ist er höher, etwa auf dem Handy quer oder mit offener Schublade, scrollt er mit der Seite und verdeckt so nie Inhalt oder Fokus;
   - jedes Farbpaar hat genug Kontrast (Text 4,5:1, Bedienelemente und Fokus 3:1);
   - Kopf und Fuß sind Zeilen mit der Rolle `banner` oder `contentinfo`; nebeneinanderliegende Zeilen bilden eine Landmarke;
   - mehrere Navigationen oder Seitenspalten brauchen verschiedene Beschriftungen; Positionen der Seiten selbst (`element-…`, `category-…`) sind nicht erlaubt;

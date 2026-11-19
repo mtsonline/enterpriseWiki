@@ -1,0 +1,303 @@
+{
+ "cms": [
+  {
+   "row": "top",
+   "view": "desktop",
+   "need": 8,
+   "room": 62,
+   "positions": {
+    "notice": 0
+   }
+  },
+  {
+   "row": "top",
+   "view": "tablet",
+   "need": 8,
+   "room": 38,
+   "positions": {
+    "notice": 0
+   }
+  },
+  {
+   "row": "top",
+   "view": "mobile",
+   "need": 8,
+   "room": 18,
+   "positions": {
+    "notice": 0
+   }
+  },
+  {
+   "row": "head",
+   "view": "desktop",
+   "need": 26.5,
+   "room": 62,
+   "positions": {
+    "brand": 0,
+    "menu": 8.5,
+    "tools": 0
+   }
+  },
+  {
+   "row": "head",
+   "view": "tablet",
+   "need": 17,
+   "room": 38,
+   "positions": {
+    "brand": 0,
+    "menu": 8.5,
+    "tools": 0
+   }
+  },
+  {
+   "row": "head",
+   "view": "mobile",
+   "need": 17,
+   "room": 18,
+   "positions": {
+    "brand": 0,
+    "menu": 8.5,
+    "tools": 0
+   }
+  },
+  {
+   "row": "hero-row",
+   "view": "desktop",
+   "need": 8,
+   "room": 62,
+   "positions": {
+    "hero": 0
+   }
+  },
+  {
+   "row": "hero-row",
+   "view": "tablet",
+   "need": 8,
+   "room": 38,
+   "positions": {
+    "hero": 0
+   }
+  },
+  {
+   "row": "hero-row",
+   "view": "mobile",
+   "need": 8,
+   "room": 18,
+   "positions": {
+    "hero": 0
+   }
+  },
+  {
+   "row": "body",
+   "view": "desktop",
+   "need": 55,
+   "room": 62,
+   "positions": {
+    "content": 0,
+    "side": 0
+   }
+  },
+  {
+   "row": "body",
+   "view": "tablet",
+   "need": 43,
+   "room": 38,
+   "positions": {
+    "content": 0,
+    "side": 0
+   }
+  },
+  {
+   "row": "body",
+   "view": "mobile",
+   "need": 35,
+   "room": 18,
+   "positions": {
+    "content": 0,
+    "side": 0
+   }
+  },
+  {
+   "row": "foot",
+   "view": "desktop",
+   "need": 35,
+   "room": 62,
+   "positions": {
+    "f1": 0,
+    "f2": 0,
+    "f3": 0,
+    "f4": 0
+   }
+  },
+  {
+   "row": "foot",
+   "view": "tablet",
+   "need": 35,
+   "room": 38,
+   "positions": {
+    "f1": 0,
+    "f2": 0,
+    "f3": 0,
+    "f4": 0
+   }
+  },
+  {
+   "row": "foot",
+   "view": "mobile",
+   "need": 35,
+   "room": 18,
+   "positions": {
+    "f1": 0,
+    "f2": 0,
+    "f3": 0,
+    "f4": 0
+   }
+  },
+  {
+   "row": "bottom",
+   "view": "desktop",
+   "need": 8,
+   "room": 62,
+   "positions": {
+    "footer": 0
+   }
+  },
+  {
+   "row": "bottom",
+   "view": "tablet",
+   "need": 8,
+   "room": 38,
+   "positions": {
+    "footer": 0
+   }
+  },
+  {
+   "row": "bottom",
+   "view": "mobile",
+   "need": 8,
+   "room": 18,
+   "positions": {
+    "footer": 0
+   }
+  }
+ ],
+ "wiki": [
+  {
+   "row": "top",
+   "view": "desktop",
+   "need": 8,
+   "room": 62,
+   "positions": {
+    "notice": 0
+   }
+  },
+  {
+   "row": "top",
+   "view": "tablet",
+   "need": 8,
+   "room": 38,
+   "positions": {
+    "notice": 0
+   }
+  },
+  {
+   "row": "top",
+   "view": "mobile",
+   "need": 8,
+   "room": 18,
+   "positions": {
+    "notice": 0
+   }
+  },
+  {
+   "row": "head",
+   "view": "desktop",
+   "need": 26,
+   "room": 62,
+   "positions": {
+    "brand": 0,
+    "menu": 0,
+    "tools": 0
+   }
+  },
+  {
+   "row": "head",
+   "view": "tablet",
+   "need": 17,
+   "room": 38,
+   "positions": {
+    "brand": 0,
+    "menu": 0,
+    "tools": 0
+   }
+  },
+  {
+   "row": "head",
+   "view": "mobile",
+   "need": 17,
+   "room": 18,
+   "positions": {
+    "brand": 0,
+    "menu": 0,
+    "tools": 0
+   }
+  },
+  {
+   "row": "body",
+   "view": "desktop",
+   "need": 53,
+   "room": 62,
+   "positions": {
+    "content": 0,
+    "side": 0
+   }
+  },
+  {
+   "row": "body",
+   "view": "tablet",
+   "need": 24,
+   "room": 38,
+   "positions": {
+    "content": 0,
+    "side": 0
+   }
+  },
+  {
+   "row": "body",
+   "view": "mobile",
+   "need": 16,
+   "room": 18,
+   "positions": {
+    "content": 0,
+    "side": 0
+   }
+  },
+  {
+   "row": "foot",
+   "view": "desktop",
+   "need": 8,
+   "room": 62,
+   "positions": {
+    "footer": 0
+   }
+  },
+  {
+   "row": "foot",
+   "view": "tablet",
+   "need": 8,
+   "room": 38,
+   "positions": {
+    "footer": 0
+   }
+  },
+  {
+   "row": "foot",
+   "view": "mobile",
+   "need": 8,
+   "room": 18,
+   "positions": {
+    "footer": 0
+   }
+  }
+ ]
+}

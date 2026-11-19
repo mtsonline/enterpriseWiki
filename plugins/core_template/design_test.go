@@ -2,6 +2,7 @@ package core_template
 
 import (
 	"encoding/json"
+	"flag"
 	"os"
 	"strings"
 	"testing"
@@ -73,6 +74,40 @@ func TestDesignProblems(t *testing.T) {
 		{"content hidden", func(d *Design) { d.Rows[2].Mobile = &View{Stack: true, Hidden: []string{"content"}} }, "the content cannot be hidden"},
 		{"unknown block in a view", func(d *Design) { d.Rows[2].Mobile = &View{Stack: true, Drawer: []string{"nope"}} }, `no block "nope"`},
 		{"logo in a drawer", func(d *Design) { d.Rows[1].Mobile = &View{Drawer: []string{"brand"}} }, "the logo cannot"},
+		{"positions side by side without room", func(d *Design) {
+			b := &d.Rows[1].Blocks[2]
+			b.Fit, b.Width, b.Layout = false, 10, "row"
+			b.Positions = []string{"tool-a", "tool-b", "tool-c"}
+		}, "its 3 positions side by side need 13.0 rem, the block is 10 rem wide"},
+		{"positions side by side fit", func(d *Design) {
+			b := &d.Rows[1].Blocks[2]
+			b.Fit, b.Width, b.Layout = false, 14, "row"
+			b.Positions = []string{"tool-a", "tool-b", "tool-c"}
+			d.Rows[1].Mobile = &View{Stack: true, Drawer: []string{"menu"}}
+		}, ""},
+		{"positions one below the other need no room side by side", func(d *Design) {
+			b := &d.Rows[1].Blocks[2]
+			b.Fit, b.Width, b.Layout = false, 10, "column"
+			b.Positions = []string{"tool-a", "tool-b", "tool-c"}
+			d.Rows[1].Mobile = &View{Stack: true, Drawer: []string{"menu"}}
+		}, ""},
+		{"positions side by side without room on the tablet", func(d *Design) {
+			b := &d.Rows[1].Blocks[2]
+			b.Fit, b.Width, b.Layout = false, 14, "row"
+			b.Positions = []string{"tool-a", "tool-b", "tool-c"}
+			d.Rows[1].Tablet = &View{Widths: map[string]int{b.ID: 10}}
+		}, `tablet: the 3 positions of "tools" side by side need 13.0 rem`},
+		{"a row of blocks with many positions has no room", func(d *Design) {
+			for i := range d.Rows[1].Blocks {
+				b := &d.Rows[1].Blocks[i]
+				if b.Kind == "area" {
+					b.Fit, b.Width, b.Layout = false, 0, "row"
+					for j := 0; j < 7; j++ {
+						b.Positions = append(b.Positions, b.ID+"-"+string(rune('a'+j)))
+					}
+				}
+			}
+		}, "the desktop has"},
 		{"too narrow", func(d *Design) { d.Rows[1].Blocks[2].Width = 3 }, "the width is 8 to 40 rem"},
 		{"too wide", func(d *Design) { d.Rows[1].Blocks[2].Width = 41 }, "the width is 8 to 40 rem"},
 		{"position twice", func(d *Design) { d.Rows[0].Blocks[0].Positions = []string{"footer"} }, `the position "footer" is used twice`},
@@ -135,5 +170,62 @@ func TestContrast(t *testing.T) {
 	}
 	if c := Contrast("#767676", "#ffffff"); c < 4.5 || c > 4.6 {
 		t.Fatalf("#767676 on white: %v", c)
+	}
+}
+
+var update = flag.Bool("update", false, "write testdata/room.json")
+
+// TestRoomShared: the numbers of room the server computes for the shipped
+// examples are in testdata/room.json; the unit test of the browser checks
+// the engine against the same file, so designer and server always agree.
+// go test ./plugins/core_template -run TestRoomShared -update writes it.
+func TestRoomShared(t *testing.T) {
+	type rowRoom struct {
+		Row       string             `json:"row"`
+		View      string             `json:"view"`
+		Need      float64            `json:"need"`
+		Room      float64            `json:"room"`
+		Positions map[string]float64 `json:"positions"`
+	}
+	got := map[string][]rowRoom{}
+	for _, name := range []string{"wiki", "cms"} {
+		raw, err := os.ReadFile("examples/" + name + ".json")
+		if err != nil {
+			t.Fatal(err)
+		}
+		d, err := ParseDesign(raw)
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, r := range d.Rows {
+			for _, view := range []string{"desktop", "tablet", "mobile"} {
+				var v *View
+				switch view {
+				case "tablet":
+					v = r.Tablet
+				case "mobile":
+					v = r.Mobile
+				}
+				pos := map[string]float64{}
+				for _, b := range r.Blocks {
+					pos[b.ID] = positionsRoom(b)
+				}
+				got[name] = append(got[name], rowRoom{r.ID, view, d.needRoom(r, view, v), d.room(r, view), pos})
+			}
+		}
+	}
+	out, _ := json.MarshalIndent(got, "", " ")
+	out = append(out, '\n')
+	if *update {
+		if err := os.WriteFile("testdata/room.json", out, 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	want, err := os.ReadFile("testdata/room.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(want) != string(out) {
+		t.Fatalf("testdata/room.json is not what the server computes; run with -update and check the browser unit test\n%s", out)
 	}
 }

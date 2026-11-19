@@ -27,6 +27,8 @@
 .ewd-app { min-height: 100vh; display: flex; flex-direction: column; background: var(--ew-bg); color: var(--ew-text); }
 .ewd-app > .ewd-row:has(.ewd-main), .ewd-app > .ewd-row:has(.ewd-block--content) { flex: 1 0 auto; }
 .ewd-landmark.ewd-sticky { position: sticky; top: 0; z-index: 30; }
+/* higher than allowed (see keepStickyLow): scrolls with the page */
+.ewd-landmark.ewd-sticky.ewd-sticky--off { position: static; }
 /* a row with nothing in it takes no room (e.g. the top bar without a notice) */
 .ewd-row:not(:has(.ewd-brand, .ewd-main, .ew-pos:not(:empty))) { display: none; }
 
