@@ -145,6 +145,46 @@ func TestCategoryOverview(t *testing.T) {
 	if o.Total != 2 || o.Pages != 2 || o.Page != 2 || fmt.Sprint(o.ids()) != fmt.Sprint([]int64{b}) {
 		t.Fatalf("paging: %+v", o)
 	}
+	// further views: the index goes by title, the timeline by its date
+	// (newest first), whole pages at most core.categories.full at once
+	setDisplay(admin, top.ID, map[string]any{"view": "az", "sort": "created"}, 200)
+	if o := get(ola, top.ID, ""); o.Display.Sort != "title" || fmt.Sprint(o.ids()) != fmt.Sprint([]int64{a, b}) {
+		t.Fatalf("az: %+v %v", o.Display, o.ids())
+	}
+	setDisplay(admin, top.ID, map[string]any{"view": "timeline", "sort": "title", "date": "created"}, 200)
+	if o := get(ola, top.ID, ""); o.Display.Sort != "created" || fmt.Sprint(o.ids()) != fmt.Sprint([]int64{a, b}) {
+		t.Fatalf("timeline: %+v %v", o.Display, o.ids())
+	}
+	admin.must("PUT", "/api/v1/admin/limits", map[string]any{"values": map[string]any{"core.categories.full": 1}}, nil, 200)
+	for _, v := range []string{"accordion", "tabs", "all"} {
+		setDisplay(admin, top.ID, map[string]any{"view": v}, 200)
+		if o := get(ola, top.ID, ""); len(o.Items) != 1 || o.Pages != 2 {
+			t.Fatalf("%s: whole pages not limited: %+v", v, o)
+		}
+	}
+	setDisplay(admin, top.ID, map[string]any{"view": "table"}, 200)
+	if o := get(ola, top.ID, ""); len(o.Items) != 2 {
+		t.Fatalf("table limited like whole pages: %+v", o)
+	}
+	cols := []string{}
+	for i := 0; i < 13; i++ {
+		cols = append(cols, fmt.Sprintf("k%d", i))
+	}
+	for _, bad := range []map[string]any{{"view": "timeline", "date": "birthday"}, {"view": "table", "columns": []string{"Bad Key"}}, {"view": "table", "columns": cols}} {
+		setDisplay(admin, top.ID, bad, 400)
+	}
+	setDisplay(admin, top.ID, map[string]any{"view": "table", "columns": []string{"status", "status", "owner"}}, 200)
+	var st struct {
+		Own struct {
+			Display struct {
+				Columns []string `json:"columns"`
+			} `json:"display"`
+		} `json:"own"`
+	}
+	admin.must("GET", fmt.Sprintf("/api/v1/categories/%d/settings", top.ID), nil, &st, 200)
+	if fmt.Sprint(st.Own.Display.Columns) != "[status owner]" {
+		t.Fatalf("columns: %v", st.Own.Display.Columns)
+	}
 	// a view for one block (the tree has no pages of subcategories)
 	if code := ola.do("GET", fmt.Sprintf("/api/v1/categories/%d/overview?view=bubbles", top.ID), nil, nil); code != 400 {
 		t.Fatalf("bad view: %d", code)
@@ -238,7 +278,7 @@ func TestCategoryPagePlacement(t *testing.T) {
 		t.Fatalf("bad ids: %d", code)
 	}
 	many := "1"
-	for i := 2; i <= 21; i++ {
+	for i := 2; i <= 31; i++ {
 		many += fmt.Sprintf(",%d", i)
 	}
 	if code := kai.do("GET", "/api/v1/elements/batch?ids="+many, nil, nil); code != 400 {

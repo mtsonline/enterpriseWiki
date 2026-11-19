@@ -32,6 +32,7 @@ const (
 	ElementRules       = "core.elements.rules"
 	CategoryPageSize   = "core.categories.page_size"
 	CategoryFeatured   = "core.categories.featured"
+	CategoryFull       = "core.categories.full"
 )
 
 // LargeBody is the size from which a request counts as large (limited
@@ -94,6 +95,8 @@ func init() {
 			Label: "Pages per page of a category overview", Help: "How many pages the overview of a category shows at most at once; more are paged. A category may choose fewer."},
 		Def{Key: CategoryFeatured, Group: "database", Unit: "count", Default: 20, Min: 1, Max: 200,
 			Label: "Featured pages of a category", Help: "How many pages a category page shows in full (featured pages) at most."},
+		Def{Key: CategoryFull, Group: "database", Unit: "count", Default: 30, Min: 1, Max: 200,
+			Label: "Whole pages per page of a category overview", Help: "How many pages the views accordion, tabs and all on one page show in full at once; more are paged."},
 		Def{Key: ElementRules, Group: "database", Unit: "count", Default: 100, Min: 5, Max: 2000,
 			Label: "Rules per page", Help: "How many own permission rules one page (element) may have."},
 		Def{Key: AuditSearchDays, Group: "audit", Unit: "days", Default: 90, Min: 1, Max: 3650,

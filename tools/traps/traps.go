@@ -207,4 +207,18 @@ var traps = []trap{
 		New:  "		if false && !vis[id] {",
 		Pkg:  "./internal/server/", Tests: "^TestCategoryPagePlacement$",
 	},
+	{
+		ID: "category.full-limit", About: "whole pages of an overview are not limited (accordion, tabs, all)",
+		File: "internal/content/categoryview.go",
+		Old:  "size = min(size, int(limits.Value(s.cfg.Get(), limits.CategoryFull)))",
+		New:  "size = max(size, int(limits.Value(s.cfg.Get(), limits.CategoryFull)))",
+		Pkg:  "./internal/server/", Tests: "^TestCategoryOverview$",
+	},
+	{
+		ID: "category.columns-key", About: "the columns of a table take any text",
+		File: "internal/content/categoryview.go",
+		Old:  "if !columnRe.MatchString(c) {",
+		New:  "if c == \"\" && !columnRe.MatchString(c) {",
+		Pkg:  "./internal/server/", Tests: "^TestCategoryOverview$",
+	},
 }

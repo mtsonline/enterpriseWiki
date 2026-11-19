@@ -2406,6 +2406,97 @@ test('category display: cards set in the settings, handbook navigation, tree, fe
   assert.ok(one.id > 0 && deep.id > 0);
 });
 
+test('category display: table with a property column, accordion, tabs with the keyboard, A–Z, timeline, all one below the other', async () => {
+  const c = await call('POST', '/api/v1/categories', { titles: { en: `Views ${run}` } });
+  const mk = (title) => call('POST', '/api/v1/elements', { category_id: c.id, type: 'core.html', title, body: { format: 'markdown', source: `Body of ${title}` } });
+  const intro = await mk(`Intro ${run}`); // the default page: shown in full above the overview
+  const apple = await mk(`Apple ${run}`);
+  const zebra = await mk(`Zebra ${run}`);
+  const pear = await mk(`Pear ${run}`);
+  for (const [el, room] of [[apple, 'B 12'], [zebra, 'A 1'], [pear, 'C 7']]) {
+    await call('PUT', `/api/v1/x/core.properties/elements/${el.id}`, { values: { room }, free: { room: { type: 'text', label: 'Room' } } });
+  }
+  const show = async (display) => {
+    await call('PUT', `/api/v1/categories/${c.id}/settings`, { display });
+    const ov = page.waitForResponse((r) => r.url().includes(`/api/v1/categories/${c.id}/overview`));
+    await page.goto(`${BASE}/c/${c.id}`);
+    assert.equal((await ov).status(), 200);
+    await idle();
+  };
+  // the table: the column is chosen in the settings among those offered
+  await page.goto(`${BASE}/c/${c.id}/settings?tab=appearance`);
+  await idle();
+  const fs = page.getByRole('group', { name: /^(display of the pages|darstellung der seiten)$/i });
+  await fs.getByLabel(/^(display|darstellung)$/i).selectOption('own');
+  await fs.getByLabel(/^(kind|art)$/i).selectOption('table');
+  await fs.getByRole('checkbox', { name: 'Room' }).check();
+  const put = page.waitForResponse((r) => r.url().endsWith(`/api/v1/categories/${c.id}/settings`) && r.request().method() === 'PUT');
+  await page.locator('form.ew-form button[type=submit]').first().click();
+  assert.equal((await put).status(), 200);
+  assert.deepEqual((await call('GET', `/api/v1/categories/${c.id}/settings`)).own.display.columns, ['room']);
+  const q = page.waitForResponse((r) => r.url().includes('/api/v1/x/core.properties/query'));
+  const ov = page.waitForResponse((r) => r.url().includes(`/api/v1/categories/${c.id}/overview`));
+  await page.goto(`${BASE}/c/${c.id}`);
+  assert.equal((await ov).status(), 200);
+  assert.equal((await q).status(), 200);
+  await idle();
+  const table = page.locator('.ew-overview-table');
+  await table.getByRole('columnheader', { name: /room/i }).getByRole('button').click();
+  assert.equal(await table.getByRole('columnheader', { name: /room/i }).getAttribute('aria-sort'), 'ascending');
+  assert.deepEqual(await table.locator('tbody th').allTextContents(), [`Zebra ${run}`, `Apple ${run}`, `Pear ${run}`]);
+  await a11y('category page as a table');
+  // the accordion: opened with the button, the content was loaded at once
+  const batch = page.waitForResponse((r) => r.url().includes('/api/v1/elements/batch') && r.url().includes(String(apple.id)));
+  await show({ view: 'accordion' });
+  assert.equal((await batch).status(), 200);
+  const acc = page.locator('.ew-accordion').getByRole('button', { name: `Apple ${run}` });
+  await acc.click();
+  assert.equal(await acc.getAttribute('aria-expanded'), 'true');
+  await page.locator('.ew-accordion').getByText(`Body of Apple ${run}`).waitFor();
+  await a11y('category page as an accordion');
+  // the tabs: arrow keys move between the tabs
+  await show({ view: 'tabs', sort: 'title' });
+  const first = page.getByRole('tab', { name: `Apple ${run}` });
+  assert.equal(await first.getAttribute('aria-selected'), 'true');
+  await first.focus();
+  await page.keyboard.press('ArrowRight');
+  const second = page.getByRole('tab', { name: `Pear ${run}` });
+  assert.equal(await second.getAttribute('aria-selected'), 'true');
+  assert.equal(await page.evaluate(() => document.activeElement?.textContent), `Pear ${run}`);
+  await page.getByRole('tabpanel').getByText(`Body of Pear ${run}`).waitFor();
+  await page.keyboard.press('End');
+  assert.equal(await page.getByRole('tab', { name: `Zebra ${run}` }).getAttribute('aria-selected'), 'true');
+  await a11y('category page as tabs');
+  // A–Z: the letters lead to their pages
+  await show({ view: 'az' });
+  const letters = page.getByRole('navigation', { name: /^(first letters|anfangsbuchstaben)$/i });
+  assert.deepEqual(await letters.getByRole('link').allTextContents(), ['A', 'P', 'Z']);
+  await letters.getByRole('link', { name: 'Z' }).click();
+  await page.locator('.ew-az').getByRole('link', { name: `Zebra ${run}` }).waitFor();
+  await a11y('category page as an A–Z index');
+  // the timeline and all one below the other
+  await show({ view: 'timeline', date: 'created' });
+  assert.equal(await page.locator('.ew-timeline time').count(), 3);
+  await a11y('category page as a timeline');
+  await show({ view: 'all' });
+  for (const n of ['Apple', 'Zebra', 'Pear']) await page.locator('.ew-all-pages').getByRole('heading', { name: `${n} ${run}` }).waitFor();
+  await page.locator('.ew-all-pages').getByText(`Body of Zebra ${run}`).waitFor();
+  await a11y('category page with all pages one below the other');
+  // on a small phone (320 px) nothing makes the page scroll sideways (WCAG 1.4.10)
+  const size = page.viewportSize();
+  try {
+    await page.setViewportSize({ width: 320, height: 720 });
+    for (const view of ['table', 'tabs', 'az', 'timeline', 'all', 'accordion']) {
+      await show({ view, columns: ['room'] });
+      const over = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+      assert.ok(over <= 0, `${view}: the page scrolls sideways by ${over} px on a small phone`);
+    }
+  } finally {
+    if (size) await page.setViewportSize(size);
+  }
+  assert.ok(intro.id > 0);
+});
+
 test('a hidden page: not listed for readers, marked for editors, reachable by its link', async () => {
   const cat = await m6Category();
   const el = await call('POST', '/api/v1/elements', { category_id: cat, type: 'core.html', title: `Quiet ${run}`, body: { format: 'html', source: '<p>quiet</p>' } });

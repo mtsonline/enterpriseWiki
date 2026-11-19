@@ -13,7 +13,7 @@ import type { Category, CategoryOverview, ElementSummary, ElementView } from '..
 import { button } from '../components/ui';
 import { ctx as pageCtx } from '../components/widgets';
 import { announce } from '../core/announce';
-import { currentPlacementLevels, pageActionList, registerSlot, typeLabel, type PageContext } from '../coreplugin';
+import { currentPlacementLevels, listOverviewColumns, pageActionList, registerSlot, typeLabel, type PageContext } from '../coreplugin';
 
 const L = () => state.lang;
 const D = () => state.site.default_language;
@@ -187,6 +187,180 @@ function treeView(o: CategoryOverview, subs: Category[]): HTMLElement {
   return h('ul', { class: 'ew-tree-view' }, ...subs.map(node), ...pages(o.items));
 }
 
+// ---------------------------------------------------------------- more views
+
+/** The whole pages of an overview (one request; pages the reader may not view are missing). */
+async function wholePages(o: CategoryOverview): Promise<Map<number, ElementView>> {
+  if (!o.items.length) return new Map();
+  try {
+    const res = await api.get<{ items: ElementView[] }>(`elements/batch${qs({ ids: o.items.map((x) => x.id).join(','), lang: L() })}`);
+    return new Map(res.items.map((v) => [v.id, v]));
+  } catch {
+    return new Map();
+  }
+}
+
+/** The content of a page in an overview, with the way to the page. */
+function pageBody(x: Item, v: ElementView | undefined): Node[] {
+  return [
+    v ? trustedHTML(v.html) : h('p', { class: 'ew-muted' }, t('category.not_loaded')),
+    h('p', { class: 'ew-meta' }, h('a', { href: `/e/${x.id}` }, t('category.open_page', { title: itemTitle(x) })), ' · ',
+      t('element.updated', { date: fmtDate(x.updated_at, L()) })),
+  ];
+}
+
+/** The table: title, the columns of plugins (e.g. properties) and the date
+ * of the change; sortable by every column (WAI-ARIA sortable table: the
+ * order is a button in the header, aria-sort says it, a message announces
+ * it). Sorting applies to the pages shown on this page of the overview. */
+async function tableView(o: CategoryOverview): Promise<HTMLElement> {
+  const keys = o.display.columns ?? [];
+  const extra: { key: string; label: string }[] = [];
+  const vals = new Map<number, Record<string, string>>();
+  if (keys.length) {
+    for (const p of listOverviewColumns()) {
+      try {
+        const r = await p.values(o.items.map((x) => x.id), keys, L());
+        for (const c of r.columns) if (!extra.some((e) => e.key === c.key)) extra.push(c);
+        for (const [id, rec] of r.values) vals.set(id, { ...(vals.get(id) ?? {}), ...rec });
+      } catch { /* a provider that fails leaves its columns out */ }
+    }
+  }
+  // keep the order chosen in the settings
+  extra.sort((a, b) => keys.indexOf(a.key) - keys.indexOf(b.key));
+  type Col = { key: string; label: string; text: (x: Item) => string; sortValue: (x: Item) => string | number };
+  const cols: Col[] = [
+    { key: 'title', label: t('category.col_title'), text: itemTitle, sortValue: (x) => itemTitle(x).toLocaleLowerCase(L()) },
+    ...extra.map((c) => ({ key: c.key, label: c.label, text: (x: Item) => vals.get(x.id)?.[c.key] ?? '', sortValue: (x: Item) => (vals.get(x.id)?.[c.key] ?? '').toLocaleLowerCase(L()) })),
+    { key: 'updated', label: t('category.col_updated'), text: (x) => fmtDate(x.updated_at, L()), sortValue: (x) => Date.parse(x.updated_at) },
+  ];
+  let sortKey = '';
+  let dir: 1 | -1 = 1;
+  const tbody = h('tbody');
+  const heads: HTMLElement[] = [];
+  const caption = h('caption', { class: 'sr-only' }, t('category.table_caption'));
+  const draw = () => {
+    const rows = [...o.items];
+    const col = cols.find((c) => c.key === sortKey);
+    if (col) rows.sort((a, b) => { const x = col.sortValue(a); const y = col.sortValue(b); return (x < y ? -1 : x > y ? 1 : 0) * dir; });
+    tbody.replaceChildren(...rows.map((x) => h('tr', null, ...cols.map((c, i) => (i === 0
+      ? h('th', { scope: 'row' }, h('a', { href: `/e/${x.id}` }, c.text(x)))
+      : h('td', null, c.text(x)))))));
+    cols.forEach((c, i) => heads[i].setAttribute('aria-sort', c.key === sortKey ? (dir === 1 ? 'ascending' : 'descending') : 'none'));
+  };
+  cols.forEach((c) => {
+    const btn = button(c.label, () => {
+      dir = sortKey === c.key ? (dir === 1 ? -1 : 1) : 1;
+      sortKey = c.key;
+      draw();
+      announce(t(dir === 1 ? 'category.sorted_up' : 'category.sorted_down', { column: c.label }));
+    }, { variant: 'subtle' });
+    btn.classList.add('ew-sort-button');
+    heads.push(h('th', { scope: 'col', 'aria-sort': 'none' }, btn));
+  });
+  draw();
+  // a wide table scrolls within its own region (not the page; WCAG 1.4.10)
+  return h('div', { class: 'ew-table-wrap', role: 'region', 'aria-label': t('category.table_caption'), tabindex: '0' },
+    h('table', { class: 'ew-table ew-overview-table' }, caption, h('thead', null, h('tr', null, ...heads)), tbody));
+}
+
+/** The accordion: every page as a heading with a button that opens its
+ * content (WAI-ARIA accordion). */
+async function accordionView(o: CategoryOverview): Promise<HTMLElement> {
+  const pages = await wholePages(o);
+  return h('div', { class: 'ew-accordion' }, ...o.items.map((x) => {
+    const pid = uid('acc');
+    const panel = h('div', { id: pid, class: 'ew-accordion-panel', role: 'region', hidden: true }, ...pageBody(x, pages.get(x.id)));
+    const btn = h('button', { type: 'button', class: 'ew-accordion-button', 'aria-expanded': 'false', 'aria-controls': pid }, itemTitle(x));
+    panel.setAttribute('aria-labelledby', btn.id = uid('accb'));
+    btn.addEventListener('click', () => {
+      const open = btn.getAttribute('aria-expanded') !== 'true';
+      btn.setAttribute('aria-expanded', String(open));
+      panel.hidden = !open;
+    });
+    return h('div', { class: 'ew-accordion-item' }, h('h3', { class: 'ew-accordion-head' }, btn), panel);
+  }));
+}
+
+/** The tabs: the pages as tabs (WAI-ARIA tabs: arrow keys, Home and End
+ * move between the tabs, only the chosen tab is in the tab order). */
+async function tabsView(o: CategoryOverview): Promise<HTMLElement> {
+  const pages = await wholePages(o);
+  const tabs: HTMLButtonElement[] = [];
+  const panels: HTMLElement[] = [];
+  const choose = (i: number, focus: boolean) => {
+    tabs.forEach((tb, j) => { tb.setAttribute('aria-selected', String(i === j)); tb.tabIndex = i === j ? 0 : -1; panels[j].hidden = i !== j; });
+    if (focus) tabs[i].focus();
+  };
+  o.items.forEach((x, i) => {
+    const tid = uid('tab');
+    const pid = uid('tabp');
+    const tb = h('button', { type: 'button', role: 'tab', id: tid, 'aria-controls': pid, class: 'ew-tab' }, itemTitle(x)) as HTMLButtonElement;
+    tb.addEventListener('click', () => choose(i, false));
+    tb.addEventListener('keydown', (ev) => {
+      const n = tabs.length;
+      const next = ev.key === 'ArrowRight' ? (i + 1) % n : ev.key === 'ArrowLeft' ? (i - 1 + n) % n : ev.key === 'Home' ? 0 : ev.key === 'End' ? n - 1 : -1;
+      if (next < 0) return;
+      ev.preventDefault();
+      choose(next, true);
+    });
+    tabs.push(tb);
+    panels.push(h('div', { role: 'tabpanel', id: pid, 'aria-labelledby': tid, tabindex: '0', class: 'ew-tabpanel' }, ...pageBody(x, pages.get(x.id))));
+  });
+  choose(0, false);
+  return h('div', { class: 'ew-tabs-view' }, h('div', { role: 'tablist', 'aria-label': t('category.pages'), class: 'ew-tablist' }, ...tabs), ...panels);
+}
+
+/** All pages in full, one below the other. */
+async function allView(o: CategoryOverview): Promise<HTMLElement> {
+  const pages = await wholePages(o);
+  return h('div', { class: 'ew-all-pages' }, ...o.items.map((x) => {
+    const hid = uid('all');
+    return h('section', { class: 'ew-all-page', 'aria-labelledby': hid }, h('h3', { id: hid }, itemTitle(x)), ...pageBody(x, pages.get(x.id)));
+  }));
+}
+
+/** The A–Z index: the pages under their first letter, with a navigation of the letters. */
+function azView(o: CategoryOverview): HTMLElement {
+  const groups = new Map<string, Item[]>();
+  for (const x of o.items) {
+    const first = itemTitle(x).trim().charAt(0).toLocaleUpperCase(L());
+    const letter = /\p{L}/u.test(first) ? first.normalize('NFD').charAt(0) : '#';
+    groups.set(letter, [...(groups.get(letter) ?? []), x]);
+  }
+  const letters = [...groups.keys()].sort((a, b) => (a === '#' ? 1 : b === '#' ? -1 : a.localeCompare(b, L())));
+  const base = uid('az');
+  const anchor = (l: string) => `${base}-${l === '#' ? 'other' : l.codePointAt(0)}`;
+  return h('div', { class: 'ew-az' },
+    h('nav', { 'aria-label': t('category.az_nav') }, h('ul', { class: 'ew-az-letters' }, ...letters.map((l) => h('li', null,
+      h('a', { href: `#${anchor(l)}`, 'aria-label': l === '#' ? t('category.az_other') : l }, l))))),
+    ...letters.map((l) => h('section', { 'aria-labelledby': anchor(l), class: 'ew-az-group' },
+      h('h3', { id: anchor(l), tabindex: '-1' }, l === '#' ? t('category.az_other') : l),
+      h('ul', { class: 'ew-list' }, ...(groups.get(l) ?? []).map((x) => h('li', null, h('a', { href: `/e/${x.id}` }, itemTitle(x))))))));
+}
+
+/** The timeline: the pages by date (newest first), under their month. */
+function timelineView(o: CategoryOverview): HTMLElement {
+  const created = o.display.date === 'created';
+  const when = (x: Item) => new Date(created ? x.created_at : x.updated_at);
+  const months = new Map<string, Item[]>();
+  for (const x of o.items) {
+    const d = when(x);
+    const k = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+    months.set(k, [...(months.get(k) ?? []), x]);
+  }
+  return h('div', { class: 'ew-timeline' }, ...[...months].map(([k, xs]) => {
+    const [y, m] = k.split('-').map(Number);
+    const label = new Date(y, m - 1, 1).toLocaleDateString(L(), { year: 'numeric', month: 'long' });
+    return h('section', { class: 'ew-timeline-month' },
+      h('h3', null, label),
+      h('ol', { class: 'ew-timeline-list' }, ...xs.map((x) => h('li', null,
+        h('time', { datetime: (created ? x.created_at : x.updated_at), class: 'ew-meta' }, when(x).toLocaleDateString(L(), { dateStyle: 'medium' })), ' ',
+        h('a', { href: `/e/${x.id}` }, itemTitle(x)),
+        x.excerpt ? h('p', { class: 'ew-excerpt' }, x.excerpt) : null))));
+  }));
+}
+
 /** The overview of a category, asked once for the blocks of one page view
  * (overview, subcategories, handbook). */
 let overviewMemo: { key: string; at: number; o: Promise<CategoryOverview> } | null = null;
@@ -215,7 +389,9 @@ async function overview(cp: CategoryPage): Promise<HTMLElement | null> {
   // without the edit mode the default page is shown in full already
   const o2 = edit ? o : { ...o, items: o.items.filter((x) => x.id !== cp.category.default_element_id) };
   if (!o2.items.length && v !== 'tree') return null;
-  const body = v === 'cards' ? cardsView(o2, false) : v === 'tiles' ? cardsView(o2, true) : v === 'tree' ? treeView(o2, cp.subs) : listView(o2, cp, edit);
+  const body = v === 'cards' ? cardsView(o2, false) : v === 'tiles' ? cardsView(o2, true) : v === 'tree' ? treeView(o2, cp.subs)
+    : v === 'table' ? await tableView(o2) : v === 'accordion' ? await accordionView(o2) : v === 'tabs' ? await tabsView(o2)
+      : v === 'all' ? await allView(o2) : v === 'az' ? azView(o2) : v === 'timeline' ? timelineView(o2) : listView(o2, cp, edit);
   return h('section', { class: ['ew-section', 'ew-overview', `ew-overview--${v}`], 'aria-labelledby': 'ew-pages-title' },
     h('h2', { id: 'ew-pages-title' }, t('category.pages')), body, pager(o));
 }
