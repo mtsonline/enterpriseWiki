@@ -34,5 +34,12 @@
  "template.no_problems": "Keine Probleme: Das Template kann gespeichert werden.",
  "template.saved": "Gespeichert (Version {version}).",
  "template.more": "Mehr",
- "template.to_top": "Nach oben"
+ "template.to_top": "Nach oben",
+ "perm.core.template.design": "Website-Templates gestalten",
+ "perm.core.template.design_help": "Templates aus Daten anlegen, kopieren, importieren, ändern und löschen (Template-Designer).",
+ "limit.core.template.count": "Templates aus Daten",
+ "limit.core.template.count.help": "Wie viele Templates aus Daten gespeichert werden können (ohne Papierkorb).",
+ "limit.core.template.versions": "Versionen je Template",
+ "limit.core.template.versions.help": "Wie viele frühere Versionen eines Templates aus Daten bleiben; ältere werden entfernt.",
+ "limits.group.templates": "Templates"
 }

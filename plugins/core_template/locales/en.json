@@ -34,5 +34,12 @@
  "template.no_problems": "No problems: the template can be saved.",
  "template.saved": "Saved (version {version}).",
  "template.more": "More",
- "template.to_top": "To the top"
+ "template.to_top": "To the top",
+ "perm.core.template.design": "Design site templates",
+ "perm.core.template.design_help": "Create, copy, import, change and delete templates of data (template designer).",
+ "limit.core.template.count": "Templates of data",
+ "limit.core.template.count.help": "How many templates of data can be stored (without the trash).",
+ "limit.core.template.versions": "Versions per template",
+ "limit.core.template.versions.help": "How many earlier versions of a template of data are kept; older ones are removed.",
+ "limits.group.templates": "Templates"
 }
