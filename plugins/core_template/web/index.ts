@@ -5,7 +5,7 @@
 // copy, change (as text for now; the visual designer follows), trash,
 // export and import.
 import {
-  api, button, confirmDialog, errorText, field, h, hasPerm, langFields, listTemplates, registerAdminPage, registerTemplate,
+  api, button, fmtDate, uiLang, confirmDialog, errorText, field, h, hasPerm, langFields, listTemplates, registerAdminPage, registerTemplate,
   state, t, templateLabel, textArea, toast,
 } from '@ewiki/coreplugin';
 import './style.css';
@@ -90,6 +90,7 @@ async function adminPage(panel: HTMLElement): Promise<void> {
     } catch (e) { toast(e instanceof SyntaxError ? t('template.not_json') : errorText(e), 'error'); }
   })());
   panel.replaceChildren(...[
+    h('h1', null, t('template.admin_title')),
     h('p', { class: 'ew-help' }, t('template.admin_help')),
     h('div', { class: 'ew-table-wrap', role: 'region', 'aria-label': t('template.list'), tabindex: '0' },
       h('table', { class: 'ew-table' },
@@ -157,17 +158,36 @@ async function editor(panel: HTMLElement, key: string, back: () => void): Promis
       version = r.version;
       if (r.design) addDesign(r);
       toast(t('template.saved', { version: r.version }));
+      void showVersions();
     } catch (e) { toast(errorText(e), 'error'); }
   })(), { variant: 'primary' });
+  // the saved versions; one can be taken into the text and saved again
+  const versionsBox = h('section', { 'aria-labelledby': 'ewd-versions-h' });
+  const showVersions = async () => {
+    const vs = await api.get<{ version: number; design: unknown; created_at: string }[]>(`${BASE}/templates/${key}/versions`);
+    versionsBox.replaceChildren(h('h2', { id: 'ewd-versions-h' }, t('template.versions')),
+      h('p', { class: 'ew-help' }, t('template.versions_help')),
+      h('ul', { class: 'ewd-versions' }, ...vs.map((v) => h('li', null,
+        t('template.version_line', { version: v.version, date: fmtDate(v.created_at, uiLang()) }), ' ',
+        v.version === version ? h('span', { class: 'ew-help' }, t('template.version_current'))
+          : button(t('template.version_take'), () => {
+            text.value = JSON.stringify(v.design, null, 2);
+            void check();
+            toast(t('template.version_taken', { version: v.version }));
+            text.focus();
+          }, { variant: 'subtle', ariaLabel: t('template.version_take_named', { version: v.version }) })))));
+  };
+  void showVersions();
   panel.replaceChildren(...([
     h('p', null, button(t('template.back'), back, { variant: 'subtle' })),
-    h('h2', null, t('template.edit_named', { name: pick(tpl.names) })),
+    h('h1', null, t('template.edit_named', { name: pick(tpl.names) })),
     used.length ? h('p', { class: 'ew-help' }, t('template.used_by', { list: used.join(', ') })) : null,
     h('form', { class: 'ew-form', novalidate: true, onsubmit: (ev: Event) => ev.preventDefault() },
       names.el,
       field(t('template.design_text'), text, { help: t('template.design_text_help') }),
       problems,
       h('div', { class: 'ew-actions' }, save)),
+    versionsBox,
   ] as (HTMLElement | null)[]).filter((n): n is HTMLElement => !!n));
   void check();
 }
