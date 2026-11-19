@@ -2547,6 +2547,8 @@ test('layout blocks: a section with options from the macro dialog, an icon box w
   assert.match(url, /\/assets\/icons\/[^/]+\/outline\/rocket\.svg/);
   assert.equal((await page.request.get(BASE + url.match(/url\("([^"]+)"\)/)[1])).status(), 200);
   assert.equal(await page.locator('.ewl-iconbox a').count(), 1);
+  // without a label screen readers read the name of the icon
+  await page.getByRole('img', { name: 'rocket', exact: true }).waitFor();
   await page.getByRole('link', { name: 'Launch' }).waitFor();
   // grid, tabs and accordion on one page
   const cat = (await call('POST', '/api/v1/categories', { titles: { en: `Layout ${run}` } })).id;
