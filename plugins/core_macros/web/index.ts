@@ -1,7 +1,7 @@
 // Styles of the standard macros (rendered on the server) and the lightbox
 // of the image gallery.
 import './style.css';
-import { button, h, openDialog, t } from '@ewiki/coreplugin';
+import { button, h, openDialog, registerWidget, t, textInput, uid } from '@ewiki/coreplugin';
 
 function lightbox(links: HTMLAnchorElement[], start: number): void {
   let i = start;
@@ -28,7 +28,47 @@ function lightbox(links: HTMLAnchorElement[], start: number): void {
   show();
 }
 
+/** Filter of the page tree: shows the entries whose text contains the
+ * words, with the categories above them (opened). Without script the tree
+ * is complete and works on its own. */
+function pageTreeFilter(box: HTMLElement): void {
+  const nav = box.closest('.ew-pagetree');
+  if (!nav) return;
+  const input = textInput({ type: 'search' });
+  const id = uid('ptf');
+  input.id = id;
+  const status = h('p', { class: 'sr-only', role: 'status' });
+  box.append(h('label', { for: id }, t('pagetree.filter')), input, status);
+  const items = Array.from(nav.querySelectorAll<HTMLLIElement>('li'));
+  const details = Array.from(nav.querySelectorAll<HTMLDetailsElement>('details'));
+  const wasOpen = details.map((d) => d.open);
+  let timer = 0;
+  const run = () => {
+    const words = input.value.toLowerCase().split(/\s+/).filter(Boolean);
+    if (!words.length) {
+      items.forEach((li) => { li.hidden = false; });
+      details.forEach((d, i) => { d.open = wasOpen[i]; });
+      status.textContent = '';
+      return;
+    }
+    let found = 0;
+    // from the bottom up: a category stays when it or something below matches
+    for (const li of [...items].reverse()) {
+      const own = (li.querySelector(':scope > a')?.textContent ?? '').toLowerCase();
+      const hit = words.every((w) => own.includes(w));
+      const below = Array.from(li.querySelectorAll<HTMLLIElement>(':scope > details > ul > li')).some((c) => !c.hidden);
+      li.hidden = !hit && !below;
+      if (hit) found++;
+      const d = li.querySelector<HTMLDetailsElement>(':scope > details');
+      if (d) d.open = below;
+    }
+    status.textContent = t('pagetree.found', { count: found });
+  };
+  input.addEventListener('input', () => { clearTimeout(timer); timer = window.setTimeout(run, 150); });
+}
+
 export function register(): void {
+  registerWidget('core.macros.pagetree', pageTreeFilter);
   document.addEventListener('click', (ev) => {
     const a = (ev.target as Element | null)?.closest?.('a[data-ew-lightbox]') as HTMLAnchorElement | null;
     if (!a || ev.ctrlKey || ev.metaKey || ev.shiftKey) return;

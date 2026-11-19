@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"errors"
 	"strings"
+	"sync"
+	"sync/atomic"
 	"time"
 	"unicode/utf8"
 
@@ -15,6 +17,7 @@ import (
 	"github.com/mtsonline/enterprisewiki/internal/audit"
 	"github.com/mtsonline/enterprisewiki/internal/db"
 	"github.com/mtsonline/enterprisewiki/internal/identity"
+	"github.com/mtsonline/enterprisewiki/internal/limits"
 	"github.com/mtsonline/enterprisewiki/internal/secrets"
 )
 
@@ -243,6 +246,7 @@ func (s *Service) GetElement(ctx context.Context, id int64, lang string, withBod
 	t := s.Type(e.Type)
 	v.TypeActive = t != nil
 	depth, _ := ctx.Value(renderDepthKey{}).(int)
+	ctx = s.withIncludeBudget(ctx)
 	switch {
 	case t != nil && depth >= MaxRenderDepth:
 		// elements shown inside elements (FAQ answers, full blog posts,
@@ -272,6 +276,63 @@ func (s *Service) GetElement(ctx context.Context, id int64, lang string, withBod
 
 // MaxRenderDepth limits elements rendered inside the rendering of elements.
 const MaxRenderDepth = 4
+
+type includeBudgetKey struct{}
+
+type renderIDsKey struct{}
+
+// renderIDs are the anchor ids handed out on the page being rendered.
+type renderIDs struct {
+	mu  sync.Mutex
+	ids map[string]bool
+}
+
+// ClaimID reserves an id on the page being rendered (with the pages it
+// includes); false when it is taken already. Outside a rendered page true.
+func ClaimID(ctx context.Context, id string) bool {
+	r, ok := ctx.Value(renderIDsKey{}).(*renderIDs)
+	if !ok {
+		return true
+	}
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if r.ids[id] {
+		return false
+	}
+	r.ids[id] = true
+	return true
+}
+
+// SpendInclude takes one page from the budget of included pages of the page
+// being rendered (limit core.content.includes_per_page, over all levels: a
+// page with many includes that again include many stays cheap). False when
+// the budget is used up.
+func SpendInclude(ctx context.Context) bool {
+	b, ok := ctx.Value(includeBudgetKey{}).(*atomic.Int64)
+	if !ok {
+		return true // not inside a rendered page (tests of a macro alone)
+	}
+	return b.Add(-1) >= 0
+}
+
+// withIncludeBudget gives ctx one budget for the whole tree of included
+// pages and one set of anchor ids, unless it has them (an outer page being
+// rendered).
+func (s *Service) withIncludeBudget(ctx context.Context) context.Context {
+	if _, ok := ctx.Value(includeBudgetKey{}).(*atomic.Int64); ok {
+		return ctx
+	}
+	b := &atomic.Int64{}
+	b.Store(limits.Value(s.cfg.Get(), limits.IncludesPerPage))
+	ctx = context.WithValue(ctx, renderIDsKey{}, &renderIDs{ids: map[string]bool{}})
+	return context.WithValue(ctx, includeBudgetKey{}, b)
+}
+
+// Classification is the effective classification of an element (the
+// strictest of its own and its categories); elementID 0: of the category.
+func (s *Service) Classification(ctx context.Context, elementID, categoryID int64) int {
+	return s.acl.ElementClassification(ctx, elementID, categoryID)
+}
 
 type renderDepthKey struct{}
 
@@ -835,7 +896,7 @@ func (s *Service) GetRevision(ctx context.Context, id int64, lang string, rev in
 		return nil, err
 	}
 	if t := s.Type(e.Type); t != nil {
-		x.HTML, _ = t.Render(ctx, RenderContext{ElementID: id, CategoryID: e.CategoryID, Lang: lang, Principal: identity.From(ctx), Service: s}, x.Body)
+		x.HTML, _ = t.Render(s.withIncludeBudget(ctx), RenderContext{ElementID: id, CategoryID: e.CategoryID, Lang: lang, Principal: identity.From(ctx), Service: s}, x.Body)
 	}
 	if s.elementPerms(ctx, e)&acl.Edit == 0 {
 		x.Body = nil
@@ -919,7 +980,7 @@ func (s *Service) Preview(ctx context.Context, typ, lang string, body json.RawMe
 	if err != nil {
 		return "", apperr.BadRequest("invalid body: %v", err)
 	}
-	return t.Render(ctx, RenderContext{Lang: lang, Principal: identity.From(ctx), Service: s}, norm)
+	return t.Render(s.withIncludeBudget(ctx), RenderContext{Lang: lang, Principal: identity.From(ctx), Service: s}, norm)
 }
 
 // guardChange asks the element type whether the element may be deleted or

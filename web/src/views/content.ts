@@ -17,7 +17,7 @@ import { CATEGORY_POSITIONS, ELEMENT_POSITIONS, getEditor, invalidatePlacements,
 import { forgetFeatured, registerCategoryBlocks, setShownCategory, setSubcategoriesRender, type CategoryPage } from './category';
 import { placementEditor } from '../components/placement';
 import { expectWidgetControls, settleWidgetControls, widgetControlsClaimed } from '../core/widgets';
-import { draftNotice, publishDialog, publishVia, saveDraft, saveTemplateDialog, showPreview, templatePicker, type Draft, type EditorState } from '../components/publishing';
+import { draftNotice, publishDialog, publishVia, saveDraft, saveTemplateDialog, showPreview, templatePicker, type Draft, type EditorState, type Template } from '../components/publishing';
 import { tagInput } from '../components/tags';
 import { editFields } from '../components/editfields';
 
@@ -941,13 +941,22 @@ async function newOrDraftView({ params, query, main }: RouteCtx, draft: Draft | 
   const empty = draft?.body ?? types.find((x) => x.id === typeId)?.empty_body ?? {};
   editor = mountEditor(editorBox, typeId, empty, lang, labelId, formatHost, toolsOf(cat.category));
   if (!draft) {
-    void templatePicker(typeId, (tpl) => {
+    const applyTemplate = (tpl: Template) => {
       if (!title.value.trim()) title.value = tpl.title;
       if (!tags.value.trim()) tags.value = tpl.tags.join(', ');
       editor.destroy?.();
       editorBox.replaceChildren();
       editor = mountEditor(editorBox, typeId, tpl.body, lang, labelId, formatHost, toolsOf(cat.category));
-    }, catId, current).then((p) => { if (p) tplBox.append(p); });
+    };
+    void templatePicker(typeId, applyTemplate, catId, current).then((p) => { if (p) tplBox.append(p); });
+    // template=ID: the button "New page from a template" of a page
+    const tplId = query.get('template') ?? '';
+    if (/^[1-9][0-9]{0,17}$/.test(tplId)) {
+      try {
+        const tpl = await api.get<Template>(`templates/${tplId}`);
+        if (tpl.type === typeId) { applyTemplate(tpl); toast(t('template.applied', { name: tpl.name })); }
+      } catch (e) { alert.textContent = errorText(e); }
+    }
   }
   form.addEventListener('submit', (ev) => {
     ev.preventDefault();

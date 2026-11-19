@@ -350,5 +350,19 @@
     "options": {
       "anchor": "kontakt"
     }
+  },
+  {
+    "name": "anchor like a generated id",
+    "ok": false,
+    "options": {
+      "anchor": "cb-12"
+    }
+  },
+  {
+    "name": "anchor with digits inside",
+    "ok": true,
+    "options": {
+      "anchor": "step-2-details"
+    }
   }
 ]

@@ -68,6 +68,25 @@ var blockOptions = func() (s struct {
 // reservedAnchors are ids of the interface itself.
 var reservedAnchors = []string{"main", "top", "content", "app", "search", "nav", "header", "footer"}
 
+// generatedID is the form of ids the wiki makes itself (name-number: fields
+// of forms and dialogs, questions of a FAQ …); anchors must not take them.
+var generatedID = regexp.MustCompile(`-[0-9]+$`)
+
+// CheckAnchor checks the name of an anchor (block option and the anchor
+// block): lowercase letters, digits and hyphens, starting with a letter,
+// not an id of the interface (reserved names, the prefix "ew", names that
+// end in -number). The same rule as anchorOK in web/src/core/blockoptions.ts.
+func CheckAnchor(s string) error {
+	if !optAnchorRe.MatchString(s) {
+		return fmt.Errorf("lowercase letters, digits and hyphens, starting with a letter (at most 40)")
+	}
+	// names the interface uses itself (the skip link jumps to #main …)
+	if slices.Contains(reservedAnchors, s) || strings.HasPrefix(s, "ew") || generatedID.MatchString(s) {
+		return fmt.Errorf("%q is used by the wiki itself or looks like it (no \"ew\" at the start, no -number at the end); choose another name", s)
+	}
+	return nil
+}
+
 var (
 	optColorRe  = regexp.MustCompile(`^#[0-9a-f]{6}$`)
 	optAnchorRe = regexp.MustCompile(`^[a-z][a-z0-9-]{0,39}$`)
@@ -152,13 +171,9 @@ func checkOptionValue(def optionDef, v any) error {
 			return fmt.Errorf("a picture of the wiki (/api/v1/files/…)")
 		}
 	case "anchor":
-		s, ok := v.(string)
-		if !ok || !optAnchorRe.MatchString(s) {
-			return fmt.Errorf("lowercase letters, digits and hyphens, starting with a letter (at most 40)")
-		}
-		// names the interface uses itself (the skip link jumps to #main …)
-		if slices.Contains(reservedAnchors, s) || strings.HasPrefix(s, "ew") {
-			return fmt.Errorf("%q is used by the wiki itself; choose another name", s)
+		s, _ := v.(string)
+		if err := CheckAnchor(s); err != nil {
+			return err
 		}
 	case "datetime":
 		s, ok := v.(string)

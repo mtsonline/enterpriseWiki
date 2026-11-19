@@ -2596,6 +2596,74 @@ test('layout blocks: a section with options from the macro dialog, an icon box w
   }
 });
 
+test('wiki blocks: include a page chosen by title, page tree with filter, search box for a category, new page from a template', async () => {
+  const cat = (await call('POST', '/api/v1/categories', { titles: { en: `Wiki blocks ${run}` } })).id;
+  const sub = (await call('POST', '/api/v1/categories', { titles: { en: `Chapter ${run}` }, parent_id: cat })).id;
+  const md = (source) => ({ format: 'markdown', source });
+  const rules = await call('POST', '/api/v1/elements', { category_id: sub, type: 'core.html', title: `Okapi rules ${run}`, body: md('Long text.\n\n:::excerpt\nIn short: lights off.\n:::\n') });
+  await call('POST', '/api/v1/elements', { category_id: sub, type: 'core.html', title: `Zebra notes ${run}`, body: md('zebra') });
+  const tpl = await call('POST', '/api/v1/templates', { name: `Minutes ${run}`, type: 'core.html', lang: 'en', title: 'Minutes', global: true, body: md('## Agenda\n\nokapi agenda') });
+  // the page to include is chosen by its title, not by a number
+  await newPage('core.html', `Hub ${run}`);
+  await page.locator('.ewe-prose').click();
+  await page.keyboard.type('Intro');
+  await page.getByRole('button', { name: /^(insert macro|makro einfügen)$/i }).click();
+  const dlg = page.locator('dialog[open]').first();
+  await dlg.locator('select').first().selectOption('include');
+  const pick = dlg.getByRole('group', { name: /^(page|seite)$/i });
+  await pick.getByRole('searchbox', { name: /^(search element|element suchen)$/i }).fill(`Okapi rules ${run}`);
+  await pick.locator('option', { hasText: `Okapi rules ${run}` }).waitFor();
+  await pick.locator('select.ew-picker-list').selectOption(String(rules.id));
+  await dlg.getByLabel(/^(only the excerpt|nur den auszug)$/i).check();
+  await a11y('macro dialog with a page picker');
+  await dlg.locator('button[type=submit]').click();
+  await page.waitForSelector('.ewe-prose .ewe-macro[data-macro="include"]');
+  await page.getByRole('button', { name: /^(publish|veröffentlichen)$/i }).click();
+  await page.waitForURL(/\/e\/\d+$/);
+  await idle();
+  await page.locator('.ew-include').getByText('In short: lights off.').waitFor();
+  assert.equal(await page.locator('.ew-include').getByText('Long text.').count(), 0, 'only the excerpt');
+  await page.locator('.ew-include').getByRole('link', { name: `Okapi rules ${run}` }).waitFor();
+  // page tree, search box and the button for a new page on one page
+  const src = `::pagetree{category=${cat} open=false}\n\n::searchbox{category=${sub} label="Search the chapter"}\n\n::newpage{template=${tpl.id} category=${sub}}\n`;
+  const el = await call('POST', '/api/v1/elements', { category_id: cat, type: 'core.html', title: `Blocks ${run}`, body: md(src) });
+  await page.goto(`${BASE}/e/${el.id}`);
+  await idle();
+  const tree = page.getByRole('navigation', { name: new RegExp(`^(pages of|seiten von) Wiki blocks ${run}$`, 'i') });
+  await tree.waitFor();
+  assert.ok(!(await tree.getByRole('link', { name: `Zebra notes ${run}` }).isVisible()), 'closed at first');
+  await tree.getByLabel(/^(filter the tree|baum filtern)$/i).fill('zebra');
+  await tree.getByRole('link', { name: `Zebra notes ${run}` }).waitFor();
+  assert.ok(!(await tree.getByRole('link', { name: `Okapi rules ${run}` }).isVisible()), 'the filter hides what does not match');
+  await tree.getByRole('status').filter({ hasText: /1/ }).waitFor();
+  await tree.getByLabel(/^(filter the tree|baum filtern)$/i).fill('');
+  await tree.getByRole('link', { name: `Okapi rules ${run}` }).waitFor({ state: 'hidden' });
+  await a11y('page tree, search box, new page button');
+  // the search box searches in its category; the search page can widen it
+  await page.getByLabel('Search the chapter').fill('okapi');
+  await page.getByLabel('Search the chapter').press('Enter');
+  await page.waitForURL(new RegExp(`/search\\?.*category=${sub}`));
+  await idle();
+  const only = page.getByLabel(new RegExp(`^(only in|nur in) .*Chapter ${run}`, 'i'));
+  assert.ok(await only.isChecked());
+  await page.locator('.ew-result').first().waitFor();
+  assert.deepEqual(await page.locator('.ew-result h3').allTextContents(), [`Okapi rules ${run}`]);
+  await a11y('search in a category');
+  await only.uncheck();
+  await page.getByRole('button', { name: /^(search|suchen)$/i }).last().click();
+  await page.waitForURL((u) => u.pathname === '/search' && !u.search.includes('category='));
+  // the button opens a new page in the chapter, filled from the template
+  await page.goto(`${BASE}/e/${el.id}`);
+  await idle();
+  await page.getByRole('link', { name: new RegExp(`(new page|neue seite): Minutes ${run}`, 'i') }).click();
+  await page.waitForURL(new RegExp(`/c/${sub}/new\\?type=core\\.html&template=${tpl.id}`));
+  await idle();
+  await page.locator('.ewe-prose').getByText('okapi agenda').waitFor();
+  assert.equal(await page.getByLabel(/^(title|titel)/i).first().inputValue(), 'Minutes');
+  await a11y('new page from a template');
+  await page.getByRole('link', { name: /^(cancel|abbrechen)$/i }).click();
+});
+
 test('options of a placed block: background with checked contrast, hidden on the phone, spacing; the wiki shows it', async () => {
   const before = await call('GET', '/api/v1/placements/site');
   try {
