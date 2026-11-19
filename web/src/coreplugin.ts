@@ -204,7 +204,7 @@ export function templateLabel(id: string): string {
 /** The page a block of an element page or of the editing page is rendered
  * for: the element (if there is one) and the parts of the editing page
  * (editor blocks; each part exists once and keeps its state). */
-export interface PageContext { target?: PageTarget; view?: import('./core/types').ElementView; parts?: Map<string, Node | null>; /** a category page: its data (views/category.ts) */ category?: unknown }
+export interface PageContext { target?: PageTarget; view?: import('./core/types').ElementView; parts?: Map<string, Node | null>; /** a category page: its data (views/category.ts) */ category?: unknown; /** the path (breadcrumbs) of the page, a new node each call */ path?: () => HTMLElement }
 
 /** The context of an element page. */
 export interface ElementContext extends PageContext { target: PageTarget; view: import('./core/types').ElementView }
@@ -226,6 +226,10 @@ export interface SlotDef {
   /** The block exists once per page (the content of a page, a featured
    * page): only its first placement applies. */
   single?: boolean;
+  /** Blocks that stand in for this one: placed on the page (at a position of
+   * its kind), this block is left out (the title bar holds the title and
+   * the path, so they are not shown twice). */
+  replacedBy?: string[];
   /** Instances of the block (menus, carousels, content blocks …): each is a
    * block of its own ("<id>/<key>"; key "" is the block itself) with its
    * own default position (empty: not placed) that the placement levels can
@@ -354,6 +358,12 @@ function withOptions(n: Node, o: BlockOptions): Node {
 const fillGen = new WeakMap<HTMLElement, number>();
 let refreshPending = false;
 
+/** The positions of a kind on the page shown. */
+function availOf(kind: PositionKind): readonly string[] {
+  return kind === 'element' ? ELEMENT_POSITIONS : kind === 'category' ? CATEGORY_POSITIONS : kind === 'editor' ? EDITOR_POSITIONS
+    : kind === 'dashboard' ? DASHBOARD_POSITIONS : (activeTemplate()?.positions ?? []);
+}
+
 async function fill(el: HTMLElement, name: string): Promise<void> {
   // only the latest filling of a container applies (an older one may finish later)
   const gen = (fillGen.get(el) ?? 0) + 1;
@@ -374,7 +384,7 @@ async function fill(el: HTMLElement, name: string): Promise<void> {
     // page …) never get lost: if one is nowhere in this template (or page),
     // it goes to the first position of the template (on a page: its default)
     if (b.always) {
-      const avail: readonly string[] = kind === 'element' ? ELEMENT_POSITIONS : kind === 'category' ? CATEGORY_POSITIONS : kind === 'editor' ? EDITOR_POSITIONS : kind === 'dashboard' ? DASHBOARD_POSITIONS : tplPositions;
+      const avail = availOf(kind);
       if (!ps.some((p) => avail.includes(p.position))) ps = [{ position: kind === 'site' ? (tplPositions[0] ?? b.position) : b.position, sort: b.order }];
     }
     // a part of the editing page exists once (it keeps what was typed), so
@@ -382,6 +392,8 @@ async function fill(el: HTMLElement, name: string): Promise<void> {
     if (kind === 'editor' || b.slot.single) ps = ps.slice(0, 1);
     // tiles the administration does not offer are on no dashboard
     if (kind === 'dashboard' && !tileOffered(b.id)) continue;
+    // a block that stands in for this one is placed on the page: leave it out
+    if (b.slot.replacedBy?.some((r) => (placed.get(r) ?? []).some((p) => availOf(kind).includes(p.position)))) continue;
     for (const p of ps) {
       if (p.position !== name) continue;
       // options may show a block only to some, at some times, in some languages (display only)

@@ -198,10 +198,9 @@ export async function categoryView({ params, main }: RouteCtx): Promise<void> {
     if (view.querySelector('h1:not(.ew-sr-title)')) srTitle.remove();
     else if (!srTitle.isConnected) header.prepend(srTitle);
   };
-  const cctx = { category: cp };
+  const cctx = { category: cp, path: () => crumbs(data.breadcrumbs, { title }) };
   const pos = (name: (typeof CATEGORY_POSITIONS)[number]) => pagePositionContainer(name, cctx, heading);
   view = h('article', { class: 'ew-category' },
-    crumbs(data.breadcrumbs, { title }),
     header = h('div', { class: 'ew-page-header' }, pos('category-header'), pos('category-toolbar')),
     classificationNotice(c),
     archivedNotice(c),
@@ -474,7 +473,7 @@ export async function elementView({ params, main }: RouteCtx): Promise<void> {
   const target = { type: 'element' as const, id: el.id, title: el.title, categoryId: el.category_id, elementType: el.type };
   // the content is the block core.element.body (once per page)
   const parts = new Map<string, Node | null>();
-  const ectx = { target, view: el, parts };
+  const ectx = { target, view: el, parts, path: () => crumbs([...cat.breadcrumbs, cat.category], { title: el.title }) };
   // the title is a block: placed nowhere, the page keeps a heading for
   // screen readers
   const srTitle = h('h1', { class: 'sr-only ew-sr-title' }, el.title);
@@ -494,7 +493,6 @@ export async function elementView({ params, main }: RouteCtx): Promise<void> {
   contentPos.append(body);
   if (!widgetControlsClaimed(el.id)) settleWidgetControls(el.id);
   article = h('article', { class: 'ew-element', lang: el.shown_lang },
-    crumbs([...cat.breadcrumbs, cat.category], { title: el.title }),
     header = h('div', { class: 'ew-page-header' }, pos('element-header'), pos('element-toolbar')),
     classificationNotice({ ...cat.category, effective_classification: Math.max(cat.category.effective_classification ?? 0, el.classification ?? 0) }),
     archivedNotice(cat.category),
@@ -516,8 +514,14 @@ export async function elementView({ params, main }: RouteCtx): Promise<void> {
 /** The blocks of the core on element pages: title, management (edit mode),
  * watching and the page information. */
 export function registerElementBlocks(): void {
+  // the path and the title; the title bar holds both (with a background
+  // per category through its options) and stands in for them when placed
+  registerSlot({ id: 'core.element.path', kind: 'element', position: 'element-header', order: 5, label: () => t('block.core.element.path'),
+    replacedBy: ['core.element.titlebar'], render: (_p, _k, c) => c?.path?.() ?? null });
   registerSlot({ id: 'core.element.title', kind: 'element', position: 'element-header', order: 10, label: () => t('block.core.element.title'),
-    render: (_p, _k, c) => (c?.view ? h('h1', null, c.view.title) : null) });
+    replacedBy: ['core.element.titlebar'], render: (_p, _k, c) => (c?.view ? h('h1', null, c.view.title) : null) });
+  registerSlot({ id: 'core.element.titlebar', kind: 'element', position: '', order: 8, label: () => t('block.core.element.titlebar'),
+    render: (_p, _k, c) => (c?.view ? h('div', { class: 'ew-titlebar' }, c.path?.() ?? null, h('h1', null, c.view.title)) : null) });
   registerSlot({ id: 'core.element.manage', kind: 'element', position: 'element-toolbar', order: 10, always: true, label: () => t('block.core.element.manage'),
     render: (_p, _k, c) => (c?.view ? manageActions(c.view) : null) });
   registerSlot({ id: 'core.element.watch', kind: 'element', position: 'element-toolbar', order: 20, label: () => t('block.core.element.watch'),

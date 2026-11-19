@@ -45,17 +45,20 @@ export function needRoom(r: Row, view: ViewName, v?: Partial<View>): number {
  *   drawers; blocks of the header take the rest; what does not fit goes one
  *   below the other. */
 export function viewOf(d: Design, r: Row, view: ViewName): ViewState {
-  if (view === 'desktop') return { stack: false, hidden: [], drawer: [], widths: {}, auto: false };
+  // behind a button on the desktop: behind one in every view
+  const always = r.desktop?.drawer ?? [];
+  const union = (list: string[]) => [...new Set([...list, ...always])];
+  if (view === 'desktop') return { stack: false, hidden: [], drawer: [...always], widths: {}, auto: false };
   const manual = r[view];
-  if (manual) return { stack: manual.stack, hidden: manual.hidden ?? [], drawer: manual.drawer ?? [], widths: manual.widths ?? {}, auto: false };
+  if (manual) return { stack: manual.stack, hidden: manual.hidden ?? [], drawer: union(manual.drawer ?? []), widths: manual.widths ?? {}, auto: false };
   const hasContent = r.blocks.some((b) => b.kind === 'content');
-  const drawer: string[] = [];
+  const drawer: string[] = [...always];
   const widths: Record<string, number> = {};
   if (view === 'mobile' && r.role === 'banner') {
-    for (const b of r.blocks) if (b.role === 'navigation') drawer.push(b.id);
+    for (const b of r.blocks) if (b.role === 'navigation' && !drawer.includes(b.id)) drawer.push(b.id);
   }
   if (hasContent && needRoom(r, view, { drawer, widths }) > room(d, r, view)) {
-    for (const b of r.blocks) if (b.role === 'complementary' || (view === 'mobile' && b.role === 'navigation')) drawer.push(b.id);
+    for (const b of r.blocks) if ((b.role === 'complementary' || (view === 'mobile' && b.role === 'navigation')) && !drawer.includes(b.id)) drawer.push(b.id);
   }
   const stack = needRoom(r, view, { drawer, widths }) > room(d, r, view);
   return { stack, hidden: [], drawer, widths, auto: true };
@@ -84,7 +87,7 @@ export function cssSafe(d: Design): boolean {
       if (!b || !ok(b.id) || !num(b.width) || !Array.isArray(b.positions) || !b.positions.every(ok)) return false;
       if (b.after !== undefined && !(Array.isArray(b.after) && b.after.every(ok))) return false;
     }
-    for (const v of [r.tablet, r.mobile]) {
+    for (const v of [r.desktop, r.tablet, r.mobile]) {
       if (!v) continue;
       if (typeof v !== 'object') return false;
       if (v.widths !== undefined && !(typeof v.widths === 'object' && Object.entries(v.widths).every(([id, w]) => ok(id) && num(w)))) return false;

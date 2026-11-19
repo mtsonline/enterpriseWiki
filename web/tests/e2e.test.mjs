@@ -2711,6 +2711,45 @@ test('code blocks and attachments: colours, line numbers, copy, language in the 
   assert.equal(await page.locator('.ew-code-gutter').count(), 0);
 });
 
+test('title bar: path and title in one band with a background per category, inherited, nothing twice', async () => {
+  const cat = (await call('POST', '/api/v1/categories', { titles: { en: `Area ${run}` } })).id;
+  const sub = (await call('POST', '/api/v1/categories', { titles: { en: `Team ${run}` }, parent_id: cat })).id;
+  const el = await call('POST', '/api/v1/elements', { category_id: sub, type: 'core.html', title: `Welcome ${run}`, body: { format: 'markdown', source: 'Hello' } });
+  // before: path and title as two blocks
+  await page.goto(`${BASE}/e/${el.id}`);
+  await idle();
+  await page.getByRole('navigation', { name: /^(breadcrumbs|brotkrümelnavigation|pfad)/i }).first().waitFor();
+  assert.equal(await page.locator('.ew-titlebar').count(), 0);
+  try {
+    // the title bar for the area: element and category pages, with a background
+    const opts = { bg_color: '#102040', text_color: '#ffffff', padding_top: 4 };
+    await call('PUT', `/api/v1/placements/category?target=${cat}`, { placements: [
+      { block: 'core.element.titlebar', position: 'element-header', sort: 5, options: opts },
+      { block: 'core.category.titlebar', position: 'category-header', sort: 5, options: opts },
+    ] });
+    await page.goto(`${BASE}/e/${el.id}`);
+    await idle();
+    const bar = page.locator('.ew-titlebar');
+    await bar.waitFor();
+    // path and title inside, the single blocks left out: one heading, one path
+    assert.equal(await bar.locator('h1').textContent(), `Welcome ${run}`);
+    assert.equal(await page.locator('main h1:not(.sr-only)').count(), 1);
+    assert.equal(await page.locator('main .ew-breadcrumbs').count(), 1);
+    assert.equal(await bar.locator('.ew-breadcrumbs a', { hasText: `Area ${run}` }).count(), 1);
+    const frame = page.locator('.ew-bo', { has: bar });
+    assert.equal(await frame.evaluate((f) => getComputedStyle(f).backgroundColor), 'rgb(16, 32, 64)');
+    await a11y('title bar of a page');
+    // the subcategory page inherits it
+    await page.goto(`${BASE}/c/${sub}`);
+    await idle();
+    await page.locator('.ew-titlebar h1', { hasText: `Team ${run}` }).waitFor();
+    assert.equal(await page.locator('main h1:not(.sr-only)').count(), 1);
+    await a11y('title bar of a category');
+  } finally {
+    await call('PUT', `/api/v1/placements/category?target=${cat}`, { placements: [] });
+  }
+});
+
 test('options of a placed block: background with checked contrast, hidden on the phone, spacing; the wiki shows it', async () => {
   const before = await call('GET', '/api/v1/placements/site');
   try {
@@ -2944,6 +2983,25 @@ test('templates of data: copy, check while typing, save, versions, use for the s
       await page.waitForFunction(() => getComputedStyle(document.querySelector('header.ewd-landmark')).position === 'static');
       await page.setViewportSize({ width: 1280, height: 800 });
       await page.waitForFunction(() => getComputedStyle(document.querySelector('header.ewd-landmark')).position === 'sticky');
+      // the menu as a button with a drawer also on the desktop ("burger")
+      const cur = (await call('GET', `/api/v1/x/core.template/templates/${key}`)).template;
+      const dd = cur.design;
+      const row = dd.rows.find((r) => r.blocks.some((b) => b.id === 'menu'));
+      row.desktop = { drawer: ['menu'] };
+      await call('PUT', `/api/v1/x/core.template/templates/${key}`, { version: cur.version, design: dd });
+      await page.goto(`${BASE}/`);
+      await idle();
+      const burger = page.getByRole('button', { name: /^(☰ )?(main navigation|hauptnavigation)$/i });
+      await burger.waitFor();
+      assert.equal(await burger.getAttribute('aria-expanded'), 'false');
+      const shown = () => page.evaluate(() => getComputedStyle(document.getElementById('ewd-menu')).display !== 'none');
+      assert.ok(!(await shown()), 'the menu waits behind its button');
+      await burger.click();
+      assert.equal(await burger.getAttribute('aria-expanded'), 'true');
+      assert.ok(await shown(), 'the open menu is shown');
+      await a11y('a menu in a drawer on the desktop');
+      await burger.click();
+      assert.equal(await burger.getAttribute('aria-expanded'), 'false');
     } finally {
       if (size) await page.setViewportSize(size);
     }

@@ -425,9 +425,12 @@ async function handbookNav(): Promise<HTMLElement | null> {
 export function registerCategoryBlocks(manage: (cp: CategoryPage) => HTMLElement | null, info: (cp: CategoryPage) => (HTMLElement | null)[],
   title: (cp: CategoryPage) => HTMLElement, watch: (cp: CategoryPage) => HTMLElement | null, feed: (cp: CategoryPage) => HTMLElement | null): void {
   const cp = (c?: PageContext) => (c?.category as CategoryPage | undefined) ?? null;
-  const reg = (id: string, position: string, order: number, render: (x: CategoryPage) => Node | null | Promise<Node | null>, always = false) =>
-    registerSlot({ id, kind: 'category', position, order, always, label: () => t(`block.${id}`), render: (_p, _k, c) => { const x = cp(c); return x ? render(x) : null; } });
-  reg('core.category.title', 'category-header', 10, title);
+  const reg = (id: string, position: string, order: number, render: (x: CategoryPage, c?: PageContext) => Node | null | Promise<Node | null>, always = false, replacedBy?: string[]) =>
+    registerSlot({ id, kind: 'category', position, order, always, replacedBy, label: () => t(`block.${id}`), render: (_p, _k, c) => { const x = cp(c); return x ? render(x, c) : null; } });
+  // the path and the title; the title bar holds both and stands in for them when placed
+  reg('core.category.path', 'category-header', 5, (_x, c) => c?.path?.() ?? null, false, ['core.category.titlebar']);
+  reg('core.category.title', 'category-header', 10, title, false, ['core.category.titlebar']);
+  reg('core.category.titlebar', '', 8, (x, c) => h('div', { class: 'ew-titlebar' }, c?.path?.() ?? null, title(x)));
   reg('core.category.manage', 'category-toolbar', 10, manage, true);
   reg('core.category.watch', 'category-toolbar', 20, watch);
   reg('core.category.feed', 'category-toolbar', 30, feed);

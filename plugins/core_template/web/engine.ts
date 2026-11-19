@@ -26,7 +26,7 @@ export interface Block {
 export interface View { stack: boolean; hidden?: string[]; drawer?: string[]; widths?: Record<string, number> }
 export interface Row {
   id: string; role: 'banner' | 'contentinfo' | 'none'; width: 'full' | 'content'; background: 'page' | 'subtle' | 'header' | 'footer';
-  blocks: Block[]; tablet?: View; mobile?: View;
+  blocks: Block[]; desktop?: Pick<View, 'drawer'> & Partial<View>; tablet?: View; mobile?: View;
 }
 export interface Design { version: 1; tokens: Tokens; rows: Row[]; options: { back_to_top: boolean; sticky_header: boolean } }
 
@@ -52,6 +52,18 @@ export function classOf(id: string): string {
   return `ewd-${id.replace(/^core\.template\//, '').replace(/[^a-z0-9-]/g, '-')}`;
 }
 
+/** A block behind a button: beside the content the button is a bar above
+ * it and the open drawer comes first; elsewhere (header) the button stays
+ * in the row and the open drawer comes below it. */
+function drawerRules(r: Row, b: Block, rs: string, bs: string): string[] {
+  const withContent = r.blocks.some((x) => x.kind === 'content');
+  return [
+    `${bs}:not(.ewd-open) { display: none; }`,
+    `${bs}.ewd-open { flex: none; width: 100%; order: ${withContent ? -1 : 99}; }`,
+    `${rs} > .ewd-inner > .ewd-drawer-button[aria-controls="ewd-${b.id}"] { display: inline-flex;${withContent ? ' order: -2; flex: 0 0 100%;' : ''} }`,
+  ];
+}
+
 /** The CSS of a design: only values that were checked (colors #rrggbb,
  * numbers, ids of letters, digits and dashes), so nothing else can get into it. */
 export function designCSS(d: Design, cls: string): string {
@@ -72,27 +84,23 @@ export function designCSS(d: Design, cls: string): string {
   const mobile: string[] = [];
   for (const r of d.rows) {
     const rs = `${s} .ewd-row[data-row="${r.id}"]`;
+    // an open drawer takes its own line: on the desktop too, the row wraps then
+    if (viewOf(d, r, 'desktop').drawer.length) out.push(`${rs} > .ewd-inner { flex-wrap: wrap; }`);
     for (const b of r.blocks) {
       const bs = `${rs} > .ewd-inner > .ewd-block[data-block="${b.id}"]`;
       // fixed width, as wide as the content (down to the minimum) or the rest of the row
       const flex = (w: number, view: ViewName) => (w > 0 ? `flex: 0 1 ${w}rem; min-width: min(${w}rem, 100%);`
         : b.fit ? `flex: 0 1 auto; min-width: min(${minRem(b, view)}rem, 100%);` : `flex: 1 1 0; min-width: min(${minRem(b, view)}rem, 100%);`);
       out.push(`${bs} { ${flex(b.width, 'desktop')} }`);
+      // behind a button also on the desktop (and so in every view)
+      if (viewOf(d, r, 'desktop').drawer.includes(b.id)) out.push(...drawerRules(r, b, rs, bs));
       for (const [view, list] of [['tablet', tablet], ['mobile', mobile]] as const) {
         const v = viewOf(d, r, view);
         const w = b.id in v.widths ? v.widths[b.id] : b.width;
         if (v.hidden.includes(b.id)) list.push(`${bs} { display: none; }`);
         else if (v.stack) list.push(`${bs} { flex: none; width: 100%; min-width: 0; }`);
         else list.push(`${bs} { ${flex(w, view)} }`);
-        if (v.drawer.includes(b.id)) {
-          // beside the content: the button is a bar above it and the open
-          // drawer comes first; elsewhere (header) the button stays in the
-          // row and the open drawer comes below it
-          const withContent = r.blocks.some((x) => x.kind === 'content');
-          list.push(`${bs}:not(.ewd-open) { display: none; }`);
-          list.push(`${bs}.ewd-open { flex: none; width: 100%; order: ${withContent ? -1 : 99}; }`);
-          list.push(`${rs} > .ewd-inner > .ewd-drawer-button[aria-controls="ewd-${b.id}"] { display: inline-flex;${withContent ? ' order: -2; flex: 0 0 100%;' : ''} }`);
-        }
+        if (v.drawer.includes(b.id)) list.push(...drawerRules(r, b, rs, bs));
       }
     }
     for (const [view, list] of [['tablet', tablet], ['mobile', mobile]] as const) {
@@ -148,7 +156,7 @@ export function buildLayout(d: Design, ctx: LayoutContext): Layout {
         'aria-label': tag !== 'div' && label ? label : undefined,
       }, ...kids);
       // a block that can be a drawer in some view gets its button (shown only there)
-      const drawerSomewhere = (['tablet', 'mobile'] as const).some((v) => viewOf(d, r, v).drawer.includes(b.id));
+      const drawerSomewhere = (['desktop', 'tablet', 'mobile'] as const).some((v) => viewOf(d, r, v).drawer.includes(b.id));
       if (drawerSomewhere) {
         const btn = h('button', { type: 'button', class: 'ewd-drawer-button ew-btn ew-btn--subtle', 'aria-expanded': 'false', 'aria-controls': `ewd-${b.id}` },
           h('span', { 'aria-hidden': 'true' }, b.role === 'navigation' ? '☰ ' : '▸ '), label || (b.role === 'navigation' ? t('nav.menu') : t('template.more')));

@@ -189,6 +189,8 @@
  "template.d_view_adjust": "Adjust the {view} by hand",
  "template.d_view_auto": "Automatic: {how}; in drawers: {drawer}.",
  "template.d_view_auto_again": "Automatic again",
+ "template.d_desktop_drawer": "Also on the desktop in a drawer: {name}",
+ "template.d_desktop_drawer_help": "The menu as a button with a drawer (\"burger menu\") also on the desktop. What is in a drawer here is in one on tablet and phone too.",
  "template.d_view_drawer": "In a drawer",
  "template.d_view_hidden": "Hidden",
  "template.d_view_manual": "Adjusted by hand.",

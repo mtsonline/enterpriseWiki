@@ -4,7 +4,7 @@
 // refuses and never refuses what it allows.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { cssSafe, needRoom, positionsRoom, room } from '../../../plugins/core_template/web/room';
+import { cssSafe, needRoom, positionsRoom, room, viewOf } from '../../../plugins/core_template/web/room';
 import type { Design, ViewName } from '../../../plugins/core_template/web/engine';
 import wiki from '../../../plugins/core_template/examples/wiki.json';
 import cms from '../../../plugins/core_template/examples/cms.json';
@@ -50,4 +50,18 @@ test('only values of a safe form go into the CSS (also for drafts not saved yet)
   assert.equal(bad((d) => { d.tokens.logo = 'https://example.com/x.png'; }), false);
   assert.equal(bad((d) => { d.rows[2].mobile = { stack: true, widths: { 'a}': 3 } }; }), false);
   assert.equal(bad((d) => { (d as unknown as Record<string, unknown>).rows = 'x'; }), false);
+});
+
+test('a drawer on the desktop is a drawer in every view and needs no room in the row', () => {
+  const d = structuredClone(designs.wiki);
+  const r = d.rows.find((x) => x.blocks.some((b) => b.role === 'navigation'))!;
+  const menu = r.blocks.find((b) => b.role === 'navigation')!;
+  r.desktop = { drawer: [menu.id] };
+  for (const v of ['desktop', 'tablet', 'mobile'] as const) assert.ok(viewOf(d, r, v).drawer.includes(menu.id), v);
+  r.tablet = { stack: false };
+  assert.ok(viewOf(d, r, 'tablet').drawer.includes(menu.id), 'also when the tablet is designed by hand');
+  assert.ok(needRoom(r, 'desktop', viewOf(d, r, 'desktop')) < needRoom(r, 'desktop'));
+  assert.ok(cssSafe(d));
+  r.desktop = { drawer: ['bad id!'] };
+  assert.ok(!cssSafe(d));
 });
