@@ -126,7 +126,7 @@ Text
 
 ::iconbox{name=home title="Evil" link="javascript:alert(1)"}
 
-Text :icon[Phone]{name=phone} and :icon{name=star style=filled}
+Text :icon[Phone]{name=phone} and :icon{name=star style=filled} and :icon{name=arrow-right decorative=true}
 
 :::iconlist{name=check}
 - one
@@ -138,10 +138,12 @@ Text :icon[Phone]{name=phone} and :icon{name=star style=filled}
 ::gallery{category=1 layout=masonry tablet=2 mobile=1}
 `)
 	for _, want := range []string{
-		`<span class="ew-icon ew-icon--m" data-icon="home" data-icon-style="outline" aria-hidden="true"></span>`,
+		// without a label screen readers read the name of the icon
+		`<span class="ew-icon ew-icon--m" data-icon="home" data-icon-style="outline" role="img" aria-label="home"></span>`,
 		`<a class="ewl-boxlink" href="/c/1">Start</a>`,
 		`data-icon="phone" data-icon-style="outline" role="img" aria-label="Phone"`,
-		`data-icon="star" data-icon-style="filled" aria-hidden="true"`,
+		`data-icon="star" data-icon-style="filled" role="img" aria-label="star"`,
+		`data-icon="arrow-right" data-icon-style="outline" aria-hidden="true"`,
 		`<div class="ewl-iconlist ewl-iconlist--m" data-icon="check" data-icon-style="outline"><ul>`,
 		"choose an icon",
 		`<a class="ewl-boxlink" href="#">Evil</a>`,

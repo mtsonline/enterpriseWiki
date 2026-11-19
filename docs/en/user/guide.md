@@ -90,9 +90,9 @@ In the Markdown source, macros are directives: `::toc{levels=3}` (without conten
 | Call to action | a box with title, text and a button |
 | Tabs | parts as tabs (arrow keys, Home, End); separate the parts with a horizontal rule, the first heading of each part names its tab. Without script they are sections one below the other |
 | Accordion | parts to open and close, optionally only one open at a time and the first one open |
-| Icon | an icon of the shipped set (more than 6,000, outline or filled), also inside a line (`:icon[Phone]{name=phone}`); chosen with a search. Without a label it is decoration; with one, screen readers read the label |
-| Icon box | an icon with title and text; with a link the whole box is one link |
-| Icon list | a list with an icon in front of every entry, for example a check mark |
+| Icon | an icon of the shipped set (more than 6,000, outline or filled), also inside a line (`:icon[Phone]{name=phone}`); chosen with a search. Screen readers read its label or, without one, the name of the icon (in English, for example "arrow right"); only an icon marked *decoration only* is skipped |
+| Icon box | an icon with title and text; with a link the whole box is one link. The icon is read like a single icon |
+| Icon list | a list with an icon in front of every entry, for example a check mark. The icon takes the place of the bullet: screen readers read the list as a list, without the icon |
 | Shell command | output of a command on the server; only runs once a super administrator has approved exactly this command |
 | HTTP request | result of a web address (text, HTML, JSON as a table); only approved addresses |
 | News from several sources | the newest elements of any number of sources and entries of external RSS/Atom feeds together, as cards, list or headlines |
