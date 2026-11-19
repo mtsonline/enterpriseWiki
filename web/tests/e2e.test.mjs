@@ -2497,6 +2497,80 @@ test('category display: table with a property column, accordion, tabs with the k
   assert.ok(intro.id > 0);
 });
 
+test('layout blocks: a section with options from the macro dialog, grid, tabs with the keyboard, accordion; desktop and phone', async () => {
+  // a block in the content gets its options in the dialog of the macro
+  await newPage('core.html', `Layout ${run}`);
+  await page.locator('.ewe-prose').click();
+  await page.keyboard.type('Intro');
+  await page.getByRole('button', { name: /^(insert macro|makro einfügen)$/i }).click();
+  const macroDlg = page.locator('dialog[open]').first();
+  await macroDlg.locator('select').first().selectOption('section');
+  await macroDlg.getByRole('button', { name: /^(options|optionen)$/i }).click();
+  const opts = page.locator('dialog[open]').last();
+  await opts.locator('summary', { hasText: /^(background|hintergrund)$/i }).click();
+  await opts.getByLabel(/^(background colour: own colour|hintergrundfarbe: eigene farbe)$/i).check();
+  await opts.getByLabel(/^(background colour|hintergrundfarbe)$/i).fill('#102040');
+  await opts.locator('summary', { hasText: /^(text|schrift)$/i }).click();
+  await opts.getByLabel(/^(text colour: own colour|textfarbe: eigene farbe)$/i).check();
+  await opts.getByLabel(/^(text colour|textfarbe)$/i).fill('#ffffff');
+  await opts.getByRole('button', { name: /^(apply|übernehmen)$/i }).click();
+  await macroDlg.getByText(/^(2 option\(s\) set|2 option\(en\) gesetzt)$/i).waitFor();
+  await a11y('macro dialog with options');
+  await macroDlg.locator('button[type=submit]').click();
+  await page.waitForSelector('.ewe-prose .ewe-macro[data-macro="section"]');
+  await page.keyboard.type('Section body');
+  await page.getByRole('button', { name: /^(publish|veröffentlichen)$/i }).click();
+  await page.waitForURL(/\/e\/\d+$/);
+  await idle();
+  const frame = page.locator('.ew-content .ew-bo', { hasText: 'Section body' });
+  await frame.waitFor();
+  assert.deepEqual(await frame.evaluate((el) => { const c = getComputedStyle(el); return [c.backgroundColor, c.color]; }), ['rgb(16, 32, 64)', 'rgb(255, 255, 255)']);
+  // grid, tabs and accordion on one page
+  const cat = (await call('POST', '/api/v1/categories', { titles: { en: `Layout ${run}` } })).id;
+  const src = ':::grid{desktop=3 tablet=2}\nOne\n***\nTwo\n***\nThree\n:::\n\n:::tabs{label="Steps"}\n## First\nText A\n***\n## Second\nText B\n***\n## Third\nText C\n:::\n\n:::accordion{one=true first=true}\n### Question one\nAnswer one\n***\n### Question two\nAnswer two\n:::\n\n::buttons{text1="Start" link1="/" text2="More" link2="/search" layout=full}\n';
+  const el = await call('POST', '/api/v1/elements', { category_id: cat, type: 'core.html', title: `Blocks ${run}`, body: { format: 'markdown', source: src } });
+  await page.goto(`${BASE}/e/${el.id}`);
+  await idle();
+  const tabs = page.getByRole('tablist', { name: 'Steps' });
+  await tabs.waitFor();
+  await page.getByRole('tab', { name: 'First' }).focus();
+  await page.keyboard.press('ArrowRight');
+  assert.equal(await page.getByRole('tab', { name: 'Second' }).getAttribute('aria-selected'), 'true');
+  await page.getByRole('tabpanel', { name: 'Second' }).getByText('Text B').waitFor();
+  assert.ok(!(await page.getByText('Text A').isVisible()), 'only the chosen tab is shown');
+  await page.keyboard.press('End');
+  assert.equal(await page.getByRole('tab', { name: 'Third' }).getAttribute('aria-selected'), 'true');
+  // the accordion keeps one open
+  assert.ok(await page.getByText('Answer one').isVisible());
+  await page.locator('summary', { hasText: 'Question two' }).click();
+  await page.getByText('Answer two').waitFor();
+  assert.ok(!(await page.getByText('Answer one').isVisible()), 'only one part open');
+  assert.equal(await page.locator('.ewl-grid').evaluate((g) => getComputedStyle(g).gridTemplateColumns.split(' ').length), 3);
+  await a11y('layout blocks (desktop)');
+  const size = page.viewportSize();
+  try {
+    await page.setViewportSize({ width: 375, height: 800 });
+    assert.equal(await page.locator('.ewl-grid').evaluate((g) => getComputedStyle(g).gridTemplateColumns.split(' ').length), 1);
+    const wide = await page.evaluate(() => {
+      const w = document.documentElement.clientWidth;
+      const out = [];
+      for (const e of document.querySelectorAll('body *')) {
+        if (e.getBoundingClientRect().right <= w + 1) continue;
+        // inside an area that scrolls by itself (a wide table) is fine
+        let p = e.parentElement;
+        let inScroller = false;
+        while (p) { const o = getComputedStyle(p).overflowX; if (o === 'auto' || o === 'scroll' || o === 'hidden') { inScroller = true; break; } p = p.parentElement; }
+        if (!inScroller) out.push(`${e.tagName.toLowerCase()}.${[...e.classList].join('.')} ${Math.round(e.getBoundingClientRect().right)} in ${e.closest('.ew-panel')?.outerHTML.slice(0, 300) ?? ''}`);
+      }
+      return { scroll: document.documentElement.scrollWidth - w, out: out.slice(0, 6) };
+    });
+    assert.ok(wide.scroll <= 0, `the page scrolls sideways: ${JSON.stringify(wide)}`);
+    await a11y('layout blocks (phone)');
+  } finally {
+    if (size) await page.setViewportSize(size);
+  }
+});
+
 test('options of a placed block: background with checked contrast, hidden on the phone, spacing; the wiki shows it', async () => {
   const before = await call('GET', '/api/v1/placements/site');
   try {

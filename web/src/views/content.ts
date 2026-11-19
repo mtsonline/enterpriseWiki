@@ -441,7 +441,7 @@ function translationPanel(el: ElementView): HTMLElement {
     el.translations.length < 2 ? null : h('p', null, h('progress', { max: '100', value: String(el.translated_percent), 'aria-label': t('translation.progress') }), ' ',
       t('translation.percent', { percent: el.translated_percent }), ' ',
       el.up_to_date ? h('span', { class: 'ew-badge ew-badge--ok' }, t('translation.all_current')) : h('span', { class: 'ew-badge ew-badge--warn' }, t('translation.needs_work'))),
-    h('table', { class: 'ew-table' },
+    h('div', { class: 'ew-table-wrap', role: 'region', 'aria-label': t('translation.title'), tabindex: '0' }, h('table', { class: 'ew-table' },
       h('caption', { class: 'sr-only' }, t('translation.title')),
       h('thead', null, h('tr', null, h('th', { scope: 'col' }, t('common.language')), h('th', { scope: 'col' }, t('common.status')), h('th', { scope: 'col' }, t('common.revision')), h('th', { scope: 'col' }, h('span', { class: 'sr-only' }, t('common.actions'))))),
       h('tbody', null, ...el.translations.map((tr) => h('tr', null,
@@ -449,7 +449,7 @@ function translationPanel(el: ElementView): HTMLElement {
         h('td', null, h('span', { class: ['ew-badge', `ew-badge--${tr.status}`] }, statusLabel(tr.status)),
           tr.status === 'outdated' ? h('span', { class: 'ew-help' }, ' ', t('translation.based_on', { rev: tr.source_rev ?? 0 })) : null),
         h('td', null, tr.rev ? String(tr.rev) : '–'),
-        h('td', null, canEdit ? h('a', { href: `/e/${el.id}/edit?lang=${tr.lang}` }, tr.status === 'missing' ? t('translation.create') : t('common.edit')) : null))))));
+        h('td', null, canEdit ? h('a', { href: `/e/${el.id}/edit?lang=${tr.lang}` }, tr.status === 'missing' ? t('translation.create') : t('common.edit')) : null)))))));
 }
 
 export async function elementView({ params, main }: RouteCtx): Promise<void> {

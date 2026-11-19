@@ -2727,5 +2727,7 @@
  "bo.p.columns": "Auf dem {view} haben höchstens {max} Textspalte(n) nebeneinander Platz; stellen Sie für diese Ansicht weniger ein.",
  "bo.p.until": "„Gezeigt bis“ muss nach „Gezeigt ab“ liegen.",
  "bo.sample_wait": "Das Beispiel zeigt die Optionen, sobald kein Problem mehr besteht.",
- "bo.p.between": "Die Textfarbe {color} liegt innerhalb der Helligkeit ihres Hintergrunds ({from} bis {to}); wählen Sie eine viel hellere oder dunklere Textfarbe oder eine stärkere Überlagerung."
+ "bo.p.between": "Die Textfarbe {color} liegt innerhalb der Helligkeit ihres Hintergrunds ({from} bis {to}); wählen Sie eine viel hellere oder dunklere Textfarbe oder eine stärkere Überlagerung.",
+ "bo.set_count": "{n} Option(en) gesetzt",
+ "bo.none_set": "Keine Optionen gesetzt"
 }

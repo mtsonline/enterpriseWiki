@@ -177,3 +177,25 @@ export function optionsDialog(blockLabel: string, current: BlockOptions, done: (
     h('div', { class: 'ew-bo-sample-wrap', 'aria-label': t('bo.sample'), role: 'group' }, sampleStyle, sampleNote, sample),
     ...groups), [clear, button(t('common.cancel'), () => dlg.close(), { variant: 'subtle' }), ok], { wide: true });
 }
+
+/** The control of the parameter "options" of every block in the content (in
+ * the dialog of a macro): a button that opens the options; the value is
+ * their JSON. */
+export function blockOptionsControl(value: string, ctx: { label: string }): { el: HTMLElement; get: () => string } {
+  let current: BlockOptions = {};
+  try {
+    const v = value ? JSON.parse(value) as unknown : {};
+    if (v && typeof v === 'object' && !Array.isArray(v)) current = v as BlockOptions;
+  } catch { /* an unreadable value is replaced by the options chosen */ }
+  const summary = h('span', { class: 'ew-help' });
+  const show = () => {
+    const n = Object.keys(current).length;
+    summary.textContent = n ? t('bo.set_count', { n }) : t('bo.none_set');
+  };
+  const open = button(t('bo.edit'), () => optionsDialog(ctx.label || t('bo.edit'), current, (o) => { current = o; show(); }), { variant: 'secondary' });
+  show();
+  return {
+    el: h('div', { class: 'ew-field' }, h('span', { class: 'ew-label' }, ctx.label), h('div', { class: 'ew-actions' }, open, summary)),
+    get: () => (Object.keys(current).length ? JSON.stringify(current) : ''),
+  };
+}

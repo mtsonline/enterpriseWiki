@@ -83,6 +83,13 @@ Im Markdown-Quelltext stehen Makros als Direktiven: `::toc{levels=3}` (ohne Inha
 | Textfarbe und Schrift | Textfarbe, Hervorhebung, Schriftart und -größe aus der Palette der Site (alle Kombinationen gut lesbar) |
 | Spalten / Karten | Inhalt nebeneinander; Spalten bzw. Karten mit einer Trennlinie trennen |
 | Abschnitt, Hero-Banner, Button-Link, Abstand | Bausteine für Website-Seiten (besonders mit der Vorlage *CMS*) |
+| Raster | Inhalte in Spalten, die Zahl je Ansicht (Desktop bis 5, Tablet bis 3, Handy 1); Zellen mit einer Trennlinie trennen |
+| Überschrift | eine Überschrift mit Untertitel und Linie; ihre Ebene (die Gliederung der Seite für Screenreader) wird getrennt von ihrer Größe gewählt |
+| Trenner | eine Linie (durchgehend, gestrichelt, gepunktet, doppelt, auslaufend) oder ein Abstand zwischen Teilen einer Seite |
+| Knopfgruppe | bis zu vier Links als Schaltflächen, nebeneinander, über die volle Breite oder untereinander |
+| Handlungsaufruf | ein Kasten mit Titel, Text und Schaltfläche |
+| Reiter | Teile als Reiter (Pfeiltasten, Pos1, Ende); Teile mit einer Trennlinie trennen, die erste Überschrift jedes Teils benennt seinen Reiter. Ohne Skript stehen sie als Abschnitte untereinander |
+| Akkordeon | Teile zum Auf- und Zuklappen, wahlweise immer nur einer offen und der erste offen |
 | Shell-Befehl | Ausgabe eines Befehls auf dem Server; läuft erst, wenn ein Superadmin genau diesen Befehl freigegeben hat |
 | HTTP-Abruf | Ergebnis einer Web-Adresse (Text, HTML, JSON als Tabelle); nur freigegebene Adressen |
 | Neuigkeiten aus mehreren Quellen | die neuesten Elemente beliebig vieler Quellen und Einträge externer RSS/Atom-Feeds gemeinsam, als Karten, Liste oder Schlagzeilen |
@@ -414,6 +421,8 @@ Das Wiki prüft jeden Wert; ein Beispiel zeigt das Aussehen sofort:
 - Textspalten brauchen in jeder Ansicht Platz (jede mindestens 12 rem; auf dem Handy eine Spalte).
 
 Links in einem solchen Baustein behalten seine Textfarbe und sind unterstrichen.
+
+Dieselben Optionen hat **jeder Baustein im Inhalt** einer Seite (Abschnitt, Raster, Hinweisbox, Karten …): im Dialog des Bausteins unter *Optionen*. Optionen, die das Wiki nicht annimmt, werden nicht verwendet; der Baustein nennt dann den Grund.
 
 Auch eine Seite besteht aus Bausteinen: Titel, die Knöpfe zum Verwalten, *Beobachten*, *Teilen*, *Favorit*, die Angaben zur Seite (Schlagwörter, Autor, Version), Eigenschaften, Reaktionen und Kommentare. Sie stehen an den Positionen einer Seite: Kopf, Werkzeugleiste, Seitenspalte und unter dem Inhalt. Die Verwaltung ordnet sie für alle Seiten an, eine Kategorie für ihre Seiten. Eine einzelne Seite ordnen Sie im Bearbeitungsmodus mit *Seite anordnen* an, zum Beispiel ohne sichtbaren Titel (für Screenreader bleibt er erhalten) oder mit *Teilen* unter dem Inhalt. Dafür brauchen Sie das Recht, die Seite zu bearbeiten; bei einem Blog, einer FAQ und ähnlichen Elementen das Recht, sie zu verwalten. Auch die Bedienelemente von Blog und FAQ sind auf deren Seite Bausteine: Suche, *Neuer Beitrag*, *Neue Kategorie*, *Alle aufklappen / zuklappen*, *Neue Frage*, *Neuer Abschnitt* und der Feed. Ist ein Blog oder eine FAQ in eine andere Seite eingebettet (zum Beispiel als Startseite einer Kategorie), zeigt er seine Bedienelemente selbst. Die Knöpfe zum Verwalten bleiben immer erreichbar. Eine Kopie der Seite übernimmt ihre Anordnung und ihre Beschriftungen.
 

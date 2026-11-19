@@ -257,7 +257,7 @@ Core plugins are full code with access to the database and the server. Only inst
 | `core.menu` | menu | any number of menus, also multi-level, at every position of the template. Targets are categories, elements, links or other menus (*Administration → Menus*). |
 | `core.blocks` | general | text blocks (Markdown/HTML, macros) at every position, per language, for everyone/guests/signed-in people (*Administration → Blocks*) |
 | `core.macros` | macros | table of contents, child pages, recently changed (with sources), news from several sources and RSS/Atom feeds, notice boxes, expandable section, status label, columns |
-| `core.layout` | macros | layout building blocks: section, hero, cards, button, spacing (inherits from `core.macros`) |
+| `core.layout` | macros | layout building blocks: section, hero, cards, button, spacing, grid, heading, divider, buttons, call to action, tabs, accordion (inherits from `core.macros`) |
 | `macro.shell` | macro | output of a shell command, only after exact approval by a superadmin, off by default |
 | `macro.http` | macro | result of an HTTP request, only addresses from the allow list |
 | `core.comments` | general | comments and replies below pages |

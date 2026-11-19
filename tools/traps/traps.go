@@ -314,4 +314,26 @@ var traps = []trap{
 		New:  "	if len(backs) > 1 && text != \"\" && !outsideRange(text, backs) && false {",
 		Pkg:  "./internal/content/", Tests: "^TestBlockOptionCases$",
 	},
+	// ---------------------------------------------------------------- layout blocks
+	{
+		ID: "layout.grid-room", About: "a grid with more columns than have room is rendered",
+		File: "plugins/core_layout/blocks.go",
+		Old:  "		if n[view] > content.MaxColumns(view) {",
+		New:  "		if n[view] > content.MaxColumns(view)+10 {",
+		Pkg:  "./internal/server/", Tests: "^TestLayoutBlocks$",
+	},
+	{
+		ID: "layout.options-checked", About: "options of a block in the content are used without the check of the server",
+		File: "internal/content/macros.go",
+		Old:  "	if err := CheckBlockOptions(o); err != nil {\n		return macroNote(err.Error()) + res\n	}",
+		New:  "	if err := CheckBlockOptions(o); err != nil && false {\n		return macroNote(err.Error()) + res\n	}",
+		Pkg:  "./internal/server/", Tests: "^TestLayoutBlocks$",
+	},
+	{
+		ID: "layout.buttons-url", About: "links of buttons are not made safe (javascript: …)",
+		File: "plugins/core_layout/blocks.go",
+		Old:  "		b.WriteString(`<a class=\"ewl-cta ewl-cta--` + oneOf(style, buttonStyles) + `\" href=\"` + esc(SafeURL(mc.Params[\"link\"+n])) + `\">` + esc(text) + `</a>`)",
+		New:  "		b.WriteString(`<a class=\"ewl-cta ewl-cta--` + oneOf(style, buttonStyles) + `\" href=\"` + esc(mc.Params[\"link\"+n]) + `\">` + esc(text) + `</a>`)",
+		Pkg:  "./internal/server/", Tests: "^TestLayoutBlocks$",
+	},
 }

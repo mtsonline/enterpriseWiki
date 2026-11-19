@@ -1,5 +1,6 @@
 // Package core_layout provides layout builder macros for website-like pages:
-// section, hero, cards, button and spacer. They work in every template; the
+// section, hero, cards, button, spacer, grid, heading, divider, buttons,
+// call to action, tabs and accordion. They work in every template; the
 // CMS template (theme.cms) styles them as full-width page sections.
 package core_layout
 
@@ -30,7 +31,7 @@ func (p *Plugin) Manifest() coreplugin.Manifest { return coreplugin.ParseManifes
 
 // Setup registers the macros.
 func (p *Plugin) Setup(h *coreplugin.Host) error {
-	for _, m := range []content.Macro{section{}, hero{}, cards{}, button{}, spacer{}} {
+	for _, m := range []content.Macro{section{}, hero{}, cards{}, button{}, spacer{}, grid{}, heading{}, divider{}, buttons{}, cta{}, tabs{}, accordion{}} {
 		h.RegisterMacro(m)
 	}
 	return nil
