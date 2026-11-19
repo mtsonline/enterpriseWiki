@@ -8,6 +8,7 @@ import (
 	"regexp"
 	"slices"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/mtsonline/enterprisewiki/internal/apperr"
@@ -63,6 +64,9 @@ var blockOptions = func() (s struct {
 	}
 	return s
 }()
+
+// reservedAnchors are ids of the interface itself.
+var reservedAnchors = []string{"main", "top", "content", "app", "search", "nav", "header", "footer"}
 
 var (
 	optColorRe  = regexp.MustCompile(`^#[0-9a-f]{6}$`)
@@ -148,8 +152,13 @@ func checkOptionValue(def optionDef, v any) error {
 			return fmt.Errorf("a picture of the wiki (/api/v1/files/…)")
 		}
 	case "anchor":
-		if s, ok := v.(string); !ok || !optAnchorRe.MatchString(s) {
+		s, ok := v.(string)
+		if !ok || !optAnchorRe.MatchString(s) {
 			return fmt.Errorf("lowercase letters, digits and hyphens, starting with a letter (at most 40)")
+		}
+		// names the interface uses itself (the skip link jumps to #main …)
+		if slices.Contains(reservedAnchors, s) || strings.HasPrefix(s, "ew") {
+			return fmt.Errorf("%q is used by the wiki itself; choose another name", s)
 		}
 	case "datetime":
 		s, ok := v.(string)

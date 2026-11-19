@@ -354,7 +354,9 @@ function withOptions(n: Node, o: BlockOptions): Node {
   }
   const body = h('div', { class: 'ew-bo-body' });
   body.append(n);
-  const frame = h('div', { class: 'ew-bo', 'data-bo': key, id: typeof o.anchor === 'string' ? o.anchor : undefined }, body);
+  // an anchor only where its id is still free (never two elements with one id)
+  const anchor = typeof o.anchor === 'string' && !document.getElementById(o.anchor) ? o.anchor : undefined;
+  const frame = h('div', { class: 'ew-bo', 'data-bo': key, id: anchor }, body);
   if (typeof o.line_clamp === 'number' && o.line_clamp > 0) {
     const more = h('button', { type: 'button', class: 'ew-btn ew-btn--link ew-bo-more', 'aria-expanded': 'false' }, t('bo.more')) as HTMLButtonElement;
     more.addEventListener('click', () => {
