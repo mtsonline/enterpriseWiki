@@ -64,7 +64,9 @@ let idSeq = 0;
 /** Returns a unique DOM id. */
 export function uid(prefix = 'ew'): string {
   idSeq += 1;
-  return `${prefix}-${idSeq}`;
+  // every id the interface makes starts with "ew": ids in content never do
+  // (headings, anchors), so the two never meet
+  return `${prefix.startsWith('ew') ? prefix : `ew-${prefix}`}-${idSeq}`;
 }
 
 /** Formats a date for the current UI language. */

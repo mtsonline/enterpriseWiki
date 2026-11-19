@@ -233,6 +233,7 @@ func (s *Service) RenderMacros(ctx context.Context, rc RenderContext, src string
 	// headings: ensure unique ids
 	var headings []Heading
 	used := map[string]int{}
+	taken := map[string]bool{} // ids of this body (without a page being rendered, ClaimID knows none)
 	var walkH func(*nethtml.Node)
 	walkH = func(n *nethtml.Node) {
 		if n.Type == nethtml.ElementNode && len(n.Data) == 2 && n.Data[0] == 'h' && n.Data[1] >= '1' && n.Data[1] <= '6' {
@@ -244,11 +245,23 @@ func (s *Service) RenderMacros(ctx context.Context, rc RenderContext, src string
 					id = "section"
 				}
 			}
-			if c := used[id]; c > 0 {
-				used[id] = c + 1
-				id = fmt.Sprintf("%s-%d", id, c+1)
-			} else {
-				used[id] = 1
+			// never an id of the interface (the skip link jumps to #main,
+			// fields and dialogs have ids starting with "ew", see interfaceID)
+			if interfaceID(id) {
+				id = "h-" + id
+			}
+			// unique on the whole page shown, also with included pages and
+			// anchors (one set of ids per page, see ClaimID)
+			base := id
+			for c := used[base]; ; c++ {
+				if c > 0 {
+					id = fmt.Sprintf("%s-%d", base, c+1)
+				}
+				if !taken[id] && ClaimID(ctx, id) {
+					used[base] = c + 1
+					taken[id] = true
+					break
+				}
 			}
 			setAttr(n, "id", id)
 			headings = append(headings, Heading{Level: int(n.Data[1] - '0'), ID: id, Text: txt})
@@ -283,6 +296,14 @@ func (s *Service) RenderMacros(ctx context.Context, rc RenderContext, src string
 		}
 		count++
 		var out string
+		// inside a line (an inline macro) the note is inline too: a <p>
+		// inside a paragraph would break the paragraph
+		note := macroNote
+		if n.DataAtom == atom.Span {
+			note = func(msg string) string {
+				return `<span class="ew-macro-error" role="note">` + html.EscapeString(msg) + `</span>`
+			}
+		}
 		m := s.macro(name)
 		page := 0
 		if mp != nil && mp.index == count {
@@ -292,11 +313,11 @@ func (s *Service) RenderMacros(ctx context.Context, rc RenderContext, src string
 		case mp != nil && mp.only && mp.index != count:
 			// only one macro is asked for: leave the others out
 		case count > 200:
-			out = macroNote("too many macros on this page")
+			out = note("too many macros on this page")
 		case m == nil:
-			out = macroNote(fmt.Sprintf("macro %q is not available", name))
+			out = note(fmt.Sprintf("macro %q is not available", name))
 		case len(allowed) > 0 && !slices.Contains(allowed, name):
-			out = macroNote(fmt.Sprintf("macro %q is not available in this space", name))
+			out = note(fmt.Sprintf("macro %q is not available in this space", name))
 		default:
 			body := renderChildren(n)
 			params := ParseMacroParams(attr(n, "data-params"))
@@ -305,7 +326,7 @@ func (s *Service) RenderMacros(ctx context.Context, rc RenderContext, src string
 			}
 			res, err := m.Render(ctx, MacroContext{RenderContext: rc, Params: params, Body: body, Headings: headings, Index: count, Page: page})
 			if err != nil {
-				out = macroNote(fmt.Sprintf("macro %s: %s", name, err.Error()))
+				out = note(fmt.Sprintf("macro %s: %s", name, err.Error()))
 			} else {
 				tag := "div"
 				if n.DataAtom == atom.Span {

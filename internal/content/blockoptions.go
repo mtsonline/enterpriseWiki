@@ -68,9 +68,21 @@ var blockOptions = func() (s struct {
 // reservedAnchors are ids of the interface itself.
 var reservedAnchors = []string{"main", "top", "content", "app", "search", "nav", "header", "footer"}
 
-// generatedID is the form of ids the wiki makes itself (name-number: fields
-// of forms and dialogs, questions of a FAQ …); anchors must not take them.
-var generatedID = regexp.MustCompile(`-[0-9]+$`)
+// generatedID is the form of ids the wiki makes itself (name-number:
+// questions and sections of a FAQ, fields of forms f<page>-…); anchors must
+// not take them.
+var generatedID = regexp.MustCompile(`-[0-9]+$|^f[0-9]+-`)
+
+// pluginID are the ids that element types write into content themselves
+// (FAQ: q-<id>, s-<id>; forms: f<id>-…). Every other id of the interface
+// starts with "ew".
+var pluginID = regexp.MustCompile(`^[qs]-[0-9]+$|^f[0-9]+-`)
+
+// interfaceID reports whether an id in content (a heading) would take an id
+// of the interface: then it gets the prefix "h-".
+func interfaceID(id string) bool {
+	return slices.Contains(reservedAnchors, id) || strings.HasPrefix(id, "ew") || pluginID.MatchString(id)
+}
 
 // CheckAnchor checks the name of an anchor (block option and the anchor
 // block): lowercase letters, digits and hyphens, starting with a letter,

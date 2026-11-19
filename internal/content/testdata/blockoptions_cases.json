@@ -364,5 +364,12 @@
     "options": {
       "anchor": "step-2-details"
     }
+  },
+  {
+    "name": "anchor like a field of a form",
+    "ok": false,
+    "options": {
+      "anchor": "f12-name"
+    }
   }
 ]
