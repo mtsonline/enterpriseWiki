@@ -2727,5 +2727,7 @@
  "bo.p.columns": "On the {view} at most {max} column(s) of text have room side by side; set fewer for this view.",
  "bo.p.until": "\"Shown until\" must be after \"Shown from\".",
  "bo.sample_wait": "The sample shows the options once there is no problem left.",
- "bo.p.between": "The text colour {color} lies within the brightness of its background ({from} to {to}); choose a much lighter or darker text colour or a stronger overlay."
+ "bo.p.between": "The text colour {color} lies within the brightness of its background ({from} to {to}); choose a much lighter or darker text colour or a stronger overlay.",
+ "bo.set_count": "{n} option(s) set",
+ "bo.none_set": "No options set"
 }

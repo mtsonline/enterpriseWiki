@@ -83,6 +83,13 @@ In the Markdown source, macros are directives: `::toc{levels=3}` (without conten
 | Text colour and font | text colour, highlighting, font and size from the palette of the site (all combinations easily readable) |
 | Columns / cards | content side by side; separate columns or cards with a horizontal rule |
 | Section, hero banner, button link, spacing | building blocks for website pages (especially with the template *CMS*) |
+| Grid | content in columns, the number per view (desktop up to 5, tablet up to 3, phone 1); separate the cells with a horizontal rule |
+| Heading | a heading with subtitle and line; its level (the structure of the page for screen readers) is chosen apart from its size |
+| Divider | a line (solid, dashed, dotted, double, fading) or space between parts of a page |
+| Buttons | up to four links as buttons, side by side, over the full width or one below the other |
+| Call to action | a box with title, text and a button |
+| Tabs | parts as tabs (arrow keys, Home, End); separate the parts with a horizontal rule, the first heading of each part names its tab. Without script they are sections one below the other |
+| Accordion | parts to open and close, optionally only one open at a time and the first one open |
 | Shell command | output of a command on the server; only runs once a super administrator has approved exactly this command |
 | HTTP request | result of a web address (text, HTML, JSON as a table); only approved addresses |
 | News from several sources | the newest elements of any number of sources and entries of external RSS/Atom feeds together, as cards, list or headlines |
@@ -414,6 +421,8 @@ The wiki checks every value; a sample shows the look at once:
 - columns of text need room in every view (each at least 12 rem; on a phone one column).
 
 Links in such a block keep its text colour and are underlined.
+
+The same options are on **every block in the content** of a page (section, grid, notice box, cards …): in the dialog of the block, *Options*. Options the wiki does not accept are not used; the block then says why.
 
 A page is made of blocks too: the title, the buttons to manage it, *Watch*, *Share*, *Favorite*, the page information (tags, author, revision), properties, reactions and comments. They sit at the positions of a page: header, toolbar, side column and below the content. The administration arranges them for all pages, a category for its pages. You arrange a single page in edit mode with *Arrange page*, for example without a visible title (screen readers keep it) or with *Share* below the content. This needs the permission to edit the page; for a blog, a FAQ and similar elements the permission to manage it. The controls of blog and FAQ are blocks on their page too: search, *New post*, *New category*, *Expand all / collapse all*, *New question*, *New section* and the feed. When a blog or FAQ is embedded in another page (for example as the start page of a category), it shows its controls itself. The buttons to manage the page always stay reachable. A copy of the page keeps its arrangement and its labels.
 

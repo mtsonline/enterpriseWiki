@@ -257,7 +257,7 @@ Core-Plugins sind vollwertiger Code mit Zugriff auf Datenbank und Server. Instal
 | `core.menu` | Menü | beliebig viele, auch mehrstufige Menüs an jeder Position der Vorlage. Ziele sind Kategorien, Elemente, Links oder andere Menüs (*Administration → Menüs*). |
 | `core.blocks` | Allgemein | Textblöcke (Markdown/HTML, Makros) an jeder Position, je Sprache, für alle/Gäste/Angemeldete (*Administration → Blöcke*) |
 | `core.macros` | Makros | Inhaltsverzeichnis, Unterseiten, Zuletzt geändert (mit Quellen), Neuigkeiten aus mehreren Quellen und RSS/Atom-Feeds, Hinweis-Boxen, Aufklappbereich, Status-Label, Spalten |
-| `core.layout` | Makros | Layout-Bausteine: Abschnitt, Hero, Karten, Button, Abstand (erbt von `core.macros`) |
+| `core.layout` | Makros | Layout-Bausteine: Abschnitt, Hero, Karten, Button, Abstand, Raster, Überschrift, Trenner, Knopfgruppe, Handlungsaufruf, Reiter, Akkordeon (erbt von `core.macros`) |
 | `macro.shell` | Makro | Ausgabe eines Shell-Befehls, nur nach exakter Freigabe durch einen Superadmin, standardmäßig aus |
 | `macro.http` | Makro | Ergebnis eines HTTP-Abrufs, nur Adressen aus der Allow-Liste |
 | `core.comments` | Allgemein | Kommentare und Antworten unter Seiten |

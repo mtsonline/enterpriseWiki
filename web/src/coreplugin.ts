@@ -15,7 +15,8 @@ export { SCHEMA as BLOCK_OPTIONS_SCHEMA, optionDef, problems as optionProblems, 
 export { CATEGORY_POSITIONS, DASHBOARD_POSITIONS, ELEMENT_POSITIONS, EDITOR_POSITIONS, kindOf, positionFits, resolvePlacements, type PagePosition, type Placement, type PlacementLevel, type PositionKind } from './core/placement';
 
 import { h } from './core/dom';
-import { optionsCSS, optionsKey, shownNow, type BlockOptions } from './core/blockoptions';
+import { optionsKey, shownNow, type BlockOptions } from './core/blockoptions';
+import { styleFrame } from './core/optionframes';
 export { tile } from './components/tile';
 export { h, mount, append, trustedHTML, uid, fmtDate, srOnly } from './core/dom';
 export type { Child } from './core/dom';
@@ -334,38 +335,18 @@ const elementCtx = new WeakMap<HTMLElement, { ctx: PageContext; filled?: () => v
 // ------------------------------------------------------------ options of placed blocks
 
 const optionFrames = new WeakMap<Node, { key: string; frame: HTMLElement }>();
-const optionRules = new Set<string>();
-let optionStyle: HTMLStyleElement | null = null;
 
-/** A placed block with options: a frame with the CSS of its options (built
- * from values of a valid form only), its anchor and, with limited lines,
- * a button to show all. The same node keeps its frame (nothing is moved out
- * of the page that need not be). */
+/** A placed block with options: a frame with the look of its options (see
+ * optionframes.ts). The same node keeps its frame (nothing is moved out of
+ * the page that need not be). */
 function withOptions(n: Node, o: BlockOptions): Node {
   const key = optionsKey(o);
   const have = optionFrames.get(n);
   if (have && have.key === key) return have.frame;
-  const css = optionsCSS(`.ew-bo[data-bo="${key}"]`, o);
-  if (!css) return n; // options of an invalid form are ignored
-  if (!optionRules.has(key)) {
-    optionRules.add(key);
-    optionStyle ??= document.head.appendChild(h('style', { id: 'ew-block-options' }));
-    optionStyle.append(document.createTextNode(`${css}\n`));
-  }
   const body = h('div', { class: 'ew-bo-body' });
+  const frame = h('div', { class: 'ew-bo' }, body);
+  if (!styleFrame(frame, o)) return n; // options of an invalid form are ignored
   body.append(n);
-  // an anchor only where its id is still free (never two elements with one id)
-  const anchor = typeof o.anchor === 'string' && !document.getElementById(o.anchor) ? o.anchor : undefined;
-  const frame = h('div', { class: 'ew-bo', 'data-bo': key, id: anchor }, body);
-  if (typeof o.line_clamp === 'number' && o.line_clamp > 0) {
-    const more = h('button', { type: 'button', class: 'ew-btn ew-btn--link ew-bo-more', 'aria-expanded': 'false' }, t('bo.more')) as HTMLButtonElement;
-    more.addEventListener('click', () => {
-      const open = frame.classList.toggle('ew-bo-open');
-      more.setAttribute('aria-expanded', String(open));
-      more.textContent = open ? t('bo.less') : t('bo.more');
-    });
-    frame.append(more);
-  }
   optionFrames.set(n, { key, frame });
   return frame;
 }

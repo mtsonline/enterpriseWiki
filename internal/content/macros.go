@@ -146,6 +146,10 @@ func (s *Service) Macros() []MacroInfo {
 			if im, ok := r.m.(InlineMacro); ok {
 				info.Inline = im.Inline() && !info.HasBody
 			}
+			// every block in the content has the options of blocks
+			if !info.Inline && !slices.ContainsFunc(p, func(x MacroParam) bool { return x.Name == OptionsParam }) {
+				info.Params = append(slices.Clip(p), MacroParam{Name: OptionsParam, Labels: map[string]string{"en": "Options", "de": "Optionen"}, Type: "custom:blockoptions"})
+			}
 			if tm, ok := r.m.(ToolbarMacro); ok {
 				info.Toolbar = tm.Toolbar()
 			}
@@ -307,6 +311,9 @@ func (s *Service) RenderMacros(ctx context.Context, rc RenderContext, src string
 				if n.DataAtom == atom.Span {
 					tag = "span" // inline macro
 				}
+				if tag == "div" {
+					res = withBlockOptions(res, params[OptionsParam])
+				}
 				out = `<` + tag + ` class="ew-macro ew-macro--` + html.EscapeString(name) + `" data-macro-index="` + strconv.Itoa(count) + `">` + res + `</` + tag + `>`
 			}
 			if mp != nil && mp.only && mp.out != nil {
@@ -336,4 +343,31 @@ func renderChildren(n *nethtml.Node) string {
 		_ = nethtml.Render(&b, c)
 	}
 	return b.String()
+}
+
+// OptionsParam is the parameter of every block in the content that holds
+// its options (JSON, blockoptions.json).
+const OptionsParam = "options"
+
+// withBlockOptions puts a rendered block into a frame with its options; the
+// browser builds the look from them (CSS only from values of a valid form).
+// Options the server does not accept are not used, and the block says so.
+func withBlockOptions(res, raw string) string {
+	raw = strings.TrimSpace(raw)
+	if raw == "" || raw == "{}" {
+		return res
+	}
+	var o map[string]any
+	dec := json.NewDecoder(strings.NewReader(raw))
+	if err := dec.Decode(&o); err != nil || dec.More() {
+		return macroNote("options: not a valid list of options") + res
+	}
+	if err := CheckBlockOptions(o); err != nil {
+		return macroNote(err.Error()) + res
+	}
+	if len(o) == 0 {
+		return res
+	}
+	canon, _ := json.Marshal(o)
+	return `<div class="ew-bo" data-ewbo="` + html.EscapeString(string(canon)) + `"><div class="ew-bo-body">` + res + `</div></div>`
 }

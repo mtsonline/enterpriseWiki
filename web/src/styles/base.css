@@ -146,6 +146,8 @@ legend { font-weight: 700; padding: 0 .25rem; }
 .ew-content th, .ew-content td, .ew-table th, .ew-table td { border: 1px solid var(--ew-border); padding: .45rem .6rem; text-align: left; vertical-align: top; }
 .ew-table thead th, .ew-content thead th { background: var(--ew-bg-subtle); }
 .ew-table caption:not(.sr-only) { text-align: left; font-weight: 700; padding-bottom: .4rem; }
+/* on narrow screens long words wrap in their cell instead of widening the page */
+.ew-table :is(th, td) { overflow-wrap: anywhere; }
 .ew-content pre { background: var(--ew-bg-subtle); padding: .75rem; border-radius: var(--ew-radius); overflow: auto; }
 .ew-content blockquote { border-left: 4px solid var(--ew-border); margin: 1rem 0; padding: .25rem 1rem; color: var(--ew-text-muted); }
 .ew-tags { list-style: none; display: flex; flex-wrap: wrap; gap: .4rem; padding: 0; margin: .5rem 0; }
