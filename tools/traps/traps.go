@@ -278,4 +278,33 @@ var traps = []trap{
 		New:  `if need, room := d.needRoom(r, "desktop", nil), d.room(r, "desktop"); need > room*10 {`,
 		Pkg:  "./plugins/core_template/", Tests: "^TestDesignProblems$",
 	},
+	// ---------------------------------------------------------------- options of blocks
+	{
+		ID: "blockoptions.contrast", About: "options with too little contrast of the text on its background are stored",
+		File: "internal/content/blockoptions.go",
+		Old:  "		if c := contrastHex(text, b); c < min {",
+		New:  "		if c := contrastHex(text, b); c < 0 && min > 0 {",
+		Pkg:  "./internal/content/", Tests: "^TestBlockOptionCases$",
+	},
+	{
+		ID: "blockoptions.unknown", About: "unknown options (not in the schema) are stored",
+		File: "internal/content/blockoptions.go",
+		Old:  "		if !ok {\n			return apperr.BadRequest(\"options: unknown option %q\", k)\n		}",
+		New:  "		if !ok {\n			continue\n		}",
+		Pkg:  "./internal/content/", Tests: "^TestBlockOptionCases$",
+	},
+	{
+		ID: "blockoptions.overlay", About: "text on a picture is stored without an overlay",
+		File: "internal/content/blockoptions.go",
+		Old:  "		if overlay == \"\" || alpha < 0.5 {",
+		New:  "		if overlay == \"\" && alpha < 0 {",
+		Pkg:  "./internal/content/", Tests: "^TestBlockOptionCases$",
+	},
+	{
+		ID: "blockoptions.columns", About: "more columns of text than have room on the phone are stored",
+		File: "internal/content/blockoptions.go",
+		Old:  "		if n, ok := per[view]; ok && int(n) > MaxColumns(view) {",
+		New:  "		if n, ok := per[view]; ok && int(n) > MaxColumns(view)+10 {",
+		Pkg:  "./internal/content/", Tests: "^TestBlockOptionCases$",
+	},
 }

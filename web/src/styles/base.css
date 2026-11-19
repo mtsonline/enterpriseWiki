@@ -518,3 +518,17 @@ th[aria-sort="descending"] .ew-sort-button::after { content: " ↓"; opacity: 1;
 .ew-timeline-list { list-style: none; padding: 0 0 0 1rem; border-left: 3px solid var(--ew-border); margin: 0 0 1.5rem 0.5rem; }
 .ew-timeline-list > li { position: relative; padding: 0.25rem 0 0.75rem 0.75rem; }
 .ew-timeline-list > li::before { content: ""; position: absolute; left: -1.5rem; top: 0.6rem; width: 0.75rem; height: 0.75rem; border-radius: 50%; background: var(--ew-primary); }
+
+/* options of placed blocks: the frame takes no room of its own; the form */
+.ew-bo { min-width: 0; }
+.ew-bo-more { margin-top: .25rem; }
+.ew-bo-form { display: grid; gap: 1rem; }
+.ew-bo-group { border: 1px solid var(--ew-border); border-radius: var(--ew-radius); padding: .5rem .75rem; }
+.ew-bo-group > summary { cursor: pointer; font-weight: 600; min-height: 2.75rem; display: flex; align-items: center; }
+.ew-bo-grid { display: grid; gap: .75rem 1rem; grid-template-columns: repeat(auto-fill, minmax(min(16rem, 100%), 1fr)); align-items: start; }
+.ew-bo-views { display: grid; gap: .5rem; grid-column: 1 / -1; grid-template-columns: repeat(auto-fill, minmax(min(12rem, 100%), 1fr)); border-top: 1px solid var(--ew-border); padding-top: .5rem; }
+.ew-bo-colorfield { display: flex; flex-wrap: wrap; gap: .5rem; align-items: center; }
+.ew-bo-color { inline-size: 2.75rem; block-size: 2.75rem; padding: 0; border: 1px solid var(--ew-border); border-radius: var(--ew-radius); background: none; }
+.ew-bo-set { border: 0; padding: 0; margin: 0; display: flex; flex-wrap: wrap; gap: .25rem 1rem; }
+.ew-bo-set > legend { font-weight: 600; margin-bottom: .25rem; }
+.ew-bo-sample-wrap { border: 1px dashed var(--ew-border); border-radius: var(--ew-radius); padding: .75rem; }

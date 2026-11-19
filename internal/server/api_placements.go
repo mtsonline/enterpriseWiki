@@ -33,6 +33,12 @@ func (s *Server) routesPlacements() {
 		}
 		return s.app.Content.ResolvedPlacements(r.Context(), q.Get("template"), cat, el)
 	})
+	// GET /api/v1/block-options – the options of placed blocks (the schema
+	// the server checks with and the interface builds its form and CSS from)
+	// action: core.placements.options
+	s.handle("GET /api/v1/block-options", func(w http.ResponseWriter, r *http.Request) (any, error) {
+		return content.BlockOptionsSchema(), nil
+	})
 	// action: core.placements.get
 	s.handle("GET /api/v1/placements/{level}", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		return s.app.Content.GetPlacements(r.Context(), r.PathValue("level"), r.URL.Query().Get("target"))

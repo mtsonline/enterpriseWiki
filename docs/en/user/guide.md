@@ -399,6 +399,22 @@ Under *User menu → My dashboard* (`/dashboard`) you see tiles at a glance: not
 
 Where search, language, edit mode, notifications, user menu, category tree and the building blocks of plugins appear is set by the administration under *Administration → Placement*: per block the position of the template, the order (buttons ↑ ↓) or *Not shown*; *Required* prevents changes further down. Whoever manages a category changes this under *Category settings → Placement* for it and its subcategories; what is not changed there is inherited. If the administration allows it, every person arranges the blocks for themselves under *My profile → My arrangement*. The user menu always stays reachable. Every menu, carousel and content block is a block of its own: the position chosen when creating it is its default; in the placement it can be moved, hidden or shown in several places for the site, a category or (if allowed) for oneself. The list of favourites is a block too (default: sidebar). On a page, the content itself is a block at the position *Page: content*, so other blocks can go above or below it in the main area.
 
+**Options of a block:** next to each placed block, *Options* sets how it looks and when it is shown at this position, in groups:
+- **Showing:** hidden on desktop, tablet or phone; only for signed-in people or only for guests; from and until a time; only in some languages; printing, page break, an anchor for links (`#name`) and the order.
+
+  Showing a block only to some is a rule of display, not a permission: the block loads its data with the permissions of the reader as always.
+- **Size and spacing:** maximum width, minimum height, aspect ratio, inner and outer spacing and text alignment, per view where it makes sense. The tablet takes the value of the desktop, the phone the one of the tablet, unless they have their own.
+- **Background:** colour, gradient, picture of the wiki (focus, size, repeat, parallax), overlay, blending, pattern, glass.
+- **Border, shape and dividers:** border, rounded corners, shadow, glow, dividers at the top and bottom (wave, zigzag, slope, arc), fading out at the edge.
+- **Text:** font, size, weight, line height, letter spacing, capitals, text colour, columns, hyphenation, balanced line breaks, drop cap, text shadow, limited lines with *Show more*, headings in the gradient, underlined links.
+
+The wiki checks every value; a sample shows the look at once:
+- a block with a background of its own needs a text colour of its own with enough contrast (4.5:1);
+- text on a picture needs an overlay of at least 50 %;
+- columns of text need room in every view (each at least 12 rem; on a phone one column).
+
+Links in such a block keep its text colour and are underlined.
+
 A page is made of blocks too: the title, the buttons to manage it, *Watch*, *Share*, *Favorite*, the page information (tags, author, revision), properties, reactions and comments. They sit at the positions of a page: header, toolbar, side column and below the content. The administration arranges them for all pages, a category for its pages. You arrange a single page in edit mode with *Arrange page*, for example without a visible title (screen readers keep it) or with *Share* below the content. This needs the permission to edit the page; for a blog, a FAQ and similar elements the permission to manage it. The controls of blog and FAQ are blocks on their page too: search, *New post*, *New category*, *Expand all / collapse all*, *New question*, *New section* and the feed. When a blog or FAQ is embedded in another page (for example as the start page of a category), it shows its controls itself. The buttons to manage the page always stay reachable. A copy of the page keeps its arrangement and its labels.
 
 The editing page can be arranged too (for the site and per category): notices, formatting toolbar, tags, properties, original text, comment on the change and the buttons *Publish*, *Draft*, *Preview* … sit in the header, above or below the content, in a side column or at the end of the page. Title and content always stay. Notices, properties and the buttons to save cannot be hidden, only moved. Which **buttons the formatting toolbar** shows is chosen by the administration for the site (*Administration → Settings*) and by whoever manages a category for it and its subcategories (*Category settings*: as above, all or a choice). Hidden formatting stays possible with shortcuts and Markdown.

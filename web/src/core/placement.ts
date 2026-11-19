@@ -1,4 +1,5 @@
 // Resolution of the placement of building blocks (pure: no page, no DOM).
+import type { BlockOptions } from './blockoptions';
 
 /** Kinds of positions: those of the template (site), those of an element
  * page (element-…), of a category page (category-…), of the editing page
@@ -26,8 +27,11 @@ export function kindOf(position: string): PositionKind {
 }
 
 /** One placement of a building block (see content.Placement on the server). */
-export interface Placement { block: string; position: string; sort: number; required?: boolean }
+export interface Placement { block: string; position: string; sort: number; required?: boolean; options?: BlockOptions }
 export interface PlacementLevel { level: 'template' | 'site' | 'category' | 'category_page' | 'instance' | 'user'; target: string; placements: Placement[] }
+
+/** Where a block appears, with the options of that placement. */
+export interface ResolvedPlacement { position: string; sort: number; options?: BlockOptions }
 
 /** What the resolution needs to know of a block. */
 export interface BlockDefault { id: string; position: string; order: number; kind: PositionKind }
@@ -44,8 +48,8 @@ export function positionFits(kind: PositionKind, position: string): boolean {
  * only element blocks, that of one category page (category_page) only
  * category blocks; the own level (user) without personal placement
  * (opts.personal false) only tiles of the dashboard. */
-export function resolvePlacements(levels: PlacementLevel[], blocks: BlockDefault[], opts: { personal?: boolean } = {}): Map<string, { position: string; sort: number }[]> {
-  const out = new Map<string, { position: string; sort: number }[]>();
+export function resolvePlacements(levels: PlacementLevel[], blocks: BlockDefault[], opts: { personal?: boolean } = {}): Map<string, ResolvedPlacement[]> {
+  const out = new Map<string, ResolvedPlacement[]>();
   const kind = new Map<string, PositionKind>();
   for (const b of blocks) {
     out.set(b.id, b.position ? [{ position: b.position, sort: b.order }] : []);
@@ -62,7 +66,7 @@ export function resolvePlacements(levels: PlacementLevel[], blocks: BlockDefault
       if (l.level === 'category_page' && k !== 'category') continue;
       // the own level arranges the own dashboard always, the rest only with personal placement
       if (l.level === 'user' && k !== 'dashboard' && opts.personal === false) continue;
-      out.set(block, ps.filter((p) => p.position && positionFits(k, p.position)).map((p) => ({ position: p.position, sort: p.sort })));
+      out.set(block, ps.filter((p) => p.position && positionFits(k, p.position)).map((p) => (p.options && Object.keys(p.options).length ? { position: p.position, sort: p.sort, options: p.options } : { position: p.position, sort: p.sort })));
       if (ps.some((p) => p.required) && (l.level === 'template' || l.level === 'site')) locked.add(block);
     }
   }

@@ -2,6 +2,7 @@ package content
 
 import (
 	"context"
+	"encoding/json"
 	"regexp"
 	"slices"
 	"strconv"
@@ -32,6 +33,9 @@ type Placement struct {
 	// Required: lower levels can neither move nor remove the block
 	// (template and site only).
 	Required bool `json:"required,omitempty"`
+	// Options: how this placed block looks and when it is shown (checked
+	// values of blockoptions.json; the CSS is built from them)
+	Options map[string]any `json:"options,omitempty"`
 }
 
 // DashboardPositionPrefix starts the positions of the dashboard (dashboard-wide
@@ -149,7 +153,7 @@ func (s *Service) ResolvedPlacements(ctx context.Context, templateID string, cat
 	for i, k := range want {
 		levels[i], targets[i] = k.level, k.target
 	}
-	rows, err := s.pool.Query(ctx, `SELECT p.level, p.target, p.block, p.position, p.sort, p.required
+	rows, err := s.pool.Query(ctx, `SELECT p.level, p.target, p.block, p.position, p.sort, p.required, p.options
 		FROM placements p JOIN unnest($1::text[], $2::text[]) AS w(level, target) ON w.level = p.level AND w.target = p.target
 		ORDER BY p.sort, p.id`, levels, targets)
 	if err != nil {
@@ -159,7 +163,7 @@ func (s *Service) ResolvedPlacements(ctx context.Context, templateID string, cat
 	for rows.Next() {
 		var k key
 		var pl Placement
-		if err := rows.Scan(&k.level, &k.target, &pl.Block, &pl.Position, &pl.Sort, &pl.Required); err != nil {
+		if err := rows.Scan(&k.level, &k.target, &pl.Block, &pl.Position, &pl.Sort, &pl.Required, &pl.Options); err != nil {
 			rows.Close()
 			return nil, err
 		}
@@ -269,7 +273,7 @@ func (s *Service) GetPlacements(ctx context.Context, level, target string) (*Pla
 		return nil, err
 	}
 	out := &PlacementLevel{Level: level, Target: target, Placements: []Placement{}}
-	rows, err := s.pool.Query(ctx, `SELECT block, position, sort, required, updated_at FROM placements WHERE level=$1 AND target=$2 ORDER BY sort, id`, level, target)
+	rows, err := s.pool.Query(ctx, `SELECT block, position, sort, required, options, updated_at FROM placements WHERE level=$1 AND target=$2 ORDER BY sort, id`, level, target)
 	if err != nil {
 		return nil, err
 	}
@@ -277,7 +281,7 @@ func (s *Service) GetPlacements(ctx context.Context, level, target string) (*Pla
 	for rows.Next() {
 		var pl Placement
 		var at time.Time
-		if err := rows.Scan(&pl.Block, &pl.Position, &pl.Sort, &pl.Required, &at); err != nil {
+		if err := rows.Scan(&pl.Block, &pl.Position, &pl.Sort, &pl.Required, &pl.Options, &at); err != nil {
 			return nil, err
 		}
 		if out.UpdatedAt == nil || at.After(*out.UpdatedAt) {
@@ -325,6 +329,7 @@ func (s *Service) SetPlacements(ctx context.Context, level, target string, in []
 	}
 	ui := s.cfg.Get().UI
 	seen := map[string]bool{}
+	anchors := map[string]bool{}
 	for i, pl := range in {
 		if !blockRe.MatchString(pl.Block) || !s.knownOwner(pluginOf(pl.Block)) {
 			return nil, apperr.BadRequest("placement %d: unknown block %q", i+1, pl.Block)
@@ -359,6 +364,18 @@ func (s *Service) SetPlacements(ctx context.Context, level, target string, in []
 		if pl.Required && level != LevelTemplate && level != LevelSite {
 			return nil, apperr.BadRequest("placement %d: only the template and the site make blocks required", i+1)
 		}
+		if err := CheckBlockOptions(pl.Options); err != nil {
+			return nil, apperr.BadRequest("placement %d (%s): %s", i+1, pl.Block, err.Error())
+		}
+		if pl.Position == "" && len(pl.Options) > 0 {
+			return nil, apperr.BadRequest("placement %d: a hidden block has no options", i+1)
+		}
+		if a, _ := pl.Options["anchor"].(string); a != "" {
+			if anchors[a] {
+				return nil, apperr.BadRequest("placement %d: the anchor %q is used twice", i+1, a)
+			}
+			anchors[a] = true
+		}
 		if required[pl.Block] {
 			return nil, apperr.BadRequest("placement %d: the block %q is required by the administration and cannot be changed here", i+1, pl.Block)
 		}
@@ -387,8 +404,8 @@ func (s *Service) SetPlacements(ctx context.Context, level, target string, in []
 			return err
 		}
 		for _, pl := range in {
-			if _, err := tx.Exec(ctx, `INSERT INTO placements(level, target, block, position, sort, required, updated_by) VALUES ($1,$2,$3,$4,$5,$6,$7)`,
-				level, target, pl.Block, pl.Position, pl.Sort, pl.Required, nullID(ctx)); err != nil {
+			if _, err := tx.Exec(ctx, `INSERT INTO placements(level, target, block, position, sort, required, options, updated_by) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`,
+				level, target, pl.Block, pl.Position, pl.Sort, pl.Required, optionsJSON(pl.Options), nullID(ctx)); err != nil {
 				return err
 			}
 		}
@@ -431,4 +448,13 @@ func (s *Service) checkFeatured(ctx context.Context, in []Placement) error {
 		}
 	}
 	return nil
+}
+
+// optionsJSON is the options of a placement as stored ({} when none).
+func optionsJSON(o map[string]any) []byte {
+	if len(o) == 0 {
+		return []byte("{}")
+	}
+	b, _ := json.Marshal(o)
+	return b
 }
