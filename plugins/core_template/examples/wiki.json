@@ -1,0 +1,175 @@
+{
+  "version": 1,
+  "tokens": {
+    "bg": "#ffffff",
+    "bg_subtle": "#f4f5f7",
+    "text": "#172b4d",
+    "text_muted": "#44546f",
+    "border": "#8590a2",
+    "primary": "#0b5cad",
+    "on_primary": "#ffffff",
+    "link": "#0b5cad",
+    "focus": "#1d7afc",
+    "header_bg": "#ffffff",
+    "header_text": "#172b4d",
+    "footer_bg": "#f4f5f7",
+    "footer_text": "#172b4d",
+    "font": "source-sans",
+    "heading_font": "source-sans",
+    "scale": 100,
+    "radius": 6,
+    "content_width": 88,
+    "logo": ""
+  },
+  "rows": [
+    {
+      "id": "top",
+      "role": "banner",
+      "width": "full",
+      "background": "subtle",
+      "blocks": [
+        {
+          "id": "notice",
+          "kind": "area",
+          "role": "none",
+          "width": 0,
+          "positions": [
+            "top-bar"
+          ],
+          "layout": "row",
+          "align": "center"
+        }
+      ]
+    },
+    {
+      "id": "head",
+      "role": "banner",
+      "width": "full",
+      "background": "header",
+      "blocks": [
+        {
+          "id": "brand",
+          "kind": "brand",
+          "role": "none",
+          "width": 0,
+          "positions": [],
+          "layout": "row",
+          "align": "start",
+          "fit": true
+        },
+        {
+          "id": "menu",
+          "kind": "area",
+          "role": "navigation",
+          "label": {
+            "en": "Main navigation",
+            "de": "Hauptnavigation"
+          },
+          "width": 0,
+          "positions": [
+            "header-nav"
+          ],
+          "layout": "row",
+          "align": "start"
+        },
+        {
+          "id": "tools",
+          "kind": "area",
+          "role": "none",
+          "width": 0,
+          "positions": [
+            "header-tools"
+          ],
+          "layout": "row",
+          "align": "end",
+          "fit": true
+        }
+      ],
+      "tablet": {
+        "stack": false,
+        "drawer": [
+          "menu"
+        ]
+      },
+      "mobile": {
+        "stack": false,
+        "drawer": [
+          "menu"
+        ]
+      }
+    },
+    {
+      "id": "body",
+      "role": "none",
+      "width": "full",
+      "background": "page",
+      "blocks": [
+        {
+          "id": "side",
+          "kind": "area",
+          "role": "complementary",
+          "label": {
+            "en": "Pages",
+            "de": "Seiten"
+          },
+          "width": 16,
+          "positions": [
+            "sidebar",
+            "sidebar-bottom"
+          ],
+          "layout": "column",
+          "align": "start"
+        },
+        {
+          "id": "content",
+          "kind": "content",
+          "role": "none",
+          "width": 0,
+          "positions": [
+            "content-top"
+          ],
+          "after": [
+            "content-bottom"
+          ],
+          "layout": "column",
+          "align": "start"
+        }
+      ],
+      "tablet": {
+        "stack": false,
+        "drawer": [
+          "side"
+        ]
+      },
+      "mobile": {
+        "stack": true,
+        "drawer": [
+          "side"
+        ]
+      }
+    },
+    {
+      "id": "foot",
+      "role": "contentinfo",
+      "width": "full",
+      "background": "footer",
+      "blocks": [
+        {
+          "id": "footer",
+          "kind": "area",
+          "role": "none",
+          "width": 0,
+          "positions": [
+            "footer"
+          ],
+          "layout": "column",
+          "align": "start"
+        }
+      ]
+    }
+  ],
+  "options": {
+    "back_to_top": true,
+    "sticky_header": true
+  }
+}

@@ -2497,6 +2497,76 @@ test('category display: table with a property column, accordion, tabs with the k
   assert.ok(intro.id > 0);
 });
 
+test('templates of data: copy, check while typing, save, use for the site; desktop, tablet and phone without sideways scrolling, drawers', async () => {
+  const before = (await call('GET', '/api/v1/admin/settings')).config;
+  let key = '';
+  try {
+    await page.goto(`${BASE}/admin/templates`);
+    await idle();
+    await a11y('administration of templates');
+    // copy the shipped wiki template: the text of its design opens
+    const created = page.waitForResponse((r) => r.url().endsWith('/api/v1/x/core.template/templates') && r.request().method() === 'POST');
+    await page.getByRole('button', { name: /^(duplicate|kopieren|duplizieren): wiki \((data|daten)\)$/i }).click();
+    const tpl = await (await created).json();
+    key = tpl.key;
+    const text = page.getByLabel(/^(design \(text\)|design \(text\))$/i);
+    await text.waitFor();
+    await page.getByText(/^(no problems|keine probleme)/i).waitFor();
+    // a color with too little contrast is shown at once, saving is refused
+    const design = JSON.parse(await text.inputValue());
+    design.tokens.text = '#bbbbbb';
+    await text.fill(JSON.stringify(design, null, 2));
+    await page.locator('.ewd-problems').getByText(/contrast/i).first().waitFor();
+    await a11y('a template with problems');
+    design.tokens.text = '#102040';
+    design.tokens.primary = '#7a1f5c';
+    await text.fill(JSON.stringify(design, null, 2));
+    await page.getByText(/^(no problems|keine probleme)/i).waitFor();
+    const saved = page.waitForResponse((r) => r.url().endsWith(`/api/v1/x/core.template/templates/${key}`) && r.request().method() === 'PUT');
+    await page.getByRole('button', { name: /^(save|speichern)$/i }).click();
+    assert.equal((await saved).status(), 200);
+    // use it for the site
+    await page.getByRole('button', { name: /^(← all templates|← alle templates)$/i }).click();
+    await page.getByRole('button', { name: /^(use for the site|für die website verwenden): (copy of wiki \(data\)|kopie von wiki \(daten\))$/i }).click();
+    await page.waitForLoadState('load');
+    await page.waitForTimeout(800);
+    await page.goto(`${BASE}/`);
+    await idle();
+    assert.ok(await page.evaluate((k) => document.body.classList.contains(`ewd-${k}`), String(key)), 'the template of data is used');
+    assert.equal(await page.evaluate(() => getComputedStyle(document.body).getPropertyValue('--ew-primary').trim()), '#7a1f5c');
+    await page.getByRole('banner').waitFor();
+    // the footer is one landmark (empty here, so it takes no room)
+    assert.equal(await page.locator('footer.ewd-landmark').count(), 1);
+    await a11y('the wiki with a template of data (desktop)');
+    const size = page.viewportSize();
+    try {
+      for (const [w, h, name] of [[800, 1000, 'tablet'], [375, 760, 'phone'], [320, 640, 'small phone']]) {
+        await page.setViewportSize({ width: w, height: h });
+        await page.goto(`${BASE}/`);
+        await idle();
+        const over = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+        assert.ok(over <= 0, `${name}: the page scrolls sideways by ${over} px`);
+        // the side column is a drawer: closed, opened by its button, closed with Escape
+        const btn = page.getByRole('button', { name: /^(▸ )?(pages|seiten)$/i });
+        assert.equal(await btn.getAttribute('aria-expanded'), 'false');
+        await btn.click();
+        assert.equal(await btn.getAttribute('aria-expanded'), 'true');
+        await page.getByRole('complementary', { name: /^(pages|seiten)$/i }).waitFor();
+        await a11y(`the wiki with a template of data (${name}, drawer open)`);
+        await page.getByRole('complementary', { name: /^(pages|seiten)$/i }).getByRole('link').first().focus();
+        await page.keyboard.press('Escape');
+        assert.equal(await btn.getAttribute('aria-expanded'), 'false');
+        assert.equal(await page.evaluate(() => document.activeElement?.getAttribute('aria-controls')), 'ewd-side', 'the focus returns to the button');
+      }
+    } finally {
+      if (size) await page.setViewportSize(size);
+    }
+  } finally {
+    await call('PUT', '/api/v1/admin/settings', { ui: before.ui });
+    if (key) await call('DELETE', `/api/v1/x/core.template/templates/${key}`);
+  }
+});
+
 test('a hidden page: not listed for readers, marked for editors, reachable by its link', async () => {
   const cat = await m6Category();
   const el = await call('POST', '/api/v1/elements', { category_id: cat, type: 'core.html', title: `Quiet ${run}`, body: { format: 'html', source: '<p>quiet</p>' } });

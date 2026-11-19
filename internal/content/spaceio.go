@@ -244,7 +244,7 @@ func (s *Service) ImportTree(ctx context.Context, parent int64, r io.Reader) (*I
 				continue
 			}
 			in := CategoryInput{ParentID: p, Titles: l.Titles, Descriptions: l.Descriptions, Tags: l.Tags}
-			if l.Template != "" && s.templateOK != nil && s.templateOK(l.Template) {
+			if l.Template != "" && s.TemplateOK(ctx, l.Template) {
 				in.Template = &l.Template
 			}
 			if l.OriginalLang != "" && s.validLang(l.OriginalLang) {

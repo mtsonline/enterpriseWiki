@@ -75,7 +75,7 @@ export function editorKind(): 'visual' | 'simple' {
 // ---------------------------------------------------------------- plugin modules
 
 export interface PluginModule {
-  register?: () => void;
+  register?: () => void | Promise<void>;
 }
 
 export interface LoadedPlugin {
@@ -182,7 +182,10 @@ export function positionOptions(current?: string, exclude: string[] = ['header-t
 export function templateLabel(id: string): string {
   const k = `template.${id}`;
   const v = t(k);
-  return v === k ? id : v;
+  if (v !== k) return v;
+  // templates offered by plugins (templates of data) bring their names
+  const x = state.site?.templates?.find((y) => y.id === id) as { name?: string; names?: Record<string, string> } | undefined;
+  return x?.names?.[state.lang] || x?.name || id;
 }
 
 // ---------------------------------------------------------------- positions (slots)
