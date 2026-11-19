@@ -410,7 +410,7 @@ Wo Suche, Sprache, Bearbeitungsmodus, Benachrichtigungen, Benutzermenü, Kategor
 
 Das Wiki prüft jeden Wert; ein Beispiel zeigt das Aussehen sofort:
 - ein Baustein mit eigenem Hintergrund braucht eine eigene Textfarbe mit genug Kontrast (4,5:1);
-- Text auf einem Bild braucht eine Überlagerung von mindestens 50 %;
+- Text auf einem Bild braucht eine Überlagerung; die Textfarbe muss heller oder dunkler sein als jede Stelle des Bildes darunter (das gilt auch für Verläufe);
 - Textspalten brauchen in jeder Ansicht Platz (jede mindestens 12 rem; auf dem Handy eine Spalte).
 
 Links in einem solchen Baustein behalten seine Textfarbe und sind unterstrichen.

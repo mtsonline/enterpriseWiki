@@ -329,5 +329,26 @@
       "line_clamp": 4,
       "link_style": "thick"
     }
+  },
+  {
+    "name": "anchor of the interface itself",
+    "ok": false,
+    "options": {
+      "anchor": "main"
+    }
+  },
+  {
+    "name": "anchor with the prefix of the interface",
+    "ok": false,
+    "options": {
+      "anchor": "ewd-side"
+    }
+  },
+  {
+    "name": "own anchor",
+    "ok": true,
+    "options": {
+      "anchor": "kontakt"
+    }
   }
 ]

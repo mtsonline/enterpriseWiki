@@ -410,7 +410,7 @@ Where search, language, edit mode, notifications, user menu, category tree and t
 
 The wiki checks every value; a sample shows the look at once:
 - a block with a background of its own needs a text colour of its own with enough contrast (4.5:1);
-- text on a picture needs an overlay of at least 50 %;
+- text on a picture needs an overlay; the text colour must be lighter or darker than every part of the picture under it (the same holds for gradients);
 - columns of text need room in every view (each at least 12 rem; on a phone one column).
 
 Links in such a block keep its text colour and are underlined.

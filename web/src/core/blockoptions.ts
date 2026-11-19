@@ -25,6 +25,8 @@ export const optionDef = (id: string): OptionDef | undefined => DEFS.get(id);
 const COLOR = /^#[0-9a-f]{6}$/;
 const ANCHOR = /^[a-z][a-z0-9-]{0,39}$/;
 const FILE = /^\/api\/v1\/(files|media)\/[A-Za-z0-9._-]{1,128}$/;
+/** ids of the interface itself (the skip link jumps to #main …) */
+const RESERVED_ANCHORS = ['main', 'top', 'content', 'app', 'search', 'nav', 'header', 'footer'];
 const LANG = /^[a-z]{2,3}(-[A-Za-z0-9]{2,8})?$/;
 
 /** Whether one value fits its option (type and range), as the server checks it. */
@@ -40,7 +42,7 @@ export function valueOK(def: OptionDef, v: unknown): boolean {
     }
     case 'color': return typeof v === 'string' && COLOR.test(v);
     case 'file': return typeof v === 'string' && FILE.test(v);
-    case 'anchor': return typeof v === 'string' && ANCHOR.test(v);
+    case 'anchor': return typeof v === 'string' && ANCHOR.test(v) && !RESERVED_ANCHORS.includes(v) && !v.startsWith('ew');
     case 'datetime': return typeof v === 'string' && /^\d{4}-\d\d-\d\dT\d\d:\d\d(:\d\d(\.\d+)?)?(Z|[+-]\d\d:\d\d)$/.test(v) && !Number.isNaN(Date.parse(v));
     case 'views': return Array.isArray(v) && v.length <= SCHEMA.views.length && new Set(v).size === v.length && v.every((x) => SCHEMA.views.includes(x as ViewName));
     case 'langs': return Array.isArray(v) && v.length <= SCHEMA.langs_max && new Set(v).size === v.length && v.every((x) => typeof x === 'string' && LANG.test(x));
