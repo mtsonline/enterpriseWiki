@@ -96,7 +96,7 @@ export function surfaces(o: BlockOptions): string[] {
   const overlay = COLOR.test(s('overlay_color')) ? s('overlay_color') : '';
   const alpha = overlay ? (typeof o.overlay_opacity === 'number' ? o.overlay_opacity : 0) / 100 : 0;
   let backs: string[] = [];
-  if (s('bg_image')) backs = overlay && alpha >= 0.5 ? ['#000000', '#ffffff'] : [];
+  if (s('bg_image')) backs = overlay && alpha > 0 ? ['#000000', '#ffffff'] : [];
   else if (gradient && COLOR.test(s('bg_gradient_from')) && COLOR.test(s('bg_gradient_to'))) backs = [0, 1, 2, 3, 4].map((i) => mix(s('bg_gradient_from'), s('bg_gradient_to'), i / 4));
   else if (COLOR.test(s('bg_color'))) backs = [s('bg_color')];
   return backs.map((b) => (alpha > 0 ? mix(b, overlay, alpha) : b));
@@ -124,23 +124,29 @@ export function problems(o: BlockOptions): Problem[] {
   const alpha = overlay ? (typeof o.overlay_opacity === 'number' ? o.overlay_opacity : 0) / 100 : 0;
   let backs: string[] = [];
   if (image) {
-    if (!overlay || alpha < 0.5) out.push({ key: 'bo.p.overlay' });
+    if (!overlay || alpha === 0) out.push({ key: 'bo.p.overlay' });
     else backs = ['#000000', '#ffffff'];
   } else if (gradient && s('bg_gradient_from') && s('bg_gradient_to')) {
     backs = [0, 1, 2, 3, 4].map((i) => mix(s('bg_gradient_from'), s('bg_gradient_to'), i / 4));
   } else if (bg) backs = [bg];
   if (text && !backs.length && o.gradient_text === true) out.push({ key: 'bo.p.gradient_text_bg' });
+  if (alpha > 0 && COLOR.test(overlay)) backs = backs.map((b) => mix(b, overlay, alpha));
+  // a picture or a gradient has every brightness between its ends: the text
+  // must be brighter or darker than all of them, not in between
+  if (COLOR.test(text) && backs.length > 1) {
+    const l = lum(text);
+    const ls = backs.map(lum);
+    if (l >= Math.min(...ls) && l <= Math.max(...ls)) out.push({ key: 'bo.p.between', values: { color: text, from: backs[0], to: backs[backs.length - 1] } });
+  }
   if (COLOR.test(text)) {
-    for (let b of backs) {
-      if (alpha > 0 && COLOR.test(overlay)) b = mix(b, overlay, alpha);
+    for (const b of backs) {
       const c = contrast(text, b);
       if (c < min) { out.push({ key: 'bo.p.contrast', values: { color: text, on: b, value: c.toFixed(2), min } }); break; }
     }
     if (o.gradient_text === true) {
       for (const g of [s('bg_gradient_from'), s('bg_gradient_to')]) {
         if (!g) { out.push({ key: 'bo.p.gradient' }); break; }
-        for (let b of backs) {
-          if (alpha > 0 && COLOR.test(overlay)) b = mix(b, overlay, alpha);
+        for (const b of backs) {
           const c = contrast(g, b);
           if (c < min) { out.push({ key: 'bo.p.contrast', values: { color: g, on: b, value: c.toFixed(2), min } }); break; }
         }

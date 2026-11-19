@@ -8,9 +8,10 @@ import cases from '../../../internal/content/testdata/blockoptions_cases.json';
 
 test('the browser decides like the server (shared cases)', () => {
   assert.ok(cases.length >= 20);
-  for (const c of cases as { name: string; ok: boolean; options: BlockOptions }[]) {
+  for (const c of cases as { name: string; ok: boolean; problem?: string; options: BlockOptions }[]) {
     const ps = problems(c.options);
     assert.equal(ps.length === 0, c.ok, `${c.name}: ${JSON.stringify(ps)}`);
+    if (c.problem) assert.ok(ps.some((p) => p.key === `bo.p.${c.problem}`), `${c.name}: want ${c.problem}, got ${JSON.stringify(ps)}`);
   }
 });
 
