@@ -41,5 +41,12 @@
  "limit.core.template.count.help": "How many templates of data can be stored (without the trash).",
  "limit.core.template.versions": "Versions per template",
  "limit.core.template.versions.help": "How many earlier versions of a template of data are kept; older ones are removed.",
- "limits.group.templates": "Templates"
+ "limits.group.templates": "Templates",
+ "template.versions": "Versions",
+ "template.versions_help": "Take an earlier version into the text above; it becomes a new version when you save.",
+ "template.version_line": "Version {version}, {date}",
+ "template.version_current": "(current)",
+ "template.version_take": "Take into the text",
+ "template.version_take_named": "Take version {version} into the text",
+ "template.version_taken": "Version {version} is in the text. Save to use it."
 }

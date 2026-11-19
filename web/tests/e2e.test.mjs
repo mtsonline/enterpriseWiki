@@ -2525,11 +2525,15 @@ test('templates of data: copy, check while typing, save, use for the site; deskt
     const saved = page.waitForResponse((r) => r.url().endsWith(`/api/v1/x/core.template/templates/${key}`) && r.request().method() === 'PUT');
     await page.getByRole('button', { name: /^(save|speichern)$/i }).click();
     assert.equal((await saved).status(), 200);
-    // use it for the site
+    // the versions: the saved one is current, the first can be taken back into the text
+    await page.locator('.ewd-versions li', { hasText: /version 2/i }).getByText(/current|aktuell/i).waitFor();
+    await page.getByRole('button', { name: /^(take version 1 into the text|version 1 in den text übernehmen)$/i }).click();
+    assert.ok(!(await text.inputValue()).includes('#7a1f5c'), 'version 1 is in the text');
+    // use it for the site (the page loads again)
     await page.getByRole('button', { name: /^(← all templates|← alle templates)$/i }).click();
+    const reloaded = page.waitForEvent('load');
     await page.getByRole('button', { name: /^(use for the site|für die website verwenden): (copy of wiki \(data\)|kopie von wiki \(daten\))$/i }).click();
-    await page.waitForLoadState('load');
-    await page.waitForTimeout(800);
+    await reloaded;
     await page.goto(`${BASE}/`);
     await idle();
     assert.ok(await page.evaluate((k) => document.body.classList.contains(`ewd-${k}`), String(key)), 'the template of data is used');
