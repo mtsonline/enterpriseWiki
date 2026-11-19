@@ -1,7 +1,7 @@
 // Styles of the standard macros (rendered on the server) and the lightbox
 // of the image gallery.
 import './style.css';
-import { button, h, openDialog, registerWidget, t, textInput, uid } from '@ewiki/coreplugin';
+import { button, h, openDialog, registerWidget, rerender, t, textInput, uid, uploadDialog } from '@ewiki/coreplugin';
 
 function lightbox(links: HTMLAnchorElement[], start: number): void {
   let i = start;
@@ -69,6 +69,14 @@ function pageTreeFilter(box: HTMLElement): void {
 
 export function register(): void {
   registerWidget('core.macros.pagetree', pageTreeFilter);
+  // the attachments list: upload a file into its category (the server shows
+  // the button only to people who may add files there and checks it again)
+  registerWidget('core.macros.upload', (box) => {
+    const cat = Number(box.dataset.category) || 0;
+    box.append(button(t('attachments.upload'), async () => {
+      if (await uploadDialog({ categoryId: cat })) rerender();
+    }, { variant: 'secondary' }));
+  });
   document.addEventListener('click', (ev) => {
     const a = (ev.target as Element | null)?.closest?.('a[data-ew-lightbox]') as HTMLAnchorElement | null;
     if (!a || ev.ctrlKey || ev.metaKey || ev.shiftKey) return;

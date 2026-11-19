@@ -30,7 +30,14 @@ const nodes: Record<string, NodeSpec> = {
   horizontal_rule: { group: 'block', parseDOM: [{ tag: 'hr' }], toDOM: () => ['hr'] },
   code_block: {
     group: 'block', content: 'text*', marks: '', code: true, defining: true, attrs: { params: { default: '' } },
-    parseDOM: [{ tag: 'pre', preserveWhitespace: 'full' }],
+    // the info ("go lines") from the editor (data-lang) or from rendered HTML (class language-go, data-lines)
+    parseDOM: [{ tag: 'pre', preserveWhitespace: 'full', getAttrs: (d) => {
+      const pre = d as HTMLElement;
+      const own = pre.getAttribute('data-lang');
+      if (own) return { params: own };
+      const cls = [...(pre.querySelector('code')?.classList ?? [])].find((c) => c.startsWith('language-'))?.slice(9) ?? '';
+      return { params: [cls || (pre.hasAttribute('data-lines') ? 'text' : ''), pre.hasAttribute('data-lines') ? 'lines' : ''].filter(Boolean).join(' ') };
+    } }],
     toDOM: (n) => ['pre', { 'data-lang': n.attrs.params || null }, ['code', 0]],
   },
   bullet_list: { group: 'block', content: 'list_item+', attrs: { tight: { default: true } }, parseDOM: [{ tag: 'ul' }], toDOM: () => ['ul', 0] },

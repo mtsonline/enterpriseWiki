@@ -104,6 +104,9 @@ func Policy() *bluemonday.Policy {
 	p.AllowAttrs("class").Matching(bluemonday.SpaceSeparatedTokens).Globally()
 	p.AllowAttrs("id").Matching(bluemonday.Paragraph).OnElements("h1", "h2", "h3", "h4", "h5", "h6")
 	p.AllowAttrs("data-type", "data-checked").OnElements("ul", "li")
+	// code blocks: the info of the editor ("go lines") and line numbers
+	p.AllowAttrs("data-lang").Matching(regexp.MustCompile(`^[A-Za-z0-9+#._ -]{0,40}$`)).OnElements("pre")
+	p.AllowAttrs("data-lines").Matching(regexp.MustCompile(`^$`)).OnElements("pre")
 	p.AllowAttrs("type", "checked", "disabled").OnElements("input")
 	p.AllowElements("input", "mark", "figure", "figcaption", "u", "s")
 	// macros: <div data-macro="name" data-params='{"k":"v"}'>body</div>

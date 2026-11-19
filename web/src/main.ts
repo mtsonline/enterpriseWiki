@@ -4,6 +4,7 @@ import { verifyEmailView } from './views/identity';
 import { registerConfirmView, registerView } from './views/register';
 import { resetConfirmView, resetView } from './views/passwordReset';
 import './styles/base.css';
+import './styles/code.css';
 import './editor/editor.css';
 import { mediaView } from './views/media';
 import { signatureVerifyView } from './views/signatures';

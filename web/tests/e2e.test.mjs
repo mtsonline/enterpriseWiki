@@ -2664,6 +2664,53 @@ test('wiki blocks: include a page chosen by title, page tree with filter, search
   await page.getByRole('link', { name: /^(cancel|abbrechen)$/i }).click();
 });
 
+test('code blocks and attachments: colours, line numbers, copy, language in the editor; list of files with upload', async () => {
+  const cat = (await call('POST', '/api/v1/categories', { titles: { en: `Code ${run}` } })).id;
+  const md = (source) => ({ format: 'markdown', source });
+  const code = 'package main\n\nfunc main() {\n\treturn\n}';
+  const el = await call('POST', '/api/v1/elements', { category_id: cat, type: 'core.html', title: `Code ${run}`, body: md('```go lines\n' + code + '\n```\n\n::attachments{source=category}\n') });
+  await page.goto(`${BASE}/e/${el.id}`);
+  await idle();
+  const block = page.locator('.ew-codeblock').first();
+  await block.locator('.hljs-keyword').first().waitFor();
+  assert.equal(await block.locator('.hljs-keyword').first().evaluate((k) => getComputedStyle(k).color), 'rgb(207, 34, 46)');
+  assert.equal(await block.locator('.ew-code-lang').textContent(), 'Go');
+  // line numbers for the eye only
+  assert.equal(await block.locator('.ew-code-gutter').getAttribute('aria-hidden'), 'true');
+  assert.equal((await block.locator('.ew-code-gutter').textContent()).split('\n').length, 5);
+  // copy gives the code alone
+  await page.context().grantPermissions(['clipboard-read', 'clipboard-write'], { origin: BASE });
+  await block.getByRole('button', { name: /^(copy code|code kopieren)$/i }).click();
+  await block.getByRole('button', { name: /^(copied|kopiert)$/i }).waitFor();
+  assert.equal(await page.evaluate(() => navigator.clipboard.readText()), code);
+  // the list of files: empty, then a file uploaded right there
+  const list = page.locator('.ew-attachments');
+  await list.getByText(/^(no files\.|keine dateien\.)$/i).waitFor();
+  await a11y('code block and attachments');
+  await list.getByRole('button', { name: /^(upload a file|datei hochladen)$/i }).click();
+  const dlg = page.locator('dialog[open]').last();
+  await dlg.locator('input[type=file]').setInputFiles({ name: `handbook-${run}.txt`, mimeType: 'text/plain', buffer: Buffer.from('hello') });
+  await dlg.locator('button[type=submit]').click();
+  await list.getByRole('link', { name: `handbook-${run}` }).first().waitFor();
+  await list.getByRole('link', { name: new RegExp(`^(download|herunterladen)\\s*:\\s*handbook-${run}$`, 'i') }).waitFor();
+  await a11y('attachments with a file');
+  // the language of a code block is chosen in the editor
+  await page.goto(`${BASE}/e/${el.id}/edit`);
+  await idle();
+  await page.locator('.ewe-prose pre').click();
+  await page.getByRole('button', { name: /^(language and line numbers|sprache und zeilennummern)$/i }).click();
+  const cd = page.locator('dialog[open]').last();
+  await cd.getByLabel(/^(language|sprache)$/i).selectOption('python');
+  await cd.getByLabel(/^(line numbers|zeilennummern)$/i).uncheck();
+  await a11y('code block settings');
+  await cd.locator('button[type=submit]').click();
+  await page.getByRole('button', { name: /^(publish|veröffentlichen|save|speichern)$/i }).first().click();
+  await page.waitForURL(/\/e\/\d+$/);
+  await idle();
+  await page.locator('.ew-codeblock .ew-code-lang', { hasText: 'Python' }).waitFor();
+  assert.equal(await page.locator('.ew-code-gutter').count(), 0);
+});
+
 test('options of a placed block: background with checked contrast, hidden on the phone, spacing; the wiki shows it', async () => {
   const before = await call('GET', '/api/v1/placements/site');
   try {

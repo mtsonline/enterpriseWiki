@@ -2,6 +2,7 @@
 // inside content, e.g. the interactive part of a workflow element.
 import { hydrateOptionFrames } from './optionframes';
 import { hydrateIcons } from './icons';
+import { hydrateCode } from './codeblocks';
 
 export type WidgetFactory = (el: HTMLElement) => void | Promise<void>;
 
@@ -16,6 +17,7 @@ export function registerWidget(name: string, factory: WidgetFactory): void {
 export function hydrate(root: ParentNode): void {
   hydrateOptionFrames(root);
   hydrateIcons(root);
+  hydrateCode(root);
   root.querySelectorAll<HTMLElement>('[data-ew-widget]').forEach((el) => {
     if (el.dataset.ewHydrated) return;
     const f = widgets.get(el.dataset.ewWidget ?? '');

@@ -342,7 +342,7 @@ func buildDemo(d *demoRun) {
 		d.call(http.MethodPost, "/api/v1/x/core.favorites/", map[string]any{"type": "element", "id": overview}, nil)
 	})
 
-	d.element(start, "core.html", d.tr("Markdown page", "Markdown-Seite"), d.same(map[string]string{"format": "markdown", "source": "## Markdown\n\nPages can also be written in **Markdown**.\n\n| Feature | Status |\n|---|---|\n| Tables | ✓ |\n| Code | ✓ |\n\n```go\nfmt.Println(\"Hello, wiki!\")\n```\n\n- [x] Task done\n- [ ] Task open\n\n> A quote.\n"}), nil)
+	d.element(start, "core.html", d.tr("Markdown page", "Markdown-Seite"), d.same(map[string]string{"format": "markdown", "source": "## Markdown\n\nPages can also be written in **Markdown**.\n\n| Feature | Status |\n|---|---|\n| Tables | ✓ |\n| Code | ✓ |\n\n```go lines\npackage main\n\nimport \"fmt\"\n\nfunc main() {\n\tfmt.Println(\"Hello, wiki!\")\n}\n```\n\n- [x] Task done\n- [ ] Task open\n\n> A quote.\n"}), nil)
 
 	d.page(start, "Website building blocks", "Website-Bausteine",
 		macro("hero", map[string]string{"subtitle": "Sections, hero banners, cards and buttons for website-like pages", "button": "Back to the tour", "link": "/demo" + suffix, "background": "accent"}, "<p>Building blocks</p>")+
@@ -484,12 +484,14 @@ func buildDemo(d *demoRun) {
 				macro("include", map[string]string{"page": id, "excerpt": "true"}, "")+
 				`<h2>Search in this area</h2>`+macro("searchbox", map[string]string{"category": in, "label": "Search in Getting started"}, "")+
 				newpage("New meeting minutes")+
-				`<h2>Pages of this area <span data-macro="anchor" data-params='{"name":"tree"}'></span></h2>`+macro("pagetree", map[string]string{"category": in, "depth": "2"}, ""),
+				`<h2>Pages of this area <span data-macro="anchor" data-params='{"name":"tree"}'></span></h2>`+macro("pagetree", map[string]string{"category": in, "depth": "2"}, "")+
+				`<h2>Files of the media folder</h2>`+macro("attachments", map[string]string{"source": "category", "category": strconv.FormatInt(mediaCat, 10)}, ""),
 			`<p>Zum <a href="#tree">Seitenbaum</a> springen.</p><h2>Aus einer anderen Seite eingebunden</h2><p>Nur der Auszug der Hausordnung, immer im aktuellen Stand:</p>`+
 				macro("include", map[string]string{"page": id, "excerpt": "true"}, "")+
 				`<h2>In diesem Bereich suchen</h2>`+macro("searchbox", map[string]string{"category": in, "label": "In Erste Schritte suchen"}, "")+
 				newpage("Neues Besprechungsprotokoll")+
-				`<h2>Seiten dieses Bereichs <span data-macro="anchor" data-params='{"name":"tree"}'></span></h2>`+macro("pagetree", map[string]string{"category": in, "depth": "2"}, ""), nil)
+				`<h2>Seiten dieses Bereichs <span data-macro="anchor" data-params='{"name":"tree"}'></span></h2>`+macro("pagetree", map[string]string{"category": in, "depth": "2"}, "")+
+				`<h2>Dateien des Medien-Ordners</h2>`+macro("attachments", map[string]string{"source": "category", "category": strconv.FormatInt(mediaCat, 10)}, ""), nil)
 	})
 	// a category with its own website template (the modern website look)
 	d.optional("category-template", func() {

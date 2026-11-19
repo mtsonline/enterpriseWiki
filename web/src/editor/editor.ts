@@ -20,7 +20,8 @@ import { EditorView, type NodeView } from 'prosemirror-view';
 import { announce, toast } from '../core/announce';
 import { h, uid } from '../core/dom';
 import { t } from '../core/i18n';
-import { field, formDialog, select, textArea, textInput } from '../components/ui';
+import { checkbox, field, formDialog, select, textArea, textInput } from '../components/ui';
+import { codeLanguage, codeLanguageOptions, codeLines } from '../core/codeblocks';
 import { isImage, mediaURL, pickMedium } from '../components/media';
 import { prosemirrorToYXmlFragment, redo as yRedo, undo as yUndo, yCursorPlugin, ySyncPlugin, yUndoPlugin, yUndoPluginKey } from 'y-prosemirror';
 import { formatAttrs } from './attrs';
@@ -381,6 +382,7 @@ class TaskItemView implements NodeView {
 const TOOL_NAMES: Record<string, string> = {
   row_before: 'table_edit', row_after: 'table_edit', col_before: 'table_edit', col_after: 'table_edit',
   row_delete: 'table_edit', col_delete: 'table_edit', table_delete: 'table_edit',
+  code_settings: 'block',
 };
 
 interface Tool {
@@ -607,10 +609,29 @@ export function createMarkdownEditor(container: HTMLElement, opts: MarkdownEdito
     { id: 'row_delete', icon: '⊟', key: 'editor.row_delete', run: cmdTool(deleteRow), when: isInTable },
     { id: 'col_delete', icon: '⊠', key: 'editor.col_delete', run: cmdTool(deleteColumn), when: isInTable },
     { id: 'table_delete', icon: '✖', key: 'editor.table_delete', run: cmdTool(deleteTable), when: isInTable },
+    { id: 'code_settings', icon: '{ }', key: 'editor.code_settings', run: (v) => codeSettings(v), when: (st) => st.selection.$from.parent.type === nodes.code_block },
     '|',
     { id: 'undo', icon: '↶', key: 'editor.undo', shortcut: `${mod}+Z`, run: cmdTool(doUndo), enabled: canUndo },
     { id: 'redo', icon: '↷', key: 'editor.redo', shortcut: `${mod}+Shift+Z`, run: cmdTool(doRedo), enabled: canRedo },
   ];
+
+  // language and line numbers of the code block at the cursor
+  function codeSettings(v: EditorView): void {
+    const $from = v.state.selection.$from;
+    if ($from.parent.type !== nodes.code_block) return;
+    const pos = $from.before();
+    const info = String($from.parent.attrs.params ?? '');
+    const lang = codeLanguage(info);
+    const langSel = select([{ value: '', label: t('editor.code_plain') }, ...codeLanguageOptions()], lang);
+    const lines = checkbox(t('editor.code_lines'), codeLines(info), { help: t('editor.code_lines_help') });
+    formDialog(t('editor.code_settings'), [field(t('editor.code_language'), langSel), lines.el], t('common.apply'), async () => {
+      const params = [langSel.value, lines.input.checked ? 'lines' : ''].filter(Boolean).join(' ');
+      // with line numbers but no language the info starts with "text"
+      const next = params.startsWith('lines') ? `text ${params}` : params;
+      v.dispatch(v.state.tr.setNodeMarkup(pos, undefined, { ...$from.parent.attrs, params: next }));
+      v.focus();
+    });
+  }
 
   // block type select (paragraph, headings, code block)
   const blockSel = select([

@@ -85,8 +85,20 @@ func (s *Server) routesMedia() {
 	s.handle("GET /api/v1/media", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		q := r.URL.Query()
 		cat, _ := strconv.ParseInt(q.Get("category"), 10, 64)
+		var usedBy int64
+		if v := q.Get("used_by"); v != "" {
+			id, err := strconv.ParseInt(v, 10, 64)
+			if err != nil || id <= 0 {
+				return nil, apperr.BadRequest("invalid used_by")
+			}
+			// only for a page the caller may see (it says which files the page shows)
+			if _, err := s.app.Content.ElementCategory(r.Context(), id, acl.View); err != nil {
+				return nil, err
+			}
+			usedBy = id
+		}
 		return m().List(r.Context(), media.ListInput{CategoryID: cat, Recursive: q.Get("recursive") == "1", Query: q.Get("q"),
-			Type: q.Get("type"), Limit: qInt(r, "limit"), Offset: qInt(r, "offset")})
+			Type: q.Get("type"), UsedBy: usedBy, Sort: q.Get("sort"), Limit: qInt(r, "limit"), Offset: qInt(r, "offset")})
 	})
 	// action: core.media.upload
 	s.handle("POST /api/v1/media", func(w http.ResponseWriter, r *http.Request) (any, error) {
