@@ -25,6 +25,22 @@
   "content_width_rem": [40, 120],
   "contrast_text": 4.5,
   "contrast_ui": 3,
+  "contrast_pairs_comment": "pairs of tokens shown together; on the header and footer the focus ring has their text color (checked by the header and footer pairs)",
+  "contrast_pairs": [
+    { "fore": "text", "back": "bg", "ui": false, "rule": "1.4.3" },
+    { "fore": "text", "back": "bg_subtle", "ui": false, "rule": "1.4.3" },
+    { "fore": "text_muted", "back": "bg", "ui": false, "rule": "1.4.3" },
+    { "fore": "text_muted", "back": "bg_subtle", "ui": false, "rule": "1.4.3" },
+    { "fore": "link", "back": "bg", "ui": false, "rule": "1.4.3" },
+    { "fore": "link", "back": "bg_subtle", "ui": false, "rule": "1.4.3" },
+    { "fore": "on_primary", "back": "primary", "ui": false, "rule": "1.4.3" },
+    { "fore": "header_text", "back": "header_bg", "ui": false, "rule": "1.4.3" },
+    { "fore": "footer_text", "back": "footer_bg", "ui": false, "rule": "1.4.3" },
+    { "fore": "primary", "back": "bg", "ui": true, "rule": "1.4.11" },
+    { "fore": "border", "back": "bg", "ui": true, "rule": "1.4.11" },
+    { "fore": "focus", "back": "bg", "ui": true, "rule": "2.4.13" },
+    { "fore": "focus", "back": "bg_subtle", "ui": true, "rule": "2.4.13" }
+  ],
   "fonts": ["system", "inter", "source-sans", "serif", "mono"],
   "max_bytes": 65536
 }

@@ -155,6 +155,13 @@ export function setShownTemplate(id: string): void {
   shownTemplate = id;
 }
 
+let previewTpl = '';
+/** A template shown instead of the one that applies, only in this window (the
+ * preview of the template designer). Changes nothing for anybody else. */
+export function setPreviewTemplate(id: string): void { previewTpl = id; }
+/** The template shown instead of the one that applies ('' = none). */
+export function previewTemplate(): string { return previewTpl; }
+
 /** The template in use on this page (with inherited positions): the one of the category, else the site template. */
 export function activeTemplate(): ResolvedTemplate | null {
   return resolveTemplate(shownTemplate || (state.site?.template ?? 'theme.wiki'));

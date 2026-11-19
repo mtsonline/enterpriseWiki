@@ -61,3 +61,35 @@ export function viewOf(d: Design, r: Row, view: ViewName): ViewState {
   return { stack, hidden: [], drawer, widths, auto: true };
 }
 
+
+const HEX = /^#[0-9a-f]{6}$/i;
+const ID = /^[a-z][a-z0-9-]{0,39}$/;
+const COLORS = ['bg', 'bg_subtle', 'text', 'text_muted', 'border', 'primary', 'on_primary', 'link', 'focus', 'header_bg', 'header_text', 'footer_bg', 'footer_text'];
+
+/** Whether every value of a design that goes into CSS or into a selector has
+ * a safe form (colors #rrggbb, ids and positions in lowercase letters,
+ * numbers). The server checks much more on saving; this guards the engine
+ * itself, for example the preview of a draft that is not saved yet. */
+export function cssSafe(d: Design): boolean {
+  if (!d || typeof d !== 'object' || !Array.isArray(d.rows) || !d.tokens || typeof d.tokens !== 'object') return false;
+  const k = d.tokens as unknown as Record<string, unknown>;
+  if (!COLORS.every((c) => typeof k[c] === 'string' && HEX.test(k[c] as string))) return false;
+  if (![k.scale, k.radius, k.content_width].every((n) => typeof n === 'number' && Number.isFinite(n))) return false;
+  if (typeof k.logo !== 'string' || (k.logo !== '' && !/^\/api\/v1\/files\/[A-Za-z0-9._/-]+$/.test(k.logo))) return false;
+  const ok = (s: unknown) => typeof s === 'string' && ID.test(s);
+  const num = (n: unknown) => typeof n === 'number' && Number.isFinite(n);
+  for (const r of d.rows) {
+    if (!r || !ok(r.id) || !Array.isArray(r.blocks)) return false;
+    for (const b of r.blocks) {
+      if (!b || !ok(b.id) || !num(b.width) || !Array.isArray(b.positions) || !b.positions.every(ok)) return false;
+      if (b.after !== undefined && !(Array.isArray(b.after) && b.after.every(ok))) return false;
+    }
+    for (const v of [r.tablet, r.mobile]) {
+      if (!v) continue;
+      if (typeof v !== 'object') return false;
+      if (v.widths !== undefined && !(typeof v.widths === 'object' && Object.entries(v.widths).every(([id, w]) => ok(id) && num(w)))) return false;
+      for (const list of [v.hidden, v.drawer]) if (list !== undefined && !(Array.isArray(list) && list.every(ok))) return false;
+    }
+  }
+  return true;
+}

@@ -7,8 +7,8 @@ import type { LayoutContext, Layout } from '@ewiki/coreplugin';
 import limitsFile from '../limits.json';
 
 export const LIMITS = limitsFile;
-export { positionsRoom, room, needRoom, viewOf, minRem } from './room';
-import { minRem, viewOf } from './room';
+export { positionsRoom, room, needRoom, viewOf, minRem, cssSafe } from './room';
+import { cssSafe, minRem, viewOf } from './room';
 
 export type ViewName = 'desktop' | 'tablet' | 'mobile';
 export const VIEWS: ViewName[] = ['desktop', 'tablet', 'mobile'];
@@ -57,6 +57,8 @@ export function classOf(id: string): string {
 export function designCSS(d: Design, cls: string): string {
   const k = d.tokens;
   const s = `body.${cls}`;
+  // nothing but values of a safe form goes into the CSS (see cssSafe)
+  if (!cssSafe(d)) return '';
   const font = (f: string) => FONTS[f] ?? FONTS.system;
   const out: string[] = [];
   out.push(`html:has(${s}) { font-size: ${Number(k.scale)}%; }`);
@@ -142,7 +144,7 @@ export function buildLayout(d: Design, ctx: LayoutContext): Layout {
       const label = pick(b.label);
       const tag = b.kind === 'content' ? 'div' : b.role === 'navigation' ? 'nav' : b.role === 'complementary' ? 'aside' : b.role === 'region' ? 'section' : 'div';
       const el = h(tag, {
-        id: `ewd-${b.id}`, class: ['ewd-block', `ewd-block--${b.kind}`, `ewd-layout--${b.layout}`, `ewd-align--${b.align}`], 'data-block': b.id,
+        id: `ewd-${b.id}`, class: ['ewd-block', `ewd-block--${b.kind}`, `ewd-layout--${b.layout}`, `ewd-align--${b.align}`], 'data-block': b.id, 'data-role': b.role,
         'aria-label': tag !== 'div' && label ? label : undefined,
       }, ...kids);
       // a block that can be a drawer in some view gets its button (shown only there)

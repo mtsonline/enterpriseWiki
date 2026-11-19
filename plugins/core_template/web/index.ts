@@ -2,14 +2,16 @@
 // be used are loaded and registered like the templates of code; the page is
 // built from them by the engine (engine.ts). The administration page
 // "Templates" lists all templates (code and data) and manages those of data:
-// copy, change (as text for now; the visual designer follows), trash,
+// copy, change (visual designer and text, designer.ts), trash,
 // export and import.
 import {
-  api, button, fmtDate, uiLang, confirmDialog, errorText, field, h, hasPerm, langFields, listTemplates, registerAdminPage, registerTemplate,
-  state, t, templateLabel, textArea, toast,
+  api, button, confirmDialog, errorText, field, h, hasPerm, listTemplates, registerAdminPage, registerTemplate,
+  state, t, templateLabel, toast,
 } from '@ewiki/coreplugin';
 import './style.css';
 import { buildLayout, classOf, designCSS, type Design } from './engine';
+import { designer } from './designer';
+import { setupPreview } from './preview';
 
 const BASE = 'x/core.template';
 
@@ -40,6 +42,8 @@ export async function register(): Promise<void> {
   registerAdminPage({ id: 'templates', label: () => t('template.admin_title'), permission: 'core.template.design', order: 35, render: adminPage });
   const list = await api.get<Tpl[]>(`${BASE}/designs`);
   for (const tpl of list) addDesign(tpl);
+  // the frame of the designer's preview shows its draft instead
+  setupPreview();
 }
 
 // ---------------------------------------------------------------- administration
@@ -62,7 +66,7 @@ async function adminPage(panel: HTMLElement): Promise<void> {
       for (const [l, v] of Object.entries(x.names)) names[l] = t('template.copy_of', { name: v });
       const c = await api.post<Tpl>(`${BASE}/templates`, { names, copy_of: x.id });
       toast(t('template.copied', { name: pick(c.names) }));
-      void editor(panel, c.key, reload);
+      void designer(panel, c.key, reload, addDesign);
     } catch (e) { toast(errorText(e), 'error'); }
   };
   const exportFile = async (x: Tpl) => {
@@ -98,7 +102,7 @@ async function adminPage(panel: HTMLElement): Promise<void> {
         h('thead', null, h('tr', null, ...['template.col_name', 'template.col_kind', 'template.col_id', 'common.actions'].map((k) => h('th', { scope: 'col' }, t(k))))),
         h('tbody', null,
           ...data.map((x) => row(pick(x.names), x.read_only ? t('template.kind_shipped') : t('template.kind_data'), x.id, [
-            x.read_only ? null : button(t('common.edit'), () => void editor(panel, x.key, reload), { variant: 'primary', ariaLabel: named(t('common.edit'), pick(x.names)) }),
+            x.read_only ? null : button(t('common.edit'), () => void designer(panel, x.key, reload, addDesign), { variant: 'primary', ariaLabel: named(t('common.edit'), pick(x.names)) }),
             button(t('common.duplicate'), () => void copy(x), { ariaLabel: named(t('common.duplicate'), pick(x.names)) }),
             button(t('template.export'), () => void exportFile(x), { ariaLabel: named(t('template.export'), pick(x.names)) }),
             canSite && x.id !== site ? button(t('template.use_for_site'), () => void useForSite(x.id), { ariaLabel: named(t('template.use_for_site'), pick(x.names)) }) : null,
@@ -126,81 +130,3 @@ async function adminPage(panel: HTMLElement): Promise<void> {
   ].filter((n): n is HTMLElement => !!n));
 }
 
-/** Changing a template: names and the design as text, checked while typing
- * (the same check as on saving). The visual designer follows. */
-async function editor(panel: HTMLElement, key: string, back: () => void): Promise<void> {
-  const { template: tpl, used_by: used } = await api.get<{ template: Tpl; used_by: string[] }>(`${BASE}/templates/${key}`);
-  let version = tpl.version;
-  const names = langFields(t('template.name'), tpl.names, { required: true });
-  const text = textArea({ value: JSON.stringify(tpl.design, null, 2), rows: 28 });
-  text.classList.add('ewd-json');
-  text.spellcheck = false;
-  const problems = h('div', { class: 'ewd-problems', role: 'status', 'aria-live': 'polite' });
-  let timer = 0;
-  const check = async () => {
-    let design: unknown;
-    try { design = JSON.parse(text.value); } catch (e) {
-      problems.replaceChildren(h('p', { class: 'ew-form-alert' }, t('template.not_json_detail', { error: String((e as Error).message) })));
-      return false;
-    }
-    const r = await api.post<{ problems: { where: string; text: string }[] }>(`${BASE}/check`, { design });
-    problems.replaceChildren(r.problems.length
-      ? h('div', { class: 'ew-form-alert' }, h('p', null, t('template.problems', { n: r.problems.length })),
-        h('ul', null, ...r.problems.map((p) => h('li', null, h('strong', null, p.where), ': ', p.text))))
-      : h('p', { class: 'ew-ok' }, t('template.no_problems')));
-    return r.problems.length === 0;
-  };
-  text.addEventListener('input', () => { clearTimeout(timer); timer = window.setTimeout(() => void check(), 600); });
-  const save = button(t('common.save'), () => void (async () => {
-    if (!(await check())) { text.focus(); return; }
-    try {
-      const r = await api.put<Tpl>(`${BASE}/templates/${key}`, { names: names.get(), design: JSON.parse(text.value), version });
-      version = r.version;
-      if (r.design) addDesign(r);
-      toast(t('template.saved', { version: r.version }));
-      void showVersions();
-    } catch (e) { toast(errorText(e), 'error'); }
-  })(), { variant: 'primary' });
-  // the saved versions; one can be taken into the text and saved again
-  const versionsBox = h('section', { 'aria-labelledby': 'ewd-versions-h' });
-  const showVersions = async () => {
-    const vs = await api.get<{ version: number; design: unknown; created_at: string }[]>(`${BASE}/templates/${key}/versions`);
-    versionsBox.replaceChildren(h('h2', { id: 'ewd-versions-h' }, t('template.versions')),
-      h('p', { class: 'ew-help' }, t('template.versions_help')),
-      h('ul', { class: 'ewd-versions' }, ...vs.map((v) => h('li', null,
-        t('template.version_line', { version: v.version, date: fmtDate(v.created_at, uiLang()) }), ' ',
-        v.version === version ? h('span', { class: 'ew-help' }, t('template.version_current'))
-          : button(t('template.version_take'), () => {
-            text.value = JSON.stringify(v.design, null, 2);
-            void check();
-            toast(t('template.version_taken', { version: v.version }));
-            text.focus();
-          }, { variant: 'subtle', ariaLabel: t('template.version_take_named', { version: v.version }) })))));
-  };
-  void showVersions();
-  // the limits, as the server checks them (for writing the text)
-  const limitsBox = h('details', { class: 'ewd-limits' });
-  void (async () => {
-    type V = { min_px: number; content_min_rem: number };
-    const l = await api.get<{ views: Record<string, V>; block_min_rem: Record<string, number>; block_max_rem: number; max_rows: number; max_blocks_per_row: number; max_blocks: number; max_positions: number; contrast_text: number; contrast_ui: number; fonts: string[] }>(`${BASE}/limits`);
-    limitsBox.replaceChildren(h('summary', null, t('template.limits')), h('ul', null,
-      ...(['desktop', 'tablet', 'mobile'] as const).map((v) => h('li', null, t('template.limit_view', { view: t(`template.view_${v}`), px: l.views[v].min_px, rem: l.views[v].content_min_rem }))),
-      h('li', null, t('template.limit_blocks', { min: l.block_min_rem.area, max: l.block_max_rem })),
-      h('li', null, t('template.limit_counts', { rows: l.max_rows, per_row: l.max_blocks_per_row, blocks: l.max_blocks, positions: l.max_positions })),
-      h('li', null, t('template.limit_contrast', { text: l.contrast_text, ui: l.contrast_ui })),
-      h('li', null, t('template.limit_fonts', { list: l.fonts.join(', ') }))));
-  })();
-  panel.replaceChildren(...([
-    h('p', null, button(t('template.back'), back, { variant: 'subtle' })),
-    h('h1', null, t('template.edit_named', { name: pick(tpl.names) })),
-    used.length ? h('p', { class: 'ew-help' }, t('template.used_by', { list: used.join(', ') })) : null,
-    h('form', { class: 'ew-form', novalidate: true, onsubmit: (ev: Event) => ev.preventDefault() },
-      names.el,
-      field(t('template.design_text'), text, { help: t('template.design_text_help') }),
-      problems,
-      limitsBox,
-      h('div', { class: 'ew-actions' }, save)),
-    versionsBox,
-  ] as (HTMLElement | null)[]).filter((n): n is HTMLElement => !!n));
-  void check();
-}

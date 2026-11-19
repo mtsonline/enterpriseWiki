@@ -18,7 +18,7 @@ import { rememberedLang, state, stored } from './core/state';
 import type { Principal, Site } from './core/types';
 import { categoryTree, ctx, currentSpace, setSpace, editToggle, languageSwitcher, searchBox, userMenu } from './components/widgets';
 import { pluginModules } from './generated/plugins';
-import { positionContainer, refreshPositions, registerAdminPage, registerPageAction, registerProfileSection, registerSlot, registerTemplate, resolveTemplate, setShownTemplate } from './coreplugin';
+import { positionContainer, refreshPositions, registerAdminPage, registerPageAction, registerProfileSection, registerSlot, registerTemplate, previewTemplate, resolveTemplate, setShownTemplate } from './coreplugin';
 import { instanceRightsButton } from './components/instanceRights';
 import { instanceLabelsButton } from './components/instanceLabels';
 import { placementEditor } from './components/placement';
@@ -137,7 +137,7 @@ async function boot(): Promise<void> {
     }
   }
   if (waits.length) await Promise.race([Promise.allSettled(waits), new Promise((res) => { setTimeout(res, 4000); })]);
-  let tpl = resolveTemplate(state.site.template) ?? resolveTemplate('core.basic')!;
+  let tpl = resolveTemplate(previewTemplate() || state.site.template) ?? resolveTemplate('core.basic')!;
   setShownTemplate(tpl.id);
   document.body.classList.add('ew', ...tpl.classNames);
   const build = () => {
@@ -151,7 +151,7 @@ async function boot(): Promise<void> {
   // Categories may have their own template: after the page is rendered, the
   // skeleton is rebuilt with it and the page content moved over (not re-rendered).
   const useTemplate = (id: string) => {
-    const next = resolveTemplate(id) ?? resolveTemplate(state.site.template);
+    const next = resolveTemplate(previewTemplate() || id) ?? resolveTemplate(state.site.template);
     if (!next || next.id === tpl.id) return;
     document.body.classList.remove(...tpl.classNames);
     tpl = next;

@@ -37,7 +37,19 @@
             "top-bar"
           ],
           "layout": "row",
-          "align": "center"
+          "align": "start"
+        },
+        {
+          "id": "tools",
+          "kind": "area",
+          "role": "none",
+          "width": 0,
+          "positions": [
+            "header-tools"
+          ],
+          "layout": "row",
+          "align": "end",
+          "fit": true
         }
       ]
     },
@@ -72,18 +84,6 @@
           ],
           "layout": "row",
           "align": "center"
-        },
-        {
-          "id": "tools",
-          "kind": "area",
-          "role": "none",
-          "width": 0,
-          "positions": [
-            "header-tools"
-          ],
-          "layout": "row",
-          "align": "end",
-          "fit": true
         }
       ],
       "tablet": {
