@@ -2497,8 +2497,9 @@ test('category display: table with a property column, accordion, tabs with the k
   assert.ok(intro.id > 0);
 });
 
-test('templates of data: copy, check while typing, save, use for the site; desktop, tablet and phone without sideways scrolling, drawers', async () => {
+test('templates of data: copy, check while typing, save, versions, use for the site, export, import, trash; desktop, tablet and phone without sideways scrolling, drawers', async () => {
   const before = (await call('GET', '/api/v1/admin/settings')).config;
+  const imports = [];
   let key = '';
   try {
     await page.goto(`${BASE}/admin/templates`);
@@ -2522,6 +2523,9 @@ test('templates of data: copy, check while typing, save, use for the site; deskt
     design.tokens.primary = '#7a1f5c';
     await text.fill(JSON.stringify(design, null, 2));
     await page.getByText(/^(no problems|keine probleme)/i).waitFor();
+    // the limits, as the server checks them
+    await page.locator('.ewd-limits summary').click();
+    await page.locator('.ewd-limits').getByText(/36 rem/).waitFor();
     const saved = page.waitForResponse((r) => r.url().endsWith(`/api/v1/x/core.template/templates/${key}`) && r.request().method() === 'PUT');
     await page.getByRole('button', { name: /^(save|speichern)$/i }).click();
     assert.equal((await saved).status(), 200);
@@ -2565,9 +2569,37 @@ test('templates of data: copy, check while typing, save, use for the site; deskt
     } finally {
       if (size) await page.setViewportSize(size);
     }
+    // export a template, import the file, to the trash, restore, delete for good
+    await page.goto(`${BASE}/admin/templates`);
+    await page.locator('.ew-admin-panel h1').waitFor();
+    const download = page.waitForEvent('download');
+    await page.getByRole('button', { name: /^(export|exportieren): (website \(data\)|website \(daten\))$/i }).click();
+    const exported = readFileSync(await (await download).path(), 'utf8');
+    assert.match(exported, /"format": "ewiki-template"/);
+    const imported = page.waitForResponse((r) => r.url().endsWith('/api/v1/x/core.template/templates/import') && r.request().method() === 'POST');
+    await page.getByLabel(/^(template file \(json\)|template-datei \(json\))$/i).setInputFiles({ name: 'website.template.json', mimeType: 'application/json', buffer: Buffer.from(exported) });
+    const importedKey = (await (await imported).json()).key;
+    imports.push(importedKey);
+    const del = page.getByRole('button', { name: /^(delete|löschen): (website \(data\)|website \(daten\))$/i });
+    await del.click();
+    await page.locator('dialog[open]').getByRole('button', { name: /^(delete|löschen)$/i }).click();
+    await page.getByRole('button', { name: /^(restore|wiederherstellen): (website \(data\)|website \(daten\))$/i }).click();
+    await del.click();
+    await page.locator('dialog[open]').getByRole('button', { name: /^(delete|löschen)$/i }).click();
+    const purged = page.waitForResponse((r) => r.url().includes(`/templates/${importedKey}?purge=1`));
+    await page.getByRole('button', { name: /^(delete permanently|endgültig löschen): (website \(data\)|website \(daten\))$/i }).click();
+    await page.locator('dialog[open]').getByRole('button', { name: /^(delete permanently|endgültig löschen)$/i }).click();
+    assert.equal((await purged).status(), 204);
+    await page.getByRole('button', { name: /^(restore|wiederherstellen): (website \(data\)|website \(daten\))$/i }).waitFor({ state: 'detached' });
+    imports.length = 0;
   } finally {
     await call('PUT', '/api/v1/admin/settings', { ui: before.ui });
     if (key) await call('DELETE', `/api/v1/x/core.template/templates/${key}`);
+    for (const k of imports) {
+      // to the trash first (it may be there already), then for good
+      await call('DELETE', `/api/v1/x/core.template/templates/${k}`).catch(() => {});
+      await call('DELETE', `/api/v1/x/core.template/templates/${k}?purge=1`).catch(() => {});
+    }
   }
 });
 

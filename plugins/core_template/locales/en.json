@@ -48,5 +48,14 @@
  "template.version_current": "(current)",
  "template.version_take": "Take into the text",
  "template.version_take_named": "Take version {version} into the text",
- "template.version_taken": "Version {version} is in the text. Save to use it."
+ "template.version_taken": "Version {version} is in the text. Save to use it.",
+ "template.limits": "Limits",
+ "template.view_desktop": "Desktop",
+ "template.view_tablet": "Tablet",
+ "template.view_mobile": "Phone",
+ "template.limit_view": "{view} (from {px} px): the content needs at least {rem} rem.",
+ "template.limit_blocks": "A block beside others is between {min} and {max} rem wide.",
+ "template.limit_counts": "At most {rows} rows, {per_row} blocks per row, {blocks} blocks and {positions} positions.",
+ "template.limit_contrast": "Contrast at least {text}:1 for text, {ui}:1 for controls and focus.",
+ "template.limit_fonts": "Fonts: {list}."
 }

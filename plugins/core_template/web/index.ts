@@ -178,6 +178,18 @@ async function editor(panel: HTMLElement, key: string, back: () => void): Promis
           }, { variant: 'subtle', ariaLabel: t('template.version_take_named', { version: v.version }) })))));
   };
   void showVersions();
+  // the limits, as the server checks them (for writing the text)
+  const limitsBox = h('details', { class: 'ewd-limits' });
+  void (async () => {
+    type V = { min_px: number; content_min_rem: number };
+    const l = await api.get<{ views: Record<string, V>; block_min_rem: Record<string, number>; block_max_rem: number; max_rows: number; max_blocks_per_row: number; max_blocks: number; max_positions: number; contrast_text: number; contrast_ui: number; fonts: string[] }>(`${BASE}/limits`);
+    limitsBox.replaceChildren(h('summary', null, t('template.limits')), h('ul', null,
+      ...(['desktop', 'tablet', 'mobile'] as const).map((v) => h('li', null, t('template.limit_view', { view: t(`template.view_${v}`), px: l.views[v].min_px, rem: l.views[v].content_min_rem }))),
+      h('li', null, t('template.limit_blocks', { min: l.block_min_rem.area, max: l.block_max_rem })),
+      h('li', null, t('template.limit_counts', { rows: l.max_rows, per_row: l.max_blocks_per_row, blocks: l.max_blocks, positions: l.max_positions })),
+      h('li', null, t('template.limit_contrast', { text: l.contrast_text, ui: l.contrast_ui })),
+      h('li', null, t('template.limit_fonts', { list: l.fonts.join(', ') }))));
+  })();
   panel.replaceChildren(...([
     h('p', null, button(t('template.back'), back, { variant: 'subtle' })),
     h('h1', null, t('template.edit_named', { name: pick(tpl.names) })),
@@ -186,6 +198,7 @@ async function editor(panel: HTMLElement, key: string, back: () => void): Promis
       names.el,
       field(t('template.design_text'), text, { help: t('template.design_text_help') }),
       problems,
+      limitsBox,
       h('div', { class: 'ew-actions' }, save)),
     versionsBox,
   ] as (HTMLElement | null)[]).filter((n): n is HTMLElement => !!n));
