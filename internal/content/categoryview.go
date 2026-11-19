@@ -2,6 +2,7 @@ package content
 
 import (
 	"context"
+	"regexp"
 	"slices"
 	"strconv"
 	"time"
@@ -33,10 +34,28 @@ type CategoryDisplay struct {
 	Subcategories bool `json:"subcategories"`
 	// Excerpt: the beginning of the text of each page
 	Excerpt bool `json:"excerpt"`
+	// Columns: further columns of the table (keys a plugin offers, e.g.
+	// properties; shown only where the reader may see them)
+	Columns []string `json:"columns,omitempty"`
+	// Date: the date of the timeline, updated or created
+	Date string `json:"date,omitempty"`
 }
 
-// DisplayViews are the views of the overview of a category.
-var DisplayViews = []string{"list", "cards", "tiles", "tree", "handbook"}
+// DisplayViews are the views of the overview of a category: list, cards,
+// tiles, tree, handbook, table (sortable, with columns of plugins),
+// accordion and tabs (the pages to open), az (index by the first letter),
+// timeline (by date) and all (the pages in full one below the other).
+var DisplayViews = []string{"list", "cards", "tiles", "tree", "handbook", "table", "accordion", "tabs", "az", "timeline", "all"}
+
+// FullViews show the whole content of their pages: at most
+// core.categories.full per page.
+var FullViews = []string{"accordion", "tabs", "all"}
+
+// DisplayDates are the dates of the timeline.
+var DisplayDates = []string{"updated", "created"}
+
+// columnRe is a key of a column (as the keys of properties).
+var columnRe = regexp.MustCompile(`^[a-z0-9][a-z0-9_.-]{0,63}$`)
 
 // DisplaySorts are the orders of the overview of a category.
 var DisplaySorts = []string{"manual", "title", "updated", "created"}
@@ -44,7 +63,7 @@ var DisplaySorts = []string{"manual", "title", "updated", "created"}
 // DefaultDisplay is the display when no category above chose one: the list
 // as before.
 func DefaultDisplay() CategoryDisplay {
-	return CategoryDisplay{View: "list", Sort: "manual", Excerpt: true}
+	return CategoryDisplay{View: "list", Sort: "manual", Excerpt: true, Date: "updated"}
 }
 
 func cleanDisplay(d CategoryDisplay) (CategoryDisplay, error) {
@@ -63,6 +82,27 @@ func cleanDisplay(d CategoryDisplay) (CategoryDisplay, error) {
 	if d.PageSize < 0 || d.PageSize > 1000 {
 		return d, apperr.BadRequest("display.page_size: between 0 (as the expert setting) and 1000")
 	}
+	if d.Date == "" {
+		d.Date = "updated"
+	}
+	if !slices.Contains(DisplayDates, d.Date) {
+		return d, apperr.BadRequest("display.date: one of %v", DisplayDates)
+	}
+	if len(d.Columns) > 12 {
+		return d, apperr.BadRequest("display.columns: at most 12")
+	}
+	seen := map[string]bool{}
+	cols := []string{}
+	for _, c := range d.Columns {
+		if !columnRe.MatchString(c) {
+			return d, apperr.BadRequest("display.columns: %q is no key", c)
+		}
+		if !seen[c] {
+			seen[c] = true
+			cols = append(cols, c)
+		}
+	}
+	d.Columns = cols
 	return d, nil
 }
 
@@ -124,6 +164,20 @@ func (s *Service) CategoryOverview(ctx context.Context, id int64, lang string, p
 	size := int(limits.Value(s.cfg.Get(), limits.CategoryPageSize))
 	if d.PageSize > 0 && d.PageSize < size {
 		size = d.PageSize
+	}
+	// whole pages: fewer at once
+	if slices.Contains(FullViews, d.View) {
+		size = min(size, int(limits.Value(s.cfg.Get(), limits.CategoryFull)))
+	}
+	// the index goes by title, the timeline by its date (newest first)
+	switch d.View {
+	case "az":
+		d.Sort = "title"
+	case "timeline":
+		d.Sort = d.Date
+		if d.Sort == "" {
+			d.Sort = "updated"
+		}
 	}
 	page = max(page, 1)
 	p := identity.From(ctx)

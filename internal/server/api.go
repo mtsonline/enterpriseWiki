@@ -887,7 +887,8 @@ func (s *Server) routes() {
 	// action: core.elements.batch
 	s.handle("GET /api/v1/elements/batch", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		q := r.URL.Query()
-		max := limits.Value(s.app.Config.Get(), limits.CategoryFeatured)
+		// enough for the featured pages and for the whole pages of an overview
+		max := max(limits.Value(s.app.Config.Get(), limits.CategoryFeatured), limits.Value(s.app.Config.Get(), limits.CategoryFull))
 		ids := []int64{}
 		for _, part := range strings.Split(q.Get("ids"), ",") {
 			if part = strings.TrimSpace(part); part == "" {
@@ -902,7 +903,7 @@ func (s *Server) routes() {
 			}
 		}
 		if int64(len(ids)) > max {
-			return nil, apperr.BadRequest("at most %d ids (expert setting %s)", max, limits.CategoryFeatured)
+			return nil, apperr.BadRequest("at most %d ids (expert settings %s and %s)", max, limits.CategoryFeatured, limits.CategoryFull)
 		}
 		ctx := r.Context()
 		items := []*content.ElementView{}

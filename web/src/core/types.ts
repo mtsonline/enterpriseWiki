@@ -124,7 +124,11 @@ export interface Category {
 
 /** How a category page shows its pages (inherited until a subcategory chooses its own). */
 export interface CategoryDisplay {
-  view: 'list' | 'cards' | 'tiles' | 'tree' | 'handbook';
+  view: 'list' | 'cards' | 'tiles' | 'tree' | 'handbook' | 'table' | 'accordion' | 'tabs' | 'az' | 'timeline' | 'all';
+  /** further columns of the table (keys of plugins, e.g. properties) */
+  columns?: string[];
+  /** the date of the timeline */
+  date?: 'updated' | 'created';
   sort: 'manual' | 'title' | 'updated' | 'created';
   /** pages per page (0 = the expert setting) */
   page_size: number;

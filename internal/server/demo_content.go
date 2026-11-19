@@ -872,6 +872,31 @@ func buildDemo(d *demoRun) {
 			d.page(cards, x[0], x[1], x[2], x[3], map[string]any{"position": i})
 		}
 		d.call(http.MethodPut, fmt.Sprintf("/api/v1/categories/%d/settings", cards), map[string]any{"display": map[string]any{"view": "cards", "excerpt": true}}, nil)
+		// short pages all on one page, and pages with properties as a table
+		one := d.category(root, "All on one page", "Alles auf einer Seite",
+			"Short pages one below the other, no click needed.",
+			"Kurze Seiten untereinander, ohne Klick.", nil)
+		for i, x := range [][4]string{
+			{"Opening hours", "Öffnungszeiten", "<p>Monday to Friday, 8:00 to 17:00.</p>", "<p>Montag bis Freitag, 8:00 bis 17:00 Uhr.</p>"},
+			{"Address", "Adresse", "<p>Example Street 1, 1010 Vienna</p>", "<p>Beispielstraße 1, 1010 Wien</p>"},
+			{"Parking", "Parken", "<p>Parking in the yard, entrance from the side street.</p>", "<p>Parkplätze im Hof, Einfahrt über die Seitengasse.</p>"},
+		} {
+			d.page(one, x[0], x[1], x[2], x[3], map[string]any{"position": i})
+		}
+		d.call(http.MethodPut, fmt.Sprintf("/api/v1/categories/%d/settings", one), map[string]any{"display": map[string]any{"view": "all"}}, nil)
+		rooms := d.category(root, "Rooms as a table", "Räume als Tabelle",
+			"The pages with their properties as a sortable table.",
+			"Die Seiten mit ihren Eigenschaften als sortierbare Tabelle.", nil)
+		for i, x := range [][5]string{
+			{"Meeting room Danube", "Besprechungsraum Donau", "12", "<p>With projector and video conferencing.</p>", "<p>Mit Beamer und Videokonferenz.</p>"},
+			{"Meeting room Inn", "Besprechungsraum Inn", "6", "<p>Small room for quick meetings.</p>", "<p>Kleiner Raum für kurze Besprechungen.</p>"},
+			{"Hall", "Saal", "80", "<p>For events and training.</p>", "<p>Für Veranstaltungen und Schulungen.</p>"},
+		} {
+			id := d.page(rooms, x[0], x[1], x[3], x[4], map[string]any{"position": i})
+			d.call(http.MethodPut, fmt.Sprintf("/api/v1/x/core.properties/elements/%d", id), map[string]any{
+				"values": map[string]any{"seats": x[2]}, "free": map[string]any{"seats": map[string]any{"type": "number", "label": "Seats"}}}, nil)
+		}
+		d.call(http.MethodPut, fmt.Sprintf("/api/v1/categories/%d/settings", rooms), map[string]any{"display": map[string]any{"view": "table", "columns": []string{"seats"}}}, nil)
 	})
 
 	// ---- outside the tree: a menu, a text block and a carousel

@@ -827,6 +827,29 @@ export function registerPageAction(a: PageAction): void {
   registerSlot({ id: a.id, kind: 'element', position: 'element-toolbar', order: 100 + (a.order ?? 50), label: a.label ?? (() => a.id), render: (_p, _k, ctx) => (ctx?.target ? a.render(ctx.target) : null) });
 }
 
+/** Further columns for the table of a category overview (the view
+ * "table"), e.g. the properties of the pages. A provider offers its keys
+ * and gives the values of the pages shown, with the rights of the reader;
+ * what the reader may not see stays empty. */
+export interface OverviewColumns {
+  id: string;
+  /** keys to choose in the display settings of a category */
+  options(categoryId: number): Promise<{ key: string; label: string }[]>;
+  /** the labels of the keys and their values (as text) for these pages */
+  values(ids: number[], keys: string[], lang: string): Promise<{ columns: { key: string; label: string }[]; values: Map<number, Record<string, string>> }>;
+}
+const overviewColumns: OverviewColumns[] = [];
+
+/** registerOverviewColumns adds columns for the table of category overviews. */
+export function registerOverviewColumns(p: OverviewColumns): void {
+  overviewColumns.push(p);
+}
+
+/** listOverviewColumns returns the providers of table columns. */
+export function listOverviewColumns(): readonly OverviewColumns[] {
+  return overviewColumns;
+}
+
 /** pageActionList returns the registered page actions (in order). */
 export function pageActionList(): readonly PageAction[] {
   return pageActions;

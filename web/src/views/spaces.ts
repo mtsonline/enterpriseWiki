@@ -10,7 +10,7 @@ import type { Category, CategoryDisplay, SpaceInfo } from '../core/types';
 import { button, checkbox, errorText, field, formDialog, langFields, openDialog, pageHeader, select, textInput } from '../components/ui';
 import { invalidateTree, langName, setContext } from '../components/widgets';
 import { errorPage } from './content';
-import { typeLabel } from '../coreplugin';
+import { listOverviewColumns, typeLabel } from '../coreplugin';
 import { previewImageInput } from '../components/previewimage';
 import { label as macroLabel, loadMacros } from '../editor/macros';
 import type { MacroInfo } from '../core/types';
@@ -227,7 +227,7 @@ export async function appearanceSettings(panel: HTMLElement, c: Category, ancest
   const typeBoxes = state.site.element_types.filter((x) => !aboveTypes.length || aboveTypes.includes(x.id) || sp.allowed_types.includes(x.id))
     .map((x) => ({ id: x.id, cb: checkbox(typeLabel(x.id), sp.allowed_types.includes(x.id)) }));
   const typesId = uid('types');
-  const display = displayFields(sp.display ?? null, st.effective.display ?? null, from('display'));
+  const display = displayFields(c.id, sp.display ?? null, st.effective.display ?? null, from('display'));
   const alert = h('div', { class: 'ew-form-alert', role: 'alert' });
   const form = h('form', { class: 'ew-form', novalidate: true }, alert,
     h('p', null, t('settings.help')),
@@ -308,11 +308,34 @@ const fmtDay = (iso: string) => new Date(iso.length === 10 ? `${iso}T12:00:00` :
 
 /** The display of the pages of a category: as above or an own choice
  * (view, order, pages per page, subcategories, excerpts). */
-function displayFields(own: CategoryDisplay | null, effective: CategoryDisplay | null, inheritedFrom: HTMLElement | null): { el: HTMLElement; get: () => CategoryDisplay | undefined } {
+function displayFields(categoryId: number, own: CategoryDisplay | null, effective: CategoryDisplay | null, inheritedFrom: HTMLElement | null): { el: HTMLElement; get: () => CategoryDisplay | undefined } {
   const base: CategoryDisplay = own ?? effective ?? { view: 'list', sort: 'manual', page_size: 0, subcategories: false, excerpt: true };
   const viewName = (v: string) => t(`display.view.${v}`);
   const mode = select([{ value: 'inherit', label: t('display.inherit', { view: viewName((effective ?? base).view) }) }, { value: 'own', label: t('display.own') }], own ? 'own' : 'inherit');
-  const view = select(['list', 'cards', 'tiles', 'tree', 'handbook'].map((v) => ({ value: v, label: viewName(v) })), base.view);
+  const view = select(['list', 'cards', 'tiles', 'tree', 'handbook', 'table', 'accordion', 'tabs', 'az', 'timeline', 'all'].map((v) => ({ value: v, label: viewName(v) })), base.view);
+  // the timeline: by the date of the change or of the creation
+  const date = select(['updated', 'created'].map((v) => ({ value: v, label: t(`display.date.${v}`) })), base.date ?? 'updated');
+  const dateField = field(t('display.date'), date);
+  // the table: further columns offered by plugins (e.g. properties)
+  const chosen = new Set(base.columns ?? []);
+  const colBoxes: { key: string; input: HTMLInputElement }[] = [];
+  const colList = h('div', { class: 'ew-checkbox-list' });
+  const colField = h('fieldset', { class: 'ew-fieldset ew-subfield' }, h('legend', null, t('display.columns')),
+    h('p', { class: 'ew-help' }, t('display.columns_help')), colList);
+  void (async () => {
+    const opts: { key: string; label: string }[] = [];
+    for (const p of listOverviewColumns()) {
+      try { for (const o of await p.options(categoryId)) if (!opts.some((x) => x.key === o.key)) opts.push(o); } catch { /* none */ }
+    }
+    // chosen keys that are not offered any more stay chosen (and visible)
+    for (const k of chosen) if (!opts.some((x) => x.key === k)) opts.push({ key: k, label: k });
+    if (!opts.length) { colList.append(h('p', { class: 'ew-muted' }, t('display.columns_none'))); return; }
+    for (const o of opts) {
+      const cb = checkbox(o.label, chosen.has(o.key));
+      colBoxes.push({ key: o.key, input: cb.input });
+      colList.append(cb.el);
+    }
+  })();
   const sort = select(['manual', 'title', 'updated', 'created'].map((v) => ({ value: v, label: t(`display.sort.${v}`) })), base.sort);
   const size = textInput({ type: 'number', value: String(base.page_size || ''), placeholder: t('display.page_size_default') });
   size.min = '0';
@@ -321,15 +344,27 @@ function displayFields(own: CategoryDisplay | null, effective: CategoryDisplay |
   const excerpt = checkbox(t('display.excerpt'), base.excerpt);
   const details = h('div', { class: 'ew-subfield' },
     field(t('display.view'), view, { help: t('display.view_help') }), field(t('display.sort'), sort),
-    field(t('display.page_size'), size, { help: t('display.page_size_help') }), subs.el, excerpt.el);
-  const sync = () => { details.hidden = mode.value !== 'own'; };
+    field(t('display.page_size'), size, { help: t('display.page_size_help') }), subs.el, excerpt.el, dateField, colField);
+  const sync = () => {
+    details.hidden = mode.value !== 'own';
+    dateField.hidden = view.value !== 'timeline';
+    colField.hidden = view.value !== 'table';
+    // the index goes by title and the timeline by its date: no order to choose
+    sort.disabled = view.value === 'az' || view.value === 'timeline';
+  };
   mode.addEventListener('change', sync);
+  view.addEventListener('change', sync);
   sync();
   const el = h('fieldset', { class: 'ew-fieldset' }, h('legend', null, t('display.title')),
     h('p', { class: 'ew-help' }, t('display.help')), field(t('display.mode'), mode), inheritedFrom, details);
   return {
     el,
     // null: as above (the server keeps no own display)
-    get: () => (mode.value === 'own' ? { view: view.value as CategoryDisplay['view'], sort: sort.value as CategoryDisplay['sort'], page_size: Number(size.value) || 0, subcategories: subs.input.checked, excerpt: excerpt.input.checked } : undefined),
+    get: () => (mode.value === 'own' ? {
+      view: view.value as CategoryDisplay['view'], sort: sort.value as CategoryDisplay['sort'], page_size: Number(size.value) || 0,
+      subcategories: subs.input.checked, excerpt: excerpt.input.checked, date: date.value as 'updated' | 'created',
+      // until the offered columns are loaded, the chosen ones stay
+      columns: colBoxes.length ? colBoxes.filter((c) => c.input.checked).map((c) => c.key) : [...chosen],
+    } : undefined),
   };
 }
