@@ -61,8 +61,8 @@ type Row struct {
 	// Width: "full" (the whole window) or "content" (limited to ContentWidth)
 	Width string `json:"width"`
 	// Background: page, subtle, header or footer (colors of the tokens)
-	Background string `json:"background"`
-	Blocks []Block `json:"blocks"`
+	Background string  `json:"background"`
+	Blocks     []Block `json:"blocks"`
 	// Tablet and Mobile change the row for these views; nil: automatic
 	Tablet *View `json:"tablet,omitempty"`
 	Mobile *View `json:"mobile,omitempty"`
@@ -219,7 +219,9 @@ func (d *Design) Check() error {
 // Problems lists all problems of a design (empty: it can be saved).
 func (d *Design) Problems() []Problem {
 	var out []Problem
-	add := func(where, format string, args ...any) { out = append(out, Problem{where, fmt.Sprintf(format, args...)}) }
+	add := func(where, format string, args ...any) {
+		out = append(out, Problem{where, fmt.Sprintf(format, args...)})
+	}
 	if d.Version != 1 {
 		add("version", "must be 1")
 	}

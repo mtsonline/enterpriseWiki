@@ -45,7 +45,11 @@ func TestDesignProblems(t *testing.T) {
 	}{
 		{"no content", func(d *Design) { d.Rows = d.Rows[3:] }, "exactly one block is the content"},
 		{"two contents", func(d *Design) { d.Rows[0].Blocks[0].Kind = "content" }, "exactly one block is the content"},
-		{"only content", func(d *Design) { d.Rows = []Row{d.Rows[2]}; d.Rows[0].Blocks = d.Rows[0].Blocks[1:]; d.Rows[0].Tablet, d.Rows[0].Mobile = nil, nil }, "at least one more block"},
+		{"only content", func(d *Design) {
+			d.Rows = []Row{d.Rows[2]}
+			d.Rows[0].Blocks = d.Rows[0].Blocks[1:]
+			d.Rows[0].Tablet, d.Rows[0].Mobile = nil, nil
+		}, "at least one more block"},
 		{"no room beside the content", func(d *Design) {
 			b := d.Rows[2].Blocks[0]
 			for i := 0; i < 3; i++ {
