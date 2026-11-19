@@ -41,6 +41,22 @@ actions:
         as: admin
         query_json: '{"element": "${given.core.elements.create#default.id}"}'
         expect_json: '[{"level": "instance"}]'
+  - id: core.placements.options
+    category: CATEGORY_ACTION
+    method: GET
+    path: /api/v1/block-options
+    success_status: 200
+    summary:
+      text:
+        en: The options of placed blocks (groups, types, ranges, the rules of contrast and room); the same schema the server checks with
+        de: Die Optionen platzierter Bausteine (Gruppen, Arten, Bereiche, die Regeln für Kontrast und Platz); dasselbe Schema, mit dem der Server prüft
+    public: true
+    cli: {command: [placement, options]}
+    ui: {entry: /admin/placement}
+    examples:
+      - name: default
+        as: guest
+        expect_json: '{"version": 1}'
   - id: core.placements.get
     category: CATEGORY_ACTION
     method: GET
@@ -106,6 +122,20 @@ actions:
         as: admin
         path_params_json: '{"level": "site"}'
         body_json: '{"placements": [{"block": "nobody.thing", "position": "footer"}]}'
+        status: 400
+      - name: with_options
+        as: admin
+        path_params_json: '{"level": "site"}'
+        body_json: '{"placements": [{"block": "core.search", "position": "footer", "sort": 10, "options": {"bg_color": "#102040", "text_color": "#ffffff", "padding_top": 4, "hide": ["mobile"], "columns": {"desktop": 2, "mobile": 1}}}]}'
+      - name: options_low_contrast
+        as: admin
+        path_params_json: '{"level": "site"}'
+        body_json: '{"placements": [{"block": "core.search", "position": "footer", "options": {"bg_color": "#ffffff", "text_color": "#bbbbbb"}}]}'
+        status: 400
+      - name: options_unknown
+        as: admin
+        path_params_json: '{"level": "site"}'
+        body_json: '{"placements": [{"block": "core.search", "position": "footer", "options": {"css": "body{display:none}"}}]}'
         status: 400
       - name: own_dashboard
         as: self

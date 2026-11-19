@@ -2497,6 +2497,58 @@ test('category display: table with a property column, accordion, tabs with the k
   assert.ok(intro.id > 0);
 });
 
+test('options of a placed block: background with checked contrast, hidden on the phone, spacing; the wiki shows it', async () => {
+  const before = await call('GET', '/api/v1/placements/site');
+  try {
+    await page.goto(`${BASE}/admin/placement`);
+    await idle();
+    await page.getByRole('button', { name: /^(options|optionen): (my favorites|meine favoriten)$/i }).first().click();
+    const dlg = page.locator('dialog[open]');
+    await dlg.getByText(/^(no problems|keine probleme)\.$/i).waitFor();
+    // a background of its own needs a text color of its own, with enough contrast
+    await dlg.locator('summary', { hasText: /^(background|hintergrund)$/i }).click();
+    await dlg.getByLabel(/^(background colour: own colour|hintergrundfarbe: eigene farbe)$/i).check();
+    await dlg.getByLabel(/^(background colour|hintergrundfarbe)$/i).fill('#102040');
+    await dlg.locator('.ew-bo-problems').getByText(/(needs its own text colour|braucht eine eigene textfarbe)/i).waitFor();
+    await dlg.locator('summary', { hasText: /^(text|schrift)$/i }).click();
+    await dlg.getByLabel(/^(text colour: own colour|textfarbe: eigene farbe)$/i).check();
+    await dlg.getByLabel(/^(text colour|textfarbe)$/i).fill('#3a4a6a');
+    await dlg.locator('.ew-bo-problems').getByText(/(contrast of|einen kontrast von)/i).waitFor();
+    await a11y('options of a block with a problem');
+    await dlg.getByLabel(/^(text colour|textfarbe)$/i).fill('#ffffff');
+    await dlg.getByText(/^(no problems|keine probleme)\.$/i).waitFor();
+    // the sample shows the look at once
+    assert.equal(await dlg.locator('.ew-bo[data-bo="sample"]').evaluate((el) => getComputedStyle(el).backgroundColor), 'rgb(16, 32, 64)');
+    // hidden on the phone; more spacing at the top on the desktop
+    await dlg.getByRole('group', { name: /^(hide on|ausblenden auf)$/i }).getByLabel(/^(phone|handy)$/i).check();
+    await dlg.locator('summary', { hasText: /^(size and spacing|größe und abstand)$/i }).click();
+    await dlg.getByLabel(/^(inner spacing top – desktop|innenabstand oben – desktop)$/i).selectOption({ label: '2 rem' });
+    await a11y('options of a block');
+    await dlg.getByRole('button', { name: /^(apply|übernehmen)$/i }).click();
+    await page.getByRole('button', { name: /^(options \(set\)|optionen \(gesetzt\)): (my favorites|meine favoriten)$/i }).first().waitFor();
+    const saved = page.waitForResponse((r) => r.url().endsWith('/api/v1/placements/site') && r.request().method() === 'PUT');
+    await page.locator('.ew-placement').getByRole('button', { name: /^(save|speichern)$/i }).click();
+    assert.equal((await saved).status(), 200);
+    // the wiki: the block in its frame with the options
+    await page.goto(`${BASE}/`);
+    await idle();
+    const frame = page.locator('.ew-bo', { has: page.locator('.ewfav') }).first();
+    await frame.waitFor();
+    const look = await frame.evaluate((el) => { const c = getComputedStyle(el); return [c.backgroundColor, c.color, c.paddingTop]; });
+    assert.deepEqual(look, ['rgb(16, 32, 64)', 'rgb(255, 255, 255)', '32px']);
+    await a11y('a block with options in the wiki');
+    const size = page.viewportSize();
+    try {
+      await page.setViewportSize({ width: 375, height: 800 });
+      assert.equal(await frame.evaluate((el) => getComputedStyle(el).display), 'none');
+    } finally {
+      if (size) await page.setViewportSize(size);
+    }
+  } finally {
+    await call('PUT', '/api/v1/placements/site', { placements: before.placements });
+  }
+});
+
 test('template designer: visual and with the keyboard, room and contrast help, undo and redo, views by hand, live preview', async () => {
   const before = (await call('GET', '/api/v1/admin/settings')).config;
   let key = '';

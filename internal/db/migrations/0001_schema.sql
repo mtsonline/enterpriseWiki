@@ -541,6 +541,7 @@ CREATE TABLE placements (
     position   text NOT NULL DEFAULT '',
     sort       int NOT NULL DEFAULT 0,
     required   boolean NOT NULL DEFAULT false, -- lower levels cannot move or remove it (template and site)
+    options    jsonb NOT NULL DEFAULT '{}', -- look and showing of the placed block (blockoptions.json, checked)
     updated_by bigint REFERENCES users(id) ON DELETE SET NULL,
     updated_at timestamptz NOT NULL DEFAULT now()
 );

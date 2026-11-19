@@ -1,0 +1,103 @@
+{
+  "comment": "Options of blocks (plan of blocks and options, section 6). Read by the server (check on saving) and by the browser (form and CSS). Every option is a checked value; the CSS is built from these values only.",
+  "version": 1,
+  "max_bytes": 4096,
+  "views": ["desktop", "tablet", "mobile"],
+  "langs_max": 20,
+  "space_rem": [0, 0.25, 0.5, 0.75, 1, 1.5, 2, 3, 4, 6],
+  "contrast_text": 4.5,
+  "column_min_rem": 12,
+  "view_min_px": { "desktop": 1024, "tablet": 640, "mobile": 320 },
+  "rem_px": 16,
+  "groups": [
+    {
+      "id": "general",
+      "options": [
+        { "id": "hide", "type": "views" },
+        { "id": "audience", "type": "enum", "values": ["all", "signed_in", "signed_out"] },
+        { "id": "from", "type": "datetime" },
+        { "id": "until", "type": "datetime" },
+        { "id": "langs", "type": "langs" },
+        { "id": "print", "type": "enum", "values": ["show", "hide"] },
+        { "id": "break_before", "type": "bool" },
+        { "id": "break_inside_avoid", "type": "bool" },
+        { "id": "anchor", "type": "anchor" },
+        { "id": "order", "type": "int", "min": -10, "max": 10, "responsive": true }
+      ]
+    },
+    {
+      "id": "size",
+      "options": [
+        { "id": "max_width", "type": "int", "min": 0, "max": 120, "unit": "rem", "responsive": true },
+        { "id": "min_height", "type": "int", "min": 0, "max": 60, "unit": "rem", "responsive": true },
+        { "id": "aspect", "type": "enum", "values": ["none", "16-9", "4-3", "1-1", "3-2", "21-9"] },
+        { "id": "padding_top", "type": "space", "responsive": true },
+        { "id": "padding_right", "type": "space", "responsive": true },
+        { "id": "padding_bottom", "type": "space", "responsive": true },
+        { "id": "padding_left", "type": "space", "responsive": true },
+        { "id": "margin_top", "type": "space", "responsive": true },
+        { "id": "margin_bottom", "type": "space", "responsive": true },
+        { "id": "text_align", "type": "enum", "values": ["start", "center", "end", "justify"], "responsive": true }
+      ]
+    },
+    {
+      "id": "background",
+      "options": [
+        { "id": "bg_color", "type": "color" },
+        { "id": "bg_gradient", "type": "enum", "values": ["none", "linear", "radial", "conic"] },
+        { "id": "bg_gradient_angle", "type": "int", "min": 0, "max": 360, "unit": "deg" },
+        { "id": "bg_gradient_from", "type": "color" },
+        { "id": "bg_gradient_to", "type": "color" },
+        { "id": "bg_image", "type": "file" },
+        { "id": "bg_focus_x", "type": "int", "min": 0, "max": 100, "unit": "%" },
+        { "id": "bg_focus_y", "type": "int", "min": 0, "max": 100, "unit": "%" },
+        { "id": "bg_size", "type": "enum", "values": ["cover", "contain", "auto"] },
+        { "id": "bg_repeat", "type": "enum", "values": ["no-repeat", "repeat", "repeat-x", "repeat-y"] },
+        { "id": "bg_fixed", "type": "bool" },
+        { "id": "overlay_color", "type": "color" },
+        { "id": "overlay_opacity", "type": "int", "min": 0, "max": 95, "unit": "%" },
+        { "id": "blend", "type": "enum", "values": ["normal", "multiply", "screen", "overlay", "darken", "lighten", "luminosity"] },
+        { "id": "pattern", "type": "enum", "values": ["none", "dots", "lines", "grid", "diagonal"] },
+        { "id": "pattern_color", "type": "color" },
+        { "id": "glass", "type": "bool" }
+      ]
+    },
+    {
+      "id": "border",
+      "options": [
+        { "id": "border_style", "type": "enum", "values": ["none", "solid", "dashed", "dotted", "double"] },
+        { "id": "border_width", "type": "int", "min": 0, "max": 8, "unit": "px" },
+        { "id": "border_color", "type": "color" },
+        { "id": "radius", "type": "int", "min": 0, "max": 48, "unit": "px" },
+        { "id": "shadow", "type": "enum", "values": ["none", "sm", "md", "lg", "xl", "inset"] },
+        { "id": "glow", "type": "color" },
+        { "id": "divider_top", "type": "enum", "values": ["none", "wave", "zigzag", "slope", "arc"] },
+        { "id": "divider_bottom", "type": "enum", "values": ["none", "wave", "zigzag", "slope", "arc"] },
+        { "id": "divider_height", "type": "int", "min": 8, "max": 160, "unit": "px" },
+        { "id": "divider_color", "type": "color" },
+        { "id": "divider_flip", "type": "bool" },
+        { "id": "fade_edges", "type": "enum", "values": ["none", "top", "bottom", "both"] }
+      ]
+    },
+    {
+      "id": "text",
+      "options": [
+        { "id": "font", "type": "enum", "values": ["inherit", "system", "inter", "source-sans", "serif", "mono"] },
+        { "id": "font_size", "type": "int", "min": 75, "max": 300, "unit": "%", "responsive": true },
+        { "id": "weight", "type": "enum", "values": ["inherit", "300", "400", "500", "600", "700", "800", "900"] },
+        { "id": "line_height", "type": "number", "min": 1, "max": 2.2, "step": 0.05 },
+        { "id": "letter_spacing", "type": "number", "min": -0.05, "max": 0.3, "step": 0.01, "unit": "em" },
+        { "id": "transform", "type": "enum", "values": ["none", "uppercase", "lowercase", "capitalize", "small-caps"] },
+        { "id": "text_color", "type": "color" },
+        { "id": "columns", "type": "int", "min": 1, "max": 4, "responsive": true },
+        { "id": "hyphens", "type": "bool" },
+        { "id": "wrap", "type": "enum", "values": ["normal", "balance", "pretty"] },
+        { "id": "drop_cap", "type": "bool" },
+        { "id": "text_shadow", "type": "enum", "values": ["none", "soft", "strong"] },
+        { "id": "line_clamp", "type": "int", "min": 0, "max": 20 },
+        { "id": "gradient_text", "type": "bool" },
+        { "id": "link_style", "type": "enum", "values": ["inherit", "underline", "thick"] }
+      ]
+    }
+  ]
+}

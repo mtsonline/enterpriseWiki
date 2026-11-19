@@ -11,9 +11,11 @@ import { state, onChange } from './core/state';
 import { t } from './core/i18n';
 import { api } from './core/api';
 import { CATEGORY_POSITIONS, DASHBOARD_POSITIONS, ELEMENT_POSITIONS, EDITOR_POSITIONS, kindOf, resolvePlacements, type PagePosition, type PlacementLevel, type PositionKind } from './core/placement';
+export { SCHEMA as BLOCK_OPTIONS_SCHEMA, optionDef, problems as optionProblems, maxColumns, type BlockOptions, type OptionDef, type OptionGroup } from './core/blockoptions';
 export { CATEGORY_POSITIONS, DASHBOARD_POSITIONS, ELEMENT_POSITIONS, EDITOR_POSITIONS, kindOf, positionFits, resolvePlacements, type PagePosition, type Placement, type PlacementLevel, type PositionKind } from './core/placement';
 
 import { h } from './core/dom';
+import { optionsCSS, optionsKey, shownNow, type BlockOptions } from './core/blockoptions';
 export { tile } from './components/tile';
 export { h, mount, append, trustedHTML, uid, fmtDate, srOnly } from './core/dom';
 export type { Child } from './core/dom';
@@ -329,6 +331,43 @@ function pathTo(root: Node, node: Node): number[] {
 
 const elementCtx = new WeakMap<HTMLElement, { ctx: PageContext; filled?: () => void }>();
 
+// ------------------------------------------------------------ options of placed blocks
+
+const optionFrames = new WeakMap<Node, { key: string; frame: HTMLElement }>();
+const optionRules = new Set<string>();
+let optionStyle: HTMLStyleElement | null = null;
+
+/** A placed block with options: a frame with the CSS of its options (built
+ * from values of a valid form only), its anchor and, with limited lines,
+ * a button to show all. The same node keeps its frame (nothing is moved out
+ * of the page that need not be). */
+function withOptions(n: Node, o: BlockOptions): Node {
+  const key = optionsKey(o);
+  const have = optionFrames.get(n);
+  if (have && have.key === key) return have.frame;
+  const css = optionsCSS(`.ew-bo[data-bo="${key}"]`, o);
+  if (!css) return n; // options of an invalid form are ignored
+  if (!optionRules.has(key)) {
+    optionRules.add(key);
+    optionStyle ??= document.head.appendChild(h('style', { id: 'ew-block-options' }));
+    optionStyle.append(document.createTextNode(`${css}\n`));
+  }
+  const body = h('div', { class: 'ew-bo-body' });
+  body.append(n);
+  const frame = h('div', { class: 'ew-bo', 'data-bo': key, id: typeof o.anchor === 'string' ? o.anchor : undefined }, body);
+  if (typeof o.line_clamp === 'number' && o.line_clamp > 0) {
+    const more = h('button', { type: 'button', class: 'ew-btn ew-btn--link ew-bo-more', 'aria-expanded': 'false' }, t('bo.more')) as HTMLButtonElement;
+    more.addEventListener('click', () => {
+      const open = frame.classList.toggle('ew-bo-open');
+      more.setAttribute('aria-expanded', String(open));
+      more.textContent = open ? t('bo.less') : t('bo.more');
+    });
+    frame.append(more);
+  }
+  optionFrames.set(n, { key, frame });
+  return frame;
+}
+
 const fillGen = new WeakMap<HTMLElement, number>();
 let refreshPending = false;
 
@@ -343,7 +382,7 @@ async function fill(el: HTMLElement, name: string): Promise<void> {
   const ec = elementCtx.get(el);
   const kind = kindOf(name);
   if (kind !== 'site' && !ec) return; // positions of a page belong to that page
-  const here: { s: SlotDef; id: string; key?: string; sort: number }[] = [];
+  const here: { s: SlotDef; id: string; key?: string; sort: number; options?: BlockOptions }[] = [];
   if (kind === 'site') for (const s of slots) if (s.position === '*' && !s.instances) here.push({ s, id: s.id, sort: s.order ?? 50 });
   for (const b of blocks) {
     if (b.kind !== kind) continue;
@@ -360,13 +399,19 @@ async function fill(el: HTMLElement, name: string): Promise<void> {
     if (kind === 'editor' || b.slot.single) ps = ps.slice(0, 1);
     // tiles the administration does not offer are on no dashboard
     if (kind === 'dashboard' && !tileOffered(b.id)) continue;
-    for (const p of ps) if (p.position === name) here.push({ s: b.slot, id: b.id, key: b.key, sort: p.sort });
+    for (const p of ps) {
+      if (p.position !== name) continue;
+      // options may show a block only to some, at some times, in some languages (display only)
+      if (!shownNow(p.options, Date.now(), !!state.user, state.lang)) continue;
+      here.push({ s: b.slot, id: b.id, key: b.key, sort: p.sort, options: p.options });
+    }
   }
   here.sort((a, b) => a.sort - b.sort);
   // render all at once (each block loads its own data)
-  const rendered = await Promise.all(here.map(async ({ s, id, key }) => {
+  const rendered = await Promise.all(here.map(async ({ s, id, key, options }) => {
     try {
-      const n = await s.render(name, key, ec?.ctx);
+      const n0 = await s.render(name, key, ec?.ctx);
+      const n = n0 && options && Object.keys(options).length ? withOptions(n0, options) : n0;
       // a tile of the dashboard: a frame (moving it with the mouse takes the frame)
       if (n && kind === 'dashboard') return { id, n: h('div', { class: 'ew-tile', 'data-block': id }, n) };
       return { id, n };

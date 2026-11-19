@@ -12,8 +12,10 @@ import { activeTemplate, CATEGORY_POSITIONS, DASHBOARD_POSITIONS, EDITOR_POSITIO
 import { state } from '../core/state';
 import { kindOf as positions0Kind } from '../core/placement';
 import { button, checkbox, errorText, field, select } from './ui';
+import { optionsDialog } from './blockoptions';
+import type { BlockOptions } from '../core/blockoptions';
 
-interface Row { block: string; position: string; required: boolean }
+interface Row { block: string; position: string; required: boolean; options?: BlockOptions }
 
 /** placementEditor edits the placements of one level. Rows of the level
  * replace the placements from above for the same block; blocks without a
@@ -25,7 +27,7 @@ export async function placementEditor(level: 'site' | 'category' | 'category_pag
   const box = h('section', { class: 'ew-placement', 'aria-labelledby': uid('pl') });
   const headingId = box.getAttribute('aria-labelledby')!;
   let current: PlacementLevel;
-  let resolvedAbove = new Map<string, { position: string; sort: number }[]>();
+  let resolvedAbove = new Map<string, { position: string; sort: number; options?: BlockOptions }[]>();
   let blocks: PlaceableBlock[] = [];
   try {
     current = await api.get<PlacementLevel>(`placements/${level}${target ? `?target=${encodeURIComponent(target)}` : ''}`);
@@ -54,14 +56,14 @@ export async function placementEditor(level: 'site' | 'category' | 'category_pag
     ...(b.always ? [] : [{ value: '', label: t('placement.hidden') }])];
   // own rows per block; blocks without rows are inherited
   const own = new Map<string, Row[]>();
-  for (const p of current.placements) own.set(p.block, [...(own.get(p.block) ?? []), { block: p.block, position: p.position, required: !!p.required }]);
+  for (const p of current.placements) own.set(p.block, [...(own.get(p.block) ?? []), { block: p.block, position: p.position, required: !!p.required, options: p.options && Object.keys(p.options).length ? p.options : undefined }]);
   // order within a position: by sort of the level, else of above
   const order = new Map<string, number>();
   current.placements.forEach((p) => order.set(`${p.block}@${p.position}`, p.sort));
   const status = h('p', { class: 'sr-only', 'aria-live': 'polite' });
   const list = h('div');
-  const effective = (b: string): { position: string; sort: number }[] => own.has(b)
-    ? own.get(b)!.filter((r) => r.position).map((r) => ({ position: r.position, sort: order.get(`${b}@${r.position}`) ?? 50 }))
+  const effective = (b: string): { position: string; sort: number; options?: BlockOptions }[] => own.has(b)
+    ? own.get(b)!.filter((r) => r.position).map((r) => ({ position: r.position, sort: order.get(`${b}@${r.position}`) ?? 50, options: r.options }))
     : (resolvedAbove.get(b) ?? []);
   const draw = (focusKey?: string) => {
     const groups = positions.map((pos) => {
@@ -105,11 +107,22 @@ export async function placementEditor(level: 'site' | 'category' | 'category_pag
         down.dataset.key = `${key}:down`;
         up.toggleAttribute('disabled', i === 0);
         down.toggleAttribute('disabled', i === here.length - 1);
+        // options of this placement (look, when and for whom it is shown)
+        const optsOf = () => (own.has(b.id) ? own.get(b.id)!.find((x) => x.position === pos)?.options : effective(b.id).find((x) => x.position === pos)?.options);
+        const has = !!optsOf() && Object.keys(optsOf()!).length > 0;
+        const optBtn = button(has ? t('bo.edit_set') : t('bo.edit'), () => optionsDialog(b.label, optsOf() ?? {}, (o) => {
+          takeOver(b.id);
+          const r = own.get(b.id)!.find((x) => x.position === pos);
+          if (r) r.options = Object.keys(o).length ? o : undefined;
+          status.textContent = Object.keys(o).length ? t('bo.changed', { block: b.label }) : t('bo.cleared', { block: b.label });
+          draw(`${key}:opts`);
+        }), { variant: 'subtle', ariaLabel: `${has ? t('bo.edit_set') : t('bo.edit')}: ${b.label}` });
+        optBtn.dataset.key = `${key}:opts`;
         const req = level === 'site' ? checkbox(t('placement.required'), own.get(b.id)?.some((x) => x.required) ?? false, { help: t('placement.required_help') }) : null;
         req?.input.addEventListener('change', () => { takeOver(b.id); own.get(b.id)!.forEach((x) => { x.required = req.input.checked; }); });
         return h('li', { class: 'ew-placement-item' },
           h('span', { class: 'ew-placement-name' }, b.label, inherited ? h('span', { class: 'ew-muted' }, ` – ${t('placement.inherited')}`) : null),
-          h('span', { class: 'ew-actions' }, up, down, where), req?.el ?? null);
+          h('span', { class: 'ew-actions' }, up, down, where, optBtn), req?.el ?? null);
       });
       return h('li', null, h('h3', null, `${positionLabel(pos)} (${pos})`),
         items.length ? h('ol', { class: 'ew-placement-list' }, ...items) : h('p', { class: 'ew-muted' }, t('placement.empty')));
@@ -143,12 +156,12 @@ export async function placementEditor(level: 'site' | 'category' | 'category_pag
   const takeOver = (b: string) => {
     if (own.has(b)) return;
     const eff = resolvedAbove.get(b) ?? [];
-    own.set(b, eff.length ? eff.map((x) => { order.set(`${b}@${x.position}`, x.sort); return { block: b, position: x.position, required: false }; }) : [{ block: b, position: '', required: false }]);
+    own.set(b, eff.length ? eff.map((x) => { order.set(`${b}@${x.position}`, x.sort); return { block: b, position: x.position, required: false, options: x.options }; }) : [{ block: b, position: '', required: false }]);
   };
   draw();
   const save = button(t('common.save'), async () => {
     const out: Placement[] = [];
-    for (const [b, rows] of own) for (const r of rows) out.push({ block: b, position: r.position, sort: order.get(`${b}@${r.position}`) ?? 50, required: r.required || undefined });
+    for (const [b, rows] of own) for (const r of rows) out.push({ block: b, position: r.position, sort: order.get(`${b}@${r.position}`) ?? 50, required: r.required || undefined, options: r.position && r.options ? r.options : undefined });
     try {
       await api.put(`placements/${level}${target ? `?target=${encodeURIComponent(target)}` : ''}`, { placements: out });
       invalidatePlacements();
