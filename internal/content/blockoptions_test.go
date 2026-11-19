@@ -3,6 +3,7 @@ package content
 import (
 	"encoding/json"
 	"os"
+	"strings"
 	"testing"
 )
 
@@ -18,6 +19,8 @@ func TestBlockOptionCases(t *testing.T) {
 		Name    string         `json:"name"`
 		OK      bool           `json:"ok"`
 		Options map[string]any `json:"options"`
+		// Problem: the reason it is refused (a word of the message)
+		Problem string `json:"problem"`
 	}
 	if err := json.Unmarshal(raw, &cases); err != nil {
 		t.Fatal(err)
@@ -32,6 +35,10 @@ func TestBlockOptionCases(t *testing.T) {
 		}
 		if !c.OK && err == nil {
 			t.Errorf("%s: accepted", c.Name)
+		}
+		words := map[string]string{"text_color": "needs its own text color", "contrast": "has a contrast of", "overlay": "needs an overlay", "columns": "columns:", "until": "until must be after", "between": "lies within the brightness"}
+		if c.Problem != "" && (err == nil || !strings.Contains(err.Error(), words[c.Problem])) {
+			t.Errorf("%s: want the reason %q, got %v", c.Name, c.Problem, err)
 		}
 	}
 }

@@ -233,8 +233,8 @@ func checkOptionRules(o map[string]any) error {
 	var backs []string
 	switch {
 	case image != "":
-		if overlay == "" || alpha < 0.5 {
-			return apperr.BadRequest("options: text on a picture needs an overlay (overlay_color, overlay_opacity at least 50) so it can be read on every part of the picture")
+		if overlay == "" || alpha == 0 {
+			return apperr.BadRequest("options: text on a picture needs an overlay (overlay_color, overlay_opacity) so it can be read on every part of the picture")
 		}
 		backs = []string{"#000000", "#ffffff"}
 	case gradient != "":
@@ -248,10 +248,17 @@ func checkOptionRules(o map[string]any) error {
 	if text != "" && len(backs) == 0 && optBool(o, "gradient_text") {
 		return apperr.BadRequest("options: text in a gradient needs a background color of its own (bg_color)")
 	}
-	for _, b := range backs {
+	for i := range backs {
 		if alpha > 0 {
-			b = mixHex(b, overlay, alpha)
+			backs[i] = mixHex(backs[i], overlay, alpha)
 		}
+	}
+	// a picture or a gradient has every brightness between its ends: the
+	// text must be brighter or darker than all of them, not in between
+	if len(backs) > 1 && text != "" && !outsideRange(text, backs) {
+		return apperr.BadRequest("options: the text color %s lies within the brightness of its background (%s to %s); choose a much lighter or darker text color or a stronger overlay", text, backs[0], backs[len(backs)-1])
+	}
+	for _, b := range backs {
 		if c := contrastHex(text, b); c < min {
 			return apperr.BadRequest("options: the text color %s has a contrast of %.2f:1 on %s, at least %.1f:1 is needed (WCAG 1.4.3)", text, c, b, min)
 		}
@@ -353,4 +360,16 @@ func contrastHex(a, b string) float64 {
 		la, lb = lb, la
 	}
 	return (la + 0.05) / (lb + 0.05)
+}
+
+// outsideRange reports whether the color is brighter or darker than every
+// color of the background (a picture under its overlay, a gradient).
+func outsideRange(c string, backs []string) bool {
+	l := luminanceHex(c)
+	lo, hi := math.Inf(1), math.Inf(-1)
+	for _, b := range backs {
+		v := luminanceHex(b)
+		lo, hi = min(lo, v), max(hi, v)
+	}
+	return l < lo || l > hi
 }

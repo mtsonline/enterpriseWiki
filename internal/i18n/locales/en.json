@@ -2721,10 +2721,11 @@
  "bo.p.form": "Some values do not have a valid form.",
  "bo.p.text_color": "A block with its own background needs its own text colour, so its contrast can be checked.",
  "bo.p.gradient": "A gradient needs its two colours.",
- "bo.p.overlay": "Text on a picture needs an overlay with at least 50 % opacity, so it can be read on every part of the picture.",
+ "bo.p.overlay": "Text on a picture needs an overlay, so it can be read on every part of the picture.",
  "bo.p.gradient_text_bg": "Headings in the gradient need a background colour of their own.",
  "bo.p.contrast": "{color} has a contrast of {value}:1 on {on}; at least {min}:1 is needed.",
  "bo.p.columns": "On the {view} at most {max} column(s) of text have room side by side; set fewer for this view.",
  "bo.p.until": "\"Shown until\" must be after \"Shown from\".",
- "bo.sample_wait": "The sample shows the options once there is no problem left."
+ "bo.sample_wait": "The sample shows the options once there is no problem left.",
+ "bo.p.between": "The text colour {color} lies within the brightness of its background ({from} to {to}); choose a much lighter or darker text colour or a stronger overlay."
 }

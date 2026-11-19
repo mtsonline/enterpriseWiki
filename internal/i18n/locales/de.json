@@ -2721,10 +2721,11 @@
  "bo.p.form": "Einige Werte haben keine gültige Form.",
  "bo.p.text_color": "Ein Baustein mit eigenem Hintergrund braucht eine eigene Textfarbe, damit ihr Kontrast geprüft werden kann.",
  "bo.p.gradient": "Ein Verlauf braucht seine zwei Farben.",
- "bo.p.overlay": "Text auf einem Bild braucht eine Überlagerung mit mindestens 50 % Deckkraft, damit er auf jedem Teil des Bildes lesbar ist.",
+ "bo.p.overlay": "Text auf einem Bild braucht eine Überlagerung, damit er auf jedem Teil des Bildes lesbar ist.",
  "bo.p.gradient_text_bg": "Überschriften im Verlauf brauchen eine eigene Hintergrundfarbe.",
  "bo.p.contrast": "{color} hat auf {on} einen Kontrast von {value}:1; nötig sind mindestens {min}:1.",
  "bo.p.columns": "Auf dem {view} haben höchstens {max} Textspalte(n) nebeneinander Platz; stellen Sie für diese Ansicht weniger ein.",
  "bo.p.until": "„Gezeigt bis“ muss nach „Gezeigt ab“ liegen.",
- "bo.sample_wait": "Das Beispiel zeigt die Optionen, sobald kein Problem mehr besteht."
+ "bo.sample_wait": "Das Beispiel zeigt die Optionen, sobald kein Problem mehr besteht.",
+ "bo.p.between": "Die Textfarbe {color} liegt innerhalb der Helligkeit ihres Hintergrunds ({from} bis {to}); wählen Sie eine viel hellere oder dunklere Textfarbe oder eine stärkere Überlagerung."
 }

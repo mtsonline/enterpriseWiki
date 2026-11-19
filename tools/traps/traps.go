@@ -296,8 +296,8 @@ var traps = []trap{
 	{
 		ID: "blockoptions.overlay", About: "text on a picture is stored without an overlay",
 		File: "internal/content/blockoptions.go",
-		Old:  "		if overlay == \"\" || alpha < 0.5 {",
-		New:  "		if overlay == \"\" && alpha < 0 {",
+		Old:  "		if overlay == \"\" || alpha == 0 {",
+		New:  "		if false && (overlay == \"\" || alpha == 0) {",
 		Pkg:  "./internal/content/", Tests: "^TestBlockOptionCases$",
 	},
 	{
@@ -305,6 +305,13 @@ var traps = []trap{
 		File: "internal/content/blockoptions.go",
 		Old:  "		if n, ok := per[view]; ok && int(n) > MaxColumns(view) {",
 		New:  "		if n, ok := per[view]; ok && int(n) > MaxColumns(view)+10 {",
+		Pkg:  "./internal/content/", Tests: "^TestBlockOptionCases$",
+	},
+	{
+		ID: "blockoptions.between", About: "text whose brightness lies within a picture or gradient is stored",
+		File: "internal/content/blockoptions.go",
+		Old:  "	if len(backs) > 1 && text != \"\" && !outsideRange(text, backs) {",
+		New:  "	if len(backs) > 1 && text != \"\" && !outsideRange(text, backs) && false {",
 		Pkg:  "./internal/content/", Tests: "^TestBlockOptionCases$",
 	},
 }
