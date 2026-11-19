@@ -3640,6 +3640,12 @@ test('demo content: create, browse accessibly, remove', async () => {
     }
   }
   assert.ok(seen.size > 10, `demo pages visited: ${seen.size}`);
+  // the property database always (the crawl above stops after 60 pages, in tree order)
+  const db = (await call('GET', '/api/v1/elements?type=content.propdb&limit=5')).items[0];
+  assert.ok(db, 'the demo has a property database');
+  await page.goto(`${BASE}/e/${db.id}`);
+  await idle();
+  await a11y('demo property database');
   for (const p of [...editors].slice(0, 25)) {
     await page.goto(BASE + p);
     await idle();

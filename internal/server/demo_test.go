@@ -92,6 +92,7 @@ func slicesSorted(a, b map[string]int) []string {
 type demoState struct {
 	Installed bool           `json:"installed"`
 	Objects   map[string]int `json:"objects"`
+	Skipped   []string       `json:"skipped"`
 }
 
 func TestDemo(t *testing.T) {
@@ -129,6 +130,11 @@ func TestDemo(t *testing.T) {
 		admin.must("POST", "/api/v1/admin/demo", nil, &st, 200)
 		if !st.Installed || st.Objects["element"] < 15 || st.Objects["user"] != 4 || st.Objects["medium"] < 5 {
 			t.Fatalf("demo objects: %+v", st)
+		}
+		// with every plugin on and an administrator, no part is left out
+		// (a part with a mistake would otherwise go unnoticed)
+		if len(st.Skipped) != 0 {
+			t.Fatalf("demo parts left out: %v", st.Skipped)
 		}
 		if c := admin.do("POST", "/api/v1/admin/demo", nil, nil); c != 409 {
 			t.Fatalf("second demo: %d", c)

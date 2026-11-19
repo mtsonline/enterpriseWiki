@@ -1546,6 +1546,7 @@
  "demo.installed": "Die Demo ist installiert (seit {date}, {count} Objekte).",
  "demo.not_installed": "Die Demo ist nicht installiert.",
  "demo.create": "Demo anlegen",
+ "demo.created_without": "Demo angelegt, ohne diese Teile (ein Plugin ist ausgeschaltet oder ein Recht fehlt): {parts}",
  "demo.created": "Demo angelegt",
  "demo.remove": "Demo entfernen",
  "demo.removed": "Demo entfernt – es sind keine Spuren geblieben.",

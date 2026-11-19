@@ -58,6 +58,9 @@ type demoStatus struct {
 	CreatedAt *time.Time     `json:"created_at,omitempty"`
 	Objects   map[string]int `json:"objects"`
 	SiteName  string         `json:"site_name"`
+	// Skipped: parts of the demo left out when it was created (a plugin
+	// switched off, no permission); only in the answer to the creation
+	Skipped []string `json:"skipped,omitempty"`
 }
 
 func (s *Server) routesDemo() {
@@ -73,10 +76,15 @@ func (s *Server) routesDemo() {
 		if err := requireAdmin(r); err != nil {
 			return nil, err
 		}
-		if err := s.createDemo(r.Context()); err != nil {
+		skipped, err := s.createDemo(r.Context())
+		if err != nil {
 			return nil, err
 		}
-		return s.demoStatus(r.Context())
+		st, err := s.demoStatus(r.Context())
+		if st != nil {
+			st.Skipped = skipped
+		}
+		return st, err
 	})
 	// action: core.demo.remove
 	s.handle("DELETE /api/v1/admin/demo", func(w http.ResponseWriter, r *http.Request) (any, error) {
@@ -241,17 +249,17 @@ func multipartFile(meta any, name string, data []byte) *multipartBody {
 	return &multipartBody{buf: buf, ct: mw.FormDataContentType()}
 }
 
-func (s *Server) createDemo(ctx context.Context) error {
+func (s *Server) createDemo(ctx context.Context) ([]string, error) {
 	p := identity.From(ctx)
 	if p == nil || p.UserID == 0 {
-		return apperr.BadRequest("the demo needs an administrator account (CLI: --as USER)")
+		return nil, apperr.BadRequest("the demo needs an administrator account (CLI: --as USER)")
 	}
 	st, err := s.demoStatus(ctx)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	if st.Installed {
-		return apperr.New(http.StatusConflict, "demo_installed", "the demo is already installed")
+		return nil, apperr.New(http.StatusConflict, "demo_installed", "the demo is already installed")
 	}
 	dp := *p
 	dp.Via = "demo" // in-process, exactly the administrator's rights
@@ -279,10 +287,10 @@ func (s *Server) createDemo(ctx context.Context) error {
 		if rerr := s.removeDemo(ctx); rerr != nil {
 			s.log.Error("demo: removing the partial demo failed", "err", rerr)
 		}
-		return apperr.New(http.StatusInternalServerError, "demo_failed", d.err.Error())
+		return nil, apperr.New(http.StatusInternalServerError, "demo_failed", d.err.Error())
 	}
 	s.app.Bus.Publish(ctx, "*", "")
-	return audit.Log(ctx, s.app.DB, "demo.create", "site", 0, nil, nil)
+	return d.skipped, audit.Log(ctx, s.app.DB, "demo.create", "site", 0, nil, nil)
 }
 
 // ---------------------------------------------------------------- removing

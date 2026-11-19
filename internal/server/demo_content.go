@@ -923,7 +923,7 @@ func buildDemo(d *demoRun) {
 		} {
 			id := d.page(rooms, x[0], x[1], x[3], x[4], map[string]any{"position": i})
 			d.call(http.MethodPut, fmt.Sprintf("/api/v1/x/core.properties/elements/%d", id), map[string]any{
-				"values": map[string]any{"seats": x[2]}, "free": map[string]any{"seats": map[string]any{"type": "number", "label": "Seats"}}}, nil)
+				"values": map[string]any{"seats": x[2]}, "free": map[string]any{"seats": map[string]any{"type": "integer", "label": d.tr("Seats", "Plätze")[d.lang()]}}}, nil)
 		}
 		d.call(http.MethodPut, fmt.Sprintf("/api/v1/categories/%d/settings", rooms), map[string]any{"display": map[string]any{"view": "table", "columns": []string{"seats"}}}, nil)
 	})

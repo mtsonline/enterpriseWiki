@@ -228,8 +228,10 @@ columns, expandable sections, gallery, child pages, recently changed, next event
 with @mentions, reactions and favourite, Markdown page, website building blocks, blog, FAQ, event calendar with
 series and registration, team page, media (hidden category as folder, images, PDF for viewing only with
 watermark, Word file for the office program), file element, process, property report,
-category overview, short URL `/demo`, a menu, a text block and a carousel (only for signed-in users). What
-a disabled plugin needs is left out.
+category overview, wiki blocks (include page, search box, page tree, new page from a template), short URL `/demo`,
+a menu, a text block and a carousel (only for signed-in users). What a disabled plugin needs is left out; the
+message after creating names the parts left out (in the API the field `skipped` of the answer to
+`POST /api/v1/admin/demo`).
 
 - The **demo accounts** (`demo-anna`, `demo-ben`, …) have no sign-in (provider `demo`), no e-mail address
   and do not count for the license.
