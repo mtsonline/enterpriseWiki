@@ -22,6 +22,7 @@ func (gallery) Description() map[string]string {
 		"Zeigt Bilder der Medienbibliothek als Galerie: ausgewählte oder alle einer Kategorie.")
 }
 func (gallery) HasBody() bool { return false }
+
 var galleryLayouts = []string{"grid", "masonry"}
 
 func (gallery) Params() []content.MacroParam {
