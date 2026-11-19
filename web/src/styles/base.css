@@ -534,3 +534,12 @@ th[aria-sort="descending"] .ew-sort-button::after { content: " ↓"; opacity: 1;
 .ew-bo-set { border: 0; padding: 0; margin: 0; display: flex; flex-wrap: wrap; gap: .25rem 1rem; }
 .ew-bo-set > legend { font-weight: 600; margin-bottom: .25rem; }
 .ew-bo-sample-wrap { border: 1px dashed var(--ew-border); border-radius: var(--ew-radius); padding: .75rem; }
+
+/* icons of the shipped set: drawn in the color of the text (a mask) */
+.ew-icon { display: inline-block; inline-size: 1.25em; block-size: 1.25em; vertical-align: -.22em; flex: none; background: currentColor;
+  -webkit-mask: var(--ew-icon, none) center / contain no-repeat; mask: var(--ew-icon, none) center / contain no-repeat; }
+.ew-icon--s { inline-size: 1em; block-size: 1em; } .ew-icon--l { inline-size: 2em; block-size: 2em; } .ew-icon--xl { inline-size: 3em; block-size: 3em; }
+@media (forced-colors: active) { .ew-icon { background: CanvasText; } }
+.ew-iconpick-filters { display: grid; gap: .75rem; grid-template-columns: repeat(auto-fit, minmax(min(14rem, 100%), 1fr)); }
+.ew-iconpick-grid { display: grid; gap: .25rem; grid-template-columns: repeat(auto-fill, minmax(3rem, 1fr)); max-height: 50vh; overflow: auto; padding: .25rem; }
+.ew-iconpick-grid .ew-btn { min-width: 2.75rem; min-height: 2.75rem; padding: .25rem; display: grid; place-items: center; }

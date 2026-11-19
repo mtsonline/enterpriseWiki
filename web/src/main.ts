@@ -23,6 +23,7 @@ import { instanceRightsButton } from './components/instanceRights';
 import { instanceLabelsButton } from './components/instanceLabels';
 import { placementEditor } from './components/placement';
 import { blockOptionsControl } from './components/blockoptions';
+import { iconControl } from './components/iconpicker';
 import { registerMacroParamControl } from './editor/macros';
 import { notificationBell } from './components/bell';
 import { adminView } from './views/admin';
@@ -75,6 +76,7 @@ function registerCore(): void {
   registerDashboardTiles();
   // the options of every block in the content (parameter "options" of a macro)
   registerMacroParamControl('blockoptions', blockOptionsControl);
+  registerMacroParamControl('icon', iconControl);
   registerAdminPage({ id: 'placement', permission: 'core.settings.manage', order: 15, label: () => t('placement.admin'), render: async (panel) => { panel.append(pageHeader(t('placement.admin')), await placementEditor('site', ''), await offeredTilesForm()); } });
   registerProfileSection({ id: 'core.placement', order: 60, render: async () => (state.site.personal_placement && state.user ? placementEditor('user', String(state.user.id)) : null) });
   // building blocks of the core: default positions; the administration,

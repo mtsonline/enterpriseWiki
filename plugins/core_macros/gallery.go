@@ -22,11 +22,16 @@ func (gallery) Description() map[string]string {
 		"Zeigt Bilder der Medienbibliothek als Galerie: ausgewählte oder alle einer Kategorie.")
 }
 func (gallery) HasBody() bool { return false }
+var galleryLayouts = []string{"grid", "masonry"}
+
 func (gallery) Params() []content.MacroParam {
 	return []content.MacroParam{
 		{Name: "media", Labels: lm("Media (IDs, comma-separated)", "Medien (IDs, durch Komma getrennt)"), Type: "text"},
 		{Name: "category", Labels: lm("…or all images of category (ID)", "…oder alle Bilder der Kategorie (ID)"), Type: "number"},
-		{Name: "columns", Labels: lm("Columns", "Spalten"), Type: "select", Options: []string{"2", "3", "4", "5", "6"}, Default: "4"},
+		{Name: "columns", Labels: lm("Columns on the desktop", "Spalten auf dem Desktop"), Type: "select", Options: []string{"2", "3", "4", "5", "6"}, Default: "4"},
+		{Name: "tablet", Labels: lm("Columns on the tablet", "Spalten auf dem Tablet"), Type: "select", Options: []string{"1", "2", "3", "4"}, Default: "3"},
+		{Name: "mobile", Labels: lm("Columns on the phone", "Spalten auf dem Handy"), Type: "select", Options: []string{"1", "2"}, Default: "2"},
+		{Name: "layout", Labels: lm("Arrangement", "Anordnung"), Type: "select", Options: galleryLayouts, Default: "grid"},
 		{Name: "captions", Labels: lm("Show titles", "Titel anzeigen"), Type: "bool", Default: "true"},
 		{Name: "limit", Labels: lm("At most (category)", "Höchstens (Kategorie)"), Type: "number", Default: "48"},
 	}
@@ -57,11 +62,19 @@ func (g gallery) Render(ctx context.Context, mc content.MacroContext) (string, e
 	if len(list) == 0 {
 		return "", nil
 	}
+	// columns per view; a picture is at least 8 rem wide (phone: at most 2)
 	cols := intParam(mc.Params, "columns", 4, 2, 6)
+	tab := intParam(mc.Params, "tablet", min(cols, 3), 1, 4)
+	mob := intParam(mc.Params, "mobile", 2, 1, 2)
+	layout := galleryLayouts[0]
+	if mc.Params["layout"] == "masonry" {
+		layout = "masonry"
+	}
 	captions := mc.Params["captions"] != "false"
 	label := lm("Image gallery", "Bildergalerie")
 	var b strings.Builder
-	fmt.Fprintf(&b, `<ul class="ew-gallery" style="--ew-gallery-cols:%d" aria-label="%s">`, cols, esc(pick(label, mc.Lang)))
+	// masonry: the pictures keep their own height, in columns (the order of reading stays the order of the list)
+	fmt.Fprintf(&b, `<ul class="ew-gallery ew-gallery--%s" style="--ew-gallery-cols:%d;--ew-gallery-cols-t:%d;--ew-gallery-cols-m:%d" aria-label="%s">`, layout, cols, tab, mob, esc(pick(label, mc.Lang)))
 	for _, m := range list {
 		alt := m.Alt
 		cls := ""

@@ -2497,7 +2497,7 @@ test('category display: table with a property column, accordion, tabs with the k
   assert.ok(intro.id > 0);
 });
 
-test('layout blocks: a section with options from the macro dialog, grid, tabs with the keyboard, accordion; desktop and phone', async () => {
+test('layout blocks: a section with options from the macro dialog, an icon box with the icon picker, grid, tabs with the keyboard, accordion; desktop and phone', async () => {
   // a block in the content gets its options in the dialog of the macro
   await newPage('core.html', `Layout ${run}`);
   await page.locator('.ewe-prose').click();
@@ -2519,12 +2519,35 @@ test('layout blocks: a section with options from the macro dialog, grid, tabs wi
   await macroDlg.locator('button[type=submit]').click();
   await page.waitForSelector('.ewe-prose .ewe-macro[data-macro="section"]');
   await page.keyboard.type('Section body');
+  // an icon box: the icon from the picker (search), the whole box one link
+  await page.keyboard.press('Control+End');
+  await page.getByRole('button', { name: /^(insert macro|makro einfügen)$/i }).click();
+  const iconDlg = page.locator('dialog[open]').first();
+  await iconDlg.locator('select').first().selectOption('iconbox');
+  await iconDlg.getByRole('button', { name: /^(choose an icon|symbol auswählen)$/i }).click();
+  const picker = page.locator('dialog[open]').last();
+  await picker.getByLabel(/^(search|suchen)$/i).fill('rocket');
+  await picker.getByRole('button', { name: 'rocket', exact: true }).waitFor();
+  await a11y('icon picker');
+  await picker.getByRole('button', { name: 'rocket', exact: true }).click();
+  await iconDlg.locator('code', { hasText: 'rocket' }).waitFor();
+  await iconDlg.getByLabel(/^(title|titel)/i).fill('Launch');
+  await iconDlg.getByLabel(/^(link \(the whole box\)|link \(der ganze kasten\))/i).fill('/search');
+  await iconDlg.locator('button[type=submit]').click();
+  await page.waitForSelector('.ewe-prose .ewe-macro[data-macro="iconbox"]');
   await page.getByRole('button', { name: /^(publish|veröffentlichen)$/i }).click();
   await page.waitForURL(/\/e\/\d+$/);
   await idle();
   const frame = page.locator('.ew-content .ew-bo', { hasText: 'Section body' });
   await frame.waitFor();
   assert.deepEqual(await frame.evaluate((el) => { const c = getComputedStyle(el); return [c.backgroundColor, c.color]; }), ['rgb(16, 32, 64)', 'rgb(255, 255, 255)']);
+  // the icon shows its file, the box is one link
+  const icon = page.locator('.ewl-iconbox .ew-icon[data-icon="rocket"]');
+  const url = await icon.evaluate((el) => getComputedStyle(el).getPropertyValue('--ew-icon'));
+  assert.match(url, /\/assets\/icons\/[^/]+\/outline\/rocket\.svg/);
+  assert.equal((await page.request.get(BASE + url.match(/url\("([^"]+)"\)/)[1])).status(), 200);
+  assert.equal(await page.locator('.ewl-iconbox a').count(), 1);
+  await page.getByRole('link', { name: 'Launch' }).waitFor();
   // grid, tabs and accordion on one page
   const cat = (await call('POST', '/api/v1/categories', { titles: { en: `Layout ${run}` } })).id;
   const src = ':::grid{desktop=3 tablet=2}\nOne\n***\nTwo\n***\nThree\n:::\n\n:::tabs{label="Steps"}\n## First\nText A\n***\n## Second\nText B\n***\n## Third\nText C\n:::\n\n:::accordion{one=true first=true}\n### Question one\nAnswer one\n***\n### Question two\nAnswer two\n:::\n\n::buttons{text1="Start" link1="/" text2="More" link2="/search" layout=full}\n';
