@@ -29,8 +29,8 @@ const FILE = /^\/api\/v1\/(files|media)\/[A-Za-z0-9._-]{1,128}$/;
 const RESERVED_ANCHORS = ['main', 'top', 'content', 'app', 'search', 'nav', 'header', 'footer'];
 
 /** The rule for anchors (CheckAnchor on the server): not an id of the interface
- * (reserved names, the prefix "ew", or name-number like generated ids). */
-export const anchorOK = (v: string): boolean => ANCHOR.test(v) && !RESERVED_ANCHORS.includes(v) && !v.startsWith('ew') && !/-[0-9]+$/.test(v);
+ * (reserved names, the prefix "ew", name-number or f<number>- like generated ids). */
+export const anchorOK = (v: string): boolean => ANCHOR.test(v) && !RESERVED_ANCHORS.includes(v) && !v.startsWith('ew') && !/-[0-9]+$|^f[0-9]+-/.test(v);
 const LANG = /^[a-z]{2,3}(-[A-Za-z0-9]{2,8})?$/;
 
 /** Whether one value fits its option (type and range), as the server checks it. */

@@ -198,3 +198,47 @@ func TestWikiBlocks(t *testing.T) {
 		t.Errorf("new page button with an unknown template: %s", h)
 	}
 }
+
+// TestContentIDs: ids in content never take ids of the interface and stay
+// unique on the page shown, with included pages and anchors.
+func TestContentIDs(t *testing.T) {
+	e := setup(t)
+	admin := e.client()
+	admin.login("admin", adminPW)
+	var cat struct {
+		ID int64 `json:"id"`
+	}
+	admin.must("POST", "/api/v1/categories", map[string]any{"titles": map[string]string{"en": "IDs"}}, &cat, 201)
+	page := func(title, src string) (int64, string) {
+		t.Helper()
+		var el struct {
+			ID   int64  `json:"id"`
+			HTML string `json:"html"`
+		}
+		admin.must("POST", "/api/v1/elements", map[string]any{"category_id": cat.ID, "type": "core.html", "title": title, "body": map[string]any{"format": "markdown", "source": src}}, &el, 201)
+		admin.must("GET", fmt.Sprintf("/api/v1/elements/%d", el.ID), nil, &el, 200)
+		return el.ID, el.HTML
+	}
+	_, h := page("Headings", "::toc\n\n## Main\n\n## EW tools\n\n## Q 12\n\n## F12-name\n\n## Budget\n\n## Budget\n\n<h2 id=\"search\">Raw</h2>\n\nText :anchor{name=\"budget\"}\n")
+	for _, want := range []string{`id="h-main"`, `id="h-ew-tools"`, `id="h-q-12"`, `id="h-f12-name"`, `id="budget"`, `id="budget-1"`, `id="h-search"`, `href="#h-main"`, `href="#budget-1"`, `<span class="ew-macro-error"`} {
+		if !strings.Contains(h, want) {
+			t.Errorf("%s missing: %s", want, h)
+		}
+	}
+	for _, not := range []string{`id="main"`, `id="search"`, `id="q-12"`} {
+		if strings.Contains(h, not) {
+			t.Errorf("%s in content: %s", not, h)
+		}
+	}
+	// the anchor may not take the id of a heading
+	if strings.Count(h, `id="budget"`) != 1 || !strings.Contains(h, "twice") {
+		t.Errorf("anchor with the id of a heading: %s", h)
+	}
+	// an included page with the same headings: its ids get their own number,
+	// its table of contents follows them
+	inc, _ := page("Included", "::toc\n\n## Intro\n\n## Details\n")
+	_, h = page("Host", fmt.Sprintf("## Intro\n\n::include{page=%d}\n", inc))
+	if strings.Count(h, `id="intro"`) != 1 || !strings.Contains(h, `id="intro-2"`) || !strings.Contains(h, `href="#intro-2"`) {
+		t.Errorf("ids of an included page: %s", h)
+	}
+}

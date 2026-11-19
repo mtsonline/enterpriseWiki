@@ -455,4 +455,18 @@ var traps = []trap{
 		New:  "slices.Contains(words[1:], \"nolines\")",
 		Pkg:  "./internal/server/", Tests: "^TestAttachmentsAndCode$",
 	},
+	{
+		ID: "ids.heading-interface", About: "headings take ids of the interface (#main …)",
+		File: "internal/content/macros.go",
+		Old:  "\t\t\tif interfaceID(id) {",
+		New:  "\t\t\tif false {",
+		Pkg:  "./internal/server/", Tests: "^TestContentIDs$",
+	},
+	{
+		ID: "ids.heading-unique", About: "ids of headings repeat on a page with included pages and anchors",
+		File: "internal/content/macros.go",
+		Old:  "\t\t\t\tif !taken[id] && ClaimID(ctx, id) {",
+		New:  "\t\t\t\tif !taken[id] {",
+		Pkg:  "./internal/server/", Tests: "^TestContentIDs$",
+	},
 }
