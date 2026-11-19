@@ -48,5 +48,14 @@
  "template.version_current": "(aktuell)",
  "template.version_take": "In den Text übernehmen",
  "template.version_take_named": "Version {version} in den Text übernehmen",
- "template.version_taken": "Version {version} steht im Text. Speichern Sie, um sie zu verwenden."
+ "template.version_taken": "Version {version} steht im Text. Speichern Sie, um sie zu verwenden.",
+ "template.limits": "Grenzen",
+ "template.view_desktop": "Desktop",
+ "template.view_tablet": "Tablet",
+ "template.view_mobile": "Handy",
+ "template.limit_view": "{view} (ab {px} px): Der Inhalt braucht mindestens {rem} rem.",
+ "template.limit_blocks": "Ein Baustein neben anderen ist zwischen {min} und {max} rem breit.",
+ "template.limit_counts": "Höchstens {rows} Zeilen, {per_row} Bausteine je Zeile, {blocks} Bausteine und {positions} Positionen.",
+ "template.limit_contrast": "Kontrast mindestens {text}:1 für Text, {ui}:1 für Bedienelemente und Fokus.",
+ "template.limit_fonts": "Schriften: {list}."
 }
