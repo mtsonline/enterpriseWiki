@@ -316,8 +316,8 @@ var traps = []trap{
 	{
 		ID: "template.font-length", About: "a WOFF2 file whose header names another length is accepted",
 		File: "plugins/core_template/fonts.go",
-		Old:  "if be.Uint32(b[8:12]) != n {",
-		New:  "if be.Uint32(b[8:12]) == 0 {",
+		Old:  "if be.Uint32(b[8:12]) != n {\n\t\treturn fmt.Errorf(\"the length in the WOFF2 header",
+		New:  "if be.Uint32(b[8:12]) == 0 {\n\t\treturn fmt.Errorf(\"the length in the WOFF2 header",
 		Pkg:  "./plugins/core_template/", Tests: "^TestCheckWOFF2$",
 	},
 	{
