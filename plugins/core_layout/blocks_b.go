@@ -16,6 +16,7 @@ import (
 	"strings"
 	"unicode/utf8"
 
+	"github.com/mtsonline/enterprisewiki/internal/apperr"
 	"github.com/mtsonline/enterprisewiki/internal/content"
 	"github.com/mtsonline/enterprisewiki/plugins/core_macros"
 )
@@ -25,18 +26,18 @@ import (
 func number(v string) (float64, int, error) {
 	v = strings.TrimSpace(strings.ReplaceAll(v, ",", "."))
 	if v == "" || len(v) > 24 {
-		return 0, 0, fmt.Errorf("a number")
+		return 0, 0, apperr.BadRequest("a number")
 	}
 	f, err := strconv.ParseFloat(v, 64)
 	if err != nil || math.IsNaN(f) || math.IsInf(f, 0) || math.Abs(f) >= 1e15 {
-		return 0, 0, fmt.Errorf("a number")
+		return 0, 0, apperr.BadRequest("a number")
 	}
 	dec := 0
 	if i := strings.IndexByte(v, '.'); i >= 0 {
 		dec = len(v) - i - 1
 	}
 	if dec > 3 {
-		return 0, 0, fmt.Errorf("at most 3 decimals")
+		return 0, 0, apperr.BadRequest("at most 3 decimals")
 	}
 	return f, dec, nil
 }
@@ -70,7 +71,7 @@ func formatNumber(f float64, dec int, lang string) string {
 func shortText(name, v string, max int) (string, error) {
 	v = strings.TrimSpace(v)
 	if utf8.RuneCountInString(v) > max {
-		return "", fmt.Errorf("%s: at most %d characters", name, max)
+		return "", apperr.BadRequest("%s: at most %d characters", name, max)
 	}
 	return v, nil
 }
@@ -101,20 +102,20 @@ func (progress) Render(_ context.Context, mc content.MacroContext) (string, erro
 		return "", err
 	}
 	if label == "" {
-		return "", fmt.Errorf("a progress bar needs a name (label)")
+		return "", apperr.BadRequest("a progress bar needs a name (label)")
 	}
 	v, dec, err := number(mc.Params["value"])
 	if err != nil {
-		return "", fmt.Errorf("value: %v", err)
+		return "", apperr.BadRequest("value: %v", err)
 	}
 	maxV, maxDec := 100.0, 0
 	if m := strings.TrimSpace(mc.Params["max"]); m != "" {
 		if maxV, maxDec, err = number(m); err != nil {
-			return "", fmt.Errorf("max: %v", err)
+			return "", apperr.BadRequest("max: %v", err)
 		}
 	}
 	if maxV <= 0 || v < 0 || v > maxV {
-		return "", fmt.Errorf("the value must lie between 0 and the maximum (%s)", formatNumber(maxV, maxDec, mc.Lang))
+		return "", apperr.BadRequest("the value must lie between 0 and the maximum (%s)", formatNumber(maxV, maxDec, mc.Lang))
 	}
 	pct := v / maxV * 100
 	text := formatNumber(math.Round(pct), 0, mc.Lang) + " %"
@@ -152,14 +153,14 @@ func (counter) Params() []content.MacroParam {
 func (counter) Render(_ context.Context, mc content.MacroContext) (string, error) {
 	v, dec, err := number(mc.Params["value"])
 	if err != nil {
-		return "", fmt.Errorf("value: %v", err)
+		return "", apperr.BadRequest("value: %v", err)
 	}
 	label, err := shortText("label", mc.Params["label"], 120)
 	if err != nil {
 		return "", err
 	}
 	if label == "" {
-		return "", fmt.Errorf("a counter needs a name (label)")
+		return "", apperr.BadRequest("a counter needs a name (label)")
 	}
 	pre, err := shortText("prefix", mc.Params["prefix"], 12)
 	if err != nil {
@@ -208,10 +209,10 @@ func (timeline) Params() []content.MacroParam {
 func (timeline) Render(_ context.Context, mc content.MacroContext) (string, error) {
 	parts := core_macros.SplitOnHR(mc.Body)
 	if len(parts) == 0 {
-		return "", fmt.Errorf("separate the entries with a horizontal line")
+		return "", apperr.BadRequest("separate the entries with a horizontal line")
 	}
 	if len(parts) > 50 {
-		return "", fmt.Errorf("at most 50 entries")
+		return "", apperr.BadRequest("at most 50 entries")
 	}
 	label, err := shortText("label", mc.Params["label"], 120)
 	if err != nil {
@@ -223,7 +224,7 @@ func (timeline) Render(_ context.Context, mc content.MacroContext) (string, erro
 	// keyboard reaches
 	if dir == "horizontal" {
 		if label == "" {
-			return "", fmt.Errorf("a horizontal timeline needs a name for screen readers (label): it can scroll in itself")
+			return "", apperr.BadRequest("a horizontal timeline needs a name for screen readers (label): it can scroll in itself")
 		}
 		fmt.Fprintf(&b, `<div class="ewl-timeline-scroll" role="region" aria-label="%s" tabindex="0">`, esc(label))
 	}
@@ -277,10 +278,10 @@ func (dialog) Render(_ context.Context, mc content.MacroContext) (string, error)
 		return "", err
 	}
 	if text == "" || title == "" {
-		return "", fmt.Errorf("a dialog needs a button text and a title")
+		return "", apperr.BadRequest("a dialog needs a button text and a title")
 	}
 	if strings.TrimSpace(mc.Body) == "" {
-		return "", fmt.Errorf("a dialog needs content")
+		return "", apperr.BadRequest("a dialog needs content")
 	}
 	icon, err := buttonIcon(mc.Params["icon"])
 	if err != nil {
@@ -323,7 +324,7 @@ func (tooltip) Render(_ context.Context, mc content.MacroContext) (string, error
 		return "", err
 	}
 	if word == "" || tip == "" {
-		return "", fmt.Errorf("a tooltip needs a word and an explanation")
+		return "", apperr.BadRequest("a tooltip needs a word and an explanation")
 	}
 	return fmt.Sprintf(`<span class="ewl-tip" data-ew-widget="ewl.tip"><span class="ewl-tip-term">%s</span><span class="ewl-tip-text"> (%s)</span></span>`, esc(word), esc(tip)), nil
 }
@@ -357,14 +358,14 @@ func (testimonial) Render(_ context.Context, mc content.MacroContext) (string, e
 		return "", err
 	}
 	if name == "" {
-		return "", fmt.Errorf("a quote needs the name of the person")
+		return "", apperr.BadRequest("a quote needs the name of the person")
 	}
 	if strings.TrimSpace(mc.Body) == "" {
-		return "", fmt.Errorf("a quote needs a text")
+		return "", apperr.BadRequest("a quote needs a text")
 	}
 	img := strings.TrimSpace(mc.Params["image"])
 	if img != "" && !content.WikiFile(img) {
-		return "", fmt.Errorf("image: a file of the wiki (/api/v1/files/… or /api/v1/media/ID/view)")
+		return "", apperr.BadRequest("image: a file of the wiki (/api/v1/files/… or /api/v1/media/ID/view)")
 	}
 	var b strings.Builder
 	b.WriteString(`<figure class="ewl-quote"><blockquote class="ewl-quote-text">` + mc.Body + `</blockquote><figcaption class="ewl-quote-who">`)
@@ -405,21 +406,21 @@ func (logos) Render(_ context.Context, mc content.MacroContext) (string, error) 
 		return "", err
 	}
 	if label == "" {
-		return "", fmt.Errorf("a logo bar needs a name for screen readers (label)")
+		return "", apperr.BadRequest("a logo bar needs a name for screen readers (label)")
 	}
 	items := logoItems(mc.Body)
 	if len(items) == 0 {
-		return "", fmt.Errorf("put the logos as pictures into the logo bar")
+		return "", apperr.BadRequest("put the logos as pictures into the logo bar")
 	}
 	if len(items) > 40 {
-		return "", fmt.Errorf("at most 40 logos")
+		return "", apperr.BadRequest("at most 40 logos")
 	}
 	for _, it := range items {
 		if !it.hasAlt {
-			return "", fmt.Errorf("every logo needs its name as text alternative")
+			return "", apperr.BadRequest("every logo needs its name as text alternative")
 		}
 		if !content.WikiFile(it.src) {
-			return "", fmt.Errorf("logos come from the wiki itself (upload them to the media library)")
+			return "", apperr.BadRequest("logos come from the wiki itself (upload them to the media library)")
 		}
 	}
 	cls := "ewl-logos ewl-logos--" + oneOf(mc.Params["size"], []string{"medium", "small", "large"})

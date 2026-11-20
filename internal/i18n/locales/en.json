@@ -2820,6 +2820,5 @@
  "editor.parts_help_titled": "In the editor the macro starts with two parts ({part}): the heading is the title, the content goes below it. Add more with “+ {part}” at the top of the macro.",
  "editor.part_add": "Add {part}",
  "editor.part_next": "Next {part}",
- "editor.part_added": "{part} added.",
- "error.invalid_login": "The user name or password is wrong."
+ "editor.part_added": "{part} added."
 }

@@ -20,6 +20,7 @@ import (
 	"golang.org/x/net/html/atom"
 
 	"github.com/mtsonline/enterprisewiki/internal/acl"
+	"github.com/mtsonline/enterprisewiki/internal/apperr"
 	"github.com/mtsonline/enterprisewiki/internal/content"
 )
 
@@ -52,7 +53,7 @@ func (excerpt) Params() []content.MacroParam {
 func (excerpt) Render(_ context.Context, mc content.MacroContext) (string, error) {
 	name := strings.TrimSpace(mc.Params["name"])
 	if name != "" && !anchorNameRe.MatchString(name) {
-		return "", fmt.Errorf("the name: lowercase letters, digits and hyphens, starting with a letter")
+		return "", apperr.BadRequest("the name: lowercase letters, digits and hyphens, starting with a letter")
 	}
 	return `<div class="ew-excerpt" data-excerpt="` + esc(name) + `">` + mc.Body + `</div>`, nil
 }
@@ -126,18 +127,18 @@ func (include) Render(ctx context.Context, mc content.MacroContext) (string, err
 	}
 	id := idParam(mc.Params["page"])
 	if id == 0 {
-		return "", fmt.Errorf("choose the page to include (its number)")
+		return "", apperr.BadRequest("choose the page to include (its number)")
 	}
 	if id == mc.ElementID {
-		return "", fmt.Errorf("a page cannot include itself")
+		return "", apperr.BadRequest("a page cannot include itself")
 	}
 	if !content.SpendInclude(ctx) {
-		return "", fmt.Errorf("this page includes too many pages; the others are not shown")
+		return "", apperr.BadRequest("this page includes too many pages; the others are not shown")
 	}
 	// with the permissions of the reader; a page they may not see is not
 	// there for them (the same answer as for a page that does not exist).
 	// Pages that include pages stop at the depth of the content service.
-	notThere := fmt.Errorf("the page %d is not there or not visible to you", id)
+	notThere := apperr.BadRequest("the page %d is not there or not visible to you", id)
 	cat, err := mc.Service.ElementCategory(ctx, id, acl.View)
 	if err != nil {
 		return "", notThere
@@ -165,7 +166,7 @@ func (include) Render(ctx context.Context, mc content.MacroContext) (string, err
 		name := strings.TrimSpace(mc.Params["name"])
 		ex, ok := excerptOf(v.HTML, name)
 		if !ok {
-			return "", fmt.Errorf("the page %q has no excerpt %q", v.Title, name)
+			return "", apperr.BadRequest("the page %q has no excerpt %q", v.Title, name)
 		}
 		body = ex
 	}
@@ -190,10 +191,10 @@ func (anchor) Params() []content.MacroParam {
 func (anchor) Render(ctx context.Context, mc content.MacroContext) (string, error) {
 	name := strings.TrimSpace(mc.Params["name"])
 	if err := content.CheckAnchor(name); err != nil {
-		return "", fmt.Errorf("the name of the anchor: %v", err)
+		return "", apperr.BadRequest("the name of the anchor: %v", err)
 	}
 	if !content.ClaimID(ctx, name) {
-		return "", fmt.Errorf("the anchor %q is on this page twice; give each anchor its own name", name)
+		return "", apperr.BadRequest("the anchor %q is on this page twice; give each anchor its own name", name)
 	}
 	return `<span class="ew-anchor" id="` + esc(name) + `"></span>`, nil
 }
@@ -233,7 +234,7 @@ func (pagetree) Render(ctx context.Context, mc content.MacroContext) (string, er
 		root = v
 	}
 	if root == 0 {
-		return "", fmt.Errorf("choose a category")
+		return "", apperr.BadRequest("choose a category")
 	}
 	depth := 3
 	if n, err := strconv.Atoi(mc.Params["depth"]); err == nil && n >= 1 && n <= 4 {
@@ -243,7 +244,7 @@ func (pagetree) Render(ctx context.Context, mc content.MacroContext) (string, er
 	// categories the reader may see, then all their pages at once
 	scope, err := mc.Service.Scope(ctx, root, true)
 	if err != nil {
-		return "", fmt.Errorf("the category %d is not there or not visible to you", root)
+		return "", apperr.BadRequest("the category %d is not there or not visible to you", root)
 	}
 	cats, err := mc.Service.CategoriesByID(ctx, scope)
 	if err != nil {
@@ -363,7 +364,7 @@ func (searchbox) Render(ctx context.Context, mc content.MacroContext) (string, e
 		}
 		if cat > 0 && mc.Service != nil {
 			if _, err := mc.Service.Scope(ctx, cat, false); err != nil {
-				return "", fmt.Errorf("the category %d is not there or not visible to you", cat)
+				return "", apperr.BadRequest("the category %d is not there or not visible to you", cat)
 			}
 		}
 	}
@@ -423,7 +424,7 @@ func (newpage) Render(ctx context.Context, mc content.MacroContext) (string, err
 	}
 	tid := idParam(mc.Params["template"])
 	if cat == 0 || tid == 0 {
-		return "", fmt.Errorf("choose a category and a page template")
+		return "", apperr.BadRequest("choose a category and a page template")
 	}
 	// only for people who may create pages there and may use the template
 	c, err := mc.Service.GetCategory(ctx, cat)

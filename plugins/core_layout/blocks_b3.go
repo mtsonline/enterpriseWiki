@@ -13,6 +13,7 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/mtsonline/enterprisewiki/internal/apperr"
 	"github.com/mtsonline/enterprisewiki/internal/content"
 	"github.com/mtsonline/enterprisewiki/plugins/core_macros"
 )
@@ -45,7 +46,7 @@ func (personcard) Render(_ context.Context, mc content.MacroContext) (string, er
 		return "", err
 	}
 	if name == "" {
-		return "", fmt.Errorf("a person card needs a name")
+		return "", apperr.BadRequest("a person card needs a name")
 	}
 	role, err := shortText("role", mc.Params["role"], 160)
 	if err != nil {
@@ -53,15 +54,15 @@ func (personcard) Render(_ context.Context, mc content.MacroContext) (string, er
 	}
 	img := strings.TrimSpace(mc.Params["image"])
 	if img != "" && !content.WikiFile(img) {
-		return "", fmt.Errorf("image: a file of the wiki (/api/v1/files/… or /api/v1/media/ID/view)")
+		return "", apperr.BadRequest("image: a file of the wiki (/api/v1/files/… or /api/v1/media/ID/view)")
 	}
 	email := strings.TrimSpace(mc.Params["email"])
 	if email != "" && !emailRe.MatchString(email) {
-		return "", fmt.Errorf("email: an e-mail address")
+		return "", apperr.BadRequest("email: an e-mail address")
 	}
 	phone := strings.TrimSpace(mc.Params["phone"])
 	if phone != "" && !phoneRe.MatchString(phone) {
-		return "", fmt.Errorf("phone: digits, spaces and + ( ) / - only")
+		return "", apperr.BadRequest("phone: digits, spaces and + ( ) / - only")
 	}
 	var b strings.Builder
 	b.WriteString(`<div class="ewl-person">`)
@@ -140,13 +141,13 @@ func (rotating) Render(_ context.Context, mc content.MacroContext) (string, erro
 	for _, w := range strings.Split(mc.Params["words"], "|") {
 		if w = strings.TrimSpace(w); w != "" {
 			if len([]rune(w)) > 40 {
-				return "", fmt.Errorf("a word has at most 40 characters")
+				return "", apperr.BadRequest("a word has at most 40 characters")
 			}
 			words = append(words, w)
 		}
 	}
 	if len(words) < 2 || len(words) > 10 {
-		return "", fmt.Errorf("2 to 10 words, separated by |")
+		return "", apperr.BadRequest("2 to 10 words, separated by |")
 	}
 	level := oneOf(mc.Params["level"], []string{"2", "1", "3", "4"})
 	effect := oneOf(mc.Params["effect"], []string{"fade", "type"})
@@ -194,14 +195,14 @@ func (ticker) Render(_ context.Context, mc content.MacroContext) (string, error)
 		return "", err
 	}
 	if label == "" {
-		return "", fmt.Errorf("a ticker needs a name for screen readers (label)")
+		return "", apperr.BadRequest("a ticker needs a name for screen readers (label)")
 	}
 	items := listItemRe.FindAllString(mc.Body, -1)
 	if len(items) == 0 {
-		return "", fmt.Errorf("put the entries as a list into the ticker")
+		return "", apperr.BadRequest("put the entries as a list into the ticker")
 	}
 	if len(items) > 30 {
-		return "", fmt.Errorf("at most 30 entries")
+		return "", apperr.BadRequest("at most 30 entries")
 	}
 	speed := oneOf(mc.Params["speed"], []string{"slow", "medium", "fast"})
 	return fmt.Sprintf(`<div class="ewl-ticker ewl-ticker--%s" role="region" aria-label="%s" data-ew-widget="ewl.ticker"><ul class="ewl-ticker-list">%s</ul></div>`,
@@ -235,14 +236,14 @@ func (slider) Render(_ context.Context, mc content.MacroContext) (string, error)
 		return "", err
 	}
 	if label == "" {
-		return "", fmt.Errorf("a slider needs a name for screen readers (label)")
+		return "", apperr.BadRequest("a slider needs a name for screen readers (label)")
 	}
 	parts := core_macros.SplitOnHR(mc.Body)
 	if len(parts) < 2 {
-		return "", fmt.Errorf("a slider needs at least two parts, separated by a horizontal line")
+		return "", apperr.BadRequest("a slider needs at least two parts, separated by a horizontal line")
 	}
 	if len(parts) > 20 {
-		return "", fmt.Errorf("at most 20 parts")
+		return "", apperr.BadRequest("at most 20 parts")
 	}
 	auto := ""
 	if mc.Params["auto"] == "true" {

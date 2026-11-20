@@ -854,4 +854,18 @@ var traps = []trap{
 		New:  "map[string]any{\"name\": \"Demo\", \"position\": \"content-top\", \"audience\": \"users\"",
 		Pkg:  "./internal/server/", Tests: "^TestDemo$",
 	},
+	{
+		ID: "errors.english-only", About: "error answers ignore the language of the client",
+		File: "internal/httpx/httpx.go",
+		Old:  "body := map[string]string{\"code\": code, \"message\": apperr.Localized(err, apperr.RequestLanguage(r))}",
+		New:  "body := map[string]string{\"code\": code, \"message\": apperr.Localized(err, \"en\")}",
+		Pkg:  "./internal/server/", Tests: "^TestErrorLanguage$",
+	},
+	{
+		ID: "errors.values-lost", About: "a translated message loses its values",
+		File: "internal/apperr/localize.go",
+		Old:  "format, args = e.format, e.args",
+		New:  "format = e.format",
+		Pkg:  "./internal/apperr/", Tests: "^TestLocalized$",
+	},
 }

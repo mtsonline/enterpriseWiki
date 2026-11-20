@@ -14,6 +14,7 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/mtsonline/enterprisewiki/internal/apperr"
 	"github.com/mtsonline/enterprisewiki/internal/content"
 	"github.com/mtsonline/enterprisewiki/web"
 )
@@ -28,10 +29,10 @@ var (
 // when the icons are part of the program.
 func checkIcon(name, style string) error {
 	if !iconNameRe.MatchString(name) {
-		return fmt.Errorf("choose an icon (a name of lowercase letters, digits and hyphens)")
+		return apperr.BadRequest("choose an icon (a name of lowercase letters, digits and hyphens)")
 	}
 	if has, built := web.HasIcon(style, name); built && !has {
-		return fmt.Errorf("there is no icon %q in the style %s", name, style)
+		return apperr.BadRequest("there is no icon %q in the style %s", name, style)
 	}
 	return nil
 }
@@ -120,7 +121,7 @@ func (iconbox) Render(_ context.Context, mc content.MacroContext) (string, error
 	}
 	title := strings.TrimSpace(mc.Params["title"])
 	if title == "" {
-		return "", fmt.Errorf("an icon box needs a title")
+		return "", apperr.BadRequest("an icon box needs a title")
 	}
 	pos := oneOf(mc.Params["position"], []string{"top", "left"})
 	var b strings.Builder

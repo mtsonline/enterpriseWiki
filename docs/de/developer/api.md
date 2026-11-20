@@ -3,7 +3,7 @@
 Die Weboberfläche nutzt ausschließlich diese API. Alles, was in der Oberfläche geht, geht damit auch per Skript oder über `ewiki api` (CLI).
 
 - Basis: `/api/v1`, JSON (UTF-8). Plugin-Routen liegen unter `/api/v1/x/<plugin-id>/…`.
-- Fehler: HTTP-Status plus `{"error": {"code": "not_found", "message": "…"}}`. Codes: `bad_request`, `unauthorized`, `invalid_credentials`, `forbidden`, `csrf`, `not_found`, `conflict`, `rate_limited`, `internal`.
+- Fehler: HTTP-Status plus `{"error": {"code": "not_found", "message": "…"}}`. Codes: `bad_request`, `unauthorized`, `invalid_credentials`, `forbidden`, `csrf`, `not_found`, `conflict`, `rate_limited`, `internal`. Die Meldung steht in der Sprache des Headers `Accept-Language` (erster Eintrag; Deutsch mit `de`), sonst auf Englisch; der Code ist in jeder Sprache gleich. Die Texte stehen in `internal/apperr/locales/<sprache>.json` (Schlüssel: das englische Format); `go test ./internal/apperr` prüft, dass jede Meldung des Codes einen Text hat.
 - Mehrsprachige Felder sind Objekte `{"de": "…", "en": "…"}`.
 - Berechtigungen als Bitmaske: 1 = Ansehen, 2 = Bearbeiten, 4 = Erstellen, 8 = Löschen/Verschieben, 16 = Berechtigungen verwalten.
 

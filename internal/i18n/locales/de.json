@@ -2820,6 +2820,5 @@
  "editor.parts_help_titled": "Im Editor hat das Makro gleich zwei Teile ({part}): Die Überschrift ist jeweils der Titel, darunter steht der Inhalt. Mit „+ {part}“ oben am Makro fügen Sie weitere hinzu.",
  "editor.part_add": "{part} hinzufügen",
  "editor.part_next": "Hier beginnt: {part}",
- "editor.part_added": "{part} hinzugefügt.",
- "error.invalid_login": "Benutzername oder Passwort ist falsch."
+ "editor.part_added": "{part} hinzugefügt."
 }

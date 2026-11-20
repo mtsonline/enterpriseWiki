@@ -81,11 +81,12 @@ func Write(w http.ResponseWriter, status int, v any) {
 
 // WriteError writes an error response {"error": {...}}.
 func WriteError(w http.ResponseWriter, r *http.Request, err error) {
-	status, code, msg := apperr.Status(err)
+	status, code, _ := apperr.Status(err)
 	if status >= 500 {
 		logErr().Error("request failed", "method", r.Method, "path", r.URL.Path, "err", err)
 	}
-	body := map[string]string{"code": code, "message": msg}
+	// in the language the client asks for (the interface sends its own)
+	body := map[string]string{"code": code, "message": apperr.Localized(err, apperr.RequestLanguage(r))}
 	var ae *apperr.Error
 	if errors.As(err, &ae) && ae.Detail != "" {
 		body["detail"] = ae.Detail

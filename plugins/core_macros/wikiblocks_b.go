@@ -12,6 +12,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/mtsonline/enterprisewiki/internal/apperr"
 	"github.com/mtsonline/enterprisewiki/internal/content"
 )
 
@@ -23,7 +24,7 @@ func pageOf(mc content.MacroContext) (int64, error) {
 	if mc.ElementID > 0 {
 		return mc.ElementID, nil
 	}
-	return 0, fmt.Errorf("choose a page (here is no page of its own)")
+	return 0, apperr.BadRequest("choose a page (here is no page of its own)")
 }
 
 func countParam(v string, def, max int) int {
@@ -62,7 +63,7 @@ func (tagcloud) Render(ctx context.Context, mc content.MacroContext) (string, er
 	root := idParam(mc.Params["category"])
 	tags, err := mc.Service.TagCloud(ctx, root, countParam(mc.Params["max"], 40, 100))
 	if err != nil {
-		return "", fmt.Errorf("the area %d is not there or not visible to you", root)
+		return "", apperr.BadRequest("the area %d is not there or not visible to you", root)
 	}
 	if len(tags) == 0 {
 		return `<p class="ew-muted">` + esc(tr(mc.Lang, "No tags yet.", "Noch keine Schlagwörter.")) + `</p>`, nil
@@ -155,7 +156,7 @@ func (pagechanges) Render(ctx context.Context, mc content.MacroContext) (string,
 	}
 	list, err := mc.Service.PageChanges(ctx, id, countParam(mc.Params["max"], 5, content.PageChangesMax))
 	if err != nil {
-		return "", fmt.Errorf("the page %d is not there or not visible to you", id)
+		return "", apperr.BadRequest("the page %d is not there or not visible to you", id)
 	}
 	var b strings.Builder
 	b.WriteString(`<div class="ew-pagechanges">`)
@@ -211,7 +212,7 @@ func (contributors) Render(ctx context.Context, mc content.MacroContext) (string
 	}
 	list, err := mc.Service.Contributors(ctx, id, countParam(mc.Params["max"], 10, content.ContributorsMax))
 	if err != nil {
-		return "", fmt.Errorf("the page %d is not there or not visible to you", id)
+		return "", apperr.BadRequest("the page %d is not there or not visible to you", id)
 	}
 	if len(list) == 0 {
 		return `<p class="ew-muted">` + esc(tr(mc.Lang, "Nobody yet.", "Noch niemand.")) + `</p>`, nil

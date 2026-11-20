@@ -82,11 +82,6 @@ export function errorText(e: unknown): string {
     if (e.status === 413) return t('error.too_large');
     if (e.code === 'busy') return t('error.busy');
     if (e.code === 'reauth_required') return t('error.reauth_required');
-    // the general answers of the server in the language of the interface
-    if (e.code === 'forbidden' && e.message === 'permission denied') return t('error.forbidden');
-    if (e.code === 'unauthorized' && e.message === 'authentication required') return t('error.login_required');
-    if (e.code === 'invalid_credentials') return t('error.invalid_login');
-    if (e.code === 'not_found' && / not found$/.test(e.message)) return t('error.not_found');
     return e.message;
   }
   return e instanceof Error ? e.message : String(e);
