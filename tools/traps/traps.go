@@ -429,7 +429,7 @@ var traps = []trap{
 		ID: "template.font-woff-tables", About: "a WOFF file with a table outside the file is accepted",
 		File: "plugins/core_template/fonts.go",
 		Old:  "if comp > orig || !within(off, comp, dirEnd, n) {",
-		New:  "if comp > orig {",
+		New:  "if comp > orig || off+1 == 0 {",
 		Pkg:  "./plugins/core_template/", Tests: "^TestFontFormats$",
 	},
 	{
