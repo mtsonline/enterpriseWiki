@@ -11,7 +11,7 @@
 services:
   postgres:
     # the official PostgreSQL image; major upgrades with ./docker-postgres-upgrade.sh
-    image: postgres:${POSTGRES_VERSION:-18}
+    image: postgres:${POSTGRES_VERSION:-19}
     user: "${EWIKI_UID:?run ./docker-setup.sh}:${EWIKI_GID:?run ./docker-setup.sh}"
     restart: unless-stopped
     networks: [ewiki]
@@ -19,8 +19,8 @@ services:
       POSTGRES_DB: ewiki
       POSTGRES_USER: ewiki
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
-      # one directory per major version (data/postgres/18/docker, …/19/docker)
-      PGDATA: /var/lib/postgresql/${POSTGRES_VERSION:-18}/docker
+      # one directory per major version (data/postgres/19/docker, …/20/docker)
+      PGDATA: /var/lib/postgresql/${POSTGRES_VERSION:-19}/docker
     volumes:
       - ./data/postgres:/var/lib/postgresql
     stop_grace_period: 2m

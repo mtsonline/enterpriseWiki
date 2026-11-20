@@ -61,7 +61,7 @@ Mindestversion zum Bauen; verwendet wird immer die Go-Version aus der `toolchain
 ## PostgreSQL-Upgrades (Docker)
 
 Docker Compose verwendet das **offizielle** Image `postgres:<Version>`. Die Version steht in `.env`
-(`POSTGRES_VERSION`), die Daten jeder Hauptversion liegen in einem eigenen Ordner: `./data/postgres/18/docker`,
+(`POSTGRES_VERSION`), die Daten jeder Hauptversion liegen in einem eigenen Ordner: `./data/postgres/19/docker`,
 später `./data/postgres/19/docker` usw. Ein `docker compose up -d` wechselt daher **nie** von selbst die Hauptversion.
 
 **Wann?** Ist eine neuere Version empfohlen oder endet die Unterstützung der verwendeten Version durch das
