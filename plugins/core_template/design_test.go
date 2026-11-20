@@ -77,6 +77,20 @@ func TestDesignProblems(t *testing.T) {
 		{"unknown block in a view", func(d *Design) { d.Rows[2].Mobile = &View{Stack: true, Drawer: []string{"nope"}} }, `no block "nope"`},
 		{"logo in a drawer", func(d *Design) { d.Rows[1].Mobile = &View{Drawer: []string{"brand"}} }, "the logo cannot"},
 		{"the menu in a drawer on the desktop", func(d *Design) { d.Rows[1].Desktop = &View{Drawer: []string{"menu"}} }, ""},
+		{"header shrinks without being sticky", func(d *Design) { d.Options.StickyHeader, d.Options.HeaderShrink = false, true }, "must be sticky"},
+		{"header goes away without being sticky", func(d *Design) { d.Options.StickyHeader, d.Options.HeaderHide = false, true }, "must be sticky"},
+		{"header shrinks and hides", func(d *Design) {
+			d.Options.StickyHeader, d.Options.HeaderShrink, d.Options.HeaderHide, d.Options.PrintPlain = true, true, true, true
+		}, ""},
+		{"a sticky menu", func(d *Design) { d.Rows[1].Blocks[1].Sticky = true }, "only a side column"},
+		{"a collapsible content", func(d *Design) { d.Rows[2].Blocks[1].Collapsible = true }, "only a side column"},
+		{"a sticky, collapsible side column", func(d *Design) { d.Rows[2].Blocks[0].Sticky, d.Rows[2].Blocks[0].Collapsible = true, true }, ""},
+		{"a collapsible side column in a desktop drawer", func(d *Design) {
+			d.Rows[2].Blocks[0].Collapsible = true
+			d.Rows[2].Desktop = &View{Drawer: []string{d.Rows[2].Blocks[0].ID}}
+		}, "cannot also be sticky or collapsible"},
+		{"a footer without names that collapses", func(d *Design) { d.Rows[3].CollapseMobile = true; d.Rows[3].Blocks[0].Label = nil }, "needs a name"},
+		{"collapsing a row that is no footer", func(d *Design) { d.Rows[1].CollapseMobile = true }, "only a footer row"},
 		{"the logo in a drawer on the desktop", func(d *Design) { d.Rows[1].Desktop = &View{Drawer: []string{"brand"}} }, "desktop: the logo cannot"},
 		{"the content in a drawer on the desktop", func(d *Design) { d.Rows[2].Desktop = &View{Drawer: []string{"content"}} }, "desktop: the content cannot"},
 		{"the desktop changes the layout", func(d *Design) { d.Rows[1].Desktop = &View{Stack: true} }, "desktop: only blocks behind a button"},

@@ -117,3 +117,42 @@
 .ewd-app .ewcms-nav-list a { color: inherit; min-height: 2.75rem; padding: 0 .75rem; }
 .ewd-app .ewcms-nav-list a[aria-current="page"] { color: inherit; }
 .ewd-app .ewcms-nav-list a::after { background: currentColor; left: .75rem; right: .75rem; bottom: .35rem; }
+
+/* the sticky header: lower once scrolled, away while scrolling down */
+.ewd-landmark.ewd-sticky { transition: transform .2s ease; }
+.ewd-landmark.ewd-sticky.ewd-shrunk .ewd-inner { padding-block: .25rem; }
+.ewd-landmark.ewd-sticky.ewd-shrunk .ewd-logo { max-height: 1.75rem; }
+.ewd-landmark.ewd-sticky.ewd-away:not(.ewd-sticky--off) { transform: translateY(-100%); }
+@media (prefers-reduced-motion: reduce) { .ewd-landmark.ewd-sticky { transition: none; } }
+
+/* side columns: sticky beside the content, and hidden with a button; on
+   the tablet and the phone neither (the rules for those views come from
+   the engine, with the widths of the views from limits.json) */
+.ewd-collapse-button { display: inline-flex; align-self: flex-start; min-height: 2.75rem; }
+.ewd-block--sticky { position: sticky; top: calc(var(--ewd-header-h, 0px) + .5rem); align-self: flex-start; max-height: calc(100vh - var(--ewd-header-h, 0px) - 1rem); overflow: auto; }
+.ewd-block.ewd-collapsed { display: none; }
+/* like the drawer button: no button for a side column with nothing in it */
+.ewd-inner > .ewd-collapse-button:is(:has(+ .ewd-block:not(:has(.ew-pos:not(:empty)))), :has(+ .ewd-drawer-button + .ewd-block:not(:has(.ew-pos:not(:empty))))) { display: none !important; }
+
+/* a footer that folds on the phone (the button shows only there, see the engine) */
+.ewd-fold-button { display: none; width: 100%; justify-content: space-between; align-items: center; min-height: 2.75rem; background: none; border: 0; border-block-end: 1px solid currentColor; color: inherit; font: inherit; font-weight: 600; cursor: pointer; padding: .5rem 0; }
+/* the sign is not part of the name of the button (aria-hidden), its state is aria-expanded */
+.ewd-fold-sign::after { content: "+"; }
+.ewd-unfolded > .ewd-fold-button .ewd-fold-sign::after { content: "−"; }
+
+/* printing only the content */
+@media print {
+  .ewd-print-plain .ewd-landmark, .ewd-print-plain [data-role="complementary"], .ewd-print-plain .ewd-drawer-button,
+  .ewd-print-plain .ewd-collapse-button, .ewd-print-plain .ewd-to-top, .ewd-print-plain .ew-skip { display: none !important; }
+}
+
+/* the preview of the designer: empty positions show their name (the wiki leaves them out) */
+.ewd-in-preview .ew-pos:empty { display: block; min-height: 1.75rem; min-width: 4rem; outline: 1px dashed currentColor; outline-offset: -2px; opacity: .75; }
+.ewd-in-preview .ew-pos:empty::before { content: attr(data-label); font-size: .75rem; padding: .25rem; }
+
+/* the widths of a row in the designer: drag the edge or use the arrow keys */
+.ewd-widthbar { display: flex; gap: 2px; border: 1px solid var(--ew-border); border-radius: var(--ew-radius); padding: 2px; }
+.ewd-widthbar-seg { position: relative; min-width: 2.5rem; background: var(--ew-bg-subtle); padding: .5rem .25rem; font-size: .8rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ewd-widthbar-seg--content { background: var(--ew-bg); outline: 1px dashed var(--ew-border); }
+.ewd-widthbar-handle { position: absolute; inset-block: 0; inset-inline-end: 0; width: 1.5rem; cursor: ew-resize; background: var(--ew-primary); opacity: .35; touch-action: none; }
+.ewd-widthbar-handle:hover, .ewd-widthbar-handle:focus-visible { opacity: 1; }

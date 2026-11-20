@@ -71,6 +71,9 @@ type Row struct {
 	// Tablet and Mobile change the row for these views; nil: automatic
 	Tablet *View `json:"tablet,omitempty"`
 	Mobile *View `json:"mobile,omitempty"`
+	// CollapseMobile: on the phone each block of this footer row opens and
+	// closes under its name (footer rows only; every block needs a label)
+	CollapseMobile bool `json:"collapse_mobile,omitempty"`
 }
 
 // Block is an area of a row.
@@ -98,6 +101,12 @@ type Block struct {
 	Layout string `json:"layout"`
 	// Align of the positions inside: start, center, end or between
 	Align string `json:"align"`
+	// Sticky: a side column stays in view while the page scrolls (desktop;
+	// scrolls in itself when higher than the window); complementary only
+	Sticky bool `json:"sticky,omitempty"`
+	// Collapsible: a side column can be hidden with a button; the choice is
+	// kept in the browser (desktop); complementary only
+	Collapsible bool `json:"collapsible,omitempty"`
 }
 
 // View changes a row for a view.
@@ -119,6 +128,14 @@ type Options struct {
 	BackToTop bool `json:"back_to_top"`
 	// StickyHeader: the header (rows of the role banner) stays at the top
 	StickyHeader bool `json:"sticky_header"`
+	// HeaderShrink: the sticky header gets lower once the page is scrolled
+	HeaderShrink bool `json:"header_shrink,omitempty"`
+	// HeaderHide: the sticky header goes away while scrolling down and comes
+	// back when scrolling up or when the keyboard focus is in it
+	HeaderHide bool `json:"header_hide,omitempty"`
+	// PrintPlain: printing shows only the content (no header, footer, side
+	// columns, drawer buttons)
+	PrintPlain bool `json:"print_plain,omitempty"`
 }
 
 // Limits are the limits of data templates (limits.json, the same file the
@@ -241,6 +258,9 @@ func (d *Design) Problems() []Problem {
 	}
 	d.Tokens.problems(add)
 	cssProblems(d.CSS, add)
+	if (d.Options.HeaderShrink || d.Options.HeaderHide) && !d.Options.StickyHeader {
+		add("options", "a header that gets lower or goes away while scrolling must be sticky (sticky_header)")
+	}
 	if len(d.Rows) == 0 || len(d.Rows) > limits.MaxRows {
 		add("rows", "1 to %d rows", limits.MaxRows)
 	}
@@ -266,6 +286,9 @@ func (d *Design) Problems() []Problem {
 		}
 		if !slices.Contains(backgrounds, r.Background) {
 			add(where, "background: one of %v", backgrounds)
+		}
+		if r.CollapseMobile && r.Role != "contentinfo" {
+			add(where, "only a footer row (role contentinfo) opens and closes on the phone")
 		}
 		if len(r.Blocks) == 0 || len(r.Blocks) > limits.MaxBlocksPerRow {
 			add(where, "1 to %d blocks side by side", limits.MaxBlocksPerRow)
@@ -308,6 +331,15 @@ func (d *Design) Problems() []Problem {
 				if len(b.After) > 0 {
 					add(bw, "only the content has positions after it")
 				}
+			}
+			if (b.Sticky || b.Collapsible) && (b.Kind == "content" || b.Role != "complementary") {
+				add(bw, "only a side column (role complementary) can be sticky or collapsible")
+			}
+			if (b.Sticky || b.Collapsible) && r.Desktop != nil && slices.Contains(r.Desktop.Drawer, b.ID) {
+				add(bw, "a side column behind a button on the desktop (drawer) cannot also be sticky or collapsible")
+			}
+			if r.CollapseMobile && len(b.Label) == 0 {
+				add(bw, "a footer that opens and closes on the phone needs a name for every block (label)")
 			}
 			if !slices.Contains(layouts, b.Layout) {
 				add(bw, "layout: one of %v", layouts)

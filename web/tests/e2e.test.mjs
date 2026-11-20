@@ -3063,6 +3063,137 @@ test('template designer: visual and with the keyboard, room and contrast help, u
   }
 });
 
+test('template designer, part 3: a warning for standard positions, widths by dragging, header while scrolling, side column, footer on the phone, printing', async () => {
+  const before = (await call('GET', '/api/v1/admin/settings')).config;
+  const tpl = await call('POST', '/api/v1/x/core.template/templates', { names: { en: `Behaviour ${run}` }, copy_of: 'core.template/example-wiki' });
+  const size = page.viewportSize();
+  try {
+    await page.goto(`${BASE}/admin/templates`);
+    await idle();
+    await page.getByRole('button', { name: new RegExp(`^(edit|bearbeiten): Behaviour ${run}$`, 'i') }).click();
+    await page.locator('.ewd-structure').waitFor();
+    await page.getByText(/^(no problems|keine probleme)/i).first().waitFor();
+    // removing a standard position: the designer names the building blocks standing there
+    await page.getByRole('button', { name: /^tools \((area|bereich)\)$/i }).click();
+    const positions = page.getByLabel(/^(positions|positionen)$/i);
+    await positions.fill('tool-x');
+    await page.keyboard.press('Tab');
+    const warning = page.getByRole('dialog');
+    await warning.getByText(/\b(search|suche)\b/i).waitFor();
+    await a11y('the warning for a standard position');
+    await warning.getByRole('button', { name: /^(cancel|abbrechen)$/i }).click();
+    // cancelled: the position stays
+    await page.waitForFunction((id) => document.getElementById(id)?.value === 'header-tools', await positions.getAttribute('id'));
+    // the widths of a row: a slider for each block, here with the keyboard
+    await page.getByRole('button', { name: /^(row 3 \(body\)|zeile 3 \(body\))$/i }).click();
+    const slider = page.getByRole('slider', { name: /^(width of pages|breite von seiten)$/i });
+    assert.equal(await slider.getAttribute('aria-valuenow'), '16');
+    await slider.focus();
+    await page.keyboard.press('ArrowRight');
+    await page.keyboard.press('PageUp');
+    await page.waitForFunction(() => document.querySelector('.ewd-widthbar-handle')?.getAttribute('aria-valuenow') === '21');
+    // and with the mouse: dragging the edge to the right makes the block wider
+    // (by about 3 rem: the bar shows the room of the row, so the content keeps enough)
+    const box = await slider.boundingBox();
+    const step = await page.locator('.ewd-widthbar').evaluate((x) => (x.clientWidth / 88) * 3);
+    await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(box.x + box.width / 2 + step, box.y + box.height / 2, { steps: 5 });
+    await page.mouse.up();
+    await page.waitForFunction(() => Number(document.querySelector('.ewd-widthbar-handle')?.getAttribute('aria-valuenow')) > 21);
+    const dragged = await page.locator('.ewd-widthbar-handle').getAttribute('aria-valuenow');
+    await a11y('the widths of a row');
+    // the side column: sticky and collapsible; the options of the header and of printing
+    await page.getByRole('button', { name: /^(pages|seiten) \((area|bereich)\)$/i }).click();
+    assert.equal(await page.getByLabel(/^(width \(rem\)|breite \(rem\))$/i).inputValue(), dragged);
+    await page.getByLabel(/^(stays in view while scrolling|bleibt beim scrollen sichtbar)/i).check();
+    await page.getByLabel(/^(can be hidden|lässt sich ausblenden)/i).check();
+    await page.getByLabel(/^(the sticky header gets lower|der klebende kopf wird beim scrollen niedriger)/i).check();
+    await page.getByLabel(/^(the sticky header goes away|der klebende kopf verschwindet)/i).check();
+    await page.getByLabel(/^(print only the content|nur den inhalt drucken)$/i).check();
+    // a footer that folds on the phone needs a name for every block
+    await page.getByRole('button', { name: /^(row 4 \(foot\)|zeile 4 \(foot\))$/i }).click();
+    await page.getByLabel(/^(open and close on the phone|auf dem handy auf- und zuklappen)$/i).check();
+    await page.locator('.ewd-problems').getByText(/needs a name for every block/).waitFor();
+    await a11y('the designer with the behaviours');
+    await page.getByLabel(/^(open and close on the phone|auf dem handy auf- und zuklappen)$/i).uncheck();
+    await page.getByText(/^(no problems|keine probleme)/i).first().waitFor();
+    const saved = page.waitForResponse((r) => r.url().endsWith(`/api/v1/x/core.template/templates/${tpl.key}`) && r.request().method() === 'PUT');
+    await page.getByRole('button', { name: /^(save|speichern)$/i }).click();
+    assert.equal((await saved).status(), 200);
+    // the footer folds on the phone: give it a name and something to show (the tools of the header)
+    const cur = (await call('GET', `/api/v1/x/core.template/templates/${tpl.key}`)).template;
+    const d = cur.design;
+    assert.deepEqual([d.options.header_shrink, d.options.header_hide, d.options.print_plain], [true, true, true]);
+    const side = d.rows.find((r) => r.id === 'body').blocks.find((b) => b.id === 'side');
+    assert.deepEqual([side.width, side.sticky, side.collapsible], [Number(dragged), true, true]);
+    const head = d.rows.find((r) => r.id === 'head');
+    head.blocks = head.blocks.filter((b) => b.id !== 'tools');
+    const foot = d.rows.find((r) => r.id === 'foot');
+    foot.collapse_mobile = true;
+    foot.blocks[0].label = { en: 'Tools', de: 'Werkzeuge' };
+    foot.blocks[0].positions = ['header-tools'];
+    await call('PUT', `/api/v1/x/core.template/templates/${tpl.key}`, { version: cur.version, design: d });
+    await call('PUT', '/api/v1/admin/settings', { ui: { ...before.ui, template: `core.template/${tpl.key}` } });
+    await page.setViewportSize({ width: 1280, height: 800 });
+    await page.goto(`${BASE}/`);
+    await idle();
+    await page.evaluate(() => { document.querySelector('.ewd-main').style.minHeight = '4000px'; });
+    // the side column stays in view and can be hidden; the browser keeps that
+    const aside = page.locator('aside#ewd-side');
+    assert.equal(await aside.evaluate((x) => getComputedStyle(x).position), 'sticky');
+    const hide = page.getByRole('button', { name: /^(hide pages|seiten ausblenden)$/i });
+    assert.equal(await hide.getAttribute('aria-expanded'), 'true');
+    await hide.click();
+    assert.ok(!(await aside.isVisible()));
+    const show = page.getByRole('button', { name: /^(show pages|seiten einblenden)$/i });
+    assert.equal(await show.getAttribute('aria-expanded'), 'false');
+    await page.reload();
+    await idle();
+    assert.ok(!(await aside.isVisible()), 'still hidden after loading again');
+    await show.click();
+    await aside.waitFor();
+    // the header: lower once scrolled, away while scrolling down, back when scrolling up or with the focus
+    const header = page.locator('header.ewd-landmark');
+    await page.evaluate(() => { document.querySelector('.ewd-main').style.minHeight = '4000px'; });
+    await page.evaluate(() => window.scrollTo(0, 600));
+    await page.waitForFunction(() => document.querySelector('header.ewd-landmark').classList.contains('ewd-shrunk') && document.querySelector('header.ewd-landmark').classList.contains('ewd-away'));
+    await page.evaluate(() => window.scrollTo(0, 300));
+    await page.waitForFunction(() => !document.querySelector('header.ewd-landmark').classList.contains('ewd-away'));
+    await page.evaluate(() => window.scrollTo(0, 900));
+    await page.waitForFunction(() => document.querySelector('header.ewd-landmark').classList.contains('ewd-away'));
+    await header.locator('a').first().focus();
+    await page.waitForFunction(() => !document.querySelector('header.ewd-landmark').classList.contains('ewd-away'));
+    await page.evaluate(() => window.scrollTo(0, 0));
+    await page.waitForFunction(() => !document.querySelector('header.ewd-landmark').classList.contains('ewd-shrunk'));
+    await a11y('the wiki with a sticky side column (desktop)');
+    // printing: only the content
+    await page.emulateMedia({ media: 'print' });
+    assert.ok(!(await header.isVisible()));
+    assert.ok(!(await aside.isVisible()));
+    assert.ok(await page.locator('main').isVisible());
+    await page.emulateMedia({ media: 'screen' });
+    // the phone: the footer folds, the side column neither sticks nor has its button
+    await page.setViewportSize({ width: 375, height: 800 });
+    await page.goto(`${BASE}/`);
+    await idle();
+    assert.ok(!(await page.getByRole('button', { name: /^(hide pages|seiten ausblenden)$/i }).isVisible()));
+    const fold = page.getByRole('button', { name: /^(tools|werkzeuge)$/i });
+    assert.equal(await fold.getAttribute('aria-expanded'), 'false');
+    assert.ok(!(await page.locator('#ewd-footer-body').isVisible()));
+    await fold.click();
+    assert.equal(await fold.getAttribute('aria-expanded'), 'true');
+    await page.locator('#ewd-footer-body').waitFor();
+    await a11y('the wiki with a footer that folds (phone)');
+  } finally {
+    if (size) await page.setViewportSize(size);
+    await page.emulateMedia({ media: 'screen' }).catch(() => {});
+    await page.evaluate(() => { try { for (const k of Object.keys(localStorage)) if (k.startsWith('ewd-collapsed:')) localStorage.removeItem(k); } catch { /* nothing kept */ } }).catch(() => {});
+    await call('PUT', '/api/v1/admin/settings', { ui: before.ui });
+    await call('DELETE', `/api/v1/x/core.template/templates/${tpl.key}`).catch(() => {});
+  }
+});
+
 test('templates of data: copy, check while typing, save, versions, use for the site, export, import, trash; desktop, tablet and phone without sideways scrolling, drawers, sticky header only when low enough', async () => {
   const before = (await call('GET', '/api/v1/admin/settings')).config;
   const imports = [];

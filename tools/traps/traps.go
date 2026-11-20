@@ -265,6 +265,27 @@ var traps = []trap{
 		Pkg:  "./plugins/core_template/", Tests: "^TestDesignProblems$",
 	},
 	{
+		ID: "template.header-hide-sticky", About: "a header that goes away while scrolling is saved without being sticky",
+		File: "plugins/core_template/design.go",
+		Old:  "if (d.Options.HeaderShrink || d.Options.HeaderHide) && !d.Options.StickyHeader {",
+		New:  "if d.Options.HeaderShrink && !d.Options.StickyHeader {",
+		Pkg:  "./plugins/core_template/", Tests: "^TestDesignProblems$",
+	},
+	{
+		ID: "template.fold-labels", About: "a footer that folds on the phone is saved with blocks without a name (buttons without a name)",
+		File: "plugins/core_template/design.go",
+		Old:  "if r.CollapseMobile && len(b.Label) == 0 {",
+		New:  "if r.CollapseMobile && b.Label == nil && false {",
+		Pkg:  "./plugins/core_template/", Tests: "^TestDesignProblems$",
+	},
+	{
+		ID: "template.sticky-role", About: "a block that is not a side column is saved as sticky or collapsible",
+		File: "plugins/core_template/design.go",
+		Old:  `if (b.Sticky || b.Collapsible) && (b.Kind == "content" || b.Role != "complementary") {`,
+		New:  `if (b.Sticky || b.Collapsible) && b.Kind == "content" {`,
+		Pkg:  "./plugins/core_template/", Tests: "^TestDesignProblems$",
+	},
+	{
 		ID: "template.positions-room", About: "positions side by side in a block are saved without room",
 		File: "plugins/core_template/design.go",
 		Old:  "	return float64(n)*limits.PositionMinRem + float64(n-1)*limits.PositionGapRem",
