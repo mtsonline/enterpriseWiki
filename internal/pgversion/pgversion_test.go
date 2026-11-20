@@ -21,7 +21,7 @@ func TestEvaluate(t *testing.T) {
 		keys  int
 	}{
 		{190000, "ok", 0},
-		{180001, "info", 1},    // newer recommended
+		{180001, "info", 1}, // newer recommended
 		{160004, "info", 1},
 		{140015, "warning", 3}, // support ends on 2026-11-12: recommended + 180 + 30
 		{130020, "error", 4},   // ended
