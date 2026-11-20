@@ -1602,7 +1602,7 @@ func (s *Server) site(w http.ResponseWriter, r *http.Request) (any, error) {
 	slices.SortFunc(templates, func(a, b map[string]any) int { return strings.Compare(a["name"].(string), b["name"].(string)) })
 	home := c.UI.HomeCategory
 	return map[string]any{
-		"name": c.UI.SiteName, "template": c.UI.Template, "templates": templates, "home_category": home, "home_element": c.UI.HomeElement, "editor": cmp.Or(c.UI.Editor, "visual"), "collaboration": c.UI.Collaboration, "personal_placement": c.UI.PersonalPlacement, "editor_tools": siteEditorTools(c.UI.EditorTools), "dashboard_tiles": nonNil(c.UI.DashboardTiles), "dashboard_home": c.UI.DashboardHome,
+		"name": c.UI.SiteName, "template": c.UI.Template, "templates": templates, "home_category": home, "home_element": c.UI.HomeElement, "editor": cmp.Or(c.UI.Editor, "visual"), "collaboration": c.UI.Collaboration, "personal_placement": c.UI.PersonalPlacement, "custom_css": c.UI.CustomCSS, "editor_tools": siteEditorTools(c.UI.EditorTools), "dashboard_tiles": nonNil(c.UI.DashboardTiles), "dashboard_home": c.UI.DashboardHome,
 		"wait_notice_s": limits.Value(c, limits.WaitNoticeSeconds),
 		"languages":     c.I18n.Languages, "default_language": c.I18n.DefaultLanguage,
 		"plugins": frontend, "element_types": s.app.Content.Types(), "auth_providers": s.app.Auth.ProviderInfos(),

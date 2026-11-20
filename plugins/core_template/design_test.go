@@ -3,6 +3,7 @@ package core_template
 import (
 	"encoding/json"
 	"flag"
+	"fmt"
 	"math"
 	"os"
 	"strings"
@@ -280,5 +281,34 @@ func TestContrastShared(t *testing.T) {
 	}
 	if len(ContrastPairs) < 10 {
 		t.Fatalf("contrast pairs from limits.json: %d", len(ContrastPairs))
+	}
+}
+
+// TestCSSCases: own CSS is checked by the rules of limits.json; the browser
+// unit test checks the designer with the same cases.
+func TestCSSCases(t *testing.T) {
+	raw, err := os.ReadFile("testdata/css_cases.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var cases []struct {
+		CSS string `json:"css"`
+		OK  bool   `json:"ok"`
+	}
+	if err := json.Unmarshal(raw, &cases); err != nil {
+		t.Fatal(err)
+	}
+	for _, c := range cases {
+		var got []string
+		cssProblems(c.CSS, func(where, format string, args ...any) { got = append(got, fmt.Sprintf(format, args...)) })
+		if (len(got) == 0) != c.OK {
+			t.Errorf("%q: ok=%v, problems %v", c.CSS, c.OK, got)
+		}
+	}
+	// the size
+	var got []string
+	cssProblems(strings.Repeat("a", limits.CSS.MaxBytes+1), func(where, format string, args ...any) { got = append(got, format) })
+	if len(got) == 0 {
+		t.Error("too large CSS accepted")
 	}
 }

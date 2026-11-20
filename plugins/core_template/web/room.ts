@@ -96,3 +96,26 @@ export function cssSafe(d: Design): boolean {
   }
   return true;
 }
+
+/** The problems of own CSS, by the rules of limits.json (the same as the
+ * server): size, comments, what loads or runs from elsewhere, url() only to
+ * files of the wiki. Each problem names its line. */
+export function cssProblems(css: string): { line: number; what: string }[] {
+  const out: { line: number; what: string }[] = [];
+  if (!css) return out;
+  const rules = LIMITS.css;
+  if (new TextEncoder().encode(css).length > rules.max_bytes) return [{ line: 1, what: `> ${rules.max_bytes} bytes` }];
+  const text = css.replace(/\/\*[\s\S]*?\*\//g, (c) => '\n'.repeat(c.split('\n').length - 1));
+  const lineOf = (s: string, at: number) => s.slice(0, at).split('\n').length;
+  if (text.includes('/*')) return [{ line: lineOf(text, text.indexOf('/*')), what: '/*' }];
+  const low = text.toLowerCase();
+  for (const [re, what] of rules.forbidden as [string, string][]) {
+    const m = new RegExp(re).exec(low);
+    if (m) out.push({ line: lineOf(low, m.index), what });
+  }
+  const allowed = new RegExp(rules.url);
+  for (const m of low.matchAll(/url\s*\(\s*(['"]?)([^'")]*)(['"]?)\s*\)/g)) {
+    if (m[1] !== m[3] || !allowed.test(m[2].trim())) out.push({ line: lineOf(low, m.index ?? 0), what: `url(${m[2].trim()})` });
+  }
+  return out;
+}

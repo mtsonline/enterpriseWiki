@@ -179,6 +179,22 @@ func (p *Plugin) list(ctx context.Context, deleted bool) ([]Template, error) {
 	return append(out, stored...), nil
 }
 
+func (p *Plugin) cssAllowed() bool { return p.host.Config.Get().UI.CustomCSS }
+
+// withoutCSS removes the own CSS from a stored design.
+func withoutCSS(raw json.RawMessage) json.RawMessage {
+	var m map[string]json.RawMessage
+	if json.Unmarshal(raw, &m) != nil || m["css"] == nil {
+		return raw
+	}
+	delete(m, "css")
+	out, err := json.Marshal(m)
+	if err != nil {
+		return raw
+	}
+	return out
+}
+
 // designs are the templates that can be used, with their designs (for
 // rendering pages: no names of people, nothing from the trash).
 func (p *Plugin) designs(ctx context.Context) ([]Template, error) {
@@ -197,7 +213,14 @@ func (p *Plugin) designs(ctx context.Context) ([]Template, error) {
 	if err != nil {
 		return nil, err
 	}
-	return append(out, stored...), nil
+	out = append(out, stored...)
+	// own CSS applies only while the administration allows it
+	if !p.cssAllowed() {
+		for i := range out {
+			out[i].Design = withoutCSS(out[i].Design)
+		}
+	}
+	return out, nil
 }
 
 // HasTemplate implements content.TemplateSource.
@@ -256,9 +279,12 @@ type input struct {
 }
 
 // checked parses and checks a design and returns it in its normal form.
-func checked(raw json.RawMessage) (json.RawMessage, error) {
+func checked(raw json.RawMessage, cssAllowed bool) (json.RawMessage, error) {
 	d, err := ParseDesign(raw)
 	if err != nil {
+		return nil, err
+	}
+	if err := requireCSSAllowed(d, cssAllowed); err != nil {
 		return nil, err
 	}
 	return json.Marshal(d)
@@ -280,7 +306,7 @@ func (p *Plugin) create(ctx context.Context, in input) (*Template, error) {
 	if len(design) == 0 {
 		return nil, apperr.BadRequest("a template needs a design or a template to copy (copy_of)")
 	}
-	norm, err := checked(design)
+	norm, err := checked(design, p.cssAllowed())
 	if err != nil {
 		return nil, err
 	}
@@ -328,7 +354,7 @@ func (p *Plugin) update(ctx context.Context, key string, in input) (*Template, e
 	}
 	design := cur.Design
 	if len(in.Design) > 0 {
-		if design, err = checked(in.Design); err != nil {
+		if design, err = checked(in.Design, p.cssAllowed()); err != nil {
 			return nil, err
 		}
 	}
@@ -422,6 +448,9 @@ func (p *Plugin) Setup(host *coreplugin.Host) error {
 			return map[string]any{"problems": []Problem{{Where: "design", Text: err.Error()}}}, nil
 		}
 		ps := d.Problems()
+		if d.CSS != "" && !p.cssAllowed() {
+			ps = append(ps, Problem{Where: "css", Text: "own CSS is switched off (setting ui.custom_css)"})
+		}
 		if ps == nil {
 			ps = []Problem{}
 		}
@@ -441,8 +470,7 @@ func (p *Plugin) Setup(host *coreplugin.Host) error {
 		if err != nil {
 			return nil, err
 		}
-		w.WriteHeader(http.StatusCreated)
-		return t, nil
+		return h.Created{V: t}, nil
 	})
 	// PUT /templates/{key} {names, design, version} → a new version
 	// action: core.template.update
@@ -603,8 +631,7 @@ func (p *Plugin) Setup(host *coreplugin.Host) error {
 		if err != nil {
 			return nil, err
 		}
-		w.WriteHeader(http.StatusCreated)
-		return t, nil
+		return h.Created{V: t}, nil
 	})
 	return nil
 }

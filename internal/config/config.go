@@ -257,6 +257,10 @@ type UI struct {
 	// positions of the template. Default false; the own dashboard is always
 	// arranged by its owner.
 	PersonalPlacement bool `yaml:"personal_placement,omitempty" json:"personal_placement"`
+	// CustomCSS allows own CSS in templates of data (checked on saving: no
+	// @import, url() only to files of the wiki …). Default false; own CSS can
+	// make the wiki less accessible.
+	CustomCSS bool `yaml:"custom_css,omitempty" json:"custom_css"`
 	// EditorTools are the buttons of the formatting toolbar of the text
 	// editors (content.EditorTools; empty or ["*"] = all). Categories may
 	// choose their own; hiding a button does not forbid the formatting.
