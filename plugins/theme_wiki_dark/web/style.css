@@ -1,5 +1,9 @@
 /* Dark variant: only color variables are overridden (contrast >= 4.5:1). */
 body.ewc-dark {
+  /* chart colours with at least 3:1 on the dark background */
+  --ewl-chart-1: #60a5fa; --ewl-chart-2: #fbbf24; --ewl-chart-3: #4ade80; --ewl-chart-4: #c084fc;
+  --ewl-chart-5: #fb7185; --ewl-chart-6: #2dd4bf; --ewl-chart-7: #a5b4fc; --ewl-chart-8: #facc15;
+  --ewl-chart-9: #93c5fd; --ewl-chart-10: #f9a8d4; --ewl-chart-11: #86efac; --ewl-chart-12: #d6d3d1;
   --ew-bg: #1d2125;
   --ew-bg-subtle: #22272b;
   --ew-bg-raised: #282e33;

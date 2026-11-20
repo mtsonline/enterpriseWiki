@@ -227,3 +227,50 @@ button.ewl-cta { font: inherit; font-weight: 700; cursor: pointer; }
 .ewl-slider-dot { width: 1.5rem; height: 1.5rem; border-radius: 50%; border: 2px solid var(--ew-text-muted); background: transparent; cursor: pointer; padding: 0; }
 .ewl-slider-dot[aria-current="true"] { background: var(--ew-primary); border-color: var(--ew-primary); }
 @media (forced-colors: active) { .ewl-slider-dot[aria-current="true"] { background: Highlight; } }
+
+/* chart (drawn by the server as SVG): colours with at least 3:1 on the page
+   (WCAG 1.4.11); templates may set --ewl-chart-1 … --ewl-chart-12 */
+.ewl-chart { margin: 1.5rem 0; }
+.ewl-chart-title { font-weight: 700; margin-bottom: .5rem; }
+.ewl-chart-svg { display: block; width: 100%; height: auto; max-height: 26rem; font-size: 12px; color: var(--ew-text); }
+.ewl-chart-svg text { fill: currentColor; }
+.ewl-chart-grid line { stroke: var(--ew-border); stroke-width: 1; }
+.ewl-chart-grid text, .ewl-chart-cats text { fill: var(--ew-text-muted); }
+.ewl-chart-axis { stroke: var(--ew-text-muted); stroke-width: 1.5; }
+.ewl-chart-value { font-size: 11px; }
+.ewl-chart-line { fill: none !important; stroke-width: 2.5; }
+.ewl-chart-cross { fill: none !important; stroke-width: 2.5; }
+.ewl-chart-slice { stroke: var(--ew-bg); stroke-width: 2; }
+.ewl-chart-pielabel { fill: #fff !important; font-weight: 700; font-size: 13px; paint-order: stroke; stroke: rgb(0 0 0 / .55); stroke-width: 3px; }
+.ewl-chart-c1 { fill: var(--ewl-chart-1, #0b5cad); stroke: var(--ewl-chart-1, #0b5cad); }
+.ewl-chart-c2 { fill: var(--ewl-chart-2, #b45309); stroke: var(--ewl-chart-2, #b45309); }
+.ewl-chart-c3 { fill: var(--ewl-chart-3, #15803d); stroke: var(--ewl-chart-3, #15803d); }
+.ewl-chart-c4 { fill: var(--ewl-chart-4, #7e22ce); stroke: var(--ewl-chart-4, #7e22ce); }
+.ewl-chart-c5 { fill: var(--ewl-chart-5, #be123c); stroke: var(--ewl-chart-5, #be123c); }
+.ewl-chart-c6 { fill: var(--ewl-chart-6, #0f766e); stroke: var(--ewl-chart-6, #0f766e); }
+.ewl-chart-c7 { fill: var(--ewl-chart-7, #4338ca); stroke: var(--ewl-chart-7, #4338ca); }
+.ewl-chart-c8 { fill: var(--ewl-chart-8, #a16207); stroke: var(--ewl-chart-8, #a16207); }
+.ewl-chart-c9 { fill: var(--ewl-chart-9, #1d4ed8); stroke: var(--ewl-chart-9, #1d4ed8); }
+.ewl-chart-c10 { fill: var(--ewl-chart-10, #9d174d); stroke: var(--ewl-chart-10, #9d174d); }
+.ewl-chart-c11 { fill: var(--ewl-chart-11, #166534); stroke: var(--ewl-chart-11, #166534); }
+.ewl-chart-c12 { fill: var(--ewl-chart-12, #57534e); stroke: var(--ewl-chart-12, #57534e); }
+.ewl-chart-legend { list-style: none; display: flex; flex-wrap: wrap; gap: .25rem 1.25rem; padding: 0; margin: .5rem 0; }
+.ewl-chart-legend li { display: inline-flex; align-items: center; gap: .4rem; }
+.ewl-chart-key { display: inline-block; width: .9rem; height: .9rem; border-radius: 2px; background: currentColor; }
+.ewl-chart-key.ewl-chart-c1 { background: var(--ewl-chart-1, #0b5cad); }
+.ewl-chart-key.ewl-chart-c2 { background: var(--ewl-chart-2, #b45309); }
+.ewl-chart-key.ewl-chart-c3 { background: var(--ewl-chart-3, #15803d); }
+.ewl-chart-key.ewl-chart-c4 { background: var(--ewl-chart-4, #7e22ce); }
+.ewl-chart-key.ewl-chart-c5 { background: var(--ewl-chart-5, #be123c); }
+.ewl-chart-key.ewl-chart-c6 { background: var(--ewl-chart-6, #0f766e); }
+.ewl-chart-key.ewl-chart-c7 { background: var(--ewl-chart-7, #4338ca); }
+.ewl-chart-key.ewl-chart-c8 { background: var(--ewl-chart-8, #a16207); }
+.ewl-chart-key.ewl-chart-c9 { background: var(--ewl-chart-9, #1d4ed8); }
+.ewl-chart-key.ewl-chart-c10 { background: var(--ewl-chart-10, #9d174d); }
+.ewl-chart-key.ewl-chart-c11 { background: var(--ewl-chart-11, #166534); }
+.ewl-chart-key.ewl-chart-c12 { background: var(--ewl-chart-12, #57534e); }
+.ewl-chart-data { margin-top: .5rem; }
+@media (forced-colors: active) {
+  .ewl-chart-svg [class*="ewl-chart-c"] { fill: CanvasText; stroke: CanvasText; }
+  .ewl-chart-slice { stroke: Canvas; }
+}

@@ -868,4 +868,18 @@ var traps = []trap{
 		New:  "format = e.format",
 		Pkg:  "./internal/apperr/", Tests: "^TestLocalized$",
 	},
+	{
+		ID: "chart.cell-unescaped", About: "a cell of a chart table is written as HTML",
+		File: "plugins/core_layout/chart.go",
+		Old:  "fmt.Fprintf(&b, `<tr><th scope=\"row\">%s</th>`, esc(c))",
+		New:  "fmt.Fprintf(&b, `<tr><th scope=\"row\">%s</th>`, c)",
+		Pkg:  "./plugins/core_layout/", Tests: "^TestChart$",
+	},
+	{
+		ID: "chart.dark-low-contrast", About: "a chart colour is too light for the light page",
+		File: "plugins/core_layout/web/style.css",
+		Old:  ".ewl-chart-c3 { fill: var(--ewl-chart-3, #15803d); stroke: var(--ewl-chart-3, #15803d); }",
+		New:  ".ewl-chart-c3 { fill: var(--ewl-chart-3, #86efac); stroke: var(--ewl-chart-3, #86efac); }",
+		Pkg:  "./plugins/core_layout/", Tests: "^TestChartColors$",
+	},
 }
