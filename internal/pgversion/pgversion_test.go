@@ -6,7 +6,7 @@ import (
 )
 
 func TestEOL(t *testing.T) {
-	for major, want := range map[int]string{13: "2025-11-13", 14: "2026-11-12", 16: "2028-11-09", 17: "2029-11-08", 18: "2030-11-14"} {
+	for major, want := range map[int]string{13: "2025-11-13", 14: "2026-11-12", 16: "2028-11-09", 17: "2029-11-08", 18: "2030-11-14", 19: "2031-11-13"} {
 		if got := EOL(major).Format("2006-01-02"); got != want {
 			t.Errorf("EOL(%d) = %s, want %s", major, got, want)
 		}
@@ -20,8 +20,9 @@ func TestEvaluate(t *testing.T) {
 		level string
 		keys  int
 	}{
-		{180001, "ok", 0},
-		{160004, "info", 1},    // newer recommended
+		{190000, "ok", 0},
+		{180001, "info", 1}, // newer recommended
+		{160004, "info", 1},
 		{140015, "warning", 3}, // support ends on 2026-11-12: recommended + 180 + 30
 		{130020, "error", 4},   // ended
 	}

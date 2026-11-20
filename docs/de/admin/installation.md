@@ -1,6 +1,6 @@
 # Installation
 
-Enterprise Wiki besteht aus **einer Binärdatei** (`ewiki`) und einer **PostgreSQL-Datenbank** (Version 16 oder neuer, empfohlen 18; die Erweiterung `ltree` wird automatisch angelegt). Die Weboberfläche ist in die Binärdatei eingebettet.
+Enterprise Wiki besteht aus **einer Binärdatei** (`ewiki`) und einer **PostgreSQL-Datenbank** (Version 16 oder neuer, empfohlen 19; die Erweiterung `ltree` wird automatisch angelegt). Die Weboberfläche ist in die Binärdatei eingebettet.
 
 Es gibt drei Wege. Alle verwenden denselben, beliebig oft wiederholbaren Setup-Befehl `ewiki setup`. Er schreibt `config.yaml` und `.env` (falls nicht vorhanden), spielt die Datenbank-Migrationen ein und legt Standardrollen, den ersten Administrator und einen Willkommensbereich an.
 
@@ -38,7 +38,7 @@ Eigenes Image (z. B. mit eigenen Plugins in `plugins/`): `docker compose -f dock
 
 ## 2. Linux-Server mit systemd
 
-Voraussetzungen: git, Go ≥ 1.27 (empfohlen: aktuelle Version), Node.js ≥ 22 mit npm (empfohlen: aktuelle LTS, derzeit 26), eine erreichbare PostgreSQL-Datenbank ab Version 16 (empfohlen: 18).
+Voraussetzungen: git, Go ≥ 1.27 (empfohlen: aktuelle Version), Node.js ≥ 22 mit npm (empfohlen: aktuelle LTS, derzeit 26), eine erreichbare PostgreSQL-Datenbank ab Version 16 (empfohlen: 19).
 
 ```bash
 sudo -u postgres createuser -P ewiki

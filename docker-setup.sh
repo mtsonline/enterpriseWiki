@@ -58,7 +58,7 @@ fi
 if [ -z "$(getvar POSTGRES_VERSION)" ]; then
 	have="$(ls -d data/postgres/[0-9]*/docker 2>/dev/null | sed -E 's#data/postgres/([0-9]+)/docker#\1#' | sort -n | tail -n 1 || true)"
 	recommended="$(sed -nE 's/.*image: postgres:\$\{POSTGRES_VERSION:-([0-9]+)\}.*/\1/p' docker-compose.yml | head -n 1)"
-	setvar POSTGRES_VERSION "${have:-${recommended:-18}}"
+	setvar POSTGRES_VERSION "${have:-${recommended:-19}}"
 	say "POSTGRES_VERSION=$(getvar POSTGRES_VERSION)"
 fi
 # image variant (asked once; non-interactive: lite)

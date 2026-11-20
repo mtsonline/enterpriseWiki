@@ -23,7 +23,7 @@ jobs:
     runs-on: ubuntu-latest
     services:
       postgres:
-        image: postgres:${{ inputs.latest && 'latest' || '18' }} # renovate: postgres 18
+        image: postgres:${{ inputs.latest && 'latest' || '19' }} # renovate: postgres 19
         env: { POSTGRES_USER: wiki, POSTGRES_PASSWORD: wiki, POSTGRES_DB: wiki }
         ports: ["5432:5432"]
         options: --health-cmd pg_isready --health-interval 5s --health-timeout 5s --health-retries 20
@@ -96,7 +96,7 @@ jobs:
     runs-on: ubuntu-latest
     services:
       postgres:
-        image: postgres:${{ inputs.latest && 'latest' || '18' }} # renovate: postgres 18
+        image: postgres:${{ inputs.latest && 'latest' || '19' }} # renovate: postgres 19
         env: { POSTGRES_USER: wiki, POSTGRES_PASSWORD: wiki, POSTGRES_DB: wiki }
         ports: ["5432:5432"]
         options: --health-cmd pg_isready --health-interval 5s --health-timeout 5s --health-retries 20
@@ -210,7 +210,7 @@ jobs:
     runs-on: ubuntu-latest
     services:
       postgres:
-        image: postgres:${{ inputs.latest && 'latest' || '18' }} # renovate: postgres 18
+        image: postgres:${{ inputs.latest && 'latest' || '19' }} # renovate: postgres 19
         env: { POSTGRES_USER: wiki, POSTGRES_PASSWORD: wiki, POSTGRES_DB: wiki }
         ports: ["5432:5432"]
         options: --health-cmd pg_isready --health-interval 5s --health-timeout 5s --health-retries 20
@@ -265,7 +265,7 @@ jobs:
     runs-on: ubuntu-latest
     services:
       postgres:
-        image: postgres:${{ inputs.latest && 'latest' || '18' }} # renovate: postgres 18
+        image: postgres:${{ inputs.latest && 'latest' || '19' }} # renovate: postgres 19
         env: { POSTGRES_USER: wiki, POSTGRES_PASSWORD: wiki, POSTGRES_DB: wiki }
         ports: ["5432:5432"]
         options: --health-cmd pg_isready --health-interval 5s --health-timeout 5s --health-retries 20
@@ -346,7 +346,7 @@ jobs:
     runs-on: ubuntu-latest
     services:
       postgres:
-        image: postgres:${{ inputs.latest && 'latest' || '18' }} # renovate: postgres 18
+        image: postgres:${{ inputs.latest && 'latest' || '19' }} # renovate: postgres 19
         env: { POSTGRES_USER: wiki, POSTGRES_PASSWORD: wiki, POSTGRES_DB: wiki }
         ports: ["5432:5432"]
         options: --health-cmd pg_isready --health-interval 5s --health-timeout 5s --health-retries 20
@@ -387,7 +387,7 @@ jobs:
     runs-on: ubuntu-latest
     services:
       postgres:
-        image: postgres:${{ inputs.latest && 'latest' || '18' }} # renovate: postgres 18
+        image: postgres:${{ inputs.latest && 'latest' || '19' }} # renovate: postgres 19
         env: { POSTGRES_USER: wiki, POSTGRES_PASSWORD: wiki, POSTGRES_DB: wiki }
         ports: ["5432:5432"]
         options: --health-cmd pg_isready --health-interval 5s --health-timeout 5s --health-retries 20

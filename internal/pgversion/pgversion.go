@@ -18,7 +18,7 @@ import (
 
 // RecommendedMajor is the PostgreSQL version Enterprise Wiki is tested with
 // and recommends. Renovate keeps it in step with docker-compose.yml.
-const RecommendedMajor = 18 // renovate: postgres
+const RecommendedMajor = 19 // renovate: postgres
 
 // EOL returns the end of community support of a major version: five years
 // after the release, on the minor release day of November (the second
