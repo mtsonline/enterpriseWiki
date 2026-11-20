@@ -23,11 +23,49 @@ func TestMacros(t *testing.T) {
 		Name    string `json:"name"`
 		Plugin  string `json:"plugin"`
 		HasBody bool   `json:"has_body"`
+		Inline  bool   `json:"inline"`
+		Picture bool   `json:"picture"`
+		Parts   *struct {
+			Labels map[string]string `json:"labels"`
+			Titled bool              `json:"titled"`
+		} `json:"parts"`
+		Params []struct {
+			Name         string                       `json:"name"`
+			Type         string                       `json:"type"`
+			Options      []string                     `json:"options"`
+			OptionLabels map[string]map[string]string `json:"option_labels"`
+		} `json:"params"`
 	}
 	admin.must("GET", "/api/v1/macros", nil, &macros, 200)
 	names := map[string]bool{}
-	for _, m := range macros {
+	byName := map[string]int{}
+	for i, m := range macros {
 		names[m.Name] = true
+		byName[m.Name] = i
+		// the macro dialog never shows a bare value: every choice is named in both languages
+		for _, p := range m.Params {
+			for _, o := range p.Options {
+				if l := p.OptionLabels[o]; !isNumber(o) && (l["en"] == "" || l["de"] == "") {
+					t.Errorf("macro %s, parameter %s: option %q has no labels (%v)", m.Name, p.Name, o, l)
+				}
+			}
+		}
+		if m.Picture && (m.HasBody || m.Inline) {
+			t.Errorf("macro %s: a picture only for macros without a body", m.Name)
+		}
+	}
+	// macros with parts tell the editor how to add one; pictures only of
+	// macros without side effects
+	if m := macros[byName["accordion"]]; m.Parts == nil || !m.Parts.Titled || m.Parts.Labels["de"] != "Teil" {
+		t.Errorf("accordion parts: %+v", m.Parts)
+	}
+	if m := macros[byName["columns"]]; m.Parts == nil || m.Parts.Titled {
+		t.Errorf("columns parts: %+v", m.Parts)
+	}
+	for n, want := range map[string]bool{"buttons": true, "pagetree": true, "shell": false, "http": false, "news": false, "panel": false} {
+		if macros[byName[n]].Picture != want {
+			t.Errorf("macro %s: picture %v, want %v", n, !want, want)
+		}
 	}
 	for _, n := range []string{"toc", "children", "recent", "panel", "expand", "status", "columns", "section", "hero", "cards", "button", "spacer", "shell", "http"} {
 		if !names[n] {
@@ -451,4 +489,16 @@ func TestUpdateCheck(t *testing.T) {
 	if code := admin.do("POST", "/api/v1/admin/updates/core", nil, nil); code != 400 {
 		t.Fatalf("core update through the API: %d", code)
 	}
+}
+
+func isNumber(s string) bool {
+	if s == "" {
+		return false
+	}
+	for _, r := range s {
+		if r < '0' || r > '9' {
+			return false
+		}
+	}
+	return true
 }

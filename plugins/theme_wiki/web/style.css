@@ -5,6 +5,7 @@
 }
 .ewc-brand { display: flex; align-items: center; gap: .5rem; font-weight: 800; font-size: 1.1rem; color: var(--ew-text); text-decoration: none; }
 .ewc-logo { width: 28px; height: 28px; border-radius: 6px; background: var(--ew-primary) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cpath d='M8 9h16v3H8zm0 6h16v3H8zm0 6h10v3H8z' fill='%23fff'/%3E%3C/svg%3E") center/100% no-repeat; }
+.ewc-header-panel { flex: 1; display: flex; align-items: center; gap: 1rem; flex-wrap: wrap; min-width: 0; }
 .ewc-header .ew-pos--header-nav { flex: 1; }
 .ewc-header .ew-pos--header-tools { display: flex; align-items: center; gap: .6rem; flex-wrap: wrap; }
 .ewc-shell { display: grid; grid-template-columns: var(--ew-sidebar-w) minmax(0, 1fr); min-height: calc(100vh - var(--ew-header-h)); }
@@ -31,6 +32,11 @@
   .ewc-main { padding: 1rem; }
   .ewc-content > .ew-pos--content-top:not(:empty), .ewc-content > .ew-pos--content-bottom:not(:empty) { padding: 1rem 1rem 0; }
   .ew-search-input { min-width: 8rem; }
+  /* the menu button opens navigation and tools below the bar */
+  .ewc-header-panel { display: none; flex-basis: 100%; flex-direction: column; align-items: stretch; gap: .75rem; padding: .25rem 0 .5rem; }
+  .ewc-header-panel.is-open { display: flex; }
+  .ewc-header:has(.ewc-header-panel.is-open) { max-height: 100vh; overflow-y: auto; }
+  .ewc-header .ew-pos--header-tools { justify-content: flex-start; }
 }
 
 /* core.menu: menus in the header (dropdowns) and the sidebar (collapsible tree) */

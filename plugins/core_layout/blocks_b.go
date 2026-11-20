@@ -90,7 +90,8 @@ func (progress) Params() []content.MacroParam {
 		{Name: "label", Labels: lm("Name", "Name"), Type: "text", Required: true},
 		{Name: "value", Labels: lm("Value", "Wert"), Type: "number", Required: true},
 		{Name: "max", Labels: lm("Maximum (100: percent)", "Höchstwert (100: Prozent)"), Type: "number", Default: "100"},
-		{Name: "color", Labels: lm("Color", "Farbe"), Type: "select", Options: []string{"primary", "success", "warning", "danger"}, Default: "primary"},
+		{Name: "color", Labels: lm("Color", "Farbe"), Type: "select", Options: []string{"primary", "success", "warning", "danger"}, Default: "primary",
+			OptionLabels: map[string]map[string]string{"primary": lm("Main color", "Hauptfarbe")}},
 	}
 }
 
@@ -193,6 +194,9 @@ func (timeline) Description() map[string]string {
 		"Einträge der Reihe nach, jeder mit einem Datum oder Schritt als erster Überschrift. Einträge mit einer Trennlinie trennen.")
 }
 func (timeline) HasBody() bool { return true }
+func (timeline) Parts() content.MacroParts {
+	return content.MacroParts{Labels: lm("Entry", "Eintrag"), Titled: true}
+}
 func (timeline) Params() []content.MacroParam {
 	return []content.MacroParam{
 		{Name: "label", Labels: lm("Name for screen readers", "Name für Screenreader"), Type: "text"},

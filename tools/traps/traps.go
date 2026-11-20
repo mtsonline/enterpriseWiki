@@ -812,4 +812,32 @@ var traps = []trap{
 		New:  "\tif false {\n\t\tfor i := range out {",
 		Pkg:  "./internal/server/", Tests: "^TestTemplateCSS$",
 	},
+	{
+		ID: "macros.picture-body", About: "a macro with content is drawn as a picture in the editor",
+		File: "internal/content/macros.go",
+		Old:  "info.Picture = r.opts.Picture && !info.HasBody && !info.Inline",
+		New:  "info.Picture = r.opts.Picture",
+		Pkg:  "./internal/server/", Tests: "^TestMacros$",
+	},
+	{
+		ID: "macros.picture-all", About: "every macro (shell, HTTP) is rendered while editing",
+		File: "internal/coreplugin/coreplugin.go",
+		Old:  "func (h *Host) RegisterMacro(m content.Macro) {\n\th.Content.RegisterMacro(h.Manifest.ID, m)\n}",
+		New:  "func (h *Host) RegisterMacro(m content.Macro) {\n\th.Content.RegisterMacroWith(h.Manifest.ID, m, content.MacroOptions{Picture: true})\n}",
+		Pkg:  "./internal/server/", Tests: "^TestMacros$",
+	},
+	{
+		ID: "macros.option-labels-shared", About: "naming the options changes the parameters of the macro",
+		File: "internal/content/optionlabels.go",
+		Old:  "labels := make(map[string]map[string]string, len(p.Options))",
+		New:  "labels := p.OptionLabels\n\t\t\tif labels == nil {\n\t\t\t\tlabels = map[string]map[string]string{}\n\t\t\t}",
+		Pkg:  "./internal/content/", Tests: "^TestWithOptionLabels$",
+	},
+	{
+		ID: "layout.part-names", About: "parts without a heading are named in English only",
+		File: "plugins/core_layout/blocks.go",
+		Old:  "word := what[lang]",
+		New:  "word := what[\"en\"]",
+		Pkg:  "./plugins/core_layout/", Tests: "^TestPartNames$",
+	},
 }

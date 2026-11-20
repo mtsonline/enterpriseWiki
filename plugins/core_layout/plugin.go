@@ -31,8 +31,9 @@ func (p *Plugin) Manifest() coreplugin.Manifest { return coreplugin.ParseManifes
 
 // Setup registers the macros.
 func (p *Plugin) Setup(h *coreplugin.Host) error {
+	// layout blocks only build HTML from their parameters: the editor shows them as they look
 	for _, m := range []content.Macro{section{}, hero{}, cards{}, button{}, spacer{}, grid{}, heading{}, divider{}, buttons{}, cta{}, tabs{}, accordion{}, icon{}, iconbox{}, iconlist{}, progress{}, counter{}, timeline{}, dialog{}, tooltip{}, testimonial{}, logos{}, personcard{}, rotating{}, ticker{}, slider{}} {
-		h.RegisterMacro(m)
+		h.RegisterPictureMacro(m)
 	}
 	return nil
 }
@@ -143,6 +144,9 @@ func (cards) Description() map[string]string {
 	return lm("A grid of cards. Separate the cards with a horizontal line.", "Ein Raster aus Karten. Karten mit einer Trennlinie trennen.")
 }
 func (cards) HasBody() bool { return true }
+func (cards) Parts() content.MacroParts {
+	return content.MacroParts{Labels: lm("Card", "Karte"), Titled: true}
+}
 func (cards) Params() []content.MacroParam {
 	return []content.MacroParam{{Name: "columns", Labels: lm("Columns", "Spalten"), Type: "select", Options: []string{"2", "3", "4"}, Default: "3"}}
 }

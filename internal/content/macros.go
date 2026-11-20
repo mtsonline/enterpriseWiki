@@ -83,6 +83,22 @@ type ToolbarMacro interface {
 	Toolbar() string
 }
 
+// PartsMacro is implemented by macros whose body is split into parts at
+// horizontal rules (tabs, accordion, columns, cards …). The editor shows the
+// parts and a button to add one.
+type PartsMacro interface {
+	Parts() MacroParts
+}
+
+// MacroParts describes the parts of a macro for the editor.
+type MacroParts struct {
+	// Labels name one part ("Tab", "Column" …) by language.
+	Labels map[string]string `json:"labels"`
+	// Titled: the first heading of a part is its title (a new part starts
+	// with a heading).
+	Titled bool `json:"titled"`
+}
+
 // MacroInfo describes a macro for the editor.
 type MacroInfo struct {
 	Name        string            `json:"name"`
@@ -94,6 +110,11 @@ type MacroInfo struct {
 	Inline      bool              `json:"inline"`
 	// Toolbar is the icon of the own toolbar button ("" = none).
 	Toolbar string `json:"toolbar,omitempty"`
+	// Parts: the body is split into parts at horizontal rules (nil = not).
+	Parts *MacroParts `json:"parts,omitempty"`
+	// Picture: the visual editor shows the result of the macro (one
+	// without a body) while editing.
+	Picture bool `json:"picture,omitempty"`
 }
 
 type macroRegistry struct {
@@ -104,12 +125,25 @@ type macroRegistry struct {
 type registeredMacro struct {
 	pluginID string
 	m        Macro
+	opts     MacroOptions
+}
+
+// MacroOptions are set by the plugin when it registers a macro.
+type MacroOptions struct {
+	// Picture: the visual editor shows the result while editing (cheap,
+	// without side effects; see coreplugin.Host.RegisterPictureMacro).
+	Picture bool
 }
 
 var macroNameRe = regexp.MustCompile(`^[a-z0-9][a-z0-9._-]{0,63}$`)
 
 // RegisterMacro registers a macro owned by pluginID.
 func (s *Service) RegisterMacro(pluginID string, m Macro) {
+	s.RegisterMacroWith(pluginID, m, MacroOptions{})
+}
+
+// RegisterMacroWith registers a macro owned by pluginID with options.
+func (s *Service) RegisterMacroWith(pluginID string, m Macro, opts MacroOptions) {
 	if !macroNameRe.MatchString(m.Name()) {
 		panic("invalid macro name " + m.Name())
 	}
@@ -118,7 +152,7 @@ func (s *Service) RegisterMacro(pluginID string, m Macro) {
 	if s.macros.macros == nil {
 		s.macros.macros = map[string]registeredMacro{}
 	}
-	s.macros.macros[m.Name()] = registeredMacro{pluginID, m}
+	s.macros.macros[m.Name()] = registeredMacro{pluginID, m, opts}
 }
 
 func (s *Service) macro(name string) Macro {
@@ -139,9 +173,7 @@ func (s *Service) Macros() []MacroInfo {
 	for name, r := range s.macros.macros {
 		if s.enabled(r.pluginID) {
 			p := r.m.Params()
-			if p == nil {
-				p = []MacroParam{}
-			}
+			p = withOptionLabels(p) // a copy: the macro's own parameters stay as they are
 			info := MacroInfo{Name: name, Plugin: r.pluginID, Labels: r.m.Labels(), Description: r.m.Description(), Params: p, HasBody: r.m.HasBody()}
 			if im, ok := r.m.(InlineMacro); ok {
 				info.Inline = im.Inline() && !info.HasBody
@@ -152,6 +184,11 @@ func (s *Service) Macros() []MacroInfo {
 			}
 			if tm, ok := r.m.(ToolbarMacro); ok {
 				info.Toolbar = tm.Toolbar()
+			}
+			info.Picture = r.opts.Picture && !info.HasBody && !info.Inline
+			if pm, ok := r.m.(PartsMacro); ok && info.HasBody {
+				parts := pm.Parts()
+				info.Parts = &parts
 			}
 			out = append(out, info)
 		}

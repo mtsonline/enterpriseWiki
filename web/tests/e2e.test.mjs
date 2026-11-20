@@ -434,6 +434,119 @@ test('insert macros with the macro dialog', async () => {
   await a11y('page with macros');
 });
 
+test('editor: macros with parts, pictures of blocks, preview keeps the work, leaving asks, icon names, phone menu', async () => {
+  await newPage('core.html', `Parts ${run}`);
+  const ed = page.locator('.ewe-prose');
+  await ed.click();
+  await page.keyboard.type('Intro');
+  // an accordion starts with two parts; the help says how to add more
+  await page.getByRole('button', { name: /^(insert macro|makro einfügen)$/i }).click();
+  const dialog = page.locator('dialog[open]');
+  await dialog.locator('select').first().selectOption('accordion');
+  assert.match(await dialog.locator('.ew-help').first().innerText(), /\+ (Part|Teil)/);
+  await dialog.locator('button[type=submit]').click();
+  const acc = page.locator('.ewe-macro[data-macro="accordion"]');
+  await acc.waitFor();
+  // the title of the first part is selected: typing replaces it
+  await page.keyboard.type(`Question A${run}`);
+  await acc.getByRole('button', { name: /^(add part|teil hinzufügen)$/i }).click();
+  await page.keyboard.type(`Question C${run}`);
+  await page.keyboard.press('Enter');
+  await page.keyboard.type('Answer C');
+  // the horizontal rule of the toolbar starts a new part; typing goes on below it
+  await page.getByRole('button', { name: /^(horizontal line|trennlinie)$/i }).click();
+  await page.keyboard.type(`Question D${run}`);
+  assert.equal(await acc.locator('.ewe-macro-body > hr').count(), 3, 'four parts');
+  assert.match(await acc.locator('.ewe-macro-body').innerText(), new RegExp(`Question A${run}[\\s\\S]*Question C${run}[\\s\\S]*Answer C[\\s\\S]*Question D${run}`));
+  // a block without content shows how it looks
+  await page.locator('.ewe-prose > p').first().click();
+  await page.getByRole('button', { name: /^(insert macro|makro einfügen)$/i }).click();
+  await dialog.locator('select').first().selectOption('buttons');
+  await dialog.getByLabel(/^(text of button 1|text der schaltfläche 1)/i).fill(`Go${run}`);
+  await dialog.getByLabel(/^(link of button 1|link der schaltfläche 1)/i).fill('/');
+  // every choice has a name, no bare values like "start"
+  assert.ok(!(await dialog.locator('option').allInnerTexts()).some((x) => /^(start|center|end|row|full|stack|primary|secondary)$/.test(x)), 'named options');
+  await dialog.locator('button[type=submit]').click();
+  const pic = page.locator('.ewe-macro[data-macro="buttons"] .ewe-macro-picture');
+  await pic.locator('a', { hasText: `Go${run}` }).waitFor();
+  assert.equal(await pic.getAttribute('inert'), '', 'the picture takes no focus and no clicks');
+  // the mode button names the mode it switches to
+  await page.getByRole('button', { name: /^(markdown mode|markdown-modus)$/i }).click();
+  assert.match(await page.locator('textarea.ewe-markdown').inputValue(), new RegExp(`:::accordion[\\s\\S]*### Question A${run}[\\s\\S]*---`));
+  await page.getByRole('button', { name: /^(visual mode|visueller modus)$/i }).click();
+  await ed.waitFor();
+  // icon buttons show their name on hover (the browser's title is not shown twice)
+  const editBtn = acc.getByRole('button', { name: /^(edit macro|makro bearbeiten)$/i });
+  await editBtn.hover();
+  const tip = page.locator('.ew-tooltip');
+  await tip.filter({ hasText: /^(edit macro|makro bearbeiten)$/i }).waitFor();
+  assert.equal(await editBtn.getAttribute('title'), null);
+  await page.keyboard.press('Escape');
+  await tip.waitFor({ state: 'hidden' });
+  await a11y('editor with parts and a picture of a block');
+  // the preview keeps the changes as a draft; its links open in a new tab
+  await page.getByRole('button', { name: /^(preview|vorschau)$/i }).click();
+  const pv = page.locator('dialog[open] .ew-preview');
+  await pv.waitFor();
+  assert.match(await pv.innerText(), /saved as a draft|als Entwurf gespeichert/);
+  assert.equal(await pv.locator('a', { hasText: `Go${run}` }).getAttribute('target'), '_blank');
+  await page.waitForURL(/\/d\/\d+\/edit$/);
+  await page.keyboard.press('Escape');
+  await pv.waitFor({ state: 'detached' });
+  // leaving with unsaved changes asks first: keep editing, then discard
+  await ed.locator('p').first().click();
+  await page.keyboard.type(' more');
+  const here = page.url();
+  await page.locator('.ew-tree a').first().click();
+  const ask = page.getByRole('alertdialog');
+  await ask.waitFor();
+  await a11y('question before leaving with unsaved changes');
+  await ask.getByRole('button', { name: /^(keep editing|weiter bearbeiten)$/i }).click();
+  await ask.waitFor({ state: 'detached' });
+  assert.equal(page.url(), here);
+  assert.match(await ed.innerText(), /Intro more/);
+  await page.getByRole('link', { name: /^(cancel|abbrechen)$/i }).click();
+  await ask.getByRole('button', { name: /^(discard changes|änderungen verwerfen)$/i }).click();
+  await page.waitForURL((u) => !/\/edit$/.test(u.pathname));
+  await idle();
+  // the draft has the state of the preview (without " more")
+  const drafts = await call('GET', '/api/v1/drafts');
+  const d = (drafts.items ?? drafts).find((x) => x.title === `Parts ${run}`);
+  assert.ok(d, 'draft kept');
+  await call('DELETE', `/api/v1/drafts/${d.id}`);
+  // phone: the page starts with its content, the menu button opens navigation and tools
+  const size = page.viewportSize();
+  try {
+    await page.setViewportSize({ width: 390, height: 800 });
+    await page.goto(`${BASE}/`);
+    await idle();
+    const panel = page.locator('#ewc-header-panel');
+    assert.ok(await panel.isHidden(), 'navigation and tools closed at first');
+    const menu = page.locator('.ewc-sidebar-toggle');
+    await menu.click();
+    assert.equal(await menu.getAttribute('aria-expanded'), 'true');
+    await panel.locator('.ew-pos--header-tools').waitFor();
+    await a11y('phone menu open');
+    await page.keyboard.press('Escape');
+    assert.equal(await menu.getAttribute('aria-expanded'), 'false');
+    assert.ok(await panel.isHidden());
+    assert.equal(await page.evaluate(() => document.activeElement?.classList.contains('ewc-sidebar-toggle')), true, 'focus back on the menu button');
+    // a long press on an icon button names it instead of pressing it
+    const cdp = await page.context().newCDPSession(page);
+    const box = await menu.boundingBox();
+    const touch = (type) => cdp.send('Input.dispatchTouchEvent', { type, touchPoints: type === 'touchEnd' ? [] : [{ x: box.x + box.width / 2, y: box.y + box.height / 2 }] });
+    await touch('touchStart');
+    await tip.waitFor({ state: 'visible', timeout: 3000 });
+    await page.waitForTimeout(1000); // a finger that stays longer (found in the CI)
+    await touch('touchEnd');
+    await page.waitForTimeout(300);
+    assert.equal(await menu.getAttribute('aria-expanded'), 'false', 'the long press did not open the menu');
+    await cdp.detach();
+  } finally {
+    if (size) await page.setViewportSize(size);
+  }
+});
+
 test('visual editor: Markdown input, tables, Markdown mode, keyboard', async () => {
   await newPage('core.html', `Visual ${run}`);
   const ed = page.locator('.ewe-prose');
@@ -469,7 +582,7 @@ test('visual editor: Markdown input, tables, Markdown mode, keyboard', async () 
   }
   assert.ok(left, 'Esc + Tab leaves the editor');
   // Markdown mode shows the source and keeps changes made there
-  await page.getByRole('button', { name: /^markdown$/i }).click();
+  await page.getByRole('button', { name: /^(markdown mode|markdown-modus)$/i }).click();
   const src = page.locator('textarea.ewe-markdown');
   const md = await src.inputValue();
   assert.match(md, /## Section/);
@@ -477,7 +590,7 @@ test('visual editor: Markdown input, tables, Markdown mode, keyboard', async () 
   assert.match(md, /\| Head \| Second \|/);
   await src.fill(md + '\nAdded in *Markdown*\n');
   await a11y('editor in Markdown mode');
-  await page.getByRole('button', { name: /^markdown$/i }).click();
+  await page.getByRole('button', { name: /^(visual mode|visueller modus)$/i }).click();
   await ed.locator('em', { hasText: 'Markdown' }).waitFor();
   // inline macro from its own toolbar button: the selected text becomes its text
   await ed.locator('em', { hasText: 'Markdown' }).dblclick();
@@ -527,7 +640,7 @@ test('live editing: two editors see each other', async () => {
     const shape = await p2.locator('.ewe-peers li').nth(1).locator('.ewe-peer-mark').innerText();
     assert.ok((await p2.locator('.ewe-prose .ewe-cursor-label').innerText()).startsWith(shape), 'cursor shows the shape of the list');
     // Markdown source live: one switches, both are in the source and see each other
-    await page.getByRole('button', { name: /^markdown$/i }).click();
+    await page.getByRole('button', { name: /^(markdown mode|markdown-modus)$/i }).click();
     const src1 = page.locator('textarea.ewe-markdown'), src2 = p2.locator('textarea.ewe-markdown');
     await src2.waitFor();
     assert.match(await src2.inputValue(), new RegExp(`## Shared live${run}`));
@@ -538,7 +651,7 @@ test('live editing: two editors see each other', async () => {
     await page.locator('.ewe-md-mirror .ewe-md-caret').waitFor({ state: 'attached' });
     await a11y('live editing in the Markdown source');
     // back to the visual editor for everybody, with the text from the source
-    await p2.getByRole('button', { name: /^markdown$/i }).click();
+    await p2.getByRole('button', { name: /^(visual mode|visueller modus)$/i }).click();
     await page.locator('.ewe-prose').waitFor();
     await page.waitForFunction((x) => document.querySelector('.ewe-prose')?.textContent?.includes(x), `source${run}`, { timeout: 10000 });
     assert.ok(await src1.isHidden(), 'the first editor followed back to the visual editor');

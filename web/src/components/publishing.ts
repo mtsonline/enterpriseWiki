@@ -22,11 +22,22 @@ export async function saveDraft(draftId: number | null, s: EditorState): Promise
   return d;
 }
 
-/** showPreview renders the editor content without saving. */
-export async function showPreview(s: EditorState): Promise<void> {
+/**
+ * showPreview renders the editor content without publishing it (drafted:
+ * the changes were just kept as a draft). Links of the preview open in a new
+ * tab, so the editor with its changes stays where it is.
+ */
+export async function showPreview(s: EditorState, drafted = false): Promise<void> {
   const res = await api.post<{ html: string }>('elements/preview', { type: s.type, lang: s.lang, body: s.body });
-  openDialog(t('draft.preview_title', { title: s.title || t('element.untitled') }), h('div', { class: 'ew-preview', lang: s.lang },
-    h('p', { class: 'ew-notice ew-notice--info' }, t('draft.preview_note')), h('h1', null, s.title), trustedHTML(res.html)), [], { wide: true });
+  const box = h('div', { class: 'ew-preview', lang: s.lang },
+    h('p', { class: 'ew-notice ew-notice--info' }, t(drafted ? 'draft.preview_note_drafted' : 'draft.preview_note'), ' ', t('draft.preview_links')),
+    h('h1', null, s.title), trustedHTML(res.html));
+  for (const a of box.querySelectorAll<HTMLAnchorElement>('a[href]')) {
+    if (a.getAttribute('href')?.startsWith('#')) continue;
+    a.target = '_blank';
+    a.relList.add('noopener', 'noreferrer');
+  }
+  openDialog(t('draft.preview_title', { title: s.title || t('element.untitled') }), box, [], { wide: true });
 }
 
 /** saveTemplateDialog saves the editor content as template. */

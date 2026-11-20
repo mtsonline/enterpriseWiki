@@ -243,7 +243,14 @@ Optionale Schnittstellen:
 ```go
 func (Weather) Inline() bool    { return true } // im Text: :acme.weather[Wien]{days=3}; der Text ist der Parameter "text"
 func (Weather) Toolbar() string { return "☀" }  // eigener Knopf in der Werkzeugleiste des Editors (Symbol)
+// ein Makro mit Inhalt, der an Trennlinien in Teile zerfällt (Reiter, Spalten …): Der Editor beginnt
+// es mit zwei Teilen und bietet „+ Tag“ zum Anfügen; Titled: die erste Überschrift eines Teils ist sein Titel
+func (Forecast) Parts() content.MacroParts { return content.MacroParts{Labels: map[string]string{"en": "Day", "de": "Tag"}, Titled: true} }
 ```
+
+Auswahl-Optionen ohne eigene `OptionLabels` bekommen allgemeine Namen (Größen, Ausrichtungen, Farben …), wenn sie dazugehören; alle anderen benennen Sie selbst, der Makro-Dialog zeigt nie einen bloßen Wert.
+
+`host.RegisterPictureMacro(m)` statt `host.RegisterMacro(m)`: Der visuelle Editor zeigt das Ergebnis eines Makros ohne Inhalt schon beim Bearbeiten und zeichnet es neu, wenn sich seine Parameter ändern (`POST /api/v1/elements/preview` mit den Rechten der bearbeitenden Person). Nur für Makros, die billig sind und keine Nebenwirkungen haben – keine Anfragen an andere Server, keine Befehle, nichts wird geschrieben.
 
 In Markdown steht ein Makro als Direktive: `::name{a=b}` (ohne Inhalt), `:::name{a=b}` … `:::` (mit Inhalt) oder `:name[Text]{a=b}` (im Text); gerendert wird daraus der obige Platzhalter.
 

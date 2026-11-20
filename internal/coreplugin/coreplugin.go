@@ -268,6 +268,14 @@ func (h *Host) RegisterMacro(m content.Macro) {
 	h.Content.RegisterMacro(h.Manifest.ID, m)
 }
 
+// RegisterPictureMacro adds a macro whose result the visual editor may show
+// while editing (it renders it again whenever its parameters change). Only
+// for macros that are cheap and have no side effects: no requests to other
+// servers, no commands, nothing written.
+func (h *Host) RegisterPictureMacro(m content.Macro) {
+	h.Content.RegisterMacroWith(h.Manifest.ID, m, content.MacroOptions{Picture: true})
+}
+
 // RegisterElementField adds data edited and saved together with elements
 // of every type (see content.ElementField).
 func (h *Host) RegisterElementField(f content.ElementField) {

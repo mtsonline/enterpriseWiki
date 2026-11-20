@@ -243,7 +243,14 @@ Optional interfaces:
 ```go
 func (Weather) Inline() bool    { return true } // in the text: :acme.weather[Vienna]{days=3}; the text is the parameter "text"
 func (Weather) Toolbar() string { return "☀" }  // own button in the toolbar of the editor (symbol)
+// a macro with content split into parts at horizontal rules (tabs, columns …): the editor starts
+// it with two parts and offers "+ Day" to add one; Titled: the first heading of a part is its title
+func (Forecast) Parts() content.MacroParts { return content.MacroParts{Labels: map[string]string{"en": "Day", "de": "Tag"}, Titled: true} }
 ```
+
+Select options without own `OptionLabels` get common names (sizes, alignments, colours …) when they are among them; name all others yourself, the macro dialog never shows a bare value.
+
+`host.RegisterPictureMacro(m)` instead of `host.RegisterMacro(m)`: the visual editor shows the result of a macro without content while editing and draws it again when its parameters change (`POST /api/v1/elements/preview` with the rights of the editor). Only for macros that are cheap and have no side effects – no requests to other servers, no commands, nothing written.
 
 In Markdown a macro is written as a directive: `::name{a=b}` (without content), `:::name{a=b}` … `:::` (with content) or `:name[text]{a=b}` (in the text); it is rendered into the placeholder above.
 

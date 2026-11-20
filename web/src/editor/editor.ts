@@ -19,7 +19,7 @@ import { findWrapping } from 'prosemirror-transform';
 import { EditorView, type NodeView } from 'prosemirror-view';
 import { announce, toast } from '../core/announce';
 import { h, uid } from '../core/dom';
-import { t } from '../core/i18n';
+import { t, uiLang } from '../core/i18n';
 import { checkbox, field, formDialog, select, textArea, textInput } from '../components/ui';
 import { codeLanguage, codeLanguageOptions, codeLines } from '../core/codeblocks';
 import { chooseBlockTemplate, saveBlockTemplate } from './blocktemplates';
@@ -29,6 +29,9 @@ import { formatAttrs } from './attrs';
 import { Collab, collabURL, colorOf, markerOf, type Peer } from './collab';
 import { TextareaBinding } from './mdlive';
 import { allowedMacros, label as macroLabel, loadMacros, macroDialog, type MacroChoice } from './macros';
+import { paramSummary } from './macrosummary';
+import { macroPicture } from './macropreview';
+import type { MacroInfo, MacroParts } from '../core/types';
 import { parse, serialize } from './markdown';
 import { schema } from './schema';
 
@@ -170,8 +173,25 @@ function insertBlock(state: EditorState, node: PMNode): Transaction {
   return tr.setSelection(TextSelection.near(tr.doc.resolve(after + node.nodeSize)));
 }
 
+/**
+ * Inserts a horizontal rule and puts the cursor into the text after it (a
+ * new empty paragraph if there is none): typing goes on below the line
+ * instead of replacing the selected rule.
+ */
 const insertHr: Command = (state, dispatch) => {
-  dispatch?.(insertBlock(state, nodes.horizontal_rule.create()).scrollIntoView());
+  if (!dispatch) return true;
+  const tr = insertBlock(state, nodes.horizontal_rule.create());
+  // replacing the selection leaves the new rule selected when no text follows it
+  const sel = tr.selection;
+  const at = sel instanceof NodeSelection && sel.node.type === nodes.horizontal_rule ? sel.from
+    : sel.$from.depth > 0 && sel.$from.before() > 0 && tr.doc.resolve(sel.$from.before()).nodeBefore?.type === nodes.horizontal_rule ? sel.$from.before() - 1 : -1;
+  if (at >= 0) {
+    const after = at + 1;
+    const next = tr.doc.resolve(after).nodeAfter;
+    if (!next || !next.isTextblock) tr.insert(after, nodes.paragraph.create());
+    tr.setSelection(TextSelection.create(tr.doc, after + 1));
+  }
+  dispatch(tr.scrollIntoView());
   return true;
 };
 
@@ -190,13 +210,18 @@ const insertTable: Command = (state, dispatch) => {
 };
 
 /** Position of the node of the given type that tr inserted at the selection of state (-1 if none). */
-function inserted(tr: Transaction, state: EditorState, type: NodeType): number {
-  const table = ancestor(state.selection.$from, (n) => n.type === nodes.table);
-  const end = table ? table.pos + table.node.nodeSize : state.selection.to;
-  const from = tr.mapping.map(state.selection.from, -1), to = tr.mapping.map(end, 1);
+function inserted(tr: Transaction, _state: EditorState, type: NodeType): number {
+  // the range the steps of tr wrote (in the new document)
+  let lo = Infinity, hi = -1;
+  tr.mapping.maps.forEach((m, i) => {
+    const later = tr.mapping.slice(i + 1);
+    m.forEach((_os, _oe, ns, ne) => { lo = Math.min(lo, later.map(ns, -1)); hi = Math.max(hi, later.map(ne, 1)); });
+  });
   let found = -1;
-  tr.doc.nodesBetween(Math.max(0, from - 1), Math.min(tr.doc.content.size, to + 1), (n, pos) => {
-    if (found < 0 && n.type === type) found = pos;
+  if (hi < 0) return found;
+  // the first node of the type that lies wholly in it (not one around it)
+  tr.doc.nodesBetween(lo, hi, (n, pos) => {
+    if (found < 0 && n.type === type && pos >= lo && pos + n.nodeSize <= hi) found = pos;
     return found < 0;
   });
   return found;
@@ -249,13 +274,30 @@ function ctlButton(text: string, aria: string, onClick: () => void): HTMLButtonE
   return b;
 }
 
-const macroNames = new Map<string, string>();
-void loadMacros().then((ms) => { for (const m of ms) macroNames.set(m.name, macroLabel(m.labels) || m.name); }).catch(() => undefined);
-const macroName = (name: string) => macroNames.get(name) ?? name;
+// what the editor knows about the macros (names, parameters, parts); views
+// made before the list arrived are refreshed when it does
+const macroInfos = new Map<string, MacroInfo>();
+const waitingViews = new Set<{ refresh: () => void }>();
+void loadMacros().then((ms) => {
+  for (const m of ms) macroInfos.set(m.name, m);
+  for (const v of waitingViews) v.refresh();
+  waitingViews.clear();
+}).catch(() => undefined);
+const macroName = (name: string) => macroLabel(macroInfos.get(name)?.labels) || name;
+const partsLabel = (p: MacroParts) => macroLabel(p.labels);
 
-function paramSummary(params: Record<string, string>): string {
-  const s = Object.entries(params).map(([k, v]) => `${k}=${v}`).join(', ');
-  return s.length > 80 ? s.slice(0, 79) + '…' : s;
+/** The body of a new macro with parts: two parts to fill in. */
+function partsBody(p: MacroParts): PMNode[] {
+  const part = (i: number) => p.titled
+    ? [nodes.heading.create({ level: 3 }, schema.text(`${partsLabel(p)} ${i}`)), nodes.paragraph.create(null, schema.text(t('editor.macro_body')))]
+    : [nodes.paragraph.create(null, schema.text(`${partsLabel(p)} ${i}`))];
+  return [...part(1), nodes.horizontal_rule.create(), ...part(2)];
+}
+
+/** The same as Markdown (the Markdown mode of the editor). */
+function partsMarkdown(p: MacroParts): string {
+  const part = (i: number) => (p.titled ? `### ${partsLabel(p)} ${i}\n\n${t('editor.macro_body')}` : `${partsLabel(p)} ${i}`);
+  return `${part(1)}\n\n---\n\n${part(2)}`;
 }
 
 class MacroView implements NodeView {
@@ -263,11 +305,16 @@ class MacroView implements NodeView {
   contentDOM?: HTMLElement;
   private title: HTMLElement;
   private info: HTMLElement;
-  constructor(private node: PMNode, host: Host, private getPos: GetPos) {
+  private addPart: HTMLButtonElement;
+  private picture: HTMLElement | null = null;
+  private pictureOf = '';
+  constructor(private node: PMNode, private host: Host, private getPos: GetPos) {
     this.title = h('span', { class: 'ewe-macro-name' });
     this.info = h('span', { class: 'ewe-macro-params' });
+    this.addPart = ctlButton('+', '', () => this.newPart());
+    this.addPart.classList.add('ewe-macro-addpart');
     const head = h('div', { class: 'ewe-macro-head ewe-ctl', contenteditable: 'false' },
-      h('span', { 'aria-hidden': 'true' }, '⚙ '), this.title, ' ', this.info,
+      h('span', { 'aria-hidden': 'true' }, '⚙ '), this.title, ' ', this.info, this.addPart,
       ctlButton('✎', t('editor.macro_edit'), () => this.at((p) => host.edit(p))),
       ctlButton('×', t('editor.macro_remove'), () => this.at((p) => {
         const v = host.view();
@@ -276,22 +323,78 @@ class MacroView implements NodeView {
         announce(t('editor.removed'));
       })));
     this.dom = h('div', { class: ['ewe-macro', node.attrs.leaf && 'ewe-macro--leaf'], role: 'group' }, head);
-    if (!node.attrs.leaf) {
+    if (node.attrs.leaf) {
+      // what the page will show; a picture only (not focusable, not clickable)
+      this.picture = h('div', { class: 'ewe-macro-picture ew-content', contenteditable: 'false', inert: true, hidden: true });
+      this.dom.append(this.picture);
+    } else {
       this.contentDOM = h('div', { class: 'ewe-macro-body' });
       this.dom.append(this.contentDOM);
     }
+    if (!macroInfos.size) waitingViews.add(this);
     this.render();
   }
+  refresh() { this.render(); }
   private at(fn: (pos: number) => void) {
     const p = this.getPos();
     if (p !== undefined) fn(p);
   }
   private render() {
-    const name = macroName(this.node.attrs.name as string);
-    this.title.textContent = name;
-    this.info.textContent = paramSummary(this.node.attrs.params as Record<string, string>);
-    this.dom.setAttribute('aria-label', t('editor.macro_named', { name }));
-    this.dom.dataset.macro = this.node.attrs.name as string;
+    const name = this.node.attrs.name as string;
+    const info = macroInfos.get(name);
+    const label = macroName(name);
+    this.title.textContent = label;
+    this.info.textContent = paramSummary(info, this.node.attrs.params as Record<string, string>, uiLang());
+    this.dom.setAttribute('aria-label', t('editor.macro_named', { name: label }));
+    this.dom.dataset.macro = name;
+    const parts = !this.node.attrs.leaf ? info?.parts : undefined;
+    this.addPart.hidden = !parts;
+    this.dom.classList.toggle('ewe-macro--parts', !!parts);
+    if (parts) {
+      const add = t('editor.part_add', { part: partsLabel(parts) });
+      this.addPart.textContent = `+ ${partsLabel(parts)}`;
+      this.addPart.setAttribute('aria-label', add);
+      this.addPart.title = add;
+      // the rule between two parts says what it is (on the outer element:
+      // a change of the editable body would make the editor read it again)
+      const next = JSON.stringify(t('editor.part_next', { part: partsLabel(parts) }));
+      if (this.dom.style.getPropertyValue('--ewe-part') !== next) this.dom.style.setProperty('--ewe-part', next);
+    }
+    if (this.picture && info?.picture) this.showPicture();
+  }
+  private showPicture() {
+    const pic = this.picture!;
+    let src: string;
+    try { src = serialize(nodes.doc.create(null, this.node)); } catch { return; }
+    if (src === this.pictureOf) return;
+    this.pictureOf = src;
+    pic.classList.add('ewe-macro-picture--loading');
+    macroPicture(src, (html) => {
+      if (this.pictureOf !== src) return; // changed meanwhile
+      pic.classList.remove('ewe-macro-picture--loading');
+      pic.innerHTML = html ?? ''; // rendered and sanitized by the server, like the page itself
+      pic.hidden = !html?.trim();
+    });
+  }
+  /** Adds a part at the end of the body and selects its title (or text). */
+  private newPart() {
+    const parts = macroInfos.get(this.node.attrs.name as string)?.parts;
+    const p = this.getPos();
+    if (!parts || p === undefined) return;
+    const v = this.host.view();
+    let n = 1;
+    this.node.forEach((c) => { if (c.type === nodes.horizontal_rule) n++; });
+    const text = `${partsLabel(parts)} ${n + 1}`;
+    const add = parts.titled
+      ? [nodes.horizontal_rule.create(), nodes.heading.create({ level: 3 }, schema.text(text)), nodes.paragraph.create(null, schema.text(t('editor.macro_body')))]
+      : [nodes.horizontal_rule.create(), nodes.paragraph.create(null, schema.text(text))];
+    const end = p + this.node.nodeSize - 1; // the end of the body
+    const tr = v.state.tr.insert(end, add);
+    const start = end + add[0].nodeSize + 1; // inside the title (or text)
+    tr.setSelection(TextSelection.create(tr.doc, start, start + text.length));
+    v.dispatch(tr.scrollIntoView());
+    v.focus();
+    announce(t('editor.part_added', { part: text }));
   }
   update(node: PMNode): boolean {
     if (node.type !== this.node.type || node.attrs.leaf !== this.node.attrs.leaf) return false;
@@ -299,6 +402,7 @@ class MacroView implements NodeView {
     this.render();
     return true;
   }
+  destroy() { waitingViews.delete(this); }
   stopEvent(e: Event): boolean { return isControl(e); }
   ignoreMutation(m: ViewMutationRecord): boolean {
     return m.type !== 'selection' && !(this.contentDOM && this.contentDOM.contains(m.target));
@@ -544,7 +648,7 @@ export function createMarkdownEditor(container: HTMLElement, opts: MarkdownEdito
     if (!c) return mode === 'visual' ? v.focus() : textarea.focus();
     if (mode === 'markdown') {
       const start = textarea.selectionStart, end = textarea.selectionEnd;
-      const inner = textarea.value.slice(start, end).trim() || t('editor.macro_body');
+      const inner = textarea.value.slice(start, end).trim() || (c.parts ? partsMarkdown(c.parts) : t('editor.macro_body'));
       const head = c.name + formatAttrs(c.params);
       let snippet = c.hasBody ? `\n:::${head}\n${inner}\n:::\n` : `\n::${head}\n`;
       if (c.inline) {
@@ -570,11 +674,13 @@ export function createMarkdownEditor(container: HTMLElement, opts: MarkdownEdito
     if (range && wrapping) {
       tr = state.tr.wrap(range, wrapping);
     } else {
-      const node = c.hasBody ? nodes.macro.create(attrs, nodes.paragraph.create(null, schema.text(t('editor.macro_body')))) : nodes.macro.create(attrs);
+      // a macro with parts starts with two parts to fill in
+      const body = c.parts ? partsBody(c.parts) : [nodes.paragraph.create(null, schema.text(t('editor.macro_body')))];
+      const node = c.hasBody ? nodes.macro.create(attrs, body) : nodes.macro.create(attrs);
       tr = insertBlock(state, node);
       // select the placeholder text of the body (or put the cursor after a leaf macro)
       const at = inserted(tr, state, nodes.macro);
-      if (at >= 0 && c.hasBody) tr.setSelection(TextSelection.create(tr.doc, at + 2, at + 2 + t('editor.macro_body').length));
+      if (at >= 0 && c.hasBody) tr.setSelection(TextSelection.create(tr.doc, at + 2, at + 2 + body[0].textContent.length));
       else if (at >= 0) tr.setSelection(TextSelection.near(tr.doc.resolve(at + node.nodeSize)));
     }
     v.dispatch(tr.scrollIntoView());
@@ -677,7 +783,9 @@ export function createMarkdownEditor(container: HTMLElement, opts: MarkdownEdito
     view.focus();
   });
 
-  const modeBtn = h('button', { type: 'button', class: 'ewe-tool ewe-mode', 'aria-pressed': 'false' }, t('editor.markdown_mode'));
+  // the button names the mode it switches to
+  const modeBtn = h('button', { type: 'button', class: 'ewe-tool ewe-mode' }, t('editor.to_markdown'));
+  const modeLabel = (m: 'visual' | 'markdown') => { modeBtn.textContent = m === 'visual' ? t('editor.to_markdown') : t('editor.to_visual'); };
   modeBtn.addEventListener('click', () => setMode(mode === 'visual' ? 'markdown' : 'visual'));
 
   const toolbar = h('div', { class: 'ewe-toolbar', role: 'toolbar', 'aria-label': t('editor.toolbar') });
@@ -1010,7 +1118,7 @@ export function createMarkdownEditor(container: HTMLElement, opts: MarkdownEdito
     try { localStorage.setItem(MODE_KEY, m); } catch { /* storage unavailable */ }
     surface.hidden = m === 'markdown';
     mdWrap.hidden = m !== 'markdown';
-    modeBtn.setAttribute('aria-pressed', String(m === 'markdown'));
+    modeLabel(m);
     help.textContent = m === 'markdown' ? t('editor.help_markdown') : t('editor.help_visual');
     updateToolbar(view.state);
     const what = m === 'markdown' ? t('editor.mode_markdown') : t('editor.mode_visual');
@@ -1037,7 +1145,7 @@ export function createMarkdownEditor(container: HTMLElement, opts: MarkdownEdito
     mode = 'markdown';
     surface.hidden = true;
     mdWrap.hidden = false;
-    modeBtn.setAttribute('aria-pressed', 'true');
+    modeLabel('markdown');
     help.textContent = t('editor.help_markdown');
     updateToolbar(view.state);
   }
