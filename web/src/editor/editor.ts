@@ -22,6 +22,7 @@ import { h, uid } from '../core/dom';
 import { t } from '../core/i18n';
 import { checkbox, field, formDialog, select, textArea, textInput } from '../components/ui';
 import { codeLanguage, codeLanguageOptions, codeLines } from '../core/codeblocks';
+import { chooseBlockTemplate, saveBlockTemplate } from './blocktemplates';
 import { isImage, mediaURL, pickMedium } from '../components/media';
 import { prosemirrorToYXmlFragment, redo as yRedo, undo as yUndo, yCursorPlugin, ySyncPlugin, yUndoPlugin, yUndoPluginKey } from 'y-prosemirror';
 import { formatAttrs } from './attrs';
@@ -383,6 +384,7 @@ const TOOL_NAMES: Record<string, string> = {
   row_before: 'table_edit', row_after: 'table_edit', col_before: 'table_edit', col_after: 'table_edit',
   row_delete: 'table_edit', col_delete: 'table_edit', table_delete: 'table_edit',
   code_settings: 'block',
+  snippet_save: 'snippet',
 };
 
 interface Tool {
@@ -505,6 +507,29 @@ export function createMarkdownEditor(container: HTMLElement, opts: MarkdownEdito
   };
 
   /** Inserts a macro (wrapping the selected blocks for macros with a body). */
+  // block templates: insert one at the cursor, save the selection as one
+  const snippetInsert = async (v: EditorView) => {
+    const src = await chooseBlockTemplate();
+    if (src === null) return mode === 'visual' ? v.focus() : textarea.focus();
+    if (mode === 'markdown') {
+      textarea.setRangeText(`\n${src.trim()}\n`, textarea.selectionStart, textarea.selectionEnd, 'end');
+      binding?.changed();
+      textarea.focus();
+      opts.onChange?.();
+      return;
+    }
+    const doc = parse(src);
+    v.dispatch(v.state.tr.replaceSelection(new Slice(doc.content, 0, 0)).scrollIntoView());
+    v.focus();
+    announce(t('blocktpl.inserted'));
+  };
+  const snippetSave = (v: EditorView) => {
+    const src = mode === 'markdown'
+      ? textarea.value.slice(textarea.selectionStart, textarea.selectionEnd)
+      : serialize(v.state.doc.cut(v.state.selection.from, v.state.selection.to));
+    if (!src.trim()) { toast(t('blocktpl.select_first'), 'error'); return; }
+    saveBlockTemplate(src);
+  };
   const macroInsert = async (v: EditorView, only?: string) => {
     let c;
     const selected = mode === 'markdown'
@@ -601,6 +626,8 @@ export function createMarkdownEditor(container: HTMLElement, opts: MarkdownEdito
     { id: 'image', icon: '🖼', key: 'editor.image', run: (v) => void imageDialog(v) },
     { id: 'hr', icon: '—', key: 'editor.hr', run: cmdTool(insertHr) },
     { id: 'macro', icon: '⚙', key: 'editor.macro_insert', run: (v) => void macroInsert(v), markdown: true },
+    { id: 'snippet', icon: '❏', key: 'editor.snippet_insert', run: (v) => void snippetInsert(v), markdown: true },
+    { id: 'snippet_save', icon: '⎘', key: 'editor.snippet_save', run: (v) => snippetSave(v), enabled: (st) => !st.selection.empty, markdown: true },
     '|',
     { id: 'row_before', icon: '⤒', key: 'editor.row_before', run: cmdTool(addRowBefore), when: isInTable },
     { id: 'row_after', icon: '⤓', key: 'editor.row_after', run: cmdTool(addRowAfter), when: isInTable },

@@ -424,7 +424,7 @@ func (newpage) Render(ctx context.Context, mc content.MacroContext) (string, err
 	if err != nil || !slices.Contains(c.Permissions, "create") {
 		return "", nil
 	}
-	tpls, err := mc.Service.Templates(ctx, "", tid, cat)
+	tpls, err := mc.Service.TemplatesOfKind(ctx, "page", "", tid, cat)
 	if err != nil || len(tpls) == 0 {
 		return "", nil
 	}

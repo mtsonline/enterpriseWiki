@@ -28,7 +28,7 @@ export function kindOf(position: string): PositionKind {
 
 /** One placement of a building block (see content.Placement on the server). */
 export interface Placement { block: string; position: string; sort: number; required?: boolean; options?: BlockOptions }
-export interface PlacementLevel { level: 'template' | 'site' | 'category' | 'category_page' | 'instance' | 'user'; target: string; placements: Placement[] }
+export interface PlacementLevel { level: 'template' | 'site' | 'type' | 'category' | 'category_page' | 'instance' | 'user'; target: string; placements: Placement[] }
 
 /** Where a block appears, with the options of that placement. */
 export interface ResolvedPlacement { position: string; sort: number; options?: BlockOptions }
@@ -62,7 +62,7 @@ export function resolvePlacements(levels: PlacementLevel[], blocks: BlockDefault
     for (const [block, ps] of byBlock) {
       if (locked.has(block) || !out.has(block)) continue; // unknown blocks (plugin off, instance deleted) rest
       const k = kind.get(block)!;
-      if (l.level === 'instance' && k !== 'element') continue;
+      if ((l.level === 'instance' || l.level === 'type') && k !== 'element') continue;
       if (l.level === 'category_page' && k !== 'category') continue;
       // the own level arranges the own dashboard always, the rest only with personal placement
       if (l.level === 'user' && k !== 'dashboard' && opts.personal === false) continue;

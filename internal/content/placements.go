@@ -23,7 +23,7 @@ import (
 // the category tree, a button of a plugin …) at a position of the template.
 // An empty position hides the block at this level. The placements of a
 // level replace those of the levels above for the same block: template,
-// site, category (inherited by subcategories), category page (one category,
+// site, element type (only the element positions), category (inherited by subcategories), category page (one category,
 // only the category positions), instance (one element: only the element
 // positions), user.
 type Placement struct {
@@ -60,7 +60,11 @@ const (
 	// LevelCategoryPage arranges the page of one category (not inherited by
 	// the subcategories): its blocks and featured pages
 	LevelCategoryPage = "category_page"
-	LevelUser         = "user"
+	// LevelType arranges the pages of one element type (a blog post, an
+	// event, a person …): only the element positions, between site and
+	// category
+	LevelType = "type"
+	LevelUser = "user"
 )
 
 // CategoryPositionPrefix starts the positions of a category page
@@ -128,6 +132,18 @@ func (s *Service) ResolvedPlacements(ctx context.Context, templateID string, cat
 		want = append(want, key{LevelTemplate, templateID})
 	}
 	want = append(want, key{LevelSite, ""})
+	// the layout of the element type: between site and category
+	var shownElement bool
+	if elementID > 0 {
+		if _, err := s.ElementCategory(ctx, elementID, acl.View); err == nil {
+			shownElement = true
+			var typ string
+			// acl: checked above (ElementCategory)
+			if s.pool.QueryRow(ctx, `SELECT type FROM elements WHERE id=$1`, elementID).Scan(&typ) == nil {
+				want = append(want, key{LevelType, typ})
+			}
+		}
+	}
 	if categoryID > 0 {
 		if c, err := s.loadCategory(ctx, s.pool, categoryID, false); err == nil && s.acl.Can(ctx, identity.From(ctx), categoryID, acl.View) {
 			for _, id := range c.Path {
@@ -137,10 +153,8 @@ func (s *Service) ResolvedPlacements(ctx context.Context, templateID string, cat
 			want = append(want, key{LevelCategoryPage, strconv.FormatInt(categoryID, 10)})
 		}
 	}
-	if elementID > 0 {
-		if _, err := s.ElementCategory(ctx, elementID, acl.View); err == nil {
-			want = append(want, key{LevelInstance, strconv.FormatInt(elementID, 10)})
-		}
+	if shownElement {
+		want = append(want, key{LevelInstance, strconv.FormatInt(elementID, 10)})
 	}
 	// the own level: always (the own dashboard); without personal placement
 	// the interface applies only its tiles
@@ -225,6 +239,11 @@ func (s *Service) requirePlacementLevel(ctx context.Context, level, target strin
 			return err
 		}
 		return s.require(ctx, id, acl.Manage)
+	case LevelType:
+		if s.Type(target) == nil {
+			return apperr.BadRequest("unknown element type %q", target)
+		}
+		return perm.Require(ctx, "core.settings.manage")
 	case LevelInstance:
 		id, err := strconv.ParseInt(target, 10, 64)
 		if err != nil || id <= 0 || strconv.FormatInt(id, 10) != target {
@@ -237,7 +256,7 @@ func (s *Service) requirePlacementLevel(ctx context.Context, level, target strin
 		}
 		return nil // without personal placement only the dashboard (SetPlacements)
 	}
-	return apperr.BadRequest("level must be template, site, category, category_page, instance or user")
+	return apperr.BadRequest("level must be template, site, type, category, category_page, instance or user")
 }
 
 // requireArrange checks who may arrange one element page: for elements of a
@@ -321,7 +340,7 @@ func (s *Service) SetPlacements(ctx context.Context, level, target string, in []
 		return nil, apperr.BadRequest("at most %d placements per level (expert setting %s)", max, limits.PlacementRows)
 	}
 	var required map[string]bool
-	if level == LevelCategory || level == LevelCategoryPage || level == LevelInstance || level == LevelUser {
+	if level == LevelType || level == LevelCategory || level == LevelCategoryPage || level == LevelInstance || level == LevelUser {
 		var err error
 		if required, err = s.requiredBlocks(ctx); err != nil {
 			return nil, err
@@ -339,6 +358,9 @@ func (s *Service) SetPlacements(ctx context.Context, level, target string, in []
 		}
 		if level == LevelInstance && pl.Position != "" && !strings.HasPrefix(pl.Position, ElementPositionPrefix) {
 			return nil, apperr.BadRequest("placement %d: one page places blocks only at the positions of the page (%s…)", i+1, ElementPositionPrefix)
+		}
+		if level == LevelType && pl.Position != "" && !strings.HasPrefix(pl.Position, ElementPositionPrefix) {
+			return nil, apperr.BadRequest("placement %d: the layout of an element type places blocks only at the positions of a page (%s…)", i+1, ElementPositionPrefix)
 		}
 		if level == LevelCategoryPage && pl.Position != "" && !strings.HasPrefix(pl.Position, CategoryPositionPrefix) {
 			return nil, apperr.BadRequest("placement %d: one category page places blocks only at the positions of the page (%s…)", i+1, CategoryPositionPrefix)

@@ -8,7 +8,7 @@ import { api } from '../core/api';
 import { h, uid } from '../core/dom';
 import { t } from '../core/i18n';
 import { toast } from '../core/announce';
-import { activeTemplate, CATEGORY_POSITIONS, DASHBOARD_POSITIONS, EDITOR_POSITIONS, ELEMENT_POSITIONS, invalidatePlacements, placeableBlocks, positionFits, positionLabel, refreshPositions, resolvePlacements, tileOffered, type PlaceableBlock, type Placement, type PlacementLevel, type PositionKind } from '../coreplugin';
+import { activeTemplate, typeLabel, CATEGORY_POSITIONS, DASHBOARD_POSITIONS, EDITOR_POSITIONS, ELEMENT_POSITIONS, invalidatePlacements, placeableBlocks, positionFits, positionLabel, refreshPositions, resolvePlacements, tileOffered, type PlaceableBlock, type Placement, type PlacementLevel, type PositionKind } from '../coreplugin';
 import { state } from '../core/state';
 import { kindOf as positions0Kind } from '../core/placement';
 import { button, checkbox, errorText, field, select } from './ui';
@@ -20,9 +20,9 @@ interface Row { block: string; position: string; required: boolean; options?: Bl
 /** placementEditor edits the placements of one level. Rows of the level
  * replace the placements from above for the same block; blocks without a
  * row keep what the levels above say ("inherited"). */
-export async function placementEditor(level: 'site' | 'category' | 'category_page' | 'instance' | 'user', target: string, opts: { onSaved?: () => void; heading?: boolean; category?: number; kinds?: PositionKind[] } = {}): Promise<HTMLElement> {
+export async function placementEditor(level: 'site' | 'type' | 'category' | 'category_page' | 'instance' | 'user', target: string, opts: { onSaved?: () => void; heading?: boolean; category?: number; kinds?: PositionKind[] } = {}): Promise<HTMLElement> {
   // the own level without personal placement: only the own dashboard
-  const kinds: PositionKind[] | undefined = opts.kinds ?? (level === 'user' && !state.site.personal_placement ? ['dashboard'] : level === 'instance' ? ['element'] : level === 'category_page' ? ['category'] : undefined);
+  const kinds: PositionKind[] | undefined = opts.kinds ?? (level === 'user' && !state.site.personal_placement ? ['dashboard'] : level === 'instance' || level === 'type' ? ['element'] : level === 'category_page' ? ['category'] : undefined);
   const kindOK = (k: PositionKind) => !kinds || kinds.includes(k);
   const box = h('section', { class: 'ew-placement', 'aria-labelledby': uid('pl') });
   const headingId = box.getAttribute('aria-labelledby')!;
@@ -174,4 +174,23 @@ export async function placementEditor(level: 'site' | 'category' | 'category_pag
   else box.append(h('h2', { id: headingId }, t(`placement.title_${level}`)));
   box.append(h('p', { class: 'ew-help' }, t(`placement.help_${level}`)), status, list, h('div', { class: 'ew-actions' }, save));
   return box;
+}
+
+/** The layouts of the element types (administration of the placement): the
+ * pages of one type (blog post, event, person …) get their own arrangement
+ * of the page positions, between the site and the categories. */
+export async function typeLayouts(): Promise<HTMLElement> {
+  const hid = uid('tl');
+  const box = h('div');
+  const types = state.site.element_types ?? [];
+  const sel = select([{ value: '', label: t('placement.type_choose') }, ...types.map((x) => ({ value: x.id, label: typeLabel(x.id) }))], '');
+  sel.addEventListener('change', async () => {
+    box.replaceChildren();
+    if (!sel.value) return;
+    box.append(await placementEditor('type', sel.value, { heading: false }));
+  });
+  return h('section', { class: 'ew-section', 'aria-labelledby': hid },
+    h('h2', { id: hid }, t('placement.types')),
+    h('p', { class: 'ew-help' }, t('placement.types_help')),
+    field(t('placement.type'), sel), box);
 }
