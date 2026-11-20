@@ -524,7 +524,10 @@ func buildDemo(d *demoRun) {
 				`<p>`+tr("Since we keep our answers in the wiki, new colleagues find their way in a few days.", "Seit unsere Antworten im Wiki stehen, finden sich neue Kolleginnen und Kollegen in wenigen Tagen zurecht.")+`</p>`) +
 				`<h2>` + tr("Tags of the wiki", "Schlagwörter des Wikis") + `</h2>` + macro("tagcloud", map[string]string{"max": "30"}, "") +
 				`<h2>` + tr("Who wrote this page", "Wer an dieser Seite geschrieben hat") + `</h2>` + macro("contributors", nil, "") +
-				`<h2>` + tr("Latest changes", "Letzte Änderungen") + `</h2>` + macro("pagechanges", map[string]string{"max": "5"}, "")
+				`<h2>` + tr("Latest changes", "Letzte Änderungen") + `</h2>` + macro("pagechanges", map[string]string{"max": "5"}, "") +
+				macro("personcard", map[string]string{"name": "Mira Example", "role": tr("Support", "Support"), "email": "mira@example.com"}, `<p>`+tr("Answers questions about the wiki.", "Beantwortet Fragen zum Wiki.")+`</p>`) +
+				macro("slider", map[string]string{"label": tr("First steps", "Erste Schritte")},
+					`<p>`+tr("1. Sign in.", "1. Anmelden.")+`</p><hr><p>`+tr("2. Open your area.", "2. Den eigenen Bereich öffnen.")+`</p><hr><p>`+tr("3. Write your first page.", "3. Die erste Seite schreiben.")+`</p>`)
 		}
 		d.page(start, "People and tags", "Personen und Schlagwörter", people("en"), people("de"), nil)
 	})

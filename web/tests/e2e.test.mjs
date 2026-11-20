@@ -3224,6 +3224,91 @@ test('blocks B, part 2: quote, logo bar with a picture of the media library, tag
   }
 });
 
+test('blocks B, part 3: person card, changing words, ticker, slider; pause buttons and reduced motion', async () => {
+  const cat = (await call('POST', '/api/v1/categories', { titles: { en: `Motion ${run}` } })).id;
+  const src = [
+    ':::personcard{name="Mira Example" role="Support" email="mira@example.com" phone="+43 1 234"}',
+    'Answers questions about the wiki.',
+    ':::',
+    '',
+    '::rotating{before="We build" words="wikis|sites|tools" after="together"}',
+    '',
+    ':::ticker{label="News"}',
+    '- First news',
+    '- Second news',
+    ':::',
+    '',
+    ':::slider{label="Steps" auto=true}',
+    'Step one',
+    '***',
+    'Step two',
+    '***',
+    'Step three',
+    ':::',
+    '',
+  ].join('\n');
+  const el = await call('POST', '/api/v1/elements', { category_id: cat, type: 'core.html', title: `Motion ${run}`, body: { format: 'markdown', source: src } });
+  await page.goto(`${BASE}/e/${el.id}`);
+  await idle();
+  // person card
+  await page.getByRole('link', { name: 'mira@example.com' }).waitFor();
+  assert.equal(await page.getByRole('link', { name: '+43 1 234' }).getAttribute('href'), 'tel:+431234');
+  // changing words: the heading keeps all words for screen readers; one shows; pause stops it
+  const rot = page.locator('.ewl-rot');
+  assert.equal(await page.getByRole('heading', { name: 'We build wikis, sites, tools together' }).count(), 1);
+  const shown = () => rot.locator('.ewl-rot-word.is-active').textContent();
+  const first = await shown();
+  await page.mouse.move(0, 0);
+  await page.waitForFunction((f) => document.querySelector('.ewl-rot-word.is-active')?.textContent !== f, first, { timeout: 6000 });
+  const pause = rot.getByRole('button', { name: /^(pause|anhalten)$/i });
+  await pause.click();
+  assert.equal(await rot.getByRole('button', { name: /^(play|abspielen)$/i }).getAttribute('aria-pressed'), 'true');
+  await page.mouse.move(0, 0);
+  const now = await shown();
+  await page.waitForTimeout(3000);
+  assert.equal(await shown(), now, 'paused');
+  // ticker: the list is there once for screen readers; it runs and can be paused
+  const ticker = page.getByRole('region', { name: 'News' });
+  assert.equal(await ticker.getByRole('listitem').count(), 2, 'the copy is hidden from screen readers');
+  await ticker.getByRole('button', { name: /^(pause|anhalten)$/i }).click();
+  assert.equal(await ticker.evaluate((x) => getComputedStyle(x.querySelector('.ewl-ticker-track')).animationPlayState), 'paused');
+  // slider: one part at a time, next and a button per part, it changes by itself until paused
+  const slider = page.getByRole('region', { name: 'Steps' });
+  await slider.getByRole('button', { name: /^(pause|anhalten)$/i }).click();
+  assert.ok(await slider.getByText('Step one').isVisible());
+  assert.ok(!(await slider.getByText('Step two').isVisible()));
+  await slider.getByRole('button', { name: /^(next|weiter)/i }).click();
+  assert.ok(await slider.getByText('Step two').isVisible());
+  assert.equal(await slider.getByRole('button', { name: /^(part 2 of 3|teil 2 von 3)$/i }).getAttribute('aria-current'), 'true');
+  await slider.getByRole('button', { name: /^(part 3 of 3|teil 3 von 3)$/i }).click();
+  assert.ok(await slider.getByText('Step three').isVisible());
+  assert.equal(await slider.locator('.ewl-slides').getAttribute('aria-live'), 'polite', 'announced while paused');
+  await a11y('blocks B, part 3');
+  // reduced motion: nothing moves, nothing changes by itself, everything readable
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  try {
+    await page.reload();
+    await idle();
+    assert.equal(await page.locator('.ewl-rot--ready').count(), 0, 'all words stand');
+    assert.ok(await page.locator('.ewl-rot-word', { hasText: 'wikis' }).isVisible() && await page.locator('.ewl-rot-word', { hasText: 'tools' }).isVisible());
+    assert.equal(await page.locator('.ewl-ticker--run').count(), 0, 'the ticker stands');
+    assert.equal(await page.getByRole('region', { name: 'Steps' }).getByRole('button', { name: /^(pause|anhalten)$/i }).count(), 0, 'no change by itself');
+    await a11y('blocks B, part 3, reduced motion');
+  } finally {
+    await page.emulateMedia({ reducedMotion: 'no-preference' });
+  }
+  // the phone: nothing scrolls sideways
+  const size = page.viewportSize();
+  await page.setViewportSize({ width: 375, height: 800 });
+  try {
+    await page.reload();
+    await idle();
+    assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1), 'no sideways scrolling');
+  } finally {
+    if (size) await page.setViewportSize(size);
+  }
+});
+
 test('template designer, part 3: a warning for standard positions, widths by dragging, header while scrolling, side column, footer on the phone, printing', async () => {
   const before = (await call('GET', '/api/v1/admin/settings')).config;
   const tpl = await call('POST', '/api/v1/x/core.template/templates', { names: { en: `Behaviour ${run}` }, copy_of: 'core.template/example-wiki' });
