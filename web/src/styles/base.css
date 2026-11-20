@@ -494,8 +494,9 @@ html { scroll-padding-top: calc(var(--ew-sticky-top, var(--ew-header-h)) + .5rem
 .ew-tile-item:focus-within { outline: 3px solid var(--ew-focus, currentColor); outline-offset: 2px; }
 .ew-tree-view, .ew-tree-children { list-style: none; padding-left: 0; margin: 0; }
 .ew-tree-children { padding-left: 1.5rem; border-left: 1px solid var(--ew-border); margin-left: 0.6rem; }
-.ew-tree-toggle::before { content: "▸"; display: inline-block; width: 1em; }
-.ew-tree-toggle[aria-expanded="true"]::before { content: "▾"; }
+/* the tree view of a category overview (the tree in the side column has its own arrow) */
+.ew-tree-view .ew-tree-toggle::before { content: "▸"; display: inline-block; width: 1em; }
+.ew-tree-view .ew-tree-toggle[aria-expanded="true"]::before { content: "▾"; }
 .ew-tree-page { padding: 0.2rem 0 0.2rem 1.25rem; }
 .ew-handbook-title { font-size: 1rem; margin: 0 0 0.5rem; }
 .ew-handbook-list { list-style: none; padding: 0; margin: 0 0 1rem; }

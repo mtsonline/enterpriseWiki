@@ -840,4 +840,18 @@ var traps = []trap{
 		New:  "word := what[\"en\"]",
 		Pkg:  "./plugins/core_layout/", Tests: "^TestPartNames$",
 	},
+	{
+		ID: "carousel.position-unchecked", About: "a carousel takes any position",
+		File: "plugins/core_carousel/plugin.go",
+		Old:  "if c.Position != \"\" && !posRe.MatchString(c.Position) {",
+		New:  "if c.Position == \"-\" && !posRe.MatchString(c.Position) {",
+		Pkg:  "./internal/server/", Tests: "^TestCarousel$",
+	},
+	{
+		ID: "demo.carousel-everywhere", About: "the demo carousel shows on every page",
+		File: "internal/server/demo_content.go",
+		Old:  "map[string]any{\"name\": \"Demo\", \"position\": \"\", \"audience\": \"users\"",
+		New:  "map[string]any{\"name\": \"Demo\", \"position\": \"content-top\", \"audience\": \"users\"",
+		Pkg:  "./internal/server/", Tests: "^TestDemo$",
+	},
 }

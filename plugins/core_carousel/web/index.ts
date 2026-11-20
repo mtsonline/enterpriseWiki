@@ -3,7 +3,7 @@
 // region with aria-roledescription, previous/next and slide buttons, a
 // pause button for automatic rotation (which also stops on hover, focus and
 // with prefers-reduced-motion), live announcements only when not rotating.
-import { activeTemplate, api, button, checkbox, confirmDialog, errorText, field, fmtDate, formDialog, h, pageHeader, pluginSettingsForm, positionOptions, registerAdminPage, registerPublishOption, registerSlot, select, state, t, textArea, textInput, toast, uid, uploadFile, sourcesEditor } from '@ewiki/coreplugin';
+import { activeTemplate, positionLabel, api, button, checkbox, confirmDialog, errorText, field, fmtDate, formDialog, h, pageHeader, pluginSettingsForm, positionOptions, registerAdminPage, registerPublishOption, registerSlot, select, state, t, textArea, textInput, toast, uid, uploadFile, sourcesEditor } from '@ewiki/coreplugin';
 import './style.css';
 
 const BASE = 'x/core.carousel';
@@ -92,7 +92,9 @@ const toISO = (d: string, end = false) => (d ? new Date(`${d}T${end ? '23:59:59'
 
 function carouselDialog(c: Carousel | null, done: () => void): void {
   const name = textInput({ value: c?.name ?? '', maxlength: 100 });
-  const pos = select(positionOptions(c?.position), c?.position ?? (activeTemplate()?.positions.includes('content-top') ? 'content-top' : activeTemplate()?.positions[0]));
+  // no fixed position: only where the carousel is placed (e.g. for one category)
+  const pos = select([...positionOptions(c?.position || undefined), { value: '', label: t('core.carousel.position_none') }],
+    c ? c.position : (activeTemplate()?.positions.includes('content-top') ? 'content-top' : activeTemplate()?.positions[0]));
   const aud = select(['all', 'guests', 'users'].map((x) => ({ value: x, label: t(`core.carousel.audience.${x}`) })), c?.audience ?? 'all');
   const auto = textInput({ type: 'number', value: String(c?.autoplay ?? 0) });
   const max = textInput({ type: 'number', value: String(c?.max_slides ?? 10) });
@@ -102,7 +104,7 @@ function carouselDialog(c: Carousel | null, done: () => void): void {
   const enabled = checkbox(t('core.carousel.enabled'), c?.enabled ?? true);
   formDialog(c ? t('core.carousel.edit') : t('core.carousel.create'), [
     field(t('core.carousel.name'), name, { required: true, help: t('core.carousel.name_help') }),
-    field(t('core.carousel.position'), pos), field(t('core.carousel.audience'), aud),
+    field(t('core.carousel.position'), pos, { help: t('core.carousel.position_help') }), field(t('core.carousel.audience'), aud),
     field(t('core.carousel.autoplay'), auto, { help: t('core.carousel.autoplay_help') }),
     field(t('core.carousel.max_slides'), max),
     field(t('core.carousel.feeds'), feeds, { help: t('core.carousel.feeds_help') }),
@@ -207,7 +209,7 @@ async function adminPage(panel: HTMLElement): Promise<void> {
       h('thead', null, h('tr', null, ...[t('core.carousel.name'), t('core.carousel.position'), t('core.carousel.audience'), t('common.status'), t('common.actions')].map((x) => h('th', { scope: 'col' }, x)))),
       h('tbody', null, ...(list.length ? list.map((c) => h('tr', null,
         h('th', { scope: 'row' }, c.name),
-        h('td', null, c.position, positions.has(c.position) ? null : h('span', { class: 'ew-badge ew-badge--warn' }, ` ${t('core.carousel.not_in_template')}`)),
+        h('td', null, ...(c.position ? [positionLabel(c.position), positions.has(c.position) ? null : h('span', { class: 'ew-badge ew-badge--warn' }, ` ${t('core.carousel.not_in_template')}`)] : [t('core.carousel.position_none')])),
         h('td', null, t(`core.carousel.audience.${c.audience}`)),
         h('td', null, c.enabled ? t('core.carousel.on') : t('core.carousel.off')),
         h('td', { class: 'ew-actions' },
@@ -234,7 +236,7 @@ export function register(): void {
       let list: Carousel[];
       try { list = await api.get<Carousel[]>(`${BASE}/targets`); } catch { return null; }
       const positions = new Set(activeTemplate()?.positions ?? []);
-      list = list.filter((c) => positions.has(c.position));
+      list = list.filter((c) => !c.position || positions.has(c.position));
       if (!list.length) return null;
       const boxes = list.map((c) => ({ c, cb: checkbox(t('core.carousel.as_news_in', { name: c.name }), false) }));
       const until = textInput({ type: 'date' });

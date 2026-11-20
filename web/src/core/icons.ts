@@ -28,11 +28,61 @@ export function iconIndex(): Promise<IconEntry[]> {
   return index;
 }
 
-/** The icons that fit a search (name, search words, category), at most max. */
-export function findIcons(all: IconEntry[], query: string, style: string, category: string, max: number): { list: IconEntry[]; total: number } {
+/** Search words and category names of one language (src/icons/terms/<lang>.json). */
+export interface IconTerms { categories: Record<string, string>; words: Record<string, string[]> }
+const termsOf = new Map<string, Promise<IconTerms | null>>();
+
+/** The terms of a language (null for English, the language of the set, or if there are none). */
+export function iconTerms(lang: string): Promise<IconTerms | null> {
+  if (lang === 'en' || !/^[a-z]{2,3}$/.test(lang)) return Promise.resolve(null);
+  let p = termsOf.get(lang);
+  if (!p) {
+    p = fetch(`${ICON_BASE}/terms.${lang}.json`).then((r) => (r.ok ? r.json() as Promise<IconTerms> : null)).catch(() => { termsOf.delete(lang); return null; });
+    termsOf.set(lang, p);
+  }
+  return p;
+}
+
+/** Lower case without accents and umlauts, so "uber" finds "Über". */
+const fold = (s: string) => s.toLowerCase().replace(/ß/g, 'ss').normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+
+/** The English words of an icon: the parts of its name and of its search words. */
+const tokensOf = new WeakMap<IconEntry, Set<string>>();
+function tokens(e: IconEntry): Set<string> {
+  let s = tokensOf.get(e);
+  if (!s) {
+    s = new Set([...e.n.split('-'), ...e.t, ...e.t.flatMap((x) => x.split(/[-\s]/))]);
+    tokensOf.set(e, s);
+  }
+  return s;
+}
+
+/** The name of an icon in the language of the terms ("Pfeil links" for arrow-left), or "" without terms. */
+export function iconLabel(e: IconEntry, terms: IconTerms | null): string {
+  if (!terms) return '';
+  const parts = e.n.split('-').map((w) => terms.words[w]?.[0] ?? w);
+  const s = parts.join(' ');
+  return s === e.n.replace(/-/g, ' ') ? '' : s;
+}
+
+/**
+ * The icons that fit a search (name, search words, category), at most max.
+ * With terms, words of that language find the icons too: "Pfeil" finds
+ * every arrow, "Uhr" every clock.
+ */
+export function findIcons(all: IconEntry[], query: string, style: string, category: string, max: number, terms: IconTerms | null = null): { list: IconEntry[]; total: number } {
   const words = query.toLowerCase().split(/\s+/).filter(Boolean);
   const want = style === 'filled' ? 'f' : 'o';
+  // per word of the search: the English words whose translation contains it
+  const english = words.map((w) => {
+    const f = fold(w);
+    const hit = new Set<string>();
+    if (terms) for (const [en, tr] of Object.entries(terms.words)) if (tr.some((x) => fold(x).includes(f))) hit.add(en);
+    return { w, f, hit };
+  });
+  const catName = (c: string) => fold(terms?.categories[c] ?? '');
   const hits = all.filter((e) => e.s.includes(want) && (!category || e.c === category)
-    && words.every((w) => e.n.includes(w) || e.t.some((x) => x.includes(w)) || e.c.toLowerCase().includes(w)));
+    && english.every(({ w, f, hit }) => e.n.includes(w) || e.t.some((x) => x.includes(w)) || e.c.toLowerCase().includes(w)
+      || (hit.size > 0 && [...tokens(e)].some((x) => hit.has(x))) || (!!terms && catName(e.c).includes(f))));
   return { list: hits.slice(0, max), total: hits.length };
 }

@@ -24,6 +24,8 @@ plugins/              bundled plugins (one Go package per plugin + optional web/
   all/zz_generated.go imports all plugins (generated)
 web/                  frontend (TypeScript, no framework, esbuild), dist/ is embedded
   src/coreplugin.ts   interface of core plugins (frontend)
+  src/icons/terms/    search words and category names of the icons per language (de.json …);
+                      node tools/iconterms.mjs de lists the words still missing
 scripts/              build, install, update, SSH login
 ```
 

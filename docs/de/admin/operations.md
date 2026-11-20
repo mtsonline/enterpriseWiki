@@ -229,7 +229,9 @@ mit @Erwähnungen, Reaktionen und Favorit, Markdown-Seite, Website-Bausteine, Bl
 Serie und Anmeldung, Teamseite, Medien (unsichtbare Kategorie als Ordner, Bilder, PDF nur zur Ansicht mit
 Wasserzeichen, Word-Datei für das Office-Programm), Datei-Element, Ablauf, Eigenschaften-Bericht,
 Kategorieübersicht, Wiki-Bausteine (Seite einbinden, Suchfeld, Seitenbaum, Seite aus Vorlage), Kurz-URL `/demo`,
-ein Menü, ein Textblock und ein Karussell (nur für angemeldete Benutzer). Was ein deaktiviertes Plugin braucht, wird
+ein Menü, ein Textblock, ein Karussell, das nur für die Kategorie *Karussell-Demo* platziert ist (nur für angemeldete
+Benutzer), und eine Seite *So ist die Demo aufgebaut*, die für jeden Teil außerhalb der Seiten sagt, was er zeigt, wo
+er platziert ist und wo man ihn ändert. Was ein deaktiviertes Plugin braucht, wird
 ausgelassen; die Meldung nach dem Anlegen nennt die ausgelassenen Teile (in der API das Feld `skipped` der Antwort
 auf `POST /api/v1/admin/demo`).
 

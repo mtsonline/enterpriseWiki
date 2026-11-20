@@ -24,6 +24,8 @@ plugins/              mitgelieferte Plugins (je Plugin ein Go-Paket + optional w
   all/zz_generated.go importiert alle Plugins (generiert)
 web/                  Frontend (TypeScript, ohne Framework, esbuild), dist/ wird eingebettet
   src/coreplugin.ts   Schnittstelle der Core-Plugins (Frontend)
+  src/icons/terms/    Suchwörter und Kategorienamen der Symbole je Sprache (de.json …);
+                      node tools/iconterms.mjs de nennt die noch fehlenden Wörter
 scripts/              build, install, update, SSH-Login
 ```
 
