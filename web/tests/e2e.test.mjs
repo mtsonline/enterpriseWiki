@@ -3194,6 +3194,102 @@ test('template designer, part 3: a warning for standard positions, widths by dra
   }
 });
 
+test('template designer, part 3c: own fonts, rights per template, trying a template only for oneself', async () => {
+  const before = (await call('GET', '/api/v1/admin/settings')).config;
+  const tpl = await call('POST', '/api/v1/x/core.template/templates', { names: { en: `Fonts ${run}` }, copy_of: 'core.template/example-wiki' });
+  let fontId = 0;
+  try {
+    await page.goto(`${BASE}/admin/templates`);
+    await idle();
+    // upload a font: license and confirmation needed
+    const fonts = page.getByRole('region', { name: /^(own fonts|eigene schriften)$/i });
+    await fonts.getByLabel(/^(font file|schriftdatei)/i).setInputFiles(new URL('./fixtures/inter-sample.woff2', import.meta.url).pathname);
+    const name = fonts.getByLabel(/^(name in the designer|name im designer)$/i);
+    assert.equal(await name.inputValue(), 'inter-sample', 'the name comes from the file');
+    await name.fill(`Inter ${run}`);
+    const logged = errors.length;
+    const refused = page.waitForResponse((r) => r.url().endsWith('/api/v1/x/core.template/fonts') && r.request().method() === 'POST');
+    await fonts.getByRole('button', { name: /^(upload a font|schrift hochladen)$/i }).click();
+    assert.equal((await refused).status(), 400, 'without the confirmation');
+    await page.locator('.ew-toast', { hasText: /confirm/i }).first().waitFor();
+    // refused on purpose: the browser logs the answer 400
+    errors.splice(logged, errors.length - logged, ...errors.slice(logged).filter((e) => !/status of 400/.test(e)));
+    await fonts.getByLabel(/^(i confirm|ich bestätige)/i).check();
+    await fonts.getByRole('button', { name: /^(upload a font|schrift hochladen)$/i }).click();
+    await page.getByRole('region', { name: /^(own fonts|eigene schriften)$/i }).getByText(`Inter ${run}`).waitFor();
+    fontId = (await call('GET', '/api/v1/x/core.template/fonts')).find((f) => f.name === `Inter ${run}`).id;
+    await a11y('own fonts');
+    // the designer offers it; the wiki loads it from itself
+    await page.getByRole('button', { name: new RegExp(`^(edit|bearbeiten): Fonts ${run}$`, 'i') }).click();
+    await page.locator('.ewd-structure').waitFor();
+    await page.getByLabel(/^(font|schrift)$/i).selectOption({ label: `Inter ${run}` });
+    const saved = page.waitForResponse((r) => r.url().endsWith(`/api/v1/x/core.template/templates/${tpl.key}`) && r.request().method() === 'PUT');
+    await page.getByRole('button', { name: /^(save|speichern)$/i }).click();
+    assert.equal((await saved).status(), 200);
+    assert.equal((await call('GET', `/api/v1/x/core.template/templates/${tpl.key}`)).template.design.tokens.font, `own-${fontId}`);
+    // a used font cannot be removed: the list says where it is used instead
+    await page.goto(`${BASE}/admin/templates`);
+    await idle();
+    await page.getByRole('region', { name: /^(own fonts|eigene schriften)$/i }).getByText(new RegExp(`(used by|verwendet von) .*Fonts ${run}`)).waitFor();
+    // rights: all signed-in people may change it (the administrator manages it anyway)
+    await page.getByRole('button', { name: new RegExp(`^(rights|rechte): Fonts ${run}$`, 'i') }).click();
+    const dlg = page.getByRole('dialog');
+    const edit = dlg.getByRole('group', { name: /^(may change it|darf es ändern)$/i });
+    await edit.getByRole('button', { name: /^(add person, group or role|person, gruppe oder rolle hinzufügen)$/i }).click();
+    await edit.getByLabel(/^(applies to|gilt für)$/i).selectOption('authenticated');
+    await a11y('the rights of a template');
+    await dlg.getByRole('button', { name: /^(save|speichern)$/i }).click();
+    await dlg.waitFor({ state: 'detached' });
+    const got = (await call('GET', `/api/v1/x/core.template/templates/${tpl.key}`)).template;
+    assert.deepEqual([got.edit_subjects, got.manage_subjects, got.may], [[{ type: 'authenticated' }], [], { edit: true, manage: true }]);
+    // only for me: the wiki with this template in this browser, a bar says so
+    await page.goto(`${BASE}/admin/templates`);
+    await idle();
+    await page.getByRole('button', { name: new RegExp(`^(only for me|nur für mich): Fonts ${run}$`, 'i') }).click();
+    await page.waitForURL(`${BASE}/`);
+    await idle();
+    const bar = page.getByRole('region', { name: /^(template only for you|template nur für sie)$/i });
+    await bar.waitFor();
+    assert.ok(await page.evaluate((k) => document.body.classList.contains(`ewd-${k}`), tpl.key), 'the tried template is shown');
+    const loaded = await page.evaluate(async (id) => { await document.fonts.ready; return [...document.fonts].some((f) => f.family.includes(`ewd-own-${id}`) && f.status === 'loaded'); }, fontId);
+    assert.ok(loaded, 'the own font is loaded from the wiki');
+    await a11y('the wiki with a template tried only for oneself');
+    // the site still has its template for everybody else
+    assert.equal((await call('GET', '/api/v1/admin/settings')).config.ui.template, before.ui.template);
+    await bar.getByRole('button', { name: /^(back to the template of the site|zurück zum template der website)$/i }).click();
+    await page.waitForLoadState('load');
+    await idle();
+    assert.equal(await bar.count(), 0);
+    assert.ok(!(await page.evaluate((k) => document.body.classList.contains(`ewd-${k}`), tpl.key)));
+    // tried again, then used for everybody
+    await page.goto(`${BASE}/admin/templates`);
+    await idle();
+    await page.getByRole('button', { name: new RegExp(`^(only for me|nur für mich): Fonts ${run}$`, 'i') }).click();
+    await page.waitForURL(`${BASE}/`);
+    await bar.waitFor();
+    await bar.getByRole('button', { name: /^(use for everybody|für alle verwenden)$/i }).click();
+    await page.waitForFunction(() => !document.querySelector('.ew-try-bar') && document.readyState === 'complete', null, { timeout: 10000 });
+    assert.equal((await call('GET', '/api/v1/admin/settings')).config.ui.template, tpl.id);
+    // no template uses the font any more: it can be removed
+    await call('PUT', '/api/v1/admin/settings', { ui: before.ui });
+    await call('DELETE', `/api/v1/x/core.template/templates/${tpl.key}`);
+    await call('DELETE', `/api/v1/x/core.template/templates/${tpl.key}?purge=1`);
+    await page.goto(`${BASE}/admin/templates`);
+    await idle();
+    await page.getByRole('button', { name: new RegExp(`^(delete|löschen): Inter ${run}$`, 'i') }).click();
+    await page.getByRole('dialog').getByRole('button', { name: /^(delete|löschen)$/i }).click();
+    await page.getByRole('region', { name: /^(own fonts|eigene schriften)$/i }).getByText(`Inter ${run}`).waitFor({ state: 'detached' });
+    assert.ok(!(await call('GET', '/api/v1/x/core.template/fonts')).some((f) => f.id === fontId));
+    fontId = 0;
+  } finally {
+    await page.evaluate(() => { try { for (const k of Object.keys(localStorage)) if (k.startsWith('ewiki:try-template:')) localStorage.removeItem(k); } catch { /* nothing kept */ } }).catch(() => {});
+    await call('PUT', '/api/v1/admin/settings', { ui: before.ui });
+    await call('DELETE', `/api/v1/x/core.template/templates/${tpl.key}`).catch(() => {});
+    await call('DELETE', `/api/v1/x/core.template/templates/${tpl.key}?purge=1`).catch(() => {});
+    if (fontId) await call('DELETE', `/api/v1/x/core.template/fonts/${fontId}`).catch(() => {});
+  }
+});
+
 test('templates of data: copy, check while typing, save, versions, use for the site, export, import, trash; desktop, tablet and phone without sideways scrolling, drawers, sticky header only when low enough', async () => {
   const before = (await call('GET', '/api/v1/admin/settings')).config;
   const imports = [];

@@ -19,7 +19,8 @@ import { rememberedLang, state, stored } from './core/state';
 import type { Principal, Site } from './core/types';
 import { categoryTree, ctx, currentSpace, setSpace, editToggle, languageSwitcher, searchBox, userMenu } from './components/widgets';
 import { pluginModules } from './generated/plugins';
-import { positionContainer, refreshPositions, registerAdminPage, registerPageAction, registerProfileSection, registerSlot, registerTemplate, previewTemplate, resolveTemplate, setShownTemplate } from './coreplugin';
+import { positionContainer, refreshPositions, registerAdminPage, registerPageAction, registerProfileSection, registerSlot, registerTemplate, previewTemplate, resolveTemplate, setShownTemplate, siteTemplate, triedTemplate } from './coreplugin';
+import { tryBar } from './components/trytemplate';
 import { instanceRightsButton } from './components/instanceRights';
 import { instanceLabelsButton } from './components/instanceLabels';
 import { placementEditor, typeLayouts } from './components/placement';
@@ -148,7 +149,7 @@ async function boot(): Promise<void> {
     }
   }
   if (waits.length) await Promise.race([Promise.allSettled(waits), new Promise((res) => { setTimeout(res, 4000); })]);
-  let tpl = resolveTemplate(previewTemplate() || state.site.template) ?? resolveTemplate('core.basic')!;
+  let tpl = resolveTemplate(previewTemplate() || siteTemplate()) ?? resolveTemplate('core.basic')!;
   setShownTemplate(tpl.id);
   document.body.classList.add('ew', ...tpl.classNames);
   const build = () => {
@@ -159,10 +160,12 @@ async function boot(): Promise<void> {
   };
   let layout = build();
   showPositionsMode();
+  // a template tried only in this browser: a bar says so and ends it
+  if (!previewTemplate() && triedTemplate() && triedTemplate() !== state.site.template) document.body.prepend(tryBar(triedTemplate()));
   // Categories may have their own template: after the page is rendered, the
   // skeleton is rebuilt with it and the page content moved over (not re-rendered).
   const useTemplate = (id: string) => {
-    const next = resolveTemplate(previewTemplate() || id) ?? resolveTemplate(state.site.template);
+    const next = resolveTemplate(previewTemplate() || id) ?? resolveTemplate(siteTemplate());
     if (!next || next.id === tpl.id) return;
     document.body.classList.remove(...tpl.classNames);
     tpl = next;
@@ -177,7 +180,7 @@ async function boot(): Promise<void> {
     if (focused instanceof HTMLElement && layout.main.contains(focused)) focused.focus({ preventScroll: true });
   };
   onBeforeRender(() => { ctx.template = ''; setSpace(null); });
-  document.addEventListener('ewiki:template', () => { useTemplate(ctx.template || state.site.template); void refreshPositions(); });
+  document.addEventListener('ewiki:template', () => { useTemplate(ctx.template || siteTemplate()); void refreshPositions(); });
   // accent color of the space (contrast checked on the server)
   const useAccent = () => {
     const a = currentSpace?.accent;
@@ -192,7 +195,7 @@ async function boot(): Promise<void> {
   };
   onNavigate(() => {
     useAccent();
-    useTemplate(ctx.template || state.site.template);
+    useTemplate(ctx.template || siteTemplate());
     void refreshPositions();
   });
   start(layout.main);

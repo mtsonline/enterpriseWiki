@@ -152,6 +152,93 @@ actions:
         given: ['core.template.create#default', 'core.template.delete#default']
         as: member
         path_params_json: '{"key": "${given.core.template.create#default.key}"}'
+  - id: core.template.rights
+    category: CATEGORY_ACTION
+    method: PUT
+    path: "templates/{key}/rights"
+    success_status: 200
+    summary:
+      text:
+        en: Who may change (edit_subjects) and manage (manage_subjects) a template; empty lists mean everybody with core.template.design
+        de: Wer ein Template ändern (edit_subjects) und verwalten (manage_subjects) darf; leere Listen heißen alle mit core.template.design
+    permission: {key: core.template.design, scope: SCOPE_GLOBAL}
+    safety: {changes: true}
+    cli: {command: [site-template, rights], args: [key]}
+    ui: {entry: /admin/templates}
+    examples:
+      - name: default
+        given: ['core.template.create#default']
+        as: member
+        path_params_json: '{"key": "${given.core.template.create#default.key}"}'
+        body_json: '{"edit_subjects": [{"type": "authenticated"}], "manage_subjects": []}'
+  - id: core.template.fonts
+    category: CATEGORY_ACTION
+    method: GET
+    path: fonts
+    success_status: 200
+    summary:
+      text:
+        en: List the uploaded fonts of templates (with license and where they are used)
+        de: Die hochgeladenen Schriften der Templates (mit Lizenz und wo sie verwendet werden)
+    permission: {key: core.template.design, scope: SCOPE_GLOBAL}
+    cli: {command: [site-template, fonts]}
+    ui: {entry: /admin/templates}
+    examples:
+      - name: default
+        as: member
+  - id: core.template.font.add
+    category: CATEGORY_ACTION
+    method: POST
+    path: fonts
+    success_status: 201
+    summary:
+      text:
+        en: Upload a font (WOFF2 as base64 in data, with license and confirm=true that it may be used on this website)
+        de: Schrift hochladen (WOFF2 als base64 in data, mit Lizenz und confirm=true, dass sie auf dieser Website verwendet werden darf)
+    permission: {key: core.template.design, scope: SCOPE_GLOBAL}
+    safety: {changes: true}
+    cli: {command: [site-template, font-add]}
+    ui: {entry: /admin/templates}
+    examples:
+      - name: default
+        as: member
+        status: 201
+        body_json: '{"name": "Example ${unique}", "license": "OFL-1.1", "license_note": "made up for the example", "confirm": true, "data": "d09GMgABAAAAAAA0AAEAAAAAAEAAAAAEAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=="}'
+  - id: core.template.font.delete
+    category: CATEGORY_ACTION
+    method: DELETE
+    path: "fonts/{id}"
+    success_status: 204
+    summary:
+      text:
+        en: Remove an uploaded font (not while a template uses it, also in the trash)
+        de: Hochgeladene Schrift entfernen (nicht, solange ein Template sie verwendet, auch im Papierkorb)
+    permission: {key: core.template.design, scope: SCOPE_GLOBAL}
+    safety: {changes: true}
+    cli: {command: [site-template, font-delete], args: [id]}
+    ui: {entry: /admin/templates}
+    examples:
+      - name: default
+        given: ['core.template.font.add#default']
+        as: member
+        path_params_json: '{"id": "${given.core.template.font.add#default.id}"}'
+  - id: core.template.font.file
+    category: CATEGORY_ACTION
+    method: GET
+    path: "fonts/{id}/file"
+    success_status: 200
+    summary:
+      text:
+        en: The file of an uploaded font (public while a template that can be used has it; for designers always)
+        de: Die Datei einer hochgeladenen Schrift (öffentlich, solange ein verwendbares Template sie hat; für Gestaltende immer)
+    public: true
+    cli: {command: [site-template, font-file], args: [id]}
+    ui: {entry: /}
+    examples:
+      - name: default
+        given: ['core.template.font.add#default']
+        as: admin
+        path_params_json: '{"id": "${given.core.template.font.add#default.id}"}'
   - id: core.template.versions
     category: CATEGORY_ACTION
     method: GET

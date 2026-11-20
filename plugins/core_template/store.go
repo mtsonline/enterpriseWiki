@@ -17,6 +17,7 @@ import (
 
 	"github.com/jackc/pgx/v5"
 
+	"github.com/mtsonline/enterprisewiki/internal/acl"
 	"github.com/mtsonline/enterprisewiki/internal/apperr"
 	"github.com/mtsonline/enterprisewiki/internal/audit"
 	"github.com/mtsonline/enterprisewiki/internal/content"
@@ -60,6 +61,81 @@ type Template struct {
 	UpdatedAt *time.Time        `json:"updated_at,omitempty"`
 	UpdatedBy *int64            `json:"updated_by,omitempty"`
 	DeletedAt *time.Time        `json:"deleted_at,omitempty"`
+	Rights
+	// May: what the caller may do with this template (filled for the API)
+	May *May `json:"may,omitempty"`
+}
+
+// Rights narrow down who may change a template (edit) and who may manage it
+// (its rights, the trash, its own CSS). Empty lists: everybody with
+// core.template.design; an empty manage list: those who may edit. On their
+// own they never give anything: core.template.design is always needed.
+type Rights struct {
+	EditSubjects   []acl.Subject `json:"edit_subjects"`
+	ManageSubjects []acl.Subject `json:"manage_subjects"`
+}
+
+// May is what the caller may do with a template.
+type May struct {
+	Edit   bool `json:"edit"`
+	Manage bool `json:"manage"`
+}
+
+// may reports what p may do with a stored template with these rights
+// (administrators always may: acl.MatchesAny).
+func (r Rights) may(p *identity.Principal) May {
+	if !perm.HasP(p, permDesign) {
+		return May{}
+	}
+	edit := len(r.EditSubjects) == 0 && len(r.ManageSubjects) == 0 || acl.MatchesAny(append(slices.Clone(r.EditSubjects), r.ManageSubjects...), p)
+	manage := edit
+	if len(r.ManageSubjects) > 0 {
+		manage = acl.MatchesAny(r.ManageSubjects, p)
+	}
+	return May{Edit: edit, Manage: manage}
+}
+
+// lockRights locks the row of a stored template (for the rest of tx) and
+// checks that the caller may do what is needed: the rights are checked
+// in the same transaction as the change, so a change of rights in between
+// cannot be missed.
+func lockRights(ctx context.Context, tx pgx.Tx, id int64, manage bool) (Rights, error) {
+	var r Rights
+	err := tx.QueryRow(ctx, `SELECT edit_subjects, manage_subjects FROM plugin_templates WHERE id=$1 FOR UPDATE`, id).Scan(&r.EditSubjects, &r.ManageSubjects)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return r, apperr.NotFound("template")
+	}
+	if err != nil {
+		return r, err
+	}
+	m := r.may(identity.From(ctx))
+	if manage && !m.Manage {
+		return r, apperr.Forbidden("managing this template (its rights, the trash, its own CSS) is limited to certain people")
+	}
+	if !m.Edit {
+		return r, apperr.Forbidden("changing this template is limited to certain people")
+	}
+	return r, nil
+}
+
+// checkSubjects checks a list of people, groups and roles for the rights of
+// a template (guests and "everybody" make no sense: designers are signed in).
+func checkSubjects(list []acl.Subject) ([]acl.Subject, error) {
+	if len(list) > 100 {
+		return nil, apperr.BadRequest("at most 100 people, groups and roles")
+	}
+	out := []acl.Subject{}
+	for _, x := range list {
+		if !x.Valid() || x.Type == "guest" {
+			return nil, apperr.BadRequest("invalid subject %q (people, groups, roles or all signed-in people)", x.Type)
+		}
+		if !slices.ContainsFunc(out, func(y acl.Subject) bool {
+			return y.Type == x.Type && (y.ID == nil) == (x.ID == nil) && (y.ID == nil || *y.ID == *x.ID)
+		}) {
+			out = append(out, x)
+		}
+	}
+	return out, nil
 }
 
 // examples are the shipped templates of data (read only, to copy).
@@ -138,8 +214,8 @@ func (p *Plugin) get(ctx context.Context, key string, withDeleted bool) (*Templa
 	}
 	var t Template
 	var id int64
-	err = p.host.DB.QueryRow(ctx, `SELECT id, names, design, based_on, version, updated_at, updated_by, deleted_at FROM plugin_templates WHERE id=$1`, n).
-		Scan(&id, &t.Names, &t.Design, &t.BasedOn, &t.Version, &t.UpdatedAt, &t.UpdatedBy, &t.DeletedAt)
+	err = p.host.DB.QueryRow(ctx, `SELECT id, names, design, based_on, version, updated_at, updated_by, deleted_at, edit_subjects, manage_subjects FROM plugin_templates WHERE id=$1`, n).
+		Scan(&id, &t.Names, &t.Design, &t.BasedOn, &t.Version, &t.UpdatedAt, &t.UpdatedBy, &t.DeletedAt, &t.EditSubjects, &t.ManageSubjects)
 	if errors.Is(err, pgx.ErrNoRows) || (err == nil && t.DeletedAt != nil && !withDeleted) {
 		return nil, apperr.NotFound("template")
 	}
@@ -147,6 +223,8 @@ func (p *Plugin) get(ctx context.Context, key string, withDeleted bool) (*Templa
 		return nil, err
 	}
 	t.ID, t.Key = fmt.Sprintf("%s/%d", ID, id), strconv.FormatInt(id, 10)
+	m := t.may(identity.From(ctx))
+	t.May = &m
 	return &t, nil
 }
 
@@ -161,7 +239,7 @@ func (p *Plugin) list(ctx context.Context, deleted bool) ([]Template, error) {
 			out = append(out, c)
 		}
 	}
-	rows, err := p.host.DB.Query(ctx, `SELECT id, names, based_on, version, updated_at, updated_by, deleted_at FROM plugin_templates
+	rows, err := p.host.DB.Query(ctx, `SELECT id, names, based_on, version, updated_at, updated_by, deleted_at, edit_subjects, manage_subjects FROM plugin_templates
 		WHERE (deleted_at IS NOT NULL) = $1 ORDER BY id`, deleted)
 	if err != nil {
 		return nil, err
@@ -169,8 +247,10 @@ func (p *Plugin) list(ctx context.Context, deleted bool) ([]Template, error) {
 	stored, err := pgx.CollectRows(rows, func(r pgx.CollectableRow) (Template, error) {
 		var t Template
 		var id int64
-		err := r.Scan(&id, &t.Names, &t.BasedOn, &t.Version, &t.UpdatedAt, &t.UpdatedBy, &t.DeletedAt)
+		err := r.Scan(&id, &t.Names, &t.BasedOn, &t.Version, &t.UpdatedAt, &t.UpdatedBy, &t.DeletedAt, &t.EditSubjects, &t.ManageSubjects)
 		t.ID, t.Key = fmt.Sprintf("%s/%d", ID, id), strconv.FormatInt(id, 10)
+		m := t.may(identity.From(ctx))
+		t.May = &m
 		return t, err
 	})
 	if err != nil {
@@ -279,13 +359,18 @@ type input struct {
 }
 
 // checked parses and checks a design and returns it in its normal form.
-func checked(raw json.RawMessage, cssAllowed bool) (json.RawMessage, error) {
+func (p *Plugin) checked(ctx context.Context, raw json.RawMessage) (json.RawMessage, error) {
 	d, err := ParseDesign(raw)
 	if err != nil {
 		return nil, err
 	}
-	if err := requireCSSAllowed(d, cssAllowed); err != nil {
+	if err := requireCSSAllowed(d, p.cssAllowed()); err != nil {
 		return nil, err
+	}
+	if ps, err := p.fontProblems(ctx, d); err != nil {
+		return nil, err
+	} else if len(ps) > 0 {
+		return nil, apperr.BadRequest("%s: %s", ps[0].Where, ps[0].Text)
 	}
 	return json.Marshal(d)
 }
@@ -306,7 +391,7 @@ func (p *Plugin) create(ctx context.Context, in input) (*Template, error) {
 	if len(design) == 0 {
 		return nil, apperr.BadRequest("a template needs a design or a template to copy (copy_of)")
 	}
-	norm, err := checked(design, p.cssAllowed())
+	norm, err := p.checked(ctx, design)
 	if err != nil {
 		return nil, err
 	}
@@ -354,14 +439,19 @@ func (p *Plugin) update(ctx context.Context, key string, in input) (*Template, e
 	}
 	design := cur.Design
 	if len(in.Design) > 0 {
-		if design, err = checked(in.Design, p.cssAllowed()); err != nil {
+		if design, err = p.checked(ctx, in.Design); err != nil {
 			return nil, err
 		}
 	}
 	n, _, _ := keyOf(key)
 	me := identity.From(ctx).ID()
 	keep := p.host.Limit("core.template.versions")
+	// own CSS is managed: changing it needs manage on the template
+	cssChanged := cssOf(design) != cssOf(cur.Design)
 	err = pgx.BeginFunc(ctx, p.host.DB, func(tx pgx.Tx) error {
+		if _, err := lockRights(ctx, tx, n, cssChanged); err != nil {
+			return err
+		}
 		tag, err := tx.Exec(ctx, `UPDATE plugin_templates SET names=$2, design=$3, version=version+1, updated_by=$4, updated_at=now() WHERE id=$1 AND version=$5 AND deleted_at IS NULL`,
 			n, names, design, me, cur.Version)
 		if err != nil {
@@ -385,10 +475,89 @@ func (p *Plugin) update(ctx context.Context, key string, in input) (*Template, e
 	return p.get(ctx, key, false)
 }
 
+// subjectNames returns the names of the people in the rights of a template
+// ("user:ID" → name), for the form of the rights.
+func (p *Plugin) subjectNames(ctx context.Context, r Rights) (map[string]string, error) {
+	ids := []int64{}
+	for _, x := range append(slices.Clone(r.EditSubjects), r.ManageSubjects...) {
+		if x.Type == "user" && x.ID != nil {
+			ids = append(ids, *x.ID)
+		}
+	}
+	out := map[string]string{}
+	if len(ids) == 0 {
+		return out, nil
+	}
+	rows, err := p.host.DB.Query(ctx, `SELECT id, COALESCE(NULLIF(display_name, ''), username) FROM users WHERE id = ANY($1)`, ids)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var id int64
+		var n string
+		if err := rows.Scan(&id, &n); err != nil {
+			return nil, err
+		}
+		out[fmt.Sprintf("user:%d", id)] = n
+	}
+	return out, rows.Err()
+}
+
+// cssOf returns the own CSS of a design in normal form ("" if none).
+func cssOf(raw json.RawMessage) string {
+	var d struct {
+		CSS string `json:"css"`
+	}
+	_ = json.Unmarshal(raw, &d) // a stored or checked design always parses
+	return d.CSS
+}
+
+// setRights changes who may change and manage a stored template.
+func (p *Plugin) setRights(ctx context.Context, key string, in Rights) (*Template, error) {
+	cur, err := p.get(ctx, key, true)
+	if err != nil {
+		return nil, err
+	}
+	if cur.ReadOnly {
+		return nil, apperr.Forbidden("the shipped templates have no rights of their own; copy one")
+	}
+	edit, err := checkSubjects(in.EditSubjects)
+	if err != nil {
+		return nil, err
+	}
+	manage, err := checkSubjects(in.ManageSubjects)
+	if err != nil {
+		return nil, err
+	}
+	next := Rights{EditSubjects: edit, ManageSubjects: manage}
+	// nobody locks themselves out (administrators always manage)
+	if !next.may(identity.From(ctx)).Manage {
+		return nil, apperr.BadRequest("with these rights you could no longer manage the template; add yourself (or a group of yours) to those who manage it")
+	}
+	n, _, _ := keyOf(key)
+	err = pgx.BeginFunc(ctx, p.host.DB, func(tx pgx.Tx) error {
+		before, err := lockRights(ctx, tx, n, true)
+		if err != nil {
+			return err
+		}
+		if _, err := tx.Exec(ctx, `UPDATE plugin_templates SET edit_subjects=$2, manage_subjects=$3, updated_by=$4, updated_at=now() WHERE id=$1`,
+			n, edit, manage, identity.From(ctx).ID()); err != nil {
+			return err
+		}
+		return audit.Log(ctx, tx, "core.template.rights", "template", n, before, next)
+	})
+	if err != nil {
+		return nil, err
+	}
+	return p.get(ctx, key, true)
+}
+
 // Setup registers the template source and the API.
 func (p *Plugin) Setup(host *coreplugin.Host) error {
 	p.host = host
 	host.Content.AddTemplateSource(ID, p)
+	p.setupFonts(host)
 	design := func(r *http.Request) error { return perm.Require(r.Context(), permDesign) }
 
 	// GET /designs → the templates that can be used, with their designs (the
@@ -424,7 +593,11 @@ func (p *Plugin) Setup(host *coreplugin.Host) error {
 		if err != nil {
 			return nil, err
 		}
-		return map[string]any{"template": t, "used_by": nonNil(used)}, nil
+		names, err := p.subjectNames(r.Context(), t.Rights)
+		if err != nil {
+			return nil, err
+		}
+		return map[string]any{"template": t, "used_by": nonNil(used), "subject_names": names}, nil
 	})
 	// POST /check {design} → the problems of a design (empty: it can be saved)
 	// action: core.template.check
@@ -451,6 +624,11 @@ func (p *Plugin) Setup(host *coreplugin.Host) error {
 		if d.CSS != "" && !p.cssAllowed() {
 			ps = append(ps, Problem{Where: "css", Text: "own CSS is switched off (setting ui.custom_css)"})
 		}
+		fps, err := p.fontProblems(r.Context(), &d)
+		if err != nil {
+			return nil, err
+		}
+		ps = append(ps, fps...)
 		if ps == nil {
 			ps = []Problem{}
 		}
@@ -505,6 +683,9 @@ func (p *Plugin) Setup(host *coreplugin.Host) error {
 				return nil, apperr.BadRequest("only a template in the trash can be removed for good")
 			}
 			err := pgx.BeginFunc(ctx, host.DB, func(tx pgx.Tx) error {
+				if _, err := lockRights(ctx, tx, n, true); err != nil {
+					return err
+				}
 				if _, err := tx.Exec(ctx, `DELETE FROM plugin_templates WHERE id=$1`, n); err != nil {
 					return err
 				}
@@ -531,6 +712,9 @@ func (p *Plugin) Setup(host *coreplugin.Host) error {
 			return nil, apperr.Conflict("the template is in use (%s); choose another one there first", strings.Join(used, ", "))
 		}
 		err = pgx.BeginFunc(ctx, host.DB, func(tx pgx.Tx) error {
+			if _, err := lockRights(ctx, tx, n, true); err != nil {
+				return err
+			}
 			if _, err := tx.Exec(ctx, `UPDATE plugin_templates SET deleted_at=now() WHERE id=$1`, n); err != nil {
 				return err
 			}
@@ -558,6 +742,9 @@ func (p *Plugin) Setup(host *coreplugin.Host) error {
 		}
 		n, _, _ := keyOf(t.ID)
 		err = pgx.BeginFunc(ctx, host.DB, func(tx pgx.Tx) error {
+			if _, err := lockRights(ctx, tx, n, true); err != nil {
+				return err
+			}
 			if _, err := tx.Exec(ctx, `UPDATE plugin_templates SET deleted_at=NULL WHERE id=$1`, n); err != nil {
 				return err
 			}
@@ -567,6 +754,19 @@ func (p *Plugin) Setup(host *coreplugin.Host) error {
 			return nil, err
 		}
 		return p.get(ctx, t.ID, false)
+	})
+	// PUT /templates/{key}/rights {edit_subjects, manage_subjects} → who may
+	// change and manage this template (empty lists: all designers)
+	// action: core.template.rights
+	host.Handle("PUT", "/templates/{key}/rights", func(w http.ResponseWriter, r *http.Request) (any, error) {
+		if err := design(r); err != nil {
+			return nil, err
+		}
+		var in Rights
+		if err := h.Decode(r, &in); err != nil {
+			return nil, err
+		}
+		return p.setRights(r.Context(), r.PathValue("key"), in)
 	})
 	// GET /templates/{key}/versions → the saved versions (newest first)
 	// action: core.template.versions
