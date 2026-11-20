@@ -2647,7 +2647,7 @@ test('layout blocks: a section with options from the macro dialog, an icon box w
   const de = await page.evaluate(async () => {
     const url = document.querySelector('.ew-iconpick-grid .ew-icon')?.getAttribute('style') ?? '';
     const base = /url\("([^"]+)\/(outline|filled)\//.exec(url)?.[1];
-    const r = base ? await fetch(`${base}/terms.de.json`) : null;
+    const r = base ? await __e2eFetch(`${base}/terms.de.json`) : null;
     return r?.ok ? (await r.json()).words.rocket : null;
   });
   assert.deepEqual(de, ['Rakete']);
