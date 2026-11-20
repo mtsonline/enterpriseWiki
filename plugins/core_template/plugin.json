@@ -56,17 +56,17 @@
       "min": 16,
       "max": 10240,
       "label": "Size of a font file",
-      "help": "How large one uploaded font file (WOFF2) may be."
+      "help": "How large one uploaded font file (WOFF2, WOFF, TTF or OTF) may be."
     },
     {
       "key": "core.template.font_upload_kb",
       "group": "templates",
       "unit": "kb",
-      "default": 1500,
+      "default": 12000,
       "min": 64,
-      "max": 14000,
+      "max": 120000,
       "label": "Size of a font upload",
-      "help": "How large the request that uploads a font may be (the file as base64, about a third more than the file). Keep it above the size of a font file."
+      "help": "How large the request that uploads a font may be: all its files as base64, about a third more than the files. Keep it above the size of the files of a font."
     }
   ]
 }
