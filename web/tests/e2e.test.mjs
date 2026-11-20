@@ -470,6 +470,8 @@ test('editor: macros with parts, pictures of blocks, preview keeps the work, lea
   const pic = page.locator('.ewe-macro[data-macro="buttons"] .ewe-macro-picture');
   await pic.locator('a', { hasText: `Go${run}` }).waitFor();
   assert.equal(await pic.getAttribute('inert'), '', 'the picture takes no focus and no clicks');
+  // the picture says it all: no settings as text in the head
+  assert.equal((await page.locator('.ewe-macro[data-macro="buttons"] .ewe-macro-params').textContent()).trim(), '');
   // the mode button names the mode it switches to
   await page.getByRole('button', { name: /^(markdown mode|markdown-modus)$/i }).click();
   assert.match(await page.locator('textarea.ewe-markdown').inputValue(), new RegExp(`:::accordion[\\s\\S]*### Question A${run}[\\s\\S]*---`));
@@ -484,6 +486,10 @@ test('editor: macros with parts, pictures of blocks, preview keeps the work, lea
   await page.keyboard.press('Escape');
   await tip.waitFor({ state: 'hidden' });
   await a11y('editor with parts and a picture of a block');
+  // the edit mode is a switch with a name of its own (a toggle button)
+  const sw = page.locator('.ew-pos--header-tools .ew-switch-btn');
+  assert.equal(await sw.getAttribute('aria-pressed'), 'true');
+  assert.match(await sw.evaluate((b) => b.textContent), /(Edit|Bearbeiten)/);
   // the preview keeps the changes as a draft; its links open in a new tab
   await page.getByRole('button', { name: /^(preview|vorschau)$/i }).click();
   const pv = page.locator('dialog[open] .ew-preview');
@@ -493,6 +499,13 @@ test('editor: macros with parts, pictures of blocks, preview keeps the work, lea
   await page.waitForURL(/\/d\/\d+\/edit$/);
   await page.keyboard.press('Escape');
   await pv.waitFor({ state: 'detached' });
+  // an answer that does not come from the wiki (a proxy, a firewall) says so, with the address
+  await page.route('**/api/v1/elements/preview', (r) => r.fulfill({ status: 403, contentType: 'text/plain', body: 'forbidden' }));
+  await page.getByRole('button', { name: /^(preview|vorschau)$/i }).click();
+  const foreign = page.getByText(/elements\/preview/).first();
+  await foreign.waitFor();
+  assert.match(await foreign.innerText(), /(did not come from the wiki|kam nicht vom Wiki)[\s\S]*forbidden/);
+  await page.unroute('**/api/v1/elements/preview');
   // leaving with unsaved changes asks first: keep editing, then discard
   await ed.locator('p').first().click();
   await page.keyboard.type(' more');

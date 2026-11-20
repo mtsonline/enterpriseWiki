@@ -82,6 +82,7 @@ export function errorText(e: unknown): string {
     if (e.status === 413) return t('error.too_large');
     if (e.code === 'busy') return t('error.busy');
     if (e.code === 'reauth_required') return t('error.reauth_required');
+    if (e.code === 'foreign') return t('error.foreign', { what: e.message, body: e.detail.replace(/\s+/g, ' ').trim() || '–' });
     return e.message;
   }
   return e instanceof Error ? e.message : String(e);

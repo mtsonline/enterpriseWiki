@@ -44,7 +44,7 @@ In every conflict this order applies: security, no data loss, stability, accessi
 
 1. API, CLI and interface.
 2. Tests: Go tests (unit and API integration), browser test for the flow in the interface.
-3. Translations German and English (`TestLocaleParity` checks that none is missing).
+3. Translations German and English (`TestLocaleParity` checks that none is missing), also the error messages of the server (`internal/apperr/locales`, checked by `go test ./internal/apperr`).
 4. Documentation in German and English: API reference for routes, user guide, admin documentation for operations and security, roadmap.
 5. Demo content where the feature shows something.
 6. Every route carries an action ID following the namespace rule as a comment (preparation for the action registry); existing routes are brought up to date.

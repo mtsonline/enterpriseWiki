@@ -42,7 +42,7 @@ Bei jedem Konflikt gilt diese Reihenfolge: Sicherheit, kein Datenverlust, Stabil
 
 1. API, CLI und Oberfläche.
 2. Tests: Go-Tests (Einheit und API-Integration), Browser-Test für den Ablauf in der Oberfläche.
-3. Übersetzungen Deutsch und Englisch (`TestLocaleParity` prüft, dass keine fehlt).
+3. Übersetzungen Deutsch und Englisch (`TestLocaleParity` prüft, dass keine fehlt), auch die Fehlermeldungen des Servers (`internal/apperr/locales`, geprüft von `go test ./internal/apperr`).
 4. Dokumentation auf Deutsch und Englisch: API-Referenz für Routen, Benutzer-Anleitung, Admin-Doku für Betrieb und Sicherheit, Roadmap.
 5. Demo-Inhalt, wo die Funktion etwas zeigt.
 6. Jede Route trägt eine Aktions-ID nach der Namensraum-Regel als Kommentar (Vorbereitung für das Aktionsregister); bestehende Routen werden nachgezogen.

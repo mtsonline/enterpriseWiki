@@ -114,11 +114,19 @@ export function languageSwitcher(): HTMLElement | null {
 
 export function editToggle(): HTMLElement | null {
   if (!canEditHere()) return null;
-  return button(state.editMode ? t('edit.mode_on') : t('edit.mode_off'), () => {
+  // a switch: the name stays, the switch shows on or off (a toggle button
+  // with aria-pressed for screen readers)
+  const b = button([
+    h('span', { class: 'ew-switch', 'aria-hidden': 'true' }, h('span', { class: 'ew-switch-knob' })),
+    h('span', null, t('edit.mode')),
+    h('span', { class: 'ew-switch-state', 'aria-hidden': 'true' }, state.editMode ? t('edit.switch_on') : t('edit.switch_off')),
+  ], () => {
     setEditMode(!state.editMode);
     void rerender();
     announce(state.editMode ? t('edit.mode_enabled') : t('edit.mode_disabled'));
-  }, { variant: state.editMode ? 'primary' : 'secondary', pressed: state.editMode });
+  }, { variant: 'secondary', pressed: state.editMode });
+  b.classList.add('ew-switch-btn');
+  return b;
 }
 
 // ---------------------------------------------------------------- user menu

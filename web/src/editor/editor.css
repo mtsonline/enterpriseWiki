@@ -121,3 +121,4 @@
 }
 .ewe-md-caret { display: inline; }
 .ewe-md-caret .ewe-cursor-label { top: -1.25em; }
+.ewe-macro-picture > .ew-macro, .ewe-macro-picture > .ew-bo { margin-top: 0; margin-bottom: 0; }

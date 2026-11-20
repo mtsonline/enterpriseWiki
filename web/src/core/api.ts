@@ -107,7 +107,10 @@ async function request<T>(method: string, path: string, body?: unknown, backgrou
   }
   if (!res.ok) {
     const err = (data as { error?: { code?: string; message?: string; detail?: string } } | null)?.error;
-    throw new ApiError(res.status, err?.code ?? 'error', err?.message ?? res.statusText, err?.detail ?? '');
+    // an answer that is not one of the wiki (a proxy, a firewall …): say so,
+    // with the address and what came back, so it can be found
+    if (!err?.code) throw new ApiError(res.status, 'foreign', `${res.status} ${res.statusText} · ${url}`.trim(), (text ?? '').slice(0, 120));
+    throw new ApiError(res.status, err.code, err.message ?? res.statusText, err.detail ?? '');
   }
   return data as T;
 }

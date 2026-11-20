@@ -215,8 +215,6 @@
  "common.yes": "Yes",
  "edit.mode_disabled": "Edit mode switched off",
  "edit.mode_enabled": "Edit mode switched on",
- "edit.mode_off": "Edit",
- "edit.mode_on": "Editing on",
  "editor.invalid_json": "The content is not valid JSON.",
  "element.comment": "Change note",
  "element.comment_help": "Optional: describe your change for the history.",
@@ -2820,5 +2818,9 @@
  "editor.parts_help_titled": "In the editor the macro starts with two parts ({part}): the heading is the title, the content goes below it. Add more with “+ {part}” at the top of the macro.",
  "editor.part_add": "Add {part}",
  "editor.part_next": "Next {part}",
- "editor.part_added": "{part} added."
+ "editor.part_added": "{part} added.",
+ "edit.mode": "Edit",
+ "edit.switch_on": "on",
+ "edit.switch_off": "off",
+ "error.foreign": "This answer did not come from the wiki ({what}) but from a service in front of it, for example a proxy or a firewall. Answer: “{body}”. Please tell the administration."
 }
