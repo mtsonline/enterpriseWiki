@@ -230,6 +230,11 @@ func TestWorkflow2(t *testing.T) {
 		}
 		return n
 	}
+	// the schedule "every minute" starts one case per minute: once in the
+	// minute the test began, once more for every minute boundary it crossed
+	// (a run across a full minute is no error)
+	began := time.Now().Truncate(time.Minute)
+	ticksOK := func(n int) bool { return n >= 1 && n <= int(time.Since(began)/time.Minute)+1 }
 	// a page in Pages starts a case; one in Secret not (fred cannot see it)
 	var p2, p3 elem
 	admin.must("POST", "/api/v1/elements", map[string]any{"category_id": pages.ID, "type": "core.html", "title": "Fresh page", "body": htmlBody("<p>x</p>")}, &p2, 201)
@@ -237,7 +242,7 @@ func TestWorkflow2(t *testing.T) {
 	triggers()
 	triggers()
 	n := byTrigger()
-	if n["new"] != 1 || n["secret"] != 0 || n["tick"] != 1 {
+	if n["new"] != 1 || n["secret"] != 0 || !ticksOK(n["tick"]) {
 		t.Fatalf("starts by trigger: %v", n)
 	}
 	for _, x := range cases(wf2.ID) {
@@ -253,7 +258,7 @@ func TestWorkflow2(t *testing.T) {
 	setStatus("done")
 	setStatus("done")
 	triggers()
-	if n := byTrigger(); n["status"] != 1 || n["tick"] != 1 {
+	if n := byTrigger(); n["status"] != 1 || !ticksOK(n["tick"]) {
 		t.Fatalf("property trigger: %v", n)
 	}
 	setStatus("open")
