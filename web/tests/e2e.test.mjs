@@ -3120,12 +3120,14 @@ test('blocks B, part 1: progress bar, counter, timeline, dialog with a button, t
   const tip = page.getByRole('tooltip');
   await word.focus();
   await tip.waitFor();
+  console.log('tooltip after focus', await page.evaluate(() => JSON.stringify({ focus: document.activeElement?.className, hasFocus: document.hasFocus(), hidden: document.querySelector('.ewl-tip-bubble')?.hidden })));
   assert.equal(await page.locator('.ewl-tip-bubble').textContent(), 'Programming interface');
   // the pointer leaving the word does not hide what the focus shows (found in CI)
   await word.hover();
   await page.mouse.move(0, 0);
   await page.waitForTimeout(400);
-  assert.ok(await tip.isVisible(), 'stays while the word has the focus');
+  const state = () => page.evaluate(() => { const b = document.querySelector('.ewl-tip-bubble'); return JSON.stringify({ focus: document.activeElement?.className, hasFocus: document.hasFocus(), hidden: b?.hidden, dismissed: b?.dataset.dismissed, visible: b && getComputedStyle(b).display, fv: document.querySelector('.ewl-tip-button')?.matches(':focus-visible') }); });
+  assert.ok(await tip.isVisible(), `stays while the word has the focus: ${await state()}`);
   assert.equal(await word.evaluate((b) => document.getElementById(b.getAttribute('aria-describedby'))?.textContent), 'Programming interface');
   await page.keyboard.press('Escape');
   await tip.waitFor({ state: 'hidden' });
