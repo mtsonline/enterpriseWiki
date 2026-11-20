@@ -68,7 +68,7 @@ schreibgeschützt, ohne Herunterladen, Drucken und Kopieren. Ist „immer direkt
 auf die Datei das Programm sofort. *Schließen* führt zurück ins Wiki.
 
 ### Bilder in Seiten
-Im Editor öffnet der Knopf **Bild einfügen** die Medienbibliothek: Bild auswählen oder neu hochladen (Standard: Kategorie der Seite) und einen Alternativtext angeben, der das Bild für Menschen beschreibt, die es nicht sehen können. Andere Dateien werden als Link eingefügt. Das Makro **Bildergalerie** zeigt ausgewählte Bilder (`media="12,13,14"`) oder alle Bilder einer Kategorie als Raster; ein Klick öffnet das Bild groß, mit den Pfeiltasten blättern Sie weiter.
+Im Editor öffnet der Knopf **Bild einfügen** die Medienbibliothek: Bild auswählen oder neu hochladen (Standard: Kategorie der Seite) und einen Alternativtext angeben, der das Bild für Menschen beschreibt, die es nicht sehen können. Andere Dateien werden als Link eingefügt. Das Makro **Bildergalerie** zeigt ausgewählte Bilder (`media="12,13,14"`) oder alle Bilder einer Kategorie als Raster; ein Klick öffnet das Bild groß, mit den Pfeiltasten blättern Sie weiter. Ein Bild, das kleiner gezeigt wird, als es ist, öffnet sich mit einem Klick groß (wie in der Galerie); der Link trägt den Alternativtext.
 
 ### Makros
 Makros sind Bausteine, die beim Anzeigen der Seite ausgefüllt werden. Im visuellen Editor fügt der Knopf **Makro einfügen** (⚙) eines ein; Makros mit Inhalt (z. B. Hinweis-Box) umschließen markierte Absätze. Ein eingefügtes Makro erscheint als gestrichelter Kasten mit Name, Einstellungen sowie den Knöpfen *Makro bearbeiten* (✎) und *Makro entfernen* (×); Makros im Text (z. B. Status-Label, Textfarbe) als kleiner Baustein. Manche Makros haben einen eigenen Knopf in der Werkzeugleiste (◉ Status-Label, **A** Textfarbe und Schrift); der markierte Text wird dabei übernommen.
@@ -86,11 +86,11 @@ Im Markdown-Quelltext stehen Makros als Direktiven: `::toc{levels=3}` (ohne Inha
 | Textfarbe und Schrift | Textfarbe, Hervorhebung, Schriftart und -größe aus der Palette der Site (alle Kombinationen gut lesbar) |
 | Spalten / Karten | Inhalt nebeneinander; Spalten bzw. Karten mit einer Trennlinie trennen |
 | Abschnitt, Hero-Banner, Button-Link, Abstand | Bausteine für Website-Seiten (besonders mit der Vorlage *CMS*) |
-| Raster | Inhalte in Spalten, die Zahl je Ansicht (Desktop bis 5, Tablet bis 3, Handy 1); Zellen mit einer Trennlinie trennen |
+| Raster | Inhalte in Spalten, die Zahl je Ansicht (Desktop bis 5, Tablet bis 3, Handy 1); Zellen mit einer Trennlinie trennen. Mit *Breiten* bekommen die Spalten auf dem Desktop eigene Anteile (`widths="2 1"`: die erste doppelt so breit); die schmalste behält genug Platz |
 | Überschrift | eine Überschrift mit Untertitel und Linie; ihre Ebene (die Gliederung der Seite für Screenreader) wird getrennt von ihrer Größe gewählt |
 | Trenner | eine Linie (durchgehend, gestrichelt, gepunktet, doppelt, auslaufend) oder ein Abstand zwischen Teilen einer Seite |
-| Knopfgruppe | bis zu vier Links als Schaltflächen, nebeneinander, über die volle Breite oder untereinander |
-| Handlungsaufruf | ein Kasten mit Titel, Text und Schaltfläche |
+| Knopfgruppe | bis zu vier Links als Schaltflächen, nebeneinander, über die volle Breite oder untereinander; jede wahlweise mit einem Symbol vor dem Text (Schmuck: der Text benennt die Schaltfläche) |
+| Handlungsaufruf | ein Kasten mit Titel, Text und Schaltfläche, wahlweise mit Symbol |
 | Reiter | Teile als Reiter (Pfeiltasten, Pos1, Ende); Teile mit einer Trennlinie trennen, die erste Überschrift jedes Teils benennt seinen Reiter. Ohne Skript stehen sie als Abschnitte untereinander |
 | Akkordeon | Teile zum Auf- und Zuklappen, wahlweise immer nur einer offen und der erste offen |
 | Symbol | ein Symbol der mitgelieferten Sammlung (über 6.000, Umriss oder gefüllt), auch in einer Zeile (`:icon[Telefon]{name=phone}`); ausgewählt mit einer Suche. Screenreader lesen seine Beschriftung oder, ohne eine, den Namen des Symbols (auf Englisch, zum Beispiel „arrow right“); nur ein Symbol mit *Nur Schmuck* wird übersprungen |
@@ -100,12 +100,12 @@ Im Markdown-Quelltext stehen Makros als Direktiven: `::toc{levels=3}` (ohne Inha
 | Auszug | markiert einen Teil dieser Seite, den *Seite einbinden* mit *Nur den Auszug* zeigt; mit Namen gibt es mehrere Auszüge auf einer Seite |
 | Anker | eine Stelle im Text, zu der ein Link mit `#name` springt (`:anchor{name=budget}`). Namen: Kleinbuchstaben, Ziffern und Bindestriche, ohne `ew` am Anfang und ohne `-Zahl` am Ende (so heißen Felder des Wikis selbst; ebenso nicht `f` mit Zahl und Bindestrich am Anfang); jeder Name einmal je Seite, auch nicht wie eine Überschrift. Überschriften bekommen ihre Sprungadresse aus dem Text (`#budget`); hieße sie wie eine Adresse des Wikis (zum Beispiel `main`), beginnt sie mit `h-` (`#h-main`). Jede Adresse gibt es auf einer Seite nur einmal, auch mit eingebundenen Seiten (dort mit Nummer, zum Beispiel `#intro-2`) |
 | Seitenbaum | Unterkategorien und Seiten einer Kategorie als Baum zum Aufklappen, mit einem Feld zum Filtern; bis zu vier Ebenen |
-| Suchfeld | ein Suchfeld für diese (oder eine gewählte) Kategorie mit Unterkategorien oder für das ganze Wiki; die Treffer zeigt die Suchseite, dort lässt sich die Suche auf das ganze Wiki erweitern |
+| Suchfeld | ein Suchfeld für diese (oder eine gewählte) Kategorie mit Unterkategorien oder für das ganze Wiki; die Treffer zeigt die Suchseite, dort lässt sich die Suche auf das ganze Wiki erweitern. Schon beim Tippen erscheinen die ersten Treffer darunter (abschaltbar); Escape schließt die Liste |
 | Seite aus Vorlage anlegen | ein Knopf, der eine neue Seite in einer Kategorie öffnet, gefüllt aus einer Seitenvorlage. Nur wer dort Seiten anlegen darf und die Vorlage nutzen kann, sieht ihn; nehmen Sie deshalb eine Vorlage für alle oder für den Bereich |
 | Anhänge | die Dateien, die diese Seite zeigt, oder die Dateien einer Kategorie (wahlweise mit Unterkategorien), als Tabelle mit Art, Größe und Datum, sortiert nach Name, Datum, Größe oder Art. Jede Person sieht nur Dateien, die sie sehen darf; Dateien „nur ansehen“ haben keinen Download. Wer in der Kategorie Seiten anlegen oder bearbeiten darf, lädt mit *Datei hochladen* direkt dort eine Datei hoch |
 | Shell-Befehl | Ausgabe eines Befehls auf dem Server; läuft erst, wenn ein Superadmin genau diesen Befehl freigegeben hat |
 | HTTP-Abruf | Ergebnis einer Web-Adresse (Text, HTML, JSON als Tabelle); nur freigegebene Adressen |
-| Neuigkeiten aus mehreren Quellen | die neuesten Elemente beliebig vieler Quellen und Einträge externer RSS/Atom-Feeds gemeinsam, als Karten, Liste oder Schlagzeilen |
+| Neuigkeiten aus mehreren Quellen | die neuesten Elemente beliebig vieler Quellen und Einträge externer RSS/Atom-Feeds gemeinsam, als Karten, Liste, Schlagzeilen oder Kacheln (Bilder in Spalten je Ansicht, wahlweise als Mauerwerk); mit *Filter nach Schlagwort* stehen Knöpfe über der Liste, die nur Einträge mit einem Schlagwort zeigen |
 | Blogbeiträge aus mehreren Quellen | Beiträge mehrerer Quellen im Aussehen des Blogs (Liste, Karten, Kompakt) |
 | FAQ aus mehreren Quellen | Fragen mehrerer Quellen als eine FAQ, ein aufklappbarer Abschnitt je Kategorie |
 | Zuletzt geändert, Nächste Termine | ebenfalls mit frei wählbaren Quellen |
@@ -425,7 +425,7 @@ Wo Suche, Sprache, Bearbeitungsmodus, Benachrichtigungen, Benutzermenü, Kategor
 
   Einen Baustein nur manchen zu zeigen, ist eine Regel der Anzeige, kein Recht: Der Baustein lädt seine Daten wie immer mit den Rechten der lesenden Person.
 - **Größe und Abstand:** Höchstbreite, Mindesthöhe, Seitenverhältnis, Innen- und Außenabstand und Textausrichtung, wo sinnvoll je Ansicht. Das Tablet übernimmt den Wert des Desktops, das Handy den des Tablets, wenn sie keinen eigenen haben.
-- **Hintergrund:** Farbe, Verlauf, Bild des Wikis (Fokus, Größe, Wiederholung, Parallax), Überlagerung, Mischmodus, Muster, Glas.
+- **Hintergrund:** Farbe, Verlauf, Bild des Wikis (Fokus, Größe, Wiederholung, Parallax), Video der Medienbibliothek (ohne Ton, in Schleife, immer mit Knopf zum Anhalten; mit „weniger Bewegung“ startet es nicht von selbst; es braucht wie ein Bild eine Überlagerung), Überlagerung, Mischmodus, Muster, Glas.
 - **Rahmen, Form und Trenner:** Rahmen, abgerundete Ecken, Schatten, Leuchten, Trenner oben und unten (Welle, Zickzack, Schräge, Bogen), Ausblenden am Rand.
 - **Schrift:** Schrift, Größe, Stärke, Zeilenhöhe, Laufweite, Großbuchstaben, Textfarbe, Spalten, Silbentrennung, ausgewogener Umbruch, Initiale, Textschatten, begrenzte Zeilen mit *Mehr anzeigen*, Überschriften im Verlauf, unterstrichene Links.
 

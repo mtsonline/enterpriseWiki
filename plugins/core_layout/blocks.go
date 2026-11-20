@@ -63,7 +63,33 @@ func (grid) Params() []content.MacroParam {
 		{Name: "mobile", Labels: lm("Columns on the phone", "Spalten auf dem Handy"), Type: "select", Options: cols[:1], Default: "1"},
 		{Name: "gap", Labels: lm("Space between", "Abstand dazwischen"), Type: "select", Options: gaps, Default: "medium"},
 		{Name: "align", Labels: lm("Vertical alignment", "Senkrechte Ausrichtung"), Type: "select", Options: valigns, Default: "stretch"},
+		{Name: "widths", Labels: lm("Widths of the columns on the desktop (e.g. 2 1: the first twice as wide; empty: all the same)", "Breiten der Spalten auf dem Desktop (z. B. 2 1: die erste doppelt so breit; leer: alle gleich)"), Type: "text"},
 	}
+}
+
+// gridWidths reads the shares of the columns on the desktop ("2 1"): one
+// whole number 1 to 5 per column; the narrowest column must keep the room
+// of one column of its own (the same rule as for the number of columns).
+func gridWidths(v string, n int) ([]int, error) {
+	f := strings.Fields(strings.NewReplacer(",", " ", ":", " ", ";", " ").Replace(v))
+	if len(f) == 0 {
+		return nil, nil
+	}
+	if len(f) != n {
+		return nil, fmt.Errorf("widths: one number per column (%d on the desktop)", n)
+	}
+	out, lo, sum := make([]int, n), 5, 0
+	for i, x := range f {
+		w, err := strconv.Atoi(x)
+		if err != nil || w < 1 || w > 5 {
+			return nil, fmt.Errorf("widths: whole numbers from 1 to 5")
+		}
+		out[i], lo, sum = w, min(lo, w), sum+w
+	}
+	if float64(lo)/float64(sum)*float64(content.MaxColumns("desktop")) < 1 {
+		return nil, fmt.Errorf("widths: the narrowest column would have too little room on the desktop; make it wider or the others narrower")
+	}
+	return out, nil
 }
 
 func (grid) Render(_ context.Context, mc content.MacroContext) (string, error) {
@@ -76,9 +102,22 @@ func (grid) Render(_ context.Context, mc content.MacroContext) (string, error) {
 			return "", fmt.Errorf("on the %s at most %d columns have room side by side; set fewer", view, content.MaxColumns(view))
 		}
 	}
+	ws, err := gridWidths(mc.Params["widths"], n["desktop"])
+	if err != nil {
+		return "", err
+	}
+	style := ""
+	if ws != nil {
+		parts := make([]string, len(ws))
+		for i, w := range ws {
+			parts[i] = strconv.Itoa(w) + "fr"
+		}
+		// only whole numbers checked above go into the style
+		style = ` style="--ewl-widths: ` + strings.Join(parts, " ") + `"`
+	}
 	var b strings.Builder
-	fmt.Fprintf(&b, `<div class="ewl-grid ewl-grid--d%d ewl-grid--t%d ewl-grid--m%d ewl-gap--%s ewl-valign--%s">`,
-		n["desktop"], n["tablet"], n["mobile"], oneOf(mc.Params["gap"], gaps), oneOf(mc.Params["align"], valigns))
+	fmt.Fprintf(&b, `<div class="ewl-grid ewl-grid--d%d ewl-grid--t%d ewl-grid--m%d ewl-gap--%s ewl-valign--%s"%s>`,
+		n["desktop"], n["tablet"], n["mobile"], oneOf(mc.Params["gap"], gaps), oneOf(mc.Params["align"], valigns), style)
 	for _, c := range core_macros.SplitOnHR(mc.Body) {
 		b.WriteString(`<div class="ewl-cell">` + c + `</div>`)
 	}
@@ -177,6 +216,7 @@ func (buttons) Params() []content.MacroParam {
 			content.MacroParam{Name: "text" + n, Labels: lm("Text of button "+n, "Text der Schaltfläche "+n), Type: "text", Required: i == 1},
 			content.MacroParam{Name: "link" + n, Labels: lm("Link of button "+n, "Link der Schaltfläche "+n), Type: "url", Required: i == 1},
 			content.MacroParam{Name: "style" + n, Labels: lm("Style of button "+n, "Stil der Schaltfläche "+n), Type: "select", Options: buttonStyles, Default: map[bool]string{true: "primary", false: "secondary"}[i == 1]},
+			content.MacroParam{Name: "icon" + n, Labels: lm("Icon of button "+n, "Symbol der Schaltfläche "+n), Type: "custom:icon"},
 		)
 	}
 	return append(p,
@@ -200,13 +240,30 @@ func (buttons) Render(_ context.Context, mc content.MacroContext) (string, error
 		if style == "" && i > 1 {
 			style = "secondary"
 		}
-		b.WriteString(`<a class="ewl-cta ewl-cta--` + oneOf(style, buttonStyles) + `" href="` + esc(SafeURL(mc.Params["link"+n])) + `">` + esc(text) + `</a>`)
+		icon, err := buttonIcon(mc.Params["icon"+n])
+		if err != nil {
+			return "", fmt.Errorf("button %d: %v", i, err)
+		}
+		b.WriteString(`<a class="ewl-cta ewl-cta--` + oneOf(style, buttonStyles) + `" href="` + esc(SafeURL(mc.Params["link"+n])) + `">` + icon + esc(text) + `</a>`)
 	}
 	if shown == 0 {
 		return "", fmt.Errorf("at least one button needs a text")
 	}
 	b.WriteString(`</div>`)
 	return b.String(), nil
+}
+
+// buttonIcon is the icon in front of the text of a button: decoration (the
+// text names the button), "" without an icon.
+func buttonIcon(name string) (string, error) {
+	name = strings.TrimSpace(name)
+	if name == "" {
+		return "", nil
+	}
+	if err := checkIcon(name, "outline"); err != nil {
+		return "", err
+	}
+	return iconHTML(name, "outline", "s", "", true) + " ", nil
 }
 
 // ---------------------------------------------------------------- call to action
@@ -224,6 +281,7 @@ func (cta) Params() []content.MacroParam {
 		{Name: "title", Labels: lm("Title", "Titel"), Type: "text", Required: true},
 		{Name: "button", Labels: lm("Button text", "Schaltflächentext"), Type: "text", Required: true},
 		{Name: "link", Labels: lm("Button link", "Schaltflächen-Link"), Type: "url", Required: true},
+		{Name: "icon", Labels: lm("Icon of the button", "Symbol der Schaltfläche"), Type: "custom:icon"},
 		{Name: "layout", Labels: lm("Arrangement", "Anordnung"), Type: "select", Options: []string{"side", "stack"}, Default: "side"},
 	}
 }
@@ -239,7 +297,11 @@ func (cta) Render(_ context.Context, mc content.MacroContext) (string, error) {
 	if strings.TrimSpace(mc.Body) != "" {
 		b.WriteString(`<div class="ewl-ctabox-body">` + mc.Body + `</div>`)
 	}
-	b.WriteString(`</div><p class="ewl-ctabox-action"><a class="ewl-cta ewl-cta--primary" href="` + esc(SafeURL(mc.Params["link"])) + `">` + esc(text) + `</a></p></div>`)
+	icon, err := buttonIcon(mc.Params["icon"])
+	if err != nil {
+		return "", err
+	}
+	b.WriteString(`</div><p class="ewl-ctabox-action"><a class="ewl-cta ewl-cta--primary" href="` + esc(SafeURL(mc.Params["link"])) + `">` + icon + esc(text) + `</a></p></div>`)
 	return b.String(), nil
 }
 

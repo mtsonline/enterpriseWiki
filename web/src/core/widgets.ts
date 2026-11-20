@@ -3,6 +3,7 @@
 import { hydrateOptionFrames } from './optionframes';
 import { hydrateIcons } from './icons';
 import { hydrateCode } from './codeblocks';
+import { hydrateImages } from './images';
 
 export type WidgetFactory = (el: HTMLElement) => void | Promise<void>;
 
@@ -18,6 +19,7 @@ export function hydrate(root: ParentNode): void {
   hydrateOptionFrames(root);
   hydrateIcons(root);
   hydrateCode(root);
+  hydrateImages(root);
   root.querySelectorAll<HTMLElement>('[data-ew-widget]').forEach((el) => {
     if (el.dataset.ewHydrated) return;
     const f = widgets.get(el.dataset.ewWidget ?? '');

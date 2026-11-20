@@ -549,3 +549,13 @@ th[aria-sort="descending"] .ew-sort-button::after { content: " ↓"; opacity: 1;
 .ew-iconpick-filters { display: grid; gap: .75rem; grid-template-columns: repeat(auto-fit, minmax(min(14rem, 100%), 1fr)); }
 .ew-iconpick-grid { display: grid; gap: .25rem; grid-template-columns: repeat(auto-fill, minmax(3rem, 1fr)); max-height: 50vh; overflow: auto; padding: .25rem; }
 .ew-iconpick-grid .ew-btn { min-width: 2.75rem; min-height: 2.75rem; padding: .25rem; display: grid; place-items: center; }
+
+/* a picture shown smaller than it is opens large on a click */
+.ew-zoom { cursor: zoom-in; display: inline-block; }
+
+/* a video in the background of a block: behind the content, under the overlay; the button stops it */
+.ew-bo--video { position: relative; isolation: isolate; overflow: hidden; }
+.ew-bo-video, .ew-bo-veil { position: absolute; inset: 0; width: 100%; height: 100%; z-index: -1; }
+.ew-bo-video { object-fit: cover; }
+.ew-bo-videobtn { position: absolute; inset-block-start: .5rem; inset-inline-end: .5rem; z-index: 1; background: var(--ew-bg); color: var(--ew-text); min-block-size: 2.75rem; }
+@media print { .ew-bo-video, .ew-bo-videobtn { display: none; } }

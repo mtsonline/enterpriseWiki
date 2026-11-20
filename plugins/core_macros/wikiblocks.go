@@ -350,6 +350,7 @@ func (searchbox) Params() []content.MacroParam {
 		{Name: "category", Labels: lm("Category (empty: this one)", "Kategorie (leer: diese)"), Type: "custom:category"},
 		{Name: "label", Labels: lm("Label", "Beschriftung"), Type: "text"},
 		{Name: "placeholder", Labels: lm("Example in the field", "Beispiel im Feld"), Type: "text"},
+		{Name: "live", Labels: lm("Show the first results while typing", "Erste Treffer schon beim Tippen zeigen"), Type: "bool", Default: "true"},
 	}
 }
 
@@ -377,8 +378,13 @@ func (searchbox) Render(ctx context.Context, mc content.MacroContext) (string, e
 	}
 	var b strings.Builder
 	// a plain form: works without script, the search page shows the results
-	fmt.Fprintf(&b, `<form class="ew-searchbox" role="search" action="/search" method="get"><label for="%s">%s</label><span class="ew-searchbox-row"><input id="%s" class="ew-input" type="search" name="q" required placeholder="%s">`,
-		id, esc(label), id, esc(mc.Params["placeholder"]))
+	live := ""
+	if mc.Params["live"] != "false" {
+		// the browser shows the first results under the field (without script: the search page)
+		live = ` data-ew-widget="core.macros.searchlive"`
+	}
+	fmt.Fprintf(&b, `<form class="ew-searchbox" role="search" action="/search" method="get"%s><label for="%s">%s</label><span class="ew-searchbox-row"><input id="%s" class="ew-input" type="search" name="q" required placeholder="%s">`,
+		live, id, esc(label), id, esc(mc.Params["placeholder"]))
 	if cat > 0 {
 		fmt.Fprintf(&b, `<input type="hidden" name="category" value="%d">`, cat)
 	}

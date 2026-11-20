@@ -2808,6 +2808,67 @@ test('block templates: save selected blocks, insert them into another page', asy
   await page.locator('.ew-content').getByText('Monday to Friday').waitFor();
 });
 
+test('blocks: news as tiles with a tag filter, live search, a picture opens large, a background video with a pause button', async () => {
+  const cat = (await call('POST', '/api/v1/categories', { titles: { en: `Tiles ${run}` } })).id;
+  const md = (source) => ({ format: 'markdown', source });
+  await call('POST', '/api/v1/elements', { category_id: cat, type: 'core.html', title: `Gnu report ${run}`, body: md('gnu text'), tags: ['hr'] });
+  await call('POST', '/api/v1/elements', { category_id: cat, type: 'core.html', title: `Gnu budget ${run}`, body: md('gnu money'), tags: ['finance'] });
+  // a large picture and a video of the media library
+  const upload = (name, bytes, mime) => page.evaluate(async ([c, n, b, m]) => {
+    const fd = new FormData();
+    fd.append('meta', JSON.stringify({ category_id: c, title: n }));
+    fd.append('file', new File([new Uint8Array(b)], n, { type: m }));
+    const r = await __e2eFetch('/api/v1/media', { method: 'POST', body: fd, headers: { 'X-Requested-With': 'ewiki' } });
+    return (await r.json()).id;
+  }, [cat, name, [...bytes], mime]);
+  const png = await page.evaluate(async () => {
+    const c = document.createElement('canvas'); c.width = 1600; c.height = 900;
+    const x = c.getContext('2d'); x.fillStyle = '#3366aa'; x.fillRect(0, 0, 1600, 900);
+    const b = await new Promise((r) => c.toBlob(r, 'image/png'));
+    return [...new Uint8Array(await b.arrayBuffer())];
+  });
+  const img = await upload(`wide-${run}.png`, png, 'image/png');
+  const fs = await import('node:fs');
+  const vid = await upload(`loop-${run}.webm`, fs.readFileSync(new URL('./fixtures/background.webm', import.meta.url)), 'video/webm');
+  assert.ok(img > 0 && vid > 0, 'uploaded');
+  const opts = JSON.stringify({ bg_video: `/api/v1/media/${vid}/view`, overlay_color: '#000000', overlay_opacity: 70, text_color: '#ffffff', padding_top: 4 }).replace(/"/g, '\\"');
+  const src = `::news{layout=tiles columns=3 filter=true source="category:${cat}"}\n\n::searchbox{category=${cat} label="Find here"}\n\n![A wide picture](/api/v1/media/${img}/view)\n\n:::section{options="${opts}"}\nText on a video\n:::\n`;
+  const el = await call('POST', '/api/v1/elements', { category_id: cat, type: 'core.html', title: `Tiles page ${run}`, body: md(src) });
+  await page.goto(`${BASE}/e/${el.id}`);
+  await idle();
+  // tiles with the filter by tag
+  const tiles = page.locator('.ew-news--tiles');
+  await tiles.waitFor();
+  const filter = page.getByRole('group', { name: /^(filter by tag|nach schlagwort filtern)$/i });
+  await filter.getByRole('button', { name: '#finance' }).click();
+  assert.equal(await filter.getByRole('button', { name: '#finance' }).getAttribute('aria-pressed'), 'true');
+  assert.ok(await tiles.getByRole('link', { name: `Gnu budget ${run}` }).isVisible());
+  assert.ok(!(await tiles.getByRole('link', { name: `Gnu report ${run}` }).isVisible()), 'filtered out');
+  await filter.getByRole('button', { name: /^(all|alle)$/i }).click();
+  assert.ok(await tiles.getByRole('link', { name: `Gnu report ${run}` }).isVisible());
+  // live results under the search box
+  await page.getByLabel('Find here').fill('gnu');
+  const live = page.locator('.ew-searchbox-live');
+  await live.getByRole('link', { name: `Gnu budget ${run}` }).waitFor();
+  await live.getByRole('link', { name: /^(show all results|alle treffer zeigen)$/i }).waitFor();
+  await a11y('tiles, filter and live search');
+  await page.getByLabel('Find here').press('Escape');
+  assert.ok(await live.isHidden());
+  // the picture is shown smaller than it is: a link opens it large
+  const zoom = page.getByRole('link', { name: 'A wide picture' });
+  await zoom.click();
+  await page.locator('dialog[open] .ew-lightbox-img').waitFor();
+  await page.keyboard.press('Escape');
+  // the background video: under the overlay, with a button that stops it
+  const frame = page.locator('.ew-bo--video');
+  await frame.waitFor();
+  assert.equal(await frame.locator('video').getAttribute('aria-hidden'), 'true');
+  const btn = frame.getByRole('button', { name: /^(pause the video|video anhalten|play the video|video abspielen)$/i });
+  await btn.waitFor();
+  await btn.click();
+  await a11y('a background video');
+});
+
 test('options of a placed block: background with checked contrast, hidden on the phone, spacing; the wiki shows it', async () => {
   const before = await call('GET', '/api/v1/placements/site');
   try {

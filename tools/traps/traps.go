@@ -525,4 +525,32 @@ var traps = []trap{
 		New:  "AND ($5 = '' OR t.kind = $5 OR true)",
 		Pkg:  "./internal/server/", Tests: "^TestBlockTemplates$",
 	},
+	{
+		ID: "layout.grid-widths-room", About: "column widths leave the narrowest column too little room",
+		File: "plugins/core_layout/blocks.go",
+		Old:  "\tif float64(lo)/float64(sum)*float64(content.MaxColumns(\"desktop\")) < 1 {",
+		New:  "\tif false {",
+		Pkg:  "./internal/server/", Tests: "^TestBlocksRest$",
+	},
+	{
+		ID: "layout.button-icon", About: "icons of buttons are not checked",
+		File: "plugins/core_layout/blocks.go",
+		Old:  "\tif err := checkIcon(name, \"outline\"); err != nil {\n\t\treturn \"\", err\n\t}\n\treturn iconHTML",
+		New:  "\treturn iconHTML",
+		Pkg:  "./internal/server/", Tests: "^TestBlocksRest$",
+	},
+	{
+		ID: "blockoptions.video-overlay", About: "text on a background video needs no overlay",
+		File: "internal/content/blockoptions.go",
+		Old:  "\timage := optStr(o, \"bg_image\") + optStr(o, \"bg_video\")",
+		New:  "\timage := optStr(o, \"bg_image\")",
+		Pkg:  "./internal/content/", Tests: "^TestBlockOption",
+	},
+	{
+		ID: "blockoptions.file-form", About: "files of any form go into the CSS",
+		File: "internal/content/blockoptions.go",
+		Old:  "!optFileRe.MatchString(s)",
+		New:  "!optFileRe.MatchString(s) && false",
+		Pkg:  "./internal/content/", Tests: "^TestBlockOption",
+	},
 }

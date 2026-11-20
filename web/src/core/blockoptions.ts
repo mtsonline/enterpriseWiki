@@ -24,7 +24,7 @@ export const optionDef = (id: string): OptionDef | undefined => DEFS.get(id);
 
 const COLOR = /^#[0-9a-f]{6}$/;
 const ANCHOR = /^[a-z][a-z0-9-]{0,39}$/;
-const FILE = /^\/api\/v1\/(files|media)\/[A-Za-z0-9._-]{1,128}$/;
+const FILE = /^\/api\/v1\/(files\/[A-Za-z0-9._-]{1,128}|media\/[0-9]{1,18}\/view)$/;
 /** ids of the interface itself (the skip link jumps to #main …) */
 const RESERVED_ANCHORS = ['main', 'top', 'content', 'app', 'search', 'nav', 'header', 'footer'];
 
@@ -102,7 +102,7 @@ export function surfaces(o: BlockOptions): string[] {
   const overlay = COLOR.test(s('overlay_color')) ? s('overlay_color') : '';
   const alpha = overlay ? (typeof o.overlay_opacity === 'number' ? o.overlay_opacity : 0) / 100 : 0;
   let backs: string[] = [];
-  if (s('bg_image')) backs = overlay && alpha > 0 ? ['#000000', '#ffffff'] : [];
+  if (s('bg_image') || s('bg_video')) backs = overlay && alpha > 0 ? ['#000000', '#ffffff'] : [];
   else if (gradient && COLOR.test(s('bg_gradient_from')) && COLOR.test(s('bg_gradient_to'))) backs = [0, 1, 2, 3, 4].map((i) => mix(s('bg_gradient_from'), s('bg_gradient_to'), i / 4));
   else if (COLOR.test(s('bg_color'))) backs = [s('bg_color')];
   return backs.map((b) => (alpha > 0 ? mix(b, overlay, alpha) : b));
@@ -121,7 +121,7 @@ export function problems(o: BlockOptions): Problem[] {
   const text = s('text_color');
   const bg = s('bg_color');
   const gradient = s('bg_gradient') === 'none' ? '' : s('bg_gradient');
-  const image = s('bg_image');
+  const image = s('bg_image') || s('bg_video'); // a video has unknown colors like a picture
   const pattern = s('pattern') === 'none' ? '' : s('pattern');
   const min = SCHEMA.contrast_text;
   if ((bg || gradient || image || pattern) && !text) out.push({ key: 'bo.p.text_color' });

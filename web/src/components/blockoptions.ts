@@ -61,8 +61,9 @@ function control(def: OptionDef, value: unknown, name: string, onChange: () => v
     case 'file': {
       const i = h('input', { class: 'ew-input', id, value: typeof value === 'string' ? value : '', placeholder: '/api/v1/files/…' }) as HTMLInputElement;
       i.addEventListener('change', fire);
-      const pick = button(t('bo.pick_image'), async () => {
-        const m = await pickMedium({ type: 'image' });
+      const video = def.id === 'bg_video';
+      const pick = button(video ? t('bo.pick_video') : t('bo.pick_image'), async () => {
+        const m = await pickMedium({ type: video ? 'video' : 'image' });
         if (m) { i.value = mediaURL(m); fire(); }
       }, { variant: 'subtle' });
       return { el: h('div', null, field(name, i, { help: t('bo.file_help') }), pick), get: () => i.value.trim() || undefined };

@@ -34,16 +34,20 @@ func (news) Toolbar() string { return "📰" }
 // maxNewsFeeds limits the external feeds of one macro (each is fetched).
 const maxNewsFeeds = 10
 
-var newsLayouts = []string{"cards", "list", "headlines"}
+var newsLayouts = []string{"cards", "list", "headlines", "tiles"}
 
 func (news) Params() []content.MacroParam {
 	return append([]content.MacroParam{
 		{Name: "source", Labels: lm("Sources (empty: this category with subcategories)", "Quellen (leer: diese Kategorie mit Unterkategorien)"), Type: "custom:sources.feeds"},
 		{Name: "layout", Labels: lm("Layout", "Darstellung"), Type: "select", Options: newsLayouts, Default: "cards",
-			OptionLabels: map[string]map[string]string{"cards": lm("Cards", "Karten"), "list": lm("List with summary", "Liste mit Zusammenfassung"), "headlines": lm("Headlines", "Schlagzeilen")}},
+			OptionLabels: map[string]map[string]string{"cards": lm("Cards", "Karten"), "list": lm("List with summary", "Liste mit Zusammenfassung"), "headlines": lm("Headlines", "Schlagzeilen"), "tiles": lm("Tiles (pictures in columns)", "Kacheln (Bilder in Spalten)")}},
 		{Name: "order", Labels: lm("Newest by", "Neueste nach"), Type: "select", Options: []string{"created", "updated"}, Default: "created",
 			OptionLabels: map[string]map[string]string{"created": lm("Created", "Erstellt"), "updated": lm("Changed", "Geändert")}},
 		{Name: "title", Labels: lm("Heading", "Überschrift"), Type: "text"},
+		{Name: "columns", Labels: lm("Tiles: columns on the desktop", "Kacheln: Spalten auf dem Desktop"), Type: "select", Options: []string{"2", "3", "4", "5"}, Default: "4"},
+		{Name: "tablet", Labels: lm("Tiles: columns on the tablet", "Kacheln: Spalten auf dem Tablet"), Type: "select", Options: []string{"1", "2", "3"}, Default: "2"},
+		{Name: "masonry", Labels: lm("Tiles: as masonry (different heights)", "Kacheln: als Mauerwerk (verschiedene Höhen)"), Type: "bool"},
+		{Name: "filter", Labels: lm("Filter by tag (buttons above the list)", "Filter nach Schlagwort (Knöpfe über der Liste)"), Type: "bool"},
 	}, content.ListParams(6)...)
 }
 
@@ -52,6 +56,7 @@ type newsItem struct {
 	date                                time.Time
 	external                            bool
 	id                                  int64
+	tags                                []string
 }
 
 func (n news) Render(ctx context.Context, mc content.MacroContext) (string, error) {
@@ -60,8 +65,14 @@ func (n news) Render(ctx context.Context, mc content.MacroContext) (string, erro
 	}
 	pg := mc.Paging(6)
 	layout := mc.Params["layout"]
-	if layout != "list" && layout != "headlines" {
+	if layout != "list" && layout != "headlines" && layout != "tiles" {
 		layout = "cards"
+	}
+	// tiles stand side by side: as many columns as have room
+	cols := intParam(mc.Params, "columns", 4, 2, 5)
+	tab := intParam(mc.Params, "tablet", 2, 1, 3)
+	if cols > content.MaxColumns("desktop") || tab > content.MaxColumns("tablet") {
+		return "", fmt.Errorf("tiles: at most %d columns on the desktop and %d on the tablet have room", content.MaxColumns("desktop"), content.MaxColumns("tablet"))
 	}
 	srcs, err := content.ParseSourcesKinds(mc.Params["source"], []string{"feed"})
 	if err != nil {
@@ -113,7 +124,7 @@ func (n news) Render(ctx context.Context, mc content.MacroContext) (string, erro
 				if link == "" {
 					link = fmt.Sprintf("/e/%d", e.ID)
 				}
-				items = append(items, newsItem{title: e.Title, link: link, summary: e.Summary, date: d, source: e.Author, id: e.ID})
+				items = append(items, newsItem{title: e.Title, link: link, summary: e.Summary, date: d, source: e.Author, id: e.ID, tags: e.Tags})
 			}
 		}
 	}
@@ -142,7 +153,7 @@ func (n news) Render(ctx context.Context, mc content.MacroContext) (string, erro
 		total = len(items)
 		items = items[min(len(items), pg.Offset()):min(len(items), pg.Offset()+pg.Size())]
 	}
-	if layout == "cards" {
+	if layout == "cards" || layout == "tiles" {
 		for i := range items {
 			if items[i].id > 0 {
 				items[i].image = elementImage(ctx, mc.Service, items[i].id, mc.Lang)
@@ -164,10 +175,25 @@ func (n news) Render(ctx context.Context, mc content.MacroContext) (string, erro
 	if mc.Lang == "de" {
 		datef = "02.01.2006"
 	}
-	fmt.Fprintf(&b, `<ul class="ew-news ew-news--%s" aria-label="%s">`, layout, esc(label))
+	if mc.Params["filter"] == "true" {
+		// the buttons are made by the browser from the tags of the items (without script: the whole list)
+		b.WriteString(`<div class="ew-news-filter" data-ew-widget="core.macros.newsfilter"></div>`)
+	}
+	cls, style := "ew-news ew-news--"+layout, ""
+	if layout == "tiles" {
+		if mc.Params["masonry"] == "true" {
+			cls += " ew-news--masonry"
+		}
+		style = fmt.Sprintf(` style="--ew-tiles:%d;--ew-tiles-t:%d"`, cols, tab) // whole numbers checked above
+	}
+	fmt.Fprintf(&b, `<ul class="%s"%s aria-label="%s">`, cls, style, esc(label))
 	for _, it := range items {
-		b.WriteString(`<li class="ew-news-item">`)
-		if layout == "cards" && it.image != "" {
+		if len(it.tags) > 0 {
+			fmt.Fprintf(&b, `<li class="ew-news-item" data-tags="%s">`, esc(strings.Join(it.tags, ",")))
+		} else {
+			b.WriteString(`<li class="ew-news-item">`)
+		}
+		if (layout == "cards" || layout == "tiles") && it.image != "" {
 			// external pictures only as links would leak the reader: images of feeds are loaded without referrer
 			fmt.Fprintf(&b, `<img class="ew-news-img" src="%s" alt="" loading="lazy" referrerpolicy="no-referrer">`, esc(it.image))
 		}
@@ -190,7 +216,7 @@ func (n news) Render(ctx context.Context, mc content.MacroContext) (string, erro
 		if len(meta) > 0 {
 			b.WriteString(` <span class="ew-news-meta">` + strings.Join(meta, " · ") + `</span>`)
 		}
-		if layout != "headlines" && it.summary != "" {
+		if layout != "headlines" && layout != "tiles" && it.summary != "" {
 			b.WriteString(`<p class="ew-news-summary">` + esc(it.summary) + `</p>`)
 		}
 		b.WriteString(`</li>`)
