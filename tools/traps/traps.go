@@ -337,15 +337,8 @@ var traps = []trap{
 	{
 		ID: "template.font-public", About: "the file of a font no template outside the trash uses is public",
 		File: "plugins/core_template/fonts.go",
-		Old:  "		return true, nil
-	}
-	token := \"own-\" + strconv.FormatInt(id, 10)
-	var public bool",
-		New:  "		return true, nil
-	}
-	return true, nil
-	token := \"own-\" + strconv.FormatInt(id, 10)
-	var public bool",
+		Old:  "\t\treturn true, nil\n\t}\n\ttoken := \"own-\" + strconv.FormatInt(id, 10)\n\tvar public bool",
+		New:  "\t\treturn true, nil\n\t}\n\tif id > 0 {\n\t\treturn true, nil\n\t}\n\ttoken := \"own-\" + strconv.FormatInt(id, 10)\n\tvar public bool",
 		Pkg:  "./internal/server/", Tests: "^TestTemplateFonts$",
 	},
 	{
