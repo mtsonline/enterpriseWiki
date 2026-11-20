@@ -74,19 +74,25 @@ function tipWidget(root: HTMLElement): void {
   const btn = h('button', { type: 'button', class: 'ewl-tip-button', 'aria-describedby': id }, term.textContent ?? '') as HTMLButtonElement;
   let pinned = false;
   let timer = 0;
-  const show = () => { window.clearTimeout(timer); tip.hidden = false; };
+  const show = () => { window.clearTimeout(timer); delete tip.dataset.dismissed; tip.hidden = false; };
+  // it stays while it is pinned by a tap or the word has the keyboard focus
+  // (only Escape or leaving the word with the focus hides it then)
   const hide = (force = false) => {
-    if (pinned && !force) return;
+    if ((pinned || document.activeElement === btn) && !force) return;
     window.clearTimeout(timer);
     timer = window.setTimeout(() => { tip.hidden = true; pinned = false; }, force ? 0 : 200);
   };
+  // shown with the keyboard focus also by CSS (:focus-visible), whatever the
+  // order of events; Escape dismisses it until the focus leaves
   btn.addEventListener('focus', show);
-  btn.addEventListener('blur', () => hide(true));
+  btn.addEventListener('blur', () => { delete tip.dataset.dismissed; hide(true); });
   btn.addEventListener('click', () => { pinned = !pinned || tip.hidden === true; if (pinned) show(); else hide(true); });
   root.addEventListener('mouseenter', show);
   root.addEventListener('mouseleave', () => hide());
-  root.addEventListener('keydown', (ev) => { if (ev.key === 'Escape' && !tip.hidden) { ev.stopPropagation(); hide(true); } });
-  document.addEventListener('keydown', (ev) => { if (ev.key === 'Escape' && !tip.hidden) hide(true); });
+  const dismiss = () => { tip.dataset.dismissed = ''; hide(true); };
+  const shownNow = () => tip.hidden !== true || (btn.matches(':focus-visible') && tip.dataset.dismissed === undefined);
+  root.addEventListener('keydown', (ev) => { if (ev.key === 'Escape' && shownNow()) { ev.stopPropagation(); dismiss(); } });
+  document.addEventListener('keydown', (ev) => { if (ev.key === 'Escape' && shownNow()) dismiss(); });
   root.replaceChildren(btn, tip);
   root.classList.add('ewl-tip--ready');
 }

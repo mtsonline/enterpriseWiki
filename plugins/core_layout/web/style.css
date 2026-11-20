@@ -163,4 +163,5 @@ button.ewl-cta { font: inherit; font-weight: 700; cursor: pointer; }
 .ewl-tip-button { font: inherit; color: inherit; background: none; border: 0; padding: 0; text-decoration: underline dotted; text-underline-offset: .2em; cursor: help; min-height: 1.5rem; }
 .ewl-tip-bubble { position: absolute; inset-inline-start: 0; top: calc(100% + .35rem); z-index: 30; width: max-content; max-width: min(20rem, 80vw); padding: .5rem .65rem; border-radius: var(--ew-radius); background: var(--ew-text); color: var(--ew-bg); font-size: .9rem; line-height: 1.35; box-shadow: 0 4px 12px rgb(0 0 0 / .2); }
 .ewl-tip-bubble[hidden] { display: none; }
+.ewl-tip-button:focus-visible + .ewl-tip-bubble[hidden]:not([data-dismissed]) { display: block; }
 @media (forced-colors: active) { .ewl-tip-bubble { border: 1px solid CanvasText; } }

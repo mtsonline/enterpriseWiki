@@ -3120,7 +3120,12 @@ test('blocks B, part 1: progress bar, counter, timeline, dialog with a button, t
   const tip = page.getByRole('tooltip');
   await word.focus();
   await tip.waitFor();
-  assert.equal(await tip.textContent(), 'Programming interface');
+  assert.equal(await page.locator('.ewl-tip-bubble').textContent(), 'Programming interface');
+  // the pointer leaving the word does not hide what the focus shows (found in CI)
+  await word.hover();
+  await page.mouse.move(0, 0);
+  await page.waitForTimeout(400);
+  assert.ok(await tip.isVisible(), 'stays while the word has the focus');
   assert.equal(await word.evaluate((b) => document.getElementById(b.getAttribute('aria-describedby'))?.textContent), 'Programming interface');
   await page.keyboard.press('Escape');
   await tip.waitFor({ state: 'hidden' });
