@@ -380,7 +380,8 @@ func (p *Plugin) submit(w http.ResponseWriter, r *http.Request) (any, error) {
 		}
 	}
 	if len(errs) > 0 {
-		h.Write(w, http.StatusUnprocessableEntity, map[string]any{"error": map[string]any{"code": "invalid", "message": "please check the marked fields", "fields": errs}})
+		msg := apperr.Localized(apperr.New(http.StatusUnprocessableEntity, "invalid", "please check the marked fields"), apperr.RequestLanguage(r))
+		h.Write(w, http.StatusUnprocessableEntity, map[string]any{"error": map[string]any{"code": "invalid", "message": msg, "fields": errs}})
 		return h.Handled{}, nil
 	}
 	for _, u := range ups {

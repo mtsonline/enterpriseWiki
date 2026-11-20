@@ -13,6 +13,7 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/mtsonline/enterprisewiki/internal/apperr"
 	nethtml "golang.org/x/net/html"
 	"golang.org/x/net/html/atom"
 )
@@ -353,11 +354,11 @@ func (s *Service) RenderMacros(ctx context.Context, rc RenderContext, src string
 		case mp != nil && mp.only && mp.index != count:
 			// only one macro is asked for: leave the others out
 		case count > 200:
-			out = note("too many macros on this page")
+			out = note(apperr.Localized(apperr.BadRequest("too many macros on this page"), rc.Lang))
 		case m == nil:
-			out = note(fmt.Sprintf("macro %q is not available", name))
+			out = note(apperr.Localized(apperr.BadRequest("macro %q is not available", name), rc.Lang))
 		case len(allowed) > 0 && !slices.Contains(allowed, name):
-			out = note(fmt.Sprintf("macro %q is not available in this space", name))
+			out = note(apperr.Localized(apperr.BadRequest("macro %q is not available in this space", name), rc.Lang))
 		default:
 			body := renderChildren(n)
 			params := ParseMacroParams(attr(n, "data-params"))
@@ -366,14 +367,19 @@ func (s *Service) RenderMacros(ctx context.Context, rc RenderContext, src string
 			}
 			res, err := m.Render(ctx, MacroContext{RenderContext: rc, Params: params, Body: body, Headings: headings, Index: count, Page: page})
 			if err != nil {
-				out = note(fmt.Sprintf("macro %s: %s", name, err.Error()))
+				// in the language of the page: "Makro Akkordeon: …"
+				label := m.Labels()[rc.Lang]
+				if label == "" {
+					label = name
+				}
+				out = note(apperr.Localized(apperr.BadRequest("macro %s: %s", label, apperr.Localized(err, rc.Lang)), rc.Lang))
 			} else {
 				tag := "div"
 				if n.DataAtom == atom.Span {
 					tag = "span" // inline macro
 				}
 				if tag == "div" {
-					res = withBlockOptions(res, params[OptionsParam])
+					res = withBlockOptions(res, params[OptionsParam], rc.Lang)
 				}
 				out = `<` + tag + ` class="ew-macro ew-macro--` + html.EscapeString(name) + `" data-macro-index="` + strconv.Itoa(count) + `">` + res + `</` + tag + `>`
 			}
@@ -413,7 +419,7 @@ const OptionsParam = "options"
 // withBlockOptions puts a rendered block into a frame with its options; the
 // browser builds the look from them (CSS only from values of a valid form).
 // Options the server does not accept are not used, and the block says so.
-func withBlockOptions(res, raw string) string {
+func withBlockOptions(res, raw, lang string) string {
 	raw = strings.TrimSpace(raw)
 	if raw == "" || raw == "{}" {
 		return res
@@ -421,10 +427,10 @@ func withBlockOptions(res, raw string) string {
 	var o map[string]any
 	dec := json.NewDecoder(strings.NewReader(raw))
 	if err := dec.Decode(&o); err != nil || dec.More() {
-		return macroNote("options: not a valid list of options") + res
+		return macroNote(apperr.Localized(apperr.BadRequest("options: not a valid list of options"), lang)) + res
 	}
 	if err := CheckBlockOptions(o); err != nil {
-		return macroNote(err.Error()) + res
+		return macroNote(apperr.Localized(err, lang)) + res
 	}
 	if len(o) == 0 {
 		return res

@@ -12,6 +12,7 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/mtsonline/enterprisewiki/internal/apperr"
 	"github.com/mtsonline/enterprisewiki/internal/content"
 	"github.com/mtsonline/enterprisewiki/internal/media"
 )
@@ -57,7 +58,7 @@ func (a attachments) Render(ctx context.Context, mc content.MacroContext) (strin
 	}
 	if t := mc.Params["type"]; t != "" && t != "all" {
 		if !slices.Contains(attachTypes, t) {
-			return "", fmt.Errorf("unknown kind %q", t)
+			return "", apperr.BadRequest("unknown kind %q", t)
 		}
 		in.Type = t
 	}
@@ -68,11 +69,11 @@ func (a attachments) Render(ctx context.Context, mc content.MacroContext) (strin
 			cat = v
 		}
 		if cat == 0 {
-			return "", fmt.Errorf("choose a category")
+			return "", apperr.BadRequest("choose a category")
 		}
 		// the category itself must be visible (its files have their own rights)
 		if _, err := mc.Service.Scope(ctx, cat, false); err != nil {
-			return "", fmt.Errorf("the category %d is not there or not visible to you", cat)
+			return "", apperr.BadRequest("the category %d is not there or not visible to you", cat)
 		}
 		in.CategoryID, in.Recursive = cat, mc.Params["sub"] == "true"
 	} else {

@@ -14,8 +14,10 @@ import (
 	"time"
 
 	"github.com/mtsonline/enterprisewiki/internal/app"
+	"github.com/mtsonline/enterprisewiki/internal/apperr"
 	"github.com/mtsonline/enterprisewiki/internal/auth"
 	"github.com/mtsonline/enterprisewiki/internal/collab"
+	h "github.com/mtsonline/enterprisewiki/internal/httpx"
 	"github.com/mtsonline/enterprisewiki/internal/identity"
 	"github.com/mtsonline/enterprisewiki/internal/limits"
 	"github.com/mtsonline/enterprisewiki/internal/pluginmgr"
@@ -94,7 +96,7 @@ func (s *Server) Run(ctx context.Context) error {
 // serveFrontend serves static files and falls back to index.html for SPA routes.
 func (s *Server) serveFrontend(w http.ResponseWriter, r *http.Request) {
 	if strings.HasPrefix(r.URL.Path, "/api/") {
-		http.Error(w, `{"error":{"code":"not_found","message":"no such endpoint"}}`, http.StatusNotFound)
+		h.WriteError(w, r, apperr.New(http.StatusNotFound, "not_found", "no such endpoint"))
 		return
 	}
 	if r.Method != http.MethodGet && r.Method != http.MethodHead {

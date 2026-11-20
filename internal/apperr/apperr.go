@@ -15,22 +15,29 @@ type Error struct {
 	// Detail is passed to the client as "detail" (e.g. the token of a
 	// sign-in that needs confirmation).
 	Detail string
+	// format and args make Msg; with them the message is said in the
+	// language of the person (Localized). Empty format: Msg is the format.
+	format string
+	args   []any
 }
 
 func (e *Error) Error() string { return e.Msg }
 
 func newf(status int, code, format string, a ...any) *Error {
-	return &Error{Status: status, Code: code, Msg: fmt.Sprintf(format, a...)}
+	return &Error{Status: status, Code: code, Msg: fmt.Sprintf(format, a...), format: format, args: a}
 }
 
 // Constructors.
 // New returns an error with a status and code.
-func New(status int, code, msg string) error { return newf(status, code, "%s", msg) }
+func New(status int, code, msg string) error { return &Error{Status: status, Code: code, Msg: msg} }
 
 func BadRequest(format string, a ...any) error {
 	return newf(http.StatusBadRequest, "bad_request", format, a...)
 }
-func NotFound(what string) error { return newf(http.StatusNotFound, "not_found", "%s not found", what) }
+func NotFound(what string) error {
+	// the whole message is the text to translate ("page not found")
+	return &Error{Status: http.StatusNotFound, Code: "not_found", Msg: what + " not found"}
+}
 func Forbidden(format string, a ...any) error {
 	return newf(http.StatusForbidden, "forbidden", format, a...)
 }

@@ -1,5 +1,11 @@
 // API client. The frontend uses exactly the public REST API.
 
+/** The language of the interface: the server answers errors in it. */
+function langHeader(): Record<string, string> {
+  const l = typeof document !== 'undefined' ? document.documentElement.lang : '';
+  return l ? { 'Accept-Language': l } : {};
+}
+
 export class ApiError extends Error {
   /** detail: e.g. the token of a sign-in that waits for linking */
   constructor(public status: number, public code: string, message: string, public detail = '') {
@@ -71,7 +77,7 @@ async function request<T>(method: string, path: string, body?: unknown, backgrou
     const p = fromPreload(url);
     if (p.hit) return p.data as T;
   }
-  const headers: Record<string, string> = { 'X-Requested-With': 'ewiki', Accept: 'application/json' };
+  const headers: Record<string, string> = { 'X-Requested-With': 'ewiki', Accept: 'application/json', ...langHeader() };
   // automatic requests (polling) do not count as activity for the idle timeout
   if (background) headers['X-Ewiki-Background'] = '1';
   const init: RequestInit = { method, headers, credentials: 'same-origin' };
@@ -137,7 +143,7 @@ export async function uploadFile(file: File): Promise<UploadedFile> {
   fd.append('file', file, file.name);
   let res: Response;
   try {
-    res = await fetch('/api/v1/files', { method: 'POST', body: fd, credentials: 'same-origin', headers: { 'X-Requested-With': 'ewiki' } });
+    res = await fetch('/api/v1/files', { method: 'POST', body: fd, credentials: 'same-origin', headers: { 'X-Requested-With': 'ewiki', ...langHeader() } });
   } catch {
     throw new ApiError(0, 'network', 'network error');
   }
@@ -151,7 +157,7 @@ export async function postRaw<T>(path: string, body: Blob, contentType = 'applic
   const url = path.startsWith('/') ? path : `/api/v1/${path}`;
   let res: Response;
   try {
-    res = await fetch(url, { method: 'POST', body, credentials: 'same-origin', headers: { 'X-Requested-With': 'ewiki', 'Content-Type': contentType, Accept: 'application/json' } });
+    res = await fetch(url, { method: 'POST', body, credentials: 'same-origin', headers: { 'X-Requested-With': 'ewiki', 'Content-Type': contentType, Accept: 'application/json', ...langHeader() } });
   } catch {
     throw new ApiError(0, 'network', 'network error');
   }

@@ -14,6 +14,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/mtsonline/enterprisewiki/internal/apperr"
 	"github.com/mtsonline/enterprisewiki/internal/content"
 	"github.com/mtsonline/enterprisewiki/plugins/core_macros"
 )
@@ -77,18 +78,18 @@ func gridWidths(v string, n int) ([]int, error) {
 		return nil, nil
 	}
 	if len(f) != n {
-		return nil, fmt.Errorf("widths: one number per column (%d on the desktop)", n)
+		return nil, apperr.BadRequest("widths: one number per column (%d on the desktop)", n)
 	}
 	out, lo, sum := make([]int, n), 5, 0
 	for i, x := range f {
 		w, err := strconv.Atoi(x)
 		if err != nil || w < 1 || w > 5 {
-			return nil, fmt.Errorf("widths: whole numbers from 1 to 5")
+			return nil, apperr.BadRequest("widths: whole numbers from 1 to 5")
 		}
 		out[i], lo, sum = w, min(lo, w), sum+w
 	}
 	if float64(lo)/float64(sum)*float64(content.MaxColumns("desktop")) < 1 {
-		return nil, fmt.Errorf("widths: the narrowest column would have too little room on the desktop; make it wider or the others narrower")
+		return nil, apperr.BadRequest("widths: the narrowest column would have too little room on the desktop; make it wider or the others narrower")
 	}
 	return out, nil
 }
@@ -100,7 +101,7 @@ func (grid) Render(_ context.Context, mc content.MacroContext) (string, error) {
 		n[view] = intParam(mc.Params[view], def, 1, 5)
 		// the same rule as for every block: what is side by side needs room
 		if n[view] > content.MaxColumns(view) {
-			return "", fmt.Errorf("on the %s at most %d columns have room side by side; set fewer", view, content.MaxColumns(view))
+			return "", apperr.BadRequest("on the %s at most %d columns have room side by side; set fewer", view, content.MaxColumns(view))
 		}
 	}
 	ws, err := gridWidths(mc.Params["widths"], n["desktop"])
@@ -154,7 +155,7 @@ func (heading) Params() []content.MacroParam {
 func (heading) Render(_ context.Context, mc content.MacroContext) (string, error) {
 	text := strings.TrimSpace(mc.Params["text"])
 	if text == "" {
-		return "", fmt.Errorf("the heading needs a text")
+		return "", apperr.BadRequest("the heading needs a text")
 	}
 	level := intParam(mc.Params["level"], 2, 2, 6)
 	cls := "ewl-heading ewl-heading--" + oneOf(mc.Params["size"], headingSizes) + " ewl-align--" + oneOf(mc.Params["align"], aligns3)
@@ -243,12 +244,12 @@ func (buttons) Render(_ context.Context, mc content.MacroContext) (string, error
 		}
 		icon, err := buttonIcon(mc.Params["icon"+n])
 		if err != nil {
-			return "", fmt.Errorf("button %d: %v", i, err)
+			return "", apperr.BadRequest("button %d: %v", i, err)
 		}
 		b.WriteString(`<a class="ewl-cta ewl-cta--` + oneOf(style, buttonStyles) + `" href="` + esc(SafeURL(mc.Params["link"+n])) + `">` + icon + esc(text) + `</a>`)
 	}
 	if shown == 0 {
-		return "", fmt.Errorf("at least one button needs a text")
+		return "", apperr.BadRequest("at least one button needs a text")
 	}
 	b.WriteString(`</div>`)
 	return b.String(), nil
@@ -291,7 +292,7 @@ func (cta) Render(_ context.Context, mc content.MacroContext) (string, error) {
 	title := strings.TrimSpace(mc.Params["title"])
 	text := strings.TrimSpace(mc.Params["button"])
 	if title == "" || text == "" {
-		return "", fmt.Errorf("a call to action needs a title and a button text")
+		return "", apperr.BadRequest("a call to action needs a title and a button text")
 	}
 	var b strings.Builder
 	fmt.Fprintf(&b, `<div class="ewl-ctabox ewl-ctabox--%s"><div class="ewl-ctabox-text"><p class="ewl-ctabox-title">%s</p>`, oneOf(mc.Params["layout"], []string{"side", "stack"}), esc(title))
@@ -342,10 +343,10 @@ func panels(body string, what map[string]string, lang string) ([][2]string, erro
 		out = append(out, [2]string{name, rest})
 	}
 	if len(out) == 0 {
-		return nil, fmt.Errorf("separate the parts with a horizontal line")
+		return nil, apperr.BadRequest("separate the parts with a horizontal line")
 	}
 	if len(out) > 20 {
-		return nil, fmt.Errorf("at most 20 parts")
+		return nil, apperr.BadRequest("at most 20 parts")
 	}
 	return out, nil
 }

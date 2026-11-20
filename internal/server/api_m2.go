@@ -312,7 +312,7 @@ func (s *Server) routesM2() {
 
 // ssoError sends the browser back to the login page with a message.
 func (s *Server) ssoError(w http.ResponseWriter, r *http.Request, err error) {
-	_, code, msg := apperr.Status(err)
+	_, code, _ := apperr.Status(err)
 	if code == "internal" {
 		s.log.Error("sso failed", "err", err)
 	}
@@ -321,7 +321,7 @@ func (s *Server) ssoError(w http.ResponseWriter, r *http.Request, err error) {
 		http.Redirect(w, r, "/login?link="+url.QueryEscape(ae.Detail), http.StatusSeeOther)
 		return
 	}
-	http.Redirect(w, r, "/login?error="+url.QueryEscape(msg), http.StatusSeeOther)
+	http.Redirect(w, r, "/login?error="+url.QueryEscape(apperr.Localized(err, apperr.RequestLanguage(r))), http.StatusSeeOther)
 }
 
 // sharedProfilePhoto reports whether hash is the profile photo of a shared

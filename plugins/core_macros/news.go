@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/mtsonline/enterprisewiki/internal/apperr"
 	"github.com/mtsonline/enterprisewiki/internal/content"
 	"github.com/mtsonline/enterprisewiki/internal/feedfetch"
 )
@@ -72,7 +73,7 @@ func (n news) Render(ctx context.Context, mc content.MacroContext) (string, erro
 	cols := intParam(mc.Params, "columns", 4, 2, 5)
 	tab := intParam(mc.Params, "tablet", 2, 1, 3)
 	if cols > content.MaxColumns("desktop") || tab > content.MaxColumns("tablet") {
-		return "", fmt.Errorf("tiles: at most %d columns on the desktop and %d on the tablet have room", content.MaxColumns("desktop"), content.MaxColumns("tablet"))
+		return "", apperr.BadRequest("tiles: at most %d columns on the desktop and %d on the tablet have room", content.MaxColumns("desktop"), content.MaxColumns("tablet"))
 	}
 	srcs, err := content.ParseSourcesKinds(mc.Params["source"], []string{"feed"})
 	if err != nil {
