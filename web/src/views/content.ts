@@ -727,14 +727,20 @@ function editorActions(opts: { cancelHref: string; publishLabel: string; onDraft
 /**
  * Keeps unsaved changes of an editor: leaving the page by a link or the
  * back button asks first (save as draft, discard, keep editing); closing
- * the tab asks with the browser's question. mark() takes the current content
- * as saved (after mounting, loading a draft or a template, saving a draft).
+ * the tab asks with the browser's question. What counts as unchanged is the
+ * content right before the first input of the person in the form (editors
+ * settle their content after mounting, live editing brings the text of
+ * others); mark() takes the current content as saved (after saving a
+ * draft), reset() waits for the next input again (a draft was loaded).
  */
-function keepChanges(current: () => EditorState, saveAsDraft: () => Promise<void>): { mark: () => void; dirty: () => boolean } {
+function keepChanges(form: HTMLElement, current: () => EditorState, saveAsDraft: () => Promise<void>): { mark: () => void; reset: () => void; dirty: () => boolean } {
   const snap = () => { const c = current(); return JSON.stringify([c.title, c.body, c.tags, c.fields]); };
   let saved: string | null = null;
   const mark = () => { try { saved = snap(); } catch { saved = null; } };
   const dirty = () => saved !== null && snap() !== saved;
+  // before the first change is made (capture: before the editor handles it)
+  const first = () => { if (saved === null) mark(); };
+  for (const ev of ['beforeinput', 'keydown', 'pointerdown', 'paste', 'drop']) form.addEventListener(ev, first, true);
   guardLeave(dirty, () => new Promise<boolean>((resolve) => {
     let leave = false;
     const d = openDialog(t('editor.leave_title'), h('p', null, t('editor.leave_text')), [
@@ -746,9 +752,7 @@ function keepChanges(current: () => EditorState, saveAsDraft: () => Promise<void
     ], { onClose: () => resolve(leave) });
     d.dialog.setAttribute('role', 'alertdialog');
   }));
-  // the editors settle their content after mounting (e.g. normalized Markdown)
-  setTimeout(mark, 0);
-  return { mark, dirty };
+  return { mark, reset: () => { saved = null; }, dirty };
 }
 
 export async function editElementView({ params, query, main }: RouteCtx): Promise<void> {
@@ -838,7 +842,7 @@ export async function editElementView({ params, query, main }: RouteCtx): Promis
     }));
   mount(main, form);
   editor = mountEditor(editorBox, el.type, el.body, lang, labelId, formatHost, tools, el.id, remoteSave);
-  const keep = keepChanges(current, async () => { draftId = (await saveDraft(draftId, current())).id; });
+  const keep = keepChanges(form, current, async () => { draftId = (await saveDraft(draftId, current())).id; });
   void draftNotice(id, lang, (d) => {
     draftId = d.id;
     title.value = d.title;
@@ -848,7 +852,7 @@ export async function editElementView({ params, query, main }: RouteCtx): Promis
     editor.destroy?.();
     editorBox.replaceChildren();
     editor = mountEditor(editorBox, el.type, d.body, lang, labelId, formatHost, tools, el.id, remoteSave);
-    setTimeout(keep.mark, 0); // the draft is saved already
+    keep.reset(); // the draft is saved already: changes count from the next input
     toast(t('draft.loaded'));
   }).then((n) => { if (n) notices.append(n); });
   const orig = original?.querySelector<HTMLElement>('[data-original]');
@@ -999,7 +1003,7 @@ async function newOrDraftView({ params, query, main }: RouteCtx, draft: Draft | 
   mount(main, form);
   const empty = draft?.body ?? types.find((x) => x.id === typeId)?.empty_body ?? {};
   editor = mountEditor(editorBox, typeId, empty, lang, labelId, formatHost, toolsOf(cat.category));
-  const keep = keepChanges(current, draftNow);
+  const keep = keepChanges(form, current, draftNow);
   if (!draft) {
     const applyTemplate = (tpl: Template) => {
       if (!title.value.trim()) title.value = tpl.title;
