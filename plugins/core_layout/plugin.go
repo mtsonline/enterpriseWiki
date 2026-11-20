@@ -31,7 +31,7 @@ func (p *Plugin) Manifest() coreplugin.Manifest { return coreplugin.ParseManifes
 
 // Setup registers the macros.
 func (p *Plugin) Setup(h *coreplugin.Host) error {
-	for _, m := range []content.Macro{section{}, hero{}, cards{}, button{}, spacer{}, grid{}, heading{}, divider{}, buttons{}, cta{}, tabs{}, accordion{}, icon{}, iconbox{}, iconlist{}, progress{}, counter{}, timeline{}, dialog{}, tooltip{}, testimonial{}, logos{}} {
+	for _, m := range []content.Macro{section{}, hero{}, cards{}, button{}, spacer{}, grid{}, heading{}, divider{}, buttons{}, cta{}, tabs{}, accordion{}, icon{}, iconbox{}, iconlist{}, progress{}, counter{}, timeline{}, dialog{}, tooltip{}, testimonial{}, logos{}, personcard{}, rotating{}, ticker{}, slider{}} {
 		h.RegisterMacro(m)
 	}
 	return nil

@@ -102,7 +102,127 @@ function tipWidget(root: HTMLElement): void {
   root.classList.add('ewl-tip--ready');
 }
 
+/** A button that pauses and resumes motion (WCAG 2.2.2); its name says what
+ * it does now. */
+function pauseButton(onChange: (paused: boolean) => void): HTMLButtonElement {
+  const btn = h('button', { type: 'button', class: 'ew-btn ew-btn--subtle ewl-pause', 'aria-pressed': 'false' }) as HTMLButtonElement;
+  const show = (paused: boolean) => {
+    btn.setAttribute('aria-pressed', String(paused));
+    btn.replaceChildren(h('span', { 'aria-hidden': 'true' }, paused ? '▶ ' : '❚❚ '), paused ? t('layout.resume') : t('layout.pause'));
+  };
+  btn.addEventListener('click', () => { const p = btn.getAttribute('aria-pressed') !== 'true'; show(p); onChange(p); });
+  show(false);
+  return btn;
+}
+
+/** Motion stops while the pointer or the focus is in root. */
+function heldWhileUsed(root: HTMLElement): () => boolean {
+  let held = false;
+  const on = () => { held = true; };
+  const off = () => { held = root.matches(':hover') || root.contains(document.activeElement); };
+  root.addEventListener('mouseenter', on);
+  root.addEventListener('mouseleave', () => { held = root.contains(document.activeElement); });
+  root.addEventListener('focusin', on);
+  root.addEventListener('focusout', () => setTimeout(off, 0));
+  return () => held;
+}
+
+/** A heading with changing words: one word shows at a time (every 2.5 s);
+ * screen readers get the whole text with all words; a pause button; nothing
+ * moves with reduced motion. */
+function rotatingWidget(root: HTMLElement): void {
+  const heading = root.querySelector<HTMLElement>('.ewl-rot-heading');
+  const words = [...root.querySelectorAll<HTMLElement>('.ewl-rot-word')];
+  if (!heading || words.length < 2 || reducedMotion()) return;
+  const whole = heading.textContent ?? '';
+  const visual = h('span', { 'aria-hidden': 'true', class: 'ewl-rot-visual' }, ...[...heading.childNodes]);
+  heading.replaceChildren(h('span', { class: 'sr-only' }, whole), visual);
+  root.classList.add('ewl-rot--ready');
+  const typing = root.classList.contains('ewl-rot--type');
+  const texts = words.map((w) => w.textContent ?? '');
+  let at = 0;
+  let paused = false;
+  const held = heldWhileUsed(root);
+  const show = (i: number) => {
+    words.forEach((w, j) => w.classList.toggle('is-active', i === j));
+    if (typing) {
+      const w = words[i];
+      let n = 0;
+      w.textContent = '';
+      const step = () => { n++; w.textContent = texts[i].slice(0, n); if (n < texts[i].length) setTimeout(step, 70); };
+      step();
+    }
+  };
+  show(0);
+  window.setInterval(() => {
+    if (paused || held() || !root.isConnected) return;
+    at = (at + 1) % words.length;
+    show(at);
+  }, 2500);
+  root.append(pauseButton((p) => { paused = p; }));
+}
+
+/** A ticker: the list runs through the band (a copy hidden from screen
+ * readers closes the loop); a pause button; it stops while used; nothing
+ * moves with reduced motion. */
+function tickerWidget(root: HTMLElement): void {
+  const list = root.querySelector<HTMLElement>(':scope > .ewl-ticker-list');
+  if (!list || reducedMotion()) return;
+  const copy = list.cloneNode(true) as HTMLElement;
+  copy.setAttribute('aria-hidden', 'true');
+  copy.removeAttribute('id');
+  for (const el of copy.querySelectorAll<HTMLElement>('a, button, input, select, textarea, [tabindex]')) el.tabIndex = -1;
+  const track = h('div', { class: 'ewl-ticker-track' }, list, copy);
+  const band = h('div', { class: 'ewl-ticker-band' }, track);
+  root.replaceChildren(pauseButton((p) => root.classList.toggle('ewl-ticker--paused', p)), band);
+  root.classList.add('ewl-ticker--run');
+}
+
+/** A slider after the carousel pattern of WAI-ARIA: one part at a time,
+ * previous and next, a button per part; optionally it changes by itself
+ * (every 7 s, never with reduced motion) with a pause button, and stops
+ * while used. */
+function sliderWidget(root: HTMLElement): void {
+  const box = root.querySelector<HTMLElement>(':scope > .ewl-slides');
+  const slides = box ? [...box.querySelectorAll<HTMLElement>(':scope > .ewl-slide')] : [];
+  if (!box || slides.length < 2) return;
+  box.id ||= uid('ewl-slides');
+  let at = 0;
+  const auto = root.dataset.auto === 'true' && !reducedMotion();
+  let paused = !auto;
+  const dots = slides.map((_, i) => {
+    const b = h('button', { type: 'button', class: 'ewl-slider-dot', 'aria-controls': box.id, 'aria-label': t('layout.slide_n', { n: String(i + 1), of: String(slides.length) }) }) as HTMLButtonElement;
+    b.addEventListener('click', () => go(i));
+    return b;
+  });
+  const go = (i: number) => {
+    at = (i + slides.length) % slides.length;
+    slides.forEach((s, j) => { s.hidden = j !== at; });
+    dots.forEach((d, j) => { if (j === at) d.setAttribute('aria-current', 'true'); else d.removeAttribute('aria-current'); });
+  };
+  const prev = h('button', { type: 'button', class: 'ew-btn ew-btn--subtle', 'aria-controls': box.id }, h('span', { 'aria-hidden': 'true' }, '‹ '), t('layout.previous')) as HTMLButtonElement;
+  const next = h('button', { type: 'button', class: 'ew-btn ew-btn--subtle', 'aria-controls': box.id }, t('layout.next'), h('span', { 'aria-hidden': 'true' }, ' ›')) as HTMLButtonElement;
+  prev.addEventListener('click', () => go(at - 1));
+  next.addEventListener('click', () => go(at + 1));
+  // changes are announced only while it does not change by itself
+  const live = () => box.setAttribute('aria-live', paused ? 'polite' : 'off');
+  const controls = h('div', { class: 'ewl-slider-controls' });
+  if (auto) {
+    controls.append(pauseButton((p) => { paused = p; live(); }));
+    const held = heldWhileUsed(root);
+    window.setInterval(() => { if (!paused && !held() && root.isConnected) go(at + 1); }, 7000);
+  }
+  controls.append(prev, h('div', { class: 'ewl-slider-dots' }, ...dots), next);
+  root.prepend(controls);
+  root.classList.add('ewl-slider--ready');
+  live();
+  go(0);
+}
+
 export function register(): void {
+  registerWidget('ewl.rotating', rotatingWidget);
+  registerWidget('ewl.ticker', tickerWidget);
+  registerWidget('ewl.slider', sliderWidget);
   registerWidget('ewl.counter', counterWidget);
   registerWidget('ewl.dialog', dialogWidget);
   registerWidget('ewl.tip', tipWidget);
