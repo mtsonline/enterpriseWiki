@@ -43,6 +43,9 @@ const DESKTOP_MIN = LIMITS.views.desktop.min_px;
 
 // ---------------------------------------------------------------- CSS
 
+/** An uploaded font in the tokens (the same form the server checks). */
+export const OWN_FONT = /^own-[1-9][0-9]{0,17}$/;
+
 const FONTS: Record<string, string> = {
   system: 'system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
   inter: '"Inter Variable", system-ui, sans-serif',
@@ -75,8 +78,14 @@ export function designCSS(d: Design, cls: string): string {
   const s = `body.${cls}`;
   // nothing but values of a safe form goes into the CSS (see cssSafe)
   if (!cssSafe(d)) return '';
-  const font = (f: string) => FONTS[f] ?? FONTS.system;
   const out: string[] = [];
+  // uploaded fonts (own-ID, checked on the server): one WOFF2 file each, served
+  // by the wiki itself; the face covers every weight (variable fonts)
+  const own = (f: string) => OWN_FONT.test(f) ? `"ewd-${f}"` : '';
+  const font = (f: string) => own(f) ? `${own(f)}, ${FONTS.system}` : FONTS[f] ?? FONTS.system;
+  for (const f of new Set([k.font, k.heading_font])) {
+    if (own(f)) out.push(`@font-face { font-family: ${own(f)}; src: url("/api/v1/x/core.template/fonts/${f.slice(4)}/file") format("woff2"); font-weight: 100 900; font-display: swap; }`);
+  }
   out.push(`html:has(${s}) { font-size: ${Number(k.scale)}%; }`);
   out.push(`${s} { --ew-bg: ${k.bg}; --ew-bg-subtle: ${k.bg_subtle}; --ew-bg-raised: ${k.bg}; --ew-text: ${k.text}; --ew-text-muted: ${k.text_muted};
   --ew-border: ${k.border}; --ew-primary: ${k.primary}; --ew-primary-hover: color-mix(in srgb, ${k.primary} 82%, black); --ew-on-primary: ${k.on_primary};

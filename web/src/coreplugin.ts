@@ -165,6 +165,22 @@ export function setPreviewTemplate(id: string): void { previewTpl = id; }
 /** The template shown instead of the one that applies ('' = none). */
 export function previewTemplate(): string { return previewTpl; }
 
+const tryKey = () => `ewiki:try-template:${state.site?.site ?? ''}`;
+/** A template someone tries only for themselves, in this browser, in place of
+ * the template of the site (categories with a template of their own keep it).
+ * Changes nothing for anybody else; '' = none or no longer there. */
+export function triedTemplate(): string {
+  let id = '';
+  try { id = localStorage.getItem(tryKey()) ?? ''; } catch { /* storage unavailable: nothing tried */ }
+  return id && templates.has(id) && resolveTemplate(id) ? id : '';
+}
+/** Tries a template in this browser ('' ends it). */
+export function setTriedTemplate(id: string): void {
+  try { if (id) localStorage.setItem(tryKey(), id); else localStorage.removeItem(tryKey()); } catch { /* not kept */ }
+}
+/** The template of the site as this browser shows it: the one tried, else the setting. */
+export function siteTemplate(): string { return triedTemplate() || state.site.template; }
+
 /** The template in use on this page (with inherited positions): the one of the category, else the site template. */
 export function activeTemplate(): ResolvedTemplate | null {
   return resolveTemplate(shownTemplate || (state.site?.template ?? 'theme.wiki'));

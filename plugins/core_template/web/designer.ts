@@ -21,6 +21,7 @@ const HISTORY_MAX = 100;
 
 export interface Tpl {
   id: string; key: string; names: Record<string, string>; design?: Design; version: number; read_only?: boolean;
+  may?: { edit: boolean; manage: boolean };
 }
 
 /** What the frame of the preview offers (see preview.ts). */
@@ -71,7 +72,10 @@ function shapeOK(d: unknown): d is Design {
 }
 
 export async function designer(panel: HTMLElement, key: string, back: () => void, saved: (t: Tpl) => void): Promise<void> {
-  const { template: tpl, used_by: used } = await api.get<{ template: Tpl; used_by: string[] }>(`${BASE}/templates/${key}`);
+  const [{ template: tpl, used_by: used }, ownFonts] = await Promise.all([
+    api.get<{ template: Tpl; used_by: string[] }>(`${BASE}/templates/${key}`),
+    api.get<{ token: string; name: string }[]>(`${BASE}/fonts`),
+  ]);
   let version = tpl.version;
   let draft = clone(tpl.design!);
   let savedJSON = JSON.stringify(draft);
@@ -479,14 +483,16 @@ export async function designer(panel: HTMLElement, key: string, back: () => void
         p.ok ? t('template.d_pair_ok', { name, value: fmt(p.value), min: fmt(p.min) }) : t('template.d_pair_bad', { name, value: fmt(p.value), min: fmt(p.min) }), ' ',
         !p.ok && p.suggestion ? button(t('template.d_pair_take', { color: p.suggestion }), () => change((d) => { (d.tokens as unknown as Record<string, string>)[p.pair.fore] = p.suggestion!; }), { variant: 'subtle', ariaLabel: t('template.d_pair_take_named', { name, color: p.suggestion }), id: cid(`pair-${p.pair.fore}-${p.pair.back}`) }) : null);
     }));
-    const fonts = (LIMITS.fonts as string[]);
+    // shipped fonts and the uploaded ones (Templates → Own fonts)
+    const fonts = [...(LIMITS.fonts as string[]), ...ownFonts.map((f) => f.token)];
+    const fontName = (o: string) => ownFonts.find((f) => f.token === o)?.name ?? t(`template.d_font_${o}`);
     return h('section', { class: 'ewd-design', 'aria-labelledby': 'ewd-design-h' },
       h('h2', { id: 'ewd-design-h' }, t('template.d_design')),
       h('h3', null, t('template.d_colors')), h('div', { class: 'ewd-colors' }, ...colors),
       h('h3', null, t('template.d_contrast')), h('p', { class: 'ew-help' }, t('template.d_contrast_help')), contrastList,
       h('h3', null, t('template.d_type')),
-      sel1('font', t('template.d_font'), fonts, k.font, (o) => t(`template.d_font_${o}`), (d, v) => { d.tokens.font = v; }),
-      sel1('heading_font', t('template.d_heading_font'), fonts, k.heading_font, (o) => t(`template.d_font_${o}`), (d, v) => { d.tokens.heading_font = v; }),
+      sel1('font', t('template.d_font'), fonts, k.font, fontName, (d, v) => { d.tokens.font = v; }, t('template.d_font_help')),
+      sel1('heading_font', t('template.d_heading_font'), fonts, k.heading_font, fontName, (d, v) => { d.tokens.heading_font = v; }),
       num('scale', t('template.d_scale'), k.scale, LIMITS.scale_percent[0], LIMITS.scale_percent[1], (d, v) => { d.tokens.scale = v; }, t('template.d_range', { min: LIMITS.scale_percent[0], max: LIMITS.scale_percent[1] })),
       num('radius', t('template.d_radius'), k.radius, LIMITS.radius_px[0], LIMITS.radius_px[1], (d, v) => { d.tokens.radius = v; }, t('template.d_range', { min: LIMITS.radius_px[0], max: LIMITS.radius_px[1] })),
       num('content_width', t('template.d_content_width'), k.content_width, LIMITS.content_width_rem[0], LIMITS.content_width_rem[1], (d, v) => { d.tokens.content_width = v; }, t('template.d_range', { min: LIMITS.content_width_rem[0], max: LIMITS.content_width_rem[1] })),
@@ -572,11 +578,14 @@ export async function designer(panel: HTMLElement, key: string, back: () => void
   // own CSS: only while the administration allows it; checked like on the server
   const cssField = (): HTMLElement => {
     const allowed = !!state.site.custom_css;
+    // own CSS of a template whose rights are limited: only those who manage it
+    const manages = tpl.may?.manage ?? true;
     const area = textArea({ value: draft.css ?? '', rows: 8 });
     area.id = cid('css');
     area.spellcheck = false;
     area.classList.add('ewe-mono');
     area.disabled = !allowed && !draft.css;
+    area.readOnly = !manages;
     const issues = h('ul', { class: 'ew-form-alert', 'aria-live': 'polite' });
     const show = () => {
       const ps = cssProblems(area.value);
@@ -586,7 +595,7 @@ export async function designer(panel: HTMLElement, key: string, back: () => void
     area.addEventListener('change', () => change((d) => { const v = area.value.trim(); if (v) d.css = v; else delete d.css; }));
     show();
     return h('div', null, h('h3', null, t('template.d_css')),
-      h('p', { class: allowed ? 'ew-help' : 'ew-notice ew-notice--info' }, allowed ? t('template.d_css_help') : t('template.d_css_off')),
+      h('p', { class: allowed && manages ? 'ew-help' : 'ew-notice ew-notice--info' }, !allowed ? t('template.d_css_off') : manages ? t('template.d_css_help') : t('template.d_css_manage')),
       field(t('template.d_css_label'), area), issues);
   };
 

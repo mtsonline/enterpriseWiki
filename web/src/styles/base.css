@@ -559,3 +559,8 @@ th[aria-sort="descending"] .ew-sort-button::after { content: " ↓"; opacity: 1;
 .ew-bo-video { object-fit: cover; }
 .ew-bo-videobtn { position: absolute; inset-block-start: .5rem; inset-inline-end: .5rem; z-index: 1; background: var(--ew-bg); color: var(--ew-text); min-block-size: 2.75rem; }
 @media print { .ew-bo-video, .ew-bo-videobtn { display: none; } }
+
+/* a website template tried only in this browser (components/trytemplate.ts) */
+.ew-try-bar { display: flex; flex-wrap: wrap; gap: .5rem 1rem; align-items: center; justify-content: space-between; padding: .5rem 1rem; background: var(--ew-bg-subtle); color: var(--ew-text); border-block-end: 2px solid var(--ew-primary); }
+.ew-try-bar p { margin: 0; }
+@media print { .ew-try-bar { display: none; } }

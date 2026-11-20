@@ -7,6 +7,7 @@ import (
 	"math"
 	"regexp"
 	"slices"
+	"strconv"
 	"strings"
 	"unicode/utf8"
 
@@ -24,6 +25,23 @@ type Design struct {
 	Options Options `json:"options"`
 	// CSS: own CSS of the template (only with ui.custom_css; see css.go)
 	CSS string `json:"css,omitempty"`
+}
+
+// OwnFontRe is the form of an uploaded font in the tokens (own-ID; that it
+// exists is checked by the store, which knows the fonts).
+var OwnFontRe = regexp.MustCompile(`^own-[1-9][0-9]{0,17}$`)
+
+// OwnFonts returns the ids of the uploaded fonts a design uses.
+func (d *Design) OwnFonts() []int64 {
+	var out []int64
+	for _, f := range []string{d.Tokens.Font, d.Tokens.HeadingFont} {
+		if OwnFontRe.MatchString(f) {
+			if n, err := strconv.ParseInt(f[4:], 10, 64); err == nil && !slices.Contains(out, n) {
+				out = append(out, n)
+			}
+		}
+	}
+	return out
 }
 
 // Tokens are the design values (CSS custom properties of the template).
@@ -584,11 +602,11 @@ func (t *Tokens) problems(add func(where, format string, args ...any)) {
 			}
 		}
 	}
-	if !slices.Contains(limits.Fonts, t.Font) {
-		add("tokens.font", "one of %v", limits.Fonts)
+	if !slices.Contains(limits.Fonts, t.Font) && !OwnFontRe.MatchString(t.Font) {
+		add("tokens.font", "one of %v or an uploaded font (own-ID)", limits.Fonts)
 	}
-	if !slices.Contains(limits.Fonts, t.HeadingFont) {
-		add("tokens.heading_font", "one of %v", limits.Fonts)
+	if !slices.Contains(limits.Fonts, t.HeadingFont) && !OwnFontRe.MatchString(t.HeadingFont) {
+		add("tokens.heading_font", "one of %v or an uploaded font (own-ID)", limits.Fonts)
 	}
 	if t.Scale < limits.ScalePercent[0] || t.Scale > limits.ScalePercent[1] {
 		add("tokens.scale", "%d to %d percent", limits.ScalePercent[0], limits.ScalePercent[1])

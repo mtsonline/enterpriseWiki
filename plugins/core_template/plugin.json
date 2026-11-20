@@ -4,7 +4,10 @@
   "version": "1.0.0",
   "description": "Website templates as data: rows of blocks with positions, colors, fonts and the views for tablet and phone, checked against limits that keep every template working and accessible. The same code builds the page in the designer and in the wiki.",
   "author": "Enterprise Wiki",
-  "kinds": ["template", "general"],
+  "kinds": [
+    "template",
+    "general"
+  ],
   "frontend": true,
   "permissions": [
     {
@@ -34,6 +37,36 @@
       "max": 5000,
       "label": "Versions per template",
       "help": "How many saved versions of a template are kept; older ones are removed when a new one is saved."
+    },
+    {
+      "key": "core.template.fonts",
+      "group": "templates",
+      "unit": "count",
+      "default": 30,
+      "min": 1,
+      "max": 500,
+      "label": "Uploaded fonts",
+      "help": "How many fonts can be uploaded for templates at most."
+    },
+    {
+      "key": "core.template.font_kb",
+      "group": "templates",
+      "unit": "kb",
+      "default": 1024,
+      "min": 16,
+      "max": 10240,
+      "label": "Size of a font file",
+      "help": "How large one uploaded font file (WOFF2) may be."
+    },
+    {
+      "key": "core.template.font_upload_kb",
+      "group": "templates",
+      "unit": "kb",
+      "default": 1500,
+      "min": 64,
+      "max": 14000,
+      "label": "Size of a font upload",
+      "help": "How large the request that uploads a font may be (the file as base64, about a third more than the file). Keep it above the size of a font file."
     }
   ]
 }
