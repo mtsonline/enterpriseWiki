@@ -22,6 +22,8 @@ let hideTimer: ReturnType<typeof setTimeout> | null = null;
 let pressTimer: ReturnType<typeof setTimeout> | null = null;
 let pressAt: { x: number; y: number } | null = null;
 let suppressClickUntil = 0;
+/** a long press showed a name: the click when the finger is lifted is not a press */
+let longPress = false;
 
 const TARGETS = 'button, a[href], [role="button"], summary';
 
@@ -154,16 +156,22 @@ export function startTooltips(): void {
     if (e.pointerType !== 'touch') { if (owner) hide(); return; }
     const el = targetOf(e);
     if (pressTimer) clearTimeout(pressTimer);
+    longPress = false;
     if (!el) { hide(); return; }
     pressAt = { x: e.clientX, y: e.clientY };
     pressTimer = setTimeout(() => {
       pressTimer = null;
       show(el);
-      suppressClickUntil = Date.now() + 800;
+      longPress = true;
       hideTimer = setTimeout(hide, TOUCH_SHOWN);
     }, LONG_PRESS);
   }, { passive: true });
   const cancelPress = () => { if (pressTimer) { clearTimeout(pressTimer); pressTimer = null; } };
+  // however long the finger stayed: the click that follows lifting it is not a press
+  const endPress = () => {
+    cancelPress();
+    if (longPress) { longPress = false; suppressClickUntil = Date.now() + 700; }
+  };
   document.addEventListener('pointermove', (e) => {
     if (pressTimer && pressAt && Math.hypot(e.clientX - pressAt.x, e.clientY - pressAt.y) > 10) cancelPress();
     // the pointer on the tooltip keeps it; leaving it (not to its button) hides it
@@ -172,14 +180,14 @@ export function startTooltips(): void {
     const on = e.clientX >= r.left - 2 && e.clientX <= r.right + 2 && e.clientY >= r.top - 8 && e.clientY <= r.bottom + 8;
     if (on) { if (hideTimer) { clearTimeout(hideTimer); hideTimer = null; } } else if (!owner.contains(e.target as Node)) hideSoon();
   }, { passive: true });
-  document.addEventListener('pointerup', cancelPress, { passive: true });
-  document.addEventListener('pointercancel', cancelPress, { passive: true });
+  document.addEventListener('pointerup', endPress, { passive: true });
+  document.addEventListener('pointercancel', endPress, { passive: true });
   // the long press only shows the name: the button is not pressed as well
   document.addEventListener('click', (e) => {
     if (Date.now() < suppressClickUntil) { suppressClickUntil = 0; e.preventDefault(); e.stopPropagation(); }
   }, true);
   // the context menu of a long press would cover the tooltip
-  document.addEventListener('contextmenu', (e) => { if (Date.now() < suppressClickUntil && targetOf(e)) e.preventDefault(); });
+  document.addEventListener('contextmenu', (e) => { if ((longPress || pressTimer) && targetOf(e)) e.preventDefault(); });
   window.addEventListener('scroll', () => { if (owner) hide(); }, { passive: true, capture: true });
   window.addEventListener('resize', () => { if (owner) hide(); });
 }

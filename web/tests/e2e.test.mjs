@@ -537,7 +537,9 @@ test('editor: macros with parts, pictures of blocks, preview keeps the work, lea
     const touch = (type) => cdp.send('Input.dispatchTouchEvent', { type, touchPoints: type === 'touchEnd' ? [] : [{ x: box.x + box.width / 2, y: box.y + box.height / 2 }] });
     await touch('touchStart');
     await tip.waitFor({ state: 'visible', timeout: 3000 });
+    await page.waitForTimeout(1000); // a finger that stays longer (found in the CI)
     await touch('touchEnd');
+    await page.waitForTimeout(300);
     assert.equal(await menu.getAttribute('aria-expanded'), 'false', 'the long press did not open the menu');
     await cdp.detach();
   } finally {
