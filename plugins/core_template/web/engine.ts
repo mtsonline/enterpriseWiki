@@ -7,8 +7,8 @@ import type { LayoutContext, Layout } from '@ewiki/coreplugin';
 import limitsFile from '../limits.json';
 
 export const LIMITS = limitsFile;
-export { positionsRoom, room, needRoom, viewOf, minRem, cssSafe } from './room';
-import { cssSafe, minRem, viewOf } from './room';
+export { positionsRoom, room, needRoom, viewOf, minRem, cssSafe, cssProblems } from './room';
+import { cssProblems, cssSafe, minRem, viewOf } from './room';
 
 export type ViewName = 'desktop' | 'tablet' | 'mobile';
 export const VIEWS: ViewName[] = ['desktop', 'tablet', 'mobile'];
@@ -28,7 +28,7 @@ export interface Row {
   id: string; role: 'banner' | 'contentinfo' | 'none'; width: 'full' | 'content'; background: 'page' | 'subtle' | 'header' | 'footer';
   blocks: Block[]; desktop?: Pick<View, 'drawer'> & Partial<View>; tablet?: View; mobile?: View;
 }
-export interface Design { version: 1; tokens: Tokens; rows: Row[]; options: { back_to_top: boolean; sticky_header: boolean } }
+export interface Design { version: 1; tokens: Tokens; rows: Row[]; options: { back_to_top: boolean; sticky_header: boolean }; css?: string }
 
 /** How a row looks in a view: as designed (manual) or by the rules (automatic). */
 export interface ViewState { stack: boolean; hidden: string[]; drawer: string[]; widths: Record<string, number>; auto: boolean }
@@ -112,6 +112,8 @@ export function designCSS(d: Design, cls: string): string {
   }
   out.push(`@media (max-width: ${DESKTOP_MIN - 0.02}px) {\n${tablet.join('\n')}\n}`);
   out.push(`@media (max-width: ${TABLET_MIN - 0.02}px) {\n${mobile.join('\n')}\n}`);
+  // own CSS of the template (the server sends it only while the administration allows it)
+  if (d.css && cssProblems(d.css).length === 0) out.push(d.css);
   return out.join('\n');
 }
 

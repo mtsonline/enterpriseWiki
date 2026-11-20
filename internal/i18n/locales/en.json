@@ -2444,6 +2444,8 @@
  "editor_tools.inherit": "As above ({tools})",
  "editor_tools.inherit_plain": "As above (inherited)",
  "editor_tools.none": "Choose at least one button. For no toolbar, hide it in the placement.",
+ "settings.custom_css": "Own CSS in templates",
+ "settings.custom_css_help": "People who may design templates can add own CSS to a template of data. It is checked on saving (no @import, url() only to files of the wiki, nothing that runs). Own CSS can make the wiki less accessible; switched off, own CSS of templates is no longer used.",
  "settings.personal_placement": "Allow personal arrangement",
  "settings.personal_placement_help": "Signed-in people arrange the building blocks of the interface for themselves under “My profile → My arrangement”. Required blocks stay where they are.",
  "nav.dashboard": "My dashboard",

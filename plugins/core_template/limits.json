@@ -42,5 +42,25 @@
     { "fore": "focus", "back": "bg_subtle", "ui": true, "rule": "2.4.13" }
   ],
   "fonts": ["system", "inter", "source-sans", "serif", "mono"],
-  "max_bytes": 65536
+  "max_bytes": 65536,
+  "css": {
+    "comment": "Own CSS of a template (only when ui.custom_css allows it). Checked on the comment-free, lower-case text; server and designer read these rules.",
+    "max_bytes": 32768,
+    "forbidden": [
+      ["<", "the character <"],
+      ["\\\\", "escapes with a backslash"],
+      ["@import", "@import"],
+      ["@namespace", "@namespace"],
+      ["expression\\s*\\(", "expression()"],
+      ["behavior\\s*:", "behavior"],
+      ["-moz-binding", "-moz-binding"],
+      ["javascript\\s*:", "javascript:"],
+      ["image-set\\s*\\(", "image-set()"],
+      ["cross-fade\\s*\\(", "cross-fade()"],
+      ["element\\s*\\(", "element()"],
+      ["(^|[^a-z-])image\\s*\\(", "image()"],
+      ["(^|[^a-z-])src\\s*\\(", "src()"]
+    ],
+    "url": "^/api/v1/(files/[a-z0-9._-]{1,128}|media/[0-9]{1,18}/view)$"
+  }
 }

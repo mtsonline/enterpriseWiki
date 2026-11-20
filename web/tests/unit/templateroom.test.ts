@@ -65,3 +65,10 @@ test('a drawer on the desktop is a drawer in every view and needs no room in the
   r.desktop = { drawer: ['bad id!'] };
   assert.ok(!cssSafe(d));
 });
+
+test('own CSS: the designer refuses what the server refuses (shared cases)', async () => {
+  const { cssProblems } = await import('../../../plugins/core_template/web/room');
+  const cases = (await import('../../../plugins/core_template/testdata/css_cases.json')).default as { css: string; ok: boolean }[];
+  assert.ok(cases.length > 20);
+  for (const c of cases) assert.equal(cssProblems(c.css).length === 0, c.ok, c.css);
+});

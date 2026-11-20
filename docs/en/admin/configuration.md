@@ -76,6 +76,7 @@ Languages are added or removed in the interface under *Administration → Langua
 | `dashboard_tiles` | tiles everybody may put on the own dashboard (block ids, e.g. `core.dash.recent`; empty = all). The default arrangement and required tiles are placements of the site at the positions `dashboard-wide`, `dashboard-1` to `dashboard-3` (*Administration → Placement*). | all |
 | `dashboard_home` | the own dashboard is the start page of signed-in people: after signing in and at `/` they see `/dashboard`; the start page of the site stays at `/start`. Guests see the start page as before. Also under *Administration → Settings*. | `false` |
 | `personal_placement` | every signed-in person may arrange the building blocks (search, notifications, category tree …) for themselves (*My profile → My arrangement*). Blocks marked as required stay where they are. The placement for everybody is set under *Administration → Placement*, for a category and its subcategories under *Category settings → Placement*. | `false` |
+| `custom_css` | allow own CSS in templates of data (default off). It is checked on saving: at most 32 KB, no `@import`, `url()` only to files of the wiki (`/api/v1/files/…`, `/api/v1/media/ID/view`), no `image-set()`, `expression()`, `-moz-binding`, no escapes with a backslash, no `<`; what is refused names its line. Switched off, existing own CSS is no longer delivered. Own CSS can make the wiki less accessible. |
 
 ### `auth`
 | Key | Meaning | Default |

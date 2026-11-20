@@ -2444,6 +2444,8 @@
  "editor_tools.inherit": "Wie darüber ({tools})",
  "editor_tools.inherit_plain": "Wie darüber (geerbt)",
  "editor_tools.none": "Wählen Sie mindestens einen Knopf. Ohne Leiste: blenden Sie sie in der Platzierung aus.",
+ "settings.custom_css": "Eigenes CSS in Templates",
+ "settings.custom_css_help": "Wer Templates gestalten darf, kann einem Daten-Template eigenes CSS geben. Es wird beim Speichern geprüft (kein @import, url() nur auf Dateien des Wikis, nichts Ausführbares). Eigenes CSS kann die Barrierefreiheit verschlechtern; abgeschaltet wird eigenes CSS von Templates nicht mehr verwendet.",
  "settings.personal_placement": "Persönliche Anordnung erlauben",
  "settings.personal_placement_help": "Angemeldete Personen ordnen die Bausteine der Oberfläche unter „Mein Profil → Meine Anordnung“ für sich selbst an. Pflicht-Bausteine bleiben, wo sie sind.",
  "nav.dashboard": "Mein Dashboard",

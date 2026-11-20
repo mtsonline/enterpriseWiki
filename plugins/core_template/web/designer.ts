@@ -10,6 +10,7 @@ import {
 import type { Block, Design, Row, View, ViewName } from './engine';
 import { LIMITS, VIEWS } from './engine';
 import { checkPairs } from './contrast';
+import { cssProblems } from './room';
 import { cssSafe, needRoom, positionsRoom, room, viewOf } from './room';
 
 const BASE = 'x/core.template';
@@ -488,7 +489,29 @@ export async function designer(panel: HTMLElement, key: string, back: () => void
       txt('logo', t('template.d_logo'), k.logo, (d, v) => { d.tokens.logo = v; }, t('template.d_logo_help')),
       h('h3', null, t('template.d_behavior')),
       chk('sticky', t('template.d_sticky'), draft.options.sticky_header, (d, v) => { d.options.sticky_header = v; }, t('template.d_sticky_help', { vh: LIMITS.sticky_max_vh })),
-      chk('totop', t('template.d_totop'), draft.options.back_to_top, (d, v) => { d.options.back_to_top = v; }));
+      chk('totop', t('template.d_totop'), draft.options.back_to_top, (d, v) => { d.options.back_to_top = v; }),
+      cssField());
+  };
+
+  // own CSS: only while the administration allows it; checked like on the server
+  const cssField = (): HTMLElement => {
+    const allowed = !!state.site.custom_css;
+    const area = textArea({ value: draft.css ?? '', rows: 8 });
+    area.id = cid('css');
+    area.spellcheck = false;
+    area.classList.add('ewe-mono');
+    area.disabled = !allowed && !draft.css;
+    const issues = h('ul', { class: 'ew-form-alert', 'aria-live': 'polite' });
+    const show = () => {
+      const ps = cssProblems(area.value);
+      issues.replaceChildren(...ps.map((p) => h('li', null, t('template.d_css_problem', { line: p.line, what: p.what }))));
+    };
+    area.addEventListener('input', show);
+    area.addEventListener('change', () => change((d) => { const v = area.value.trim(); if (v) d.css = v; else delete d.css; }));
+    show();
+    return h('div', null, h('h3', null, t('template.d_css')),
+      h('p', { class: allowed ? 'ew-help' : 'ew-notice ew-notice--info' }, allowed ? t('template.d_css_help') : t('template.d_css_off')),
+      field(t('template.d_css_label'), area), issues);
   };
 
   // keyboard: undo and redo in the visual view (text fields keep their own)

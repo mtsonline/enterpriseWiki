@@ -54,6 +54,8 @@ export interface Site {
   collaboration?: boolean;
   /** people may arrange the building blocks for themselves */
   personal_placement?: boolean;
+  /** own CSS in templates of data is allowed (ui.custom_css) */
+  custom_css?: boolean;
   /** Buttons of the formatting toolbar (['*'] = all). */
   editor_tools?: string[];
   /** Tiles offered for the own dashboard (empty = all). */

@@ -2869,6 +2869,51 @@ test('blocks: news as tiles with a tag filter, live search, a picture opens larg
   await a11y('a background video');
 });
 
+test('own CSS of a template: switched off by default, checked while typing, used only while allowed', async () => {
+  const before = (await call('GET', '/api/v1/admin/settings')).config;
+  const cat = (await call('POST', '/api/v1/categories', { titles: { en: `Styled ${run}` } })).id;
+  const tpl = await call('POST', '/api/v1/x/core.template/templates', { names: { en: `Styled ${run}` }, copy_of: 'core.template/example-wiki' });
+  try {
+    // switched off: the designer says so
+    await page.goto(`${BASE}/admin/templates`);
+    await idle();
+    await page.getByRole('button', { name: `${await page.evaluate(() => document.documentElement.lang === 'de' ? 'Bearbeiten' : 'Edit')}: Styled ${run}` }).click();
+    await page.locator('.ewd-structure').waitFor();
+    await page.getByText(/own css is switched off|eigenes css ist abgeschaltet/i).first().waitFor();
+    // switched on in the settings
+    await call('PUT', '/api/v1/admin/settings', { ui: { ...before.ui, custom_css: true } });
+    await page.goto(`${BASE}/admin/templates`);
+    await idle();
+    await page.getByRole('button', { name: new RegExp(`^(edit|bearbeiten): Styled ${run}$`, 'i') }).click();
+    const css = page.getByLabel(/^css$/i);
+    await css.waitFor();
+    await css.fill('h1 { letter-spacing: 3px; }\n@import "https://evil.example/x.css";');
+    await page.getByText(/^(line 2: @import is not allowed|zeile 2: @import ist nicht erlaubt)$/i).waitFor();
+    await a11y('own CSS with a problem');
+    await css.fill('h1 { letter-spacing: 3px; }');
+    await css.dispatchEvent('change');
+    await page.getByText(/^(no problems|keine probleme)/i).first().waitFor();
+    const saved = page.waitForResponse((r) => r.url().endsWith(`/api/v1/x/core.template/templates/${tpl.key}`) && r.request().method() === 'PUT');
+    await page.getByRole('button', { name: /^(save|speichern)$/i }).click();
+    assert.equal((await saved).status(), 200);
+    // used for a category: the wiki applies it
+    await call('PUT', `/api/v1/categories/${cat}`, { template: tpl.id });
+    await page.goto(`${BASE}/c/${cat}`);
+    await idle();
+    const spacing = () => page.locator('main h1').first().evaluate((x) => getComputedStyle(x).letterSpacing);
+    assert.equal(await spacing(), '3px');
+    // switched off: no longer used
+    await call('PUT', '/api/v1/admin/settings', { ui: { ...before.ui, custom_css: false } });
+    await page.goto(`${BASE}/c/${cat}`);
+    await idle();
+    assert.notEqual(await spacing(), '3px');
+  } finally {
+    await call('PUT', '/api/v1/admin/settings', { ui: before.ui });
+    await call('PUT', `/api/v1/categories/${cat}`, { template: '' }).catch(() => {});
+    await call('DELETE', `/api/v1/x/core.template/templates/${tpl.key}`).catch(() => {});
+  }
+});
+
 test('options of a placed block: background with checked contrast, hidden on the phone, spacing; the wiki shows it', async () => {
   const before = await call('GET', '/api/v1/placements/site');
   try {

@@ -22,6 +22,8 @@ type Design struct {
 	Tokens  Tokens  `json:"tokens"`
 	Rows    []Row   `json:"rows"`
 	Options Options `json:"options"`
+	// CSS: own CSS of the template (only with ui.custom_css; see css.go)
+	CSS string `json:"css,omitempty"`
 }
 
 // Tokens are the design values (CSS custom properties of the template).
@@ -149,6 +151,11 @@ type Limits struct {
 	ContrastPairs        []ContrastPair `json:"contrast_pairs"`
 	Fonts                []string       `json:"fonts"`
 	MaxBytes             int            `json:"max_bytes"`
+	CSS                  struct {
+		MaxBytes  int         `json:"max_bytes"`
+		Forbidden [][2]string `json:"forbidden"`
+		URL       string      `json:"url"`
+	} `json:"css"`
 }
 
 //go:embed limits.json
@@ -233,6 +240,7 @@ func (d *Design) Problems() []Problem {
 		add("version", "must be 1")
 	}
 	d.Tokens.problems(add)
+	cssProblems(d.CSS, add)
 	if len(d.Rows) == 0 || len(d.Rows) > limits.MaxRows {
 		add("rows", "1 to %d rows", limits.MaxRows)
 	}
