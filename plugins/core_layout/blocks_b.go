@@ -9,7 +9,9 @@ package core_layout
 import (
 	"context"
 	"fmt"
+	"html"
 	"math"
+	"regexp"
 	"strconv"
 	"strings"
 	"unicode/utf8"
@@ -320,4 +322,137 @@ func (tooltip) Render(_ context.Context, mc content.MacroContext) (string, error
 		return "", fmt.Errorf("a tooltip needs a word and an explanation")
 	}
 	return fmt.Sprintf(`<span class="ewl-tip" data-ew-widget="ewl.tip"><span class="ewl-tip-term">%s</span><span class="ewl-tip-text"> (%s)</span></span>`, esc(word), esc(tip)), nil
+}
+
+// ---------------------------------------------------------------- quote (testimonial)
+
+type testimonial struct{}
+
+func (testimonial) Name() string              { return "testimonial" }
+func (testimonial) Labels() map[string]string { return lm("Quote of a person", "Zitat einer Person") }
+func (testimonial) Description() map[string]string {
+	return lm("What someone says, with their name, role and optionally a picture of the wiki (a testimonial).",
+		"Was jemand sagt, mit Name, Funktion und wahlweise einem Bild aus dem Wiki (Kundenstimme).")
+}
+func (testimonial) HasBody() bool { return true }
+func (testimonial) Params() []content.MacroParam {
+	return []content.MacroParam{
+		{Name: "name", Labels: lm("Name", "Name"), Type: "text", Required: true},
+		{Name: "role", Labels: lm("Role or organisation", "Funktion oder Organisation"), Type: "text"},
+		{Name: "image", Labels: lm("Picture (from the wiki)", "Bild (aus dem Wiki)"), Type: "custom:image"},
+	}
+}
+
+func (testimonial) Render(_ context.Context, mc content.MacroContext) (string, error) {
+	name, err := shortText("name", mc.Params["name"], 120)
+	if err != nil {
+		return "", err
+	}
+	role, err := shortText("role", mc.Params["role"], 160)
+	if err != nil {
+		return "", err
+	}
+	if name == "" {
+		return "", fmt.Errorf("a quote needs the name of the person")
+	}
+	if strings.TrimSpace(mc.Body) == "" {
+		return "", fmt.Errorf("a quote needs a text")
+	}
+	img := strings.TrimSpace(mc.Params["image"])
+	if img != "" && !content.WikiFile(img) {
+		return "", fmt.Errorf("image: a file of the wiki (/api/v1/files/… or /api/v1/media/ID/view)")
+	}
+	var b strings.Builder
+	b.WriteString(`<figure class="ewl-quote"><blockquote class="ewl-quote-text">` + mc.Body + `</blockquote><figcaption class="ewl-quote-who">`)
+	if img != "" {
+		// the name stands beside it: the picture is decoration
+		fmt.Fprintf(&b, `<img class="ewl-quote-img" src="%s" alt="" loading="lazy" width="56" height="56">`, esc(img))
+	}
+	fmt.Fprintf(&b, `<span><span class="ewl-quote-name">%s</span>`, esc(name))
+	if role != "" {
+		fmt.Fprintf(&b, `<span class="ewl-quote-role">%s</span>`, esc(role))
+	}
+	b.WriteString(`</span></figcaption></figure>`)
+	return b.String(), nil
+}
+
+// ---------------------------------------------------------------- logo bar
+
+type logos struct{}
+
+func (logos) Name() string              { return "logos" }
+func (logos) Labels() map[string]string { return lm("Logo bar", "Logo-Leiste") }
+func (logos) Description() map[string]string {
+	return lm("Logos side by side (for example partners): put the pictures in the content, each with its name as text alternative and optionally as a link.",
+		"Logos nebeneinander (zum Beispiel Partner): Bilder in den Inhalt setzen, jedes mit seinem Namen als Alternativtext und wahlweise als Link.")
+}
+func (logos) HasBody() bool { return true }
+func (logos) Params() []content.MacroParam {
+	return []content.MacroParam{
+		{Name: "label", Labels: lm("Name for screen readers (e.g. Our partners)", "Name für Screenreader (z. B. Unsere Partner)"), Type: "text", Required: true},
+		{Name: "grey", Labels: lm("In grey, in colour when pointed at or focused", "In Grau, farbig beim Zeigen oder mit dem Fokus"), Type: "bool"},
+		{Name: "size", Labels: lm("Height", "Höhe"), Type: "select", Options: []string{"small", "medium", "large"}, Default: "medium"},
+	}
+}
+
+func (logos) Render(_ context.Context, mc content.MacroContext) (string, error) {
+	label, err := shortText("label", mc.Params["label"], 120)
+	if err != nil {
+		return "", err
+	}
+	if label == "" {
+		return "", fmt.Errorf("a logo bar needs a name for screen readers (label)")
+	}
+	items := logoItems(mc.Body)
+	if len(items) == 0 {
+		return "", fmt.Errorf("put the logos as pictures into the logo bar")
+	}
+	if len(items) > 40 {
+		return "", fmt.Errorf("at most 40 logos")
+	}
+	for _, it := range items {
+		if !it.hasAlt {
+			return "", fmt.Errorf("every logo needs its name as text alternative")
+		}
+		if !content.WikiFile(it.src) {
+			return "", fmt.Errorf("logos come from the wiki itself (upload them to the media library)")
+		}
+	}
+	cls := "ewl-logos ewl-logos--" + oneOf(mc.Params["size"], []string{"medium", "small", "large"})
+	if mc.Params["grey"] == "true" {
+		cls += " ewl-logos--grey"
+	}
+	var b strings.Builder
+	fmt.Fprintf(&b, `<ul class="%s" aria-label="%s">`, cls, esc(label))
+	for _, it := range items {
+		b.WriteString(`<li>` + it.html + `</li>`)
+	}
+	b.WriteString(`</ul>`)
+	return b.String(), nil
+}
+
+type logoItem struct {
+	html   string
+	src    string
+	hasAlt bool
+}
+
+var (
+	logoRe = regexp.MustCompile(`(?is)<a\b[^>]*>\s*<img\b[^>]*>\s*</a>|<img\b[^>]*>`)
+	altRe  = regexp.MustCompile(`(?is)\balt\s*=\s*"\s*[^"\s][^"]*"`)
+	srcRe  = regexp.MustCompile(`(?is)<img\b[^>]*\bsrc\s*=\s*"([^"]*)"`)
+)
+
+// logoItems: the pictures (alone or as a link) of the cleaned content of
+// the block, in order; everything else is left out.
+func logoItems(body string) []logoItem {
+	var out []logoItem
+	for _, m := range logoRe.FindAllString(body, -1) {
+		it := logoItem{html: m, hasAlt: altRe.MatchString(m)}
+		if sm := srcRe.FindStringSubmatch(m); sm != nil {
+			it.src = html.UnescapeString(sm[1])
+		}
+		out = append(out, it)
+	}
+	return out
 }

@@ -410,3 +410,7 @@ func outsideRange(c string, backs []string) bool {
 	}
 	return l < lo || l > hi
 }
+
+// WikiFile reports whether v is a file of the wiki itself (/api/v1/files/…
+// or /api/v1/media/ID/view): pictures of blocks never come from elsewhere.
+func WikiFile(v string) bool { return optFileRe.MatchString(v) }

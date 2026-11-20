@@ -512,6 +512,21 @@ func buildDemo(d *demoRun) {
 				`<p>` + tr("Questions about the ", "Fragen zur ") + `<span data-macro="tooltip" data-params='{"text":"VPN","tip":"` + tr("Virtual private network: the secure way into the company network from outside.", "Virtuelles privates Netz: der sichere Weg ins Firmennetz von außen.") + `"}'></span>` + tr(" go to the IT desk.", " beantwortet die IT.") + `</p>`
 		}
 		d.page(start, "Figures and steps", "Zahlen und Schritte", page("en"), page("de"), nil)
+		// blocks B, part 2: a quote, the tags of the wiki, who wrote a page and its changes
+		people := func(lang string) string {
+			tr := func(en, de string) string {
+				if lang == "de" {
+					return de
+				}
+				return en
+			}
+			return macro("testimonial", map[string]string{"name": "Mira Example", "role": tr("Team lead, support", "Teamleitung Support")},
+				`<p>`+tr("Since we keep our answers in the wiki, new colleagues find their way in a few days.", "Seit unsere Antworten im Wiki stehen, finden sich neue Kolleginnen und Kollegen in wenigen Tagen zurecht.")+`</p>`) +
+				`<h2>` + tr("Tags of the wiki", "Schlagwörter des Wikis") + `</h2>` + macro("tagcloud", map[string]string{"max": "30"}, "") +
+				`<h2>` + tr("Who wrote this page", "Wer an dieser Seite geschrieben hat") + `</h2>` + macro("contributors", nil, "") +
+				`<h2>` + tr("Latest changes", "Letzte Änderungen") + `</h2>` + macro("pagechanges", map[string]string{"max": "5"}, "")
+		}
+		d.page(start, "People and tags", "Personen und Schlagwörter", people("en"), people("de"), nil)
 	})
 	// a category with its own website template (the modern website look)
 	d.optional("category-template", func() {
