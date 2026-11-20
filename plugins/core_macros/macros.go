@@ -29,8 +29,13 @@ func (p *Plugin) Manifest() coreplugin.Manifest { return coreplugin.ParseManifes
 
 // Setup registers the macros.
 func (p *Plugin) Setup(h *coreplugin.Host) error {
-	for _, m := range []content.Macro{toc{}, children{}, recent{}, panel{}, expand{}, status{}, textStyle{}, columns{}, gallery{svc: h.Media}, news{feeds: h.Feeds}, excerpt{}, include{}, anchor{}, pagetree{}, searchbox{}, newpage{}, attachments{svc: h.Media}, tagcloud{}, pagechanges{}, contributors{}} {
+	for _, m := range []content.Macro{toc{}, children{}, panel{}, expand{}, status{}, textStyle{}, columns{}, news{feeds: h.Feeds}, excerpt{}, anchor{}, attachments{svc: h.Media}, pagechanges{}, contributors{}} {
 		h.RegisterMacro(m)
+	}
+	// reading the wiki with the rights of the editor, nothing else: the
+	// editor shows what they show
+	for _, m := range []content.Macro{recent{}, gallery{svc: h.Media}, include{}, pagetree{}, searchbox{}, newpage{}, tagcloud{}} {
+		h.RegisterPictureMacro(m)
 	}
 	return nil
 }
@@ -371,7 +376,10 @@ func (columns) Labels() map[string]string { return lm("Columns", "Spalten") }
 func (columns) Description() map[string]string {
 	return lm("Shows content side by side. Separate the columns with a horizontal line.", "Zeigt Inhalte nebeneinander. Spalten mit einer Trennlinie trennen.")
 }
-func (columns) HasBody() bool                { return true }
+func (columns) HasBody() bool { return true }
+func (columns) Parts() content.MacroParts {
+	return content.MacroParts{Labels: lm("Column", "Spalte")}
+}
 func (columns) Params() []content.MacroParam { return nil }
 func (columns) Render(_ context.Context, mc content.MacroContext) (string, error) {
 	cols := SplitOnHR(mc.Body)

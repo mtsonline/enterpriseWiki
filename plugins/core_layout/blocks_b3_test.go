@@ -3,6 +3,8 @@ package core_layout
 import (
 	"strings"
 	"testing"
+
+	"github.com/mtsonline/enterprisewiki/internal/content"
 )
 
 func TestBlocksB3(t *testing.T) {
@@ -48,5 +50,27 @@ func TestBlocksB3(t *testing.T) {
 	}
 	if _, err := render(t, slider{}, "en", map[string]string{}, "<p>A</p><hr><p>B</p>"); err == nil {
 		t.Error("slider without a name accepted")
+	}
+}
+
+// TestPartNames: a part without a heading is named in the language of the
+// page ("Teil 1", not "Part 1"); tabs and accordion announce their parts to
+// the editor.
+func TestPartNames(t *testing.T) {
+	for lang, want := range map[string]string{"de": "Teil 1", "en": "Part 1", "fr": "Part 1"} {
+		out, err := render(t, accordion{}, lang, nil, "<p>a</p><hr><h3>B</h3><p>b</p>")
+		if err != nil || !strings.Contains(out, "<summary>"+want+"</summary>") || !strings.Contains(out, "<summary>B</summary>") {
+			t.Errorf("%s: %v %s", lang, err, out)
+		}
+	}
+	out, err := render(t, tabs{}, "de", nil, "<p>a</p>")
+	if err != nil || !strings.Contains(out, ">Reiter 1</h3>") {
+		t.Errorf("tabs: %v %s", err, out)
+	}
+	for _, m := range []content.PartsMacro{accordion{}, tabs{}, cards{}, grid{}, timeline{}, slider{}} {
+		p := m.Parts()
+		if p.Labels["en"] == "" || p.Labels["de"] == "" {
+			t.Errorf("%T: parts without names %v", m, p.Labels)
+		}
 	}
 }

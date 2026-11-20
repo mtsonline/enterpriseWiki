@@ -372,5 +372,17 @@ export interface MacroInfo {
   inline?: boolean;
   /** icon of an own toolbar button */
   toolbar?: string;
+  /** the body is split into parts at horizontal rules */
+  parts?: MacroParts;
+  /** the visual editor shows the result (cheap, no side effects) */
+  picture?: boolean;
+}
+
+/** The parts of a macro (tabs, accordion, columns …). */
+export interface MacroParts {
+  /** the name of one part by language */
+  labels: Record<string, string>;
+  /** the first heading of a part is its title */
+  titled: boolean;
 }
 

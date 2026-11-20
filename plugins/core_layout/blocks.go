@@ -54,7 +54,8 @@ func (grid) Description() map[string]string {
 	return lm("Content in columns, with the number of columns per view. Separate the cells with a horizontal line.",
 		"Inhalte in Spalten, mit der Zahl der Spalten je Ansicht. Zellen mit einer Trennlinie trennen.")
 }
-func (grid) HasBody() bool { return true }
+func (grid) HasBody() bool             { return true }
+func (grid) Parts() content.MacroParts { return content.MacroParts{Labels: lm("Cell", "Feld")} }
 func (grid) Params() []content.MacroParam {
 	cols := []string{"1", "2", "3", "4", "5"}
 	return []content.MacroParam{
@@ -316,19 +317,27 @@ func (tabs) Description() map[string]string {
 		"Teile als Reiter. Teile mit einer Trennlinie trennen; die erste Überschrift jedes Teils ist der Name seines Reiters.")
 }
 func (tabs) HasBody() bool { return true }
+func (tabs) Parts() content.MacroParts {
+	return content.MacroParts{Labels: lm("Tab", "Reiter"), Titled: true}
+}
 func (tabs) Params() []content.MacroParam {
 	return []content.MacroParam{
 		{Name: "label", Labels: lm("Name of the tabs for screen readers", "Name der Reiter für Screenreader"), Type: "text"},
 	}
 }
 
-// panels splits a body into named parts (at least one).
-func panels(body string, what string) ([][2]string, error) {
+// panels splits a body into named parts (at least one); a part without a
+// heading is named by what (in the language of the page) and its number.
+func panels(body string, what map[string]string, lang string) ([][2]string, error) {
+	word := what[lang]
+	if word == "" {
+		word = what["en"]
+	}
 	var out [][2]string
 	for i, part := range core_macros.SplitOnHR(body) {
 		name, rest := firstHeading(part)
 		if name == "" {
-			name = fmt.Sprintf("%s %d", what, i+1)
+			name = fmt.Sprintf("%s %d", word, i+1)
 		}
 		out = append(out, [2]string{name, rest})
 	}
@@ -342,7 +351,7 @@ func panels(body string, what string) ([][2]string, error) {
 }
 
 func (tabs) Render(_ context.Context, mc content.MacroContext) (string, error) {
-	ps, err := panels(mc.Body, "Tab")
+	ps, err := panels(mc.Body, tabs{}.Parts().Labels, mc.Lang)
 	if err != nil {
 		return "", err
 	}
@@ -367,6 +376,9 @@ func (accordion) Description() map[string]string {
 		"Teile zum Auf- und Zuklappen. Teile mit einer Trennlinie trennen; die erste Überschrift jedes Teils ist sein Titel.")
 }
 func (accordion) HasBody() bool { return true }
+func (accordion) Parts() content.MacroParts {
+	return content.MacroParts{Labels: lm("Part", "Teil"), Titled: true}
+}
 func (accordion) Params() []content.MacroParam {
 	return []content.MacroParam{
 		{Name: "one", Labels: lm("Only one open at a time", "Immer nur einer offen"), Type: "bool"},
@@ -375,7 +387,7 @@ func (accordion) Params() []content.MacroParam {
 }
 
 func (accordion) Render(_ context.Context, mc content.MacroContext) (string, error) {
-	ps, err := panels(mc.Body, "Part")
+	ps, err := panels(mc.Body, accordion{}.Parts().Labels, mc.Lang)
 	if err != nil {
 		return "", err
 	}

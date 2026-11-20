@@ -48,8 +48,22 @@
 }
 .ewe-macro--leaf .ewe-macro-head { border-bottom: 0; }
 .ewe-macro-name { font-weight: 700; }
-.ewe-macro-params { flex: 1; font-family: var(--ew-mono); color: var(--ew-text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ewe-macro-params { flex: 1; min-width: 0; color: var(--ew-text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .ewe-macro-body { padding: .25rem .75rem; min-height: 1.5rem; }
+/* a macro without a body shows what the page will show (a picture: no clicks, no focus) */
+.ewe-macro-picture { padding: .5rem .75rem .75rem; background: var(--ew-bg); border-top: 1px dashed var(--ew-border); pointer-events: none; overflow: hidden; }
+.ewe-macro-picture--loading { opacity: .6; }
+.ewe-macro-picture[hidden] { display: none; }
+.ewe-macro-picture > :first-child { margin-top: 0; }
+.ewe-macro-picture > :last-child { margin-bottom: 0; }
+/* macros with parts (tabs, accordion, columns …): the rule between two parts is labelled */
+.ewe-macro-addpart { width: auto; padding: 0 .5rem; white-space: nowrap; font-weight: 600; }
+.ewe-macro--parts .ewe-macro-body > hr { position: relative; margin: 1.6rem 0 1rem; border: 0; border-top: 2px dashed var(--ew-primary); overflow: visible; }
+.ewe-macro--parts .ewe-macro-body > hr::after {
+  content: var(--ewe-part, ""); position: absolute; left: 0; top: -.75rem; padding: 0 .4rem; font-size: .8rem; font-weight: 600;
+  color: var(--ew-primary); background: var(--ew-bg-subtle); border-radius: 3px;
+}
+.ewe-macro--parts .ewe-macro-body > hr.ProseMirror-selectednode { outline: 2px solid var(--ew-focus); }
 .ewe-ctl-btn {
   min-width: 2rem; height: 2rem; border: 1px solid transparent; border-radius: 4px; background: none;
   color: var(--ew-text); font: inherit; cursor: pointer;

@@ -3,7 +3,7 @@
 import { api } from '../core/api';
 import { h } from '../core/dom';
 import { t, uiLang } from '../core/i18n';
-import type { MacroInfo, MacroParam } from '../core/types';
+import type { MacroInfo, MacroParam, MacroParts } from '../core/types';
 import { checkbox, field, formDialog, select, textArea, textInput } from '../components/ui';
 import { currentCategory, currentSpace } from '../components/widgets';
 
@@ -24,7 +24,7 @@ export function allowedMacros(ms: MacroInfo[]): MacroInfo[] {
 /** The label of a localized map in the UI language. */
 export const label = (m: Record<string, string> | undefined): string => (m ? m[uiLang()] || m.en || Object.values(m)[0] || '' : '');
 
-export interface MacroChoice { name: string; params: Record<string, string>; hasBody: boolean; inline: boolean }
+export interface MacroChoice { name: string; params: Record<string, string>; hasBody: boolean; inline: boolean; parts?: MacroParts }
 
 /** Context of a custom parameter control: the other parameters of the dialog. */
 export interface MacroParamContext {
@@ -97,6 +97,8 @@ export async function macroDialog(existing: { name: string; params: Record<strin
     const m = macros.find((x) => x.name === pickSel.value);
     if (!m) return;
     desc.textContent = label(m.description);
+    // macros with parts: how to add and fill them in the editor
+    if (m.parts && !existing) desc.textContent += ' ' + t(m.parts.titled ? 'editor.parts_help_titled' : 'editor.parts_help', { part: label(m.parts.labels) });
     getters = [];
     const all = () => Object.fromEntries(getters.map((g) => [g.name, g.get()]));
     paramBox.replaceChildren(...(m.params ?? []).map((p) => {
@@ -119,7 +121,7 @@ export async function macroDialog(existing: { name: string; params: Record<strin
           if (g.required && !v) throw new Error(t('editor.macro_required', { field: g.label }));
           if (v) params[g.name] = v;
         }
-        result = { name: m.name, params, hasBody: m.has_body, inline: !!m.inline };
+        result = { name: m.name, params, hasBody: m.has_body, inline: !!m.inline, parts: m.parts };
       }, { wide: true, onClose: () => resolve(result) });
   });
 }

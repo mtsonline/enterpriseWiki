@@ -219,6 +219,9 @@ func (slider) Description() map[string]string {
 		"Teile, einer nach dem anderen, mit Pfeilen und einem Knopf je Teil; Teile mit einer Trennlinie trennen. Wahlweise wechselt er von selbst, mit Pause-Knopf, nie bei weniger Bewegung.")
 }
 func (slider) HasBody() bool { return true }
+func (slider) Parts() content.MacroParts {
+	return content.MacroParts{Labels: lm("Slide", "Folie"), Titled: true}
+}
 func (slider) Params() []content.MacroParam {
 	return []content.MacroParam{
 		{Name: "label", Labels: lm("Name for screen readers", "Name für Screenreader"), Type: "text", Required: true},

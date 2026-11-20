@@ -2,7 +2,7 @@
 import { api, ApiError, qs } from '../core/api';
 import { h, mount, trustedHTML, fmtDate, uid } from '../core/dom';
 import { pick, t } from '../core/i18n';
-import { navigate, type RouteCtx } from '../core/router';
+import { guardLeave, navigate, type RouteCtx } from '../core/router';
 import { hasPerm, state } from '../core/state';
 import type { Category, ElementSummary, ElementView, Revision, SpaceInfo } from '../core/types';
 import { toast } from '../core/announce';
@@ -724,6 +724,33 @@ function editorActions(opts: { cancelHref: string; publishLabel: string; onDraft
     h('a', { href: opts.cancelHref, class: 'ew-btn ew-btn--subtle' }, t('common.cancel')));
 }
 
+/**
+ * Keeps unsaved changes of an editor: leaving the page by a link or the
+ * back button asks first (save as draft, discard, keep editing); closing
+ * the tab asks with the browser's question. mark() takes the current content
+ * as saved (after mounting, loading a draft or a template, saving a draft).
+ */
+function keepChanges(current: () => EditorState, saveAsDraft: () => Promise<void>): { mark: () => void; dirty: () => boolean } {
+  const snap = () => { const c = current(); return JSON.stringify([c.title, c.body, c.tags, c.fields]); };
+  let saved: string | null = null;
+  const mark = () => { try { saved = snap(); } catch { saved = null; } };
+  const dirty = () => saved !== null && snap() !== saved;
+  guardLeave(dirty, () => new Promise<boolean>((resolve) => {
+    let leave = false;
+    const d = openDialog(t('editor.leave_title'), h('p', null, t('editor.leave_text')), [
+      button(t('editor.leave_draft'), async () => {
+        try { await saveAsDraft(); leave = true; d.close(); } catch (e) { toast(errorText(e), 'error'); }
+      }, { variant: 'primary' }),
+      button(t('editor.leave_discard'), () => { leave = true; d.close(); }, { variant: 'danger' }),
+      button(t('editor.leave_stay'), () => d.close()),
+    ], { onClose: () => resolve(leave) });
+    d.dialog.setAttribute('role', 'alertdialog');
+  }));
+  // the editors settle their content after mounting (e.g. normalized Markdown)
+  setTimeout(mark, 0);
+  return { mark, dirty };
+}
+
 export async function editElementView({ params, query, main }: RouteCtx): Promise<void> {
   const id = Number(params.id);
   const lang = query.get('lang') || L();
@@ -786,8 +813,15 @@ export async function editElementView({ params, query, main }: RouteCtx): Promis
       comment: field(t('element.comment'), comment, { help: t('element.comment_help') }),
       actions: editorActions({
       cancelHref: `/e/${id}`, publishLabel: t('publish.now_button'),
-      onDraft: () => { if (valid()) void run(async () => { draftId = (await saveDraft(draftId, current())).id; }); },
-      onPreview: () => { if (valid()) void run(() => showPreview(current())); },
+      onDraft: () => { if (valid()) void run(async () => { draftId = (await saveDraft(draftId, current())).id; keep.mark(); }); },
+      // a preview with changes keeps them as a draft first: nothing is lost
+      onPreview: () => {
+        if (valid()) void run(async () => {
+          let drafted = false;
+          if (keep.dirty()) { draftId = (await saveDraft(draftId, current())).id; keep.mark(); drafted = true; }
+          await showPreview(current(), drafted);
+        });
+      },
       onTemplate: () => { if (valid()) saveTemplateDialog(current()); },
       onOptions: () => {
         if (!valid()) return;
@@ -797,13 +831,14 @@ export async function editElementView({ params, query, main }: RouteCtx): Promis
           const res = await publishVia(draftId, current(), c);
           editor.destroy?.();
           if (!res.scheduled) toast(t('common.saved'));
-          navigate(`/e/${id}`);
+          navigate(`/e/${id}`, { force: true });
         });
       },
       }),
     }));
   mount(main, form);
   editor = mountEditor(editorBox, el.type, el.body, lang, labelId, formatHost, tools, el.id, remoteSave);
+  const keep = keepChanges(current, async () => { draftId = (await saveDraft(draftId, current())).id; });
   void draftNotice(id, lang, (d) => {
     draftId = d.id;
     title.value = d.title;
@@ -813,6 +848,7 @@ export async function editElementView({ params, query, main }: RouteCtx): Promis
     editor.destroy?.();
     editorBox.replaceChildren();
     editor = mountEditor(editorBox, el.type, d.body, lang, labelId, formatHost, tools, el.id, remoteSave);
+    setTimeout(keep.mark, 0); // the draft is saved already
     toast(t('draft.loaded'));
   }).then((n) => { if (n) notices.append(n); });
   const orig = original?.querySelector<HTMLElement>('[data-original]');
@@ -828,7 +864,7 @@ export async function editElementView({ params, query, main }: RouteCtx): Promis
       if (draftId) await api.del(`drafts/${draftId}`).catch(() => undefined); // published directly: the draft is obsolete
       editor.destroy?.();
       toast(t('common.saved'));
-      navigate(`/e/${id}`);
+      navigate(`/e/${id}`, { force: true });
     });
   });
 }
@@ -900,12 +936,18 @@ async function newOrDraftView({ params, query, main }: RouteCtx, draft: Draft | 
     return true;
   };
   const run = async (fn: () => Promise<void>) => { try { await fn(); } catch (e) { alert.textContent = errorText(e); } };
+  const draftNow = async () => {
+    const d = await saveDraft(draftId, current());
+    if (!draftId) history.replaceState(null, '', `/d/${d.id}/edit`);
+    draftId = d.id;
+    keep.mark();
+  };
   const finish = (elementId?: number, scheduled?: string) => {
     editor.destroy?.();
     invalidateTree();
-    if (scheduled) { navigate(`/c/${catId}`); return; }
+    if (scheduled) { navigate(`/c/${catId}`, { force: true }); return; }
     toast(t('element.created'));
-    navigate(ret && ret.startsWith('/') && !ret.startsWith('//') ? ret : `/e/${elementId}`);
+    navigate(ret && ret.startsWith('/') && !ret.startsWith('//') ? ret : `/e/${elementId}`, { force: true });
   };
   const formatHost = h('div', { class: 'ew-format-host' });
   const form = h('form', { class: 'ew-form ew-edit-form', novalidate: true }, ...editorLayout(
@@ -927,13 +969,16 @@ async function newOrDraftView({ params, query, main }: RouteCtx, draft: Draft | 
       cancelHref: back, publishLabel: t('publish.now_button'),
       onDraft: () => {
         if (!valid()) return;
-        void run(async () => {
-          const d = await saveDraft(draftId, current());
-          if (!draftId) history.replaceState(null, '', `/d/${d.id}/edit`);
-          draftId = d.id;
+        void run(async () => { await draftNow(); });
+      },
+      // a preview with changes keeps them as a draft first: nothing is lost
+      onPreview: () => {
+        if (valid()) void run(async () => {
+          const drafted = keep.dirty();
+          if (drafted) await draftNow();
+          await showPreview(current(), drafted);
         });
       },
-      onPreview: () => { if (valid()) void run(() => showPreview(current())); },
       onTemplate: () => { if (valid()) saveTemplateDialog(current()); },
       onOptions: () => {
         if (!valid()) return;
@@ -948,12 +993,13 @@ async function newOrDraftView({ params, query, main }: RouteCtx, draft: Draft | 
       draft ? h('p', null, button(t('draft.discard'), async () => {
         await api.del(`drafts/${draft.id}`);
         toast(t('draft.discarded'));
-        navigate(back);
+        navigate(back, { force: true });
       }, { variant: 'danger' })) : null),
     }));
   mount(main, form);
   const empty = draft?.body ?? types.find((x) => x.id === typeId)?.empty_body ?? {};
   editor = mountEditor(editorBox, typeId, empty, lang, labelId, formatHost, toolsOf(cat.category));
+  const keep = keepChanges(current, draftNow);
   if (!draft) {
     const applyTemplate = (tpl: Template) => {
       if (!title.value.trim()) title.value = tpl.title;
