@@ -106,7 +106,9 @@ func (c *Carousel) validate() error {
 	if c.Name == "" || utf8.RuneCountInString(c.Name) > 100 {
 		return apperr.BadRequest("a name (max. 100 characters) is required")
 	}
-	if !posRe.MatchString(c.Position) {
+	// no position: the carousel shows only where it is placed (Administration
+	// → Placement, e.g. for one category)
+	if c.Position != "" && !posRe.MatchString(c.Position) {
 		return apperr.BadRequest("invalid position")
 	}
 	switch c.Audience {

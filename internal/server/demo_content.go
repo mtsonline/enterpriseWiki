@@ -206,6 +206,9 @@ func buildDemo(d *demoRun) {
 		suffix = "-" + site // accounts and groups may be shared by all sites
 	}
 	inherit := true
+	// what is placed where outside the pages (menu, blocks, carousel …): the
+	// page "How the demo is built" lists it at the end
+	var where []whereNote
 
 	// ---- the demo area
 	root := d.category(0, "Demo: Enterprise Wiki", "Demo: Enterprise Wiki",
@@ -930,6 +933,14 @@ func buildDemo(d *demoRun) {
 		d.call(http.MethodPut, fmt.Sprintf("/api/v1/categories/%d/settings", hb), map[string]any{"display": map[string]any{"view": "handbook"}}, nil)
 		d.call(http.MethodPut, fmt.Sprintf("/api/v1/placements/category_page?target=%d", hb), map[string]any{"placements": []map[string]any{
 			{"block": fmt.Sprintf("core.category.element/%d", contact), "position": "category-aside", "sort": 10}}}, nil)
+		where = append(where, whereNote{
+			en: whereText("en", "Handbook", "the pages of the category as navigation (display <em>Handbook</em>) and the page <em>Contact</em> beside the first page",
+				"Category: side column (<code>category-aside</code>), only on the page of the category <em>Handbook</em>",
+				"Edit mode → <em>Handbook</em> → Category settings → <em>Display and content</em> and <em>Placement</em>"),
+			de: whereText("de", "Handbuch", "die Seiten der Kategorie als Navigation (Darstellung <em>Handbuch</em>) und die Seite <em>Kontakt</em> neben der ersten Seite",
+				"Kategorie: Seitenspalte (<code>category-aside</code>), nur auf der Seite der Kategorie <em>Handbuch</em>",
+				"Bearbeitungsmodus → <em>Handbuch</em> → Kategorie-Einstellungen → <em>Darstellung und Inhalte</em> und <em>Platzierung</em>"),
+		})
 		cards := d.category(root, "Pages as cards", "Seiten als Karten",
 			"The overview of this category shows its pages as cards with the beginning of the text.",
 			"Die Übersicht dieser Kategorie zeigt ihre Seiten als Karten mit dem Anfang des Textes.", nil)
@@ -991,6 +1002,12 @@ func buildDemo(d *demoRun) {
 			{"label": d.tr("Events", "Termine"), "category_id": evCat},
 			{"label": d.tr("Team", "Team"), "category_id": team},
 		}})
+		where = append(where, whereNote{
+			en: whereText("en", "Menu “Demo”", "the entries <em>Demo tour</em>, <em>News</em>, <em>FAQ</em>, <em>Events</em> and <em>Team</em>; <em>Demo tour</em> opens a mega menu with groups and descriptions",
+				"Navigation in the header (<code>header-nav</code>), on every page, for everybody who may see the pages", "Administration → <em>Menus</em>"),
+			de: whereText("de", "Menü „Demo“", "die Einträge <em>Demo-Rundgang</em>, <em>Neuigkeiten</em>, <em>FAQ</em>, <em>Termine</em> und <em>Team</em>; <em>Demo-Rundgang</em> öffnet ein Megamenü mit Gruppen und Beschreibungen",
+				"Navigation im Kopfbereich (<code>header-nav</code>), auf jeder Seite, für alle, die die Seiten sehen dürfen", "Administration → <em>Menüs</em>"),
+		})
 	})
 	bodies := map[string]any{}
 	for l, t := range d.tr("<p><strong>Demo contact</strong><br>Anna Berger · +43 1 234 56 70</p>", "<p><strong>Demo-Kontakt</strong><br>Anna Berger · +43 1 234 56 70</p>") {
@@ -999,20 +1016,52 @@ func buildDemo(d *demoRun) {
 	d.optional("block", func() {
 		d.create("block", "/api/v1/x/core.blocks/blocks", map[string]any{"name": "Demo", "location": "sidebar", "position": 90, "audience": "users", "enabled": true,
 			"titles": d.tr("Contact", "Kontakt"), "bodies": bodies})
+		where = append(where, whereNote{
+			en: whereText("en", "Block “Contact”", "a fixed text with the contact of the demo",
+				"Side column (<code>sidebar</code>), below the tree of categories, on every page, only for signed-in people", "Administration → <em>Blocks</em>"),
+			de: whereText("de", "Block „Kontakt“", "ein fester Text mit dem Kontakt der Demo",
+				"Seitenleiste (<code>sidebar</code>), unter dem Kategoriebaum, auf jeder Seite, nur für Angemeldete", "Administration → <em>Blöcke</em>"),
+		})
 	})
 	d.optional("carousel", func() {
-		// the manual slides plus the newest posts of the news category
-		car := d.create("carousel", "/api/v1/x/core.carousel/carousels", map[string]any{"name": "Demo", "position": "content-top", "audience": "users", "autoplay": 0, "max_slides": 8, "enabled": true,
+		// no fixed position: placed for one category only, with a page that
+		// says what it is and where it is
+		car := d.create("carousel", "/api/v1/x/core.carousel/carousels", map[string]any{"name": "Demo", "position": "", "audience": "users", "autoplay": 0, "max_slides": 8, "enabled": true,
 			"sources": fmt.Sprintf("category:%d", news), "feed_items": 3})
 		for i, pc := range pics {
 			if d.err != nil {
 				break
 			}
+			// slides have one language: the default language of the wiki
 			t := d.tr(pc.en, pc.de)[d.lang()]
 			d.call(http.MethodPost, fmt.Sprintf("/api/v1/x/core.carousel/carousels/%d/slides", car), map[string]any{"kind": "manual", "title": t,
 				"text": d.tr("Demo slide – removed with the demo.", "Demo-Folie – verschwindet mit der Demo.")[d.lang()], "link": "/demo" + suffix,
 				"image": "/api/v1/media/" + picIDs[i] + "/view", "image_alt": t}, nil)
 		}
+		carCat := d.category(root, "Carousel demo", "Karussell-Demo",
+			"A carousel placed for this category only.", "Ein Karussell, das nur für diese Kategorie platziert ist.", nil)
+		d.call(http.MethodPut, fmt.Sprintf("/api/v1/placements/category?target=%d", carCat), map[string]any{"placements": []map[string]any{
+			{"block": fmt.Sprintf("core.carousel/%d", car), "position": "content-top", "sort": 5}}}, nil)
+		carPage := d.page(carCat, "Carousel demo", "Karussell-Demo", carouselPageEN, carouselPageDE, map[string]any{"position": 0})
+		d.call(http.MethodPut, fmt.Sprintf("/api/v1/categories/%d", carCat), map[string]any{"default_element_id": carPage}, nil)
+		where = append(where, whereNote{
+			en: whereText("en", "Carousel “Demo”", `three demo slides and the newest posts of <em>News</em> – see the page <a href="/e/`+strconv.FormatInt(carPage, 10)+`">Carousel demo</a>`,
+				"Above the content of every page (<code>content-top</code>), placed only for the category <em>Carousel demo</em>, only for signed-in people",
+				"Administration → <em>Carousels</em>; the placement: Edit mode → <em>Carousel demo</em> → Category settings → <em>Placement</em>"),
+			de: whereText("de", "Karussell „Demo“", `drei Demo-Folien und die neuesten Beiträge aus <em>Neuigkeiten</em> – siehe die Seite <a href="/e/`+strconv.FormatInt(carPage, 10)+`">Karussell-Demo</a>`,
+				"Über dem Inhalt jeder Seite (<code>content-top</code>), platziert nur für die Kategorie <em>Karussell-Demo</em>, nur für Angemeldete",
+				"Administration → <em>Karussells</em>; die Platzierung: Bearbeitungsmodus → <em>Karussell-Demo</em> → Kategorie-Einstellungen → <em>Platzierung</em>"),
+		})
+	})
+
+	// ---- how the demo is built: what is placed where outside the pages
+	d.optional("where", func() {
+		var en, de strings.Builder
+		for _, w := range where {
+			en.WriteString(w.en)
+			de.WriteString(w.de)
+		}
+		d.page(start, "How the demo is built", "So ist die Demo aufgebaut", whereIntroEN+en.String()+whereEndEN, whereIntroDE+de.String()+whereEndDE, nil)
 	})
 }
 
@@ -1042,3 +1091,59 @@ func accountSteps(tr func(en, de string) string, docs, media, cal int64, editors
 	}
 	return steps
 }
+
+// whereNote describes one part of the demo outside the pages (a menu, a
+// block, a carousel …): what it shows, where it is placed and where it is
+// changed, in English and German.
+type whereNote struct{ en, de string }
+
+func whereText(lang, name, what, where, change string) string {
+	words := map[string][3]string{"en": {"What it shows:", "Where it is:", "Where to change it:"}, "de": {"Was es zeigt:", "Wo es steht:", "Wo man es ändert:"}}[lang]
+	return "<h3>" + name + "</h3><ul><li><strong>" + words[0] + "</strong> " + what + "</li><li><strong>" + words[1] + "</strong> " + where +
+		"</li><li><strong>" + words[2] + "</strong> " + change + "</li></ul>"
+}
+
+// The page "How the demo is built": the positions in words, then one part
+// after the other.
+const whereIntroEN = `<p>Most of the demo is pages. Some parts are not part of a page: the administration <strong>places</strong> them at a <strong>position</strong> of the template, and they appear there on many pages. This page says for each of them what it shows, where it is and where you change it.</p>` +
+	`<h2>The positions of the template</h2><ul>` +
+	`<li><strong>Header</strong> (<code>header-nav</code>, <code>header-tools</code>): the bar at the very top with logo, menu, search, language, <em>Edit</em> and your name.</li>` +
+	`<li><strong>Side column</strong> (<code>sidebar</code>): on the left, with the tree of the categories; on a phone behind the button ☰.</li>` +
+	`<li><strong>Above the content of every page</strong> (<code>content-top</code>): below the header and above the content of the page – that is above the path, the title and the buttons <em>Watch</em>, <em>Favourite</em> and <em>Share</em>. It is not part of the header; it only comes before everything that belongs to the page.</li>` +
+	`<li><strong>Below the content</strong> (<code>content-bottom</code>) and <strong>footer</strong> (<code>footer</code>).</li></ul>` +
+	`<p>Pages and categories have positions of their own as well (for example <em>Category: side column</em>). A part can be placed for the whole website, for one category with its subcategories, or for the page of one category.</p>` +
+	`<h2>The parts of this demo</h2>`
+const whereEndEN = `<p>You find all positions with their blocks under <em>Administration → Placement</em>; a category has its own under <em>Category settings → Placement</em>.</p>`
+const whereIntroDE = `<p>Der größte Teil der Demo sind Seiten. Manche Teile gehören zu keiner Seite: Die Administration <strong>platziert</strong> sie an einer <strong>Position</strong> des Templates, und sie erscheinen dort auf vielen Seiten. Diese Seite sagt für jeden, was er zeigt, wo er steht und wo man ihn ändert.</p>` +
+	`<h2>Die Positionen des Templates</h2><ul>` +
+	`<li><strong>Kopfbereich</strong> (<code>header-nav</code>, <code>header-tools</code>): die Leiste ganz oben mit Logo, Menü, Suche, Sprache, <em>Bearbeiten</em> und Ihrem Namen.</li>` +
+	`<li><strong>Seitenleiste</strong> (<code>sidebar</code>): links, mit dem Baum der Kategorien; auf dem Handy hinter dem Knopf ☰.</li>` +
+	`<li><strong>Über dem Inhalt jeder Seite</strong> (<code>content-top</code>): unter dem Kopfbereich und über dem Inhalt der Seite – also über dem Pfad, dem Titel und den Knöpfen <em>Beobachten</em>, <em>Favorit</em> und <em>Teilen</em>. Sie gehört nicht zum Kopfbereich; sie steht nur vor allem, was zur Seite gehört.</li>` +
+	`<li><strong>Unter dem Inhalt</strong> (<code>content-bottom</code>) und <strong>Fußbereich</strong> (<code>footer</code>).</li></ul>` +
+	`<p>Auch Seiten und Kategorien haben eigene Positionen (zum Beispiel <em>Kategorie: Seitenspalte</em>). Ein Teil lässt sich für die ganze Website platzieren, für eine Kategorie mit ihren Unterkategorien oder nur für die Seite einer Kategorie.</p>` +
+	`<h2>Die Teile dieser Demo</h2>`
+const whereEndDE = `<p>Alle Positionen mit ihren Bausteinen finden Sie unter <em>Administration → Platzierung</em>; eine Kategorie hat ihre eigene unter <em>Kategorie-Einstellungen → Platzierung</em>.</p>`
+
+// The page of the carousel demo.
+const carouselPageEN = `<p>At the top of this page, above the path and the title, there is a <strong>carousel</strong>: slides with a picture, a title, a short text and a link, one after the other. Arrows and dots change the slide; it does not change by itself here.</p>` +
+	`<h2>What it shows</h2><ul><li>Three slides of its own (pictures of the media library of the demo).</li><li>The newest posts of the category <em>News</em>: the carousel takes them from a source and stays up to date by itself.</li></ul>` +
+	`<h2>Where it is</h2><ul>` +
+	`<li><strong>Position:</strong> <em>Above the content of every page</em> (<code>content-top</code>). This place of the template lies below the header (logo, menu, search) and above everything that belongs to the page: path, title, buttons and text. It is not part of the header.</li>` +
+	`<li><strong>Placement:</strong> The carousel has no fixed position. It is placed only for this category, <em>Carousel demo</em>. That is why it appears here and on the pages of this category, and nowhere else.</li>` +
+	`<li><strong>Who sees it:</strong> signed-in people.</li></ul>` +
+	`<h2>Try it yourself</h2><ul>` +
+	`<li><strong>Slides:</strong> Administration → <em>Carousels</em> → <em>Slides</em> of the carousel “Demo”.</li>` +
+	`<li><strong>Placement of this category:</strong> switch on the edit mode, then <em>Category settings</em> → <em>Placement</em>.</li>` +
+	`<li><strong>On every page:</strong> give the carousel a fixed position under Administration → <em>Carousels</em>.</li>` +
+	`<li><strong>A page as a slide:</strong> when publishing a page, tick the carousel under <em>As news</em>.</li></ul>`
+const carouselPageDE = `<p>Oben auf dieser Seite, über dem Pfad und dem Titel, steht ein <strong>Karussell</strong>: Folien mit Bild, Titel, kurzem Text und Link, eine nach der anderen. Pfeile und Punkte wechseln die Folie; von selbst wechselt sie hier nicht.</p>` +
+	`<h2>Was es zeigt</h2><ul><li>Drei eigene Folien (Bilder aus der Mediathek der Demo).</li><li>Die neuesten Beiträge der Kategorie <em>Neuigkeiten</em>: Das Karussell holt sie aus einer Quelle und bleibt von selbst aktuell.</li></ul>` +
+	`<h2>Wo es steht</h2><ul>` +
+	`<li><strong>Position:</strong> <em>Über dem Inhalt jeder Seite</em> (<code>content-top</code>). Diese Stelle des Templates liegt unter dem Kopfbereich (Logo, Menü, Suche) und über allem, was zur Seite gehört: Pfad, Titel, Knöpfe und Text. Sie gehört nicht zum Kopfbereich.</li>` +
+	`<li><strong>Platzierung:</strong> Das Karussell hat keine feste Position. Es ist nur für diese Kategorie platziert, <em>Karussell-Demo</em>. Darum erscheint es hier und auf den Seiten dieser Kategorie, sonst nirgends.</li>` +
+	`<li><strong>Wer es sieht:</strong> angemeldete Personen.</li></ul>` +
+	`<h2>Selbst ausprobieren</h2><ul>` +
+	`<li><strong>Folien:</strong> Administration → <em>Karussells</em> → <em>Folien</em> des Karussells „Demo“.</li>` +
+	`<li><strong>Platzierung dieser Kategorie:</strong> den Bearbeitungsmodus einschalten, dann <em>Kategorie-Einstellungen</em> → <em>Platzierung</em>.</li>` +
+	`<li><strong>Auf jeder Seite:</strong> dem Karussell unter Administration → <em>Karussells</em> eine feste Position geben.</li>` +
+	`<li><strong>Eine Seite als Folie:</strong> beim Veröffentlichen unter <em>Als Neuigkeit</em> das Karussell ankreuzen.</li></ul>`

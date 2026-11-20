@@ -229,7 +229,9 @@ with @mentions, reactions and favourite, Markdown page, website building blocks,
 series and registration, team page, media (hidden category as folder, images, PDF for viewing only with
 watermark, Word file for the office program), file element, process, property report,
 category overview, wiki blocks (include page, search box, page tree, new page from a template), short URL `/demo`,
-a menu, a text block and a carousel (only for signed-in users). What a disabled plugin needs is left out; the
+a menu, a text block, a carousel placed only for the category *Carousel demo* (only for signed-in users) and a
+page *How the demo is built* that says for every part outside the pages what it shows, where it is placed and where
+it is changed. What a disabled plugin needs is left out; the
 message after creating names the parts left out (in the API the field `skipped` of the answer to
 `POST /api/v1/admin/demo`).
 

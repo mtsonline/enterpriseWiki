@@ -122,6 +122,15 @@ function copyIcons() {
     index.push({ n: name, c: m.category || '', t: (m.tags ?? []).slice(0, 12).map(String), s: styles.map((st) => st[0]).join('') });
   }
   fs.writeFileSync(path.join(out, 'index.json'), JSON.stringify(index));
+  // search words and category names in other languages (src/icons/terms/<lang>.json),
+  // loaded by the picker only in that language
+  const termsDir = path.join(here, 'src', 'icons', 'terms');
+  for (const f of fs.readdirSync(termsDir)) {
+    const m = /^([a-z]{2,3})\.json$/.exec(f);
+    if (!m) continue;
+    const terms = JSON.parse(fs.readFileSync(path.join(termsDir, f), 'utf8'));
+    fs.writeFileSync(path.join(out, `terms.${m[1]}.json`), JSON.stringify({ categories: terms.categories ?? {}, words: terms.words ?? {} }));
+  }
 }
 
 generatePluginImports();

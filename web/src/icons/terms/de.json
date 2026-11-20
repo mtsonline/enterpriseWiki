@@ -1,0 +1,4550 @@
+{
+ "about": "German names of the icon categories and German search words for the English words of the icon names and search words (web/tools/iconterms.mjs lists what is missing).",
+ "categories": {
+  "Animals": "Tiere",
+  "Arrows": "Pfeile",
+  "Badges": "Abzeichen",
+  "Brand": "Marken",
+  "Buildings": "Gebäude",
+  "Charts": "Diagramme",
+  "Communication": "Kommunikation",
+  "Computers": "Computer",
+  "Currencies": "Währungen",
+  "Database": "Datenbank",
+  "Design": "Gestaltung",
+  "Development": "Entwicklung",
+  "Devices": "Geräte",
+  "Document": "Dokumente",
+  "E-commerce": "Onlinehandel",
+  "Electrical": "Elektrik",
+  "Extensions": "Dateiendungen",
+  "Food": "Essen",
+  "Games": "Spiele",
+  "Gender": "Geschlecht",
+  "Gestures": "Gesten",
+  "Health": "Gesundheit",
+  "Laundry": "Wäsche",
+  "Letters": "Buchstaben",
+  "Logic": "Logik",
+  "Map": "Karten und Orte",
+  "Math": "Mathematik",
+  "Media": "Medien",
+  "Mood": "Stimmung",
+  "Nature": "Natur",
+  "Numbers": "Zahlen",
+  "Photography": "Fotografie",
+  "Shapes": "Formen",
+  "Sport": "Sport",
+  "Symbols": "Zeichen",
+  "System": "System",
+  "Text": "Text",
+  "Vehicles": "Fahrzeuge",
+  "Version control": "Versionsverwaltung",
+  "Weather": "Wetter",
+  "Zodiac": "Sternzeichen"
+ },
+ "words": {
+  "abacus": [
+   "Rechenschieber",
+   "Abakus"
+  ],
+  "abc": [
+   "ABC",
+   "Alphabet"
+  ],
+  "abort": [
+   "abbrechen"
+  ],
+  "access": [
+   "Zugang",
+   "Zugriff"
+  ],
+  "accessible": [
+   "barrierefrei"
+  ],
+  "account": [
+   "Konto"
+  ],
+  "acorn": [
+   "Eichel"
+  ],
+  "acrobatic": [
+   "Akrobatik"
+  ],
+  "activity": [
+   "Aktivität"
+  ],
+  "ad": [
+   "Werbung",
+   "Anzeige"
+  ],
+  "add": [
+   "hinzufügen"
+  ],
+  "address": [
+   "Adresse"
+  ],
+  "adjustments": [
+   "Einstellungen",
+   "Regler"
+  ],
+  "aerial": [
+   "Antenne",
+   "Luft"
+  ],
+  "affiliate": [
+   "Partner"
+  ],
+  "agenda": [
+   "Tagesordnung"
+  ],
+  "agent": [
+   "Agent"
+  ],
+  "agents": [
+   "Agenten"
+  ],
+  "ai": [
+   "KI",
+   "künstliche Intelligenz"
+  ],
+  "aid": [
+   "Hilfe",
+   "erste Hilfe"
+  ],
+  "air": [
+   "Luft"
+  ],
+  "airport": [
+   "Flughafen"
+  ],
+  "alarm": [
+   "Alarm",
+   "Wecker"
+  ],
+  "album": [
+   "Album"
+  ],
+  "alert": [
+   "Warnung",
+   "Hinweis"
+  ],
+  "alien": [
+   "Außerirdischer"
+  ],
+  "align": [
+   "ausrichten",
+   "Ausrichtung"
+  ],
+  "alignment": [
+   "Ausrichtung"
+  ],
+  "all": [
+   "alle"
+  ],
+  "alpha": [
+   "Alpha"
+  ],
+  "alphabet": [
+   "Alphabet",
+   "Buchstaben"
+  ],
+  "alt": [
+   "alternativ"
+  ],
+  "ambulance": [
+   "Krankenwagen",
+   "Rettung"
+  ],
+  "ampersand": [
+   "Und-Zeichen"
+  ],
+  "analytics": [
+   "Analyse",
+   "Auswertung"
+  ],
+  "analyze": [
+   "analysieren"
+  ],
+  "anchor": [
+   "Anker"
+  ],
+  "and": [
+   "und"
+  ],
+  "angle": [
+   "Winkel"
+  ],
+  "annoyed": [
+   "genervt"
+  ],
+  "antenna": [
+   "Antenne"
+  ],
+  "aperture": [
+   "Blende"
+  ],
+  "app": [
+   "App",
+   "Anwendung"
+  ],
+  "apple": [
+   "Apfel"
+  ],
+  "appointment": [
+   "Termin"
+  ],
+  "approved": [
+   "genehmigt"
+  ],
+  "apps": [
+   "Apps",
+   "Anwendungen"
+  ],
+  "arabic": [
+   "arabisch"
+  ],
+  "arc": [
+   "Bogen"
+  ],
+  "arch": [
+   "Bogen"
+  ],
+  "archery": [
+   "Bogenschießen"
+  ],
+  "architecture": [
+   "Architektur"
+  ],
+  "archive": [
+   "Archiv"
+  ],
+  "arcs": [
+   "Bögen"
+  ],
+  "area": [
+   "Fläche",
+   "Bereich"
+  ],
+  "armchair": [
+   "Sessel"
+  ],
+  "arrange": [
+   "anordnen"
+  ],
+  "arrow": [
+   "Pfeil"
+  ],
+  "arrows": [
+   "Pfeile"
+  ],
+  "artboard": [
+   "Zeichenfläche"
+  ],
+  "article": [
+   "Artikel"
+  ],
+  "ascending": [
+   "aufsteigend"
+  ],
+  "ask": [
+   "fragen"
+  ],
+  "aspect": [
+   "Seitenverhältnis"
+  ],
+  "assembly": [
+   "Montage",
+   "Zusammenbau"
+  ],
+  "asset": [
+   "Anlage",
+   "Objekt"
+  ],
+  "asterisk": [
+   "Sternchen"
+  ],
+  "atlas": [
+   "Atlas"
+  ],
+  "atom": [
+   "Atom"
+  ],
+  "attach": [
+   "anhängen",
+   "Anhang"
+  ],
+  "attention": [
+   "Achtung"
+  ],
+  "audio": [
+   "Audio",
+   "Ton"
+  ],
+  "augmented": [
+   "erweitert"
+  ],
+  "auth": [
+   "Anmeldung"
+  ],
+  "automatic": [
+   "automatisch"
+  ],
+  "automation": [
+   "Automatisierung"
+  ],
+  "automotive": [
+   "Auto"
+  ],
+  "avatar": [
+   "Profilbild",
+   "Avatar"
+  ],
+  "average": [
+   "Durchschnitt"
+  ],
+  "avocado": [
+   "Avocado"
+  ],
+  "award": [
+   "Auszeichnung",
+   "Preis"
+  ],
+  "axe": [
+   "Axt"
+  ],
+  "axis": [
+   "Achse"
+  ],
+  "baby": [
+   "Baby"
+  ],
+  "back": [
+   "zurück"
+  ],
+  "background": [
+   "Hintergrund"
+  ],
+  "backhoe": [
+   "Bagger"
+  ],
+  "backpack": [
+   "Rucksack"
+  ],
+  "backslash": [
+   "umgekehrter Schrägstrich"
+  ],
+  "backspace": [
+   "Rücktaste"
+  ],
+  "backward": [
+   "rückwärts",
+   "zurück"
+  ],
+  "badge": [
+   "Abzeichen",
+   "Plakette"
+  ],
+  "badges": [
+   "Abzeichen"
+  ],
+  "bag": [
+   "Tasche",
+   "Tüte"
+  ],
+  "baguette": [
+   "Baguette"
+  ],
+  "balancer": [
+   "Lastverteiler"
+  ],
+  "ball": [
+   "Ball"
+  ],
+  "balloon": [
+   "Ballon",
+   "Luftballon"
+  ],
+  "ballpen": [
+   "Kugelschreiber"
+  ],
+  "ban": [
+   "Verbot",
+   "sperren"
+  ],
+  "banana": [
+   "Banane"
+  ],
+  "bandage": [
+   "Pflaster",
+   "Verband"
+  ],
+  "bank": [
+   "Bank"
+  ],
+  "banknote": [
+   "Geldschein",
+   "Banknote"
+  ],
+  "banner": [
+   "Banner"
+  ],
+  "bar": [
+   "Balken",
+   "Leiste"
+  ],
+  "barbell": [
+   "Hantel"
+  ],
+  "barcode": [
+   "Strichcode",
+   "Barcode"
+  ],
+  "barrel": [
+   "Fass"
+  ],
+  "barrier": [
+   "Schranke",
+   "Absperrung"
+  ],
+  "bars": [
+   "Balken"
+  ],
+  "baseball": [
+   "Baseball"
+  ],
+  "baseline": [
+   "Grundlinie"
+  ],
+  "basket": [
+   "Korb"
+  ],
+  "basketball": [
+   "Basketball"
+  ],
+  "bat": [
+   "Fledermaus",
+   "Schläger"
+  ],
+  "bath": [
+   "Bad",
+   "Badewanne"
+  ],
+  "battery": [
+   "Batterie",
+   "Akku"
+  ],
+  "beach": [
+   "Strand"
+  ],
+  "bear": [
+   "Bär"
+  ],
+  "bed": [
+   "Bett"
+  ],
+  "beer": [
+   "Bier"
+  ],
+  "bell": [
+   "Glocke",
+   "Benachrichtigung"
+  ],
+  "big": [
+   "groß"
+  ],
+  "bike": [
+   "Fahrrad"
+  ],
+  "bill": [
+   "Rechnung"
+  ],
+  "binary": [
+   "binär"
+  ],
+  "biohazard": [
+   "Biogefährdung"
+  ],
+  "bishop": [
+   "Läufer"
+  ],
+  "blade": [
+   "Klinge"
+  ],
+  "bleach": [
+   "bleichen"
+  ],
+  "blend": [
+   "mischen"
+  ],
+  "blender": [
+   "Mixer"
+  ],
+  "blind": [
+   "blind"
+  ],
+  "blob": [
+   "Klecks"
+  ],
+  "block": [
+   "Block",
+   "sperren"
+  ],
+  "blocked": [
+   "blockiert",
+   "gesperrt"
+  ],
+  "blockquote": [
+   "Zitat"
+  ],
+  "blocks": [
+   "Blöcke"
+  ],
+  "blur": [
+   "unscharf",
+   "weichzeichnen"
+  ],
+  "board": [
+   "Brett",
+   "Tafel"
+  ],
+  "body": [
+   "Körper"
+  ],
+  "bold": [
+   "fett"
+  ],
+  "bolt": [
+   "Blitz"
+  ],
+  "bomb": [
+   "Bombe"
+  ],
+  "bone": [
+   "Knochen"
+  ],
+  "book": [
+   "Buch"
+  ],
+  "bookmark": [
+   "Lesezeichen"
+  ],
+  "bookmarks": [
+   "Lesezeichen"
+  ],
+  "books": [
+   "Bücher"
+  ],
+  "boom": [
+   "Knall"
+  ],
+  "border": [
+   "Rahmen",
+   "Rand"
+  ],
+  "bot": [
+   "Bot",
+   "Roboter"
+  ],
+  "both": [
+   "beide"
+  ],
+  "bottle": [
+   "Flasche"
+  ],
+  "bottom": [
+   "unten"
+  ],
+  "bounce": [
+   "springen"
+  ],
+  "bow": [
+   "Bogen",
+   "Schleife"
+  ],
+  "bowl": [
+   "Schüssel"
+  ],
+  "bowling": [
+   "Kegeln",
+   "Bowling"
+  ],
+  "box": [
+   "Kiste",
+   "Kasten",
+   "Box"
+  ],
+  "braces": [
+   "geschweifte Klammern"
+  ],
+  "brackets": [
+   "Klammern"
+  ],
+  "braille": [
+   "Blindenschrift"
+  ],
+  "brain": [
+   "Gehirn"
+  ],
+  "branch": [
+   "Zweig",
+   "Verzweigung"
+  ],
+  "bread": [
+   "Brot"
+  ],
+  "break": [
+   "Pause",
+   "Umbruch"
+  ],
+  "bridge": [
+   "Brücke"
+  ],
+  "briefcase": [
+   "Aktentasche",
+   "Koffer"
+  ],
+  "brightness": [
+   "Helligkeit"
+  ],
+  "broadcast": [
+   "senden",
+   "Rundfunk"
+  ],
+  "broken": [
+   "kaputt",
+   "defekt"
+  ],
+  "browser": [
+   "Browser"
+  ],
+  "brush": [
+   "Pinsel"
+  ],
+  "bubble": [
+   "Sprechblase",
+   "Blase"
+  ],
+  "bucket": [
+   "Eimer"
+  ],
+  "buffer": [
+   "Puffer"
+  ],
+  "bug": [
+   "Fehler",
+   "Käfer",
+   "Bug"
+  ],
+  "building": [
+   "Gebäude",
+   "Haus"
+  ],
+  "buildings": [
+   "Gebäude"
+  ],
+  "bulb": [
+   "Glühbirne",
+   "Idee"
+  ],
+  "bulk": [
+   "Menge"
+  ],
+  "bulldozer": [
+   "Planierraupe"
+  ],
+  "burger": [
+   "Burger"
+  ],
+  "burn": [
+   "brennen"
+  ],
+  "bus": [
+   "Bus"
+  ],
+  "businessplan": [
+   "Geschäftsplan"
+  ],
+  "butterfly": [
+   "Schmetterling"
+  ],
+  "button": [
+   "Knopf",
+   "Schaltfläche"
+  ],
+  "buy": [
+   "kaufen"
+  ],
+  "cactus": [
+   "Kaktus"
+  ],
+  "cake": [
+   "Kuchen",
+   "Torte"
+  ],
+  "calculator": [
+   "Taschenrechner",
+   "Rechner"
+  ],
+  "calendar": [
+   "Kalender",
+   "Termin"
+  ],
+  "call": [
+   "anrufen",
+   "Anruf"
+  ],
+  "camera": [
+   "Kamera"
+  ],
+  "camper": [
+   "Wohnmobil"
+  ],
+  "campfire": [
+   "Lagerfeuer"
+  ],
+  "canary": [
+   "Kanarienvogel"
+  ],
+  "cancel": [
+   "abbrechen"
+  ],
+  "candle": [
+   "Kerze"
+  ],
+  "candy": [
+   "Süßigkeit",
+   "Bonbon"
+  ],
+  "cane": [
+   "Stock",
+   "Gehstock"
+  ],
+  "cap": [
+   "Kappe",
+   "Mütze"
+  ],
+  "capacitor": [
+   "Kondensator"
+  ],
+  "capital": [
+   "Großbuchstabe",
+   "Hauptstadt"
+  ],
+  "capsule": [
+   "Kapsel",
+   "Tablette"
+  ],
+  "capture": [
+   "aufnehmen",
+   "Bildschirmfoto"
+  ],
+  "car": [
+   "Auto",
+   "Fahrzeug"
+  ],
+  "carambola": [
+   "Sternfrucht"
+  ],
+  "caravan": [
+   "Wohnwagen"
+  ],
+  "card": [
+   "Karte"
+  ],
+  "cards": [
+   "Karten"
+  ],
+  "care": [
+   "Pflege"
+  ],
+  "caret": [
+   "Pfeil",
+   "Dreieck"
+  ],
+  "carousel": [
+   "Karussell"
+  ],
+  "carriage": [
+   "Kutsche",
+   "Kinderwagen"
+  ],
+  "carrot": [
+   "Karotte"
+  ],
+  "cart": [
+   "Warenkorb",
+   "Einkaufswagen"
+  ],
+  "case": [
+   "Koffer",
+   "Hülle"
+  ],
+  "cash": [
+   "Bargeld",
+   "Geld"
+  ],
+  "cast": [
+   "übertragen"
+  ],
+  "castle": [
+   "Burg",
+   "Schloss"
+  ],
+  "cat": [
+   "Katze"
+  ],
+  "category": [
+   "Kategorie"
+  ],
+  "cell": [
+   "Zelle"
+  ],
+  "cellphone": [
+   "Handy"
+  ],
+  "cellular": [
+   "Mobilfunk"
+  ],
+  "cent": [
+   "Cent"
+  ],
+  "center": [
+   "Mitte",
+   "zentriert"
+  ],
+  "centered": [
+   "zentriert"
+  ],
+  "certificate": [
+   "Zertifikat",
+   "Urkunde"
+  ],
+  "chair": [
+   "Stuhl"
+  ],
+  "chalkboard": [
+   "Tafel"
+  ],
+  "champagne": [
+   "Sekt",
+   "Champagner"
+  ],
+  "change": [
+   "ändern"
+  ],
+  "character": [
+   "Zeichen"
+  ],
+  "charge": [
+   "laden"
+  ],
+  "charging": [
+   "laden",
+   "aufladen"
+  ],
+  "chart": [
+   "Diagramm"
+  ],
+  "chat": [
+   "Chat",
+   "Unterhaltung"
+  ],
+  "check": [
+   "Haken",
+   "prüfen",
+   "erledigt"
+  ],
+  "checkbox": [
+   "Kontrollkästchen",
+   "Ankreuzfeld"
+  ],
+  "checklist": [
+   "Checkliste",
+   "Aufgabenliste"
+  ],
+  "checkout": [
+   "Kasse",
+   "bezahlen"
+  ],
+  "checks": [
+   "Haken"
+  ],
+  "checkup": [
+   "Untersuchung"
+  ],
+  "cheese": [
+   "Käse"
+  ],
+  "chef": [
+   "Koch"
+  ],
+  "cherry": [
+   "Kirsche"
+  ],
+  "chess": [
+   "Schach"
+  ],
+  "chevron": [
+   "Winkel",
+   "Pfeil"
+  ],
+  "chevrons": [
+   "Winkel",
+   "Pfeile"
+  ],
+  "chinese": [
+   "chinesisch"
+  ],
+  "chisel": [
+   "Meißel"
+  ],
+  "chlorine": [
+   "Chlor"
+  ],
+  "chocolate": [
+   "Schokolade"
+  ],
+  "chopsticks": [
+   "Essstäbchen"
+  ],
+  "christianity": [
+   "Christentum"
+  ],
+  "christmas": [
+   "Weihnachten"
+  ],
+  "church": [
+   "Kirche"
+  ],
+  "circle": [
+   "Kreis"
+  ],
+  "circles": [
+   "Kreise"
+  ],
+  "circuit": [
+   "Schaltung",
+   "Stromkreis"
+  ],
+  "circus": [
+   "Zirkus"
+  ],
+  "city": [
+   "Stadt"
+  ],
+  "clear": [
+   "löschen",
+   "leeren"
+  ],
+  "clef": [
+   "Notenschlüssel"
+  ],
+  "click": [
+   "klicken"
+  ],
+  "cliff": [
+   "Klippe"
+  ],
+  "clipboard": [
+   "Zwischenablage",
+   "Klemmbrett"
+  ],
+  "clock": [
+   "Uhr",
+   "Zeit"
+  ],
+  "clockwise": [
+   "im Uhrzeigersinn"
+  ],
+  "clone": [
+   "klonen",
+   "Kopie"
+  ],
+  "close": [
+   "schließen"
+  ],
+  "closed": [
+   "geschlossen"
+  ],
+  "clothes": [
+   "Kleidung"
+  ],
+  "cloud": [
+   "Wolke"
+  ],
+  "clover": [
+   "Klee",
+   "Kleeblatt"
+  ],
+  "clubs": [
+   "Kreuz"
+  ],
+  "cocktail": [
+   "Cocktail"
+  ],
+  "code": [
+   "Code",
+   "Quelltext"
+  ],
+  "codeblock": [
+   "Codeblock"
+  ],
+  "coding": [
+   "Programmieren"
+  ],
+  "coffee": [
+   "Kaffee"
+  ],
+  "coffin": [
+   "Sarg"
+  ],
+  "cog": [
+   "Zahnrad"
+  ],
+  "coin": [
+   "Münze"
+  ],
+  "coins": [
+   "Münzen"
+  ],
+  "collaboration": [
+   "Zusammenarbeit"
+  ],
+  "collage": [
+   "Collage"
+  ],
+  "collapse": [
+   "zuklappen"
+  ],
+  "color": [
+   "Farbe"
+  ],
+  "column": [
+   "Spalte"
+  ],
+  "columns": [
+   "Spalten"
+  ],
+  "comet": [
+   "Komet"
+  ],
+  "command": [
+   "Befehl"
+  ],
+  "comment": [
+   "Kommentar"
+  ],
+  "commit": [
+   "Commit",
+   "übernehmen"
+  ],
+  "communication": [
+   "Kommunikation"
+  ],
+  "community": [
+   "Gemeinschaft"
+  ],
+  "compact": [
+   "kompakt"
+  ],
+  "compare": [
+   "vergleichen"
+  ],
+  "compass": [
+   "Kompass"
+  ],
+  "component": [
+   "Baustein",
+   "Komponente"
+  ],
+  "components": [
+   "Komponenten",
+   "Bausteine"
+  ],
+  "compose": [
+   "verfassen",
+   "schreiben"
+  ],
+  "computer": [
+   "Computer",
+   "Rechner"
+  ],
+  "computing": [
+   "Rechnen"
+  ],
+  "concave": [
+   "konkav"
+  ],
+  "conditioning": [
+   "Klimaanlage"
+  ],
+  "cone": [
+   "Kegel"
+  ],
+  "confetti": [
+   "Konfetti",
+   "Feier"
+  ],
+  "config": [
+   "Konfiguration"
+  ],
+  "configuration": [
+   "Konfiguration"
+  ],
+  "confirmed": [
+   "bestätigt"
+  ],
+  "conflict": [
+   "Konflikt"
+  ],
+  "congruent": [
+   "deckungsgleich"
+  ],
+  "connect": [
+   "verbinden"
+  ],
+  "connected": [
+   "verbunden"
+  ],
+  "connection": [
+   "Verbindung"
+  ],
+  "construction": [
+   "Bau",
+   "Baustelle"
+  ],
+  "contain": [
+   "enthalten"
+  ],
+  "container": [
+   "Behälter"
+  ],
+  "content": [
+   "Inhalt"
+  ],
+  "contract": [
+   "Vertrag"
+  ],
+  "contrast": [
+   "Kontrast"
+  ],
+  "control": [
+   "Steuerung"
+  ],
+  "controls": [
+   "Steuerung",
+   "Regler"
+  ],
+  "conversation": [
+   "Gespräch",
+   "Unterhaltung"
+  ],
+  "convex": [
+   "konvex"
+  ],
+  "cooker": [
+   "Herd",
+   "Kocher"
+  ],
+  "cookie": [
+   "Keks",
+   "Cookie"
+  ],
+  "copy": [
+   "kopieren",
+   "Kopie"
+  ],
+  "corner": [
+   "Ecke"
+  ],
+  "corners": [
+   "Ecken"
+  ],
+  "cost": [
+   "Kosten"
+  ],
+  "cottage": [
+   "Hütte",
+   "Häuschen"
+  ],
+  "count": [
+   "zählen",
+   "Anzahl"
+  ],
+  "country": [
+   "Land"
+  ],
+  "cpu": [
+   "Prozessor"
+  ],
+  "cracked": [
+   "gesprungen"
+  ],
+  "crane": [
+   "Kran"
+  ],
+  "crash": [
+   "Unfall"
+  ],
+  "cream": [
+   "Creme"
+  ],
+  "create": [
+   "erstellen",
+   "anlegen"
+  ],
+  "credit": [
+   "Kredit"
+  ],
+  "credits": [
+   "Abspann",
+   "Guthaben"
+  ],
+  "cricket": [
+   "Kricket",
+   "Grille"
+  ],
+  "crop": [
+   "zuschneiden"
+  ],
+  "cross": [
+   "Kreuz"
+  ],
+  "crosshair": [
+   "Fadenkreuz"
+  ],
+  "crown": [
+   "Krone"
+  ],
+  "crutches": [
+   "Krücken"
+  ],
+  "cryptocurrency": [
+   "Kryptowährung"
+  ],
+  "crystal": [
+   "Kristall"
+  ],
+  "cube": [
+   "Würfel"
+  ],
+  "cup": [
+   "Tasse",
+   "Becher",
+   "Pokal"
+  ],
+  "curling": [
+   "Curling"
+  ],
+  "curly": [
+   "geschweift",
+   "lockig"
+  ],
+  "currency": [
+   "Währung"
+  ],
+  "current": [
+   "Strom",
+   "aktuell"
+  ],
+  "cursor": [
+   "Cursor",
+   "Zeiger"
+  ],
+  "curve": [
+   "Kurve"
+  ],
+  "cut": [
+   "schneiden",
+   "ausschneiden"
+  ],
+  "cv": [
+   "Lebenslauf"
+  ],
+  "cylinder": [
+   "Zylinder"
+  ],
+  "cyrillic": [
+   "kyrillisch"
+  ],
+  "dashboard": [
+   "Übersicht",
+   "Dashboard"
+  ],
+  "dashed": [
+   "gestrichelt"
+  ],
+  "data": [
+   "Daten"
+  ],
+  "database": [
+   "Datenbank"
+  ],
+  "date": [
+   "Datum"
+  ],
+  "day": [
+   "Tag"
+  ],
+  "deaf": [
+   "gehörlos"
+  ],
+  "decimal": [
+   "Dezimal"
+  ],
+  "decrease": [
+   "verringern"
+  ],
+  "deer": [
+   "Hirsch",
+   "Reh"
+  ],
+  "delete": [
+   "löschen"
+  ],
+  "deleted": [
+   "gelöscht"
+  ],
+  "denied": [
+   "abgelehnt",
+   "verweigert"
+  ],
+  "density": [
+   "Dichte"
+  ],
+  "dental": [
+   "Zahn"
+  ],
+  "descending": [
+   "absteigend"
+  ],
+  "description": [
+   "Beschreibung"
+  ],
+  "deselect": [
+   "abwählen"
+  ],
+  "design": [
+   "Gestaltung",
+   "Design"
+  ],
+  "desk": [
+   "Schreibtisch"
+  ],
+  "desktop": [
+   "Bildschirm",
+   "Desktop"
+  ],
+  "details": [
+   "Details"
+  ],
+  "developer": [
+   "Entwickler"
+  ],
+  "device": [
+   "Gerät"
+  ],
+  "devices": [
+   "Geräte"
+  ],
+  "diagonal": [
+   "diagonal",
+   "schräg"
+  ],
+  "diagram": [
+   "Diagramm"
+  ],
+  "dialpad": [
+   "Wähltastatur"
+  ],
+  "diamond": [
+   "Diamant",
+   "Raute"
+  ],
+  "diamonds": [
+   "Karo",
+   "Diamanten"
+  ],
+  "diaper": [
+   "Windel"
+  ],
+  "dice": [
+   "Würfel"
+  ],
+  "diff": [
+   "Unterschied"
+  ],
+  "difference": [
+   "Unterschied"
+  ],
+  "digit": [
+   "Ziffer"
+  ],
+  "digital": [
+   "digital"
+  ],
+  "dimensions": [
+   "Maße",
+   "Abmessungen"
+  ],
+  "diode": [
+   "Diode"
+  ],
+  "direction": [
+   "Richtung"
+  ],
+  "directions": [
+   "Wegweiser",
+   "Richtungen"
+  ],
+  "director": [
+   "Regisseur"
+  ],
+  "directory": [
+   "Verzeichnis"
+  ],
+  "disabled": [
+   "deaktiviert",
+   "aus"
+  ],
+  "disc": [
+   "Scheibe",
+   "CD"
+  ],
+  "discount": [
+   "Rabatt"
+  ],
+  "dislike": [
+   "gefällt nicht"
+  ],
+  "display": [
+   "Anzeige",
+   "Bildschirm"
+  ],
+  "distribute": [
+   "verteilen"
+  ],
+  "divide": [
+   "teilen",
+   "dividieren"
+  ],
+  "diving": [
+   "tauchen"
+  ],
+  "dizzy": [
+   "schwindelig"
+  ],
+  "document": [
+   "Dokument"
+  ],
+  "dog": [
+   "Hund"
+  ],
+  "done": [
+   "erledigt",
+   "fertig"
+  ],
+  "donut": [
+   "Ringdiagramm"
+  ],
+  "door": [
+   "Tür"
+  ],
+  "dot": [
+   "Punkt"
+  ],
+  "dots": [
+   "Punkte"
+  ],
+  "dotted": [
+   "gepunktet"
+  ],
+  "double": [
+   "doppelt"
+  ],
+  "down": [
+   "unten",
+   "runter",
+   "abwärts"
+  ],
+  "download": [
+   "herunterladen",
+   "Download"
+  ],
+  "draft": [
+   "Entwurf"
+  ],
+  "drag": [
+   "ziehen"
+  ],
+  "dragon": [
+   "Drache"
+  ],
+  "draw": [
+   "zeichnen"
+  ],
+  "drill": [
+   "Bohrer",
+   "bohren"
+  ],
+  "drone": [
+   "Drohne"
+  ],
+  "drop": [
+   "Tropfen"
+  ],
+  "droplet": [
+   "Tropfen"
+  ],
+  "droplets": [
+   "Tropfen"
+  ],
+  "dry": [
+   "trocknen",
+   "trocken"
+  ],
+  "dryclean": [
+   "chemische Reinigung"
+  ],
+  "dual": [
+   "doppelt"
+  ],
+  "due": [
+   "fällig"
+  ],
+  "dumbbell": [
+   "Hantel"
+  ],
+  "dumpling": [
+   "Teigtasche"
+  ],
+  "duplicate": [
+   "duplizieren"
+  ],
+  "duration": [
+   "Dauer"
+  ],
+  "ear": [
+   "Ohr"
+  ],
+  "earphone": [
+   "Ohrhörer"
+  ],
+  "earth": [
+   "Erde"
+  ],
+  "ease": [
+   "Übergang"
+  ],
+  "east": [
+   "Osten"
+  ],
+  "eco": [
+   "Öko",
+   "Umwelt"
+  ],
+  "ecommerce": [
+   "Onlinehandel"
+  ],
+  "edge": [
+   "Kante",
+   "Rand"
+  ],
+  "edit": [
+   "bearbeiten"
+  ],
+  "editor": [
+   "Editor"
+  ],
+  "egg": [
+   "Ei"
+  ],
+  "eggs": [
+   "Eier"
+  ],
+  "elbow": [
+   "Knick"
+  ],
+  "electric": [
+   "elektrisch"
+  ],
+  "electrical": [
+   "elektrisch"
+  ],
+  "electricity": [
+   "Strom",
+   "Elektrizität"
+  ],
+  "electronics": [
+   "Elektronik"
+  ],
+  "elevator": [
+   "Aufzug",
+   "Lift"
+  ],
+  "email": [
+   "E-Mail"
+  ],
+  "embed": [
+   "einbetten"
+  ],
+  "emergency": [
+   "Notfall"
+  ],
+  "emoji": [
+   "Emoji"
+  ],
+  "emotion": [
+   "Gefühl"
+  ],
+  "emphasis": [
+   "Betonung"
+  ],
+  "empty": [
+   "leer"
+  ],
+  "end": [
+   "Ende"
+  ],
+  "energy": [
+   "Energie"
+  ],
+  "engine": [
+   "Motor"
+  ],
+  "enter": [
+   "eingeben",
+   "Eingabe"
+  ],
+  "envelope": [
+   "Briefumschlag",
+   "Umschlag"
+  ],
+  "equal": [
+   "gleich"
+  ],
+  "eraser": [
+   "Radiergummi"
+  ],
+  "error": [
+   "Fehler"
+  ],
+  "escalator": [
+   "Rolltreppe"
+  ],
+  "estate": [
+   "Immobilie"
+  ],
+  "euro": [
+   "Euro"
+  ],
+  "event": [
+   "Ereignis",
+   "Termin"
+  ],
+  "exchange": [
+   "tauschen",
+   "Austausch"
+  ],
+  "exclamation": [
+   "Ausrufezeichen"
+  ],
+  "exercise": [
+   "Übung",
+   "Sport"
+  ],
+  "exit": [
+   "Ausgang",
+   "verlassen"
+  ],
+  "expand": [
+   "aufklappen",
+   "erweitern"
+  ],
+  "explicit": [
+   "explizit"
+  ],
+  "export": [
+   "exportieren"
+  ],
+  "exposure": [
+   "Belichtung"
+  ],
+  "extension": [
+   "Erweiterung"
+  ],
+  "external": [
+   "extern"
+  ],
+  "extinguisher": [
+   "Feuerlöscher"
+  ],
+  "eye": [
+   "Auge",
+   "ansehen"
+  ],
+  "eyeglass": [
+   "Brille"
+  ],
+  "face": [
+   "Gesicht"
+  ],
+  "factory": [
+   "Fabrik"
+  ],
+  "fall": [
+   "fallen",
+   "Herbst"
+  ],
+  "fan": [
+   "Ventilator",
+   "Lüfter"
+  ],
+  "faq": [
+   "Häufige Fragen",
+   "FAQ"
+  ],
+  "fast": [
+   "schnell"
+  ],
+  "favicon": [
+   "Favicon"
+  ],
+  "favorite": [
+   "Favorit"
+  ],
+  "favourite": [
+   "Favorit"
+  ],
+  "feather": [
+   "Feder"
+  ],
+  "featured": [
+   "hervorgehoben"
+  ],
+  "feeling": [
+   "Gefühl"
+  ],
+  "female": [
+   "weiblich"
+  ],
+  "fence": [
+   "Zaun"
+  ],
+  "ferry": [
+   "Fähre"
+  ],
+  "fidget": [
+   "Spielzeug"
+  ],
+  "file": [
+   "Datei"
+  ],
+  "files": [
+   "Dateien"
+  ],
+  "filter": [
+   "Filter"
+  ],
+  "filtering": [
+   "filtern"
+  ],
+  "filters": [
+   "Filter"
+  ],
+  "finance": [
+   "Finanzen"
+  ],
+  "find": [
+   "finden"
+  ],
+  "finger": [
+   "Finger"
+  ],
+  "fingerprint": [
+   "Fingerabdruck"
+  ],
+  "fingers": [
+   "Finger"
+  ],
+  "fire": [
+   "Feuer"
+  ],
+  "firetruck": [
+   "Feuerwehr"
+  ],
+  "firewall": [
+   "Firewall"
+  ],
+  "first": [
+   "erste"
+  ],
+  "fish": [
+   "Fisch"
+  ],
+  "fitness": [
+   "Fitness"
+  ],
+  "five": [
+   "fünf"
+  ],
+  "flag": [
+   "Flagge",
+   "Fahne"
+  ],
+  "flame": [
+   "Flamme",
+   "Feuer"
+  ],
+  "flare": [
+   "Leuchtfeuer"
+  ],
+  "flash": [
+   "Blitz"
+  ],
+  "flask": [
+   "Kolben",
+   "Labor"
+  ],
+  "flat": [
+   "flach"
+  ],
+  "flip": [
+   "spiegeln",
+   "umdrehen"
+  ],
+  "float": [
+   "schweben"
+  ],
+  "flood": [
+   "Überflutung",
+   "Hochwasser"
+  ],
+  "floor": [
+   "Boden",
+   "Stockwerk"
+  ],
+  "floppy": [
+   "Diskette",
+   "speichern"
+  ],
+  "flower": [
+   "Blume"
+  ],
+  "focus": [
+   "Fokus"
+  ],
+  "fog": [
+   "Nebel"
+  ],
+  "fold": [
+   "falten"
+  ],
+  "folder": [
+   "Ordner"
+  ],
+  "folders": [
+   "Ordner"
+  ],
+  "font": [
+   "Schrift",
+   "Schriftart"
+  ],
+  "food": [
+   "Essen",
+   "Lebensmittel"
+  ],
+  "football": [
+   "Fußball",
+   "Football"
+  ],
+  "footsteps": [
+   "Fußspuren"
+  ],
+  "forbid": [
+   "verboten",
+   "Verbot"
+  ],
+  "forbidden": [
+   "verboten"
+  ],
+  "fork": [
+   "Gabel",
+   "Abzweigung"
+  ],
+  "forklift": [
+   "Gabelstapler"
+  ],
+  "format": [
+   "Format"
+  ],
+  "formatting": [
+   "Formatierung"
+  ],
+  "forms": [
+   "Formulare"
+  ],
+  "formula": [
+   "Formel"
+  ],
+  "fortress": [
+   "Festung"
+  ],
+  "forward": [
+   "vorwärts",
+   "weiter"
+  ],
+  "fountain": [
+   "Brunnen"
+  ],
+  "four": [
+   "vier"
+  ],
+  "frame": [
+   "Rahmen"
+  ],
+  "free": [
+   "frei",
+   "kostenlos"
+  ],
+  "freeze": [
+   "einfrieren"
+  ],
+  "fridge": [
+   "Kühlschrank"
+  ],
+  "fried": [
+   "gebraten"
+  ],
+  "friends": [
+   "Freunde"
+  ],
+  "from": [
+   "von"
+  ],
+  "full": [
+   "voll"
+  ],
+  "function": [
+   "Funktion"
+  ],
+  "funnel": [
+   "Trichter"
+  ],
+  "galaxy": [
+   "Galaxie"
+  ],
+  "gallery": [
+   "Galerie"
+  ],
+  "game": [
+   "Spiel"
+  ],
+  "gamepad": [
+   "Spielkonsole",
+   "Controller"
+  ],
+  "garage": [
+   "Garage",
+   "Werkstatt"
+  ],
+  "garden": [
+   "Garten"
+  ],
+  "garment": [
+   "Kleidungsstück"
+  ],
+  "gas": [
+   "Gas",
+   "Benzin"
+  ],
+  "gateway": [
+   "Gateway",
+   "Zugang"
+  ],
+  "gauge": [
+   "Anzeige",
+   "Tacho"
+  ],
+  "gavel": [
+   "Richterhammer",
+   "Recht"
+  ],
+  "gear": [
+   "Zahnrad"
+  ],
+  "gearbox": [
+   "Getriebe"
+  ],
+  "gender": [
+   "Geschlecht"
+  ],
+  "generation": [
+   "Erzeugung"
+  ],
+  "geography": [
+   "Geografie"
+  ],
+  "geometry": [
+   "Geometrie"
+  ],
+  "get": [
+   "holen"
+  ],
+  "ghost": [
+   "Geist",
+   "Gespenst"
+  ],
+  "gift": [
+   "Geschenk"
+  ],
+  "gizmo": [
+   "Gerät"
+  ],
+  "glass": [
+   "Glas"
+  ],
+  "global": [
+   "global",
+   "weltweit"
+  ],
+  "globe": [
+   "Globus",
+   "Welt"
+  ],
+  "goal": [
+   "Ziel",
+   "Tor"
+  ],
+  "gps": [
+   "GPS",
+   "Ortung"
+  ],
+  "grab": [
+   "greifen"
+  ],
+  "grain": [
+   "Korn",
+   "Getreide"
+  ],
+  "grape": [
+   "Traube"
+  ],
+  "graph": [
+   "Graph",
+   "Diagramm"
+  ],
+  "grave": [
+   "Grab"
+  ],
+  "greater": [
+   "größer"
+  ],
+  "greek": [
+   "griechisch"
+  ],
+  "grid": [
+   "Raster",
+   "Gitter"
+  ],
+  "grill": [
+   "Grill"
+  ],
+  "grip": [
+   "Griff"
+  ],
+  "ground": [
+   "Erde",
+   "Boden"
+  ],
+  "group": [
+   "Gruppe"
+  ],
+  "growth": [
+   "Wachstum"
+  ],
+  "guard": [
+   "Wache",
+   "Schutz"
+  ],
+  "guide": [
+   "Anleitung",
+   "Hilfslinie"
+  ],
+  "guitar": [
+   "Gitarre"
+  ],
+  "gymnastics": [
+   "Turnen"
+  ],
+  "half": [
+   "halb",
+   "Hälfte"
+  ],
+  "hammer": [
+   "Hammer"
+  ],
+  "hand": [
+   "Hand"
+  ],
+  "handshake": [
+   "Handschlag",
+   "Vereinbarung"
+  ],
+  "happy": [
+   "fröhlich",
+   "glücklich"
+  ],
+  "hash": [
+   "Raute",
+   "Hashtag"
+  ],
+  "hat": [
+   "Hut"
+  ],
+  "haze": [
+   "Dunst",
+   "Nebel"
+  ],
+  "head": [
+   "Kopf"
+  ],
+  "heading": [
+   "Überschrift"
+  ],
+  "headphones": [
+   "Kopfhörer"
+  ],
+  "headset": [
+   "Headset"
+  ],
+  "health": [
+   "Gesundheit"
+  ],
+  "heart": [
+   "Herz"
+  ],
+  "heartbeat": [
+   "Herzschlag",
+   "Puls"
+  ],
+  "hearts": [
+   "Herzen"
+  ],
+  "heat": [
+   "Hitze",
+   "Heizung"
+  ],
+  "hebrew": [
+   "hebräisch"
+  ],
+  "height": [
+   "Höhe"
+  ],
+  "helicopter": [
+   "Hubschrauber"
+  ],
+  "helmet": [
+   "Helm"
+  ],
+  "help": [
+   "Hilfe"
+  ],
+  "hemisphere": [
+   "Halbkugel"
+  ],
+  "hexagon": [
+   "Sechseck"
+  ],
+  "hexagonal": [
+   "sechseckig"
+  ],
+  "hexagons": [
+   "Sechsecke"
+  ],
+  "hidden": [
+   "versteckt"
+  ],
+  "hide": [
+   "ausblenden",
+   "verstecken"
+  ],
+  "hierarchy": [
+   "Hierarchie"
+  ],
+  "high": [
+   "hoch"
+  ],
+  "highlight": [
+   "hervorheben",
+   "Markierung"
+  ],
+  "histogram": [
+   "Histogramm"
+  ],
+  "history": [
+   "Verlauf",
+   "Geschichte"
+  ],
+  "hold": [
+   "halten"
+  ],
+  "home": [
+   "Haus",
+   "Startseite",
+   "Zuhause"
+  ],
+  "hook": [
+   "Haken"
+  ],
+  "horizontal": [
+   "waagrecht"
+  ],
+  "horse": [
+   "Pferd"
+  ],
+  "horseshoe": [
+   "Hufeisen"
+  ],
+  "hospital": [
+   "Krankenhaus"
+  ],
+  "hot": [
+   "heiß"
+  ],
+  "hotel": [
+   "Hotel"
+  ],
+  "hour": [
+   "Stunde"
+  ],
+  "hourglass": [
+   "Sanduhr"
+  ],
+  "hours": [
+   "Stunden"
+  ],
+  "house": [
+   "Haus"
+  ],
+  "hydrant": [
+   "Hydrant"
+  ],
+  "ice": [
+   "Eis"
+  ],
+  "iceberg": [
+   "Eisberg"
+  ],
+  "icons": [
+   "Symbole",
+   "Icons"
+  ],
+  "id": [
+   "Ausweis",
+   "Kennung"
+  ],
+  "identity": [
+   "Identität"
+  ],
+  "image": [
+   "Bild"
+  ],
+  "import": [
+   "importieren"
+  ],
+  "important": [
+   "wichtig"
+  ],
+  "in": [
+   "hinein",
+   "rein"
+  ],
+  "inactive": [
+   "inaktiv"
+  ],
+  "inbox": [
+   "Posteingang"
+  ],
+  "increase": [
+   "erhöhen"
+  ],
+  "indent": [
+   "Einzug",
+   "einrücken"
+  ],
+  "inductor": [
+   "Spule"
+  ],
+  "infinity": [
+   "Unendlich"
+  ],
+  "info": [
+   "Info",
+   "Information"
+  ],
+  "initial": [
+   "Initiale"
+  ],
+  "ink": [
+   "Tinte"
+  ],
+  "inner": [
+   "innen"
+  ],
+  "input": [
+   "Eingabe"
+  ],
+  "insert": [
+   "einfügen"
+  ],
+  "integral": [
+   "Integral"
+  ],
+  "intelligence": [
+   "Intelligenz"
+  ],
+  "international": [
+   "international"
+  ],
+  "internet": [
+   "Internet"
+  ],
+  "intersect": [
+   "Schnittmenge"
+  ],
+  "invoice": [
+   "Rechnung"
+  ],
+  "ironing": [
+   "bügeln"
+  ],
+  "irregular": [
+   "unregelmäßig"
+  ],
+  "italic": [
+   "kursiv"
+  ],
+  "iteration": [
+   "Wiederholung"
+  ],
+  "jacket": [
+   "Jacke"
+  ],
+  "japanese": [
+   "japanisch"
+  ],
+  "jar": [
+   "Glas",
+   "Gefäß"
+  ],
+  "join": [
+   "verbinden"
+  ],
+  "jump": [
+   "springen"
+  ],
+  "jumping": [
+   "springen"
+  ],
+  "justified": [
+   "Blocksatz"
+  ],
+  "kanban": [
+   "Kanban",
+   "Tafel"
+  ],
+  "karate": [
+   "Karate"
+  ],
+  "kayak": [
+   "Kajak"
+  ],
+  "kerning": [
+   "Zeichenabstand"
+  ],
+  "key": [
+   "Schlüssel"
+  ],
+  "keyboard": [
+   "Tastatur"
+  ],
+  "keyframe": [
+   "Schlüsselbild"
+  ],
+  "king": [
+   "König"
+  ],
+  "kit": [
+   "Set",
+   "Koffer"
+  ],
+  "kitchen": [
+   "Küche"
+  ],
+  "knight": [
+   "Springer",
+   "Ritter"
+  ],
+  "korean": [
+   "koreanisch"
+  ],
+  "label": [
+   "Etikett",
+   "Beschriftung"
+  ],
+  "ladder": [
+   "Leiter"
+  ],
+  "ladle": [
+   "Schöpflöffel"
+  ],
+  "lamp": [
+   "Lampe"
+  ],
+  "landing": [
+   "Landung"
+  ],
+  "landline": [
+   "Festnetz"
+  ],
+  "landscape": [
+   "Querformat",
+   "Landschaft"
+  ],
+  "lane": [
+   "Fahrspur"
+  ],
+  "language": [
+   "Sprache"
+  ],
+  "laptop": [
+   "Laptop",
+   "Notebook"
+  ],
+  "large": [
+   "groß"
+  ],
+  "lasso": [
+   "Lasso",
+   "Auswahl"
+  ],
+  "last": [
+   "letzte"
+  ],
+  "later": [
+   "später"
+  ],
+  "latin": [
+   "lateinisch"
+  ],
+  "laundry": [
+   "Wäsche"
+  ],
+  "laurel": [
+   "Lorbeer"
+  ],
+  "lawn": [
+   "Rasen"
+  ],
+  "layers": [
+   "Ebenen"
+  ],
+  "layout": [
+   "Layout",
+   "Aufteilung"
+  ],
+  "leaf": [
+   "Blatt"
+  ],
+  "leak": [
+   "Leck"
+  ],
+  "left": [
+   "links"
+  ],
+  "lego": [
+   "Baustein"
+  ],
+  "lemon": [
+   "Zitrone"
+  ],
+  "lens": [
+   "Linse"
+  ],
+  "less": [
+   "weniger"
+  ],
+  "letter": [
+   "Buchstabe",
+   "Brief"
+  ],
+  "letters": [
+   "Buchstaben"
+  ],
+  "level": [
+   "Ebene",
+   "Stufe"
+  ],
+  "library": [
+   "Bibliothek"
+  ],
+  "license": [
+   "Lizenz"
+  ],
+  "lifebuoy": [
+   "Rettungsring",
+   "Hilfe"
+  ],
+  "lift": [
+   "Lift",
+   "heben"
+  ],
+  "lifter": [
+   "Hebebühne"
+  ],
+  "light": [
+   "Licht",
+   "hell"
+  ],
+  "lighter": [
+   "Feuerzeug",
+   "heller"
+  ],
+  "lighthouse": [
+   "Leuchtturm"
+  ],
+  "lightning": [
+   "Blitz"
+  ],
+  "lights": [
+   "Lichter",
+   "Licht"
+  ],
+  "like": [
+   "gefällt mir"
+  ],
+  "line": [
+   "Linie"
+  ],
+  "lines": [
+   "Linien"
+  ],
+  "link": [
+   "Link",
+   "Verknüpfung"
+  ],
+  "linked": [
+   "verknüpft"
+  ],
+  "liquid": [
+   "Flüssigkeit"
+  ],
+  "list": [
+   "Liste"
+  ],
+  "little": [
+   "klein"
+  ],
+  "live": [
+   "live"
+  ],
+  "load": [
+   "laden"
+  ],
+  "loader": [
+   "Laden",
+   "Ladeanzeige"
+  ],
+  "loading": [
+   "laden"
+  ],
+  "location": [
+   "Ort",
+   "Standort"
+  ],
+  "lock": [
+   "Schloss",
+   "sperren",
+   "gesperrt"
+  ],
+  "locked": [
+   "gesperrt",
+   "verschlossen"
+  ],
+  "logic": [
+   "Logik"
+  ],
+  "login": [
+   "anmelden"
+  ],
+  "logout": [
+   "abmelden"
+  ],
+  "logs": [
+   "Protokolle"
+  ],
+  "lollipop": [
+   "Lutscher"
+  ],
+  "look": [
+   "schauen"
+  ],
+  "lookup": [
+   "nachschlagen"
+  ],
+  "loop": [
+   "Schleife",
+   "wiederholen"
+  ],
+  "love": [
+   "Liebe"
+  ],
+  "low": [
+   "niedrig"
+  ],
+  "lower": [
+   "niedriger",
+   "klein"
+  ],
+  "lowercase": [
+   "Kleinbuchstabe"
+  ],
+  "luggage": [
+   "Gepäck"
+  ],
+  "lungs": [
+   "Lunge"
+  ],
+  "magic": [
+   "Zauber",
+   "Magie"
+  ],
+  "magnet": [
+   "Magnet"
+  ],
+  "magnetic": [
+   "magnetisch"
+  ],
+  "magnifier": [
+   "Lupe"
+  ],
+  "magnifying": [
+   "Lupe"
+  ],
+  "mail": [
+   "Post",
+   "E-Mail",
+   "Brief"
+  ],
+  "mailbox": [
+   "Briefkasten"
+  ],
+  "male": [
+   "männlich"
+  ],
+  "man": [
+   "Mann"
+  ],
+  "manual": [
+   "Handbuch",
+   "manuell"
+  ],
+  "many": [
+   "viele"
+  ],
+  "map": [
+   "Karte",
+   "Landkarte"
+  ],
+  "maple": [
+   "Ahorn"
+  ],
+  "margin": [
+   "Außenabstand",
+   "Rand"
+  ],
+  "mark": [
+   "Markierung",
+   "Zeichen"
+  ],
+  "marker": [
+   "Markierung",
+   "Markierungsstift"
+  ],
+  "mars": [
+   "Mars"
+  ],
+  "mask": [
+   "Maske"
+  ],
+  "masks": [
+   "Masken"
+  ],
+  "massage": [
+   "Massage"
+  ],
+  "matchstick": [
+   "Streichholz"
+  ],
+  "math": [
+   "Mathematik",
+   "Rechnen"
+  ],
+  "mathematics": [
+   "Mathematik"
+  ],
+  "matrix": [
+   "Matrix"
+  ],
+  "maximize": [
+   "vergrößern",
+   "maximieren"
+  ],
+  "measure": [
+   "messen"
+  ],
+  "meat": [
+   "Fleisch"
+  ],
+  "medal": [
+   "Medaille"
+  ],
+  "media": [
+   "Medien"
+  ],
+  "medical": [
+   "medizinisch",
+   "Medizin"
+  ],
+  "medicine": [
+   "Medizin",
+   "Arznei"
+  ],
+  "medium": [
+   "mittel"
+  ],
+  "melody": [
+   "Melodie"
+  ],
+  "melon": [
+   "Melone"
+  ],
+  "member": [
+   "Mitglied"
+  ],
+  "memory": [
+   "Speicher",
+   "Erinnerung"
+  ],
+  "menu": [
+   "Menü"
+  ],
+  "merge": [
+   "zusammenführen"
+  ],
+  "message": [
+   "Nachricht"
+  ],
+  "messages": [
+   "Nachrichten"
+  ],
+  "meteor": [
+   "Meteor"
+  ],
+  "meter": [
+   "Messgerät"
+  ],
+  "microphone": [
+   "Mikrofon"
+  ],
+  "microscope": [
+   "Mikroskop"
+  ],
+  "microwave": [
+   "Mikrowelle"
+  ],
+  "middle": [
+   "Mitte"
+  ],
+  "milestone": [
+   "Meilenstein"
+  ],
+  "military": [
+   "Militär"
+  ],
+  "milk": [
+   "Milch"
+  ],
+  "minimize": [
+   "verkleinern",
+   "minimieren"
+  ],
+  "minus": [
+   "Minus",
+   "entfernen"
+  ],
+  "mist": [
+   "Nebel"
+  ],
+  "mobile": [
+   "Handy",
+   "Mobiltelefon"
+  ],
+  "mode": [
+   "Modus"
+  ],
+  "model": [
+   "Modell"
+  ],
+  "modify": [
+   "ändern"
+  ],
+  "money": [
+   "Geld"
+  ],
+  "moneybag": [
+   "Geldsack",
+   "Geld"
+  ],
+  "monitor": [
+   "Bildschirm",
+   "Monitor"
+  ],
+  "month": [
+   "Monat"
+  ],
+  "monument": [
+   "Denkmal"
+  ],
+  "mood": [
+   "Stimmung",
+   "Gesicht",
+   "Smiley"
+  ],
+  "moon": [
+   "Mond"
+  ],
+  "more": [
+   "mehr"
+  ],
+  "mosque": [
+   "Moschee"
+  ],
+  "motor": [
+   "Motor"
+  ],
+  "mountain": [
+   "Berg"
+  ],
+  "mouse": [
+   "Maus"
+  ],
+  "move": [
+   "verschieben",
+   "bewegen"
+  ],
+  "movie": [
+   "Film"
+  ],
+  "mower": [
+   "Mäher"
+  ],
+  "mug": [
+   "Becher",
+   "Tasse"
+  ],
+  "multi": [
+   "mehrfach"
+  ],
+  "multiple": [
+   "mehrere"
+  ],
+  "mushroom": [
+   "Pilz"
+  ],
+  "music": [
+   "Musik"
+  ],
+  "narrow": [
+   "schmal"
+  ],
+  "navigation": [
+   "Navigation"
+  ],
+  "needle": [
+   "Nadel"
+  ],
+  "network": [
+   "Netzwerk"
+  ],
+  "neutral": [
+   "neutral"
+  ],
+  "new": [
+   "neu"
+  ],
+  "news": [
+   "Nachrichten",
+   "Neuigkeiten"
+  ],
+  "next": [
+   "weiter",
+   "nächste"
+  ],
+  "no": [
+   "nein",
+   "kein"
+  ],
+  "nodes": [
+   "Knoten"
+  ],
+  "none": [
+   "keine"
+  ],
+  "north": [
+   "Norden"
+  ],
+  "not": [
+   "nicht"
+  ],
+  "note": [
+   "Notiz"
+  ],
+  "notebook": [
+   "Notizbuch"
+  ],
+  "notes": [
+   "Notizen"
+  ],
+  "notification": [
+   "Benachrichtigung"
+  ],
+  "notify": [
+   "benachrichtigen"
+  ],
+  "number": [
+   "Zahl",
+   "Nummer"
+  ],
+  "numbered": [
+   "nummeriert"
+  ],
+  "numbers": [
+   "Zahlen"
+  ],
+  "numeral": [
+   "Ziffer"
+  ],
+  "numeric": [
+   "numerisch"
+  ],
+  "octagon": [
+   "Achteck"
+  ],
+  "off": [
+   "aus",
+   "durchgestrichen",
+   "deaktiviert"
+  ],
+  "office": [
+   "Büro"
+  ],
+  "old": [
+   "alt"
+  ],
+  "olympics": [
+   "Olympia"
+  ],
+  "one": [
+   "eins"
+  ],
+  "online": [
+   "online"
+  ],
+  "open": [
+   "offen",
+   "öffnen"
+  ],
+  "opened": [
+   "geöffnet"
+  ],
+  "options": [
+   "Optionen"
+  ],
+  "or": [
+   "oder"
+  ],
+  "orbit": [
+   "Umlaufbahn"
+  ],
+  "order": [
+   "Bestellung",
+   "Reihenfolge"
+  ],
+  "orientation": [
+   "Ausrichtung"
+  ],
+  "out": [
+   "hinaus",
+   "raus"
+  ],
+  "outer": [
+   "außen"
+  ],
+  "outline": [
+   "Umriss"
+  ],
+  "oval": [
+   "Oval"
+  ],
+  "package": [
+   "Paket"
+  ],
+  "padding": [
+   "Innenabstand"
+  ],
+  "padlock": [
+   "Vorhängeschloss"
+  ],
+  "page": [
+   "Seite"
+  ],
+  "paint": [
+   "malen",
+   "Farbe"
+  ],
+  "palette": [
+   "Palette",
+   "Farben"
+  ],
+  "panel": [
+   "Bereich",
+   "Leiste"
+  ],
+  "panorama": [
+   "Panorama"
+  ],
+  "paper": [
+   "Papier"
+  ],
+  "parachute": [
+   "Fallschirm"
+  ],
+  "parentheses": [
+   "runde Klammern"
+  ],
+  "parking": [
+   "Parken",
+   "Parkplatz"
+  ],
+  "passport": [
+   "Reisepass"
+  ],
+  "password": [
+   "Passwort",
+   "Kennwort"
+  ],
+  "path": [
+   "Pfad"
+  ],
+  "pattern": [
+   "Muster"
+  ],
+  "pause": [
+   "Pause"
+  ],
+  "paused": [
+   "angehalten"
+  ],
+  "pavilion": [
+   "Pavillon"
+  ],
+  "paw": [
+   "Pfote"
+  ],
+  "pay": [
+   "bezahlen"
+  ],
+  "payment": [
+   "Zahlung",
+   "bezahlen"
+  ],
+  "pen": [
+   "Stift",
+   "Füller"
+  ],
+  "pencil": [
+   "Stift",
+   "Bleistift",
+   "bearbeiten"
+  ],
+  "pennant": [
+   "Wimpel"
+  ],
+  "pentagon": [
+   "Fünfeck"
+  ],
+  "people": [
+   "Leute",
+   "Personen"
+  ],
+  "pepper": [
+   "Pfeffer",
+   "Paprika"
+  ],
+  "percent": [
+   "Prozent"
+  ],
+  "percentage": [
+   "Prozent"
+  ],
+  "person": [
+   "Person"
+  ],
+  "perspective": [
+   "Perspektive"
+  ],
+  "phone": [
+   "Telefon"
+  ],
+  "photo": [
+   "Foto",
+   "Bild"
+  ],
+  "photography": [
+   "Fotografie"
+  ],
+  "pi": [
+   "Pi"
+  ],
+  "pick": [
+   "wählen"
+  ],
+  "picker": [
+   "Auswahl",
+   "Pipette"
+  ],
+  "picture": [
+   "Bild"
+  ],
+  "pie": [
+   "Kreisdiagramm",
+   "Torte"
+  ],
+  "pig": [
+   "Schwein",
+   "Sparschwein"
+  ],
+  "pilcrow": [
+   "Absatzzeichen"
+  ],
+  "pile": [
+   "Haufen"
+  ],
+  "pill": [
+   "Tablette",
+   "Pille"
+  ],
+  "pin": [
+   "Stecknadel",
+   "Pin",
+   "anheften"
+  ],
+  "pinned": [
+   "angeheftet"
+  ],
+  "pins": [
+   "Stecknadeln"
+  ],
+  "pipe": [
+   "Rohr",
+   "Pfeife"
+  ],
+  "pizza": [
+   "Pizza"
+  ],
+  "place": [
+   "Ort",
+   "Platz"
+  ],
+  "plane": [
+   "Flugzeug"
+  ],
+  "planet": [
+   "Planet"
+  ],
+  "planner": [
+   "Planer"
+  ],
+  "plant": [
+   "Pflanze"
+  ],
+  "play": [
+   "abspielen",
+   "Wiedergabe",
+   "spielen"
+  ],
+  "player": [
+   "Spieler",
+   "Wiedergabe"
+  ],
+  "playlist": [
+   "Wiedergabeliste"
+  ],
+  "plug": [
+   "Stecker"
+  ],
+  "plus": [
+   "Plus",
+   "hinzufügen"
+  ],
+  "podium": [
+   "Podest",
+   "Siegertreppchen"
+  ],
+  "point": [
+   "Punkt"
+  ],
+  "pointer": [
+   "Zeiger",
+   "Mauszeiger"
+  ],
+  "points": [
+   "Punkte"
+  ],
+  "polish": [
+   "polnisch"
+  ],
+  "polygon": [
+   "Vieleck"
+  ],
+  "pool": [
+   "Schwimmbad",
+   "Pool"
+  ],
+  "popular": [
+   "beliebt"
+  ],
+  "portrait": [
+   "Hochformat",
+   "Porträt"
+  ],
+  "position": [
+   "Position"
+  ],
+  "pound": [
+   "Pfund"
+  ],
+  "power": [
+   "Strom",
+   "Einschalten"
+  ],
+  "preferences": [
+   "Einstellungen"
+  ],
+  "presentation": [
+   "Präsentation",
+   "Vortrag"
+  ],
+  "preview": [
+   "Vorschau"
+  ],
+  "previous": [
+   "zurück",
+   "vorherige"
+  ],
+  "price": [
+   "Preis"
+  ],
+  "printer": [
+   "Drucker",
+   "drucken"
+  ],
+  "prism": [
+   "Prisma"
+  ],
+  "private": [
+   "privat"
+  ],
+  "profile": [
+   "Profil"
+  ],
+  "programming": [
+   "Programmierung"
+  ],
+  "progress": [
+   "Fortschritt"
+  ],
+  "project": [
+   "Projekt"
+  ],
+  "projector": [
+   "Beamer",
+   "Projektor"
+  ],
+  "propeller": [
+   "Propeller"
+  ],
+  "protect": [
+   "schützen"
+  ],
+  "protected": [
+   "geschützt"
+  ],
+  "protection": [
+   "Schutz"
+  ],
+  "pull": [
+   "ziehen"
+  ],
+  "purchase": [
+   "Kauf"
+  ],
+  "pushbutton": [
+   "Taster"
+  ],
+  "puzzle": [
+   "Puzzle",
+   "Erweiterung"
+  ],
+  "pyramid": [
+   "Pyramide"
+  ],
+  "qrcode": [
+   "QR-Code"
+  ],
+  "quarter": [
+   "Viertel"
+  ],
+  "queen": [
+   "Dame",
+   "Königin"
+  ],
+  "question": [
+   "Frage",
+   "Fragezeichen"
+  ],
+  "queue": [
+   "Warteschlange"
+  ],
+  "quote": [
+   "Zitat"
+  ],
+  "rack": [
+   "Regal",
+   "Gestell"
+  ],
+  "radar": [
+   "Radar"
+  ],
+  "radio": [
+   "Radio"
+  ],
+  "radioactive": [
+   "radioaktiv"
+  ],
+  "radius": [
+   "Radius"
+  ],
+  "rain": [
+   "Regen"
+  ],
+  "rainbow": [
+   "Regenbogen"
+  ],
+  "raise": [
+   "heben",
+   "melden"
+  ],
+  "ramp": [
+   "Rampe"
+  ],
+  "random": [
+   "zufällig"
+  ],
+  "rate": [
+   "bewerten",
+   "Rate"
+  ],
+  "rating": [
+   "Bewertung"
+  ],
+  "ratio": [
+   "Verhältnis"
+  ],
+  "razor": [
+   "Rasierer"
+  ],
+  "reaction": [
+   "Reaktion"
+  ],
+  "read": [
+   "lesen"
+  ],
+  "real": [
+   "echt"
+  ],
+  "reality": [
+   "Realität"
+  ],
+  "receipt": [
+   "Quittung",
+   "Beleg",
+   "Rechnung"
+  ],
+  "recognition": [
+   "Erkennung"
+  ],
+  "record": [
+   "aufnehmen",
+   "Aufnahme"
+  ],
+  "rectangle": [
+   "Rechteck"
+  ],
+  "rectangular": [
+   "rechteckig"
+  ],
+  "recycle": [
+   "wiederverwerten",
+   "Recycling"
+  ],
+  "reduce": [
+   "verringern"
+  ],
+  "refine": [
+   "verfeinern"
+  ],
+  "refresh": [
+   "aktualisieren",
+   "neu laden"
+  ],
+  "refund": [
+   "Erstattung",
+   "Rückerstattung"
+  ],
+  "register": [
+   "Kasse",
+   "registrieren"
+  ],
+  "relation": [
+   "Beziehung"
+  ],
+  "reminder": [
+   "Erinnerung"
+  ],
+  "remove": [
+   "entfernen"
+  ],
+  "repeat": [
+   "wiederholen"
+  ],
+  "replace": [
+   "ersetzen"
+  ],
+  "reply": [
+   "antworten"
+  ],
+  "report": [
+   "Bericht"
+  ],
+  "request": [
+   "Anfrage"
+  ],
+  "resistor": [
+   "Widerstand"
+  ],
+  "resize": [
+   "Größe ändern"
+  ],
+  "responsive": [
+   "anpassbar"
+  ],
+  "rest": [
+   "Pause",
+   "Ruhe"
+  ],
+  "restore": [
+   "wiederherstellen"
+  ],
+  "rewind": [
+   "zurückspulen"
+  ],
+  "rhombus": [
+   "Raute"
+  ],
+  "ribbon": [
+   "Band",
+   "Schleife"
+  ],
+  "right": [
+   "rechts"
+  ],
+  "rights": [
+   "Rechte"
+  ],
+  "ring": [
+   "Ring"
+  ],
+  "ringing": [
+   "klingeln"
+  ],
+  "ripple": [
+   "Welle"
+  ],
+  "road": [
+   "Straße"
+  ],
+  "robot": [
+   "Roboter"
+  ],
+  "rocket": [
+   "Rakete"
+  ],
+  "roll": [
+   "Rolle",
+   "würfeln"
+  ],
+  "rollercoaster": [
+   "Achterbahn"
+  ],
+  "rook": [
+   "Turm"
+  ],
+  "root": [
+   "Wurzel"
+  ],
+  "rope": [
+   "Seil"
+  ],
+  "rosette": [
+   "Rosette",
+   "Siegel"
+  ],
+  "rotate": [
+   "drehen"
+  ],
+  "rotated": [
+   "gedreht"
+  ],
+  "round": [
+   "rund"
+  ],
+  "roundabout": [
+   "Kreisverkehr"
+  ],
+  "rounded": [
+   "abgerundet",
+   "rund"
+  ],
+  "route": [
+   "Route",
+   "Weg"
+  ],
+  "router": [
+   "Router"
+  ],
+  "row": [
+   "Zeile",
+   "Reihe"
+  ],
+  "rows": [
+   "Zeilen"
+  ],
+  "rubber": [
+   "Gummi"
+  ],
+  "ruler": [
+   "Lineal"
+  ],
+  "run": [
+   "laufen",
+   "ausführen"
+  ],
+  "sad": [
+   "traurig"
+  ],
+  "safety": [
+   "Sicherheit"
+  ],
+  "sailboat": [
+   "Segelboot"
+  ],
+  "sale": [
+   "Verkauf",
+   "Angebot"
+  ],
+  "sanitizer": [
+   "Desinfektion"
+  ],
+  "satellite": [
+   "Satellit"
+  ],
+  "save": [
+   "speichern"
+  ],
+  "saved": [
+   "gespeichert"
+  ],
+  "scale": [
+   "Waage",
+   "skalieren"
+  ],
+  "scan": [
+   "scannen"
+  ],
+  "scatter": [
+   "Streudiagramm"
+  ],
+  "schedule": [
+   "Zeitplan",
+   "Termin"
+  ],
+  "schema": [
+   "Schema"
+  ],
+  "schematic": [
+   "Schaltplan"
+  ],
+  "school": [
+   "Schule"
+  ],
+  "scissors": [
+   "Schere",
+   "ausschneiden"
+  ],
+  "scooter": [
+   "Roller"
+  ],
+  "screen": [
+   "Bildschirm"
+  ],
+  "scribble": [
+   "Kritzelei"
+  ],
+  "script": [
+   "Skript"
+  ],
+  "search": [
+   "Suche",
+   "suchen",
+   "Lupe"
+  ],
+  "section": [
+   "Abschnitt"
+  ],
+  "secure": [
+   "sicher"
+  ],
+  "security": [
+   "Sicherheit"
+  ],
+  "seedling": [
+   "Keimling",
+   "Setzling"
+  ],
+  "select": [
+   "auswählen"
+  ],
+  "selected": [
+   "ausgewählt"
+  ],
+  "selfie": [
+   "Selfie"
+  ],
+  "send": [
+   "senden",
+   "schicken"
+  ],
+  "sensor": [
+   "Sensor"
+  ],
+  "separator": [
+   "Trenner",
+   "Trennlinie"
+  ],
+  "server": [
+   "Server"
+  ],
+  "service": [
+   "Dienst",
+   "Service"
+  ],
+  "settings": [
+   "Einstellungen"
+  ],
+  "shadow": [
+   "Schatten"
+  ],
+  "shape": [
+   "Form"
+  ],
+  "shapes": [
+   "Formen"
+  ],
+  "share": [
+   "teilen"
+  ],
+  "sharp": [
+   "scharf"
+  ],
+  "sheet": [
+   "Blatt",
+   "Tabelle"
+  ],
+  "shield": [
+   "Schild",
+   "Schutz",
+   "Sicherheit"
+  ],
+  "shift": [
+   "Umschalt"
+  ],
+  "shine": [
+   "glänzen"
+  ],
+  "ship": [
+   "Schiff"
+  ],
+  "shirt": [
+   "Hemd",
+   "T-Shirt"
+  ],
+  "shoe": [
+   "Schuh"
+  ],
+  "shop": [
+   "Laden",
+   "Geschäft"
+  ],
+  "shopping": [
+   "Einkauf",
+   "einkaufen"
+  ],
+  "shovel": [
+   "Schaufel"
+  ],
+  "show": [
+   "anzeigen",
+   "zeigen"
+  ],
+  "shredder": [
+   "Aktenvernichter",
+   "Schredder"
+  ],
+  "shuffle": [
+   "mischen",
+   "zufällig"
+  ],
+  "sidebar": [
+   "Seitenleiste"
+  ],
+  "sides": [
+   "Seiten"
+  ],
+  "sign": [
+   "Schild",
+   "Zeichen"
+  ],
+  "signal": [
+   "Signal",
+   "Empfang"
+  ],
+  "signature": [
+   "Unterschrift",
+   "Signatur"
+  ],
+  "simple": [
+   "einfach"
+  ],
+  "sitemap": [
+   "Seitenstruktur",
+   "Sitemap"
+  ],
+  "skateboard": [
+   "Skateboard"
+  ],
+  "skating": [
+   "Eislaufen",
+   "Skaten"
+  ],
+  "skew": [
+   "verzerren"
+  ],
+  "skip": [
+   "überspringen"
+  ],
+  "skyscraper": [
+   "Hochhaus",
+   "Wolkenkratzer"
+  ],
+  "slash": [
+   "Schrägstrich"
+  ],
+  "sliders": [
+   "Schieberegler"
+  ],
+  "small": [
+   "klein"
+  ],
+  "smart": [
+   "intelligent"
+  ],
+  "smartphone": [
+   "Smartphone",
+   "Handy"
+  ],
+  "smile": [
+   "Lächeln",
+   "Smiley"
+  ],
+  "smiley": [
+   "Smiley"
+  ],
+  "smoke": [
+   "Rauch"
+  ],
+  "smoking": [
+   "Rauchen"
+  ],
+  "snooze": [
+   "schlummern"
+  ],
+  "snow": [
+   "Schnee"
+  ],
+  "snowflake": [
+   "Schneeflocke"
+  ],
+  "social": [
+   "sozial"
+  ],
+  "sofa": [
+   "Sofa"
+  ],
+  "solar": [
+   "Solar",
+   "Sonne"
+  ],
+  "solid": [
+   "gefüllt"
+  ],
+  "song": [
+   "Lied"
+  ],
+  "sort": [
+   "sortieren"
+  ],
+  "sound": [
+   "Ton",
+   "Klang"
+  ],
+  "soup": [
+   "Suppe"
+  ],
+  "south": [
+   "Süden"
+  ],
+  "space": [
+   "Leerzeichen",
+   "Weltraum"
+  ],
+  "spacing": [
+   "Abstand"
+  ],
+  "spark": [
+   "Funke"
+  ],
+  "sparkle": [
+   "Funkeln",
+   "Glitzer"
+  ],
+  "sparkles": [
+   "Funkeln",
+   "Glitzer"
+  ],
+  "spatula": [
+   "Spachtel",
+   "Pfannenwender"
+  ],
+  "speaker": [
+   "Lautsprecher"
+  ],
+  "speech": [
+   "Rede",
+   "Sprechblase"
+  ],
+  "sphere": [
+   "Kugel"
+  ],
+  "spinner": [
+   "Ladeanzeige"
+  ],
+  "spiral": [
+   "Spirale"
+  ],
+  "split": [
+   "teilen",
+   "aufteilen"
+  ],
+  "spoon": [
+   "Löffel"
+  ],
+  "sport": [
+   "Sport"
+  ],
+  "spreadsheet": [
+   "Tabelle",
+   "Tabellenkalkulation"
+  ],
+  "spy": [
+   "Spion"
+  ],
+  "square": [
+   "Quadrat",
+   "Viereck"
+  ],
+  "squares": [
+   "Quadrate"
+  ],
+  "stack": [
+   "Stapel"
+  ],
+  "stadium": [
+   "Stadion"
+  ],
+  "staff": [
+   "Stab",
+   "Notensystem"
+  ],
+  "stairs": [
+   "Treppe"
+  ],
+  "stamp": [
+   "Stempel"
+  ],
+  "star": [
+   "Stern"
+  ],
+  "starred": [
+   "markiert"
+  ],
+  "stars": [
+   "Sterne"
+  ],
+  "start": [
+   "Start",
+   "Anfang"
+  ],
+  "state": [
+   "Zustand",
+   "Status"
+  ],
+  "station": [
+   "Station",
+   "Tankstelle"
+  ],
+  "statistics": [
+   "Statistik"
+  ],
+  "stats": [
+   "Statistik"
+  ],
+  "steam": [
+   "Dampf"
+  ],
+  "steering": [
+   "Lenkrad"
+  ],
+  "step": [
+   "Schritt"
+  ],
+  "stethoscope": [
+   "Stethoskop",
+   "Arzt"
+  ],
+  "sticker": [
+   "Aufkleber"
+  ],
+  "stop": [
+   "Stopp",
+   "anhalten"
+  ],
+  "storage": [
+   "Speicher"
+  ],
+  "store": [
+   "Laden",
+   "Geschäft"
+  ],
+  "storm": [
+   "Sturm",
+   "Gewitter"
+  ],
+  "straight": [
+   "gerade"
+  ],
+  "stretch": [
+   "dehnen",
+   "strecken"
+  ],
+  "stretching": [
+   "dehnen"
+  ],
+  "stroke": [
+   "Strich"
+  ],
+  "style": [
+   "Stil"
+  ],
+  "subtitles": [
+   "Untertitel"
+  ],
+  "subtract": [
+   "abziehen"
+  ],
+  "success": [
+   "Erfolg"
+  ],
+  "sum": [
+   "Summe"
+  ],
+  "sun": [
+   "Sonne"
+  ],
+  "sunset": [
+   "Sonnenuntergang"
+  ],
+  "support": [
+   "Unterstützung",
+   "Hilfe"
+  ],
+  "suspend": [
+   "sperren",
+   "aussetzen"
+  ],
+  "suspension": [
+   "Federung"
+  ],
+  "swap": [
+   "tauschen"
+  ],
+  "swatch": [
+   "Farbmuster"
+  ],
+  "swipe": [
+   "wischen"
+  ],
+  "switch": [
+   "Schalter",
+   "umschalten"
+  ],
+  "sword": [
+   "Schwert"
+  ],
+  "symbol": [
+   "Symbol"
+  ],
+  "sync": [
+   "synchronisieren"
+  ],
+  "syrup": [
+   "Sirup"
+  ],
+  "table": [
+   "Tabelle",
+   "Tisch"
+  ],
+  "tablet": [
+   "Tablet"
+  ],
+  "tag": [
+   "Etikett",
+   "Schlagwort"
+  ],
+  "tags": [
+   "Etiketten",
+   "Schlagwörter"
+  ],
+  "tail": [
+   "Schwanz",
+   "Ende"
+  ],
+  "tallymark": [
+   "Strichliste"
+  ],
+  "tank": [
+   "Tank"
+  ],
+  "tape": [
+   "Band",
+   "Klebeband"
+  ],
+  "target": [
+   "Ziel",
+   "Zielscheibe"
+  ],
+  "tax": [
+   "Steuer"
+  ],
+  "tea": [
+   "Tee"
+  ],
+  "teacher": [
+   "Lehrer"
+  ],
+  "team": [
+   "Team"
+  ],
+  "telescope": [
+   "Teleskop",
+   "Fernrohr"
+  ],
+  "temperature": [
+   "Temperatur"
+  ],
+  "template": [
+   "Vorlage"
+  ],
+  "tennis": [
+   "Tennis"
+  ],
+  "tent": [
+   "Zelt"
+  ],
+  "terminal": [
+   "Terminal",
+   "Konsole"
+  ],
+  "test": [
+   "Test",
+   "prüfen"
+  ],
+  "text": [
+   "Text"
+  ],
+  "thai": [
+   "thailändisch"
+  ],
+  "theater": [
+   "Theater"
+  ],
+  "thinking": [
+   "nachdenken"
+  ],
+  "three": [
+   "drei"
+  ],
+  "thumb": [
+   "Daumen"
+  ],
+  "thumbnail": [
+   "Vorschaubild"
+  ],
+  "tick": [
+   "Haken"
+  ],
+  "ticket": [
+   "Ticket",
+   "Karte"
+  ],
+  "tilt": [
+   "neigen"
+  ],
+  "time": [
+   "Zeit"
+  ],
+  "timeline": [
+   "Zeitleiste",
+   "Zeitstrahl"
+  ],
+  "timer": [
+   "Timer",
+   "Stoppuhr"
+  ],
+  "tip": [
+   "Tipp",
+   "Spitze"
+  ],
+  "toggle": [
+   "Schalter",
+   "umschalten"
+  ],
+  "toilet": [
+   "Toilette",
+   "WC"
+  ],
+  "tongue": [
+   "Zunge"
+  ],
+  "tool": [
+   "Werkzeug"
+  ],
+  "tools": [
+   "Werkzeuge"
+  ],
+  "top": [
+   "oben"
+  ],
+  "topology": [
+   "Topologie",
+   "Netzwerk"
+  ],
+  "touchscreen": [
+   "Touchscreen"
+  ],
+  "tower": [
+   "Turm"
+  ],
+  "toy": [
+   "Spielzeug"
+  ],
+  "track": [
+   "Spur",
+   "verfolgen"
+  ],
+  "tracker": [
+   "Verfolgung"
+  ],
+  "traffic": [
+   "Verkehr"
+  ],
+  "transaction": [
+   "Transaktion",
+   "Zahlung"
+  ],
+  "transfer": [
+   "übertragen",
+   "Überweisung"
+  ],
+  "transform": [
+   "umwandeln"
+  ],
+  "transition": [
+   "Übergang"
+  ],
+  "trash": [
+   "Papierkorb",
+   "Müll",
+   "löschen"
+  ],
+  "travel": [
+   "Reise",
+   "reisen"
+  ],
+  "tree": [
+   "Baum"
+  ],
+  "trending": [
+   "Trend"
+  ],
+  "triangle": [
+   "Dreieck"
+  ],
+  "triple": [
+   "dreifach"
+  ],
+  "trolley": [
+   "Wagen"
+  ],
+  "trophy": [
+   "Pokal",
+   "Trophäe"
+  ],
+  "truck": [
+   "Lastwagen",
+   "LKW"
+  ],
+  "tumble": [
+   "Trockner"
+  ],
+  "tune": [
+   "einstellen"
+  ],
+  "tunnel": [
+   "Tunnel"
+  ],
+  "turbine": [
+   "Turbine",
+   "Windrad"
+  ],
+  "turn": [
+   "abbiegen",
+   "drehen"
+  ],
+  "tv": [
+   "Fernseher"
+  ],
+  "two": [
+   "zwei"
+  ],
+  "type": [
+   "Schrift",
+   "Typ"
+  ],
+  "typography": [
+   "Typografie",
+   "Schrift"
+  ],
+  "ufo": [
+   "Ufo"
+  ],
+  "umbrella": [
+   "Regenschirm",
+   "Schirm"
+  ],
+  "unavailable": [
+   "nicht verfügbar"
+  ],
+  "underline": [
+   "unterstreichen"
+  ],
+  "unfolded": [
+   "aufgeklappt"
+  ],
+  "union": [
+   "Vereinigung"
+  ],
+  "unknown": [
+   "unbekannt"
+  ],
+  "unlock": [
+   "entsperren",
+   "öffnen"
+  ],
+  "up": [
+   "oben",
+   "hoch",
+   "aufwärts"
+  ],
+  "update": [
+   "aktualisieren"
+  ],
+  "upload": [
+   "hochladen",
+   "Upload"
+  ],
+  "upper": [
+   "oben",
+   "groß"
+  ],
+  "uppercase": [
+   "Großbuchstabe"
+  ],
+  "user": [
+   "Benutzer",
+   "Person",
+   "Nutzer"
+  ],
+  "users": [
+   "Benutzer",
+   "Personen",
+   "Gruppe"
+  ],
+  "vaccine": [
+   "Impfung",
+   "Spritze"
+  ],
+  "variable": [
+   "Variable"
+  ],
+  "vector": [
+   "Vektor"
+  ],
+  "vehicle": [
+   "Fahrzeug"
+  ],
+  "verified": [
+   "geprüft",
+   "bestätigt"
+  ],
+  "version": [
+   "Version"
+  ],
+  "versions": [
+   "Versionen"
+  ],
+  "vertical": [
+   "senkrecht"
+  ],
+  "vibration": [
+   "Vibration"
+  ],
+  "video": [
+   "Video"
+  ],
+  "view": [
+   "Ansicht"
+  ],
+  "viewfinder": [
+   "Sucher"
+  ],
+  "viewport": [
+   "Ansichtsbereich"
+  ],
+  "virus": [
+   "Virus"
+  ],
+  "visibility": [
+   "Sichtbarkeit"
+  ],
+  "vision": [
+   "Sicht"
+  ],
+  "visualization": [
+   "Darstellung"
+  ],
+  "vocabulary": [
+   "Wortschatz",
+   "Vokabeln"
+  ],
+  "voice": [
+   "Stimme",
+   "Sprache"
+  ],
+  "volleyball": [
+   "Volleyball"
+  ],
+  "volume": [
+   "Lautstärke"
+  ],
+  "wait": [
+   "warten"
+  ],
+  "wall": [
+   "Wand"
+  ],
+  "wallet": [
+   "Geldbörse",
+   "Brieftasche"
+  ],
+  "wallpaper": [
+   "Hintergrundbild"
+  ],
+  "wand": [
+   "Zauberstab"
+  ],
+  "warehouse": [
+   "Lager",
+   "Lagerhalle"
+  ],
+  "warning": [
+   "Warnung"
+  ],
+  "wash": [
+   "waschen",
+   "Wäsche"
+  ],
+  "washing": [
+   "waschen"
+  ],
+  "watch": [
+   "Uhr",
+   "Armbanduhr"
+  ],
+  "water": [
+   "Wasser"
+  ],
+  "wave": [
+   "Welle"
+  ],
+  "wearable": [
+   "tragbar"
+  ],
+  "weather": [
+   "Wetter"
+  ],
+  "web": [
+   "Web",
+   "Internet"
+  ],
+  "webhook": [
+   "Webhook"
+  ],
+  "week": [
+   "Woche"
+  ],
+  "west": [
+   "Westen"
+  ],
+  "wheat": [
+   "Weizen"
+  ],
+  "wheel": [
+   "Rad"
+  ],
+  "wheelchair": [
+   "Rollstuhl"
+  ],
+  "width": [
+   "Breite"
+  ],
+  "wifi": [
+   "WLAN"
+  ],
+  "wind": [
+   "Wind"
+  ],
+  "windmill": [
+   "Windmühle"
+  ],
+  "window": [
+   "Fenster"
+  ],
+  "wink": [
+   "zwinkern"
+  ],
+  "wiper": [
+   "Scheibenwischer"
+  ],
+  "wireless": [
+   "kabellos",
+   "Funk"
+  ],
+  "word": [
+   "Wort",
+   "Text"
+  ],
+  "workstation": [
+   "Arbeitsplatz"
+  ],
+  "world": [
+   "Welt",
+   "Erde",
+   "Globus"
+  ],
+  "wrap": [
+   "umbrechen"
+  ],
+  "wreath": [
+   "Kranz"
+  ],
+  "write": [
+   "schreiben"
+  ],
+  "writing": [
+   "schreiben"
+  ],
+  "you": [
+   "du"
+  ],
+  "zeppelin": [
+   "Zeppelin"
+  ],
+  "zero": [
+   "null"
+  ],
+  "zodiac": [
+   "Sternzeichen"
+  ],
+  "zoom": [
+   "vergrößern",
+   "Zoom"
+  ],
+  "zzz": [
+   "schlafen"
+  ]
+ }
+}

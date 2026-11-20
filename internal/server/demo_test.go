@@ -168,6 +168,32 @@ func TestDemo(t *testing.T) {
 		if strings.Contains(wbv.HTML, "ew-macro-error") {
 			t.Errorf("demo wiki blocks with an error: %s", wbv.HTML)
 		}
+		// the carousel has no fixed position: it is placed for its own
+		// category only, whose page says so; the page "How the demo is built"
+		// names every part outside the pages
+		var carPos string
+		if err := e.app.DB.QueryRow(context.Background(), `SELECT position FROM plugin_carousels WHERE name='Demo'`).Scan(&carPos); err != nil || carPos != "" {
+			t.Errorf("demo carousel position %q, %v", carPos, err)
+		}
+		var placed int
+		_ = e.app.DB.QueryRow(context.Background(), `SELECT count(*) FROM placements p JOIN categories c ON p.level='category' AND p.target=c.id::text
+			WHERE c.titles->>'en'='Carousel demo' AND p.block LIKE 'core.carousel/%' AND p.position='content-top'`).Scan(&placed)
+		if placed != 1 {
+			t.Errorf("demo carousel placed %d times for its category", placed)
+		}
+		var where struct {
+			HTML string `json:"html"`
+		}
+		var whereID int64
+		if err := e.app.DB.QueryRow(context.Background(), `SELECT id FROM elements WHERE titles->>'en' = 'How the demo is built' AND deleted_at IS NULL`).Scan(&whereID); err != nil {
+			t.Fatal(err)
+		}
+		admin.must("GET", "/api/v1/elements/"+strconv.FormatInt(whereID, 10), nil, &where, 200)
+		for _, want := range []string{"Menu “Demo”", "Block “Contact”", "Carousel “Demo”", "Handbook", "content-top", "Where to change it:"} {
+			if !strings.Contains(where.HTML, want) {
+				t.Errorf("page how the demo is built: %q missing", want)
+			}
+		}
 		// a page somebody added inside the demo area goes with it
 		var demoCat int64
 		if err := e.app.DB.QueryRow(context.Background(), `SELECT min(ref::bigint) FROM demo_objects WHERE kind='category'`).Scan(&demoCat); err != nil {

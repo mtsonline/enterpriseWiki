@@ -2640,9 +2640,18 @@ test('layout blocks: a section with options from the macro dialog, an icon box w
   await iconDlg.getByRole('button', { name: /^(choose an icon|symbol auswählen)$/i }).click();
   const picker = page.locator('dialog[open]').last();
   await picker.getByLabel(/^(search|suchen)$/i).fill('rocket');
-  await picker.getByRole('button', { name: 'rocket', exact: true }).waitFor();
+  const rocket = picker.getByRole('button', { name: /^(rocket|Rakete \(rocket\))$/ });
+  await rocket.waitFor();
   await a11y('icon picker');
-  await picker.getByRole('button', { name: 'rocket', exact: true }).click();
+  // the German search words are shipped with the icons
+  const de = await page.evaluate(async () => {
+    const url = document.querySelector('.ew-iconpick-grid .ew-icon')?.getAttribute('style') ?? '';
+    const base = /url\("([^"]+)\/(outline|filled)\//.exec(url)?.[1];
+    const r = base ? await __e2eFetch(`${base}/terms.de.json`) : null;
+    return r?.ok ? (await r.json()).words.rocket : null;
+  });
+  assert.deepEqual(de, ['Rakete']);
+  await rocket.click();
   await iconDlg.locator('code', { hasText: 'rocket' }).waitFor();
   await iconDlg.getByLabel(/^(title|titel)/i).fill('Launch');
   await iconDlg.getByLabel(/^(link \(the whole box\)|link \(der ganze kasten\))/i).fill('/search');
@@ -4519,6 +4528,21 @@ test('demo content: create, browse accessibly, remove', async () => {
     if (errorTitle.test(h1.trim())) failed.push(`${p}: ${h1}`);
   }
   assert.deepEqual(failed, [], 'demo pages with errors');
+  // the carousel of the demo is placed for its own category only, whose page
+  // says where it is; elsewhere (the tour) there is none
+  await page.goto(`${BASE}/demo`);
+  await idle();
+  assert.equal(await page.locator('.ew-pos--content-top .ewcar-pos').count(), 0, 'no carousel on the tour');
+  // one arrow per toggle in the tree of the side column
+  const arrow = page.locator('.ew-sidebar-tree .ew-tree-toggle, aside .ew-tree-toggle').first();
+  if (await arrow.count()) {
+    assert.equal(await arrow.evaluate((b) => getComputedStyle(b, '::before').content), 'none', 'a single arrow in the tree');
+  }
+  await page.getByRole('link', { name: /^(2\.\d+ )?(Carousel demo|Karussell-Demo)$/ }).first().click();
+  await idle();
+  await page.locator('.ew-pos--content-top .ewcar-pos').waitFor();
+  assert.match(await page.locator('main').innerText(), /content-top/);
+  await a11y('demo carousel page');
   await page.goto(`${BASE}/admin/demo`);
   await idle();
   await page.getByRole('button', { name: /^(Remove demo|Demo entfernen)$/ }).click();

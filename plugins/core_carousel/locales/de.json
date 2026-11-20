@@ -78,5 +78,7 @@
  "core.carousel.sources_help": "Die neuesten Elemente dieser Quellen werden zu Folien (Titel, Zusammenfassung, Vorschaubild). Angezeigt wird nur, was die Betrachtenden lesen dürfen.",
  "core.carousel.feed_items_help": "Pro Feed sowie für alle Quellen zusammen.",
  "core.carousel.private_off_in_config": "Interne Adressen sind in config.yaml gesperrt (feeds.allow_private). Die Einstellung unten wirkt erst, wenn sie dort erlaubt sind.",
- "core.carousel.block": "Karussell"
+ "core.carousel.block": "Karussell",
+ "core.carousel.position_none": "Keine feste Position – nur, wo es platziert ist",
+ "core.carousel.position_help": "Die Position ist die Stelle im Template, an der das Karussell auf jeder Seite steht. Ohne feste Position erscheint es nur dort, wo Sie es unter Administration → Platzierung platzieren, zum Beispiel nur in einer Kategorie."
 }

@@ -354,6 +354,19 @@ func TestCarousel(t *testing.T) {
 	if len(s) != 0 {
 		t.Fatalf("guest sees a carousel for users: %+v", s)
 	}
+	// no fixed position: only where it is placed; an invalid position is refused
+	var free struct {
+		ID       int64  `json:"id"`
+		Position string `json:"position"`
+	}
+	admin.must("POST", "/api/v1/x/core.carousel/carousels", map[string]any{"name": "Placed only", "position": "", "enabled": true}, &free, 201)
+	if free.Position != "" {
+		t.Fatalf("placed-only carousel got position %q", free.Position)
+	}
+	if code := admin.do("POST", "/api/v1/x/core.carousel/carousels", map[string]any{"name": "Bad", "position": "Top Bar"}, nil); code != 400 {
+		t.Fatalf("invalid position: %d", code)
+	}
+	admin.must("DELETE", fmt.Sprintf("/api/v1/x/core.carousel/carousels/%d", free.ID), nil, nil, 204)
 	// permissions
 	pw := "Passw0rd!Passw0rd"
 	admin.must("POST", "/api/v1/admin/users", map[string]any{"username": "car", "password": pw, "display_name": "Car", "roles": []int64{}}, nil, 201)
