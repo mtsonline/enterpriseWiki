@@ -3386,6 +3386,10 @@ test('template designer, part 3c: own fonts, rights per template, trying a templ
     await fonts.getByRole('button', { name: /^(upload a font|schrift hochladen)$/i }).click();
     await page.getByRole('region', { name: /^(own fonts|eigene schriften)$/i }).getByText(`Inter ${run}`).waitFor();
     fontId = (await call('GET', '/api/v1/x/core.template/fonts')).find((f) => f.name === `Inter ${run}`).id;
+    // each file can be downloaded, unchanged
+    const dl = page.getByRole('link', { name: new RegExp(`^(download 700 \\(truetype\\) of Inter ${run}|700 \\(truetype\\) von Inter ${run} herunterladen)$`, 'i') });
+    const file = await page.evaluate(async (u) => { const r = await __e2eFetch(u); return [r.status, r.headers.get('content-type'), (await r.arrayBuffer()).byteLength]; }, await dl.getAttribute('href'));
+    assert.deepEqual(file, [200, 'font/ttf', 84492]);
     await a11y('own fonts');
     // the designer offers it; the wiki loads it from itself
     await page.getByRole('button', { name: new RegExp(`^(edit|bearbeiten): Fonts ${run}$`, 'i') }).click();

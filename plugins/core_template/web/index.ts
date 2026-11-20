@@ -210,12 +210,15 @@ function fontSection(fonts: OwnFont[], reload: () => void): HTMLElement {
     } catch (e) { toast(errorText(e), 'error'); }
   };
   const kb = (n: number) => `${Math.ceil(n / 1024)} KB`;
-  const faces = (f: OwnFont) => f.faces.map((x) => `${x.weight === '100 900' ? t('template.font_variable') : x.weight}${x.style === 'italic' ? ` ${t('template.font_style_italic')}` : ''} (${x.format})`).join(', ');
+  // each file with a link to download it (unchanged, as uploaded)
+  const faceName = (x: OwnFont['faces'][number]) => `${x.weight === '100 900' ? t('template.font_variable') : x.weight}${x.style === 'italic' ? ` ${t('template.font_style_italic')}` : ''} (${x.format})`;
+  const faces = (f: OwnFont) => h('span', { class: 'ewd-font-faces' }, ...f.faces.flatMap((x, i) => [i ? ', ' : '',
+    h('a', { href: `/api/v1/${BASE}/fonts/${f.id}/files/${x.n}`, download: '', 'aria-label': t('template.font_download', { name: f.name, face: faceName(x) }) }, faceName(x))]));
   return h('section', { class: 'ew-section', 'aria-labelledby': 'ewd-fonts-h' },
     h('h2', { id: 'ewd-fonts-h' }, t('template.fonts')),
     h('p', { class: 'ew-help' }, t('template.fonts_help')),
     fonts.length ? h('ul', { class: 'ew-plain-list' }, ...fonts.map((f) => h('li', null,
-      h('strong', null, f.name), ' ', h('span', { class: 'ew-muted' }, [f.license, f.license_note ? ` (${f.license_note})` : '', ` · ${faces(f)} · ${kb(f.bytes)} · ${fmtDate(f.created_at, state.lang)}`].join('')), ' ',
+      h('strong', null, f.name), ' ', faces(f), ' ', h('span', { class: 'ew-muted' }, [f.license, f.license_note ? ` (${f.license_note})` : '', ` · ${kb(f.bytes)} · ${fmtDate(f.created_at, state.lang)}`].join('')), ' ',
       f.used_by.length ? h('span', { class: 'ew-muted' }, t('template.font_used', { list: f.used_by.map((x) => templateLabel(x)).join(', ') }))
         : button(t('common.delete'), () => void (async () => {
           if (!(await confirmDialog(t('template.font_delete_confirm', { name: f.name }), t('common.delete'), true))) return;

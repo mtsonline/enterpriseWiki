@@ -259,6 +259,7 @@
  "template.font_style": "Stil",
  "template.font_style_normal": "Aufrecht",
  "template.font_style_italic": "Kursiv",
+ "template.font_download": "{face} von {name} herunterladen",
  "template.d_view_drawer": "In einer Schublade",
  "template.d_view_hidden": "Ausgeblendet",
  "template.d_view_manual": "Von Hand angepasst.",

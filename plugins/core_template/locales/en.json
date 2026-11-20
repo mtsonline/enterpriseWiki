@@ -259,6 +259,7 @@
  "template.font_style": "Style",
  "template.font_style_normal": "Upright",
  "template.font_style_italic": "Italic",
+ "template.font_download": "Download {face} of {name}",
  "template.d_view_drawer": "In a drawer",
  "template.d_view_hidden": "Hidden",
  "template.d_view_manual": "Adjusted by hand.",
