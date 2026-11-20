@@ -93,6 +93,11 @@ In the Markdown source, macros are directives: `::toc{levels=3}` (without conten
 | Call to action | a box with title, text and a button, optionally with an icon |
 | Tabs | parts as tabs (arrow keys, Home, End); separate the parts with a horizontal rule, the first heading of each part names its tab. Without script they are sections one below the other |
 | Accordion | parts to open and close, optionally only one open at a time and the first one open |
+| Progress bar | how far something is: a name, the value as text and a bar (percent or *value / maximum*); colours primary, success, warning, danger |
+| Counter | a large number with a name, optionally with text before and after it (`€`, `%`, `km`); it counts up once when it comes into view (1.2 seconds, never with reduced motion). Screen readers always get the whole number |
+| Timeline | entries in order, each with a date or step as its first heading; separate them with a horizontal rule. Top to bottom, or left to right on the desktop (then it scrolls in itself and needs a name; on the phone it goes top to bottom) |
+| Dialog (button) | a button that opens the content in a dialog with a title. It never opens by itself; Escape or *Close* closes it and the focus returns to the button. Without script the content opens in place |
+| Tooltip | a word in a line with an explanation (`:tooltip[VPN]{tip="Virtual private network"}`): it appears when pointing at the word, with the keyboard focus and when tapping, stays while the pointer is on it and hides with Escape. Screen readers read it as the description of the word; without script it stands in brackets |
 | Icon | an icon of the shipped set (more than 6,000, outline or filled), also inside a line (`:icon[Phone]{name=phone}`); chosen with a search. Screen readers read its label or, without one, the name of the icon (in English, for example "arrow right"); only an icon marked *decoration only* is skipped |
 | Icon box | an icon with title and text; with a link the whole box is one link. The icon is read like a single icon |
 | Icon list | a list with an icon in front of every entry, for example a check mark. The icon takes the place of the bullet: screen readers read the list as a list, without the icon |
