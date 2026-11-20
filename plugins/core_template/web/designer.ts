@@ -5,7 +5,7 @@
 // is designed is what is shown (1:1). Every change is checked by the server
 // while designing (POST /check), with the same limits the engine uses.
 import {
-  api, button, checkbox, confirmDialog, errorText, field, fmtDate, h, langFields, select, state, t, textArea, textInput, toast, uiLang, uid,
+  api, button, checkbox, confirmDialog, errorText, field, fmtDate, h, langFields, placeableBlocks, positionLabel, select, state, t, textArea, textInput, toast, uiLang, uid,
 } from '@ewiki/coreplugin';
 import type { Block, Design, Row, View, ViewName } from './engine';
 import { LIMITS, VIEWS } from './engine';
@@ -412,6 +412,8 @@ export async function designer(panel: HTMLElement, key: string, back: () => void
         sel1(`r${ri}-role`, t('template.d_rowrole'), ['banner', 'contentinfo', 'none'], r.role, (o) => t(`template.d_rowrole_${o}`), (d, v) => { d.rows[ri].role = v as Row['role']; }, t('template.d_rowrole_help')),
         sel1(`r${ri}-width`, t('template.d_rowwidth'), ['full', 'content'], r.width, (o) => t(`template.d_rowwidth_${o}`), (d, v) => { d.rows[ri].width = v as Row['width']; }),
         sel1(`r${ri}-bg`, t('template.d_rowbg'), ['page', 'subtle', 'header', 'footer'], r.background, (o) => t(`template.d_rowbg_${o}`), (d, v) => { d.rows[ri].background = v as Row['background']; }),
+        widthBar(r, ri),
+        r.role === 'contentinfo' ? chk(`r${ri}-fold`, t('template.d_fold'), !!r.collapse_mobile, (d, v) => { if (v) d.rows[ri].collapse_mobile = true; else delete d.rows[ri].collapse_mobile; }, t('template.d_fold_help')) : h('span'),
         ...[desktopFields(r, ri)].filter((x): x is HTMLElement => !!x), viewFields(r, ri, 'tablet'), viewFields(r, ri, 'mobile'));
     } else {
       const ri = sel.row;
@@ -437,8 +439,10 @@ export async function designer(panel: HTMLElement, key: string, back: () => void
           b.kind === 'content' ? h('p', { class: 'ew-help' }, t('template.d_content_note')) : sel1(`b${ri}-${bi}-role`, t('template.d_role'), ['navigation', 'complementary', 'region', 'none'], b.role, (o) => t(`template.d_role_${o}`), (d, v) => { d.rows[ri].blocks[bi].role = v as Block['role']; }, t('template.d_role_help')),
           labelBox,
           b.kind === 'content' ? h('span') : num(`b${ri}-${bi}-width`, t('template.d_width'), b.width, 0, LIMITS.block_max_rem, (d, v) => { const x = d.rows[ri].blocks[bi]; x.width = v; if (v) delete x.fit; }, t('template.d_width_help_block', { min: Math.max((LIMITS.block_min_rem as Record<string, number>)[b.kind] ?? 0, pr), max: LIMITS.block_max_rem })),
+          b.role === 'complementary' && b.kind !== 'content' ? chk(`b${ri}-${bi}-sticky`, t('template.d_sticky_col'), !!b.sticky, (d, v) => { const x = d.rows[ri].blocks[bi]; if (v) x.sticky = true; else delete x.sticky; }, t('template.d_sticky_col_help')) : h('span'),
+          b.role === 'complementary' && b.kind !== 'content' ? chk(`b${ri}-${bi}-collapsible`, t('template.d_collapsible'), !!b.collapsible, (d, v) => { const x = d.rows[ri].blocks[bi]; if (v) x.collapsible = true; else delete x.collapsible; }, t('template.d_collapsible_help')) : h('span'),
           b.kind === 'content' ? h('span') : chk(`b${ri}-${bi}-fit`, t('template.d_fit'), !!b.fit, (d, v) => { const x = d.rows[ri].blocks[bi]; if (v) { x.fit = true; x.width = 0; } else delete x.fit; }, t('template.d_fit_help')),
-          txt(`b${ri}-${bi}-pos`, t('template.d_positions'), b.positions.join(', '), (d, v) => { d.rows[ri].blocks[bi].positions = list(v); }, t('template.d_positions_help')),
+          positionsField(ri, bi, b),
           b.kind === 'content' ? txt(`b${ri}-${bi}-after`, t('template.d_after'), (b.after ?? []).join(', '), (d, v) => { const x = d.rows[ri].blocks[bi]; const l = list(v); if (l.length) x.after = l; else delete x.after; }, t('template.d_after_help')) : h('span'),
           sel1(`b${ri}-${bi}-layout`, t('template.d_layout'), ['row', 'column'], b.layout, (o) => t(`template.d_layout_${o}`), (d, v) => { d.rows[ri].blocks[bi].layout = v as Block['layout']; }),
           pr > 0 ? h('p', { class: 'ew-help' }, t('template.d_positions_room', { n: b.positions.length, need: fmt(pr) })) : h('span'),
@@ -489,8 +493,80 @@ export async function designer(panel: HTMLElement, key: string, back: () => void
       txt('logo', t('template.d_logo'), k.logo, (d, v) => { d.tokens.logo = v; }, t('template.d_logo_help')),
       h('h3', null, t('template.d_behavior')),
       chk('sticky', t('template.d_sticky'), draft.options.sticky_header, (d, v) => { d.options.sticky_header = v; }, t('template.d_sticky_help', { vh: LIMITS.sticky_max_vh })),
+      chk('shrink', t('template.d_shrink'), !!draft.options.header_shrink, (d, v) => { if (v) { d.options.header_shrink = true; d.options.sticky_header = true; } else delete d.options.header_shrink; }, t('template.d_shrink_help')),
+      chk('hide', t('template.d_hide'), !!draft.options.header_hide, (d, v) => { if (v) { d.options.header_hide = true; d.options.sticky_header = true; } else delete d.options.header_hide; }, t('template.d_hide_help')),
+      chk('print', t('template.d_print'), !!draft.options.print_plain, (d, v) => { if (v) d.options.print_plain = true; else delete d.options.print_plain; }, t('template.d_print_help')),
       chk('totop', t('template.d_totop'), draft.options.back_to_top, (d, v) => { d.options.back_to_top = v; }),
       cssField());
+  };
+
+  // the positions of a block; removing a standard position names the
+  // building blocks that stand there by default (allowed, but they lose
+  // their place, concept M19 3.3)
+  const positionsField = (ri: number, bi: number, b: Block): HTMLElement => {
+    const i = textInput({ value: b.positions.join(', '), id: cid(`b${ri}-${bi}-pos`) });
+    i.addEventListener('change', () => void (async () => {
+      const next = list(i.value);
+      const offered = new Set(draft.rows.flatMap((r, rj) => r.blocks.flatMap((x, bj) => (rj === ri && bj === bi ? [] : [...x.positions, ...(x.after ?? [])]))));
+      const removed = b.positions.filter((p) => !next.includes(p) && !offered.has(p));
+      if (removed.length) {
+        const defaults = (await placeableBlocks()).filter((x) => x.kind === 'site' && removed.includes(x.position));
+        if (defaults.length && !(await confirmDialog(t('template.d_remove_pos', {
+          positions: removed.map((p) => positionLabel(p)).join(', '), blocks: defaults.map((x) => x.label).join(', '),
+        }), t('template.d_remove_pos_ok'), true))) {
+          i.value = b.positions.join(', ');
+          return;
+        }
+      }
+      change((d) => { d.rows[ri].blocks[bi].positions = next; });
+    })());
+    return field(t('template.d_positions'), i, { help: t('template.d_positions_help') });
+  };
+
+  // the widths of the blocks of a row on the desktop, changed by dragging the
+  // edge of a block or with the arrow keys on it (a slider each)
+  const widthBar = (r: Row, ri: number): HTMLElement => {
+    const total = room(draft, r, 'desktop');
+    const bar = h('div', { class: 'ewd-widthbar' });
+    for (const [bi, b] of r.blocks.entries()) {
+      const min = Math.max((LIMITS.block_min_rem as Record<string, number>)[b.kind] ?? 0, positionsRoom(b));
+      const fixed = b.kind !== 'content' && !b.fit;
+      let w = b.width || 0;
+      const seg = h('div', { class: ['ewd-widthbar-seg', b.kind === 'content' && 'ewd-widthbar-seg--content'] }, h('span', null, pick(b.label) || b.id));
+      const size = () => { seg.style.flex = w > 0 ? `0 0 ${(w / total) * 100}%` : '1 1 0'; };
+      size();
+      bar.append(seg);
+      if (!fixed) continue;
+      const name = pick(b.label) || b.id;
+      const handle = h('div', { id: cid(`r${ri}-wb-${bi}`), class: 'ewd-widthbar-handle', role: 'slider', tabindex: '0', 'aria-label': t('template.d_width_of', { name }),
+        'aria-valuemin': String(min), 'aria-valuemax': String(LIMITS.block_max_rem), 'aria-valuenow': String(w || min), 'aria-valuetext': w ? `${w} rem` : t('template.d_width_rest') });
+      const show = () => { size(); handle.setAttribute('aria-valuenow', String(w || min)); handle.setAttribute('aria-valuetext', w ? `${w} rem` : t('template.d_width_rest')); };
+      const commit = () => change((d) => { const x = d.rows[ri].blocks[bi]; x.width = w; if (w) delete x.fit; });
+      const clamp = (v: number) => Math.min(LIMITS.block_max_rem, Math.max(min, Math.round(v)));
+      handle.addEventListener('keydown', (ev) => {
+        const step = { ArrowRight: 1, ArrowUp: 1, ArrowLeft: -1, ArrowDown: -1, PageUp: 4, PageDown: -4 }[ev.key];
+        if (step !== undefined) w = clamp((w || min) + step);
+        else if (ev.key === 'Home') w = min;
+        else if (ev.key === 'End') w = LIMITS.block_max_rem;
+        else return;
+        ev.preventDefault();
+        show();
+        commit();
+      });
+      handle.addEventListener('pointerdown', (ev) => {
+        ev.preventDefault();
+        handle.setPointerCapture(ev.pointerId);
+        const start = ev.clientX;
+        const from = w || min;
+        const remPx = bar.clientWidth / total;
+        const move = (e: PointerEvent) => { w = clamp(from + (e.clientX - start) / remPx); show(); };
+        const up = () => { handle.removeEventListener('pointermove', move); commit(); };
+        handle.addEventListener('pointermove', move);
+        handle.addEventListener('pointerup', up, { once: true });
+      });
+      seg.append(handle);
+    }
+    return h('div', { class: 'ewd-widthbar-box' }, h('h4', null, t('template.d_widths')), h('p', { class: 'ew-help' }, t('template.d_widths_help')), bar);
   };
 
   // own CSS: only while the administration allows it; checked like on the server

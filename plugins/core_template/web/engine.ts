@@ -22,13 +22,17 @@ export interface Block {
   id: string; kind: 'content' | 'area' | 'brand'; role: 'navigation' | 'complementary' | 'region' | 'none';
   label?: Record<string, string>; width: number; fit?: boolean; positions: string[]; after?: string[];
   layout: 'row' | 'column'; align: 'start' | 'center' | 'end' | 'between';
+  /** a side column that stays in view / can be hidden (desktop) */
+  sticky?: boolean; collapsible?: boolean;
 }
 export interface View { stack: boolean; hidden?: string[]; drawer?: string[]; widths?: Record<string, number> }
 export interface Row {
   id: string; role: 'banner' | 'contentinfo' | 'none'; width: 'full' | 'content'; background: 'page' | 'subtle' | 'header' | 'footer';
   blocks: Block[]; desktop?: Pick<View, 'drawer'> & Partial<View>; tablet?: View; mobile?: View;
+  /** a footer row whose blocks open and close on the phone */
+  collapse_mobile?: boolean;
 }
-export interface Design { version: 1; tokens: Tokens; rows: Row[]; options: { back_to_top: boolean; sticky_header: boolean }; css?: string }
+export interface Design { version: 1; tokens: Tokens; rows: Row[]; options: { back_to_top: boolean; sticky_header: boolean; header_shrink?: boolean; header_hide?: boolean; print_plain?: boolean }; css?: string }
 
 /** How a row looks in a view: as designed (manual) or by the rules (automatic). */
 export interface ViewState { stack: boolean; hidden: string[]; drawer: string[]; widths: Record<string, number>; auto: boolean }
@@ -110,6 +114,9 @@ export function designCSS(d: Design, cls: string): string {
       list.push(`${rs} > .ewd-inner { flex-direction: ${v.stack ? 'column' : 'row'}; flex-wrap: wrap; }`);
     }
   }
+  // side columns stay in view and can be hidden on the desktop only; footers fold on the phone only
+  tablet.push(`${s} .ewd-block--sticky { position: static; max-height: none; overflow: visible; }`, `${s} .ewd-collapse-button { display: none; }`);
+  mobile.push(`${s} .ewd-fold-button { display: flex; }`, `${s} .ewd-block:not(.ewd-unfolded) > .ewd-fold-body { display: none; }`);
   out.push(`@media (max-width: ${DESKTOP_MIN - 0.02}px) {\n${tablet.join('\n')}\n}`);
   out.push(`@media (max-width: ${TABLET_MIN - 0.02}px) {\n${mobile.join('\n')}\n}`);
   // own CSS of the template (the server sends it only while the administration allows it)
@@ -132,10 +139,64 @@ function keepStickyLow(el: HTMLElement): void {
 
 // ---------------------------------------------------------------- layout
 
+// one listener for the scrolling of the page; each layout puts its own
+// handlers here (a layout built again replaces those of the one before)
+let scrollHandlers: (() => void)[] = [];
+let scrollListening = false;
+// the same for the change between the desktop and the smaller views
+let desktopHandlers: (() => void)[] = [];
+let desktopQuery: MediaQueryList | null = null;
+function isDesktop(): boolean {
+  if (!desktopQuery) {
+    desktopQuery = window.matchMedia(`(min-width: ${DESKTOP_MIN}px)`);
+    desktopQuery.addEventListener('change', () => { for (const f of desktopHandlers) f(); });
+  }
+  return desktopQuery.matches;
+}
+function onScroll(fn: () => void): void {
+  scrollHandlers.push(fn);
+  if (!scrollListening) {
+    scrollListening = true;
+    window.addEventListener('scroll', () => { for (const f of scrollHandlers) f(); }, { passive: true });
+  }
+}
+
+/** The behaviour of a sticky header: lower once the page is scrolled, away
+ * while scrolling down and back when scrolling up or when the keyboard focus
+ * is in it (it never hides what has the focus, WCAG 2.4.11). Its height is
+ * known to sticky side columns (--ewd-header-h). */
+function headerBehaviour(el: HTMLElement, o: Design['options']): void {
+  let last = window.scrollY;
+  let shown = '';
+  const height = () => {
+    const v = `${el.classList.contains('ewd-sticky--off') || el.classList.contains('ewd-away') ? 0 : Math.ceil(el.getBoundingClientRect().height)}px`;
+    if (v !== shown) { shown = v; document.documentElement.style.setProperty('--ewd-header-h', v); }
+  };
+  new ResizeObserver(height).observe(el);
+  onScroll(() => {
+    const y = window.scrollY;
+    if (o.header_shrink) el.classList.toggle('ewd-shrunk', y > 40);
+    if (o.header_hide) {
+      if (y > last + 4 && y > el.offsetHeight && !el.contains(document.activeElement)) el.classList.add('ewd-away');
+      else if (y < last - 4 || y <= el.offsetHeight) el.classList.remove('ewd-away');
+    }
+    last = y;
+    height();
+  });
+  if (o.header_hide) el.addEventListener('focusin', () => { el.classList.remove('ewd-away'); height(); });
+}
+
+/** The key under which the browser keeps whether a side column is hidden. */
+const collapsedKey = (b: Block) => `ewd-collapsed:${location.host}:${b.id}`;
+const readCollapsed = (b: Block): boolean => { try { return localStorage.getItem(collapsedKey(b)) === '1'; } catch { return false; } };
+const writeCollapsed = (b: Block, v: boolean): void => { try { if (v) localStorage.setItem(collapsedKey(b), '1'); else localStorage.removeItem(collapsedKey(b)); } catch { /* not kept */ } };
+
 const pick = (m: Record<string, string> | undefined): string => (m ? m[state.lang] || m[state.site.default_language] || Object.values(m)[0] || '' : '');
 
 /** The page skeleton of a design (positions are live containers of the wiki). */
 export function buildLayout(d: Design, ctx: LayoutContext): Layout {
+  scrollHandlers = [];
+  desktopHandlers = [];
   const main = h('main', { id: 'main', class: 'ewd-main', tabindex: '-1' });
   const rowEl = (r: Row): HTMLElement => {
     const inner = h('div', { class: 'ewd-inner' });
@@ -153,10 +214,35 @@ export function buildLayout(d: Design, ctx: LayoutContext): Layout {
       }
       const label = pick(b.label);
       const tag = b.kind === 'content' ? 'div' : b.role === 'navigation' ? 'nav' : b.role === 'complementary' ? 'aside' : b.role === 'region' ? 'section' : 'div';
+      // a footer that folds on the phone: a button with the name of the block opens its content
+      const fold = !!r.collapse_mobile && b.kind !== 'content';
+      const body = fold ? h('div', { class: 'ewd-fold-body', id: `ewd-${b.id}-body` }, ...kids) : null;
+      const foldBtn = fold ? h('button', { type: 'button', class: 'ewd-fold-button', 'aria-expanded': 'false', 'aria-controls': `ewd-${b.id}-body` }, label || b.id, h('span', { class: 'ewd-fold-sign', 'aria-hidden': 'true' })) as HTMLButtonElement : null;
       const el = h(tag, {
-        id: `ewd-${b.id}`, class: ['ewd-block', `ewd-block--${b.kind}`, `ewd-layout--${b.layout}`, `ewd-align--${b.align}`], 'data-block': b.id, 'data-role': b.role,
+        id: `ewd-${b.id}`, class: ['ewd-block', `ewd-block--${b.kind}`, `ewd-layout--${b.layout}`, `ewd-align--${b.align}`, b.sticky && 'ewd-block--sticky'], 'data-block': b.id, 'data-role': b.role,
         'aria-label': tag !== 'div' && label ? label : undefined,
-      }, ...kids);
+      }, ...(fold ? [foldBtn!, body!] : kids));
+      if (foldBtn) foldBtn.addEventListener('click', () => {
+        const open = foldBtn.getAttribute('aria-expanded') !== 'true';
+        foldBtn.setAttribute('aria-expanded', String(open));
+        el.classList.toggle('ewd-unfolded', open);
+      });
+      // a side column that can be hidden (desktop): the button stays where the column was
+      if (b.collapsible && b.role === 'complementary') {
+        const name = label || t('template.side_column');
+        const btn = h('button', { type: 'button', class: 'ewd-collapse-button ew-btn ew-btn--subtle', 'aria-controls': `ewd-${b.id}` }) as HTMLButtonElement;
+        const set = (hidden: boolean) => {
+          // hidden only where the button is (desktop); smaller views show the column as designed for them
+          el.classList.toggle('ewd-collapsed', hidden && isDesktop());
+          btn.dataset.hidden = String(hidden);
+          btn.setAttribute('aria-expanded', String(!hidden));
+          btn.textContent = hidden ? t('template.column_show', { name }) : t('template.column_hide', { name });
+        };
+        btn.addEventListener('click', () => { const hidden = btn.dataset.hidden !== 'true'; set(hidden); writeCollapsed(b, hidden); });
+        desktopHandlers.push(() => set(btn.dataset.hidden === 'true'));
+        set(readCollapsed(b));
+        inner.append(btn);
+      }
       // a block that can be a drawer in some view gets its button (shown only there)
       const drawerSomewhere = (['desktop', 'tablet', 'mobile'] as const).some((v) => viewOf(d, r, v).drawer.includes(b.id));
       if (drawerSomewhere) {
@@ -182,7 +268,10 @@ export function buildLayout(d: Design, ctx: LayoutContext): Layout {
       const group: HTMLElement[] = [];
       while (i < d.rows.length && d.rows[i].role === r.role) group.push(rowEl(d.rows[i++]));
       const landmark = h(r.role === 'banner' ? 'header' : 'footer', { class: ['ewd-landmark', r.role === 'banner' && d.options.sticky_header && 'ewd-sticky'] }, ...group);
-      if (r.role === 'banner' && d.options.sticky_header) keepStickyLow(landmark);
+      if (r.role === 'banner' && d.options.sticky_header) {
+        keepStickyLow(landmark);
+        headerBehaviour(landmark, d.options);
+      }
       parts.push(landmark);
     } else {
       parts.push(rowEl(r));
@@ -192,8 +281,8 @@ export function buildLayout(d: Design, ctx: LayoutContext): Layout {
   if (d.options.back_to_top) {
     const top = h('a', { href: '#main', class: 'ewd-to-top ew-btn ew-btn--secondary', hidden: true }, h('span', { 'aria-hidden': 'true' }, '↑ '), t('template.to_top'));
     const sync = () => { top.hidden = window.scrollY < window.innerHeight; };
-    window.addEventListener('scroll', sync, { passive: true });
+    onScroll(sync);
     parts.push(top);
   }
-  return { root: h('div', { class: 'ewd-app' }, ...parts), main };
+  return { root: h('div', { class: ['ewd-app', d.options.print_plain && 'ewd-print-plain'] }, ...parts), main };
 }
