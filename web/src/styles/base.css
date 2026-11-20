@@ -73,6 +73,21 @@ img { max-width: 100%; height: auto; }
 .ew-btn--primary:hover:not(:disabled) { background: var(--ew-primary-hover); }
 .ew-btn--secondary { background: var(--ew-bg-raised); color: var(--ew-text); border-color: var(--ew-border); }
 .ew-btn--secondary:hover:not(:disabled) { background: var(--ew-bg-subtle); }
+/* a button that switches something on or off: a switch beside its name (aria-pressed) */
+.ew-switch-btn { display: inline-flex; align-items: center; gap: .5rem; }
+.ew-switch { position: relative; flex: none; width: 2.2rem; height: 1.25rem; border-radius: 999px; border: 2px solid currentColor; background: transparent; transition: background-color .15s; }
+.ew-switch-knob { position: absolute; top: 2px; left: 2px; width: calc(1.25rem - 8px); height: calc(1.25rem - 8px); border-radius: 50%; background: currentColor; transition: transform .15s; }
+/* the border in the colour of the text keeps the switch visible on every background */
+.ew-switch-btn[aria-pressed="true"] .ew-switch { background: var(--ew-primary); }
+.ew-switch-btn[aria-pressed="true"] .ew-switch-knob { background: #fff; transform: translateX(calc(2.2rem - 1.25rem)); }
+.ew-switch-state { font-size: .8rem; color: inherit; min-width: 1.6em; }
+@media (prefers-reduced-motion: reduce) { .ew-switch, .ew-switch-knob { transition: none; } }
+@media (forced-colors: active) {
+  .ew-switch { border-color: ButtonText; }
+  .ew-switch-knob { background: ButtonText; }
+  .ew-switch-btn[aria-pressed="true"] .ew-switch { background: Highlight; border-color: Highlight; }
+  .ew-switch-btn[aria-pressed="true"] .ew-switch-knob { background: HighlightText; }
+}
 .ew-btn--danger { background: var(--ew-danger); color: var(--ew-on-danger); }
 .ew-btn--subtle { background: transparent; color: var(--ew-text); }
 .ew-btn--subtle:hover { background: var(--ew-bg-subtle); }

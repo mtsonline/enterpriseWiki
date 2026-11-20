@@ -31,6 +31,7 @@ import { TextareaBinding } from './mdlive';
 import { allowedMacros, label as macroLabel, loadMacros, macroDialog, type MacroChoice } from './macros';
 import { paramSummary } from './macrosummary';
 import { macroPicture } from './macropreview';
+import { hydrateIcons } from '../core/icons';
 import type { MacroInfo, MacroParts } from '../core/types';
 import { parse, serialize } from './markdown';
 import { schema } from './schema';
@@ -344,7 +345,9 @@ class MacroView implements NodeView {
     const info = macroInfos.get(name);
     const label = macroName(name);
     this.title.textContent = label;
-    this.info.textContent = paramSummary(info, this.node.attrs.params as Record<string, string>, uiLang());
+    // the settings in words only where no picture shows the result (the
+    // pencil opens them)
+    this.info.textContent = this.picture && info?.picture ? '' : paramSummary(info, this.node.attrs.params as Record<string, string>, uiLang());
     this.dom.setAttribute('aria-label', t('editor.macro_named', { name: label }));
     this.dom.dataset.macro = name;
     const parts = !this.node.attrs.leaf ? info?.parts : undefined;
@@ -373,6 +376,7 @@ class MacroView implements NodeView {
       if (this.pictureOf !== src) return; // changed meanwhile
       pic.classList.remove('ewe-macro-picture--loading');
       pic.innerHTML = html ?? ''; // rendered and sanitized by the server, like the page itself
+      hydrateIcons(pic); // the icons get their files (as on the page)
       pic.hidden = !html?.trim();
     });
   }

@@ -215,8 +215,6 @@
  "common.yes": "Ja",
  "edit.mode_disabled": "Bearbeitungsmodus ausgeschaltet",
  "edit.mode_enabled": "Bearbeitungsmodus eingeschaltet",
- "edit.mode_off": "Bearbeiten",
- "edit.mode_on": "Bearbeiten aktiv",
  "editor.invalid_json": "Der Inhalt ist kein gültiges JSON.",
  "element.comment": "Änderungsnotiz",
  "element.comment_help": "Optional: Änderung für den Verlauf beschreiben.",
@@ -2820,5 +2818,9 @@
  "editor.parts_help_titled": "Im Editor hat das Makro gleich zwei Teile ({part}): Die Überschrift ist jeweils der Titel, darunter steht der Inhalt. Mit „+ {part}“ oben am Makro fügen Sie weitere hinzu.",
  "editor.part_add": "{part} hinzufügen",
  "editor.part_next": "Hier beginnt: {part}",
- "editor.part_added": "{part} hinzugefügt."
+ "editor.part_added": "{part} hinzugefügt.",
+ "edit.mode": "Bearbeiten",
+ "edit.switch_on": "an",
+ "edit.switch_off": "aus",
+ "error.foreign": "Diese Antwort kam nicht vom Wiki ({what}), sondern von einem Dienst davor, zum Beispiel einem Proxy oder einer Firewall. Antwort: „{body}“. Bitte der Administration melden."
 }
