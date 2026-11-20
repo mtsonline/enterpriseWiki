@@ -89,7 +89,7 @@ func TestFontFormats(t *testing.T) {
 		"ttf: table in the header":   {ttf, func(b []byte) { be.PutUint32(b[12+8:], 4) }},
 		"woff: wrong length":         {woff, func(b []byte) { be.PutUint32(b[8:], 7) }},
 		"woff: reserved":             {woff, func(b []byte) { be.PutUint16(b[14:], 1) }},
-		"woff: table outside":        {woff, func(b []byte) { be.PutUint32(b[44+4:], uint32(len(b)-4)); be.PutUint32(b[44+8:], 100) }},
+		"woff: table outside":        {woff, func(b []byte) { be.PutUint32(b[44+4:], uint32(len(b)-1)) }}, // only the place: its lengths stay valid
 		"woff: compressed > orig":    {woff, func(b []byte) { be.PutUint32(b[44+8:], be.Uint32(b[44+12:])+1) }},
 		"woff: metadata outside":     {woff, func(b []byte) { be.PutUint32(b[24:], uint32(len(b)-2)); be.PutUint32(b[28:], 10) }},
 		"collection":                 {ttf, func(b []byte) { copy(b, "ttcf") }},
