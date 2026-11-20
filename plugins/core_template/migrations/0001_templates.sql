@@ -26,16 +26,25 @@ CREATE TABLE plugin_template_versions (
     created_at  timestamptz NOT NULL DEFAULT now(),
     PRIMARY KEY (template_id, version)
 );
--- Uploaded fonts (WOFF2, served unchanged by the wiki itself): the person
--- uploading confirmed the right to use it on the web (audit) and named the
--- license. A font used by a template cannot be removed.
+-- Uploaded fonts (served unchanged by the wiki itself): the person uploading
+-- confirmed the right to use it on the web (audit) and named the license.
+-- A font has 1 to 8 files (faces); a font used by a template cannot be removed.
 CREATE TABLE plugin_template_fonts (
     id           bigserial PRIMARY KEY,
     name         text NOT NULL,
     license      text NOT NULL CHECK (license IN ('OFL-1.1', 'Apache-2.0', 'MIT', 'other')),
     license_note text NOT NULL DEFAULT '',
-    data         bytea NOT NULL,
-    sha256       text NOT NULL,
     created_by   bigint,
     created_at   timestamptz NOT NULL DEFAULT now()
+);
+CREATE TABLE plugin_template_font_files (
+    font_id bigint NOT NULL REFERENCES plugin_template_fonts(id) ON DELETE CASCADE,
+    n       int NOT NULL CHECK (n BETWEEN 1 AND 8),
+    weight  text NOT NULL CHECK (weight ~ '^[1-9]00( [1-9]00)?$'),
+    style   text NOT NULL CHECK (style IN ('normal', 'italic')),
+    format  text NOT NULL CHECK (format IN ('woff2', 'woff', 'truetype', 'opentype')),
+    data    bytea NOT NULL,
+    sha256  text NOT NULL,
+    PRIMARY KEY (font_id, n),
+    UNIQUE (font_id, weight, style)
 );

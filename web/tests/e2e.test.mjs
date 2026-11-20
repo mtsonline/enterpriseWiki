@@ -3364,9 +3364,16 @@ test('template designer, part 3c: own fonts, rights per template, trying a templ
     await idle();
     // upload a font: license and confirmation needed
     const fonts = page.getByRole('region', { name: /^(own fonts|eigene schriften)$/i });
-    await fonts.getByLabel(/^(font file|schriftdatei)/i).setInputFiles(new URL('./fixtures/inter-sample.woff2', import.meta.url).pathname);
+    // two files of a family in the usual formats; weight and style come from their names
+    await fonts.getByLabel(/^(font files|schriftdateien)/i).setInputFiles(['caladea-bold.ttf', 'caladea-italic.woff'].map((f) => new URL(`./fixtures/${f}`, import.meta.url).pathname));
+    const bold = fonts.getByRole('group', { name: 'caladea-bold.ttf' });
+    const italic = fonts.getByRole('group', { name: 'caladea-italic.woff' });
+    assert.equal(await bold.getByLabel(/^(weight|stärke)$/i).inputValue(), '700');
+    assert.equal(await bold.getByLabel(/^(style|stil)$/i).inputValue(), 'normal');
+    assert.equal(await italic.getByLabel(/^(weight|stärke)$/i).inputValue(), '400');
+    assert.equal(await italic.getByLabel(/^(style|stil)$/i).inputValue(), 'italic');
     const name = fonts.getByLabel(/^(name in the designer|name im designer)$/i);
-    assert.equal(await name.inputValue(), 'inter-sample', 'the name comes from the file');
+    assert.equal(await name.inputValue(), 'caladea', 'the name comes from the file');
     await name.fill(`Inter ${run}`);
     const logged = errors.length;
     const refused = page.waitForResponse((r) => r.url().endsWith('/api/v1/x/core.template/fonts') && r.request().method() === 'POST');

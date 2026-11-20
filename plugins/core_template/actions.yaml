@@ -193,8 +193,8 @@ actions:
     success_status: 201
     summary:
       text:
-        en: Upload a font (WOFF2 as base64 in data, with license and confirm=true that it may be used on this website)
-        de: Schrift hochladen (WOFF2 als base64 in data, mit Lizenz und confirm=true, dass sie auf dieser Website verwendet werden darf)
+        en: Upload a font (1 to 8 files WOFF2, WOFF, TTF or OTF as base64 in files[].data with weight and style, with license and confirm=true that it may be used on this website)
+        de: Schrift hochladen (1 bis 8 Dateien WOFF2, WOFF, TTF oder OTF als base64 in files[].data mit Stärke und Stil, mit Lizenz und confirm=true, dass sie auf dieser Website verwendet werden darf)
     permission: {key: core.template.design, scope: SCOPE_GLOBAL}
     safety: {changes: true}
     cli: {command: [site-template, font-add]}
@@ -203,7 +203,7 @@ actions:
       - name: default
         as: member
         status: 201
-        body_json: '{"name": "Example ${unique}", "license": "OFL-1.1", "license_note": "made up for the example", "confirm": true, "data": "d09GMgABAAAAAAA0AAEAAAAAAEAAAAAEAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=="}'
+        body_json: '{"name": "Example ${unique}", "license": "OFL-1.1", "license_note": "made up for the example", "confirm": true, "files": [{"data": "d09GMgABAAAAAAA0AAEAAAAAAEAAAAAEAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==", "weight": "100 900"}]}'
   - id: core.template.font.delete
     category: CATEGORY_ACTION
     method: DELETE
@@ -222,23 +222,40 @@ actions:
         given: ['core.template.font.add#default']
         as: member
         path_params_json: '{"id": "${given.core.template.font.add#default.id}"}'
-  - id: core.template.font.file
+  - id: core.template.font.css
     category: CATEGORY_ACTION
     method: GET
-    path: "fonts/{id}/file"
+    path: "fonts/{id}/css"
     success_status: 200
     summary:
       text:
-        en: The file of an uploaded font (public while a template that can be used has it; for designers always)
-        de: Die Datei einer hochgeladenen Schrift (öffentlich, solange ein verwendbares Template sie hat; für Gestaltende immer)
+        en: The @font-face rules of an uploaded font (public while a template that can be used has it; for designers always)
+        de: Die @font-face-Regeln einer hochgeladenen Schrift (öffentlich, solange ein verwendbares Template sie hat; für Gestaltende immer)
     public: true
-    cli: {command: [site-template, font-file], args: [id]}
+    cli: {command: [site-template, font-css], args: [id]}
     ui: {entry: /}
     examples:
       - name: default
         given: ['core.template.font.add#default']
         as: admin
         path_params_json: '{"id": "${given.core.template.font.add#default.id}"}'
+  - id: core.template.font.file
+    category: CATEGORY_ACTION
+    method: GET
+    path: "fonts/{id}/files/{n}"
+    success_status: 200
+    summary:
+      text:
+        en: One file of an uploaded font, unchanged (public while a template that can be used has it; for designers always)
+        de: Eine Datei einer hochgeladenen Schrift, unverändert (öffentlich, solange ein verwendbares Template sie hat; für Gestaltende immer)
+    public: true
+    cli: {command: [site-template, font-file], args: [id, n]}
+    ui: {entry: /}
+    examples:
+      - name: default
+        given: ['core.template.font.add#default']
+        as: admin
+        path_params_json: '{"id": "${given.core.template.font.add#default.id}", "n": 1}'
   - id: core.template.versions
     category: CATEGORY_ACTION
     method: GET

@@ -79,12 +79,13 @@ export function designCSS(d: Design, cls: string): string {
   // nothing but values of a safe form goes into the CSS (see cssSafe)
   if (!cssSafe(d)) return '';
   const out: string[] = [];
-  // uploaded fonts (own-ID, checked on the server): one WOFF2 file each, served
-  // by the wiki itself; the face covers every weight (variable fonts)
+  // uploaded fonts (own-ID, checked on the server): the server writes their
+  // @font-face rules (one per file: weight, style, format) from checked
+  // values; imported first, as CSS requires
   const own = (f: string) => OWN_FONT.test(f) ? `"ewd-${f}"` : '';
   const font = (f: string) => own(f) ? `${own(f)}, ${FONTS.system}` : FONTS[f] ?? FONTS.system;
   for (const f of new Set([k.font, k.heading_font])) {
-    if (own(f)) out.push(`@font-face { font-family: ${own(f)}; src: url("/api/v1/x/core.template/fonts/${f.slice(4)}/file") format("woff2"); font-weight: 100 900; font-display: swap; }`);
+    if (own(f)) out.push(`@import url("/api/v1/x/core.template/fonts/${f.slice(4)}/css");`);
   }
   out.push(`html:has(${s}) { font-size: ${Number(k.scale)}%; }`);
   out.push(`${s} { --ew-bg: ${k.bg}; --ew-bg-subtle: ${k.bg_subtle}; --ew-bg-raised: ${k.bg}; --ew-text: ${k.text}; --ew-text-muted: ${k.text_muted};

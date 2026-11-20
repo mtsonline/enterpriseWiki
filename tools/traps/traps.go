@@ -323,8 +323,8 @@ var traps = []trap{
 	{
 		ID: "template.font-parts", About: "a WOFF2 file with parts outside the file is accepted",
 		File: "plugins/core_template/fonts.go",
-		Old:  "return off == 0 && length == 0 || uint64(off) >= header && uint64(off)+uint64(length) <= uint64(n)",
-		New:  "return true",
+		Old:  "inside := func(off, length uint32) bool { return off == 0 && length == 0 || within(off, length, header, n) }",
+		New:  "inside := func(off, length uint32) bool { return true }",
 		Pkg:  "./plugins/core_template/", Tests: "^TestCheckWOFF2$",
 	},
 	{
@@ -337,8 +337,15 @@ var traps = []trap{
 	{
 		ID: "template.font-public", About: "the file of a font no template outside the trash uses is public",
 		File: "plugins/core_template/fonts.go",
-		Old:  "\t\tif !public {\n\t\t\treturn nil, apperr.NotFound(\"font\")",
-		New:  "\t\tif false {\n\t\t\treturn nil, apperr.NotFound(\"font\")",
+		Old:  "		return true, nil
+	}
+	token := \"own-\" + strconv.FormatInt(id, 10)
+	var public bool",
+		New:  "		return true, nil
+	}
+	return true, nil
+	token := \"own-\" + strconv.FormatInt(id, 10)
+	var public bool",
 		Pkg:  "./internal/server/", Tests: "^TestTemplateFonts$",
 	},
 	{
@@ -424,6 +431,41 @@ var traps = []trap{
 		Old:  "if img != \"\" && !content.WikiFile(img) {",
 		New:  "if img != \"\" && strings.HasPrefix(img, \"javascript:\") {",
 		Pkg:  "./plugins/core_layout/", Tests: "^TestQuoteAndLogos$",
+	},
+	{
+		ID: "template.font-woff-tables", About: "a WOFF file with a table outside the file is accepted",
+		File: "plugins/core_template/fonts.go",
+		Old:  "if comp > orig || !within(off, comp, dirEnd, n) {",
+		New:  "if comp > orig {",
+		Pkg:  "./plugins/core_template/", Tests: "^TestFontFormats$",
+	},
+	{
+		ID: "template.font-sfnt-tables", About: "a TrueType or OpenType file with a table outside the file is accepted",
+		File: "plugins/core_template/fonts.go",
+		Old:  "if !within(be.Uint32(e[8:12]), be.Uint32(e[12:16]), dirEnd, n) {",
+		New:  "if false && !within(be.Uint32(e[8:12]), be.Uint32(e[12:16]), dirEnd, n) {",
+		Pkg:  "./plugins/core_template/", Tests: "^TestFontFormats$",
+	},
+	{
+		ID: "template.font-collection", About: "a font collection (TTC) is accepted",
+		File: "plugins/core_template/fonts.go",
+		Old:  "\tcase \"ttcf\":\n\t\treturn \"\", fmt.Errorf(\"font collections are not supported; upload one font per file\")",
+		New:  "\tcase \"ttcf\":\n\t\treturn \"truetype\", nil",
+		Pkg:  "./plugins/core_template/", Tests: "^TestFontFormats$",
+	},
+	{
+		ID: "template.font-weight", About: "a weight that is no number of the CSS scale reaches the @font-face rules",
+		File: "plugins/core_template/fonts.go",
+		Old:  "if m == nil || (m[2] != \"\" && m[1] >= m[2]) {",
+		New:  "if m == nil && strings.Contains(w, \"x\") {",
+		Pkg:  "./plugins/core_template/", Tests: "^TestFontFormats$",
+	},
+	{
+		ID: "template.font-css-public", About: "the CSS of a font no template outside the trash uses is public",
+		File: "plugins/core_template/fonts.go",
+		Old:  "\t\tif ok, err := p.fontPublic(ctx, id); err != nil {\n\t\t\treturn nil, err\n\t\t} else if !ok {\n\t\t\treturn nil, apperr.NotFound(\"font\")\n\t\t}\n\t\tfaces, err := p.faces(ctx, []int64{id})",
+		New:  "\t\tfaces, err := p.faces(ctx, []int64{id})",
+		Pkg:  "./internal/server/", Tests: "^TestTemplateFonts$",
 	},
 	{
 		ID: "template.positions-room", About: "positions side by side in a block are saved without room",
