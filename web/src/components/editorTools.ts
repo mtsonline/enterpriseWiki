@@ -7,7 +7,7 @@ import { checkbox } from './ui';
 
 /** The buttons (names as content.EditorTools on the server). */
 export const EDITOR_TOOLS = ['block', 'strong', 'em', 'underline', 'strike', 'code', 'link', 'bullet', 'ordered', 'task', 'quote',
-  'table', 'table_edit', 'image', 'hr', 'macro', 'undo', 'redo'] as const;
+  'table', 'table_edit', 'image', 'hr', 'macro', 'snippet', 'undo', 'redo'] as const;
 
 /**
  * A fieldset to choose the buttons. current: the choice stored at this

@@ -10,7 +10,7 @@ import { can, currentSpace } from './widgets';
 import { listPublishOptions } from '../coreplugin';
 
 export interface Draft { id: number; element_id: number | null; category_id: number; type: string; lang: string; title: string; body?: unknown; tags: string[] | null; comment: string; base_rev: number; created_by: string; updated_by: string; updated_at: string; publish_at: string | null; fields?: Record<string, unknown> | null; via?: number | null }
-export interface Template { id: number; name: string; description: string; type: string; lang: string; title: string; body?: unknown; tags: string[]; global: boolean; mine: boolean; space_id?: number }
+export interface Template { id: number; name: string; description: string; kind?: 'page' | 'block'; type: string; lang: string; title: string; body?: unknown; tags: string[]; global: boolean; mine: boolean; space_id?: number }
 
 export interface EditorState { type: string; lang: string; title: string; body: unknown; tags?: string[]; comment?: string; baseRev?: number; elementId?: number; categoryId: number; fields?: Record<string, unknown>; via?: number }
 
@@ -72,8 +72,8 @@ export async function templatePicker(type: string, onPick: (tpl: Template) => vo
 
 const scopeLabel = (x: Template) => (x.space_id ? ` (${t('template.for_space')})` : x.global ? ` (${t('template.for_all')})` : '');
 
-async function manageTemplates(type: string, categoryId = 0, current?: () => EditorState): Promise<void> {
-  const list = await api.get<Template[]>(`templates${qs({ type, category: categoryId || undefined })}`);
+export async function manageTemplates(type: string, categoryId = 0, current?: () => EditorState, kind: 'page' | 'block' = 'page'): Promise<void> {
+  const list = await api.get<Template[]>(`templates${qs({ type, category: categoryId || undefined, kind })}`);
   const rows = h('ul', { class: 'ew-plain-list' });
   // changing and deleting need the same right: own template, global ones with core.templates.global, those of the space for its managers
   const mayChange = (x: Template) => x.mine || (x.global && hasPerm('core.templates.global')) || (!!x.space_id && x.space_id === currentSpace?.id && currentSpace.can_manage)
@@ -88,7 +88,7 @@ async function manageTemplates(type: string, categoryId = 0, current?: () => Edi
       if (!name.value.trim()) throw new Error(t('error.title_required'));
       const now = replace?.input.checked && current ? current() : null;
       const saved = await api.put<Template>(`templates/${x.id}`, {
-        name: name.value.trim(), description: desc.value, type: full.type, lang: now?.lang ?? full.lang,
+        name: name.value.trim(), description: desc.value, kind: full.kind ?? 'page', type: full.type, lang: now?.lang ?? full.lang,
         title: now ? now.title : full.title, body: now ? now.body : full.body, tags: now ? (now.tags ?? []) : full.tags,
         global: full.global, space_id: full.space_id ?? 0 });
       draw(items.map((y) => (y.id === x.id ? { ...y, name: saved.name, description: saved.description } : y)));
@@ -103,7 +103,7 @@ async function manageTemplates(type: string, categoryId = 0, current?: () => Edi
       toast(t('template.deleted'));
     }, { variant: 'link', ariaLabel: `${t('common.delete')}: ${x.name}` }) : null))); };
   draw(list);
-  openDialog(t('template.manage'), rows);
+  openDialog(kind === 'block' ? t('blocktpl.manage') : t('template.manage'), list.length ? rows : h('p', null, t('blocktpl.none')));
 }
 
 /** draftNotice offers to load an existing draft of an element (language). */

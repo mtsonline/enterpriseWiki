@@ -377,6 +377,8 @@ CREATE TABLE element_templates (
     id          bigserial PRIMARY KEY,
     name        text NOT NULL,
     description text NOT NULL DEFAULT '',
+    -- page: a template for a new page; block: blocks to insert into a page (block template)
+    kind        text NOT NULL DEFAULT 'page' CHECK (kind IN ('page','block')),
     type        text NOT NULL,
     lang        text NOT NULL,
     title       text NOT NULL DEFAULT '',
@@ -535,7 +537,7 @@ CREATE INDEX element_rules_element ON element_rules(element_id);
 -- category), instance, user.
 CREATE TABLE placements (
     id         bigserial PRIMARY KEY,
-    level      text NOT NULL CHECK (level IN ('template','site','category','category_page','instance','user')),
+    level      text NOT NULL CHECK (level IN ('template','site','type','category','category_page','instance','user')),
     target     text NOT NULL DEFAULT '',   -- template id, '' (site), category, element or user id
     block      text NOT NULL,
     position   text NOT NULL DEFAULT '',

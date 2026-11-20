@@ -520,6 +520,16 @@ export function registerElementBlocks(): void {
     replacedBy: ['core.element.titlebar'], render: (_p, _k, c) => c?.path?.() ?? null });
   registerSlot({ id: 'core.element.title', kind: 'element', position: 'element-header', order: 10, label: () => t('block.core.element.title'),
     replacedBy: ['core.element.titlebar'], render: (_p, _k, c) => (c?.view ? h('h1', null, c.view.title) : null) });
+  // the preview picture of the page (e.g. at the top of a blog post in the
+  // layout of its type); the title says what the page is, so it is decoration
+  registerSlot({ id: 'core.element.image', kind: 'element', position: '', order: 7, label: () => t('block.core.element.image'),
+    render: (_p, _k, c) => {
+      const img = c?.view?.preview_image ?? '';
+      if (!img) return null;
+      const src = img.includes('/') ? img : `/api/v1/files/${encodeURIComponent(img)}`;
+      if (!src.startsWith('/') || src.startsWith('//')) return null; // only pictures of the wiki
+      return h('figure', { class: 'ew-element-image' }, h('img', { src, alt: '', loading: 'lazy' }));
+    } });
   registerSlot({ id: 'core.element.titlebar', kind: 'element', position: '', order: 8, label: () => t('block.core.element.titlebar'),
     render: (_p, _k, c) => (c?.view ? h('div', { class: 'ew-titlebar' }, c.path?.() ?? null, h('h1', null, c.view.title)) : null) });
   registerSlot({ id: 'core.element.manage', kind: 'element', position: 'element-toolbar', order: 10, always: true, label: () => t('block.core.element.manage'),
@@ -958,7 +968,7 @@ async function newOrDraftView({ params, query, main }: RouteCtx, draft: Draft | 
     if (/^[1-9][0-9]{0,17}$/.test(tplId)) {
       try {
         const tpl = await api.get<Template>(`templates/${tplId}`);
-        if (tpl.type === typeId) { applyTemplate(tpl); toast(t('template.applied', { name: tpl.name })); }
+        if (tpl.type === typeId && (tpl.kind ?? 'page') === 'page') { applyTemplate(tpl); toast(t('template.applied', { name: tpl.name })); }
       } catch (e) { alert.textContent = errorText(e); }
     }
   }

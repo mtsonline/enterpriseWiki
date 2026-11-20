@@ -125,6 +125,8 @@ legend { font-weight: 700; padding: 0 .25rem; }
 .ew-titlebar { padding: 1.25rem 1rem; background: var(--ew-bg-subtle); color: var(--ew-text); border-radius: var(--ew-radius); margin-block-end: .5rem; }
 .ew-titlebar h1 { margin: .25rem 0 0; }
 .ew-titlebar .ew-breadcrumbs { margin: 0; }
+.ew-element-image { margin: 0 0 1rem; }
+.ew-element-image img { display: block; width: 100%; max-height: 24rem; object-fit: cover; border-radius: var(--ew-radius); }
 /* positions of an element page */
 .ew-pos--element-header { flex: 1 1 20rem; min-width: 0; }
 .ew-pos--element-toolbar { display: flex; flex-wrap: wrap; gap: .5rem; align-items: center; }

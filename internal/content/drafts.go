@@ -484,31 +484,37 @@ func IsSilent(ctx context.Context) bool { v, _ := ctx.Value(silentKey{}).(bool);
 
 // Template is a template for new elements.
 type Template struct {
-	ID          int64           `json:"id"`
-	Name        string          `json:"name"`
-	Description string          `json:"description"`
-	Type        string          `json:"type"`
-	Lang        string          `json:"lang"`
-	Title       string          `json:"title"`
-	Body        json.RawMessage `json:"body,omitempty"`
-	Tags        []string        `json:"tags"`
-	Global      bool            `json:"global"`
-	SpaceID     int64           `json:"space_id,omitempty"` // template of a space
-	Mine        bool            `json:"mine"`
-	CreatedBy   string          `json:"created_by"`
-	UpdatedAt   time.Time       `json:"updated_at"`
+	ID          int64  `json:"id"`
+	Name        string `json:"name"`
+	Description string `json:"description"`
+	// Kind: "page" (a template for a new page) or "block" (blocks to insert
+	// into a page: a block template)
+	Kind      string          `json:"kind"`
+	Type      string          `json:"type"`
+	Lang      string          `json:"lang"`
+	Title     string          `json:"title"`
+	Body      json.RawMessage `json:"body,omitempty"`
+	Tags      []string        `json:"tags"`
+	Global    bool            `json:"global"`
+	SpaceID   int64           `json:"space_id,omitempty"` // template of a space
+	Mine      bool            `json:"mine"`
+	CreatedBy string          `json:"created_by"`
+	UpdatedAt time.Time       `json:"updated_at"`
 }
 
 // TemplateInput saves a template.
 type TemplateInput struct {
-	Name        string          `json:"name"`
-	Description string          `json:"description"`
-	Type        string          `json:"type"`
-	Lang        string          `json:"lang"`
-	Title       string          `json:"title"`
-	Body        json.RawMessage `json:"body"`
-	Tags        []string        `json:"tags"`
-	Global      bool            `json:"global"` // for everybody (core.templates.global)
+	Name        string `json:"name"`
+	Description string `json:"description"`
+	// Kind: "page" (default) or "block"; it cannot be changed later. Block
+	// templates are always Markdown of a page (type core.html).
+	Kind   string          `json:"kind"`
+	Type   string          `json:"type"`
+	Lang   string          `json:"lang"`
+	Title  string          `json:"title"`
+	Body   json.RawMessage `json:"body"`
+	Tags   []string        `json:"tags"`
+	Global bool            `json:"global"` // for everybody (core.templates.global)
 	// SpaceID: for everybody in this category and below (Manage on it; named space_id
 	// because it started with spaces)
 	SpaceID int64 `json:"space_id"`
@@ -518,6 +524,18 @@ type TemplateInput struct {
 // those of the space of categoryID (optionally of one element type); with id
 // only that template, including its body.
 func (s *Service) Templates(ctx context.Context, typ string, id, categoryID int64) ([]Template, error) {
+	kind := "page"
+	if id != 0 {
+		kind = "" // one template by its id: of any kind
+	}
+	return s.TemplatesOfKind(ctx, kind, typ, id, categoryID)
+}
+
+// TemplatesOfKind is Templates for one kind ("page", "block"; "": all).
+func (s *Service) TemplatesOfKind(ctx context.Context, kind, typ string, id, categoryID int64) ([]Template, error) {
+	if kind != "" && kind != "page" && kind != "block" {
+		return nil, apperr.BadRequest("kind must be page or block")
+	}
 	p := identity.From(ctx)
 	if p == nil {
 		return nil, apperr.ErrUnauthorized
@@ -529,19 +547,19 @@ func (s *Service) Templates(ctx context.Context, typ string, id, categoryID int6
 			path = c.Path
 		}
 	}
-	rows, err := s.pool.Query(ctx, `SELECT t.id, t.name, t.description, t.type, t.lang, t.title, CASE WHEN $3::bigint <> 0 THEN t.body END, t.tags,
+	rows, err := s.pool.Query(ctx, `SELECT t.id, t.name, t.description, t.kind, t.type, t.lang, t.title, CASE WHEN $3::bigint <> 0 THEN t.body END, t.tags,
 			t.owner_id IS NULL AND t.space_id IS NULL, COALESCE(t.space_id, 0),
 			COALESCE(t.owner_id = $1, false), COALESCE((SELECT u.display_name FROM users u WHERE u.id = t.created_by), ''), t.updated_at
 		FROM element_templates t
 		WHERE (t.owner_id = $1 OR (t.owner_id IS NULL AND t.space_id IS NULL) OR t.space_id = ANY($4::bigint[]) OR ($3::bigint <> 0 AND t.space_id IS NOT NULL))
-			AND ($2 = '' OR t.type = $2) AND ($3::bigint = 0 OR t.id = $3::bigint)
-		ORDER BY t.space_id IS NULL, t.owner_id IS NULL, t.name`, p.ID(), typ, id, path)
+			AND ($2 = '' OR t.type = $2) AND ($3::bigint = 0 OR t.id = $3::bigint) AND ($5 = '' OR t.kind = $5)
+		ORDER BY t.space_id IS NULL, t.owner_id IS NULL, t.name`, p.ID(), typ, id, path, kind)
 	if err != nil {
 		return nil, err
 	}
 	out, err := pgx.CollectRows(rows, func(r pgx.CollectableRow) (Template, error) {
 		var t Template
-		return t, r.Scan(&t.ID, &t.Name, &t.Description, &t.Type, &t.Lang, &t.Title, &t.Body, &t.Tags, &t.Global, &t.SpaceID, &t.Mine, &t.CreatedBy, &t.UpdatedAt)
+		return t, r.Scan(&t.ID, &t.Name, &t.Description, &t.Kind, &t.Type, &t.Lang, &t.Title, &t.Body, &t.Tags, &t.Global, &t.SpaceID, &t.Mine, &t.CreatedBy, &t.UpdatedAt)
 	})
 	if err != nil {
 		return nil, err
@@ -565,6 +583,16 @@ func (s *Service) SaveTemplate(ctx context.Context, id int64, in TemplateInput) 
 	}
 	if in.Name == "" {
 		return nil, apperr.BadRequest("name is required")
+	}
+	switch in.Kind {
+	case "":
+		in.Kind = "page"
+	case "page":
+	case "block":
+		// blocks are Markdown of a page, inserted into pages
+		in.Type, in.Title, in.Tags = "core.html", "", nil
+	default:
+		return nil, apperr.BadRequest("kind must be page or block")
 	}
 	if in.SpaceID != 0 {
 		in.Global = false
@@ -601,11 +629,18 @@ func (s *Service) SaveTemplate(ctx context.Context, id int64, in TemplateInput) 
 		owner = &uid
 	}
 	if id == 0 {
-		err = s.pool.QueryRow(ctx, `INSERT INTO element_templates(name, description, type, lang, title, body, tags, owner_id, space_id, created_by)
-			VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING id`, in.Name, in.Description, in.Type, in.Lang, in.Title, body, tags, owner, space, nullID(ctx)).Scan(&id)
+		err = s.pool.QueryRow(ctx, `INSERT INTO element_templates(name, description, kind, type, lang, title, body, tags, owner_id, space_id, created_by)
+			VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) RETURNING id`, in.Name, in.Description, in.Kind, in.Type, in.Lang, in.Title, body, tags, owner, space, nullID(ctx)).Scan(&id)
 	} else {
 		if err := s.canChangeTemplate(ctx, id); err != nil {
 			return nil, err
+		}
+		var kind string
+		if err := s.pool.QueryRow(ctx, `SELECT kind FROM element_templates WHERE id=$1`, id).Scan(&kind); err != nil {
+			return nil, apperr.NotFound("template")
+		}
+		if kind != in.Kind {
+			return nil, apperr.BadRequest("the kind of a template cannot be changed")
 		}
 		_, err = s.pool.Exec(ctx, `UPDATE element_templates SET name=$2, description=$3, type=$4, lang=$5, title=$6, body=$7, tags=$8, owner_id=$9, space_id=$10, updated_at=now() WHERE id=$1`,
 			id, in.Name, in.Description, in.Type, in.Lang, in.Title, body, tags, owner, space)
@@ -613,7 +648,7 @@ func (s *Service) SaveTemplate(ctx context.Context, id int64, in TemplateInput) 
 	if err != nil {
 		return nil, err
 	}
-	_ = audit.Log(ctx, s.pool, "template.save", "template", id, nil, map[string]any{"name": in.Name, "type": in.Type, "global": in.Global, "space": in.SpaceID})
+	_ = audit.Log(ctx, s.pool, "template.save", "template", id, nil, map[string]any{"name": in.Name, "kind": in.Kind, "type": in.Type, "global": in.Global, "space": in.SpaceID})
 	list, err := s.Templates(ctx, "", id, 0)
 	if err != nil || len(list) == 0 {
 		return nil, apperr.NotFound("template")

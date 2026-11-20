@@ -15,7 +15,7 @@ import (
 var EditorTools = []string{
 	"block", "strong", "em", "underline", "strike", "code", "link",
 	"bullet", "ordered", "task", "quote",
-	"table", "table_edit", "image", "hr", "macro",
+	"table", "table_edit", "image", "hr", "macro", "snippet",
 	"undo", "redo",
 }
 

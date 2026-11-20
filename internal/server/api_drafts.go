@@ -80,7 +80,11 @@ func (s *Server) routesDrafts() {
 	// action: core.templates.list
 	s.handle("GET /api/v1/templates", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		cat, _ := strconv.ParseInt(r.URL.Query().Get("category"), 10, 64)
-		return s.app.Content.Templates(r.Context(), r.URL.Query().Get("type"), 0, cat)
+		kind := r.URL.Query().Get("kind")
+		if kind == "" {
+			kind = "page"
+		}
+		return s.app.Content.TemplatesOfKind(r.Context(), kind, r.URL.Query().Get("type"), 0, cat)
 	})
 	// action: core.templates.get
 	s.handle("GET /api/v1/templates/{id}", func(w http.ResponseWriter, r *http.Request) (any, error) {

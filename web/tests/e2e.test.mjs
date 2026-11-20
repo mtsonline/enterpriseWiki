@@ -2750,6 +2750,64 @@ test('title bar: path and title in one band with a background per category, inhe
   }
 });
 
+test('layout of an element type: the pages of one type get the title bar, others keep their layout', async () => {
+  const cat = (await call('POST', '/api/v1/categories', { titles: { en: `Typed ${run}` } })).id;
+  const el = await call('POST', '/api/v1/elements', { category_id: cat, type: 'core.html', title: `Typed page ${run}`, body: { format: 'markdown', source: 'x' } });
+  try {
+    await page.goto(`${BASE}/admin/placement`);
+    await idle();
+    const sec = page.getByRole('region', { name: /^(pages by element type|seiten nach elementtyp)$/i });
+    await sec.getByLabel(/^(element type|elementtyp)$/i).selectOption('core.html');
+    const add = sec.getByRole('group', { name: /^(show a building block|baustein anzeigen)$/i });
+    await add.getByLabel(/^(building block|baustein)$/i).selectOption('core.element.titlebar');
+    await add.getByLabel(/^(position)$/i).selectOption('element-header');
+    await add.getByRole('button').click();
+    await sec.getByRole('combobox', { name: /^(position of title bar \(path and title\)|position von titelleiste \(pfad und titel\))$/i }).waitFor();
+    await a11y('layout of an element type');
+    await sec.getByRole('button', { name: /^(save|speichern)$/i }).click();
+    await page.locator('.ew-toast', { hasText: /placement saved|platzierung gespeichert/i }).first().waitFor();
+    await page.goto(`${BASE}/e/${el.id}`);
+    await idle();
+    await page.locator('.ew-titlebar h1', { hasText: `Typed page ${run}` }).waitFor();
+    assert.equal(await page.locator('main h1:not(.sr-only)').count(), 1);
+    await a11y('a page with the layout of its type');
+  } finally {
+    await call('PUT', '/api/v1/placements/type?target=core.html', { placements: [] });
+  }
+});
+
+test('block templates: save selected blocks, insert them into another page', async () => {
+  await newPage('core.html', `Source ${run}`);
+  const prose = page.locator('.ewe-prose');
+  await prose.click();
+  await page.keyboard.type(`Opening hours ${run}`);
+  await page.keyboard.press('Enter');
+  await page.keyboard.type('Monday to Friday');
+  await page.keyboard.press('Control+A');
+  await page.getByRole('button', { name: /^(save as block template|als baustein-vorlage speichern)$/i }).click();
+  const save = page.locator('dialog[open]').last();
+  await save.getByLabel(/^(name)/i).first().fill(`Hours ${run}`);
+  await a11y('save a block template');
+  await save.locator('button[type=submit]').click();
+  await page.locator('.ew-toast', { hasText: /block template saved|baustein-vorlage gespeichert/i }).first().waitFor();
+  await page.getByRole('link', { name: /^(cancel|abbrechen)$/i }).click();
+  // another page: the template inserted at the cursor
+  await newPage('core.html', `Target ${run}`);
+  await page.locator('.ewe-prose').click();
+  await page.keyboard.type('Intro');
+  await page.keyboard.press('Enter');
+  await page.getByRole('button', { name: /^(insert a block template|baustein-vorlage einfügen)$/i }).click();
+  const ins = page.locator('dialog[open]').last();
+  await ins.getByLabel(/^(block template|baustein-vorlage)$/i).selectOption({ label: `Hours ${run}` });
+  await a11y('insert a block template');
+  await ins.locator('button[type=submit]').click();
+  await page.locator('.ewe-prose').getByText(`Opening hours ${run}`).waitFor();
+  await page.getByRole('button', { name: /^(publish|veröffentlichen)$/i }).click();
+  await page.waitForURL(/\/e\/\d+$/);
+  await idle();
+  await page.locator('.ew-content').getByText('Monday to Friday').waitFor();
+});
+
 test('options of a placed block: background with checked contrast, hidden on the phone, spacing; the wiki shows it', async () => {
   const before = await call('GET', '/api/v1/placements/site');
   try {
