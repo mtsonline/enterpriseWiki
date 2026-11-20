@@ -49,6 +49,7 @@
         { "id": "bg_gradient_from", "type": "color" },
         { "id": "bg_gradient_to", "type": "color" },
         { "id": "bg_image", "type": "file" },
+        { "id": "bg_video", "type": "file" },
         { "id": "bg_focus_x", "type": "int", "min": 0, "max": 100, "unit": "%" },
         { "id": "bg_focus_y", "type": "int", "min": 0, "max": 100, "unit": "%" },
         { "id": "bg_size", "type": "enum", "values": ["cover", "contain", "auto"] },

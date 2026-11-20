@@ -1,7 +1,7 @@
 // Styles of the standard macros (rendered on the server) and the lightbox
 // of the image gallery.
 import './style.css';
-import { button, h, openDialog, registerWidget, rerender, t, textInput, uid, uploadDialog } from '@ewiki/coreplugin';
+import { api, button, h, openDialog, qs, registerWidget, rerender, state, t, textInput, uid, uploadDialog } from '@ewiki/coreplugin';
 
 function lightbox(links: HTMLAnchorElement[], start: number): void {
   let i = start;
@@ -67,8 +67,71 @@ function pageTreeFilter(box: HTMLElement): void {
   input.addEventListener('input', () => { clearTimeout(timer); timer = window.setTimeout(run, 150); });
 }
 
+/** The first results of a search box while typing: a list of links under
+ * the field and the number in a status (read by screen readers); the
+ * search page shows all of them. */
+function searchLive(form: HTMLElement): void {
+  const input = form.querySelector<HTMLInputElement>('input[name="q"]');
+  if (!input) return;
+  const cat = form.querySelector<HTMLInputElement>('input[name="category"]')?.value;
+  const status = h('p', { class: 'sr-only', role: 'status' });
+  const list = h('ul', { class: 'ew-searchbox-results' });
+  const more = h('p', { class: 'ew-searchbox-more' });
+  const box = h('div', { class: 'ew-searchbox-live', hidden: true }, list, more);
+  form.append(status, box);
+  let timer = 0;
+  let seq = 0;
+  const run = async () => {
+    const q = input.value.trim();
+    const my = ++seq;
+    if (q.length < 2) { box.hidden = true; status.textContent = ''; return; }
+    let res: { elements: { element_id: number; title: string }[] };
+    try { res = await api.get(`search${qs({ q, category: cat || undefined, lang: state.lang, limit: 6 })}`); } catch { return; }
+    if (my !== seq) return; // an older answer
+    const items = res.elements.slice(0, 5);
+    list.replaceChildren(...items.map((x) => h('li', null, h('a', { href: `/e/${x.element_id}` }, x.title))));
+    more.replaceChildren(h('a', { href: `/search${qs({ q, category: cat || undefined })}` }, t('search.all_results')));
+    status.textContent = items.length ? t('search.live_count', { count: res.elements.length > 5 ? '5+' : String(items.length) }) : t('search.live_none');
+    box.hidden = false;
+  };
+  input.addEventListener('input', () => { clearTimeout(timer); timer = window.setTimeout(() => void run(), 300); });
+  // Escape closes the list and keeps the text
+  form.addEventListener('keydown', (ev) => { if (ev.key === 'Escape' && !box.hidden) { box.hidden = true; input.focus(); } });
+}
+
+/** Filter of a news list by tag: one button per tag of the items shown
+ * (pressed: only items with this tag); "All" shows everything again. */
+function newsFilter(box: HTMLElement): void {
+  const list = box.nextElementSibling;
+  if (!list?.classList.contains('ew-news')) return;
+  const items = Array.from(list.querySelectorAll<HTMLLIElement>(':scope > li'));
+  const tags = [...new Set(items.flatMap((li) => (li.dataset.tags ?? '').split(',').filter(Boolean)))].sort().slice(0, 20);
+  if (!tags.length) return;
+  const status = h('p', { class: 'sr-only', role: 'status' });
+  let current = '';
+  const buttons: HTMLButtonElement[] = [];
+  const apply = () => {
+    let n = 0;
+    for (const li of items) {
+      li.hidden = !!current && !(li.dataset.tags ?? '').split(',').includes(current);
+      if (!li.hidden) n++;
+    }
+    for (const b of buttons) b.setAttribute('aria-pressed', String(b.dataset.tag === current));
+    status.textContent = t('news.filter_count', { count: n });
+  };
+  for (const tag of ['', ...tags]) {
+    const b = button(tag ? `#${tag}` : t('news.filter_all'), () => { current = tag; apply(); }, { variant: 'subtle' });
+    b.dataset.tag = tag;
+    buttons.push(b);
+  }
+  box.append(h('div', { role: 'group', 'aria-label': t('news.filter') }, ...buttons), status);
+  for (const b of buttons) b.setAttribute('aria-pressed', String(b.dataset.tag === ''));
+}
+
 export function register(): void {
   registerWidget('core.macros.pagetree', pageTreeFilter);
+  registerWidget('core.macros.searchlive', searchLive);
+  registerWidget('core.macros.newsfilter', newsFilter);
   // the attachments list: upload a file into its category (the server shows
   // the button only to people who may add files there and checks it again)
   registerWidget('core.macros.upload', (box) => {

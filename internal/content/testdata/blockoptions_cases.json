@@ -371,5 +371,44 @@
     "options": {
       "anchor": "f12-name"
     }
+  },
+  {
+    "name": "picture of the media library",
+    "ok": true,
+    "options": {
+      "bg_image": "/api/v1/media/12/view",
+      "text_color": "#ffffff",
+      "overlay_color": "#000000",
+      "overlay_opacity": 70
+    }
+  },
+  {
+    "name": "picture of the media library without view",
+    "ok": false,
+    "options": {
+      "bg_image": "/api/v1/media/12",
+      "text_color": "#ffffff",
+      "overlay_color": "#000000",
+      "overlay_opacity": 70
+    }
+  },
+  {
+    "name": "video without overlay",
+    "ok": false,
+    "options": {
+      "bg_video": "/api/v1/media/13/view",
+      "text_color": "#ffffff"
+    },
+    "problem": "overlay"
+  },
+  {
+    "name": "video with strong overlay",
+    "ok": true,
+    "options": {
+      "bg_video": "/api/v1/media/13/view",
+      "text_color": "#ffffff",
+      "overlay_color": "#000000",
+      "overlay_opacity": 70
+    }
   }
 ]

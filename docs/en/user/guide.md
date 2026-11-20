@@ -68,7 +68,7 @@ copying. If "always open directly" is set, a click on the file starts the progra
 *Close* leads back into the wiki.
 
 ### Images in pages
-In the editor, the button **Insert image** opens the media library: choose an image or upload a new one (default: category of the page) and enter an alternative text that describes the image for people who cannot see it. Other files are inserted as a link. The macro **Image gallery** shows selected images (`media="12,13,14"`) or all images of a category as a grid; a click opens the image large, with the arrow keys you browse on.
+In the editor, the button **Insert image** opens the media library: choose an image or upload a new one (default: category of the page) and enter an alternative text that describes the image for people who cannot see it. Other files are inserted as a link. The macro **Image gallery** shows selected images (`media="12,13,14"`) or all images of a category as a grid; a click opens the image large, with the arrow keys you browse on. A picture shown smaller than it is opens large with a click (as in the gallery); the link carries the alternative text.
 
 ### Macros
 Macros are building blocks that are filled in when the page is shown. In the visual editor the button **Insert macro** (⚙) inserts one; macros with content (e.g. notice box) wrap selected paragraphs. An inserted macro appears as a dashed box with name, settings and the buttons *Edit macro* (✎) and *Remove macro* (×); macros in the text (e.g. status label, text colour) as a small block. Some macros have their own button in the toolbar (◉ status label, **A** text colour and font); the selected text is taken over.
@@ -86,11 +86,11 @@ In the Markdown source, macros are directives: `::toc{levels=3}` (without conten
 | Text colour and font | text colour, highlighting, font and size from the palette of the site (all combinations easily readable) |
 | Columns / cards | content side by side; separate columns or cards with a horizontal rule |
 | Section, hero banner, button link, spacing | building blocks for website pages (especially with the template *CMS*) |
-| Grid | content in columns, the number per view (desktop up to 5, tablet up to 3, phone 1); separate the cells with a horizontal rule |
+| Grid | content in columns, the number per view (desktop up to 5, tablet up to 3, phone 1); separate the cells with a horizontal rule. With *Widths* the columns get their own shares on the desktop (`widths="2 1"`: the first twice as wide); the narrowest keeps enough room |
 | Heading | a heading with subtitle and line; its level (the structure of the page for screen readers) is chosen apart from its size |
 | Divider | a line (solid, dashed, dotted, double, fading) or space between parts of a page |
-| Buttons | up to four links as buttons, side by side, over the full width or one below the other |
-| Call to action | a box with title, text and a button |
+| Buttons | up to four links as buttons, side by side, over the full width or one below the other; each optionally with an icon in front of the text (decoration: the text names the button) |
+| Call to action | a box with title, text and a button, optionally with an icon |
 | Tabs | parts as tabs (arrow keys, Home, End); separate the parts with a horizontal rule, the first heading of each part names its tab. Without script they are sections one below the other |
 | Accordion | parts to open and close, optionally only one open at a time and the first one open |
 | Icon | an icon of the shipped set (more than 6,000, outline or filled), also inside a line (`:icon[Phone]{name=phone}`); chosen with a search. Screen readers read its label or, without one, the name of the icon (in English, for example "arrow right"); only an icon marked *decoration only* is skipped |
@@ -100,12 +100,12 @@ In the Markdown source, macros are directives: `::toc{levels=3}` (without conten
 | Excerpt | marks a part of this page that *Include page* with *Only the excerpt* shows; with names there can be several excerpts on a page |
 | Anchor | a point in the text that a link with `#name` jumps to (`:anchor{name=budget}`). Names: lowercase letters, digits and hyphens, without `ew` at the start and without `-number` at the end (the wiki names its own fields like that; likewise not `f` with a number and a hyphen at the start); every name once per page, and not like a heading. Headings get their jump address from their text (`#budget`); if it would be an address of the wiki (for example `main`), it starts with `h-` (`#h-main`). Every address exists only once on a page, also with included pages (there with a number, for example `#intro-2`) |
 | Page tree | subcategories and pages of a category as a tree to open, with a field to filter it; up to four levels |
-| Search box | a search field for this (or a chosen) category with its subcategories, or for the whole wiki; the search page shows the results, and there the search can be widened to the whole wiki |
+| Search box | a search field for this (or a chosen) category with its subcategories, or for the whole wiki; the search page shows the results, and there the search can be widened to the whole wiki. While typing, the first results appear below it (can be switched off); Escape closes the list |
 | New page from a template | a button that opens a new page in a category, filled from a page template. Only people who may create pages there and can use the template see it; so take a template for everybody or for the space |
 | Attachments | the files this page shows, or the files of a category (optionally with subcategories), as a table with kind, size and date, sorted by name, date, size or kind. Everybody sees only files they may see; files that may only be viewed have no download. People who may create or edit pages in the category upload a file right there with *Upload a file* |
 | Shell command | output of a command on the server; only runs once a super administrator has approved exactly this command |
 | HTTP request | result of a web address (text, HTML, JSON as a table); only approved addresses |
-| News from several sources | the newest elements of any number of sources and entries of external RSS/Atom feeds together, as cards, list or headlines |
+| News from several sources | the newest elements of any number of sources and entries of external RSS/Atom feeds together, as cards, list, headlines or tiles (pictures in columns per view, optionally as masonry); with *Filter by tag* buttons above the list show only entries with one tag |
 | Blog posts from several sources | posts of several sources in the look of the blog (list, cards, compact) |
 | FAQ from several sources | questions of several sources as one FAQ, one expandable section per category |
 | Recently changed, upcoming events | also with freely selectable sources |
@@ -425,7 +425,7 @@ Where search, language, edit mode, notifications, user menu, category tree and t
 
   Showing a block only to some is a rule of display, not a permission: the block loads its data with the permissions of the reader as always.
 - **Size and spacing:** maximum width, minimum height, aspect ratio, inner and outer spacing and text alignment, per view where it makes sense. The tablet takes the value of the desktop, the phone the one of the tablet, unless they have their own.
-- **Background:** colour, gradient, picture of the wiki (focus, size, repeat, parallax), overlay, blending, pattern, glass.
+- **Background:** colour, gradient, picture of the wiki (focus, size, repeat, parallax), video of the media library (silent, in a loop, always with a button to stop it; with "reduce motion" it does not start by itself; like a picture it needs an overlay), overlay, blending, pattern, glass.
 - **Border, shape and dividers:** border, rounded corners, shadow, glow, dividers at the top and bottom (wave, zigzag, slope, arc), fading out at the edge.
 - **Text:** font, size, weight, line height, letter spacing, capitals, text colour, columns, hyphenation, balanced line breaks, drop cap, text shadow, limited lines with *Show more*, headings in the gradient, underlined links.
 

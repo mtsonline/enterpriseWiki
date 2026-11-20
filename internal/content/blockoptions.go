@@ -102,7 +102,7 @@ func CheckAnchor(s string) error {
 var (
 	optColorRe  = regexp.MustCompile(`^#[0-9a-f]{6}$`)
 	optAnchorRe = regexp.MustCompile(`^[a-z][a-z0-9-]{0,39}$`)
-	optFileRe   = regexp.MustCompile(`^/api/v1/(files|media)/[A-Za-z0-9._-]{1,128}$`)
+	optFileRe   = regexp.MustCompile(`^/api/v1/(files/[A-Za-z0-9._-]{1,128}|media/[0-9]{1,18}/view)$`)
 	optLangRe   = regexp.MustCompile(`^[a-z]{2,3}(-[A-Za-z0-9]{2,8})?$`)
 )
 
@@ -180,7 +180,7 @@ func checkOptionValue(def optionDef, v any) error {
 		}
 	case "file":
 		if s, ok := v.(string); !ok || !optFileRe.MatchString(s) {
-			return fmt.Errorf("a picture of the wiki (/api/v1/files/…)")
+			return fmt.Errorf("a file of the wiki (/api/v1/files/… or /api/v1/media/ID/view)")
 		}
 	case "anchor":
 		s, _ := v.(string)
@@ -245,7 +245,8 @@ func checkOptionRules(o map[string]any) error {
 	if gradient == "none" {
 		gradient = ""
 	}
-	image := optStr(o, "bg_image")
+	// a video in the background has unknown colors like a picture
+	image := optStr(o, "bg_image") + optStr(o, "bg_video")
 	pattern := optStr(o, "pattern")
 	if pattern == "none" {
 		pattern = ""
