@@ -3063,6 +3063,102 @@ test('template designer: visual and with the keyboard, room and contrast help, u
   }
 });
 
+test('blocks B, part 1: progress bar, counter, timeline, dialog with a button, tooltip; with the keyboard and reduced motion', async () => {
+  const cat = (await call('POST', '/api/v1/categories', { titles: { en: `Blocks B ${run}` } })).id;
+  const src = [
+    '::progress{label="Renovation" value=40}',
+    '',
+    '::counter{value=1234 label="Members" suffix="+"}',
+    '',
+    ':::timeline{label="History" direction=horizontal}',
+    '### 2024',
+    'Founded',
+    '***',
+    '### 2025',
+    'Grown',
+    ':::',
+    '',
+    ':::dialog{button="Opening hours" title="When we are open"}',
+    'Monday to Friday, 8 to 17.',
+    ':::',
+    '',
+    'Our :tooltip[API]{tip="Programming interface"} is documented.',
+    '',
+  ].join('\n');
+  const el = await call('POST', '/api/v1/elements', { category_id: cat, type: 'core.html', title: `Blocks B ${run}`, body: { format: 'markdown', source: src } });
+  await page.goto(`${BASE}/e/${el.id}`);
+  await idle();
+  // progress: a named bar with its value as text
+  const bar = page.getByRole('progressbar', { name: 'Renovation' });
+  assert.equal(await bar.getAttribute('aria-valuenow'), '40');
+  assert.ok(await page.getByText('40 %').isVisible());
+  // counter: counts up once in view and ends with the whole number
+  const counter = page.locator('.ewl-counter');
+  await counter.scrollIntoViewIfNeeded();
+  await page.waitForFunction(() => /1[.,]234 \+$/.test(document.querySelector('.ewl-counter-shown')?.textContent ?? ''));
+  assert.match(await counter.locator('.sr-only').textContent(), /1[.,]234 \+/);
+  // timeline: entries in order; horizontal in a region the keyboard reaches
+  const region = page.getByRole('region', { name: 'History' });
+  assert.equal(await region.getAttribute('tabindex'), '0');
+  assert.equal(await region.getByRole('listitem').count(), 2);
+  // dialog: opens with the button, Escape closes, the focus returns
+  const open = page.getByRole('button', { name: 'Opening hours' });
+  await open.focus();
+  await page.keyboard.press('Enter');
+  const dlg = page.getByRole('dialog', { name: 'When we are open' });
+  await dlg.getByText('Monday to Friday').waitFor();
+  await a11y('a dialog opened by a button');
+  await page.keyboard.press('Escape');
+  await dlg.waitFor({ state: 'hidden' });
+  assert.ok(await open.evaluate((b) => b === document.activeElement), 'the focus returns to the button');
+  await open.click();
+  await dlg.getByRole('button', { name: /^(close|schließen)$/i }).click();
+  await dlg.waitFor({ state: 'hidden' });
+  await page.waitForFunction(() => document.activeElement?.textContent === 'Opening hours');
+  // tooltip: on focus and pointing, Escape hides it; read as the description of the word
+  const word = page.getByRole('button', { name: 'API' });
+  const tip = page.getByRole('tooltip');
+  await word.focus();
+  await tip.waitFor();
+  assert.equal(await page.locator('.ewl-tip-bubble').textContent(), 'Programming interface');
+  // the pointer leaving the word does not hide what the focus shows (found in CI)
+  await word.hover();
+  await page.mouse.move(0, 0);
+  await page.waitForTimeout(400);
+  const state = () => page.evaluate(() => { const b = document.querySelector('.ewl-tip-bubble'); return JSON.stringify({ focus: document.activeElement?.className, hasFocus: document.hasFocus(), hidden: b?.hidden, dismissed: b?.dataset.dismissed, visible: b && getComputedStyle(b).display, fv: document.querySelector('.ewl-tip-button')?.matches(':focus-visible') }); });
+  assert.ok(await tip.isVisible(), `stays while the word has the focus: ${await state()}`);
+  assert.equal(await word.evaluate((b) => document.getElementById(b.getAttribute('aria-describedby'))?.textContent), 'Programming interface');
+  await page.keyboard.press('Escape');
+  await tip.waitFor({ state: 'hidden' });
+  await page.locator('h1').first().focus();
+  await word.hover();
+  await tip.waitFor();
+  await tip.hover(); // the pointer can move onto it (WCAG 1.4.13)
+  await page.waitForTimeout(300);
+  assert.ok(await tip.isVisible(), 'stays while the pointer is on it');
+  await a11y('blocks B, part 1');
+  // reduced motion: the counter shows the number at once, nothing moves
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await page.reload();
+  await idle();
+  await page.locator('.ewl-counter').scrollIntoViewIfNeeded();
+  assert.equal(await page.locator('.ewl-counter-shown').count(), 0, 'no moving copy');
+  assert.match(await page.locator('.ewl-counter-value').textContent(), /1[.,]234 \+/);
+  await page.emulateMedia({ reducedMotion: 'no-preference' });
+  // the phone: the horizontal timeline goes top to bottom, nothing scrolls sideways
+  const size = page.viewportSize();
+  await page.setViewportSize({ width: 375, height: 800 });
+  try {
+    await page.reload();
+    await idle();
+    assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1), 'no sideways scrolling');
+    assert.equal(await page.locator('.ewl-timeline--horizontal').evaluate((x) => getComputedStyle(x).display), 'block');
+    await a11y('blocks B, part 1 (phone)');
+  } finally {
+    if (size) await page.setViewportSize(size);
+  }
+});
+
 test('template designer, part 3: a warning for standard positions, widths by dragging, header while scrolling, side column, footer on the phone, printing', async () => {
   const before = (await call('GET', '/api/v1/admin/settings')).config;
   const tpl = await call('POST', '/api/v1/x/core.template/templates', { names: { en: `Behaviour ${run}` }, copy_of: 'core.template/example-wiki' });

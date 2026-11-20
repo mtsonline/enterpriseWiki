@@ -493,6 +493,26 @@ func buildDemo(d *demoRun) {
 				`<h2>Seiten dieses Bereichs <span data-macro="anchor" data-params='{"name":"tree"}'></span></h2>`+macro("pagetree", map[string]string{"category": in, "depth": "2"}, "")+
 				`<h2>Dateien des Medien-Ordners</h2>`+macro("attachments", map[string]string{"source": "category", "category": strconv.FormatInt(mediaCat, 10)}, ""), nil)
 	})
+	// blocks B, part 1: progress, counter, timeline, dialog, tooltip
+	d.optional("blocks-b1", func() {
+		page := func(lang string) string {
+			tr := func(en, de string) string {
+				if lang == "de" {
+					return de
+				}
+				return en
+			}
+			return `<p>` + tr("Figures, steps and explanations on a page.", "Zahlen, Schritte und Erklärungen auf einer Seite.") + `</p>` +
+				macro("progress", map[string]string{"label": tr("Renovation of the office", "Umbau des Büros"), "value": "65", "color": "success"}, "") +
+				macro("counter", map[string]string{"value": "1250", "label": tr("Pages in the wiki", "Seiten im Wiki"), "suffix": "+"}, "") +
+				macro("timeline", map[string]string{"label": tr("History", "Geschichte"), "direction": "horizontal"},
+					`<h3>2024</h3><p>`+tr("The team starts.", "Das Team startet.")+`</p><hr><h3>2025</h3><p>`+tr("The second office opens.", "Das zweite Büro öffnet.")+`</p><hr><h3>2026</h3><p>`+tr("The wiki replaces the old intranet.", "Das Wiki ersetzt das alte Intranet.")+`</p>`) +
+				macro("dialog", map[string]string{"button": tr("Opening hours", "Öffnungszeiten"), "title": tr("When the reception is open", "Wann der Empfang besetzt ist")},
+					`<p>`+tr("Monday to Friday, 8:00 to 17:00.", "Montag bis Freitag, 8:00 bis 17:00 Uhr.")+`</p>`) +
+				`<p>` + tr("Questions about the ", "Fragen zur ") + `<span data-macro="tooltip" data-params='{"text":"VPN","tip":"` + tr("Virtual private network: the secure way into the company network from outside.", "Virtuelles privates Netz: der sichere Weg ins Firmennetz von außen.") + `"}'></span>` + tr(" go to the IT desk.", " beantwortet die IT.") + `</p>`
+		}
+		d.page(start, "Figures and steps", "Zahlen und Schritte", page("en"), page("de"), nil)
+	})
 	// a category with its own website template (the modern website look)
 	d.optional("category-template", func() {
 		d.call(http.MethodPut, fmt.Sprintf("/api/v1/categories/%d", srcCat), map[string]any{"template": "theme.cms.modern"}, nil)
