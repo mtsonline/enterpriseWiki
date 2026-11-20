@@ -5,7 +5,8 @@ import { api } from '../core/api';
 import { h } from '../core/dom';
 import { t } from '../core/i18n';
 import type { MacroParamControl } from '../editor/macros';
-import { errorText, field, select } from './ui';
+import { button, errorText, field, select } from './ui';
+import { mediaURL, pickMedium } from './media';
 import { categorySelect, elementSelect } from './pickers';
 import type { Template } from './publishing';
 
@@ -37,3 +38,14 @@ export const templateControl: MacroParamControl = (value, ctx) => later(value, c
   const sel = select(opts, value.trim());
   return { el: field(ctx.label, sel, { required: ctx.required, help: t('macro.template_help') }), get: () => sel.value };
 });
+
+/** A picture of the wiki (image blocks): a path of a file or a medium of the
+ * library, chosen in the media library or typed; the server checks it. */
+export const imageControl: MacroParamControl = (value, ctx) => {
+  const i = h('input', { class: 'ew-input', value, placeholder: '/api/v1/media/…/view' }) as HTMLInputElement;
+  const pick = button(t('bo.pick_image'), async () => {
+    const m = await pickMedium({ type: 'image' });
+    if (m) i.value = mediaURL(m);
+  }, { variant: 'subtle' });
+  return { el: h('div', null, field(ctx.label, i, { required: ctx.required, help: t('bo.file_help') }), pick), get: () => i.value.trim() };
+};

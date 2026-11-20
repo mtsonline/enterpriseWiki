@@ -3159,6 +3159,71 @@ test('blocks B, part 1: progress bar, counter, timeline, dialog with a button, t
   }
 });
 
+test('blocks B, part 2: quote, logo bar with a picture of the media library, tag cloud, changes of a page, contributors', async () => {
+  const cat = (await call('POST', '/api/v1/categories', { titles: { en: `People ${run}` } })).id;
+  const md = (source) => ({ format: 'markdown', source });
+  const a = await call('POST', '/api/v1/elements', { category_id: cat, type: 'core.html', title: `Tagged ${run}`, body: md('x'), tags: [`walrus${run}`, 'common'] });
+  await call('POST', '/api/v1/elements', { category_id: cat, type: 'core.html', title: `Tagged two ${run}`, body: md('y'), tags: [`walrus${run}`] });
+  await call('PUT', `/api/v1/elements/${a.id}`, { lang: 'en', title: `Tagged ${run}`, base_rev: 1, comment: 'second try', body: md('x2') });
+  const logo = await page.evaluate(async ([c, n]) => {
+    const cv = document.createElement('canvas'); cv.width = 200; cv.height = 60;
+    const x = cv.getContext('2d'); x.fillStyle = '#204080'; x.fillRect(0, 0, 200, 60);
+    const blob = await new Promise((r) => cv.toBlob(r, 'image/png'));
+    const fd = new FormData();
+    fd.append('meta', JSON.stringify({ category_id: c, title: n }));
+    fd.append('file', new File([blob], n, { type: 'image/png' }));
+    const r = await __e2eFetch('/api/v1/media', { method: 'POST', body: fd, headers: { 'X-Requested-With': 'ewiki' } });
+    return (await r.json()).id;
+  }, [cat, `logo-${run}.png`]);
+  const src = [
+    ':::testimonial{name="Mira Example" role="Team lead"}',
+    'New colleagues find their way in a few days.',
+    ':::',
+    '',
+    ':::logos{label="Our partners" grey=true}',
+    `[![Acme](/api/v1/media/${logo}/view)](https://acme.example)`,
+    ':::',
+    '',
+    `::tagcloud{category=${cat}}`,
+    '',
+    `::pagechanges{page=${a.id}}`,
+    '',
+    `::contributors{page=${a.id}}`,
+    '',
+  ].join('\n');
+  const el = await call('POST', '/api/v1/elements', { category_id: cat, type: 'core.html', title: `People page ${run}`, body: md(src) });
+  await page.goto(`${BASE}/e/${el.id}`);
+  await idle();
+  // the quote with the name of the person
+  await page.locator('figure.ewl-quote figcaption', { hasText: 'Mira Example' }).waitFor();
+  // logos: a named list; the logo is a link named by its text alternative
+  const partners = page.getByRole('list', { name: 'Our partners' });
+  await partners.getByRole('link', { name: 'Acme' }).waitFor();
+  // the tag cloud: the tags lead to their pages, the count is part of the name
+  const cloud = page.getByRole('navigation', { name: 'Tags' });
+  const walrus = cloud.getByRole('link', { name: new RegExp(`^#walrus${run} \\(2 pages\\)$`) });
+  assert.match(await walrus.getAttribute('href'), new RegExp(`tags=walrus${run}`));
+  // changes and contributors
+  await page.locator('.ew-pagechanges-list li', { hasText: 'second try' }).waitFor();
+  assert.equal(await page.locator('.ew-pagechanges a', { hasText: /whole history|ganze verlauf/i }).getAttribute('href'), `/e/${a.id}/history`);
+  assert.ok(await page.locator('.ew-contributors li').count() >= 1);
+  await a11y('blocks B, part 2');
+  await walrus.click();
+  await page.waitForURL(/\/search\?/);
+  await page.getByRole('link', { name: `Tagged two ${run}` }).waitFor();
+  // the phone: nothing scrolls sideways
+  await page.goto(`${BASE}/e/${el.id}`);
+  const size = page.viewportSize();
+  await page.setViewportSize({ width: 375, height: 800 });
+  try {
+    await idle();
+    assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1), 'no sideways scrolling');
+    await a11y('blocks B, part 2 (phone)');
+  } finally {
+    if (size) await page.setViewportSize(size);
+  }
+});
+
 test('template designer, part 3: a warning for standard positions, widths by dragging, header while scrolling, side column, footer on the phone, printing', async () => {
   const before = (await call('GET', '/api/v1/admin/settings')).config;
   const tpl = await call('POST', '/api/v1/x/core.template/templates', { names: { en: `Behaviour ${run}` }, copy_of: 'core.template/example-wiki' });

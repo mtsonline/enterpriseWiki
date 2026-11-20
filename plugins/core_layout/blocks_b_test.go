@@ -101,3 +101,35 @@ func TestBlocksB(t *testing.T) {
 		t.Fatalf("tooltip: %v %s", err, out)
 	}
 }
+
+func TestQuoteAndLogos(t *testing.T) {
+	out, err := render(t, testimonial{}, "en", map[string]string{"name": "Ana <b>", "role": "CEO", "image": "/api/v1/media/7/view"}, "<p>Great.</p>")
+	if err != nil || !strings.Contains(out, `<blockquote class="ewl-quote-text"><p>Great.</p></blockquote>`) || !strings.Contains(out, `src="/api/v1/media/7/view" alt=""`) || !strings.Contains(out, "Ana &lt;b&gt;") {
+		t.Fatalf("quote: %v %s", err, out)
+	}
+	for _, p := range []map[string]string{{"role": "x"}, {"name": "x", "image": "https://evil.example/a.png"}, {"name": "x", "image": "javascript:x"}} {
+		if _, err := render(t, testimonial{}, "en", p, "<p>T</p>"); err == nil {
+			t.Errorf("quote %v accepted", p)
+		}
+	}
+	if _, err := render(t, testimonial{}, "en", map[string]string{"name": "x"}, " "); err == nil {
+		t.Error("quote without text accepted")
+	}
+	body := `<p><a href="https://a.example"><img src="/api/v1/media/1/view" alt="Acme"></a> <img src="/api/v1/files/b.png" alt="Beta"> text</p>`
+	out, err = render(t, logos{}, "en", map[string]string{"label": "Partners", "grey": "true"}, body)
+	if err != nil || strings.Count(out, "<li>") != 2 || !strings.Contains(out, `aria-label="Partners"`) || !strings.Contains(out, "ewl-logos--grey") || strings.Contains(out, "text") {
+		t.Fatalf("logos: %v %s", err, out)
+	}
+	for name, c := range map[string][2]string{
+		"no name":            {"", body},
+		"no pictures":        {"P", "<p>none</p>"},
+		"no alt":             {"P", `<img src="/api/v1/media/1/view">`},
+		"empty alt":          {"P", `<img src="/api/v1/media/1/view" alt=" ">`},
+		"from elsewhere":     {"P", `<img src="https://evil.example/t.png" alt="X">`},
+		"a path of the wiki": {"P", `<img src="/api/v1/admin/users" alt="X">`},
+	} {
+		if _, err := render(t, logos{}, "en", map[string]string{"label": c[0]}, c[1]); err == nil {
+			t.Errorf("logos %s accepted", name)
+		}
+	}
+}

@@ -128,3 +128,19 @@
 .ew-news--masonry .ew-news-img { aspect-ratio: auto; }
 .ew-news-filter { display: flex; flex-wrap: wrap; gap: .5rem; margin-block: .5rem; }
 .ew-news-filter [aria-pressed="true"] { background: var(--ew-primary); color: var(--ew-on-primary); }
+
+/* tag cloud, changes of a page, contributors (blocks B, part 2) */
+.ew-tagcloud ul { list-style: none; margin: .5rem 0; padding: 0; display: flex; flex-wrap: wrap; gap: .35rem .75rem; align-items: baseline; }
+.ew-tagcloud li { margin: 0; }
+.ew-tagcloud a { display: inline-block; min-block-size: 1.5rem; }
+.ew-tagcloud-1 { font-size: .9rem; }
+.ew-tagcloud-2 { font-size: 1rem; }
+.ew-tagcloud-3 { font-size: 1.15rem; }
+.ew-tagcloud-4 { font-size: 1.35rem; font-weight: 600; }
+.ew-tagcloud-5 { font-size: 1.6rem; font-weight: 700; }
+.ew-tagcloud--list ul { display: block; }
+.ew-tagcloud--list li { margin-block: .25rem; }
+.ew-pagechanges-list { margin: .5rem 0; padding-inline-start: 1.25rem; }
+.ew-pagechanges-list li { margin-block: .25rem; }
+.ew-contributors { list-style: none; margin: .5rem 0; padding: 0; display: flex; flex-wrap: wrap; gap: .5rem 1.25rem; }
+.ew-contributors li { display: flex; align-items: center; gap: .4rem; margin: 0; }

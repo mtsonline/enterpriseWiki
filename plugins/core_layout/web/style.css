@@ -165,3 +165,23 @@ button.ewl-cta { font: inherit; font-weight: 700; cursor: pointer; }
 .ewl-tip-bubble[hidden] { display: none; }
 .ewl-tip-button:focus-visible + .ewl-tip-bubble[hidden]:not([data-dismissed]) { display: block; }
 @media (forced-colors: active) { .ewl-tip-bubble { border: 1px solid CanvasText; } }
+
+/* ---- blocks B, part 2 */
+.ewl-quote { margin: 1.25rem 0; padding: 1.25rem 1.5rem; border-inline-start: 4px solid var(--ew-primary); background: var(--ew-bg-subtle); border-radius: var(--ew-radius); }
+.ewl-quote-text { margin: 0 0 .75rem; font-size: 1.1rem; font-style: italic; }
+.ewl-quote-text > :first-child { margin-top: 0; }
+.ewl-quote-text > :last-child { margin-bottom: 0; }
+.ewl-quote-who { display: flex; align-items: center; gap: .75rem; }
+.ewl-quote-img { width: 3.5rem; height: 3.5rem; border-radius: 50%; object-fit: cover; }
+.ewl-quote-name { display: block; font-weight: 700; }
+.ewl-quote-role { display: block; color: var(--ew-text-muted); }
+.ewl-logos { list-style: none; margin: 1rem 0; padding: 0; display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 1.5rem 2.5rem; }
+.ewl-logos li { margin: 0; }
+.ewl-logos img { display: block; width: auto; max-width: 12rem; object-fit: contain; }
+.ewl-logos--small img { height: 2rem; }
+.ewl-logos--medium img { height: 3rem; }
+.ewl-logos--large img { height: 4.5rem; }
+.ewl-logos a { display: inline-block; }
+.ewl-logos--grey img { filter: grayscale(1); opacity: .8; transition: filter .2s, opacity .2s; }
+.ewl-logos--grey a:is(:hover, :focus-visible) img, .ewl-logos--grey li:hover img { filter: none; opacity: 1; }
+@media (prefers-reduced-motion: reduce) { .ewl-logos--grey img { transition: none; } }
