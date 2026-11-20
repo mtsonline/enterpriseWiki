@@ -48,7 +48,7 @@ func TestWikiBlocksB2(t *testing.T) {
 	doc := page(writer, cat.ID, "Doc", "first", nil)
 	writer.must("PUT", fmt.Sprintf("/api/v1/elements/%d", doc), map[string]any{"lang": "en", "title": "Doc", "base_rev": 1, "comment": "fixed <typo>", "body": map[string]any{"format": "markdown", "source": "second"}}, nil, 200)
 
-	host := page(admin, cat.ID, "Blocks", fmt.Sprintf("::tagcloud{category=%d}\n\n::tagcloud{category=%d layout=list}\n\n::pagechanges{page=%d}\n\n::contributors{page=%d}\n\n::pagechanges{page=%d}\n", cat.ID, cat.ID, doc, doc, secret), nil)
+	host := page(admin, cat.ID, "Blocks", fmt.Sprintf("::tagcloud{label=\"All tags\"}\n\n::tagcloud{category=%d}\n\n::tagcloud{category=%d layout=list}\n\n::pagechanges{page=%d}\n\n::contributors{page=%d}\n\n::pagechanges{page=%d}\n", cat.ID, cat.ID, doc, doc, secret), nil)
 	h := view(reader, host)
 	// tags: only what the reader may see counts (okapi twice, not three times)
 	for _, want := range []string{"#okapi", "#budget", "2 pages", `href="/search?category=` + itoa(cat.ID) + `&amp;tags=okapi"`, `aria-label="Tags"`} {
@@ -56,7 +56,8 @@ func TestWikiBlocksB2(t *testing.T) {
 			t.Errorf("missing %q", want)
 		}
 	}
-	if strings.Contains(h, "salaries-secret") || strings.Contains(h, "3 pages") {
+	// also in the cloud of the whole wiki (there every page is checked on its own)
+	if !strings.Contains(h, `aria-label="All tags"`) || strings.Contains(h, "salaries-secret") || strings.Contains(h, "3 pages") {
 		t.Fatalf("tags of a closed category counted:\n%s", h)
 	}
 	// changes and contributors: display names only, the note escaped
