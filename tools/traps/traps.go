@@ -394,7 +394,7 @@ var traps = []trap{
 		ID: "blocks-b.tagcloud-rights", About: "the tag cloud counts tags of pages the reader may not see",
 		File: "internal/content/pageblocks.go",
 		Old:  "if (x.el == 0 && perms[x.cat]&acl.View != 0) || (x.el != 0 && f.Allows(x.el, x.cat)) {",
-		New:  "if x.el != 0 && f != nil || perms[x.cat]&acl.View != 0 {",
+		New:  "if _ = f; x.el != 0 || perms[x.cat]&acl.View != 0 {",
 		Pkg:  "./internal/server/", Tests: "^TestWikiBlocksB2$",
 	},
 	{
