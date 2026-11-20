@@ -3120,7 +3120,6 @@ test('blocks B, part 1: progress bar, counter, timeline, dialog with a button, t
   const tip = page.getByRole('tooltip');
   await word.focus();
   await tip.waitFor();
-  console.log('tooltip after focus', await page.evaluate(() => JSON.stringify({ focus: document.activeElement?.className, hasFocus: document.hasFocus(), hidden: document.querySelector('.ewl-tip-bubble')?.hidden })));
   assert.equal(await page.locator('.ewl-tip-bubble').textContent(), 'Programming interface');
   // the pointer leaving the word does not hide what the focus shows (found in CI)
   await word.hover();

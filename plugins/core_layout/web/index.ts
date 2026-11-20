@@ -56,7 +56,12 @@ function dialogWidget(root: HTMLElement): void {
   close.addEventListener('click', () => dlg.close());
   // a click on the backdrop closes it too
   dlg.addEventListener('click', (ev) => { if (ev.target === dlg) dlg.close(); });
-  dlg.addEventListener('close', () => open.focus());
+  // back to the button, unless the focus has already gone elsewhere (never
+  // take it away from where the person is now)
+  dlg.addEventListener('close', () => {
+    const at = document.activeElement;
+    if (!at || at === document.body || dlg.contains(at)) open.focus();
+  });
   open.addEventListener('click', () => dlg.showModal());
   const wrap = h('div', { class: 'ewl-dialog-ready' }, open, dlg);
   root.replaceWith(wrap);
