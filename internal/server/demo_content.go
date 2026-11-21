@@ -8,6 +8,7 @@ import (
 	"archive/zip"
 	"bytes"
 	"fmt"
+	"github.com/mtsonline/enterprisewiki/internal/config"
 	"image"
 	"image/color"
 	"image/png"
@@ -325,6 +326,7 @@ func buildDemo(d *demoRun) {
 		`<h2>Nächste Termine</h2>` + macro("events", map[string]string{"limit": "3", "days": "60"}, "") +
 		`<p>Personen erwähnst du mit @: @` + handles["anna"] + ` bekommt eine Benachrichtigung.</p>`
 	overview := d.page(start, "Tour of the features", "Rundgang durch die Funktionen", overviewEN, overviewDE, map[string]any{"short_url": "demo" + suffix})
+	landingPage(d, root, suffix)
 	d.optional("properties", func() {
 		d.call(http.MethodPut, fmt.Sprintf("/api/v1/x/core.properties/elements/%d", overview), map[string]any{
 			"values": map[string]any{"responsible": "Anna Berger", "state": "Aktiv", "review": time.Now().AddDate(0, 6, 0).Format("2006-01-02")},
@@ -1159,3 +1161,95 @@ const carouselPageDE = `<p>Oben auf dieser Seite, über dem Pfad und dem Titel, 
 	`<li><strong>Platzierung dieser Kategorie:</strong> den Bearbeitungsmodus einschalten, dann <em>Kategorie-Einstellungen</em> → <em>Platzierung</em>. Dort schränken <em>Auf allen Seiten der Kategorie</em> und <em>Unterkategorien einbeziehen</em> ein, wo es erscheint, zum Beispiel nur auf der Seite der Kategorie.</li>` +
 	`<li><strong>Auf jeder Seite:</strong> dem Karussell unter Administration → <em>Karussells</em> eine feste Position geben.</li>` +
 	`<li><strong>Eine Seite als Folie:</strong> beim Veröffentlichen unter <em>Als Neuigkeit</em> das Karussell ankreuzen.</li></ul>`
+
+// landingHighlights: what the wiki offers, in words for visitors (no
+// technical details); every point is a feature of the wiki.
+var landingHighlights = []struct{ icon, en, enText, de, deText string }{
+	{"shield-lock", "Security first", "Permissions down to single pages, sign-in with passkey and a second factor, a complete audit log.",
+		"Sicherheit zuerst", "Rechte bis auf einzelne Seiten, Anmeldung mit Passkey und zweitem Faktor, ein lückenloses Protokoll."},
+	{"accessible", "Accessible", "Usable with keyboard and screen reader, built for WCAG 2.2 AA and checked automatically.",
+		"Barrierefrei", "Bedienbar mit Tastatur und Screenreader, gebaut nach WCAG 2.2 AA und laufend automatisch geprüft."},
+	{"pencil", "Easy to write", "Visual editor or Markdown, editing together in real time, drafts and versions.",
+		"Einfach schreiben", "Visueller Editor oder Markdown, gemeinsam in Echtzeit, Entwürfe und Versionen."},
+	{"layout-grid", "More than 50 building blocks", "Accordion, tabs, charts, galleries, cards … each with options for look and display.",
+		"Über 50 Bausteine", "Akkordeon, Reiter, Diagramme, Galerien, Karten … jeder mit Optionen für Aussehen und Anzeige."},
+	{"palette", "Your own design", "Templates in the visual designer, your colours, fonts and layout.",
+		"Ihr eigenes Design", "Templates im visuellen Designer, eigene Farben, Schriften und Aufbau."},
+	{"language", "Many languages", "Interface in German and English, every page in several languages.",
+		"Mehrsprachig", "Oberfläche auf Deutsch und Englisch, jede Seite in mehreren Sprachen."},
+	{"forms", "Forms and workflows", "Forms, approvals and workflows without programming.",
+		"Formulare und Abläufe", "Formulare, Freigaben und Workflows ohne Programmierung."},
+	{"news", "Blog, FAQ, events, team", "Everything a team shares, in one place.",
+		"Blog, FAQ, Termine, Team", "Alles, was ein Team teilt, an einem Ort."},
+	{"table", "Data and reports", "Properties on pages, as table, board, calendar or chart.",
+		"Daten und Berichte", "Eigenschaften an Seiten, als Tabelle, Board, Kalender oder Diagramm."},
+	{"search", "Find instead of search", "Full-text search with tags and filters.",
+		"Finden statt suchen", "Volltextsuche mit Schlagwörtern und Filtern."},
+	{"file-text", "Office in the browser", "Edit documents directly in the wiki, with a connected office server.",
+		"Office im Browser", "Dokumente direkt im Wiki bearbeiten, mit einem angebundenen Office-Server."},
+	{"server", "Runs with you", "On your own servers or in your cloud, without third-party services.",
+		"Bei Ihnen betrieben", "Auf eigenen Servern oder in Ihrer Cloud, ohne fremde Dienste."},
+}
+
+// landingPage creates the start page of the demo: what the wiki can do,
+// with a short address and the way into the tour. It becomes the start page
+// of the site; removing the demo restores the previous one.
+func landingPage(d *demoRun, root int64, suffix string) {
+	tour := "/demo" + suffix
+	build := func(lang string) string {
+		tr := func(en, de string) string {
+			if lang == "de" {
+				return de
+			}
+			return en
+		}
+		var b strings.Builder
+		b.WriteString(fmt.Sprintf(":::hero{title=%s subtitle=%s button=%s link=%s background=accent}\n%s\n:::\n\n",
+			strconv.Quote(tr("Enterprise Wiki", "Enterprise Wiki")),
+			strconv.Quote(tr("Share knowledge securely – for teams, departments and the whole company.", "Wissen sicher teilen – für Teams, Abteilungen und das ganze Unternehmen.")),
+			strconv.Quote(tr("Start the tour", "Rundgang starten")), strconv.Quote(tour),
+			tr("A wiki and a website builder in one: simple for everyone, secure for the company.", "Wiki und Website-Baukasten in einem: einfach für alle, sicher für das Unternehmen.")))
+		b.WriteString("## " + tr("Highlights", "Das Wichtigste auf einen Blick") + "\n\n::::grid{desktop=3 tablet=2 mobile=1}\n")
+		for i, h := range landingHighlights {
+			if i > 0 {
+				b.WriteString("\n---\n\n")
+			}
+			b.WriteString(fmt.Sprintf(":::iconbox{name=%s title=%s}\n%s\n:::\n", h.icon, strconv.Quote(tr(h.en, h.de)), tr(h.enText, h.deText)))
+		}
+		b.WriteString("::::\n\n")
+		b.WriteString(fmt.Sprintf(":::cta{title=%s button=%s link=%s}\n%s\n:::\n",
+			strconv.Quote(tr("Ready for the tour?", "Bereit für den Rundgang?")), strconv.Quote(tr("Start the tour", "Rundgang starten")), strconv.Quote(tour),
+			tr("Example content shows every feature. Everything can be tried out and edited.", "Beispielinhalte zeigen jede Funktion. Alles lässt sich ausprobieren und bearbeiten.")))
+		return b.String()
+	}
+	bodies := map[string]any{}
+	for _, l := range d.langs {
+		bodies[l] = map[string]string{"format": "markdown", "source": build(l)}
+	}
+	short := "welcome"
+	if d.lang() == "de" {
+		short = "willkommen"
+	}
+	id := d.element(root, "core.html", d.tr("Enterprise Wiki at a glance", "Enterprise Wiki auf einen Blick"), bodies, map[string]any{"short_url": short + suffix, "position": -1})
+	if d.err != nil || id == 0 {
+		return
+	}
+	// a page for visitors: no path, title (it stays for screen readers),
+	// page details, buttons, reactions or comments
+	// (blocks of plugins that are off are refused: then the page keeps them)
+	d.optional("start page layout", func() {
+		d.call(http.MethodPut, fmt.Sprintf("/api/v1/placements/instance?target=%d", id), map[string]any{"placements": []map[string]any{
+			{"block": "core.element.path", "position": ""}, {"block": "core.element.title", "position": ""}, {"block": "core.element.info", "position": ""},
+			{"block": "core.element.watch", "position": ""}, {"block": "core.favorites.star", "position": ""}, {"block": "core.share", "position": ""},
+			{"block": "core.reactions", "position": ""}, {"block": "core.comments", "position": ""}}}, nil)
+	})
+	// the start page of the site; removing the demo restores the old one
+	cfg := d.s.app.Config.Get().UI
+	d.track("home", fmt.Sprintf("%d:%d:%d", id, cfg.HomeElement, cfg.HomeCategory))
+	// (directly, like the removal: the demo leaves no trace in the log)
+	if d.err == nil {
+		if err := d.s.app.Config.Update(func(c *config.Config) error { c.UI.HomeElement = id; return nil }); err != nil {
+			d.err = err
+		}
+	}
+}

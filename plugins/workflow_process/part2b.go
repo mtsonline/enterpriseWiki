@@ -92,8 +92,8 @@ func parseLink(key []byte, tok string) (link, error) {
 	if !ok || len(tok) > 400 {
 		return link{}, bad
 	}
-	raw, err1 := base64.RawURLEncoding.DecodeString(p)
-	sig, err2 := base64.RawURLEncoding.DecodeString(s)
+	raw, err1 := base64.RawURLEncoding.Strict().DecodeString(p)
+	sig, err2 := base64.RawURLEncoding.Strict().DecodeString(s)
 	if err1 != nil || err2 != nil {
 		return link{}, bad
 	}

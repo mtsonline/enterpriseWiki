@@ -126,7 +126,9 @@ func (s *Server) demoStatus(ctx context.Context) (*demoStatus, error) {
 		if err := rows.Scan(&k, &n, &at); err != nil {
 			return nil, err
 		}
-		st.Objects[k] = n
+		if k != "home" { // the start page set by the demo is not an object
+			st.Objects[k] = n
+		}
 		if st.CreatedAt == nil || at.Before(*st.CreatedAt) {
 			st.CreatedAt = &at
 		}
@@ -413,6 +415,22 @@ func (s *Server) removeDemo(ctx context.Context) error {
 	}
 	if _, err := s.app.Files.RemoveUnreferenced(ctx, refs["file"]); err != nil {
 		return err
+	}
+	// the start page: back to the previous one, if it is still the demo's
+	// (an administrator may have chosen another one meanwhile)
+	for _, r := range refs["home"] {
+		var landing, prevElement, prevCategory int64
+		if _, err := fmt.Sscanf(r, "%d:%d:%d", &landing, &prevElement, &prevCategory); err != nil {
+			continue
+		}
+		if err := s.app.Config.Update(func(c *config.Config) error {
+			if c.UI.HomeElement == landing {
+				c.UI.HomeElement, c.UI.HomeCategory = prevElement, prevCategory
+			}
+			return nil
+		}); err != nil {
+			return err
+		}
 	}
 	s.app.Bus.Publish(ctx, "*", "")
 	s.app.Cache.Invalidate(ctx, "demo")
