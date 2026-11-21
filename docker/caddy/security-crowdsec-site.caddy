@@ -1,0 +1,20 @@
+# CrowdSec for every request of this site (see security-crowdsec-global.caddy)
+crowdsec
+appsec
+# access log for CrowdSec (finds scanners and attacks by their requests).
+# Without query strings (they may carry tokens, e.g. of feeds), also not
+# in redirects (Location) and the page a link came from (Referer); Caddy
+# leaves out cookies and authorization headers by itself. Kept small:
+# 3 files of 20 MB.
+log {
+	output file /logs/access.log {
+		roll_size 20MiB
+		roll_keep 3
+	}
+	format filter {
+		request>uri regexp \?.*$ ""
+		request>headers>Referer delete
+		resp_headers>Location regexp \?.*$ ""
+		wrap json
+	}
+}

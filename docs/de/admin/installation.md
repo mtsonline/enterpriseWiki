@@ -102,6 +102,40 @@ EWIKI_PORT=127.0.0.1:8080       # Wiki nur noch über den Proxy erreichbar
 
 Danach `docker compose up -d`. Die Ports 80 und 443 (TCP, für HTTP/3 auch UDP 443) müssen aus dem Internet erreichbar sein und die DNS-Einträge auf den Server zeigen. Caddy holt das Zertifikat beim ersten Aufruf eines Hostnamens und erneuert es selbst. Zertifikate gibt es nur für Hostnamen, die das Wiki kennt: die Basis-URL und die Hostnamen aller Sites (Abfrage an `/tls-allowed`). Neue Sites brauchen also keine Änderung am Proxy. HTTP wird auf HTTPS umgeleitet. Zertifikate und ACME-Konten liegen in `./data/caddy`; die Konfiguration in `docker/caddy/Caddyfile`. Bei *ZeroSSL* wird das Konto über `EWIKI_ACME_EMAIL` angelegt (EAB automatisch). Beim Einrichten neuer Server empfiehlt sich zuerst `letsencrypt-staging`, um nicht in die Limits von Let's Encrypt zu laufen.
 
+### Mitgelieferter Proxy mit CrowdSec (optional)
+
+[CrowdSec](https://www.crowdsec.net) (MIT) schützt den mitgelieferten Proxy. `./docker-setup.sh` fragt danach, wenn Sie HTTPS wählen (Vorgabe: ja). Wer es nicht möchte, nutzt `docker-compose.yml` allein, mit dem offiziellen Caddy-Image.
+
+**Was es tut:**
+
+- Es liest das Zugriffsprotokoll des Proxys und sperrt Adressen, die den Server absuchen oder angreifen (Szenarien der Sammlung `crowdsecurity/caddy`, bekannte Lücken in Anfragen `crowdsecurity/http-cve`).
+- Seine AppSec-Komponente prüft jede Anfrage auf bekannte Lücken anderer Produkte (virtuelle Patches, `crowdsecurity/appsec-virtual-patching`). Inhalte des Wikis, auch Code-Beispiele, sperren diese Regeln nicht.
+- Das Szenario `crowdsecurity/http-crawl-non_statics` ist aus: Die Oberfläche des Wikis stellt viele Anfragen, und das Szenario würde fleißig Lesende sperren.
+
+**Nur lokal.** Es gibt keine Verbindung zur CrowdSec-Konsole, und es werden keine Adressen mit CrowdSec geteilt (`DISABLE_ONLINE_API`). Die Gemeinschafts-Sperrliste braucht diese Verbindung und ist deshalb aus. Beim Start lädt CrowdSec seine Regeln aus seinem Hub (`cdn-hub.crowdsec.net`, `hub-data.crowdsec.net`; die Version von `version.crowdsec.net`).
+
+**Einrichten.** `./docker-setup.sh` schreibt in `.env`:
+
+```dotenv
+EWIKI_SECURITY=crowdsec
+COMPOSE_FILE=docker-compose.yml:docker-compose.crowdsec.yml
+CROWDSEC_BOUNCER_KEY=<zufällig>
+```
+
+Dann `docker compose up -d --build`. Beim ersten Start wird der Proxy gebaut: das offizielle Caddy-Image mit dem [CrowdSec-Bouncer für Caddy](https://github.com/hslatman/caddy-crowdsec-bouncer) (Apache-2.0), siehe `docker/caddy-crowdsec/Dockerfile`.
+
+**Datenschutz.** Das Zugriffsprotokoll liegt in `./data/caddy/logs` (höchstens 3 Dateien zu 20 MB) und enthält Adressen, Zeiten und Pfade. Es enthält keine Abfrageparameter (sie können Tokens tragen), keine Cookies und keine Anmelde-Kopfzeilen. CrowdSec speichert seine Entscheidungen in `./data/crowdsec`.
+
+**Betrieb:**
+
+- Gesperrte Adressen anzeigen: `docker compose exec crowdsec cscli decisions list`.
+- Eine Adresse freigeben: `docker compose exec crowdsec cscli decisions delete --ip 203.0.113.7`.
+- Läuft CrowdSec nicht, lässt der Proxy die Anfragen durch (`appsec_fail_open`) und protokolliert das, damit das Wiki erreichbar bleibt; das Wiki prüft jede Eingabe ohnehin selbst.
+
+**Getestet** in der CI (`scripts/test-docker-proxy.sh`): Eine gesperrte Adresse bekommt `403` und kommt nach dem Freigeben wieder herein; ein virtueller Patch sperrt `/.env`; eine Seite mit Code, SQL und HTML wird nicht gesperrt; im Protokoll steht kein Abfrageparameter; ohne CrowdSec bleibt das Wiki erreichbar.
+
+**Ausschalten:** `EWIKI_SECURITY=none` und `COMPOSE_FILE=docker-compose.yml` setzen, dann `docker compose up -d --remove-orphans`.
+
 ### Vertrauenswürdige Proxys (`EWIKI_TRUSTED_PROXIES`)
 
 Hinter einem Reverse Proxy kommen alle Anfragen von dessen Adresse. Damit Anfragebegrenzung, Login-Sperren, Audit-Protokoll und die erlaubten Netze von Konten die **Adresse der Besucher** verwenden, liest das Wiki sie aus dem Header des Proxys – aber nur von vertrauenswürdigen Proxys: Jeder andere Absender könnte den Header fälschen und sich so als beliebige Adresse ausgeben. Die Umgebungsvariable `EWIKI_TRUSTED_PROXIES` (IP-Adressen und CIDR-Netze, durch Komma getrennt) überschreibt `server.trusted_proxies` aus `config.yaml`:
@@ -194,7 +228,7 @@ Die XSS- und SQL-Regeln der WAF bringen für diese Felder deshalb wenig, und ohn
 
 **Wenn das Wiki trotzdem gesperrt wird.** Das Log der WAF nennt die Regel (`[id "…"]`), zum Beispiel `/var/log/apache2/modsec_audit.log`. Bitte melden Sie sie.
 
-**CrowdSec:** Die Standardregeln seiner AppSec-Komponente zielen auf bekannte Lücken bestimmter Produkte (virtuelle Patches); mit seiner CRS-Sammlung gilt dasselbe wie oben. Mit dem Wiki getestet haben wir CrowdSec noch nicht; ein optionales, getestetes CrowdSec-Profil für Docker Compose mit passenden Einstellungen ist geplant.
+**CrowdSec:** Die Standardregeln seiner AppSec-Komponente zielen auf bekannte Lücken bestimmter Produkte (virtuelle Patches); mit seiner CRS-Sammlung gilt dasselbe wie oben. Der mitgelieferte Proxy mit CrowdSec (oben) nutzt nur die virtuellen Patches und ist mit Inhalten des Wikis getestet.
 
 ## Mehrere Instanzen (Cluster-Modus)
 

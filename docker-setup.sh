@@ -204,16 +204,35 @@ if [ "$(getvar EWIKI_HTTPS)" = proxy ] && { [ -z "$(getvar EWIKI_OFFICE)" ] || [
 	fi
 	setvar EWIKI_OFFICE "$office"
 fi
+# CrowdSec with the bundled proxy (asked once; non-interactive: none)
+if [ "$(getvar EWIKI_HTTPS)" = proxy ] && { [ -z "$(getvar EWIKI_SECURITY)" ] || [ -n "$fresh" ]; }; then
+	security=none
+	if [ -t 0 ]; then
+		say "CrowdSec blocks addresses that scan or attack the wiki and requests against known"
+		say "vulnerabilities. It runs locally only: nothing is sent to CrowdSec."
+		case "$(ask 'Protect the proxy with CrowdSec? [y/n]' y)" in y|Y|yes|j|J|ja) security=crowdsec ;; esac
+	fi
+	setvar EWIKI_SECURITY "$security"
+	if [ "$security" = crowdsec ]; then
+		setvar COMPOSE_FILE docker-compose.yml:docker-compose.crowdsec.yml
+		[ -n "$(getvar CROWDSEC_BOUNCER_KEY)" ] || setvar CROWDSEC_BOUNCER_KEY "$(random 48)"
+		say "CrowdSec: on (docker-compose.crowdsec.yml; the proxy is built on the first start)"
+	else
+		setvar COMPOSE_FILE docker-compose.yml
+		say "CrowdSec: off"
+	fi
+fi
 if [ -n "${SUDO_UID:-}" ]; then chown "$uid:$gid" .env; fi
 
 # ---------------------------------------------------------------- folders
-dirs=(data data/postgres data/wiki data/caddy data/caddy/data data/caddy/config)
+dirs=(data data/postgres data/wiki data/caddy data/caddy/data data/caddy/config data/caddy/logs)
 for d in "${dirs[@]}"; do
 	[ -d "$d" ] || { mkdir -p "$d"; say "created $d"; }
 done
 # everything below ./data must belong to the user (e.g. after a move, or files of older containers)
-# (data/postgres/data: empty mount point that Docker creates for the images up to PostgreSQL 17)
-foreign="$(find data -path data/postgres/data -prune -o \( ! -uid "$uid" -o ! -gid "$gid" \) -print -quit 2>/dev/null || true)"
+# (data/postgres/data: empty mount point that Docker creates for the images up to PostgreSQL 17;
+# data/crowdsec: CrowdSec runs as root in its container and keeps its own files)
+foreign="$(find data \( -path data/postgres/data -o -path data/crowdsec \) -prune -o \( ! -uid "$uid" -o ! -gid "$gid" \) -print -quit 2>/dev/null || true)"
 if [ -n "$foreign" ]; then
 	say "files in ./data belong to another user (e.g. $foreign) – changing the owner to $owner"
 	if [ "$(id -u)" = 0 ]; then
@@ -225,6 +244,11 @@ if [ -n "$foreign" ]; then
 	fi
 fi
 chmod 700 data/postgres data/caddy
+if [ "$(getvar EWIKI_SECURITY)" = crowdsec ]; then
+	# CrowdSec runs as root in its container (its own files)
+	mkdir -p data/crowdsec/data data/crowdsec/config
+	chmod 700 data/crowdsec
+fi
 if [ "$(id -u)" = 0 ]; then chown "$uid:$gid" data data/postgres data/wiki; fi
 
 say "ready – start with: docker compose up -d"
