@@ -49,6 +49,7 @@ Für die beste PDF-Texterkennung installieren Sie `pdftotext` (Paket `poppler-ut
 | `viewer` | Standard-Anzeige für Dateien: `internal` (Browser) oder ein aktives Office-Plugin (`office.collabora`, `office.onlyoffice`, `office.m365`) | `internal` |
 | `open_external` | Dateien, die das Standard-Programm kann, sofort dort öffnen (nur mit einem Office-Plugin als `viewer`) | `false` |
 | `token_ttl` | Gültigkeit des Zugangsschlüssels eines Office-Programms für eine Datei (1m–24h) | `10h` |
+| `embed_allow` | Dienste, deren Videos und Seiten im Inhalt eingebettet werden dürfen (Baustein *Externes Video oder Einbettung*), als Origin (`https://player.vimeo.com`; https, klein geschrieben, ohne Pfad, höchstens 30); dieselbe Liste öffnet die CSP `frame-src` für sie. Auch unter *Administration → Einstellungen → Medien* | leer (nichts von außen) |
 
 Details: [Office-Programme](office.md).
 

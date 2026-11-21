@@ -882,4 +882,32 @@ var traps = []trap{
 		New:  ".ewl-chart-c3 { fill: var(--ewl-chart-3, #86efac); stroke: var(--ewl-chart-3, #86efac); }",
 		Pkg:  "./plugins/core_layout/", Tests: "^TestChartColors$",
 	},
+	{
+		ID: "embed.not-allowed", About: "an embed from a service nobody allowed is shown",
+		File: "plugins/core_layout/embed.go",
+		Old:  "\tallowed := false\n",
+		New:  "\tallowed := true\n",
+		Pkg:  "./plugins/core_layout/", Tests: "^TestEmbed$",
+	},
+	{
+		ID: "embed.csp-unchecked", About: "a hand-edited entry of media.embed_allow goes into the CSP unchecked",
+		File: "internal/server/api_office.go",
+		Old:  "\t\tif config.EmbedOrigin(o) {\n\t\t\tb.WriteString(\" \" + o)\n\t\t}",
+		New:  "\t\tb.WriteString(\" \" + o)",
+		Pkg:  "./internal/server/", Tests: "^TestEmbedCSP$",
+	},
+	{
+		ID: "embed.origin-path", About: "media.embed_allow accepts an entry with a path or other characters",
+		File: "internal/config/config.go",
+		Old:  "\t\t\tif !(c >= 'a' && c <= 'z' || c >= '0' && c <= '9' || c == '-') {\n\t\t\t\treturn false\n\t\t\t}",
+		New:  "\t\t\t_ = c",
+		Pkg:  "./plugins/core_layout/", Tests: "^TestEmbedOrigin$",
+	},
+	{
+		ID: "embed.user-in-url", About: "an address with a user name is accepted for an embed",
+		File: "plugins/core_layout/embed.go",
+		Old:  "u.Host == \"\" || u.User != nil ||",
+		New:  "u.Host == \"\" ||",
+		Pkg:  "./plugins/core_layout/", Tests: "^TestEmbedTarget$",
+	},
 }

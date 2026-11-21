@@ -3481,6 +3481,54 @@ test('blocks B, part 4: a chart from a table, drawn by the server, with the tabl
   await a11y('charts');
 });
 
+test('blocks B, part 5: an external video loads only after consent, from an allowed service', async () => {
+  const before = (await call('GET', '/api/v1/admin/settings')).config.media ?? {};
+  // the allowed service, answered here (the test runs without the internet)
+  await page.route('https://video.example.com/**', (r) => r.fulfill({ status: 200, contentType: 'text/html', body: '<!doctype html><title>player</title><p>player</p>' }));
+  try {
+    // an administrator allows the service in the settings (Media)
+    await page.goto(`${BASE}/admin/settings`);
+    await idle();
+    const allow = page.getByLabel(/^(services allowed for external videos and embeds|erlaubte dienste für externe videos und einbettungen)/i);
+    await allow.fill('https://video.example.com');
+    await page.getByRole('button', { name: /^(save|speichern)$/i }).first().click();
+    await page.locator('.ew-toasts', { hasText: /saved|gespeichert/i }).waitFor();
+    assert.deepEqual((await call('GET', '/api/v1/admin/settings')).config.media.embed_allow, ['https://video.example.com']);
+    const cat = (await call('POST', '/api/v1/categories', { titles: { en: `Embeds ${run}` } })).id;
+    const el = await call('POST', '/api/v1/elements', { category_id: cat, type: 'core.html', title: `Embed ${run}`,
+      body: { format: 'markdown', source: '::embed{url="https://video.example.com/v/1" title="Intro video" caption="Part 1"}' } });
+    await page.goto(`${BASE}/e/${el.id}`);
+    await idle();
+    const fig = page.locator('figure.ewl-embed');
+    // first only the box: it names the service, nothing is loaded
+    assert.equal(await fig.locator('iframe').count(), 0);
+    assert.match(await fig.innerText(), /video\.example\.com/);
+    await a11y('external video before consent');
+    await fig.getByRole('checkbox', { name: /video\.example\.com/ }).check();
+    await fig.getByRole('button', { name: /^(load content|inhalt laden)$/i }).click();
+    const frame = fig.locator('iframe');
+    await frame.waitFor();
+    assert.equal(await frame.getAttribute('title'), 'Intro video');
+    assert.equal(await frame.getAttribute('src'), 'https://video.example.com/v/1');
+    assert.match(await frame.getAttribute('sandbox'), /allow-scripts/);
+    assert.ok(!/allow-top-navigation/.test(await frame.getAttribute('sandbox')), 'no navigation of the page');
+    await page.frameLocator('figure.ewl-embed iframe').getByText('player').waitFor();
+    // remembered in this browser: the next visit loads it at once, and the consent can be taken back
+    await page.reload();
+    await idle();
+    await frame.waitFor();
+    await page.getByRole('button', { name: /video\.example\.com/ }).click();
+    await page.getByRole('status').filter({ hasText: /video\.example\.com/ }).waitFor();
+    await page.reload();
+    await idle();
+    await fig.getByRole('button', { name: /^(load content|inhalt laden)$/i }).waitFor();
+    assert.equal(await fig.locator('iframe').count(), 0);
+  } finally {
+    await page.unroute('https://video.example.com/**');
+    await call('PUT', '/api/v1/admin/settings', { media: { ...before, embed_allow: before.embed_allow ?? [] } });
+  }
+});
+
 test('template designer, part 3: a warning for standard positions, widths by dragging, header while scrolling, side column, footer on the phone, printing', async () => {
   const before = (await call('GET', '/api/v1/admin/settings')).config;
   const tpl = await call('POST', '/api/v1/x/core.template/templates', { names: { en: `Behaviour ${run}` }, copy_of: 'core.template/example-wiki' });

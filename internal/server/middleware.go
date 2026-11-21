@@ -248,7 +248,8 @@ func (s *Server) wrap(next http.Handler) http.Handler {
 		h.Set("Permissions-Policy", "camera=(), microphone=(), geolocation=()")
 		h.Set("Cross-Origin-Opener-Policy", "same-origin")
 		frame, script := s.officeCSP() // origins of active office programs
-		h.Set("Content-Security-Policy", "default-src 'self'; script-src 'self'"+script+"; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self'; frame-src 'self'"+frame+"; object-src 'none'; frame-ancestors 'self'; base-uri 'self'; form-action 'self'"+frame)
+		embeds := embedCSP(cfg)        // services allowed for embeds in content
+		h.Set("Content-Security-Policy", "default-src 'self'; script-src 'self'"+script+"; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self'; frame-src 'self'"+frame+embeds+"; object-src 'none'; frame-ancestors 'self'; base-uri 'self'; form-action 'self'"+frame)
 		if cfg.Server.SecureCookies {
 			h.Set("Strict-Transport-Security", "max-age=31536000; includeSubDomains")
 		}

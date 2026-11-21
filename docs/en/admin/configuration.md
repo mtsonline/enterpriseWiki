@@ -49,6 +49,7 @@ For the best PDF text extraction install `pdftotext` (package `poppler-utils`, i
 | `viewer` | default viewer for files: `internal` (browser) or an active office plugin (`office.collabora`, `office.onlyoffice`, `office.m365`) | `internal` |
 | `open_external` | open files the default program can handle there at once (only with an office plugin as `viewer`) | `false` |
 | `token_ttl` | validity of the access key of an office program for a file (1m–24h) | `10h` |
+| `embed_allow` | services whose videos and pages may be embedded in content (block *External video or embed*), as origins (`https://player.vimeo.com`; https, lower case, no path, at most 30); the same list opens the CSP `frame-src` for them. Also in *Administration → Settings → Media* | empty (nothing from outside) |
 
 Details: [office programs](office.md).
 
