@@ -3565,6 +3565,50 @@ test('blocks B, part 5: an external video loads only after consent, from an allo
   }
 });
 
+test('blocks B, part 6: the sign-in box leads guests to the sign-in page and back, and signs out', async () => {
+  const cat = (await call('POST', '/api/v1/categories', { titles: { en: `Members ${run}` } })).id;
+  await call('POST', `/api/v1/categories/${cat}/acl`, { subject_type: 'guest', permissions: 1, inherit: true });
+  const el = await call('POST', '/api/v1/elements', { category_id: cat, type: 'core.html', title: `Members ${run}`,
+    body: { format: 'markdown', source: '::login{title="Members" text="Log in for more." member="Welcome back."}' } });
+  const path = `/e/${el.id}`;
+  // signed in: the name, the dashboard, Log out
+  await page.goto(BASE + path);
+  await idle();
+  const box = page.getByRole('region', { name: 'Members' });
+  await box.getByText(/^(signed in as|angemeldet als) /i).waitFor();
+  await box.getByText('Welcome back.').waitFor();
+  assert.equal(await box.getByText('Log in for more.').count(), 0, 'no guest text for members');
+  assert.equal(await box.getByRole('link', { name: /^(my dashboard|mein dashboard)$/i }).getAttribute('href'), '/dashboard');
+  await box.getByRole('button', { name: /^(log out|abmelden)$/i }).waitFor();
+  await a11y('sign-in box, signed in');
+  // a guest: through the box to the sign-in page and back to this page; then Log out there
+  const guest = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+  try {
+    const g = await guest.newPage();
+    await g.goto(BASE + path);
+    const gbox = g.getByRole('region', { name: 'Members' });
+    await gbox.getByText('Log in for more.').waitFor();
+    await gbox.locator('a[href^="/login?next="]').waitFor(); // the script gave the way back
+    const link = gbox.getByRole('link', { name: /^(log in|anmelden)$/i });
+    const here = new URL(g.url()).pathname; // the address of the page (with its name)
+    assert.equal(await link.getAttribute('href'), `/login?next=${encodeURIComponent(here)}`);
+    assert.equal(await gbox.locator('input').count(), 0, 'the box takes no password itself');
+    await link.click();
+    await g.locator('input[name=username]').fill(USER);
+    await g.locator('input[type=password]').fill(PASSWORD);
+    await g.keyboard.press('Enter');
+    await g.waitForURL((u) => u.pathname === here);
+    await gbox.getByRole('button', { name: /^(log out|abmelden)$/i }).click();
+    await g.waitForURL((u) => u.pathname === '/');
+    await g.goto(BASE + path);
+    await gbox.getByRole('link', { name: /^(log in|anmelden)$/i }).waitFor();
+  } finally {
+    await guest.close();
+  }
+  // the session of this test is still there
+  assert.ok((await call('GET', '/api/v1/auth/me')).user?.id, 'own session kept');
+});
+
 test('template designer, part 3: a warning for standard positions, widths by dragging, header while scrolling, side column, footer on the phone, printing', async () => {
   const before = (await call('GET', '/api/v1/admin/settings')).config;
   const tpl = await call('POST', '/api/v1/x/core.template/templates', { names: { en: `Behaviour ${run}` }, copy_of: 'core.template/example-wiki' });

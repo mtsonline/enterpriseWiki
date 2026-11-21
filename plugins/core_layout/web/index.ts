@@ -1,7 +1,7 @@
 // core.layout: the styles of the layout blocks, and the tabs: the server
 // renders one section per part (readable without script); here they become
 // a tablist after the WAI-ARIA pattern (arrow keys, Home, End).
-import { h, registerWidget, t, uid } from '@ewiki/coreplugin';
+import { h, logout, registerWidget, state, t, uid } from '@ewiki/coreplugin';
 import './style.css';
 
 const reducedMotion = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -288,12 +288,44 @@ function embedWidget(root: HTMLElement): void {
   else box.append(actions);
 }
 
+/** The sign-in box: guests get the sign-in page (back to this page
+ * afterwards) and the sign-in services; signed-in people their name, the
+ * dashboard and Sign out. It never takes a password itself. */
+function loginWidget(root: HTMLElement): void {
+  const actions = root.querySelector<HTMLElement>('.ewl-login-actions');
+  if (!actions) return;
+  const next = encodeURIComponent(location.pathname + location.search);
+  const user = state.user;
+  if (!user) {
+    const items: HTMLElement[] = [h('a', { class: 'ewl-cta ewl-cta--primary', href: `/login?next=${next}` }, t('auth.login')) as HTMLElement];
+    if (root.dataset.sso !== '0') {
+      for (const p of state.site.auth_providers ?? []) {
+        if (p.kind !== 'redirect' || !/^[a-z0-9][a-z0-9-]{0,63}$/.test(p.id)) continue;
+        items.push(h('a', { class: 'ewl-cta', href: `/login?via=${encodeURIComponent(p.id)}&next=${next}` }, t('layout.login_with', { name: p.name })) as HTMLElement);
+      }
+    }
+    actions.replaceChildren(...items);
+    return;
+  }
+  root.querySelector('.ewl-login-text')?.remove();
+  const out = h('button', { type: 'button', class: 'ewl-cta' }, t('auth.logout')) as HTMLButtonElement;
+  out.addEventListener('click', () => { out.disabled = true; void logout(); });
+  const member = root.dataset.member ?? '';
+  actions.before(h('p', { class: 'ewl-login-who' }, t('layout.login_as', { name: user.display_name || user.username })));
+  if (member) actions.before(h('p', { class: 'ewl-login-text' }, member));
+  const items: HTMLElement[] = [];
+  if (root.dataset.dashboard !== '0') items.push(h('a', { class: 'ewl-cta ewl-cta--primary', href: '/dashboard' }, t('layout.login_dashboard')) as HTMLElement);
+  items.push(out);
+  actions.replaceChildren(...items);
+}
+
 export function register(): void {
   registerWidget('ewl.rotating', rotatingWidget);
   registerWidget('ewl.ticker', tickerWidget);
   registerWidget('ewl.slider', sliderWidget);
   registerWidget('ewl.counter', counterWidget);
   registerWidget('ewl.embed', embedWidget);
+  registerWidget('ewl.login', loginWidget);
   registerWidget('ewl.dialog', dialogWidget);
   registerWidget('ewl.tip', tipWidget);
   registerWidget('ewl.tabs', (root) => {

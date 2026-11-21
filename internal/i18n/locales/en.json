@@ -2834,5 +2834,8 @@
  "placement.scope_pages_on": "{block} is now also on all pages of the category.",
  "placement.scope_pages_off": "{block} is now only on the page of the category itself.",
  "placement.scope_sub_on": "{block} now also applies in the subcategories.",
- "placement.scope_sub_off": "{block} no longer applies in the subcategories."
+ "placement.scope_sub_off": "{block} no longer applies in the subcategories.",
+ "layout.login_with": "Sign in with {name}",
+ "layout.login_as": "Signed in as {name}",
+ "layout.login_dashboard": "My dashboard"
 }

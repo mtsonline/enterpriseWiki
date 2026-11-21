@@ -2834,5 +2834,8 @@
  "placement.scope_pages_on": "{block} steht jetzt auch auf allen Seiten der Kategorie.",
  "placement.scope_pages_off": "{block} steht jetzt nur auf der Seite der Kategorie selbst.",
  "placement.scope_sub_on": "{block} gilt jetzt auch in den Unterkategorien.",
- "placement.scope_sub_off": "{block} gilt jetzt nicht mehr in den Unterkategorien."
+ "placement.scope_sub_off": "{block} gilt jetzt nicht mehr in den Unterkategorien.",
+ "layout.login_with": "Anmelden mit {name}",
+ "layout.login_as": "Angemeldet als {name}",
+ "layout.login_dashboard": "Mein Dashboard"
 }

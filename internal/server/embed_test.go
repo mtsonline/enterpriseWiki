@@ -22,7 +22,7 @@ func TestEmbedFlow(t *testing.T) {
 		return res.HTML
 	}
 	csp := func() string {
-		resp, _ := admin.raw("/api/v1/me", nil)
+		resp, _ := admin.raw("/api/v1/auth/me", nil)
 		return resp.Header.Get("Content-Security-Policy")
 	}
 	if h := preview(); !strings.Contains(h, "ew-macro-error") || !strings.Contains(h, "nicht freigegeben") || strings.Contains(h, "data-src") {
