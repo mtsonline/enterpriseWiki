@@ -966,4 +966,32 @@ var traps = []trap{
 		New:  "setvar:'tx.allowed_methods=GET HEAD POST OPTIONS'",
 		Pkg:  "./internal/server/", Tests: "^TestWAFExclusions$",
 	},
+	{
+		ID: "waf.filter-skipped", About: "the request filters of plugins are not called",
+		File: "internal/server/middleware.go",
+		Old:  "\t\t\t\tif err := f.FilterRequest(r, s.clientIP(r)); err != nil {",
+		New:  "\t\t\t\tif err := f.FilterRequest(r, s.clientIP(r)); err != nil && false {",
+		Pkg:  "./internal/server/", Tests: "^TestWAFPlugin$",
+	},
+	{
+		ID: "waf.default-on", About: "a plugin that is off by default is on",
+		File: "internal/kernel/kernel.go",
+		Old:  "\tcase m.DefaultOff:\n\t\treturn slices.Contains(c.Plugins.Enabled, m.ID) && !slices.Contains(c.Plugins.Disabled, m.ID)\n",
+		New:  "\tcase m.DefaultOff:\n\t\treturn !slices.Contains(c.Plugins.Disabled, m.ID)\n",
+		Pkg:  "./internal/server/", Tests: "^TestWAFPlugin$",
+	},
+	{
+		ID: "waf.body-lost", About: "the firewall reads the body and does not give it back",
+		File: "plugins/core_waf/plugin.go",
+		Old:  "\t\t\tr.Body = readCloser{io.MultiReader(bytes.NewReader(buf), r.Body), r.Body}\n",
+		New:  "\t\t\t_ = readCloser{io.MultiReader(bytes.NewReader(buf), r.Body), r.Body}\n",
+		Pkg:  "./internal/server/", Tests: "^TestWAFPlugin$",
+	},
+	{
+		ID: "waf.detect-blocks", About: "log only blocks requests",
+		File: "plugins/core_waf/plugin.go",
+		Old:  "\tif mode != \"block\" {\n\t\treturn nil\n\t}\n",
+		New:  "\tif mode == \"off\" {\n\t\treturn nil\n\t}\n",
+		Pkg:  "./internal/server/", Tests: "^TestWAFPlugin$",
+	},
 }

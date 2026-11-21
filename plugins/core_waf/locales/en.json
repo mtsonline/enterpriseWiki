@@ -1,0 +1,20 @@
+{
+ "waf.title": "Web application firewall",
+ "waf.help": "Checks every request with the OWASP Core Rule Set before the wiki handles it, with the exclusions the wiki needs. Useful when no firewall runs in front of the wiki (for example the bundled proxy with CrowdSec, or ModSecurity). It does not check static files and uploaded files. What it finds is in the server log (waf:).",
+ "waf.mode": "Mode",
+ "waf.mode_help": "Start with “Log only” and watch the log for a few days; then “Block”.",
+ "waf.mode.detect": "Log only (default)",
+ "waf.mode.block": "Block",
+ "waf.paranoia": "Strictness (paranoia level)",
+ "waf.paranoia_help": "Level 2 finds more but also blocks harmless requests more often.",
+ "waf.paranoia.1": "Level 1 (default)",
+ "waf.paranoia.2": "Level 2",
+ "waf.status.detect": "Active, log only: {rules}, level {level}.",
+ "waf.status.block": "Active, blocking: {rules}, level {level}.",
+ "waf.status.error": "The rules could not be loaded: {error}. The wiki keeps running without the firewall.",
+ "waf.status.body": "At most {kb} KB of each request are checked (expert settings).",
+ "perm.core.waf.manage": "Manage the web application firewall",
+ "perm.core.waf.manage_help": "Change mode and strictness of the web application firewall.",
+ "limit.core.waf.body_kb": "Request body checked by the firewall",
+ "limit.core.waf.body_kb.help": "The firewall checks at most this much of a request body; the rest is passed on unchecked (the wiki checks every input itself). Uploaded files are not checked by the firewall."
+}

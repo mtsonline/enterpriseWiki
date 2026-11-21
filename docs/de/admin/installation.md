@@ -226,6 +226,15 @@ Die XSS- und SQL-Regeln der WAF bringen für diese Felder deshalb wenig, und ohn
 
 **Was nicht abgedeckt ist.** Coraza kann nicht alle Regeln von CRS 3.3 laden; die SQL-Regeln von CRS 3 (942) sind nur mit CRS 4 geprüft.
 
+**Web Application Firewall im Wiki (Plugin `core.waf`).** Für Installationen ohne Firewall davor bringt das Wiki eine eigene mit: Coraza mit dem OWASP Core Rule Set 4 und den Ausnahmen von oben. Sie ist anfangs aus; schalten Sie sie unter *Administration → Plugins* ein und stellen Sie sie unter *Administration → Web Application Firewall* ein:
+
+- **Betrieb:** *Nur protokollieren* (Vorgabe) schreibt, was gesperrt würde, ins Protokoll des Servers (`waf:` mit den Regeln, dem Pfad und der Adresse); *Sperren* lehnt es mit `403` ab (`waf_blocked`). Beginnen Sie mit *Nur protokollieren* und beobachten Sie das Protokoll einige Tage.
+- **Strenge:** Paranoia-Stufe 1 (Vorgabe) oder 2.
+- **Nicht geprüft:** statische Dateien (`/assets/`) und hochgeladene Dateien; von anderen Inhalten höchstens `core.waf.body_kb` (Experteneinstellungen, Vorgabe 512 KB), der Rest geht ungeprüft weiter.
+- **Aufwand** (gemessen mit 2 Kernen): etwa 1,5 ms je Seitenaufruf und 2–4 ms je gespeicherter Seite, etwa 20 MB Speicher; das Programm ist etwa 15 MB größer, ob das Plugin an ist oder nicht.
+- Lassen sich die Regeln nicht laden, läuft das Wiki ohne Firewall weiter und protokolliert das.
+- Getestet in `internal/server/waf_plugin_test.go`: anfangs aus; *Nur protokollieren* lässt Angriffe durch; *Sperren* lehnt Angriffe in Adressen von Seiten und der API ab; Seiten mit Code, SQL und HTML lassen sich weiter speichern (auch mit `PUT`) und suchen; statische Dateien werden nicht geprüft.
+
 **Wenn das Wiki trotzdem gesperrt wird.** Das Log der WAF nennt die Regel (`[id "…"]`), zum Beispiel `/var/log/apache2/modsec_audit.log`. Bitte melden Sie sie.
 
 **CrowdSec:** Die Standardregeln seiner AppSec-Komponente zielen auf bekannte Lücken bestimmter Produkte (virtuelle Patches); mit seiner CRS-Sammlung gilt dasselbe wie oben. Der mitgelieferte Proxy mit CrowdSec (oben) nutzt nur die virtuellen Patches und ist mit Inhalten des Wikis getestet.

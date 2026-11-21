@@ -3609,6 +3609,32 @@ test('blocks B, part 6: the sign-in box leads guests to the sign-in page and bac
   assert.ok((await call('GET', '/api/v1/auth/me')).user?.id, 'own session kept');
 });
 
+test('web application firewall: shipped off, switched on, log only, then blocking from the settings page', async () => {
+  const before = (await call('GET', '/api/v1/admin/plugins')).installed.find((p) => p.id === 'core.waf');
+  assert.ok(before && !before.enabled && before.default_off, 'shipped but off');
+  await call('PUT', '/api/v1/admin/settings', { plugin_settings: { 'core.waf': {} } });
+  await call('POST', '/api/v1/admin/plugins/core.waf/enable');
+  try {
+    await page.goto(`${BASE}/admin/waf`);
+    await idle();
+    await page.getByRole('heading', { name: /^(web application firewall)$/i }).waitFor();
+    await page.getByRole('status').filter({ hasText: /(log only|nur protokollieren)/i }).first().waitFor();
+    await a11y('web application firewall');
+    await page.getByLabel(/^(mode|betrieb)/i).selectOption('block');
+    await page.getByRole('button', { name: /^(save|speichern)$/i }).click();
+    await page.locator('.ew-toasts', { hasText: /saved|gespeichert/i }).waitFor();
+    assert.equal((await call('GET', '/api/v1/x/core.waf/status')).mode, 'block');
+    // an attack in the address is refused, the wiki's own pages still load
+    const blocked = await page.evaluate(async () => (await __e2eFetch('/api/v1/elements?x=%3Cscript%3Ealert(document.cookie)%3C%2Fscript%3E')).status);
+    assert.equal(blocked, 403);
+    await page.goto(`${BASE}/`);
+    await idle();
+  } finally {
+    await call('POST', '/api/v1/admin/plugins/core.waf/disable');
+    await call('PUT', '/api/v1/admin/settings', { plugin_settings: { 'core.waf': {} } });
+  }
+});
+
 test('template designer, part 3: a warning for standard positions, widths by dragging, header while scrolling, side column, footer on the phone, printing', async () => {
   const before = (await call('GET', '/api/v1/admin/settings')).config;
   const tpl = await call('POST', '/api/v1/x/core.template/templates', { names: { en: `Behaviour ${run}` }, copy_of: 'core.template/example-wiki' });

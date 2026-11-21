@@ -31,6 +31,7 @@ import (
 	_ "github.com/mtsonline/enterprisewiki/plugins/core_reactions"
 	_ "github.com/mtsonline/enterprisewiki/plugins/core_share"
 	_ "github.com/mtsonline/enterprisewiki/plugins/core_template"
+	_ "github.com/mtsonline/enterprisewiki/plugins/core_waf"
 	_ "github.com/mtsonline/enterprisewiki/plugins/example_notice"
 	_ "github.com/mtsonline/enterprisewiki/plugins/macro_http"
 	_ "github.com/mtsonline/enterprisewiki/plugins/macro_shell"

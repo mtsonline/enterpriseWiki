@@ -45,6 +45,9 @@ import (
 
 // App holds all services.
 type App struct {
+	// Filters are the request filters of the plugins (for example the web
+	// application firewall), checked by the server for every request.
+	Filters *coreplugin.RequestFilters
 	Config  *config.Store
 	DB      *pgxpool.Pool
 	Bus     *events.Bus
@@ -155,7 +158,7 @@ func newSite(ctx context.Context, in *Instance, site string, migrate bool) (*App
 	if err != nil {
 		return nil, err
 	}
-	a := &App{Config: cfg, DB: pool, Log: log, Mux: http.NewServeMux(), Root: in.Root, Site: site, Instance: in, Scope: identity.NewScope()}
+	a := &App{Config: cfg, DB: pool, Log: log, Mux: http.NewServeMux(), Filters: &coreplugin.RequestFilters{}, Root: in.Root, Site: site, Instance: in, Scope: identity.NewScope()}
 	if site != "main" {
 		if err := in.Shared.QueryRow(ctx, `SELECT accounts = 'separate' FROM sites WHERE name=$1`, site).Scan(&a.SeparateAccounts); err != nil {
 			pool.Close()
@@ -387,7 +390,7 @@ func newSite(ctx context.Context, in *Instance, site string, migrate bool) (*App
 	}
 	a.Signatures.Enabled = a.Kernel.Enabled
 	base := coreplugin.Host{Notify: a.Notify, Signatures: a.Signatures, Webhooks: a.Webhooks, Secrets: in.Secrets, Config: cfg, DB: pool, ACL: a.ACL, Content: a.Content, Auth: a.Auth, I18n: a.I18n, Files: a.Files, Media: a.Media, Mail: a.Mail, Feeds: a.Feeds, Workers: a.Workers,
-		Log: log, Mux: a.Mux, IsEnabled: a.Kernel.Enabled, Scope: a.Scope, OnClose: a.OnClose}
+		Log: log, Mux: a.Mux, IsEnabled: a.Kernel.Enabled, Filters: a.Filters, Scope: a.Scope, OnClose: a.OnClose}
 	if err := a.Kernel.Setup(base, a.I18n); err != nil {
 		a.close()
 		return nil, err

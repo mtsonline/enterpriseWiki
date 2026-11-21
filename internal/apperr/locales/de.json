@@ -953,6 +953,7 @@
  "the user name was just taken: please use the link again": "Der Benutzername wurde gerade vergeben: bitte den Link noch einmal verwenden",
  "the value must lie between 0 and the maximum (%s)": "Der Wert muss zwischen 0 und dem Höchstwert (%s) liegen",
  "the visibility of profile photos is fixed (%s)": "Die Sichtbarkeit von Profilfotos ist festgelegt (%s)",
+ "the web application firewall refused this request": "Die Web Application Firewall hat diese Anfrage abgelehnt",
  "the workflow has more than %d automatic steps in a row (loop?)": "Der Workflow hat mehr als %d automatische Schritte hintereinander (Schleife?)",
  "there is no account for this sign-in yet: please ask an administrator": "Für diese Anmeldung gibt es noch kein Konto: bitte die Administration fragen",
  "there is no icon %q in the style %s": "Ein Symbol %q gibt es im Stil %s nicht",
