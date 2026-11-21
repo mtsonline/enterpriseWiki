@@ -3,11 +3,10 @@ package server_test
 import (
 	"context"
 	"encoding/json"
-	stdhtml "html"
 	"fmt"
+	stdhtml "html"
 	"net/http"
 	"net/http/httptest"
-	"net/url"
 	"os"
 	"regexp"
 	"sort"
@@ -410,8 +409,17 @@ func TestContentHostileParams(t *testing.T) {
 	}
 	sort.Strings(ids)
 	for _, pay := range hostilePayloads {
-		enc := url.PathEscape(pay)
-		enc = strings.NewReplacer("%2F", "/", "%3A", ":").Replace(enc)
+		// percent-encoded as the codec writes it (everything outside
+		// A-Z a-z 0-9 . _ ~ / + # : -)
+		var eb strings.Builder
+		for _, c := range []byte(pay) {
+			if c < 0x80 && (c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z' || c >= '0' && c <= '9' || strings.IndexByte("._~/+#:-", c) >= 0) {
+				eb.WriteByte(c)
+			} else {
+				fmt.Fprintf(&eb, "%%%02X", c)
+			}
+		}
+		enc := eb.String()
 		var parts []string
 		for _, id := range ids {
 			for _, key := range []string{id, id + ".mobile"} {
