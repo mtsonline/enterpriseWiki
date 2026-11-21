@@ -1029,4 +1029,18 @@ var traps = []trap{
 		New:  "return string(body), nil",
 		Pkg:  "./internal/server/", Tests: "^TestContentHostileParams$",
 	},
+	{
+		ID: "cut.audit-ua", About: "a browser name cut in the middle of a character makes every change fail",
+		File: "internal/audit/audit.go",
+		Old:  "userAgent = strings.ToValidUTF8(userAgent[:300], \"\")",
+		New:  "userAgent = userAgent[:300]",
+		Pkg:  "./internal/server/", Tests: "^TestCutKeepsCharacters$",
+	},
+	{
+		ID: "search.marks", About: "text on a page becomes markup in search snippets",
+		File: "internal/content/elements.go",
+		Old:  "title, text = searchMarks.Replace(title), searchMarks.Replace(text)",
+		New:  "_ = searchMarks",
+		Pkg:  "./internal/server/", Tests: "^TestSearchSnippetMarks$",
+	},
 }

@@ -551,7 +551,7 @@ func (s *Service) send(ctx context.Context, d due) (int, string) {
 	if err != nil {
 		msg := netguard.Hint(err, "webhooks.allow_private in config.yaml").Error()
 		if len(msg) > 500 {
-			msg = msg[:500]
+			msg = strings.ToValidUTF8(msg[:500], "")
 		}
 		return 0, msg
 	}

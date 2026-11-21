@@ -524,3 +524,75 @@ func wrapMacroBody(name string, body, inline bool, attrs, inner string) string {
 	}
 	return "::" + name + "{" + attrs + "}"
 }
+
+// TestSearchSnippetMarks: text on a page cannot become markup in the
+// snippets of the search (the marks of hits are replaced when indexing),
+// and a long text cut for the index keeps whole characters.
+func TestSearchSnippetMarks(t *testing.T) {
+	if os.Getenv("EWIKI_TEST_DATABASE_URL") == "" {
+		t.Skip("needs EWIKI_TEST_DATABASE_URL")
+	}
+	e := setup(t)
+	admin := e.client()
+	admin.login("admin", adminPW)
+	var cat struct {
+		ID int64 `json:"id"`
+	}
+	admin.must("POST", "/api/v1/categories", map[string]any{"titles": map[string]string{"en": "Marks"}}, &cat, 201)
+	admin.must("POST", "/api/v1/elements", map[string]any{"category_id": cat.ID, "type": "core.html", "title": "Plan ⟦t⟧",
+		"body": map[string]any{"format": "markdown", "source": "⟦fake⟧ quokka \x01also\x02 <ewxss> &lt;script&gt;"}}, nil, 201)
+	var res struct {
+		Elements []struct {
+			Title   string `json:"title"`
+			Snippet string `json:"snippet"`
+		} `json:"elements"`
+	}
+	admin.must("GET", "/api/v1/search?q=quokka", nil, &res, 200)
+	if len(res.Elements) != 1 {
+		t.Fatalf("search: %+v", res)
+	}
+	sn := res.Elements[0].Snippet
+	if !strings.Contains(sn, "<mark>quokka</mark>") || strings.Contains(sn, "<mark>fake") || strings.Contains(sn, "<mark>also") ||
+		strings.Count(sn, "<mark>") != 1 || strings.Count(sn, "</mark>") != 1 || strings.ContainsAny(sn, "\x01\x02⟦⟧") || len(dangerousMarkup(sn)) > 0 {
+		t.Fatalf("snippet %q", sn)
+	}
+	// a multi-byte character right at the limit of the index (1 MiB)
+	long := strings.Repeat("a", 1<<20-1) + "ä wombat"
+	admin.must("POST", "/api/v1/elements", map[string]any{"category_id": cat.ID, "type": "core.html", "title": "Long",
+		"body": map[string]any{"format": "markdown", "source": long}}, nil, 201)
+}
+
+// uaTransport sends a fixed browser name.
+type uaTransport struct{ ua string }
+
+func (u uaTransport) RoundTrip(r *http.Request) (*http.Response, error) {
+	r = r.Clone(r.Context())
+	r.Header.Set("User-Agent", u.ua)
+	return http.DefaultTransport.RoundTrip(r)
+}
+
+// TestCutKeepsCharacters: values cut to their limit keep whole characters,
+// so storing them cannot fail (a browser name with a multi-byte character
+// at the limit must neither block the sign-in nor the audit log).
+func TestCutKeepsCharacters(t *testing.T) {
+	if os.Getenv("EWIKI_TEST_DATABASE_URL") == "" {
+		t.Skip("needs EWIKI_TEST_DATABASE_URL")
+	}
+	e := setup(t)
+	c := e.client()
+	c.http.Transport = uaTransport{strings.Repeat("a", 299) + "ä" + strings.Repeat("b", 50)}
+	c.login("admin", adminPW)
+	var cat struct {
+		ID int64 `json:"id"`
+	}
+	c.must("POST", "/api/v1/categories", map[string]any{"titles": map[string]string{"en": "UA"}}, &cat, 201)
+	// a file name with a multi-byte character at the limit
+	var folder struct {
+		ID int64 `json:"id"`
+	}
+	c.must("POST", "/api/v1/categories", map[string]any{"titles": map[string]string{"en": "Media"}, "hidden": true}, &folder, 201)
+	name := strings.Repeat("n", 199) + "ö" + ".png"
+	if st, _ := c.uploadMedium(t, "/api/v1/media", map[string]any{"category_id": folder.ID, "alt": "x"}, name, testPNG(4, 4)); st != 201 {
+		t.Fatalf("upload with a long name: %d", st)
+	}
+}

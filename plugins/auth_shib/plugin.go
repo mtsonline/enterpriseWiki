@@ -402,7 +402,7 @@ func sanitize(u string) string {
 		return '_'
 	}, u)
 	if len(u) > 128 {
-		u = u[:128]
+		u = strings.ToValidUTF8(u[:128], "")
 	}
 	return u
 }

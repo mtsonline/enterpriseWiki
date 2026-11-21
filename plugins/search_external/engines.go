@@ -136,7 +136,7 @@ func (c *client) do(ctx context.Context, method, path string, body any, contentT
 	if resp.StatusCode >= 300 {
 		msg := string(data)
 		if len(msg) > 500 {
-			msg = msg[:500]
+			msg = strings.ToValidUTF8(msg[:500], "")
 		}
 		return &httpError{resp.StatusCode, msg}
 	}

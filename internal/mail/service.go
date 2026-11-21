@@ -236,7 +236,7 @@ func (s *Service) prepare(m *Message) error {
 		m.Subject = string([]rune(m.Subject)[:250])
 	}
 	if len(m.Text) > 200000 {
-		m.Text = m.Text[:200000]
+		m.Text = strings.ToValidUTF8(m.Text[:200000], "")
 	}
 	if len(m.HTML) > 2000000 {
 		m.HTML = ""
@@ -499,7 +499,7 @@ func (s *Service) deferMessage(ctx context.Context, id int64, msg string) {
 
 func truncate(s string) string {
 	if len(s) > 1000 {
-		return s[:1000]
+		return strings.ToValidUTF8(s[:1000], "")
 	}
 	return s
 }

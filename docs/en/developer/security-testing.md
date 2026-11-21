@@ -10,6 +10,7 @@ Security first: a version is released only when all checks are green. They run i
 | Trivy (image) | vulnerabilities (HIGH/CRITICAL with an available fix) and secrets in the Docker image | job *Docker images* |
 | Trivy (configuration) | misconfigurations in the Dockerfile and Compose files | job *Docker images* |
 | `TestSecurityBaseline` | attacks on the HTTP layer: headers/CSP, cookie flags, access rights and privilege escalation, injection, path traversal, stored XSS, brute force, X-Forwarded-For bypass, user enumeration, host header, CSRF, oversized requests | `internal/server/security_test.go` |
+| `TestContentHostileParams` | every parameter of every block and every block option, with values that try to break out (markup, attributes, URLs, CSS, JSON); answers of the HTTP block and external feeds in every format and layout; the rendered page must not contain anything that runs, injects markup or loads foreign styles. First every block and option must take effect with valid values, so the hostile values do not only test an error message. In the browser the same for the CSS of the options (`blockoptions.test.ts`) | `internal/server/content_hostile_test.go` |
 | Further tests | separation of sites, second factor, allowed networks, open redirects (`SafeNext`), trusted proxies | `m18_test.go`, `proxy_test.go`, `internal/auth` |
 | `scripts/test-docker-proxy.sh` | input to `docker-setup.sh` (malicious input too), proxy without root rights, read-only file system, certificates only for own host names | job *Docker images* |
 
