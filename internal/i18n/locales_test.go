@@ -143,3 +143,36 @@ func TestGermanFormal(t *testing.T) {
 		}
 	}
 }
+
+// TestHelpExplanations: the explanations that a person can hide
+// (web/src/core/helptexts.ts) exist in both languages.
+func TestHelpExplanations(t *testing.T) {
+	raw, err := os.ReadFile("../../web/src/core/helptexts.ts")
+	if err != nil {
+		t.Fatal(err)
+	}
+	src := string(raw)
+	start := strings.Index(src, "HIDE_HELP_KEYS = [")
+	end := strings.Index(src[start:], "];")
+	if start < 0 || end < 0 {
+		t.Fatal("HIDE_HELP_KEYS not found")
+	}
+	keys := regexp.MustCompile(`'([a-z0-9_.]+)'`).FindAllStringSubmatch(src[start:start+end], -1)
+	if len(keys) < 100 {
+		t.Fatalf("only %d keys", len(keys))
+	}
+	for _, lang := range []string{"en", "de"} {
+		all := map[string]string{}
+		files, _ := filepath.Glob("../../plugins/*/locales/" + lang + ".json")
+		for _, f := range append(files, "locales/"+lang+".json") {
+			for k, v := range readLocale(t, f) {
+				all[k] = v
+			}
+		}
+		for _, k := range keys {
+			if _, ok := all[k[1]]; !ok {
+				t.Errorf("%s: explanation %s has no text", lang, k[1])
+			}
+		}
+	}
+}

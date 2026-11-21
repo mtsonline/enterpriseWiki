@@ -23,6 +23,7 @@ import (
 type personcard struct{}
 
 func (personcard) Name() string              { return "personcard" }
+func (personcard) Group() string             { return "media" }
 func (personcard) Labels() map[string]string { return lm("Person card", "Personenkarte") }
 func (personcard) Description() map[string]string {
 	return lm("A person with picture, name, role and ways to reach them (e-mail, phone); the content is a short text about them.",
@@ -108,7 +109,8 @@ func telChar(r rune) rune {
 
 type rotating struct{}
 
-func (rotating) Name() string { return "rotating" }
+func (rotating) Name() string  { return "rotating" }
+func (rotating) Group() string { return "text" }
 func (rotating) Labels() map[string]string {
 	return lm("Heading with changing words", "Überschrift mit wechselnden Wörtern")
 }
@@ -170,6 +172,7 @@ func (rotating) Render(_ context.Context, mc content.MacroContext) (string, erro
 type ticker struct{}
 
 func (ticker) Name() string              { return "ticker" }
+func (ticker) Group() string             { return "media" }
 func (ticker) Labels() map[string]string { return lm("Ticker", "Laufband") }
 func (ticker) Description() map[string]string {
 	return lm("The entries of a list run through a band. It always has a pause button, stops while pointed at or focused, and stands still with reduced motion; the list itself stays readable.",
@@ -214,6 +217,7 @@ func (ticker) Render(_ context.Context, mc content.MacroContext) (string, error)
 type slider struct{}
 
 func (slider) Name() string              { return "slider" }
+func (slider) Group() string             { return "layout" }
 func (slider) Labels() map[string]string { return lm("Content slider", "Inhalts-Slider") }
 func (slider) Description() map[string]string {
 	return lm("Parts shown one at a time, with arrows and a button per part; separate the parts with a horizontal line. Optionally it changes by itself, with a pause button, never with reduced motion.",

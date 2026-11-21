@@ -309,11 +309,11 @@ func (d *Design) Problems() []Problem {
 			add(where, "only a footer row (role contentinfo) opens and closes on the phone")
 		}
 		if len(r.Blocks) == 0 || len(r.Blocks) > limits.MaxBlocksPerRow {
-			add(where, "1 to %d blocks side by side", limits.MaxBlocksPerRow)
+			add(where, "1 to %d areas side by side", limits.MaxBlocksPerRow)
 		}
 		nBlocks += len(r.Blocks)
 		for bi, b := range r.Blocks {
-			bw := fmt.Sprintf("%s, block %d", where, bi+1)
+			bw := fmt.Sprintf("%s, area %d", where, bi+1)
 			if !idRe.MatchString(b.ID) {
 				add(bw, "the id %q must be lowercase letters, digits and dashes, starting with a letter", b.ID)
 			} else if ids[b.ID] {
@@ -339,12 +339,12 @@ func (d *Design) Problems() []Problem {
 				roleLabels[b.Role] = append(roleLabels[b.Role], b.Label)
 				min := limits.BlockMinRem[b.Kind]
 				if b.Fit && b.Width != 0 {
-					add(bw, "a block as wide as its content has no width of its own (width 0)")
+					add(bw, "an area as wide as its content has no width of its own (width 0)")
 				}
 				if b.Width != 0 && (b.Width < min || b.Width > limits.BlockMaxRem) {
 					add(bw, "the width is %d to %d rem (or 0: the rest of the row)", min, limits.BlockMaxRem)
 				} else if need := positionsRoom(b); b.Width != 0 && need > float64(b.Width) {
-					add(bw, "its %d positions side by side need %.1f rem, the block is %d rem wide; make it wider or put the positions one below the other (layout column)", len(b.Positions), need, b.Width)
+					add(bw, "its %d positions side by side need %.1f rem, the area is %d rem wide; make it wider or put the positions one below the other (layout column)", len(b.Positions), need, b.Width)
 				}
 				if len(b.After) > 0 {
 					add(bw, "only the content has positions after it")
@@ -357,7 +357,7 @@ func (d *Design) Problems() []Problem {
 				add(bw, "a side column behind a button on the desktop (drawer) cannot also be sticky or collapsible")
 			}
 			if r.CollapseMobile && len(b.Label) == 0 {
-				add(bw, "a footer that opens and closes on the phone needs a name for every block (label)")
+				add(bw, "a footer that opens and closes on the phone needs a name for every area (label)")
 			}
 			if !slices.Contains(layouts, b.Layout) {
 				add(bw, "layout: one of %v", layouts)
@@ -372,7 +372,7 @@ func (d *Design) Problems() []Problem {
 			}
 			all := append(slices.Clone(b.Positions), b.After...)
 			if len(all) > limits.MaxPositionsPerBlock {
-				add(bw, "at most %d positions in a block", limits.MaxPositionsPerBlock)
+				add(bw, "at most %d positions in an area", limits.MaxPositionsPerBlock)
 			}
 			for _, p := range all {
 				switch {
@@ -389,16 +389,16 @@ func (d *Design) Problems() []Problem {
 		d.fitProblems(ri, r, add)
 	}
 	if nBlocks > limits.MaxBlocks {
-		add("rows", "at most %d blocks in all", limits.MaxBlocks)
+		add("rows", "at most %d areas in all", limits.MaxBlocks)
 	}
 	if len(positions) > limits.MaxPositions {
 		add("rows", "at most %d positions in all", limits.MaxPositions)
 	}
 	if contents != 1 {
-		add("rows", "exactly one block is the content of the page (%d now)", contents)
+		add("rows", "exactly one area is the content of the page (%d now)", contents)
 	}
 	if others == 0 {
-		add("rows", "besides the content at least one more block is needed (for the user menu and signing in)")
+		add("rows", "besides the content at least one more area is needed (for the user menu and signing in)")
 	}
 	// header and footer: adjacent rows (one landmark each), the header
 	// above the content, the footer below it; the content is in neither
@@ -440,11 +440,11 @@ func (d *Design) Problems() []Problem {
 			for _, l := range labels {
 				name := fmt.Sprint(l)
 				if len(l) == 0 {
-					add("rows", "every block with the role %s needs a label (it is named for screen readers)", role)
+					add("rows", "every area with the role %s needs a label (it is named for screen readers)", role)
 					break
 				}
 				if seen[name] {
-					add("rows", "the blocks with the role %s need different labels", role)
+					add("rows", "the areas with the role %s need different labels", role)
 					break
 				}
 				seen[name] = true
@@ -464,7 +464,7 @@ func (d *Design) fitProblems(ri int, r Row, add func(where, format string, args 
 		ids[b.ID] = b
 	}
 	if r.Desktop != nil && (r.Desktop.Stack || len(r.Desktop.Hidden) > 0 || len(r.Desktop.Widths) > 0) {
-		add(where, "desktop: only blocks behind a button can be chosen; the layout of the desktop is the row itself")
+		add(where, "desktop: only areas behind a button can be chosen; the layout of the desktop is the row itself")
 	}
 	if need, room := d.needRoom(r, "desktop", r.Desktop), d.room(r, "desktop"); need > room {
 		add(where, "the blocks need %.0f rem side by side, the desktop has %.0f rem here; make blocks narrower or move one to another row", need, room)

@@ -84,6 +84,16 @@ type ToolbarMacro interface {
 	Toolbar() string
 }
 
+// GroupedMacro is implemented by macros that name their group in the menu
+// of the editor (one of MacroGroups); others are in "other".
+type GroupedMacro interface {
+	Group() string
+}
+
+// MacroGroups are the groups of blocks in the menu of the editor, in their
+// order there.
+var MacroGroups = []string{"text", "layout", "navigation", "media", "lists", "data", "forms", "automation", "other"}
+
 // PartsMacro is implemented by macros whose body is split into parts at
 // horizontal rules (tabs, accordion, columns, cards …). The editor shows the
 // parts and a button to add one.
@@ -109,6 +119,8 @@ type MacroInfo struct {
 	Params      []MacroParam      `json:"params"`
 	HasBody     bool              `json:"has_body"`
 	Inline      bool              `json:"inline"`
+	// Group of the block in the menu of the editor (MacroGroups).
+	Group string `json:"group"`
 	// Toolbar is the icon of the own toolbar button ("" = none).
 	Toolbar string `json:"toolbar,omitempty"`
 	// Parts: the body is split into parts at horizontal rules (nil = not).
@@ -185,6 +197,10 @@ func (s *Service) Macros() []MacroInfo {
 			}
 			if tm, ok := r.m.(ToolbarMacro); ok {
 				info.Toolbar = tm.Toolbar()
+			}
+			info.Group = "other"
+			if gm, ok := r.m.(GroupedMacro); ok && slices.Contains(MacroGroups, gm.Group()) {
+				info.Group = gm.Group()
 			}
 			info.Picture = r.opts.Picture && !info.HasBody && !info.Inline
 			if pm, ok := r.m.(PartsMacro); ok && info.HasBody {
@@ -354,11 +370,11 @@ func (s *Service) RenderMacros(ctx context.Context, rc RenderContext, src string
 		case mp != nil && mp.only && mp.index != count:
 			// only one macro is asked for: leave the others out
 		case count > 200:
-			out = note(apperr.Localized(apperr.BadRequest("too many macros on this page"), rc.Lang))
+			out = note(apperr.Localized(apperr.BadRequest("too many blocks on this page"), rc.Lang))
 		case m == nil:
-			out = note(apperr.Localized(apperr.BadRequest("macro %q is not available", name), rc.Lang))
+			out = note(apperr.Localized(apperr.BadRequest("block %q is not available", name), rc.Lang))
 		case len(allowed) > 0 && !slices.Contains(allowed, name):
-			out = note(apperr.Localized(apperr.BadRequest("macro %q is not available in this space", name), rc.Lang))
+			out = note(apperr.Localized(apperr.BadRequest("block %q is not available in this space", name), rc.Lang))
 		default:
 			body := renderChildren(n)
 			params := ParseMacroParams(attr(n, "data-params"))
@@ -372,7 +388,7 @@ func (s *Service) RenderMacros(ctx context.Context, rc RenderContext, src string
 				if label == "" {
 					label = name
 				}
-				out = note(apperr.Localized(apperr.BadRequest("macro %s: %s", label, apperr.Localized(err, rc.Lang)), rc.Lang))
+				out = note(apperr.Localized(apperr.BadRequest("block %s: %s", label, apperr.Localized(err, rc.Lang)), rc.Lang))
 			} else {
 				tag := "div"
 				if n.DataAtom == atom.Span {

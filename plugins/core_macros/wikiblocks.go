@@ -41,6 +41,7 @@ func idParam(v string) int64 {
 type excerpt struct{}
 
 func (excerpt) Name() string              { return "excerpt" }
+func (excerpt) Group() string             { return "lists" }
 func (excerpt) Labels() map[string]string { return lm("Excerpt", "Auszug") }
 func (excerpt) Description() map[string]string {
 	return lm("Marks a part of this page that other pages can include (block \"Include page\").",
@@ -106,6 +107,7 @@ func excerptOf(page, name string) (string, bool) {
 type include struct{}
 
 func (include) Name() string              { return "include" }
+func (include) Group() string             { return "lists" }
 func (include) Labels() map[string]string { return lm("Include page", "Seite einbinden") }
 func (include) Description() map[string]string {
 	return lm("Shows another page (or one excerpt of it) here, always in its current state and with the permissions of the reader.",
@@ -179,6 +181,7 @@ func (include) Render(ctx context.Context, mc content.MacroContext) (string, err
 type anchor struct{}
 
 func (anchor) Name() string              { return "anchor" }
+func (anchor) Group() string             { return "text" }
 func (anchor) Labels() map[string]string { return lm("Anchor", "Anker") }
 func (anchor) Description() map[string]string {
 	return lm("A point in the text that links can jump to (#name).", "Eine Stelle im Text, zu der Links springen können (#name).")
@@ -209,6 +212,7 @@ const (
 )
 
 func (pagetree) Name() string              { return "pagetree" }
+func (pagetree) Group() string             { return "navigation" }
 func (pagetree) Labels() map[string]string { return lm("Page tree", "Seitenbaum") }
 func (pagetree) Description() map[string]string {
 	return lm("The subcategories and pages of a category as a tree to open, with a filter.",
@@ -338,6 +342,7 @@ func (pagetree) Render(ctx context.Context, mc content.MacroContext) (string, er
 type searchbox struct{}
 
 func (searchbox) Name() string              { return "searchbox" }
+func (searchbox) Group() string             { return "navigation" }
 func (searchbox) Labels() map[string]string { return lm("Search box", "Suchfeld") }
 func (searchbox) Description() map[string]string {
 	return lm("A search field, in the whole wiki or in one category and its subcategories.",
@@ -397,7 +402,8 @@ func (searchbox) Render(ctx context.Context, mc content.MacroContext) (string, e
 
 type newpage struct{}
 
-func (newpage) Name() string { return "newpage" }
+func (newpage) Name() string  { return "newpage" }
+func (newpage) Group() string { return "navigation" }
 func (newpage) Labels() map[string]string {
 	return lm("New page from a template", "Seite aus Vorlage anlegen")
 }

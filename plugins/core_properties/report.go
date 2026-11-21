@@ -31,7 +31,8 @@ var Charts = []string{"bar", "hbar", "stacked", "line", "area", "pie", "donut", 
 
 type report struct{ p *Plugin }
 
-func (report) Name() string { return "properties" }
+func (report) Name() string  { return "properties" }
+func (report) Group() string { return "lists" }
 func (report) Labels() map[string]string {
 	return lm("Property report", "Eigenschaften-Bericht")
 }

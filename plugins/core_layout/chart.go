@@ -25,6 +25,7 @@ import (
 type chart struct{}
 
 func (chart) Name() string              { return "chart" }
+func (chart) Group() string             { return "data" }
 func (chart) Labels() map[string]string { return lm("Chart", "Diagramm") }
 func (chart) Description() map[string]string {
 	return lm("Bars, lines or a pie from a table: the first row names the series, the first column the categories, the other cells are numbers. The table stays readable below the chart.",

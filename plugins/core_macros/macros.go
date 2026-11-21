@@ -67,6 +67,7 @@ func intParam(p map[string]string, k string, def, min, max int) int {
 type toc struct{}
 
 func (toc) Name() string              { return "toc" }
+func (toc) Group() string             { return "navigation" }
 func (toc) Labels() map[string]string { return lm("Table of contents", "Inhaltsverzeichnis") }
 func (toc) Description() map[string]string {
 	return lm("Lists the headings of this page.", "Listet die Überschriften dieser Seite auf.")
@@ -100,6 +101,7 @@ func (toc) Render(_ context.Context, mc content.MacroContext) (string, error) {
 type children struct{}
 
 func (children) Name() string              { return "children" }
+func (children) Group() string             { return "navigation" }
 func (children) Labels() map[string]string { return lm("Child pages", "Unterseiten") }
 func (children) Description() map[string]string {
 	return lm("Lists the subcategories and pages of this category.", "Listet Unterkategorien und Seiten dieser Kategorie auf.")
@@ -151,6 +153,7 @@ func (children) Render(ctx context.Context, mc content.MacroContext) (string, er
 type recent struct{}
 
 func (recent) Name() string              { return "recent" }
+func (recent) Group() string             { return "lists" }
 func (recent) Labels() map[string]string { return lm("Recently changed", "Zuletzt geändert") }
 func (recent) Description() map[string]string {
 	return lm("Pages changed most recently.", "Die zuletzt geänderten Seiten.")
@@ -222,7 +225,8 @@ type panel struct{}
 
 var panelTypes = []string{"info", "note", "tip", "warning", "success"}
 
-func (panel) Name() string { return "panel" }
+func (panel) Name() string  { return "panel" }
+func (panel) Group() string { return "text" }
 func (panel) Labels() map[string]string {
 	return lm("Panel (info, note, warning, ...)", "Hinweis-Box (Info, Notiz, Warnung, …)")
 }
@@ -257,6 +261,7 @@ func (panel) Render(_ context.Context, mc content.MacroContext) (string, error) 
 type expand struct{}
 
 func (expand) Name() string              { return "expand" }
+func (expand) Group() string             { return "layout" }
 func (expand) Labels() map[string]string { return lm("Expandable section", "Aufklappbereich") }
 func (expand) Description() map[string]string {
 	return lm("Content that is hidden until the reader opens it.", "Inhalt, der erst nach dem Aufklappen sichtbar ist.")
@@ -280,6 +285,7 @@ type status struct{}
 var colors = []string{"grey", "blue", "green", "yellow", "red"}
 
 func (status) Name() string              { return "status" }
+func (status) Group() string             { return "text" }
 func (status) Labels() map[string]string { return lm("Status label", "Status-Label") }
 func (status) Description() map[string]string {
 	return lm("A colored label such as IN PROGRESS or DONE.", "Ein farbiges Label wie IN ARBEIT oder ERLEDIGT.")
@@ -320,7 +326,8 @@ var (
 	styleSizes       = []string{"small", "large"}
 )
 
-func (textStyle) Name() string { return "style" }
+func (textStyle) Name() string  { return "style" }
+func (textStyle) Group() string { return "text" }
 func (textStyle) Labels() map[string]string {
 	return lm("Text color and font", "Textfarbe und Schrift")
 }
@@ -372,6 +379,7 @@ func SplitOnHR(body string) []string {
 }
 
 func (columns) Name() string              { return "columns" }
+func (columns) Group() string             { return "layout" }
 func (columns) Labels() map[string]string { return lm("Columns", "Spalten") }
 func (columns) Description() map[string]string {
 	return lm("Shows content side by side. Separate the columns with a horizontal line.", "Zeigt Inhalte nebeneinander. Spalten mit einer Trennlinie trennen.")

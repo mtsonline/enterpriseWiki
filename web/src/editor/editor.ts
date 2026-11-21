@@ -22,7 +22,8 @@ import { h, uid } from '../core/dom';
 import { t, uiLang } from '../core/i18n';
 import { checkbox, field, formDialog, select, textArea, textInput } from '../components/ui';
 import { codeLanguage, codeLanguageOptions, codeLines } from '../core/codeblocks';
-import { chooseBlockTemplate, saveBlockTemplate } from './blocktemplates';
+import { blockTemplateSource, saveBlockTemplate } from './blocktemplates';
+import { chooseBlock } from './blockpicker';
 import { isImage, mediaURL, pickMedium } from '../components/media';
 import { prosemirrorToYXmlFragment, redo as yRedo, undo as yUndo, yCursorPlugin, ySyncPlugin, yUndoPlugin, yUndoPluginKey } from 'y-prosemirror';
 import { formatAttrs } from './attrs';
@@ -492,7 +493,6 @@ const TOOL_NAMES: Record<string, string> = {
   row_before: 'table_edit', row_after: 'table_edit', col_before: 'table_edit', col_after: 'table_edit',
   row_delete: 'table_edit', col_delete: 'table_edit', table_delete: 'table_edit',
   code_settings: 'block',
-  snippet_save: 'snippet',
 };
 
 interface Tool {
@@ -616,8 +616,8 @@ export function createMarkdownEditor(container: HTMLElement, opts: MarkdownEdito
 
   /** Inserts a macro (wrapping the selected blocks for macros with a body). */
   // block templates: insert one at the cursor, save the selection as one
-  const snippetInsert = async (v: EditorView) => {
-    const src = await chooseBlockTemplate();
+  const snippetInsert = async (v: EditorView, id: number) => {
+    const src = await blockTemplateSource(id);
     if (src === null) return mode === 'visual' ? v.focus() : textarea.focus();
     if (mode === 'markdown') {
       textarea.setRangeText(`\n${src.trim()}\n`, textarea.selectionStart, textarea.selectionEnd, 'end');
@@ -637,6 +637,24 @@ export function createMarkdownEditor(container: HTMLElement, opts: MarkdownEdito
       : serialize(v.state.doc.cut(v.state.selection.from, v.state.selection.to));
     if (!src.trim()) { toast(t('blocktpl.select_first'), 'error'); return; }
     saveBlockTemplate(src);
+  };
+  let shownTool: (name: string) => boolean = () => true;
+  // the menu "Insert block": a block, a block template, or the selection
+  // saved as a template
+  const blockMenu = async (v: EditorView) => {
+    const templates = shownTool('snippet');
+    const hasSelection = mode === 'markdown' ? textarea.selectionStart !== textarea.selectionEnd : !v.state.selection.empty;
+    let c;
+    try {
+      c = await chooseBlock({ macros: shownTool('macro'), templates, canSave: templates && hasSelection });
+    } catch (e) {
+      toast(String((e as Error).message ?? e), 'error');
+      return;
+    }
+    if (!c) return mode === 'visual' ? v.focus() : textarea.focus();
+    if ('macro' in c) return macroInsert(v, c.macro);
+    if ('template' in c) return snippetInsert(v, c.template);
+    snippetSave(v);
   };
   const macroInsert = async (v: EditorView, only?: string) => {
     let c;
@@ -735,9 +753,9 @@ export function createMarkdownEditor(container: HTMLElement, opts: MarkdownEdito
     { id: 'table', icon: '▦', key: 'editor.table', run: cmdTool(insertTable), enabled: (s) => insertTable(s) },
     { id: 'image', icon: '🖼', key: 'editor.image', run: (v) => void imageDialog(v) },
     { id: 'hr', icon: '—', key: 'editor.hr', run: cmdTool(insertHr) },
-    { id: 'macro', icon: '⚙', key: 'editor.macro_insert', run: (v) => void macroInsert(v), markdown: true },
-    { id: 'snippet', icon: '❏', key: 'editor.snippet_insert', run: (v) => void snippetInsert(v), markdown: true },
-    { id: 'snippet_save', icon: '⎘', key: 'editor.snippet_save', run: (v) => snippetSave(v), enabled: (st) => !st.selection.empty, markdown: true },
+    // one menu for blocks and block templates (the choice "macro" or
+    // "snippet" of the site shows it; "snippet" adds the templates)
+    { id: 'macro', icon: '⚙', key: 'editor.macro_insert', run: (v) => void blockMenu(v), markdown: true },
     '|',
     { id: 'row_before', icon: '⤒', key: 'editor.row_before', run: cmdTool(addRowBefore), when: isInTable },
     { id: 'row_after', icon: '⤓', key: 'editor.row_after', run: cmdTool(addRowAfter), when: isInTable },
@@ -797,6 +815,7 @@ export function createMarkdownEditor(container: HTMLElement, opts: MarkdownEdito
   // the site or category chooses the buttons (the formatting itself stays
   // possible with shortcuts and Markdown); the mode switch always stays
   const shown = (name: string) => !opts.tools || opts.tools.includes('*') || opts.tools.includes(name);
+  shownTool = shown;
   const nameOf = (id: string) => (id.startsWith('macro:') ? 'macro' : TOOL_NAMES[id] ?? id);
   if (shown('block')) toolbar.append(blockSel);
   function makeButton(tool: Tool): HTMLButtonElement {
@@ -813,7 +832,7 @@ export function createMarkdownEditor(container: HTMLElement, opts: MarkdownEdito
   }
   for (const tool of tools) {
     if (tool === '|') { toolbar.append(h('span', { class: 'ewe-sep', 'aria-hidden': 'true' })); continue; }
-    if (!shown(nameOf(tool.id))) continue;
+    if (tool.id === 'macro' ? !shown('macro') && !shown('snippet') : !shown(nameOf(tool.id))) continue;
     toolbar.append(makeButton(tool));
   }
   // no two separators in a row (or at the start) when buttons are hidden

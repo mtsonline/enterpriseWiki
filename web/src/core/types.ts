@@ -370,6 +370,8 @@ export interface MacroInfo {
   has_body: boolean;
   /** used inside a line of text (:name[text]{...}) */
   inline?: boolean;
+  /** group in the menu of the editor (content.MacroGroups) */
+  group?: string;
   /** icon of an own toolbar button */
   toolbar?: string;
   /** the body is split into parts at horizontal rules */

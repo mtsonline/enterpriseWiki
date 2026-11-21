@@ -928,7 +928,8 @@ func renderUpcoming(list []upcomingItem, lang string, withCal bool) string {
 type UpcomingMacro struct{}
 
 // Name implements content.Macro.
-func (UpcomingMacro) Name() string { return "events" }
+func (UpcomingMacro) Name() string  { return "events" }
+func (UpcomingMacro) Group() string { return "lists" }
 
 // Labels implements content.Macro.
 func (UpcomingMacro) Labels() map[string]string {

@@ -23,7 +23,8 @@ type embed struct{ allow func() []string }
 
 var embedRatios = []string{"16x9", "4x3", "1x1", "9x16"}
 
-func (embed) Name() string { return "embed" }
+func (embed) Name() string  { return "embed" }
+func (embed) Group() string { return "media" }
 func (embed) Labels() map[string]string {
 	return lm("External video or embed", "Externes Video oder Einbettung")
 }

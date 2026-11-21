@@ -8,6 +8,7 @@ import type { Category, SpaceInfo } from '../core/types';
 import { announce, toast } from '../core/announce';
 import { refreshPositions, setPlacementContext } from '../coreplugin';
 import { button, errorText } from './ui';
+import { helpShown, setHelp } from '../core/helptexts';
 
 /** Context of the current page (set by category and element views). */
 export const ctx = {
@@ -126,6 +127,27 @@ export function editToggle(): HTMLElement | null {
     announce(state.editMode ? t('edit.mode_enabled') : t('edit.mode_disabled'));
   }, { variant: 'secondary', pressed: state.editMode });
   b.classList.add('ew-switch-btn');
+  return b;
+}
+
+/** The "?" button: shows or hides the explanations for the person (the
+ * same choice as in the profile). */
+export function helpToggle(): HTMLElement {
+  const b = button([h('span', { 'aria-hidden': 'true', class: 'ew-help-toggle-icon' }, '?'), h('span', { class: 'sr-only' }, t('help.toggle'))], async () => {
+    const show = !helpShown();
+    try {
+      await setHelp(show);
+    } catch (e) {
+      toast(errorText(e), 'error');
+      return;
+    }
+    b.setAttribute('aria-pressed', String(show));
+    announce(show ? t('help.shown') : t('help.hidden'));
+  }, { variant: 'subtle', pressed: helpShown() });
+  b.classList.add('ew-help-toggle');
+  b.title = t('help.toggle');
+  const follow = () => { if (!b.isConnected) document.removeEventListener('ew:help', follow); else b.setAttribute('aria-pressed', String(helpShown())); };
+  document.addEventListener('ew:help', follow);
   return b;
 }
 

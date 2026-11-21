@@ -215,7 +215,7 @@
  "forms.ed.formula_help": "Zahlen, + − × ÷ ( ) und round(x, Stellen), min, max, abs, sum mit den IDs der Felder darüber: {ids}",
  "forms.ed.decimals": "Nachkommastellen",
  "forms.ed.pow": "Rechenaufgabe gegen Bots (der Browser rechnet etwa eine Sekunde; kein CAPTCHA)",
- "forms.ed.public_results": "Alle, die das Formular sehen, dürfen die Häufigkeit der Antworten sehen (Makro „Formular-Ergebnisse“)",
+ "forms.ed.public_results": "Alle, die das Formular sehen, dürfen die Häufigkeit der Antworten sehen (Baustein „Formular-Ergebnisse“)",
  "forms.ed.files": "Jede Einsendung als Datei in der Medienbibliothek ablegen",
  "forms.ed.files_category": "Kategorie",
  "forms.ed.files_formats": "Formate",

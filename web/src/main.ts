@@ -17,7 +17,8 @@ import { loadMessages, t } from './core/i18n';
 import { onBeforeRender, onNavigate, rerender, route, setMain, setNotFound, start } from './core/router';
 import { rememberedLang, state, stored } from './core/state';
 import type { Principal, Site } from './core/types';
-import { categoryTree, ctx, currentSpace, setSpace, editToggle, languageSwitcher, searchBox, userMenu } from './components/widgets';
+import { categoryTree, ctx, currentSpace, setSpace, editToggle, helpToggle, languageSwitcher, searchBox, userMenu } from './components/widgets';
+import { watchHelp } from './core/helptexts';
 import { pluginModules } from './generated/plugins';
 import { positionContainer, refreshPositions, registerAdminPage, registerPageAction, registerProfileSection, registerSlot, registerTemplate, previewTemplate, resolveTemplate, setShownTemplate, siteTemplate, triedTemplate } from './coreplugin';
 import { tryBar } from './components/trytemplate';
@@ -92,6 +93,7 @@ function registerCore(): void {
   registerSlot({ id: 'core.search', position: 'header-tools', order: 10, label: () => t('block.core.search'), render: searchBox });
   registerSlot({ id: 'core.lang', position: 'header-tools', order: 20, label: () => t('block.core.lang'), render: languageSwitcher });
   registerSlot({ id: 'core.edit', position: 'header-tools', order: 30, label: () => t('block.core.edit'), render: editToggle });
+  registerSlot({ id: 'core.help', position: 'header-tools', order: 25, label: () => t('block.core.help'), render: helpToggle });
   registerSlot({ id: 'core.bell', position: 'header-tools', order: 35, label: () => t('block.core.bell'), render: () => notificationBell() });
   registerSlot({ id: 'core.user', position: 'header-tools', order: 40, always: true, label: () => t('block.core.user'), render: userMenu });
   registerSlot({ id: 'core.tree', position: 'sidebar', order: 10, label: () => t('block.core.tree'), render: categoryTree });
@@ -137,6 +139,8 @@ async function boot(): Promise<void> {
     return;
   }
   document.documentElement.dataset.site = state.site.name;
+  // explanations are shown or hidden for the person, on every page
+  watchHelp();
   registerCore();
   const active = new Set(state.site.plugins ?? []);
   // a plugin may need data before the page is built (templates of data):

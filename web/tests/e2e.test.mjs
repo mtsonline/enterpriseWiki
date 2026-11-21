@@ -138,7 +138,7 @@ test('create a subcategory: the current category is preselected as parent', asyn
   await idle();
   await page.locator('.ew-tree a').first().click();
   await idle();
-  const edit = page.locator('.ew-pos--header-tools button[aria-pressed]');
+  const edit = page.locator('.ew-pos--header-tools button.ew-switch-btn[aria-pressed]');
   if ((await edit.getAttribute('aria-pressed')) !== 'true') await edit.click();
   await idle();
   const currentTitle = (await page.locator('main h1').innerText()).replace(/^[\d.]+\s*/, '').trim();
@@ -365,12 +365,24 @@ test('administration of the sign-in factors', async () => {
   assert.deepEqual(await call('GET', '/api/v1/admin/mfa'), cfg);
 });
 
+// insertBlock opens "Insert block", finds the block by its name in the
+// search and opens its dialog (the dialog of the block is returned).
+async function insertBlock(name) {
+  await page.getByRole('button', { name: /^(insert block|baustein einfügen)$/i }).click();
+  const picker = page.locator('dialog[open]').last();
+  await picker.getByRole('searchbox', { name: /^(search blocks|baustein suchen)$/i }).fill(name);
+  await picker.locator(`li[role=treeitem][data-block="${name}"]`).click();
+  const dlg = page.locator('dialog[open]').last();
+  await dlg.locator('.ewe-macro-params').waitFor();
+  return dlg;
+}
+
 async function newPage(type, title) {
   await page.goto(BASE + '/');
   await idle();
   await page.locator('.ew-tree a').first().click();
   await idle();
-  const edit = page.locator('.ew-pos--header-tools button[aria-pressed]');
+  const edit = page.locator('.ew-pos--header-tools button.ew-switch-btn[aria-pressed]');
   if ((await edit.getAttribute('aria-pressed')) !== 'true') { await edit.click(); await idle(); }
   await page.getByRole('link', { name: /new page|neue seite/i }).click();
   await idle();
@@ -386,19 +398,42 @@ test('insert macros with the macro dialog', async () => {
   const ed = page.locator('.ewe-prose');
   await ed.click();
   await page.keyboard.type('Intro text');
-  await page.getByRole('button', { name: /^(insert macro|makro einfügen)$/i }).click();
-  const dialog = page.locator('dialog[open]');
-  await dialog.waitFor();
-  await dialog.locator('select').first().selectOption('panel');
-  // screen readers: the description is not announced on every change, only
-  // when the choice stays a moment; on focus it follows the name
-  const spoken = dialog.locator('.ewe-macro-spoken');
+  // the menu "Insert block": a search and the blocks in groups (a tree)
+  await page.getByRole('button', { name: /^(insert block|baustein einfügen)$/i }).click();
+  const picker = page.locator('dialog[open]');
+  const tree = picker.getByRole('tree');
+  await tree.waitFor();
+  await a11y('block menu');
+  assert.ok(await tree.getByRole('treeitem', { name: /^(text and emphasis|text und hervorhebung)$/i }).count());
+  // keyboard: down into the tree, right opens a group, down to its first block
+  await page.keyboard.press('ArrowDown');
+  const first = tree.locator('[role=treeitem][data-group]').first();
+  assert.equal(await first.getAttribute('aria-expanded'), 'false');
+  await page.keyboard.press('ArrowRight');
+  assert.equal(await first.getAttribute('aria-expanded'), 'true');
+  await page.keyboard.press('ArrowDown');
+  assert.equal(await page.evaluate(() => document.activeElement?.closest('ul[role=group]') !== null), true);
+  // screen readers hear the name; the description only when the choice
+  // stays a moment (not on every arrow key)
+  const spoken = picker.locator('.ewe-macro-spoken');
   assert.equal(await spoken.textContent(), '');
-  assert.equal(await dialog.locator('p.ew-help[aria-live]').count(), 0);
   await page.waitForFunction(() => (document.querySelector('dialog[open] .ewe-macro-spoken')?.textContent ?? '').length > 10);
-  const descId = await dialog.locator('p.ew-help').first().getAttribute('id');
-  assert.ok((await dialog.locator('select').first().getAttribute('aria-describedby')).split(' ').includes(descId));
-  assert.equal(await spoken.textContent(), await dialog.locator(`[id="${descId}"]`).textContent());
+  assert.equal(await picker.locator('[aria-live]').filter({ hasText: /./ }).count() >= 1, true);
+  await page.keyboard.press('ArrowLeft');
+  assert.equal(await page.evaluate(() => document.activeElement?.getAttribute('aria-expanded')), 'true');
+  await page.keyboard.press('ArrowLeft');
+  assert.equal(await first.getAttribute('aria-expanded'), 'false');
+  // the search finds a block across the groups (German and English names)
+  await picker.getByRole('searchbox').fill('hinweis');
+  if (await picker.locator('li[data-block="panel"]:visible').count() === 0) await picker.getByRole('searchbox').fill('panel');
+  await picker.locator('li[data-block="panel"]').waitFor();
+  assert.equal(await picker.locator('li[data-block="toc"]:visible').count(), 0);
+  await a11y('block menu with a search');
+  await page.keyboard.press('Enter');
+  const dialog = page.locator('dialog[open]').last();
+  await dialog.locator('.ewe-macro-params').waitFor();
+  assert.ok(await dialog.locator('select').first().isDisabled(), 'the chosen block stays chosen');
+  assert.equal(await dialog.locator('select').first().inputValue(), 'panel');
   await dialog.locator('select').nth(1).selectOption('warning');
   await dialog.getByLabel(/^(title|titel)/i).fill('Careful');
   await a11y('macro dialog');
@@ -407,7 +442,7 @@ test('insert macros with the macro dialog', async () => {
   // the placeholder text of the body is selected: typing replaces it
   await page.keyboard.type('Panel body');
   // the edit button of the macro opens the dialog for this macro
-  await page.locator('.ewe-macro[data-macro="panel"]').getByRole('button', { name: /^(edit macro|makro bearbeiten)/i }).click();
+  await page.locator('.ewe-macro[data-macro="panel"]').getByRole('button', { name: /^(edit block|baustein bearbeiten)/i }).click();
   assert.ok(await page.locator('dialog[open] select').first().isDisabled(), 'existing macro is edited');
   await page.locator('dialog[open]').getByLabel(/^(title|titel)/i).fill('Very careful');
   await page.locator('dialog[open] button[type=submit]').click();
@@ -415,14 +450,12 @@ test('insert macros with the macro dialog', async () => {
   // below the panel: insert a second macro
   await page.locator('.ewe-prose > p').first().click();
   await page.keyboard.press('Control+End');
-  await page.getByRole('button', { name: /^(insert macro|makro einfügen)$/i }).click();
-  await page.locator('dialog[open] select').first().selectOption('toc');
+  await insertBlock('toc');
   await page.locator('dialog[open] button[type=submit]').click();
   await page.waitForSelector('.ewe-prose .ewe-macro[data-macro="toc"]');
   // the property report with its own controls (sources, filters, columns)
   await page.keyboard.press('Control+End');
-  await page.getByRole('button', { name: /^(insert macro|makro einfügen)$/i }).click();
-  await page.locator('dialog[open] select').first().selectOption('properties');
+  await insertBlock('properties');
   await page.locator('dialog[open]').getByRole('button', { name: /^(add filter|filter hinzufügen)$/i }).waitFor();
   // the source builder: a building block by click
   await page.locator('dialog[open]').getByRole('button', { name: /^(add category|kategorie hinzufügen)$/i }).click();
@@ -449,9 +482,7 @@ test('editor: macros with parts, pictures of blocks, preview keeps the work, lea
   await ed.click();
   await page.keyboard.type('Intro');
   // an accordion starts with two parts; the help says how to add more
-  await page.getByRole('button', { name: /^(insert macro|makro einfügen)$/i }).click();
-  const dialog = page.locator('dialog[open]');
-  await dialog.locator('select').first().selectOption('accordion');
+  const dialog = await insertBlock('accordion');
   assert.match(await dialog.locator('.ew-help').first().innerText(), /\+ (Part|Teil)/);
   await dialog.locator('button[type=submit]').click();
   const acc = page.locator('.ewe-macro[data-macro="accordion"]');
@@ -469,8 +500,7 @@ test('editor: macros with parts, pictures of blocks, preview keeps the work, lea
   assert.match(await acc.locator('.ewe-macro-body').innerText(), new RegExp(`Question A${run}[\\s\\S]*Question C${run}[\\s\\S]*Answer C[\\s\\S]*Question D${run}`));
   // a block without content shows how it looks
   await page.locator('.ewe-prose > p').first().click();
-  await page.getByRole('button', { name: /^(insert macro|makro einfügen)$/i }).click();
-  await dialog.locator('select').first().selectOption('buttons');
+  await insertBlock('buttons');
   await dialog.getByLabel(/^(text of button 1|text der schaltfläche 1)/i).fill(`Go${run}`);
   await dialog.getByLabel(/^(link of button 1|link der schaltfläche 1)/i).fill('/');
   // every choice has a name, no bare values like "start"
@@ -487,10 +517,10 @@ test('editor: macros with parts, pictures of blocks, preview keeps the work, lea
   await page.getByRole('button', { name: /^(visual mode|visueller modus)$/i }).click();
   await ed.waitFor();
   // icon buttons show their name on hover (the browser's title is not shown twice)
-  const editBtn = acc.getByRole('button', { name: /^(edit macro|makro bearbeiten)$/i });
+  const editBtn = acc.getByRole('button', { name: /^(edit block|baustein bearbeiten)$/i });
   await editBtn.hover();
   const tip = page.locator('.ew-tooltip');
-  await tip.filter({ hasText: /^(edit macro|makro bearbeiten)$/i }).waitFor();
+  await tip.filter({ hasText: /^(edit block|baustein bearbeiten)$/i }).waitFor();
   assert.equal(await editBtn.getAttribute('title'), null);
   await page.keyboard.press('Escape');
   await tip.waitFor({ state: 'hidden' });
@@ -1926,7 +1956,7 @@ test('edit category texts and the default page from the category view', async ()
   await idle();
   await page.locator('.ew-tree a').first().click();
   await idle();
-  const edit = page.locator('.ew-pos--header-tools button[aria-pressed]');
+  const edit = page.locator('.ew-pos--header-tools button.ew-switch-btn[aria-pressed]');
   if ((await edit.getAttribute('aria-pressed')) !== 'true') { await edit.click(); await idle(); }
   await page.getByRole('button', { name: /^(edit category|kategorie bearbeiten)$/i }).click();
   const dlg = page.locator('dialog[open]');
@@ -2161,7 +2191,7 @@ test('permissions of an instance: a blog editor without page permissions, own pe
   await idle();
   await page.getByRole('button', { name: /^(permissions|rechte)$/i }).click();
   const dlg = page.locator('dialog[open]');
-  await dlg.getByText(/independent of the permissions for pages|unabhängig von den rechten für seiten/i).waitFor();
+  await dlg.getByText(/independent of the permissions for pages|unabhängig von den rechten für seiten/i).waitFor({ state: 'attached' }); // an explanation: hidden unless the person shows help texts
   await dlg.getByLabel(/^(applies to|gilt für)/i).selectOption('user');
   const who = dlg.getByPlaceholder(/name or user name|name oder benutzername/i);
   await who.fill(name);
@@ -2310,7 +2340,7 @@ test('arrange one page: title hidden (kept for screen readers), share below the 
     await idle();
     await page.locator('.ew-pos--element-header h1', { hasText: `Arranged ${run}` }).waitFor();
     await page.locator('.ew-pos--element-toolbar[role=group]').getByRole('button', { name: /^(share|teilen)/i }).waitFor();
-    const edit = page.locator('.ew-pos--header-tools button[aria-pressed]');
+    const edit = page.locator('.ew-pos--header-tools button.ew-switch-btn[aria-pressed]');
     if ((await edit.getAttribute('aria-pressed')) !== 'true') { await edit.click(); await idle(); }
     await page.getByRole('button', { name: /^(arrange page|seite anordnen)$/i }).click();
     const dlg = page.locator('dialog[open]');
@@ -2329,7 +2359,7 @@ test('arrange one page: title hidden (kept for screen readers), share below the 
     await a11y('page without a visible title');
     const lv = await call('GET', `/api/v1/placements/instance?target=${el.id}`);
     assert.deepEqual(lv.placements.map((x) => `${x.block}@${x.position}`).sort(), ['core.element.title@', 'core.share@element-footer']);
-    const off = page.locator('.ew-pos--header-tools button[aria-pressed]');
+    const off = page.locator('.ew-pos--header-tools button.ew-switch-btn[aria-pressed]');
     if ((await off.getAttribute('aria-pressed')) === 'true') { await off.click(); await idle(); }
   } finally {
     await call('PUT', `/api/v1/placements/instance?target=${el.id}`, { placements: [] });
@@ -2556,7 +2586,7 @@ test('category display: cards set in the settings, handbook navigation, tree, fe
   await call('PUT', `/api/v1/categories/${top.id}/settings`, { display: { view: 'list' } });
   await page.goto(`${BASE}/c/${top.id}`);
   await idle();
-  const edit = page.locator('.ew-pos--header-tools button[aria-pressed]');
+  const edit = page.locator('.ew-pos--header-tools button.ew-switch-btn[aria-pressed]');
   if ((await edit.getAttribute('aria-pressed')) !== 'true') { await edit.click(); await idle(); }
   await page.getByRole('button', { name: /^(arrange category page|kategorieseite anordnen)$/i }).click();
   const dlg = page.locator('dialog[open]');
@@ -2572,7 +2602,7 @@ test('category display: cards set in the settings, handbook navigation, tree, fe
   await page.locator('dialog[open]').waitFor({ state: 'detached' });
   assert.equal((await batch).status(), 200);
   await page.locator('.ew-pos--category-aside').getByRole('heading', { name: `Second ${run}` }).waitFor();
-  const off = page.locator('.ew-pos--header-tools button[aria-pressed]');
+  const off = page.locator('.ew-pos--header-tools button.ew-switch-btn[aria-pressed]');
   if ((await off.getAttribute('aria-pressed')) === 'true') { await off.click(); await idle(); }
   assert.ok(one.id > 0 && deep.id > 0);
 });
@@ -2673,9 +2703,7 @@ test('layout blocks: a section with options from the macro dialog, an icon box w
   await newPage('core.html', `Layout ${run}`);
   await page.locator('.ewe-prose').click();
   await page.keyboard.type('Intro');
-  await page.getByRole('button', { name: /^(insert macro|makro einfügen)$/i }).click();
-  const macroDlg = page.locator('dialog[open]').first();
-  await macroDlg.locator('select').first().selectOption('section');
+  const macroDlg = await insertBlock('section');
   await macroDlg.getByRole('button', { name: /^(options|optionen)$/i }).click();
   const opts = page.locator('dialog[open]').last();
   await opts.locator('summary', { hasText: /^(background|hintergrund)$/i }).click();
@@ -2692,9 +2720,7 @@ test('layout blocks: a section with options from the macro dialog, an icon box w
   await page.keyboard.type('Section body');
   // an icon box: the icon from the picker (search), the whole box one link
   await page.keyboard.press('Control+End');
-  await page.getByRole('button', { name: /^(insert macro|makro einfügen)$/i }).click();
-  const iconDlg = page.locator('dialog[open]').first();
-  await iconDlg.locator('select').first().selectOption('iconbox');
+  const iconDlg = await insertBlock('iconbox');
   await iconDlg.getByRole('button', { name: /^(choose an icon|symbol auswählen)$/i }).click();
   const picker = page.locator('dialog[open]').last();
   await picker.getByLabel(/^(search|suchen)$/i).fill('rocket');
@@ -2787,9 +2813,7 @@ test('wiki blocks: include a page chosen by title, page tree with filter, search
   await newPage('core.html', `Hub ${run}`);
   await page.locator('.ewe-prose').click();
   await page.keyboard.type('Intro');
-  await page.getByRole('button', { name: /^(insert macro|makro einfügen)$/i }).click();
-  const dlg = page.locator('dialog[open]').first();
-  await dlg.locator('select').first().selectOption('include');
+  const dlg = await insertBlock('include');
   const pick = dlg.getByRole('group', { name: /^(page|seite)$/i });
   await pick.getByRole('searchbox', { name: /^(search element|element suchen)$/i }).fill(`Okapi rules ${run}`);
   await pick.locator('option', { hasText: `Okapi rules ${run}` }).waitFor();
@@ -2964,7 +2988,9 @@ test('block templates: save selected blocks, insert them into another page', asy
   await page.keyboard.press('Enter');
   await page.keyboard.type('Monday to Friday');
   await page.keyboard.press('Control+A');
-  await page.getByRole('button', { name: /^(save as block template|als baustein-vorlage speichern)$/i }).click();
+  // in the menu "Insert block": save the selection as a template
+  await page.getByRole('button', { name: /^(insert block|baustein einfügen)$/i }).click();
+  await page.locator('dialog[open]').getByRole('button', { name: /^(save as block template|als baustein-vorlage speichern)$/i }).click();
   const save = page.locator('dialog[open]').last();
   await save.getByLabel(/^(name)/i).first().fill(`Hours ${run}`);
   await a11y('save a block template');
@@ -2976,11 +3002,13 @@ test('block templates: save selected blocks, insert them into another page', asy
   await page.locator('.ewe-prose').click();
   await page.keyboard.type('Intro');
   await page.keyboard.press('Enter');
-  await page.getByRole('button', { name: /^(insert a block template|baustein-vorlage einfügen)$/i }).click();
+  // the templates are a group of the menu "Insert block"
+  await page.getByRole('button', { name: /^(insert block|baustein einfügen)$/i }).click();
   const ins = page.locator('dialog[open]').last();
-  await ins.getByLabel(/^(block template|baustein-vorlage)$/i).selectOption({ label: `Hours ${run}` });
+  await ins.getByRole('treeitem', { name: /^(block templates|baustein-vorlagen)$/i }).waitFor();
+  await ins.getByRole('searchbox').fill(`Hours ${run}`);
   await a11y('insert a block template');
-  await ins.locator('button[type=submit]').click();
+  await ins.getByRole('treeitem', { name: `Hours ${run}`, exact: true }).click();
   await page.locator('.ewe-prose').getByText(`Opening hours ${run}`).waitFor();
   await page.getByRole('button', { name: /^(publish|veröffentlichen)$/i }).click();
   await page.waitForURL(/\/e\/\d+$/);
@@ -3172,7 +3200,7 @@ test('template designer: visual and with the keyboard, room and contrast help, u
     const width = page.getByLabel(/^(width \(rem\)|breite \(rem\))$/i);
     await width.fill('10');
     await page.keyboard.press('Tab');
-    await page.locator('.ewd-problems').getByText(/its 3 positions side by side need 13.0 rem, the block is 10 rem wide/).waitFor();
+    await page.locator('.ewd-problems').getByText(/its 3 positions side by side need 13.0 rem, the area is 10 rem wide/).waitFor();
     await a11y('the visual designer with a problem');
     // undo step by step back to the shipped state, redo once
     const undo = page.getByRole('button', { name: /^(undo|rückgängig)/i });
@@ -3692,10 +3720,10 @@ test('template designer, part 3: a warning for standard positions, widths by dra
     await page.getByLabel(/^(the sticky header gets lower|der klebende kopf wird beim scrollen niedriger)/i).check();
     await page.getByLabel(/^(the sticky header goes away|der klebende kopf verschwindet)/i).check();
     await page.getByLabel(/^(print only the content|nur den inhalt drucken)$/i).check();
-    // a footer that folds on the phone needs a name for every block
+    // a footer that folds on the phone needs a name for every area
     await page.getByRole('button', { name: /^(row 4 \(foot\)|zeile 4 \(foot\))$/i }).click();
     await page.getByLabel(/^(open and close on the phone|auf dem handy auf- und zuklappen)$/i).check();
-    await page.locator('.ewd-problems').getByText(/needs a name for every block/).waitFor();
+    await page.locator('.ewd-problems').getByText(/needs a name for every area/).waitFor();
     await a11y('the designer with the behaviours');
     await page.getByLabel(/^(open and close on the phone|auf dem handy auf- und zuklappen)$/i).uncheck();
     await page.getByText(/^(no problems|keine probleme)/i).first().waitFor();
@@ -4027,7 +4055,7 @@ test('a hidden page: not listed for readers, marked for editors, reachable by it
   const el = await call('POST', '/api/v1/elements', { category_id: cat, type: 'core.html', title: `Quiet ${run}`, body: { format: 'html', source: '<p>quiet</p>' } });
   await page.goto(`${BASE}/e/${el.id}`);
   await idle();
-  const edit = page.locator('.ew-pos--header-tools button[aria-pressed]');
+  const edit = page.locator('.ew-pos--header-tools button.ew-switch-btn[aria-pressed]');
   if ((await edit.getAttribute('aria-pressed')) !== 'true') { await edit.click(); await idle(); }
   await page.getByRole('button', { name: /^(properties|eigenschaften)$/i }).click();
   const dlg = page.locator('dialog[open]');
@@ -4044,7 +4072,7 @@ test('a hidden page: not listed for readers, marked for editors, reachable by it
   // readers: not listed (checked through the API of the category)
   assert.ok((await call('GET', `/api/v1/categories/${cat}`)).elements.some((x) => x.id === el.id && x.hidden), 'listed for editors, marked');
   // leave the edit mode as it was for the next tests
-  const off = page.locator('.ew-pos--header-tools button[aria-pressed]');
+  const off = page.locator('.ew-pos--header-tools button.ew-switch-btn[aria-pressed]');
   if ((await off.getAttribute('aria-pressed')) === 'true') { await off.click(); await idle(); }
 });
 
@@ -4053,7 +4081,7 @@ test('rights of a page: own rights only, a rule, the note on the page', async ()
   const el = await call('POST', '/api/v1/elements', { category_id: cat, type: 'core.html', title: `Guarded ${run}`, body: { format: 'html', source: '<p>guarded</p>' } });
   await page.goto(`${BASE}/e/${el.id}`);
   await idle();
-  const edit = page.locator('.ew-pos--header-tools button[aria-pressed]');
+  const edit = page.locator('.ew-pos--header-tools button.ew-switch-btn[aria-pressed]');
   if ((await edit.getAttribute('aria-pressed')) !== 'true') { await edit.click(); await idle(); }
   await page.getByRole('button', { name: /^(rights|rechte)$/i }).click();
   let dlg = page.locator('dialog[open]');
@@ -4101,7 +4129,7 @@ test('rights of a page: own rights only, a rule, the note on the page', async ()
   await a11y('permission overview with a page rule');
   await page.goto(`${BASE}/e/${el.id}`);
   await idle();
-  const off = page.locator('.ew-pos--header-tools button[aria-pressed]');
+  const off = page.locator('.ew-pos--header-tools button.ew-switch-btn[aria-pressed]');
   if ((await off.getAttribute('aria-pressed')) === 'true') { await off.click(); await idle(); }
 });
 
@@ -4133,7 +4161,7 @@ test('FAQ: sections, questions, filter and quick add', async () => {
   await dlg.locator('button[type=submit]').click();
   await page.locator(`summary:has-text("Quick ${run}?")`).waitFor();
   // edit mode: edit and delete a question directly in the FAQ
-  const edit = page.locator('.ew-pos--header-tools button[aria-pressed]');
+  const edit = page.locator('.ew-pos--header-tools button.ew-switch-btn[aria-pressed]');
   if ((await edit.getAttribute('aria-pressed')) !== 'true') { await edit.click(); await idle(); }
   await page.locator('.ewq-edit').first().waitFor({ state: 'attached' });
   const quick = page.locator('details.ewq-q', { hasText: `Quick ${run}?` });
@@ -4421,7 +4449,7 @@ test('translate a category', async () => {
   const cat = await m6Category();
   await page.goto(`${BASE}/c/${cat}`);
   await idle();
-  const edit = page.locator('.ew-pos--header-tools button[aria-pressed]');
+  const edit = page.locator('.ew-pos--header-tools button.ew-switch-btn[aria-pressed]');
   if ((await edit.getAttribute('aria-pressed')) !== 'true') { await edit.click(); await idle(); }
   await page.getByRole('button', { name: /^(translations|übersetzungen)/i }).click();
   const dlg = page.locator('dialog[open]');
@@ -4462,7 +4490,7 @@ test('reactions, favorites and page properties', async () => {
   await page.getByRole('button', { name: /^(☆|★)?\s*(favorite|favorit)$/i }).click();
   await page.locator('.ewfav a', { hasText: `M11 page ${run}` }).waitFor();
   // properties: quick editing in edit mode with a free property
-  const edit = page.locator('.ew-pos--header-tools button[aria-pressed]');
+  const edit = page.locator('.ew-pos--header-tools button.ew-switch-btn[aria-pressed]');
   if ((await edit.getAttribute('aria-pressed')) !== 'true') { await edit.click(); await idle(); }
   await page.getByRole('button', { name: /^(add properties|eigenschaften hinzufügen)/i }).click();
   const dlg = page.locator('dialog[open]');
@@ -5468,7 +5496,7 @@ test('category administration: a permission for a person takes effect and ends, 
     // order of the subcategories (edit mode)
     await page.goto(`${BASE}/c/${top}`);
     await idle();
-    const edit = page.locator('.ew-pos--header-tools button[aria-pressed]');
+    const edit = page.locator('.ew-pos--header-tools button.ew-switch-btn[aria-pressed]');
     if ((await edit.getAttribute('aria-pressed')) !== 'true') await edit.click();
     await page.getByRole('button', { name: new RegExp(`^(move Two ${run} up|Two ${run} nach oben)$`, 'i') }).click();
     await toastOn(/order changed|reihenfolge geändert/i);
@@ -5532,6 +5560,40 @@ test('category administration: a permission for a person takes effect and ends, 
   } finally {
     await ctx2.close();
   }
+});
+
+test('help texts: explanations hidden by default, shown with "?" or in the profile, notes to fill in always there', async () => {
+  await page.goto(`${BASE}/profile`);
+  await idle();
+  const editorHelp = page.locator('.ew-help', { hasText: /^(both editors save markdown|beide editoren speichern markdown)/i });
+  const rules = page.locator('.ew-help', { hasText: /^(at least 12 characters|mindestens 12 zeichen)/i });
+  // off by default: the explanation is gone, also for screen readers; the
+  // rules for the password stay
+  await editorHelp.waitFor({ state: 'attached' });
+  assert.equal(await editorHelp.isVisible(), false);
+  const editorSel = page.getByLabel(/^(editor for pages|editor für seiten)$/i).first();
+  const helpId = await editorHelp.getAttribute('id');
+  assert.ok(!((await editorSel.getAttribute('aria-describedby')) ?? '').split(' ').includes(helpId), 'a hidden text does not describe its field');
+  if (await rules.count()) assert.equal(await rules.first().isVisible(), true);
+  const box = page.getByRole('checkbox', { name: /^(show help texts|hilfetexte anzeigen)$/i });
+  assert.equal(await box.isChecked(), false);
+  // the "?" button switches it on, for the person (it stays after loading)
+  const toggle = page.getByRole('button', { name: /^(help texts|hilfetexte)$/i });
+  assert.equal(await toggle.getAttribute('aria-pressed'), 'false');
+  await toggle.click();
+  await editorHelp.waitFor();
+  assert.equal(await toggle.getAttribute('aria-pressed'), 'true');
+  await page.waitForFunction((id) => (document.querySelector('[aria-describedby*="' + id + '"]') !== null), helpId);
+  await a11y('help texts shown');
+  await page.reload();
+  await idle();
+  await page.locator('.ew-help', { hasText: /^(both editors save markdown|beide editoren speichern markdown)/i }).waitFor();
+  assert.equal(await page.getByRole('checkbox', { name: /^(show help texts|hilfetexte anzeigen)$/i }).isChecked(), true);
+  // off again in the profile
+  await page.getByRole('checkbox', { name: /^(show help texts|hilfetexte anzeigen)$/i }).uncheck();
+  await page.locator('form.ew-form').first().getByRole('button', { name: /^(save|speichern)$/i }).click();
+  await page.locator('.ew-help', { hasText: /^(both editors save markdown|beide editoren speichern markdown)/i }).waitFor({ state: 'hidden' });
+  assert.equal(await page.getByRole('button', { name: /^(help texts|hilfetexte)$/i }).getAttribute('aria-pressed'), 'false');
 });
 
 test('own profile: data, e-mail addresses, notifications, watches, feed key, API keys, SSH keys, sessions, password', async () => {

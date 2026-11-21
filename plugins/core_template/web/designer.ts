@@ -19,6 +19,9 @@ const FRAME_PX: Record<ViewName, number> = { desktop: 1280, tablet: 768, mobile:
 const FRAME_HEIGHT = 760;
 const HISTORY_MAX = 100;
 
+
+/** The kind of an area in its name (an area with positions is just an area). */
+const kindName = (kind: string): string => (kind === 'area' ? t('template.d_name_area') : t(`template.d_kind_${kind}`));
 export interface Tpl {
   id: string; key: string; names: Record<string, string>; design?: Design; version: number; read_only?: boolean;
   may?: { edit: boolean; manage: boolean };
@@ -296,7 +299,7 @@ export async function designer(panel: HTMLElement, key: string, back: () => void
               change((d) => { d.rows.splice(ri, 1); sel = { row: Math.max(0, ri - 1), block: null }; });
             })(), { variant: 'subtle', ariaLabel: `${t('common.delete')}: ${rowName}`, id: cid(`row-${ri}-del`) }))),
         h('ul', { class: 'ewd-s-blocks' }, ...r.blocks.map((b, bi) => {
-          const name = `${pick(b.label) || b.id} (${t(`template.d_kind_${b.kind}`)})`;
+          const name = `${pick(b.label) || b.id} (${kindName(b.kind)})`;
           const on = sel.row === ri && sel.block === bi;
           return h('li', { class: ['ewd-s-block', on && 'ewd-selected'] },
             button(name, () => { sel = { row: ri, block: bi }; renderVisual(); }, { variant: on ? 'primary' : 'subtle', pressed: on, id: cid(`b-${ri}-${bi}`) }),
@@ -433,7 +436,7 @@ export async function designer(panel: HTMLElement, key: string, back: () => void
           if (Object.keys(v).length) d.rows[ri].blocks[bi].label = v; else delete d.rows[ri].blocks[bi].label;
         }));
         const pr = positionsRoom(b);
-        body.push(h('h3', null, `${pick(b.label) || b.id} (${t(`template.d_kind_${b.kind}`)})`),
+        body.push(h('h3', null, `${pick(b.label) || b.id} (${kindName(b.kind)})`),
           txt(`b${ri}-${bi}-id`, t('template.d_id'), b.id, (d, v) => { d.rows[ri].blocks[bi].id = v; }, t('template.d_id_help')),
           sel1(`b${ri}-${bi}-kind`, t('template.d_kind'), ['area', 'brand', 'content'], b.kind, (o) => t(`template.d_kind_${o}`), (d, v) => {
             const x = d.rows[ri].blocks[bi];

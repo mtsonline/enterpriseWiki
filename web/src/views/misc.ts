@@ -10,6 +10,7 @@ import { PERMS, type Principal } from '../core/types';
 import { announce, toast } from '../core/announce';
 import { button, checkbox, confirmDialog, errorText, field, formDialog, openDialog, pageHeader, select, textArea, textInput } from '../components/ui';
 import { invalidateTree, langName, setContext } from '../components/widgets';
+import { helpShown, syncHelp } from '../core/helptexts';
 import { typeLabel } from '../coreplugin';
 import { categoryView, elementView, errorPage, notFoundPage } from './content';
 import { watchDialog, type Watch } from '../components/watch';
@@ -391,13 +392,14 @@ export async function profileView({ main }: RouteCtx): Promise<void> {
   const lang = select([{ value: '', label: t('profile.lang_auto') }, ...state.site.languages.map((l) => ({ value: l, label: langName(l) }))], u.language);
   const editorSel = select([{ value: '', label: t('profile.editor_default', { name: t(`editor.kind.${state.site.editor ?? 'visual'}`) }) },
     ...(prefs.options.editor ?? []).map((v) => ({ value: v, label: t(`editor.kind.${v}`) }))], prefs.prefs.editor ?? '');
+  const helpBox = checkbox(t('profile.help_texts'), helpShown(), { help: t('profile.help_texts_help') });
   const pAlert = h('div', { class: 'ew-form-alert', role: 'alert' });
   const alias = textInput({ value: u.alias ?? '', autocomplete: 'username', maxlength: 64 });
   const aliasManaged = !!u.alias_source;
   if (aliasManaged) alias.readOnly = true;
   const pForm = h('form', { class: 'ew-form', novalidate: true }, pAlert, field(t('profile.display_name'), name),
     field(t('alias.label'), alias, { help: aliasManaged ? t('alias.managed_self') : t('alias.help_self') }), field(t('profile.language'), lang),
-    field(t('profile.editor'), editorSel, { help: t('profile.editor_help') }),
+    field(t('profile.editor'), editorSel, { help: t('profile.editor_help') }), helpBox.el,
     h('div', { class: 'ew-form-actions' }, button(t('common.save'), () => undefined, { type: 'submit', variant: 'primary' })));
   pForm.addEventListener('submit', async (ev) => {
     ev.preventDefault();
@@ -406,11 +408,14 @@ export async function profileView({ main }: RouteCtx): Promise<void> {
         await api.put('me/alias', { alias: alias.value.trim() });
         u.alias = alias.value.trim() || undefined;
       }
-      await api.put('me', { display_name: name.value, language: lang.value, prefs: { editor: editorSel.value } });
+      await api.put('me', { display_name: name.value, language: lang.value, prefs: { editor: editorSel.value, help: helpBox.input.checked ? 'show' : '' } });
       const prefs = { ...(u.prefs ?? {}) };
       if (editorSel.value) prefs.editor = editorSel.value;
       else delete prefs.editor;
+      if (helpBox.input.checked) prefs.help = 'show';
+      else delete prefs.help;
       Object.assign(u, { display_name: name.value, language: lang.value, prefs });
+      syncHelp();
       changed();
       toast(t('common.saved'));
     } catch (e) { pAlert.textContent = errorText(e); }

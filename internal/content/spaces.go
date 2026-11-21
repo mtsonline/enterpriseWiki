@@ -346,7 +346,7 @@ func (s *Service) cleanSpace(in Space) (Space, error) {
 	}
 	for _, m := range in.AllowedMacros {
 		if s.macro(m) == nil {
-			return out, apperr.BadRequest("unknown or disabled macro %q", m)
+			return out, apperr.BadRequest("unknown or disabled block %q", m)
 		}
 		if !slices.Contains(out.AllowedMacros, m) {
 			out.AllowedMacros = append(out.AllowedMacros, m)

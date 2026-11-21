@@ -17,7 +17,8 @@ import (
 // and "Sign out". Without the script the link to the sign-in page remains.
 type login struct{}
 
-func (login) Name() string { return "login" }
+func (login) Name() string  { return "login" }
+func (login) Group() string { return "navigation" }
 func (login) Labels() map[string]string {
 	return lm("Sign-in box", "Anmelde-Baustein")
 }

@@ -274,6 +274,7 @@ type macro struct{ p *Plugin }
 func lm(en, de string) map[string]string { return map[string]string{"en": en, "de": de} }
 
 func (m *macro) Name() string              { return "shell" }
+func (m *macro) Group() string             { return "automation" }
 func (m *macro) Labels() map[string]string { return lm("Shell command", "Shell-Befehl") }
 func (m *macro) Description() map[string]string {
 	return lm("Inserts the output of a command. A superadmin must approve the exact command first.",

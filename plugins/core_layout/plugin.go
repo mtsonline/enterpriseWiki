@@ -79,6 +79,7 @@ var widths = []string{"normal", "wide", "full"}
 type section struct{}
 
 func (section) Name() string              { return "section" }
+func (section) Group() string             { return "layout" }
 func (section) Labels() map[string]string { return lm("Section", "Abschnitt") }
 func (section) Description() map[string]string {
 	return lm("A page section with background and width.", "Ein Seitenabschnitt mit Hintergrund und Breite.")
@@ -101,6 +102,7 @@ func (section) Render(_ context.Context, mc content.MacroContext) (string, error
 type hero struct{}
 
 func (hero) Name() string              { return "hero" }
+func (hero) Group() string             { return "layout" }
 func (hero) Labels() map[string]string { return lm("Hero banner", "Hero-Banner") }
 func (hero) Description() map[string]string {
 	return lm("A large introduction with title, text and button.", "Eine große Einleitung mit Titel, Text und Schaltfläche.")
@@ -139,6 +141,7 @@ func (hero) Render(_ context.Context, mc content.MacroContext) (string, error) {
 type cards struct{}
 
 func (cards) Name() string              { return "cards" }
+func (cards) Group() string             { return "layout" }
 func (cards) Labels() map[string]string { return lm("Cards / features", "Karten / Features") }
 func (cards) Description() map[string]string {
 	return lm("A grid of cards. Separate the cards with a horizontal line.", "Ein Raster aus Karten. Karten mit einer Trennlinie trennen.")
@@ -167,6 +170,7 @@ type button struct{}
 var buttonStyles = []string{"primary", "secondary"}
 
 func (button) Name() string              { return "button" }
+func (button) Group() string             { return "navigation" }
 func (button) Labels() map[string]string { return lm("Button link", "Schaltflächen-Link") }
 func (button) Description() map[string]string {
 	return lm("A link shown as a prominent button.", "Ein Link, der als auffällige Schaltfläche erscheint.")
@@ -191,6 +195,7 @@ type spacer struct{}
 var sizes = []string{"medium", "small", "large"}
 
 func (spacer) Name() string                   { return "spacer" }
+func (spacer) Group() string                  { return "text" }
 func (spacer) Labels() map[string]string      { return lm("Spacer", "Abstand") }
 func (spacer) Description() map[string]string { return lm("Vertical space.", "Vertikaler Abstand.") }
 func (spacer) HasBody() bool                  { return false }

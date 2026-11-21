@@ -1,7 +1,7 @@
 {
  "macro.shell.title": "Shell commands",
- "macro.shell.help": "Pages can show the output of shell commands with the \"Shell command\" macro. A command only runs after a superadmin has approved exactly this command text; every change needs a new approval. Commands run with a timeout as an unprivileged user.",
- "macro.shell.disabled": "Shell macros are switched off on this server (plugins.macros.shell_enabled in config.yaml). Approved commands do not run until they are switched on.",
+ "macro.shell.help": "Pages can show the output of shell commands with the \"Shell command\" block. A command only runs after a superadmin has approved exactly this command text; every change needs a new approval. Commands run with a timeout as an unprivileged user.",
+ "macro.shell.disabled": "Shell blocks are switched off on this server (plugins.macros.shell_enabled in config.yaml). Approved commands do not run until they are switched on.",
  "macro.shell.no_approver": "You can see the commands but not approve them. Only superadmins listed in plugins.macros.shell_approvers in config.yaml (e.g. {user}) or the local command line can approve.",
  "macro.shell.add": "Add command",
  "macro.shell.command": "Command",
@@ -21,7 +21,7 @@
  "macro.shell.requested": "Requested",
  "macro.shell.page": "Page",
  "macro.shell.last_run": "Last run",
- "macro.shell.empty": "No commands yet. They appear here as soon as a page uses the shell macro.",
+ "macro.shell.empty": "No commands yet. They appear here as soon as a page uses the shell block.",
  "perm.macro.shell.manage": "Manage shell commands",
- "perm.macro.shell.manage_help": "Define and approve the commands of the shell macro (approvers must also be listed in config.yaml)."
+ "perm.macro.shell.manage_help": "Define and approve the commands of the shell block (approvers must also be listed in config.yaml)."
 }
