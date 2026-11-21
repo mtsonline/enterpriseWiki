@@ -351,11 +351,11 @@ func buildDemo(d *demoRun) {
 		macro("hero", map[string]string{"subtitle": "Sections, hero banners, cards and buttons for website-like pages", "button": "Back to the tour", "link": "/demo" + suffix, "background": "accent"}, "<p>Building blocks</p>")+
 			macro("section", map[string]string{"background": "light", "width": "normal", "align": "center"}, "<h2>A section</h2><p>With a background and centred text.</p>")+
 			macro("cards", nil, "<h3>Fast</h3><p>One single program.</p><hr><h3>Secure</h3><p>Permissions on every level.</p><hr><h3>Accessible</h3><p>WCAG 2.2 AA.</p>")+
-			macro("spacer", nil, "")+macro("button", map[string]string{"text": "Open the FAQ", "link": "/wiki", "style": "primary"}, ""),
+			macro("spacer", nil, "")+macro("button", map[string]string{"text": "Open the FAQ", "link": "/wiki", "look": "primary"}, ""),
 		macro("hero", map[string]string{"subtitle": "Abschnitte, Hero-Banner, Karten und Buttons für Website-Seiten", "button": "Zurück zum Rundgang", "link": "/demo" + suffix, "background": "accent"}, "<p>Bausteine</p>")+
 			macro("section", map[string]string{"background": "light", "width": "normal", "align": "center"}, "<h2>Ein Abschnitt</h2><p>Mit Hintergrund und zentriertem Text.</p>")+
 			macro("cards", nil, "<h3>Schnell</h3><p>Ein einziges Programm.</p><hr><h3>Sicher</h3><p>Rechte auf jeder Ebene.</p><hr><h3>Barrierefrei</h3><p>WCAG 2.2 AA.</p>")+
-			macro("spacer", nil, "")+macro("button", map[string]string{"text": "Zu den FAQ", "link": "/wiki", "style": "primary"}, ""), nil)
+			macro("spacer", nil, "")+macro("button", map[string]string{"text": "Zu den FAQ", "link": "/wiki", "look": "primary"}, ""), nil)
 
 	// ---- 2. news: a blog with posts
 	news := d.category(root, "News", "Neuigkeiten", "A blog: the pages of this category are the posts.", "Ein Blog: die Seiten dieser Kategorie sind die Beiträge.", nil)
@@ -519,7 +519,7 @@ func buildDemo(d *demoRun) {
 				`<h2>` + tr("External videos", "Externe Videos") + `</h2><p>` +
 				tr("The block <em>External video or embed</em> shows a video of a service outside the wiki. Nothing is loaded from the service until the reader presses <em>Load content</em>. Only services an administrator allows under <em>Administration → Settings → Media</em> work; this demo allows none, so there is no video here. Example in Markdown:",
 					"Der Baustein <em>Externes Video oder Einbettung</em> zeigt ein Video eines Dienstes außerhalb des Wikis. Vom Dienst wird nichts geladen, bevor die lesende Person <em>Inhalt laden</em> drückt. Es gehen nur Dienste, die die Administration unter <em>Administration → Einstellungen → Medien</em> erlaubt; diese Demo erlaubt keinen, darum steht hier kein Video. Beispiel in Markdown:") +
-				`</p><pre><code>::embed{url="https://vimeo.com/76979871" title="` + tr("Introduction", "Einführung") + `"}</code></pre>` +
+				`</p><pre><code>::embed{address="https://vimeo.com/76979871" title="` + tr("Introduction", "Einführung") + `"}</code></pre>` +
 				`<p>` + tr("Questions about the ", "Fragen zur ") + `<span data-macro="tooltip" data-params='{"text":"VPN","tip":"` + tr("Virtual private network: the secure way into the company network from outside.", "Virtuelles privates Netz: der sichere Weg ins Firmennetz von außen.") + `"}'></span>` + tr(" go to the IT desk.", " beantwortet die IT.") + `</p>`
 		}
 		d.page(start, "Figures and steps", "Zahlen und Schritte", page("en"), page("de"), nil)
@@ -637,14 +637,14 @@ func buildDemo(d *demoRun) {
 		})
 		rep := func(params map[string]string) string {
 			params["source"] = src
-			if params["filter"] != "" {
-				params["filter"] += "; "
+			if params["conditions"] != "" {
+				params["conditions"] += "; "
 			}
-			params["filter"] += "tags has project"
+			params["conditions"] += "tags has project"
 			return macro("properties", params, "")
 		}
 		de := "<p>Berichte aus den Eigenschaften der Projekte – jeweils mit den Rechten der Lesenden.</p>" +
-			"<h2>Tabelle nach Status mit Summen</h2>" + rep(map[string]string{"view": "table", "columns": "ref,priority,owner,budget,spent,progress", "group": "status", "totals": "true", "sort": "-budget", "live_filters": "priority,owner"}) +
+			"<h2>Tabelle nach Status mit Summen</h2>" + rep(map[string]string{"view": "table", "columns": "ref,priority,owner,budget,spent,progress", "group": "status", "totals": "true", "sorting": "-budget", "live_filters": "priority,owner"}) +
 			"<h2>Board</h2>" + rep(map[string]string{"view": "kanban", "group": "status", "columns": "priority,owner,due"}) +
 			"<h2>Budget nach Status</h2>" + rep(map[string]string{"view": "chart", "chart": "bar", "group": "status", "agg": "sum", "value": "budget", "title": "Budget nach Status"}) +
 			"<h2>Projekte nach Bereich und Priorität</h2>" + rep(map[string]string{"view": "chart", "chart": "stacked", "group": "areas", "group2": "priority", "title": "Projekte nach Bereich und Priorität"}) +
@@ -653,7 +653,7 @@ func buildDemo(d *demoRun) {
 			"<h2>Pivot: Status × Priorität</h2>" + rep(map[string]string{"view": "pivot", "group": "status", "group2": "priority"}) +
 			"<h2>Zeitleiste</h2>" + rep(map[string]string{"view": "timeline", "date": "period"}) +
 			"<h2>Kalender der Meilensteine</h2>" + rep(map[string]string{"view": "calendar", "date": "due"}) +
-			"<h2>Überfällig und bald fällig</h2>" + rep(map[string]string{"view": "overdue", "date": "due", "columns": "owner,status", "filter": "status != Done"}) +
+			"<h2>Überfällig und bald fällig</h2>" + rep(map[string]string{"view": "overdue", "date": "due", "columns": "owner,status", "conditions": "status != Done"}) +
 			"<h2>Vollständigkeit</h2>" + rep(map[string]string{"view": "completeness", "columns": "owner,due,budget,rating"}) +
 			"<h2>Standorte</h2>" + rep(map[string]string{"view": "map", "columns": "site"})
 		en := strings.NewReplacer("Berichte aus den Eigenschaften der Projekte – jeweils mit den Rechten der Lesenden.", "Reports from the properties of the projects – always with the permissions of the reader.",
@@ -903,8 +903,8 @@ func buildDemo(d *demoRun) {
 		d.element(docs, "content.notes", d.tr("Meeting notes (shared)", "Besprechungsnotizen (gemeinsam)"), bodies, nil)
 	})
 	d.page(docs, "Report: page properties", "Bericht: Seiteneigenschaften",
-		"<p>All pages of the demo with their properties:</p>"+macro("properties", map[string]string{"source": "category:" + strconv.FormatInt(root, 10) + "+sub", "filter": "responsible notempty", "columns": "responsible,state,review", "limit": "50"}, ""),
-		"<p>Alle Seiten der Demo mit ihren Eigenschaften:</p>"+macro("properties", map[string]string{"source": "category:" + strconv.FormatInt(root, 10) + "+sub", "filter": "responsible notempty", "columns": "responsible,state,review", "limit": "50"}, ""), nil)
+		"<p>All pages of the demo with their properties:</p>"+macro("properties", map[string]string{"source": "category:" + strconv.FormatInt(root, 10) + "+sub", "conditions": "responsible notempty", "columns": "responsible,state,review", "limit": "50"}, ""),
+		"<p>Alle Seiten der Demo mit ihren Eigenschaften:</p>"+macro("properties", map[string]string{"source": "category:" + strconv.FormatInt(root, 10) + "+sub", "conditions": "responsible notempty", "columns": "responsible,state,review", "limit": "50"}, ""), nil)
 
 	// a page with rights of its own: only administrators and managers of the
 	// category see it (own rights only), classified strictly confidential

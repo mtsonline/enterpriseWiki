@@ -6,7 +6,7 @@ import { api } from '../core/api';
 import { h, uid } from '../core/dom';
 import { t } from '../core/i18n';
 import { state } from '../core/state';
-import { optionsCSS, problems, SCHEMA, type BlockOptions, type OptionDef, type OptionValue, type ViewName } from '../core/blockoptions';
+import { decodeOptions, encodeOptions, optionsCSS, problems, SCHEMA, type BlockOptions, type OptionDef, type OptionValue, type ViewName } from '../core/blockoptions';
 import { button, field, openDialog, select } from './ui';
 import { mediaURL, pickMedium } from './media';
 
@@ -181,12 +181,11 @@ export function optionsDialog(blockLabel: string, current: BlockOptions, done: (
 
 /** The control of the parameter "options" of every block in the content (in
  * the dialog of a macro): a button that opens the options; the value is
- * their JSON. */
+ * their text form (encodeOptions: no JSON, which firewalls block). */
 export function blockOptionsControl(value: string, ctx: { label: string }): { el: HTMLElement; get: () => string } {
   let current: BlockOptions = {};
   try {
-    const v = value ? JSON.parse(value) as unknown : {};
-    if (v && typeof v === 'object' && !Array.isArray(v)) current = v as BlockOptions;
+    current = decodeOptions(value ?? '');
   } catch { /* an unreadable value is replaced by the options chosen */ }
   const summary = h('span', { class: 'ew-help' });
   const show = () => {
@@ -197,6 +196,6 @@ export function blockOptionsControl(value: string, ctx: { label: string }): { el
   show();
   return {
     el: h('div', { class: 'ew-field' }, h('span', { class: 'ew-label' }, ctx.label), h('div', { class: 'ew-actions' }, open, summary)),
-    get: () => (Object.keys(current).length ? JSON.stringify(current) : ''),
+    get: () => encodeOptions(current),
   };
 }

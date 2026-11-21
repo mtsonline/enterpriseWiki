@@ -2723,7 +2723,7 @@ test('layout blocks: a section with options from the macro dialog, an icon box w
   await page.getByRole('link', { name: 'Launch' }).waitFor();
   // grid, tabs and accordion on one page
   const cat = (await call('POST', '/api/v1/categories', { titles: { en: `Layout ${run}` } })).id;
-  const src = ':::grid{desktop=3 tablet=2}\nOne\n***\nTwo\n***\nThree\n:::\n\n:::tabs{label="Steps"}\n## First\nText A\n***\n## Second\nText B\n***\n## Third\nText C\n:::\n\n:::accordion{one=true first=true}\n### Question one\nAnswer one\n***\n### Question two\nAnswer two\n:::\n\n::buttons{text1="Start" link1="/" text2="More" link2="/search" layout=full}\n';
+  const src = ':::grid{desktop=3 tablet=2}\nOne\n***\nTwo\n***\nThree\n:::\n\n:::tabs{label="Steps"}\n## First\nText A\n***\n## Second\nText B\n***\n## Third\nText C\n:::\n\n:::accordion{single=true first=true}\n### Question one\nAnswer one\n***\n### Question two\nAnswer two\n:::\n\n::buttons{text1="Start" link1="/" text2="More" link2="/search" layout=full}\n';
   const el = await call('POST', '/api/v1/elements', { category_id: cat, type: 'core.html', title: `Blocks ${run}`, body: { format: 'markdown', source: src } });
   await page.goto(`${BASE}/e/${el.id}`);
   await idle();
@@ -3002,8 +3002,8 @@ test('blocks: news as tiles with a tag filter, live search, a picture opens larg
   const fs = await import('node:fs');
   const vid = await upload(`loop-${run}.webm`, fs.readFileSync(new URL('./fixtures/background.webm', import.meta.url)), 'video/webm');
   assert.ok(img > 0 && vid > 0, 'uploaded');
-  const opts = JSON.stringify({ bg_video: `/api/v1/media/${vid}/view`, overlay_color: '#000000', overlay_opacity: 70, text_color: '#ffffff', padding_top: 4 }).replace(/"/g, '\\"');
-  const src = `::news{layout=tiles columns=3 filter=true source="category:${cat}"}\n\n::searchbox{category=${cat} label="Find here"}\n\n![A wide picture](/api/v1/media/${img}/view)\n\n:::section{options="${opts}"}\nText on a video\n:::\n`;
+  const opts = `padding_top:4 bg_video:/api/v1/media/${vid}/view overlay_color:#000000 overlay_opacity:70 text_color:#ffffff`;
+  const src = `::news{layout=tiles columns=3 tag_buttons=true source="category:${cat}"}\n\n::searchbox{category=${cat} label="Find here"}\n\n![A wide picture](/api/v1/media/${img}/view)\n\n:::section{options="${opts}"}\nText on a video\n:::\n`;
   const el = await call('POST', '/api/v1/elements', { category_id: cat, type: 'core.html', title: `Tiles page ${run}`, body: md(src) });
   await page.goto(`${BASE}/e/${el.id}`);
   await idle();
@@ -3532,7 +3532,7 @@ test('blocks B, part 5: an external video loads only after consent, from an allo
     assert.deepEqual((await call('GET', '/api/v1/admin/settings')).config.media.embed_allow, ['https://video.example.com']);
     const cat = (await call('POST', '/api/v1/categories', { titles: { en: `Embeds ${run}` } })).id;
     const el = await call('POST', '/api/v1/elements', { category_id: cat, type: 'core.html', title: `Embed ${run}`,
-      body: { format: 'markdown', source: '::embed{url="https://video.example.com/v/1" title="Intro video" caption="Part 1"}' } });
+      body: { format: 'markdown', source: '::embed{address="https://video.example.com/v/1" title="Intro video" caption="Part 1"}' } });
     await page.goto(`${BASE}/e/${el.id}`);
     await idle();
     const fig = page.locator('figure.ewl-embed');

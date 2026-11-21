@@ -264,7 +264,7 @@ func (dialog) Params() []content.MacroParam {
 		{Name: "button", Labels: lm("Button text", "Schaltflächentext"), Type: "text", Required: true},
 		{Name: "title", Labels: lm("Title of the dialog", "Titel des Dialogs"), Type: "text", Required: true},
 		{Name: "icon", Labels: lm("Icon of the button", "Symbol der Schaltfläche"), Type: "custom:icon"},
-		{Name: "style", Labels: lm("Style of the button", "Stil der Schaltfläche"), Type: "select", Options: []string{"primary", "secondary", "link"}, Default: "secondary"},
+		{Name: "look", Labels: lm("Style of the button", "Stil der Schaltfläche"), Type: "select", Options: []string{"primary", "secondary", "link"}, Default: "secondary"},
 	}
 }
 
@@ -287,7 +287,7 @@ func (dialog) Render(_ context.Context, mc content.MacroContext) (string, error)
 	if err != nil {
 		return "", err
 	}
-	style := oneOf(mc.Params["style"], []string{"secondary", "primary", "link"})
+	style := oneOf(mc.Params["look"], []string{"secondary", "primary", "link"})
 	// without script: content to open and close in place; the browser makes
 	// a button and a modal dialog of it
 	return fmt.Sprintf(`<details class="ewl-dialog" data-ew-widget="ewl.dialog"><summary class="ewl-cta ewl-cta--%s">%s%s</summary><div class="ewl-dialog-content"><p class="ewl-dialog-title">%s</p><div class="ewl-dialog-body">%s</div></div></details>`,

@@ -57,7 +57,7 @@ func iconHTML(name, style, size, label string, decorative bool) string {
 func iconParams() []content.MacroParam {
 	return []content.MacroParam{
 		{Name: "name", Labels: lm("Icon", "Symbol"), Type: "custom:icon", Required: true},
-		{Name: "style", Labels: lm("Style", "Stil"), Type: "select", Options: iconStyles, Default: "outline"},
+		{Name: "look", Labels: lm("Style", "Stil"), Type: "select", Options: iconStyles, Default: "outline"},
 		{Name: "size", Labels: lm("Size", "Größe"), Type: "select", Options: iconSizes, Default: "m"},
 	}
 }
@@ -85,7 +85,7 @@ func (icon) Params() []content.MacroParam {
 	return append(iconParams(), labelParams()...)
 }
 func (icon) Render(_ context.Context, mc content.MacroContext) (string, error) {
-	name, style := strings.TrimSpace(mc.Params["name"]), oneOf(mc.Params["style"], iconStyles)
+	name, style := strings.TrimSpace(mc.Params["name"]), oneOf(mc.Params["look"], iconStyles)
 	if err := checkIcon(name, style); err != nil {
 		return "", err
 	}
@@ -115,7 +115,7 @@ func (iconbox) Params() []content.MacroParam {
 	)
 }
 func (iconbox) Render(_ context.Context, mc content.MacroContext) (string, error) {
-	name, style := strings.TrimSpace(mc.Params["name"]), oneOf(mc.Params["style"], iconStyles)
+	name, style := strings.TrimSpace(mc.Params["name"]), oneOf(mc.Params["look"], iconStyles)
 	if err := checkIcon(name, style); err != nil {
 		return "", err
 	}
@@ -156,7 +156,7 @@ func (iconlist) Params() []content.MacroParam {
 	return p
 }
 func (iconlist) Render(_ context.Context, mc content.MacroContext) (string, error) {
-	name, style := strings.TrimSpace(mc.Params["name"]), oneOf(mc.Params["style"], iconStyles)
+	name, style := strings.TrimSpace(mc.Params["name"]), oneOf(mc.Params["look"], iconStyles)
 	if name == "" {
 		name = "check"
 	}

@@ -208,25 +208,25 @@ func TestHTTPMacro(t *testing.T) {
 			"body": htmlBody(`<div data-macro="http" data-params='` + params + `'></div>`)}, &el, 201)
 		return el.HTML
 	}
-	if h := page(`{"url":"` + upstream.URL + `/x"}`); !strings.Contains(h, "not on the allow list") {
+	if h := page(`{"address":"` + upstream.URL + `/x"}`); !strings.Contains(h, "not on the allow list") {
 		t.Fatalf("not allowed URL fetched: %s", h)
 	}
 	if err := e.app.Config.Update(func(c *config.Config) error { c.Plugins.Macros.HTTPAllow = []string{upstream.URL + "/"}; return nil }); err != nil {
 		t.Fatal(err)
 	}
-	if h := page(`{"url":"` + upstream.URL + `/x"}`); !strings.Contains(h, "internal") {
+	if h := page(`{"address":"` + upstream.URL + `/x"}`); !strings.Contains(h, "internal") {
 		t.Fatalf("loopback address fetched: %s", h)
 	}
 	if err := e.app.Config.Update(func(c *config.Config) error { c.Plugins.Macros.HTTPAllowPrivate = true; return nil }); err != nil {
 		t.Fatal(err)
 	}
-	if h := page(`{"url":"` + upstream.URL + `/x","cache":"0"}`); !strings.Contains(h, "plain &lt;text&gt;") {
+	if h := page(`{"address":"` + upstream.URL + `/x","cache":"0"}`); !strings.Contains(h, "plain &lt;text&gt;") {
 		t.Fatalf("text: %s", h)
 	}
-	if h := page(`{"url":"` + upstream.URL + `/api/users","format":"json","path":"data.users"}`); !strings.Contains(h, "<th scope=\"col\">name</th>") || !strings.Contains(h, "&lt;Bob&gt;") {
+	if h := page(`{"address":"` + upstream.URL + `/api/users","format":"json","path":"data.users"}`); !strings.Contains(h, "<th scope=\"col\">name</th>") || !strings.Contains(h, "&lt;Bob&gt;") {
 		t.Fatalf("json table: %s", h)
 	}
-	if h := page(`{"url":"` + upstream.URL + `/redirect"}`); !strings.Contains(h, "not on the allow list") {
+	if h := page(`{"address":"` + upstream.URL + `/redirect"}`); !strings.Contains(h, "not on the allow list") {
 		t.Fatalf("redirect outside the allow list followed: %s", h)
 	}
 }

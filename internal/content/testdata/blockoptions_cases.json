@@ -304,8 +304,8 @@
       "divider_bottom": "wave",
       "divider_height": 64,
       "divider_color": "#f4f5f7",
-      "pattern": "dots",
-      "pattern_color": "#d0d4da",
+      "texture": "dots",
+      "texture_color": "#d0d4da",
       "bg_color": "#ffffff",
       "text_color": "#172b4d"
     }

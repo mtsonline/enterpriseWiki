@@ -55,7 +55,7 @@ func TestLayoutBlocks(t *testing.T) {
 			t.Errorf("block %s missing", n)
 		}
 	}
-	html := render(`:::grid{desktop=3 tablet=2 options="{\"bg_color\":\"#102040\",\"text_color\":\"#ffffff\",\"padding_top\":4}"}
+	html := render(`:::grid{desktop=3 tablet=2 options="bg_color:#102040 padding_top:4 text_color:#ffffff"}
 One
 ***
 Two
@@ -73,7 +73,7 @@ A
 B
 :::
 
-:::accordion{one=true first=true}
+:::accordion{single=true first=true}
 ### Question
 Answer
 ***
@@ -83,7 +83,7 @@ More
 
 ::buttons{text1="Go" link1="/c/1" text2="Bad" link2="javascript:alert(1)"}
 
-::divider{style=dotted}
+::divider{look=dotted}
 `)
 	for _, want := range []string{
 		`class="ewl-grid ewl-grid--d3 ewl-grid--t2 ewl-grid--m1`, `<div class="ewl-cell">`,
@@ -101,24 +101,27 @@ More
 		t.Fatal("unsafe link rendered")
 	}
 	// options the server does not accept: not used, and the block says so
-	html = render(`:::section{options="{\"bg_color\":\"#ffffff\",\"text_color\":\"#bbbbbb\"}"}
+	html = render(`:::section{options="bg_color:#ffffff text_color:#bbbbbb"}
 Text
 :::
 
-:::section{options="{\"css\":\"body{}\"}"}
+:::section{options="css:body%7B%7D"}
 Text
 :::
 
-:::section{options="not json"}
+:::section{options="not:options"}
 Text
 :::`)
 	if strings.Contains(html, "data-ewbo") {
 		t.Fatalf("refused options were used: %s", html)
 	}
-	for _, want := range []string{"has a contrast of", "unknown option", "not a valid list of options"} {
+	for _, want := range []string{"has a contrast of", "unknown option"} {
 		if !strings.Contains(html, want) {
 			t.Errorf("no note %q: %s", want, html)
 		}
+	}
+	if n := strings.Count(html, "unknown option"); n != 2 {
+		t.Errorf("%d notes of unknown options, want 2 (css, not): %s", n, html)
 	}
 	// icons: only the name in the HTML (the browser shows its file), decoration
 	// unless labelled; the whole icon box is one link
@@ -126,7 +129,7 @@ Text
 
 ::iconbox{name=home title="Evil" link="javascript:alert(1)"}
 
-Text :icon[Phone]{name=phone} and :icon{name=star style=filled} and :icon{name=arrow-right decorative=true}
+Text :icon[Phone]{name=phone} and :icon{name=star look=filled} and :icon{name=arrow-right decorative=true}
 
 :::iconlist{name=check}
 - one

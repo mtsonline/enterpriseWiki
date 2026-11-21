@@ -122,7 +122,7 @@ export function problems(o: BlockOptions): Problem[] {
   const bg = s('bg_color');
   const gradient = s('bg_gradient') === 'none' ? '' : s('bg_gradient');
   const image = s('bg_image') || s('bg_video'); // a video has unknown colors like a picture
-  const pattern = s('pattern') === 'none' ? '' : s('pattern');
+  const pattern = s('texture') === 'none' ? '' : s('texture');
   const min = SCHEMA.contrast_text;
   if ((bg || gradient || image || pattern) && !text) out.push({ key: 'bo.p.text_color' });
   if (gradient && (!s('bg_gradient_from') || !s('bg_gradient_to'))) out.push({ key: 'bo.p.gradient' });
@@ -272,8 +272,8 @@ export function optionsCSS(sel: string, o: BlockOptions): string {
   responsive('text_align', (v) => `text-align: ${v};`);
   // background: pattern, overlay, gradient, picture (from top to bottom)
   const layers: string[] = [];
-  const pattern = s('pattern');
-  if (PATTERNS[pattern]) layers.push(PATTERNS[pattern](s('pattern_color') || 'rgb(0 0 0 / .12)'));
+  const pattern = s('texture');
+  if (PATTERNS[pattern]) layers.push(PATTERNS[pattern](s('texture_color') || 'rgb(0 0 0 / .12)'));
   const alpha = (n('overlay_opacity') ?? 0) / 100;
   if (s('overlay_color') && alpha > 0) {
     const c = s('overlay_color');
@@ -359,4 +359,112 @@ export function optionsKey(o: BlockOptions): string {
   let hsh = 2166136261;
   for (let i = 0; i < json.length; i++) { hsh ^= json.charCodeAt(i); hsh = Math.imul(hsh, 16777619); }
   return (hsh >>> 0).toString(36);
+}
+
+// ---------------------------------------------------------------- text form
+// The options of a block in the content are the text value of its parameter
+// "options", not JSON: web application firewalls (OWASP Core Rule Set) take
+// JSON inside a text field for an attack and block the editor. Pairs
+// id:value separated by spaces, id.view:value per view, lists with commas,
+// every other character as %XX. The same as EncodeBlockOptions and
+// DecodeBlockOptions on the server (shared cases:
+// internal/content/testdata/blockoptions_text_cases.json).
+
+const KEEP = /^[A-Za-z0-9._~/+#:-]$/;
+function escapeText(s: string): string {
+  let out = '';
+  for (const b of new TextEncoder().encode(s)) {
+    const c = String.fromCharCode(b);
+    out += b < 128 && KEEP.test(c) ? c : `%${b.toString(16).toUpperCase().padStart(2, '0')}`;
+  }
+  return out;
+}
+function unescapeText(s: string): string {
+  if (!s.includes('%')) return s;
+  const bytes: number[] = [];
+  for (let i = 0; i < s.length; i++) {
+    if (s[i] !== '%') {
+      bytes.push(...new TextEncoder().encode(s[i]));
+      continue;
+    }
+    const hex = s.slice(i + 1, i + 3);
+    if (!/^[0-9A-Fa-f]{2}$/.test(hex)) throw new Error('broken %XX');
+    bytes.push(parseInt(hex, 16));
+    i += 2;
+  }
+  return new TextDecoder().decode(new Uint8Array(bytes));
+}
+function textValue(v: unknown): string {
+  if (Array.isArray(v)) return v.map((x) => escapeText(String(x))).join(',');
+  if (typeof v === 'boolean' || typeof v === 'number') return String(v);
+  return escapeText(String(v));
+}
+
+/** Options in the text form, ids in the order of the schema. */
+export function encodeOptions(o: BlockOptions): string {
+  const parts: string[] = [];
+  for (const g of SCHEMA.groups) {
+    for (const def of g.options) {
+      const v = o[def.id];
+      if (v === undefined || v === null) continue;
+      if (typeof v === 'object' && !Array.isArray(v)) {
+        for (const view of SCHEMA.views) {
+          const x = (v as Partial<Record<ViewName, number | string>>)[view];
+          if (x !== undefined && x !== null) parts.push(`${def.id}.${view}:${textValue(x)}`);
+        }
+        continue;
+      }
+      if (Array.isArray(v) && !v.length) continue;
+      parts.push(`${def.id}:${textValue(v)}`);
+    }
+  }
+  return parts.join(' ');
+}
+
+/** Reads the text form; throws on unknown ids or views, doubled ids and
+ * values of the wrong type (the server refuses the same). */
+export function decodeOptions(s: string): BlockOptions {
+  const o: BlockOptions = {};
+  for (const tok of s.split(/\s+/).filter(Boolean)) {
+    const at = tok.indexOf(':');
+    if (at < 0) throw new Error(`${tok}: not id:value`);
+    const key = tok.slice(0, at);
+    const raw = tok.slice(at + 1);
+    const dot = key.indexOf('.');
+    const id = dot < 0 ? key : key.slice(0, dot);
+    const view = dot < 0 ? '' : key.slice(dot + 1);
+    const def = DEFS.get(id);
+    if (!def) throw new Error(`unknown option ${id}`);
+    if (view && (!def.responsive || !SCHEMA.views.includes(view as ViewName))) throw new Error(`${id}: no value per view ${view}`);
+    let v: string | number | boolean | string[];
+    switch (def.type) {
+      case 'bool':
+        if (raw !== 'true' && raw !== 'false') throw new Error(`${id}: true or false`);
+        v = raw === 'true';
+        break;
+      case 'int': case 'number': case 'space': {
+        const n = Number(raw);
+        if (raw.trim() === '' || !Number.isFinite(n)) throw new Error(`${id}: a number`);
+        v = n;
+        break;
+      }
+      case 'views': case 'langs':
+        v = raw ? raw.split(',').map(unescapeText) : [];
+        break;
+      default:
+        v = unescapeText(raw);
+    }
+    const prev = o[id];
+    if (view) {
+      if (prev !== undefined && (typeof prev !== 'object' || Array.isArray(prev))) throw new Error(`${id} twice`);
+      const m = (prev ?? {}) as Partial<Record<ViewName, number | string>>;
+      if (m[view as ViewName] !== undefined) throw new Error(`${key} twice`);
+      m[view as ViewName] = v as number | string;
+      o[id] = m;
+    } else {
+      if (prev !== undefined) throw new Error(`${id} twice`);
+      o[id] = v;
+    }
+  }
+  return o;
 }

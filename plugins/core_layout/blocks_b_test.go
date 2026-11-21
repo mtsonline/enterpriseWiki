@@ -83,7 +83,7 @@ func TestBlocksB(t *testing.T) {
 		t.Error("horizontal timeline without a name accepted")
 	}
 	// dialog: readable without script; never open by itself
-	out, err = render(t, dialog{}, "en", map[string]string{"button": "More", "title": "Details", "style": "x"}, "<p>Text</p>")
+	out, err = render(t, dialog{}, "en", map[string]string{"button": "More", "title": "Details", "look": "x"}, "<p>Text</p>")
 	if err != nil || !strings.Contains(out, `<details class="ewl-dialog" data-ew-widget="ewl.dialog">`) || strings.Contains(out, " open") || !strings.Contains(out, "ewl-cta--secondary") || !strings.Contains(out, "<p>Text</p>") {
 		t.Fatalf("dialog: %v %s", err, out)
 	}

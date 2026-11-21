@@ -486,7 +486,7 @@ export async function reportWidget(el: HTMLElement): Promise<void> {
       } catch { /* property not visible */ }
     }
   }
-  if (p.export !== 'false' && !grouped) {
+  if (p.downloads !== 'false' && !grouped) {
     controls.push(downloadButtons(() => ({ params: { ...p, limit: '1000' }, category_id: categoryId, element_id: elementId, filters: live, sort, lang: state.lang }), () => p.title || 'report'));
   }
   // subscribe: the report by e-mail, daily or weekly

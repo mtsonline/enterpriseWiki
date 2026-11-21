@@ -3,8 +3,9 @@
 // from valid values only, and the display rules.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { formOK, optionsCSS, optionsKey, problems, shownNow, type BlockOptions } from '../../src/core/blockoptions';
+import { decodeOptions, encodeOptions, formOK, optionsCSS, optionsKey, problems, shownNow, type BlockOptions } from '../../src/core/blockoptions';
 import cases from '../../../internal/content/testdata/blockoptions_cases.json';
+import textCases from '../../../internal/content/testdata/blockoptions_text_cases.json';
 
 test('the browser decides like the server (shared cases)', () => {
   assert.ok(cases.length >= 20);
@@ -49,4 +50,15 @@ test('display rules: audience, time, language', () => {
   assert.ok(shownNow({ from: '2026-12-01T00:00:00Z', until: '2026-12-24T00:00:00Z' }, now, true, 'de'));
   assert.ok(!shownNow({ langs: ['en'] }, now, true, 'de'));
   assert.ok(shownNow({ langs: ['en', 'de'] }, now, true, 'de'));
+});
+
+test('text form of the options: read and written like the server (shared cases)', () => {
+  for (const c of textCases.ok as { name: string; text: string; options: BlockOptions }[]) {
+    assert.deepEqual(decodeOptions(c.text), c.options, c.name);
+    assert.equal(encodeOptions(c.options), c.text, c.name);
+  }
+  for (const c of textCases.bad) assert.throws(() => decodeOptions(c.text), undefined, c.name);
+  // nothing a firewall reads as JSON, a shell or HTML
+  const text = encodeOptions({ anchor: 'a"b{c};d<e>' } as BlockOptions);
+  assert.ok(!/["{};<> ]/.test(text), text);
 });

@@ -156,6 +156,46 @@ server {
 
 With several sites all host names of the sites must point to the wiki and the proxy must pass on the `Host` header unchanged.
 
+### Behind a web application firewall (ModSecurity, Coraza, CrowdSec)
+
+A web application firewall (WAF) with the OWASP Core Rule Set (CRS) in front of the wiki blocks ordinary work with its default rules: saving then fails with `403 Forbidden`, and the wiki says that the answer did not come from the wiki.
+
+**Why.** The CRS looks for attack patterns in every value of a request. Pages of a wiki contain such text all the time, for example:
+
+- a line starting with "Sort the list …" or "set the value …" (looks like a shell command),
+- a code sample with `<script>` or `onclick=`,
+- SQL in a manual (`SELECT … WHERE … OR 1=1`),
+- a path like `../etc/hosts`.
+
+In addition the CRS allows only `GET`, `HEAD`, `POST` and `OPTIONS`. The wiki also uses `PUT`, `PATCH` and `DELETE`, for example to save an existing page.
+
+The building blocks of the wiki themselves are written so that the CRS does not take them for attacks (CRS 3.3 and 4, paranoia level 1; checked in the tests).
+
+**What to do.** Use the exclusions in [`docker/waf/ewiki-crs-exclusions.conf`](../../../docker/waf/ewiki-crs-exclusions.conf). Include the file *before* the CRS rules, for example on Debian or Ubuntu as `/etc/modsecurity/crs/REQUEST-900-EXCLUSION-RULES-BEFORE-CRS.conf`, then reload the web server. The file:
+
+- lets JSON request bodies of the API (`POST`, `PUT`, `PATCH`, `DELETE` under `/api/v1/`) through the attack rules (cross-site scripting, SQL, commands, files, PHP, Java, Node.js, templates);
+- allows `PUT`, `PATCH` and `DELETE` for `/api/v1/` only;
+- lets the search term (`q`) of the search contain code.
+
+Everything else stays checked: the path and the query string of all other requests, headers, cookies, the names of JSON fields, uploads, protocol rules and scanners.
+
+**Why this is safe.** The wiki checks these inputs itself:
+
+- HTML is cleaned on the server, event attributes are never let through;
+- every response has a strict Content-Security-Policy;
+- the database only gets parameterised queries;
+- content never reaches a shell.
+
+The XSS and SQL rules of the WAF therefore add little for these fields, and without the exclusions editors are blocked.
+
+**Tested.** The exclusions are tested in `internal/server/waf_test.go` with CRS 3.3.8 and CRS 4 in Coraza: the requests of the wiki pass, and attacks in addresses still get blocked.
+
+**What is not covered.** Coraza cannot load all rules of CRS 3.3; the SQL rules of CRS 3 (942) are only checked with CRS 4.
+
+**If the wiki still gets blocked.** The log of the WAF names the rule (`[id "…"]`), for example `/var/log/apache2/modsec_audit.log`. Please report it.
+
+**CrowdSec:** the default rules of its AppSec component aim at known vulnerabilities of certain products (virtual patching); with its CRS collection the same applies as above. We have not tested CrowdSec with the wiki yet; an optional CrowdSec profile for Docker Compose, tested and with suitable settings, is planned.
+
 ## Several instances (cluster mode)
 
 For very many simultaneous users, start several instances behind a load balancer:

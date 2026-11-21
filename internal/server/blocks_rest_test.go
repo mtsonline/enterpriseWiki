@@ -45,7 +45,7 @@ func TestBlocksRest(t *testing.T) {
 		t.Errorf("a bad icon name: %s", h)
 	}
 	// news as tiles with the filter: the tags of the items for the browser
-	h = render("::news{layout=tiles columns=3 tablet=2 filter=true}\n")
+	h = render("::news{layout=tiles columns=3 tablet=2 tag_buttons=true}\n")
 	if !strings.Contains(h, `class="ew-news ew-news--tiles" style="--ew-tiles:3;--ew-tiles-t:2"`) || !strings.Contains(h, `data-ew-widget="core.macros.newsfilter"`) || !strings.Contains(h, `data-tags="hr"`) {
 		t.Errorf("news tiles: %s", h)
 	}

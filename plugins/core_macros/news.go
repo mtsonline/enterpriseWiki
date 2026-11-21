@@ -48,7 +48,7 @@ func (news) Params() []content.MacroParam {
 		{Name: "columns", Labels: lm("Tiles: columns on the desktop", "Kacheln: Spalten auf dem Desktop"), Type: "select", Options: []string{"2", "3", "4", "5"}, Default: "4"},
 		{Name: "tablet", Labels: lm("Tiles: columns on the tablet", "Kacheln: Spalten auf dem Tablet"), Type: "select", Options: []string{"1", "2", "3"}, Default: "2"},
 		{Name: "masonry", Labels: lm("Tiles: as masonry (different heights)", "Kacheln: als Mauerwerk (verschiedene Höhen)"), Type: "bool"},
-		{Name: "filter", Labels: lm("Filter by tag (buttons above the list)", "Filter nach Schlagwort (Knöpfe über der Liste)"), Type: "bool"},
+		{Name: "tag_buttons", Labels: lm("Filter by tag (buttons above the list)", "Filter nach Schlagwort (Knöpfe über der Liste)"), Type: "bool"},
 	}, content.ListParams(6)...)
 }
 
@@ -176,7 +176,7 @@ func (n news) Render(ctx context.Context, mc content.MacroContext) (string, erro
 	if mc.Lang == "de" {
 		datef = "02.01.2006"
 	}
-	if mc.Params["filter"] == "true" {
+	if mc.Params["tag_buttons"] == "true" {
 		// the buttons are made by the browser from the tags of the items (without script: the whole list)
 		b.WriteString(`<div class="ew-news-filter" data-ew-widget="core.macros.newsfilter"></div>`)
 	}

@@ -247,7 +247,7 @@ func checkOptionRules(o map[string]any) error {
 	}
 	// a video in the background has unknown colors like a picture
 	image := optStr(o, "bg_image") + optStr(o, "bg_video")
-	pattern := optStr(o, "pattern")
+	pattern := optStr(o, "texture")
 	if pattern == "none" {
 		pattern = ""
 	}
