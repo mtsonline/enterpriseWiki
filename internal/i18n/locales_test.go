@@ -118,3 +118,28 @@ func TestLocaleParity(t *testing.T) {
 		}
 	}
 }
+
+// TestGermanFormal: German texts address the reader with "Sie" (CLAUDE.md,
+// section 9), in the interface, the server's messages and the demo.
+func TestGermanFormal(t *testing.T) {
+	informal := regexp.MustCompile(`(?i)(^|[^{\pL])(du|dein|deine|deinen|deinem|deiner|deines|dich|dir)([^}\pL]|$)`)
+	files, _ := filepath.Glob("../../plugins/*/locales/de.json")
+	files = append(files, "locales/de.json", "../apperr/locales/de.json")
+	for _, f := range files {
+		for k, v := range readLocale(t, f) {
+			if informal.MatchString(v) {
+				t.Errorf("%s: %s addresses the reader with du: %q", f, k, v)
+			}
+		}
+	}
+	// the German texts of the demo (strings in the code)
+	raw, err := os.ReadFile("../server/demo_content.go")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for i, line := range strings.Split(string(raw), "\n") {
+		if informal.MatchString(line) {
+			t.Errorf("demo_content.go:%d addresses the reader with du: %q", i+1, strings.TrimSpace(line))
+		}
+	}
+}
