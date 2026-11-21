@@ -138,7 +138,7 @@ test('create a subcategory: the current category is preselected as parent', asyn
   await idle();
   await page.locator('.ew-tree a').first().click();
   await idle();
-  const edit = page.locator('.ew-pos--header-tools button[aria-pressed]');
+  const edit = page.locator('.ew-pos--header-tools button.ew-switch-btn[aria-pressed]');
   if ((await edit.getAttribute('aria-pressed')) !== 'true') await edit.click();
   await idle();
   const currentTitle = (await page.locator('main h1').innerText()).replace(/^[\d.]+\s*/, '').trim();
@@ -382,7 +382,7 @@ async function newPage(type, title) {
   await idle();
   await page.locator('.ew-tree a').first().click();
   await idle();
-  const edit = page.locator('.ew-pos--header-tools button[aria-pressed]');
+  const edit = page.locator('.ew-pos--header-tools button.ew-switch-btn[aria-pressed]');
   if ((await edit.getAttribute('aria-pressed')) !== 'true') { await edit.click(); await idle(); }
   await page.getByRole('link', { name: /new page|neue seite/i }).click();
   await idle();
@@ -1956,7 +1956,7 @@ test('edit category texts and the default page from the category view', async ()
   await idle();
   await page.locator('.ew-tree a').first().click();
   await idle();
-  const edit = page.locator('.ew-pos--header-tools button[aria-pressed]');
+  const edit = page.locator('.ew-pos--header-tools button.ew-switch-btn[aria-pressed]');
   if ((await edit.getAttribute('aria-pressed')) !== 'true') { await edit.click(); await idle(); }
   await page.getByRole('button', { name: /^(edit category|kategorie bearbeiten)$/i }).click();
   const dlg = page.locator('dialog[open]');
@@ -2191,7 +2191,7 @@ test('permissions of an instance: a blog editor without page permissions, own pe
   await idle();
   await page.getByRole('button', { name: /^(permissions|rechte)$/i }).click();
   const dlg = page.locator('dialog[open]');
-  await dlg.getByText(/independent of the permissions for pages|unabhängig von den rechten für seiten/i).waitFor();
+  await dlg.getByText(/independent of the permissions for pages|unabhängig von den rechten für seiten/i).waitFor({ state: 'attached' }); // an explanation: hidden unless the person shows help texts
   await dlg.getByLabel(/^(applies to|gilt für)/i).selectOption('user');
   const who = dlg.getByPlaceholder(/name or user name|name oder benutzername/i);
   await who.fill(name);
@@ -2340,7 +2340,7 @@ test('arrange one page: title hidden (kept for screen readers), share below the 
     await idle();
     await page.locator('.ew-pos--element-header h1', { hasText: `Arranged ${run}` }).waitFor();
     await page.locator('.ew-pos--element-toolbar[role=group]').getByRole('button', { name: /^(share|teilen)/i }).waitFor();
-    const edit = page.locator('.ew-pos--header-tools button[aria-pressed]');
+    const edit = page.locator('.ew-pos--header-tools button.ew-switch-btn[aria-pressed]');
     if ((await edit.getAttribute('aria-pressed')) !== 'true') { await edit.click(); await idle(); }
     await page.getByRole('button', { name: /^(arrange page|seite anordnen)$/i }).click();
     const dlg = page.locator('dialog[open]');
@@ -2359,7 +2359,7 @@ test('arrange one page: title hidden (kept for screen readers), share below the 
     await a11y('page without a visible title');
     const lv = await call('GET', `/api/v1/placements/instance?target=${el.id}`);
     assert.deepEqual(lv.placements.map((x) => `${x.block}@${x.position}`).sort(), ['core.element.title@', 'core.share@element-footer']);
-    const off = page.locator('.ew-pos--header-tools button[aria-pressed]');
+    const off = page.locator('.ew-pos--header-tools button.ew-switch-btn[aria-pressed]');
     if ((await off.getAttribute('aria-pressed')) === 'true') { await off.click(); await idle(); }
   } finally {
     await call('PUT', `/api/v1/placements/instance?target=${el.id}`, { placements: [] });
@@ -2586,7 +2586,7 @@ test('category display: cards set in the settings, handbook navigation, tree, fe
   await call('PUT', `/api/v1/categories/${top.id}/settings`, { display: { view: 'list' } });
   await page.goto(`${BASE}/c/${top.id}`);
   await idle();
-  const edit = page.locator('.ew-pos--header-tools button[aria-pressed]');
+  const edit = page.locator('.ew-pos--header-tools button.ew-switch-btn[aria-pressed]');
   if ((await edit.getAttribute('aria-pressed')) !== 'true') { await edit.click(); await idle(); }
   await page.getByRole('button', { name: /^(arrange category page|kategorieseite anordnen)$/i }).click();
   const dlg = page.locator('dialog[open]');
@@ -2602,7 +2602,7 @@ test('category display: cards set in the settings, handbook navigation, tree, fe
   await page.locator('dialog[open]').waitFor({ state: 'detached' });
   assert.equal((await batch).status(), 200);
   await page.locator('.ew-pos--category-aside').getByRole('heading', { name: `Second ${run}` }).waitFor();
-  const off = page.locator('.ew-pos--header-tools button[aria-pressed]');
+  const off = page.locator('.ew-pos--header-tools button.ew-switch-btn[aria-pressed]');
   if ((await off.getAttribute('aria-pressed')) === 'true') { await off.click(); await idle(); }
   assert.ok(one.id > 0 && deep.id > 0);
 });
@@ -3720,10 +3720,10 @@ test('template designer, part 3: a warning for standard positions, widths by dra
     await page.getByLabel(/^(the sticky header gets lower|der klebende kopf wird beim scrollen niedriger)/i).check();
     await page.getByLabel(/^(the sticky header goes away|der klebende kopf verschwindet)/i).check();
     await page.getByLabel(/^(print only the content|nur den inhalt drucken)$/i).check();
-    // a footer that folds on the phone needs a name for every block
+    // a footer that folds on the phone needs a name for every area
     await page.getByRole('button', { name: /^(row 4 \(foot\)|zeile 4 \(foot\))$/i }).click();
     await page.getByLabel(/^(open and close on the phone|auf dem handy auf- und zuklappen)$/i).check();
-    await page.locator('.ewd-problems').getByText(/needs a name for every block/).waitFor();
+    await page.locator('.ewd-problems').getByText(/needs a name for every area/).waitFor();
     await a11y('the designer with the behaviours');
     await page.getByLabel(/^(open and close on the phone|auf dem handy auf- und zuklappen)$/i).uncheck();
     await page.getByText(/^(no problems|keine probleme)/i).first().waitFor();
@@ -4055,7 +4055,7 @@ test('a hidden page: not listed for readers, marked for editors, reachable by it
   const el = await call('POST', '/api/v1/elements', { category_id: cat, type: 'core.html', title: `Quiet ${run}`, body: { format: 'html', source: '<p>quiet</p>' } });
   await page.goto(`${BASE}/e/${el.id}`);
   await idle();
-  const edit = page.locator('.ew-pos--header-tools button[aria-pressed]');
+  const edit = page.locator('.ew-pos--header-tools button.ew-switch-btn[aria-pressed]');
   if ((await edit.getAttribute('aria-pressed')) !== 'true') { await edit.click(); await idle(); }
   await page.getByRole('button', { name: /^(properties|eigenschaften)$/i }).click();
   const dlg = page.locator('dialog[open]');
@@ -4072,7 +4072,7 @@ test('a hidden page: not listed for readers, marked for editors, reachable by it
   // readers: not listed (checked through the API of the category)
   assert.ok((await call('GET', `/api/v1/categories/${cat}`)).elements.some((x) => x.id === el.id && x.hidden), 'listed for editors, marked');
   // leave the edit mode as it was for the next tests
-  const off = page.locator('.ew-pos--header-tools button[aria-pressed]');
+  const off = page.locator('.ew-pos--header-tools button.ew-switch-btn[aria-pressed]');
   if ((await off.getAttribute('aria-pressed')) === 'true') { await off.click(); await idle(); }
 });
 
@@ -4081,7 +4081,7 @@ test('rights of a page: own rights only, a rule, the note on the page', async ()
   const el = await call('POST', '/api/v1/elements', { category_id: cat, type: 'core.html', title: `Guarded ${run}`, body: { format: 'html', source: '<p>guarded</p>' } });
   await page.goto(`${BASE}/e/${el.id}`);
   await idle();
-  const edit = page.locator('.ew-pos--header-tools button[aria-pressed]');
+  const edit = page.locator('.ew-pos--header-tools button.ew-switch-btn[aria-pressed]');
   if ((await edit.getAttribute('aria-pressed')) !== 'true') { await edit.click(); await idle(); }
   await page.getByRole('button', { name: /^(rights|rechte)$/i }).click();
   let dlg = page.locator('dialog[open]');
@@ -4129,7 +4129,7 @@ test('rights of a page: own rights only, a rule, the note on the page', async ()
   await a11y('permission overview with a page rule');
   await page.goto(`${BASE}/e/${el.id}`);
   await idle();
-  const off = page.locator('.ew-pos--header-tools button[aria-pressed]');
+  const off = page.locator('.ew-pos--header-tools button.ew-switch-btn[aria-pressed]');
   if ((await off.getAttribute('aria-pressed')) === 'true') { await off.click(); await idle(); }
 });
 
@@ -4161,7 +4161,7 @@ test('FAQ: sections, questions, filter and quick add', async () => {
   await dlg.locator('button[type=submit]').click();
   await page.locator(`summary:has-text("Quick ${run}?")`).waitFor();
   // edit mode: edit and delete a question directly in the FAQ
-  const edit = page.locator('.ew-pos--header-tools button[aria-pressed]');
+  const edit = page.locator('.ew-pos--header-tools button.ew-switch-btn[aria-pressed]');
   if ((await edit.getAttribute('aria-pressed')) !== 'true') { await edit.click(); await idle(); }
   await page.locator('.ewq-edit').first().waitFor({ state: 'attached' });
   const quick = page.locator('details.ewq-q', { hasText: `Quick ${run}?` });
@@ -4449,7 +4449,7 @@ test('translate a category', async () => {
   const cat = await m6Category();
   await page.goto(`${BASE}/c/${cat}`);
   await idle();
-  const edit = page.locator('.ew-pos--header-tools button[aria-pressed]');
+  const edit = page.locator('.ew-pos--header-tools button.ew-switch-btn[aria-pressed]');
   if ((await edit.getAttribute('aria-pressed')) !== 'true') { await edit.click(); await idle(); }
   await page.getByRole('button', { name: /^(translations|übersetzungen)/i }).click();
   const dlg = page.locator('dialog[open]');
@@ -4490,7 +4490,7 @@ test('reactions, favorites and page properties', async () => {
   await page.getByRole('button', { name: /^(☆|★)?\s*(favorite|favorit)$/i }).click();
   await page.locator('.ewfav a', { hasText: `M11 page ${run}` }).waitFor();
   // properties: quick editing in edit mode with a free property
-  const edit = page.locator('.ew-pos--header-tools button[aria-pressed]');
+  const edit = page.locator('.ew-pos--header-tools button.ew-switch-btn[aria-pressed]');
   if ((await edit.getAttribute('aria-pressed')) !== 'true') { await edit.click(); await idle(); }
   await page.getByRole('button', { name: /^(add properties|eigenschaften hinzufügen)/i }).click();
   const dlg = page.locator('dialog[open]');
@@ -5496,7 +5496,7 @@ test('category administration: a permission for a person takes effect and ends, 
     // order of the subcategories (edit mode)
     await page.goto(`${BASE}/c/${top}`);
     await idle();
-    const edit = page.locator('.ew-pos--header-tools button[aria-pressed]');
+    const edit = page.locator('.ew-pos--header-tools button.ew-switch-btn[aria-pressed]');
     if ((await edit.getAttribute('aria-pressed')) !== 'true') await edit.click();
     await page.getByRole('button', { name: new RegExp(`^(move Two ${run} up|Two ${run} nach oben)$`, 'i') }).click();
     await toastOn(/order changed|reihenfolge geändert/i);

@@ -269,5 +269,6 @@
  "template.d_width_help": "0: the rest of the row.",
  "template.d_width_help_block": "0: the rest of the row; otherwise {min} to {max} rem.",
  "template.limit_size": "A design has at most {kb} KB.",
- "template.d_preview_window": "Preview in its own window"
+ "template.d_preview_window": "Preview in its own window",
+ "template.d_name_area": "Area"
 }
