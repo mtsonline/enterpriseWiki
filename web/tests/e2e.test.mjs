@@ -3200,7 +3200,7 @@ test('template designer: visual and with the keyboard, room and contrast help, u
     const width = page.getByLabel(/^(width \(rem\)|breite \(rem\))$/i);
     await width.fill('10');
     await page.keyboard.press('Tab');
-    await page.locator('.ewd-problems').getByText(/its 3 positions side by side need 13.0 rem, the block is 10 rem wide/).waitFor();
+    await page.locator('.ewd-problems').getByText(/its 3 positions side by side need 13.0 rem, the area is 10 rem wide/).waitFor();
     await a11y('the visual designer with a problem');
     // undo step by step back to the shipped state, redo once
     const undo = page.getByRole('button', { name: /^(undo|rückgängig)/i });

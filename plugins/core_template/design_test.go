@@ -46,13 +46,13 @@ func TestDesignProblems(t *testing.T) {
 		change func(d *Design)
 		want   string
 	}{
-		{"no content", func(d *Design) { d.Rows = d.Rows[3:] }, "exactly one block is the content"},
-		{"two contents", func(d *Design) { d.Rows[0].Blocks[0].Kind = "content" }, "exactly one block is the content"},
+		{"no content", func(d *Design) { d.Rows = d.Rows[3:] }, "exactly one area is the content"},
+		{"two contents", func(d *Design) { d.Rows[0].Blocks[0].Kind = "content" }, "exactly one area is the content"},
 		{"only content", func(d *Design) {
 			d.Rows = []Row{d.Rows[2]}
 			d.Rows[0].Blocks = d.Rows[0].Blocks[1:]
 			d.Rows[0].Tablet, d.Rows[0].Mobile = nil, nil
-		}, "at least one more block"},
+		}, "at least one more area"},
 		{"no room beside the content", func(d *Design) {
 			b := d.Rows[2].Blocks[0]
 			for i := 0; i < 3; i++ {
@@ -93,12 +93,12 @@ func TestDesignProblems(t *testing.T) {
 		{"collapsing a row that is no footer", func(d *Design) { d.Rows[1].CollapseMobile = true }, "only a footer row"},
 		{"the logo in a drawer on the desktop", func(d *Design) { d.Rows[1].Desktop = &View{Drawer: []string{"brand"}} }, "desktop: the logo cannot"},
 		{"the content in a drawer on the desktop", func(d *Design) { d.Rows[2].Desktop = &View{Drawer: []string{"content"}} }, "desktop: the content cannot"},
-		{"the desktop changes the layout", func(d *Design) { d.Rows[1].Desktop = &View{Stack: true} }, "desktop: only blocks behind a button"},
+		{"the desktop changes the layout", func(d *Design) { d.Rows[1].Desktop = &View{Stack: true} }, "desktop: only areas behind a button"},
 		{"positions side by side without room", func(d *Design) {
 			b := &d.Rows[1].Blocks[2]
 			b.Fit, b.Width, b.Layout = false, 10, "row"
 			b.Positions = []string{"tool-a", "tool-b", "tool-c"}
-		}, "its 3 positions side by side need 13.0 rem, the block is 10 rem wide"},
+		}, "its 3 positions side by side need 13.0 rem, the area is 10 rem wide"},
 		{"positions side by side fit", func(d *Design) {
 			b := &d.Rows[1].Blocks[2]
 			b.Fit, b.Width, b.Layout = false, 14, "row"
