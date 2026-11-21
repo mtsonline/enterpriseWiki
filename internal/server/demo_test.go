@@ -168,6 +168,18 @@ func TestDemo(t *testing.T) {
 		if strings.Contains(wbv.HTML, "ew-macro-error") {
 			t.Errorf("demo wiki blocks with an error: %s", wbv.HTML)
 		}
+		// the chart of the page with figures is drawn, without an error
+		var fig int64
+		if err := e.app.DB.QueryRow(context.Background(), `SELECT id FROM elements WHERE titles->>'en' = 'Figures and steps' AND deleted_at IS NULL`).Scan(&fig); err != nil {
+			t.Fatal(err)
+		}
+		var figv struct {
+			HTML string `json:"html"`
+		}
+		admin.must("GET", "/api/v1/elements/"+strconv.FormatInt(fig, 10), nil, &figv, 200)
+		if !strings.Contains(figv.HTML, `<svg class="ewl-chart-svg"`) || !strings.Contains(figv.HTML, "Office Graz") || strings.Contains(figv.HTML, "ew-macro-error") {
+			t.Errorf("demo chart: %s", figv.HTML)
+		}
 		// the carousel has no fixed position: it is placed for its own
 		// category only, whose page says so; the page "How the demo is built"
 		// names every part outside the pages

@@ -3444,6 +3444,43 @@ test('blocks B, part 3: person card, changing words, ticker, slider; pause butto
   }
 });
 
+test('blocks B, part 4: a chart from a table, drawn by the server, with the table for everyone', async () => {
+  const cat = (await call('POST', '/api/v1/categories', { titles: { en: `Charts ${run}` } })).id;
+  const src = [
+    ':::chart{title="Visits" type="line" unit="h"}',
+    '| Month | Vienna | Graz |',
+    '| --- | --- | --- |',
+    '| Jan | 10 | 4,5 |',
+    '| Feb | 12 | 6 |',
+    '| Mar | 9 | 8 |',
+    ':::',
+    '',
+    ':::chart{title="Shares" type="pie" table="open"}',
+    '| Kind | Count |',
+    '| --- | --- |',
+    '| Pages | 3 |',
+    '| Files | 1 |',
+    ':::',
+  ].join('\n');
+  const el = await call('POST', '/api/v1/elements', { category_id: cat, type: 'core.html', title: `Chart ${run}`, body: { format: 'markdown', source: src } });
+  await page.goto(`${BASE}/e/${el.id}`);
+  await idle();
+  const charts = page.locator('figure.ewl-chart');
+  assert.equal(await charts.count(), 2);
+  // one picture with a name for screen readers; the numbers stay as a table
+  const svg = charts.first().locator('svg[role="img"]');
+  assert.match(await svg.getAttribute('aria-label'), /^Visits\. (Line chart|Liniendiagramm)/);
+  assert.equal(await charts.first().locator('polyline').count(), 2);
+  assert.ok(await charts.first().locator('details table').isHidden(), 'the table is folded');
+  await charts.first().locator('summary').click();
+  assert.match(await charts.first().locator('details table').innerText(), /Graz[\s\S]*4[.,]5 h/);
+  assert.ok(await charts.nth(1).locator('details table').isVisible(), 'open table');
+  assert.equal(await charts.nth(1).locator('.ewl-chart-slice').count(), 2);
+  assert.match(await charts.nth(1).locator('.ewl-chart-legend').innerText(), /Pages · 75/);
+  assert.equal(await page.locator('.ew-macro-error').count(), 0);
+  await a11y('charts');
+});
+
 test('template designer, part 3: a warning for standard positions, widths by dragging, header while scrolling, side column, footer on the phone, printing', async () => {
   const before = (await call('GET', '/api/v1/admin/settings')).config;
   const tpl = await call('POST', '/api/v1/x/core.template/templates', { names: { en: `Behaviour ${run}` }, copy_of: 'core.template/example-wiki' });
