@@ -27,7 +27,7 @@ export function kindOf(position: string): PositionKind {
 }
 
 /** One placement of a building block (see content.Placement on the server). */
-export interface Placement { block: string; position: string; sort: number; required?: boolean; options?: BlockOptions }
+export interface Placement { block: string; position: string; sort: number; required?: boolean; options?: BlockOptions; only_category_page?: boolean; no_subcategories?: boolean }
 export interface PlacementLevel { level: 'template' | 'site' | 'type' | 'category' | 'category_page' | 'instance' | 'user'; target: string; placements: Placement[] }
 
 /** Where a block appears, with the options of that placement. */

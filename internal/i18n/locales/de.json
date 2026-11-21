@@ -1248,7 +1248,7 @@
  "placement.title_category": "Platzierung in dieser Kategorie",
  "placement.title_user": "Meine Anordnung",
  "placement.help_site": "Wo Suche, Benachrichtigungen, Kategoriebaum und die Bausteine von Plugins erscheinen, für die ganze Website. Kategorien können das für sich und ihre Unterkategorien ändern; als Pflicht markierte Bausteine bleiben, wo sie sind.",
- "placement.help_category": "Änderungen gelten für diese Kategorie und ihre Unterkategorien. Bausteine, die Sie nicht ändern, behalten die Platzierung von oben (geerbt).",
+ "placement.help_category": "Änderungen gelten für diese Kategorie, alle Seiten darin und ihre Unterkategorien. Je Baustein lässt sich das einschränken: ohne „Auf allen Seiten der Kategorie“ nur auf der Seite der Kategorie selbst, ohne „Unterkategorien einbeziehen“ nicht in den Unterkategorien (dort gilt dann die Platzierung von oben). Bausteine, die Sie nicht ändern, behalten die Platzierung von oben (geerbt).",
  "placement.help_user": "Ordnen Sie die Bausteine für sich selbst an. Bausteine, die die Verwaltung als Pflicht markiert hat, bleiben, wo sie sind.",
  "category.tab.placement": "Platzierung",
  "placement.hidden": "Nicht anzeigen",
@@ -2828,5 +2828,11 @@
  "layout.embed_forget": "Inhalte von {host} nicht mehr automatisch laden",
  "layout.embed_forgotten": "Inhalte von {host} werden ab dem nächsten Aufruf erst nach Ihrer Zustimmung geladen.",
  "settings.embed_allow": "Erlaubte Dienste für externe Videos und Einbettungen",
- "settings.embed_allow_help": "Eine Adresse je Zeile, nur der Anfang mit https:// und dem Server (zum Beispiel https://www.youtube-nocookie.com oder https://player.vimeo.com). Leer: Es wird nichts von außerhalb des Wikis eingebettet. Inhalte laden erst, wenn die lesende Person zustimmt."
+ "settings.embed_allow_help": "Eine Adresse je Zeile, nur der Anfang mit https:// und dem Server (zum Beispiel https://www.youtube-nocookie.com oder https://player.vimeo.com). Leer: Es wird nichts von außerhalb des Wikis eingebettet. Inhalte laden erst, wenn die lesende Person zustimmt.",
+ "placement.scope_pages": "Auf allen Seiten der Kategorie",
+ "placement.scope_sub": "Unterkategorien einbeziehen",
+ "placement.scope_pages_on": "{block} steht jetzt auch auf allen Seiten der Kategorie.",
+ "placement.scope_pages_off": "{block} steht jetzt nur auf der Seite der Kategorie selbst.",
+ "placement.scope_sub_on": "{block} gilt jetzt auch in den Unterkategorien.",
+ "placement.scope_sub_off": "{block} gilt jetzt nicht mehr in den Unterkategorien."
 }

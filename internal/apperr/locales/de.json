@@ -588,6 +588,7 @@
  "placement %d: invalid position %q": "Platzierung %d: ungültige Position %q",
  "placement %d: one category page places blocks only at the positions of the page (%s…)": "Platzierung %d: Eine Kategorieseite platziert Bausteine nur an den Positionen der Seite (%s…)",
  "placement %d: one page places blocks only at the positions of the page (%s…)": "Platzierung %d: Eine Seite platziert Bausteine nur an den Positionen der Seite (%s…)",
+ "placement %d: only a placement for a category has a scope (its pages, its subcategories)": "Platzierung %d: Nur eine Platzierung für eine Kategorie hat einen Geltungsbereich (ihre Seiten, ihre Unterkategorien)",
  "placement %d: only the template and the site make blocks required": "Platzierung %d: Nur Template und Website machen Bausteine zur Pflicht",
  "placement %d: personal placement is switched off (ui.personal_placement): only the own dashboard (%s…)": "Platzierung %d: Persönliche Anordnung ist ausgeschaltet (ui.personal_placement): nur das eigene Dashboard (%s…)",
  "placement %d: sort must be between 0 and 10000": "Platzierung %d: sort muss zwischen 0 und 10000 liegen",

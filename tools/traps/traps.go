@@ -910,4 +910,25 @@ var traps = []trap{
 		New:  "u.Host == \"\" ||",
 		Pkg:  "./plugins/core_layout/", Tests: "^TestEmbedTarget$",
 	},
+	{
+		ID: "placement.scope-pages-ignored", About: "a placement for a category page only still shows on the pages in it",
+		File: "internal/content/placements.go",
+		Old:  "((pl.OnlyCategoryPage && elementID > 0) || (pl.NoSubcategories && k.target != ownCategory))",
+		New:  "(pl.NoSubcategories && k.target != ownCategory)",
+		Pkg:  "./internal/server/", Tests: "^TestPlacementScope$",
+	},
+	{
+		ID: "placement.scope-sub-ignored", About: "a placement without subcategories still applies in them",
+		File: "internal/content/placements.go",
+		Old:  "((pl.OnlyCategoryPage && elementID > 0) || (pl.NoSubcategories && k.target != ownCategory))",
+		New:  "((pl.OnlyCategoryPage && elementID > 0) || (pl.NoSubcategories && k.target != ownCategory && false))",
+		Pkg:  "./internal/server/", Tests: "^TestPlacementScope$",
+	},
+	{
+		ID: "placement.scope-any-level", About: "a scope is accepted at levels other than category",
+		File: "internal/content/placements.go",
+		Old:  "(pl.OnlyCategoryPage || pl.NoSubcategories) && level != LevelCategory",
+		New:  "false && level != LevelCategory",
+		Pkg:  "./internal/server/", Tests: "^TestPlacementScope$",
+	},
 }
