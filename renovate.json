@@ -159,6 +159,44 @@
       "matchStrings": [
         "# renovate: datasource=(?<datasource>[a-z-]+) depName=(?<depName>\\S+)(?: extractVersion=(?<extractVersion>\\S+))?\\n[A-Z_]+=(?<currentValue>\\S+)"
       ]
+    },
+    {
+      "customType": "regex",
+      "description": "Caddy version of the build with the CrowdSec bouncer",
+      "managerFilePatterns": [
+        "/^docker/caddy-crowdsec/Dockerfile$/"
+      ],
+      "matchStrings": [
+        "ARG CADDY_VERSION=(?<currentValue>\\d+\\.\\d+\\.\\d+)"
+      ],
+      "depNameTemplate": "caddy",
+      "datasourceTemplate": "docker",
+      "versioningTemplate": "docker"
+    },
+    {
+      "customType": "regex",
+      "description": "CrowdSec bouncer for Caddy",
+      "managerFilePatterns": [
+        "/^docker/caddy-crowdsec/Dockerfile$/"
+      ],
+      "matchStrings": [
+        "ARG BOUNCER_VERSION=(?<currentValue>v\\d+\\.\\d+\\.\\d+)"
+      ],
+      "depNameTemplate": "github.com/hslatman/caddy-crowdsec-bouncer",
+      "datasourceTemplate": "go"
+    },
+    {
+      "customType": "regex",
+      "description": "CrowdSec engine of docker-compose.crowdsec.yml",
+      "managerFilePatterns": [
+        "/^docker-compose\\.crowdsec\\.yml$/"
+      ],
+      "matchStrings": [
+        "crowdsecurity/crowdsec:\\$\\{CROWDSEC_VERSION:-(?<currentValue>v\\d+\\.\\d+\\.\\d+)\\}"
+      ],
+      "depNameTemplate": "crowdsecurity/crowdsec",
+      "datasourceTemplate": "docker",
+      "versioningTemplate": "docker"
     }
   ]
 }

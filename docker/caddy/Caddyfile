@@ -16,12 +16,16 @@
 		# HTTP/3 needs UDP 443 (published in docker-compose.yml)
 		protocols h1 h2 h3
 	}
+	# protection against attacks: none (default) or crowdsec (the Caddy
+	# build of docker-compose.crowdsec.yml; EWIKI_SECURITY in .env)
+	import /etc/caddy/security-{$EWIKI_SECURITY:none}-global.caddy
 }
 
 https:// {
 	tls {
 		on_demand
 	}
+	import /etc/caddy/security-{$EWIKI_SECURITY:none}-site.caddy
 	# bundled office servers (profiles collabora / onlyoffice) on their own
 	# host names: an own origin, so they never share cookies with the wiki
 	@collabora host {$EWIKI_COLLABORA_HOST:collabora.invalid}
@@ -47,5 +51,6 @@ https:// {
 # plain HTTP: ACME challenges are answered by Caddy, everything else is
 # redirected to HTTPS
 http:// {
+	import /etc/caddy/security-{$EWIKI_SECURITY:none}-site.caddy
 	redir https://{host}{uri} permanent
 }

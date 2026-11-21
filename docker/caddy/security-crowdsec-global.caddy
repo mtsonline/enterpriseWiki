@@ -1,0 +1,17 @@
+# CrowdSec (EWIKI_SECURITY=crowdsec, docker-compose.crowdsec.yml): the
+# bouncer asks the local CrowdSec engine which addresses are blocked, and
+# its AppSec component checks every request against known vulnerabilities
+# (virtual patches). Needs the Caddy build with the bouncer.
+order crowdsec first
+order appsec after crowdsec
+crowdsec {
+	api_url http://crowdsec:8080
+	api_key {$CROWDSEC_BOUNCER_KEY}
+	ticker_interval 15s
+	appsec_url http://crowdsec:7422
+	appsec_timeout 2s
+	# if CrowdSec does not answer, requests go through (the wiki checks every
+	# input itself; CrowdSec is an extra layer, not the only one) and the
+	# proxy logs it; otherwise every page would fail with 500
+	appsec_fail_open
+}

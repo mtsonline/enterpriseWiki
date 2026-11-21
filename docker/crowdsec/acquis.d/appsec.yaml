@@ -1,0 +1,8 @@
+# AppSec component: the proxy sends every request here before it reaches the
+# wiki; in-band rules of crowdsecurity/virtual-patching (virtual patches against known
+# vulnerabilities) block, nothing else does.
+source: appsec
+listen_addr: 0.0.0.0:7422
+appsec_config: crowdsecurity/virtual-patching
+labels:
+  type: appsec

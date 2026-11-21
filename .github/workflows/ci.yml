@@ -201,9 +201,15 @@ jobs:
           for ca in letsencrypt letsencrypt-staging zerossl; do
             docker run --rm -e EWIKI_ACME_EMAIL=ci@example.com -e EWIKI_ACME=$ca -v "$PWD/docker/caddy:/etc/caddy:ro" caddy:2 caddy validate --config /etc/caddy/Caddyfile
           done
+          # the Caddy build with the CrowdSec bouncer (docker-compose.crowdsec.yml)
+          docker build -q -t ewiki-caddy-crowdsec:ci docker/caddy-crowdsec >/dev/null
+          for sec in none crowdsec; do
+            docker run --rm --tmpfs /logs:uid=1000,gid=1000 -e EWIKI_ACME_EMAIL=ci@example.com -e EWIKI_SECURITY=$sec -e CROWDSEC_BOUNCER_KEY=ci -v "$PWD/docker/caddy:/etc/caddy:ro" ewiki-caddy-crowdsec:ci caddy validate --config /etc/caddy/Caddyfile
+          done
           cp .env.example .env && sed -i 's/^EWIKI_UID=.*/EWIKI_UID=1000/; s/^EWIKI_GID=.*/EWIKI_GID=1000/' .env
           COMPOSE_PROFILES=proxy docker compose config -q
           docker compose config -q
+          CROWDSEC_BOUNCER_KEY=ci COMPOSE_PROFILES=proxy COMPOSE_FILE=docker-compose.yml:docker-compose.crowdsec.yml docker compose config -q
 
   office:
     name: Office servers (real Collabora Online and OnlyOffice Docs)

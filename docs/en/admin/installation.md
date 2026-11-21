@@ -102,6 +102,40 @@ EWIKI_PORT=127.0.0.1:8080       # wiki only reachable through the proxy
 
 Then `docker compose up -d`. Ports 80 and 443 (TCP, for HTTP/3 also UDP 443) must be reachable from the internet and the DNS entries must point to the server. Caddy gets the certificate on the first request for a host name and renews it itself. There are certificates only for host names the wiki knows: the base URL and the host names of all sites (query to `/tls-allowed`). So new sites need no change to the proxy. HTTP is redirected to HTTPS. Certificates and ACME accounts are in `./data/caddy`; the configuration in `docker/caddy/Caddyfile`. With *ZeroSSL* the account is created from `EWIKI_ACME_EMAIL` (EAB automatically). When setting up new servers, start with `letsencrypt-staging` so you do not run into the limits of Let's Encrypt.
 
+### Bundled proxy with CrowdSec (optional)
+
+[CrowdSec](https://www.crowdsec.net) (MIT) protects the bundled proxy. `./docker-setup.sh` asks for it when you choose HTTPS (default: yes). Who does not want it keeps `docker-compose.yml` alone, with the official Caddy image.
+
+**What it does:**
+
+- It reads the access log of the proxy and blocks addresses that scan the server or attack it (scenarios of the collection `crowdsecurity/caddy`, known vulnerabilities in requests `crowdsecurity/http-cve`).
+- Its AppSec component checks every request against known vulnerabilities of other products (virtual patches, `crowdsecurity/appsec-virtual-patching`). Wiki content, code samples included, is not blocked by these rules.
+- The scenario `crowdsecurity/http-crawl-non_statics` is off: the interface of the wiki makes many requests, and the scenario would block busy readers.
+
+**Local only.** There is no connection to the CrowdSec console, and no addresses are shared with CrowdSec (`DISABLE_ONLINE_API`). The community blocklist needs that connection and is therefore off. On start, CrowdSec downloads its rules from its hub (`cdn-hub.crowdsec.net`, `hub-data.crowdsec.net`; the version from `version.crowdsec.net`).
+
+**Setup.** `./docker-setup.sh` writes to `.env`:
+
+```dotenv
+EWIKI_SECURITY=crowdsec
+COMPOSE_FILE=docker-compose.yml:docker-compose.crowdsec.yml
+CROWDSEC_BOUNCER_KEY=<random>
+```
+
+Then `docker compose up -d --build`. The proxy is built on the first start: the official Caddy image plus the [CrowdSec bouncer for Caddy](https://github.com/hslatman/caddy-crowdsec-bouncer) (Apache-2.0), see `docker/caddy-crowdsec/Dockerfile`.
+
+**Data protection.** The access log is in `./data/caddy/logs` (at most 3 files of 20 MB) and contains addresses, times and paths. It contains no query strings (they may carry tokens), no cookies and no authorization headers. CrowdSec keeps its decisions in `./data/crowdsec`.
+
+**Operation:**
+
+- Show blocked addresses: `docker compose exec crowdsec cscli decisions list`.
+- Unblock an address: `docker compose exec crowdsec cscli decisions delete --ip 203.0.113.7`.
+- If CrowdSec is not running, the proxy lets requests through (`appsec_fail_open`) and logs it, so the wiki stays reachable; the wiki checks every input itself either way.
+
+**Tested** in the CI (`scripts/test-docker-proxy.sh`): a blocked address gets `403` and is let in again after unblocking; a virtual patch blocks `/.env`; a page with code, SQL and HTML is not blocked; no query string is in the log; the wiki stays reachable without CrowdSec.
+
+**Turning it off:** set `EWIKI_SECURITY=none` and `COMPOSE_FILE=docker-compose.yml`, then run `docker compose up -d --remove-orphans`.
+
 ### Trusted proxies (`EWIKI_TRUSTED_PROXIES`)
 
 Behind a reverse proxy all requests come from its address. So that rate limits, sign-in locks, the audit log and the allowed networks of accounts use the **address of the visitors**, the wiki reads it from the header of the proxy – but only from trusted proxies: any other sender could forge the header and pretend to be any address. The environment variable `EWIKI_TRUSTED_PROXIES` (IP addresses and CIDR networks, separated by commas) overrides `server.trusted_proxies` from `config.yaml`:
@@ -194,7 +228,7 @@ The XSS and SQL rules of the WAF therefore add little for these fields, and with
 
 **If the wiki still gets blocked.** The log of the WAF names the rule (`[id "…"]`), for example `/var/log/apache2/modsec_audit.log`. Please report it.
 
-**CrowdSec:** the default rules of its AppSec component aim at known vulnerabilities of certain products (virtual patching); with its CRS collection the same applies as above. We have not tested CrowdSec with the wiki yet; an optional CrowdSec profile for Docker Compose, tested and with suitable settings, is planned.
+**CrowdSec:** the default rules of its AppSec component aim at known vulnerabilities of certain products (virtual patching); with its CRS collection the same applies as above. The bundled proxy with CrowdSec (above) uses only the virtual patches and is tested with wiki content.
 
 ## Several instances (cluster mode)
 

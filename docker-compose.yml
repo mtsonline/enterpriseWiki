@@ -16,6 +16,8 @@
 # Building the image locally: docker-compose.build.yml.
 # HTTPS: COMPOSE_PROFILES=proxy in .env starts the bundled reverse proxy
 # (Caddy) with certificates from Let's Encrypt or ZeroSSL (EWIKI_ACME).
+# With CrowdSec in front: docker-compose.crowdsec.yml in addition (asked by
+# ./docker-setup.sh; COMPOSE_FILE in .env).
 # Office: the profiles collabora and onlyoffice (with proxy) start an office
 # server on its own host name (EWIKI_COLLABORA_HOST, EWIKI_ONLYOFFICE_HOST);
 # ./docker-setup.sh asks for it. See docs/en/admin/office.md.

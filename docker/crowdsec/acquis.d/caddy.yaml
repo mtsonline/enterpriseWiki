@@ -1,0 +1,5 @@
+# access log of the bundled proxy (docker/caddy/security-crowdsec-site.caddy)
+filenames:
+  - /logs/access.log
+labels:
+  type: caddy

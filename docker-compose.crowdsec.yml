@@ -1,0 +1,48 @@
+# Enterprise Wiki: the bundled proxy with CrowdSec (optional, in addition to
+# docker-compose.yml). ./docker-setup.sh sets it up when you choose CrowdSec:
+#   COMPOSE_FILE=docker-compose.yml:docker-compose.crowdsec.yml
+#   EWIKI_SECURITY=crowdsec, CROWDSEC_BOUNCER_KEY=<random>
+# in .env; then "docker compose up -d --build" as usual.
+#
+# CrowdSec reads the access log of the proxy and blocks addresses that scan
+# or attack (scenarios of the collection crowdsecurity/caddy); its AppSec
+# component checks every request against known vulnerabilities (virtual
+# patches). Local only: no connection to the CrowdSec console and no
+# addresses shared with CrowdSec (DISABLE_ONLINE_API); the community
+# blocklist needs that connection and is therefore off.
+# Without CrowdSec: leave this file out (docker-compose.yml alone uses the
+# official Caddy image). See docs/en/admin/installation.md.
+services:
+  proxy:
+    # the official Caddy image with the CrowdSec bouncer (docker/caddy-crowdsec)
+    image: enterprisewiki-caddy-crowdsec:local
+    build: ./docker/caddy-crowdsec
+    pull_policy: build
+    depends_on: [wiki, crowdsec]
+    environment:
+      EWIKI_SECURITY: crowdsec
+      CROWDSEC_BOUNCER_KEY: ${CROWDSEC_BOUNCER_KEY:?run ./docker-setup.sh (CrowdSec)}
+    volumes:
+      - ./data/caddy/logs:/logs
+
+  crowdsec:
+    image: crowdsecurity/crowdsec:${CROWDSEC_VERSION:-v1.8.2}
+    profiles: [proxy]
+    restart: unless-stopped
+    security_opt: ["no-new-privileges:true"]
+    environment:
+      # parsers and scenarios for Caddy, known CVEs in requests, virtual patches
+      COLLECTIONS: crowdsecurity/caddy crowdsecurity/http-cve crowdsecurity/appsec-virtual-patching
+      # many requests to pages and the API are normal for the wiki's
+      # interface; this scenario would block busy readers
+      DISABLE_SCENARIOS: crowdsecurity/http-crawl-non_statics
+      # the proxy registers with this key
+      BOUNCER_KEY_caddy: ${CROWDSEC_BOUNCER_KEY:?run ./docker-setup.sh (CrowdSec)}
+      # local only: no console, no shared signals, no community blocklist
+      DISABLE_ONLINE_API: "true"
+    volumes:
+      - ./docker/crowdsec/acquis.d:/etc/crowdsec/acquis.d:ro
+      - ./data/crowdsec/data:/var/lib/crowdsec/data
+      - ./data/crowdsec/config:/etc/crowdsec
+      - ./data/caddy/logs:/logs:ro
+    networks: [ewiki]
