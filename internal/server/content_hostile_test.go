@@ -339,6 +339,8 @@ func TestContentHostileParams(t *testing.T) {
 	}
 	// news from a hostile feed, in every layout
 	feed := upstream.URL + "/x?f=rss"
+	// the first use registers the feed; then fetch it now (not in the background)
+	render(fmt.Sprintf("::news{source=%s}", quoteAttr("feed:"+feed)))
 	if err := e.app.Feeds.Refresh(context.Background(), "rss", feed); err != nil {
 		t.Fatal(err)
 	}
