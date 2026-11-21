@@ -235,6 +235,10 @@ it is changed. What a disabled plugin needs is left out; the
 message after creating names the parts left out (in the API the field `skipped` of the answer to
 `POST /api/v1/admin/demo`).
 
+- **Start page:** The demo makes its page *Enterprise Wiki at a glance* the start page of the site (short URL
+  `/welcome`, in a wiki with German as default language `/willkommen`): the main features in words and the way into
+  the tour, without path, page details and comments. **Remove demo** restores the previous start page, unless it was
+  changed under *Administration → Settings* meanwhile.
 - The **demo accounts** (`demo-anna`, `demo-ben`, …) have no sign-in (provider `demo`), no e-mail address
   and do not count for the license.
 - Everything the demo creates is noted in `demo_objects`. **Remove demo** deletes exactly that, completely:
