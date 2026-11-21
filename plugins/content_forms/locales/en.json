@@ -215,7 +215,7 @@
  "forms.ed.formula_help": "Numbers, + − × ÷ ( ) and round(x, digits), min, max, abs, sum with the IDs of fields above: {ids}",
  "forms.ed.decimals": "Digits after the point",
  "forms.ed.pow": "Proof of work against bots (the browser computes about a second; no CAPTCHA)",
- "forms.ed.public_results": "Everyone who sees the form may see the counts of the answers (macro “Form results”)",
+ "forms.ed.public_results": "Everyone who sees the form may see the counts of the answers (block “Form results”)",
  "forms.ed.files": "Store each submission as a file in the media library",
  "forms.ed.files_category": "Category",
  "forms.ed.files_formats": "Formats",

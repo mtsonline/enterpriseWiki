@@ -17,7 +17,8 @@ type faqMacro struct{}
 
 func lm(en, de string) map[string]string { return map[string]string{"en": en, "de": de} }
 
-func (faqMacro) Name() string { return "faq" }
+func (faqMacro) Name() string  { return "faq" }
+func (faqMacro) Group() string { return "lists" }
 func (faqMacro) Labels() map[string]string {
 	return lm("FAQ from several sources", "FAQ aus mehreren Quellen")
 }

@@ -85,6 +85,7 @@ type macro struct{ p *Plugin }
 func lm(en, de string) map[string]string { return map[string]string{"en": en, "de": de} }
 
 func (m *macro) Name() string              { return "http" }
+func (m *macro) Group() string             { return "automation" }
 func (m *macro) Labels() map[string]string { return lm("HTTP request", "HTTP-Abruf") }
 func (m *macro) Description() map[string]string {
 	return lm("Inserts the result of a web request (only allowed addresses).", "Fügt das Ergebnis eines Web-Abrufs ein (nur freigegebene Adressen).")

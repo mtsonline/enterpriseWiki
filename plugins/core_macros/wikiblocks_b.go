@@ -40,6 +40,7 @@ func countParam(v string, def, max int) int {
 type tagcloud struct{}
 
 func (tagcloud) Name() string              { return "tagcloud" }
+func (tagcloud) Group() string             { return "lists" }
 func (tagcloud) Labels() map[string]string { return lm("Tag cloud", "Schlagwort-Wolke") }
 func (tagcloud) Description() map[string]string {
 	return lm("The tags of an area (or of the whole wiki), the most used larger; each one leads to its pages. Only what the reader may see counts.",
@@ -130,7 +131,8 @@ func tr(lang, en, de string) string {
 
 type pagechanges struct{}
 
-func (pagechanges) Name() string { return "pagechanges" }
+func (pagechanges) Name() string  { return "pagechanges" }
+func (pagechanges) Group() string { return "lists" }
 func (pagechanges) Labels() map[string]string {
 	return lm("Changes of the page", "Änderungen der Seite")
 }
@@ -189,6 +191,7 @@ func (pagechanges) Render(ctx context.Context, mc content.MacroContext) (string,
 type contributors struct{}
 
 func (contributors) Name() string              { return "contributors" }
+func (contributors) Group() string             { return "lists" }
 func (contributors) Labels() map[string]string { return lm("Contributors", "Mitwirkende") }
 func (contributors) Description() map[string]string {
 	return lm("The people who wrote this (or another) page, the latest first, with the number of their saved versions.",

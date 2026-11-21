@@ -5,10 +5,12 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os/exec"
+	"slices"
 	"strings"
 	"testing"
 
 	"github.com/mtsonline/enterprisewiki/internal/config"
+	"github.com/mtsonline/enterprisewiki/internal/content"
 )
 
 type idResp struct {
@@ -25,6 +27,7 @@ func TestMacros(t *testing.T) {
 		HasBody bool   `json:"has_body"`
 		Inline  bool   `json:"inline"`
 		Picture bool   `json:"picture"`
+		Group   string `json:"group"`
 		Parts   *struct {
 			Labels map[string]string `json:"labels"`
 			Titled bool              `json:"titled"`
@@ -49,6 +52,10 @@ func TestMacros(t *testing.T) {
 					t.Errorf("macro %s, parameter %s: option %q has no labels (%v)", m.Name, p.Name, o, l)
 				}
 			}
+		}
+		// every block of the wiki has its group in the menu of the editor
+		if !slices.Contains(content.MacroGroups, m.Group) || m.Group == "other" {
+			t.Errorf("macro %s: group %q", m.Name, m.Group)
 		}
 		if m.Picture && (m.HasBody || m.Inline) {
 			t.Errorf("macro %s: a picture only for macros without a body", m.Name)
@@ -85,7 +92,7 @@ func TestMacros(t *testing.T) {
 	for _, want := range []string{
 		`<a href="#intro">Intro</a>`, `<a href="#intro-1">Intro</a>`, `id="intro-1"`,
 		`ew-macro-panel--warning`, `Careful &lt;b&gt;`, `ew-status--green">DONE`,
-		fmt.Sprintf(`href="/c/%d">Chapter &lt;1&gt;`, child.ID), `macro &#34;nope&#34; is not available`,
+		fmt.Sprintf(`href="/c/%d">Chapter &lt;1&gt;`, child.ID), `block &#34;nope&#34; is not available`,
 		`ewl-hero`, `href="#">Go`,
 	} {
 		if !strings.Contains(el.HTML, want) {
@@ -109,7 +116,7 @@ func TestMacros(t *testing.T) {
 	// disabling the plugin disables its macros
 	admin.must("POST", "/api/v1/admin/plugins/core.layout/disable", nil, nil, 204)
 	admin.must("GET", fmt.Sprintf("/api/v1/elements/%d", el.ID), nil, &el, 200)
-	if !strings.Contains(el.HTML, `macro &#34;hero&#34; is not available`) {
+	if !strings.Contains(el.HTML, `block &#34;hero&#34; is not available`) {
 		t.Fatalf("disabled macro still rendered: %s", el.HTML)
 	}
 	// macro security settings cannot be changed through the API

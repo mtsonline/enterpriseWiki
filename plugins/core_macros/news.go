@@ -21,7 +21,8 @@ import (
 
 type news struct{ feeds *feedfetch.Cache }
 
-func (news) Name() string { return "news" }
+func (news) Name() string  { return "news" }
+func (news) Group() string { return "lists" }
 func (news) Labels() map[string]string {
 	return lm("News from several sources", "Neuigkeiten aus mehreren Quellen")
 }

@@ -25,6 +25,7 @@ var (
 )
 
 func (attachments) Name() string              { return "attachments" }
+func (attachments) Group() string             { return "lists" }
 func (attachments) Labels() map[string]string { return lm("Attachments", "Anhänge") }
 func (attachments) Description() map[string]string {
 	return lm("The files this page shows, or the files of a category, as a list with size and date. People who may add files there can upload one directly.",

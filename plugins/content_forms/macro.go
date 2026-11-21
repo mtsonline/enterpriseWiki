@@ -21,7 +21,8 @@ type resultsMacro struct{ p *Plugin }
 
 func lm(en, de string) map[string]string { return map[string]string{"en": en, "de": de} }
 
-func (resultsMacro) Name() string { return "form-results" }
+func (resultsMacro) Name() string  { return "form-results" }
+func (resultsMacro) Group() string { return "forms" }
 func (resultsMacro) Labels() map[string]string {
 	return lm("Form results", "Formular-Ergebnisse")
 }

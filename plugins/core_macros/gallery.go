@@ -16,6 +16,7 @@ import (
 type gallery struct{ svc *media.Service }
 
 func (gallery) Name() string              { return "gallery" }
+func (gallery) Group() string             { return "media" }
 func (gallery) Labels() map[string]string { return lm("Image gallery", "Bildergalerie") }
 func (gallery) Description() map[string]string {
 	return lm("Shows images of the media library as a gallery: chosen ones or all of a category.",

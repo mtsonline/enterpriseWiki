@@ -50,6 +50,7 @@ var gaps = []string{"medium", "small", "large", "none"}
 var valigns = []string{"stretch", "start", "center", "end"}
 
 func (grid) Name() string              { return "grid" }
+func (grid) Group() string             { return "layout" }
 func (grid) Labels() map[string]string { return lm("Grid", "Raster") }
 func (grid) Description() map[string]string {
 	return lm("Content in columns, with the number of columns per view. Separate the cells with a horizontal line.",
@@ -135,6 +136,7 @@ var headingSizes = []string{"auto", "xl", "l", "m", "s"}
 var aligns3 = []string{"start", "center", "end"}
 
 func (heading) Name() string              { return "heading" }
+func (heading) Group() string             { return "text" }
 func (heading) Labels() map[string]string { return lm("Heading", "Überschrift") }
 func (heading) Description() map[string]string {
 	return lm("A heading with subtitle and line; its level (the structure of the page for screen readers) is chosen apart from its size.",
@@ -178,6 +180,7 @@ type divider struct{}
 var dividerStyles = []string{"line", "dashed", "dotted", "double", "fade", "space"}
 
 func (divider) Name() string              { return "divider" }
+func (divider) Group() string             { return "text" }
 func (divider) Labels() map[string]string { return lm("Divider", "Trenner") }
 func (divider) Description() map[string]string {
 	return lm("A line or space between parts of a page.", "Eine Linie oder ein Abstand zwischen Teilen einer Seite.")
@@ -204,6 +207,7 @@ type buttons struct{}
 var buttonLayouts = []string{"row", "full", "stack"}
 
 func (buttons) Name() string              { return "buttons" }
+func (buttons) Group() string             { return "navigation" }
 func (buttons) Labels() map[string]string { return lm("Buttons", "Knopfgruppe") }
 func (buttons) Description() map[string]string {
 	return lm("Up to four links shown as buttons, side by side or over the full width.",
@@ -273,6 +277,7 @@ func buttonIcon(name string) (string, error) {
 type cta struct{}
 
 func (cta) Name() string              { return "cta" }
+func (cta) Group() string             { return "navigation" }
 func (cta) Labels() map[string]string { return lm("Call to action", "Handlungsaufruf") }
 func (cta) Description() map[string]string {
 	return lm("A box with a title, text and a button that asks to act.", "Ein Kasten mit Titel, Text und einer Schaltfläche, die zum Handeln auffordert.")
@@ -312,6 +317,7 @@ func (cta) Render(_ context.Context, mc content.MacroContext) (string, error) {
 type tabs struct{}
 
 func (tabs) Name() string              { return "tabs" }
+func (tabs) Group() string             { return "layout" }
 func (tabs) Labels() map[string]string { return lm("Tabs", "Reiter") }
 func (tabs) Description() map[string]string {
 	return lm("Parts shown as tabs. Separate the parts with a horizontal line; the first heading of each part is the name of its tab.",
@@ -371,6 +377,7 @@ func (tabs) Render(_ context.Context, mc content.MacroContext) (string, error) {
 type accordion struct{}
 
 func (accordion) Name() string              { return "accordion" }
+func (accordion) Group() string             { return "layout" }
 func (accordion) Labels() map[string]string { return lm("Accordion", "Akkordeon") }
 func (accordion) Description() map[string]string {
 	return lm("Parts to open and close. Separate the parts with a horizontal line; the first heading of each part is its title.",

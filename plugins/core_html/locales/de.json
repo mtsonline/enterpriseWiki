@@ -30,8 +30,8 @@
  "core.html.image_alt": "Alternativtext",
  "core.html.image_alt_help": "Beschreiben Sie das Bild für Menschen, die es nicht sehen können.",
  "core.html.image_type": "Hier können nur Bilder eingefügt werden.",
- "core.html.macro": "Makro",
- "core.html.macro_insert": "Makro einfügen",
+ "core.html.macro": "Baustein",
+ "core.html.macro_insert": "Baustein einfügen",
  "core.html.macro_body": "Inhalt",
  "core.html.editor_failed": "Der Editor konnte nicht geladen werden: {error}",
  "core.html.use_simple": "Einfachen Editor verwenden"

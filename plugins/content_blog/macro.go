@@ -15,7 +15,8 @@ type postsMacro struct{}
 
 func lm(en, de string) map[string]string { return map[string]string{"en": en, "de": de} }
 
-func (postsMacro) Name() string { return "blog" }
+func (postsMacro) Name() string  { return "blog" }
+func (postsMacro) Group() string { return "lists" }
 func (postsMacro) Labels() map[string]string {
 	return lm("Blog posts from several sources", "Blogbeiträge aus mehreren Quellen")
 }

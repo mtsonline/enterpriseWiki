@@ -365,6 +365,18 @@ test('administration of the sign-in factors', async () => {
   assert.deepEqual(await call('GET', '/api/v1/admin/mfa'), cfg);
 });
 
+// insertBlock opens "Insert block", finds the block by its name in the
+// search and opens its dialog (the dialog of the block is returned).
+async function insertBlock(name) {
+  await page.getByRole('button', { name: /^(insert block|baustein einfügen)$/i }).click();
+  const picker = page.locator('dialog[open]').last();
+  await picker.getByRole('searchbox', { name: /^(search blocks|baustein suchen)$/i }).fill(name);
+  await picker.locator(`li[role=treeitem][data-block="${name}"]`).click();
+  const dlg = page.locator('dialog[open]').last();
+  await dlg.locator('.ewe-macro-params').waitFor();
+  return dlg;
+}
+
 async function newPage(type, title) {
   await page.goto(BASE + '/');
   await idle();
@@ -386,19 +398,42 @@ test('insert macros with the macro dialog', async () => {
   const ed = page.locator('.ewe-prose');
   await ed.click();
   await page.keyboard.type('Intro text');
-  await page.getByRole('button', { name: /^(insert macro|makro einfügen)$/i }).click();
-  const dialog = page.locator('dialog[open]');
-  await dialog.waitFor();
-  await dialog.locator('select').first().selectOption('panel');
-  // screen readers: the description is not announced on every change, only
-  // when the choice stays a moment; on focus it follows the name
-  const spoken = dialog.locator('.ewe-macro-spoken');
+  // the menu "Insert block": a search and the blocks in groups (a tree)
+  await page.getByRole('button', { name: /^(insert block|baustein einfügen)$/i }).click();
+  const picker = page.locator('dialog[open]');
+  const tree = picker.getByRole('tree');
+  await tree.waitFor();
+  await a11y('block menu');
+  assert.ok(await tree.getByRole('treeitem', { name: /^(text and emphasis|text und hervorhebung)$/i }).count());
+  // keyboard: down into the tree, right opens a group, down to its first block
+  await page.keyboard.press('ArrowDown');
+  const first = tree.locator('[role=treeitem][data-group]').first();
+  assert.equal(await first.getAttribute('aria-expanded'), 'false');
+  await page.keyboard.press('ArrowRight');
+  assert.equal(await first.getAttribute('aria-expanded'), 'true');
+  await page.keyboard.press('ArrowDown');
+  assert.equal(await page.evaluate(() => document.activeElement?.closest('ul[role=group]') !== null), true);
+  // screen readers hear the name; the description only when the choice
+  // stays a moment (not on every arrow key)
+  const spoken = picker.locator('.ewe-macro-spoken');
   assert.equal(await spoken.textContent(), '');
-  assert.equal(await dialog.locator('p.ew-help[aria-live]').count(), 0);
   await page.waitForFunction(() => (document.querySelector('dialog[open] .ewe-macro-spoken')?.textContent ?? '').length > 10);
-  const descId = await dialog.locator('p.ew-help').first().getAttribute('id');
-  assert.ok((await dialog.locator('select').first().getAttribute('aria-describedby')).split(' ').includes(descId));
-  assert.equal(await spoken.textContent(), await dialog.locator(`[id="${descId}"]`).textContent());
+  assert.equal(await picker.locator('[aria-live]').filter({ hasText: /./ }).count() >= 1, true);
+  await page.keyboard.press('ArrowLeft');
+  assert.equal(await page.evaluate(() => document.activeElement?.getAttribute('aria-expanded')), 'true');
+  await page.keyboard.press('ArrowLeft');
+  assert.equal(await first.getAttribute('aria-expanded'), 'false');
+  // the search finds a block across the groups (German and English names)
+  await picker.getByRole('searchbox').fill('hinweis');
+  if (await picker.locator('li[data-block="panel"]:visible').count() === 0) await picker.getByRole('searchbox').fill('panel');
+  await picker.locator('li[data-block="panel"]').waitFor();
+  assert.equal(await picker.locator('li[data-block="toc"]:visible').count(), 0);
+  await a11y('block menu with a search');
+  await page.keyboard.press('Enter');
+  const dialog = page.locator('dialog[open]').last();
+  await dialog.locator('.ewe-macro-params').waitFor();
+  assert.ok(await dialog.locator('select').first().isDisabled(), 'the chosen block stays chosen');
+  assert.equal(await dialog.locator('select').first().inputValue(), 'panel');
   await dialog.locator('select').nth(1).selectOption('warning');
   await dialog.getByLabel(/^(title|titel)/i).fill('Careful');
   await a11y('macro dialog');
@@ -407,7 +442,7 @@ test('insert macros with the macro dialog', async () => {
   // the placeholder text of the body is selected: typing replaces it
   await page.keyboard.type('Panel body');
   // the edit button of the macro opens the dialog for this macro
-  await page.locator('.ewe-macro[data-macro="panel"]').getByRole('button', { name: /^(edit macro|makro bearbeiten)/i }).click();
+  await page.locator('.ewe-macro[data-macro="panel"]').getByRole('button', { name: /^(edit block|baustein bearbeiten)/i }).click();
   assert.ok(await page.locator('dialog[open] select').first().isDisabled(), 'existing macro is edited');
   await page.locator('dialog[open]').getByLabel(/^(title|titel)/i).fill('Very careful');
   await page.locator('dialog[open] button[type=submit]').click();
@@ -415,14 +450,12 @@ test('insert macros with the macro dialog', async () => {
   // below the panel: insert a second macro
   await page.locator('.ewe-prose > p').first().click();
   await page.keyboard.press('Control+End');
-  await page.getByRole('button', { name: /^(insert macro|makro einfügen)$/i }).click();
-  await page.locator('dialog[open] select').first().selectOption('toc');
+  await insertBlock('toc');
   await page.locator('dialog[open] button[type=submit]').click();
   await page.waitForSelector('.ewe-prose .ewe-macro[data-macro="toc"]');
   // the property report with its own controls (sources, filters, columns)
   await page.keyboard.press('Control+End');
-  await page.getByRole('button', { name: /^(insert macro|makro einfügen)$/i }).click();
-  await page.locator('dialog[open] select').first().selectOption('properties');
+  await insertBlock('properties');
   await page.locator('dialog[open]').getByRole('button', { name: /^(add filter|filter hinzufügen)$/i }).waitFor();
   // the source builder: a building block by click
   await page.locator('dialog[open]').getByRole('button', { name: /^(add category|kategorie hinzufügen)$/i }).click();
@@ -449,9 +482,7 @@ test('editor: macros with parts, pictures of blocks, preview keeps the work, lea
   await ed.click();
   await page.keyboard.type('Intro');
   // an accordion starts with two parts; the help says how to add more
-  await page.getByRole('button', { name: /^(insert macro|makro einfügen)$/i }).click();
-  const dialog = page.locator('dialog[open]');
-  await dialog.locator('select').first().selectOption('accordion');
+  const dialog = await insertBlock('accordion');
   assert.match(await dialog.locator('.ew-help').first().innerText(), /\+ (Part|Teil)/);
   await dialog.locator('button[type=submit]').click();
   const acc = page.locator('.ewe-macro[data-macro="accordion"]');
@@ -469,8 +500,7 @@ test('editor: macros with parts, pictures of blocks, preview keeps the work, lea
   assert.match(await acc.locator('.ewe-macro-body').innerText(), new RegExp(`Question A${run}[\\s\\S]*Question C${run}[\\s\\S]*Answer C[\\s\\S]*Question D${run}`));
   // a block without content shows how it looks
   await page.locator('.ewe-prose > p').first().click();
-  await page.getByRole('button', { name: /^(insert macro|makro einfügen)$/i }).click();
-  await dialog.locator('select').first().selectOption('buttons');
+  await insertBlock('buttons');
   await dialog.getByLabel(/^(text of button 1|text der schaltfläche 1)/i).fill(`Go${run}`);
   await dialog.getByLabel(/^(link of button 1|link der schaltfläche 1)/i).fill('/');
   // every choice has a name, no bare values like "start"
@@ -487,10 +517,10 @@ test('editor: macros with parts, pictures of blocks, preview keeps the work, lea
   await page.getByRole('button', { name: /^(visual mode|visueller modus)$/i }).click();
   await ed.waitFor();
   // icon buttons show their name on hover (the browser's title is not shown twice)
-  const editBtn = acc.getByRole('button', { name: /^(edit macro|makro bearbeiten)$/i });
+  const editBtn = acc.getByRole('button', { name: /^(edit block|baustein bearbeiten)$/i });
   await editBtn.hover();
   const tip = page.locator('.ew-tooltip');
-  await tip.filter({ hasText: /^(edit macro|makro bearbeiten)$/i }).waitFor();
+  await tip.filter({ hasText: /^(edit block|baustein bearbeiten)$/i }).waitFor();
   assert.equal(await editBtn.getAttribute('title'), null);
   await page.keyboard.press('Escape');
   await tip.waitFor({ state: 'hidden' });
@@ -2673,9 +2703,7 @@ test('layout blocks: a section with options from the macro dialog, an icon box w
   await newPage('core.html', `Layout ${run}`);
   await page.locator('.ewe-prose').click();
   await page.keyboard.type('Intro');
-  await page.getByRole('button', { name: /^(insert macro|makro einfügen)$/i }).click();
-  const macroDlg = page.locator('dialog[open]').first();
-  await macroDlg.locator('select').first().selectOption('section');
+  const macroDlg = await insertBlock('section');
   await macroDlg.getByRole('button', { name: /^(options|optionen)$/i }).click();
   const opts = page.locator('dialog[open]').last();
   await opts.locator('summary', { hasText: /^(background|hintergrund)$/i }).click();
@@ -2692,9 +2720,7 @@ test('layout blocks: a section with options from the macro dialog, an icon box w
   await page.keyboard.type('Section body');
   // an icon box: the icon from the picker (search), the whole box one link
   await page.keyboard.press('Control+End');
-  await page.getByRole('button', { name: /^(insert macro|makro einfügen)$/i }).click();
-  const iconDlg = page.locator('dialog[open]').first();
-  await iconDlg.locator('select').first().selectOption('iconbox');
+  const iconDlg = await insertBlock('iconbox');
   await iconDlg.getByRole('button', { name: /^(choose an icon|symbol auswählen)$/i }).click();
   const picker = page.locator('dialog[open]').last();
   await picker.getByLabel(/^(search|suchen)$/i).fill('rocket');
@@ -2787,9 +2813,7 @@ test('wiki blocks: include a page chosen by title, page tree with filter, search
   await newPage('core.html', `Hub ${run}`);
   await page.locator('.ewe-prose').click();
   await page.keyboard.type('Intro');
-  await page.getByRole('button', { name: /^(insert macro|makro einfügen)$/i }).click();
-  const dlg = page.locator('dialog[open]').first();
-  await dlg.locator('select').first().selectOption('include');
+  const dlg = await insertBlock('include');
   const pick = dlg.getByRole('group', { name: /^(page|seite)$/i });
   await pick.getByRole('searchbox', { name: /^(search element|element suchen)$/i }).fill(`Okapi rules ${run}`);
   await pick.locator('option', { hasText: `Okapi rules ${run}` }).waitFor();
@@ -2964,7 +2988,9 @@ test('block templates: save selected blocks, insert them into another page', asy
   await page.keyboard.press('Enter');
   await page.keyboard.type('Monday to Friday');
   await page.keyboard.press('Control+A');
-  await page.getByRole('button', { name: /^(save as block template|als baustein-vorlage speichern)$/i }).click();
+  // in the menu "Insert block": save the selection as a template
+  await page.getByRole('button', { name: /^(insert block|baustein einfügen)$/i }).click();
+  await page.locator('dialog[open]').getByRole('button', { name: /^(save as block template|als baustein-vorlage speichern)$/i }).click();
   const save = page.locator('dialog[open]').last();
   await save.getByLabel(/^(name)/i).first().fill(`Hours ${run}`);
   await a11y('save a block template');
@@ -2976,11 +3002,13 @@ test('block templates: save selected blocks, insert them into another page', asy
   await page.locator('.ewe-prose').click();
   await page.keyboard.type('Intro');
   await page.keyboard.press('Enter');
-  await page.getByRole('button', { name: /^(insert a block template|baustein-vorlage einfügen)$/i }).click();
+  // the templates are a group of the menu "Insert block"
+  await page.getByRole('button', { name: /^(insert block|baustein einfügen)$/i }).click();
   const ins = page.locator('dialog[open]').last();
-  await ins.getByLabel(/^(block template|baustein-vorlage)$/i).selectOption({ label: `Hours ${run}` });
+  await ins.getByRole('treeitem', { name: /^(block templates|baustein-vorlagen)$/i }).waitFor();
+  await ins.getByRole('searchbox').fill(`Hours ${run}`);
   await a11y('insert a block template');
-  await ins.locator('button[type=submit]').click();
+  await ins.getByRole('treeitem', { name: `Hours ${run}`, exact: true }).click();
   await page.locator('.ewe-prose').getByText(`Opening hours ${run}`).waitFor();
   await page.getByRole('button', { name: /^(publish|veröffentlichen)$/i }).click();
   await page.waitForURL(/\/e\/\d+$/);

@@ -81,6 +81,7 @@ func shortText(name, v string, max int) (string, error) {
 type progress struct{}
 
 func (progress) Name() string              { return "progress" }
+func (progress) Group() string             { return "data" }
 func (progress) Labels() map[string]string { return lm("Progress bar", "Fortschrittsbalken") }
 func (progress) Description() map[string]string {
 	return lm("How far something is, as a bar with its name and value.", "Wie weit etwas ist, als Balken mit Namen und Wert.")
@@ -134,6 +135,7 @@ func (progress) Render(_ context.Context, mc content.MacroContext) (string, erro
 type counter struct{}
 
 func (counter) Name() string              { return "counter" }
+func (counter) Group() string             { return "data" }
 func (counter) Labels() map[string]string { return lm("Counter", "Zähler") }
 func (counter) Description() map[string]string {
 	return lm("A large number with a name that counts up once when it comes into view (not with reduced motion). The number is always readable as text.",
@@ -189,6 +191,7 @@ func (counter) Render(_ context.Context, mc content.MacroContext) (string, error
 type timeline struct{}
 
 func (timeline) Name() string              { return "timeline" }
+func (timeline) Group() string             { return "layout" }
 func (timeline) Labels() map[string]string { return lm("Timeline", "Zeitleiste") }
 func (timeline) Description() map[string]string {
 	return lm("Entries in order, each with a date or step as its first heading. Separate the entries with a horizontal line.",
@@ -253,6 +256,7 @@ func (timeline) Render(_ context.Context, mc content.MacroContext) (string, erro
 type dialog struct{}
 
 func (dialog) Name() string              { return "dialog" }
+func (dialog) Group() string             { return "layout" }
 func (dialog) Labels() map[string]string { return lm("Dialog (button)", "Dialog (Knopf)") }
 func (dialog) Description() map[string]string {
 	return lm("A button that opens the content in a dialog. It never opens by itself; Escape closes it and the focus returns to the button.",
@@ -299,6 +303,7 @@ func (dialog) Render(_ context.Context, mc content.MacroContext) (string, error)
 type tooltip struct{}
 
 func (tooltip) Name() string              { return "tooltip" }
+func (tooltip) Group() string             { return "text" }
 func (tooltip) Labels() map[string]string { return lm("Tooltip", "Hinweisblase") }
 func (tooltip) Description() map[string]string {
 	return lm("A word with an explanation that shows on pointing, focus and tapping; Escape hides it (WCAG 1.4.13). Without script the explanation stands in brackets.",
@@ -334,6 +339,7 @@ func (tooltip) Render(_ context.Context, mc content.MacroContext) (string, error
 type testimonial struct{}
 
 func (testimonial) Name() string              { return "testimonial" }
+func (testimonial) Group() string             { return "media" }
 func (testimonial) Labels() map[string]string { return lm("Quote of a person", "Zitat einer Person") }
 func (testimonial) Description() map[string]string {
 	return lm("What someone says, with their name, role and optionally a picture of the wiki (a testimonial).",
@@ -386,6 +392,7 @@ func (testimonial) Render(_ context.Context, mc content.MacroContext) (string, e
 type logos struct{}
 
 func (logos) Name() string              { return "logos" }
+func (logos) Group() string             { return "media" }
 func (logos) Labels() map[string]string { return lm("Logo bar", "Logo-Leiste") }
 func (logos) Description() map[string]string {
 	return lm("Logos side by side (for example partners): put the pictures in the content, each with its name as text alternative and optionally as a link.",

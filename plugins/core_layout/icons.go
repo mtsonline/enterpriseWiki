@@ -75,6 +75,7 @@ func labelParams() []content.MacroParam {
 type icon struct{}
 
 func (icon) Name() string              { return "icon" }
+func (icon) Group() string             { return "text" }
 func (icon) Labels() map[string]string { return lm("Icon", "Symbol") }
 func (icon) Description() map[string]string {
 	return lm("An icon, also inside a line of text. Screen readers read its label, or else its name.", "Ein Symbol, auch in einer Textzeile. Screenreader lesen seine Beschriftung, sonst seinen Namen.")
@@ -101,6 +102,7 @@ func (icon) Render(_ context.Context, mc content.MacroContext) (string, error) {
 type iconbox struct{}
 
 func (iconbox) Name() string              { return "iconbox" }
+func (iconbox) Group() string             { return "layout" }
 func (iconbox) Labels() map[string]string { return lm("Icon box", "Symbolbox") }
 func (iconbox) Description() map[string]string {
 	return lm("An icon with title and text; with a link the whole box is one link.", "Ein Symbol mit Titel und Text; mit Link ist der ganze Kasten ein Link.")
@@ -145,6 +147,7 @@ func (iconbox) Render(_ context.Context, mc content.MacroContext) (string, error
 type iconlist struct{}
 
 func (iconlist) Name() string              { return "iconlist" }
+func (iconlist) Group() string             { return "text" }
 func (iconlist) Labels() map[string]string { return lm("Icon list", "Symbolliste") }
 func (iconlist) Description() map[string]string {
 	return lm("A list with an icon in front of every entry (for example a check mark).", "Eine Liste mit einem Symbol vor jedem Eintrag (zum Beispiel ein Häkchen).")

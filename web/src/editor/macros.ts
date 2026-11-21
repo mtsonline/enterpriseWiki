@@ -92,7 +92,8 @@ export async function macroDialog(existing: { name: string; params: Record<strin
   const initial = existing?.name ?? only ?? macros[0].name;
   if (!macros.some((m) => m.name === initial)) throw new Error(t('editor.macro_unknown', { name: initial }));
   const pickSel = select(macros.map((m) => ({ value: m.name, label: label(m.labels) || m.name })), initial);
-  if (existing) pickSel.disabled = true;
+  // a block chosen in the menu (or by its own button) stays chosen
+  if (existing || only) pickSel.disabled = true;
   // the description is shown, but not announced on every arrow key: a
   // screen reader hears the name of the macro, and the description only
   // when the choice stays a moment (live region inside the dialog, so it is
