@@ -4695,6 +4695,17 @@ test('demo content: create, browse accessibly, remove', async () => {
   await idle();
   await page.locator('.ew-macro--toc').first().waitFor();
   await a11y('demo tour page');
+  // the start page of the site is now the demo's page for visitors: what
+  // the wiki can do, no path, the way into the tour
+  await page.goto(`${BASE}/`);
+  await idle();
+  await page.locator('.ewl-iconbox').nth(11).waitFor();
+  assert.equal(await page.locator('.ew-breadcrumbs').count(), 0);
+  assert.equal(await page.locator('main h1').count(), 1);
+  await a11y('demo start page');
+  await page.locator('main a[href="/demo"]').first().click();
+  await page.waitForURL(/\/demo$/);
+  await idle();
   // the overview of the demo area and the team page
   for (const name of [/^(Team)$/, /^(News|Neuigkeiten)$/]) {
     await page.goto(`${BASE}/demo`);

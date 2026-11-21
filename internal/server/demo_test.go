@@ -125,9 +125,38 @@ func TestDemo(t *testing.T) {
 	skip := []string{"audit_log", "worker_jobs", "worker_runs", "sessions", "search_changes", "identity_changes"}
 	before = dbSnapshot(t, e, skip...)
 
+	home0 := e.app.Config.Get().UI
 	for round := 0; round < 2; round++ {
 		var st demoState
 		admin.must("POST", "/api/v1/admin/demo", nil, &st, 200)
+		// the start page: what the wiki can do, under a short address, the
+		// way into the tour; without path, title and page details
+		home := e.app.Config.Get().UI
+		if home.HomeElement == 0 || home.HomeElement == home0.HomeElement || home.SiteName != home0.SiteName {
+			t.Fatalf("demo start page: %+v (before %+v)", home, home0)
+		}
+		code, body, _ := admin.fetch(t, "/api/v1/resolve?path=/welcome")
+		if code != 200 || !strings.Contains(string(body), strconv.FormatInt(home.HomeElement, 10)) {
+			t.Fatalf("short URL /welcome: %d %s", code, body)
+		}
+		var land struct {
+			HTML string `json:"html"`
+		}
+		admin.must("GET", "/api/v1/elements/"+strconv.FormatInt(home.HomeElement, 10), nil, &land, 200)
+		if strings.Contains(land.HTML, "ew-macro-error") || strings.Count(land.HTML, "ewl-iconbox") < 12 || !strings.Contains(land.HTML, `href="/demo"`) {
+			t.Errorf("demo start page: %s", land.HTML)
+		}
+		var hidden int
+		_ = e.app.DB.QueryRow(context.Background(), `SELECT count(*) FROM placements WHERE level='instance' AND target=$1 AND position=''
+			AND block IN ('core.element.path','core.element.title','core.element.info')`, strconv.FormatInt(home.HomeElement, 10)).Scan(&hidden)
+		if hidden != 3 {
+			t.Errorf("demo start page: %d of path, title and details hidden", hidden)
+		}
+		_ = e.app.DB.QueryRow(context.Background(), `SELECT count(*) FROM placements WHERE level='instance' AND target=$1 AND position=''`,
+			strconv.FormatInt(home.HomeElement, 10)).Scan(&hidden)
+		if hidden != 8 {
+			t.Errorf("demo start page: %d parts hidden, want 8", hidden)
+		}
 		if !st.Installed || st.Objects["element"] < 15 || st.Objects["user"] != 4 || st.Objects["medium"] < 5 {
 			t.Fatalf("demo objects: %+v", st)
 		}
@@ -140,7 +169,7 @@ func TestDemo(t *testing.T) {
 			t.Fatalf("second demo: %d", c)
 		}
 		// the tour page renders through its short URL with macros
-		code, body, _ := admin.fetch(t, "/api/v1/resolve?path=/demo")
+		code, body, _ = admin.fetch(t, "/api/v1/resolve?path=/demo")
 		if code != 200 {
 			t.Fatalf("short URL /demo: %d %s", code, body)
 		}
@@ -213,6 +242,9 @@ func TestDemo(t *testing.T) {
 		}
 		admin.must("POST", "/api/v1/elements", map[string]any{"category_id": demoCat, "type": "core.html", "title": "Added", "body": htmlBody("<p>x</p>")}, nil, 201)
 		admin.must("DELETE", "/api/v1/admin/demo", nil, nil, 204)
+		if h := e.app.Config.Get().UI; h.HomeElement != home0.HomeElement || h.HomeCategory != home0.HomeCategory {
+			t.Fatalf("start page after removing the demo: %+v, want %+v", h, home0)
+		}
 		admin.must("GET", "/api/v1/admin/demo", nil, &st, 200)
 		if st.Installed {
 			t.Fatalf("still installed: %+v", st)

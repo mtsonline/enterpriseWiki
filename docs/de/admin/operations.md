@@ -235,6 +235,10 @@ er platziert ist und wo man ihn ändert. Was ein deaktiviertes Plugin braucht, w
 ausgelassen; die Meldung nach dem Anlegen nennt die ausgelassenen Teile (in der API das Feld `skipped` der Antwort
 auf `POST /api/v1/admin/demo`).
 
+- **Startseite:** Die Demo setzt ihre Seite *Enterprise Wiki auf einen Blick* als Startseite der Website (Kurz-URL
+  `/willkommen`, in einem Wiki mit Englisch als Grundsprache `/welcome`): die wichtigsten Funktionen in Worten und der
+  Einstieg in den Rundgang, ohne Pfad, Seitendetails und Kommentare. **Demo entfernen** stellt die vorige Startseite
+  wieder her, außer sie wurde inzwischen unter *Administration → Einstellungen* geändert.
 - Die **Demo-Konten** (`demo-anna`, `demo-ben`, …) haben keine Anmeldung (Anbieter `demo`), keine E-Mail-Adresse
   und zählen nicht zur Lizenz.
 - Alles, was die Demo anlegt, wird in `demo_objects` vermerkt. **Demo entfernen** löscht genau das restlos:
