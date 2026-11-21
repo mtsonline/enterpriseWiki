@@ -60,7 +60,7 @@ secret() { head -c 24 /dev/urandom | od -An -tx1 | tr -d ' \n'; }
 fetch() { # url file
 	if [ ! -s "$work/$2" ]; then
 		log "downloading $1"
-		curl -fsSL --retry 3 -o "$work/$2.part" "$1"
+		curl -fsSL --retry 5 --retry-all-errors -o "$work/$2.part" "$1"
 		mv "$work/$2.part" "$work/$2"
 	fi
 }
@@ -81,9 +81,9 @@ wait_http() { # name url [curl args]
 }
 
 case " $engines " in *" opensearch "*)
-	fetch "https://artifacts.opensearch.org/releases/bundle/opensearch/$OPENSEARCH_VERSION/opensearch-$OPENSEARCH_VERSION-linux-x64.tar.gz" opensearch.tgz
+	fetch "https://artifacts.opensearch.org/releases/bundle/opensearch/$OPENSEARCH_VERSION/opensearch-$OPENSEARCH_VERSION-linux-x64.tar.gz" "opensearch-$OPENSEARCH_VERSION.tgz"
 	rm -rf "$work/opensearch" && mkdir -p "$work/opensearch"
-	tar -xzf "$work/opensearch.tgz" -C "$work/opensearch" --strip-components=1
+	tar -xzf "$work/opensearch-$OPENSEARCH_VERSION.tgz" -C "$work/opensearch" --strip-components=1
 	# a single node without the security plugin (the wiki talks plain HTTP here)
 	OPENSEARCH_JAVA_OPTS="-Xms512m -Xmx512m" "$work/opensearch/bin/opensearch" \
 		-Ediscovery.type=single-node -Ehttp.port=$os_port -Enetwork.host=127.0.0.1 \
@@ -97,9 +97,9 @@ case " $engines " in *" opensearch "*)
 esac
 
 case " $engines " in *" elasticsearch "*)
-	fetch "https://artifacts.elastic.co/downloads/elasticsearch/elasticsearch-$ELASTICSEARCH_VERSION-linux-x86_64.tar.gz" elasticsearch.tgz
+	fetch "https://artifacts.elastic.co/downloads/elasticsearch/elasticsearch-$ELASTICSEARCH_VERSION-linux-x86_64.tar.gz" "elasticsearch-$ELASTICSEARCH_VERSION.tgz"
 	rm -rf "$work/elasticsearch" && mkdir -p "$work/elasticsearch"
-	tar -xzf "$work/elasticsearch.tgz" -C "$work/elasticsearch" --strip-components=1
+	tar -xzf "$work/elasticsearch-$ELASTICSEARCH_VERSION.tgz" -C "$work/elasticsearch" --strip-components=1
 	es_pw=$(secret)
 	# security on (password of "elastic"), HTTP without TLS on localhost
 	printf '%s' "$es_pw" | "$work/elasticsearch/bin/elasticsearch-keystore" add -x -f bootstrap.password >&2

@@ -1,7 +1,10 @@
 name: CI
 
 on:
+  # branches are tested through their pull request (merged with the current
+  # main, which is what lands); main after every merge
   push:
+    branches: [main]
   pull_request:
   # canary.yml calls this workflow nightly with latest: true – everything is
   # upgraded to the newest versions first (without committing) as an early warning
@@ -19,7 +22,14 @@ env:
 
 jobs:
   backend:
-    name: Backend (lint, unit + API integration tests)
+    # four parallel parts: lint and all packages except the server; the
+    # tests of the server in three shards of about the same running time
+    # (tools/testshard, durations in tools/testshard/durations.txt)
+    name: Backend (${{ matrix.shard == 0 && 'lint, unit tests' || format('API integration tests {0}/3', matrix.shard) }})
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [0, 1, 2, 3]
     runs-on: ubuntu-latest
     services:
       postgres:
@@ -43,21 +53,28 @@ jobs:
         if: ${{ inputs.latest }}
         run: go get -u -t ./... && go mod tidy && git diff --stat go.mod
       - name: gofmt
+        if: ${{ matrix.shard == 0 }}
         run: test -z "$(gofmt -l . | tee /dev/stderr)"
       - name: generated plugin imports are up to date
+        if: ${{ matrix.shard == 0 }}
         run: go run ./tools/genplugins && git diff --exit-code plugins/all
-      - run: go vet ./...
+      - name: go vet
+        if: ${{ matrix.shard == 0 }}
+        run: go vet ./...
       - name: plugin contract (sdk) compiles; examples and action register match its messages
+        if: ${{ matrix.shard == 0 }}
         working-directory: sdk
         run: go vet ./... && go run ./tools/protocheck
       - name: licenses of all linked modules are allowed (LICENSING.md)
+        if: ${{ matrix.shard == 0 }}
         run: go run ./tools/notices -check
       - name: documentation complete in German and English, links valid
+        if: ${{ matrix.shard == 0 }}
         run: go run ./tools/docscheck
       # Renovate waits 3 days before it proposes a new version, but cannot for
       # lock file maintenance and pinning: this covers every lock file change
       - name: new npm package versions are at least 3 days old
-        if: ${{ !inputs.latest }}
+        if: ${{ matrix.shard == 0 && !inputs.latest }}
         env:
           BASE: ${{ github.base_ref || 'main' }}
         run: |
@@ -65,9 +82,15 @@ jobs:
           git show FETCH_HEAD:web/package-lock.json > /tmp/old-lock.json
           go run ./tools/releaseage -old /tmp/old-lock.json -new web/package-lock.json
       - name: tests (race detector, real PostgreSQL)
-        run: go test -race -count=1 -timeout 30m ./...
         env:
           EWIKI_TEST_DATABASE_URL: ${{ env.DB_URL }}
+          SHARD: ${{ matrix.shard }}
+        run: |
+          if [ "$SHARD" = 0 ]; then
+            go test -race -count=1 -timeout 30m $(go list ./... | grep -v '/internal/server$')
+          else
+            go test -race -count=1 -timeout 30m -run "$(go run ./tools/testshard -shard "$SHARD" -of 3 ./internal/server)" ./internal/server
+          fi
 
   security:
     name: Security (govulncheck, gosec, npm audit, security tests)
@@ -365,6 +388,15 @@ jobs:
         run: echo "version=$(sed -n 's/^toolchain go//p' go.mod | grep . || sed -n 's/^go //p' go.mod)" >> "$GITHUB_OUTPUT"
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
         with: { go-version: "${{ steps.gover.outputs.version }}" }
+      # the downloads of the engines (their versions are in start.sh): from
+      # the cache, so a broken download rarely stops the job
+      - name: downloads of the engines (cache)
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            /tmp/ewiki-search/*.tgz
+            /tmp/ewiki-search/meilisearch-*
+          key: search-downloads-${{ hashFiles('tests/search/start.sh') }}
       - name: start OpenSearch, Elasticsearch and Meilisearch
         run: |
           tests/search/start.sh > /tmp/search.env
