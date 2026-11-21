@@ -2199,6 +2199,42 @@ test('permissions of an instance: a blog editor without page permissions, own pe
   } finally { await ctx2.close(); }
 });
 
+test('placement: scope for a category – only on its page, without the subcategories', async () => {
+  const cat = (await call('POST', '/api/v1/categories', { titles: { en: `Scope ${run}` } })).id;
+  const sub = (await call('POST', '/api/v1/categories', { titles: { en: `Scope sub ${run}` }, parent_id: cat })).id;
+  const inIt = await call('POST', '/api/v1/elements', { category_id: cat, type: 'core.html', title: `In scope ${run}`, body: { format: 'markdown', source: 'x' } });
+  try {
+    await page.goto(`${BASE}/c/${cat}/settings?tab=placement`);
+    await idle();
+    await page.getByRole('combobox', { name: /^(position of search|position von suche)$/i }).selectOption('footer');
+    const pages = page.getByRole('checkbox', { name: /^(on all pages of the category|auf allen seiten der kategorie): (search|suche)$/i });
+    const subs = page.getByRole('checkbox', { name: /^(include subcategories|unterkategorien einbeziehen): (search|suche)$/i });
+    assert.ok(await pages.isChecked() && await subs.isChecked(), 'by default everywhere');
+    await pages.uncheck();
+    await subs.uncheck();
+    await page.locator('[aria-live=polite]', { hasText: /subcategories|unterkategorien/i }).waitFor({ state: 'attached' });
+    assert.ok(!(await pages.isChecked()) && !(await subs.isChecked()), 'both unchecked after redrawing');
+    await a11y('scope of a placement');
+    await page.getByRole('button', { name: /^(save|speichern)$/i }).click();
+    await page.locator('.ew-toast', { hasText: /placement saved|platzierung gespeichert/i }).first().waitFor();
+    const stored = (await call('GET', `/api/v1/placements/category?target=${cat}`)).placements.find((p) => p.block === 'core.search');
+    assert.ok(stored.only_category_page && stored.no_subcategories, 'stored with its scope');
+    // the page of the category: search in the footer
+    await page.goto(`${BASE}/c/${cat}`);
+    await idle();
+    await page.locator('.ew-pos--footer form[role=search]').waitFor();
+    // a page in it and the subcategory: the placement of the site (header)
+    for (const url of [`${BASE}/e/${inIt.id}`, `${BASE}/c/${sub}`]) {
+      await page.goto(url);
+      await idle();
+      await page.locator('.ew-pos--header-tools form[role=search]').waitFor();
+      assert.equal(await page.locator('.ew-pos--footer form[role=search]').count(), 0, `no search in the footer: ${url}`);
+    }
+  } finally {
+    await call('PUT', `/api/v1/placements/category?target=${cat}`, { placements: [] });
+  }
+});
+
 test('placement: search in the footer for the site, no category tree in one category, the user menu stays', async () => {
   const cat = await m6Category();
   try {

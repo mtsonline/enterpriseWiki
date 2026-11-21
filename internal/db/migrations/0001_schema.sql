@@ -544,6 +544,10 @@ CREATE TABLE placements (
     sort       int NOT NULL DEFAULT 0,
     required   boolean NOT NULL DEFAULT false, -- lower levels cannot move or remove it (template and site)
     options    jsonb NOT NULL DEFAULT '{}', -- look and showing of the placed block (blockoptions.json, checked)
+    -- scope of a placement for a category (level category only): only the
+    -- page of the category (not the pages in it), without the subcategories
+    only_category_page boolean NOT NULL DEFAULT false,
+    no_subcategories   boolean NOT NULL DEFAULT false,
     updated_by bigint REFERENCES users(id) ON DELETE SET NULL,
     updated_at timestamptz NOT NULL DEFAULT now()
 );

@@ -1141,7 +1141,7 @@ const carouselPageEN = `<p>At the top of this page, above the path and the title
 	`<li><strong>Who sees it:</strong> signed-in people.</li></ul>` +
 	`<h2>Try it yourself</h2><ul>` +
 	`<li><strong>Slides:</strong> Administration → <em>Carousels</em> → <em>Slides</em> of the carousel “Demo”.</li>` +
-	`<li><strong>Placement of this category:</strong> switch on the edit mode, then <em>Category settings</em> → <em>Placement</em>.</li>` +
+	`<li><strong>Placement of this category:</strong> switch on the edit mode, then <em>Category settings</em> → <em>Placement</em>. There <em>On all pages of the category</em> and <em>Include subcategories</em> limit where it appears, for example only on the page of the category.</li>` +
 	`<li><strong>On every page:</strong> give the carousel a fixed position under Administration → <em>Carousels</em>.</li>` +
 	`<li><strong>A page as a slide:</strong> when publishing a page, tick the carousel under <em>As news</em>.</li></ul>`
 const carouselPageDE = `<p>Oben auf dieser Seite, über dem Pfad und dem Titel, steht ein <strong>Karussell</strong>: Folien mit Bild, Titel, kurzem Text und Link, eine nach der anderen. Pfeile und Punkte wechseln die Folie; von selbst wechselt sie hier nicht.</p>` +
@@ -1152,6 +1152,6 @@ const carouselPageDE = `<p>Oben auf dieser Seite, über dem Pfad und dem Titel, 
 	`<li><strong>Wer es sieht:</strong> angemeldete Personen.</li></ul>` +
 	`<h2>Selbst ausprobieren</h2><ul>` +
 	`<li><strong>Folien:</strong> Administration → <em>Karussells</em> → <em>Folien</em> des Karussells „Demo“.</li>` +
-	`<li><strong>Platzierung dieser Kategorie:</strong> den Bearbeitungsmodus einschalten, dann <em>Kategorie-Einstellungen</em> → <em>Platzierung</em>.</li>` +
+	`<li><strong>Platzierung dieser Kategorie:</strong> den Bearbeitungsmodus einschalten, dann <em>Kategorie-Einstellungen</em> → <em>Platzierung</em>. Dort schränken <em>Auf allen Seiten der Kategorie</em> und <em>Unterkategorien einbeziehen</em> ein, wo es erscheint, zum Beispiel nur auf der Seite der Kategorie.</li>` +
 	`<li><strong>Auf jeder Seite:</strong> dem Karussell unter Administration → <em>Karussells</em> eine feste Position geben.</li>` +
 	`<li><strong>Eine Seite als Folie:</strong> beim Veröffentlichen unter <em>Als Neuigkeit</em> das Karussell ankreuzen.</li></ul>`

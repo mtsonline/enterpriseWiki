@@ -588,3 +588,6 @@ th[aria-sort="descending"] .ew-sort-button::after { content: " ↓"; opacity: 1;
 .ew-try-bar { display: flex; flex-wrap: wrap; gap: .5rem 1rem; align-items: center; justify-content: space-between; padding: .5rem 1rem; background: var(--ew-bg-subtle); color: var(--ew-text); border-block-end: 2px solid var(--ew-primary); }
 .ew-try-bar p { margin: 0; }
 @media print { .ew-try-bar { display: none; } }
+/* scope of a placement for a category: two check boxes under the row */
+.ew-placement-scope { display: flex; flex-wrap: wrap; gap: .25rem 1.25rem; flex-basis: 100%; }
+.ew-placement-scope .ew-check { margin: 0; }

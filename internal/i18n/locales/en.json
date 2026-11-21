@@ -1248,7 +1248,7 @@
  "placement.title_category": "Placement in this category",
  "placement.title_user": "My arrangement",
  "placement.help_site": "Where search, notifications, the category tree and the blocks of plugins appear, for the whole site. Categories can change it for themselves and their subcategories; blocks marked as required stay where they are.",
- "placement.help_category": "Changes apply to this category and its subcategories. Blocks you do not change keep the placement from above (inherited).",
+ "placement.help_category": "Changes apply to this category, all pages in it and its subcategories. Each block can be limited: without “On all pages of the category” only on the page of the category itself, without “Include subcategories” not in the subcategories (there the placement from above applies). Blocks you do not change keep the placement from above (inherited).",
  "placement.help_user": "Arrange the building blocks for yourself. Blocks the administration made required stay where they are.",
  "category.tab.placement": "Placement",
  "placement.hidden": "Not shown",
@@ -2828,5 +2828,11 @@
  "layout.embed_forget": "Stop loading content from {host} automatically",
  "layout.embed_forgotten": "From the next visit on, content from {host} loads only after you agree.",
  "settings.embed_allow": "Services allowed for external videos and embeds",
- "settings.embed_allow_help": "One address per line, only https:// and the server (for example https://www.youtube-nocookie.com or https://player.vimeo.com). Empty: nothing from outside the wiki is embedded. Content loads only after the reader agrees."
+ "settings.embed_allow_help": "One address per line, only https:// and the server (for example https://www.youtube-nocookie.com or https://player.vimeo.com). Empty: nothing from outside the wiki is embedded. Content loads only after the reader agrees.",
+ "placement.scope_pages": "On all pages of the category",
+ "placement.scope_sub": "Include subcategories",
+ "placement.scope_pages_on": "{block} is now also on all pages of the category.",
+ "placement.scope_pages_off": "{block} is now only on the page of the category itself.",
+ "placement.scope_sub_on": "{block} now also applies in the subcategories.",
+ "placement.scope_sub_off": "{block} no longer applies in the subcategories."
 }

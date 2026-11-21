@@ -36,6 +36,12 @@ type Placement struct {
 	// Options: how this placed block looks and when it is shown (checked
 	// values of blockoptions.json; the CSS is built from them)
 	Options map[string]any `json:"options,omitempty"`
+	// Scope of a placement for a category (level category only): by default
+	// it applies on the page of the category, on all its pages and in all
+	// subcategories. OnlyCategoryPage limits it to the page of the category
+	// (not the pages in it); NoSubcategories leaves the subcategories out.
+	OnlyCategoryPage bool `json:"only_category_page,omitempty"`
+	NoSubcategories  bool `json:"no_subcategories,omitempty"`
 }
 
 // DashboardPositionPrefix starts the positions of the dashboard (dashboard-wide
@@ -144,7 +150,9 @@ func (s *Service) ResolvedPlacements(ctx context.Context, templateID string, cat
 			}
 		}
 	}
+	var ownCategory string
 	if categoryID > 0 {
+		ownCategory = strconv.FormatInt(categoryID, 10)
 		if c, err := s.loadCategory(ctx, s.pool, categoryID, false); err == nil && s.acl.Can(ctx, identity.From(ctx), categoryID, acl.View) {
 			for _, id := range c.Path {
 				want = append(want, key{LevelCategory, strconv.FormatInt(id, 10)})
@@ -167,7 +175,7 @@ func (s *Service) ResolvedPlacements(ctx context.Context, templateID string, cat
 	for i, k := range want {
 		levels[i], targets[i] = k.level, k.target
 	}
-	rows, err := s.pool.Query(ctx, `SELECT p.level, p.target, p.block, p.position, p.sort, p.required, p.options
+	rows, err := s.pool.Query(ctx, `SELECT p.level, p.target, p.block, p.position, p.sort, p.required, p.options, p.only_category_page, p.no_subcategories
 		FROM placements p JOIN unnest($1::text[], $2::text[]) AS w(level, target) ON w.level = p.level AND w.target = p.target
 		ORDER BY p.sort, p.id`, levels, targets)
 	if err != nil {
@@ -177,9 +185,14 @@ func (s *Service) ResolvedPlacements(ctx context.Context, templateID string, cat
 	for rows.Next() {
 		var k key
 		var pl Placement
-		if err := rows.Scan(&k.level, &k.target, &pl.Block, &pl.Position, &pl.Sort, &pl.Required, &pl.Options); err != nil {
+		if err := rows.Scan(&k.level, &k.target, &pl.Block, &pl.Position, &pl.Sort, &pl.Required, &pl.Options, &pl.OnlyCategoryPage, &pl.NoSubcategories); err != nil {
 			rows.Close()
 			return nil, err
+		}
+		// the scope of a placement for a category: not on the pages in it,
+		// not in the subcategories (then the levels above apply there)
+		if k.level == LevelCategory && ((pl.OnlyCategoryPage && elementID > 0) || (pl.NoSubcategories && k.target != ownCategory)) {
+			continue
 		}
 		byKey[k] = append(byKey[k], pl)
 	}
@@ -292,7 +305,7 @@ func (s *Service) GetPlacements(ctx context.Context, level, target string) (*Pla
 		return nil, err
 	}
 	out := &PlacementLevel{Level: level, Target: target, Placements: []Placement{}}
-	rows, err := s.pool.Query(ctx, `SELECT block, position, sort, required, options, updated_at FROM placements WHERE level=$1 AND target=$2 ORDER BY sort, id`, level, target)
+	rows, err := s.pool.Query(ctx, `SELECT block, position, sort, required, options, only_category_page, no_subcategories, updated_at FROM placements WHERE level=$1 AND target=$2 ORDER BY sort, id`, level, target)
 	if err != nil {
 		return nil, err
 	}
@@ -300,7 +313,7 @@ func (s *Service) GetPlacements(ctx context.Context, level, target string) (*Pla
 	for rows.Next() {
 		var pl Placement
 		var at time.Time
-		if err := rows.Scan(&pl.Block, &pl.Position, &pl.Sort, &pl.Required, &pl.Options, &at); err != nil {
+		if err := rows.Scan(&pl.Block, &pl.Position, &pl.Sort, &pl.Required, &pl.Options, &pl.OnlyCategoryPage, &pl.NoSubcategories, &at); err != nil {
 			return nil, err
 		}
 		if out.UpdatedAt == nil || at.After(*out.UpdatedAt) {
@@ -386,6 +399,9 @@ func (s *Service) SetPlacements(ctx context.Context, level, target string, in []
 		if pl.Required && level != LevelTemplate && level != LevelSite {
 			return nil, apperr.BadRequest("placement %d: only the template and the site make blocks required", i+1)
 		}
+		if (pl.OnlyCategoryPage || pl.NoSubcategories) && level != LevelCategory {
+			return nil, apperr.BadRequest("placement %d: only a placement for a category has a scope (its pages, its subcategories)", i+1)
+		}
 		if err := CheckBlockOptions(pl.Options); err != nil {
 			return nil, apperr.BadRequest("placement %d (%s): %s", i+1, pl.Block, err.Error())
 		}
@@ -426,8 +442,8 @@ func (s *Service) SetPlacements(ctx context.Context, level, target string, in []
 			return err
 		}
 		for _, pl := range in {
-			if _, err := tx.Exec(ctx, `INSERT INTO placements(level, target, block, position, sort, required, options, updated_by) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`,
-				level, target, pl.Block, pl.Position, pl.Sort, pl.Required, optionsJSON(pl.Options), nullID(ctx)); err != nil {
+			if _, err := tx.Exec(ctx, `INSERT INTO placements(level, target, block, position, sort, required, options, only_category_page, no_subcategories, updated_by) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`,
+				level, target, pl.Block, pl.Position, pl.Sort, pl.Required, optionsJSON(pl.Options), pl.OnlyCategoryPage, pl.NoSubcategories, nullID(ctx)); err != nil {
 				return err
 			}
 		}

@@ -15,7 +15,8 @@ import { button, checkbox, errorText, field, select } from './ui';
 import { optionsDialog } from './blockoptions';
 import type { BlockOptions } from '../core/blockoptions';
 
-interface Row { block: string; position: string; required: boolean; options?: BlockOptions }
+// onlyPage, noSub: the scope of a placement for a category
+interface Row { block: string; position: string; required: boolean; options?: BlockOptions; onlyPage?: boolean; noSub?: boolean }
 
 /** placementEditor edits the placements of one level. Rows of the level
  * replace the placements from above for the same block; blocks without a
@@ -56,7 +57,7 @@ export async function placementEditor(level: 'site' | 'type' | 'category' | 'cat
     ...(b.always ? [] : [{ value: '', label: t('placement.hidden') }])];
   // own rows per block; blocks without rows are inherited
   const own = new Map<string, Row[]>();
-  for (const p of current.placements) own.set(p.block, [...(own.get(p.block) ?? []), { block: p.block, position: p.position, required: !!p.required, options: p.options && Object.keys(p.options).length ? p.options : undefined }]);
+  for (const p of current.placements) own.set(p.block, [...(own.get(p.block) ?? []), { block: p.block, position: p.position, required: !!p.required, options: p.options && Object.keys(p.options).length ? p.options : undefined, onlyPage: !!p.only_category_page, noSub: !!p.no_subcategories }]);
   // order within a position: by sort of the level, else of above
   const order = new Map<string, number>();
   current.placements.forEach((p) => order.set(`${p.block}@${p.position}`, p.sort));
@@ -120,9 +121,24 @@ export async function placementEditor(level: 'site' | 'type' | 'category' | 'cat
         optBtn.dataset.key = `${key}:opts`;
         const req = level === 'site' ? checkbox(t('placement.required'), own.get(b.id)?.some((x) => x.required) ?? false, { help: t('placement.required_help') }) : null;
         req?.input.addEventListener('change', () => { takeOver(b.id); own.get(b.id)!.forEach((x) => { x.required = req.input.checked; }); });
+        // the scope of a placement for a category: on all its pages, in its subcategories
+        let scope: HTMLElement | null = null;
+        if (level === 'category') {
+          const row = () => { takeOver(b.id); return own.get(b.id)!.find((x) => x.position === pos)!; };
+          const mine = own.get(b.id)?.find((x) => x.position === pos);
+          const pages = checkbox(t('placement.scope_pages'), !mine?.onlyPage);
+          const sub = checkbox(t('placement.scope_sub'), !mine?.noSub);
+          pages.input.setAttribute('aria-label', `${t('placement.scope_pages')}: ${b.label}`);
+          sub.input.setAttribute('aria-label', `${t('placement.scope_sub')}: ${b.label}`);
+          pages.input.dataset.key = `${key}:pages`;
+          sub.input.dataset.key = `${key}:sub`;
+          pages.input.addEventListener('change', () => { row().onlyPage = !pages.input.checked; status.textContent = t(pages.input.checked ? 'placement.scope_pages_on' : 'placement.scope_pages_off', { block: b.label }); draw(`${key}:pages`); });
+          sub.input.addEventListener('change', () => { row().noSub = !sub.input.checked; status.textContent = t(sub.input.checked ? 'placement.scope_sub_on' : 'placement.scope_sub_off', { block: b.label }); draw(`${key}:sub`); });
+          scope = h('div', { class: 'ew-placement-scope' }, pages.el, sub.el);
+        }
         return h('li', { class: 'ew-placement-item' },
           h('span', { class: 'ew-placement-name' }, b.label, inherited ? h('span', { class: 'ew-muted' }, ` – ${t('placement.inherited')}`) : null),
-          h('span', { class: 'ew-actions' }, up, down, where, optBtn), req?.el ?? null);
+          h('span', { class: 'ew-actions' }, up, down, where, optBtn), req?.el ?? null, scope);
       });
       return h('li', null, h('h3', null, `${positionLabel(pos)} (${pos})`),
         items.length ? h('ol', { class: 'ew-placement-list' }, ...items) : h('p', { class: 'ew-muted' }, t('placement.empty')));
@@ -161,7 +177,8 @@ export async function placementEditor(level: 'site' | 'type' | 'category' | 'cat
   draw();
   const save = button(t('common.save'), async () => {
     const out: Placement[] = [];
-    for (const [b, rows] of own) for (const r of rows) out.push({ block: b, position: r.position, sort: order.get(`${b}@${r.position}`) ?? 50, required: r.required || undefined, options: r.position && r.options ? r.options : undefined });
+    for (const [b, rows] of own) for (const r of rows) out.push({ block: b, position: r.position, sort: order.get(`${b}@${r.position}`) ?? 50, required: r.required || undefined, options: r.position && r.options ? r.options : undefined,
+      only_category_page: level === 'category' && r.onlyPage ? true : undefined, no_subcategories: level === 'category' && r.noSub ? true : undefined });
     try {
       await api.put(`placements/${level}${target ? `?target=${encodeURIComponent(target)}` : ''}`, { placements: out });
       invalidatePlacements();
