@@ -18,7 +18,7 @@ func TestEmbedFlow(t *testing.T) {
 			HTML string `json:"html"`
 		}
 		admin.must("POST", "/api/v1/elements/preview", map[string]any{"type": "core.html", "lang": "de", "body": map[string]any{"format": "markdown",
-			"source": `::embed{url="https://youtu.be/dQw4w9WgXcQ" title="Einführung"}`}}, &res, 200)
+			"source": `::embed{address="https://youtu.be/dQw4w9WgXcQ" title="Einführung"}`}}, &res, 200)
 		return res.HTML
 	}
 	csp := func() string {

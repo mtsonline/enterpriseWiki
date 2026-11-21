@@ -264,7 +264,7 @@ func TestProperties(t *testing.T) {
 
 	// report macro: escaped, with the rights of the reader
 	var rep elem
-	body := `<div data-macro="properties" data-params='{"columns":"status,budget,secret","sort":"-budget","filter":"budget >= 1"}'></div>`
+	body := `<div data-macro="properties" data-params='{"columns":"status,budget,secret","sorting":"-budget","conditions":"budget >= 1"}'></div>`
 	admin.must("POST", "/api/v1/elements", map[string]any{"category_id": c.ID, "type": "core.html", "title": "Report", "body": htmlBody(body)}, &rep, 201)
 	var v elem
 	admin.must("GET", fmt.Sprintf("/api/v1/elements/%d", rep.ID), nil, &v, 200)

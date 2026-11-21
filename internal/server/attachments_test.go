@@ -82,7 +82,7 @@ func TestAttachmentsAndCode(t *testing.T) {
 	}
 
 	// --- the files of a category: order, view only, upload only with the right
-	cp := page(cat.ID, "All files", "::attachments{source=category sort=size}\n")
+	cp := page(cat.ID, "All files", "::attachments{source=category sorting=size}\n")
 	h = view(rea, cp)
 	iBig, iSmall := strings.Index(h, "Big picture"), strings.Index(h, "Small picture")
 	if iBig < 0 || iSmall < 0 || iBig > iSmall {
@@ -102,7 +102,7 @@ func TestAttachmentsAndCode(t *testing.T) {
 		t.Errorf("files of a closed category: %s", h)
 	}
 	// only pictures, by name
-	h = view(rea, page(cat.ID, "Pictures", "::attachments{source=category type=image sort=name}\n"))
+	h = view(rea, page(cat.ID, "Pictures", "::attachments{source=category type=image sorting=name}\n"))
 	if strings.Index(h, "Big picture") > strings.Index(h, "Small picture") {
 		t.Errorf("by name: %s", h)
 	}

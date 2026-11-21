@@ -1023,7 +1023,7 @@ func (p *Plugin) routesQuery() {
 			}
 			_ = json.Unmarshal(raw, &probe)
 			if probe.Params != nil {
-				if probe.Params["export"] == "false" {
+				if probe.Params["downloads"] == "false" {
 					h.WriteError(w, r, apperr.Forbidden("this report offers no download"))
 					return
 				}
@@ -1044,7 +1044,7 @@ func (p *Plugin) routesQuery() {
 			// safe (default): no formulas, CSV cells protected against formula
 			// injection; original: values as they are (chosen when creating the
 			// report or database)
-			original := probe.ExportMode == "original" || probe.Params["export_mode"] == "original"
+			original := probe.ExportMode == "original" || probe.Params["download_mode"] == "original"
 			q.Group, q.Group2, q.Limit, q.Offset = "", "", maxRows, 0
 			res, err := p.Run(r.Context(), q)
 			if err != nil {

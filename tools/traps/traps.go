@@ -945,4 +945,25 @@ var traps = []trap{
 		New:  "`\" data-member=\"` + member + `\">`",
 		Pkg:  "./plugins/core_layout/", Tests: "^TestLogin$",
 	},
+	{
+		ID: "waf.options-json", About: "the options of a block are written as JSON again (firewalls block it)",
+		File: "internal/content/blockoptions_text.go",
+		Old:  "\treturn strings.Join(parts, \" \")\n}",
+		New:  "\treturn \"{\\\"\" + strings.ReplaceAll(strings.Join(parts, \"\\\",\\\"\"), \":\", \"\\\":\\\"\") + \"\\\"}\"\n}",
+		Pkg:  "./internal/server/", Tests: "^TestWAFMacros$",
+	},
+	{
+		ID: "waf.param-style", About: "a parameter is called style again (libinjection takes it for an HTML attribute)",
+		File: "plugins/core_layout/icons.go",
+		Old:  "{Name: \"look\", Labels: lm(\"Style\", \"Stil\"), Type: \"select\", Options: iconStyles",
+		New:  "{Name: \"style\", Labels: lm(\"Style\", \"Stil\"), Type: \"select\", Options: iconStyles",
+		Pkg:  "./internal/server/", Tests: "^TestWAFMacros$",
+	},
+	{
+		ID: "waf.exclusions-methods", About: "the exclusions forget PUT, PATCH and DELETE (saving a page is blocked)",
+		File: "docker/waf/ewiki-crs-exclusions.conf",
+		Old:  "setvar:'tx.allowed_methods=GET HEAD POST OPTIONS PUT PATCH DELETE'",
+		New:  "setvar:'tx.allowed_methods=GET HEAD POST OPTIONS'",
+		Pkg:  "./internal/server/", Tests: "^TestWAFExclusions$",
+	},
 }

@@ -58,8 +58,8 @@
         { "id": "overlay_color", "type": "color" },
         { "id": "overlay_opacity", "type": "int", "min": 0, "max": 95, "unit": "%" },
         { "id": "blend", "type": "enum", "values": ["normal", "multiply", "screen", "overlay", "darken", "lighten", "luminosity"] },
-        { "id": "pattern", "type": "enum", "values": ["none", "dots", "lines", "grid", "diagonal"] },
-        { "id": "pattern_color", "type": "color" },
+        { "id": "texture", "type": "enum", "values": ["none", "dots", "lines", "grid", "diagonal"] },
+        { "id": "texture_color", "type": "color" },
         { "id": "glass", "type": "bool" }
       ]
     },

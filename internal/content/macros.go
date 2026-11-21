@@ -421,13 +421,12 @@ const OptionsParam = "options"
 // Options the server does not accept are not used, and the block says so.
 func withBlockOptions(res, raw, lang string) string {
 	raw = strings.TrimSpace(raw)
-	if raw == "" || raw == "{}" {
+	if raw == "" {
 		return res
 	}
-	var o map[string]any
-	dec := json.NewDecoder(strings.NewReader(raw))
-	if err := dec.Decode(&o); err != nil || dec.More() {
-		return macroNote(apperr.Localized(apperr.BadRequest("options: not a valid list of options"), lang)) + res
+	o, err := DecodeBlockOptions(raw)
+	if err != nil {
+		return macroNote(apperr.Localized(err, lang)) + res
 	}
 	if err := CheckBlockOptions(o); err != nil {
 		return macroNote(apperr.Localized(err, lang)) + res

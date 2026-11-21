@@ -92,7 +92,7 @@ func (m *macro) Description() map[string]string {
 func (m *macro) HasBody() bool { return false }
 func (m *macro) Params() []content.MacroParam {
 	return []content.MacroParam{
-		{Name: "url", Labels: lm("URL", "URL"), Type: "url", Required: true},
+		{Name: "address", Labels: lm("URL", "URL"), Type: "url", Required: true},
 		{Name: "format", Labels: lm("Format", "Format"), Type: "select", Options: []string{"text", "html", "json"}, Default: "text"},
 		{Name: "path", Labels: lm("JSON path (e.g. data.items)", "JSON-Pfad (z. B. data.items)"), Type: "text"},
 		{Name: "cache", Labels: lm("Cache (seconds)", "Zwischenspeichern (Sekunden)"), Type: "number", Default: "300"},
@@ -112,7 +112,7 @@ var ugc = bluemonday.UGCPolicy()
 
 func (m *macro) Render(ctx context.Context, mc content.MacroContext) (string, error) {
 	sec := m.p.cfg.Get().Plugins.Macros
-	raw := strings.TrimSpace(mc.Params["url"])
+	raw := strings.TrimSpace(mc.Params["address"])
 	u, err := url.Parse(raw)
 	if raw == "" || err != nil {
 		return note(mc.Lang, "HTTP macro: invalid URL.", "HTTP-Makro: ungültige URL."), nil

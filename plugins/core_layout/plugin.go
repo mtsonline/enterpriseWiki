@@ -176,11 +176,11 @@ func (button) Params() []content.MacroParam {
 	return []content.MacroParam{
 		{Name: "text", Labels: lm("Text", "Text"), Type: "text", Required: true},
 		{Name: "link", Labels: lm("Link", "Link"), Type: "url", Required: true},
-		{Name: "style", Labels: lm("Style", "Stil"), Type: "select", Options: buttonStyles, Default: "primary"},
+		{Name: "look", Labels: lm("Style", "Stil"), Type: "select", Options: buttonStyles, Default: "primary"},
 	}
 }
 func (button) Render(_ context.Context, mc content.MacroContext) (string, error) {
-	return `<p class="ewl-cta-wrap"><a class="ewl-cta ewl-cta--` + oneOf(mc.Params["style"], buttonStyles) + `" href="` + esc(SafeURL(mc.Params["link"])) + `">` +
+	return `<p class="ewl-cta-wrap"><a class="ewl-cta ewl-cta--` + oneOf(mc.Params["look"], buttonStyles) + `" href="` + esc(SafeURL(mc.Params["link"])) + `">` +
 		esc(strings.TrimSpace(mc.Params["text"])) + `</a></p>`, nil
 }
 

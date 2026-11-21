@@ -40,7 +40,7 @@ func (attachments) Params() []content.MacroParam {
 		{Name: "type", Labels: lm("Kind", "Art"), Type: "select", Options: attachTypes, Default: "all",
 			OptionLabels: map[string]map[string]string{"all": lm("All", "Alle"), "image": lm("Pictures", "Bilder"), "video": lm("Videos", "Videos"),
 				"audio": lm("Audio", "Audio"), "pdf": lm("PDF", "PDF"), "document": lm("Documents", "Dokumente")}},
-		{Name: "sort", Labels: lm("Order", "Reihenfolge"), Type: "select", Options: attachSorts, Default: "name",
+		{Name: "sorting", Labels: lm("Order", "Reihenfolge"), Type: "select", Options: attachSorts, Default: "name",
 			OptionLabels: map[string]map[string]string{"name": lm("By name", "Nach Name"), "updated": lm("Newest first", "Neueste zuerst"),
 				"size": lm("Largest first", "Größte zuerst"), "type": lm("By kind", "Nach Art")}},
 		{Name: "limit", Labels: lm("At most", "Höchstens"), Type: "number", Default: "50"},
@@ -53,7 +53,7 @@ func (a attachments) Render(ctx context.Context, mc content.MacroContext) (strin
 		return "", nil
 	}
 	in := media.ListInput{Sort: "name", Limit: intParam(mc.Params, "limit", 50, 1, 200)}
-	if s := mc.Params["sort"]; slices.Contains(attachSorts, s) {
+	if s := mc.Params["sorting"]; slices.Contains(attachSorts, s) {
 		in.Sort = s
 	}
 	if t := mc.Params["type"]; t != "" && t != "all" {

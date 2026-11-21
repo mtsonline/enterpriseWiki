@@ -185,7 +185,7 @@ func (divider) Description() map[string]string {
 func (divider) HasBody() bool { return false }
 func (divider) Params() []content.MacroParam {
 	return []content.MacroParam{
-		{Name: "style", Labels: lm("Style", "Stil"), Type: "select", Options: dividerStyles, Default: "line"},
+		{Name: "look", Labels: lm("Style", "Stil"), Type: "select", Options: dividerStyles, Default: "line"},
 		{Name: "size", Labels: lm("Space around it", "Abstand darum"), Type: "select", Options: sizes, Default: "medium"},
 		{Name: "width", Labels: lm("Width", "Breite"), Type: "select", Options: []string{"full", "half", "short"}, Default: "full"},
 	}
@@ -193,7 +193,7 @@ func (divider) Params() []content.MacroParam {
 
 func (divider) Render(_ context.Context, mc content.MacroContext) (string, error) {
 	// a divider is decoration: screen readers skip it (the page structure is in the headings)
-	return `<div class="ewl-divider ewl-divider--` + oneOf(mc.Params["style"], dividerStyles) + ` ewl-spacer--` + oneOf(mc.Params["size"], sizes) +
+	return `<div class="ewl-divider ewl-divider--` + oneOf(mc.Params["look"], dividerStyles) + ` ewl-spacer--` + oneOf(mc.Params["size"], sizes) +
 		` ewl-divider-w--` + oneOf(mc.Params["width"], []string{"full", "half", "short"}) + `" aria-hidden="true"><span></span></div>`, nil
 }
 
@@ -217,7 +217,7 @@ func (buttons) Params() []content.MacroParam {
 		p = append(p,
 			content.MacroParam{Name: "text" + n, Labels: lm("Text of button "+n, "Text der Schaltfläche "+n), Type: "text", Required: i == 1},
 			content.MacroParam{Name: "link" + n, Labels: lm("Link of button "+n, "Link der Schaltfläche "+n), Type: "url", Required: i == 1},
-			content.MacroParam{Name: "style" + n, Labels: lm("Style of button "+n, "Stil der Schaltfläche "+n), Type: "select", Options: buttonStyles, Default: map[bool]string{true: "primary", false: "secondary"}[i == 1]},
+			content.MacroParam{Name: "look" + n, Labels: lm("Style of button "+n, "Stil der Schaltfläche "+n), Type: "select", Options: buttonStyles, Default: map[bool]string{true: "primary", false: "secondary"}[i == 1]},
 			content.MacroParam{Name: "icon" + n, Labels: lm("Icon of button "+n, "Symbol der Schaltfläche "+n), Type: "custom:icon"},
 		)
 	}
@@ -238,7 +238,7 @@ func (buttons) Render(_ context.Context, mc content.MacroContext) (string, error
 			continue
 		}
 		shown++
-		style := mc.Params["style"+n]
+		style := mc.Params["look"+n]
 		if style == "" && i > 1 {
 			style = "secondary"
 		}
@@ -382,7 +382,7 @@ func (accordion) Parts() content.MacroParts {
 }
 func (accordion) Params() []content.MacroParam {
 	return []content.MacroParam{
-		{Name: "one", Labels: lm("Only one open at a time", "Immer nur einer offen"), Type: "bool"},
+		{Name: "single", Labels: lm("Only one open at a time", "Immer nur einer offen"), Type: "bool"},
 		{Name: "first", Labels: lm("First one open", "Erster offen"), Type: "bool"},
 	}
 }
@@ -393,7 +393,7 @@ func (accordion) Render(_ context.Context, mc content.MacroContext) (string, err
 		return "", err
 	}
 	name := ""
-	if mc.Params["one"] == "true" {
+	if mc.Params["single"] == "true" {
 		// details with the same name: the browser keeps only one open
 		name = fmt.Sprintf(` name="ewl-acc-%d"`, mc.Index)
 	}

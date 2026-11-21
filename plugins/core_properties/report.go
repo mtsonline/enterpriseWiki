@@ -17,8 +17,8 @@ import (
 // The macro "properties" (property report). Parameters are short texts, so
 // the Markdown stays readable, e.g.
 //
-//	::properties{source="category:12+sub" filter="status in open,review; due <= today+30d; owner = me"
-//	  columns="title,status,owner,due" sort="due" view="table"}
+//	::properties{source="category:12+sub" conditions="status in open,review; due <= today+30d; owner = me"
+//	  columns="title,status,owner,due" sorting="due" view="table"}
 //
 // The server renders an accessible table (also without JavaScript, with the
 // rights of the reader); the browser turns it into the chosen view.
@@ -68,12 +68,12 @@ func (report) Params() []content.MacroParam {
 	return []content.MacroParam{
 		{Name: "view", Labels: lm("View", "Darstellung"), Type: "select", Options: opt(Views), OptionLabels: labelsFor(Views), Default: "table"},
 		{Name: "source", Labels: lm("Sources (empty: this category with subcategories)", "Quellen (leer: diese Kategorie mit Unterkategorien)"), Type: "custom:properties.source"},
-		{Name: "filter", Labels: lm("Filters", "Filter"), Type: "custom:properties.filter"},
+		{Name: "conditions", Labels: lm("Filters", "Filter"), Type: "custom:properties.filter"},
 		{Name: "columns", Labels: lm("Columns", "Spalten"), Type: "custom:properties.columns"},
-		{Name: "sort", Labels: lm("Sort by (- before a key: descending)", "Sortieren nach (- vor dem Schlüssel: absteigend)"), Type: "custom:properties.sort"},
+		{Name: "sorting", Labels: lm("Sort by (- before a key: descending)", "Sortieren nach (- vor dem Schlüssel: absteigend)"), Type: "custom:properties.sort"},
 		{Name: "group", Labels: lm("Group by (board columns, chart categories, pivot rows)", "Gruppieren nach (Board-Spalten, Diagramm-Kategorien, Pivot-Zeilen)"), Type: "custom:properties.key"},
 		{Name: "group2", Labels: lm("Second grouping (series of stacked charts, pivot columns)", "Zweite Gruppierung (Reihen gestapelter Diagramme, Pivot-Spalten)"), Type: "custom:properties.key"},
-		{Name: "export_mode", Labels: lm("Downloads (CSV/Excel)", "Downloads (CSV/Excel)"), Type: "select", Options: []string{"safe", "original"}, Default: "safe",
+		{Name: "download_mode", Labels: lm("Downloads (CSV/Excel)", "Downloads (CSV/Excel)"), Type: "select", Options: []string{"safe", "original"}, Default: "safe",
 			OptionLabels: map[string]map[string]string{"safe": lm("Safe: values starting with = stay text", "Sicher: Werte mit = am Anfang bleiben Text"),
 				"original": lm("Original: such values become formulas", "Original: solche Werte werden zu Formeln")}},
 		{Name: "weeks", Labels: lm("Trend: number of weeks", "Verlauf: Anzahl Wochen"), Type: "number", Default: "12"},
@@ -84,7 +84,7 @@ func (report) Params() []content.MacroParam {
 		{Name: "date", Labels: lm("Date property (calendar, timeline, overdue)", "Datums-Eigenschaft (Kalender, Zeitleiste, überfällig)"), Type: "custom:properties.key"},
 		{Name: "live_filters", Labels: lm("Filters for readers (properties)", "Filter für Lesende (Eigenschaften)"), Type: "custom:properties.columns"},
 		{Name: "totals", Labels: lm("Show totals", "Summen anzeigen"), Type: "bool"},
-		{Name: "export", Labels: lm("Offer downloads (CSV, Excel)", "Downloads anbieten (CSV, Excel)"), Type: "bool", Default: "true"},
+		{Name: "downloads", Labels: lm("Offer downloads (CSV, Excel)", "Downloads anbieten (CSV, Excel)"), Type: "bool", Default: "true"},
 		{Name: "limit", Labels: lm("Maximum number of elements", "Höchstzahl der Elemente"), Type: "number", Default: "100"},
 		{Name: "title", Labels: lm("Heading (also the name for screen readers)", "Überschrift (auch der Name für Screenreader)"), Type: "text"},
 	}
@@ -191,7 +191,7 @@ func QueryOf(params map[string]string, categoryID, elementID int64, lang string)
 	if len(q.Sources) == 0 && categoryID > 0 {
 		q.Sources = []Source{{Kind: "category", ID: categoryID, Sub: true}}
 	}
-	if q.Filters, err = ParseFilters(params["filter"]); err != nil {
+	if q.Filters, err = ParseFilters(params["conditions"]); err != nil {
 		return nil, err
 	}
 	q.Columns = splitKeys(params["columns"])
@@ -203,7 +203,7 @@ func QueryOf(params map[string]string, categoryID, elementID int64, lang string)
 			}
 		}
 	}
-	for _, k := range splitKeys(params["sort"]) {
+	for _, k := range splitKeys(params["sorting"]) {
 		q.Sort = append(q.Sort, SortKey{Key: strings.TrimPrefix(k, "-"), Desc: strings.HasPrefix(k, "-")})
 	}
 	q.Limit, _ = strconv.Atoi(params["limit"])

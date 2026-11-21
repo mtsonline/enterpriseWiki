@@ -221,7 +221,7 @@ func (pagetree) Params() []content.MacroParam {
 		{Name: "depth", Labels: lm("Levels", "Ebenen"), Type: "select", Options: []string{"1", "2", "3", "4"}, Default: "3"},
 		{Name: "pages", Labels: lm("Show pages", "Seiten zeigen"), Type: "bool", Default: "true"},
 		{Name: "open", Labels: lm("All open", "Alles aufgeklappt"), Type: "bool"},
-		{Name: "filter", Labels: lm("Filter field", "Filterfeld"), Type: "bool", Default: "true"},
+		{Name: "search", Labels: lm("Filter field", "Filterfeld"), Type: "bool", Default: "true"},
 	}
 }
 
@@ -293,7 +293,7 @@ func (pagetree) Render(ctx context.Context, mc content.MacroContext) (string, er
 		}
 	}
 	fmt.Fprintf(&b, `<nav class="ew-pagetree" aria-label="%s">`, esc(label))
-	if mc.Params["filter"] != "false" {
+	if mc.Params["search"] != "false" {
 		// filled by the browser (a filter needs script; without it the tree is complete)
 		fmt.Fprintf(&b, `<div class="ew-pagetree-filter" data-ew-widget="core.macros.pagetree"></div>`)
 	}

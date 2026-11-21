@@ -41,7 +41,7 @@ func TestEmbedTarget(t *testing.T) {
 // escaped; the box names the service.
 func TestEmbed(t *testing.T) {
 	m := embed{allow: func() []string { return []string{"https://www.youtube-nocookie.com"} }}
-	out, err := render(t, m, "de", map[string]string{"url": "https://youtu.be/dQw4w9WgXcQ", "title": `Einführung <b>"neu"</b>`, "ratio": "4x3", "caption": "Teil 1"}, "")
+	out, err := render(t, m, "de", map[string]string{"address": "https://youtu.be/dQw4w9WgXcQ", "title": `Einführung <b>"neu"</b>`, "ratio": "4x3", "caption": "Teil 1"}, "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -57,18 +57,18 @@ func TestEmbed(t *testing.T) {
 			t.Errorf("%q in %s", bad, out)
 		}
 	}
-	if _, err := render(t, m, "en", map[string]string{"url": "https://vimeo.com/76979871", "title": "x"}, ""); err == nil || !strings.Contains(err.Error(), "https://player.vimeo.com") {
+	if _, err := render(t, m, "en", map[string]string{"address": "https://vimeo.com/76979871", "title": "x"}, ""); err == nil || !strings.Contains(err.Error(), "https://player.vimeo.com") {
 		t.Errorf("service not allowed: %v", err)
 	}
-	if _, err := render(t, embed{}, "en", map[string]string{"url": "https://youtu.be/dQw4w9WgXcQ", "title": "x"}, ""); err == nil {
+	if _, err := render(t, embed{}, "en", map[string]string{"address": "https://youtu.be/dQw4w9WgXcQ", "title": "x"}, ""); err == nil {
 		t.Error("nothing allowed, but accepted")
 	}
-	if _, err := render(t, m, "en", map[string]string{"url": "https://youtu.be/dQw4w9WgXcQ"}, ""); err == nil {
+	if _, err := render(t, m, "en", map[string]string{"address": "https://youtu.be/dQw4w9WgXcQ"}, ""); err == nil {
 		t.Error("no title accepted")
 	}
 	// the attribute value of a plain address stays inside its quotes
 	m2 := embed{allow: func() []string { return []string{"https://v.example.com"} }}
-	out, err = render(t, m2, "en", map[string]string{"url": `https://v.example.com/a"onmouseover="x`, "title": "x"}, "")
+	out, err = render(t, m2, "en", map[string]string{"address": `https://v.example.com/a"onmouseover="x`, "title": "x"}, "")
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -7,6 +7,8 @@ toolchain go1.27.4
 require (
 	github.com/beevik/etree v1.8.1
 	github.com/coder/websocket v1.8.15
+	github.com/corazawaf/coraza-coreruleset/v4 v4.25.0
+	github.com/corazawaf/coraza/v3 v3.8.1
 	github.com/coreos/go-oidc/v3 v3.21.0
 	github.com/crewjam/saml v0.6.3
 	github.com/fxamacker/cbor/v2 v2.10.0
@@ -31,30 +33,45 @@ require (
 	github.com/Azure/go-ntlmssp v0.1.1 // indirect
 	github.com/aymerick/douceur v0.2.0 // indirect
 	github.com/cenkalti/backoff v2.2.1+incompatible // indirect
+	github.com/corazawaf/libinjection-go v0.3.3 // indirect
 	github.com/fatih/color v1.17.0 // indirect
 	github.com/go-asn1-ber/asn1-ber v1.5.8 // indirect
 	github.com/go-viper/mapstructure/v2 v2.5.0 // indirect
 	github.com/go-webauthn/x v0.3.1 // indirect
+	github.com/goccy/go-json v0.10.5 // indirect
+	github.com/goccy/go-yaml v1.19.2 // indirect
 	github.com/golang-jwt/jwt/v5 v5.3.1 // indirect
 	github.com/google/go-tpm v0.9.8 // indirect
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/gorilla/css v1.0.1 // indirect
+	github.com/gotnospirit/makeplural v0.0.0-20180622080156-a5f48d94d976 // indirect
+	github.com/gotnospirit/messageformat v0.0.0-20221001023931-dfe49f1eb092 // indirect
 	github.com/hashicorp/go-hclog v1.6.3 // indirect
 	github.com/jackc/pgpassfile v1.0.0 // indirect
 	github.com/jackc/pgservicefile v0.0.0-20240606120523-5a60cdf6a761 // indirect
 	github.com/jackc/puddle/v2 v2.2.3 // indirect
 	github.com/jonboulle/clockwork v0.5.0 // indirect
+	github.com/kaptinlin/go-i18n v0.1.4 // indirect
+	github.com/kaptinlin/jsonschema v0.4.6 // indirect
 	github.com/kr/text v0.2.0 // indirect
+	github.com/magefile/mage v1.17.0 // indirect
 	github.com/mattn/go-colorable v0.1.13 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect
+	github.com/petar-dambovaliev/aho-corasick v0.0.0-20250424160509-463d218d4745 // indirect
 	github.com/philhofer/fwd v1.2.0 // indirect
 	github.com/rogpeppe/go-internal v1.12.0 // indirect
 	github.com/russellhaering/goxmldsig v1.6.1 // indirect
 	github.com/stretchr/testify v1.12.1 // indirect
+	github.com/tidwall/gjson v1.18.0 // indirect
+	github.com/tidwall/match v1.1.1 // indirect
+	github.com/tidwall/pretty v1.2.1 // indirect
 	github.com/tinylib/msgp v1.6.4 // indirect
+	github.com/valllabh/ocsf-schema-golang v1.0.3 // indirect
 	github.com/x448/float16 v0.8.4 // indirect
 	go.yaml.in/yaml/v3 v3.0.5 // indirect
 	golang.org/x/exp v0.0.0-20240823005443-9b4947da3948 // indirect
 	golang.org/x/sync v0.25.0 // indirect
 	golang.org/x/sys v0.50.0 // indirect
+	google.golang.org/protobuf v1.36.11 // indirect
+	rsc.io/binaryregexp v0.2.0 // indirect
 )

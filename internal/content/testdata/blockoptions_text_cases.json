@@ -1,0 +1,118 @@
+{
+ "comment": "Text form of the options of a block in the content (parameter options). Read by blockoptions_text_test.go and web/tests/unit/blockoptions.test.ts; both sides must read and write the same.",
+ "ok": [
+  {
+   "name": "nothing",
+   "text": "",
+   "options": {}
+  },
+  {
+   "name": "views and print",
+   "text": "hide:mobile,tablet print:hide",
+   "options": {
+    "hide": [
+     "mobile",
+     "tablet"
+    ],
+    "print": "hide"
+   }
+  },
+  {
+   "name": "per view",
+   "text": "padding_top.desktop:4 padding_top.mobile:2 text_align.tablet:center",
+   "options": {
+    "padding_top": {
+     "desktop": 4,
+     "mobile": 2
+    },
+    "text_align": {
+     "tablet": "center"
+    }
+   }
+  },
+  {
+   "name": "one value for all views",
+   "text": "max_width:40",
+   "options": {
+    "max_width": 40
+   }
+  },
+  {
+   "name": "colours and a file",
+   "text": "bg_color:#0b3a6b bg_image:/api/v1/media/12/view overlay_color:#000000 overlay_opacity:60 text_color:#ffffff",
+   "options": {
+    "bg_color": "#0b3a6b",
+    "bg_image": "/api/v1/media/12/view",
+    "overlay_color": "#000000",
+    "overlay_opacity": 60,
+    "text_color": "#ffffff"
+   }
+  },
+  {
+   "name": "booleans and numbers",
+   "text": "break_before:true glass:false line_height:1.5",
+   "options": {
+    "break_before": true,
+    "glass": false,
+    "line_height": 1.5
+   }
+  },
+  {
+   "name": "time and languages",
+   "text": "from:2026-12-01T08:00:00Z langs:de,en",
+   "options": {
+    "from": "2026-12-01T08:00:00Z",
+    "langs": [
+     "de",
+     "en"
+    ]
+   }
+  },
+  {
+   "name": "escaped characters",
+   "text": "anchor:a%20b%22c%25d%2Ce",
+   "options": {
+    "anchor": "a b\"c%d,e"
+   },
+   "unchecked": true
+  }
+ ],
+ "bad": [
+  {
+   "name": "no colon",
+   "text": "hide"
+  },
+  {
+   "name": "unknown option",
+   "text": "onclick:alert"
+  },
+  {
+   "name": "view on a single value",
+   "text": "glass.mobile:true"
+  },
+  {
+   "name": "unknown view",
+   "text": "padding_top.watch:4"
+  },
+  {
+   "name": "not a boolean",
+   "text": "glass:yes"
+  },
+  {
+   "name": "not a number",
+   "text": "max_width:wide"
+  },
+  {
+   "name": "twice",
+   "text": "print:hide print:show"
+  },
+  {
+   "name": "value for all and per view",
+   "text": "max_width:40 max_width.mobile:20"
+  },
+  {
+   "name": "broken escape",
+   "text": "anchor:a%2"
+  }
+ ]
+}

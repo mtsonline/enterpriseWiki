@@ -34,7 +34,7 @@ func (embed) Description() map[string]string {
 func (embed) HasBody() bool { return false }
 func (embed) Params() []content.MacroParam {
 	return []content.MacroParam{
-		{Name: "url", Labels: lm("Address (https)", "Adresse (https)"), Type: "url", Required: true},
+		{Name: "address", Labels: lm("Address (https)", "Adresse (https)"), Type: "url", Required: true},
 		{Name: "title", Labels: lm("Title (what it shows)", "Titel (was es zeigt)"), Type: "text", Required: true},
 		{Name: "ratio", Labels: lm("Aspect ratio", "Seitenverhältnis"), Type: "select", Options: embedRatios, Default: "16x9",
 			OptionLabels: map[string]map[string]string{"16x9": lm("16:9 (wide)", "16:9 (breit)"), "4x3": lm("4:3", "4:3"), "1x1": lm("1:1 (square)", "1:1 (quadratisch)"), "9x16": lm("9:16 (upright, phone)", "9:16 (hoch, Handy)")}},
@@ -128,7 +128,7 @@ func (e embed) Render(_ context.Context, mc content.MacroContext) (string, error
 	if err != nil {
 		return "", err
 	}
-	tg, err := EmbedTarget(mc.Params["url"])
+	tg, err := EmbedTarget(mc.Params["address"])
 	if err != nil {
 		return "", err
 	}

@@ -1037,7 +1037,7 @@ func TestPropertyDownloads(t *testing.T) {
 	if code, _ := admin.rawBody("POST", "/api/v1/x/core.properties/query.xlsx", rep); code != 200 {
 		t.Fatalf("report xlsx: %d", code)
 	}
-	no := `{"params":{"source":"category:` + fmt.Sprint(c.ID) + `","export":"false"}}`
+	no := `{"params":{"source":"category:` + fmt.Sprint(c.ID) + `","downloads":"false"}}`
 	if code, _ := admin.rawBody("POST", "/api/v1/x/core.properties/query.csv", no); code != 403 {
 		t.Fatalf("report without downloads: %d", code)
 	}
