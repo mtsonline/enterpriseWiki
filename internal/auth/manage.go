@@ -535,6 +535,8 @@ func RegisterPref(key string, values ...string) {
 
 func init() {
 	RegisterPref("editor", "visual", "simple")
+	// help texts: explanations shown ("" = hidden, the default)
+	RegisterPref("help", "show")
 }
 
 // PrefOptions returns the personal settings and their allowed values.

@@ -5562,6 +5562,40 @@ test('category administration: a permission for a person takes effect and ends, 
   }
 });
 
+test('help texts: explanations hidden by default, shown with "?" or in the profile, notes to fill in always there', async () => {
+  await page.goto(`${BASE}/profile`);
+  await idle();
+  const editorHelp = page.locator('.ew-help', { hasText: /^(both editors save markdown|beide editoren speichern markdown)/i });
+  const rules = page.locator('.ew-help', { hasText: /^(at least 12 characters|mindestens 12 zeichen)/i });
+  // off by default: the explanation is gone, also for screen readers; the
+  // rules for the password stay
+  await editorHelp.waitFor({ state: 'attached' });
+  assert.equal(await editorHelp.isVisible(), false);
+  const editorSel = page.getByLabel(/^(editor for pages|editor für seiten)$/i).first();
+  const helpId = await editorHelp.getAttribute('id');
+  assert.ok(!((await editorSel.getAttribute('aria-describedby')) ?? '').split(' ').includes(helpId), 'a hidden text does not describe its field');
+  if (await rules.count()) assert.equal(await rules.first().isVisible(), true);
+  const box = page.getByRole('checkbox', { name: /^(show help texts|hilfetexte anzeigen)$/i });
+  assert.equal(await box.isChecked(), false);
+  // the "?" button switches it on, for the person (it stays after loading)
+  const toggle = page.getByRole('button', { name: /^(help texts|hilfetexte)$/i });
+  assert.equal(await toggle.getAttribute('aria-pressed'), 'false');
+  await toggle.click();
+  await editorHelp.waitFor();
+  assert.equal(await toggle.getAttribute('aria-pressed'), 'true');
+  await page.waitForFunction((id) => (document.querySelector('[aria-describedby*="' + id + '"]') !== null), helpId);
+  await a11y('help texts shown');
+  await page.reload();
+  await idle();
+  await page.locator('.ew-help', { hasText: /^(both editors save markdown|beide editoren speichern markdown)/i }).waitFor();
+  assert.equal(await page.getByRole('checkbox', { name: /^(show help texts|hilfetexte anzeigen)$/i }).isChecked(), true);
+  // off again in the profile
+  await page.getByRole('checkbox', { name: /^(show help texts|hilfetexte anzeigen)$/i }).uncheck();
+  await page.locator('form.ew-form').first().getByRole('button', { name: /^(save|speichern)$/i }).click();
+  await page.locator('.ew-help', { hasText: /^(both editors save markdown|beide editoren speichern markdown)/i }).waitFor({ state: 'hidden' });
+  assert.equal(await page.getByRole('button', { name: /^(help texts|hilfetexte)$/i }).getAttribute('aria-pressed'), 'false');
+});
+
 test('own profile: data, e-mail addresses, notifications, watches, feed key, API keys, SSH keys, sessions, password', async () => {
   const name = `prof${run}`;
   const pw = 'Prof-Passw0rd-1!';

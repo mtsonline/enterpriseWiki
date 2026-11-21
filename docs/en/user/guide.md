@@ -494,7 +494,8 @@ Depending on the setup you sign in with user name and password (local account or
 - **SSH keys** for passwordless sign-in to the API,
 - **Business card** (photo, function, department, phone, office, "About me") for team pages. Who sees your photo (only you, signed-in people or everyone) you choose within the limits set by the administration,
 - **Watches**, **assigned watches** and **feed and calendar links**,
-- **E-mail notifications** (also for mentions and shared pages).
+- **E-mail notifications** (also for mentions and shared pages),
+- **Show help texts:** show or hide explanations of fields and settings (default: off). The **?** button at the top of every page switches the same; without signing in, the browser remembers the choice. Notes you need to fill in a field correctly (formats, limits, required values, warnings) are always there. Screen readers do not read hidden explanations either. The button is a block of the placement (*Help texts (?)*).
 
 ## Accessibility
 

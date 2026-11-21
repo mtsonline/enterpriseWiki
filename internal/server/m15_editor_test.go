@@ -52,6 +52,19 @@ func TestPrefs(t *testing.T) {
 	if p.Prefs["editor"] != "" {
 		t.Fatalf("admin prefs changed: %v", p.Prefs)
 	}
+	// help texts: off by default, "show" switches them on, nothing else
+	if len(p.Options["help"]) != 1 || p.Options["help"][0] != "show" {
+		t.Fatalf("help option: %v", p.Options["help"])
+	}
+	if got := c.do("PUT", "/api/v1/me", map[string]any{"prefs": map[string]string{"help": "always"}}, nil); got != 400 {
+		t.Errorf("help=always: %d", got)
+	}
+	c.must("PUT", "/api/v1/me", map[string]any{"prefs": map[string]string{"help": "show"}}, nil, 204)
+	c.must("GET", "/api/v1/auth/me", nil, &me, 200)
+	if me.User.Prefs["help"] != "show" || me.User.Prefs["editor"] != "simple" {
+		t.Fatalf("prefs with help: %v", me.User.Prefs)
+	}
+	c.must("PUT", "/api/v1/me", map[string]any{"prefs": map[string]string{"help": ""}}, nil, 204)
 	// "" removes the setting
 	c.must("PUT", "/api/v1/me", map[string]any{"prefs": map[string]string{"editor": ""}}, nil, 204)
 	c.must("GET", "/api/v1/me/prefs", nil, &p, 200)

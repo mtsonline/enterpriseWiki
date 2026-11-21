@@ -2848,5 +2848,11 @@
  "editor.group.forms": "Forms",
  "editor.group.automation": "Connections and automation",
  "editor.group.other": "More",
- "editor.group.templates": "Block templates"
+ "editor.group.templates": "Block templates",
+ "block.core.help": "Help texts (?)",
+ "help.toggle": "Help texts",
+ "help.shown": "Help texts are shown.",
+ "help.hidden": "Help texts are hidden.",
+ "profile.help_texts": "Show help texts",
+ "profile.help_texts_help": "Explanations of fields and settings. Notes you need to fill in a field correctly are always there. The “?” button at the top switches the same."
 }

@@ -494,7 +494,8 @@ Je nach Einrichtung melden Sie sich mit Benutzername und Passwort an (lokales Ko
 - **SSH-Schlüssel** für die passwortlose Anmeldung an der API,
 - **Visitenkarte** (Foto, Funktion, Abteilung, Telefon, Büro, „Über mich“) für Team-Seiten. Wer Ihr Foto sieht (nur Sie, angemeldete Personen oder alle), wählen Sie im Rahmen der Vorgaben der Administration,
 - **Beobachtungen**, **zugewiesene Beobachtungen** und **Feed- und Kalender-Links**,
-- **E-Mail-Benachrichtigungen** (auch für Erwähnungen und geteilte Seiten).
+- **E-Mail-Benachrichtigungen** (auch für Erwähnungen und geteilte Seiten),
+- **Hilfetexte anzeigen:** Erklärungen zu Feldern und Einstellungen ein- oder ausblenden (Vorgabe: aus). Der Knopf **?** oben auf jeder Seite schaltet dasselbe um; ohne Anmeldung merkt sich der Browser die Wahl. Hinweise, die Sie zum richtigen Ausfüllen brauchen (Formate, Grenzen, Pflichtangaben, Warnungen), stehen immer da. Ausgeblendete Erklärungen liest auch der Screenreader nicht vor. Der Knopf ist ein Baustein der Platzierung (*Hilfetexte (?)*).
 
 ## Barrierefreiheit
 

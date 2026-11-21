@@ -2848,5 +2848,11 @@
  "editor.group.forms": "Formulare",
  "editor.group.automation": "Anbindung und Automatisierung",
  "editor.group.other": "Weitere",
- "editor.group.templates": "Baustein-Vorlagen"
+ "editor.group.templates": "Baustein-Vorlagen",
+ "block.core.help": "Hilfetexte (?)",
+ "help.toggle": "Hilfetexte",
+ "help.shown": "Hilfetexte werden angezeigt.",
+ "help.hidden": "Hilfetexte sind ausgeblendet.",
+ "profile.help_texts": "Hilfetexte anzeigen",
+ "profile.help_texts_help": "Erklärungen zu Feldern und Einstellungen. Hinweise, die Sie zum richtigen Ausfüllen brauchen, stehen immer da. Der Knopf „?“ oben schaltet dasselbe um."
 }

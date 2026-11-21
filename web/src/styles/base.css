@@ -106,6 +106,10 @@ img { max-width: 100%; height: auto; }
 .ew-input[aria-invalid="true"] { border-color: var(--ew-danger); box-shadow: 0 0 0 1px var(--ew-danger); }
 textarea.ew-input { resize: vertical; }
 .ew-help { color: var(--ew-text-muted); font-size: .9rem; margin: 0; }
+/* explanations the person chose not to see (core/helptexts.ts) */
+.ew-help.ew-help--hidden { display: none; }
+.ew-help-toggle-icon { display: inline-grid; place-items: center; width: 1.5em; height: 1.5em; border: 2px solid currentColor; border-radius: 50%; font-weight: 700; line-height: 1; }
+.ew-help-toggle[aria-pressed="true"] .ew-help-toggle-icon { background: var(--ew-text); color: var(--ew-bg); border-color: var(--ew-text); }
 .ew-field-error { color: var(--ew-danger); font-weight: 600; margin: 0; }
 .ew-picker { display: flex; gap: .5rem; flex-wrap: wrap; align-items: center; }
 .ew-picker:empty { display: none; }
