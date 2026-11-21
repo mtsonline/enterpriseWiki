@@ -33,10 +33,10 @@ jobs:
       - name: Go version from go.mod
         id: gover
         run: echo "version=$(sed -n 's/^toolchain go//p' go.mod | grep . || sed -n 's/^go //p' go.mod)" >> "$GITHUB_OUTPUT"
-      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
+      - uses: actions/setup-go@d8cbb8045d7f43706b9177cceb36c1f91a6644d5 # v7
         if: ${{ !inputs.latest }}
         with: { go-version: "${{ steps.gover.outputs.version }}" }
-      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
+      - uses: actions/setup-go@d8cbb8045d7f43706b9177cceb36c1f91a6644d5 # v7
         if: ${{ inputs.latest }}
         with: { go-version: stable, check-latest: true }
       - name: upgrade all Go modules to the newest versions (canary)
@@ -77,7 +77,7 @@ jobs:
       - name: Go version from go.mod
         id: gover
         run: echo "version=$(sed -n 's/^toolchain go//p' go.mod | grep . || sed -n 's/^go //p' go.mod)" >> "$GITHUB_OUTPUT"
-      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
+      - uses: actions/setup-go@d8cbb8045d7f43706b9177cceb36c1f91a6644d5 # v7
         with: { go-version: "${{ steps.gover.outputs.version }}" }
       - name: known vulnerabilities in Go code and modules (govulncheck)
         run: scripts/govulncheck.sh
@@ -110,10 +110,10 @@ jobs:
       - name: Go version from go.mod
         id: gover
         run: echo "version=$(sed -n 's/^toolchain go//p' go.mod | grep . || sed -n 's/^go //p' go.mod)" >> "$GITHUB_OUTPUT"
-      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
+      - uses: actions/setup-go@d8cbb8045d7f43706b9177cceb36c1f91a6644d5 # v7
         if: ${{ !inputs.latest }}
         with: { go-version: "${{ steps.gover.outputs.version }}" }
-      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
+      - uses: actions/setup-go@d8cbb8045d7f43706b9177cceb36c1f91a6644d5 # v7
         if: ${{ inputs.latest }}
         with: { go-version: stable, check-latest: true }
       - name: upgrade all Go modules to the newest versions (canary)
@@ -225,7 +225,7 @@ jobs:
       - name: Go version from go.mod
         id: gover
         run: echo "version=$(sed -n 's/^toolchain go//p' go.mod | grep . || sed -n 's/^go //p' go.mod)" >> "$GITHUB_OUTPUT"
-      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
+      - uses: actions/setup-go@d8cbb8045d7f43706b9177cceb36c1f91a6644d5 # v7
         with: { go-version: "${{ steps.gover.outputs.version }}" }
       - name: start Collabora Online and OnlyOffice Docs for the examples
         run: |
@@ -285,7 +285,7 @@ jobs:
       - name: Go version from go.mod
         id: gover
         run: echo "version=$(sed -n 's/^toolchain go//p' go.mod | grep . || sed -n 's/^go //p' go.mod)" >> "$GITHUB_OUTPUT"
-      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
+      - uses: actions/setup-go@d8cbb8045d7f43706b9177cceb36c1f91a6644d5 # v7
         with: { go-version: "${{ steps.gover.outputs.version }}" }
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
         with: { node-version: "26" }
@@ -363,7 +363,7 @@ jobs:
       - name: Go version from go.mod
         id: gover
         run: echo "version=$(sed -n 's/^toolchain go//p' go.mod | grep . || sed -n 's/^go //p' go.mod)" >> "$GITHUB_OUTPUT"
-      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
+      - uses: actions/setup-go@d8cbb8045d7f43706b9177cceb36c1f91a6644d5 # v7
         with: { go-version: "${{ steps.gover.outputs.version }}" }
       - name: start OpenSearch, Elasticsearch and Meilisearch
         run: |
@@ -402,7 +402,7 @@ jobs:
       - name: Go version from go.mod
         id: gover
         run: echo "version=$(sed -n 's/^toolchain go//p' go.mod | grep . || sed -n 's/^go //p' go.mod)" >> "$GITHUB_OUTPUT"
-      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
+      - uses: actions/setup-go@d8cbb8045d7f43706b9177cceb36c1f91a6644d5 # v7
         with: { go-version: "${{ steps.gover.outputs.version }}" }
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
         with: { node-version: "26" }
