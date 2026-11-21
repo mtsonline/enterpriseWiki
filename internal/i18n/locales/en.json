@@ -2822,5 +2822,11 @@
  "edit.mode": "Edit",
  "edit.switch_on": "on",
  "edit.switch_off": "off",
- "error.foreign": "This answer did not come from the wiki ({what}) but from a service in front of it, for example a proxy or a firewall. Answer: “{body}”. Please tell the administration."
+ "error.foreign": "This answer did not come from the wiki ({what}) but from a service in front of it, for example a proxy or a firewall. Answer: “{body}”. Please tell the administration.",
+ "layout.embed_load": "Load content",
+ "layout.embed_remember": "Always load content from {host} in this browser",
+ "layout.embed_forget": "Stop loading content from {host} automatically",
+ "layout.embed_forgotten": "From the next visit on, content from {host} loads only after you agree.",
+ "settings.embed_allow": "Services allowed for external videos and embeds",
+ "settings.embed_allow_help": "One address per line, only https:// and the server (for example https://www.youtube-nocookie.com or https://player.vimeo.com). Empty: nothing from outside the wiki is embedded. Content loads only after the reader agrees."
 }

@@ -274,3 +274,21 @@ button.ewl-cta { font: inherit; font-weight: 700; cursor: pointer; }
   .ewl-chart-svg [class*="ewl-chart-c"] { fill: CanvasText; stroke: CanvasText; }
   .ewl-chart-slice { stroke: Canvas; }
 }
+
+/* external video or embed: a box first (two clicks), then the frame in the
+   chosen aspect ratio */
+.ewl-embed { margin: 1.5rem 0; max-width: 100%; }
+.ewl-embed-box, .ewl-embed-media { aspect-ratio: 16 / 9; width: 100%; }
+.ewl-embed--4x3 .ewl-embed-box, .ewl-embed--4x3 .ewl-embed-media { aspect-ratio: 4 / 3; }
+.ewl-embed--1x1 .ewl-embed-box, .ewl-embed--1x1 .ewl-embed-media { aspect-ratio: 1 / 1; }
+.ewl-embed--9x16 .ewl-embed-box, .ewl-embed--9x16 .ewl-embed-media { aspect-ratio: 9 / 16; max-width: 24rem; }
+.ewl-embed-box { box-sizing: border-box; display: flex; flex-direction: column; justify-content: center; gap: .5rem; padding: 1rem 1.25rem;
+  border: 1px solid var(--ew-border, #767676); border-radius: .5rem; background: var(--ew-surface-2, var(--ew-surface, transparent)); overflow: auto; }
+.ewl-embed-box p { margin: 0; }
+.ewl-embed-title { font-weight: 700; font-size: 1.1rem; }
+.ewl-embed-actions { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem 1rem; }
+.ewl-embed-remember { display: inline-flex; align-items: center; gap: .35rem; }
+.ewl-embed-frame { display: block; width: 100%; height: 100%; border: 0; }
+.ewl-embed-forget { margin-top: .35rem; }
+.ewl-embed figcaption { margin-top: .4rem; color: var(--ew-muted, inherit); }
+@media (max-width: 30rem) { .ewl-embed-box { aspect-ratio: auto; min-height: 12rem; } }

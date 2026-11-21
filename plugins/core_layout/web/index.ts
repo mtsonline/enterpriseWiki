@@ -219,11 +219,81 @@ function sliderWidget(root: HTMLElement): void {
   go(0);
 }
 
+/** An external video or embed (two clicks): the server writes a box that
+ * names the service; nothing is loaded from it before the reader presses
+ * the button. "Always load from …" is remembered in this browser only and
+ * can be taken back next to the frame. */
+const EMBED_KEY = 'ewiki.embed.allow';
+function embedHosts(): string[] {
+  try {
+    const v = JSON.parse(localStorage.getItem(EMBED_KEY) || '[]') as unknown;
+    return Array.isArray(v) ? v.filter((x): x is string => typeof x === 'string') : [];
+  } catch {
+    return [];
+  }
+}
+function setEmbedHost(host: string, on: boolean): void {
+  try {
+    const hosts = embedHosts().filter((x) => x !== host);
+    if (on) hosts.push(host);
+    localStorage.setItem(EMBED_KEY, JSON.stringify(hosts.slice(-50)));
+  } catch {
+    // storage blocked: the choice holds for this page only
+  }
+}
+function embedWidget(root: HTMLElement): void {
+  const src = root.dataset.src ?? '';
+  const host = root.dataset.host ?? '';
+  const title = root.dataset.title ?? '';
+  let url: URL;
+  try {
+    url = new URL(src);
+  } catch {
+    return;
+  }
+  if (url.protocol !== 'https:' || !host) return;
+  const box = root.querySelector<HTMLElement>('.ewl-embed-box');
+  if (!box) return;
+  const load = (focus: boolean): void => {
+    const frame = h('iframe', {
+      class: 'ewl-embed-frame', src: url.href, title, loading: 'lazy', referrerpolicy: 'strict-origin-when-cross-origin',
+      allow: 'fullscreen; picture-in-picture; encrypted-media', allowfullscreen: '',
+      sandbox: 'allow-scripts allow-same-origin allow-presentation allow-popups allow-popups-to-escape-sandbox',
+    }) as HTMLIFrameElement;
+    const wrap = h('div', { class: 'ewl-embed-media' }, frame);
+    box.replaceWith(wrap);
+    if (embedHosts().includes(host)) {
+      const stop = h('button', { type: 'button', class: 'ewl-embed-forget' }, t('layout.embed_forget', { host })) as HTMLButtonElement;
+      stop.addEventListener('click', () => {
+        setEmbedHost(host, false);
+        stop.replaceWith(h('p', { class: 'ewl-embed-forgotten', role: 'status' }, t('layout.embed_forgotten', { host })));
+      });
+      wrap.after(stop);
+    }
+    if (focus) frame.focus();
+  };
+  if (embedHosts().includes(host)) {
+    load(false);
+    return;
+  }
+  const remember = h('input', { type: 'checkbox' }) as HTMLInputElement;
+  const btn = h('button', { type: 'button', class: 'ewl-cta ewl-cta--primary ewl-embed-load' }, t('layout.embed_load')) as HTMLButtonElement;
+  btn.addEventListener('click', () => {
+    if (remember.checked) setEmbedHost(host, true);
+    load(true);
+  });
+  const link = box.querySelector('.ewl-embed-link');
+  const actions = h('p', { class: 'ewl-embed-actions' }, btn, h('label', { class: 'ewl-embed-remember' }, remember, ' ', t('layout.embed_remember', { host })));
+  if (link) link.before(actions);
+  else box.append(actions);
+}
+
 export function register(): void {
   registerWidget('ewl.rotating', rotatingWidget);
   registerWidget('ewl.ticker', tickerWidget);
   registerWidget('ewl.slider', sliderWidget);
   registerWidget('ewl.counter', counterWidget);
+  registerWidget('ewl.embed', embedWidget);
   registerWidget('ewl.dialog', dialogWidget);
   registerWidget('ewl.tip', tipWidget);
   registerWidget('ewl.tabs', (root) => {

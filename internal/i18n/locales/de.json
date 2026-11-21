@@ -2822,5 +2822,11 @@
  "edit.mode": "Bearbeiten",
  "edit.switch_on": "an",
  "edit.switch_off": "aus",
- "error.foreign": "Diese Antwort kam nicht vom Wiki ({what}), sondern von einem Dienst davor, zum Beispiel einem Proxy oder einer Firewall. Antwort: „{body}“. Bitte der Administration melden."
+ "error.foreign": "Diese Antwort kam nicht vom Wiki ({what}), sondern von einem Dienst davor, zum Beispiel einem Proxy oder einer Firewall. Antwort: „{body}“. Bitte der Administration melden.",
+ "layout.embed_load": "Inhalt laden",
+ "layout.embed_remember": "Inhalte von {host} in diesem Browser immer laden",
+ "layout.embed_forget": "Inhalte von {host} nicht mehr automatisch laden",
+ "layout.embed_forgotten": "Inhalte von {host} werden ab dem nächsten Aufruf erst nach Ihrer Zustimmung geladen.",
+ "settings.embed_allow": "Erlaubte Dienste für externe Videos und Einbettungen",
+ "settings.embed_allow_help": "Eine Adresse je Zeile, nur der Anfang mit https:// und dem Server (zum Beispiel https://www.youtube-nocookie.com oder https://player.vimeo.com). Leer: Es wird nichts von außerhalb des Wikis eingebettet. Inhalte laden erst, wenn die lesende Person zustimmt."
 }

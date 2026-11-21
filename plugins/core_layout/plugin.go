@@ -32,7 +32,7 @@ func (p *Plugin) Manifest() coreplugin.Manifest { return coreplugin.ParseManifes
 // Setup registers the macros.
 func (p *Plugin) Setup(h *coreplugin.Host) error {
 	// layout blocks only build HTML from their parameters: the editor shows them as they look
-	for _, m := range []content.Macro{section{}, hero{}, cards{}, button{}, spacer{}, grid{}, heading{}, divider{}, buttons{}, cta{}, tabs{}, accordion{}, icon{}, iconbox{}, iconlist{}, progress{}, counter{}, timeline{}, dialog{}, tooltip{}, testimonial{}, logos{}, personcard{}, rotating{}, ticker{}, slider{}, chart{}} {
+	for _, m := range []content.Macro{section{}, hero{}, cards{}, button{}, spacer{}, grid{}, heading{}, divider{}, buttons{}, cta{}, tabs{}, accordion{}, icon{}, iconbox{}, iconlist{}, progress{}, counter{}, timeline{}, dialog{}, tooltip{}, testimonial{}, logos{}, personcard{}, rotating{}, ticker{}, slider{}, chart{}, embed{allow: func() []string { return h.Config.Get().Media.EmbedAllow }}} {
 		h.RegisterPictureMacro(m)
 	}
 	return nil

@@ -220,6 +220,11 @@ type Media struct {
 	// TokenTTL is the lifetime of the access token an office program gets
 	// for one file (default 10h, at most 24h).
 	TokenTTL string `yaml:"token_ttl,omitempty" json:"token_ttl,omitempty"`
+	// EmbedAllow lists the services whose videos and pages may be embedded
+	// in content (macro embed), as origins (https://player.example.com).
+	// The same list opens the Content-Security-Policy (frame-src) for them.
+	// Empty (default): nothing from outside the wiki is embedded.
+	EmbedAllow []string `yaml:"embed_allow,omitempty" json:"embed_allow"`
 }
 
 // I18n configures UI and content languages.
@@ -919,6 +924,14 @@ func Validate(c *Config) error {
 			return fmt.Errorf("media.token_ttl must be a duration between 1m and 24h, got %q", t)
 		}
 	}
+	if len(c.Media.EmbedAllow) > MaxEmbedOrigins {
+		return fmt.Errorf("media.embed_allow: at most %d services", MaxEmbedOrigins)
+	}
+	for _, o := range c.Media.EmbedAllow {
+		if !EmbedOrigin(o) {
+			return fmt.Errorf("media.embed_allow: %q is not an origin like https://player.example.com (https, lower case, no path)", o)
+		}
+	}
 	if c.Mode != "single" && c.Mode != "cluster" {
 		return fmt.Errorf("mode must be 'single' or 'cluster', got %q", c.Mode)
 	}
@@ -1006,4 +1019,44 @@ func clone(c *Config) (*Config, error) {
 		return nil, err
 	}
 	return out, nil
+}
+
+// MaxEmbedOrigins bounds media.embed_allow (each entry goes into every
+// Content-Security-Policy header).
+const MaxEmbedOrigins = 30
+
+// EmbedOrigin reports whether o is an origin media.embed_allow accepts:
+// https://, a host name of lower-case letters, digits, dots and dashes
+// with at least one dot, an optional port, nothing else. No wildcards, no
+// IP addresses in brackets, no path: the value goes into the CSP header.
+func EmbedOrigin(o string) bool {
+	rest, ok := strings.CutPrefix(o, "https://")
+	if !ok || rest == "" || len(rest) > 253 {
+		return false
+	}
+	host, port, hasPort := strings.Cut(rest, ":")
+	if hasPort {
+		if port == "" || len(port) > 5 || port[0] == '0' {
+			return false
+		}
+		for _, c := range port {
+			if c < '0' || c > '9' {
+				return false
+			}
+		}
+	}
+	if !strings.Contains(host, ".") || strings.HasPrefix(host, ".") || strings.HasSuffix(host, ".") || strings.Contains(host, "..") {
+		return false
+	}
+	for _, label := range strings.Split(host, ".") {
+		if label == "" || len(label) > 63 || label[0] == '-' || label[len(label)-1] == '-' {
+			return false
+		}
+		for _, c := range label {
+			if !(c >= 'a' && c <= 'z' || c >= '0' && c <= '9' || c == '-') {
+				return false
+			}
+		}
+	}
+	return true
 }
