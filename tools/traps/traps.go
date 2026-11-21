@@ -1050,4 +1050,18 @@ var traps = []trap{
 		New:  "sig, err2 := base64.RawURLEncoding.DecodeString(s)",
 		Pkg:  "./internal/server/", Tests: "^TestWorkflow2Part2b$",
 	},
+	{
+		ID: "guard.restore", About: "restoring an old revision skips the permissions of the element type",
+		File: "internal/content/elements.go",
+		Old:  "\t\tif err := g.CheckChange(ctx, s, e, curBody, body); err != nil {\n\t\t\treturn false, err\n\t\t}",
+		New:  "\t\t_ = g\n\t\t_ = curBody",
+		Pkg:  "./internal/server/", Tests: "^TestGuardOnRestoreAndRollback$",
+	},
+	{
+		ID: "guard.rollback-trash", About: "the rollback of a category moves elements with own permissions to the trash",
+		File: "internal/content/trash.go",
+		Old:  "\t\t\t\t\tif err := s.guardChange(ctx, e); err != nil {",
+		New:  "\t\t\t\t\tif err := error(nil); err != nil {",
+		Pkg:  "./internal/server/", Tests: "^TestGuardOnRestoreAndRollback$",
+	},
 }

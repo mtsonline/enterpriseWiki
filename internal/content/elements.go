@@ -956,6 +956,17 @@ func (s *Service) restoreRev(ctx context.Context, tx pgx.Tx, e *Element, lang st
 	if err := tx.QueryRow(ctx, `SELECT title, body, source_rev FROM element_revisions WHERE element_id=$1 AND lang=$2 AND rev=$3`, e.ID, lang, rev).Scan(&title, &body, &src); err != nil {
 		return false, apperr.NotFound("revision")
 	}
+	// an old revision becomes the content again: a change like any other,
+	// so a type with own permissions decides (Guard), with the bodies
+	if g, ok := s.Type(e.Type).(Guard); ok {
+		var curBody json.RawMessage
+		if err := tx.QueryRow(ctx, `SELECT body FROM element_revisions WHERE element_id=$1 AND lang=$2 AND rev=$3`, e.ID, lang, cur).Scan(&curBody); err != nil {
+			return false, err
+		}
+		if err := g.CheckChange(ctx, s, e, curBody, body); err != nil {
+			return false, err
+		}
+	}
 	uid := nullID(ctx)
 	if _, err := tx.Exec(ctx, `INSERT INTO element_revisions(element_id, lang, rev, source_rev, title, body, comment, restored_from, created_by)
 		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)`, e.ID, lang, cur+1, src, title, body, comment, rev, uid); err != nil {
