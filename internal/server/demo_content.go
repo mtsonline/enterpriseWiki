@@ -312,9 +312,9 @@ func buildDemo(d *demoRun) {
 		`<h2>Recently changed</h2>` + macro("recent", map[string]string{"count": "5", "scope": "category"}, "") +
 		`<h2>Upcoming events</h2>` + macro("events", map[string]string{"limit": "3", "days": "60"}, "") +
 		`<p>Mention people with @: @` + handles["anna"] + ` gets a notification.</p>`
-	overviewDE := `<h2>Willkommen zum Rundgang</h2><p>Diese Demo zeigt die Funktionen des Enterprise Wiki mit Beispielinhalten. Alles hier lässt sich bearbeiten – probiere den <strong>Bearbeitungsmodus</strong>. Unter <em>Administration → Demo</em> verschwindet die ganze Demo mit einem Klick wieder.</p>` +
+	overviewDE := `<h2>Willkommen zum Rundgang</h2><p>Diese Demo zeigt die Funktionen des Enterprise Wiki mit Beispielinhalten. Alles hier lässt sich bearbeiten – probieren Sie den <strong>Bearbeitungsmodus</strong> aus. Unter <em>Administration → Demo</em> verschwindet die ganze Demo mit einem Klick wieder.</p>` +
 		macro("toc", map[string]string{"levels": "3"}, "") +
-		macro("panel", map[string]string{"type": "info", "title": "Tipp"}, `<p>Jede Änderung ist eine Version. Unter <em>Verlauf</em> vergleichst du Versionen und stellst sie wieder her.</p>`) +
+		macro("panel", map[string]string{"type": "info", "title": "Tipp"}, `<p>Jede Änderung ist eine Version. Unter <em>Verlauf</em> vergleichen Sie Versionen und stellen sie wieder her.</p>`) +
 		`<h2>Status und Eigenschaften</h2><p>Status-Labels: ` + macro("status", map[string]string{"text": "ERLEDIGT", "color": "green"}, "") + ` ` + macro("status", map[string]string{"text": "IN ARBEIT", "color": "yellow"}, "") + ` ` + macro("status", map[string]string{"text": "BLOCKIERT", "color": "red"}, "") + `</p>` +
 		`<p>Die Tabelle über dem Inhalt zeigt die <strong>Seiteneigenschaften</strong> (Verantwortlich, Status, Prüfdatum).</p>` +
 		`<h2>Bilder</h2>` + img(0, "Morgen in den Hügeln") +
@@ -324,7 +324,7 @@ func buildDemo(d *demoRun) {
 		`<h2>Seiten dieses Bereichs</h2>` + macro("children", map[string]string{"category": strconv.FormatInt(root, 10), "show": "all"}, "") +
 		`<h2>Zuletzt geändert</h2>` + macro("recent", map[string]string{"count": "5", "scope": "category"}, "") +
 		`<h2>Nächste Termine</h2>` + macro("events", map[string]string{"limit": "3", "days": "60"}, "") +
-		`<p>Personen erwähnst du mit @: @` + handles["anna"] + ` bekommt eine Benachrichtigung.</p>`
+		`<p>Personen erwähnen Sie mit @: @` + handles["anna"] + ` bekommt eine Benachrichtigung.</p>`
 	overview := d.page(start, "Tour of the features", "Rundgang durch die Funktionen", overviewEN, overviewDE, map[string]any{"short_url": "demo" + suffix})
 	landingPage(d, root, suffix)
 	d.optional("properties", func() {
@@ -392,7 +392,7 @@ func buildDemo(d *demoRun) {
 		qs     [][4]string
 	}{
 		{"Content", "Inhalte", [][4]string{
-			{"How do I restore an old version?", "Wie stelle ich eine alte Version wieder her?", "<p>Open <em>History</em>, choose the version and click <em>Restore</em>.</p>", "<p>Öffne den <em>Verlauf</em>, wähle die Version und klicke auf <em>Wiederherstellen</em>.</p>"},
+			{"How do I restore an old version?", "Wie stelle ich eine alte Version wieder her?", "<p>Open <em>History</em>, choose the version and click <em>Restore</em>.</p>", "<p>Öffnen Sie den <em>Verlauf</em>, wählen Sie die Version und klicken Sie auf <em>Wiederherstellen</em>.</p>"},
 			{"Can I translate pages?", "Kann ich Seiten übersetzen?", "<p>Yes, into every active language; outdated translations are marked.</p>", "<p>Ja, in jede aktive Sprache; veraltete Übersetzungen werden markiert.</p>"},
 		}},
 		{"Permissions", "Rechte", [][4]string{
@@ -682,7 +682,7 @@ func buildDemo(d *demoRun) {
 	})
 	d.page(docs, "Documents of the media library", "Dokumente der Medienbibliothek",
 		`<p>Files of the media library with their own permissions:</p><ul><li><a href="/api/v1/media/`+strconv.FormatInt(guide.ID, 10)+`/view">Quick guide (PDF)</a></li><li><a href="/api/v1/media/`+strconv.FormatInt(confidential.ID, 10)+`/view">Confidential minutes – view only with your name as watermark</a></li><li><a href="/media?open=`+strconv.FormatInt(letter.ID, 10)+`">Letter template – opens in the office program if one is set up</a></li></ul>`,
-		`<p>Dateien der Medienbibliothek mit eigenen Rechten:</p><ul><li><a href="/api/v1/media/`+strconv.FormatInt(guide.ID, 10)+`/view">Kurzanleitung (PDF)</a></li><li><a href="/api/v1/media/`+strconv.FormatInt(confidential.ID, 10)+`/view">Vertrauliches Protokoll – nur ansehen, mit deinem Namen als Wasserzeichen</a></li><li><a href="/media?open=`+strconv.FormatInt(letter.ID, 10)+`">Briefvorlage – öffnet sich im Office-Programm, wenn eines eingerichtet ist</a></li></ul>`, nil)
+		`<p>Dateien der Medienbibliothek mit eigenen Rechten:</p><ul><li><a href="/api/v1/media/`+strconv.FormatInt(guide.ID, 10)+`/view">Kurzanleitung (PDF)</a></li><li><a href="/api/v1/media/`+strconv.FormatInt(confidential.ID, 10)+`/view">Vertrauliches Protokoll – nur ansehen, mit Ihrem Namen als Wasserzeichen</a></li><li><a href="/media?open=`+strconv.FormatInt(letter.ID, 10)+`">Briefvorlage – öffnet sich im Office-Programm, wenn eines eingerichtet ist</a></li></ul>`, nil)
 	d.optional("workflow", func() {
 		d.element(docs, "workflow.process", d.tr("Vacation request", "Urlaubsantrag"), d.same(map[string]any{"description": "Demo", "fields": []any{}, "steps": []map[string]any{
 			{"id": "check", "name": "Prüfen", "assignee": map[string]string{"type": "group", "value": "#" + strconv.FormatInt(editorsGroup, 10)}, "actions": []map[string]any{{"id": "ok", "label": "Genehmigen", "next": "done"}}},
@@ -1090,7 +1090,7 @@ func accountSteps(tr func(en, de string) string, docs, media, cal int64, editors
 		{"id": "letter", "name": tr("Welcome letter", "Willkommensbrief"), "type": "file", "next": "meet",
 			"file": map[string]any{"category": media, "name": tr("Welcome {{field.who}}", "Willkommen {{field.who}}"), "formats": []string{"docx", "pdf"},
 				"content": tr("# Welcome, {{trigger.data.display_name}}\n\nYou can read “Documents and processes” for the next 90 days. Your editors will contact you.",
-					"# Willkommen, {{trigger.data.display_name}}\n\nDu kannst „Dokumente und Abläufe“ in den nächsten 90 Tagen lesen. Die Redaktion meldet sich bei dir."),
+					"# Willkommen, {{trigger.data.display_name}}\n\nSie können „Dokumente und Abläufe“ in den nächsten 90 Tagen lesen. Die Redaktion meldet sich bei Ihnen."),
 				"store_url": "letter"}},
 		{"id": "meet", "name": tr("Welcome meeting", "Willkommensgespräch"), "type": "calendar", "next": "tell",
 			"calendar": map[string]any{"calendar": cal, "title": tr("Welcome meeting {{trigger.data.display_name}}", "Willkommensgespräch {{trigger.data.display_name}}"),
