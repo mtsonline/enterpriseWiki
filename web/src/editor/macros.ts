@@ -9,6 +9,9 @@ import { currentCategory, currentSpace } from '../components/widgets';
 
 let cache: Promise<MacroInfo[]> | null = null;
 
+/** How long a choice in the macro list must stay before its description is read (ms). */
+export const MACRO_DESC_DELAY = 1200;
+
 /** Lists the macros of active plugins (cached per page load). */
 export function loadMacros(): Promise<MacroInfo[]> {
   cache ??= api.get<MacroInfo[]>('macros').catch((e: unknown) => { cache = null; throw e; });
@@ -90,7 +93,13 @@ export async function macroDialog(existing: { name: string; params: Record<strin
   if (!macros.some((m) => m.name === initial)) throw new Error(t('editor.macro_unknown', { name: initial }));
   const pickSel = select(macros.map((m) => ({ value: m.name, label: label(m.labels) || m.name })), initial);
   if (existing) pickSel.disabled = true;
-  const desc = h('p', { class: 'ew-help', 'aria-live': 'polite' });
+  // the description is shown, but not announced on every arrow key: a
+  // screen reader hears the name of the macro, and the description only
+  // when the choice stays a moment (live region inside the dialog, so it is
+  // heard while the modal dialog hides the rest of the page)
+  const desc = h('p', { class: 'ew-help', id: `ewe-macro-desc-${Date.now()}` });
+  const spoken = h('p', { class: 'sr-only ewe-macro-spoken', 'aria-live': 'polite', 'aria-atomic': 'true' });
+  let speakTimer = 0;
   const paramBox = h('div', { class: 'ewe-macro-params' });
   let getters: { name: string; get: () => string; required?: boolean; label: string }[] = [];
   const show = () => {
@@ -108,12 +117,20 @@ export async function macroDialog(existing: { name: string; params: Record<strin
     }));
     if (!(m.params ?? []).length) paramBox.append(h('p', { class: 'ew-muted' }, t('editor.macro_no_params')));
   };
-  pickSel.addEventListener('change', show);
+  // on focus the description follows the name (after the value)
+  const pickField = field(t('editor.macro'), pickSel);
+  pickSel.setAttribute('aria-describedby', `${pickSel.getAttribute('aria-describedby') ?? ''} ${desc.id}`.trim());
+  pickSel.addEventListener('change', () => {
+    show();
+    spoken.textContent = '';
+    window.clearTimeout(speakTimer);
+    speakTimer = window.setTimeout(() => { spoken.textContent = desc.textContent ?? ''; }, MACRO_DESC_DELAY);
+  });
   show();
   return new Promise((resolve) => {
     let result: MacroChoice | null = null;
     formDialog(existing ? t('editor.macro_edit') : t('editor.macro_insert'),
-      [field(t('editor.macro'), pickSel), desc, paramBox], existing ? t('common.apply') : t('editor.macro_insert'), async () => {
+      [pickField, desc, spoken, paramBox], existing ? t('common.apply') : t('editor.macro_insert'), async () => {
         const m = macros.find((x) => x.name === pickSel.value)!;
         const params: Record<string, string> = {};
         for (const g of getters) {
@@ -122,6 +139,6 @@ export async function macroDialog(existing: { name: string; params: Record<strin
           if (v) params[g.name] = v;
         }
         result = { name: m.name, params, hasBody: m.has_body, inline: !!m.inline, parts: m.parts };
-      }, { wide: true, onClose: () => resolve(result) });
+      }, { wide: true, onClose: () => { window.clearTimeout(speakTimer); resolve(result); } });
   });
 }

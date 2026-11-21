@@ -390,6 +390,15 @@ test('insert macros with the macro dialog', async () => {
   const dialog = page.locator('dialog[open]');
   await dialog.waitFor();
   await dialog.locator('select').first().selectOption('panel');
+  // screen readers: the description is not announced on every change, only
+  // when the choice stays a moment; on focus it follows the name
+  const spoken = dialog.locator('.ewe-macro-spoken');
+  assert.equal(await spoken.textContent(), '');
+  assert.equal(await dialog.locator('p.ew-help[aria-live]').count(), 0);
+  await page.waitForFunction(() => (document.querySelector('dialog[open] .ewe-macro-spoken')?.textContent ?? '').length > 10);
+  const descId = await dialog.locator('p.ew-help').first().getAttribute('id');
+  assert.ok((await dialog.locator('select').first().getAttribute('aria-describedby')).split(' ').includes(descId));
+  assert.equal(await spoken.textContent(), await dialog.locator(`[id="${descId}"]`).textContent());
   await dialog.locator('select').nth(1).selectOption('warning');
   await dialog.getByLabel(/^(title|titel)/i).fill('Careful');
   await a11y('macro dialog');
