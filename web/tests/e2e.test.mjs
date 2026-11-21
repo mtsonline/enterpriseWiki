@@ -2723,7 +2723,7 @@ test('layout blocks: a section with options from the macro dialog, an icon box w
   await page.getByRole('link', { name: 'Launch' }).waitFor();
   // grid, tabs and accordion on one page
   const cat = (await call('POST', '/api/v1/categories', { titles: { en: `Layout ${run}` } })).id;
-  const src = ':::grid{desktop=3 tablet=2}\nOne\n***\nTwo\n***\nThree\n:::\n\n:::tabs{label="Steps"}\n## First\nText A\n***\n## Second\nText B\n***\n## Third\nText C\n:::\n\n:::accordion{one=true first=true}\n### Question one\nAnswer one\n***\n### Question two\nAnswer two\n:::\n\n::buttons{text1="Start" link1="/" text2="More" link2="/search" layout=full}\n';
+  const src = ':::grid{desktop=3 tablet=2}\nOne\n***\nTwo\n***\nThree\n:::\n\n:::tabs{label="Steps"}\n## First\nText A\n***\n## Second\nText B\n***\n## Third\nText C\n:::\n\n:::accordion{single=true first=true}\n### Question one\nAnswer one\n***\n### Question two\nAnswer two\n:::\n\n::buttons{text1="Start" link1="/" text2="More" link2="/search" layout=full}\n';
   const el = await call('POST', '/api/v1/elements', { category_id: cat, type: 'core.html', title: `Blocks ${run}`, body: { format: 'markdown', source: src } });
   await page.goto(`${BASE}/e/${el.id}`);
   await idle();
