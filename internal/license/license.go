@@ -81,7 +81,7 @@ func ParseWith(key string, pubs []string) (*License, error) {
 		return nil, ErrFormat
 	}
 	head, sigB64 := key[:i], key[i+1:]
-	sig, err := base64.RawURLEncoding.DecodeString(sigB64)
+	sig, err := base64.RawURLEncoding.Strict().DecodeString(sigB64)
 	if err != nil || len(sig) != ed25519.SignatureSize {
 		return nil, ErrFormat
 	}
@@ -96,7 +96,7 @@ func ParseWith(key string, pubs []string) (*License, error) {
 	if !ok {
 		return nil, ErrSignature
 	}
-	payload, err := base64.RawURLEncoding.DecodeString(head[len(Prefix):])
+	payload, err := base64.RawURLEncoding.Strict().DecodeString(head[len(Prefix):])
 	if err != nil {
 		return nil, ErrFormat
 	}

@@ -1043,4 +1043,11 @@ var traps = []trap{
 		New:  "_ = searchMarks",
 		Pkg:  "./internal/server/", Tests: "^TestSearchSnippetMarks$",
 	},
+	{
+		ID: "workflow.link-lenient", About: "a decision link with another spelling of the same signature is accepted",
+		File: "plugins/workflow_process/part2b.go",
+		Old:  "sig, err2 := base64.RawURLEncoding.Strict().DecodeString(s)",
+		New:  "sig, err2 := base64.RawURLEncoding.DecodeString(s)",
+		Pkg:  "./internal/server/", Tests: "^TestWorkflow2Part2b$",
+	},
 }

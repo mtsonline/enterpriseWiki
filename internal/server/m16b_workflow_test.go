@@ -710,9 +710,21 @@ func TestWorkflow2Part2b(t *testing.T) {
 	}); err != nil {
 		t.Fatal(err)
 	}
-	bad := tok[:len(tok)-2] + "xx"
-	if code := guest.do("POST", "/api/v1/x/workflow.process/links/act", map[string]any{"t": bad}, nil); code != 400 {
-		t.Fatalf("changed link: %d", code)
+	// a changed signature (a character in the middle, always different) and
+	// a non-canonical spelling of the same signature (other unused bits in
+	// the last character) are refused
+	i := strings.LastIndex(tok, ".") + 10
+	swap := byte('A')
+	if tok[i] == 'A' {
+		swap = 'B'
+	}
+	last := tok[len(tok)-1]
+	other := strings.IndexByte("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_", last) ^ 1 // flips an unused bit (32 bytes: 2 bits used)
+	for _, bad := range []string{tok[:i] + string(swap) + tok[i+1:],
+		tok[:len(tok)-1] + string("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_"[other])} {
+		if code := guest.do("POST", "/api/v1/x/workflow.process/links/act", map[string]any{"t": bad}, nil); code != 400 {
+			t.Fatalf("changed link %q: %d", bad, code)
+		}
 	}
 	guest.must("POST", "/api/v1/x/workflow.process/links/act", map[string]any{"t": tok}, nil, 200)
 	var x wfCase
