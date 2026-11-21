@@ -1,0 +1,19 @@
+# Action register (ewiki.plugin.v1.Action, see sdk/proto/ewiki/plugin/v1/action.proto).
+actions:
+  - id: core.waf.status
+    category: CATEGORY_ACTION
+    method: GET
+    path: status
+    success_status: 200
+    summary:
+      text:
+        en: Show the state of the web application firewall
+        de: Zustand der Web Application Firewall anzeigen
+    permission: {key: core.waf.manage, scope: SCOPE_GLOBAL}
+    cli: {command: [waf, status]}
+    ui: {entry: /admin/waf}
+    examples:
+      - name: default
+        given: ['core.plugins.enable#waf']
+        as: member
+        expect_json: '{"loaded": true}'

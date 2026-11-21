@@ -521,6 +521,8 @@ actions:
         given: ['core.plugins.disable#off']
         as: member
         path_params_json: '{"id": "content.notes"}'
+      - name: waf
+        path_params_json: '{"id": "core.waf"}'
   - id: core.plugins.disable
     category: CATEGORY_ACTION
     method: POST

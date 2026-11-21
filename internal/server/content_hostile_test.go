@@ -1,0 +1,317 @@
+package server_test
+
+import (
+	"fmt"
+	"net/url"
+	"os"
+	"sort"
+	"strings"
+	"testing"
+
+	"golang.org/x/net/html"
+
+	"github.com/mtsonline/enterprisewiki/internal/content"
+)
+
+// hostilePayloads try to break out of every place a parameter can end up
+// in: element content, attribute values (quoted and unquoted), URLs, inline
+// CSS, style elements, JSON in data attributes and scripts. "ewxss" marks
+// an injected element or attribute: if the browser would see it, the value
+// got out of its place.
+var hostilePayloads = []string{
+	`"><ewxss ewxss=1>`,
+	`'><ewxss ewxss=1>`,
+	`x" ewxss="1`,
+	`x' ewxss='1`,
+	`1 ewxss=1`,
+	`<ewxss>`,
+	`<script>alert(1)</script>`,
+	`<img src=x onerror=alert(1)>`,
+	`javascript:alert(1)`,
+	"\tJaVa\nScRiPt:alert(1)",
+	`vbscript:msgbox(1)`,
+	`data:text/html,<ewxss>`,
+	`//evil.example/x`,
+	`red;background:url(https://evil.example/t)`,
+	`#fff;}</style><ewxss>`,
+	`expression(alert(1))`,
+	`</script><ewxss>`,
+	`"}],"ewxss":"<ewxss>`,
+	"  <ewxss>",
+	`&lt;ewxss&gt;`,
+	`%3Cewxss%3E`,
+	`{{constructor.constructor('alert(1)')()}}`,
+	// valid beginnings with a tail (a check without an end anchor)
+	`#0b3a6b;background:url(https://evil.example/t)`,
+	`#0b3a6b"><ewxss>`,
+	`/api/v1/files/a');background:url(https://evil.example/t);x:('`,
+	`https://example.com/a"><ewxss>`,
+	`3;background:url(https://evil.example/t)`,
+	`intro"><ewxss>`,
+}
+
+// dangerousMarkup parses rendered content the way a browser does and lists
+// what could run script, inject markup or load foreign styles. Unlike the
+// pentest it knows the payloads: it flags any trace of "ewxss" or
+// "evil.example" in a place where it would act.
+func dangerousMarkup(doc string) []string {
+	var out []string
+	urlAttr := map[string]bool{"href": true, "src": true, "action": true, "formaction": true, "xlink:href": true, "data": true, "poster": true,
+		"background": true, "srcset": true, "ping": true, "cite": true, "longdesc": true, "manifest": true, "codebase": true}
+	z := html.NewTokenizer(strings.NewReader(doc))
+	inStyle, inScript := false, false
+	for {
+		tt := z.Next()
+		switch tt {
+		case html.ErrorToken:
+			return out
+		case html.TextToken:
+			txt := strings.ToLower(string(z.Text()))
+			if inStyle && (strings.Contains(txt, "evil.example") || strings.Contains(txt, "ewxss") || strings.Contains(txt, "expression(")) {
+				out = append(out, "<style> with "+cut(txt, 60))
+			}
+			if inScript {
+				out = append(out, "<script> content "+cut(txt, 60))
+			}
+			continue
+		case html.EndTagToken:
+			n, _ := z.TagName()
+			switch string(n) {
+			case "style":
+				inStyle = false
+			case "script":
+				inScript = false
+			}
+			continue
+		case html.StartTagToken, html.SelfClosingTagToken:
+		default:
+			continue
+		}
+		t := z.Token()
+		switch t.Data {
+		case "ewxss", "script", "base", "meta", "link", "object", "embed", "applet", "frame", "frameset", "portal":
+			out = append(out, "<"+t.Data+">")
+		case "style":
+			inStyle = tt == html.StartTagToken
+		}
+		if t.Data == "script" {
+			inScript = tt == html.StartTagToken
+		}
+		for _, a := range t.Attr {
+			k := strings.ToLower(a.Key)
+			v := strings.ToLower(strings.Map(func(r rune) rune {
+				if r <= ' ' {
+					return -1
+				}
+				return r
+			}, a.Val))
+			switch {
+			case k == "ewxss" || strings.HasPrefix(k, "on") || k == "srcdoc" || k == "formaction" || strings.Contains(k, "ewxss"):
+				out = append(out, fmt.Sprintf("<%s %s=%q>", t.Data, k, cut(a.Val, 40)))
+			case urlAttr[k] && (strings.HasPrefix(v, "javascript:") || strings.HasPrefix(v, "vbscript:") || strings.HasPrefix(v, "data:text") || strings.HasPrefix(v, "data:image/svg")):
+				out = append(out, fmt.Sprintf("<%s %s=%q>", t.Data, k, cut(a.Val, 40)))
+			case urlAttr[k] && t.Data != "a" && t.Data != "img" && strings.Contains(v, "evil.example"):
+				// links and pictures may point anywhere; frames, forms and
+				// media only where the wiki allows (embeds come from the
+				// script, after consent)
+				out = append(out, fmt.Sprintf("<%s %s=%q>", t.Data, k, cut(a.Val, 40)))
+			case k == "style" && (strings.Contains(v, "evil.example") || strings.Contains(v, "expression(") || strings.Contains(v, "javascript:") ||
+				strings.Contains(v, "@import") || strings.Contains(v, "ewxss") || strings.Contains(v, "behavior:") || strings.Contains(v, "-moz-binding")):
+				out = append(out, fmt.Sprintf("<%s style=%q>", t.Data, cut(a.Val, 60)))
+			}
+		}
+	}
+}
+
+func cut(s string, n int) string {
+	if len(s) > n {
+		return s[:n] + "…"
+	}
+	return s
+}
+
+// TestDangerousMarkup: the check itself finds what it must.
+func TestDangerousMarkup(t *testing.T) {
+	for _, s := range []string{`<p><ewxss>x</ewxss></p>`, `<p ewxss="1">`, `<a href=" java	script:x">`, `<div style="background:url(https://evil.example/t)">`,
+		`<img src=x onerror=alert(1)>`, `<script>x</script>`, `<style>a{background:url(//evil.example)}</style>`, `<iframe src="https://evil.example/">`, `<form action="//evil.example">`} {
+		if len(dangerousMarkup(s)) == 0 {
+			t.Errorf("not found: %s", s)
+		}
+	}
+	for _, s := range []string{`<p>&lt;ewxss&gt; &#34;&gt;&lt;ewxss ewxss=1&gt;</p>`, `<a href="https://evil.example/">x</a>`, `<p title="&quot;&gt;&lt;ewxss&gt;">x</p>`,
+		`<div data-params="{&#34;a&#34;:&#34;&lt;ewxss&gt;&#34;}"></div>`} {
+		if d := dangerousMarkup(s); len(d) > 0 {
+			t.Errorf("harmless markup flagged: %s → %v", s, d)
+		}
+	}
+}
+
+// TestContentHostileParams: every parameter of every block and every block
+// option, set to values that try to break out, renders to markup without
+// anything that could run, inject or load from elsewhere. A refused value
+// (the page cannot be saved) is fine as well.
+func TestContentHostileParams(t *testing.T) {
+	if os.Getenv("EWIKI_TEST_DATABASE_URL") == "" {
+		t.Skip("needs EWIKI_TEST_DATABASE_URL")
+	}
+	e := setup(t)
+	admin := e.client()
+	admin.login("admin", adminPW)
+	var cat struct {
+		ID int64 `json:"id"`
+	}
+	admin.must("POST", "/api/v1/categories", map[string]any{"titles": map[string]string{"en": "Hostile"}}, &cat, 201)
+	var macros []struct {
+		Name    string `json:"name"`
+		HasBody bool   `json:"has_body"`
+		Inline  bool   `json:"inline"`
+		Params  []struct {
+			Name    string   `json:"name"`
+			Type    string   `json:"type"`
+			Options []string `json:"options"`
+		} `json:"params"`
+	}
+	admin.must("GET", "/api/v1/macros", nil, &macros, 200)
+	sample := map[string]string{"text": "Text", "number": "3", "url": "https://example.com/a", "bool": "true", "color": "#0b3a6b", "date": "2026-11-21",
+		"textarea": "Text", "icon": "star", "json": `{"a":1}`}
+	saved, refused := 0, 0
+	render := func(src string) (string, bool) {
+		t.Helper()
+		var el struct {
+			ID   int64  `json:"id"`
+			HTML string `json:"html"`
+		}
+		if st := admin.do("POST", "/api/v1/elements", map[string]any{"category_id": cat.ID, "type": "core.html", "title": "H",
+			"body": map[string]any{"format": "markdown", "source": src}}, &el); st != 201 {
+			refused++
+			return "", false
+		}
+		saved++
+		admin.must("GET", "/api/v1/elements/"+itoa(el.ID), nil, &el, 200)
+		return el.HTML, true
+	}
+	var bad []string
+	check := func(what, src string) {
+		html, ok := render(src)
+		if !ok {
+			return
+		}
+		if d := dangerousMarkup(html); len(d) > 0 {
+			bad = append(bad, fmt.Sprintf("%s: %v\nsource: %q", what, d, src))
+		}
+	}
+	// a body that tries the same (the sanitizer must hold inside blocks)
+	hostileBody := "<img src=x onerror=alert(1)> <ewxss>x</ewxss> [x](javascript:alert(1))"
+	rendered := 0
+	for _, m := range macros {
+		// one page per payload with one instance per parameter: the
+		// parameter is hostile, the others hold a valid sample
+		for _, pay := range hostilePayloads {
+			var parts []string
+			for i := range m.Params {
+				var attrs []string
+				for j, q := range m.Params {
+					v, ok := sample[q.Type]
+					if !ok {
+						v = "1"
+					}
+					if len(q.Options) > 0 {
+						v = q.Options[0]
+					}
+					if q.Name == "options" {
+						v = ""
+					}
+					if i == j {
+						v = pay
+					}
+					if v != "" {
+						attrs = append(attrs, q.Name+"="+quoteAttr(v))
+					}
+				}
+				parts = append(parts, wrapMacroBody(m.Name, m.HasBody, m.Inline, strings.Join(attrs, " "), hostileBody))
+			}
+			if len(parts) == 0 {
+				parts = append(parts, wrapMacroBody(m.Name, m.HasBody, m.Inline, "", hostileBody))
+			}
+			src := strings.Join(parts, "\n\n")
+			html, ok := render(src)
+			rendered++
+			if !ok {
+				continue
+			}
+			if d := dangerousMarkup(html); len(d) > 0 {
+				// find the parameter for the message
+				for _, part := range parts {
+					check(m.Name+" with "+fmt.Sprintf("%q", pay), part)
+				}
+			}
+		}
+	}
+	// every block option with every payload, written by hand (not through
+	// the encoder, which an attacker does not have to use)
+	var schema struct {
+		Groups []struct {
+			Options []struct {
+				ID string `json:"id"`
+			} `json:"options"`
+		} `json:"groups"`
+	}
+	if err := jsonUnmarshal(content.BlockOptionsSchema(), &schema); err != nil {
+		t.Fatal(err)
+	}
+	var ids []string
+	for _, g := range schema.Groups {
+		for _, o := range g.Options {
+			ids = append(ids, o.ID)
+		}
+	}
+	sort.Strings(ids)
+	for _, pay := range hostilePayloads {
+		enc := url.PathEscape(pay)
+		enc = strings.NewReplacer("%2F", "/", "%3A", ":").Replace(enc)
+		var parts []string
+		for _, id := range ids {
+			for _, key := range []string{id, id + ".mobile"} {
+				// raw (as typed), and percent-encoded (as the codec writes)
+				parts = append(parts, wrapMacroBody("section", true, false, "options="+quoteAttr(key+":"+pay), "x"),
+					wrapMacroBody("section", true, false, "options="+quoteAttr(key+":"+enc), "x"))
+			}
+		}
+		for i := 0; i < len(parts); i += 40 {
+			j := min(i+40, len(parts))
+			src := strings.Join(parts[i:j], "\n\n")
+			html, ok := render(src)
+			rendered++
+			if !ok {
+				for _, part := range parts[i:j] {
+					check("option with "+fmt.Sprintf("%q", pay), part)
+				}
+				continue
+			}
+			if d := dangerousMarkup(html); len(d) > 0 {
+				for _, part := range parts[i:j] {
+					check("option with "+fmt.Sprintf("%q", pay), part)
+				}
+			}
+		}
+	}
+	sort.Strings(bad)
+	for _, b := range bad {
+		t.Error(b)
+	}
+	if saved < refused*4 {
+		t.Errorf("too few pages saved (%d of %d): the check would test little", saved, saved+refused)
+	}
+	t.Logf("%d macros, %d options, %d pages: %d saved, %d refused", len(macros), len(ids), rendered, saved, refused)
+}
+
+// wrapMacroBody is wrapMacro with a chosen body.
+func wrapMacroBody(name string, body, inline bool, attrs, inner string) string {
+	switch {
+	case inline:
+		return "Text :" + name + "[" + inner + "]{" + attrs + "} Text"
+	case body:
+		return ":::" + name + "{" + attrs + "}\n" + inner + "\n\n---\n\n" + inner + "\n:::"
+	}
+	return "::" + name + "{" + attrs + "}"
+}

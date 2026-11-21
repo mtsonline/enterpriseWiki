@@ -994,4 +994,32 @@ var traps = []trap{
 		New:  "\tif mode == \"off\" {\n\t\treturn nil\n\t}\n",
 		Pkg:  "./internal/server/", Tests: "^TestWAFPlugin$",
 	},
+	{
+		ID: "content.option-color-tail", About: "a block option color accepts text after the color (CSS injection)",
+		File: "internal/content/blockoptions.go",
+		Old:  "optColorRe  = regexp.MustCompile(`^#[0-9a-f]{6}$`)",
+		New:  "optColorRe  = regexp.MustCompile(`^#[0-9a-f]{6}`)",
+		Pkg:  "./internal/server/", Tests: "^TestContentHostileParams$",
+	},
+	{
+		ID: "content.option-file-tail", About: "a block option picture accepts text after the address (CSS injection)",
+		File: "internal/content/blockoptions.go",
+		Old:  "optFileRe   = regexp.MustCompile(`^/api/v1/(files/[A-Za-z0-9._-]{1,128}|media/[0-9]{1,18}/view)$`)",
+		New:  "optFileRe   = regexp.MustCompile(`^/api/v1/(files/[A-Za-z0-9._-]{1,128}|media/[0-9]{1,18}/view)`)",
+		Pkg:  "./internal/server/", Tests: "^TestContentHostileParams$",
+	},
+	{
+		ID: "content.block-text-unescaped", About: "a block writes a parameter into the page without escaping",
+		File: "plugins/core_layout/blocks.go",
+		Old:  "<p class=\"ewl-ctabox-title\">%s</p>`, oneOf(mc.Params[\"layout\"], []string{\"side\", \"stack\"}), esc(title))",
+		New:  "<p class=\"ewl-ctabox-title\">%s</p>`, oneOf(mc.Params[\"layout\"], []string{\"side\", \"stack\"}), title)",
+		Pkg:  "./internal/server/", Tests: "^TestContentHostileParams$",
+	},
+	{
+		ID: "content.block-attr-unescaped", About: "a block writes a parameter into an attribute without escaping",
+		File: "plugins/core_layout/embed.go",
+		Old:  "`\" data-title=\"` + esc(title) + `\">`",
+		New:  "`\" data-title=\"` + title + `\">`",
+		Pkg:  "./internal/server/", Tests: "^TestContentHostileParams$",
+	},
 }

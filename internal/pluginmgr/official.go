@@ -32,6 +32,7 @@ var officialPlugins = []string{
 	"core.reactions",
 	"core.share",
 	"core.template",
+	"core.waf",
 	"example.notice",
 	"macro.http",
 	"macro.shell",

@@ -643,6 +643,7 @@ Aufgerufen von Verzeichnissen wie Entra ID oder Okta mit dem Token eines SCIM-Zu
 | `POST` | `/api/v1/x/search.external/reindex` |
 | `GET` | `/api/v1/x/theme.cms/config` |
 | `GET` | `/api/v1/x/workflow.process/meta` |
+| `GET` | `/api/v1/x/core.waf/status` |
 | `GET` | `/api/v1/x/workflow.process/elements/{id}/instances` |
 | `POST` | `/api/v1/x/workflow.process/elements/{id}/instances` |
 | `GET` | `/api/v1/x/workflow.process/instances/{id}` |

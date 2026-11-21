@@ -62,7 +62,8 @@ func (p *Plugin) Locales() fs.FS { s, _ := fs.Sub(locales, "locales"); return s 
 func (p *Plugin) Setup(h *coreplugin.Host) error {
 	p.host = h
 	h.RegisterRequestFilter(p)
-	// GET /api/v1/x/core.waf/status – mode and whether the rules loaded (action core.waf.status)
+	// GET /api/v1/x/core.waf/status – mode and whether the rules loaded.
+	// action: core.waf.status
 	h.Handle("GET", "/status", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		if err := h.RequirePerm(r, "core.waf.manage"); err != nil {
 			return nil, err
