@@ -408,6 +408,20 @@ func TestContentHostileParams(t *testing.T) {
 		}
 	}
 	sort.Strings(ids)
+	// first every option with a valid value: it must take effect, or the
+	// hostile values below would only test the error message
+	for _, id := range ids {
+		v, ok := optionSamples[id]
+		if !ok {
+			t.Errorf("option %s has no sample in optionSamples", id)
+			continue
+		}
+		o := content.EncodeBlockOptions(map[string]any{id: v})
+		src := wrapMacroBody("section", true, false, "options="+quoteAttr(optionContext(id)+o), "x")
+		if html, ok := render(src); !ok || strings.Contains(html, "ew-macro-error") || !strings.Contains(html, "data-ewbo") {
+			t.Errorf("option %s does not take effect with a valid value: %q\n%s", id, src, cut(html, 300))
+		}
+	}
 	for _, pay := range hostilePayloads {
 		// percent-encoded as the codec writes it (everything outside
 		// A-Z a-z 0-9 . _ ~ / + # : -)
@@ -424,8 +438,9 @@ func TestContentHostileParams(t *testing.T) {
 		for _, id := range ids {
 			for _, key := range []string{id, id + ".mobile"} {
 				// raw (as typed), and percent-encoded (as the codec writes)
-				parts = append(parts, wrapMacroBody("section", true, false, "options="+quoteAttr(key+":"+pay), "x"),
-					wrapMacroBody("section", true, false, "options="+quoteAttr(key+":"+enc), "x"))
+				ctx := optionContext(id)
+				parts = append(parts, wrapMacroBody("section", true, false, "options="+quoteAttr(ctx+key+":"+pay), "x"),
+					wrapMacroBody("section", true, false, "options="+quoteAttr(ctx+key+":"+enc), "x"))
 			}
 		}
 		for i := 0; i < len(parts); i += 40 {
@@ -454,6 +469,24 @@ func TestContentHostileParams(t *testing.T) {
 		t.Errorf("too few pages saved (%d of %d): the check would test little", saved, saved+refused)
 	}
 	t.Logf("%d macros, %d options, %d pages: %d saved, %d refused", len(macros), len(ids), rendered, saved, refused)
+}
+
+// optionContext: valid options that the rules of an option need next to
+// it (a background needs a text color, a picture an overlay, a gradient
+// its colors), so the option itself is used.
+func optionContext(id string) string {
+	if id == "gradient_text" {
+		return "bg_color:#000000 text_color:#ffffff bg_gradient_from:#ffffff bg_gradient_to:#eeeeee "
+	}
+	ctx := map[string]string{"text_color": "#ffffff", "bg_color": "#0b3a6b", "overlay_color": "#000000", "overlay_opacity": "60",
+		"bg_gradient": "linear", "bg_gradient_from": "#0b3a6b", "bg_gradient_to": "#102040"}
+	var b strings.Builder
+	for _, k := range []string{"text_color", "bg_color", "overlay_color", "overlay_opacity", "bg_gradient", "bg_gradient_from", "bg_gradient_to"} {
+		if k != id {
+			b.WriteString(k + ":" + ctx[k] + " ")
+		}
+	}
+	return b.String()
 }
 
 // hostileSamples: valid values of single parameters (block.param) where

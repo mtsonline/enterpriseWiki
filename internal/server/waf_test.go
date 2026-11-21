@@ -262,8 +262,8 @@ var optionSamples = map[string]any{
 	"blend": "multiply", "texture": "dots", "texture_color": "#ffffff", "glass": true, "border_style": "solid",
 	"border_width": 2.0, "border_color": "#767676", "radius": 8.0, "shadow": "md", "glow": "#0b3a6b", "divider_top": "wave",
 	"divider_bottom": "zigzag", "divider_height": 60.0, "divider_color": "#ffffff", "divider_flip": true, "fade_edges": "both",
-	"font": "serif", "font_size": map[string]any{"desktop": 20.0}, "weight": "600", "line_height": 1.5, "letter_spacing": 0.05,
-	"transform": "uppercase", "text_color": "#ffffff", "columns": map[string]any{"desktop": 2.0}, "hyphens": true, "wrap": "balance",
+	"font": "serif", "font_size": map[string]any{"desktop": 120.0}, "weight": "600", "line_height": 1.5, "letter_spacing": 0.05,
+	"transform": "uppercase", "text_color": "#ffffff", "columns": map[string]any{"desktop": 2.0, "mobile": 1.0}, "hyphens": true, "wrap": "balance",
 	"drop_cap": true, "text_shadow": "soft", "line_clamp": 3.0, "gradient_text": true, "link_style": "thick",
 }
 
