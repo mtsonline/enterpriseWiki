@@ -1,7 +1,10 @@
 package server_test
 
 import (
+	"encoding/json"
 	"fmt"
+	"net/http"
+	"net/http/httptest"
 	"net/url"
 	"os"
 	"sort"
@@ -10,6 +13,7 @@ import (
 
 	"golang.org/x/net/html"
 
+	"github.com/mtsonline/enterprisewiki/internal/config"
 	"github.com/mtsonline/enterprisewiki/internal/content"
 )
 
@@ -49,6 +53,12 @@ var hostilePayloads = []string{
 	`3;background:url(https://evil.example/t)`,
 	`intro"><ewxss>`,
 }
+
+// dangerousSamplesHTML: markup a foreign server could send.
+const dangerousSamplesHTML = `<script>alert(1)</script><img src=x onerror=alert(1)><svg onload=alert(1)><a href="javascript:alert(1)">x</a>` +
+	`<iframe src="https://evil.example/"></iframe><form action="https://evil.example/"><input name=p></form><style>body{background:url(https://evil.example/t)}</style>` +
+	`<div style="background:url(https://evil.example/t)">x</div><base href="https://evil.example/"><meta http-equiv="refresh" content="0;url=https://evil.example/">` +
+	`<math><mtext><table><mglyph><style><!--</style><img title="--&gt;&lt;img src=1 onerror=alert(1)&gt;">` + "\n"
 
 // dangerousMarkup parses rendered content the way a browser does and lists
 // what could run script, inject markup or load foreign styles. Unlike the
@@ -161,6 +171,35 @@ func TestContentHostileParams(t *testing.T) {
 		ID int64 `json:"id"`
 	}
 	admin.must("POST", "/api/v1/categories", map[string]any{"titles": map[string]string{"en": "Hostile"}}, &cat, 201)
+	// a server for the HTTP block that answers with hostile content in
+	// every format
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var b strings.Builder
+		switch r.URL.Query().Get("f") {
+		case "json":
+			m := map[string]any{}
+			for i, p := range hostilePayloads {
+				m[p] = p
+				m[fmt.Sprint("k", i)] = []any{p, map[string]any{p: p}}
+			}
+			_ = json.NewEncoder(&b).Encode([]any{m, m})
+		default:
+			b.WriteString(dangerousSamplesHTML)
+			for _, p := range hostilePayloads {
+				b.WriteString(p + "\n")
+			}
+		}
+		_, _ = w.Write([]byte(b.String()))
+	}))
+	defer upstream.Close()
+	if err := e.app.Config.Update(func(c *config.Config) error {
+		c.Plugins.Macros.HTTPAllow = []string{upstream.URL + "/"}
+		c.Plugins.Macros.HTTPAllowPrivate = true
+		c.Media.EmbedAllow = []string{"https://example.com"}
+		return nil
+	}); err != nil {
+		t.Fatal(err)
+	}
 	var macros []struct {
 		Name    string `json:"name"`
 		HasBody bool   `json:"has_body"`
@@ -173,7 +212,7 @@ func TestContentHostileParams(t *testing.T) {
 	}
 	admin.must("GET", "/api/v1/macros", nil, &macros, 200)
 	sample := map[string]string{"text": "Text", "number": "3", "url": "https://example.com/a", "bool": "true", "color": "#0b3a6b", "date": "2026-11-21",
-		"textarea": "Text", "icon": "star", "json": `{"a":1}`}
+		"textarea": "Text", "icon": "star", "custom:icon": "star", "json": `{"a":1}`}
 	saved, refused := 0, 0
 	render := func(src string) (string, bool) {
 		t.Helper()
@@ -200,10 +239,57 @@ func TestContentHostileParams(t *testing.T) {
 			bad = append(bad, fmt.Sprintf("%s: %v\nsource: %q", what, d, src))
 		}
 	}
+	// first every block with valid values only: it must render, or the
+	// hostile values below would only test the error message
+	valid := func(m int, p string) string {
+		q := macros[m].Params
+		for _, x := range q {
+			if x.Name != p {
+				continue
+			}
+			if v, ok := hostileSamples[macros[m].Name+"."+p]; ok {
+				return v
+			}
+			if len(x.Options) > 0 {
+				return x.Options[0]
+			}
+			if v, ok := sample[x.Type]; ok {
+				return v
+			}
+			return "1"
+		}
+		return ""
+	}
+	hostileSamples["http.address"] = upstream.URL + "/x"
+	for mi, m := range macros {
+		if m.Name == "shell" {
+			continue // runs only approved commands; its output: TestShellMacro
+		}
+		var attrs []string
+		for _, q := range m.Params {
+			if v := valid(mi, q.Name); v != "" && q.Name != "options" {
+				attrs = append(attrs, q.Name+"="+quoteAttr(v))
+			}
+		}
+		src := wrapMacroBody(m.Name, m.HasBody, m.Inline, strings.Join(attrs, " "), bodyFor(m.Name, "Text"))
+		if html, ok := render(src); !ok || strings.Contains(html, "ew-macro-error") {
+			t.Errorf("block %s does not render with valid values (hostileSamples): %q\n%s", m.Name, src, html)
+		}
+	}
 	// a body that tries the same (the sanitizer must hold inside blocks)
 	hostileBody := "<img src=x onerror=alert(1)> <ewxss>x</ewxss> [x](javascript:alert(1))"
 	rendered := 0
-	for _, m := range macros {
+	// the HTTP block in every format with hostile answers
+	for _, f := range []string{"text", "html", "json"} {
+		check("http "+f, fmt.Sprintf("::http{address=%s cache=0 format=%s}", quoteAttr(upstream.URL+"/x?f="+f), f))
+		if html, _ := render(fmt.Sprintf("::http{address=%s cache=0 format=%s}", quoteAttr(upstream.URL+"/x?f="+f), f)); strings.Contains(html, "ew-macro-error") || !strings.Contains(html, "ewxss") {
+			t.Errorf("http %s: the answer was not shown: %s", f, cut(html, 300))
+		}
+	}
+	for mi, m := range macros {
+		if m.Name == "shell" {
+			continue
+		}
 		// one page per payload with one instance per parameter: the
 		// parameter is hostile, the others hold a valid sample
 		for _, pay := range hostilePayloads {
@@ -211,13 +297,7 @@ func TestContentHostileParams(t *testing.T) {
 			for i := range m.Params {
 				var attrs []string
 				for j, q := range m.Params {
-					v, ok := sample[q.Type]
-					if !ok {
-						v = "1"
-					}
-					if len(q.Options) > 0 {
-						v = q.Options[0]
-					}
+					v := valid(mi, q.Name)
 					if q.Name == "options" {
 						v = ""
 					}
@@ -228,18 +308,17 @@ func TestContentHostileParams(t *testing.T) {
 						attrs = append(attrs, q.Name+"="+quoteAttr(v))
 					}
 				}
-				parts = append(parts, wrapMacroBody(m.Name, m.HasBody, m.Inline, strings.Join(attrs, " "), hostileBody))
+				parts = append(parts, wrapMacroBody(m.Name, m.HasBody, m.Inline, strings.Join(attrs, " "), bodyFor(m.Name, hostileBody)))
 			}
 			if len(parts) == 0 {
-				parts = append(parts, wrapMacroBody(m.Name, m.HasBody, m.Inline, "", hostileBody))
+				parts = append(parts, wrapMacroBody(m.Name, m.HasBody, m.Inline, "", bodyFor(m.Name, hostileBody)))
 			}
 			src := strings.Join(parts, "\n\n")
 			html, ok := render(src)
 			rendered++
-			if !ok {
-				continue
-			}
-			if d := dangerousMarkup(html); len(d) > 0 {
+			// refused as a whole (one value is refused when saving): each
+			// instance on its own, so the others are checked as well
+			if d := dangerousMarkup(html); !ok || len(d) > 0 {
 				// find the parameter for the message
 				for _, part := range parts {
 					check(m.Name+" with "+fmt.Sprintf("%q", pay), part)
@@ -305,12 +384,37 @@ func TestContentHostileParams(t *testing.T) {
 	t.Logf("%d macros, %d options, %d pages: %d saved, %d refused", len(macros), len(ids), rendered, saved, refused)
 }
 
+// hostileSamples: valid values of single parameters (block.param) where
+// the sample of the type does not fit.
+var hostileSamples = map[string]string{
+	"anchor.name": "intro", "excerpt.name": "intro", "include.excerpt": "false", "include.name": "", "grid.widths": "",
+	"personcard.image": "/api/v1/media/1/view", "testimonial.image": "/api/v1/media/1/view", "rotating.words": "eins|zwei|drei", "personcard.email": "anna@example.com", "personcard.phone": "+49 30 123456",
+}
+
+// hostileBodies: the content of blocks that need a certain body; %s is
+// the hostile body.
+var hostileBodies = map[string]string{
+	"chart":  "| Name | Wert |\n|---|---|\n| a | 1 |\n| %s | 2 |",
+	"logos":  "![%s](/api/v1/media/1/view)\n\n%s",
+	"ticker": "- %s\n- b",
+}
+
+func bodyFor(macro, inner string) string {
+	if f, ok := hostileBodies[macro]; ok {
+		return strings.ReplaceAll(f, "%s", inner)
+	}
+	return inner
+}
+
 // wrapMacroBody is wrapMacro with a chosen body.
 func wrapMacroBody(name string, body, inline bool, attrs, inner string) string {
 	switch {
 	case inline:
 		return "Text :" + name + "[" + inner + "]{" + attrs + "} Text"
 	case body:
+		if _, ok := hostileBodies[name]; ok {
+			return ":::" + name + "{" + attrs + "}\n" + inner + "\n:::"
+		}
 		return ":::" + name + "{" + attrs + "}\n" + inner + "\n\n---\n\n" + inner + "\n:::"
 	}
 	return "::" + name + "{" + attrs + "}"

@@ -1022,4 +1022,11 @@ var traps = []trap{
 		New:  "`\" data-title=\"` + title + `\">`",
 		Pkg:  "./internal/server/", Tests: "^TestContentHostileParams$",
 	},
+	{
+		ID: "content.http-html-raw", About: "the HTTP block shows a foreign HTML answer without sanitizing",
+		File: "plugins/macro_http/plugin.go",
+		Old:  "return ugc.Sanitize(string(body)), nil",
+		New:  "return string(body), nil",
+		Pkg:  "./internal/server/", Tests: "^TestContentHostileParams$",
+	},
 }
