@@ -286,6 +286,15 @@ func (s *Server) wrap(next http.Handler) http.Handler {
 			return
 		}
 		defer release()
+		// request filters of plugins (for example the web application firewall)
+		if p := identity.From(ctx); !p.InProcess() {
+			for _, f := range s.app.Filters.Active(s.app.Kernel.Enabled) {
+				if err := f.FilterRequest(r, s.clientIP(r)); err != nil {
+					httpx.WriteError(sw, r, err)
+					return
+				}
+			}
+		}
 		// guests: answer from the cache (or fill it)
 		if identity.From(ctx) == nil && s.app.Cache.ServeAPI(sw, r, next) {
 			return

@@ -226,6 +226,15 @@ The XSS and SQL rules of the WAF therefore add little for these fields, and with
 
 **What is not covered.** Coraza cannot load all rules of CRS 3.3; the SQL rules of CRS 3 (942) are only checked with CRS 4.
 
+**Web application firewall in the wiki (plugin `core.waf`).** For installations without a firewall in front, the wiki ships a firewall of its own: Coraza with the OWASP Core Rule Set 4 and the exclusions above. It is off by default; switch it on under *Administration → Plugins*, then set it under *Administration → Web application firewall*:
+
+- **Mode:** *Log only* (default) writes what would be blocked to the server log (`waf:` with the rules, path and address); *Block* refuses it with `403` (`waf_blocked`). Start with *Log only* and watch the log for a few days.
+- **Strictness:** paranoia level 1 (default) or 2.
+- **Not checked:** static files (`/assets/`) and uploaded files; of other bodies at most `core.waf.body_kb` (expert settings, default 512 KB), the rest passes unchecked.
+- **Cost** (measured on 2 cores): about 1.5 ms per page request and 2–4 ms per saved page, about 20 MB of memory; the program is about 15 MB larger whether the plugin is on or not.
+- If the rules cannot be loaded, the wiki keeps working without the firewall and logs it.
+- Tested in `internal/server/waf_plugin_test.go`: off by default; log only lets attacks pass; blocking refuses attacks in addresses of pages and the API; pages with code, SQL and HTML can still be saved (also with `PUT`) and searched for; static files are not checked.
+
 **If the wiki still gets blocked.** The log of the WAF names the rule (`[id "…"]`), for example `/var/log/apache2/modsec_audit.log`. Please report it.
 
 **CrowdSec:** the default rules of its AppSec component aim at known vulnerabilities of certain products (virtual patching); with its CRS collection the same applies as above. The bundled proxy with CrowdSec (above) uses only the virtual patches and is tested with wiki content.

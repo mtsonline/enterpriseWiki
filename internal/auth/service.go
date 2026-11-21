@@ -494,7 +494,7 @@ func (s *Service) createSession(ctx context.Context, uid int64, kind string, ttl
 	tok := NewToken("")
 	exp := time.Now().Add(ttl)
 	if len(ua) > 300 {
-		ua = ua[:300]
+		ua = strings.ToValidUTF8(ua[:300], "")
 	}
 	var prov, subj, sid, hint string
 	if sso != nil && sso.Provider != "local" {

@@ -365,10 +365,13 @@ type Retention struct {
 
 // Plugins configures the plugin system.
 type Plugins struct {
-	Disabled []string       `yaml:"disabled" json:"disabled"`
-	Dir      string         `yaml:"dir" json:"dir"`
-	Catalog  []CatalogEntry `yaml:"catalog" json:"catalog"`
-	Macros   MacroSecurity  `yaml:"macros" json:"macros"`
+	Disabled []string `yaml:"disabled" json:"disabled"`
+	// Enabled lists plugins that are off by default (manifest default_off)
+	// and were switched on.
+	Enabled []string       `yaml:"enabled,omitempty" json:"enabled"`
+	Dir     string         `yaml:"dir" json:"dir"`
+	Catalog []CatalogEntry `yaml:"catalog" json:"catalog"`
+	Macros  MacroSecurity  `yaml:"macros" json:"macros"`
 	// Updates configures the update check (GitHub releases).
 	Updates Updates `yaml:"updates" json:"updates"`
 	// AutoRestartOnDrop restarts automatically after plugins copied into the

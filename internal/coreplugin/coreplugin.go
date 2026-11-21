@@ -88,6 +88,10 @@ type Manifest struct {
 	Extends []string `json:"extends"`
 	// Required plugins cannot be disabled (e.g. local authentication).
 	Required bool `json:"required"`
+	// DefaultOff plugins are shipped but inactive until an administrator
+	// switches them on (they are then listed in plugins.enabled of
+	// config.yaml), e.g. the web application firewall.
+	DefaultOff bool `json:"default_off,omitempty"`
 	// MinCore is the minimum core version.
 	MinCore string `json:"min_core"`
 	// Frontend is true if plugins/<dir>/web/index.ts exists.
@@ -193,6 +197,8 @@ type Host struct {
 
 	Mux       *http.ServeMux
 	IsEnabled func(pluginID string) bool
+	// Filters are the request filters of the app (RegisterRequestFilter).
+	Filters *RequestFilters
 	// Site is the name of the site this host belongs to ("main" for the
 	// first site). Each site gets its own plugin instance and host.
 	Site string
@@ -358,6 +364,15 @@ func (h *Host) RegisterSignatureMethod(m signature.Method) {
 // auth.AccessGuard).
 func (h *Host) RegisterAccessGuard(g auth.AccessGuard) {
 	h.Auth.RegisterAccessGuard(h.Manifest.ID, g)
+}
+
+// RegisterRequestFilter adds a filter that looks at every request before
+// it is handled (see RequestFilter); it is inactive while the plugin is
+// disabled.
+func (h *Host) RegisterRequestFilter(f RequestFilter) {
+	if h.Filters != nil {
+		h.Filters.add(h.Manifest.ID, f)
+	}
 }
 
 // RequirePerm returns 401/403 unless the caller of r has the global
@@ -531,4 +546,48 @@ func (p *PerSite[T]) Set(h *Host, v T) {
 func (p *PerSite[T]) Get(ctx context.Context) T {
 	v, _ := p.m.Get(ctx)
 	return v
+}
+
+// RequestFilter looks at a request before the wiki handles it, for example
+// a web application firewall. It runs after authentication, the request
+// limits and the body size limit, for every request except calls of the
+// CLI in the same process. It may read the body but must leave r.Body so
+// that the handler reads the same bytes. A non-nil error refuses the request
+// (written as the error answer, so use apperr errors).
+type RequestFilter interface {
+	FilterRequest(r *http.Request, clientIP string) error
+}
+
+// RequestFilters holds the request filters of the plugins of an app.
+type RequestFilters struct {
+	mu   sync.RWMutex
+	list []registeredFilter
+}
+
+type registeredFilter struct {
+	plugin string
+	f      RequestFilter
+}
+
+func (r *RequestFilters) add(plugin string, f RequestFilter) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.list = append(r.list, registeredFilter{plugin, f})
+}
+
+// Active returns the filters of the enabled plugins, in the order they were
+// registered.
+func (r *RequestFilters) Active(enabled func(string) bool) []RequestFilter {
+	if r == nil {
+		return nil
+	}
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	var out []RequestFilter
+	for _, x := range r.list {
+		if enabled(x.plugin) {
+			out = append(out, x.f)
+		}
+	}
+	return out
 }

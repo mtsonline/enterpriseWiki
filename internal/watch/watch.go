@@ -462,7 +462,7 @@ func plain(h string) string {
 	h = reSpace.ReplaceAllString(h, " ")
 	h = reLines.ReplaceAllString(h, "\n\n")
 	if len(h) > 20000 {
-		h = h[:20000] + " …"
+		h = strings.ToValidUTF8(h[:20000], "") + " …"
 	}
 	return strings.TrimSpace(h)
 }

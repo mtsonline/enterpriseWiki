@@ -479,10 +479,17 @@ func (s *Service) CreateElement(ctx context.Context, in ElementInput) (*ElementV
 // tsvExpr builds the search vector from parameters $4 (title), $6 (tags) and $5 (body).
 const tsvExpr = `setweight(to_tsvector('simple', $4::text), 'A') || setweight(to_tsvector('simple', array_to_string($6::text[], ' ')), 'B') || setweight(to_tsvector('simple', $5::text), 'C')`
 
+// searchMarks replaces the characters the search uses to mark hits in
+// snippets (⟦ ⟧ in the database, \x01 \x02 from external engines): text
+// on a page must not become markup in the result list.
+var searchMarks = strings.NewReplacer("⟦", "[", "⟧", "]", "\x01", " ", "\x02", " ")
+
 func (s *Service) index(ctx context.Context, q db.Querier, id, cat int64, lang, title, text string, tags []string) error {
 	if len(text) > 1<<20 {
-		text = text[:1<<20]
+		// cut at the limit without splitting a character
+		text = strings.ToValidUTF8(text[:1<<20], "")
 	}
+	title, text = searchMarks.Replace(title), searchMarks.Replace(text)
 	_, err := q.Exec(ctx, `INSERT INTO search_docs(element_id, lang, category_id, title, body_text, tags, tsv) VALUES ($1,$2,$3,$4,$5,$6,`+tsvExpr+`)
 		ON CONFLICT (element_id, lang) DO UPDATE SET category_id=EXCLUDED.category_id, title=EXCLUDED.title, body_text=EXCLUDED.body_text,
 			tags=EXCLUDED.tags, tsv=EXCLUDED.tsv`,

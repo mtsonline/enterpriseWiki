@@ -62,3 +62,23 @@ test('text form of the options: read and written like the server (shared cases)'
   const text = encodeOptions({ anchor: 'a"b{c};d<e>' } as BlockOptions);
   assert.ok(!/["{};<> ]/.test(text), text);
 });
+
+test('no option lets hostile text into the CSS (every option, every payload)', async () => {
+  const schema = (await import('../../../internal/content/blockoptions.json')).default as { groups: { options: { id: string }[] }[] };
+  const payloads = ['#0b3a6b;background:url(https://evil.example/t)', '/api/v1/files/a");background:url(https://evil.example/t);x:("', '"><ewxss>',
+    '} body{background:url(https://evil.example/t)} .x{', 'expression(ewxss)', '3;background:url(https://evil.example/t)', 'linear;background:url(https://evil.example/t)'];
+  const context: BlockOptions = { text_color: '#ffffff', bg_color: '#0b3a6b', overlay_color: '#000000', overlay_opacity: 60 };
+  let n = 0;
+  for (const g of schema.groups) {
+    for (const { id } of g.options) {
+      for (const p of payloads) {
+        for (const v of [p, { desktop: p }, [p], 1e309]) {
+          const css = optionsCSS('.x', { ...context, [id]: v } as unknown as BlockOptions);
+          assert.ok(!/evil|ewxss|expression/.test(css), `${id} = ${JSON.stringify(v)}: ${css}`);
+          n++;
+        }
+      }
+    }
+  }
+  assert.ok(n > 1000);
+});

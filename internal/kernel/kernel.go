@@ -61,10 +61,6 @@ func NewSite(cfg *config.Store, log *slog.Logger, site string) *Kernel {
 }
 
 func (k *Kernel) recompute(c *config.Config) {
-	disabled := map[string]bool{}
-	for _, id := range c.Plugins.Disabled {
-		disabled[id] = true
-	}
 	active := map[string]bool{}
 	var visit func(id string, seen map[string]bool) bool
 	visit = func(id string, seen map[string]bool) bool {
@@ -77,7 +73,7 @@ func (k *Kernel) recompute(c *config.Config) {
 		}
 		seen[id] = true
 		m := p.Manifest()
-		ok = m.Required || !disabled[id]
+		ok = switchedOn(c, m)
 		for _, dep := range m.Extends {
 			if !visit(dep, seen) {
 				ok = false
@@ -119,13 +115,26 @@ type Info struct {
 	Dependents []string `json:"dependents"` // plugins extending this one
 }
 
+// switchedOn reports whether the configuration switches plugin m on:
+// required plugins always, plugins that are off by default only when listed
+// in plugins.enabled, all others unless listed in plugins.disabled.
+func switchedOn(c *config.Config, m coreplugin.Manifest) bool {
+	switch {
+	case m.Required:
+		return true
+	case m.DefaultOff:
+		return slices.Contains(c.Plugins.Enabled, m.ID) && !slices.Contains(c.Plugins.Disabled, m.ID)
+	}
+	return !slices.Contains(c.Plugins.Disabled, m.ID)
+}
+
 // List returns all compiled plugins.
 func (k *Kernel) List() []Info {
-	disabled := k.cfg.Get().Plugins.Disabled
+	c := k.cfg.Get()
 	out := []Info{}
 	for id, p := range k.plugins {
 		m := p.Manifest()
-		inf := Info{Manifest: m, Enabled: m.Required || !slices.Contains(disabled, id), Active: k.Enabled(id), Missing: []string{}, Dependents: []string{}}
+		inf := Info{Manifest: m, Enabled: switchedOn(c, m), Active: k.Enabled(id), Missing: []string{}, Dependents: []string{}}
 		if inf.Kinds == nil {
 			inf.Kinds = []string{}
 		}
@@ -170,14 +179,23 @@ func (k *Kernel) SetEnabled(_ context.Context, id string, on bool) error {
 			return apperr.Conflict("disable the plugins that extend %s first: %v", id, deps)
 		}
 	}
+	defaultOff := p.Manifest().DefaultOff
 	return k.cfg.Update(func(c *config.Config) error {
 		c.Plugins.Disabled = slices.DeleteFunc(c.Plugins.Disabled, func(s string) bool { return s == id })
-		if !on {
+		c.Plugins.Enabled = slices.DeleteFunc(c.Plugins.Enabled, func(s string) bool { return s == id })
+		switch {
+		case defaultOff && on:
+			c.Plugins.Enabled = append(c.Plugins.Enabled, id)
+			sort.Strings(c.Plugins.Enabled)
+		case !defaultOff && !on:
 			c.Plugins.Disabled = append(c.Plugins.Disabled, id)
 			sort.Strings(c.Plugins.Disabled)
 		}
 		if c.Plugins.Disabled == nil {
 			c.Plugins.Disabled = []string{}
+		}
+		if len(c.Plugins.Enabled) == 0 {
+			c.Plugins.Enabled = nil
 		}
 		return nil
 	})

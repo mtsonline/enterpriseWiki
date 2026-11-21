@@ -110,7 +110,7 @@ func (m *Manager) latestRelease(ctx context.Context, ownerRepo string) (tag, url
 	}
 	if code == 200 && rel.TagName != "" {
 		if len(rel.Body) > 2000 {
-			rel.Body = rel.Body[:2000] + "…"
+			rel.Body = strings.ToValidUTF8(rel.Body[:2000], "") + "…"
 		}
 		return rel.TagName, rel.HTMLURL, rel.Body, nil
 	}

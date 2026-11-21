@@ -1056,7 +1056,7 @@ func cleanName(n string) string {
 		n = "file"
 	}
 	if len(n) > 200 {
-		n = n[:200]
+		n = strings.ToValidUTF8(n[:200], "")
 	}
 	return n
 }

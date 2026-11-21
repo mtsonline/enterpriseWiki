@@ -85,7 +85,7 @@ func ClientIP(ctx context.Context) string {
 // WithRequest stores the client's IP address and browser in ctx.
 func WithRequest(ctx context.Context, ip, userAgent string) context.Context {
 	if len(userAgent) > 300 {
-		userAgent = userAgent[:300]
+		userAgent = strings.ToValidUTF8(userAgent[:300], "")
 	}
 	return context.WithValue(ctx, reqKey{}, request{ip, userAgent})
 }

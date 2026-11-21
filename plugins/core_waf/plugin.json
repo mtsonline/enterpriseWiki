@@ -1,0 +1,30 @@
+{
+  "id": "core.waf",
+  "name": "Web application firewall",
+  "version": "1.0.0",
+  "description": "Checks every request with the OWASP Core Rule Set (Coraza) before the wiki handles it, with the exclusions the wiki needs. Shipped but off: switch it on for installations without a firewall in front (the bundled proxy with CrowdSec, ModSecurity …). Mode: log only (default) or block.",
+  "author": "Enterprise Wiki",
+  "kinds": ["general"],
+  "default_off": true,
+  "frontend": true,
+  "permissions": [
+    {
+      "key": "core.waf.manage",
+      "scope": "global",
+      "label": "Manage the web application firewall",
+      "description": "Change mode and paranoia level of the web application firewall."
+    }
+  ],
+  "limits": [
+    {
+      "key": "core.waf.body_kb",
+      "group": "requests",
+      "unit": "kb",
+      "default": 512,
+      "min": 16,
+      "max": 10240,
+      "label": "Request body checked by the firewall",
+      "help": "The firewall checks at most this much of a request body; the rest is passed on unchecked (the wiki checks every input itself). File uploads are not checked by the firewall."
+    }
+  ]
+}

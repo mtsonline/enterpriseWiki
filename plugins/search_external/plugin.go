@@ -212,7 +212,7 @@ func (p *Plugin) Sync(ctx context.Context) error {
 	if err != nil {
 		msg = err.Error()
 		if len(msg) > 1000 {
-			msg = msg[:1000]
+			msg = strings.ToValidUTF8(msg[:1000], "")
 		}
 	}
 	if _, uerr := p.host.DB.Exec(context.WithoutCancel(ctx), `UPDATE plugin_search_state SET last_error=$1 WHERE id=1`, msg); uerr != nil && err == nil {

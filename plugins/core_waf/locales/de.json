@@ -1,0 +1,20 @@
+{
+ "waf.title": "Web Application Firewall",
+ "waf.help": "Prüft jede Anfrage mit dem OWASP Core Rule Set, bevor das Wiki sie bearbeitet, mit den Ausnahmen, die das Wiki braucht. Sinnvoll, wenn vor dem Wiki keine Firewall läuft (zum Beispiel der mitgelieferte Proxy mit CrowdSec oder ModSecurity). Statische Dateien und hochgeladene Dateien prüft sie nicht. Was sie findet, steht im Protokoll des Servers (waf:).",
+ "waf.mode": "Betrieb",
+ "waf.mode_help": "Zuerst „Nur protokollieren“ und das Protokoll einige Tage beobachten; dann „Sperren“.",
+ "waf.mode.detect": "Nur protokollieren (Vorgabe)",
+ "waf.mode.block": "Sperren",
+ "waf.paranoia": "Strenge (Paranoia-Stufe)",
+ "waf.paranoia_help": "Stufe 2 findet mehr, sperrt aber auch öfter harmlose Anfragen.",
+ "waf.paranoia.1": "Stufe 1 (Vorgabe)",
+ "waf.paranoia.2": "Stufe 2",
+ "waf.status.detect": "Aktiv, nur protokollieren: {rules}, Stufe {level}.",
+ "waf.status.block": "Aktiv, sperrt: {rules}, Stufe {level}.",
+ "waf.status.error": "Die Regeln konnten nicht geladen werden: {error}. Das Wiki läuft ohne Firewall weiter.",
+ "waf.status.body": "Von jeder Anfrage werden höchstens {kb} KB geprüft (Experteneinstellungen).",
+ "perm.core.waf.manage": "Web Application Firewall verwalten",
+ "perm.core.waf.manage_help": "Betrieb und Strenge der Web Application Firewall ändern.",
+ "limit.core.waf.body_kb": "Von der Firewall geprüfter Inhalt einer Anfrage",
+ "limit.core.waf.body_kb.help": "So viel vom Inhalt einer Anfrage prüft die Firewall höchstens; der Rest geht ungeprüft weiter (das Wiki prüft jede Eingabe selbst). Hochgeladene Dateien prüft die Firewall nicht."
+}
