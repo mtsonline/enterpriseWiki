@@ -1,12 +1,15 @@
 package server_test
 
 import (
+	"context"
 	"encoding/json"
+	stdhtml "html"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
 	"os"
+	"regexp"
 	"sort"
 	"strings"
 	"testing"
@@ -125,12 +128,48 @@ func dangerousMarkup(doc string) []string {
 				// media only where the wiki allows (embeds come from the
 				// script, after consent)
 				out = append(out, fmt.Sprintf("<%s %s=%q>", t.Data, k, cut(a.Val, 40)))
+			case k == "data-ewbo" && !safeOptions(a.Val):
+				// the options become CSS in the browser: only the
+				// characters of colors, numbers, files and times
+				out = append(out, fmt.Sprintf("<%s data-ewbo=%q>", t.Data, cut(a.Val, 80)))
 			case k == "style" && (strings.Contains(v, "evil.example") || strings.Contains(v, "expression(") || strings.Contains(v, "javascript:") ||
 				strings.Contains(v, "@import") || strings.Contains(v, "ewxss") || strings.Contains(v, "behavior:") || strings.Contains(v, "-moz-binding")):
 				out = append(out, fmt.Sprintf("<%s style=%q>", t.Data, cut(a.Val, 60)))
 			}
 		}
 	}
+}
+
+var optionChars = regexp.MustCompile(`^[A-Za-z0-9#._:/+-]*$`)
+
+// safeOptions: every text in the options of a block (data-ewbo) consists
+// of harmless characters only.
+func safeOptions(raw string) bool {
+	var v any
+	if json.Unmarshal([]byte(raw), &v) != nil {
+		return false
+	}
+	var walk func(any) bool
+	walk = func(x any) bool {
+		switch y := x.(type) {
+		case string:
+			return optionChars.MatchString(y)
+		case []any:
+			for _, z := range y {
+				if !walk(z) {
+					return false
+				}
+			}
+		case map[string]any:
+			for k, z := range y {
+				if !optionChars.MatchString(k) || !walk(z) {
+					return false
+				}
+			}
+		}
+		return true
+	}
+	return walk(v)
 }
 
 func cut(s string, n int) string {
@@ -143,13 +182,14 @@ func cut(s string, n int) string {
 // TestDangerousMarkup: the check itself finds what it must.
 func TestDangerousMarkup(t *testing.T) {
 	for _, s := range []string{`<p><ewxss>x</ewxss></p>`, `<p ewxss="1">`, `<a href=" java	script:x">`, `<div style="background:url(https://evil.example/t)">`,
-		`<img src=x onerror=alert(1)>`, `<script>x</script>`, `<style>a{background:url(//evil.example)}</style>`, `<iframe src="https://evil.example/">`, `<form action="//evil.example">`} {
+		`<img src=x onerror=alert(1)>`, `<script>x</script>`, `<div data-ewbo="{&#34;bg_color&#34;:&#34;#0b3a6b;background:url(x)&#34;}">`, `<style>a{background:url(//evil.example)}</style>`, `<iframe src="https://evil.example/">`, `<form action="//evil.example">`} {
 		if len(dangerousMarkup(s)) == 0 {
 			t.Errorf("not found: %s", s)
 		}
 	}
 	for _, s := range []string{`<p>&lt;ewxss&gt; &#34;&gt;&lt;ewxss ewxss=1&gt;</p>`, `<a href="https://evil.example/">x</a>`, `<p title="&quot;&gt;&lt;ewxss&gt;">x</p>`,
-		`<div data-params="{&#34;a&#34;:&#34;&lt;ewxss&gt;&#34;}"></div>`} {
+		`<div data-params="{&#34;a&#34;:&#34;&lt;ewxss&gt;&#34;}"></div>`,
+		`<div class="ew-bo" data-ewbo="{&#34;bg_image&#34;:&#34;/api/v1/media/12/view&#34;,&#34;from&#34;:&#34;2026-12-01T08:00:00+01:00&#34;,&#34;padding_top&#34;:{&#34;desktop&#34;:4}}">`} {
 		if d := dangerousMarkup(s); len(d) > 0 {
 			t.Errorf("harmless markup flagged: %s → %v", s, d)
 		}
@@ -176,6 +216,17 @@ func TestContentHostileParams(t *testing.T) {
 	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		var b strings.Builder
 		switch r.URL.Query().Get("f") {
+		case "rss":
+			w.Header().Set("Content-Type", "application/rss+xml")
+			b.WriteString(`<?xml version="1.0"?><rss version="2.0"><channel><title>T</title>`)
+			for i, p := range hostilePayloads {
+				x := stdhtml.EscapeString(p)
+				fmt.Fprintf(&b, `<item><title>Feed item %d %s</title><link>%s</link><guid>g%d</guid><description>%s %s</description>`+
+					`<enclosure url="%s" type="image/png"/><pubDate>Sat, 21 Nov 2026 10:%02d:00 +0000</pubDate></item>`,
+					i, x, x, i, stdhtml.EscapeString(dangerousSamplesHTML), x, x, i%60)
+			}
+			b.WriteString(`<item><title>Feed item js</title><link>javascript:alert(1)</link><description><![CDATA[` + dangerousSamplesHTML + `]]></description>` +
+				`<enclosure url="javascript:alert(1)" type="image/png"/></item></channel></rss>`)
 		case "json":
 			m := map[string]any{}
 			for i, p := range hostilePayloads {
@@ -196,6 +247,7 @@ func TestContentHostileParams(t *testing.T) {
 		c.Plugins.Macros.HTTPAllow = []string{upstream.URL + "/"}
 		c.Plugins.Macros.HTTPAllowPrivate = true
 		c.Media.EmbedAllow = []string{"https://example.com"}
+		c.Feeds.AllowPrivate = true
 		return nil
 	}); err != nil {
 		t.Fatal(err)
@@ -284,6 +336,18 @@ func TestContentHostileParams(t *testing.T) {
 		check("http "+f, fmt.Sprintf("::http{address=%s cache=0 format=%s}", quoteAttr(upstream.URL+"/x?f="+f), f))
 		if html, _ := render(fmt.Sprintf("::http{address=%s cache=0 format=%s}", quoteAttr(upstream.URL+"/x?f="+f), f)); strings.Contains(html, "ew-macro-error") || !strings.Contains(html, "ewxss") {
 			t.Errorf("http %s: the answer was not shown: %s", f, cut(html, 300))
+		}
+	}
+	// news from a hostile feed, in every layout
+	feed := upstream.URL + "/x?f=rss"
+	if err := e.app.Feeds.Refresh(context.Background(), "rss", feed); err != nil {
+		t.Fatal(err)
+	}
+	for _, l := range []string{"cards", "list", "headlines", "tiles"} {
+		src := fmt.Sprintf("::news{source=%s layout=%s limit=50}", quoteAttr("feed:"+feed), l)
+		check("news "+l, src)
+		if html, _ := render(src); !strings.Contains(html, "Feed item 3") {
+			t.Errorf("news %s: the feed was not shown: %s", l, cut(html, 300))
 		}
 	}
 	for mi, m := range macros {
