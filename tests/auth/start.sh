@@ -74,10 +74,10 @@ kc="$work/keycloak-$KEYCLOAK_VERSION"
 if [ ! -x "$kc/bin/kc.sh" ]; then
 	base="https://github.com/keycloak/keycloak/releases/download/$KEYCLOAK_VERSION"
 	log "downloading Keycloak $KEYCLOAK_VERSION"
-	curl -fsSL -o "$work/keycloak.tgz" "$base/keycloak-$KEYCLOAK_VERSION.tar.gz"
+	curl -fsSL --retry 5 --retry-all-errors -o "$work/keycloak.tgz" "$base/keycloak-$KEYCLOAK_VERSION.tar.gz"
 	# Keycloak publishes only a SHA-1 checksum next to the archive: it detects
 	# broken downloads. The archive comes over TLS from the project's releases.
-	echo "$(curl -fsSL "$base/keycloak-$KEYCLOAK_VERSION.tar.gz.sha1")  $work/keycloak.tgz" | sha1sum -c --quiet >&2
+	echo "$(curl -fsSL --retry 5 --retry-all-errors "$base/keycloak-$KEYCLOAK_VERSION.tar.gz.sha1")  $work/keycloak.tgz" | sha1sum -c --quiet >&2
 	tar -xzf "$work/keycloak.tgz" -C "$work"
 	rm -f "$work/keycloak.tgz"
 fi
