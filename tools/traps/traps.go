@@ -931,4 +931,18 @@ var traps = []trap{
 		New:  "false && level != LevelCategory",
 		Pkg:  "./internal/server/", Tests: "^TestPlacementScope$",
 	},
+	{
+		ID: "login.text-unescaped", About: "the guest text of the sign-in box is written as HTML",
+		File: "plugins/core_layout/login.go",
+		Old:  "`<p class=\"ewl-login-text\">` + esc(text) + `</p>`",
+		New:  "`<p class=\"ewl-login-text\">` + text + `</p>`",
+		Pkg:  "./plugins/core_layout/", Tests: "^TestLogin$",
+	},
+	{
+		ID: "login.member-unescaped", About: "the member text of the sign-in box breaks out of its attribute",
+		File: "plugins/core_layout/login.go",
+		Old:  "`\" data-member=\"` + esc(member) + `\">`",
+		New:  "`\" data-member=\"` + member + `\">`",
+		Pkg:  "./plugins/core_layout/", Tests: "^TestLogin$",
+	},
 }

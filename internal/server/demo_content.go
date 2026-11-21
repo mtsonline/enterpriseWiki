@@ -538,7 +538,11 @@ func buildDemo(d *demoRun) {
 				`<h2>` + tr("Latest changes", "Letzte Änderungen") + `</h2>` + macro("pagechanges", map[string]string{"max": "5"}, "") +
 				macro("personcard", map[string]string{"name": "Mira Example", "role": tr("Support", "Support"), "email": "mira@example.com"}, `<p>`+tr("Answers questions about the wiki.", "Beantwortet Fragen zum Wiki.")+`</p>`) +
 				macro("slider", map[string]string{"label": tr("First steps", "Erste Schritte")},
-					`<p>`+tr("1. Sign in.", "1. Anmelden.")+`</p><hr><p>`+tr("2. Open your area.", "2. Den eigenen Bereich öffnen.")+`</p><hr><p>`+tr("3. Write your first page.", "3. Die erste Seite schreiben.")+`</p>`)
+					`<p>`+tr("1. Sign in.", "1. Anmelden.")+`</p><hr><p>`+tr("2. Open your area.", "2. Den eigenen Bereich öffnen.")+`</p><hr><p>`+tr("3. Write your first page.", "3. Die erste Seite schreiben.")+`</p>`) +
+				`<h2>` + tr("Sign-in box", "Anmelde-Baustein") + `</h2><p>` + tr("For pages with a members' area: guests find the way to sign in here, signed-in people see their name, their dashboard and Log out.",
+				"Für Seiten mit Mitgliederbereich: Gäste finden hier den Weg zur Anmeldung, Angemeldete sehen ihren Namen, ihr Dashboard und Abmelden.") + `</p>` +
+				macro("login", map[string]string{"title": tr("Members' area", "Mitgliederbereich"), "text": tr("Sign in to see the internal pages.", "Melden Sie sich an, um die internen Seiten zu sehen."),
+					"member": tr("Welcome back.", "Willkommen zurück.")}, "")
 		}
 		d.page(start, "People and tags", "Personen und Schlagwörter", people("en"), people("de"), nil)
 	})

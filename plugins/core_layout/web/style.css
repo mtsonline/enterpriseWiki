@@ -292,3 +292,10 @@ button.ewl-cta { font: inherit; font-weight: 700; cursor: pointer; }
 .ewl-embed-forget { margin-top: .35rem; }
 .ewl-embed figcaption { margin-top: .4rem; color: var(--ew-muted, inherit); }
 @media (max-width: 30rem) { .ewl-embed-box { aspect-ratio: auto; min-height: 12rem; } }
+
+/* sign-in box */
+.ewl-login { margin: 1.5rem 0; padding: 1rem 1.25rem; border: 1px solid var(--ew-border, #767676); border-radius: .5rem; max-width: 36rem; }
+.ewl-login p { margin: 0 0 .5rem; }
+.ewl-login-title { font-weight: 700; font-size: 1.15rem; }
+.ewl-login-actions { display: flex; flex-wrap: wrap; gap: .5rem; margin-bottom: 0 !important; }
+.ewl-login .ewl-cta:not(.ewl-cta--primary) { border-color: currentColor; color: var(--ew-link, inherit); background: transparent; font: inherit; font-weight: 700; cursor: pointer; }
