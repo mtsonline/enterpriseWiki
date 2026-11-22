@@ -29,7 +29,7 @@ func (p *Plugin) Manifest() coreplugin.Manifest { return coreplugin.ParseManifes
 
 // Setup registers the macros.
 func (p *Plugin) Setup(h *coreplugin.Host) error {
-	for _, m := range []content.Macro{toc{}, children{}, panel{}, expand{}, status{}, textStyle{}, columns{}, news{feeds: h.Feeds}, excerpt{}, anchor{}, date{}, attachments{svc: h.Media}, pagechanges{}, contributors{}} {
+	for _, m := range []content.Macro{toc{}, children{}, panel{}, expand{}, status{}, textStyle{}, columns{}, news{feeds: h.Feeds}, excerpt{}, anchor{}, date{}, formula{}, attachments{svc: h.Media}, pagechanges{}, contributors{}} {
 		h.RegisterMacro(m)
 	}
 	// reading the wiki with the rights of the editor, nothing else: the
