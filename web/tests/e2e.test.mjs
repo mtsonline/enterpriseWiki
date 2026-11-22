@@ -3887,13 +3887,6 @@ test('template designer, part 3: a warning for standard positions, widths by dra
     // boxed: the page is a box of the content width in the middle
     const app = await page.locator('.ewd-app').evaluate((x) => { const r = x.getBoundingClientRect(); return { boxed: x.classList.contains('ewd-boxed'), max: getComputedStyle(x).maxWidth, left: r.left, right: innerWidth - r.right }; });
     assert.ok(app.boxed && app.max !== 'none' && Math.abs(app.left - app.right) < 2, JSON.stringify(app));
-    // the rest with the window-wide layout (in the narrow box the header is too high to stay sticky)
-    const cur2 = (await call('GET', `/api/v1/x/core.template/templates/${tpl.key}`)).template;
-    delete cur2.design.options.boxed;
-    await call('PUT', `/api/v1/x/core.template/templates/${tpl.key}`, { version: cur2.version, design: cur2.design });
-    await page.goto(`${BASE}/`);
-    await idle();
-    await page.evaluate(() => { document.querySelector('.ewd-main').style.minHeight = '4000px'; });
     // the side column stays in view and can be hidden; the browser keeps that
     const aside = page.locator('aside#ewd-side');
     assert.equal(await aside.evaluate((x) => getComputedStyle(x).position), 'sticky');

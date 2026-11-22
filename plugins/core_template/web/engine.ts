@@ -183,13 +183,21 @@ function headerBehaviour(el: HTMLElement, o: Design['options']): void {
     if (v !== shown) { shown = v; document.documentElement.style.setProperty('--ewd-header-h', v); }
   };
   new ResizeObserver(height).observe(el);
+  // a change of the header (lower, away) changes the height above the
+  // content; the browser then moves the page a little to keep the reader's
+  // place (scroll anchoring). That move is not the reader scrolling up: for
+  // a moment after an own change the position is only noted.
+  let settleUntil = 0;
   onScroll(() => {
     const y = window.scrollY;
+    if (performance.now() < settleUntil) { last = y; return; }
+    const before = el.className;
     if (o.header_shrink) el.classList.toggle('ewd-shrunk', y > 40);
     if (o.header_hide) {
       if (y > last + 4 && y > el.offsetHeight && !el.contains(document.activeElement)) el.classList.add('ewd-away');
       else if (y < last - 4 || y <= el.offsetHeight) el.classList.remove('ewd-away');
     }
+    if (el.className !== before) settleUntil = performance.now() + 150;
     last = y;
     height();
   });
