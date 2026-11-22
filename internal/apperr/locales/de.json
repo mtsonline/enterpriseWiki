@@ -1132,5 +1132,6 @@
  "your user name comes from %s and cannot be changed here": "Ihr Benutzername kommt von %s und lässt sich hier nicht ändern",
  "elements of the type %s are never listed": "Elemente vom Typ %s werden nie aufgelistet",
  "only who may edit the block sees where it is shown": "Wo der Baustein erscheint, sieht nur, wer ihn bearbeiten darf",
- "this block is shown on the whole site: changing it needs the permission %q": "Dieser Baustein erscheint auf der ganzen Website: Um ihn zu ändern, brauchen Sie das Recht %q"
+ "this block is shown on the whole site: changing it needs the permission %q": "Dieser Baustein erscheint auf der ganzen Website: Um ihn zu ändern, brauchen Sie das Recht %q",
+ "group %d: showing the members of a group needs the permissions to list it and its members (core.groups.list_all and core.users.list_all, or the own groups)": "Gruppe %d: Um die Mitglieder einer Gruppe zu zeigen, brauchen Sie die Rechte, die Gruppe und ihre Mitglieder aufzulisten (core.groups.list_all und core.users.list_all, oder die eigenen Gruppen)"
 }

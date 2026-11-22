@@ -284,7 +284,7 @@ Core-Plugins sind vollwertiger Code mit Zugriff auf Datenbank und Server. Instal
 | `content.faq` | Elementtyp, Makro | FAQ aus Kategorien und Seiten (plus weitere Quellen): aufklappbare Abschnitte und Fragen, Sofort-Filter, Atom/RSS; Makro „FAQ aus mehreren Quellen“ |
 | `content.events` | Elementtyp | Veranstaltungskalender: Monat/Woche/Liste, Serien, Anmeldung mit Warteliste, E-Mail-Erinnerungen, iCal-Abo, weitere Kalender und iCal-Abonnements als Quellen, Makro „Nächste Termine“ |
 | `content.catlist` | Elementtyp | Kategorieübersicht: Unterkategorien einer Kategorie oder der obersten Ebene als Karten oder Liste, optional mit Seiten (z. B. als Startseite) |
-| `content.team` | Elementtyp | Team-Seite aus Gruppen mit wählbaren Angaben aus der Visitenkarte bzw. dem Identity Provider |
+| `content.team` | Elementtyp | Team-Seite aus Gruppen mit wählbaren Angaben aus der Visitenkarte bzw. dem Identity Provider. Eine Gruppe fügt nur hinzu, wer sie und ihre Mitglieder auflisten darf (eigene Gruppen mit `core.groups.list_own` und `core.users.list_own`, alle mit `core.groups.list_all` und `core.users.list_all`); vorhandene Gruppen bleiben für alle, die die Seite bearbeiten |
 | `content.notes` | Elementtyp | Gemeinsame Notizen: direkt in der Seitenansicht live gemeinsam schreiben, automatisch gespeichert (Besprechungen, Brainstorming, Aufgabenlisten) |
 | `search.external` | Allgemein | OpenSearch/Elasticsearch oder Meilisearch für die Volltextsuche |
 | `theme.wiki` | Template | Dokumentations-Layout mit Seitenbaum |

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"github.com/mtsonline/enterprisewiki/internal/perm"
+	"net/http"
 	"regexp"
 	"slices"
 	"sort"
@@ -1103,17 +1104,35 @@ func remapRefs(v any, mapping map[int64]int64, changed *bool) any {
 // its original); strictly confidential elements are not copied.
 func (s *Service) copyElements(ctx context.Context, tx pgx.Tx, from, to int64, p *identity.Principal) error {
 	// acl: checked per element (ElementPerms) below
-	rows, err := tx.Query(ctx, `SELECT id FROM elements WHERE category_id=$1 AND deleted_at IS NULL ORDER BY position, id`, from)
+	type item struct {
+		id  int64
+		typ string
+	}
+	rows, err := tx.Query(ctx, `SELECT id, type FROM elements WHERE category_id=$1 AND deleted_at IS NULL ORDER BY position, id`, from)
 	if err != nil {
 		return err
 	}
-	ids, err := pgx.CollectRows(rows, pgx.RowTo[int64])
+	items, err := pgx.CollectRows(rows, func(r pgx.CollectableRow) (item, error) {
+		var x item
+		return x, r.Scan(&x.id, &x.typ)
+	})
 	if err != nil {
 		return err
 	}
-	for _, eid := range ids {
+	for _, it := range items {
+		eid := it.id
 		if !s.acl.CanElement(ctx, p, eid, from, acl.View) || s.acl.ElementClassification(ctx, eid, from) >= acl.StrictConfidential {
 			continue
+		}
+		// what the person may not create (the element type says) is not
+		// copied, like what they may not see. Checked in the category of
+		// the original: the copy keeps its rules, and the rights in the new
+		// category are not known before the copy is committed.
+		if err := s.guardCopy(ctx, tx, eid, it.typ, from); err != nil {
+			if st, _, _ := apperr.Status(err); st == http.StatusForbidden {
+				continue
+			}
+			return err
 		}
 		if _, err := copyElement(ctx, tx, eid, to, "", true); err != nil {
 			return err

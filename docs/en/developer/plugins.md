@@ -87,7 +87,7 @@ host.UserCan(ctx, uid, categoryID, acl.View)
 ids, _ := host.Members(ctx, users, groups, roles)
 ```
 
-Element types can additionally implement `content.Guard`: `CheckCreate(ctx, svc, categoryID)` is called before creating, `CheckChange(ctx, svc, el, oldBody, newBody)` before saving, moving, duplicating and deleting (`newBody == nil` for delete/move), and also when an old revision is restored or a category is rolled back (there a refused element is skipped). `el.CreatedByID` is the creator.
+Element types can additionally implement `content.Guard`: `CheckCreate(ctx, svc, categoryID)` is called before creating, `CheckChange(ctx, svc, el, oldBody, newBody)` before saving, moving and deleting (`newBody == nil` for delete/move), and also when an old revision is restored or a category is rolled back (there a refused element is skipped). **A new element** is checked the same way: when it is created (also from a draft or an import) and when it is duplicated, with `oldBody == nil`, `el.ID == 0` and `el.CreatedByID` = the person creating it, for every language. A body that a change may not have can therefore not be created or copied either. When a whole category is copied, the check uses the category of the original, and a refused element is not copied. `el.CreatedByID` is the creator.
 
 In the frontend: `hasPerm('acme.kanban.export')` for global permissions; `el.permissions` / `category.permissions` contains the basic permissions and named permissions of the current category. The interface only hides – what counts is always the check in the backend.
 
