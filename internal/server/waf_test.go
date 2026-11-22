@@ -264,7 +264,7 @@ var optionSamples = map[string]any{
 	"divider_bottom": "zigzag", "divider_height": 60.0, "divider_color": "#ffffff", "divider_flip": true, "fade_edges": "both",
 	"font": "serif", "font_size": map[string]any{"desktop": 120.0}, "weight": "600", "line_height": 1.5, "letter_spacing": 0.05,
 	"transform": "uppercase", "text_color": "#ffffff", "columns": map[string]any{"desktop": 2.0, "mobile": 1.0}, "hyphens": true, "wrap": "balance",
-	"drop_cap": true, "text_shadow": "soft", "line_clamp": 3.0, "gradient_text": true, "link_style": "thick",
+	"drop_cap": true, "text_shadow": "soft", "line_clamp": 3.0, "gradient_text": true, "link_style": "thick", "appear": "slide_start",
 }
 
 func wrapMacro(name string, body, inline bool, attrs string) string {

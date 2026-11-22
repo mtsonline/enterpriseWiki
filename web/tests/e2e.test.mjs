@@ -4560,7 +4560,7 @@ test('theme blocks B: own text for "page not found", reading progress', async ()
   await box.check();
   const form = page.locator('form', { has: box });
   const sub = form.locator('fieldset.ew-subfield', { has: page.locator('legend', { hasText: /^(page with the text for “page not found”|seite mit dem text für „seite nicht gefunden“)$/i }) });
-  await sub.getByRole('searchbox').fill(`Lost ${run}`);
+  await sub.locator('input.ew-input[type=search]:not(.ew-picker-filter)').fill(`Lost ${run}`);
   await page.waitForFunction((n) => [...document.querySelectorAll('.ew-picker-list option')].some((o) => o.textContent.includes(n)), `Lost ${run}`);
   await sub.locator('.ew-picker-list').selectOption({ index: 0 });
   await a11y('settings with an own text for errors');
