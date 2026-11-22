@@ -86,6 +86,7 @@ Verlangt das Konto einen zweiten Faktor, antwortet die Anmeldung mit `mfa_requir
 - **Neue Einsendungen:** `GET /api/v1/x/content.forms/submissions/recent?limit=8` listet die Formulare mit Einsendungen der letzten 90 Tage, deren Einsendungen Sie sehen dürfen (`element_id`, `titles`, `last`, `unseen`), neueste zuerst. CLI: `ewiki form recent`.
 - **Zuletzt geändert:** `GET /api/v1/recent?limit=10&category=ID` listet zuletzt geänderte Seiten, `?by=me` die zuletzt von Ihnen bearbeiteten (neueste eigene Version zuerst); immer nur, was Sie sehen dürfen.
 - **Daten für Berichte:** `GET /api/v1/data` listet die Datenarten, die Bausteine und Plugins ablegen (Schema, `complete`). `GET /api/v1/data/{kind}?category=ID&state=open,decided&from=2026-01-01&to=…&person=ID&ref=ID&element=ID&lang=de&q=Wort&sort=-day&limit=50&offset=0` liefert die Einträge mit `total`; nur von Elementen, die Sie sehen dürfen, nie aus dem Papierkorb, unsichtbare mit `hidden=true`; `direct=true` ohne Unterkategorien; `sort`: `day`, `-day`, `at`, `-at`, `num`, `-num`, `label`, `state`, `page`; höchstens 500 je Antwort. `POST /api/v1/admin/data/rebuild` mit `{"kind": "…"}` (oder `{}` für alle) baut die Daten aus den neuesten Fassungen neu auf (`core.settings.manage`).
+- **Wartung:** `GET /api/v1/admin/maintenance` und `PUT /api/v1/admin/maintenance` mit `{"mode": "read_only", "message": {"de": "…"}, "until": "2026-11-23T18:00:00+01:00", "run_jobs": false}` (`mode` leer: aus; nur Administratoren). Während der Wartung beantwortet der Server Änderungen anderer mit `503` und dem Code `maintenance` (und `Retry-After`); `GET /api/v1/site` enthält `maintenance` (Modus, Text, Ende), `null`, wenn aus.
 - **Elemente auflisten:** `GET /api/v1/elements?q=&type=&category=&recursive=1&sort=title|updated|created|type&limit=&offset=` liefert `{items, total}` mit `category_path` (nur sichtbare Elemente, für Administratoren alle).
 - **Kurz-URLs:** `short_url` bei `POST /elements`, `PATCH /elements/{id}`, `POST/PUT /categories` (leer = entfernen). `GET /api/v1/resolve?path=kalender` liefert `{type, id}`.
 - **Beobachten:** `PUT /api/v1/me/watches {"target_type": "category"|"element", "target_id": 12, "mode": "link"|"content", "recursive": true}`; Status für ein Ziel: `GET /api/v1/me/watches?target_type=element&target_id=5`.
@@ -414,6 +415,8 @@ Aufgerufen von Verzeichnissen wie Entra ID oder Okta mit dem Token eines SCIM-Zu
 | `GET` | `/api/v1/data` |
 | `GET` | `/api/v1/data/{kind}` |
 | `POST` | `/api/v1/admin/data/rebuild` |
+| `GET` | `/api/v1/admin/maintenance` |
+| `PUT` | `/api/v1/admin/maintenance` |
 
 ### Übersetzungen & Sprachen
 

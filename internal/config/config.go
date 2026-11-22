@@ -21,6 +21,7 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"unicode/utf8"
 
 	"gopkg.in/yaml.v3"
 
@@ -54,7 +55,37 @@ type Config struct {
 	// limits).
 	Limits map[string]int64 `yaml:"limits,omitempty" json:"limits,omitempty"`
 	Sites  Sites            `yaml:"sites" json:"sites"`
+	// Maintenance: the wiki read-only or closed for everyone but
+	// administrators (for example while the server moves).
+	Maintenance Maintenance `yaml:"maintenance,omitempty" json:"maintenance"`
 }
+
+// Maintenance modes.
+const (
+	MaintenanceReadOnly = "read_only" // everything can be read, nothing changed
+	MaintenanceClosed   = "closed"    // only signing in; administrators work on
+)
+
+// Maintenance is the maintenance mode of the site. Administrators always
+// keep working; signing in stays possible.
+type Maintenance struct {
+	// Mode: "" (off), read_only or closed
+	Mode string `yaml:"mode,omitempty" json:"mode"`
+	// Message: the text shown to everybody, per language (plain text)
+	Message map[string]string `yaml:"message,omitempty" json:"message"`
+	// Until: when the maintenance is expected to end (RFC 3339, shown only)
+	Until string `yaml:"until,omitempty" json:"until"`
+	// RunJobs: background jobs (e-mail, clean-up, retention …) go on during
+	// maintenance; by default they wait, so nothing changes (a copy of the
+	// database taken now does not send e-mails twice later)
+	RunJobs bool `yaml:"run_jobs,omitempty" json:"run_jobs"`
+}
+
+// Active reports whether the maintenance mode is on.
+func (m Maintenance) Active() bool { return m.Mode != "" }
+
+// MaintenanceMessageMax is the most characters of the message per language.
+const MaintenanceMessageMax = 2000
 
 // Sites holds defaults for further sites of the instance.
 type Sites struct {
@@ -941,6 +972,9 @@ func Validate(c *Config) error {
 			return fmt.Errorf("media.embed_allow: %q is not an origin like https://player.example.com (https, lower case, no path)", o)
 		}
 	}
+	if err := ValidateMaintenance(c.Maintenance); err != nil {
+		return err
+	}
 	if c.UI.NotFoundElement < 0 || c.UI.ForbiddenElement < 0 {
 		return errors.New("ui.not_found_element and ui.forbidden_element must be the id of a page or 0")
 	}
@@ -1071,4 +1105,28 @@ func EmbedOrigin(o string) bool {
 		}
 	}
 	return true
+}
+
+// ValidateMaintenance checks the maintenance mode.
+func ValidateMaintenance(m Maintenance) error {
+	if m.Mode != "" && m.Mode != MaintenanceReadOnly && m.Mode != MaintenanceClosed {
+		return fmt.Errorf("maintenance.mode must be empty, read_only or closed, got %q", m.Mode)
+	}
+	if len(m.Message) > 50 {
+		return errors.New("maintenance.message: at most 50 languages")
+	}
+	for l, t := range m.Message {
+		if !ValidLanguage(l) {
+			return fmt.Errorf("maintenance.message: invalid language code %q", l)
+		}
+		if !utf8.ValidString(t) || utf8.RuneCountInString(t) > MaintenanceMessageMax {
+			return fmt.Errorf("maintenance.message: at most %d characters", MaintenanceMessageMax)
+		}
+	}
+	if m.Until != "" {
+		if _, err := time.Parse(time.RFC3339, m.Until); err != nil {
+			return fmt.Errorf("maintenance.until must be a time like 2026-11-23T18:00:00+01:00, got %q", m.Until)
+		}
+	}
+	return nil
 }

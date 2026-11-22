@@ -16,6 +16,8 @@ Wählen Sie oben die **Sprache**. Oberfläche und Inhalte wechseln gemeinsam. Gi
 
 **Auf Handys und kleinen Tablets** (bis 900 Pixel Breite) beginnt die Seite mit ihrem Inhalt: Der Menü-Knopf ☰ oben öffnet Navigation, Suche, Sprache, Bearbeiten und Benutzermenü zusammen mit der Seitenspalte und schließt sie wieder (auch mit Escape oder beim Folgen eines Links).
 
+**Wartung:** Ein Balken oben sagt, wenn das Wiki wegen Wartung nur lesbar ist – Sie können alles lesen, aber Speichern, Kommentieren und Hochladen gehen erst wieder danach. Ist das Wiki wegen Wartung geschlossen, sehen Sie nur einen Hinweis; die Administration kann sich weiterhin anmelden.
+
 ## Bearbeitungsmodus
 
 Solange der Bearbeitungsmodus aus ist, sieht jede Seite so aus wie für alle Leser:innen. Mit dem Schalter **Bearbeiten** (nur sichtbar, wenn Sie Bearbeitungsrechte haben; er zeigt *an* oder *aus*) schalten Sie ihn ein und aus. Dann erscheinen die Aktionen:

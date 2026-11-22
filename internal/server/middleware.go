@@ -275,6 +275,12 @@ func (s *Server) wrap(next http.Handler) http.Handler {
 			return
 		}
 		r = r.WithContext(ctx)
+		// maintenance: read-only or closed for everyone but administrators
+		if maintenanceRefuses(cfg.Maintenance, r, identity.From(ctx)) {
+			sw.Header().Set("Retry-After", strconv.Itoa(maintenanceRetryAfter(cfg.Maintenance)))
+			httpx.WriteError(sw, r, errMaintenance(cfg.Maintenance))
+			return
+		}
 		if p := identity.From(ctx); !p.InProcess() && s.rateLimited(sw, r, p.ID(), cfg) {
 			return
 		}

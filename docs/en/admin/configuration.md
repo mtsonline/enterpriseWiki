@@ -292,6 +292,18 @@ Formats: **Teams** (Adaptive Card; in Teams create a workflow "Post to a channel
 
 Headers: `X-Ewiki-Event`, `X-Ewiki-Delivery` and with a signing key `X-Ewiki-Signature: sha256=<HMAC-SHA256 of the content>`. Events: `element.create|update|delete|move|restore|rollback`, `category.create|update|delete|move|restore`, `event.registration`, `event.registration_cancelled`, `event.occurrence_changed` (data: `occurrence`, `start`, `when`, `calendar`, `location`, `status`, `participant`), `comment.create` (data: `author`, `excerpt`, `reply`, `element_id`), `workflow.started`, `workflow.completed`, `workflow.cancelled` (data: `workflow`, `status`, `outcome`, `step`). Deliveries run through a queue; on errors they are retried after 1, 5, 30 minutes, 2 and 12 hours. Targets in the internal network are blocked without `allow_private` (protection against SSRF), redirects only within the webhook address.
 
+### `maintenance`
+The maintenance mode: everybody but administrators can only read the wiki (`read_only`) or not use it at all (`closed`). Switched under *Administration → Maintenance*, with `ewiki maintenance set` or `PUT /api/v1/admin/maintenance` (administrators only, in the audit log).
+
+| Key | Meaning | Default |
+|---|---|---|
+| `mode` | empty (off), `read_only` or `closed` | empty |
+| `message` | the text per language (plain text, at most 2,000 characters) | standard text |
+| `until` | the expected end (RFC 3339); only shown, the mode does not end by itself | empty |
+| `run_jobs` | background jobs go on during maintenance; by default they wait, so the database does not change | `false` |
+
+Read-only suits moving the server: the wiki stays available while the data is copied, and nothing changes any more. The server refuses every change by others with status 503 (code `maintenance`, with `Retry-After`): pages, files, comments, settings, live editing, SCIM, documents of office programs. Signing in and out always works, so administrators can come in; sessions are still recorded. While the wiki is closed, others only get what the page needs to say so and to sign in; guests get no content, not even in the plain HTML for search engines.
+
 ### `plugin_settings`
 Freely structured settings per plugin, e.g.
 
