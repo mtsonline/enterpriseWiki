@@ -84,6 +84,11 @@ const CategoryPositionPrefix = "category-"
 // category page.
 const FeaturedBlockPrefix = "core.category.element/"
 
+// ElementBlockPrefix starts the block of an element of the type block
+// ("core.blocks/<element id>", plugin core.blocks): its placements go when
+// the element is deleted for good.
+const ElementBlockPrefix = "core.blocks/"
+
 // ElementPositionPrefix starts the positions of an element page
 // (element-header, element-toolbar, element-aside, element-footer); the
 // instance level places blocks only there.

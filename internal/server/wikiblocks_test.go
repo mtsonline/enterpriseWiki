@@ -123,12 +123,18 @@ func TestWikiBlocks(t *testing.T) {
 	for range 60 {
 		fmt.Fprintf(&fb, "::include{page=%d title=false}\n\n", footer)
 	}
-	admin.must("POST", "/api/v1/x/core.blocks/blocks", map[string]any{"name": "Footer", "location": "footer", "audience": "all", "enabled": true,
-		"bodies": map[string]any{"en": map[string]string{"format": "markdown", "source": fb.String()}}}, nil, 201)
-	var blocks []struct {
-		HTML string `json:"html"`
+	var fe struct {
+		ID int64 `json:"id"`
 	}
-	e.client().must("GET", "/api/v1/x/core.blocks/blocks?lang=en", nil, &blocks, 200)
+	admin.must("POST", "/api/v1/elements", map[string]any{"category_id": sub.ID, "type": "core.block", "title": "Footer",
+		"body": map[string]string{"format": "markdown", "source": fb.String()}}, &fe, 201)
+	var shown struct {
+		Items []struct {
+			HTML string `json:"html"`
+		} `json:"items"`
+	}
+	e.client().must("GET", fmt.Sprintf("/api/v1/elements/batch?ids=%d&lang=en", fe.ID), nil, &shown, 200)
+	blocks := shown.Items
 	if len(blocks) != 1 || !strings.Contains(blocks[0].HTML, "walrus-footer") || strings.Contains(blocks[0].HTML, "okapi-secret") {
 		t.Fatalf("a page as the footer for guests: %+v", blocks)
 	}

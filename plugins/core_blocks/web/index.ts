@@ -1,107 +1,163 @@
-// Content blocks at template positions, and their administration page.
+// Blocks as elements: the editor (that of pages), the blocks at positions
+// and, on the page of a block, where it is shown.
 import {
-  activeTemplate, api, button, checkbox, confirmDialog, errorText, field, formDialog, h, mount, pageHeader, pick, positionLabel, positionOptions,
-  refreshPositions, registerAdminPage, registerSlot, select, state, t, templateLabel, textArea, textInput, toast, trustedHTML, uid,
+  activeTemplate, api, currentPlacementLevels, button, checkbox, errorText, field, formDialog, getEditor, h, hasPerm, pick, invalidatePlacements, positionLabel, positionOptions,
+  refreshPositions, registerEditor, registerElementExtension, registerSlot, select, state, t, toast, trustedHTML, uid,
 } from '@ewiki/coreplugin';
 import './style.css';
 
+const TYPE = 'core.block';
 const BASE = 'x/core.blocks';
+const PREFIX = 'core.blocks/';
 
-interface Body { format: 'markdown' | 'html'; source: string }
-interface Block { id: number; name: string; location: string; position: number; audience: 'all' | 'users' | 'guests'; enabled: boolean; titles: Record<string, string>; bodies: Record<string, Body> }
-interface Rendered { id: number; name: string; location: string; position: number; title: string; lang: string; html: string }
+interface Listed { id: number; title: string; category_id: number }
+interface Shown { id: number; type: string; title: string; html: string; shown_lang: string }
+interface Placement { level: string; target: string; position: string; only_category_page: boolean; no_subcategories: boolean }
 
-// one request for all positions (shared while it is running), cached 30 s
-let cache: { key: string; at: number; blocks: Promise<Rendered[]> } | null = null;
-
-function blocks(): Promise<Rendered[]> {
+// the blocks the person may see (for the placement), cached 30 s
+let listCache: { key: string; at: number; list: Promise<Listed[]> } | null = null;
+function listed(): Promise<Listed[]> {
   const key = `${state.user?.id ?? 0}:${state.lang}`;
-  if (!cache || cache.key !== key || Date.now() - cache.at > 30000) {
-    const p = api.get<Rendered[]>(`${BASE}/blocks?lang=${encodeURIComponent(state.lang)}`);
-    cache = { key, at: Date.now(), blocks: p };
-    p.catch(() => { cache = null; });
+  if (!listCache || listCache.key !== key || Date.now() - listCache.at > 30000) {
+    const p = api.get<Listed[]>(`${BASE}/blocks?lang=${encodeURIComponent(state.lang)}`);
+    listCache = { key, at: Date.now(), list: p };
+    p.catch(() => { listCache = null; });
   }
-  return cache.blocks;
+  return listCache.list;
 }
 
-/** slot renders block key at a position (each block is a block of its own
- * in the placement: "core.blocks/<id>"; its location is the default). */
+// the content of the placed blocks: one request for all blocks of a page
+let pending: { ids: Set<number>; done: Promise<Map<number, Shown>> } | null = null;
+const shownCache = new Map<string, Promise<Shown | undefined>>();
+function shown(id: number): Promise<Shown | undefined> {
+  const key = `${state.user?.id ?? 0}:${state.lang}:${id}`;
+  const have = shownCache.get(key);
+  if (have) return have;
+  if (!pending) {
+    const ids = new Set<number>();
+    const done = new Promise<Map<number, Shown>>((resolve) => {
+      queueMicrotask(async () => {
+        pending = null;
+        const m = new Map<number, Shown>();
+        try {
+          // the elements the person may view (others are left out by the server)
+          const r = await api.get<{ items: Shown[] }>(`elements/batch?ids=${[...ids].join(',')}&lang=${encodeURIComponent(state.lang)}`);
+          // only elements of the type block: a placement never shows another page
+          for (const x of r.items ?? []) if (x.type === TYPE) m.set(x.id, x);
+        } catch { /* nothing to show */ }
+        resolve(m);
+      });
+    });
+    pending = { ids, done };
+  }
+  pending.ids.add(id);
+  const p = pending.done.then((m) => m.get(id));
+  shownCache.set(key, p);
+  setTimeout(() => shownCache.delete(key), 30000);
+  return p;
+}
+
+/** A block at a position: its content, named by its title for screen readers. */
 async function slot(position: string, key?: string): Promise<Node | null> {
-  let b: Rendered | undefined;
-  try { b = (await blocks()).find((x) => String(x.id) === key); } catch { return null; }
+  const b = key && /^[1-9][0-9]{0,18}$/.test(key) ? await shown(Number(key)) : undefined;
   if (!b) return null;
-  // a block may be placed more than once on a page: unique ids
   const id = uid(`ewb-${b.id}`);
   return h('div', { class: `ewb ewb--${position}` },
-    h('section', { class: 'ewb-block', 'aria-labelledby': b.title ? id : undefined, 'aria-label': b.title ? undefined : positionLabel(position), lang: b.lang },
-      b.title ? h('h2', { id, class: 'ewb-title' }, b.title) : null, trustedHTML(b.html, 'ew-content ewb-content')));
+    h('section', { class: 'ewb-block', 'aria-labelledby': id, lang: b.shown_lang },
+      h('h2', { id, class: 'sr-only' }, b.title), trustedHTML(b.html, 'ew-content ewb-content')));
 }
 
-// ---------------------------------------------------------------- admin
+// ---------------------------------------------------------------- where it is shown
 
-function blockDialog(b: Block | null, reload: () => void): void {
-  const name = textInput({ value: b?.name ?? '', required: true, maxlength: 200 });
-  const loc = select(positionOptions(b?.location), b?.location ?? 'footer');
-  const pos = textInput({ type: 'number', value: String(b?.position ?? 0) });
-  const audience = select(['all', 'users', 'guests'].map((x) => ({ value: x, label: t(`core.blocks.audience.${x}`) })), b?.audience ?? 'all');
-  const enabled = checkbox(t('core.blocks.enabled'), b?.enabled ?? true);
-  const langs = state.site.languages.map((l) => {
-    const title = textInput({ value: b?.titles[l] ?? '', lang: l, maxlength: 200 });
-    const format = select([{ value: 'markdown', label: 'Markdown' }, { value: 'html', label: 'HTML' }], b?.bodies[l]?.format ?? 'markdown');
-    const src = textArea({ value: b?.bodies[l]?.source ?? '', rows: 6, lang: l });
-    src.classList.add('ewb-source');
-    const lname = t(`lang.${l}`) === `lang.${l}` ? l.toUpperCase() : t(`lang.${l}`);
-    return { l, title, format, src, el: h('fieldset', { class: 'ewb-lang' }, h('legend', null, lname),
-      field(t('core.blocks.title'), title, { help: t('core.blocks.title_help') }), field(t('core.blocks.format'), format, { inline: true }),
-      field(t('core.blocks.content'), src, { help: t('core.blocks.content_help'), required: l === state.site.default_language })) };
-  });
-  formDialog(b ? b.name : t('core.blocks.add'), [
-    field(t('core.blocks.name'), name, { required: true, help: t('core.blocks.name_help') }),
-    field(t('core.blocks.position'), loc, { help: t('core.blocks.position_help', { template: templateLabel(activeTemplate()?.id ?? '') }) }),
-    field(t('core.blocks.order'), pos), field(t('core.blocks.audience'), audience), enabled.el,
-    ...langs.map((x) => x.el)], t('common.save'), async () => {
-    const body = {
-      name: name.value, location: loc.value, position: Number(pos.value) || 0, audience: audience.value, enabled: enabled.input.checked,
-      titles: Object.fromEntries(langs.map((x) => [x.l, x.title.value])),
-      bodies: Object.fromEntries(langs.filter((x) => x.src.value.trim()).map((x) => [x.l, { format: x.format.value, source: x.src.value }])),
-    };
-    if (b) await api.put(`${BASE}/blocks/${b.id}`, body);
-    else await api.post(`${BASE}/blocks`, body);
-    cache = null;
-    toast(t('core.blocks.saved', { position: positionLabel(loc.value) }));
+const names = new Map<string, Promise<string>>();
+/** The title of a category or page (its number if it cannot be read). */
+function nameOf(kind: 'categories' | 'elements', id: string): Promise<string> {
+  const key = `${kind}/${id}`;
+  let p = names.get(key);
+  if (!p) {
+    p = api.get<{ titles?: Record<string, string>; title?: string }>(`${kind}/${id}?lang=${encodeURIComponent(state.lang)}`)
+      .then((x) => x.title || pick(x.titles ?? {}, state.lang, state.site.default_language) || `#${id}`).catch(() => `#${id}`);
+    names.set(key, p);
+  }
+  return p;
+}
+
+async function describe(p: Placement): Promise<string> {
+  const where = p.level === 'site' || p.level === 'template' ? t('core.blocks.scope_site')
+    : p.level === 'type' ? t('core.blocks.scope_type', { type: p.target })
+      : p.level === 'instance' ? t('core.blocks.scope_page', { name: await nameOf('elements', p.target) })
+        : p.level === 'category_page' ? t('core.blocks.scope_category_page', { name: await nameOf('categories', p.target) })
+          : t(p.no_subcategories ? 'core.blocks.scope_category_only' : 'core.blocks.scope_category', { name: await nameOf('categories', p.target) });
+  const extra = p.level === 'category' && p.only_category_page ? ` ${t('core.blocks.scope_only_page')}` : '';
+  return `${p.position ? positionLabel(p.position) : t('core.blocks.hidden_here')} – ${where}${extra}`;
+}
+
+/** Places a block: position and where (whole site, this category). */
+function placeDialog(blockId: number, categoryId: number, done: () => void): void {
+  const pos = select(positionOptions(undefined, ['header-tools', 'cms-nav']), activeTemplate()?.positions.includes('footer') ? 'footer' : (activeTemplate()?.positions[0] ?? ''));
+  const scopes = [{ value: 'category', label: t('core.blocks.place_category') }];
+  if (hasPerm('core.settings.manage')) scopes.push({ value: 'site', label: t('core.blocks.place_site') });
+  const scope = select(scopes, 'category');
+  const pages = checkbox(t('placement.scope_pages'), true);
+  const subs = checkbox(t('placement.scope_sub'), true);
+  const note = h('p', { class: 'ew-help' }, t('core.blocks.not_listed'));
+  const sync = () => { pages.el.hidden = subs.el.hidden = scope.value !== 'category'; };
+  scope.addEventListener('change', sync);
+  sync();
+  formDialog(t('core.blocks.place'), [field(t('core.blocks.position'), pos), field(t('core.blocks.where'), scope), pages.el, subs.el, note], t('core.blocks.place'), async () => {
+    const level = scope.value === 'site' ? 'site' : 'category';
+    const target = level === 'site' ? '' : String(categoryId);
+    const q = target ? `?target=${encodeURIComponent(target)}` : '';
+    const cur = await api.get<{ placements: Record<string, unknown>[] }>(`placements/${level}${q}`);
+    const list = (cur.placements ?? []).map((x) => ({ ...x }));
+    list.push({ block: `${PREFIX}${blockId}`, position: pos.value, sort: 50, ...(level === 'category' ? { only_category_page: !pages.input.checked, no_subcategories: !subs.input.checked } : {}) });
+    await api.put(`placements/${level}${q}`, { placements: list });
+    invalidatePlacements();
     await refreshPositions();
-    reload();
-  }, { wide: true });
+    toast(t('core.blocks.placed', { position: positionLabel(pos.value) }));
+    done();
+  });
 }
 
-async function adminPage(el: HTMLElement): Promise<void> {
-  const list = await api.get<Block[]>(`${BASE}/blocks?all=1`);
-  const reload = () => void adminPage(el).catch((e) => toast(errorText(e), 'error'));
-  const offered = new Set(activeTemplate()?.positions ?? []);
-  mount(el, pageHeader(t('core.blocks.title_admin'), button(t('core.blocks.add'), () => blockDialog(null, reload), { variant: 'primary' })),
-    h('p', null, t('core.blocks.help'), ' ', h('a', { href: '/?positions=1' }, t('positions.show'))),
-    list.length ? h('table', { class: 'ew-table' }, h('caption', { class: 'sr-only' }, t('core.blocks.title_admin')),
-      h('thead', null, h('tr', null, ...[t('core.blocks.name'), t('core.blocks.position'), t('core.blocks.audience'), t('common.status'), t('common.actions')].map((x) => h('th', { scope: 'col' }, x)))),
-      h('tbody', null, ...list.map((b) => h('tr', null,
-        h('th', { scope: 'row' }, b.name, h('br'), h('span', { class: 'ew-help' }, pick(b.titles, state.lang, state.site.default_language))),
-        h('td', null, positionLabel(b.location), ' ', h('code', null, b.location), ' · ', String(b.position)),
-        h('td', null, t(`core.blocks.audience.${b.audience}`)),
-        h('td', null, !b.enabled ? h('span', { class: 'ew-badge' }, t('core.blocks.disabled'))
-          : offered.has(b.location) ? h('span', { class: 'ew-badge ew-badge--ok' }, t('core.blocks.visible'))
-            : h('span', { class: 'ew-badge ew-badge--warn' }, t('core.blocks.hidden_position'))),
-        h('td', { class: 'ew-actions' },
-          button(t('common.edit'), () => blockDialog(b, reload), { variant: 'link', ariaLabel: `${t('common.edit')}: ${b.name}` }),
-          button(t('common.delete'), async () => {
-            if (!(await confirmDialog(t('core.blocks.delete_confirm', { name: b.name }), t('common.delete'), true))) return;
-            try { await api.del(`${BASE}/blocks/${b.id}`); cache = null; await refreshPositions(); reload(); } catch (e) { toast(errorText(e), 'error'); }
-          }, { variant: 'link', ariaLabel: `${t('common.delete')}: ${b.name}` })))))) : h('p', null, t('core.blocks.empty')));
+/** On the page of a block (for those who may edit it): where it is shown. */
+async function whereShown(el: { id: number; type: string; category_id: number; permissions?: string[] }): Promise<Node | null> {
+  if (el.type !== TYPE || !el.permissions?.includes('edit')) return null;
+  const box = h('section', { class: 'ewb-where', 'aria-labelledby': `ewb-where-${el.id}` });
+  const draw = async () => {
+    let list: Placement[] = [];
+    try { list = await api.get<Placement[]>(`${BASE}/blocks/${el.id}/placements`); } catch (e) { toast(errorText(e), 'error'); }
+    box.replaceChildren(
+      h('h2', { id: `ewb-where-${el.id}` }, t('core.blocks.where_shown')),
+      list.length ? h('ul', null, ...(await Promise.all(list.map(describe))).map((x) => h('li', null, x))) : h('p', null, t('core.blocks.nowhere')),
+      h('p', { class: 'ew-help' }, t('core.blocks.not_listed')),
+      button(t('core.blocks.place'), () => placeDialog(el.id, el.category_id, () => void draw()), { variant: 'secondary' }));
+  };
+  await draw();
+  return box;
 }
 
 export function register(): void {
+  // a block is written like a page
+  registerEditor(TYPE, (container, body, ctx) => {
+    const base = getEditor('core.html');
+    if (!base) throw new Error('core.html editor missing');
+    return base(container, body, ctx);
+  });
   registerSlot({
     id: 'core.blocks', position: '*', order: 30, label: () => t('core.blocks.block'), render: slot,
-    // every content block is a block of its own; its location is the default position
-    instances: async () => (await blocks()).map((b) => ({ key: String(b.id), label: `${t('core.blocks.block')}: ${b.name}`, position: b.location, order: 30 + b.position })),
+    // every block element is a block of its own; it has no default position
+    // (those placed for the page shown always, also beyond the limit of the list)
+    instances: async () => {
+      const [list, levels] = await Promise.all([state.user ? listed().catch(() => []) : Promise.resolve([] as Listed[]), currentPlacementLevels()]);
+      const out = new Map(list.map((b) => [String(b.id), `${t('core.blocks.block')}: ${b.title}`]));
+      for (const l of levels) {
+        for (const p of l.placements) {
+          const k = p.block.startsWith(`${PREFIX}`) ? p.block.slice(PREFIX.length) : '';
+          if (/^[1-9][0-9]{0,18}$/.test(k) && !out.has(k)) out.set(k, `${t('core.blocks.block')} #${k}`);
+        }
+      }
+      return [...out].map(([key, label]) => ({ key, label, position: '', order: 30 }));
+    },
   });
-  registerAdminPage({ id: 'blocks', permission: 'core.blocks.edit', label: () => t('core.blocks.title_admin'), order: 11, render: adminPage });
+  registerElementExtension({ id: 'core.blocks.where', placement: 'top', label: () => t('core.blocks.where_shown'), render: (el) => whereShown(el as never) });
 }

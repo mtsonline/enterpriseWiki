@@ -858,6 +858,10 @@ actions:
         given: ['core.categories.create#default']
         body_json: '{"category_id": ${given.core.categories.create#default.id}, "type": "content.faq", "title": "Faq ${unique}", "body": {"category_id": ${given.core.categories.create#default.id}, "feed": true}}'
         status: 201
+      - name: block
+        given: ['core.categories.create#default']
+        body_json: '{"category_id": ${given.core.categories.create#default.id}, "type": "core.block", "title": "Contact ${unique}", "body": {"format": "html", "source": "<p>Phone 123</p>"}}'
+        status: 201
       # a post on behalf of the blog (its permissions instead of the page permissions)
       - name: blog_post
         given: ['core.elements.create#blog']

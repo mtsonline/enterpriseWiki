@@ -71,6 +71,19 @@ type Guard interface {
 	CheckChange(ctx context.Context, svc *Service, el *Element, oldBody, newBody json.RawMessage) error
 }
 
+// Unlisted is implemented by element types whose elements are never listed:
+// they are always hidden (not in listings, sources, feeds and the search)
+// and reached through where they are shown (e.g. blocks at positions).
+type Unlisted interface {
+	Unlisted() bool
+}
+
+// unlisted reports whether elements of the type are always hidden.
+func (s *Service) unlisted(typ string) bool {
+	u, ok := s.Type(typ).(Unlisted)
+	return ok && u.Unlisted()
+}
+
 // TypeInfo describes a registered element type.
 type TypeInfo struct {
 	ID       string            `json:"id"`

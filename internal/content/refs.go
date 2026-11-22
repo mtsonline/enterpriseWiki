@@ -34,8 +34,9 @@ func RemoveRefs(ctx context.Context, tx db.Querier, elements, categories []int64
 	// placements of the categories and instances that go away
 	// (and the featured pages that go away)
 	if _, err := tx.Exec(ctx, `DELETE FROM placements WHERE (level IN ('category', 'category_page') AND target = ANY($1::bigint[]::text[]))
-		OR (level='instance' AND target = ANY($2::bigint[]::text[])) OR block = ANY(SELECT $3 || x::text FROM unnest($2::bigint[]) x)`,
-		categories, elements, FeaturedBlockPrefix); err != nil {
+		OR (level='instance' AND target = ANY($2::bigint[]::text[])) OR block = ANY(SELECT $3 || x::text FROM unnest($2::bigint[]) x)
+		OR block = ANY(SELECT $4 || x::text FROM unnest($2::bigint[]) x)`,
+		categories, elements, FeaturedBlockPrefix, ElementBlockPrefix); err != nil {
 		return err
 	}
 	// labels of the instances that go away (UI texts "<key>@<plugin>/<id>")

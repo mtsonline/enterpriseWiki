@@ -107,7 +107,9 @@ func TestPlacements(t *testing.T) {
 	admin.must("POST", "/api/v1/x/core.menu/menus", map[string]any{"name": "Side", "location": "sidebar", "items": []any{}}, &menu, 201)
 	var carousel, block obj
 	admin.must("POST", "/api/v1/x/core.carousel/carousels", map[string]any{"name": "Top", "position": "content-top", "audience": "all", "max_slides": 5, "enabled": true}, &carousel, 201)
-	admin.must("POST", "/api/v1/x/core.blocks/blocks", map[string]any{"name": "Note", "location": "footer", "audience": "all", "enabled": true, "bodies": map[string]any{"en": map[string]any{"format": "markdown", "source": "x"}}}, &block, 201)
+	var bc obj
+	admin.must("POST", "/api/v1/categories", map[string]any{"titles": map[string]string{"en": "Blocks"}}, &bc, 201)
+	admin.must("POST", "/api/v1/elements", map[string]any{"category_id": bc.ID, "type": "core.block", "title": "Note", "body": map[string]any{"format": "markdown", "source": "x"}}, &block, 201)
 	inst := []map[string]any{
 		{"block": fmt.Sprintf("core.menu/%d", menu.ID), "position": "footer"},
 		{"block": fmt.Sprintf("core.menu/%d", menu.ID), "position": "sidebar", "sort": 5},
@@ -120,7 +122,8 @@ func TestPlacements(t *testing.T) {
 	}
 	admin.must("DELETE", fmt.Sprintf("/api/v1/x/core.menu/menus/%d", menu.ID), nil, nil, 204)
 	admin.must("DELETE", fmt.Sprintf("/api/v1/x/core.carousel/carousels/%d", carousel.ID), nil, nil, 204)
-	admin.must("DELETE", fmt.Sprintf("/api/v1/x/core.blocks/blocks/%d", block.ID), nil, nil, 204)
+	admin.must("DELETE", fmt.Sprintf("/api/v1/elements/%d", block.ID), nil, nil, 204)
+	admin.must("DELETE", fmt.Sprintf("/api/v1/trash/element/%d", block.ID), nil, nil, 204)
 	if err := e.app.DB.QueryRow(t.Context(), `SELECT count(*) FROM placements WHERE block LIKE 'core.menu/%' OR block LIKE 'core.carousel/%' OR block LIKE 'core.blocks/%'`).Scan(&n); err != nil || n != 0 {
 		t.Fatalf("placements of deleted instances left: %d %v", n, err)
 	}

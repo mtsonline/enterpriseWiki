@@ -36,7 +36,6 @@ var demoTables = []struct{ kind, table string }{
 	{"comment", "plugin_comments"},
 	{"event", "plugin_events"},
 	{"carousel", "plugin_carousels"},
-	{"block", "plugin_blocks"},
 	{"menu", "plugin_menus"},
 	{"property", "plugin_prop_defs"},
 	{"medium", "media"},
@@ -49,7 +48,7 @@ var demoTables = []struct{ kind, table string }{
 // demoEntity maps kinds to the entity types of the audit log.
 var demoEntity = map[string][]string{
 	"element": {"element"}, "category": {"category"}, "medium": {"medium", "media"},
-	"user": {"user"}, "group": {"group"}, "menu": {"menu"}, "block": {"block"},
+	"user": {"user"}, "group": {"group"}, "menu": {"menu"},
 	"carousel": {"carousel"}, "event": {"event"}, "comment": {"comment"}, "property": {"property"},
 }
 
