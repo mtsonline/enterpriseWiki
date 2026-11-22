@@ -410,5 +410,19 @@
       "overlay_color": "#000000",
       "overlay_opacity": 70
     }
+  },
+  {
+    "name": "appear when scrolled into view",
+    "ok": true,
+    "options": {
+      "appear": "rise"
+    }
+  },
+  {
+    "name": "unknown way to appear",
+    "ok": false,
+    "options": {
+      "appear": "spin"
+    }
   }
 ]

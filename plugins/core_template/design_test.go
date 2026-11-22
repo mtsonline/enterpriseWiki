@@ -208,14 +208,18 @@ func TestRoomShared(t *testing.T) {
 		Positions map[string]float64 `json:"positions"`
 	}
 	got := map[string][]rowRoom{}
-	for _, name := range []string{"wiki", "cms"} {
-		raw, err := os.ReadFile("examples/" + name + ".json")
+	for _, name := range []string{"wiki", "cms", "cms_boxed"} {
+		raw, err := os.ReadFile("examples/" + strings.TrimSuffix(name, "_boxed") + ".json")
 		if err != nil {
 			t.Fatal(err)
 		}
 		d, err := ParseDesign(raw)
 		if err != nil {
 			t.Fatal(err)
+		}
+		// boxed: every row has at most the content width
+		if strings.HasSuffix(name, "_boxed") {
+			d.Options.Boxed, d.Tokens.ContentWidth = true, 50
 		}
 		for _, r := range d.Rows {
 			for _, view := range []string{"desktop", "tablet", "mobile"} {

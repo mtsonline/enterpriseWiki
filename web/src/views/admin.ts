@@ -538,7 +538,7 @@ async function updates(panel: HTMLElement, force: boolean): Promise<void> {
 
 interface Settings {
   config: {
-    ui: { site_name: string; template: string; home_category: number; home_element: number; prerender: boolean; preview_image: string; readable_urls: boolean; editor?: string; collaboration?: boolean; personal_placement?: boolean; custom_css?: boolean; editor_tools?: string[]; dashboard_home?: boolean };
+    ui: { site_name: string; template: string; home_category: number; home_element: number; prerender: boolean; preview_image: string; readable_urls: boolean; editor?: string; collaboration?: boolean; personal_placement?: boolean; custom_css?: boolean; editor_tools?: string[]; dashboard_home?: boolean; not_found_element?: number; forbidden_element?: number };
     i18n: { default_language: string; languages: string[] };
     auth: { order: string[]; session_ttl: string; session_idle?: string; photo_visibility?: string; photo_visibility_max?: string; photo_visibility_fixed?: boolean; api_key_max_ttl: string; ssh_token_ttl: string; max_login_failures: number; lockout_duration: string; min_password_length: number };
     retention: { revisions_keep_days: number; revisions_keep_min: number; trash_days: number; audit_days: number };
@@ -570,6 +570,18 @@ async function settings(panel: HTMLElement): Promise<void> {
   const readable = checkbox(t('settings.readable_urls'), c.ui.readable_urls, { help: t('settings.readable_urls_help') });
   const editorSel = select([{ value: 'visual', label: t('editor.kind.visual') }, { value: 'simple', label: t('editor.kind.simple') }], c.ui.editor || 'visual');
   const collabBox = checkbox(t('settings.collaboration'), c.ui.collaboration !== false, { help: t('settings.collaboration_help') });
+  // own pages for "not found" and "no permission": a box to switch on and the page
+  const errPage = async (kind: 'not_found' | 'forbidden', id: number) => {
+    const on = checkbox(t(`settings.${kind}_own`), id > 0, { help: t('settings.error_page_help') });
+    const pick = await elementSelect({ selected: id });
+    const box = h('fieldset', { class: 'ew-subfield' }, h('legend', null, t(`settings.${kind}_page`)), pick.el);
+    const sync = () => { box.hidden = !on.input.checked; };
+    on.input.addEventListener('change', sync);
+    sync();
+    return { el: h('div', null, on.el, box), value: () => (on.input.checked ? pick.value() : 0) };
+  };
+  const nfPage = await errPage('not_found', c.ui.not_found_element ?? 0);
+  const fbPage = await errPage('forbidden', c.ui.forbidden_element ?? 0);
   const dashHome = checkbox(t('settings.dashboard_home'), !!c.ui.dashboard_home, { help: t('settings.dashboard_home_help') });
   const personalBox = checkbox(t('settings.personal_placement'), !!c.ui.personal_placement, { help: t('settings.personal_placement_help') });
   const cssBox = checkbox(t('settings.custom_css'), !!c.ui.custom_css, { help: t('settings.custom_css_help') });
@@ -625,7 +637,7 @@ async function settings(panel: HTMLElement): Promise<void> {
   const alert = h('div', { class: 'ew-form-alert', role: 'alert' });
   const fs = (legend: string, ...kids: HTMLElement[]) => h('fieldset', null, h('legend', null, legend), ...kids);
   const form = h('form', { class: 'ew-form', novalidate: true }, alert,
-    fs(t('settings.site'), field(t('settings.site_name'), siteName, { required: true }), field(t('settings.template'), tpl, { help: t('settings.template_help') }), field(t('settings.home'), homeMode, { help: t('settings.home_help') }), fHomeCat, fHomeEl, dashHome.el,
+    fs(t('settings.site'), field(t('settings.site_name'), siteName, { required: true }), field(t('settings.template'), tpl, { help: t('settings.template_help') }), field(t('settings.home'), homeMode, { help: t('settings.home_help') }), fHomeCat, fHomeEl, dashHome.el, nfPage.el, fbPage.el,
       field(t('settings.default_language'), defLang, { help: t('settings.languages_help') }), prerender.el, readable.el, field(t('settings.editor'), editorSel, { help: t('settings.editor_help') }), collabBox.el, toolsField.el, personalBox.el, cssBox.el, sitePreview.el, field(t('settings.guest_view_path'), guestPath, { help: t('settings.guest_view_help') }), guestView),
     fs(t('settings.auth'), field(t('settings.auth_order'), order, { help: t('settings.auth_order_help') }), field(t('settings.session_ttl'), sessionTTL, { help: t('settings.duration_help') }),
       field(t('settings.session_idle'), sessionIdle, { help: t('settings.session_idle_help') }),
@@ -647,7 +659,7 @@ async function settings(panel: HTMLElement): Promise<void> {
     try {
       await api.put('admin/settings', {
         // each section complete: fields this form does not show are kept
-        ui: { ...c.ui, dashboard_home: dashHome.input.checked, personal_placement: personalBox.input.checked, custom_css: cssBox.input.checked, editor_tools: toolsField.get(), site_name: siteName.value, template: tpl.value, home_category: homeMode.value === 'category' ? homeCat.value() : 0, home_element: homeMode.value === 'element' ? homeEl.value() : 0, prerender: prerender.input.checked, readable_urls: readable.input.checked, preview_image: sitePreview.value(), editor: editorSel.value, collaboration: collabBox.input.checked },
+        ui: { ...c.ui, dashboard_home: dashHome.input.checked, not_found_element: nfPage.value(), forbidden_element: fbPage.value(), personal_placement: personalBox.input.checked, custom_css: cssBox.input.checked, editor_tools: toolsField.get(), site_name: siteName.value, template: tpl.value, home_category: homeMode.value === 'category' ? homeCat.value() : 0, home_element: homeMode.value === 'element' ? homeEl.value() : 0, prerender: prerender.input.checked, readable_urls: readable.input.checked, preview_image: sitePreview.value(), editor: editorSel.value, collaboration: collabBox.input.checked },
         i18n: { default_language: defLang.value, languages: c.i18n.languages },
         auth: { ...c.auth, order: order.value.split(',').map((x) => x.trim()).filter(Boolean), session_ttl: sessionTTL.value, session_idle: sessionIdle.value.trim(),
           photo_visibility: photoDef.value, photo_visibility_max: photoMax.value, photo_visibility_fixed: photoFixed.input.checked, api_key_max_ttl: keyTTL.value, ssh_token_ttl: sshTTL.value, max_login_failures: Number(fails.value), lockout_duration: lockout.value, min_password_length: Number(minPw.value) },

@@ -99,6 +99,12 @@
         { "id": "gradient_text", "type": "bool" },
         { "id": "link_style", "type": "enum", "values": ["inherit", "underline", "thick"] }
       ]
+    },
+    {
+      "id": "motion",
+      "options": [
+        { "id": "appear", "type": "enum", "values": ["none", "fade", "rise", "slide_start", "slide_end", "zoom"] }
+      ]
     }
   ]
 }

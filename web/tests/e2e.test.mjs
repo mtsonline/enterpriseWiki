@@ -3855,6 +3855,7 @@ test('template designer, part 3: a warning for standard positions, widths by dra
     await page.getByLabel(/^(the sticky header gets lower|der klebende kopf wird beim scrollen niedriger)/i).check();
     await page.getByLabel(/^(the sticky header goes away|der klebende kopf verschwindet)/i).check();
     await page.getByLabel(/^(print only the content|nur den inhalt drucken)$/i).check();
+    await page.getByLabel(/^(boxed layout|gerahmtes layout)$/i).check();
     // a footer that folds on the phone needs a name for every area
     await page.getByRole('button', { name: /^(row 4 \(foot\)|zeile 4 \(foot\))$/i }).click();
     await page.getByLabel(/^(open and close on the phone|auf dem handy auf- und zuklappen)$/i).check();
@@ -3868,7 +3869,7 @@ test('template designer, part 3: a warning for standard positions, widths by dra
     // the footer folds on the phone: give it a name and something to show (the tools of the header)
     const cur = (await call('GET', `/api/v1/x/core.template/templates/${tpl.key}`)).template;
     const d = cur.design;
-    assert.deepEqual([d.options.header_shrink, d.options.header_hide, d.options.print_plain], [true, true, true]);
+    assert.deepEqual([d.options.header_shrink, d.options.header_hide, d.options.print_plain, d.options.boxed], [true, true, true, true]);
     const side = d.rows.find((r) => r.id === 'body').blocks.find((b) => b.id === 'side');
     assert.deepEqual([side.width, side.sticky, side.collapsible], [Number(dragged), true, true]);
     const head = d.rows.find((r) => r.id === 'head');
@@ -3883,6 +3884,9 @@ test('template designer, part 3: a warning for standard positions, widths by dra
     await page.goto(`${BASE}/`);
     await idle();
     await page.evaluate(() => { document.querySelector('.ewd-main').style.minHeight = '4000px'; });
+    // boxed: the page is a box of the content width in the middle
+    const app = await page.locator('.ewd-app').evaluate((x) => { const r = x.getBoundingClientRect(); return { boxed: x.classList.contains('ewd-boxed'), max: getComputedStyle(x).maxWidth, left: r.left, right: innerWidth - r.right }; });
+    assert.ok(app.boxed && app.max !== 'none' && Math.abs(app.left - app.right) < 2, JSON.stringify(app));
     // the side column stays in view and can be hidden; the browser keeps that
     const aside = page.locator('aside#ewd-side');
     assert.equal(await aside.evaluate((x) => getComputedStyle(x).position), 'sticky');
@@ -4536,6 +4540,42 @@ test('decisions: a decision in a page, the report of decisions and the data for 
   await a11y('data for reports');
   await page.getByRole('button', { name: /^(build again|neu aufbauen): (decisions|entscheidungen)$/i }).click();
   await page.getByRole('button', { name: /^(show entries|einträge zeigen): (decisions|entscheidungen)$/i }).waitFor();
+});
+
+test('theme blocks B: own text for "page not found", reading progress', async () => {
+  const logged = errors.length;
+  const cat = await m6Category();
+  const own = await call('POST', '/api/v1/elements', { category_id: cat, type: 'core.html', title: `Lost ${run}`, body: { format: 'html', source: `<p>Lost okapi ${run}: try the search.</p>` } });
+  // the administration chooses the page in the settings
+  await page.goto(`${BASE}/admin/settings`);
+  await idle();
+  const box = page.getByLabel(/^(own text for “page not found”|eigener text für „seite nicht gefunden“)/i);
+  await box.check();
+  const form = page.locator('form', { has: box });
+  const sub = form.locator('fieldset', { hasText: /page with the text for “page not found”|seite mit dem text für „seite nicht gefunden“/i });
+  await sub.getByRole('searchbox').fill(`Lost ${run}`);
+  await page.waitForFunction((n) => [...document.querySelectorAll('.ew-picker-list option')].some((o) => o.textContent.includes(n)), `Lost ${run}`);
+  await sub.locator('.ew-picker-list').selectOption({ index: 0 });
+  await a11y('settings with an own text for errors');
+  await form.getByRole('button', { name: /^(save|speichern)$/i }).last().click();
+  await page.waitForFunction(async (id) => (await (await fetch('/api/v1/site')).json()).not_found_element === id, own.id);
+  await page.goto(`${BASE}/e/99999999`);
+  await page.locator('main').getByText(`Lost okapi ${run}: try the search.`).waitFor();
+  await a11y('own text for "page not found"');
+  const s = (await call('GET', '/api/v1/admin/settings')).config;
+  await call('PUT', '/api/v1/admin/settings', { ui: { ...s.ui, not_found_element: 0 } });
+  // reading progress placed above the content of a category with a long page
+  await call('PUT', `/api/v1/placements/category?target=${cat}`, { placements: [{ block: 'core.readprogress', position: 'content-top', sort: 1 }] });
+  const long = await call('POST', '/api/v1/elements', { category_id: cat, type: 'core.html', title: `Long ${run}`, body: { format: 'html', source: Array.from({ length: 80 }, (_, i) => `<p>Paragraph ${i} of a long page.</p>`).join('') } });
+  await page.goto(`${BASE}/e/${long.id}`);
+  await idle();
+  const bar = page.locator('.ew-readprogress');
+  await bar.waitFor();
+  assert.equal(await bar.getAttribute('aria-hidden'), 'true');
+  await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
+  await page.waitForFunction(() => Number(getComputedStyle(document.querySelector('.ew-readprogress')).getPropertyValue('--ew-read')) > 0.9);
+  await call('PUT', `/api/v1/placements/category?target=${cat}`, { placements: [] });
+  errors.splice(logged, errors.length - logged, ...errors.slice(logged).filter((e) => !/status of 404/.test(e)));
 });
 
 test('menu item pointing to an existing element; new blog from the menu dialog', async () => {

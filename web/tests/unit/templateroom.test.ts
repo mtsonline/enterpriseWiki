@@ -10,7 +10,8 @@ import wiki from '../../../plugins/core_template/examples/wiki.json';
 import cms from '../../../plugins/core_template/examples/cms.json';
 import shared from '../../../plugins/core_template/testdata/room.json';
 
-const designs: Record<string, Design> = { wiki: wiki as unknown as Design, cms: cms as unknown as Design };
+const cmsBoxed = { ...(cms as unknown as Design), options: { ...(cms as unknown as Design).options, boxed: true }, tokens: { ...(cms as unknown as Design).tokens, content_width: 50 } };
+const designs: Record<string, Design> = { wiki: wiki as unknown as Design, cms: cms as unknown as Design, cms_boxed: cmsBoxed };
 
 test('the engine computes the same room as the server', () => {
   for (const [name, cases] of Object.entries(shared as Record<string, { row: string; view: ViewName; need: number; room: number; positions: Record<string, number> }[]>)) {

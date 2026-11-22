@@ -278,6 +278,12 @@ type UI struct {
 	// people (also right after signing in). The start page of the site
 	// stays at /start. Default false.
 	DashboardHome bool `yaml:"dashboard_home,omitempty" json:"dashboard_home"`
+	// NotFoundElement and ForbiddenElement are pages whose content is shown
+	// on the page "not found" and "no permission" (0 = the standard text).
+	// Readers see them only with their own rights: choose pages everybody
+	// may see.
+	NotFoundElement  int64 `yaml:"not_found_element,omitempty" json:"not_found_element"`
+	ForbiddenElement int64 `yaml:"forbidden_element,omitempty" json:"forbidden_element"`
 }
 
 // Auth configures authentication.
@@ -934,6 +940,9 @@ func Validate(c *Config) error {
 		if !EmbedOrigin(o) {
 			return fmt.Errorf("media.embed_allow: %q is not an origin like https://player.example.com (https, lower case, no path)", o)
 		}
+	}
+	if c.UI.NotFoundElement < 0 || c.UI.ForbiddenElement < 0 {
+		return errors.New("ui.not_found_element and ui.forbidden_element must be the id of a page or 0")
 	}
 	if c.Mode != "single" && c.Mode != "cluster" {
 		return fmt.Errorf("mode must be 'single' or 'cluster', got %q", c.Mode)

@@ -595,3 +595,18 @@ th[aria-sort="descending"] .ew-sort-button::after { content: " ↓"; opacity: 1;
 /* scope of a placement for a category: two check boxes under the row */
 .ew-placement-scope { display: flex; flex-wrap: wrap; gap: .25rem 1.25rem; flex-basis: 100%; }
 .ew-placement-scope .ew-check { margin: 0; }
+
+/* reading progress (core.readprogress): fills with the share of the content read */
+.ew-readprogress { height: .25rem; width: 100%; background: color-mix(in srgb, var(--ew-border) 60%, transparent); }
+.ew-readprogress-bar { height: 100%; background: var(--ew-primary); transform-origin: 0 50%; transform: scaleX(var(--ew-read, 0)); }
+@media (forced-colors: active) { .ew-readprogress-bar { background: Highlight; } }
+@media print { .ew-readprogress { display: none; } }
+
+/* appearing while scrolled into view (block option "appear", see blockoptions.ts) */
+@keyframes ew-appear-fade { from { opacity: 0; } }
+@keyframes ew-appear-rise { from { opacity: 0; transform: translateY(2rem); } }
+@keyframes ew-appear-slide-start { from { opacity: 0; transform: translateX(calc(-2rem * var(--ew-appear-dir, 1))); } }
+@keyframes ew-appear-slide-end { from { opacity: 0; transform: translateX(calc(2rem * var(--ew-appear-dir, 1))); } }
+@keyframes ew-appear-zoom { from { opacity: 0; transform: scale(.92); } }
+[dir="rtl"] { --ew-appear-dir: -1; }
+@media print { [data-ewbo] { animation: none !important; } }

@@ -270,5 +270,7 @@
  "template.d_width_help_block": "0: the rest of the row; otherwise {min} to {max} rem.",
  "template.limit_size": "A design has at most {kb} KB.",
  "template.d_preview_window": "Preview in its own window",
- "template.d_name_area": "Area"
+ "template.d_name_area": "Area",
+ "template.d_boxed": "Boxed layout",
+ "template.d_boxed_help": "The whole page – header, content and footer – is a box of the content width in the middle of the window, with the subtle background around it. Without it, the rows span the whole window. Rows then have at most the content width; the check of the room uses it."
 }

@@ -2890,5 +2890,20 @@
  "data.lang": "Sprache",
  "data.updated": "Geändert",
  "data.no_entries": "Keine Einträge.",
- "data.no_kinds": "Keine Datenarten: Kein aktives Plugin legt Daten für Berichte ab."
+ "data.no_kinds": "Keine Datenarten: Kein aktives Plugin legt Daten für Berichte ab.",
+ "block.core.readprogress": "Lesefortschritt",
+ "bo.group.motion": "Bewegung",
+ "bo.group.motion.help": "Der Baustein erscheint, während er ins Bild gescrollt wird. Für Personen, die weniger Bewegung wünschen, bewegt sich nichts, ebenso in Browsern, die die Bewegung nicht an das Scrollen binden können; dort wird der Baustein einfach gezeigt.",
+ "bo.appear": "Beim Hineinscrollen erscheinen",
+ "bo.appear.none": "Nein",
+ "bo.appear.fade": "Einblenden",
+ "bo.appear.rise": "Von unten aufsteigen",
+ "bo.appear.slide_start": "Vom Zeilenanfang hereingleiten",
+ "bo.appear.slide_end": "Vom Zeilenende hereingleiten",
+ "bo.appear.zoom": "Wachsen",
+ "settings.not_found_own": "Eigener Text für „Seite nicht gefunden“",
+ "settings.forbidden_own": "Eigener Text für „Kein Recht“",
+ "settings.not_found_page": "Seite mit dem Text für „Seite nicht gefunden“",
+ "settings.forbidden_page": "Seite mit dem Text für „Kein Recht“",
+ "settings.error_page_help": "Der Inhalt dieser Seite erscheint unter der Überschrift statt des Standardtexts; Vorschläge und der Link zur Startseite bleiben. Lesende sehen ihn nur, wenn sie die Seite sehen dürfen: Wählen Sie eine Seite, die alle sehen dürfen."
 }

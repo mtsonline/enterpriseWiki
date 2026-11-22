@@ -25,6 +25,11 @@
 }
 
 .ewd-app { min-height: 100vh; display: flex; flex-direction: column; background: var(--ew-bg); color: var(--ew-text); }
+/* boxed layout: the page is a box of the content width; around it the subtle background */
+body:has(.ewd-boxed) { background: var(--ew-bg-subtle); }
+.ewd-app.ewd-boxed { max-width: calc(var(--ewd-content-width) + 2 * var(--ewd-pad)); margin-inline: auto; box-shadow: 0 0 0 1px var(--ew-border); }
+.ewd-boxed .ewd-width--content > .ewd-inner, .ewd-boxed .ewd-inner { max-width: none; }
+@media print { body:has(.ewd-boxed) { background: none; } .ewd-app.ewd-boxed { max-width: none; box-shadow: none; } }
 .ewd-app > .ewd-row:has(.ewd-main), .ewd-app > .ewd-row:has(.ewd-block--content) { flex: 1 0 auto; }
 .ewd-landmark.ewd-sticky { position: sticky; top: 0; z-index: 30; }
 /* higher than allowed (see keepStickyLow): scrolls with the page */

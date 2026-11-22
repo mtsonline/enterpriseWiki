@@ -63,6 +63,16 @@ func TestValidate(t *testing.T) {
 	if Validate(c) == nil {
 		t.Error("invalid language code accepted")
 	}
+	c = Defaults()
+	c.UI.ForbiddenElement = -1
+	if Validate(c) == nil {
+		t.Error("a negative page for the error text accepted")
+	}
+	c = Defaults()
+	c.UI.NotFoundElement, c.UI.ForbiddenElement = 12, 13
+	if err := Validate(c); err != nil {
+		t.Error(err)
+	}
 }
 
 func TestSetGetKey(t *testing.T) {
