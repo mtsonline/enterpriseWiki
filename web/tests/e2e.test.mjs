@@ -3089,6 +3089,32 @@ test('layout of an element type: the pages of one type get the title bar, others
   }
 });
 
+test('shared block: the selection saved as a block of its own, included, changed in one place', async () => {
+  await newPage('core.html', `Shared ${run}`);
+  await page.locator('.ewe-prose').click();
+  await page.keyboard.type(`Reception okapi ${run}`);
+  await page.keyboard.press('Control+A');
+  await page.getByRole('button', { name: /^(insert block|baustein einfügen)$/i }).click();
+  await page.locator('dialog[open]').getByRole('button', { name: /^(save the selection as a shared block|auswahl als gemeinsamen baustein speichern)$/i }).click();
+  const dlg = page.locator('dialog[open]').last();
+  await dlg.getByLabel(/^(title|titel)/i).first().fill(`Reception ${run}`);
+  await a11y('save a shared block');
+  await dlg.locator('button[type=submit]').click();
+  await page.waitForSelector('.ewe-prose .ewe-macro[data-macro="include"]');
+  await page.getByRole('button', { name: /^(publish|veröffentlichen)$/i }).click();
+  await page.waitForURL(/\/e\/\d+$/);
+  await idle();
+  await page.locator('.ew-content').getByText(`Reception okapi ${run}`).waitFor();
+  // the block itself: never listed, changed in one place
+  const found = await call('GET', `/api/v1/elements?q=${encodeURIComponent(`Reception ${run}`)}&type=core.block`);
+  const blk = found.items.find((x) => x.title === `Reception ${run}`);
+  assert.ok(blk, 'the block was made');
+  await call('PUT', `/api/v1/elements/${blk.id}`, { lang: 'en', title: `Reception ${run}`, body: { format: 'markdown', source: `Reception lynx ${run}` } });
+  await page.reload();
+  await idle();
+  await page.locator('.ew-content').getByText(`Reception lynx ${run}`).waitFor();
+});
+
 test('block templates: save selected blocks, insert them into another page', async () => {
   await newPage('core.html', `Source ${run}`);
   const prose = page.locator('.ewe-prose');

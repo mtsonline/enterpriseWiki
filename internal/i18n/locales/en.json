@@ -2867,5 +2867,8 @@
  "editor.emoji_list": "Emoji",
  "editor.emoji_found": "{n} emoji found",
  "editor.emoji_insert": "Insert",
- "editor.emoji_none": "Choose an emoji."
+ "editor.emoji_none": "Choose an emoji.",
+ "editor.block_share": "Save the selection as a shared block",
+ "editor.block_share_help": "The selection becomes a block of its own (an element of the type Block in this category) and is included here. Include it on other pages with Include page; a change of the block shows everywhere. The block is changed on its own page.",
+ "editor.block_shared": "Shared block saved and included."
 }

@@ -12,7 +12,7 @@ import { manageTemplates } from '../components/publishing';
 import { allowedMacros, label, loadMacros, MACRO_DESC_DELAY } from './macros';
 import { fold, groupMacros, matches } from './blockgroups';
 
-export type BlockChoice = { macro: string } | { template: number } | { save: true };
+export type BlockChoice = { macro: string } | { template: number } | { save: true } | { share: true };
 
 interface Leaf { key: string; name: string; desc: string; choice: BlockChoice; search: string }
 
@@ -20,14 +20,14 @@ interface Leaf { key: string; name: string; desc: string; choice: BlockChoice; s
  * Opens the menu. canSave offers "Save selection as block template".
  * Resolves with the choice, or null when the menu was closed.
  */
-export async function chooseBlock(opts: { macros: boolean; canSave: boolean; templates: boolean }): Promise<BlockChoice | null> {
+export async function chooseBlock(opts: { macros: boolean; canSave: boolean; templates: boolean; canShare?: boolean }): Promise<BlockChoice | null> {
   const [macros, templates] = await Promise.all([
     opts.macros ? loadMacros().then(allowedMacros) : Promise.resolve([] as MacroInfo[]),
     opts.templates
       ? api.get<{ id: number; name: string; description?: string }[]>(`templates${qs({ kind: 'block', category: currentCategory() || undefined })}`).catch(() => [])
       : Promise.resolve([]),
   ]);
-  if (!macros.length && !templates.length && !opts.canSave) throw new Error(t(opts.templates && !opts.macros ? 'blocktpl.none' : 'editor.macro_none'));
+  if (!macros.length && !templates.length && !opts.canSave && !opts.canShare) throw new Error(t(opts.templates && !opts.macros ? 'blocktpl.none' : 'editor.macro_none'));
   const groups: { id: string; title: string; leaves: Leaf[] }[] = groupMacros(macros, (m) => label(m.labels) || m.name).map(({ group, macros: ms }) => ({
     id: group,
     title: t(`editor.group.${group}`),
@@ -173,10 +173,12 @@ export async function chooseBlock(opts: { macros: boolean; canSave: boolean; tem
     ev.preventDefault();
   });
   const save = opts.canSave ? button(t('editor.snippet_save'), () => { result = { save: true }; dlg.close(); }, { variant: 'link' }) : null;
+  // the selection as a block of its own, shown here and wherever it is included
+  const share = opts.canShare ? button(t('editor.block_share'), () => { result = { share: true }; dlg.close(); }, { variant: 'link' }) : null;
   const manage = opts.templates ? button(t('blocktpl.manage'), () => { dlg.close(); void manageTemplates('core.html', currentCategory(), undefined, 'block'); }, { variant: 'link' }) : null;
   const dlg = openDialog(t('editor.macro_insert'), h('div', { class: 'ewb-picker' },
     h('div', { class: 'ew-field' }, searchLabel, search, h('p', { class: 'ew-help' }, t('editor.block_keys'))),
-    count, tree, none, desc, spoken, save || manage ? h('p', { class: 'ewb-actions' }, save, manage) : null), [], { wide: true, onClose: () => window.clearTimeout(speakTimer) });
+    count, tree, none, desc, spoken, save || share || manage ? h('p', { class: 'ewb-actions' }, save, share, manage) : null), [], { wide: true, onClose: () => window.clearTimeout(speakTimer) });
   activate(items[0], false);
   search.focus();
   return new Promise((resolve) => { dlg.dialog.addEventListener('close', () => resolve(result)); });

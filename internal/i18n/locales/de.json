@@ -2867,5 +2867,8 @@
  "editor.emoji_list": "Emoji",
  "editor.emoji_found": "{n} Emoji gefunden",
  "editor.emoji_insert": "Einfügen",
- "editor.emoji_none": "Wählen Sie ein Emoji."
+ "editor.emoji_none": "Wählen Sie ein Emoji.",
+ "editor.block_share": "Auswahl als gemeinsamen Baustein speichern",
+ "editor.block_share_help": "Die Auswahl wird ein eigener Baustein (ein Element vom Typ Baustein in dieser Kategorie) und hier eingebunden. Auf anderen Seiten binden Sie ihn mit Seite einbinden ein; eine Änderung des Bausteins zeigt sich überall. Geändert wird der Baustein auf seiner eigenen Seite.",
+ "editor.block_shared": "Gemeinsamer Baustein gespeichert und eingebunden."
 }
