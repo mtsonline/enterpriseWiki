@@ -448,6 +448,10 @@ func (s *Service) CreateElement(ctx context.Context, in ElementInput) (*ElementV
 			id, in.Lang, title, body, in.Comment, uid); err != nil {
 			return err
 		}
+		// the data of the blocks (reports), with the revision
+		if err := s.writeMacroData(ctx, tx, id, in.Type, in.Lang, 1, body); err != nil {
+			return err
+		}
 		if err := bindSecrets(ctx, tx, t, id, body); err != nil {
 			return err
 		}
@@ -593,6 +597,9 @@ func (s *Service) SaveElement(ctx context.Context, id int64, in SaveInput) (*Ele
 		uid := nullID(ctx)
 		if _, err := tx.Exec(ctx, `INSERT INTO element_revisions(element_id, lang, rev, source_rev, title, body, comment, created_by)
 			VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`, id, in.Lang, cur+1, src, title, body, in.Comment, uid); err != nil {
+			return err
+		}
+		if err := s.writeMacroData(ctx, tx, id, e.Type, in.Lang, cur+1, body); err != nil {
 			return err
 		}
 		if err := bindSecrets(ctx, tx, t, id, body); err != nil {
@@ -811,6 +818,9 @@ func (s *Service) DuplicateElement(ctx context.Context, id, categoryID int64, wi
 		if nid, err = copyElement(ctx, tx, id, categoryID, suffix, withRights); err != nil {
 			return err
 		}
+		if err := s.writeMacroDataAll(ctx, tx, nid); err != nil {
+			return err
+		}
 		// acl: internal – next position only
 		if _, err := tx.Exec(ctx, `UPDATE elements SET position=(SELECT COALESCE(max(position)+1,0) FROM elements WHERE category_id=$2) WHERE id=$1`, nid, categoryID); err != nil {
 			return err
@@ -979,6 +989,9 @@ func (s *Service) restoreRev(ctx context.Context, tx pgx.Tx, e *Element, lang st
 	uid := nullID(ctx)
 	if _, err := tx.Exec(ctx, `INSERT INTO element_revisions(element_id, lang, rev, source_rev, title, body, comment, restored_from, created_by)
 		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)`, e.ID, lang, cur+1, src, title, body, comment, rev, uid); err != nil {
+		return false, err
+	}
+	if err := s.writeMacroData(ctx, tx, e.ID, e.Type, lang, cur+1, body); err != nil {
 		return false, err
 	}
 	if _, err := tx.Exec(ctx, `UPDATE elements SET titles = titles || jsonb_build_object($2::text, $3::text), updated_at=now(), updated_by=$4 WHERE id=$1`, e.ID, lang, title, uid); err != nil {

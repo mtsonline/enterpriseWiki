@@ -2010,3 +2010,69 @@ actions:
         as: self
         expect_json: '{"valid": true}'
         body_text: '${given.core.signatures.export#default.$raw}'
+  - id: core.data.kinds
+    category: CATEGORY_ACTION
+    method: GET
+    path: /api/v1/data
+    success_status: 200
+    summary:
+      text:
+        en: List the kinds of data for reports with their fields and whether they are complete
+        de: "Datenarten für Berichte mit ihren Feldern auflisten, und ob sie vollständig sind"
+    public: true
+    cli: {command: [data, kinds]}
+    ui: {entry: /admin/data}
+    examples:
+      - name: default
+        as: guest
+  - id: core.data.query
+    category: CATEGORY_ACTION
+    method: GET
+    path: /api/v1/data/{kind}
+    success_status: 200
+    summary:
+      text:
+        en: "Entries of a kind of data, for example the decisions of an area (only pages you may see)"
+        de: "Einträge einer Datenart, zum Beispiel die Entscheidungen eines Bereichs (nur Seiten, die Sie sehen dürfen)"
+    public: true
+    cli: {command: [data, query], args: [kind]}
+    ui: {entry: /admin/data}
+    examples:
+      - name: default
+        as: guest
+        path_params_json: '{"kind": "core.macros.decision"}'
+      - name: filtered
+        as: admin
+        path_params_json: '{"kind": "core.macros.decision"}'
+        query_json: '{"state": "open,decided", "from": "2026-01-01", "sort": "-day", "limit": "10"}'
+      - name: unknown_kind
+        as: guest
+        path_params_json: '{"kind": "core.macros.nothing"}'
+        status: 404
+      - name: invalid_sort
+        as: guest
+        path_params_json: '{"kind": "core.macros.decision"}'
+        query_json: '{"sort": "data"}'
+        status: 400
+  - id: core.data.rebuild
+    category: CATEGORY_ACTION
+    method: POST
+    path: /api/v1/admin/data/rebuild
+    success_status: 200
+    summary:
+      text:
+        en: "Build the data for reports again from the latest versions (one kind, or all without kind)"
+        de: "Daten für Berichte aus den neuesten Fassungen neu aufbauen (eine Art, oder ohne Art alle)"
+    permission: {key: core.settings.manage, scope: SCOPE_GLOBAL}
+    safety: {changes: true}
+    cli: {command: [data, rebuild]}
+    ui: {entry: /admin/data}
+    examples:
+      - name: default
+        as: member
+        body_json: '{"kind": "core.macros.decision"}'
+      - name: all
+        body_json: '{}'
+      - name: unknown_kind
+        body_json: '{"kind": "core.macros.nothing"}'
+        status: 404

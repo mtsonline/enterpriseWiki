@@ -30,6 +30,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/mtsonline/enterprisewiki/internal/acl"
@@ -267,6 +268,25 @@ func (h *Host) Signed(method, path string) {
 // RegisterElementType adds an element type owned by this plugin.
 func (h *Host) RegisterElementType(t content.ElementType) {
 	h.Content.RegisterType(h.Manifest.ID, t)
+}
+
+// RegisterDataKind registers a kind of data of this plugin for reports
+// (content.DataKind; the kind starts with the plugin id). Blocks with data
+// implement content.DataMacro; the plugin itself writes with PutData.
+func (h *Host) RegisterDataKind(k content.DataKind) {
+	h.Content.RegisterDataKind(h.Manifest.ID, k)
+}
+
+// PutData writes an entry of a kind of this plugin for an element (tx: the
+// transaction of the change it follows from, or nil).
+func (h *Host) PutData(ctx context.Context, tx pgx.Tx, elementID int64, lang, kind string, idx int, data map[string]any) error {
+	return h.Content.PutData(ctx, tx, h.Manifest.ID, elementID, lang, kind, idx, data)
+}
+
+// DeleteData removes entries of a kind of this plugin (idx 0: all of the
+// element and language; lang "": all languages).
+func (h *Host) DeleteData(ctx context.Context, tx pgx.Tx, elementID int64, lang, kind string, idx int) error {
+	return h.Content.DeleteData(ctx, tx, h.Manifest.ID, elementID, lang, kind, idx)
 }
 
 // RegisterMacro adds a macro for rich text (see content.Macro).

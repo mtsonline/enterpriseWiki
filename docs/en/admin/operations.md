@@ -278,6 +278,7 @@ Background jobs also run (list and "run now" under *Administration → E-mail*, 
 | `content.events.reminders` | 1 min | event reminders to registered and interested people |
 | `mail.cleanup` | 6 h | delete sent e-mails after `retention.mail_days` |
 | `search.changes.cleanup` | daily | shorten the change log for external search engines (30 days) |
+| `data.rebuild` | 1 min | build the data for reports (for example decisions) of kinds that are new or have a new version, from the latest versions of the pages, 200 pages per step; *Administration → Data for reports* shows the state and starts it again |
 | `workflow.process.timers` | 30 s | continue waiting times and webhooks of workflows, reminders for overdue tasks |
 | `search.external.sync` | 10 s | synchronise the external search index (only when configured) |
 

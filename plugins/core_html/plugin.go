@@ -183,6 +183,16 @@ func ToHTML(b *Body) string {
 	return policy.Sanitize(b.Source)
 }
 
+// MacroHTML implements content.MacroHTMLer: the HTML in which the core
+// finds the blocks with data (reports).
+func (t *Type) MacroHTML(raw json.RawMessage) (string, bool) {
+	b, err := Decode(raw)
+	if err != nil {
+		return "", false
+	}
+	return ToHTML(b), true
+}
+
 // Render implements content.ElementType. Macros are rendered with the
 // permissions of the viewer.
 func (t *Type) Render(ctx context.Context, rc content.RenderContext, raw json.RawMessage) (string, error) {

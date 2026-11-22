@@ -585,6 +585,24 @@ func buildDemo(d *demoRun) {
 				macro("people", map[string]string{"group": strconv.FormatInt(editorsGroup, 10), "layout": "list", "details": "short"}, ""), nil)
 	})
 
+	// ---- 5a. decisions in the text and the report of them (data for reports)
+	d.optional("decisions", func() {
+		dec := func(title, status, day, owner, why string) string {
+			return macro("decision", map[string]string{"title": title, "status": status, "day": day, "owner": owner}, "<p>"+why+"</p>")
+		}
+		d.page(team, "Decision log", "Entscheidungsprotokoll",
+			`<p>Decisions with status, day and who is responsible. The report below lists the decisions of this area; it shows only pages the reader may see.</p>`+
+				dec("Meetings on Tuesdays", "decided", "2026-10-06", "Anna", "Most of the team is in the office then.")+
+				dec("Move the wiki to the new server", "open", "2026-12-01", "Ben", "Waiting for the offer.")+
+				dec("Own chat server", "rejected", "2026-09-15", "Anna", "The existing chat service is enough.")+
+				`<h2>All decisions of the team</h2>`+macro("decisions", map[string]string{"category": strconv.FormatInt(team, 10)}, ""),
+			`<p>Entscheidungen mit Status, Datum und Verantwortlichen. Der Bericht unten listet die Entscheidungen dieses Bereichs; er zeigt nur Seiten, die die lesende Person sehen darf.</p>`+
+				dec("Besprechungen dienstags", "decided", "2026-10-06", "Anna", "Dann ist der größte Teil des Teams im Büro.")+
+				dec("Wiki auf den neuen Server umziehen", "open", "2026-12-01", "Ben", "Wir warten auf das Angebot.")+
+				dec("Eigener Chat-Server", "rejected", "2026-09-15", "Anna", "Der vorhandene Chat-Dienst reicht.")+
+				`<h2>Alle Entscheidungen des Teams</h2>`+macro("decisions", map[string]string{"category": strconv.FormatInt(team, 10)}, ""), nil)
+	})
+
 	// ---- 5b. projects with properties: definitions, a database and reports
 	projCat := d.category(root, "Projects (properties)", "Projekte (Eigenschaften)", "Properties of every type, a property database and reports as table, board, charts, calendar and timeline.",
 		"Eigenschaften aller Art, eine Eigenschaften-Datenbank und Berichte als Tabelle, Board, Diagramme, Kalender und Zeitleiste.", nil)

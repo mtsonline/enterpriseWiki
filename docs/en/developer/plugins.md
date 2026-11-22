@@ -257,6 +257,42 @@ In Markdown a macro is written as a directive: `::name{a=b}` (without content), 
 
 `MacroContext` contains the `RenderContext` (element, category, language, viewer, `Service` for queries with their permissions), the parameters, the **already sanitised** content (`Body`) and the headings of the page (`Headings`). Everything else the macro outputs it must escape itself (`html.EscapeString`). Check links with `core_layout.SafeURL`. Errors appear as a notice on the page, not as an error page. The macro dialog in the editor appears automatically (`GET /api/v1/macros`).
 
+### Data for reports {#data}
+
+Blocks and plugins can keep data for reports in a table of the core (`element_data`): one entry per use of a block (or per entry of a plugin) on an element and language. Reports read it with the permissions of the reader – only entries of elements the reader may see, never from the trash, hidden elements only on request.
+
+A plugin first registers a **kind of data** with a schema (in `Setup`). The kind starts with the plugin id; a new `Version` builds the data again from the latest versions of all pages (background job `data.rebuild`, also `POST /api/v1/admin/data/rebuild`).
+
+```go
+host.RegisterDataKind(content.DataKind{
+	Kind: "acme.risk", Version: 1, Labels: map[string]string{"en": "Risks", "de": "Risiken"},
+	Fields: []content.DataField{
+		{Key: "level", Type: content.DataChoice, Options: []string{"low", "high"}, Column: content.ColState, Required: true},
+		{Key: "due", Type: content.DataDay, Column: content.ColDay},
+		{Key: "owner", Type: content.DataPerson, Column: content.ColPerson},
+		{Key: "title", Type: content.DataText, Max: 200, Column: content.ColLabel},
+	},
+	MaxPerElement: 100,
+})
+```
+
+Field types: `text`, `long`, `choice`, `day`, `time`, `number`, `bool`, `person`, `page`, `list`. A field can also be kept in one indexed column for filters and sorting (`state`, `day`, `at`, `person`, `num`, `ref`, `label`; one field per column). Every entry is checked against the schema (unknown fields, wrong types, more than 32 KB are refused).
+
+**Blocks with data** implement `content.DataMacro`. When a version is saved, restored or copied, the core finds the uses of the block in the text and stores what `Data` returns – in the same transaction as the version, so a report never shows a state that was not saved.
+
+```go
+func (Risk) DataKind() string { return "acme.risk" }
+func (Risk) Data(ctx context.Context, u content.DataUse) (map[string]any, error) {
+	return map[string]any{"level": u.Params["level"], "title": u.Params["title"]}, nil // nil: nothing kept
+}
+```
+
+`DataUse` has the parameters, the plain text and the HTML inside the block, the language and the number of the block on the page. Blocks inside a block that shows its content only to some readers keep no data (that block implements `content.ConditionalMacro`); neither do blocks inside blocks of a switched-off plugin.
+
+**Plugins** write their own entries with `host.PutData(ctx, tx, elementID, lang, kind, idx, data)` – best in the transaction of the change they follow from – and remove them with `host.DeleteData`. Saving a page does not touch them.
+
+**Reading:** `Service.QueryData(ctx, content.DataQuery{Kind: …, Category: …, States: …, From: …, To: …, Person: …, Sort: "-day", Limit: 50})` (at most 500 per answer); `Complete` is false while a kind is being built. API: `GET /api/v1/data` and `GET /api/v1/data/{kind}`; CLI: `ewiki data kinds`, `ewiki data query KIND`. Element types with blocks in HTML implement `content.MacroHTMLer` (like `core.html`).
+
 ### Files in own tables
 
 If a plugin stores file hashes outside of element content, it registers the column so the clean-up does not delete the files: `host.Files.AddReference("plugin_acme_items", "data")`. Delivering with permission check: `host.Files.Get` and `host.Files.Serve` (see `plugins/workflow_process`).

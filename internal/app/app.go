@@ -221,6 +221,17 @@ func newSite(ctx context.Context, in *Instance, site string, migrate bool) (*App
 		}
 		return err
 	}})
+	// data of blocks for reports: kinds that are new or have a new version
+	// are built from the latest revisions, in batches (content/data.go)
+	a.Workers.Register(worker.Job{Name: "data.rebuild", Interval: time.Minute, Run: func(ctx context.Context) error {
+		for range 50 {
+			more, err := a.Content.RebuildData(ctx, 200)
+			if err != nil || !more {
+				return err
+			}
+		}
+		return nil
+	}})
 	a.Workers.Register(worker.Job{Name: "feeds", Interval: 10 * time.Minute, Run: func(ctx context.Context) error {
 		return a.Feeds.RefreshAll(ctx)
 	}})
