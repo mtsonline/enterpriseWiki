@@ -3887,6 +3887,13 @@ test('template designer, part 3: a warning for standard positions, widths by dra
     // boxed: the page is a box of the content width in the middle
     const app = await page.locator('.ewd-app').evaluate((x) => { const r = x.getBoundingClientRect(); return { boxed: x.classList.contains('ewd-boxed'), max: getComputedStyle(x).maxWidth, left: r.left, right: innerWidth - r.right }; });
     assert.ok(app.boxed && app.max !== 'none' && Math.abs(app.left - app.right) < 2, JSON.stringify(app));
+    // the rest with the window-wide layout (in the narrow box the header is too high to stay sticky)
+    const cur2 = (await call('GET', `/api/v1/x/core.template/templates/${tpl.key}`)).template;
+    delete cur2.design.options.boxed;
+    await call('PUT', `/api/v1/x/core.template/templates/${tpl.key}`, { version: cur2.version, design: cur2.design });
+    await page.goto(`${BASE}/`);
+    await idle();
+    await page.evaluate(() => { document.querySelector('.ewd-main').style.minHeight = '4000px'; });
     // the side column stays in view and can be hidden; the browser keeps that
     const aside = page.locator('aside#ewd-side');
     assert.equal(await aside.evaluate((x) => getComputedStyle(x).position), 'sticky');
@@ -4552,13 +4559,15 @@ test('theme blocks B: own text for "page not found", reading progress', async ()
   const box = page.getByLabel(/^(own text for “page not found”|eigener text für „seite nicht gefunden“)/i);
   await box.check();
   const form = page.locator('form', { has: box });
-  const sub = form.locator('fieldset', { hasText: /page with the text for “page not found”|seite mit dem text für „seite nicht gefunden“/i });
+  const sub = form.locator('fieldset.ew-subfield', { has: page.locator('legend', { hasText: /^(page with the text for “page not found”|seite mit dem text für „seite nicht gefunden“)$/i }) });
   await sub.getByRole('searchbox').fill(`Lost ${run}`);
   await page.waitForFunction((n) => [...document.querySelectorAll('.ew-picker-list option')].some((o) => o.textContent.includes(n)), `Lost ${run}`);
   await sub.locator('.ew-picker-list').selectOption({ index: 0 });
   await a11y('settings with an own text for errors');
+  const saved = page.waitForResponse((r) => r.url().endsWith('/api/v1/admin/settings') && r.request().method() === 'PUT');
   await form.getByRole('button', { name: /^(save|speichern)$/i }).last().click();
-  await page.waitForFunction(async (id) => (await (await fetch('/api/v1/site')).json()).not_found_element === id, own.id);
+  assert.equal((await saved).status(), 200);
+  assert.equal((await call('GET', '/api/v1/admin/settings')).config.ui.not_found_element, own.id);
   await page.goto(`${BASE}/e/99999999`);
   await page.locator('main').getByText(`Lost okapi ${run}: try the search.`).waitFor();
   await a11y('own text for "page not found"');
