@@ -24,6 +24,7 @@ import (
 	"github.com/mtsonline/enterprisewiki/internal/coreplugin"
 	h "github.com/mtsonline/enterprisewiki/internal/httpx"
 	"github.com/mtsonline/enterprisewiki/internal/identity"
+	"github.com/mtsonline/enterprisewiki/internal/perm"
 	"github.com/mtsonline/enterprisewiki/plugins/core_html"
 )
 
@@ -65,7 +66,51 @@ type Config struct {
 	Layout      string            `json:"layout"`   // cards | list | table
 	ByGroup     bool              `json:"by_group"` // one section per group
 	Sort        string            `json:"sort"`     // name | job_title | department
+	// Public: guests see the contact details too (only set with the
+	// permission content.team.public); without it they see the name,
+	// job title, department and the photo (as the person allows).
+	Public bool `json:"public"`
 }
+
+// PermPublic lets guests see the contact details of a team page.
+const PermPublic = "content.team.public"
+
+// publicFields are shown to guests on every team page; the other fields
+// (contact details, groups, attributes of the identity provider) only on
+// pages that are public.
+var publicFields = map[string]bool{"photo": true, "job_title": true, "department": true}
+
+// forViewer: the config as the caller of ctx sees it (guests without the
+// contact details unless the page is public).
+func forViewer(ctx context.Context, c *Config) *Config {
+	if c.Public || identity.From(ctx).ID() > 0 {
+		return c
+	}
+	v := *c
+	v.Fields = []string{}
+	for _, f := range c.Fields {
+		if !contact(f) {
+			v.Fields = append(v.Fields, f)
+		}
+	}
+	return &v
+}
+
+func sameSet[T comparable](a, b []T) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for _, x := range a {
+		if !slices.Contains(b, x) {
+			return false
+		}
+	}
+	return true
+}
+
+// contact reports whether field f is a contact detail (not for guests
+// unless the page is public).
+func contact(f string) bool { return !publicFields[f] }
 
 func decode(raw []byte) (*Config, error) {
 	c := &Config{}
@@ -475,6 +520,20 @@ func (Type) CheckChange(ctx context.Context, _ *content.Service, _ *content.Elem
 		return apperr.BadRequest("invalid team settings: %v", err)
 	}
 	p := identity.From(ctx)
+	// public: contact details for guests need the permission, also to keep
+	// them public while the groups or the fields change
+	if after.Public && !perm.HasP(p, PermPublic) {
+		if !before.Public || !sameSet(before.Groups, after.Groups) || !sameSet(before.Fields, after.Fields) {
+			return apperr.Forbidden("showing contact details to guests needs the permission %q", "Show contact details publicly")
+		}
+	}
+	// attributes of the identity provider: only seen by the administration
+	// of users, so only chosen by it
+	for _, f := range after.Fields {
+		if strings.HasPrefix(f, "attr:") && !slices.Contains(before.Fields, f) && !perm.HasP(p, "core.users.manage") {
+			return apperr.Forbidden("field %s: attributes of the identity provider are chosen by who manages users (core.users.manage)", f)
+		}
+	}
 	groups, users := auth.ListScope(p, "groups"), auth.ListScope(p, "users")
 	for _, g := range after.Groups {
 		if slices.Contains(before.Groups, g) {
@@ -494,6 +553,7 @@ func (Type) Render(ctx context.Context, rc content.RenderContext, raw json.RawMe
 	if err != nil {
 		return "", err
 	}
+	c = forViewer(ctx, c)
 	secs, err := members(ctx, plugins.Get(ctx).host, c)
 	if err != nil {
 		return "", err
@@ -583,6 +643,7 @@ func (p *Plugin) Setup(hs *coreplugin.Host) error {
 		if err != nil {
 			return nil, err
 		}
+		c = forViewer(r.Context(), c)
 		secs, err := members(r.Context(), hs, c)
 		if err != nil {
 			return nil, err

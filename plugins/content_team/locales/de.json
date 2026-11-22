@@ -37,5 +37,10 @@
  "content.team.found_one": "{n} Person gefunden",
  "content.team.found_other": "{n} Personen gefunden",
  "content.team.export": "Kontakte als CSV",
- "content.team.name": "Name"
+ "content.team.name": "Name",
+ "content.team.public": "Kontaktdaten auch Gästen zeigen",
+ "content.team.public_help": "Ohne dieses Häkchen sehen Gäste nur Name, Funktion, Abteilung und Foto (wie es jede Person erlaubt). E-Mail, Telefon, Mobilnummer, Büro, „Über mich“, Gruppen und Attribute sehen nur Angemeldete.",
+ "content.team.public_needs": "Gäste sehen nur Name, Funktion, Abteilung und Foto. Um ihnen die Kontaktdaten zu zeigen, brauchen Sie das Recht „Kontaktdaten öffentlich zeigen“.",
+ "perm.content.team.public": "Kontaktdaten öffentlich zeigen",
+ "perm.content.team.public_help": "Gästen die Kontaktdaten auf Team-Seiten zeigen (E-Mail, Telefon, Mobilnummer, Büro, „Über mich“, Gruppen und Attribute des Identity Providers)."
 }

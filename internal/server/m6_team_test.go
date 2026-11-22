@@ -67,7 +67,7 @@ func TestTeamAndProfile(t *testing.T) {
 	admin.must("POST", "/api/v1/categories", map[string]any{"guest_visible": true, "titles": map[string]string{"en": "About us"}}, &c, 201)
 	var team elem
 	admin.must("POST", "/api/v1/elements", map[string]any{"category_id": c.ID, "type": "content.team", "title": "Our team",
-		"body": map[string]any{"groups": []int64{sales.ID, it.ID}, "fields": []string{"photo", "job_title", "phone", "about", "groups"}, "layout": "cards", "by_group": true,
+		"body": map[string]any{"groups": []int64{sales.ID, it.ID}, "fields": []string{"photo", "job_title", "phone", "about", "groups"}, "layout": "cards", "by_group": true, "public": true,
 			"description": map[string]string{"format": "markdown", "source": "The **people** behind it"}}}, &team, 201)
 	if code := admin.do("POST", "/api/v1/elements", map[string]any{"category_id": c.ID, "type": "content.team", "title": "Bad",
 		"body": map[string]any{"fields": []string{"password_hash"}}}, nil); code != 400 {

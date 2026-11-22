@@ -4352,6 +4352,17 @@ test('team page and business card', async () => {
   await idle();
   await page.getByText('Wiki gardener').waitFor();
   await a11y('team page');
+  // contact details for guests: a choice in the editor (the administrator may)
+  await page.goto(`${BASE}/e/${team.id}/edit`);
+  await idle();
+  const pub = page.getByLabel(/^(show the contact details to guests too|kontaktdaten auch gästen zeigen)$/i);
+  assert.equal(await pub.isChecked(), false, 'not public at first');
+  await pub.check();
+  await a11y('team editor');
+  await page.getByRole('button', { name: /^(publish|veröffentlichen|save|speichern)$/i }).first().click();
+  await page.waitForURL(new RegExp(`/e/${team.id}$`));
+  const saved = await call('GET', `/api/v1/elements/${team.id}?edit=1`);
+  assert.equal(saved.body?.public, true, 'saved as public');
 });
 
 test('menu item pointing to an existing element; new blog from the menu dialog', async () => {

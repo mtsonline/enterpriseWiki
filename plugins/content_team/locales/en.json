@@ -37,5 +37,10 @@
  "content.team.found_one": "{n} person found",
  "content.team.found_other": "{n} people found",
  "content.team.export": "Contacts as CSV",
- "content.team.name": "Name"
+ "content.team.name": "Name",
+ "content.team.public": "Show the contact details to guests too",
+ "content.team.public_help": "Without this, guests see only name, job title, department and photo (as each person allows). E-mail, phone, mobile, office, about, groups and attributes are for signed-in people.",
+ "content.team.public_needs": "Guests see only name, job title, department and photo. Showing them the contact details needs the permission “Show contact details publicly”.",
+ "perm.content.team.public": "Show contact details publicly",
+ "perm.content.team.public_help": "Let guests see the contact details on team pages (e-mail, phone, mobile, office, about, groups and attributes of the identity provider)."
 }
