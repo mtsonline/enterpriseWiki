@@ -4,6 +4,7 @@ import { hydrateOptionFrames } from './optionframes';
 import { hydrateIcons } from './icons';
 import { hydrateCode } from './codeblocks';
 import { hydrateMath } from './math';
+import { hydrateDiagrams } from './diagrams';
 import { hydrateImages } from './images';
 
 export type WidgetFactory = (el: HTMLElement) => void | Promise<void>;
@@ -21,6 +22,8 @@ export function hydrate(root: ParentNode): void {
   hydrateIcons(root);
   // formulas first: a ```math code block becomes a formula, not code
   hydrateMath(root);
+  // diagrams first: a ```mermaid code block becomes a drawing, not code
+  hydrateDiagrams(root);
   hydrateCode(root);
   hydrateImages(root);
   root.querySelectorAll<HTMLElement>('[data-ew-widget]').forEach((el) => {

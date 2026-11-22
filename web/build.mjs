@@ -55,9 +55,9 @@ const options = {
 
 // The npm packages that end up in the bundle (for the third-party notices:
 // tools/notices includes exactly their license texts).
-function writeBundledPackages(meta) {
+function writeBundledPackages(...metas) {
   const pkgs = new Set();
-  for (const input of Object.keys(meta.inputs)) {
+  for (const input of metas.filter(Boolean).flatMap((m) => Object.keys(m.inputs))) {
     const m = /node_modules\/((?:@[^/]+\/)?[^/]+)\//.exec(input.slice(input.lastIndexOf('node_modules/')));
     if (m) pkgs.add(input.slice(0, input.lastIndexOf('node_modules/')) + 'node_modules/' + m[1]);
   }
@@ -133,6 +133,30 @@ function copyIcons() {
   }
 }
 
+// The frame that draws diagrams from text (Mermaid): one classic script
+// (an iframe without its own origin loads no modules), its own page
+// diagram-frame.html that the server sends with a strict CSP. elkjs is
+// replaced by a stub: its licence (EPL-2.0 or GPL) is not shipped.
+async function buildDiagramFrame() {
+  const out = path.join(dist, 'assets', 'diagram');
+  const r = await esbuild.build({
+    entryPoints: [path.join(here, 'src', 'diagram', 'frame.ts')],
+    bundle: true, minify: true, format: 'iife', write: false, metafile: true, legalComments: 'none',
+    target: ['es2022', 'chrome111', 'firefox115', 'safari16'],
+    outfile: path.join(out, 'frame.js'),
+    plugins: [{ name: 'no-elk', setup(b) { b.onResolve({ filter: /^elkjs(\/|$)/ }, () => ({ path: path.join(here, 'src', 'diagram', 'elk-stub.ts') })); } }],
+    logLevel: 'error',
+  });
+  if (Object.keys(r.metafile.inputs).some((i) => i.includes('node_modules/elkjs/'))) throw new Error('elkjs must not be bundled');
+  const js = r.outputFiles[0].contents;
+  const name = `frame-${createHash('sha256').update(js).digest('hex').slice(0, 10)}.js`;
+  fs.mkdirSync(out, { recursive: true });
+  fs.writeFileSync(path.join(out, name), js);
+  const html = fs.readFileSync(path.join(here, 'diagram-frame.html'), 'utf8').replace('%JS%', `/assets/diagram/${name}`);
+  fs.writeFileSync(path.join(dist, 'diagram-frame.html'), html);
+  return r.metafile;
+}
+
 generatePluginImports();
 generateIconsModule();
 fs.rmSync(dist, { recursive: true, force: true });
@@ -146,7 +170,8 @@ if (watch) {
   console.log('watching for changes...');
 } else {
   const result = await esbuild.build(options);
-  writeBundledPackages(result.metafile);
+  const frame = await buildDiagramFrame();
+  writeBundledPackages(result.metafile, frame);
   writeIndex(result.metafile);
   console.log('frontend built into web/dist');
 }

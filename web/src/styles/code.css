@@ -28,3 +28,9 @@
   .ew-codeblock [class^="hljs-"], .ew-codeblock [class*=" hljs-"] { color: CanvasText; background: Canvas; }
 }
 @media print { .ew-code-copy { display: none; } }
+
+/* diagrams from text (drawn in a frame without access to the wiki) */
+.ew-diagram { margin: 1rem 0; }
+.ew-diagram-frame { display: block; width: 100%; height: 12rem; border: 0; }
+.ew-diagram-note:empty { display: none; }
+.ew-diagram-text summary { cursor: pointer; }

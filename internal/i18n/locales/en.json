@@ -2855,5 +2855,9 @@
  "help.hidden": "Help texts are hidden.",
  "profile.help_texts": "Show help texts",
  "profile.help_texts_help": "Explanations of fields and settings. Notes you need to fill in a field correctly are always there. The “?” button at the top switches the same.",
- "editor.code_math": "Formula (TeX)"
+ "editor.code_math": "Formula (TeX)",
+ "editor.code_mermaid": "Diagram from text (Mermaid)",
+ "diagram.title": "Diagram",
+ "diagram.as_text": "The diagram as text",
+ "diagram.error": "The diagram could not be drawn. Its text is below."
 }
