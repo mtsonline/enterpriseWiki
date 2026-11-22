@@ -1249,8 +1249,8 @@ var traps = []trap{
 	{
 		ID: "data.acl", About: "the query of data ignores the rights of the reader",
 		File: "internal/content/data.go",
-		Old:  "\t\tAND ($12::bool OR NOT e.hidden)\n\t\tAND ` + f.SQL(\"e\", &args)",
-		New:  "\t\tAND ($12::bool OR NOT e.hidden)\n\t\tAND true AND ` + f.SQL(\"e\", &args) + ` OR true",
+		Old:  "\t\tAND ` + f.SQL(\"e\", &args)",
+		New:  "\t\tAND (true OR ` + f.SQL(\"e\", &args) + `)`",
 		Pkg:  "./internal/server/", Tests: "^TestBlockData$",
 	},
 	{
@@ -1285,7 +1285,7 @@ var traps = []trap{
 		ID: "data.conditional", About: "blocks inside conditional or unknown blocks keep data",
 		File: "internal/content/data.go",
 		Old:  "walk(c, hidden || (name != \"\" && skip(name)))",
-		New:  "walk(c, false && hidden || (name != \"\" && skip(name)))",
+		New:  "walk(c, false)",
 		Pkg:  "./internal/content/", Tests: "^TestMacroUsesHidden$",
 	},
 	{
