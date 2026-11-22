@@ -1368,8 +1368,8 @@ var traps = []trap{
 	{
 		ID: "maintenance.sign-in-only", About: "more than signing in works during maintenance",
 		File: "internal/server/maintenance.go",
-		Old:  "\"POST /api/v1/auth/sso/\", \"POST /api/v1/auth/link/info\",",
-		New:  "\"POST /api/v1/auth/sso/\", \"POST /api/v1/auth/link/info\", \"POST /api/v1/x/\",",
+		Old:  "\"/api/v1/auth/sso/\", \"/api/v1/auth/link/info\",",
+		New:  "\"/api/v1/auth/sso/\", \"/api/v1/auth/link/info\", \"/api/v1/x/\",",
 		Pkg:  "./internal/server/", Tests: "^TestMaintenance$",
 	},
 }

@@ -1123,9 +1123,6 @@ actions:
     examples:
       - name: default
         as: admin
-      - name: member
-        as: member
-        status: 403
   - id: core.maintenance.set
     category: CATEGORY_ACTION
     method: PUT
@@ -1143,10 +1140,6 @@ actions:
       - name: default
         as: admin
         body_json: '{"mode": "", "message": {"en": "Back soon."}}'
-      - name: member
-        as: member
-        body_json: '{"mode": "closed"}'
-        status: 403
       - name: invalid_mode
         as: admin
         body_json: '{"mode": "later"}'

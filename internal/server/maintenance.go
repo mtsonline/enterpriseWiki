@@ -18,11 +18,11 @@ import (
 // signing in), nothing else.
 
 // maintenanceSignIn are the requests that change something and still work
-// during maintenance: signing in and out.
+// during maintenance: signing in and out (POST).
 var maintenanceSignIn = []string{
-	"POST /api/v1/auth/login", "POST /api/v1/auth/logout",
-	"POST /api/v1/auth/mfa/", "POST /api/v1/auth/passwordless/", "POST /api/v1/auth/ssh/",
-	"POST /api/v1/auth/sso/", "POST /api/v1/auth/link/info",
+	"/api/v1/auth/login", "/api/v1/auth/logout",
+	"/api/v1/auth/mfa/", "/api/v1/auth/passwordless/", "/api/v1/auth/ssh/",
+	"/api/v1/auth/sso/", "/api/v1/auth/link/info",
 }
 
 // maintenanceClosedRead are the reads that work while the wiki is closed:
@@ -48,7 +48,7 @@ func maintenanceRefuses(m config.Maintenance, r *http.Request, p *identity.Princ
 	path := r.URL.Path
 	safe := r.Method == http.MethodGet || r.Method == http.MethodHead || r.Method == http.MethodOptions
 	if !safe {
-		return !hasPrefixAny(r.Method+" "+path, maintenanceSignIn)
+		return r.Method != http.MethodPost || !hasPrefixAny(path, maintenanceSignIn)
 	}
 	// live editing changes pages over a connection opened with GET
 	if strings.HasPrefix(path, CollabPath) {
