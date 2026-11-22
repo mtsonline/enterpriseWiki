@@ -206,6 +206,8 @@ func newSite(ctx context.Context, in *Instance, site string, migrate bool) (*App
 	a.Workers = worker.New(pool, log, func() bool { return cfg.Get().Mode == "cluster" })
 	a.Workers.Site = site
 	a.Workers.Scope = a.Scope
+	// maintenance: background jobs wait unless they should go on
+	a.Workers.Paused = func() bool { m := cfg.Get().Maintenance; return m.Active() && !m.RunJobs }
 	a.Workers.Register(worker.Job{Name: "mail", Interval: 10 * time.Second, Run: func(ctx context.Context) error {
 		n, err := a.Mail.Process(ctx)
 		if n > 0 {

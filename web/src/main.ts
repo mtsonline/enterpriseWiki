@@ -16,7 +16,7 @@ import { toast } from './core/announce';
 import { h, mount } from './core/dom';
 import { loadMessages, t } from './core/i18n';
 import { onBeforeRender, onNavigate, rerender, route, setMain, setNotFound, start } from './core/router';
-import { rememberedLang, state, stored } from './core/state';
+import { isAdmin, rememberedLang, state, stored } from './core/state';
 import type { Principal, Site } from './core/types';
 import { categoryTree, ctx, currentSpace, setSpace, editToggle, helpToggle, languageSwitcher, searchBox, userMenu } from './components/widgets';
 import { watchHelp } from './core/helptexts';
@@ -24,6 +24,7 @@ import { readProgress } from './components/readprogress';
 import { pluginModules } from './generated/plugins';
 import { positionContainer, refreshPositions, registerAdminPage, registerPageAction, registerProfileSection, registerSlot, registerTemplate, previewTemplate, resolveTemplate, setShownTemplate, siteTemplate, triedTemplate } from './coreplugin';
 import { tryBar } from './components/trytemplate';
+import { closedPage, maintenanceBar } from './components/maintenance';
 import { instanceRightsButton } from './components/instanceRights';
 import { instanceLabelsButton } from './components/instanceLabels';
 import { placementEditor, typeLayouts } from './components/placement';
@@ -144,6 +145,11 @@ async function boot(): Promise<void> {
     mount(app, h('main', { class: 'ew-fatal' }, h('h1', null, 'Enterprise Wiki'), h('p', { role: 'alert' }, `The server is not reachable (${String(e)}). Please try again later.`)));
     return;
   }
+  // closed for maintenance: only the page that says so (signing in stays possible)
+  if (state.site.maintenance?.mode === 'closed' && !isAdmin() && !location.pathname.startsWith('/login')) {
+    closedPage(app);
+    return;
+  }
   document.documentElement.dataset.site = state.site.name;
   // explanations are shown or hidden for the person, on every page
   watchHelp();
@@ -173,6 +179,8 @@ async function boot(): Promise<void> {
   };
   let layout = build();
   showPositionsMode();
+  const maint = maintenanceBar();
+  if (maint) document.body.prepend(maint);
   // a template tried only in this browser: a bar says so and ends it
   if (!previewTemplate() && triedTemplate() && triedTemplate() !== state.site.template) document.body.prepend(tryBar(triedTemplate()));
   // Categories may have their own template: after the page is rendered, the

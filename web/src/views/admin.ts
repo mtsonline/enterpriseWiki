@@ -6,6 +6,7 @@ import { webhooksAdmin } from './adminWebhooks';
 import { licenseAdmin, licenseNotice, type LicenseStatus } from './adminLicense';
 import { limitsAdmin } from './adminLimits';
 import { dataAdmin } from './adminData';
+import { maintenanceAdmin } from './adminMaintenance';
 import { loginPageAdmin } from './adminLogin';
 import { databaseFacts, databaseNotice, type DatabaseStatus } from './adminDatabase';
 import { categorySelect, elementSelect } from '../components/pickers';
@@ -33,7 +34,7 @@ import { askExternal, confirmInstall, isExternalRefusal, originBadge, originDeta
 
 interface User { id: number; username: string; provider: string; handle: string; display_name: string; email: string; language: string; disabled: boolean; locked_until: string | null; created_at: string; last_login_at: string | null; groups: number[]; roles: number[]; alias: string | null; alias_source: string; mfa: boolean }
 
-const CORE_SECTIONS = ['users', 'scim', 'mfa', 'groups', 'roles', 'permissions', 'elements', 'plugins', 'updates', 'settings', 'limits', 'data', 'mail', 'webhooks', 'cache', 'languages', 'audit', 'watches', 'license', 'sites', 'demo'];
+const CORE_SECTIONS = ['users', 'scim', 'mfa', 'groups', 'roles', 'permissions', 'elements', 'plugins', 'updates', 'settings', 'limits', 'data', 'mail', 'webhooks', 'cache', 'languages', 'audit', 'watches', 'license', 'sites', 'maintenance', 'demo'];
 
 /** global permission of each administration page ('' = category managers too) */
 const SECTION_PERMS: Record<string, string> = {
@@ -49,7 +50,7 @@ export function adminSections(): { id: string; label: string }[] {
     const k = SECTION_PERMS[s];
     if (s === 'languages') return canTranslateAny();
     if (s === 'sites') return isInstanceAdmin();
-    if (s === 'demo') return isAdmin();
+    if (s === 'demo' || s === 'maintenance') return isAdmin();
     // license and plugin installation concern the whole instance
     if (s === 'scim') return hasPerm(k) && (state.site.site === 'main' || isInstanceAdmin());
     if (s === 'license' || s === 'updates') return hasPerm(k) && (state.site.site === 'main' || isInstanceAdmin());
@@ -110,6 +111,7 @@ export async function adminView({ params, query, main }: RouteCtx): Promise<void
       case 'limits': await limitsAdmin(panel); break;
       case 'data': await dataAdmin(panel); break;
       case 'sites': await sitesAdmin(panel); break;
+      case 'maintenance': await maintenanceAdmin(panel); break;
       case 'demo': await demoAdmin(panel); break;
       default: {
         const p = listAdminPages().find((x) => x.id === section);

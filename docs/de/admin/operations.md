@@ -260,6 +260,12 @@ ewiki demo remove
 ewiki demo reset-site --as admin --confirm "Enterprise Wiki"
 ```
 
+## Wartungsmodus
+
+Für Arbeiten am Server – zum Beispiel einen Umzug – stellt die Administration das Wiki unter *Administration → Wartung* auf **nur lesen** oder **geschlossen** (oder mit `ewiki maintenance set`, siehe [configuration.md](configuration.md#maintenance)). Nur lesen: Alle lesen, nur die Administration ändert, ein Balken auf jeder Seite sagt das mit Ihrem Hinweis und dem erwarteten Ende. Geschlossen: Andere sehen nur diesen Hinweis und den Weg zur Anmeldung. Hintergrundaufgaben warten in der Vorgabe, damit eine jetzt gezogene Kopie der Datenbank vollständig ist und nach dem Umzug keine E-Mail doppelt sendet. Der Modus endet nicht von selbst: Schalten Sie ihn aus, wenn Sie fertig sind.
+
+Umzug des Servers: „nur lesen“ einschalten, Datenbank und Datenverzeichnis kopieren, den neuen Server starten (weiter „nur lesen“, die Einstellung zieht mit der Konfiguration um), prüfen, die Adresse auf ihn zeigen lassen, die Wartung ausschalten.
+
 ## Wartungsaufgaben
 
 Stündlich läuft automatisch (im Cluster nur auf einer Instanz):

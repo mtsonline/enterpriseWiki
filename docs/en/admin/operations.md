@@ -260,6 +260,12 @@ ewiki demo remove
 ewiki demo reset-site --as admin --confirm "Enterprise Wiki"
 ```
 
+## Maintenance mode
+
+For work on the server – for example moving it – administrators set the wiki to **read-only** or **closed** under *Administration → Maintenance* (or `ewiki maintenance set`, see [configuration.md](configuration.md#maintenance)). Read-only: everybody reads, only administrators change, a bar on every page says so with your message and the expected end. Closed: others see only that message and the way to sign in. Background jobs wait by default, so a copy of the database taken now is complete and sends no e-mail twice after the move. The mode does not end by itself: switch it off when done.
+
+Moving the server: switch on read-only, copy database and data directory, start the new server (still read-only, the setting moves with the configuration), check it, point the address to it, switch maintenance off.
+
 ## Maintenance tasks
 
 Every hour the following runs automatically (in a cluster only on one instance):

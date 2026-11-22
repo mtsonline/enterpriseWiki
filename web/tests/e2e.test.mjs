@@ -4580,6 +4580,52 @@ test('theme blocks B: own text for "page not found", reading progress', async ()
   errors.splice(logged, errors.length - logged, ...errors.slice(logged).filter((e) => !/status of 404/.test(e)));
 });
 
+test('maintenance: read-only with a message, then closed; administrators keep working, guests see why', async () => {
+  const logged = errors.length;
+  const cat = await m6Category();
+  await call('POST', `/api/v1/categories/${cat}/acl`, { subject_type: 'guest', permissions: 1, inherit: false });
+  const pg = await call('POST', '/api/v1/elements', { category_id: cat, type: 'core.html', title: `Moving ${run}`, body: { format: 'html', source: '<p>Lynx and okapi</p>' } });
+  await page.goto(`${BASE}/admin/maintenance`);
+  await idle();
+  await page.getByLabel(/^(mode|modus)/i).selectOption('read_only');
+  await page.getByLabel(/^(message|hinweis) \((english|englisch)\)/i).fill(`Moving the server ${run}.`);
+  await a11y('maintenance settings');
+  const saved = page.waitForResponse((r) => r.url().endsWith('/api/v1/admin/maintenance') && r.request().method() === 'PUT');
+  await page.getByRole('button', { name: /^(save|speichern)$/i }).click();
+  assert.equal((await saved).status(), 200);
+  await page.waitForLoadState('load');
+  await idle();
+  // the administrator: a bar, and changes still work
+  await page.getByRole('region', { name: /^(maintenance|wartung)$/i }).getByText(/as an administrator you can still change|als administrator können sie weiterhin/i).waitFor();
+  await call('PUT', `/api/v1/elements/${pg.id}`, { lang: 'en', title: `Moving ${run}`, body: { format: 'html', source: '<p>Lynx and okapi, checked</p>' } });
+  // a guest reads, sees the message, and cannot change anything
+  const ctx = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+  const guest = await ctx.newPage();
+  await guest.goto(`${BASE}/e/${pg.id}`);
+  await guest.getByRole('region', { name: /^(maintenance|wartung)$/i }).getByText(`Moving the server ${run}.`).waitFor();
+  await guest.locator('main').getByText('Lynx and okapi, checked').waitFor();
+  await a11y('read-only for maintenance (guest)', guest);
+  // closed: guests see only the page that says so, with the way to sign in
+  const m = await call('GET', '/api/v1/admin/maintenance');
+  await call('PUT', '/api/v1/admin/maintenance', { ...m, mode: 'closed' });
+  await guest.goto(`${BASE}/e/${pg.id}`);
+  await guest.getByRole('heading', { level: 1, name: /^(maintenance|wartung)$/i }).waitFor();
+  await guest.getByText(`Moving the server ${run}.`).waitFor();
+  assert.equal(await guest.getByText('Lynx and okapi').count(), 0);
+  await guest.getByRole('link', { name: /^(sign in \(administrators\)|anmelden \(administration\))$/i }).waitFor();
+  await a11y('closed for maintenance (guest)', guest);
+  await ctx.close();
+  // off again
+  await page.goto(`${BASE}/admin/maintenance`);
+  await idle();
+  await page.getByLabel(/^(mode|modus)/i).selectOption('');
+  const off = page.waitForResponse((r) => r.url().endsWith('/api/v1/admin/maintenance') && r.request().method() === 'PUT');
+  await page.getByRole('button', { name: /^(save|speichern)$/i }).click();
+  assert.equal((await off).status(), 200);
+  assert.equal((await call('GET', '/api/v1/admin/maintenance')).mode, '');
+  errors.splice(logged, errors.length - logged, ...errors.slice(logged).filter((e) => !/status of 503/.test(e)));
+});
+
 test('menu item pointing to an existing element; new blog from the menu dialog', async () => {
   const cat = await m6Category();
   await call('POST', '/api/v1/elements', { category_id: cat, type: 'core.html', title: `Pickable ${run}`, body: { format: 'html', source: '<p>x</p>' } });

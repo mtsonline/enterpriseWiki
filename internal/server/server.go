@@ -18,6 +18,7 @@ import (
 	"github.com/mtsonline/enterprisewiki/internal/auth"
 	"github.com/mtsonline/enterprisewiki/internal/collab"
 	h "github.com/mtsonline/enterprisewiki/internal/httpx"
+	"github.com/mtsonline/enterprisewiki/internal/config"
 	"github.com/mtsonline/enterprisewiki/internal/identity"
 	"github.com/mtsonline/enterprisewiki/internal/limits"
 	"github.com/mtsonline/enterprisewiki/internal/pluginmgr"
@@ -125,8 +126,11 @@ func (s *Server) serveFrontend(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
+	// closed for maintenance: the plain application, which says so (no
+	// content, not even whether a page exists)
+	closed := s.app.Config.Get().Maintenance.Mode == config.MaintenanceClosed && !identity.From(r.Context()).Admin()
 	// former readable paths and short URLs: permanent redirect to the current address
-	if p != "" && !reservedPaths[strings.SplitN(p, "/", 2)[0]] && !strings.Contains(p, ".") {
+	if p != "" && !closed && !reservedPaths[strings.SplitN(p, "/", 2)[0]] && !strings.Contains(p, ".") {
 		if res, err := s.app.Content.Resolve(r.Context(), p); err == nil && res.Redirect && res.Path != "" && res.Path != "/"+p {
 			target := res.Path
 			if r.URL.RawQuery != "" {
@@ -143,7 +147,7 @@ func (s *Server) serveFrontend(w http.ResponseWriter, r *http.Request) {
 	}
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.Header().Set("Cache-Control", "no-cache")
-	if identity.From(r.Context()) == nil {
+	if identity.From(r.Context()) == nil && !closed {
 		// guests: the content as plain HTML (search engines, no JavaScript)
 		if c := s.app.Config.Get(); c.UI.Prerender {
 			if p := s.prerenderCached(r); p != nil {

@@ -42,6 +42,9 @@ type Registry struct {
 	Site string
 	// Scope of the app (see identity.Scope), carried by the contexts of jobs
 	Scope identity.Scope
+	// Paused: the jobs wait (maintenance mode); running a job by hand still
+	// works
+	Paused func() bool
 }
 
 // New creates a registry.
@@ -165,8 +168,11 @@ func (r *Registry) Start(ctx context.Context) {
 			t := time.NewTicker(j.Interval)
 			defer t.Stop()
 			for {
-				if err := r.RunOnce(ctx, j.Name); err != nil && ctx.Err() == nil {
-					r.log.Error("background job failed", "job", j.Name, "err", err)
+				// while paused nothing runs; checked again at the next tick
+				if r.Paused == nil || !r.Paused() {
+					if err := r.RunOnce(ctx, j.Name); err != nil && ctx.Err() == nil {
+						r.log.Error("background job failed", "job", j.Name, "err", err)
+					}
 				}
 				select {
 				case <-ctx.Done():

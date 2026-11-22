@@ -1108,3 +1108,46 @@ actions:
         path_params_json: '{"id": "ldap"}'
         body_json: '{"username": "preview-${unique}", "email": "preview-${unique}@example.com", "groups": ["engineering"]}'
         expect_json: '{"provider": "ldap"}'
+  - id: core.maintenance.get
+    category: CATEGORY_ACTION
+    method: GET
+    path: /api/v1/admin/maintenance
+    success_status: 200
+    summary:
+      text:
+        en: Show the maintenance mode (read-only or closed for everyone but administrators)
+        de: "Wartungsmodus anzeigen (nur lesen oder geschlossen für alle außer der Administration)"
+    permission: {key: core.admin, scope: SCOPE_GLOBAL}
+    cli: {command: [maintenance, show]}
+    ui: {entry: /admin/maintenance}
+    examples:
+      - name: default
+        as: admin
+      - name: member
+        as: member
+        status: 403
+  - id: core.maintenance.set
+    category: CATEGORY_ACTION
+    method: PUT
+    path: /api/v1/admin/maintenance
+    success_status: 200
+    summary:
+      text:
+        en: "Switch the maintenance mode on (mode read_only or closed, message per language, expected end) or off (mode empty)"
+        de: "Wartungsmodus einschalten (mode read_only oder closed, Text je Sprache, erwartetes Ende) oder ausschalten (mode leer)"
+    permission: {key: core.admin, scope: SCOPE_GLOBAL}
+    safety: {changes: true}
+    cli: {command: [maintenance, set]}
+    ui: {entry: /admin/maintenance}
+    examples:
+      - name: default
+        as: admin
+        body_json: '{"mode": "", "message": {"en": "Back soon."}}'
+      - name: member
+        as: member
+        body_json: '{"mode": "closed"}'
+        status: 403
+      - name: invalid_mode
+        as: admin
+        body_json: '{"mode": "later"}'
+        status: 400

@@ -292,6 +292,18 @@ Formate: **Teams** (Adaptive Card; in Teams einen Workflow „Bei Empfang einer 
 
 Kopfzeilen: `X-Ewiki-Event`, `X-Ewiki-Delivery` und mit Signaturschlüssel `X-Ewiki-Signature: sha256=<HMAC-SHA256 des Inhalts>`. Ereignisse: `element.create|update|delete|move|restore|rollback`, `category.create|update|delete|move|restore`, `event.registration`, `event.registration_cancelled`, `event.occurrence_changed` (Daten: `occurrence`, `start`, `when`, `calendar`, `location`, `status`, `participant`), `comment.create` (Daten: `author`, `excerpt`, `reply`, `element_id`), `workflow.started`, `workflow.completed`, `workflow.cancelled` (Daten: `workflow`, `status`, `outcome`, `step`). Zustellungen laufen über eine Warteschlange; bei Fehlern wird nach 1, 5, 30 Minuten, 2 und 12 Stunden erneut versucht. Ziele im internen Netz sind ohne `allow_private` gesperrt (Schutz vor SSRF), Umleitungen nur innerhalb der Webhook-Adresse.
 
+### `maintenance`
+Der Wartungsmodus: Alle außer der Administration können das Wiki nur lesen (`read_only`) oder gar nicht nutzen (`closed`). Geschaltet unter *Administration → Wartung*, mit `ewiki maintenance set` oder `PUT /api/v1/admin/maintenance` (nur Administratoren, im Audit-Protokoll).
+
+| Schlüssel | Bedeutung | Vorgabe |
+|---|---|---|
+| `mode` | leer (aus), `read_only` oder `closed` | leer |
+| `message` | der Text je Sprache (reiner Text, höchstens 2.000 Zeichen) | Standardtext |
+| `until` | das erwartete Ende (RFC 3339); wird nur angezeigt, der Modus endet nicht von selbst | leer |
+| `run_jobs` | Hintergrundaufgaben laufen während der Wartung weiter; ohne diese Wahl warten sie, damit sich die Datenbank nicht ändert | `false` |
+
+„Nur lesen“ eignet sich für den Umzug des Servers: Das Wiki bleibt erreichbar, während die Daten kopiert werden, und nichts ändert sich mehr. Der Server lehnt jede Änderung anderer mit Status 503 ab (Code `maintenance`, mit `Retry-After`): Seiten, Dateien, Kommentare, Einstellungen, Live-Bearbeitung, SCIM, Dokumente der Office-Programme. Anmelden und Abmelden gehen immer, damit die Administration hineinkommt; Sitzungen werden weiter gespeichert. Ist das Wiki geschlossen, bekommen andere nur, was die Seite braucht, um das zu sagen und die Anmeldung zu zeigen; Gäste bekommen keinen Inhalt, auch nicht im einfachen HTML für Suchmaschinen.
+
 ### `plugin_settings`
 Frei strukturierte Einstellungen je Plugin, z. B.
 

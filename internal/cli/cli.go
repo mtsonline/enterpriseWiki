@@ -378,6 +378,9 @@ func (e *env) jobs(ctx context.Context, a *app.App) {
 	t := time.NewTicker(time.Hour)
 	defer t.Stop()
 	run := func() {
+		if a.Workers.Paused != nil && a.Workers.Paused() {
+			return // maintenance: nothing is cleaned up or deleted now
+		}
 		jctx := identity.WithScope(identity.WithSite(identity.With(ctx, identity.CLI()), a.Site), a.Scope)
 		if a.Config.Get().Mode == "cluster" {
 			conn, err := a.DB.Acquire(jctx)
