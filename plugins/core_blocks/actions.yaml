@@ -7,75 +7,28 @@ actions:
     success_status: 200
     summary:
       text:
-        en: List the blocks shown to you (all=1 with their sources needs core.blocks.edit)
-        de: Blöcke auflisten, die Sie sehen (all=1 mit Quelltext braucht core.blocks.edit)
+        en: List the blocks you may see (to place them)
+        de: Bausteine auflisten, die Sie sehen dürfen (zum Platzieren)
     public: true
     cli: {command: [block, list]}
-    ui: {entry: /admin/blocks}
+    ui: {entry: /admin/placement}
     examples:
       - name: default
-        given: ['core.blocks.create#default']
-        as: guest
-      - name: all
-        given: ['core.blocks.create#default']
-        query_json: '{"all": "1"}'
-      - name: all_refused
-        as: outsider
-        query_json: '{"all": "1"}'
-        status: 403
-  - id: core.blocks.create
+        given: ['core.elements.create#block']
+  - id: core.blocks.placements
     category: CATEGORY_ACTION
-    method: POST
-    path: blocks
-    success_status: 201
-    summary:
-      text:
-        en: Create a block
-        de: Block anlegen
-    permission: {key: core.blocks.edit, scope: SCOPE_GLOBAL}
-    safety: {changes: true}
-    cli: {command: [block, create]}
-    ui: {entry: /admin/blocks}
-    examples:
-      - name: default
-        as: member
-        body_json: '{"name": "Notice ${unique}", "location": "sidebar", "position": 1, "audience": "all", "enabled": true, "titles": {"en": "Notice"}, "bodies": {"en": {"format": "html", "source": "<p>Office closed on Friday.</p>"}}}'
-        status: 201
-  - id: core.blocks.update
-    category: CATEGORY_ACTION
-    method: PUT
-    path: "blocks/{id}"
+    method: GET
+    path: "blocks/{id}/placements"
     success_status: 200
     summary:
       text:
-        en: Change a block
-        de: Block ändern
-    permission: {key: core.blocks.edit, scope: SCOPE_GLOBAL}
-    safety: {changes: true}
-    cli: {command: [block, update], args: [id]}
-    ui: {entry: /admin/blocks}
+        en: Where a block is shown (for those who may edit it)
+        de: Wo ein Baustein erscheint (für alle, die ihn bearbeiten dürfen)
+    permission: {key: core.category.edit, scope: SCOPE_CATEGORY, category_param: "element:id"}
+    cli: {command: [block, placements], args: [id]}
+    ui: {entry: /e/:id}
     examples:
       - name: default
-        given: ['core.blocks.create#default']
+        given: ['core.elements.create#block']
         as: member
-        path_params_json: '{"id": "${given.core.blocks.create#default.id}"}'
-        body_json: '{"name": "Notice ${unique}", "location": "sidebar", "position": 2, "audience": "users", "enabled": false, "titles": {"en": "Changed"}, "bodies": {"en": {"format": "html", "source": "<p>Changed.</p>"}}}'
-  - id: core.blocks.delete
-    category: CATEGORY_ACTION
-    method: DELETE
-    path: "blocks/{id}"
-    success_status: 204
-    summary:
-      text:
-        en: Delete a block
-        de: Block löschen
-    permission: {key: core.blocks.edit, scope: SCOPE_GLOBAL}
-    safety: {changes: true}
-    cli: {command: [block, delete], args: [id]}
-    ui: {entry: /admin/blocks}
-    examples:
-      - name: default
-        given: ['core.blocks.create#default']
-        as: member
-        path_params_json: '{"id": "${given.core.blocks.create#default.id}"}'
-        status: 204
+        path_params_json: '{"id": ${given.core.elements.create#block.id}}'

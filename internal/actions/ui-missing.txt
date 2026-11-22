@@ -19,8 +19,6 @@ core.audit.export
 core.audit.forward_test
 core.audit.settings.get
 core.audit.settings.update
-core.blocks.delete
-core.blocks.update
 core.categories.export
 core.categories.import
 core.comments.delete

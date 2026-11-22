@@ -552,6 +552,7 @@ CREATE TABLE placements (
     updated_at timestamptz NOT NULL DEFAULT now()
 );
 CREATE INDEX placements_target ON placements(level, target);
+CREATE INDEX placements_block ON placements(block);
 
 -- who may view a page is part of external search indexes (viewers): a
 -- changed rule sends the pages of the category and everything below again

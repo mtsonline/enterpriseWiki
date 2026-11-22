@@ -1992,18 +1992,28 @@ test('menus, blocks and positions', async () => {
   await dlg.locator('button[type=submit]').last().click();
   await page.waitForSelector(`.ew-pos--sidebar-bottom a:has-text("Item ${run}")`);
   await a11y('menu administration');
-  // block in the footer
-  await page.goto(BASE + '/admin/blocks');
+  // a block: an element of the type Block, placed from its own page
+  const bcat = await call('POST', '/api/v1/categories', { titles: { en: `Blocks ${run}` } });
+  const blk = await call('POST', '/api/v1/elements', { category_id: bcat.id, type: 'core.block', title: `Contact ${run}`, body: { format: 'html', source: `<p><strong>Contact</strong> block${run}</p>` } });
+  assert.equal(blk.hidden, true, 'a block is never listed');
+  await page.goto(BASE + `/e/${blk.id}`);
   await idle();
-  await page.getByRole('button', { name: /^(add block|block hinzufügen)$/i }).click();
+  const where = page.locator('.ewb-where');
+  await where.getByText(/not placed yet|noch nicht platziert/i).waitFor();
+  await where.getByRole('button', { name: /^(place the block|baustein platzieren)$/i }).click();
   dlg = page.locator('dialog[open]');
   await dlg.waitFor();
-  await dlg.getByLabel(/^name/i).fill(`Contact ${run}`);
-  await dlg.locator('select').first().selectOption('footer');
-  await dlg.locator('textarea').first().fill(`**Contact** block${run}`);
-  await a11y('block dialog');
+  await dlg.getByLabel(/^position$/i).selectOption('footer');
+  await a11y('place block dialog');
   await dlg.locator('button[type=submit]').click();
-  await page.waitForSelector(`.ew-pos--footer strong:has-text("Contact")`);
+  await where.locator('li').first().waitFor();
+  await a11y('where a block is shown');
+  await page.goto(BASE + `/c/${bcat.id}`);
+  await idle();
+  await page.waitForSelector(`.ew-pos--footer .ewb-block:has-text("block${run}")`);
+  // the blocks are offered in the placement of the administration
+  await page.goto(BASE + '/admin/placement');
+  await idle();
   // position preview
   await page.goto(BASE + '/?positions=1');
   await idle();

@@ -1,252 +1,138 @@
-// Package core_blocks provides content blocks at template positions: text in
-// Markdown or HTML (sanitized like pages, macros allowed) per language, shown
-// to everyone, only to guests or only to signed-in users.
+// Package core_blocks provides blocks at template positions as elements:
+// an element of the type core.block lives in a category (with its
+// permissions, versions, drafts and translations), is never listed and is
+// shown wherever it is placed ("core.blocks/<element id>").
 package core_blocks
 
 import (
 	"context"
 	"embed"
 	_ "embed"
-	"errors"
+	"encoding/json"
 	"fmt"
 	"io/fs"
 	"net/http"
-	"regexp"
-	"strings"
-	"time"
-	"unicode/utf8"
-
-	"github.com/jackc/pgx/v5"
+	"slices"
 
 	"github.com/mtsonline/enterprisewiki/internal/apperr"
-	"github.com/mtsonline/enterprisewiki/internal/audit"
 	"github.com/mtsonline/enterprisewiki/internal/content"
 	"github.com/mtsonline/enterprisewiki/internal/coreplugin"
-	"github.com/mtsonline/enterprisewiki/internal/db"
 	h "github.com/mtsonline/enterprisewiki/internal/httpx"
-	"github.com/mtsonline/enterprisewiki/internal/identity"
+	"github.com/mtsonline/enterprisewiki/internal/limits"
 	"github.com/mtsonline/enterprisewiki/internal/perm"
-	"github.com/mtsonline/enterprisewiki/plugins/core_html"
+	core_html "github.com/mtsonline/enterprisewiki/plugins/core_html"
 )
 
 //go:embed plugin.json
 var manifest []byte
 
-//go:embed migrations/*.sql
-var migrations embed.FS
-
 //go:embed locales/*.json
 var locales embed.FS
 
+// TypeID is the element type of blocks.
+const TypeID = "core.block"
+
+// BlockPrefix: a block element is placed as BlockPrefix + its id.
+const BlockPrefix = content.ElementBlockPrefix
+
+// EditPerm may change blocks shown on the whole site (placed on the level
+// template or site): content on every page is the administration's.
+const EditPerm = "core.blocks.edit"
+
 // Plugin is the blocks plugin.
-type Plugin struct{}
+type Plugin struct{ host *coreplugin.Host }
 
 func init() { coreplugin.Register(&Plugin{}) }
 
 // Manifest implements coreplugin.Plugin.
 func (p *Plugin) Manifest() coreplugin.Manifest { return coreplugin.ParseManifest(manifest) }
 
-// Migrations implements coreplugin.MigrationsPlugin.
-func (p *Plugin) Migrations() fs.FS { s, _ := fs.Sub(migrations, "migrations"); return s }
-
 // Locales implements coreplugin.LocalesPlugin.
 func (p *Plugin) Locales() fs.FS { s, _ := fs.Sub(locales, "locales"); return s }
 
-// Block is a stored block.
-type Block struct {
-	ID       int64                     `json:"id"`
-	Name     string                    `json:"name"`
-	Location string                    `json:"location"`
-	Position int                       `json:"position"`
-	Audience string                    `json:"audience"`
-	Enabled  bool                      `json:"enabled"`
-	Titles   map[string]string         `json:"titles"`
-	Bodies   map[string]core_html.Body `json:"bodies"`
-	Updated  time.Time                 `json:"updated_at"`
+// Type is the element type core.block: the content of a page (core.html),
+// never listed, with a rule for blocks shown on the whole site.
+type Type struct {
+	core_html.Type
+	p *Plugin
 }
 
-// Rendered is a block as shown to a visitor.
-type Rendered struct {
-	ID       int64  `json:"id"`
-	Name     string `json:"name"`
-	Location string `json:"location"`
-	Position int    `json:"position"`
-	Title    string `json:"title"`
-	Lang     string `json:"lang"`
-	HTML     string `json:"html"`
-}
+// TypeID implements content.ElementType.
+func (t *Type) TypeID() string { return TypeID }
 
-var locRe = regexp.MustCompile(`^[a-z][a-z0-9_-]{0,40}$`)
+// Labels implements content.ElementType.
+func (t *Type) Labels() map[string]string { return map[string]string{"en": "Block", "de": "Baustein"} }
 
-func (b *Block) validate(langs []string) error {
-	b.Name = strings.TrimSpace(b.Name)
-	if b.Name == "" || utf8.RuneCountInString(b.Name) > 200 {
-		return apperr.BadRequest("a name (max. 200 characters) is required")
+// Unlisted implements content.Unlisted: blocks are shown where they are
+// placed, not in listings, sources, feeds or the search.
+func (t *Type) Unlisted() bool { return true }
+
+// CheckCreate implements content.Guard (the permissions of the category
+// suffice to create a block; placing it is checked by the placement).
+func (t *Type) CheckCreate(context.Context, *content.Service, int64) error { return nil }
+
+// CheckChange implements content.Guard: a block placed on the level
+// template, site or element type is content on every page (of a type); only who may edit blocks
+// (core.blocks.edit) changes, moves or deletes it.
+func (t *Type) CheckChange(ctx context.Context, svc *content.Service, el *content.Element, _, _ json.RawMessage) error {
+	site, err := svc.PlacedSiteWide(ctx, BlockPrefix+fmt.Sprint(el.ID))
+	if err != nil {
+		return err
 	}
-	if !locRe.MatchString(b.Location) {
-		return apperr.BadRequest("invalid position %q", b.Location)
+	if site && !perm.Has(ctx, EditPerm) {
+		return apperr.Forbidden("this block is shown on the whole site: changing it needs the permission %q", EditPerm)
 	}
-	if b.Audience == "" {
-		b.Audience = "all"
-	}
-	if b.Audience != "all" && b.Audience != "users" && b.Audience != "guests" {
-		return apperr.BadRequest("audience must be all, users or guests")
-	}
-	ok := map[string]bool{}
-	for _, l := range langs {
-		ok[l] = true
-	}
-	titles := map[string]string{}
-	for l, v := range b.Titles {
-		if v = strings.TrimSpace(v); v != "" && ok[l] {
-			if utf8.RuneCountInString(v) > 200 {
-				return apperr.BadRequest("titles have at most 200 characters")
-			}
-			titles[l] = v
-		}
-	}
-	bodies := map[string]core_html.Body{}
-	for l, v := range b.Bodies {
-		if !ok[l] || strings.TrimSpace(v.Source) == "" {
-			continue
-		}
-		if v.Format != "html" {
-			v.Format = "markdown"
-		}
-		if len(v.Source) > 200000 {
-			return apperr.BadRequest("a block may have at most 200 KB per language")
-		}
-		bodies[l] = v
-	}
-	if len(bodies) == 0 {
-		return apperr.BadRequest("enter the content of the block in at least one language")
-	}
-	b.Titles, b.Bodies = titles, bodies
 	return nil
 }
 
-func list(ctx context.Context, q *coreplugin.Host) ([]Block, error) {
-	rows, err := q.DB.Query(ctx, `SELECT id, name, location, position, audience, enabled, titles, bodies, updated_at FROM plugin_blocks ORDER BY location, position, id`)
-	if err != nil {
-		return nil, err
-	}
-	return pgx.CollectRows(rows, pgx.RowToStructByPos[Block])
+// Listed is a block element for the placement (its id and title).
+type Listed struct {
+	ID         int64  `json:"id"`
+	Title      string `json:"title"`
+	CategoryID int64  `json:"category_id"`
 }
 
-// Setup registers the API.
+// Setup registers the element type and the API.
 func (p *Plugin) Setup(host *coreplugin.Host) error {
-	// GET /blocks?lang=de lists the blocks for the caller, rendered
-	// (?all=1: all blocks with their sources, administrators only).
+	p.host = host
+	host.RegisterElementType(&Type{p: p})
+	// GET /blocks?lang=de lists the blocks the caller may see (id, title,
+	// category): the blocks the placement offers. At most the expert
+	// setting of the list limit.
 	// action: core.blocks.list
 	host.Handle("GET", "/blocks", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		ctx := r.Context()
-		bs, err := list(ctx, host)
+		max := limits.Value(host.Config.Get(), "core.blocks.list")
+		els, err := host.Content.ElementsOfType(ctx, TypeID, r.URL.Query().Get("lang"), int(max))
 		if err != nil {
 			return nil, err
 		}
-		if r.URL.Query().Get("all") == "1" {
-			if err := perm.Require(r.Context(), "core.blocks.edit"); err != nil {
-				return nil, err
-			}
-			return bs, nil
-		}
-		me := identity.From(ctx)
-		lang := r.URL.Query().Get("lang")
-		def := host.Config.Get().I18n.DefaultLanguage
-		out := []Rendered{}
-		for _, b := range bs {
-			if !b.Enabled || (b.Audience == "users" && me == nil) || (b.Audience == "guests" && me != nil) {
-				continue
-			}
-			shown := lang
-			body, ok := b.Bodies[lang]
-			if !ok {
-				shown = def
-				if body, ok = b.Bodies[def]; !ok {
-					for l, v := range b.Bodies {
-						shown, body = l, v
-						break
-					}
-				}
-			}
-			title := b.Titles[shown]
-			if t, ok := b.Titles[lang]; ok {
-				title = t
-			}
-			html := core_html.ToHTML(&body)
-			html = host.Content.RenderMacros(ctx, content.RenderContext{Lang: shown, Principal: me, Service: host.Content}, html)
-			out = append(out, Rendered{ID: b.ID, Name: b.Name, Location: b.Location, Position: b.Position, Title: title, Lang: shown, HTML: html})
+		out := make([]Listed, 0, len(els))
+		for _, e := range els {
+			out = append(out, Listed{ID: e.ID, Title: e.Title, CategoryID: e.CategoryID})
 		}
 		return out, nil
 	})
-	save := func(w http.ResponseWriter, r *http.Request) (any, error) {
-		if err := perm.Require(r.Context(), "core.blocks.edit"); err != nil {
-			return nil, err
-		}
-		var in Block
-		if err := h.Decode(r, &in); err != nil {
-			return nil, err
-		}
-		if err := in.validate(host.Config.Get().I18n.Languages); err != nil {
-			return nil, err
-		}
-		ctx := r.Context()
-		if id := r.PathValue("id"); id != "" {
-			bid, err := h.PathID(r, "id")
-			if err != nil {
-				return nil, err
-			}
-			tag, err := host.DB.Exec(ctx, `UPDATE plugin_blocks SET name=$2, location=$3, position=$4, audience=$5, enabled=$6, titles=$7, bodies=$8, updated_at=now() WHERE id=$1`,
-				bid, in.Name, in.Location, in.Position, in.Audience, in.Enabled, in.Titles, in.Bodies)
-			if err != nil {
-				return nil, err
-			}
-			if tag.RowsAffected() == 0 {
-				return nil, apperr.NotFound("block")
-			}
-			in.ID = bid
-			_ = audit.Log(ctx, host.DB, "block.update", "block", bid, nil, in)
-			return in, nil
-		}
-		if err := host.DB.QueryRow(ctx, `INSERT INTO plugin_blocks(name, location, position, audience, enabled, titles, bodies) VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING id`,
-			in.Name, in.Location, in.Position, in.Audience, in.Enabled, in.Titles, in.Bodies).Scan(&in.ID); err != nil {
-			return nil, err
-		}
-		_ = audit.Log(ctx, host.DB, "block.create", "block", in.ID, nil, in)
-		return h.Created{V: in}, nil
-	}
-	// action: core.blocks.create
-	host.Handle("POST", "/blocks", save)
-	// action: core.blocks.update
-	host.Handle("PUT", "/blocks/{id}", save)
-	// action: core.blocks.delete
-	host.Handle("DELETE", "/blocks/{id}", func(w http.ResponseWriter, r *http.Request) (any, error) {
-		if err := perm.Require(r.Context(), "core.blocks.edit"); err != nil {
-			return nil, err
-		}
+	// GET /blocks/{id}/placements: where a block is shown (the levels and
+	// positions), for those who may edit it.
+	// action: core.blocks.placements
+	host.Handle("GET", "/blocks/{id}/placements", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		id, err := h.PathID(r, "id")
 		if err != nil {
 			return nil, err
 		}
-		var b Block
-		// the block, its placements and the audit entry together
-		err = db.Tx(r.Context(), host.DB, func(tx pgx.Tx) error {
-			err := tx.QueryRow(r.Context(), `DELETE FROM plugin_blocks WHERE id=$1 RETURNING name, location, titles, bodies`, id).Scan(&b.Name, &b.Location, &b.Titles, &b.Bodies)
-			if errors.Is(err, pgx.ErrNoRows) {
-				return apperr.NotFound("block")
-			}
-			if err != nil {
-				return err
-			}
-			if err := content.RemovePlacementsTx(r.Context(), tx, fmt.Sprintf("core.blocks/%d", id)); err != nil {
-				return err
-			}
-			return audit.Log(r.Context(), tx, "block.delete", "block", id, b, nil)
-		})
+		ctx := r.Context()
+		el, err := host.Content.GetElement(ctx, id, "", false)
 		if err != nil {
 			return nil, err
 		}
-		return h.NoContent{}, nil
+		if el.Type != TypeID {
+			return nil, apperr.NotFound("block")
+		}
+		if !slices.Contains(el.Permissions, "edit") {
+			return nil, apperr.Forbidden("only who may edit the block sees where it is shown")
+		}
+		return host.Content.PlacementsOfBlock(ctx, BlockPrefix+fmt.Sprint(id))
 	})
 	return nil
 }

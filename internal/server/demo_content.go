@@ -1023,18 +1023,23 @@ func buildDemo(d *demoRun) {
 				"Navigation im Kopfbereich (<code>header-nav</code>), auf jeder Seite, für alle, die die Seiten sehen dürfen", "Administration → <em>Menüs</em>"),
 		})
 	})
-	bodies := map[string]any{}
-	for l, t := range d.tr("<p><strong>Demo contact</strong><br>Anna Berger · +43 1 234 56 70</p>", "<p><strong>Demo-Kontakt</strong><br>Anna Berger · +43 1 234 56 70</p>") {
-		bodies[l] = htmlBodyOf(t)
-	}
 	d.optional("block", func() {
-		d.create("block", "/api/v1/x/core.blocks/blocks", map[string]any{"name": "Demo", "location": "sidebar", "position": 90, "audience": "users", "enabled": true,
-			"titles": d.tr("Contact", "Kontakt"), "bodies": bodies})
+		// a block is an element of the type core.block, placed for the demo
+		// area (the category and its subcategories): it goes with the demo
+		bodies := map[string]any{}
+		for l, t := range d.tr("<p><strong>Demo contact</strong><br>Anna Berger · +43 1 234 56 70</p>", "<p><strong>Demo-Kontakt</strong><br>Anna Berger · +43 1 234 56 70</p>") {
+			bodies[l] = htmlBodyOf(t)
+		}
+		blk := d.element(root, "core.block", d.tr("Contact", "Kontakt"), bodies, nil)
+		d.call(http.MethodPut, fmt.Sprintf("/api/v1/placements/category?target=%d", root), map[string]any{"placements": []map[string]any{
+			{"block": fmt.Sprintf("core.blocks/%d", blk), "position": "sidebar", "sort": 90}}}, nil)
 		where = append(where, whereNote{
-			en: whereText("en", "Block “Contact”", "a fixed text with the contact of the demo",
-				"Side column (<code>sidebar</code>), below the tree of categories, on every page, only for signed-in people", "Administration → <em>Blocks</em>"),
-			de: whereText("de", "Block „Kontakt“", "ein fester Text mit dem Kontakt der Demo",
-				"Seitenleiste (<code>sidebar</code>), unter dem Kategoriebaum, auf jeder Seite, nur für Angemeldete", "Administration → <em>Blöcke</em>"),
+			en: whereText("en", "Block “Contact”", "an element of the type <em>Block</em> with the contact of the demo",
+				"Side column (<code>sidebar</code>), below the tree of categories, on every page of the demo area, for everybody who may see the demo",
+				"the page of the block (<em>Where this block is shown</em>, <em>Place the block</em>)"),
+			de: whereText("de", "Baustein „Kontakt“", "ein Element vom Typ <em>Baustein</em> mit dem Kontakt der Demo",
+				"Seitenleiste (<code>sidebar</code>), unter dem Kategoriebaum, auf jeder Seite des Demo-Bereichs, für alle, die die Demo sehen dürfen",
+				"die Seite des Bausteins (<em>Wo dieser Baustein erscheint</em>, <em>Baustein platzieren</em>)"),
 		})
 	})
 	d.optional("carousel", func() {

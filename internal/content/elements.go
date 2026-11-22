@@ -437,8 +437,8 @@ func (s *Service) CreateElement(ctx context.Context, in ElementInput) (*ElementV
 			return err
 		}
 		uid := nullID(ctx)
-		if err := tx.QueryRow(ctx, `INSERT INTO elements(category_id, type, position, original_lang, titles, tags, created_by, updated_by, owner_instance)
-			VALUES ($1,$2,$3,$4,$5,$6,$7,$7,$8) RETURNING id`, in.CategoryID, in.Type, pos, in.Lang, map[string]string{in.Lang: title}, tags, uid, owner).Scan(&id); err != nil {
+		if err := tx.QueryRow(ctx, `INSERT INTO elements(category_id, type, position, original_lang, titles, tags, created_by, updated_by, owner_instance, hidden)
+			VALUES ($1,$2,$3,$4,$5,$6,$7,$7,$8,$9) RETURNING id`, in.CategoryID, in.Type, pos, in.Lang, map[string]string{in.Lang: title}, tags, uid, owner, s.unlisted(in.Type)).Scan(&id); err != nil {
 			return err
 		}
 		if _, err := tx.Exec(ctx, `INSERT INTO element_revisions(element_id, lang, rev, title, body, comment, created_by) VALUES ($1,$2,1,$3,$4,$5,$6)`,
@@ -683,6 +683,9 @@ func (s *Service) UpdateElementMeta(ctx context.Context, id int64, in MetaInput)
 			}
 		}
 		if in.Hidden != nil {
+			if !*in.Hidden && s.unlisted(e.Type) {
+				return apperr.BadRequest("elements of the type %s are never listed", e.Type)
+			}
 			if _, err := tx.Exec(ctx, `UPDATE elements SET hidden=$2 WHERE id=$1`, id, *in.Hidden); err != nil {
 				return err
 			}

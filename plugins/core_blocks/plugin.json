@@ -1,8 +1,8 @@
 {
   "id": "core.blocks",
-  "name": "Content blocks",
-  "version": "1.0.0",
-  "description": "Text blocks (Markdown or HTML, with macros) at any position of the template, e.g. contact details in the footer, a notice above all pages or links in the sidebar. Per language, for everyone, only guests or only signed-in users.",
+  "name": "Blocks at positions",
+  "version": "2.0.0",
+  "description": "Blocks as elements: an element of the type Block lives in a category (permissions, versions, translations) and is shown at positions of the template, e.g. contact details in the footer, a notice above all pages or links in the sidebar. Blocks are never listed and not in the search.",
   "author": "Enterprise Wiki",
   "kinds": ["general"],
   "frontend": true,
@@ -10,8 +10,20 @@
     {
       "key": "core.blocks.edit",
       "scope": "global",
-      "label": "Edit blocks",
-      "description": "Place and change blocks in the positions of the template (header, sidebar, footer …)."
+      "label": "Edit blocks of the whole site",
+      "description": "Change blocks that are shown on the whole site (placed for the template, the site or an element type)."
+    }
+  ],
+  "limits": [
+    {
+      "key": "core.blocks.list",
+      "group": "blocks",
+      "unit": "count",
+      "default": 500,
+      "min": 10,
+      "max": 5000,
+      "label": "Blocks offered for placing",
+      "help": "How many blocks the placement lists at most (those the person may see)."
     }
   ]
 }

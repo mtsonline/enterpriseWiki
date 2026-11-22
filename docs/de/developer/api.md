@@ -547,9 +547,7 @@ Aufgerufen von Verzeichnissen wie Entra ID oder Okta mit dem Token eines SCIM-Zu
 | `GET` | `/api/v1/x/content.team/elements/{id}/members` |
 | `GET` | `/api/v1/x/core.attachment/elements/{id}/file` |
 | `GET` | `/api/v1/x/core.blocks/blocks` |
-| `POST` | `/api/v1/x/core.blocks/blocks` |
-| `PUT` | `/api/v1/x/core.blocks/blocks/{id}` |
-| `DELETE` | `/api/v1/x/core.blocks/blocks/{id}` |
+| `GET` | `/api/v1/x/core.blocks/blocks/{id}/placements` |
 | `GET` | `/api/v1/x/core.carousel/shown` |
 | `GET` | `/api/v1/x/core.carousel/targets` |
 | `GET` | `/api/v1/x/core.carousel/carousels` |
