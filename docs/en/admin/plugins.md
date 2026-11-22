@@ -284,7 +284,7 @@ Core plugins are full code with access to the database and the server. Only inst
 | `content.faq` | element type, macro | FAQ from categories and pages (plus further sources): expandable sections and questions, instant filter, Atom/RSS; macro "FAQ from several sources" |
 | `content.events` | element type | event calendar: month/week/list, series, registration with waiting list, e-mail reminders, iCal subscription, further calendars and iCal subscriptions as sources, macro "next events" |
 | `content.catlist` | element type | category overview: sub-categories of a category or of the top level as cards or list, optionally with pages (e.g. as home page) |
-| `content.team` | element type | team page from groups with selectable details from the business card or the identity provider |
+| `content.team` | element type | team page from groups with selectable details from the business card or the identity provider. Only someone who may list a group and its members adds it (the own groups with `core.groups.list_own` and `core.users.list_own`, every group with `core.groups.list_all` and `core.users.list_all`); groups that are there stay for everybody who edits the page |
 | `content.notes` | element type | shared notes: write together live directly in the page view, saved automatically (meetings, brainstorming, task lists) |
 | `search.external` | general | OpenSearch/Elasticsearch or Meilisearch for the full-text search |
 | `theme.wiki` | template | documentation layout with page tree |

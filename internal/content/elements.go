@@ -411,6 +411,9 @@ func (s *Service) CreateElement(ctx context.Context, in ElementInput) (*ElementV
 	if err != nil {
 		return nil, apperr.BadRequest("invalid body: %v", err)
 	}
+	if err := s.guardNew(ctx, in.Type, in.CategoryID, body); err != nil {
+		return nil, err
+	}
 	tags, err := NormalizeTags(in.Tags)
 	if err != nil {
 		return nil, err
@@ -792,6 +795,9 @@ func (s *Service) DuplicateElement(ctx context.Context, id, categoryID int64, wi
 	if err := s.require(ctx, categoryID, acl.Create); err != nil {
 		return nil, err
 	}
+	if err := s.guardCopy(ctx, s.pool, id, e.Type, categoryID); err != nil {
+		return nil, err
+	}
 	if err := s.guardCreate(ctx, e.Type, categoryID); err != nil {
 		return nil, err
 	}
@@ -1021,6 +1027,48 @@ func (s *Service) guardCreate(ctx context.Context, typ string, categoryID int64)
 	}
 	if g, ok := s.Type(typ).(Guard); ok {
 		return g.CheckCreate(ctx, s, categoryID)
+	}
+	return nil
+}
+
+// guardNew asks the element type whether a new element with body may be
+// created in categoryID by the caller (as for a change of its body: a body
+// refused for a change is refused for a new element, a copy too).
+func (s *Service) guardNew(ctx context.Context, typ string, categoryID int64, body json.RawMessage) error {
+	g, ok := s.Type(typ).(Guard)
+	if !ok {
+		return nil
+	}
+	e := &Element{CategoryID: categoryID, Type: typ}
+	if uid := identity.From(ctx).ID(); uid > 0 {
+		e.CreatedByID = &uid
+	}
+	return g.CheckChange(ctx, s, e, nil, body)
+}
+
+// guardCopy checks the latest body of every language of element id for a
+// copy into categoryID (guardCreate and guardNew).
+func (s *Service) guardCopy(ctx context.Context, q interface {
+	Query(context.Context, string, ...any) (pgx.Rows, error)
+}, id int64, typ string, categoryID int64) error {
+	if _, ok := s.Type(typ).(Guard); !ok {
+		return nil
+	}
+	if err := s.guardCreate(ctx, typ, categoryID); err != nil {
+		return err
+	}
+	rows, err := q.Query(ctx, `SELECT DISTINCT ON (lang) body FROM element_revisions WHERE element_id=$1 ORDER BY lang, rev DESC`, id)
+	if err != nil {
+		return err
+	}
+	bodies, err := pgx.CollectRows(rows, pgx.RowTo[json.RawMessage])
+	if err != nil {
+		return err
+	}
+	for _, b := range bodies {
+		if err := s.guardNew(ctx, typ, categoryID, b); err != nil {
+			return err
+		}
 	}
 	return nil
 }

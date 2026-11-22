@@ -12,6 +12,7 @@ import (
 	"io/fs"
 	"net/http"
 	"regexp"
+	"slices"
 	"sort"
 	"strings"
 
@@ -451,6 +452,40 @@ func (Type) Text(raw json.RawMessage) string {
 	var c Config
 	_ = json.Unmarshal(raw, &c)
 	return c.Description.Source
+}
+
+// CheckCreate implements content.Guard (the groups are checked with the body).
+func (Type) CheckCreate(context.Context, *content.Service, int64) error { return nil }
+
+// CheckChange implements content.Guard: a team page shows the members of
+// its groups to everybody who may see the page. A group is added only by
+// someone who may list it and its members (the own groups with
+// core.groups.list_own and core.users.list_own, every group with
+// core.groups.list_all and core.users.list_all); groups that were there
+// stay for every editor.
+func (Type) CheckChange(ctx context.Context, _ *content.Service, _ *content.Element, oldBody, newBody json.RawMessage) error {
+	if newBody == nil {
+		return nil
+	}
+	var before, after Config
+	if len(oldBody) > 0 {
+		_ = json.Unmarshal(oldBody, &before)
+	}
+	if err := json.Unmarshal(newBody, &after); err != nil {
+		return apperr.BadRequest("invalid team settings: %v", err)
+	}
+	p := identity.From(ctx)
+	groups, users := auth.ListScope(p, "groups"), auth.ListScope(p, "users")
+	for _, g := range after.Groups {
+		if slices.Contains(before.Groups, g) {
+			continue
+		}
+		own := p != nil && slices.Contains(p.Groups, g)
+		if !(groups == auth.ListAll && users == auth.ListAll) && !(own && groups != auth.ListNone && users != auth.ListNone) {
+			return apperr.Forbidden("group %d: showing the members of a group needs the permissions to list it and its members (core.groups.list_all and core.users.list_all, or the own groups)", g)
+		}
+	}
+	return nil
 }
 
 // Render implements content.ElementType.

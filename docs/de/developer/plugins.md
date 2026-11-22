@@ -87,7 +87,7 @@ host.UserCan(ctx, uid, categoryID, acl.View)
 ids, _ := host.Members(ctx, users, groups, roles)
 ```
 
-Elementtypen können zusätzlich `content.Guard` implementieren: `CheckCreate(ctx, svc, categoryID)` wird vor dem Anlegen, `CheckChange(ctx, svc, el, oldBody, newBody)` vor dem Speichern, Verschieben, Duplizieren und Löschen aufgerufen (`newBody == nil` bei Löschen/Verschieben), ebenso beim Wiederherstellen einer alten Version und beim Zurücksetzen einer Kategorie (dort wird ein abgelehntes Element übersprungen). `el.CreatedByID` ist der Ersteller.
+Elementtypen können zusätzlich `content.Guard` implementieren: `CheckCreate(ctx, svc, categoryID)` wird vor dem Anlegen, `CheckChange(ctx, svc, el, oldBody, newBody)` vor dem Speichern, Verschieben und Löschen aufgerufen (`newBody == nil` bei Löschen/Verschieben), ebenso beim Wiederherstellen einer alten Version und beim Zurücksetzen einer Kategorie (dort wird ein abgelehntes Element übersprungen). **Auch ein neues Element** wird so geprüft: beim Anlegen (auch aus einem Entwurf oder beim Import) und beim Duplizieren mit `oldBody == nil`, `el.ID == 0` und `el.CreatedByID` = der anlegenden Person, für jede Sprache. Ein Inhalt, den eine Änderung nicht haben dürfte, darf also auch nicht neu angelegt oder kopiert werden. Beim Kopieren einer ganzen Kategorie wird in der Kategorie des Originals geprüft, und ein abgelehntes Element wird nicht mitkopiert. `el.CreatedByID` ist der Ersteller.
 
 Im Frontend: `hasPerm('acme.kanban.export')` für globale Rechte, `el.permissions` / `category.permissions` enthält die Grundrechte und benannten Rechte der aktuellen Kategorie. Die Oberfläche blendet nur aus – entscheidend ist immer die Prüfung im Backend.
 
