@@ -17,6 +17,9 @@ import { EditorState, NodeSelection, Plugin, TextSelection, type Command, type T
 import { addColumnAfter, addColumnBefore, addRowAfter, addRowBefore, deleteColumn, deleteRow, deleteTable, goToNextCell, isInTable, tableEditing } from 'prosemirror-tables';
 import { findWrapping } from 'prosemirror-transform';
 import { EditorView, type NodeView } from 'prosemirror-view';
+import { api } from '../core/api';
+import { state } from '../core/state';
+import { currentCategory } from '../components/widgets';
 import { announce, toast } from '../core/announce';
 import { h, uid } from '../core/dom';
 import { t, uiLang } from '../core/i18n';
@@ -639,6 +642,32 @@ export function createMarkdownEditor(container: HTMLElement, opts: MarkdownEdito
     if (!src.trim()) { toast(t('blocktpl.select_first'), 'error'); return; }
     saveBlockTemplate(src);
   };
+  // the selection becomes a block of its own (an element of the type Block
+  // in this category) and is included here: changed once, it changes
+  // wherever it is included
+  const shareSelection = (v: EditorView) => {
+    const from = mode === 'markdown' ? textarea.selectionStart : v.state.selection.from;
+    const to = mode === 'markdown' ? textarea.selectionEnd : v.state.selection.to;
+    const src = mode === 'markdown' ? textarea.value.slice(from, to) : serialize(v.state.doc.cut(from, to));
+    if (!src.trim()) { toast(t('blocktpl.select_first'), 'error'); return; }
+    const title = textInput({ required: true, maxlength: 200 });
+    formDialog(t('editor.block_share'), [h('p', { class: 'ew-help' }, t('editor.block_share_help')), field(t('common.title'), title, { required: true })], t('common.save'), async () => {
+      if (!title.value.trim()) throw new Error(t('error.title_required'));
+      const el = await api.post<{ id: number }>('elements', { category_id: currentCategory(), type: 'core.block', title: title.value.trim(), lang: state.lang, body: { format: 'markdown', source: src } });
+      const params = { page: String(el.id), title: 'false' };
+      if (mode === 'markdown') {
+        textarea.setRangeText(`\n::include${formatAttrs(params)}\n`, from, to, 'end');
+        binding?.changed();
+        opts.onChange?.();
+      } else {
+        // the selection may have moved while the dialog was open: replace what was chosen
+        const node = nodes.macro.create({ name: 'include', params, leaf: true });
+        const tr = v.state.tr.replaceRangeWith(Math.min(from, v.state.doc.content.size), Math.min(to, v.state.doc.content.size), node);
+        v.dispatch(tr.scrollIntoView());
+      }
+      announce(t('editor.block_shared'));
+    });
+  };
   let shownTool: (name: string) => boolean = () => true;
   // the menu "Insert block": a block, a block template, or the selection
   // saved as a template
@@ -647,7 +676,7 @@ export function createMarkdownEditor(container: HTMLElement, opts: MarkdownEdito
     const hasSelection = mode === 'markdown' ? textarea.selectionStart !== textarea.selectionEnd : !v.state.selection.empty;
     let c;
     try {
-      c = await chooseBlock({ macros: shownTool('macro'), templates, canSave: templates && hasSelection });
+      c = await chooseBlock({ macros: shownTool('macro'), templates, canSave: templates && hasSelection, canShare: hasSelection && shownTool('macro') && currentCategory() > 0 });
     } catch (e) {
       toast(String((e as Error).message ?? e), 'error');
       return;
@@ -655,6 +684,7 @@ export function createMarkdownEditor(container: HTMLElement, opts: MarkdownEdito
     if (!c) return mode === 'visual' ? v.focus() : textarea.focus();
     if ('macro' in c) return macroInsert(v, c.macro);
     if ('template' in c) return snippetInsert(v, c.template);
+    if ('share' in c) return shareSelection(v);
     snippetSave(v);
   };
   // an emoji as text (visual and Markdown mode)
