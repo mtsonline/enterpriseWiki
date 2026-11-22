@@ -144,3 +144,14 @@
 .ew-pagechanges-list li { margin-block: .25rem; }
 .ew-contributors { list-style: none; margin: .5rem 0; padding: 0; display: flex; flex-wrap: wrap; gap: .5rem 1.25rem; }
 .ew-contributors li { display: flex; align-items: center; gap: .4rem; margin: 0; }
+/* spaces */
+.ew-spacelist ul { list-style: none; margin: .5rem 0; padding: 0; }
+.ew-spacelist--cards ul { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 16rem), 1fr)); gap: 1rem; }
+.ew-spacelist--cards .ew-spacelist-item { border: 1px solid var(--ew-border); border-radius: var(--ew-radius); padding: .8rem 1rem; }
+.ew-spacelist--list .ew-spacelist-item { padding: .35rem 0; border-bottom: 1px solid var(--ew-border); }
+.ew-spacelist-logo { float: right; margin: 0 0 .5rem .75rem; border-radius: var(--ew-radius); object-fit: contain; }
+.ew-spacelist-name { font-weight: 600; }
+.ew-spacelist-desc { margin: .35rem 0 0; color: var(--ew-text-muted); }
+.ew-spacedetails dl { display: grid; grid-template-columns: max-content 1fr; gap: .3rem 1rem; margin: .5rem 0; }
+.ew-spacedetails dt { font-weight: 600; }
+.ew-spacedetails dd { margin: 0; }

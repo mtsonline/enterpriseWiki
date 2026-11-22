@@ -485,13 +485,13 @@ func buildDemo(d *demoRun) {
 			return macro("newpage", map[string]string{"template": strconv.FormatInt(tplID, 10), "text": text}, "")
 		}
 		d.page(start, "Wiki building blocks", "Wiki-Bausteine",
-			`<p>Jump to the <a href="#tree">page tree</a>.</p><h2>Included from another page</h2><p>Only the excerpt of the house rules, always as it is now:</p>`+
+			`<p>Jump to the <a href="#tree">page tree</a>. The next review is on <span data-macro="date" data-params='{"value":"2026-12-15","format":"weekday"}'></span>.</p><h2>Included from another page</h2><p>Only the excerpt of the house rules, always as it is now:</p>`+
 				macro("include", map[string]string{"page": id, "excerpt": "true"}, "")+
 				`<h2>Search in this area</h2>`+macro("searchbox", map[string]string{"category": in, "label": "Search in Getting started"}, "")+
 				newpage("New meeting minutes")+
 				`<h2>Pages of this area <span data-macro="anchor" data-params='{"name":"tree"}'></span></h2>`+macro("pagetree", map[string]string{"category": in, "depth": "2"}, "")+
 				`<h2>Files of the media folder</h2>`+macro("attachments", map[string]string{"source": "category", "category": strconv.FormatInt(mediaCat, 10)}, ""),
-			`<p>Zum <a href="#tree">Seitenbaum</a> springen.</p><h2>Aus einer anderen Seite eingebunden</h2><p>Nur der Auszug der Hausordnung, immer im aktuellen Stand:</p>`+
+			`<p>Zum <a href="#tree">Seitenbaum</a> springen. Die nächste Durchsicht ist am <span data-macro="date" data-params='{"value":"2026-12-15","format":"weekday"}'></span>.</p><h2>Aus einer anderen Seite eingebunden</h2><p>Nur der Auszug der Hausordnung, immer im aktuellen Stand:</p>`+
 				macro("include", map[string]string{"page": id, "excerpt": "true"}, "")+
 				`<h2>In diesem Bereich suchen</h2>`+macro("searchbox", map[string]string{"category": in, "label": "In Erste Schritte suchen"}, "")+
 				newpage("Neues Besprechungsprotokoll")+

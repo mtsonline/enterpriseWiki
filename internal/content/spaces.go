@@ -570,3 +570,68 @@ func (s *Service) spaceMacros(ctx context.Context, categoryID int64) []string {
 	}
 	return st.Effective.AllowedMacros
 }
+
+// SpaceBrief is a space as a list of spaces shows it (macro spacelist).
+type SpaceBrief struct {
+	ID          int64  `json:"id"`
+	Key         string `json:"key"`
+	Title       string `json:"title"`
+	Description string `json:"description"`
+	Logo        string `json:"logo"`
+	Archived    bool   `json:"archived"`
+	Personal    bool   `json:"personal"`
+}
+
+// SpaceListMax is the most spaces a list of spaces shows.
+const SpaceListMax = 200
+
+// SpaceList lists the spaces the caller may view (not hidden ones; archived
+// and personal ones only if asked), in the order of the navigation, in one
+// query and one check of the permissions.
+func (s *Service) SpaceList(ctx context.Context, lang string, archived, personal bool, max int) ([]SpaceBrief, error) {
+	max = min(max, SpaceListMax)
+	rows, err := s.pool.Query(ctx, `SELECT id, COALESCE(space_key, ''), titles, descriptions, COALESCE(space->>'logo', ''), archived_at IS NOT NULL,
+			COALESCE((space->>'personal')::bigint, 0) > 0
+		FROM categories WHERE parent_id IS NULL AND deleted_at IS NULL AND NOT hidden
+			AND ($1 OR archived_at IS NULL) AND ($2 OR COALESCE((space->>'personal')::bigint, 0) = 0)
+		ORDER BY position, id LIMIT 2000`, archived, personal)
+	if err != nil {
+		return nil, err
+	}
+	type row struct {
+		b      SpaceBrief
+		titles map[string]string
+		descs  map[string]string
+	}
+	all, err := pgx.CollectRows(rows, func(r pgx.CollectableRow) (row, error) {
+		var x row
+		return x, r.Scan(&x.b.ID, &x.b.Key, &x.titles, &x.descs, &x.b.Logo, &x.b.Archived, &x.b.Personal)
+	})
+	if err != nil {
+		return nil, err
+	}
+	ids := make([]int64, len(all))
+	for i, x := range all {
+		ids[i] = x.b.ID
+	}
+	if ids, err = s.acl.Filter(ctx, identity.From(ctx), ids, acl.View); err != nil {
+		return nil, err
+	}
+	ok := make(map[int64]bool, len(ids))
+	for _, id := range ids {
+		ok[id] = true
+	}
+	out := []SpaceBrief{}
+	for _, x := range all {
+		if !ok[x.b.ID] || len(out) >= max {
+			continue
+		}
+		x.b.Title = firstText(x.titles, lang, s.DefaultLanguage())
+		x.b.Description = firstText(x.descs, lang, s.DefaultLanguage())
+		if !logoRe.MatchString(x.b.Logo) {
+			x.b.Logo = ""
+		}
+		out = append(out, x.b)
+	}
+	return out, nil
+}

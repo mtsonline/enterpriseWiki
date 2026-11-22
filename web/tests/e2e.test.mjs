@@ -2812,7 +2812,7 @@ test('layout blocks: a section with options from the macro dialog, an icon box w
   }
 });
 
-test('wiki blocks: include a page chosen by title, page tree with filter, search box for a category, new page from a template', async () => {
+test('wiki blocks: include a page chosen by title, a date, page tree with filter, search box for a category, new page from a template, spaces', async () => {
   const cat = (await call('POST', '/api/v1/categories', { titles: { en: `Wiki blocks ${run}` } })).id;
   const sub = (await call('POST', '/api/v1/categories', { titles: { en: `Chapter ${run}` }, parent_id: cat })).id;
   const md = (source) => ({ format: 'markdown', source });
@@ -2832,14 +2832,23 @@ test('wiki blocks: include a page chosen by title, page tree with filter, search
   await a11y('macro dialog with a page picker');
   await dlg.locator('button[type=submit]').click();
   await page.waitForSelector('.ewe-prose .ewe-macro[data-macro="include"]');
+  // a date in the text, chosen with the date field of the browser
+  await page.keyboard.press('Control+End');
+  await page.keyboard.type('Review on ');
+  const dd = await insertBlock('date');
+  await dd.locator('input[type=date]').fill('2026-12-15');
+  await a11y('date dialog');
+  await dd.locator('button[type=submit]').click();
+  await page.waitForSelector('.ewe-prose .ewe-macro_inline[data-macro="date"]');
   await page.getByRole('button', { name: /^(publish|veröffentlichen)$/i }).click();
   await page.waitForURL(/\/e\/\d+$/);
   await idle();
+  await page.locator('time.ew-date[datetime="2026-12-15"]').waitFor();
   await page.locator('.ew-include').getByText('In short: lights off.').waitFor();
   assert.equal(await page.locator('.ew-include').getByText('Long text.').count(), 0, 'only the excerpt');
   await page.locator('.ew-include').getByRole('link', { name: `Okapi rules ${run}` }).waitFor();
   // page tree, search box and the button for a new page on one page
-  const src = `::pagetree{category=${cat} open=false}\n\n::searchbox{category=${sub} label="Search the chapter"}\n\n::newpage{template=${tpl.id} category=${sub}}\n`;
+  const src = `::pagetree{category=${cat} open=false}\n\n::searchbox{category=${sub} label="Search the chapter"}\n\n::newpage{template=${tpl.id} category=${sub}}\n\n::spacelist{layout=list}\n\n::spacedetails\n`;
   const el = await call('POST', '/api/v1/elements', { category_id: cat, type: 'core.html', title: `Blocks ${run}`, body: md(src) });
   await page.goto(`${BASE}/e/${el.id}`);
   await idle();
@@ -2852,7 +2861,9 @@ test('wiki blocks: include a page chosen by title, page tree with filter, search
   await tree.getByRole('status').filter({ hasText: /1/ }).waitFor();
   await tree.getByLabel(/^(filter the tree|baum filtern)$/i).fill('');
   await tree.getByRole('link', { name: `Okapi rules ${run}` }).waitFor({ state: 'hidden' });
-  await a11y('page tree, search box, new page button');
+  await page.getByRole('navigation', { name: /^(spaces|bereiche)$/i }).getByRole('link', { name: `Wiki blocks ${run}` }).waitFor();
+  await page.locator('.ew-spacedetails').getByRole('link', { name: `Wiki blocks ${run}` }).waitFor();
+  await a11y('page tree, search box, new page button, spaces');
   // the search box searches in its category; the search page can widen it
   await page.getByLabel('Search the chapter').fill('okapi');
   await page.getByLabel('Search the chapter').press('Enter');
@@ -4803,7 +4814,8 @@ test('demo content: create, browse accessibly, remove', async () => {
   await page.getByRole('link', { name: /^(2\.\d+ )?(Carousel demo|Karussell-Demo)$/ }).first().click();
   await idle();
   await page.locator('.ew-pos--content-top .ewcar-pos').waitFor();
-  assert.match(await page.locator('main').innerText(), /content-top/);
+  // the explanation of the page (it may come after the carousel)
+  await page.locator('main').getByText(/content-top/).first().waitFor();
   await a11y('demo carousel page');
   await page.goto(`${BASE}/admin/demo`);
   await idle();
