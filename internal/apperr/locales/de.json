@@ -1136,5 +1136,7 @@
  "group %d: showing the members of a group needs the permissions to list it and its members (core.groups.list_all and core.users.list_all, or the own groups)": "Gruppe %d: Um die Mitglieder einer Gruppe zu zeigen, brauchen Sie die Rechte, die Gruppe und ihre Mitglieder aufzulisten (core.groups.list_all und core.users.list_all, oder die eigenen Gruppen)",
  "choose a category (here is no category of its own)": "Wählen Sie eine Kategorie (hier gibt es keine eigene)",
  "label: at most %d characters": "Name: höchstens %d Zeichen",
- "the date: a day as YYYY-MM-DD, for example 2026-11-22": "Das Datum: ein Tag als JJJJ-MM-TT, zum Beispiel 2026-11-22"
+ "the date: a day as YYYY-MM-DD, for example 2026-11-22": "Das Datum: ein Tag als JJJJ-MM-TT, zum Beispiel 2026-11-22",
+ "showing contact details to guests needs the permission %q": "Um Gästen Kontaktdaten zu zeigen, brauchen Sie das Recht %q",
+ "field %s: attributes of the identity provider are chosen by who manages users (core.users.manage)": "Feld %s: Attribute des Identity Providers wählt, wer Benutzer verwaltet (core.users.manage)"
 }

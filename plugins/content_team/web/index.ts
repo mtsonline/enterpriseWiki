@@ -1,11 +1,11 @@
 // Team element: editor (description, groups, fields, layout) and the
 // "team" widget (filter by name when the team is large).
-import { announce, api, button, checkbox, errorText, field, h, mount, registerEditor, registerWidget, select, state, t, textArea, textInput, toast, type EditorInstance } from '@ewiki/coreplugin';
+import { announce, api, button, checkbox, errorText, field, h, hasPerm, mount, registerEditor, registerWidget, select, state, t, textArea, textInput, toast, type EditorInstance } from '@ewiki/coreplugin';
 import './style.css';
 
 const BASE = '/api/v1/x/content.team';
 
-interface Body { description: { format: string; source: string }; groups: number[]; fields: string[]; labels: Record<string, string>; layout: string; by_group: boolean; sort: string }
+interface Body { description: { format: string; source: string }; groups: number[]; fields: string[]; labels: Record<string, string>; layout: string; by_group: boolean; sort: string; public?: boolean }
 interface Group { id: number; name: string; description: string; members: number }
 
 function createEditor(container: HTMLElement, raw: unknown): EditorInstance {
@@ -17,6 +17,10 @@ function createEditor(container: HTMLElement, raw: unknown): EditorInstance {
   const layout = select(['cards', 'list', 'table'].map((v) => ({ value: v, label: t(`content.team.layout_${v}`) })), b.layout);
   const sort = select(['name', 'job_title', 'department'].map((v) => ({ value: v, label: t(`content.team.sort_${v}`) })), b.sort);
   const byGroup = checkbox(t('content.team.by_group'), b.by_group);
+  // contact details for guests: only with the permission (the server checks)
+  const may = hasPerm('content.team.public');
+  const pub = checkbox(t('content.team.public'), !!b.public, { help: t(may ? 'content.team.public_help' : 'content.team.public_needs') });
+  if (!may && !b.public) pub.input.disabled = true;
   const groupBox = h('fieldset', { class: 'ewt-choice' }, h('legend', null, t('content.team.groups')), h('p', null, t('common.loading')));
   const fieldBox = h('fieldset', { class: 'ewt-choice' }, h('legend', null, t('content.team.fields')), h('p', null, t('common.loading')));
   const err = h('p', { class: 'ew-field-error', role: 'alert' });
@@ -32,7 +36,10 @@ function createEditor(container: HTMLElement, raw: unknown): EditorInstance {
       const f = `attr:${a}`;
       const label = textInput({ value: b.labels[f] ?? '', placeholder: a });
       label.setAttribute('aria-label', t('content.team.attr_label', { name: a }));
-      return { f, c: checkbox(a, b.fields.includes(f)), label };
+      const c = checkbox(a, b.fields.includes(f));
+      // attributes are chosen by who manages users (the server checks)
+      if (!hasPerm('core.users.manage') && !b.fields.includes(f)) c.input.disabled = true;
+      return { f, c, label };
     });
     fieldInputs = [...std, ...attrs];
     mount(fieldBox, h('legend', null, t('content.team.fields')), h('p', { class: 'ew-help' }, t('content.team.fields_help')), ...std.map((x) => x.c.el),
@@ -42,7 +49,7 @@ function createEditor(container: HTMLElement, raw: unknown): EditorInstance {
   mount(container, h('div', { class: 'ewt-editor' },
     h('fieldset', null, h('legend', null, t('content.team.description')), field(t('content.team.format'), fmtSel), field(t('content.team.description_text'), desc)),
     groupBox, fieldBox,
-    h('fieldset', null, h('legend', null, t('content.team.display')), field(t('content.team.layout'), layout), field(t('content.team.sort'), sort), byGroup.el),
+    h('fieldset', null, h('legend', null, t('content.team.display')), field(t('content.team.layout'), layout), field(t('content.team.sort'), sort), byGroup.el, pub.el),
     err));
   return {
     getBody: () => {
@@ -51,7 +58,7 @@ function createEditor(container: HTMLElement, raw: unknown): EditorInstance {
       fieldInputs.forEach((x) => { if (x.label?.value.trim()) labels[x.f] = x.label.value.trim(); });
       return {
         description: { format: fmtSel.value, source: desc.value }, groups: groupInputs.length ? groupInputs.filter((x) => x.c.input.checked).map((x) => x.id) : b.groups,
-        fields, labels, layout: layout.value, sort: sort.value, by_group: byGroup.input.checked,
+        fields, labels, layout: layout.value, sort: sort.value, by_group: byGroup.input.checked, public: pub.input.checked,
       };
     },
     validate: () => {

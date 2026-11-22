@@ -1183,4 +1183,32 @@ var traps = []trap{
 		New:  "\tif err != nil && false {",
 		Pkg:  "./plugins/core_macros/", Tests: "^TestDate$",
 	},
+	{
+		ID: "team.public-guests", About: "guests see the contact details of a team page that is not public",
+		File: "plugins/content_team/plugin.go",
+		Old:  "\tif c.Public || identity.From(ctx).ID() > 0 {",
+		New:  "\tif true || c.Public || identity.From(ctx).ID() > 0 {",
+		Pkg:  "./internal/server/", Tests: "^TestTeamPrivacy$",
+	},
+	{
+		ID: "team.public-perm", About: "a team page is made public without the permission",
+		File: "plugins/content_team/plugin.go",
+		Old:  "\tif after.Public && !perm.HasP(p, PermPublic) {",
+		New:  "\tif after.Public && !perm.HasP(p, PermPublic) && false {",
+		Pkg:  "./internal/server/", Tests: "^TestTeamPrivacy$",
+	},
+	{
+		ID: "team.public-fields", About: "fields are added to a public team page without the permission",
+		File: "plugins/content_team/plugin.go",
+		Old:  "!sameSet(before.Fields, after.Fields) {",
+		New:  "false {",
+		Pkg:  "./internal/server/", Tests: "^TestTeamPrivacy$",
+	},
+	{
+		ID: "team.attributes", About: "attributes of the identity provider are chosen by any editor",
+		File: "plugins/content_team/plugin.go",
+		Old:  "!perm.HasP(p, \"core.users.manage\") {",
+		New:  "false {",
+		Pkg:  "./internal/server/", Tests: "^TestTeamPrivacy$",
+	},
 }
