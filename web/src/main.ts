@@ -20,6 +20,7 @@ import { rememberedLang, state, stored } from './core/state';
 import type { Principal, Site } from './core/types';
 import { categoryTree, ctx, currentSpace, setSpace, editToggle, helpToggle, languageSwitcher, searchBox, userMenu } from './components/widgets';
 import { watchHelp } from './core/helptexts';
+import { readProgress } from './components/readprogress';
 import { pluginModules } from './generated/plugins';
 import { positionContainer, refreshPositions, registerAdminPage, registerPageAction, registerProfileSection, registerSlot, registerTemplate, previewTemplate, resolveTemplate, setShownTemplate, siteTemplate, triedTemplate } from './coreplugin';
 import { tryBar } from './components/trytemplate';
@@ -99,6 +100,8 @@ function registerCore(): void {
   registerSlot({ id: 'core.help', position: 'header-tools', order: 25, label: () => t('block.core.help'), render: helpToggle });
   registerSlot({ id: 'core.bell', position: 'header-tools', order: 35, label: () => t('block.core.bell'), render: () => notificationBell() });
   registerSlot({ id: 'core.user', position: 'header-tools', order: 40, always: true, label: () => t('block.core.user'), render: userMenu });
+  // reading progress: not placed by default (e.g. under the header in a template)
+  registerSlot({ id: 'core.readprogress', position: '', order: 90, label: () => t('block.core.readprogress'), render: readProgress });
   registerSlot({ id: 'core.tree', position: 'sidebar', order: 10, label: () => t('block.core.tree'), render: categoryTree });
 
   // Minimal fallback layout, used when no template plugin is active.

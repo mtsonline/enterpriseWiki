@@ -82,3 +82,9 @@ test('no option lets hostile text into the CSS (every option, every payload)', a
   }
   assert.ok(n > 1000);
 });
+
+test('appearing: only without "less motion" and only where the browser ties it to scrolling', () => {
+  const css = optionsCSS('.x', { appear: 'slide_start' });
+  assert.match(css, /@media \(prefers-reduced-motion: no-preference\) \{ @supports \(animation-timeline: view\(\)\) \{ \.x \{ animation: ew-appear-slide-start /);
+  assert.ok(!/animation/.test(optionsCSS('.x', { appear: 'none' })));
+});

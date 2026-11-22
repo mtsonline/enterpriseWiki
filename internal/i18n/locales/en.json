@@ -2890,5 +2890,20 @@
  "data.lang": "Language",
  "data.updated": "Changed",
  "data.no_entries": "No entries.",
- "data.no_kinds": "No kinds of data: no active plugin keeps data for reports."
+ "data.no_kinds": "No kinds of data: no active plugin keeps data for reports.",
+ "block.core.readprogress": "Reading progress",
+ "bo.group.motion": "Motion",
+ "bo.group.motion.help": "The block appears while it is scrolled into view. Nothing moves for people who want less motion, nor in browsers that cannot tie the motion to scrolling; there the block is simply shown.",
+ "bo.appear": "Appear when scrolled into view",
+ "bo.appear.none": "No",
+ "bo.appear.fade": "Fade in",
+ "bo.appear.rise": "Rise from below",
+ "bo.appear.slide_start": "Slide in from the start of the line",
+ "bo.appear.slide_end": "Slide in from the end of the line",
+ "bo.appear.zoom": "Grow",
+ "settings.not_found_own": "Own text for “Page not found”",
+ "settings.forbidden_own": "Own text for “No permission”",
+ "settings.not_found_page": "Page with the text for “Page not found”",
+ "settings.forbidden_page": "Page with the text for “No permission”",
+ "settings.error_page_help": "The content of this page appears below the heading instead of the standard text; suggestions and the link to the start page stay. Readers see it only if they may see the page: choose a page everybody may see."
 }

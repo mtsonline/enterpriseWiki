@@ -154,6 +154,10 @@ type Options struct {
 	// PrintPlain: printing shows only the content (no header, footer, side
 	// columns, drawer buttons)
 	PrintPlain bool `json:"print_plain,omitempty"`
+	// Boxed: the whole page (header, content, footer) is a box of the
+	// content width in the middle of the window ("boxed" layout); without
+	// it the rows span the window ("stretched")
+	Boxed bool `json:"boxed,omitempty"`
 }
 
 // Limits are the limits of data templates (limits.json, the same file the
@@ -579,7 +583,7 @@ func (d *Design) needRoom(r Row, view string, v *View) float64 {
 // room is the width a row has in the narrowest window of a view.
 func (d *Design) room(r Row, view string) float64 {
 	w := float64(limits.Views[view].MinPx) / float64(limits.RemPx)
-	if r.Width == "content" && float64(d.Tokens.ContentWidth) < w {
+	if (r.Width == "content" || d.Options.Boxed) && float64(d.Tokens.ContentWidth) < w {
 		w = float64(d.Tokens.ContentWidth)
 	}
 	return w - 2*limits.PaddingRem

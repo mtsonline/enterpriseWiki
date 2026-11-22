@@ -228,6 +228,8 @@ const PATTERNS: Record<string, (c: string) => string> = {
 
 const space = (n: number) => `${SCHEMA.space_rem[n] ?? 0}rem`;
 
+const APPEAR = ['fade', 'rise', 'slide_start', 'slide_end', 'zoom'];
+
 /** The value of an option in each view (desktop is the base). */
 function perView(v: OptionValue | undefined): Partial<Record<ViewName, number | string>> {
   if (v === undefined) return {};
@@ -314,6 +316,10 @@ export function optionsCSS(sel: string, o: BlockOptions): string {
     base.push('position: relative;');
     extra.push(`${sel}${pseudo} { content: ""; position: absolute; left: 0; right: 0; ${side}: 0; height: ${dividerH}px; background: ${s('divider_color') || 'currentColor'}; mask: ${svg} center / 100% 100% no-repeat; pointer-events: none;${flip ? ` transform: ${flip};` : ''} }`);
   }
+  // motion: appears while it scrolls into view (scroll-driven, so without a
+  // script and never hiding anything where the browser cannot do it); never
+  // with "less motion"
+  if (APPEAR.includes(s('appear'))) extra.push(`@media (prefers-reduced-motion: no-preference) { @supports (animation-timeline: view()) { ${sel} { animation: ew-appear-${s('appear').replace('_', '-')} linear both; animation-timeline: view(); animation-range: entry 0% entry 70%; } } }`);
   // text
   if (FONTS[s('font')]) base.push(`font-family: ${FONTS[s('font')]};`);
   responsive('font_size', (v) => `font-size: ${Number(v)}%;${Number(v) > 150 ? ' overflow-wrap: anywhere;' : ''}`);

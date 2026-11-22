@@ -54,7 +54,9 @@ export function notFoundPage(main: HTMLElement, q: { path?: string; type?: strin
   // signed-in readers may ask for access (the answer does not reveal whether the page exists)
   const ask = state.user && q.id && (q.type === 'category' || q.type === 'element')
     ? h('p', null, t('access.maybe'), ' ', button(t('access.request'), () => accessDialog(q.type!, q.id!), { variant: 'secondary' })) : null;
-  mount(main, h('h1', null, t('error.not_found')), box, ask, h('p', null, h('a', { href: '/' }, t('nav.home'))));
+  const own = h('div');
+  ownErrorText(own, state.site.not_found_element);
+  mount(main, h('h1', null, t('error.not_found')), own, box, ask, h('p', null, h('a', { href: '/' }, t('nav.home'))));
   void api.get<NotFoundInfo>(`not-found${qs({ path: q.path, type: q.type, id: q.id, lang: L() })}`).then((info) => {
     const parts: HTMLElement[] = [];
     if (info.deleted) {
@@ -72,6 +74,16 @@ export function notFoundPage(main: HTMLElement, q: { path?: string; type?: strin
   }).catch(() => undefined);
 }
 
+/** ownErrorText puts the content of the page chosen for an error ("not
+ * found", "no permission") into box, read with the rights of the reader; if
+ * there is none or the reader may not see it, the standard text stays. */
+function ownErrorText(box: HTMLElement, id: number | undefined): void {
+  if (!id) return;
+  void api.get<{ html: string }>(`elements/${id}${qs({ lang: L() })}`).then((v) => {
+    if (v.html) box.replaceChildren(trustedHTML(v.html));
+  }).catch(() => undefined);
+}
+
 export function errorPage(main: HTMLElement, e: unknown, target?: { type: string; id: number }): void {
   if (e instanceof ApiError && e.status === 401) {
     const next = encodeURIComponent(location.pathname + location.search);
@@ -84,7 +96,9 @@ export function errorPage(main: HTMLElement, e: unknown, target?: { type: string
     return;
   }
   if (e instanceof ApiError && (e.status === 404 || e.status === 403)) {
-    mount(main, h('h1', null, t(e.status === 404 ? 'error.not_found' : 'error.forbidden')), h('p', null, e.message), h('a', { href: '/' }, t('nav.home')));
+    const text = h('div', null, h('p', null, e.message));
+    ownErrorText(text, e.status === 404 ? state.site.not_found_element : state.site.forbidden_element);
+    mount(main, h('h1', null, t(e.status === 404 ? 'error.not_found' : 'error.forbidden')), text, h('a', { href: '/' }, t('nav.home')));
     return;
   }
   mount(main, h('h1', null, t('error.title')), h('p', { role: 'alert' }, errorText(e)));

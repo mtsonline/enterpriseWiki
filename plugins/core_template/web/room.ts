@@ -21,7 +21,7 @@ export function minRem(b: Block, view: ViewName): number {
 /** The width (rem) a row has in the narrowest window of a view (as the server computes it). */
 export function room(d: Design, r: Row, view: ViewName): number {
   let w = LIMITS.views[view].min_px / LIMITS.rem_px;
-  if (r.width === 'content' && d.tokens.content_width < w) w = d.tokens.content_width;
+  if ((r.width === 'content' || d.options.boxed) && d.tokens.content_width < w) w = d.tokens.content_width;
   return w - 2 * LIMITS.padding_rem;
 }
 

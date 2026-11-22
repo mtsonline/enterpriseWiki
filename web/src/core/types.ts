@@ -62,6 +62,9 @@ export interface Site {
   dashboard_tiles?: string[];
   /** the own dashboard is the start page of signed-in people (ui.dashboard_home) */
   dashboard_home?: boolean;
+  /** pages shown on "not found" and "no permission" (0: the standard text) */
+  not_found_element?: number;
+  forbidden_element?: number;
   /** seconds without an answer to a change after which the user is asked whether to keep waiting */
   wait_notice_s?: number;
   languages: string[];

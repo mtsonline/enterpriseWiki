@@ -1316,4 +1316,18 @@ var traps = []trap{
 		New:  "\tif err := error(nil); err != nil {\n\t\treturn false, err",
 		Pkg:  "./internal/server/", Tests: "^TestBlockData$",
 	},
+	{
+		ID: "template.boxed-room", About: "the check of the room ignores the boxed layout",
+		File: "plugins/core_template/design.go",
+		Old:  "if (r.Width == \"content\" || d.Options.Boxed) && float64(d.Tokens.ContentWidth) < w {",
+		New:  "if r.Width == \"content\" && float64(d.Tokens.ContentWidth) < w {",
+		Pkg:  "./plugins/core_template/", Tests: "^TestRoomShared$",
+	},
+	{
+		ID: "config.error-page", About: "a negative page for the error texts is accepted",
+		File: "internal/config/config.go",
+		Old:  "\tif c.UI.NotFoundElement < 0 || c.UI.ForbiddenElement < 0 {",
+		New:  "\tif false {",
+		Pkg:  "./internal/config/", Tests: "^TestValidate$",
+	},
 }

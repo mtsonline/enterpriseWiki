@@ -270,5 +270,7 @@
  "template.d_width_help_block": "0: der Rest der Zeile; sonst {min} bis {max} rem.",
  "template.limit_size": "Ein Design hat höchstens {kb} KB.",
  "template.d_preview_window": "Vorschau in eigenem Fenster",
- "template.d_name_area": "Bereich"
+ "template.d_name_area": "Bereich",
+ "template.d_boxed": "Gerahmtes Layout",
+ "template.d_boxed_help": "Die ganze Seite – Kopf, Inhalt und Fußzeile – ist ein Kasten in der Inhaltsbreite in der Mitte des Fensters, mit dem gedämpften Hintergrund außen herum. Ohne diese Wahl reichen die Zeilen über das ganze Fenster. Zeilen haben dann höchstens die Inhaltsbreite; die Prüfung des Platzes rechnet damit."
 }

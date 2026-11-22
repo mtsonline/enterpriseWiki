@@ -32,7 +32,7 @@ export interface Row {
   /** a footer row whose blocks open and close on the phone */
   collapse_mobile?: boolean;
 }
-export interface Design { version: 1; tokens: Tokens; rows: Row[]; options: { back_to_top: boolean; sticky_header: boolean; header_shrink?: boolean; header_hide?: boolean; print_plain?: boolean }; css?: string }
+export interface Design { version: 1; tokens: Tokens; rows: Row[]; options: { back_to_top: boolean; sticky_header: boolean; header_shrink?: boolean; header_hide?: boolean; print_plain?: boolean; boxed?: boolean }; css?: string }
 
 /** How a row looks in a view: as designed (manual) or by the rules (automatic). */
 export interface ViewState { stack: boolean; hidden: string[]; drawer: string[]; widths: Record<string, number>; auto: boolean }
@@ -294,5 +294,5 @@ export function buildLayout(d: Design, ctx: LayoutContext): Layout {
     onScroll(sync);
     parts.push(top);
   }
-  return { root: h('div', { class: ['ewd-app', d.options.print_plain && 'ewd-print-plain'] }, ...parts), main };
+  return { root: h('div', { class: ['ewd-app', d.options.print_plain && 'ewd-print-plain', d.options.boxed && 'ewd-boxed'] }, ...parts), main };
 }
