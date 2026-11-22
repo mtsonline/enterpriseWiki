@@ -164,6 +164,7 @@ Business Source License 1.1 with free private use by natural persons, license ke
 - **Blocks as elements (done):** your own blocks are elements of the type *Block* in a category (permissions, versions, drafts, translations), never in the search and lists, placed with *Place the block* on their page; blocks shown on the whole site are changed only with the permission `core.blocks.edit`. The former *Administration → Blocks* is gone.
 - **Wiki blocks B, part 1 (done):** date in the text (`:date`), list of spaces and details of the space.
 - **People blocks (done):** profile card and people of a group, with the rights of the reader.
+- **Emoji (done):** picker in the editor with a search in English and German (Unicode CLDR).
 - **Diagrams from text (done):** code blocks ` ```mermaid ` are drawn in a closed-off frame.
 - **Permissions per instance (steps 1 and 2 done):** permissions of their own for a single blog or FAQ (manage, all content, own content), also grantable per category; content on behalf of an instance (`via`) in the real editor, with drafts and live editing; UI, API, CLI. Next: building blocks for entering content, then events, forms, workflows, property database, notes and team.
 - **Action register, stage 1 (started):** register in the format of the plugin contract, check of register, routes and comments in the CI (the list of missing entries may only shrink), CLI commands for every action from the register, contract check in the SDK. Entries for all routes follow area by area.

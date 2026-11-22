@@ -2859,5 +2859,13 @@
  "editor.code_mermaid": "Diagramm aus Text (Mermaid)",
  "diagram.title": "Diagramm",
  "diagram.as_text": "Das Diagramm als Text",
- "diagram.error": "Das Diagramm ließ sich nicht zeichnen. Sein Text steht darunter."
+ "diagram.error": "Das Diagramm ließ sich nicht zeichnen. Sein Text steht darunter.",
+ "editor.emoji": "Emoji einfügen",
+ "editor.emoji_search": "Emoji suchen",
+ "editor.emoji_help": "Ein Wort des Namens oder ein Stichwort, zum Beispiel „Daumen“ oder „Herz“. Die Pfeiltasten wählen, Enter fügt ein.",
+ "editor.emoji_group": "Gruppe",
+ "editor.emoji_list": "Emoji",
+ "editor.emoji_found": "{n} Emoji gefunden",
+ "editor.emoji_insert": "Einfügen",
+ "editor.emoji_none": "Wählen Sie ein Emoji."
 }

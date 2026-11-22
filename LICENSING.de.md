@@ -53,6 +53,7 @@ AGPL. Es gibt damit **keinen Lizenzwiderspruch**. Zu erfüllen sind:
   abrufbar unter `/licenses.txt`, unter *Administration → Lizenz* und mit `ewiki license notices`.
 - **Schriften** (Inter, Source Sans 3; OFL 1.1): dürfen mit Software gebündelt, aber nicht einzeln verkauft werden; der
   Lizenztext ist in `licenses.txt` enthalten.
+- **Namen und Stichwörter der Emoji** (Unicode CLDR über emojibase-data; Unicode License v3): Der Hinweis und der Lizenztext stehen in `licenses.txt`.
 
 Nur zum **Bauen und Testen** (nicht im ausgelieferten Programm): TypeScript (Apache-2.0), esbuild (MIT), Playwright
 (Apache-2.0), axe-core (MPL-2.0), gldap (MIT, nur Tests). Diese Lizenzen stellen keine Anforderungen an das Produkt.
@@ -68,7 +69,7 @@ Die CI prüft bei jedem Build mit `go run ./tools/notices -check`, dass alle ein
 des Frontends (`web/package-lock.json`; ausgenommen reine Testwerkzeuge wie axe-core und Playwright) eine erlaubte Lizenz
 haben:
 
-- **Erlaubt**: MIT, BSD-2-Clause, BSD-3-Clause, Apache-2.0, ISC, Zlib, Unlicense/CC0; Schriften unter OFL-1.1.
+- **Erlaubt**: MIT, BSD-2-Clause, BSD-3-Clause, Apache-2.0, ISC, Zlib, Unlicense/CC0; Schriften unter OFL-1.1; Daten unter der Unicode License v3 (Unicode-3.0, z. B. die Namen der Emoji aus Unicode CLDR).
 - **Nur nach Prüfung**: MPL-2.0 (Änderungen an diesen Dateien müssen offengelegt werden).
 - **Nicht erlaubt** im Programm: GPL, LGPL, AGPL (würden die BSL-Lizenzierung unmöglich machen), SSPL, BSL/„Source
   available“-Lizenzen Dritter, Lizenzen mit Nutzungsbeschränkungen (z. B. „non-commercial“), Code ohne Lizenz.

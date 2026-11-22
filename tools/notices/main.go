@@ -131,6 +131,7 @@ func run(out string, check bool) error {
 	for _, f := range []struct{ name, file string }{
 		{"Inter (font, via @fontsource-variable/inter)", "static/font-inter.txt"},
 		{"Source Sans 3 (font, via @fontsource-variable/source-sans-3)", "static/font-source-sans-3.txt"},
+		{"Unicode CLDR (names and keywords of the emoji, via emojibase-data; Unicode-3.0)", "static/unicode-cldr.txt"},
 	} {
 		t, _ := static.ReadFile(f.file)
 		section(f.name, string(t))
@@ -267,7 +268,7 @@ func npmMeta(dir string) (name, version, license string) {
 	return p.Name, p.Version, license
 }
 
-var allowed = map[string]bool{"MIT": true, "BSD-2-Clause": true, "BSD-3-Clause": true, "Apache-2.0": true, "ISC": true, "Zlib": true, "Unlicense": true, "CC0-1.0": true}
+var allowed = map[string]bool{"MIT": true, "BSD-2-Clause": true, "BSD-3-Clause": true, "Apache-2.0": true, "ISC": true, "Zlib": true, "Unlicense": true, "CC0-1.0": true, "Unicode-3.0": true}
 
 // classify recognises the common license texts (conservatively: anything
 // unknown is reported and must be reviewed).

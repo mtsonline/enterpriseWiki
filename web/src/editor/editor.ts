@@ -21,6 +21,7 @@ import { announce, toast } from '../core/announce';
 import { h, uid } from '../core/dom';
 import { t, uiLang } from '../core/i18n';
 import { checkbox, field, formDialog, select, textArea, textInput } from '../components/ui';
+import { emojiDialog } from './emoji';
 import { codeLanguage, codeLanguageOptions, codeLines } from '../core/codeblocks';
 import { blockTemplateSource, saveBlockTemplate } from './blocktemplates';
 import { chooseBlock } from './blockpicker';
@@ -656,6 +657,27 @@ export function createMarkdownEditor(container: HTMLElement, opts: MarkdownEdito
     if ('template' in c) return snippetInsert(v, c.template);
     snippetSave(v);
   };
+  // an emoji as text (visual and Markdown mode)
+  const emojiInsert = async (v: EditorView) => {
+    let e: string | null;
+    try {
+      e = await emojiDialog();
+    } catch (err) {
+      toast(String((err as Error).message ?? err), 'error');
+      return;
+    }
+    if (mode === 'markdown') {
+      if (e) {
+        textarea.setRangeText(e, textarea.selectionStart, textarea.selectionEnd, 'end');
+        binding?.changed();
+        opts.onChange?.();
+      }
+      textarea.focus();
+      return;
+    }
+    if (e) v.dispatch(v.state.tr.insertText(e).scrollIntoView());
+    v.focus();
+  };
   const macroInsert = async (v: EditorView, only?: string) => {
     let c;
     const selected = mode === 'markdown'
@@ -762,6 +784,7 @@ export function createMarkdownEditor(container: HTMLElement, opts: MarkdownEdito
     { id: 'table', icon: '▦', key: 'editor.table', run: cmdTool(insertTable), enabled: (s) => insertTable(s) },
     { id: 'image', icon: '🖼', key: 'editor.image', run: (v) => void imageDialog(v) },
     { id: 'hr', icon: '—', key: 'editor.hr', run: cmdTool(insertHr) },
+    { id: 'emoji', icon: '☺', key: 'editor.emoji', run: (v) => void emojiInsert(v), markdown: true },
     // one menu for blocks and block templates (the choice "macro" or
     // "snippet" of the site shows it; "snippet" adds the templates)
     { id: 'macro', icon: '⚙', key: 'editor.macro_insert', run: (v) => void blockMenu(v), markdown: true },

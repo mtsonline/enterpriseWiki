@@ -53,6 +53,7 @@ AGPL. There is therefore **no license conflict**. To be fulfilled:
   available under `/licenses.txt`, under *Administration → License* and with `ewiki license notices`.
 - **Fonts** (Inter, Source Sans 3; OFL 1.1): may be bundled with software, but not sold on their own; the
   license text is contained in `licenses.txt`.
+- **Names and keywords of the emoji** (Unicode CLDR via emojibase-data; Unicode License v3): the notice and the license text are in `licenses.txt`.
 
 Only for **building and testing** (not in the delivered program): TypeScript (Apache-2.0), esbuild (MIT), Playwright
 (Apache-2.0), axe-core (MPL-2.0), gldap (MIT, only tests). These licenses place no requirements on the product.
@@ -67,7 +68,7 @@ a permitted aggregation and does not affect the license of Enterprise Wiki. Alpi
 On every build the CI checks with `go run ./tools/notices -check` that all built-in Go modules and all npm packages
 of the frontend (`web/package-lock.json`; except pure test tools such as axe-core and Playwright) have an allowed license:
 
-- **Allowed**: MIT, BSD-2-Clause, BSD-3-Clause, Apache-2.0, ISC, Zlib, Unlicense/CC0; fonts under OFL-1.1.
+- **Allowed**: MIT, BSD-2-Clause, BSD-3-Clause, Apache-2.0, ISC, Zlib, Unlicense/CC0; fonts under OFL-1.1; data under the Unicode License v3 (Unicode-3.0, e.g. the names of emoji from Unicode CLDR).
 - **Only after review**: MPL-2.0 (changes to these files must be disclosed).
 - **Not allowed** in the program: GPL, LGPL, AGPL (would make the BSL licensing impossible), SSPL, BSL/"source
   available" licenses of third parties, licenses with usage restrictions (e.g. "non-commercial"), code without a license.

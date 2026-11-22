@@ -2872,6 +2872,34 @@ test('diagrams from text: drawn in a frame without access to the wiki, the text 
   await a11y('diagrams from text');
 });
 
+test('emoji: found by a word, chosen with the keyboard, inserted as text', async () => {
+  await newPage('core.html', `Emoji ${run}`);
+  await page.locator('.ewe-prose').click();
+  await page.keyboard.type('Thanks ');
+  await page.getByRole('button', { name: /^(insert emoji|emoji einfügen)$/i }).click();
+  const dlg = page.locator('dialog[open]').last();
+  const search = dlg.getByRole('combobox', { name: /^(search emoji|emoji suchen)$/i });
+  await search.waitFor();
+  // the groups without a search
+  const list = dlg.getByRole('listbox', { name: /^emoji$/i });
+  assert.ok(await list.getByRole('option').count() > 20, 'a group of emoji');
+  await search.fill('thumbs up');
+  await dlg.getByRole('status').filter({ hasText: /found|gefunden/ }).waitFor();
+  const first = list.getByRole('option').first();
+  assert.equal(await first.getAttribute('aria-selected'), 'true', 'the first one is active');
+  await a11y('emoji dialog');
+  await search.press('ArrowRight');
+  await search.press('ArrowLeft');
+  const chosen = (await first.locator('[aria-hidden="true"]').textContent()).trim();
+  await search.press('Enter');
+  await dlg.waitFor({ state: 'detached' });
+  assert.ok((await page.locator('.ewe-prose').textContent()).includes(`Thanks ${chosen}`), 'inserted at the cursor');
+  await page.getByRole('button', { name: /^(publish|veröffentlichen)$/i }).click();
+  await page.waitForURL(/\/e\/\d+$/);
+  await idle();
+  await page.locator('.ew-content').getByText(`Thanks ${chosen}`).waitFor();
+});
+
 test('wiki blocks: include a page chosen by title, a date, page tree with filter, search box for a category, new page from a template, spaces', async () => {
   const cat = (await call('POST', '/api/v1/categories', { titles: { en: `Wiki blocks ${run}` } })).id;
   const sub = (await call('POST', '/api/v1/categories', { titles: { en: `Chapter ${run}` }, parent_id: cat })).id;

@@ -135,3 +135,9 @@
 .ewb-arrow { display: inline-block; width: 1em; }
 .ewb-desc { min-height: 2.6em; }
 .ewb-actions { display: flex; gap: 1rem; flex-wrap: wrap; }
+
+/* emoji dialog: a grid of emoji, the active one outlined */
+.ewe-emoji-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(2.75rem, 1fr)); gap: .15rem; max-height: 18rem; overflow-y: auto; margin: .5rem 0; }
+.ewe-emoji { display: flex; align-items: center; justify-content: center; min-height: 2.75rem; font-size: 1.5rem; border-radius: var(--ew-radius); cursor: pointer; }
+.ewe-emoji:hover { background: var(--ew-bg-subtle); }
+.ewe-emoji[aria-selected="true"] { outline: 3px solid var(--ew-focus); outline-offset: -3px; }
