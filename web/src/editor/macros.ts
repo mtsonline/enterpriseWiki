@@ -74,7 +74,7 @@ function paramControl(p: MacroParam, value: string, ctx: Omit<MacroParamContext,
       return { el: field(name, ta, { required: p.required }), get: () => ta.value };
     }
     default: {
-      const i = textInput({ value, type: p.type === 'number' ? 'number' : 'text', required: p.required, placeholder: p.type === 'url' ? 'https://' : undefined });
+      const i = textInput({ value, type: p.type === 'number' || p.type === 'date' ? p.type : 'text', required: p.required, placeholder: p.type === 'url' ? 'https://' : undefined });
       return { el: field(name, i, { required: p.required }), get: () => i.value };
     }
   }
