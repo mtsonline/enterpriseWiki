@@ -348,6 +348,15 @@ func (s *Service) RollbackCategory(ctx context.Context, id int64, in RollbackInp
 					continue
 				}
 				if e.CreatedAt.After(in.At) {
+					// moving to the trash is a deletion: a type with own
+					// permissions decides (Guard); refused elements stay
+					if err := s.guardChange(ctx, e); err != nil {
+						if st, _, _ := apperr.Status(err); st == http.StatusForbidden {
+							res.Skipped++
+							continue
+						}
+						return err
+					}
 					if _, err := tx.Exec(ctx, `UPDATE elements SET deleted_at=now(), deleted_by=$2, trash_root=true WHERE id=$1`, e.ID, nullID(ctx)); err != nil {
 						return err
 					}
@@ -372,14 +381,24 @@ func (s *Service) RollbackCategory(ctx context.Context, id int64, in RollbackInp
 				if err != nil {
 					return err
 				}
+				refused := false
 				for _, t := range targets {
 					changed, err := s.restoreRev(ctx, tx, e, t.lang, t.rev, "Rollback to "+in.At.UTC().Format(time.RFC3339))
 					if err != nil {
+						// a type with own permissions refused the change
+						// (Guard): this element keeps its content
+						if st, _, _ := apperr.Status(err); st == http.StatusForbidden {
+							refused = true
+							break
+						}
 						return err
 					}
 					if changed {
 						res.Revisions++
 					}
+				}
+				if refused {
+					res.Skipped++
 				}
 			}
 		}
