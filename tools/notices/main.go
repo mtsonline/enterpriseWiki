@@ -98,6 +98,13 @@ func run(out string, check bool) error {
 			if strings.HasPrefix(name, "@fontsource") {
 				continue // font licenses (OFL) are added below
 			}
+			if lic == "" {
+				// no license in package.json: the license file decides (one
+				// file whose text is recognised, else it is reported)
+				if t := licenseFiles(filepath.Join("web", dir)); len(t) == 1 {
+					lic = classify(t[0])
+				}
+			}
 			if !licenseAllowed(lic) {
 				npmBad = append(npmBad, fmt.Sprintf("npm %s %s: %q", name, version, lic))
 				continue
@@ -158,6 +165,18 @@ func licenseFiles(dir string) []string {
 // argparse, the option parser of the markdown-it command line tool.
 var testOnly = map[string]bool{"axe-core": true, "playwright": true, "playwright-core": true, "argparse": true}
 
+// notShipped are npm packages of the lock file that never reach the product,
+// with the reason (checked where they would be bundled).
+var notShipped = map[string]string{
+	"elkjs": "replaced by a stub in web/build.mjs, which fails if it is bundled",
+}
+
+// knownLicense: packages without a license field in package.json, by the
+// text of their license file (checked again when bundled: see classify).
+var knownLicense = map[string]string{
+	"khroma": "MIT",
+}
+
 // checkNPM checks the licenses of all npm packages of the lock file. Fonts
 // (SIL Open Font License) are allowed; their texts are added from static/.
 func checkNPM(lock string, verbose bool) ([]string, error) {
@@ -190,7 +209,10 @@ func checkNPM(lock string, verbose bool) ([]string, error) {
 		name := k[strings.LastIndex(k, "node_modules/")+len("node_modules/"):]
 		p := l.Packages[k]
 		lic, _ := p.License.(string)
-		ok := licenseAllowed(lic) || testOnly[name]
+		if lic == "" {
+			lic = knownLicense[name]
+		}
+		ok := licenseAllowed(lic) || testOnly[name] || notShipped[name] != ""
 		if !ok {
 			bad = append(bad, fmt.Sprintf("npm %s %s: %q", name, p.Version, lic))
 		} else if verbose {

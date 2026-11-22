@@ -490,13 +490,23 @@ func buildDemo(d *demoRun) {
 				`<h2>Search in this area</h2>`+macro("searchbox", map[string]string{"category": in, "label": "Search in Getting started"}, "")+
 				newpage("New meeting minutes")+
 				`<h2>Pages of this area <span data-macro="anchor" data-params='{"name":"tree"}'></span></h2>`+macro("pagetree", map[string]string{"category": in, "depth": "2"}, "")+
-				`<h2>Files of the media folder</h2>`+macro("attachments", map[string]string{"source": "category", "category": strconv.FormatInt(mediaCat, 10)}, ""),
+				`<h2>Files of the media folder</h2>`+macro("attachments", map[string]string{"source": "category", "category": strconv.FormatInt(mediaCat, 10)}, "")+
+				`<h2>A diagram from text</h2><pre><code class="language-mermaid">flowchart LR
+  accTitle: How a request is decided
+  A[Request] --&gt; B{Approved?}
+  B --&gt;|yes| C[Order]
+  B --&gt;|no| D[Reply with the reason]</code></pre>`,
 			`<p>Zum <a href="#tree">Seitenbaum</a> springen. Die nächste Durchsicht ist am <span data-macro="date" data-params='{"value":"2026-12-15","format":"weekday"}'></span>.</p><h2>Aus einer anderen Seite eingebunden</h2><p>Nur der Auszug der Hausordnung, immer im aktuellen Stand:</p>`+
 				macro("include", map[string]string{"page": id, "excerpt": "true"}, "")+
 				`<h2>In diesem Bereich suchen</h2>`+macro("searchbox", map[string]string{"category": in, "label": "In Erste Schritte suchen"}, "")+
 				newpage("Neues Besprechungsprotokoll")+
 				`<h2>Seiten dieses Bereichs <span data-macro="anchor" data-params='{"name":"tree"}'></span></h2>`+macro("pagetree", map[string]string{"category": in, "depth": "2"}, "")+
-				`<h2>Dateien des Medien-Ordners</h2>`+macro("attachments", map[string]string{"source": "category", "category": strconv.FormatInt(mediaCat, 10)}, ""), nil)
+				`<h2>Dateien des Medien-Ordners</h2>`+macro("attachments", map[string]string{"source": "category", "category": strconv.FormatInt(mediaCat, 10)}, "")+
+				`<h2>Ein Diagramm aus Text</h2><pre><code class="language-mermaid">flowchart LR
+  accTitle: Wie ein Antrag entschieden wird
+  A[Antrag] --&gt; B{Genehmigt?}
+  B --&gt;|ja| C[Bestellen]
+  B --&gt;|nein| D[Antwort mit Begründung]</code></pre>`, nil)
 	})
 	// blocks B, part 1: progress, counter, timeline, dialog, tooltip
 	d.optional("blocks-b1", func() {

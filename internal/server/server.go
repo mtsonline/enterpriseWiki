@@ -108,6 +108,10 @@ func (s *Server) serveFrontend(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	p := strings.TrimPrefix(path.Clean(r.URL.Path), "/")
+	if p == "diagram-frame" || p == "diagram-frame.html" {
+		s.serveDiagramFrame(w, r)
+		return
+	}
 	if p != "" && p != "index.html" {
 		if st, err := fs.Stat(s.web, p); err == nil && !st.IsDir() {
 			if strings.HasPrefix(p, "assets/") {
@@ -165,4 +169,30 @@ func newHub(a *app.App) *collab.Hub {
 		return int(limits.Value(c, limits.LivePersons)), int(limits.Value(c, limits.LivePerPerson))
 	}
 	return h
+}
+
+// DiagramFrameCSP is the policy of the frame that draws diagrams from text:
+// its own script and inline styles only, no requests, no forms, only inside
+// the wiki. The page embeds it with sandbox="allow-scripts" (without
+// allow-same-origin), so it has no access to the wiki either.
+const DiagramFrameCSP = "default-src 'none'; script-src 'self'; style-src 'unsafe-inline'; img-src data:; font-src 'self' data:; connect-src 'none'; frame-ancestors 'self'; base-uri 'none'; form-action 'none'"
+
+// serveDiagramFrame serves the frame that draws diagrams from text (built by
+// web/build.mjs as diagram-frame.html).
+// action: core.diagrams.frame
+func (s *Server) serveDiagramFrame(w http.ResponseWriter, r *http.Request) {
+	b, err := fs.ReadFile(s.web, "diagram-frame.html")
+	if err != nil {
+		http.NotFound(w, r)
+		return
+	}
+	hd := w.Header()
+	hd.Set("Content-Security-Policy", DiagramFrameCSP)
+	hd.Set("Content-Type", "text/html; charset=utf-8")
+	hd.Set("Cache-Control", "no-cache")
+	hd.Set("Referrer-Policy", "no-referrer")
+	if r.Method == http.MethodHead {
+		return
+	}
+	_, _ = w.Write(b)
 }

@@ -776,10 +776,11 @@ export function createMarkdownEditor(container: HTMLElement, opts: MarkdownEdito
     if ($from.parent.type !== nodes.code_block) return;
     const pos = $from.before();
     const info = String($from.parent.attrs.params ?? '');
-    // besides the languages of code: a formula in TeX (set as MathML)
+    // besides the languages of code: a formula in TeX (set as MathML) and a
+    // diagram from text (drawn by Mermaid)
     const first = info.trim().split(/\s+/)[0]?.toLowerCase() ?? '';
-    const lang = first === 'math' ? first : codeLanguage(info);
-    const langSel = select([{ value: '', label: t('editor.code_plain') }, { value: 'math', label: t('editor.code_math') }, ...codeLanguageOptions()], lang);
+    const lang = first === 'math' || first === 'mermaid' ? first : codeLanguage(info);
+    const langSel = select([{ value: '', label: t('editor.code_plain') }, { value: 'math', label: t('editor.code_math') }, { value: 'mermaid', label: t('editor.code_mermaid') }, ...codeLanguageOptions()], lang);
     const lines = checkbox(t('editor.code_lines'), codeLines(info), { help: t('editor.code_lines_help') });
     formDialog(t('editor.code_settings'), [field(t('editor.code_language'), langSel), lines.el], t('common.apply'), async () => {
       const params = [langSel.value, lines.input.checked ? 'lines' : ''].filter(Boolean).join(' ');

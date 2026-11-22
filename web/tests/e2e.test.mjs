@@ -2840,6 +2840,38 @@ test('formulas: TeX set as MathML, nothing else of it reaches the page', async (
   await a11y('formulas');
 });
 
+test('diagrams from text: drawn in a frame without access to the wiki, the text stays readable', async () => {
+  const cat = (await call('POST', '/api/v1/categories', { titles: { en: `Diagrams ${run}` } })).id;
+  const src = '```mermaid\nflowchart LR\n  A[Request] --> B{Approved?}\n  B -->|yes| C[Order okapi]\n  B -->|no| D[Reply]\n```\n\n' +
+    '```mermaid\nthis is not a diagram <img src=x onerror=alert(1)>\n```\n';
+  const el = await call('POST', '/api/v1/elements', { category_id: cat, type: 'core.html', title: `Diagrams ${run}`, body: { format: 'markdown', source: src } });
+  await page.goto(`${BASE}/e/${el.id}`);
+  await idle();
+  const frames = page.locator('.ew-content iframe.ew-diagram-frame');
+  assert.equal(await frames.count(), 2);
+  assert.equal(await frames.first().getAttribute('sandbox'), 'allow-scripts', 'a frame without its own origin');
+  await page.frameLocator('.ew-content iframe.ew-diagram-frame >> nth=0').locator('svg').getByText('Order okapi').waitFor();
+  // the frame reaches neither the page nor the cookies of the wiki
+  const f = page.frames().find((x) => x.url().endsWith('/diagram-frame'));
+  assert.ok(f, 'the frame is there');
+  const reach = await f.evaluate(() => {
+    let parentDoc = true;
+    try { parentDoc = !!window.parent.document.body; } catch { parentDoc = false; }
+    let cookie = '';
+    try { cookie = document.cookie; } catch { cookie = ''; }
+    return { parentDoc, cookie, origin: window.origin };
+  });
+  assert.deepEqual(reach, { parentDoc: false, cookie: '', origin: 'null' });
+  // its height follows the drawing
+  assert.ok((await frames.first().boundingBox()).height > 60, 'the frame is as high as the drawing');
+  // a text that is no diagram: a note, and the text below (never as HTML)
+  await page.locator('.ew-diagram').nth(1).getByText(/could not be drawn|ließ sich nicht zeichnen/i).waitFor();
+  assert.equal(await page.locator('.ew-content img[src="x"]').count(), 0, 'no HTML from the text of a diagram');
+  await page.locator('.ew-diagram').first().locator('summary').click();
+  await page.locator('.ew-diagram').first().getByText('A[Request] --> B{Approved?}').waitFor();
+  await a11y('diagrams from text');
+});
+
 test('wiki blocks: include a page chosen by title, a date, page tree with filter, search box for a category, new page from a template, spaces', async () => {
   const cat = (await call('POST', '/api/v1/categories', { titles: { en: `Wiki blocks ${run}` } })).id;
   const sub = (await call('POST', '/api/v1/categories', { titles: { en: `Chapter ${run}` }, parent_id: cat })).id;

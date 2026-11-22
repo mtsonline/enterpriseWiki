@@ -21,6 +21,10 @@ COPY go.mod go.sum ./
 RUN for i in 1 2 3; do go mod download && exit 0; sleep 10; done; exit 1
 COPY . .
 COPY --from=web /src/web/dist web/dist
+# the notices list exactly the bundled npm packages (written by build.mjs)
+# with the license files from their packages
+COPY --from=web /src/web/.build web/.build
+COPY --from=web /src/web/node_modules web/node_modules
 RUN go run ./tools/notices
 ARG VERSION=dev
 RUN CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH go build -trimpath \
