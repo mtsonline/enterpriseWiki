@@ -52,7 +52,7 @@ func TestCheckDataKind(t *testing.T) {
 	if err != nil || *r.num != 2.5 || *r.person != 7 || string(r.data) != `{"n":2.5,"tags":["a","b"],"who":7}` {
 		t.Fatalf("data: %v %s", err, r.data)
 	}
-	for _, bad := range []map[string]any{{"tags": "a,b,c"}, {"who": 1.5}, {"who": "-1"}, {"n": "NaN"}, {"n": "1e999"}, {"tags": []any{1}}} {
+	for _, bad := range []map[string]any{{"tags": "a,b,c"}, {"who": 1.5}, {"who": "-1"}, {"n": "NaN"}, {"n": "1e999"}, {"tags": []any{1}}, {"zzz": "1"}} {
 		if _, err := checkData(k, bad); err == nil {
 			t.Errorf("accepted: %v", bad)
 		}

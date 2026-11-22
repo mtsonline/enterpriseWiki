@@ -4512,6 +4512,9 @@ test('decisions: a decision in a page, the report of decisions and the data for 
   await newPage('core.html', `Decisions ${run}`);
   await page.locator('.ewe-prose').click();
   const title = `Choose okapi ${run}`;
+  const dlg2 = await insertBlock('decisions');
+  await dlg2.locator('button[type=submit]').click();
+  await page.waitForSelector('.ewe-prose .ewe-macro[data-macro="decisions"]');
   const dlg = await insertBlock('decision');
   await dlg.getByLabel(/^(decision in short|entscheidung in kürze)/i).fill(title);
   await dlg.getByLabel(/^status/i).selectOption('decided');
@@ -4520,13 +4523,10 @@ test('decisions: a decision in a page, the report of decisions and the data for 
   await a11y('decision dialog');
   await dlg.locator('button[type=submit]').click();
   await page.waitForSelector('.ewe-prose .ewe-macro[data-macro="decision"]');
-  const dlg2 = await insertBlock('decisions');
-  await dlg2.locator('button[type=submit]').click();
-  await page.waitForSelector('.ewe-prose .ewe-macro[data-macro="decisions"]');
   await page.getByRole('button', { name: /^(publish|veröffentlichen)$/i }).click();
   await page.waitForURL(/\/e\/\d+$/);
   await idle();
-  await page.locator('.ew-decision').getByText(title).waitFor();
+  await page.locator('.ew-decision-title', { hasText: title }).waitFor();
   await page.locator('.ew-decisions tr', { hasText: title }).getByText(/^(decided|entschieden)$/i).waitFor();
   await a11y('decision and report');
   await page.goto(BASE + '/admin/data');

@@ -559,6 +559,7 @@ func (s *Service) writeMacroDataAll(ctx context.Context, tx pgx.Tx, id int64) er
 		return nil
 	}
 	var typ string
+	// acl: internal – the element being saved (rights checked by the caller)
 	if err := tx.QueryRow(ctx, `SELECT type FROM elements WHERE id=$1`, id).Scan(&typ); err != nil {
 		return err
 	}
@@ -815,6 +816,7 @@ func (s *Service) RebuildData(ctx context.Context, batch int) (bool, error) {
 			cursor = c
 		}
 	}
+	// acl: internal – building the data (system job; readers are filtered in QueryData)
 	rows, err := s.pool.Query(ctx, `SELECT id FROM elements WHERE id > $1 AND type = ANY($2) AND deleted_at IS NULL ORDER BY id LIMIT $3`, cursor, types, batch)
 	if err != nil {
 		return false, err
@@ -826,6 +828,7 @@ func (s *Service) RebuildData(ctx context.Context, batch int) (bool, error) {
 	for _, id := range ids {
 		err := pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
 			// the element locked: a change at the same time waits (and then writes its own)
+			// acl: internal – building the data (system job)
 			if _, err := tx.Exec(ctx, `SELECT 1 FROM elements WHERE id=$1 FOR UPDATE`, id); err != nil {
 				return err
 			}
