@@ -2859,5 +2859,13 @@
  "editor.code_mermaid": "Diagram from text (Mermaid)",
  "diagram.title": "Diagram",
  "diagram.as_text": "The diagram as text",
- "diagram.error": "The diagram could not be drawn. Its text is below."
+ "diagram.error": "The diagram could not be drawn. Its text is below.",
+ "editor.emoji": "Insert emoji",
+ "editor.emoji_search": "Search emoji",
+ "editor.emoji_help": "A word of the name or a keyword, for example “thumb” or “heart”. Arrow keys choose, Enter inserts.",
+ "editor.emoji_group": "Group",
+ "editor.emoji_list": "Emoji",
+ "editor.emoji_found": "{n} emoji found",
+ "editor.emoji_insert": "Insert",
+ "editor.emoji_none": "Choose an emoji."
 }
