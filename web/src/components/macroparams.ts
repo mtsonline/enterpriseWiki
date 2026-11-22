@@ -8,6 +8,7 @@ import type { MacroParamControl } from '../editor/macros';
 import { button, errorText, field, select } from './ui';
 import { mediaURL, pickMedium } from './media';
 import { categorySelect, elementSelect } from './pickers';
+import { groupPicker, userPicker } from './subjects';
 import type { Template } from './publishing';
 
 const num = (v: string): number => (/^[1-9][0-9]{0,17}$/.test(v.trim()) ? Number(v.trim()) : 0);
@@ -49,3 +50,16 @@ export const imageControl: MacroParamControl = (value, ctx) => {
   }, { variant: 'subtle' });
   return { el: h('div', null, field(ctx.label, i, { required: ctx.required, help: t('bo.file_help') }), pick), get: () => i.value.trim() };
 };
+
+/** A person of the wiki (people blocks): found by name; the value is the number. */
+export const userControl: MacroParamControl = (value, ctx) => {
+  const id = num(value);
+  const p = userPicker({ label: ctx.label, initial: id ? [{ id, name: `#${id}` }] : [], required: ctx.required });
+  return { el: p.el, get: () => { const v = p.value(); return v.length ? String(v[v.length - 1]) : ''; } };
+};
+
+/** A group (people blocks): the groups the person may list. */
+export const groupControl: MacroParamControl = (value, ctx) => later(value, ctx.label, async () => {
+  const g = await groupPicker({ label: ctx.label, initial: num(value) ? [num(value)] : [] });
+  return { el: g.el, get: () => (g.value()[0] ? String(g.value()[0]) : '') };
+});

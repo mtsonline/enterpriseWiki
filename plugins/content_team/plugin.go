@@ -24,6 +24,7 @@ import (
 	"github.com/mtsonline/enterprisewiki/internal/coreplugin"
 	h "github.com/mtsonline/enterprisewiki/internal/httpx"
 	"github.com/mtsonline/enterprisewiki/internal/identity"
+	"github.com/mtsonline/enterprisewiki/internal/limits"
 	"github.com/mtsonline/enterprisewiki/internal/perm"
 	"github.com/mtsonline/enterprisewiki/plugins/core_html"
 )
@@ -281,6 +282,46 @@ func members(ctx context.Context, hs *coreplugin.Host, c *Config) ([]Section, er
 		out = append(out, *byGroup[gid])
 	}
 	return out, nil
+}
+
+// people loads the active members of the group id (byGroup) or the user id
+// as one section, with the fields of c, at most the limit content.team.people.
+func people(ctx context.Context, hs *coreplugin.Host, c *Config, byGroup bool, id int64) ([]Section, error) {
+	max := limits.Value(hs.Config.Get(), "content.team.people")
+	rows, err := hs.DB.Query(ctx, `SELECT u.id, CASE WHEN u.display_name = '' THEN u.username ELSE u.display_name END, u.email, u.profile
+		FROM users u WHERE NOT u.disabled AND CASE WHEN $3 THEN u.id IN (SELECT user_id FROM user_groups WHERE group_id = $1) ELSE u.id = $1 END
+		ORDER BY lower(u.display_name), u.username LIMIT $2`, id, max, byGroup)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	s := Section{Members: []Member{}}
+	for rows.Next() {
+		var uid int64
+		var name, email string
+		var profile map[string]string
+		if err := rows.Scan(&uid, &name, &email, &profile); err != nil {
+			return nil, err
+		}
+		m := Member{ID: uid, Name: name, Fields: map[string]string{}}
+		for _, f := range c.Fields {
+			switch f {
+			case "email":
+				m.Fields[f] = email
+			case "photo":
+				if hs.Auth.PhotoVisible(ctx, uid, profile["photo_visibility"]) {
+					m.Fields[f] = profile[f]
+				}
+			default:
+				m.Fields[f] = profile[f]
+			}
+			if m.Fields[f] == "" {
+				delete(m.Fields, f)
+			}
+		}
+		s.Members = append(s.Members, m)
+	}
+	return []Section{s}, rows.Err()
 }
 
 func attrString(v any) string {
@@ -572,6 +613,9 @@ func (p *Plugin) Setup(hs *coreplugin.Host) error {
 	p.host = hs
 	plugins.Set(hs, p)
 	hs.RegisterElementType(Type{})
+	// people blocks: read with the rights of the reader, nothing else
+	hs.RegisterPictureMacro(profileCard{p})
+	hs.RegisterPictureMacro(groupPeople{p})
 
 	// GET /groups – groups to choose from (signed-in users; editors are not always admins)
 	// action: content.team.groups

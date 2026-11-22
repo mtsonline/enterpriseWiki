@@ -28,7 +28,7 @@ import { instanceLabelsButton } from './components/instanceLabels';
 import { placementEditor, typeLayouts } from './components/placement';
 import { blockOptionsControl } from './components/blockoptions';
 import { iconControl } from './components/iconpicker';
-import { categoryControl, imageControl, pageControl, templateControl } from './components/macroparams';
+import { categoryControl, groupControl, imageControl, pageControl, templateControl, userControl } from './components/macroparams';
 import { registerMacroParamControl } from './editor/macros';
 import { notificationBell } from './components/bell';
 import { adminView } from './views/admin';
@@ -87,6 +87,8 @@ function registerCore(): void {
   registerMacroParamControl('category', categoryControl);
   registerMacroParamControl('template', templateControl);
   registerMacroParamControl('image', imageControl);
+  registerMacroParamControl('user', userControl);
+  registerMacroParamControl('group', groupControl);
   registerAdminPage({ id: 'placement', permission: 'core.settings.manage', order: 15, label: () => t('placement.admin'), render: async (panel) => { panel.append(pageHeader(t('placement.admin')), await placementEditor('site', ''), await typeLayouts(), await offeredTilesForm()); } });
   registerProfileSection({ id: 'core.placement', order: 60, render: async () => (state.site.personal_placement && state.user ? placementEditor('user', String(state.user.id)) : null) });
   // building blocks of the core: default positions; the administration,
