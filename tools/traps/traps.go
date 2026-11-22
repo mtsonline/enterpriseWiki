@@ -1291,7 +1291,7 @@ var traps = []trap{
 	{
 		ID: "data.like", About: "a % in the search matches everything",
 		File: "internal/content/data.go",
-		Old:  "q.Q = strings.NewReplacer(`\\\\`, `\\\\\\\\`, `%`, `\\\\%`, `_`, `\\\\_`).Replace(strings.TrimSpace(q.Q))",
+		Old:  "q.Q = strings.NewReplacer(`\\`, `\\\\`, `%`, `\\%`, `_`, `\\_`).Replace(strings.TrimSpace(q.Q))",
 		New:  "q.Q = strings.TrimSpace(q.Q)",
 		Pkg:  "./internal/server/", Tests: "^TestBlockData$",
 	},
@@ -1305,8 +1305,8 @@ var traps = []trap{
 	{
 		ID: "decision.escape", About: "the report of decisions does not escape the title",
 		File: "plugins/core_macros/decisions.go",
-		Old:  "<tr><th scope=\"row\">%s</th>`,\n\t\t\tesc(str(\"title\"))",
-		New:  "<tr><th scope=\"row\">%s</th>`,\n\t\t\tstr(\"title\")",
+		Old:  "esc(str(\"title\")), decisionColors[st]",
+		New:  "str(\"title\"), decisionColors[st]",
 		Pkg:  "./internal/server/", Tests: "^TestBlockData$",
 	},
 	{
