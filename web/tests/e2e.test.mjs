@@ -2812,6 +2812,34 @@ test('layout blocks: a section with options from the macro dialog, an icon box w
   }
 });
 
+test('formulas: TeX set as MathML, nothing else of it reaches the page', async () => {
+  const cat = (await call('POST', '/api/v1/categories', { titles: { en: `Formulas ${run}` } })).id;
+  const src = 'Pythagoras: :math{tex="a^2 + b^2 = c^2"} in a line.\n\n:math{tex="\\\\sum_{i=1}^{n} i = \\\\frac{n(n+1)}{2}" display=block}\n\n' +
+    '```math\n\\int_0^1 x\\,dx\n```\n\nColour: :math{tex="\\\\color{red}{x}"}. Hostile: :math{tex="\\\\href{javascript:alert(1)}{x} \\\\style{color:red}{y}"} and :math{tex="\\\\frac{"}\n';
+  const el = await call('POST', '/api/v1/elements', { category_id: cat, type: 'core.html', title: `Formulas ${run}`, body: { format: 'markdown', source: src } });
+  await page.goto(`${BASE}/e/${el.id}`);
+  await idle();
+  await page.waitForFunction(() => document.querySelectorAll('.ew-content math').length >= 4);
+  const info = await page.evaluate(() => {
+    const maths = [...document.querySelectorAll('.ew-content math')];
+    return {
+      count: maths.length,
+      ns: maths.every((m) => m.namespaceURI === 'http://www.w3.org/1998/Math/MathML'),
+      block: maths.filter((m) => m.getAttribute('display') === 'block').length,
+      bad: document.querySelectorAll('.ew-content math a, .ew-content math [href], .ew-content math [style], .ew-content math script, .ew-content math foreignObject').length,
+      error: document.querySelectorAll('.ew-math--error').length,
+      text: document.querySelector('.ew-content')?.textContent ?? '',
+    };
+  });
+  assert.equal(info.count, 4, 'four formulas set');
+  assert.ok(info.ns, 'as MathML');
+  assert.equal(info.block, 2, 'two on their own line');
+  assert.equal(info.bad, 0, 'no links, styles or scripts in a formula');
+  assert.equal(info.error, 2, 'what is not allowed or not valid TeX stays as TeX');
+  assert.ok(info.text.includes('\\frac{'), 'the TeX of the broken formula is readable');
+  await a11y('formulas');
+});
+
 test('wiki blocks: include a page chosen by title, a date, page tree with filter, search box for a category, new page from a template, spaces', async () => {
   const cat = (await call('POST', '/api/v1/categories', { titles: { en: `Wiki blocks ${run}` } })).id;
   const sub = (await call('POST', '/api/v1/categories', { titles: { en: `Chapter ${run}` }, parent_id: cat })).id;

@@ -518,6 +518,8 @@ func buildDemo(d *demoRun) {
 				macro("chart", map[string]string{"title": tr("Visitors per quarter", "Besuche je Quartal"), "type": "bar"},
 					`<table><thead><tr><th>`+tr("Quarter", "Quartal")+`</th><th>`+tr("Office Vienna", "Büro Wien")+`</th><th>`+tr("Office Graz", "Büro Graz")+`</th></tr></thead><tbody>`+
 						`<tr><td>Q1</td><td>120</td><td>80</td></tr><tr><td>Q2</td><td>150</td><td>95</td></tr><tr><td>Q3</td><td>140</td><td>110</td></tr><tr><td>Q4</td><td>180</td><td>130</td></tr></tbody></table>`) +
+				`<h2>` + tr("Formula", "Formel") + `</h2><p>` + tr("The sum of the numbers from 1 to n:", "Die Summe der Zahlen von 1 bis n:") +
+				`</p><p><span data-macro="math" data-params='{"tex":"\\sum_{i=1}^{n} i = \\frac{n(n+1)}{2}","display":"block"}'></span></p>` +
 				`<h2>` + tr("External videos", "Externe Videos") + `</h2><p>` +
 				tr("The block <em>External video or embed</em> shows a video of a service outside the wiki. Nothing is loaded from the service until the reader presses <em>Load content</em>. Only services an administrator allows under <em>Administration → Settings → Media</em> work; this demo allows none, so there is no video here. Example in Markdown:",
 					"Der Baustein <em>Externes Video oder Einbettung</em> zeigt ein Video eines Dienstes außerhalb des Wikis. Vom Dienst wird nichts geladen, bevor die lesende Person <em>Inhalt laden</em> drückt. Es gehen nur Dienste, die die Administration unter <em>Administration → Einstellungen → Medien</em> erlaubt; diese Demo erlaubt keinen, darum steht hier kein Video. Beispiel in Markdown:") +

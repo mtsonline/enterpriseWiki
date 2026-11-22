@@ -1138,5 +1138,8 @@
  "label: at most %d characters": "Name: höchstens %d Zeichen",
  "the date: a day as YYYY-MM-DD, for example 2026-11-22": "Das Datum: ein Tag als JJJJ-MM-TT, zum Beispiel 2026-11-22",
  "showing contact details to guests needs the permission %q": "Um Gästen Kontaktdaten zu zeigen, brauchen Sie das Recht %q",
- "field %s: attributes of the identity provider are chosen by who manages users (core.users.manage)": "Feld %s: Attribute des Identity Providers wählt, wer Benutzer verwaltet (core.users.manage)"
+ "field %s: attributes of the identity provider are chosen by who manages users (core.users.manage)": "Feld %s: Attribute des Identity Providers wählt, wer Benutzer verwaltet (core.users.manage)",
+ "a formula needs its TeX": "Eine Formel braucht ihren TeX-Text",
+ "a formula has at most %d characters": "Eine Formel hat höchstens %d Zeichen",
+ "a formula has no control characters": "Eine Formel enthält keine Steuerzeichen"
 }

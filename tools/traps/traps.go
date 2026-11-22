@@ -1211,4 +1211,18 @@ var traps = []trap{
 		New:  "false {",
 		Pkg:  "./internal/server/", Tests: "^TestTeamPrivacy$",
 	},
+	{
+		ID: "math.escape", About: "the TeX of a formula is written as HTML",
+		File: "plugins/core_macros/math.go",
+		Old:  "display, display, esc(tex)), nil",
+		New:  "display, display, tex), nil",
+		Pkg:  "./plugins/core_macros/", Tests: "^TestFormula$",
+	},
+	{
+		ID: "math.length", About: "a formula has no limit of length",
+		File: "plugins/core_macros/math.go",
+		Old:  "utf8.RuneCountInString(tex) > MathMax {",
+		New:  "utf8.RuneCountInString(tex) > MathMax*1000 {",
+		Pkg:  "./plugins/core_macros/", Tests: "^TestFormula$",
+	},
 }
