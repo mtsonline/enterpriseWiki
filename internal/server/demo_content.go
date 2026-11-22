@@ -577,6 +577,12 @@ func buildDemo(d *demoRun) {
 	d.optional("team", func() {
 		d.element(team, "content.team", d.tr("Our team", "Unser Team"), d.same(map[string]any{"description": htmlBodyOf("<p>Demo-Konten – eine Anmeldung ist nicht möglich.</p>"),
 			"groups": []int64{editorsGroup, readersGroup}, "fields": []string{"photo", "job_title", "department", "phone", "office"}, "layout": "cards", "by_group": true, "sort": "name"}), nil)
+		// people blocks in a page: only for people who may list the group
+		d.page(team, "People in a page", "Personen in einer Seite",
+			`<p>The block <em>People of a group</em> shows the members to people who may list the group and its members; guests see none (for a public page there is the team page).</p>`+
+				macro("people", map[string]string{"group": strconv.FormatInt(editorsGroup, 10), "layout": "list", "details": "short"}, ""),
+			`<p>Der Baustein <em>Personen einer Gruppe</em> zeigt die Mitglieder allen, die die Gruppe und ihre Mitglieder auflisten dürfen; Gäste sehen niemanden (für eine öffentliche Seite gibt es die Team-Seite).</p>`+
+				macro("people", map[string]string{"group": strconv.FormatInt(editorsGroup, 10), "layout": "list", "details": "short"}, ""), nil)
 	})
 
 	// ---- 5b. projects with properties: definitions, a database and reports

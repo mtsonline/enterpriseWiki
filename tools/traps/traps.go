@@ -1225,4 +1225,25 @@ var traps = []trap{
 		New:  "utf8.RuneCountInString(tex) > MathMax*1000 {",
 		Pkg:  "./plugins/core_macros/", Tests: "^TestFormula$",
 	},
+	{
+		ID: "people.card-own", About: "the list_own permission shows people outside the own groups",
+		File: "plugins/content_team/macros.go",
+		Old:  "\tcase auth.ListOwn:\n\t\tif !ok {",
+		New:  "\tcase auth.ListOwn:\n\t\tok = true\n\t\tif !ok {",
+		Pkg:  "./internal/server/", Tests: "^TestPeopleBlocks$",
+	},
+	{
+		ID: "people.group-own", About: "the people of a group of others are shown with the own lists",
+		File: "plugins/content_team/macros.go",
+		Old:  "\town := slices.Contains(p.Groups, gid)",
+		New:  "\town := slices.Contains(p.Groups, gid) || gid > 0",
+		Pkg:  "./internal/server/", Tests: "^TestPeopleBlocks$",
+	},
+	{
+		ID: "people.disabled", About: "disabled people are shown",
+		File: "plugins/content_team/plugin.go",
+		Old:  "FROM users u WHERE NOT u.disabled AND CASE",
+		New:  "FROM users u WHERE CASE",
+		Pkg:  "./internal/server/", Tests: "^TestPeopleBlocks$",
+	},
 }

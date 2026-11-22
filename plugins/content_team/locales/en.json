@@ -42,5 +42,7 @@
  "content.team.public_help": "Without this, guests see only name, job title, department and photo (as each person allows). E-mail, phone, mobile, office, about, groups and attributes are for signed-in people.",
  "content.team.public_needs": "Guests see only name, job title, department and photo. Showing them the contact details needs the permission “Show contact details publicly”.",
  "perm.content.team.public": "Show contact details publicly",
- "perm.content.team.public_help": "Let guests see the contact details on team pages (e-mail, phone, mobile, office, about, groups and attributes of the identity provider)."
+ "perm.content.team.public_help": "Let guests see the contact details on team pages (e-mail, phone, mobile, office, about, groups and attributes of the identity provider).",
+ "limit.content.team.people": "People in a people block",
+ "limit.content.team.people.help": "How many people the block People of a group shows at most."
 }

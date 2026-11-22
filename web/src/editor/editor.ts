@@ -703,7 +703,16 @@ export function createMarkdownEditor(container: HTMLElement, opts: MarkdownEdito
       // select the placeholder text of the body (or put the cursor after a leaf macro)
       const at = inserted(tr, state, nodes.macro);
       if (at >= 0 && c.hasBody) tr.setSelection(TextSelection.create(tr.doc, at + 2, at + 2 + body[0].textContent.length));
-      else if (at >= 0) tr.setSelection(TextSelection.near(tr.doc.resolve(at + node.nodeSize)));
+      else if (at >= 0) {
+        // the cursor goes into a paragraph after a leaf macro (a new one at
+        // the end): the next block is inserted after it, never in its place
+        const after = at + node.nodeSize;
+        const next = tr.doc.resolve(after).nodeAfter;
+        if (!next || !next.isTextblock) {
+          try { tr.insert(after, nodes.paragraph.create()); } catch { /* no paragraph allowed here */ }
+        }
+        tr.setSelection(TextSelection.near(tr.doc.resolve(after + 1)));
+      }
     }
     v.dispatch(tr.scrollIntoView());
     v.focus();

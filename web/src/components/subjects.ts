@@ -64,7 +64,15 @@ export function userPicker(opts: { label: string; multiple?: boolean; initial?: 
   input.addEventListener('keydown', (ev) => { if (ev.key === 'Enter') { ev.preventDefault(); take(); } });
   sync();
   const box = h('div', { class: 'ew-picker' }, list.el, input, dl, status);
-  return { el: field(opts.label, box, { help: opts.help, required: opts.required }), value: () => items.map((x) => x.id), names: () => items.map((x) => x.name), focus: () => input.focus() };
+  const el = field(opts.label, box, { help: opts.help, required: opts.required });
+  // the label, the description and "required" belong to the search field, not to the box around it
+  input.id = `${box.id}-q`;
+  el.querySelector('label')?.setAttribute('for', input.id);
+  input.setAttribute('aria-describedby', box.getAttribute('aria-describedby') ?? '');
+  box.removeAttribute('aria-describedby');
+  box.removeAttribute('aria-required');
+  if (opts.required) input.setAttribute('aria-required', 'true');
+  return { el, value: () => items.map((x) => x.id), names: () => items.map((x) => x.name), focus: () => input.focus() };
 }
 
 /** Picks one or more groups. */

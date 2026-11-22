@@ -3846,6 +3846,8 @@ test('template designer, part 3: a warning for standard positions, widths by dra
     // the header: lower once scrolled, away while scrolling down, back when scrolling up or with the focus
     const header = page.locator('header.ewd-landmark');
     await page.evaluate(() => { document.querySelector('.ewd-main').style.minHeight = '4000px'; });
+    // the focus must not be in the header (it never hides what has the focus)
+    await page.evaluate(() => document.activeElement?.blur());
     await page.evaluate(() => window.scrollTo(0, 600));
     await page.waitForFunction(() => document.querySelector('header.ewd-landmark').classList.contains('ewd-shrunk') && document.querySelector('header.ewd-landmark').classList.contains('ewd-away'));
     await page.evaluate(() => window.scrollTo(0, 300));
@@ -4423,6 +4425,33 @@ test('team page and business card', async () => {
   await page.waitForURL(new RegExp(`/e/${team.id}$`));
   const saved = await call('GET', `/api/v1/elements/${team.id}?edit=1`);
   assert.equal(saved.body?.public, true, 'saved as public');
+});
+
+test('people blocks: a profile card chosen by name and the people of a group', async () => {
+  const g = await call('POST', '/api/v1/admin/groups', { name: `Crew ${run}` });
+  const u = await call('POST', '/api/v1/admin/users', { username: `crew${run}`, password: 'Passw0rd!Passw0rd', display_name: `Crew Okapi ${run}`, email: `crew${run}@example.com`, groups: [g.id] });
+  await call('PUT', `/api/v1/admin/users/${u.id}/profile`, { job_title: 'Deck officer' });
+  await newPage('core.html', `People ${run}`);
+  await page.locator('.ewe-prose').click();
+  const dlg = await insertBlock('profilecard');
+  const who = dlg.getByPlaceholder(/name or user name|name oder benutzername/i);
+  const name = `Crew Okapi ${run}`;
+  await who.fill(name);
+  await page.waitForFunction((n) => [...document.querySelectorAll('dialog[open] datalist option')].some((o) => o.value.includes(n)), name);
+  await who.fill(await page.evaluate((n) => [...document.querySelectorAll('dialog[open] datalist option')].find((o) => o.value.includes(n)).value, name));
+  await a11y('profile card dialog');
+  await dlg.locator('button[type=submit]').click();
+  await page.waitForSelector('.ewe-prose .ewe-macro[data-macro="profilecard"]');
+  const dlg2 = await insertBlock('people');
+  await dlg2.locator('select').filter({ has: page.locator(`option[value="${g.id}"]`) }).selectOption(String(g.id));
+  await dlg2.locator('button[type=submit]').click();
+  await page.waitForSelector('.ewe-prose .ewe-macro[data-macro="people"]');
+  await page.getByRole('button', { name: /^(publish|veröffentlichen)$/i }).click();
+  await page.waitForURL(/\/e\/\d+$/);
+  await idle();
+  await page.locator('.ewt--card').getByText('Deck officer').waitFor();
+  await page.locator('.ew-macro--people').getByText(name).waitFor();
+  await a11y('people blocks');
 });
 
 test('menu item pointing to an existing element; new blog from the menu dialog', async () => {
