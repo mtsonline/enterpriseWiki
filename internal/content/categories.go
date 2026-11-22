@@ -1134,7 +1134,11 @@ func (s *Service) copyElements(ctx context.Context, tx pgx.Tx, from, to int64, p
 			}
 			return err
 		}
-		if _, err := copyElement(ctx, tx, eid, to, "", true); err != nil {
+		nid, err := copyElement(ctx, tx, eid, to, "", true)
+		if err != nil {
+			return err
+		}
+		if err := s.writeMacroDataAll(ctx, tx, nid); err != nil {
 			return err
 		}
 	}

@@ -166,6 +166,7 @@ Business Source License 1.1 with free private use by natural persons, license ke
 - **Shared block (done):** save the selection as a block element and include it; a change shows everywhere.
 - **People blocks (done):** profile card and people of a group, with the rights of the reader.
 - **Emoji (done):** picker in the editor with a search in English and German (Unicode CLDR).
+- **Data for reports and decisions (done):** blocks and plugins register kinds of data with a schema and keep entries in a table of the core, in the same transaction as the version; reports read them with the rights of the reader. First use: the block *Decision* and the *Report of decisions*; *Administration → Data for reports*.
 - **Diagrams from text (done):** code blocks ` ```mermaid ` are drawn in a closed-off frame.
 - **Permissions per instance (steps 1 and 2 done):** permissions of their own for a single blog or FAQ (manage, all content, own content), also grantable per category; content on behalf of an instance (`via`) in the real editor, with drafts and live editing; UI, API, CLI. Next: building blocks for entering content, then events, forms, workflows, property database, notes and team.
 - **Action register, stage 1 (started):** register in the format of the plugin contract, check of register, routes and comments in the CI (the list of missing entries may only shrink), CLI commands for every action from the register, contract check in the SDK. Entries for all routes follow area by area.

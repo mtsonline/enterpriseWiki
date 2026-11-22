@@ -278,6 +278,7 @@ Außerdem laufen Hintergrundjobs (Liste und „jetzt ausführen“ unter *Admini
 | `content.events.reminders` | 1 min | Termin-Erinnerungen an angemeldete und interessierte Personen |
 | `mail.cleanup` | 6 h | gesendete E-Mails nach `retention.mail_days` löschen |
 | `search.changes.cleanup` | täglich | Änderungsprotokoll für externe Suchmaschinen kürzen (30 Tage) |
+| `data.rebuild` | 1 min | Daten für Berichte (zum Beispiel Entscheidungen) von neuen Arten oder Arten mit neuer Version aus den neuesten Fassungen der Seiten aufbauen, 200 Seiten je Schritt; *Administration → Daten für Berichte* zeigt den Stand und startet den Aufbau neu |
 | `workflow.process.timers` | 30 s | Wartezeiten und Webhooks von Workflows fortsetzen, Erinnerungen für überfällige Aufgaben |
 | `search.external.sync` | 10 s | externen Suchindex abgleichen (nur wenn konfiguriert) |
 

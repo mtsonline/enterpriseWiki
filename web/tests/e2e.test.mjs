@@ -4508,6 +4508,36 @@ test('people blocks: a profile card chosen by name and the people of a group', a
   await a11y('people blocks');
 });
 
+test('decisions: a decision in a page, the report of decisions and the data for reports in the administration', async () => {
+  await newPage('core.html', `Decisions ${run}`);
+  await page.locator('.ewe-prose').click();
+  const title = `Choose okapi ${run}`;
+  const dlg = await insertBlock('decision');
+  await dlg.getByLabel(/^(decision in short|entscheidung in kürze)/i).fill(title);
+  await dlg.getByLabel(/^status/i).selectOption('decided');
+  await dlg.getByLabel(/^(day|datum)/i).fill('2026-11-20');
+  await dlg.getByLabel(/^(responsible|verantwortlich)/i).fill('Anna');
+  await a11y('decision dialog');
+  await dlg.locator('button[type=submit]').click();
+  await page.waitForSelector('.ewe-prose .ewe-macro[data-macro="decision"]');
+  const dlg2 = await insertBlock('decisions');
+  await dlg2.locator('button[type=submit]').click();
+  await page.waitForSelector('.ewe-prose .ewe-macro[data-macro="decisions"]');
+  await page.getByRole('button', { name: /^(publish|veröffentlichen)$/i }).click();
+  await page.waitForURL(/\/e\/\d+$/);
+  await idle();
+  await page.locator('.ew-decision').getByText(title).waitFor();
+  await page.locator('.ew-decisions tr', { hasText: title }).getByText(/^(decided|entschieden)$/i).waitFor();
+  await a11y('decision and report');
+  await page.goto(BASE + '/admin/data');
+  await idle();
+  await page.getByRole('button', { name: /^(show entries|einträge zeigen): (decisions|entscheidungen)$/i }).click();
+  await page.locator('.ew-admin-panel table tr', { hasText: title }).waitFor();
+  await a11y('data for reports');
+  await page.getByRole('button', { name: /^(build again|neu aufbauen): (decisions|entscheidungen)$/i }).click();
+  await page.getByRole('button', { name: /^(show entries|einträge zeigen): (decisions|entscheidungen)$/i }).waitFor();
+});
+
 test('menu item pointing to an existing element; new blog from the menu dialog', async () => {
   const cat = await m6Category();
   await call('POST', '/api/v1/elements', { category_id: cat, type: 'core.html', title: `Pickable ${run}`, body: { format: 'html', source: '<p>x</p>' } });

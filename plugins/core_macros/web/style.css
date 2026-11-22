@@ -155,3 +155,12 @@
 .ew-spacedetails dl { display: grid; grid-template-columns: max-content 1fr; gap: .3rem 1rem; margin: .5rem 0; }
 .ew-spacedetails dt { font-weight: 600; }
 .ew-spacedetails dd { margin: 0; }
+/* decisions */
+.ew-decision { border: 1px solid var(--ew-border, #c9ced6); border-left-width: 4px; border-radius: 4px; padding: .6rem .9rem; margin: .8rem 0; }
+.ew-decision--decided { border-left-color: #17602d; }
+.ew-decision--open { border-left-color: #8a6100; }
+.ew-decision--rejected { border-left-color: #a3221b; }
+.ew-decision--postponed { border-left-color: #5b616b; }
+.ew-decision-head { margin: 0; }
+.ew-decision-meta { margin: .3rem 0 0; font-size: .9rem; color: var(--ew-muted, #4d535c); }
+.ew-decision-body > :last-child { margin-bottom: 0; }

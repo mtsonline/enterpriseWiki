@@ -33,6 +33,7 @@ type Service struct {
 	log     *slog.Logger
 	types   typeRegistry
 	macros  macroRegistry
+	data    dataRegistry
 	backend backendRegistry
 	enabled func(pluginID string) bool
 	// labelKeys: texts a plugin's instances may change

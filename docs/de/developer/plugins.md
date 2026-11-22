@@ -257,6 +257,42 @@ In Markdown steht ein Makro als Direktive: `::name{a=b}` (ohne Inhalt), `:::name
 
 `MacroContext` enthält den `RenderContext` (Element, Kategorie, Sprache, Betrachter, `Service` für Abfragen mit dessen Rechten), die Parameter, den **bereits bereinigten** Inhalt (`Body`) und die Überschriften der Seite (`Headings`). Alles andere, was das Makro ausgibt, muss es selbst maskieren (`html.EscapeString`). Links prüfen Sie mit `core_layout.SafeURL`. Fehler erscheinen als Hinweis auf der Seite, nicht als Fehlerseite. Der Makro-Dialog im Editor erscheint automatisch (`GET /api/v1/macros`).
 
+### Daten für Berichte {#data}
+
+Bausteine und Plugins können Daten für Berichte in einer Tabelle des Kerns ablegen (`element_data`): ein Eintrag je Verwendung eines Bausteins (oder je Eintrag eines Plugins) an einem Element und einer Sprache. Berichte lesen sie mit den Rechten der lesenden Person – nur Einträge von Elementen, die sie sehen darf, nie aus dem Papierkorb, unsichtbare Elemente nur auf Wunsch.
+
+Ein Plugin meldet zuerst eine **Datenart** mit Schema an (in `Setup`). Die Art beginnt mit der Plugin-ID; eine neue `Version` baut die Daten aus den neuesten Fassungen aller Seiten neu auf (Hintergrundaufgabe `data.rebuild`, auch `POST /api/v1/admin/data/rebuild`).
+
+```go
+host.RegisterDataKind(content.DataKind{
+	Kind: "acme.risk", Version: 1, Labels: map[string]string{"en": "Risks", "de": "Risiken"},
+	Fields: []content.DataField{
+		{Key: "level", Type: content.DataChoice, Options: []string{"low", "high"}, Column: content.ColState, Required: true},
+		{Key: "due", Type: content.DataDay, Column: content.ColDay},
+		{Key: "owner", Type: content.DataPerson, Column: content.ColPerson},
+		{Key: "title", Type: content.DataText, Max: 200, Column: content.ColLabel},
+	},
+	MaxPerElement: 100,
+})
+```
+
+Feldtypen: `text`, `long`, `choice`, `day`, `time`, `number`, `bool`, `person`, `page`, `list`. Ein Feld kann zusätzlich in einer indizierten Spalte für Filter und Sortierung liegen (`state`, `day`, `at`, `person`, `num`, `ref`, `label`; je Spalte ein Feld). Jeder Eintrag wird gegen das Schema geprüft (unbekannte Felder, falsche Typen und mehr als 32 KB werden abgelehnt).
+
+**Bausteine mit Daten** implementieren `content.DataMacro`. Beim Speichern, Wiederherstellen oder Kopieren einer Fassung findet der Kern die Verwendungen des Bausteins im Text und speichert, was `Data` liefert – in derselben Transaktion wie die Fassung, damit ein Bericht nie einen Stand zeigt, der nicht gespeichert wurde.
+
+```go
+func (Risk) DataKind() string { return "acme.risk" }
+func (Risk) Data(ctx context.Context, u content.DataUse) (map[string]any, error) {
+	return map[string]any{"level": u.Params["level"], "title": u.Params["title"]}, nil // nil: nichts ablegen
+}
+```
+
+`DataUse` enthält die Parameter, den reinen Text und das HTML im Baustein, die Sprache und die Nummer des Bausteins auf der Seite. Bausteine in einem Baustein, der seinen Inhalt nur manchen Lesenden zeigt, legen keine Daten ab (dieser Baustein implementiert `content.ConditionalMacro`); ebenso Bausteine in Bausteinen eines abgeschalteten Plugins.
+
+**Plugins** schreiben eigene Einträge mit `host.PutData(ctx, tx, elementID, lang, kind, idx, data)` – am besten in der Transaktion der Änderung, aus der sie folgen – und entfernen sie mit `host.DeleteData`. Das Speichern einer Seite berührt sie nicht.
+
+**Lesen:** `Service.QueryData(ctx, content.DataQuery{Kind: …, Category: …, States: …, From: …, To: …, Person: …, Sort: "-day", Limit: 50})` (höchstens 500 je Antwort); `Complete` ist falsch, solange eine Art aufgebaut wird. API: `GET /api/v1/data` und `GET /api/v1/data/{kind}`; CLI: `ewiki data kinds`, `ewiki data query KIND`. Elementtypen mit Bausteinen in HTML implementieren `content.MacroHTMLer` (wie `core.html`).
+
 ### Dateien in eigenen Tabellen
 
 Speichert ein Plugin Datei-Hashes außerhalb von Element-Inhalten, meldet es die Spalte an, damit die Aufräumfunktion die Dateien nicht löscht: `host.Files.AddReference("plugin_acme_items", "data")`. Ausliefern mit Rechteprüfung: `host.Files.Get` und `host.Files.Serve` (siehe `plugins/workflow_process`).

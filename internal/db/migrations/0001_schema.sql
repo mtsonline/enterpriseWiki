@@ -891,3 +891,42 @@ CREATE TABLE feed_cache (
     error      text NOT NULL DEFAULT '',
     PRIMARY KEY (kind, url)                        -- one address may serve as feed and as calendar
 );
+
+-- Data of blocks and plugins for reports (content/data.go): one entry per
+-- use of a block with data (source "macro") or written by a plugin (source:
+-- its id), per element and language; indexed columns for filtering, the
+-- rest as JSON. Gone with the element.
+CREATE TABLE element_data (
+    element_id bigint NOT NULL REFERENCES elements(id) ON DELETE CASCADE,
+    lang       text NOT NULL,
+    kind       text NOT NULL,
+    source     text NOT NULL,
+    idx        int NOT NULL CHECK (idx >= 1),
+    rev        int NOT NULL DEFAULT 0,
+    data       jsonb NOT NULL DEFAULT '{}',
+    state      text,
+    day        date,
+    at         timestamptz,
+    person     bigint,
+    num        numeric,
+    ref        bigint,
+    label      text,
+    updated_at timestamptz NOT NULL DEFAULT now(),
+    PRIMARY KEY (element_id, lang, kind, source, idx)
+);
+CREATE INDEX element_data_kind ON element_data(kind, state, day);
+CREATE INDEX element_data_person ON element_data(kind, person) WHERE person IS NOT NULL;
+CREATE INDEX element_data_ref ON element_data(kind, ref) WHERE ref IS NOT NULL;
+CREATE INDEX element_data_at ON element_data(kind, at) WHERE at IS NOT NULL;
+CREATE INDEX element_data_data ON element_data USING gin (data jsonb_path_ops);
+
+-- The registered kinds of data and how far their entries are built (a new
+-- kind or version is built again from the latest revisions).
+CREATE TABLE data_kinds (
+    kind       text PRIMARY KEY,
+    version    int NOT NULL,
+    cursor     bigint NOT NULL DEFAULT 0,
+    done       boolean NOT NULL DEFAULT false,
+    started_at timestamptz NOT NULL DEFAULT now(),
+    built_at   timestamptz
+);
