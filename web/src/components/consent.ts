@@ -49,7 +49,14 @@ async function policy(page: number): Promise<HTMLElement> {
  * server never locks them out). Guests: as set (nothing, a notice, or
  * required, kept in this browser).
  */
-export async function privacyGate(): Promise<void> {
+let gate: Promise<void> | null = null;
+
+export function privacyGate(): Promise<void> {
+  gate ??= askPrivacy().finally(() => { gate = null; });
+  return gate;
+}
+
+async function askPrivacy(): Promise<void> {
   const p = state.site.consent?.privacy;
   if (!p) return;
   if (state.user) {

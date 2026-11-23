@@ -3,7 +3,7 @@ import { renderProfileSections } from '../coreplugin';
 import { assignedWatchesSection } from './adminWatches';
 import { api, ApiError, qs } from '../core/api';
 import { fmtDate, h, mount, type Child } from '../core/dom';
-import { cookieBanner } from '../components/consent';
+import { cookieBanner, privacyGate } from '../components/consent';
 import { loadMessages, pick, t } from '../core/i18n';
 import { navigate, onLeave, type RouteCtx } from '../core/router';
 import { changed, isAdmin, hasPerm, state } from '../core/state';
@@ -237,6 +237,8 @@ async function signedIn(u: Principal, next: string, link: { confirm: () => Promi
   changed();
   announce(t('auth.logged_in', { name: u.display_name || u.username }));
   if (link) await link.confirm();
+  // the privacy policy first, where it is asked for
+  await privacyGate();
   navigate(next);
 }
 

@@ -127,6 +127,11 @@ function registerCore(): void {
 // A failed request that no code handled is shown instead of failing silently.
 // It is not suppressed: the browser tests still count it as an error.
 window.addEventListener('unhandledrejection', (ev) => {
+  // the privacy policy is due (for example a new version while the page is open)
+  if (ev.reason instanceof ApiError && ev.reason.code === 'consent_required') {
+    void privacyGate().then(() => location.reload());
+    return;
+  }
   if (ev.reason instanceof ApiError) toast(errorText(ev.reason), 'error');
 });
 
