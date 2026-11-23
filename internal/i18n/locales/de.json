@@ -3004,5 +3004,13 @@
  "placement.hidden_here": "In dieser Kategorie ausgeblendet",
  "placement.hidden_here_help": "Diese Bausteine zeigt eine Ebene darüber; diese Kategorie blendet sie aus. Die Kästchen legen fest, wo das Ausblenden gilt. Ohne Haken gilt dort wieder die Ebene darüber.",
  "placement.unhide": "Wieder wie darüber anzeigen",
- "placement.unhidden": "{block} wird wieder wie in der Ebene darüber angezeigt."
+ "placement.unhidden": "{block} wird wieder wie in der Ebene darüber angezeigt.",
+ "editor.block_menu": "Aktionen für {name}",
+ "editor.menu_edit": "Bearbeiten",
+ "editor.menu_up": "Nach oben",
+ "editor.menu_down": "Nach unten",
+ "editor.menu_duplicate": "Duplizieren",
+ "editor.menu_delete": "Löschen",
+ "editor.duplicated": "{name} dupliziert.",
+ "editor.removed_named": "{name} gelöscht. Rückgängig mit Strg+Z."
 }

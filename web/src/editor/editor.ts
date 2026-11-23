@@ -25,6 +25,7 @@ import { h, uid } from '../core/dom';
 import { t, uiLang } from '../core/i18n';
 import { checkbox, field, formDialog, select, textArea, textInput } from '../components/ui';
 import { emojiDialog } from './emoji';
+import { blockMenu as openBlockMenu, blockMenuOpen, onLongPress, type MenuItem } from './blockmenu';
 import { decodeOptions, encodeOptions, type BlockOptions } from '../core/blockoptions';
 import { codeLanguage, codeLanguageOptions, codeLines } from '../core/codeblocks';
 import { blockTemplateSource, saveBlockTemplate } from './blocktemplates';
@@ -269,7 +270,12 @@ type GetPos = () => number | undefined;
 interface Host {
   view: () => EditorView;
   edit: (pos: number) => void;
+  /** the menu of the block at pos at the point x, y (blockmenu.ts) */
+  menu: (pos: number, x: number, y: number) => void;
 }
+
+/** The context menu key and Shift+F10 open the menu of a block. */
+const isMenuKey = (e: KeyboardEvent) => e.key === 'ContextMenu' || (e.shiftKey && e.key === 'F10');
 
 /** Stops the editor from handling events of controls inside node views. */
 const isControl = (e: Event) => e.target instanceof Element && !!e.target.closest('.ewe-ctl');
@@ -423,6 +429,13 @@ class MacroView implements NodeView {
         announce(t('editor.removed'));
       })));
     this.dom = h('div', { class: ['ewe-macro', node.attrs.leaf && 'ewe-macro--leaf'], role: 'group' }, head);
+    // with the focus on a button of the head: the menu of this block
+    head.addEventListener('keydown', (e) => {
+      if (!isMenuKey(e)) return;
+      e.preventDefault();
+      const r = head.getBoundingClientRect();
+      this.at((p) => host.menu(p, r.left + 16, r.bottom));
+    });
     head.addEventListener('dragstart', (e) => {
       const p = this.getPos();
       const from = e.target instanceof Element ? e.target : (e.target as Node | null)?.parentElement;
@@ -658,6 +671,13 @@ class ChipView implements NodeView {
     this.text = h(block ? 'pre' : 'span', { class: 'ewe-chip-text' });
     this.dom = h(block ? 'div' : 'span', { class: ['ewe-chip', block && 'ewe-chip--block', `ewe-${node.type.name}`], contenteditable: 'false' },
       this.text, ctlButton('✎', '', () => { const p = this.getPos(); if (p !== undefined) host.edit(p); }));
+    this.dom.addEventListener('keydown', (e) => {
+      if (!isMenuKey(e)) return;
+      e.preventDefault();
+      const r = this.dom.getBoundingClientRect();
+      const p = this.getPos();
+      if (p !== undefined) host.menu(p, r.left, r.bottom);
+    });
     this.render();
   }
   private render() {
@@ -1238,6 +1258,17 @@ export function createMarkdownEditor(container: HTMLElement, opts: MarkdownEdito
   const escapePlugin = new Plugin({
     props: {
       handleKeyDown(v, e) {
+        // a selected block: its menu with the context menu key or Shift+F10
+        if (isMenuKey(e) && v.state.selection instanceof NodeSelection) {
+          const sel = v.state.selection;
+          const dom = v.nodeDOM(sel.from);
+          if (dom instanceof HTMLElement && (dom.matches('.ewe-macro, .ewe-chip'))) {
+            e.preventDefault();
+            const r = dom.getBoundingClientRect();
+            nodeMenu(sel.from, r.left + 16, r.top + 24);
+            return true;
+          }
+        }
         if (e.key === 'Escape') escaped = true;
         else if (e.key !== 'Tab' && e.key !== 'Shift') escaped = false;
         syncSelection(v);
@@ -1246,7 +1277,53 @@ export function createMarkdownEditor(container: HTMLElement, opts: MarkdownEdito
     },
   });
 
-  const host: Host = { view: () => view, edit: (pos) => { editAt(view, pos); } };
+  // the menu of a block or of an inline block: edit, move, duplicate, delete
+  const nodeMenu = (pos: number, x: number, y: number) => {
+    const node = view.state.doc.nodeAt(pos);
+    if (!node) return;
+    const macro = node.type === nodes.macro || node.type === nodes.macro_inline;
+    const name = macro ? macroName(node.attrs.name as string) : t('editor.html');
+    const items: MenuItem[] = [{ label: t('editor.menu_edit'), run: () => { editAt(view, pos); } }];
+    if (node.isBlock) {
+      items.push({ label: t('editor.menu_up'), run: () => { moveBlockAt(view, pos, -1); view.focus(); } });
+      items.push({ label: t('editor.menu_down'), run: () => { moveBlockAt(view, pos, 1); view.focus(); } });
+    }
+    items.push({ label: t('editor.menu_duplicate'), run: () => {
+      const n = view.state.doc.nodeAt(pos);
+      if (!n) return;
+      view.dispatch(view.state.tr.insert(pos + n.nodeSize, n.type.create(n.attrs, n.content, n.marks)));
+      view.focus();
+      announce(t('editor.duplicated', { name }));
+    } });
+    items.push({ label: t('editor.menu_delete'), danger: true, run: () => {
+      const n = view.state.doc.nodeAt(pos);
+      if (!n) return;
+      view.dispatch(view.state.tr.delete(pos, pos + n.nodeSize));
+      view.focus();
+      announce(t('editor.removed_named', { name }));
+    } });
+    openBlockMenu(name, items, x, y);
+  };
+  /** The block or inline block of a point of the editor (not its text). */
+  const menuAt = (target: Element, x: number, y: number): boolean => {
+    if (blockMenuOpen()) return true;
+    const el = target.closest('.ewe-macro, .ewe-chip');
+    if (!el || !view.dom.contains(el)) return false;
+    // in the text of a block: the browser's own menu (spelling, paste …)
+    const body = target.closest('.ewe-macro-body');
+    if (body && el.contains(body)) return false;
+    let pos = -1;
+    view.state.doc.descendants((n, p) => {
+      if (pos >= 0) return false;
+      if (view.nodeDOM(p) === el) { pos = p; return false; }
+      return true;
+    });
+    if (pos < 0) return false;
+    nodeMenu(pos, x, y);
+    return true;
+  };
+
+  const host: Host = { view: () => view, edit: (pos) => { editAt(view, pos); }, menu: (pos, x, y) => nodeMenu(pos, x, y) };
 
   const plugins = [
     escapePlugin, rules, keymap(keys), keymap(baseKeymap), history(), dropCursor(), gapCursor(), tableEditing(),
@@ -1343,6 +1420,11 @@ export function createMarkdownEditor(container: HTMLElement, opts: MarkdownEdito
       if (tr.docChanged) opts.onChange?.();
     },
   });
+  // right click or a long press on a block (not in its text): its menu
+  view.dom.addEventListener('contextmenu', (e) => {
+    if (e.target instanceof Element && menuAt(e.target, e.clientX, e.clientY)) e.preventDefault();
+  });
+  onLongPress(view.dom, (x, y, target) => menuAt(target, x, y));
 
   function defaultItem(): NodeView {
     const dom = document.createElement('li');

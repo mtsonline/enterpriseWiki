@@ -168,3 +168,20 @@
 /* room for the handles inside the block */
 .ewe-macro { padding-inline-end: 1.5rem; padding-block-end: 1.5rem; }
 .ewe-macro:has(> .ewe-macro-hsize[hidden]) { padding-block-end: 0; }
+
+/* the menu of a block (right click, long press, context menu key) */
+.ewe-menu {
+  position: fixed; z-index: 1000; min-width: 12rem; padding: .25rem;
+  background: var(--ew-bg-raised); color: var(--ew-text); border: 1px solid var(--ew-border);
+  border-radius: var(--ew-radius); box-shadow: 0 .5rem 1.5rem rgb(0 0 0 / .18);
+  display: flex; flex-direction: column;
+}
+.ewe-menu-item {
+  display: block; width: 100%; min-height: 2.75rem; padding: .5rem .75rem; text-align: start;
+  font: inherit; color: inherit; background: none; border: 0; border-radius: calc(var(--ew-radius) / 2); cursor: pointer;
+}
+.ewe-menu-item:hover, .ewe-menu-item:focus-visible { background: var(--ew-bg-subtle); }
+.ewe-menu-item:focus-visible { outline: 3px solid var(--ew-focus); outline-offset: -3px; }
+.ewe-menu-item--danger { color: var(--ew-danger); }
+.ewe-menu-item[aria-disabled="true"] { opacity: .6; cursor: default; }
+@media (forced-colors: active) { .ewe-menu { border-color: CanvasText; } }
