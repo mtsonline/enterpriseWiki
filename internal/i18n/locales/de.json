@@ -2995,6 +2995,10 @@
  "editor.width_rem": "{n} rem",
  "editor.width_full": "Volle Breite",
  "editor.width_set": "Breite: {width}.",
- "editor.width_bad_options": "Die Optionen dieses Bausteins lassen sich nicht lesen; ändern Sie die Breite unter Optionen.",
- "editor.moved": "Verschoben."
+ "editor.moved": "Verschoben.",
+ "editor.height_help": "Mindesthöhe: am unteren Rand ziehen oder mit den Pfeiltasten",
+ "editor.height_of": "Mindesthöhe von {name}",
+ "editor.height_auto": "Automatisch",
+ "editor.height_set": "Mindesthöhe: {height}.",
+ "editor.size_bad_options": "Die Optionen dieses Bausteins lassen sich nicht lesen; ändern Sie die Größe unter Optionen."
 }

@@ -4723,7 +4723,7 @@ test('consent: privacy policy accepted before use, cookie banner with categories
   }
 });
 
-test('editor: blocks move with the mouse, the buttons and Alt+Arrow keys; their width with the handle and the keyboard', async () => {
+test('editor: blocks move with the mouse, the buttons and Alt+Arrow keys; their width and height with the handles and the keyboard', async () => {
   const cat = await m6Category();
   const src = `:::panel{type=info}\nFirst okapi ${run}\n:::\n\n:::panel{type=warning}\nSecond lynx ${run}\n:::\n\nThe end.\n`;
   const el = await call('POST', '/api/v1/elements', { category_id: cat, type: 'core.html', title: `Move ${run}`, body: { format: 'markdown', source: src } });
@@ -4772,11 +4772,29 @@ test('editor: blocks move with the mouse, the buttons and Alt+Arrow keys; their 
   await page.mouse.move(box.x + 32 * 16 + 4, sb.y + sb.height / 2, { steps: 5 });
   await page.mouse.up();
   assert.match(await size.getAttribute('aria-valuetext'), /^32 rem$/);
+  // least height: keyboard on the lower handle, then the mouse
+  const hsize = blocks.nth(0).getByRole('slider', { name: /^(minimum height of|mindesthöhe von)/i });
+  await hsize.focus();
+  assert.match(await hsize.getAttribute('aria-valuetext'), /^(automatic|automatisch)$/i);
+  await page.keyboard.press('ArrowUp');
+  assert.match(await hsize.getAttribute('aria-valuetext'), /^4 rem$/);
+  await page.keyboard.press('Home');
+  assert.match(await hsize.getAttribute('aria-valuetext'), /^(automatic|automatisch)$/i);
+  const hb = await hsize.boundingBox();
+  const top = (await blocks.nth(0).boundingBox()).y;
+  await page.mouse.move(hb.x + hb.width / 2, hb.y + hb.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(hb.x + hb.width / 2, top + 20 * 16 + 4, { steps: 5 });
+  await page.mouse.up();
+  assert.match(await hsize.getAttribute('aria-valuetext'), /^20 rem$/);
+  const bh = (await blocks.nth(0).boundingBox()).height;
+  assert.ok(bh >= 20 * 16 - 1, `block is at least 20 rem high (${bh})`);
   await page.getByRole('button', { name: /^(publish|veröffentlichen)$/i }).click();
   await page.waitForURL(/\/e\/\d+$/);
   const md = (await call('GET', `/api/v1/elements/${el.id}?edit=1`)).body.source;
   assert.ok(md.indexOf('lynx') < md.indexOf('okapi'), 'saved in the new order');
   assert.match(md, /max_width:32/);
+  assert.match(md, /min_height:20/);
   page.off('console', onWarn);
   assert.deepEqual(warned, []);
 });

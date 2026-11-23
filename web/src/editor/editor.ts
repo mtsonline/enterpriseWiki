@@ -328,6 +328,17 @@ function nearestWidth(w: number, avail: number): number {
 }
 const widthText = (w: number) => (w ? t('editor.width_rem', { n: w }) : t('editor.width_full'));
 
+// the least heights a block can get by its lower handle (rem; 0: as high as
+// its content), in steps (option min_height, at most 60 like the option)
+const HEIGHTS = [0, 4, 8, 12, 16, 20, 24, 32, 40, 48, 60];
+/** the step nearest to h rem */
+function heightIndex(hr: number): number {
+  let best = 0;
+  HEIGHTS.forEach((x, i) => { if (Math.abs(x - hr) < Math.abs(HEIGHTS[best] - hr)) best = i; });
+  return best;
+}
+const heightText = (hr: number) => (hr ? t('editor.width_rem', { n: hr }) : t('editor.height_auto'));
+
 /**
  * moveBlockAt moves the block at pos one place up (-1) or down (1) among
  * its siblings (inside the same container); it stays selected, and the move
@@ -391,6 +402,7 @@ class MacroView implements NodeView {
   private picture: HTMLElement | null = null;
   private pictureOf = '';
   private sizer: HTMLElement;
+  private hsizer: HTMLElement;
   constructor(private node: PMNode, private host: Host, private getPos: GetPos) {
     this.title = h('span', { class: 'ewe-macro-name' });
     this.info = h('span', { class: 'ewe-macro-params' });
@@ -469,36 +481,79 @@ class MacroView implements NodeView {
       this.sizer.addEventListener('pointerup', up);
       this.sizer.addEventListener('pointercancel', up);
     });
+    // the least height: a handle at the lower edge (a slider; saved as the
+    // option "min_height", the same as in Options)
+    this.hsizer = h('div', { class: 'ewe-macro-hsize ewe-ctl', contenteditable: 'false', role: 'slider', tabindex: '0',
+      'aria-orientation': 'vertical', 'aria-valuemin': '0', 'aria-valuemax': String(HEIGHTS.length - 1), title: t('editor.height_help') });
+    this.dom.append(this.hsizer);
+    this.hsizer.addEventListener('keydown', (e) => {
+      const i = heightIndex(this.optNumber('min_height'));
+      const to = e.key === 'ArrowLeft' || e.key === 'ArrowDown' ? i - 1 : e.key === 'ArrowRight' || e.key === 'ArrowUp' ? i + 1
+        : e.key === 'Home' ? 0 : e.key === 'End' ? HEIGHTS.length - 1 : -2;
+      if (to === -2) return;
+      e.preventDefault();
+      if (to >= 0 && to < HEIGHTS.length) this.setHeight(HEIGHTS[to]);
+    });
+    this.hsizer.addEventListener('pointerdown', (e) => {
+      e.preventDefault();
+      this.hsizer.setPointerCapture(e.pointerId);
+      const top = this.dom.getBoundingClientRect().top;
+      const rem = parseFloat(getComputedStyle(document.documentElement).fontSize) || 16;
+      let hr = this.optNumber('min_height');
+      const move = (ev: PointerEvent) => {
+        hr = HEIGHTS[heightIndex((ev.clientY - top) / rem)];
+        this.dom.style.minHeight = hr ? `${hr}rem` : '';
+        this.hsizer.setAttribute('aria-valuetext', heightText(hr));
+      };
+      const up = () => {
+        this.hsizer.removeEventListener('pointermove', move);
+        this.hsizer.removeEventListener('pointerup', up);
+        this.hsizer.removeEventListener('pointercancel', up);
+        this.setHeight(hr);
+      };
+      this.hsizer.addEventListener('pointermove', move);
+      this.hsizer.addEventListener('pointerup', up);
+      this.hsizer.addEventListener('pointercancel', up);
+    });
     if (!macroInfos.size) waitingViews.add(this);
     this.render();
   }
   refresh() { this.render(); }
   /** the width on the desktop in rem (0: full width) from the options */
-  private width(): number {
+  private width(): number { return this.optNumber('max_width'); }
+  /** a size option in rem on the desktop (0: none) */
+  private optNumber(key: 'max_width' | 'min_height'): number {
     try {
-      const v = decodeOptions(String((this.node.attrs.params as Record<string, string>).options ?? '')).max_width;
+      const v = decodeOptions(String((this.node.attrs.params as Record<string, string>).options ?? ''))[key];
       const n = typeof v === 'object' && v ? Number((v as Record<string, unknown>).desktop ?? 0) : Number(v ?? 0);
       return Number.isFinite(n) ? n : 0;
     } catch { return 0; }
   }
   private setWidth(w: number) {
+    this.setSize('max_width', w, () => t('editor.width_set', { width: widthText(w) }));
+  }
+  private setHeight(hr: number) {
+    this.setSize('min_height', hr, () => t('editor.height_set', { height: heightText(hr) }));
+  }
+  /** sets a size option for the desktop and keeps the other views */
+  private setSize(key: 'max_width' | 'min_height', n: number, said: () => string) {
     const params = { ...(this.node.attrs.params as Record<string, string>) };
     let o: BlockOptions;
-    try { o = decodeOptions(params.options ?? ''); } catch { announce(t('editor.width_bad_options')); return; }
-    const cur = o.max_width;
+    try { o = decodeOptions(params.options ?? ''); } catch { announce(t('editor.size_bad_options')); return; }
+    const cur = o[key];
     if (typeof cur === 'object' && cur && !Array.isArray(cur)) {
       const views = { ...(cur as Record<string, number>) };
-      if (w) views.desktop = w; else delete views.desktop;
-      if (Object.keys(views).length) o.max_width = views as BlockOptions['max_width'];
-      else delete o.max_width;
-    } else if (w) o.max_width = w;
-    else delete o.max_width;
+      if (n) views.desktop = n; else delete views.desktop;
+      if (Object.keys(views).length) o[key] = views as BlockOptions['max_width'];
+      else delete o[key];
+    } else if (n) o[key] = n;
+    else delete o[key];
     const text = encodeOptions(o);
     if (text) params.options = text; else delete params.options;
     this.at((p) => {
       const v = this.host.view();
       v.dispatch(v.state.tr.setNodeMarkup(p, null, { ...this.node.attrs, params }));
-      announce(t('editor.width_set', { width: widthText(w) }));
+      announce(said());
     });
   }
   private at(fn: (pos: number) => void) {
@@ -520,8 +575,14 @@ class MacroView implements NodeView {
     this.sizer.setAttribute('aria-label', t('editor.width_of', { name: label }));
     this.sizer.setAttribute('aria-valuenow', String(widthIndex(w)));
     this.sizer.setAttribute('aria-valuetext', widthText(w));
-    // inline blocks and blocks without options have no width
+    const hr = this.optNumber('min_height');
+    this.dom.style.minHeight = hr ? `${hr}rem` : '';
+    this.hsizer.setAttribute('aria-label', t('editor.height_of', { name: label }));
+    this.hsizer.setAttribute('aria-valuenow', String(heightIndex(hr)));
+    this.hsizer.setAttribute('aria-valuetext', heightText(hr));
+    // inline blocks and blocks without options have no width and height
     this.sizer.hidden = info !== undefined && !info.params?.some((x) => x.name === 'options');
+    this.hsizer.hidden = this.sizer.hidden;
     const parts = !this.node.attrs.leaf ? info?.parts : undefined;
     this.addPart.hidden = !parts;
     this.dom.classList.toggle('ewe-macro--parts', !!parts);

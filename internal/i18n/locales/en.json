@@ -2995,6 +2995,10 @@
  "editor.width_rem": "{n} rem",
  "editor.width_full": "Full width",
  "editor.width_set": "Width: {width}.",
- "editor.width_bad_options": "The options of this block cannot be read; change the width under Options.",
- "editor.moved": "Moved."
+ "editor.moved": "Moved.",
+ "editor.height_help": "Minimum height: drag the lower edge or use the arrow keys",
+ "editor.height_of": "Minimum height of {name}",
+ "editor.height_auto": "Automatic",
+ "editor.height_set": "Minimum height: {height}.",
+ "editor.size_bad_options": "The options of this block cannot be read; change the size under Options."
 }
