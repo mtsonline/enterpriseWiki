@@ -23,6 +23,7 @@ import (
 	"github.com/mtsonline/enterprisewiki/internal/acl"
 	"github.com/mtsonline/enterprisewiki/internal/apperr"
 	"github.com/mtsonline/enterprisewiki/internal/coreplugin"
+	"github.com/mtsonline/enterprisewiki/internal/csvsafe"
 	"github.com/mtsonline/enterprisewiki/internal/identity"
 	"github.com/mtsonline/enterprisewiki/internal/media"
 	"github.com/mtsonline/enterprisewiki/internal/netguard"
@@ -501,7 +502,7 @@ func (p *Plugin) storeFiles(ctx context.Context, f *Form, d *due, title string) 
 			var b bytes.Buffer
 			w := csv.NewWriter(&b)
 			for _, r := range rec {
-				_ = w.Write([]string{csvSafe(r[0]), csvSafe(r[1])})
+				_ = w.Write([]string{csvsafe.Cell(r[0]), csvsafe.Cell(r[1])})
 			}
 			w.Flush()
 			data = append([]byte("\xef\xbb\xbf"), b.Bytes()...)

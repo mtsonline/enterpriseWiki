@@ -19,6 +19,7 @@ import (
 	"github.com/jackc/pgx/v5"
 
 	"github.com/mtsonline/enterprisewiki/internal/apperr"
+	"github.com/mtsonline/enterprisewiki/internal/csvsafe"
 	"github.com/mtsonline/enterprisewiki/internal/media"
 	"github.com/mtsonline/enterprisewiki/internal/ooxml"
 	"github.com/mtsonline/enterprisewiki/internal/pdfdoc"
@@ -158,14 +159,6 @@ func fileName(s string) string {
 	return s
 }
 
-// cellSafe keeps values from becoming formulas in spreadsheets (CSV).
-func cellSafe(s string) string {
-	if s != "" && strings.ContainsRune("=+-@\t\r", rune(s[0])) {
-		return "'" + s
-	}
-	return s
-}
-
 // record lists the fields of the case: label and value.
 func record(x *Instance, vars map[string]string) [][2]string {
 	var out [][2]string
@@ -257,7 +250,7 @@ func (pl *Plugin) runFile(ctx context.Context, tx pgx.Tx, x *Instance, s *Step) 
 			var b bytes.Buffer
 			w := csv.NewWriter(&b)
 			for _, r := range rows {
-				_ = w.Write([]string{cellSafe(r[0]), cellSafe(r[1])})
+				_ = w.Write([]string{csvsafe.Cell(r[0]), csvsafe.Cell(r[1])})
 			}
 			w.Flush()
 			data = append([]byte("\xef\xbb\xbf"), b.Bytes()...)

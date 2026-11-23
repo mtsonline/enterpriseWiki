@@ -15,6 +15,7 @@ import (
 	"github.com/mtsonline/enterprisewiki/internal/acl"
 	"github.com/mtsonline/enterprisewiki/internal/apperr"
 	"github.com/mtsonline/enterprisewiki/internal/audit"
+	"github.com/mtsonline/enterprisewiki/internal/csvsafe"
 	h "github.com/mtsonline/enterprisewiki/internal/httpx"
 	"github.com/mtsonline/enterprisewiki/internal/identity"
 	"github.com/mtsonline/enterprisewiki/internal/xlsx"
@@ -353,7 +354,7 @@ func (p *Plugin) routes() {
 				_ = cw.Write(header)
 				for _, row := range out {
 					for i := range row {
-						row[i] = csvSafe(row[i])
+						row[i] = csvsafe.Cell(row[i])
 					}
 					_ = cw.Write(row)
 				}
@@ -433,14 +434,6 @@ func (p *Plugin) retention(ctx context.Context) error {
 		}
 	}
 	return nil
-}
-
-// csvSafe keeps spreadsheets from running cell text as a formula.
-func csvSafe(s string) string {
-	if s != "" && strings.ContainsRune("=+-@\t\r", rune(s[0])) {
-		return "'" + s
-	}
-	return s
 }
 
 func safeName(s string) string {
