@@ -3019,5 +3019,6 @@
  "tasks.login": "Sign in to see your tasks.",
  "tasks.none": "You have no tasks.",
  "tasks.in_pages": "Tasks in pages",
- "tasks.in_pages_help": "Checklist items that name you with @name. Tick them here when they are done; the page is saved."
+ "tasks.in_pages_help": "Checklist items that name you with @name. Tick them here when they are done; the page is saved.",
+ "tasks.mine_open": "My open tasks in pages"
 }

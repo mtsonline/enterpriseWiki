@@ -275,7 +275,7 @@ func (s *Service) GetElement(ctx context.Context, id int64, lang string, withBod
 }
 
 // LatestRevision returns element id with its latest revision in lang
-// (no other language), for the caller with the permission to view it. The
+// (no other language; "": the original language), for the caller with the permission to view it. The
 // body is for checks in the server only: it may hold parts the caller
 // does not see.
 func (s *Service) LatestRevision(ctx context.Context, id int64, lang string) (*Element, int, string, json.RawMessage, error) {
@@ -288,6 +288,9 @@ func (s *Service) LatestRevision(ctx context.Context, id int64, lang string) (*E
 			return nil, 0, "", nil, apperr.NotFound("element")
 		}
 		return nil, 0, "", nil, err
+	}
+	if lang == "" {
+		lang = e.OriginalLang
 	}
 	var rev int
 	var title string

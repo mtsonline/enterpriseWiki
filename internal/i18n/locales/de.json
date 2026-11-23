@@ -3019,5 +3019,6 @@
  "tasks.login": "Melden Sie sich an, um Ihre Aufgaben zu sehen.",
  "tasks.none": "Sie haben keine Aufgaben.",
  "tasks.in_pages": "Aufgaben in Seiten",
- "tasks.in_pages_help": "Punkte von Checklisten, die Sie mit @Name nennen. Haken Sie sie hier ab, wenn sie erledigt sind; die Seite wird gespeichert."
+ "tasks.in_pages_help": "Punkte von Checklisten, die Sie mit @Name nennen. Haken Sie sie hier ab, wenn sie erledigt sind; die Seite wird gespeichert.",
+ "tasks.mine_open": "Meine offenen Aufgaben in Seiten"
 }

@@ -2,6 +2,7 @@ package server_test
 
 import (
 	"fmt"
+	"slices"
 	"strings"
 	"testing"
 
@@ -235,7 +236,13 @@ Because it is **fast**.
 		Fields []any  `json:"fields"`
 	}
 	reader.must("GET", "/api/v1/data", nil, &kinds, 200)
-	if len(kinds) == 0 || kinds[0].Kind != "core.macros.decision" || len(kinds[0].Fields) != 6 {
+	i := slices.IndexFunc(kinds, func(k struct {
+		Kind   string `json:"kind"`
+		Fields []any  `json:"fields"`
+	}) bool {
+		return k.Kind == "core.macros.decision"
+	})
+	if i < 0 || len(kinds[i].Fields) != 6 {
 		t.Fatalf("kinds: %+v", kinds)
 	}
 }

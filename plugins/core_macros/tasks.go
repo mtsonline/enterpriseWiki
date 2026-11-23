@@ -42,8 +42,8 @@ func (tasks) Params() []content.MacroParam {
 		{Name: "category", Labels: lm("Area (empty: the whole wiki)", "Bereich (leer: das ganze Wiki)"), Type: "custom:category"},
 		{Name: "who", Labels: lm("Whose tasks", "Wessen Aufgaben"), Type: "select", Options: []string{"all", "mine"}, Default: "all",
 			OptionLabels: map[string]map[string]string{"all": lm("All", "Alle"), "mine": lm("Mine (@ my name)", "Meine (@ mein Name)")}},
-		{Name: "status", Labels: lm("Status", "Status"), Type: "select", Options: []string{"open", "done", "all"}, Default: "open",
-			OptionLabels: map[string]map[string]string{"open": lm("Open", "Offen"), "done": lm("Done", "Erledigt"), "all": lm("All", "Alle")}},
+		{Name: "status", Labels: lm("Status", "Status"), Type: "select", Options: []string{"open", "completed", "all"}, Default: "open",
+			OptionLabels: map[string]map[string]string{"open": lm("Open", "Offen"), "completed": lm("Done", "Erledigt"), "all": lm("All", "Alle")}},
 		{Name: "due", Labels: lm("Due", "Fällig"), Type: "select", Options: []string{"all", "overdue", "week", "none"}, Default: "all",
 			OptionLabels: map[string]map[string]string{"all": lm("All", "Alle"), "overdue": lm("Overdue", "Überfällig"),
 				"week": lm("Within 7 days or overdue", "In 7 Tagen oder überfällig"), "none": lm("Without a date", "Ohne Datum")}},
@@ -78,11 +78,11 @@ func (tasks) Render(ctx context.Context, mc content.MacroContext) (string, error
 	switch st := mc.Params["status"]; st {
 	case "", "open":
 		q.States = []string{"open"}
-	case "done":
+	case "completed": // not "done": the Core Rule Set takes it for a shell word
 		q.States = []string{"done"}
 	case "all":
 	default:
-		return "", apperr.BadRequest("status: one of open, done, all")
+		return "", apperr.BadRequest("status: one of open, completed, all")
 	}
 	today := time.Now().Format("2006-01-02")
 	switch mc.Params["due"] {

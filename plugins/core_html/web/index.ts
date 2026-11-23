@@ -345,7 +345,7 @@ export function createSimpleEditor(container: HTMLElement, body: unknown, ctx: C
 /** The open tasks in pages of the signed-in person: the report block of
  * the server (it knows who may tick what), rendered without a page. */
 async function myPageTasks(max: number): Promise<HTMLElement> {
-  const source = `::tasks{who=mine max=${max} label="${t('tasks.in_pages')}"}`;
+  const source = `::tasks{who=mine max=${max} label="${t('tasks.mine_open')}"}`;
   const r = await api.post<{ html: string }>('elements/preview', { type: 'core.html', lang: state.lang, body: { format: 'markdown', source } });
   return trustedHTML(r.html);
 }

@@ -267,6 +267,7 @@ func (taskExtractor) ExtractData(typ string, body json.RawMessage, hidden func(*
 // ---------------------------------------------------------------- ticking
 
 type tickInput struct {
+	// Lang: the language of the page the task is in ("": the original)
 	Lang string `json:"lang"`
 	// Rev is the revision the task was shown from: when the page was
 	// changed since, nothing is ticked (conflict).
@@ -317,6 +318,9 @@ func tick(ctx context.Context, h *coreplugin.Host, id int64, n int, in tickInput
 	}
 	if e.Type != TypeID {
 		return nil, apperr.NotFound("task")
+	}
+	if in.Lang == "" {
+		in.Lang = e.OriginalLang
 	}
 	if in.Rev != rev {
 		return nil, apperr.Conflict("the page was changed since it was shown (revision %d); reload it", rev)

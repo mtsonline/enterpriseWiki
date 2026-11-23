@@ -43,7 +43,20 @@ actions:
       text:
         en: Tick a task of a page (or open it again)
         de: Eine Aufgabe einer Seite abhaken (oder wieder öffnen)
-    signed_in: true
+    # edit the page – or, for the people of the task, core.html.task_done_own
+    permission: {key: core.category.edit, scope: SCOPE_CATEGORY, category_param: "element:id"}
     safety: {changes: true}
-    cli: {command: [tasks, done]}
+    cli: {command: [tasks, done], args: [id, n]}
     ui: {entry: /tasks}
+    examples:
+      - name: default
+        given: ['core.elements.create#tasks']
+        as: member
+        path_params_json: '{"id": "${given.core.elements.create#tasks.id}", "n": "1"}'
+        body_json: '{"rev": 1, "done": true}'
+      - name: changed_since
+        given: ['core.elements.create#tasks']
+        as: member
+        path_params_json: '{"id": "${given.core.elements.create#tasks.id}", "n": "1"}'
+        body_json: '{"rev": 7, "done": true}'
+        status: 409

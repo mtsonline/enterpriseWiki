@@ -64,7 +64,7 @@ Plugins bring their own permissions (e.g. *Create workflows*, *Moderate comments
 | Create | create pages |
 | Delete / move | put pages in the trash, move them, reset them |
 | Manage | the **category itself**: texts, settings, create/move/delete sub-categories, permissions (only permissions you have yourself) |
-| Plugin permissions | e.g. *Create workflows*, *Workflow administrator*, *See participant lists* |
+| Plugin permissions | e.g. *Create workflows*, *Workflow administrator*, *See participant lists*, *Tick own tasks in reports* (`core.html.task_done_own`: people named in a task item with `@name` tick it in reports and under *My tasks* without the permission to edit the page; the page is saved with them as the person who changed it last, the author stays; in the template *Reader* and above) |
 
 There are templates for granting them:
 
@@ -72,6 +72,8 @@ There are templates for granting them:
 - **Category editor** – works *in* the category (create, edit, delete pages and the plugin permissions for editors), but does not change the category.
 - **Category manager** – additionally *Manage* and the plugin permissions for managers.
 - **Category administrator** is a global permission: only whoever has it creates top-level categories and moves categories to the top level. They manage structure, settings and permissions of all categories, **but only see content with the permission View**.
+
+Who grants with a template gives the plugin permissions of the template that they have themselves; the others are left out (so a new plugin permission never stops someone from granting *Reader*).
 
 Rules apply to a **user**, a **group**, a **role**, **all signed-in users** or **guests**. With "also applies to sub-categories" a rule is inherited. The effective permissions are the union of all matching rules of the category and its ancestors.
 

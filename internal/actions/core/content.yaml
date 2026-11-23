@@ -862,6 +862,11 @@ actions:
         given: ['core.categories.create#default']
         body_json: '{"category_id": ${given.core.categories.create#default.id}, "type": "core.block", "title": "Contact ${unique}", "body": {"format": "html", "source": "<p>Phone 123</p>"}}'
         status: 201
+      - name: tasks
+        given: ['core.categories.create#default']
+        as: member
+        body_json: '{"category_id": ${given.core.categories.create#default.id}, "type": "core.html", "title": "Tasks ${unique}", "body": {"format": "markdown", "source": "- [ ] Check the offer @member :date{value=2026-11-30}"}}'
+        status: 201
       # a post on behalf of the blog (its permissions instead of the page permissions)
       - name: blog_post
         given: ['core.elements.create#blog']

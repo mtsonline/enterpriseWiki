@@ -64,7 +64,7 @@ Plugins bringen eigene Rechte mit (z. B. *Workflows anlegen*, *Kommentare moderi
 | Erstellen | Seiten anlegen |
 | Löschen / verschieben | Seiten in den Papierkorb legen, verschieben, zurücksetzen |
 | Verwalten | die **Kategorie selbst**: Texte, Einstellungen, Unterkategorien anlegen/verschieben/löschen, Berechtigungen (nur Rechte, die man selbst hat) |
-| Plugin-Rechte | z. B. *Workflows anlegen*, *Workflow-Administrator*, *Teilnehmerlisten sehen* |
+| Plugin-Rechte | z. B. *Workflows anlegen*, *Workflow-Administrator*, *Teilnehmerlisten sehen*, *Eigene Aufgaben in Berichten abhaken* (`core.html.task_done_own`: Personen, die ein Aufgabenpunkt mit `@Name` nennt, haken ihn in Berichten und unter *Meine Aufgaben* ab, auch ohne das Recht, die Seite zu bearbeiten; die Seite wird mit ihnen als zuletzt ändernder Person gespeichert, die Autorin oder der Autor bleibt; in der Vorlage *Leser* und darüber) |
 
 Für die Vergabe gibt es Vorlagen:
 
@@ -72,6 +72,8 @@ Für die Vergabe gibt es Vorlagen:
 - **Kategorie-Editor** – arbeitet *in* der Kategorie (Seiten anlegen, bearbeiten, löschen und die Plugin-Rechte für Editoren), ändert aber die Kategorie nicht.
 - **Kategorie-Manager** – zusätzlich *Verwalten* und die Plugin-Rechte für Manager.
 - **Kategorie-Administrator** ist ein globales Recht: Nur wer es hat, legt Kategorien der obersten Ebene an und verschiebt Kategorien in die oberste Ebene. Er verwaltet Struktur, Einstellungen und Berechtigungen aller Kategorien, **sieht Inhalte aber nur mit dem Recht Ansehen**.
+
+Wer mit einer Vorlage vergibt, gibt die Plugin-Rechte der Vorlage, die er selbst hat; die anderen entfallen (so verhindert ein neues Plugin-Recht nie, dass jemand *Leser* vergibt).
 
 Regeln gelten für einen **Benutzer**, eine **Gruppe**, eine **Rolle**, **alle angemeldeten Benutzer** oder **Gäste**. Mit „gilt auch für Unterkategorien“ wird eine Regel vererbt. Die wirksamen Rechte sind die Vereinigung aller passenden Regeln der Kategorie und ihrer Vorfahren.
 
