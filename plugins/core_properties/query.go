@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/mtsonline/enterprisewiki/internal/content"
+	"github.com/mtsonline/enterprisewiki/internal/csvsafe"
 	"github.com/mtsonline/enterprisewiki/internal/xlsx"
 	"net/http"
 	"regexp"
@@ -1091,7 +1092,7 @@ func (p *Plugin) routesQuery() {
 			w.Header().Set("Content-Disposition", `attachment; filename="properties.csv"`)
 			_, _ = w.Write([]byte("\xef\xbb\xbf"))
 			cw := csv.NewWriter(w)
-			safe := csvSafe
+			safe := csvsafe.Cell
 			if original {
 				safe = func(s string) string { return s }
 			}
@@ -1247,14 +1248,6 @@ func plain(raw json.RawMessage, typ string, refs map[string]Ref) string {
 		return s
 	}
 	return strings.Trim(string(raw), `"`)
-}
-
-// csvSafe keeps spreadsheets from running cell text as a formula.
-func csvSafe(s string) string {
-	if s != "" && strings.ContainsRune("=+-@\t\r", rune(s[0])) {
-		return "'" + s
-	}
-	return s
 }
 
 // reportInput is the body of POST /report (a report macro with the

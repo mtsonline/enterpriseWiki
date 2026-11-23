@@ -1421,4 +1421,11 @@ var traps = []trap{
 		New:  "csvsafe.Cell(it.Username), it.DisplayName",
 		Pkg:  "./internal/server/", Tests: "^TestConsent$",
 	},
+	{
+		ID: "csvsafe.rule", About: "a value starting with = becomes a formula in CSV exports",
+		File: "internal/csvsafe/csvsafe.go",
+		Old:  "strings.ContainsRune(\"=+-@\\t\\r\", rune(s[0]))",
+		New:  "strings.ContainsRune(\"+-@\\t\\r\", rune(s[0]))",
+		Pkg:  "./internal/server/", Tests: "^(TestAuditCSVNoFormulas|TestConsent)$",
+	},
 }
