@@ -28,11 +28,14 @@
   .ewl-hero--p-half { min-height: min(50svh, 34rem); display: flex; flex-direction: column; justify-content: center; }
   .ewl-hero--p-window { min-height: calc(100svh - var(--ewd-header-h, var(--ew-header-h, 0px))); display: flex; flex-direction: column; justify-content: center; }
 }
-.ewl-cards { display: grid; gap: 1.25rem; }
-.ewl-cards--2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-.ewl-cards--3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-.ewl-cards--4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
-@media (max-width: 860px) { .ewl-cards { grid-template-columns: 1fr; } }
+/* cards: at most the columns chosen, each at least 12 rem wide (the place
+   rule of text columns): in a narrow content area, beside a side column or
+   on a tablet, they wrap by the room they really have, not by the window */
+.ewl-cards { --ewl-c: 3; --ewl-gap: 1.25rem; display: grid; gap: var(--ewl-gap);
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, max(12rem, (100% - (var(--ewl-c) - 1) * var(--ewl-gap)) / var(--ewl-c))), 1fr)); }
+.ewl-cards--2 { --ewl-c: 2; }
+.ewl-cards--3 { --ewl-c: 3; }
+.ewl-cards--4 { --ewl-c: 4; }
 .ewl-card { background: var(--ew-bg-raised); color: var(--ew-text); border: 1px solid var(--ew-border); border-radius: 10px; padding: 1.25rem; box-shadow: 0 2px 6px rgb(0 0 0 / .06); }
 .ewl-card > :first-child { margin-top: 0; } .ewl-card > :last-child { margin-bottom: 0; }
 .ewl-cta { display: inline-block; padding: .65rem 1.3rem; border-radius: 6px; font-weight: 700; text-decoration: none; border: 2px solid transparent; }

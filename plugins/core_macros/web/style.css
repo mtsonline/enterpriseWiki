@@ -116,13 +116,16 @@
 .ew-searchbox-more { margin: 0.5rem 0 0; font-size: 0.9em; }
 
 /* news as tiles: pictures in columns (as many as the macro checked), masonry with different heights */
-.ew-news--tiles { grid-template-columns: repeat(var(--ew-tiles, 4), minmax(0, 1fr)); gap: 1rem; }
-@media (max-width: 1023.98px) { .ew-news--tiles { grid-template-columns: repeat(var(--ew-tiles-t, 2), minmax(0, 1fr)); } }
-@media (max-width: 639.98px) { .ew-news--tiles { grid-template-columns: minmax(0, 1fr); } }
+/* tiles: at most the columns of the view, each at least 12 rem wide (they
+   wrap by the room of the content area, not only by the window) */
+.ew-news--tiles { --ew-tc: var(--ew-tiles, 4); gap: 1rem;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, max(12rem, (100% - (var(--ew-tc) - 1) * 1rem) / var(--ew-tc))), 1fr)); }
+@media (max-width: 1023.98px) { .ew-news--tiles { --ew-tc: var(--ew-tiles-t, 2); } }
+@media (max-width: 639.98px) { .ew-news--tiles { --ew-tc: 1; } }
 .ew-news--tiles .ew-news-item { display: flex; flex-direction: column; gap: .35rem; }
 .ew-news--tiles .ew-news-img { width: 100%; aspect-ratio: 4 / 3; object-fit: cover; border-radius: var(--ew-radius); }
-.ew-news--masonry { display: block; columns: var(--ew-tiles, 4); column-gap: 1rem; }
-@media (max-width: 1023.98px) { .ew-news--masonry { columns: var(--ew-tiles-t, 2); } }
+.ew-news--masonry { display: block; columns: 12rem var(--ew-tiles, 4); column-gap: 1rem; }
+@media (max-width: 1023.98px) { .ew-news--masonry { columns: 12rem var(--ew-tiles-t, 2); } }
 @media (max-width: 639.98px) { .ew-news--masonry { columns: 1; } }
 .ew-news--masonry .ew-news-item { break-inside: avoid; margin-block-end: 1rem; }
 .ew-news--masonry .ew-news-img { aspect-ratio: auto; }

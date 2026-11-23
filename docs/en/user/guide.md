@@ -98,7 +98,7 @@ In the Markdown source, blocks are directives: `::toc{levels=3}` (without conten
 | Expand section | content that only appears after a click |
 | Status label | coloured label such as DONE |
 | Text colour and font | text colour, highlighting, font and size from the palette of the site (all combinations easily readable) |
-| Columns / cards | content side by side; separate columns or cards with a horizontal rule |
+| Columns / cards | content side by side; separate columns or cards with a horizontal rule. Cards stand in at most as many columns as chosen, each at least 12 rem wide: when the content area is narrower (beside a side column, on a tablet), they wrap to the next row |
 | Section, hero banner, button link, spacing | building blocks for website pages (especially with the template *CMS*). The hero banner has a **height** for desktop and tablet and one for the phone: *as high as its content*, *a third* or *half of the window*, or *the window below the header* (`height=half phone_height=window`). It is always a least height: when the text is longer, the banner grows; the text is never cut, also not on a picture or video. |
 | Grid | content in columns, the number per view (desktop up to 5, tablet up to 3, phone 1); separate the cells with a horizontal rule. With *Widths* the columns get their own shares on the desktop (`widths="2 1"`: the first twice as wide); the narrowest keeps enough room |
 | Heading | a heading with subtitle and line; its level (the structure of the page for screen readers) is chosen apart from its size |
@@ -144,7 +144,7 @@ In the Markdown source, blocks are directives: `::toc{levels=3}` (without conten
 | Attachments | the files this page shows, or the files of a category (optionally with subcategories), as a table with kind, size and date, sorted by name, date, size or kind. Everybody sees only files they may see; files that may only be viewed have no download. People who may create or edit pages in the category upload a file right there with *Upload a file* |
 | Shell command | output of a command on the server; only runs once a super administrator has approved exactly this command |
 | HTTP request | result of a web address (text, HTML, JSON as a table); only approved addresses |
-| News from several sources | the newest elements of any number of sources and entries of external RSS/Atom feeds together, as cards, list, headlines or tiles (pictures in columns per view, optionally as masonry); with *Filter by tag* buttons above the list show only entries with one tag |
+| News from several sources | the newest elements of any number of sources and entries of external RSS/Atom feeds together, as cards, list, headlines or tiles (pictures in at most as many columns as chosen per view, each at least 12 rem wide, optionally as masonry); with *Filter by tag* buttons above the list show only entries with one tag |
 | Blog posts from several sources | posts of several sources in the look of the blog (list, cards, compact) |
 | FAQ from several sources | questions of several sources as one FAQ, one expandable section per category |
 | Recently changed, upcoming events | also with freely selectable sources |
