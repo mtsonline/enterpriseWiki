@@ -42,7 +42,8 @@ npm packages, Docker base images, GitHub Actions) without manual intervention:
    (`go run ./tools/releaseage`) does that and refuses every package version younger than 3 days.
 2. The **CI** checks every pull request completely: build, Go tests with PostgreSQL, browser tests with
    accessibility checks, Docker build and license check of the dependencies. Only if everything is green does
-   Renovate merge the pull request **automatically** – also for big version jumps. Red pull requests stay
+   GitHub merge the pull request **automatically** (auto-merge, turned on by Renovate; the repository setting
+   "Allow auto-merge" must be on) – also for big version jumps. Red pull requests stay
    open; the check *Renovate watch* (item 6) reports them. The overview of all open updates is in the issue "Dependency Dashboard".
 3. After every change on `main`, **docker-publish** rebuilds the image `ghcr.io/mtsonline/enterprisewiki:latest` (amd64,
    arm64); version tags `v7.5.0` additionally give `:7.5.0`, `:7.5` and `:7`.

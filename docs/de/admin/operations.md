@@ -42,7 +42,8 @@ npm-Pakete, Docker-Basis-Images, GitHub Actions):
    CI-Schritt (`go run ./tools/releaseage`), der jede Paketversion ablehnt, die jünger als 3 Tage ist.
 2. Die **CI** prüft jeden Pull Request vollständig: Build, Go-Tests mit PostgreSQL, Browser-Tests mit
    Barrierefreiheitsprüfung, Docker-Build und Lizenzprüfung der Abhängigkeiten. Nur wenn alles grün ist, führt
-   Renovate den Pull Request **automatisch** zusammen – auch bei großen Versionssprüngen. Rote Pull Requests bleiben
+   GitHub den Pull Request **automatisch** zusammen (Auto-Merge, von Renovate eingeschaltet; die Repository-Einstellung
+   „Allow auto-merge“ muss an sein) – auch bei großen Versionssprüngen. Rote Pull Requests bleiben
    offen; die Prüfung *Renovate watch* (Punkt 6) meldet sie. Die Übersicht aller offenen Updates steht im Issue „Dependency Dashboard“.
 3. Nach jeder Änderung auf `main` baut **docker-publish** das Image `ghcr.io/mtsonline/enterprisewiki:latest` (amd64,
    arm64) neu; Versions-Tags `v7.5.0` ergeben zusätzlich `:7.5.0`, `:7.5` und `:7`.
