@@ -4513,6 +4513,8 @@ test('people blocks: a profile card chosen by name and the people of a group', a
 });
 
 test('decisions: a decision in a page, the report of decisions and the data for reports in the administration', async () => {
+  const person = `Decider Lynx ${run}`;
+  await call('POST', '/api/v1/admin/users', { username: `decider${run}`, password: 'Passw0rd!Passw0rd', display_name: person, email: `decider${run}@example.com` });
   await newPage('core.html', `Decisions ${run}`);
   await page.locator('.ewe-prose').click();
   const title = `Choose okapi ${run}`;
@@ -4523,7 +4525,12 @@ test('decisions: a decision in a page, the report of decisions and the data for 
   await dlg.getByLabel(/^(decision in short|entscheidung in kürze)/i).fill(title);
   await dlg.getByLabel(/^status/i).selectOption('decided');
   await dlg.getByLabel(/^(day|datum)/i).fill('2026-11-20');
-  await dlg.getByLabel(/^(responsible|verantwortlich)/i).fill('Anna');
+  // the responsible person, chosen by name, and a text
+  const who = dlg.getByPlaceholder(/name or user name|name oder benutzername/i);
+  await who.fill(person);
+  await page.waitForFunction((n) => [...document.querySelectorAll('dialog[open] datalist option')].some((o) => o.value.includes(n)), person);
+  await who.fill(await page.evaluate((n) => [...document.querySelectorAll('dialog[open] datalist option')].find((o) => o.value.includes(n)).value, person));
+  await dlg.getByLabel(/^(responsible \(text|verantwortlich \(text)/i).fill('Board');
   await a11y('decision dialog');
   await dlg.locator('button[type=submit]').click();
   await page.waitForSelector('.ewe-prose .ewe-macro[data-macro="decision"]');
@@ -4532,11 +4539,13 @@ test('decisions: a decision in a page, the report of decisions and the data for 
   await idle();
   await page.locator('.ew-decision-title', { hasText: title }).waitFor();
   await page.locator('.ew-decisions tr', { hasText: title }).getByText(/^(decided|entschieden)$/i).waitFor();
+  await page.locator('.ew-decision-meta', { hasText: `${person}, Board` }).waitFor();
+  await page.locator('.ew-decisions tr', { hasText: title }).getByText(`${person}, Board`).waitFor();
   await a11y('decision and report');
   await page.goto(BASE + '/admin/data');
   await idle();
   await page.getByRole('button', { name: /^(show entries|einträge zeigen): (decisions|entscheidungen)$/i }).click();
-  await page.locator('.ew-admin-panel table tr', { hasText: title }).waitFor();
+  await page.locator('.ew-admin-panel table tr', { hasText: title }).getByText(person, { exact: true }).waitFor();
   await a11y('data for reports');
   await page.getByRole('button', { name: /^(build again|neu aufbauen): (decisions|entscheidungen)$/i }).click();
   await page.getByRole('button', { name: /^(show entries|einträge zeigen): (decisions|entscheidungen)$/i }).waitFor();
