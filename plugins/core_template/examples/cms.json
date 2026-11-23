@@ -49,9 +49,25 @@
           ],
           "layout": "row",
           "align": "end",
-          "fit": true
+          "fit": true,
+          "label": {
+            "en": "Tools",
+            "de": "Werkzeuge"
+          }
         }
-      ]
+      ],
+      "tablet": {
+        "stack": false,
+        "drawer": [
+          "tools"
+        ]
+      },
+      "mobile": {
+        "stack": false,
+        "drawer": [
+          "tools"
+        ]
+      }
     },
     {
       "id": "head",

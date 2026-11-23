@@ -13,7 +13,7 @@
   {
    "row": "top",
    "view": "tablet",
-   "need": 17,
+   "need": 8,
    "room": 38,
    "positions": {
     "notice": 0,
@@ -23,7 +23,7 @@
   {
    "row": "top",
    "view": "mobile",
-   "need": 17,
+   "need": 8,
    "room": 18,
    "positions": {
     "notice": 0,
@@ -195,7 +195,7 @@
   {
    "row": "top",
    "view": "tablet",
-   "need": 17,
+   "need": 8,
    "room": 38,
    "positions": {
     "notice": 0,
@@ -205,7 +205,7 @@
   {
    "row": "top",
    "view": "mobile",
-   "need": 17,
+   "need": 8,
    "room": 18,
    "positions": {
     "notice": 0,
@@ -405,7 +405,7 @@
   {
    "row": "head",
    "view": "tablet",
-   "need": 17,
+   "need": 8,
    "room": 38,
    "positions": {
     "brand": 0,
@@ -416,7 +416,7 @@
   {
    "row": "head",
    "view": "mobile",
-   "need": 17,
+   "need": 8,
    "room": 18,
    "positions": {
     "brand": 0,

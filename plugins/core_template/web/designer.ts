@@ -17,6 +17,8 @@ const BASE = 'x/core.template';
 /** The width of the frame of each view: a common window of that kind. */
 const FRAME_PX: Record<ViewName, number> = { desktop: 1280, tablet: 768, mobile: 375 };
 const FRAME_HEIGHT = 760;
+// the height of the window of a phone held sideways (CSS pixels, about)
+const PHONE_SIDEWAYS = 360;
 const HISTORY_MAX = 100;
 
 
@@ -31,6 +33,7 @@ export interface Tpl {
 export interface PreviewWindow extends Window {
   __ewdPreviewUpdate?: (d: Design) => void;
   __ewdMeasure?: () => Measure[];
+  __ewdHeader?: () => { height: number; window: number } | null;
 }
 /** What the preview measured of one block in the view shown. */
 export interface Measure { id: string; shown: boolean; overflow: boolean; need: number; have: number; items: number; firstLine: number }
@@ -89,6 +92,7 @@ export async function designer(panel: HTMLElement, key: string, back: () => void
   let sel: { row: number; block: number | null } = { row: 0, block: null };
   let previewPath = '/';
   let measures: Measure[] = [];
+  let header: { height: number; window: number } | null = null;
 
   const names = langFields(t('template.name'), tpl.names, { required: true });
   const problems = h('div', { class: 'ewd-problems', role: 'status', 'aria-live': 'polite' });
@@ -191,11 +195,26 @@ export async function designer(panel: HTMLElement, key: string, back: () => void
     measureTimer = window.setTimeout(() => {
       const w = frame?.contentWindow as PreviewWindow | null | undefined;
       measures = w?.__ewdMeasure?.() ?? [];
+      header = w?.__ewdHeader?.() ?? null;
       renderHints();
     }, 350);
   };
   const renderHints = () => {
     const out: HTMLElement[] = [];
+    // the height of a sticky header: it sticks only up to a quarter of the
+    // window (sticky_max_vh), else it scrolls with the page
+    if (draft.options.sticky_header && header) {
+      const vh = LIMITS.sticky_max_vh;
+      const px = Math.round(header.height);
+      const viewName = t(`template.view_${view}`);
+      if (header.height > (header.window * vh) / 100) {
+        out.push(h('li', null, t('template.d_hint_header_tall', { view: viewName, height: px, limit: vh, max: Math.floor((header.window * vh) / 100) })));
+      } else if (view === 'mobile' && header.height > (PHONE_SIDEWAYS * vh) / 100) {
+        out.push(h('li', null, t('template.d_hint_header_sideways', { height: px, window: PHONE_SIDEWAYS, limit: vh })));
+      } else {
+        out.push(h('li', null, t('template.d_hint_header_ok', { view: viewName, height: px })));
+      }
+    }
     for (const r of draft.rows) {
       for (const b of r.blocks) {
         const m = measures.find((x) => x.id === b.id);

@@ -3403,6 +3403,8 @@ test('template designer: visual and with the keyboard, room and contrast help, u
       return f?.getAttribute('width') === '375' && f.contentDocument?.body?.classList.contains('ewd-preview');
     });
     await page.locator('.ewd-hints h3', { hasText: /(phone|handy)/i }).waitFor();
+    // the height of the sticky header, measured in the preview
+    await page.locator('.ewd-hints li', { hasText: /(sticky header|klebende kopf) (is|ist) \d+ px/i }).waitFor();
     // the text shows the same design
     await page.getByRole('button', { name: /^(as text \(json\)|als text \(json\))$/i }).click();
     const design = JSON.parse(await page.getByLabel(/^(design \(text\)|design \(text\))$/i).inputValue());
