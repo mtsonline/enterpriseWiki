@@ -25,15 +25,24 @@ func TestConsent(t *testing.T) {
 	admin.must("POST", "/api/v1/elements", map[string]any{"category_id": c.ID, "type": "core.html", "title": "Privacy", "body": htmlBody("<p>We keep okapi data.</p>")}, &policy, 201)
 	admin.must("POST", "/api/v1/elements", map[string]any{"category_id": c.ID, "type": "core.html", "title": "Other", "body": htmlBody("<p>Lynx</p>")}, &other, 201)
 	pw := "Passw0rd!Passw0rd"
-	newUser := func(name, display string) *client {
-		admin.must("POST", "/api/v1/admin/users", map[string]any{"username": name, "password": pw, "display_name": display}, nil, 201)
+	newUser := func(name, display string) (*client, int64) {
+		var u struct {
+			ID int64 `json:"id"`
+		}
+		admin.must("POST", "/api/v1/admin/users", map[string]any{"username": name, "password": pw, "display_name": display}, &u, 201)
 		cl := e.client()
 		cl.login(name, pw)
-		return cl
+		return cl, u.ID
 	}
-	bob := newUser("bob", "Bob")
-	eve := newUser("eve", "=HYPERLINK(\"https://evil.example.com\")")
-	carol := newUser("carol", "Carol")
+	bob, _ := newUser("bob", "Bob")
+	eve, _ := newUser("eve", "=HYPERLINK(\"https://evil.example.com\")")
+	carol, carolID := newUser("carol", "Carol")
+	// a page only carol may see (so the API key is really carol, not a guest)
+	var team cat
+	var inner elem
+	admin.must("POST", "/api/v1/categories", map[string]any{"titles": map[string]string{"en": "Team"}}, &team, 201)
+	admin.must("POST", fmt.Sprintf("/api/v1/categories/%d/acl", team.ID), map[string]any{"subject_type": "user", "subject_id": carolID, "permissions": 1}, nil, 201)
+	admin.must("POST", "/api/v1/elements", map[string]any{"category_id": team.ID, "type": "core.html", "title": "Inner", "body": htmlBody("<p>Inner</p>")}, &inner, 201)
 	var key struct {
 		Token string `json:"token"`
 	}
@@ -93,8 +102,11 @@ func TestConsent(t *testing.T) {
 	if st, _ := read(admin, other.ID); st != 200 {
 		t.Fatalf("administrator: %d", st)
 	}
-	if st, _ := read(keyed, other.ID); st != 200 {
+	if st, _ := read(keyed, inner.ID); st != 200 {
 		t.Fatalf("API key: %d", st)
+	}
+	if st, _ := read(e.client(), inner.ID); st == 200 {
+		t.Fatal("guests read the page of carol")
 	}
 	if st, _ := read(e.client(), other.ID); st != 200 {
 		t.Fatalf("guest: %d", st)
