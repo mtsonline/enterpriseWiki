@@ -98,7 +98,7 @@ Im Markdown-Quelltext stehen Bausteine als Direktiven: `::toc{levels=3}` (ohne I
 | Aufklappbereich | Inhalt, der erst nach einem Klick erscheint |
 | Status-Label | farbiges Label wie ERLEDIGT |
 | Textfarbe und Schrift | Textfarbe, Hervorhebung, Schriftart und -größe aus der Palette der Site (alle Kombinationen gut lesbar) |
-| Spalten / Karten | Inhalt nebeneinander; Spalten bzw. Karten mit einer Trennlinie trennen |
+| Spalten / Karten | Inhalt nebeneinander; Spalten bzw. Karten mit einer Trennlinie trennen. Karten stehen in höchstens so vielen Spalten wie gewählt, jede mindestens 12 rem breit: Ist der Inhaltsbereich schmaler (neben einer Seitenspalte, auf dem Tablet), rutschen sie in die nächste Zeile |
 | Abschnitt, Hero-Banner, Button-Link, Abstand | Bausteine für Website-Seiten (besonders mit der Vorlage *CMS*). Das Hero-Banner hat eine **Höhe** für Desktop und Tablet und eine für das Handy: *so hoch wie sein Inhalt*, *ein Drittel* oder *die Hälfte des Fensters* oder *das Fenster unter dem Kopf* (`height=half phone_height=window`). Das ist immer eine Mindesthöhe: Ist der Text länger, wird das Banner höher, er wird nie abgeschnitten, auch nicht auf einem Bild oder Video. |
 | Raster | Inhalte in Spalten, die Zahl je Ansicht (Desktop bis 5, Tablet bis 3, Handy 1); Zellen mit einer Trennlinie trennen. Mit *Breiten* bekommen die Spalten auf dem Desktop eigene Anteile (`widths="2 1"`: die erste doppelt so breit); die schmalste behält genug Platz |
 | Überschrift | eine Überschrift mit Untertitel und Linie; ihre Ebene (die Gliederung der Seite für Screenreader) wird getrennt von ihrer Größe gewählt |
@@ -144,7 +144,7 @@ Im Markdown-Quelltext stehen Bausteine als Direktiven: `::toc{levels=3}` (ohne I
 | Anhänge | die Dateien, die diese Seite zeigt, oder die Dateien einer Kategorie (wahlweise mit Unterkategorien), als Tabelle mit Art, Größe und Datum, sortiert nach Name, Datum, Größe oder Art. Jede Person sieht nur Dateien, die sie sehen darf; Dateien „nur ansehen“ haben keinen Download. Wer in der Kategorie Seiten anlegen oder bearbeiten darf, lädt mit *Datei hochladen* direkt dort eine Datei hoch |
 | Shell-Befehl | Ausgabe eines Befehls auf dem Server; läuft erst, wenn ein Superadmin genau diesen Befehl freigegeben hat |
 | HTTP-Abruf | Ergebnis einer Web-Adresse (Text, HTML, JSON als Tabelle); nur freigegebene Adressen |
-| Neuigkeiten aus mehreren Quellen | die neuesten Elemente beliebig vieler Quellen und Einträge externer RSS/Atom-Feeds gemeinsam, als Karten, Liste, Schlagzeilen oder Kacheln (Bilder in Spalten je Ansicht, wahlweise als Mauerwerk); mit *Filter nach Schlagwort* stehen Knöpfe über der Liste, die nur Einträge mit einem Schlagwort zeigen |
+| Neuigkeiten aus mehreren Quellen | die neuesten Elemente beliebig vieler Quellen und Einträge externer RSS/Atom-Feeds gemeinsam, als Karten, Liste, Schlagzeilen oder Kacheln (Bilder in höchstens so vielen Spalten wie je Ansicht gewählt, jede mindestens 12 rem breit, wahlweise als Mauerwerk); mit *Filter nach Schlagwort* stehen Knöpfe über der Liste, die nur Einträge mit einem Schlagwort zeigen |
 | Blogbeiträge aus mehreren Quellen | Beiträge mehrerer Quellen im Aussehen des Blogs (Liste, Karten, Kompakt) |
 | FAQ aus mehreren Quellen | Fragen mehrerer Quellen als eine FAQ, ein aufklappbarer Abschnitt je Kategorie |
 | Zuletzt geändert, Nächste Termine | ebenfalls mit frei wählbaren Quellen |

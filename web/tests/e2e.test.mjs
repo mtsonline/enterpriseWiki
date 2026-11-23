@@ -3282,6 +3282,39 @@ test('hero: heights per view; the text stays whole on a phone, also on a backgro
   }
 });
 
+test('cards and tiles: each at least 12 rem wide in the room of the content, on every width', async () => {
+  const cat = (await call('POST', '/api/v1/categories', { titles: { en: `Cards ${run}` } })).id;
+  for (let i = 0; i < 4; i++) await call('POST', '/api/v1/elements', { category_id: cat, type: 'core.html', title: `Tile ${i} ${run}`, body: { format: 'markdown', source: 'x' } });
+  const cards = Array.from({ length: 4 }, (_, i) => `**Card ${i}**\n\nSome words about okapis.`).join('\n\n---\n\n');
+  const src = `:::cards{columns=4}\n${cards}\n:::\n\n::news{layout=tiles columns=4 source="category:${cat}"}\n`;
+  const el = await call('POST', '/api/v1/elements', { category_id: cat, type: 'core.html', title: `Cards ${run}`, body: { format: 'markdown', source: src } });
+  const size = page.viewportSize();
+  try {
+    for (const [w, hgt] of [[1280, 800], [1024, 768], [800, 1000], [375, 760]]) {
+      await page.setViewportSize({ width: w, height: hgt });
+      await page.goto(`${BASE}/e/${el.id}`);
+      await idle();
+      await page.locator('.ewl-card').first().waitFor();
+      await page.locator('.ew-news--tiles .ew-news-item').first().waitFor();
+      const m = await page.evaluate(() => {
+        const rem = parseFloat(getComputedStyle(document.documentElement).fontSize);
+        const widths = (sel) => [...document.querySelectorAll(sel)].map((e) => e.getBoundingClientRect().width);
+        const box = (sel) => document.querySelector(sel).getBoundingClientRect().width;
+        return { rem, cards: widths('.ewl-card'), tiles: widths('.ew-news--tiles .ew-news-item'), cardsBox: box('.ewl-cards'), tilesBox: box('.ew-news--tiles'),
+          over: document.documentElement.scrollWidth - document.documentElement.clientWidth };
+      });
+      // each at least 12 rem, unless the whole area is narrower (then one column, full width)
+      for (const [k, box] of [['cards', m.cardsBox], ['tiles', m.tilesBox]]) {
+        for (const x of m[k]) assert.ok(x >= Math.min(12 * m.rem, box) - 1, `${w} px: ${k} ${Math.round(x)} px wide in ${Math.round(box)} px: ${JSON.stringify(m)}`);
+      }
+      assert.ok(m.over <= 0, `${w} px: the page scrolls sideways by ${m.over} px`);
+    }
+    await a11y('cards and tiles');
+  } finally {
+    if (size) await page.setViewportSize(size);
+  }
+});
+
 test('own CSS of a template: switched off by default, checked while typing, used only while allowed', async () => {
   const before = (await call('GET', '/api/v1/admin/settings')).config;
   const cat = (await call('POST', '/api/v1/categories', { titles: { en: `Styled ${run}` } })).id;
