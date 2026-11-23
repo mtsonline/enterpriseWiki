@@ -157,5 +157,14 @@
 .ewe-macro-size::after { content: ""; width: .35rem; height: 2.5rem; max-height: 80%; border-radius: .2rem; background: var(--ew-primary); opacity: .55; }
 .ewe-macro-size:hover::after, .ewe-macro-size:focus-visible::after { opacity: 1; }
 .ewe-macro-size:focus-visible { outline: 3px solid var(--ew-focus); outline-offset: 2px; }
-/* room for the handle inside the block */
-.ewe-macro { padding-inline-end: 1.5rem; }
+/* the least height: a handle at the lower edge (left of the width handle) */
+.ewe-macro-hsize {
+  position: absolute; inset-inline: 0 1.5rem; inset-block-end: 0; height: 1.5rem; min-width: 1.5rem; cursor: ns-resize; touch-action: none;
+  display: flex; align-items: center; justify-content: center;
+}
+.ewe-macro-hsize::after { content: ""; height: .35rem; width: 2.5rem; max-width: 80%; border-radius: .2rem; background: var(--ew-primary); opacity: .55; }
+.ewe-macro-hsize:hover::after, .ewe-macro-hsize:focus-visible::after { opacity: 1; }
+.ewe-macro-hsize:focus-visible { outline: 3px solid var(--ew-focus); outline-offset: 2px; }
+/* room for the handles inside the block */
+.ewe-macro { padding-inline-end: 1.5rem; padding-block-end: 1.5rem; }
+.ewe-macro:has(> .ewe-macro-hsize[hidden]) { padding-block-end: 0; }
