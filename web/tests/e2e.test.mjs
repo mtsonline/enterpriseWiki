@@ -4820,6 +4820,60 @@ test('consent: privacy policy accepted before use, cookie banner with categories
   }
 });
 
+test('editor: the menu of a block – right click, long press on a touch screen, context menu key; duplicate, move, delete, undo', async () => {
+  const cat = await m6Category();
+  const src = `:::panel{type=info}\nFirst okapi ${run}\n:::\n\n:::panel{type=warning}\nSecond lynx ${run}\n:::\n\nThe end.\n`;
+  const el = await call('POST', '/api/v1/elements', { category_id: cat, type: 'core.html', title: `Menu ${run}`, body: { format: 'markdown', source: src } });
+  await page.goto(`${BASE}/e/${el.id}/edit`);
+  await idle();
+  const blocks = page.locator('.ewe-prose > .ewe-macro');
+  await blocks.nth(1).waitFor();
+  const order = async () => (await blocks.allInnerTexts()).map((x) => (x.includes('okapi') ? 'okapi' : x.includes('lynx') ? 'lynx' : '?')).join(',');
+  const menu = page.getByRole('menu', { name: /^(actions for|aktionen für) /i });
+  // right click on the head of a block: the menu, the first entry has the focus
+  await blocks.nth(0).locator('.ewe-macro-name').click({ button: 'right' });
+  await menu.waitFor();
+  assert.match(await page.evaluate(() => document.activeElement?.textContent ?? ''), /^(edit|bearbeiten)$/i);
+  await a11y('the menu of a block');
+  // arrow keys, then Duplicate
+  await page.keyboard.press('ArrowDown');
+  assert.match(await page.evaluate(() => document.activeElement?.textContent ?? ''), /^(move up|nach oben)$/i);
+  await menu.getByRole('menuitem', { name: /^(duplicate|duplizieren)$/i }).click();
+  assert.equal(await menu.count(), 0, 'closed after the choice');
+  assert.equal(await order(), 'okapi,okapi,lynx');
+  // right click in the text of a block: the browser's own menu, not ours
+  await blocks.nth(0).locator('.ewe-macro-body p').first().click({ button: 'right' });
+  assert.equal(await menu.count(), 0, 'no block menu in the text');
+  await page.keyboard.press('Escape');
+  // Escape closes and gives the focus back
+  const editBtn = blocks.nth(2).getByRole('button', { name: /^(edit block|baustein bearbeiten)/i });
+  await editBtn.focus();
+  await page.keyboard.press('Shift+F10');
+  await menu.waitFor();
+  await page.keyboard.press('Escape');
+  assert.equal(await menu.count(), 0);
+  assert.ok(await editBtn.evaluate((b) => b === document.activeElement), 'the focus is back on the button');
+  // the context menu key on a button of the head: Move up
+  await page.keyboard.press('ContextMenu');
+  await menu.waitFor();
+  await menu.getByRole('menuitem', { name: /^(move up|nach oben)$/i }).click();
+  assert.equal(await order(), 'okapi,lynx,okapi');
+  // a long press on a touch screen: the menu; Delete, then undo
+  const box = await blocks.nth(1).locator('.ewe-macro-name').boundingBox();
+  await blocks.nth(1).locator('.ewe-macro-name').dispatchEvent('pointerdown', { pointerType: 'touch', isPrimary: true, clientX: box.x + 4, clientY: box.y + 4, bubbles: true });
+  await menu.waitFor();
+  await blocks.nth(1).locator('.ewe-macro-name').dispatchEvent('pointerup', { pointerType: 'touch', isPrimary: true, bubbles: true });
+  await menu.getByRole('menuitem', { name: /^(delete|löschen)$/i }).click();
+  assert.equal(await order(), 'okapi,okapi');
+  await page.keyboard.press('Control+z');
+  assert.equal(await order(), 'okapi,lynx,okapi');
+  // leave without saving
+  page.once('dialog', (d) => d.accept());
+  await page.goto(`${BASE}/e/${el.id}`);
+  const leave = page.locator('dialog[open]').getByRole('button', { name: /^(discard|verwerfen)/i });
+  if (await leave.count()) await leave.click();
+});
+
 test('editor: blocks move with the mouse, the buttons and Alt+Arrow keys; their width and height with the handles and the keyboard', async () => {
   const cat = await m6Category();
   const src = `:::panel{type=info}\nFirst okapi ${run}\n:::\n\n:::panel{type=warning}\nSecond lynx ${run}\n:::\n\nThe end.\n`;

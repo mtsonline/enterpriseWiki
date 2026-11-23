@@ -3004,5 +3004,13 @@
  "placement.hidden_here": "Hidden in this category",
  "placement.hidden_here_help": "A level above shows these blocks; this category hides them. The boxes set where the hiding applies. Without a tick, the level above applies there again.",
  "placement.unhide": "Show as above again",
- "placement.unhidden": "{block} is shown as in the level above again."
+ "placement.unhidden": "{block} is shown as in the level above again.",
+ "editor.block_menu": "Actions for {name}",
+ "editor.menu_edit": "Edit",
+ "editor.menu_up": "Move up",
+ "editor.menu_down": "Move down",
+ "editor.menu_duplicate": "Duplicate",
+ "editor.menu_delete": "Delete",
+ "editor.duplicated": "{name} duplicated.",
+ "editor.removed_named": "{name} deleted. Undo with Ctrl+Z."
 }
