@@ -4723,6 +4723,53 @@ test('consent: privacy policy accepted before use, cookie banner with categories
   }
 });
 
+test('editor: blocks move with the mouse, the buttons and Alt+Arrow keys; their width with the handle and the keyboard', async () => {
+  const cat = await m6Category();
+  const src = `:::panel{type=info}\nFirst okapi ${run}\n:::\n\n:::panel{type=warning}\nSecond lynx ${run}\n:::\n\nThe end.\n`;
+  const el = await call('POST', '/api/v1/elements', { category_id: cat, type: 'core.html', title: `Move ${run}`, body: { format: 'markdown', source: src } });
+  await page.goto(`${BASE}/e/${el.id}/edit`);
+  await idle();
+  const blocks = page.locator('.ewe-prose > .ewe-macro');
+  await blocks.nth(1).waitFor();
+  const order = async () => (await blocks.allInnerTexts()).map((x) => (x.includes('okapi') ? 'okapi' : x.includes('lynx') ? 'lynx' : '?')).join(',');
+  assert.equal(await order(), 'okapi,lynx');
+  // buttons
+  await blocks.nth(1).getByRole('button', { name: /^(move up|nach oben)/i }).click();
+  assert.equal(await order(), 'lynx,okapi');
+  await blocks.nth(0).getByRole('button', { name: /^(move up|nach oben)/i }).click(); // already at the top: nothing
+  assert.equal(await order(), 'lynx,okapi');
+  // keyboard: Alt+ArrowDown with the cursor in the first block
+  await blocks.nth(0).locator('.ewe-macro-body p').first().click();
+  await page.keyboard.press('Alt+ArrowDown');
+  assert.equal(await order(), 'okapi,lynx');
+  // mouse: drag the head of the second block above the first
+  const head = blocks.nth(1).locator('.ewe-macro-head');
+  await head.dragTo(blocks.nth(0), { targetPosition: { x: 40, y: 4 } });
+  assert.equal(await order(), 'lynx,okapi');
+  // width: keyboard on the handle (a slider), then the mouse
+  const size = blocks.nth(0).getByRole('slider', { name: /^(width of|breite von)/i });
+  await size.focus();
+  await page.keyboard.press('Home');
+  assert.match(await size.getAttribute('aria-valuetext'), /^16 rem$/);
+  await page.keyboard.press('ArrowRight');
+  assert.match(await size.getAttribute('aria-valuetext'), /^24 rem$/);
+  await a11y('editor with move buttons and width handle');
+  await page.keyboard.press('End');
+  assert.match(await size.getAttribute('aria-valuetext'), /^(full width|volle breite)$/i);
+  const box = await blocks.nth(0).boundingBox();
+  const sb = await size.boundingBox();
+  await page.mouse.move(sb.x + sb.width / 2, sb.y + sb.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(box.x + 32 * 16 + 4, sb.y + sb.height / 2, { steps: 5 });
+  await page.mouse.up();
+  assert.match(await size.getAttribute('aria-valuetext'), /^32 rem$/);
+  await page.getByRole('button', { name: /^(publish|veröffentlichen)$/i }).click();
+  await page.waitForURL(/\/e\/\d+$/);
+  const md = (await call('GET', `/api/v1/elements/${el.id}?edit=1`)).body.source;
+  assert.ok(md.indexOf('lynx') < md.indexOf('okapi'), 'saved in the new order');
+  assert.match(md, /max_width:32/);
+});
+
 test('menu item pointing to an existing element; new blog from the menu dialog', async () => {
   const cat = await m6Category();
   await call('POST', '/api/v1/elements', { category_id: cat, type: 'core.html', title: `Pickable ${run}`, body: { format: 'html', source: '<p>x</p>' } });

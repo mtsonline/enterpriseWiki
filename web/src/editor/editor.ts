@@ -25,6 +25,7 @@ import { h, uid } from '../core/dom';
 import { t, uiLang } from '../core/i18n';
 import { checkbox, field, formDialog, select, textArea, textInput } from '../components/ui';
 import { emojiDialog } from './emoji';
+import { decodeOptions, encodeOptions, type BlockOptions } from '../core/blockoptions';
 import { codeLanguage, codeLanguageOptions, codeLines } from '../core/codeblocks';
 import { blockTemplateSource, saveBlockTemplate } from './blocktemplates';
 import { chooseBlock } from './blockpicker';
@@ -306,6 +307,72 @@ function partsMarkdown(p: MacroParts): string {
   return `${part(1)}\n\n---\n\n${part(2)}`;
 }
 
+// the widths a block can get by its handle (rem on the desktop; 0: full
+// width), in steps, so the result fits every view (option max_width)
+const WIDTHS = [16, 24, 32, 40, 48, 56, 64, 72, 0];
+function widthIndex(w: number): number {
+  if (!w) return WIDTHS.length - 1;
+  let best = 0;
+  WIDTHS.forEach((x, i) => { if (x && Math.abs(x - w) < Math.abs(WIDTHS[best] - w)) best = i; });
+  return best;
+}
+/** the step nearest to w rem; at the right edge of the room: full width */
+function nearestWidth(w: number, avail: number): number {
+  if (avail && w >= avail - 1) return 0;
+  const steps = WIDTHS.filter((x) => x && (!avail || x < avail));
+  if (!steps.length) return 0;
+  return steps.reduce((a, b) => (Math.abs(b - w) < Math.abs(a - w) ? b : a));
+}
+const widthText = (w: number) => (w ? t('editor.width_rem', { n: w }) : t('editor.width_full'));
+
+/**
+ * moveBlockAt moves the block at pos one place up (-1) or down (1) among
+ * its siblings (inside the same container); it stays selected, and the move
+ * is announced. Returns false at the start or end.
+ */
+function moveBlockAt(view: EditorView, pos: number, dir: -1 | 1): boolean {
+  const { doc } = view.state;
+  const $pos = doc.resolve(pos);
+  const node = doc.nodeAt(pos);
+  const parent = $pos.parent;
+  const index = $pos.index();
+  if (!node) return false;
+  if (dir < 0 ? index === 0 : index >= parent.childCount - 1) {
+    announce(t(dir < 0 ? 'editor.move_first' : 'editor.move_last'));
+    return false;
+  }
+  const other = parent.child(index + dir);
+  const tr = view.state.tr.delete(pos, pos + node.nodeSize);
+  const target = dir < 0 ? pos - other.nodeSize : pos + other.nodeSize;
+  tr.insert(target, node);
+  if (NodeSelection.isSelectable(node)) tr.setSelection(NodeSelection.create(tr.doc, target));
+  else tr.setSelection(TextSelection.near(tr.doc.resolve(target + 1)));
+  view.dispatch(tr.scrollIntoView());
+  view.focus();
+  announce(t(dir < 0 ? 'editor.moved_up' : 'editor.moved_down'));
+  return true;
+}
+
+/** moveBlock: the command behind Alt+ArrowUp/Down – the selected block, or
+ * the block of the cursor that is directly in the page or in a block. */
+function moveBlock(dir: -1 | 1): Command {
+  return (state, dispatch, view) => {
+    const sel = state.selection;
+    let pos: number | undefined;
+    if (sel instanceof NodeSelection && !sel.node.isInline) pos = sel.from;
+    else {
+      const $f = sel.$from;
+      for (let d = $f.depth; d >= 1; d--) {
+        const up = $f.node(d - 1).type;
+        if (up === nodes.doc || up === nodes.macro) { pos = $f.before(d); break; }
+      }
+    }
+    if (pos === undefined || !view) return false;
+    if (dispatch) moveBlockAt(view, pos, dir);
+    return true;
+  };
+}
+
 class MacroView implements NodeView {
   dom: HTMLElement;
   contentDOM?: HTMLElement;
@@ -314,13 +381,19 @@ class MacroView implements NodeView {
   private addPart: HTMLButtonElement;
   private picture: HTMLElement | null = null;
   private pictureOf = '';
+  private sizer: HTMLElement;
   constructor(private node: PMNode, private host: Host, private getPos: GetPos) {
     this.title = h('span', { class: 'ewe-macro-name' });
     this.info = h('span', { class: 'ewe-macro-params' });
     this.addPart = ctlButton('+', '', () => this.newPart());
     this.addPart.classList.add('ewe-macro-addpart');
-    const head = h('div', { class: 'ewe-macro-head ewe-ctl', contenteditable: 'false' },
-      h('span', { 'aria-hidden': 'true' }, '⚙ '), this.title, ' ', this.info, this.addPart,
+    // moving: drag the head with the mouse, or the buttons and Alt+Arrow
+    // keys (WCAG 2.5.7: never only by dragging)
+    const grip = h('span', { class: 'ewe-macro-grip', 'aria-hidden': 'true', title: t('editor.macro_drag') }, '⠿');
+    const head = h('div', { class: 'ewe-macro-head ewe-ctl', contenteditable: 'false', draggable: 'true' },
+      grip, h('span', { 'aria-hidden': 'true' }, '⚙ '), this.title, ' ', this.info, this.addPart,
+      ctlButton('↑', t('editor.move_up'), () => this.at((p) => moveBlockAt(host.view(), p, -1))),
+      ctlButton('↓', t('editor.move_down'), () => this.at((p) => moveBlockAt(host.view(), p, 1))),
       ctlButton('✎', t('editor.macro_edit'), () => this.at((p) => host.edit(p))),
       ctlButton('×', t('editor.macro_remove'), () => this.at((p) => {
         const v = host.view();
@@ -329,6 +402,18 @@ class MacroView implements NodeView {
         announce(t('editor.removed'));
       })));
     this.dom = h('div', { class: ['ewe-macro', node.attrs.leaf && 'ewe-macro--leaf'], role: 'group' }, head);
+    head.addEventListener('dragstart', (e) => {
+      const p = this.getPos();
+      if (p === undefined || !e.dataTransfer || (e.target as HTMLElement).closest('button')) { e.preventDefault(); return; }
+      const v = host.view();
+      const sel = NodeSelection.create(v.state.doc, p);
+      v.dispatch(v.state.tr.setSelection(sel));
+      e.dataTransfer.effectAllowed = 'move';
+      e.dataTransfer.setData('text/plain', macroName(this.node.attrs.name as string));
+      e.dataTransfer.setDragImage(this.dom, 12, 12);
+      // the editor takes it from here (drop: move the block; Escape: nothing)
+      (v as unknown as { dragging: unknown }).dragging = { slice: sel.content(), move: true, node: sel };
+    });
     if (node.attrs.leaf) {
       // what the page will show; a picture only (not focusable, not clickable)
       this.picture = h('div', { class: 'ewe-macro-picture ew-content', contenteditable: 'false', inert: true, hidden: true });
@@ -337,10 +422,73 @@ class MacroView implements NodeView {
       this.contentDOM = h('div', { class: 'ewe-macro-body' });
       this.dom.append(this.contentDOM);
     }
+    // the width: a handle at the right edge, by mouse or with the arrow keys
+    // (a slider; saved as the option "max_width", the same as in Options)
+    this.sizer = h('div', { class: 'ewe-macro-size ewe-ctl', contenteditable: 'false', role: 'slider', tabindex: '0',
+      'aria-valuemin': '0', 'aria-valuemax': String(WIDTHS.length - 1), title: t('editor.width_help') });
+    this.dom.append(this.sizer);
+    this.sizer.addEventListener('keydown', (e) => {
+      const i = widthIndex(this.width());
+      const to = e.key === 'ArrowLeft' || e.key === 'ArrowDown' ? i - 1 : e.key === 'ArrowRight' || e.key === 'ArrowUp' ? i + 1
+        : e.key === 'Home' ? 0 : e.key === 'End' ? WIDTHS.length - 1 : -2;
+      if (to === -2) return;
+      e.preventDefault();
+      if (to >= 0 && to < WIDTHS.length) this.setWidth(WIDTHS[to]);
+    });
+    this.sizer.addEventListener('pointerdown', (e) => {
+      e.preventDefault();
+      this.sizer.setPointerCapture(e.pointerId);
+      const left = this.dom.getBoundingClientRect().left;
+      const rem = parseFloat(getComputedStyle(document.documentElement).fontSize) || 16;
+      const avail = (this.dom.parentElement?.getBoundingClientRect().width ?? 0) / rem;
+      let w = this.width();
+      const move = (ev: PointerEvent) => {
+        w = nearestWidth((ev.clientX - left) / rem, avail);
+        this.dom.style.maxWidth = w ? `${w}rem` : '';
+        this.sizer.setAttribute('aria-valuetext', widthText(w));
+      };
+      const up = () => {
+        this.sizer.removeEventListener('pointermove', move);
+        this.sizer.removeEventListener('pointerup', up);
+        this.sizer.removeEventListener('pointercancel', up);
+        this.setWidth(w);
+      };
+      this.sizer.addEventListener('pointermove', move);
+      this.sizer.addEventListener('pointerup', up);
+      this.sizer.addEventListener('pointercancel', up);
+    });
     if (!macroInfos.size) waitingViews.add(this);
     this.render();
   }
   refresh() { this.render(); }
+  /** the width on the desktop in rem (0: full width) from the options */
+  private width(): number {
+    try {
+      const v = decodeOptions(String((this.node.attrs.params as Record<string, string>).options ?? '')).max_width;
+      const n = typeof v === 'object' && v ? Number((v as Record<string, unknown>).desktop ?? 0) : Number(v ?? 0);
+      return Number.isFinite(n) ? n : 0;
+    } catch { return 0; }
+  }
+  private setWidth(w: number) {
+    const params = { ...(this.node.attrs.params as Record<string, string>) };
+    let o: BlockOptions;
+    try { o = decodeOptions(params.options ?? ''); } catch { announce(t('editor.width_bad_options')); return; }
+    const cur = o.max_width;
+    if (typeof cur === 'object' && cur && !Array.isArray(cur)) {
+      const views = { ...(cur as Record<string, number>) };
+      if (w) views.desktop = w; else delete views.desktop;
+      if (Object.keys(views).length) o.max_width = views as BlockOptions['max_width'];
+      else delete o.max_width;
+    } else if (w) o.max_width = w;
+    else delete o.max_width;
+    const text = encodeOptions(o);
+    if (text) params.options = text; else delete params.options;
+    this.at((p) => {
+      const v = this.host.view();
+      v.dispatch(v.state.tr.setNodeMarkup(p, null, { ...this.node.attrs, params }));
+      announce(t('editor.width_set', { width: widthText(w) }));
+    });
+  }
   private at(fn: (pos: number) => void) {
     const p = this.getPos();
     if (p !== undefined) fn(p);
@@ -355,6 +503,13 @@ class MacroView implements NodeView {
     this.info.textContent = this.picture && info?.picture ? '' : paramSummary(info, this.node.attrs.params as Record<string, string>, uiLang());
     this.dom.setAttribute('aria-label', t('editor.macro_named', { name: label }));
     this.dom.dataset.macro = name;
+    const w = this.width();
+    this.dom.style.maxWidth = w ? `${w}rem` : '';
+    this.sizer.setAttribute('aria-label', t('editor.width_of', { name: label }));
+    this.sizer.setAttribute('aria-valuenow', String(widthIndex(w)));
+    this.sizer.setAttribute('aria-valuetext', widthText(w));
+    // inline blocks and blocks without options have no width
+    this.sizer.hidden = info !== undefined && !info.params?.some((x) => x.name === 'options');
     const parts = !this.node.attrs.leaf ? info?.parts : undefined;
     this.addPart.hidden = !parts;
     this.dom.classList.toggle('ewe-macro--parts', !!parts);
@@ -978,6 +1133,7 @@ export function createMarkdownEditor(container: HTMLElement, opts: MarkdownEdito
     Enter: chainCommands(editSelected, splitItem, liftEmptyItem),
     Tab: tab(chainCommands(goToNextCell(1), sinkListItem(nodes.list_item))),
     'Shift-Tab': tab(chainCommands(goToNextCell(-1), liftListItem(nodes.list_item))),
+    'Alt-ArrowUp': moveBlock(-1), 'Alt-ArrowDown': moveBlock(1),
     'Alt-F10': () => { if (!toolbar.isConnected) return false; (controls().find((c) => c.tabIndex === 0) ?? controls()[0])?.focus(); return true; },
   };
 

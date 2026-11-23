@@ -141,3 +141,19 @@
 .ewe-emoji { display: flex; align-items: center; justify-content: center; min-height: 2.75rem; font-size: 1.5rem; border-radius: var(--ew-radius); cursor: pointer; }
 .ewe-emoji:hover { background: var(--ew-bg-subtle); }
 .ewe-emoji[aria-selected="true"] { outline: 3px solid var(--ew-focus); outline-offset: -3px; }
+
+/* moving blocks: the head is the handle (drag), the grip shows it */
+.ewe-macro-head[draggable="true"] { cursor: grab; }
+.ewe-macro-head[draggable="true"]:active { cursor: grabbing; }
+.ewe-macro-grip { margin-inline-end: .25rem; opacity: .7; }
+.ewe-macro-head .ewe-ctl-btn { cursor: pointer; }
+
+/* the width of a block: a handle at its right edge (also a slider for the keyboard) */
+.ewe-macro { position: relative; margin-inline: auto; }
+.ewe-macro-size {
+  position: absolute; inset-block: 0; inset-inline-end: -.75rem; width: 1.5rem; min-height: 1.5rem; cursor: ew-resize; touch-action: none;
+  display: flex; align-items: center; justify-content: center;
+}
+.ewe-macro-size::after { content: ""; width: .35rem; height: 2.5rem; max-height: 80%; border-radius: .2rem; background: var(--ew-primary); opacity: .55; }
+.ewe-macro-size:hover::after, .ewe-macro-size:focus-visible::after { opacity: 1; }
+.ewe-macro-size:focus-visible { outline: 3px solid var(--ew-focus); outline-offset: 2px; }
