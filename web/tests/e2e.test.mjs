@@ -4186,6 +4186,10 @@ test('templates of data: copy, check while typing, save, versions, use for the s
       await a11y('a menu in a drawer on the desktop');
       await burger.click();
       assert.equal(await burger.getAttribute('aria-expanded'), 'false');
+      // a drawer with nothing in it has no button (the rule of the stylesheet
+      // in a real browser; :has() inside :has() made it void before)
+      await page.evaluate(() => { for (const p of document.querySelectorAll('#ewd-menu .ew-pos')) p.replaceChildren(); });
+      assert.equal(await page.evaluate(() => getComputedStyle(document.querySelector('[aria-controls="ewd-menu"]')).display), 'none', 'no button for an empty drawer');
     } finally {
       if (size) await page.setViewportSize(size);
     }
