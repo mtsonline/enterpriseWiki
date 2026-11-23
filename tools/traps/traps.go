@@ -1429,14 +1429,14 @@ var traps = []trap{
 		Pkg:  "./internal/server/", Tests: "^(TestAuditCSVNoFormulas|TestConsent)$",
 	},
 	{
-		ID: "people.list_all", About: "decisions show the names of people the reader may not list",
+		ID: "peoplenames.list_all", About: "decisions show the names of people the reader may not list",
 		File: "internal/content/people.go",
 		Old:  "WHERE u.id = ANY($1) AND NOT u.disabled AND (u.id = $2 OR $3",
-		New:  "WHERE u.id = ANY($1) AND NOT u.disabled AND (u.id = $2 OR true",
+		New:  "WHERE u.id = ANY($1) AND NOT u.disabled AND (u.id = $2 OR NOT $3",
 		Pkg:  "./internal/server/", Tests: "^TestBlockData$",
 	},
 	{
-		ID: "people.disabled", About: "decisions show the names of disabled users",
+		ID: "peoplenames.disabled", About: "decisions show the names of disabled users",
 		File: "internal/content/people.go",
 		Old:  "WHERE u.id = ANY($1) AND NOT u.disabled AND",
 		New:  "WHERE u.id = ANY($1) AND",
