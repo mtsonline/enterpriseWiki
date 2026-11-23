@@ -1390,7 +1390,7 @@ var traps = []trap{
 		ID: "consent.apikey", About: "API keys are stopped until the person accepts",
 		File: "internal/server/consent.go",
 		Old:  "p.Via != \"session\" || p.Admin() {",
-		New:  "p.Via == \"\" || p.Admin() {",
+		New:  "p.Via == \"nobody\" || p.Admin() {",
 		Pkg:  "./internal/server/", Tests: "^TestConsent$",
 	},
 	{

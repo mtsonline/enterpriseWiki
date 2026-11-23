@@ -157,6 +157,11 @@ func TestConsent(t *testing.T) {
 	if st, _ := read(eve, other.ID); st != 403 {
 		t.Fatalf("after a new version: %d", st)
 	}
+	eve.must("POST", "/api/v1/me/consent", map[string]any{"kind": "privacy", "version": 1}, nil, 409) // the old version no longer
+	eve.must("POST", "/api/v1/me/consent", map[string]any{"kind": "privacy", "version": 2}, nil, 200)
+	if st, _ := read(eve, other.ID); st != 200 {
+		t.Fatalf("after accepting the new version: %d", st)
+	}
 	admin.must("PUT", "/api/v1/admin/consent", map[string]any{"privacy": map[string]any{"enabled": true, "version": 1, "page": policy.ID}}, nil, 400)
 	// switched off: open again
 	admin.must("PUT", "/api/v1/admin/consent", map[string]any{"privacy": map[string]any{"enabled": false, "version": 2}}, nil, 200)

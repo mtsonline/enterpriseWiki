@@ -42,7 +42,7 @@ type Server struct {
 	// consentOK: people known to have accepted a version of the privacy
 	// policy ("user/version"); only positive answers, they do not change
 	consentOK sync.Map
-	forwards   untrustedForwards
+	forwards  untrustedForwards
 }
 
 // New creates the server. web contains the built frontend (may be nil).
