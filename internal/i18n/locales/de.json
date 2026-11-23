@@ -2995,5 +2995,6 @@
  "editor.width_rem": "{n} rem",
  "editor.width_full": "Volle Breite",
  "editor.width_set": "Breite: {width}.",
- "editor.width_bad_options": "Die Optionen dieses Bausteins lassen sich nicht lesen; ändern Sie die Breite unter Optionen."
+ "editor.width_bad_options": "Die Optionen dieses Bausteins lassen sich nicht lesen; ändern Sie die Breite unter Optionen.",
+ "editor.moved": "Verschoben."
 }

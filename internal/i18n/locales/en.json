@@ -2995,5 +2995,6 @@
  "editor.width_rem": "{n} rem",
  "editor.width_full": "Full width",
  "editor.width_set": "Width: {width}.",
- "editor.width_bad_options": "The options of this block cannot be read; change the width under Options."
+ "editor.width_bad_options": "The options of this block cannot be read; change the width under Options.",
+ "editor.moved": "Moved."
 }

@@ -354,20 +354,26 @@ function moveBlockAt(view: EditorView, pos: number, dir: -1 | 1): boolean {
 }
 
 /** moveBlock: the command behind Alt+ArrowUp/Down – the selected block, or
- * the block of the cursor that is directly in the page or in a block. */
+ * the block of the cursor that is directly in the page or in a block; when
+ * that one cannot go further (the only text in a block), the block around
+ * it moves. */
 function moveBlock(dir: -1 | 1): Command {
   return (state, dispatch, view) => {
     const sel = state.selection;
-    let pos: number | undefined;
-    if (sel instanceof NodeSelection && !sel.node.isInline) pos = sel.from;
-    else {
-      const $f = sel.$from;
-      for (let d = $f.depth; d >= 1; d--) {
-        const up = $f.node(d - 1).type;
-        if (up === nodes.doc || up === nodes.macro) { pos = $f.before(d); break; }
-      }
+    const candidates: number[] = [];
+    if (sel instanceof NodeSelection && !sel.node.isInline) candidates.push(sel.from);
+    const $f = sel.$from;
+    for (let d = $f.depth; d >= 1; d--) {
+      const up = $f.node(d - 1).type;
+      if (up === nodes.doc || up === nodes.macro) candidates.push($f.before(d));
     }
-    if (pos === undefined || !view) return false;
+    if (!candidates.length || !view) return false;
+    const canMove = (pos: number) => {
+      const $p = state.doc.resolve(pos);
+      const i = $p.index();
+      return dir < 0 ? i > 0 : i < $p.parent.childCount - 1;
+    };
+    const pos = candidates.find(canMove) ?? candidates[0];
     if (dispatch) moveBlockAt(view, pos, dir);
     return true;
   };
@@ -567,7 +573,8 @@ class MacroView implements NodeView {
     return true;
   }
   destroy() { waitingViews.delete(this); }
-  stopEvent(e: Event): boolean { return isControl(e); }
+  // controls are ours, but dropping a moved block onto a head is the editor's
+  stopEvent(e: Event): boolean { return isControl(e) && !['dragover', 'dragenter', 'drop'].includes(e.type); }
   ignoreMutation(m: ViewMutationRecord): boolean {
     return m.type !== 'selection' && !(this.contentDOM && this.contentDOM.contains(m.target));
   }
@@ -1214,6 +1221,32 @@ export function createMarkdownEditor(container: HTMLElement, opts: MarkdownEdito
       list_item: (n, v, g) => (n.attrs.checked === null ? defaultItem() : new TaskItemView(n, v, g)),
     },
     handleDoubleClickOn: (v, pos, node, nodePos, _e, direct) => direct && editAt(v, nodePos),
+    // a block dropped onto the head of a block goes before that block (not into it)
+    handleDrop: (v, event, slice, moved) => {
+      const head = (event.target as Element | null)?.closest?.('.ewe-macro-head');
+      const target = head?.parentElement;
+      if (!target || !slice.content.childCount) return false;
+      let at = -1;
+      v.state.doc.descendants((n, p) => {
+        if (at >= 0) return false;
+        if (v.nodeDOM(p) === target) { at = p; return false; }
+        return true;
+      });
+      if (at < 0) return false;
+      const tr = v.state.tr;
+      const dragging = (v as unknown as { dragging?: { node?: NodeSelection } }).dragging;
+      if (moved && dragging?.node) {
+        if (dragging.node.from <= at && at < dragging.node.to) return true; // onto itself: nothing
+        dragging.node.replace(tr);
+      }
+      const pos = tr.mapping.map(at);
+      tr.insert(pos, slice.content);
+      const node = tr.doc.nodeAt(pos);
+      if (node && NodeSelection.isSelectable(node)) tr.setSelection(NodeSelection.create(tr.doc, pos));
+      v.dispatch(tr.scrollIntoView());
+      announce(t('editor.moved'));
+      return true;
+    },
     clipboardTextParser: (text, $ctx) => {
       if ($ctx.parent.type.spec.code || !MD_HINT.test(text)) {
         // plain text: one paragraph per line block
