@@ -587,19 +587,27 @@ func buildDemo(d *demoRun) {
 
 	// ---- 5a. decisions in the text and the report of them (data for reports)
 	d.optional("decisions", func() {
-		dec := func(title, status, day, owner, why string) string {
-			return macro("decision", map[string]string{"title": title, "status": status, "day": day, "owner": owner}, "<p>"+why+"</p>")
+		// who is responsible: a demo person (shown to those who may find
+		// them, never to guests) or a text such as a board
+		dec := func(title, status, day, who, why string) string {
+			p := map[string]string{"title": title, "status": status, "day": day}
+			if id := userIDs[who]; id != 0 {
+				p["person"] = strconv.FormatInt(id, 10)
+			} else {
+				p["owner"] = who
+			}
+			return macro("decision", p, "<p>"+why+"</p>")
 		}
 		d.page(team, "Decision log", "Entscheidungsprotokoll",
-			`<p>Decisions with status, day and who is responsible. The report below lists the decisions of this area; it shows only pages the reader may see.</p>`+
-				dec("Meetings on Tuesdays", "decided", "2026-10-06", "Anna", "Most of the team is in the office then.")+
-				dec("Move the wiki to the new server", "open", "2026-12-01", "Ben", "Waiting for the offer.")+
-				dec("Own chat server", "rejected", "2026-09-15", "Anna", "The existing chat service is enough.")+
+			`<p>Decisions with status, day and who is responsible: a person of the wiki (shown only to people who may find this person, never to guests) or a text such as a board. The report below lists the decisions of this area; it shows only pages the reader may see.</p>`+
+				dec("Meetings on Tuesdays", "decided", "2026-10-06", "anna", "Most of the team is in the office then.")+
+				dec("Move the wiki to the new server", "open", "2026-12-01", "ben", "Waiting for the offer.")+
+				dec("Own chat server", "rejected", "2026-09-15", "Board", "The existing chat service is enough.")+
 				`<h2>All decisions of the team</h2>`+macro("decisions", map[string]string{"category": strconv.FormatInt(team, 10)}, ""),
-			`<p>Entscheidungen mit Status, Datum und Verantwortlichen. Der Bericht unten listet die Entscheidungen dieses Bereichs; er zeigt nur Seiten, die die lesende Person sehen darf.</p>`+
-				dec("Besprechungen dienstags", "decided", "2026-10-06", "Anna", "Dann ist der größte Teil des Teams im Büro.")+
-				dec("Wiki auf den neuen Server umziehen", "open", "2026-12-01", "Ben", "Wir warten auf das Angebot.")+
-				dec("Eigener Chat-Server", "rejected", "2026-09-15", "Anna", "Der vorhandene Chat-Dienst reicht.")+
+			`<p>Entscheidungen mit Status, Datum und Verantwortlichen: eine Person des Wikis (nur sichtbar für Personen, die diese Person finden dürfen, nie für Gäste) oder ein Text wie ein Gremium. Der Bericht unten listet die Entscheidungen dieses Bereichs; er zeigt nur Seiten, die die lesende Person sehen darf.</p>`+
+				dec("Besprechungen dienstags", "decided", "2026-10-06", "anna", "Dann ist der größte Teil des Teams im Büro.")+
+				dec("Wiki auf den neuen Server umziehen", "open", "2026-12-01", "ben", "Wir warten auf das Angebot.")+
+				dec("Eigener Chat-Server", "rejected", "2026-09-15", "Vorstand", "Der vorhandene Chat-Dienst reicht.")+
 				`<h2>Alle Entscheidungen des Teams</h2>`+macro("decisions", map[string]string{"category": strconv.FormatInt(team, 10)}, ""), nil)
 	})
 

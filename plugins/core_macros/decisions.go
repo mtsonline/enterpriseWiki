@@ -2,10 +2,13 @@ package core_macros
 
 // Decisions (plan of blocks, 3.2): a decision in the text with status,
 // day and who is responsible, kept as data for reports (content/data.go),
-// and the report of the decisions of an area.
+// and the report of the decisions of an area. Who is responsible is a
+// person of the wiki (shown by the rules of the people blocks: guests see
+// nobody, see content.PeopleNames) and/or a text (for example a board).
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"strconv"
 	"strings"
@@ -37,6 +40,7 @@ var DecisionDataKind = content.DataKind{
 		{Key: "status", Type: content.DataChoice, Options: decisionStates, OptionLabels: decisionStateLabels, Column: content.ColState, Required: true, Labels: lm("Status", "Status")},
 		{Key: "day", Type: content.DataDay, Column: content.ColDay, Labels: lm("Day", "Datum")},
 		{Key: "owner", Type: content.DataText, Max: 200, Labels: lm("Responsible", "Verantwortlich")},
+		{Key: "person", Type: content.DataPerson, Column: content.ColPerson, Labels: lm("Responsible person", "Verantwortliche Person")},
 		{Key: "title", Type: content.DataText, Max: 300, Column: content.ColLabel, Labels: lm("Decision", "Entscheidung")},
 		{Key: "text", Type: content.DataLong, Max: 4000, Labels: lm("Text", "Text")},
 	},
@@ -67,7 +71,8 @@ func (decision) Params() []content.MacroParam {
 		{Name: "title", Labels: lm("Decision in short", "Entscheidung in Kürze"), Type: "text", Required: true},
 		{Name: "status", Labels: lm("Status", "Status"), Type: "select", Options: decisionStates, Default: "open", OptionLabels: decisionStateLabels},
 		{Name: "day", Labels: lm("Day", "Datum"), Type: "date"},
-		{Name: "owner", Labels: lm("Responsible", "Verantwortlich"), Type: "text"},
+		{Name: "person", Labels: lm("Responsible person", "Verantwortliche Person"), Type: "custom:user"},
+		{Name: "owner", Labels: lm("Responsible (text, for example a board)", "Verantwortlich (Text, zum Beispiel ein Gremium)"), Type: "text"},
 	}
 }
 
@@ -75,10 +80,10 @@ func (decision) Params() []content.MacroParam {
 func (decision) DataKind() string { return DecisionKind }
 
 // decisionOf checks the parameters (also for the data).
-func decisionOf(p map[string]string) (title, status, day, owner string, err error) {
+func decisionOf(p map[string]string) (title, status, day, owner string, person int64, err error) {
 	title = strings.TrimSpace(p["title"])
 	if title == "" || utf8.RuneCountInString(title) > 300 {
-		return "", "", "", "", apperr.BadRequest("a decision needs a short title (at most 300 characters)")
+		return "", "", "", "", 0, apperr.BadRequest("a decision needs a short title (at most 300 characters)")
 	}
 	status = p["status"]
 	if _, ok := decisionStateLabels[status]; !ok {
@@ -87,19 +92,38 @@ func decisionOf(p map[string]string) (title, status, day, owner string, err erro
 	day = strings.TrimSpace(p["day"])
 	if day != "" {
 		if _, e := time.Parse("2006-01-02", day); e != nil {
-			return "", "", "", "", apperr.BadRequest("the date: a day as YYYY-MM-DD, for example 2026-11-22")
+			return "", "", "", "", 0, apperr.BadRequest("the date: a day as YYYY-MM-DD, for example 2026-11-22")
 		}
 	}
 	owner = strings.TrimSpace(p["owner"])
 	if utf8.RuneCountInString(owner) > 200 {
-		return "", "", "", "", apperr.BadRequest("responsible: at most %d characters", 200)
+		return "", "", "", "", 0, apperr.BadRequest("responsible: at most %d characters", 200)
 	}
-	return title, status, day, owner, nil
+	if v := strings.TrimSpace(p["person"]); v != "" {
+		person = idParam(v)
+		if person == 0 {
+			return "", "", "", "", 0, apperr.BadRequest("the responsible person: the id of a user")
+		}
+	}
+	return title, status, day, owner, person, nil
+}
+
+// responsible is who is responsible in words: the name of the person, if
+// the reader may see them, and the text.
+func responsible(names map[int64]string, person int64, owner string) string {
+	var parts []string
+	if n := names[person]; person != 0 && n != "" {
+		parts = append(parts, n)
+	}
+	if owner != "" {
+		parts = append(parts, owner)
+	}
+	return strings.Join(parts, ", ")
 }
 
 // Data implements content.DataMacro.
 func (decision) Data(_ context.Context, u content.DataUse) (map[string]any, error) {
-	title, status, day, owner, err := decisionOf(u.Params)
+	title, status, day, owner, person, err := decisionOf(u.Params)
 	if err != nil {
 		return nil, err
 	}
@@ -107,14 +131,25 @@ func (decision) Data(_ context.Context, u content.DataUse) (map[string]any, erro
 	if utf8.RuneCountInString(text) > 4000 {
 		text = string([]rune(text)[:4000])
 	}
-	return map[string]any{"title": title, "status": status, "day": day, "owner": owner, "text": text}, nil
+	d := map[string]any{"title": title, "status": status, "day": day, "owner": owner, "text": text}
+	if person != 0 {
+		d["person"] = person
+	}
+	return d, nil
 }
 
-func (decision) Render(_ context.Context, mc content.MacroContext) (string, error) {
-	title, status, day, owner, err := decisionOf(mc.Params)
+func (decision) Render(ctx context.Context, mc content.MacroContext) (string, error) {
+	title, status, day, owner, person, err := decisionOf(mc.Params)
 	if err != nil {
 		return "", err
 	}
+	names := map[int64]string{}
+	if person != 0 && mc.Service != nil {
+		if names, err = mc.Service.PeopleNames(ctx, []int64{person}); err != nil {
+			return "", err
+		}
+	}
+	who := responsible(names, person, owner)
 	var b strings.Builder
 	fmt.Fprintf(&b, `<section class="ew-decision ew-decision--%s" aria-label="%s">`, status, esc(tr(mc.Lang, "Decision", "Entscheidung")+": "+title))
 	fmt.Fprintf(&b, `<p class="ew-decision-head"><span class="ew-status ew-status--%s">%s</span> <strong class="ew-decision-title">%s</strong></p>`,
@@ -124,8 +159,8 @@ func (decision) Render(_ context.Context, mc content.MacroContext) (string, erro
 		d, _ := time.Parse("2006-01-02", day)
 		meta = append(meta, fmt.Sprintf(`<time datetime="%s">%s</time>`, day, esc(FormatDate(d, mc.Lang, "long"))))
 	}
-	if owner != "" {
-		meta = append(meta, esc(tr(mc.Lang, "Responsible: ", "Verantwortlich: ")+owner))
+	if who != "" {
+		meta = append(meta, esc(tr(mc.Lang, "Responsible: ", "Verantwortlich: ")+who))
 	}
 	if len(meta) > 0 {
 		b.WriteString(`<p class="ew-decision-meta">` + strings.Join(meta, " · ") + `</p>`)
@@ -210,7 +245,7 @@ func (decisions) Render(ctx context.Context, mc content.MacroContext) (string, e
 			dayHTML = fmt.Sprintf(`<time datetime="%s">%s</time>`, day, esc(FormatDate(d, mc.Lang, "short")))
 		}
 		fmt.Fprintf(&b, `<tr><th scope="row">%s</th><td><span class="ew-status ew-status--%s">%s</span></td><td>%s</td><td>%s</td><td><a href="/e/%s">%s</a></td></tr>`,
-			esc(str("title")), decisionColors[st], esc(label(decisionStateLabels[st], mc.Lang)), dayHTML, esc(str("owner")),
+			esc(str("title")), decisionColors[st], esc(label(decisionStateLabels[st], mc.Lang)), dayHTML, esc(responsible(res.People, personOf(it.Data["person"]), str("owner"))),
 			strconv.FormatInt(it.ElementID, 10), esc(it.Title))
 	}
 	b.WriteString(`</tbody></table></div>`)
@@ -219,4 +254,20 @@ func (decisions) Render(ctx context.Context, mc content.MacroContext) (string, e
 	}
 	b.WriteString(`</section>`)
 	return b.String(), nil
+}
+
+// personOf is the id of a person in the data (a number from JSON).
+func personOf(v any) int64 {
+	switch x := v.(type) {
+	case float64:
+		if x >= 1 && x <= 1<<53 && x == float64(int64(x)) {
+			return int64(x)
+		}
+	case int64:
+		return max(x, 0)
+	case json.Number:
+		n, _ := x.Int64()
+		return max(n, 0)
+	}
+	return 0
 }
