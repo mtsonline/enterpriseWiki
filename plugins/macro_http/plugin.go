@@ -15,6 +15,7 @@ import (
 	"fmt"
 	"html"
 	"io"
+	"net"
 	"net/http"
 	"net/url"
 	"sort"
@@ -25,6 +26,7 @@ import (
 
 	"github.com/microcosm-cc/bluemonday"
 
+	"github.com/mtsonline/enterprisewiki/internal/apperr"
 	"github.com/mtsonline/enterprisewiki/internal/config"
 	"github.com/mtsonline/enterprisewiki/internal/content"
 	"github.com/mtsonline/enterprisewiki/internal/coreplugin"
@@ -116,11 +118,11 @@ func (m *macro) Render(ctx context.Context, mc content.MacroContext) (string, er
 	raw := strings.TrimSpace(mc.Params["address"])
 	u, err := url.Parse(raw)
 	if raw == "" || err != nil {
-		return note(mc.Lang, "HTTP macro: invalid URL.", "HTTP-Makro: ungültige URL."), nil
+		return note(mc.Lang, "HTTP request: invalid address.", "HTTP-Abruf: ungültige Adresse."), nil
 	}
 	if !Allowed(u, sec.HTTPAllow) {
-		return note(mc.Lang, "HTTP macro: this address is not on the allow list (plugins.macros.http_allow).",
-			"HTTP-Makro: diese Adresse ist nicht freigegeben (plugins.macros.http_allow)."), nil
+		return note(mc.Lang, "HTTP request: this address is not on the allow list (plugins.macros.http_allow).",
+			"HTTP-Abruf: Diese Adresse ist nicht freigegeben (plugins.macros.http_allow)."), nil
 	}
 	format := mc.Params["format"]
 	if format != "html" && format != "json" {
@@ -140,7 +142,10 @@ func (m *macro) Render(ctx context.Context, mc content.MacroContext) (string, er
 
 	out, err := fetch(ctx, u, format, mc.Params["path"], sec.HTTPAllow, sec.HTTPAllowPrivate)
 	if err != nil {
-		return note(mc.Lang, "HTTP macro: "+err.Error(), "HTTP-Makro: "+err.Error()), nil
+		// in the language of the page; errors of the network itself keep
+		// their (English) words after the translated beginning
+		err = fetchError(err)
+		return note(mc.Lang, "HTTP request: "+apperr.Localized(err, "en"), "HTTP-Abruf: "+apperr.Localized(err, "de")), nil
 	}
 	if ttl > 0 {
 		m.p.mu.Lock()
@@ -161,6 +166,24 @@ func wrap(mc content.MacroContext, out string) string {
 	return `<figure class="ew-http"><figcaption>` + html.EscapeString(t) + `</figcaption>` + out + `</figure>`
 }
 
+// fetchError is an error of a request as a message that can be translated.
+func fetchError(err error) error {
+	var ae *apperr.Error
+	switch {
+	case errors.As(err, &ae):
+		return err
+	case errors.Is(err, netguard.ErrBlocked):
+		return apperr.BadRequest("the address is internal; only %s in config.yaml allows it", "plugins.macros.http_allow_private")
+	case errors.Is(err, context.DeadlineExceeded):
+		return apperr.BadRequest("the server did not answer in time")
+	}
+	var ne net.Error
+	if errors.As(err, &ne) && ne.Timeout() {
+		return apperr.BadRequest("the server did not answer in time")
+	}
+	return apperr.BadRequest("the address cannot be reached (%s)", err.Error())
+}
+
 // fetch performs the request and renders the result as safe HTML.
 func fetch(ctx context.Context, u *url.URL, format, path string, allow []string, allowPrivate bool) (string, error) {
 	ctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 15*time.Second)
@@ -179,18 +202,18 @@ func fetch(ctx context.Context, u *url.URL, format, path string, allow []string,
 		if errors.As(err, &ue) {
 			err = ue.Err
 		}
-		return "", netguard.Hint(err, "plugins.macros.http_allow_private in config.yaml")
+		return "", err
 	}
 	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode < 200 || resp.StatusCode > 299 {
-		return "", fmt.Errorf("server answered %d", resp.StatusCode)
+		return "", apperr.BadRequest("the server answered with the status %d", resp.StatusCode)
 	}
 	body, err := io.ReadAll(io.LimitReader(resp.Body, MaxBody+1))
 	if err != nil {
 		return "", err
 	}
 	if len(body) > MaxBody {
-		return "", errors.New("response larger than 1 MB")
+		return "", apperr.BadRequest("the answer is larger than 1 MB")
 	}
 	switch format {
 	case "html":
@@ -198,7 +221,7 @@ func fetch(ctx context.Context, u *url.URL, format, path string, allow []string,
 	case "json":
 		var v any
 		if err := json.Unmarshal(body, &v); err != nil {
-			return "", errors.New("response is not valid JSON")
+			return "", apperr.BadRequest("the answer is not valid JSON")
 		}
 		v = JSONPath(v, path)
 		return JSONToHTML(v), nil

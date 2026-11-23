@@ -1442,4 +1442,11 @@ var traps = []trap{
 		New:  "WHERE u.id = ANY($1) AND",
 		Pkg:  "./internal/server/", Tests: "^TestBlockData$",
 	},
+	{
+		ID: "icons.german", About: "icons without a label are read with their English name on German pages",
+		File: "plugins/core_layout/icons.go",
+		Old:  "l = web.IconLabel(lang, name)",
+		New:  "l = web.IconLabel(\"en\", name)",
+		Pkg:  "./internal/server/", Tests: "^TestLayoutBlocks$",
+	},
 }
