@@ -292,6 +292,23 @@ Formate: **Teams** (Adaptive Card; in Teams einen Workflow „Bei Empfang einer 
 
 Kopfzeilen: `X-Ewiki-Event`, `X-Ewiki-Delivery` und mit Signaturschlüssel `X-Ewiki-Signature: sha256=<HMAC-SHA256 des Inhalts>`. Ereignisse: `element.create|update|delete|move|restore|rollback`, `category.create|update|delete|move|restore`, `event.registration`, `event.registration_cancelled`, `event.occurrence_changed` (Daten: `occurrence`, `start`, `when`, `calendar`, `location`, `status`, `participant`), `comment.create` (Daten: `author`, `excerpt`, `reply`, `element_id`), `workflow.started`, `workflow.completed`, `workflow.cancelled` (Daten: `workflow`, `status`, `outcome`, `step`). Zustellungen laufen über eine Warteschlange; bei Fehlern wird nach 1, 5, 30 Minuten, 2 und 12 Stunden erneut versucht. Ziele im internen Netz sind ohne `allow_private` gesperrt (Schutz vor SSRF), Umleitungen nur innerhalb der Webhook-Adresse.
 
+### `consent`
+Die Frage nach der Zustimmung zu Cookies und zur Datenschutzerklärung (Vorgabe: aus). *Administration → Zustimmung*, `ewiki consent set` oder `PUT /api/v1/admin/consent` (Recht `core.settings.manage`, im Audit-Protokoll).
+
+| Schlüssel | Bedeutung | Vorgabe |
+|---|---|---|
+| `cookies.enabled` | ein Banner fragt, welche Speicher über die notwendigen hinaus genutzt werden dürfen (*Alle akzeptieren*, *Nur notwendige*, eine Auswahl von Arten) | `false` |
+| `cookies.required` | der Banner deckt die Seite ab, bis eine Wahl getroffen ist („nur notwendige“ ist auch eine Wahl) | `false` |
+| `cookies.version` | eine höhere Version fragt alle neu | `1` |
+| `cookies.text`, `cookies.page` | Text je Sprache; Seite mit der Cookie-Richtlinie | Standardtext, keine |
+| `privacy.enabled` | angemeldete Personen stimmen der Datenschutzerklärung zu, bevor sie das Wiki nutzen | `false` |
+| `privacy.page` | die Seite mit der Datenschutzerklärung (Pflicht; Lesende müssen sie sehen dürfen) | – |
+| `privacy.version` | eine höhere Version fragt alle neu; Versionen sinken nie | `1` |
+| `privacy.guests` | für Gäste: leer (nichts), `notice` (ein Hinweis mit Link) oder `required` | leer |
+| `privacy.text` | Text je Sprache | Standardtext |
+
+Das Wiki selbst nutzt nur notwendige Speicher. Mit dem Cookie-Banner lädt die Art *Externe Medien* erlaubte Einbettungen ohne zweiten Klick; Plugins können Arten ergänzen. Die Wahl bei Cookies bleibt im Browser. Jede Zustimmung zur Datenschutzerklärung wird mit Person, Version und Zeitpunkt gespeichert (Nachweis: *Administration → Zustimmung*, `GET /api/v1/admin/consents`, CSV, Recht `core.audit.view`). Der Server setzt sie für Sitzungen im Browser durch: Bis dahin gehen nur die Website, Texte, die Seite mit der Erklärung, das Abmelden und die Zustimmung selbst (`403`, Code `consent_required`). API-Schlüssel werden nicht gestoppt (eine Person legt einen erst an, wenn sie zugestimmt hat); die Administration wird ebenfalls gefragt, aber nie ausgesperrt. Für Gäste wird „zwingend“ im Browser gespeichert und vom Server nicht durchgesetzt; das einfache HTML für Suchmaschinen bleibt.
+
 ### `maintenance`
 Der Wartungsmodus: Alle außer der Administration können das Wiki nur lesen (`read_only`) oder gar nicht nutzen (`closed`). Geschaltet unter *Administration → Wartung*, mit `ewiki maintenance set` oder `PUT /api/v1/admin/maintenance` (nur Administratoren, im Audit-Protokoll).
 

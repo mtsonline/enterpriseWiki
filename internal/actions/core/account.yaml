@@ -944,3 +944,36 @@ actions:
         path_params_json: '{"method": "webauthn"}'
         body_json: '{"name": "Laptop", "credential": ${webauthn.create:core.me.mfa.setup.begin#webauthn}}'
         status: 204
+  - id: core.consent.mine
+    category: CATEGORY_ACTION
+    method: GET
+    path: /api/v1/me/consent
+    success_status: 200
+    summary:
+      text:
+        en: Show whether you accepted the privacy policy, and which version
+        de: "Anzeigen, ob und welcher Version der Datenschutzerklärung Sie zugestimmt haben"
+    signed_in: true
+    cli: {command: [consent, show]}
+    ui: {entry: /profile}
+    examples:
+      - name: default
+        as: self
+  - id: core.consent.accept
+    category: CATEGORY_ACTION
+    method: POST
+    path: /api/v1/me/consent
+    success_status: 200
+    summary:
+      text:
+        en: Accept the privacy policy in the version in force (kind privacy, version)
+        de: "Der Datenschutzerklärung in der geltenden Version zustimmen (kind privacy, version)"
+    signed_in: true
+    safety: {changes: true}
+    cli: {command: [consent, accept]}
+    ui: {entry: /}
+    examples:
+      - name: not_asked_for
+        as: self
+        body_json: '{"kind": "privacy", "version": 1}'
+        status: 400

@@ -87,6 +87,7 @@ If the account requires a second factor, the sign-in answers with `mfa_required`
 - **Recently changed:** `GET /api/v1/recent?limit=10&category=ID` lists recently changed pages, `?by=me` the pages you edited last (newest own revision first); always only what you may see.
 - **Data for reports:** `GET /api/v1/data` lists the kinds of data that blocks and plugins keep (schema, `complete`). `GET /api/v1/data/{kind}?category=ID&state=open,decided&from=2026-01-01&to=…&person=ID&ref=ID&element=ID&lang=en&q=word&sort=-day&limit=50&offset=0` gives the entries with `total`; only of elements you may see, never from the trash, hidden ones with `hidden=true`; `direct=true` without sub-categories; `sort`: `day`, `-day`, `at`, `-at`, `num`, `-num`, `label`, `state`, `page`; at most 500 per answer. `POST /api/v1/admin/data/rebuild` with `{"kind": "…"}` (or `{}` for all) builds the data again from the latest versions (`core.settings.manage`).
 - **Maintenance:** `GET /api/v1/admin/maintenance` and `PUT /api/v1/admin/maintenance` with `{"mode": "read_only", "message": {"en": "…"}, "until": "2026-11-23T18:00:00+01:00", "run_jobs": false}` (`mode` empty: off; administrators only). During maintenance the server answers changes of others with `503` and the code `maintenance` (and `Retry-After`); `GET /api/v1/site` carries `maintenance` (mode, message, until), `null` when off.
+- **Consent:** `GET /api/v1/me/consent` (own acceptance of the privacy policy), `POST /api/v1/me/consent` with `{"kind": "privacy", "version": 1}` (only the version in force, else `409`); `GET/PUT /api/v1/admin/consent` (settings, see configuration `consent`); `GET /api/v1/admin/consents?version=&limit=&offset=` (proof; `format=csv`). `GET /api/v1/site` carries `consent` (`cookies`, `privacy`), `null` when off. While the privacy policy is not accepted, sessions get `403` with code `consent_required`.
 - **Listing elements:** `GET /api/v1/elements?q=&type=&category=&recursive=1&sort=title|updated|created|type&limit=&offset=` delivers `{items, total}` with `category_path` (only visible elements, all for administrators).
 - **Short URLs:** `short_url` with `POST /elements`, `PATCH /elements/{id}`, `POST/PUT /categories` (empty = remove). `GET /api/v1/resolve?path=calendar` delivers `{type, id}`.
 - **Watching:** `PUT /api/v1/me/watches {"target_type": "category"|"element", "target_id": 12, "mode": "link"|"content", "recursive": true}`; status for a target: `GET /api/v1/me/watches?target_type=element&target_id=5`.
@@ -417,6 +418,11 @@ Called by directories such as Entra ID or Okta with the token of a SCIM client (
 | `POST` | `/api/v1/admin/data/rebuild` |
 | `GET` | `/api/v1/admin/maintenance` |
 | `PUT` | `/api/v1/admin/maintenance` |
+| `GET` | `/api/v1/me/consent` |
+| `POST` | `/api/v1/me/consent` |
+| `GET` | `/api/v1/admin/consent` |
+| `PUT` | `/api/v1/admin/consent` |
+| `GET` | `/api/v1/admin/consents` |
 
 ### Translations & languages
 

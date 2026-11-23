@@ -257,6 +257,20 @@ In Markdown steht ein Makro als Direktive: `::name{a=b}` (ohne Inhalt), `:::name
 
 `MacroContext` enthält den `RenderContext` (Element, Kategorie, Sprache, Betrachter, `Service` für Abfragen mit dessen Rechten), die Parameter, den **bereits bereinigten** Inhalt (`Body`) und die Überschriften der Seite (`Headings`). Alles andere, was das Makro ausgibt, muss es selbst maskieren (`html.EscapeString`). Links prüfen Sie mit `core_layout.SafeURL`. Fehler erscheinen als Hinweis auf der Seite, nicht als Fehlerseite. Der Makro-Dialog im Editor erscheint automatisch (`GET /api/v1/macros`).
 
+### Arten der Zustimmung {#consent}
+
+Fragt die Administration nach der Zustimmung zu Cookies, listet der Banner Arten auf. Ein Plugin, das über das Notwendige hinaus etwas im Browser speichert oder lädt (zum Beispiel eine Statistik), meldet eine eigene Art an und fragt vorher:
+
+```ts
+import { consentGiven, onConsentChange, registerConsentCategory, t } from '@ewiki/coreplugin';
+
+registerConsentCategory({ id: 'acme.stats', label: () => t('acme.stats'), description: () => t('acme.stats_help') });
+if (consentGiven('acme.stats')) startStats();
+onConsentChange(() => { if (!consentGiven('acme.stats')) stopStats(); });
+```
+
+Die ID beginnt mit der Plugin-ID. Ohne Banner (abgeschaltet) ist `consentGiven` `false`: Das Plugin fragt dann auf eigene Weise (wie die zwei Klicks bei Einbettungen) oder tut nichts.
+
 ### Daten für Berichte {#data}
 
 Bausteine und Plugins können Daten für Berichte in einer Tabelle des Kerns ablegen (`element_data`): ein Eintrag je Verwendung eines Bausteins (oder je Eintrag eines Plugins) an einem Element und einer Sprache. Berichte lesen sie mit den Rechten der lesenden Person – nur Einträge von Elementen, die sie sehen darf, nie aus dem Papierkorb, unsichtbare Elemente nur auf Wunsch.

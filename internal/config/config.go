@@ -58,7 +58,55 @@ type Config struct {
 	// Maintenance: the wiki read-only or closed for everyone but
 	// administrators (for example while the server moves).
 	Maintenance Maintenance `yaml:"maintenance,omitempty" json:"maintenance"`
+	// Consent: asking for consent to cookies and to the privacy policy.
+	Consent Consent `yaml:"consent,omitempty" json:"consent"`
 }
+
+// Consent is the asking for consent (Administration → Consent).
+type Consent struct {
+	Cookies ConsentCookies `yaml:"cookies,omitempty" json:"cookies"`
+	Privacy ConsentPrivacy `yaml:"privacy,omitempty" json:"privacy"`
+}
+
+// ConsentCookies: a banner asking which cookies and similar storage may be
+// used beyond the necessary ones (the choice is kept in the browser).
+type ConsentCookies struct {
+	Enabled bool `yaml:"enabled,omitempty" json:"enabled"`
+	// Required: the banner covers the page until a choice is made ("only
+	// necessary" is a choice as well)
+	Required bool `yaml:"required,omitempty" json:"required"`
+	// Version: a higher version asks everybody again
+	Version int `yaml:"version,omitempty" json:"version"`
+	// Text per language (plain text); empty: a standard text
+	Text map[string]string `yaml:"text,omitempty" json:"text"`
+	// Page: the page with the cookie policy (0: none)
+	Page int64 `yaml:"page,omitempty" json:"page"`
+}
+
+// Guest settings of the privacy consent.
+const (
+	ConsentGuestsNone     = ""         // nothing for guests
+	ConsentGuestsNotice   = "notice"   // a notice with a link
+	ConsentGuestsRequired = "required" // consent required (kept in the browser)
+)
+
+// ConsentPrivacy: people accept the privacy policy; signed-in people before
+// they can use the wiki (enforced by the server for sessions in the
+// browser; recorded per person and version).
+type ConsentPrivacy struct {
+	Enabled bool `yaml:"enabled,omitempty" json:"enabled"`
+	// Version: a higher version asks everybody again
+	Version int `yaml:"version,omitempty" json:"version"`
+	// Page: the page with the privacy policy (required when enabled)
+	Page int64 `yaml:"page,omitempty" json:"page"`
+	// Guests: "", notice or required
+	Guests string `yaml:"guests,omitempty" json:"guests"`
+	// Text per language (plain text) shown with the policy; empty: a standard text
+	Text map[string]string `yaml:"text,omitempty" json:"text"`
+}
+
+// ConsentTextMax is the most characters of a consent text per language.
+const ConsentTextMax = 2000
 
 // Maintenance modes.
 const (
@@ -972,6 +1020,9 @@ func Validate(c *Config) error {
 			return fmt.Errorf("media.embed_allow: %q is not an origin like https://player.example.com (https, lower case, no path)", o)
 		}
 	}
+	if err := ValidateConsent(c.Consent); err != nil {
+		return err
+	}
 	if err := ValidateMaintenance(c.Maintenance); err != nil {
 		return err
 	}
@@ -1129,4 +1180,38 @@ func ValidateMaintenance(m Maintenance) error {
 		}
 	}
 	return nil
+}
+
+func validTexts(name string, m map[string]string, max int) error {
+	if len(m) > 50 {
+		return fmt.Errorf("%s: at most 50 languages", name)
+	}
+	for l, t := range m {
+		if !ValidLanguage(l) {
+			return fmt.Errorf("%s: invalid language code %q", name, l)
+		}
+		if !utf8.ValidString(t) || utf8.RuneCountInString(t) > max {
+			return fmt.Errorf("%s: at most %d characters", name, max)
+		}
+	}
+	return nil
+}
+
+// ValidateConsent checks the asking for consent.
+func ValidateConsent(c Consent) error {
+	if c.Cookies.Version < 0 || c.Privacy.Version < 0 || c.Cookies.Page < 0 || c.Privacy.Page < 0 {
+		return errors.New("consent: versions and pages must not be negative")
+	}
+	if c.Privacy.Enabled && c.Privacy.Page == 0 {
+		return errors.New("consent.privacy: choose the page with the privacy policy")
+	}
+	switch c.Privacy.Guests {
+	case ConsentGuestsNone, ConsentGuestsNotice, ConsentGuestsRequired:
+	default:
+		return fmt.Errorf("consent.privacy.guests must be empty, notice or required, got %q", c.Privacy.Guests)
+	}
+	if err := validTexts("consent.cookies.text", c.Cookies.Text, ConsentTextMax); err != nil {
+		return err
+	}
+	return validTexts("consent.privacy.text", c.Privacy.Text, ConsentTextMax)
 }

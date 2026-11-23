@@ -51,6 +51,8 @@ var adminPerms = []struct{ prefix, perm string }{
 	{"/api/v1/admin/auth/login", "core.settings.manage"},
 	{"/api/v1/admin/limits", "core.settings.manage"},
 	{"/api/v1/admin/data", "core.settings.manage"},
+	{"/api/v1/admin/consent", "core.settings.manage"},
+	{"/api/v1/admin/consents", "core.audit.view"},
 	{"/api/v1/admin/languages", "core.i18n.manage"},
 	{"/api/v1/admin/retention", "core.settings.manage"},
 	{"/api/v1/admin/audit/settings", "core.audit.manage"},
@@ -140,6 +142,7 @@ func (s *Server) routes() {
 	s.routesInstances()
 	s.routesElementRights()
 	s.routesMaintenance()
+	s.routesConsent()
 	s.routesData()
 	s.routesPlacements()
 	s.routesNotifications()
@@ -1605,7 +1608,7 @@ func (s *Server) site(w http.ResponseWriter, r *http.Request) (any, error) {
 	slices.SortFunc(templates, func(a, b map[string]any) int { return strings.Compare(a["name"].(string), b["name"].(string)) })
 	home := c.UI.HomeCategory
 	return map[string]any{
-		"name": c.UI.SiteName, "template": c.UI.Template, "templates": templates, "home_category": home, "home_element": c.UI.HomeElement, "editor": cmp.Or(c.UI.Editor, "visual"), "collaboration": c.UI.Collaboration, "personal_placement": c.UI.PersonalPlacement, "custom_css": c.UI.CustomCSS, "editor_tools": siteEditorTools(c.UI.EditorTools), "dashboard_tiles": nonNil(c.UI.DashboardTiles), "dashboard_home": c.UI.DashboardHome, "maintenance": siteMaintenance(c.Maintenance), "not_found_element": c.UI.NotFoundElement, "forbidden_element": c.UI.ForbiddenElement,
+		"name": c.UI.SiteName, "template": c.UI.Template, "templates": templates, "home_category": home, "home_element": c.UI.HomeElement, "editor": cmp.Or(c.UI.Editor, "visual"), "collaboration": c.UI.Collaboration, "personal_placement": c.UI.PersonalPlacement, "custom_css": c.UI.CustomCSS, "editor_tools": siteEditorTools(c.UI.EditorTools), "dashboard_tiles": nonNil(c.UI.DashboardTiles), "dashboard_home": c.UI.DashboardHome, "maintenance": siteMaintenance(c.Maintenance), "consent": siteConsent(c.Consent), "not_found_element": c.UI.NotFoundElement, "forbidden_element": c.UI.ForbiddenElement,
 		"wait_notice_s": limits.Value(c, limits.WaitNoticeSeconds),
 		"languages":     c.I18n.Languages, "default_language": c.I18n.DefaultLanguage,
 		"plugins": frontend, "element_types": s.app.Content.Types(), "auth_providers": s.app.Auth.ProviderInfos(),

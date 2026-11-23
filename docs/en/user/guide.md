@@ -18,6 +18,8 @@ Choose the **language** at the top. Interface and content change together. If a 
 
 **Maintenance:** a bar at the top says when the wiki is read-only for maintenance – you can read everything, but saving, commenting and uploading are not possible until it ends. While the wiki is closed for maintenance you see only a message; administrators can still sign in.
 
+**Consent:** if the administration asks for it, you accept the privacy policy after signing in (or sign out), and a banner asks which storage beyond the necessary one the wiki may use in your browser. You can change that choice at any time with *Cookie settings* (in your profile or where the administration placed it); the profile also shows when you accepted which version of the privacy policy.
+
 ## Edit mode
 
 As long as edit mode is off, every page looks as it does for all readers. With the switch **Edit** (only visible if you have edit permissions; it shows *on* or *off*) you switch it on and off. Then the actions appear:

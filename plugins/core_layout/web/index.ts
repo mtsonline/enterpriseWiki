@@ -1,7 +1,7 @@
 // core.layout: the styles of the layout blocks, and the tabs: the server
 // renders one section per part (readable without script); here they become
 // a tablist after the WAI-ARIA pattern (arrow keys, Home, End).
-import { h, logout, registerWidget, state, t, uid } from '@ewiki/coreplugin';
+import { consentGiven, h, logout, registerWidget, state, t, uid } from '@ewiki/coreplugin';
 import './style.css';
 
 const reducedMotion = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -272,7 +272,8 @@ function embedWidget(root: HTMLElement): void {
     }
     if (focus) frame.focus();
   };
-  if (embedHosts().includes(host)) {
+  // allowed in the cookie banner (external media) or for this service
+  if (consentGiven('external_media') || embedHosts().includes(host)) {
     load(false);
     return;
   }

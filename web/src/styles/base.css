@@ -610,3 +610,11 @@ th[aria-sort="descending"] .ew-sort-button::after { content: " ↓"; opacity: 1;
 @keyframes ew-appear-zoom { from { opacity: 0; transform: scale(.92); } }
 [dir="rtl"] { --ew-appear-dir: -1; }
 @media print { [data-ewbo] { animation: none !important; } }
+
+/* consent: the cookie banner at the bottom (not modal) and the policy in the dialog */
+.ew-consent-banner { position: fixed; inset-inline: 0; bottom: 0; z-index: 900; max-height: 70vh; overflow: auto; background: var(--ew-bg); color: var(--ew-text); border-top: 2px solid var(--ew-border); box-shadow: 0 -.25rem 1rem rgb(0 0 0 / .15); padding: 1rem clamp(1rem, 4vw, 3rem); }
+.ew-consent-banner h2 { margin-top: 0; font-size: 1.15rem; }
+.ew-consent-banner .ew-dialog-actions, .ew-consent .ew-dialog-actions { display: flex; flex-wrap: wrap; gap: .5rem; }
+.ew-consent-policy { max-height: 45vh; overflow: auto; border: 1px solid var(--ew-border); padding: .5rem 1rem; margin-block: .75rem; }
+.ew-consent-cats { border: 1px solid var(--ew-border); padding: .5rem 1rem; margin-block: .5rem; }
+@media print { .ew-consent-banner { display: none; } }

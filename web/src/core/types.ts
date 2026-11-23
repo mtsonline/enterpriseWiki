@@ -64,6 +64,11 @@ export interface Site {
   dashboard_home?: boolean;
   /** maintenance mode (Administration → Maintenance); absent: off */
   maintenance?: { mode: 'read_only' | 'closed'; message: Record<string, string>; until: string } | null;
+  /** asking for consent (Administration → Consent); absent parts: off */
+  consent?: {
+    cookies?: { required: boolean; version: number; text: Record<string, string>; page: number };
+    privacy?: { version: number; page: number; guests: '' | 'notice' | 'required'; text: Record<string, string> };
+  } | null;
   /** pages shown on "not found" and "no permission" (0: the standard text) */
   not_found_element?: number;
   forbidden_element?: number;
