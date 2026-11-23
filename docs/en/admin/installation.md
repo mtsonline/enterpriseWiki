@@ -175,18 +175,29 @@ server:
 Example nginx:
 
 ```nginx
+# in the http block
+map $http_upgrade $connection_upgrade {
+  default upgrade;
+  ''      close;
+}
 server {
   listen 443 ssl http2;
   server_name wiki.example.com;
-  client_max_body_size 64m;
+  client_max_body_size 101m;   # storage.max_upload_mb (default 100 MB) plus 1 MB
   location / {
     proxy_pass http://127.0.0.1:8080;
+    proxy_http_version 1.1;
     proxy_set_header Host $host;
     proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
     proxy_set_header X-Forwarded-Proto https;
+    # live editing (WebSocket)
+    proxy_set_header Upgrade $http_upgrade;
+    proxy_set_header Connection $connection_upgrade;
   }
 }
 ```
+
+Without the lines `Upgrade` and `Connection`, live editing does not work; everybody then edits alone. The wiki sends a ping every 25 seconds, so the default `proxy_read_timeout` (60 seconds) is enough.
 
 With several sites all host names of the sites must point to the wiki and the proxy must pass on the `Host` header unchanged.
 
@@ -209,9 +220,23 @@ The building blocks of the wiki themselves are written so that the CRS does not 
 
 - lets JSON request bodies of the API (`POST`, `PUT`, `PATCH`, `DELETE` under `/api/v1/`) through the attack rules (cross-site scripting, SQL, commands, files, PHP, Java, Node.js, templates);
 - allows `PUT`, `PATCH` and `DELETE` for `/api/v1/` only;
-- lets the search term (`q`) of the search contain code.
+- lets the search term (`q`) of the search contain code;
+- allows SCIM of an identity provider (`application/scim+json` with `POST`, `PUT`, `PATCH`, `DELETE`) for `/scim/v2/` only;
+- accepts files as they are for three addresses only, without reading their body: an office server storing a document (`POST /api/v1/wopi/files/ID/contents`, `application/octet-stream`), importing a category (`application/x-ndjson`) and importing a translation (`application/octet-stream`). The CRS allows neither type, and these bodies can be larger than the limit of the WAF; the wiki checks the office token or the permission of the administration and the whole file itself.
 
 Everything else stays checked: the path and the query string of all other requests, headers, cookies, the names of JSON fields, uploads, protocol rules and scanners.
+
+**Sizes of requests.** The recommended configuration of ModSecurity (file modsecurity.conf-recommended) is smaller than what the wiki allows. Without a change, saving a page with more than 128 KB fails, and so does uploading a file over 12.5 MB, with `413` from the WAF. Set at least:
+
+```apache
+# largest body without files: content of a page (Administration → Expert settings,
+# core.request.content_kb, default 4096 KB)
+SecRequestBodyNoFilesLimit 4194304
+# largest upload with the form around it (storage.max_upload_mb, default 100 MB, plus 1 MB)
+SecRequestBodyLimit 105906176
+```
+
+Raise both when you raise the limits of the wiki. For nginx also `client_max_body_size 101m;`.
 
 **Why this is safe.** The wiki checks these inputs itself:
 
@@ -222,9 +247,9 @@ Everything else stays checked: the path and the query string of all other reques
 
 The XSS and SQL rules of the WAF therefore add little for these fields, and without the exclusions editors are blocked.
 
-**Tested.** The exclusions are tested in `internal/server/waf_test.go` with CRS 3.3.8 and CRS 4 in Coraza: the requests of the wiki pass, and attacks in addresses still get blocked.
+**Tested.** The exclusions are tested in `internal/server/waf_test.go` with CRS 3.3.8 and CRS 4 in Coraza: the requests of the wiki pass (also SCIM, office documents and imports), attacks in addresses still get blocked, and the other addresses keep the content types closed.
 
-**What is not covered.** Coraza cannot load all rules of CRS 3.3; the SQL rules of CRS 3 (942) are only checked with CRS 4.
+**What is not covered.** Coraza cannot load all rules of CRS 3.3; the SQL rules of CRS 3 (942) and the rules for methods and content types of CRS 3 (920) are only checked with CRS 4 (the same rule IDs and the same format of the settings).
 
 **Web application firewall in the wiki (plugin `core.waf`).** For installations without a firewall in front, the wiki ships a firewall of its own: Coraza with the OWASP Core Rule Set 4 and the exclusions above. It is off by default; switch it on under *Administration → Plugins*, then set it under *Administration → Web application firewall*:
 

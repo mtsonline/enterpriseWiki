@@ -175,18 +175,29 @@ server:
 Beispiel nginx:
 
 ```nginx
+# im Block http
+map $http_upgrade $connection_upgrade {
+  default upgrade;
+  ''      close;
+}
 server {
   listen 443 ssl http2;
   server_name wiki.example.com;
-  client_max_body_size 64m;
+  client_max_body_size 101m;   # storage.max_upload_mb (Vorgabe 100 MB) plus 1 MB
   location / {
     proxy_pass http://127.0.0.1:8080;
+    proxy_http_version 1.1;
     proxy_set_header Host $host;
     proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
     proxy_set_header X-Forwarded-Proto https;
+    # gemeinsames Bearbeiten (WebSocket)
+    proxy_set_header Upgrade $http_upgrade;
+    proxy_set_header Connection $connection_upgrade;
   }
 }
 ```
+
+Ohne die Zeilen `Upgrade` und `Connection` funktioniert das gemeinsame Bearbeiten nicht; jede Person bearbeitet dann allein. Das Wiki schickt alle 25 Sekunden ein Ping, darum reicht die Vorgabe von `proxy_read_timeout` (60 Sekunden).
 
 Bei mehreren Sites müssen alle Hostnamen der Sites auf das Wiki zeigen und der Proxy den `Host`-Header unverändert weitergeben.
 
@@ -209,9 +220,23 @@ Die Bausteine des Wikis selbst sind so geschrieben, dass das CRS sie nicht für 
 
 - lässt JSON-Inhalte der API (`POST`, `PUT`, `PATCH`, `DELETE` unter `/api/v1/`) an den Angriffsregeln vorbei (Cross-Site-Scripting, SQL, Befehle, Dateien, PHP, Java, Node.js, Vorlagen);
 - erlaubt `PUT`, `PATCH` und `DELETE` nur für `/api/v1/`;
-- lässt im Suchbegriff (`q`) der Suche Code zu.
+- lässt im Suchbegriff (`q`) der Suche Code zu;
+- erlaubt SCIM eines Identity Providers (`application/scim+json` mit `POST`, `PUT`, `PATCH`, `DELETE`) nur für `/scim/v2/`;
+- nimmt Dateien unverändert an, nur für drei Adressen und ohne ihren Inhalt zu lesen: ein Office-Server speichert ein Dokument (`POST /api/v1/wopi/files/ID/contents`, `application/octet-stream`), der Import einer Kategorie (`application/x-ndjson`) und der Import einer Übersetzung (`application/octet-stream`). Das CRS erlaubt beide Typen nicht, und diese Inhalte können größer sein als die Grenze der WAF; das Wiki prüft den Office-Token oder das Recht der Verwaltung und die ganze Datei selbst.
 
 Alles andere bleibt geprüft: Pfad und Abfrage aller anderen Anfragen, Kopfzeilen, Cookies, die Namen der JSON-Felder, Uploads, Protokollregeln und Scanner.
+
+**Größe der Anfragen.** Die empfohlene Konfiguration von ModSecurity (Datei modsecurity.conf-recommended) ist kleiner als das, was das Wiki erlaubt. Ohne Änderung scheitert das Speichern einer Seite über 128 KB und das Hochladen einer Datei über 12,5 MB mit `413` von der WAF. Stellen Sie mindestens ein:
+
+```apache
+# größter Inhalt ohne Dateien: Inhalt einer Seite (Administration → Experteneinstellungen,
+# core.request.content_kb, Vorgabe 4096 KB)
+SecRequestBodyNoFilesLimit 4194304
+# größter Upload mit dem Formular darum (storage.max_upload_mb, Vorgabe 100 MB, plus 1 MB)
+SecRequestBodyLimit 105906176
+```
+
+Erhöhen Sie beide, wenn Sie die Grenzen des Wikis erhöhen. Bei nginx zusätzlich `client_max_body_size 101m;`.
 
 **Warum das sicher ist.** Das Wiki prüft diese Eingaben selbst:
 
@@ -222,9 +247,9 @@ Alles andere bleibt geprüft: Pfad und Abfrage aller anderen Anfragen, Kopfzeile
 
 Die XSS- und SQL-Regeln der WAF bringen für diese Felder deshalb wenig, und ohne die Ausnahmen werden Bearbeitende gesperrt.
 
-**Getestet.** Die Ausnahmen sind in `internal/server/waf_test.go` mit CRS 3.3.8 und CRS 4 in Coraza geprüft: Die Anfragen des Wikis gehen durch, Angriffe in Adressen werden weiter gesperrt.
+**Getestet.** Die Ausnahmen sind in `internal/server/waf_test.go` mit CRS 3.3.8 und CRS 4 in Coraza geprüft: Die Anfragen des Wikis gehen durch (auch SCIM, Office-Dokumente und Importe), Angriffe in Adressen werden weiter gesperrt, und die übrigen Adressen bleiben für diese Inhaltstypen gesperrt.
 
-**Was nicht abgedeckt ist.** Coraza kann nicht alle Regeln von CRS 3.3 laden; die SQL-Regeln von CRS 3 (942) sind nur mit CRS 4 geprüft.
+**Was nicht abgedeckt ist.** Coraza kann nicht alle Regeln von CRS 3.3 laden; die SQL-Regeln von CRS 3 (942) und die Regeln zu Methoden und Inhaltstypen von CRS 3 (920) sind nur mit CRS 4 geprüft (gleiche Regel-IDs und gleiches Format der Einstellungen).
 
 **Web Application Firewall im Wiki (Plugin `core.waf`).** Für Installationen ohne Firewall davor bringt das Wiki eine eigene mit: Coraza mit dem OWASP Core Rule Set 4 und den Ausnahmen von oben. Sie ist anfangs aus; schalten Sie sie unter *Administration → Plugins* ein und stellen Sie sie unter *Administration → Web Application Firewall* ein:
 
