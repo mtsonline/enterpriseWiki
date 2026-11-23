@@ -962,8 +962,8 @@ var traps = []trap{
 	{
 		ID: "waf.exclusions-methods", About: "the exclusions forget PUT, PATCH and DELETE (saving a page is blocked)",
 		File: "docker/waf/ewiki-crs-exclusions.conf",
-		Old:  "setvar:'tx.allowed_methods=GET HEAD POST OPTIONS PUT PATCH DELETE'",
-		New:  "setvar:'tx.allowed_methods=GET HEAD POST OPTIONS'",
+		Old:  "setvar:'tx.allowed_methods=GET HEAD POST OPTIONS PUT PATCH DELETE'\"",
+		New:  "setvar:'tx.allowed_methods=GET HEAD POST OPTIONS'\"",
 		Pkg:  "./internal/server/", Tests: "^TestWAFExclusions$",
 	},
 	{
@@ -1462,5 +1462,26 @@ var traps = []trap{
 		Old:  "q.Person = p.ID()",
 		New:  "q.Person = 0",
 		Pkg:  "./internal/server/", Tests: "^TestBlockData$",
+	},
+	{
+		ID: "waf.exclusions-scim-methods", About: "the exclusions forget PUT, PATCH and DELETE of SCIM",
+		File: "docker/waf/ewiki-crs-exclusions.conf",
+		Old:  "setvar:'tx.allowed_methods=GET HEAD POST OPTIONS PUT PATCH DELETE',\\",
+		New:  "setvar:'tx.allowed_methods=GET HEAD POST OPTIONS',\\",
+		Pkg:  "./internal/server/", Tests: "^TestWAFExclusions$",
+	},
+	{
+		ID: "waf.exclusions-scim", About: "the exclusions forget the content type of SCIM (the identity provider cannot create accounts)",
+		File: "docker/waf/ewiki-crs-exclusions.conf",
+		Old:  "setvar:'tx.allowed_request_content_type=|application/scim+json| |application/json|'",
+		New:  "setvar:'tx.ewiki_unused=1'",
+		Pkg:  "./internal/server/", Tests: "^TestWAFExclusions$",
+	},
+	{
+		ID: "waf.exclusions-files", About: "the WAF reads the body of office documents and imports (too large, wrong type)",
+		File: "docker/waf/ewiki-crs-exclusions.conf",
+		Old:  "ctl:requestBodyAccess=Off",
+		New:  "t:none",
+		Pkg:  "./internal/server/", Tests: "^TestWAFExclusions$",
 	},
 }
