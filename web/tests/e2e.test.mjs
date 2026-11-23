@@ -4650,7 +4650,7 @@ test('consent: privacy policy accepted before use, cookie banner with categories
     const sub = page.locator('fieldset.ew-subfield', { has: page.locator('legend', { hasText: /^(page with the privacy policy|seite mit der datenschutzerklärung)$/i }) });
     await sub.locator('input.ew-input[type=search]:not(.ew-picker-filter)').fill(`Privacy ${run}`);
     await page.waitForFunction((n) => [...document.querySelectorAll('.ew-picker-list option')].some((o) => o.textContent.includes(n)), `Privacy ${run}`);
-    await sub.locator('.ew-picker-list').selectOption({ index: 0 });
+    await sub.locator('.ew-picker-list').selectOption(String(pol.id));
     await page.getByLabel(/^(guests|gäste)/i).selectOption('required');
     await a11y('consent settings');
     const saved = page.waitForResponse((r) => r.url().endsWith('/api/v1/admin/consent') && r.request().method() === 'PUT');
