@@ -1449,4 +1449,18 @@ var traps = []trap{
 		New:  "l = web.IconLabel(\"en\", name)",
 		Pkg:  "./internal/server/", Tests: "^TestLayoutBlocks$",
 	},
+	{
+		ID: "decisions.mine_guest", About: "guests see all decisions in \"my decisions\"",
+		File: "plugins/core_macros/decisions.go",
+		Old:  "if p == nil || p.ID() == 0 {\n\t\t\tb.WriteString(`<p class=\"ew-muted\">` + esc(tr(mc.Lang, \"Sign in",
+		New:  "if false {\n\t\t\tb.WriteString(`<p class=\"ew-muted\">` + esc(tr(mc.Lang, \"Sign in",
+		Pkg:  "./internal/server/", Tests: "^TestBlockData$",
+	},
+	{
+		ID: "decisions.mine_filter", About: "\"my decisions\" lists the decisions of everybody",
+		File: "plugins/core_macros/decisions.go",
+		Old:  "q.Person = p.ID()",
+		New:  "q.Person = 0",
+		Pkg:  "./internal/server/", Tests: "^TestBlockData$",
+	},
 }

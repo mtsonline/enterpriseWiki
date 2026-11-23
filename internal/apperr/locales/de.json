@@ -1151,6 +1151,7 @@
  "webhook: invalid address": "Webhook: ungültige Adresse",
  "webhook: invalid reference of the secret": "Webhook: ungültiger Verweis auf das Geheimnis",
  "webhook: secret too long": "Webhook: Geheimnis zu lang",
+ "whose decisions: all or mine": "Wessen Entscheidungen: all oder mine",
  "widths: one number per column (%d on the desktop)": "Breiten: eine Zahl je Spalte (%d auf dem Desktop)",
  "widths: the narrowest column would have too little room on the desktop; make it wider or the others narrower": "Breiten: Die schmalste Spalte hätte auf dem Desktop zu wenig Platz; bitte breiter oder die anderen schmaler machen",
  "widths: whole numbers from 1 to 5": "Breiten: ganze Zahlen von 1 bis 5",

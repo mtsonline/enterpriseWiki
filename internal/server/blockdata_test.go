@@ -143,6 +143,29 @@ Because it is **fast**.
 		t.Fatal("a person that is no id was accepted")
 	}
 
+	// "my decisions": those the reader is the responsible person of
+	var mine obj
+	admin.must("POST", "/api/v1/elements", map[string]any{"category_id": open.ID, "type": "core.html", "title": "Mine", "body": md("::decisions{who=mine}\n")}, &mine, 201)
+	reader.must("GET", fmt.Sprintf("/api/v1/elements/%d?lang=en", mine.ID), nil, &v, 200)
+	if !strings.Contains(v.HTML, `aria-label="My decisions"`) || !strings.Contains(v.HTML, "Use okapi") || strings.Contains(v.HTML, "Try lynx") {
+		t.Fatalf("my decisions, reader: %s", v.HTML)
+	}
+	admin.must("GET", fmt.Sprintf("/api/v1/elements/%d?lang=en", mine.ID), nil, &v, 200)
+	if !strings.Contains(v.HTML, "Try lynx") || strings.Contains(v.HTML, "Use okapi") || strings.Contains(v.HTML, "Buy walrus") {
+		t.Fatalf("my decisions, admin: %s", v.HTML)
+	}
+	// guests have none: never all decisions they may see
+	var pub, pubPage obj
+	admin.must("POST", "/api/v1/categories", map[string]any{"guest_visible": true, "titles": map[string]string{"en": "Public"}}, &pub, 201)
+	admin.must("POST", "/api/v1/elements", map[string]any{"category_id": pub.ID, "type": "core.html", "title": "Open",
+		"body": md(":::decision{title=\"Open zebra\" status=open}\n:::\n\n::decisions{who=mine}\n")}, &pubPage, 201)
+	guest := e.client()
+	guest.must("GET", fmt.Sprintf("/api/v1/elements/%d?lang=en", pubPage.ID), nil, &v, 200)
+	if !strings.Contains(v.HTML, "Sign in to see your decisions.") || strings.Contains(v.HTML, "<table") {
+		t.Fatalf("my decisions, guest: %s", v.HTML)
+	}
+	admin.must("DELETE", fmt.Sprintf("/api/v1/elements/%d", pubPage.ID), nil, nil, 204)
+
 	// a change replaces the entries; restoring brings them back
 	admin.must("PUT", fmt.Sprintf("/api/v1/elements/%d", page.ID), map[string]any{"lang": "en", "title": "Plan", "body": md("No decisions any more")}, nil, 200)
 	if r := query(reader, ""); r.Total != 0 {
