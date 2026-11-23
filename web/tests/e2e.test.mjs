@@ -3244,6 +3244,44 @@ test('blocks: news as tiles with a tag filter, live search, a picture opens larg
   await a11y('a background video');
 });
 
+test('hero: heights per view; the text stays whole on a phone, also on a background video with an aspect ratio', async () => {
+  const cat = (await call('POST', '/api/v1/categories', { titles: { en: `Heroes ${run}` } })).id;
+  const vid = await page.evaluate(async ([c, n, b]) => {
+    const fd = new FormData();
+    fd.append('meta', JSON.stringify({ category_id: c, title: n }));
+    fd.append('file', new File([new Uint8Array(b)], n, { type: 'video/webm' }));
+    const r = await __e2eFetch('/api/v1/media', { method: 'POST', body: fd, headers: { 'X-Requested-With': 'ewiki' } });
+    return (await r.json()).id;
+  }, [cat, `hero-${run}.webm`, [...(await import('node:fs')).readFileSync(new URL('./fixtures/background.webm', import.meta.url))]]);
+  const long = Array.from({ length: 12 }, (_, i) => `Line ${i} of the introduction to the okapi house.`).join(' ');
+  const opts = `aspect:16-9 bg_video:/api/v1/media/${vid}/view overlay_color:#000000 overlay_opacity:70 text_color:#ffffff`;
+  const src = `:::hero{title="Okapi house ${run}" height=half phone_height=window background=dark}\nWelcome.\n:::\n\n:::hero{title="Video ${run}" options="${opts}"}\n${long} The last words.\n:::\n`;
+  const el = await call('POST', '/api/v1/elements', { category_id: cat, type: 'core.html', title: `Heroes ${run}`, body: { format: 'markdown', source: src } });
+  const size = page.viewportSize();
+  try {
+    for (const [w, hgt, name] of [[1280, 800, 'desktop'], [375, 700, 'phone']]) {
+      await page.setViewportSize({ width: w, height: hgt });
+      await page.goto(`${BASE}/e/${el.id}`);
+      await idle();
+      const m = await page.evaluate(() => {
+        const [a, b] = [...document.querySelectorAll('.ewl-hero')];
+        const last = [...b.querySelectorAll('p')].pop();
+        const frame = b.closest('.ew-bo--video') ?? b;
+        return { a: a.getBoundingClientRect().height, win: innerHeight, header: parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--ewd-header-h') || getComputedStyle(document.documentElement).getPropertyValue('--ew-header-h')) || 0,
+          lastBottom: last.getBoundingClientRect().bottom, frameBottom: frame.getBoundingClientRect().bottom, video: !!b.closest('.ew-bo--video') || !!b.querySelector('video') };
+      });
+      if (name === 'desktop') assert.ok(m.a >= Math.min(m.win * 0.5, 34 * 16) - 2, `half the window on the desktop: ${JSON.stringify(m)}`);
+      else assert.ok(m.a >= m.win - m.header - 2, `the window below the header on the phone: ${JSON.stringify(m)}`);
+      // the text on the video is never cut by the aspect ratio
+      assert.ok(m.lastBottom <= m.frameBottom + 1, `${name}: the last words are inside the hero: ${JSON.stringify(m)}`);
+      await page.getByText('The last words.', { exact: false }).waitFor();
+    }
+    await a11y('heroes with heights');
+  } finally {
+    if (size) await page.setViewportSize(size);
+  }
+});
+
 test('own CSS of a template: switched off by default, checked while typing, used only while allowed', async () => {
   const before = (await call('GET', '/api/v1/admin/settings')).config;
   const cat = (await call('POST', '/api/v1/categories', { titles: { en: `Styled ${run}` } })).id;

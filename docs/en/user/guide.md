@@ -99,7 +99,7 @@ In the Markdown source, blocks are directives: `::toc{levels=3}` (without conten
 | Status label | coloured label such as DONE |
 | Text colour and font | text colour, highlighting, font and size from the palette of the site (all combinations easily readable) |
 | Columns / cards | content side by side; separate columns or cards with a horizontal rule |
-| Section, hero banner, button link, spacing | building blocks for website pages (especially with the template *CMS*) |
+| Section, hero banner, button link, spacing | building blocks for website pages (especially with the template *CMS*). The hero banner has a **height** for desktop and tablet and one for the phone: *as high as its content*, *a third* or *half of the window*, or *the window below the header* (`height=half phone_height=window`). It is always a least height: when the text is longer, the banner grows; the text is never cut, also not on a picture or video. |
 | Grid | content in columns, the number per view (desktop up to 5, tablet up to 3, phone 1); separate the cells with a horizontal rule. With *Widths* the columns get their own shares on the desktop (`widths="2 1"`: the first twice as wide); the narrowest keeps enough room |
 | Heading | a heading with subtitle and line; its level (the structure of the page for screen readers) is chosen apart from its size |
 | Divider | a line (solid, dashed, dotted, double, fading) or space between parts of a page |

@@ -86,14 +86,14 @@ func TestMacros(t *testing.T) {
 		`<div data-macro="panel" data-params='{"type":"warning","title":"Careful <b>"}'><p>Hot <script>alert(1)</script></p>` +
 		`<div data-macro="status" data-params='{"text":"done","color":"green"}'></div></div>` +
 		`<div data-macro="children"></div><div data-macro="nope"></div>` +
-		`<div data-macro="hero" data-params='{"title":"Welcome","button":"Go","link":"javascript:alert(1)"}'></div>`
+		`<div data-macro="hero" data-params='{"title":"Welcome","button":"Go","link":"javascript:alert(1)","height":"half","phone_height":"100vh;x"}'></div>`
 	var el elem
 	admin.must("POST", "/api/v1/elements", map[string]any{"category_id": root.ID, "type": "core.html", "title": "Start", "body": htmlBody(src)}, &el, 201)
 	for _, want := range []string{
 		`<a href="#intro">Intro</a>`, `<a href="#intro-1">Intro</a>`, `id="intro-1"`,
 		`ew-macro-panel--warning`, `Careful &lt;b&gt;`, `ew-status--green">DONE`,
 		fmt.Sprintf(`href="/c/%d">Chapter &lt;1&gt;`, child.ID), `block &#34;nope&#34; is not available`,
-		`ewl-hero`, `href="#">Go`,
+		`ewl-hero`, `href="#">Go`, `ewl-hero--h-half ewl-hero--p-auto`,
 	} {
 		if !strings.Contains(el.HTML, want) {
 			t.Errorf("rendered page lacks %q:\n%s", want, el.HTML)

@@ -582,8 +582,11 @@ th[aria-sort="descending"] .ew-sort-button::after { content: " ↓"; opacity: 1;
 .ew-zoom { cursor: zoom-in; display: inline-block; }
 
 /* a video in the background of a block: behind the content, under the overlay; the button stops it */
-.ew-bo--video { position: relative; isolation: isolate; overflow: hidden; }
-.ew-bo-video, .ew-bo-veil { position: absolute; inset: 0; width: 100%; height: 100%; z-index: -1; }
+/* no overflow: hidden here – with it, a height from the aspect ratio would
+   cut the text (on a phone); the video and the veil round their corners
+   themselves */
+.ew-bo--video { position: relative; isolation: isolate; }
+.ew-bo-video, .ew-bo-veil { position: absolute; inset: 0; width: 100%; height: 100%; z-index: -1; border-radius: inherit; }
 .ew-bo-video { object-fit: cover; }
 .ew-bo-videobtn { position: absolute; inset-block-start: .5rem; inset-inline-end: .5rem; z-index: 1; background: var(--ew-bg); color: var(--ew-text); min-block-size: 2.75rem; }
 @media print { .ew-bo-video, .ew-bo-videobtn { display: none; } }

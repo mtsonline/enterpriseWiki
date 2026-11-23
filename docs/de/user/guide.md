@@ -99,7 +99,7 @@ Im Markdown-Quelltext stehen Bausteine als Direktiven: `::toc{levels=3}` (ohne I
 | Status-Label | farbiges Label wie ERLEDIGT |
 | Textfarbe und Schrift | Textfarbe, Hervorhebung, Schriftart und -größe aus der Palette der Site (alle Kombinationen gut lesbar) |
 | Spalten / Karten | Inhalt nebeneinander; Spalten bzw. Karten mit einer Trennlinie trennen |
-| Abschnitt, Hero-Banner, Button-Link, Abstand | Bausteine für Website-Seiten (besonders mit der Vorlage *CMS*) |
+| Abschnitt, Hero-Banner, Button-Link, Abstand | Bausteine für Website-Seiten (besonders mit der Vorlage *CMS*). Das Hero-Banner hat eine **Höhe** für Desktop und Tablet und eine für das Handy: *so hoch wie sein Inhalt*, *ein Drittel* oder *die Hälfte des Fensters* oder *das Fenster unter dem Kopf* (`height=half phone_height=window`). Das ist immer eine Mindesthöhe: Ist der Text länger, wird das Banner höher, er wird nie abgeschnitten, auch nicht auf einem Bild oder Video. |
 | Raster | Inhalte in Spalten, die Zahl je Ansicht (Desktop bis 5, Tablet bis 3, Handy 1); Zellen mit einer Trennlinie trennen. Mit *Breiten* bekommen die Spalten auf dem Desktop eigene Anteile (`widths="2 1"`: die erste doppelt so breit); die schmalste behält genug Platz |
 | Überschrift | eine Überschrift mit Untertitel und Linie; ihre Ebene (die Gliederung der Seite für Screenreader) wird getrennt von ihrer Größe gewählt |
 | Trenner | eine Linie (durchgehend, gestrichelt, gepunktet, doppelt, auslaufend) oder ein Abstand zwischen Teilen einer Seite |

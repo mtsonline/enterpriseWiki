@@ -16,6 +16,18 @@
 .ewl-hero--accent a:not(.ewl-cta), .ewl-hero--dark a:not(.ewl-cta) { color: #fff; }
 .ewl-hero-title { font-size: clamp(1.8rem, 4vw, 2.8rem); font-weight: 800; line-height: 1.15; margin: 0 0 .5rem; }
 .ewl-hero-subtitle { font-size: 1.2rem; margin: 0 0 1rem; opacity: .95; }
+/* heights: a least height only (the content may always grow; the text stays
+   whole on a picture and on a phone held sideways), centred vertically */
+.ewl-hero:not(.ewl-hero--h-auto) { display: flex; flex-direction: column; justify-content: center; }
+.ewl-hero--h-third { min-height: min(33svh, 22rem); }
+.ewl-hero--h-half { min-height: min(50svh, 34rem); }
+.ewl-hero--h-window { min-height: calc(100svh - var(--ewd-header-h, var(--ew-header-h, 0px))); }
+@media (max-width: 639.98px) {
+  .ewl-hero--p-auto { min-height: 0; display: block; }
+  .ewl-hero--p-third { min-height: min(33svh, 22rem); display: flex; flex-direction: column; justify-content: center; }
+  .ewl-hero--p-half { min-height: min(50svh, 34rem); display: flex; flex-direction: column; justify-content: center; }
+  .ewl-hero--p-window { min-height: calc(100svh - var(--ewd-header-h, var(--ew-header-h, 0px))); display: flex; flex-direction: column; justify-content: center; }
+}
 .ewl-cards { display: grid; gap: 1.25rem; }
 .ewl-cards--2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .ewl-cards--3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
