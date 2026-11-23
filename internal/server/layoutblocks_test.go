@@ -155,6 +155,16 @@ Text :icon[Phone]{name=phone} and :icon{name=star look=filled} and :icon{name=ar
 			t.Errorf("icons: missing %q in\n%s", want, html)
 		}
 	}
+	// a German page: the name of an icon in German words (as in the picker)
+	var de struct {
+		HTML string `json:"html"`
+	}
+	admin.must("POST", "/api/v1/elements/preview", map[string]any{"type": "core.html", "lang": "de", "body": map[string]any{"format": "markdown",
+		"source": "Text :icon{name=arrow-left} und :icon[Telefon]{name=phone}"}}, &de, 200)
+	if !strings.Contains(de.HTML, `data-icon="arrow-left" data-icon-style="outline" role="img" aria-label="Pfeil links"`) ||
+		!strings.Contains(de.HTML, `aria-label="Telefon"`) {
+		t.Errorf("German names of icons: %s", de.HTML)
+	}
 	if _, built := web.HasIcon("outline", "home"); built {
 		// with the icons in the program: a name that does not exist is refused
 		if h := render("::icon{name=no-such-icon-xyz}"); !strings.Contains(h, `there is no icon \"no-such-icon-xyz\"`) && !strings.Contains(h, "there is no icon &#34;no-such-icon-xyz&#34;") {

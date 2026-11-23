@@ -269,7 +269,7 @@ func buttonIcon(name string) (string, error) {
 	if err := checkIcon(name, "outline"); err != nil {
 		return "", err
 	}
-	return iconHTML(name, "outline", "s", "", true) + " ", nil
+	return iconHTML("", name, "outline", "s", "", true) + " ", nil
 }
 
 // ---------------------------------------------------------------- call to action
