@@ -1,0 +1,80 @@
+# Daily check of the open Renovate pull requests. One issue ("Renovate:
+# stuck pull requests", label renovate-stuck) lists every Renovate pull
+# request that
+#   - has a failing CI for another reason than the 3-day rule for new npm
+#     versions (step "new npm package versions are at least 3 days old";
+#     that one goes green by itself), or
+#   - has been open for more than 2 days although its CI is green (Renovate
+#     merges only a branch that is green and up to date with main; on days
+#     with many merges it may never find that moment).
+# The issue is updated every day and closed when nothing is stuck any more.
+# It notifies the watchers of the repository (unlike a failing check of a
+# bot's pull request).
+name: Renovate watch
+on:
+  schedule:
+    - cron: "17 6 * * *"
+  workflow_dispatch:
+permissions:
+  contents: read
+  pull-requests: read
+  checks: read
+  actions: read
+  issues: write
+jobs:
+  watch:
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+      REPO: ${{ github.repository }}
+      TITLE: "Renovate: stuck pull requests"
+      LABEL: renovate-stuck
+      AGE_RULE_STEP: "new npm package versions are at least 3 days old"
+    steps:
+      - name: Find stuck Renovate pull requests
+        run: |
+          set -euo pipefail
+          now=$(date -u +%s)
+          report=""
+          for n in $(gh api "repos/$REPO/pulls?state=open&per_page=100" --jq '.[] | select(.user.login == "renovate[bot]") | .number'); do
+            pr=$(gh api "repos/$REPO/pulls/$n")
+            sha=$(jq -r .head.sha <<<"$pr")
+            title=$(jq -r .title <<<"$pr")
+            created=$(date -u -d "$(jq -r .created_at <<<"$pr")" +%s)
+            days=$(( (now - created) / 86400 ))
+            runs=$(gh api "repos/$REPO/commits/$sha/check-runs?per_page=100")
+            pending=$(jq '[.check_runs[] | select(.status != "completed")] | length' <<<"$runs")
+            failed=$(jq -r '[.check_runs[] | select(.conclusion == "failure" or .conclusion == "timed_out" or .conclusion == "cancelled") | .name] | unique | .[]' <<<"$runs")
+            if [ -n "$failed" ]; then
+              # the steps that failed, in all failed jobs of this commit
+              steps=""
+              for job in $(jq -r '.check_runs[] | select(.conclusion == "failure" or .conclusion == "timed_out" or .conclusion == "cancelled") | .id' <<<"$runs"); do
+                steps+=$(gh api "repos/$REPO/actions/jobs/$job" --jq '.steps[]? | select(.conclusion == "failure") | .name' 2>/dev/null || echo "?")$'\n'
+              done
+              others=$(grep -v -x -F "$AGE_RULE_STEP" <<<"$steps" | grep -v '^$' || true)
+              # a failed job without a failed step (cancelled, timed out) also counts
+              if [ -n "$others" ] || [ -z "$(grep -v '^$' <<<"$steps" || true)" ]; then
+                report+="- #$n $title – CI fails (open for $days days): $(tr '\n' ',' <<<"$failed" | sed 's/,$//')"$'\n'
+              fi
+            elif [ "$pending" = 0 ] && [ "$days" -ge 2 ]; then
+              report+="- #$n $title – CI green, but open for $days days (not merged: probably never up to date with main when Renovate ran)"$'\n'
+            fi
+          done
+          if [ "${DRY_RUN:-}" = 1 ]; then printf 'report:\n%s' "$report"; exit 0; fi
+          issue=$(gh api "repos/$REPO/issues?state=open&labels=$LABEL&per_page=1" --jq '.[0].number // empty')
+          if [ -z "$report" ]; then
+            echo "nothing stuck"
+            if [ -n "$issue" ]; then
+              gh api -X POST "repos/$REPO/issues/$issue/comments" -f body="Nothing is stuck any more ($(date -u +%F))." >/dev/null
+              gh api -X PATCH "repos/$REPO/issues/$issue" -f state=closed >/dev/null
+            fi
+            exit 0
+          fi
+          body="These Renovate pull requests need a look ($(date -u +%F)):"$'\n\n'"$report"$'\n'"Updated daily by .github/workflows/renovate-watch.yml; closed when nothing is stuck."
+          printf '%s\n' "$body"
+          if [ -n "$issue" ]; then
+            gh api -X PATCH "repos/$REPO/issues/$issue" -f body="$body" >/dev/null
+          else
+            gh api -X POST "repos/$REPO/labels" -f name="$LABEL" -f color=d93f0b -f description="A Renovate pull request is stuck" >/dev/null 2>&1 || true
+            gh api -X POST "repos/$REPO/issues" -f title="$TITLE" -f body="$body" -f "labels[]=$LABEL" >/dev/null
+          fi
