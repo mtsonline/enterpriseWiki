@@ -151,9 +151,11 @@
 /* the width of a block: a handle at its right edge (also a slider for the keyboard) */
 .ewe-macro { position: relative; margin-inline: auto; }
 .ewe-macro-size {
-  position: absolute; inset-block: 0; inset-inline-end: -.75rem; width: 1.5rem; min-height: 1.5rem; cursor: ew-resize; touch-action: none;
+  position: absolute; inset-block: 0; inset-inline-end: 0; width: 1.5rem; min-height: 1.5rem; cursor: ew-resize; touch-action: none;
   display: flex; align-items: center; justify-content: center;
 }
 .ewe-macro-size::after { content: ""; width: .35rem; height: 2.5rem; max-height: 80%; border-radius: .2rem; background: var(--ew-primary); opacity: .55; }
 .ewe-macro-size:hover::after, .ewe-macro-size:focus-visible::after { opacity: 1; }
 .ewe-macro-size:focus-visible { outline: 3px solid var(--ew-focus); outline-offset: 2px; }
+/* room for the handle inside the block */
+.ewe-macro { padding-inline-end: 1.5rem; }
