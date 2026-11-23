@@ -4549,6 +4549,15 @@ test('decisions: a decision in a page, the report of decisions and the data for 
   await a11y('data for reports');
   await page.getByRole('button', { name: /^(build again|neu aufbauen): (decisions|entscheidungen)$/i }).click();
   await page.getByRole('button', { name: /^(show entries|einträge zeigen): (decisions|entscheidungen)$/i }).waitFor();
+  // "my decisions": only those I am the responsible person of
+  const me = (await call('GET', '/api/v1/auth/me')).user;
+  const mine = await call('POST', '/api/v1/elements', { category_id: await m6Category(), type: 'core.html', title: `My decisions ${run}`,
+    body: { format: 'markdown', source: `:::decision{title="Mine okapi ${run}" status=open person=${me.id}}\n:::\n\n::decisions{who=mine}\n` } });
+  await page.goto(`${BASE}/e/${mine.id}`);
+  const myReport = page.getByRole('region', { name: /^(my decisions|meine entscheidungen)$/i });
+  await myReport.locator('tr', { hasText: `Mine okapi ${run}` }).waitFor();
+  assert.equal(await myReport.locator('tr', { hasText: title }).count(), 0, 'decisions of others are not listed');
+  await a11y('my decisions');
 });
 
 test('theme blocks B: own text for "page not found", reading progress', async () => {

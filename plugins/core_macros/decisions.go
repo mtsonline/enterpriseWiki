@@ -17,6 +17,7 @@ import (
 
 	"github.com/mtsonline/enterprisewiki/internal/apperr"
 	"github.com/mtsonline/enterprisewiki/internal/content"
+	"github.com/mtsonline/enterprisewiki/internal/identity"
 )
 
 // DecisionKind is the kind of data of decisions.
@@ -195,6 +196,8 @@ func (decisions) Params() []content.MacroParam {
 	return []content.MacroParam{
 		{Name: "category", Labels: lm("Area (empty: the whole wiki)", "Bereich (leer: das ganze Wiki)"), Type: "custom:category"},
 		{Name: "status", Labels: lm("Status", "Status"), Type: "select", Options: opts, Default: "all", OptionLabels: ol},
+		{Name: "who", Labels: lm("Whose decisions", "Wessen Entscheidungen"), Type: "select", Options: []string{"all", "mine"}, Default: "all",
+			OptionLabels: map[string]map[string]string{"all": lm("All", "Alle"), "mine": lm("Mine (I am the responsible person)", "Meine (ich bin die verantwortliche Person)")}},
 		{Name: "sorting", Labels: lm("Order", "Reihenfolge"), Type: "select", Options: []string{"newest", "oldest"}, Default: "newest",
 			OptionLabels: map[string]map[string]string{"newest": lm("Newest first", "Neueste zuerst"), "oldest": lm("Oldest first", "Älteste zuerst")}},
 		{Name: "max", Labels: lm("At most (1–500)", "Höchstens (1–500)"), Type: "number", Default: "50"},
@@ -216,21 +219,45 @@ func (decisions) Render(ctx context.Context, mc content.MacroContext) (string, e
 		}
 		q.States = []string{st}
 	}
-	res, err := mc.Service.QueryData(ctx, q)
-	if err != nil {
-		return "", err
+	mine := false
+	switch mc.Params["who"] {
+	case "", "all":
+	case "mine":
+		mine = true
+	default:
+		return "", apperr.BadRequest("whose decisions: all or mine")
 	}
 	name := strings.TrimSpace(mc.Params["label"])
 	if name == "" {
 		name = tr(mc.Lang, "Decisions", "Entscheidungen")
+		if mine {
+			name = tr(mc.Lang, "My decisions", "Meine Entscheidungen")
+		}
 	}
 	var b strings.Builder
 	fmt.Fprintf(&b, `<section class="ew-decisions" aria-label="%s">`, esc(name))
+	if mine {
+		// the decisions of the reader; guests have none (never all of them)
+		p := identity.From(ctx)
+		if p == nil || p.ID() == 0 {
+			b.WriteString(`<p class="ew-muted">` + esc(tr(mc.Lang, "Sign in to see your decisions.", "Melden Sie sich an, um Ihre Entscheidungen zu sehen.")) + `</p></section>`)
+			return b.String(), nil
+		}
+		q.Person = p.ID()
+	}
+	res, err := mc.Service.QueryData(ctx, q)
+	if err != nil {
+		return "", err
+	}
 	if !res.Complete {
 		b.WriteString(`<p class="ew-muted" role="note">` + esc(tr(mc.Lang, "The report is being built; some decisions may still be missing.", "Der Bericht wird gerade aufgebaut; einzelne Entscheidungen können noch fehlen.")) + `</p>`)
 	}
 	if len(res.Items) == 0 {
-		b.WriteString(`<p class="ew-muted">` + esc(tr(mc.Lang, "No decisions.", "Keine Entscheidungen.")) + `</p></section>`)
+		none := tr(mc.Lang, "No decisions.", "Keine Entscheidungen.")
+		if mine {
+			none = tr(mc.Lang, "You are not responsible for any of these decisions.", "Sie sind für keine dieser Entscheidungen verantwortlich.")
+		}
+		b.WriteString(`<p class="ew-muted">` + esc(none) + `</p></section>`)
 		return b.String(), nil
 	}
 	h := func(en, de string) string { return `<th scope="col">` + esc(tr(mc.Lang, en, de)) + `</th>` }
