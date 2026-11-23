@@ -1,7 +1,7 @@
 // Styles of the standard macros (rendered on the server) and the lightbox
 // of the image gallery.
 import './style.css';
-import { api, button, h, openDialog, qs, registerWidget, rerender, state, t, textInput, uid, uploadDialog } from '@ewiki/coreplugin';
+import { api, button, errorText, h, openDialog, qs, registerWidget, rerender, state, t, textInput, toast, uid, uploadDialog } from '@ewiki/coreplugin';
 
 function lightbox(links: HTMLAnchorElement[], start: number): void {
   let i = start;
@@ -128,10 +128,37 @@ function newsFilter(box: HTMLElement): void {
   for (const b of buttons) b.setAttribute('aria-pressed', String(b.dataset.tag === ''));
 }
 
+/** The report of tasks: ticking a task saves its page (the server checks
+ * who may). After a change the page has a new revision: the other tasks of
+ * the same page tick from it. */
+function taskTicks(box: HTMLElement): void {
+  const status = box.querySelector<HTMLElement>('[role="status"]');
+  box.addEventListener('change', async (ev) => {
+    const cb = ev.target as HTMLInputElement;
+    if (!cb.matches?.('input.ew-task-tick')) return;
+    const { element, lang, rev, item } = cb.dataset;
+    const done = cb.checked;
+    cb.disabled = true;
+    try {
+      const r = await api.post<{ rev: number; state: string }>(`x/core.html/tasks/${Number(element)}/${Number(item)}`, { lang, rev: Number(rev), done });
+      for (const o of box.querySelectorAll<HTMLInputElement>('input.ew-task-tick')) {
+        if (o.dataset.element === element && o.dataset.lang === lang) o.dataset.rev = String(r.rev);
+      }
+      if (status) status.textContent = t(done ? 'tasks.ticked' : 'tasks.reopened');
+    } catch (e) {
+      cb.checked = !done;
+      toast(errorText(e), 'error');
+    } finally {
+      cb.disabled = false;
+    }
+  });
+}
+
 export function register(): void {
   registerWidget('core.macros.pagetree', pageTreeFilter);
   registerWidget('core.macros.searchlive', searchLive);
   registerWidget('core.macros.newsfilter', newsFilter);
+  registerWidget('core.macros.tasks', taskTicks);
   // the attachments list: upload a file into its category (the server shows
   // the button only to people who may add files there and checks it again)
   registerWidget('core.macros.upload', (box) => {

@@ -4,6 +4,21 @@
   "version": "1.0.0",
   "description": "Wiki pages edited with an accessible WYSIWYG editor (HTML) or in Markdown. All content is sanitized on save and on render.",
   "author": "Enterprise Wiki",
-  "kinds": ["element"],
-  "frontend": true
+  "kinds": [
+    "element"
+  ],
+  "frontend": true,
+  "permissions": [
+    {
+      "key": "core.html.task_done_own",
+      "scope": "category",
+      "label": "Tick own tasks in reports",
+      "description": "Tick the tasks of pages that name you (@name), in reports and \"My tasks\", also without the permission to edit the page. Who may edit a page ticks all its tasks.",
+      "presets": [
+        "reader",
+        "editor",
+        "manager"
+      ]
+    }
+  ]
 }

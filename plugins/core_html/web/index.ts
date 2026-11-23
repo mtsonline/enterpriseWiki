@@ -5,7 +5,7 @@
 //   simple  a minimal contenteditable editor (HTML, converted on save)
 // The server sanitizes everything on save and render, so the editors are not
 // a security boundary; HTML for editing comes sanitized from the server.
-import { api, button, editorKind, state, errorText, formatAttrs, macroDialog, field, formDialog, h, isImage, loadMarkdownEditor, loading, mediaURL, pickMedium, registerEditor, select, t, textInput, toast, toolShown, trustedHTML, type EditorContext, type EditorInstance, type MarkdownEditor } from '@ewiki/coreplugin';
+import { api, button, editorKind, state, errorText, formatAttrs, macroDialog, field, formDialog, h, isImage, loadMarkdownEditor, loading, mediaURL, pickMedium, registerEditor, registerSlot, registerTaskSection, select, t, textInput, tile, toast, toolShown, trustedHTML, type EditorContext, type EditorInstance, type MarkdownEditor } from '@ewiki/coreplugin';
 import { macroAt, macroHTML, parseParams } from './macros';
 import './style.css';
 
@@ -342,6 +342,29 @@ export function createSimpleEditor(container: HTMLElement, body: unknown, ctx: C
   };
 }
 
+/** The open tasks in pages of the signed-in person: the report block of
+ * the server (it knows who may tick what), rendered without a page. */
+async function myPageTasks(max: number): Promise<HTMLElement> {
+  const source = `::tasks{who=mine max=${max} label="${t('tasks.in_pages')}"}`;
+  const r = await api.post<{ html: string }>('elements/preview', { type: 'core.html', lang: state.lang, body: { format: 'markdown', source } });
+  return trustedHTML(r.html);
+}
+
 export function register(): void {
   registerEditor('core.html', createHtmlEditor);
+  registerTaskSection({
+    id: 'core.html.tasks', order: 20,
+    render: async () => h('section', { 'aria-labelledby': 'ewh-tasks' }, h('h2', { id: 'ewh-tasks' }, t('tasks.in_pages')),
+      h('p', { class: 'ew-help' }, t('tasks.in_pages_help')), await myPageTasks(200)),
+  });
+  // tile of the own dashboard: my open tasks in pages
+  registerSlot({
+    id: 'core.html.tasks', kind: 'dashboard', position: 'dashboard-1', order: 25, label: () => t('tasks.in_pages'),
+    render: async () => {
+      if (!state.user) return null;
+      try {
+        return tile(t('tasks.in_pages'), await myPageTasks(8), { href: '/tasks', label: t('tasks.title') });
+      } catch { return null; }
+    },
+  });
 }

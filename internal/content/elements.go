@@ -274,6 +274,34 @@ func (s *Service) GetElement(ctx context.Context, id int64, lang string, withBod
 	return v, nil
 }
 
+// LatestRevision returns element id with its latest revision in lang
+// (no other language), for the caller with the permission to view it. The
+// body is for checks in the server only: it may hold parts the caller
+// does not see.
+func (s *Service) LatestRevision(ctx context.Context, id int64, lang string) (*Element, int, string, json.RawMessage, error) {
+	e, err := s.loadElement(ctx, s.pool, id, false)
+	if err != nil {
+		return nil, 0, "", nil, err
+	}
+	if err := s.requireElement(ctx, e, acl.View); err != nil {
+		if errors.Is(err, apperr.ErrForbidden) {
+			return nil, 0, "", nil, apperr.NotFound("element")
+		}
+		return nil, 0, "", nil, err
+	}
+	var rev int
+	var title string
+	var body json.RawMessage
+	err = s.pool.QueryRow(ctx, `SELECT rev, title, body FROM element_revisions WHERE element_id=$1 AND lang=$2 ORDER BY rev DESC LIMIT 1`, id, lang).Scan(&rev, &title, &body)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, 0, "", nil, apperr.NotFound("element")
+	}
+	if err != nil {
+		return nil, 0, "", nil, err
+	}
+	return e, rev, title, body, nil
+}
+
 // MaxRenderDepth limits elements rendered inside the rendering of elements.
 const MaxRenderDepth = 4
 
@@ -524,11 +552,36 @@ type SaveInput struct {
 
 // SaveElement stores a new revision. Nothing is ever overwritten.
 func (s *Service) SaveElement(ctx context.Context, id int64, in SaveInput) (*ElementView, error) {
+	return s.saveElement(ctx, id, in, nil)
+}
+
+// SaveElementChecked stores a new revision like SaveElement, but check
+// decides instead of the permission to edit whether the caller may (for
+// small changes with own rules, such as ticking an own task). The caller
+// must be able to view the element; check gets it and the caller's
+// permissions on it. in.BaseRev is required (the revision the caller
+// checked the change against must still be the latest); tags and fields
+// are not changed this way.
+func (s *Service) SaveElementChecked(ctx context.Context, id int64, in SaveInput, check func(e *Element, perms acl.Perm) error) (*ElementView, error) {
+	if check == nil || in.BaseRev == nil || in.Tags != nil || in.Fields != nil {
+		return nil, apperr.BadRequest("a check and the base revision are required; tags and fields cannot be changed this way")
+	}
+	return s.saveElement(ctx, id, in, check)
+}
+
+func (s *Service) saveElement(ctx context.Context, id int64, in SaveInput, check func(e *Element, perms acl.Perm) error) (*ElementView, error) {
 	e, err := s.loadElement(ctx, s.pool, id, false)
 	if err != nil {
 		return nil, err
 	}
-	if err := s.requireElement(ctx, e, acl.Edit); err != nil {
+	if check != nil {
+		if err := s.requireElement(ctx, e, acl.View); err != nil {
+			return nil, err
+		}
+		if err := check(e, s.elementPerms(ctx, e)); err != nil {
+			return nil, err
+		}
+	} else if err := s.requireElement(ctx, e, acl.Edit); err != nil {
 		return nil, err
 	}
 	if in.Tags != nil {

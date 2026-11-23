@@ -11,6 +11,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"maps"
 	"math"
 	"regexp"
 	"slices"
@@ -119,12 +120,96 @@ type MacroHTMLer interface {
 // SourceMacro: entries written from the blocks of the text.
 const SourceMacro = "macro"
 
+// SourceText: entries a DataExtractor found in the text (task items …).
+const SourceText = "text"
+
+// DataItem is one entry a DataExtractor found in the text.
+type DataItem struct {
+	// Index numbers the entries of the text (1 = the first), the same for
+	// the same text; it also counts entries left out as hidden
+	Index int
+	Data  map[string]any
+	// People: user names (@name, or name@provider) the entry belongs to.
+	// One entry is kept per person known and active (field "person"); an
+	// entry without known people is kept once without one.
+	People []string
+	// NeedPerson: the entry is kept only with a known person
+	NeedPerson bool
+}
+
+// DataExtractor finds entries of its kind in the body of an element of
+// the type typ (it returns nil for other types), e.g. the task items of a
+// page. The extractor parses the HTML it renders the body to; hidden
+// tells whether a node of it lies inside a block that shows its content
+// only to some readers (ConditionalMacro) or an unknown block: such
+// entries are left out, a report would show them to everyone who may see
+// the page.
+type DataExtractor interface {
+	DataKind() string
+	ExtractData(typ string, body json.RawMessage, hidden func(*nethtml.Node) bool) []DataItem
+}
+
+// HiddenNode reports whether n lies inside a block that shows its content
+// only to some readers or a block not known (for DataExtractor).
+func (s *Service) HiddenNode() func(*nethtml.Node) bool {
+	skip := s.conditionalMacros()
+	return func(n *nethtml.Node) bool {
+		for p := n.Parent; p != nil; p = p.Parent {
+			if p.Type == nethtml.ElementNode && (p.DataAtom == atom.Div || p.DataAtom == atom.Span) {
+				if name := attr(p, "data-macro"); name != "" && skip(name) {
+					return true
+				}
+			}
+		}
+		return false
+	}
+}
+
+// PeoplePerItem is the most people one entry of a DataExtractor keeps.
+const PeoplePerItem = 15
+
 var dataKindRe = regexp.MustCompile(`^[a-z][a-z0-9_]*(\.[a-z][a-z0-9_]*)+$`)
 var dataKeyRe = regexp.MustCompile(`^[a-z][a-z0-9_]{0,39}$`)
 
 type dataRegistry struct {
-	mu    sync.RWMutex
-	kinds map[string]DataKind
+	mu         sync.RWMutex
+	kinds      map[string]DataKind
+	extractors map[string]extractorReg
+}
+
+type extractorReg struct {
+	pluginID string
+	e        DataExtractor
+}
+
+// RegisterDataExtractor registers e for its kind, a kind of pluginID
+// registered before. It panics otherwise (a programming error).
+func (s *Service) RegisterDataExtractor(pluginID string, e DataExtractor) {
+	s.data.mu.RLock()
+	k, ok := s.data.kinds[e.DataKind()]
+	s.data.mu.RUnlock()
+	if !ok || k.Plugin != pluginID {
+		panic("data extractor for an unknown kind or a kind of another plugin: " + e.DataKind())
+	}
+	s.data.mu.Lock()
+	defer s.data.mu.Unlock()
+	if s.data.extractors == nil {
+		s.data.extractors = map[string]extractorReg{}
+	}
+	s.data.extractors[k.Kind] = extractorReg{pluginID: pluginID, e: e}
+}
+
+// dataExtractors: the extractors of active plugins.
+func (s *Service) dataExtractors() []DataExtractor {
+	s.data.mu.RLock()
+	defer s.data.mu.RUnlock()
+	var out []DataExtractor
+	for _, r := range s.data.extractors {
+		if s.pluginOn(r.pluginID) {
+			out = append(out, r.e)
+		}
+	}
+	return out
 }
 
 // RegisterDataKind registers a kind of data owned by pluginID; the kind
@@ -429,14 +514,9 @@ func macroUses(src string, skip func(string) bool) []struct {
 	if !strings.Contains(src, "data-macro") {
 		return nil
 	}
-	ctxNode := &nethtml.Node{Type: nethtml.ElementNode, Data: "div", DataAtom: atom.Div}
-	nodes, err := nethtml.ParseFragment(strings.NewReader(src), ctxNode)
-	if err != nil {
+	root := parseFragment(src)
+	if root == nil {
 		return nil
-	}
-	root := &nethtml.Node{Type: nethtml.ElementNode, Data: "div", DataAtom: atom.Div}
-	for _, n := range nodes {
-		root.AppendChild(n)
 	}
 	var out []use
 	count := 0
@@ -500,6 +580,9 @@ func (s *Service) conditionalMacros() func(string) bool {
 // with those of body (in the transaction tx of the revision rev). Only
 // kinds of active blocks are replaced; entries of plugins stay.
 func (s *Service) writeMacroData(ctx context.Context, tx pgx.Tx, id int64, typ, lang string, rev int, body json.RawMessage) error {
+	if err := s.writeTextData(ctx, tx, id, typ, lang, rev, body); err != nil {
+		return err
+	}
 	dms := s.dataMacros()
 	if len(dms) == 0 {
 		return nil
@@ -552,10 +635,149 @@ func (s *Service) writeMacroData(ctx context.Context, tx pgx.Tx, id int64, typ, 
 	return tx.SendBatch(ctx, batch).Close()
 }
 
+// writeTextData replaces the entries the extractors find in the text of
+// element id in lang (in the transaction of the revision rev).
+func (s *Service) writeTextData(ctx context.Context, tx pgx.Tx, id int64, typ, lang string, rev int, body json.RawMessage) error {
+	exs := s.dataExtractors()
+	if len(exs) == 0 {
+		return nil
+	}
+	kindList := make([]string, 0, len(exs))
+	for _, e := range exs {
+		kindList = append(kindList, e.DataKind())
+	}
+	if _, err := tx.Exec(ctx, `DELETE FROM element_data WHERE element_id=$1 AND lang=$2 AND source=$3 AND kind = ANY($4)`, id, lang, SourceText, kindList); err != nil {
+		return err
+	}
+	hidden := s.HiddenNode()
+	type found struct {
+		k    DataKind
+		item DataItem
+	}
+	var all []found
+	var names []string
+	for _, e := range exs {
+		k, ok := s.DataKindOf(e.DataKind())
+		if !ok {
+			continue
+		}
+		for _, it := range e.ExtractData(typ, body, hidden) {
+			if it.Index < 1 {
+				continue
+			}
+			if len(it.People) > PeoplePerItem {
+				it.People = it.People[:PeoplePerItem]
+			}
+			all = append(all, found{k, it})
+			names = append(names, it.People...)
+		}
+	}
+	ids, err := UserIDsByName(ctx, tx, names)
+	if err != nil {
+		return err
+	}
+	batch := &pgx.Batch{}
+	perKind := map[string]int{}
+	for _, f := range all {
+		var people []int64
+		seen := map[int64]bool{}
+		for _, n := range f.item.People {
+			if id := ids[strings.ToLower(n)]; id != 0 && !seen[id] {
+				seen[id] = true
+				people = append(people, id)
+			}
+		}
+		if len(people) == 0 && f.item.NeedPerson {
+			continue
+		}
+		rows := []map[string]any{f.item.Data}
+		if len(people) > 0 {
+			rows = rows[:0]
+			for _, p := range people {
+				d := maps.Clone(f.item.Data)
+				d["person"] = p
+				rows = append(rows, d)
+			}
+		}
+		for j, d := range rows {
+			if perKind[f.k.Kind] >= f.k.MaxPerElement {
+				break
+			}
+			r, err := checkData(f.k, d)
+			if err != nil {
+				continue // not kept (the text shows it as it is)
+			}
+			perKind[f.k.Kind]++
+			batch.Queue(`INSERT INTO element_data(element_id, lang, kind, source, idx, rev, data, state, day, at, person, num, ref, label)
+				VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)`, id, lang, f.k.Kind, SourceText, f.item.Index*(PeoplePerItem+1)+j, rev, r.data, r.state, r.day, r.at, r.person, r.num, r.ref, r.label)
+		}
+	}
+	if batch.Len() == 0 {
+		return nil
+	}
+	return tx.SendBatch(ctx, batch).Close()
+}
+
+// parseFragment parses HTML into the children of a div (nil on an error).
+func parseFragment(src string) *nethtml.Node {
+	ctxNode := &nethtml.Node{Type: nethtml.ElementNode, Data: "div", DataAtom: atom.Div}
+	nodes, err := nethtml.ParseFragment(strings.NewReader(src), ctxNode)
+	if err != nil {
+		return nil
+	}
+	root := &nethtml.Node{Type: nethtml.ElementNode, Data: "div", DataAtom: atom.Div}
+	for _, n := range nodes {
+		root.AppendChild(n)
+	}
+	return root
+}
+
+// UserIDsByName finds the active users of names (user name, or
+// name@provider), by the lower-case name as written; one query. A plain
+// name prefers the local account, like a mention.
+func UserIDsByName(ctx context.Context, q interface {
+	Query(context.Context, string, ...any) (pgx.Rows, error)
+}, names []string) (map[string]int64, error) {
+	out := map[string]int64{}
+	if len(names) == 0 {
+		return out, nil
+	}
+	var users, provs, keys []string
+	seen := map[string]bool{}
+	for _, n := range names {
+		key := strings.ToLower(n)
+		if seen[key] || len(key) > 130 {
+			continue
+		}
+		seen[key] = true
+		user, prov := key, ""
+		if i := strings.LastIndex(key, "@"); i > 0 {
+			user, prov = key[:i], key[i+1:]
+		}
+		users, provs, keys = append(users, user), append(provs, prov), append(keys, key)
+	}
+	rows, err := q.Query(ctx, `SELECT n.key, u.id FROM unnest($1::text[], $2::text[], $3::text[]) AS n(name, prov, key)
+		JOIN LATERAL (SELECT id FROM users WHERE lower(username) = n.name AND (n.prov = '' OR lower(provider) = n.prov) AND NOT disabled
+			ORDER BY provider <> 'local', id LIMIT 1) u ON true`, users, provs, keys)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var key string
+		var id int64
+		if err := rows.Scan(&key, &id); err != nil {
+			return nil, err
+		}
+		out[key] = id
+	}
+	return out, rows.Err()
+}
+
 // writeMacroDataAll writes the entries of every language of element id
 // from its latest revisions (copies, imports, the rebuild).
 func (s *Service) writeMacroDataAll(ctx context.Context, tx pgx.Tx, id int64) error {
-	if len(s.dataMacros()) == 0 {
+	if len(s.dataMacros()) == 0 && len(s.dataExtractors()) == 0 {
 		return nil
 	}
 	var typ string
@@ -643,8 +865,10 @@ type DataQuery struct {
 	States   []string
 	// From and To limit the column day (inclusive)
 	From, To string
-	Person   int64
-	Ref      int64
+	// NoDay: only entries without a day
+	NoDay  bool
+	Person int64
+	Ref    int64
 	// Q: words in the label or the data
 	Q string
 	// Sort: day, -day, at, -at, num, -num, label, state, page (default: -updated)
@@ -656,7 +880,10 @@ type DataQuery struct {
 
 // DataEntry is an entry as a query gives it.
 type DataEntry struct {
-	ElementID int64          `json:"element_id"`
+	ElementID  int64 `json:"element_id"`
+	CategoryID int64 `json:"category_id"`
+	// Rev: the revision of the element in Lang the entry was written from
+	Rev       int            `json:"rev"`
 	Title     string         `json:"title"`
 	Path      string         `json:"path"`
 	Lang      string         `json:"lang"`
@@ -725,7 +952,7 @@ func (s *Service) QueryData(ctx context.Context, q DataQuery) (*DataResult, erro
 	if lang == "" {
 		lang = s.DefaultLanguage()
 	}
-	args := []any{k.Kind, q.Category, q.Direct, q.Element, q.Lang, q.States, q.From, q.To, q.Person, q.Ref, q.Q, q.Hidden}
+	args := []any{k.Kind, q.Category, q.Direct, q.Element, q.Lang, q.States, q.From, q.To, q.Person, q.Ref, q.Q, q.Hidden, q.NoDay}
 	where := `d.kind = $1::text AND e.deleted_at IS NULL
 		AND ($2::bigint = 0 OR ($3::bool AND e.category_id = $2::bigint) OR (NOT $3::bool AND e.category_id IN (SELECT c.id FROM categories c WHERE c.path <@ (SELECT path FROM categories WHERE id = $2::bigint))))
 		AND ($4::bigint = 0 OR e.id = $4::bigint) AND ($5::text = '' OR d.lang = $5::text)
@@ -733,7 +960,7 @@ func (s *Service) QueryData(ctx context.Context, q DataQuery) (*DataResult, erro
 		AND ($7::text = '' OR d.day >= $7::text::date) AND ($8::text = '' OR d.day <= $8::text::date)
 		AND ($9::bigint = 0 OR d.person = $9::bigint) AND ($10::bigint = 0 OR d.ref = $10::bigint)
 		AND ($11::text = '' OR d.label ILIKE '%' || $11::text || '%' OR d.data::text ILIKE '%' || $11::text || '%')
-		AND ($12::bool OR NOT e.hidden)
+		AND ($12::bool OR NOT e.hidden) AND (NOT $13::bool OR d.day IS NULL)
 		AND ` + f.SQL("e", &args)
 	var total int
 	// acl: filtered (ElementFilter)
@@ -743,7 +970,7 @@ func (s *Service) QueryData(ctx context.Context, q DataQuery) (*DataResult, erro
 	args = append(args, lang, q.Limit, q.Offset)
 	n := len(args)
 	// acl: filtered (ElementFilter)
-	rows, err := s.pool.Query(ctx, `SELECT e.id, COALESCE(NULLIF(e.titles->>$`+strconv.Itoa(n-2)+`::text, ''), e.titles->>e.original_lang, ''), d.lang, d.source, d.idx, d.data, d.updated_at
+	rows, err := s.pool.Query(ctx, `SELECT e.id, e.category_id, d.rev, COALESCE(NULLIF(e.titles->>$`+strconv.Itoa(n-2)+`::text, ''), e.titles->>e.original_lang, ''), d.lang, d.source, d.idx, d.data, d.updated_at
 		FROM element_data d JOIN elements e ON e.id = d.element_id WHERE `+where+`
 		ORDER BY `+order+`, e.id, d.idx LIMIT $`+strconv.Itoa(n-1)+` OFFSET $`+strconv.Itoa(n), args...)
 	if err != nil {
@@ -752,7 +979,7 @@ func (s *Service) QueryData(ctx context.Context, q DataQuery) (*DataResult, erro
 	items, err := pgx.CollectRows(rows, func(r pgx.CollectableRow) (DataEntry, error) {
 		var x DataEntry
 		var raw []byte
-		if err := r.Scan(&x.ElementID, &x.Title, &x.Lang, &x.Source, &x.Index, &raw, &x.UpdatedAt); err != nil {
+		if err := r.Scan(&x.ElementID, &x.CategoryID, &x.Rev, &x.Title, &x.Lang, &x.Source, &x.Index, &raw, &x.UpdatedAt); err != nil {
 			return x, err
 		}
 		x.Path = fmt.Sprintf("/e/%d", x.ElementID)

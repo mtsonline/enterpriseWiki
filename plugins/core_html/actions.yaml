@@ -34,3 +34,16 @@ actions:
       - name: default
         as: member
         body_json: '{"source": "<h1>Title</h1><p>Some <em>text</em>.</p>"}'
+  - id: core.html.task_done
+    category: CATEGORY_ACTION
+    method: POST
+    path: tasks/{id}/{n}
+    success_status: 200
+    summary:
+      text:
+        en: Tick a task of a page (or open it again)
+        de: Eine Aufgabe einer Seite abhaken (oder wieder öffnen)
+    signed_in: true
+    safety: {changes: true}
+    cli: {command: [tasks, done]}
+    ui: {entry: /tasks}
