@@ -25,24 +25,33 @@ func TestBlockData(t *testing.T) {
 	admin.must("POST", "/api/v1/admin/users", map[string]any{"username": "rea", "password": "Passw0rd!Passw0rd"}, &rea, 201)
 	admin.must("POST", fmt.Sprintf("/api/v1/categories/%d/acl", open.ID), map[string]any{"subject_type": "user", "subject_id": rea.ID, "permissions": 1}, nil, 201)
 
+	var who struct {
+		User obj `json:"user"`
+	}
+	admin.must("GET", "/api/v1/auth/me", nil, &who, 200)
+	me := who.User
+
 	md := func(src string) map[string]any { return map[string]any{"format": "markdown", "source": src} }
 	full := `Intro
 
-:::decision{title="Use okapi <script>x</script>" status=decided day=2026-11-01 owner="Ana"}
+:::decision{title="Use okapi <script>x</script>" status=decided day=2026-11-01 owner="Ana" person=` + fmt.Sprint(rea.ID) + `}
 Because it is **fast**.
 :::
 
 :::panel{type=info}
-:::decision{title="Try lynx" status=open day=2026-12-01}
+:::decision{title="Try lynx" status=open day=2026-12-01 person=` + fmt.Sprint(me.ID) + `}
 :::
 :::
 
 ::decisions{}
 `
+	var ola obj
+	admin.must("POST", "/api/v1/admin/users", map[string]any{"username": "ola", "password": "Passw0rd!Passw0rd"}, &ola, 201)
+	admin.must("PUT", fmt.Sprintf("/api/v1/admin/users/%d", ola.ID), map[string]any{"disabled": true}, nil, 200)
 	var page, secret obj
 	admin.must("POST", "/api/v1/elements", map[string]any{"category_id": open.ID, "type": "core.html", "title": "Plan", "body": md(full)}, &page, 201)
 	admin.must("POST", "/api/v1/elements", map[string]any{"category_id": board.ID, "type": "core.html", "title": "Board page",
-		"body": md(":::decision{title=\"Buy walrus\" status=decided}\n:::\n")}, &secret, 201)
+		"body": md(":::decision{title=\"Buy walrus\" status=decided person=" + fmt.Sprint(ola.ID) + "}\n:::\n")}, &secret, 201)
 
 	reader := e.client()
 	reader.login("rea", "Passw0rd!Passw0rd")
@@ -52,8 +61,9 @@ Because it is **fast**.
 			Source    string         `json:"source"`
 			Data      map[string]any `json:"data"`
 		} `json:"items"`
-		Total    int  `json:"total"`
-		Complete bool `json:"complete"`
+		Total    int              `json:"total"`
+		Complete bool             `json:"complete"`
+		People   map[int64]string `json:"people"`
 	}
 	query := func(c *client, qs string) result {
 		t.Helper()
@@ -74,11 +84,15 @@ Because it is **fast**.
 	if r.Total != 2 || titles(r) != "Use okapi <script>x</script>|Try lynx" {
 		t.Fatalf("reader: %d %q", r.Total, titles(r))
 	}
-	if got := r.Items[0].Data; got["status"] != "decided" || got["owner"] != "Ana" || got["day"] != "2026-11-01" || got["text"] != "Because it is fast." {
+	if got := r.Items[0].Data; got["status"] != "decided" || got["owner"] != "Ana" || got["day"] != "2026-11-01" || got["text"] != "Because it is fast." || got["person"] != float64(rea.ID) {
 		t.Fatalf("data of a decision: %v", got)
 	}
-	if r := query(admin, ""); r.Total != 3 {
-		t.Fatalf("admin: %d", r.Total)
+	// the names of the people: only those the reader may see
+	if len(r.People) != 1 || r.People[rea.ID] != "rea" {
+		t.Fatalf("people for the reader: %v", r.People)
+	}
+	if r := query(admin, ""); r.Total != 3 || len(r.People) != 2 || r.People[me.ID] != "Admin" || r.People[rea.ID] != "rea" {
+		t.Fatalf("admin: %d %v", r.Total, r.People)
 	}
 	if r := query(e.client(), ""); r.Total != 0 {
 		t.Fatalf("guest: %d", r.Total)
@@ -113,6 +127,20 @@ Because it is **fast**.
 	reader.must("GET", fmt.Sprintf("/api/v1/elements/%d?lang=en", page.ID), nil, &v, 200)
 	if !strings.Contains(v.HTML, "Use okapi &lt;script&gt;") || strings.Contains(v.HTML, "<script>x") || strings.Contains(v.HTML, "walrus") || !strings.Contains(v.HTML, "ew-decisions") {
 		t.Fatalf("report: %s", v.HTML)
+	}
+	// the responsible person: by the rules of the people blocks. The reader
+	// sees themselves, but not the admin (no core.users.list_*), in the
+	// block and in the report; the admin sees both, but not a disabled user.
+	if !strings.Contains(v.HTML, "Responsible: rea, Ana") || !strings.Contains(v.HTML, "<td>rea, Ana</td>") || strings.Contains(v.HTML, ">Admin<") || strings.Contains(v.HTML, "Responsible: Admin") {
+		t.Fatalf("people for the reader: %s", v.HTML)
+	}
+	admin.must("GET", fmt.Sprintf("/api/v1/elements/%d?lang=en", page.ID), nil, &v, 200)
+	if !strings.Contains(v.HTML, "Responsible: rea, Ana") || !strings.Contains(v.HTML, "Responsible: Admin") || !strings.Contains(v.HTML, "<td>Admin</td>") || strings.Contains(v.HTML, "ola") {
+		t.Fatalf("people for the admin: %s", v.HTML)
+	}
+	// a person that is no id is refused when saving the data
+	if err := e.app.Content.PutData(identity.With(t.Context(), identity.CLI()), nil, "core.macros", page.ID, "en", "core.macros.decision", 9, map[string]any{"title": "x", "status": "open", "person": "nobody"}); err == nil {
+		t.Fatal("a person that is no id was accepted")
 	}
 
 	// a change replaces the entries; restoring brings them back
@@ -184,7 +212,7 @@ Because it is **fast**.
 		Fields []any  `json:"fields"`
 	}
 	reader.must("GET", "/api/v1/data", nil, &kinds, 200)
-	if len(kinds) == 0 || kinds[0].Kind != "core.macros.decision" || len(kinds[0].Fields) != 5 {
+	if len(kinds) == 0 || kinds[0].Kind != "core.macros.decision" || len(kinds[0].Fields) != 6 {
 		t.Fatalf("kinds: %+v", kinds)
 	}
 }

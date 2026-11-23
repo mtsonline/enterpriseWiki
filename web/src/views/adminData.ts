@@ -11,11 +11,13 @@ import { button, errorText, pageHeader } from '../components/ui';
 interface DataField { key: string; type: string; labels: Record<string, string>; option_labels?: Record<string, Record<string, string>> }
 interface DataKind { kind: string; version: number; labels: Record<string, string>; fields: DataField[]; plugin: string; complete: boolean }
 interface DataEntry { element_id: number; title: string; path: string; lang: string; source: string; index: number; data: Record<string, unknown>; updated_at: string }
-interface DataResult { items: DataEntry[]; total: number; complete: boolean }
+interface DataResult { items: DataEntry[]; total: number; complete: boolean; people?: Record<string, string> }
 
 /** value shows a value of a field as text */
-function value(f: DataField, v: unknown): string {
+function value(f: DataField, v: unknown, people: Record<string, string>): string {
   if (v === undefined || v === null || v === '') return '';
+  // a person: the name, if the reader may see them, otherwise the number
+  if (f.type === 'person') return people[String(v)] ?? `#${String(v)}`;
   if (Array.isArray(v)) return v.join(', ');
   if (typeof v === 'boolean') return v ? t('common.yes') : t('common.no');
   const s = String(v);
@@ -42,7 +44,7 @@ export async function dataAdmin(panel: HTMLElement): Promise<void> {
       const rows = res.items.map((it) => h('tr', null,
         h('td', null, h('a', { href: it.path }, it.title || `#${it.element_id}`)),
         h('td', null, it.lang),
-        ...fields.map((f) => h('td', null, value(f, it.data[f.key]))),
+        ...fields.map((f) => h('td', null, value(f, it.data[f.key], res.people ?? {}))),
         h('td', null, fmtDate(it.updated_at, state.lang))));
       mount(entries, h('section', { class: 'ew-section', 'aria-labelledby': id },
         h('h2', { id }, t('data.entries_of', { name: pick(k.labels) })),

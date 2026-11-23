@@ -950,6 +950,7 @@
  "the properties plugin is not active": "Das Eigenschaften-Plugin ist nicht aktiv",
  "the request was already answered": "Die Anfrage wurde schon beantwortet",
  "the reset needs the administrator who stays (CLI: --as USER)": "Das Zurücksetzen braucht die Administration, die bleibt (CLI: --as BENUTZER)",
+ "the responsible person: the id of a user": "Verantwortliche Person: die ID eines Benutzers",
  "the rollback would change categories or pages you may not manage here": "Das Zurückrollen würde Kategorien oder Seiten ändern, die Sie hier nicht verwalten dürfen",
  "the search engine is not configured": "Die Suchmaschine ist nicht eingerichtet",
  "the security key could not be registered: %v": "Der Sicherheitsschlüssel ließ sich nicht registrieren: %v",

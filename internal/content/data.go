@@ -673,6 +673,9 @@ type DataResult struct {
 	Items    []DataEntry `json:"items"`
 	Total    int         `json:"total"`
 	Complete bool        `json:"complete"`
+	// People are the names of the people in fields of the type person
+	// that the reader may see (PeopleNames); the others are left out.
+	People map[int64]string `json:"people"`
 }
 
 // DataQueryMax is the most entries of one answer.
@@ -764,7 +767,22 @@ func (s *Service) QueryData(ctx context.Context, q DataQuery) (*DataResult, erro
 	var ver int
 	var done bool
 	_ = s.pool.QueryRow(ctx, `SELECT version, done FROM data_kinds WHERE kind=$1`, k.Kind).Scan(&ver, &done)
-	return &DataResult{Kind: k, Items: items, Total: total, Complete: ver == k.Version && done}, nil
+	var ids []int64
+	for _, f := range k.Fields {
+		if f.Type != DataPerson {
+			continue
+		}
+		for _, it := range items {
+			if n, ok := it.Data[f.Key].(float64); ok && n >= 1 && n <= 1<<53 {
+				ids = append(ids, int64(n))
+			}
+		}
+	}
+	people, err := s.PeopleNames(ctx, ids)
+	if err != nil {
+		return nil, err
+	}
+	return &DataResult{Kind: k, Items: items, Total: total, Complete: ver == k.Version && done, People: people}, nil
 }
 
 // RebuildData builds the entries of the blocks of kinds that are new or
