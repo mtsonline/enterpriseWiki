@@ -15,7 +15,7 @@ import { Fragment, Slice, type MarkType, type Node as PMNode, type NodeType, typ
 import { liftListItem, sinkListItem, splitListItem, wrapInList } from 'prosemirror-schema-list';
 import { EditorState, NodeSelection, Plugin, TextSelection, type Command, type Transaction } from 'prosemirror-state';
 import { addColumnAfter, addColumnBefore, addRowAfter, addRowBefore, deleteColumn, deleteRow, deleteTable, goToNextCell, isInTable, tableEditing } from 'prosemirror-tables';
-import { findWrapping } from 'prosemirror-transform';
+import { dropPoint, findWrapping } from 'prosemirror-transform';
 import { EditorView, type NodeView } from 'prosemirror-view';
 import { api } from '../core/api';
 import { state } from '../core/state';
@@ -307,6 +307,9 @@ function partsMarkdown(p: MacroParts): string {
   return `${part(1)}\n\n---\n\n${part(2)}`;
 }
 
+// the block being dragged by its head (see MacroView, handleDrop)
+let blockDrag: { from: number; node: PMNode } | null = null;
+
 // the widths a block can get by its handle (rem on the desktop; 0: full
 // width), in steps, so the result fits every view (option max_width)
 const WIDTHS = [16, 24, 32, 40, 48, 56, 64, 72, 0];
@@ -410,16 +413,19 @@ class MacroView implements NodeView {
     this.dom = h('div', { class: ['ewe-macro', node.attrs.leaf && 'ewe-macro--leaf'], role: 'group' }, head);
     head.addEventListener('dragstart', (e) => {
       const p = this.getPos();
-      if (p === undefined || !e.dataTransfer || (e.target as HTMLElement).closest('button')) { e.preventDefault(); return; }
+      const from = e.target instanceof Element ? e.target : (e.target as Node | null)?.parentElement;
+      if (p === undefined || !e.dataTransfer || from?.closest('button')) { e.preventDefault(); return; }
       const v = host.view();
       const sel = NodeSelection.create(v.state.doc, p);
       v.dispatch(v.state.tr.setSelection(sel));
       e.dataTransfer.effectAllowed = 'move';
       e.dataTransfer.setData('text/plain', macroName(this.node.attrs.name as string));
       e.dataTransfer.setDragImage(this.dom, 12, 12);
-      // the editor takes it from here (drop: move the block; Escape: nothing)
+      // the drop moves it (handleDrop); Escape or a drop elsewhere: nothing
+      blockDrag = { from: p, node: this.node };
       (v as unknown as { dragging: unknown }).dragging = { slice: sel.content(), move: true, node: sel };
     });
+    head.addEventListener('dragend', () => { setTimeout(() => { blockDrag = null; }, 0); });
     if (node.attrs.leaf) {
       // what the page will show; a picture only (not focusable, not clickable)
       this.picture = h('div', { class: 'ewe-macro-picture ew-content', contenteditable: 'false', inert: true, hidden: true });
@@ -1221,28 +1227,35 @@ export function createMarkdownEditor(container: HTMLElement, opts: MarkdownEdito
       list_item: (n, v, g) => (n.attrs.checked === null ? defaultItem() : new TaskItemView(n, v, g)),
     },
     handleDoubleClickOn: (v, pos, node, nodePos, _e, direct) => direct && editAt(v, nodePos),
-    // a block dropped onto the head of a block goes before that block (not into it)
-    handleDrop: (v, event, slice, moved) => {
-      const head = (event.target as Element | null)?.closest?.('.ewe-macro-head');
-      const target = head?.parentElement;
-      if (!target || !slice.content.childCount) return false;
+    // a block dragged by its head: moved by the editor itself (onto the head
+    // of a block: before that block, not into it; elsewhere: the nearest
+    // place for a block); never copied
+    handleDrop: (v, event) => {
+      const drag = blockDrag;
+      blockDrag = null;
+      if (!drag) return false;
+      const { node, from } = drag;
+      if (v.state.doc.nodeAt(from) !== node) return true; // changed meanwhile: nothing
       let at = -1;
-      v.state.doc.descendants((n, p) => {
-        if (at >= 0) return false;
-        if (v.nodeDOM(p) === target) { at = p; return false; }
-        return true;
-      });
-      if (at < 0) return false;
-      const tr = v.state.tr;
-      const dragging = (v as unknown as { dragging?: { node?: NodeSelection } }).dragging;
-      if (moved && dragging?.node) {
-        if (dragging.node.from <= at && at < dragging.node.to) return true; // onto itself: nothing
-        dragging.node.replace(tr);
+      const target = (event.target as Element | null)?.closest?.('.ewe-macro-head')?.parentElement;
+      if (target) {
+        v.state.doc.descendants((n, p) => {
+          if (at >= 0) return false;
+          if (v.nodeDOM(p) === target) { at = p; return false; }
+          return true;
+        });
       }
+      if (at < 0) {
+        const c = v.posAtCoords({ left: event.clientX, top: event.clientY });
+        if (!c) return true;
+        at = dropPoint(v.state.doc, c.pos, new Slice(Fragment.from(node), 0, 0)) ?? -1;
+        if (at < 0) return true;
+      }
+      if (at >= from && at <= from + node.nodeSize) return true; // onto itself: nothing
+      const tr = v.state.tr.delete(from, from + node.nodeSize);
       const pos = tr.mapping.map(at);
-      tr.insert(pos, slice.content);
-      const node = tr.doc.nodeAt(pos);
-      if (node && NodeSelection.isSelectable(node)) tr.setSelection(NodeSelection.create(tr.doc, pos));
+      tr.insert(pos, node);
+      if (NodeSelection.isSelectable(node)) tr.setSelection(NodeSelection.create(tr.doc, pos));
       v.dispatch(tr.scrollIntoView());
       announce(t('editor.moved'));
       return true;

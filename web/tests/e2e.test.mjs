@@ -4746,6 +4746,11 @@ test('editor: blocks move with the mouse, the buttons and Alt+Arrow keys; their 
   const head = blocks.nth(1).locator('.ewe-macro-head');
   await head.dragTo(blocks.nth(0), { targetPosition: { x: 40, y: 4 } });
   assert.equal(await order(), 'lynx,okapi');
+  // and onto the text below: after it (moved, never copied)
+  await blocks.nth(0).locator('.ewe-macro-head').dragTo(page.locator('.ewe-prose > p').last(), { targetPosition: { x: 20, y: 18 } });
+  assert.equal(await order(), 'okapi,lynx');
+  await blocks.nth(1).locator('.ewe-macro-head').dragTo(blocks.nth(0), { targetPosition: { x: 40, y: 4 } });
+  assert.equal(await order(), 'lynx,okapi');
   // width: keyboard on the handle (a slider), then the mouse
   const size = blocks.nth(0).getByRole('slider', { name: /^(width of|breite von)/i });
   await size.focus();
