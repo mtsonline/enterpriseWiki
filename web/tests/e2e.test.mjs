@@ -4193,8 +4193,11 @@ test('templates of data: copy, check while typing, save, versions, use for the s
         });
         assert.equal(box.pos, 'sticky', 'the header stays sticky with the menu open');
         assert.ok(box.top >= 0 && box.bottom <= box.h + 1 && box.y > 1000, `the open menu is in the window: ${JSON.stringify(box)}`);
-        await page.locator('#ewd-menu a').last().focus();
-        assert.ok(await page.locator('#ewd-menu a').last().isVisible(), 'the last entry is reached in the drawer');
+        // the last entry of the first level (entries of closed submenus stay hidden)
+        const lastEntry = page.locator('#ewd-menu a:visible, #ewd-menu button:visible').last();
+        await lastEntry.focus();
+        const lb = await lastEntry.boundingBox();
+        assert.ok(lb && lb.y >= 0 && lb.y + lb.height <= box.h + 1, `the last entry is reached in the drawer: ${JSON.stringify(lb)}`);
         await a11y('a menu open in a sticky header on a phone');
         await page.keyboard.press('Escape');
         await call('PUT', `/api/v1/x/core.template/templates/${key}`, { version: c0.version + 1, design: c0.design });
