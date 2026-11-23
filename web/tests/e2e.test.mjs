@@ -4661,6 +4661,14 @@ test('consent: privacy policy accepted before use, cookie banner with categories
     const p2 = await ctx.newPage();
     p2.on('pageerror', (e) => errors.push(`consent user: ${e.message}`));
     await p2.goto(`${BASE}/login`);
+    // the cookie banner (required: modal) comes first, also on the sign-in page
+    const cookies = p2.getByRole('dialog', { name: /^(cookies and similar storage|cookies und ähnliche speicher)$/i });
+    await cookies.waitFor();
+    await a11y('cookie banner', p2);
+    await p2.keyboard.press('Escape');
+    assert.ok(await cookies.isVisible(), 'Escape does not dismiss the required banner');
+    await cookies.getByRole('button', { name: /^(only necessary|nur notwendige)$/i }).click();
+    await cookies.waitFor({ state: 'detached' });
     await p2.getByLabel(/user ?name|benutzername/i).fill(name);
     await p2.getByLabel(/^(password|passwort)/i).fill(pw);
     await p2.keyboard.press('Enter');
@@ -4672,23 +4680,20 @@ test('consent: privacy policy accepted before use, cookie banner with categories
     await p2.keyboard.press('Escape');
     assert.ok(await dlg.isVisible(), 'Escape does not dismiss the policy');
     await dlg.getByRole('button', { name: /^(accept|zustimmen)$/i }).click();
-    // then the cookie banner (required: modal) with categories
-    const cookies = p2.getByRole('dialog', { name: /^(cookies and similar storage|cookies und ähnliche speicher)$/i });
-    await cookies.waitFor();
-    await a11y('cookie banner', p2);
-    await cookies.getByRole('button', { name: /^(choose|auswählen)$/i }).click();
-    await cookies.getByLabel(/^(external media|externe medien)$/i).check();
-    await cookies.getByRole('button', { name: /^(save choice|auswahl speichern)$/i }).click();
-    await cookies.waitFor({ state: 'detached' });
+    await dlg.waitFor({ state: 'detached' });
     await p2.goto(`${BASE}/e/${other.id}`);
     await p2.locator('main').getByText('Lynx notes').waitFor();
-    assert.equal(await p2.evaluate(() => JSON.parse(localStorage.getItem('ewiki.consent.cookies')).cats.join()), 'external_media');
-    // the profile shows it and opens the choice again
+    assert.equal(await p2.evaluate(() => JSON.parse(localStorage.getItem('ewiki.consent.cookies')).cats.length), 0);
+    // the profile shows it and opens the choice again, with the categories
     await p2.goto(`${BASE}/profile`);
     await p2.getByText(/you accepted the privacy policy \(version 1\)|sie haben der datenschutzerklärung \(version 1\)/i).waitFor();
     await p2.getByRole('button', { name: /^(cookie settings|cookie-einstellungen)$/i }).click();
-    await p2.getByRole('region', { name: /^(cookies and similar storage|cookies und ähnliche speicher)$/i }).getByRole('button', { name: /^(only necessary|nur notwendige)$/i }).click();
-    assert.equal(await p2.evaluate(() => JSON.parse(localStorage.getItem('ewiki.consent.cookies')).cats.length), 0);
+    const again = p2.getByRole('region', { name: /^(cookies and similar storage|cookies und ähnliche speicher)$/i });
+    await again.getByRole('button', { name: /^(choose|auswählen)$/i }).click();
+    await again.getByLabel(/^(external media|externe medien)$/i).check();
+    await a11y('cookie settings with categories', p2);
+    await again.getByRole('button', { name: /^(save choice|auswahl speichern)$/i }).click();
+    assert.equal(await p2.evaluate(() => JSON.parse(localStorage.getItem('ewiki.consent.cookies')).cats.join()), 'external_media');
     await p2.close();
 
     // a guest: the policy is required as well (kept in the browser)
