@@ -3403,6 +3403,8 @@ test('template designer: visual and with the keyboard, room and contrast help, u
       return f?.getAttribute('width') === '375' && f.contentDocument?.body?.classList.contains('ewd-preview');
     });
     await page.locator('.ewd-hints h3', { hasText: /(phone|handy)/i }).waitFor();
+    // the height of the sticky header, measured in the preview
+    await page.locator('.ewd-hints li', { hasText: /(sticky header|klebende kopf) (is|ist) \d+ px/i }).waitFor();
     // the text shows the same design
     await page.getByRole('button', { name: /^(as text \(json\)|als text \(json\))$/i }).click();
     const design = JSON.parse(await page.getByLabel(/^(design \(text\)|design \(text\))$/i).inputValue());
@@ -3894,6 +3896,11 @@ test('template designer, part 3: a warning for standard positions, widths by dra
     await page.locator('.ewd-problems').getByText(/needs a name for every area/).waitFor();
     await a11y('the designer with the behaviours');
     await page.getByLabel(/^(open and close on the phone|auf dem handy auf- und zuklappen)$/i).uncheck();
+    await page.getByText(/^(no problems|keine probleme)/i).first().waitFor();
+    // deleting an area that lies in a drawer on tablet and phone also takes
+    // it out of these views (else the server refuses the design)
+    await page.getByRole('button', { name: /^tools \((area|bereich)\)$/i }).click();
+    await page.getByRole('button', { name: /^(delete area|bereich löschen)$/i }).click();
     await page.getByText(/^(no problems|keine probleme)/i).first().waitFor();
     const saved = page.waitForResponse((r) => r.url().endsWith(`/api/v1/x/core.template/templates/${tpl.key}`) && r.request().method() === 'PUT');
     await page.getByRole('button', { name: /^(save|speichern)$/i }).click();

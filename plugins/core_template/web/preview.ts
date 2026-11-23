@@ -46,6 +46,13 @@ export function setupPreview(): void {
     window.dispatchEvent(new Event('ewiki:relayout'));
   };
   w.__ewdMeasure = () => measure();
+  w.__ewdHeader = () => {
+    // the closed height of a sticky header (open drawers do not count)
+    const hd = document.querySelector<HTMLElement>('header.ewd-landmark.ewd-sticky');
+    if (!hd) return null;
+    const closed = parseFloat(hd.style.getPropertyValue('--ewd-header-closed'));
+    return { height: Number.isFinite(closed) ? closed : hd.getBoundingClientRect().height, window: window.innerHeight };
+  };
 }
 
 /** What the designer shows as hints: per block whether its content has

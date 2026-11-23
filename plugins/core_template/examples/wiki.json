@@ -82,19 +82,25 @@
           ],
           "layout": "row",
           "align": "end",
-          "fit": true
+          "fit": true,
+          "label": {
+            "en": "Tools",
+            "de": "Werkzeuge"
+          }
         }
       ],
       "tablet": {
         "stack": false,
         "drawer": [
-          "menu"
+          "menu",
+          "tools"
         ]
       },
       "mobile": {
         "stack": false,
         "drawer": [
-          "menu"
+          "menu",
+          "tools"
         ]
       }
     },
