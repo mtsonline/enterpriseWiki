@@ -1144,3 +1144,57 @@ actions:
         as: admin
         body_json: '{"mode": "later"}'
         status: 400
+  - id: core.consent.get
+    category: CATEGORY_ACTION
+    method: GET
+    path: /api/v1/admin/consent
+    success_status: 200
+    summary:
+      text:
+        en: Show the asking for consent to cookies and to the privacy policy
+        de: "Die Frage nach der Zustimmung zu Cookies und zur Datenschutzerklärung anzeigen"
+    permission: {key: core.settings.manage, scope: SCOPE_GLOBAL}
+    cli: {command: [consent, settings]}
+    ui: {entry: /admin/consent}
+    examples:
+      - name: default
+        as: member
+  - id: core.consent.set
+    category: CATEGORY_ACTION
+    method: PUT
+    path: /api/v1/admin/consent
+    success_status: 200
+    summary:
+      text:
+        en: "Change the asking for consent (cookies: banner, required, text, policy page; privacy: page, guests, text; a higher version asks everybody again)"
+        de: "Die Frage nach der Zustimmung ändern (Cookies: Banner, zwingend, Text, Richtlinie; Datenschutz: Seite, Gäste, Text; eine höhere Version fragt alle neu)"
+    permission: {key: core.settings.manage, scope: SCOPE_GLOBAL}
+    safety: {changes: true}
+    cli: {command: [consent, set]}
+    ui: {entry: /admin/consent}
+    examples:
+      - name: default
+        as: member
+        body_json: '{"cookies": {"enabled": false, "version": 1}, "privacy": {"enabled": false, "version": 1}}'
+      - name: privacy_without_page
+        as: member
+        body_json: '{"cookies": {"version": 1}, "privacy": {"enabled": true, "version": 1}}'
+        status: 400
+  - id: core.consent.list
+    category: CATEGORY_ACTION
+    method: GET
+    path: /api/v1/admin/consents
+    success_status: 200
+    summary:
+      text:
+        en: "Who accepted which version of the privacy policy, and when (version, limit, offset; format=csv for all as CSV)"
+        de: "Wer welcher Version der Datenschutzerklärung wann zugestimmt hat (version, limit, offset; format=csv für alle als CSV)"
+    permission: {key: core.audit.view, scope: SCOPE_GLOBAL}
+    cli: {command: [consent, list]}
+    ui: {entry: /admin/consent}
+    examples:
+      - name: default
+        as: member
+      - name: csv
+        as: member
+        query_json: '{"format": "csv"}'

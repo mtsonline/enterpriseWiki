@@ -281,6 +281,14 @@ func (s *Server) wrap(next http.Handler) http.Handler {
 			httpx.WriteError(sw, r, errMaintenance(cfg.Maintenance))
 			return
 		}
+		// the privacy policy first (sessions in the browser; consent.go)
+		if refuse, err := s.consentRefuses(ctx, cfg.Consent.Privacy, r, identity.From(ctx)); err != nil || refuse {
+			if err == nil {
+				err = errConsentRequired
+			}
+			httpx.WriteError(sw, r, err)
+			return
+		}
 		if p := identity.From(ctx); !p.InProcess() && s.rateLimited(sw, r, p.ID(), cfg) {
 			return
 		}

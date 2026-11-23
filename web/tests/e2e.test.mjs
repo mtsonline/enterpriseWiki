@@ -4631,6 +4631,98 @@ test('maintenance: read-only with a message, then closed; administrators keep wo
   errors.splice(logged, errors.length - logged, ...errors.slice(logged).filter((e) => !/status of 503/.test(e)));
 });
 
+test('consent: privacy policy accepted before use, cookie banner with categories, proof for the administration', async () => {
+  const cat = (await call('POST', '/api/v1/categories', { titles: { en: `Legal ${run}` } })).id;
+  await call('POST', `/api/v1/categories/${cat}/acl`, { subject_type: 'guest', permissions: 1, inherit: false });
+  const pol = await call('POST', '/api/v1/elements', { category_id: cat, type: 'core.html', title: `Privacy ${run}`, body: { format: 'html', source: `<p>We keep okapi data ${run}.</p>` } });
+  const other = await call('POST', '/api/v1/elements', { category_id: cat, type: 'core.html', title: `Notes ${run}`, body: { format: 'html', source: '<p>Lynx notes</p>' } });
+  const name = `cons${run}`.toLowerCase().slice(0, 30);
+  const pw = 'Passw0rd!Passw0rd';
+  await call('POST', '/api/v1/admin/users', { username: name, password: pw, display_name: `Consent ${run}` });
+  const ctx = await browser.newContext({ viewport: { width: 1280, height: 900 }, bypassCSP: true });
+  try {
+    // the administration switches it on
+    await page.goto(`${BASE}/admin/consent`);
+    await idle();
+    await page.getByLabel(/^(ask for consent to cookies|nach der zustimmung zu cookies fragen)/i).check();
+    await page.getByLabel(/^(consent required|zustimmung zwingend)$/i).first().check();
+    await page.getByLabel(/^(signed-in people accept the privacy policy|angemeldete personen stimmen der datenschutzerklärung zu)/i).check();
+    const sub = page.locator('fieldset.ew-subfield', { has: page.locator('legend', { hasText: /^(page with the privacy policy|seite mit der datenschutzerklärung)$/i }) });
+    await sub.locator('input.ew-input[type=search]:not(.ew-picker-filter)').fill(`Privacy ${run}`);
+    await page.waitForFunction((n) => [...document.querySelectorAll('.ew-picker-list option')].some((o) => o.textContent.includes(n)), `Privacy ${run}`);
+    await sub.locator('.ew-picker-list').selectOption(String(pol.id));
+    await page.getByLabel(/^(guests|gäste)/i).selectOption('required');
+    await a11y('consent settings');
+    const saved = page.waitForResponse((r) => r.url().endsWith('/api/v1/admin/consent') && r.request().method() === 'PUT');
+    await page.getByRole('button', { name: /^(save|speichern)$/i }).click();
+    assert.equal((await saved).status(), 200);
+
+    // a person signs in: first the policy, the wiki only after accepting
+    const p2 = await ctx.newPage();
+    p2.on('pageerror', (e) => errors.push(`consent user: ${e.message}`));
+    await p2.goto(`${BASE}/login`);
+    // the cookie banner (required: modal) comes first, also on the sign-in page
+    const cookies = p2.getByRole('dialog', { name: /^(cookies and similar storage|cookies und ähnliche speicher)$/i });
+    await cookies.waitFor();
+    await a11y('cookie banner', p2);
+    await p2.keyboard.press('Escape');
+    assert.ok(await cookies.isVisible(), 'Escape does not dismiss the required banner');
+    await cookies.getByRole('button', { name: /^(only necessary|nur notwendige)$/i }).click();
+    await cookies.waitFor({ state: 'detached' });
+    await p2.getByLabel(/user ?name|benutzername/i).fill(name);
+    await p2.getByLabel(/^(password|passwort)/i).fill(pw);
+    await p2.keyboard.press('Enter');
+    // signed in: the policy comes before the wiki
+    const dlg = p2.getByRole('dialog', { name: /^(privacy policy|datenschutzerklärung)$/i });
+    await dlg.getByText(`We keep okapi data ${run}.`).waitFor();
+    assert.equal(await dlg.getByRole('button', { name: /^(later|später)/i }).count(), 0, 'only administrators may postpone');
+    await a11y('privacy policy to accept', p2);
+    await p2.keyboard.press('Escape');
+    assert.ok(await dlg.isVisible(), 'Escape does not dismiss the policy');
+    await dlg.getByRole('button', { name: /^(accept|zustimmen)$/i }).click();
+    await dlg.waitFor({ state: 'detached' });
+    await p2.waitForURL((u) => !u.pathname.startsWith('/login'));
+    await p2.goto(`${BASE}/e/${other.id}`);
+    await p2.locator('main').getByText('Lynx notes').waitFor();
+    assert.equal(await p2.evaluate(() => JSON.parse(localStorage.getItem('ewiki.consent.cookies')).cats.length), 0);
+    // the profile shows it and opens the choice again, with the categories
+    await p2.goto(`${BASE}/profile`);
+    await p2.getByText(/you accepted the privacy policy \(version 1\)|sie haben der datenschutzerklärung \(version 1\)/i).waitFor();
+    await p2.getByRole('button', { name: /^(cookie settings|cookie-einstellungen)$/i }).click();
+    const again = p2.getByRole('region', { name: /^(cookies and similar storage|cookies und ähnliche speicher)$/i });
+    await again.getByRole('button', { name: /^(choose|auswählen)$/i }).click();
+    await again.getByLabel(/^(external media|externe medien)$/i).check();
+    await a11y('cookie settings with categories', p2);
+    await again.getByRole('button', { name: /^(save choice|auswahl speichern)$/i }).click();
+    assert.equal(await p2.evaluate(() => JSON.parse(localStorage.getItem('ewiki.consent.cookies')).cats.join()), 'external_media');
+    await p2.close();
+
+    // a guest: the policy is required as well (kept in the browser)
+    const g = await ctx.browser().newContext({ viewport: { width: 1280, height: 900 }, bypassCSP: true });
+    const gp = await g.newPage();
+    await gp.goto(`${BASE}/e/${other.id}`);
+    await gp.getByRole('dialog', { name: /^(privacy policy|datenschutzerklärung)$/i }).getByRole('button', { name: /^(accept|zustimmen)$/i }).click();
+    await gp.getByRole('dialog', { name: /^(cookies and similar storage|cookies und ähnliche speicher)$/i }).getByRole('button', { name: /^(only necessary|nur notwendige)$/i }).click();
+    await gp.locator('main').getByText('Lynx notes').waitFor();
+    await g.close();
+
+    // the administration: asked as well, may postpone; the proof lists the person
+    await page.goto(`${BASE}/admin/consent`);
+    const adlg = page.getByRole('dialog', { name: /^(privacy policy|datenschutzerklärung)$/i });
+    await adlg.getByRole('button', { name: /^(later|später)/i }).click();
+    const cb = page.getByRole('dialog', { name: /^(cookies and similar storage|cookies und ähnliche speicher)$/i });
+    await cb.getByRole('button', { name: /^(accept all|alle akzeptieren)$/i }).click();
+    await idle();
+    await page.getByRole('table', { name: /^(who accepted the privacy policy|wer der datenschutzerklärung zugestimmt hat)$/i }).getByRole('cell', { name: name, exact: true }).waitFor();
+    await page.getByRole('link', { name: /^(download all as csv|alle als csv herunterladen)$/i }).waitFor();
+    await a11y('consent proof');
+  } finally {
+    await ctx.close();
+    await call('PUT', '/api/v1/admin/consent', { cookies: { enabled: false }, privacy: { enabled: false } }).catch(() => undefined);
+    await page.evaluate(() => localStorage.removeItem('ewiki.consent.cookies'));
+  }
+});
+
 test('menu item pointing to an existing element; new blog from the menu dialog', async () => {
   const cat = await m6Category();
   await call('POST', '/api/v1/elements', { category_id: cat, type: 'core.html', title: `Pickable ${run}`, body: { format: 'html', source: '<p>x</p>' } });

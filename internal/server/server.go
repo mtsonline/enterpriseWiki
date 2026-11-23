@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"path"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/mtsonline/enterprisewiki/internal/app"
@@ -38,7 +39,10 @@ type Server struct {
 	collabDone context.Context
 	closeLive  context.CancelFunc
 	limits     *limiter // requests per account or address (S-04)
-	forwards   untrustedForwards
+	// consentOK: people known to have accepted a version of the privacy
+	// policy ("user/version"); only positive answers, they do not change
+	consentOK sync.Map
+	forwards  untrustedForwards
 }
 
 // New creates the server. web contains the built frontend (may be nil).

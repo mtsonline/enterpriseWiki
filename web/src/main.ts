@@ -25,6 +25,7 @@ import { pluginModules } from './generated/plugins';
 import { positionContainer, refreshPositions, registerAdminPage, registerPageAction, registerProfileSection, registerSlot, registerTemplate, previewTemplate, resolveTemplate, setShownTemplate, siteTemplate, triedTemplate } from './coreplugin';
 import { tryBar } from './components/trytemplate';
 import { closedPage, maintenanceBar } from './components/maintenance';
+import { cookieBanner, cookieSettingsBlock, privacyGate } from './components/consent';
 import { instanceRightsButton } from './components/instanceRights';
 import { instanceLabelsButton } from './components/instanceLabels';
 import { placementEditor, typeLayouts } from './components/placement';
@@ -102,6 +103,8 @@ function registerCore(): void {
   registerSlot({ id: 'core.bell', position: 'header-tools', order: 35, label: () => t('block.core.bell'), render: () => notificationBell() });
   registerSlot({ id: 'core.user', position: 'header-tools', order: 40, always: true, label: () => t('block.core.user'), render: userMenu });
   // reading progress: not placed by default (e.g. under the header in a template)
+  // cookie settings: not placed by default (e.g. in the footer)
+  registerSlot({ id: 'core.cookiesettings', position: '', order: 91, label: () => t('block.core.cookiesettings'), render: () => cookieSettingsBlock() });
   registerSlot({ id: 'core.readprogress', position: '', order: 90, label: () => t('block.core.readprogress'), render: readProgress });
   registerSlot({ id: 'core.tree', position: 'sidebar', order: 10, label: () => t('block.core.tree'), render: categoryTree });
 
@@ -124,6 +127,11 @@ function registerCore(): void {
 // A failed request that no code handled is shown instead of failing silently.
 // It is not suppressed: the browser tests still count it as an error.
 window.addEventListener('unhandledrejection', (ev) => {
+  // the privacy policy is due (for example a new version while the page is open)
+  if (ev.reason instanceof ApiError && ev.reason.code === 'consent_required') {
+    void privacyGate().then(() => location.reload());
+    return;
+  }
   if (ev.reason instanceof ApiError) toast(errorText(ev.reason), 'error');
 });
 
@@ -150,6 +158,8 @@ async function boot(): Promise<void> {
     closedPage(app);
     return;
   }
+  // the privacy policy first, where it is asked for (not on the sign-in page)
+  if (!location.pathname.startsWith('/login')) await privacyGate();
   document.documentElement.dataset.site = state.site.name;
   // explanations are shown or hidden for the person, on every page
   watchHelp();
@@ -179,6 +189,7 @@ async function boot(): Promise<void> {
   };
   let layout = build();
   showPositionsMode();
+  cookieBanner();
   const maint = maintenanceBar();
   if (maint) document.body.prepend(maint);
   // a template tried only in this browser: a bar says so and ends it

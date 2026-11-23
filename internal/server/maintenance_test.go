@@ -22,6 +22,9 @@ func (c *client) raw503(method, path string, body any) (int, string, http.Header
 	req, _ := http.NewRequest(method, c.e.srv.URL+path, r)
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("X-Requested-With", "ewiki")
+	if c.token != "" {
+		req.Header.Set("Authorization", "Bearer "+c.token)
+	}
 	res, err := c.http.Do(req)
 	if err != nil {
 		c.e.t.Fatal(err)

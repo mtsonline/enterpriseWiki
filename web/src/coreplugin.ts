@@ -36,6 +36,7 @@ export type { SettingField } from './components/settings';
 export { t, pick, uiLang, pluralForm } from './core/i18n';
 export { state, onChange, isAdmin, hasPerm } from './core/state';
 export { toast, announce } from './core/announce';
+export { consentGiven, registerConsentCategory, onConsentChange, type ConsentCategory } from './core/consent';
 export { navigate, route, rerender } from './core/router';
 export { button, field, textInput, textArea, select, checkbox, openDialog, confirmDialog, formDialog, langFields, errorText, loading, pageHeader } from './components/ui';
 export type * from './core/types';

@@ -257,6 +257,20 @@ In Markdown a macro is written as a directive: `::name{a=b}` (without content), 
 
 `MacroContext` contains the `RenderContext` (element, category, language, viewer, `Service` for queries with their permissions), the parameters, the **already sanitised** content (`Body`) and the headings of the page (`Headings`). Everything else the macro outputs it must escape itself (`html.EscapeString`). Check links with `core_layout.SafeURL`. Errors appear as a notice on the page, not as an error page. The macro dialog in the editor appears automatically (`GET /api/v1/macros`).
 
+### Consent categories {#consent}
+
+When the administration asks for consent to cookies, the banner lists categories. A plugin that stores or loads something in the browser beyond what is necessary (for example statistics) registers its own category and asks before it does so:
+
+```ts
+import { consentGiven, onConsentChange, registerConsentCategory, t } from '@ewiki/coreplugin';
+
+registerConsentCategory({ id: 'acme.stats', label: () => t('acme.stats'), description: () => t('acme.stats_help') });
+if (consentGiven('acme.stats')) startStats();
+onConsentChange(() => { if (!consentGiven('acme.stats')) stopStats(); });
+```
+
+The id starts with the plugin id. Without the banner (switched off) `consentGiven` is `false`: the plugin then asks in its own way (like the two clicks of embeds) or does nothing.
+
 ### Data for reports {#data}
 
 Blocks and plugins can keep data for reports in a table of the core (`element_data`): one entry per use of a block (or per entry of a plugin) on an element and language. Reports read it with the permissions of the reader – only entries of elements the reader may see, never from the trash, hidden elements only on request.

@@ -2,7 +2,8 @@
 import { renderProfileSections } from '../coreplugin';
 import { assignedWatchesSection } from './adminWatches';
 import { api, ApiError, qs } from '../core/api';
-import { fmtDate, h, mount } from '../core/dom';
+import { fmtDate, h, mount, type Child } from '../core/dom';
+import { cookieBanner, privacyGate } from '../components/consent';
 import { loadMessages, pick, t } from '../core/i18n';
 import { navigate, onLeave, type RouteCtx } from '../core/router';
 import { changed, isAdmin, hasPerm, state } from '../core/state';
@@ -236,6 +237,8 @@ async function signedIn(u: Principal, next: string, link: { confirm: () => Promi
   changed();
   announce(t('auth.logged_in', { name: u.display_name || u.username }));
   if (link) await link.confirm();
+  // the privacy policy first, where it is asked for
+  await privacyGate();
   navigate(next);
 }
 
@@ -371,6 +374,21 @@ async function watchesSection(): Promise<HTMLElement | null> {
   return sec;
 }
 
+/** Profile: the accepted privacy policy and the cookie choice (when asked for). */
+async function consentSection(): Promise<HTMLElement | null> {
+  const c = state.site.consent;
+  if (!c?.cookies && !c?.privacy) return null;
+  const parts: Child[] = [];
+  if (c.privacy) {
+    const mine = await api.get<{ version: number; accepted_version: number; accepted_at: string | null }>('me/consent').catch(() => null);
+    parts.push(h('p', null, mine?.accepted_at
+      ? t('consent.profile_accepted', { version: mine.accepted_version, date: fmtDate(mine.accepted_at, state.lang) })
+      : t('consent.profile_not_accepted')), h('p', null, h('a', { href: `/e/${c.privacy.page}` }, t('consent.privacy_policy'))));
+  }
+  if (c.cookies) parts.push(h('p', null, button(t('consent.settings'), () => cookieBanner(true))));
+  return h('section', { class: 'ew-section', 'aria-labelledby': 'cs-h' }, h('h2', { id: 'cs-h' }, t('consent.profile_title')), ...parts);
+}
+
 export async function profileView({ main }: RouteCtx): Promise<void> {
   setContext(0, [], []);
   const u = state.user;
@@ -471,6 +489,7 @@ export async function profileView({ main }: RouteCtx): Promise<void> {
     ...(await renderProfileSections()),
     await assignedWatchesSection(),
     feedTokenSection(),
+    await consentSection(),
     pwSection,
     ...(await mfaSections()),
     h('section', { class: 'ew-section', 'aria-labelledby': 'ak-h' }, h('h2', { id: 'ak-h' }, t('apikey.title')), h('p', null, t('apikey.help')),

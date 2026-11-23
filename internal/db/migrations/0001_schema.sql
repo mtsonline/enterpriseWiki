@@ -930,3 +930,15 @@ CREATE TABLE data_kinds (
     started_at timestamptz NOT NULL DEFAULT now(),
     built_at   timestamptz
 );
+
+-- ---------------------------------------------------------------- consent
+-- who accepted which version of the privacy policy, and when (proof;
+-- config consent.privacy). Cookie choices stay in the browser.
+CREATE TABLE consents (
+    user_id     bigint NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    kind        text NOT NULL CHECK (kind IN ('privacy')),
+    version     integer NOT NULL CHECK (version >= 1),
+    accepted_at timestamptz NOT NULL DEFAULT now(),
+    PRIMARY KEY (user_id, kind, version)
+);
+CREATE INDEX consents_version ON consents (kind, version, accepted_at);

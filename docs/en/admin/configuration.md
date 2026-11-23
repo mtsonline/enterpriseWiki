@@ -292,6 +292,23 @@ Formats: **Teams** (Adaptive Card; in Teams create a workflow "Post to a channel
 
 Headers: `X-Ewiki-Event`, `X-Ewiki-Delivery` and with a signing key `X-Ewiki-Signature: sha256=<HMAC-SHA256 of the content>`. Events: `element.create|update|delete|move|restore|rollback`, `category.create|update|delete|move|restore`, `event.registration`, `event.registration_cancelled`, `event.occurrence_changed` (data: `occurrence`, `start`, `when`, `calendar`, `location`, `status`, `participant`), `comment.create` (data: `author`, `excerpt`, `reply`, `element_id`), `workflow.started`, `workflow.completed`, `workflow.cancelled` (data: `workflow`, `status`, `outcome`, `step`). Deliveries run through a queue; on errors they are retried after 1, 5, 30 minutes, 2 and 12 hours. Targets in the internal network are blocked without `allow_private` (protection against SSRF), redirects only within the webhook address.
 
+### `consent`
+Asking for consent to cookies and to the privacy policy (default: off). *Administration → Consent*, `ewiki consent set` or `PUT /api/v1/admin/consent` (permission `core.settings.manage`, in the audit log).
+
+| Key | Meaning | Default |
+|---|---|---|
+| `cookies.enabled` | a banner asks which storage may be used beyond the necessary one (*Accept all*, *Only necessary*, a choice of categories) | `false` |
+| `cookies.required` | the banner covers the page until a choice is made (“only necessary” is a choice too) | `false` |
+| `cookies.version` | a higher version asks everybody again | `1` |
+| `cookies.text`, `cookies.page` | text per language; page with the cookie policy | standard text, none |
+| `privacy.enabled` | signed-in people accept the privacy policy before they use the wiki | `false` |
+| `privacy.page` | the page with the privacy policy (required; readers need to be allowed to see it) | – |
+| `privacy.version` | a higher version asks everybody again; versions never go down | `1` |
+| `privacy.guests` | for guests: empty (nothing), `notice` (a notice with a link) or `required` | empty |
+| `privacy.text` | text per language | standard text |
+
+The wiki itself uses only necessary storage. With the cookie banner, the category *External media* loads allowed embeds without a second click; plugins can add categories. Cookie choices are kept in the browser. Each acceptance of the privacy policy is stored with person, version and time (proof: *Administration → Consent*, `GET /api/v1/admin/consents`, CSV, permission `core.audit.view`). The server enforces it for sessions in the browser: until then only the site, texts, the policy page, signing out and the consent itself work (`403`, code `consent_required`). API keys are not stopped (a person creates one only after accepting); administrators are asked as well but never locked out. For guests, *required* is kept in the browser and not enforced by the server, so the plain HTML for search engines stays.
+
 ### `maintenance`
 The maintenance mode: everybody but administrators can only read the wiki (`read_only`) or not use it at all (`closed`). Switched under *Administration → Maintenance*, with `ewiki maintenance set` or `PUT /api/v1/admin/maintenance` (administrators only, in the audit log).
 
