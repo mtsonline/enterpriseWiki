@@ -115,11 +115,27 @@ func (hero) Params() []content.MacroParam {
 		{Name: "button", Labels: lm("Button text", "Schaltflächentext"), Type: "text"},
 		{Name: "link", Labels: lm("Button link", "Schaltflächen-Link"), Type: "url"},
 		{Name: "background", Labels: lm("Background", "Hintergrund"), Type: "select", Options: []string{"accent", "dark", "light"}, Default: "accent"},
+		{Name: "height", Labels: lm("Height (desktop and tablet)", "Höhe (Desktop und Tablet)"), Type: "select", Options: heroHeights, Default: "auto", OptionLabels: heroHeightLabels},
+		{Name: "phone_height", Labels: lm("Height on the phone", "Höhe auf dem Handy"), Type: "select", Options: heroHeights, Default: "auto", OptionLabels: heroHeightLabels},
 	}
 }
+
+// The heights of a hero: always a least height of a share of the window,
+// with an upper bound in rem for very high windows, never a fixed height –
+// the text (also on a picture) stays whole on every screen, the hero only
+// grows (place rule, plan section 1).
+var heroHeights = []string{"auto", "third", "half", "window"}
+var heroHeightLabels = map[string]map[string]string{
+	"auto":   lm("As high as its content", "So hoch wie sein Inhalt"),
+	"third":  lm("A third of the window", "Ein Drittel des Fensters"),
+	"half":   lm("Half of the window", "Die Hälfte des Fensters"),
+	"window": lm("The window below the header", "Das Fenster unter dem Kopf"),
+}
+
 func (hero) Render(_ context.Context, mc content.MacroContext) (string, error) {
 	var b strings.Builder
-	fmt.Fprintf(&b, `<section class="ewl-hero ewl-hero--%s"><div class="ewl-hero-inner">`, oneOf(mc.Params["background"], []string{"accent", "dark", "light"}))
+	fmt.Fprintf(&b, `<section class="ewl-hero ewl-hero--%s ewl-hero--h-%s ewl-hero--p-%s"><div class="ewl-hero-inner">`, oneOf(mc.Params["background"], []string{"accent", "dark", "light"}),
+		oneOf(mc.Params["height"], heroHeights), oneOf(mc.Params["phone_height"], heroHeights))
 	if t := strings.TrimSpace(mc.Params["title"]); t != "" {
 		b.WriteString(`<p class="ewl-hero-title">` + esc(t) + `</p>`)
 	}

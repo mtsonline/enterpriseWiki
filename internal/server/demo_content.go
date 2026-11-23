@@ -1253,7 +1253,7 @@ func landingPage(d *demoRun, root int64, suffix string) {
 			return en
 		}
 		var b strings.Builder
-		b.WriteString(fmt.Sprintf(":::hero{title=%s subtitle=%s button=%s link=%s background=accent}\n%s\n:::\n\n",
+		b.WriteString(fmt.Sprintf(":::hero{title=%s subtitle=%s button=%s link=%s background=accent height=third}\n%s\n:::\n\n",
 			strconv.Quote(tr("Enterprise Wiki", "Enterprise Wiki")),
 			strconv.Quote(tr("Share knowledge securely – for teams, departments and the whole company.", "Wissen sicher teilen – für Teams, Abteilungen und das ganze Unternehmen.")),
 			strconv.Quote(tr("Start the tour", "Rundgang starten")), strconv.Quote(tour),
