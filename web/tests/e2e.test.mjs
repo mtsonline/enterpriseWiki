@@ -4727,6 +4727,10 @@ test('editor: blocks move with the mouse, the buttons and Alt+Arrow keys; their 
   const cat = await m6Category();
   const src = `:::panel{type=info}\nFirst okapi ${run}\n:::\n\n:::panel{type=warning}\nSecond lynx ${run}\n:::\n\nThe end.\n`;
   const el = await call('POST', '/api/v1/elements', { category_id: cat, type: 'core.html', title: `Move ${run}`, body: { format: 'markdown', source: src } });
+  // a page that starts with a block: no invalid selection when live editing starts
+  const warned = [];
+  const onWarn = (m) => { if (m.type() === 'warning' && /TextSelection endpoint/.test(m.text())) warned.push(m.text()); };
+  page.on('console', onWarn);
   await page.goto(`${BASE}/e/${el.id}/edit`);
   await idle();
   const blocks = page.locator('.ewe-prose > .ewe-macro');
@@ -4773,6 +4777,8 @@ test('editor: blocks move with the mouse, the buttons and Alt+Arrow keys; their 
   const md = (await call('GET', `/api/v1/elements/${el.id}?edit=1`)).body.source;
   assert.ok(md.indexOf('lynx') < md.indexOf('okapi'), 'saved in the new order');
   assert.match(md, /max_width:32/);
+  page.off('console', onWarn);
+  assert.deepEqual(warned, []);
 });
 
 test('menu item pointing to an existing element; new blog from the menu dialog', async () => {
