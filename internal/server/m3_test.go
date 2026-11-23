@@ -202,6 +202,8 @@ func TestHTTPMacro(t *testing.T) {
 			w.Write([]byte(`{"data":{"users":[{"name":"Ann","age":30},{"name":"<Bob>","age":41}]}}`))
 		case "/redirect":
 			http.Redirect(w, r, "http://example.invalid/", http.StatusFound)
+		case "/down":
+			w.WriteHeader(http.StatusServiceUnavailable)
 		default:
 			w.Write([]byte("plain <text>"))
 		}
@@ -221,8 +223,20 @@ func TestHTTPMacro(t *testing.T) {
 	if err := e.app.Config.Update(func(c *config.Config) error { c.Plugins.Macros.HTTPAllow = []string{upstream.URL + "/"}; return nil }); err != nil {
 		t.Fatal(err)
 	}
-	if h := page(`{"address":"` + upstream.URL + `/x"}`); !strings.Contains(h, "internal") {
+	if h := page(`{"address":"` + upstream.URL + `/x"}`); !strings.Contains(h, "HTTP request: the address is internal; only plugins.macros.http_allow_private in config.yaml allows it") {
 		t.Fatalf("loopback address fetched: %s", h)
+	}
+	// the notes in the language of the page
+	german := func(params string) string {
+		var res struct {
+			HTML string `json:"html"`
+		}
+		admin.must("POST", "/api/v1/elements/preview", map[string]any{"type": "core.html", "lang": "de",
+			"body": htmlBody(`<div data-macro="http" data-params='` + params + `'></div>`)}, &res, 200)
+		return res.HTML
+	}
+	if h := german(`{"address":"` + upstream.URL + `/x"}`); !strings.Contains(h, "HTTP-Abruf: die Adresse ist intern; nur plugins.macros.http_allow_private in config.yaml erlaubt sie") {
+		t.Fatalf("German note for an internal address: %s", h)
 	}
 	if err := e.app.Config.Update(func(c *config.Config) error { c.Plugins.Macros.HTTPAllowPrivate = true; return nil }); err != nil {
 		t.Fatal(err)
@@ -232,6 +246,15 @@ func TestHTTPMacro(t *testing.T) {
 	}
 	if h := page(`{"address":"` + upstream.URL + `/api/users","format":"json","path":"data.users"}`); !strings.Contains(h, "<th scope=\"col\">name</th>") || !strings.Contains(h, "&lt;Bob&gt;") {
 		t.Fatalf("json table: %s", h)
+	}
+	if h := german(`{"address":"` + upstream.URL + `/down","cache":"0"}`); !strings.Contains(h, "HTTP-Abruf: der Server antwortete mit dem Status 503") {
+		t.Fatalf("German note for a failing server: %s", h)
+	}
+	if h := german(`{"address":"` + upstream.URL + `/x","cache":"0","format":"json"}`); !strings.Contains(h, "HTTP-Abruf: die Antwort ist kein gültiges JSON") {
+		t.Fatalf("German note for invalid JSON: %s", h)
+	}
+	if h := page(`{"address":"` + upstream.URL + `/down","cache":"0"}`); !strings.Contains(h, "HTTP request: the server answered with the status 503") {
+		t.Fatalf("note for a failing server: %s", h)
 	}
 	if h := page(`{"address":"` + upstream.URL + `/redirect"}`); !strings.Contains(h, "not on the allow list") {
 		t.Fatalf("redirect outside the allow list followed: %s", h)

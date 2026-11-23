@@ -302,10 +302,10 @@ func (m *macro) Render(ctx context.Context, mc content.MacroContext) (string, er
 	cfg := p.host.Config.Get().Plugins.Macros
 	cmd := normalize(mc.Params["command"])
 	if cmd == "" {
-		return note(mc.Lang, "Shell macro: no command given.", "Shell-Makro: kein Befehl angegeben."), nil
+		return note(mc.Lang, "Shell command: no command given.", "Shell-Befehl: Es ist kein Befehl angegeben."), nil
 	}
 	if !cfg.ShellEnabled {
-		return note(mc.Lang, "Shell macros are disabled on this server.", "Shell-Makros sind auf diesem Server deaktiviert."), nil
+		return note(mc.Lang, "Shell commands are switched off on this server.", "Shell-Befehle sind auf diesem Server abgeschaltet."), nil
 	}
 	hash := Hash(cmd)
 	var status string
