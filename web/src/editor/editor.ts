@@ -13,7 +13,7 @@ import { InputRule, inputRules, textblockTypeInputRule, undoInputRule, wrappingI
 import { keymap } from 'prosemirror-keymap';
 import { Fragment, Slice, type MarkType, type Node as PMNode, type NodeType, type ResolvedPos } from 'prosemirror-model';
 import { liftListItem, sinkListItem, splitListItem, wrapInList } from 'prosemirror-schema-list';
-import { EditorState, NodeSelection, Plugin, TextSelection, type Command, type Transaction } from 'prosemirror-state';
+import { EditorState, NodeSelection, Plugin, Selection, TextSelection, type Command, type Transaction } from 'prosemirror-state';
 import { addColumnAfter, addColumnBefore, addRowAfter, addRowBefore, deleteColumn, deleteRow, deleteTable, goToNextCell, isInTable, tableEditing } from 'prosemirror-tables';
 import { dropPoint, findWrapping } from 'prosemirror-transform';
 import { EditorView, type NodeView } from 'prosemirror-view';
@@ -30,7 +30,7 @@ import { codeLanguage, codeLanguageOptions, codeLines } from '../core/codeblocks
 import { blockTemplateSource, saveBlockTemplate } from './blocktemplates';
 import { chooseBlock } from './blockpicker';
 import { isImage, mediaURL, pickMedium } from '../components/media';
-import { prosemirrorToYXmlFragment, redo as yRedo, undo as yUndo, yCursorPlugin, ySyncPlugin, yUndoPlugin, yUndoPluginKey } from 'y-prosemirror';
+import { prosemirrorToYXmlFragment, yXmlFragmentToProseMirrorRootNode, redo as yRedo, undo as yUndo, yCursorPlugin, ySyncPlugin, yUndoPlugin, yUndoPluginKey } from 'y-prosemirror';
 import { formatAttrs } from './attrs';
 import { Collab, collabURL, colorOf, markerOf, type Peer } from './collab';
 import { TextareaBinding } from './mdlive';
@@ -1214,7 +1214,13 @@ export function createMarkdownEditor(container: HTMLElement, opts: MarkdownEdito
   container.append(root);
 
   const view: EditorView = new EditorView(surface, {
-    state: EditorState.create({ doc: docOf(opts.markdown), plugins }),
+    state: (() => {
+      // the cursor at the first place for text: the collaboration keeps the
+      // selection by its numbers, and a selected block there (the default
+      // when a page starts with a block) is no valid text selection for it
+      const doc = docOf(opts.markdown);
+      return EditorState.create({ doc, plugins, selection: Selection.findFrom(doc.resolve(0), 1, true) ?? undefined });
+    })(),
     attributes: {
       class: 'ew-content ewe-prose', role: 'textbox', 'aria-multiline': 'true', 'aria-labelledby': opts.labelId,
       'aria-describedby': helpId, lang: opts.lang, spellcheck: 'true',
@@ -1348,7 +1354,13 @@ export function createMarkdownEditor(container: HTMLElement, opts: MarkdownEdito
         });
       } else if (!view.state.doc.eq(initial) || textarea.value !== initialMd) toast(t('editor.live_replaced'), 'error');
       liveOn = true;
-      view.updateState(EditorState.create({ schema, plugins: livePlugins(c) }));
+      // start from the shared document itself, with the cursor near where
+      // it was and at a place for text: the collaboration keeps a selection
+      // by its numbers, and one inside a block would be invalid there
+      const shared0 = yXmlFragmentToProseMirrorRootNode(c.fragment, schema);
+      const at = Math.min(view.state.selection.from, shared0.content.size);
+      const sel0 = Selection.findFrom(shared0.resolve(at), -1, true) ?? Selection.findFrom(shared0.resolve(at), 1, true) ?? undefined;
+      view.updateState(EditorState.create({ schema, doc: shared0, selection: sel0, plugins: livePlugins(c) }));
       // the mode is shared: whoever switches, switches for everyone
       const shared = () => (c.meta.get('mode') === 'markdown' ? 'markdown' : 'visual');
       if (shared() !== mode) setMode(shared(), true);
