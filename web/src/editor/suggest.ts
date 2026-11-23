@@ -83,7 +83,6 @@ export class Suggest {
     this.list.style.top = `${window.scrollY + rect.bottom + 4}px`;
     this.draw();
     this.host.setAttribute('aria-controls', this.id);
-    this.host.setAttribute('aria-expanded', 'true');
     this.host.setAttribute('aria-autocomplete', 'list');
     if (!was) announce(t('editor.suggest_count', { count: items.length }));
   }
@@ -112,7 +111,6 @@ export class Suggest {
     this.list = null;
     this.items = [];
     for (const a of ['aria-controls', 'aria-activedescendant', 'aria-autocomplete']) this.host.removeAttribute(a);
-    this.host.setAttribute('aria-expanded', 'false');
   }
 
   /** Handles a key while the list is open; true when it was used. */
