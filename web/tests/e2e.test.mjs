@@ -4672,7 +4672,7 @@ test('consent: privacy policy accepted before use, cookie banner with categories
     await p2.getByLabel(/user ?name|benutzername/i).fill(name);
     await p2.getByLabel(/^(password|passwort)/i).fill(pw);
     await p2.keyboard.press('Enter');
-    await p2.waitForURL((u) => !u.pathname.startsWith('/login'));
+    // signed in: the policy comes before the wiki
     const dlg = p2.getByRole('dialog', { name: /^(privacy policy|datenschutzerklärung)$/i });
     await dlg.getByText(`We keep okapi data ${run}.`).waitFor();
     assert.equal(await dlg.getByRole('button', { name: /^(later|später)/i }).count(), 0, 'only administrators may postpone');
@@ -4681,6 +4681,7 @@ test('consent: privacy policy accepted before use, cookie banner with categories
     assert.ok(await dlg.isVisible(), 'Escape does not dismiss the policy');
     await dlg.getByRole('button', { name: /^(accept|zustimmen)$/i }).click();
     await dlg.waitFor({ state: 'detached' });
+    await p2.waitForURL((u) => !u.pathname.startsWith('/login'));
     await p2.goto(`${BASE}/e/${other.id}`);
     await p2.locator('main').getByText('Lynx notes').waitFor();
     assert.equal(await p2.evaluate(() => JSON.parse(localStorage.getItem('ewiki.consent.cookies')).cats.length), 0);
