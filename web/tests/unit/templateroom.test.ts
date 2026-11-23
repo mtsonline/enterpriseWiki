@@ -4,8 +4,8 @@
 // refuses and never refuses what it allows.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { cssSafe, needRoom, positionsRoom, room, viewOf } from '../../../plugins/core_template/web/room';
-import type { Design, ViewName } from '../../../plugins/core_template/web/engine';
+import { cssSafe, forgetInViews, needRoom, positionsRoom, room, viewOf } from '../../../plugins/core_template/web/room';
+import type { Design, Row, ViewName } from '../../../plugins/core_template/web/engine';
 import wiki from '../../../plugins/core_template/examples/wiki.json';
 import cms from '../../../plugins/core_template/examples/cms.json';
 import shared from '../../../plugins/core_template/testdata/room.json';
@@ -72,4 +72,14 @@ test('own CSS: the designer refuses what the server refuses (shared cases)', asy
   const cases = (await import('../../../plugins/core_template/testdata/css_cases.json')).default as { css: string; ok: boolean }[];
   assert.ok(cases.length > 20);
   for (const c of cases) assert.equal(cssProblems(c.css).length === 0, c.ok, c.css);
+});
+
+test('an area deleted or moved leaves the views of its row', () => {
+  const r = { id: 'head', role: 'banner', width: 'full', background: 'header', blocks: [],
+    desktop: { drawer: ['tools'] }, tablet: { stack: false, drawer: ['menu', 'tools'], hidden: ['tools'], widths: { tools: 10, menu: 20 } },
+    mobile: { stack: true, drawer: ['tools'] } } as unknown as Row;
+  forgetInViews(r, 'tools');
+  assert.equal(r.desktop, undefined);
+  assert.deepEqual(r.tablet, { stack: false, drawer: ['menu'], widths: { menu: 20 } });
+  assert.deepEqual(r.mobile, { stack: true });
 });

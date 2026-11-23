@@ -119,3 +119,23 @@ export function cssProblems(css: string): { line: number; what: string }[] {
   }
   return out;
 }
+
+/** Removes an area from the views of its row (when it is deleted or moved
+ * to another row): the server refuses views that name an area the row
+ * does not have. */
+export function forgetInViews(r: Row, id: string): void {
+  for (const v of ['desktop', 'tablet', 'mobile'] as const) {
+    const vw = r[v] as Partial<View> | undefined;
+    if (!vw) continue;
+    for (const k of ['drawer', 'hidden'] as const) {
+      if (!vw[k]) continue;
+      vw[k] = vw[k]!.filter((x) => x !== id);
+      if (!vw[k]!.length) delete vw[k];
+    }
+    if (vw.widths) {
+      delete vw.widths[id];
+      if (!Object.keys(vw.widths).length) delete vw.widths;
+    }
+    if (v === 'desktop' && !Object.keys(vw).length) delete r.desktop;
+  }
+}

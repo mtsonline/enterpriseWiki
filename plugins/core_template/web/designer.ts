@@ -11,7 +11,7 @@ import type { Block, Design, Row, View, ViewName } from './engine';
 import { LIMITS, VIEWS } from './engine';
 import { checkPairs } from './contrast';
 import { cssProblems } from './room';
-import { cssSafe, needRoom, positionsRoom, room, viewOf } from './room';
+import { cssSafe, forgetInViews, needRoom, positionsRoom, room, viewOf } from './room';
 
 const BASE = 'x/core.template';
 /** The width of the frame of each view: a common window of that kind. */
@@ -476,12 +476,13 @@ export async function designer(panel: HTMLElement, key: string, back: () => void
           h('div', { class: 'ew-actions' },
             button(t('template.d_delete_block'), () => {
               if (b.kind === 'content') { toast(t('template.d_keep_content'), 'error'); return; }
-              change((d) => { d.rows[ri].blocks.splice(bi, 1); sel = { row: ri, block: null }; });
+              change((d) => { const [x] = d.rows[ri].blocks.splice(bi, 1); forgetInViews(d.rows[ri], x.id); sel = { row: ri, block: null }; });
             }, { variant: 'danger', id: cid(`b${ri}-${bi}-del`) }),
             draft.rows.length > 1 ? sel1(`b${ri}-${bi}-move`, t('template.d_move_to'), draft.rows.map((_, i) => String(i)), String(ri), (o) => t('template.d_row', { n: Number(o) + 1, id: draft.rows[Number(o)].id }), (d, v) => {
               const to = Number(v);
               if (to === ri) return;
               const [x] = d.rows[ri].blocks.splice(bi, 1);
+              forgetInViews(d.rows[ri], x.id);
               d.rows[to].blocks.push(x);
               sel = { row: to, block: d.rows[to].blocks.length - 1 };
             }) : h('span')));

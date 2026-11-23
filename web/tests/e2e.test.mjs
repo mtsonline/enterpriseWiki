@@ -3897,6 +3897,11 @@ test('template designer, part 3: a warning for standard positions, widths by dra
     await a11y('the designer with the behaviours');
     await page.getByLabel(/^(open and close on the phone|auf dem handy auf- und zuklappen)$/i).uncheck();
     await page.getByText(/^(no problems|keine probleme)/i).first().waitFor();
+    // deleting an area that lies in a drawer on tablet and phone also takes
+    // it out of these views (else the server refuses the design)
+    await page.getByRole('button', { name: /^tools \((area|bereich)\)$/i }).click();
+    await page.getByRole('button', { name: /^(delete area|bereich löschen)$/i }).click();
+    await page.getByText(/^(no problems|keine probleme)/i).first().waitFor();
     const saved = page.waitForResponse((r) => r.url().endsWith(`/api/v1/x/core.template/templates/${tpl.key}`) && r.request().method() === 'PUT');
     await page.getByRole('button', { name: /^(save|speichern)$/i }).click();
     assert.equal((await saved).status(), 200);
