@@ -1376,7 +1376,7 @@ var traps = []trap{
 		ID: "audit.csv-formula", About: "the CSV export of the audit log lets values become formulas",
 		File: "internal/server/api_audit.go",
 		Old:  "_ = cw.Write(csvsafe.Row([]string{",
-		New:  "_ = cw.Write(([]string{",
+		New:  "_ = csvsafe.Row\n\t\t\t\t\t_ = cw.Write(([]string{",
 		Pkg:  "./internal/server/", Tests: "^TestAuditCSVNoFormulas$",
 	},
 }
