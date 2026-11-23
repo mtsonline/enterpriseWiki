@@ -3000,5 +3000,9 @@
  "editor.height_of": "Mindesthöhe von {name}",
  "editor.height_auto": "Automatisch",
  "editor.height_set": "Mindesthöhe: {height}.",
- "editor.size_bad_options": "Die Optionen dieses Bausteins lassen sich nicht lesen; ändern Sie die Größe unter Optionen."
+ "editor.size_bad_options": "Die Optionen dieses Bausteins lassen sich nicht lesen; ändern Sie die Größe unter Optionen.",
+ "placement.hidden_here": "In dieser Kategorie ausgeblendet",
+ "placement.hidden_here_help": "Diese Bausteine zeigt eine Ebene darüber; diese Kategorie blendet sie aus. Die Kästchen legen fest, wo das Ausblenden gilt. Ohne Haken gilt dort wieder die Ebene darüber.",
+ "placement.unhide": "Wieder wie darüber anzeigen",
+ "placement.unhidden": "{block} wird wieder wie in der Ebene darüber angezeigt."
 }

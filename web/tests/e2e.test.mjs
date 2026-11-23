@@ -2279,6 +2279,38 @@ test('placement: scope for a category – only on its page, without the subcateg
       await page.locator('.ew-pos--header-tools form[role=search]').waitFor();
       assert.equal(await page.locator('.ew-pos--footer form[role=search]').count(), 0, `no search in the footer: ${url}`);
     }
+    // a block hidden in the category gets the same scope: hidden here, but
+    // not in the subcategories
+    await call('PUT', `/api/v1/placements/category?target=${cat}`, { placements: [] });
+    await page.goto(`${BASE}/c/${cat}/settings?tab=placement`);
+    await idle();
+    await page.getByRole('combobox', { name: /^(position of search|position von suche)$/i }).selectOption('');
+    const hidden = page.getByRole('region', { name: /^(hidden in this category|in dieser kategorie ausgeblendet)$/i });
+    await hidden.getByText(/^(search|suche)$/i).waitFor();
+    const hsubs = hidden.getByRole('checkbox', { name: /^(include subcategories|unterkategorien einbeziehen): (search|suche)$/i });
+    assert.ok(await hsubs.isChecked(), 'hidden in the subcategories by default');
+    await hsubs.uncheck();
+    await page.locator('[aria-live=polite]', { hasText: /subcategories|unterkategorien/i }).waitFor({ state: 'attached' });
+    await a11y('scope of a hidden block');
+    await page.getByRole('button', { name: /^(save|speichern)$/i }).click();
+    await page.locator('.ew-toast', { hasText: /placement saved|platzierung gespeichert/i }).first().waitFor();
+    const hiddenRow = (await call('GET', `/api/v1/placements/category?target=${cat}`)).placements.find((p) => p.block === 'core.search');
+    assert.ok(hiddenRow && hiddenRow.position === '' && hiddenRow.no_subcategories && !hiddenRow.only_category_page, 'stored hidden, without the subcategories');
+    await page.goto(`${BASE}/c/${cat}`);
+    await idle();
+    await page.locator('main').waitFor();
+    assert.equal(await page.locator('form[role=search]').count(), 0, 'no search in the category');
+    await page.goto(`${BASE}/c/${sub}`);
+    await idle();
+    await page.locator('.ew-pos--header-tools form[role=search]').waitFor();
+    // and back to what is inherited
+    await page.goto(`${BASE}/c/${cat}/settings?tab=placement`);
+    await idle();
+    await hidden.getByRole('button', { name: /^(show as above again|wieder wie darüber anzeigen): (search|suche)$/i }).click();
+    assert.equal(await hidden.count(), 0, 'nothing hidden any more');
+    await page.getByRole('button', { name: /^(save|speichern)$/i }).click();
+    await page.locator('.ew-toast', { hasText: /placement saved|platzierung gespeichert/i }).first().waitFor();
+    assert.equal((await call('GET', `/api/v1/placements/category?target=${cat}`)).placements.length, 0, 'nothing of its own');
   } finally {
     await call('PUT', `/api/v1/placements/category?target=${cat}`, { placements: [] });
   }

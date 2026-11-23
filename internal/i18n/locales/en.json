@@ -3000,5 +3000,9 @@
  "editor.height_of": "Minimum height of {name}",
  "editor.height_auto": "Automatic",
  "editor.height_set": "Minimum height: {height}.",
- "editor.size_bad_options": "The options of this block cannot be read; change the size under Options."
+ "editor.size_bad_options": "The options of this block cannot be read; change the size under Options.",
+ "placement.hidden_here": "Hidden in this category",
+ "placement.hidden_here_help": "A level above shows these blocks; this category hides them. The boxes set where the hiding applies. Without a tick, the level above applies there again.",
+ "placement.unhide": "Show as above again",
+ "placement.unhidden": "{block} is shown as in the level above again."
 }

@@ -66,6 +66,22 @@ export async function placementEditor(level: 'site' | 'type' | 'category' | 'cat
   const effective = (b: string): { position: string; sort: number; options?: BlockOptions }[] => own.has(b)
     ? own.get(b)!.filter((r) => r.position).map((r) => ({ position: r.position, sort: order.get(`${b}@${r.position}`) ?? 50, options: r.options }))
     : (resolvedAbove.get(b) ?? []);
+  // the scope of a placement for a category (also of a block hidden
+  // there): on all its pages, in its subcategories
+  const scopeOf = (b: PlaceableBlock, pos: string): HTMLElement => {
+    const key = `${b.id}@${pos}`;
+    const row = () => { takeOver(b.id); return own.get(b.id)!.find((x) => x.position === pos)!; };
+    const mine = own.get(b.id)?.find((x) => x.position === pos);
+    const pages = checkbox(t('placement.scope_pages'), !mine?.onlyPage);
+    const sub = checkbox(t('placement.scope_sub'), !mine?.noSub);
+    pages.input.setAttribute('aria-label', `${t('placement.scope_pages')}: ${b.label}`);
+    sub.input.setAttribute('aria-label', `${t('placement.scope_sub')}: ${b.label}`);
+    pages.input.dataset.key = `${key}:pages`;
+    sub.input.dataset.key = `${key}:sub`;
+    pages.input.addEventListener('change', () => { row().onlyPage = !pages.input.checked; status.textContent = t(pages.input.checked ? 'placement.scope_pages_on' : 'placement.scope_pages_off', { block: b.label }); draw(`${key}:pages`); });
+    sub.input.addEventListener('change', () => { row().noSub = !sub.input.checked; status.textContent = t(sub.input.checked ? 'placement.scope_sub_on' : 'placement.scope_sub_off', { block: b.label }); draw(`${key}:sub`); });
+    return h('div', { class: 'ew-placement-scope' }, pages.el, sub.el);
+  };
   const draw = (focusKey?: string) => {
     const groups = positions.map((pos) => {
       const here = blocks.filter((b) => effective(b.id).some((x) => x.position === pos))
@@ -121,21 +137,7 @@ export async function placementEditor(level: 'site' | 'type' | 'category' | 'cat
         optBtn.dataset.key = `${key}:opts`;
         const req = level === 'site' ? checkbox(t('placement.required'), own.get(b.id)?.some((x) => x.required) ?? false, { help: t('placement.required_help') }) : null;
         req?.input.addEventListener('change', () => { takeOver(b.id); own.get(b.id)!.forEach((x) => { x.required = req.input.checked; }); });
-        // the scope of a placement for a category: on all its pages, in its subcategories
-        let scope: HTMLElement | null = null;
-        if (level === 'category') {
-          const row = () => { takeOver(b.id); return own.get(b.id)!.find((x) => x.position === pos)!; };
-          const mine = own.get(b.id)?.find((x) => x.position === pos);
-          const pages = checkbox(t('placement.scope_pages'), !mine?.onlyPage);
-          const sub = checkbox(t('placement.scope_sub'), !mine?.noSub);
-          pages.input.setAttribute('aria-label', `${t('placement.scope_pages')}: ${b.label}`);
-          sub.input.setAttribute('aria-label', `${t('placement.scope_sub')}: ${b.label}`);
-          pages.input.dataset.key = `${key}:pages`;
-          sub.input.dataset.key = `${key}:sub`;
-          pages.input.addEventListener('change', () => { row().onlyPage = !pages.input.checked; status.textContent = t(pages.input.checked ? 'placement.scope_pages_on' : 'placement.scope_pages_off', { block: b.label }); draw(`${key}:pages`); });
-          sub.input.addEventListener('change', () => { row().noSub = !sub.input.checked; status.textContent = t(sub.input.checked ? 'placement.scope_sub_on' : 'placement.scope_sub_off', { block: b.label }); draw(`${key}:sub`); });
-          scope = h('div', { class: 'ew-placement-scope' }, pages.el, sub.el);
-        }
+        const scope = level === 'category' ? scopeOf(b, pos) : null;
         return h('li', { class: 'ew-placement-item' },
           h('span', { class: 'ew-placement-name' }, b.label, inherited ? h('span', { class: 'ew-muted' }, ` – ${t('placement.inherited')}`) : null),
           h('span', { class: 'ew-actions' }, up, down, where, optBtn), req?.el ?? null, scope);
@@ -143,6 +145,22 @@ export async function placementEditor(level: 'site' | 'type' | 'category' | 'cat
       return h('li', null, h('h3', null, `${positionLabel(pos)} (${pos})`),
         items.length ? h('ol', { class: 'ew-placement-list' }, ...items) : h('p', { class: 'ew-muted' }, t('placement.empty')));
     });
+    // blocks this category hides (shown above): where the hiding applies,
+    // and the way back to what is inherited
+    const hiddenHere = level === 'category'
+      ? blocks.filter((b) => own.get(b.id)?.length && own.get(b.id)!.every((r) => !r.position) && (resolvedAbove.get(b.id) ?? []).length > 0)
+      : [];
+    const hiddenList = hiddenHere.length ? h('section', { class: 'ew-placement-hidden', 'aria-labelledby': `${headingId}-hidden` },
+      h('h3', { id: `${headingId}-hidden` }, t('placement.hidden_here')),
+      h('p', { class: 'ew-help' }, t('placement.hidden_here_help')),
+      h('ul', { class: 'ew-placement-list' }, ...hiddenHere.map((b) => {
+        const back = button(t('placement.unhide'), () => {
+          own.delete(b.id);
+          status.textContent = t('placement.unhidden', { block: b.label });
+          draw();
+        }, { variant: 'subtle', ariaLabel: `${t('placement.unhide')}: ${b.label}` });
+        return h('li', { class: 'ew-placement-item' }, h('span', { class: 'ew-placement-name' }, b.label), h('span', { class: 'ew-actions' }, back), scopeOf(b, ''));
+      }))) : null;
     // blocks not shown anywhere (hidden or at a position this template lacks)
     const elsewhere = blocks.filter((b) => !effective(b.id).some((x) => positions.includes(x.position)));
     const addSel = select(elsewhere.map((b) => ({ value: b.id, label: b.label })));
@@ -165,7 +183,7 @@ export async function placementEditor(level: 'site' | 'type' | 'category' | 'cat
     // reset: only the blocks shown here (the own level also holds the rest of the interface)
     const shownOwn = blocks.filter((b) => own.has(b.id));
     const reset = shownOwn.length ? button(t('placement.reset'), () => { for (const b of shownOwn) own.delete(b.id); status.textContent = t('placement.reset_done'); draw(); }, { variant: 'link' }) : null;
-    list.replaceChildren(h('ul', { class: 'ew-plain-list ew-placement-positions' }, ...groups), add ?? '', reset ?? '');
+    list.replaceChildren(h('ul', { class: 'ew-plain-list ew-placement-positions' }, ...groups), hiddenList ?? '', add ?? '', reset ?? '');
     if (focusKey) list.querySelector<HTMLElement>(`[data-key="${CSS.escape(focusKey)}"]:not([disabled])`)?.focus();
   };
   // a block taken over from above gets rows of its own (same positions)
