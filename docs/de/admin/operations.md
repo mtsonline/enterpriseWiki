@@ -43,7 +43,7 @@ npm-Pakete, Docker-Basis-Images, GitHub Actions):
 2. Die **CI** prüft jeden Pull Request vollständig: Build, Go-Tests mit PostgreSQL, Browser-Tests mit
    Barrierefreiheitsprüfung, Docker-Build und Lizenzprüfung der Abhängigkeiten. Nur wenn alles grün ist, führt
    Renovate den Pull Request **automatisch** zusammen – auch bei großen Versionssprüngen. Rote Pull Requests bleiben
-   offen; GitHub meldet das per E-Mail. Die Übersicht aller offenen Updates steht im Issue „Dependency Dashboard“.
+   offen; die Prüfung *Renovate watch* (Punkt 6) meldet sie. Die Übersicht aller offenen Updates steht im Issue „Dependency Dashboard“.
 3. Nach jeder Änderung auf `main` baut **docker-publish** das Image `ghcr.io/mtsonline/enterprisewiki:latest` (amd64,
    arm64) neu; Versions-Tags `v7.5.0` ergeben zusätzlich `:7.5.0`, `:7.5` und `:7`.
 4. Der nächtliche **Canary**-Lauf baut und testet mit den allerneuesten Versionen (ohne Wartezeit, ohne etwas zu
@@ -52,6 +52,11 @@ npm-Pakete, Docker-Basis-Images, GitHub Actions):
    vergleicht Go-Toolchain, direkte Go-Module, npm-Pakete und die Node.js-LTS mit der jeweils neuesten stabilen
    Version. Ist ein Update länger als 7 Tage offen (z. B. Renovate-PR mit roter CI), schlägt sie fehl – so bleibt
    nichts unbemerkt veraltet.
+6. Die tägliche Prüfung **Renovate watch** (`.github/workflows/renovate-watch.yml`) öffnet ein Issue
+   „Renovate: stuck pull requests“ (Label `renovate-stuck`), sobald ein Renovate-Pull-Request hängt: rote CI aus
+   einem anderen Grund als der 3-Tage-Regel für neue npm-Versionen, oder grüne CI, aber seit mehr als 2 Tagen offen.
+   Das Issue wird täglich aktualisiert und geschlossen, wenn nichts mehr hängt. Anders als ein roter Check im
+   Pull Request eines Bots erreicht ein Issue alle, die das Repository beobachten.
 
 **PostgreSQL-Hauptversionen:** Renovate hebt die *empfohlene* Version an (`docker-compose*.yml`, `.env.example`,
 Hinweis in der Administration), die CI testet sie und das Upgrade von den älteren Versionen. Bestehende Installationen
