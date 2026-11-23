@@ -80,6 +80,12 @@ SecRule REQUEST_HEADERS:Content-Type "@rx ^application/json" "id:200001,phase:1,
 // the request was blocked.
 func wafCheck(t *testing.T, waf coraza.WAF, method, uri, body string) (rules []string, blocked bool) {
 	t.Helper()
+	return wafCheckType(t, waf, method, uri, "application/json", body)
+}
+
+// wafCheckType is wafCheck with a body of the given content type.
+func wafCheckType(t *testing.T, waf coraza.WAF, method, uri, ctype, body string) (rules []string, blocked bool) {
+	t.Helper()
 	tx := waf.NewTransaction()
 	defer func() { _ = tx.Close() }()
 	tx.ProcessConnection("192.0.2.10", 50000, "192.0.2.1", 443)
@@ -92,7 +98,7 @@ func wafCheck(t *testing.T, waf coraza.WAF, method, uri, body string) (rules []s
 		tx.AddRequestHeader(k, v)
 	}
 	if body != "" {
-		tx.AddRequestHeader("Content-Type", "application/json")
+		tx.AddRequestHeader("Content-Type", ctype)
 		tx.AddRequestHeader("Content-Length", fmt.Sprint(len(body)))
 	}
 	var it *types.Interruption
@@ -342,6 +348,59 @@ func TestWAFExclusions(t *testing.T) {
 			if _, b := wafCheck(t, withExcl, r.method, r.uri, r.body); !b {
 				t.Errorf("CRS %s: %s %s passes with the exclusions", crs, r.method, r.uri)
 			}
+		}
+		// SCIM: the identity provider creates, changes and removes accounts
+		// with application/scim+json and PUT, PATCH, DELETE
+		user := `{"schemas":["urn:ietf:params:scim:schemas:core:2.0:User"],"userName":"anna.obrien@example.com","displayName":"Anna O'Brien","name":{"givenName":"Anna","familyName":"O'Brien"},"emails":[{"value":"anna.obrien@example.com","primary":true}],"active":true,"externalId":"5f1c-77aa"}`
+		patch := `{"schemas":["urn:ietf:params:scim:api:messages:2.0:PatchOp"],"Operations":[{"op":"replace","path":"active","value":false},{"op":"add","path":"members","value":[{"value":"12"}]}]}`
+		scimBlockedWithout := false
+		for _, r := range []req{
+			{"POST", "/scim/v2/Users", user},
+			{"PUT", "/scim/v2/Users/7", user},
+			{"PATCH", "/scim/v2/Users/7", patch},
+			{"PATCH", "/scim/v2/Groups/3", patch},
+			{"DELETE", "/scim/v2/Users/7", ""},
+			{"GET", "/scim/v2/Users?filter=" + urlQuery(`userName eq "anna.obrien@example.com"`), ""},
+		} {
+			if _, b := wafCheckType(t, plain, r.method, r.uri, "application/scim+json", r.body); b {
+				scimBlockedWithout = true
+			}
+			if rules, b := wafCheckType(t, withExcl, r.method, r.uri, "application/scim+json", r.body); b || len(rules) > 0 {
+				t.Errorf("CRS %s, SCIM %s %s: still blocked: %v", crs, r.method, r.uri, rules)
+			}
+		}
+		if crs == "4" && !scimBlockedWithout {
+			t.Error("CRS 4: SCIM was not blocked without the exclusions - the test proves nothing")
+		}
+		// files as they are: an office server stores a document, the
+		// administration imports a category or a translation; larger than
+		// SecRequestBodyNoFilesLimit, with bytes that look like attacks
+		big := strings.Repeat("<script>alert(1)</script> SELECT * FROM users WHERE 1=1; ../../etc/passwd\n", 20000)
+		for _, r := range []struct{ uri, ctype string }{
+			{"/api/v1/wopi/files/17/contents?access_token=" + urlQuery("eyJhbGciOiJFZERTQSJ9.eyJmIjoxN30.c2lnbmF0dXJl") + "&access_token_ttl=0", "application/octet-stream"},
+			{"/api/v1/categories/import?parent=4", "application/x-ndjson"},
+			{"/api/v1/admin/i18n/de/import", "application/octet-stream"},
+		} {
+			if crs == "4" {
+				if _, b := wafCheckType(t, plain, "POST", r.uri, r.ctype, "x"); !b {
+					t.Errorf("CRS 4: %s with %s passes without the exclusions - the test proves nothing", r.uri, r.ctype)
+				}
+			}
+			if rules, b := wafCheckType(t, withExcl, "POST", r.uri, r.ctype, big); b || len(rules) > 0 {
+				t.Errorf("CRS %s, POST %s (%s): still blocked: %v", crs, r.uri, r.ctype, rules)
+			}
+		}
+		// other addresses keep the types closed and the body checked
+		if _, b := wafCheckType(t, withExcl, "POST", "/api/v1/elements", "application/octet-stream", "x"); !b && crs == "4" {
+			t.Errorf("CRS %s: application/octet-stream to /api/v1/elements passes", crs)
+		}
+		if _, b := wafCheckType(t, withExcl, "POST", "/api/v1/wopi/files/17", "application/octet-stream", "x"); !b && crs == "4" {
+			t.Errorf("CRS %s: application/octet-stream to the WOPI file (not its contents) passes", crs)
+		}
+		// the exclusions for SCIM do not open the rest of the wiki to other
+		// content types or methods
+		if _, b := wafCheckType(t, withExcl, "PUT", "/wiki/page", "application/scim+json", user); !b && crs == "4" {
+			t.Errorf("CRS %s: PUT with application/scim+json outside /scim/v2/ passes", crs)
 		}
 		if _, b := wafCheckForm(t, withExcl, "/api/v1/drafts", "source="+urlQuery(attack)); !b {
 			t.Errorf("CRS %s: a form body (not JSON) passes with the exclusions", crs)
