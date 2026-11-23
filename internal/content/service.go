@@ -182,6 +182,12 @@ func (s *Service) ElementPerms(ctx context.Context, id, cat int64) acl.Perm {
 	return got
 }
 
+// CanElementAction reports whether the caller has the category permission
+// action on element id in category cat (the element's own rights apply).
+func (s *Service) CanElementAction(ctx context.Context, id, cat int64, action string) bool {
+	return s.acl.CanElementAction(ctx, identity.From(ctx), id, cat, action)
+}
+
 func requireAdmin(ctx context.Context) error {
 	p := identity.From(ctx)
 	if p == nil {

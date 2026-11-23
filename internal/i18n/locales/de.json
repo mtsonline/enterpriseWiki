@@ -3012,5 +3012,13 @@
  "editor.menu_duplicate": "Duplizieren",
  "editor.menu_delete": "Löschen",
  "editor.duplicated": "{name} dupliziert.",
- "editor.removed_named": "{name} gelöscht. Rückgängig mit Strg+Z."
+ "editor.removed_named": "{name} gelöscht. Rückgängig mit Strg+Z.",
+ "tasks.ticked": "Aufgabe erledigt. Die Seite wurde gespeichert.",
+ "tasks.reopened": "Aufgabe wieder offen. Die Seite wurde gespeichert.",
+ "tasks.title": "Meine Aufgaben",
+ "tasks.login": "Melden Sie sich an, um Ihre Aufgaben zu sehen.",
+ "tasks.none": "Sie haben keine Aufgaben.",
+ "tasks.in_pages": "Aufgaben in Seiten",
+ "tasks.in_pages_help": "Punkte von Checklisten, die Sie mit @Name nennen. Haken Sie sie hier ab, wenn sie erledigt sind; die Seite wird gespeichert.",
+ "tasks.mine_open": "Meine offenen Aufgaben in Seiten"
 }

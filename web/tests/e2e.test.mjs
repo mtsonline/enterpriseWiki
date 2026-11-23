@@ -4710,6 +4710,42 @@ test('decisions: a decision in a page, the report of decisions and the data for 
   await a11y('my decisions');
 });
 
+test('tasks in pages: the report ticks a task (the page is saved), My tasks lists the own open tasks', async () => {
+  const me = (await call('GET', '/api/v1/auth/me')).user;
+  const src = `- [ ] Check okapi ${run} @${me.username} :date{value=2026-01-05}\n- [ ] Feed lynx ${run} @${me.username}\n- [ ] Nobody's walrus ${run}\n\n::tasks{}\n`;
+  const pg = await call('POST', '/api/v1/elements', { category_id: await m6Category(), type: 'core.html', title: `Tasks ${run}`, body: { format: 'markdown', source: src } });
+  await page.goto(`${BASE}/e/${pg.id}`);
+  await idle();
+  const report = page.getByRole('region', { name: /^(tasks|aufgaben)$/i });
+  const row = report.locator('tr', { hasText: `Check okapi ${run}` });
+  await row.getByText(/^(overdue|überfällig)$/i).waitFor();
+  assert.equal(await report.locator('tr', { hasText: `Nobody's walrus ${run}` }).count(), 0, 'a task without a person or a date is no task of the report');
+  await a11y('report of tasks');
+  // ticking saves the page: only this checkbox changes
+  const box = row.getByRole('checkbox', { name: new RegExp(`^(done|erledigt): check okapi ${run}`, 'i') });
+  const saved = page.waitForResponse((r) => /\/api\/v1\/x\/core\.html\/tasks\/\d+\/1$/.test(r.url()));
+  await box.check();
+  assert.equal((await saved).status(), 200);
+  await report.getByRole('status').getByText(/^(task done|aufgabe erledigt)/i).waitFor();
+  const after = await call('GET', `/api/v1/elements/${pg.id}?edit=1`);
+  assert.equal(after.body.source, src.replace('- [ ] Check okapi', '- [x] Check okapi'));
+  // the second task of the same page ticks from the new version
+  const saved2 = page.waitForResponse((r) => /\/api\/v1\/x\/core\.html\/tasks\/\d+\/2$/.test(r.url()));
+  await report.locator('tr', { hasText: `Feed lynx ${run}` }).getByRole('checkbox').check();
+  assert.equal((await saved2).status(), 200);
+  const saved3 = page.waitForResponse((r) => /\/api\/v1\/x\/core\.html\/tasks\/\d+\/2$/.test(r.url()));
+  await report.locator('tr', { hasText: `Feed lynx ${run}` }).getByRole('checkbox').uncheck();
+  assert.equal((await saved3).status(), 200);
+  // My tasks: the own open tasks in pages
+  await page.goto(`${BASE}/tasks`);
+  await idle();
+  await page.getByRole('heading', { level: 1, name: /^(my tasks|meine aufgaben)$/i }).waitFor();
+  const section = page.getByRole('region', { name: /^(my open tasks in pages|meine offenen aufgaben in seiten)$/i });
+  await section.locator('tr', { hasText: `Feed lynx ${run}` }).getByRole('checkbox').waitFor();
+  assert.equal(await section.locator('tr', { hasText: `Check okapi ${run}` }).count(), 0, 'done tasks are not listed');
+  await a11y('my tasks');
+});
+
 test('theme blocks B: own text for "page not found", reading progress', async () => {
   const logged = errors.length;
   const cat = await m6Category();

@@ -35,7 +35,7 @@ func (p *Plugin) Setup(h *coreplugin.Host) error {
 	h.RegisterDataKind(DecisionDataKind)
 	// reading the wiki with the rights of the editor, nothing else: the
 	// editor shows what they show
-	for _, m := range []content.Macro{recent{}, gallery{svc: h.Media}, include{}, pagetree{}, searchbox{}, newpage{}, tagcloud{}, spacelist{}, spacedetails{}, decisions{}} {
+	for _, m := range []content.Macro{recent{}, gallery{svc: h.Media}, include{}, pagetree{}, searchbox{}, newpage{}, tagcloud{}, spacelist{}, spacedetails{}, decisions{}, tasks{}} {
 		h.RegisterPictureMacro(m)
 	}
 	return nil

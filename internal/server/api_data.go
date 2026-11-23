@@ -8,6 +8,7 @@ import (
 	"github.com/mtsonline/enterprisewiki/internal/apperr"
 	"github.com/mtsonline/enterprisewiki/internal/content"
 	h "github.com/mtsonline/enterprisewiki/internal/httpx"
+	"github.com/mtsonline/enterprisewiki/internal/identity"
 )
 
 // routesData: the data of blocks and plugins for reports (content/data.go).
@@ -45,7 +46,7 @@ func (s *Server) routesData() {
 			return n, nil
 		}
 		dq := content.DataQuery{Kind: r.PathValue("kind"), Lang: q.Get("lang"), From: q.Get("from"), To: q.Get("to"), Q: q.Get("q"), Sort: q.Get("sort"),
-			Direct: q.Get("direct") == "true", Hidden: q.Get("hidden") == "true", Limit: h.QueryInt(r, "limit", 50), Offset: h.QueryInt(r, "offset", 0)}
+			Direct: q.Get("direct") == "true", Hidden: q.Get("hidden") == "true", NoDay: q.Get("no_day") == "true", Limit: h.QueryInt(r, "limit", 50), Offset: h.QueryInt(r, "offset", 0)}
 		var err error
 		if dq.Category, err = id("category"); err != nil {
 			return nil, err
@@ -53,7 +54,14 @@ func (s *Server) routesData() {
 		if dq.Element, err = id("element"); err != nil {
 			return nil, err
 		}
-		if dq.Person, err = id("person"); err != nil {
+		if strings.TrimSpace(q.Get("person")) == "me" {
+			// the caller's own entries (tasks, …); guests have none
+			p := identity.From(r.Context())
+			if p == nil || p.ID() == 0 {
+				return nil, apperr.ErrUnauthorized
+			}
+			dq.Person = p.ID()
+		} else if dq.Person, err = id("person"); err != nil {
 			return nil, err
 		}
 		if dq.Ref, err = id("ref"); err != nil {

@@ -10,10 +10,10 @@ import (
 	"fmt"
 	"github.com/jackc/pgx/v5"
 	"io/fs"
-	"regexp"
 	"strings"
 
 	"github.com/mtsonline/enterprisewiki/internal/acl"
+	"github.com/mtsonline/enterprisewiki/internal/content"
 	"github.com/mtsonline/enterprisewiki/internal/coreplugin"
 	"github.com/mtsonline/enterprisewiki/internal/identity"
 	"github.com/mtsonline/enterprisewiki/internal/notify"
@@ -61,21 +61,8 @@ func (p *Plugin) Setup(host *coreplugin.Host) error {
 	return nil
 }
 
-var mentionRe = regexp.MustCompile(`(?:^|[\s(\[{>"'„“,;:])@([\p{L}\p{N}][\p{L}\p{N}._-]{0,63}(?:@[\p{L}\p{N}._-]{1,64})?)`)
-
 // Handles returns the mentioned handles of a text (without duplicates).
-func Handles(text string) []string {
-	seen := map[string]bool{}
-	var out []string
-	for _, m := range mentionRe.FindAllStringSubmatch(text, 50) {
-		h := strings.TrimRight(strings.ToLower(m[1]), ".-_")
-		if !seen[h] {
-			seen[h] = true
-			out = append(out, h)
-		}
-	}
-	return out
-}
+func Handles(text string) []string { return content.Mentions(text, 50) }
 
 // element notifies the people mentioned in the latest revisions of an element.
 func (p *Plugin) element(ctx context.Context, id int64) error {

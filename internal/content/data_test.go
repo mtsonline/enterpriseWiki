@@ -58,3 +58,10 @@ func TestCheckDataKind(t *testing.T) {
 		}
 	}
 }
+
+func TestMentions(t *testing.T) {
+	got := Mentions("Hi @Anna, (@bob@ldap) mail a@example.com @anna @x_. „@dora“", 3)
+	if strings.Join(got, " ") != "anna bob@ldap x" {
+		t.Fatalf("mentions: %v", got)
+	}
+}

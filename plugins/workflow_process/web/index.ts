@@ -1,18 +1,15 @@
 // Frontend of the workflow plugin: editor, page widget, "My tasks".
-import { api, button, errorText, field, fmtDate, h, mount, pageHeader, pick, pluginSettingsForm, registerAdminPage, registerEditor, registerSlot, registerWidget, route, state, t, textInput, tile, toast } from '@ewiki/coreplugin';
+import { api, button, errorText, field, fmtDate, h, pageHeader, pick, pluginSettingsForm, registerAdminPage, registerEditor, registerSlot, registerTaskSection, registerWidget, route, state, t, textInput, tile, toast } from '@ewiki/coreplugin';
 import { createWorkflowEditor } from './editor';
 import { linkView } from './link';
 import type { Instance } from './types';
 import { BASE, openCase, statusBadge, workflowWidget } from './widget';
 import './style.css';
 
-async function tasksView({ main }: { main: HTMLElement }): Promise<void> {
-  if (!state.user) {
-    mount(main, h('h1', null, t('workflow.tasks')), h('p', null, h('a', { href: '/login?next=/tasks' }, t('workflow.login'))));
-    return;
-  }
+/** The sections of "My tasks": the cases waiting for me, the cases I
+ * started and my deputy. */
+async function taskSections(reload: () => void): Promise<HTMLElement> {
   const data = await api.get<{ tasks: Instance[]; started: Instance[] }>(`${BASE}/tasks`);
-  const reload = () => void tasksView({ main });
   const list = (items: Instance[], caption: string, empty: string) => items.length
     ? h('table', { class: 'ew-table' }, h('caption', { class: 'sr-only' }, caption),
       h('thead', null, h('tr', null, ...[t('workflow.case'), t('workflow.process'), t('common.status'), t('workflow.updated')].map((x) => h('th', { scope: 'col' }, x)))),
@@ -21,13 +18,12 @@ async function tasksView({ main }: { main: HTMLElement }): Promise<void> {
         h('td', null, h('a', { href: `/e/${x.element_id}` }, pick(x.element_titles, state.lang, x.lang))),
         h('td', null, statusBadge(x)), h('td', null, fmtDate(x.updated_at, state.lang))))))
     : h('p', { class: 'ew-muted' }, empty);
-  mount(main, h('div', { class: 'ewf-tasks' },
-    h('h1', null, t('workflow.tasks')),
+  return h('div', { class: 'ewf-tasks' },
     h('section', { 'aria-labelledby': 'ewf-t1' }, h('h2', { id: 'ewf-t1' }, t('workflow.tasks_waiting'), ' ', h('span', { class: 'ew-badge' }, String(data.tasks.length))),
       list(data.tasks, t('workflow.tasks_waiting'), t('workflow.tasks_none'))),
     h('section', { 'aria-labelledby': 'ewf-t2' }, h('h2', { id: 'ewf-t2' }, t('workflow.tasks_started')),
       list(data.started, t('workflow.tasks_started'), t('workflow.started_none'))),
-    await deputySection(reload)));
+    await deputySection(reload));
 }
 
 interface DeputyInfo { deputy: { deputy: string; from: string; until: string; active: boolean } | null; stand_in_for: { name: string; from: string; until: string }[] }
@@ -70,7 +66,7 @@ export function register(): void {
   registerAdminPage({ id: 'workflow', label: () => t('workflow.admin.title'), render: adminPage });
   registerEditor('workflow.process', createWorkflowEditor);
   registerWidget('workflow', workflowWidget);
-  route('/tasks', tasksView);
+  registerTaskSection({ id: 'workflow.process', order: 10, render: taskSections });
   route('/workflow/link', linkView);
   // both tiles of the dashboard show the same answer: ask once per rendering
   let shared: { at: number; data: Promise<{ tasks: Instance[]; started: Instance[] }> } | null = null;

@@ -18,6 +18,7 @@ import { h } from './core/dom';
 import { optionsKey, shownNow, type BlockOptions } from './core/blockoptions';
 import { styleFrame } from './core/optionframes';
 export { tile } from './components/tile';
+export { registerTaskSection, type TaskSection } from './views/tasks';
 export { logout } from './components/widgets';
 export { h, mount, append, trustedHTML, uid, fmtDate, srOnly } from './core/dom';
 export type { Child } from './core/dom';

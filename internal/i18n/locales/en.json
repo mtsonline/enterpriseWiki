@@ -3012,5 +3012,13 @@
  "editor.menu_duplicate": "Duplicate",
  "editor.menu_delete": "Delete",
  "editor.duplicated": "{name} duplicated.",
- "editor.removed_named": "{name} deleted. Undo with Ctrl+Z."
+ "editor.removed_named": "{name} deleted. Undo with Ctrl+Z.",
+ "tasks.ticked": "Task done. The page was saved.",
+ "tasks.reopened": "Task open again. The page was saved.",
+ "tasks.title": "My tasks",
+ "tasks.login": "Sign in to see your tasks.",
+ "tasks.none": "You have no tasks.",
+ "tasks.in_pages": "Tasks in pages",
+ "tasks.in_pages_help": "Checklist items that name you with @name. Tick them here when they are done; the page is saved.",
+ "tasks.mine_open": "My open tasks in pages"
 }

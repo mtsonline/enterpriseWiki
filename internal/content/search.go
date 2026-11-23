@@ -356,6 +356,11 @@ func (s *Service) checkGrant(ctx context.Context, categoryID int64, in *RuleInpu
 		return apperr.BadRequest("you cannot grant permissions you do not have")
 	}
 	acts, _ := s.acl.Actions(ctx, p, categoryID)
+	if in.Preset != "" {
+		// a template gives the permissions of plugins in it that the
+		// caller has (a new plugin permission does not block templates)
+		in.Actions = slices.DeleteFunc(in.Actions, func(a string) bool { return !slices.Contains(acts, a) })
+	}
 	for _, a := range in.Actions {
 		if !slices.Contains(acts, a) {
 			return apperr.BadRequest("you cannot grant the permission %s, which you do not have", a)

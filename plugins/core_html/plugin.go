@@ -70,6 +70,9 @@ func (p *Plugin) Setup(h *coreplugin.Host) error {
 	if h.DB != nil && h.Content != nil && h.Workers != nil {
 		registerConversion(h)
 	}
+	if h.Content != nil {
+		registerTasks(h)
+	}
 	return nil
 }
 
