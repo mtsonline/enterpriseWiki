@@ -30,6 +30,8 @@ import { decodeOptions, encodeOptions, type BlockOptions } from '../core/blockop
 import { codeLanguage, codeLanguageOptions, codeLines } from '../core/codeblocks';
 import { blockTemplateSource, saveBlockTemplate } from './blocktemplates';
 import { chooseBlock } from './blockpicker';
+import { Suggest, suggestQuery, type SuggestChoice } from './suggest';
+import { taskDialog } from './taskdialog';
 import { isImage, mediaURL, pickMedium } from '../components/media';
 import { prosemirrorToYXmlFragment, yXmlFragmentToProseMirrorRootNode, redo as yRedo, undo as yUndo, yCursorPlugin, ySyncPlugin, yUndoPlugin, yUndoPluginKey } from 'y-prosemirror';
 import { formatAttrs } from './attrs';
@@ -770,6 +772,35 @@ const cmdTool = (c: Command) => (v: EditorView) => { c(v.state, v.dispatch, v); 
 // ---------------------------------------------------------------- editor
 
 /** Creates the editor inside container. */
+/** Whether pos lies inside a fenced code block of src. */
+function inFence(src: string, pos: number): boolean {
+  let open = false;
+  for (const line of src.slice(0, pos).split('\n').slice(0, -1)) if (/^\s{0,3}(```|~~~)/.test(line)) open = !open;
+  return open;
+}
+
+/** Where character pos of a text field is on the screen (a hidden copy of
+ * the field measures it). */
+function caretRect(ta: HTMLTextAreaElement, pos: number): { left: number; bottom: number } {
+  const cs = getComputedStyle(ta);
+  const copy = document.createElement('div');
+  for (const p of ['font', 'lineHeight', 'letterSpacing', 'padding', 'border', 'boxSizing', 'width', 'whiteSpace', 'wordWrap', 'tabSize'] as const) copy.style[p] = cs[p];
+  copy.style.position = 'absolute';
+  copy.style.visibility = 'hidden';
+  copy.style.whiteSpace = 'pre-wrap';
+  copy.style.overflowWrap = 'break-word';
+  copy.textContent = ta.value.slice(0, pos);
+  const mark = document.createElement('span');
+  mark.textContent = '\u200b';
+  copy.append(mark);
+  document.body.append(copy);
+  const r = ta.getBoundingClientRect();
+  const left = r.left + mark.offsetLeft - ta.scrollLeft;
+  const bottom = r.top + mark.offsetTop + mark.offsetHeight - ta.scrollTop;
+  copy.remove();
+  return { left, bottom: Math.min(bottom, r.bottom) };
+}
+
 export function createMarkdownEditor(container: HTMLElement, opts: MarkdownEditorOptions): MarkdownEditor {
   let mode: EditorMode = opts.mode ?? (() => { try { return localStorage.getItem(MODE_KEY) === 'markdown' ? 'markdown' : 'visual'; } catch { return 'visual'; } })();
   let escaped = false;
@@ -934,8 +965,73 @@ export function createMarkdownEditor(container: HTMLElement, opts: MarkdownEdito
     if ('macro' in c) return macroInsert(v, c.macro);
     if ('template' in c) return snippetInsert(v, c.template);
     if ('share' in c) return shareSelection(v);
+    if ('task' in c) return taskInsert(v);
     snippetSave(v);
   };
+  // a task item with people and a due date, written for the person
+  const taskInsert = async (v: EditorView) => {
+    const selected = mode === 'markdown'
+      ? textarea.value.slice(textarea.selectionStart, textarea.selectionEnd)
+      : v.state.doc.textBetween(v.state.selection.from, v.state.selection.to, ' ');
+    const src = await taskDialog(selected.includes('\n') ? '' : selected.trim());
+    if (!src) return mode === 'visual' ? v.focus() : textarea.focus();
+    if (mode === 'markdown') {
+      const start = textarea.selectionStart, end = textarea.selectionEnd;
+      const pre = start > 0 && textarea.value[start - 1] !== '\n' ? '\n' : '';
+      textarea.setRangeText(`${pre}${src}\n`, start, end, 'end');
+      binding?.changed();
+      textarea.focus();
+      opts.onChange?.();
+      return;
+    }
+    const list = parse(src).firstChild;
+    if (list) v.dispatch(insertBlock(v.state, list).scrollIntoView());
+    v.focus();
+    announce(t('editor.task_inserted'));
+  };
+  // what a suggestion while typing leads to
+  const suggestRun = (v: EditorView, c: SuggestChoice) => {
+    if ('macro' in c) return macroInsert(v, c.macro);
+    if ('task' in c) return taskInsert(v);
+    return blockMenu(v);
+  };
+  // suggestions of blocks while typing in the visual editor: "/" at the
+  // start of a paragraph or ":name"
+  let suggestAt = { from: 0, to: 0, typed: '' };
+  let visualSuggest: Suggest | null = null;
+  const typedInView = (st: EditorState) => {
+    const sel = st.selection;
+    const p = sel.$from.parent;
+    if (!sel.empty || !p.isTextblock || p.type === nodes.code_block) return null;
+    const q = suggestQuery(p.textBetween(0, sel.$from.parentOffset, undefined, '\ufffc'));
+    return q ? { from: sel.from - q.length, to: sel.from, query: q.query, typed: `${sel.from - q.length}:${q.query}` } : null;
+  };
+  const suggestPlugin = new Plugin({
+    view: (v) => {
+      const sg = new Suggest(v.dom, (c) => {
+        const { from, to } = suggestAt;
+        if (to <= v.state.doc.content.size && from < to) v.dispatch(v.state.tr.delete(from, to));
+        void suggestRun(v, c);
+      });
+      visualSuggest = sg;
+      const update = (ev: EditorView) => {
+        const q = mode === 'visual' && ev.hasFocus() && ev.editable ? typedInView(ev.state) : null;
+        if (!q || q.typed === sg.dismissed) {
+          if (!q) sg.dismissed = '';
+          if (sg.open) sg.close();
+          return;
+        }
+        suggestAt = q;
+        const at = ev.coordsAtPos(q.from);
+        void sg.show(q.query, at);
+      };
+      return { update, destroy: () => { sg.close(); if (visualSuggest === sg) visualSuggest = null; } };
+    },
+    props: {
+      handleKeyDown: (_v, e) => visualSuggest?.key(e, suggestAt.typed) ?? false,
+      handleDOMEvents: { blur: () => { window.setTimeout(() => { if (!view.hasFocus()) visualSuggest?.close(); }, 150); return false; } },
+    },
+  });
   // an emoji as text (visual and Markdown mode)
   const emojiInsert = async (v: EditorView) => {
     let e: string | null;
@@ -1326,10 +1422,10 @@ export function createMarkdownEditor(container: HTMLElement, opts: MarkdownEdito
   const host: Host = { view: () => view, edit: (pos) => { editAt(view, pos); }, menu: (pos, x, y) => nodeMenu(pos, x, y) };
 
   const plugins = [
-    escapePlugin, rules, keymap(keys), keymap(baseKeymap), history(), dropCursor(), gapCursor(), tableEditing(),
+    suggestPlugin, escapePlugin, rules, keymap(keys), keymap(baseKeymap), history(), dropCursor(), gapCursor(), tableEditing(),
   ];
   const livePlugins = (c: Collab) => [
-    escapePlugin, rules, keymap(keys), keymap(baseKeymap),
+    suggestPlugin, escapePlugin, rules, keymap(keys), keymap(baseKeymap),
     ySyncPlugin(c.fragment), yCursorPlugin(c.awareness, { cursorBuilder, selectionBuilder }), yUndoPlugin(),
     dropCursor(), gapCursor(), tableEditing(),
   ];
@@ -1344,6 +1440,33 @@ export function createMarkdownEditor(container: HTMLElement, opts: MarkdownEdito
   const surface = h('div', { class: 'ewe-surface' });
   const textarea = h('textarea', { class: 'ew-input ewe-markdown', rows: 20, 'aria-labelledby': opts.labelId, 'aria-describedby': helpId, lang: opts.lang, spellcheck: 'true' });
   textarea.addEventListener('input', () => opts.onChange?.());
+  // suggestions of blocks while typing in Markdown: "/" at the start of a
+  // line or ":name"
+  let mdAt = { from: 0, to: 0, typed: '' };
+  const mdSuggest = new Suggest(textarea, (c) => {
+    if (textarea.value.length >= mdAt.to && mdAt.from < mdAt.to) {
+      textarea.setRangeText('', mdAt.from, mdAt.to, 'end');
+      binding?.changed();
+      opts.onChange?.();
+    }
+    void suggestRun(view, c);
+  });
+  const mdSuggestUpdate = () => {
+    const end = textarea.selectionStart;
+    const line = textarea.value.slice(textarea.value.lastIndexOf('\n', end - 1) + 1, end);
+    const q = textarea.selectionStart === textarea.selectionEnd && !inFence(textarea.value, end) ? suggestQuery(line) : null;
+    const typed = q ? `${end - q.length}:${q.query}` : '';
+    if (!q || typed === mdSuggest.dismissed) {
+      if (!q) mdSuggest.dismissed = '';
+      if (mdSuggest.open) mdSuggest.close();
+      return;
+    }
+    mdAt = { from: end - q.length, to: end, typed };
+    void mdSuggest.show(q.query, caretRect(textarea, end - q.length));
+  };
+  textarea.addEventListener('input', mdSuggestUpdate);
+  textarea.addEventListener('keydown', (e) => { mdSuggest.key(e, mdAt.typed); });
+  textarea.addEventListener('blur', () => { window.setTimeout(() => { if (document.activeElement !== textarea) mdSuggest.close(); }, 150); });
   const mdWrap = h('div', { class: 'ewe-md-wrap', hidden: true }, textarea);
   const help = h('p', { class: 'ew-help ewe-help', id: helpId });
   const liveBox = h('div', { class: 'ewe-live', hidden: true });

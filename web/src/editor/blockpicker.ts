@@ -12,7 +12,7 @@ import { manageTemplates } from '../components/publishing';
 import { allowedMacros, label, loadMacros, MACRO_DESC_DELAY } from './macros';
 import { fold, groupMacros, matches } from './blockgroups';
 
-export type BlockChoice = { macro: string } | { template: number } | { save: true } | { share: true };
+export type BlockChoice = { macro: string } | { template: number } | { save: true } | { share: true } | { task: true };
 
 interface Leaf { key: string; name: string; desc: string; choice: BlockChoice; search: string }
 
@@ -37,6 +37,15 @@ export async function chooseBlock(opts: { macros: boolean; canSave: boolean; tem
       return { key: `m:${m.name}`, name, desc, choice: { macro: m.name }, search: fold(`${name} ${m.name} ${desc}`) };
     }),
   }));
+  // a task item with people and a date (written as Markdown, no block)
+  if (opts.macros) {
+    const name = t('editor.task_title');
+    const desc = t('editor.task_desc');
+    const leaf: Leaf = { key: 'task', name, desc, choice: { task: true }, search: fold(`${name} task aufgabe todo ${desc}`) };
+    const text = groups.find((g) => g.id === 'text');
+    if (text) text.leaves = [leaf, ...text.leaves];
+    else groups.unshift({ id: 'text', title: t('editor.group.text'), leaves: [leaf] });
+  }
   if (templates.length) {
     groups.push({
       id: 'templates', title: t('editor.group.templates'),

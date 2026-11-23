@@ -14,7 +14,7 @@ function groupsAndRoles() {
   return lists;
 }
 
-interface Chip { id: number; name: string }
+interface Chip { id: number; name: string; handle?: string }
 
 /** Chips of chosen items with remove buttons; returns the list element and a redraw. */
 function chips(label: string, items: Chip[], onChange: () => void): { el: HTMLElement; draw: () => void } {
@@ -26,7 +26,7 @@ function chips(label: string, items: Chip[], onChange: () => void): { el: HTMLEl
 }
 
 /** Picks one or more users by searching (name or user name). */
-export function userPicker(opts: { label: string; multiple?: boolean; initial?: Chip[]; help?: string; required?: boolean }): { el: HTMLElement; value: () => number[]; names: () => string[]; focus: () => void } {
+export function userPicker(opts: { label: string; multiple?: boolean; initial?: Chip[]; help?: string; required?: boolean }): { el: HTMLElement; value: () => number[]; names: () => string[]; handles: () => string[]; focus: () => void } {
   const items: Chip[] = [...(opts.initial ?? [])];
   const input = textInput({ placeholder: t('acl.user_search'), autocomplete: 'off' });
   const dl = h('datalist', { id: uid('users') });
@@ -55,7 +55,7 @@ export function userPicker(opts: { label: string; multiple?: boolean; initial?: 
         const res = await api.get<{ id: number; handle: string; display_name: string }[]>(`users/lookup?q=${encodeURIComponent(input.value.trim())}`);
         dl.replaceChildren(...res.map((u) => {
           const key = `${u.display_name} (${u.handle})`;
-          found.set(key, { id: u.id, name: u.display_name || u.handle });
+          found.set(key, { id: u.id, name: u.display_name || u.handle, handle: u.handle });
           return h('option', { value: key });
         }));
       } catch { /* no search for guests */ }
@@ -72,7 +72,7 @@ export function userPicker(opts: { label: string; multiple?: boolean; initial?: 
   box.removeAttribute('aria-describedby');
   box.removeAttribute('aria-required');
   if (opts.required) input.setAttribute('aria-required', 'true');
-  return { el, value: () => items.map((x) => x.id), names: () => items.map((x) => x.name), focus: () => input.focus() };
+  return { el, value: () => items.map((x) => x.id), names: () => items.map((x) => x.name), handles: () => items.flatMap((x) => (x.handle ? [x.handle] : [])), focus: () => input.focus() };
 }
 
 /** Picks one or more groups. */

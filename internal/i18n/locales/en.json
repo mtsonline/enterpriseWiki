@@ -3020,5 +3020,19 @@
  "tasks.none": "You have no tasks.",
  "tasks.in_pages": "Tasks in pages",
  "tasks.in_pages_help": "Checklist items that name you with @name. Tick them here when they are done; the page is saved.",
- "tasks.mine_open": "My open tasks in pages"
+ "tasks.mine_open": "My open tasks in pages",
+ "editor.task_title": "Task with person and date",
+ "editor.task_help": "A task item of a checklist. With a person or a date it appears in the report of tasks and under “My tasks” of the people.",
+ "editor.task_text": "Task",
+ "editor.task_people": "Responsible people",
+ "editor.task_people_help": "Search by name; several people are possible. One of them ticking is enough.",
+ "editor.task_due": "Due",
+ "editor.task_insert": "Insert",
+ "editor.task_need": "Choose a person or a due date.",
+ "editor.task_desc": "A task item with responsible people and a due date; it appears in the report of tasks and under “My tasks”.",
+ "editor.task_inserted": "Task inserted.",
+ "editor.suggest_all": "All blocks …",
+ "editor.suggest_label": "Blocks",
+ "editor.suggest_count_one": "{count} block suggested. Arrow keys choose, Enter inserts, Escape closes.",
+ "editor.suggest_count_other": "{count} blocks suggested. Arrow keys choose, Enter inserts, Escape closes."
 }

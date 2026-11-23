@@ -185,3 +185,12 @@
 .ewe-menu-item--danger { color: var(--ew-danger); }
 .ewe-menu-item[aria-disabled="true"] { opacity: .6; cursor: default; }
 @media (forced-colors: active) { .ewe-menu { border-color: CanvasText; } }
+
+/* suggestions of blocks while typing ("/" or ":name") */
+.ewe-suggest { position: absolute; z-index: 1000; list-style: none; margin: 0; padding: .25rem 0; min-width: 16rem; max-width: min(28rem, calc(100vw - 1rem));
+  background: var(--ew-surface, #fff); color: var(--ew-text); border: 1px solid var(--ew-border);
+  border-radius: 6px; box-shadow: 0 6px 18px rgb(0 0 0 / .15); }
+.ewe-suggest li { padding: .35rem .75rem; cursor: pointer; }
+.ewe-suggest .ewe-suggest-hint { color: var(--ew-muted, #555); font-family: var(--ew-mono, monospace); font-size: .875em; }
+.ewe-suggest li.is-active, .ewe-suggest li:hover { background: var(--ew-primary); color: #fff; }
+.ewe-suggest li.is-active .ewe-suggest-hint, .ewe-suggest li:hover .ewe-suggest-hint { color: #fff; }

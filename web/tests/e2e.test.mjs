@@ -4746,6 +4746,62 @@ test('tasks in pages: the report ticks a task (the page is saved), My tasks list
   await a11y('my tasks');
 });
 
+test('editor: suggestions of blocks while typing ("/" and ":name"), the task with person and date', async () => {
+  const me = (await call('GET', '/api/v1/auth/me')).user;
+  await newPage('core.html', `Suggest ${run}`);
+  const ed = page.locator('.ewe-prose');
+  await ed.click();
+  // "/" at the start of a paragraph: the blocks, the task first
+  await page.keyboard.type('/');
+  const list = page.getByRole('listbox', { name: /^(blocks|bausteine)$/i });
+  await list.waitFor();
+  assert.match(await ed.getAttribute('aria-activedescendant') ?? '', /^ewe-suggest/);
+  await a11y('suggestions of blocks');
+  await page.keyboard.type('task');
+  await list.getByRole('option', { name: /^(task with person and date|aufgabe mit person und datum)/i, selected: true }).waitFor();
+  await page.keyboard.press('Enter');
+  const dlg = page.locator('dialog[open]').last();
+  await dlg.getByLabel(/^(task|aufgabe)/i).first().fill(`Water the okapi ${run}`);
+  const who = dlg.getByPlaceholder(/name or user name|name oder benutzername/i);
+  await who.fill(me.username);
+  await page.waitForFunction(() => document.querySelectorAll('dialog[open] datalist option').length > 0);
+  await who.fill(await page.evaluate(() => document.querySelector('dialog[open] datalist option').value));
+  await dlg.getByLabel(/^(due|fällig)/i).fill('2026-12-24');
+  await a11y('task dialog');
+  await dlg.getByRole('button', { name: /^(insert|einfügen)$/i }).click();
+  await ed.locator('li.ewe-task', { hasText: `Water the okapi ${run}` }).waitFor();
+  assert.equal(await ed.locator('li.ewe-task', { hasText: `Water the okapi ${run}` }).locator('.ewe-chip, .ewe-macro-inline, [data-macro="date"]').count() > 0, true, 'the date is a block in the text');
+  assert.equal(await ed.getByText('/task').count(), 0, 'the typed text is replaced');
+  // ":name" in the text: Escape closes, the text stays
+  await ed.locator('p').last().click();
+  await page.keyboard.press('End');
+  await page.keyboard.press('Enter');
+  await page.keyboard.press('Enter');
+  await page.keyboard.type('Due :dat');
+  await list.getByRole('option', { name: /^(date|datum)/i }).first().waitFor();
+  await page.keyboard.press('Escape');
+  await list.waitFor({ state: 'detached' });
+  await ed.getByText('Due :dat').waitFor();
+  // Markdown: "::" opens the dialog of the block
+  await page.getByRole('button', { name: /^(markdown mode|markdown-modus)$/i }).click();
+  const src = page.locator('textarea.ewe-markdown');
+  assert.match(await src.inputValue(), new RegExp(`- \\[ \\] Water the okapi ${run} @${me.username} :date(\\[\\])?\\{value=2026-12-24\\}`));
+  await src.press('Control+End');
+  await src.pressSequentially('\n\n::tasks');
+  await list.getByRole('option', { name: /^(report of tasks|aufgaben-bericht)/i }).waitFor();
+  await src.press('Enter');
+  const mdlg = page.locator('dialog[open]').last();
+  await mdlg.locator('.ewe-macro-params').waitFor();
+  await mdlg.locator('button[type=submit]').click();
+  await page.waitForFunction(() => /\n::tasks\{?/.test(document.querySelector('textarea.ewe-markdown').value) && !document.querySelector('textarea.ewe-markdown').value.includes('::tasks\n::tasks'));
+  assert.equal((await src.inputValue()).match(/::tasks/g).length, 1, 'the typed name is replaced by the block');
+  await page.getByRole('button', { name: /^(visual mode|visueller modus)$/i }).click();
+  await page.getByRole('button', { name: /^(publish|veröffentlichen)$/i }).click();
+  await page.waitForURL(/\/e\/\d+$/);
+  await idle();
+  await page.getByRole('region', { name: /^(tasks|aufgaben)$/i }).locator('tr', { hasText: `Water the okapi ${run}` }).waitFor();
+});
+
 test('theme blocks B: own text for "page not found", reading progress', async () => {
   const logged = errors.length;
   const cat = await m6Category();

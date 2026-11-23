@@ -3020,5 +3020,19 @@
  "tasks.none": "Sie haben keine Aufgaben.",
  "tasks.in_pages": "Aufgaben in Seiten",
  "tasks.in_pages_help": "Punkte von Checklisten, die Sie mit @Name nennen. Haken Sie sie hier ab, wenn sie erledigt sind; die Seite wird gespeichert.",
- "tasks.mine_open": "Meine offenen Aufgaben in Seiten"
+ "tasks.mine_open": "Meine offenen Aufgaben in Seiten",
+ "editor.task_title": "Aufgabe mit Person und Datum",
+ "editor.task_help": "Ein Punkt einer Checkliste. Mit Person oder Datum erscheint er im Aufgaben-Bericht und unter „Meine Aufgaben“ der Personen.",
+ "editor.task_text": "Aufgabe",
+ "editor.task_people": "Zuständige Personen",
+ "editor.task_people_help": "Nach Namen suchen; mehrere Personen sind möglich. Es genügt, wenn eine abhakt.",
+ "editor.task_due": "Fällig",
+ "editor.task_insert": "Einfügen",
+ "editor.task_need": "Wählen Sie eine Person oder ein Fälligkeitsdatum.",
+ "editor.task_desc": "Ein Aufgabenpunkt mit zuständigen Personen und Fälligkeit; er erscheint im Aufgaben-Bericht und unter „Meine Aufgaben“.",
+ "editor.task_inserted": "Aufgabe eingefügt.",
+ "editor.suggest_all": "Alle Bausteine …",
+ "editor.suggest_label": "Bausteine",
+ "editor.suggest_count_one": "{count} Baustein vorgeschlagen. Pfeiltasten wählen, Enter fügt ein, Escape schließt.",
+ "editor.suggest_count_other": "{count} Bausteine vorgeschlagen. Pfeiltasten wählen, Enter fügt ein, Escape schließt."
 }
