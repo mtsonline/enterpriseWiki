@@ -4167,6 +4167,39 @@ test('templates of data: copy, check while typing, save, versions, use for the s
       await page.waitForFunction(() => getComputedStyle(document.querySelector('header.ewd-landmark')).position === 'static');
       await page.setViewportSize({ width: 1280, height: 800 });
       await page.waitForFunction(() => getComputedStyle(document.querySelector('header.ewd-landmark')).position === 'sticky');
+      // a drawer open in a sticky header scrolls in itself: opened far down
+      // the page, the header stays and the menu is in sight (the open menu
+      // made the header too high before, it stopped sticking and the menu
+      // was thousands of pixels above the window)
+      {
+        const c0 = (await call('GET', `/api/v1/x/core.template/templates/${key}`)).template;
+        const d0 = structuredClone(c0.design);
+        const head = d0.rows.find((r) => r.blocks.some((b) => b.id === 'menu'));
+        const toolsId = head.blocks.find((b) => b.id !== 'menu' && b.kind !== 'logo' && b.id !== 'brand')?.id;
+        head.mobile = { ...(head.mobile ?? {}), drawer: ['menu', ...(toolsId ? [toolsId] : [])] };
+        d0.rows = d0.rows.filter((r) => r === head || r.role !== 'banner');
+        await call('PUT', `/api/v1/x/core.template/templates/${key}`, { version: c0.version, design: d0 });
+        const long = await call('POST', '/api/v1/elements', { category_id: await m6Category(), type: 'core.html', title: `Long ${run}`,
+          body: { format: 'markdown', source: Array.from({ length: 150 }, (_, i) => `Paragraph ${i} of a long page.`).join('\n\n') } });
+        await page.setViewportSize({ width: 375, height: 760 });
+        await page.goto(`${BASE}/e/${long.id}`);
+        await idle();
+        await page.evaluate(() => window.scrollTo(0, 3000));
+        await page.waitForFunction(() => getComputedStyle(document.querySelector('header.ewd-landmark')).position === 'sticky');
+        await page.locator('[aria-controls="ewd-menu"]').click();
+        const box = await page.evaluate(() => {
+          const r = document.getElementById('ewd-menu').getBoundingClientRect();
+          return { top: r.top, bottom: r.bottom, h: innerHeight, pos: getComputedStyle(document.querySelector('header.ewd-landmark')).position, y: scrollY };
+        });
+        assert.equal(box.pos, 'sticky', 'the header stays sticky with the menu open');
+        assert.ok(box.top >= 0 && box.bottom <= box.h + 1 && box.y > 1000, `the open menu is in the window: ${JSON.stringify(box)}`);
+        await page.locator('#ewd-menu a').last().focus();
+        assert.ok(await page.locator('#ewd-menu a').last().isVisible(), 'the last entry is reached in the drawer');
+        await a11y('a menu open in a sticky header on a phone');
+        await page.keyboard.press('Escape');
+        await call('PUT', `/api/v1/x/core.template/templates/${key}`, { version: c0.version + 1, design: c0.design });
+        await page.setViewportSize({ width: 1280, height: 800 });
+      }
       // the menu as a button with a drawer also on the desktop ("burger")
       const cur = (await call('GET', `/api/v1/x/core.template/templates/${key}`)).template;
       const dd = cur.design;

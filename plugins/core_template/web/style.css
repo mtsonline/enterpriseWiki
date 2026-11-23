@@ -34,6 +34,9 @@ body:has(.ewd-boxed) { background: var(--ew-bg-subtle); }
 .ewd-landmark.ewd-sticky { position: sticky; top: 0; z-index: 30; }
 /* higher than allowed (see keepStickyLow): scrolls with the page */
 .ewd-landmark.ewd-sticky.ewd-sticky--off { position: static; }
+/* a drawer open in a sticky header scrolls in itself, below the closed
+   header, never the page (the place rule) */
+.ewd-landmark.ewd-sticky:not(.ewd-sticky--off) .ewd-block.ewd-open { max-height: calc(100dvh - var(--ewd-header-closed, 0px)); overflow-y: auto; overscroll-behavior: contain; }
 /* a row with nothing in it takes no room (e.g. the top bar without a notice) */
 .ewd-row:not(:has(.ewd-brand, .ewd-main, .ew-pos:not(:empty))) { display: none; }
 

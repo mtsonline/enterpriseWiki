@@ -140,7 +140,14 @@ export function designCSS(d: Design, cls: string): string {
  * focus (WCAG 1.4.10, 2.4.11). */
 function keepStickyLow(el: HTMLElement): void {
   const sync = () => {
-    const tall = el.getBoundingClientRect().height > (window.innerHeight * LIMITS.sticky_max_vh) / 100;
+    // an open drawer does not count: it scrolls in itself below the closed
+    // header (else opening the menu far down the page would make the header
+    // too high, so not sticky any more, and the open menu would be out of sight)
+    let open = 0;
+    for (const d of el.querySelectorAll<HTMLElement>('.ewd-block.ewd-open')) open += d.getBoundingClientRect().height;
+    const closed = Math.max(0, el.getBoundingClientRect().height - open);
+    el.style.setProperty('--ewd-header-closed', `${Math.ceil(closed)}px`);
+    const tall = closed > (window.innerHeight * LIMITS.sticky_max_vh) / 100;
     el.classList.toggle('ewd-sticky--off', tall);
   };
   new ResizeObserver(sync).observe(el);
@@ -195,7 +202,8 @@ function headerBehaviour(el: HTMLElement, o: Design['options']): void {
     const before = el.offsetHeight;
     if (o.header_shrink) el.classList.toggle('ewd-shrunk', y > 40);
     if (o.header_hide) {
-      if (y > last + 4 && y > el.offsetHeight && !el.contains(document.activeElement)) el.classList.add('ewd-away');
+      // never away with the focus in it or with a drawer of it open
+      if (y > last + 4 && y > el.offsetHeight && !el.contains(document.activeElement) && !el.querySelector('.ewd-open')) el.classList.add('ewd-away');
       else if (y < last - 4 || y <= el.offsetHeight) el.classList.remove('ewd-away');
     }
     anchorShift = before - el.offsetHeight;
