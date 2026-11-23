@@ -2982,5 +2982,19 @@
  "consent.settings": "Cookie-Einstellungen",
  "consent.profile_title": "Zustimmung",
  "consent.profile_accepted": "Sie haben der Datenschutzerklärung (Version {version}) am {date} zugestimmt.",
- "consent.profile_not_accepted": "Sie haben der Datenschutzerklärung noch nicht zugestimmt."
+ "consent.profile_not_accepted": "Sie haben der Datenschutzerklärung noch nicht zugestimmt.",
+ "editor.macro_drag": "Ziehen zum Verschieben (oder Alt+Pfeil nach oben/unten)",
+ "editor.move_up": "Nach oben (Alt+Pfeil nach oben)",
+ "editor.move_down": "Nach unten (Alt+Pfeil nach unten)",
+ "editor.moved_up": "Nach oben verschoben.",
+ "editor.moved_down": "Nach unten verschoben.",
+ "editor.move_first": "Schon ganz oben.",
+ "editor.move_last": "Schon ganz unten.",
+ "editor.width_help": "Breite: am Rand ziehen oder mit den Pfeiltasten",
+ "editor.width_of": "Breite von {name}",
+ "editor.width_rem": "{n} rem",
+ "editor.width_full": "Volle Breite",
+ "editor.width_set": "Breite: {width}.",
+ "editor.width_bad_options": "Die Optionen dieses Bausteins lassen sich nicht lesen; ändern Sie die Breite unter Optionen.",
+ "editor.moved": "Verschoben."
 }

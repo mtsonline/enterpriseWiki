@@ -2982,5 +2982,19 @@
  "consent.settings": "Cookie settings",
  "consent.profile_title": "Consent",
  "consent.profile_accepted": "You accepted the privacy policy (version {version}) on {date}.",
- "consent.profile_not_accepted": "You have not accepted the privacy policy yet."
+ "consent.profile_not_accepted": "You have not accepted the privacy policy yet.",
+ "editor.macro_drag": "Drag to move (or Alt+Arrow up/down)",
+ "editor.move_up": "Move up (Alt+Arrow up)",
+ "editor.move_down": "Move down (Alt+Arrow down)",
+ "editor.moved_up": "Moved up.",
+ "editor.moved_down": "Moved down.",
+ "editor.move_first": "Already at the top.",
+ "editor.move_last": "Already at the bottom.",
+ "editor.width_help": "Width: drag the edge, or use the arrow keys",
+ "editor.width_of": "Width of {name}",
+ "editor.width_rem": "{n} rem",
+ "editor.width_full": "Full width",
+ "editor.width_set": "Width: {width}.",
+ "editor.width_bad_options": "The options of this block cannot be read; change the width under Options.",
+ "editor.moved": "Moved."
 }
