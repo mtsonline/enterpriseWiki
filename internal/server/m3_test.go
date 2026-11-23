@@ -137,7 +137,7 @@ func TestShellMacro(t *testing.T) {
 	body := htmlBody(`<div data-macro="shell" data-params='{"command":"echo \"<b>hello</b> $((40+2))\""}'></div>`)
 	var el elem
 	admin.must("POST", "/api/v1/elements", map[string]any{"category_id": root.ID, "type": "core.html", "title": "Status", "body": body}, &el, 201)
-	if !strings.Contains(el.HTML, "disabled on this server") {
+	if !strings.Contains(el.HTML, "Shell commands are switched off on this server.") {
 		t.Fatalf("shell ran while disabled: %s", el.HTML)
 	}
 	if err := e.app.Config.Update(func(c *config.Config) error { c.Plugins.Macros.ShellEnabled = true; return nil }); err != nil {
