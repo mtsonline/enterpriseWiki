@@ -35,6 +35,9 @@ func main() {
 	timeout := flag.Duration("timeout", 15*time.Minute, "time limit of one test run")
 	flag.Parse()
 
+	if err := checkIDs(traps); err != nil {
+		fail("%v", err)
+	}
 	chosen := traps
 	if *only != "" {
 		want := map[string]bool{}
@@ -199,4 +202,20 @@ func keys(m map[string]bool) []string {
 func fail(format string, a ...any) {
 	fmt.Fprintf(os.Stderr, "traps: "+format+"\n", a...)
 	os.Exit(1)
+}
+
+// checkIDs refuses traps with an empty or a repeated id: with -only, the
+// second trap of an id would never run.
+func checkIDs(ts []trap) error {
+	seen := map[string]bool{}
+	for _, t := range ts {
+		if t.ID == "" {
+			return fmt.Errorf("a trap without id in %s", t.File)
+		}
+		if seen[t.ID] {
+			return fmt.Errorf("trap id %q is used twice", t.ID)
+		}
+		seen[t.ID] = true
+	}
+	return nil
 }
