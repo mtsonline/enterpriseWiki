@@ -142,6 +142,11 @@ const cellAlign = (tok: Token) => {
   return { align: m ? m[1] : null };
 };
 
+/** What the directive rules above keep on a token (markdown-it types
+ * meta as possibly null). */
+interface DirectiveMeta { name: string; params: Record<string, string>; label?: string }
+const metaOf = (t: { meta: unknown }): DirectiveMeta => (t.meta as DirectiveMeta | null) ?? { name: '', params: {} };
+
 export const parser = new MarkdownParser(schema, md, {
   blockquote: { block: 'blockquote' },
   paragraph: { block: 'paragraph' },
@@ -161,9 +166,9 @@ export const parser = new MarkdownParser(schema, md, {
   code_inline: { mark: 'code', noCloseToken: true },
   html_block: { node: 'html_block', getAttrs: (t) => ({ html: t.content.replace(/\n$/, '') }) },
   html_inline: { node: 'html_inline', getAttrs: (t) => ({ html: t.content }) },
-  directive_leaf: { node: 'macro', getAttrs: (t) => ({ name: t.meta.name, params: t.meta.params, leaf: true }) },
-  directive: { block: 'macro', getAttrs: (t) => ({ name: t.meta.name, params: t.meta.params, leaf: false }) },
-  directive_inline: { node: 'macro_inline', getAttrs: (t) => ({ name: t.meta.name, params: t.meta.params, label: t.meta.label }) },
+  directive_leaf: { node: 'macro', getAttrs: (t) => ({ name: metaOf(t).name, params: metaOf(t).params, leaf: true }) },
+  directive: { block: 'macro', getAttrs: (t) => ({ name: metaOf(t).name, params: metaOf(t).params, leaf: false }) },
+  directive_inline: { node: 'macro_inline', getAttrs: (t) => ({ name: metaOf(t).name, params: metaOf(t).params, label: metaOf(t).label }) },
   table: { block: 'table' },
   thead: { ignore: true },
   tbody: { ignore: true },
