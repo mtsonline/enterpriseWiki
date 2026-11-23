@@ -13,7 +13,7 @@
   "internalChecksFilter": "strict",
   "automerge": true,
   "automergeType": "pr",
-  "platformAutomerge": false,
+  "platformAutomerge": true,
   "automergeStrategy": "squash",
   "rebaseWhen": "behind-base-branch",
   "prHourlyLimit": 0,
