@@ -13,6 +13,7 @@ import (
 	"github.com/mtsonline/enterprisewiki/internal/apperr"
 	"github.com/mtsonline/enterprisewiki/internal/audit"
 	"github.com/mtsonline/enterprisewiki/internal/config"
+	"github.com/mtsonline/enterprisewiki/internal/csvsafe"
 	h "github.com/mtsonline/enterprisewiki/internal/httpx"
 	"github.com/mtsonline/enterprisewiki/internal/identity"
 )
@@ -161,7 +162,8 @@ func (s *Server) routesAudit() {
 					if e.EntityID != nil {
 						eid = strconv.FormatInt(*e.EntityID, 10)
 					}
-					_ = cw.Write([]string{strconv.FormatInt(e.ID, 10), e.At.Format(time.RFC3339), e.Actor, e.Action, e.EntityType, eid, e.IP, e.Via, e.UserAgent, string(e.Before), string(e.After)})
+					// values others chose (names, user agents) never become formulas
+					_ = cw.Write(csvsafe.Row([]string{strconv.FormatInt(e.ID, 10), e.At.Format(time.RFC3339), e.Actor, e.Action, e.EntityType, eid, e.IP, e.Via, e.UserAgent, string(e.Before), string(e.After)}))
 				} else {
 					b, _ := json.Marshal(e)
 					_, _ = w.Write(append(b, '\n'))
