@@ -133,14 +133,22 @@ export function openDialog(title: string, content: Child, actions: Child[] = [],
     h('div', { class: 'ew-dialog-body' }, content),
     actions.length ? h('div', { class: 'ew-dialog-actions' }, ...actions) : null,
   );
-  const close = () => {
-    if (dialog.open) dialog.close();
-  };
-  dialog.addEventListener('close', () => {
+  // closing finishes at once (the close event of the browser comes a
+  // moment later): whoever waits for the dialog sees its result right away
+  let finished = false;
+  const finish = () => {
+    if (finished) return;
+    finished = true;
     dialog.remove();
     opts.onClose?.();
     opener?.focus?.();
-  });
+  };
+  const close = () => {
+    if (dialog.open) dialog.close();
+    finish();
+  };
+  // Escape and forms with method="dialog" close it without close()
+  dialog.addEventListener('close', finish);
   document.body.append(dialog);
   dialog.showModal();
   const first = dialog.querySelector<HTMLElement>('.ew-dialog-body input, .ew-dialog-body select, .ew-dialog-body textarea, .ew-dialog-body button, .ew-dialog-actions button');
