@@ -148,6 +148,9 @@ async function boot(): Promise<void> {
   try {
     const [site, me] = await Promise.all([api.get<Site>('site'), api.get<{ user: Principal | null; manages_categories?: boolean }>('auth/me')]);
     state.site = site;
+    // the scheme of the site template at once (privacy dialog, closed page);
+    // the template shown applies it again below
+    applyScheme(previewTemplate() || siteTemplate());
     setWaitNotice(site.wait_notice_s);
     setWaitPrompt(waitDialog);
     state.user = me.user;
@@ -156,6 +159,8 @@ async function boot(): Promise<void> {
     state.editMode = !!me.user && stored('ewiki.edit') === '1';
     await loadMessages(state.lang);
   } catch (e) {
+    // light colours: the page the server marked dark must not stay dark around it
+    document.documentElement.dataset.shown = 'light';
     mount(app, h('main', { class: 'ew-fatal' }, h('h1', null, 'Enterprise Wiki'), h('p', { role: 'alert' }, `The server is not reachable (${String(e)}). Please try again later.`)));
     return;
   }
