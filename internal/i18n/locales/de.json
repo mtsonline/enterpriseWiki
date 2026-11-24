@@ -3037,5 +3037,9 @@
  "editor.suggest_count_other": "{count} Bausteine vorgeschlagen. Pfeiltasten wählen, Enter fügt ein, Escape schließt.",
  "sources.pick_page": "Seite wählen",
  "sources.page_added": "Seite hinzugefügt.",
- "sources.pick_add": "Seite hinzufügen"
+ "sources.pick_add": "Seite hinzufügen",
+ "bo.closable": "Lesende können ihn schließen (zum Beispiel eine Hinweisleiste; er erscheint wieder, wenn sich sein Text ändert)",
+ "bo.close": "Schließen",
+ "bo.close_named": "Schließen: {name}",
+ "bo.closed": "Geschlossen."
 }

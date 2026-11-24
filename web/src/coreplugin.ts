@@ -16,7 +16,7 @@ export { CATEGORY_POSITIONS, DASHBOARD_POSITIONS, ELEMENT_POSITIONS, EDITOR_POSI
 
 import { h } from './core/dom';
 import { optionsKey, shownNow, type BlockOptions } from './core/blockoptions';
-import { styleFrame } from './core/optionframes';
+import { closableFrame, styleFrame } from './core/optionframes';
 export { tile } from './components/tile';
 export { registerTaskSection, type TaskSection } from './views/tasks';
 export { logout } from './components/widgets';
@@ -370,6 +370,7 @@ function withOptions(n: Node, o: BlockOptions): Node {
   const frame = h('div', { class: 'ew-bo' }, body);
   if (!styleFrame(frame, o)) return n; // options of an invalid form are ignored
   body.append(n);
+  closableFrame(frame, o);
   optionFrames.set(n, { key, frame });
   return frame;
 }

@@ -2,6 +2,7 @@
 // in the content of a page: the CSS of the options (built from values of a
 // valid form only, shared by all frames with the same options), the anchor
 // (only where its id is free) and, with limited lines, a button to show all.
+import { announce } from './announce';
 import { h } from './dom';
 import { t } from './i18n';
 import { state } from './state';
@@ -16,8 +17,9 @@ export function styleFrame(frame: HTMLElement, o: BlockOptions): boolean {
   if (!formOK(o)) return false;
   const key = optionsKey(o);
   const css = optionsCSS(`.ew-bo[data-bo="${key}"]`, o);
-  if (!css) return false;
-  if (!rules.has(key)) {
+  // (a block readers may close needs no CSS of its own)
+  if (!css && o.closable !== true) return false;
+  if (css && !rules.has(key)) {
     rules.add(key);
     style ??= document.head.appendChild(h('style', { id: 'ew-block-options' }));
     style.append(document.createTextNode(`${css}\n`));
@@ -35,6 +37,46 @@ export function styleFrame(frame: HTMLElement, o: BlockOptions): boolean {
     frame.append(more);
   }
   return true;
+}
+
+const CLOSED = 'ew-closed';
+
+/** A short fingerprint of a text (FNV-1a), to remember closed blocks. */
+function fingerprint(text: string): string {
+  let h1 = 0x811c9dc5;
+  for (let i = 0; i < text.length; i++) h1 = Math.imul(h1 ^ text.charCodeAt(i), 0x01000193) >>> 0;
+  return h1.toString(36);
+}
+
+function closedList(): string[] {
+  try { const v = JSON.parse(localStorage.getItem(CLOSED) ?? '[]'); return Array.isArray(v) ? v.filter((x) => typeof x === 'string') : []; } catch { return []; }
+}
+
+/** A block readers may close (option closable, e.g. a notice bar): a
+ * button closes it; this browser remembers it until the text of the block
+ * changes. Without storage it closes for this page view only. Focus goes
+ * on to the next part of the page. */
+export function closableFrame(frame: HTMLElement, o: BlockOptions): void {
+  if (o.closable !== true || frame.querySelector(':scope > .ew-bo-close')) return;
+  const body = frame.querySelector<HTMLElement>(':scope > .ew-bo-body') ?? frame;
+  const text = (body.textContent ?? '').replace(/\s+/g, ' ').trim();
+  const id = fingerprint(text);
+  if (closedList().includes(id)) { frame.hidden = true; return; }
+  const name = (body.querySelector('h1, h2, h3, h4, h5, h6')?.textContent ?? text).trim().slice(0, 60);
+  const btn = h('button', { type: 'button', class: 'ew-btn ew-btn--subtle ew-bo-close', 'aria-label': name ? t('bo.close_named', { name }) : t('bo.close') }, h('span', { 'aria-hidden': 'true' }, '×')) as HTMLButtonElement;
+  btn.addEventListener('click', () => {
+    try { localStorage.setItem(CLOSED, JSON.stringify([...closedList().filter((x) => x !== id), id].slice(-50))); } catch { /* storage refused: closed for this view */ }
+    // the focus goes on to what follows (or to the main content)
+    const all = Array.from(document.querySelectorAll<HTMLElement>('a[href], button:not([disabled]), input:not([disabled]), select, textarea, [tabindex]:not([tabindex="-1"])'));
+    const next = all.find((el) => !frame.contains(el) && (frame.compareDocumentPosition(el) & Node.DOCUMENT_POSITION_FOLLOWING) && el.offsetParent !== null);
+    frame.hidden = true;
+    announce(t('bo.closed'));
+    const target = next ?? document.querySelector<HTMLElement>('main');
+    if (target && !next && !target.hasAttribute('tabindex')) target.setAttribute('tabindex', '-1');
+    target?.focus();
+  });
+  frame.classList.add('ew-bo--closable');
+  frame.append(btn);
 }
 
 const VIDEO = /^\/api\/v1\/(files\/[A-Za-z0-9._-]{1,128}|media\/[0-9]{1,18}\/view)$/;
@@ -76,6 +118,6 @@ export function hydrateOptionFrames(root: ParentNode): void {
     if (!o || typeof o !== 'object' || Array.isArray(o)) return;
     // a rule of display only: the content is part of the page anyway
     if (!shownNow(o, Date.now(), !!state.user, state.lang)) frame.hidden = true;
-    styleFrame(frame, o);
+    if (styleFrame(frame, o)) closableFrame(frame, o);
   });
 }

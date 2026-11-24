@@ -558,6 +558,10 @@ th[aria-sort="descending"] .ew-sort-button::after { content: " ↓"; opacity: 1;
 /* options of placed blocks: the frame takes no room of its own; the form */
 .ew-bo { min-width: 0; }
 .ew-bo-more { margin-top: .25rem; }
+/* a block readers may close: the button in its corner, the text keeps clear of it */
+.ew-bo--closable { position: relative; }
+.ew-bo--closable > .ew-bo-body { padding-inline-end: 3rem; }
+.ew-bo-close { position: absolute; inset-block-start: .25rem; inset-inline-end: .25rem; min-width: 2.75rem; min-height: 2.75rem; font-size: 1.25rem; line-height: 1; }
 .ew-bo-form { display: grid; gap: 1rem; }
 .ew-bo-group { border: 1px solid var(--ew-border); border-radius: var(--ew-radius); padding: .5rem .75rem; }
 .ew-bo-group > summary { cursor: pointer; font-weight: 600; min-height: 2.75rem; display: flex; align-items: center; }
