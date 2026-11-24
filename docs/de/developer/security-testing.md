@@ -18,6 +18,28 @@ Bei neuen Funktionen gehört ein Test für die Rechteprüfung dazu (wer darf es,
 
 Sicherheitslücken bitte nicht öffentlich melden, sondern wie in `SECURITY.md` beschrieben (GitHub: *Security → Report a vulnerability*).
 
+## Prüfung vor einem Pull Request (`scripts/precheck.sh`)
+
+Das Skript führt die Prüfungen der CI auf dem eigenen Rechner aus, in der Reihenfolge, die Fehler am schnellsten findet:
+
+```bash
+scripts/precheck.sh               # fast + go + e2e (was die meisten Änderungen brauchen)
+scripts/precheck.sh fast          # nur die schnellen Prüfungen (Sekunden bis wenige Minuten)
+scripts/precheck.sh all           # zusätzlich security und docker
+```
+
+| Teil | Was läuft |
+|---|---|
+| `fast` | gofmt, erzeugte Plugin-Importe, `go vet`, Plugin-Vertrag, Lizenzen, Dokumentation, `tools/traps -fit`, Alter neuer npm-Versionen, Bauen des Frontends, Typprüfung, Unit-Tests. Hält beim ersten Fehler an. |
+| `go` | alle Go-Tests mit Race-Detector; die Server-Tests in den drei Teilen der CI, jeder mit eigener Datenbank |
+| `e2e` | Bauen, ein frisches Wiki mit eigener Datenbank und eigenem Port, alle Browser-Tests mit axe, `tools/uicoverage` |
+| `security` | `govulncheck`, `gosec`, `npm audit` |
+| `docker` | Bauen des Images und die Docker-Tests (`test-docker-plugins.sh`, `test-docker-proxy.sh`); braucht ein laufendes Docker |
+
+Die langen Teile laufen nebeneinander (`EWIKI_PRECHECK_JOBS`, Vorgabe: Zahl der CPUs, höchstens 4), jeder mit eigenem Protokoll; am Ende nennt das Skript die fehlgeschlagenen Tests. Es braucht einen PostgreSQL-Benutzer, der Datenbanken anlegen darf (`EWIKI_PRECHECK_PG`, Vorgabe `postgres://wiki:wiki@localhost:5432`), und entfernt seine Datenbanken wieder. Die Tests gegen echte Anmelde-, Office- und Suchsysteme bleiben in der CI (Jobs *Sign-in*, *Office*, *External search*); ihre Startskripte in `tests/auth`, `tests/office` und `tests/search` laufen mit Docker auch lokal.
+
+Ein neuer Push in einen Pull Request beendet den CI-Lauf des Pushs davor.
+
 ## Abgefangene Lücken in Abhängigkeiten
 
 | Lücke | Betroffen | Abfangen im Code | geprüft bis |

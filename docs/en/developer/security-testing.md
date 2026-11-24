@@ -18,6 +18,28 @@ New features come with a test of the permission check (who may, who may not – 
 
 Please do not report vulnerabilities publicly but as described in `SECURITY.md` (GitHub: *Security → Report a vulnerability*).
 
+## Local check before a pull request (`scripts/precheck.sh`)
+
+The script runs the checks of the CI on your own machine, in the order that finds mistakes fastest:
+
+```bash
+scripts/precheck.sh               # fast + go + e2e (what most changes need)
+scripts/precheck.sh fast          # only the quick checks (seconds to a few minutes)
+scripts/precheck.sh all           # also security and docker
+```
+
+| Part | What runs |
+|---|---|
+| `fast` | gofmt, generated plugin imports, `go vet`, plugin contract, licences, documentation, `tools/traps -fit`, npm release age, frontend build, typecheck, unit tests. Stops at the first mistake. |
+| `go` | all Go tests with the race detector; the server tests in the three shards of the CI, each with its own database |
+| `e2e` | build, a fresh wiki on its own database and port, all browser tests with axe, `tools/uicoverage` |
+| `security` | `govulncheck`, `gosec`, `npm audit` |
+| `docker` | image build and the Docker tests (`test-docker-plugins.sh`, `test-docker-proxy.sh`); needs a running Docker |
+
+The long parts run side by side (`EWIKI_PRECHECK_JOBS`, default: number of CPUs, at most 4), each with a log of its own; at the end the script shows the failed tests. It needs a PostgreSQL user that may create databases (`EWIKI_PRECHECK_PG`, default `postgres://wiki:wiki@localhost:5432`) and removes its databases again. The tests against real sign-in, office and search systems stay in the CI (jobs *Sign-in*, *Office*, *External search*); their start scripts in `tests/auth`, `tests/office` and `tests/search` also run locally with Docker.
+
+A new push to a pull request stops the CI run of the push before it.
+
 ## Caught vulnerabilities in dependencies
 
 | Vulnerability | Affected | Caught in the code | checked until |
