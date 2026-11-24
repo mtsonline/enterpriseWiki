@@ -7,8 +7,8 @@ import { api } from '../core/api';
 import { announce } from '../core/announce';
 import { t } from '../core/i18n';
 import { state } from '../core/state';
-import { button, checkbox, select, textInput } from './ui';
-import { categorySelect } from './pickers';
+import { button, checkbox, openDialog, select, textInput } from './ui';
+import { categorySelect, elementSelect } from './pickers';
 import { registerMacroParamControl, type MacroParamContext } from '../editor/macros';
 
 export interface SourceKind {
@@ -44,7 +44,27 @@ const kinds: SourceKind[] = [
   },
   {
     kind: 'elements', element: true, label: () => t('sources.elements'),
-    render: (v) => { const i = textInput({ value: v, placeholder: '12, 15' }); i.setAttribute('aria-label', t('sources.elements')); return { el: i, get: () => i.value.replace(/\s+/g, '') }; },
+    render: (v) => {
+      const i = textInput({ value: v, placeholder: '12, 15' });
+      i.setAttribute('aria-label', t('sources.elements'));
+      // a page chosen by its title adds its id (no need to know numbers)
+      const pick = button(t('sources.pick_page'), async () => {
+        const s = await elementSelect();
+        const dlg = openDialog(t('sources.pick_page'), s.el, [button(t('sources.pick_add'), () => {
+          const id = s.value();
+          if (id > 0) {
+            const ids = i.value.split(',').map((x) => x.trim()).filter(Boolean);
+            if (!ids.includes(String(id))) ids.push(String(id));
+            i.value = ids.join(', ');
+            i.dispatchEvent(new Event('input', { bubbles: true }));
+            announce(t('sources.page_added'));
+          }
+          dlg.close();
+          i.focus();
+        }, { variant: 'primary' })]);
+      }, { variant: 'secondary' });
+      return { el: h('span', { class: 'ew-source-value' }, i, pick), get: () => i.value.replace(/\s+/g, '') };
+    },
   },
   {
     kind: 'search', element: true, label: () => t('sources.search'),

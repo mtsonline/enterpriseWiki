@@ -3034,5 +3034,8 @@
  "editor.suggest_all": "Alle Bausteine …",
  "editor.suggest_label": "Bausteine",
  "editor.suggest_count_one": "{count} Baustein vorgeschlagen. Pfeiltasten wählen, Enter fügt ein, Escape schließt.",
- "editor.suggest_count_other": "{count} Bausteine vorgeschlagen. Pfeiltasten wählen, Enter fügt ein, Escape schließt."
+ "editor.suggest_count_other": "{count} Bausteine vorgeschlagen. Pfeiltasten wählen, Enter fügt ein, Escape schließt.",
+ "sources.pick_page": "Seite wählen",
+ "sources.page_added": "Seite hinzugefügt.",
+ "sources.pick_add": "Seite hinzufügen"
 }

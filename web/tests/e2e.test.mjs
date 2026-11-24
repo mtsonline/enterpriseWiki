@@ -4802,6 +4802,67 @@ test('editor: suggestions of blocks while typing ("/" and ":name"), the task wit
   await page.getByRole('region', { name: /^(tasks|aufgaben)$/i }).locator('tr', { hasText: `Water the okapi ${run}` }).waitFor();
 });
 
+test('dates in pages: an appointment with the date block, the report of dates, a calendar with the category as a source', async () => {
+  const cat = await m6Category();
+  const soon = new Date(Date.now() + 5 * 86400000).toISOString().slice(0, 10);
+  // the date block: a title makes it an appointment, with start and end
+  await newPage('core.html', `Dates ${run}`);
+  await page.locator('.ewe-prose').click();
+  await page.keyboard.type('We meet on ');
+  const dlg = await insertBlock('date');
+  await dlg.getByLabel(/^(date|datum)/i).first().fill(soon);
+  await dlg.getByLabel(/^(title of the appointment|titel des termins)/i).fill(`Okapi meeting ${run}`);
+  await dlg.getByLabel(/^(starts at|beginn)/i).fill('10:00');
+  await dlg.getByLabel(/^(ends at|ende)/i).fill('11:30');
+  await a11y('date dialog with an appointment');
+  await dlg.locator('button[type=submit]').click();
+  await page.locator('.ewe-prose').press('End');
+  await page.keyboard.press('Enter');
+  const dlg2 = await insertBlock('dates');
+  await dlg2.locator('button[type=submit]').click();
+  await page.getByRole('button', { name: /^(publish|veröffentlichen)$/i }).click();
+  await page.waitForURL(/\/e\/\d+$/);
+  await idle();
+  await page.locator('time.ew-date', { hasText: /10:00–11:30/ }).waitFor();
+  const report = page.getByRole('region', { name: /^(dates|termine)$/i });
+  await report.locator('tr', { hasText: `Okapi meeting ${run}` }).getByText('10:00–11:30').waitFor();
+  await a11y('report of dates');
+  // a calendar with the category as a source: the appointment, read-only, with a link to the page
+  const found = (await call('GET', `/api/v1/elements?q=${encodeURIComponent(`Dates ${run}`)}&limit=5`)).items.find((x) => x.title === `Dates ${run}`);
+  const pageId = found.id, pageCat = found.category_id;
+  const cal = await call('POST', '/api/v1/elements', { category_id: cat, type: 'content.events', title: `Page dates ${run}`,
+    body: { view: 'list', page_tasks: true, more_sources: `category:${pageCat}` } });
+  await page.goto(`${BASE}/e/${cal.id}`);
+  await idle();
+  // the view chosen last is kept: the list shows the next weeks
+  await page.getByRole('button', { name: /^(list|liste)$/i }).click();
+  await page.locator('.ewe-list').waitFor();
+  await page.getByRole('button', { name: new RegExp(`Okapi meeting ${run}`) }).first().click();
+  const det = page.locator('dialog[open]').last();
+  const link = det.getByRole('link', { name: `Dates ${run}` });
+  await link.waitFor();
+  assert.equal(await link.getAttribute('href'), `/e/${pageId}`);
+  assert.equal(await det.getByRole('button', { name: /^(edit|bearbeiten)$/i }).count(), 0, 'read-only here');
+  await a11y('appointment of a page in a calendar');
+  await det.getByRole('button', { name: /^(close|schließen)$/i }).first().click();
+  // the settings: pages are chosen by their title
+  await page.goto(`${BASE}/e/${cal.id}/edit`);
+  await idle();
+  const sources = page.locator('fieldset.ew-source-builder').first();
+  await sources.getByRole('button', { name: /^(add elements|elemente \(ids\) hinzufügen)/i }).click();
+  await sources.getByRole('button', { name: /^(choose a page|seite wählen)$/i }).click();
+  const pick = page.locator('dialog[open]').last();
+  await pick.getByRole('searchbox').first().fill(`Dates ${run}`);
+  await page.waitForFunction((n) => [...document.querySelectorAll('dialog[open] .ew-picker-list option')].some((o) => o.textContent.startsWith(`${n} –`)), `Dates ${run}`);
+  const opt = await page.evaluate((n) => [...document.querySelectorAll('dialog[open] .ew-picker-list option')].find((o) => o.textContent.startsWith(`${n} –`))?.value, `Dates ${run}`);
+  await pick.locator('.ew-picker-list').selectOption(opt);
+  await a11y('choosing a page as a source');
+  await pick.getByRole('button', { name: /^(add the page|seite hinzufügen)$/i }).click();
+  assert.equal(await sources.getByRole('textbox', { name: /^(elements \(ids\)|elemente \(ids\))$/i }).inputValue(), String(pageId));
+  await a11y('calendar settings with pages as a source');
+  await sources.getByRole('button', { name: /^(remove elements|elemente \(ids\) entfernen)/i }).click();
+});
+
 test('theme blocks B: own text for "page not found", reading progress', async () => {
   const logged = errors.length;
   const cat = await m6Category();

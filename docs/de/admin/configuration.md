@@ -208,7 +208,7 @@ Signiert wird nach RFC 8551 (`multipart/signed`, CMS mit SHA-256, Zertifikatsket
 
 Absender: Workflow-E-Mails dürfen nur `from` oder Adressen aus `allowed_from` als Absender verwenden; andere gewünschte Absender werden als Antwortadresse (Reply-To) gesetzt, damit keine fremden Absender gefälscht werden und SPF/DMARC nicht scheitern.
 
-**Zusammenfassungen von Beobachtungen.** Beobachtungen mit `frequency: daily` bzw. `weekly` werden einmal täglich um `digest_hour` Uhr bzw. wöchentlich am `digest_weekday` (0 = Sonntag, 1 = Montag …) verschickt, in der Zeitzone `digest_timezone` (IANA-Name, leer = Zeitzone des Servers). Standard: 7 Uhr, Montag.
+**Zusammenfassungen von Beobachtungen.** Beobachtungen mit `frequency: daily` bzw. `weekly` werden einmal täglich um `digest_hour` Uhr bzw. wöchentlich am `digest_weekday` (0 = Sonntag, 1 = Montag …) verschickt, in der Zeitzone `digest_timezone` (IANA-Name, leer = Zeitzone des Servers). Sie ist auch die **Zeitzone des Wikis** für Uhrzeiten von Terminen in Seiten (Datum-Bausteine mit Uhrzeit). Standard: 7 Uhr, Montag.
 
 ```yaml
 mail:
