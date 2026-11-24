@@ -90,14 +90,39 @@ export function guardLeave(dirty: () => boolean, ask: () => Promise<boolean>): v
 
 const safe = (f: () => boolean) => { try { return f(); } catch { return true; } };
 
+/** A jump inside the page shown (#name): the browser scrolls there itself;
+ * the page is not drawn anew (it keeps its state and the focus). A target
+ * inside closed details (an expandable section, a question of a FAQ) is
+ * opened; other parts (tabs) listen to hashchange. */
+function jumpInPage(): void {
+  shownURL = location.pathname + location.search + location.hash;
+  let target: HTMLElement | null = null;
+  try { target = location.hash.length > 1 ? document.getElementById(decodeURIComponent(location.hash.slice(1))) : null; } catch { target = null; }
+  if (!target) return;
+  let opened = false;
+  for (let el: HTMLElement | null = target; el; el = el.parentElement) {
+    if (el instanceof HTMLDetailsElement && !el.open) { el.open = true; opened = true; }
+  }
+  if (opened) target.scrollIntoView({ block: 'start' });
+}
+
 /** Starts the router; main is the element views render into. */
 export function start(main: HTMLElement): void {
   mainEl = main;
+  // pages change their own address without a new page (a nicer address, a
+  // page of a list, an open question): that address is the page shown, so a
+  // later jump inside the page (#heading) is not taken for a new page
+  const replace = history.replaceState.bind(history);
+  history.replaceState = (data: unknown, unused: string, url?: string | URL | null) => {
+    replace(data, unused, url);
+    shownURL = location.pathname + location.search + location.hash;
+  };
   window.addEventListener('popstate', () => {
     const g = leave;
     const to = location.pathname + location.search + location.hash;
-    // a jump inside the guarded page (#heading, skip link) keeps it as it is
-    if (g && to.split('#')[0] === shownURL.split('#')[0]) { shownURL = to; return; }
+    // a jump inside the page (#heading, a table of contents, a skip link)
+    // keeps it as it is, guarded or not
+    if (to.split('#')[0] === shownURL.split('#')[0]) { jumpInPage(); return; }
     if (g && safe(g.dirty)) {
       // back or forward: stay on the page until the user decided
       history.pushState(null, '', shownURL);
@@ -114,6 +139,8 @@ export function start(main: HTMLElement): void {
     if (!href || href.startsWith('#') || href.startsWith('mailto:')) return;
     const u = new URL(a.href, location.href);
     if (u.origin !== location.origin || u.pathname.startsWith('/api/')) return;
+    // the same page with a #name: a jump inside it, done by the browser
+    if (u.hash && u.pathname === location.pathname && u.search === location.search) return;
     ev.preventDefault();
     navigate(u.pathname + u.search + u.hash);
   });
