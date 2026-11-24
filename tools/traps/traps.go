@@ -1519,7 +1519,7 @@ var traps = []trap{
 		New:  "if i != n-1 && i != n {",
 		Pkg:  "./internal/markdown/", Tests: "^TestSetTask$",
 	},
-{
+	{
 		ID: "dates.only-with-title", About: "every date in the text becomes an appointment",
 		File: "plugins/core_macros/date.go",
 		Old:  "if err != nil || title == \"\" {",

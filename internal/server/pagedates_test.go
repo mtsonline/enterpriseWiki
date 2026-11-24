@@ -28,7 +28,7 @@ func TestPageDates(t *testing.T) {
 	md := func(src string) map[string]any { return map[string]any{"format": "markdown", "source": src} }
 	var page, subPage, hidden obj
 	admin.must("POST", "/api/v1/elements", map[string]any{"category_id": team.ID, "type": "core.html", "title": "Plan", "body": md(
-		"Meeting :date{value=2026-12-01 label=\"Team meeting\" time=10:00 end=11:30}, deadline :date{value=2026-12-03}.\n\n"+
+		"Meeting :date{value=2026-12-01 label=\"Team meeting\" time=10:00 end=11:30}, deadline :date{value=2026-12-03}.\n\n" +
 			"- [ ] Send the minutes @admin :date{value=2026-12-02}\n\n::dates{range=all}\n")}, &page, 201)
 	admin.must("POST", "/api/v1/elements", map[string]any{"category_id": sub.ID, "type": "core.html", "title": "Sub page", "body": md(
 		":date{value=2026-12-04 label=\"Sub party\"}\n")}, &subPage, 201)
@@ -117,7 +117,7 @@ func TestPageDates(t *testing.T) {
 	soon := time.Now().AddDate(0, 0, 10).Format("2006-01-02")
 	var soonPage, up obj
 	admin.must("POST", "/api/v1/elements", map[string]any{"category_id": team.ID, "type": "core.html", "title": "Soon", "body": md(
-		":date{value="+soon+" label=\"Soon okapi\" time=09:15}\n\n- [ ] Soon task @admin :date{value="+soon+"}\n")}, &soonPage, 201)
+		":date{value=" + soon + " label=\"Soon okapi\" time=09:15}\n\n- [ ] Soon task @admin :date{value=" + soon + "}\n")}, &soonPage, 201)
 	admin.must("POST", "/api/v1/elements", map[string]any{"category_id": site.ID, "type": "core.html", "title": "Upcoming", "body": md(
 		fmt.Sprintf("::events{source=\"category:%d\" days=60 limit=10}\n", team.ID))}, &up, 201)
 	guest.must("GET", fmt.Sprintf("/api/v1/elements/%d?lang=en", up.ID), nil, &v, 200)
