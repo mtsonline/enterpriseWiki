@@ -151,6 +151,12 @@ type Options struct {
 	// HeaderHide: the sticky header goes away while scrolling down and comes
 	// back when scrolling up or when the keyboard focus is in it
 	HeaderHide bool `json:"header_hide,omitempty"`
+	// HeaderOverlay: on pages that begin with a hero banner right below the
+	// header, the header lies on the banner, without its background and in
+	// the color of the banner's text (the contrast the banner checked); it
+	// gets its background back when a drawer of it opens or – sticky – when
+	// the banner is scrolled away
+	HeaderOverlay bool `json:"header_overlay,omitempty"`
 	// PrintPlain: printing shows only the content (no header, footer, side
 	// columns, drawer buttons)
 	PrintPlain bool `json:"print_plain,omitempty"`
@@ -432,6 +438,9 @@ func (d *Design) Problems() []Problem {
 	}
 	if d.Options.StickyHeader && !slices.ContainsFunc(d.Rows, func(r Row) bool { return r.Role == "banner" }) {
 		add("options.sticky_header", "there is no header (a row with the role banner) to stay at the top")
+	}
+	if d.Options.HeaderOverlay && !slices.ContainsFunc(d.Rows, func(r Row) bool { return r.Role == "banner" }) {
+		add("options.header_overlay", "there is no header (a row with the role banner) to lie on the hero banner")
 	}
 	// landmarks: several of a role need different labels, a region always
 	// one (WCAG 1.3.1, 2.4.1)

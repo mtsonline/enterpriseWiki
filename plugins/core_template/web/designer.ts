@@ -524,6 +524,7 @@ export async function designer(panel: HTMLElement, key: string, back: () => void
       chk('sticky', t('template.d_sticky'), draft.options.sticky_header, (d, v) => { d.options.sticky_header = v; }, t('template.d_sticky_help', { vh: LIMITS.sticky_max_vh })),
       chk('shrink', t('template.d_shrink'), !!draft.options.header_shrink, (d, v) => { if (v) { d.options.header_shrink = true; d.options.sticky_header = true; } else delete d.options.header_shrink; }, t('template.d_shrink_help')),
       chk('hide', t('template.d_hide'), !!draft.options.header_hide, (d, v) => { if (v) { d.options.header_hide = true; d.options.sticky_header = true; } else delete d.options.header_hide; }, t('template.d_hide_help')),
+      chk('overlay', t('template.d_overlay'), !!draft.options.header_overlay, (d, v) => { if (v) d.options.header_overlay = true; else delete d.options.header_overlay; }, t('template.d_overlay_help')),
       chk('boxed', t('template.d_boxed'), !!draft.options.boxed, (d, v) => { if (v) d.options.boxed = true; else delete d.options.boxed; }, t('template.d_boxed_help')),
       chk('print', t('template.d_print'), !!draft.options.print_plain, (d, v) => { if (v) d.options.print_plain = true; else delete d.options.print_plain; }, t('template.d_print_help')),
       chk('totop', t('template.d_totop'), draft.options.back_to_top, (d, v) => { d.options.back_to_top = v; }),

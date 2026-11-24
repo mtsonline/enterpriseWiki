@@ -275,5 +275,7 @@
  "template.d_boxed_help": "The whole page – header, content and footer – is a box of the content width in the middle of the window, with the subtle background around it. Without it, the rows span the whole window. Rows then have at most the content width; the check of the room uses it.",
  "template.d_hint_header_tall": "{view}: the sticky header is {height} px high, more than {limit} % of the window ({max} px). So it does not stick here. Put blocks of the header in a drawer, for example the tools.",
  "template.d_hint_header_sideways": "The sticky header is {height} px high. On a phone held sideways (about {window} px window height) that is more than {limit} %; it does not stick there.",
- "template.d_hint_header_ok": "{view}: the sticky header is {height} px high and sticks."
+ "template.d_hint_header_ok": "{view}: the sticky header is {height} px high and sticks.",
+ "template.d_overlay": "The header lies on a hero banner",
+ "template.d_overlay_help": "On pages that begin with a hero banner right below the header, the header lies on the banner without its background, in the color of the banner's text. It gets its background back while a menu of it is open and, if sticky, once the banner is scrolled away. With a side column beside the content the header stays as it is."
 }
