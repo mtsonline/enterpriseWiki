@@ -7,24 +7,41 @@ import path from 'node:path';
 import { contrast } from '../../../plugins/core_template/web/contrast';
 import { codeLanguage, codeLines, CODE_LANGUAGES } from '../../src/core/codeblocks';
 
-const css = fs.readFileSync(path.join(process.cwd(), 'src/styles/code.css'), 'utf8');
+const css = fs.readFileSync(path.join(process.cwd(), 'src/styles/code.css'), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
 
-test('every colour of a code token has 4.5:1 on the code background', () => {
-  const bg = /--ew-code-bg:\s*(#[0-9a-f]{6})/i.exec(css)![1];
-  const rules = [...css.matchAll(/([^{}]+)\{([^{}]*)\}/g)];
-  let n = 0;
-  for (const [, sel, body] of rules) {
-    const fg = /(?:^|;|\s)color:\s*(#[0-9a-f]{6})/i.exec(body)?.[1];
-    if (!fg) continue;
-    const own = /background:\s*(#[0-9a-f]{6})/i.exec(body)?.[1] ?? bg;
-    n++;
-    assert.ok(contrast(fg, own) >= 4.5, `${sel.trim()}: ${fg} on ${own} is ${contrast(fg, own).toFixed(2)}`);
+/** the custom properties declared in the rule with exactly this selector */
+function palette(selector: string): Record<string, string> {
+  const m = [...css.matchAll(/([^{}]+)\{([^{}]*)\}/g)].find(([, sel]) => sel.trim() === selector);
+  assert.ok(m, `rule ${selector}`);
+  return Object.fromEntries([...m![2].matchAll(/(--ew-[a-z0-9-]+):\s*(#[0-9a-f]{6})/gi)].map(([, k, v]) => [k, v]));
+}
+
+for (const [scheme, selector] of [['light', '.ew-codeblock'], ['dark', '.ewc-dark .ew-codeblock']]) {
+  test(`every colour of a code token has 4.5:1 on the code background (${scheme})`, () => {
+    const p = palette(selector);
+    const bg = p['--ew-code-bg'];
+    let n = 0;
+    for (const [k, v] of Object.entries(p)) {
+      if (k === '--ew-code-bg' || k === '--ew-code-border' || k.endsWith('-bg')) continue;
+      const own = p[`${k}-bg`] ?? bg; // marked lines of a diff have their own background
+      n++;
+      assert.ok(contrast(v, own) >= 4.5, `${k}: ${v} on ${own} is ${contrast(v, own).toFixed(2)}`);
+    }
+    assert.ok(contrast(p['--ew-code-border'], bg) >= 1.2, 'the border is visible');
+    assert.ok(n >= 12, `${n} colours checked`);
+  });
+}
+
+test('every token colour of the code comes from the palette', () => {
+  const light = Object.keys(palette('.ew-codeblock')).sort();
+  assert.deepEqual(Object.keys(palette('.ewc-dark .ew-codeblock')).sort(), light, 'both schemes have the same colours');
+  for (const [, sel, body] of css.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
+    if (!sel.includes('hljs-')) continue;
+    for (const [, v] of body.matchAll(/(?:^|;|\s)(?:color|background):\s*([^;]+)/g)) {
+      if (/^(Canvas|CanvasText)$/.test(v.trim())) continue; // forced colours
+      assert.match(v.trim(), /^var\(--ew-hl-[a-z-]+\)$/, `${sel.trim()}: ${v}`);
+    }
   }
-  for (const v of ['--ew-code-text', '--ew-code-muted']) {
-    const c = new RegExp(`${v}:\\s*(#[0-9a-f]{6})`, 'i').exec(css)![1];
-    assert.ok(contrast(c, bg) >= 4.5, `${v}`);
-  }
-  assert.ok(n >= 10, `${n} colours checked`);
 });
 
 test('the language of a code block', () => {

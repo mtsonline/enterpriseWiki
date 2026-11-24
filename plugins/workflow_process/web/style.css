@@ -25,7 +25,7 @@
 /* Workflow 2: triggers, sub parts of steps, key/value rows */
 .ewf-ed-section > h2 { font-size: 1.25rem; }
 .ewf-editor h3 { font-size: 1rem; margin: .9rem 0 .4rem; }
-.ewf-editor .ewf-sub { background: var(--ew-surface-2, transparent); }
+.ewf-editor .ewf-sub { background: var(--ew-bg-subtle); }
 .ewf-editor .ewf-sub > summary { cursor: pointer; font-weight: 600; }
 .ewf-map { display: grid; gap: .4rem; margin-bottom: .6rem; }
 .ewf-checks { border: 0; padding: 0; margin: .5rem 0; display: flex; flex-wrap: wrap; gap: .25rem 1.25rem; }
@@ -33,4 +33,4 @@
 .ewf-trigger-st:empty { display: none; }
 .ewf-stats { margin-top: 1rem; }
 .ewf-stats > summary { cursor: pointer; font-weight: 600; }
-.ewf-bar { display: inline-block; height: .6rem; width: calc(var(--w) * 1.2); max-width: 8rem; min-width: 2px; background: var(--ew-accent, #36c); border-radius: 2px; vertical-align: middle; }
+.ewf-bar { display: inline-block; height: .6rem; width: calc(var(--w) * 1.2); max-width: 8rem; min-width: 2px; background: var(--ew-primary); border-radius: 2px; vertical-align: middle; }

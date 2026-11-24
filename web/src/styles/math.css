@@ -358,4 +358,4 @@ body {
 .ew-math--block { display: block; margin: .75rem 0; overflow-x: auto; }
 .ew-math--block math { display: block math; }
 .ew-math-tex { white-space: pre-wrap; }
-.ew-math--error .ew-math-tex, pre.ew-math--error code { outline: 1px dashed var(--ew-danger, #b3261e); }
+.ew-math--error .ew-math-tex, pre.ew-math--error code { outline: 1px dashed var(--ew-danger); }
