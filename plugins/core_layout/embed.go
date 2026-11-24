@@ -133,30 +133,41 @@ func (e embed) Render(_ context.Context, mc content.MacroContext) (string, error
 	if err != nil {
 		return "", err
 	}
-	allowed := false
-	if e.allow != nil {
-		for _, o := range e.allow() {
+	if err := allowedEmbed(e.allow, tg); err != nil {
+		return "", err
+	}
+	return embedHTML(mc.Lang, tg, title, caption, "ewl-embed--"+oneOf(mc.Params["ratio"], embedRatios), ""), nil
+}
+
+// allowedEmbed refuses a service no administrator allowed.
+func allowedEmbed(allow func() []string, tg embedTarget) error {
+	if allow != nil {
+		for _, o := range allow() {
 			if strings.EqualFold(o, tg.origin) {
-				allowed = true
+				return nil
 			}
 		}
 	}
-	if !allowed {
-		return "", apperr.BadRequest("content from %s is not allowed in this wiki; an administrator can allow %s under Administration → Settings → Media", tg.host, tg.origin)
-	}
-	de := strings.HasPrefix(mc.Lang, "de")
+	return apperr.BadRequest("content from %s is not allowed in this wiki; an administrator can allow %s under Administration → Settings → Media", tg.host, tg.origin)
+}
+
+// embedHTML is the box of an embed: nothing of the service loads before
+// the reader agrees (widget ewl.embed). cls adds classes, before is put
+// above the caption (e.g. the description of a place for a map).
+func embedHTML(lang string, tg embedTarget, title, caption, cls, before string) string {
+	de := strings.HasPrefix(lang, "de")
 	note, open, newWin := "This content comes from %s. Your browser connects to %s only when you load it; the service then receives data such as your IP address.", "Watch on %s", " (opens in a new window)"
 	if de {
 		note, open, newWin = "Dieser Inhalt kommt von %s. Ihr Browser verbindet sich erst mit %s, wenn Sie ihn laden; der Dienst erhält dann Daten wie Ihre IP-Adresse.", "Auf %s ansehen", " (öffnet ein neues Fenster)"
 	}
 	var b strings.Builder
-	b.WriteString(`<figure class="ewl-embed ewl-embed--` + oneOf(mc.Params["ratio"], embedRatios) + `" data-ew-widget="ewl.embed" data-src="` + esc(tg.src) + `" data-host="` + esc(tg.host) + `" data-title="` + esc(title) + `">`)
+	b.WriteString(`<figure class="ewl-embed ` + cls + `" data-ew-widget="ewl.embed" data-src="` + esc(tg.src) + `" data-host="` + esc(tg.host) + `" data-title="` + esc(title) + `">`)
 	b.WriteString(`<div class="ewl-embed-box"><p class="ewl-embed-title">` + esc(title) + `</p>`)
 	b.WriteString(`<p class="ewl-embed-note">` + esc(strings.ReplaceAll(note, "%s", tg.host)) + `</p>`)
 	b.WriteString(`<p class="ewl-embed-link"><a href="` + esc(tg.link) + `" rel="noopener noreferrer" target="_blank">` + esc(strings.ReplaceAll(open, "%s", tg.host)) + `<span class="sr-only">` + esc(newWin) + `</span></a></p></div>`)
-	if caption != "" {
-		b.WriteString(`<figcaption>` + esc(caption) + `</figcaption>`)
+	if caption != "" || before != "" {
+		b.WriteString(`<figcaption>` + before + esc(caption) + `</figcaption>`)
 	}
 	b.WriteString(`</figure>`)
-	return b.String(), nil
+	return b.String()
 }

@@ -38,7 +38,7 @@ func (p *Plugin) Setup(h *coreplugin.Host) error {
 			return nil
 		}
 		return h.Config.Get().Mail.DigestLocation()
-	}}, embed{allow: func() []string { return h.Config.Get().Media.EmbedAllow }}, newsletter{allow: func() []string { return h.Config.Get().Media.FormAllow }}} {
+	}}, embed{allow: func() []string { return h.Config.Get().Media.EmbedAllow }}, mapBlock{allow: func() []string { return h.Config.Get().Media.EmbedAllow }}, newsletter{allow: func() []string { return h.Config.Get().Media.FormAllow }}} {
 		h.RegisterPictureMacro(m)
 	}
 	return nil
