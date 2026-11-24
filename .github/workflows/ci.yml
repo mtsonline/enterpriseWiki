@@ -17,6 +17,12 @@ on:
 permissions:
   contents: read
 
+# a new push to a pull request stops the run of the push before it (its
+# result no longer counts); runs on main always finish
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.sha }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 env:
   DB_URL: postgres://wiki:wiki@localhost:5432/wiki?sslmode=disable
 
