@@ -3037,5 +3037,9 @@
  "editor.suggest_count_other": "{count} blocks suggested. Arrow keys choose, Enter inserts, Escape closes.",
  "sources.pick_page": "Choose a page",
  "sources.page_added": "Page added.",
- "sources.pick_add": "Add the page"
+ "sources.pick_add": "Add the page",
+ "bo.closable": "Readers can close it (for example a notice bar; it comes back when its text changes)",
+ "bo.close": "Close",
+ "bo.close_named": "Close: {name}",
+ "bo.closed": "Closed."
 }

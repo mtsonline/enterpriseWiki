@@ -258,7 +258,7 @@ func TestWAFMacros(t *testing.T) {
 // optionSamples: one valid value per block option (blockoptions.json).
 var optionSamples = map[string]any{
 	"hide": []any{"mobile", "tablet"}, "audience": "signed_in", "from": "2026-12-01T08:00:00Z", "until": "2026-12-24T18:00:00+01:00",
-	"langs": []any{"de", "en"}, "print": "hide", "break_before": true, "break_inside_avoid": true, "anchor": "intro",
+	"langs": []any{"de", "en"}, "print": "hide", "break_before": true, "break_inside_avoid": true, "anchor": "intro", "closable": true,
 	"order": map[string]any{"mobile": -1.0}, "max_width": map[string]any{"desktop": 40.0}, "min_height": 20.0, "aspect": "16-9",
 	"padding_top": map[string]any{"desktop": 4.0, "mobile": 2.0}, "padding_right": 3.0, "padding_bottom": 3.0, "padding_left": 3.0,
 	"margin_top": 2.0, "margin_bottom": 2.0, "text_align": map[string]any{"tablet": "center"}, "bg_color": "#0b3a6b",

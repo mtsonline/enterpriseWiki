@@ -22,6 +22,7 @@
         { "id": "break_before", "type": "bool" },
         { "id": "break_inside_avoid", "type": "bool" },
         { "id": "anchor", "type": "anchor" },
+        { "id": "closable", "type": "bool" },
         { "id": "order", "type": "int", "min": -10, "max": 10, "responsive": true }
       ]
     },

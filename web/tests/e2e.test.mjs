@@ -4863,6 +4863,31 @@ test('dates in pages: an appointment with the date block, the report of dates, a
   await sources.getByRole('button', { name: /^(remove elements|elemente \(ids\) entfernen)/i }).click();
 });
 
+test('a block readers may close (notice bar): closed it stays closed in this browser until its text changes', async () => {
+  const cat = await m6Category();
+  const body = (text) => ({ format: 'markdown', source: `:::panel{type=info options="closable:true"}\n### Move notice ${run}\n\n${text}\n:::\n\nAfter the notice: [the start page](/).\n` });
+  const pg = await call('POST', '/api/v1/elements', { category_id: cat, type: 'core.html', title: `Notice ${run}`, body: body('The wiki moves on Friday.') });
+  await page.goto(`${BASE}/e/${pg.id}`);
+  await idle();
+  const close = page.getByRole('button', { name: new RegExp(`^(close|schließen): move notice ${run}$`, 'i') });
+  await close.waitFor();
+  await a11y('a block readers may close');
+  await close.click();
+  await page.getByText('The wiki moves on Friday.').waitFor({ state: 'hidden' });
+  assert.equal(await page.evaluate(() => document.activeElement?.textContent), 'the start page', 'the focus goes on to what follows');
+  await page.reload();
+  await idle();
+  await page.getByText('After the notice:').waitFor();
+  assert.equal(await page.getByText('The wiki moves on Friday.').isVisible(), false, 'closed after reloading');
+  // a new text: shown again
+  const cur = await call('GET', `/api/v1/elements/${pg.id}`);
+  await call('PUT', `/api/v1/elements/${pg.id}`, { lang: cur.shown_lang, title: `Notice ${run}`, body: body('The move is postponed to Monday.') });
+  await page.reload();
+  await idle();
+  await page.getByText('The move is postponed to Monday.').waitFor();
+  await close.waitFor();
+});
+
 test('theme blocks B: own text for "page not found", reading progress', async () => {
   const logged = errors.length;
   const cat = await m6Category();
