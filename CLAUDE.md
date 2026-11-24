@@ -63,7 +63,10 @@ Bei jedem Konflikt gilt diese Reihenfolge: Sicherheit, kein Datenverlust, Stabil
 
 ## 6. Befehle
 
+Vor jedem Pull Request: `scripts/precheck.sh` (schnelle Prüfungen zuerst, dann Go- und Browser-Tests wie in der CI, nebeneinander und je mit eigener Datenbank). Teile: `fast`, `go`, `e2e`, `security`, `docker`, `all`. Am Ende jeden fehlgeschlagenen Teil ansehen. Die einzelnen Befehle:
+
 ```bash
+scripts/precheck.sh                     # fast + go + e2e; Protokolle je Teil in /tmp/ewiki-precheck.*
 ./scripts/build.sh                      # Frontend und Programm bauen (bin/ewiki)
 gofmt -l .                              # muss leer sein
 go vet ./...
