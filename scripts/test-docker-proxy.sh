@@ -134,7 +134,7 @@ sed -i -E "s#^(\s+image:) ghcr.io/mtsonline/enterprisewiki:.*#\1 $image#; s#pull
 	echo COMPOSE_PROFILES=proxy
 	echo COMPOSE_FILE=docker-compose.yml:docker-compose.crowdsec.yml
 	echo EWIKI_SECURITY=crowdsec
-	echo "CROWDSEC_BOUNCER_KEY=$(LC_ALL=C tr -dc 'A-Za-z0-9' </dev/urandom | head -c 48)"
+	echo "CROWDSEC_BOUNCER_KEY=$(head -c 4096 /dev/urandom | LC_ALL=C tr -dc 'A-Za-z0-9' | cut -c 1-48)"
 	echo EWIKI_ACME=letsencrypt-staging
 	echo EWIKI_ACME_EMAIL=ci@example.com
 	echo EWIKI_HTTP_PORT=18091
@@ -154,11 +154,11 @@ cs cscli lapi status >/dev/null 2>&1 || fail "CrowdSec not ready"
 pid="$(docker compose ps -q proxy)"
 [ "$(docker inspect -f '{{.Config.User}}' "$pid")" = "$(id -u):$(id -g)" ] || fail "proxy (CrowdSec build) runs as $(docker inspect -f '{{.Config.User}}' "$pid")"
 [ "$(docker inspect -f '{{.HostConfig.ReadonlyRootfs}}' "$pid")" = true ] || fail "proxy (CrowdSec build) root file system writable"
-docker compose exec -T proxy caddy list-modules | grep -q '^http.handlers.appsec$' || fail "proxy without the AppSec handler"
+grep -qx 'http.handlers.appsec' <<<"$(docker compose exec -T proxy caddy list-modules)" || fail "proxy without the AppSec handler"
 # local only: no online API (no console, no shared signals)
 if cs sh -c 'grep -q online_client /etc/crowdsec/config.yaml'; then fail "CrowdSec online API configured"; fi
-cs cscli bouncers list -o json | grep -q '"caddy"' || fail "bouncer caddy not registered"
-if cs cscli scenarios list -o raw | grep -q 'crowdsecurity/http-crawl-non_statics'; then fail "crawl scenario active (would block busy readers)"; fi
+grep -q '"caddy"' <<<"$(cs cscli bouncers list -o json)" || fail "bouncer caddy not registered"
+if grep -q 'crowdsecurity/http-crawl-non_statics' <<<"$(cs cscli scenarios list -o raw)"; then fail "crawl scenario active (would block busy readers)"; fi
 get() { curl -s -o /dev/null -w '%{http_code}' -H 'Host: wiki.example.com' "$@"; }
 for _ in $(seq 1 60); do [ "$(get http://127.0.0.1:18091/start)" = 301 ] && break; sleep 1; done
 [ "$(get http://127.0.0.1:18091/start)" = 301 ] || fail "request through the proxy: $(get http://127.0.0.1:18091/start)"

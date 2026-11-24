@@ -35,7 +35,8 @@ setvar() { # NAME VALUE – set or replace a line in .env
 	fi
 }
 getvar() { sed -n "s/^$1=//p" .env | tail -n 1; }
-random() { LC_ALL=C tr -dc 'A-Za-z0-9' < /dev/urandom | head -c "$1"; }
+# (a fixed amount of random bytes, read to the end: no "broken pipe" with pipefail)
+random() { head -c 4096 /dev/urandom | LC_ALL=C tr -dc 'A-Za-z0-9' | cut -c "1-$1"; }
 
 fresh=
 if [ ! -f .env ]; then
