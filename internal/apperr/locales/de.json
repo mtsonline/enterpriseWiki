@@ -41,6 +41,7 @@
  "%s: %s: true or false": "%s: %s: true oder false",
  "%s: %v": "%s: %v",
  "%s: [from, to] expected": "%s: [von, bis] erwartet",
+ "%s: a decimal number with a dot, e.g. 46.6167": "%s: eine Dezimalzahl mit Punkt, z. B. 46.6167",
  "%s: a file of the wiki (/api/v1/files/… or /api/v1/media/ID/view)": "%s: eine Datei des Wikis (/api/v1/files/… oder /api/v1/media/ID/view)",
  "%s: a font file has at most %d KB (expert setting %s)": "%s: Eine Schriftdatei hat höchstens %d KB (Experteneinstellung %s)",
  "%s: a number": "%s: eine Zahl",
@@ -53,6 +54,7 @@
  "%s: enter the secret (a new destination has none stored)": "%s: Bitte das Geheimnis eingeben (für ein neues Ziel ist keines gespeichert)",
  "%s: expected text": "%s: Text erwartet",
  "%s: expected true or false": "%s: true oder false erwartet",
+ "%s: from -%v to %v": "%s: von -%v bis %v",
  "%s: ids expected": "%s: IDs erwartet",
  "%s: instance label %q is not a text of the plugin (en.json)": "%s: Die Instanz-Beschriftung %q ist kein Text des Plugins (en.json)",
  "%s: invalid choice": "%s: ungültige Auswahl",
@@ -114,6 +116,9 @@
  "a horizontal timeline needs a name for screen readers (label): it can scroll in itself": "Eine waagrechte Zeitleiste braucht einen Namen für Screenreader (label): Sie kann in sich scrollen",
  "a host name is already used by the site %s": "Der Hostname wird schon von der Site %s verwendet",
  "a logo bar needs a name for screen readers (label)": "Eine Logo-Leiste braucht einen Namen für Screenreader (label)",
+ "a map has either coordinates or the address of another map, not both": "Eine Karte hat entweder Koordinaten oder die Adresse einer anderen Karte, nicht beides",
+ "a map needs coordinates (lat, lon) or the address of another map": "Eine Karte braucht Koordinaten (lat, lon) oder die Adresse einer anderen Karte",
+ "a map needs the place in words (place), for everyone who does not see the map": "Eine Karte braucht den Ort in Worten (place), für alle, die die Karte nicht sehen",
  "a menu cannot contain itself (directly or through submenus)": "Ein Menü kann sich nicht selbst enthalten (direkt oder über Untermenüs)",
  "a name (at most 100 characters) is required": "Ein Name (höchstens 100 Zeichen) ist Pflicht",
  "a name (max. 100 characters) is required": "Ein Name (höchstens 100 Zeichen) ist Pflicht",
@@ -1218,5 +1223,6 @@
  "you would lose the permission to give rights on this page": "Sie würden das Recht verlieren, auf dieser Seite Rechte zu vergeben",
  "you would lose the permission to give rights on this page: give yourself a rule with it first": "Sie würden das Recht verlieren, auf dieser Seite Rechte zu vergeben: bitte sich zuerst eine Regel mit diesem Recht geben",
  "your current address %s is not in these networks: you would lock yourself out": "Ihre aktuelle Adresse %s liegt nicht in diesen Netzwerken: Sie würden sich aussperren",
- "your user name comes from %s and cannot be changed here": "Ihr Benutzername kommt von %s und lässt sich hier nicht ändern"
+ "your user name comes from %s and cannot be changed here": "Ihr Benutzername kommt von %s und lässt sich hier nicht ändern",
+ "zoom: a whole number from 1 to 19": "zoom: eine ganze Zahl von 1 bis 19"
 }
