@@ -90,7 +90,7 @@ done
 wait_for() { # NAME URL PATTERN SECONDS
 	local i
 	for ((i = 0; i < $4; i += 5)); do
-		if curl -fsS --max-time 5 "$2" 2>/dev/null | grep -q "$3"; then return 0; fi
+		if grep -q "$3" <<<"$(curl -fsS --max-time 5 "$2" 2>/dev/null)"; then return 0; fi
 		sleep 5
 	done
 	fail "$1 did not start ($2)"
@@ -98,7 +98,7 @@ wait_for() { # NAME URL PATTERN SECONDS
 echo "== waiting for the wiki, Collabora and OnlyOffice"
 wait_for wiki http://127.0.0.1:8080/healthz ok 180
 wait_for collabora http://127.0.0.1:9980/hosting/discovery wopi-discovery 300
-curl -fsS http://127.0.0.1:9980/hosting/discovery | grep -q '<proof-key' || fail "Collabora publishes no proof key"
+grep -q '<proof-key' <<<"$(curl -fsS http://127.0.0.1:9980/hosting/discovery)" || fail "Collabora publishes no proof key"
 wait_for onlyoffice http://127.0.0.1:8090/healthcheck true 420
 
 echo "== browser: open, edit and save in both programs"
