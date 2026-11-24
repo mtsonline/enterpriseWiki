@@ -596,6 +596,13 @@ var traps = []trap{
 		Pkg:  "./internal/server/", Tests: "^TestFormCSP$",
 	},
 	{
+		ID: "map.place-required", About: "a map without the place in words",
+		File: "plugins/core_layout/map.go",
+		Old:  "\tif place == \"\" {\n\t\treturn \"\", apperr.BadRequest(\"a map needs the place in words",
+		New:  "\tif false {\n\t\treturn \"\", apperr.BadRequest(\"a map needs the place in words",
+		Pkg:  "./plugins/core_layout/", Tests: "^TestMapBlock$",
+	},
+	{
 		ID: "layout.options-checked", About: "options of a block in the content are used without the check of the server",
 		File: "internal/content/macros.go",
 		Old:  "\tif err := CheckBlockOptions(o); err != nil {\n\t\treturn macroNote(apperr.Localized(err, lang)) + res\n\t}",
@@ -934,9 +941,9 @@ var traps = []trap{
 	{
 		ID: "embed.not-allowed", About: "an embed from a service nobody allowed is shown",
 		File: "plugins/core_layout/embed.go",
-		Old:  "\tallowed := false\n",
-		New:  "\tallowed := true\n",
-		Pkg:  "./plugins/core_layout/", Tests: "^TestEmbed$",
+		Old:  "\treturn apperr.BadRequest(\"content from %s is not allowed in this wiki",
+		New:  "\treturn nil\n\treturn apperr.BadRequest(\"content from %s is not allowed in this wiki",
+		Pkg:  "./plugins/core_layout/", Tests: "^(TestEmbed|TestMapBlock)$",
 	},
 	{
 		ID: "embed.csp-unchecked", About: "a hand-edited entry of media.embed_allow goes into the CSP unchecked",
