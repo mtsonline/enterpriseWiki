@@ -47,6 +47,20 @@
   --ew-status-green-bg: #e3f4e8; --ew-status-green-text: #17602d;
   --ew-status-yellow-bg: #fdf3d6; --ew-status-yellow-text: #6e4b00;
   --ew-status-red-bg: #fbe4e4; --ew-status-red-text: #9c1c1c;
+  --ew-status-orange-bg: #fde9da; --ew-status-orange-text: #8a3a00;
+  --ew-status-purple-bg: #efe5fb; --ew-status-purple-text: #5b2a99;
+  --ew-status-teal-bg: #dcf3f0; --ew-status-teal-text: #0b5c55;
+  --ew-chart-bar: #1f5fbf; --ew-chart-bar-text: #ffffff;
+  /* colours of chart series (at least 3:1 on the background) */
+  --ewl-chart-1: #0b5cad; --ewl-chart-2: #b45309; --ewl-chart-3: #15803d; --ewl-chart-4: #7e22ce;
+  --ewl-chart-5: #be123c; --ewl-chart-6: #0f766e; --ewl-chart-7: #4338ca; --ewl-chart-8: #a16207;
+  --ewl-chart-9: #1d4ed8; --ewl-chart-10: #9d174d; --ewl-chart-11: #166534; --ewl-chart-12: #57534e;
+  /* parts that stay dark in both schemes (dark sections, hero), with a white
+     button on them; and overlays on pictures */
+  --ew-inverse-bg: #1d2733; --ew-inverse-text: #f3f5f7; --ew-inverse-link: #9cc8ff;
+  --ew-hero-to: #0f3d6e;
+  --ew-cta-bg: #ffffff; --ew-cta-text: #0b3a6b; --ew-cta-hover: #e9f1fb;
+  --ew-overlay-bg: rgb(0 0 0 / .75); --ew-label-halo: rgb(0 0 0 / .55);
   --ew-console-bg: #1e2329; --ew-console-text: #e8eaed;   /* output of commands: dark in both schemes */
   --ew-badge-bg: #b42318;
   --ew-badge-text: #ffffff;
@@ -114,6 +128,11 @@ body.ewc-dark {
   --ew-status-green-bg: #164b35; --ew-status-green-text: #baf3db;
   --ew-status-yellow-bg: #533f04; --ew-status-yellow-text: #f8e6a0;
   --ew-status-red-bg: #5d1f1a; --ew-status-red-text: #ffd5d2;
+  --ew-status-orange-bg: #5a2a06; --ew-status-orange-text: #ffd2b0;
+  --ew-status-purple-bg: #352356; --ew-status-purple-text: #e3d1ff;
+  --ew-status-teal-bg: #0b3d38; --ew-status-teal-text: #b5ece4;
+  --ew-chart-bar: #6ea8ff; --ew-chart-bar-text: #10151a;
+  --ew-hero-from: #0b5cad;
   --ew-console-bg: #101418; --ew-console-text: #e8eaed;
   --ew-badge-bg: #ff9c8f;
   --ew-badge-text: #10151a;
