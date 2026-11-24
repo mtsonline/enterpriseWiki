@@ -187,6 +187,59 @@ func Adjust(img image.Image, brightness, contrast, saturation float64) image.Ima
 	return out
 }
 
+// Redact makes the rectangle (x, y, w, h) unreadable: "fill" paints it
+// black, "pixelate" replaces it with blocks of size×size pixels in their
+// average colour (at least 12 pixels; small blocks could leave text
+// readable). Unlike blurring, neither can be reversed. The rectangle is
+// clamped to the image.
+func Redact(img image.Image, x, y, w, h int, mode string, size int) (image.Image, error) {
+	src := toRGBA(img)
+	out := image.NewRGBA(src.Rect)
+	copy(out.Pix, src.Pix)
+	r := image.Rect(x, y, x+w, y+h).Add(src.Rect.Min).Intersect(src.Rect)
+	if r.Empty() {
+		return nil, errors.New("redact: the area lies outside the image")
+	}
+	switch mode {
+	case "fill":
+		for py := r.Min.Y; py < r.Max.Y; py++ {
+			for px := r.Min.X; px < r.Max.X; px++ {
+				i := out.PixOffset(px, py)
+				out.Pix[i], out.Pix[i+1], out.Pix[i+2], out.Pix[i+3] = 0, 0, 0, 255
+			}
+		}
+	case "pixelate":
+		size = max(size, 12)
+		for by := r.Min.Y; by < r.Max.Y; by += size {
+			for bx := r.Min.X; bx < r.Max.X; bx += size {
+				b := image.Rect(bx, by, min(bx+size, r.Max.X), min(by+size, r.Max.Y))
+				var sum [4]int
+				n := 0
+				for py := b.Min.Y; py < b.Max.Y; py++ {
+					for px := b.Min.X; px < b.Max.X; px++ {
+						i := src.PixOffset(px, py)
+						for c := 0; c < 4; c++ {
+							sum[c] += int(src.Pix[i+c])
+						}
+						n++
+					}
+				}
+				for py := b.Min.Y; py < b.Max.Y; py++ {
+					for px := b.Min.X; px < b.Max.X; px++ {
+						i := out.PixOffset(px, py)
+						for c := 0; c < 4; c++ {
+							out.Pix[i+c] = uint8(sum[c] / n) // #nosec G115 -- average of bytes, at most 255
+						}
+					}
+				}
+			}
+		}
+	default:
+		return nil, errors.New("redact: mode fill or pixelate")
+	}
+	return out, nil
+}
+
 // Blur applies a box blur with the given radius (three passes approximate a
 // Gaussian blur). The radius is limited to 50 pixels.
 func Blur(img image.Image, radius int) image.Image {
@@ -318,7 +371,7 @@ func Watermark(img image.Image, lines []string) (image.Image, error) {
 
 // Op is one step of the image editor.
 type Op struct {
-	Type string `json:"type"` // crop, resize, rotate, flip, adjust, blur, grayscale
+	Type string `json:"type"` // crop, resize, rotate, flip, adjust, blur, grayscale, redact
 	X    int    `json:"x,omitempty"`
 	Y    int    `json:"y,omitempty"`
 	W    int    `json:"w,omitempty"`
@@ -330,6 +383,9 @@ type Op struct {
 	Brightness float64 `json:"brightness,omitempty"`
 	Contrast   float64 `json:"contrast,omitempty"`
 	Saturation float64 `json:"saturation,omitempty"`
+	// Mode and Size: redact (fill or pixelate, block size in pixels)
+	Mode string `json:"mode,omitempty"`
+	Size int    `json:"size,omitempty"`
 }
 
 // Apply runs the editor operations in order.
@@ -338,6 +394,11 @@ func Apply(img image.Image, ops []Op) (image.Image, error) {
 		return nil, errors.New("too many editing steps")
 	}
 	for _, o := range ops {
+		for _, v := range []int{o.X, o.Y, o.W, o.H} {
+			if v < 0 || v > 1_000_000 {
+				return nil, errors.New("position and size from 0 to 1000000 pixels")
+			}
+		}
 		switch o.Type {
 		case "crop":
 			img = Crop(img, o.X, o.Y, o.W, o.H)
@@ -361,6 +422,14 @@ func Apply(img image.Image, ops []Op) (image.Image, error) {
 			img = Adjust(img, 0, 0, -100)
 		case "blur":
 			img = Blur(img, o.Radius)
+		case "redact":
+			if o.W <= 0 || o.H <= 0 || o.Size < 0 || o.Size > 1000 {
+				return nil, errors.New("redact: a rectangle and a block size up to 1000")
+			}
+			var err error
+			if img, err = Redact(img, o.X, o.Y, o.W, o.H, o.Mode, o.Size); err != nil {
+				return nil, err
+			}
 		default:
 			return nil, fmt.Errorf("unknown editing step %q", o.Type)
 		}

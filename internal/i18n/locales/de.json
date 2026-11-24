@@ -3079,5 +3079,17 @@
  "layout.countdown_minutes_one": "Minute",
  "layout.countdown_minutes_other": "Minuten",
  "settings.form_allow": "Erlaubte Dienste für Newsletter-Anmeldungen (extern)",
- "settings.form_allow_help": "Eine Adresse je Zeile, nur der Anfang mit https:// und dem Server (zum Beispiel https://news.example.com). Der Baustein Newsletter-Anmeldung (extern) darf die E-Mail-Adresse der lesenden Person nur an diese Dienste senden. Leer: Kein Formular sendet etwas nach außerhalb des Wikis."
+ "settings.form_allow_help": "Eine Adresse je Zeile, nur der Anfang mit https:// und dem Server (zum Beispiel https://news.example.com). Der Baustein Newsletter-Anmeldung (extern) darf die E-Mail-Adresse der lesenden Person nur an diese Dienste senden. Leer: Kein Formular sendet etwas nach außerhalb des Wikis.",
+ "media.op.redact": "Unkenntlich machen",
+ "media.redact_help": "Markieren Sie den Bereich auf dem Bild (wie beim Zuschneiden) und wählen Sie, wie. Schwarz füllen und grobe Blöcke lassen sich nicht zurückrechnen; Weichzeichnen teilweise schon, darum wird es dafür nicht angeboten.",
+ "media.redact_mode": "Wie",
+ "media.redact_fill": "Schwarz füllen",
+ "media.redact_pixelate": "Grobe Blöcke",
+ "media.redact_area": "Bereich unkenntlich machen",
+ "media.purge_versions": "Ältere Versionen löschen",
+ "media.purge_help": "Ältere Versionen enthalten noch alles, was später geändert oder unkenntlich gemacht wurde. Löschen entfernt ihren Inhalt endgültig aus dem Wiki.",
+ "media.purge_confirm": "{n} ältere Versionen samt Inhalt löschen? Das lässt sich nicht rückgängig machen.",
+ "media.purge_after_redact": "Die älteren Versionen zeigen noch, was Sie unkenntlich gemacht haben. Jetzt samt Inhalt löschen? Das lässt sich nicht rückgängig machen.",
+ "media.purged": "{n} ältere Versionen gelöscht.",
+ "media.purged_kept": "{n} ältere Versionen gelöscht. {kept} ihrer Dateien bleiben, weil andere Dateien oder Seiten denselben Inhalt nutzen."
 }
