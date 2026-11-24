@@ -3672,6 +3672,64 @@ test('blocks B, part 2: quote, logo bar with a picture of the media library, tag
   }
 });
 
+test('a jump inside the page (#name) keeps the page as it is: no new drawing, tabs and closed sections open', async () => {
+  const cat = (await call('POST', '/api/v1/categories', { titles: { en: `Jumps ${run}` } })).id;
+  const src = [
+    ':::tabs',
+    '### First',
+    '',
+    'First tab',
+    '',
+    '***',
+    '',
+    '### Second',
+    '',
+    'Second tab',
+    ':::',
+    '',
+    '[To the second tab](#ewl-tab-1-2) · [To the hidden part](#deep-part) · [To the end](#the-end)',
+    '',
+    ':::expand{title="More details"}',
+    '::anchor{name=deep-part}',
+    '',
+    'The hidden part',
+    ':::',
+    '',
+    ...Array.from({ length: 60 }, (_, i) => `Line ${i + 1}\n`),
+    '::anchor{name=the-end}',
+    '',
+    'The end of the page',
+    '',
+  ].join('\n');
+  const el = await call('POST', '/api/v1/elements', { category_id: cat, type: 'core.html', title: `Jumps ${run}`, body: { format: 'markdown', source: src } });
+  await page.goto(`${BASE}/e/${el.id}`);
+  await idle();
+  await page.evaluate(() => { window.__ewMark = document.querySelector('.ewl-tabs'); });
+  const same = () => page.evaluate(() => !!window.__ewMark?.isConnected);
+  // a link to a tab selects it
+  await page.getByRole('link', { name: 'To the second tab' }).click();
+  await page.getByRole('tab', { name: 'Second', selected: true }).waitFor();
+  assert.ok(await page.getByText('Second tab', { exact: true }).isVisible());
+  // a link into a closed section opens it
+  await page.getByRole('link', { name: 'To the hidden part' }).click();
+  await page.getByText('The hidden part', { exact: true }).waitFor();
+  assert.equal(await page.locator('details', { hasText: 'The hidden part' }).evaluate((d) => d.open), true);
+  // a link down the page scrolls there; the focus stays where the link sent it, not on the title
+  const link = page.getByRole('link', { name: 'To the end' });
+  await link.focus();
+  await page.keyboard.press('Enter');
+  await page.waitForFunction(() => location.hash === '#the-end');
+  await page.waitForFunction(() => document.getElementById('the-end').getBoundingClientRect().top < window.innerHeight);
+  assert.notEqual(await page.evaluate(() => document.activeElement?.tagName), 'H1', 'the focus does not jump to the title');
+  // back: the same page, still not drawn anew
+  await page.goBack();
+  await page.waitForFunction(() => location.hash === '#deep-part');
+  assert.ok(await same(), 'the page was not drawn anew');
+  // another page is still a new page
+  await page.getByRole('link', { name: `Jumps ${run}` }).first().click();
+  await page.waitForFunction(() => !window.__ewMark?.isConnected);
+});
+
 test('blocks C, part 1: price table, picture with hotspots, before and after, countdown', async () => {
   const cat = (await call('POST', '/api/v1/categories', { titles: { en: `Offers ${run}` } })).id;
   const pics = [];

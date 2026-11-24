@@ -423,5 +423,12 @@ export function register(): void {
     const hash = location.hash.slice(1);
     const start = Math.max(0, parts.findIndex((p) => p.id === hash));
     select(start, false);
+    // a jump inside the page to one part (the page is not drawn anew)
+    const onHash = () => {
+      if (!root.isConnected) { window.removeEventListener('hashchange', onHash); return; }
+      const i = parts.findIndex((p) => p.id === location.hash.slice(1));
+      if (i >= 0) { select(i, false); parts[i].scrollIntoView({ block: 'start' }); }
+    };
+    window.addEventListener('hashchange', onHash);
   });
 }
