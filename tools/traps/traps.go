@@ -1519,4 +1519,32 @@ var traps = []trap{
 		New:  "if i != n-1 && i != n {",
 		Pkg:  "./internal/markdown/", Tests: "^TestSetTask$",
 	},
+{
+		ID: "dates.only-with-title", About: "every date in the text becomes an appointment",
+		File: "plugins/core_macros/date.go",
+		Old:  "if err != nil || title == \"\" {",
+		New:  "if err != nil {",
+		Pkg:  "./internal/server/", Tests: "^TestPageDates$",
+	},
+	{
+		ID: "dates.time-zone", About: "the time of an appointment is taken as UTC instead of the wiki's time zone",
+		File: "plugins/core_macros/date.go",
+		Old:  "t, _ := time.ParseInLocation(\"2006-01-02 15:04\", day.Format(\"2006-01-02\")+\" \"+clock, d.location())",
+		New:  "t, _ := time.ParseInLocation(\"2006-01-02 15:04\", day.Format(\"2006-01-02\")+\" \"+clock, time.UTC)",
+		Pkg:  "./internal/server/", Tests: "^TestPageDates$",
+	},
+	{
+		ID: "dates.calendar-modes", About: "a calendar takes an excluding page source it cannot apply",
+		File: "plugins/content_events/icsimport.go",
+		Old:  "if x.Mode != \"\" {",
+		New:  "if false {",
+		Pkg:  "./internal/server/", Tests: "^TestPageDates$",
+	},
+	{
+		ID: "dates.calendar-tasks", About: "the calendar shows the tasks of pages although not chosen",
+		File: "plugins/content_events/pages.go",
+		Old:  "	if tasks {\n		kinds = append(kinds, pageTaskKind)\n	}",
+		New:  "	kinds = append(kinds, pageTaskKind)",
+		Pkg:  "./internal/server/", Tests: "^TestPageDates$",
+	},
 }

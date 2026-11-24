@@ -9,6 +9,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/mtsonline/enterprisewiki/internal/content"
 	"github.com/mtsonline/enterprisewiki/internal/coreplugin"
@@ -29,13 +30,21 @@ func (p *Plugin) Manifest() coreplugin.Manifest { return coreplugin.ParseManifes
 
 // Setup registers the macros.
 func (p *Plugin) Setup(h *coreplugin.Host) error {
-	for _, m := range []content.Macro{toc{}, children{}, panel{}, expand{}, status{}, textStyle{}, columns{}, news{feeds: h.Feeds}, excerpt{}, anchor{}, date{}, formula{}, attachments{svc: h.Media}, pagechanges{}, contributors{}, decision{}} {
+	// the time zone of the wiki: the one of the e-mail digests
+	wikiLoc := func() *time.Location {
+		if h.Config == nil {
+			return nil
+		}
+		return h.Config.Get().Mail.DigestLocation()
+	}
+	for _, m := range []content.Macro{toc{}, children{}, panel{}, expand{}, status{}, textStyle{}, columns{}, news{feeds: h.Feeds}, excerpt{}, anchor{}, date{loc: wikiLoc}, formula{}, attachments{svc: h.Media}, pagechanges{}, contributors{}, decision{}} {
 		h.RegisterMacro(m)
 	}
 	h.RegisterDataKind(DecisionDataKind)
+	h.RegisterDataKind(DateDataKind)
 	// reading the wiki with the rights of the editor, nothing else: the
 	// editor shows what they show
-	for _, m := range []content.Macro{recent{}, gallery{svc: h.Media}, include{}, pagetree{}, searchbox{}, newpage{}, tagcloud{}, spacelist{}, spacedetails{}, decisions{}, tasks{}} {
+	for _, m := range []content.Macro{recent{}, gallery{svc: h.Media}, include{}, pagetree{}, searchbox{}, newpage{}, tagcloud{}, spacelist{}, spacedetails{}, decisions{}, tasks{}, dates{loc: wikiLoc}} {
 		h.RegisterPictureMacro(m)
 	}
 	return nil

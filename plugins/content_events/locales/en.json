@@ -182,10 +182,14 @@
  "perm.content.events.attendees": "See participants",
  "perm.content.events.attendees_help": "See and export the participants of all events of the calendars in the category (organizers always see the participants of their own events).",
  "content.events.more_sources": "Further sources",
- "content.events.more_sources_help": "Show the events of other calendars (only to readers who may see them) and of subscribed calendars (iCalendar address, read-only, refreshed every 10 minutes).",
+ "content.events.more_sources_help": "Show the events of other calendars (only to readers who may see them), of subscribed calendars (iCalendar address, read-only, refreshed every 10 minutes) and the dates in the text of pages: a category (with or without its subcategories) or single pages. Dates of pages are read-only here and only shown to readers who may see the page.",
  "content.events.src_calendar": "Calendar of the wiki",
  "content.events.src_ical": "Subscribed calendar (iCal address)",
  "content.events.from_source": "From",
  "content.events.dashboard_title": "Upcoming events",
- "content.events.none_upcoming": "There are no events in the next 30 days."
+ "content.events.none_upcoming": "There are no events in the next 30 days.",
+ "content.events.page_tasks": "Also show the open tasks with a due date of these pages",
+ "content.events.from_page": "From the page",
+ "content.events.kind": "Kind",
+ "content.events.page_task": "Task in a page"
 }

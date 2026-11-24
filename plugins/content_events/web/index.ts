@@ -10,12 +10,13 @@ import './style.css';
 const BASE = '/api/v1/x/content.events';
 
 interface Cat { id: string; label: string; color: string }
-interface Config { intro: { format: string; source: string }; view: View; week_start: number; categories: Cat[]; ical: boolean; list_days: number; no_invitations?: boolean; more_sources?: string }
+interface Config { intro: { format: string; source: string }; view: View; week_start: number; categories: Cat[]; ical: boolean; list_days: number; no_invitations?: boolean; more_sources?: string; page_tasks?: boolean }
 type View = 'month' | 'week' | 'list';
 interface Ev {
   id: number; calendar_id: number; title: string; description: string; description_html: string; location: string; url: string; category: string;
   starts_at: string; ends_at: string; all_day: boolean; tz: string; rrule: string; exdates: string[]; registration: boolean; capacity: number;
   waitlist: boolean; reg_deadline: number; reminders: number[]; author: string; can_edit: boolean; can_manage: boolean; external?: boolean; source?: string;
+  page_id?: number; page_title?: string; page_kind?: 'date' | 'task';
   overrides?: Record<string, Override>;
 }
 interface Occ {
@@ -52,7 +53,8 @@ function createEditor(container: HTMLElement, raw: unknown): EditorInstance {
   const days = textInput({ type: 'number', value: String(c.list_days || 90) });
   const ical = checkbox(t('content.events.ical_opt'), c.ical !== false);
   const noInv = checkbox(t('content.events.no_invitations'), !!c.no_invitations);
-  const more = sourcesEditor(t('content.events.more_sources'), c.more_sources ?? '', { kinds: ['calendar', 'ical'], help: t('content.events.more_sources_help') });
+  const more = sourcesEditor(t('content.events.more_sources'), c.more_sources ?? '', { kinds: ['calendar', 'ical', 'category', 'elements'], zones: false, help: t('content.events.more_sources_help') });
+  const pageTasks = checkbox(t('content.events.page_tasks'), !!c.page_tasks);
   const list = h('div', { class: 'ewe-cat-rows' });
   const draw = () => {
     mount(list, ...cats.map((k, i) => {
@@ -69,13 +71,13 @@ function createEditor(container: HTMLElement, raw: unknown): EditorInstance {
     h('fieldset', null, h('legend', null, t('content.events.intro')), field(t('content.events.intro_format'), fmtSel), field(t('content.events.intro_text'), intro)),
     h('fieldset', null, h('legend', null, t('content.events.display')), field(t('content.events.default_view'), view), field(t('content.events.week_start'), ws),
       field(t('content.events.list_days'), days, { help: t('content.events.list_days_help') }), ical.el, noInv.el),
-    more.el,
+    more.el, pageTasks.el,
     h('fieldset', null, h('legend', null, t('content.events.categories')), h('p', { class: 'ew-help' }, t('content.events.categories_help')), list,
       button(t('content.events.add_category'), () => { cats.push({ id: '', label: '', color: '#0c66e4' }); draw(); list.querySelector<HTMLInputElement>('.ewe-cat-row:last-child input')?.focus(); }, { variant: 'secondary' }))));
   return {
     getBody: () => ({
       intro: { format: fmtSel.value, source: intro.value }, view: view.value, week_start: Number(ws.value), list_days: Number(days.value) || 90,
-      ical: ical.input.checked, no_invitations: noInv.input.checked, categories: cats.filter((k) => k.label.trim()), more_sources: more.get(),
+      ical: ical.input.checked, no_invitations: noInv.input.checked, categories: cats.filter((k) => k.label.trim()), more_sources: more.get(), page_tasks: pageTasks.input.checked,
     }),
   };
 }
@@ -210,7 +212,9 @@ async function showEvent(series: Ev, o: Occ, cfg: Config, reload: () => Promise<
       cat ? [h('dt', null, t('content.events.category')), h('dd', null, h('span', { class: 'ewe-dot', style: `background:${cat.color}`, 'aria-hidden': 'true' }), ' ', cat.label)] : null,
       e.registration ? [h('dt', null, t('content.events.registration')), h('dd', null, statusText(e, o), !o.registration_open && !started ? ` · ${t('content.events.reg_closed')}` : null)] : null,
       e.author ? [h('dt', null, t('content.events.organizer')), h('dd', null, e.author)] : null,
-      e.external || sourceNames[String(e.calendar_id)] ? [h('dt', null, t('content.events.from_source')), h('dd', null, e.external ? hostOf(e.source ?? '') : sourceNames[String(e.calendar_id)])] : null),
+      e.page_kind === 'task' ? [h('dt', null, t('content.events.kind')), h('dd', null, t('content.events.page_task'))] : null,
+      e.page_id ? [h('dt', null, t('content.events.from_page')), h('dd', null, h('a', { href: `/e/${e.page_id}` }, e.page_title || `#${e.page_id}`))]
+        : e.external || sourceNames[String(e.calendar_id)] ? [h('dt', null, t('content.events.from_source')), h('dd', null, e.external ? hostOf(e.source ?? '') : sourceNames[String(e.calendar_id)])] : null),
     o.changed ? h('p', { class: 'ewe-changed', role: 'note' }, t('content.events.occurrence_changed_note')) : null,
     myStatus,
     e.description_html ? h('div', { class: 'ewe-desc' }, trustedHTML(e.description_html)) : null,
@@ -675,7 +679,7 @@ export function register(): void {
       return { el: i, get: () => (/^https?:\/\//.test(i.value.trim()) ? i.value.trim() : '') };
     },
   });
-  registerMacroParamControl('events.sources', (value, ctx) => sourcesEditor(ctx.label, value, { kinds: ['calendar', 'ical'], help: t('content.events.more_sources_help') }));
+  registerMacroParamControl('events.sources', (value, ctx) => sourcesEditor(ctx.label, value, { kinds: ['calendar', 'ical', 'category', 'elements'], zones: false, help: t('content.events.more_sources_help') }));
   registerEditor('content.events', createEditor);
   registerWidget('events', eventsWidget);
   // tile of the own dashboard: the next events of all calendars the person sees

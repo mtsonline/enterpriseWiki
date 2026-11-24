@@ -81,11 +81,12 @@ const DRAG = 'application/x-ewiki-source';
  * With kinds: exactly these (e.g. calendars); otherwise all kinds resolved
  * to elements plus extra (e.g. feed).
  */
-export function sourcesEditor(label: string, value: string, opts: { categoryId?: number; kinds?: string[]; extra?: string[]; help?: string } = {}): { el: HTMLElement; get: () => string } {
+export function sourcesEditor(label: string, value: string, opts: { categoryId?: number; kinds?: string[]; extra?: string[]; help?: string; zones?: boolean } = {}): { el: HTMLElement; get: () => string } {
   const allowed = () => kinds.filter((k) => (opts.kinds ? opts.kinds.includes(k.kind) : k.element || (opts.extra?.includes(k.kind) ?? false)));
   const isElement = (kind: string) => kinds.find((k) => k.kind === kind)?.element ?? false;
   // exclusions and requirements only for kinds resolved to elements
-  const zoned = allowed().some((k) => k.element);
+  // (zones: false – every source only adds, e.g. the dates of pages in a calendar)
+  const zoned = opts.zones !== false && allowed().some((k) => k.element);
   interface Row { zone: Zone; kind: string; get: () => string; li: HTMLElement }
   const rows: Row[] = [];
   const lists = {} as Record<Zone, HTMLOListElement>;
