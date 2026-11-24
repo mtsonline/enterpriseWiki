@@ -3993,6 +3993,38 @@ test('blocks B, part 5: an external video loads only after consent, from an allo
   }
 });
 
+test('map: a place on OpenStreetMap, loaded only after consent, the place always in words', async () => {
+  const before = (await call('GET', '/api/v1/admin/settings')).config.media ?? {};
+  // the map service, answered here (the test runs without the internet)
+  await page.route('https://www.openstreetmap.org/**', (r) => r.fulfill({ status: 200, contentType: 'text/html', body: '<!doctype html><title>map</title><p>the map</p>' }));
+  try {
+    await call('PUT', '/api/v1/admin/settings', { media: { ...before, embed_allow: ['https://www.openstreetmap.org'] } });
+    const cat = (await call('POST', '/api/v1/categories', { titles: { en: `Maps ${run}` } })).id;
+    const el = await call('POST', '/api/v1/elements', { category_id: cat, type: 'core.html', title: `Map ${run}`,
+      body: { format: 'markdown', source: '::map{place="Main entrance, Example Street 1" lat=46.6167 lon=14.2653 zoom=17}' } });
+    await page.goto(`${BASE}/e/${el.id}`);
+    await idle();
+    const fig = page.locator('figure.ewl-map');
+    // the place stands in words; nothing of the service is loaded yet
+    await fig.locator('figcaption').getByText('Main entrance, Example Street 1').waitFor();
+    assert.equal(await fig.locator('iframe').count(), 0);
+    assert.match(await fig.innerText(), /www\.openstreetmap\.org/);
+    assert.match(await fig.getByRole('link').getAttribute('href'), /^https:\/\/www\.openstreetmap\.org\/\?mlat=46\.616700&mlon=14\.265300#map=17\//);
+    await a11y('map before consent');
+    await fig.getByRole('button', { name: /^(load content|inhalt laden)$/i }).click();
+    const frame = fig.locator('iframe');
+    await frame.waitFor();
+    assert.equal(await frame.getAttribute('title'), 'Map: Main entrance, Example Street 1');
+    assert.match(await frame.getAttribute('src'), /^https:\/\/www\.openstreetmap\.org\/export\/embed\.html\?bbox=[0-9.,-]+&layer=mapnik&marker=46\.616700%2C14\.265300$/);
+    await page.frameLocator('figure.ewl-map iframe').getByText('the map').waitFor();
+    await fig.locator('figcaption').getByText('Main entrance, Example Street 1').waitFor();
+    await a11y('map loaded');
+  } finally {
+    await page.unroute('https://www.openstreetmap.org/**');
+    await call('PUT', '/api/v1/admin/settings', { media: { ...before, embed_allow: before.embed_allow ?? [] } });
+  }
+});
+
 test('newsletter sign-up (external): the browser sends the address straight to an allowed provider', async () => {
   const before = (await call('GET', '/api/v1/admin/settings')).config.media ?? {};
   // the allowed provider, answered here (the test runs without the internet)
