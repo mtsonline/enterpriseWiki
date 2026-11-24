@@ -6102,7 +6102,7 @@ test('light and dark: block, profile, guest cookie, no flash', async () => {
     assert.equal((await call('GET', '/api/v1/me/prefs')).prefs.scheme, undefined);
 
     // a guest whose device is dark: dark by default; the choice is kept in a cookie
-    const guest = await browser.newContext({ viewport: { width: 1280, height: 900 }, colorScheme: 'dark' });
+    const guest = await browser.newContext({ viewport: { width: 1280, height: 900 }, colorScheme: 'dark', bypassCSP: true });
     try {
       const gp = await guest.newPage();
       await gp.goto(`${BASE}/e/${el.id}`);
