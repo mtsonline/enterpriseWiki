@@ -66,7 +66,9 @@ External groups are compared ignoring case, either with the full value (e.g. DN)
 
 ## E-mail addresses, linked sign-ins and invitations
 
-A user is **a profile with one or more e-mail addresses**. A **confirmed** address belongs to exactly one user. It identifies the user uniquely: local accounts can sign in with it, and new sign-ins of other methods with this address are **linked** to the account.
+A user is **a profile with one or more e-mail addresses**. A **confirmed** address belongs to exactly one user. Internally only the fixed id of the account counts; addresses and the user name only find the account and may change. New sign-ins of other methods with a confirmed address are **linked** to the account.
+
+**Signing in with any confirmed address:** the field “User name” accepts any confirmed address of the account, with the password of one of its methods with a password (local, LDAP/AD). The wiki finds the account by the address and asks the directory with the name the person has there. So an address that only the wiki knows (added in the profile) also works with LDAP. The directory checks the password; this way never creates or links an account. If none of the account's methods knows the name, the address is given as typed to all methods (for example with an LDAP filter on `mail`). External providers (OIDC, SAML) check the sign-in themselves.
 
 - **Managing addresses:**
   - Users: in the profile under *E-mail addresses* (`/api/v1/me/emails`).
