@@ -585,7 +585,7 @@ var traps = []trap{
 		ID: "newsletter.allow", About: "a newsletter form sends to a provider no administrator allowed",
 		File: "plugins/core_layout/newsletter.go",
 		Old:  "\tif !allowed {\n\t\treturn \"\", apperr.BadRequest(\"sending to %s is not allowed",
-		New:  "\tif false {\n\t\treturn \"\", apperr.BadRequest(\"sending to %s is not allowed",
+		New:  "\tif !allowed && false {\n\t\treturn \"\", apperr.BadRequest(\"sending to %s is not allowed",
 		Pkg:  "./plugins/core_layout/", Tests: "^TestNewsletter$",
 	},
 	{
