@@ -179,6 +179,7 @@ actions:
 |---|---|
 | `PUT` | `/api/v1/me` |
 | `GET` | `/api/v1/me/prefs` |
+| `PUT` | `/api/v1/scheme` |
 | `PUT` | `/api/v1/me/password` |
 | `GET` | `/api/v1/me/api-keys` |
 | `POST` | `/api/v1/me/api-keys` |
@@ -242,6 +243,8 @@ actions:
 | `GET` | `/api/v1/me/sessions` |
 | `DELETE` | `/api/v1/me/sessions` |
 | `DELETE` | `/api/v1/me/sessions/{id}` |
+
+`PUT /api/v1/scheme` with `{"scheme": "system"|"light"|"dark"|""}` chooses the colour scheme (`""`: the default of the template), for guests too. It sets the cookie `ewiki_scheme` and, signed in, also stores the personal setting `scheme` (in the CLI: `ewiki pref set scheme dark --as USER`).
 
 ### Users, groups, roles
 

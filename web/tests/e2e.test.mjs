@@ -6061,6 +6061,71 @@ test('demo content: create, browse accessibly, remove', async () => {
   assert.equal(res, 404);
 });
 
+test('light and dark: block, profile, guest cookie, no flash', async () => {
+  await page.goto(BASE + '/');
+  await idle();
+  const before = (await call('GET', '/api/v1/placements/site')).placements;
+  const cat = await call('POST', '/api/v1/categories', { titles: { en: `Schemes ${run}` } });
+  await call('POST', `/api/v1/categories/${cat.id}/acl`, { subject_type: 'guest', permissions: 1, inherit: false });
+  const el = await call('POST', '/api/v1/elements', { category_id: cat.id, type: 'core.html', title: `Scheme page ${run}`, body: { format: 'markdown', source: 'Light and dark.\n' } });
+  await call('PUT', '/api/v1/placements/site', { placements: [...before, { block: 'core.scheme', position: 'footer', sort: 99 }] });
+  const group = (pg) => pg.getByRole('group', { name: /^(colour scheme|farbschema)$/i });
+  const shown = (pg) => pg.evaluate(() => [document.documentElement.dataset.shown, document.body.classList.contains('ewc-dark')]);
+  try {
+    // a person: the default of the template (as the device is set; the browser is light)
+    await page.goto(`${BASE}/e/${el.id}`);
+    await idle();
+    const g = group(page);
+    assert.equal(await g.getByRole('button', { name: /^auto$/i }).getAttribute('aria-pressed'), 'true', 'default: as the system');
+    assert.deepEqual(await shown(page), ['light', false]);
+    await g.getByRole('button', { name: /^(dark|dunkel)$/i }).click();
+    await page.waitForFunction(() => document.body.classList.contains('ewc-dark'));
+    assert.equal(await g.getByRole('button', { name: /^(dark|dunkel)$/i }).getAttribute('aria-pressed'), 'true');
+    assert.equal((await call('GET', '/api/v1/me/prefs')).prefs.scheme, 'dark', 'kept in the personal settings');
+    await a11y('scheme block, dark');
+    // the page the server sends is already dark (no light flash while it loads)
+    const html = await page.evaluate(async () => (await __e2eFetch('/')).text());
+    assert.match(html, /<html[^>]* data-scheme="dark"/);
+    await page.reload();
+    await idle();
+    assert.deepEqual(await shown(page), ['dark', true], 'dark after reloading');
+    // the profile: back to the default of the template
+    await page.goto(`${BASE}/profile`);
+    await idle();
+    const sel = page.getByRole('combobox', { name: /^(colour scheme|farbschema)$/i });
+    assert.equal(await sel.inputValue(), 'dark');
+    await a11y('profile with the colour scheme, dark');
+    await sel.selectOption('');
+    await page.getByRole('button', { name: /^(save|speichern)$/i }).first().click();
+    await page.locator('.ew-toast', { hasText: /^(saved|gespeichert)/i }).first().waitFor();
+    assert.deepEqual(await shown(page), ['light', false], 'the default again');
+    assert.equal((await call('GET', '/api/v1/me/prefs')).prefs.scheme, undefined);
+
+    // a guest whose device is dark: dark by default; the choice is kept in a cookie
+    const guest = await browser.newContext({ viewport: { width: 1280, height: 900 }, colorScheme: 'dark' });
+    try {
+      const gp = await guest.newPage();
+      await gp.goto(`${BASE}/e/${el.id}`);
+      await group(gp).waitFor();
+      assert.deepEqual(await shown(gp), ['dark', true], 'guest: as the device is set');
+      await a11y('guest page, dark device', gp);
+      await group(gp).getByRole('button', { name: /^(light|hell)$/i }).click();
+      await gp.waitForFunction(() => !document.body.classList.contains('ewc-dark'));
+      const cookie = (await guest.cookies()).find((c) => c.name === 'ewiki_scheme');
+      assert.ok(cookie && cookie.value === 'light' && cookie.httpOnly && cookie.sameSite === 'Lax', `guest cookie: ${JSON.stringify(cookie)}`);
+      await gp.reload();
+      await group(gp).waitFor();
+      assert.deepEqual(await shown(gp), ['light', false], 'guest: light after reloading');
+      assert.equal(await gp.evaluate(() => document.documentElement.dataset.schemeChoice), 'light');
+    } finally {
+      await guest.close();
+    }
+  } finally {
+    await call('PUT', '/api/v1/scheme', { scheme: '' });
+    await call('PUT', '/api/v1/placements/site', { placements: before });
+  }
+});
+
 test('spaces: settings, own navigation, /s/KEY, directory, archive', async () => {
   await page.goto(BASE + '/');
   await idle();

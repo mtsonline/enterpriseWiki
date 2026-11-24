@@ -45,6 +45,7 @@ Vollständige Beispiele im Repository:
 - `required`: kann nicht deaktiviert werden (nur für Kern-Plugins).
 - `default_off`: wird mitgeliefert, ist aber aus, bis die Administration es einschaltet (`plugins.enabled` in `config.yaml`), zum Beispiel die Web Application Firewall `core.waf`.
 - `frontend`: `true`, wenn `web/index.ts` existiert.
+- `color_scheme` (nur Templates): `system`, `light` oder `dark`, das Farbschema, wenn die Person keines gewählt hat. Damit sagt das Template, dass seine Farben aus den Farbvariablen des Kerns kommen (hell und dunkel); der Kern setzt dann die Klasse `ewc-dark`. Ohne das Feld hat das Template nur helle Farben, und die Wahl der Person gilt dafür nicht.
 
 ## Rechte (Pflicht)
 

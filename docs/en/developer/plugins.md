@@ -45,6 +45,7 @@ Complete examples in the repository:
 - `required`: cannot be disabled (only for core plugins).
 - `default_off`: shipped but off until an administrator switches it on (`plugins.enabled` in `config.yaml`), e.g. the web application firewall `core.waf`.
 - `frontend`: `true` if `web/index.ts` exists.
+- `color_scheme` (templates only): `system`, `light` or `dark`, the colour scheme when the person has not chosen one. With it the template says that its colours come from the colour variables of the core (light and dark); the core then sets the class `ewc-dark`. Without the field the template has light colours only, and the choice of the person does not apply to it.
 
 ## Permissions (required)
 

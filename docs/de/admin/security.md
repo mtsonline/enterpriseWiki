@@ -20,6 +20,7 @@ Jede Identität ist intern eindeutig als `name@anbieter` gespeichert (`admin@loc
 
 ### Browser-Sitzungen
 - Zufälliges 256-Bit-Token im Cookie `ewiki_session` (`HttpOnly`, `SameSite=Lax`, mit `secure_cookies: true` auch `Secure`). In der Datenbank liegt nur der SHA-256-Hash.
+- Cookie `ewiki_scheme` (`HttpOnly`, `SameSite=Lax`, wie `ewiki_session` mit `Secure`, gilt 400 Tage): das gewählte Farbschema (`system`, `light` oder `dark`), technisch notwendig und ohne Bezug zur Person; der Server übernimmt nur diese drei Werte in die Seite. Angemeldet liegt die Wahl in den persönlichen Einstellungen (`scheme`), die vor dem Cookie gelten. Die Seite trägt deshalb `Vary: Cookie`.
 - CSRF-Schutz: Zustandsändernde API-Anfragen ohne API-Key – mit Cookie-Anmeldung, aber auch die Anmeldung selbst und Anfragen von Gästen – müssen den Header `X-Requested-With: ewiki` senden (verhindert auch „Login-CSRF“, bei dem eine fremde Seite Besucher in ein Konto des Angreifers einloggt). Browser schicken eigene Header fremder Seiten nur nach einer CORS-Freigabe, und das Wiki erlaubt keine.
 
 ### API-Keys

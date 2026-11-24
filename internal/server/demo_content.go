@@ -1121,7 +1121,9 @@ func buildDemo(d *demoRun) {
 		}
 		blk := d.element(root, "core.block", d.tr("Contact", "Kontakt"), bodies, nil)
 		d.call(http.MethodPut, fmt.Sprintf("/api/v1/placements/category?target=%d", root), map[string]any{"placements": []map[string]any{
-			{"block": fmt.Sprintf("core.blocks/%d", blk), "position": "sidebar", "sort": 90}}}, nil)
+			{"block": fmt.Sprintf("core.blocks/%d", blk), "position": "sidebar", "sort": 90},
+			// light and dark: not placed by default; in the demo in the footer
+			{"block": "core.scheme", "position": "footer", "sort": 95}}}, nil)
 		where = append(where, whereNote{
 			en: whereText("en", "Block “Contact”", "an element of the type <em>Block</em> with the contact of the demo",
 				"Side column (<code>sidebar</code>), below the tree of categories, on every page of the demo area, for everybody who may see the demo",
@@ -1129,6 +1131,14 @@ func buildDemo(d *demoRun) {
 			de: whereText("de", "Baustein „Kontakt“", "ein Element vom Typ <em>Baustein</em> mit dem Kontakt der Demo",
 				"Seitenleiste (<code>sidebar</code>), unter dem Kategoriebaum, auf jeder Seite des Demo-Bereichs, für alle, die die Demo sehen dürfen",
 				"die Seite des Bausteins (<em>Wo dieser Baustein erscheint</em>, <em>Baustein platzieren</em>)"),
+		})
+		where = append(where, whereNote{
+			en: whereText("en", "Block “Light and dark”", "three buttons: as the device is set (<em>Auto</em>), <em>Light</em> or <em>Dark</em>; the choice is kept in your profile (as a guest in a cookie)",
+				"Footer (<code>footer</code>), on every page of the demo area; elsewhere it is not placed by default",
+				"<em>Category settings</em> → <em>Placement</em> of the demo area; the same choice: <em>My profile</em> → <em>Colour scheme</em>"),
+			de: whereText("de", "Baustein „Hell und dunkel“", "drei Knöpfe: wie das Gerät eingestellt ist (<em>Auto</em>), <em>Hell</em> oder <em>Dunkel</em>; die Wahl bleibt im Profil (als Gast in einem Cookie)",
+				"Fußzeile (<code>footer</code>), auf jeder Seite des Demo-Bereichs; sonst ist er anfangs nicht platziert",
+				"<em>Kategorie-Einstellungen</em> → <em>Platzierung</em> des Demo-Bereichs; dieselbe Wahl: <em>Mein Profil</em> → <em>Farbschema</em>"),
 		})
 	})
 	d.optional("carousel", func() {
