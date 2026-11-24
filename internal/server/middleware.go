@@ -249,7 +249,8 @@ func (s *Server) wrap(next http.Handler) http.Handler {
 		h.Set("Cross-Origin-Opener-Policy", "same-origin")
 		frame, script := s.officeCSP() // origins of active office programs
 		embeds := embedCSP(cfg)        // services allowed for embeds in content
-		h.Set("Content-Security-Policy", "default-src 'self'; script-src 'self'"+script+"; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self'; frame-src 'self'"+frame+embeds+"; object-src 'none'; frame-ancestors 'self'; base-uri 'self'; form-action 'self'"+frame)
+		forms := formCSP(cfg)          // services sign-up forms in content may send to
+		h.Set("Content-Security-Policy", "default-src 'self'; script-src 'self'"+script+"; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self'; frame-src 'self'"+frame+embeds+"; object-src 'none'; frame-ancestors 'self'; base-uri 'self'; form-action 'self'"+frame+forms)
 		if cfg.Server.SecureCookies {
 			h.Set("Strict-Transport-Security", "max-age=31536000; includeSubDomains")
 		}

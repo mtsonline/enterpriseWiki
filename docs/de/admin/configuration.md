@@ -50,6 +50,7 @@ Für die beste PDF-Texterkennung installieren Sie `pdftotext` (Paket `poppler-ut
 | `open_external` | Dateien, die das Standard-Programm kann, sofort dort öffnen (nur mit einem Office-Plugin als `viewer`) | `false` |
 | `token_ttl` | Gültigkeit des Zugangsschlüssels eines Office-Programms für eine Datei (1m–24h) | `10h` |
 | `embed_allow` | Dienste, deren Videos und Seiten im Inhalt eingebettet werden dürfen (Baustein *Externes Video oder Einbettung*), als Origin (`https://player.vimeo.com`; https, klein geschrieben, ohne Pfad, höchstens 30); dieselbe Liste öffnet die CSP `frame-src` für sie. Auch unter *Administration → Einstellungen → Medien* | leer (nichts von außen) |
+| `form_allow` | Dienste, an die der Baustein *Newsletter-Anmeldung (extern)* die E-Mail-Adresse der lesenden Person senden darf, als Origin (`https://news.example.com`; https, klein geschrieben, ohne Pfad, höchstens 30); dieselbe Liste öffnet die CSP `form-action` für sie. Auch unter *Administration → Einstellungen → Medien* | leer (kein Formular sendet etwas nach außen) |
 
 Details: [Office-Programme](office.md).
 

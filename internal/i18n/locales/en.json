@@ -3077,5 +3077,7 @@
  "layout.countdown_hours_one": "hour",
  "layout.countdown_hours_other": "hours",
  "layout.countdown_minutes_one": "minute",
- "layout.countdown_minutes_other": "minutes"
+ "layout.countdown_minutes_other": "minutes",
+ "settings.form_allow": "Services allowed for newsletter sign-ups (external)",
+ "settings.form_allow_help": "One address per line, only https:// and the server (for example https://news.example.com). The block Newsletter sign-up (external) may send the reader's e-mail address only to these services. Empty: no form sends anything outside the wiki."
 }

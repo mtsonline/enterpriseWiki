@@ -341,6 +341,21 @@ func embedCSP(cfg *config.Config) string {
 	return b.String()
 }
 
+// formCSP returns the form-action additions for media.form_allow; each
+// entry is checked again (the file can be edited by hand).
+func formCSP(cfg *config.Config) string {
+	var b strings.Builder
+	for i, o := range cfg.Media.FormAllow {
+		if i >= config.MaxEmbedOrigins {
+			break
+		}
+		if config.EmbedOrigin(o) {
+			b.WriteString(" " + o)
+		}
+	}
+	return b.String()
+}
+
 // validOrigin accepts only scheme://host[:port] (https or http) without paths
 // or characters that could break the header.
 func validOrigin(o string) bool {

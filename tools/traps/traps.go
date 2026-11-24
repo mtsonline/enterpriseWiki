@@ -582,6 +582,20 @@ var traps = []trap{
 		Pkg:  "./plugins/core_layout/", Tests: "^TestBlocksC$",
 	},
 	{
+		ID: "newsletter.allow", About: "a newsletter form sends to a provider no administrator allowed",
+		File: "plugins/core_layout/newsletter.go",
+		Old:  "\tif !allowed {\n\t\treturn \"\", apperr.BadRequest(\"sending to %s is not allowed",
+		New:  "\tif false {\n\t\treturn \"\", apperr.BadRequest(\"sending to %s is not allowed",
+		Pkg:  "./plugins/core_layout/", Tests: "^TestNewsletter$",
+	},
+	{
+		ID: "newsletter.csp", About: "form-action opens for entries that are not origins",
+		File: "internal/server/api_office.go",
+		Old:  "\tfor i, o := range cfg.Media.FormAllow {\n\t\tif i >= config.MaxEmbedOrigins {\n\t\t\tbreak\n\t\t}\n\t\tif config.EmbedOrigin(o) {",
+		New:  "\tfor i, o := range cfg.Media.FormAllow {\n\t\tif i >= config.MaxEmbedOrigins {\n\t\t\tbreak\n\t\t}\n\t\tif o != \"\" {",
+		Pkg:  "./internal/server/", Tests: "^TestFormCSP$",
+	},
+	{
 		ID: "layout.options-checked", About: "options of a block in the content are used without the check of the server",
 		File: "internal/content/macros.go",
 		Old:  "\tif err := CheckBlockOptions(o); err != nil {\n\t\treturn macroNote(apperr.Localized(err, lang)) + res\n\t}",
@@ -927,8 +941,8 @@ var traps = []trap{
 	{
 		ID: "embed.csp-unchecked", About: "a hand-edited entry of media.embed_allow goes into the CSP unchecked",
 		File: "internal/server/api_office.go",
-		Old:  "\t\tif config.EmbedOrigin(o) {\n\t\t\tb.WriteString(\" \" + o)\n\t\t}",
-		New:  "\t\tb.WriteString(\" \" + o)",
+		Old:  "\tfor i, o := range cfg.Media.EmbedAllow {\n\t\tif i >= config.MaxEmbedOrigins {\n\t\t\tbreak\n\t\t}\n\t\tif config.EmbedOrigin(o) {\n\t\t\tb.WriteString(\" \" + o)\n\t\t}",
+		New:  "\tfor i, o := range cfg.Media.EmbedAllow {\n\t\tif i >= config.MaxEmbedOrigins {\n\t\t\tbreak\n\t\t}\n\t\tb.WriteString(\" \" + o)",
 		Pkg:  "./internal/server/", Tests: "^TestEmbedCSP$",
 	},
 	{

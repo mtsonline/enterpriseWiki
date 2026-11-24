@@ -304,6 +304,11 @@ type Media struct {
 	// The same list opens the Content-Security-Policy (frame-src) for them.
 	// Empty (default): nothing from outside the wiki is embedded.
 	EmbedAllow []string `yaml:"embed_allow,omitempty" json:"embed_allow"`
+	// FormAllow lists the services that sign-up forms in content (block
+	// newsletter) may send to, as origins (https://news.example.com). The
+	// same list opens the Content-Security-Policy (form-action) for them.
+	// Empty (default): no form sends anything outside the wiki.
+	FormAllow []string `yaml:"form_allow,omitempty" json:"form_allow"`
 }
 
 // I18n configures UI and content languages.
@@ -1018,6 +1023,14 @@ func Validate(c *Config) error {
 	for _, o := range c.Media.EmbedAllow {
 		if !EmbedOrigin(o) {
 			return fmt.Errorf("media.embed_allow: %q is not an origin like https://player.example.com (https, lower case, no path)", o)
+		}
+	}
+	if len(c.Media.FormAllow) > MaxEmbedOrigins {
+		return fmt.Errorf("media.form_allow: at most %d services", MaxEmbedOrigins)
+	}
+	for _, o := range c.Media.FormAllow {
+		if !EmbedOrigin(o) {
+			return fmt.Errorf("media.form_allow: %q is not an origin like https://news.example.com (https, lower case, no path)", o)
 		}
 	}
 	if err := ValidateConsent(c.Consent); err != nil {

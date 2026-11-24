@@ -257,6 +257,7 @@ func TestContentHostileParams(t *testing.T) {
 		c.Plugins.Macros.HTTPAllow = []string{upstream.URL + "/"}
 		c.Plugins.Macros.HTTPAllowPrivate = true
 		c.Media.EmbedAllow = []string{"https://example.com"}
+		c.Media.FormAllow = []string{"https://example.com"}
 		c.Feeds.AllowPrivate = true
 		return nil
 	}); err != nil {
@@ -513,6 +514,7 @@ var hostileSamples = map[string]string{
 	"anchor.name": "intro", "excerpt.name": "intro", "date.end": "11:30", "include.excerpt": "false", "include.name": "", "grid.widths": "",
 	"personcard.image": "/api/v1/media/1/view", "testimonial.image": "/api/v1/media/1/view", "rotating.words": "eins|zwei|drei", "personcard.email": "anna@example.com", "personcard.phone": "+49 30 123456",
 	"hotspots.image": "/api/v1/media/1/view", "compare.before": "/api/v1/media/1/view", "compare.after": "/api/v1/media/2/view",
+	"newsletter.hidden": "list=7",
 }
 
 // hostileBodies: the content of blocks that need a certain body; %s is
