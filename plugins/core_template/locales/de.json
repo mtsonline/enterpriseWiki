@@ -275,5 +275,7 @@
  "template.d_boxed_help": "Die ganze Seite – Kopf, Inhalt und Fußzeile – ist ein Kasten in der Inhaltsbreite in der Mitte des Fensters, mit dem gedämpften Hintergrund außen herum. Ohne diese Wahl reichen die Zeilen über das ganze Fenster. Zeilen haben dann höchstens die Inhaltsbreite; die Prüfung des Platzes rechnet damit.",
  "template.d_hint_header_tall": "{view}: Der klebende Kopf ist {height} px hoch, mehr als {limit} % der Fensterhöhe ({max} px). Er klebt hier darum nicht. Legen Sie Bausteine des Kopfs in eine Schublade, zum Beispiel die Werkzeuge.",
  "template.d_hint_header_sideways": "Der klebende Kopf ist {height} px hoch. Auf einem quer gehaltenen Handy (etwa {window} px Fensterhöhe) sind das mehr als {limit} %; dort klebt er nicht.",
- "template.d_hint_header_ok": "{view}: Der klebende Kopf ist {height} px hoch und klebt."
+ "template.d_hint_header_ok": "{view}: Der klebende Kopf ist {height} px hoch und klebt.",
+ "template.d_overlay": "Der Kopf liegt auf einem Hero-Banner",
+ "template.d_overlay_help": "Auf Seiten, die direkt unter dem Kopf mit einem Hero-Banner beginnen, liegt der Kopf ohne eigenen Hintergrund auf dem Banner, in der Textfarbe des Banners. Seinen Hintergrund bekommt er zurück, solange ein Menü von ihm offen ist, und – wenn er klebt – sobald das Banner weggescrollt ist. Steht eine Seitenspalte neben dem Inhalt, bleibt der Kopf, wie er ist."
 }

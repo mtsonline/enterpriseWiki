@@ -57,6 +57,21 @@ body:has(.ewd-boxed) { background: var(--ew-bg-subtle); }
 .ewd-bg--footer { --ew-bg: var(--ewd-footer-bg); --ew-bg-raised: var(--ewd-footer-bg); --ew-bg-subtle: var(--ewd-footer-bg);
   --ew-text: var(--ewd-footer-text); --ew-text-muted: var(--ewd-footer-text); --ew-link: var(--ewd-footer-text); --ew-border: var(--ewd-footer-text); --ew-focus: var(--ewd-footer-text); }
 .ewd-bg--header a, .ewd-bg--footer a { color: inherit; }
+/* the header on a hero banner (option header_overlay): its rows without a
+   background, everything in the color of the banner's text; solid again
+   while something of it is open and once the banner is scrolled away */
+.ewd-landmark.ewd-overlay { position: relative; z-index: 30; }
+.ewd-landmark.ewd-overlay.ewd-sticky:not(.ewd-sticky--off) { position: sticky; }
+.ewd-landmark.ewd-overlay:not(.ewd-overlay--solid):not(:has([aria-expanded="true"], .ewd-open)) > .ewd-row {
+  background: transparent; color: var(--ewd-overlay-text);
+  --ew-text: var(--ewd-overlay-text); --ew-text-muted: var(--ewd-overlay-text);
+  --ew-link: var(--ewd-overlay-text); --ew-border: var(--ewd-overlay-text); --ew-focus: var(--ewd-overlay-text); }
+.ewd-landmark.ewd-overlay:not(.ewd-overlay--solid):not(:has([aria-expanded="true"], .ewd-open)) > .ewd-row a { color: inherit; }
+/* controls with a background of their own stay solid, in the colors of the
+   header (whose contrast is checked); only their surroundings are open */
+.ewd-landmark.ewd-overlay:not(.ewd-overlay--solid):not(:has([aria-expanded="true"], .ewd-open)) > .ewd-row :is(input, select, textarea, .ew-btn--secondary, .ew-switch-btn) {
+  background-color: var(--ewd-header-bg); color: var(--ewd-header-text); border-color: var(--ewd-header-text); }
+@media (prefers-reduced-motion: no-preference) { .ewd-landmark.ewd-overlay > .ewd-row { transition: background-color .2s ease; } }
 .ewd-bg--header :focus-visible, .ewd-bg--footer :focus-visible { outline-color: currentColor; }
 .ewd-bg--header .ew-btn--subtle, .ewd-bg--footer .ew-btn--subtle { color: inherit; }
 /* controls of the header keep their words on one line */

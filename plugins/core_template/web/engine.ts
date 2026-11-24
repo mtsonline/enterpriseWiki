@@ -32,7 +32,7 @@ export interface Row {
   /** a footer row whose blocks open and close on the phone */
   collapse_mobile?: boolean;
 }
-export interface Design { version: 1; tokens: Tokens; rows: Row[]; options: { back_to_top: boolean; sticky_header: boolean; header_shrink?: boolean; header_hide?: boolean; print_plain?: boolean; boxed?: boolean }; css?: string }
+export interface Design { version: 1; tokens: Tokens; rows: Row[]; options: { back_to_top: boolean; sticky_header: boolean; header_shrink?: boolean; header_hide?: boolean; header_overlay?: boolean; print_plain?: boolean; boxed?: boolean }; css?: string }
 
 /** How a row looks in a view: as designed (manual) or by the rules (automatic). */
 export interface ViewState { stack: boolean; hidden: string[]; drawer: string[]; widths: Record<string, number>; auto: boolean }
@@ -213,6 +213,115 @@ function headerBehaviour(el: HTMLElement, o: Design['options']): void {
   if (o.header_hide) el.addEventListener('focusin', () => { el.classList.remove('ewd-away'); height(); });
 }
 
+/** The first hero banner below the header (in a row of the template, e.g.
+ * the position "hero", or at the start of the content), as its outer frame
+ * (a frame of options carries its background), or null. */
+function heroBelow(header: HTMLElement): HTMLElement | null {
+  const app = header.parentElement;
+  if (!app) return null;
+  for (const hero of app.querySelectorAll<HTMLElement>('.ewl-hero')) {
+    if (header.contains(hero) || !(header.compareDocumentPosition(hero) & Node.DOCUMENT_POSITION_FOLLOWING)) continue;
+    // its outer box: wrappers of the same size (the frame of its options, the
+    // element of the block) move with it
+    let box: HTMLElement = hero;
+    const same = (a: DOMRect, b: DOMRect) => Math.abs(a.left - b.left) < 1 && Math.abs(a.right - b.right) < 1 && Math.abs(a.top - b.top) < 1 && Math.abs(a.bottom - b.bottom) < 1;
+    while (box.parentElement && !box.parentElement.matches('.ew-pos, .ewd-block, .ewd-main') && same(box.getBoundingClientRect(), box.parentElement.getBoundingClientRect())) box = box.parentElement;
+    return box;
+  }
+  return null;
+}
+
+/** The header lies on a hero banner that follows it directly (option
+ * header_overlay): without its background, in the color of the banner's
+ * text (whose contrast the banner has), the banner reaching under it over
+ * the whole width of the header. Only where nothing visible lies between
+ * them (a title, a path) and the banner is about as wide as the header (no
+ * side column beside it); else the header stays as it is. It gets its
+ * background back while a drawer or a menu of it is open and – sticky –
+ * once the banner is scrolled away. */
+function headerOverlay(el: HTMLElement, sticky: boolean): void {
+  let frame: HTMLElement | null = null;
+  let painted: HTMLElement | null = null;
+  let height = 0;
+  let queued = 0;
+  const undo = () => {
+    el.classList.remove('ewd-overlay', 'ewd-overlay--solid');
+    el.style.removeProperty('margin-bottom');
+    el.style.removeProperty('--ewd-overlay-text');
+    if (frame) {
+      for (const p of ['margin-top', 'margin-left', 'width', 'max-width', 'align-self']) frame.style.removeProperty(p);
+      frame.classList.remove('ewd-hero-under');
+      frame = null;
+    }
+    if (painted) {
+      for (const p of ['padding-top', 'border-radius']) painted.style.removeProperty(p);
+      painted = null;
+    }
+  };
+  const solid = () => {
+    if (!frame) return;
+    el.classList.toggle('ewd-overlay--solid', sticky && frame.getBoundingClientRect().bottom <= el.getBoundingClientRect().height);
+  };
+  const apply = () => {
+    queued = 0;
+    watch();
+    // the same banner under a header of the same height: nothing to do (the
+    // page changes often, e.g. a ticker; no measuring again each time). A
+    // header that gets lower while scrolling keeps the room it had at the top.
+    if (frame && frame.isConnected && heroBelow(el) === frame && (window.scrollY > 0 || Math.abs(el.getBoundingClientRect().height - height) < 1)) { solid(); return; }
+    undo();
+    const f = heroBelow(el);
+    if (!f) return;
+    const area = f.closest<HTMLElement>('.ewd-block');
+    if (!area) return;
+    const hr = el.getBoundingClientRect(), fr = f.getBoundingClientRect(), ar = area.getBoundingClientRect();
+    const gap = fr.top - hr.bottom;
+    // directly below the header, in an area about as wide as the header (no
+    // side column beside it), not beside other parts in a row
+    if (gap < 0 || gap > 64 || fr.height === 0 || ar.left - hr.left > 64 || hr.right - ar.right > 64) return;
+    if (area.classList.contains('ewd-layout--row') && ar.width - fr.width > 128) return;
+    const heroText = getComputedStyle(f.querySelector('.ewl-hero') ?? f).color;
+    frame = f;
+    height = hr.height;
+    // the part that paints the banner (its own background or that of the
+    // frame of its options) reaches up under the header
+    const hero = f.querySelector<HTMLElement>('.ewl-hero') ?? f;
+    let paint: HTMLElement = hero;
+    for (let x: HTMLElement | null = f; x && x !== hero; x = x.querySelector<HTMLElement>(':scope > *')) {
+      const cs = getComputedStyle(x);
+      if (cs.backgroundImage !== 'none' || !/rgba\(0, 0, 0, 0\)|transparent/.test(cs.backgroundColor)) { paint = x; break; }
+    }
+    painted = paint;
+    const pad = parseFloat(getComputedStyle(paint).paddingTop) || 0;
+    // as wide as the header, from its left edge (measured, whatever aligns it)
+    f.style.setProperty('align-self', 'flex-start');
+    f.style.setProperty('max-width', 'none');
+    f.style.setProperty('width', `${hr.width}px`);
+    f.style.setProperty('margin-left', '0px');
+    f.style.setProperty('margin-left', `${hr.left - f.getBoundingClientRect().left}px`);
+    f.style.setProperty('margin-top', `${-gap}px`);
+    paint.style.setProperty('padding-top', `${pad + hr.height}px`);
+    paint.style.setProperty('border-radius', '0');
+    f.classList.add('ewd-hero-under');
+    el.style.setProperty('margin-bottom', `${-hr.height}px`);
+    el.style.setProperty('--ewd-overlay-text', heroText);
+    el.classList.add('ewd-overlay');
+    solid();
+  };
+  const queue = () => { if (!queued) queued = requestAnimationFrame(apply); };
+  // the page around the header (it is built before it is in the document)
+  let watching = false;
+  const watch = () => {
+    if (watching || !el.parentElement) return;
+    watching = true;
+    new MutationObserver(queue).observe(el.parentElement, { childList: true, subtree: true });
+  };
+  window.addEventListener('resize', queue, { passive: true });
+  new ResizeObserver(queue).observe(el);
+  if (sticky) onScroll(solid);
+  queue();
+}
+
 /** The key under which the browser keeps whether a side column is hidden. */
 const collapsedKey = (b: Block) => `ewd-collapsed:${location.host}:${b.id}`;
 const readCollapsed = (b: Block): boolean => { try { return localStorage.getItem(collapsedKey(b)) === '1'; } catch { return false; } };
@@ -299,6 +408,7 @@ export function buildLayout(d: Design, ctx: LayoutContext): Layout {
         keepStickyLow(landmark);
         headerBehaviour(landmark, d.options);
       }
+      if (r.role === 'banner' && d.options.header_overlay) headerOverlay(landmark, !!d.options.sticky_header);
       parts.push(landmark);
     } else {
       parts.push(rowEl(r));

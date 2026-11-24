@@ -139,6 +139,10 @@ func TestDesignProblems(t *testing.T) {
 		{"footer above the content", func(d *Design) { d.Rows[0].Role = "contentinfo"; d.Rows[1].Role = "none"; d.Rows[3].Role = "none" }, "the footer must be below the content"},
 		{"block role banner", func(d *Design) { d.Rows[0].Blocks[0].Role = "banner" }, "role: one of"},
 		{"sticky without header", func(d *Design) { d.Rows[0].Role, d.Rows[1].Role = "none", "none" }, "no header"},
+		{"header on the hero without header", func(d *Design) {
+			d.Options.StickyHeader, d.Options.HeaderOverlay, d.Rows[0].Role, d.Rows[1].Role = false, true, "none", "none"
+		}, "to lie on the hero banner"},
+		{"header on the hero", func(d *Design) { d.Options.HeaderOverlay = true }, ""},
 		{"two navigations without labels", func(d *Design) { d.Rows[0].Blocks[0].Role = "navigation" }, "needs a label"},
 		{"two navigations with the same label", func(d *Design) {
 			d.Rows[0].Blocks[0].Role = "navigation"

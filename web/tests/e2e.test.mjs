@@ -4859,6 +4859,8 @@ test('dates in pages: an appointment with the date block, the report of dates, a
   await a11y('choosing a page as a source');
   await pick.getByRole('button', { name: /^(add the page|seite hinzufügen)$/i }).click();
   assert.equal(await sources.getByRole('textbox', { name: /^(elements \(ids\)|elemente \(ids\))$/i }).inputValue(), String(pageId));
+  // (measured at the top: a check box scrolled under the sticky header counts as too small)
+  await page.evaluate(() => window.scrollTo(0, 0));
   await a11y('calendar settings with pages as a source');
   await sources.getByRole('button', { name: /^(remove elements|elemente \(ids\) entfernen)/i }).click();
 });
@@ -4886,6 +4888,59 @@ test('a block readers may close (notice bar): closed it stays closed in this bro
   await idle();
   await page.getByText('The move is postponed to Monday.').waitFor();
   await close.waitFor();
+});
+
+test('template: the header lies on a hero banner below it, solid again once it is scrolled away', async () => {
+  const before = (await call('GET', '/api/v1/admin/settings')).config;
+  const tpl = await call('POST', '/api/v1/x/core.template/templates', { names: { en: `Overlay ${run}` }, copy_of: 'core.template/example-cms' });
+  const cur = (await call('GET', `/api/v1/x/core.template/templates/${tpl.key}`)).template;
+  cur.design.options.header_overlay = true;
+  cur.design.options.sticky_header = true;
+  await call('PUT', `/api/v1/x/core.template/templates/${tpl.key}`, { version: cur.version, design: cur.design });
+  const cat = await call('POST', '/api/v1/categories', { titles: { en: `Overlay ${run}` }, guest_visible: true });
+  const blk = await call('POST', '/api/v1/elements', { category_id: cat.id, type: 'core.block', title: `Hero ${run}`,
+    body: { format: 'markdown', source: `:::hero{title="Welcome okapi ${run}" background=dark}\nA website on the wiki.\n:::\n` } });
+  await call('PUT', `/api/v1/placements/category?target=${cat.id}`, { placements: [{ block: `core.blocks/${blk.id}`, position: 'hero', sort: 1 }] });
+  const size = page.viewportSize();
+  try {
+    await call('PUT', '/api/v1/admin/settings', { ui: { ...before.ui, template: `core.template/${tpl.key}` } });
+    await page.setViewportSize({ width: 1280, height: 800 });
+    await page.goto(`${BASE}/c/${cat.id}`);
+    await idle();
+    const header = page.locator('header.ewd-landmark');
+    await page.locator('header.ewd-landmark.ewd-overlay').waitFor();
+    await page.evaluate(() => { document.querySelector('.ewd-main').style.minHeight = '4000px'; });
+    const look = () => page.evaluate(() => {
+      const hd = document.querySelector('header.ewd-landmark');
+      const hero = document.querySelector('.ewl-hero');
+      const frame = hero.closest('.ew-bo') ?? hero;
+      const row = hd.querySelector('.ewd-row:last-child');
+      return { bg: getComputedStyle(row).backgroundColor, color: getComputedStyle(row).color, hero: getComputedStyle(hero).color,
+        top: Math.round(frame.getBoundingClientRect().top - hd.getBoundingClientRect().top), left: Math.round(frame.getBoundingClientRect().left),
+        width: Math.round(frame.getBoundingClientRect().width - hd.getBoundingClientRect().width), solid: hd.classList.contains('ewd-overlay--solid') };
+    });
+    let l = await look();
+    // on the banner: no background of its own, the color of the banner's text, the banner from the top under it over the whole width
+    assert.deepEqual([l.bg, l.color, l.top, l.width, l.solid], ['rgba(0, 0, 0, 0)', l.hero, 0, 0, false], JSON.stringify(l));
+    await a11y('the header on a hero banner');
+    // scrolled away: solid again
+    await page.evaluate(() => window.scrollTo(0, 1500));
+    await page.waitForFunction(() => document.querySelector('header.ewd-landmark').classList.contains('ewd-overlay--solid'));
+    // (the background comes back with a short transition)
+    await page.waitForFunction(() => getComputedStyle(document.querySelector('header.ewd-landmark .ewd-row:last-child')).backgroundColor !== 'rgba(0, 0, 0, 0)');
+    await a11y('the header after the banner');
+    await page.evaluate(() => window.scrollTo(0, 0));
+    await page.waitForFunction(() => !document.querySelector('header.ewd-landmark').classList.contains('ewd-overlay--solid'));
+    // a page without a banner: the header as it is
+    await page.goto(`${BASE}/`);
+    await idle();
+    await header.waitFor();
+    assert.equal(await page.locator('header.ewd-landmark.ewd-overlay').count(), 0);
+  } finally {
+    await call('PUT', '/api/v1/admin/settings', { ui: before.ui });
+    await call('PUT', `/api/v1/placements/category?target=${cat.id}`, { placements: [] });
+    if (size) await page.setViewportSize(size);
+  }
 });
 
 test('theme blocks B: own text for "page not found", reading progress', async () => {
