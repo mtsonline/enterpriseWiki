@@ -596,6 +596,27 @@ var traps = []trap{
 		Pkg:  "./internal/server/", Tests: "^TestFormCSP$",
 	},
 	{
+		ID: "media.purge-manage", About: "someone who may only edit deletes the older versions",
+		File: "internal/media/service.go",
+		Old:  "func (s *Service) PurgeVersions(ctx context.Context, id int64) (*PurgeResult, error) {\n\tif _, _, err := s.require(ctx, id, Manage); err != nil {",
+		New:  "func (s *Service) PurgeVersions(ctx context.Context, id int64) (*PurgeResult, error) {\n\tif _, _, err := s.require(ctx, id, Edit); err != nil {",
+		Pkg:  "./internal/server/", Tests: "^TestMediaRedactAndPurge$",
+	},
+	{
+		ID: "media.purge-files", About: "the files of deleted versions stay in the storage",
+		File: "internal/media/service.go",
+		Old:  "\tn, err := s.files.RemoveUnreferenced(ctx, hashes)",
+		New:  "\tn, err := s.files.RemoveUnreferenced(ctx, nil)",
+		Pkg:  "./internal/server/", Tests: "^TestMediaRedactAndPurge$",
+	},
+	{
+		ID: "media.redact-fill", About: "making unreadable leaves the area as it was",
+		File: "internal/media/imaging.go",
+		Old:  "\t\t\t\tout.Pix[i], out.Pix[i+1], out.Pix[i+2], out.Pix[i+3] = 0, 0, 0, 255",
+		New:  "\t\t\t\t_ = i",
+		Pkg:  "./internal/media/", Tests: "^TestRedact$",
+	},
+	{
 		ID: "layout.options-checked", About: "options of a block in the content are used without the check of the server",
 		File: "internal/content/macros.go",
 		Old:  "\tif err := CheckBlockOptions(o); err != nil {\n\t\treturn macroNote(apperr.Localized(err, lang)) + res\n\t}",

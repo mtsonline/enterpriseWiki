@@ -5855,12 +5855,32 @@ test('media library: upload with rights options, details, image editor', async (
   assert.equal(await inner().getByRole('checkbox', { name: /^(own rights for this file|eigene rechte für diese datei)/i }).isChecked(), true);
   await a11y('media rights');
   await inner().getByRole('button', { name: /^(cancel|abbrechen)$/i }).click();
+  // make an area unreadable, then delete the older versions that still show it
+  await det.getByRole('button', { name: /^(Edit image|Bild bearbeiten)$/ }).click();
+  const ed2 = page.getByRole('dialog', { name: /(Edit image|Bild bearbeiten):/ });
+  await ed2.getByLabel('X', { exact: true }).fill('0');
+  await ed2.getByLabel('Y', { exact: true }).fill('0');
+  await ed2.getByLabel(/^(Width|Breite)$/).fill('4');
+  await ed2.getByLabel(/^(Height|Höhe)$/).fill('3');
+  await ed2.getByLabel(/^(How|Wie)$/).selectOption('fill');
+  await ed2.getByRole('button', { name: /^(Make the area unreadable|Bereich unkenntlich machen)$/ }).click();
+  await ed2.getByRole('listitem').filter({ hasText: /^(Make unreadable|Unkenntlich machen)$/ }).waitFor();
+  await a11y('image editor: make unreadable');
+  await ed2.getByRole('button', { name: /^(Save as new version|Als neue Version speichern)$/ }).click();
+  // right after saving: delete the older versions (they still show the original)
+  const ask = page.getByRole('dialog').last();
+  await ask.getByText(/still show what you made unreadable|zeigen noch, was Sie unkenntlich gemacht haben/).waitFor();
+  await ask.getByRole('button', { name: /^(Delete older versions|Ältere Versionen löschen)$/ }).click();
+  await page.locator('.ew-toast', { hasText: /^(4 older versions deleted\.|4 ältere Versionen gelöscht\.)/ }).first().waitFor();
+  const det2 = page.getByRole('dialog', { name: `Pic renamed ${run}` });
+  await det2.getByRole('button', { name: /^(restore|wiederherstellen)$/i }).first().waitFor({ state: 'detached' });
+  assert.equal(await det2.getByRole('button', { name: /^(Delete older versions|Ältere Versionen löschen)$/ }).count(), 0);
   // download
   const dl = page.waitForEvent('download');
-  await det.getByRole('link', { name: /^(download|herunterladen)$/i }).click();
+  await det2.getByRole('link', { name: /^(download|herunterladen)$/i }).click();
   assert.equal(readFileSync(await (await dl).path()).subarray(1, 4).toString(), 'PNG');
   // delete
-  await det.getByRole('button', { name: /^(delete|löschen)$/i }).click();
+  await det2.getByRole('button', { name: /^(delete|löschen)$/i }).click();
   await page.getByRole('dialog').last().getByRole('button', { name: /^(delete|löschen)$/i }).click();
   await page.locator('.ew-toast', { hasText: /file deleted|datei gelöscht/i }).first().waitFor();
   await page.getByRole('button', { name: new RegExp(`^Pic renamed ${run}`) }).waitFor({ state: 'detached' });

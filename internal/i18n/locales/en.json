@@ -3079,5 +3079,17 @@
  "layout.countdown_minutes_one": "minute",
  "layout.countdown_minutes_other": "minutes",
  "settings.form_allow": "Services allowed for newsletter sign-ups (external)",
- "settings.form_allow_help": "One address per line, only https:// and the server (for example https://news.example.com). The block Newsletter sign-up (external) may send the reader's e-mail address only to these services. Empty: no form sends anything outside the wiki."
+ "settings.form_allow_help": "One address per line, only https:// and the server (for example https://news.example.com). The block Newsletter sign-up (external) may send the reader's e-mail address only to these services. Empty: no form sends anything outside the wiki.",
+ "media.op.redact": "Make unreadable",
+ "media.redact_help": "Mark the area on the picture (as for cropping), then choose how. Black fill and coarse blocks cannot be reversed; blurring can be partly, so it is not offered for this.",
+ "media.redact_mode": "How",
+ "media.redact_fill": "Fill black",
+ "media.redact_pixelate": "Coarse blocks",
+ "media.redact_area": "Make the area unreadable",
+ "media.purge_versions": "Delete older versions",
+ "media.purge_help": "Older versions still contain everything that was changed or made unreadable later. Deleting them removes their content from the wiki for good.",
+ "media.purge_confirm": "Delete {n} older versions with their content? This cannot be undone.",
+ "media.purge_after_redact": "The older versions still show what you made unreadable. Delete them now with their content? This cannot be undone.",
+ "media.purged": "{n} older versions deleted.",
+ "media.purged_kept": "{n} older versions deleted. {kept} of their files stay because other files or pages use the same content."
 }

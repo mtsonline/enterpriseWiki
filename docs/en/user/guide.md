@@ -73,7 +73,9 @@ When **uploading** you set:
 - **Watermark** – none; *do not store the original* (only the version with your name); *show with your watermark, original for download*; *burn in the name of the viewer when viewing*; *when viewing and downloading*. Name and date are preselected, both can be deselected, plus an optional comment. Applies to images and PDFs.
 - **Own permissions** – replace the permissions of the category and of the pages that show the file (view, download, edit, manage for people, groups, roles, signed-in users or guests). You can only grant permissions you have yourself.
 
-In the **detail view** you see size, versions and on which pages the file is used; with edit permission you change texts, upload a new version or open the **image editor** (crop, rotate, flip, scale, brightness/contrast/saturation, greyscale, blur). Every edit is a new version; all pages automatically show the newest, earlier versions can be restored.
+In the **detail view** you see size, versions and on which pages the file is used; with edit permission you change texts, upload a new version or open the **image editor** (crop, rotate, flip, scale, brightness/contrast/saturation, greyscale, blur, **make unreadable**). Every edit is a new version; all pages automatically show the newest, earlier versions can be restored.
+
+**Make unreadable** (faces, number plates, names): mark the area on the picture as for cropping and choose *Fill black* or *Coarse blocks*; neither can be reversed (blurring partly can, so it is not offered for this). Older versions still contain the original. Whoever manages the file deletes them with *Delete older versions* in the detail view, which also offers it right after saving. This removes their content from the wiki for good and is recorded in the audit log; content that another file or page uses as well stays for that one. Backups keep it until they are rotated.
 
 **Office files** (texts, spreadsheets, presentations) open directly in the browser with *Edit in …* or *View in …* if the
 administration has set up an office program (Collabora, OnlyOffice or Microsoft 365). With edit permission every save

@@ -269,6 +269,24 @@ export function imageEditor(m: Medium, done: (m: Medium) => void): void {
         n.height = cur.height;
         if (o.vertical) { c.translate(0, n.height); c.scale(1, -1); } else { c.translate(n.width, 0); c.scale(-1, 1); }
         c.drawImage(cur, 0, 0);
+      } else if (o.type === 'redact') {
+        n.width = cur.width;
+        n.height = cur.height;
+        c.drawImage(cur, 0, 0);
+        const [x, y, w, hh] = [Number(o.x) * s, Number(o.y) * s, Number(o.w) * s, Number(o.h) * s];
+        if (o.mode === 'fill') {
+          c.fillStyle = '#000';
+          c.fillRect(x, y, w, hh);
+        } else {
+          // blocks as on the server: scaled down and up again without smoothing
+          const b = Math.max(12, Number(o.size) || 16) * s;
+          const t2 = document.createElement('canvas');
+          t2.width = Math.max(1, Math.ceil(w / b));
+          t2.height = Math.max(1, Math.ceil(hh / b));
+          t2.getContext('2d')?.drawImage(cur, x, y, w, hh, 0, 0, t2.width, t2.height);
+          c.imageSmoothingEnabled = false;
+          c.drawImage(t2, 0, 0, t2.width, t2.height, x, y, w, hh);
+        }
       } else if (o.type === 'resize') {
         const w = Number(o.w) * s || (cur.width * (Number(o.h) * s)) / cur.height;
         const hh = Number(o.h) * s || (cur.height * w) / cur.width;
@@ -328,12 +346,16 @@ export function imageEditor(m: Medium, done: (m: Medium) => void): void {
   for (const r of [bright, contrast, sat]) { r.min = '-100'; r.max = '100'; }
   const blur = textInput({ type: 'number', value: '2' });
   const rw = textInput({ type: 'number', value: String(m.width) });
+  const redactMode = select([{ value: 'fill', label: t('media.redact_fill') }, { value: 'pixelate', label: t('media.redact_pixelate') }], 'fill');
   const note = textInput({ placeholder: t('media.version_note') });
 
   const tools = h('div', { class: 'ew-imged-tools' },
     h('fieldset', { class: 'ew-fieldset' }, h('legend', null, t('media.op.crop')), h('p', { class: 'ew-help' }, t('media.crop_help')),
       h('div', { class: 'ew-imged-row' }, field('X', cx), field('Y', cy), field(t('media.width'), cw), field(t('media.height'), ch)),
       button(t('media.op.crop'), () => add({ type: 'crop', x: +cx.value, y: +cy.value, w: +cw.value, h: +ch.value }))),
+    h('fieldset', { class: 'ew-fieldset' }, h('legend', null, t('media.op.redact')), h('p', { class: 'ew-help' }, t('media.redact_help')),
+      field(t('media.redact_mode'), redactMode),
+      button(t('media.redact_area'), () => add({ type: 'redact', x: +cx.value, y: +cy.value, w: +cw.value, h: +ch.value, mode: redactMode.value, size: 16 }))),
     h('div', { class: 'ew-imged-row' },
       button(t('media.rotate_left'), () => add({ type: 'rotate', deg: 270 })), button(t('media.rotate_right'), () => add({ type: 'rotate', deg: 90 })),
       button(t('media.flip_h'), () => add({ type: 'flip' })), button(t('media.flip_v'), () => add({ type: 'flip', vertical: true })),
@@ -353,12 +375,26 @@ export function imageEditor(m: Medium, done: (m: Medium) => void): void {
         const res = await api.post<Medium>(`media/${m.id}/edit`, { ops, note: note.value.trim() });
         toast(t('media.version_saved', { v: String(res.version) }));
         dlg.close();
+        // the older versions still show what was made unreadable
+        if (ops.some((o) => o.type === 'redact') && has(m, 'manage') && await confirmDialog(t('media.purge_after_redact'), t('media.purge_versions'), true)) {
+          await purgeVersions(m);
+        }
         done(res);
       } catch (e) {
         toast(errorText(e), 'error');
       }
     }, { variant: 'primary' }),
   ], { wide: true });
+}
+
+/** Deletes all older versions of a medium with their content (right "manage"). */
+async function purgeVersions(m: Medium): Promise<void> {
+  try {
+    const r = await api.del<{ versions: number; files: number; kept: number }>(`media/${m.id}/versions`);
+    toast(r.kept ? t('media.purged_kept', { n: String(r.versions), kept: String(r.kept) }) : t('media.purged', { n: String(r.versions) }));
+  } catch (e) {
+    toast(errorText(e), 'error');
+  }
 }
 
 // ---------------------------------------------------------------- details
@@ -418,6 +454,13 @@ export async function mediaDetails(id: number, changed: () => void): Promise<voi
           h('td', null, v.version === m.version ? t('media.current') : h('span', null,
             h('a', { href: mediaURL(m, { v: v.version }), target: '_blank', rel: 'noopener' }, t('media.show')), ' ',
             button(t('media.restore'), async () => { m = await api.post<Medium>(`media/${m.id}/versions/${v.version}/restore`); toast(t('media.restored')); void draw(); }, { variant: 'link' }))))))));
+      if (has(m, 'manage') && versions.length > 1) {
+        parts.push(h('p', { class: 'ew-help' }, t('media.purge_help')), button(t('media.purge_versions'), async () => {
+          if (!(await confirmDialog(t('media.purge_confirm', { n: String(versions.length - 1) }), t('media.purge_versions'), true))) return;
+          await purgeVersions(m);
+          void draw();
+        }, { variant: 'danger' }));
+      }
     }
     body.replaceChildren();
     append(body, parts);
