@@ -262,7 +262,7 @@ func TestContentHostileParams(t *testing.T) {
 		} `json:"params"`
 	}
 	admin.must("GET", "/api/v1/macros", nil, &macros, 200)
-	sample := map[string]string{"text": "Text", "number": "3", "url": "https://example.com/a", "bool": "true", "color": "#0b3a6b", "date": "2026-11-21",
+	sample := map[string]string{"text": "Text", "number": "3", "url": "https://example.com/a", "bool": "true", "color": "#0b3a6b", "date": "2026-11-21", "time": "10:00",
 		"textarea": "Text", "icon": "star", "custom:icon": "star", "json": `{"a":1}`}
 	saved, refused := 0, 0
 	render := func(src string) (string, bool) {
@@ -494,7 +494,7 @@ func optionContext(id string) string {
 // hostileSamples: valid values of single parameters (block.param) where
 // the sample of the type does not fit.
 var hostileSamples = map[string]string{
-	"anchor.name": "intro", "excerpt.name": "intro", "include.excerpt": "false", "include.name": "", "grid.widths": "",
+	"anchor.name": "intro", "excerpt.name": "intro", "date.end": "11:30", "include.excerpt": "false", "include.name": "", "grid.widths": "",
 	"personcard.image": "/api/v1/media/1/view", "testimonial.image": "/api/v1/media/1/view", "rotating.words": "eins|zwei|drei", "personcard.email": "anna@example.com", "personcard.phone": "+49 30 123456",
 }
 
