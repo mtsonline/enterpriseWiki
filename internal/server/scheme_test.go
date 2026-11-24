@@ -41,10 +41,11 @@ func TestColorScheme(t *testing.T) {
 		t.Errorf("unknown scheme accepted: %d", code)
 	}
 	// a forged cookie never reaches the page
-	evil := e.client()
-	res, body := evil.raw("/", map[string]string{"Cookie": `ewiki_scheme="><script>alert(1)</script>`})
-	if res.StatusCode != 200 || strings.Contains(body, "<script>alert") || strings.Contains(body, "data-scheme-choice") {
-		t.Errorf("forged cookie in the page: %d", res.StatusCode)
+	for _, v := range []string{"night", "x><script>alert(1)</script>"} {
+		res, body := e.client().raw("/", map[string]string{"Cookie": "ewiki_scheme=" + v})
+		if res.StatusCode != 200 || strings.Contains(body, "<script>alert") || strings.Contains(body, "data-scheme-choice") || strings.Contains(body, "night") {
+			t.Errorf("forged cookie %q in the page: %d", v, res.StatusCode)
+		}
 	}
 	// back to the default: the cookie is removed
 	guest.must("PUT", "/api/v1/scheme", map[string]string{"scheme": ""}, nil, 200)
