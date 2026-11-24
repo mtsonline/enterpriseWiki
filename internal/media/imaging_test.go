@@ -78,3 +78,62 @@ func TestDecodeLimits(t *testing.T) {
 		t.Fatal("garbage decoded")
 	}
 }
+
+// TestRedact: the area is gone for good (black, or blocks of one colour),
+// everything outside stays exactly as it was.
+func TestRedact(t *testing.T) {
+	img := testImage(100, 60)
+	out, err := Apply(img, []Op{{Type: "redact", X: 10, Y: 10, W: 30, H: 20, Mode: "fill"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	o := toRGBA(out)
+	for y := 0; y < 60; y++ {
+		for x := 0; x < 100; x++ {
+			in := x >= 10 && x < 40 && y >= 10 && y < 30
+			got := o.RGBAAt(x, y)
+			if in && got != (color.RGBA{0, 0, 0, 255}) {
+				t.Fatalf("fill: %d,%d is %v", x, y, got)
+			}
+			if !in && got != img.RGBAAt(x, y) {
+				t.Fatalf("fill changed %d,%d outside the area", x, y)
+			}
+		}
+	}
+	// pixelate: blocks of at least 12 pixels, even when a smaller size is asked for
+	out, err = Apply(img, []Op{{Type: "redact", X: 0, Y: 0, W: 48, H: 24, Mode: "pixelate", Size: 2}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	o = toRGBA(out)
+	for by := 0; by < 24; by += 12 {
+		for bx := 0; bx < 48; bx += 12 {
+			first := o.RGBAAt(bx, by)
+			for y := by; y < by+12; y++ {
+				for x := bx; x < bx+12; x++ {
+					if o.RGBAAt(x, y) != first {
+						t.Fatalf("block %d,%d not of one colour", bx, by)
+					}
+				}
+			}
+		}
+	}
+	if o.RGBAAt(60, 40) != img.RGBAAt(60, 40) {
+		t.Fatal("pixelate changed the outside")
+	}
+	// an area partly outside is clamped; one fully outside, other modes and huge values are refused
+	if _, err := Apply(img, []Op{{Type: "redact", X: 90, Y: 50, W: 500, H: 500, Mode: "fill"}}); err != nil {
+		t.Fatalf("clamped area: %v", err)
+	}
+	for _, op := range []Op{
+		{Type: "redact", X: 200, Y: 0, W: 10, H: 10, Mode: "fill"},
+		{Type: "redact", X: 0, Y: 0, W: 10, H: 10, Mode: "blur"},
+		{Type: "redact", X: 0, Y: 0, W: 0, H: 10, Mode: "fill"},
+		{Type: "redact", X: 0, Y: 0, W: 2_000_000, H: 10, Mode: "fill"},
+		{Type: "crop", X: -5, Y: 0, W: 10, H: 10},
+	} {
+		if _, err := Apply(img, []Op{op}); err == nil {
+			t.Errorf("%+v accepted", op)
+		}
+	}
+}

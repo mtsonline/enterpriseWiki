@@ -1817,6 +1817,26 @@ actions:
         given: ['core.media.edit#default']
         as: admin
         path_params_json: '{"id": "${given.core.media.upload#default.id}", "v": 1}'
+  - id: core.media.versions_purge
+    category: CATEGORY_ACTION
+    method: DELETE
+    path: /api/v1/media/{id}/versions
+    response:
+      json: '{"type": "object", "properties": {"versions": {"type": "integer", "description": "older versions removed"}, "files": {"type": "integer", "description": "their files deleted from the storage"}, "kept": {"type": "integer", "description": "files that stay because something else uses the same content"}}}'
+    success_status: 200
+    summary:
+      text:
+        en: Delete all older versions of a file with their content (after making something unreadable)
+        de: Alle älteren Versionen einer Datei samt Inhalt löschen (nach dem Unkenntlich-Machen)
+    signed_in: true
+    safety: {changes: true, idempotent: true, audit_event: media.versions_purge}
+    cli: {command: [media, purge-versions], builtin: true}
+    ui: {entry: /media}
+    examples:
+      - name: default
+        given: ['core.media.edit#default']
+        as: admin
+        path_params_json: '{"id": "${given.core.media.upload#default.id}"}'
   - id: core.media.usage
     category: CATEGORY_ACTION
     method: GET

@@ -885,6 +885,80 @@ func (s *Service) EditImage(ctx context.Context, id int64, ops []Op, note string
 	return s.addVersion(ctx, m, out, ops, note, "media.edit")
 }
 
+// PurgeResult reports what PurgeVersions removed.
+type PurgeResult struct {
+	// Versions: older versions removed (the current one stays).
+	Versions int `json:"versions"`
+	// Files: their files deleted from the storage at once.
+	Files int `json:"files"`
+	// Kept: files of removed versions that stay because something else
+	// uses the same content (another medium, a page); never shown through
+	// this medium again.
+	Kept int `json:"kept"`
+}
+
+// PurgeVersions deletes all versions but the current one, with their files
+// (right "manage"). After making something unreadable this is what
+// removes the original: older versions would still show it. It cannot be
+// undone; the audit log records it.
+func (s *Service) PurgeVersions(ctx context.Context, id int64) (*PurgeResult, error) {
+	if _, _, err := s.require(ctx, id, Manage); err != nil {
+		return nil, err
+	}
+	tx, err := s.pool.Begin(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
+	// the medium is locked: no new version can come in between
+	var current int
+	var currentHash string
+	if err := tx.QueryRow(ctx, `SELECT m.current, v.hash FROM media m JOIN media_versions v ON v.media_id = m.id AND v.version = m.current
+		WHERE m.id=$1 AND m.deleted_at IS NULL FOR UPDATE OF m`, id).Scan(&current, &currentHash); err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, apperr.NotFound("medium")
+		}
+		return nil, err
+	}
+	rows, err := tx.Query(ctx, `DELETE FROM media_versions WHERE media_id=$1 AND version<>$2 RETURNING version, hash`, id, current)
+	if err != nil {
+		return nil, err
+	}
+	type gone struct {
+		v    int
+		hash string
+	}
+	removed, err := pgx.CollectRows(rows, func(r pgx.CollectableRow) (gone, error) {
+		var g gone
+		return g, r.Scan(&g.v, &g.hash)
+	})
+	if err != nil {
+		return nil, err
+	}
+	versions := make([]int, 0, len(removed))
+	seen := map[string]bool{currentHash: true} // (a restored version has the same content)
+	hashes := []string{}
+	for _, g := range removed {
+		versions = append(versions, g.v)
+		if !seen[g.hash] {
+			seen[g.hash] = true
+			hashes = append(hashes, g.hash)
+		}
+	}
+	if err := audit.Log(ctx, tx, "media.versions_purge", "media", id, nil, map[string]any{"versions": versions, "current": current}); err != nil {
+		return nil, err
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return nil, err
+	}
+	// the files go at once (no grace period), unless something else uses them
+	n, err := s.files.RemoveUnreferenced(ctx, hashes)
+	if err != nil {
+		return nil, err
+	}
+	return &PurgeResult{Versions: len(removed), Files: n, Kept: len(hashes) - n}, nil
+}
+
 // Restore makes an older version the current one (as a new version).
 func (s *Service) Restore(ctx context.Context, id int64, version int) (*Medium, error) {
 	m, _, err := s.require(ctx, id, Edit)

@@ -175,6 +175,14 @@ func (s *Server) routesMedia() {
 		}
 		return m().Versions(r.Context(), id)
 	})
+	// action: core.media.versions_purge
+	s.handle("DELETE /api/v1/media/{id}/versions", func(w http.ResponseWriter, r *http.Request) (any, error) {
+		id, err := pathID(r)
+		if err != nil {
+			return nil, err
+		}
+		return m().PurgeVersions(r.Context(), id)
+	})
 	// action: core.media.restore
 	s.handle("POST /api/v1/media/{id}/versions/{v}/restore", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		id, err := pathID(r)

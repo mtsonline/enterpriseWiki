@@ -221,6 +221,7 @@ actions:
 | `POST` | `/api/v1/media/{id}/file` |
 | `POST` | `/api/v1/media/{id}/edit` |
 | `GET` | `/api/v1/media/{id}/versions` |
+| `DELETE` | `/api/v1/media/{id}/versions` |
 | `POST` | `/api/v1/media/{id}/versions/{v}/restore` |
 | `GET` | `/api/v1/media/{id}/usage` |
 | `GET` | `/api/v1/media/{id}/acl` |

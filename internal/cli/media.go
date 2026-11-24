@@ -24,6 +24,7 @@ const mediaUsage = `usage: ewiki media list [--category ID] [--recursive] [--q T
        ewiki media replace ID FILE [--note TEXT]
        ewiki media edit ID OPS [--note TEXT] (OPS: JSON list, e.g. [{"type":"rotate","deg":90}])
        ewiki media restore ID VERSION
+       ewiki media purge-versions ID        (deletes all older versions with their content; cannot be undone)
        ewiki media download ID [--version N] [-o FILE]
        ewiki media viewers                  (programs: browser and active office plugins)
        ewiki media programs ID              (how the user may open the file)
@@ -141,6 +142,12 @@ func (e *env) media(args []string) error {
 		}
 		body, _ := json.Marshal(map[string]any{"ops": ops, "note": *note})
 		return e.apiBody("POST", "/api/v1/media/"+i+"/edit", body, *as)
+	case "purge-versions":
+		i, err := id()
+		if err != nil || len(pos) != 1 {
+			return errors.New(mediaUsage)
+		}
+		return e.apiBody("DELETE", "/api/v1/media/"+i+"/versions", nil, *as)
 	case "restore":
 		i, err := id()
 		if err != nil || len(pos) != 2 {
