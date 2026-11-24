@@ -44,7 +44,7 @@ Open from this area: S3-compatible object storage as an alternative to the file 
 - Update check through GitHub releases (core and plugins, also GitHub Enterprise), release notes, one-click update for plugins (interface, API, `ewiki plugin updates|update`)
 - Frontend SDK: `registerWidget` (interactive parts in server-rendered content), `registerElementExtension` (areas below pages), plugin routes through `route`
 
-Open from this area: deputies in workflows, automatic core update from the interface.
+Open from this area: core update from the interface (the core updates with `scripts/update.sh`, also automatically by timer). Deputies in workflows came with milestone 16b.
 
 ## Milestone 4 – E-mail, workflow steps, external search (done, v7.3)
 
@@ -56,7 +56,7 @@ Open from this area: deputies in workflows, automatic core update from the inter
 
 Improvements after the first test (v7.3.1): *Edit category* and *Edit page* directly in the category view, menu dialog with positions of the active template, category selection and check of the entries, display of the template used on the plugin page, more positions in both templates, position preview, plugin `core.blocks` for text blocks at every position.
 
-Open: notifications in the browser (without e-mail), summaries (digest), deputy rules, webhooks whose answer writes data back into the case.
+Done since: notifications in the wiki (bell), summaries (milestone 6), deputies and the step *HTTP query*, which takes values of the answer into the case (milestone 16b).
 
 ## Milestone 5 – Reliable e-mail, watching, feeds, new element types, guest cache (done, v7.4)
 

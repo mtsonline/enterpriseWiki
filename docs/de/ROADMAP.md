@@ -44,7 +44,7 @@ Offen aus diesem Bereich: S3-kompatibler Objektspeicher als Alternative zum Date
 - Update-Prüfung über GitHub-Releases (Kern und Plugins, auch GitHub Enterprise), Versionshinweise, 1-Klick-Update für Plugins (Oberfläche, API, `ewiki plugin updates|update`)
 - Frontend-SDK: `registerWidget` (interaktive Teile in serverseitig gerenderten Inhalten), `registerElementExtension` (Bereiche unter Seiten), Plugin-Routen über `route`
 
-Offen aus diesem Bereich: Vertretungen in Workflows, automatisches Kern-Update aus der Oberfläche.
+Offen aus diesem Bereich: Kern-Update aus der Oberfläche (der Kern aktualisiert sich mit `scripts/update.sh`, auch automatisch per Timer). Vertretungen in Workflows kamen mit Meilenstein 16b.
 
 ## Meilenstein 4 – E-Mail, Workflow-Schritte, externe Suche (fertig, v7.3)
 
@@ -56,7 +56,7 @@ Offen aus diesem Bereich: Vertretungen in Workflows, automatisches Kern-Update a
 
 Nachbesserungen nach dem ersten Test (v7.3.1): *Kategorie bearbeiten* und *Seite bearbeiten* direkt in der Kategorieansicht, Menü-Dialog mit Positionen der aktiven Vorlage, Kategorie-Auswahl und Prüfung der Einträge, Anzeige der verwendeten Vorlage auf der Plugin-Seite, mehr Positionen in beiden Vorlagen, Positionsvorschau, Plugin `core.blocks` für Textblöcke an jeder Position.
 
-Offen: Benachrichtigungen im Browser (ohne E-Mail), Zusammenfassungen (Digest), Vertretungsregeln, Webhooks, deren Antwort Daten in den Vorgang zurückschreibt.
+Inzwischen fertig: Benachrichtigungen im Wiki (Glocke), Zusammenfassungen (Meilenstein 6), Vertretungen und der Schritt *HTTP-Abfrage*, der Werte der Antwort in den Vorgang übernimmt (Meilenstein 16b).
 
 ## Meilenstein 5 – Zuverlässige E-Mail, Beobachten, Feeds, neue Elementtypen, Gäste-Cache (fertig, v7.4)
 
