@@ -21,7 +21,7 @@ In every conflict this order applies: security, no data loss, stability, accessi
 - **Foreign product names:** names of competing products only appear in import functions for the respective system, their tests and coverage comparisons, nowhere else. Names of systems the wiki connects to (for example office servers, sign-in providers, directory services, chat services) are allowed.
 - **Namespaces:** everything a plugin registers (routes, permissions, settings, events, actions) carries its plugin ID; instances are called `plugin-id/instance-id`; `core.` is reserved for the core.
 - **Secrets:** default `plain`. Encryption is always selectable, never mandatory.
-- **Configuration:** without a cluster in `config.yaml`. Only in cluster mode are the settings that can be changed in the interface stored in the database.
+- **Configuration:** without a cluster in `config.yaml`. Only in cluster mode are the settings that can be changed in the interface stored in the database. **Status:** decided on 13.11.2026, not built yet; comes with the cluster network (roadmap, “Cluster”). Until then the nodes share `config.yaml` on a shared volume.
 
 ## 2. Dependencies and licenses
 
