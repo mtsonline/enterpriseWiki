@@ -33,6 +33,7 @@ func main() {
 	list := flag.Bool("list", false, "list the traps and exit")
 	only := flag.String("only", "", "comma-separated ids of the traps to run")
 	timeout := flag.Duration("timeout", 15*time.Minute, "time limit of one test run")
+	fit := flag.Bool("fit", false, "only check that every trap still fits the code (fast, for the CI)")
 	flag.Parse()
 
 	if err := checkIDs(traps); err != nil {
@@ -61,7 +62,7 @@ func main() {
 		}
 		return
 	}
-	if os.Getenv("EWIKI_TEST_DATABASE_URL") == "" {
+	if !*fit && os.Getenv("EWIKI_TEST_DATABASE_URL") == "" {
 		fail("EWIKI_TEST_DATABASE_URL is not set: the API integration tests would be skipped and every trap would look caught")
 	}
 
@@ -83,6 +84,10 @@ func main() {
 	}
 	if outdated > 0 {
 		fail("%d trap(s) outdated", outdated)
+	}
+	if *fit {
+		fmt.Printf("traps: all %d fit the code\n", len(chosen))
+		return
 	}
 	for f := range files {
 		if out, err := exec.Command("git", "status", "--porcelain", "--", f).Output(); err != nil || len(bytes.TrimSpace(out)) > 0 { // #nosec G204 -- f is a file of the repository named in traps.go

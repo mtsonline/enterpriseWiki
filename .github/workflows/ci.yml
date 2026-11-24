@@ -71,6 +71,9 @@ jobs:
       - name: documentation complete in German and English, links valid
         if: ${{ matrix.shard == 0 }}
         run: go run ./tools/docscheck
+      - name: every trap still fits the code (tools/traps)
+        if: ${{ matrix.shard == 0 }}
+        run: go run ./tools/traps -fit
       # Renovate waits 3 days before it proposes a new version, but cannot for
       # lock file maintenance and pinning: this covers every lock file change
       - name: new npm package versions are at least 3 days old

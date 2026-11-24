@@ -88,10 +88,11 @@ Ein grüner Test sagt nur etwas, wenn er rot würde, sobald das Geprüfte kaputt
 EWIKI_TEST_DATABASE_URL=postgres://USER:PASS@localhost:5432/DB?sslmode=disable go run ./tools/traps
 go run ./tools/traps -list                       # alle Fallen
 go run ./tools/traps -only cli.as,auth.csrf      # einzelne Fallen
+go run ./tools/traps -fit                        # nur: passt jede Falle noch zum Code (schnell, läuft in der CI)
 ```
 
 - Zuerst laufen die Tests ohne Fallen und müssen grün sein. Ohne Datenbank bricht das Werkzeug ab, weil die Integrationstests sonst übersprungen würden und jede Falle als „gefangen“ gälte.
 - **caught:** Die Tests werden rot, wie erwartet. **MISSED:** Die Tests bleiben grün, also prüfen sie nicht, was sie behaupten; das ist ein Befund. **BROKEN:** Die Falle lässt sich nicht übersetzen.
-- **OUTDATED:** Die bewachte Stelle hat sich geändert. Dann wird die Falle angepasst, sie wird nie entfernt.
+- **OUTDATED:** Die bewachte Stelle hat sich geändert. Dann wird die Falle angepasst, sie wird nie entfernt. Die CI prüft das bei jeder Änderung (`-fit`), so fällt eine veraltete Falle sofort auf.
 - Jede geänderte Datei wird nach ihrer Falle wiederhergestellt, auch bei Strg+C. Dateien mit nicht eingecheckten Änderungen werden abgelehnt.
 - Läuft vor jedem Release. Jeder behobene Sicherheitsfehler bekommt eine Falle.
