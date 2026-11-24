@@ -516,6 +516,20 @@ func TestRealLDAP(t *testing.T) {
 	if !res.OK {
 		t.Fatal("ldap test endpoint failed")
 	}
+	// an address only the wiki knows (added in the profile) signs in with
+	// the person's LDAP password: the wiki asks LDAP with her name there
+	var conf confirmations
+	conf.install(e)
+	c.must("POST", "/api/v1/me/emails", map[string]string{"email": "alice.home@example.net"}, nil, 201)
+	e.client().must("POST", "/api/v1/auth/verify-email", map[string]string{"token": conf.token("alice.home@example.net")}, nil, 200)
+	viaMail := e.client()
+	viaMail.login("alice.home@example.net", pw)
+	if u := meOf(t, viaMail).User; u == nil || u.Provider != "ldap" || u.Username != "alice" {
+		t.Fatalf("sign-in with the wiki address: %+v", u)
+	}
+	if got := e.client().do("POST", "/api/v1/auth/login", map[string]string{"username": "alice.home@example.net", "password": "wrong"}, nil); got != 401 {
+		t.Fatalf("wrong password with the wiki address: %d", got)
+	}
 }
 
 // ------------------------------------------------------------------ Active Directory

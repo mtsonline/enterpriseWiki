@@ -341,37 +341,141 @@ func (s *Service) Login(ctx context.Context, username, password, ip, ua string) 
 			}
 		}
 	}
-	for _, p := range providers {
-		ext, err := p.Authenticate(ctx, username, password)
-		if errors.Is(err, ErrUnknownUser) || errors.Is(err, ErrBadCredentials) {
-			continue
-		}
-		if err != nil {
-			var ae *apperr.Error
-			if errors.As(err, &ae) {
-				return nil, err
+	// a confirmed address of an account: sign in with the account's own
+	// sign-ins (its provider and the ones linked to it), under their user
+	// names there - the address may be known only to the wiki (added in the
+	// profile), not to the directory. The account id stays the reference;
+	// the address only finds it.
+	if owner, tries := s.addressSignIns(ctx, username, providers); len(tries) > 0 {
+		known := false
+		for _, t := range tries {
+			res, outcome, err := s.tryProvider(ctx, t.p, t.username, password, owner, ip, ua)
+			if outcome == tryDone {
+				return res, err
 			}
-			s.log.Warn("auth provider error", "provider", p.ID(), "err", err)
-			continue
+			known = known || outcome == tryBad
 		}
-		uid, err := s.syncIdentity(ctx, ext)
-		if err != nil {
-			return nil, err
+		if known {
+			return failed()
 		}
-		if err := s.checkSignIn(ctx, uid, ip); err != nil {
-			return nil, err
+		// none of them knows the name (for example a directory that is
+		// searched by address): ask all providers with the address as typed
+	}
+	for _, p := range providers {
+		if res, outcome, err := s.tryProvider(ctx, p, username, password, 0, ip, ua); outcome == tryDone {
+			return res, err
 		}
-		res, err := s.afterFirstFactor(ctx, uid, ext.Provider, ext, "", ip, ua, false)
-		if err != nil {
-			return nil, err
-		}
-		if res.MFAToken != "" {
-			return nil, errMFARequired(res.MFAToken)
-		}
-		s.log.Info("login", "user", res.Principal.Handle(), "ip", ip)
-		return res.LoginResult, nil
 	}
 	return failed()
+}
+
+type tryOutcome int
+
+const (
+	tryUnknown tryOutcome = iota // the provider does not know the name (or failed)
+	tryBad                       // known, wrong password
+	tryDone                      // signed in, or an error to show
+)
+
+// tryProvider signs in with one provider. With want > 0 the sign-in must
+// end in that account; anything else is refused like a wrong password.
+func (s *Service) tryProvider(ctx context.Context, p PasswordProvider, username, password string, want int64, ip, ua string) (*LoginResult, tryOutcome, error) {
+	ext, err := p.Authenticate(ctx, username, password)
+	if errors.Is(err, ErrUnknownUser) {
+		return nil, tryUnknown, nil
+	}
+	if errors.Is(err, ErrBadCredentials) {
+		return nil, tryBad, nil
+	}
+	if err != nil {
+		var ae *apperr.Error
+		if errors.As(err, &ae) {
+			return nil, tryDone, err
+		}
+		s.log.Warn("auth provider error", "provider", p.ID(), "err", err)
+		return nil, tryUnknown, nil
+	}
+	if want > 0 {
+		// the identity must already belong to the account the address
+		// found: never create or link an account on this way
+		var uid int64
+		if err := s.pool.QueryRow(ctx, `SELECT id FROM users WHERE provider=$1 AND subject=$2
+			UNION ALL SELECT user_id FROM user_identities WHERE provider=$1 AND subject=$2 LIMIT 1`, ext.Provider, ext.Subject).Scan(&uid); err != nil || uid != want {
+			s.log.Warn("sign-in with an address refused: the provider's identity belongs to another account", "provider", p.ID())
+			return nil, tryBad, nil
+		}
+	}
+	uid, err := s.syncIdentity(ctx, ext)
+	if err != nil {
+		return nil, tryDone, err
+	}
+	if want > 0 && uid != want {
+		return nil, tryBad, nil
+	}
+	if err := s.checkSignIn(ctx, uid, ip); err != nil {
+		return nil, tryDone, err
+	}
+	res, err := s.afterFirstFactor(ctx, uid, ext.Provider, ext, "", ip, ua, false)
+	if err != nil {
+		return nil, tryDone, err
+	}
+	if res.MFAToken != "" {
+		return nil, tryDone, errMFARequired(res.MFAToken)
+	}
+	s.log.Info("login", "user", res.Principal.Handle(), "ip", ip)
+	return res.LoginResult, tryDone, nil
+}
+
+type addressTry struct {
+	p        PasswordProvider
+	username string
+}
+
+// addressSignIns returns the account a confirmed address belongs to and its
+// password sign-ins among providers, each with the user name it has there:
+// first the account's own provider, then the linked ones (a local account
+// is asked with the address, it finds the account by it itself).
+func (s *Service) addressSignIns(ctx context.Context, addr string, providers []PasswordProvider) (int64, []addressTry) {
+	a, err := NormalizeEmail(addr)
+	if err != nil || a == "" {
+		return 0, nil
+	}
+	rows, err := s.pool.Query(ctx, `SELECT u.id, u.provider, u.username, 0 FROM user_emails e JOIN users u ON u.id=e.user_id
+			WHERE e.email=$1 AND e.verified
+		UNION ALL
+		SELECT i.user_id, i.provider, i.username, 1 FROM user_emails e JOIN user_identities i ON i.user_id=e.user_id
+			WHERE e.email=$1 AND e.verified AND i.username <> ''
+		ORDER BY 4, 2`, a)
+	if err != nil {
+		return 0, nil
+	}
+	defer rows.Close()
+	var owner int64
+	var out []addressTry
+	for rows.Next() {
+		var uid int64
+		var prov, uname string
+		var rank int
+		if rows.Scan(&uid, &prov, &uname, &rank) != nil {
+			return 0, nil
+		}
+		owner = uid
+		if prov == "local" {
+			uname = a // the local provider finds the account by its address itself
+		}
+		if uname == "" {
+			continue
+		}
+		for _, p := range providers {
+			if p.ID() == prov && !slices.ContainsFunc(out, func(t addressTry) bool { return t.p.ID() == prov }) {
+				out = append(out, addressTry{p, uname})
+			}
+		}
+	}
+	if rows.Err() != nil {
+		return 0, nil
+	}
+	return owner, out
 }
 
 // syncIdentity creates or updates the local user record of an identity and

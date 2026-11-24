@@ -135,6 +135,20 @@ var traps = []trap{
 		Pkg:  "./internal/server/", Tests: "^(TestAPI|TestWorkflow3Accounts|TestMultiSite|TestDirectorySync|TestDisabledAccountIsLockedOut)$",
 	},
 	{
+		ID: "auth.address-name", About: "an address known only to the wiki does not sign in with the directory password",
+		File: "internal/auth/service.go",
+		Old:  "out = append(out, addressTry{p, uname})",
+		New:  "out = append(out, addressTry{p, a})",
+		Pkg:  "./internal/server/", Tests: "^TestLoginWithAnyAddress$",
+	},
+	{
+		ID: "auth.address-wrong-password", About: "a wrong password through an address is tried again with every provider",
+		File: "internal/auth/service.go",
+		Old:  "known = known || outcome == tryBad",
+		New:  "known = false",
+		Pkg:  "./internal/server/", Tests: "^TestLoginWithAnyAddress$",
+	},
+	{
 		ID: "auth.csrf", About: "requests with the session cookie are accepted without the X-Requested-With header",
 		File: "internal/server/middleware.go",
 		Old:  "strings.HasPrefix(r.URL.Path, \"/api/\") && !safeMethod(r.Method) && r.Header.Get(csrfHeader) != csrfValue",

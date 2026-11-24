@@ -66,7 +66,9 @@ Externe Gruppen werden ohne Beachtung der Groß-/Kleinschreibung verglichen, ent
 
 ## E-Mail-Adressen, verknüpfte Anmeldungen und Einladungen
 
-Ein Benutzer ist **ein Profil mit einer oder mehreren E-Mail-Adressen**. Eine **bestätigte** Adresse gehört genau einem Benutzer. Sie kennzeichnet ihn eindeutig: Mit ihr kann man sich bei lokalen Konten anmelden, und neue Anmeldungen anderer Verfahren mit dieser Adresse werden mit dem Konto **verknüpft**.
+Ein Benutzer ist **ein Profil mit einer oder mehreren E-Mail-Adressen**. Eine **bestätigte** Adresse gehört genau einem Benutzer. Intern zählt nur die feste Kennung des Kontos; Adressen und Benutzername finden das Konto nur, sie können sich ändern. Neue Anmeldungen anderer Verfahren mit einer bestätigten Adresse werden mit dem Konto **verknüpft**.
+
+**Anmelden mit jeder bestätigten Adresse:** Im Feld „Benutzername“ geht jede bestätigte Adresse des Kontos, mit dem Passwort eines seiner Anmeldeverfahren mit Passwort (lokal, LDAP/AD). Das Wiki sucht das Konto über die Adresse und fragt das Verzeichnis mit dem Namen, den die Person dort hat. Eine Adresse, die nur im Wiki steht (im Profil hinzugefügt), genügt also auch bei LDAP. Das Verzeichnis prüft das Passwort; ein Konto wird auf diesem Weg nie angelegt oder verknüpft. Kennt keines der Verfahren des Kontos den Namen, wird die Adresse wie eingegeben an alle Verfahren gegeben (zum Beispiel bei einem LDAP-Filter auf `mail`). Externe Anbieter (OIDC, SAML) prüfen die Anmeldung selbst.
 
 - **Adressen verwalten:**
   - Benutzer: im Profil unter *E-Mail-Adressen* (`/api/v1/me/emails`).
