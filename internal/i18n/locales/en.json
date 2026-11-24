@@ -3069,5 +3069,13 @@
  "bo.underline_color": "Colour of the underline",
  "bo.p.scroll_label": "A block that scrolls in itself needs a name for screen readers.",
  "bo.p.border_sides": "Sides of the border need a border style.",
- "bo.p.radius_corners": "Rounded corners on some corners need a radius."
+ "bo.p.radius_corners": "Rounded corners on some corners need a radius.",
+ "layout.compare_slider": "Border between {before} and {after}",
+ "layout.compare_value": "{n} % {after}",
+ "layout.countdown_days_one": "day",
+ "layout.countdown_days_other": "days",
+ "layout.countdown_hours_one": "hour",
+ "layout.countdown_hours_other": "hours",
+ "layout.countdown_minutes_one": "minute",
+ "layout.countdown_minutes_other": "minutes"
 }

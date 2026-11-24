@@ -512,14 +512,16 @@ func optionContext(id string) string {
 var hostileSamples = map[string]string{
 	"anchor.name": "intro", "excerpt.name": "intro", "date.end": "11:30", "include.excerpt": "false", "include.name": "", "grid.widths": "",
 	"personcard.image": "/api/v1/media/1/view", "testimonial.image": "/api/v1/media/1/view", "rotating.words": "eins|zwei|drei", "personcard.email": "anna@example.com", "personcard.phone": "+49 30 123456",
+	"hotspots.image": "/api/v1/media/1/view", "compare.before": "/api/v1/media/1/view", "compare.after": "/api/v1/media/2/view",
 }
 
 // hostileBodies: the content of blocks that need a certain body; %s is
 // the hostile body.
 var hostileBodies = map[string]string{
-	"chart":  "| Name | Wert |\n|---|---|\n| a | 1 |\n| %s | 2 |",
-	"logos":  "![%s](/api/v1/media/1/view)\n\n%s",
-	"ticker": "- %s\n- b",
+	"chart":    "| Name | Wert |\n|---|---|\n| a | 1 |\n| %s | 2 |",
+	"hotspots": "- 10/20: %s",
+	"logos":    "![%s](/api/v1/media/1/view)\n\n%s",
+	"ticker":   "- %s\n- b",
 }
 
 func bodyFor(macro, inner string) string {

@@ -10,6 +10,7 @@ import (
 	"html"
 	"net/url"
 	"strings"
+	"time"
 
 	"github.com/mtsonline/enterprisewiki/internal/content"
 	"github.com/mtsonline/enterprisewiki/internal/coreplugin"
@@ -32,7 +33,12 @@ func (p *Plugin) Manifest() coreplugin.Manifest { return coreplugin.ParseManifes
 // Setup registers the macros.
 func (p *Plugin) Setup(h *coreplugin.Host) error {
 	// layout blocks only build HTML from their parameters: the editor shows them as they look
-	for _, m := range []content.Macro{section{}, hero{}, cards{}, button{}, spacer{}, grid{}, heading{}, divider{}, buttons{}, cta{}, tabs{}, accordion{}, icon{}, iconbox{}, iconlist{}, progress{}, counter{}, timeline{}, dialog{}, tooltip{}, testimonial{}, logos{}, personcard{}, rotating{}, ticker{}, slider{}, chart{}, login{}, embed{allow: func() []string { return h.Config.Get().Media.EmbedAllow }}} {
+	for _, m := range []content.Macro{section{}, hero{}, cards{}, button{}, spacer{}, grid{}, heading{}, divider{}, buttons{}, cta{}, tabs{}, accordion{}, icon{}, iconbox{}, iconlist{}, progress{}, counter{}, timeline{}, dialog{}, tooltip{}, testimonial{}, logos{}, personcard{}, rotating{}, ticker{}, slider{}, chart{}, login{}, pricing{}, hotspots{}, compare{}, countdown{loc: func() *time.Location {
+		if h.Config == nil {
+			return nil
+		}
+		return h.Config.Get().Mail.DigestLocation()
+	}}, embed{allow: func() []string { return h.Config.Get().Media.EmbedAllow }}} {
 		h.RegisterPictureMacro(m)
 	}
 	return nil

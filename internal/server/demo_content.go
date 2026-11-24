@@ -559,6 +559,32 @@ func buildDemo(d *demoRun) {
 					"member": tr("Welcome back.", "Willkommen zurück.")}, "")
 		}
 		d.page(start, "People and tags", "Personen und Schlagwörter", people("en"), people("de"), nil)
+		// blocks C, part 1: price table, picture with hotspots, before and after, countdown
+		offers := func(lang string) string {
+			tr := func(en, de string) string {
+				if lang == "de" {
+					return de
+				}
+				return en
+			}
+			plan := func(name, price, a, b string) string {
+				return `<h3>` + name + `</h3><p><strong>` + price + `</strong></p><ul><li>` + a + `</li><li>` + b + `</li></ul><p><a href="/demo">` + tr("Learn more", "Mehr erfahren") + `</a></p>`
+			}
+			opening := time.Now().AddDate(0, 0, 30).Format("2006-01-02")
+			return `<h2>` + tr("Plans", "Angebote") + `</h2>` +
+				macro("pricing", map[string]string{"featured": "2"}, plan(tr("Starter", "Einstieg"), tr("free", "kostenlos"), tr("One area", "Ein Bereich"), tr("Community help", "Hilfe der Gemeinschaft"))+`<hr>`+
+					plan("Team", tr("5 € per person and month", "5 € je Person und Monat"), tr("All areas", "Alle Bereiche"), tr("Help by e-mail", "Hilfe per E-Mail"))+`<hr>`+
+					plan(tr("Company", "Unternehmen"), tr("on request", "auf Anfrage"), tr("Own server", "Eigener Server"), tr("Personal contact", "Persönlicher Kontakt"))) +
+				`<h2>` + tr("Picture with hotspots", "Bild mit Hotspots") + `</h2>` +
+				macro("hotspots", map[string]string{"image": "/api/v1/media/" + picIDs[1] + "/view", "alt": tr("Noon over the valley", "Mittag über dem Tal")},
+					`<ul><li>`+tr("50/20: The sun at noon.", "50/20: Die Sonne am Mittag.")+`</li><li>`+tr("25/80: The hills of the valley.", "25/80: Die Hügel des Tals.")+`</li></ul>`) +
+				`<h2>` + tr("Before and after", "Vorher und nachher") + `</h2>` +
+				macro("compare", map[string]string{"before": "/api/v1/media/" + picIDs[0] + "/view", "before_alt": tr("Morning in the hills", "Morgen in den Hügeln"),
+					"after": "/api/v1/media/" + picIDs[2] + "/view", "after_alt": tr("Evening light", "Abendlicht"), "before_label": tr("Morning", "Morgen"), "after_label": tr("Evening", "Abend")}, "") +
+				`<h2>Countdown</h2>` +
+				macro("countdown", map[string]string{"date": opening, "time": "10:00", "label": tr("Until the opening of the new office", "Bis zur Eröffnung des neuen Büros"), "reached": tr("The new office is open.", "Das neue Büro ist offen.")}, "")
+		}
+		d.page(start, "Offers and pictures", "Angebote und Bilder", offers("en"), offers("de"), nil)
 	})
 	// a category with its own website template (the modern website look)
 	d.optional("category-template", func() {

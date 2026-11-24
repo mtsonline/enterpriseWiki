@@ -314,3 +314,47 @@ button.ewl-cta { font: inherit; font-weight: 700; cursor: pointer; }
 .ewl-login-title { font-weight: 700; font-size: 1.15rem; }
 .ewl-login-actions { display: flex; flex-wrap: wrap; gap: .5rem; margin-bottom: 0 !important; }
 .ewl-login .ewl-cta:not(.ewl-cta--primary) { border-color: currentColor; color: var(--ew-link, inherit); background: transparent; font: inherit; font-weight: 700; cursor: pointer; }
+
+/* ---------------------------------------------------------------- blocks C */
+/* price table: plans side by side as long as each has 14 rem */
+.ewl-pricing { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(14rem, 100%), 1fr)); gap: 1rem; margin-block: 1rem; align-items: stretch; }
+.ewl-plan { display: flex; flex-direction: column; border: 1px solid var(--ew-border); border-radius: 8px; padding: 1.25rem; background: var(--ew-bg-raised, var(--ew-bg)); }
+.ewl-plan > :first-child { margin-top: 0; }
+.ewl-plan > :last-child { margin-bottom: 0; }
+/* a button or link at the end lines up at the bottom of every plan */
+.ewl-plan > p:last-child:has(> a:only-child) { margin-top: auto; padding-top: .5rem; }
+.ewl-plan ul { padding-inline-start: 1.25rem; }
+.ewl-plan--featured { border-width: 2px; border-color: var(--ew-primary); box-shadow: 0 6px 20px rgb(0 0 0 / .12); }
+.ewl-plan-badge { align-self: flex-start; margin: 0 0 .5rem; padding: .15rem .6rem; border-radius: 999px; background: var(--ew-primary); color: var(--ew-on-primary, #fff); font-size: .875rem; font-weight: 700; }
+
+/* hotspots: numbered points on the picture lead to the texts below it */
+.ewl-hotspots { margin: 1rem 0; }
+.ewl-hotspots-pic { position: relative; display: inline-block; max-width: 100%; }
+.ewl-hotspots-pic img { display: block; max-width: 100%; height: auto; }
+.ewl-hotspot { position: absolute; transform: translate(-50%, -50%); display: grid; place-items: center; min-width: 2rem; min-height: 2rem; padding: 0 .4rem; border-radius: 999px;
+  background: var(--ew-primary); color: var(--ew-on-primary, #fff); font-weight: 700; text-decoration: none; border: 2px solid #fff; box-shadow: 0 1px 4px rgb(0 0 0 / .4); }
+.ewl-hotspot:focus-visible { outline: 3px solid var(--ew-focus); outline-offset: 2px; }
+.ewl-hotspots-list { margin: .75rem 0 0; padding-inline-start: 1.5rem; }
+.ewl-hotspots-list li:target { outline: 2px solid var(--ew-focus); outline-offset: 2px; border-radius: 4px; }
+
+/* before and after: side by side without script; over each other with the slider */
+.ewl-compare { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(14rem, 100%), 1fr)); gap: 1rem; margin-block: 1rem; }
+.ewl-compare figure { margin: 0; }
+.ewl-compare img { display: block; width: 100%; height: auto; }
+.ewl-compare--ready { display: grid; grid-template-columns: 1fr; gap: 0; position: relative; }
+.ewl-compare--ready > figure { grid-area: 1 / 1; position: relative; }
+.ewl-compare--ready > .ewl-compare-after { clip-path: inset(0 0 0 var(--ewl-compare, 50%)); }
+.ewl-compare--ready figcaption { position: absolute; top: .5rem; padding: .1rem .5rem; border-radius: 4px; background: rgb(0 0 0 / .75); color: #fff; font-size: .875rem; }
+.ewl-compare--ready .ewl-compare-before figcaption { left: .5rem; }
+.ewl-compare--ready .ewl-compare-after figcaption { right: .5rem; }
+.ewl-compare--ready::after { content: ""; grid-area: 1 / 1; justify-self: start; margin-inline-start: var(--ewl-compare, 50%); width: 2px; height: 100%; translate: -1px 0; background: #fff; box-shadow: 0 0 0 1px rgb(0 0 0 / .4); pointer-events: none; }
+.ewl-compare-range { grid-area: 2 / 1; width: 100%; margin-top: .5rem; min-height: 1.5rem; accent-color: var(--ew-primary); }
+
+/* countdown */
+.ewl-countdown { margin-block: 1rem; text-align: center; }
+.ewl-countdown-label { font-weight: 700; margin: 0 0 .5rem; }
+.ewl-countdown-left { display: flex; flex-wrap: wrap; justify-content: center; gap: .75rem 1.5rem; margin: 0 0 .5rem; }
+.ewl-countdown-part { display: inline-flex; flex-direction: column; align-items: center; min-width: 4rem; }
+.ewl-countdown-num { font-size: 2.25rem; font-weight: 700; line-height: 1.1; font-variant-numeric: tabular-nums; }
+.ewl-countdown-when { margin: 0 0 .5rem; color: var(--ew-text-muted); }
+.ewl-countdown--reached .ewl-countdown-left { font-size: 1.25rem; font-weight: 700; }

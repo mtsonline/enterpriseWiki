@@ -561,6 +561,27 @@ var traps = []trap{
 		Pkg:  "./internal/content/", Tests: "^TestBlockOptionCases$",
 	},
 	{
+		ID: "blocks-c.hotspots-file", About: "a picture with hotspots loads a picture from anywhere",
+		File: "plugins/core_layout/blocks_c.go",
+		Old:  "\timg := strings.TrimSpace(mc.Params[\"image\"])\n\tif !content.WikiFile(img) {",
+		New:  "\timg := strings.TrimSpace(mc.Params[\"image\"])\n\tif img == \"\" {",
+		Pkg:  "./plugins/core_layout/", Tests: "^TestBlocksC$",
+	},
+	{
+		ID: "blocks-c.compare-alt", About: "a picture of before and after has no description",
+		File: "plugins/core_layout/blocks_c.go",
+		Old:  "\t\tif alt == \"\" {\n\t\t\treturn \"\", apperr.BadRequest(\"%s_alt: each picture needs a description\", k)",
+		New:  "\t\tif false {\n\t\t\treturn \"\", apperr.BadRequest(\"%s_alt: each picture needs a description\", k)",
+		Pkg:  "./plugins/core_layout/", Tests: "^TestBlocksC$",
+	},
+	{
+		ID: "blocks-c.pricing-badge", About: "the highlighted plan is marked by colour only",
+		File: "plugins/core_layout/blocks_c.go",
+		Old:  "\t\t\tb.WriteString(`<p class=\"ewl-plan-badge\">` + esc(badge) + `</p>`)",
+		New:  "\t\t\t_ = badge",
+		Pkg:  "./plugins/core_layout/", Tests: "^TestBlocksC$",
+	},
+	{
 		ID: "layout.options-checked", About: "options of a block in the content are used without the check of the server",
 		File: "internal/content/macros.go",
 		Old:  "\tif err := CheckBlockOptions(o); err != nil {\n\t\treturn macroNote(apperr.Localized(err, lang)) + res\n\t}",

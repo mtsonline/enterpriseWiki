@@ -3672,6 +3672,96 @@ test('blocks B, part 2: quote, logo bar with a picture of the media library, tag
   }
 });
 
+test('blocks C, part 1: price table, picture with hotspots, before and after, countdown', async () => {
+  const cat = (await call('POST', '/api/v1/categories', { titles: { en: `Offers ${run}` } })).id;
+  const pics = [];
+  for (const [i, color] of [['a', '#204080'], ['b', '#c06020']].entries()) {
+    pics.push(await page.evaluate(async ([c, n, col]) => {
+      const cv = document.createElement('canvas'); cv.width = 400; cv.height = 200;
+      const x = cv.getContext('2d'); x.fillStyle = col; x.fillRect(0, 0, 400, 200);
+      const blob = await new Promise((r) => cv.toBlob(r, 'image/png'));
+      const fd = new FormData();
+      fd.append('meta', JSON.stringify({ category_id: c, title: n }));
+      fd.append('file', new File([blob], n, { type: 'image/png' }));
+      const r = await __e2eFetch('/api/v1/media', { method: 'POST', body: fd, headers: { 'X-Requested-With': 'ewiki' } });
+      return (await r.json()).id;
+    }, [cat, `offer-${i[1]}-${run}.png`, color]));
+  }
+  const src = [
+    ':::pricing{featured=2 badge="Best choice"}',
+    '### Starter',
+    '',
+    '**free**',
+    '',
+    '- One area',
+    '',
+    '***',
+    '',
+    '### Team',
+    '',
+    '**5 € per person**',
+    '',
+    '- All areas',
+    ':::',
+    '',
+    `:::hotspots{image="/api/v1/media/${pics[0]}/view" alt="Plan of the office"}`,
+    '- 20/30: The entrance',
+    '- 80/70: The kitchen',
+    ':::',
+    '',
+    `::compare{before="/api/v1/media/${pics[0]}/view" before_alt="Blue wall" after="/api/v1/media/${pics[1]}/view" after_alt="Orange wall" start=40}`,
+    '',
+    '::countdown{date=2099-12-31 time=23:00 label="Until the turn of the century" reached="Happy new century"}',
+    '',
+    '::countdown{date=2000-01-01 label="Long ago" reached="It is over"}',
+    '',
+  ].join('\n');
+  const el = await call('POST', '/api/v1/elements', { category_id: cat, type: 'core.html', title: `Offers ${run}`, body: { format: 'markdown', source: src } });
+  await page.goto(`${BASE}/e/${el.id}`);
+  await idle();
+  // price table: the highlighted plan says so in words
+  const team = page.locator('.ewl-plan--featured');
+  assert.equal(await team.locator('.ewl-plan-badge').textContent(), 'Best choice');
+  await team.getByRole('heading', { name: 'Team' }).waitFor();
+  // hotspots: a point is a link to its text below the picture
+  const point = page.getByRole('link', { name: /^(point|punkt) 2$/i });
+  await point.focus();
+  await page.keyboard.press('Enter');
+  await page.waitForFunction(() => location.hash.startsWith('#ewl-hs-'));
+  assert.equal(await page.evaluate(() => document.querySelector(':target')?.textContent), 'The kitchen');
+  // before and after: a slider with the keyboard
+  const slider = page.getByRole('slider', { name: /^(border between|grenze zwischen) before and after$/i });
+  assert.equal(await slider.inputValue(), '40');
+  assert.match(await slider.getAttribute('aria-valuetext'), /^60 % After$/);
+  await slider.focus();
+  await page.keyboard.press('ArrowRight');
+  await page.keyboard.press('ArrowRight');
+  assert.equal(await slider.inputValue(), '42');
+  assert.equal(await page.locator('.ewl-compare').evaluate((x) => x.style.getPropertyValue('--ewl-compare')), '42%');
+  assert.equal(await page.getByRole('img', { name: 'Orange wall' }).count(), 1);
+  // countdown: the time left, the date stays; reached: the text for afterwards
+  const cd = page.locator('.ewl-countdown').first();
+  await cd.locator('.ewl-countdown-unit', { hasText: /^(days|tage)$/i }).waitFor();
+  assert.match(await cd.locator('time').getAttribute('datetime'), /^2099-12-31T23:00:00/);
+  await cd.getByRole('button', { name: /^(pause|anhalten)$/i }).click();
+  assert.equal(await cd.getByRole('button', { name: /^(play|abspielen)$/i }).getAttribute('aria-pressed'), 'true');
+  const past = page.locator('.ewl-countdown').nth(1);
+  await past.getByText('It is over').waitFor();
+  assert.equal(await past.getByRole('button').count(), 0, 'no pause button once reached');
+  await a11y('blocks C, part 1');
+  // the phone: nothing scrolls sideways
+  const size = page.viewportSize();
+  await page.setViewportSize({ width: 375, height: 800 });
+  try {
+    await page.reload();
+    await idle();
+    assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1), 'no sideways scrolling');
+    await a11y('blocks C, part 1 (phone)');
+  } finally {
+    if (size) await page.setViewportSize(size);
+  }
+});
+
 test('blocks B, part 3: person card, changing words, ticker, slider; pause buttons and reduced motion', async () => {
   const cat = (await call('POST', '/api/v1/categories', { titles: { en: `Motion ${run}` } })).id;
   const src = [

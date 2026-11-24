@@ -162,6 +162,60 @@ function rotatingWidget(root: HTMLElement): void {
   root.append(pauseButton((p) => { paused = p; }));
 }
 
+/** Before and after: the two pictures lie over each other, a slider (a
+ * native range input: mouse, touch, arrow keys, Home, End) shows more of
+ * the one or the other. Without script both stand side by side. */
+function compareWidget(root: HTMLElement): void {
+  const before = root.querySelector<HTMLElement>(':scope > .ewl-compare-before');
+  const after = root.querySelector<HTMLElement>(':scope > .ewl-compare-after');
+  if (!before || !after) return;
+  const start = Math.min(100, Math.max(0, Number(root.dataset.start ?? '50') || 0));
+  const names = [before, after].map((f) => f.querySelector('figcaption')?.textContent ?? '');
+  const range = h('input', { type: 'range', class: 'ewl-compare-range', min: '0', max: '100', step: '1', value: String(start),
+    'aria-label': t('layout.compare_slider', { before: names[0], after: names[1] }) }) as HTMLInputElement;
+  const set = () => {
+    const v = Number(range.value);
+    root.style.setProperty('--ewl-compare', `${v}%`);
+    range.setAttribute('aria-valuetext', t('layout.compare_value', { n: String(100 - v), after: names[1] }));
+  };
+  range.addEventListener('input', set);
+  set();
+  root.append(range);
+  root.classList.add('ewl-compare--ready');
+}
+
+/** A countdown: the time left in days, hours and minutes, new each minute
+ * (no announcements; a pause button, WCAG 2.2.2); once reached, the text for
+ * afterwards. The date stays readable all the time. */
+function countdownWidget(root: HTMLElement): void {
+  const to = Date.parse(root.dataset.to ?? '');
+  if (Number.isNaN(to)) return;
+  const left = h('p', { class: 'ewl-countdown-left' });
+  let paused = false;
+  let timer = 0;
+  const show = () => {
+    const ms = to - Date.now();
+    if (ms <= 0) {
+      window.clearInterval(timer);
+      root.querySelector('.ewl-pause')?.remove();
+      left.replaceChildren(root.dataset.reached ?? '');
+      left.hidden = !root.dataset.reached;
+      root.classList.add('ewl-countdown--reached');
+      return;
+    }
+    if (paused) return;
+    const min = Math.ceil(ms / 60000);
+    const parts = [['days', Math.floor(min / 1440)], ['hours', Math.floor((min % 1440) / 60)], ['minutes', min % 60]] as const;
+    left.replaceChildren(...parts.map(([unit, n]) => h('span', { class: 'ewl-countdown-part' },
+      h('span', { class: 'ewl-countdown-num' }, String(n)), ' ', h('span', { class: 'ewl-countdown-unit' }, t(`layout.countdown_${unit}`, { count: n })))));
+  };
+  root.querySelector('.ewl-countdown-when')?.before(left);
+  show();
+  if (to - Date.now() <= 0) return;
+  timer = window.setInterval(show, 60000);
+  root.append(pauseButton((p) => { paused = p; if (!p) show(); }));
+}
+
 /** A ticker: the list runs through the band (a copy hidden from screen
  * readers closes the loop); a pause button; it stops while used; nothing
  * moves with reduced motion. */
@@ -323,6 +377,8 @@ function loginWidget(root: HTMLElement): void {
 export function register(): void {
   registerWidget('ewl.rotating', rotatingWidget);
   registerWidget('ewl.ticker', tickerWidget);
+  registerWidget('ewl.compare', compareWidget);
+  registerWidget('ewl.countdown', countdownWidget);
   registerWidget('ewl.slider', sliderWidget);
   registerWidget('ewl.counter', counterWidget);
   registerWidget('ewl.embed', embedWidget);
