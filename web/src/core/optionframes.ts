@@ -17,8 +17,8 @@ export function styleFrame(frame: HTMLElement, o: BlockOptions): boolean {
   if (!formOK(o)) return false;
   const key = optionsKey(o);
   const css = optionsCSS(`.ew-bo[data-bo="${key}"]`, o);
-  // (a block readers may close needs no CSS of its own)
-  if (!css && o.closable !== true) return false;
+  // (a block readers may close or with a name needs no CSS of its own)
+  if (!css && o.closable !== true && typeof o.label !== 'string') return false;
   if (css && !rules.has(key)) {
     rules.add(key);
     style ??= document.head.appendChild(h('style', { id: 'ew-block-options' }));
@@ -27,6 +27,8 @@ export function styleFrame(frame: HTMLElement, o: BlockOptions): boolean {
   frame.dataset.bo = key;
   backgroundVideo(frame, o);
   if (typeof o.anchor === 'string' && !document.getElementById(o.anchor)) frame.id = o.anchor;
+  nameAndScroll(frame, o);
+  if (o.sticky === true) stickyFrame(frame);
   if (typeof o.line_clamp === 'number' && o.line_clamp > 0 && !frame.querySelector(':scope > .ew-bo-more')) {
     const more = h('button', { type: 'button', class: 'ew-btn ew-btn--link ew-bo-more', 'aria-expanded': 'false' }, t('bo.more')) as HTMLButtonElement;
     more.addEventListener('click', () => {
@@ -37,6 +39,45 @@ export function styleFrame(frame: HTMLElement, o: BlockOptions): boolean {
     frame.append(more);
   }
   return true;
+}
+
+/** A name for screen readers makes the block a region with that name; a
+ * block that scrolls in itself is that region and reachable with the
+ * keyboard (WCAG 2.1.1), so its body gets the name and the focus. */
+function nameAndScroll(frame: HTMLElement, o: BlockOptions): void {
+  const label = typeof o.label === 'string' ? o.label.trim() : '';
+  const body = frame.querySelector<HTMLElement>(':scope > .ew-bo-body');
+  const scrolls = typeof o.scroll_height === 'number' && o.scroll_height > 0 && !!body;
+  const named = scrolls ? body : frame;
+  if (scrolls && body) {
+    body.tabIndex = 0;
+    body.classList.add('ew-bo-scroll');
+  }
+  if (label && named) {
+    named.setAttribute('role', 'region');
+    named.setAttribute('aria-label', label);
+  }
+}
+
+let fitsObserver: ResizeObserver | null = null;
+const stickyFrames = new Set<HTMLElement>();
+
+/** Whether a sticky block fits on the screen below the header: only then it
+ * sticks (else its end could never be reached while it sticks). */
+function checkFits(frame: HTMLElement): void {
+  if (!frame.isConnected) { stickyFrames.delete(frame); fitsObserver?.unobserve(frame); return; }
+  const top = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--ew-header-h')) || 56;
+  frame.classList.toggle('ew-bo--fits', frame.offsetHeight + top + 32 <= window.innerHeight);
+}
+
+function stickyFrame(frame: HTMLElement): void {
+  if (typeof ResizeObserver === 'undefined') return;
+  if (!fitsObserver) {
+    fitsObserver = new ResizeObserver((entries) => { for (const e of entries) checkFits(e.target as HTMLElement); });
+    window.addEventListener('resize', () => { for (const f of [...stickyFrames]) checkFits(f); });
+  }
+  stickyFrames.add(frame);
+  fitsObserver.observe(frame);
 }
 
 const CLOSED = 'ew-closed';

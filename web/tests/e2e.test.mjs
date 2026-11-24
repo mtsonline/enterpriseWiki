@@ -4890,6 +4890,47 @@ test('a block readers may close (notice bar): closed it stays closed in this bro
   await close.waitFor();
 });
 
+test('block options: a name for screen readers, scrolling in itself, sides and corners, underline, sticky', async () => {
+  const cat = await m6Category();
+  const lines = Array.from({ length: 30 }, (_, i) => `- Date ${i + 1}`).join('\n');
+  const source = `:::panel{type=info options="label:Termin%C3%BCbersicht%20${run} scroll_height:6"}\n${lines}\n:::\n\n`
+    + ':::panel{type=info options="border_style:solid border_width:3 border_color:#0b3a6b border_sides:start radius:12 radius_corners:end underline_style:wavy underline_color:#0b3a6b"}\nA [link to the start](/) here.\n:::\n\n'
+    + `:::panel{type=info options="sticky:true"}\nStays in view ${run}\n:::\n`;
+  const pg = await call('POST', '/api/v1/elements', { category_id: cat, type: 'core.html', title: `Options more ${run}`, body: { format: 'markdown', source } });
+  const size = page.viewportSize();
+  try {
+    await page.setViewportSize({ width: 1280, height: 800 });
+    await page.goto(`${BASE}/e/${pg.id}`);
+    await idle();
+    // scrolls in itself: a region with its name, reached with the keyboard
+    const region = page.getByRole('region', { name: `Terminübersicht ${run}` });
+    await region.waitFor();
+    const r = await region.evaluate((el) => ({ tab: el.tabIndex, overflow: getComputedStyle(el).overflowY, scrolls: el.scrollHeight > el.clientHeight }));
+    assert.deepEqual(r, { tab: 0, overflow: 'auto', scrolls: true });
+    await region.focus();
+    await page.keyboard.press('End');
+    await page.waitForFunction((n) => { const el = [...document.querySelectorAll('[role=region]')].find((x) => x.getAttribute('aria-label') === n); return el && el.scrollTop > 0; }, `Terminübersicht ${run}`);
+    // the border on the start of the line only, rounded at its end, links underlined wavy
+    const b = await page.getByRole('link', { name: 'link to the start' }).evaluate((a) => {
+      const frame = a.closest('.ew-bo');
+      const cs = getComputedStyle(frame);
+      return { start: cs.borderLeftWidth, top: cs.borderTopWidth, rTopEnd: cs.borderTopRightRadius, rTopStart: cs.borderTopLeftRadius, line: getComputedStyle(a).textDecorationLine, style: getComputedStyle(a).textDecorationStyle };
+    });
+    assert.deepEqual(b, { start: '3px', top: '0px', rTopEnd: '12px', rTopStart: '0px', line: 'underline', style: 'wavy' });
+    // sticky: the last block of its area, it fits on the screen
+    const sticky = page.getByText(`Stays in view ${run}`);
+    await page.waitForFunction((n) => { const f = [...document.querySelectorAll('.ew-bo')].find((x) => x.textContent.includes(n)); return f && getComputedStyle(f).position === 'sticky'; }, `Stays in view ${run}`);
+    assert.ok(await sticky.isVisible());
+    await page.evaluate(() => window.scrollTo(0, 0));
+    await a11y('blocks with a name, scrolling in itself, sides and corners');
+    // on the phone it does not stick
+    await page.setViewportSize({ width: 390, height: 800 });
+    await page.waitForFunction((n) => { const f = [...document.querySelectorAll('.ew-bo')].find((x) => x.textContent.includes(n)); return f && getComputedStyle(f).position !== 'sticky'; }, `Stays in view ${run}`);
+  } finally {
+    if (size) await page.setViewportSize(size);
+  }
+});
+
 test('template: the header lies on a hero banner below it, solid again once it is scrolled away', async () => {
   const before = (await call('GET', '/api/v1/admin/settings')).config;
   const tpl = await call('POST', '/api/v1/x/core.template/templates', { names: { en: `Overlay ${run}` }, copy_of: 'core.template/example-cms' });

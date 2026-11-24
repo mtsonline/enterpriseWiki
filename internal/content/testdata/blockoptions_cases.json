@@ -424,5 +424,100 @@
     "options": {
       "appear": "spin"
     }
+  },
+  {
+    "name": "name for screen readers",
+    "ok": true,
+    "options": {
+      "label": "Wichtige Hinweise"
+    }
+  },
+  {
+    "name": "empty name",
+    "ok": false,
+    "options": {
+      "label": "  "
+    }
+  },
+  {
+    "name": "name too long",
+    "ok": false,
+    "options": {
+      "label": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+    }
+  },
+  {
+    "name": "name with a line break",
+    "ok": false,
+    "options": {
+      "label": "a\nb"
+    }
+  },
+  {
+    "name": "scrolls in itself with a name",
+    "ok": true,
+    "options": {
+      "scroll_height": 20,
+      "label": "Liste der Termine"
+    }
+  },
+  {
+    "name": "scrolls in itself without a name",
+    "ok": false,
+    "options": {
+      "scroll_height": 20
+    }
+  },
+  {
+    "name": "sticky",
+    "ok": true,
+    "options": {
+      "sticky": true
+    }
+  },
+  {
+    "name": "border on two sides",
+    "ok": true,
+    "options": {
+      "border_style": "solid",
+      "border_sides": "top_bottom"
+    }
+  },
+  {
+    "name": "sides without a border",
+    "ok": false,
+    "options": {
+      "border_sides": "top"
+    }
+  },
+  {
+    "name": "corners with a radius",
+    "ok": true,
+    "options": {
+      "radius": 12,
+      "radius_corners": "top"
+    }
+  },
+  {
+    "name": "corners without a radius",
+    "ok": false,
+    "options": {
+      "radius_corners": "end"
+    }
+  },
+  {
+    "name": "underline of links",
+    "ok": true,
+    "options": {
+      "underline_style": "wavy",
+      "underline_color": "#0b3a6b"
+    }
+  },
+  {
+    "name": "unknown underline",
+    "ok": false,
+    "options": {
+      "underline_style": "zigzag"
+    }
   }
 ]

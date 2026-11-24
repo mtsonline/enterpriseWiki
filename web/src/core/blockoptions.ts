@@ -10,7 +10,7 @@ export type OptionValue = string | number | boolean | string[] | Partial<Record<
 export type BlockOptions = Record<string, OptionValue>;
 
 export interface OptionDef {
-  id: string; type: 'enum' | 'bool' | 'int' | 'number' | 'space' | 'color' | 'file' | 'anchor' | 'datetime' | 'views' | 'langs';
+  id: string; type: 'enum' | 'bool' | 'int' | 'number' | 'space' | 'color' | 'file' | 'anchor' | 'label' | 'datetime' | 'views' | 'langs';
   values?: string[]; min?: number; max?: number; step?: number; unit?: string; responsive?: boolean;
 }
 export interface OptionGroup { id: string; options: OptionDef[] }
@@ -47,6 +47,7 @@ export function valueOK(def: OptionDef, v: unknown): boolean {
     case 'color': return typeof v === 'string' && COLOR.test(v);
     case 'file': return typeof v === 'string' && FILE.test(v);
     case 'anchor': return typeof v === 'string' && anchorOK(v);
+    case 'label': return typeof v === 'string' && v.trim() !== '' && [...v].length <= 100 && !/[\u0000-\u001f\u007f-\u009f]/.test(v);
     case 'datetime': return typeof v === 'string' && /^\d{4}-\d\d-\d\dT\d\d:\d\d(:\d\d(\.\d+)?)?(Z|[+-]\d\d:\d\d)$/.test(v) && !Number.isNaN(Date.parse(v));
     case 'views': return Array.isArray(v) && v.length <= SCHEMA.views.length && new Set(v).size === v.length && v.every((x) => SCHEMA.views.includes(x as ViewName));
     case 'langs': return Array.isArray(v) && v.length <= SCHEMA.langs_max && new Set(v).size === v.length && v.every((x) => typeof x === 'string' && LANG.test(x));
@@ -171,6 +172,9 @@ export function problems(o: BlockOptions): Problem[] {
     }
   }
   if (s('from') && s('until') && Date.parse(s('until')) <= Date.parse(s('from'))) out.push({ key: 'bo.p.until' });
+  if (typeof o.scroll_height === 'number' && o.scroll_height > 0 && !s('label').trim()) out.push({ key: 'bo.p.scroll_label' });
+  if (s('border_sides') && s('border_sides') !== 'all' && (!s('border_style') || s('border_style') === 'none')) out.push({ key: 'bo.p.border_sides' });
+  if (s('radius_corners') && s('radius_corners') !== 'all' && !(typeof o.radius === 'number' && o.radius > 0)) out.push({ key: 'bo.p.radius_corners' });
   return out;
 }
 
@@ -226,6 +230,15 @@ const PATTERNS: Record<string, (c: string) => string> = {
   diagonal: (c) => `repeating-linear-gradient(45deg, ${c} 0 1px, transparent 1px 12px)`,
 };
 
+// sides and corners in logical directions (right to left turns them)
+const BORDER_SIDES: Record<string, string[]> = {
+  top: ['block-start'], bottom: ['block-end'], top_bottom: ['block-start', 'block-end'],
+  start: ['inline-start'], end: ['inline-end'], start_end: ['inline-start', 'inline-end'],
+};
+const RADIUS_CORNERS: Record<string, string[]> = {
+  top: ['start-start', 'start-end'], bottom: ['end-start', 'end-end'], start: ['start-start', 'end-start'], end: ['start-end', 'end-end'],
+};
+
 const space = (n: number) => `${SCHEMA.space_rem[n] ?? 0}rem`;
 
 const APPEAR = ['fade', 'rise', 'slide_start', 'slide_end', 'zoom'];
@@ -261,6 +274,14 @@ export function optionsCSS(sel: string, o: BlockOptions): string {
   // size
   responsive('max_width', (v) => (Number(v) > 0 ? `max-width: ${Number(v)}rem; margin-inline: auto;` : ''));
   responsive('min_height', (v) => `min-height: ${Number(v)}rem;`);
+  // scrolls in itself: the body is the scrolling region (it gets a name and
+  // the keyboard focus in optionframes.ts)
+  const scroll = n('scroll_height');
+  if (scroll) extra.push(`${sel} > .ew-bo-body { max-block-size: ${scroll}rem; overflow: auto; overscroll-behavior: contain; }`);
+  // sticky in its area: only as the last part of its area (nothing of the
+  // area then scrolls under it and is hidden, WCAG 2.4.11), only on the
+  // desktop and only while it fits on the screen (optionframes.ts)
+  if (o.sticky === true) extra.push(`@media (min-width: ${SCHEMA.view_min_px.desktop}px) { ${sel}.ew-bo--fits:last-child { position: sticky; top: calc(var(--ew-sticky-top, var(--ew-header-h)) + 1rem); align-self: start; z-index: 1; } }`);
   if (ASPECTS[s('aspect')]) base.push(`aspect-ratio: ${ASPECTS[s('aspect')]};`);
   const dividerH = n('divider_height') ?? 48;
   const padAdd = (side: 'top' | 'bottom') => ((side === 'top' ? s('divider_top') : s('divider_bottom')) in DIVIDERS ? ` + ${dividerH}px` : '');
@@ -299,8 +320,15 @@ export function optionsCSS(sel: string, o: BlockOptions): string {
   if (s('blend') && s('blend') !== 'normal') base.push(`background-blend-mode: ${s('blend')};`);
   if (o.glass === true) extra.push(`@supports (backdrop-filter: blur(1px)) { ${sel} { backdrop-filter: blur(12px); } }`);
   // border, shape, shadow
-  if (s('border_style') && s('border_style') !== 'none') base.push(`border: ${n('border_width') ?? 1}px ${s('border_style')} ${s('border_color') || 'currentColor'};`);
-  if (n('radius') !== undefined) base.push(`border-radius: ${n('radius')}px;`);
+  if (s('border_style') && s('border_style') !== 'none') {
+    const b = `${n('border_width') ?? 1}px ${s('border_style')} ${s('border_color') || 'currentColor'}`;
+    const sides = BORDER_SIDES[s('border_sides')];
+    base.push(sides ? sides.map((p) => `border-${p}: ${b};`).join(' ') : `border: ${b};`);
+  }
+  if (n('radius') !== undefined) {
+    const corners = RADIUS_CORNERS[s('radius_corners')];
+    base.push(corners ? corners.map((c) => `border-${c}-radius: ${n('radius')}px;`).join(' ') : `border-radius: ${n('radius')}px;`);
+  }
   const shadows = [SHADOWS[s('shadow')], s('glow') ? `0 0 18px ${s('glow')}` : ''].filter(Boolean);
   if (shadows.length) base.push(`box-shadow: ${shadows.join(', ')};`);
   const fades: Record<string, string> = {
@@ -352,6 +380,10 @@ export function optionsCSS(sel: string, o: BlockOptions): string {
   }
   if (s('link_style') === 'underline') extra.push(`${sel} a:not(.ew-btn) { text-decoration: underline; }`);
   if (s('link_style') === 'thick') extra.push(`${sel} a:not(.ew-btn) { text-decoration: underline; text-decoration-thickness: .15em; text-underline-offset: .15em; }`);
+  if (s('underline_style') || s('underline_color')) {
+    // links stay underlined (never told by color alone); only the look changes
+    extra.push(`${sel} a:not(.ew-btn) { text-decoration-line: underline;${s('underline_style') ? ` text-decoration-style: ${s('underline_style')};` : ''}${s('underline_color') ? ` text-decoration-color: ${s('underline_color')};` : ''} }`);
+  }
   const out = [];
   if (base.length) out.push(`${sel} { ${base.join(' ')} }`);
   for (const v of ['tablet', 'mobile'] as const) if (at[v].length) out.push(`@media ${BELOW[v]} { ${sel} { ${at[v].join(' ')} } }`);

@@ -22,6 +22,7 @@
         { "id": "break_before", "type": "bool" },
         { "id": "break_inside_avoid", "type": "bool" },
         { "id": "anchor", "type": "anchor" },
+        { "id": "label", "type": "label" },
         { "id": "closable", "type": "bool" },
         { "id": "order", "type": "int", "min": -10, "max": 10, "responsive": true }
       ]
@@ -31,6 +32,8 @@
       "options": [
         { "id": "max_width", "type": "int", "min": 0, "max": 120, "unit": "rem", "responsive": true },
         { "id": "min_height", "type": "int", "min": 0, "max": 60, "unit": "rem", "responsive": true },
+        { "id": "scroll_height", "type": "int", "min": 0, "max": 60, "unit": "rem" },
+        { "id": "sticky", "type": "bool" },
         { "id": "aspect", "type": "enum", "values": ["none", "16-9", "4-3", "1-1", "3-2", "21-9"] },
         { "id": "padding_top", "type": "space", "responsive": true },
         { "id": "padding_right", "type": "space", "responsive": true },
@@ -70,7 +73,9 @@
         { "id": "border_style", "type": "enum", "values": ["none", "solid", "dashed", "dotted", "double"] },
         { "id": "border_width", "type": "int", "min": 0, "max": 8, "unit": "px" },
         { "id": "border_color", "type": "color" },
+        { "id": "border_sides", "type": "enum", "values": ["all", "top", "bottom", "top_bottom", "start", "end", "start_end"] },
         { "id": "radius", "type": "int", "min": 0, "max": 48, "unit": "px" },
+        { "id": "radius_corners", "type": "enum", "values": ["all", "top", "bottom", "start", "end"] },
         { "id": "shadow", "type": "enum", "values": ["none", "sm", "md", "lg", "xl", "inset"] },
         { "id": "glow", "type": "color" },
         { "id": "divider_top", "type": "enum", "values": ["none", "wave", "zigzag", "slope", "arc"] },
@@ -98,7 +103,9 @@
         { "id": "text_shadow", "type": "enum", "values": ["none", "soft", "strong"] },
         { "id": "line_clamp", "type": "int", "min": 0, "max": 20 },
         { "id": "gradient_text", "type": "bool" },
-        { "id": "link_style", "type": "enum", "values": ["inherit", "underline", "thick"] }
+        { "id": "link_style", "type": "enum", "values": ["inherit", "underline", "thick"] },
+        { "id": "underline_style", "type": "enum", "values": ["solid", "dotted", "dashed", "wavy", "double"] },
+        { "id": "underline_color", "type": "color" }
       ]
     },
     {
