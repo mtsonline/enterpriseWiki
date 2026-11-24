@@ -4943,6 +4943,36 @@ test('template: the header lies on a hero banner below it, solid again once it i
   }
 });
 
+test('template: the path switched off for a template in the placement (pages and categories), shown again for one category', async () => {
+  const before = (await call('GET', '/api/v1/admin/settings')).config;
+  const tpl = 'core.template/example-wiki';
+  const cat = (await call('POST', '/api/v1/categories', { titles: { en: `Path ${run}` } })).id;
+  const pg = await call('POST', '/api/v1/elements', { category_id: cat, type: 'core.html', title: `Path ${run}`, body: { format: 'markdown', source: 'Text.' } });
+  try {
+    await call('PUT', '/api/v1/admin/settings', { ui: { ...before.ui, template: tpl } });
+    await page.goto(`${BASE}/e/${pg.id}`);
+    await idle();
+    await page.locator('main .ew-breadcrumbs').waitFor();
+    await call('PUT', `/api/v1/placements/template?target=${encodeURIComponent(tpl)}`, { placements: [{ block: 'core.element.path', position: '' }, { block: 'core.category.path', position: '' }] });
+    await page.goto(`${BASE}/e/${pg.id}`);
+    await idle();
+    await page.getByRole('heading', { level: 1, name: `Path ${run}` }).waitFor();
+    assert.equal(await page.locator('.ew-breadcrumbs').count(), 0, 'no path on a page');
+    await page.goto(`${BASE}/c/${cat}`);
+    await idle();
+    assert.equal(await page.locator('.ew-breadcrumbs').count(), 0, 'no path on a category page');
+    // one category shows it again
+    await call('PUT', `/api/v1/placements/category?target=${cat}`, { placements: [{ block: 'core.element.path', position: 'element-header', sort: 5 }] });
+    await page.goto(`${BASE}/e/${pg.id}`);
+    await idle();
+    await page.locator('.ew-breadcrumbs').waitFor();
+  } finally {
+    await call('PUT', `/api/v1/placements/template?target=${encodeURIComponent(tpl)}`, { placements: [] });
+    await call('PUT', `/api/v1/placements/category?target=${cat}`, { placements: [] });
+    await call('PUT', '/api/v1/admin/settings', { ui: before.ui });
+  }
+});
+
 test('theme blocks B: own text for "page not found", reading progress', async () => {
   const logged = errors.length;
   const cat = await m6Category();
