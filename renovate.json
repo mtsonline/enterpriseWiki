@@ -95,6 +95,24 @@
       "automerge": true,
       "groupName": "PostgreSQL",
       "groupSlug": "postgres"
+    },
+    {
+      "description": "Images whose version the administration chooses with a variable or a build argument (postgres:${POSTGRES_VERSION:-…}, crowdsec:${CROWDSEC_VERSION:-…}, caddy:${CADDY_VERSION}): a digest cannot be pinned there (Renovate failed every day with \"Error updating branch\"); the version itself is still updated",
+      "matchFileNames": [
+        "docker-compose.yml",
+        "docker-compose.build.yml",
+        "docker-compose.crowdsec.yml",
+        "docker/caddy-crowdsec/Dockerfile",
+        ".env.example",
+        "internal/pgversion/pgversion.go",
+        ".github/workflows/ci.yml"
+      ],
+      "matchPackageNames": [
+        "postgres",
+        "crowdsecurity/crowdsec",
+        "caddy"
+      ],
+      "pinDigests": false
     }
   ],
   "customManagers": [
