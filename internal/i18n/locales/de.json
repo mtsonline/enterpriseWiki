@@ -3069,5 +3069,13 @@
  "bo.underline_color": "Farbe der Unterstreichung",
  "bo.p.scroll_label": "Ein Baustein, der in sich scrollt, braucht einen Namen für Screenreader.",
  "bo.p.border_sides": "Seiten des Rahmens brauchen eine Rahmenart.",
- "bo.p.radius_corners": "Abgerundete einzelne Ecken brauchen einen Radius."
+ "bo.p.radius_corners": "Abgerundete einzelne Ecken brauchen einen Radius.",
+ "layout.compare_slider": "Grenze zwischen {before} und {after}",
+ "layout.compare_value": "{n} % {after}",
+ "layout.countdown_days_one": "Tag",
+ "layout.countdown_days_other": "Tage",
+ "layout.countdown_hours_one": "Stunde",
+ "layout.countdown_hours_other": "Stunden",
+ "layout.countdown_minutes_one": "Minute",
+ "layout.countdown_minutes_other": "Minuten"
 }

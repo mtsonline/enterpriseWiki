@@ -209,6 +209,21 @@ func TestDemo(t *testing.T) {
 		if !strings.Contains(figv.HTML, `<svg class="ewl-chart-svg"`) || !strings.Contains(figv.HTML, "Office Graz") || strings.Contains(figv.HTML, "ew-macro-error") {
 			t.Errorf("demo chart: %s", figv.HTML)
 		}
+		// blocks C: price table, hotspots, before and after, countdown, without an error
+		var off int64
+		if err := e.app.DB.QueryRow(context.Background(), `SELECT id FROM elements WHERE titles->>'en' = 'Offers and pictures' AND deleted_at IS NULL`).Scan(&off); err != nil {
+			t.Fatal(err)
+		}
+		var offv struct {
+			HTML string `json:"html"`
+		}
+		admin.must("GET", "/api/v1/elements/"+strconv.FormatInt(off, 10), nil, &offv, 200)
+		for _, want := range []string{"ewl-plan--featured", `class="ewl-hotspot"`, `data-ew-widget="ewl.compare"`, `data-ew-widget="ewl.countdown"`} {
+			if !strings.Contains(offv.HTML, want) || strings.Contains(offv.HTML, "ew-macro-error") {
+				t.Errorf("demo offers: %q missing or an error: %s", want, offv.HTML)
+				break
+			}
+		}
 		// the carousel has no fixed position: it is placed for its own
 		// category only, whose page says so; the page "How the demo is built"
 		// names every part outside the pages
