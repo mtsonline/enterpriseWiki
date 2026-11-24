@@ -446,6 +446,8 @@ An own layout delivers `layout: (ctx) => ({ root, main })` and places positions 
 
 Widgets can appear at a fixed position (`registerSlot({ position: 'sidebar', … })`) or at all positions (`position: '*'`, `render(position)` gets the name, see `core_menu` and `core_blocks`). For selection lists `positionOptions()` delivers the positions of the active template, `activeTemplate()` the template of the current page (categories can have their own; on a change the shell rebuilds the frame and moves the content, positions are filled again – so always scope template CSS with the own `className` on `body`). Required: skip link to the content, landmarks (`header`, `nav`/`aside` with `aria-label`, `main#main[tabindex=-1]`, `footer`). Set colours with the CSS variables `--ew-*` (contrast ≥ 4.5:1).
 
+**Colours in plugins:** blocks and plugins always take their colours from the variables `--ew-*` in `web/src/styles/base.css`, never as fixed values. Only then do they fit every template and the dark colour scheme (class `ewc-dark`), which sets the same variables with dark values. For states there are ready pairs (e.g. `--ew-status-green-bg` and `--ew-status-green-text`, `--ew-danger-bg` and `--ew-danger-text`), for parts that stay dark in both schemes `--ew-inverse-*`. `web/tests/unit/themecolors.test.ts` checks the contrasts of both schemes. `web/tests/unit/csscolors.test.ts` counts fixed colours; their number per file may only become smaller (`csscolors-baseline.json`). Shadows and `transparent`, `currentColor` and `inherit` stay allowed.
+
 ## UI texts
 
 `locales/en.json` (reference) and further languages contain flat keys. Prefix them with the plugin ID:

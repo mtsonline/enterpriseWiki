@@ -101,14 +101,26 @@ func contrast(a, b string) float64 {
 }
 
 // TestChartColors: every colour of a chart has at least 3:1 on the light
-// page and the dark template (WCAG 1.4.11).
+// page and in the dark colour scheme (WCAG 1.4.11). The colours are
+// variables of the core: :root (light) and body.ewc-dark (dark).
 func TestChartColors(t *testing.T) {
-	light, _ := os.ReadFile("web/style.css")
-	dark, _ := os.ReadFile("../theme_wiki_dark/web/style.css")
-	re := regexp.MustCompile(`--ewl-chart-(\d+),? ?:? ?(#[0-9a-f]{6})`)
-	check := func(src []byte, bg, where string) {
+	css, err := os.ReadFile("../../web/src/styles/base.css")
+	if err != nil {
+		t.Fatal(err)
+	}
+	block := func(selector string) string {
+		s := string(css)
+		i := strings.Index(s, "\n"+selector+" {")
+		if i < 0 {
+			t.Fatalf("rule %s not found", selector)
+		}
+		j := strings.Index(s[i:], "\n}")
+		return s[i : i+j]
+	}
+	re := regexp.MustCompile(`--ewl-chart-(\d+): (#[0-9a-f]{6})`)
+	check := func(src, bg, where string) {
 		seen := map[string]bool{}
-		for _, m := range re.FindAllStringSubmatch(string(src), -1) {
+		for _, m := range re.FindAllStringSubmatch(src, -1) {
 			seen[m[1]] = true
 			if c := contrast(m[2], bg); c < 3 {
 				t.Errorf("%s: colour %s of series %s has %.2f:1 on %s", where, m[2], m[1], c, bg)
@@ -118,6 +130,6 @@ func TestChartColors(t *testing.T) {
 			t.Errorf("%s: %d colours, want %d", where, len(seen), chartMaxSlices)
 		}
 	}
-	check(light, "#ffffff", "light")
-	check(dark, "#1d2125", "dark")
+	check(block(":root"), "#ffffff", "light")
+	check(block("body.ewc-dark"), "#1d2125", "dark")
 }

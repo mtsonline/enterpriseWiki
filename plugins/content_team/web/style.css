@@ -14,7 +14,7 @@
 .ewt-members--list .ewt-member { display: flex; gap: 1rem; align-items: flex-start; padding: .8rem 0; border-bottom: 1px solid var(--ew-border); }
 .ewt-photo { display: block; width: 5.5rem; height: 5.5rem; border-radius: 50%; object-fit: cover; flex: none; background: var(--ew-bg-subtle); }
 .ewt-photo--small { display: inline-grid; width: 2rem; height: 2rem; margin-right: .5rem; vertical-align: middle; font-size: .75rem; }
-.ewt-initials { display: grid; place-items: center; background: var(--ew-primary); color: var(--ew-on-primary, #fff); font-weight: 700; font-size: 1.6rem; }
+.ewt-initials { display: grid; place-items: center; background: var(--ew-primary); color: var(--ew-on-primary); font-weight: 700; font-size: 1.6rem; }
 .ewt-photo--small.ewt-initials { font-size: .75rem; }
 .ewt-name { margin: 0; font-size: 1.1rem; }
 .ewt-title { margin: .1rem 0 .5rem; color: var(--ew-text-muted); }

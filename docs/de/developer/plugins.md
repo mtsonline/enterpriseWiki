@@ -446,6 +446,8 @@ Ein eigenes Layout liefert `layout: (ctx) => ({ root, main })` und platziert Pos
 
 Widgets können an einer festen Position (`registerSlot({ position: 'sidebar', … })`) oder an allen Positionen erscheinen (`position: '*'`, `render(position)` bekommt den Namen, siehe `core_menu` und `core_blocks`). Für Auswahllisten liefert `positionOptions()` die Positionen der aktiven Vorlage, `activeTemplate()` die Vorlage der aktuellen Seite (Kategorien können eine eigene haben; beim Wechsel baut die Shell das Gerüst neu und verschiebt den Inhalt, Positionen werden neu gefüllt – Vorlagen-CSS deshalb immer über die eigene `className` am `body` eingrenzen). Pflicht: Sprunglink zum Inhalt, Landmarken (`header`, `nav`/`aside` mit `aria-label`, `main#main[tabindex=-1]`, `footer`). Farben setzen Sie über die CSS-Variablen `--ew-*` (Kontrast ≥ 4.5:1).
 
+**Farben in Plugins:** Bausteine und Plugins nehmen ihre Farben immer aus den Variablen `--ew-*` in `web/src/styles/base.css`, nie als feste Werte. Nur so passen sie zu jedem Template und zum dunklen Farbschema (Klasse `ewc-dark`), das dieselben Variablen mit dunklen Werten setzt. Für Zustände gibt es fertige Paare (z. B. `--ew-status-green-bg` und `--ew-status-green-text`, `--ew-danger-bg` und `--ew-danger-text`), für Teile, die in beiden Schemata dunkel bleiben, `--ew-inverse-*`. Die Kontraste beider Schemata prüft `web/tests/unit/themecolors.test.ts`. Feste Farben zählt `web/tests/unit/csscolors.test.ts`; ihre Zahl je Datei darf nur kleiner werden (`csscolors-baseline.json`). Erlaubt bleiben Schatten sowie `transparent`, `currentColor` und `inherit`.
+
 ## UI-Texte
 
 `locales/en.json` (Referenz) und weitere Sprachen enthalten flache Schlüssel. Präfixen Sie sie mit der Plugin-ID:

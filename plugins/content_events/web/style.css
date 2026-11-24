@@ -26,7 +26,7 @@
 .ewe-day-list .ewe-chip { display: block; width: 100%; max-width: 100%; box-sizing: border-box; text-align: left; font-size: .8rem; line-height: 1.3; padding: .1rem .35rem; border-radius: 4px;
   border-left: 3px solid var(--ewe-color); background: color-mix(in srgb, var(--ewe-color) 12%, var(--ew-bg-raised)); color: var(--ew-text);
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-height: 24px; }
-.ewe-chip--allday { background: var(--ewe-color); color: #fff; font-weight: 600; }
+.ewe-chip--allday { background: var(--ewe-color); color: var(--ew-on-color); font-weight: 600; }
 .ewe-chip--mine { box-shadow: inset 0 0 0 1px var(--ewe-color); font-weight: 600; }
 /* week */
 .ewe-week { list-style: none; padding: 0; margin: 0; display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: .4rem; }
@@ -53,8 +53,8 @@
 .ewe-dot { display: inline-block; width: .7rem; height: .7rem; border-radius: 50%; }
 .ewe-tz { color: var(--ew-text-muted); font-size: .85rem; }
 .ewe-mystatus { padding: .5rem .75rem; border-radius: 6px; background: var(--ew-bg-subtle); font-weight: 600; }
-.ewe-mystatus--registered { background: var(--ew-ok-bg, #dcfff1); }
-.ewe-mystatus--waitlist { background: var(--ew-warn-bg, #fff7d6); }
+.ewe-mystatus--registered { background: var(--ew-ok-bg); }
+.ewe-mystatus--waitlist { background: var(--ew-warn-bg); }
 /* static (server) list and macro */
 .ewe-upcoming { list-style: none; padding: 0; margin: 0; display: grid; gap: .35rem; }
 .ewe-up a { text-decoration: none; color: var(--ew-text); }
@@ -75,4 +75,4 @@
   .ewe-chip { font-size: .7rem; padding: .05rem .2rem; min-height: 24px; }
   .ewe-title { order: -1; flex-basis: 100%; }
 }
-.ewe-changed { margin: .5rem 0; padding: .4rem .7rem; border-left: 3px solid var(--ew-warning, #b65c00); background: var(--ew-bg-subtle); font-size: .92rem; }
+.ewe-changed { margin: .5rem 0; padding: .4rem .7rem; border-left: 3px solid var(--ew-warn-border); background: var(--ew-bg-subtle); font-size: .92rem; }

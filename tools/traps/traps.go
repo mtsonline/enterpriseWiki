@@ -968,9 +968,9 @@ var traps = []trap{
 	},
 	{
 		ID: "chart.dark-low-contrast", About: "a chart colour is too light for the light page",
-		File: "plugins/core_layout/web/style.css",
-		Old:  ".ewl-chart-c3 { fill: var(--ewl-chart-3, #15803d); stroke: var(--ewl-chart-3, #15803d); }",
-		New:  ".ewl-chart-c3 { fill: var(--ewl-chart-3, #86efac); stroke: var(--ewl-chart-3, #86efac); }",
+		File: "web/src/styles/base.css",
+		Old:  "--ewl-chart-3: #15803d;",
+		New:  "--ewl-chart-3: #86efac;",
 		Pkg:  "./plugins/core_layout/", Tests: "^TestChartColors$",
 	},
 	{
