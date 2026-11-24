@@ -45,7 +45,8 @@ export interface Site {
   separate_accounts?: boolean;
   template: string;
   /** active website templates (for the template of a category) */
-  templates?: { id: string; name: string; names?: Record<string, string> }[];
+  /** color_scheme: the default scheme of a template whose colours follow light and dark ("" = light only) */
+  templates?: { id: string; name: string; names?: Record<string, string>; color_scheme?: string }[];
   home_category: number;
   home_element: number;
   /** default editor of text pages */

@@ -12,7 +12,8 @@ import { announce, toast } from '../core/announce';
 import { button, checkbox, confirmDialog, errorText, field, formDialog, openDialog, pageHeader, select, textArea, textInput } from '../components/ui';
 import { invalidateTree, langName, setContext } from '../components/widgets';
 import { helpShown, syncHelp } from '../core/helptexts';
-import { typeLabel } from '../coreplugin';
+import { activeTemplate, typeLabel } from '../coreplugin';
+import { chooseScheme, schemeChoice, SCHEMES, templateScheme, type Scheme } from '../core/scheme';
 import { categoryView, elementView, errorPage, notFoundPage } from './content';
 import { watchDialog, type Watch } from '../components/watch';
 import { feedTokenSection } from '../components/feeds';
@@ -411,13 +412,17 @@ export async function profileView({ main }: RouteCtx): Promise<void> {
   const editorSel = select([{ value: '', label: t('profile.editor_default', { name: t(`editor.kind.${state.site.editor ?? 'visual'}`) }) },
     ...(prefs.options.editor ?? []).map((v) => ({ value: v, label: t(`editor.kind.${v}`) }))], prefs.prefs.editor ?? '');
   const helpBox = checkbox(t('profile.help_texts'), helpShown(), { help: t('profile.help_texts_help') });
+  const tplScheme = templateScheme(activeTemplate()?.id ?? '');
+  const schemeSel = select([{ value: '', label: tplScheme ? t('scheme.default', { name: t(`scheme.${tplScheme}`) }) : t('scheme.default', { name: t('scheme.light') }) },
+    ...SCHEMES.map((v) => ({ value: v, label: t(`scheme.${v}`) }))], schemeChoice());
   const pAlert = h('div', { class: 'ew-form-alert', role: 'alert' });
   const alias = textInput({ value: u.alias ?? '', autocomplete: 'username', maxlength: 64 });
   const aliasManaged = !!u.alias_source;
   if (aliasManaged) alias.readOnly = true;
   const pForm = h('form', { class: 'ew-form', novalidate: true }, pAlert, field(t('profile.display_name'), name),
     field(t('alias.label'), alias, { help: aliasManaged ? t('alias.managed_self') : t('alias.help_self') }), field(t('profile.language'), lang),
-    field(t('profile.editor'), editorSel, { help: t('profile.editor_help') }), helpBox.el,
+    field(t('profile.editor'), editorSel, { help: t('profile.editor_help') }),
+    field(t('scheme.label'), schemeSel, { help: tplScheme ? t('scheme.help') : `${t('scheme.light_only')} ${t('scheme.help')}` }), helpBox.el,
     h('div', { class: 'ew-form-actions' }, button(t('common.save'), () => undefined, { type: 'submit', variant: 'primary' })));
   pForm.addEventListener('submit', async (ev) => {
     ev.preventDefault();
@@ -433,6 +438,7 @@ export async function profileView({ main }: RouteCtx): Promise<void> {
       if (helpBox.input.checked) prefs.help = 'show';
       else delete prefs.help;
       Object.assign(u, { display_name: name.value, language: lang.value, prefs });
+      if (schemeSel.value !== schemeChoice()) await chooseScheme(schemeSel.value as Scheme | '');
       syncHelp();
       changed();
       toast(t('common.saved'));

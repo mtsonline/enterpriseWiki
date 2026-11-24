@@ -1,2 +1,3 @@
-/* The dark colors are the color scheme of the core (web/src/styles/base.css,
-   class ewc-dark); this template only switches it on. */
+/* The dark colours are the dark scheme of the core (web/src/styles/base.css,
+   body.ewc-dark). This template only makes it the default (color_scheme in
+   plugin.json). */

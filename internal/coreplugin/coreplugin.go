@@ -111,6 +111,12 @@ type Manifest struct {
 	// blog, a FAQ … (see docs/en/developer/plugins.md#instance-labels). The
 	// texts are stored as UI translations "<key>@<plugin>/<instance>".
 	InstanceLabels []string `json:"instance_labels,omitempty"`
+	// ColorScheme is for templates whose colours come from the colour
+	// variables of the core (light and dark): the scheme shown when the
+	// person has not chosen one: "system" (as the device is set), "light"
+	// or "dark". Empty: the template has light colours only, and the choice
+	// of a scheme does not apply to it.
+	ColorScheme string `json:"color_scheme,omitempty"`
 }
 
 // Plugin is implemented by every plugin.
@@ -488,6 +494,10 @@ func RequireAdmin(r *http.Request) error {
 var PluginKinds = []string{KindElement, KindMacro, KindAuth, KindMFA, KindSignature, KindStorage, KindOffice, KindSearch, KindNotification,
 	KindWorkflow, KindMenu, KindTemplate, KindIntegration, KindGeneral}
 
+// ColorSchemes are the colour schemes a person or a template may choose
+// ("system": as the device is set).
+var ColorSchemes = []string{"system", "light", "dark"}
+
 var pluginID = regexp.MustCompile(`^[a-z0-9][a-z0-9_-]*(\.[a-z0-9][a-z0-9_-]*)+$`)
 
 // Validate checks the required fields of a manifest.
@@ -505,6 +515,9 @@ func (m Manifest) Validate() error {
 		if !slices.Contains(PluginKinds, k) {
 			return fmt.Errorf("plugin %s: unknown kind %q (allowed: %s)", m.ID, k, strings.Join(PluginKinds, ", "))
 		}
+	}
+	if m.ColorScheme != "" && (!slices.Contains(ColorSchemes, m.ColorScheme) || !slices.Contains(m.Kinds, KindTemplate)) {
+		return fmt.Errorf("plugin %s: color_scheme %q: only for templates, one of %s", m.ID, m.ColorScheme, strings.Join(ColorSchemes, ", "))
 	}
 	return nil
 }

@@ -23,6 +23,8 @@ import { categoryTree, ctx, currentSpace, setSpace, editToggle, helpToggle, lang
 import { watchHelp } from './core/helptexts';
 import { readProgress } from './components/readprogress';
 import { pluginModules } from './generated/plugins';
+import { applyScheme } from './core/scheme';
+import { schemeBlock } from './components/scheme';
 import { positionContainer, refreshPositions, registerAdminPage, registerPageAction, registerProfileSection, registerSlot, registerTemplate, previewTemplate, resolveTemplate, setShownTemplate, siteTemplate, triedTemplate } from './coreplugin';
 import { tryBar } from './components/trytemplate';
 import { closedPage, maintenanceBar } from './components/maintenance';
@@ -107,6 +109,8 @@ function registerCore(): void {
   // reading progress: not placed by default (e.g. under the header in a template)
   // cookie settings: not placed by default (e.g. in the footer)
   registerSlot({ id: 'core.cookiesettings', position: '', order: 91, label: () => t('block.core.cookiesettings'), render: () => cookieSettingsBlock() });
+  // light and dark: not placed by default (e.g. in the header tools of a template)
+  registerSlot({ id: 'core.scheme', position: '', order: 38, label: () => t('block.core.scheme'), render: () => schemeBlock() });
   registerSlot({ id: 'core.readprogress', position: '', order: 90, label: () => t('block.core.readprogress'), render: readProgress });
   registerSlot({ id: 'core.tree', position: 'sidebar', order: 10, label: () => t('block.core.tree'), render: categoryTree });
 
@@ -183,6 +187,7 @@ async function boot(): Promise<void> {
   let tpl = resolveTemplate(previewTemplate() || siteTemplate()) ?? resolveTemplate('core.basic')!;
   setShownTemplate(tpl.id);
   document.body.classList.add('ew', ...tpl.classNames);
+  applyScheme(tpl.id);
   const build = () => {
     const layout = tpl.layout({ position: (name, tag) => positionContainer(name, tag) });
     mount(app, layout.root);
@@ -205,6 +210,7 @@ async function boot(): Promise<void> {
     tpl = next;
     setShownTemplate(tpl.id);
     document.body.classList.add('ew', ...tpl.classNames);
+    applyScheme(tpl.id);
     const old = layout.main;
     const focused = document.activeElement;
     const nodes = [...old.childNodes];

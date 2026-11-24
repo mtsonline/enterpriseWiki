@@ -151,6 +151,8 @@ func (s *Server) serveFrontend(w http.ResponseWriter, r *http.Request) {
 	}
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.Header().Set("Cache-Control", "no-cache")
+	// the page carries the chosen scheme (light or dark, scheme.go)
+	w.Header().Add("Vary", "Cookie")
 	if identity.From(r.Context()) == nil && !closed {
 		// guests: the content as plain HTML (search engines, no JavaScript)
 		if c := s.app.Config.Get(); c.UI.Prerender {
@@ -165,6 +167,7 @@ func (s *Server) serveFrontend(w http.ResponseWriter, r *http.Request) {
 			w.Header().Set("X-Cache", "PRELOAD")
 		}
 	}
+	b = s.injectScheme(b, r)
 	_, _ = w.Write(b)
 }
 

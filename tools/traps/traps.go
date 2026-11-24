@@ -135,6 +135,20 @@ var traps = []trap{
 		Pkg:  "./internal/server/", Tests: "^(TestAPI|TestWorkflow3Accounts|TestMultiSite|TestDirectorySync|TestDisabledAccountIsLockedOut)$",
 	},
 	{
+		ID: "scheme.cookie-unchecked", About: "the scheme cookie of a guest is written into the page without checking it",
+		File: "internal/server/scheme.go",
+		Old:  "if c, err := r.Cookie(schemeCookie); err == nil && slices.Contains(coreplugin.ColorSchemes, c.Value) {",
+		New:  "if c, err := r.Cookie(schemeCookie); err == nil && c.Value != \"\" {",
+		Pkg:  "./internal/server/", Tests: "^TestColorScheme$",
+	},
+	{
+		ID: "scheme.light-only-template", About: "a template with light colours only is switched to dark",
+		File: "internal/server/scheme.go",
+		Old:  "return p.Manifest().ColorScheme",
+		New:  "return cmp.Or(p.Manifest().ColorScheme, \"system\")",
+		Pkg:  "./internal/server/", Tests: "^TestColorScheme$",
+	},
+	{
 		ID: "auth.address-name", About: "an address known only to the wiki does not sign in with the directory password",
 		File: "internal/auth/service.go",
 		Old:  "out = append(out, addressTry{p, uname})",

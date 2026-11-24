@@ -6,5 +6,6 @@
   "author": "Enterprise Wiki",
   "kinds": ["template"],
   "extends": [],
-  "frontend": true
+  "frontend": true,
+  "color_scheme": "system"
 }

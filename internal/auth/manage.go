@@ -537,6 +537,8 @@ func init() {
 	RegisterPref("editor", "visual", "simple")
 	// help texts: explanations shown ("" = hidden, the default)
 	RegisterPref("help", "show")
+	// light or dark ("" = the default of the template; see server/scheme.go)
+	RegisterPref("scheme", "system", "light", "dark")
 }
 
 // PrefOptions returns the personal settings and their allowed values.
