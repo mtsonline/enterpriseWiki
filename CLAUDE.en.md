@@ -65,7 +65,10 @@ In every conflict this order applies: security, no data loss, stability, accessi
 
 ## 6. Commands
 
+Before every pull request: `scripts/precheck.sh` (quick checks first, then the Go and browser tests as in the CI, side by side and each with its own database). Parts: `fast`, `go`, `e2e`, `security`, `docker`, `all`. At the end, look at every failed part. The single commands:
+
 ```bash
+scripts/precheck.sh                     # fast + go + e2e; logs per part in /tmp/ewiki-precheck.*
 ./scripts/build.sh                      # build frontend and program (bin/ewiki)
 gofmt -l .                              # must be empty
 go vet ./...
