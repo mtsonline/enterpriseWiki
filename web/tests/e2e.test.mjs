@@ -2925,7 +2925,10 @@ test('emoji: found by a word, chosen with the keyboard, inserted as text', async
   const chosen = (await first.locator('[aria-hidden="true"]').textContent()).trim();
   await search.press('Enter');
   await dlg.waitFor({ state: 'detached' });
-  assert.ok((await page.locator('.ewe-prose').textContent()).includes(`Thanks ${chosen}`), 'inserted at the cursor');
+  // the dialog loses its open attribute at once, but its close event (which
+  // inserts the emoji) comes a moment later: wait for the text, not the dialog
+  await page.waitForFunction((want) => document.querySelector('.ewe-prose')?.textContent?.includes(want), `Thanks ${chosen}`, { timeout: 5000 })
+    .catch(async () => assert.fail(`inserted at the cursor: ${JSON.stringify(await page.locator('.ewe-prose').textContent())}`));
   await page.getByRole('button', { name: /^(publish|veröffentlichen)$/i }).click();
   await page.waitForURL(/\/e\/\d+$/);
   await idle();
