@@ -12,6 +12,7 @@ import (
 	"sort"
 	"strings"
 	"testing"
+	"unicode"
 
 	"golang.org/x/net/html"
 
@@ -161,6 +162,16 @@ func safeOptions(raw string) bool {
 			}
 		case map[string]any:
 			for k, z := range y {
+				if k == "label" {
+					// a name for screen readers is free text: it never
+					// becomes CSS (only aria-label, set as an attribute;
+					// web/tests/unit checks that the CSS stays the same),
+					// and no tag of it may survive (checked above)
+					if s, ok := z.(string); !ok || strings.IndexFunc(s, unicode.IsControl) >= 0 {
+						return false
+					}
+					continue
+				}
 				if !optionChars.MatchString(k) || !walk(z) {
 					return false
 				}
@@ -479,6 +490,11 @@ func TestContentHostileParams(t *testing.T) {
 func optionContext(id string) string {
 	if id == "gradient_text" {
 		return "bg_color:#000000 text_color:#ffffff bg_gradient_from:#ffffff bg_gradient_to:#eeeeee "
+	}
+	// options that only work together with another one
+	need := map[string]string{"scroll_height": "label:List ", "border_sides": "border_style:solid ", "radius_corners": "radius:8 "}
+	if n, ok := need[id]; ok {
+		return n
 	}
 	ctx := map[string]string{"text_color": "#ffffff", "bg_color": "#0b3a6b", "overlay_color": "#000000", "overlay_opacity": "60",
 		"bg_gradient": "linear", "bg_gradient_from": "#0b3a6b", "bg_gradient_to": "#102040"}

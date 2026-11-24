@@ -75,6 +75,14 @@
     "anchor": "a b\"c%d,e"
    },
    "unchecked": true
+  },
+  {
+   "name": "name with spaces and umlauts",
+   "text": "label:Hinweise%20f%C3%BCr%20Sie%20%26%20mehr scroll_height:20",
+   "options": {
+    "label": "Hinweise für Sie & mehr",
+    "scroll_height": 20
+   }
   }
  ],
  "bad": [

@@ -1285,7 +1285,8 @@ func landingPage(d *demoRun, root int64, suffix string) {
 			b.WriteString(fmt.Sprintf(":::iconbox{name=%s title=%s}\n%s\n:::\n", h.icon, strconv.Quote(tr(h.en, h.de)), tr(h.enText, h.deText)))
 		}
 		b.WriteString("::::\n\n")
-		b.WriteString(fmt.Sprintf(":::cta{title=%s button=%s link=%s}\n%s\n:::\n",
+		// (options of a block: a border at the start of the line, rounded at its end)
+		b.WriteString(fmt.Sprintf(":::cta{title=%s button=%s link=%s options=\"border_style:solid border_width:4 border_sides:start radius:12 radius_corners:end\"}\n%s\n:::\n",
 			strconv.Quote(tr("Ready for the tour?", "Bereit für den Rundgang?")), strconv.Quote(tr("Start the tour", "Rundgang starten")), strconv.Quote(tour),
 			tr("Example content shows every feature. Everything can be tried out and edited.", "Beispielinhalte zeigen jede Funktion. Alles lässt sich ausprobieren und bearbeiten.")))
 		return b.String()

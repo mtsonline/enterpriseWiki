@@ -10,6 +10,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unicode"
+	"unicode/utf8"
 
 	"github.com/mtsonline/enterprisewiki/internal/apperr"
 )
@@ -187,6 +189,12 @@ func checkOptionValue(def optionDef, v any) error {
 		if err := CheckAnchor(s); err != nil {
 			return err
 		}
+	case "label":
+		// a name for screen readers: text, at most 100 characters
+		s, ok := v.(string)
+		if !ok || strings.TrimSpace(s) == "" || !utf8.ValidString(s) || utf8.RuneCountInString(s) > 100 || strings.IndexFunc(s, unicode.IsControl) >= 0 {
+			return fmt.Errorf("a name of 1 to 100 characters")
+		}
 	case "datetime":
 		s, ok := v.(string)
 		if !ok {
@@ -252,6 +260,18 @@ func checkOptionRules(o map[string]any) error {
 		pattern = ""
 	}
 	changesBackground := bg != "" || gradient != "" || image != "" || pattern != ""
+	// a block that scrolls in itself is reached with the keyboard and so
+	// needs a name for screen readers (WCAG 2.1.1, 4.1.2)
+	if optNum(o, "scroll_height", 0) > 0 && strings.TrimSpace(optStr(o, "label")) == "" {
+		return apperr.BadRequest("options: a block that scrolls in itself needs a name for screen readers (label)")
+	}
+	// a choice of sides or corners needs what it chooses for
+	if s := optStr(o, "border_sides"); s != "" && s != "all" && (optStr(o, "border_style") == "" || optStr(o, "border_style") == "none") {
+		return apperr.BadRequest("options: sides of the border (border_sides) need a border (border_style)")
+	}
+	if s := optStr(o, "radius_corners"); s != "" && s != "all" && optNum(o, "radius", 0) == 0 {
+		return apperr.BadRequest("options: corners (radius_corners) need a radius (radius)")
+	}
 	// a new background needs a text color, so the contrast is known
 	if changesBackground && text == "" {
 		return apperr.BadRequest("options: a block with its own background needs its own text color (text_color), so its contrast can be checked")

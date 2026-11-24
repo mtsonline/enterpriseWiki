@@ -73,6 +73,11 @@ function control(def: OptionDef, value: unknown, name: string, onChange: () => v
       i.addEventListener('input', fire);
       return { el: field(name, i, { help: t('bo.anchor_help') }), get: () => i.value.trim() || undefined };
     }
+    case 'label': {
+      const i = h('input', { class: 'ew-input', id, value: typeof value === 'string' ? value : '', maxlength: 100 }) as HTMLInputElement;
+      i.addEventListener('input', fire);
+      return { el: field(name, i, { help: t('bo.label_help') }), get: () => i.value.trim() || undefined };
+    }
     case 'datetime': {
       const local = (iso: string) => {
         const d = new Date(iso);

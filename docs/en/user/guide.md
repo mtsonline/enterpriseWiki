@@ -470,19 +470,20 @@ The block *Reading progress* is not placed by default: placed for example under 
 **Your own blocks (type *Block*):** a text that should appear at a position (such as a contact in the side column or a footer) is a new element of the type *Block* in a category, written like a page. A block is never in the search and not in lists of pages. On its page, *Where this block is shown* lists all placements; *Place the block* chooses the position and whether it appears in the category (with or without subcategories, optionally only on its page) or – with the permission for the settings – on the whole site. Each person sees it only if they may see it. Once a block appears on the whole site, only people with the permission *Edit blocks of the whole site* change, move or delete it.
 
 **Options of a block:** next to each placed block, *Options* sets how it looks and when it is shown at this position, in groups:
-- **Showing:** hidden on desktop, tablet or phone; only for signed-in people or only for guests; from and until a time; only in some languages; printing, page break, an anchor for links (`#name`) and the order. *Readers can close it* turns a block into a notice bar with a close button (named after its first heading): closed, it stays closed in this browser until its text changes; the focus goes on to what follows.
+- **Showing:** hidden on desktop, tablet or phone; only for signed-in people or only for guests; from and until a time; only in some languages; printing, page break, an anchor for links (`#name`) and the order. *Readers can close it* turns a block into a notice bar with a close button (named after its first heading): closed, it stays closed in this browser until its text changes; the focus goes on to what follows. A *Name for screen readers* makes the block a region with that name, so screen reader users find and skip it.
 
   Showing a block only to some is a rule of display, not a permission: the block loads its data with the permissions of the reader as always.
-- **Size and spacing:** maximum width, minimum height, aspect ratio, inner and outer spacing and text alignment, per view where it makes sense. The tablet takes the value of the desktop, the phone the one of the tablet, unless they have their own.
+- **Size and spacing:** maximum width, minimum height, *Scrolls in itself from a height of* (the block then scrolls on its own, is reached with the Tab key and needs a name for screen readers), *Stays in view while its area scrolls* (on the desktop only, only as the last block of its area and only while it fits on the screen, so it never hides anything of its area), aspect ratio, inner and outer spacing and text alignment, per view where it makes sense. The tablet takes the value of the desktop, the phone the one of the tablet, unless they have their own.
 - **Background:** colour, gradient, picture of the wiki (focus, size, repeat, parallax), video of the media library (silent, in a loop, always with a button to stop it; with "reduce motion" it does not start by itself; like a picture it needs an overlay), overlay, blending, pattern, glass.
-- **Border, shape and dividers:** border, rounded corners, shadow, glow, dividers at the top and bottom (wave, zigzag, slope, arc), fading out at the edge.
-- **Text:** font, size, weight, line height, letter spacing, capitals, text colour, columns, hyphenation, balanced line breaks, drop cap, text shadow, limited lines with *Show more*, headings in the gradient, underlined links.
+- **Border, shape and dividers:** border (on all sides or only some: top, bottom, start or end of the line), rounded corners (all or only top, bottom, start or end), shadow, glow, dividers at the top and bottom (wave, zigzag, slope, arc), fading out at the edge.
+- **Text:** font, size, weight, line height, letter spacing, capitals, text colour, columns, hyphenation, balanced line breaks, drop cap, text shadow, limited lines with *Show more*, headings in the gradient, underlined links with the style and colour of the underline (links always stay underlined).
 - **Motion:** *Appear when scrolled into view* – fade in, rise from below, slide in from the start or the end of the line, or grow. Nothing moves when your system asks for less motion, nor in browsers that cannot tie the motion to scrolling; there the block is simply shown, and nothing is ever hidden.
 
 The wiki checks every value; a sample shows the look at once:
 - a block with a background of its own needs a text colour of its own with enough contrast (4.5:1);
 - text on a picture needs an overlay; the text colour must be lighter or darker than every part of the picture under it (the same holds for gradients);
-- columns of text need room in every view (each at least 12 rem; on a phone one column).
+- columns of text need room in every view (each at least 12 rem; on a phone one column);
+- a block that scrolls in itself needs a name for screen readers; sides of the border need a border and single rounded corners a radius.
 
 Links in such a block keep its text colour and are underlined.
 

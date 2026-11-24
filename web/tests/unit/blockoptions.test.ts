@@ -83,6 +83,23 @@ test('no option lets hostile text into the CSS (every option, every payload)', a
   assert.ok(n > 1000);
 });
 
+test('a name for screen readers never changes the CSS; the new options build their CSS', () => {
+  const base: BlockOptions = { border_style: 'solid', border_sides: 'start_end', radius: 12, radius_corners: 'top', scroll_height: 10, sticky: true, underline_style: 'wavy', underline_color: '#0b3a6b' };
+  const plain = optionsCSS('.x', { ...base, label: 'Plain' });
+  for (const label of ['"><ewxss>', '} body{background:url(https://evil.example/t)} .x{', 'Termine (Q4); x:y']) {
+    assert.ok(formOK({ ...base, label }), label);
+    assert.equal(optionsCSS('.x', { ...base, label }), plain, label);
+  }
+  assert.equal(formOK({ label: 'a\nb' }), false, 'no control characters');
+  assert.equal(formOK({ label: 'x'.repeat(101) }), false, 'at most 100 characters');
+  assert.match(plain, /border-inline-start: 1px solid currentColor; border-inline-end: 1px solid currentColor;/);
+  assert.doesNotMatch(plain, /border: /);
+  assert.match(plain, /border-start-start-radius: 12px; border-start-end-radius: 12px;/);
+  assert.match(plain, /\.x > \.ew-bo-body \{ max-block-size: 10rem; overflow: auto;/);
+  assert.match(plain, /@media \(min-width: 1024px\) \{ \.x\.ew-bo--fits:last-child \{ position: sticky;/);
+  assert.match(plain, /text-decoration-line: underline; text-decoration-style: wavy; text-decoration-color: #0b3a6b;/);
+});
+
 test('appearing: only without "less motion" and only where the browser ties it to scrolling', () => {
   const css = optionsCSS('.x', { appear: 'slide_start' });
   assert.match(css, /@media \(prefers-reduced-motion: no-preference\) \{ @supports \(animation-timeline: view\(\)\) \{ \.x \{ animation: ew-appear-slide-start /);
