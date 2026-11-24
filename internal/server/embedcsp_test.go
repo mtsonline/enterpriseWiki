@@ -22,3 +22,20 @@ func TestEmbedCSP(t *testing.T) {
 		t.Errorf("not bounded: %d", got)
 	}
 }
+
+// TestFormCSP: the form-action additions come only from valid entries, even
+// when config.yaml was edited by hand, and at most config.MaxEmbedOrigins.
+func TestFormCSP(t *testing.T) {
+	c := &config.Config{}
+	c.Media.FormAllow = []string{"https://news.example.com", "https://x.example.com; script-src *", "http://y.example.com", "'self'", "https://ok.example.com:8443"}
+	if got, want := formCSP(c), " https://news.example.com https://ok.example.com:8443"; got != want {
+		t.Errorf("formCSP = %q, want %q", got, want)
+	}
+	c.Media.FormAllow = nil
+	for range config.MaxEmbedOrigins + 5 {
+		c.Media.FormAllow = append(c.Media.FormAllow, "https://a.example.com")
+	}
+	if got := len(formCSP(c)); got != config.MaxEmbedOrigins*len(" https://a.example.com") {
+		t.Errorf("not bounded: %d", got)
+	}
+}

@@ -3077,5 +3077,7 @@
  "layout.countdown_hours_one": "Stunde",
  "layout.countdown_hours_other": "Stunden",
  "layout.countdown_minutes_one": "Minute",
- "layout.countdown_minutes_other": "Minuten"
+ "layout.countdown_minutes_other": "Minuten",
+ "settings.form_allow": "Erlaubte Dienste für Newsletter-Anmeldungen (extern)",
+ "settings.form_allow_help": "Eine Adresse je Zeile, nur der Anfang mit https:// und dem Server (zum Beispiel https://news.example.com). Der Baustein Newsletter-Anmeldung (extern) darf die E-Mail-Adresse der lesenden Person nur an diese Dienste senden. Leer: Kein Formular sendet etwas nach außerhalb des Wikis."
 }

@@ -358,3 +358,13 @@ button.ewl-cta { font: inherit; font-weight: 700; cursor: pointer; }
 .ewl-countdown-num { font-size: 2.25rem; font-weight: 700; line-height: 1.1; font-variant-numeric: tabular-nums; }
 .ewl-countdown-when { margin: 0 0 .5rem; color: var(--ew-text-muted); }
 .ewl-countdown--reached .ewl-countdown-left { font-size: 1.25rem; font-weight: 700; }
+
+/* newsletter sign-up (external) */
+.ewl-newsletter { margin-block: 1rem; padding: 1.25rem; border: 1px solid var(--ew-border); border-radius: 8px; background: var(--ew-bg-raised, var(--ew-bg)); }
+.ewl-newsletter-title { margin-top: 0; }
+.ewl-newsletter-form { display: grid; gap: .75rem; max-width: 32rem; }
+.ewl-newsletter-field { display: grid; gap: .25rem; margin: 0; }
+.ewl-newsletter-field label { font-weight: 600; }
+.ewl-newsletter-privacy { margin: 0; font-size: .875rem; color: var(--ew-text-muted); }
+.ewl-newsletter-action { margin: 0; }
+.ewl-newsletter-action .ewl-cta { border: 0; cursor: pointer; font: inherit; }

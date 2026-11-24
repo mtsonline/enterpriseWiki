@@ -3990,6 +3990,49 @@ test('blocks B, part 5: an external video loads only after consent, from an allo
   }
 });
 
+test('newsletter sign-up (external): the browser sends the address straight to an allowed provider', async () => {
+  const before = (await call('GET', '/api/v1/admin/settings')).config.media ?? {};
+  // the allowed provider, answered here (the test runs without the internet)
+  let sent = null;
+  await page.route('https://news.example.com/**', async (r) => {
+    sent = { method: r.request().method(), body: r.request().postData() ?? '' };
+    await r.fulfill({ status: 200, contentType: 'text/html', body: '<!doctype html><html lang="en"><title>Thanks</title><p>Thanks for subscribing</p></html>' });
+  });
+  try {
+    // an administrator allows the provider in the settings (Media)
+    await page.goto(`${BASE}/admin/settings`);
+    await idle();
+    await page.getByLabel(/^(services allowed for newsletter sign-ups|erlaubte dienste für newsletter-anmeldungen)/i).fill('https://news.example.com');
+    await page.getByRole('button', { name: /^(save|speichern)$/i }).first().click();
+    await page.locator('.ew-toasts', { hasText: /saved|gespeichert/i }).waitFor();
+    assert.deepEqual((await call('GET', '/api/v1/admin/settings')).config.media.form_allow, ['https://news.example.com']);
+    const cat = (await call('POST', '/api/v1/categories', { titles: { en: `Newsletter ${run}` } })).id;
+    const el = await call('POST', '/api/v1/elements', { category_id: cat, type: 'core.html', title: `Newsletter ${run}`,
+      body: { format: 'markdown', source: ':::newsletter{address="https://news.example.com/subscribe" title="Our newsletter" hidden="list=7" name_field="FNAME" privacy="https://news.example.com/privacy"}\nOnce a month.\n:::\n' } });
+    await page.goto(`${BASE}/e/${el.id}`);
+    await idle();
+    const box = page.getByRole('region', { name: 'Our newsletter' });
+    // it says where the address goes before it goes there
+    const email = box.getByRole('textbox', { name: /^(e-mail address|e-mail-adresse)$/i });
+    assert.match(await email.getAttribute('aria-describedby').then((id) => page.locator(`#${id}`).innerText()), /news\.example\.com/);
+    await a11y('newsletter sign-up');
+    // the browser checks the address first
+    await box.getByRole('button', { name: /^(subscribe|anmelden)$/i }).click();
+    assert.equal(sent, null, 'nothing sent without an address');
+    await box.getByRole('textbox', { name: /^name$/i }).fill('Anna Example');
+    await email.fill('anna@example.com');
+    await box.getByRole('button', { name: /^(subscribe|anmelden)$/i }).click();
+    await page.getByText('Thanks for subscribing').waitFor();
+    assert.equal(sent.method, 'POST');
+    assert.deepEqual(Object.fromEntries(new URLSearchParams(sent.body)), { list: '7', FNAME: 'Anna Example', email: 'anna@example.com' });
+  } finally {
+    await page.unroute('https://news.example.com/**');
+    // back to the wiki (the helpers call the API from the page)
+    await page.goto(`${BASE}/`);
+    await call('PUT', '/api/v1/admin/settings', { media: { ...before, form_allow: before.form_allow ?? [] } });
+  }
+});
+
 test('blocks B, part 6: the sign-in box leads guests to the sign-in page and back, and signs out', async () => {
   const cat = (await call('POST', '/api/v1/categories', { titles: { en: `Members ${run}` } })).id;
   await call('POST', `/api/v1/categories/${cat}/acl`, { subject_type: 'guest', permissions: 1, inherit: true });
