@@ -196,8 +196,8 @@ var traps = []trap{
 	{
 		ID: "category.page-manage", About: "the page of a category can be arranged without the permission to manage it",
 		File: "internal/content/placements.go",
-		Old:  "			return apperr.BadRequest(\"target must be a category id\")\n		}\n		if _, err := s.loadCategory(ctx, s.pool, id, false); err != nil {\n			return err\n		}\n		return s.require(ctx, id, acl.Manage)\n	case LevelInstance:",
-		New:  "			return apperr.BadRequest(\"target must be a category id\")\n		}\n		if _, err := s.loadCategory(ctx, s.pool, id, false); err != nil {\n			return err\n		}\n		return s.require(ctx, id, acl.Edit)\n	case LevelInstance:",
+		Old:  "\t\tif err != nil || id <= 0 || strconv.FormatInt(id, 10) != target {\n\t\t\treturn apperr.BadRequest(\"target must be a category id\")\n\t\t}\n\t\tif _, err := s.loadCategory(ctx, s.pool, id, false); err != nil {\n\t\t\treturn err\n\t\t}\n\t\treturn s.require(ctx, id, acl.Manage)\n\tcase LevelType:",
+		New:  "\t\tif err != nil || id <= 0 || strconv.FormatInt(id, 10) != target {\n\t\t\treturn apperr.BadRequest(\"target must be a category id\")\n\t\t}\n\t\tif _, err := s.loadCategory(ctx, s.pool, id, false); err != nil {\n\t\t\treturn err\n\t\t}\n\t\treturn s.require(ctx, id, acl.Edit)\n\tcase LevelType:",
 		Pkg:  "./internal/server/", Tests: "^TestCategoryPagePlacement$",
 	},
 	{
@@ -232,8 +232,8 @@ var traps = []trap{
 	{
 		ID: "template.read-only", About: "the shipped templates of data can be changed",
 		File: "plugins/core_template/store.go",
-		Old:  "	if cur.ReadOnly {\n		return nil, apperr.Forbidden",
-		New:  "	if cur.ReadOnly && false {\n		return nil, apperr.Forbidden",
+		Old:  "\tif cur.ReadOnly {\n\t\treturn nil, apperr.Forbidden(\"the shipped templates cannot be changed",
+		New:  "\tif cur.ReadOnly && false {\n\t\treturn nil, apperr.Forbidden(\"the shipped templates cannot be changed",
 		Pkg:  "./internal/server/", Tests: "^TestDataTemplates$",
 	},
 	{
@@ -365,8 +365,8 @@ var traps = []trap{
 	{
 		ID: "blocks-b.timeline-region-name", About: "a horizontal timeline scrolls in a region without a name",
 		File: "plugins/core_layout/blocks_b.go",
-		Old:  "\t\tif label == \"\" {\n\t\t\treturn \"\", fmt.Errorf(\"a horizontal timeline needs a name",
-		New:  "\t\tif false {\n\t\t\treturn \"\", fmt.Errorf(\"a horizontal timeline needs a name",
+		Old:  "\t\tif label == \"\" {\n\t\t\treturn \"\", apperr.BadRequest(\"a horizontal timeline needs a name",
+		New:  "\t\tif false {\n\t\t\treturn \"\", apperr.BadRequest(\"a horizontal timeline needs a name",
 		Pkg:  "./plugins/core_layout/", Tests: "^TestBlocksB$",
 	},
 	{
@@ -470,14 +470,14 @@ var traps = []trap{
 	{
 		ID: "blocks-b.ticker-name", About: "a ticker runs in a region without a name",
 		File: "plugins/core_layout/blocks_b3.go",
-		Old:  "\t\treturn \"\", fmt.Errorf(\"a ticker needs a name for screen readers (label)\")",
+		Old:  "\t\treturn \"\", apperr.BadRequest(\"a ticker needs a name for screen readers (label)\")",
 		New:  "\t\tlabel = \"\"",
 		Pkg:  "./plugins/core_layout/", Tests: "^TestBlocksB3$",
 	},
 	{
 		ID: "blocks-b.slider-name", About: "a slider has no name for screen readers",
 		File: "plugins/core_layout/blocks_b3.go",
-		Old:  "\t\treturn \"\", fmt.Errorf(\"a slider needs a name for screen readers (label)\")",
+		Old:  "\t\treturn \"\", apperr.BadRequest(\"a slider needs a name for screen readers (label)\")",
 		New:  "\t\tlabel = \"\"",
 		Pkg:  "./plugins/core_layout/", Tests: "^TestBlocksB3$",
 	},
@@ -498,8 +498,8 @@ var traps = []trap{
 	{
 		ID: "template.room", About: "blocks are saved side by side on the desktop without room",
 		File: "plugins/core_template/design.go",
-		Old:  `if need, room := d.needRoom(r, "desktop", nil), d.room(r, "desktop"); need > room {`,
-		New:  `if need, room := d.needRoom(r, "desktop", nil), d.room(r, "desktop"); need > room*10 {`,
+		Old:  "if need, room := d.needRoom(r, \"desktop\", r.Desktop), d.room(r, \"desktop\"); need > room {",
+		New:  "if need, room := d.needRoom(r, \"desktop\", r.Desktop), d.room(r, \"desktop\"); need > room*10 {",
 		Pkg:  "./plugins/core_template/", Tests: "^TestDesignProblems$",
 	},
 	// ---------------------------------------------------------------- options of blocks
@@ -547,17 +547,31 @@ var traps = []trap{
 		Pkg:  "./internal/server/", Tests: "^TestLayoutBlocks$",
 	},
 	{
+		ID: "options.scroll-name", About: "a block that scrolls in itself has no name for screen readers",
+		File: "internal/content/blockoptions.go",
+		Old:  "if optNum(o, \"scroll_height\", 0) > 0 && strings.TrimSpace(optStr(o, \"label\")) == \"\" {",
+		New:  "if false && optNum(o, \"scroll_height\", 0) > 0 {",
+		Pkg:  "./internal/content/", Tests: "^TestBlockOptionCases$",
+	},
+	{
+		ID: "options.label-control", About: "a name for screen readers may hold control characters",
+		File: "internal/content/blockoptions.go",
+		Old:  "utf8.RuneCountInString(s) > 100 || strings.IndexFunc(s, unicode.IsControl) >= 0 {",
+		New:  "utf8.RuneCountInString(s) > 100 || strings.IndexFunc(s, unicode.IsControl) >= 0 && false {",
+		Pkg:  "./internal/content/", Tests: "^TestBlockOptionCases$",
+	},
+	{
 		ID: "layout.options-checked", About: "options of a block in the content are used without the check of the server",
 		File: "internal/content/macros.go",
-		Old:  "	if err := CheckBlockOptions(o); err != nil {\n		return macroNote(err.Error()) + res\n	}",
-		New:  "	if err := CheckBlockOptions(o); err != nil && false {\n		return macroNote(err.Error()) + res\n	}",
+		Old:  "\tif err := CheckBlockOptions(o); err != nil {\n\t\treturn macroNote(apperr.Localized(err, lang)) + res\n\t}",
+		New:  "\tif err := CheckBlockOptions(o); err != nil && false {\n\t\treturn macroNote(apperr.Localized(err, lang)) + res\n\t}",
 		Pkg:  "./internal/server/", Tests: "^TestLayoutBlocks$",
 	},
 	{
 		ID: "layout.buttons-url", About: "links of buttons are not made safe (javascript: …)",
 		File: "plugins/core_layout/blocks.go",
-		Old:  "		b.WriteString(`<a class=\"ewl-cta ewl-cta--` + oneOf(style, buttonStyles) + `\" href=\"` + esc(SafeURL(mc.Params[\"link\"+n])) + `\">` + esc(text) + `</a>`)",
-		New:  "		b.WriteString(`<a class=\"ewl-cta ewl-cta--` + oneOf(style, buttonStyles) + `\" href=\"` + esc(mc.Params[\"link\"+n]) + `\">` + esc(text) + `</a>`)",
+		Old:  "\t\tb.WriteString(`<a class=\"ewl-cta ewl-cta--` + oneOf(style, buttonStyles) + `\" href=\"` + esc(SafeURL(mc.Params[\"link\"+n])) + `\">` + icon + esc(text) + `</a>`)",
+		New:  "\t\tb.WriteString(`<a class=\"ewl-cta ewl-cta--` + oneOf(style, buttonStyles) + `\" href=\"` + esc(mc.Params[\"link\"+n]) + `\">` + icon + esc(text) + `</a>`)",
 		Pkg:  "./internal/server/", Tests: "^TestLayoutBlocks$",
 	},
 	{
@@ -1179,7 +1193,7 @@ var traps = []trap{
 	{
 		ID: "date.check", About: "a date that is not a day is accepted",
 		File: "plugins/core_macros/date.go",
-		Old:  "\tif err != nil || d.Year() < 1 || d.Year() > 9999 {",
+		Old:  "\tif err != nil || day.Year() < 1 || day.Year() > 9999 {",
 		New:  "\tif err != nil && false {",
 		Pkg:  "./plugins/core_macros/", Tests: "^TestDate$",
 	},
@@ -1263,8 +1277,8 @@ var traps = []trap{
 	{
 		ID: "data.plugin-kept", About: "saving a page deletes the entries of plugins",
 		File: "internal/content/data.go",
-		Old:  "WHERE element_id=$1 AND lang=$2 AND source=$3 AND kind = ANY($4)",
-		New:  "WHERE element_id=$1 AND lang=$2 AND kind = ANY($4) AND $3 <> ''",
+		Old:  "WHERE element_id=$1 AND lang=$2 AND source=$3 AND kind = ANY($4)`, id, lang, SourceMacro",
+		New:  "WHERE element_id=$1 AND lang=$2 AND kind = ANY($4) AND $3 <> ''`, id, lang, SourceMacro",
 		Pkg:  "./internal/server/", Tests: "^TestBlockData$",
 	},
 	{

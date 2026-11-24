@@ -88,10 +88,11 @@ A green test only means something if it would turn red as soon as what it checks
 EWIKI_TEST_DATABASE_URL=postgres://USER:PASS@localhost:5432/DB?sslmode=disable go run ./tools/traps
 go run ./tools/traps -list                       # all traps
 go run ./tools/traps -only cli.as,auth.csrf      # single traps
+go run ./tools/traps -fit                        # only: does every trap still fit the code (fast, runs in the CI)
 ```
 
 - First the tests run without traps and must be green. Without a database the tool stops, because the integration tests would be skipped and every trap would count as "caught".
 - **caught:** the tests turn red, as expected. **MISSED:** the tests stay green, so they do not check what they claim; that is a finding. **BROKEN:** the trap does not compile.
-- **OUTDATED:** the guarded place has changed. Then the trap is adjusted, never removed.
+- **OUTDATED:** the guarded place has changed. Then the trap is adjusted, never removed. The CI checks this on every change (`-fit`), so an outdated trap shows at once.
 - Every changed file is restored after its trap, also on Ctrl+C. Files with uncommitted changes are refused.
 - Runs before every release. Every fixed security bug gets a trap.
