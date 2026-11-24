@@ -92,6 +92,8 @@ type Config struct {
 	// More: events of further sources shown too (read-only here), e.g.
 	// "calendar:12; ical:https://example.org/holidays.ics"
 	More string `json:"more_sources"`
+	// PageTasks: pages as sources also give their open tasks with a due day
+	PageTasks bool `json:"page_tasks"`
 }
 
 var (
@@ -216,6 +218,11 @@ type Event struct {
 	// External: from a subscribed calendar (read-only); Source is its address
 	External bool   `json:"external,omitempty"`
 	Source   string `json:"source,omitempty"`
+	// PageID, PageTitle: from a page (a date in its text, or a task with
+	// PageKind "task"); the event links to the page
+	PageID    int64  `json:"page_id,omitempty"`
+	PageTitle string `json:"page_title,omitempty"`
+	PageKind  string `json:"page_kind,omitempty"`
 }
 
 const eventCols = `e.id, e.calendar_id, e.uid, e.sequence, e.title, e.description, e.location, e.url, e.category, e.starts_at, e.ends_at,
@@ -781,7 +788,7 @@ func (Type) Render(ctx context.Context, rc content.RenderContext, raw json.RawMe
 	if strings.TrimSpace(c.Intro.Source) != "" {
 		b.WriteString(`<div class="ewe-intro">` + core_html.ToHTML(&c.Intro) + `</div>`)
 	}
-	list, err := plugins.Get(ctx).upcoming(ctx, []int64{rc.ElementID}, nil, time.Now(), c.ListDays, 30)
+	list, err := plugins.Get(ctx).upcoming(ctx, []int64{rc.ElementID}, nil, nil, time.Now(), c.ListDays, 30)
 	if err != nil {
 		return "", err
 	}
@@ -799,10 +806,10 @@ type upcomingItem struct {
 	Date  string // original local date
 }
 
-func (p *Plugin) upcoming(ctx context.Context, calendars []int64, ical []string, from time.Time, days, limit int) ([]upcomingItem, error) {
+func (p *Plugin) upcoming(ctx context.Context, calendars []int64, ical []string, pages []content.Source, from time.Time, days, limit int) ([]upcomingItem, error) {
 	vis := map[int64]string{}
 	var err error
-	if len(calendars) > 0 || len(ical) == 0 {
+	if len(calendars) > 0 || len(ical) == 0 && len(pages) == 0 {
 		if vis, err = p.visibleCalendars(ctx, calendars); err != nil {
 			return nil, err
 		}
@@ -819,6 +826,7 @@ func (p *Plugin) upcoming(ctx context.Context, calendars []int64, ical []string,
 		}
 	}
 	events = append(events, p.externalEvents(ctx, ical, from, to)...)
+	events = append(events, p.pageEvents(ctx, pages, false, from, to)...)
 	var out []upcomingItem
 	for _, e := range events {
 		for _, in := range e.Instances(from, to) {
@@ -829,7 +837,9 @@ func (p *Plugin) upcoming(ctx context.Context, calendars []int64, ical []string,
 				ev = &c
 			}
 			name := vis[e.CalendarID]
-			if e.External {
+			if e.PageID != 0 {
+				name = e.PageTitle
+			} else if e.External {
 				name = hostOf(e.Source)
 			}
 			out = append(out, upcomingItem{Event: ev, Occ: in.Start, End: in.End, Cal: name, Date: in.Date})
@@ -901,7 +911,9 @@ func renderUpcoming(list []upcomingItem, lang string, withCal bool) string {
 		if e.External {
 			// a subscribed calendar: its link (if any), else only the text
 			when := fmt.Sprintf(`<time datetime="%s">%s</time> <strong>%s</strong>`, it.Occ.UTC().Format(time.RFC3339), esc(FormatWhen(it.Occ, it.End, e.AllDay, e.Loc(), lang)), esc(e.Title))
-			if e.URL != "" {
+			if e.PageID != 0 {
+				fmt.Fprintf(&b, `<li class="ewe-up"><a href="/e/%d">%s</a>`, e.PageID, when)
+			} else if e.URL != "" {
 				fmt.Fprintf(&b, `<li class="ewe-up"><a href="%s" rel="noopener noreferrer nofollow">%s</a>`, esc(e.URL), when)
 			} else {
 				b.WriteString(`<li class="ewe-up">` + when)
@@ -948,7 +960,7 @@ func (UpcomingMacro) HasBody() bool { return false }
 func (UpcomingMacro) Params() []content.MacroParam {
 	return []content.MacroParam{
 		{Name: "calendar", Labels: map[string]string{"en": "Calendar (element id, empty = all)", "de": "Kalender (Element-ID, leer = alle)"}, Type: "number"},
-		{Name: "source", Labels: map[string]string{"en": "Calendars and subscribed calendars (instead of the one above)", "de": "Kalender und abonnierte Kalender (statt des obigen)"}, Type: "custom:events.sources"},
+		{Name: "source", Labels: map[string]string{"en": "Calendars, subscribed calendars and dates of pages (instead of the one above)", "de": "Kalender, abonnierte Kalender und Termine aus Seiten (statt des obigen)"}, Type: "custom:events.sources"},
 		{Name: "limit", Labels: map[string]string{"en": "Number of events", "de": "Anzahl Termine"}, Type: "number", Default: "5"},
 		{Name: "days", Labels: map[string]string{"en": "Days ahead", "de": "Tage im Voraus"}, Type: "number", Default: "60"},
 	}
@@ -964,12 +976,13 @@ func (UpcomingMacro) Render(ctx context.Context, mc content.MacroContext) (strin
 		}
 	}
 	var ical []string
+	var pages []content.Source
 	if src := strings.TrimSpace(mc.Params["source"]); src != "" {
 		more, err := parseEventSources(src)
 		if err != nil {
 			return `<p class="ew-notice ew-notice--warning" role="note">` + html.EscapeString(err.Error()) + `</p>`, nil
 		}
-		cals, ical = more.Calendars, more.ICal
+		cals, ical, pages = more.Calendars, more.ICal, more.Pages
 	}
 	limit, days := 5, 60
 	_, _ = fmt.Sscan(mc.Params["limit"], &limit)
@@ -980,9 +993,9 @@ func (UpcomingMacro) Render(ctx context.Context, mc content.MacroContext) (strin
 	if days < 1 || days > 730 {
 		days = 60
 	}
-	list, err := plugins.Get(ctx).upcoming(ctx, cals, ical, time.Now(), days, limit)
+	list, err := plugins.Get(ctx).upcoming(ctx, cals, ical, pages, time.Now(), days, limit)
 	if err != nil {
 		return "", err
 	}
-	return `<div class="ewe-macro">` + renderUpcoming(list, mc.Lang, len(cals) != 1 || len(ical) > 0) + `</div>`, nil
+	return `<div class="ewe-macro">` + renderUpcoming(list, mc.Lang, len(cals) != 1 || len(ical) > 0 || len(pages) > 0) + `</div>`, nil
 }

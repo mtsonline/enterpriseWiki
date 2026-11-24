@@ -213,7 +213,12 @@ func ParseICS(doc, source string) []*Event {
 type eventSources struct {
 	Calendars []int64
 	ICal      []string
+	// Pages: categories and pages whose dates in the text are shown
+	Pages []content.Source
 }
+
+// maxPageSources limits the categories and page lists of one calendar.
+const maxPageSources = 10
 
 func parseEventSources(s string) (*eventSources, error) {
 	list, err := content.ParseSourcesKinds(s, []string{"calendar", "ical"})
@@ -234,12 +239,20 @@ func parseEventSources(s string) (*eventSources, error) {
 				return nil, apperr.BadRequest("ical: %v", err)
 			}
 			out.ICal = append(out.ICal, x.Value)
+		case "category", "elements":
+			if x.Mode != "" {
+				return nil, apperr.BadRequest("calendars take categories and pages only as sources of their own (no - or +)")
+			}
+			out.Pages = append(out.Pages, x)
 		default:
-			return nil, apperr.BadRequest("calendars take the sources calendar:ID and ical:https://…")
+			return nil, apperr.BadRequest("calendars take the sources calendar:ID, ical:https://…, category:ID and elements:IDs")
 		}
 	}
 	if len(out.ICal) > 10 {
 		return nil, apperr.BadRequest("at most 10 subscribed calendars")
+	}
+	if len(out.Pages) > maxPageSources {
+		return nil, apperr.BadRequest("at most %d categories or page lists", maxPageSources)
 	}
 	return out, nil
 }

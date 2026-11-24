@@ -861,6 +861,8 @@ type DataQuery struct {
 	Category int64
 	Direct   bool
 	Element  int64
+	// Elements: only entries of these elements (at most 1000)
+	Elements []int64
 	Lang     string
 	States   []string
 	// From and To limit the column day (inclusive)
@@ -912,6 +914,8 @@ var dataSorts = map[string]string{
 	"day": "d.day ASC NULLS LAST", "-day": "d.day DESC NULLS LAST", "at": "d.at ASC NULLS LAST", "-at": "d.at DESC NULLS LAST",
 	"num": "d.num ASC NULLS LAST", "-num": "d.num DESC NULLS LAST", "label": "lower(d.label) ASC NULLS LAST", "state": "d.state ASC NULLS LAST",
 	"page": "e.id, d.idx", "": "d.updated_at DESC", "-updated": "d.updated_at DESC",
+	// when: by day, all-day entries first, then by the time
+	"when": "d.day ASC NULLS LAST, d.at ASC NULLS FIRST", "-when": "d.day DESC NULLS LAST, d.at DESC NULLS LAST",
 }
 
 // QueryData answers a query with the permissions of the caller: only
@@ -924,7 +928,7 @@ func (s *Service) QueryData(ctx context.Context, q DataQuery) (*DataResult, erro
 	}
 	order, ok := dataSorts[q.Sort]
 	if !ok {
-		return nil, apperr.BadRequest("sort: one of day, -day, at, -at, num, -num, label, state, page")
+		return nil, apperr.BadRequest("sort: one of day, -day, at, -at, when, -when, num, -num, label, state, page")
 	}
 	if q.Limit <= 0 {
 		q.Limit = 50
@@ -940,6 +944,9 @@ func (s *Service) QueryData(ctx context.Context, q DataQuery) (*DataResult, erro
 			}
 		}
 	}
+	if len(q.Elements) > 1000 {
+		return nil, apperr.BadRequest("at most 1000 elements")
+	}
 	if len(q.States) > 20 || len(q.Q) > 200 {
 		return nil, apperr.BadRequest("too many states or a too long search")
 	}
@@ -952,7 +959,7 @@ func (s *Service) QueryData(ctx context.Context, q DataQuery) (*DataResult, erro
 	if lang == "" {
 		lang = s.DefaultLanguage()
 	}
-	args := []any{k.Kind, q.Category, q.Direct, q.Element, q.Lang, q.States, q.From, q.To, q.Person, q.Ref, q.Q, q.Hidden, q.NoDay}
+	args := []any{k.Kind, q.Category, q.Direct, q.Element, q.Lang, q.States, q.From, q.To, q.Person, q.Ref, q.Q, q.Hidden, q.NoDay, q.Elements}
 	where := `d.kind = $1::text AND e.deleted_at IS NULL
 		AND ($2::bigint = 0 OR ($3::bool AND e.category_id = $2::bigint) OR (NOT $3::bool AND e.category_id IN (SELECT c.id FROM categories c WHERE c.path <@ (SELECT path FROM categories WHERE id = $2::bigint))))
 		AND ($4::bigint = 0 OR e.id = $4::bigint) AND ($5::text = '' OR d.lang = $5::text)
@@ -961,6 +968,7 @@ func (s *Service) QueryData(ctx context.Context, q DataQuery) (*DataResult, erro
 		AND ($9::bigint = 0 OR d.person = $9::bigint) AND ($10::bigint = 0 OR d.ref = $10::bigint)
 		AND ($11::text = '' OR d.label ILIKE '%' || $11::text || '%' OR d.data::text ILIKE '%' || $11::text || '%')
 		AND ($12::bool OR NOT e.hidden) AND (NOT $13::bool OR d.day IS NULL)
+		AND (COALESCE(cardinality($14::bigint[]), 0) = 0 OR e.id = ANY($14::bigint[]))
 		AND ` + f.SQL("e", &args)
 	var total int
 	// acl: filtered (ElementFilter)

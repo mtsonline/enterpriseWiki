@@ -14,6 +14,7 @@ import (
 
 	"github.com/mtsonline/enterprisewiki/internal/apperr"
 	"github.com/mtsonline/enterprisewiki/internal/audit"
+	"github.com/mtsonline/enterprisewiki/internal/content"
 	"github.com/mtsonline/enterprisewiki/internal/coreplugin"
 	"github.com/mtsonline/enterprisewiki/internal/db"
 	h "github.com/mtsonline/enterprisewiki/internal/httpx"
@@ -82,7 +83,9 @@ func (p *Plugin) Setup(hs *coreplugin.Host) error {
 		ids := []int64{id}
 		others := map[int64]string{}
 		var ical []string
-		if more, err := parseEventSources(cal.Config.More); err == nil && (len(more.Calendars) > 0 || len(more.ICal) > 0) {
+		var pages []content.Source
+		if more, err := parseEventSources(cal.Config.More); err == nil && (len(more.Calendars) > 0 || len(more.ICal) > 0 || len(more.Pages) > 0) {
+			pages = more.Pages
 			if len(more.Calendars) > 0 {
 				vis, err := p.visibleCalendars(ctx, more.Calendars)
 				if err != nil {
@@ -103,7 +106,7 @@ func (p *Plugin) Setup(hs *coreplugin.Host) error {
 		}
 		if q.Get("category") == "" {
 			term := strings.ToLower(strings.TrimSpace(q.Get("q")))
-			for _, e := range p.externalEvents(ctx, ical, from, to) {
+			for _, e := range append(p.externalEvents(ctx, ical, from, to), p.pageEvents(ctx, pages, cal.Config.PageTasks, from, to)...) {
 				if term == "" || strings.Contains(strings.ToLower(e.Title+" "+e.Description+" "+e.Location), term) {
 					events = append(events, e)
 				}
@@ -432,7 +435,7 @@ func (p *Plugin) Setup(hs *coreplugin.Host) error {
 		if c := h.QueryInt(r, "calendar", 0); c > 0 {
 			cals = []int64{int64(c)}
 		}
-		list, err := p.upcoming(r.Context(), cals, nil, time.Now(), h.QueryInt(r, "days", 60), h.QueryInt(r, "limit", 10))
+		list, err := p.upcoming(r.Context(), cals, nil, nil, time.Now(), h.QueryInt(r, "days", 60), h.QueryInt(r, "limit", 10))
 		if err != nil {
 			return nil, err
 		}

@@ -3034,5 +3034,8 @@
  "editor.suggest_all": "All blocks …",
  "editor.suggest_label": "Blocks",
  "editor.suggest_count_one": "{count} block suggested. Arrow keys choose, Enter inserts, Escape closes.",
- "editor.suggest_count_other": "{count} blocks suggested. Arrow keys choose, Enter inserts, Escape closes."
+ "editor.suggest_count_other": "{count} blocks suggested. Arrow keys choose, Enter inserts, Escape closes.",
+ "sources.pick_page": "Choose a page",
+ "sources.page_added": "Page added.",
+ "sources.pick_add": "Add the page"
 }

@@ -208,7 +208,7 @@ Signing follows RFC 8551 (`multipart/signed`, CMS with SHA-256, certificate chai
 
 Senders: workflow e-mails may only use `from` or addresses from `allowed_from` as the sender; other requested senders are set as the reply address (Reply-To), so no foreign senders are forged and SPF/DMARC do not fail.
 
-**Summaries of watches.** Watches with `frequency: daily` or `weekly` are sent once a day at `digest_hour` o'clock or weekly on `digest_weekday` (0 = Sunday, 1 = Monday …), in the time zone `digest_timezone` (IANA name, empty = time zone of the server). Default: 7 o'clock, Monday.
+**Summaries of watches.** Watches with `frequency: daily` or `weekly` are sent once a day at `digest_hour` o'clock or weekly on `digest_weekday` (0 = Sunday, 1 = Monday …), in the time zone `digest_timezone` (IANA name, empty = time zone of the server). It is also the **time zone of the wiki** for times of appointments in pages (date blocks with a time). Default: 7 o'clock, Monday.
 
 ```yaml
 mail:

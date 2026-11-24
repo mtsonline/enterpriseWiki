@@ -67,6 +67,15 @@ func (s *Server) routesData() {
 		if dq.Ref, err = id("ref"); err != nil {
 			return nil, err
 		}
+		if v := strings.TrimSpace(q.Get("elements")); v != "" {
+			for _, x := range strings.Split(v, ",") {
+				n, err := strconv.ParseInt(strings.TrimSpace(x), 10, 64)
+				if err != nil || n < 1 {
+					return nil, apperr.BadRequest("%s: a number", "elements")
+				}
+				dq.Elements = append(dq.Elements, n)
+			}
+		}
 		for _, st := range strings.Split(q.Get("state"), ",") {
 			if st = strings.TrimSpace(st); st != "" {
 				dq.States = append(dq.States, st)

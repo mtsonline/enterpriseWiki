@@ -33,7 +33,7 @@ import (
 type MacroParam struct {
 	Name   string            `json:"name"`
 	Labels map[string]string `json:"labels"`
-	// text | textarea | number | date (YYYY-MM-DD) | select | bool | url, or custom:<name> for
+	// text | textarea | number | date (YYYY-MM-DD) | time (HH:MM) | select | bool | url, or custom:<name> for
 	// a control a plugin registers in the browser (registerMacroParamControl)
 	Type    string   `json:"type"`
 	Options []string `json:"options,omitempty"`

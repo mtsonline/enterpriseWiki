@@ -615,12 +615,19 @@ func buildDemo(d *demoRun) {
 	d.optional("tasks", func() {
 		bodies := map[string]any{}
 		for l, src := range d.tr("Task items that name people with @name or have a date are tasks: they appear in the report below, under *My tasks* and on the dashboard. The people of a task tick it there; the page keeps its author.\n\n"+
-			"- [ ] Check the offer of the new server @anna :date{value=2026-11-30}\n- [ ] Plan the move together @anna @ben\n- [x] Book the meeting room @ben\n- [ ] Write the announcement :date{value=2026-12-10}\n\n## Open tasks of the team\n\n::tasks{category="+strconv.FormatInt(team, 10)+"}\n",
+			"- [ ] Check the offer of the new server @anna :date{value=2026-11-30}\n- [ ] Plan the move together @anna @ben\n- [x] Book the meeting room @ben\n- [ ] Write the announcement :date{value=2026-12-10}\n\n"+
+			"The move starts on :date{value=2026-12-12 label=\"Server move\" time=08:00 end=12:00}; we meet before on :date{value=2026-12-08 label=\"Move kick-off\" time=14:00}. A date with a title is an appointment: it appears below and in calendars that take this category as a source.\n\n"+
+			"## Open tasks of the team\n\n::tasks{category="+strconv.FormatInt(team, 10)+"}\n\n## Dates of the team\n\n::dates{category="+strconv.FormatInt(team, 10)+"}\n",
 			"Aufgabenpunkte, die Personen mit @Name nennen oder ein Datum haben, sind Aufgaben: Sie erscheinen im Bericht unten, unter *Meine Aufgaben* und im Dashboard. Die Personen einer Aufgabe haken sie dort ab; die Seite behält ihre Autorin oder ihren Autor.\n\n"+
-				"- [ ] Angebot für den neuen Server prüfen @anna :date{value=2026-11-30}\n- [ ] Umzug gemeinsam planen @anna @ben\n- [x] Besprechungsraum buchen @ben\n- [ ] Ankündigung schreiben :date{value=2026-12-10}\n\n## Offene Aufgaben des Teams\n\n::tasks{category="+strconv.FormatInt(team, 10)+"}\n") {
+				"- [ ] Angebot für den neuen Server prüfen @anna :date{value=2026-11-30}\n- [ ] Umzug gemeinsam planen @anna @ben\n- [x] Besprechungsraum buchen @ben\n- [ ] Ankündigung schreiben :date{value=2026-12-10}\n\n"+
+				"Der Umzug beginnt am :date{value=2026-12-12 label=\"Server-Umzug\" time=08:00 end=12:00}; vorher treffen wir uns am :date{value=2026-12-08 label=\"Auftakt zum Umzug\" time=14:00}. Ein Datum mit Titel ist ein Termin: Er erscheint unten und in Kalendern, die diese Kategorie als Quelle haben.\n\n"+
+				"## Offene Aufgaben des Teams\n\n::tasks{category="+strconv.FormatInt(team, 10)+"}\n\n## Termine des Teams\n\n::dates{category="+strconv.FormatInt(team, 10)+"}\n") {
 			bodies[l] = map[string]string{"format": "markdown", "source": src}
 		}
 		d.element(team, "core.html", d.tr("Tasks of the move", "Aufgaben zum Umzug"), bodies, nil)
+		// a calendar with the dates (and tasks) of the pages of the team
+		d.element(team, "content.events", d.tr("Calendar of the team", "Kalender des Teams"), d.same(map[string]any{"intro": htmlBodyOf(""), "view": "list", "week_start": 1, "list_days": 90,
+			"page_tasks": true, "more_sources": fmt.Sprintf("category:%d+sub", team)}), nil)
 	})
 
 	// ---- 5b. projects with properties: definitions, a database and reports
