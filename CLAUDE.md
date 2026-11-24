@@ -19,7 +19,7 @@ Bei jedem Konflikt gilt diese Reihenfolge: Sicherheit, kein Datenverlust, Stabil
 - **Fremde Produktnamen:** Namen von Konkurrenzprodukten stehen nur in Import-Funktionen für das jeweilige System, deren Tests und Abdeckungsvergleichen, sonst nirgends. Namen von Systemen, die das Wiki anbindet (zum Beispiel Office-Server, Anmeldeanbieter, Verzeichnisdienste, Chat-Dienste), sind erlaubt.
 - **Namensräume:** Alles, was ein Plugin anmeldet (Routen, Rechte, Einstellungen, Ereignisse, Aktionen), trägt seine Plugin-ID; Instanzen heißen `plugin-id/instanz-id`; `core.` ist dem Kern vorbehalten.
 - **Geheimnisse:** Vorgabe `plain`. Verschlüsselung ist immer wählbar, nie Pflicht.
-- **Konfiguration:** ohne Cluster in `config.yaml`. Nur im Cluster-Modus liegen die in der Oberfläche änderbaren Einstellungen in der Datenbank.
+- **Konfiguration:** ohne Cluster in `config.yaml`. Nur im Cluster-Modus liegen die in der Oberfläche änderbaren Einstellungen in der Datenbank. **Stand:** beschlossen am 13.11.2026, noch nicht gebaut; kommt mit dem Cluster-Netz (Roadmap, „Cluster“). Bis dahin teilen sich die Knoten die `config.yaml` auf einem gemeinsamen Volume.
 
 ## 2. Abhängigkeiten und Lizenzen
 
