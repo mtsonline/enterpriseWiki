@@ -170,7 +170,7 @@ func (s *Service) requireSessionAdmin(ctx context.Context, uid int64) error {
 	if err := perm.Require(ctx, "core.users.manage"); err != nil {
 		return err
 	}
-	return guardTarget(ctx, s.pool, uid)
+	return s.guardTarget(ctx, s.pool, uid)
 }
 
 // UserSessions lists the sessions of a user (administrators).

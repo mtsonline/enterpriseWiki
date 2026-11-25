@@ -920,5 +920,5 @@ func (s *Service) RequireUserAdmin(ctx context.Context, uid int64) error {
 	if err := s.requireUserAdmin(ctx); err != nil {
 		return err
 	}
-	return guardTarget(ctx, s.pool, uid)
+	return s.guardTarget(ctx, s.pool, uid)
 }
