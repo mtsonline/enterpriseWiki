@@ -7224,6 +7224,51 @@ test('administration overview: tiles with links, update commands, narrow and wid
   await page.waitForURL(/\/admin\/users$/);
 });
 
+test('pop-up notification: shown once as a dialog, then in the bell', async () => {
+  await page.goto(BASE + '/');
+  await idle();
+  const cat = await call('POST', '/api/v1/categories', { titles: { en: `Pop-ups ${run}` } });
+  const wf = await call('POST', '/api/v1/elements', { category_id: cat.id, type: 'workflow.process', title: `Pop-up ${run}`, body: {
+    fields: [{ id: 'name', label: 'Name', type: 'text', required: true }],
+    steps: [{ id: 'tell', name: 'Tell', type: 'notify', next: 'done', notify: { to: 'starter', channel: 'inbox', popup: true, subject: 'Answer for {{field.name}}', body: 'Line one\nLine two' } },
+      { id: 'done', name: 'Done', type: 'end', outcome: 'success' }],
+  } });
+  const popups = async (n) => {
+    // the message step runs in the background (at most half a minute)
+    for (let i = 0; i < 120; i++) {
+      const res = await call('GET', '/api/v1/me/inbox/popups');
+      if (res.items.length >= n) return res.items;
+      await page.waitForTimeout(500);
+    }
+    throw new Error('no pop-up arrived');
+  };
+  try {
+    for (const scheme of ['light', 'dark']) {
+      await call('POST', `/api/v1/x/workflow.process/elements/${wf.id}/instances`, { data: { name: `${scheme} ${run}` } });
+      await popups(1);
+      await call('PUT', '/api/v1/scheme', { scheme });
+      await page.goto(BASE + '/');
+      const dlg = page.getByRole('dialog', { name: `Answer for ${scheme} ${run}` });
+      await dlg.waitFor();
+      await dlg.getByText('Line two').waitFor();
+      // the focus is inside the dialog, on its first button
+      assert.ok(await page.evaluate(() => !!document.activeElement?.closest('dialog')), 'focus in the pop-up');
+      await a11y(`pop-up notification (${scheme})`);
+      await page.keyboard.press('Escape');
+      await dlg.waitFor({ state: 'detached' });
+      // shown once: not again after a reload, but read in the bell
+      await page.reload();
+      await idle();
+      assert.equal(await page.getByRole('dialog').count(), 0, 'the pop-up comes once');
+      const inbox = await call('GET', '/api/v1/me/inbox?limit=5');
+      const n = inbox.items.find((x) => x.title === `Answer for ${scheme} ${run}`);
+      assert.ok(n && n.popup && n.read_at, 'the pop-up stays, read, in the bell');
+    }
+  } finally {
+    await call('PUT', '/api/v1/scheme', { scheme: '' });
+  }
+});
+
 test('no JavaScript errors occurred', () => {
   assert.deepEqual(errors, []);
 });

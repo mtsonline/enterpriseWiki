@@ -967,6 +967,13 @@ var traps = []trap{
 		Pkg:  "./internal/server/", Tests: "^TestDemo$",
 	},
 	{
+		ID: "notify.popups-of-others", About: "a person sees the pop-ups of other people",
+		File: "internal/notify/notify.go",
+		Old:  "WHERE n.user_id=$1 AND n.popup AND n.read_at IS NULL",
+		New:  "WHERE (n.user_id=$1 OR true) AND n.popup AND n.read_at IS NULL",
+		Pkg:  "./internal/server/", Tests: "^TestPopupNotifications$",
+	},
+	{
 		ID: "errors.english-only", About: "error answers ignore the language of the client",
 		File: "internal/httpx/httpx.go",
 		Old:  "body := map[string]string{\"code\": code, \"message\": apperr.Localized(err, apperr.RequestLanguage(r))}",

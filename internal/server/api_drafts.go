@@ -7,6 +7,7 @@ import (
 	"github.com/mtsonline/enterprisewiki/internal/apperr"
 	"github.com/mtsonline/enterprisewiki/internal/content"
 	h "github.com/mtsonline/enterprisewiki/internal/httpx"
+	"github.com/mtsonline/enterprisewiki/internal/limits"
 	"github.com/mtsonline/enterprisewiki/internal/watch"
 )
 
@@ -137,6 +138,11 @@ func (s *Server) routesNotifications() {
 	s.handle("GET /api/v1/me/inbox", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		list, unread, err := s.app.Notify.List(r.Context(), h.QueryInt(r, "limit", 30))
 		return map[string]any{"items": list, "unread": unread}, err
+	})
+	// action: core.me.inbox.popups
+	s.handle("GET /api/v1/me/inbox/popups", func(w http.ResponseWriter, r *http.Request) (any, error) {
+		list, err := s.app.Notify.Popups(r.Context(), int(limits.Value(s.app.Config.Get(), limits.NotifyPopups)))
+		return map[string]any{"items": list}, err
 	})
 	// action: core.me.inbox.read
 	s.handle("POST /api/v1/me/inbox/read", func(w http.ResponseWriter, r *http.Request) (any, error) {

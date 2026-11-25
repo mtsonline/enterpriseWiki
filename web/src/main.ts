@@ -38,6 +38,7 @@ import { iconControl } from './components/iconpicker';
 import { categoryControl, groupControl, imageControl, pageControl, templateControl, userControl } from './components/macroparams';
 import { registerMacroParamControl } from './editor/macros';
 import { notificationBell } from './components/bell';
+import { showPopups } from './components/popups';
 import { adminView } from './views/admin';
 import { registerSourceControls } from './components/sources';
 import { installMacroPager } from './core/pager';
@@ -243,8 +244,11 @@ async function boot(): Promise<void> {
     useAccent();
     useTemplate(ctx.template || siteTemplate());
     void refreshPositions();
+    // pop-up notifications (at most once a minute)
+    void showPopups();
   });
   start(layout.main);
+  void showPopups();
   // Texts of the template itself (skip link, landmarks) follow the language.
   window.addEventListener('ewiki:relayout', () => {
     layout = build();
