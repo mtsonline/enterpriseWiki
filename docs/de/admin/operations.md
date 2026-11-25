@@ -27,7 +27,21 @@ Datenbank-Migrationen laufen beim Start automatisch, einmalig und in Transaktion
 docker compose up -d          # lädt das neueste Image und startet neu (Migrationen laufen automatisch)
 ```
 
-Mit selbst gebautem Image (eigene Plugins): `git pull && docker compose up -d --build`.
+Mit selbst gebautem Image (eigene Plugins): `git pull && docker compose -f docker-compose.build.yml up -d --build`.
+
+### Hinweis auf neue Versionen in der Übersicht
+
+Die Startseite der Administration (*Administration → Übersicht*, `/admin`) zeigt, ob eine neue Version des Kerns erschienen ist, mit ihren Änderungen. Sicherheitsupdates sind hervorgehoben: Ihre Abschnitte `## Security` bzw. `## Sicherheit` aus den Release-Notes aller Versionen seit der installierten stehen zuerst (Regel für Release-Notes: [CONTRIBUTING.de.md](../../../CONTRIBUTING.de.md)).
+
+Einen Knopf zum Einspielen gibt es bewusst nicht: Dafür bräuchte das Wiki Zugriff auf Docker, also Root-Rechte auf dem Server. Die Übersicht zeigt stattdessen den passenden Befehl:
+
+| Installation | Befehl | Erkannt an |
+|---|---|---|
+| Docker mit dem fertigen Image | `docker compose pull` und `docker compose up -d` | `EWIKI_IMAGE_ORIGIN=published`, nur im veröffentlichten Image gesetzt |
+| Docker mit selbst gebautem Image | `git pull && docker compose -f docker-compose.build.yml up -d --build` | `EWIKI_IMAGE_ORIGIN=self-built`, Vorgabe des `Dockerfile` |
+| systemd | `sudo <Verzeichnis>/scripts/update.sh` | `EWIKI_INSTALL=systemd`, gesetzt von `scripts/install.sh` |
+
+Fehlt das Merkmal (etwa bei einem älteren Image oder einer älteren systemd-Installation), zeigt die Übersicht alle Befehle mit ihrer Bezeichnung. Zum Update-Timer: Bei systemd spielt er, wenn eingeschaltet, sonntags zwischen 03:30 und 04:30 Uhr ein; ob er eingeschaltet ist, kann das Wiki nicht sehen. Unter Docker aktualisiert sich das Wiki nicht selbst. Dieselben Angaben liefert `ewiki status` (`GET /api/v1/admin/status`).
 
 ## Automatische Updates der Komponenten
 

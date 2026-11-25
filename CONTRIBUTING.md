@@ -14,3 +14,4 @@ The binding rules for all contributions are in [CLAUDE.en.md](CLAUDE.en.md) (Ger
    API, CLI and interface.
 4. **Documentation** in German and English: `go run ./tools/docscheck` checks pages, structure, links and that every identifier named in backticks (blocks, actions, permissions, settings …) really exists.
 5. **Plugins** for the official catalogue: see [docs/en/developer/plugins.md](docs/en/developer/plugins.md); the CLA applies here too.
+6. **Release notes**: a release that fixes a security problem has a section `## Security` (or `## Sicherheit`, any heading level) in its notes on GitHub, with the fixes in short sentences. The wiki marks such a release as a security update and shows this section first in the overview of the administration, also to installations that skip versions. The same rule applies to plugins with a repository.

@@ -27,7 +27,21 @@ Database migrations run automatically on start, once and in transactions. With s
 docker compose up -d          # pulls the newest image and restarts (migrations run automatically)
 ```
 
-With a self-built image (own plugins): `git pull && docker compose up -d --build`.
+With a self-built image (own plugins): `git pull && docker compose -f docker-compose.build.yml up -d --build`.
+
+### Notice of new versions in the overview
+
+The start page of the administration (*Administration → Overview*, `/admin`) shows whether a new version of the core has been released, with its changes. Security updates are highlighted: their sections `## Security` or `## Sicherheit` from the release notes of all versions since the installed one come first (rule for release notes: [CONTRIBUTING.md](../../../CONTRIBUTING.md)).
+
+There is deliberately no button to install it: the wiki would need access to Docker, that is root on the server. Instead the overview shows the matching command:
+
+| Installation | Command | Recognised by |
+|---|---|---|
+| Docker with the published image | `docker compose pull` and `docker compose up -d` | `EWIKI_IMAGE_ORIGIN=published`, set only in the published image |
+| Docker with a self-built image | `git pull && docker compose -f docker-compose.build.yml up -d --build` | `EWIKI_IMAGE_ORIGIN=self-built`, default of the `Dockerfile` |
+| systemd | `sudo <directory>/scripts/update.sh` | `EWIKI_INSTALL=systemd`, set by `scripts/install.sh` |
+
+Without the marker (for example an older image or an older systemd installation) the overview shows all commands with their labels. The update timer: with systemd, if switched on, it installs on Sundays between 03:30 and 04:30; the wiki cannot see whether it is switched on. Under Docker the wiki does not update itself. `ewiki status` (`GET /api/v1/admin/status`) gives the same information.
 
 ## Automatic updates of the components
 
