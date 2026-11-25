@@ -83,10 +83,17 @@ function writeIndex(meta) {
   // chunks app.js imports directly are preloaded (no request waterfall)
   const entry = meta && Object.entries(meta.outputs).find(([, o]) => o.entryPoint && o.entryPoint.endsWith('src/main.ts'));
   const preload = (entry ? entry[1].imports : []).filter((i) => i.kind === 'import-statement')
-    .map((i) => `<link rel="modulepreload" href="/assets/${path.relative(path.join(dist, 'assets'), path.resolve(i.path)).split(path.sep).join('/')}">`).join('\n  ');
+    .map((i) => `<link rel="modulepreload" href="/assets/${path.relative(path.join(dist, 'assets'), path.resolve(i.path)).split(path.sep).join('/')}">`);
+  // the default font (latin) is loaded at once: the text does not change its
+  // width after the first paint, so nothing moves when the font arrives
+  // (Inter for the text, Poppins Bold for the headings)
+  for (const re of [/\/inter-latin-wght-normal-[A-Z0-9]+\.woff2$/, /\/poppins-latin-700-normal-[A-Z0-9]+\.woff2$/]) {
+    const font = meta && Object.keys(meta.outputs).find((o) => re.test(o));
+    if (font) preload.push(`<link rel="preload" href="/assets/${path.relative(path.join(dist, 'assets'), path.resolve(font)).split(path.sep).join('/')}" as="font" type="font/woff2" crossorigin>`);
+  }
   const html = fs.readFileSync(path.join(here, 'index.html'), 'utf8')
     .replace('%CSS%', `/assets/${cssName}`).replace('%JS%', `/assets/${jsName}`)
-    .replace('%PRELOAD%', preload);
+    .replace('%PRELOAD%', preload.join('\n  '));
   fs.writeFileSync(path.join(dist, 'index.html'), html);
   fs.writeFileSync(path.join(dist, '.gitkeep'), '');
 }

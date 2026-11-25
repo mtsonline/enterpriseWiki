@@ -51,7 +51,7 @@ AGPL. Es gibt damit **keinen Lizenzwiderspruch**. Zu erfüllen sind:
 - **Urheberrechtshinweise und Lizenztexte mitliefern**: Beim Bauen erzeugt `tools/notices` die Datei `licenses.txt`
   mit allen Lizenztexten (inkl. der NOTICE-Dateien von Apache-2.0-Komponenten). Sie ist im Programm enthalten,
   abrufbar unter `/licenses.txt`, unter *Administration → Lizenz* und mit `ewiki license notices`.
-- **Schriften** (Inter, Source Sans 3; OFL 1.1): dürfen mit Software gebündelt, aber nicht einzeln verkauft werden; der
+- **Schriften** (Inter, Poppins, Source Sans 3; OFL 1.1): dürfen mit Software gebündelt, aber nicht einzeln verkauft werden; der
   Lizenztext ist in `licenses.txt` enthalten.
 - **Namen und Stichwörter der Emoji** (Unicode CLDR über emojibase-data; Unicode License v3): Der Hinweis und der Lizenztext stehen in `licenses.txt`.
 

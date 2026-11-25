@@ -1,5 +1,45 @@
 /* Enterprise Wiki base styles. Templates override the custom properties.
    All color pairs meet WCAG 2.2 AA contrast (>= 4.5:1 for text). */
+
+/* The default font of the interface: Inter (SIL Open Font License 1.1, no
+   reserved font name), served by the wiki itself, latin and latin-ext. The
+   same font on every machine: the layout does not depend on the fonts of the
+   system (they differed between local tests and the CI). The interface still
+   works with any other font a template chooses (docs: accessibility checks). */
+@font-face {
+  font-family: 'Inter Variable'; font-style: normal; font-display: swap; font-weight: 100 900;
+  src: url(../../node_modules/@fontsource-variable/inter/files/inter-latin-ext-wght-normal.woff2) format('woff2-variations');
+  unicode-range: U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C4,U+2113,U+2C60-2C7F,U+A720-A7FF;
+}
+@font-face {
+  font-family: 'Inter Variable'; font-style: normal; font-display: swap; font-weight: 100 900;
+  src: url(../../node_modules/@fontsource-variable/inter/files/inter-latin-wght-normal.woff2) format('woff2-variations');
+  unicode-range: U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD;
+}
+@font-face {
+  font-family: 'Inter Variable'; font-style: italic; font-display: swap; font-weight: 100 900;
+  src: url(../../node_modules/@fontsource-variable/inter/files/inter-latin-ext-wght-italic.woff2) format('woff2-variations');
+  unicode-range: U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C4,U+2113,U+2C60-2C7F,U+A720-A7FF;
+}
+@font-face {
+  font-family: 'Inter Variable'; font-style: italic; font-display: swap; font-weight: 100 900;
+  src: url(../../node_modules/@fontsource-variable/inter/files/inter-latin-wght-italic.woff2) format('woff2-variations');
+  unicode-range: U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD;
+}
+/* Headings of the wiki template: Poppins Bold (SIL Open Font License 1.1, no
+   reserved font name), the font of the logo; only weight 700, latin and
+   latin-ext (about 13 KB). */
+@font-face {
+  font-family: 'Poppins'; font-style: normal; font-display: swap; font-weight: 700;
+  src: url(../../node_modules/@fontsource/poppins/files/poppins-latin-ext-700-normal.woff2) format('woff2');
+  unicode-range: U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF;
+}
+@font-face {
+  font-family: 'Poppins'; font-style: normal; font-display: swap; font-weight: 700;
+  src: url(../../node_modules/@fontsource/poppins/files/poppins-latin-700-normal.woff2) format('woff2');
+  unicode-range: U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD;
+}
+
 :root {
   --ew-bg: #ffffff;
   /* the background of a dark page while it loads (= --ew-bg of the dark scheme) */
@@ -76,8 +116,10 @@
   --ew-class2-border: #b65c02;
   --ew-class2-text: #5c2e00;
   --ew-radius: 6px;
-  --ew-font: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --ew-font: "Inter Variable", Inter, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   --ew-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  /* headings of the wiki template (templates and designs set their own) */
+  --ew-heading-font: Poppins, var(--ew-font);
   --ew-header-h: 56px;
   --ew-sidebar-w: 248px;
 }
@@ -170,6 +212,11 @@ a { color: var(--ew-link); text-decoration: underline; text-underline-offset: 2p
 a:hover { text-decoration-thickness: 2px; }
 :focus-visible { outline: 3px solid var(--ew-focus); outline-offset: 2px; }
 h1, h2, h3 { line-height: 1.25; }
+/* Poppins for the headings of the wiki template only (.ewc-app). :where keeps
+   the rule at the lowest weight, so a template or a design that chose another
+   heading font wins. Line heights have no unit: when the font arrives (swap),
+   a heading keeps the height of its lines. */
+:where(body:has(.ewc-app)) :is(h1, h2, h3, h4) { font-family: var(--ew-heading-font); }
 h1 { font-size: 1.75rem; margin: .25rem 0 1rem; }
 h2 { font-size: 1.3rem; margin: 1.5rem 0 .75rem; }
 h3 { font-size: 1.1rem; }
@@ -200,6 +247,9 @@ img { max-width: 100%; height: auto; }
 /* ---------------------------------------------------------------- buttons & forms */
 .ew-btn {
   display: inline-flex; align-items: center; gap: .4rem; min-height: 2.25rem; padding: .35rem .9rem;
+  /* grows with its text and wraps a word longer than its box instead of leaving
+     it (any font); break-word, not anywhere: in a row it keeps its words whole */
+  max-width: 100%; overflow-wrap: break-word;
   border-radius: var(--ew-radius); border: 1px solid transparent; font: inherit; font-weight: 600;
   cursor: pointer; text-decoration: none; line-height: 1.2;
 }
@@ -287,10 +337,10 @@ legend { font-weight: 700; padding: 0 .25rem; }
 }
 .ew-dialog--wide { width: min(56rem, calc(100vw - 2rem)); }
 .ew-dialog::backdrop { background: var(--ew-backdrop); }
-.ew-dialog-head { display: flex; justify-content: space-between; align-items: center; padding: .75rem 1rem; border-bottom: 1px solid var(--ew-border); }
-.ew-dialog-head h2 { margin: 0; font-size: 1.2rem; }
+.ew-dialog-head { display: flex; justify-content: space-between; align-items: center; gap: .5rem; padding: .75rem 1rem; border-bottom: 1px solid var(--ew-border); }
+.ew-dialog-head h2 { margin: 0; font-size: 1.2rem; min-width: 0; overflow-wrap: anywhere; }
 .ew-dialog-body { padding: 1rem; overflow: auto; max-height: calc(100vh - 10rem); }
-.ew-dialog-actions { display: flex; justify-content: flex-end; gap: .5rem; padding-top: .75rem; }
+.ew-dialog-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: .5rem; padding-top: .75rem; }
 .ew-toasts { position: fixed; bottom: 1rem; right: 1rem; display: grid; gap: .5rem; z-index: 2000; }
 .ew-toast { background: var(--ew-toast-bg); color: var(--ew-toast-text); padding: .7rem 1rem; border-radius: var(--ew-radius); box-shadow: 0 4px 14px rgba(0,0,0,.25); max-width: 28rem; }
 .ew-toast--error { background: var(--ew-danger); }
@@ -351,7 +401,7 @@ legend { font-weight: 700; padding: 0 .25rem; }
 .ew-card h2, .ew-card h3 { margin: 0 0 .4rem; font-size: 1.1rem; }
 .ew-breadcrumbs ol { list-style: none; display: flex; flex-wrap: wrap; gap: .3rem; padding: 0; margin: 0 0 .5rem; font-size: .92rem; }
 .ew-breadcrumbs li + li::before { content: "/"; margin-right: .3rem; color: var(--ew-text-muted); }
-.ew-tabs ul { list-style: none; display: flex; gap: .25rem; padding: 0; border-bottom: 1px solid var(--ew-border); margin: 0 0 1rem; }
+.ew-tabs ul { list-style: none; display: flex; flex-wrap: wrap; gap: .25rem; padding: 0; border-bottom: 1px solid var(--ew-border); margin: 0 0 1rem; }
 .ew-tabs a { display: block; padding: .5rem .9rem; text-decoration: none; border-bottom: 3px solid transparent; color: var(--ew-text); }
 .ew-tabs a[aria-current="page"] { border-color: var(--ew-primary); font-weight: 700; }
 .ew-result-list { padding-left: 1.2rem; }
@@ -379,7 +429,7 @@ progress { width: 8rem; vertical-align: middle; }
 .ew-tree ul { list-style: none; margin: 0; padding: 0; }
 .ew-tree ul ul { padding-left: 1rem; }
 .ew-tree-row { display: flex; align-items: center; gap: .15rem; border-radius: 4px; }
-.ew-tree-row a { flex: 1; padding: .25rem .4rem; text-decoration: none; color: var(--ew-text); border-radius: 4px; }
+.ew-tree-row a { flex: 1; min-width: 0; overflow-wrap: anywhere; padding: .25rem .4rem; text-decoration: none; color: var(--ew-text); border-radius: 4px; }
 .ew-tree-row a:hover { background: var(--ew-bg-subtle); text-decoration: underline; }
 .ew-tree-row.is-current a { background: var(--ew-info-bg); color: var(--ew-info-text); font-weight: 700; }
 .ew-tree-toggle { width: 1.8rem; height: 1.8rem; border: none; background: none; cursor: pointer; color: var(--ew-text); border-radius: 4px; font-size: .9rem; }
@@ -389,8 +439,8 @@ progress { width: 8rem; vertical-align: middle; }
 
 /* ---------------------------------------------------------------- header widgets */
 .ew-search { display: flex; gap: .3rem; }
-.ew-search-input { min-width: 12rem; }
-.ew-lang { display: flex; align-items: center; gap: .35rem; }
+.ew-search-input { min-width: min(12rem, 100%); }
+.ew-lang { display: flex; flex-wrap: wrap; align-items: center; gap: .35rem; }
 .ew-lang label { font-size: .9rem; }
 .ew-lang .ew-input { width: auto; }
 .ew-user-menu { position: relative; }
@@ -480,7 +530,7 @@ progress { width: 8rem; vertical-align: middle; }
 td.ew-actions { display: table-cell; white-space: nowrap; }
 td.ew-actions > * + * { margin-left: .5rem; }
 th .ew-help { font-weight: 400; }
-.ew-admin-panel { min-width: 0; overflow-x: auto; }
+.ew-admin-panel { min-width: 0; overflow-x: auto; position: relative; }
 
 /* WCAG 2.2 target size: interactive targets are at least 24x24 px */
 .ew-breadcrumbs a, .ew-tags a, .ew-subnav a, .ew-tabs a { display: inline-block; min-height: 24px; min-width: 24px; }
@@ -506,13 +556,15 @@ th .ew-help { font-weight: 400; }
 .ew-picker--element { border: 1px solid var(--ew-border); border-radius: 8px; padding: .75rem; }
 .ew-subfield { border: 1px solid var(--ew-border); border-radius: 8px; padding: .5rem .75rem; margin-bottom: .75rem; }
 .ew-filters { display: grid; grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr)); gap: 0 1rem; align-items: start; margin-bottom: .5rem; }
-.ew-pager { display: flex; gap: .75rem; justify-content: center; margin: 1rem 0; }
+.ew-pager { display: flex; flex-wrap: wrap; gap: .75rem; justify-content: center; margin: 1rem 0; }
 .ew-macro .ew-pager ul { display: flex; flex-wrap: wrap; gap: .35rem; list-style: none; margin: 0; padding: 0; align-items: center; }
 .ew-macro .ew-pager a { display: inline-flex; min-width: 2.75rem; min-height: 2.75rem; align-items: center; justify-content: center; border: 1px solid var(--ew-border); border-radius: 6px; text-decoration: none; }
 .ew-macro .ew-pager a[aria-current="page"] { background: var(--ew-primary); color: var(--ew-on-primary); border-color: var(--ew-primary); font-weight: 700; }
 .ew-macro[aria-busy="true"] { opacity: .6; }
 .ew-macro:focus { outline: 3px solid var(--ew-focus); outline-offset: 4px; }
-.ew-table-wrap { overflow-x: auto; }
+/* positioned: .sr-only text inside (absolute) stays in the scrolling box instead of
+   widening the page */
+.ew-table-wrap { overflow-x: auto; position: relative; }
 .ew-table--compact td, .ew-table--compact th { vertical-align: top; }
 .ew-table--compact td.ew-actions { white-space: normal; min-width: 8rem; line-height: 1.9; }
 .ew-nowrap { white-space: nowrap; }
@@ -550,7 +602,7 @@ th .ew-help { font-weight: 400; }
 .ew-bell { position: relative; min-width: 44px; min-height: 44px; }
 .ew-bell-count { position: absolute; top: 2px; right: 2px; min-width: 1.2rem; padding: 0 .25rem; border-radius: 999px; background: var(--ew-badge-bg); color: var(--ew-badge-text); font-size: .75rem; font-weight: 700; line-height: 1.2rem; text-align: center; }
 .ew-inbox { position: absolute; right: 0; top: calc(100% + 4px); z-index: 900; width: min(26rem, 92vw); max-height: 70vh; overflow: auto; background: var(--ew-surface); color: var(--ew-text); border: 1px solid var(--ew-border); border-radius: 8px; box-shadow: 0 10px 30px rgb(0 0 0 / .18); }
-.ew-inbox-head { display: flex; justify-content: space-between; align-items: center; padding: .5rem .75rem; border-bottom: 1px solid var(--ew-border); }
+.ew-inbox-head { display: flex; flex-wrap: wrap; gap: .25rem .5rem; justify-content: space-between; align-items: center; padding: .5rem .75rem; border-bottom: 1px solid var(--ew-border); }
 .ew-inbox-head h2 { font-size: 1rem; margin: 0; }
 .ew-inbox-list { list-style: none; margin: 0; padding: 0; }
 .ew-inbox-list li { border-bottom: 1px solid var(--ew-border); display: flex; align-items: flex-start; }
@@ -593,7 +645,7 @@ html { scroll-padding-top: calc(var(--ew-sticky-top, var(--ew-header-h)) + .5rem
 .ew-media-view .ew-media-page { width: 100%; aspect-ratio: 210 / 297; }
 .ew-media-view audio { width: 100%; }
 .ew-media-pdf { width: 100%; height: 70vh; border: 1px solid var(--ew-border); }
-.ew-media-pager { display: flex; gap: 1rem; align-items: center; justify-content: center; margin-bottom: .5rem; }
+.ew-media-pager { display: flex; flex-wrap: wrap; gap: 1rem; align-items: center; justify-content: center; margin-bottom: .5rem; }
 .ew-protected, .ew-protected img { user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
 .ew-media-meta { display: grid; grid-template-columns: max-content 1fr; gap: .25rem 1rem; margin: 1rem 0; }
 .ew-media-meta dt { font-weight: 600; }
@@ -619,7 +671,7 @@ html { scroll-padding-top: calc(var(--ew-sticky-top, var(--ew-header-h)) + .5rem
 /* chips of pickers (people) and lists of subjects */
 .ew-picker { display: flex; flex-wrap: wrap; gap: .35rem; align-items: center; }
 .ew-chips { list-style: none; padding: 0; margin: 0; display: flex; flex-wrap: wrap; gap: .3rem; }
-.ew-chip { display: inline-flex; align-items: center; gap: .15rem; padding: .05rem .1rem .05rem .5rem; border: 1px solid var(--ew-border); border-radius: 999px; background: var(--ew-bg-subtle); }
+.ew-chip { display: inline-flex; max-width: 100%; overflow-wrap: break-word; align-items: center; gap: .15rem; padding: .05rem .1rem .05rem .5rem; border: 1px solid var(--ew-border); border-radius: 999px; background: var(--ew-bg-subtle); }
 .ew-chip .ew-btn { min-width: 24px; min-height: 24px; padding: 0 .35rem; }
 .ew-subjects { list-style: none; padding: 0; }
 .ew-subject { display: flex; flex-wrap: wrap; gap: .4rem; align-items: center; margin: .3rem 0; }

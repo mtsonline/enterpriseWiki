@@ -525,7 +525,7 @@ export async function mediaBrowser(opts: { categoryId?: number; type?: string; o
       grid.replaceChildren(...list.map((m) => h('li', { class: 'ew-media-item' },
         // the name comes from the visible text (WCAG 2.5.3); type and view-only for screen readers
         h('button', { type: 'button', class: 'ew-media-tile' },
-          h('span', { class: 'ew-media-thumb', 'aria-hidden': 'true' }, mediaThumb(m)), h('span', { class: 'ew-media-name' }, m.title || m.name),
+          h('span', { class: 'ew-media-thumb', 'aria-hidden': 'true' }, mediaThumb(m)), h('span', { class: 'ew-media-name', title: m.title || m.name }, m.title || m.name),
           m.name.includes('.') ? h('span', { class: 'sr-only' }, ` (${m.name.split('.').pop()!.toUpperCase()})`) : null,
           m.view_only ? h('span', { class: 'sr-only' }, ` (${t('media.view_only')})`) : null))));
       grid.querySelectorAll<HTMLButtonElement>('.ew-media-tile').forEach((b, i) => b.addEventListener('click', () => {

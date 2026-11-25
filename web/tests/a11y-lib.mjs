@@ -174,13 +174,144 @@ export function coveredControls(pg) {
   return pg.evaluate(findCovered);
 }
 
+/**
+ * Finds content that does not fit (runs in the page):
+ * - the page is wider than the window (a horizontal scroll bar; WCAG 1.4.10).
+ *   Named are the outermost elements that reach past the right edge and are
+ *   not inside a box that scrolls or clips (a table in .ew-table-wrap
+ *   scrolls by design);
+ * - text cut off by a box that clips it (overflow hidden or clip, ellipsis,
+ *   line clamp) without the full text in a title of the box or of the
+ *   link/button around it. Boxes that scroll (overflow auto/scroll) are no
+ *   finding, nor are visually hidden ones (.sr-only).
+ */
+function findOverflow() {
+  const out = [];
+  const vw = document.documentElement.clientWidth;
+  const short = (el) => {
+    const o = el.outerHTML;
+    const tag = o.slice(0, o.indexOf('>') + 1);
+    return (tag.length > 120 ? `${tag.slice(0, 120)}…` : tag).replace(/\s+/g, ' ');
+  };
+  const text = (el) => (el.textContent ?? '').replace(/\s+/g, ' ').trim();
+  const hidden = (el) => !el.checkVisibility({ visibilityProperty: true }) || el.closest('.sr-only, [aria-hidden="true"], [inert]');
+  const clips = (cs) => cs.overflowX !== 'visible' || cs.overflowY !== 'visible' || cs.contain.includes('paint');
+  // 1. wider than the window
+  if (document.documentElement.scrollWidth > vw + 1) {
+    const wide = [];
+    const walk = (el) => {
+      for (const c of el.children) {
+        if (hidden(c)) continue;
+        const r = c.getBoundingClientRect();
+        const cs = getComputedStyle(c);
+        if (r.right > vw + 1 && r.width > 0 && cs.position !== 'fixed') { wide.push(c); continue; }
+        if (!clips(cs)) walk(c);
+      }
+    };
+    walk(document.body);
+    // nothing outside a scrolling box: an absolutely positioned element escapes
+    // one (e.g. .sr-only text in a table whose box is not positioned); name
+    // the innermost elements past the edge
+    if (!wide.length) {
+      for (const e of document.body.querySelectorAll('*')) {
+        if (e.getBoundingClientRect().right <= vw + 1) continue;
+        if ([...e.children].some((c) => c.getBoundingClientRect().right > vw + 1)) continue;
+        wide.push(e);
+      }
+    }
+    out.push(`the page is ${document.documentElement.scrollWidth} px wide in a window of ${vw} px; too wide: ` +
+      wide.slice(0, 5).map((e) => `${short(e)} "${text(e).slice(0, 40)}" (right edge ${Math.round(e.getBoundingClientRect().right)})`).join(' | '));
+  }
+  // 2. text cut off by its box
+  for (const el of document.body.querySelectorAll('*')) {
+    if (el.children.length > 20) continue; // a container, not a box of text
+    const cs = getComputedStyle(el);
+    const hx = cs.overflowX === 'hidden' || cs.overflowX === 'clip';
+    const hy = cs.overflowY === 'hidden' || cs.overflowY === 'clip';
+    const clamp = cs.webkitLineClamp && cs.webkitLineClamp !== 'none';
+    if (!hx && !hy && !clamp) continue;
+    if (!text(el) || hidden(el)) continue;
+    const own = [...el.childNodes].some((n) => n.nodeType === 3 && n.textContent.trim());
+    if (!own && cs.textOverflow !== 'ellipsis' && !clamp) continue; // e.g. a card that rounds its corners
+    if (el.clientWidth < 2 || el.clientHeight < 2) continue;
+    const cutX = hx && el.scrollWidth > el.clientWidth + 1;
+    const cutY = (hy || clamp) && el.scrollHeight > el.clientHeight + 1;
+    if (!cutX && !cutY) continue;
+    const full = text(el);
+    const titled = el.closest('[title]')?.getAttribute('title')?.includes(full.slice(0, 30));
+    if (titled) continue;
+    out.push(`text cut off ${cutX ? 'at the side' : 'at the bottom'}: ${short(el)} "${full.slice(0, 60)}" (shows ${el.clientWidth}x${el.clientHeight} of ${el.scrollWidth}x${el.scrollHeight} px, no title with the full text)`);
+  }
+  return out;
+}
+
+/** Content that does not fit (empty: none). */
+export function overflowFindings(pg) {
+  return pg.evaluate(findOverflow);
+}
+
+/**
+ * Variants of the presentation the interface must survive, whatever font a
+ * template chooses or a person sets:
+ * - spacing: the text spacing of WCAG 1.4.12 (line height 1.5, letter
+ *   spacing .12em, word spacing .16em, paragraph spacing 2em);
+ * - text200: text at 200 % (WCAG 1.4.4; the size of the root font, as the
+ *   font size setting of a browser does), from 800 px window width on (at
+ *   390 px it would be a window of 195 px, below what WCAG 1.4.10 asks);
+ * - wide / narrow: a wide and a narrow font instead of the one of the template
+ *   (fonts of the system; where none is installed the next in the list).
+ */
+const FONT_RULE = (stack) => `body, body *:not(code):not(pre):not(kbd):not(samp):not(svg *) { font-family: ${stack} !important; }`;
+export const VARIANTS = {
+  spacing: { css: '* { line-height: 1.5 !important; letter-spacing: .12em !important; word-spacing: .16em !important; } p { margin-bottom: 2em !important; }' },
+  text200: { css: 'html { font-size: 200% !important; }', minWidth: 800 },
+  wide: { css: FONT_RULE('"DejaVu Sans", Verdana, "Liberation Mono", monospace') },
+  narrow: { css: FONT_RULE('"DejaVu Sans Condensed", "Liberation Sans Narrow", "Arial Narrow", "Source Sans 3 Variable", sans-serif') },
+};
+
+/** Applies a variant to the loaded page (until the next navigation). */
+export async function applyVariant(pg, name) {
+  await pg.addStyleTag({ content: VARIANTS[name].css });
+  // the layout settles: fonts of the system load at once, a frame to be sure
+  await pg.evaluate(() => document.fonts.ready.then(() => new Promise((r) => requestAnimationFrame(() => r()))));
+}
+
+/**
+ * Checks a page in every variant at the given widths (navigating to path for
+ * each, so the variants do not add up). Returns the findings.
+ */
+export async function variantFindings(name, pg, path, widths = [390, 800, 1280], variants = Object.keys(VARIANTS)) {
+  const found = [];
+  const vp = pg.viewportSize();
+  try {
+    for (const v of variants) {
+      for (const width of widths) {
+        if (width < (VARIANTS[v].minWidth ?? 0)) continue;
+        await pg.setViewportSize({ width, height: 900 });
+        await pg.goto(new URL(path, pg.url()).href);
+        await pg.waitForLoadState('networkidle');
+        await pg.waitForFunction(() => !document.querySelector('main[aria-busy="true"]'));
+        await applyVariant(pg, v);
+        try { await checkPage(`${name} (${path}, ${width} px, ${v})`, pg); } catch (e) { found.push(e.message); }
+      }
+    }
+  } finally {
+    // back to the page as it was, without the styles of the last variant
+    if (vp) await pg.setViewportSize(vp);
+    await pg.goto(new URL(path, pg.url()).href);
+    await pg.waitForLoadState('networkidle');
+    await pg.waitForFunction(() => !document.querySelector('main[aria-busy="true"]'));
+  }
+  return found;
+}
+
 /** Waits until the transient toasts (fixed, bottom right, may cover controls) are gone. */
 export async function noToasts(pg) {
   await pg.waitForFunction(() => !document.querySelector('.ew-toasts > *'), null, { timeout: 15000 }).catch(() => undefined);
 }
 
 /**
- * The full check of a page state: axe and the overlap check, from the top of
+ * The full check of a page state: axe, the overlap check and the overflow check, from the top of
  * the page (Playwright scrolls controls into view without scroll-padding,
  * which can leave content half below the sticky header in the snapshot).
  * Throws an assertion error with all findings.
@@ -190,9 +321,11 @@ export async function checkPage(name, pg) {
   await pg.evaluate(() => window.scrollTo(0, 0));
   const axe = await axeViolations(pg);
   const cov = await coveredControls(pg);
+  const ovf = await overflowFindings(pg);
   const msg = [];
   if (axe.length) msg.push(`accessibility violations on ${name}:`, ...axe);
   if (cov.length) msg.push(`covered controls on ${name} (another element lies on top; see web/tests/a11y-lib.mjs):`, ...cov.map((c) => `  ${c}`));
+  if (ovf.length) msg.push(`content that does not fit on ${name} (see findOverflow in web/tests/a11y-lib.mjs):`, ...ovf.map((c) => `  ${c}`));
   assert.deepEqual(msg, [], msg.join('\n'));
 }
 
