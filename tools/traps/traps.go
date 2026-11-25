@@ -1686,7 +1686,7 @@ var traps = []trap{
 		File: "internal/auth/manage.go",
 		Old:  "assign := \"\"\n\tif !s.SeparateAccounts {",
 		New:  "assign := \"\"\n\tif false && !s.SeparateAccounts {",
-		Pkg:  "./internal/server/", Tests: "^TestSharedAccountsLastAdmin$",
+		Pkg:  "./internal/server/", Tests: "^(TestSharedAccountsLastAdmin|TestSiteResetSharedAccounts)$",
 	},
 	{
 		ID: "admin.target-instance", About: "a manager of users of a further site changes an instance administrator",

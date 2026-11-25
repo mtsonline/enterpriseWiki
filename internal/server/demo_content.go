@@ -373,11 +373,12 @@ func demoPeople(d *demoRun, r *demoRefs) {
 		r.handles[pp.user] = uname
 		r.userIDs[pp.user] = uid
 	}
-	// (directly, like the demo accounts; it goes with the groups): the
-	// administration checks applications first, the team leads decide
-	if p := identityOf(d); p != 0 && d.err == nil {
-		if _, err := d.s.app.DB.Exec(d.ctx, `INSERT INTO user_groups(user_id, group_id) SELECT $1, unnest($2::bigint[]) ON CONFLICT DO NOTHING`, p, []int64{r.editors, r.leads}); err != nil {
-			d.err = err
+	// the administrator joins the groups (through the API, also on a
+	// further site with shared accounts): the administration checks
+	// applications first, the team leads decide
+	if p := identityOf(d); p != 0 {
+		for _, g := range []int64{r.editors, r.leads} {
+			d.call(http.MethodPut, fmt.Sprintf("/api/v1/admin/groups/%d/members/%d", g, p), nil, nil)
 		}
 	}
 	// the administration may edit the demo area
