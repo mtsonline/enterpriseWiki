@@ -146,8 +146,8 @@ func demoHome(d *demoRun, r *demoRefs) {
 		return `<p>` + tr("This demo shows Enterprise Wiki with example content. Choose how you want to look around:", "Diese Demo zeigt das Enterprise Wiki mit Beispielinhalten. Wählen Sie, wie Sie sich umsehen möchten:") + `</p>` +
 			macro("grid", map[string]string{"desktop": "2", "tablet": "2", "mobile": "1"},
 				box("building-community", "Example company: "+companyEN, "Beispiel-Firma: "+companyDE, cURL(r.company),
-					"The intranet of a bicycle maker – news, teams, handbook, holiday request and more. The features explain themselves where they are used.",
-					"Das Intranet eines Fahrradherstellers – Neuigkeiten, Teams, Handbuch, Urlaubsantrag und mehr. Die Funktionen erklären sich dort, wo sie genutzt werden.")+`<hr>`+
+					"The intranet of an IT service company – news, teams, handbook, holiday request, job application and more. The features explain themselves where they are used.",
+					"Das Intranet eines IT-Dienstleisters – Neuigkeiten, Teams, Handbuch, Urlaubsantrag, Bewerbung und mehr. Die Funktionen erklären sich dort, wo sie genutzt werden.")+`<hr>`+
 					box("route-2", "Tour of the features", "Rundgang durch die Funktionen", cURL(r.tour),
 						"Station by station: what a feature is, how it is done, what it looks like and what it is good for.",
 						"Station für Station: was eine Funktion ist, wie sie geht, wie sie aussieht und wofür sie gut ist.")) +
@@ -232,7 +232,7 @@ func demoOutside(d *demoRun, r *demoRefs) {
 			"sources": fmt.Sprintf("category:%d", r.news), "feed_items": 3})
 		slides := []struct{ en, de, textEN, textDE string }{
 			{"Year-end party", "Jahresfeier", "Register now in the calendar.", "Jetzt im Kalender anmelden."},
-			{"The cargo bike Kombi", "Das Lastenrad Kombi", "Our first cargo bike.", "Unser erstes Lastenrad."},
+			{"Managed backup", "Verwaltete Datensicherung", "Every night, encrypted.", "Jede Nacht, verschlüsselt."},
 			{"Sign in with a passkey", "Anmelden mit Passkey", "Safer and faster than a password.", "Sicherer und schneller als ein Passwort."},
 		}
 		for i, s := range slides {

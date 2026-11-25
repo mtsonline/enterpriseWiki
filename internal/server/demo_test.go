@@ -199,7 +199,7 @@ func TestDemo(t *testing.T) {
 		for name, wants := range map[string][]string{
 			"Wiki building blocks":              {"the last one out", `id="tree"`, `class="ew-searchbox"`, `class="ew-pagetree"`, "House rules", "New meeting minutes"},
 			"Files and the media library":       {`class="ew-attachments"`, "/download"},
-			"Figures and charts":                {`<svg class="ewl-chart-svg"`, "Cargo bikes"},
+			"Figures and charts":                {`<svg class="ewl-chart-svg"`, "Faults"},
 			"Pictures and galleries":            {`class="ewl-hotspot"`, `data-ew-widget="ewl.compare"`},
 			"Timeline, slider, dialog and more": {"ewl-plan--featured", `data-ew-widget="ewl.countdown"`},
 			// what is placed where outside the pages
@@ -223,7 +223,7 @@ func TestDemo(t *testing.T) {
 		}
 		var placed int
 		_ = e.app.DB.QueryRow(context.Background(), `SELECT count(*) FROM placements p JOIN categories c ON p.level='category' AND p.target=c.id::text
-			WHERE c.titles->>'en'='Beispielwerk Ltd' AND p.block LIKE 'core.carousel/%' AND p.position='content-top' AND p.no_subcategories`).Scan(&placed)
+			WHERE c.titles->>'en'='Enterprise IT Services' AND p.block LIKE 'core.carousel/%' AND p.position='content-top' AND p.no_subcategories`).Scan(&placed)
 		if placed != 1 {
 			t.Errorf("demo carousel placed %d times for the company", placed)
 		}

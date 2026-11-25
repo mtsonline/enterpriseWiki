@@ -163,7 +163,7 @@ func checkDemoRules(t *testing.T, e *env, admin *client) {
 	// the start page of the site leads into both areas
 	home := e.app.Config.Get().UI.HomeElement
 	var company int64
-	if err := e.app.DB.QueryRow(ctx, `SELECT id FROM categories WHERE titles->>'en' = 'Beispielwerk Ltd'`).Scan(&company); err != nil {
+	if err := e.app.DB.QueryRow(ctx, `SELECT id FROM categories WHERE titles->>'en' = 'Enterprise IT Services'`).Scan(&company); err != nil {
 		t.Fatal(err)
 	}
 	for _, l := range []string{"en", "de"} {

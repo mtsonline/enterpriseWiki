@@ -172,7 +172,7 @@ func main() {
 					macro("panel", map[string]string{"type": "info", "title": tr("Note", "Hinweis")}, `<p>`+tr("A box draws attention to something important.", "Ein Kasten lenkt den Blick auf Wichtiges.")+`</p>`) +
 					`<p>` + macro("status", map[string]string{"text": tr("DONE", "ERLEDIGT"), "color": "green"}, "") + ` ` + macro("status", map[string]string{"text": tr("IN PROGRESS", "IN ARBEIT"), "color": "yellow"}, "") + ` ` + macro("status", map[string]string{"text": tr("BLOCKED", "BLOCKIERT"), "color": "red"}, "") + `</p>` +
 					macro("columns", nil, `<p><strong>`+tr("Left:", "Links:")+`</strong> `+tr("categories organise the content in a tree.", "Kategorien ordnen die Inhalte in einem Baum.")+`</p><hr><p><strong>`+tr("Right:", "Rechts:")+`</strong> `+tr("pages, blogs, calendars and forms live in them.", "Darin liegen Seiten, Blogs, Kalender und Formulare.")+`</p>`) +
-					macro("tabs", map[string]string{"label": tr("Opening hours", "Öffnungszeiten")}, `<h3>`+tr("Office", "Büro")+`</h3><p>`+tr("Monday to Friday, 8:00 to 17:00.", "Montag bis Freitag, 8:00 bis 17:00 Uhr.")+`</p><hr><h3>`+tr("Workshop", "Werkstatt")+`</h3><p>`+tr("Monday to Saturday, 7:00 to 16:00.", "Montag bis Samstag, 7:00 bis 16:00 Uhr.")+`</p>`) +
+					macro("tabs", map[string]string{"label": tr("Opening hours", "Öffnungszeiten")}, `<h3>`+tr("Office", "Büro")+`</h3><p>`+tr("Monday to Friday, 8:00 to 17:00.", "Montag bis Freitag, 8:00 bis 17:00 Uhr.")+`</p><hr><h3>`+tr("Service desk", "Service Desk")+`</h3><p>`+tr("Monday to Saturday, 7:00 to 19:00.", "Montag bis Samstag, 7:00 bis 19:00 Uhr.")+`</p>`) +
 					macro("accordion", nil, `<h3>`+tr("What does it cost?", "Was kostet das?")+`</h3><p>`+tr("Ask the reception.", "Fragen Sie am Empfang.")+`</p><hr><h3>`+tr("Where do I park?", "Wo parke ich?")+`</h3><p>`+tr("In the yard.", "Im Hof.")+`</p>`) +
 					macro("expand", map[string]string{"title": tr("Show more details", "Mehr Details anzeigen")}, `<p>`+tr("This text appears after a click. Screen readers announce the state.", "Dieser Text erscheint nach einem Klick. Screenreader sagen den Zustand an.")+`</p>`),
 				uses: []string{
@@ -261,7 +261,7 @@ func main() {
 					tr("For a list with check marks use the <em>Icon list</em>.", "Für eine Liste mit Häkchen nehmen Sie die <em>Symbolliste</em>."),
 				},
 				result: macro("grid", map[string]string{"desktop": "3", "tablet": "2", "mobile": "1"},
-					box("bike", "Bicycles", "Fahrräder", "Built in Graz.", "Gebaut in Graz.")+`<hr>`+box("tool", "Workshop", "Werkstatt", "Repairs within a day.", "Reparatur in einem Tag.")+`<hr>`+box("heart-handshake", "Service", "Service", "Advice in person.", "Beratung vor Ort.")) +
+					box("cloud", "Cloud", "Cloud", "Servers that run by themselves.", "Server, die von selbst laufen.")+`<hr>`+box("headset", "Support", "Support", "Help within an hour.", "Hilfe innerhalb einer Stunde.")+`<hr>`+box("heart-handshake", "Consulting", "Beratung", "Advice in person.", "Beratung vor Ort.")) +
 					macro("iconlist", map[string]string{"name": "check"}, `<ul><li>`+tr("Three columns on the desktop", "Drei Spalten auf dem Desktop")+`</li><li>`+tr("Two on the tablet", "Zwei auf dem Tablet")+`</li><li>`+tr("One on the phone", "Eine auf dem Handy")+`</li></ul>`),
 				uses: []string{
 					tr("Quick links on an intranet start page.", "Schnellzugriffe auf einer Intranet-Startseite."),
@@ -278,10 +278,10 @@ func main() {
 					tr("Choose bars, lines or pie.", "Balken, Linien oder Torte wählen."),
 					tr("The wiki draws the chart; the table stays for everybody who cannot see it.", "Das Wiki zeichnet das Diagramm; die Tabelle bleibt für alle, die es nicht sehen können."),
 				},
-				result: macro("progress", map[string]string{"label": tr("Move of the workshop", "Umzug der Werkstatt"), "value": "65", "color": "success"}, "") +
-					macro("counter", map[string]string{"value": "1250", "label": tr("Bicycles a year", "Fahrräder im Jahr"), "suffix": "+"}, "") +
-					macro("chart", map[string]string{"title": tr("Bicycles per quarter", "Fahrräder je Quartal"), "type": "bar"},
-						`<table><thead><tr><th>`+tr("Quarter", "Quartal")+`</th><th>`+tr("City bikes", "Stadträder")+`</th><th>`+tr("Cargo bikes", "Lastenräder")+`</th></tr></thead><tbody>`+
+				result: macro("progress", map[string]string{"label": tr("Office move", "Büroumzug"), "value": "65", "color": "success"}, "") +
+					macro("counter", map[string]string{"value": "320", "label": tr("Customers", "Kunden"), "suffix": "+"}, "") +
+					macro("chart", map[string]string{"title": tr("Tickets per quarter", "Tickets je Quartal"), "type": "bar"},
+						`<table><thead><tr><th>`+tr("Quarter", "Quartal")+`</th><th>`+tr("Questions", "Fragen")+`</th><th>`+tr("Faults", "Störungen")+`</th></tr></thead><tbody>`+
 							`<tr><td>Q1</td><td>120</td><td>80</td></tr><tr><td>Q2</td><td>150</td><td>95</td></tr><tr><td>Q3</td><td>140</td><td>110</td></tr><tr><td>Q4</td><td>180</td><td>130</td></tr></tbody></table>`) +
 					`<p>` + tr("The sum of the numbers from 1 to n:", "Die Summe der Zahlen von 1 bis n:") + `</p><p><span data-macro="math" data-params='{"tex":"\\sum_{i=1}^{n} i = \\frac{n(n+1)}{2}","display":"block"}'></span></p>`,
 				uses: []string{
@@ -303,16 +303,16 @@ func main() {
 					tr("Parts are separated by a horizontal line.", "Teile werden durch eine Trennlinie getrennt."),
 				},
 				result: macro("timeline", map[string]string{"label": tr("History", "Geschichte"), "direction": "horizontal"},
-					`<h3>1998</h3><p>`+tr("The first workshop opens.", "Die erste Werkstatt öffnet.")+`</p><hr><h3>2015</h3><p>`+tr("The first e-bike.", "Das erste E-Bike.")+`</p><hr><h3>2026</h3><p>`+tr("The wiki replaces the file server.", "Das Wiki ersetzt den Dateiserver.")+`</p>`) +
+					`<h3>2008</h3><p>`+tr("The first office opens.", "Das erste Büro öffnet.")+`</p><hr><h3>2015</h3><p>`+tr("The own data centre.", "Das eigene Rechenzentrum.")+`</p><hr><h3>2026</h3><p>`+tr("The wiki replaces the file server.", "Das Wiki ersetzt den Dateiserver.")+`</p>`) +
 					macro("slider", map[string]string{"label": tr("First steps", "Erste Schritte")},
 						`<p>`+tr("1. Sign in.", "1. Anmelden.")+`</p><hr><p>`+tr("2. Open your area.", "2. Den eigenen Bereich öffnen.")+`</p><hr><p>`+tr("3. Write your first page.", "3. Die erste Seite schreiben.")+`</p>`) +
 					macro("dialog", map[string]string{"button": tr("Opening hours", "Öffnungszeiten"), "title": tr("When the reception is open", "Wann der Empfang besetzt ist")},
 						`<p>`+tr("Monday to Friday, 8:00 to 17:00.", "Montag bis Freitag, 8:00 bis 17:00 Uhr.")+`</p>`) +
 					`<p>` + tr("Questions about the ", "Fragen zum ") + `<span data-macro="tooltip" data-params='{"text":"VPN","tip":"` + tr("Virtual private network: the secure way into the company network from outside.", "Virtuelles privates Netz: der sichere Weg ins Firmennetz von außen.") + `"}'></span>` + tr(" go to the IT desk.", " beantwortet die IT.") + `</p>` +
-					macro("countdown", map[string]string{"date": opening, "time": "10:00", "label": tr("Until the opening of the new hall", "Bis zur Eröffnung der neuen Halle"), "reached": tr("The new hall is open.", "Die neue Halle ist offen.")}, "") +
-					macro("pricing", map[string]string{"featured": "2"}, plan(tr("City", "Stadt"), tr("from 690 €", "ab 690 €"), tr("Three gears", "Drei Gänge"), tr("Light included", "Mit Licht"))+`<hr>`+
-						plan(tr("Cargo", "Lastenrad"), tr("from 2,490 €", "ab 2.490 €"), tr("Room for two children", "Platz für zwei Kinder"), tr("Electric motor", "Elektromotor"))+`<hr>`+
-						plan(tr("Custom", "Maßanfertigung"), tr("on request", "auf Anfrage"), tr("Built for you", "Für Sie gebaut"), tr("Personal advice", "Persönliche Beratung"))),
+					macro("countdown", map[string]string{"date": opening, "time": "10:00", "label": tr("Until the opening of the new office", "Bis zur Eröffnung des neuen Büros"), "reached": tr("The new office is open.", "Das neue Büro ist offen.")}, "") +
+					macro("pricing", map[string]string{"featured": "2"}, plan("Basic", tr("from 290 € a month", "ab 290 € im Monat"), tr("Help on working days", "Hilfe an Werktagen"), tr("Remote support", "Fernwartung"))+`<hr>`+
+						plan("Business", tr("from 890 € a month", "ab 890 € im Monat"), tr("Hotline day and night", "Hotline Tag und Nacht"), tr("On site within four hours", "Vor Ort in vier Stunden"))+`<hr>`+
+						plan(tr("Custom", "Individuell"), tr("on request", "auf Anfrage"), tr("Built for you", "Für Sie zusammengestellt"), tr("Personal advice", "Persönliche Beratung"))),
 				uses: []string{
 					tr("The history of a company or a project.", "Die Geschichte einer Firma oder eines Projekts."),
 					tr("Prices on a website.", "Preise auf einer Website."),
@@ -471,7 +471,7 @@ func main() {
 				},
 				result: `<p>` + tr("The open tasks of the teams of the company:", "Die offenen Aufgaben der Teams der Firma:") + `</p>` + macro("tasks", map[string]string{"category": itoa(r.teams)}, "") +
 					macro("dates", map[string]string{"category": itoa(r.teams)}, "") +
-					`<p>` + tr("The page with the tasks is “Move of the workshop” in ", "Die Seite mit den Aufgaben ist „Umzug der Werkstatt“ unter ") + company(tr, r.teams, "Teams", "Teams") + `.</p>`,
+					`<p>` + tr("The page with the tasks is “Office move” in ", "Die Seite mit den Aufgaben ist „Büroumzug“ unter ") + company(tr, r.teams, "Teams", "Teams") + `.</p>`,
 				uses: []string{
 					tr("To-dos from minutes that nobody forgets.", "Aufgaben aus Protokollen, die niemand vergisst."),
 					tr("Plans of a move or an event.", "Pläne für einen Umzug oder eine Veranstaltung."),
@@ -561,7 +561,7 @@ func main() {
 					tr(". In this demo you belong to the team leads, so you can decide it yourself under My tasks.", ". In dieser Demo gehören Sie zur Teamleitung und entscheiden ihn selbst unter Meine Aufgaben.") + `</p>` +
 					`<p>` + tr("More workflows: ", "Weitere Abläufe: ") + company(tr, r.forms, "Forms and workflows of "+companyEN, "Formulare und Abläufe der "+companyDE) + `.</p>`,
 				uses: []string{
-					tr("Holiday, devices, business trips.", "Urlaub, Geräte, Dienstreisen."),
+					tr("Holiday, job applications, devices.", "Urlaub, Bewerbungen, Geräte."),
 					tr("Contracts that several departments check at the same time.", "Verträge, die mehrere Abteilungen gleichzeitig prüfen."),
 					tr("Onboarding of new colleagues, started by itself for every new account.", "Einarbeitung neuer Kolleginnen und Kollegen, von selbst gestartet für jedes neue Konto."),
 				},

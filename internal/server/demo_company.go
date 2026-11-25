@@ -1,7 +1,7 @@
 package server
 
-// Area 1 of the demo: the intranet of a fictional company (Beispielwerk, a
-// bicycle maker). Every feature is used the way a company would use it, and
+// Area 1 of the demo: the intranet of a fictional company (Enterprise IT
+// Services, an IT service company). Every feature is used the way a company would use it, and
 // a short hint on the page says how it works, with a link to the station of
 // the tour that explains it.
 
@@ -37,15 +37,15 @@ func companyCategories(d *demoRun, r *demoRefs) {
 	cat := func(pos int, en, de, descEN, descDE string) int64 {
 		return d.category(r.company, en, de, descEN, descDE, map[string]any{"position": pos})
 	}
-	r.news = cat(0, "News", "Neuigkeiten", "What is new at Beispielwerk: the blog of the company.", "Was es Neues gibt bei Beispielwerk: der Blog der Firma.")
+	r.news = cat(0, "News", "Neuigkeiten", "What is new at Enterprise IT Services: the blog of the company.", "Was es Neues gibt bei Enterprise IT Services: der Blog der Firma.")
 	r.events = cat(1, "Events", "Termine", "Courses, celebrations and meetings – with registration.", "Kurse, Feiern und Besprechungen – mit Anmeldung.")
 	r.teams = cat(2, "Teams", "Teams", "Who works here, what was decided and what is to do.", "Wer hier arbeitet, was entschieden ist und was zu tun ist.")
 	r.handbook = cat(3, "Handbook", "Handbuch", "Everything for the daily work, chapter by chapter.", "Alles für die tägliche Arbeit, Kapitel für Kapitel.")
 	r.faq = cat(4, "Knowledge base", "Wissensdatenbank", "Answers to frequent questions, with instant search.", "Antworten auf häufige Fragen, mit Sofortsuche.")
-	r.forms = cat(5, "Forms and workflows", "Formulare und Abläufe", "Requests that run by themselves: holiday, devices, ideas.", "Anträge, die von selbst laufen: Urlaub, Geräte, Ideen.")
-	r.projects = cat(6, "Projects", "Projekte", "All projects with status, budget and dates – as table, board and charts.", "Alle Projekte mit Status, Budget und Terminen – als Tabelle, Board und Diagramme.")
+	r.forms = cat(5, "Forms and workflows", "Formulare und Abläufe", "Requests that run by themselves: holiday, applications, devices, ideas.", "Anträge, die von selbst laufen: Urlaub, Bewerbungen, Geräte, Ideen.")
+	r.projects = cat(6, "Projects", "Projekte", "All projects for customers and in-house, with status, budget and dates – as table, board and charts.", "Alle Projekte für Kunden und im Haus, mit Status, Budget und Terminen – als Tabelle, Board und Diagramme.")
 	r.docs = cat(7, "Documents", "Dokumente", "Guidelines, templates and confidential minutes.", "Richtlinien, Vorlagen und vertrauliche Protokolle.")
-	r.onboarding = cat(8, "Onboarding", "Einarbeitung", "The first weeks at Beispielwerk, as cards.", "Die ersten Wochen bei Beispielwerk, als Karten.")
+	r.onboarding = cat(8, "Onboarding", "Einarbeitung", "The first weeks at Enterprise IT Services, as cards.", "Die ersten Wochen bei Enterprise IT Services, als Karten.")
 	r.rooms = cat(9, "Rooms", "Räume", "The meeting rooms with their seats, as a table.", "Die Besprechungsräume mit ihren Plätzen, als Tabelle.")
 	r.travel = cat(10, "How to find us", "Anfahrt", "Opening hours, address and parking – all on one page.", "Öffnungszeiten, Adresse und Parken – alles auf einer Seite.")
 }
@@ -55,7 +55,7 @@ func companyCategories(d *demoRun, r *demoRefs) {
 func companyBasics(d *demoRun, r *demoRefs) {
 	// a page with an excerpt (included by a station of the tour)
 	r.houseRules = d.pageF(r.handbook, "House rules", "Hausordnung", func(tr trf) string {
-		return `<p>` + tr("The rules for working together in the office and the workshop.", "Die Regeln für das Miteinander in Büro und Werkstatt.") + `</p>` +
+		return `<p>` + tr("The rules for working together in the office and the server room.", "Die Regeln für das Miteinander in Büro und Serverraum.") + `</p>` +
 			macro("excerpt", nil, `<p><strong>`+tr("In short:", "Kurz gesagt:")+`</strong> `+tr("the last one out switches off the lights and locks the door.", "Wer zuletzt geht, schaltet das Licht aus und schließt ab.")+`</p>`) +
 			`<h2>` + tr("Details", "Einzelheiten") + `</h2><p>` + tr("Keys are at the reception. Guests sign in there too.", "Schlüssel gibt es am Empfang. Gäste melden sich dort ebenfalls an.") + `</p>`
 	}, map[string]any{"position": 4})
@@ -72,12 +72,12 @@ func companyBasics(d *demoRun, r *demoRefs) {
 	d.optional("forms-order", func() {
 		order := func(tr trf) any {
 			return map[string]any{"layout": "grid", "proof_of_work": true, "public_results": true, "submit_label": tr("Send idea", "Idee senden"),
-				"intro": tr("Your idea for Beispielwerk, in three short steps. The answers about the topic are public (see “Results of the idea box”).",
-					"Ihre Idee für Beispielwerk, in drei kurzen Schritten. Die Antworten zum Thema sind öffentlich (siehe „Ergebnisse der Ideenbox“)."),
+				"intro": tr("Your idea for Enterprise IT Services, in three short steps. The answers about the topic are public (see “Results of the idea box”).",
+					"Ihre Idee für Enterprise IT Services, in drei kurzen Schritten. Die Antworten zum Thema sind öffentlich (siehe „Ergebnisse der Ideenbox“)."),
 				"fields": []map[string]any{
 					{"id": "p1", "type": "page", "label": tr("Your idea", "Ihre Idee")},
 					{"id": "topic", "type": "radio", "label": tr("What is it about?", "Worum geht es?"), "required": true, "options": []map[string]string{
-						{"value": "workshop", "label": tr("Workshop", "Werkstatt")}, {"value": "office", "label": tr("Office", "Büro")}, {"value": "canteen", "label": tr("Canteen", "Kantine")}}},
+						{"value": "service", "label": tr("Service desk", "Service Desk")}, {"value": "office", "label": tr("Office", "Büro")}, {"value": "canteen", "label": tr("Canteen", "Kantine")}}},
 					{"id": "idea", "type": "textarea", "label": tr("Your idea", "Ihre Idee"), "required": true, "rows": 4},
 					{"id": "p2", "type": "page", "label": tr("Benefit", "Nutzen")},
 					{"id": "hours", "type": "number", "label": tr("Hours saved per month", "Gesparte Stunden im Monat"), "min": 0, "max": 500, "width": 6},
@@ -129,7 +129,7 @@ func companyProjects(d *demoRun, r *demoRefs) {
 		def(map[string]any{"key": "rating", "type": "rating", "labels": d.tr("Satisfaction", "Zufriedenheit"), "options": map[string]any{"max": 5}, "position": 9})
 		def(map[string]any{"key": "site", "type": "location", "labels": d.tr("Location", "Standort"), "position": 10})
 		def(map[string]any{"key": "areas", "type": "multiselect", "labels": d.tr("Areas", "Bereiche"), "position": 11,
-			"options": map[string]any{"choices": ch([3]string{"Workshop", "Werkstatt", ""}, [3]string{"IT", "IT", ""}, [3]string{"HR", "Personal", ""}, [3]string{"Finance", "Finanzen", ""})}})
+			"options": map[string]any{"choices": ch([3]string{"Cloud", "Cloud", ""}, [3]string{"Support", "Support", ""}, [3]string{"HR", "Personal", ""}, [3]string{"Finance", "Finanzen", ""})}})
 		day := func(n int) string { return time.Now().AddDate(0, 0, n).Format("2006-01-02") }
 		lat := func(f float64) *float64 { return &f }
 		projects := []struct {
@@ -140,12 +140,12 @@ func companyProjects(d *demoRun, r *demoRefs) {
 			la, lo                                      float64
 			areas                                       []string
 		}{
-			{"New cargo bike", "Neues Lastenrad", "A cargo bike for two children and shopping.", "Ein Lastenrad für zwei Kinder und den Einkauf.", "Active", "High", "david", -60, 90, 12, 120000, 45, 4, "Graz", 47.0707, 15.4395, []string{"Workshop"}},
-			{"Move of the workshop", "Umzug der Werkstatt", "The workshop moves into the new hall.", "Die Werkstatt zieht in die neue Halle.", "At risk", "High", "david", -30, 45, -3, 80000, 70, 2, "Graz", 47.0707, 15.4395, []string{"Workshop", "Finance"}},
-			{"New intranet", "Neues Intranet", "This wiki replaces the old file server.", "Dieses Wiki ersetzt den alten Dateiserver.", "Active", "Medium", "ben", -20, 60, 5, 15000, 30, 3, "Wien", 48.2082, 16.3738, []string{"IT"}},
+			{"Cloud move for a law firm", "Cloud-Umzug für eine Kanzlei", "A law firm moves its servers into the cloud.", "Eine Kanzlei zieht ihre Server in die Cloud.", "Active", "High", "ben", -60, 90, 12, 120000, 45, 4, "Wien", 48.2082, 16.3738, []string{"Cloud"}},
+			{"Office move", "Büroumzug", "We move into the new office floor.", "Wir ziehen in die neue Büroetage.", "At risk", "High", "anna", -30, 45, -3, 80000, 70, 2, "Graz", 47.0707, 15.4395, []string{"Finance"}},
+			{"New intranet", "Neues Intranet", "This wiki replaces the old file server.", "Dieses Wiki ersetzt den alten Dateiserver.", "Active", "Medium", "ben", -20, 60, 5, 15000, 30, 3, "Graz", 47.0707, 15.4395, []string{"Support"}},
 			{"Onboarding programme", "Einarbeitungsprogramm", "Mentors and a plan for the first weeks.", "Mentoren und ein Plan für die ersten Wochen.", "Planned", "Medium", "clara", 20, 120, 25, 8000, 0, 0, "Linz", 48.3069, 14.2858, []string{"HR"}},
 			{"Annual accounts", "Jahresabschluss", "The accounts of last year.", "Der Abschluss des letzten Jahres.", "Done", "Medium", "anna", -120, -10, -10, 25000, 100, 5, "Wien", 48.2082, 16.3738, []string{"Finance"}},
-			{"Solar roof", "Solardach", "Power for the workshop from its own roof.", "Strom für die Werkstatt vom eigenen Dach.", "Planned", "Low", "anna", 40, 200, 60, 60000, 0, 0, "Graz", 47.0707, 15.4395, []string{"Workshop", "Finance"}},
+			{"Service desk for a school", "Service Desk für eine Schule", "Support for 40 teachers and 600 pupils.", "Betreuung für 40 Lehrkräfte und 600 Schülerinnen und Schüler.", "Planned", "Low", "david", 40, 200, 60, 60000, 0, 0, "Salzburg", 47.8095, 13.0550, []string{"Support", "Cloud"}},
 		}
 		for _, x := range projects {
 			if d.err != nil {
@@ -211,16 +211,16 @@ func companyIntranet(d *demoRun, r *demoRefs) {
 		}
 		return `<p>` + tr("Good to have you here! The intranet of "+companyEN+" – news, dates and everything for your working day in one place.",
 			"Schön, dass Sie da sind! Das Intranet der "+companyDE+" – Neuigkeiten, Termine und alles für Ihren Arbeitstag an einem Ort.") + `</p>` +
-			macro("hero", map[string]string{"title": tr("Welcome to Beispielwerk", "Willkommen bei Beispielwerk"), "subtitle": tr("Bicycles from Graz since 1998 – 48 people, one team.", "Fahrräder aus Graz seit 1998 – 48 Menschen, ein Team."),
+			macro("hero", map[string]string{"title": tr("Welcome to Enterprise IT Services", "Willkommen bei Enterprise IT Services"), "subtitle": tr("IT services from Graz since 2008 – 48 people, one team.", "IT-Dienstleistungen aus Graz seit 2008 – 48 Menschen, ein Team."),
 				"button": tr("Request holiday", "Urlaub beantragen"), "link": request, "background": "light"}, "") +
 			`<h2>` + tr("Quick access", "Schnell erreichbar") + `</h2>` +
 			macro("grid", map[string]string{"desktop": "3", "tablet": "2", "mobile": "1"},
 				box("beach", "Request holiday", "Urlaub beantragen", request, "Filled in in one minute, decided by your team lead.", "In einer Minute ausgefüllt, entschieden von Ihrer Teamleitung.")+`<hr>`+
-					box("book-2", "Handbook", "Handbuch", cURL(r.handbook), "Working hours, IT, business trips.", "Arbeitszeit, IT, Dienstreisen.")+`<hr>`+
+					box("book-2", "Handbook", "Handbuch", cURL(r.handbook), "Working hours, IT, support.", "Arbeitszeit, IT, Support.")+`<hr>`+
 					box("help-circle", "Knowledge base", "Wissensdatenbank", cURL(r.faq), "Answers to frequent questions.", "Antworten auf häufige Fragen.")+`<hr>`+
 					box("calendar-event", "Events", "Termine", cURL(r.events), "Courses and celebrations, with registration.", "Kurse und Feiern, mit Anmeldung.")+`<hr>`+
 					box("users", "Teams", "Teams", cURL(r.teams), "Who does what – and how to reach them.", "Wer was macht – und wie Sie ihn erreichen.")+`<hr>`+
-					box("bulb", "Idea box", "Ideenbox", eURLor(r.ideas, cURL(r.forms)), "Your idea makes Beispielwerk better.", "Ihre Idee macht Beispielwerk besser.")) +
+					box("bulb", "Idea box", "Ideenbox", eURLor(r.ideas, cURL(r.forms)), "Your idea makes Enterprise IT Services better.", "Ihre Idee macht Enterprise IT Services besser.")) +
 			r.hint(tr, "This start page is an ordinary page with building blocks: a hero banner, a grid of icon boxes, the newest posts and the next events. The lists update themselves.",
 				"Diese Startseite ist eine normale Seite mit Bausteinen: ein Hero-Banner, ein Raster aus Symbolboxen, die neuesten Beiträge und die nächsten Termine. Die Listen aktualisieren sich selbst.", "website") +
 			`<h2>` + tr("News", "Neuigkeiten") + `</h2>` +
@@ -231,7 +231,7 @@ func companyIntranet(d *demoRun, r *demoRefs) {
 			`<h2>` + tr("New in the team", "Neu im Team") + `</h2>` +
 			macro("personcard", map[string]string{"name": "Clara Novak", "role": tr("HR officer", "Personalreferentin"), "email": "clara.novak@example.com", "phone": "+43 1 234 56 72"},
 				`<p>`+tr("Clara looks after holidays, onboarding and everything about your contract.", "Clara kümmert sich um Urlaub, Einarbeitung und alles rund um Ihren Vertrag.")+`</p>`) +
-			macro("counter", map[string]string{"value": "214", "label": tr("days without an accident in the workshop", "Tage ohne Arbeitsunfall in der Werkstatt")}, "")
+			macro("counter", map[string]string{"value": "214", "label": tr("tickets solved this month", "gelöste Tickets in diesem Monat")}, "")
 	}, map[string]any{"position": 0})
 	d.call(http.MethodPut, fmt.Sprintf("/api/v1/categories/%d", r.company), map[string]any{"default_element_id": r.intranet}, nil)
 }
@@ -245,18 +245,18 @@ func eURLor(id int64, alt string) string {
 
 func companyNews(d *demoRun, r *demoRefs) {
 	posts := []struct{ en, de, textEN, textDE string }{
-		{"Year-end party in the new hall", "Jahresfeier in der neuen Halle",
-			"<p>This year we celebrate in the new workshop hall: food from the canteen, music and a short look back. Please register in the calendar so the kitchen can plan.</p>" + r.img(2, "Evening light"),
-			"<p>Dieses Jahr feiern wir in der neuen Werkstatthalle: Essen aus der Kantine, Musik und ein kurzer Rückblick. Bitte melden Sie sich im Kalender an, damit die Küche planen kann.</p>" + r.img(2, "Abendlicht")},
-		{"New: the cargo bike Kombi", "Neu: das Lastenrad Kombi",
-			"<p>Two children, a week of shopping, 25 kilograms of luggage: the Kombi is our first cargo bike. The first test rides start next month.</p>" + r.img(1, "Noon over the valley"),
-			"<p>Zwei Kinder, ein Wocheneinkauf, 25 Kilogramm Gepäck: Das Kombi ist unser erstes Lastenrad. Die ersten Testfahrten beginnen nächsten Monat.</p>" + r.img(1, "Mittag über dem Tal")},
+		{"Year-end party in the new office", "Jahresfeier im neuen Büro",
+			"<p>This year we celebrate on our new office floor: food from the canteen, music and a short look back. Please register in the calendar so the kitchen can plan.</p>" + r.img(2, "Evening light"),
+			"<p>Dieses Jahr feiern wir in unserer neuen Büroetage: Essen aus der Kantine, Musik und ein kurzer Rückblick. Bitte melden Sie sich im Kalender an, damit die Küche planen kann.</p>" + r.img(2, "Abendlicht")},
+		{"New: managed backup for our customers", "Neu: verwaltete Datensicherung für unsere Kunden",
+			"<p>From next month we back up the data of our customers every night – encrypted, in two data centres. The service desk answers questions.</p>" + r.img(1, "Noon over the valley"),
+			"<p>Ab nächstem Monat sichern wir die Daten unserer Kunden jede Nacht – verschlüsselt, in zwei Rechenzentren. Fragen beantwortet der Service Desk.</p>" + r.img(1, "Mittag über dem Tal")},
 		{"IT: sign in with a passkey", "IT: Anmelden mit Passkey",
 			"<p>From now on you can sign in to the intranet with a passkey – your fingerprint or face instead of a password. Set it up under <em>My profile</em>; the knowledge base explains how.</p>",
 			"<p>Ab sofort melden Sie sich im Intranet mit einem Passkey an – Fingerabdruck oder Gesicht statt Passwort. Richten Sie ihn unter <em>Mein Profil</em> ein; die Wissensdatenbank erklärt, wie es geht.</p>"},
 		{"Welcome to our new colleagues", "Willkommen, neue Kolleginnen und Kollegen",
-			"<p>Three new colleagues start in the workshop and in HR this month. Say hello – the team page shows who they are.</p>",
-			"<p>Drei neue Kolleginnen und Kollegen starten diesen Monat in Werkstatt und Personal. Sagen Sie Hallo – die Teamseite zeigt, wer sie sind.</p>"},
+			"<p>Three new colleagues start in the service desk and in HR this month. Say hello – the team page shows who they are.</p>",
+			"<p>Drei neue Kolleginnen und Kollegen starten diesen Monat im Service Desk und im Personal. Sagen Sie Hallo – die Teamseite zeigt, wer sie sind.</p>"},
 	}
 	first := int64(0)
 	for _, p := range posts {
@@ -268,7 +268,7 @@ func companyNews(d *demoRun, r *demoRefs) {
 	d.optional("blog", func() {
 		r.blog = d.element(r.news, "content.blog", d.tr("News", "Neuigkeiten"), d.perLang(func(tr trf) any {
 			return map[string]any{"category_id": r.news, "recursive": false, "per_page": 10, "layout": "cards", "show_author": true, "show_date": true, "summary_length": 200,
-				"intro": htmlBodyOf(`<p>` + tr("What is new at Beispielwerk.", "Was es Neues gibt bei Beispielwerk.") + `</p>` +
+				"intro": htmlBodyOf(`<p>` + tr("What is new at Enterprise IT Services.", "Was es Neues gibt bei Enterprise IT Services.") + `</p>` +
 					r.hintText(tr, "The pages of this category are the posts of the blog: a new page is a new post. Watch the category and you hear about every new post.",
 						"Die Seiten dieser Kategorie sind die Beiträge des Blogs: Eine neue Seite ist ein neuer Beitrag. Wer die Kategorie beobachtet, erfährt von jedem neuen Beitrag.", "news"))}
 		}), map[string]any{"position": 0})
@@ -327,8 +327,8 @@ func companyEvents(d *demoRun, r *demoRefs) {
 			"location": pick("Training room 1", "Schulungsraum 1"), "category": "training", "starts_at": day, "ends_at": day.Add(4 * time.Hour), "tz": "Europe/Vienna",
 			"registration": true, "capacity": 12, "waitlist": true})
 		party := demoParty()
-		ev(map[string]any{"title": pick("Year-end party", "Jahresfeier"), "description": pick("In the new workshop hall.", "In der neuen Werkstatthalle."),
-			"location": pick("Workshop hall", "Werkstatthalle"), "category": "party", "starts_at": party, "ends_at": party.Add(5 * time.Hour), "tz": "Europe/Vienna",
+		ev(map[string]any{"title": pick("Year-end party", "Jahresfeier"), "description": pick("On the new office floor.", "In der neuen Büroetage."),
+			"location": pick("New office, 5th floor", "Neues Büro, 5. Stock"), "category": "party", "starts_at": party, "ends_at": party.Add(5 * time.Hour), "tz": "Europe/Vienna",
 			"registration": true, "capacity": 80})
 		monday := day.AddDate(0, 0, -int(day.Weekday())+1).Add(time.Hour)
 		ev(map[string]any{"title": pick("Team round", "Teamrunde"), "description": pick("Every Monday: what is coming this week.", "Jeden Montag: Was diese Woche ansteht."),
@@ -361,8 +361,8 @@ func companyTeams(d *demoRun, r *demoRefs) {
 		r.decisions = d.pageF(r.teams, "Decision log", "Entscheidungsprotokoll", func(tr trf) string {
 			return `<p>` + tr("What the management has decided, with status, day and who is responsible.", "Was die Leitung entschieden hat, mit Status, Datum und Verantwortlichen.") + `</p>` +
 				dec(tr("Team round on Mondays", "Teamrunde am Montag"), "decided", "2026-10-06", "anna", tr("Most of the team is in the office then.", "Dann ist der größte Teil des Teams im Haus.")) +
-				dec(tr("Move the workshop in March", "Umzug der Werkstatt im März"), "open", "2026-12-01", "david", tr("We are waiting for the offer of the movers.", "Wir warten auf das Angebot der Umzugsfirma.")) +
-				dec(tr("Own canteen in the new hall", "Eigene Kantine in der neuen Halle"), "rejected", "2026-09-15", tr("Management", "Geschäftsleitung"), tr("The canteen next door stays; it is enough.", "Die Kantine nebenan bleibt; sie reicht.")) +
+				dec(tr("Move into the new office in March", "Umzug ins neue Büro im März"), "open", "2026-12-01", "anna", tr("We are waiting for the offer of the movers.", "Wir warten auf das Angebot der Umzugsfirma.")) +
+				dec(tr("Own canteen on the new floor", "Eigene Kantine in der neuen Etage"), "rejected", "2026-09-15", tr("Management", "Geschäftsleitung"), tr("The canteen next door stays; it is enough.", "Die Kantine nebenan bleibt; sie reicht.")) +
 				r.hint(tr, "Every decision is a block in the text. The report below collects the decisions of all pages of the teams – only those the reader may see.",
 					"Jede Entscheidung ist ein Baustein im Text. Der Bericht unten sammelt die Entscheidungen aller Seiten der Teams – nur die, die die lesende Person sehen darf.", "decisions") +
 				`<h2>` + tr("All decisions of the teams", "Alle Entscheidungen der Teams") + `</h2>` + macro("decisions", map[string]string{"category": itoa(r.teams)}, "")
@@ -370,13 +370,13 @@ func companyTeams(d *demoRun, r *demoRefs) {
 	})
 	d.optional("tasks", func() {
 		team := itoa(r.teams)
-		r.tasks = d.mdF(r.teams, "Move of the workshop", "Umzug der Werkstatt", func(tr trf) string {
-			return tr("The workshop moves into the new hall. Who does what:", "Die Werkstatt zieht in die neue Halle. Wer was macht:") + "\n\n" +
+		r.tasks = d.mdF(r.teams, "Office move", "Büroumzug", func(tr trf) string {
+			return tr("We move into the new office floor. Who does what:", "Wir ziehen in die neue Büroetage. Wer was macht:") + "\n\n" +
 				"- [ ] " + tr("Check the offer of the movers", "Angebot der Umzugsfirma prüfen") + " @" + r.handles["anna"] + " :date{value=2026-11-30}\n" +
-				"- [ ] " + tr("Plan the new places of the machines", "Neue Plätze der Maschinen planen") + " @" + r.handles["david"] + " @" + r.handles["ben"] + "\n" +
+				"- [ ] " + tr("Plan the new places of the servers", "Neue Plätze für die Server planen") + " @" + r.handles["david"] + " @" + r.handles["ben"] + "\n" +
 				"- [x] " + tr("Order the network cables", "Netzwerkkabel bestellen") + " @" + r.handles["ben"] + "\n" +
 				"- [ ] " + tr("Tell the customers", "Kundschaft informieren") + " :date{value=2026-12-10}\n\n" +
-				tr("The move starts on", "Der Umzug beginnt am") + " :date{value=2026-12-12 label=\"" + tr("Move of the workshop", "Umzug der Werkstatt") + "\" time=08:00 end=12:00}; " +
+				tr("The move starts on", "Der Umzug beginnt am") + " :date{value=2026-12-12 label=\"" + tr("Office move", "Büroumzug") + "\" time=08:00 end=12:00}; " +
 				tr("we meet before on", "vorher treffen wir uns am") + " :date{value=2026-12-08 label=\"" + tr("Kick-off of the move", "Auftakt zum Umzug") + "\" time=14:00}.\n\n" +
 				":::panel{type=tip title=\"" + tr("How this works", "So funktioniert das") + "\"}\n" +
 				tr("A task item with @name or a date is a task: it appears below, under *My tasks* and on the dashboard. A date with a title is an appointment in the calendars of the team.",
@@ -411,8 +411,8 @@ func companyTeams(d *demoRun, r *demoRefs) {
 
 func companyHandbook(d *demoRun, r *demoRefs) {
 	first := d.pageF(r.handbook, "Your first week", "Ihre erste Woche", func(tr trf) string {
-		return `<p>` + tr("Welcome to Beispielwerk! This handbook leads you through everything you need. The chapters are in the navigation on the side.",
-			"Willkommen bei Beispielwerk! Dieses Handbuch führt Sie durch alles, was Sie brauchen. Die Kapitel stehen in der Navigation an der Seite.") + `</p>` +
+		return `<p>` + tr("Welcome to Enterprise IT Services! This handbook leads you through everything you need. The chapters are in the navigation on the side.",
+			"Willkommen bei Enterprise IT Services! Dieses Handbuch führt Sie durch alles, was Sie brauchen. Die Kapitel stehen in der Navigation an der Seite.") + `</p>` +
 			`<h2>` + tr("Your first day", "Ihr erster Tag") + `</h2><ol><li>` + tr("Collect your key at the reception.", "Holen Sie Ihren Schlüssel am Empfang ab.") + `</li><li>` +
 			tr("Sign in to the intranet and set up a passkey.", "Melden Sie sich im Intranet an und richten Sie einen Passkey ein.") + `</li><li>` +
 			tr("Have lunch with your mentor.", "Gehen Sie mit Ihrer Mentorin oder Ihrem Mentor essen.") + `</li></ol>` +
@@ -433,12 +433,13 @@ func companyHandbook(d *demoRun, r *demoRefs) {
 			`<p>` + tr("From outside you reach the company network through the ", "Von außen erreichen Sie das Firmennetz über das ") +
 			`<span data-macro="tooltip" data-params='{"text":"VPN","tip":"` + tr("Virtual private network: the secure way into the company network from outside.", "Virtuelles privates Netz: der sichere Weg ins Firmennetz von außen.") + `"}'></span>.</p>`
 	}, map[string]any{"position": 2})
-	d.pageF(r.handbook, "Business trips", "Dienstreisen", func(tr trf) string {
-		return `<p>` + tr("Plan, book and settle a business trip in three steps.", "Eine Dienstreise planen, buchen und abrechnen – in drei Schritten.") + `</p>` +
-			macro("timeline", map[string]string{"label": tr("A business trip", "Eine Dienstreise")},
-				`<h3>`+tr("Before", "Vorher")+`</h3><p>`+tr("Ask your team lead and book train or hotel.", "Teamleitung fragen, Bahn oder Hotel buchen.")+`</p><hr><h3>`+
-					tr("On the way", "Unterwegs")+`</h3><p>`+tr("Keep all receipts.", "Alle Belege aufheben.")+`</p><hr><h3>`+tr("Afterwards", "Danach")+`</h3><p>`+
-					tr("Hand in the receipts within four weeks.", "Belege innerhalb von vier Wochen abgeben.")+`</p>`)
+	d.pageF(r.handbook, "Support: from ticket to solution", "Support: vom Ticket zur Lösung", func(tr trf) string {
+		return `<p>` + tr("How the service desk handles a request of a customer, in four steps.", "Wie der Service Desk eine Anfrage von Kunden bearbeitet, in vier Schritten.") + `</p>` +
+			macro("timeline", map[string]string{"label": tr("A ticket", "Ein Ticket")},
+				`<h3>`+tr("Receive", "Annehmen")+`</h3><p>`+tr("Confirm the ticket within one hour.", "Das Ticket innerhalb einer Stunde bestätigen.")+`</p><hr><h3>`+
+					tr("Prioritise", "Einstufen")+`</h3><p>`+tr("A fault that stops work comes first.", "Eine Störung, die die Arbeit stoppt, kommt zuerst.")+`</p><hr><h3>`+
+					tr("Solve", "Lösen")+`</h3><p>`+tr("Write down every step in the ticket.", "Jeden Schritt im Ticket festhalten.")+`</p><hr><h3>`+tr("Close", "Abschließen")+`</h3><p>`+
+					tr("Ask the customer whether everything works.", "Nachfragen, ob alles funktioniert.")+`</p>`)
 	}, map[string]any{"position": 3})
 	contact := d.pageF(r.handbook, "Contact", "Kontakt", func(tr trf) string {
 		return `<p>` + tr("Questions about the handbook? Write to ", "Fragen zum Handbuch? Schreiben Sie an ") + `<a href="mailto:handbuch@example.com">handbuch@example.com</a>.</p>`
@@ -705,8 +706,8 @@ func companyFlows(d *demoRun, r *demoRefs) {
 			}
 			return `<li><a href="` + eURL(id) + `">` + tr(en, de) + `</a> – ` + tr(textEN, textDE) + `</li>`
 		}
-		return `<p>` + tr("Requests at Beispielwerk run by themselves: you fill in a form, the right people get a task, and you get a message.",
-			"Anträge laufen bei Beispielwerk von selbst: Sie füllen ein Formular aus, die richtigen Personen bekommen eine Aufgabe, und Sie bekommen eine Nachricht.") + `</p><ul>` +
+		return `<p>` + tr("Requests at Enterprise IT Services run by themselves: you fill in a form, the right people get a task, and you get a message.",
+			"Anträge laufen bei Enterprise IT Services von selbst: Sie füllen ein Formular aus, die richtigen Personen bekommen eine Aufgabe, und Sie bekommen eine Nachricht.") + `</p><ul>` +
 			item(r.holidayFlow, "Holiday request", "Urlaubsantrag", "decided by the team lead, then in the calendar.", "entscheidet die Teamleitung, danach im Kalender.") +
 			item(r.deviceFlow, "Device request", "Geräteantrag", "above 1000 € with an approval.", "über 1000 € mit Freigabe.") +
 			item(r.ideas, "Idea box", "Ideenbox", "a form in three steps.", "ein Formular in drei Schritten.") +
@@ -725,9 +726,9 @@ func companyDocs(d *demoRun, r *demoRefs) {
 			Mime string `json:"mime"`
 			Size int64  `json:"size"`
 		}
-		d.call(http.MethodPost, "/api/v1/files", multipartFile(nil, "richtlinie.pdf", demoPDF([]string{"Beispielwerk - Richtlinie Arbeitssicherheit", "", "Ein PDF als Element: Vorschau im Browser."})), &file)
+		d.call(http.MethodPost, "/api/v1/files", multipartFile(nil, "richtlinie.pdf", demoPDF([]string{"Enterprise IT Services - Richtlinie Informationssicherheit", "", "Ein PDF als Element: Vorschau im Browser."})), &file)
 		if d.err == nil {
-			r.guideline = d.element(r.docs, "core.attachment", d.tr("Safety guideline (PDF)", "Richtlinie Arbeitssicherheit (PDF)"), d.same(map[string]any{"file": file, "description": "Demo"}), nil)
+			r.guideline = d.element(r.docs, "core.attachment", d.tr("Information security guideline (PDF)", "Richtlinie Informationssicherheit (PDF)"), d.same(map[string]any{"file": file, "description": "Demo"}), nil)
 		}
 	})
 	d.pageF(r.docs, "Documents of the media library", "Dokumente der Medienbibliothek", func(tr trf) string {
@@ -766,8 +767,8 @@ func companyDisplays(d *demoRun, r *demoRefs) {
 	d.display(r.onboarding, map[string]any{"view": "cards", "excerpt": true})
 	for i, x := range [][4]string{
 		{"Opening hours", "Öffnungszeiten", "<p>Monday to Friday, 7:30 to 17:00.</p>", "<p>Montag bis Freitag, 7:30 bis 17:00 Uhr.</p>"},
-		{"Address", "Adresse", "<p>Beispielwerk Ltd, Example Street 1, 8010 Graz</p>", "<p>Beispielwerk GmbH, Beispielstraße 1, 8010 Graz</p>"},
-		{"Parking", "Parken", "<p>Parking in the yard, entrance from the side street. Bicycles park by the door, of course.</p>", "<p>Parkplätze im Hof, Einfahrt über die Seitengasse. Fahrräder parken natürlich direkt vor der Tür.</p>"},
+		{"Address", "Adresse", "<p>Enterprise IT Services, Example Street 1, 8010 Graz</p>", "<p>Enterprise IT Services, Beispielstraße 1, 8010 Graz</p>"},
+		{"Parking", "Parken", "<p>Parking in the yard, entrance from the side street. Bicycle stands are at the door.</p>", "<p>Parkplätze im Hof, Einfahrt über die Seitengasse. Fahrradständer stehen an der Tür.</p>"},
 	} {
 		d.page(r.travel, x[0], x[1], x[2], x[3], map[string]any{"position": i})
 	}
@@ -775,7 +776,7 @@ func companyDisplays(d *demoRun, r *demoRefs) {
 	for i, x := range [][5]string{
 		{"Meeting room Mur", "Besprechungsraum Mur", "12", "<p>With projector and video conferencing.</p>", "<p>Mit Beamer und Videokonferenz.</p>"},
 		{"Meeting room Schöckl", "Besprechungsraum Schöckl", "6", "<p>Small room for quick meetings.</p>", "<p>Kleiner Raum für kurze Besprechungen.</p>"},
-		{"Workshop hall", "Werkstatthalle", "80", "<p>For celebrations and training.</p>", "<p>Für Feiern und Schulungen.</p>"},
+		{"Training room", "Schulungsraum", "20", "<p>For training of customers and colleagues.</p>", "<p>Für Schulungen von Kunden und im Team.</p>"},
 	} {
 		id := d.page(r.rooms, x[0], x[1], x[3], x[4], map[string]any{"position": i})
 		d.call(http.MethodPut, fmt.Sprintf("/api/v1/x/core.properties/elements/%d", id), map[string]any{

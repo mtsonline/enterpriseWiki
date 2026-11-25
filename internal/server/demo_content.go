@@ -256,7 +256,7 @@ type demoRefs struct {
 
 	// people
 	editors, leads int64 // groups: "Verwaltung" (edits the demo), "Teamleitung" (decides requests)
-	staff          int64 // group "Werkstatt und IT"
+	staff          int64 // group "Technik"
 	handles        map[string]string
 	userIDs        map[string]int64
 
@@ -284,8 +284,8 @@ type demoRefs struct {
 
 // The fictional company of the demo (no real company or brand).
 const (
-	companyDE = "Beispielwerk GmbH"
-	companyEN = "Beispielwerk Ltd"
+	companyDE = "Enterprise IT Services"
+	companyEN = "Enterprise IT Services"
 )
 
 func buildDemo(d *demoRun) {
@@ -305,8 +305,8 @@ func buildDemo(d *demoRun) {
 	}
 	// the categories of both areas first: each links to the other
 	r.company = d.category(r.root, companyEN, companyDE,
-		"Area 1: the intranet of a fictional bicycle maker – news, teams, handbook, forms with workflows, events and a knowledge base.",
-		"Bereich 1: das Intranet eines erfundenen Fahrradherstellers – Neuigkeiten, Teams, Handbuch, Formulare mit Abläufen, Termine und Wissensdatenbank.", map[string]any{"position": 1})
+		"Area 1: the intranet of a fictional IT service company – news, teams, handbook, forms with workflows, events and a knowledge base.",
+		"Bereich 1: das Intranet eines erfundenen IT-Dienstleisters – Neuigkeiten, Teams, Handbuch, Formulare mit Abläufen, Termine und Wissensdatenbank.", map[string]any{"position": 1})
 	r.tour = d.category(r.root, "Tour of the features", "Rundgang durch die Funktionen",
 		"Area 2: one station per feature – what it is, how it is done, what it looks like and what it is good for.",
 		"Bereich 2: eine Station je Funktion – was es ist, wie es geht, wie es aussieht und wofür es gut ist.", map[string]any{"position": 2})
@@ -329,11 +329,11 @@ func buildDemo(d *demoRun) {
 }
 
 // demoPeople: demo accounts (no sign-in possible) in groups; the
-// administrator who creates the demo joins the team leads, so they can
-// decide the requests of the demo themselves.
+// administrator who creates the demo joins the administration and the team
+// leads, so they can decide the requests of the demo themselves.
 func demoPeople(d *demoRun, r *demoRefs) {
 	r.editors = d.create("group", "/api/v1/admin/groups", map[string]any{"name": "Demo: Verwaltung" + r.suffix, "description": "Demo"})
-	r.staff = d.create("group", "/api/v1/admin/groups", map[string]any{"name": "Demo: Werkstatt und IT" + r.suffix, "description": "Demo"})
+	r.staff = d.create("group", "/api/v1/admin/groups", map[string]any{"name": "Demo: Technik" + r.suffix, "description": "Demo"})
 	r.leads = d.create("group", "/api/v1/admin/groups", map[string]any{"name": "Demo: Teamleitung" + r.suffix, "description": "Demo"})
 	people := []struct {
 		user, name, job, dept string
@@ -341,9 +341,9 @@ func demoPeople(d *demoRun, r *demoRefs) {
 		lead                  bool
 	}{
 		{"anna", "Anna Berger", "Geschäftsführerin", "Geschäftsführung", r.editors, true},
-		{"ben", "Ben Huber", "IT-Administrator", "IT", r.staff, false},
+		{"ben", "Ben Huber", "Systemadministrator", "IT-Betrieb", r.staff, false},
 		{"clara", "Clara Novak", "Personalreferentin", "Personal", r.editors, false},
-		{"david", "David Steiner", "Werkstattleiter", "Werkstatt", r.staff, true},
+		{"david", "David Steiner", "Leiter Service Desk", "Service Desk", r.staff, true},
 	}
 	for i, pp := range people {
 		if d.err != nil {
@@ -373,9 +373,10 @@ func demoPeople(d *demoRun, r *demoRefs) {
 		r.handles[pp.user] = uname
 		r.userIDs[pp.user] = uid
 	}
-	// (directly, like the demo accounts; it goes with the group)
+	// (directly, like the demo accounts; it goes with the groups): the
+	// administration checks applications first, the team leads decide
 	if p := identityOf(d); p != 0 && d.err == nil {
-		if _, err := d.s.app.DB.Exec(d.ctx, `INSERT INTO user_groups(user_id, group_id) VALUES ($1,$2) ON CONFLICT DO NOTHING`, p, r.leads); err != nil {
+		if _, err := d.s.app.DB.Exec(d.ctx, `INSERT INTO user_groups(user_id, group_id) SELECT $1, unnest($2::bigint[]) ON CONFLICT DO NOTHING`, p, []int64{r.editors, r.leads}); err != nil {
 			d.err = err
 		}
 	}
@@ -405,14 +406,14 @@ func demoMedia(d *demoRun, r *demoRefs) {
 	}
 	var guide, confidential, letter idResp
 	d.call(http.MethodPost, "/api/v1/media", multipartFile(map[string]any{"category_id": r.media, "title": d.tr("Quick guide", "Kurzanleitung")[d.lang()]},
-		"kurzanleitung.pdf", demoPDF([]string{"Beispielwerk - Kurzanleitung Intranet", "", "1. Kategorien ordnen Inhalte.", "2. Seiten haben Versionen.", "3. Rechte vererben sich."})), &guide)
+		"kurzanleitung.pdf", demoPDF([]string{"Enterprise IT Services - Kurzanleitung Intranet", "", "1. Kategorien ordnen Inhalte.", "2. Seiten haben Versionen.", "3. Rechte vererben sich."})), &guide)
 	d.track("medium", guide.ID)
 	d.call(http.MethodPost, "/api/v1/media", multipartFile(map[string]any{"category_id": r.media, "title": d.tr("Confidential minutes (view only, watermark)", "Vertrauliches Protokoll (nur ansehen, Wasserzeichen)")[d.lang()],
 		"download": false, "watermark": map[string]any{"mode": "viewer_view", "user": true, "date": true, "comment": "Demo"}},
 		"protokoll.pdf", demoPDF([]string{"Protokoll der Geschaeftsleitung", "", "Nur zur Ansicht - mit dem Namen des Betrachters."})), &confidential)
 	d.track("medium", confidential.ID)
 	d.call(http.MethodPost, "/api/v1/media", multipartFile(map[string]any{"category_id": r.media, "title": d.tr("Letter template (office)", "Briefvorlage (Office)")[d.lang()]},
-		"briefvorlage.docx", demoDocx([]string{"Beispielwerk GmbH - Briefvorlage", "Sehr geehrte Damen und Herren,", "dieses Dokument lässt sich im Office-Programm des Wikis bearbeiten."})), &letter)
+		"briefvorlage.docx", demoDocx([]string{"Enterprise IT Services - Briefvorlage", "Sehr geehrte Damen und Herren,", "dieses Dokument lässt sich im Office-Programm des Wikis bearbeiten."})), &letter)
 	d.track("medium", letter.ID)
 	r.guide, r.confidential, r.letter = guide.ID, confidential.ID, letter.ID
 }
