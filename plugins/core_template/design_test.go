@@ -154,6 +154,12 @@ func TestDesignProblems(t *testing.T) {
 		{"low contrast focus", func(d *Design) { d.Tokens.Focus = "#f0f0f0" }, "focus on bg"},
 		{"low contrast header", func(d *Design) { d.Tokens.HeaderText = "#777777"; d.Tokens.HeaderBg = "#666666" }, "header_text on header_bg"},
 		{"color format", func(d *Design) { d.Tokens.Bg = "red" }, "a color as #rrggbb"},
+		{"dark colors", func(d *Design) { d.Tokens.Dark = darkOK() }, ""},
+		{"dark colors with a default", func(d *Design) { d.Tokens.Dark, d.Options.ColorScheme = darkOK(), "dark" }, ""},
+		{"low contrast in the dark", func(d *Design) { d.Tokens.Dark = darkOK(); d.Tokens.Dark.Text = "#333333" }, "tokens.dark.text: text on bg has a contrast of"},
+		{"dark color format", func(d *Design) { d.Tokens.Dark = darkOK(); d.Tokens.Dark.Link = "blue" }, "tokens.dark.link: a color as #rrggbb"},
+		{"scheme without dark colors", func(d *Design) { d.Options.ColorScheme = "dark" }, "only with dark colors"},
+		{"unknown scheme", func(d *Design) { d.Tokens.Dark, d.Options.ColorScheme = darkOK(), "night" }, "one of system, light, dark"},
 		{"foreign font", func(d *Design) { d.Tokens.Font = "Comic Sans" }, "tokens.font"},
 		{"logo elsewhere", func(d *Design) { d.Tokens.Logo = "https://example.com/x.png" }, "tokens.logo"},
 		{"scale", func(d *Design) { d.Tokens.Scale = 80 }, "tokens.scale"},
@@ -332,5 +338,27 @@ func TestCSSCases(t *testing.T) {
 	cssProblems(strings.Repeat("a", limits.CSS.MaxBytes+1), func(where, format string, args ...any) { got = append(got, format) })
 	if len(got) == 0 {
 		t.Error("too large CSS accepted")
+	}
+}
+
+// darkOK is a dark palette whose pairs all pass (as darkFrom in contrast.ts
+// makes it for the shipped example).
+func darkOK() *Palette {
+	return &Palette{Bg: "#1d2125", BgSubtle: "#22272b", Text: "#dee4ea", TextMuted: "#b6c2cf", Border: "#8c9bab", Primary: "#85b8ff",
+		OnPrimary: "#10151a", Link: "#85b8ff", Focus: "#85b8ff", HeaderBg: "#161a1d", HeaderText: "#dee4ea", FooterBg: "#161a1d", FooterText: "#dee4ea"}
+}
+
+func TestDesignScheme(t *testing.T) {
+	d := Design{}
+	if d.Scheme() != "" {
+		t.Fatal("light only without dark colors")
+	}
+	d.Tokens.Dark = darkOK()
+	if d.Scheme() != "system" {
+		t.Fatal("default system")
+	}
+	d.Options.ColorScheme = "dark"
+	if d.Scheme() != "dark" {
+		t.Fatal("chosen default")
 	}
 }

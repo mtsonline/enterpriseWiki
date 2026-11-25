@@ -12,6 +12,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/mtsonline/enterprisewiki/internal/apperr"
+	"github.com/mtsonline/enterprisewiki/internal/coreplugin"
 )
 
 // Design is a data template: rows of blocks with positions, design values
@@ -44,8 +45,8 @@ func (d *Design) OwnFonts() []int64 {
 	return out
 }
 
-// Tokens are the design values (CSS custom properties of the template).
-type Tokens struct {
+// Palette are the colors of a template in one scheme (light or dark).
+type Palette struct {
 	Bg         string `json:"bg"`
 	BgSubtle   string `json:"bg_subtle"`
 	Text       string `json:"text"`
@@ -59,6 +60,15 @@ type Tokens struct {
 	HeaderText string `json:"header_text"`
 	FooterBg   string `json:"footer_bg"`
 	FooterText string `json:"footer_text"`
+}
+
+// Tokens are the design values (CSS custom properties of the template).
+type Tokens struct {
+	// the light colors (always)
+	Palette
+	// Dark: the colors of the dark scheme; nil: the template has light
+	// colors only, and the choice of a scheme does not apply to it
+	Dark *Palette `json:"dark,omitempty"`
 	// Font and HeadingFont: one of limits.fonts (only fonts of the wiki itself)
 	Font        string `json:"font"`
 	HeadingFont string `json:"heading_font"`
@@ -164,6 +174,21 @@ type Options struct {
 	// content width in the middle of the window ("boxed" layout); without
 	// it the rows span the window ("stretched")
 	Boxed bool `json:"boxed,omitempty"`
+	// ColorScheme: the scheme shown when the person has not chosen one
+	// (system, light or dark; empty: system); only with dark colors
+	ColorScheme string `json:"color_scheme,omitempty"`
+}
+
+// Scheme is the default scheme of the template for the wiki ("" = light
+// colors only, see coreplugin.Manifest.ColorScheme).
+func (d *Design) Scheme() string {
+	if d.Tokens.Dark == nil {
+		return ""
+	}
+	if d.Options.ColorScheme == "" {
+		return "system"
+	}
+	return d.Options.ColorScheme
 }
 
 // Limits are the limits of data templates (limits.json, the same file the
@@ -286,6 +311,13 @@ func (d *Design) Problems() []Problem {
 	}
 	d.Tokens.problems(add)
 	cssProblems(d.CSS, add)
+	if d.Options.ColorScheme != "" {
+		if d.Tokens.Dark == nil {
+			add("options.color_scheme", "only with dark colors (tokens.dark)")
+		} else if !slices.Contains(coreplugin.ColorSchemes, d.Options.ColorScheme) {
+			add("options.color_scheme", "one of system, light, dark")
+		}
+	}
 	if (d.Options.HeaderShrink || d.Options.HeaderHide) && !d.Options.StickyHeader {
 		add("options", "a header that gets lower or goes away while scrolling must be sticky (sticky_header)")
 	}
@@ -598,22 +630,31 @@ func (d *Design) room(r Row, view string) float64 {
 	return w - 2*limits.PaddingRem
 }
 
-func (t *Tokens) problems(add func(where, format string, args ...any)) {
-	colors := map[string]string{"bg": t.Bg, "bg_subtle": t.BgSubtle, "text": t.Text, "text_muted": t.TextMuted, "border": t.Border, "primary": t.Primary,
-		"on_primary": t.OnPrimary, "link": t.Link, "focus": t.Focus, "header_bg": t.HeaderBg, "header_text": t.HeaderText, "footer_bg": t.FooterBg, "footer_text": t.FooterText}
+// problems checks the colors of a palette and the contrast of every pair
+// (where: "tokens." or "tokens.dark.").
+func (p *Palette) problems(where string, add func(where, format string, args ...any)) {
+	colors := map[string]string{"bg": p.Bg, "bg_subtle": p.BgSubtle, "text": p.Text, "text_muted": p.TextMuted, "border": p.Border, "primary": p.Primary,
+		"on_primary": p.OnPrimary, "link": p.Link, "focus": p.Focus, "header_bg": p.HeaderBg, "header_text": p.HeaderText, "footer_bg": p.FooterBg, "footer_text": p.FooterText}
 	ok := true
 	for _, k := range []string{"bg", "bg_subtle", "text", "text_muted", "border", "primary", "on_primary", "link", "focus", "header_bg", "header_text", "footer_bg", "footer_text"} {
 		if !colorRe.MatchString(colors[k]) {
-			add("tokens."+k, "a color as #rrggbb (lowercase)")
+			add(where+k, "a color as #rrggbb (lowercase)")
 			ok = false
 		}
 	}
 	if ok {
-		for _, p := range ContrastPairs {
-			if c := Contrast(colors[p.Fore], colors[p.Back]); c < p.Min() {
-				add("tokens."+p.Fore, "%s on %s has a contrast of %.2f:1, at least %.1f:1 is needed (WCAG %s)", p.Fore, p.Back, c, p.Min(), p.Rule)
+		for _, pair := range ContrastPairs {
+			if c := Contrast(colors[pair.Fore], colors[pair.Back]); c < pair.Min() {
+				add(where+pair.Fore, "%s on %s has a contrast of %.2f:1, at least %.1f:1 is needed (WCAG %s)", pair.Fore, pair.Back, c, pair.Min(), pair.Rule)
 			}
 		}
+	}
+}
+
+func (t *Tokens) problems(add func(where, format string, args ...any)) {
+	t.Palette.problems("tokens.", add)
+	if t.Dark != nil {
+		t.Dark.problems("tokens.dark.", add)
 	}
 	if !slices.Contains(limits.Fonts, t.Font) && !OwnFontRe.MatchString(t.Font) {
 		add("tokens.font", "one of %v or an uploaded font (own-ID)", limits.Fonts)
