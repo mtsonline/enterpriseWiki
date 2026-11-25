@@ -1666,6 +1666,21 @@ var traps = []trap{
 		New:  "	kinds = append(kinds, pageTaskKind)",
 		Pkg:  "./internal/server/", Tests: "^TestPageDates$",
 	},
+	// ---------------------------------------------------------------- last administrator (shared accounts)
+	{
+		ID: "admin.remains-site", About: "with shared accounts the last administrator is counted in the role assignments of the own site, not of main",
+		File: "internal/auth/manage.go",
+		Old:  "assign := \"\"\n\tif !s.SeparateAccounts {",
+		New:  "assign := \"\"\n\tif false && !s.SeparateAccounts {",
+		Pkg:  "./internal/server/", Tests: "^TestSharedAccountsLastAdmin$",
+	},
+	{
+		ID: "admin.target-instance", About: "a manager of users of a further site changes an instance administrator",
+		File: "internal/auth/manage.go",
+		Old:  "OR COALESCE((SELECT `+s.instanceAdminSQL(\"u\")+` FROM users u WHERE u.id=$1), false)`",
+		New:  "OR false`",
+		Pkg:  "./internal/server/", Tests: "^TestSharedAccountsLastAdmin$",
+	},
 	// ---------------------------------------------------------------- overview of the administration
 	{
 		ID: "overview.instance-updates", About: "an administrator of a further site sees the updates and install paths of the instance",
