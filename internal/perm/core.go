@@ -23,6 +23,12 @@ func init() {
 			Description: "See the names of all roles, e.g. in permission and share dialogs.", Implies: []string{"core.roles.list_own"}},
 		Def{Key: "core.roles.list_own", Scope: Global, Label: "List the own roles",
 			Description: "See the names of the roles one has (directly or through a group).", Presets: []string{"authenticated"}},
+		// person pages and the menu on names: together with the rules
+		// for finding people (core.users.list_all / list_own)
+		Def{Key: "core.people.view", Scope: Global, Label: "Open people",
+			Description: "Open the page of a person and the menu on names (business card), for the people one may find.", Presets: []string{"authenticated"}},
+		Def{Key: "core.people.email", Scope: Global, Label: "See e-mail addresses of people",
+			Description: "See the e-mail address on person pages when the settings show addresses only with this permission. Addresses people hide stay hidden."},
 		Def{Key: "core.photos.view", Scope: Global, Label: "See all profile photos",
 			Description: "See every profile photo, also those their owners show to nobody (e.g. for identity checks)."},
 		Def{Key: "core.groups.manage", Scope: Global, Label: "Manage groups", Description: "Create and edit groups and their members.",

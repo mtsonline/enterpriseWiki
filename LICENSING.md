@@ -51,7 +51,7 @@ AGPL. There is therefore **no license conflict**. To be fulfilled:
 - **Ship copyright notices and license texts**: when building, `tools/notices` creates the file `licenses.txt`
   with all license texts (including the NOTICE files of Apache-2.0 components). It is contained in the program,
   available under `/licenses.txt`, under *Administration → License* and with `ewiki license notices`.
-- **Fonts** (Inter, Source Sans 3; OFL 1.1): may be bundled with software, but not sold on their own; the
+- **Fonts** (Inter, Poppins, Source Sans 3; OFL 1.1): may be bundled with software, but not sold on their own; the
   license text is contained in `licenses.txt`.
 - **Names and keywords of the emoji** (Unicode CLDR via emojibase-data; Unicode License v3): the notice and the license text are in `licenses.txt`.
 

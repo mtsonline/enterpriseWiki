@@ -1226,5 +1226,11 @@
  "you would lose the permission to give rights on this page: give yourself a rule with it first": "Sie würden das Recht verlieren, auf dieser Seite Rechte zu vergeben: bitte sich zuerst eine Regel mit diesem Recht geben",
  "your current address %s is not in these networks: you would lock yourself out": "Ihre aktuelle Adresse %s liegt nicht in diesen Netzwerken: Sie würden sich aussperren",
  "your user name comes from %s and cannot be changed here": "Ihr Benutzername kommt von %s und lässt sich hier nicht ändern",
- "zoom: a whole number from 1 to 19": "zoom: eine ganze Zahl von 1 bis 19"
+ "zoom: a whole number from 1 to 19": "zoom: eine ganze Zahl von 1 bis 19",
+ "opening people needs the permission %s and core.users.list_all or core.users.list_own": "Personen öffnen braucht das Recht %s und core.users.list_all oder core.users.list_own",
+ "at most %d people per hour": "Höchstens %d Personen in der Stunde",
+ "email_hidden must be true or empty": "email_hidden muss true oder leer sein",
+ "hiding the own e-mail address is not allowed on this site": "Die eigene E-Mail-Adresse zu verbergen ist auf dieser Website nicht erlaubt",
+ "people.email_visibility must be users, permission or nobody": "people.email_visibility muss users, permission oder nobody sein",
+ "person not found": "Person nicht gefunden"
 }

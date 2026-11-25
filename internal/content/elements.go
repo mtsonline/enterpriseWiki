@@ -34,7 +34,10 @@ type Element struct {
 	UpdatedAt    time.Time         `json:"updated_at"`
 	// UpdatedBy names who changed it last: the display name, with the
 	// handle only for readers who may look the person up (PeopleLabels).
-	UpdatedBy   string `json:"updated_by"`
+	UpdatedBy string `json:"updated_by"`
+	// UpdatedByID is set only for readers who may open the person (menu on
+	// the name, person page).
+	UpdatedByID *int64 `json:"updated_by_id,omitempty"`
 	updatedByID *int64
 	DeletedAt   *time.Time `json:"deleted_at,omitempty"`
 	IsDefault   bool       `json:"is_default"`
@@ -235,11 +238,11 @@ func (s *Service) GetElement(ctx context.Context, id int64, lang string, withBod
 	v := &ElementView{Element: *e, Lang: lang}
 	if e.updatedByID != nil {
 		// the handle only for readers who may look the person up
-		names, err := s.PeopleLabels(ctx, []int64{*e.updatedByID})
+		refs, err := s.PeopleRefs(ctx, []int64{*e.updatedByID})
 		if err != nil {
 			return nil, err
 		}
-		v.UpdatedBy = names[*e.updatedByID]
+		v.UpdatedBy, v.UpdatedByID = refs[*e.updatedByID].Name, refs[*e.updatedByID].ID
 	}
 	perms := s.elementPerms(ctx, e)
 	v.Permissions = perms.Strings()
@@ -940,7 +943,8 @@ type Revision struct {
 	Title        string `json:"title"`
 	Comment      string `json:"comment"`
 	RestoredFrom *int   `json:"restored_from"`
-	Author       string `json:"author"` // display name; the handle only for who may look the person up
+	Author       string `json:"author"`              // display name; the handle only for who may look the person up
+	AuthorID     *int64 `json:"author_id,omitempty"` // only for readers who may open the person
 	authorID     *int64
 	CreatedAt    time.Time       `json:"created_at"`
 	Body         json.RawMessage `json:"body,omitempty"`
@@ -975,13 +979,14 @@ func (s *Service) Revisions(ctx context.Context, id int64, lang string) ([]Revis
 		return nil, err
 	}
 	// the handle only for readers who may look the person up
-	names, err := s.PeopleLabels(ctx, authors)
+	refs, err := s.PeopleRefs(ctx, authors)
 	if err != nil {
 		return nil, err
 	}
 	for i := range list {
 		if list[i].authorID != nil {
-			list[i].Author = names[*list[i].authorID]
+			r := refs[*list[i].authorID]
+			list[i].Author, list[i].AuthorID = r.Name, r.ID
 		}
 	}
 	return list, nil
@@ -1007,11 +1012,11 @@ func (s *Service) GetRevision(ctx context.Context, id int64, lang string, rev in
 		return nil, err
 	}
 	if x.authorID != nil {
-		names, err := s.PeopleLabels(ctx, []int64{*x.authorID})
+		refs, err := s.PeopleRefs(ctx, []int64{*x.authorID})
 		if err != nil {
 			return nil, err
 		}
-		x.Author = names[*x.authorID]
+		x.Author, x.AuthorID = refs[*x.authorID].Name, refs[*x.authorID].ID
 	}
 	if t := s.Type(e.Type); t != nil {
 		x.HTML, _ = t.Render(s.withIncludeBudget(ctx), RenderContext{ElementID: id, CategoryID: e.CategoryID, Lang: lang, Principal: identity.From(ctx), Service: s}, x.Body)

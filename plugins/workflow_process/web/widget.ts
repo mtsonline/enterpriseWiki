@@ -1,5 +1,5 @@
 // Interactive part of a workflow page: start a case, list cases, act on them.
-import { openSignature, signatureMethods, signChallenge, api, button, checkbox, errorText, field, fmtDate, formDialog, h, humanSize, mount, openDialog, select, state, t, textArea, textInput, toast, uploadFile } from '@ewiki/coreplugin';
+import { openSignature, signatureMethods, signChallenge, personName, tParts, api, button, checkbox, errorText, field, fmtDate, formDialog, h, humanSize, mount, openDialog, select, state, t, textArea, textInput, toast, uploadFile } from '@ewiki/coreplugin';
 import type { SignChallenge } from '@ewiki/coreplugin';
 import type { Action, Event, Field, Instance } from './types';
 
@@ -150,7 +150,7 @@ export async function openCase(id: number, onChange?: () => void, autoAction?: s
     });
   };
   const dlg = openDialog(x.title, h('div', { class: 'ewf-case' },
-    h('p', null, t('workflow.case_meta', { id: x.id, user: x.started_by || '–', date: fmtDate(x.started_at, state.lang) }), ' ', statusBadge(x),
+    h('p', null, ...tParts('workflow.case_meta', { id: x.id, user: personName(x.started_by, x.started_by_id), date: fmtDate(x.started_at, state.lang) }), ' ', statusBadge(x),
       x.rev ? h('span', { class: 'ew-muted' }, ' · ', t('workflow.version', { n: x.rev })) : null,
       x.test ? h('span', { class: 'ew-badge ew-badge--warn' }, t('workflow.test_badge')) : null),
     x.progress ? h('p', null, t('workflow.progress', { progress: x.progress })) : null,
@@ -168,7 +168,7 @@ export async function openCase(id: number, onChange?: () => void, autoAction?: s
       ...Object.keys(x.data).filter((k) => !x.definition.fields.some((f) => f.id === k)).flatMap((k) => [h('dt', null, k), h('dd', null, String(x.data[k] ?? ''))])),
     h('h3', null, t('workflow.history')),
     h('ol', { class: 'ewf-history' }, ...(x.events ?? []).map((e) => h('li', null,
-      h('time', { datetime: e.at }, fmtDate(e.at, state.lang)), ' – ', h('strong', null, e.actor === 'system' ? t('workflow.system') : e.actor), ': ',
+      h('time', { datetime: e.at }, fmtDate(e.at, state.lang)), ' – ', h('strong', null, e.actor === 'system' ? t('workflow.system') : personName(e.actor, e.actor_id)), ': ',
       eventText(e, stepName),
       e.signature ? h('span', null, ' ', button(t('workflow.sign.signed'), () => void openSignature(e.signature!), { variant: 'link' })) : null,
       e.note ? h('blockquote', { class: 'ewf-note' }, e.note) : null))),
@@ -248,7 +248,7 @@ export async function workflowWidget(el: HTMLElement): Promise<void> {
     filterSel.addEventListener('change', () => { filter = filterSel.value; void draw(); });
     const rows = data.instances.map((x) => h('tr', null,
       h('th', { scope: 'row' }, button(x.title, () => void openCase(x.id, () => void draw()).catch((e) => toast(errorText(e), 'error')), { variant: 'link' })),
-      h('td', null, statusBadge(x)), h('td', null, x.started_by || '–'), h('td', null, fmtDate(x.updated_at, state.lang)),
+      h('td', null, statusBadge(x)), h('td', null, personName(x.started_by, x.started_by_id)), h('td', null, fmtDate(x.updated_at, state.lang)),
       h('td', null, x.actions.length ? h('span', { class: 'ew-badge ew-badge--warn' }, t('workflow.your_turn')) : '')));
     mount(el, h('section', { class: 'ewf-cases', 'aria-labelledby': `ewf-h-${element}` },
       h('div', { class: 'ew-page-header' }, h('h2', { id: `ewf-h-${element}` }, t('workflow.cases')),

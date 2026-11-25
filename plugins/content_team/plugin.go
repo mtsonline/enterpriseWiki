@@ -168,7 +168,10 @@ func decode(raw []byte) (*Config, error) {
 
 // Member is a person shown on a team page (only the chosen fields are set).
 type Member struct {
-	ID      int64             `json:"id"`
+	uid int64
+	// ID is set only for viewers who may open the person (menu on the
+	// name, person page); guests never get it.
+	ID      *int64            `json:"id,omitempty"`
 	Name    string            `json:"name"`
 	Fields  map[string]string `json:"fields"`
 	Groups  []string          `json:"groups,omitempty"`
@@ -221,7 +224,7 @@ func members(ctx context.Context, hs *coreplugin.Host, c *Config) ([]Section, er
 		if err := rows.Scan(&gid, &gname, &gdesc, &uid, &name, &email, &profile, &attrs, &groups); err != nil {
 			return nil, err
 		}
-		m := Member{ID: uid, Name: name, Fields: map[string]string{}, GroupID: []int64{gid}}
+		m := Member{uid: uid, Name: name, Fields: map[string]string{}, GroupID: []int64{gid}}
 		for _, f := range c.Fields {
 			switch {
 			case f == "email":
@@ -274,14 +277,37 @@ func members(ctx context.Context, hs *coreplugin.Host, c *Config) ([]Section, er
 			s.Members = append(s.Members, *all[uid])
 		}
 		sortMembers(s.Members)
-		return []Section{s}, nil
+		return personIDs(ctx, hs, []Section{s})
 	}
 	out := []Section{}
 	for _, gid := range order {
 		sortMembers(byGroup[gid].Members)
 		out = append(out, *byGroup[gid])
 	}
-	return out, nil
+	return personIDs(ctx, hs, out)
+}
+
+// personIDs sets the ids of the members the viewer may open (one query);
+// the others keep none, so their names stay plain text.
+func personIDs(ctx context.Context, hs *coreplugin.Host, secs []Section) ([]Section, error) {
+	var ids []int64
+	for _, s := range secs {
+		for _, m := range s.Members {
+			ids = append(ids, m.uid)
+		}
+	}
+	ok, err := hs.Auth.Viewable(ctx, ids)
+	if err != nil {
+		return nil, err
+	}
+	for _, s := range secs {
+		for j, m := range s.Members {
+			if uid := m.uid; ok[uid] {
+				s.Members[j].ID = &uid
+			}
+		}
+	}
+	return secs, nil
 }
 
 // people loads the active members of the group id (byGroup) or the user id
@@ -303,11 +329,15 @@ func people(ctx context.Context, hs *coreplugin.Host, c *Config, byGroup bool, i
 		if err := rows.Scan(&uid, &name, &email, &profile); err != nil {
 			return nil, err
 		}
-		m := Member{ID: uid, Name: name, Fields: map[string]string{}}
+		m := Member{uid: uid, Name: name, Fields: map[string]string{}}
 		for _, f := range c.Fields {
 			switch f {
 			case "email":
-				m.Fields[f] = email
+				// people blocks follow the rule for e-mail addresses
+				// (team pages do not: their editor decides)
+				if hs.Auth.EmailVisible(ctx, uid, profile["email_hidden"] == "true") {
+					m.Fields[f] = email
+				}
 			case "photo":
 				if hs.Auth.PhotoVisible(ctx, uid, profile["photo_visibility"]) {
 					m.Fields[f] = profile[f]
@@ -321,7 +351,10 @@ func people(ctx context.Context, hs *coreplugin.Host, c *Config, byGroup bool, i
 		}
 		s.Members = append(s.Members, m)
 	}
-	return []Section{s}, rows.Err()
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return personIDs(ctx, hs, []Section{s})
 }
 
 func attrString(v any) string {
@@ -414,7 +447,7 @@ func Render(secs []Section, c *Config, lang string) string {
 			if photo {
 				b.WriteString(avatar(m, "ewt-photo ewt-photo--small"))
 			}
-			b.WriteString(esc(m.Name) + `</th>`)
+			b.WriteString(personName(m) + `</th>`)
 			for _, f := range other {
 				b.WriteString(`<td>` + cell(m, f) + `</td>`)
 			}
@@ -424,7 +457,7 @@ func Render(secs []Section, c *Config, lang string) string {
 			if photo {
 				b.WriteString(avatar(m, "ewt-photo"))
 			}
-			b.WriteString(`<div class="ewt-info"><h3 class="ewt-name">` + esc(m.Name) + `</h3>`)
+			b.WriteString(`<div class="ewt-info"><h3 class="ewt-name">` + personName(m) + `</h3>`)
 			if v := m.Fields["job_title"]; v != "" && has(c.Fields, "job_title") {
 				b.WriteString(`<p class="ewt-title">` + esc(v) + `</p>`)
 			}
@@ -480,6 +513,16 @@ func Render(secs []Section, c *Config, lang string) string {
 		section(s, 2)
 	}
 	return b.String()
+}
+
+// personName is the name of a member; for viewers who may open the
+// person it carries the id, and the team widget turns it into the menu on
+// names (the same as everywhere else).
+func personName(m Member) string {
+	if m.ID == nil {
+		return html.EscapeString(m.Name)
+	}
+	return fmt.Sprintf(`<span class="ewt-person" data-person="%d">%s</span>`, *m.ID, html.EscapeString(m.Name))
 }
 
 func pickLang(lang string) string {

@@ -1,6 +1,6 @@
 .ewq-intro { margin-bottom: 1.25rem; }
 .ewq-toolbar { display: flex; flex-wrap: wrap; gap: .75rem; align-items: center; justify-content: space-between; margin: 0 0 1rem; padding: .75rem; background: var(--ew-bg-subtle); border-radius: 8px; }
-.ewq-search { flex: 1 1 18rem; display: flex; }
+.ewq-search { flex: 1 1 18rem; display: flex; flex-wrap: wrap; }
 .ewq-search input { flex: 1; }
 .ewq-status:empty { display: none; }
 .ewq details > summary { cursor: pointer; list-style: none; display: flex; align-items: baseline; gap: .6rem; }

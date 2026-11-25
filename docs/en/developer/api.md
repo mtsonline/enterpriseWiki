@@ -283,6 +283,16 @@ actions:
 | `DELETE` | `/api/v1/admin/users/{id}/sessions` |
 | `DELETE` | `/api/v1/admin/users/{id}/sessions/{sid}` |
 
+#### People (person page, menu on names)
+
+`GET /api/v1/people/{id}` returns what the caller may see of a person: `id`, `display_name`, `handle`, `card` (business card: `job_title`, `department`, `phone`, `mobile`, `office`, `about`, `photo` – the photo only by the photo rule) and `self`. `email` (the primary confirmed address) is there only when the caller may see it (setting `people.email_visibility`, permission `core.people.email`, the person's own `email_hidden`). The caller needs `core.people.view` and may only open people they may find (themselves, everybody with `core.users.list_all`, members of shared groups with `core.users.list_own`). Guests get `401`, callers without the permission `403`, a person the caller may not find `404` – the same as a person that does not exist. Each call counts against the limit `core.people.views_per_hour` (`429` beyond it; administrators without limit). CLI: `ewiki person show ID`.
+
+Next to names, answers carry the id of the person only for callers who may open them (the frontend shows the menu on the name only then): `updated_by_id` (element), `author_id` (revisions, comments), `deleted_by_id` (trash), `started_by_id` and `actor_id` (cases of `workflow.process`), `id` of the members of team pages and people blocks. Guests never get these ids. The names themselves carry the handle (`user@provider`) only for callers who may find the person.
+
+| Method | Path |
+|---|---|
+| `GET` | `/api/v1/people/{id}` |
+
 ### SCIM 2.0 (directories)
 
 Called by directories such as Entra ID or Okta with the token of a SCIM client (see the admin documentation).

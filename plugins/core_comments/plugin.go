@@ -64,10 +64,13 @@ func (p *Plugin) Locales() fs.FS { s, _ := fs.Sub(locales, "locales"); return s 
 
 // Comment is a comment as returned by the API.
 type Comment struct {
-	ID        int64      `json:"id"`
-	ElementID int64      `json:"element_id"`
-	ParentID  *int64     `json:"parent_id"`
-	AuthorID  *int64     `json:"-"`
+	ID        int64  `json:"id"`
+	ElementID int64  `json:"element_id"`
+	ParentID  *int64 `json:"parent_id"`
+	AuthorID  *int64 `json:"-"`
+	// Person is the id of the author for readers who may open the person
+	// (menu on the name), else empty.
+	Person    *int64     `json:"author_id,omitempty"`
 	Author    string     `json:"author"`
 	Body      string     `json:"body"`
 	HTML      string     `json:"html"`
@@ -437,14 +440,14 @@ func (p *Plugin) names(ctx context.Context, list ...*Comment) error {
 			ids = append(ids, *c.AuthorID)
 		}
 	}
-	names, err := p.host.Content.PeopleLabels(ctx, ids)
+	refs, err := p.host.Content.PeopleRefs(ctx, ids)
 	if err != nil {
 		return err
 	}
 	for _, c := range list {
 		if c.AuthorID != nil {
-			if n, ok := names[*c.AuthorID]; ok {
-				c.Author = n
+			if r, ok := refs[*c.AuthorID]; ok {
+				c.Author, c.Person = r.Name, r.ID
 			}
 		}
 	}

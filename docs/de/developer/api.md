@@ -283,6 +283,16 @@ actions:
 | `DELETE` | `/api/v1/admin/users/{id}/sessions` |
 | `DELETE` | `/api/v1/admin/users/{id}/sessions/{sid}` |
 
+#### Personen (Personenseite, Menü an Namen)
+
+`GET /api/v1/people/{id}` liefert, was der Aufrufer von einer Person sehen darf: `id`, `display_name`, `handle`, `card` (Visitenkarte: `job_title`, `department`, `phone`, `mobile`, `office`, `about`, `photo` – das Foto nur nach der Foto-Regel) und `self`. `email` (die primäre bestätigte Adresse) ist nur dabei, wenn der Aufrufer sie sehen darf (Einstellung `people.email_visibility`, Recht `core.people.email`, das eigene `email_hidden` der Person). Der Aufrufer braucht `core.people.view` und öffnet nur Personen, die er finden darf (sich selbst, mit `core.users.list_all` alle, mit `core.users.list_own` die Mitglieder gemeinsamer Gruppen). Gäste bekommen `401`, Aufrufer ohne das Recht `403`, eine Person, die der Aufrufer nicht finden darf, `404` – dasselbe wie eine Person, die es nicht gibt. Jeder Aufruf zählt für die Grenze `core.people.views_per_hour` (darüber `429`; Administration ohne Grenze). CLI: `ewiki person show ID`.
+
+Neben Namen tragen Antworten die ID der Person nur für Aufrufer, die die Person öffnen dürfen (nur dann zeigt die Oberfläche das Menü am Namen): `updated_by_id` (Element), `author_id` (Versionen, Kommentare), `deleted_by_id` (Papierkorb), `started_by_id` und `actor_id` (Vorgänge von `workflow.process`), `id` der Mitglieder von Team-Seiten und Personen-Bausteinen. Gäste bekommen diese IDs nie. Die Namen selbst tragen die Kennung (`benutzer@anbieter`) nur für Aufrufer, die die Person finden dürfen.
+
+| Methode | Pfad |
+|---|---|
+| `GET` | `/api/v1/people/{id}` |
+
 ### SCIM 2.0 (Verzeichnisse)
 
 Aufgerufen von Verzeichnissen wie Entra ID oder Okta mit dem Token eines SCIM-Zugangs (siehe Admin-Dokumentation).

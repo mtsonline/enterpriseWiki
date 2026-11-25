@@ -1,6 +1,6 @@
 .ewt-desc { margin-bottom: 1.25rem; }
 .ewt-tools { display: flex; flex-wrap: wrap; gap: .75rem; justify-content: space-between; align-items: center; margin-bottom: .75rem; }
-.ewt-filter { display: flex; flex: 1 1 18rem; max-width: 28rem; }
+.ewt-filter { display: flex; flex-wrap: wrap; flex: 1 1 18rem; max-width: 28rem; }
 .ewt-filter input { flex: 1; }
 .ewt-status:empty { display: none; }
 .ewt-group { margin-bottom: 1.5rem; }

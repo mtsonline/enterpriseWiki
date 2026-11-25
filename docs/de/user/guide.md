@@ -537,6 +537,20 @@ Je nach Einrichtung melden Sie sich mit Benutzername und Passwort an (lokales Ko
 - **E-Mail-Benachrichtigungen** (auch für Erwähnungen und geteilte Seiten),
 - **Hilfetexte anzeigen:** Erklärungen zu Feldern und Einstellungen ein- oder ausblenden (Vorgabe: aus). Der Knopf **?** oben auf jeder Seite schaltet dasselbe um; ohne Anmeldung merkt sich der Browser die Wahl. Hinweise, die Sie zum richtigen Ausfüllen brauchen (Formate, Grenzen, Pflichtangaben, Warnungen), stehen immer da. Ausgeblendete Erklärungen liest auch der Screenreader nicht vor. Der Knopf ist ein Baustein der Platzierung (*Hilfetexte (?)*).
 
+## Personen
+
+Überall, wo eine Person genannt wird (unter einer Seite, im Verlauf, in Kommentaren, in Vorgängen von Abläufen, auf Team-Seiten und in den Personen-Bausteinen, im Papierkorb und in der Administration), ist der Name ein Knopf – wenn Sie diese Person öffnen dürfen. Er öffnet ein Menü:
+
+- **Profil öffnen:** die Seite der Person (`/people/…`) mit der Visitenkarte: Foto (wie die Person es erlaubt), Funktion, Abteilung, Telefon, Mobil, Büro, „Über mich“.
+- **E-Mail senden:** nur, wenn Sie die Adresse sehen dürfen (siehe unten). Es öffnet Ihr E-Mail-Programm.
+- Plugins können Einträge hinzufügen, z. B. einen Anruf.
+
+Mit der Tastatur: Mit Tab zum Namen, Enter, Leertaste oder die Pfeiltasten öffnen das Menü, die Pfeiltasten, Pos1 und Ende wählen, Escape schließt es und Sie sind wieder am Namen. Auf einem Touchscreen öffnet ein Tippen das Menü.
+
+Sie öffnen die Personen, die Sie finden dürfen: sich selbst, die Mitglieder Ihrer Gruppen und – mit dem Recht *Alle Benutzer auflisten* – alle. Die Administration kann das Recht *Personen öffnen* allen nehmen oder nur bestimmten Rollen geben. Wo Sie eine Person nicht öffnen dürfen, ist der Name einfacher Text. Gäste sehen nie Personen.
+
+**Ihre E-Mail-Adresse:** Die Administration legt fest, wer Adressen sieht (alle Angemeldeten, nur mit einem Recht oder niemand). Wenn sie es erlaubt, können Sie Ihre eigene Adresse im Profil verbergen (*Visitenkarte* → *Meine E-Mail-Adresse verbergen*); dann sieht sie niemand sonst auf Ihrer Seite und im Menü. Team-Seiten sind davon nicht betroffen: Dort wählt, wer die Team-Seite gestaltet, was sie zeigt.
+
 ## Barrierefreiheit
 
 Die Oberfläche ist vollständig per Tastatur bedienbar (Tab, Umschalt+Tab, Enter, Leertaste, Esc schließt Dialoge und Menüs). Mit **Zum Inhalt springen** (erste Tab-Taste) überspringen Sie die Navigation. Alle Bedienelemente sind für Screenreader beschriftet, Statusmeldungen werden angesagt, und nach einem Seitenwechsel springt der Fokus auf die Überschrift.
