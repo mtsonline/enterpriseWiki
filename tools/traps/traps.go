@@ -1797,10 +1797,10 @@ var traps = []trap{
 		Pkg:  "./internal/readability/", Tests: "^TestActive$",
 	},
 	{
-		ID: "readability.limits", About: "the server stores limits of the readability hint outside the allowed range",
-		File: "internal/server/api.go",
-		Old:  "if err := checkReadability(in.UI.Readability); err != nil {",
-		New:  "if err := checkReadability(in.UI.Readability); err != nil && false {",
+		ID: "readability.config", About: "config.yaml accepts an unknown mode of the readability hint (ewiki config set, a changed file)",
+		File: "internal/config/config.go",
+		Old:  "if r.Mode != \"\" && !slices.Contains(readability.Modes, r.Mode) {",
+		New:  "if false && r.Mode != \"\" && !slices.Contains(readability.Modes, r.Mode) {",
 		Pkg:  "./internal/server/", Tests: "^TestReadabilityHint$",
 	},
 }
