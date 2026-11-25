@@ -1232,5 +1232,8 @@
  "email_hidden must be true or empty": "email_hidden muss true oder leer sein",
  "hiding the own e-mail address is not allowed on this site": "Die eigene E-Mail-Adresse zu verbergen ist auf dieser Website nicht erlaubt",
  "people.email_visibility must be users, permission or nobody": "people.email_visibility muss users, permission oder nobody sein",
- "person not found": "Person nicht gefunden"
+ "person not found": "Person nicht gefunden",
+ "ui.readability.mode must be off, offered or on": "ui.readability.mode muss off, offered oder on sein",
+ "ui.readability.sentence_words must be 0 (default %d) or %d to %d": "ui.readability.sentence_words muss 0 (Vorgabe %d) oder %d bis %d sein",
+ "ui.readability.word_letters must be 0 (default %d) or %d to %d": "ui.readability.word_letters muss 0 (Vorgabe %d) oder %d bis %d sein"
 }

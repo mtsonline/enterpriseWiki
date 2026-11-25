@@ -18,6 +18,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"regexp"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -25,6 +26,7 @@ import (
 
 	"gopkg.in/yaml.v3"
 
+	"github.com/mtsonline/enterprisewiki/internal/readability"
 	"github.com/mtsonline/enterprisewiki/internal/tlsutil"
 )
 
@@ -400,6 +402,37 @@ type UI struct {
 	// may see.
 	NotFoundElement  int64 `yaml:"not_found_element,omitempty" json:"not_found_element"`
 	ForbiddenElement int64 `yaml:"forbidden_element,omitempty" json:"forbidden_element"`
+	// Readability is the hint on long sentences and long words while
+	// writing in the editors (off by default).
+	Readability Readability `yaml:"readability,omitempty" json:"readability"`
+}
+
+// Readability configures the hint on long sentences and long words while
+// writing (internal/readability). It never blocks saving and never changes
+// the text.
+type Readability struct {
+	// Mode: "off" (or empty, the default), "offered" (each person may
+	// switch it on in the profile) or "on" (on for everybody; each person
+	// may switch it off).
+	Mode string `yaml:"mode,omitempty" json:"mode"`
+	// SentenceWords is the most words of a sentence (0 = 20).
+	SentenceWords int `yaml:"sentence_words,omitempty" json:"sentence_words"`
+	// WordLetters is the most letters of a word (0 = 22).
+	WordLetters int `yaml:"word_letters,omitempty" json:"word_letters"`
+}
+
+// ValidateReadability checks the settings of the readability hint.
+func ValidateReadability(r Readability) error {
+	if r.Mode != "" && !slices.Contains(readability.Modes, r.Mode) {
+		return fmt.Errorf("ui.readability.mode must be off, offered or on, got %q", r.Mode)
+	}
+	if n := r.SentenceWords; n != 0 && (n < readability.MinSentenceWords || n > readability.MaxSentenceWords) {
+		return fmt.Errorf("ui.readability.sentence_words must be 0 (default %d) or %d to %d", readability.DefaultSentenceWords, readability.MinSentenceWords, readability.MaxSentenceWords)
+	}
+	if n := r.WordLetters; n != 0 && (n < readability.MinWordLetters || n > readability.MaxWordLetters) {
+		return fmt.Errorf("ui.readability.word_letters must be 0 (default %d) or %d to %d", readability.DefaultWordLetters, readability.MinWordLetters, readability.MaxWordLetters)
+	}
+	return nil
 }
 
 // Auth configures authentication.
@@ -1069,6 +1102,9 @@ func Validate(c *Config) error {
 		return err
 	}
 	if err := ValidateMaintenance(c.Maintenance); err != nil {
+		return err
+	}
+	if err := ValidateReadability(c.UI.Readability); err != nil {
 		return err
 	}
 	if c.UI.NotFoundElement < 0 || c.UI.ForbiddenElement < 0 {

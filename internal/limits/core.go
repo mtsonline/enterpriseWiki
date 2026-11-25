@@ -13,6 +13,7 @@ const (
 	AuditValueGuest    = "core.audit.value_guest_bytes"
 	AuditValue         = "core.audit.value_bytes"
 	WaitNoticeSeconds  = "core.ui.wait_notice_s"
+	ReadabilityKB      = "core.ui.readability_kb"
 	RateUser           = "core.rate.user_per_second"
 	RateUserBurst      = "core.rate.user_burst"
 	RateGuest          = "core.rate.guest_per_second"
@@ -74,6 +75,8 @@ func init() {
 			Label: "Passkey offers on the sign-in page", Help: "Passkey requests of the user name field per address in 5 minutes. Every view of the sign-in page starts one, so many people behind one address (company network) need a high value; a request alone signs nobody in."},
 		Def{Key: WaitNoticeSeconds, Group: "requests", Unit: "seconds", Default: 5, Min: 1, Max: 300,
 			Label: "Notice while waiting", Help: "After this time without an answer to a change the user is asked whether to keep waiting or to cancel. The entered content is kept in both cases."},
+		Def{Key: ReadabilityKB, Group: "requests", Unit: "kb", Default: 512, Min: 16, Max: 10240,
+			Label: "Text checked by the readability hint", Help: "The hint on long sentences and long words checks this much of a text while writing. The rest is not checked; the hint says so."},
 		Def{Key: RateUser, Group: "rate", Unit: "per_second", Default: 50, Min: 1, Max: 100000,
 			Label: "Requests of an account", Help: "Requests per second a signed-in account may send in the long run. Beyond it the answer is 429 with the time to wait."},
 		Def{Key: RateUserBurst, Group: "rate", Unit: "count", Default: 500, Min: 1, Max: 1000000,

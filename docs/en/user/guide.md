@@ -57,6 +57,8 @@ Pages are stored as **Markdown** (GitHub Markdown). There are two editors; you c
 
 **Simple editor:** a lean input field (formatted or Markdown) without live editing, e.g. for older devices.
 
+**Hint on long sentences** (if the administrators offer it): while you write, the editor shows sentences with more than 20 words and words with more than 22 letters (the administrators may set other limits). A hyphen splits a word. Code, code blocks, addresses and paths do not count. The visual editor and the simple editor mark the places with a line under the text; the Markdown source only lists them. Below the editor a line sums up what was found, for example “Readability: 2 long sentences, 1 long word.” **Show places** opens the list; a place selects its text. The hint never changes your text and never stops you from saving. Screen readers hear the summary when the editor gets the focus, not at every key. You switch the hint on or off in your profile.
+
 - **Tags** are directly below the content (separated by commas); they apply to all languages of the page.
 - Optionally enter a **change note**. It appears in the history.
 - If someone saved the page at the same time (without live editing), you are warned instead of overwriting the other change. Then reload and apply your changes again.
@@ -535,6 +537,7 @@ Depending on the setup you sign in with user name and password (local account or
 - **Business card** (photo, function, department, phone, office, "About me") for team pages. Who sees your photo (only you, signed-in people or everyone) you choose within the limits set by the administration,
 - **Watches**, **assigned watches** and **feed and calendar links**,
 - **E-mail notifications** (also for mentions and shared pages),
+- **Hint on long sentences:** only if the site offers it. *As the site decides* follows the setting of the administration; *On* or *Off* is your own choice (also `ewiki pref set readability on --as NAME`).
 - **Show help texts:** show or hide explanations of fields and settings (default: off). The **?** button at the top of every page switches the same; without signing in, the browser remembers the choice. Notes you need to fill in a field correctly (formats, limits, required values, warnings) are always there. Screen readers do not read hidden explanations either. The button is a block of the placement (*Help texts (?)*).
 
 ## People

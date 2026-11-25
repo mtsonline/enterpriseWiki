@@ -44,6 +44,8 @@ import { hydrateIcons } from '../core/icons';
 import type { MacroInfo, MacroParts } from '../core/types';
 import { parse, serialize } from './markdown';
 import { schema } from './schema';
+import { readabilityPlugin, refreshReadability } from './readability';
+import { debounce, ReadabilityHint, readabilityMaxChars, readabilityRules, textareaItems } from '../components/readability';
 
 export type EditorMode = 'visual' | 'markdown';
 
@@ -1430,13 +1432,21 @@ export function createMarkdownEditor(container: HTMLElement, opts: MarkdownEdito
 
   const host: Host = { view: () => view, edit: (pos) => { editAt(view, pos); }, menu: (pos, x, y) => nodeMenu(pos, x, y) };
 
+  // the hint on long sentences and words (if the site and the person want it)
+  const rhRules = readabilityRules();
+  const hint = rhRules ? new ReadabilityHint() : null;
+  const rhMax = readabilityMaxChars();
+  const rhPlugins = rhRules && hint ? [readabilityPlugin(rhRules, rhMax, hint, () => mode === 'visual')] : [];
+  const rhMarkdown = debounce(() => {
+    if (rhRules && hint && mode === 'markdown') { const r = textareaItems(textarea, rhRules, rhMax); hint.update(r.items, r.truncated); }
+  });
   const plugins = [
-    suggestPlugin, escapePlugin, rules, keymap(keys), keymap(baseKeymap), history(), dropCursor(), gapCursor(), tableEditing(),
+    suggestPlugin, escapePlugin, rules, keymap(keys), keymap(baseKeymap), history(), dropCursor(), gapCursor(), tableEditing(), ...rhPlugins,
   ];
   const livePlugins = (c: Collab) => [
     suggestPlugin, escapePlugin, rules, keymap(keys), keymap(baseKeymap),
     ySyncPlugin(c.fragment), yCursorPlugin(c.awareness, { cursorBuilder, selectionBuilder }), yUndoPlugin(),
-    dropCursor(), gapCursor(), tableEditing(),
+    dropCursor(), gapCursor(), tableEditing(), ...rhPlugins,
   ];
 
   const docOf = (src: string) => {
@@ -1447,8 +1457,9 @@ export function createMarkdownEditor(container: HTMLElement, opts: MarkdownEdito
   // ------------------------------------------------ DOM
 
   const surface = h('div', { class: 'ewe-surface' });
-  const textarea = h('textarea', { class: 'ew-input ewe-markdown', rows: 20, 'aria-labelledby': opts.labelId, 'aria-describedby': helpId, lang: opts.lang, spellcheck: 'true' });
-  textarea.addEventListener('input', () => opts.onChange?.());
+  const describedBy = hint ? `${helpId} ${hint.summaryId}` : helpId;
+  const textarea = h('textarea', { class: 'ew-input ewe-markdown', rows: 20, 'aria-labelledby': opts.labelId, 'aria-describedby': describedBy, lang: opts.lang, spellcheck: 'true' });
+  textarea.addEventListener('input', () => { opts.onChange?.(); rhMarkdown.run(); });
   // suggestions of blocks while typing in Markdown: "/" at the start of a
   // line or ":name"
   let mdAt = { from: 0, to: 0, typed: '' };
@@ -1479,7 +1490,7 @@ export function createMarkdownEditor(container: HTMLElement, opts: MarkdownEdito
   const mdWrap = h('div', { class: 'ewe-md-wrap', hidden: true }, textarea);
   const help = h('p', { class: 'ew-help ewe-help', id: helpId });
   const liveBox = h('div', { class: 'ewe-live', hidden: true });
-  const root = h('div', { class: 'ewe-editor' }, opts.toolbarHost ? null : toolbar, liveBox, surface, mdWrap, help);
+  const root = h('div', { class: 'ewe-editor' }, opts.toolbarHost ? null : toolbar, liveBox, surface, mdWrap, help, hint?.el ?? null);
   opts.toolbarHost?.replaceChildren(toolbar);
   container.append(root);
 
@@ -1493,7 +1504,7 @@ export function createMarkdownEditor(container: HTMLElement, opts: MarkdownEdito
     })(),
     attributes: {
       class: 'ew-content ewe-prose', role: 'textbox', 'aria-multiline': 'true', 'aria-labelledby': opts.labelId,
-      'aria-describedby': helpId, lang: opts.lang, spellcheck: 'true',
+      'aria-describedby': describedBy, lang: opts.lang, spellcheck: 'true',
     },
     nodeViews: {
       macro: (n, _v, g) => new MacroView(n, host, g),
@@ -1705,6 +1716,7 @@ export function createMarkdownEditor(container: HTMLElement, opts: MarkdownEdito
     modeLabel(m);
     help.textContent = m === 'markdown' ? t('editor.help_markdown') : t('editor.help_visual');
     updateToolbar(view.state);
+    refreshHint();
     const what = m === 'markdown' ? t('editor.mode_markdown') : t('editor.mode_visual');
     if (remote) {
       if (by) announce(t('editor.mode_switched_by', { name: by, mode: what }));
@@ -1717,6 +1729,12 @@ export function createMarkdownEditor(container: HTMLElement, opts: MarkdownEdito
   function focus() {
     if (mode === 'markdown') textarea.focus();
     else view.focus();
+  }
+
+  /** The hint for the current mode: the marks of the visual editor, or the places of the source. */
+  function refreshHint() {
+    if (!hint) return;
+    if (mode === 'markdown') { rhMarkdown.cancel(); const r = textareaItems(textarea, rhRules!, rhMax); hint.update(r.items, r.truncated); } else refreshReadability(view);
   }
 
   // initial mode without announcement
@@ -1732,6 +1750,7 @@ export function createMarkdownEditor(container: HTMLElement, opts: MarkdownEdito
     modeLabel('markdown');
     help.textContent = t('editor.help_markdown');
     updateToolbar(view.state);
+    refreshHint();
   }
 
   return {
@@ -1746,7 +1765,7 @@ export function createMarkdownEditor(container: HTMLElement, opts: MarkdownEdito
     saved: (rev: number) => { if (liveOn && opts.collab) live?.saved(rev, opts.collab.userId); },
     live: () => ({ on: liveOn, leader: liveOn && !!live?.leader, peers: livePeers }),
     // the view first: its plugins stop listening to the shared document
-    destroy: () => { unbindMd(); view.destroy(); live?.destroy(); root.remove(); toolbar.remove(); },
+    destroy: () => { rhMarkdown.cancel(); unbindMd(); view.destroy(); live?.destroy(); root.remove(); toolbar.remove(); },
   };
 }
 

@@ -27,6 +27,9 @@
 .ewe-markdown { display: block; width: calc(100% - 1rem); margin: .5rem; font-family: var(--ew-mono); min-height: 18rem; }
 .ewe-markdown[hidden], .ewe-surface[hidden] { display: none; }
 .ewe-help { margin: 0; padding: .3rem .75rem .5rem; font-size: .85rem; }
+/* marks of the readability hint: decorations, never part of the text */
+.ewe-rh-sentence { text-decoration: underline dotted 2px var(--ew-warn-border); text-underline-offset: .2em; }
+.ewe-rh-word { text-decoration: underline wavy 1.5px var(--ew-warn-border); text-underline-offset: .35em; }
 .ewe-mono { font-family: var(--ew-mono); }
 
 /* selected nodes and table cells */

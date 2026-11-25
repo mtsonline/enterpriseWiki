@@ -1309,6 +1309,113 @@ test('the simple editor as personal choice', async () => {
   }
 });
 
+test('hint on long sentences: offered by the site, chosen by the person, marks without changing the text', async () => {
+  const before = (await call('GET', '/api/v1/admin/settings')).config;
+  const long = 'This sentence is written on purpose with many more words than the limit allows, so the hint shows it as a long sentence today.';
+  const source = `Short start.\n\n${long}\n\nThe Donaudampfschifffahrtsgesellschaft sails with \`AVeryLongIdentifierInCodeIsNotCounted\`.\n\n\`\`\`\n${long}\n\`\`\`\n`;
+  const pick = (re) => page.getByRole('combobox', { name: re });
+  const RH_PROFILE = /^(hint on long sentences|hinweis auf lange sätze)$/i;
+  const summary = page.locator('.ew-rh-summary');
+  try {
+    // off by default: no choice in the profile, no hint in the editor
+    await page.goto(`${BASE}/profile`);
+    await idle();
+    assert.equal(await pick(RH_PROFILE).count(), 0, 'no choice while the site has it off');
+    // the administration offers it
+    await page.goto(`${BASE}/admin/settings`);
+    await idle();
+    await pick(/^(hint|hinweis)$/i).selectOption('offered');
+    await a11y('settings with the readability hint');
+    await page.locator('form').filter({ has: pick(/^(hint|hinweis)$/i) }).getByRole('button', { name: /^(save|speichern)$/i }).click();
+    await page.locator('.ew-toast', { hasText: /saved|gespeichert/i }).first().waitFor();
+    assert.equal((await call('GET', '/api/v1/site')).readability.mode, 'offered');
+    // offered: still off for the person until switched on in the profile
+    await page.goto(`${BASE}/profile`);
+    await idle();
+    await pick(RH_PROFILE).selectOption('on');
+    await page.locator('form').filter({ has: pick(RH_PROFILE) }).getByRole('button', { name: /^(save|speichern)$/i }).click();
+    await page.locator('.ew-toast', { hasText: /saved|gespeichert/i }).first().waitFor();
+    await a11y('profile with the readability hint');
+    const p = await call('GET', '/api/v1/me/prefs');
+    assert.equal(p.prefs.readability, 'on');
+    assert.equal(p.readability.active, true);
+
+    // the visual editor: a long sentence and a long word marked; code is not counted
+    const cat = await m6Category();
+    const el = await call('POST', '/api/v1/elements', { category_id: cat, type: 'core.html', title: `Readability ${run}`, body: { format: 'markdown', source } });
+    await page.goto(`${BASE}/e/${el.id}/edit`);
+    await idle();
+    await summary.filter({ hasText: /1 long sentence, 1 long word|1 langer satz, 1 langes wort/i }).waitFor();
+    const ed = page.locator('.ewe-prose');
+    assert.equal(await ed.locator('.ewe-rh-sentence').count(), 1, 'the long sentence is marked (not the one in the code block)');
+    assert.equal(await ed.locator('.ewe-rh-word').innerText(), 'Donaudampfschifffahrtsgesellschaft');
+    assert.ok((await ed.getAttribute('aria-describedby')).split(' ').includes(await summary.getAttribute('id')), 'the summary describes the editor');
+    assert.equal(await page.locator('.ew-rh [aria-live], .ew-rh [role=status], .ew-rh[aria-live]').count(), 0, 'not announced while typing');
+    // the list on demand: the places, and a place selects its text
+    const toggle = page.getByRole('button', { name: /^(show places|stellen zeigen)$/i });
+    await toggle.click();
+    assert.equal(await toggle.getAttribute('aria-expanded'), 'true');
+    const places = page.getByRole('region', { name: /^(long sentences and words|lange sätze und wörter)$/i }).getByRole('button');
+    assert.equal(await places.count(), 2);
+    await a11y('editor with the readability hint and its list');
+    await places.first().click();
+    assert.match(await page.evaluate(() => document.getSelection()?.toString() ?? ''), /^This sentence is written on purpose/);
+    // typing changes the summary (after a pause), the list keeps its height
+    const height = await page.locator('.ew-rh').evaluate((x) => x.getBoundingClientRect().height);
+    await ed.locator('p', { hasText: 'Short start.' }).click();
+    await page.keyboard.press('End');
+    await page.keyboard.type(` ${long}`);
+    await summary.filter({ hasText: /2 long sentences|2 lange sätze/i }).waitFor();
+    assert.equal(await page.locator('.ew-rh').evaluate((x) => x.getBoundingClientRect().height), height, 'the hint keeps its height');
+    // the Markdown source: the places only (no marks in the text)
+    await page.getByRole('button', { name: /^(markdown mode|markdown-modus)$/i }).click();
+    await summary.filter({ hasText: /2 long sentences, 1 long word|2 lange sätze, 1 langes wort/i }).waitFor();
+    await page.getByRole('button', { name: /^(visual mode|visueller modus)$/i }).click();
+    // saved without any trace of the marks
+    await page.getByRole('button', { name: /^(publish|veröffentlichen)$/i }).click();
+    await page.waitForURL(/\/e\/\d+$/);
+    const saved = (await call('GET', `/api/v1/elements/${el.id}?edit=1`)).body.source;
+    assert.ok(!/ewe-rh|ew-rh/.test(saved), 'no marks in the saved text');
+    assert.equal(saved.split(long).length - 1, 3, 'the text as written');
+    // the dark scheme
+    await call('PUT', '/api/v1/scheme', { scheme: 'dark' });
+    try {
+      await page.goto(`${BASE}/e/${el.id}/edit`);
+      await idle();
+      await summary.filter({ hasText: /2 long sentences|2 lange sätze/i }).waitFor();
+      await page.getByRole('button', { name: /^(show places|stellen zeigen)$/i }).click();
+      await a11y('editor with the readability hint, dark');
+    } finally { await call('PUT', '/api/v1/scheme', { scheme: '' }); }
+    // nothing moves while the editing page loads with the hint
+    const ctx = await browser.newContext({ viewport: { width: 1280, height: 900 }, storageState: await page.context().storageState() });
+    try {
+      const r = await layoutShift(ctx, `${BASE}/e/${el.id}/edit`);
+      assert.ok(r.sum < CLS_LIMIT, `layout shift ${r.sum.toFixed(3)}: ${r.text}`);
+    } finally { await ctx.close(); }
+
+    // the simple editor: marks drawn by the browser, the text unchanged
+    await call('PUT', '/api/v1/me', { prefs: { editor: 'simple' } });
+    await page.goto(`${BASE}/e/${el.id}/edit`);
+    await idle();
+    await page.locator('.ewh-editable').waitFor();
+    await summary.filter({ hasText: /2 long sentences, 1 long word|2 lange sätze, 1 langes wort/i }).waitFor();
+    assert.equal(await page.evaluate(() => globalThis.CSS?.highlights?.get('ew-rh-sentence')?.size), 2);
+    assert.equal(await page.locator('.ewh-editable [class*="rh"]').count(), 0, 'no elements added to the text');
+    await a11y('simple editor with the readability hint');
+
+    // on for everybody: the person switches it off for themselves
+    await call('PUT', '/api/v1/admin/settings', { ui: { ...before.ui, readability: { mode: 'on' } } });
+    await call('PUT', '/api/v1/me', { prefs: { readability: 'off', editor: '' } });
+    await page.goto(`${BASE}/e/${el.id}/edit`);
+    await idle();
+    await page.locator('.ewe-prose').waitFor();
+    assert.equal(await page.locator('.ew-rh').count(), 0, 'switched off by the person');
+  } finally {
+    await call('PUT', '/api/v1/me', { prefs: { readability: '', editor: '' } });
+    await call('PUT', '/api/v1/admin/settings', { ui: before.ui });
+  }
+});
+
 test('workflow: HR application from template, start and handle a case', async () => {
   await newPage('workflow.process', `Application ${run}`);
   await page.locator('.ewf-template:not(.ewf-add-step) select').selectOption('hr');

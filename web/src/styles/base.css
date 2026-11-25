@@ -309,6 +309,25 @@ textarea.ew-input { resize: vertical; }
 /* explanations the person chose not to see (core/helptexts.ts) */
 .ew-help.ew-help--hidden { display: none; }
 .ew-help-toggle-icon { display: inline-grid; place-items: center; width: 1.5em; height: 1.5em; border: 2px solid currentColor; border-radius: 50%; font-weight: 700; line-height: 1; }
+/* the editing surface may shrink in the layout: a wide code block scrolls in
+   itself instead of widening the page (the simple editor did) */
+.ew-editor-box { min-width: 0; }
+/* the hint on long sentences and words while writing (components/readability.ts):
+   the line keeps its height in every state, the list has a fixed height
+   (nothing below moves while typing); the marks are lines under the text */
+.ew-rh { border-top: 1px solid var(--ew-border); font-size: .85rem; }
+.ew-rh-line { display: flex; align-items: center; gap: .5rem; min-height: 2.5rem; margin: 0; padding: .25rem .75rem; }
+.ew-rh-summary { flex: 1 1 auto; min-width: 0; }
+.ew-rh-toggle { flex: 0 0 auto; }
+@media (max-width: 40rem) { .ew-rh-line { min-height: 3.75rem; } }
+.ew-rh-list { height: 12rem; overflow: auto; margin: 0; padding: .25rem .75rem .5rem; border-top: 1px solid var(--ew-border); }
+.ew-rh-list:focus-visible { outline: 2px solid var(--ew-focus); outline-offset: -2px; }
+.ew-rh-items { list-style: none; margin: 0; padding: 0; }
+.ew-rh-item { display: block; width: 100%; min-height: 1.75rem; padding: .25rem .4rem; border: 0; border-radius: var(--ew-radius); background: none; color: inherit; font: inherit; text-align: left; cursor: pointer; }
+.ew-rh-item:hover { background: var(--ew-hover); }
+.ew-rh-item:focus-visible { outline: 2px solid var(--ew-focus); outline-offset: -2px; }
+::highlight(ew-rh-sentence) { text-decoration: underline dotted 2px var(--ew-warn-border); text-underline-offset: .2em; }
+::highlight(ew-rh-word) { text-decoration: underline wavy 1.5px var(--ew-warn-border); text-underline-offset: .35em; }
 .ew-help-toggle[aria-pressed="true"] .ew-help-toggle-icon { background: var(--ew-text); color: var(--ew-bg); border-color: var(--ew-text); }
 .ew-field-error { color: var(--ew-danger); font-weight: 600; margin: 0; }
 .ew-picker { display: flex; gap: .5rem; flex-wrap: wrap; align-items: center; }

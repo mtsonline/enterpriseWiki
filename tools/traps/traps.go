@@ -1788,4 +1788,19 @@ var traps = []trap{
 		New:  "list[i].UpdatedByID = refs[*w].ID\n\t\t\tlist[i].UpdatedByID = w",
 		Pkg:  "./internal/server/", Tests: "^TestPeopleInLists$",
 	},
+	// ---------------------------------------------------------------- readability hint
+	{
+		ID: "readability.site-off", About: "the hint on long sentences is on for a person although the site only offers it",
+		File: "internal/readability/readability.go",
+		Old:  "return pref == PrefOn",
+		New:  "return pref != PrefOff",
+		Pkg:  "./internal/readability/", Tests: "^TestActive$",
+	},
+	{
+		ID: "readability.limits", About: "the server stores limits of the readability hint outside the allowed range",
+		File: "internal/server/api.go",
+		Old:  "if err := checkReadability(in.UI.Readability); err != nil {",
+		New:  "if err := checkReadability(in.UI.Readability); err != nil && false {",
+		Pkg:  "./internal/server/", Tests: "^TestReadabilityHint$",
+	},
 }

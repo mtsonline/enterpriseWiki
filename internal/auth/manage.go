@@ -19,6 +19,7 @@ import (
 	"github.com/mtsonline/enterprisewiki/internal/db"
 	"github.com/mtsonline/enterprisewiki/internal/identity"
 	"github.com/mtsonline/enterprisewiki/internal/perm"
+	"github.com/mtsonline/enterprisewiki/internal/readability"
 )
 
 // User is the administrative view of a user.
@@ -539,6 +540,9 @@ func init() {
 	RegisterPref("help", "show")
 	// light or dark ("" = the default of the template; see server/scheme.go)
 	RegisterPref("scheme", "system", "light", "dark")
+	// hint on long sentences and words while writing ("" = as the site
+	// decides, ui.readability.mode; see readability.Active)
+	RegisterPref("readability", readability.PrefOn, readability.PrefOff)
 }
 
 // PrefOptions returns the personal settings and their allowed values.

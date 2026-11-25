@@ -35,7 +35,7 @@ export const HIDE_HELP_KEYS = [
   'mapping.email_verified_help', 'mapping.jit_help', 'mapping.keep_unmapped_help', 'media.category_help', 'media.library_help',
   'media.wm.help', 'mfa.admin.all_help', 'mfa.admin.counts_two_help', 'mfa.admin.providers_help', 'picker.source_help',
   'picker.store_in_help', 'placement.types_help', 'plugins.auto_restart_on_drop_help', 'plugins.sources.allow_external_help',
-  'profile.card_about_help', 'profile.editor_help', 'props.cols_help', 'props.default_help', 'props.free_global_help', 'props.free_help',
+  'profile.card_about_help', 'profile.editor_help', 'profile.readability_help', 'props.cols_help', 'props.default_help', 'props.free_global_help', 'props.free_help',
   'props.group_help', 'props.name_help', 'props.show_on_page_help', 'protect.dl_help', 'protect.wm_help', 'publish.notify_help', 'scim.help',
   'scim.provider_help', 'secrets.help', 'settings.collaboration_help', 'settings.editor_help', 'settings.home_help',
   'settings.language_help', 'settings.languages_help', 'settings.logo_help', 'settings.open_external_help', 'settings.own_tree_help',
