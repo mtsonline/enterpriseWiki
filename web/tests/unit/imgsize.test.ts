@@ -34,8 +34,6 @@ const BOXED: { file: string; has: string; css: string }[] = [
 const EXCEPTIONS: { file: string; has: string; why: string }[] = [
   { file: 'web/src/components/media.ts', has: 'new Image()', why: 'not shown: the source of the canvas of the image editor' },
   { file: 'plugins/core_html/web/index.ts', has: '"${size}>`', why: 'width and height of the medium come in ${size} (when the medium has a size)' },
-  // TODO(core_template): reserve the height of .ewd-logo (being reworked in its own branch)
-  { file: 'plugins/core_template/web/engine.ts', has: 'class: \'ewd-logo\'', why: 'the logo of a design has only a max-height; to be fixed with the rework of core_template' },
 ];
 
 function walk(dir: string, ext: string, out: string[] = []): string[] {

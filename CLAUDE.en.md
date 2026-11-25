@@ -62,10 +62,11 @@ In every conflict this order applies: security, no data loss, stability, accessi
 - Tests are independent and deterministic: no fixed waiting times, no reliance on order or time of day where it can be avoided. The CI runs with the race detector.
 - Every API route is used by the interface or a documented script (`checkRouteCoverage` in `internal/server/integration_test.go`). Exceptions there only for calls from outside (sign-in providers, SCIM, office servers).
 - A fixed bug gets a test that would find it again.
+- No control is covered by another element (overlap check in the browser tests); images reserve their size before they load (`imgsize.test.ts`).
 
 ## 6. Commands
 
-Before every pull request: `scripts/precheck.sh` (quick checks first, then the Go and browser tests as in the CI, side by side and each with its own database). Parts: `fast`, `go`, `e2e`, `security`, `docker`, `all`. At the end, look at every failed part. The single commands:
+Before every pull request: `scripts/precheck.sh` (quick checks first, then the Go and browser tests as in the CI, side by side and each with its own database). Parts: `fast`, `go`, `e2e`, `a11y`, `security`, `docker`, `all`. At the end, look at every failed part. The single commands:
 
 ```bash
 scripts/precheck.sh                     # fast + go + e2e; logs per part in /tmp/ewiki-precheck.*
@@ -88,6 +89,7 @@ GOTOOLCHAIN="$(go env GOVERSION)" go run github.com/securego/gosec/v2/cmd/gosec@
 
 # Frontend
 cd web && npm run typecheck && npm run test:unit
+(cd web && EWIKI_E2E_URL=http://localhost:8080 npm run test:a11y)   # quick accessibility check (axe, overlap, 3 widths, light/dark, wide font; a few minutes), after every change to layout, CSS or theme
 EWIKI_E2E_URL=http://localhost:8080 EWIKI_E2E_REQUIRE_AXE=1 npm run test:e2e   # against a freshly set-up wiki
 
 # Complete check from outside (function, load, pentest), always both variants
