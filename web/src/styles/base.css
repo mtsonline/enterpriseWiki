@@ -296,6 +296,8 @@ img { max-width: 100%; height: auto; }
 
 .ew-form { display: grid; gap: .25rem; max-width: 52rem; }
 .ew-field { display: grid; gap: .25rem; margin-bottom: .75rem; }
+/* the editor never widens the page: wide blocks (grids, tables, tool rows) stay inside its column */
+.ew-field > .ew-editor-box { min-width: 0; }
 .ew-field--inline { display: flex; align-items: center; gap: .5rem; flex-wrap: wrap; }
 .ew-field label, .ew-label { font-weight: 600; }
 .ew-input {
