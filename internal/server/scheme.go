@@ -92,12 +92,12 @@ func (s *Server) routesScheme() {
 				return nil, err
 			}
 		}
+		// #nosec G124 -- HttpOnly, SameSite=Lax; Secure follows server.secure_cookies (set for HTTPS base URLs)
 		ck := &http.Cookie{Name: schemeCookie, Value: in.Scheme, Path: "/", HttpOnly: true,
 			Secure: s.app.Config.Get().Server.SecureCookies, SameSite: http.SameSiteLaxMode, MaxAge: int((400 * 24 * time.Hour).Seconds())}
 		if in.Scheme == "" {
 			ck.MaxAge = -1
 		}
-		// #nosec G124 -- HttpOnly, SameSite=Lax; Secure follows server.secure_cookies
 		http.SetCookie(w, ck)
 		return map[string]any{"scheme": in.Scheme}, nil
 	})
