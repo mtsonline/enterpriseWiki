@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+	"unicode/utf8"
 
 	"github.com/jackc/pgx/v5"
 )
@@ -35,6 +36,36 @@ var (
 	}
 )
 
+// Short, clear sentences (CLAUDE.md, section 9; the same rule as
+// internal/i18n/readability_test.go for the interface): at most 20 words a
+// sentence, at most 22 letters a word (a hyphen splits a word).
+var (
+	demoTagRe      = regexp.MustCompile(`<[^>]*>|\{[^{}]*\}|&[a-z]+;|&#\d+;`)
+	demoSentenceRe = regexp.MustCompile(`[.!?;:]\**(\s+|$)|\n`)
+	demoCodeRe     = regexp.MustCompile("`[^`]*`|<code>.*?</code>|<pre>(?s:.*?)</pre>|https?://\\S+|mailto:[\\w.+-]+@[\\w.-]+|[\\w.+-]+@[\\w.-]+|/[a-z]\\S*")
+)
+
+func demoLongSentences(src string) []string {
+	src = demoCodeRe.ReplaceAllString(src, " x ")
+	text := demoTagRe.ReplaceAllString(src, "\n")
+	var out []string
+	for _, s := range demoSentenceRe.Split(text, -1) {
+		words := strings.Fields(strings.Trim(s, " -–*#|>"))
+		long := len(words) > 20
+		for _, w := range words {
+			for _, part := range strings.Split(w, "-") {
+				if utf8.RuneCountInString(strings.Trim(part, ".,;:!?()„“”\"'*_")) > 22 {
+					long = true
+				}
+			}
+		}
+		if long {
+			out = append(out, strings.Join(words, " "))
+		}
+	}
+	return out
+}
+
 type demoView struct {
 	ID         int64  `json:"id"`
 	CategoryID int64  `json:"category_id"`
@@ -45,6 +76,9 @@ type demoView struct {
 	Fallback   bool   `json:"fallback"`
 	HTML       string `json:"html"`
 	ShortURL   string `json:"short_url"`
+	Body       struct {
+		Source string `json:"source"`
+	} `json:"body"`
 }
 
 func checkDemoRules(t *testing.T, e *env, admin *client) {
@@ -68,7 +102,7 @@ func checkDemoRules(t *testing.T, e *env, admin *client) {
 	for _, id := range ids {
 		for _, l := range []string{"en", "de"} {
 			var v demoView
-			admin.must("GET", "/api/v1/elements/"+strconv.FormatInt(id, 10)+"?lang="+l, nil, &v, 200)
+			admin.must("GET", "/api/v1/elements/"+strconv.FormatInt(id, 10)+"?edit=1&lang="+l, nil, &v, 200)
 			views[l][id] = v
 		}
 	}
@@ -104,9 +138,17 @@ func checkDemoRules(t *testing.T, e *env, admin *client) {
 				}
 			}
 		}
-		// a page with text has its own text in each language
+		// a page with text has its own text in each language, in short sentences
 		if en.Type == "core.html" && en.HTML == de.HTML {
 			t.Errorf("demo page %s: the same text in German and English", name)
+		}
+		for _, v := range []demoView{en, de} {
+			if v.Type != "core.html" {
+				continue
+			}
+			for _, s := range demoLongSentences(v.Body.Source) {
+				t.Errorf("demo page %s (%s): sentence too long: %q", name, v.ShownLang, s)
+			}
 		}
 	}
 

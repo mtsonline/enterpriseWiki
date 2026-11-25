@@ -115,8 +115,8 @@ func tourStations(d *demoRun, r *demoRefs) []station {
 	return []station{
 		{key: "welcome", en: "Welcome to the tour", de: "Willkommen zum Rundgang", build: func(tr trf) stationText {
 			return stationText{
-				intro: tr("This tour shows the features of Enterprise Wiki one by one. Every station is one page: what it is, how it is done, what it looks like – right here, live – and what it is good for.",
-					"Dieser Rundgang zeigt die Funktionen des Enterprise Wiki eine nach der anderen. Jede Station ist eine Seite: was es ist, wie es geht, wie es aussieht – direkt hier, live – und wofür es gut ist."),
+				intro: tr("This tour shows the features of Enterprise Wiki one by one. Every station is one page. It says what a feature is and how it is done. You see the result right here, live, and what it is good for.",
+					"Dieser Rundgang zeigt die Funktionen des Enterprise Wiki eine nach der anderen. Jede Station ist eine Seite. Sie sagt, was eine Funktion ist und wie sie geht. Sie sehen das Ergebnis direkt hier, live, und wofür es gut ist."),
 				how: []string{
 					tr("Read a station from top to bottom.", "Lesen Sie eine Station von oben nach unten."),
 					tr("Go on with <em>Next</em> at the end of the page, or choose a station in the list on the side.", "Weiter geht es mit <em>Weiter</em> am Ende der Seite, oder Sie wählen eine Station in der Liste an der Seite."),
@@ -211,7 +211,7 @@ func main() {
 					"Dateien liegen in der Medienbibliothek, jede mit eigenen Rechten. Ein PDF kann nur zur Ansicht freigegeben sein, mit dem Namen der betrachtenden Person als Wasserzeichen; Office-Dateien öffnen sich in einem angebundenen Office-Programm."),
 				how: []string{
 					tr("Open the media library (<em>Media</em> in the menu of your name or under Administration).", "Öffnen Sie die Medienbibliothek (<em>Medien</em> im Menü Ihres Namens oder unter Administration)."),
-					tr("Upload a file and set who may see or download it, and whether it shows a watermark.", "Laden Sie eine Datei hoch und legen Sie fest, wer sie sehen oder herunterladen darf und ob sie ein Wasserzeichen zeigt."),
+					tr("Upload a file and set who may see or download it, and whether it shows a watermark.", "Laden Sie eine Datei hoch. Legen Sie fest, wer sie sehen oder herunterladen darf und ob sie ein Wasserzeichen zeigt."),
 					tr("On a page, <em>Insert block → Attachments</em> lists the files of a folder.", "Auf einer Seite listet <em>Baustein einfügen → Anhänge</em> die Dateien eines Ordners."),
 				},
 				result: macro("attachments", map[string]string{"source": "category", "category": itoa(r.media)}, "") +
@@ -253,8 +253,8 @@ func main() {
 				return macro("iconbox", map[string]string{"name": icon, "title": tr(en, de), "decorative": "true"}, `<p>`+tr(textEN, textDE)+`</p>`)
 			}
 			return stationText{
-				intro: tr("A grid puts blocks side by side – a different number of columns on the desktop, the tablet and the phone. More than 6,000 free icons are ready for it.",
-					"Ein Raster stellt Bausteine nebeneinander – mit eigener Spaltenzahl für Desktop, Tablet und Handy. Über 6.000 freie Symbole stehen dafür bereit."),
+				intro: tr("A grid puts blocks side by side. Desktop, tablet and phone each get their own number of columns. More than 6,000 free icons are ready for it.",
+					"Ein Raster stellt Bausteine nebeneinander. Desktop, Tablet und Handy haben je eine eigene Zahl an Spalten. Über 6.000 freie Symbole stehen dafür bereit."),
 				how: []string{
 					tr("<em>Insert block → Grid</em> and choose the columns per device.", "<em>Baustein einfügen → Raster</em> und die Spalten je Gerät wählen."),
 					tr("Put an <em>Icon box</em> into each column; the icon picker has a search.", "In jede Spalte eine <em>Symbolbox</em> setzen; die Symbolauswahl hat eine Suche."),
@@ -340,8 +340,8 @@ func main() {
 					tr("A team page that keeps itself up to date.", "Eine Teamseite, die sich selbst aktuell hält."),
 					tr("Asking a colleague something right in the text.", "Eine Kollegin direkt im Text etwas fragen."),
 				},
-				tip: tr("Names are buttons for people who may open the person: the menu offers <em>Open profile</em> (the business card on a page of its own) and <em>Send e-mail</em>, when the address may be shown – on every name, e.g. under a page, in its history and in comments. The block People of a group shows members only to those who may list the group; guests see nobody.",
-					"Namen sind Knöpfe für alle, die die Person öffnen dürfen: Das Menü bietet <em>Profil öffnen</em> (die Visitenkarte auf einer eigenen Seite) und <em>E-Mail senden</em>, wenn die Adresse gezeigt werden darf – an jedem Namen, z. B. unter einer Seite, im Verlauf und in Kommentaren. Der Baustein Personen einer Gruppe zeigt Mitglieder nur denen, die die Gruppe auflisten dürfen; Gäste sehen niemanden."),
+				tip: tr("Names are buttons for people who may open the person. The menu offers <em>Open profile</em> and <em>Send e-mail</em>, if the address may be shown. It is on every name, for example under a page, in its history and in comments. The block People of a group shows members only to those who may list the group. Guests see nobody.",
+					"Namen sind Knöpfe für alle, die die Person öffnen dürfen. Das Menü bietet <em>Profil öffnen</em> und <em>E-Mail senden</em>, wenn die Adresse gezeigt werden darf. Es steht an jedem Namen, zum Beispiel unter einer Seite, im Verlauf und in Kommentaren. Der Baustein Personen einer Gruppe zeigt Mitglieder nur denen, die die Gruppe auflisten dürfen. Gäste sehen niemanden."),
 			}
 		}},
 		{key: "display", en: "Showing a category", de: "Kategorien darstellen", build: func(tr trf) stationText {
@@ -375,8 +375,8 @@ func main() {
 				nt = macro("newpage", map[string]string{"template": itoa(r.minutesTpl), "text": tr("New meeting minutes", "Neues Besprechungsprotokoll")}, "")
 			}
 			return stationText{
-				intro: tr("Blocks that connect pages: include a part of another page, jump to a place, show the page tree, search in one area, create a page from a template – and draw a diagram from text.",
-					"Bausteine, die Seiten verbinden: einen Teil einer anderen Seite einbinden, zu einer Stelle springen, den Seitenbaum zeigen, in einem Bereich suchen, eine Seite aus einer Vorlage anlegen – und ein Diagramm aus Text zeichnen."),
+				intro: tr("Blocks that connect pages. Include a part of another page, jump to a place or show the page tree. Search in one area, create a page from a template or draw a diagram from text.",
+					"Bausteine, die Seiten verbinden. Einen Teil einer anderen Seite einbinden, zu einer Stelle springen oder den Seitenbaum zeigen. In einem Bereich suchen, eine Seite aus einer Vorlage anlegen oder ein Diagramm aus Text zeichnen."),
 				how: []string{
 					tr("Mark a part of a page as <em>Excerpt</em>.", "Markieren Sie einen Teil einer Seite als <em>Auszug</em>."),
 					tr("On another page: <em>Insert block → Include page</em>, choose the page and “only the excerpt”.", "Auf einer anderen Seite: <em>Baustein einfügen → Seite einbinden</em>, die Seite wählen und „nur den Auszug“."),
@@ -491,7 +491,7 @@ func main() {
 					`<p>` + tr("The log of the company is the page “Decision log” in ", "Das Protokoll der Firma ist die Seite „Entscheidungsprotokoll“ unter ") + company(tr, r.teams, "Teams", "Teams") + `.</p>`,
 				uses: []string{
 					tr("Decisions of the management that are easy to find later.", "Beschlüsse der Leitung, die später leicht zu finden sind."),
-					tr("Architecture decisions of an IT team.", "Architekturentscheidungen eines IT-Teams."),
+					tr("Architecture decisions of an IT team.", "Entscheidungen über die Technik eines IT-Teams."),
 				},
 				tip: tr("The report shows only pages the reader may see.", "Der Bericht zeigt nur Seiten, die die lesende Person sehen darf."),
 			}
@@ -527,8 +527,8 @@ func main() {
 		}},
 		{key: "forms", en: "Forms", de: "Formulare", off: r.ideas == 0 || !d.hasType("content.forms"), build: func(tr trf) stationText {
 			return stationText{
-				intro: tr("Forms collect answers: in steps, with computed fields, fields that appear depending on an answer, files, a signature – and results that can be public.",
-					"Formulare sammeln Antworten: in Schritten, mit berechneten Feldern, Feldern, die je nach Antwort erscheinen, Dateien, einer Unterschrift – und Ergebnissen, die öffentlich sein können."),
+				intro: tr("Forms collect answers. They can have steps, computed fields and fields that appear after an answer. Files and a signature are possible, and the results can be public.",
+					"Formulare sammeln Antworten. Sie können Schritte, berechnete Felder und Felder haben, die nach einer Antwort erscheinen. Dateien und eine Unterschrift sind möglich, und die Ergebnisse können öffentlich sein."),
 				how: []string{
 					tr("Create an element <em>Form</em> and add fields.", "Legen Sie ein Element <em>Formular</em> an und fügen Sie Felder hinzu."),
 					tr("Choose where the answers go: stored, by e-mail, into a workflow or a database.", "Wählen Sie, wohin die Antworten gehen: gespeichert, per E-Mail, in einen Workflow oder eine Datenbank."),
@@ -559,7 +559,7 @@ func main() {
   B --&gt;|` + tr("approve", "genehmigen") + `| C[` + tr("Calendar", "Kalender") + `] --&gt; D[` + tr("Message", "Nachricht") + `]
   B --&gt;|` + tr("reject", "ablehnen") + `| E[` + tr("Message with the reason", "Nachricht mit Begründung") + `]</code></pre>` +
 					`<p>` + tr("Try it: start a ", "Probieren Sie es: Starten Sie einen ") + link(cURL(r.forms), tr("holiday request", "Urlaubsantrag")) +
-					tr(". In this demo you belong to the team leads, so you can decide it yourself under My tasks.", ". In dieser Demo gehören Sie zur Teamleitung und entscheiden ihn selbst unter Meine Aufgaben.") + `</p>` +
+					tr(". In this demo you belong to the team leads. So you decide it yourself under My tasks.", ". In dieser Demo gehören Sie zur Teamleitung. Sie entscheiden ihn selbst unter Meine Aufgaben.") + `</p>` +
 					`<p>` + tr("Or apply for a job internally: HR and the team lead decide one after the other, and the answer comes as a pop-up in the wiki.", "Oder bewerben Sie sich intern auf eine Stelle: Personal und Teamleitung entscheiden nacheinander, und die Antwort kommt als Pop-up im Wiki.") + `</p>` +
 					`<p>` + tr("More workflows: ", "Weitere Abläufe: ") + company(tr, r.forms, "Forms and workflows of "+companyEN, "Formulare und Abläufe der "+companyDE) + `.</p>`,
 				uses: []string{
@@ -572,7 +572,7 @@ func main() {
 		}},
 		{key: "notes", en: "Writing together live", de: "Live gemeinsam schreiben", off: !d.hasType("content.notes"), build: func(tr trf) stationText {
 			return stationText{
-				intro: tr("Shared notes are written by several people at the same time – everybody sees the others' cursors and changes at once.",
+				intro: tr("Several people write shared notes at the same time. Everybody sees the cursors and changes of the others at once.",
 					"Gemeinsame Notizen schreiben mehrere Personen gleichzeitig – alle sehen die Cursor und Änderungen der anderen sofort."),
 				how: []string{
 					tr("Create an element <em>Notes</em>.", "Legen Sie ein Element <em>Notizen</em> an."),

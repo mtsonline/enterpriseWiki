@@ -252,7 +252,7 @@ func companyNews(d *demoRun, r *demoRefs) {
 			"<p>From next month we back up the data of our customers every night – encrypted, in two data centres. The service desk answers questions.</p>" + r.img(1, "Noon over the valley"),
 			"<p>Ab nächstem Monat sichern wir die Daten unserer Kunden jede Nacht – verschlüsselt, in zwei Rechenzentren. Fragen beantwortet der Service Desk.</p>" + r.img(1, "Mittag über dem Tal")},
 		{"IT: sign in with a passkey", "IT: Anmelden mit Passkey",
-			"<p>From now on you can sign in to the intranet with a passkey – your fingerprint or face instead of a password. Set it up under <em>My profile</em>; the knowledge base explains how.</p>",
+			"<p>From now on you can sign in to the intranet with a passkey. It is your fingerprint or face instead of a password. Set it up under <em>My profile</em>; the knowledge base explains how.</p>",
 			"<p>Ab sofort melden Sie sich im Intranet mit einem Passkey an – Fingerabdruck oder Gesicht statt Passwort. Richten Sie ihn unter <em>Mein Profil</em> ein; die Wissensdatenbank erklärt, wie es geht.</p>"},
 		{"Welcome to our new colleagues", "Willkommen, neue Kolleginnen und Kollegen",
 			"<p>Three new colleagues start in the service desk and in HR this month. Say hello – the team page shows who they are.</p>",
@@ -423,7 +423,7 @@ func companyHandbook(d *demoRun, r *demoRefs) {
 		link := eURLor(r.holidayFlow, cURL(r.forms))
 		return `<p>` + tr("We work flexibly between 7:00 and 19:00; the core time is 9:00 to 15:00.", "Wir arbeiten flexibel zwischen 7:00 und 19:00 Uhr; die Kernzeit ist 9:00 bis 15:00 Uhr.") + `</p>` +
 			macro("panel", map[string]string{"type": "info", "title": tr("Holidays", "Urlaub")}, `<p>`+tr("You have 25 days of holiday a year. Request them with the ", "Sie haben 25 Urlaubstage im Jahr. Beantragen Sie sie mit dem ")+
-				`<a href="`+link+`">`+tr("holiday request", "Urlaubsantrag")+`</a>`+tr(" – your team lead decides, and the approved holiday appears in the calendar of the teams.", " – Ihre Teamleitung entscheidet, und der genehmigte Urlaub erscheint im Kalender der Teams.")+`</p>`)
+				`<a href="`+link+`">`+tr("holiday request", "Urlaubsantrag")+`</a>`+tr(". Your team lead decides. The approved holiday appears in the calendar of the teams.", ". Ihre Teamleitung entscheidet. Der genehmigte Urlaub erscheint im Kalender der Teams.")+`</p>`)
 	}, map[string]any{"position": 1})
 	d.pageF(r.handbook, "IT and security", "IT und Sicherheit", func(tr trf) string {
 		return `<p>` + tr("Three rules keep our data safe:", "Drei Regeln schützen unsere Daten:") + `</p>` +

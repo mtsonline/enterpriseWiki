@@ -252,10 +252,10 @@ func demoOutside(d *demoRun, r *demoRefs) {
 		d.call(http.MethodPut, fmt.Sprintf("/api/v1/placements/category?target=%d", r.company), map[string]any{"placements": placed}, nil)
 		r.where = append(r.where, whereNote{
 			en: whereText("en", "Carousel “Demo”", "three slides of its own and the newest posts of <em>News</em>: the carousel takes them from a source and stays up to date by itself",
-				"Above the content of every page (<code>content-top</code>) – below the header and above the path and the title –, placed only for the category <em>"+companyEN+"</em> without its subcategories, that is on the intranet start page; only for signed-in people",
+				"Above the content of every page (<code>content-top</code>), below the header and above the path and the title. Placed only for the category <em>"+companyEN+"</em> without its subcategories, that is on the intranet start page. Only for signed-in people",
 				"Administration → <em>Carousels</em> (slides); the placement: Edit mode → <em>"+companyEN+"</em> → Category settings → <em>Placement</em>"),
 			de: whereText("de", "Karussell „Demo“", "drei eigene Folien und die neuesten Beiträge aus <em>Neuigkeiten</em>: Das Karussell holt sie aus einer Quelle und bleibt von selbst aktuell",
-				"Über dem Inhalt jeder Seite (<code>content-top</code>) – unter dem Kopfbereich und über Pfad und Titel –, nur für die Kategorie <em>"+companyDE+"</em> ohne ihre Unterkategorien platziert, also auf der Intranet-Startseite; nur für Angemeldete",
+				"Über dem Inhalt jeder Seite (<code>content-top</code>), unter dem Kopfbereich und über Pfad und Titel. Nur für die Kategorie <em>"+companyDE+"</em> ohne ihre Unterkategorien platziert, also auf der Intranet-Startseite. Nur für Angemeldete",
 				"Administration → <em>Karussells</em> (Folien); die Platzierung: Bearbeitungsmodus → <em>"+companyDE+"</em> → Kategorie-Einstellungen → <em>Platzierung</em>"),
 		})
 	})

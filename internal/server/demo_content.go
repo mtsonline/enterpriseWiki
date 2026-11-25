@@ -471,17 +471,17 @@ const whereIntroEN = `<p>Most of the demo is pages. Some parts are not part of a
 	`<h2>The positions of the template</h2><ul>` +
 	`<li><strong>Header</strong> (<code>header-nav</code>, <code>header-tools</code>): the bar at the very top with logo, menu, search, language, <em>Edit</em> and your name.</li>` +
 	`<li><strong>Side column</strong> (<code>sidebar</code>): on the left, with the tree of the categories; on a phone behind the button ☰.</li>` +
-	`<li><strong>Above the content of every page</strong> (<code>content-top</code>): below the header and above the content of the page – that is above the path, the title and the buttons <em>Watch</em>, <em>Favourite</em> and <em>Share</em>. It is not part of the header; it only comes before everything that belongs to the page.</li>` +
+	`<li><strong>Above the content of every page</strong> (<code>content-top</code>): below the header and above the content of the page. That is above the path, the title and the buttons <em>Watch</em>, <em>Favourite</em> and <em>Share</em>. It is not part of the header; it only comes before everything that belongs to the page.</li>` +
 	`<li><strong>Below the content</strong> (<code>content-bottom</code>) and <strong>footer</strong> (<code>footer</code>).</li></ul>` +
-	`<p>Pages and categories have positions of their own as well (for example <em>Category: side column</em>). A part can be placed for the whole website, for one category with its subcategories, or for the page of one category.</p>` +
+	`<p>Pages and categories have positions of their own as well (for example <em>Category: side column</em>). A part can be placed for the whole website. It can also be placed for one category with its subcategories, or for the page of one category only.</p>` +
 	`<h2>The parts of this demo</h2>`
 const whereEndEN = `<p>You find all positions with their blocks under <em>Administration → Placement</em>; a category has its own under <em>Category settings → Placement</em>.</p>`
 const whereIntroDE = `<p>Der größte Teil der Demo sind Seiten. Manche Teile gehören zu keiner Seite: Die Administration <strong>platziert</strong> sie an einer <strong>Position</strong> des Templates, und sie erscheinen dort auf vielen Seiten. Diese Seite sagt für jeden, was er zeigt, wo er steht und wo man ihn ändert.</p>` +
 	`<h2>Die Positionen des Templates</h2><ul>` +
 	`<li><strong>Kopfbereich</strong> (<code>header-nav</code>, <code>header-tools</code>): die Leiste ganz oben mit Logo, Menü, Suche, Sprache, <em>Bearbeiten</em> und Ihrem Namen.</li>` +
 	`<li><strong>Seitenleiste</strong> (<code>sidebar</code>): links, mit dem Baum der Kategorien; auf dem Handy hinter dem Knopf ☰.</li>` +
-	`<li><strong>Über dem Inhalt jeder Seite</strong> (<code>content-top</code>): unter dem Kopfbereich und über dem Inhalt der Seite – also über dem Pfad, dem Titel und den Knöpfen <em>Beobachten</em>, <em>Favorit</em> und <em>Teilen</em>. Sie gehört nicht zum Kopfbereich; sie steht nur vor allem, was zur Seite gehört.</li>` +
+	`<li><strong>Über dem Inhalt jeder Seite</strong> (<code>content-top</code>): unter dem Kopfbereich und über dem Inhalt der Seite. Das ist über dem Pfad, dem Titel und den Knöpfen <em>Beobachten</em>, <em>Favorit</em> und <em>Teilen</em>. Sie gehört nicht zum Kopfbereich; sie steht nur vor allem, was zur Seite gehört.</li>` +
 	`<li><strong>Unter dem Inhalt</strong> (<code>content-bottom</code>) und <strong>Fußbereich</strong> (<code>footer</code>).</li></ul>` +
-	`<p>Auch Seiten und Kategorien haben eigene Positionen (zum Beispiel <em>Kategorie: Seitenspalte</em>). Ein Teil lässt sich für die ganze Website platzieren, für eine Kategorie mit ihren Unterkategorien oder nur für die Seite einer Kategorie.</p>` +
+	`<p>Auch Seiten und Kategorien haben eigene Positionen (zum Beispiel <em>Kategorie: Seitenspalte</em>). Ein Teil lässt sich für die ganze Website platzieren. Er lässt sich auch für eine Kategorie mit ihren Unterkategorien platzieren oder nur für die Seite einer Kategorie.</p>` +
 	`<h2>Die Teile dieser Demo</h2>`
 const whereEndDE = `<p>Alle Positionen mit ihren Bausteinen finden Sie unter <em>Administration → Platzierung</em>; eine Kategorie hat ihre eigene unter <em>Kategorie-Einstellungen → Platzierung</em>.</p>`
