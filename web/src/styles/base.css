@@ -672,7 +672,9 @@ html { scroll-padding-top: calc(var(--ew-sticky-top, var(--ew-header-h)) + .5rem
 .ew-tile.is-moving { opacity: .5; }
 /* overview of the administration: tiles side by side, one column on narrow screens */
 .ew-overview { margin-top: 1rem; display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 22rem), 1fr)); gap: 1rem; align-items: start; }
-.ew-ov-tile { min-width: 0; }
+.ew-ov-tile { min-width: 0; overflow-wrap: anywhere; }
+.ew-ov-tile dt, .ew-ov-tile dd, .ew-ov-tile li { min-width: 0; }
+.ew-ov-tile .ew-badge { white-space: normal; max-width: 100%; }
 .ew-ov-tile .ew-tile-status { grid-template-columns: minmax(0, max-content) minmax(0, 1fr); }
 .ew-ov-facts { display: grid; grid-template-columns: minmax(0, max-content) minmax(0, 1fr); gap: .25rem 1rem; margin: 0 0 .5rem; }
 .ew-ov-facts dt { font-weight: 700; }

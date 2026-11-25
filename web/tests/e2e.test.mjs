@@ -7180,8 +7180,14 @@ test('administration overview: tiles with links, update commands, narrow and wid
   try {
     await page.setViewportSize({ width: 390, height: 800 });
     await idle();
-    const overflow = await page.evaluate(() => [...document.querySelectorAll('.ew-overview, .ew-overview > section')].filter((el) => el.scrollWidth > el.clientWidth + 1).map((el) => el.getAttribute('aria-labelledby') ?? el.className));
+    // what sticks out of its tile (named for the report)
+    const overflow = await page.evaluate(() => [...document.querySelectorAll('.ew-overview > section')].flatMap((sec) => {
+      const right = sec.getBoundingClientRect().right;
+      return [...sec.querySelectorAll('*')].filter((el) => el.getBoundingClientRect().right > right + 1)
+        .map((el) => `${sec.getAttribute('aria-labelledby')}: <${el.tagName.toLowerCase()} class="${el.className}"> ${(el.textContent ?? '').slice(0, 60)}`);
+    }));
     assert.deepEqual(overflow, [], 'overview wider than a narrow screen');
+    assert.ok(await page.evaluate(() => document.querySelector('.ew-overview').scrollWidth <= document.querySelector('.ew-overview').clientWidth + 1), 'overview scrolls sideways');
     await a11y('administration overview (narrow)');
     await page.setViewportSize({ width: 1400, height: 900 });
     await idle();
