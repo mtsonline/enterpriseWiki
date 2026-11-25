@@ -215,7 +215,7 @@ func (s *Service) MyAssignments(ctx context.Context) ([]Assignment, error) {
 	list, err := pgx.CollectRows(rows, func(r pgx.CollectableRow) (Assignment, error) {
 		var a Assignment
 		err := r.Scan(&a.ID, &a.SubjectType, &a.SubjectID, &a.SubjectName, &a.TargetType, &a.TargetID, &a.TargetTitle, &a.Mode, &a.Recursive,
-			&a.Frequency, &a.Mandatory, &a.Note, &a.CreatedBy, &a.CreatedAt, &a.Members, &a.targetCat, &a.Unsubscribed)
+			&a.Frequency, &a.Mandatory, &a.Note, &a.CreatedBy, &a.CreatedAt, &a.Members, &a.targetCat, &a.CreatedByUser, &a.Unsubscribed)
 		return a, err
 	})
 	s.titlesFor(ctx, list)
