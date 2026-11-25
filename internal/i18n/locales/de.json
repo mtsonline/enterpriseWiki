@@ -3147,5 +3147,20 @@
  "overview.license_valid": "gültig",
  "overview.license_for": "Lizenziert für",
  "overview.license_users": "Benutzer",
- "overview.license_until": "Gültig bis"
+ "overview.license_until": "Gültig bis",
+ "overview.timer_unreadable": "Den Zustand des Update-Helfers (data/wiki/update-timer.json) konnte das Wiki nicht lesen. Prüfen Sie den Timer mit scripts/update-docker.sh --status.",
+ "overview.timer_next": "Der Update-Helfer spielt neue Versionen täglich ein. Nächster Lauf: {date}.",
+ "overview.timer_next_window": "Der Update-Helfer spielt neue Versionen täglich ein. Nächster Lauf: {date}, bis zu {minutes} Minuten später.",
+ "overview.timer_stale": "Der Update-Helfer hat sich zuletzt am {date} gemeldet. Vielleicht ist sein Timer ausgeschaltet (scripts/update-docker.sh --status).",
+ "overview.timer_none": "Docker: Kein automatisches Update eingerichtet. Richten Sie es mit scripts/update-docker.sh --enable-timer ein oder führen Sie die Befehle unten im Verzeichnis der Installation aus.",
+ "overview.timer_last": "Letzter Lauf: {date}",
+ "overview.timer_result_none": "ohne Ergebnis",
+ "overview.timer_result_no_update": "nichts zu tun",
+ "overview.timer_result_updated": "auf {version} aktualisiert",
+ "overview.timer_result_failed": "Fehler beim Update auf {version}",
+ "overview.timer_result_backup_failed": "Sicherung fehlgeschlagen, nichts geändert",
+ "overview.timer_result_invalid_marker": "ungültiger Hinweis auf ein Update, nichts geändert",
+ "overview.timer_result_self_built": "selbst gebautes Image: nichts geändert",
+ "overview.timer_result_not_reached": "Version {version} nicht erreicht (feste Version in EWIKI_IMAGE_TAG?)",
+ "overview.timer_result_busy": "ein anderer Lauf war noch aktiv"
 }

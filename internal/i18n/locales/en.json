@@ -3147,5 +3147,20 @@
  "overview.license_valid": "valid",
  "overview.license_for": "Licensed to",
  "overview.license_users": "Users",
- "overview.license_until": "Valid until"
+ "overview.license_until": "Valid until",
+ "overview.timer_unreadable": "The wiki could not read the state of the update helper (data/wiki/update-timer.json). Check the timer with scripts/update-docker.sh --status.",
+ "overview.timer_next": "The update helper installs new versions daily. Next run: {date}.",
+ "overview.timer_next_window": "The update helper installs new versions daily. Next run: {date}, up to {minutes} minutes later.",
+ "overview.timer_stale": "The update helper last reported on {date}. Its timer may be switched off (scripts/update-docker.sh --status).",
+ "overview.timer_none": "Docker: no automatic update set up. Set it up with scripts/update-docker.sh --enable-timer or run the commands below in the directory of the installation.",
+ "overview.timer_last": "Last run: {date}",
+ "overview.timer_result_none": "no result",
+ "overview.timer_result_no_update": "nothing to do",
+ "overview.timer_result_updated": "updated to {version}",
+ "overview.timer_result_failed": "update to {version} failed",
+ "overview.timer_result_backup_failed": "backup failed, nothing changed",
+ "overview.timer_result_invalid_marker": "invalid notice of an update, nothing changed",
+ "overview.timer_result_self_built": "self-built image: nothing changed",
+ "overview.timer_result_not_reached": "version {version} not reached (fixed version in EWIKI_IMAGE_TAG?)",
+ "overview.timer_result_busy": "another run was still going on"
 }

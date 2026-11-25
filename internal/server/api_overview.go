@@ -9,9 +9,13 @@ import (
 
 	"github.com/jackc/pgx/v5"
 
+	"github.com/mtsonline/enterprisewiki/internal/coreplugin"
 	"github.com/mtsonline/enterprisewiki/internal/db"
 	"github.com/mtsonline/enterprisewiki/internal/identity"
 	"github.com/mtsonline/enterprisewiki/internal/perm"
+	"github.com/mtsonline/enterprisewiki/internal/pluginmgr"
+	"github.com/mtsonline/enterprisewiki/internal/version"
+	"github.com/mtsonline/enterprisewiki/internal/worker"
 )
 
 // The overview of the administration (GET /api/v1/admin/status, page
@@ -72,6 +76,52 @@ func detectInstall() installInfo {
 	return installInfo{Commands: []updateCommand{cmdPublished, cmdBuilt, systemd(defaultInstallDir)}}
 }
 
+// dockerDataDir is the data directory of a Docker installation (/data,
+// ./data/wiki on the host), where the wiki and the update helper on the
+// host exchange update-available and update-timer.json; "" elsewhere.
+func dockerDataDir() string {
+	if os.Getenv("EWIKI_DOCKER") != "1" {
+		return ""
+	}
+	return os.Getenv("EWIKI_DATA")
+}
+
+// checkUpdates runs the update check and keeps the marker for the update
+// helper in step with its result.
+func (s *Server) checkUpdates(ctx context.Context, force bool) (*pluginmgr.UpdateReport, error) {
+	rep, err := s.plugins.CheckUpdates(ctx, version.Version, s.manifests(), force)
+	if err != nil {
+		return nil, err
+	}
+	if err := pluginmgr.SyncUpdateMarker(dockerDataDir(), rep); err != nil {
+		s.log.Error("update marker for the update helper", "err", err)
+	}
+	return rep, nil
+}
+
+func (s *Server) manifests() []coreplugin.Manifest {
+	ms := []coreplugin.Manifest{}
+	for _, p := range s.app.Kernel.List() {
+		ms = append(ms, p.Manifest)
+	}
+	return ms
+}
+
+// registerUpdateCheck: the daily update check (plugins.updates.check, on
+// by default), once per instance (on the first site). It fills the
+// overview and, in Docker, the marker for the update helper.
+func (s *Server) registerUpdateCheck() {
+	if s.app.Site != "main" || s.app.Workers == nil {
+		return
+	}
+	s.app.Workers.Register(worker.Job{Name: "updates.check", Interval: 24 * time.Hour,
+		Active: func() bool { c := s.app.Config.Get().Plugins.Updates.Check; return c == nil || *c },
+		Run: func(ctx context.Context) error {
+			_, err := s.checkUpdates(ctx, true)
+			return err
+		}})
+}
+
 // instanceScope: the caller administers the whole instance (on the first
 // site: every administrator), as for the pages Updates and License.
 func (s *Server) instanceScope(r *http.Request) bool {
@@ -87,7 +137,17 @@ func (s *Server) overview(r *http.Request, out map[string]any) error {
 
 	// updates: the last check (no request to GitHub here) and how to install
 	if may("core.plugins.manage") && s.instanceScope(r) {
-		up := map[string]any{"core": nil, "security": false, "install": detectInstall()}
+		in := detectInstall()
+		up := map[string]any{"core": nil, "security": false, "install": in}
+		// the state the update helper reports (Docker only)
+		if in.Kind == "docker" {
+			timer, err := pluginmgr.ReadTimerState(dockerDataDir(), time.Now())
+			up["timer"], up["timer_error"] = timer, ""
+			if err != nil {
+				s.log.Warn("state of the update helper", "err", err)
+				up["timer_error"] = "unreadable"
+			}
+		}
 		if rep := s.plugins.LastUpdateReport(); rep != nil {
 			for _, it := range rep.Items {
 				if it.ID == "core" {

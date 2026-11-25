@@ -41,7 +41,33 @@ There is deliberately no button to install it: the wiki would need access to Doc
 | Docker with a self-built image | `git pull && docker compose -f docker-compose.build.yml up -d --build` | `EWIKI_IMAGE_ORIGIN=self-built`, default of the `Dockerfile` |
 | systemd | `sudo <directory>/scripts/update.sh` | `EWIKI_INSTALL=systemd`, set by `scripts/install.sh` |
 
-Without the marker (for example an older image or an older systemd installation) the overview shows all commands with their labels. The update timer: with systemd, if switched on, it installs on Sundays between 03:30 and 04:30; the wiki cannot see whether it is switched on. Under Docker the wiki does not update itself. `ewiki status` (`GET /api/v1/admin/status`) gives the same information.
+Without the marker (for example an older image or an older systemd installation) the overview shows all commands with their labels. The update timer: with systemd, if switched on, it installs on Sundays between 03:30 and 04:30; the wiki cannot see whether it is switched on. Under Docker the overview shows the next run of the update helper (below) when it has reported recently, otherwise the commands. `ewiki status` (`GET /api/v1/admin/status`) gives the same information.
+
+### Docker: automatic updates with the update helper
+
+The wiki never gets access to Docker (that would be root on the server). Instead a helper on the server installs new releases: `scripts/update-docker.sh`. `./docker-setup.sh` asks whether to set it up (default yes, daily at 03:30).
+
+```bash
+scripts/update-docker.sh --enable-timer 03:30   # daily; systemd with root/sudo, else crontab
+scripts/update-docker.sh --enable-timer 03:30 --cron   # always the crontab of the user
+scripts/update-docker.sh --disable-timer
+scripts/update-docker.sh --status               # timer, last run, what the wiki reported
+scripts/update-docker.sh --dry-run              # what a run would do, without changes
+scripts/update-docker.sh                        # one run now
+```
+
+How it works:
+
+1. Once a day the wiki checks for updates (job `updates.check`, switched off with `plugins.updates.check: false`). If a newer **published release** of the core exists, it writes `./data/wiki/update-available` (version, link, security update yes/no); otherwise it removes the file. Pre-releases are never reported.
+2. The helper runs daily as the user who runs the wiki (`EWIKI_UID`). Without `update-available` it does nothing. It treats the file as untrusted: it only takes a version of the form `1.2.3` and executes nothing from it.
+3. With a self-built image (`docker-compose.build.yml`) it changes nothing and only reports it: update it with `git pull && docker compose -f docker-compose.build.yml up -d --build`.
+4. It backs up the database first (`pg_dump` into `./data/backups/before-update-*.dump`, the newest 10 are kept). If the backup fails, nothing is updated.
+5. Then `docker compose pull wiki` and `docker compose up -d`; it waits until the wiki is ready and compares the version. A fixed version in `EWIKI_IMAGE_TAG` (for example `7.5`) can keep the new release out; the helper reports that.
+6. It writes `./data/wiki/update-timer.json` (next run, last run and its result) and logs to `./data/update-docker.log`. The overview of the administration shows the next run from it; the wiki checks the file strictly and ignores it when it is old.
+
+Runs never overlap, and a run installs at most one update.
+
+**Why systemd or cron:** `./docker-setup.sh` runs as the normal user, not as root. A systemd timer (like `update.sh --enable-timer`) needs root to install; with root rights or `sudo` the helper sets one up (`enterprisewiki-docker-update.timer`, a random delay of up to one hour, runs missed while the server was off are made up). The service runs as the user of the wiki, not as root. Without root rights the helper uses the crontab of the user instead: it needs no rights beyond the access to Docker, which the user has anyway. Cron has no random delay, so a random minute within the hour after the chosen time is fixed once.
 
 ## Automatic updates of the components
 
@@ -307,6 +333,7 @@ Background jobs also run (list and "run now" under *Administration → E-mail*, 
 | `data.rebuild` | 1 min | build the data for reports (for example decisions) of kinds that are new or have a new version, from the latest versions of the pages, 200 pages per step; *Administration → Data for reports* shows the state and starts it again |
 | `workflow.process.timers` | 30 s | continue waiting times and webhooks of workflows, reminders for overdue tasks |
 | `search.external.sync` | 10 s | synchronise the external search index (only when configured) |
+| `updates.check` | daily (and 3 s after the start) | check for updates of the core and the plugins (`plugins.updates.check`); in Docker the notice for the update helper |
 
 In cluster mode each job only runs on one instance at a time (advisory lock).
 

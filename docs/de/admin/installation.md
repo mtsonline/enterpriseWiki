@@ -16,7 +16,9 @@ docker compose up -d     # starten – und für Updates
   ausgeführt werden und erledigt nur, was fehlt (z. B. Besitzer korrigieren, falls nötig mit `sudo`).
 - **Alle Daten liegen im Ordner der Installation:** `./data/postgres` (Datenbank, je Hauptversion ein Ordner),
   `./data/wiki` (`config.yaml`, hochgeladene Dateien). Andere Orte: Pfade in `docker-compose.yml` ändern.
-- **Kein Container läuft als root:** Wiki und PostgreSQL laufen als `EWIKI_UID:EWIKI_GID`.
+- **Zugriff auf Docker:** Der Benutzer, der installiert und das Wiki später startet, muss Docker nutzen können: als Mitglied der Gruppe `docker` oder mit rootless Docker. `./docker-setup.sh` prüft das mit `docker info` und bricht sonst mit einer Erklärung ab. Abhilfe: `sudo usermod -aG docker BENUTZER`, danach ab- und wieder anmelden (die neue Gruppe gilt erst in einer neuen Anmeldung) und `./docker-setup.sh` erneut ausführen.
+- **Kein Container läuft als root:** Wiki und PostgreSQL laufen immer als `EWIKI_UID:EWIKI_GID` aus `.env` (`user:` in `docker-compose.yml`), auch wenn jemand `docker compose up -d` als root startet. `./data` gehört diesem Benutzer. Bestehende Installationen: `./docker-setup.sh` erneut ausführen; es trägt fehlende IDs ein und korrigiert die Besitzer in `./data` (mit `sudo`, falls nötig). Danach `docker compose up -d`.
+- **Automatische Updates:** `./docker-setup.sh` fragt, ob neue Releases automatisch eingespielt werden (Vorgabe ja, täglich um 03:30 Uhr, mit Datenbanksicherung vorher). Das erledigt `scripts/update-docker.sh` auf dem Server, nicht das Wiki selbst; Einzelheiten in [operations.md](operations.md#docker-automatische-updates-mit-dem-update-helfer).
 - Verwendet werden das fertige Image `ghcr.io/mtsonline/enterprisewiki:${EWIKI_IMAGE_TAG}` (amd64 und arm64, bei jedem
   `docker compose up -d` die neueste Version) und das offizielle Image
   `postgres:${POSTGRES_VERSION}`. Neue PostgreSQL-Hauptversionen: `./docker-postgres-upgrade.sh`

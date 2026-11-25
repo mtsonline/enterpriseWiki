@@ -11,7 +11,6 @@ import (
 	"github.com/mtsonline/enterprisewiki/internal/mail"
 
 	"github.com/mtsonline/enterprisewiki/internal/apperr"
-	"github.com/mtsonline/enterprisewiki/internal/coreplugin"
 	"github.com/mtsonline/enterprisewiki/internal/pgversion"
 	"github.com/mtsonline/enterprisewiki/internal/pluginmgr"
 	"github.com/mtsonline/enterprisewiki/internal/version"
@@ -26,13 +25,7 @@ func (s *Server) routesM3() {
 	})
 
 	// ---------------------------------------------------------------- updates
-	manifests := func() []coreplugin.Manifest {
-		ms := []coreplugin.Manifest{}
-		for _, p := range s.app.Kernel.List() {
-			ms = append(ms, p.Manifest)
-		}
-		return ms
-	}
+	s.registerUpdateCheck()
 	// GET /api/v1/admin/updates?force=1 checks GitHub releases of the core
 	// and all plugins with a repository (cached for an hour).
 	// action: core.updates.list
@@ -49,7 +42,7 @@ func (s *Server) routesM3() {
 				return map[string]any{"checked_at": nil, "items": []any{}}, nil
 			}
 		}
-		return s.plugins.CheckUpdates(r.Context(), version.Version, manifests(), force)
+		return s.checkUpdates(r.Context(), force)
 	})
 	// GET /api/v1/admin/status: the state of the wiki at a glance (tile of
 	// the dashboard, overview of the administration, ewiki status): version,

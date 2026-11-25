@@ -17,9 +17,11 @@ import { licenseNotice, type LicenseStatus } from './adminLicense';
 interface UpdateInfo { id: string; name: string; current: string; latest?: string; url?: string; notes?: string; available: boolean; error?: string; security?: boolean; security_notes?: string }
 interface UpdateCommand { kind: 'docker-published' | 'docker-self-built' | 'systemd'; lines: string[] }
 interface Install { kind: '' | 'docker' | 'systemd'; image?: string; origin?: string; dir?: string; commands: UpdateCommand[] }
+/** what the update helper on the host (scripts/update-docker.sh) reports, checked by the server */
+interface TimerState { mode: 'systemd' | 'cron'; next_run: string | null; window_minutes: number; last_run: string | null; last_result?: string; last_version?: string; updated_at: string; fresh: boolean }
 
 interface Overview extends AdminStatus {
-  updates?: { core: UpdateInfo | null; security: boolean; install: Install };
+  updates?: { core: UpdateInfo | null; security: boolean; install: Install; timer?: TimerState | null; timer_error?: string };
   plugins?: { total: number; enabled: number; active: number; in_process: number };
   users?: { active: number; disabled: number; invited: number; directory: { provider: string; status: string; started_at: string; error?: string }[] };
   security?: { providers: { id: string; name: string; required: number }[]; factors: number };
@@ -46,13 +48,31 @@ function facts(rows: [string, Node | string, ...(Node | null)[]][]): HTMLElement
   return h('dl', { class: 'ew-ov-facts' }, ...rows.flatMap(([k, ...v]) => [h('dt', null, k), h('dd', null, ...v)]));
 }
 
-/** When the core update is installed. Kept as its own small part: the
- * Docker update helper (planned) will report its next run here. */
-function autoInstallText(install: Install): HTMLElement {
-  const parts: string[] = [];
-  if (install.kind !== 'docker') parts.push(t('overview.auto_systemd'));
-  if (install.kind !== 'systemd') parts.push(t('overview.auto_docker'));
-  return h('p', { class: 'ew-help' }, parts.join(' '));
+/** When the core update is installed: the next run the update helper
+ * reports (Docker), else the fixed facts of the timers. */
+function autoInstallText(up: NonNullable<Overview['updates']>): HTMLElement {
+  const { install, timer } = up;
+  const L = state.lang;
+  const out = h('div', { class: 'ew-help' });
+  const p = (text: string, ...extra: (Node | string | null)[]) => out.append(h('p', null, text, ...extra));
+  if (install.kind !== 'docker') p(t('overview.auto_systemd'));
+  if (install.kind === 'systemd') return out;
+  if (up.timer_error) {
+    p(t('overview.timer_unreadable'));
+  } else if (timer && timer.fresh && timer.next_run) {
+    p(t(timer.window_minutes ? 'overview.timer_next_window' : 'overview.timer_next', { date: fmtDate(timer.next_run, L), minutes: timer.window_minutes }));
+  } else if (timer) {
+    p(t('overview.timer_stale', { date: fmtDate(timer.updated_at, L) }));
+  } else {
+    p(t(install.kind === 'docker' ? 'overview.timer_none' : 'overview.auto_docker'));
+  }
+  if (timer?.last_run) {
+    const r = timer.last_result ?? '';
+    const bad = ['failed', 'backup-failed', 'invalid-marker', 'not-reached'].includes(r);
+    p(t('overview.timer_last', { date: fmtDate(timer.last_run, L) }), ' ',
+      badge(bad ? 'error' : r === 'updated' ? 'ok' : 'info', t(`overview.timer_result_${r.replace(/-/g, '_') || 'none'}`, { version: timer.last_version ?? '' })));
+  }
+  return out;
 }
 
 /** The commands that install the update, each with its label. */
@@ -91,8 +111,8 @@ function updatesTile(up: NonNullable<Overview['updates']>, st: Overview): HTMLEl
       avail && core?.notes ? h('details', null, h('summary', null, t('overview.all_notes')),
         h('pre', { class: 'ew-ov-notes', tabindex: '0' }, core.notes),
         core.url ? h('p', null, h('a', { href: core.url, rel: 'external noopener', target: '_blank' }, t('overview.release_page'))) : null) : null,
-      avail ? h('div', null, h('h3', { class: 'ew-ov-h3' }, t('overview.how_install')), autoInstallText(up.install), commands(up.install))
-        : h('details', null, h('summary', null, t('overview.how_install')), autoInstallText(up.install), commands(up.install)));
+      avail ? h('div', null, h('h3', { class: 'ew-ov-h3' }, t('overview.how_install')), autoInstallText(up), commands(up.install))
+        : h('details', null, h('summary', null, t('overview.how_install')), autoInstallText(up), commands(up.install)));
     body.setAttribute('aria-busy', 'false');
   }).catch((e) => {
     mount(body, h('p', null, badge('warn', t('overview.check_failed')), ' ', errorText(e)));
