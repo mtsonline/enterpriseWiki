@@ -88,6 +88,20 @@ export function contrast(a: string, b: string): number {
   return (x + 0.05) / (y + 0.05);
 }
 
+/** The colour itself, or mixed towards white (on a dark background) or black
+ * (on a light one) just enough to reach the contrast min with bg: for a colour
+ * someone chose for the light scheme that is shown in the dark one. Both as
+ * #rrggbb. */
+export function readableOn(color: string, bg: string, min = 4.5): string {
+  if (contrast(color, bg) >= min) return color;
+  const to = lum(bg) < 0.18 ? '#ffffff' : '#000000';
+  for (let i = 1; i <= 20; i++) {
+    const c = mix(color, to, i / 20);
+    if (contrast(c, bg) >= min) return c;
+  }
+  return to;
+}
+
 /** The most columns of text that have room side by side in a view. */
 export function maxColumns(view: ViewName): number {
   return Math.max(1, Math.floor((SCHEMA.view_min_px[view] / SCHEMA.rem_px - 2) / SCHEMA.column_min_rem));

@@ -174,8 +174,8 @@ With the wiki template (`theme.wiki`, `theme.wiki.dark`) the sidebar can be hidd
 
 | Setting | Meaning |
 |---|---|
-| `logo`, `logo_light`, `logo_height` | logo (uploaded image) and light variant for the transparent header above the start image; height in pixels |
-| `primary_color`, `accent_color` | main colour (links, buttons, active navigation) and accent colour, `#rrggbb` |
+| `logo`, `logo_light`, `logo_height` | logo (uploaded image) and light variant for the transparent header above the start image; height in pixels; in the dark scheme the header always shows the light variant (without one, the normal logo) |
+| `primary_color`, `accent_color` | main colour (links, buttons, active navigation) and accent colour, `#rrggbb`; in the dark scheme the wiki lightens the main colour as far as needed for 4.5 : 1 |
 | `header` | `overlay`: the header lies transparently above the start image and turns white when scrolling; `solid`: always white |
 | `hero_image`, `hero_title`, `hero_subtitle`, `hero_button_label`, `hero_button_link`, `hero_size` | start image only on the home page; size `large` or `medium` |
 | `banner`, `banner_image` | page title on sub-pages in an image banner (without an own image a gradient is used) |

@@ -93,11 +93,16 @@ func TestColorScheme(t *testing.T) {
 		t.Fatalf("theme.wiki.dark: %s", tag)
 	}
 	setTemplate("theme.cms")
+	if tag, _ = page(e.client()); !strings.Contains(tag, `data-scheme="system"`) {
+		t.Fatalf("theme.cms follows the device: %s", tag)
+	}
+	// a template of the designer has light colours only (no dark palette yet)
+	setTemplate("core.template/example-wiki")
 	if tag, _ = page(e.client()); strings.Contains(tag, "data-scheme=") {
-		t.Fatalf("theme.cms has light colours only: %s", tag)
+		t.Fatalf("a designed template has light colours only: %s", tag)
 	}
 	if tag, _ = page(admin); strings.Contains(tag, "data-scheme=") || !strings.Contains(tag, `data-scheme-choice="dark"`) {
-		t.Fatalf("theme.cms with a choice: %s", tag)
+		t.Fatalf("a light template with a choice: %s", tag)
 	}
 	var site struct {
 		Templates []struct {
@@ -110,7 +115,7 @@ func TestColorScheme(t *testing.T) {
 	for _, x := range site.Templates {
 		got[x.ID] = x.ColorScheme
 	}
-	if got["theme.wiki"] != "system" || got["theme.wiki.dark"] != "dark" || got["theme.cms"] != "" {
+	if got["theme.wiki"] != "system" || got["theme.wiki.dark"] != "dark" || got["theme.cms"] != "system" || got["theme.cms.modern"] != "system" {
 		t.Errorf("color schemes of the templates: %v", got)
 	}
 }
