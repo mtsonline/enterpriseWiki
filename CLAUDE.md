@@ -60,10 +60,11 @@ Bei jedem Konflikt gilt diese Reihenfolge: Sicherheit, kein Datenverlust, Stabil
 - Tests sind unabhängig und deterministisch: keine festen Wartezeiten, kein Verlass auf Reihenfolge oder Uhrzeit, wo es sich vermeiden lässt. Die CI läuft mit Race-Detector.
 - Jede API-Route wird von der Oberfläche oder einem dokumentierten Skript genutzt (`checkRouteCoverage` in `internal/server/integration_test.go`). Ausnahmen dort nur für Aufrufe von außen (Anmeldeanbieter, SCIM, Office-Server).
 - Ein behobener Fehler bekommt einen Test, der ihn wieder finden würde.
+- Kein Bedienelement wird von einem anderen Element verdeckt (Überdeckungsprüfung in den Browser-Tests); Bilder reservieren ihre Größe vor dem Laden (`imgsize.test.ts`).
 
 ## 6. Befehle
 
-Vor jedem Pull Request: `scripts/precheck.sh` (schnelle Prüfungen zuerst, dann Go- und Browser-Tests wie in der CI, nebeneinander und je mit eigener Datenbank). Teile: `fast`, `go`, `e2e`, `security`, `docker`, `all`. Am Ende jeden fehlgeschlagenen Teil ansehen. Die einzelnen Befehle:
+Vor jedem Pull Request: `scripts/precheck.sh` (schnelle Prüfungen zuerst, dann Go- und Browser-Tests wie in der CI, nebeneinander und je mit eigener Datenbank). Teile: `fast`, `go`, `e2e`, `a11y`, `security`, `docker`, `all`. Am Ende jeden fehlgeschlagenen Teil ansehen. Die einzelnen Befehle:
 
 ```bash
 scripts/precheck.sh                     # fast + go + e2e; Protokolle je Teil in /tmp/ewiki-precheck.*
@@ -86,6 +87,7 @@ GOTOOLCHAIN="$(go env GOVERSION)" go run github.com/securego/gosec/v2/cmd/gosec@
 
 # Frontend
 cd web && npm run typecheck && npm run test:unit
+(cd web && EWIKI_E2E_URL=http://localhost:8080 npm run test:a11y)   # schnelle Prüfung der Barrierefreiheit (axe, Überdeckung, 3 Breiten, hell/dunkel, breite Schrift; wenige Minuten), nach jeder Änderung an Layout, CSS oder Theme
 EWIKI_E2E_URL=http://localhost:8080 EWIKI_E2E_REQUIRE_AXE=1 npm run test:e2e   # gegen ein frisch eingerichtetes Wiki
 
 # Gesamtprüfung von außen (Funktion, Last, Pentest), immer beide Varianten
