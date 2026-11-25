@@ -775,7 +775,7 @@ actions:
         en: List your unread pop-up notifications (shown once as a dialog)
         de: Eigene ungelesene Pop-up-Benachrichtigungen auflisten (einmal als Dialog gezeigt)
     signed_in: true
-    cli: {command: [inbox, popups]}
+    cli: {command: [me, inbox, popups]}
     ui: {entry: /}
     examples:
       - name: default
