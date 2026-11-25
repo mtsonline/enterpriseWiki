@@ -3,7 +3,7 @@
 // .ics), the event form (series, registration, reminders) and iCal
 // subscription.
 import {
-  announce, api, button, checkbox, confirmDialog, errorText, feedURL, field, formDialog, h, mount, newest, openDialog, qs, registerEditor, registerWidget, select, state, t, textArea, textInput, toast, trustedHTML, uid, type EditorInstance, sourcesEditor, registerSourceKind, registerMacroParamControl, elementSelect, registerSlot, tile,
+  announce, api, button, checkbox, confirmDialog, errorText, feedURL, field, formDialog, h, mount, newest, openDialog, personName, qs, registerEditor, registerWidget, select, state, t, textArea, textInput, toast, trustedHTML, uid, type EditorInstance, sourcesEditor, registerSourceKind, registerMacroParamControl, elementSelect, registerSlot, tile,
 } from '@ewiki/coreplugin';
 import './style.css';
 
@@ -15,7 +15,7 @@ type View = 'month' | 'week' | 'list';
 interface Ev {
   id: number; calendar_id: number; title: string; description: string; description_html: string; location: string; url: string; category: string;
   starts_at: string; ends_at: string; all_day: boolean; tz: string; rrule: string; exdates: string[]; registration: boolean; capacity: number;
-  waitlist: boolean; reg_deadline: number; reminders: number[]; author: string; can_edit: boolean; can_manage: boolean; external?: boolean; source?: string;
+  waitlist: boolean; reg_deadline: number; reminders: number[]; author: string; author_id?: number; can_edit: boolean; can_manage: boolean; external?: boolean; source?: string;
   page_id?: number; page_title?: string; page_kind?: 'date' | 'task';
   overrides?: Record<string, Override>;
 }
@@ -211,7 +211,7 @@ async function showEvent(series: Ev, o: Occ, cfg: Config, reload: () => Promise<
       e.url ? [h('dt', null, t('content.events.link')), h('dd', null, h('a', { href: e.url, rel: 'noopener noreferrer', target: '_blank' }, e.url))] : null,
       cat ? [h('dt', null, t('content.events.category')), h('dd', null, h('span', { class: 'ewe-dot', style: `background:${cat.color}`, 'aria-hidden': 'true' }), ' ', cat.label)] : null,
       e.registration ? [h('dt', null, t('content.events.registration')), h('dd', null, statusText(e, o), !o.registration_open && !started ? ` · ${t('content.events.reg_closed')}` : null)] : null,
-      e.author ? [h('dt', null, t('content.events.organizer')), h('dd', null, e.author)] : null,
+      e.author ? [h('dt', null, t('content.events.organizer')), h('dd', null, personName(e.author, e.author_id))] : null,
       e.page_kind === 'task' ? [h('dt', null, t('content.events.kind')), h('dd', null, t('content.events.page_task'))] : null,
       e.page_id ? [h('dt', null, t('content.events.from_page')), h('dd', null, h('a', { href: `/e/${e.page_id}` }, e.page_title || `#${e.page_id}`))]
         : e.external || sourceNames[String(e.calendar_id)] ? [h('dt', null, t('content.events.from_source')), h('dd', null, e.external ? hostOf(e.source ?? '') : sourceNames[String(e.calendar_id)])] : null),

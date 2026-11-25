@@ -1698,25 +1698,25 @@ var traps = []trap{
 	},
 	// ---------------------------------------------------------------- names of people
 	{
-		ID: "people.handle-for-all", About: "the handle (user@provider, often the e-mail address) is shown to guests and to readers who may not look the person up",
+		ID: "people.handle-for-all", About: "names next to content carry the handle (user@provider, often the e-mail address)",
 		File: "internal/content/people.go",
-		Old:  "r := PersonRef{Name: PersonLabel(name, handle, rule || manage)}",
-		New:  "r := PersonRef{Name: PersonLabel(name, handle, rule || manage || true)}",
-		Pkg:  "./internal/server/", Tests: "^TestHandlesOnlyForWhoMayLookUp$",
+		Old:  "rows, err := s.pool.Query(ctx, `SELECT u.id, u.display_name,\n",
+		New:  "rows, err := s.pool.Query(ctx, `SELECT u.id, u.display_name || ' (' || u.username || '@' || u.provider || ')',\n",
+		Pkg:  "./internal/server/", Tests: "^TestNamesWithoutHandles$",
 	},
 	{
 		ID: "people.handle-in-lists", About: "lists of pages name who changed them with the handle",
 		File: "internal/content/elements.go",
 		Old:  "COALESCE((SELECT u.display_name FROM users u WHERE u.id = e.updated_by), ''),",
 		New:  "COALESCE((SELECT u.display_name || ' (' || u.username || '@' || u.provider || ')' FROM users u WHERE u.id = e.updated_by), ''),",
-		Pkg:  "./internal/server/", Tests: "^TestHandlesOnlyForWhoMayLookUp$",
+		Pkg:  "./internal/server/", Tests: "^TestNamesWithoutHandles$",
 	},
 	{
 		ID: "people.handle-of-deleted-actor", About: "the history of a case shows the stored handle of an account deleted later",
 		File: "plugins/workflow_process/plugin.go",
 		Old:  "\t\tcase list[i].Actor != \"system\":\n\t\t\tlist[i].Actor = \"\"",
 		New:  "\t\tcase list[i].Actor != \"system\":\n\t\t\t_ = 0",
-		Pkg:  "./internal/server/", Tests: "^TestHandlesOnlyForWhoMayLookUp$",
+		Pkg:  "./internal/server/", Tests: "^TestNamesWithoutHandles$",
 	},
 	{
 		ID: "people.view-any", About: "people outside the own groups can be opened with core.users.list_own only",
@@ -1756,8 +1756,8 @@ var traps = []trap{
 	{
 		ID: "people.ids-for-all", About: "the ids of people go to guests and to readers who may not open them",
 		File: "internal/content/people.go",
-		Old:  "if rule && view {",
-		New:  "if view || !view {",
+		Old:  "if open {\n\t\t\tv := id",
+		New:  "if open || !open {\n\t\t\tv := id",
 		Pkg:  "./internal/server/", Tests: "^TestPeople$",
 	},
 	{
@@ -1773,5 +1773,19 @@ var traps = []trap{
 		Old:  "if !s.limiter.allow(\"people:\"+itoa(p.ID()), max, time.Hour) {",
 		New:  "if false && !s.limiter.allow(\"people:\"+itoa(p.ID()), max, time.Hour) {",
 		Pkg:  "./internal/server/", Tests: "^TestPeople$",
+	},
+	{
+		ID: "people.event-organiser-id", About: "events send the raw id of their organiser to everybody, guests included",
+		File: "plugins/content_events/plugin.go",
+		Old:  "CreatedBy *int64    `json:\"-\"`",
+		New:  "CreatedBy *int64    `json:\"created_by\"`",
+		Pkg:  "./internal/server/", Tests: "^TestPeopleInLists$",
+	},
+	{
+		ID: "people.draft-ids", About: "drafts send the id of who changed them to readers who may not open the person",
+		File: "internal/content/drafts.go",
+		Old:  "list[i].UpdatedByID = refs[*w].ID",
+		New:  "list[i].UpdatedByID = refs[*w].ID\n\t\t\tlist[i].UpdatedByID = w",
+		Pkg:  "./internal/server/", Tests: "^TestPeopleInLists$",
 	},
 }

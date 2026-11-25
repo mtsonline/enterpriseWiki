@@ -2,12 +2,12 @@
 // hook reactionBar). Toggle buttons per emoji (aria-pressed) with the names
 // of the people, a picker with common emojis (arrow keys move, Escape
 // closes) and a field for any other emoji.
-import { api, button, errorText, field, h, openDialog, registerAdminPage, registerCategoryExtension, registerElementExtension, registerReactions, state, t, textInput, toast, uid, pick } from '@ewiki/coreplugin';
+import { api, button, errorText, field, h, openDialog, personName, registerAdminPage, registerCategoryExtension, registerElementExtension, registerReactions, state, t, textInput, toast, uid, pick } from '@ewiki/coreplugin';
 import './style.css';
 
 const BASE = 'x/core.reactions';
 
-interface Reaction { emoji: string; count: number; mine: boolean; users: string[]; user_ids?: number[] }
+interface Reaction { emoji: string; count: number; mine: boolean; users: string[]; user_ids?: number[]; open?: boolean[] }
 interface Summary { target_type: string; target_id: number; reactions: Reaction[]; can_react: boolean }
 
 const GROUPS: Record<string, string[]> = {
@@ -148,7 +148,7 @@ function manageDialog(type: string, id: number, title: string, changed: () => vo
   const draw = () => {
     const s = cache.get(key(type, id));
     const rows = (s?.reactions ?? []).flatMap((r) => (r.user_ids ?? []).map((u, i) => h('tr', null,
-      h('td', null, r.emoji), h('td', null, r.users[i] ?? `#${u}`),
+      h('td', null, r.emoji), h('td', null, personName(r.users[i] ?? '', r.open?.[i] ? u : null)),
       h('td', null, button(t('common.remove'), async () => {
         try {
           await api.del(`${BASE}/${type}/${id}/users/${u}?emoji=${encodeURIComponent(r.emoji)}`);

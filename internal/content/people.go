@@ -50,16 +50,20 @@ func (s *Service) PeopleNames(ctx context.Context, ids []int64) (map[int64]strin
 }
 
 // PersonRef is how a person is named for the reader next to content:
-// Name is the label (see PeopleLabels); ID is set only if the reader may
-// open the person (person page, menu on the name: core.people.view and the
-// rules for finding people) – guests never get it.
+// Name is the display name only – never the handle (user@provider), which
+// can be an e-mail address (with OIDC often the UPN); the handle appears
+// only on the person page and in the administration of users. ID is set
+// only if the reader may open the person (person page, menu on the name:
+// core.people.view and the rules for finding people) – guests never get
+// it.
 type PersonRef struct {
 	Name string
 	ID   *int64
 }
 
-// PeopleRefs returns the label and, if the reader may open the person, the
-// id of each of the users ids (see PersonRef). One query for all ids.
+// PeopleRefs returns the display name and, if the reader may open the
+// person, the id of each of the users ids (see PersonRef). One query for
+// all ids.
 func (s *Service) PeopleRefs(ctx context.Context, ids []int64) (map[int64]PersonRef, error) {
 	out := map[int64]PersonRef{}
 	if len(ids) == 0 {
@@ -73,33 +77,31 @@ func (s *Service) PeopleRefs(ctx context.Context, ids []int64) (map[int64]Person
 	}
 	p := identity.From(ctx)
 	var me int64
-	var all, own, manage, view bool
+	var all, own, view bool
 	if p != nil && p.ID() > 0 {
 		me = p.ID()
-		all, own, manage = perm.HasP(p, "core.users.list_all"), perm.HasP(p, "core.users.list_own"), perm.HasP(p, "core.users.manage")
+		all, own = perm.HasP(p, "core.users.list_all"), perm.HasP(p, "core.users.list_own")
 		view = perm.HasP(p, "core.people.view") && (all || own)
-	} else if p.IsCLI() {
-		manage = true // the CLI without --as sees the handles (no ids: no menu there)
 	}
-	// rule: the reader may find the person (the same as /users/lookup and
-	// auth.Service.Viewable)
-	rows, err := s.pool.Query(ctx, `SELECT u.id, u.display_name, u.username || '@' || u.provider,
-		  $2 > 0 AND NOT u.disabled AND (u.id = $2 OR $3
+	// open: the reader may find the person (the same as /users/lookup and
+	// auth.Service.Viewable) and has core.people.view
+	rows, err := s.pool.Query(ctx, `SELECT u.id, u.display_name,
+		  $5 AND $2 > 0 AND NOT u.disabled AND (u.id = $2 OR $3
 		    OR ($4 AND EXISTS (SELECT 1 FROM user_groups a JOIN user_groups b ON a.group_id = b.group_id WHERE a.user_id = u.id AND b.user_id = $2)))
-		FROM users u WHERE u.id = ANY($1)`, ids, me, all, own)
+		FROM users u WHERE u.id = ANY($1)`, ids, me, all, own, view)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
 	for rows.Next() {
 		var id int64
-		var name, handle string
-		var rule bool
-		if err := rows.Scan(&id, &name, &handle, &rule); err != nil {
+		var name string
+		var open bool
+		if err := rows.Scan(&id, &name, &open); err != nil {
 			return nil, err
 		}
-		r := PersonRef{Name: PersonLabel(name, handle, rule || manage)}
-		if rule && view {
+		r := PersonRef{Name: name}
+		if open {
 			v := id
 			r.ID = &v
 		}
@@ -108,14 +110,9 @@ func (s *Service) PeopleRefs(ctx context.Context, ids []int64) (map[int64]Person
 	return out, rows.Err()
 }
 
-// PeopleLabels returns how the users ids are named for the reader of ctx
-// next to content (author, last change, history, comments, cases): the
-// display name, followed by the handle (user@provider) only for people the
-// reader may look up – by the rules of PeopleNames, and every account for
-// who manages users. A handle can be an e-mail address (with OIDC often the
-// UPN), so guests and readers who may not find the person get the display
-// name only ("" if the person has none). Users that do not exist are left
-// out. One query for all ids.
+// PeopleLabels returns the display names of the users ids ("" if a person
+// has none; never the handle, see PersonRef). Users that do not exist are
+// left out. One query for all ids.
 func (s *Service) PeopleLabels(ctx context.Context, ids []int64) (map[int64]string, error) {
 	refs, err := s.PeopleRefs(ctx, ids)
 	out := make(map[int64]string, len(refs))
@@ -123,16 +120,4 @@ func (s *Service) PeopleLabels(ctx context.Context, ids []int64) (map[int64]stri
 		out[id] = r.Name
 	}
 	return out, err
-}
-
-// PersonLabel names a person: the display name, with the handle only if
-// showHandle (see PeopleLabels).
-func PersonLabel(name, handle string, showHandle bool) string {
-	switch {
-	case !showHandle:
-		return name
-	case name == "":
-		return handle
-	}
-	return name + " (" + handle + ")"
 }

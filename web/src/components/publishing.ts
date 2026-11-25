@@ -8,8 +8,9 @@ import { button, checkbox, errorText, field, formDialog, openDialog, select, tex
 import { categorySelect } from './pickers';
 import { can, currentSpace } from './widgets';
 import { listPublishOptions } from '../coreplugin';
+import { personName, tParts } from './person';
 
-export interface Draft { id: number; element_id: number | null; category_id: number; type: string; lang: string; title: string; body?: unknown; tags: string[] | null; comment: string; base_rev: number; created_by: string; updated_by: string; updated_at: string; publish_at: string | null; fields?: Record<string, unknown> | null; via?: number | null }
+export interface Draft { id: number; element_id: number | null; category_id: number; type: string; lang: string; title: string; body?: unknown; tags: string[] | null; comment: string; base_rev: number; created_by: string; updated_by: string; updated_by_id?: number; updated_at: string; publish_at: string | null; fields?: Record<string, unknown> | null; via?: number | null }
 export interface Template { id: number; name: string; description: string; kind?: 'page' | 'block'; type: string; lang: string; title: string; body?: unknown; tags: string[]; global: boolean; mine: boolean; space_id?: number }
 
 export interface EditorState { type: string; lang: string; title: string; body: unknown; tags?: string[]; comment?: string; baseRev?: number; elementId?: number; categoryId: number; fields?: Record<string, unknown>; via?: number }
@@ -124,7 +125,7 @@ export async function draftNotice(elementId: number, lang: string, onLoad: (d: D
   const d = list.find((x) => x.lang === lang);
   if (!d) return null;
   const box = h('div', { class: 'ew-notice ew-notice--info', role: 'status' },
-    h('p', null, t('draft.exists', { user: d.updated_by || d.created_by || '–', date: fmtDate(d.updated_at, state.lang) }),
+    h('p', null, ...tParts('draft.exists', { user: personName(d.updated_by || d.created_by, d.updated_by_id), date: fmtDate(d.updated_at, state.lang) }),
       d.publish_at ? h('strong', null, ' ', t('draft.scheduled_for', { date: fmtDate(d.publish_at, state.lang) })) : null),
     h('div', { class: 'ew-actions' },
       button(t('draft.load'), async () => { const full = await api.get<Draft>(`drafts/${d.id}`); onLoad(full); box.remove(); }, { variant: 'primary' }),

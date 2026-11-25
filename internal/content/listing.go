@@ -59,18 +59,21 @@ func (s *Service) Scope(ctx context.Context, root int64, recursive bool) ([]int6
 
 // ListedElement is an element in a listing (blog, FAQ, feed).
 type ListedElement struct {
-	ID         int64     `json:"id"`
-	CategoryID int64     `json:"category_id"`
-	Type       string    `json:"type"`
-	Lang       string    `json:"lang"`
-	Title      string    `json:"title"`
-	Summary    string    `json:"summary"` // plain text, shortened
-	Tags       []string  `json:"tags"`
-	Position   int       `json:"position"`
-	Author     string    `json:"author"`
-	CreatedAt  time.Time `json:"created_at"`
-	UpdatedAt  time.Time `json:"updated_at"`
-	HTML       string    `json:"html,omitempty"` // rendered content (WithContent)
+	ID         int64    `json:"id"`
+	CategoryID int64    `json:"category_id"`
+	Type       string   `json:"type"`
+	Lang       string   `json:"lang"`
+	Title      string   `json:"title"`
+	Summary    string   `json:"summary"` // plain text, shortened
+	Tags       []string `json:"tags"`
+	Position   int      `json:"position"`
+	Author     string   `json:"author"`
+	// AuthorID only for readers who may open the person (menu on the name).
+	AuthorID  *int64 `json:"author_id,omitempty"`
+	authorID  *int64
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
+	HTML      string    `json:"html,omitempty"` // rendered content (WithContent)
 }
 
 // ListOptions selects elements of categories.
@@ -146,7 +149,7 @@ func (s *Service) ListIn(ctx context.Context, o ListOptions) ([]ListedElement, i
 		return nil, 0, err
 	}
 	rows, err := s.pool.Query(ctx, `SELECT e.id, e.category_id, e.type, d.lang, d.title, left(d.body_text, `+arg(2)+`), e.tags, e.position,
-			COALESCE(u.display_name, ''), e.created_at, e.updated_at
+			COALESCE(u.display_name, ''), e.created_at, e.updated_at, e.created_by
 		FROM elements e JOIN categories c ON c.id = e.category_id
 		JOIN LATERAL (SELECT lang, title, body_text FROM search_docs WHERE element_id = e.id AND lang IN (`+arg(1)+`, e.original_lang)
 			ORDER BY (lang = `+arg(1)+`) DESC LIMIT 1) d ON true
@@ -158,7 +161,7 @@ func (s *Service) ListIn(ctx context.Context, o ListOptions) ([]ListedElement, i
 	}
 	list, err := pgx.CollectRows(rows, func(r pgx.CollectableRow) (ListedElement, error) {
 		var e ListedElement
-		err := r.Scan(&e.ID, &e.CategoryID, &e.Type, &e.Lang, &e.Title, &e.Summary, &e.Tags, &e.Position, &e.Author, &e.CreatedAt, &e.UpdatedAt)
+		err := r.Scan(&e.ID, &e.CategoryID, &e.Type, &e.Lang, &e.Title, &e.Summary, &e.Tags, &e.Position, &e.Author, &e.CreatedAt, &e.UpdatedAt, &e.authorID)
 		if len([]rune(e.Summary)) > o.SummaryLen {
 			rs := []rune(e.Summary)[:o.SummaryLen]
 			e.Summary = string(rs) + " …"
@@ -167,6 +170,21 @@ func (s *Service) ListIn(ctx context.Context, o ListOptions) ([]ListedElement, i
 	})
 	if err != nil {
 		return nil, 0, err
+	}
+	var authors []int64
+	for _, e := range list {
+		if e.authorID != nil {
+			authors = append(authors, *e.authorID)
+		}
+	}
+	refs, err := s.PeopleRefs(ctx, authors)
+	if err != nil {
+		return nil, 0, err
+	}
+	for i := range list {
+		if a := list[i].authorID; a != nil {
+			list[i].AuthorID = refs[*a].ID
+		}
 	}
 	if o.WithContent {
 		for i := range list {
