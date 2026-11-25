@@ -15,6 +15,26 @@ export const BRAND = {
   seal: '/brand/seal.webp',
 } as const;
 
+/** The default name of a site: the logo already says it. */
+const PRODUCT = 'Enterprise Wiki';
+
+/** The content of the link to the start page in the header of a template
+ * without an own logo: the logo of Enterprise Wiki (with its text), and the
+ * name of the site next to it when it is not "Enterprise Wiki"; then on small
+ * screens only the "e" next to the name, so both fit in one line. height in
+ * px; the CSS gives the height and width: auto. */
+export function brandHeader(cls: string, height: number): HTMLElement[] {
+  const name = state.site?.name ?? '';
+  const own = name.trim() !== '' && name.trim() !== PRODUCT;
+  const logo = h('img', { class: cls, src: BRAND.logo, alt: own ? '' : PRODUCT, width: Math.round(height * LOGO_RATIO), height, decoding: 'async' });
+  if (!own) return [logo];
+  return [h('picture', { class: `${cls}-picture` }, h('source', { media: '(max-width: 600px)', srcset: BRAND.mark }), logo),
+    h('span', { class: `${cls}-name` }, name)];
+}
+
+/** width : height of logo.webp and logo-ink.webp */
+const LOGO_RATIO = 315 / 128;
+
 /** The "e" (decorative: it stands next to the name it belongs to). */
 export function brandMark(cls: string, size: number): HTMLImageElement {
   return h('img', { class: cls, src: BRAND.mark, alt: '', width: size, height: size, decoding: 'async' }) as HTMLImageElement;
@@ -41,10 +61,11 @@ export function poweredBy(cls: string): HTMLElement {
     licenseSeal('ew-powered-seal', 56));
 }
 
-/** Shown only on paper: the grey "e" and the name of the site (the screen
+/** Shown only on paper: the grey logo and the name of the site (the screen
  * header is not printed). */
 export function printBrand(): HTMLElement {
+  const name = state.site?.name ?? '';
   return h('div', { class: 'ew-print-brand', 'aria-hidden': 'true' },
-    h('img', { src: BRAND.markInk, alt: '', width: 32, height: 32 }),
-    h('span', null, state.site?.name ?? ''));
+    h('img', { src: BRAND.logoInk, alt: '', width: Math.round(32 * LOGO_RATIO), height: 32 }),
+    name.trim() && name.trim() !== PRODUCT ? h('span', null, name) : null);
 }

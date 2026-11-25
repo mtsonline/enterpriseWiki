@@ -6133,7 +6133,7 @@ test('light and dark: block, profile, guest cookie, no flash', async () => {
   }
 });
 
-test('marks of the product: favicon, "e" next to the name, powered by, no seal without a license', async () => {
+test('marks of the product: favicon, the logo in the header, powered by, no seal without a license', async () => {
   await page.goto(BASE + '/');
   await idle();
   for (const [p, type] of [['/favicon.ico', /icon/], ['/apple-touch-icon.png', /png/], ['/brand/mark.webp', /webp/], ['/brand/seal.webp', /webp/], ['/brand/logo-ink.webp', /webp/]]) {
@@ -6143,23 +6143,28 @@ test('marks of the product: favicon, "e" next to the name, powered by, no seal w
     assert.match(r.headers()['cache-control'] ?? '', /max-age=86400/, p);
   }
   assert.equal(await page.locator('link[rel="icon"]').getAttribute('href'), '/favicon.ico');
-  // the "e" next to the name of the site (decorative), loaded
-  const mark = page.locator('header a[href="/"] img[src="/brand/mark.webp"]').first();
-  assert.equal(await mark.getAttribute('alt'), '');
-  assert.ok(await mark.evaluate((i) => i.complete && i.naturalWidth > 0), 'the mark is loaded');
+  // the logo in the header (no own logo set): named "Enterprise Wiki", or
+  // decorative with the name of the site next to it
+  const brandLink = page.locator('header a[href="/"]:has(img[src="/brand/logo.webp"])').first();
+  const logo = brandLink.locator('img');
+  assert.ok(await logo.evaluate((i) => i.complete && i.naturalWidth > 0), 'the logo is loaded');
+  const siteName = (await call('GET', '/api/v1/site')).name;
+  const linkName = siteName === 'Enterprise Wiki' ? await logo.getAttribute('alt') : await brandLink.innerText();
+  assert.equal(linkName.trim(), siteName, 'the link to the start page is named after the site');
+  assert.equal(await logo.getAttribute('alt'), siteName === 'Enterprise Wiki' ? 'Enterprise Wiki' : '');
   // powered by: the "e" and the text; the seal only with a valid license (none here)
   const powered = page.locator('.ew-powered').first();
   assert.match(await powered.innerText(), /enterprise wiki/i);
   assert.equal(await powered.locator('img[src="/brand/mark.webp"]').count(), 1);
   assert.equal(await page.locator('img[src="/brand/seal.webp"]').count(), 0, 'no seal without a license');
   assert.equal((await call('GET', '/api/v1/site')).licensed, false);
-  // on paper: the grey "e" with the name; on screen hidden
+  // on paper: the grey logo (with the name of the site); on screen hidden
   const pb = page.locator('.ew-print-brand');
   assert.equal(await pb.isVisible(), false);
   await page.emulateMedia({ media: 'print' });
   try {
     assert.equal(await pb.isVisible(), true, 'printed brand');
-    assert.equal(await pb.locator('img').getAttribute('src'), '/brand/mark-ink.webp');
+    assert.equal(await pb.locator('img').getAttribute('src'), '/brand/logo-ink.webp');
   } finally {
     await page.emulateMedia({ media: 'screen' });
   }

@@ -68,7 +68,8 @@ body.ewc-dark .ewcms-app {
 .is-scrolled .ewcms-header { box-shadow: 0 2px 14px rgb(0 0 0 / .12); }
 .is-scrolled .ewcms-header-inner { min-height: var(--ewcms-header-h-small); }
 .ewcms-brand { display: flex; align-items: center; gap: .65rem; font-weight: 700; font-size: 1.45rem; color: var(--ewcms-heading); text-decoration: none; letter-spacing: .01em; flex: none; }
-.ewcms-logo { display: block; width: 44px; height: 44px; flex: none; }
+.ewcms-logo { display: block; width: auto; height: 60px; flex: none; transition: height .2s; }
+.is-scrolled .ewcms-logo { height: 46px; }
 .ewcms-logo-img { display: block; height: var(--ewcms-logo-h, 56px); width: auto; max-width: 22rem; transition: height .2s; }
 .is-scrolled .ewcms-logo-img { height: calc(var(--ewcms-logo-h, 56px) * .75); }
 .ewcms-logo-img--light { display: none; }
@@ -223,7 +224,7 @@ body.ewc-dark .ewcms--light-logo .ewcms-logo-img--light { display: block; }
   .ewcms-topbar .ew-lang label, .ewcms-topbar .ew-lang .ew-label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
 }
 @media (prefers-reduced-motion: reduce) {
-  .ewcms-header, .ewcms-header-inner, .ewcms-logo-img, .ewcms-nav-list a::after, .ewcms-hero-button, .ewcms-burger-lines, .ewcms-burger-lines::before, .ewcms-burger-lines::after { transition: none; }
+  .ewcms-header, .ewcms-header-inner, .ewcms-logo, .ewcms-logo-img, .ewcms-nav-list a::after, .ewcms-hero-button, .ewcms-burger-lines, .ewcms-burger-lines::before, .ewcms-burger-lines::after { transition: none; }
 }
 
 /* core.menu: multilevel menus in the main navigation */

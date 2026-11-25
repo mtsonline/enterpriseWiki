@@ -415,7 +415,9 @@ progress { width: 8rem; vertical-align: middle; }
 .ew-basic-header { display: flex; justify-content: space-between; align-items: center; gap: 1rem; padding: .75rem 1rem; border-bottom: 1px solid var(--ew-border); flex-wrap: wrap; }
 .ew-basic-body { display: grid; grid-template-columns: var(--ew-sidebar-w) 1fr; gap: 1.5rem; padding: 1rem; }
 .ew-brand { display: inline-flex; align-items: center; gap: .5rem; font-weight: 800; font-size: 1.15rem; color: var(--ew-text); text-decoration: none; }
-.ew-brand-mark { display: block; width: 28px; height: 28px; flex: none; }
+.ew-brand-logo { display: block; width: auto; height: 40px; flex: none; }
+/* the logo in the header of the templates (components/brand.ts, brandHeader) */
+.ew-brand-logo-picture, .ewc-logo-picture, .ewcms-logo-picture { display: contents; }
 
 /* the marks of Enterprise Wiki (components/brand.ts): "powered by" with the
    "e" and, with a valid license, the seal; the grey "e" on paper */
