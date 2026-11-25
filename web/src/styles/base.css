@@ -406,14 +406,25 @@ progress { width: 8rem; vertical-align: middle; }
 .ew-subnav-title { font-size: 1rem; margin-top: 0; }
 .ew-subnav ul { list-style: none; padding: 0; margin: 0; }
 .ew-subnav a { display: block; padding: .4rem .6rem; border-radius: 4px; text-decoration: none; color: var(--ew-text); }
-.ew-subnav a[aria-current="page"] { background: var(--ew-info-bg); color: var(--ew-info-text); font-weight: 700; }
+.ew-subnav a[aria-current="page"] { background: var(--ew-info-bg) url(/brand/mark.webp) .45rem center / 1.1rem no-repeat; padding-left: 1.9rem; color: var(--ew-info-text); font-weight: 700; }
+@media (forced-colors: active) { .ew-subnav a[aria-current="page"] { background-image: none; padding-left: .6rem; } }
 .ew-subnav a:hover { text-decoration: underline; }
 @media (max-width: 800px) { .ew-admin { grid-template-columns: 1fr; } }
 
 /* ---------------------------------------------------------------- basic fallback layout */
 .ew-basic-header { display: flex; justify-content: space-between; align-items: center; gap: 1rem; padding: .75rem 1rem; border-bottom: 1px solid var(--ew-border); flex-wrap: wrap; }
 .ew-basic-body { display: grid; grid-template-columns: var(--ew-sidebar-w) 1fr; gap: 1.5rem; padding: 1rem; }
-.ew-brand { font-weight: 800; font-size: 1.15rem; color: var(--ew-text); text-decoration: none; }
+.ew-brand { display: inline-flex; align-items: center; gap: .5rem; font-weight: 800; font-size: 1.15rem; color: var(--ew-text); text-decoration: none; }
+.ew-brand-mark { display: block; width: 28px; height: 28px; flex: none; }
+
+/* the marks of Enterprise Wiki (components/brand.ts): "powered by" with the
+   "e" and, with a valid license, the seal; the grey "e" on paper */
+.ew-powered { display: flex; flex-wrap: wrap; align-items: center; gap: .4rem .6rem; }
+.ew-powered-mark { width: 20px; height: 20px; flex: none; }
+.ew-powered-seal { width: 56px; height: 56px; flex: none; margin-left: .25rem; }
+.ew-admin-seal { display: block; width: 96px; height: 96px; margin: 0 auto 1rem; }
+.ew-license-seal { display: block; width: 128px; height: 128px; margin: .5rem 0 1rem; }
+.ew-print-brand { display: none; }
 .ew-pos--header-tools { display: flex; align-items: center; gap: .75rem; flex-wrap: wrap; }
 .ew-fatal { padding: 2rem; }
 
@@ -422,6 +433,7 @@ progress { width: 8rem; vertical-align: middle; }
 }
 @media print {
   header, nav, aside, footer, .ew-actions, .ew-pos--element-toolbar, .ew-toasts { display: none !important; }
+  .ew-print-brand { display: flex; align-items: center; gap: .5rem; margin: 0 0 1rem; font-weight: 700; }
 }
 
 /* table action cells stay table cells */
@@ -465,6 +477,10 @@ th .ew-help { font-weight: 400; }
 .ew-table--compact td.ew-actions { white-space: normal; min-width: 8rem; line-height: 1.9; }
 .ew-nowrap { white-space: nowrap; }
 .ew-table--compact td.ew-actions > * { margin: 0 .6rem 0 0; }
+/* the preview keeps its height while an image loads or changes: otherwise the
+   buttons below jump when the field loses focus, and a click on "Save" lands
+   elsewhere (found by the browser test with a real image) */
+.ew-image-preview { min-height: calc(8rem + .5rem + 2px); display: flex; align-items: center; }
 .ew-image-preview img { max-width: 16rem; max-height: 8rem; border: 1px solid var(--ew-border); border-radius: 6px; margin: .25rem 0; background: repeating-conic-gradient(var(--ew-checker-a) 0 25%, var(--ew-checker-b) 0 50%) 0 0/16px 16px; }
 .ew-color-input { width: 4rem; height: 2.4rem; padding: .15rem; }
 

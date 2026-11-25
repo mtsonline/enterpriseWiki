@@ -48,6 +48,8 @@ const options = {
   legalComments: 'none',
   // fonts referenced from CSS (e.g. the website template) are copied with a content hash
   loader: { '.woff2': 'file' },
+  // the marks of the product are served as they are (web/public/brand)
+  external: ['/brand/*'],
   assetNames: '[name]-[hash]',
   logLevel: 'info',
   metafile: true,

@@ -1613,7 +1613,7 @@ func (s *Server) site(w http.ResponseWriter, r *http.Request) (any, error) {
 		"wait_notice_s": limits.Value(c, limits.WaitNoticeSeconds),
 		"languages":     c.I18n.Languages, "default_language": c.I18n.DefaultLanguage,
 		"plugins": frontend, "element_types": s.app.Content.Types(), "auth_providers": s.app.Auth.ProviderInfos(),
-		"version": version.Version, "permissions": acl.Names,
+		"version": version.Version, "licensed": s.licensed(), "permissions": acl.Names,
 		// site: the site of this host; instance_only: settings only
 		// instance administrators change (in config.yaml of the instance)
 		"site": s.app.Site, "instance_only": config.InstanceOnly, "sites_accounts": s.app.Config.Get().Sites.Accounts,

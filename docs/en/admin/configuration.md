@@ -250,7 +250,7 @@ secrets:
 
 ### `license`
 License key of the organisation (see [LICENSING.md](../../../LICENSING.md)). Easiest to install under *Administration → License*
-or with `ewiki license install KEY`; the check is done offline.
+or with `ewiki license install KEY`; the check is done offline. With a valid license (signature ok, not expired) the wiki shows the seal in the footer of the templates and in the administration; for this `GET /api/v1/site` reports only `licensed: true`, nothing else of the license. The name and the logos are governed by [TRADEMARKS.md](../../../TRADEMARKS.md).
 
 ```yaml
 license:

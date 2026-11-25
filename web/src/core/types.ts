@@ -83,6 +83,8 @@ export interface Site {
   /** Sign-in page: passkeys in the user name field, automatic redirect to one provider, self-registration. */
   login?: { passkey_autofill: boolean; auto_redirect: string; registration?: boolean; password_reset?: boolean };
   version: string;
+  /** a valid license is installed (signature ok, not expired): the seal is shown */
+  licensed?: boolean;
 }
 
 export interface Category {
