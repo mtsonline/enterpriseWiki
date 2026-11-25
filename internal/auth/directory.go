@@ -276,7 +276,7 @@ func (s *Service) syncDirectoryTx(ctx context.Context, tx pgx.Tx, in DirectorySy
 		if _, err := tx.Exec(ctx, `DELETE FROM sessions WHERE user_id = ANY($1)`, disable); err != nil {
 			return err
 		}
-		if err := ensureAdminRemains(ctx, tx); err != nil {
+		if err := s.ensureAdminRemains(ctx, tx); err != nil {
 			return err
 		}
 		rep.Disabled = len(disable)
@@ -381,7 +381,7 @@ func (s *Service) syncDirectoryTx(ctx context.Context, tx pgx.Tx, in DirectorySy
 	}
 	if len(disable) > 0 || len(rDelU) > 0 || len(gDelU) > 0 {
 		// removing a group or role must not remove the last administrator
-		if err := ensureAdminRemains(ctx, tx); err != nil {
+		if err := s.ensureAdminRemains(ctx, tx); err != nil {
 			return err
 		}
 	}

@@ -342,3 +342,86 @@ func TestCrossSiteImages(t *testing.T) {
 	d.must("PUT", "/api/v1/me/profile", map[string]string{"photo": photo.Hash}, nil, 200)
 	admin.must("GET", "/api/v1/files/"+photo.Hash, nil, nil, 200) // the profile photo of the shared account is
 }
+
+// TestSharedAccountsLastAdmin: with shared accounts the rule "never without
+// an active administrator" counts the administrators of the site "main"
+// (instance administrators, administrators everywhere). A further site
+// without administrators of its own can change groups (the demo adds the
+// administrator to its groups), and a further site with an administrator of
+// its own cannot take the last one of main away.
+func TestSharedAccountsLastAdmin(t *testing.T) {
+	e := setup(t)
+	admin := e.client()
+	admin.login("admin", adminPW)
+	var adminID int64
+	if err := e.app.DB.QueryRow(t.Context(), `SELECT id FROM users WHERE username='admin'`).Scan(&adminID); err != nil {
+		t.Fatal(err)
+	}
+	admin.must("POST", "/api/v1/instance/sites", map[string]any{"name": "docs", "title": "Docs", "hostnames": []string{"docs.example.test"}}, nil, 201)
+	sa := e.client()
+	sa.host = "docs.example.test"
+	sa.login("admin", adminPW)
+
+	// the instance administrator joins a group of the further site and leaves it
+	var g struct {
+		ID int64 `json:"id"`
+	}
+	sa.must("POST", "/api/v1/admin/groups", map[string]any{"name": "Docs editors"}, &g, 201)
+	member := fmt.Sprintf("/api/v1/admin/groups/%d/members/%d", g.ID, adminID)
+	sa.must("PUT", member, nil, nil, 204)
+	sa.must("DELETE", member, nil, nil, 204)
+	sa.must("PUT", member, nil, nil, 204)
+	sa.must("PUT", fmt.Sprintf("/api/v1/admin/groups/%d", g.ID), map[string]any{"name": "Docs editors", "description": "x"}, nil, 200)
+
+	// an administrator of docs only does not count for main
+	var eve, mgr struct {
+		ID int64 `json:"id"`
+	}
+	sa.must("POST", "/api/v1/admin/users", map[string]any{"username": "eve", "password": "Eve-Passw0rd!x", "display_name": "Eve"}, &eve, 201)
+	sa.must("POST", "/api/v1/admin/users", map[string]any{"username": "mgr", "password": "Mgr-Passw0rd!x", "display_name": "Manager"}, &mgr, 201)
+	var roles []struct {
+		ID      int64 `json:"id"`
+		IsAdmin bool  `json:"is_admin"`
+	}
+	sa.must("GET", "/api/v1/roles", nil, &roles, 200)
+	var adminRole int64
+	for _, r := range roles {
+		if r.IsAdmin {
+			adminRole = r.ID
+		}
+	}
+	sa.must("PUT", fmt.Sprintf("/api/v1/admin/users/%d", eve.ID), map[string]any{"roles": []int64{adminRole}}, nil, 200)
+	if c := sa.do("PUT", fmt.Sprintf("/api/v1/admin/users/%d", adminID), map[string]any{"disabled": true}, nil); c != 409 {
+		t.Fatalf("the last administrator of main disabled on a further site: %d", c)
+	}
+	// nor by a further instance administrator (instance_admins only)
+	admin.must("POST", "/api/v1/instance/admins", map[string]any{"user_id": mgr.ID}, nil, 204)
+	ic := e.client()
+	ic.host = "docs.example.test"
+	ic.login("mgr", "Mgr-Passw0rd!x")
+	if c := ic.do("DELETE", fmt.Sprintf("/api/v1/admin/users/%d", adminID), nil, nil); c != 409 {
+		t.Fatalf("the last administrator of main deleted on a further site: %d", c)
+	}
+	admin.must("DELETE", fmt.Sprintf("/api/v1/instance/admins/%d", mgr.ID), nil, nil, 204)
+	// docs has administrators without eve (the instance administrators)
+	sa.must("PUT", fmt.Sprintf("/api/v1/admin/users/%d", eve.ID), map[string]any{"roles": []int64{}}, nil, 200)
+	// still refused on main
+	if c := admin.do("PUT", fmt.Sprintf("/api/v1/admin/users/%d", adminID), map[string]any{"disabled": true}, nil); c != 409 {
+		t.Fatalf("last administrator disabled on main: %d", c)
+	}
+
+	// a manager of users of docs (no administrator) never touches an
+	// instance administrator, even without an administrator role on docs
+	var mrole struct {
+		ID int64 `json:"id"`
+	}
+	sa.must("POST", "/api/v1/admin/roles", map[string]any{"name": "User managers", "permissions": []string{"core.users.manage"}}, &mrole, 201)
+	sa.must("PUT", fmt.Sprintf("/api/v1/admin/users/%d", mgr.ID), map[string]any{"roles": []int64{mrole.ID}}, nil, 200)
+	mc := e.client()
+	mc.host = "docs.example.test"
+	mc.login("mgr", "Mgr-Passw0rd!x")
+	mc.must("GET", fmt.Sprintf("/api/v1/admin/users/%d/sessions", eve.ID), nil, nil, 200)
+	mc.must("GET", fmt.Sprintf("/api/v1/admin/users/%d/sessions", adminID), nil, nil, 403)
+	mc.must("DELETE", fmt.Sprintf("/api/v1/admin/users/%d/sessions", adminID), nil, nil, 403)
+	mc.must("PUT", fmt.Sprintf("/api/v1/admin/users/%d", adminID), map[string]any{"roles": []int64{mrole.ID}}, nil, 403)
+}
