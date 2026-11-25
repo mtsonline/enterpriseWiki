@@ -269,22 +269,39 @@ ewiki file upload --file file=@notes.txt    # upload (multipart): --form NAME=VA
 ## Demo content and reset
 
 Under *Administration → Demo* (administrators only) **Create demo** creates a space "Demo: Enterprise Wiki"
-that shows as many features as possible: tour page with macros (table of contents, notice boxes, status labels,
-columns, expandable sections, gallery, child pages, recently changed, next events), page properties, comments
-with @mentions, reactions and favourite, Markdown page, website building blocks, blog, FAQ, event calendar with
-series and registration, team page, media (hidden category as folder, images, PDF for viewing only with
-watermark, Word file for the office program), file element, process, property report,
-category overview, wiki blocks (include page, search box, page tree, new page from a template), short URL `/demo`,
-a menu, a text block, a carousel placed only for the category *Carousel demo* (only for signed-in users) and a
-page *How the demo is built* that says for every part outside the pages what it shows, where it is placed and where
-it is changed. What a disabled plugin needs is left out; the
-message after creating names the parts left out (in the API the field `skipped` of the answer to
-`POST /api/v1/admin/demo`).
+(key `DEMO`, short URL `/demo`) with two ways into the wiki:
+
+- **Example company** ("Enterprise IT Services", a fictional IT service company): an intranet the way a company uses it – start
+  page with quick links, news (blog with a comment, @mention and reaction), events with registration and a series,
+  teams (team page, decision log, tasks in the text, calendar of the teams, shared notes), handbook (display
+  *Handbook*), knowledge base (FAQ with instant search), forms and workflows (holiday request decided by the team
+  lead and entered in the calendar, internal job application with a CV, pre-check by HR, decision of the team
+  lead and the answer as a pop-up in the wiki, device request, onboarding, idea box with public results, contact form, further
+  workflows with triggers), projects (properties, project database, reports), documents (classified confidential,
+  PDF view-only with watermark, Word file for the office program, a page with rights of its own) and categories as
+  cards, a table and "all on one page". A short hint "How this works" explains each feature where it is used and
+  links to the matching station of the tour. The demo accounts of the team leads decide requests; so that you can
+  play the holiday request and the job application through yourself, the administrator account that creates the
+  demo belongs to the groups "Demo: Verwaltung" and "Demo: Teamleitung" as long as the demo exists.
+- **Tour of the features**: one station per feature, each a page that is always built the same way – what it is,
+  *How it is done* (the steps), *What it looks like* (the result live on the page), *What it is good for* and, if
+  needed, *Good to know*. The category has the display *Handbook*: all stations are in the side column, and
+  *Previous* and *Next* at the end of every page lead to the station before and after. The station *Menus,
+  placement and carousel* says for every part outside the pages (menu, block "Reception", light and dark, carousel,
+  handbook) what it shows, where it is placed and where to change it.
+
+What a disabled plugin needs is left out (also its station); the message after creating names the parts left out
+(in the API the field `skipped` of the answer to `POST /api/v1/admin/demo`). A test checks the minimum rules of the
+demo: every page in German and English, no block errors, no dead links, only example addresses (`example.com`),
+every station with the same structure and no gap in the order; the browser tests check every page with axe, light
+and dark.
 
 - **Start page:** The demo makes its page *Enterprise Wiki at a glance* the start page of the site (short URL
-  `/welcome`, in a wiki with German as default language `/willkommen`): the main features in words and the way into
-  the tour, without path, page details and comments. **Remove demo** restores the previous start page, unless it was
-  changed under *Administration → Settings* meanwhile.
+  `/welcome`, in a wiki with German as default language `/willkommen`, template "CMS modern"): what makes visitors
+  curious, uses (intranet, handbook, knowledge base, forms and workflows, university, website) as ways into the
+  matching place of the demo, the highlights and the two ways into the demo – without path, page details and
+  comments. **Remove demo** restores the previous start page, unless it was changed meanwhile under
+  *Administration → Settings*.
 - The **demo accounts** (`demo-anna`, `demo-ben`, …) have no sign-in (provider `demo`), no e-mail address
   and do not count for the license.
 - Everything the demo creates is noted in `demo_objects`. **Remove demo** deletes exactly that, completely:
