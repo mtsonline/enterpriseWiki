@@ -5,6 +5,7 @@ import { t } from '../core/i18n';
 import { toast } from '../core/announce';
 import { navigate } from '../core/router';
 import { state } from '../core/state';
+import { BRAND } from '../components/brand';
 import { button, confirmDialog, errorText, field, pageHeader, textArea } from '../components/ui';
 
 export interface LicenseStatus {
@@ -54,6 +55,7 @@ export async function licenseAdmin(panel: HTMLElement): Promise<void> {
   mount(panel, pageHeader(t('admin.license')),
     licenseNotice(st),
     l ? h('section', { class: 'ew-section', 'aria-labelledby': 'lic-h' }, h('h2', { id: 'lic-h' }, st.valid ? t('license.licensed') : t('license.not_valid')),
+      st.valid ? h('img', { class: 'ew-license-seal', src: BRAND.seal, alt: t('brand.seal'), width: 128, height: 128 }) : null,
       h('dl', { class: 'ew-facts' }, ...facts.flatMap(([k, v]) => [h('dt', null, k), h('dd', null, v)]))) : null,
     h('p', null, t('license.terms')),
     form,

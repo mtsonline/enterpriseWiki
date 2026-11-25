@@ -250,7 +250,7 @@ secrets:
 
 ### `license`
 Lizenzschlüssel der Organisation (siehe [LICENSING.md](../../../LICENSING.md)). Am einfachsten unter *Administration → Lizenz*
-oder mit `ewiki license install KEY` einspielen; die Prüfung erfolgt offline.
+oder mit `ewiki license install KEY` einspielen; die Prüfung erfolgt offline. Mit einer gültigen Lizenz (Signatur in Ordnung, nicht abgelaufen) zeigt das Wiki das Siegel in der Fußzeile der Templates und in der Administration; `GET /api/v1/site` meldet dafür nur `licensed: true`, nichts weiter von der Lizenz. Für Name und Logos gilt [TRADEMARKS.de.md](../../../TRADEMARKS.de.md).
 
 ```yaml
 license:

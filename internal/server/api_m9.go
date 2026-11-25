@@ -21,6 +21,13 @@ func (s *Server) LicenseStatus(ctx context.Context) license.Status {
 	return license.Evaluate(s.app.Config.Get().License.Key, users, time.Now())
 }
 
+// licensed tells whether a valid license is installed (signature ok, not
+// expired; the number of users does not matter): the seal is shown. Public,
+// like the seal itself; nothing else of the license.
+func (s *Server) licensed() bool {
+	return license.Evaluate(s.app.Config.Get().License.Key, 0, time.Now()).Valid
+}
+
 func (s *Server) routesM9() {
 	// GET /api/v1/admin/database – PostgreSQL version, recommended version, end of support
 	// action: core.database.status

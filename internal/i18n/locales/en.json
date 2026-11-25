@@ -924,6 +924,7 @@
  "webhooks.ev.workflow.completed": "Process completed",
  "webhooks.ev.workflow.cancelled": "Process cancelled",
  "admin.license": "License",
+ "brand.seal": "Licensed installation of Enterprise Wiki",
  "license.none": "No license installed: without a license only private use by natural persons is permitted. Organisations (companies, public bodies, educational institutions, associations) need a license.",
  "license.invalid": "The license key is invalid ({error}).",
  "license.expired": "The license expired on {date}. Please renew it.",

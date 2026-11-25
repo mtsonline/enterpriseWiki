@@ -5616,7 +5616,7 @@ test('short URL and the elements administration', async () => {
   await page.getByRole('button', { name: new RegExp(`^(properties|eigenschaften): Shorty ${run}`, 'i') }).click();
   const dlg = page.locator('dialog[open]');
   await dlg.getByLabel(/^(short url|kurz-url)/i).fill(`Kurz ${run}`);
-  await dlg.getByLabel(/^(preview image|vorschaubild)/i).fill('/favicon.svg');
+  await dlg.getByLabel(/^(preview image|vorschaubild)/i).fill('/brand/mark.webp');
   await a11y('element properties');
   await dlg.locator('button[type=submit]').click();
   await page.waitForSelector(`.ew-admin-results code:has-text("/kurz-${run}")`);
@@ -5627,7 +5627,7 @@ test('short URL and the elements administration', async () => {
   assert.ok(el.id > 0);
   // preview image for link previews (set in the properties dialog above)
   const saved = await call('GET', `/api/v1/elements/${el.id}`);
-  assert.equal(saved.preview_image, '/favicon.svg');
+  assert.equal(saved.preview_image, '/brand/mark.webp');
 });
 
 test('guest cache administration', async () => {
@@ -6131,6 +6131,45 @@ test('light and dark: block, profile, guest cookie, no flash', async () => {
     await call('PUT', '/api/v1/scheme', { scheme: '' });
     await call('PUT', '/api/v1/placements/site', { placements: before });
   }
+});
+
+test('marks of the product: favicon, "e" next to the name, powered by, no seal without a license', async () => {
+  await page.goto(BASE + '/');
+  await idle();
+  for (const [p, type] of [['/favicon.ico', /icon/], ['/apple-touch-icon.png', /png/], ['/brand/mark.webp', /webp/], ['/brand/seal.webp', /webp/], ['/brand/logo-ink.webp', /webp/]]) {
+    const r = await page.request.get(BASE + p);
+    assert.equal(r.status(), 200, p);
+    assert.match(r.headers()['content-type'] ?? '', type, p);
+    assert.match(r.headers()['cache-control'] ?? '', /max-age=86400/, p);
+  }
+  assert.equal(await page.locator('link[rel="icon"]').getAttribute('href'), '/favicon.ico');
+  // the "e" next to the name of the site (decorative), loaded
+  const mark = page.locator('header a[href="/"] img[src="/brand/mark.webp"]').first();
+  assert.equal(await mark.getAttribute('alt'), '');
+  assert.ok(await mark.evaluate((i) => i.complete && i.naturalWidth > 0), 'the mark is loaded');
+  // powered by: the "e" and the text; the seal only with a valid license (none here)
+  const powered = page.locator('.ew-powered').first();
+  assert.match(await powered.innerText(), /enterprise wiki/i);
+  assert.equal(await powered.locator('img[src="/brand/mark.webp"]').count(), 1);
+  assert.equal(await page.locator('img[src="/brand/seal.webp"]').count(), 0, 'no seal without a license');
+  assert.equal((await call('GET', '/api/v1/site')).licensed, false);
+  // on paper: the grey "e" with the name; on screen hidden
+  const pb = page.locator('.ew-print-brand');
+  assert.equal(await pb.isVisible(), false);
+  await page.emulateMedia({ media: 'print' });
+  try {
+    assert.equal(await pb.isVisible(), true, 'printed brand');
+    assert.equal(await pb.locator('img').getAttribute('src'), '/brand/mark-ink.webp');
+  } finally {
+    await page.emulateMedia({ media: 'screen' });
+  }
+  // administration: the active item carries the "e"; no seal without a license
+  await page.goto(BASE + '/admin/license');
+  await idle();
+  const cur = page.locator('.ew-subnav a[aria-current="page"]');
+  assert.match(await cur.evaluate((a) => getComputedStyle(a).backgroundImage), /brand\/mark\.webp/);
+  assert.equal(await page.locator('.ew-admin-seal, .ew-license-seal').count(), 0);
+  await a11y('administration with the marks');
 });
 
 test('spaces: settings, own navigation, /s/KEY, directory, archive', async () => {

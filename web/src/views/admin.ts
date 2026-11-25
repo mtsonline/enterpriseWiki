@@ -3,6 +3,7 @@ import { editorToolsField } from '../components/editorTools';
 import { profileCardForm } from '../components/profilecard';
 import { elementsAdmin } from './adminElements';
 import { webhooksAdmin } from './adminWebhooks';
+import { licenseSeal } from '../components/brand';
 import { licenseAdmin, licenseNotice, type LicenseStatus } from './adminLicense';
 import { limitsAdmin } from './adminLimits';
 import { dataAdmin } from './adminData';
@@ -78,7 +79,7 @@ export async function adminView({ params, query, main }: RouteCtx): Promise<void
   const panel = h('div');
   const notice = h('div');
   mount(main, h('div', { class: 'ew-admin' },
-    h('nav', { class: 'ew-subnav', 'aria-label': t('admin.title') }, h('h2', { class: 'ew-subnav-title' }, t('admin.title')),
+    h('nav', { class: 'ew-subnav', 'aria-label': t('admin.title') }, h('h2', { class: 'ew-subnav-title' }, t('admin.title')), licenseSeal('ew-admin-seal', 96),
       h('ul', null, ...pages.map((p) => h('li', null, h('a', { href: `/admin/${p.id}`, 'aria-current': p.id === section ? 'page' : undefined }, p.label))))),
     h('div', { class: 'ew-admin-panel' }, notice, panel)));
   // problems with the license on every administration page (not on the license page itself)

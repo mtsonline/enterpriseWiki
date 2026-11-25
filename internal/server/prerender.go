@@ -56,7 +56,7 @@ func absURL(base, u string) string {
 }
 
 // paths of the single page app that are not content pages
-var reservedPaths = map[string]bool{"search": true, "login": true, "profile": true, "trash": true, "admin": true, "assets": true, "api": true, "favicon.svg": true, "robots.txt": true}
+var reservedPaths = map[string]bool{"search": true, "login": true, "profile": true, "trash": true, "admin": true, "assets": true, "api": true, "favicon.ico": true, "apple-touch-icon.png": true, "brand": true, "robots.txt": true}
 
 // guestLang picks the language for a guest: ?lang=, Accept-Language, default.
 func (s *Server) guestLang(r *http.Request) string {

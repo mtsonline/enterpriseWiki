@@ -73,6 +73,10 @@ of the frontend (`web/package-lock.json`; except pure test tools such as axe-cor
 - **Not allowed** in the program: GPL, LGPL, AGPL (would make the BSL licensing impossible), SSPL, BSL/"source
   available" licenses of third parties, licenses with usage restrictions (e.g. "non-commercial"), code without a license.
 
+## Name and logos
+
+The logo files are released under CC0 (public domain). The use of the name and the marks is governed by [TRADEMARKS.md](TRADEMARKS.md).
+
 ## Contributing and plugins
 
 So that Enterprise Wiki can continue to be distributed under the BSL **and** under commercial licenses, the

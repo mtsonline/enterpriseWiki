@@ -74,6 +74,10 @@ haben:
 - **Nicht erlaubt** im Programm: GPL, LGPL, AGPL (würden die BSL-Lizenzierung unmöglich machen), SSPL, BSL/„Source
   available“-Lizenzen Dritter, Lizenzen mit Nutzungsbeschränkungen (z. B. „non-commercial“), Code ohne Lizenz.
 
+## Name und Logos
+
+Die Logo-Dateien stehen unter CC0 (gemeinfrei). Für die Verwendung von Name und Zeichen gilt [TRADEMARKS.de.md](TRADEMARKS.de.md).
+
 ## Mitwirken und Plugins
 
 Damit Enterprise Wiki weiterhin unter der BSL **und** unter kommerziellen Lizenzen vertrieben werden kann, braucht der

@@ -121,6 +121,9 @@ func (s *Server) serveFrontend(w http.ResponseWriter, r *http.Request) {
 		if st, err := fs.Stat(s.web, p); err == nil && !st.IsDir() {
 			if strings.HasPrefix(p, "assets/") {
 				w.Header().Set("Cache-Control", "public, max-age=31536000, immutable")
+			} else if strings.HasPrefix(p, "brand/") || p == "favicon.ico" || p == "apple-touch-icon.png" {
+				// the marks of the product: the same files until an update
+				w.Header().Set("Cache-Control", "public, max-age=86400")
 			}
 			http.ServeFileFS(w, r, s.web, p) // #nosec G703 -- embedded frontend (fs.FS cannot leave its root), path cleaned
 			return
