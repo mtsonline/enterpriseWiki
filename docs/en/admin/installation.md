@@ -122,19 +122,29 @@ Then `docker compose up -d`. Ports 80 and 443 (TCP, for HTTP/3 also UDP 443) mus
 EWIKI_SECURITY=crowdsec
 COMPOSE_FILE=docker-compose.yml:docker-compose.crowdsec.yml
 CROWDSEC_BOUNCER_KEY=<random>
+EWIKI_CROWDSEC_PASSWORD=<random>
 ```
 
 Then `docker compose up -d --build`. The proxy is built on the first start: the official Caddy image plus the [CrowdSec bouncer for Caddy](https://github.com/hslatman/caddy-crowdsec-bouncer) (Apache-2.0), see `docker/caddy-crowdsec/Dockerfile`.
 
 **Data protection.** The access log is in `./data/caddy/logs` (at most 3 files of 20 MB) and contains addresses, times and paths. It contains no query strings (they may carry tokens), no cookies and no authorization headers. CrowdSec keeps its decisions in `./data/crowdsec`.
 
+**In the administration.** The page *CrowdSec* shows whether CrowdSec runs, its latest alerts and the addresses it blocks. With the permission *Manage CrowdSec* you lift a block and keep a list of allowed addresses that CrowdSec never blocks (for example your office or a monitoring service; networks at most /8 for IPv4 and /24 for IPv6). Allowing an address also lifts its current blocks. The page works on the main site only, because CrowdSec protects the whole installation. Command line: `ewiki crowdsec status`, `alerts`, `blocks`, `unblock ID`, `allowlist`, `allowlist-set --json '{"entries":[{"value":"192.0.2.10","note":"office"}]}'`.
+
+How the wiki talks to CrowdSec:
+
+- **No access to Docker.** The wiki signs in to the Local API of CrowdSec (`http://crowdsec:8080`) as the machine `ewiki` with `EWIKI_CROWDSEC_PASSWORD`. A machine may read alerts and allowlists and delete decisions; it never sees the keys of bouncers. The script `docker/crowdsec/ewiki-sync.sh` runs inside the CrowdSec container and registers the machine on every start.
+- **Allowed addresses through a folder.** The Local API cannot write allowlists. The wiki keeps the list in its database and writes it to `./data/wiki/crowdsec-exchange/allowlist.txt`. The script in the CrowdSec container checks every line (only IP addresses and networks pass) and applies the list to the allowlist `ewiki` with `cscli`, usually within 10 seconds. The page shows whether CrowdSec applies the list. The folder is set with `EWIKI_CROWDSEC_EXCHANGE`, only in the environment, never in the administration.
+- **Protected changes.** Lifting a block and changing the list need a browser session signed in during the last 15 minutes, or the command line on the server; API keys cannot. Every change is in the audit log (`security.crowdsec.unblock`, `security.crowdsec.allowlist`).
+- **Without the bundled setup:** register a machine yourself (`cscli machines add ewiki --password …`) and enter the address of the Local API and the password on the page. Without an exchange folder the list of allowed addresses can only be read.
+
 **Operation:**
 
-- Show blocked addresses: `docker compose exec crowdsec cscli decisions list`.
-- Unblock an address: `docker compose exec crowdsec cscli decisions delete --ip 203.0.113.7`.
+- Show blocked addresses: on the page *CrowdSec*, or `docker compose exec crowdsec cscli decisions list`.
+- Unblock an address: on the page *CrowdSec*, or `docker compose exec crowdsec cscli decisions delete --ip 203.0.113.7`.
 - If CrowdSec is not running, the proxy lets requests through (`appsec_fail_open`) and logs it, so the wiki stays reachable; the wiki checks every input itself either way.
 
-**Tested** in the CI (`scripts/test-docker-proxy.sh`): a blocked address gets `403` and is let in again after unblocking; a virtual patch blocks `/.env`; a page with code, SQL and HTML is not blocked; no query string is in the log; the wiki stays reachable without CrowdSec.
+**Tested** in the CI (`scripts/test-docker-proxy.sh`): a blocked address gets `403` and is let in again after unblocking; a virtual patch blocks `/.env`; a page with code, SQL and HTML is not blocked; no query string is in the log; the wiki stays reachable without CrowdSec; the wiki signs in as the machine `ewiki`, and an allowed address reaches CrowdSec and loses its block. The page itself is tested against a real CrowdSec (`tests/crowdsec/start.sh`), also with a hostile exchange file.
 
 **Turning it off:** set `EWIKI_SECURITY=none` and `COMPOSE_FILE=docker-compose.yml`, then run `docker compose up -d --remove-orphans`.
 

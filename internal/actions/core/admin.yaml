@@ -52,6 +52,9 @@ actions:
       - name: search_meilisearch
         requires: [meilisearch]
         body_json: '{"plugin_settings": {"search.external": {"engine": "meilisearch", "url": "${system.meilisearch.url}", "api_key": "${system.meilisearch.key}", "index": "ewiki_ex_${unique}"}}}'
+      - name: crowdsec
+        requires: [crowdsec]
+        body_json: '{"plugin_settings": {"security.crowdsec": {"url": "${system.crowdsec.url}", "machine_id": "ewiki", "password": "${system.crowdsec.password}"}}}'
       - name: ldap
         requires: [ldap]
         body_json: '{"plugin_settings": {"auth.ldap": {"url": "${system.ldap.url}", "bind_dn": "${system.ldap.bind_dn}", "bind_password": "${system.ldap.bind_password}", "base_dn": "ou=people,dc=example,dc=com", "user_filter": "(uid={username})", "attr_subject": "entryUUID", "group_mapping": {"engineering": "Engineers"}}}}'

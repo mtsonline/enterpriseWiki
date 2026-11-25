@@ -1,8 +1,16 @@
 # Enterprise Wiki: the bundled proxy with CrowdSec (optional, in addition to
 # docker-compose.yml). ./docker-setup.sh sets it up when you choose CrowdSec:
 #   COMPOSE_FILE=docker-compose.yml:docker-compose.crowdsec.yml
-#   EWIKI_SECURITY=crowdsec, CROWDSEC_BOUNCER_KEY=<random>
+#   EWIKI_SECURITY=crowdsec, CROWDSEC_BOUNCER_KEY=<random>,
+#   EWIKI_CROWDSEC_PASSWORD=<random>
 # in .env; then "docker compose up -d --build" as usual.
+#
+# The wiki shows CrowdSec in the administration (plugin security.crowdsec):
+# it signs in to the Local API as the machine "ewiki" (registered by
+# docker/crowdsec/ewiki-sync.sh with EWIKI_CROWDSEC_PASSWORD) and never gets
+# access to Docker. Allowed addresses go through the folder
+# data/wiki/crowdsec-exchange: the wiki writes, the script inside the
+# CrowdSec container checks every line and applies them with cscli.
 #
 # CrowdSec reads the access log of the proxy and blocks addresses that scan
 # or attack (scenarios of the collection crowdsecurity/caddy); its AppSec
@@ -13,6 +21,12 @@
 # Without CrowdSec: leave this file out (docker-compose.yml alone uses the
 # official Caddy image). See docs/en/admin/installation.md.
 services:
+  wiki:
+    environment:
+      EWIKI_CROWDSEC_URL: http://crowdsec:8080
+      EWIKI_CROWDSEC_PASSWORD: ${EWIKI_CROWDSEC_PASSWORD:?run ./docker-setup.sh (CrowdSec)}
+      EWIKI_CROWDSEC_EXCHANGE: /data/crowdsec-exchange
+
   proxy:
     # the official Caddy image with the CrowdSec bouncer (docker/caddy-crowdsec)
     image: enterprisewiki-caddy-crowdsec:local
@@ -29,6 +43,9 @@ services:
     image: crowdsecurity/crowdsec:${CROWDSEC_VERSION:-v1.8.2}
     profiles: [proxy]
     restart: unless-stopped
+    # CrowdSec as usual, and next to it the script for the wiki (machine
+    # "ewiki", allowed addresses)
+    entrypoint: ["/bin/bash", "-c", "/bin/bash /ewiki-sync.sh & exec /bin/bash /docker_start.sh"]
     security_opt: ["no-new-privileges:true"]
     environment:
       # parsers and scenarios for Caddy, known CVEs in requests, virtual patches
@@ -40,9 +57,13 @@ services:
       BOUNCER_KEY_caddy: ${CROWDSEC_BOUNCER_KEY:?run ./docker-setup.sh (CrowdSec)}
       # local only: no console, no shared signals, no community blocklist
       DISABLE_ONLINE_API: "true"
+      # the wiki signs in as the machine "ewiki" with this password
+      EWIKI_CROWDSEC_PASSWORD: ${EWIKI_CROWDSEC_PASSWORD:?run ./docker-setup.sh (CrowdSec)}
     volumes:
       - ./docker/crowdsec/acquis.d:/etc/crowdsec/acquis.d:ro
       - ./data/crowdsec/data:/var/lib/crowdsec/data
       - ./data/crowdsec/config:/etc/crowdsec
       - ./data/caddy/logs:/logs:ro
+      - ./docker/crowdsec/ewiki-sync.sh:/ewiki-sync.sh:ro
+      - ./data/wiki/crowdsec-exchange:/ewiki:ro
     networks: [ewiki]

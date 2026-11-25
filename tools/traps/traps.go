@@ -1802,4 +1802,26 @@ var traps = []trap{
 		New:  "list[i].UpdatedByID = refs[*w].ID\n\t\t\tlist[i].UpdatedByID = w",
 		Pkg:  "./internal/server/", Tests: "^TestPeopleInLists$",
 	},
+	// ---------------------------------------------------------------- CrowdSec
+	{
+		ID: "crowdsec.stale-session", About: "an API key or an old session changes the allowed addresses of CrowdSec",
+		File: "plugins/security_crowdsec/plugin.go",
+		Old:  "\treturn auth.RequireFreshSession(r.Context())\n}",
+		New:  "\t_ = auth.RequireFreshSession\n\treturn nil\n}",
+		Pkg:  "./internal/server/", Tests: "^TestCrowdSec$",
+	},
+	{
+		ID: "crowdsec.view-changes", About: "the permission to view CrowdSec allows lifting blocks and changing the allowed addresses",
+		File: "plugins/security_crowdsec/plugin.go",
+		Old:  "if err := p.host.RequirePerm(r, id+\".manage\"); err != nil {",
+		New:  "if err := p.host.RequirePerm(r, id+\".view\"); err != nil {",
+		Pkg:  "./internal/server/", Tests: "^TestCrowdSec$",
+	},
+	{
+		ID: "crowdsec.whole-internet", About: "a network as large as the whole internet can be allowed, which switches CrowdSec off",
+		File: "plugins/security_crowdsec/plugin.go",
+		Old:  "\t\tmin := 8\n",
+		New:  "\t\tmin := 0\n",
+		Pkg:  "./internal/server/", Tests: "^TestCrowdSec$",
+	},
 }

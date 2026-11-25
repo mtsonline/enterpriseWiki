@@ -7488,6 +7488,63 @@ test('people: the menu on names and the person page – mouse, keyboard, touch, 
   }
 });
 
+test('CrowdSec: state, lift a block, allow an address (real Local API)', async (t) => {
+  const url = process.env.EWIKI_TEST_CROWDSEC_URL;
+  const cscli = process.env.EWIKI_TEST_CROWDSEC_CSCLI;
+  if (!url || !cscli) {
+    t.skip('CrowdSec is not running (tests/crowdsec/start.sh)');
+    return;
+  }
+  const [bin, ...args] = cscli.split(/\s+/);
+  const csc = (...a) => execFileSync(bin, [...args, ...a], { stdio: 'pipe' });
+  await page.goto(`${BASE}/`);
+  await call('PUT', '/api/v1/admin/settings', { plugin_settings: { 'security.crowdsec': { url, password: process.env.EWIKI_TEST_CROWDSEC_PASSWORD } } });
+  csc('decisions', 'add', '-i', '203.0.113.70', '-d', '1h', '-R', 'e2e test');
+  // changes need a fresh sign-in: an own session
+  const ctx2 = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+  const p2 = await ctx2.newPage();
+  p2.on('pageerror', (e) => errors.push(`crowdsec page: ${e.message}`));
+  try {
+    await p2.goto(BASE + '/login');
+    await p2.getByLabel(/user ?name|benutzername/i).fill(USER);
+    await p2.getByLabel(/^(password|passwort)/i).fill(PASSWORD);
+    await p2.keyboard.press('Enter');
+    await p2.waitForURL((u) => !u.pathname.startsWith('/login'));
+    await p2.goto(`${BASE}/admin/crowdsec`);
+    await p2.getByText(/^(connected as machine ewiki|verbunden als maschine ewiki)/i).waitFor();
+    await a11y('CrowdSec page', p2);
+    // lift the block (with a confirmation)
+    await p2.getByRole('button', { name: /^(lift the block of|sperre von) 203\.0\.113\.70( aufheben)?$/i }).click();
+    await p2.getByRole('dialog').getByRole('button', { name: /^(lift block|sperre aufheben)$/i }).click();
+    await p2.getByText(/^(the block of 203\.0\.113\.70 is lifted|die sperre von 203\.0\.113\.70 ist aufgehoben)\.$/i).first().waitFor();
+    await p2.waitForFunction(() => !document.querySelector('section[aria-labelledby="cs-blocked"] code') || ![...document.querySelectorAll('section[aria-labelledby="cs-blocked"] code')].some((c) => c.textContent === '203.0.113.70'));
+    // allow an address: CrowdSec applies it within seconds
+    await p2.getByLabel(/^(ip address or network|ip-adresse oder netz)/i).fill('192.0.2.0/24');
+    await p2.getByLabel(/^(note|notiz)/i).fill('office e2e');
+    await p2.getByRole('button', { name: /^(allow an address|adresse erlauben)$/i }).click();
+    await p2.locator('section[aria-labelledby="cs-allowed"] code', { hasText: '192.0.2.0/24' }).waitFor();
+    const applied = async () => {
+      for (let i = 0; i < 60; i++) {
+        await p2.getByRole('button', { name: /^(refresh|aktualisieren)$/i }).click();
+        await p2.locator('section[aria-labelledby="cs-allowed"]').waitFor();
+        if (await p2.getByText(/^(crowdsec applies this list|crowdsec wendet diese liste an)\.$/i).count()) return;
+        await p2.waitForTimeout(500);
+      }
+      assert.fail('CrowdSec did not apply the allowed addresses');
+    };
+    await applied();
+    assert.match(csc('allowlists', 'inspect', 'ewiki', '-o', 'raw').toString(), /192\.0\.2\.0\/24/);
+    await a11y('CrowdSec page with an allowed address', p2);
+    // and remove it again
+    await p2.getByRole('button', { name: /^(remove 192\.0\.2\.0\/24 from the allowed addresses|192\.0\.2\.0\/24 aus den erlaubten adressen entfernen)$/i }).click();
+    await p2.getByText(/^(no addresses are allowed|es sind keine adressen erlaubt)\.$/i).waitFor();
+    await applied();
+  } finally {
+    await ctx2.close();
+    await call('PUT', '/api/v1/admin/settings', { plugin_settings: { 'security.crowdsec': {} } });
+  }
+});
+
 test('no JavaScript errors occurred', () => {
   assert.deepEqual(errors, []);
 });

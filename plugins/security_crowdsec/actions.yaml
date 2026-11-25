@@ -1,0 +1,121 @@
+# Action register (ewiki.plugin.v1.Action, see sdk/proto/ewiki/plugin/v1/action.proto).
+actions:
+  - id: security.crowdsec.status
+    category: CATEGORY_ACTION
+    method: GET
+    path: status
+    success_status: 200
+    summary:
+      text:
+        en: Show whether CrowdSec runs and how many addresses it blocks
+        de: Anzeigen, ob CrowdSec läuft und wie viele Adressen es sperrt
+    permission: {key: security.crowdsec.view, scope: SCOPE_GLOBAL}
+    cli: {command: [crowdsec, status]}
+    ui: {entry: /admin/crowdsec}
+    examples:
+      - name: default
+        as: member
+      - name: connected
+        requires: [crowdsec]
+        given: ['core.settings.update#crowdsec']
+        as: member
+        expect_json: '{"connected": true}'
+  - id: security.crowdsec.alerts
+    category: CATEGORY_ACTION
+    method: GET
+    path: alerts
+    query:
+      json: '{"type": "object", "properties": {"limit": {"type": "integer", "minimum": 1}}}'
+    success_status: 200
+    summary:
+      text:
+        en: List the latest alerts of CrowdSec
+        de: Die letzten Alarme von CrowdSec auflisten
+    permission: {key: security.crowdsec.view, scope: SCOPE_GLOBAL}
+    cli: {command: [crowdsec, alerts]}
+    ui: {entry: /admin/crowdsec}
+    examples:
+      - name: default
+        requires: [crowdsec]
+        given: ['core.settings.update#crowdsec']
+        as: member
+      - name: not_set_up
+        as: member
+        status: 409
+  - id: security.crowdsec.decisions
+    category: CATEGORY_ACTION
+    method: GET
+    path: decisions
+    success_status: 200
+    summary:
+      text:
+        en: List the addresses CrowdSec blocks now
+        de: Die Adressen auflisten, die CrowdSec gerade sperrt
+    permission: {key: security.crowdsec.view, scope: SCOPE_GLOBAL}
+    cli: {command: [crowdsec, blocks]}
+    ui: {entry: /admin/crowdsec}
+    examples:
+      - name: default
+        requires: [crowdsec]
+        given: ['core.settings.update#crowdsec']
+        as: member
+  - id: security.crowdsec.unblock
+    category: CATEGORY_ACTION
+    method: DELETE
+    path: "decisions/{id}"
+    success_status: 204
+    summary:
+      text:
+        en: Lift a block of CrowdSec
+        de: Eine Sperre von CrowdSec aufheben
+    permission: {key: security.crowdsec.manage, scope: SCOPE_GLOBAL}
+    safety: {changes: true}
+    cli: {command: [crowdsec, unblock], args: [id]}
+    ui: {entry: /admin/crowdsec}
+    examples:
+      - name: unknown
+        requires: [crowdsec]
+        given: ['core.settings.update#crowdsec']
+        as: member
+        path_params_json: '{"id": "999999999"}'
+        status: 404
+  - id: security.crowdsec.allowlist
+    category: CATEGORY_ACTION
+    method: GET
+    path: allowlist
+    success_status: 200
+    summary:
+      text:
+        en: Show the addresses CrowdSec never blocks
+        de: Die Adressen anzeigen, die CrowdSec nie sperrt
+    permission: {key: security.crowdsec.view, scope: SCOPE_GLOBAL}
+    cli: {command: [crowdsec, allowlist]}
+    ui: {entry: /admin/crowdsec}
+    examples:
+      - name: default
+        as: member
+  - id: security.crowdsec.allowlist.set
+    category: CATEGORY_ACTION
+    method: PUT
+    path: allowlist
+    success_status: 200
+    summary:
+      text:
+        en: Replace the addresses CrowdSec never blocks
+        de: Die Adressen ersetzen, die CrowdSec nie sperrt
+    permission: {key: security.crowdsec.manage, scope: SCOPE_GLOBAL}
+    safety: {changes: true}
+    cli: {command: [crowdsec, allowlist-set]}
+    ui: {entry: /admin/crowdsec}
+    examples:
+      - name: default
+        requires: [crowdsec]
+        given: ['core.settings.update#crowdsec']
+        as: member
+        body_json: '{"entries": [{"value": "192.0.2.10", "note": "office"}, {"value": "198.51.100.0/24", "note": ""}]}'
+      - name: too_large
+        requires: [crowdsec]
+        given: ['core.settings.update#crowdsec']
+        as: member
+        body_json: '{"entries": [{"value": "0.0.0.0/0", "note": ""}]}'
+        status: 400

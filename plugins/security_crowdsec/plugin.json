@@ -1,0 +1,50 @@
+{
+  "id": "security.crowdsec",
+  "name": "CrowdSec",
+  "version": "1.0.0",
+  "description": "Shows CrowdSec in the administration: whether it runs, its alerts and the addresses it blocks. Blocks can be lifted, and addresses can be allowed so that CrowdSec never blocks them. Connects to the Local API of CrowdSec as a machine with its own password, never through Docker.",
+  "author": "Enterprise Wiki",
+  "kinds": [
+    "general"
+  ],
+  "frontend": true,
+  "permissions": [
+    {
+      "key": "security.crowdsec.view",
+      "scope": "global",
+      "label": "View CrowdSec",
+      "description": "See whether CrowdSec runs, its alerts, the blocked and the allowed addresses."
+    },
+    {
+      "key": "security.crowdsec.manage",
+      "scope": "global",
+      "label": "Manage CrowdSec",
+      "description": "Lift blocks and change the allowed addresses of CrowdSec (includes viewing). Only in a fresh browser session or on the server.",
+      "implies": [
+        "security.crowdsec.view"
+      ]
+    }
+  ],
+  "limits": [
+    {
+      "key": "security.crowdsec.list_max",
+      "group": "requests",
+      "unit": "count",
+      "default": 200,
+      "min": 10,
+      "max": 2000,
+      "label": "Entries of CrowdSec per list",
+      "help": "At most this many alerts or blocks are read from CrowdSec at once."
+    },
+    {
+      "key": "security.crowdsec.allowlist_max",
+      "group": "requests",
+      "unit": "count",
+      "default": 500,
+      "min": 1,
+      "max": 10000,
+      "label": "Allowed addresses for CrowdSec",
+      "help": "At most this many addresses and networks can be allowed."
+    }
+  ]
+}

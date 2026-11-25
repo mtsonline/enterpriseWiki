@@ -249,6 +249,7 @@ var systemPlugins = map[string][]string{
 	"opensearch": {"search.external"}, "elasticsearch": {"search.external"}, "meilisearch": {"search.external"},
 	"ldap": {"auth.ldap"}, "keycloak": {"auth.oidc"},
 	"collabora": {"office.collabora"}, "onlyoffice": {"office.onlyoffice"}, "microsoft365": {"office.m365"},
+	"crowdsec": {"security.crowdsec"},
 }
 
 // needs returns the test systems an example and its givens require.
