@@ -52,9 +52,12 @@ func (s *Server) routesM3() {
 		return s.plugins.CheckUpdates(r.Context(), version.Version, manifests(), force)
 	})
 	// GET /api/v1/admin/status: the state of the wiki at a glance (tile of
-	// the dashboard): version, updates from the last check (no request to
-	// GitHub here), e-mails that failed or wait, the backlog of the change
-	// queue.
+	// the dashboard, overview of the administration, ewiki status): version,
+	// updates from the last check (no request to GitHub here), e-mails that
+	// failed or wait, the backlog of the change queue; the further parts of
+	// the overview (updates with the commands to install them, plugins,
+	// users, security, license) only for those who may open the matching
+	// administration page (see overview).
 	// action: core.admin.status
 	s.handle("GET /api/v1/admin/status", func(w http.ResponseWriter, r *http.Request) (any, error) {
 		if err := requireAdmin(r); err != nil {
@@ -105,6 +108,9 @@ func (s *Server) routesM3() {
 		out["database_level"] = ""
 		if st, err := pgversion.Check(r.Context(), s.app.DB, time.Now()); err == nil {
 			out["database_level"] = st.Level
+		}
+		if err := s.overview(r, out); err != nil {
+			return nil, err
 		}
 		return out, nil
 	})

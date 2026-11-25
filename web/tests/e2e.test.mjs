@@ -3462,10 +3462,28 @@ test('template designer: visual and with the keyboard, room and contrast help, u
     await page.locator('.ewd-hints h3', { hasText: /(phone|handy)/i }).waitFor();
     // the height of the sticky header, measured in the preview
     await page.locator('.ewd-hints li', { hasText: /(sticky header|klebende kopf) (is|ist) \d+ px/i }).waitFor();
+    // dark colors: a first dark palette that passes every pair, its own
+    // contrast list, and the preview in the dark scheme
+    await page.getByLabel(/^(offer dark colours|dunkle farben anbieten)$/i).check();
+    await page.getByRole('heading', { name: /^(contrast of the dark colours|kontrast der dunklen farben)$/i }).waitFor();
+    assert.equal(await page.locator('.ewd-contrast .ewd-bad').count(), 0, 'the first dark palette passes every pair');
+    await page.getByRole('group', { name: /^(colour scheme of the preview|farbschema der vorschau)$/i }).getByRole('button', { name: /^(dark|dunkel)$/i }).click();
+    await page.waitForFunction(() => {
+      const b = document.querySelector('iframe.ewd-frame')?.contentDocument?.body;
+      return !!b && b.classList.contains('ewd-preview') && b.classList.contains('ewc-dark') && getComputedStyle(b).getPropertyValue('--ew-bg').trim() === '#1d2125';
+    });
+    await a11y('the designer with dark colours');
+    await page.getByRole('group', { name: /^(colour scheme of the preview|farbschema der vorschau)$/i }).getByRole('button', { name: /^(light|hell)$/i }).click();
+    await page.waitForFunction(() => {
+      const b = document.querySelector('iframe.ewd-frame')?.contentDocument?.body;
+      return !!b && b.classList.contains('ewd-preview') && !b.classList.contains('ewc-dark');
+    });
     // the text shows the same design
     await page.getByRole('button', { name: /^(as text \(json\)|als text \(json\))$/i }).click();
     const design = JSON.parse(await page.getByLabel(/^(design \(text\)|design \(text\))$/i).inputValue());
     assert.equal(design.tokens.primary, '#7a1f5c');
+    assert.equal(design.tokens.dark?.bg, '#1d2125');
+    assert.equal(design.options.color_scheme, 'system');
     assert.equal(design.rows[1].mobile.drawer[0], 'menu');
     await page.getByRole('button', { name: /^(visual|visuell)$/i }).click();
     const saved = page.waitForResponse((r) => r.url().endsWith(`/api/v1/x/core.template/templates/${key}`) && r.request().method() === 'PUT');
@@ -3488,7 +3506,14 @@ test('template designer: visual and with the keyboard, room and contrast help, u
     } finally {
       if (size) await page.setViewportSize(size);
     }
+    // the same template in the dark scheme (its dark colors)
+    await call('PUT', '/api/v1/scheme', { scheme: 'dark' });
+    await page.goto(`${BASE}/`);
+    await idle();
+    assert.equal(await page.evaluate(() => getComputedStyle(document.body).getPropertyValue('--ew-bg').trim()), '#1d2125');
+    await a11y('the wiki with the website template of data, dark');
   } finally {
+    await call('PUT', '/api/v1/scheme', { scheme: '' }).catch(() => {});
     await call('PUT', '/api/v1/admin/settings', { ui: before.ui });
     if (key) {
       await call('DELETE', `/api/v1/x/core.template/templates/${key}`).catch(() => {});
@@ -7131,6 +7156,72 @@ test('own profile: data, e-mail addresses, notifications, watches, feed key, API
     // ended sessions answer 401 on purpose
     errors.splice(logged, errors.length - logged, ...errors.slice(logged).filter((e) => !/status of (401|422)/.test(e)));
   }
+});
+
+test('administration overview: tiles with links, update commands, narrow and wide, light and dark', async () => {
+  // the start page of the administration is the overview
+  await page.goto(`${BASE}/admin`);
+  await idle();
+  await page.waitForSelector('.ew-overview');
+  assert.match((await page.locator('.ew-admin-panel h1').textContent()) ?? '', /^(overview|übersicht)$/i);
+  assert.equal(await page.locator('.ew-admin nav.ew-subnav a[aria-current="page"]').getAttribute('href'), '/admin/overview');
+  for (const id of ['health', 'updates', 'security', 'plugins', 'users', 'license']) {
+    assert.equal(await page.locator(`.ew-overview section[aria-labelledby="ov-${id}"]`).count(), 1, `tile ${id}`);
+  }
+  // the update tile: filled after the check (or its failure), with the
+  // commands to install an update; the wiki offers no button for the core
+  const updates = page.locator('section[aria-labelledby="ov-updates"]');
+  await page.waitForFunction(() => document.querySelector('section[aria-labelledby="ov-updates"] [aria-busy="false"]'));
+  assert.ok(/docker compose|scripts\/update\.sh/.test((await updates.textContent()) ?? ''), 'update commands');
+  assert.equal(await updates.locator('button').count(), 0, 'no update button for the core');
+  // users: a deactivated account is counted
+  const users = page.locator('section[aria-labelledby="ov-users"] dd');
+  const disabledBefore = Number(await users.nth(1).textContent());
+  const u = await call('POST', '/api/v1/admin/users', { username: `ov${run}`, password: 'Ov-Passw0rd-123!' });
+  await call('PUT', `/api/v1/admin/users/${u.id}`, { disabled: true });
+  await page.reload();
+  await idle();
+  assert.equal(Number(await page.locator('section[aria-labelledby="ov-users"] dd').nth(1).textContent()), disabledBefore + 1, 'deactivated accounts');
+  await a11y('administration overview');
+  // narrow: one column, nothing wider than the screen; wide: several columns
+  const size = page.viewportSize();
+  try {
+    await page.setViewportSize({ width: 390, height: 800 });
+    await idle();
+    // what sticks out of its tile (named for the report)
+    const overflow = await page.evaluate(() => [...document.querySelectorAll('.ew-overview > section')].flatMap((sec) => {
+      const right = sec.getBoundingClientRect().right;
+      return [...sec.querySelectorAll('*')].filter((el) => el.getBoundingClientRect().right > right + 1)
+        .map((el) => `${sec.getAttribute('aria-labelledby')}: <${el.tagName.toLowerCase()} class="${el.className}"> ${(el.textContent ?? '').slice(0, 60)}`);
+    }));
+    assert.deepEqual(overflow, [], 'overview wider than a narrow screen');
+    assert.ok(await page.evaluate(() => document.querySelector('.ew-overview').scrollWidth <= document.querySelector('.ew-overview').clientWidth + 1), 'overview scrolls sideways');
+    await a11y('administration overview (narrow)');
+    await page.setViewportSize({ width: 1400, height: 900 });
+    await idle();
+    const tops = await page.locator('.ew-overview > section').evaluateAll((els) => new Set(els.map((el) => Math.round(el.getBoundingClientRect().top))).size);
+    assert.ok(tops < 6, 'tiles side by side on a wide screen');
+  } finally {
+    if (size) await page.setViewportSize(size);
+  }
+  // dark colour scheme
+  const uiBefore = (await call('GET', '/api/v1/admin/settings')).config.ui;
+  await call('PUT', '/api/v1/admin/settings', { ui: { ...uiBefore, template: 'theme.wiki.dark' } });
+  await call('PUT', '/api/v1/scheme', { scheme: 'dark' });
+  try {
+    await page.goto(`${BASE}/admin/overview`);
+    await idle();
+    await page.waitForFunction(() => document.querySelector('section[aria-labelledby="ov-updates"] [aria-busy="false"]'));
+    await a11y('administration overview (dark)');
+  } finally {
+    await call('PUT', '/api/v1/scheme', { scheme: '' });
+    await call('PUT', '/api/v1/admin/settings', { ui: uiBefore });
+  }
+  // the heading of a tile leads to its page
+  await page.goto(`${BASE}/admin`);
+  await idle();
+  await page.locator('#ov-users a').click();
+  await page.waitForURL(/\/admin\/users$/);
 });
 
 test('no JavaScript errors occurred', () => {

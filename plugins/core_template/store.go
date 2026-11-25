@@ -328,9 +328,30 @@ func (p *Plugin) Templates(ctx context.Context) []content.TemplateName {
 				break
 			}
 		}
-		out = append(out, content.TemplateName{ID: t.ID, Name: name, Names: t.Names})
+		out = append(out, content.TemplateName{ID: t.ID, Name: name, Names: t.Names, ColorScheme: schemeOf(t.Design)})
 	}
 	return out
+}
+
+// ColorScheme implements content.TemplateSource.
+func (p *Plugin) ColorScheme(ctx context.Context, id string) string {
+	if !strings.HasPrefix(id, ID+"/") {
+		return ""
+	}
+	t, err := p.get(ctx, id, false)
+	if err != nil {
+		return ""
+	}
+	return schemeOf(t.Design)
+}
+
+// schemeOf is the default scheme of a stored design ("" = light only).
+func schemeOf(raw json.RawMessage) string {
+	var d Design
+	if json.Unmarshal(raw, &d) != nil {
+		return ""
+	}
+	return d.Scheme()
 }
 
 // usedBy names where a template is used (site or categories): a template

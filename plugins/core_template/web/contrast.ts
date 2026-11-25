@@ -69,3 +69,27 @@ export function checkPairs(tokens: Record<string, unknown>): { pair: Pair; value
     return { pair, value, min, ok, suggestion: ok ? null : suggest(fore, back, min) };
   });
 }
+
+/** The colors of one scheme, as in the tokens (engine.ts Palette). */
+type Colors = Record<'bg' | 'bg_subtle' | 'text' | 'text_muted' | 'border' | 'primary' | 'on_primary' | 'link' | 'focus' | 'header_bg' | 'header_text' | 'footer_bg' | 'footer_text', string>;
+
+/** A first dark palette for a design that has light colors only: the dark
+ * colors of the wiki for surfaces and text, the colors of the design for
+ * primary, link and focus, lightened just as far as the contrast needs.
+ * Every pair passes (unit test); the designer can change everything. */
+export function darkFrom(light: Colors): Colors {
+  const bg = '#1d2125';
+  const subtle = '#22272b';
+  const on = (c: string, min: number) => {
+    let x = suggest(c, bg, min) ?? '#ffffff';
+    if (contrast(x, subtle) < min) x = suggest(x, subtle, min) ?? '#ffffff';
+    return x;
+  };
+  const primary = on(light.primary, 4.5);
+  return {
+    bg, bg_subtle: subtle, text: '#dee4ea', text_muted: '#b6c2cf', border: '#8c9bab',
+    primary, on_primary: contrast(primary, '#10151a') >= 4.5 ? '#10151a' : '#000000',
+    link: on(light.link, 4.5), focus: on(light.focus, 3),
+    header_bg: '#161a1d', header_text: '#dee4ea', footer_bg: '#161a1d', footer_text: '#dee4ea',
+  };
+}

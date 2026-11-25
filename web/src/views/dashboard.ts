@@ -151,7 +151,7 @@ export function registerDashboardTiles(): void {
   });
 }
 
-interface AdminStatus {
+export interface AdminStatus {
   version: string; updates_checked_at: string | null; updates_available: number;
   mail_failed: number; mail_queued: number; queue_pending: number; queue_oldest: string | null;
   login_failed_24h: number; audit_forward_errors: number;
@@ -159,35 +159,45 @@ interface AdminStatus {
   license_level: string; database_level: string;
 }
 
-/** The state of the wiki for administrators (GET admin/status). Problems are
- * marked with a word, not only with a colour (WCAG 1.4.1). */
-async function adminStatusTile(): Promise<HTMLElement | null> {
-  if (!isAdmin()) return null;
-  const st = await api.get<AdminStatus>('admin/status');
+/** Status rows of the state of the wiki (ids: version, updates, mail, queue,
+ * logins, forward, plugins, license, database). */
+type StatusRow = 'version' | 'updates' | 'mail' | 'queue' | 'logins' | 'forward' | 'plugins' | 'license' | 'database';
+
+/** statusList shows the state of the wiki as a description list (the tile of
+ * the dashboard and the overview of the administration). Problems are marked
+ * with a word, not only with a colour (WCAG 1.4.1); links only to the
+ * administration pages the person may open. */
+export function statusList(st: AdminStatus, only?: StatusRow[]): HTMLElement {
   const L = state.lang;
   const mark = (level: 'ok' | 'warn' | 'error') => (level === 'ok' ? null
     : h('span', { class: ['ew-badge', 'ew-badge--warn'] }, t(level === 'error' ? 'dashboard.st_error' : 'dashboard.st_warn')));
   const lvl = (l: string): 'ok' | 'warn' | 'error' => (l === 'error' ? 'error' : l === 'warning' ? 'warn' : 'ok');
   const stale = st.queue_oldest !== null && Date.now() - new Date(st.queue_oldest).getTime() > 15 * 60 * 1000;
-  const rows: [string, string, 'ok' | 'warn' | 'error', string?][] = [
-    [t('dashboard.st_version'), st.version, 'ok'],
-    [t('dashboard.st_updates'), st.updates_checked_at ? t('dashboard.st_updates_n', { n: st.updates_available, date: fmtDate(st.updates_checked_at, L) }) : t('dashboard.st_not_checked'),
+  const rows: [StatusRow, string, string, 'ok' | 'warn' | 'error', string?][] = [
+    ['version', t('dashboard.st_version'), st.version, 'ok'],
+    ['updates', t('dashboard.st_updates'), st.updates_checked_at ? t('dashboard.st_updates_n', { n: st.updates_available, date: fmtDate(st.updates_checked_at, L) }) : t('dashboard.st_not_checked'),
       st.updates_available > 0 ? 'warn' : 'ok', '/admin/updates'],
-    [t('dashboard.st_mail'), t('dashboard.st_mail_n', { failed: st.mail_failed, queued: st.mail_queued }), st.mail_failed > 0 ? 'warn' : 'ok', '/admin/mail'],
-    [t('dashboard.st_queue'), t('dashboard.st_queue_n', { n: st.queue_pending }), stale ? 'warn' : 'ok'],
-    [t('dashboard.st_logins'), t('dashboard.st_logins_n', { n: st.login_failed_24h }), 'ok', '/admin/audit'],
-    [t('dashboard.st_forward'), st.audit_forward_errors ? t('dashboard.st_forward_errors') : t('dashboard.st_fine'), st.audit_forward_errors ? 'error' : 'ok', '/admin/audit'],
-    [t('dashboard.st_plugins'), [
+    ['mail', t('dashboard.st_mail'), t('dashboard.st_mail_n', { failed: st.mail_failed, queued: st.mail_queued }), st.mail_failed > 0 ? 'warn' : 'ok', '/admin/mail'],
+    ['queue', t('dashboard.st_queue'), t('dashboard.st_queue_n', { n: st.queue_pending }), stale ? 'warn' : 'ok'],
+    ['logins', t('dashboard.st_logins'), t('dashboard.st_logins_n', { n: st.login_failed_24h }), 'ok', '/admin/audit'],
+    ['forward', t('dashboard.st_forward'), st.audit_forward_errors ? t('dashboard.st_forward_errors') : t('dashboard.st_fine'), st.audit_forward_errors ? 'error' : 'ok', '/admin/audit'],
+    ['plugins', t('dashboard.st_plugins'), [
       st.plugins_inactive.length ? t('dashboard.st_plugins_inactive', { list: st.plugins_inactive.join(', ') }) : '',
       st.restart_pending ? t('dashboard.st_restart') : '', st.build_failed ? t('dashboard.st_build_failed') : '',
     ].filter(Boolean).join(' · ') || t('dashboard.st_fine'), st.build_failed || st.plugins_inactive.length ? 'error' : st.restart_pending ? 'warn' : 'ok', '/admin/plugins'],
-    [t('dashboard.st_license'), t(`dashboard.st_level_${lvl(st.license_level)}`), lvl(st.license_level), '/admin/license'],
-    [t('dashboard.st_database'), st.database_level ? t(`dashboard.st_level_${lvl(st.database_level)}`) : '–', lvl(st.database_level), '/admin/settings'],
+    ['license', t('dashboard.st_license'), t(`dashboard.st_level_${lvl(st.license_level)}`), lvl(st.license_level), '/admin/license'],
+    ['database', t('dashboard.st_database'), st.database_level ? t(`dashboard.st_level_${lvl(st.database_level)}`) : '–', lvl(st.database_level), '/admin/settings'],
   ];
-  // links only to the administration pages the person may open
   const open = new Set(adminSections().map((x) => `/admin/${x.id}`));
-  return tile(t('block.core.dash.admin'), h('dl', { class: 'ew-dl ew-tile-status' }, ...rows.flatMap(([k, v, l, href]) => [
-    h('dt', null, href && open.has(href) ? h('a', { href }, k) : k), h('dd', null, v, l === 'ok' ? null : ' ', mark(l))])));
+  return h('dl', { class: 'ew-dl ew-tile-status' }, ...rows.filter(([id]) => !only || only.includes(id)).flatMap(([, k, v, l, href]) => [
+    h('dt', null, href && open.has(href) ? h('a', { href }, k) : k), h('dd', null, v, l === 'ok' ? null : ' ', mark(l))]));
+}
+
+/** The state of the wiki for administrators (GET admin/status). */
+async function adminStatusTile(): Promise<HTMLElement | null> {
+  if (!isAdmin()) return null;
+  const st = await api.get<AdminStatus>('admin/status');
+  return tile(t('block.core.dash.admin'), statusList(st), { href: '/admin/overview', label: t('overview.open') });
 }
 
 /** Administration: which tiles everybody may put on the own dashboard

@@ -39,6 +39,7 @@ export { state, onChange, isAdmin, hasPerm } from './core/state';
 export { toast, announce } from './core/announce';
 export { consentGiven, registerConsentCategory, onConsentChange, type ConsentCategory } from './core/consent';
 export { navigate, route, rerender } from './core/router';
+export { applyScheme, setTemplateScheme, type Scheme } from './core/scheme';
 export { BRAND, brandHeader, brandMark, licensed, licenseSeal, poweredBy } from './components/brand';
 export { button, field, textInput, textArea, select, checkbox, openDialog, confirmDialog, formDialog, langFields, errorText, loading, pageHeader } from './components/ui';
 export type * from './core/types';
