@@ -431,8 +431,8 @@ func displayName(p *identity.Principal) string {
 }
 
 // names sets the authors of comments as the caller may see them: the
-// display name, with the handle only for who may look the person up
-// (content.PeopleLabels). One query for all comments.
+// display name (never the handle) and the id only for who may open the person
+// (content.PeopleRefs). One query for all comments.
 func (p *Plugin) names(ctx context.Context, list ...*Comment) error {
 	var ids []int64
 	for _, c := range list {

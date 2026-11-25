@@ -2,6 +2,7 @@
 // let users, groups or roles watch categories or pages. Mandatory
 // assignments cannot be unsubscribed; optional ones can (in the profile).
 import { api } from '../core/api';
+import { personName } from '../components/person';
 import { newest } from '../core/newest';
 import { fmtDate, h, mount, uid } from '../core/dom';
 import { pick, t } from '../core/i18n';
@@ -15,7 +16,7 @@ export interface Assignment {
   id: number; subject_type: 'user' | 'group' | 'role'; subject_id: number; subject_name: string;
   target_type: 'category' | 'element'; target_id: number; target_titles: Record<string, string>;
   mode: string; recursive: boolean; frequency: string; mandatory: boolean; note: string;
-  created_by: string; created_at: string; members: number; unsubscribed?: boolean;
+  created_by: string; created_by_id?: number; subject_person?: number; created_at: string; members: number; unsubscribed?: boolean;
 }
 
 interface Named { id: number; name: string }
@@ -28,12 +29,12 @@ export async function watchesAdmin(panel: HTMLElement): Promise<void> {
     api.get<Assignment[]>('admin/watch-assignments'), api.get<Named[]>('groups'), api.get<Named[]>('roles'),
   ]);
   const rows = list.map((a) => h('tr', null,
-    h('th', { scope: 'row' }, `${t(`acl.${a.subject_type}`)}: ${a.subject_name}`),
+    h('th', { scope: 'row' }, `${t(`acl.${a.subject_type}`)}: `, a.subject_type === 'user' ? personName(a.subject_name, a.subject_person) : a.subject_name),
     h('td', null, t(`watch.type.${a.target_type}`), ': ', h('a', { href: href(a) }, title(a)), a.target_type === 'category' && a.recursive ? ` (${t('wassign.with_sub')})` : ''),
     h('td', null, t(a.mode === 'content' ? 'watch.mode_content' : 'watch.mode_link'), ' · ', t(`watch.freq_${a.frequency || 'instant'}`)),
     h('td', null, h('span', { class: `ew-badge ${a.mandatory ? 'ew-badge--warn' : 'ew-badge--ok'}` }, t(a.mandatory ? 'wassign.mandatory' : 'wassign.optional'))),
     h('td', null, String(a.members)),
-    h('td', null, a.created_by || '–', h('br'), h('small', null, fmtDate(a.created_at, state.lang))),
+    h('td', null, personName(a.created_by, a.created_by_id), h('br'), h('small', null, fmtDate(a.created_at, state.lang))),
     h('td', { class: 'ew-actions' },
       button(t('common.edit'), () => void assignmentDialog(a, groups, roles), { variant: 'link', ariaLabel: `${t('common.edit')}: ${a.subject_name} – ${title(a)}` }),
       button(t('common.delete'), async () => {
@@ -159,7 +160,7 @@ export async function assignedWatchesSection(): Promise<HTMLElement | null> {
         return h('tr', null,
           h('th', { scope: 'row' }, h('a', { href: href(a) }, name), ' ', h('small', null, `(${t(`watch.type.${a.target_type}`)})`), a.note ? h('div', { class: 'ew-help' }, a.note) : null),
           h('td', null, t(a.mode === 'content' ? 'watch.mode_content' : 'watch.mode_link'), ' · ', t(`watch.freq_${a.frequency || 'instant'}`)),
-          h('td', null, `${t(`acl.${a.subject_type}`)}: ${a.subject_name}`),
+          h('td', null, `${t(`acl.${a.subject_type}`)}: `, a.subject_type === 'user' ? personName(a.subject_name, a.subject_person) : a.subject_name),
           h('td', null, status));
       }))));
   render();

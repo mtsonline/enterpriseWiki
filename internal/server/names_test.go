@@ -7,11 +7,12 @@ import (
 	"time"
 )
 
-// TestHandlesOnlyForWhoMayLookUp: next to content (last change, history,
-// comments, trash, cases, deputies) a person is named with the display name;
-// the handle (user@provider, with OIDC often the e-mail address) only for
-// readers who may look the person up – never for guests.
-func TestHandlesOnlyForWhoMayLookUp(t *testing.T) {
+// TestNamesWithoutHandles: next to content (last change, history,
+// comments, trash, cases, deputies) a person is named with the display name
+// only – for everybody, the person and administrators included. The handle
+// (user@provider, with OIDC often the e-mail address) appears only on the
+// person page and in the administration of users.
+func TestNamesWithoutHandles(t *testing.T) {
 	e := setup(t)
 	admin := e.client()
 	admin.login("admin", adminPW)
@@ -40,8 +41,7 @@ func TestHandlesOnlyForWhoMayLookUp(t *testing.T) {
 	carla.must("POST", "/api/v1/elements", map[string]any{"category_id": c.ID, "type": "core.html", "title": "Notes", "body": htmlBody("<p>x</p>")}, &el, 201)
 	carla.must("POST", fmt.Sprintf("/api/v1/x/core.comments/elements/%d/comments", el.ID), map[string]any{"body": "Hello"}, nil, 201)
 
-	const handle = "carla@local"
-	withHandle, plain := "Carla ("+handle+")", "Carla"
+	plain := "Carla"
 	type view struct {
 		UpdatedBy string `json:"updated_by"`
 	}
@@ -77,9 +77,9 @@ func TestHandlesOnlyForWhoMayLookUp(t *testing.T) {
 	}
 	check("guest", guest, plain)
 	check("outside the groups", out, plain)
-	check("same group", mate, withHandle)
-	check("the person", carla, withHandle)
-	check("admin", admin, withHandle)
+	check("same group", mate, plain)
+	check("the person", carla, plain)
+	check("admin", admin, plain)
 
 	// lists of pages never carry the handle
 	var list struct {
@@ -112,7 +112,7 @@ func TestHandlesOnlyForWhoMayLookUp(t *testing.T) {
 	if got := trash(out); got != plain {
 		t.Errorf("trash for out: %q", got)
 	}
-	if got := trash(mate); got != withHandle {
+	if got := trash(mate); got != plain {
 		t.Errorf("trash for mate: %q", got)
 	}
 
@@ -131,7 +131,7 @@ func TestHandlesOnlyForWhoMayLookUp(t *testing.T) {
 		StartedBy string `json:"started_by"`
 	}
 	carla.must("POST", fmt.Sprintf("/api/v1/x/workflow.process/elements/%d/instances", wf.ID), map[string]any{"data": map[string]any{}}, &x, 201)
-	if x.StartedBy != withHandle {
+	if x.StartedBy != plain {
 		t.Errorf("own case: %q", x.StartedBy)
 	}
 	var tasks struct {
@@ -160,7 +160,7 @@ func TestHandlesOnlyForWhoMayLookUp(t *testing.T) {
 	admin.must("GET", fmt.Sprintf("/api/v1/x/workflow.process/instances/%d", x.ID), nil, &acted, 200)
 	found := false
 	for _, ev := range acted.Events {
-		found = found || ev.Actor == "Out (out@local)"
+		found = found || ev.Actor == "Out"
 	}
 	if !found {
 		t.Errorf("admin: actors %+v", acted.Events)

@@ -3,6 +3,7 @@
 // may give rights on the page (managers of the category, administrators,
 // people with the permission "give rights" on the page).
 import { api } from '../core/api';
+import { personName } from './person';
 import { fmtDate, h, uid } from '../core/dom';
 import { state } from '../core/state';
 import { t } from '../core/i18n';
@@ -33,7 +34,7 @@ export async function elementRightsDialog(id: number, title: string, done?: () =
   let acl: ElementACL;
   let groups: Group[] = [];
   let roles: Role[] = [];
-  let requests: { id: number; user: string; message: string; created_at: string }[] = [];
+  let requests: { id: number; user: string; user_id?: number; message: string; created_at: string }[] = [];
   try {
     [acl, groups, roles, requests] = await Promise.all([api.get<ElementACL>(`elements/${id}/acl`), api.get<Group[]>('groups').catch(() => []), api.get<Role[]>('roles').catch(() => []),
       api.get<typeof requests>(`elements/${id}/access-requests`).catch(() => [])]);
@@ -150,7 +151,7 @@ export async function elementRightsDialog(id: number, title: string, done?: () =
         }
       };
       return h('li', { class: 'ew-access-request' },
-        h('p', null, h('strong', null, r.user), ' · ', fmtDate(r.created_at, state.lang)),
+        h('p', null, h('strong', null, personName(r.user, r.user_id)), ' · ', fmtDate(r.created_at, state.lang)),
         r.message ? h('blockquote', null, r.message) : null,
         h('div', { class: 'ew-actions', role: 'group', 'aria-label': t('access.answer_for', { user: r.user }) },
           button(t('access.grant_read'), () => void answer(true, 'reader'), { variant: 'primary', ariaLabel: `${t('access.grant_read')}: ${r.user}` }),
