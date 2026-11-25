@@ -185,7 +185,9 @@ img { max-width: 100%; height: auto; }
   position: absolute; left: .5rem; top: -100px; z-index: 1000; background: var(--ew-primary);
   color: var(--ew-on-primary); padding: .5rem 1rem; border-radius: var(--ew-radius);
 }
-.ew-skip:focus { top: .5rem; }
+/* focused, it takes its own place at the top instead of covering the header
+   (a covered link to the start page fails the target size, WCAG 2.5.8) */
+.ew-skip:focus { position: relative; display: inline-block; top: auto; left: auto; margin: .5rem; }
 
 /* the name of an icon button on hover, focus and long press (components/tooltip.ts) */
 .ew-tooltip {
