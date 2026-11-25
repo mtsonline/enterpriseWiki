@@ -133,7 +133,9 @@ e2e() {
 
 security() {
 	scripts/govulncheck.sh
-	go run github.com/securego/gosec/v2/cmd/gosec@latest -quiet -exclude-generated -exclude-dir=web -conf .gosec.json ./...
+	# gosec with the Go of the repository: with the minimum of the tool (an
+	# older Go) it cannot load the packages and checks nothing
+	GOTOOLCHAIN="$(go env GOVERSION)" go run github.com/securego/gosec/v2/cmd/gosec@latest -quiet -exclude-generated -exclude-dir=web -conf .gosec.json ./...
 	(cd web && npm audit --audit-level=low)
 }
 

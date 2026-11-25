@@ -5,6 +5,10 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 out="$(mktemp)"
 trap 'rm -f "$out"' EXIT
+# the Go of the repository (go.mod), not the minimum of the tool: govulncheck
+# checks the standard library of the Go it runs with
+GOTOOLCHAIN="$(go env GOVERSION)"
+export GOTOOLCHAIN
 # both modules: the wiki and the plugin SDK
 go run golang.org/x/vuln/cmd/govulncheck@latest -format json ./... >"$out"
 (cd sdk && go run golang.org/x/vuln/cmd/govulncheck@latest -format json ./...) >>"$out"
