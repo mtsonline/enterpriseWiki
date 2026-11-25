@@ -8,6 +8,7 @@
 //
 // See docs/en/developer/plugins.md.
 import { state, onChange } from './core/state';
+import { onBeforeMount } from './core/router';
 import { t } from './core/i18n';
 import { api } from './core/api';
 import { CATEGORY_POSITIONS, DASHBOARD_POSITIONS, ELEMENT_POSITIONS, EDITOR_POSITIONS, kindOf, resolvePlacements, type PagePosition, type PlacementLevel, type PositionKind } from './core/placement';
@@ -380,6 +381,58 @@ function withOptions(n: Node, o: BlockOptions): Node {
 
 const fillGen = new WeakMap<HTMLElement, number>();
 let refreshPending = false;
+// the latest filling of each container, and the containers of a page that is
+// built before it goes into the document (see placedFirst)
+const fillDone = new WeakMap<HTMLElement, Promise<void>>();
+const beforeMount = new WeakSet<HTMLElement>();
+let held: Promise<unknown>[] = [];
+
+/**
+ * Lets the view being built wait for work that changes its layout (an editor
+ * that loads its file, …): the view is shown when it is done, so nothing
+ * moves afterwards (at most for the time placedFirst allows). Only for work
+ * started while a view is built.
+ */
+export function holdView(p: Promise<unknown>): void {
+  held.push(p.catch(() => undefined));
+}
+
+function track(el: HTMLElement, name: string): Promise<void> {
+  const p = fill(el, name);
+  fillDone.set(el, p);
+  return p;
+}
+
+// every view waits for the blocks of its positions before it is shown
+onBeforeMount((view) => placedFirst(view));
+
+/**
+ * Waits until the positions of a page built in root are filled, so the page
+ * goes into the document with its toolbar, footer and blocks at once and
+ * nothing moves afterwards (layout shift). A block that takes longer than
+ * maxMs does not hold the page back: it appears when it is ready.
+ */
+export async function placedFirst(root: HTMLElement, maxMs = 1500): Promise<void> {
+  const els = Array.from(root.querySelectorAll<HTMLElement>('.ew-pos')).filter((e) => elementCtx.has(e));
+  for (const e of els) beforeMount.add(e);
+  // the filling of the positions of a new page starts in a microtask (setPlacementContext)
+  await new Promise<void>((r) => queueMicrotask(r));
+  const work = held;
+  held = [];
+  // the fonts of the text and the headings (preloaded): text set in a fallback
+  // font first would change its width when they arrive
+  const cs = getComputedStyle(document.body);
+  for (const f of [`1em ${cs.fontFamily}`, `700 1em ${cs.getPropertyValue('--ew-heading-font').trim() || cs.fontFamily}`]) {
+    work.push(document.fonts.load(f).catch(() => undefined));
+  }
+  let timer = 0;
+  await Promise.race([
+    Promise.all([...work, ...els.map((e) => (fillDone.get(e) ?? Promise.resolve()).catch(() => undefined))]),
+    new Promise<void>((r) => { timer = window.setTimeout(r, maxMs); }),
+  ]);
+  clearTimeout(timer);
+  for (const e of els) beforeMount.delete(e);
+}
 
 /** The positions of a kind on the page shown. */
 function availOf(kind: PositionKind): readonly string[] {
@@ -453,7 +506,8 @@ async function fill(el: HTMLElement, name: string): Promise<void> {
     const slot = top && slotOf.get(top);
     if (top && slot) restore = { slot, path: pathTo(top, active) };
   }
-  if (fillGen.get(el) !== gen || (!el.isConnected && ec)) return; // newer filling, or the page was left
+  // newer filling, or the page was left (a page still being built is not in the document yet)
+  if (fillGen.get(el) !== gen || (!el.isConnected && ec && !beforeMount.has(el))) return;
   reconcile(el, nodes);
   if (restore) {
     let n: Node | undefined = nodes.find((x) => slotOf.get(x) === restore!.slot);
@@ -483,7 +537,7 @@ export function positionContainer(name: string, tag: keyof HTMLElementTagNameMap
   el.dataset.label = positionLabel(name);
   if (!positionEls.has(name)) positionEls.set(name, new Set());
   positionEls.get(name)!.add(el);
-  void fill(el, name);
+  void track(el, name);
   return el;
 }
 
@@ -520,7 +574,7 @@ export function pagePositionContainer(name: PagePosition, ctx: PageContext, fill
   });
   if (!positionEls.has(name)) positionEls.set(name, new Set());
   positionEls.get(name)!.add(el);
-  if (!refreshPending) void fill(el, name);
+  if (!refreshPending) void track(el, name);
   return el;
 }
 
@@ -533,7 +587,7 @@ export function refreshPositions(): Promise<void> {
     for (const el of els) {
       // a new container not yet in the page is filled too (it waited for this)
       if (!el.isConnected && fillGen.has(el)) els.delete(el);
-      else jobs.push(fill(el, name));
+      else jobs.push(track(el, name));
     }
   }
   return Promise.all(jobs).then(() => undefined);

@@ -47,6 +47,13 @@ import { schema } from './schema';
 
 export type EditorMode = 'visual' | 'markdown';
 
+/** Loads what the toolbar shows besides the editor itself (the own buttons of
+ * blocks), so an editor created afterwards appears complete and does not grow
+ * when it arrives. */
+export function editorReady(): Promise<unknown> {
+  return loadMacros().catch(() => undefined);
+}
+
 export interface MarkdownEditorOptions {
   markdown: string;
   /** Content language (lang attribute, spell checking). */
@@ -1566,14 +1573,22 @@ export function createMarkdownEditor(container: HTMLElement, opts: MarkdownEdito
     sym.style.color = mk.color;
     return h('li', { class: 'ewe-peer' }, sym, name);
   };
-  function showLive() {
-    if (!liveOn) return;
+  // the line of live editing: the same parts while it connects and once it
+  // runs, so the editor below does not move when the connection is there
+  function liveLine(text: string) {
     liveBox.hidden = false;
     // everyone with the color and shape of the cursor (own one first)
     const me = opts.collab ? chip(opts.collab.userId, t('editor.live_you')) : null;
+    // the room of the longest of its texts is kept (an invisible copy in the
+    // same place, drawn by the CSS: not part of the text of the page)
+    const longest = [t('editor.live_connecting'), t('editor.live_alone'), t('editor.live_editing')].reduce((a, b) => (b.length > a.length ? b : a));
     liveBox.replaceChildren(h('span', { class: 'ewe-live-dot', 'aria-hidden': 'true' }),
-      h('span', {}, livePeers.length ? t('editor.live_editing') : t('editor.live_alone')),
+      h('span', { class: 'ewe-live-text', 'data-room': longest }, h('span', null, text)),
       h('ul', { class: 'ewe-peers', 'aria-label': t('editor.live_editors') }, me, ...livePeers.map((p) => chip(p.id, p.name))));
+  }
+  function showLive() {
+    if (!liveOn) return;
+    liveLine(livePeers.length ? t('editor.live_editing') : t('editor.live_alone'));
   }
   const bindMd = () => {
     if (live && liveOn && mode === 'markdown' && !binding) binding = new TextareaBinding(textarea, live.text, live.awareness, () => opts.onChange?.());
@@ -1604,8 +1619,7 @@ export function createMarkdownEditor(container: HTMLElement, opts: MarkdownEdito
       },
     });
     live = c;
-    liveBox.textContent = t('editor.live_connecting');
-    liveBox.hidden = false;
+    liveLine(t('editor.live_connecting'));
     // while live editing connects, typing goes into the local document (it
     // becomes the shared one if this editor is the first)
     const initial = view.state.doc;

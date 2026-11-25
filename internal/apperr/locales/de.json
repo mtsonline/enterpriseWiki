@@ -521,7 +521,7 @@
  "logout message names no session": "Die Abmeldenachricht nennt keine Sitzung",
  "logout_token missing": "logout_token fehlt",
  "macro not found": "Baustein nicht gefunden",
- "macro security settings can only be changed in config.yaml": "Sicherheitseinstellungen der Bausteine lassen sich nur in config.yaml ändern",
+ "macro security settings can only be changed in config.yaml": "Die Einstellungen zur Sicherheit der Bausteine lassen sich nur in config.yaml ändern",
  "managing this template (its rights, the trash, its own CSS) is limited to certain people": "Dieses Template verwalten (Rechte, Papierkorb, eigenes CSS) dürfen nur bestimmte Personen",
  "max: %v": "Höchstwert: %v",
  "medium not found": "Medium nicht gefunden",

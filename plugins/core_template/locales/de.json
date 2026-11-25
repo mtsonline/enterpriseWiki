@@ -272,7 +272,7 @@
  "template.d_preview_window": "Vorschau in eigenem Fenster",
  "template.d_name_area": "Bereich",
  "template.d_boxed": "Gerahmtes Layout",
- "template.d_boxed_help": "Die ganze Seite – Kopf, Inhalt und Fußzeile – ist ein Kasten in der Inhaltsbreite in der Mitte des Fensters, mit dem gedämpften Hintergrund außen herum. Ohne diese Wahl reichen die Zeilen über das ganze Fenster. Zeilen haben dann höchstens die Inhaltsbreite; die Prüfung des Platzes rechnet damit.",
+ "template.d_boxed_help": "Die ganze Seite – Kopf, Inhalt und Fußzeile – ist ein Kasten in der Inhaltsbreite. Er steht in der Mitte des Fensters, außen herum ist der gedämpfte Hintergrund. Ohne diese Wahl reichen die Zeilen über das ganze Fenster. Zeilen haben dann höchstens die Inhaltsbreite; die Prüfung des Platzes rechnet damit.",
  "template.d_hint_header_tall": "{view}: Der klebende Kopf ist {height} px hoch, mehr als {limit} % der Fensterhöhe ({max} px). Er klebt hier darum nicht. Legen Sie Bausteine des Kopfs in eine Schublade, zum Beispiel die Werkzeuge.",
  "template.d_hint_header_sideways": "Der klebende Kopf ist {height} px hoch. Auf einem quer gehaltenen Handy (etwa {window} px Fensterhöhe) sind das mehr als {limit} %; dort klebt er nicht.",
  "template.d_hint_header_ok": "{view}: Der klebende Kopf ist {height} px hoch und klebt.",
