@@ -7,6 +7,8 @@ import (
 	"io"
 	"net/http"
 	neturl "net/url"
+	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -30,7 +32,13 @@ type UpdateInfo struct {
 	URL       string `json:"url,omitempty"`
 	Notes     string `json:"notes,omitempty"`
 	Available bool   `json:"available"`
-	Error     string `json:"error,omitempty"`
+	// Security: a release between the installed and the latest version has
+	// a section "## Security" or "## Sicherheit" in its notes (the rule of
+	// the release notes, see CONTRIBUTING.md); SecurityNotes holds these
+	// sections, newest first.
+	Security      bool   `json:"security"`
+	SecurityNotes string `json:"security_notes,omitempty"`
+	Error         string `json:"error,omitempty"`
 }
 
 // UpdateReport is the result of CheckUpdates.
@@ -62,9 +70,9 @@ func githubRepo(repo string) (string, bool) {
 	return r, true
 }
 
-// latestRelease asks the GitHub API for the latest release (falls back to
-// the newest tag if the repository has no releases).
-func (m *Manager) latestRelease(ctx context.Context, ownerRepo string) (tag, url, notes string, err error) {
+// ghGet returns a function that reads a path of the GitHub API for the
+// repository ownerRepo (with its access data or the general token).
+func (m *Manager) ghGet(ctx context.Context, ownerRepo string) func(path string, v any) (int, error) {
 	plugins := m.cfg.Get().Plugins
 	cfg := plugins.Updates
 	base := strings.TrimSuffix(cfg.APIURL, "/")
@@ -79,7 +87,7 @@ func (m *Manager) latestRelease(ctx context.Context, ownerRepo string) (tag, url
 	if cred, ok := credentialFor(plugins.Credentials, "https://"+gitHost+"/"+ownerRepo); ok {
 		token = cred.Token
 	}
-	get := func(path string, v any) (int, error) {
+	return func(path string, v any) (int, error) {
 		req, err := http.NewRequestWithContext(ctx, "GET", base+path, nil)
 		if err != nil {
 			return 0, err
@@ -99,6 +107,12 @@ func (m *Manager) latestRelease(ctx context.Context, ownerRepo string) (tag, url
 		}
 		return 200, json.NewDecoder(io.LimitReader(resp.Body, 4<<20)).Decode(v)
 	}
+}
+
+// latestRelease asks the GitHub API for the latest release (falls back to
+// the newest tag if the repository has no releases).
+func (m *Manager) latestRelease(ctx context.Context, ownerRepo string) (tag, url, notes string, err error) {
+	get := m.ghGet(ctx, ownerRepo)
 	var rel struct {
 		TagName string `json:"tag_name"`
 		HTMLURL string `json:"html_url"`
@@ -109,9 +123,6 @@ func (m *Manager) latestRelease(ctx context.Context, ownerRepo string) (tag, url
 		return "", "", "", err
 	}
 	if code == 200 && rel.TagName != "" {
-		if len(rel.Body) > 2000 {
-			rel.Body = strings.ToValidUTF8(rel.Body[:2000], "") + "…"
-		}
 		return rel.TagName, rel.HTMLURL, rel.Body, nil
 	}
 	if code != 404 {
@@ -186,14 +197,103 @@ func (m *Manager) CheckUpdates(ctx context.Context, coreVersion string, plugins 
 				it.Error = err.Error()
 				return
 			}
-			it.Tag, it.URL, it.Notes = tag, url, notes
+			it.Tag, it.URL, it.Notes = tag, url, clip(notes, 2000)
 			it.Latest = strings.TrimPrefix(tag, "v")
 			it.Available = CompareVersions(tag, it.Current) > 0
+			if it.Available {
+				it.SecurityNotes = m.securityNotes(ctx, or, it.Current, tag, notes)
+				it.Security = it.SecurityNotes != ""
+			}
 		}(&items[i])
 	}
 	wg.Wait()
 	m.updates.report = &UpdateReport{CheckedAt: time.Now().UTC(), Items: items}
 	return m.updates.report, nil
+}
+
+// securityNotes collects the security sections of all releases after the
+// installed version up to the latest one (one more request to GitHub, only
+// when an update is available). Without the list of releases (only tags)
+// it uses the notes of the latest release.
+func (m *Manager) securityNotes(ctx context.Context, ownerRepo, current, latest, latestNotes string) string {
+	var rels []struct {
+		TagName    string `json:"tag_name"`
+		Body       string `json:"body"`
+		Draft      bool   `json:"draft"`
+		Prerelease bool   `json:"prerelease"`
+	}
+	var parts []versionedSection
+	if code, err := m.ghGet(ctx, ownerRepo)("/repos/"+ownerRepo+"/releases?per_page=100", &rels); err != nil || code != 200 {
+		rels = nil
+	}
+	seen := false
+	for _, r := range rels {
+		if r.Draft || r.Prerelease || r.TagName == "" || CompareVersions(r.TagName, current) <= 0 || CompareVersions(r.TagName, latest) > 0 {
+			continue
+		}
+		seen = seen || r.TagName == latest
+		if sec, ok := SecuritySection(r.Body); ok {
+			parts = append(parts, versionedSection{r.TagName, sec})
+		}
+	}
+	if !seen {
+		if sec, ok := SecuritySection(latestNotes); ok {
+			parts = append(parts, versionedSection{latest, sec})
+		}
+	}
+	// newest first
+	slices.SortStableFunc(parts, func(a, b versionedSection) int { return CompareVersions(b.tag, a.tag) })
+	out := make([]string, len(parts))
+	for i, p := range parts {
+		out[i] = p.tag + ":"
+		if p.text != "" {
+			out[i] += "\n" + p.text
+		}
+	}
+	return clip(strings.Join(out, "\n\n"), 4000)
+}
+
+// versionedSection is the security section of one release.
+type versionedSection struct{ tag, text string }
+
+// clip shortens s to at most n bytes (valid UTF-8, with "…").
+func clip(s string, n int) string {
+	if len(s) <= n {
+		return s
+	}
+	return strings.ToValidUTF8(s[:n], "") + "…"
+}
+
+// SecuritySection finds the section "Security" or "Sicherheit" (a Markdown
+// heading of any level, case ignored, optional colon) in release notes and
+// returns its text up to the next heading of the same or a higher level.
+// ok reports whether the heading exists (the text may be empty).
+func SecuritySection(notes string) (text string, ok bool) {
+	lines := strings.Split(strings.ReplaceAll(notes, "\r\n", "\n"), "\n")
+	level := 0
+	var out []string
+	for _, ln := range lines {
+		t := strings.TrimSpace(ln)
+		n := 0
+		for n < len(t) && n < 6 && t[n] == '#' {
+			n++
+		}
+		isHeading := n > 0 && (len(t) == n || t[n] == ' ')
+		if level > 0 {
+			if isHeading && n <= level {
+				break
+			}
+			out = append(out, ln)
+			continue
+		}
+		if isHeading {
+			title := strings.ToLower(strings.TrimSuffix(strings.TrimSpace(strings.Trim(t[n:], "# ")), ":"))
+			if title == "security" || title == "sicherheit" {
+				level, ok = n, true
+			}
+		}
+	}
+	return strings.TrimSpace(strings.Join(out, "\n")), ok
 }
 
 // LastUpdateReport returns the cached report (nil if never checked).
@@ -238,10 +338,23 @@ func (m *Manager) UpdatePlugin(ctx context.Context, id string, opt InstallOption
 	return nil, apperr.NotFound("update for " + id)
 }
 
+// describeSuffix matches what git describe appends to a tag: the number of
+// commits after it, the commit and optionally "-dirty" (v1.2.0-5-gabc1234).
+var describeSuffix = regexp.MustCompile(`-(\d+)-g[0-9a-f]{4,40}(-dirty)?$`)
+
 // parseVersion parses "v1.2.3", "1.2", "1.2.3-rc1" into numbers (pre-release
-// suffixes rank below the release).
-func parseVersion(v string) ([4]int, bool) {
+// suffixes rank below the release). A version of git describe
+// ("v1.2.3-5-gabc1234") ranks after its tag and before the next version.
+func parseVersion(v string) ([5]int, bool) {
 	v = strings.TrimPrefix(strings.TrimSpace(v), "v")
+	after := 0
+	if m := describeSuffix.FindStringSubmatchIndex(v); m != nil {
+		n, err := strconv.Atoi(v[m[2]:m[3]])
+		if err != nil {
+			return [5]int{}, false
+		}
+		after, v = n, v[:m[0]]
+	}
 	pre := 1 << 30
 	if i := strings.IndexAny(v, "-+"); i >= 0 {
 		if v[i] == '-' {
@@ -251,17 +364,17 @@ func parseVersion(v string) ([4]int, bool) {
 	}
 	parts := strings.Split(v, ".")
 	if len(parts) == 0 || len(parts) > 3 {
-		return [4]int{}, false
+		return [5]int{}, false
 	}
-	var out [4]int
+	var out [5]int
 	for i, p := range parts {
 		n, err := strconv.Atoi(p)
 		if err != nil || n < 0 {
-			return [4]int{}, false
+			return [5]int{}, false
 		}
 		out[i] = n
 	}
-	out[3] = pre
+	out[3], out[4] = pre, after
 	return out, true
 }
 
@@ -278,7 +391,7 @@ func CompareVersions(a, b string) int {
 	case !okb:
 		return 1
 	}
-	for i := 0; i < 4; i++ {
+	for i := 0; i < 5; i++ {
 		if va[i] != vb[i] {
 			if va[i] < vb[i] {
 				return -1

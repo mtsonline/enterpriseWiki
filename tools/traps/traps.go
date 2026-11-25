@@ -1652,4 +1652,12 @@ var traps = []trap{
 		New:  "	kinds = append(kinds, pageTaskKind)",
 		Pkg:  "./internal/server/", Tests: "^TestPageDates$",
 	},
+	// ---------------------------------------------------------------- overview of the administration
+	{
+		ID: "overview.instance-updates", About: "an administrator of a further site sees the updates and install paths of the instance",
+		File: "internal/server/api_overview.go",
+		Old:  `if may("core.plugins.manage") && s.instanceScope(r) {`,
+		New:  `if may("core.plugins.manage") {`,
+		Pkg:  "./internal/server/", Tests: "^TestAdminOverview$",
+	},
 }

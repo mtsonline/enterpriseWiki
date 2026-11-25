@@ -45,6 +45,8 @@ User=$SERVICE_USER
 WorkingDirectory=$DIR
 Environment=EWIKI_CONFIG=$DIR/config.yaml
 Environment=HOME=$DIR
+# the administration shows the update command of this kind of installation
+Environment=EWIKI_INSTALL=systemd
 ExecStart=$DIR/bin/ewiki serve
 ExecReload=/bin/kill -HUP \$MAINPID
 Restart=always

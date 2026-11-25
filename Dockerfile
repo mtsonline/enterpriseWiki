@@ -61,8 +61,12 @@ COPY --from=backend /out/ewiki /usr/local/bin/ewiki
 COPY docker/entrypoint.sh /usr/local/bin/entrypoint.sh
 USER ewiki
 WORKDIR /data
+# published (set only by .github/workflows/docker-publish.yml) or
+# self-built: the administration shows the matching update commands
+ARG EWIKI_IMAGE_ORIGIN=self-built
 ENV EWIKI_CONFIG=/data/config.yaml EWIKI_DOCKER=1 EWIKI_IMAGE=full EWIKI_DATA=/data \
-    EWIKI_SOURCE=/opt/ewiki/src EWIKI_GOPROXY_FILE=/opt/ewiki/gomod/cache/download
+    EWIKI_SOURCE=/opt/ewiki/src EWIKI_GOPROXY_FILE=/opt/ewiki/gomod/cache/download \
+    EWIKI_IMAGE_ORIGIN=$EWIKI_IMAGE_ORIGIN
 VOLUME ["/data"]
 EXPOSE 8080
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10m CMD wget -qO- http://127.0.0.1:8080/healthz >/dev/null || exit 1
@@ -80,7 +84,11 @@ COPY --from=backend /out/ewiki /usr/local/bin/ewiki
 COPY docker/entrypoint.sh /usr/local/bin/entrypoint.sh
 USER ewiki
 WORKDIR /data
-ENV EWIKI_CONFIG=/data/config.yaml EWIKI_DOCKER=1 EWIKI_IMAGE=lite EWIKI_DATA=/data
+# published (set only by .github/workflows/docker-publish.yml) or
+# self-built: the administration shows the matching update commands
+ARG EWIKI_IMAGE_ORIGIN=self-built
+ENV EWIKI_CONFIG=/data/config.yaml EWIKI_DOCKER=1 EWIKI_IMAGE=lite EWIKI_DATA=/data \
+    EWIKI_IMAGE_ORIGIN=$EWIKI_IMAGE_ORIGIN
 VOLUME ["/data"]
 EXPOSE 8080
 HEALTHCHECK --interval=30s --timeout=5s CMD wget -qO- http://127.0.0.1:8080/healthz >/dev/null || exit 1

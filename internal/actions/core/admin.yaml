@@ -1013,11 +1013,11 @@ actions:
     success_status: 200
     summary:
       text:
-        en: "State of the wiki at a glance: version, updates, e-mail, queue, sign-in failures, plugins, license, database"
-        de: "Zustand des Wikis auf einen Blick: Version, Updates, E-Mail, Warteschlange, fehlgeschlagene Anmeldungen, Plugins, Lizenz, Datenbank"
+        en: "State of the wiki at a glance (overview of the administration): version, updates with the commands to install them, e-mail, queue, sign-in failures, plugins, users, security, license, database"
+        de: "Zustand des Wikis auf einen Blick (Übersicht der Administration): Version, Updates mit den Befehlen zum Einspielen, E-Mail, Warteschlange, fehlgeschlagene Anmeldungen, Plugins, Benutzer, Sicherheit, Lizenz, Datenbank"
     permission: {key: core.admin, scope: SCOPE_GLOBAL}
-    cli: {command: [system, status]}
-    ui: {entry: /dashboard}
+    cli: {command: [status]}
+    ui: {entry: /admin/overview}
     examples:
       - name: default
   - id: core.demo.status
