@@ -5,6 +5,7 @@ import (
 	"slices"
 	"strings"
 	"testing"
+	"time"
 )
 
 type personResp struct {
@@ -259,5 +260,79 @@ func TestPeopleCLIAs(t *testing.T) {
 	}
 	if code, out := runCLI(t, e.cfg, "person", "show", id, "--as", "out"); code == 0 || strings.Contains(out, "carla@example.com") {
 		t.Fatalf("person show --as out: exit %d %s", code, out)
+	}
+}
+
+// TestPeopleInLists: drafts and events name people with the display name
+// only and carry their id only for who may open them; the raw id of the
+// organiser of an event is never sent.
+func TestPeopleInLists(t *testing.T) {
+	e := setup(t)
+	admin := e.client()
+	admin.login("admin", adminPW)
+	const pw = "Passw0rd!Passw0rd"
+	var g, carla, c idResp
+	admin.must("POST", "/api/v1/admin/groups", map[string]any{"name": "List people"}, &g, 201)
+	admin.must("POST", "/api/v1/admin/users", map[string]any{"username": "carla", "password": pw, "display_name": "Carla", "groups": []int64{g.ID}}, &carla, 201)
+	admin.must("POST", "/api/v1/admin/users", map[string]any{"username": "mate", "password": pw, "display_name": "Mate", "groups": []int64{g.ID}}, nil, 201)
+	admin.must("POST", "/api/v1/admin/users", map[string]any{"username": "out", "password": pw, "display_name": "Out"}, nil, 201)
+	cl := map[string]*client{}
+	for _, n := range []string{"carla", "mate", "out"} {
+		cl[n] = e.client()
+		cl[n].login(n, pw)
+	}
+	guest := e.client()
+	admin.must("POST", "/api/v1/categories", map[string]any{"titles": map[string]string{"en": "Lists"}}, &c, 201)
+	admin.must("POST", fmt.Sprintf("/api/v1/categories/%d/acl", c.ID), map[string]any{"subject_type": "guest", "permissions": 1, "inherit": true}, nil, 201)
+	admin.must("POST", fmt.Sprintf("/api/v1/categories/%d/acl", c.ID), map[string]any{"subject_type": "authenticated", "permissions": 15, "inherit": true}, nil, 201)
+
+	// drafts
+	cl["carla"].must("POST", "/api/v1/drafts", map[string]any{"category_id": c.ID, "type": "core.html", "title": "Draft", "body": map[string]any{"format": "html", "source": "<p>d</p>"}}, nil, 201)
+	drafts := func(who string) (string, *int64) {
+		t.Helper()
+		var ds []struct {
+			UpdatedBy   string `json:"updated_by"`
+			UpdatedByID *int64 `json:"updated_by_id"`
+		}
+		cl[who].must("GET", fmt.Sprintf("/api/v1/drafts?category=%d", c.ID), nil, &ds, 200)
+		if len(ds) != 1 {
+			t.Fatalf("drafts for %s: %+v", who, ds)
+		}
+		return ds[0].UpdatedBy, ds[0].UpdatedByID
+	}
+	if n, id := drafts("mate"); n != "Carla" || id == nil || *id != carla.ID {
+		t.Fatalf("draft for mate: %q %v", n, id)
+	}
+	if n, id := drafts("out"); n != "Carla" || id != nil {
+		t.Fatalf("draft for out: %q %v", n, id)
+	}
+
+	// events: the organiser
+	var cal elem
+	admin.must("POST", "/api/v1/elements", map[string]any{"category_id": c.ID, "type": "content.events", "title": "Dates", "body": map[string]any{"view": "list"}}, &cal, 201)
+	start := time.Now().Add(72 * time.Hour).Truncate(time.Hour)
+	var ev idResp
+	cl["carla"].must("POST", fmt.Sprintf("/api/v1/x/content.events/calendars/%d/events", cal.ID), map[string]any{"title": "Yoga", "starts_at": start, "ends_at": start.Add(time.Hour), "tz": "UTC"}, &ev, 201)
+	event := func(who string, c *client) map[string]any {
+		t.Helper()
+		var v struct {
+			Event map[string]any `json:"event"`
+		}
+		c.must("GET", fmt.Sprintf("/api/v1/x/content.events/events/%d", ev.ID), nil, &v, 200)
+		if _, ok := v.Event["created_by"]; ok {
+			t.Errorf("%s gets the raw id of the organiser: %v", who, v.Event)
+		}
+		if v.Event["author"] != "Carla" {
+			t.Errorf("%s: organiser %v", who, v.Event["author"])
+		}
+		return v.Event
+	}
+	if v := event("mate", cl["mate"]); v["author_id"] != float64(carla.ID) {
+		t.Fatalf("event for mate: %v", v["author_id"])
+	}
+	for who, c := range map[string]*client{"out": cl["out"], "guest": guest} {
+		if v := event(who, c); v["author_id"] != nil {
+			t.Fatalf("event for %s: %v", who, v["author_id"])
+		}
 	}
 }

@@ -539,7 +539,7 @@ Je nach Einrichtung melden Sie sich mit Benutzername und Passwort an (lokales Ko
 
 ## Personen
 
-Überall, wo eine Person genannt wird (unter einer Seite, im Verlauf, in Kommentaren, in Vorgängen von Abläufen, auf Team-Seiten und in den Personen-Bausteinen, im Papierkorb und in der Administration), ist der Name ein Knopf – wenn Sie diese Person öffnen dürfen. Er öffnet ein Menü:
+Überall, wo eine Person genannt wird (unter einer Seite, im Verlauf, in Kommentaren und Entwürfen, in Vorgängen von Abläufen, als Autor von Beiträgen und Terminen, auf Team-Seiten und in den Personen-Bausteinen, in Formular-Einsendungen, Zugangsanfragen, im Papierkorb und in der Administration), ist der Name ein Knopf – wenn Sie diese Person öffnen dürfen. Er öffnet ein Menü:
 
 - **Profil öffnen:** die Seite der Person (`/people/…`) mit der Visitenkarte: Foto (wie die Person es erlaubt), Funktion, Abteilung, Telefon, Mobil, Büro, „Über mich“.
 - **E-Mail senden:** nur, wenn Sie die Adresse sehen dürfen (siehe unten). Es öffnet Ihr E-Mail-Programm.

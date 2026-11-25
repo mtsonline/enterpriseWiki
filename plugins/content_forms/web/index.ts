@@ -1,13 +1,13 @@
 // Frontend of the forms plugin: the form on the page, the editor and the
 // submissions below the form (creator and "See submissions").
-import { ApiError, api, button, confirmDialog, elementSelect, fmtDate, h, humanSize, pageHeader, pick, pluginSettingsForm, registerAdminPage, registerSlot, tile, registerEditor, registerElementExtension, registerMacroParamControl, registerWidget, state, t, textInput, toast, errorText } from '@ewiki/coreplugin';
+import { ApiError, api, button, personName, confirmDialog, elementSelect, fmtDate, h, humanSize, pageHeader, pick, pluginSettingsForm, registerAdminPage, registerSlot, tile, registerEditor, registerElementExtension, registerMacroParamControl, registerWidget, state, t, textInput, toast, errorText } from '@ewiki/coreplugin';
 import type { ElementView } from '@ewiki/coreplugin';
 import { createFormEditor, type FField } from './editor';
 import { BASE, formWidget } from './widget';
 import './style.css';
 
 interface SFile { field: string; name: string; size: number; mime: string; comment?: string; medium?: number }
-interface Submission { id: number; data: Record<string, unknown>; files: SFile[]; author: string; created_at: string; seen: boolean; pending: string[]; last_error?: string }
+interface Submission { id: number; data: Record<string, unknown>; files: SFile[]; author: string; author_id?: number; created_at: string; seen: boolean; pending: string[]; last_error?: string }
 
 function valueText(f: FField, v: unknown): string {
   const label = (s: string) => f.options?.find((o) => o.value === s)?.label ?? s;
@@ -48,7 +48,7 @@ async function submissions(el: ElementView): Promise<Node | null> {
           h('th', { scope: 'row' }, fmtDate(s.created_at, state.lang), s.seen ? '' : h('span', { class: 'ew-badge' }, t('forms.new')),
             s.pending.length ? h('p', { class: 'ew-help' }, t('forms.pending', { targets: s.pending.join(', ') })) : null,
             s.last_error ? h('p', { class: 'ewfm-error' }, t('forms.failed', { error: s.last_error })) : null),
-          h('td', null, s.author || '—'),
+          h('td', null, s.author ? personName(s.author, s.author_id) : '—'),
           ...cols.map((c) => h('td', null, c.type === 'file' ? files(s, c) : valueText(c, s.data[c.id]))),
           h('td', null, data.can.delete ? button(t('common.delete'), async () => {
             if (!(await confirmDialog(t('forms.delete_confirm')))) return;

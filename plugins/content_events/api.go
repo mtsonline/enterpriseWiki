@@ -140,6 +140,9 @@ func (p *Plugin) Setup(hs *coreplugin.Host) error {
 			}
 			list = append(list, e)
 		}
+		if err := p.authors(ctx, list); err != nil {
+			return nil, err
+		}
 		return map[string]any{"calendar": map[string]any{"id": cal.ID, "title": cal.Title, "config": cal.Config, "can_create": cal.canCreate(),
 			"signed_in": identity.From(ctx).ID() != 0}, "events": list, "occurrences": occ, "from": from, "to": to, "calendars": others}, nil
 	})
@@ -213,6 +216,9 @@ func (p *Plugin) Setup(hs *coreplugin.Host) error {
 		}
 		if len(occ) > 50 {
 			occ = occ[:50]
+		}
+		if err := p.authors(ctx, []*Event{e}); err != nil {
+			return nil, err
 		}
 		return map[string]any{"event": e, "occurrences": occ}, nil
 	})

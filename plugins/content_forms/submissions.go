@@ -29,11 +29,14 @@ type Submission struct {
 	Data      map[string]any `json:"data"`
 	Files     []StoredFile   `json:"files"`
 	Author    string         `json:"author"`
-	UserID    *int64         `json:"user_id"`
-	CreatedAt time.Time      `json:"created_at"`
-	Seen      bool           `json:"seen"`
-	Pending   []string       `json:"pending"`
-	LastError string         `json:"last_error,omitempty"`
+	// UserID is never sent (an id of a person); AuthorID only to who may
+	// open the person (menu on the name).
+	UserID    *int64    `json:"-"`
+	AuthorID  *int64    `json:"author_id,omitempty"`
+	CreatedAt time.Time `json:"created_at"`
+	Seen      bool      `json:"seen"`
+	Pending   []string  `json:"pending"`
+	LastError string    `json:"last_error,omitempty"`
 }
 
 const subCols = `id, element_id, lang, data, files, author, user_id, created_at, seen, pending, last_error`
@@ -228,6 +231,9 @@ func (p *Plugin) routes() {
 		if err != nil {
 			return nil, err
 		}
+		if err := p.authors(ctx, list); err != nil {
+			return nil, err
+		}
 		f, _, _, _, err := p.load(ctx, id, r.URL.Query().Get("lang"))
 		if err != nil {
 			return nil, err
@@ -404,7 +410,27 @@ func (p *Plugin) submission(r *http.Request) (*Submission, error) {
 	if _, err := p.canSee(ctx, s.ElementID); err != nil {
 		return nil, apperr.NotFound("submission")
 	}
-	return s, nil
+	return s, p.authors(ctx, []*Submission{s})
+}
+
+// authors sets the ids of the submitters the caller may open (one query).
+func (p *Plugin) authors(ctx context.Context, list []*Submission) error {
+	var ids []int64
+	for _, s := range list {
+		if s.UserID != nil {
+			ids = append(ids, *s.UserID)
+		}
+	}
+	refs, err := p.host.Content.PeopleRefs(ctx, ids)
+	if err != nil {
+		return err
+	}
+	for _, s := range list {
+		if s.UserID != nil {
+			s.AuthorID = refs[*s.UserID].ID
+		}
+	}
+	return nil
 }
 
 // retention deletes submissions older than the retention of their form.

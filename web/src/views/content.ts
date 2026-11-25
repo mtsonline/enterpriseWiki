@@ -235,7 +235,7 @@ export async function categoryView({ params, main }: RouteCtx): Promise<void> {
           h('a', { href: d.element_id ? `/e/${d.element_id}/edit${qs({ lang: d.lang })}` : `/d/${d.id}/edit` }, d.title || t('element.untitled')),
           ' ', h('span', { class: 'ew-badge' }, d.element_id ? t('draft.changes') : t('draft.new')),
           d.publish_at ? h('span', { class: 'ew-badge ew-badge--info' }, ' ', t('draft.scheduled_for', { date: fmtDate(d.publish_at, state.lang) })) : null,
-          h('span', { class: 'ew-meta' }, ' ', t('draft.updated', { user: d.updated_by || d.created_by || '–', date: fmtDate(d.updated_at, state.lang) })))))));
+          h('span', { class: 'ew-meta' }, ' ', ...tParts('draft.updated', { user: personName(d.updated_by || d.created_by, d.updated_by_id), date: fmtDate(d.updated_at, state.lang) })))))));
     }).catch(() => undefined);
   }
 }

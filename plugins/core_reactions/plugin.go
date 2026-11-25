@@ -65,6 +65,9 @@ type Reaction struct {
 	Users []string `json:"users"` // display names (first 20)
 	// UserIDs of all people (only for core.reactions.manage, to remove reactions)
 	UserIDs []int64 `json:"user_ids,omitempty"`
+	// Open marks (per UserIDs) the people the manager may open (menu on
+	// the name).
+	Open []bool `json:"open,omitempty"`
 }
 
 // Summary are the reactions of one target.
@@ -319,6 +322,27 @@ func (p *Plugin) summaries(ctx context.Context, typ string, ids []int64) ([]Summ
 	rows.Close()
 	if err := rows.Err(); err != nil {
 		return nil, err
+	}
+	if manage {
+		// who the manager may open: one query for all reactions
+		var ids []int64
+		for _, list := range by {
+			for _, r := range list {
+				ids = append(ids, r.UserIDs...)
+			}
+		}
+		refs, err := p.host.Content.PeopleRefs(ctx, ids)
+		if err != nil {
+			return nil, err
+		}
+		for _, list := range by {
+			for i := range list {
+				list[i].Open = make([]bool, len(list[i].UserIDs))
+				for j, u := range list[i].UserIDs {
+					list[i].Open[j] = refs[u].ID != nil
+				}
+			}
+		}
 	}
 	for _, id := range visible {
 		list := by[id]

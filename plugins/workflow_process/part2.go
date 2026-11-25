@@ -479,7 +479,7 @@ func (pl *Plugin) deputyRoutes(host *coreplugin.Host) {
 		if err != nil {
 			return nil, err
 		}
-		// the handle only for who may look the person up
+		// display name only (content.PeopleLabels)
 		names, err := host.Content.PeopleLabels(ctx, []int64{d.DeputyID})
 		if err != nil {
 			return nil, err

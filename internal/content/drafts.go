@@ -46,19 +46,23 @@ type Draft struct {
 	// Fields of plugins (e.g. properties) to store on publishing.
 	Fields map[string]json.RawMessage `json:"fields"`
 	// Via: a new element on behalf of this instance (see ElementInput.Via).
-	Via       *int64 `json:"via,omitempty"`
-	createdBy *int64
-	publishBy *int64
+	Via *int64 `json:"via,omitempty"`
+	// UpdatedByID is who changed it last (else who created it), only for
+	// readers who may open the person (menu on the name).
+	UpdatedByID *int64 `json:"updated_by_id,omitempty"`
+	createdBy   *int64
+	publishBy   *int64
+	updatedBy   *int64
 }
 
 const draftCols = `d.id, d.element_id, d.category_id, d.type, d.lang, d.title, d.body, d.tags, d.comment, d.base_rev,
 	COALESCE((SELECT u.display_name FROM users u WHERE u.id = d.created_by), ''), COALESCE((SELECT u.display_name FROM users u WHERE u.id = d.updated_by), ''),
-	d.created_at, d.updated_at, d.publish_at, d.publish_options, d.fields, d.created_by, d.publish_by, d.via`
+	d.created_at, d.updated_at, d.publish_at, d.publish_options, d.fields, d.created_by, d.publish_by, d.via, d.updated_by`
 
 func scanDraft(r pgx.CollectableRow) (Draft, error) {
 	var d Draft
 	err := r.Scan(&d.ID, &d.ElementID, &d.CategoryID, &d.Type, &d.Lang, &d.Title, &d.Body, &d.Tags, &d.Comment, &d.BaseRev,
-		&d.CreatedBy, &d.UpdatedBy, &d.CreatedAt, &d.UpdatedAt, &d.PublishAt, &d.Options, &d.Fields, &d.createdBy, &d.publishBy, &d.Via)
+		&d.CreatedBy, &d.UpdatedBy, &d.CreatedAt, &d.UpdatedAt, &d.PublishAt, &d.Options, &d.Fields, &d.createdBy, &d.publishBy, &d.Via, &d.updatedBy)
 	return d, err
 }
 
@@ -242,7 +246,38 @@ func (s *Service) GetDraft(ctx context.Context, id int64) (*Draft, error) {
 	if !s.canSeeDraft(ctx, &d) {
 		return nil, apperr.NotFound("draft")
 	}
-	return &d, nil
+	one := []Draft{d}
+	if err := s.draftPeople(ctx, one); err != nil {
+		return nil, err
+	}
+	return &one[0], nil
+}
+
+// draftPeople sets the id of who is named on drafts (who changed them
+// last, else who created them) for readers who may open the person.
+func (s *Service) draftPeople(ctx context.Context, list []Draft) error {
+	who := func(d *Draft) *int64 {
+		if d.updatedBy != nil {
+			return d.updatedBy
+		}
+		return d.createdBy
+	}
+	var ids []int64
+	for i := range list {
+		if w := who(&list[i]); w != nil {
+			ids = append(ids, *w)
+		}
+	}
+	refs, err := s.PeopleRefs(ctx, ids)
+	if err != nil {
+		return err
+	}
+	for i := range list {
+		if w := who(&list[i]); w != nil {
+			list[i].UpdatedByID = refs[*w].ID
+		}
+	}
+	return nil
 }
 
 // Drafts lists the drafts of a category (new elements and changes) or of
@@ -278,7 +313,7 @@ func (s *Service) Drafts(ctx context.Context, categoryID, elementID int64) ([]Dr
 			out = append(out, all[i])
 		}
 	}
-	return out, nil
+	return out, s.draftPeople(ctx, out)
 }
 
 // DeleteDraft discards a draft.

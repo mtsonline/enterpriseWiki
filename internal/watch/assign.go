@@ -37,6 +37,12 @@ type Assignment struct {
 	CreatedBy   string            `json:"created_by"`
 	CreatedAt   time.Time         `json:"created_at"`
 	Members     int               `json:"members"`
+	// ids of the people (the subject when it is a user, who assigned it)
+	// for the server to decide who may open them; the person ids sent are
+	// SubjectPerson and CreatedByID (only for who may open the person).
+	CreatedByUser *int64 `json:"-"`
+	SubjectPerson *int64 `json:"subject_person,omitempty"`
+	CreatedByID   *int64 `json:"created_by_id,omitempty"`
 	// for the profile: whether the caller unsubscribed (optional assignments)
 	Unsubscribed bool  `json:"unsubscribed"`
 	targetCat    int64 // category of the target (to check whether its title may be shown)
@@ -57,18 +63,18 @@ type AssignmentInput struct {
 
 // acl: target titles are shown only if the caller may see the target (titlesFor)
 const assignCols = `a.id, a.subject_type, a.subject_id,
-	COALESCE(CASE a.subject_type WHEN 'user' THEN (SELECT COALESCE(NULLIF(u.display_name, ''), u.username) FROM users u WHERE u.id=a.subject_id)
+	COALESCE(CASE a.subject_type WHEN 'user' THEN (SELECT u.display_name FROM users u WHERE u.id=a.subject_id)
 		WHEN 'group' THEN (SELECT g.name FROM groups g WHERE g.id=a.subject_id) ELSE (SELECT r.name FROM roles r WHERE r.id=a.subject_id) END, '#' || a.subject_id),
 	a.target_type, a.target_id,
 	COALESCE(CASE a.target_type WHEN 'category' THEN (SELECT c.titles FROM categories c WHERE c.id=a.target_id) ELSE (SELECT e.titles FROM elements e WHERE e.id=a.target_id) END, '{}'::jsonb),
 	a.mode, a.recursive, a.frequency, a.mandatory, a.note, COALESCE((SELECT u.display_name FROM users u WHERE u.id=a.created_by), ''), a.created_at,
 	(SELECT count(DISTINCT w.user_id) FROM watch_effective w WHERE w.assignment_id=a.id),
-	CASE a.target_type WHEN 'category' THEN a.target_id ELSE COALESCE((SELECT e.category_id FROM elements e WHERE e.id=a.target_id), 0) END`
+	CASE a.target_type WHEN 'category' THEN a.target_id ELSE COALESCE((SELECT e.category_id FROM elements e WHERE e.id=a.target_id), 0) END, a.created_by`
 
 func scanAssignment(r pgx.CollectableRow) (Assignment, error) {
 	var a Assignment
 	err := r.Scan(&a.ID, &a.SubjectType, &a.SubjectID, &a.SubjectName, &a.TargetType, &a.TargetID, &a.TargetTitle, &a.Mode, &a.Recursive,
-		&a.Frequency, &a.Mandatory, &a.Note, &a.CreatedBy, &a.CreatedAt, &a.Members, &a.targetCat)
+		&a.Frequency, &a.Mandatory, &a.Note, &a.CreatedBy, &a.CreatedAt, &a.Members, &a.targetCat, &a.CreatedByUser)
 	return a, err
 }
 
@@ -209,7 +215,7 @@ func (s *Service) MyAssignments(ctx context.Context) ([]Assignment, error) {
 	list, err := pgx.CollectRows(rows, func(r pgx.CollectableRow) (Assignment, error) {
 		var a Assignment
 		err := r.Scan(&a.ID, &a.SubjectType, &a.SubjectID, &a.SubjectName, &a.TargetType, &a.TargetID, &a.TargetTitle, &a.Mode, &a.Recursive,
-			&a.Frequency, &a.Mandatory, &a.Note, &a.CreatedBy, &a.CreatedAt, &a.Members, &a.targetCat, &a.Unsubscribed)
+			&a.Frequency, &a.Mandatory, &a.Note, &a.CreatedBy, &a.CreatedAt, &a.Members, &a.targetCat, &a.CreatedByUser, &a.Unsubscribed)
 		return a, err
 	})
 	s.titlesFor(ctx, list)
