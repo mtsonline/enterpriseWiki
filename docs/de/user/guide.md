@@ -181,7 +181,7 @@ Wählen Sie bei *Neue Seite* den Elementtyp **Workflow**. Mit *Vorlage* überneh
 | E-Mail senden | verschickt automatisch eine vorbereitete E-Mail (Empfänger, Cc, Absender, Antwortadresse, Betreff, Text) |
 | Webhook | übergibt den Vorgang an ein anderes System (z. B. Personalsoftware) |
 | Wartezeit | wartet Tage/Stunden oder bis zu einem Datum aus dem Formular (z. B. dem Eintrittsdatum) |
-| Nachricht | schickt eine Nachricht im Wiki (Glocke) und/oder per E-Mail an `starter`, `actor`, `assignees`, `user:NAME`, `group:NAME`, `role:NAME` oder Adressen |
+| Nachricht | schickt eine Nachricht im Wiki (Glocke) und/oder per E-Mail an `starter`, `actor`, `assignees`, `user:NAME`, `group:NAME`, `role:NAME` oder Adressen; mit *Auch als Pop-up zeigen* erscheint die Nachricht im Wiki beim nächsten Laden einer Seite einmal als Dialog |
 | Werte setzen | setzt Werte des Vorgangs: Text mit Platzhaltern oder eine Formel (`round(menge * preis, 2)`, `if(betrag > 1000, 1, 0)` …); spätere Schritte nutzen sie als `{{field.NAME}}` und in Bedingungen |
 | HTTP-Abfrage | fragt ein anderes System ab (nur Adressen der Freigabeliste `plugins.macros.http_allow`) und übernimmt Werte der JSON-Antwort (Pfad wie `daten.status` oder `einträge.0.id`) |
 | Seite anlegen | legt eine Seite (Markdown mit Platzhaltern) in einer Kategorie an und merkt sich ID und Adresse für spätere Schritte |
@@ -425,6 +425,8 @@ Die **Glocke** neben Ihrem Namen zeigt Benachrichtigungen im Wiki, die Zahl unge
 
 - **Teilen** (Knopf auf jeder Seite) weist Personen, Gruppen oder Rollen mit einer optionalen Nachricht auf die Seite hin. Teilen gibt **keine Rechte**: Wer die Seite nicht sehen darf, wird nicht benachrichtigt – *Empfänger prüfen* zeigt das vorher.
 - **@Erwähnungen:** Tippen Sie in einer Seite oder einem Kommentar `@` und den Namen; die erwähnte Person erhält eine Benachrichtigung, wenn sie die Seite sehen darf.
+
+Manche Benachrichtigungen sind **Pop-ups** (zum Beispiel das Ergebnis eines Antrags, wenn der Workflow es so festlegt): Sie erscheinen beim nächsten Laden einer Seite einmal als Dialog. *OK* oder Escape schließt ihn, *Öffnen* führt zum Ziel. Danach steht die Nachricht gelesen in der Glocke. Mehrere Pop-ups kommen nacheinander, höchstens `core.notify.popups` beim Laden einer Seite (Experteneinstellung).
 
 Zusätzlich kommt jeweils eine E-Mail, solange Sie sie unter *Mein Profil → E-Mail-Benachrichtigungen* nicht abschalten.
 

@@ -28,6 +28,9 @@ type NotifySpec struct {
 	Subject string `json:"subject"`
 	Body    string `json:"body,omitempty"`
 	Channel string `json:"channel,omitempty"` // inbox | email | both (default)
+	// Popup: in the wiki also once as a dialog on the next page load of the
+	// recipients (not with the channel email)
+	Popup bool `json:"popup,omitempty"`
 }
 
 // Notice is a message when a case enters or leaves a step.
@@ -153,6 +156,9 @@ func validateSpec(stepID string, n *NotifySpec, needBody bool) error {
 	}
 	if !in(n.Channel, ChanInbox, ChanEmail, ChanBoth) {
 		return apperr.BadRequest("step %q: unknown channel %q", stepID, n.Channel)
+	}
+	if n.Popup && n.Channel == ChanEmail {
+		return apperr.BadRequest("step %q: a pop-up needs the channel in the wiki", stepID)
 	}
 	if n.To == "" || n.Subject == "" || (needBody && n.Body == "") {
 		return apperr.BadRequest("step %q: recipients and subject of the message are required", stepID)
