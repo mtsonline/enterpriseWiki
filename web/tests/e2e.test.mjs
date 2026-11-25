@@ -14,7 +14,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import net from 'node:net';
 import http from 'node:http';
-import { axeSource, checkPage, checkSkipLink, variantFindings } from './a11y-lib.mjs';
+import { axeSource, checkPage, checkSkipLink, variantFindings, layoutShift, CLS_LIMIT } from './a11y-lib.mjs';
 
 const BASE = process.env.EWIKI_E2E_URL ?? 'http://localhost:8080';
 const USER = process.env.EWIKI_E2E_USER ?? 'admin';
@@ -217,6 +217,32 @@ test('administration pages are accessible', async () => {
   await page.goto(`${BASE}/trash`);
   await idle();
   await a11y('trash');
+});
+
+test('nothing moves while a page loads: layout shift below the limit, as a guest and signed in', async () => {
+  // the layout shift of the browser (web vitals) per page, with an empty
+  // cache: the toolbar, footer and blocks of a page, the editor and the
+  // fonts arrive with the page, not after it (a click would land elsewhere)
+  await page.goto(BASE + '/');
+  await idle();
+  const cat = await page.locator('.ew-tree a').first().getAttribute('href');
+  await page.goto(BASE + cat);
+  await idle();
+  const el = await page.locator('main a[href^="/e/"]').first().getAttribute('href');
+  assert.ok(el, 'a page in the first category');
+  const found = [];
+  for (const width of [390, 1280]) {
+    for (const [who, paths] of [['guest', ['/', '/login']], ['signed in', ['/', el, `${el}/edit`, '/admin']]]) {
+      const ctx = await browser.newContext({ viewport: { width, height: 900 }, ...(who === 'guest' ? {} : { storageState: await page.context().storageState() }) });
+      try {
+        for (const path of paths) {
+          const r = await layoutShift(ctx, BASE + path);
+          if (r.sum >= CLS_LIMIT) found.push(`${path} (${who}, ${width} px): layout shift ${r.sum.toFixed(3)} (limit ${CLS_LIMIT}): ${r.text}`);
+        }
+      } finally { await ctx.close(); }
+    }
+  }
+  assert.deepEqual(found, [], found.join('\n'));
 });
 
 test('core plugins: origin check, warning, confirmation for external sources, trusted sources', async () => {

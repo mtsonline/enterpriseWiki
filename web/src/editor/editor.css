@@ -102,6 +102,10 @@
 /* live editing: status and the cursors of others */
 .ewe-live { display: flex; align-items: center; gap: .4rem; margin: 0; padding: .3rem .75rem; font-size: .85rem; border-bottom: 1px solid var(--ew-border); background: var(--ew-bg-subtle); }
 .ewe-live[hidden] { display: none; }
+/* the text and an invisible copy of the longest one in the same cell: the line keeps its height */
+.ewe-live-text { display: inline-grid; flex: 1 1 12rem; min-width: 0; }
+.ewe-live-text > *, .ewe-live-text::after { grid-area: 1 / 1; }
+.ewe-live-text::after { content: attr(data-room); visibility: hidden; }
 .ewe-live-dot { width: .6rem; height: .6rem; border-radius: 50%; background: var(--ew-ok-text); flex: none; }
 .ewe-cursor { position: relative; margin-left: -1px; margin-right: -1px; border-left: 2px solid; word-break: normal; pointer-events: none; }
 .ewe-cursor-label {
