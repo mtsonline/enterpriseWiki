@@ -961,9 +961,30 @@ var traps = []trap{
 	},
 	{
 		ID: "demo.carousel-everywhere", About: "the demo carousel shows on every page",
-		File: "internal/server/demo_content.go",
+		File: "internal/server/demo_start.go",
 		Old:  "map[string]any{\"name\": \"Demo\", \"position\": \"\", \"audience\": \"users\"",
 		New:  "map[string]any{\"name\": \"Demo\", \"position\": \"content-top\", \"audience\": \"users\"",
+		Pkg:  "./internal/server/", Tests: "^TestDemo$",
+	},
+	{
+		ID: "notify.popups-of-others", About: "a person sees the pop-ups of other people",
+		File: "internal/notify/notify.go",
+		Old:  "WHERE n.user_id=$1 AND n.popup AND n.read_at IS NULL",
+		New:  "WHERE (n.user_id=$1 OR true) AND n.popup AND n.read_at IS NULL",
+		Pkg:  "./internal/server/", Tests: "^TestPopupNotifications$",
+	},
+	{
+		ID: "events.upcoming-none", About: "the block Upcoming events without a calendar shows no events",
+		File: "plugins/content_events/plugin.go",
+		Old:  "AND (COALESCE(cardinality($2::bigint[]), 0) = 0 OR e.id = ANY($2))",
+		New:  "AND (cardinality($2::bigint[]) = 0 OR e.id = ANY($2))",
+		Pkg:  "./internal/server/", Tests: "^TestDemo$",
+	},
+	{
+		ID: "demo.station-gap", About: "a station of the demo tour is left out of the row",
+		File: "internal/server/demo_tour.go",
+		Old:  "\t\tn++\n",
+		New:  "\t\tn += 2\n",
 		Pkg:  "./internal/server/", Tests: "^TestDemo$",
 	},
 	{

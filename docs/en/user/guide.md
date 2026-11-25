@@ -181,7 +181,7 @@ With *New page*, choose the element type **Workflow**. With *Template* you take 
 | Send e-mail | sends a prepared e-mail automatically (recipients, Cc, sender, reply address, subject, text) |
 | Webhook | hands the case over to another system (e.g. HR software) |
 | Waiting time | waits days/hours or until a date from the form (e.g. the start date) |
-| Message | sends a message in the wiki (bell) and/or by e-mail to `starter`, `actor`, `assignees`, `user:NAME`, `group:NAME`, `role:NAME` or addresses |
+| Message | sends a message in the wiki (bell) and/or by e-mail to `starter`, `actor`, `assignees`, `user:NAME`, `group:NAME`, `role:NAME` or addresses; with *Show as a pop-up too* the message in the wiki appears once as a dialog when the next page loads |
 | Set values | sets values of the case: text with placeholders or a formula (`round(quantity * price, 2)`, `if(amount > 1000, 1, 0)` …); later steps use them as `{{field.NAME}}` and in conditions |
 | HTTP request | queries another system (only addresses of the allow list `plugins.macros.http_allow`) and takes over values of the JSON answer (path such as `data.status` or `entries.0.id`) |
 | Create page | creates a page (Markdown with placeholders) in a category and remembers ID and address for later steps |
@@ -332,7 +332,7 @@ Under *Administration → Settings → Start page*, administrators choose what a
 
 Under *Category settings → Appearance and content → Display of the pages* you choose how the category page shows its pages (*Manage* needed). The choice also applies to the subcategories until one of them chooses its own; *As above* takes it from above again.
 
-- **Kind:** *List* (title, beginning of the text, date), *Cards* (with the preview picture of the page), *Tiles* (large pictures), *Tree* (subcategories to open with their pages) *Handbook* (the pages as a navigation in the side column, also on every page of the category; the page shown is marked), *Table* (sortable by every column with a click or the keyboard; further columns such as properties are chosen below, everybody sees only values they may see), *Accordion* and *Tabs* (the pages open in place; in the tabs the arrow keys, Home and End move between the pages), *A–Z* (by the first letter), *Timeline* (by the date of the change or the creation, under the month) or *All one below the other* (the pages in full, for short pages). Accordion, tabs and all one below the other show at most `core.categories.full` pages at once.
+- **Kind:** *List* (title, beginning of the text, date), *Cards* (with the preview picture of the page), *Tiles* (large pictures), *Tree* (subcategories to open with their pages) *Handbook* (the pages as a navigation in the side column, also on every page of the category; the page shown is marked; at the end of every page *Previous* and *Next* lead to the page before and after, on the page of the category *Next* to the next one), *Table* (sortable by every column with a click or the keyboard; further columns such as properties are chosen below, everybody sees only values they may see), *Accordion* and *Tabs* (the pages open in place; in the tabs the arrow keys, Home and End move between the pages), *A–Z* (by the first letter), *Timeline* (by the date of the change or the creation, under the month) or *All one below the other* (the pages in full, for short pages). Accordion, tabs and all one below the other show at most `core.categories.full` pages at once.
 - **Order:** as ordered in the category, by title, last changed first or last created first.
 - **Pages per page** (more are paged), **also the pages of the subcategories** (without hidden and archived ones) and **show the beginning of the text**.
 
@@ -425,6 +425,8 @@ The **bell** next to your name shows notifications in the wiki, the number of un
 
 - **Share** (button on every page) points people, groups or roles to the page with an optional message. Sharing gives **no permissions**: whoever may not see the page is not notified – *Check recipients* shows this beforehand.
 - **@mentions:** type `@` and the name in a page or a comment; the mentioned person receives a notification if they may see the page.
+
+Some notifications are **pop-ups** (for example the result of a request, if the workflow says so): they appear once as a dialog when the next page loads. *OK* or Escape closes it, *Open* leads to the target. Afterwards the message stays, read, in the bell. Several pop-ups come one after the other, at most `core.notify.popups` per page load (expert setting).
 
 In addition an e-mail comes each time, as long as you do not switch it off under *My profile → E-mail notifications*.
 

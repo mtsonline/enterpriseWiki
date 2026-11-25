@@ -123,7 +123,7 @@ func (pl *Plugin) sendNotice(ctx context.Context, tx pgx.Tx, x *Instance, n *Not
 		// in the wiki: only people who may see the workflow
 		// sent by the workflow: the person who caused it gets it too
 		if _, err := pl.host.Notify.SendQ(identity.With(ctx, &identity.Principal{}), tx, pl.canView(ctx, tx, x, users), notify.Message{Kind: kind, EntityType: "workflow_case", EntityID: x.ID,
-			Link: link, Text: func(string) (string, string) { return subject, body }}); err != nil {
+			Link: link, Popup: n.Popup, Text: func(string) (string, string) { return subject, body }}); err != nil {
 			return err
 		}
 	}

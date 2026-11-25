@@ -789,6 +789,7 @@
  "step %q: 1 to 50 properties": "Schritt %q: 1 bis 50 Eigenschaften",
  "step %q: a condition needs 1 to 20 rules": "Schritt %q: Eine Bedingung braucht 1 bis 20 Regeln",
  "step %q: a notice is sent on enter or leave": "Schritt %q: Ein Hinweis wird beim Betreten oder Verlassen gesendet",
+ "step %q: a pop-up needs the channel in the wiki": "Schritt %q: Ein Pop-up braucht den Kanal im Wiki",
  "step %q: a task needs 1 to 10 actions": "Schritt %q: Eine Aufgabe braucht 1 bis 10 Aktionen",
  "step %q: assignee is required": "Schritt %q: Die Zuständigkeit ist Pflicht",
  "step %q: assignee type must be starter, user, group or role": "Schritt %q: Die Art der Zuständigkeit muss starter, user, group oder role sein",

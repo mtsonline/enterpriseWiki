@@ -418,6 +418,30 @@ async function handbookNav(): Promise<HTMLElement | null> {
     o.pages > 1 ? h('p', null, h('a', { href: `/c/${id}` }, t('category.all_pages', { n: o.total }))) : null);
 }
 
+/** Previous and next page of a handbook: at the end of a page of a category
+ * whose display is "handbook", the pages in the order of the navigation
+ * (read like a book, from the first page to the last). */
+async function handbookPager(cat?: Category): Promise<HTMLElement | null> {
+  // on the page of the category: its first page is shown there (or none)
+  const id = cat?.id ?? pageCtx.categoryId;
+  const el = cat ? (cat.default_element_id ?? 0) : pageCtx.elementId;
+  if (!id || (!cat && !el)) return null;
+  let o: CategoryOverview;
+  try { o = await loadOverview(id, cat ? currentPage() : 1); } catch { return null; }
+  if (o.display.view !== 'handbook') return null;
+  const i = o.items.findIndex((x) => x.id === el);
+  if (i < 0 && !cat) return null;
+  const prev = o.items[i - 1];
+  const next = o.items[i + 1];
+  if (!prev && !next) return null;
+  const link = (x: Item, cls: string, label: string) =>
+    h('a', { class: `ew-pagenav-link ${cls}`, href: `/e/${x.id}`, rel: cls === 'ew-pagenav-prev' ? 'prev' : 'next' },
+      h('span', { class: 'ew-pagenav-label' }, label), h('span', { class: 'ew-pagenav-title' }, itemTitle(x)));
+  return h('nav', { class: 'ew-pagenav', 'aria-label': t('category.pagenav') },
+    prev ? link(prev, 'ew-pagenav-prev', t('category.pagenav_prev')) : h('span'),
+    next ? link(next, 'ew-pagenav-next', t('category.pagenav_next')) : h('span'));
+}
+
 // ---------------------------------------------------------------- blocks
 
 /** registerCategoryBlocks registers the blocks of category pages; manage
@@ -440,6 +464,8 @@ export function registerCategoryBlocks(manage: (cp: CategoryPage) => HTMLElement
   });
   reg('core.category.overview', 'category-content', 30, (x) => overview(x).catch(() => null));
   reg('core.category.subcategories', 'category-content', 40, (x) => subcategories(x));
+  // the way through a handbook: from its page to the next one
+  reg('core.category.pagenav', 'category-content', 45, (x) => handbookPager(x.category).catch(() => null));
   // every page action (favourite, share …) is a block of its own here too
   registerSlot({
     id: 'core.category.action', kind: 'category', position: '*', order: 100,
@@ -467,6 +493,8 @@ export function registerCategoryBlocks(manage: (cp: CategoryPage) => HTMLElement
   });
   // the handbook: a navigation in the side column (category page and its pages)
   registerSlot({ id: 'core.category.nav', position: 'sidebar', order: 5, label: () => t('block.core.category.nav'), render: () => handbookNav() });
+  // … and the way to the previous and the next page, at the end of a page
+  registerSlot({ id: 'core.element.pagenav', kind: 'element', position: 'element-footer', order: 5, label: () => t('block.core.element.pagenav'), render: () => handbookPager() });
 }
 
 let subsRender: ((cp: CategoryPage) => HTMLElement | null) | null = null;
