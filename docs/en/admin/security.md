@@ -101,6 +101,10 @@ Only their **creator** (permission *Create workflows*) and **workflow administra
 
 Drafts are seen by their author and the editors of the category (permission *Edit*). Publishing is only possible where you have *Create* (new page) or *Edit* (existing page). Planned publications run with the permissions of the author at the time of publishing.
 
+### Names of people
+
+Next to content (last changed, versions, comments, trash, cases and deputies of workflows, authors in lists, reactions) the wiki shows the display name of a person. It shows the handle (`username@provider`) only to people who may find this person: the person themselves, everybody with *List all users* (`core.users.list_all`), members of shared groups with *List users of the own groups* (`core.users.list_own`) and everybody with *Manage users*. Guests never see a handle. The reason: with sign-in through OIDC the user name is often the e-mail address (e.g. the UPN). If a person has no display name, the place stays empty for the others. Lists of pages give the display name only. The permission dialogs of a category keep showing the handle to their managers, so it is clear whom a rule is for.
+
 ## Translations of the interface
 
 *Administration → Languages* shows per language how much is translated, how many texts are missing and how many are **outdated** (the English text has changed since the translation, e.g. through a plugin update).
