@@ -277,5 +277,16 @@
  "template.d_hint_header_sideways": "Der klebende Kopf ist {height} px hoch. Auf einem quer gehaltenen Handy (etwa {window} px Fensterhöhe) sind das mehr als {limit} %; dort klebt er nicht.",
  "template.d_hint_header_ok": "{view}: Der klebende Kopf ist {height} px hoch und klebt.",
  "template.d_overlay": "Der Kopf liegt auf einem Hero-Banner",
- "template.d_overlay_help": "Auf Seiten, die direkt unter dem Kopf mit einem Hero-Banner beginnen, liegt der Kopf ohne eigenen Hintergrund auf dem Banner, in der Textfarbe des Banners. Seinen Hintergrund bekommt er zurück, solange ein Menü von ihm offen ist, und – wenn er klebt – sobald das Banner weggescrollt ist. Steht eine Seitenspalte neben dem Inhalt, bleibt der Kopf, wie er ist."
+ "template.d_overlay_help": "Auf Seiten, die direkt unter dem Kopf mit einem Hero-Banner beginnen, liegt der Kopf ohne eigenen Hintergrund auf dem Banner, in der Textfarbe des Banners. Seinen Hintergrund bekommt er zurück, solange ein Menü von ihm offen ist, und – wenn er klebt – sobald das Banner weggescrollt ist. Steht eine Seitenspalte neben dem Inhalt, bleibt der Kopf, wie er ist.",
+ "template.d_preview_scheme": "Farbschema der Vorschau",
+ "template.d_preview_scheme_help": "Dunkel zeigt die dunklen Farben, sobald welche angelegt sind (Abschnitt „Dunkle Farben“).",
+ "template.d_scheme_system": "Wie das System",
+ "template.d_scheme_light": "Hell",
+ "template.d_scheme_dark": "Dunkel",
+ "template.d_dark": "Dunkle Farben anbieten",
+ "template.d_dark_help": "Mit dunklen Farben folgt das Template der Wahl jeder Person (wie das System, hell oder dunkel). Ohne sie bleibt es hell. Der Vorschlag erfüllt alle Kontraste; Sie können jede Farbe ändern.",
+ "template.d_dark_colors": "Dunkle Farben",
+ "template.d_dark_contrast": "Kontrast der dunklen Farben",
+ "template.d_color_scheme": "Farbschema ohne Wahl der Person",
+ "template.d_color_scheme_help": "Gilt, solange eine Person nichts gewählt hat (im Profil oder mit dem Baustein „Hell und dunkel“)."
 }

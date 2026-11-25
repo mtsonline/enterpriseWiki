@@ -135,6 +135,13 @@ var traps = []trap{
 		Pkg:  "./internal/server/", Tests: "^(TestAPI|TestWorkflow3Accounts|TestMultiSite|TestDirectorySync|TestDisabledAccountIsLockedOut)$",
 	},
 	{
+		ID: "template.dark-unchecked", About: "the dark colors of a designed template are not checked (format and contrast)",
+		File: "plugins/core_template/design.go",
+		Old:  "\tif t.Dark != nil {\n\t\tt.Dark.problems(\"tokens.dark.\", add)\n\t}",
+		New:  "\tif t.Dark != nil && false {\n\t\tt.Dark.problems(\"tokens.dark.\", add)\n\t}",
+		Pkg:  "./plugins/core_template/", Tests: "^TestDesignProblems$",
+	},
+	{
 		ID: "scheme.cookie-unchecked", About: "the scheme cookie of a guest is written into the page without checking it",
 		File: "internal/server/scheme.go",
 		Old:  "if c, err := r.Cookie(schemeCookie); err == nil && slices.Contains(coreplugin.ColorSchemes, c.Value) {",
@@ -144,8 +151,8 @@ var traps = []trap{
 	{
 		ID: "scheme.light-only-template", About: "a template with light colours only is switched to dark",
 		File: "internal/server/scheme.go",
-		Old:  "\tif !s.app.Kernel.IsTemplate(id) {\n\t\treturn \"\"\n\t}",
-		New:  "\tif !s.app.Kernel.IsTemplate(id) {\n\t\treturn \"system\"\n\t}",
+		Old:  "\t\treturn s.app.Content.TemplateColorScheme(ctx, id)",
+		New:  "\t\treturn \"system\"",
 		Pkg:  "./internal/server/", Tests: "^TestColorScheme$",
 	},
 	{
@@ -274,8 +281,8 @@ var traps = []trap{
 	{
 		ID: "template.contrast", About: "colors without enough contrast are saved",
 		File: "plugins/core_template/design.go",
-		Old:  "if c := Contrast(colors[p.Fore], colors[p.Back]); c < p.Min() {",
-		New:  "if c := Contrast(colors[p.Fore], colors[p.Back]); c < 0 {",
+		Old:  "if c := Contrast(colors[pair.Fore], colors[pair.Back]); c < pair.Min() {",
+		New:  "if c := Contrast(colors[pair.Fore], colors[pair.Back]); c < 0 {",
 		Pkg:  "./plugins/core_template/", Tests: "^TestDesignProblems$",
 	},
 	{

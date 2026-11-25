@@ -77,6 +77,10 @@ export function cssSafe(d: Design): boolean {
   if (!d || typeof d !== 'object' || !Array.isArray(d.rows) || !d.tokens || typeof d.tokens !== 'object') return false;
   const k = d.tokens as unknown as Record<string, unknown>;
   if (!COLORS.every((c) => typeof k[c] === 'string' && HEX.test(k[c] as string))) return false;
+  if (k.dark !== undefined) {
+    const dk = k.dark as Record<string, unknown> | null;
+    if (!dk || typeof dk !== 'object' || !COLORS.every((c) => typeof dk[c] === 'string' && HEX.test(dk[c] as string))) return false;
+  }
   if (![k.scale, k.radius, k.content_width].every((n) => typeof n === 'number' && Number.isFinite(n))) return false;
   if (typeof k.logo !== 'string' || (k.logo !== '' && !/^\/api\/v1\/files\/[A-Za-z0-9._/-]+$/.test(k.logo))) return false;
   const ok = (s: unknown) => typeof s === 'string' && ID.test(s);
@@ -138,4 +142,10 @@ export function forgetInViews(r: Row, id: string): void {
     }
     if (v === 'desktop' && !Object.keys(vw).length) delete r.desktop;
   }
+}
+
+/** The default scheme of a design for the wiki ('' = light colors only), as
+ * the server (Design.Scheme). */
+export function schemeOf(d: Design): 'system' | 'light' | 'dark' | '' {
+  return d.tokens.dark ? d.options.color_scheme ?? 'system' : '';
 }

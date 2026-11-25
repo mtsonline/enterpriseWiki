@@ -7,15 +7,21 @@ import type { LayoutContext, Layout } from '@ewiki/coreplugin';
 import limitsFile from '../limits.json';
 
 export const LIMITS = limitsFile;
-export { positionsRoom, room, needRoom, viewOf, minRem, cssSafe, cssProblems } from './room';
+export { positionsRoom, room, needRoom, viewOf, minRem, cssSafe, cssProblems, schemeOf } from './room';
 import { cssProblems, cssSafe, minRem, viewOf } from './room';
 
 export type ViewName = 'desktop' | 'tablet' | 'mobile';
 export const VIEWS: ViewName[] = ['desktop', 'tablet', 'mobile'];
 
-export interface Tokens {
+/** The colors of one scheme (light or dark). */
+export interface Palette {
   bg: string; bg_subtle: string; text: string; text_muted: string; border: string; primary: string; on_primary: string;
   link: string; focus: string; header_bg: string; header_text: string; footer_bg: string; footer_text: string;
+}
+export const PALETTE_KEYS = ['bg', 'bg_subtle', 'text', 'text_muted', 'border', 'primary', 'on_primary', 'link', 'focus', 'header_bg', 'header_text', 'footer_bg', 'footer_text'] as const;
+export interface Tokens extends Palette {
+  /** the colors of the dark scheme; without it the template has light colors only */
+  dark?: Palette;
   font: string; heading_font: string; scale: number; radius: number; content_width: number; logo: string;
 }
 export interface Block {
@@ -32,7 +38,7 @@ export interface Row {
   /** a footer row whose blocks open and close on the phone */
   collapse_mobile?: boolean;
 }
-export interface Design { version: 1; tokens: Tokens; rows: Row[]; options: { back_to_top: boolean; sticky_header: boolean; header_shrink?: boolean; header_hide?: boolean; header_overlay?: boolean; print_plain?: boolean; boxed?: boolean }; css?: string }
+export interface Design { version: 1; tokens: Tokens; rows: Row[]; options: { back_to_top: boolean; sticky_header: boolean; header_shrink?: boolean; header_hide?: boolean; header_overlay?: boolean; print_plain?: boolean; boxed?: boolean; color_scheme?: 'system' | 'light' | 'dark' }; css?: string }
 
 /** How a row looks in a view: as designed (manual) or by the rules (automatic). */
 export interface ViewState { stack: boolean; hidden: string[]; drawer: string[]; widths: Record<string, number>; auto: boolean }
@@ -88,11 +94,15 @@ export function designCSS(d: Design, cls: string): string {
     if (own(f)) out.push(`@import url("/api/v1/x/core.template/fonts/${f.slice(4)}/css");`);
   }
   out.push(`html:has(${s}) { font-size: ${Number(k.scale)}%; }`);
-  out.push(`${s} { --ew-bg: ${k.bg}; --ew-bg-subtle: ${k.bg_subtle}; --ew-bg-raised: ${k.bg}; --ew-text: ${k.text}; --ew-text-muted: ${k.text_muted};
-  --ew-border: ${k.border}; --ew-primary: ${k.primary}; --ew-primary-hover: color-mix(in srgb, ${k.primary} 82%, black); --ew-on-primary: ${k.on_primary};
-  --ew-link: ${k.link}; --ew-focus: ${k.focus}; --ew-radius: ${Number(k.radius)}px; --ew-font: ${font(k.font)};
-  --ewd-header-bg: ${k.header_bg}; --ewd-header-text: ${k.header_text}; --ewd-footer-bg: ${k.footer_bg}; --ewd-footer-text: ${k.footer_text};
+  const colors = (p: Palette, hover: string) => `--ew-bg: ${p.bg}; --ew-bg-subtle: ${p.bg_subtle}; --ew-bg-raised: ${p.bg}; --ew-text: ${p.text}; --ew-text-muted: ${p.text_muted};
+  --ew-border: ${p.border}; --ew-primary: ${p.primary}; --ew-primary-hover: color-mix(in srgb, ${p.primary} 82%, ${hover}); --ew-on-primary: ${p.on_primary};
+  --ew-link: ${p.link}; --ew-focus: ${p.focus};
+  --ewd-header-bg: ${p.header_bg}; --ewd-header-text: ${p.header_text}; --ewd-footer-bg: ${p.footer_bg}; --ewd-footer-text: ${p.footer_text};`;
+  out.push(`${s} { ${colors(k, 'black')} --ew-radius: ${Number(k.radius)}px; --ew-font: ${font(k.font)};
   --ewd-content-width: ${Number(k.content_width)}rem; --ewd-gap: ${LIMITS.gap_rem}rem; --ewd-pad: ${LIMITS.padding_rem}rem; }`);
+  // the dark scheme (core/scheme.ts sets ewc-dark on the body): the other
+  // colors of the wiki (inputs, notes, status …) come from the dark scheme of the core
+  if (k.dark) out.push(`body.ewc-dark.${cls} { ${colors(k.dark, 'white')} }`);
   out.push(`${s} h1, ${s} h2, ${s} h3, ${s} h4 { font-family: ${font(k.heading_font)}; }`);
   const tablet: string[] = [];
   const mobile: string[] = [];

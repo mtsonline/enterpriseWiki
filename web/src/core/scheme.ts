@@ -12,6 +12,15 @@ export const SCHEMES: readonly Scheme[] = ['system', 'light', 'dark'];
 
 const isScheme = (v: unknown): v is Scheme => typeof v === 'string' && (SCHEMES as readonly string[]).includes(v);
 
+/** schemes of templates that exist only in this page (the preview of the designer) */
+const overrides = new Map<string, Scheme | ''>();
+
+/** Sets the default scheme of a template that exists only in this page (the
+ * draft in the preview of the designer); the server does not know it. */
+export function setTemplateScheme(id: string, scheme: Scheme | ''): void {
+  overrides.set(id, scheme);
+}
+
 /** the default scheme of the template shown ('' = light colours only) */
 let templateDefault: Scheme | '' = '';
 let media: MediaQueryList | null = null;
@@ -45,6 +54,7 @@ export function shownScheme(): 'light' | 'dark' {
  * light and dark. */
 export function templateScheme(id: string): Scheme | '' {
   if (id === 'core.basic') return 'system';
+  if (overrides.has(id)) return overrides.get(id)!;
   const v = state.site?.templates?.find((x) => x.id === id)?.color_scheme;
   return isScheme(v) ? v : '';
 }

@@ -1,6 +1,7 @@
 package server_test
 
 import (
+	"encoding/json"
 	"net/http"
 	"strings"
 	"testing"
@@ -104,6 +105,33 @@ func TestColorScheme(t *testing.T) {
 	if tag, _ = page(admin); strings.Contains(tag, "data-scheme=") || !strings.Contains(tag, `data-scheme-choice="dark"`) {
 		t.Fatalf("a light template with a choice: %s", tag)
 	}
+	// a designed template with dark colors follows the choice; its default is in the design
+	const base = "/api/v1/x/core.template"
+	var tpl tplResp
+	admin.must("POST", base+"/templates", map[string]any{"names": map[string]string{"en": "Dark too"}, "copy_of": "core.template/example-wiki"}, &tpl, 201)
+	var d map[string]any
+	if err := json.Unmarshal(tpl.Design, &d); err != nil {
+		t.Fatal(err)
+	}
+	dark := map[string]string{"bg": "#1d2125", "bg_subtle": "#22272b", "text": "#dee4ea", "text_muted": "#b6c2cf", "border": "#8c9bab", "primary": "#85b8ff",
+		"on_primary": "#10151a", "link": "#85b8ff", "focus": "#85b8ff", "header_bg": "#161a1d", "header_text": "#dee4ea", "footer_bg": "#161a1d", "footer_text": "#dee4ea"}
+	d["tokens"].(map[string]any)["dark"] = dark
+	// too little contrast in the dark is refused like in the light
+	dark["text"] = "#333333"
+	if code := admin.do("PUT", base+"/templates/"+tpl.Key, map[string]any{"version": tpl.Version, "design": d}, nil); code != 400 {
+		t.Fatalf("dark colors with too little contrast: %d", code)
+	}
+	dark["text"] = "#dee4ea"
+	admin.must("PUT", base+"/templates/"+tpl.Key, map[string]any{"version": tpl.Version, "design": d}, &tpl, 200)
+	setTemplate(tpl.ID)
+	if tag, _ = page(e.client()); !strings.Contains(tag, `data-scheme="system"`) {
+		t.Fatalf("designed template with dark colors: %s", tag)
+	}
+	d["options"].(map[string]any)["color_scheme"] = "dark"
+	admin.must("PUT", base+"/templates/"+tpl.Key, map[string]any{"version": tpl.Version, "design": d}, &tpl, 200)
+	if tag, _ = page(e.client()); !strings.Contains(tag, `data-scheme="dark"`) {
+		t.Fatalf("designed template, dark by default: %s", tag)
+	}
 	var site struct {
 		Templates []struct {
 			ID          string `json:"id"`
@@ -115,7 +143,8 @@ func TestColorScheme(t *testing.T) {
 	for _, x := range site.Templates {
 		got[x.ID] = x.ColorScheme
 	}
-	if got["theme.wiki"] != "system" || got["theme.wiki.dark"] != "dark" || got["theme.cms"] != "system" || got["theme.cms.modern"] != "system" {
+	if got["theme.wiki"] != "system" || got["theme.wiki.dark"] != "dark" || got["theme.cms"] != "system" || got["theme.cms.modern"] != "system" ||
+		got["core.template/example-wiki"] != "" || got[tpl.ID] != "dark" {
 		t.Errorf("color schemes of the templates: %v", got)
 	}
 }

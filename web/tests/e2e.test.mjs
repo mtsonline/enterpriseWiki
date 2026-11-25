@@ -14,6 +14,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import net from 'node:net';
 import http from 'node:http';
+import { axeSource, checkPage, checkSkipLink } from './a11y-lib.mjs';
 
 const BASE = process.env.EWIKI_E2E_URL ?? 'http://localhost:8080';
 const USER = process.env.EWIKI_E2E_USER ?? 'admin';
@@ -21,12 +22,7 @@ const PASSWORD = process.env.EWIKI_E2E_PASSWORD ?? 'Admin-Passw0rd!';
 const REQUIRE_AXE = process.env.EWIKI_E2E_REQUIRE_AXE === '1';
 const run = Date.now().toString(36);
 
-let axeSource = null;
-try {
-  axeSource = (await import('axe-core')).default.source;
-} catch {
-  if (REQUIRE_AXE) throw new Error('axe-core is required (npm install)');
-}
+if (!axeSource && REQUIRE_AXE) throw new Error('axe-core is required (npm install)');
 
 let browser, page;
 const errors = [];
@@ -80,28 +76,11 @@ test('requests of the test itself are marked, so they do not count as interface 
   assert.deepEqual(bare, []);
 });
 
+// axe (WCAG 2.2 AA) and the overlap check (no control covered by another
+// element), from the top of the page; see a11y-lib.mjs
 async function a11y(name, pg = page) {
   if (!axeSource) return;
-  // transient toasts (fixed, bottom right) may cover controls: wait until they are gone
-  await pg.waitForFunction(() => !document.querySelector('.ew-toasts > *'), null, { timeout: 15000 }).catch(() => undefined);
-  // Playwright scrolls controls into view without scroll-padding, which can leave
-  // content half below the sticky header in the snapshot: check from the top
-  await pg.evaluate(() => window.scrollTo(0, 0));
-  await pg.addScriptTag({ content: axeSource });
-  const res = await pg.evaluate(async () => {
-    const r = await globalThis.axe.run(document, { runOnly: ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'] });
-    // details for the report: what axe says and which element is on top of the node
-    for (const v of r.violations) for (const n of v.nodes) {
-      const el = document.querySelector(n.target.join(' '));
-      const b = el?.getBoundingClientRect();
-      const top = b ? document.elementFromPoint(b.x + b.width / 2, b.y + b.height / 2) : null;
-      n.detail = `${(n.failureSummary ?? '').replace(/\s+/g, ' ').slice(0, 300)}${b ? ` [box ${Math.round(b.x)},${Math.round(b.y)} ${Math.round(b.width)}x${Math.round(b.height)}, on top: ${top?.outerHTML.slice(0, 120) ?? '-'}]` : ''}`;
-    }
-    return r;
-  });
-  const v = res.violations.map((x) => `${x.id} (${x.impact}): ${x.nodes.slice(0, 3).map((n) => n.target.join(' ')).join(', ')}`);
-  const details = res.violations.flatMap((x) => x.nodes.slice(0, 3).map((n) => `  ${n.target.join(' ')}: ${n.detail}`));
-  assert.deepEqual(v, [], `accessibility violations on ${name}:\n${v.join('\n')}\n${details.join('\n')}`);
+  await checkPage(name, pg);
 }
 
 async function idle() {
@@ -118,6 +97,8 @@ test('guest sees the public first level and an accessible page', async () => {
   await page.keyboard.press('Tab');
   assert.equal(await page.evaluate(() => document.activeElement?.className), 'ew-skip', 'skip link is the first focusable element');
   await a11y('guest start page');
+  // the focused skip link must not cover the header (PR #225: it covered the link to the start page)
+  await checkSkipLink('guest start page', page);
 });
 
 test('login', async () => {
@@ -131,6 +112,8 @@ test('login', async () => {
   await page.getByLabel(/^(password|passwort)/i).fill(PASSWORD);
   await page.locator('form.ew-login button[type=submit]').click();
   await page.waitForSelector('.ew-user-menu');
+  await idle();
+  await checkSkipLink('start page after login', page);
 });
 
 test('create a subcategory: the current category is preselected as parent', async () => {
@@ -3479,10 +3462,28 @@ test('template designer: visual and with the keyboard, room and contrast help, u
     await page.locator('.ewd-hints h3', { hasText: /(phone|handy)/i }).waitFor();
     // the height of the sticky header, measured in the preview
     await page.locator('.ewd-hints li', { hasText: /(sticky header|klebende kopf) (is|ist) \d+ px/i }).waitFor();
+    // dark colors: a first dark palette that passes every pair, its own
+    // contrast list, and the preview in the dark scheme
+    await page.getByLabel(/^(offer dark colours|dunkle farben anbieten)$/i).check();
+    await page.getByRole('heading', { name: /^(contrast of the dark colours|kontrast der dunklen farben)$/i }).waitFor();
+    assert.equal(await page.locator('.ewd-contrast .ewd-bad').count(), 0, 'the first dark palette passes every pair');
+    await page.getByRole('group', { name: /^(colour scheme of the preview|farbschema der vorschau)$/i }).getByRole('button', { name: /^(dark|dunkel)$/i }).click();
+    await page.waitForFunction(() => {
+      const b = document.querySelector('iframe.ewd-frame')?.contentDocument?.body;
+      return !!b && b.classList.contains('ewd-preview') && b.classList.contains('ewc-dark') && getComputedStyle(b).getPropertyValue('--ew-bg').trim() === '#1d2125';
+    });
+    await a11y('the designer with dark colours');
+    await page.getByRole('group', { name: /^(colour scheme of the preview|farbschema der vorschau)$/i }).getByRole('button', { name: /^(light|hell)$/i }).click();
+    await page.waitForFunction(() => {
+      const b = document.querySelector('iframe.ewd-frame')?.contentDocument?.body;
+      return !!b && b.classList.contains('ewd-preview') && !b.classList.contains('ewc-dark');
+    });
     // the text shows the same design
     await page.getByRole('button', { name: /^(as text \(json\)|als text \(json\))$/i }).click();
     const design = JSON.parse(await page.getByLabel(/^(design \(text\)|design \(text\))$/i).inputValue());
     assert.equal(design.tokens.primary, '#7a1f5c');
+    assert.equal(design.tokens.dark?.bg, '#1d2125');
+    assert.equal(design.options.color_scheme, 'system');
     assert.equal(design.rows[1].mobile.drawer[0], 'menu');
     await page.getByRole('button', { name: /^(visual|visuell)$/i }).click();
     const saved = page.waitForResponse((r) => r.url().endsWith(`/api/v1/x/core.template/templates/${key}`) && r.request().method() === 'PUT');
@@ -3505,7 +3506,14 @@ test('template designer: visual and with the keyboard, room and contrast help, u
     } finally {
       if (size) await page.setViewportSize(size);
     }
+    // the same template in the dark scheme (its dark colors)
+    await call('PUT', '/api/v1/scheme', { scheme: 'dark' });
+    await page.goto(`${BASE}/`);
+    await idle();
+    assert.equal(await page.evaluate(() => getComputedStyle(document.body).getPropertyValue('--ew-bg').trim()), '#1d2125');
+    await a11y('the wiki with the website template of data, dark');
   } finally {
+    await call('PUT', '/api/v1/scheme', { scheme: '' }).catch(() => {});
     await call('PUT', '/api/v1/admin/settings', { ui: before.ui });
     if (key) {
       await call('DELETE', `/api/v1/x/core.template/templates/${key}`).catch(() => {});

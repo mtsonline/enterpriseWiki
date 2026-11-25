@@ -1604,7 +1604,7 @@ func (s *Server) site(w http.ResponseWriter, r *http.Request) (any, error) {
 	}
 	// templates offered by plugins (templates of data, core.template/12)
 	for _, t := range s.app.Content.ExtraTemplates(r.Context()) {
-		templates = append(templates, map[string]any{"id": t.ID, "name": t.Name, "names": t.Names})
+		templates = append(templates, map[string]any{"id": t.ID, "name": t.Name, "names": t.Names, "color_scheme": t.ColorScheme})
 	}
 	slices.SortFunc(templates, func(a, b map[string]any) int { return strings.Compare(a["name"].(string), b["name"].(string)) })
 	home := c.UI.HomeCategory

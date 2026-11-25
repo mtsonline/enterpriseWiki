@@ -4,7 +4,7 @@
 // window of the designer, which must be of the same origin; it is only shown
 // here and never stored. The engine writes CSS only from values of a safe
 // form (cssSafe), so a draft that is not checked yet cannot inject anything.
-import { h, hasPerm, registerTemplate, setPreviewTemplate } from '@ewiki/coreplugin';
+import { applyScheme, h, hasPerm, registerTemplate, setPreviewTemplate, setTemplateScheme } from '@ewiki/coreplugin';
 import { buildLayout, classOf, cssSafe, designCSS, type Design } from './engine';
 import type { Measure, PreviewWindow } from './designer';
 
@@ -25,6 +25,18 @@ function draftOfParent(): Design | null {
   }
 }
 
+/** The scheme the designer shows in its preview: dark only when the draft
+ * has dark colors; the choice of the person does not count here. */
+function previewScheme(d: Design): 'light' | 'dark' | '' {
+  if (!d.tokens.dark) return '';
+  try {
+    const w = window.parent !== window ? window.parent : (window.opener as Window | null);
+    return w?.location.origin === location.origin && w.__ewdPreviewScheme === 'dark' ? 'dark' : 'light';
+  } catch {
+    return 'light';
+  }
+}
+
 /** Sets up the preview when this window is the frame of the designer. */
 export function setupPreview(): void {
   const first = draftOfParent();
@@ -36,6 +48,9 @@ export function setupPreview(): void {
   document.head.append(style);
   const positions = () => current.rows.flatMap((r) => r.blocks.flatMap((b) => [...b.positions, ...(b.after ?? [])]));
   registerTemplate({ id: PREVIEW_ID, className: cls, get positions() { return positions(); }, layout: (ctx) => buildLayout(current, ctx) });
+  // light or dark as the designer shows it (not the choice of the person)
+  delete document.documentElement.dataset.schemeChoice;
+  setTemplateScheme(PREVIEW_ID, previewScheme(current));
   setPreviewTemplate(PREVIEW_ID);
   document.documentElement.classList.add('ewd-in-preview');
   const w = window as PreviewWindow;
@@ -43,6 +58,8 @@ export function setupPreview(): void {
     if (!cssSafe(d)) return;
     current = d;
     style.textContent = designCSS(current, cls);
+    setTemplateScheme(PREVIEW_ID, previewScheme(current));
+    applyScheme(PREVIEW_ID);
     window.dispatchEvent(new Event('ewiki:relayout'));
   };
   w.__ewdMeasure = () => measure();
