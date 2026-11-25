@@ -39,11 +39,11 @@ export interface Step {
 }
 export interface Definition { description: string; fields: Field[]; steps: Step[]; triggers?: Trigger[]; no_manual?: boolean; links?: boolean; link_hours?: number; retention?: { days: number; mode: 'delete' | 'anonymize' } }
 
-export interface Event { id: number; from_step: string | null; to_step: string | null; action: string; action_label: string; note: string; actor: string; at: string; signature?: number }
+export interface Event { id: number; from_step: string | null; to_step: string | null; action: string; action_label: string; note: string; actor: string; actor_id?: number; at: string; signature?: number }
 export interface Instance {
   id: number; element_id: number; category_id: number; element_titles: Record<string, string>; lang: string; title: string;
   data: Record<string, unknown>; definition: Definition; step: string; step_name: string; status: 'open' | 'done' | 'cancelled'; outcome?: string;
-  started_by: string; started_at: string; updated_at: string; closed_at: string | null; actions: Action[]; can_cancel: boolean; events?: Event[];
+  started_by: string; started_by_id?: number; started_at: string; updated_at: string; closed_at: string | null; actions: Action[]; can_cancel: boolean; events?: Event[];
   progress?: string; last_error?: string; wake_at?: string | null; due_at?: string | null; escalated?: boolean;
   handover?: '' | 'claim' | 'delegate' | 'ask'; rev?: number; test?: boolean; form?: StepField[]; branches?: { id: number; title: string; step: string; step_name: string; status: string; outcome?: string }[];
 }

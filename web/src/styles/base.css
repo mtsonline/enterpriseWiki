@@ -453,6 +453,37 @@ progress { width: 8rem; vertical-align: middle; }
 .ew-menu-list a, .ew-menu-list .ew-btn--link { display: block; width: 100%; text-align: left; padding: .4rem .6rem; color: var(--ew-text); text-decoration: none; border-radius: 4px; font-weight: 500; }
 .ew-menu-list a:hover, .ew-menu-list .ew-btn--link:hover { background: var(--ew-bg-subtle); }
 
+/* ---------------------------------------------------------------- names of people (menu) */
+/* the name keeps its place and look in the text: no layout shift, long names wrap */
+.ew-person {
+  display: inline; padding: 0; margin: 0; border: 0; background: none; font: inherit; color: inherit; text-align: inherit;
+  cursor: pointer; text-decoration: underline dotted; text-underline-offset: 3px; overflow-wrap: anywhere; border-radius: 2px;
+}
+.ew-person:hover { text-decoration-style: solid; color: var(--ew-link); }
+.ew-person[aria-expanded="true"] { text-decoration-style: solid; }
+.ew-person[aria-busy="true"] { cursor: progress; }
+.ew-person-text { overflow-wrap: anywhere; }
+.ew-person-menu {
+  position: fixed; z-index: 1000; min-width: 12rem; max-width: min(22rem, calc(100vw - 8px)); padding: .25rem;
+  background: var(--ew-bg-raised); color: var(--ew-text); border: 1px solid var(--ew-border);
+  border-radius: 8px; box-shadow: 0 .5rem 1.5rem rgb(0 0 0 / .18); display: flex; flex-direction: column;
+}
+.ew-person-item {
+  display: block; width: 100%; min-height: 2.75rem; padding: .6rem .75rem; text-align: start; font: inherit; color: var(--ew-text);
+  background: none; border: 0; border-radius: 4px; cursor: pointer; text-decoration: none; overflow-wrap: anywhere;
+}
+.ew-person-item:hover, .ew-person-item:focus-visible { background: var(--ew-bg-subtle); }
+.ew-person-item:focus-visible { outline: 3px solid var(--ew-focus); outline-offset: -3px; }
+@media (forced-colors: active) { .ew-person-menu { border-color: CanvasText; } .ew-person { text-decoration: underline; } }
+/* person page */
+.ew-person-card { display: grid; grid-template-columns: auto 1fr; gap: 1.5rem; align-items: start; }
+.ew-person-photo { width: 8rem; height: 8rem; border-radius: 50%; object-fit: cover; }
+.ew-person-initials { display: grid; place-items: center; width: 8rem; height: 8rem; border-radius: 50%; background: var(--ew-primary); color: var(--ew-on-primary); font-size: 2.5rem; font-weight: 700; }
+.ew-person-card dd { overflow-wrap: anywhere; }
+.ew-person-about { white-space: pre-line; overflow-wrap: anywhere; }
+.ew-person-actions { display: flex; flex-wrap: wrap; gap: .5rem; margin-top: 1rem; }
+@media (max-width: 600px) { .ew-person-card { grid-template-columns: 1fr; } }
+
 /* ---------------------------------------------------------------- admin */
 .ew-admin { display: grid; grid-template-columns: 13rem 1fr; gap: 2rem; }
 .ew-subnav-title { font-size: 1rem; margin-top: 0; }

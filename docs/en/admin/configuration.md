@@ -275,6 +275,22 @@ lists:
   max_items: 0  # 0 = 1000; 50 to 10000
 ```
 
+### `people`
+Person pages and the menu on names (*Administration → Settings → People*). Who may open people at all is the permission *Open people* (`core.people.view`; by default every signed-in person, together with the rules for finding people: `core.users.list_all` or the own groups with `core.users.list_own`). Guests never see people.
+
+```yaml
+people:
+  email_visibility: users    # users | permission | nobody
+  email_hide_allowed: true   # people may hide their own address in their profile
+```
+
+| Key | Meaning | Default |
+|---|---|---|
+| `email_visibility` | who sees the e-mail address on person pages, in the menu on names and in the people blocks: `users` (everybody signed in who may open the person), `permission` (only with *See e-mail addresses of people*, `core.people.email`), `nobody`. The person always sees their own address. Only the primary confirmed address is shown | `users` |
+| `email_hide_allowed` | each person may hide their own address in their profile (*Hide my e-mail address*). A hidden address stays hidden for everybody else, administrators too. Switched off, earlier choices no longer count | `true` |
+
+Team pages are not affected: whoever builds a team page chooses the fields there (e.g. a public contact page). The participant lists of events show the addresses to the organisers as before.
+
 ### `webhooks`
 Webhooks themselves are created under *Administration → Webhooks* (API `/api/v1/admin/webhooks`). `config.yaml` only contains:
 
@@ -381,6 +397,7 @@ The limits apply to the whole instance; in further sites only administrators of 
 | `core.auth.passkey_autofill_per_5min` | passkey requests of the user name field per address in 5 minutes (sign-in page) | 600 |
 | `core.auth.register_per_hour`, `core.auth.registrations_pending` | registrations per address in one hour; registrations waiting at the same time | 10 / 10,000 |
 | `core.auth.password_reset_per_hour` | “Forgot your password?” per sender address in one hour | 10 |
+| `core.people.views_per_hour` | person pages and menus on names one account may open in one hour (administrators without limit); protects business cards and e-mail addresses from being collected in bulk | 600 |
 | `core.live.persons` | people who edit a page together at the same time | 50 |
 | `core.live.connections_per_person` | windows or devices of one person on the same page | 5 |
 | `core.audit.search_days` | how far back the text search in the before/after values of the audit log reaches when no start date is given (with a start date: any period) | 90 days |

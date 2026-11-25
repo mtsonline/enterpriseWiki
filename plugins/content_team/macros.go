@@ -104,7 +104,7 @@ func (m profileCard) Render(ctx context.Context, mc content.MacroContext) (strin
 	if len(secs[0].Members) == 0 {
 		return hidden(mc.Lang, false), nil
 	}
-	return `<div class="ewt ewt--cards ewt--card">` + Render(secs, c, mc.Lang) + `</div>`, nil
+	return `<div class="ewt ewt--cards ewt--card" data-ew-widget="people">` + Render(secs, c, mc.Lang) + `</div>`, nil
 }
 
 // ---------------------------------------------------------------- people of a group
@@ -150,5 +150,5 @@ func (m groupPeople) Render(ctx context.Context, mc content.MacroContext) (strin
 	if err != nil {
 		return "", err
 	}
-	return fmt.Sprintf(`<div class="ewt ewt--%s">`, layout) + Render(secs, c, mc.Lang) + `</div>`, nil
+	return fmt.Sprintf(`<div class="ewt ewt--%s" data-ew-widget="people">`, layout) + Render(secs, c, mc.Lang) + `</div>`, nil
 }

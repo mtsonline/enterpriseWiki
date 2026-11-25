@@ -1,6 +1,7 @@
 // Administration: users, groups, roles, plugins, settings, languages, audit.
 import { editorToolsField } from '../components/editorTools';
 import { profileCardForm } from '../components/profilecard';
+import { personName } from '../components/person';
 import { elementsAdmin } from './adminElements';
 import { webhooksAdmin } from './adminWebhooks';
 import { licenseSeal } from '../components/brand';
@@ -159,7 +160,7 @@ async function users(panel: HTMLElement, query: URLSearchParams): Promise<void> 
     sharedEditable() ? button(t('invite.title'), () => inviteDialog(gs, rs, reload), { variant: 'secondary' }) : null), sharedNotice(), sf,
     table(t('admin.users'), [t('admin.handle'), t('profile.display_name'), t('admin.groups'), t('admin.roles'), t('admin.last_login'), t('common.status'), t('common.actions')],
       list.map((u) => h('tr', null,
-        h('th', { scope: 'row' }, u.handle, u.alias ? h('span', { class: 'ew-muted' }, ` (${u.alias})`) : null, u.mfa ? h('span', { class: 'ew-badge ew-badge--ok' }, ' MFA') : null), h('td', null, u.display_name), h('td', null, name(u.groups, gs)), h('td', null, name(u.roles, rs)),
+        h('th', { scope: 'row' }, u.handle, u.alias ? h('span', { class: 'ew-muted' }, ` (${u.alias})`) : null, u.mfa ? h('span', { class: 'ew-badge ew-badge--ok' }, ' MFA') : null), h('td', null, personName(u.display_name, !u.disabled && hasPerm('core.people.view') ? u.id : null)), h('td', null, name(u.groups, gs)), h('td', null, name(u.roles, rs)),
         h('td', null, u.last_login_at ? fmtDate(u.last_login_at, state.lang) : '–'),
         h('td', null, u.provider === 'invite' ? h('span', { class: 'ew-badge ew-badge--info' }, t('invite.pending')) : u.disabled ? h('span', { class: 'ew-badge ew-badge--warn' }, t('admin.disabled')) : (u.locked_until && new Date(u.locked_until) > new Date() ? h('span', { class: 'ew-badge ew-badge--warn' }, t('admin.locked')) : h('span', { class: 'ew-badge ew-badge--ok' }, t('admin.active')))),
         h('td', { class: 'ew-actions' },
@@ -551,6 +552,7 @@ interface Settings {
     retention: { revisions_keep_days: number; revisions_keep_min: number; trash_days: number; audit_days: number };
     media?: { viewer?: string; open_external?: boolean; token_ttl?: string; embed_allow?: string[] | null; form_allow?: string[] | null };
     lists?: { max_items?: number };
+    people?: { email_visibility?: string; email_hide_allowed?: boolean };
     mode: string;
     server: { listen: string; base_url: string };
   };
@@ -640,6 +642,9 @@ async function settings(panel: HTMLElement): Promise<void> {
   embedAllow.placeholder = 'https://www.youtube-nocookie.com';
   const formAllow = textArea({ value: (mediaCfg.form_allow ?? []).join('\n'), rows: 3 });
   formAllow.placeholder = 'https://news.example.com';
+  // people: who sees e-mail addresses, and whether a person may hide their own
+  const mailVis = select(['users', 'permission', 'nobody'].map((v) => ({ value: v, label: t(`settings.email_vis_${v}`) })), c.people?.email_visibility || 'users');
+  const mailHide = checkbox(t('settings.email_hide_allowed'), c.people?.email_hide_allowed !== false, { help: t('settings.email_hide_allowed_help') });
   const listsMax = textInput({ type: 'number', value: String(c.lists?.max_items ?? 0) });
   listsMax.min = '0';
   listsMax.max = '10000';
@@ -656,6 +661,7 @@ async function settings(panel: HTMLElement): Promise<void> {
       field(t('settings.office_token_ttl'), tokenTTL, { help: t('settings.office_token_ttl_help') }),
       field(t('settings.embed_allow'), embedAllow, { help: t('settings.embed_allow_help') }),
       field(t('settings.form_allow'), formAllow, { help: t('settings.form_allow_help') })),
+    fs(t('settings.people'), field(t('settings.email_visibility'), mailVis, { help: t('settings.email_visibility_help') }), mailHide.el),
     fs(t('settings.lists'), field(t('settings.lists_max'), listsMax, { help: t('settings.lists_max_help') })),
     fs(t('settings.retention'), h('p', { class: 'ew-help' }, t('settings.retention_help')), field(t('settings.revisions_keep_days'), keepDays, { help: t('settings.zero_forever') }), field(t('settings.revisions_keep_min'), keepMin),
       field(t('settings.trash_days'), trashDays, { help: t('settings.zero_never') }), field(t('settings.audit_days'), auditDays, { help: t('settings.zero_forever') })),
@@ -676,6 +682,7 @@ async function settings(panel: HTMLElement): Promise<void> {
         retention: { ...c.retention, revisions_keep_days: Number(keepDays.value), revisions_keep_min: Number(keepMin.value), trash_days: Number(trashDays.value), audit_days: Number(auditDays.value) },
         media: { ...c.media, viewer: viewer.value === 'internal' ? '' : viewer.value, open_external: openExternal.input.checked, token_ttl: tokenTTL.value.trim(), embed_allow: embedAllow.value.split(/\s+/).map((x) => x.trim()).filter(Boolean), form_allow: formAllow.value.split(/\s+/).map((x) => x.trim()).filter(Boolean) },
         lists: { ...c.lists, max_items: Number(listsMax.value) || 0 },
+        people: { ...c.people, email_visibility: mailVis.value, email_hide_allowed: mailHide.input.checked },
       });
       toast(t('settings.saved'));
       setTimeout(() => location.reload(), 800);
