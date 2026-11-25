@@ -227,7 +227,7 @@ type Event struct {
 
 const eventCols = `e.id, e.calendar_id, e.uid, e.sequence, e.title, e.description, e.location, e.url, e.category, e.starts_at, e.ends_at,
 	e.all_day, e.tz, e.rrule, e.exdates::text[], e.overrides, e.registration, e.capacity, e.waitlist, e.reg_deadline, e.reminders, e.created_by,
-	COALESCE(NULLIF(u.display_name, ''), u.username, ''), e.created_at, e.updated_at`
+	COALESCE(u.display_name, ''), e.created_at, e.updated_at`
 
 const eventFrom = ` FROM plugin_events e LEFT JOIN users u ON u.id = e.created_by`
 

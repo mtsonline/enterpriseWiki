@@ -561,7 +561,7 @@ func TestCommentNotifications(t *testing.T) {
 	bo.must("POST", fmt.Sprintf("/api/v1/x/core.comments/elements/%d/comments", el.ID), map[string]any{"body": "Looks good"}, &c1, 201)
 	amy.must("POST", fmt.Sprintf("/api/v1/x/core.comments/elements/%d/comments", el.ID), map[string]any{"body": "Thanks!", "parent_id": c1.ID}, nil, 201)
 	e.flushMail(t)
-	if !c.find("amy@example.com", "bo (bo@local) commented on") || !c.find("bo@example.com", "amy (amy@local) commented on") || c.find("amy@example.com", "Thanks!") {
+	if !c.find("amy@example.com", "bo commented on") || !c.find("bo@example.com", "amy commented on") || c.find("amy@example.com", "Thanks!") {
 		t.Fatalf("comment notifications: %d", c.count())
 	}
 	// a page in a hidden category: commenters' notifications only go to users who can see it

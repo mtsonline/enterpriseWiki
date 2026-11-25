@@ -118,19 +118,20 @@ type Instance struct {
 
 // Event is a recorded transition.
 type Event struct {
-	ID          int64     `json:"id"`
-	FromStep    *string   `json:"from_step"`
-	ToStep      *string   `json:"to_step"`
-	Action      string    `json:"action"`
-	ActionLabel string    `json:"action_label"`
-	Note        string    `json:"note"`
-	Actor       string    `json:"actor"`
+	ID          int64   `json:"id"`
+	FromStep    *string `json:"from_step"`
+	ToStep      *string `json:"to_step"`
+	Action      string  `json:"action"`
+	ActionLabel string  `json:"action_label"`
+	Note        string  `json:"note"`
+	Actor       string  `json:"actor"`
+	actorID     *int64
 	At          time.Time `json:"at"`
 	Signature   *int64    `json:"signature,omitempty"` // id of the signature of the decision
 }
 
 const instCols = `i.id, i.element_id, e.category_id, e.titles, i.lang, i.title, i.data, i.definition, i.step, i.status, i.started_by,
-	COALESCE((SELECT u.display_name || ' (' || u.username || '@' || u.provider || ')' FROM users u WHERE u.id=i.started_by), ''),
+	COALESCE((SELECT u.display_name FROM users u WHERE u.id=i.started_by), ''),
 	i.started_at, i.updated_at, i.closed_at,
 	COALESCE((SELECT array_agg(DISTINCT x.to_step) FROM plugin_workflow_events x WHERE x.instance_id=i.id AND x.to_step IS NOT NULL), '{}'),
 	COALESCE((SELECT array_agg(DISTINCT x.actor_id) FROM plugin_workflow_events x WHERE x.instance_id=i.id AND x.actor_id IS NOT NULL), '{}'),
@@ -352,15 +353,66 @@ func (pl *Plugin) load(ctx context.Context, id int64) (*Instance, *who, bool, er
 	pl.decorate(ctx, w, x, m)
 	hideFields(w, x, m)
 	pl.loadBranches(ctx, x)
+	if err := pl.nameStarters(ctx, []*Instance{x}); err != nil {
+		return nil, nil, false, err
+	}
 	return x, w, m, nil
 }
 
+// nameStarters names who started the cases as the caller may see it: the
+// display name, with the handle only for who may look the person up
+// (content.PeopleLabels). One query for all cases.
+func (pl *Plugin) nameStarters(ctx context.Context, xs []*Instance) error {
+	var ids []int64
+	for _, x := range xs {
+		if x.StartedByID != nil {
+			ids = append(ids, *x.StartedByID)
+		}
+	}
+	names, err := pl.host.Content.PeopleLabels(ctx, ids)
+	if err != nil {
+		return err
+	}
+	for _, x := range xs {
+		if x.StartedByID != nil {
+			x.StartedBy = names[*x.StartedByID]
+		}
+	}
+	return nil
+}
+
+// events returns the history of a case. Who acted is named as the caller
+// may see it (content.PeopleLabels); automatic steps are "system".
 func (pl *Plugin) events(ctx context.Context, id int64) ([]Event, error) {
-	rows, err := pl.host.DB.Query(ctx, `SELECT id, from_step, to_step, action, action_label, note, actor, at, signature_id FROM plugin_workflow_events WHERE instance_id=$1 ORDER BY id`, id)
+	rows, err := pl.host.DB.Query(ctx, `SELECT id, from_step, to_step, action, action_label, note, actor_id, actor, at, signature_id FROM plugin_workflow_events WHERE instance_id=$1 ORDER BY id`, id)
 	if err != nil {
 		return nil, err
 	}
-	return pgx.CollectRows(rows, pgx.RowToStructByPos[Event])
+	var ids []int64
+	list, err := pgx.CollectRows(rows, func(r pgx.CollectableRow) (Event, error) {
+		var e Event
+		err := r.Scan(&e.ID, &e.FromStep, &e.ToStep, &e.Action, &e.ActionLabel, &e.Note, &e.actorID, &e.Actor, &e.At, &e.Signature)
+		if e.actorID != nil {
+			ids = append(ids, *e.actorID)
+		}
+		return e, err
+	})
+	if err != nil {
+		return nil, err
+	}
+	names, err := pl.host.Content.PeopleLabels(ctx, ids)
+	if err != nil {
+		return nil, err
+	}
+	for i := range list {
+		switch {
+		case list[i].actorID != nil:
+			list[i].Actor = names[*list[i].actorID]
+		case list[i].Actor != "system":
+			list[i].Actor = "" // a deleted account: its stored handle is not shown
+		}
+	}
+	return list, nil
 }
 
 // definition loads the current process of an element in lang (or its fallback).
@@ -671,6 +723,9 @@ func (pl *Plugin) Setup(host *coreplugin.Host) error {
 				list = append(list, x)
 			}
 		}
+		if err := pl.nameStarters(ctx, list); err != nil {
+			return nil, err
+		}
 		_, cerr := pl.mayChange(ctx, id)
 		return map[string]any{"instances": list, "can_start": me.p != nil && me.p.ID() != 0 && !def.NoManual, "fields": startFields(def.Fields),
 			"can_test": cerr == nil, "can_stats": cerr == nil || m, "rev": def.Rev,
@@ -845,6 +900,9 @@ func (pl *Plugin) Setup(host *coreplugin.Host) error {
 				pl.decorate(ctx, me, x, m)
 				started = append(started, x)
 			}
+		}
+		if err := pl.nameStarters(ctx, append(append([]*Instance{}, tasks...), started...)); err != nil {
+			return nil, err
 		}
 		return map[string]any{"tasks": tasks, "started": started}, nil
 	})

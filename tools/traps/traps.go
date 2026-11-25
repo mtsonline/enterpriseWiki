@@ -1689,4 +1689,26 @@ var traps = []trap{
 		New:  `true || { log`,
 		Pkg:  "./internal/pluginmgr/", Tests: "^TestUpdateDockerScript$",
 	},
+	// ---------------------------------------------------------------- names of people
+	{
+		ID: "people.handle-for-all", About: "the handle (user@provider, often the e-mail address) is shown to guests and to readers who may not look the person up",
+		File: "internal/content/people.go",
+		Old:  "out[id] = PersonLabel(name, handle, lookup)",
+		New:  "out[id] = PersonLabel(name, handle, true)",
+		Pkg:  "./internal/server/", Tests: "^TestHandlesOnlyForWhoMayLookUp$",
+	},
+	{
+		ID: "people.handle-in-lists", About: "lists of pages name who changed them with the handle",
+		File: "internal/content/elements.go",
+		Old:  "COALESCE((SELECT u.display_name FROM users u WHERE u.id = e.updated_by), ''),",
+		New:  "COALESCE((SELECT u.display_name || ' (' || u.username || '@' || u.provider || ')' FROM users u WHERE u.id = e.updated_by), ''),",
+		Pkg:  "./internal/server/", Tests: "^TestHandlesOnlyForWhoMayLookUp$",
+	},
+	{
+		ID: "people.handle-of-deleted-actor", About: "the history of a case shows the stored handle of an account deleted later",
+		File: "plugins/workflow_process/plugin.go",
+		Old:  "\t\tcase list[i].Actor != \"system\":\n\t\t\tlist[i].Actor = \"\"",
+		New:  "\t\tcase list[i].Actor != \"system\":\n\t\t\t_ = 0",
+		Pkg:  "./internal/server/", Tests: "^TestHandlesOnlyForWhoMayLookUp$",
+	},
 }

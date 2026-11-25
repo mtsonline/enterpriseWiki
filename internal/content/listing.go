@@ -146,7 +146,7 @@ func (s *Service) ListIn(ctx context.Context, o ListOptions) ([]ListedElement, i
 		return nil, 0, err
 	}
 	rows, err := s.pool.Query(ctx, `SELECT e.id, e.category_id, e.type, d.lang, d.title, left(d.body_text, `+arg(2)+`), e.tags, e.position,
-			COALESCE(NULLIF(u.display_name, ''), u.username, ''), e.created_at, e.updated_at
+			COALESCE(u.display_name, ''), e.created_at, e.updated_at
 		FROM elements e JOIN categories c ON c.id = e.category_id
 		JOIN LATERAL (SELECT lang, title, body_text FROM search_docs WHERE element_id = e.id AND lang IN (`+arg(1)+`, e.original_lang)
 			ORDER BY (lang = `+arg(1)+`) DESC LIMIT 1) d ON true

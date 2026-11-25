@@ -82,7 +82,7 @@ func (s *Service) FindElements(ctx context.Context, o FindOptions) ([]FoundEleme
 		var f FoundElement
 		e := &f.Element
 		err := r.Scan(&e.ID, &e.CategoryID, &e.Type, &e.Position, &e.OriginalLang, &e.Titles, &e.Tags, &e.CreatedAt, &e.UpdatedAt,
-			&e.UpdatedBy, &e.DeletedAt, &e.IsDefault, &e.ShortURL, &e.PreviewImage, &e.CreatedByID, &e.ShortOnly, &e.OwnerInstance, &e.Hidden, &e.OwnRightsOnly, &e.Classification, &e.OwnRules, &f.Title)
+			&e.UpdatedBy, &e.DeletedAt, &e.IsDefault, &e.ShortURL, &e.PreviewImage, &e.CreatedByID, &e.ShortOnly, &e.OwnerInstance, &e.Hidden, &e.OwnRightsOnly, &e.Classification, &e.OwnRules, &e.updatedByID, &f.Title)
 		return f, err
 	})
 	if err != nil {
