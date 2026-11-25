@@ -43,6 +43,9 @@ var cardFields = []string{"job_title", "department", "phone", "mobile", "office"
 // mayOpenPeople reports whether p may open people at all (signed in, with
 // the permission and a list scope for users).
 func mayOpenPeople(p *identity.Principal) bool {
+	if p != nil && p.IsCLI() {
+		return true // the CLI without --as (superuser)
+	}
 	return p != nil && p.ID() > 0 && perm.HasP(p, PermPeopleView) && ListScope(p, "users") != ListNone
 }
 
@@ -110,7 +113,7 @@ func (s *Service) EmailPolicy() EmailPolicy {
 // (also administrators) as long as hiding is allowed.
 func (s *Service) EmailVisible(ctx context.Context, uid int64, hidden bool) bool {
 	p := identity.From(ctx)
-	if p == nil || p.ID() <= 0 {
+	if p == nil || (p.ID() <= 0 && !p.IsCLI()) {
 		return false
 	}
 	if p.ID() == uid {
@@ -137,7 +140,7 @@ func (s *Service) EmailVisible(ctx context.Context, uid int64, hidden bool) bool
 // than one person at a time.
 func (s *Service) Person(ctx context.Context, id int64) (*Person, error) {
 	p := identity.From(ctx)
-	if p == nil || p.ID() <= 0 {
+	if p == nil || (p.ID() <= 0 && !p.IsCLI()) {
 		return nil, apperr.ErrUnauthorized
 	}
 	if !mayOpenPeople(p) {

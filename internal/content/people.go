@@ -78,6 +78,8 @@ func (s *Service) PeopleRefs(ctx context.Context, ids []int64) (map[int64]Person
 		me = p.ID()
 		all, own, manage = perm.HasP(p, "core.users.list_all"), perm.HasP(p, "core.users.list_own"), perm.HasP(p, "core.users.manage")
 		view = perm.HasP(p, "core.people.view") && (all || own)
+	} else if p.IsCLI() {
+		manage = true // the CLI without --as sees the handles (no ids: no menu there)
 	}
 	// rule: the reader may find the person (the same as /users/lookup and
 	// auth.Service.Viewable)

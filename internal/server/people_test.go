@@ -238,3 +238,26 @@ func TestPeople(t *testing.T) {
 	get(limited, 999999999, 429) // also for people that do not exist
 	get(admin, ids["out"], 200)  // administrators without limit
 }
+
+// TestPeopleCLIAs: "ewiki person show" goes through the API; --as carries
+// exactly the rights of that person, never more.
+func TestPeopleCLIAs(t *testing.T) {
+	e := setup(t)
+	admin := e.client()
+	admin.login("admin", adminPW)
+	var g, carla idResp
+	admin.must("POST", "/api/v1/admin/groups", map[string]any{"name": "CLI people"}, &g, 201)
+	admin.must("POST", "/api/v1/admin/users", map[string]any{"username": "carla", "password": "Passw0rd!Passw0rd", "display_name": "Carla", "email": "carla@example.com", "groups": []int64{g.ID}}, &carla, 201)
+	admin.must("POST", "/api/v1/admin/users", map[string]any{"username": "mate", "password": "Passw0rd!Passw0rd", "display_name": "Mate", "groups": []int64{g.ID}}, nil, 201)
+	admin.must("POST", "/api/v1/admin/users", map[string]any{"username": "out", "password": "Passw0rd!Passw0rd", "display_name": "Out"}, nil, 201)
+	id := fmt.Sprint(carla.ID)
+	if code, out := runCLI(t, e.cfg, "person", "show", id); code != 0 || !strings.Contains(out, "carla@example.com") {
+		t.Fatalf("person show: exit %d %s", code, out)
+	}
+	if code, out := runCLI(t, e.cfg, "person", "show", id, "--as", "mate"); code != 0 || !strings.Contains(out, "Carla") {
+		t.Fatalf("person show --as mate: exit %d %s", code, out)
+	}
+	if code, out := runCLI(t, e.cfg, "person", "show", id, "--as", "out"); code == 0 || strings.Contains(out, "carla@example.com") {
+		t.Fatalf("person show --as out: exit %d %s", code, out)
+	}
+}
