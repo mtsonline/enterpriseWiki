@@ -25,7 +25,7 @@ import { readProgress } from './components/readprogress';
 import { pluginModules } from './generated/plugins';
 import { applyScheme } from './core/scheme';
 import { schemeBlock } from './components/scheme';
-import { brandMark, printBrand } from './components/brand';
+import { brandHeader, printBrand } from './components/brand';
 import { positionContainer, refreshPositions, registerAdminPage, registerPageAction, registerProfileSection, registerSlot, registerTemplate, previewTemplate, resolveTemplate, setShownTemplate, siteTemplate, triedTemplate } from './coreplugin';
 import { tryBar } from './components/trytemplate';
 import { closedPage, maintenanceBar } from './components/maintenance';
@@ -123,7 +123,7 @@ function registerCore(): void {
       const main = h('main', { id: 'main', tabindex: '-1' });
       const root = h('div', { class: 'ew-basic' },
         h('a', { href: '#main', class: 'ew-skip' }, t('nav.skip')),
-        h('header', { class: 'ew-basic-header' }, h('a', { href: '/', class: 'ew-brand' }, brandMark('ew-brand-mark', 28), h('span', null, state.site.name)), ctx.position('header-tools')),
+        h('header', { class: 'ew-basic-header' }, h('a', { href: '/', class: 'ew-brand' }, ...brandHeader('ew-brand-logo', 40)), ctx.position('header-tools')),
         h('div', { class: 'ew-basic-body' }, h('aside', { 'aria-label': t('nav.sidebar') }, ctx.position('sidebar')), main),
         h('footer', null, ctx.position('footer')));
       return { root, main };

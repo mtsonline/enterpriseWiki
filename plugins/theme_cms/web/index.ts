@@ -6,7 +6,7 @@
 // Logo, colours and the start page hero are set under Administration →
 // Website template (plugin settings, public via GET /api/v1/x/theme.cms/config).
 import {
-  api, brandMark, h, mount, pick, poweredBy, readableOn, pluginSettingsForm, registerAdminPage, registerSlot, registerTemplate, state, t, type Category, type SettingField,
+  api, brandHeader, h, mount, pick, poweredBy, readableOn, pluginSettingsForm, registerAdminPage, registerSlot, registerTemplate, state, t, type Category, type SettingField,
 } from '@ewiki/coreplugin';
 import './style.css';
 import { CMS_DARK_BGS } from './colors';
@@ -103,7 +103,7 @@ export function register(): void {
       };
       toggle.addEventListener('click', () => setOpen(toggle.getAttribute('aria-expanded') !== 'true'));
       nav.addEventListener('click', (ev) => { if ((ev.target as Element).closest('a')) setOpen(false); });
-      const brand = h('a', { href: '/', class: 'ewcms-brand' }, brandMark('ewcms-logo', 44), h('span', { class: 'ewcms-brand-name' }, state.site.name));
+      const brand = h('a', { href: '/', class: 'ewcms-brand' }, ...brandHeader('ewcms-logo', 60));
       const header = h('div', { class: 'ewcms-header' }, h('div', { class: 'ewcms-wrap ewcms-header-inner' }, brand, toggle, nav));
       // Escape closes the menu (from the button or from inside the menu)
       header.addEventListener('keydown', (ev) => { if (ev.key === 'Escape' && nav.classList.contains('is-open')) { setOpen(false); toggle.focus(); } });

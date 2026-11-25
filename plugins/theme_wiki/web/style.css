@@ -3,8 +3,8 @@
   position: sticky; top: 0; z-index: 40; display: flex; align-items: center; gap: 1rem; flex-wrap: wrap;
   min-height: var(--ew-header-h); padding: .4rem 1rem; background: var(--ew-bg-raised); border-bottom: 1px solid var(--ew-border);
 }
-.ewc-brand { display: flex; align-items: center; gap: .5rem; font-weight: 800; font-size: 1.1rem; color: var(--ew-text); text-decoration: none; }
-.ewc-logo { display: block; width: 32px; height: 32px; flex: none; }
+.ewc-brand { display: flex; flex: none; align-items: center; gap: .5rem; font-weight: 800; font-size: 1.1rem; color: var(--ew-text); text-decoration: none; }
+.ewc-logo { display: block; width: auto; height: 44px; flex: none; }
 .ewc-header-panel { flex: 1; display: flex; align-items: center; gap: 1rem; flex-wrap: wrap; min-width: 0; }
 .ewc-header .ew-pos--header-nav { flex: 1; }
 .ewc-header .ew-pos--header-tools { display: flex; align-items: center; gap: .6rem; flex-wrap: wrap; }

@@ -39,7 +39,7 @@ export { state, onChange, isAdmin, hasPerm } from './core/state';
 export { toast, announce } from './core/announce';
 export { consentGiven, registerConsentCategory, onConsentChange, type ConsentCategory } from './core/consent';
 export { navigate, route, rerender } from './core/router';
-export { BRAND, brandMark, licensed, licenseSeal, poweredBy } from './components/brand';
+export { BRAND, brandHeader, brandMark, licensed, licenseSeal, poweredBy } from './components/brand';
 export { button, field, textInput, textArea, select, checkbox, openDialog, confirmDialog, formDialog, langFields, errorText, loading, pageHeader } from './components/ui';
 export type * from './core/types';
 export { registerWidget, hydrate, claimWidgetControls, provideWidgetControls, type WidgetControl } from './core/widgets';
