@@ -50,7 +50,9 @@
 @media (max-width: 1023.98px) { .ew-gallery--masonry { columns: var(--ew-gallery-cols-t, 3); } }
 @media (max-width: 639.98px) { .ew-gallery--masonry { columns: var(--ew-gallery-cols-m, 2); } }
 .ew-lightbox { text-align: center; }
-.ew-lightbox-img { max-width: 100%; max-height: 75vh; }
+/* a fixed box: the buttons of the dialog stay where they are while an image loads
+   (web/tests/unit/imgsize.test.ts); small images are not enlarged */
+.ew-lightbox-img { display: block; width: 100%; height: 75vh; object-fit: scale-down; }
 
 /* text style macro: a fixed palette (templates may override the properties).
    Text colors keep >= 4.5:1 on white and on every highlight color. */

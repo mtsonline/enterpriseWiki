@@ -53,7 +53,7 @@ function protect(el: HTMLElement): HTMLElement {
 /** Thumbnail or type icon of a medium. */
 export function mediaThumb(m: Medium, size = 200): HTMLElement {
   if (isImage(m)) {
-    const img = h('img', { src: mediaURL(m, { w: size }), alt: m.alt || '', loading: 'lazy', draggable: m.view_only ? 'false' : 'true' });
+    const img = h('img', { src: mediaURL(m, { w: size }), alt: m.alt || '', loading: 'lazy', width: m.width || undefined, height: m.height || undefined, draggable: m.view_only ? 'false' : 'true' });
     return m.view_only ? protect(img) : img;
   }
   const ext = (m.name.split('.').pop() ?? '').slice(0, 5).toUpperCase();
@@ -195,13 +195,14 @@ export function uploadDialog(opts: { categoryId?: number; accept?: string } = {}
 export async function mediaViewer(m: Medium): Promise<HTMLElement> {
   const wrap = h('div', { class: 'ew-media-view' });
   if (isImage(m)) {
-    wrap.append(h('img', { src: mediaURL(m), alt: m.alt || m.title || '', draggable: m.view_only ? 'false' : 'true' }));
+    // the stored size reserves the room before the image loads (nothing below moves)
+    wrap.append(h('img', { src: mediaURL(m), alt: m.alt || m.title || '', width: m.width || undefined, height: m.height || undefined, draggable: m.view_only ? 'false' : 'true' }));
   } else if (isPDF(m)) {
     const info = await api.get<{ pages?: number }>(`/api/v1/media/${m.id}/view`).catch(() => null);
     if (info && info.pages) {
       // shown as images: protected or with a watermark
       let page = 1;
-      const img = h('img', { alt: t('media.page_of', { page: '1', pages: String(info.pages) }) }) as HTMLImageElement;
+      const img = h('img', { class: 'ew-media-page', alt: t('media.page_of', { page: '1', pages: String(info.pages) }) }) as HTMLImageElement;
       const label = h('span', { 'aria-live': 'polite' });
       const show = () => {
         img.src = `/api/v1/media/${m.id}/view${qs({ page })}`;

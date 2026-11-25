@@ -223,7 +223,9 @@ export function createSimpleEditor(container: HTMLElement, body: unknown, ctx: C
     }
     const alt = textInput({ maxlength: 300, value: m.alt });
     formDialog(t('core.html.image'), [field(t('core.html.image_alt'), alt, { required: true, help: t('core.html.image_alt_help') })], t('common.apply'), async () => {
-      afterDialog(range, () => document.execCommand('insertHTML', false, `<img src="${mediaURL(m)}" alt="${esc(alt.value.trim())}">`));
+      // width and height of the medium: the page keeps its layout while the image loads
+      const size = m.width > 0 && m.height > 0 ? ` width="${m.width}" height="${m.height}"` : '';
+      afterDialog(range, () => document.execCommand('insertHTML', false, `<img src="${mediaURL(m)}" alt="${esc(alt.value.trim())}"${size}>`));
     });
   };
 
