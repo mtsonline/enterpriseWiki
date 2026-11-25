@@ -5967,8 +5967,9 @@ test('demo content: create, browse accessibly, remove', async () => {
   await page.getByRole('button', { name: /^(Create demo|Demo anlegen)$/ }).click();
   await page.waitForURL(/\/demo$/, { timeout: 60000 });
   await idle();
-  await page.locator('.ew-macro--toc').first().waitFor();
-  await a11y('demo tour page');
+  // the first page of the demo: the two areas
+  await page.locator('main .ewl-iconbox a[href^="/c/"]').nth(1).waitFor();
+  await a11y('demo home page');
   // the start page of the site is now the demo's page for visitors: what
   // the wiki can do, no path, the way into the tour
   await page.goto(`${BASE}/`);
@@ -5977,11 +5978,23 @@ test('demo content: create, browse accessibly, remove', async () => {
   assert.equal(await page.locator('.ew-breadcrumbs').count(), 0);
   assert.equal(await page.locator('main h1').count(), 1);
   await a11y('demo start page');
-  await page.locator('main a[href="/demo"]').first().click();
-  await page.waitForURL(/\/demo$/);
+  // … on the phone too
+  const wide = page.viewportSize();
+  await page.setViewportSize({ width: 390, height: 844 });
+  try {
+    await idle();
+    await a11y('demo start page on the phone');
+  } finally {
+    await page.setViewportSize(wide);
+  }
+  // the first button leads into the example company
+  await page.locator('main a.ewl-cta[href^="/c/"]').first().click();
+  await page.waitForURL(/\/c\/\d+$/);
   await idle();
-  // the overview of the demo area and the team page
-  for (const name of [/^(Team)$/, /^(News|Neuigkeiten)$/]) {
+  const company = new URL(page.url()).pathname;
+  await a11y('demo company');
+  // the menu of the demo
+  for (const name of [/^(Tour|Rundgang)$/, /^(News|Neuigkeiten)$/]) {
     await page.goto(`${BASE}/demo`);
     await idle();
     await page.getByRole('navigation').getByRole('link', { name }).first().click();
@@ -5996,7 +6009,7 @@ test('demo content: create, browse accessibly, remove', async () => {
   const editors = new Set();
   const inDemo = (p) => /^\/(demo|wiki\/demo)(\/|$|\?)|^\/(e|c)\/\d+$/.test(p);
   const errorTitle = /^(access denied|not found|something went wrong|zugriff verweigert|nicht gefunden|etwas ist schiefgelaufen)/i;
-  while (queue.length && seen.size < 60) {
+  while (queue.length && seen.size < 130) {
     const p = queue.shift();
     if (seen.has(p)) continue;
     seen.add(p);
@@ -6012,8 +6025,8 @@ test('demo content: create, browse accessibly, remove', async () => {
       else if (inDemo(path) && !seen.has(path)) queue.push(path);
     }
   }
-  assert.ok(seen.size > 10, `demo pages visited: ${seen.size}`);
-  // the property database always (the crawl above stops after 60 pages, in tree order)
+  assert.ok(seen.size > 60, `demo pages visited: ${seen.size}`);
+  // the property database always (the crawl above stops after 130 pages, in tree order)
   const db = (await call('GET', '/api/v1/elements?type=content.propdb&limit=5')).items[0];
   assert.ok(db, 'the demo has a property database');
   await page.goto(`${BASE}/e/${db.id}`);
@@ -6051,8 +6064,8 @@ test('demo content: create, browse accessibly, remove', async () => {
     await call('PUT', '/api/v1/scheme', { scheme: '' });
     await call('PUT', '/api/v1/admin/settings', { ui: uiBefore });
   }
-  // the carousel of the demo is placed for its own category only, whose page
-  // says where it is; elsewhere (the tour) there is none
+  // the carousel of the demo is placed for the start page of the company
+  // only; elsewhere (the demo home, the tour) there is none
   await page.goto(`${BASE}/demo`);
   await idle();
   assert.equal(await page.locator('.ew-pos--content-top .ewcar-pos').count(), 0, 'no carousel on the tour');
@@ -6061,12 +6074,33 @@ test('demo content: create, browse accessibly, remove', async () => {
   if (await arrow.count()) {
     assert.equal(await arrow.evaluate((b) => getComputedStyle(b, '::before').content), 'none', 'a single arrow in the tree');
   }
-  await page.getByRole('link', { name: /^(2\.\d+ )?(Carousel demo|Karussell-Demo)$/ }).first().click();
+  await page.goto(BASE + company);
   await idle();
   await page.locator('.ew-pos--content-top .ewcar-pos').waitFor();
-  // the explanation of the page (it may come after the carousel)
-  await page.locator('main').getByText(/content-top/).first().waitFor();
-  await a11y('demo carousel page');
+  await a11y('demo carousel');
+  // the tour: from the first station to the last with "Next", each with
+  // "Previous" (but the first), the station "Menus, placement and carousel"
+  // explains where the carousel is
+  await page.goto(`${BASE}/demo`);
+  await idle();
+  await page.locator('main .ewl-iconbox a[href^="/c/"]').nth(1).click();
+  await idle();
+  let stations = 1;
+  let explained = false;
+  assert.equal(await page.locator('.ew-pagenav-prev').count(), 0, 'the first station has no previous one');
+  for (;;) {
+    if (await page.locator('main').getByText(/content-top/).count()) explained = true;
+    const next = page.locator('.ew-pagenav-next');
+    if (!(await next.count())) break;
+    await next.click();
+    await idle();
+    stations++;
+    assert.equal(await page.locator('.ew-pagenav-prev').count(), 1, `station ${stations} has a previous one`);
+    assert.ok(stations < 60, 'the tour ends');
+  }
+  assert.ok(stations > 20, `stations walked through: ${stations}`);
+  assert.ok(explained, 'a station explains where the carousel is');
+  await a11y('demo last station');
   await page.goto(`${BASE}/admin/demo`);
   await idle();
   await page.getByRole('button', { name: /^(Remove demo|Demo entfernen)$/ }).click();

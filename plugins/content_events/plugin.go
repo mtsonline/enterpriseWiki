@@ -706,7 +706,7 @@ func (p *Plugin) eventsOf(ctx context.Context, calendars []int64, from, to time.
 func (p *Plugin) visibleCalendars(ctx context.Context, only []int64) (map[int64]string, error) {
 	// acl: checked below (ElementFilter)
 	rows, err := p.host.DB.Query(ctx, `SELECT e.id, e.category_id, e.titles FROM elements e JOIN categories c ON c.id = e.category_id
-		WHERE e.type = $1 AND e.deleted_at IS NULL AND c.deleted_at IS NULL AND (cardinality($2::bigint[]) = 0 OR e.id = ANY($2))`, TypeID, only)
+		WHERE e.type = $1 AND e.deleted_at IS NULL AND c.deleted_at IS NULL AND (COALESCE(cardinality($2::bigint[]), 0) = 0 OR e.id = ANY($2))`, TypeID, only)
 	if err != nil {
 		return nil, err
 	}

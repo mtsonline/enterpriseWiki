@@ -3167,5 +3167,10 @@
  "limit.core.notify.popups.help": "Wie viele ungelesene Pop-up-Benachrichtigungen eine Person beim Laden einer Seite höchstens sieht; weitere folgen beim nächsten Laden.",
  "popup.ok": "OK",
  "popup.open": "Öffnen",
- "popup.note": "Diese Nachricht steht auch in Ihren Benachrichtigungen (Glocke)."
+ "popup.note": "Diese Nachricht steht auch in Ihren Benachrichtigungen (Glocke).",
+ "block.core.category.pagenav": "Kategorie: nächste Seite (Handbuch)",
+ "category.pagenav": "Vorherige und nächste Seite",
+ "category.pagenav_prev": "Zurück",
+ "category.pagenav_next": "Weiter",
+ "block.core.element.pagenav": "Vorherige und nächste Seite (Handbuch)"
 }

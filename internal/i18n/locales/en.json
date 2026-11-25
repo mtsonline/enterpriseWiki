@@ -3167,5 +3167,10 @@
  "limit.core.notify.popups.help": "How many unread pop-up notifications a person sees at most when a page loads; further ones follow on the next page loads.",
  "popup.ok": "OK",
  "popup.open": "Open",
- "popup.note": "This message is in your notifications (bell) as well."
+ "popup.note": "This message is in your notifications (bell) as well.",
+ "block.core.category.pagenav": "Category: next page (handbook)",
+ "category.pagenav": "Previous and next page",
+ "category.pagenav_prev": "Previous",
+ "category.pagenav_next": "Next",
+ "block.core.element.pagenav": "Previous and next page (handbook)"
 }
