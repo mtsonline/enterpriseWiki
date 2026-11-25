@@ -93,7 +93,9 @@ body:has(.ewd-boxed) { background: var(--ew-bg-subtle); }
 .ewd-block > .ew-pos:empty { display: none; }
 
 .ewd-brand { display: inline-flex; align-items: center; gap: .6rem; font-weight: 700; font-size: 1.15rem; text-decoration: none; min-height: 2.75rem; }
-.ewd-logo { max-height: 2.5rem; width: auto; }
+/* a fixed box (the proportions of an uploaded logo are not known before it
+   loads): nothing moves while it loads; the logo fits in, left aligned */
+.ewd-logo { display: block; height: 2.5rem; width: 10rem; max-width: 100%; object-fit: contain; object-position: left center; }
 
 /* drawers: only in the views where the template puts a block in one */
 .ewd-drawer-button { display: none; align-items: center; gap: .25rem; min-height: 2.75rem; min-width: 2.75rem; }
@@ -145,7 +147,7 @@ body:has(.ewd-boxed) { background: var(--ew-bg-subtle); }
 /* the sticky header: lower once scrolled, away while scrolling down */
 .ewd-landmark.ewd-sticky { transition: transform .2s ease; }
 .ewd-landmark.ewd-sticky.ewd-shrunk .ewd-inner { padding-block: .25rem; }
-.ewd-landmark.ewd-sticky.ewd-shrunk .ewd-logo { max-height: 1.75rem; }
+.ewd-landmark.ewd-sticky.ewd-shrunk .ewd-logo { height: 1.75rem; }
 .ewd-landmark.ewd-sticky.ewd-away:not(.ewd-sticky--off) { transform: translateY(-100%); }
 @media (prefers-reduced-motion: reduce) { .ewd-landmark.ewd-sticky { transition: none; } }
 
