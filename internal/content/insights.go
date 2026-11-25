@@ -169,7 +169,7 @@ func (s *Service) Insights(ctx context.Context, id int64, days int, lang string)
 	}
 	w, a = cond(days)
 	// acl: filtered (ElementFilter)
-	rows, err = s.pool.Query(ctx, `SELECT COALESCE(NULLIF(u.display_name, ''), u.username), count(*)::int FROM element_revisions r
+	rows, err = s.pool.Query(ctx, `SELECT u.display_name, count(*)::int FROM element_revisions r
 		JOIN elements e ON e.id = r.element_id JOIN users u ON u.id = r.created_by
 		WHERE `+w+` AND e.deleted_at IS NULL AND r.created_at > now() - make_interval(days => $2)
 		GROUP BY u.id, 1 ORDER BY 2 DESC, 1 LIMIT 10`, a...)

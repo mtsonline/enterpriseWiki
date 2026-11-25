@@ -101,6 +101,10 @@ Workflows ändern und löschen nur ihr **Ersteller** (Recht *Workflows anlegen*)
 
 Entwürfe sehen ihr Autor und die Editoren der Kategorie (Recht *Bearbeiten*). Veröffentlicht werden kann nur dort, wo man *Erstellen* (neue Seite) bzw. *Bearbeiten* (bestehende Seite) hat. Geplante Veröffentlichungen laufen mit den Rechten des Autors zum Zeitpunkt der Veröffentlichung.
 
+### Namen von Personen
+
+Neben Inhalten (zuletzt geändert, Versionen, Kommentare, Papierkorb, Vorgänge und Vertretungen von Workflows, Autoren in Listen, Reaktionen) zeigt das Wiki den Anzeigenamen einer Person. Die Kennung (`benutzername@anbieter`) zeigt es nur Personen, die diese Person finden dürfen: der Person selbst, allen mit *Alle Benutzer auflisten* (`core.users.list_all`), den Mitgliedern gemeinsamer Gruppen mit *Benutzer der eigenen Gruppen auflisten* (`core.users.list_own`) und allen mit *Benutzer verwalten*. Gäste sehen nie eine Kennung. Grund: Bei Anmeldung über OIDC ist der Benutzername oft die E-Mail-Adresse (z. B. der UPN). Hat eine Person keinen Anzeigenamen, bleibt die Stelle für die anderen leer. Listen von Seiten nennen nur den Anzeigenamen. Die Rechte-Dialoge einer Kategorie zeigen ihren Verwaltern die Kennung weiter, damit klar ist, wem eine Regel gilt.
+
 ## Übersetzungen der Oberfläche
 
 *Administration → Sprachen* zeigt je Sprache, wie viel übersetzt ist, wie viele Texte fehlen und wie viele **veraltet** sind (der englische Text hat sich seit der Übersetzung geändert, z. B. durch ein Plugin-Update).

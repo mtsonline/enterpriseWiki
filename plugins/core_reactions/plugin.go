@@ -292,7 +292,7 @@ func (p *Plugin) summaries(ctx context.Context, typ string, ids []int64) ([]Summ
 	}
 	manage := perm.Has(ctx, "core.reactions.manage")
 	rows, err := p.host.DB.Query(ctx, `SELECT r.target_id, r.emoji, count(*), bool_or(r.user_id = $3),
-			(array_agg(COALESCE(NULLIF(u.display_name, ''), u.username) ORDER BY r.created_at))[1:CASE WHEN $4 THEN 100000 ELSE 20 END], array_agg(r.user_id ORDER BY r.created_at)
+			(array_agg(u.display_name ORDER BY r.created_at))[1:CASE WHEN $4 THEN 100000 ELSE 20 END], array_agg(r.user_id ORDER BY r.created_at)
 		FROM plugin_reactions r JOIN users u ON u.id = r.user_id
 		WHERE r.target_type=$1 AND r.target_id = ANY($2)
 		GROUP BY r.target_id, r.emoji ORDER BY min(r.created_at)`, typ, visible, uid, manage)

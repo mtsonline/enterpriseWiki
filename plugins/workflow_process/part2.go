@@ -470,15 +470,21 @@ func (pl *Plugin) deputyRoutes(host *coreplugin.Host) {
 	get := func(ctx context.Context, uid int64) (*Deputy, error) {
 		var d Deputy
 		var from, until time.Time
-		err := host.DB.QueryRow(ctx, `SELECT d.deputy_id, COALESCE(NULLIF(u.display_name, ''), u.username) || ' (' || u.username || '@' || u.provider || ')',
-			d.from_date, d.until_date, current_date BETWEEN d.from_date AND d.until_date FROM plugin_workflow_deputies d JOIN users u ON u.id=d.deputy_id WHERE d.user_id=$1`, uid).
-			Scan(&d.DeputyID, &d.Deputy, &from, &until, &d.Active)
+		err := host.DB.QueryRow(ctx, `SELECT d.deputy_id, d.from_date, d.until_date, current_date BETWEEN d.from_date AND d.until_date
+			FROM plugin_workflow_deputies d WHERE d.user_id=$1`, uid).
+			Scan(&d.DeputyID, &from, &until, &d.Active)
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, nil
 		}
 		if err != nil {
 			return nil, err
 		}
+		// the handle only for who may look the person up
+		names, err := host.Content.PeopleLabels(ctx, []int64{d.DeputyID})
+		if err != nil {
+			return nil, err
+		}
+		d.Deputy = names[d.DeputyID]
 		d.From, d.Until = from.Format("2006-01-02"), until.Format("2006-01-02")
 		return &d, nil
 	}
@@ -500,19 +506,33 @@ func (pl *Plugin) deputyRoutes(host *coreplugin.Host) {
 		if err != nil {
 			return nil, err
 		}
-		rows, err := host.DB.Query(r.Context(), `SELECT COALESCE(NULLIF(u.display_name, ''), u.username), d.from_date::text, d.until_date::text
-			FROM plugin_workflow_deputies d JOIN users u ON u.id=d.user_id WHERE d.deputy_id=$1 AND d.until_date >= current_date ORDER BY d.from_date`, p.ID())
+		rows, err := host.DB.Query(r.Context(), `SELECT d.user_id, d.from_date::text, d.until_date::text
+			FROM plugin_workflow_deputies d WHERE d.deputy_id=$1 AND d.until_date >= current_date ORDER BY d.from_date`, p.ID())
 		if err != nil {
 			return nil, err
 		}
 		type standIn struct {
+			id    int64
 			Name  string `json:"name"`
 			From  string `json:"from"`
 			Until string `json:"until"`
 		}
-		list, err := pgx.CollectRows(rows, pgx.RowToStructByPos[standIn])
+		var ids []int64
+		list, err := pgx.CollectRows(rows, func(r pgx.CollectableRow) (standIn, error) {
+			var x standIn
+			err := r.Scan(&x.id, &x.From, &x.Until)
+			ids = append(ids, x.id)
+			return x, err
+		})
 		if err != nil {
 			return nil, err
+		}
+		names, err := host.Content.PeopleLabels(r.Context(), ids)
+		if err != nil {
+			return nil, err
+		}
+		for i := range list {
+			list[i].Name = names[list[i].id]
 		}
 		return map[string]any{"deputy": d, "stand_in_for": list}, nil
 	})

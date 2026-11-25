@@ -35,7 +35,7 @@ function looksLikeEmoji(s: string): boolean {
 }
 
 function names(r: Reaction): string {
-  const list = r.users.map((u) => (u === state.user?.display_name || u === state.user?.username ? t('core.reactions.you') : u));
+  const list = r.users.map((u) => (u && u === state.user?.display_name ? t('core.reactions.you') : u || '–'));
   if (r.count > r.users.length) list.push(t('core.reactions.and_more', { n: r.count - r.users.length }));
   return list.join(', ');
 }

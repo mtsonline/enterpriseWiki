@@ -72,7 +72,7 @@ async function section(el: ElementView): Promise<Node | null> {
       }, { variant: 'link' }));
     }
     const art = h('article', { class: 'ewcm-item', id: `comment-${c.id}`, tabindex: '-1', 'aria-labelledby': `comment-${c.id}-h` },
-      h('header', { class: 'ewcm-head', id: `comment-${c.id}-h` }, h('strong', null, c.author), ' ',
+      h('header', { class: 'ewcm-head', id: `comment-${c.id}-h` }, h('strong', null, c.author || '–'), ' ',
         h('time', { datetime: c.created_at, class: 'ew-muted' }, fmtDate(c.created_at, state.lang)),
         c.edited && !c.deleted_at ? h('span', { class: 'ew-muted' }, ` · ${t('core.comments.edited')}`) : null),
       body, actions, c.deleted_at ? null : reactionBar('comment', c.id, t('core.comments.reaction_target', { author: c.author })));
