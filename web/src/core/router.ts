@@ -22,6 +22,7 @@ let mainEl: HTMLElement | null = null;
 let notFound: View | null = null;
 let afterNavigate: (() => void) | null = null;
 let beforeRender: (() => void) | null = null;
+let beforeMount: ((view: HTMLElement) => Promise<void>) | null = null;
 let renderSeq = 0;
 let first = true;
 
@@ -34,6 +35,9 @@ export function route(pattern: string, view: View): void {
 
 export function setNotFound(v: View): void { notFound = v; }
 export function onNavigate(fn: () => void): void { afterNavigate = fn; }
+/** Runs after a view is built and before it goes into the page (the
+ * positions of the page are filled then, so nothing moves afterwards). */
+export function onBeforeMount(fn: (view: HTMLElement) => Promise<void>): void { beforeMount = fn; }
 
 /**
  * Navigates to url (same origin). A page with unsaved changes asks first
@@ -189,6 +193,7 @@ async function render(keepFocus = false): Promise<void> {
   mainEl.setAttribute('aria-busy', 'true');
   try {
     if (view) await view({ params, query, path, main: target });
+    if (seq === renderSeq && beforeMount) await beforeMount(target);
   } finally {
     if (seq === renderSeq) mainEl.removeAttribute('aria-busy');
   }

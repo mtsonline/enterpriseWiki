@@ -541,7 +541,7 @@
  "workflow.ev.membership_remove": "aus der Gruppe entfernt → {step}",
  "workflow.ev.move": "Seite verschoben → {step}",
  "workflow.admin.form_accounts": "Berechtigungen und Gruppen aus Werten des Startformulars",
- "workflow.admin.form_accounts_help": "Aus (empfohlen): Die Schritte Berechtigungen und Gruppenmitgliedschaft lehnen eine Person aus dem Startformular eines von Hand gestarteten Vorgangs ab, weil sie wählt, wer den Vorgang startet. Auslöser, andere Workflows, feste Werte und {{starter.username}} funktionieren immer.",
+ "workflow.admin.form_accounts_help": "Aus (empfohlen): Die Schritte Berechtigungen und Gruppenmitgliedschaft nehmen keine Person aus dem Startformular eines von Hand gestarteten Vorgangs. Denn wer den Vorgang startet, wählt sie selbst. Auslöser, andere Workflows, feste Werte und {{starter.username}} funktionieren immer.",
  "workflow.steptype.file": "Datei erzeugen",
  "workflow.steptype.calendar": "Kalendereintrag",
  "workflow.file_help": "Erzeugt ein Dokument aus einer Vorlage in der Medienbibliothek – mit den Rechten der gewählten Person (Hochladen in die Kategorie).",

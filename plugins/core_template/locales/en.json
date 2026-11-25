@@ -272,7 +272,7 @@
  "template.d_preview_window": "Preview in its own window",
  "template.d_name_area": "Area",
  "template.d_boxed": "Boxed layout",
- "template.d_boxed_help": "The whole page – header, content and footer – is a box of the content width in the middle of the window, with the subtle background around it. Without it, the rows span the whole window. Rows then have at most the content width; the check of the room uses it.",
+ "template.d_boxed_help": "The whole page – header, content and footer – is a box of the content width. It stands in the middle of the window, with the subtle background around it. Without it, the rows span the whole window. Rows then have at most the content width; the check of the room uses it.",
  "template.d_hint_header_tall": "{view}: the sticky header is {height} px high, more than {limit} % of the window ({max} px). So it does not stick here. Put blocks of the header in a drawer, for example the tools.",
  "template.d_hint_header_sideways": "The sticky header is {height} px high. On a phone held sideways (about {window} px window height) that is more than {limit} %; it does not stick there.",
  "template.d_hint_header_ok": "{view}: the sticky header is {height} px high and sticks.",
