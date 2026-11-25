@@ -583,6 +583,8 @@ class MacroView implements NodeView {
     // the settings in words only where no picture shows the result (the
     // pencil opens them)
     this.info.textContent = this.picture && info?.picture ? '' : paramSummary(info, this.node.attrs.params as Record<string, string>, uiLang());
+    // cut off with an ellipsis when long: the full text on hover
+    if (this.info.textContent) this.info.title = this.info.textContent; else this.info.removeAttribute('title');
     this.dom.setAttribute('aria-label', t('editor.macro_named', { name: label }));
     this.dom.dataset.macro = name;
     const w = this.width();

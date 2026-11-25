@@ -450,7 +450,8 @@ function chip(series: Ev, o: Occ, cfg: Config, open: () => void, withTime = true
   if (e.all_day) b.classList.add('ewe-chip--allday');
   if (o.my_status === 'registered') b.classList.add('ewe-chip--mine');
   b.style.setProperty('--ewe-color', cat?.color ?? 'var(--ew-primary)');
-  b.title = `${whenText(e, o)}${e.location ? ` · ${e.location}` : ''}`;
+  // the chip is cut off in a narrow day: its full text with date and place on hover
+  b.title = `${label} · ${whenText(e, o)}${e.location ? ` · ${e.location}` : ''}`;
   return b;
 }
 

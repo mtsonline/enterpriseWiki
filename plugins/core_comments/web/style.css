@@ -5,5 +5,5 @@
 .ewcm-item:focus { outline: 3px solid var(--ew-focus); outline-offset: 2px; }
 .ewcm-head { font-size: .92rem; }
 .ewcm-text p { margin: .3rem 0; }
-.ewcm-actions { display: flex; gap: .5rem; }
+.ewcm-actions { display: flex; flex-wrap: wrap; gap: .5rem; }
 .ewcm-form { margin: .75rem 0; max-width: 46rem; }
