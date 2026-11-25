@@ -169,9 +169,19 @@ function findCovered() {
   return out;
 }
 
-/** Controls covered by other elements on the page (empty: none). */
-export function coveredControls(pg) {
-  return pg.evaluate(findCovered);
+/**
+ * Controls covered by other elements on the page (empty: none).
+ * A toast is transient: one can appear after noToasts() returned (a save or a
+ * load that finishes late). A finding caused by a toast is checked again once
+ * the toasts are gone, so it cannot make a run fail at random; a control that
+ * is still covered after that stays a finding.
+ */
+export async function coveredControls(pg) {
+  for (let i = 0; ; i++) {
+    const cov = await pg.evaluate(findCovered);
+    if (i >= 3 || !cov.some((c) => / by .*ew-toast/.test(c))) return cov;
+    await noToasts(pg);
+  }
 }
 
 /**

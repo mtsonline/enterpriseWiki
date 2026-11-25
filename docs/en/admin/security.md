@@ -16,7 +16,7 @@ Every identity is stored internally and uniquely as `name@provider` (`admin@loca
 - Response times do not reveal whether an account exists.
 - Several factors as plugins (authenticator app, code by e-mail, security keys/passkeys, allowed networks) in a freely selectable chain per sign-in method, see [authentication.md](authentication.md#several-factors-the-factor-chain).
 - If an administrator resets a password or disables an account, all sessions of this account end.
-- The system prevents the last active administrator from being deleted, disabled or demoted.
+- The system prevents the last active administrator from being deleted, disabled or demoted. With several sites and shared accounts, the administrators of the main site count. They administer every site, so a further site needs no administrator of its own. A change on a further site can never take the last one of the main site away.
 
 ### Browser sessions
 - Random 256-bit token in the cookie `ewiki_session` (`HttpOnly`, `SameSite=Lax`, with `secure_cookies: true` also `Secure`). Only the SHA-256 hash is stored in the database.

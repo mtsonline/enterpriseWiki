@@ -713,16 +713,24 @@ func (s *Service) LoadPrincipalQ(ctx context.Context, q db.Querier, uid int64) (
 const roleSet = `(SELECT role_id FROM user_roles WHERE user_id=u.id
 	UNION SELECT gr.role_id FROM group_roles gr JOIN user_groups ug ON ug.group_id=gr.group_id WHERE ug.user_id=u.id)`
 
+// instanceAdminSQL is true for an instance administrator u (with shared
+// accounts: instance_admins or administrator of the site "main"); u is the
+// alias of the users table. Always false with separate accounts: IDs of
+// own accounts must never be looked up in the instance tables.
+func (s *Service) instanceAdminSQL(u string) string {
+	if s.SeparateAccounts {
+		return `false`
+	}
+	return `(EXISTS(SELECT 1 FROM public.instance_admins WHERE user_id=` + u + `.id)
+		OR EXISTS(SELECT 1 FROM public.roles r WHERE r.is_admin AND (
+			r.id IN (SELECT role_id FROM site_main.user_roles WHERE user_id=` + u + `.id) OR
+			r.id IN (SELECT gr.role_id FROM site_main.group_roles gr JOIN public.user_groups ug ON ug.group_id=gr.group_id WHERE ug.user_id=` + u + `.id))))`
+}
+
 // principalCols are the columns of an account u with its groups, roles and
 // permissions (see scanPrincipal).
 func (s *Service) principalCols() string {
-	instance := `false`
-	if !s.SeparateAccounts { // IDs of own accounts must never be looked up in the instance tables
-		instance = `(EXISTS(SELECT 1 FROM public.instance_admins WHERE user_id=u.id)
-		OR EXISTS(SELECT 1 FROM public.roles r WHERE r.is_admin AND (
-			r.id IN (SELECT role_id FROM site_main.user_roles WHERE user_id=u.id) OR
-			r.id IN (SELECT gr.role_id FROM site_main.group_roles gr JOIN public.user_groups ug ON ug.group_id=gr.group_id WHERE ug.user_id=u.id))))`
-	}
+	instance := s.instanceAdminSQL("u")
 	return `u.id, u.username, COALESCE(u.alias, ''), u.alias_source, u.provider, u.display_name, u.email, u.language, u.disabled, u.prefs,
 		ARRAY(SELECT group_id FROM user_groups WHERE user_id=u.id),
 		ARRAY(SELECT r.id FROM roles r WHERE r.id IN ` + roleSet + `),
