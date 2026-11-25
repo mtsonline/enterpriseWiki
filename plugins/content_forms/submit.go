@@ -403,10 +403,7 @@ func (p *Plugin) submit(w http.ResponseWriter, r *http.Request) (any, error) {
 	author := ""
 	var uid *int64
 	if me.ID() > 0 {
-		author = me.DisplayName
-		if author == "" {
-			author = me.Handle()
-		}
+		author = me.DisplayName // never the handle (it can be an e-mail address)
 		v := me.ID()
 		uid = &v
 	}

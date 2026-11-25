@@ -364,8 +364,8 @@ func (pl *Plugin) load(ctx context.Context, id int64) (*Instance, *who, bool, er
 }
 
 // nameStarters names who started the cases as the caller may see it: the
-// display name, with the handle only for who may look the person up
-// (content.PeopleLabels). One query for all cases.
+// display name (never the handle) and the id only for who may open the person
+// (content.PeopleRefs). One query for all cases.
 func (pl *Plugin) nameStarters(ctx context.Context, xs []*Instance) error {
 	var ids []int64
 	for _, x := range xs {

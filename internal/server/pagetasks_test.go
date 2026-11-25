@@ -132,7 +132,7 @@ func TestPageTasks(t *testing.T) {
 	var cur struct {
 		Rev         int             `json:"rev"`
 		Body        json.RawMessage `json:"body"`
-		UpdatedBy   string          `json:"updated_by"`
+		UpdatedByID int64           `json:"updated_by_id"`
 		CreatedByID int64           `json:"created_by_id"`
 	}
 	admin.must("GET", fmt.Sprintf("/api/v1/elements/%d?lang=en&edit=1", page.ID), nil, &cur, 200)
@@ -145,19 +145,19 @@ func TestPageTasks(t *testing.T) {
 		User obj `json:"user"`
 	}
 	admin.must("GET", "/api/v1/auth/me", nil, &who, 200)
-	if cur.CreatedByID != who.User.ID || !strings.Contains(cur.UpdatedBy, "anna") {
-		t.Fatalf("created by %d, changed by %q", cur.CreatedByID, cur.UpdatedBy)
+	if cur.CreatedByID != who.User.ID || cur.UpdatedByID != users["anna"].ID {
+		t.Fatalf("created by %d, changed by %d", cur.CreatedByID, cur.UpdatedByID)
 	}
 	var revs []struct {
-		Comment string `json:"comment"`
-		Author  string `json:"author"`
+		Comment  string `json:"comment"`
+		AuthorID int64  `json:"author_id"`
 	}
 	admin.must("GET", fmt.Sprintf("/api/v1/elements/%d/revisions", page.ID), nil, &revs, 200)
 	if len(revs) == 0 || !slices.ContainsFunc(revs, func(x struct {
-		Comment string `json:"comment"`
-		Author  string `json:"author"`
+		Comment  string `json:"comment"`
+		AuthorID int64  `json:"author_id"`
 	}) bool {
-		return x.Comment == "Task done: Check the offer @anna" && strings.Contains(x.Author, "anna")
+		return x.Comment == "Task done: Check the offer @anna" && x.AuthorID == users["anna"].ID
 	}) {
 		t.Fatalf("revisions: %+v", revs)
 	}

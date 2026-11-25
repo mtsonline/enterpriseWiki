@@ -2,7 +2,7 @@
 // (search within the blog, paging, tag filter, new post / subcategory, feed).
 import {
   announce, api, button, categorySelect, checkbox, claimWidgetControls, errorText, feedButton, field, formDialog, h, langFields, mount, navigate, pick,
-  instanceLabels, provideWidgetControls, registerEditor, registerWidget, registerWidgetControl, select, state, t, textArea, textInput, toast, trustedHTML,
+  instanceLabels, personName, provideWidgetControls, registerEditor, registerWidget, registerWidgetControl, select, state, t, textArea, textInput, toast, trustedHTML,
   type EditorInstance, type WidgetControl, sourcesEditor,
 } from '@ewiki/coreplugin';
 import './style.css';
@@ -13,7 +13,7 @@ interface Body {
   category_id: number; recursive: boolean; more_sources?: string; intro: { format: string; source: string }; feed: boolean;
   per_page: number; layout: string; show_author: boolean; show_date: boolean; full_content: boolean; summary_length: number; order: string;
 }
-interface Post { id: number; category_id: number; lang: string; title: string; summary: string; tags: string[]; author: string; created_at: string; updated_at: string; html?: string }
+interface Post { id: number; category_id: number; lang: string; title: string; summary: string; tags: string[]; author: string; author_id?: number; created_at: string; updated_at: string; html?: string }
 interface Hit { element_id: number; title: string; snippet: string; lang: string }
 interface Cat { id: number; depth: number; titles: Record<string, string>; can_create: boolean }
 interface Info { categories: Cat[]; can_create: boolean; can_manage: boolean; missing: boolean }
@@ -75,7 +75,7 @@ function renderPost(p: Post, c: Body, onTag: (tag: string) => void, tl: Label): 
   const iso = c.order === 'updated' ? p.updated_at : p.created_at;
   const meta = c.show_date || (c.show_author && p.author)
     ? h('p', { class: 'ewb-meta' }, c.show_date ? h('time', { datetime: iso }, dateOf(p, c)) : null,
-      c.show_date && c.show_author && p.author ? ' · ' : null, c.show_author && p.author ? `${t('content.blog.by')} ${p.author}` : null)
+      c.show_date && c.show_author && p.author ? ' · ' : null, c.show_author && p.author ? [`${t('content.blog.by')} `, personName(p.author, p.author_id)] : null)
     : null;
   return h('article', { class: 'ewb-post', lang: p.lang },
     h('h2', { class: 'ewb-title' }, h('a', { href: `/e/${p.id}` }, p.title)),

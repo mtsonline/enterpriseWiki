@@ -237,12 +237,28 @@ func (s *Server) routesConsent() {
 			DisplayName string    `json:"display_name"`
 			Version     int       `json:"version"`
 			AcceptedAt  time.Time `json:"accepted_at"`
+			// Open: the caller may open the person (menu on the name)
+			Open bool `json:"open,omitempty"`
 		}
-		items, err := pgx.CollectRows(rows, pgx.RowToStructByPos[item])
+		items, err := pgx.CollectRows(rows, func(r pgx.CollectableRow) (item, error) {
+			var it item
+			return it, r.Scan(&it.UserID, &it.Username, &it.DisplayName, &it.Version, &it.AcceptedAt)
+		})
 		if err != nil {
 			return nil, err
 		}
 		if !csvOut {
+			ids := make([]int64, 0, len(items))
+			for _, it := range items {
+				ids = append(ids, it.UserID)
+			}
+			refs, err := s.app.Content.PeopleRefs(r.Context(), ids)
+			if err != nil {
+				return nil, err
+			}
+			for i := range items {
+				items[i].Open = refs[items[i].UserID].ID != nil
+			}
 			return map[string]any{"items": items, "total": total}, nil
 		}
 		w.Header().Set("Content-Type", "text/csv; charset=utf-8")

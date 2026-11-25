@@ -67,14 +67,40 @@ func (l *dayLimiter) allow(uid int64) bool {
 }
 
 type accessRequest struct {
-	ID         int64     `json:"id"`
-	UserID     int64     `json:"user_id"`
-	User       string    `json:"user"`
+	ID int64 `json:"id"`
+	// UserID is sent only to who may open the person (menu on the name).
+	UserID     int64     `json:"-"`
+	User       string    `json:"user"` // display name only
 	CategoryID int64     `json:"category_id"`
 	ElementID  *int64    `json:"element_id"`
 	Message    string    `json:"message"`
 	Status     string    `json:"status"`
 	CreatedAt  time.Time `json:"created_at"`
+	Person     *int64    `json:"user_id,omitempty"`
+}
+
+// accessPeople reads access requests and sets the ids of the people the
+// caller may open (one query).
+func (s *Server) accessPeople(ctx context.Context, rows pgx.Rows) ([]accessRequest, error) {
+	list, err := pgx.CollectRows(rows, func(r pgx.CollectableRow) (accessRequest, error) {
+		var a accessRequest
+		return a, r.Scan(&a.ID, &a.UserID, &a.User, &a.CategoryID, &a.ElementID, &a.Message, &a.Status, &a.CreatedAt)
+	})
+	if err != nil {
+		return nil, err
+	}
+	ids := make([]int64, 0, len(list))
+	for _, a := range list {
+		ids = append(ids, a.UserID)
+	}
+	refs, err := s.app.Content.PeopleRefs(ctx, ids)
+	if err != nil {
+		return nil, err
+	}
+	for i := range list {
+		list[i].Person = refs[list[i].UserID].ID
+	}
+	return list, nil
 }
 
 func (s *Server) routesAccess() {
@@ -122,12 +148,12 @@ func (s *Server) routesAccess() {
 		if err := s.app.Content.Require(r.Context(), id, acl.Manage); err != nil {
 			return nil, err
 		}
-		rows, err := s.app.DB.Query(r.Context(), `SELECT a.id, a.user_id, COALESCE(NULLIF(u.display_name, ''), u.username), a.category_id, a.element_id, a.message, a.status, a.created_at
+		rows, err := s.app.DB.Query(r.Context(), `SELECT a.id, a.user_id, u.display_name, a.category_id, a.element_id, a.message, a.status, a.created_at
 			FROM access_requests a JOIN users u ON u.id = a.user_id WHERE a.category_id=$1 AND a.element_id IS NULL AND a.status='open' ORDER BY a.created_at`, id)
 		if err != nil {
 			return nil, err
 		}
-		return pgx.CollectRows(rows, pgx.RowToStructByPos[accessRequest])
+		return s.accessPeople(r.Context(), rows)
 	})
 	// GET /api/v1/elements/{id}/access-requests – open requests for a page
 	// with own rights only (permission to give rights on it)
@@ -140,12 +166,12 @@ func (s *Server) routesAccess() {
 		if _, err := s.app.Content.GetElementACL(r.Context(), id); err != nil {
 			return nil, err
 		}
-		rows, err := s.app.DB.Query(r.Context(), `SELECT a.id, a.user_id, COALESCE(NULLIF(u.display_name, ''), u.username), a.category_id, a.element_id, a.message, a.status, a.created_at
+		rows, err := s.app.DB.Query(r.Context(), `SELECT a.id, a.user_id, u.display_name, a.category_id, a.element_id, a.message, a.status, a.created_at
 			FROM access_requests a JOIN users u ON u.id = a.user_id WHERE a.element_id=$1 AND a.status='open' ORDER BY a.created_at`, id)
 		if err != nil {
 			return nil, err
 		}
-		return pgx.CollectRows(rows, pgx.RowToStructByPos[accessRequest])
+		return s.accessPeople(r.Context(), rows)
 	})
 	// POST /api/v1/access-requests/{id} {"grant": true, "preset": "reader"|"editor"} or {"grant": false}
 	// action: core.access.answer

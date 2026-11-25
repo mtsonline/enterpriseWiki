@@ -1,6 +1,7 @@
 // Administration → Consent: the cookie banner and the privacy policy people
 // accept, and the proof who accepted which version when.
 import { api, qs } from '../core/api';
+import { personName } from '../components/person';
 import { fmtDate, h, mount } from '../core/dom';
 import { t } from '../core/i18n';
 import { hasPerm, state } from '../core/state';
@@ -13,7 +14,7 @@ interface Consent {
   cookies: { enabled: boolean; required: boolean; version: number; text: Record<string, string> | null; page: number };
   privacy: { enabled: boolean; version: number; page: number; guests: '' | 'notice' | 'required'; text: Record<string, string> | null };
 }
-interface ConsentRow { user_id: number; username: string; display_name: string; version: number; accepted_at: string }
+interface ConsentRow { user_id: number; username: string; display_name: string; version: number; accepted_at: string; open?: boolean }
 
 const ver = (v: number) => Math.max(v, 1);
 
@@ -64,7 +65,7 @@ export async function consentAdmin(panel: HTMLElement): Promise<void> {
   // proof: who accepted which version when
   if (hasPerm('core.audit.view')) {
     const res = await api.get<{ items: ConsentRow[]; total: number }>(`admin/consents${qs({ limit: 100 })}`);
-    const rows = res.items.map((r) => h('tr', null, h('td', null, r.display_name || r.username), h('td', null, r.username), h('td', null, String(r.version)), h('td', null, fmtDate(r.accepted_at, state.lang))));
+    const rows = res.items.map((r) => h('tr', null, h('td', null, personName(r.display_name || r.username, r.open ? r.user_id : null)), h('td', null, r.username), h('td', null, String(r.version)), h('td', null, fmtDate(r.accepted_at, state.lang))));
     parts.push(h('section', { class: 'ew-section', 'aria-labelledby': 'cp-h' },
       h('h2', { id: 'cp-h' }, t('consent.proof')),
       h('p', null, t('consent.proof_count', { n: res.items.length, total: res.total }), ' ', h('a', { href: `/api/v1/admin/consents${qs({ format: 'csv' })}`, download: 'privacy-consents.csv' }, t('consent.proof_csv'))),

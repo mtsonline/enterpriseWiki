@@ -25,7 +25,7 @@ type TrashItem struct {
 	Titles      map[string]string `json:"titles"`
 	ParentID    *int64            `json:"parent_id"` // category: parent, element: category
 	DeletedAt   time.Time         `json:"deleted_at"`
-	DeletedBy   string            `json:"deleted_by"`              // display name; the handle only for who may look the person up
+	DeletedBy   string            `json:"deleted_by"`              // display name only (content.PeopleRefs)
 	DeletedByID *int64            `json:"deleted_by_id,omitempty"` // only for who may open the person
 	deletedBy   *int64
 	Contains    int `json:"contains"` // number of objects deleted with it

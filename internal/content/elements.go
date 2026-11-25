@@ -32,8 +32,8 @@ type Element struct {
 	Tags         []string          `json:"tags"`
 	CreatedAt    time.Time         `json:"created_at"`
 	UpdatedAt    time.Time         `json:"updated_at"`
-	// UpdatedBy names who changed it last: the display name, with the
-	// handle only for readers who may look the person up (PeopleLabels).
+	// UpdatedBy names who changed it last: the display name only, never
+	// the handle (PeopleRefs).
 	UpdatedBy string `json:"updated_by"`
 	// UpdatedByID is set only for readers who may open the person (menu on
 	// the name, person page).
@@ -237,7 +237,7 @@ func (s *Service) GetElement(ctx context.Context, id int64, lang string, withBod
 	}
 	v := &ElementView{Element: *e, Lang: lang}
 	if e.updatedByID != nil {
-		// the handle only for readers who may look the person up
+		// display names only; the id only for readers who may open the person
 		refs, err := s.PeopleRefs(ctx, []int64{*e.updatedByID})
 		if err != nil {
 			return nil, err
@@ -943,7 +943,7 @@ type Revision struct {
 	Title        string `json:"title"`
 	Comment      string `json:"comment"`
 	RestoredFrom *int   `json:"restored_from"`
-	Author       string `json:"author"`              // display name; the handle only for who may look the person up
+	Author       string `json:"author"`              // display name only (PeopleRefs)
 	AuthorID     *int64 `json:"author_id,omitempty"` // only for readers who may open the person
 	authorID     *int64
 	CreatedAt    time.Time       `json:"created_at"`
@@ -978,7 +978,7 @@ func (s *Service) Revisions(ctx context.Context, id int64, lang string) ([]Revis
 	if err != nil {
 		return nil, err
 	}
-	// the handle only for readers who may look the person up
+	// display names only; the id only for readers who may open the person
 	refs, err := s.PeopleRefs(ctx, authors)
 	if err != nil {
 		return nil, err

@@ -1,6 +1,7 @@
 package server
 
 import (
+	"context"
 	"net/http"
 	"strconv"
 
@@ -161,10 +162,42 @@ func (s *Server) routesNotifications() {
 	})
 }
 
+// assignmentPeople sets the ids of the people of watch assignments (the
+// subject when it is a user, who assigned it) the caller may open (one
+// query).
+func (s *Server) assignmentPeople(ctx context.Context, list []watch.Assignment) error {
+	var ids []int64
+	for _, a := range list {
+		if a.SubjectType == "user" {
+			ids = append(ids, a.SubjectID)
+		}
+		if a.CreatedByUser != nil {
+			ids = append(ids, *a.CreatedByUser)
+		}
+	}
+	refs, err := s.app.Content.PeopleRefs(ctx, ids)
+	if err != nil {
+		return err
+	}
+	for i := range list {
+		if list[i].SubjectType == "user" {
+			list[i].SubjectPerson = refs[list[i].SubjectID].ID
+		}
+		if u := list[i].CreatedByUser; u != nil {
+			list[i].CreatedByID = refs[*u].ID
+		}
+	}
+	return nil
+}
+
 func (s *Server) routesWatchAssignments() {
 	// action: core.watches.assign.list
 	s.handle("GET /api/v1/admin/watch-assignments", func(w http.ResponseWriter, r *http.Request) (any, error) {
-		return s.app.Watch.Assignments(r.Context())
+		list, err := s.app.Watch.Assignments(r.Context())
+		if err != nil {
+			return nil, err
+		}
+		return list, s.assignmentPeople(r.Context(), list)
 	})
 	// action: core.watches.assign.add
 	s.handle("POST /api/v1/admin/watch-assignments", func(w http.ResponseWriter, r *http.Request) (any, error) {
@@ -197,7 +230,11 @@ func (s *Server) routesWatchAssignments() {
 	})
 	// action: core.me.watch_assignments.list
 	s.handle("GET /api/v1/me/watch-assignments", func(w http.ResponseWriter, r *http.Request) (any, error) {
-		return s.app.Watch.MyAssignments(r.Context())
+		list, err := s.app.Watch.MyAssignments(r.Context())
+		if err != nil {
+			return nil, err
+		}
+		return list, s.assignmentPeople(r.Context(), list)
 	})
 	// action: core.me.watch_assignments.set
 	s.handle("PUT /api/v1/me/watch-assignments/{id}", func(w http.ResponseWriter, r *http.Request) (any, error) {

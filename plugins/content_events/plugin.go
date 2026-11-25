@@ -207,10 +207,13 @@ type Event struct {
 	Waitlist     bool                `json:"waitlist"`
 	RegDeadline  int                 `json:"reg_deadline"`
 	Reminders    []int               `json:"reminders"`
-	CreatedBy    *int64              `json:"created_by"`
-	Author       string              `json:"author"`
-	CreatedAt    time.Time           `json:"created_at"`
-	UpdatedAt    time.Time           `json:"updated_at"`
+	// CreatedBy is never sent (an id of a person); AuthorID only to who may
+	// open the person (menu on the name).
+	CreatedBy *int64    `json:"-"`
+	Author    string    `json:"author"`
+	AuthorID  *int64    `json:"author_id,omitempty"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
 	// computed for the caller
 	DescriptionHTML string `json:"description_html"`
 	CanEdit         bool   `json:"can_edit"`
@@ -553,6 +556,26 @@ func pickText(m map[string]string, lang string) string {
 }
 
 func (c *calendar) canCreate() bool { return c.Perms&acl.Create != 0 && c.Perms&acl.View != 0 }
+
+// authors sets the ids of the organisers the caller may open (one query).
+func (p *Plugin) authors(ctx context.Context, list []*Event) error {
+	var ids []int64
+	for _, e := range list {
+		if e.CreatedBy != nil {
+			ids = append(ids, *e.CreatedBy)
+		}
+	}
+	refs, err := p.host.Content.PeopleRefs(ctx, ids)
+	if err != nil {
+		return err
+	}
+	for _, e := range list {
+		if e.CreatedBy != nil {
+			e.AuthorID = refs[*e.CreatedBy].ID
+		}
+	}
+	return nil
+}
 
 // decorate fills computed fields of an event for the caller.
 func (c *calendar) decorate(ctx context.Context, e *Event) {

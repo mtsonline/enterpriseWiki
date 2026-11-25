@@ -1,5 +1,6 @@
 // Category settings: texts, default page, permissions, history and rollback.
 import { editorToolsField } from '../components/editorTools';
+import { personName } from '../components/person';
 import { placementEditor } from '../components/placement';
 import { shortOnlyBox, shortURLInput } from '../components/shorturl';
 import { api } from '../core/api';
@@ -211,7 +212,7 @@ async function permissions(panel: HTMLElement, c: Category): Promise<void> {
 
 /** Open access requests: grant (a permission rule for the person) or decline. */
 async function accessRequests(c: Category): Promise<HTMLElement | null> {
-  let list: { id: number; user: string; message: string; created_at: string }[] = [];
+  let list: { id: number; user: string; user_id?: number; message: string; created_at: string }[] = [];
   try { list = await api.get<typeof list>(`categories/${c.id}/access-requests`); } catch { return null; }
   if (!list.length) return null;
   const sec = h('section', { class: 'ew-section ew-access-requests', 'aria-labelledby': 'ew-ar-h' }, h('h2', { id: 'ew-ar-h' }, t('access.open', { n: list.length })));
@@ -225,7 +226,7 @@ async function accessRequests(c: Category): Promise<HTMLElement | null> {
       } catch (e) { toast(errorText(e), 'error'); }
     };
     ul.append(h('li', { class: 'ew-access-request' },
-      h('p', null, h('strong', null, r.user), ' · ', fmtDate(r.created_at, state.lang)),
+      h('p', null, h('strong', null, personName(r.user, r.user_id)), ' · ', fmtDate(r.created_at, state.lang)),
       r.message ? h('blockquote', null, r.message) : null,
       h('div', { class: 'ew-actions', role: 'group', 'aria-label': t('access.answer_for', { user: r.user }) },
         button(t('access.grant_read'), () => void answer(true, 'reader'), { variant: 'primary', ariaLabel: `${t('access.grant_read')}: ${r.user}` }),

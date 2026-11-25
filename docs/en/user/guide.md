@@ -537,7 +537,7 @@ Depending on the setup you sign in with user name and password (local account or
 
 ## People
 
-Wherever a person is named (under a page, in the history, in comments, in cases of processes, on team pages and in the people blocks, in the trash and in the administration), the name is a button – if you may open this person. It opens a menu:
+Wherever a person is named (under a page, in the history, in comments and drafts, in cases of processes, as the author of posts and events, on team pages and in the people blocks, in form submissions, access requests, the trash and the administration), the name is a button – if you may open this person. It opens a menu:
 
 - **Open profile:** the page of the person (`/people/…`) with the business card: photo (as the person allows), function, department, phone, mobile, office, "About me".
 - **Send e-mail:** only when you may see the address (see below). It opens your e-mail program.
