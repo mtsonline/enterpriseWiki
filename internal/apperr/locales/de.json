@@ -724,6 +724,7 @@
  "rule not found": "Regel nicht gefunden",
  "rules is required (an empty list removes all rules)": "rules ist Pflicht (eine leere Liste entfernt alle Regeln)",
  "saving templates for everybody needs the permission %q": "Vorlagen für alle speichern braucht das Recht %q",
+ "scheme: one of system, light, dark (or empty for the default)": "scheme: system, light oder dark (oder leer für die Vorgabe)",
  "scope: org or mine": "scope: org oder mine",
  "scope: org, all or mine": "scope: org, all oder mine",
  "search source: enter a search term": "Such-Quelle: bitte einen Suchbegriff eingeben",
