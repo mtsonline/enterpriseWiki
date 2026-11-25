@@ -477,6 +477,10 @@ th .ew-help { font-weight: 400; }
 .ew-table--compact td.ew-actions { white-space: normal; min-width: 8rem; line-height: 1.9; }
 .ew-nowrap { white-space: nowrap; }
 .ew-table--compact td.ew-actions > * { margin: 0 .6rem 0 0; }
+/* the preview keeps its height while an image loads or changes: otherwise the
+   buttons below jump when the field loses focus, and a click on "Save" lands
+   elsewhere (found by the browser test with a real image) */
+.ew-image-preview { min-height: calc(8rem + .5rem + 2px); display: flex; align-items: center; }
 .ew-image-preview img { max-width: 16rem; max-height: 8rem; border: 1px solid var(--ew-border); border-radius: 6px; margin: .25rem 0; background: repeating-conic-gradient(var(--ew-checker-a) 0 25%, var(--ew-checker-b) 0 50%) 0 0/16px 16px; }
 .ew-color-input { width: 4rem; height: 2.4rem; padding: .15rem; }
 
