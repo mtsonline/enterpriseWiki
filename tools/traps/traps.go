@@ -281,8 +281,8 @@ var traps = []trap{
 	{
 		ID: "template.contrast", About: "colors without enough contrast are saved",
 		File: "plugins/core_template/design.go",
-		Old:  "if c := Contrast(colors[p.Fore], colors[p.Back]); c < p.Min() {",
-		New:  "if c := Contrast(colors[p.Fore], colors[p.Back]); c < 0 {",
+		Old:  "if c := Contrast(colors[pair.Fore], colors[pair.Back]); c < pair.Min() {",
+		New:  "if c := Contrast(colors[pair.Fore], colors[pair.Back]); c < 0 {",
 		Pkg:  "./plugins/core_template/", Tests: "^TestDesignProblems$",
 	},
 	{
