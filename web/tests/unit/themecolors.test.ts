@@ -60,7 +60,7 @@ for (const [name, v] of [['light', light], ['dark', dark]] as const) {
 test('the dark scheme sets every color of the light one that depends on it', () => {
   const own = vars(base, 'body.ewc-dark');
   // colors that are the same in both schemes on purpose
-  const same = new Set(['--ew-frame-bg', '--ew-on-color', '--ew-inverse-bg', '--ew-inverse-text', '--ew-inverse-link', '--ew-hero-to', '--ew-cta-bg', '--ew-cta-text', '--ew-cta-hover']);
+  const same = new Set(['--ew-loading-dark', '--ew-frame-bg', '--ew-on-color', '--ew-inverse-bg', '--ew-inverse-text', '--ew-inverse-link', '--ew-hero-to', '--ew-cta-bg', '--ew-cta-text', '--ew-cta-hover']);
   for (const k of Object.keys(light)) if (!same.has(k)) assert.ok(own[k], `${k} has a dark value`);
 });
 
@@ -73,3 +73,9 @@ for (const [name, sel] of [['light', ':root'], ['dark', 'body.ewc-dark']] as con
     for (const [k, f] of fg) for (const b of bg) assert.ok(contrast(f, b) >= 4.5, `${k} ${f} on ${b}: ${contrast(f, b).toFixed(2)}`);
   });
 }
+
+test('a dark page loads on the dark background (no light flash, no other colour)', () => {
+  assert.equal(light['--ew-loading-dark'], dark['--ew-bg']);
+  assert.match(base, /html\[data-scheme="dark"\]:not\(\[data-shown\]\)\s*\{\s*background:\s*var\(--ew-loading-dark\)/);
+  assert.match(base, /prefers-color-scheme:\s*dark\)\s*\{\s*html\[data-scheme="system"\]:not\(\[data-shown\]\)\s*\{\s*background:\s*var\(--ew-loading-dark\)/);
+});

@@ -250,6 +250,26 @@ actions:
     examples:
       - name: default
         as: self
+  - id: core.scheme.set
+    category: CATEGORY_ACTION
+    method: PUT
+    path: /api/v1/scheme
+    success_status: 200
+    summary:
+      text:
+        en: "Choose light, dark or as the device is set (scheme system, light, dark; empty: the default of the template); kept in a cookie and, signed in, in the personal settings"
+        de: "Hell, dunkel oder wie das Gerät eingestellt ist wählen (scheme system, light, dark; leer: Vorgabe des Templates); bleibt in einem Cookie und angemeldet in den persönlichen Einstellungen"
+    public: true
+    safety: {changes: true}
+    cli: {command: [scheme, set]}
+    ui: {entry: /profile}
+    examples:
+      - name: default
+        as: self
+        body_json: '{"scheme": "dark"}'
+      - name: guest
+        as: guest
+        body_json: '{"scheme": "light"}'
   - id: core.me.password
     category: CATEGORY_ACTION
     method: PUT

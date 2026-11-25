@@ -48,7 +48,7 @@ func TestPrerenderForGuests(t *testing.T) {
 	admin.must("POST", "/api/v1/elements", map[string]any{"category_id": hidden.ID, "type": "core.html", "title": "Secret minutes", "body": htmlBody("<p>top secret</p>")}, &secret, 201)
 
 	body, hdr := e.guestPage(fmt.Sprintf("/e/%d", page.ID), "de-AT,de;q=0.9")
-	for _, want := range []string{`<html lang="en">`, `<title>Opening hours &lt;&amp;&gt; – Enterprise Wiki</title>`, `<meta name="description" content="We are open Monday to Friday from 8 to 17.">`,
+	for _, want := range []string{`<html lang="en"`, `<title>Opening hours &lt;&amp;&gt; – Enterprise Wiki</title>`, `<meta name="description" content="We are open Monday to Friday from 8 to 17.">`,
 		`rel="canonical"`, `<meta property="og:type" content="article">`, `<strong>Monday to Friday</strong>`, `<h1>Opening hours &lt;&amp;&gt;</h1>`} {
 		if !strings.Contains(body, want) {
 			t.Errorf("guest page lacks %q:\n%s", want, body)

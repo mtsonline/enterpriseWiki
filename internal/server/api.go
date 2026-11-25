@@ -143,6 +143,7 @@ func (s *Server) routes() {
 	s.routesElementRights()
 	s.routesMaintenance()
 	s.routesConsent()
+	s.routesScheme()
 	s.routesData()
 	s.routesPlacements()
 	s.routesNotifications()
@@ -1598,7 +1599,7 @@ func (s *Server) site(w http.ResponseWriter, r *http.Request) (any, error) {
 			frontend = append(frontend, p.ID)
 		}
 		if p.Active && slices.Contains(p.Kinds, coreplugin.KindTemplate) {
-			templates = append(templates, map[string]any{"id": p.ID, "name": p.Name})
+			templates = append(templates, map[string]any{"id": p.ID, "name": p.Name, "color_scheme": p.ColorScheme})
 		}
 	}
 	// templates offered by plugins (templates of data, core.template/12)
