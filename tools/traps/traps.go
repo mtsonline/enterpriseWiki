@@ -1756,8 +1756,8 @@ var traps = []trap{
 	{
 		ID: "people.team-ids", About: "team pages send the ids of members to guests and readers who may not open them",
 		File: "plugins/content_team/plugin.go",
-		Old:  "if uid := secs[i].Members[j].uid; ok[uid] {",
-		New:  "if uid := secs[i].Members[j].uid; ok[uid] || !ok[uid] {",
+		Old:  "if uid := m.uid; ok[uid] {",
+		New:  "if uid := m.uid; ok[uid] || !ok[uid] {",
 		Pkg:  "./internal/server/", Tests: "^TestPeople$",
 	},
 	{

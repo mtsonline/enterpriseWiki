@@ -300,10 +300,10 @@ func personIDs(ctx context.Context, hs *coreplugin.Host, secs []Section) ([]Sect
 	if err != nil {
 		return nil, err
 	}
-	for i := range secs {
-		for j := range secs[i].Members {
-			if uid := secs[i].Members[j].uid; ok[uid] {
-				secs[i].Members[j].ID = &uid
+	for _, s := range secs {
+		for j, m := range s.Members {
+			if uid := m.uid; ok[uid] {
+				s.Members[j].ID = &uid
 			}
 		}
 	}
