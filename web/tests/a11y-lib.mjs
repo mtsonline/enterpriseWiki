@@ -269,6 +269,50 @@ export const VARIANTS = {
   narrow: { css: FONT_RULE('"DejaVu Sans Condensed", "Liberation Sans Narrow", "Arial Narrow", "Source Sans 3 Variable", sans-serif') },
 };
 
+/**
+ * Layout shift while a page loads (the measure of the browser, as in the web
+ * vitals): a new page of the given browser context opens url with an empty
+ * cache, waits for the network, the fonts and two frames, and returns the sum
+ * of the shifts with the elements that moved. Nothing may jump while a page
+ * builds up: a click aimed at a button would land elsewhere. CLS_LIMIT is
+ * the limit per page (0.1 counts as good for the web vitals; we allow half).
+ */
+export const CLS_LIMIT = 0.05;
+export async function layoutShift(ctx, url) {
+  const p = await ctx.newPage();
+  try {
+    await p.addInitScript(() => {
+      window.__shift = [];
+      const add = (list) => {
+        for (const e of list) {
+          if (e.hadRecentInput) continue;
+          window.__shift.push({ value: e.value, nodes: (e.sources ?? []).map((x) => {
+            const n = x.node;
+            const name = n?.nodeType === 1 ? `${n.localName}${n.className && typeof n.className === 'string' ? `.${n.className.trim().split(/\s+/).join('.')}` : ''}` : (n?.nodeName ?? '-');
+            return `${name} ${Math.round(x.previousRect.y)}→${Math.round(x.currentRect.y)}`;
+          }) });
+        }
+      };
+      window.__shiftObs = new PerformanceObserver((l) => add(l.getEntries()));
+      window.__shiftObs.observe({ type: 'layout-shift', buffered: true });
+      window.__shiftAdd = add;
+    });
+    await p.goto(url);
+    await p.waitForLoadState('networkidle');
+    await p.waitForFunction(() => !document.querySelector('main[aria-busy="true"]'));
+    const shifts = await p.evaluate(async () => {
+      await document.fonts.ready;
+      await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+      window.__shiftAdd(window.__shiftObs.takeRecords());
+      return window.__shift;
+    });
+    const sum = shifts.reduce((a, e) => a + e.value, 0);
+    return { sum, text: shifts.map((e) => `${e.value.toFixed(3)}: ${e.nodes.join(', ')}`).join(' | ') };
+  } finally {
+    await p.close();
+  }
+}
+
 /** Applies a variant to the loaded page (until the next navigation). */
 export async function applyVariant(pg, name) {
   await pg.addStyleTag({ content: VARIANTS[name].css });

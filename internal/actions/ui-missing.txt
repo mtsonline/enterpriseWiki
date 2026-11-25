@@ -45,7 +45,6 @@ core.license.install
 core.license.remove
 core.me.identities.link
 core.me.identities.unlink
-core.me.inbox.read
 core.media.download
 core.media.open
 core.menu.delete

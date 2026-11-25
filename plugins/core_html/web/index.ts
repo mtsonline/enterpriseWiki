@@ -5,7 +5,7 @@
 //   simple  a minimal contenteditable editor (HTML, converted on save)
 // The server sanitizes everything on save and render, so the editors are not
 // a security boundary; HTML for editing comes sanitized from the server.
-import { api, button, editorKind, state, errorText, formatAttrs, macroDialog, field, formDialog, h, isImage, loadMarkdownEditor, loading, mediaURL, pickMedium, registerEditor, registerSlot, registerTaskSection, select, t, textInput, tile, toast, toolShown, trustedHTML, type EditorContext, type EditorInstance, type MarkdownEditor } from '@ewiki/coreplugin';
+import { api, button, editorKind, state, errorText, formatAttrs, macroDialog, field, formDialog, h, holdView, isImage, loadMarkdownEditor, loading, mediaURL, pickMedium, registerEditor, registerSlot, registerTaskSection, select, t, textInput, tile, toast, toolShown, trustedHTML, type EditorContext, type EditorInstance, type MarkdownEditor } from '@ewiki/coreplugin';
 import { macroAt, macroHTML, parseParams } from './macros';
 import './style.css';
 
@@ -86,9 +86,11 @@ export function createVisualEditor(container: HTMLElement, body: unknown, ctx: C
   let ed: MarkdownEditor | null = null;
   let gone = false;
   let fallback: EditorInstance | null = null;
-  (async () => {
+  // the page is shown with the editor in place (nothing moves when it arrives)
+  holdView((async () => {
     const md = b.format === 'html' ? await toMarkdown(b.source) : b.source;
     const mod = await loadMarkdownEditor();
+    await mod.editorReady();
     if (gone) return;
     box.replaceChildren();
     // live editing of existing pages (if the site allows it)
@@ -101,7 +103,7 @@ export function createVisualEditor(container: HTMLElement, body: unknown, ctx: C
     // e.g. the editor file could not be loaded: the simple editor still works
     box.replaceChildren(h('p', { class: 'ew-form-alert', role: 'alert' }, t('core.html.editor_failed', { error: errorText(e) })),
       button(t('core.html.use_simple'), () => { box.replaceChildren(); fallback = createSimpleEditor(box, body, ctx); }));
-  });
+  }));
   return {
     getBody: () => (ed ? { format: 'markdown', source: ed.getMarkdown() } : fallback ? fallback.getBody() : b),
     saved: (rev: number) => ed?.saved(rev),

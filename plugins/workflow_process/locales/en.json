@@ -541,7 +541,7 @@
  "workflow.ev.membership_remove": "removed from the group → {step}",
  "workflow.ev.move": "page moved → {step}",
  "workflow.admin.form_accounts": "Permissions and groups from values of the start form",
- "workflow.admin.form_accounts_help": "Off (recommended): the steps Permissions and Group membership refuse a person taken from the start form of a case started by hand, because whoever starts the case chooses it. Triggers, other workflows, fixed values and {{starter.username}} always work.",
+ "workflow.admin.form_accounts_help": "Off (recommended): the steps Permissions and Group membership do not take a person from the start form of a case started by hand. Whoever starts the case chooses that person. Triggers, other workflows, fixed values and {{starter.username}} always work.",
  "workflow.steptype.file": "Write a file",
  "workflow.steptype.calendar": "Calendar entry",
  "workflow.file_help": "Writes a document from a template into the media library – with the rights of the chosen person (upload into the category).",

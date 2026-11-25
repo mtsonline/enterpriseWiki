@@ -18,7 +18,7 @@
 import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { chromium } from 'playwright';
-import { axeSource, checkPage, checkSkipLink, variantFindings } from './a11y-lib.mjs';
+import { axeSource, checkPage, checkSkipLink, variantFindings, layoutShift, CLS_LIMIT } from './a11y-lib.mjs';
 
 const BASE = process.env.EWIKI_E2E_URL ?? 'http://localhost:8080';
 const USER = process.env.EWIKI_E2E_USER ?? 'admin';
@@ -140,42 +140,28 @@ test('administration pages', async () => {
   assert.deepEqual(found, [], found.join('\n\n'));
 });
 
-// Fonts may arrive after the first paint (font-display: swap; the two used
-// at once are preloaded): the text must not move the controls when they do
-// (a click would land elsewhere). The layout shifts of the browser while a
-// page loads, with an empty cache, stay below 0.05 (0.1 counts as good for
-// the web vitals). As a guest: signed in, the tools of a page still arrive
-// after its content and move it (known, not caused by the fonts).
-test('nothing moves while a page and its fonts load', async () => {
+// Nothing moves while a page, its blocks and its fonts load (a click would
+// land elsewhere): the layout shift of each page stays below CLS_LIMIT, as a
+// guest and signed in (start page, a page, the editor, the administration).
+test('nothing moves while a page loads', async () => {
   const found = [];
-  const el = await page.locator('.ew-tree a').first().getAttribute('href').catch(() => '/');
+  await page.goto(BASE + '/');
+  await idle();
+  const cat = await page.locator('.ew-tree a').first().getAttribute('href');
+  await page.goto(BASE + cat);
+  await idle();
+  const el = await page.locator('main a[href^="/e/"]').first().getAttribute('href').catch(() => null);
+  const guest = ['/', '/login', '/search?q=wiki', cat, ...(el ? [el] : [])];
+  const signedIn = ['/', cat, '/dashboard', '/admin', '/profile', ...(el ? [el, `${el}/edit`] : [])];
   for (const width of [390, 1280]) {
-    for (const path of ['/', el ?? '/', '/login', '/search?q=wiki']) {
-      const ctx2 = await browser.newContext({ viewport: { width, height: 900 } });
-      const p2 = await ctx2.newPage();
-      await p2.addInitScript(() => {
-        window.__shift = [];
-        const add = (list) => {
-          for (const e of list) {
-            if (!e.hadRecentInput) window.__shift.push({ value: e.value, nodes: (e.sources ?? []).map((s) => s.node?.outerHTML?.slice(0, 80) ?? '-') });
-          }
-        };
-        window.__shiftObs = new PerformanceObserver((l) => add(l.getEntries()));
-        window.__shiftObs.observe({ type: 'layout-shift', buffered: true });
-        window.__shiftAdd = add;
-      });
-      await p2.goto(BASE + path);
-      await p2.waitForLoadState('networkidle');
-      // after the fonts and two frames, with the entries not yet delivered
-      const shifts = await p2.evaluate(async () => {
-        await document.fonts.ready;
-        await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
-        window.__shiftAdd(window.__shiftObs.takeRecords());
-        return window.__shift;
-      });
-      const sum = shifts.reduce((a, e) => a + e.value, 0);
-      if (sum >= 0.05) found.push(`${path} at ${width} px: layout shift ${sum.toFixed(3)}: ${shifts.map((e) => `${e.value.toFixed(3)} ${e.nodes.join(', ')}`).join(' | ')}`);
-      await ctx2.close();
+    for (const [who, paths] of [['guest', guest], ['signed in', signedIn]]) {
+      const c = await browser.newContext({ viewport: { width, height: 900 }, ...(who === 'guest' ? {} : { storageState: await ctx.storageState() }) });
+      try {
+        for (const path of paths) {
+          const r = await layoutShift(c, BASE + path);
+          if (r.sum >= CLS_LIMIT) found.push(`${path} (${who}, ${width} px): layout shift ${r.sum.toFixed(3)}: ${r.text}`);
+        }
+      } finally { await c.close(); }
     }
   }
   assert.deepEqual(found, [], found.join('\n'));
