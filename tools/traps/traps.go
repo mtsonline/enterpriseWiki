@@ -151,8 +151,8 @@ var traps = []trap{
 	{
 		ID: "scheme.light-only-template", About: "a template with light colours only is switched to dark",
 		File: "internal/server/scheme.go",
-		Old:  "\tif !s.app.Kernel.IsTemplate(id) {\n\t\treturn \"\"\n\t}",
-		New:  "\tif !s.app.Kernel.IsTemplate(id) {\n\t\treturn \"system\"\n\t}",
+		Old:  "\t\treturn s.app.Content.TemplateColorScheme(ctx, id)",
+		New:  "\t\treturn \"system\"",
 		Pkg:  "./internal/server/", Tests: "^TestColorScheme$",
 	},
 	{
