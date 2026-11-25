@@ -32,7 +32,16 @@ type Notification struct {
 	EntityID   *int64     `json:"entity_id"`
 	CreatedAt  time.Time  `json:"created_at"`
 	ReadAt     *time.Time `json:"read_at"`
+	// Popup: shown once as a dialog on the next page load of the recipient
+	// (then marked read); it stays in the list of notifications.
+	Popup bool `json:"popup"`
 }
+
+// Lengths of the text of a pop-up (plain text; longer ones are cut).
+const (
+	PopupTitleMax = 200
+	PopupBodyMax  = 2000
+)
 
 // Message is what is sent; Title and Body are built per recipient (language).
 type Message struct {
@@ -42,6 +51,10 @@ type Message struct {
 	Link       string
 	// Text returns title and body in the language of the recipient.
 	Text func(lang string) (title, body string)
+	// Popup: the recipient sees the message once as a dialog on the next
+	// page load as well (plain text, at most PopupTitleMax and PopupBodyMax
+	// characters).
+	Popup bool
 }
 
 // RegisterKind declares a kind of notification; users can switch its
@@ -115,8 +128,11 @@ func (s *Service) SendQ(ctx context.Context, q db.Querier, userIDs []int64, m Me
 	n := 0
 	for _, u := range us {
 		title, body := m.Text(u.Lang)
-		if _, err := q.Exec(ctx, `INSERT INTO notifications(user_id, kind, title, body, link, actor_id, entity_type, entity_id) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`,
-			u.ID, m.Kind, title, body, m.Link, actorID, m.EntityType, eid); err != nil {
+		if m.Popup {
+			title, body = cut(title, PopupTitleMax), cut(body, PopupBodyMax)
+		}
+		if _, err := q.Exec(ctx, `INSERT INTO notifications(user_id, kind, title, body, link, actor_id, entity_type, entity_id, popup) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
+			u.ID, m.Kind, title, body, m.Link, actorID, m.EntityType, eid, m.Popup); err != nil {
 			return 0, err
 		}
 		n++
@@ -143,21 +159,49 @@ func (s *Service) List(ctx context.Context, limit int) ([]Notification, int, err
 	if limit <= 0 || limit > 200 {
 		limit = 30
 	}
-	rows, err := s.pool.Query(ctx, `SELECT n.id, n.kind, n.title, n.body, n.link, COALESCE(u.display_name, ''), n.entity_type, n.entity_id, n.created_at, n.read_at
-		FROM notifications n LEFT JOIN users u ON u.id = n.actor_id WHERE n.user_id=$1 ORDER BY n.created_at DESC, n.id DESC LIMIT $2`, uid, limit)
+	rows, err := s.pool.Query(ctx, `SELECT `+notifCols+` FROM notifications n LEFT JOIN users u ON u.id = n.actor_id
+		WHERE n.user_id=$1 ORDER BY n.created_at DESC, n.id DESC LIMIT $2`, uid, limit)
 	if err != nil {
 		return nil, 0, err
 	}
-	list, err := pgx.CollectRows(rows, func(r pgx.CollectableRow) (Notification, error) {
-		var n Notification
-		return n, r.Scan(&n.ID, &n.Kind, &n.Title, &n.Body, &n.Link, &n.Actor, &n.EntityType, &n.EntityID, &n.CreatedAt, &n.ReadAt)
-	})
+	list, err := pgx.CollectRows(rows, scanNotification)
 	if err != nil {
 		return nil, 0, err
 	}
 	var unread int
 	err = s.pool.QueryRow(ctx, `SELECT count(*) FROM notifications WHERE user_id=$1 AND read_at IS NULL`, uid).Scan(&unread)
 	return list, unread, err
+}
+
+// Popups returns the unread pop-ups of the caller, oldest first, at most
+// limit: the interface shows each once as a dialog and marks it read.
+func (s *Service) Popups(ctx context.Context, limit int) ([]Notification, error) {
+	uid := identity.From(ctx).ID()
+	if uid <= 0 {
+		return nil, apperr.ErrUnauthorized
+	}
+	// only the recipient's own
+	rows, err := s.pool.Query(ctx, `SELECT `+notifCols+` FROM notifications n LEFT JOIN users u ON u.id = n.actor_id
+		WHERE n.user_id=$1 AND n.popup AND n.read_at IS NULL ORDER BY n.created_at, n.id LIMIT $2`, uid, max(limit, 1))
+	if err != nil {
+		return nil, err
+	}
+	return pgx.CollectRows(rows, scanNotification)
+}
+
+const notifCols = `n.id, n.kind, n.title, n.body, n.link, COALESCE(u.display_name, ''), n.entity_type, n.entity_id, n.created_at, n.read_at, n.popup`
+
+func scanNotification(r pgx.CollectableRow) (Notification, error) {
+	var n Notification
+	return n, r.Scan(&n.ID, &n.Kind, &n.Title, &n.Body, &n.Link, &n.Actor, &n.EntityType, &n.EntityID, &n.CreatedAt, &n.ReadAt, &n.Popup)
+}
+
+// cut shortens a text to at most n characters (runes).
+func cut(s string, n int) string {
+	if r := []rune(s); len(r) > n {
+		return string(r[:n-1]) + "…"
+	}
+	return s
 }
 
 // MarkRead marks notifications (nil: all) of the caller as read.

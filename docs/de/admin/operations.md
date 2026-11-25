@@ -268,23 +268,41 @@ ewiki file upload --file file=@notizen.txt  # Hochladen (multipart): --form NAME
 
 ## Demo-Inhalte und Zurücksetzen
 
-Unter *Administration → Demo* (nur Administratoren) legt **Demo anlegen** einen Bereich „Demo: Enterprise Wiki“ an,
-der möglichst alle Funktionen zeigt: Rundgang-Seite mit Makros (Inhaltsverzeichnis, Hinweis-Boxen, Status-Labels,
-Spalten, Aufklappbereiche, Galerie, Unterseiten, zuletzt geändert, nächste Termine), Seiteneigenschaften, Kommentare
-mit @Erwähnungen, Reaktionen und Favorit, Markdown-Seite, Website-Bausteine, Blog, FAQ, Veranstaltungskalender mit
-Serie und Anmeldung, Teamseite, Medien (unsichtbare Kategorie als Ordner, Bilder, PDF nur zur Ansicht mit
-Wasserzeichen, Word-Datei für das Office-Programm), Datei-Element, Ablauf, Eigenschaften-Bericht,
-Kategorieübersicht, Wiki-Bausteine (Seite einbinden, Suchfeld, Seitenbaum, Seite aus Vorlage), Kurz-URL `/demo`,
-ein Menü, ein Textblock, ein Karussell, das nur für die Kategorie *Karussell-Demo* platziert ist (nur für angemeldete
-Benutzer), und eine Seite *So ist die Demo aufgebaut*, die für jeden Teil außerhalb der Seiten sagt, was er zeigt, wo
-er platziert ist und wo man ihn ändert. Was ein deaktiviertes Plugin braucht, wird
-ausgelassen; die Meldung nach dem Anlegen nennt die ausgelassenen Teile (in der API das Feld `skipped` der Antwort
-auf `POST /api/v1/admin/demo`).
+Unter *Administration → Demo* (nur Administratoren) legt **Demo anlegen** einen Bereich „Demo: Enterprise Wiki“
+(Schlüssel `DEMO`, Kurz-URL `/demo`) mit zwei Wegen ins Wiki an:
+
+- **Beispiel-Firma** („Enterprise IT Services“, ein erfundener IT-Dienstleister): ein Intranet, wie es eine Firma nutzt –
+  Startseite mit Schnellzugriffen, Neuigkeiten (Blog mit Kommentar, @Erwähnung und Reaktion), Termine mit Anmeldung
+  und Serie, Teams (Teamseite, Entscheidungsprotokoll, Aufgaben im Text, Kalender der Teams, gemeinsame Notizen),
+  Handbuch (Darstellung *Handbuch*), Wissensdatenbank (FAQ mit Sofortsuche), Formulare und Abläufe (Urlaubsantrag
+  mit Entscheidung der Teamleitung und Eintrag im Kalender, interne Bewerbung mit Lebenslauf, Vorprüfung durch das
+  Personal, Entscheidung der Teamleitung und der Antwort als Pop-up im Wiki, Geräteantrag, Einarbeitung, Ideenbox mit öffentlichen
+  Ergebnissen, Kontaktformular, weitere Workflows mit Auslösern), Projekte (Eigenschaften, Projekt-Datenbank,
+  Berichte), Dokumente (vertraulich eingestuft, PDF nur zur Ansicht mit Wasserzeichen, Word-Datei für das
+  Office-Programm, eine Seite mit eigenen Rechten) und Kategorien als Karten, Tabelle und „alles auf einer Seite“.
+  Ein kurzer Hinweis „So funktioniert das“ erklärt die Funktion dort, wo sie genutzt wird, und verweist auf die
+  passende Station des Rundgangs. Die Demo-Konten der Teamleitung entscheiden Anträge; damit Sie Urlaubsantrag und
+  Bewerbung selbst ganz durchspielen können, gehört das Administratorkonto, das die Demo anlegt, für die Dauer der
+  Demo zu den Gruppen „Demo: Verwaltung“ und „Demo: Teamleitung“.
+- **Rundgang durch die Funktionen**: eine Station je Funktion, jede eine Seite mit immer demselben Aufbau – was es
+  ist, *So geht's* (die Schritte), *So sieht es aus* (das Ergebnis live auf der Seite), *Wofür Sie es nutzen* und
+  bei Bedarf *Gut zu wissen*. Die Kategorie hat die Darstellung *Handbuch*: alle Stationen stehen in der
+  Seitenspalte, am Ende jeder Seite führen *Zurück* und *Weiter* zur vorigen und nächsten Station. Die Station
+  *Menüs, Platzierung und Karussell* sagt für jeden Teil außerhalb der Seiten (Menü, Baustein „Empfang“, Hell und
+  dunkel, Karussell, Handbuch), was er zeigt, wo er platziert ist und wo man ihn ändert.
+
+Was ein deaktiviertes Plugin braucht, wird ausgelassen (auch die Station dazu); die Meldung nach dem Anlegen nennt
+die ausgelassenen Teile (in der API das Feld `skipped` der Antwort auf `POST /api/v1/admin/demo`). Ein Test prüft
+die Mindestregeln der Demo: jede Seite auf Deutsch und Englisch, ohne Fehler in Bausteinen, ohne tote Links, nur
+Beispiel-Adressen (`example.com`), jede Station mit demselben Aufbau und ohne Lücke in der Reihenfolge; die
+Browser-Tests prüfen jede Seite mit axe, hell und dunkel.
 
 - **Startseite:** Die Demo setzt ihre Seite *Enterprise Wiki auf einen Blick* als Startseite der Website (Kurz-URL
-  `/willkommen`, in einem Wiki mit Englisch als Grundsprache `/welcome`): die wichtigsten Funktionen in Worten und der
-  Einstieg in den Rundgang, ohne Pfad, Seitendetails und Kommentare. **Demo entfernen** stellt die vorige Startseite
-  wieder her, außer sie wurde inzwischen unter *Administration → Einstellungen* geändert.
+  `/willkommen`, in einem Wiki mit Englisch als Grundsprache `/welcome`, Template „CMS modern“): was neugierig
+  macht, Einsatzbereiche (Intranet, Handbuch, Wissensdatenbank, Abläufe und Formulare, Hochschule, Website) als
+  Einstieg in die passende Stelle der Demo, die Highlights und die beiden Wege in die Demo – ohne Pfad, Seitendetails
+  und Kommentare. **Demo entfernen** stellt die vorige Startseite wieder her, außer sie wurde inzwischen unter
+  *Administration → Einstellungen* geändert.
 - Die **Demo-Konten** (`demo-anna`, `demo-ben`, …) haben keine Anmeldung (Anbieter `demo`), keine E-Mail-Adresse
   und zählen nicht zur Lizenz.
 - Alles, was die Demo anlegt, wird in `demo_objects` vermerkt. **Demo entfernen** löscht genau das restlos:

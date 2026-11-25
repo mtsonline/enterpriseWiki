@@ -35,6 +35,7 @@ const (
 	CategoryFeatured   = "core.categories.featured"
 	CategoryFull       = "core.categories.full"
 	IncludesPerPage    = "core.content.includes_per_page"
+	NotifyPopups       = "core.notify.popups"
 )
 
 // LargeBody is the size from which a request counts as large (limited
@@ -89,6 +90,8 @@ func init() {
 			Label: "Persons per page", Help: "How many persons edit one page together at the same time. Further ones see the page and are told that it is full."},
 		Def{Key: LivePerPerson, Group: "live", Unit: "count", Default: 5, Min: 1, Max: 50,
 			Label: "Connections per person and page", Help: "How many windows or devices of one person edit the same page at once."},
+		Def{Key: NotifyPopups, Group: "mail", Unit: "count", Default: 3, Min: 1, Max: 20,
+			Label: "Pop-ups per page load", Help: "How many unread pop-up notifications a person sees at most when a page loads; further ones follow on the next page loads."},
 		Def{Key: WatchQuietSeconds, Group: "mail", Unit: "seconds", Default: 120, Min: 0, Max: 3600,
 			Label: "Quiet period of watch notifications", Help: "How long after the last change of an object an immediate watch notification waits, so that several saves in a row become one e-mail."},
 		Def{Key: RollbackChanges, Group: "database", Unit: "count", Default: 10000, Min: 100, Max: 1000000,

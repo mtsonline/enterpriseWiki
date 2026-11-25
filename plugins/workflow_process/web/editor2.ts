@@ -94,9 +94,18 @@ const fieldOptions = (kit: Kit, dateOnly = false) => kit.fields().filter((f) => 
 
 /** Recipients, subject, text and channel of a message. */
 function messageFields(kit: Kit, n: NotifySpec): HTMLElement[] {
+  // also once as a dialog on the next page load (not by e-mail only)
+  const popup = checkbox(t('workflow.notify_popup'), !!n.popup, { help: t('workflow.notify_popup_help') });
+  popup.input.addEventListener('change', () => { n.popup = popup.input.checked || undefined; });
+  popup.input.disabled = n.channel === 'email';
   return [
     grid(field(t('workflow.notify_to'), kit.text(() => n.to, (v) => { n.to = v; }, { max: 1000, ph: true }), { required: true, help: t('workflow.notify_to_help') }),
-      field(t('workflow.notify_channel'), sel<Channel>(['both', 'inbox', 'email'], n.channel ?? 'both', (c) => t(`workflow.channel.${c}`), (c) => { n.channel = c; }))),
+      field(t('workflow.notify_channel'), sel<Channel>(['both', 'inbox', 'email'], n.channel ?? 'both', (c) => t(`workflow.channel.${c}`), (c) => {
+        n.channel = c;
+        popup.input.disabled = c === 'email';
+        if (c === 'email') { popup.input.checked = false; n.popup = undefined; }
+      }))),
+    popup.el,
     field(t('workflow.email_subject'), kit.text(() => n.subject, (v) => { n.subject = v; }, { max: 250, ph: true }), { required: true }),
     field(t('workflow.email_body'), kit.area(() => n.body, (v) => { n.body = v; }, 4, true)),
   ];

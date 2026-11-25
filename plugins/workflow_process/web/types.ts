@@ -9,7 +9,7 @@ export interface WebhookSpec { url: string; method?: string; secret?: string; se
 export interface DelaySpec { days?: number; hours?: number; until?: string }
 export type StepType = 'task' | 'approval' | 'condition' | 'email' | 'notify' | 'set' | 'webhook' | 'http' | 'create' | 'props' | 'file' | 'calendar' | 'access' | 'membership' | 'move' | 'subflow' | 'parallel' | 'delay' | 'end';
 export type Channel = 'inbox' | 'email' | 'both';
-export interface NotifySpec { to: string; subject: string; body?: string; channel?: Channel }
+export interface NotifySpec { to: string; subject: string; body?: string; channel?: Channel; popup?: boolean }
 export interface Notice extends NotifySpec { on: 'enter' | 'leave' }
 export interface Assign { field: string; value?: string; formula?: string }
 export interface HTTPSpec { url: string; method?: string; body?: string; map?: Record<string, string> }

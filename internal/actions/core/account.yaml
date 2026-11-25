@@ -765,6 +765,21 @@ actions:
       - name: default
         given: ['core.share.send#to_self']
         as: self
+  - id: core.me.inbox.popups
+    category: CATEGORY_ACTION
+    method: GET
+    path: /api/v1/me/inbox/popups
+    success_status: 200
+    summary:
+      text:
+        en: List your unread pop-up notifications (shown once as a dialog)
+        de: Eigene ungelesene Pop-up-Benachrichtigungen auflisten (einmal als Dialog gezeigt)
+    signed_in: true
+    cli: {command: [me, inbox, popups]}
+    ui: {entry: /}
+    examples:
+      - name: default
+        as: self
   - id: core.me.inbox.read
     category: CATEGORY_ACTION
     method: POST

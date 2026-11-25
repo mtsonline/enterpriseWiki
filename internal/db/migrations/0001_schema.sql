@@ -803,7 +803,9 @@ CREATE TABLE notifications (
     entity_type text NOT NULL DEFAULT '',
     entity_id   bigint,
     created_at  timestamptz NOT NULL DEFAULT now(),
-    read_at     timestamptz
+    read_at     timestamptz,
+    -- shown once as a dialog on the next page load of the recipient
+    popup       boolean NOT NULL DEFAULT false
 );
 CREATE INDEX notifications_user ON notifications(user_id, created_at DESC);
 CREATE INDEX notifications_unread ON notifications(user_id) WHERE read_at IS NULL;

@@ -296,6 +296,8 @@ img { max-width: 100%; height: auto; }
 
 .ew-form { display: grid; gap: .25rem; max-width: 52rem; }
 .ew-field { display: grid; gap: .25rem; margin-bottom: .75rem; }
+/* the editor never widens the page: wide blocks (grids, tables, tool rows) stay inside its column */
+.ew-field > .ew-editor-box { min-width: 0; }
 .ew-field--inline { display: flex; align-items: center; gap: .5rem; flex-wrap: wrap; }
 .ew-field label, .ew-label { font-weight: 600; }
 .ew-input {
@@ -797,6 +799,15 @@ html { scroll-padding-top: calc(var(--ew-sticky-top, var(--ew-header-h)) + .5rem
 .ew-handbook-list { list-style: none; padding: 0; margin: 0 0 1rem; }
 .ew-handbook-list a { display: block; padding: 0.3rem 0.5rem; border-radius: 4px; }
 .ew-handbook a[aria-current="page"] { font-weight: 700; background: var(--ew-bg-subtle); border-left: 4px solid currentColor; }
+/* previous and next page of a handbook: two boxes, one below the other on a phone */
+.ew-pagenav { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 14rem), 1fr)); gap: 0.75rem; margin: 2rem 0 1rem; }
+.ew-pagenav-link { display: flex; flex-direction: column; gap: 0.15rem; padding: 0.75rem 1rem; border: 1px solid var(--ew-border); border-radius: 8px; text-decoration: none; }
+.ew-pagenav-link:hover .ew-pagenav-title, .ew-pagenav-link:focus-visible .ew-pagenav-title { text-decoration: underline; }
+.ew-pagenav-next { text-align: end; }
+.ew-pagenav-label { font-size: 0.875rem; color: var(--ew-text-muted, var(--ew-text)); }
+.ew-pagenav-prev .ew-pagenav-label::before { content: "← "; }
+.ew-pagenav-next .ew-pagenav-label::after { content: " →"; }
+.ew-pagenav-title { font-weight: 600; }
 .ew-pager { display: flex; gap: 0.75rem; align-items: center; flex-wrap: wrap; margin-top: 1rem; }
 /* targets of at least 24 × 24 px (WCAG 2.5.8) */
 .ew-tree-open { display: inline-flex; align-items: center; justify-content: center; min-width: 1.75rem; min-height: 1.75rem; text-decoration: none; }
