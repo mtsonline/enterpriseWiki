@@ -160,7 +160,10 @@ function findCovered() {
     for (let x = Math.ceil(v.x1); x < v.x2; x++) if (ok(document.elementFromPoint(x, cy))) left++;
     for (let y = Math.ceil(v.y1); y < v.y2; y++) if (ok(document.elementFromPoint(cx, y))) top++;
     const by = [...new Set(covered.map((c) => c.by))];
-    out.push(`${path(el)} ${short(el)} [box ${Math.round(v.full.x)},${Math.round(v.full.y)} ${Math.round(v.full.width)}x${Math.round(v.full.height)}; ` +
+    // text and font help when the layout differs between machines (CI)
+    const text = (el.textContent ?? '').replace(/\s+/g, ' ').trim().slice(0, 60);
+    const cs = getComputedStyle(el);
+    out.push(`${path(el)} ${short(el)}${text ? ` "${text}"` : ''} (${cs.fontSize} ${cs.fontFamily.split(',')[0]}) [box ${Math.round(v.full.x)},${Math.round(v.full.y)} ${Math.round(v.full.width)}x${Math.round(v.full.height)}; ` +
       `covered at ${covered.map((c) => `${c.x},${c.y}`).join(' ')}; visible about ${left}x${top} px${left < 28 || top < 28 ? ' (< 28)' : ''}] by ${by.map((b) => `${path(b)} ${short(b)}`).join(' | ')}`);
   }
   return out;

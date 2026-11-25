@@ -8,8 +8,14 @@
 // (welcome space). It changes nothing in the wiki except the colour scheme of
 // the user, which it sets back at the end.
 //
+// Each page is checked once more with a wide font (DejaVu Sans, light, 390
+// and 1280 px): the default font of the wiki is the system font, which differs
+// between machines (Inter here, a wider one in the CI). Text that only just
+// fits with a narrow font then overflows and covers its neighbour locally too.
+//
 // Optional: EWIKI_A11Y_ALL_ADMIN=1 checks every administration page (from its
-// navigation) at every width, not only the key ones.
+// navigation) at every width, not only the key ones. EWIKI_A11Y_WIDE_FONT
+// names the wide font ("" switches the pass off).
 import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { chromium } from 'playwright';
@@ -21,6 +27,8 @@ const PASSWORD = process.env.EWIKI_E2E_PASSWORD ?? 'Admin-Passw0rd!';
 const ALL_ADMIN = process.env.EWIKI_A11Y_ALL_ADMIN === '1';
 const WIDTHS = [390, 800, 1280];
 const SCHEMES = ['light', 'dark'];
+const WIDE_FONT = process.env.EWIKI_A11Y_WIDE_FONT ?? 'DejaVu Sans';
+const WIDE_WIDTHS = [390, 1280];
 // pages on which the focused skip link is checked as well
 const SKIP = new Set(['start page', 'page', 'guest start page']);
 
@@ -57,7 +65,10 @@ const call = (method, path, body) => page.evaluate(async ([method, path, body]) 
 /** Checks one page at every width and scheme; collects the findings instead of stopping at the first. */
 async function sweep(name, path, pg = page, schemes = SCHEMES, widths = WIDTHS) {
   const found = [];
-  for (const scheme of schemes) {
+  const passes = schemes.map((scheme) => ({ scheme, widths, font: '' }));
+  // pages checked at one width only get the wide font at that width
+  if (WIDE_FONT) passes.push({ scheme: 'light', widths: widths.length < WIDTHS.length ? widths : WIDE_WIDTHS, font: WIDE_FONT });
+  for (const { scheme, widths, font } of passes) {
     await pg.evaluate(async (s) => {
       await fetch('/api/v1/scheme', { method: 'PUT', headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'ewiki' }, body: JSON.stringify({ scheme: s }) });
     }, scheme);
@@ -65,7 +76,8 @@ async function sweep(name, path, pg = page, schemes = SCHEMES, widths = WIDTHS) 
       await pg.setViewportSize({ width, height: 900 });
       await pg.goto(BASE + path);
       await idle(pg);
-      const label = `${name} (${path}, ${width} px, ${scheme})`;
+      if (font) await pg.addStyleTag({ content: `:root { --ew-font: "${font}", Verdana, sans-serif !important; }` });
+      const label = `${name} (${path}, ${width} px, ${scheme}${font ? `, font ${font}` : ''})`;
       try { await checkPage(label, pg); } catch (e) { found.push(e.message); }
       if (SKIP.has(name)) {
         try { await checkSkipLink(label, pg); } catch (e) { found.push(e.message); }
