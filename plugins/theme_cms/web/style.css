@@ -202,6 +202,8 @@ body.ewc-dark .ewcms--light-logo .ewcms-logo-img--light { display: block; }
   }
   .ewcms-nav.is-open { display: flex; }
   .ewcms-nav-open .ewcms-burger { position: fixed; top: .6rem; right: .8rem; z-index: 61; color: var(--ewcms-heading); }
+  /* room for the close button at the top right: it would cover the tools of the top bar */
+  .ewcms-nav-open .ewcms-topbar-inner { padding-right: 3.6rem; }
   .ewcms-nav-open .ewcms-head { z-index: 70; }
   .ewcms-nav.is-open { box-shadow: 0 0 0 100vmax rgb(0 0 0 / .45); }
   .ewcms-nav-open, .ewcms-nav-open body { overflow: hidden; }

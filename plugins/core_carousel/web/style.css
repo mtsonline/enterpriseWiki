@@ -3,7 +3,9 @@
 .ewcar + .ewcar { margin-top: 1rem; }
 .ewcar-slide { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 3fr); min-height: 12rem; }
 .ewcar-slide:not(:has(.ewcar-img)) { grid-template-columns: 1fr; }
-.ewcar-img { width: 100%; height: 100%; max-height: 22rem; object-fit: cover; display: block; }
+/* contain: size: the image takes no height from its file, so the slide keeps its
+   height while it loads; it fills the height of the row (web/tests/unit/imgsize.test.ts) */
+.ewcar-img { width: 100%; min-height: 16rem; max-height: 22rem; align-self: stretch; contain: size; object-fit: cover; display: block; }
 .ewcar-caption { padding: 1rem 1.25rem 2.75rem; }
 .ewcar-title { margin: 0 0 .4rem; font-size: 1.25rem; }
 .ewcar-text { margin: 0 0 .5rem; }
@@ -13,5 +15,7 @@
 .ewcar-dots { position: absolute; left: 0; right: 0; bottom: .5rem; display: flex; justify-content: center; gap: .3rem; }
 .ewcar-dot { width: 1.5rem; height: 1.5rem; border-radius: 999px; border: 2px solid var(--ew-text); background: transparent; cursor: pointer; padding: 0; }
 .ewcar-dot[aria-current="true"] { background: var(--ew-text); }
+/* the room of the largest preview, so the fields below do not move when it loads */
+.ewcar-preview { min-height: calc(9rem + 2px); display: flex; align-items: center; }
 .ewcar-preview img { max-width: 16rem; max-height: 9rem; border-radius: 6px; }
-@media (max-width: 40rem) { .ewcar-slide { grid-template-columns: 1fr; } .ewcar-img { max-height: 12rem; } }
+@media (max-width: 40rem) { .ewcar-slide { grid-template-columns: 1fr; } .ewcar-img { height: 12rem; min-height: 12rem; max-height: 12rem; } }

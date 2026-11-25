@@ -26,6 +26,7 @@ Das Skript führt die Prüfungen der CI auf dem eigenen Rechner aus, in der Reih
 scripts/precheck.sh               # fast + go + e2e (was die meisten Änderungen brauchen)
 scripts/precheck.sh fast          # nur die schnellen Prüfungen (Sekunden bis wenige Minuten)
 scripts/precheck.sh all           # zusätzlich security und docker
+scripts/precheck.sh a11y          # nur die schnelle Prüfung der Barrierefreiheit (wenige Minuten)
 ```
 
 | Teil | Was läuft |
@@ -33,12 +34,35 @@ scripts/precheck.sh all           # zusätzlich security und docker
 | `fast` | gofmt, erzeugte Plugin-Importe, `go vet`, Plugin-Vertrag, Lizenzen, Dokumentation, `tools/traps -fit`, Alter neuer npm-Versionen, Bauen des Frontends, Typprüfung, Unit-Tests. Hält beim ersten Fehler an. |
 | `go` | alle Go-Tests mit Race-Detector; die Server-Tests in den drei Teilen der CI, jeder mit eigener Datenbank |
 | `e2e` | Bauen, ein frisches Wiki mit eigener Datenbank und eigenem Port, alle Browser-Tests mit axe, `tools/uicoverage` |
+| `a11y` | Bauen, ein frisches Wiki auf dem Port nach `EWIKI_PRECHECK_PORT`, die schnelle Prüfung der Barrierefreiheit (siehe unten); nicht in `all` enthalten, `e2e` prüft dasselbe und mehr |
 | `security` | `govulncheck`, `gosec`, `npm audit` |
 | `docker` | Bauen des Images und die Docker-Tests (`test-docker-plugins.sh`, `test-docker-proxy.sh`); braucht ein laufendes Docker |
 
 Die langen Teile laufen nebeneinander (`EWIKI_PRECHECK_JOBS`, Vorgabe: Zahl der CPUs, höchstens 4), jeder mit eigenem Protokoll; am Ende nennt das Skript die fehlgeschlagenen Tests. Es braucht einen PostgreSQL-Benutzer, der Datenbanken anlegen darf (`EWIKI_PRECHECK_PG`, Vorgabe `postgres://wiki:wiki@localhost:5432`), und entfernt seine Datenbanken wieder. Die Tests gegen echte Anmelde-, Office- und Suchsysteme bleiben in der CI (Jobs *Sign-in*, *Office*, *External search*); ihre Startskripte in `tests/auth`, `tests/office` und `tests/search` laufen mit Docker auch lokal.
 
 Ein neuer Push in einen Pull Request beendet den CI-Lauf des Pushs davor.
+
+## Prüfungen der Barrierefreiheit
+
+Jede Ansicht wird in den Browser-Tests nach WCAG 2.2 AA geprüft. Die Hilfsfunktion `a11y()` in `web/tests/e2e.test.mjs` führt zwei Prüfungen aus `web/tests/a11y-lib.mjs` aus:
+
+- **axe-core** mit den Regeln für WCAG 2.0 bis 2.2, Stufen A und AA.
+- **Überdeckungsprüfung** (eigene Prüfung): Kein Bedienelement darf von einem anderen Element verdeckt sein. Jeder sichtbare Link, jede Schaltfläche, jedes Formularfeld und jedes fokussierbare Element im Fenster wird in der Mitte und an den vier Ecken (2 px nach innen) abgetastet. Liegt dort ein anderes Element obenauf, schlägt die Prüfung fehl, egal wie groß es ist. Nicht gezählt werden: Eltern und Kinder des Elements, seine eigenen Beschriftungen (ein gestaltetes Kontrollkästchen unter seinem Label), Elemente, die Klicks durchlassen (`pointer-events: none`), Elemente außerhalb eines offenen modalen Dialogs und versteckte Elemente (`.sr-only`). Der Bericht nennt das Element, das verdeckende Element und wie viel noch sichtbar ist (`< 28` markiert weniger als 28 px).
+
+Warum die eigene Prüfung: axe misst, wie viel von einem verdeckten Element noch sichtbar ist, und lässt es ab 24 px durch. Das hängt von den Textbreiten des Rechners ab. In PR #225 verdeckte der fokussierte Sprunglink den Link zur Startseite: lokal blieben 31 px sichtbar (bestanden), in der CI 23,9 px (fehlgeschlagen). Die Überdeckungsprüfung schlägt auf beiden Rechnern fehl.
+
+Die Browser-Tests fokussieren außerdem den Sprunglink (Tab vom Seitenanfang) und prüfen, dass er nichts verdeckt (`checkSkipLink`).
+
+**Schneller Lauf** (wenige Minuten statt der ganzen Browser-Tests): Er meldet sich an einem mit `ewiki setup` eingerichteten Wiki an und prüft die wichtigsten Seiten (Startseite als Gast und angemeldet, Anmeldung, Kategorie, Seite, Verlauf, Suche, Profil, Dashboard, Bereiche, Medien, Aufgaben, die Verwaltung mit Lizenz) bei 390, 800 und 1280 px, im hellen und im dunklen Farbschema und mit fokussiertem Sprunglink auf Startseite und Seite. Die übrigen Seiten der Verwaltung prüft er einmal (1280 px, hell); mit `EWIKI_A11Y_ALL_ADMIN=1` alle wie die wichtigsten. Er startet selbst nichts und ändert nichts außer dem Farbschema des Benutzers, das er am Ende zurücksetzt.
+
+```bash
+cd web && EWIKI_E2E_URL=http://localhost:8080 EWIKI_E2E_USER=admin EWIKI_E2E_PASSWORD=… npm run test:a11y
+scripts/precheck.sh a11y          # dasselbe mit einem eigenen, frischen Wiki
+```
+
+Nach jeder Änderung an Layout, Kopfzeile, CSS oder einem Theme vor dem Pull Request ausführen.
+
+**Bilder** dürfen die Seite beim Laden nicht verschieben (ein Klick, der unter ein Bild zielt, landet sonst woanders, sobald es seine Größe hat). `web/tests/unit/imgsize.test.ts` prüft jedes Bild, das das Frontend erzeugt: Attribute `width` und `height`, eine Klasse mit fester Höhe oder `aspect-ratio`, ein Rahmen mit fester Höhe (Liste `BOXED`) oder eine Ausnahme mit Begründung (Liste `EXCEPTIONS`).
 
 ## Abgefangene Lücken in Abhängigkeiten
 

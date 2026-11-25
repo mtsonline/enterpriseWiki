@@ -7,6 +7,7 @@
 #   scripts/precheck.sh fast            # only the quick checks
 #   scripts/precheck.sh fast go         # quick checks and all Go tests
 #   scripts/precheck.sh all             # fast go e2e security docker
+#   scripts/precheck.sh a11y            # only the quick accessibility run (a few minutes)
 #
 # Parts:
 #   fast      gofmt, generated plugin imports, go vet, plugin contract,
@@ -16,12 +17,16 @@
 #             server tests in the three shards of the CI (each its own database)
 #   e2e       build, a fresh wiki, all browser tests with axe, every action
 #             of the interface used (tools/uicoverage)
+#   a11y      build, a fresh wiki, axe and the overlap check on the key pages
+#             at three widths, light and dark, with the skip link focused
+#             (web/tests/a11y-quick.mjs; a part of e2e as well, so not in all)
 #   security  govulncheck, gosec, npm audit
 #   docker    images and the Docker tests of the CI (needs a running Docker)
 #
 # Needs: Go, Node, a PostgreSQL user that may create databases:
 #   EWIKI_PRECHECK_PG=postgres://wiki:wiki@localhost:5432   (default)
-# Optional: EWIKI_PRECHECK_PORT (default 18080), EWIKI_PRECHECK_JOBS (parallel
+# Optional: EWIKI_PRECHECK_PORT (default 18080; a11y uses the port after it),
+# EWIKI_PRECHECK_JOBS (parallel
 # long parts, default: number of CPUs, at most 4).
 set -euo pipefail
 cd "$(dirname "$0")/.."
@@ -108,23 +113,40 @@ gotest() { # shard
 	return "$rc"
 }
 
-e2e() {
-	local db="ewiki_precheck_e2e_$$" dir="$WORK/wiki"
+# a fresh wiki for the browser tests: name, port; sets srv (its PID)
+startwiki() {
+	local db="ewiki_precheck_$1_$$" dir="$WORK/$1" port="$2"
 	newdb "$db"
 	mkdir -p "$dir"
 	export EWIKI_CONFIG="$dir/config.yaml" EWIKI_DATABASE_URL="$PG/$db?sslmode=disable" EWIKI_ADMIN_PASSWORD="$ADMIN_PW"
 	./bin/ewiki setup --non-interactive
-	./bin/ewiki config set server.listen ":$PORT"
-	./bin/ewiki config set server.base_url "http://localhost:$PORT"
+	./bin/ewiki config set server.listen ":$port"
+	./bin/ewiki config set server.base_url "http://localhost:$port"
 	./bin/ewiki config set webhooks.allow_private true
 	./bin/ewiki config set feeds.allow_private true
 	./bin/ewiki serve > "$dir/server.log" 2>&1 &
-	local srv=$!
-	for _ in $(seq 1 60); do curl -fs "http://localhost:$PORT/readyz" >/dev/null && break; sleep 1; done
+	srv=$!
+	for _ in $(seq 1 60); do curl -fs "http://localhost:$port/readyz" >/dev/null && break; sleep 1; done
+}
+
+e2e() {
+	local db="ewiki_precheck_wiki_$$" dir="$WORK/wiki" srv
+	startwiki wiki "$PORT"
 	local rc=0
 	(cd web && EWIKI_E2E_URL="http://localhost:$PORT" EWIKI_E2E_USER=admin EWIKI_E2E_PASSWORD="$ADMIN_PW" \
 		EWIKI_E2E_REQUIRE_AXE=1 EWIKI_E2E_UI_REQUESTS="$dir/ui-requests.json" npm run -s test:e2e) || rc=$?
 	[ "$rc" = 0 ] && { go run ./tools/uicoverage -requests "$dir/ui-requests.json" || rc=$?; }
+	kill "$srv" 2>/dev/null || true
+	[ "$rc" = 0 ] || { echo "--- server log"; tail -n 80 "$dir/server.log"; }
+	pgq "DROP DATABASE IF EXISTS $db" || true
+	return "$rc"
+}
+
+a11y() {
+	local port=$((PORT + 1)) db="ewiki_precheck_a11y_$$" dir="$WORK/a11y" srv
+	startwiki a11y "$port"
+	local rc=0
+	(cd web && EWIKI_E2E_URL="http://localhost:$port" EWIKI_E2E_USER=admin EWIKI_E2E_PASSWORD="$ADMIN_PW" npm run -s test:a11y) || rc=$?
 	kill "$srv" 2>/dev/null || true
 	[ "$rc" = 0 ] || { echo "--- server log"; tail -n 80 "$dir/server.log"; }
 	pgq "DROP DATABASE IF EXISTS $db" || true
@@ -148,7 +170,7 @@ dockertests() {
 
 # build once before the long parts: a build while Go tests compile (the
 # frontend is embedded) would break them
-if want go || want e2e; then
+if want go || want e2e || want a11y; then
 	say "build"
 	./scripts/build.sh > "$WORK/build.log" 2>&1 || { tail -n 40 "$WORK/build.log"; fail "build"; }
 fi
@@ -161,6 +183,7 @@ if want go; then
 elif want e2e; then
 	run e2e e2e
 fi
+want a11y && run a11y a11y
 want security && run security security
 want docker && run docker dockertests
 

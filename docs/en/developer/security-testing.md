@@ -26,6 +26,7 @@ The script runs the checks of the CI on your own machine, in the order that find
 scripts/precheck.sh               # fast + go + e2e (what most changes need)
 scripts/precheck.sh fast          # only the quick checks (seconds to a few minutes)
 scripts/precheck.sh all           # also security and docker
+scripts/precheck.sh a11y          # only the quick accessibility run (a few minutes)
 ```
 
 | Part | What runs |
@@ -33,12 +34,35 @@ scripts/precheck.sh all           # also security and docker
 | `fast` | gofmt, generated plugin imports, `go vet`, plugin contract, licences, documentation, `tools/traps -fit`, npm release age, frontend build, typecheck, unit tests. Stops at the first mistake. |
 | `go` | all Go tests with the race detector; the server tests in the three shards of the CI, each with its own database |
 | `e2e` | build, a fresh wiki on its own database and port, all browser tests with axe, `tools/uicoverage` |
+| `a11y` | build, a fresh wiki on the port after `EWIKI_PRECHECK_PORT`, the quick accessibility run (see below); not part of `all`, `e2e` checks the same and more |
 | `security` | `govulncheck`, `gosec`, `npm audit` |
 | `docker` | image build and the Docker tests (`test-docker-plugins.sh`, `test-docker-proxy.sh`); needs a running Docker |
 
 The long parts run side by side (`EWIKI_PRECHECK_JOBS`, default: number of CPUs, at most 4), each with a log of its own; at the end the script shows the failed tests. It needs a PostgreSQL user that may create databases (`EWIKI_PRECHECK_PG`, default `postgres://wiki:wiki@localhost:5432`) and removes its databases again. The tests against real sign-in, office and search systems stay in the CI (jobs *Sign-in*, *Office*, *External search*); their start scripts in `tests/auth`, `tests/office` and `tests/search` also run locally with Docker.
 
 A new push to a pull request stops the CI run of the push before it.
+
+## Accessibility checks
+
+Every view is checked for WCAG 2.2 AA in the browser tests. The helper `a11y()` in `web/tests/e2e.test.mjs` runs two checks from `web/tests/a11y-lib.mjs`:
+
+- **axe-core** with the rules for WCAG 2.0 to 2.2, levels A and AA.
+- **Overlap check** (our own): no control may be covered by another element. Every visible link, button, form field and focusable element in the window is hit-tested at its centre and at its four corners (2 px inside). Another element on top fails, whatever its size. Not counted: the parents and children of the control, its own labels (a styled checkbox under its label), elements that let clicks through (`pointer-events: none`), controls outside an open modal dialog, hidden controls (`.sr-only`). The report names the control, the covering element and how much is still visible (`< 28` marks less than 28 px).
+
+Why the overlap check: axe measures how much of a covered control is still visible and passes from 24 px on. That depends on the text widths of the machine. In PR #225 the focused skip link covered the link to the start page: locally 31 px were visible (passed), in the CI 23.9 px (failed). The overlap check fails on both machines.
+
+The browser tests also focus the skip link (Tab from the start of the page) and check that it covers nothing (`checkSkipLink`).
+
+**Quick run** (a few minutes instead of the full browser tests): against a wiki set up with `ewiki setup`, it logs in and checks the key pages (start page as guest and signed in, sign-in, category, page, history, search, profile, dashboard, spaces, media, tasks, the administration with licence) at 390, 800 and 1280 px, in the light and the dark scheme, and with the skip link focused on start page and page. The other administration pages are checked once (1280 px, light); `EWIKI_A11Y_ALL_ADMIN=1` checks all of them like the key pages. It starts nothing itself and changes nothing except the colour scheme of the user, which it sets back.
+
+```bash
+cd web && EWIKI_E2E_URL=http://localhost:8080 EWIKI_E2E_USER=admin EWIKI_E2E_PASSWORD=… npm run test:a11y
+scripts/precheck.sh a11y          # the same with a fresh wiki of its own
+```
+
+Run it after every change to the layout, the header, the CSS or a theme, before the pull request.
+
+**Images** must not move the page when they load (a click aimed below an image lands elsewhere once it has its size). `web/tests/unit/imgsize.test.ts` checks every image the frontend creates: width and height attributes, a class with a fixed height or `aspect-ratio`, a box with a fixed height (list `BOXED`), or an exception with a reason (list `EXCEPTIONS`).
 
 ## Caught vulnerabilities in dependencies
 
