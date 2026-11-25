@@ -238,7 +238,7 @@ button.ewl-cta { font: inherit; font-weight: 700; cursor: pointer; }
 .ewl-slide { padding: 1rem; border: 1px solid var(--ew-border); border-radius: var(--ew-radius); }
 .ewl-slide > :first-child { margin-top: 0; } .ewl-slide > :last-child { margin-bottom: 0; }
 .ewl-slider-controls { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; margin-bottom: .5rem; }
-.ewl-slider-dots { display: flex; gap: .25rem; }
+.ewl-slider-dots { display: flex; flex-wrap: wrap; gap: .25rem; }
 .ewl-slider-dot { width: 1.5rem; height: 1.5rem; border-radius: 50%; border: 2px solid var(--ew-text-muted); background: transparent; cursor: pointer; padding: 0; }
 .ewl-slider-dot[aria-current="true"] { background: var(--ew-primary); border-color: var(--ew-primary); }
 @media (forced-colors: active) { .ewl-slider-dot[aria-current="true"] { background: Highlight; } }

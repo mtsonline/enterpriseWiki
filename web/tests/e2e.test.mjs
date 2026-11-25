@@ -14,7 +14,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import net from 'node:net';
 import http from 'node:http';
-import { axeSource, checkPage, checkSkipLink } from './a11y-lib.mjs';
+import { axeSource, checkPage, checkSkipLink, variantFindings } from './a11y-lib.mjs';
 
 const BASE = process.env.EWIKI_E2E_URL ?? 'http://localhost:8080';
 const USER = process.env.EWIKI_E2E_USER ?? 'admin';
@@ -83,6 +83,15 @@ async function a11y(name, pg = page) {
   await checkPage(name, pg);
 }
 
+// the same on a key page in the variants any font or setting may bring (text
+// spacing of WCAG 1.4.12, text at 200 %, a wide and a narrow font) at 390, 800
+// and 1280 px; only on a few pages, the quick run (npm run test:a11y) has more
+async function a11yVariants(name, path, pg = page) {
+  if (!axeSource) return;
+  const found = await variantFindings(name, pg, path);
+  assert.deepEqual(found, [], found.join('\n\n'));
+}
+
 async function idle() {
   await page.waitForLoadState('networkidle');
   await page.waitForFunction(() => !document.querySelector('main[aria-busy="true"]'));
@@ -99,6 +108,7 @@ test('guest sees the public first level and an accessible page', async () => {
   await a11y('guest start page');
   // the focused skip link must not cover the header (PR #225: it covered the link to the start page)
   await checkSkipLink('guest start page', page);
+  await a11yVariants('guest start page', '/');
 });
 
 test('login', async () => {
@@ -153,6 +163,7 @@ test('create, edit, translate and search a page', async () => {
   assert.match(await page.locator('.ew-content').innerText(), new RegExp(`quokka${run}`));
   assert.ok(await page.locator('.ew-content strong, .ew-content b').count() > 0, 'bold text saved');
   await a11y('page view with translation panel');
+  await a11yVariants('page view', new URL(page.url()).pathname);
   // translate into German
   const translate = page.locator('.ew-panel table a').filter({ hasText: /translate|übersetzen/i }).first();
   await translate.click();
@@ -198,9 +209,11 @@ test('administration pages are accessible', async () => {
   const warning = page.locator(`[id="${described.split(' ').pop()}"]`);
   assert.match(await warning.innerText(), /read the passwords|passwörter aller personen mitlesen/i);
   assert.ok(await warning.evaluate((el) => el.classList.contains('ew-notice--warning')));
+  await a11yVariants('licence', '/admin/license');
   await page.goto(`${BASE}/profile`);
   await idle();
   await a11y('profile');
+  await a11yVariants('profile', '/profile');
   await page.goto(`${BASE}/trash`);
   await idle();
   await a11y('trash');
