@@ -555,10 +555,20 @@ func (p *Plugin) refNames(ctx context.Context, ids map[string][]int64, lang stri
 		}
 		return rows.Err()
 	}
-	// names of people only for signed-in readers
+	// names of people only for signed-in readers; the link to the person
+	// page only for who may open the person (core.people.view and the
+	// rules for finding people)
 	if pr != nil && pr.UserID != 0 {
-		if err := q("user", `SELECT id, display_name FROM users WHERE id = ANY($1)`, ids["user"], func(id int64) string { return "/u/" + strconv.FormatInt(id, 10) }); err != nil {
+		refs, err := p.host.Content.PeopleRefs(ctx, ids["user"])
+		if err != nil {
 			return nil, err
+		}
+		for id, r := range refs {
+			x := Ref{Name: r.Name}
+			if r.ID != nil {
+				x.Link = "/people/" + strconv.FormatInt(*r.ID, 10)
+			}
+			out["user:"+strconv.FormatInt(id, 10)] = x
 		}
 		if err := q("group", `SELECT id, name FROM groups WHERE id = ANY($1)`, ids["group"], nil); err != nil {
 			return nil, err

@@ -535,6 +535,20 @@ Depending on the setup you sign in with user name and password (local account or
 - **E-mail notifications** (also for mentions and shared pages),
 - **Show help texts:** show or hide explanations of fields and settings (default: off). The **?** button at the top of every page switches the same; without signing in, the browser remembers the choice. Notes you need to fill in a field correctly (formats, limits, required values, warnings) are always there. Screen readers do not read hidden explanations either. The button is a block of the placement (*Help texts (?)*).
 
+## People
+
+Wherever a person is named (under a page, in the history, in comments, in cases of processes, on team pages and in the people blocks, in the trash and in the administration), the name is a button – if you may open this person. It opens a menu:
+
+- **Open profile:** the page of the person (`/people/…`) with the business card: photo (as the person allows), function, department, phone, mobile, office, "About me".
+- **Send e-mail:** only when you may see the address (see below). It opens your e-mail program.
+- Plugins can add entries, e.g. a call.
+
+With the keyboard: Tab to the name, Enter, Space or the arrow keys open the menu, the arrow keys, Home and End move, Escape closes it and you are back on the name. On a touch screen a tap opens it.
+
+You may open the people you may find: yourself, the members of your own groups and – with the permission *List all users* – everybody. The administration can take the permission *Open people* away from everybody or give it only to certain roles. Where you may not open a person, the name is plain text. Guests never see people.
+
+**Your e-mail address:** the administration decides who sees addresses (everybody signed in, only with a permission, or nobody). If it allows it, you can hide your own address in your profile (*Business card* → *Hide my e-mail address*); then nobody else sees it on your page and in the menu. Team pages are not affected: whoever builds a team page chooses there what it shows.
+
 ## Accessibility
 
 The interface can be operated completely by keyboard (Tab, Shift+Tab, Enter, Space, Esc closes dialogs and menus). With **Skip to content** (first Tab key) you skip the navigation. All controls are labelled for screen readers, status messages are announced, and after a page change the focus jumps to the heading.

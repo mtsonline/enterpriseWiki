@@ -7263,6 +7263,151 @@ test('administration overview: tiles with links, update commands, narrow and wid
   await page.waitForURL(/\/admin\/users$/);
 });
 
+test('people: the menu on names and the person page – mouse, keyboard, touch, e-mail rules, guests, narrow and wide, light and dark', async () => {
+  const name = `pm${run}`.toLowerCase().slice(0, 30);
+  const pw = 'Pers-Passw0rd-1!';
+  const display = `Person Menu ${run}`;
+  const g = await call('POST', '/api/v1/admin/groups', { name: `Menu ${run}` });
+  const u = await call('POST', '/api/v1/admin/users', { username: name, password: pw, display_name: display, email: `${name}@example.com`, groups: [g.id] });
+  await call('PUT', `/api/v1/admin/users/${u.id}/profile`, { job_title: 'Keeper of okapis', phone: '+43 1 234 567' });
+  const cat = (await call('POST', '/api/v1/categories', { titles: { en: `People ${run}` } })).id;
+  await call('POST', `/api/v1/categories/${cat}/acl`, { subject_type: 'guest', permissions: 1, inherit: true });
+  await call('POST', `/api/v1/categories/${cat}/acl`, { subject_type: 'authenticated', permissions: 15, inherit: true });
+  // the person on a phone (touch, 390 px)
+  const ctx2 = await browser.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true, bypassCSP: true });
+  const p2 = await ctx2.newPage();
+  p2.on('pageerror', (e) => errors.push(`people: ${e.message}`));
+  const guestCtx = await browser.newContext({ viewport: { width: 1280, height: 900 }, bypassCSP: true });
+  const size = page.viewportSize();
+  const nameButton = (pg, scope) => pg.locator(scope).getByRole('button', { name: new RegExp(`^${display}`) });
+  const menuOf = (pg) => pg.getByRole('menu', { name: new RegExp(display) });
+  const focused = (pg) => pg.evaluate(() => document.activeElement?.textContent ?? '');
+  try {
+    await p2.goto(BASE + '/login?local=1');
+    await p2.locator('input[name=username]').fill(name);
+    await p2.locator('input[type=password]').fill(pw);
+    await p2.keyboard.press('Enter');
+    await p2.waitForURL((x) => !x.pathname.startsWith('/login'));
+    const res = await p2.request.post(`${BASE}/api/v1/elements`, { headers: { 'X-Requested-With': 'ewiki' },
+      data: { category_id: cat, type: 'core.html', title: `Okapi notes ${run}`, body: { format: 'html', source: '<p>Okapis</p>' } } });
+    assert.equal(res.status(), 201);
+    const el = await res.json();
+
+    // the administrator may find everybody: the name is a button with a menu
+    await page.goto(`${BASE}/e/${el.id}`);
+    await idle();
+    const who = nameButton(page, 'footer.ew-meta');
+    assert.equal(await who.getAttribute('aria-haspopup'), 'menu');
+    assert.equal(await who.getAttribute('aria-expanded'), 'false');
+    await who.click();
+    const menu = menuOf(page);
+    await menu.waitFor();
+    assert.equal(await who.getAttribute('aria-expanded'), 'true');
+    const mail = menu.getByRole('menuitem', { name: /^(send e-mail|e-mail senden)$/i });
+    assert.equal(await mail.getAttribute('href'), `mailto:${name}@example.com`);
+    await a11y('menu on a name');
+    // keyboard: the first entry has the focus, the arrows move, Escape closes, the focus returns
+    assert.match(await focused(page), /^(open profile|profil öffnen)$/i);
+    await page.keyboard.press('ArrowDown');
+    assert.match(await focused(page), /^(send e-mail|e-mail senden)$/i);
+    await page.keyboard.press('ArrowDown');
+    assert.match(await focused(page), /^(open profile|profil öffnen)$/i, 'the arrows wrap around');
+    await page.keyboard.press('End');
+    assert.match(await focused(page), /^(send e-mail|e-mail senden)$/i);
+    await page.keyboard.press('Escape');
+    await menu.waitFor({ state: 'detached' });
+    assert.equal(await page.evaluate(() => document.activeElement?.classList.contains('ew-person')), true, 'the focus is back on the name');
+    assert.equal(await who.getAttribute('aria-expanded'), 'false');
+    // Enter opens the menu, Enter on "Open profile" opens the person page
+    await page.keyboard.press('Enter');
+    await menu.waitFor();
+    await page.keyboard.press('Enter');
+    await page.waitForURL(new RegExp(`/people/${u.id}$`));
+    await idle();
+    await page.getByRole('heading', { level: 1, name: display }).waitFor();
+    await page.getByText('Keeper of okapis').waitFor();
+    assert.equal(await page.getByRole('link', { name: '+43 1 234 567' }).getAttribute('href'), 'tel:+431234567');
+    await page.getByRole('link', { name: `${name}@example.com` }).waitFor();
+    await a11y('person page');
+    // the history names the author with the menu too
+    await page.goto(`${BASE}/e/${el.id}/history`);
+    await idle();
+    await nameButton(page, 'main table').waitFor();
+
+    // the person, on a phone: the own name opens the menu with a tap, inside the window
+    await p2.goto(`${BASE}/e/${el.id}`);
+    await p2.waitForLoadState('networkidle');
+    const own = nameButton(p2, 'footer.ew-meta');
+    await own.tap();
+    const ownMenu = menuOf(p2);
+    await ownMenu.waitFor();
+    const box = await ownMenu.boundingBox();
+    assert.ok(box && box.x >= 0 && box.x + box.width <= 390, `the menu fits the narrow window: ${JSON.stringify(box)}`);
+    await a11y('menu on a name (narrow, touch)', p2);
+    await p2.keyboard.press('Escape');
+    await ownMenu.waitFor({ state: 'detached' });
+    // the person hides the address in the profile
+    await p2.goto(`${BASE}/profile`);
+    await p2.waitForLoadState('networkidle');
+    const card = p2.locator('form.ew-card-form');
+    await card.getByRole('checkbox', { name: /^(hide my e-mail address|meine e-mail-adresse verbergen)$/i }).check();
+    const saved = p2.waitForResponse((r) => r.url().endsWith('/api/v1/me/profile') && r.request().method() === 'PUT');
+    await card.getByRole('button', { name: /^(save|speichern)$/i }).click();
+    assert.equal((await saved).status(), 200);
+    // nobody else gets the address any more: no "Send e-mail"
+    await page.goto(`${BASE}/people/${u.id}`);
+    await idle();
+    await page.getByRole('heading', { level: 1, name: display }).waitFor();
+    assert.equal(await page.locator('a[href^="mailto:"]').count(), 0);
+    await page.goto(`${BASE}/e/${el.id}`);
+    await idle();
+    await nameButton(page, 'footer.ew-meta').click();
+    await menuOf(page).waitFor();
+    assert.equal(await menuOf(page).getByRole('menuitem').count(), 1, 'only "Open profile"');
+    await page.keyboard.press('Escape');
+
+    // dark and wide
+    const uiBefore = (await call('GET', '/api/v1/admin/settings')).config.ui;
+    await call('PUT', '/api/v1/admin/settings', { ui: { ...uiBefore, template: 'theme.wiki.dark' } });
+    await call('PUT', '/api/v1/scheme', { scheme: 'dark' });
+    try {
+      await page.setViewportSize({ width: 1400, height: 900 });
+      await page.goto(`${BASE}/e/${el.id}`);
+      await idle();
+      await nameButton(page, 'footer.ew-meta').click();
+      await menuOf(page).waitFor();
+      await a11y('menu on a name (dark)');
+      await page.keyboard.press('Escape');
+      await page.goto(`${BASE}/people/${u.id}`);
+      await idle();
+      await a11y('person page (dark)');
+    } finally {
+      await call('PUT', '/api/v1/scheme', { scheme: '' });
+      await call('PUT', '/api/v1/admin/settings', { ui: uiBefore });
+    }
+
+    // a guest sees the name as text and no person
+    const guest = await guestCtx.newPage();
+    await guest.goto(`${BASE}/e/${el.id}`);
+    await guest.waitForLoadState('networkidle');
+    await guest.locator('footer.ew-meta').getByText(display).waitFor();
+    assert.equal(await guest.locator('.ew-person').count(), 0);
+    await guest.goto(`${BASE}/people/${u.id}`);
+    await guest.getByRole('heading', { level: 1, name: /^(please log in|bitte anmelden)$/i }).waitFor();
+    assert.equal(await guest.getByText('Keeper of okapis').count(), 0);
+
+    // the settings offer who sees addresses
+    await page.goto(`${BASE}/admin/settings`);
+    await idle();
+    assert.equal(await page.getByLabel(/^(who sees e-mail addresses of people|wer e-mail-adressen von personen sieht)/i).inputValue(), 'users');
+    assert.equal(await page.getByRole('checkbox', { name: /^(people may hide their own address|personen dürfen ihre eigene adresse verbergen)/i }).isChecked(), true);
+  } finally {
+    if (size) await page.setViewportSize(size);
+    await ctx2.close();
+    await guestCtx.close();
+  }
+});
+
 test('no JavaScript errors occurred', () => {
   assert.deepEqual(errors, []);
 });

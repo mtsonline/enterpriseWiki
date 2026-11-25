@@ -66,6 +66,7 @@ export { currentCategory } from './components/widgets';
 export { sourcesEditor, registerSourceKind } from './components/sources';
 export type { SourceKind } from './components/sources';
 export { subjectsEditor, userPicker, groupPicker } from './components/subjects';
+export { registerPersonAction, personName, enhancePeople, loadPerson, tParts, type Person, type PersonAction } from './components/person';
 export type { Subject } from './components/subjects';
 export type { MacroChoice } from './editor/macros';
 

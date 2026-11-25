@@ -18,6 +18,7 @@ import { categoryView, elementView, errorPage, notFoundPage } from './content';
 import { watchDialog, type Watch } from '../components/watch';
 import { feedTokenSection } from '../components/feeds';
 import { profileCardForm } from '../components/profilecard';
+import { personName } from '../components/person';
 import { goLink, linkNotice, profileIdentitySections } from './identity';
 import { mfaApi, mfaMethodUI, type MFAAnswer, type MFAStep } from '../core/mfa';
 import { passkeyAutofillAvailable, webauthnCancelled, webauthnGet, webauthnSupported } from '../core/webauthn';
@@ -588,7 +589,7 @@ function addSSHDialog(): void {
 
 // ---------------------------------------------------------------- trash
 
-interface TrashItem { type: 'category' | 'element'; id: number; titles: Record<string, string>; parent_id: number | null; deleted_at: string; deleted_by: string; contains: number }
+interface TrashItem { type: 'category' | 'element'; id: number; titles: Record<string, string>; parent_id: number | null; deleted_at: string; deleted_by: string; deleted_by_id?: number; contains: number }
 
 export async function trashView({ main }: RouteCtx): Promise<void> {
   setContext(0, [], []);
@@ -608,7 +609,7 @@ export async function trashView({ main }: RouteCtx): Promise<void> {
     h('table', { class: 'ew-table' }, h('caption', { class: 'sr-only' }, t('trash.title')),
       h('thead', null, h('tr', null, ...[t('common.title'), t('trash.type'), t('trash.deleted_at'), t('trash.deleted_by'), t('trash.contains'), t('common.actions')].map((x) => h('th', { scope: 'col' }, x)))),
       h('tbody', null, ...(items.length ? items.map((it) => h('tr', null,
-        h('th', { scope: 'row' }, title(it)), h('td', null, t(`trash.${it.type}`)), h('td', null, fmtDate(it.deleted_at, state.lang)), h('td', null, it.deleted_by),
+        h('th', { scope: 'row' }, title(it)), h('td', null, t(`trash.${it.type}`)), h('td', null, fmtDate(it.deleted_at, state.lang)), h('td', null, personName(it.deleted_by, it.deleted_by_id)),
         h('td', null, it.contains ? String(it.contains) : '–'),
         h('td', { class: 'ew-actions' },
           button(t('trash.restore'), async () => {
