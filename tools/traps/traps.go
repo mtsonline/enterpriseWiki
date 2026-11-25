@@ -1791,8 +1791,8 @@ var traps = []trap{
 	{
 		ID: "site.reopened-while-deleted", About: "a site being deleted is opened again by the synchronisation of sites",
 		File: "internal/app/instance.go",
-		Old:  "\tif disabled {\n\t\treturn nil\n\t}",
-		New:  "\t_ = disabled",
+		Old:  "`UPDATE sites SET disabled=true WHERE name=$1`, name",
+		New:  "`SELECT $1::text`, name",
 		Pkg:  "./internal/server/", Tests: "^TestDeleteSiteDoesNotStallTheWiki$",
 	},
 }
