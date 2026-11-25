@@ -143,7 +143,7 @@ func TestDemo(t *testing.T) {
 			HTML string `json:"html"`
 		}
 		admin.must("GET", "/api/v1/elements/"+strconv.FormatInt(home.HomeElement, 10), nil, &land, 200)
-		if strings.Contains(land.HTML, "ew-macro-error") || !strings.Contains(land.HTML, "border_sides") || strings.Count(land.HTML, "ewl-iconbox") < 12 || !strings.Contains(land.HTML, `href="/demo"`) {
+		if strings.Contains(land.HTML, "ew-macro-error") || strings.Count(land.HTML, `class="ewl-iconbox `) != 12 || !strings.Contains(land.HTML, `src="/brand/logo.webp"`) {
 			t.Errorf("demo start page: %s", land.HTML)
 		}
 		var hidden int
@@ -180,75 +180,59 @@ func TestDemo(t *testing.T) {
 		if seats, _ := db.CountActiveAccounts(context.Background(), e.app.Instance.Shared); seats != seats0+1 {
 			t.Fatalf("license seats %d, want %d", seats, seats0+1)
 		}
-		// the page of the wiki blocks shows them, without errors
-		var wb int64
-		if err := e.app.DB.QueryRow(context.Background(), `SELECT id FROM elements WHERE titles->>'en' = 'Wiki building blocks' AND deleted_at IS NULL`).Scan(&wb); err != nil {
-			t.Fatal(err)
+		if round == 0 {
+			checkDemoRules(t, e, admin)
 		}
-		var wbv struct {
-			HTML string `json:"html"`
+		// the job application answers with a pop-up
+		var popupSteps int
+		_ = e.app.DB.QueryRow(context.Background(), `SELECT count(*) FROM elements e JOIN element_revisions r ON r.element_id = e.id
+			WHERE e.titles->>'en' = 'Internal job application' AND r.body::text LIKE '%"popup": true%'`).Scan(&popupSteps)
+		if popupSteps == 0 {
+			t.Error("demo: the job application does not answer with a pop-up")
 		}
-		admin.must("GET", "/api/v1/elements/"+strconv.FormatInt(wb, 10), nil, &wbv, 200)
-		for _, want := range []string{"the last one out", `id="tree"`, `class="ew-searchbox"`, `class="ew-pagetree"`, "House rules", "New meeting minutes", `class="ew-attachments"`, "/download"} {
-			if !strings.Contains(wbv.HTML, want) {
-				t.Errorf("demo wiki blocks: %q missing", want)
+		// the stations of the tour show their blocks, without errors
+		station := func(en string) string {
+			t.Helper()
+			var id int64
+			if err := e.app.DB.QueryRow(context.Background(), `SELECT id FROM elements WHERE titles->>'en' LIKE '%. ' || $1 AND deleted_at IS NULL`, en).Scan(&id); err != nil {
+				t.Fatalf("station %q: %v", en, err)
+			}
+			var v struct {
+				HTML string `json:"html"`
+			}
+			admin.must("GET", "/api/v1/elements/"+strconv.FormatInt(id, 10), nil, &v, 200)
+			return v.HTML
+		}
+		for name, wants := range map[string][]string{
+			"Wiki building blocks":              {"the last one out", `id="tree"`, `class="ew-searchbox"`, `class="ew-pagetree"`, "House rules", "New meeting minutes"},
+			"Files and the media library":       {`class="ew-attachments"`, "/download"},
+			"Figures and charts":                {`<svg class="ewl-chart-svg"`, "Faults"},
+			"Pictures and galleries":            {`class="ewl-hotspot"`, `data-ew-widget="ewl.compare"`},
+			"Timeline, slider, dialog and more": {"ewl-plan--featured", `data-ew-widget="ewl.countdown"`},
+			// what is placed where outside the pages
+			"Menus, placement and carousel": {"Menu “Demo”", "Block “Reception”", "Carousel “Demo”", "Handbook", "content-top", "Where to change it:"},
+		} {
+			html := station(name)
+			for _, want := range wants {
+				if !strings.Contains(html, want) {
+					t.Errorf("station %q: %q missing", name, want)
+				}
+			}
+			if strings.Contains(html, "ew-macro-error") {
+				t.Errorf("station %q with an error: %s", name, html)
 			}
 		}
-		if strings.Contains(wbv.HTML, "ew-macro-error") {
-			t.Errorf("demo wiki blocks with an error: %s", wbv.HTML)
-		}
-		// the chart of the page with figures is drawn, without an error
-		var fig int64
-		if err := e.app.DB.QueryRow(context.Background(), `SELECT id FROM elements WHERE titles->>'en' = 'Figures and steps' AND deleted_at IS NULL`).Scan(&fig); err != nil {
-			t.Fatal(err)
-		}
-		var figv struct {
-			HTML string `json:"html"`
-		}
-		admin.must("GET", "/api/v1/elements/"+strconv.FormatInt(fig, 10), nil, &figv, 200)
-		if !strings.Contains(figv.HTML, `<svg class="ewl-chart-svg"`) || !strings.Contains(figv.HTML, "Office Graz") || strings.Contains(figv.HTML, "ew-macro-error") {
-			t.Errorf("demo chart: %s", figv.HTML)
-		}
-		// blocks C: price table, hotspots, before and after, countdown, without an error
-		var off int64
-		if err := e.app.DB.QueryRow(context.Background(), `SELECT id FROM elements WHERE titles->>'en' = 'Offers and pictures' AND deleted_at IS NULL`).Scan(&off); err != nil {
-			t.Fatal(err)
-		}
-		var offv struct {
-			HTML string `json:"html"`
-		}
-		admin.must("GET", "/api/v1/elements/"+strconv.FormatInt(off, 10), nil, &offv, 200)
-		for _, want := range []string{"ewl-plan--featured", `class="ewl-hotspot"`, `data-ew-widget="ewl.compare"`, `data-ew-widget="ewl.countdown"`} {
-			if !strings.Contains(offv.HTML, want) || strings.Contains(offv.HTML, "ew-macro-error") {
-				t.Errorf("demo offers: %q missing or an error: %s", want, offv.HTML)
-				break
-			}
-		}
-		// the carousel has no fixed position: it is placed for its own
-		// category only, whose page says so; the page "How the demo is built"
-		// names every part outside the pages
+		// the carousel has no fixed position: it is placed for the category of
+		// the company only (its start page, not the subcategories)
 		var carPos string
 		if err := e.app.DB.QueryRow(context.Background(), `SELECT position FROM plugin_carousels WHERE name='Demo'`).Scan(&carPos); err != nil || carPos != "" {
 			t.Errorf("demo carousel position %q, %v", carPos, err)
 		}
 		var placed int
 		_ = e.app.DB.QueryRow(context.Background(), `SELECT count(*) FROM placements p JOIN categories c ON p.level='category' AND p.target=c.id::text
-			WHERE c.titles->>'en'='Carousel demo' AND p.block LIKE 'core.carousel/%' AND p.position='content-top'`).Scan(&placed)
+			WHERE c.titles->>'en'='Enterprise IT Services' AND p.block LIKE 'core.carousel/%' AND p.position='content-top' AND p.no_subcategories`).Scan(&placed)
 		if placed != 1 {
-			t.Errorf("demo carousel placed %d times for its category", placed)
-		}
-		var where struct {
-			HTML string `json:"html"`
-		}
-		var whereID int64
-		if err := e.app.DB.QueryRow(context.Background(), `SELECT id FROM elements WHERE titles->>'en' = 'How the demo is built' AND deleted_at IS NULL`).Scan(&whereID); err != nil {
-			t.Fatal(err)
-		}
-		admin.must("GET", "/api/v1/elements/"+strconv.FormatInt(whereID, 10), nil, &where, 200)
-		for _, want := range []string{"Menu “Demo”", "Block “Contact”", "Carousel “Demo”", "Handbook", "content-top", "Where to change it:"} {
-			if !strings.Contains(where.HTML, want) {
-				t.Errorf("page how the demo is built: %q missing", want)
-			}
+			t.Errorf("demo carousel placed %d times for the company", placed)
 		}
 		// a page somebody added inside the demo area goes with it
 		var demoCat int64

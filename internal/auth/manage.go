@@ -108,14 +108,17 @@ func guardRoles(ctx context.Context, q db.Querier, roles, groups []int64) error 
 }
 
 // guardTarget prevents changes to administrators by non-administrators.
-func guardTarget(ctx context.Context, q db.Querier, uid int64) error {
+// With shared accounts, instance administrators count as administrators
+// of every site as well (they are, see principalCols).
+func (s *Service) guardTarget(ctx context.Context, q db.Querier, uid int64) error {
 	if identity.From(ctx).Admin() {
 		return nil
 	}
 	var admin bool
 	if err := q.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM roles r WHERE r.is_admin AND (
 			r.id IN (SELECT role_id FROM user_roles WHERE user_id=$1) OR
-			r.id IN (SELECT gr.role_id FROM group_roles gr JOIN user_groups ug ON ug.group_id=gr.group_id WHERE ug.user_id=$1)))`, uid).Scan(&admin); err != nil {
+			r.id IN (SELECT gr.role_id FROM group_roles gr JOIN user_groups ug ON ug.group_id=gr.group_id WHERE ug.user_id=$1)))
+		OR COALESCE((SELECT `+s.instanceAdminSQL("u")+` FROM users u WHERE u.id=$1), false)`, uid).Scan(&admin); err != nil {
 		return err
 	}
 	if admin {
@@ -351,7 +354,7 @@ func (s *Service) UpdateUser(ctx context.Context, id int64, in UserUpdate) (*Use
 				return err
 			}
 		}
-		if err := guardTarget(ctx, tx, id); err != nil {
+		if err := s.guardTarget(ctx, tx, id); err != nil {
 			return err
 		}
 		if err := guardRoles(ctx, tx, in.Roles, in.Groups); err != nil {
@@ -365,7 +368,7 @@ func (s *Service) UpdateUser(ctx context.Context, id int64, in UserUpdate) (*Use
 				return err
 			}
 		}
-		if err := ensureAdminRemains(ctx, tx); err != nil {
+		if err := s.ensureAdminRemains(ctx, tx); err != nil {
 			return err
 		}
 		after := in
@@ -389,12 +392,26 @@ func (s *Service) UpdateUser(ctx context.Context, id int64, in UserUpdate) (*Use
 	return s.GetUser(ctx, id)
 }
 
-func ensureAdminRemains(ctx context.Context, tx pgx.Tx) error {
+// ensureAdminRemains refuses a change that leaves no active administrator.
+// With separate accounts the site has its own accounts and roles. With
+// shared accounts, the accounts, groups and roles are shared, but the role
+// assignments belong to each site: a change on any site can take the last
+// administrator of the site "main" away, so that is what counts. Its
+// administrators are instance administrators and with that administrators
+// of every site, so no site is left without one. (Counting the assignments
+// of the own site instead refused every change on a further site without
+// administrators of its own, and let a further site remove the last
+// administrator of main.)
+func (s *Service) ensureAdminRemains(ctx context.Context, tx pgx.Tx) error {
+	assign := ""
+	if !s.SeparateAccounts {
+		assign = pgx.Identifier{db.SiteSchema("main")}.Sanitize() + "."
+	}
 	var n int
 	if err := tx.QueryRow(ctx, `SELECT count(*) FROM users u WHERE NOT u.disabled AND EXISTS (
 			SELECT 1 FROM roles r WHERE r.is_admin AND (
-				r.id IN (SELECT role_id FROM user_roles WHERE user_id=u.id) OR
-				r.id IN (SELECT gr.role_id FROM group_roles gr JOIN user_groups ug ON ug.group_id=gr.group_id WHERE ug.user_id=u.id)))`).Scan(&n); err != nil {
+				r.id IN (SELECT role_id FROM `+assign+`user_roles WHERE user_id=u.id) OR
+				r.id IN (SELECT gr.role_id FROM `+assign+`group_roles gr JOIN user_groups ug ON ug.group_id=gr.group_id WHERE ug.user_id=u.id)))`).Scan(&n); err != nil {
 		return err
 	}
 	if n == 0 {
@@ -416,7 +433,7 @@ func (s *Service) DeleteUser(ctx context.Context, id int64) error {
 		return err
 	}
 	err = db.Tx(ctx, s.pool, func(tx pgx.Tx) error {
-		if err := guardTarget(ctx, tx, id); err != nil {
+		if err := s.guardTarget(ctx, tx, id); err != nil {
 			return err
 		}
 		if _, err := tx.Exec(ctx, `DELETE FROM acl_rules WHERE subject_type='user' AND subject_id=$1`, id); err != nil {
@@ -434,7 +451,7 @@ func (s *Service) DeleteUser(ctx context.Context, id int64) error {
 		if _, err := tx.Exec(ctx, `DELETE FROM users WHERE id=$1`, id); err != nil {
 			return err
 		}
-		if err := ensureAdminRemains(ctx, tx); err != nil {
+		if err := s.ensureAdminRemains(ctx, tx); err != nil {
 			return err
 		}
 		return audit.Log(ctx, tx, "user.delete", "user", id, before, nil)
@@ -777,7 +794,7 @@ func (s *Service) SaveGroup(ctx context.Context, id int64, name, description str
 					return apperr.BadRequest("role %d does not exist", r)
 				}
 			}
-			if err := ensureAdminRemains(ctx, tx); err != nil {
+			if err := s.ensureAdminRemains(ctx, tx); err != nil {
 				return err
 			}
 		}
@@ -812,7 +829,7 @@ func (s *Service) DeleteGroup(ctx context.Context, id int64) error {
 		if tag.RowsAffected() == 0 {
 			return apperr.NotFound("group")
 		}
-		if err := ensureAdminRemains(ctx, tx); err != nil {
+		if err := s.ensureAdminRemains(ctx, tx); err != nil {
 			return err
 		}
 		return audit.Log(ctx, tx, "group.delete", "group", id, nil, nil)
@@ -856,7 +873,7 @@ func (s *Service) SetGroupMember(ctx context.Context, group, user int64, member 
 		if !ok {
 			return apperr.NotFound("group or user")
 		}
-		if err := guardTarget(ctx, tx, user); err != nil {
+		if err := s.guardTarget(ctx, tx, user); err != nil {
 			return err
 		}
 		if err := guardRoles(ctx, tx, nil, []int64{group}); err != nil {
@@ -875,7 +892,7 @@ func (s *Service) SetGroupMember(ctx context.Context, group, user int64, member 
 		if changed = tag.RowsAffected() > 0; !changed {
 			return nil
 		}
-		if err := ensureAdminRemains(ctx, tx); err != nil {
+		if err := s.ensureAdminRemains(ctx, tx); err != nil {
 			return err
 		}
 		action := "group.member_add"
@@ -1003,7 +1020,7 @@ func (s *Service) SaveRole(ctx context.Context, id int64, in RoleInput) (int64, 
 		if err != nil {
 			return err
 		}
-		if err := ensureAdminRemains(ctx, tx); err != nil {
+		if err := s.ensureAdminRemains(ctx, tx); err != nil {
 			return err
 		}
 		return audit.Log(ctx, tx, "role.save", "role", id, before, map[string]any{"name": name, "description": description, "is_admin": isAdmin, "permissions": in.Permissions})
@@ -1083,7 +1100,7 @@ func (s *Service) DeleteRole(ctx context.Context, id int64) error {
 		if tag.RowsAffected() == 0 {
 			return apperr.NotFound("role")
 		}
-		if err := ensureAdminRemains(ctx, tx); err != nil {
+		if err := s.ensureAdminRemains(ctx, tx); err != nil {
 			return err
 		}
 		return audit.Log(ctx, tx, "role.delete", "role", id, nil, nil)

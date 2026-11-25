@@ -100,7 +100,7 @@ func (s *Service) SetUserAlias(ctx context.Context, uid int64, alias string) err
 	if err := s.requireUserAdmin(ctx); err != nil {
 		return err
 	}
-	if err := guardTarget(ctx, s.pool, uid); err != nil {
+	if err := s.guardTarget(ctx, s.pool, uid); err != nil {
 		return err
 	}
 	if err := s.setAlias(ctx, uid, alias, ""); err != nil {

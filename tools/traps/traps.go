@@ -961,7 +961,7 @@ var traps = []trap{
 	},
 	{
 		ID: "demo.carousel-everywhere", About: "the demo carousel shows on every page",
-		File: "internal/server/demo_content.go",
+		File: "internal/server/demo_start.go",
 		Old:  "map[string]any{\"name\": \"Demo\", \"position\": \"\", \"audience\": \"users\"",
 		New:  "map[string]any{\"name\": \"Demo\", \"position\": \"content-top\", \"audience\": \"users\"",
 		Pkg:  "./internal/server/", Tests: "^TestDemo$",
@@ -972,6 +972,20 @@ var traps = []trap{
 		Old:  "WHERE n.user_id=$1 AND n.popup AND n.read_at IS NULL",
 		New:  "WHERE (n.user_id=$1 OR true) AND n.popup AND n.read_at IS NULL",
 		Pkg:  "./internal/server/", Tests: "^TestPopupNotifications$",
+	},
+	{
+		ID: "events.upcoming-none", About: "the block Upcoming events without a calendar shows no events",
+		File: "plugins/content_events/plugin.go",
+		Old:  "AND (COALESCE(cardinality($2::bigint[]), 0) = 0 OR e.id = ANY($2))",
+		New:  "AND (cardinality($2::bigint[]) = 0 OR e.id = ANY($2))",
+		Pkg:  "./internal/server/", Tests: "^TestDemo$",
+	},
+	{
+		ID: "demo.station-gap", About: "a station of the demo tour is left out of the row",
+		File: "internal/server/demo_tour.go",
+		Old:  "\t\tn++\n",
+		New:  "\t\tn += 2\n",
+		Pkg:  "./internal/server/", Tests: "^TestDemo$",
 	},
 	{
 		ID: "errors.english-only", About: "error answers ignore the language of the client",
@@ -1665,6 +1679,21 @@ var traps = []trap{
 		Old:  "	if tasks {\n		kinds = append(kinds, pageTaskKind)\n	}",
 		New:  "	kinds = append(kinds, pageTaskKind)",
 		Pkg:  "./internal/server/", Tests: "^TestPageDates$",
+	},
+	// ---------------------------------------------------------------- last administrator (shared accounts)
+	{
+		ID: "admin.remains-site", About: "with shared accounts the last administrator is counted in the role assignments of the own site, not of main",
+		File: "internal/auth/manage.go",
+		Old:  "assign := \"\"\n\tif !s.SeparateAccounts {",
+		New:  "assign := \"\"\n\tif false && !s.SeparateAccounts {",
+		Pkg:  "./internal/server/", Tests: "^(TestSharedAccountsLastAdmin|TestSiteResetSharedAccounts)$",
+	},
+	{
+		ID: "admin.target-instance", About: "a manager of users of a further site changes an instance administrator",
+		File: "internal/auth/manage.go",
+		Old:  "OR COALESCE((SELECT `+s.instanceAdminSQL(\"u\")+` FROM users u WHERE u.id=$1), false)`",
+		New:  "OR false`",
+		Pkg:  "./internal/server/", Tests: "^TestSharedAccountsLastAdmin$",
 	},
 	// ---------------------------------------------------------------- overview of the administration
 	{
