@@ -6018,22 +6018,29 @@ test('demo content: create, browse accessibly, remove', async () => {
     if (errorTitle.test(h1.trim())) failed.push(`${p}: ${h1}`);
   }
   assert.deepEqual(failed, [], 'demo pages with errors');
-  // the same pages in the dark colour scheme (template "Wiki (dark)"): every
-  // component takes its colours from the variables, axe checks the contrast
+  // the same pages in the dark colour scheme (template "Wiki (dark)", and the
+  // choice "dark" for the categories with their own template, e.g. the CMS
+  // ones): every component takes its colours from the variables, axe checks
+  // the contrast
   const uiBefore = (await call('GET', '/api/v1/admin/settings')).config.ui;
   await call('PUT', '/api/v1/admin/settings', { ui: { ...uiBefore, template: 'theme.wiki.dark' } });
+  await call('PUT', '/api/v1/scheme', { scheme: 'dark' });
   try {
     let dark = 0;
+    let cms = 0;
     for (const p of [...seen, `/e/${db.id}`, ...[...editors].slice(0, 3)]) {
       await page.goto(BASE + p);
       await idle();
-      // a category may have its own template; those pages stay as they are
+      // a template of the designer has light colours only; those pages stay light
       if (!(await page.evaluate(() => document.body.classList.contains('ewc-dark')))) continue;
       dark++;
+      if (await page.locator('.ewcms-app').count()) cms++;
       await a11y(`dark: demo page ${p}`);
     }
     assert.ok(dark > 10, `demo pages checked in the dark scheme: ${dark}`);
+    assert.ok(cms > 0, 'the CMS pages of the demo are checked in the dark scheme too');
   } finally {
+    await call('PUT', '/api/v1/scheme', { scheme: '' });
     await call('PUT', '/api/v1/admin/settings', { ui: uiBefore });
   }
   // the carousel of the demo is placed for its own category only, whose page

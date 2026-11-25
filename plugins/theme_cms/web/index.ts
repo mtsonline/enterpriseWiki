@@ -6,9 +6,10 @@
 // Logo, colours and the start page hero are set under Administration →
 // Website template (plugin settings, public via GET /api/v1/x/theme.cms/config).
 import {
-  api, h, mount, pick, pluginSettingsForm, registerAdminPage, registerSlot, registerTemplate, state, t, type Category, type SettingField,
+  api, h, mount, pick, readableOn, pluginSettingsForm, registerAdminPage, registerSlot, registerTemplate, state, t, type Category, type SettingField,
 } from '@ewiki/coreplugin';
 import './style.css';
+import { CMS_DARK_BGS } from './colors';
 
 interface Config {
   logo?: string; logo_light?: string; logo_height?: number; primary_color?: string; accent_color?: string; header?: 'overlay' | 'solid';
@@ -134,10 +135,12 @@ export function register(): void {
 
       // settings: colours, logo, banner, copyright
       void getConfig().then((c) => {
-        if (c.primary_color) {
-          root.style.setProperty('--ew-primary', c.primary_color);
-          root.style.setProperty('--ew-primary-hover', `color-mix(in srgb, ${c.primary_color} 85%, #000)`);
-          root.style.setProperty('--ew-link', c.primary_color);
+        if (c.primary_color && /^#[0-9a-fA-F]{6}$/.test(c.primary_color)) {
+          // light scheme: the colour as chosen; dark scheme: made readable on
+          // the lightest dark background of the template (the area below the
+          // content), so links and buttons keep 4.5:1
+          root.style.setProperty('--ewcms-primary-l', c.primary_color);
+          root.style.setProperty('--ewcms-primary-d', CMS_DARK_BGS.reduce((col, bg) => readableOn(col, bg), c.primary_color));
         }
         if (c.logo) {
           const height = Math.min(Math.max(Number(c.logo_height) || 56, 24), 120);

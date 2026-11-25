@@ -174,8 +174,8 @@ Bei der Wiki-Vorlage (`theme.wiki`, `theme.wiki.dark`) lässt sich die Seitenlei
 
 | Einstellung | Bedeutung |
 |---|---|
-| `logo`, `logo_light`, `logo_height` | Logo (hochgeladenes Bild) und helle Variante für den transparenten Kopfbereich über dem Startbild; Höhe in Pixel |
-| `primary_color`, `accent_color` | Hauptfarbe (Links, Schaltflächen, aktive Navigation) und Akzentfarbe, `#rrggbb` |
+| `logo`, `logo_light`, `logo_height` | Logo (hochgeladenes Bild) und helle Variante für den transparenten Kopfbereich über dem Startbild; Höhe in Pixel; im dunklen Schema zeigt der Kopf immer die helle Variante (ohne sie das normale Logo) |
+| `primary_color`, `accent_color` | Hauptfarbe (Links, Schaltflächen, aktive Navigation) und Akzentfarbe, `#rrggbb`; im dunklen Schema hellt das Wiki die Hauptfarbe so weit auf wie für 4,5 : 1 nötig |
 | `header` | `overlay`: Kopfbereich liegt transparent über dem Startbild und wird beim Scrollen weiß; `solid`: immer weiß |
 | `hero_image`, `hero_title`, `hero_subtitle`, `hero_button_label`, `hero_button_link`, `hero_size` | Startbild nur auf der Startseite; Größe `large` oder `medium` |
 | `banner`, `banner_image` | Seitentitel auf Unterseiten in einem Bild-Banner (ohne eigenes Bild wird ein Farbverlauf verwendet) |

@@ -11,7 +11,7 @@ import { state, onChange } from './core/state';
 import { t } from './core/i18n';
 import { api } from './core/api';
 import { CATEGORY_POSITIONS, DASHBOARD_POSITIONS, ELEMENT_POSITIONS, EDITOR_POSITIONS, kindOf, resolvePlacements, type PagePosition, type PlacementLevel, type PositionKind } from './core/placement';
-export { SCHEMA as BLOCK_OPTIONS_SCHEMA, optionDef, problems as optionProblems, maxColumns, type BlockOptions, type OptionDef, type OptionGroup } from './core/blockoptions';
+export { SCHEMA as BLOCK_OPTIONS_SCHEMA, optionDef, problems as optionProblems, maxColumns, contrast, readableOn, type BlockOptions, type OptionDef, type OptionGroup } from './core/blockoptions';
 export { CATEGORY_POSITIONS, DASHBOARD_POSITIONS, ELEMENT_POSITIONS, EDITOR_POSITIONS, kindOf, positionFits, resolvePlacements, type PagePosition, type Placement, type PlacementLevel, type PositionKind } from './core/placement';
 
 import { h } from './core/dom';
