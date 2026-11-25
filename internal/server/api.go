@@ -1650,6 +1650,7 @@ type SettingsUpdate struct {
 	Retention      *config.Retention         `json:"retention"`
 	Media          *config.Media             `json:"media"`
 	Lists          *config.Lists             `json:"lists"`
+	People         *config.People            `json:"people"`
 	Macros         *config.MacroSecurity     `json:"macros"`
 	Mail           *config.Mail              `json:"mail"`
 	Catalog        []config.CatalogEntry     `json:"catalog"`
@@ -1716,6 +1717,12 @@ func (s *Server) updateSettings(w http.ResponseWriter, r *http.Request) (any, er
 				return apperr.BadRequest("lists.max_items: 0 (default 1000) or 50 to 10000")
 			}
 			c.Lists = *in.Lists
+		}
+		if in.People != nil {
+			if v := in.People.EmailVisibility; v != "" && !slices.Contains(config.EmailLevels, v) {
+				return apperr.BadRequest("people.email_visibility must be users, permission or nobody")
+			}
+			c.People = *in.People
 		}
 		if in.Macros != nil && !reflect.DeepEqual(*in.Macros, c.Plugins.Macros) {
 			return apperr.BadRequest("macro security settings can only be changed in config.yaml")

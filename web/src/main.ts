@@ -47,6 +47,7 @@ import { categorySettingsView } from './views/categorySettings';
 import { spaceKeyView, spacesView } from './views/spaces';
 import { categoryView, editElementView, elementView, draftEditView, historyView, homeView, newElementView, siteHomeView, registerCategoryPageBlocks, registerElementBlocks } from './views/content';
 import { loginView, notFoundView, profileView, searchView, trashView } from './views/misc';
+import { personView } from './views/people';
 
 function pickLanguage(site: Site, user: Principal | null): string {
   const candidates = [new URLSearchParams(location.search).get('lang'), rememberedLang(), user?.language, ...navigator.languages.map((l) => l.split('-')[0]), site.default_language];
@@ -74,6 +75,7 @@ function registerCore(): void {
   route('/password-reset', resetView);
   route('/password-reset/confirm', resetConfirmView);
   route('/profile', profileView);
+  route('/people/:id', personView);
   route('/dashboard', dashboardView);
   route('/tasks', tasksView);
   route('/trash', trashView);

@@ -75,7 +75,7 @@
 .ewfm-ed-handle { cursor: grab; color: var(--ew-text-muted); font-size: 1.2rem; padding: .25rem; }
 .ewfm-ed-toggle { flex: 1; text-align: left; background: none; border: 0; padding: .4rem; font: inherit; color: inherit; cursor: pointer; min-height: 2.75rem; }
 .ewfm-ed-toggle:focus-visible { outline: 3px solid var(--ew-focus); }
-.ewfm-ed-tools { display: flex; gap: .15rem; }
+.ewfm-ed-tools { display: flex; flex-wrap: wrap; gap: .15rem; }
 .ewfm-ed-props { padding: .5rem .75rem .75rem; border-top: 1px solid var(--ew-border); display: grid; grid-template-columns: repeat(auto-fill, minmax(14rem, 1fr)); gap: .5rem 1rem; }
 .ewfm-ed-row { display: flex; gap: .5rem; align-items: center; flex-wrap: wrap; }
 .ewfm-ed-row input { width: 6rem; }

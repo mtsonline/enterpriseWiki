@@ -1,6 +1,6 @@
 // Team element: editor (description, groups, fields, layout) and the
 // "team" widget (filter by name when the team is large).
-import { announce, api, button, checkbox, errorText, field, h, hasPerm, mount, registerEditor, registerWidget, select, state, t, textArea, textInput, toast, type EditorInstance } from '@ewiki/coreplugin';
+import { announce, api, button, checkbox, enhancePeople, errorText, field, h, hasPerm, mount, registerEditor, registerWidget, select, state, t, textArea, textInput, toast, type EditorInstance } from '@ewiki/coreplugin';
 import './style.css';
 
 const BASE = '/api/v1/x/content.team';
@@ -92,6 +92,8 @@ async function exportCSV(id: number): Promise<void> {
 }
 
 function teamWidget(root: HTMLElement): void {
+  // names of people the viewer may open: the menu on names
+  enhancePeople(root);
   const id = Number(root.dataset.element);
   const members = Array.from(root.querySelectorAll<HTMLElement>('.ewt-member'));
   const tools = h('div', { class: 'ewt-tools' });
@@ -124,4 +126,6 @@ function teamWidget(root: HTMLElement): void {
 export function register(): void {
   registerEditor('content.team', createEditor);
   registerWidget('team', teamWidget);
+  // people blocks (profile card, people of a group): the menu on names
+  registerWidget('people', (root) => enhancePeople(root));
 }

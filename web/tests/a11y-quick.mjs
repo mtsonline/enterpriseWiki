@@ -8,18 +8,17 @@
 // (welcome space). It changes nothing in the wiki except the colour scheme of
 // the user, which it sets back at the end.
 //
-// Each page is checked once more with a wide font (DejaVu Sans, light, 390
-// and 1280 px): the default font of the wiki is the system font, which differs
-// between machines (Inter here, a wider one in the CI). Text that only just
-// fits with a narrow font then overflows and covers its neighbour locally too.
+// The key pages are also checked in the variants of a11y-lib.mjs (VARIANTS):
+// the text spacing of WCAG 1.4.12, text at 200 %, a wide and a narrow font.
+// The interface must work with any font a template chooses.
 //
 // Optional: EWIKI_A11Y_ALL_ADMIN=1 checks every administration page (from its
-// navigation) at every width, not only the key ones. EWIKI_A11Y_WIDE_FONT
-// names the wide font ("" switches the pass off).
+// navigation) like the key pages. EWIKI_A11Y_VARIANTS=0 leaves the variants
+// out (half the time).
 import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { chromium } from 'playwright';
-import { axeSource, checkPage, checkSkipLink } from './a11y-lib.mjs';
+import { axeSource, checkPage, checkSkipLink, variantFindings } from './a11y-lib.mjs';
 
 const BASE = process.env.EWIKI_E2E_URL ?? 'http://localhost:8080';
 const USER = process.env.EWIKI_E2E_USER ?? 'admin';
@@ -27,8 +26,7 @@ const PASSWORD = process.env.EWIKI_E2E_PASSWORD ?? 'Admin-Passw0rd!';
 const ALL_ADMIN = process.env.EWIKI_A11Y_ALL_ADMIN === '1';
 const WIDTHS = [390, 800, 1280];
 const SCHEMES = ['light', 'dark'];
-const WIDE_FONT = process.env.EWIKI_A11Y_WIDE_FONT ?? 'DejaVu Sans';
-const WIDE_WIDTHS = [390, 1280];
+const VARIANTS = process.env.EWIKI_A11Y_VARIANTS !== '0';
 // pages on which the focused skip link is checked as well
 const SKIP = new Set(['start page', 'page', 'guest start page']);
 
@@ -65,10 +63,7 @@ const call = (method, path, body) => page.evaluate(async ([method, path, body]) 
 /** Checks one page at every width and scheme; collects the findings instead of stopping at the first. */
 async function sweep(name, path, pg = page, schemes = SCHEMES, widths = WIDTHS) {
   const found = [];
-  const passes = schemes.map((scheme) => ({ scheme, widths, font: '' }));
-  // pages checked at one width only get the wide font at that width
-  if (WIDE_FONT) passes.push({ scheme: 'light', widths: widths.length < WIDTHS.length ? widths : WIDE_WIDTHS, font: WIDE_FONT });
-  for (const { scheme, widths, font } of passes) {
+  for (const scheme of schemes) {
     await pg.evaluate(async (s) => {
       await fetch('/api/v1/scheme', { method: 'PUT', headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'ewiki' }, body: JSON.stringify({ scheme: s }) });
     }, scheme);
@@ -76,14 +71,15 @@ async function sweep(name, path, pg = page, schemes = SCHEMES, widths = WIDTHS) 
       await pg.setViewportSize({ width, height: 900 });
       await pg.goto(BASE + path);
       await idle(pg);
-      if (font) await pg.addStyleTag({ content: `:root { --ew-font: "${font}", Verdana, sans-serif !important; }` });
-      const label = `${name} (${path}, ${width} px, ${scheme}${font ? `, font ${font}` : ''})`;
+      const label = `${name} (${path}, ${width} px, ${scheme})`;
       try { await checkPage(label, pg); } catch (e) { found.push(e.message); }
       if (SKIP.has(name)) {
         try { await checkSkipLink(label, pg); } catch (e) { found.push(e.message); }
       }
     }
   }
+  // the variants (in the scheme of the last pass), at the widths of the page
+  if (VARIANTS && widths.length === WIDTHS.length) found.push(...await variantFindings(name, pg, path, widths));
   assert.deepEqual(found, [], found.join('\n\n'));
 }
 
@@ -142,6 +138,47 @@ test('administration pages', async () => {
     try { await sweep(href.slice(1), href, page, all ? SCHEMES : ['light'], all ? WIDTHS : [1280]); } catch (e) { found.push(e.message); }
   }
   assert.deepEqual(found, [], found.join('\n\n'));
+});
+
+// Fonts may arrive after the first paint (font-display: swap; the two used
+// at once are preloaded): the text must not move the controls when they do
+// (a click would land elsewhere). The layout shifts of the browser while a
+// page loads, with an empty cache, stay below 0.05 (0.1 counts as good for
+// the web vitals). As a guest: signed in, the tools of a page still arrive
+// after its content and move it (known, not caused by the fonts).
+test('nothing moves while a page and its fonts load', async () => {
+  const found = [];
+  const el = await page.locator('.ew-tree a').first().getAttribute('href').catch(() => '/');
+  for (const width of [390, 1280]) {
+    for (const path of ['/', el ?? '/', '/login', '/search?q=wiki']) {
+      const ctx2 = await browser.newContext({ viewport: { width, height: 900 } });
+      const p2 = await ctx2.newPage();
+      await p2.addInitScript(() => {
+        window.__shift = [];
+        const add = (list) => {
+          for (const e of list) {
+            if (!e.hadRecentInput) window.__shift.push({ value: e.value, nodes: (e.sources ?? []).map((s) => s.node?.outerHTML?.slice(0, 80) ?? '-') });
+          }
+        };
+        window.__shiftObs = new PerformanceObserver((l) => add(l.getEntries()));
+        window.__shiftObs.observe({ type: 'layout-shift', buffered: true });
+        window.__shiftAdd = add;
+      });
+      await p2.goto(BASE + path);
+      await p2.waitForLoadState('networkidle');
+      // after the fonts and two frames, with the entries not yet delivered
+      const shifts = await p2.evaluate(async () => {
+        await document.fonts.ready;
+        await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+        window.__shiftAdd(window.__shiftObs.takeRecords());
+        return window.__shift;
+      });
+      const sum = shifts.reduce((a, e) => a + e.value, 0);
+      if (sum >= 0.05) found.push(`${path} at ${width} px: layout shift ${sum.toFixed(3)}: ${shifts.map((e) => `${e.value.toFixed(3)} ${e.nodes.join(', ')}`).join(' | ')}`);
+      await ctx2.close();
+    }
+  }
+  assert.deepEqual(found, [], found.join('\n'));
 });
 
 test('no script errors', () => {

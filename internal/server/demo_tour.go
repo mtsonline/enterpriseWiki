@@ -340,7 +340,8 @@ func main() {
 					tr("A team page that keeps itself up to date.", "Eine Teamseite, die sich selbst aktuell hält."),
 					tr("Asking a colleague something right in the text.", "Eine Kollegin direkt im Text etwas fragen."),
 				},
-				tip: tr("The block People of a group shows members only to those who may list the group; guests see nobody.", "Der Baustein Personen einer Gruppe zeigt Mitglieder nur denen, die die Gruppe auflisten dürfen; Gäste sehen niemanden."),
+				tip: tr("Names are buttons for people who may open the person: the menu offers <em>Open profile</em> (the business card on a page of its own) and <em>Send e-mail</em>, when the address may be shown – on every name, e.g. under a page, in its history and in comments. The block People of a group shows members only to those who may list the group; guests see nobody.",
+					"Namen sind Knöpfe für alle, die die Person öffnen dürfen: Das Menü bietet <em>Profil öffnen</em> (die Visitenkarte auf einer eigenen Seite) und <em>E-Mail senden</em>, wenn die Adresse gezeigt werden darf – an jedem Namen, z. B. unter einer Seite, im Verlauf und in Kommentaren. Der Baustein Personen einer Gruppe zeigt Mitglieder nur denen, die die Gruppe auflisten dürfen; Gäste sehen niemanden."),
 			}
 		}},
 		{key: "display", en: "Showing a category", de: "Kategorien darstellen", build: func(tr trf) stationText {

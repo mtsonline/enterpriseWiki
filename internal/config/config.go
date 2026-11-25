@@ -60,7 +60,39 @@ type Config struct {
 	Maintenance Maintenance `yaml:"maintenance,omitempty" json:"maintenance"`
 	// Consent: asking for consent to cookies and to the privacy policy.
 	Consent Consent `yaml:"consent,omitempty" json:"consent"`
+	// People: person pages and who sees e-mail addresses of people.
+	People People `yaml:"people,omitempty" json:"people"`
 }
+
+// People configures what signed-in people see of other people (person
+// page, menu on names). Who may open a person at all is a permission
+// (core.people.view) together with the rules for finding people.
+type People struct {
+	// EmailVisibility: who sees the e-mail address of a person –
+	// "users" (every signed-in person who may open the person; default),
+	// "permission" (only with core.people.email) or "nobody".
+	EmailVisibility string `yaml:"email_visibility,omitempty" json:"email_visibility"`
+	// EmailHideAllowed: each person may hide their own address in their
+	// profile (default true).
+	EmailHideAllowed *bool `yaml:"email_hide_allowed,omitempty" json:"email_hide_allowed,omitempty"`
+}
+
+// EmailLevels are the values of people.email_visibility.
+var EmailLevels = []string{"users", "permission", "nobody"}
+
+// Email returns the configured visibility of e-mail addresses ("users"
+// when unset or unknown).
+func (p People) Email() string {
+	for _, v := range EmailLevels {
+		if p.EmailVisibility == v {
+			return v
+		}
+	}
+	return "users"
+}
+
+// HideAllowed reports whether people may hide their own address.
+func (p People) HideAllowed() bool { return p.EmailHideAllowed == nil || *p.EmailHideAllowed }
 
 // Consent is the asking for consent (Administration → Consent).
 type Consent struct {

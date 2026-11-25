@@ -130,6 +130,7 @@ func run(out string, check bool) error {
 	}
 	for _, f := range []struct{ name, file string }{
 		{"Inter (font, via @fontsource-variable/inter)", "static/font-inter.txt"},
+		{"Poppins (font, via @fontsource/poppins)", "static/font-poppins.txt"},
 		{"Source Sans 3 (font, via @fontsource-variable/source-sans-3)", "static/font-source-sans-3.txt"},
 		{"Unicode CLDR (names and keywords of the emoji, via emojibase-data; Unicode-3.0)", "static/unicode-cldr.txt"},
 	} {

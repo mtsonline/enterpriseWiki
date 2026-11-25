@@ -1,6 +1,6 @@
 .ewb-intro { margin-bottom: 1.25rem; }
 .ewb-toolbar { display: flex; flex-wrap: wrap; gap: .75rem; align-items: center; justify-content: space-between; margin: 0 0 1rem; padding: .75rem; background: var(--ew-bg-subtle); border-radius: 8px; }
-.ewb-search { display: flex; gap: .5rem; flex: 1 1 18rem; }
+.ewb-search { display: flex; flex-wrap: wrap; gap: .5rem; flex: 1 1 18rem; }
 .ewb-search input { flex: 1; }
 .ewb-status:empty { display: none; }
 .ewb-posts { display: grid; gap: 1.5rem; }
@@ -13,7 +13,7 @@
 .ewb-readmore { margin: .25rem 0 0; font-weight: 600; }
 .ewb-tags { display: flex; flex-wrap: wrap; gap: .35rem; list-style: none; padding: 0; margin: .5rem 0 0; }
 .ewb-tags .ew-btn--link, .ewb-tags .ew-tag { font-size: .8rem; min-height: 24px; padding: .1rem .5rem; border-radius: 999px; background: var(--ew-bg-subtle); border: 1px solid var(--ew-border); }
-.ewb-pager { display: flex; gap: .75rem; align-items: center; justify-content: center; margin: 1.5rem 0 0; }
+.ewb-pager { display: flex; flex-wrap: wrap; gap: .75rem; align-items: center; justify-content: center; margin: 1.5rem 0 0; }
 .ewb-pager:empty { display: none; }
 .ewb-edit { margin: .25rem 0 0; font-size: .9rem; }
 .ewb-hit mark { background: var(--ew-mark-bg); }

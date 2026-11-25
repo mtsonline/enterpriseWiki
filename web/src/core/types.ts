@@ -265,6 +265,8 @@ export interface ElementSummary {
   created_at: string;
   updated_at: string;
   updated_by: string;
+  /** only when the viewer may open the person (menu on the name) */
+  updated_by_id?: number;
   is_default: boolean;
   short_url: string;
   short_only?: boolean;
@@ -314,6 +316,8 @@ export interface Revision {
   comment: string;
   restored_from: number | null;
   author: string;
+  /** only when the viewer may open the person */
+  author_id?: number;
   created_at: string;
   body?: unknown;
   html?: string;
