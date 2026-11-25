@@ -164,6 +164,32 @@ let leaving: (() => void)[] = [];
  */
 export function onLeave(fn: () => void): void { leaving.push(fn); }
 
+/**
+ * Puts the new view into the page while it is finished, invisible and out of
+ * the flow (over the view shown so far, which stays until then): its widgets
+ * see it in the document, and its blocks, editor and fonts arrive before
+ * anybody sees it, so nothing moves afterwards.
+ */
+async function buildHidden(main: HTMLElement, view: HTMLElement, hook: (view: HTMLElement) => Promise<void>): Promise<void> {
+  const cs = getComputedStyle(main);
+  const px = (v: string) => parseFloat(v) || 0;
+  const mainPos = main.style.position;
+  if (cs.position === 'static') main.style.position = 'relative';
+  const before = view.style.cssText;
+  Object.assign(view.style, {
+    position: 'absolute', visibility: 'hidden', pointerEvents: 'none',
+    top: `${px(cs.paddingTop)}px`, left: `${px(cs.paddingLeft)}px`,
+    width: `${main.clientWidth - px(cs.paddingLeft) - px(cs.paddingRight)}px`,
+  });
+  main.append(view);
+  try {
+    await hook(view);
+  } finally {
+    view.style.cssText = before;
+    main.style.position = mainPos;
+  }
+}
+
 async function render(keepFocus = false): Promise<void> {
   if (!mainEl) return;
   const seq = ++renderSeq;
@@ -193,12 +219,18 @@ async function render(keepFocus = false): Promise<void> {
   mainEl.setAttribute('aria-busy', 'true');
   try {
     if (view) await view({ params, query, path, main: target });
-    if (seq === renderSeq && beforeMount) await beforeMount(target);
+    if (seq === renderSeq && beforeMount) await buildHidden(mainEl, target, beforeMount);
   } finally {
     if (seq === renderSeq) mainEl.removeAttribute('aria-busy');
+    else target.remove();
   }
   if (seq !== renderSeq) return; // a newer navigation started
-  mount(mainEl, target);
+  if (target.parentNode === mainEl) {
+    // the finished view takes the place of the one shown so far
+    for (const c of Array.from(mainEl.childNodes)) if (c !== target) c.remove();
+  } else {
+    mount(mainEl, target);
+  }
   afterNavigate?.();
   const h1 = mainEl.querySelector('h1');
   const title = h1?.textContent?.trim() ?? '';
