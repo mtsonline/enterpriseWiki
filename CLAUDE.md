@@ -81,7 +81,7 @@ EWIKI_TEST_DATABASE_URL=postgres://USER:PASS@localhost:5432/DB?sslmode=disable g
 
 # Sicherheit
 scripts/govulncheck.sh
-go run github.com/securego/gosec/v2/cmd/gosec@latest -quiet -exclude-generated -exclude-dir=web -conf .gosec.json ./...
+GOTOOLCHAIN="$(go env GOVERSION)" go run github.com/securego/gosec/v2/cmd/gosec@latest -quiet -exclude-generated -exclude-dir=web -conf .gosec.json ./...   # mit der Go-Version des Repositorys
 (cd web && npm audit --audit-level=low)
 
 # Frontend
