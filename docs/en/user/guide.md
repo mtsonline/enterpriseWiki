@@ -460,7 +460,7 @@ Deleted categories (with all content) and pages end up in the **trash** (user me
 
 ## My dashboard
 
-Under *User menu → My dashboard* (`/dashboard`) you see tiles at a glance: notifications, your tasks, the cases you started, pages you edited last, favourites, new submissions of forms whose submissions you see, upcoming events, recently changed pages and watched pages. Administrators also see the *State of the wiki*: version and updates, e-mail and queue, failed sign-ins of the last 24 hours, forwarding of the audit log, plugins, license and database; a problem is marked with *Attention* or *Error*. Plugins can bring more tiles. Every tile shows only what you may see.
+Under *User menu → My dashboard* (`/dashboard`) you see tiles at a glance: notifications, your tasks, the cases you started, pages you edited last, favourites, new submissions of forms whose submissions you see, upcoming events, recently changed pages and watched pages. Administrators also see the *State of the wiki*: version and updates, e-mail and queue, failed sign-ins of the last 24 hours, forwarding of the audit log, plugins, license and database; a problem is marked with *Attention* or *Error*. Plugins can bring more tiles. Every tile shows only what you may see. Administrators see more in the *Overview* of the administration (`/admin`): state, updates with the commands to install them, security, plugins, users and license.
 
 - **With the mouse:** switch on *Move with the mouse* and drag a tile to another place. The arrangement is saved at once.
 - **With the keyboard:** *Arrange tiles* opens a list. In it you choose the position of every tile (*full width* or *column 1–3*) or *Not shown*, and change the order with ↑ ↓. A tile is wide when it is at the position *full width*.

@@ -6,6 +6,7 @@ import { webhooksAdmin } from './adminWebhooks';
 import { licenseSeal } from '../components/brand';
 import { licenseAdmin, licenseNotice, type LicenseStatus } from './adminLicense';
 import { limitsAdmin } from './adminLimits';
+import { overviewAdmin } from './adminOverview';
 import { dataAdmin } from './adminData';
 import { consentAdmin } from './adminConsent';
 import { maintenanceAdmin } from './adminMaintenance';
@@ -36,7 +37,7 @@ import { askExternal, confirmInstall, isExternalRefusal, originBadge, originDeta
 
 interface User { id: number; username: string; provider: string; handle: string; display_name: string; email: string; language: string; disabled: boolean; locked_until: string | null; created_at: string; last_login_at: string | null; groups: number[]; roles: number[]; alias: string | null; alias_source: string; mfa: boolean }
 
-const CORE_SECTIONS = ['users', 'scim', 'mfa', 'groups', 'roles', 'permissions', 'elements', 'plugins', 'updates', 'settings', 'limits', 'data', 'consent', 'mail', 'webhooks', 'cache', 'languages', 'audit', 'watches', 'license', 'sites', 'maintenance', 'demo'];
+const CORE_SECTIONS = ['overview', 'users', 'scim', 'mfa', 'groups', 'roles', 'permissions', 'elements', 'plugins', 'updates', 'settings', 'limits', 'data', 'consent', 'mail', 'webhooks', 'cache', 'languages', 'audit', 'watches', 'license', 'sites', 'maintenance', 'demo'];
 
 /** global permission of each administration page ('' = category managers too) */
 const SECTION_PERMS: Record<string, string> = {
@@ -52,7 +53,7 @@ export function adminSections(): { id: string; label: string }[] {
     const k = SECTION_PERMS[s];
     if (s === 'languages') return canTranslateAny();
     if (s === 'sites') return isInstanceAdmin();
-    if (s === 'demo' || s === 'maintenance') return isAdmin();
+    if (s === 'overview' || s === 'demo' || s === 'maintenance') return isAdmin();
     // license and plugin installation concern the whole instance
     if (s === 'scim') return hasPerm(k) && (state.site.site === 'main' || isInstanceAdmin());
     if (s === 'license' || s === 'updates') return hasPerm(k) && (state.site.site === 'main' || isInstanceAdmin());
@@ -85,7 +86,7 @@ export async function adminView({ params, query, main }: RouteCtx): Promise<void
   // problems with the license on every administration page (not on the license page itself)
   // and problems with the PostgreSQL version (end of support)
   void Promise.all([
-    section === 'license' || !hasPerm('core.license.manage') ? null : api.get<LicenseStatus>('admin/license').catch(() => null),
+    section === 'license' || section === 'overview' || !hasPerm('core.license.manage') ? null : api.get<LicenseStatus>('admin/license').catch(() => null),
     section === 'settings' || !hasPerm('core.system.manage') ? null : api.get<DatabaseStatus>('admin/database').catch(() => null),
   ]).then(([lic, db]) => {
     const items = [lic && (lic.level === 'warning' || lic.level === 'error') ? licenseNotice(lic) : null, db ? databaseNotice(db) : null].filter(Boolean) as HTMLElement[];
@@ -93,6 +94,7 @@ export async function adminView({ params, query, main }: RouteCtx): Promise<void
   });
   try {
     switch (section) {
+      case 'overview': await overviewAdmin(panel); break;
       case 'users': await users(panel, query); break;
       case 'scim': await scimAdmin(panel); break;
       case 'mfa': await mfaAdmin(panel); break;
@@ -536,7 +538,7 @@ async function updates(panel: HTMLElement, force: boolean): Promise<void> {
           : it.available ? h('span', { class: 'ew-badge ew-badge--info' }, t('updates.available')) : h('span', { class: 'ew-badge ew-badge--ok' }, t('updates.current')),
           it.notes && it.available ? h('details', null, h('summary', null, t('updates.notes')), h('pre', { class: 'ew-code', tabindex: '0' }, it.notes)) : null),
         h('td', { class: 'ew-actions' }, it.available && it.id !== 'core' ? button(t('updates.update'), () => void update(it), { variant: 'primary', ariaLabel: t('updates.update_named', { name: it.name }) })
-          : it.available ? h('span', { class: 'ew-help' }, t('updates.core_hint')) : null))), t('updates.none')));
+          : it.available ? h('a', { href: '/admin/overview' }, t('updates.core_hint')) : null))), t('updates.none')));
 }
 
 // ---------------------------------------------------------------- settings

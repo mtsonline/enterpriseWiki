@@ -7150,6 +7150,72 @@ test('own profile: data, e-mail addresses, notifications, watches, feed key, API
   }
 });
 
+test('administration overview: tiles with links, update commands, narrow and wide, light and dark', async () => {
+  // the start page of the administration is the overview
+  await page.goto(`${BASE}/admin`);
+  await idle();
+  await page.waitForSelector('.ew-overview');
+  assert.match((await page.locator('.ew-admin-panel h1').textContent()) ?? '', /^(overview|übersicht)$/i);
+  assert.equal(await page.locator('.ew-admin nav.ew-subnav a[aria-current="page"]').getAttribute('href'), '/admin/overview');
+  for (const id of ['health', 'updates', 'security', 'plugins', 'users', 'license']) {
+    assert.equal(await page.locator(`.ew-overview section[aria-labelledby="ov-${id}"]`).count(), 1, `tile ${id}`);
+  }
+  // the update tile: filled after the check (or its failure), with the
+  // commands to install an update; the wiki offers no button for the core
+  const updates = page.locator('section[aria-labelledby="ov-updates"]');
+  await page.waitForFunction(() => document.querySelector('section[aria-labelledby="ov-updates"] [aria-busy="false"]'));
+  assert.ok(/docker compose|scripts\/update\.sh/.test((await updates.textContent()) ?? ''), 'update commands');
+  assert.equal(await updates.locator('button').count(), 0, 'no update button for the core');
+  // users: a deactivated account is counted
+  const users = page.locator('section[aria-labelledby="ov-users"] dd');
+  const disabledBefore = Number(await users.nth(1).textContent());
+  const u = await call('POST', '/api/v1/admin/users', { username: `ov${run}`, password: 'Ov-Passw0rd-123!' });
+  await call('PUT', `/api/v1/admin/users/${u.id}`, { disabled: true });
+  await page.reload();
+  await idle();
+  assert.equal(Number(await page.locator('section[aria-labelledby="ov-users"] dd').nth(1).textContent()), disabledBefore + 1, 'deactivated accounts');
+  await a11y('administration overview');
+  // narrow: one column, nothing wider than the screen; wide: several columns
+  const size = page.viewportSize();
+  try {
+    await page.setViewportSize({ width: 390, height: 800 });
+    await idle();
+    // what sticks out of its tile (named for the report)
+    const overflow = await page.evaluate(() => [...document.querySelectorAll('.ew-overview > section')].flatMap((sec) => {
+      const right = sec.getBoundingClientRect().right;
+      return [...sec.querySelectorAll('*')].filter((el) => el.getBoundingClientRect().right > right + 1)
+        .map((el) => `${sec.getAttribute('aria-labelledby')}: <${el.tagName.toLowerCase()} class="${el.className}"> ${(el.textContent ?? '').slice(0, 60)}`);
+    }));
+    assert.deepEqual(overflow, [], 'overview wider than a narrow screen');
+    assert.ok(await page.evaluate(() => document.querySelector('.ew-overview').scrollWidth <= document.querySelector('.ew-overview').clientWidth + 1), 'overview scrolls sideways');
+    await a11y('administration overview (narrow)');
+    await page.setViewportSize({ width: 1400, height: 900 });
+    await idle();
+    const tops = await page.locator('.ew-overview > section').evaluateAll((els) => new Set(els.map((el) => Math.round(el.getBoundingClientRect().top))).size);
+    assert.ok(tops < 6, 'tiles side by side on a wide screen');
+  } finally {
+    if (size) await page.setViewportSize(size);
+  }
+  // dark colour scheme
+  const uiBefore = (await call('GET', '/api/v1/admin/settings')).config.ui;
+  await call('PUT', '/api/v1/admin/settings', { ui: { ...uiBefore, template: 'theme.wiki.dark' } });
+  await call('PUT', '/api/v1/scheme', { scheme: 'dark' });
+  try {
+    await page.goto(`${BASE}/admin/overview`);
+    await idle();
+    await page.waitForFunction(() => document.querySelector('section[aria-labelledby="ov-updates"] [aria-busy="false"]'));
+    await a11y('administration overview (dark)');
+  } finally {
+    await call('PUT', '/api/v1/scheme', { scheme: '' });
+    await call('PUT', '/api/v1/admin/settings', { ui: uiBefore });
+  }
+  // the heading of a tile leads to its page
+  await page.goto(`${BASE}/admin`);
+  await idle();
+  await page.locator('#ov-users a').click();
+  await page.waitForURL(/\/admin\/users$/);
+});
+
 test('no JavaScript errors occurred', () => {
   assert.deepEqual(errors, []);
 });

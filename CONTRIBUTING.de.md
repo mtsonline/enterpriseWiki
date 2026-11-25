@@ -14,3 +14,4 @@ Die verbindlichen Regeln für alle Beiträge stehen in [CLAUDE.md](CLAUDE.md) (f
    API, CLI und Oberfläche.
 4. **Dokumentation** auf Deutsch und Englisch: `go run ./tools/docscheck` prüft Seiten, Gliederung, Links und dass jeder in Backticks genannte Bezeichner (Bausteine, Aktionen, Rechte, Einstellungen …) wirklich existiert.
 5. **Plugins** für den offiziellen Katalog: siehe [docs/de/developer/plugins.md](docs/de/developer/plugins.md); auch hier gilt die CLA.
+6. **Release-Notes**: Ein Release, das ein Sicherheitsproblem behebt, hat in seinen Notes auf GitHub einen Abschnitt `## Security` (oder `## Sicherheit`, beliebige Überschriftenebene) mit den Korrekturen in kurzen Sätzen. Das Wiki markiert ein solches Release als Sicherheitsupdate und zeigt diesen Abschnitt in der Übersicht der Administration zuerst, auch Installationen, die Versionen überspringen. Dieselbe Regel gilt für Plugins mit Repository.

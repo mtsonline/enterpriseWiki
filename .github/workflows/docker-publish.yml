@@ -62,7 +62,9 @@ jobs:
           target: ${{ matrix.variant }}
           platforms: linux/amd64,linux/arm64
           push: true
-          build-args: VERSION=${{ steps.version.outputs.version }}
+          build-args: |
+            VERSION=${{ steps.version.outputs.version }}
+            EWIKI_IMAGE_ORIGIN=published
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha,scope=${{ matrix.variant }}
