@@ -32,11 +32,14 @@ type Element struct {
 	Tags         []string          `json:"tags"`
 	CreatedAt    time.Time         `json:"created_at"`
 	UpdatedAt    time.Time         `json:"updated_at"`
-	UpdatedBy    string            `json:"updated_by"`
-	DeletedAt    *time.Time        `json:"deleted_at,omitempty"`
-	IsDefault    bool              `json:"is_default"`
-	ShortURL     string            `json:"short_url"`
-	ShortOnly    bool              `json:"short_only"` // only the short URL (no readable paths)
+	// UpdatedBy names who changed it last: the display name, with the
+	// handle only for readers who may look the person up (PeopleLabels).
+	UpdatedBy   string `json:"updated_by"`
+	updatedByID *int64
+	DeletedAt   *time.Time `json:"deleted_at,omitempty"`
+	IsDefault   bool       `json:"is_default"`
+	ShortURL    string     `json:"short_url"`
+	ShortOnly   bool       `json:"short_only"` // only the short URL (no readable paths)
 	// PreviewImage is shown in link previews (Open Graph); "" = first image of the page.
 	PreviewImage string `json:"preview_image"`
 	CreatedByID  *int64 `json:"created_by_id"`
@@ -86,14 +89,14 @@ type ElementView struct {
 }
 
 const elemCols = `e.id, e.category_id, e.type, e.position, e.original_lang, e.titles, e.tags, e.created_at, e.updated_at,
-	COALESCE((SELECT u.display_name || ' (' || u.username || '@' || u.provider || ')' FROM users u WHERE u.id = e.updated_by), ''),
+	COALESCE((SELECT u.display_name FROM users u WHERE u.id = e.updated_by), ''),
 	e.deleted_at, EXISTS (SELECT 1 FROM categories c WHERE c.id = e.category_id AND c.default_element_id = e.id), COALESCE(e.short_url, ''), e.preview_image, e.created_by, e.short_only, e.owner_instance, e.hidden,
-	e.own_rights_only, e.classification, EXISTS (SELECT 1 FROM element_rules er WHERE er.element_id = e.id)`
+	e.own_rights_only, e.classification, EXISTS (SELECT 1 FROM element_rules er WHERE er.element_id = e.id), e.updated_by`
 
 func scanElement(r pgx.CollectableRow) (Element, error) {
 	var e Element
 	err := r.Scan(&e.ID, &e.CategoryID, &e.Type, &e.Position, &e.OriginalLang, &e.Titles, &e.Tags, &e.CreatedAt, &e.UpdatedAt,
-		&e.UpdatedBy, &e.DeletedAt, &e.IsDefault, &e.ShortURL, &e.PreviewImage, &e.CreatedByID, &e.ShortOnly, &e.OwnerInstance, &e.Hidden, &e.OwnRightsOnly, &e.Classification, &e.OwnRules)
+		&e.UpdatedBy, &e.DeletedAt, &e.IsDefault, &e.ShortURL, &e.PreviewImage, &e.CreatedByID, &e.ShortOnly, &e.OwnerInstance, &e.Hidden, &e.OwnRightsOnly, &e.Classification, &e.OwnRules, &e.updatedByID)
 	return e, err
 }
 
@@ -230,6 +233,14 @@ func (s *Service) GetElement(ctx context.Context, id int64, lang string, withBod
 		lang = s.DefaultLanguage()
 	}
 	v := &ElementView{Element: *e, Lang: lang}
+	if e.updatedByID != nil {
+		// the handle only for readers who may look the person up
+		names, err := s.PeopleLabels(ctx, []int64{*e.updatedByID})
+		if err != nil {
+			return nil, err
+		}
+		v.UpdatedBy = names[*e.updatedByID]
+	}
 	perms := s.elementPerms(ctx, e)
 	v.Permissions = perms.Strings()
 	var body json.RawMessage
@@ -923,13 +934,14 @@ func (s *Service) DeleteElement(ctx context.Context, id int64) error {
 
 // Revision is an entry of the element history.
 type Revision struct {
-	Lang         string          `json:"lang"`
-	Rev          int             `json:"rev"`
-	SourceRev    *int            `json:"source_rev"`
-	Title        string          `json:"title"`
-	Comment      string          `json:"comment"`
-	RestoredFrom *int            `json:"restored_from"`
-	Author       string          `json:"author"`
+	Lang         string `json:"lang"`
+	Rev          int    `json:"rev"`
+	SourceRev    *int   `json:"source_rev"`
+	Title        string `json:"title"`
+	Comment      string `json:"comment"`
+	RestoredFrom *int   `json:"restored_from"`
+	Author       string `json:"author"` // display name; the handle only for who may look the person up
+	authorID     *int64
 	CreatedAt    time.Time       `json:"created_at"`
 	Body         json.RawMessage `json:"body,omitempty"`
 	HTML         string          `json:"html,omitempty"`
@@ -944,17 +956,35 @@ func (s *Service) Revisions(ctx context.Context, id int64, lang string) ([]Revis
 	if err := s.requireElement(ctx, e, acl.View); err != nil {
 		return nil, err
 	}
-	rows, err := s.pool.Query(ctx, `SELECT r.lang, r.rev, r.source_rev, r.title, r.comment, r.restored_from,
-		COALESCE(u.display_name || ' (' || u.username || '@' || u.provider || ')', ''), r.created_at
-		FROM element_revisions r LEFT JOIN users u ON u.id = r.created_by
+	rows, err := s.pool.Query(ctx, `SELECT r.lang, r.rev, r.source_rev, r.title, r.comment, r.restored_from, r.created_by, r.created_at
+		FROM element_revisions r
 		WHERE r.element_id=$1 AND ($2 = '' OR r.lang=$2) ORDER BY r.created_at DESC, r.rev DESC LIMIT 1000`, id, lang)
 	if err != nil {
 		return nil, err
 	}
-	return pgx.CollectRows(rows, func(r pgx.CollectableRow) (Revision, error) {
+	var authors []int64
+	list, err := pgx.CollectRows(rows, func(r pgx.CollectableRow) (Revision, error) {
 		var x Revision
-		return x, r.Scan(&x.Lang, &x.Rev, &x.SourceRev, &x.Title, &x.Comment, &x.RestoredFrom, &x.Author, &x.CreatedAt)
+		err := r.Scan(&x.Lang, &x.Rev, &x.SourceRev, &x.Title, &x.Comment, &x.RestoredFrom, &x.authorID, &x.CreatedAt)
+		if x.authorID != nil {
+			authors = append(authors, *x.authorID)
+		}
+		return x, err
 	})
+	if err != nil {
+		return nil, err
+	}
+	// the handle only for readers who may look the person up
+	names, err := s.PeopleLabels(ctx, authors)
+	if err != nil {
+		return nil, err
+	}
+	for i := range list {
+		if list[i].authorID != nil {
+			list[i].Author = names[*list[i].authorID]
+		}
+	}
+	return list, nil
 }
 
 // GetRevision returns one revision with body and rendered HTML.
@@ -967,15 +997,21 @@ func (s *Service) GetRevision(ctx context.Context, id int64, lang string, rev in
 		return nil, err
 	}
 	var x Revision
-	err = s.pool.QueryRow(ctx, `SELECT r.lang, r.rev, r.source_rev, r.title, r.comment, r.restored_from,
-		COALESCE(u.display_name || ' (' || u.username || '@' || u.provider || ')', ''), r.created_at, r.body
-		FROM element_revisions r LEFT JOIN users u ON u.id = r.created_by WHERE r.element_id=$1 AND r.lang=$2 AND r.rev=$3`, id, lang, rev).
-		Scan(&x.Lang, &x.Rev, &x.SourceRev, &x.Title, &x.Comment, &x.RestoredFrom, &x.Author, &x.CreatedAt, &x.Body)
+	err = s.pool.QueryRow(ctx, `SELECT r.lang, r.rev, r.source_rev, r.title, r.comment, r.restored_from, r.created_by, r.created_at, r.body
+		FROM element_revisions r WHERE r.element_id=$1 AND r.lang=$2 AND r.rev=$3`, id, lang, rev).
+		Scan(&x.Lang, &x.Rev, &x.SourceRev, &x.Title, &x.Comment, &x.RestoredFrom, &x.authorID, &x.CreatedAt, &x.Body)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, apperr.NotFound("revision")
 	}
 	if err != nil {
 		return nil, err
+	}
+	if x.authorID != nil {
+		names, err := s.PeopleLabels(ctx, []int64{*x.authorID})
+		if err != nil {
+			return nil, err
+		}
+		x.Author = names[*x.authorID]
 	}
 	if t := s.Type(e.Type); t != nil {
 		x.HTML, _ = t.Render(s.withIncludeBudget(ctx), RenderContext{ElementID: id, CategoryID: e.CategoryID, Lang: lang, Principal: identity.From(ctx), Service: s}, x.Body)

@@ -25,8 +25,9 @@ type TrashItem struct {
 	Titles    map[string]string `json:"titles"`
 	ParentID  *int64            `json:"parent_id"` // category: parent, element: category
 	DeletedAt time.Time         `json:"deleted_at"`
-	DeletedBy string            `json:"deleted_by"`
-	Contains  int               `json:"contains"` // number of objects deleted with it
+	DeletedBy string            `json:"deleted_by"` // display name; the handle only for who may look the person up
+	deletedBy *int64
+	Contains  int `json:"contains"` // number of objects deleted with it
 }
 
 // Trash lists the objects the caller deleted or may restore. Admins see all.
@@ -37,23 +38,38 @@ func (s *Service) Trash(ctx context.Context) ([]TrashItem, error) {
 	}
 	// acl: filtered per item below (CanElement for pages; administrators see all)
 	rows, err := s.pool.Query(ctx, `
-		SELECT 'category', c.id, c.titles, c.parent_id, c.deleted_at, COALESCE(u.username || '@' || u.provider, ''),
+		SELECT 'category', c.id, c.titles, c.parent_id, c.deleted_at, c.deleted_by,
 			(SELECT count(*) FROM categories x WHERE x.path <@ c.path AND x.deleted_at = c.deleted_at) - 1 +
 			(SELECT count(*) FROM elements e WHERE e.deleted_at = c.deleted_at AND e.category_id IN (SELECT id FROM categories y WHERE y.path <@ c.path))
-		FROM categories c LEFT JOIN users u ON u.id=c.deleted_by WHERE c.trash_root AND c.deleted_at IS NOT NULL
+		FROM categories c WHERE c.trash_root AND c.deleted_at IS NOT NULL
 		UNION ALL
-		SELECT 'element', e.id, e.titles, e.category_id, e.deleted_at, COALESCE(u.username || '@' || u.provider, ''), 0
-		FROM elements e LEFT JOIN users u ON u.id=e.deleted_by WHERE e.trash_root AND e.deleted_at IS NOT NULL
+		SELECT 'element', e.id, e.titles, e.category_id, e.deleted_at, e.deleted_by, 0
+		FROM elements e WHERE e.trash_root AND e.deleted_at IS NOT NULL
 		ORDER BY 5 DESC LIMIT 1000`)
 	if err != nil {
 		return nil, err
 	}
 	items, err := pgx.CollectRows(rows, func(r pgx.CollectableRow) (TrashItem, error) {
 		var t TrashItem
-		return t, r.Scan(&t.Type, &t.ID, &t.Titles, &t.ParentID, &t.DeletedAt, &t.DeletedBy, &t.Contains)
+		return t, r.Scan(&t.Type, &t.ID, &t.Titles, &t.ParentID, &t.DeletedAt, &t.deletedBy, &t.Contains)
 	})
 	if err != nil {
 		return nil, err
+	}
+	var ids []int64
+	for _, it := range items {
+		if it.deletedBy != nil {
+			ids = append(ids, *it.deletedBy)
+		}
+	}
+	names, err := s.PeopleLabels(ctx, ids)
+	if err != nil {
+		return nil, err
+	}
+	for i := range items {
+		if items[i].deletedBy != nil {
+			items[i].DeletedBy = names[*items[i].deletedBy]
+		}
 	}
 	if p.Admin() {
 		return items, nil

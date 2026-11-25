@@ -179,6 +179,9 @@ func (p *Plugin) Setup(host *coreplugin.Host) error {
 		for _, c := range list {
 			p.decorate(ctx, c, perms, cat)
 		}
+		if err := p.names(ctx, list...); err != nil {
+			return nil, err
+		}
 		me := identity.From(ctx)
 		return map[string]any{"comments": list, "can_comment": me != nil && me.ID() != 0 && perms&p.minPerm() != 0 && !host.ACL.Archived(ctx, cat)}, nil
 	})
@@ -258,6 +261,9 @@ func (p *Plugin) Setup(host *coreplugin.Host) error {
 		perms, _ := host.ACL.ElementPerms(ctx, me, id, cat)
 		p.decorate(ctx, &c, perms, cat)
 		p.emitComment(ctx, &c, cat, body)
+		if err := p.names(ctx, &c); err != nil {
+			return nil, err
+		}
 		return h.Created{V: &c}, nil
 	})
 
@@ -303,6 +309,9 @@ func (p *Plugin) Setup(host *coreplugin.Host) error {
 		}
 		c.Body, c.Edited = body, true
 		p.decorate(ctx, c, perms, cat)
+		if err := p.names(ctx, c); err != nil {
+			return nil, err
+		}
 		return c, nil
 	})
 
@@ -411,11 +420,35 @@ func (p *Plugin) notify(ctx context.Context, tx pgx.Tx, c *Comment, cat int64) e
 	return nil
 }
 
+// displayName is the name stored with a comment (for e-mails, webhooks and
+// accounts deleted later). The handle is not stored: it can be an e-mail
+// address and is shown only to readers who may look the person up (names).
 func displayName(p *identity.Principal) string {
-	if p.DisplayName != "" {
-		return p.DisplayName + " (" + p.Handle() + ")"
+	return p.DisplayName
+}
+
+// names sets the authors of comments as the caller may see them: the
+// display name, with the handle only for who may look the person up
+// (content.PeopleLabels). One query for all comments.
+func (p *Plugin) names(ctx context.Context, list ...*Comment) error {
+	var ids []int64
+	for _, c := range list {
+		if c.AuthorID != nil {
+			ids = append(ids, *c.AuthorID)
+		}
 	}
-	return p.Handle()
+	names, err := p.host.Content.PeopleLabels(ctx, ids)
+	if err != nil {
+		return err
+	}
+	for _, c := range list {
+		if c.AuthorID != nil {
+			if n, ok := names[*c.AuthorID]; ok {
+				c.Author = n
+			}
+		}
+	}
+	return nil
 }
 
 // emitComment reports a new comment to the webhooks (title of the page, author, beginning of the text).
