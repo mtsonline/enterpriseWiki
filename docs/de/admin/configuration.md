@@ -275,6 +275,22 @@ lists:
   max_items: 0  # 0 = 1000; 50 bis 10000
 ```
 
+### `people`
+Personenseiten und das Menü an Namen (*Administration → Einstellungen → Personen*). Wer Personen überhaupt öffnen darf, regelt das Recht *Personen öffnen* (`core.people.view`; standardmäßig alle angemeldeten Personen, zusammen mit den Regeln zum Finden von Personen: `core.users.list_all` oder die eigenen Gruppen mit `core.users.list_own`). Gäste sehen nie Personen.
+
+```yaml
+people:
+  email_visibility: users    # users | permission | nobody
+  email_hide_allowed: true   # Personen dürfen ihre eigene Adresse im Profil verbergen
+```
+
+| Schlüssel | Bedeutung | Vorgabe |
+|---|---|---|
+| `email_visibility` | wer die E-Mail-Adresse auf Personenseiten, im Menü an Namen und in den Personen-Bausteinen sieht: `users` (alle Angemeldeten, die die Person öffnen dürfen), `permission` (nur mit *E-Mail-Adressen von Personen sehen*, `core.people.email`), `nobody`. Die Person sieht ihre eigene Adresse immer. Gezeigt wird nur die primäre bestätigte Adresse | `users` |
+| `email_hide_allowed` | jede Person darf ihre eigene Adresse im Profil verbergen (*Meine E-Mail-Adresse verbergen*). Eine verborgene Adresse bleibt für alle anderen verborgen, auch für die Administration. Ausgeschaltet zählen frühere Entscheidungen nicht mehr | `true` |
+
+Team-Seiten sind davon nicht betroffen: Wer eine Team-Seite gestaltet, wählt dort die Felder (z. B. eine öffentliche Kontaktseite). Die Teilnehmerlisten von Terminen zeigen den Veranstaltern die Adressen wie bisher.
+
 ### `webhooks`
 Webhooks selbst werden unter *Administration → Webhooks* (API `/api/v1/admin/webhooks`) angelegt. In `config.yaml` stehen nur:
 
@@ -381,6 +397,7 @@ Die Grenzwerte gelten für die ganze Instanz; in weiteren Sites ändern sie nur 
 | `core.auth.passkey_autofill_per_5min` | Passkey-Anfragen des Benutzernamen-Felds je Adresse in 5 Minuten (Anmeldeseite) | 600 |
 | `core.auth.register_per_hour`, `core.auth.registrations_pending` | Registrierungen je Adresse in einer Stunde; gleichzeitig wartende Registrierungen | 10 / 10 000 |
 | `core.auth.password_reset_per_hour` | „Passwort vergessen?“ je Absender-Adresse in einer Stunde | 10 |
+| `core.people.views_per_hour` | Personenseiten und Menüs an Namen, die ein Konto in einer Stunde öffnen darf (Administration ohne Grenze); schützt Visitenkarten und E-Mail-Adressen davor, in großer Zahl gesammelt zu werden | 600 |
 | `core.live.persons` | Personen, die eine Seite gleichzeitig gemeinsam bearbeiten | 50 |
 | `core.live.connections_per_person` | Fenster oder Geräte einer Person an derselben Seite | 5 |
 | `core.audit.search_days` | so weit reicht die Textsuche in den Vorher-/Nachher-Werten des Audit-Protokolls zurück, wenn kein Startdatum angegeben ist (mit Startdatum: jeder Zeitraum) | 90 Tage |

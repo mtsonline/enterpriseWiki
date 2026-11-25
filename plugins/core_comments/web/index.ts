@@ -1,11 +1,11 @@
 // Comments below element pages.
-import { api, ApiError, button, prefetchReactions, reactionBar, confirmDialog, errorText, field, fmtDate, h, registerElementExtension, state, t, textArea, toast, trustedHTML, type ElementView } from '@ewiki/coreplugin';
+import { api, ApiError, button, personName, prefetchReactions, reactionBar, confirmDialog, errorText, field, fmtDate, h, registerElementExtension, state, t, textArea, toast, trustedHTML, type ElementView } from '@ewiki/coreplugin';
 import './style.css';
 
 const BASE = 'x/core.comments';
 
 interface Comment {
-  id: number; element_id: number; parent_id: number | null; author: string; body: string; html: string;
+  id: number; element_id: number; parent_id: number | null; author: string; author_id?: number; body: string; html: string;
   created_at: string; updated_at: string; edited: boolean; deleted_at: string | null; can_edit: boolean; can_delete: boolean;
 }
 interface ListResponse { comments: Comment[]; can_comment: boolean }
@@ -72,7 +72,7 @@ async function section(el: ElementView): Promise<Node | null> {
       }, { variant: 'link' }));
     }
     const art = h('article', { class: 'ewcm-item', id: `comment-${c.id}`, tabindex: '-1', 'aria-labelledby': `comment-${c.id}-h` },
-      h('header', { class: 'ewcm-head', id: `comment-${c.id}-h` }, h('strong', null, c.author || '–'), ' ',
+      h('header', { class: 'ewcm-head', id: `comment-${c.id}-h` }, h('strong', null, personName(c.author, c.author_id)), ' ',
         h('time', { datetime: c.created_at, class: 'ew-muted' }, fmtDate(c.created_at, state.lang)),
         c.edited && !c.deleted_at ? h('span', { class: 'ew-muted' }, ` · ${t('core.comments.edited')}`) : null),
       body, actions, c.deleted_at ? null : reactionBar('comment', c.id, t('core.comments.reaction_target', { author: c.author })));

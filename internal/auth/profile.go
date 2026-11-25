@@ -15,8 +15,10 @@ import (
 
 // ProfileFields are the fields of a user's profile ("business card").
 // photo is the SHA-256 of an uploaded image (GET /api/v1/files/{hash});
-// photo_visibility is the person's choice who sees it (see PhotoPolicy).
-var ProfileFields = []string{"job_title", "department", "phone", "mobile", "office", "about", "photo", "photo_visibility"}
+// photo_visibility is the person's choice who sees it (see PhotoPolicy);
+// email_hidden ("true") hides the own e-mail address from other people, if
+// the administration allows it (see EmailPolicy).
+var ProfileFields = []string{"job_title", "department", "phone", "mobile", "office", "about", "photo", "photo_visibility", "email_hidden"}
 
 // Visibility levels of profile photos, narrowest first: nobody (only the
 // person), signed-in people, everybody. People with the permission
@@ -151,6 +153,14 @@ func (s *Service) SetProfile(ctx context.Context, uid int64, in map[string]strin
 			}
 			if photoLevels[v] > photoLevels[pol.Max] {
 				return nil, apperr.BadRequest("profile photos may be visible at most to: %s", pol.Max)
+			}
+		}
+		if k == "email_hidden" && v != "" {
+			if v != "true" {
+				return nil, apperr.BadRequest("email_hidden must be true or empty")
+			}
+			if !s.EmailPolicy().HideAllowed {
+				return nil, apperr.BadRequest("hiding the own e-mail address is not allowed on this site")
 			}
 		}
 		if k == "photo" && v != "" {

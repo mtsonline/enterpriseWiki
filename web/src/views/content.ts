@@ -20,6 +20,7 @@ import { expectWidgetControls, settleWidgetControls, widgetControlsClaimed } fro
 import { draftNotice, publishDialog, publishVia, saveDraft, saveTemplateDialog, showPreview, templatePicker, type Draft, type EditorState, type Template } from '../components/publishing';
 import { tagInput } from '../components/tags';
 import { editFields } from '../components/editfields';
+import { personName, tParts } from '../components/person';
 
 const L = () => state.lang;
 const D = () => state.site.default_language;
@@ -632,7 +633,7 @@ function elementInfo(el: ElementView): HTMLElement {
   return h('footer', { class: 'ew-meta' },
     tagList(el.tags),
     el.short_url ? h('p', null, t('shorturl.label'), ': ', h('a', { href: `/${el.short_url}` }, `${location.host}/${el.short_url}`)) : null,
-    h('p', null, t('element.updated_by', { date: fmtDate(el.updated_at, L()), user: el.updated_by || '–' }), ' · ', t('element.revision', { rev: el.rev }), ' · ',
+    h('p', null, ...tParts('element.updated_by', { date: fmtDate(el.updated_at, L()), user: personName(el.updated_by, el.updated_by_id) }), ' · ', t('element.revision', { rev: el.rev }), ' · ',
       h('a', { href: `/e/${el.id}/history` }, t('element.history'))));
 }
 
@@ -1081,7 +1082,7 @@ export async function historyView({ params, query, main }: RouteCtx): Promise<vo
         h('td', null, langName(r.lang)),
         h('th', { scope: 'row' }, String(r.rev), latest.get(r.lang) === r.rev ? h('span', { class: 'ew-badge ew-badge--ok' }, ' ', t('history.current')) : null),
         h('td', null, fmtDate(r.created_at, L())),
-        h('td', null, r.author || '–'),
+        h('td', null, personName(r.author, r.author_id)),
         h('td', null, r.comment || (r.restored_from ? t('history.restored_from', { rev: r.restored_from }) : '')),
         h('td', { class: 'ew-actions' },
           button(t('common.view'), () => void showRevision(id, r), { variant: 'link', ariaLabel: t('history.view_rev', { rev: r.rev, lang: langName(r.lang) }) }),

@@ -20,14 +20,15 @@ import (
 
 // TrashItem is a deleted category or element.
 type TrashItem struct {
-	Type      string            `json:"type"` // category | element
-	ID        int64             `json:"id"`
-	Titles    map[string]string `json:"titles"`
-	ParentID  *int64            `json:"parent_id"` // category: parent, element: category
-	DeletedAt time.Time         `json:"deleted_at"`
-	DeletedBy string            `json:"deleted_by"` // display name; the handle only for who may look the person up
-	deletedBy *int64
-	Contains  int `json:"contains"` // number of objects deleted with it
+	Type        string            `json:"type"` // category | element
+	ID          int64             `json:"id"`
+	Titles      map[string]string `json:"titles"`
+	ParentID    *int64            `json:"parent_id"` // category: parent, element: category
+	DeletedAt   time.Time         `json:"deleted_at"`
+	DeletedBy   string            `json:"deleted_by"`              // display name; the handle only for who may look the person up
+	DeletedByID *int64            `json:"deleted_by_id,omitempty"` // only for who may open the person
+	deletedBy   *int64
+	Contains    int `json:"contains"` // number of objects deleted with it
 }
 
 // Trash lists the objects the caller deleted or may restore. Admins see all.
@@ -62,13 +63,14 @@ func (s *Service) Trash(ctx context.Context) ([]TrashItem, error) {
 			ids = append(ids, *it.deletedBy)
 		}
 	}
-	names, err := s.PeopleLabels(ctx, ids)
+	refs, err := s.PeopleRefs(ctx, ids)
 	if err != nil {
 		return nil, err
 	}
 	for i := range items {
 		if items[i].deletedBy != nil {
-			items[i].DeletedBy = names[*items[i].deletedBy]
+			r := refs[*items[i].deletedBy]
+			items[i].DeletedBy, items[i].DeletedByID = r.Name, r.ID
 		}
 	}
 	if p.Admin() {

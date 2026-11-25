@@ -79,6 +79,9 @@ type Instance struct {
 	Status      string            `json:"status"`
 	Outcome     string            `json:"outcome,omitempty"`
 	StartedByID *int64            `json:"-"`
+	// Starter is the id of who started the case, only for who may open the
+	// person (menu on the name).
+	Starter     *int64            `json:"started_by_id,omitempty"`
 	StartedBy   string            `json:"started_by"`
 	StartedAt   time.Time         `json:"started_at"`
 	UpdatedAt   time.Time         `json:"updated_at"`
@@ -125,6 +128,7 @@ type Event struct {
 	ActionLabel string  `json:"action_label"`
 	Note        string  `json:"note"`
 	Actor       string  `json:"actor"`
+	ActorID     *int64  `json:"actor_id,omitempty"` // only for who may open the person
 	actorID     *int64
 	At          time.Time `json:"at"`
 	Signature   *int64    `json:"signature,omitempty"` // id of the signature of the decision
@@ -369,13 +373,14 @@ func (pl *Plugin) nameStarters(ctx context.Context, xs []*Instance) error {
 			ids = append(ids, *x.StartedByID)
 		}
 	}
-	names, err := pl.host.Content.PeopleLabels(ctx, ids)
+	refs, err := pl.host.Content.PeopleRefs(ctx, ids)
 	if err != nil {
 		return err
 	}
 	for _, x := range xs {
 		if x.StartedByID != nil {
-			x.StartedBy = names[*x.StartedByID]
+			r := refs[*x.StartedByID]
+			x.StartedBy, x.Starter = r.Name, r.ID
 		}
 	}
 	return nil
@@ -400,14 +405,14 @@ func (pl *Plugin) events(ctx context.Context, id int64) ([]Event, error) {
 	if err != nil {
 		return nil, err
 	}
-	names, err := pl.host.Content.PeopleLabels(ctx, ids)
+	refs, err := pl.host.Content.PeopleRefs(ctx, ids)
 	if err != nil {
 		return nil, err
 	}
 	for i := range list {
 		switch {
 		case list[i].actorID != nil:
-			list[i].Actor = names[*list[i].actorID]
+			list[i].Actor, list[i].ActorID = refs[*list[i].actorID].Name, refs[*list[i].actorID].ID
 		case list[i].Actor != "system":
 			list[i].Actor = "" // a deleted account: its stored handle is not shown
 		}

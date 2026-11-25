@@ -286,6 +286,27 @@ actions:
         as: self
         query_json: '{"q": "${self.name}@local"}'
         expect_json: '[{"handle": "${self.name}@local"}]'
+  - id: core.people.get
+    category: CATEGORY_ACTION
+    method: GET
+    path: /api/v1/people/{id}
+    success_status: 200
+    summary:
+      text:
+        en: "Show a person: business card, e-mail address only if allowed (core.people.view and the rules for finding people)"
+        de: "Person anzeigen: Visitenkarte, E-Mail-Adresse nur wenn erlaubt (core.people.view und die Regeln zum Finden von Personen)"
+    signed_in: true
+    cli: {command: [person, show], args: [id]}
+    ui: {entry: /people/:id}
+    examples:
+      - name: default
+        as: self
+        path_params_json: '{"id": "${self.id}"}'
+        expect_json: '{"self": true}'
+      - name: guest
+        as: guest
+        path_params_json: '{"id": "1"}'
+        status: 401
   - id: core.permissions.list
     category: CATEGORY_ACTION
     method: GET

@@ -606,8 +606,10 @@ func buildDemo(d *demoRun) {
 		// people blocks in a page: only for people who may list the group
 		d.page(team, "People in a page", "Personen in einer Seite",
 			`<p>The block <em>People of a group</em> shows the members to people who may list the group and its members; guests see none (for a public page there is the team page).</p>`+
+				`<p>Names are buttons for people who may open the person: the menu offers <em>Open profile</em> (the business card on a page of its own) and <em>Send e-mail</em>, when the address may be shown. The same menu is on every name, e.g. under a page (<em>Last updated by</em>), in its history and in comments.</p>`+
 				macro("people", map[string]string{"group": strconv.FormatInt(editorsGroup, 10), "layout": "list", "details": "short"}, ""),
 			`<p>Der Baustein <em>Personen einer Gruppe</em> zeigt die Mitglieder allen, die die Gruppe und ihre Mitglieder auflisten dürfen; Gäste sehen niemanden (für eine öffentliche Seite gibt es die Team-Seite).</p>`+
+				`<p>Namen sind Knöpfe für alle, die die Person öffnen dürfen: Das Menü bietet <em>Profil öffnen</em> (die Visitenkarte auf einer eigenen Seite) und <em>E-Mail senden</em>, wenn die Adresse gezeigt werden darf. Dasselbe Menü gibt es an jedem Namen, z. B. unter einer Seite (<em>Zuletzt geändert von</em>), im Verlauf und in Kommentaren.</p>`+
 				macro("people", map[string]string{"group": strconv.FormatInt(editorsGroup, 10), "layout": "list", "details": "short"}, ""), nil)
 	})
 

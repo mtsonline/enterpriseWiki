@@ -33,6 +33,9 @@ auth:
     max_login_failures: 10
     lockout_duration: 15m
     min_password_length: 12
+people:
+    email_visibility: users       # who sees e-mail addresses of people: users | permission (core.people.email) | nobody
+    email_hide_allowed: true      # people may hide their own address in their profile
 retention:
     revisions_keep_days: 0        # 0 = keep forever
     revisions_keep_min: 50
