@@ -6088,7 +6088,8 @@ test('demo content: create, browse accessibly, remove', async () => {
   try {
     let dark = 0;
     let cms = 0;
-    for (const p of [...seen, `/e/${db.id}`, ...[...editors].slice(0, 3)]) {
+    // (the start page of the site has the website template: a CMS page)
+    for (const p of [...seen, '/', `/e/${db.id}`, ...[...editors].slice(0, 3)]) {
       await page.goto(BASE + p);
       await idle();
       // a template of the designer has light colours only; those pages stay light
