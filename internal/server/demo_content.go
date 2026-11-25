@@ -261,15 +261,15 @@ type demoRefs struct {
 	userIDs        map[string]int64
 
 	// area 1: the company
-	company, intranet                                                     int64 // category, its start page
-	news, events, teams, handbook, faq, forms, projects                   int64 // categories
-	docs, rooms, travel, onboarding                                       int64
-	blog, calendar, teamPage, faqEl, propdb                               int64 // elements
-	holidayForm, holidayFlow, deviceFlow, ideas, ideaResults, contactForm int64
-	notes, decisions, tasks, houseRules, boardPage, reports, guideline    int64
-	minutesTpl                                                            int64 // page template of the space
-	carousel                                                              int64
-	contactBlock                                                          int64
+	company, intranet                                                                      int64 // category, its start page
+	news, events, teams, handbook, faq, forms, projects                                    int64 // categories
+	docs, rooms, travel, onboarding                                                        int64
+	blog, calendar, teamPage, faqEl, propdb                                                int64 // elements
+	holidayForm, holidayFlow, applicationFlow, deviceFlow, ideas, ideaResults, contactForm int64
+	notes, decisions, tasks, houseRules, boardPage, reports, guideline                     int64
+	minutesTpl                                                                             int64 // page template of the space
+	carousel                                                                               int64
+	contactBlock                                                                           int64
 
 	// area 2: the tour
 	tour     int64 // category

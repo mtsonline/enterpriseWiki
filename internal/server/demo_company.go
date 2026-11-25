@@ -544,6 +544,37 @@ func companyFlows(d *demoRun, r *demoRefs) {
 				"steps": steps}
 		}), map[string]any{"position": 0})
 	})
+	// the job application: a CV as a file, the pre-check of HR, the
+	// decision of the team lead, the answer as a pop-up in the wiki
+	d.optional("application", func() {
+		r.applicationFlow = d.element(r.forms, "workflow.process", d.tr("Internal job application", "Interne Bewerbung"), d.perLang(func(tr trf) any {
+			answer := func(id, subjectEN, subjectDE, next string) map[string]any {
+				return map[string]any{"id": id, "name": tr("Answer to the applicant", "Antwort an die Bewerberin oder den Bewerber"), "type": "notify", "next": next,
+					"notify": map[string]any{"to": "starter", "channel": "inbox", "popup": true, "subject": tr(subjectEN, subjectDE), "body": "{{last.note}}"}}
+			}
+			return map[string]any{
+				"description": tr("Apply for an open position with your CV. First HR checks the application, then the team lead of the department decides. You get the answer as a pop-up in the wiki when you next open a page – no e-mail. In this demo you belong to HR and to the team leads, so you can play every step yourself under My tasks.",
+					"Bewerben Sie sich mit Ihrem Lebenslauf auf eine offene Stelle. Zuerst prüft das Personal die Bewerbung, dann entscheidet die Teamleitung der Abteilung. Die Antwort erscheint als Pop-up im Wiki, wenn Sie das nächste Mal eine Seite öffnen – keine E-Mail. In dieser Demo gehören Sie zum Personal und zur Teamleitung und können jeden Schritt unter Meine Aufgaben selbst ausführen."),
+				"fields": []map[string]any{
+					{"id": "position", "label": tr("Position", "Stelle"), "type": "select", "required": true, "options": []string{tr("Service desk", "Service Desk"), tr("Cloud engineer", "Cloud-Technik"), tr("Project lead", "Projektleitung")}},
+					{"id": "cv", "label": tr("CV (PDF)", "Lebenslauf (PDF)"), "type": "file", "required": true, "help": tr("The file is checked like every upload of the wiki.", "Die Datei wird wie jeder Upload des Wikis geprüft.")},
+					{"id": "letter", "label": tr("Why this position?", "Warum diese Stelle?"), "type": "textarea"},
+					{"id": "hr_note", "label": tr("Note of HR", "Notiz des Personals"), "type": "textarea", "later": true}},
+				"steps": []map[string]any{
+					{"id": "hr", "name": tr("Pre-check by HR", "Vorprüfung durch das Personal"), "assignee": map[string]string{"type": "group", "value": "#" + itoa(r.editors)},
+						"actions": []map[string]any{{"id": "ok", "label": tr("Pass on to the department", "An die Abteilung weitergeben"), "next": "lead"},
+							{"id": "no", "label": tr("Decline", "Absagen"), "next": "tell_no", "note": "required"}},
+						"form": []map[string]string{{"field": "hr_note", "mode": "edit"}}},
+					{"id": "lead", "name": tr("Decision of the team lead", "Entscheidung der Teamleitung"), "assignee": map[string]string{"type": "group", "value": "#" + itoa(r.leads)},
+						"actions": []map[string]any{{"id": "ok", "label": tr("Invite to an interview", "Zum Gespräch einladen"), "next": "tell_ok", "note": "required"},
+							{"id": "no", "label": tr("Decline", "Absagen"), "next": "tell_no", "note": "required"}},
+						"form": []map[string]string{{"field": "hr_note", "mode": "read"}}},
+					answer("tell_ok", "Your application: we would like to meet you", "Ihre Bewerbung: Wir möchten Sie kennenlernen", "done"),
+					answer("tell_no", "Your application: our answer", "Ihre Bewerbung: unsere Antwort", "no"),
+					end(tr),
+					{"id": "no", "name": tr("Declined", "Abgesagt"), "type": "end", "outcome": "failure", "actions": []any{}}}}
+		}), map[string]any{"position": 10})
+	})
 	d.optional("workflow2", func() {
 		wf := func(tr trf) any {
 			return map[string]any{
@@ -709,6 +740,7 @@ func companyFlows(d *demoRun, r *demoRefs) {
 		return `<p>` + tr("Requests at Enterprise IT Services run by themselves: you fill in a form, the right people get a task, and you get a message.",
 			"Anträge laufen bei Enterprise IT Services von selbst: Sie füllen ein Formular aus, die richtigen Personen bekommen eine Aufgabe, und Sie bekommen eine Nachricht.") + `</p><ul>` +
 			item(r.holidayFlow, "Holiday request", "Urlaubsantrag", "decided by the team lead, then in the calendar.", "entscheidet die Teamleitung, danach im Kalender.") +
+			item(r.applicationFlow, "Internal job application", "Interne Bewerbung", "with your CV, checked by HR and the team lead, the answer as a pop-up.", "mit Lebenslauf, geprüft von Personal und Teamleitung, die Antwort als Pop-up.") +
 			item(r.deviceFlow, "Device request", "Geräteantrag", "above 1000 € with an approval.", "über 1000 € mit Freigabe.") +
 			item(r.ideas, "Idea box", "Ideenbox", "a form in three steps.", "ein Formular in drei Schritten.") +
 			item(r.contactForm, "Contact form", "Kontaktformular", "a message to the administration.", "eine Nachricht an die Verwaltung.") + `</ul>` +

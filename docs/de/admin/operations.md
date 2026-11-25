@@ -271,18 +271,19 @@ ewiki file upload --file file=@notizen.txt  # Hochladen (multipart): --form NAME
 Unter *Administration → Demo* (nur Administratoren) legt **Demo anlegen** einen Bereich „Demo: Enterprise Wiki“
 (Schlüssel `DEMO`, Kurz-URL `/demo`) mit zwei Wegen ins Wiki an:
 
-- **Beispiel-Firma** („Beispielwerk GmbH“, ein erfundener Fahrradhersteller): ein Intranet, wie es eine Firma nutzt –
+- **Beispiel-Firma** („Enterprise IT Services“, ein erfundener IT-Dienstleister): ein Intranet, wie es eine Firma nutzt –
   Startseite mit Schnellzugriffen, Neuigkeiten (Blog mit Kommentar, @Erwähnung und Reaktion), Termine mit Anmeldung
   und Serie, Teams (Teamseite, Entscheidungsprotokoll, Aufgaben im Text, Kalender der Teams, gemeinsame Notizen),
   Handbuch (Darstellung *Handbuch*), Wissensdatenbank (FAQ mit Sofortsuche), Formulare und Abläufe (Urlaubsantrag
-  mit Entscheidung der Teamleitung und Eintrag im Kalender, Geräteantrag, Einarbeitung, Ideenbox mit öffentlichen
+  mit Entscheidung der Teamleitung und Eintrag im Kalender, interne Bewerbung mit Lebenslauf, Vorprüfung durch das
+  Personal, Entscheidung der Teamleitung und der Antwort als Pop-up im Wiki, Geräteantrag, Einarbeitung, Ideenbox mit öffentlichen
   Ergebnissen, Kontaktformular, weitere Workflows mit Auslösern), Projekte (Eigenschaften, Projekt-Datenbank,
   Berichte), Dokumente (vertraulich eingestuft, PDF nur zur Ansicht mit Wasserzeichen, Word-Datei für das
   Office-Programm, eine Seite mit eigenen Rechten) und Kategorien als Karten, Tabelle und „alles auf einer Seite“.
   Ein kurzer Hinweis „So funktioniert das“ erklärt die Funktion dort, wo sie genutzt wird, und verweist auf die
-  passende Station des Rundgangs. Die Demo-Konten der Teamleitung entscheiden Anträge; damit Sie den Urlaubsantrag
-  selbst ganz durchspielen können, gehört das Administratorkonto, das die Demo anlegt, für die Dauer der Demo zur
-  Gruppe „Demo: Teamleitung“.
+  passende Station des Rundgangs. Die Demo-Konten der Teamleitung entscheiden Anträge; damit Sie Urlaubsantrag und
+  Bewerbung selbst ganz durchspielen können, gehört das Administratorkonto, das die Demo anlegt, für die Dauer der
+  Demo zu den Gruppen „Demo: Verwaltung“ und „Demo: Teamleitung“.
 - **Rundgang durch die Funktionen**: eine Station je Funktion, jede eine Seite mit immer demselben Aufbau – was es
   ist, *So geht's* (die Schritte), *So sieht es aus* (das Ergebnis live auf der Seite), *Wofür Sie es nutzen* und
   bei Bedarf *Gut zu wissen*. Die Kategorie hat die Darstellung *Handbuch*: alle Stationen stehen in der

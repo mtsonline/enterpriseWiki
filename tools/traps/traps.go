@@ -972,6 +972,8 @@ var traps = []trap{
 		Old:  "WHERE n.user_id=$1 AND n.popup AND n.read_at IS NULL",
 		New:  "WHERE (n.user_id=$1 OR true) AND n.popup AND n.read_at IS NULL",
 		Pkg:  "./internal/server/", Tests: "^TestPopupNotifications$",
+	},
+	{
 		ID: "events.upcoming-none", About: "the block Upcoming events without a calendar shows no events",
 		File: "plugins/content_events/plugin.go",
 		Old:  "AND (COALESCE(cardinality($2::bigint[]), 0) = 0 OR e.id = ANY($2))",

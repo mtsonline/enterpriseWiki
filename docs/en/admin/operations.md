@@ -271,17 +271,18 @@ ewiki file upload --file file=@notes.txt    # upload (multipart): --form NAME=VA
 Under *Administration → Demo* (administrators only) **Create demo** creates a space "Demo: Enterprise Wiki"
 (key `DEMO`, short URL `/demo`) with two ways into the wiki:
 
-- **Example company** ("Beispielwerk Ltd", a fictional bicycle maker): an intranet the way a company uses it – start
+- **Example company** ("Enterprise IT Services", a fictional IT service company): an intranet the way a company uses it – start
   page with quick links, news (blog with a comment, @mention and reaction), events with registration and a series,
   teams (team page, decision log, tasks in the text, calendar of the teams, shared notes), handbook (display
   *Handbook*), knowledge base (FAQ with instant search), forms and workflows (holiday request decided by the team
-  lead and entered in the calendar, device request, onboarding, idea box with public results, contact form, further
+  lead and entered in the calendar, internal job application with a CV, pre-check by HR, decision of the team
+  lead and the answer as a pop-up in the wiki, device request, onboarding, idea box with public results, contact form, further
   workflows with triggers), projects (properties, project database, reports), documents (classified confidential,
   PDF view-only with watermark, Word file for the office program, a page with rights of its own) and categories as
   cards, a table and "all on one page". A short hint "How this works" explains each feature where it is used and
   links to the matching station of the tour. The demo accounts of the team leads decide requests; so that you can
-  play the holiday request through yourself, the administrator account that creates the demo belongs to the group
-  "Demo: Teamleitung" as long as the demo exists.
+  play the holiday request and the job application through yourself, the administrator account that creates the
+  demo belongs to the groups "Demo: Verwaltung" and "Demo: Teamleitung" as long as the demo exists.
 - **Tour of the features**: one station per feature, each a page that is always built the same way – what it is,
   *How it is done* (the steps), *What it looks like* (the result live on the page), *What it is good for* and, if
   needed, *Good to know*. The category has the display *Handbook*: all stations are in the side column, and

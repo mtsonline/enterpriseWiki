@@ -559,6 +559,7 @@ func main() {
   B --&gt;|` + tr("reject", "ablehnen") + `| E[` + tr("Message with the reason", "Nachricht mit Begründung") + `]</code></pre>` +
 					`<p>` + tr("Try it: start a ", "Probieren Sie es: Starten Sie einen ") + link(cURL(r.forms), tr("holiday request", "Urlaubsantrag")) +
 					tr(". In this demo you belong to the team leads, so you can decide it yourself under My tasks.", ". In dieser Demo gehören Sie zur Teamleitung und entscheiden ihn selbst unter Meine Aufgaben.") + `</p>` +
+					`<p>` + tr("Or apply for a job internally: HR and the team lead decide one after the other, and the answer comes as a pop-up in the wiki.", "Oder bewerben Sie sich intern auf eine Stelle: Personal und Teamleitung entscheiden nacheinander, und die Antwort kommt als Pop-up im Wiki.") + `</p>` +
 					`<p>` + tr("More workflows: ", "Weitere Abläufe: ") + company(tr, r.forms, "Forms and workflows of "+companyEN, "Formulare und Abläufe der "+companyDE) + `.</p>`,
 				uses: []string{
 					tr("Holiday, job applications, devices.", "Urlaub, Bewerbungen, Geräte."),

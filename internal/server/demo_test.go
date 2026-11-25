@@ -183,6 +183,13 @@ func TestDemo(t *testing.T) {
 		if round == 0 {
 			checkDemoRules(t, e, admin)
 		}
+		// the job application answers with a pop-up
+		var popupSteps int
+		_ = e.app.DB.QueryRow(context.Background(), `SELECT count(*) FROM elements e JOIN element_revisions r ON r.element_id = e.id
+			WHERE e.titles->>'en' = 'Internal job application' AND r.body::text LIKE '%"popup": true%'`).Scan(&popupSteps)
+		if popupSteps == 0 {
+			t.Error("demo: the job application does not answer with a pop-up")
+		}
 		// the stations of the tour show their blocks, without errors
 		station := func(en string) string {
 			t.Helper()
