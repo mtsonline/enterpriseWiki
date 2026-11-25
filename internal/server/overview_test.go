@@ -4,8 +4,12 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/mtsonline/enterprisewiki/internal/config"
 )
@@ -210,5 +214,92 @@ func TestAdminOverview(t *testing.T) {
 	admin.must("GET", "/api/v1/admin/status", nil, &site, 200)
 	if site.Updates == nil {
 		t.Fatal("instance administrator on a further site: no updates")
+	}
+}
+
+// TestUpdateHelperFiles covers the files the wiki shares with the update
+// helper on the host (Docker): the marker of a new published release,
+// written by the update check and removed when there is none, and the
+// state of the helper in the overview, refused when it does not pass the
+// checks. The daily update check is a background job.
+func TestUpdateHelperFiles(t *testing.T) {
+	data := t.TempDir()
+	t.Setenv("EWIKI_DOCKER", "1")
+	t.Setenv("EWIKI_IMAGE", "lite")
+	t.Setenv("EWIKI_IMAGE_ORIGIN", "published")
+	t.Setenv("EWIKI_DATA", data)
+	t.Setenv("EWIKI_INSTALL", "")
+	e := setup(t)
+	admin := e.client()
+	admin.login("admin", adminPW)
+
+	latest := "v99.1.0"
+	gh := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/repos/mtsonline/enterpriseWiki/releases/latest":
+			_, _ = fmt.Fprintf(w, `{"tag_name":%q,"html_url":"https://github.com/mtsonline/enterpriseWiki/releases/tag/%s","body":"## Security\n- fix"}`, latest, latest)
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer gh.Close()
+	if err := e.app.Config.Update(func(c *config.Config) error {
+		c.Plugins.Updates.APIURL = gh.URL
+		return nil
+	}); err != nil {
+		t.Fatal(err)
+	}
+	marker := filepath.Join(data, "update-available")
+	admin.must("GET", "/api/v1/admin/updates?force=1", nil, nil, 200)
+	b, err := os.ReadFile(marker)
+	if err != nil || !strings.HasPrefix(string(b), `{"version":"99.1.0"`) || !strings.Contains(string(b), `"security":true`) {
+		t.Fatalf("marker: %s %v", b, err)
+	}
+	// a pre-release is not for the helper: the marker goes
+	latest = "v99.2.0-rc1"
+	admin.must("GET", "/api/v1/admin/updates?force=1", nil, nil, 200)
+	if _, err := os.Stat(marker); !os.IsNotExist(err) {
+		t.Fatalf("marker kept: %v", err)
+	}
+
+	type timerStatus struct {
+		Updates struct {
+			Timer *struct {
+				Mode       string `json:"mode"`
+				Fresh      bool   `json:"fresh"`
+				LastResult string `json:"last_result"`
+			} `json:"timer"`
+			TimerError string `json:"timer_error"`
+		} `json:"updates"`
+	}
+	var st timerStatus
+	admin.must("GET", "/api/v1/admin/status", nil, &st, 200)
+	if st.Updates.Timer != nil || st.Updates.TimerError != "" {
+		t.Fatalf("no helper: %+v", st.Updates)
+	}
+	now := time.Now().UTC()
+	state := fmt.Sprintf(`{"schema":1,"mode":"cron","next_run":%q,"window_minutes":0,"last_run":%q,"last_result":"no-update","last_version":"","updated_at":%q}`,
+		now.Add(10*time.Hour).Format(time.RFC3339), now.Add(-time.Hour).Format(time.RFC3339), now.Add(-time.Hour).Format(time.RFC3339))
+	if err := os.WriteFile(filepath.Join(data, "update-timer.json"), []byte(state), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	admin.must("GET", "/api/v1/admin/status", nil, &st, 200)
+	if tm := st.Updates.Timer; tm == nil || !tm.Fresh || tm.Mode != "cron" || tm.LastResult != "no-update" || st.Updates.TimerError != "" {
+		t.Fatalf("helper: %+v", st.Updates)
+	}
+	if err := os.WriteFile(filepath.Join(data, "update-timer.json"), []byte(strings.Replace(state, `"no-update"`, `"<img src=x>"`, 1)), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	st = timerStatus{}
+	admin.must("GET", "/api/v1/admin/status", nil, &st, 200)
+	if st.Updates.Timer != nil || st.Updates.TimerError != "unreadable" {
+		t.Fatalf("untrusted state shown: %+v", st.Updates)
+	}
+
+	// the daily check is a background job
+	var jobs []string
+	admin.must("GET", "/api/v1/admin/jobs", nil, &jobs, 200)
+	if !slices.Contains(jobs, "updates.check") {
+		t.Fatalf("jobs: %v", jobs)
 	}
 }

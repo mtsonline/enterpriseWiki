@@ -41,7 +41,33 @@ Einen Knopf zum Einspielen gibt es bewusst nicht: Dafür bräuchte das Wiki Zugr
 | Docker mit selbst gebautem Image | `git pull && docker compose -f docker-compose.build.yml up -d --build` | `EWIKI_IMAGE_ORIGIN=self-built`, Vorgabe des `Dockerfile` |
 | systemd | `sudo <Verzeichnis>/scripts/update.sh` | `EWIKI_INSTALL=systemd`, gesetzt von `scripts/install.sh` |
 
-Fehlt das Merkmal (etwa bei einem älteren Image oder einer älteren systemd-Installation), zeigt die Übersicht alle Befehle mit ihrer Bezeichnung. Zum Update-Timer: Bei systemd spielt er, wenn eingeschaltet, sonntags zwischen 03:30 und 04:30 Uhr ein; ob er eingeschaltet ist, kann das Wiki nicht sehen. Unter Docker aktualisiert sich das Wiki nicht selbst. Dieselben Angaben liefert `ewiki status` (`GET /api/v1/admin/status`).
+Fehlt das Merkmal (etwa bei einem älteren Image oder einer älteren systemd-Installation), zeigt die Übersicht alle Befehle mit ihrer Bezeichnung. Zum Update-Timer: Bei systemd spielt er, wenn eingeschaltet, sonntags zwischen 03:30 und 04:30 Uhr ein; ob er eingeschaltet ist, kann das Wiki nicht sehen. Unter Docker zeigt die Übersicht den nächsten Lauf des Update-Helfers (unten), wenn er sich kürzlich gemeldet hat, sonst die Befehle. Dieselben Angaben liefert `ewiki status` (`GET /api/v1/admin/status`).
+
+### Docker: automatische Updates mit dem Update-Helfer
+
+Das Wiki bekommt nie Zugriff auf Docker (das wäre Root auf dem Server). Neue Versionen spielt stattdessen ein Helfer auf dem Server ein: `scripts/update-docker.sh`. `./docker-setup.sh` fragt, ob er eingerichtet werden soll (Vorgabe ja, täglich um 03:30 Uhr).
+
+```bash
+scripts/update-docker.sh --enable-timer 03:30   # täglich; systemd mit Root/sudo, sonst crontab
+scripts/update-docker.sh --enable-timer 03:30 --cron   # immer die crontab des Benutzers
+scripts/update-docker.sh --disable-timer
+scripts/update-docker.sh --status               # Timer, letzter Lauf, Meldung des Wikis
+scripts/update-docker.sh --dry-run              # was ein Lauf täte, ohne Änderungen
+scripts/update-docker.sh                        # jetzt einmal ausführen
+```
+
+So funktioniert es:
+
+1. Einmal am Tag prüft das Wiki auf Updates (Job `updates.check`, abschaltbar mit `plugins.updates.check: false`). Gibt es ein neueres **veröffentlichtes Release** des Kerns, schreibt es `./data/wiki/update-available` (Version, Link, Sicherheitsupdate ja/nein); sonst entfernt es die Datei. Vorabversionen meldet es nie.
+2. Der Helfer läuft täglich als der Benutzer, unter dem das Wiki läuft (`EWIKI_UID`). Ohne `update-available` tut er nichts. Er behandelt die Datei als nicht vertrauenswürdig: Er übernimmt nur eine Version der Form `1.2.3` und führt nichts daraus aus.
+3. Bei einem selbst gebauten Image (`docker-compose.build.yml`) ändert er nichts und meldet das nur: Aktualisieren Sie es mit `git pull && docker compose -f docker-compose.build.yml up -d --build`.
+4. Zuerst sichert er die Datenbank (`pg_dump` nach `./data/backups/before-update-*.dump`, die neuesten 10 bleiben). Schlägt die Sicherung fehl, wird nichts aktualisiert.
+5. Dann `docker compose pull wiki` und `docker compose up -d`; er wartet, bis das Wiki bereit ist, und vergleicht die Version. Eine feste Version in `EWIKI_IMAGE_TAG` (zum Beispiel `7.5`) kann das neue Release verhindern; das meldet der Helfer.
+6. Er schreibt `./data/wiki/update-timer.json` (nächster Lauf, letzter Lauf und sein Ergebnis) und protokolliert nach `./data/update-docker.log`. Die Übersicht der Administration zeigt daraus den nächsten Lauf; das Wiki prüft die Datei streng und übergeht sie, wenn sie alt ist.
+
+Läufe überschneiden sich nie, und ein Lauf spielt höchstens ein Update ein.
+
+**Warum systemd oder cron:** `./docker-setup.sh` läuft als normaler Benutzer, nicht als Root. Einen systemd-Timer (wie `update.sh --enable-timer`) kann nur Root einrichten; mit Root-Rechten oder `sudo` richtet der Helfer einen ein (`enterprisewiki-docker-update.timer`, zufällige Verzögerung bis zu einer Stunde, verpasste Läufe bei ausgeschaltetem Server werden nachgeholt). Der Dienst läuft als Benutzer des Wikis, nicht als Root. Ohne Root-Rechte nutzt der Helfer stattdessen die crontab des Benutzers: Sie braucht keine Rechte außer dem Zugriff auf Docker, den der Benutzer ohnehin hat. Cron kennt keine zufällige Verzögerung, daher wird einmalig eine zufällige Minute in der Stunde nach der gewählten Zeit festgelegt.
 
 ## Automatische Updates der Komponenten
 
@@ -307,6 +333,7 @@ Außerdem laufen Hintergrundjobs (Liste und „jetzt ausführen“ unter *Admini
 | `data.rebuild` | 1 min | Daten für Berichte (zum Beispiel Entscheidungen) von neuen Arten oder Arten mit neuer Version aus den neuesten Fassungen der Seiten aufbauen, 200 Seiten je Schritt; *Administration → Daten für Berichte* zeigt den Stand und startet den Aufbau neu |
 | `workflow.process.timers` | 30 s | Wartezeiten und Webhooks von Workflows fortsetzen, Erinnerungen für überfällige Aufgaben |
 | `search.external.sync` | 10 s | externen Suchindex abgleichen (nur wenn konfiguriert) |
+| `updates.check` | täglich (und 3 s nach dem Start) | auf Updates des Kerns und der Plugins prüfen (`plugins.updates.check`); unter Docker der Hinweis für den Update-Helfer |
 
 Im Cluster-Modus läuft jeder Job zur selben Zeit nur auf einer Instanz (Advisory Lock).
 

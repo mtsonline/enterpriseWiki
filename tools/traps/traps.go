@@ -1660,4 +1660,26 @@ var traps = []trap{
 		New:  `if may("core.plugins.manage") {`,
 		Pkg:  "./internal/server/", Tests: "^TestAdminOverview$",
 	},
+	// ---------------------------------------------------------------- update helper (Docker)
+	{
+		ID: "update.marker-version", About: "the wiki hands a pre-release or an odd tag to the update helper on the host",
+		File: "internal/pluginmgr/dockerupdate.go",
+		Old:  "if !releaseVersion.MatchString(v) {\n\t\t\tcontinue",
+		New:  "if false && !releaseVersion.MatchString(v) {\n\t\t\tcontinue",
+		Pkg:  "./internal/pluginmgr/", Tests: "^TestSyncUpdateMarker$",
+	},
+	{
+		ID: "update.timer-state", About: "the overview shows a result the update helper may not report (untrusted file)",
+		File: "internal/pluginmgr/dockerupdate.go",
+		Old:  "case !timerResults[in.LastResult]:",
+		New:  "case false && !timerResults[in.LastResult]:",
+		Pkg:  "./internal/pluginmgr/", Tests: "^TestReadTimerState$",
+	},
+	{
+		ID: "update.helper-version", About: "the update helper on the host takes anything from the marker file as the version",
+		File: "scripts/update-docker.sh",
+		Old:  `valid_version "$version" || { log`,
+		New:  `true || { log`,
+		Pkg:  "./internal/pluginmgr/", Tests: "^TestUpdateDockerScript$",
+	},
 }

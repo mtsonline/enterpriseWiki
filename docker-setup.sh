@@ -6,13 +6,18 @@
 #                                 with sudo, the calling user is used)
 #
 # - creates .env from .env.example (random passwords) if it does not exist
-# - writes EWIKI_UID / EWIKI_GID of the calling user into .env
+# - checks that the calling user can use Docker (group docker or rootless
+#   Docker; aborts otherwise)
+# - writes EWIKI_UID / EWIKI_GID of the calling user into .env: the
+#   containers always run as this user, also when started by root
 # - sets POSTGRES_VERSION to the version of existing data (if not set yet)
 # - asks for the image variant (lite or full) on a new installation
 # - asks how the wiki is reached: HTTPS through the bundled proxy (domain,
 #   certificate authority, e-mail) or plain HTTP on an IP address
 # - with HTTPS: asks for an office server (Collabora or OnlyOffice) on its
 #   own host name
+# - asks whether new releases are installed automatically (daily timer of
+#   scripts/update-docker.sh: systemd with sudo, else crontab)
 # - creates ./data/postgres and ./data/wiki and gives them to
 #   that user (asks for sudo only if files belong to someone else)
 set -euo pipefail
@@ -25,6 +30,19 @@ uid="${SUDO_UID:-$(id -u)}"
 gid="${SUDO_GID:-$(id -g)}"
 [ "$uid" != 0 ] || die "please run this as the normal user who operates the wiki (not as root); the containers will run as that user"
 owner="$(id -nu "$uid" 2>/dev/null || echo "$uid")"
+# the user who runs the wiki must be able to use Docker (the group docker,
+# or rootless Docker): docker compose and the update helper
+# (scripts/update-docker.sh) run as this user
+docker_cmd="${EWIKI_SETUP_DOCKER:-docker}" # (tests: a fake command)
+command -v "$docker_cmd" >/dev/null || die "Docker is not installed (https://docs.docker.com/engine/install/)"
+if [ -n "${SUDO_UID:-}" ]; then can_docker() { sudo -u "#$uid" "$docker_cmd" info >/dev/null 2>&1; }; else can_docker() { "$docker_cmd" info >/dev/null 2>&1; }; fi
+if ! can_docker; then
+	die "$owner cannot use Docker. Either add the user to the group docker, then log out and in again
+(or start a new login shell) and run ./docker-setup.sh again:
+  sudo usermod -aG docker $owner
+or set up rootless Docker for $owner (https://docs.docker.com/engine/security/rootless/).
+Is the Docker service running? (systemctl status docker)"
+fi
 
 # ---------------------------------------------------------------- .env
 setvar() { # NAME VALUE – set or replace a line in .env
@@ -223,6 +241,22 @@ if [ "$(getvar EWIKI_HTTPS)" = proxy ] && { [ -z "$(getvar EWIKI_SECURITY)" ] ||
 		say "CrowdSec: off"
 	fi
 fi
+# automatic updates (asked once; non-interactive: not set up). A self-built
+# image is updated from its source, so the question does not come up.
+if [ -t 0 ] && [ -z "$(getvar EWIKI_AUTO_UPDATE)" ] && [[ "${COMPOSE_FILE:-$(getvar COMPOSE_FILE)}" != *build* ]]; then
+	say "Automatic updates: once a day the update helper (scripts/update-docker.sh) checks whether the wiki"
+	say "reported a new release; only then it backs up the database and installs the new image."
+	auto=off
+	case "$(ask 'Install new releases automatically? [y/n]' y)" in y|Y|yes|j|J|ja) auto=on ;; esac
+	if [ "$auto" = on ]; then
+		while :; do
+			at="$(ask 'Time of day (HH:MM, plus up to one hour):' 03:30)"
+			[[ "$at" =~ ^([01][0-9]|2[0-3]):[0-5][0-9]$ ]] && break
+			say "  please enter a time like 03:30"
+		done
+	fi
+	setvar EWIKI_AUTO_UPDATE "$auto"
+fi
 if [ -n "${SUDO_UID:-}" ]; then chown "$uid:$gid" .env; fi
 
 # ---------------------------------------------------------------- folders
@@ -251,5 +285,10 @@ if [ "$(getvar EWIKI_SECURITY)" = crowdsec ]; then
 	chmod 700 data/crowdsec
 fi
 if [ "$(id -u)" = 0 ]; then chown "$uid:$gid" data data/postgres data/wiki; fi
+
+# the timer needs .env and ./data: set up last (systemd with sudo, else crontab)
+if [ -n "${at:-}" ] && [ "$(getvar EWIKI_AUTO_UPDATE)" = on ]; then
+	scripts/update-docker.sh --enable-timer "$at" || say "the update timer could not be set up; later: scripts/update-docker.sh --enable-timer $at"
+fi
 
 say "ready – start with: docker compose up -d"
