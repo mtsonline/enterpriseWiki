@@ -16,7 +16,7 @@ Jede Identität ist intern eindeutig als `name@anbieter` gespeichert (`admin@loc
 - Antwortzeiten verraten nicht, ob ein Konto existiert.
 - Mehrere Faktoren als Plugins (Authenticator-App, Code per E-Mail, Sicherheitsschlüssel/Passkeys, erlaubte Netze) in einer frei wählbaren Kette pro Anmeldeverfahren, siehe [authentication.md](authentication.md#mehrere-faktoren-die-faktorkette).
 - Setzt ein Administrator ein Passwort neu oder deaktiviert ein Konto, werden alle Sitzungen dieses Kontos beendet.
-- Das System verhindert, dass der letzte aktive Administrator gelöscht, deaktiviert oder herabgestuft wird.
+- Das System verhindert, dass der letzte aktive Administrator gelöscht, deaktiviert oder herabgestuft wird. Bei mehreren Sites mit gemeinsamen Konten zählen die Administratoren der Haupt-Site. Sie verwalten jede Site, deshalb braucht eine weitere Site keine eigenen. Eine Änderung auf einer weiteren Site nimmt der Haupt-Site nie den letzten.
 
 ### Browser-Sitzungen
 - Zufälliges 256-Bit-Token im Cookie `ewiki_session` (`HttpOnly`, `SameSite=Lax`, mit `secure_cookies: true` auch `Secure`). In der Datenbank liegt nur der SHA-256-Hash.
