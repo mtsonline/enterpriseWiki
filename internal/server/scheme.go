@@ -1,6 +1,7 @@
 package server
 
 import (
+	"context"
 	"cmp"
 	"net/http"
 	"slices"
@@ -37,12 +38,13 @@ func schemeChoice(r *http.Request, p *identity.Principal) string {
 
 // templateScheme is the scheme a template shows by default ("" = light
 // colours only).
-func (s *Server) templateScheme(id string) string {
+func (s *Server) templateScheme(ctx context.Context, id string) string {
 	if id == "core.basic" || id == "" {
 		return "system"
 	}
 	if !s.app.Kernel.IsTemplate(id) {
-		return ""
+		// a template a plugin offers (templates of the designer: with dark colors or light only)
+		return s.app.Content.TemplateColorScheme(ctx, id)
 	}
 	p, ok := s.app.Kernel.Get(id)
 	if !ok {
@@ -56,7 +58,7 @@ func (s *Server) templateScheme(id string) string {
 func (s *Server) injectScheme(page []byte, r *http.Request) []byte {
 	choice := schemeChoice(r, identity.From(r.Context()))
 	attrs := ""
-	if def := s.templateScheme(s.app.Config.Get().UI.Template); def != "" {
+	if def := s.templateScheme(r.Context(), s.app.Config.Get().UI.Template); def != "" {
 		attrs = ` data-scheme="` + cmp.Or(choice, def) + `"`
 	}
 	if choice != "" {

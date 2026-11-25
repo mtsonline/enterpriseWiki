@@ -7,9 +7,9 @@
 import {
   api, button, checkbox, confirmDialog, errorText, field, fmtDate, h, langFields, placeableBlocks, positionLabel, select, state, t, textArea, textInput, toast, uiLang, uid,
 } from '@ewiki/coreplugin';
-import type { Block, Design, Row, View, ViewName } from './engine';
-import { LIMITS, VIEWS } from './engine';
-import { checkPairs } from './contrast';
+import type { Block, Design, Palette, Row, View, ViewName } from './engine';
+import { LIMITS, PALETTE_KEYS, VIEWS } from './engine';
+import { checkPairs, darkFrom } from './contrast';
 import { cssProblems } from './room';
 import { cssSafe, forgetInViews, needRoom, positionsRoom, room, viewOf } from './room';
 
@@ -39,7 +39,8 @@ export interface PreviewWindow extends Window {
 export interface Measure { id: string; shown: boolean; overflow: boolean; need: number; have: number; items: number; firstLine: number }
 
 declare global {
-  interface Window { __ewdDraft?: Design }
+  /** the draft and the scheme the preview shows (read by preview.ts, same origin) */
+  interface Window { __ewdDraft?: Design; __ewdPreviewScheme?: 'light' | 'dark' }
 }
 
 const pick = (m: Record<string, string> | undefined) => (m ? m[state.lang] || m[state.site.default_language] || Object.values(m)[0] || '' : '');
@@ -89,6 +90,8 @@ export async function designer(panel: HTMLElement, key: string, back: () => void
   let at = 0;
   let mode: 'visual' | 'text' = 'visual';
   let view: ViewName = 'desktop';
+  /** the scheme of the preview (dark only when the design has dark colors) */
+  let previewScheme: 'light' | 'dark' = 'light';
   let sel: { row: number; block: number | null } = { row: 0, block: null };
   let previewPath = '/';
   let measures: Measure[] = [];
@@ -178,6 +181,7 @@ export async function designer(panel: HTMLElement, key: string, back: () => void
   // ------------------------------------------------------------ preview
   const updatePreview = () => {
     window.__ewdDraft = draft;
+    window.__ewdPreviewScheme = draft.tokens.dark ? previewScheme : 'light';
     const w = frame?.contentWindow as PreviewWindow | null | undefined;
     if (!cssSafe(draft)) {
       hintsBox.replaceChildren(h('p', { class: 'ew-help' }, t('template.d_preview_wait')));
@@ -257,6 +261,9 @@ export async function designer(panel: HTMLElement, key: string, back: () => void
       h('h2', { id: 'ewd-preview-h' }, t('template.d_preview')),
       h('p', { class: 'ew-help' }, t('template.d_preview_help')),
       toggleGroup(t('template.d_view'), VIEWS.map((v) => ({ value: v, label: `${t(`template.view_${v}`)} (${FRAME_PX[v]} px)` })), view, (v) => { view = v as ViewName; renderPreview(); renderVisual(); }),
+      // light or dark (only with dark colors; the preview follows at once)
+      toggleGroup(t('template.d_preview_scheme'), (['light', 'dark'] as const).map((v) => ({ value: v, label: t(`template.d_scheme_${v}`) })), previewScheme, (v) => { previewScheme = v as 'light' | 'dark'; renderPreview(); }),
+      h('p', { class: 'ew-help' }, t('template.d_preview_scheme_help')),
       field(t('template.d_preview_page'), path, { help: t('template.d_preview_page_help') }),
       h('p', null, button(t('template.d_preview_window'), () => {
         // same origin, so the window reads the draft from here (and follows changes)
@@ -491,28 +498,47 @@ export async function designer(panel: HTMLElement, key: string, back: () => void
     return h('section', { class: 'ewd-props', 'aria-labelledby': 'ewd-props-h' }, h('h2', { id: 'ewd-props-h' }, t('template.d_properties')), ...body);
   };
 
-  const COLORS = ['bg', 'bg_subtle', 'text', 'text_muted', 'border', 'primary', 'on_primary', 'link', 'focus', 'header_bg', 'header_text', 'footer_bg', 'footer_text'] as const;
-  const design = (): HTMLElement => {
-    const k = draft.tokens;
+  const COLORS = PALETTE_KEYS;
+  /** The color fields and the contrast of one palette (the light one, or the
+   * dark one under tokens.dark); the same pairs and rules as the server. */
+  const paletteEditor = (dark: boolean) => {
+    const k = (dark ? draft.tokens.dark : draft.tokens) as Palette;
+    const of = (d: Design): Palette => (dark ? d.tokens.dark! : d.tokens);
+    const p = dark ? 'dark-' : '';
     const colors = COLORS.map((c) => {
-      const i = h('input', { type: 'color', class: 'ewd-color', value: k[c], id: cid(`c-${c}`) }) as HTMLInputElement;
-      i.addEventListener('change', () => change((d) => { d.tokens[c] = i.value.toLowerCase(); }));
+      const i = h('input', { type: 'color', class: 'ewd-color', value: k[c], id: cid(`c-${p}${c}`) }) as HTMLInputElement;
+      i.addEventListener('change', () => change((d) => { of(d)[c] = i.value.toLowerCase(); }));
       return h('div', { class: 'ewd-color-field' }, h('label', { for: i.id }, t(`template.d_color_${c}`)), i, h('code', null, k[c]));
     });
     const pairs = checkPairs(k as unknown as Record<string, unknown>);
-    const contrastList = h('ul', { class: 'ewd-contrast' }, ...pairs.map((p) => {
-      const name = t('template.d_pair', { fore: t(`template.d_color_${p.pair.fore}`), back: t(`template.d_color_${p.pair.back}`) });
-      return h('li', { class: p.ok ? 'ewd-ok' : 'ewd-bad' },
-        p.ok ? t('template.d_pair_ok', { name, value: fmt(p.value), min: fmt(p.min) }) : t('template.d_pair_bad', { name, value: fmt(p.value), min: fmt(p.min) }), ' ',
-        !p.ok && p.suggestion ? button(t('template.d_pair_take', { color: p.suggestion }), () => change((d) => { (d.tokens as unknown as Record<string, string>)[p.pair.fore] = p.suggestion!; }), { variant: 'subtle', ariaLabel: t('template.d_pair_take_named', { name, color: p.suggestion }), id: cid(`pair-${p.pair.fore}-${p.pair.back}`) }) : null);
+    const contrastList = h('ul', { class: 'ewd-contrast' }, ...pairs.map((x) => {
+      const name = t('template.d_pair', { fore: t(`template.d_color_${x.pair.fore}`), back: t(`template.d_color_${x.pair.back}`) });
+      return h('li', { class: x.ok ? 'ewd-ok' : 'ewd-bad' },
+        x.ok ? t('template.d_pair_ok', { name, value: fmt(x.value), min: fmt(x.min) }) : t('template.d_pair_bad', { name, value: fmt(x.value), min: fmt(x.min) }), ' ',
+        !x.ok && x.suggestion ? button(t('template.d_pair_take', { color: x.suggestion }), () => change((d) => { (of(d) as unknown as Record<string, string>)[x.pair.fore] = x.suggestion!; }), { variant: 'subtle', ariaLabel: t('template.d_pair_take_named', { name, color: x.suggestion }), id: cid(`pair-${p}${x.pair.fore}-${x.pair.back}`) }) : null);
     }));
+    return { colors, contrastList };
+  };
+  const design = (): HTMLElement => {
+    const k = draft.tokens;
+    const light = paletteEditor(false);
+    const darkOn = chk('dark', t('template.d_dark'), !!k.dark, (d, v) => {
+      if (v) { d.tokens.dark = darkFrom(d.tokens); if (!d.options.color_scheme) d.options.color_scheme = 'system'; } else { delete d.tokens.dark; delete d.options.color_scheme; }
+    }, t('template.d_dark_help'));
+    const dark = k.dark ? paletteEditor(true) : null;
     // shipped fonts and the uploaded ones (Templates → Own fonts)
     const fonts = [...(LIMITS.fonts as string[]), ...ownFonts.map((f) => f.token)];
     const fontName = (o: string) => ownFonts.find((f) => f.token === o)?.name ?? t(`template.d_font_${o}`);
     return h('section', { class: 'ewd-design', 'aria-labelledby': 'ewd-design-h' },
       h('h2', { id: 'ewd-design-h' }, t('template.d_design')),
-      h('h3', null, t('template.d_colors')), h('div', { class: 'ewd-colors' }, ...colors),
-      h('h3', null, t('template.d_contrast')), h('p', { class: 'ew-help' }, t('template.d_contrast_help')), contrastList,
+      h('h3', null, t('template.d_colors')), h('div', { class: 'ewd-colors' }, ...light.colors),
+      h('h3', null, t('template.d_contrast')), h('p', { class: 'ew-help' }, t('template.d_contrast_help')), light.contrastList,
+      h('h3', null, t('template.d_dark_colors')), darkOn,
+      ...(dark ? [
+        sel1('color_scheme', t('template.d_color_scheme'), ['system', 'light', 'dark'], draft.options.color_scheme ?? 'system', (o) => t(`template.d_scheme_${o}`), (d, v) => { d.options.color_scheme = v as 'system' | 'light' | 'dark'; }, t('template.d_color_scheme_help')),
+        h('div', { class: 'ewd-colors' }, ...dark.colors),
+        h('h4', null, t('template.d_dark_contrast')), dark.contrastList,
+      ] : []),
       h('h3', null, t('template.d_type')),
       sel1('font', t('template.d_font'), fonts, k.font, fontName, (d, v) => { d.tokens.font = v; }, t('template.d_font_help')),
       sel1('heading_font', t('template.d_heading_font'), fonts, k.heading_font, fontName, (d, v) => { d.tokens.heading_font = v; }),

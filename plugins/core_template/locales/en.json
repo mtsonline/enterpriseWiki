@@ -277,5 +277,16 @@
  "template.d_hint_header_sideways": "The sticky header is {height} px high. On a phone held sideways (about {window} px window height) that is more than {limit} %; it does not stick there.",
  "template.d_hint_header_ok": "{view}: the sticky header is {height} px high and sticks.",
  "template.d_overlay": "The header lies on a hero banner",
- "template.d_overlay_help": "On pages that begin with a hero banner right below the header, the header lies on the banner without its background, in the color of the banner's text. It gets its background back while a menu of it is open and, if sticky, once the banner is scrolled away. With a side column beside the content the header stays as it is."
+ "template.d_overlay_help": "On pages that begin with a hero banner right below the header, the header lies on the banner without its background, in the color of the banner's text. It gets its background back while a menu of it is open and, if sticky, once the banner is scrolled away. With a side column beside the content the header stays as it is.",
+ "template.d_preview_scheme": "Colour scheme of the preview",
+ "template.d_preview_scheme_help": "Dark shows the dark colours once there are some (section “Dark colours”).",
+ "template.d_scheme_system": "Same as system",
+ "template.d_scheme_light": "Light",
+ "template.d_scheme_dark": "Dark",
+ "template.d_dark": "Offer dark colours",
+ "template.d_dark_help": "With dark colours the template follows the choice of every person (same as system, light or dark). Without them it stays light. The suggestion meets all contrasts; you can change every colour.",
+ "template.d_dark_colors": "Dark colours",
+ "template.d_dark_contrast": "Contrast of the dark colours",
+ "template.d_color_scheme": "Colour scheme without a choice of the person",
+ "template.d_color_scheme_help": "Applies as long as a person has not chosen one (in the profile or with the block “Light and dark”)."
 }

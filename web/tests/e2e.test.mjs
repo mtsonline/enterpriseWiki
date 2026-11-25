@@ -3479,10 +3479,28 @@ test('template designer: visual and with the keyboard, room and contrast help, u
     await page.locator('.ewd-hints h3', { hasText: /(phone|handy)/i }).waitFor();
     // the height of the sticky header, measured in the preview
     await page.locator('.ewd-hints li', { hasText: /(sticky header|klebende kopf) (is|ist) \d+ px/i }).waitFor();
+    // dark colors: a first dark palette that passes every pair, its own
+    // contrast list, and the preview in the dark scheme
+    await page.getByLabel(/^(offer dark colours|dunkle farben anbieten)$/i).check();
+    await page.getByRole('heading', { name: /^(contrast of the dark colours|kontrast der dunklen farben)$/i }).waitFor();
+    assert.equal(await page.locator('.ewd-contrast .ewd-bad').count(), 0, 'the first dark palette passes every pair');
+    await page.getByRole('group', { name: /^(colour scheme of the preview|farbschema der vorschau)$/i }).getByRole('button', { name: /^(dark|dunkel)$/i }).click();
+    await page.waitForFunction(() => {
+      const b = document.querySelector('iframe.ewd-frame')?.contentDocument?.body;
+      return !!b && b.classList.contains('ewd-preview') && b.classList.contains('ewc-dark') && getComputedStyle(b).getPropertyValue('--ew-bg').trim() === '#1d2125';
+    });
+    await a11y('the designer with dark colours');
+    await page.getByRole('group', { name: /^(colour scheme of the preview|farbschema der vorschau)$/i }).getByRole('button', { name: /^(light|hell)$/i }).click();
+    await page.waitForFunction(() => {
+      const b = document.querySelector('iframe.ewd-frame')?.contentDocument?.body;
+      return !!b && b.classList.contains('ewd-preview') && !b.classList.contains('ewc-dark');
+    });
     // the text shows the same design
     await page.getByRole('button', { name: /^(as text \(json\)|als text \(json\))$/i }).click();
     const design = JSON.parse(await page.getByLabel(/^(design \(text\)|design \(text\))$/i).inputValue());
     assert.equal(design.tokens.primary, '#7a1f5c');
+    assert.equal(design.tokens.dark?.bg, '#1d2125');
+    assert.equal(design.options.color_scheme, 'system');
     assert.equal(design.rows[1].mobile.drawer[0], 'menu');
     await page.getByRole('button', { name: /^(visual|visuell)$/i }).click();
     const saved = page.waitForResponse((r) => r.url().endsWith(`/api/v1/x/core.template/templates/${key}`) && r.request().method() === 'PUT');
@@ -3505,7 +3523,14 @@ test('template designer: visual and with the keyboard, room and contrast help, u
     } finally {
       if (size) await page.setViewportSize(size);
     }
+    // the same template in the dark scheme (its dark colors)
+    await call('PUT', '/api/v1/scheme', { scheme: 'dark' });
+    await page.goto(`${BASE}/`);
+    await idle();
+    assert.equal(await page.evaluate(() => getComputedStyle(document.body).getPropertyValue('--ew-bg').trim()), '#1d2125');
+    await a11y('the wiki with the website template of data, dark');
   } finally {
+    await call('PUT', '/api/v1/scheme', { scheme: '' }).catch(() => {});
     await call('PUT', '/api/v1/admin/settings', { ui: before.ui });
     if (key) {
       await call('DELETE', `/api/v1/x/core.template/templates/${key}`).catch(() => {});

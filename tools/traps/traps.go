@@ -135,6 +135,13 @@ var traps = []trap{
 		Pkg:  "./internal/server/", Tests: "^(TestAPI|TestWorkflow3Accounts|TestMultiSite|TestDirectorySync|TestDisabledAccountIsLockedOut)$",
 	},
 	{
+		ID: "template.dark-unchecked", About: "the dark colors of a designed template are not checked (format and contrast)",
+		File: "plugins/core_template/design.go",
+		Old:  "\tif t.Dark != nil {\n\t\tt.Dark.problems(\"tokens.dark.\", add)\n\t}",
+		New:  "\tif t.Dark != nil && false {\n\t\tt.Dark.problems(\"tokens.dark.\", add)\n\t}",
+		Pkg:  "./plugins/core_template/", Tests: "^TestDesignProblems$",
+	},
+	{
 		ID: "scheme.cookie-unchecked", About: "the scheme cookie of a guest is written into the page without checking it",
 		File: "internal/server/scheme.go",
 		Old:  "if c, err := r.Cookie(schemeCookie); err == nil && slices.Contains(coreplugin.ColorSchemes, c.Value) {",

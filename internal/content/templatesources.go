@@ -12,6 +12,9 @@ type TemplateName struct {
 	ID    string            `json:"id"`
 	Name  string            `json:"name"`
 	Names map[string]string `json:"names,omitempty"`
+	// ColorScheme: the default scheme when the template has dark colors too
+	// (system, light, dark); empty: light colors only
+	ColorScheme string `json:"color_scheme,omitempty"`
 }
 
 // TemplateSource offers website templates (the ids start with the id of
@@ -21,6 +24,9 @@ type TemplateSource interface {
 	HasTemplate(ctx context.Context, id string) bool
 	// Templates lists the templates that can be used now.
 	Templates(ctx context.Context) []TemplateName
+	// ColorScheme is the default scheme of the template id ("" = light colors
+	// only, or not a template of the source).
+	ColorScheme(ctx context.Context, id string) string
 }
 
 type templateSource struct {
@@ -57,6 +63,17 @@ func (s *Service) TemplateOK(ctx context.Context, id string) bool {
 		}
 	}
 	return false
+}
+
+// TemplateColorScheme is the default scheme of a template a switched on
+// plugin offers ("" = light colors only or unknown).
+func (s *Service) TemplateColorScheme(ctx context.Context, id string) string {
+	for _, t := range s.templateSources() {
+		if strings.HasPrefix(id, t.plugin+"/") && s.enabled(t.plugin) {
+			return t.src.ColorScheme(ctx, id)
+		}
+	}
+	return ""
 }
 
 // ExtraTemplates lists the templates offered by switched on plugins.
