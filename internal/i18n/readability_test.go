@@ -6,15 +6,16 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"regexp"
 	"sort"
 	"strings"
 	"testing"
-	"unicode/utf8"
+
+	"github.com/mtsonline/enterprisewiki/internal/readability"
 )
 
 // Short, clear sentences in plain language (CLAUDE.md, section 9): the texts
-// of the interface and the messages of the server, German and English.
+// of the interface and the messages of the server, German and English. The
+// counting is that of internal/readability (also the hint in the editors).
 //
 //   - a sentence has at most maxSentenceWords words (a sentence ends with
 //     . ! ? ; or : before a space, or with a line break; placeholders, code in
@@ -32,34 +33,15 @@ import (
 // long sentence fails, and so does an entry that is no longer too long
 // (remove it). Rewrite: go test ./internal/i18n -run TestReadability -update-readability
 const (
-	maxSentenceWords = 20
-	maxWordLetters   = 22
+	maxSentenceWords = readability.DefaultSentenceWords
+	maxWordLetters   = readability.DefaultWordLetters
 )
 
 var updateReadability = flag.Bool("update-readability", false, "rewrite testdata/readability-baseline.json (only to remove entries)")
 
-var (
-	reCode     = regexp.MustCompile("`[^`]*`|\\{[^}]*\\}")
-	reURL      = regexp.MustCompile(`https?://[^\s)]*[^\s).,;:]`)
-	rePath     = regexp.MustCompile(`[\w.-]*[\w-]/[\w./-]*[\w-]|[\w-]+\.(sh|yaml|json|go|ts|md)\b`)
-	reSentence = regexp.MustCompile(`[.!?;:](\s+)|\n+`)
-	reWord     = regexp.MustCompile(`[\pL\pN]+`)
-	reLetters  = regexp.MustCompile(`\pL+`)
-)
-
-// sentencesOf splits a text into sentences (code, addresses and paths are one word).
-func sentencesOf(text string) []string {
-	s := reCode.ReplaceAllString(text, "X")
-	s = reURL.ReplaceAllString(s, "X")
-	s = rePath.ReplaceAllString(s, "X")
-	var out []string
-	for _, part := range reSentence.Split(s, -1) {
-		if strings.TrimSpace(part) != "" {
-			out = append(out, part)
-		}
-	}
-	return out
-}
+// sentencesOf splits a text into sentences (code, addresses and paths are
+// one word); the rules are those of the hint in the editors.
+func sentencesOf(text string) []string { return readability.Sentences(text) }
 
 // readabilityFindings lists the long sentences ("lang key") and the long
 // words of all locale files of a language.
@@ -83,14 +65,12 @@ func readabilityFindings(t *testing.T, lang string) (sentences map[string]string
 				continue // a note on the file, not a text of the interface
 			}
 			for _, s := range sentencesOf(v) {
-				if n := len(reWord.FindAllString(s, -1)); n > maxSentenceWords {
+				if n := readability.Words(s); n > maxSentenceWords {
 					sentences[lang+" "+k] = fmt.Sprintf("%d words: %s", n, strings.TrimSpace(s))
 				}
 			}
-			for _, w := range reLetters.FindAllString(rePath.ReplaceAllString(reURL.ReplaceAllString(reCode.ReplaceAllString(v, "X"), "X"), "X"), -1) {
-				if utf8.RuneCountInString(w) > maxWordLetters {
-					words = append(words, fmt.Sprintf("%s %s: %q in %q", lang, k, w, v))
-				}
+			for _, w := range readability.LongWords(v, maxWordLetters) {
+				words = append(words, fmt.Sprintf("%s %s: %q in %q", lang, k, w, v))
 			}
 		}
 	}
@@ -157,7 +137,7 @@ func TestReadabilityRules(t *testing.T) {
 		t.Errorf("sentences: %d", got)
 	}
 	s := sentencesOf("Siehe https://news.example.com/a.b und scripts/update.sh --enable-timer sowie `x y z` und {count} Dinge.")
-	if len(s) != 1 || len(reWord.FindAllString(s[0], -1)) != 11 {
+	if len(s) != 1 || readability.Words(s[0]) != 11 {
 		t.Errorf("addresses, paths and code count as one word: %q", s)
 	}
 }

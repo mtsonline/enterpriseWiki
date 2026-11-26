@@ -1817,6 +1817,21 @@ var traps = []trap{
 		New:  "list[i].UpdatedByID = refs[*w].ID\n\t\t\tlist[i].UpdatedByID = w",
 		Pkg:  "./internal/server/", Tests: "^TestPeopleInLists$",
 	},
+	// ---------------------------------------------------------------- readability hint
+	{
+		ID: "readability.site-off", About: "the hint on long sentences is on for a person although the site only offers it",
+		File: "internal/readability/readability.go",
+		Old:  "return pref == PrefOn",
+		New:  "return pref != PrefOff",
+		Pkg:  "./internal/readability/", Tests: "^TestActive$",
+	},
+	{
+		ID: "readability.config", About: "config.yaml accepts an unknown mode of the readability hint (ewiki config set, a changed file)",
+		File: "internal/config/config.go",
+		Old:  "if r.Mode != \"\" && !slices.Contains(readability.Modes, r.Mode) {",
+		New:  "if false && r.Mode != \"\" && !slices.Contains(readability.Modes, r.Mode) {",
+		Pkg:  "./internal/server/", Tests: "^TestReadabilityHint$",
+	},
 	{
 		ID: "site.drop-waits-in-queue", About: "deleting a site waits in the lock queue of the shared tables and holds up every write to users",
 		File: "internal/db/db.go",

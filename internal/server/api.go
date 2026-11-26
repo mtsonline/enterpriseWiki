@@ -32,6 +32,7 @@ import (
 	"github.com/mtsonline/enterprisewiki/internal/media"
 	"github.com/mtsonline/enterprisewiki/internal/perm"
 	"github.com/mtsonline/enterprisewiki/internal/pluginmgr"
+	"github.com/mtsonline/enterprisewiki/internal/readability"
 	"github.com/mtsonline/enterprisewiki/internal/version"
 )
 
@@ -275,7 +276,11 @@ func (s *Server) routes() {
 		if cur == nil {
 			cur = map[string]string{}
 		}
-		return map[string]any{"prefs": cur, "options": auth.PrefOptions()}, nil
+		// the hint on long sentences: what the site offers and whether it
+		// is on for this person
+		mode := cmp.Or(s.app.Config.Get().UI.Readability.Mode, readability.ModeOff)
+		return map[string]any{"prefs": cur, "options": auth.PrefOptions(),
+			"readability": map[string]any{"site": mode, "active": readability.Active(mode, cur["readability"])}}, nil
 	})
 	// action: core.me.password
 	s.handle("PUT /api/v1/me/password", func(w http.ResponseWriter, r *http.Request) (any, error) {
@@ -1611,6 +1616,7 @@ func (s *Server) site(w http.ResponseWriter, r *http.Request) (any, error) {
 	return map[string]any{
 		"name": c.UI.SiteName, "template": c.UI.Template, "templates": templates, "home_category": home, "home_element": c.UI.HomeElement, "editor": cmp.Or(c.UI.Editor, "visual"), "collaboration": c.UI.Collaboration, "personal_placement": c.UI.PersonalPlacement, "custom_css": c.UI.CustomCSS, "editor_tools": siteEditorTools(c.UI.EditorTools), "dashboard_tiles": nonNil(c.UI.DashboardTiles), "dashboard_home": c.UI.DashboardHome, "maintenance": siteMaintenance(c.Maintenance), "consent": siteConsent(c.Consent), "not_found_element": c.UI.NotFoundElement, "forbidden_element": c.UI.ForbiddenElement,
 		"wait_notice_s": limits.Value(c, limits.WaitNoticeSeconds),
+		"readability":   siteReadability(c),
 		"languages":     c.I18n.Languages, "default_language": c.I18n.DefaultLanguage,
 		"plugins": frontend, "element_types": s.app.Content.Types(), "auth_providers": s.app.Auth.ProviderInfos(),
 		"version": version.Version, "licensed": s.licensed(), "permissions": acl.Names,
@@ -1684,6 +1690,9 @@ func (s *Server) updateSettings(w http.ResponseWriter, r *http.Request) (any, er
 				if err := content.CheckEditorTools(in.UI.EditorTools); err != nil {
 					return err
 				}
+			}
+			if err := checkReadability(in.UI.Readability); err != nil {
+				return err
 			}
 			c.UI = *in.UI
 		}
@@ -1862,6 +1871,35 @@ func clip(s string, n int) string {
 	}
 	r := []rune(s[:n])
 	return string(r[:len(r)-1]) + "…"
+}
+
+// siteReadability is the hint on long sentences and words for the editors:
+// the mode of the site, the limits (defaults filled in) and how much of a
+// text the browser checks.
+func siteReadability(c *config.Config) map[string]any {
+	r := c.UI.Readability
+	return map[string]any{
+		"mode":           cmp.Or(r.Mode, readability.ModeOff),
+		"sentence_words": cmp.Or(r.SentenceWords, readability.DefaultSentenceWords),
+		"word_letters":   cmp.Or(r.WordLetters, readability.DefaultWordLetters),
+		"max_kb":         limits.Value(c, limits.ReadabilityKB),
+	}
+}
+
+// checkReadability checks the settings of the readability hint (the same
+// rules as config.ValidateReadability, with messages in the language of
+// the user).
+func checkReadability(r config.Readability) error {
+	if r.Mode != "" && !slices.Contains(readability.Modes, r.Mode) {
+		return apperr.BadRequest("ui.readability.mode must be off, offered or on")
+	}
+	if n := r.SentenceWords; n != 0 && (n < readability.MinSentenceWords || n > readability.MaxSentenceWords) {
+		return apperr.BadRequest("ui.readability.sentence_words must be 0 (default %d) or %d to %d", readability.DefaultSentenceWords, readability.MinSentenceWords, readability.MaxSentenceWords)
+	}
+	if n := r.WordLetters; n != 0 && (n < readability.MinWordLetters || n > readability.MaxWordLetters) {
+		return apperr.BadRequest("ui.readability.word_letters must be 0 (default %d) or %d to %d", readability.DefaultWordLetters, readability.MinWordLetters, readability.MaxWordLetters)
+	}
+	return nil
 }
 
 // siteEditorTools is the site's choice of toolbar buttons (["*"] = all).

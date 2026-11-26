@@ -80,6 +80,7 @@ Sprachen werden in der Oberfläche unter *Administration → Sprachen* hinzugef�
 | `not_found_element`, `forbidden_element` | die Nummer einer Seite, deren Inhalt bei „Seite nicht gefunden“ und „Kein Recht“ statt des Standardtexts erscheint (Vorschläge, *Zugriff anfragen* und der Link zur Startseite bleiben). Lesende sehen ihn mit ihren eigenen Rechten: Wählen Sie eine Seite, die alle sehen dürfen. Auch unter *Administration → Einstellungen*. | `0` (Standardtext) |
 | `personal_placement` | Jede angemeldete Person darf die Bausteine (Suche, Benachrichtigungen, Kategoriebaum …) für sich selbst anordnen (*Mein Profil → Meine Anordnung*). Als Pflicht markierte Bausteine bleiben, wo sie sind. Die Platzierung für alle legt *Administration → Platzierung* fest, für eine Kategorie und ihre Unterkategorien *Kategorie-Einstellungen → Platzierung*. | `false` |
 | `custom_css` | Eigenes CSS in Daten-Templates erlauben (Vorgabe aus). Es wird beim Speichern geprüft: höchstens 32 KB, kein `@import`, `url()` nur auf Dateien des Wikis (`/api/v1/files/…`, `/api/v1/media/ID/view`), kein `image-set()`, `expression()`, `-moz-binding`, keine Escapes mit Backslash, kein `<`; was abgelehnt wird, nennt die Zeile. Ausgeschaltet wird vorhandenes eigenes CSS nicht mehr ausgeliefert. Eigenes CSS kann die Barrierefreiheit verschlechtern. |
+| `readability` | Hinweis auf lange Sätze und lange Wörter beim Schreiben, im visuellen und im einfachen Editor (*Administration → Einstellungen → Hinweis auf lange Sätze*). `mode`: `off` (Vorgabe), `offered` (jede Person kann ihn im Profil einschalten) oder `on` (für alle an; jede Person kann ihn ausschalten). `sentence_words`: höchstens so viele Wörter je Satz (`0` = 20, erlaubt 5–100); `word_letters`: höchstens so viele Buchstaben je Wort (`0` = 22, erlaubt 8–60; ein Bindestrich trennt Wörter). Code, Adressen und Pfade zählen nicht. Der Hinweis verhindert nie das Speichern und ändert den Text nie; er läuft im Browser, dafür wird kein Text gesendet. Auch `ewiki config set ui.readability.mode offered`. | `off` |
 
 ### `auth`
 | Schlüssel | Bedeutung | Standard |
@@ -409,6 +410,7 @@ Die Grenzwerte gelten für die ganze Instanz; in weiteren Sites ändern sie nur 
 | `core.audit.value_guest_bytes` | längster Wert im Audit-Protokoll bei Ereignissen ohne angemeldeten Benutzer | 1024 Bytes |
 | `core.audit.value_bytes` | längster Vorher-/Nachher-Wert bei Ereignissen angemeldeter Benutzer | 65536 Bytes |
 | `core.ui.wait_notice_s` | nach dieser Zeit ohne Antwort auf eine Änderung fragt die Oberfläche „weiter warten oder abbrechen“; die Eingabe bleibt in beiden Fällen erhalten | 5 s |
+| `core.ui.readability_kb` | so viel von einem Text prüft der Hinweis auf lange Sätze beim Schreiben; der Rest wird nicht geprüft, und der Hinweis sagt das | 512 KB |
 
 Zu große Anfragen erhalten `413`, zu viele `429` mit `Retry-After`.
 

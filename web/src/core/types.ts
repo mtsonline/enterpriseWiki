@@ -59,6 +59,8 @@ export interface Site {
   custom_css?: boolean;
   /** Buttons of the formatting toolbar (['*'] = all). */
   editor_tools?: string[];
+  /** hint on long sentences and words while writing (ui.readability; max_kb: how much of a text is checked) */
+  readability?: { mode: 'off' | 'offered' | 'on'; sentence_words: number; word_letters: number; max_kb: number };
   /** Tiles offered for the own dashboard (empty = all). */
   dashboard_tiles?: string[];
   /** the own dashboard is the start page of signed-in people (ui.dashboard_home) */

@@ -57,6 +57,8 @@ Seiten werden als **Markdown** gespeichert (GitHub-Markdown). Es gibt zwei Edito
 
 **Einfacher Editor:** ein schlankes Eingabefeld (formatiert oder Markdown) ohne Live-Bearbeitung, z. B. für ältere Geräte.
 
+**Hinweis auf lange Sätze** (wenn die Administration ihn anbietet): Beim Schreiben zeigt der Editor Sätze mit mehr als 20 Wörtern und Wörter mit mehr als 22 Buchstaben (die Administration kann andere Grenzen einstellen). Ein Bindestrich trennt Wörter. Code, Codeblöcke, Adressen und Pfade zählen nicht. Der visuelle und der einfache Editor markieren die Stellen mit einer Linie unter dem Text; die Markdown-Quelle listet sie nur auf. Unter dem Editor fasst eine Zeile zusammen, was gefunden wurde, zum Beispiel „Lesbarkeit: 2 lange Sätze, 1 langes Wort.“ **Stellen zeigen** öffnet die Liste; eine Stelle markiert ihren Text. Der Hinweis ändert Ihren Text nie und verhindert nie das Speichern. Screenreader lesen die Zusammenfassung vor, wenn der Editor den Fokus bekommt, nicht bei jeder Taste. Sie schalten den Hinweis in Ihrem Profil ein oder aus.
+
 - **Tags** stehen direkt unter dem Inhalt (durch Komma getrennt); sie gelten für alle Sprachen der Seite.
 - Geben Sie optional eine **Änderungsnotiz** ein. Sie erscheint im Verlauf.
 - Hat jemand die Seite gleichzeitig gespeichert (ohne Live-Bearbeitung), werden Sie gewarnt, statt die fremde Änderung zu überschreiben. Laden Sie dann neu und übernehmen Sie Ihre Änderungen.
@@ -535,6 +537,7 @@ Je nach Einrichtung melden Sie sich mit Benutzername und Passwort an (lokales Ko
 - **Visitenkarte** (Foto, Funktion, Abteilung, Telefon, Büro, „Über mich“) für Team-Seiten. Wer Ihr Foto sieht (nur Sie, angemeldete Personen oder alle), wählen Sie im Rahmen der Vorgaben der Administration,
 - **Beobachtungen**, **zugewiesene Beobachtungen** und **Feed- und Kalender-Links**,
 - **E-Mail-Benachrichtigungen** (auch für Erwähnungen und geteilte Seiten),
+- **Hinweis auf lange Sätze:** nur, wenn die Website ihn anbietet. *Wie die Website es vorgibt* folgt der Einstellung der Administration; *An* oder *Aus* ist Ihre eigene Wahl (auch `ewiki pref set readability on --as NAME`).
 - **Hilfetexte anzeigen:** Erklärungen zu Feldern und Einstellungen ein- oder ausblenden (Vorgabe: aus). Der Knopf **?** oben auf jeder Seite schaltet dasselbe um; ohne Anmeldung merkt sich der Browser die Wahl. Hinweise, die Sie zum richtigen Ausfüllen brauchen (Formate, Grenzen, Pflichtangaben, Warnungen), stehen immer da. Ausgeblendete Erklärungen liest auch der Screenreader nicht vor. Der Knopf ist ein Baustein der Platzierung (*Hilfetexte (?)*).
 
 ## Personen

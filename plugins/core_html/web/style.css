@@ -6,6 +6,9 @@
 .ewh-sep { width: 1px; height: 1.5rem; background: var(--ew-border); margin: 0 .25rem; }
 .ewh-editable { min-height: 18rem; padding: .5rem .75rem; outline: none; border-radius: 4px; }
 .ewh-editable:focus { box-shadow: 0 0 0 3px var(--ew-focus); }
+/* code blocks wrap while editing: a block that scrolls in itself would be a
+   scroll area without its own focus, and a long line widened the page */
+.ewh-editable pre { white-space: pre-wrap; overflow-wrap: anywhere; overflow: visible; }
 .ewh-markdown { font-family: var(--ew-mono); min-height: 18rem; }
 .ewh-preview { margin-top: 1rem; }
 /* macro placeholders while editing */

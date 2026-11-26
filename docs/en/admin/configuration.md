@@ -80,6 +80,7 @@ Languages are added or removed in the interface under *Administration → Langua
 | `not_found_element`, `forbidden_element` | the id of a page whose content appears on “Page not found” and “No permission” instead of the standard text (suggestions, *Ask for access* and the link to the start page stay). Readers see it with their own rights: choose a page everybody may see. Also under *Administration → Settings*. | `0` (standard text) |
 | `personal_placement` | every signed-in person may arrange the building blocks (search, notifications, category tree …) for themselves (*My profile → My arrangement*). Blocks marked as required stay where they are. The placement for everybody is set under *Administration → Placement*, for a category and its subcategories under *Category settings → Placement*. | `false` |
 | `custom_css` | allow own CSS in templates of data (default off). It is checked on saving: at most 32 KB, no `@import`, `url()` only to files of the wiki (`/api/v1/files/…`, `/api/v1/media/ID/view`), no `image-set()`, `expression()`, `-moz-binding`, no escapes with a backslash, no `<`; what is refused names its line. Switched off, existing own CSS is no longer delivered. Own CSS can make the wiki less accessible. |
+| `readability` | hint on long sentences and long words while writing, in the visual and the simple editor (*Administration → Settings → Hint on long sentences*). `mode`: `off` (default), `offered` (each person may switch it on in the profile) or `on` (on for everybody; each person may switch it off). `sentence_words`: the most words of a sentence (`0` = 20, allowed 5–100); `word_letters`: the most letters of a word (`0` = 22, allowed 8–60; a hyphen splits a word). Code, addresses and paths do not count. The hint never blocks saving and never changes the text; it runs in the browser, no text is sent for it. Also `ewiki config set ui.readability.mode offered`. | `off` |
 
 ### `auth`
 | Key | Meaning | Default |
@@ -409,6 +410,7 @@ The limits apply to the whole instance; in further sites only administrators of 
 | `core.audit.value_guest_bytes` | longest value in the audit log for events without a signed-in user | 1024 bytes |
 | `core.audit.value_bytes` | longest before/after value for events of signed-in users | 65536 bytes |
 | `core.ui.wait_notice_s` | after this time without an answer to a change, the interface asks "keep waiting or cancel"; the input is kept in both cases | 5 s |
+| `core.ui.readability_kb` | how much of a text the hint on long sentences checks while writing; the rest is not checked, and the hint says so | 512 KB |
 
 Too large requests get `413`, too many `429` with `Retry-After`.
 
