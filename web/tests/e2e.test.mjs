@@ -7539,8 +7539,10 @@ test('all notifications: from the bell, older ones, only unread ones, who caused
     }
     await page.getByRole('link', { name: /^(unread|ungelesen)$/i }).click();
     await page.waitForURL(/unread=1/);
+    // the filtered list replaces the whole one: the read entry goes away
+    await page.getByRole('link', { name: /^(unread|ungelesen)$/i, exact: false }).and(page.locator('[aria-current="page"]')).waitFor();
+    await page.locator(`.ew-notif[data-id="${newest.id}"]`).waitFor({ state: 'detached' });
     await page.locator('.ew-notif-list > li').first().waitFor();
-    assert.equal(await page.locator(`.ew-notif[data-id="${newest.id}"]`).count(), 0, 'read ones are not in the filter');
     assert.equal(await page.locator('.ew-notif:not(.is-unread)').count(), 0, 'only unread ones');
     await a11y('all notifications, unread');
     // delete one: gone here and in the API
