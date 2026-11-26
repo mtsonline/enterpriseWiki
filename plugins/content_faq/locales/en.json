@@ -52,5 +52,6 @@
  "perm.content.faq.contribute_help": "Write new questions and answers and change or delete the own ones.",
  "content.faq.block_search": "Search of the FAQ",
  "content.faq.block_expand": "Expand all / collapse all",
- "content.faq.block_feed": "Feed of the FAQ"
+ "content.faq.block_feed": "Feed of the FAQ",
+ "plugin.name.content.faq": "FAQ"
 }

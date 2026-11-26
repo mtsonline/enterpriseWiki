@@ -21,5 +21,6 @@
  "office.onlyoffice.test_api_ok": "Document Server erreichbar.",
  "office.onlyoffice.internal_url": "Interne Adresse (optional)",
  "office.onlyoffice.internal_url_help": "Wenn der Document Server gespeicherte Dateien unter einer internen Adresse anbietet (z. B. http://onlyoffice im Docker-Netz). Das Wiki lädt gespeicherte Dateien nur von der öffentlichen oder dieser Adresse.",
- "office.onlyoffice.script_failed": "Der OnlyOffice-Editor konnte nicht geladen werden."
+ "office.onlyoffice.script_failed": "Der OnlyOffice-Editor konnte nicht geladen werden.",
+ "plugin.name.office.onlyoffice": "OnlyOffice Docs"
 }

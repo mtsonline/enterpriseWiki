@@ -36,5 +36,6 @@
  "core.html.editor_failed": "Der Editor konnte nicht geladen werden: {error}",
  "core.html.use_simple": "Einfachen Editor verwenden",
  "perm.core.html.task_done_own": "Eigene Aufgaben in Berichten abhaken",
- "perm.core.html.task_done_own_help": "Aufgaben von Seiten, die Sie mit @Name nennen, in Berichten und unter „Meine Aufgaben“ abhaken, auch ohne das Recht, die Seite zu bearbeiten. Wer eine Seite bearbeiten darf, hakt alle ihre Aufgaben ab."
+ "perm.core.html.task_done_own_help": "Aufgaben von Seiten, die Sie mit @Name nennen, in Berichten und unter „Meine Aufgaben“ abhaken, auch ohne das Recht, die Seite zu bearbeiten. Wer eine Seite bearbeiten darf, hakt alle ihre Aufgaben ab.",
+ "plugin.name.core.html": "Textseite (HTML / Markdown)"
 }

@@ -44,5 +44,6 @@
  "perm.content.team.public": "Show contact details publicly",
  "perm.content.team.public_help": "Let guests see the contact details on team pages (e-mail, phone, mobile, office, about, groups and attributes of the identity provider).",
  "limit.content.team.people": "People in a people block",
- "limit.content.team.people.help": "How many people the block People of a group shows at most."
+ "limit.content.team.people.help": "How many people the block People of a group shows at most.",
+ "plugin.name.content.team": "Team"
 }

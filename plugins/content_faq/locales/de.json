@@ -52,5 +52,6 @@
  "perm.content.faq.contribute_help": "Neue Fragen und Antworten schreiben und die eigenen ändern oder löschen.",
  "content.faq.block_search": "Suche in der FAQ",
  "content.faq.block_expand": "Alle aufklappen / zuklappen",
- "content.faq.block_feed": "Feed der FAQ"
+ "content.faq.block_feed": "Feed der FAQ",
+ "plugin.name.content.faq": "FAQ"
 }

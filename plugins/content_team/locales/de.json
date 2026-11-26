@@ -44,5 +44,6 @@
  "perm.content.team.public": "Kontaktdaten öffentlich zeigen",
  "perm.content.team.public_help": "Gästen die Kontaktdaten auf Team-Seiten zeigen (E-Mail, Telefon, Mobilnummer, Büro, „Über mich“, Gruppen und Attribute des Identity Providers).",
  "limit.content.team.people": "Personen in einem Personen-Baustein",
- "limit.content.team.people.help": "Wie viele Personen der Baustein Personen einer Gruppe höchstens zeigt."
+ "limit.content.team.people.help": "Wie viele Personen der Baustein Personen einer Gruppe höchstens zeigt.",
+ "plugin.name.content.team": "Team"
 }

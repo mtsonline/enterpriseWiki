@@ -21,5 +21,6 @@
  "perm.core.blocks.edit_help": "Change blocks that are shown on the whole site (placed for the template, the site or an element type).",
  "limit.core.blocks.list": "Blocks offered for placing",
  "limit.core.blocks.list.help": "How many blocks the placement lists at most (those the person may see).",
- "limits.group.blocks": "Blocks"
+ "limits.group.blocks": "Blocks",
+ "plugin.name.core.blocks": "Blocks at positions"
 }

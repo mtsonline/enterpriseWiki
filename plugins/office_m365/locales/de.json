@@ -10,5 +10,6 @@
  "office.m365.proof_missing": "Der Server veröffentlicht keinen Proof-Key: Prüfung abschalten oder Server aktualisieren.",
  "office.m365.default_hint": "Die Standard-Anzeige wählen Sie in den allgemeinen Einstellungen (Medien).",
  "office.m365.enabled": "Microsoft 365 verwenden",
- "office.m365.enabled_help": "Erst wenn das eingeschaltet ist, ruft das Wiki Microsoft-Server auf."
+ "office.m365.enabled_help": "Erst wenn das eingeschaltet ist, ruft das Wiki Microsoft-Server auf.",
+ "plugin.name.office.m365": "Microsoft 365 für das Web"
 }

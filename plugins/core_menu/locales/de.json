@@ -69,5 +69,6 @@
  "core.menu.style": "Darstellung",
  "core.menu.style_default": "Ausklappmenüs (Standard)",
  "core.menu.style_help": "Für waagrechte Positionen wie die Hauptnavigation.",
- "core.menu.block": "Menü"
+ "core.menu.block": "Menü",
+ "plugin.name.core.menu": "Menüs"
 }

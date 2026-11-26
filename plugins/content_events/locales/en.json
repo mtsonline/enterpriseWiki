@@ -191,5 +191,6 @@
  "content.events.page_tasks": "Also show the open tasks with a due date of these pages",
  "content.events.from_page": "From the page",
  "content.events.kind": "Kind",
- "content.events.page_task": "Task in a page"
+ "content.events.page_task": "Task in a page",
+ "plugin.name.content.events": "Event calendar"
 }

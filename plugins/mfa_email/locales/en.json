@@ -17,5 +17,6 @@
  "mfa.mail_subject_login": "Your sign-in code for {site}: {code}",
  "mfa.mail_text_login": "Your sign-in code for {site} is: {code}\n\nIt is valid for {minutes} minutes. If you did not try to sign in, change your password.",
  "mfa.mail_subject_setup": "Your confirmation code for {site}: {code}",
- "mfa.mail_text_setup": "Your code to change the second factor at {site} is: {code}\n\nIt is valid for {minutes} minutes."
+ "mfa.mail_text_setup": "Your code to change the second factor at {site} is: {code}\n\nIt is valid for {minutes} minutes.",
+ "plugin.name.mfa.email": "Code by e-mail"
 }

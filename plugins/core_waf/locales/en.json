@@ -16,5 +16,6 @@
  "perm.core.waf.manage": "Manage the web application firewall",
  "perm.core.waf.manage_help": "Change mode and strictness of the web application firewall.",
  "limit.core.waf.body_kb": "Request body checked by the firewall",
- "limit.core.waf.body_kb.help": "The firewall checks at most this much of a request body; the rest is passed on unchecked (the wiki checks every input itself). Uploaded files are not checked by the firewall."
+ "limit.core.waf.body_kb.help": "The firewall checks at most this much of a request body; the rest is passed on unchecked (the wiki checks every input itself). Uploaded files are not checked by the firewall.",
+ "plugin.name.core.waf": "Web application firewall"
 }

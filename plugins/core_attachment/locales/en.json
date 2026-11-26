@@ -10,5 +10,6 @@
  "core.attachment.description": "Description",
  "core.attachment.description_help": "Also used as alternative text for images.",
  "core.attachment.missing": "Please upload a file.",
- "core.attachment.download": "Download"
+ "core.attachment.download": "Download",
+ "plugin.name.core.attachment": "File / attachment"
 }

@@ -288,5 +288,6 @@
  "template.d_dark_colors": "Dark colours",
  "template.d_dark_contrast": "Contrast of the dark colours",
  "template.d_color_scheme": "Colour scheme without a choice of the person",
- "template.d_color_scheme_help": "Applies as long as a person has not chosen one (in the profile or with the block “Light and dark”)."
+ "template.d_color_scheme_help": "Applies as long as a person has not chosen one (in the profile or with the block “Light and dark”).",
+ "plugin.name.core.template": "Template designer"
 }

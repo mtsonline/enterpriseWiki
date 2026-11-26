@@ -39,5 +39,6 @@
  "core.reactions.person": "Person",
  "core.reactions.none": "Keine Reaktionen.",
  "limit.core.reactions.per_person": "Reaktionen je Person",
- "limit.core.reactions.per_person.help": "Wie viele verschiedene Emojis eine Person auf eine Seite, eine Kategorie oder einen Kommentar setzen darf."
+ "limit.core.reactions.per_person.help": "Wie viele verschiedene Emojis eine Person auf eine Seite, eine Kategorie oder einen Kommentar setzen darf.",
+ "plugin.name.core.reactions": "Reaktionen"
 }

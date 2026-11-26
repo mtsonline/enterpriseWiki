@@ -7,5 +7,6 @@
  "content.notes.unsaved": "Not saved yet.",
  "content.notes.failed": "Saving failed: {error}. It is tried again.",
  "content.notes.autosave": "Notes saved automatically",
- "content.notes.other_lang": "These notes are shown in another language; open the editor to write them in yours."
+ "content.notes.other_lang": "These notes are shown in another language; open the editor to write them in yours.",
+ "plugin.name.content.notes": "Shared notes"
 }

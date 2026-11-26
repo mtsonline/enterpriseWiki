@@ -52,5 +52,6 @@
  "perm.content.blog.contribute": "Contribute posts",
  "perm.content.blog.contribute_help": "Write new posts and change or delete the own ones.",
  "content.blog.block_search": "Search of the blog",
- "content.blog.block_feed": "Feed of the blog"
+ "content.blog.block_feed": "Feed of the blog",
+ "plugin.name.content.blog": "Blog"
 }

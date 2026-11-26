@@ -22,5 +22,6 @@
  "core.share.mail_body": "{by} hat „{title}“ mit Ihnen geteilt.",
  "core.share.mail_message": "Nachricht: {message}",
  "perm.core.share.use": "Seiten teilen",
- "perm.core.share.use_help": "Benutzer, Gruppen und Rollen auf eine Seite oder Kategorie hinweisen, die sie sehen dürfen."
+ "perm.core.share.use_help": "Benutzer, Gruppen und Rollen auf eine Seite oder Kategorie hinweisen, die sie sehen dürfen.",
+ "plugin.name.core.share": "Teilen"
 }

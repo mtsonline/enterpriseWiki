@@ -288,5 +288,6 @@
  "template.d_dark_colors": "Dunkle Farben",
  "template.d_dark_contrast": "Kontrast der dunklen Farben",
  "template.d_color_scheme": "Farbschema ohne Wahl der Person",
- "template.d_color_scheme_help": "Gilt, solange eine Person nichts gewählt hat (im Profil oder mit dem Baustein „Hell und dunkel“)."
+ "template.d_color_scheme_help": "Gilt, solange eine Person nichts gewählt hat (im Profil oder mit dem Baustein „Hell und dunkel“).",
+ "plugin.name.core.template": "Template-Designer"
 }

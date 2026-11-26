@@ -19,5 +19,6 @@
  "auth.oidc.redirect_uri": "Redirect-URI (beim Anbieter eintragen):",
  "auth.oidc.backchannel_uri": "Back-Channel-Logout-URL (optional, beim Anbieter eintragen):",
  "auth.oidc.claim_subject": "Claim für die stabile ID",
- "auth.oidc.claim_subject_help": "Standard: sub. Für Microsoft Entra ID mit SCIM-Bereitstellung: oid (entspricht der externalId)."
+ "auth.oidc.claim_subject_help": "Standard: sub. Für Microsoft Entra ID mit SCIM-Bereitstellung: oid (entspricht der externalId).",
+ "plugin.name.auth.oidc": "OpenID Connect (Keycloak, Entra ID, …)"
 }

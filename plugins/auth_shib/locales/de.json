@@ -19,5 +19,6 @@
  "auth.shib.header_groups": "Header: Gruppen",
  "auth.shib.header_separator": "Trennzeichen mehrerer Werte",
  "auth.shib.single_logout": "Beim Abmelden auch beim IdP abmelden (Single Logout)",
- "auth.shib.single_logout_help": "Schickt eine signierte LogoutRequest an den IdP, sofern er einen SLO-Endpunkt hat."
+ "auth.shib.single_logout_help": "Schickt eine signierte LogoutRequest an den IdP, sofern er einen SLO-Endpunkt hat.",
+ "plugin.name.auth.shib": "Shibboleth / SAML 2.0"
 }

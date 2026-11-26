@@ -23,5 +23,6 @@
  "macro.shell.last_run": "Letzter Lauf",
  "macro.shell.empty": "Noch keine Befehle. Sie erscheinen hier, sobald eine Seite den Shell-Baustein verwendet.",
  "perm.macro.shell.manage": "Shell-Befehle verwalten",
- "perm.macro.shell.manage_help": "Befehle des Shell-Bausteins anlegen und freigeben (Freigebende müssen zusätzlich in config.yaml stehen)."
+ "perm.macro.shell.manage_help": "Befehle des Shell-Bausteins anlegen und freigeben (Freigebende müssen zusätzlich in config.yaml stehen).",
+ "plugin.name.macro.shell": "Shell-Baustein"
 }

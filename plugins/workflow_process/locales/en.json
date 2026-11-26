@@ -595,5 +595,6 @@
  "workflow.link.sign": "This decision is signed: please sign in and decide in the case.",
  "workflow.process.block_tasks": "My tasks (workflows)",
  "workflow.notify_popup": "Show as a pop-up too",
- "workflow.notify_popup_help": "The message appears once as a dialog when the next page loads and then stays, read, in the notifications. Only with the channel in the wiki."
+ "workflow.notify_popup_help": "The message appears once as a dialog when the next page loads and then stays, read, in the notifications. Only with the channel in the wiki.",
+ "plugin.name.workflow.process": "Workflow"
 }

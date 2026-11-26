@@ -80,5 +80,6 @@
  "core.carousel.private_off_in_config": "Interne Adressen sind in config.yaml gesperrt (feeds.allow_private). Die Einstellung unten wirkt erst, wenn sie dort erlaubt sind.",
  "core.carousel.block": "Karussell",
  "core.carousel.position_none": "Keine feste Position – nur, wo es platziert ist",
- "core.carousel.position_help": "Die Position ist die Stelle im Template, an der das Karussell auf jeder Seite steht. Ohne feste Position erscheint es nur dort, wo Sie es unter Administration → Platzierung platzieren, zum Beispiel nur in einer Kategorie."
+ "core.carousel.position_help": "Die Position ist die Stelle im Template, an der das Karussell auf jeder Seite steht. Ohne feste Position erscheint es nur dort, wo Sie es unter Administration → Platzierung platzieren, zum Beispiel nur in einer Kategorie.",
+ "plugin.name.core.carousel": "Karussell"
 }

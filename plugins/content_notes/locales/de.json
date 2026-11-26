@@ -7,5 +7,6 @@
  "content.notes.unsaved": "Noch nicht gespeichert.",
  "content.notes.failed": "Speichern fehlgeschlagen: {error}. Es wird erneut versucht.",
  "content.notes.autosave": "Notizen automatisch gespeichert",
- "content.notes.other_lang": "Diese Notizen werden in einer anderen Sprache angezeigt; öffnen Sie den Editor, um sie in Ihrer Sprache zu schreiben."
+ "content.notes.other_lang": "Diese Notizen werden in einer anderen Sprache angezeigt; öffnen Sie den Editor, um sie in Ihrer Sprache zu schreiben.",
+ "plugin.name.content.notes": "Gemeinsame Notizen"
 }

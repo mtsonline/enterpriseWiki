@@ -65,5 +65,6 @@
  "signature.smime.d_fingerprint": "Fingerabdruck (SHA-256)",
  "signature.smime.d_from": "Gültig ab",
  "signature.smime.d_trusted": "Vertrauenswürdig",
- "signature.smime.d_added": "Hinzugefügt am"
+ "signature.smime.d_added": "Hinzugefügt am",
+ "plugin.name.signature.smime": "S/MIME"
 }

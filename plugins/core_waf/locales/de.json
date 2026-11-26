@@ -16,5 +16,6 @@
  "perm.core.waf.manage": "Web Application Firewall verwalten",
  "perm.core.waf.manage_help": "Betrieb und Strenge der Web Application Firewall ändern.",
  "limit.core.waf.body_kb": "Von der Firewall geprüfter Inhalt einer Anfrage",
- "limit.core.waf.body_kb.help": "So viel vom Inhalt einer Anfrage prüft die Firewall höchstens; der Rest geht ungeprüft weiter (das Wiki prüft jede Eingabe selbst). Hochgeladene Dateien prüft die Firewall nicht."
+ "limit.core.waf.body_kb.help": "So viel vom Inhalt einer Anfrage prüft die Firewall höchstens; der Rest geht ungeprüft weiter (das Wiki prüft jede Eingabe selbst). Hochgeladene Dateien prüft die Firewall nicht.",
+ "plugin.name.core.waf": "Web Application Firewall"
 }

@@ -69,5 +69,6 @@
  "core.menu.style": "Display",
  "core.menu.style_default": "Dropdown menus (default)",
  "core.menu.style_help": "For horizontal positions such as the main navigation.",
- "core.menu.block": "Menu"
+ "core.menu.block": "Menu",
+ "plugin.name.core.menu": "Menus"
 }

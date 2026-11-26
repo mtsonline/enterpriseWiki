@@ -52,5 +52,6 @@
  "limit.security.crowdsec.list_max": "Entries of CrowdSec per list",
  "limit.security.crowdsec.list_max.help": "At most this many alerts or blocks are read from CrowdSec at once.",
  "limit.security.crowdsec.allowlist_max": "Allowed addresses for CrowdSec",
- "limit.security.crowdsec.allowlist_max.help": "At most this many addresses and networks can be allowed."
+ "limit.security.crowdsec.allowlist_max.help": "At most this many addresses and networks can be allowed.",
+ "plugin.name.security.crowdsec": "CrowdSec"
 }

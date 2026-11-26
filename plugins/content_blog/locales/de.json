@@ -52,5 +52,6 @@
  "perm.content.blog.contribute": "Beiträge beitragen",
  "perm.content.blog.contribute_help": "Neue Beiträge schreiben und die eigenen ändern oder löschen.",
  "content.blog.block_search": "Suche im Blog",
- "content.blog.block_feed": "Feed des Blogs"
+ "content.blog.block_feed": "Feed des Blogs",
+ "plugin.name.content.blog": "Blog"
 }
