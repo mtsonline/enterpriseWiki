@@ -1868,4 +1868,11 @@ var traps = []trap{
 		New:  "\t\tmin := 0\n",
 		Pkg:  "./internal/server/", Tests: "^TestCrowdSec$",
 	},
+	{
+		ID: "http.status-twice", About: "a handler that wrote its answer itself gets a second status line (net/http warns: superfluous WriteHeader)",
+		File: "internal/httpx/httpx.go",
+		Old:  "\t\tif tw.wrote {\n",
+		New:  "\t\tif false && tw.wrote {\n",
+		Pkg:  "./internal/httpx/", Tests: "^TestJSONWrittenOnce$",
+	},
 }

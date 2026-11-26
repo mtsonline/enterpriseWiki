@@ -47,9 +47,22 @@ func logErr() *slog.Logger {
 }
 
 // JSON adapts a Handler to http.HandlerFunc.
+//
+// A handler that wrote the response itself (a file, CSS, a redirect)
+// should return Handled; if it returns nil or NoContent instead, nothing
+// more is written (a second status would be ignored by net/http with the
+// warning "superfluous response.WriteHeader call"). An error after the
+// response was started is only logged: the client already has its answer.
 func JSON(h Handler) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		v, err := h(w, r)
+		tw := &trackWriter{ResponseWriter: w}
+		v, err := h(tw, r)
+		if tw.wrote {
+			if err != nil {
+				logErr().Error("request failed after the answer started", "method", r.Method, "path", r.URL.Path, "err", err)
+			}
+			return
+		}
 		if err != nil {
 			WriteError(w, r, err)
 			return
@@ -69,6 +82,33 @@ func JSON(h Handler) http.HandlerFunc {
 		}
 	}
 }
+
+// trackWriter notes whether a handler started the response.
+type trackWriter struct {
+	http.ResponseWriter
+	wrote bool
+}
+
+func (t *trackWriter) WriteHeader(s int) {
+	t.wrote = true
+	t.ResponseWriter.WriteHeader(s)
+}
+
+func (t *trackWriter) Write(b []byte) (int, error) {
+	t.wrote = true
+	return t.ResponseWriter.Write(b)
+}
+
+// Flush passes on to the underlying writer (streamed answers).
+func (t *trackWriter) Flush() {
+	t.wrote = true
+	if f, ok := t.ResponseWriter.(http.Flusher); ok {
+		f.Flush()
+	}
+}
+
+// Unwrap lets http.ResponseController reach the underlying writer.
+func (t *trackWriter) Unwrap() http.ResponseWriter { return t.ResponseWriter }
 
 // Write writes v as JSON with status.
 func Write(w http.ResponseWriter, status int, v any) {
