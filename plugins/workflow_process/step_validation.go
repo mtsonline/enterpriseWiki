@@ -204,9 +204,11 @@ func (s *Step) validateExtra(fieldType map[string]string) error {
 	s.Access, s.Member, s.Move = nil, nil, nil
 	fs, cs := s.File, s.Calendar
 	s.File, s.Calendar = nil, nil
+	sh := s.Shell
+	s.Shell = nil
 	runAs := s.RunAs
 	s.RunAs = ""
-	if !in(s.Type, StepNotify, StepSet, StepParallel) && !apiStep(s.Type) {
+	if !in(s.Type, StepNotify, StepSet, StepParallel, StepShell) && !apiStep(s.Type) {
 		return nil
 	}
 	// automatic: no assignee, actions, reminders
@@ -381,6 +383,8 @@ func (s *Step) validateExtra(fieldType map[string]string) error {
 		return s.validateAccountSteps(ac, mb, mv)
 	case StepFile, StepCalendar:
 		return s.validateFileCalendarSteps(fs, cs)
+	case StepShell:
+		return s.validateShellStep(sh, fieldType)
 	}
 	return nil
 }
@@ -516,8 +520,8 @@ func (s *Step) validateForm(fieldType map[string]string) error {
 		if !ok {
 			return apperr.BadRequest("step %q: unknown field %q", s.ID, f.Field)
 		}
-		if t == "file" && (f.Mode == "edit" || f.Mode == "required") {
-			return apperr.BadRequest("step %q: files are only added in the start form", s.ID)
+		if t == "file" && (f.Mode == "edit" || f.Mode == "required") && s.Type != StepUpload {
+			return apperr.BadRequest("step %q: files are only added in the start form and in upload steps", s.ID)
 		}
 		if !in(f.Mode, FormModes...) {
 			return apperr.BadRequest("step %q: unknown mode %q of field %q", s.ID, f.Mode, f.Field)

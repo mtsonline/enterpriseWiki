@@ -1,7 +1,9 @@
 // Package macro_shell provides the "shell" macro: the output of a shell
-// command, inserted into a page.
+// command, inserted into a page, and the administration of the approvals
+// of shell commands (also those of workflow steps). Running and approving
+// commands is shared with the workflows in internal/shellcmd.
 //
-// Security model:
+// Security model (see internal/shellcmd):
 //   - off unless plugins.macros.shell_enabled is set in config.yaml (the web
 //     interface cannot change it);
 //   - every command must be approved by a superadmin (a user listed in
@@ -15,19 +17,17 @@ package macro_shell
 
 import (
 	"context"
-	"crypto/sha256"
 	"embed"
-	"encoding/hex"
 	"errors"
-	"github.com/mtsonline/enterprisewiki/internal/perm"
 	"html"
 	"io/fs"
 	"net/http"
-	"slices"
 	"strconv"
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/mtsonline/enterprisewiki/internal/perm"
 
 	"github.com/jackc/pgx/v5"
 
@@ -37,6 +37,7 @@ import (
 	"github.com/mtsonline/enterprisewiki/internal/coreplugin"
 	h "github.com/mtsonline/enterprisewiki/internal/httpx"
 	"github.com/mtsonline/enterprisewiki/internal/identity"
+	"github.com/mtsonline/enterprisewiki/internal/shellcmd"
 
 	_ "embed"
 )
@@ -49,9 +50,6 @@ var migrations embed.FS
 
 //go:embed locales/*.json
 var locales embed.FS
-
-// MaxOutput is the maximum number of bytes kept from a command's output.
-const MaxOutput = 64 << 10
 
 // Plugin is the shell macro plugin.
 type Plugin struct {
@@ -85,29 +83,6 @@ func (p *Plugin) Migrations() fs.FS { s, _ := fs.Sub(migrations, "migrations"); 
 // Locales implements coreplugin.LocalesPlugin.
 func (p *Plugin) Locales() fs.FS { s, _ := fs.Sub(locales, "locales"); return s }
 
-// Hash returns the approval hash of a command.
-func Hash(command string) string {
-	sum := sha256.Sum256([]byte(command))
-	return hex.EncodeToString(sum[:])
-}
-
-// normalize removes \r and surrounding blank space so that copying a
-// command between systems does not change its hash.
-func normalize(cmd string) string {
-	return strings.TrimSpace(strings.ReplaceAll(cmd, "\r\n", "\n"))
-}
-
-// CanApprove reports whether p is a superadmin for shell commands.
-func CanApprove(p *identity.Principal, approvers []string) bool {
-	if p == nil {
-		return false
-	}
-	if p.IsCLI() { // not --as USER: that carries only the user's rights
-		return true
-	}
-	return (p.Admin() || perm.HasP(p, "macro.shell.manage")) && p.Via != "apikey" && slices.Contains(approvers, p.Handle())
-}
-
 // Setup registers the macro and the approval API.
 func (p *Plugin) Setup(host *coreplugin.Host) error {
 	p.host = host
@@ -118,7 +93,7 @@ func (p *Plugin) Setup(host *coreplugin.Host) error {
 		if err := perm.Require(r.Context(), "macro.shell.manage"); err != nil {
 			return err
 		}
-		if !CanApprove(identity.From(r.Context()), approvers()) {
+		if !shellcmd.CanApprove(identity.From(r.Context()), approvers()) {
 			return apperr.Forbidden("only superadmins listed in plugins.macros.shell_approvers (config.yaml) or the local command line can approve shell commands")
 		}
 		return nil
@@ -130,7 +105,7 @@ func (p *Plugin) Setup(host *coreplugin.Host) error {
 		if err := perm.Require(r.Context(), "macro.shell.manage"); err != nil {
 			return nil, err
 		}
-		rows, err := host.DB.Query(r.Context(), `SELECT hash, command, status, element_id, u.username || '@' || u.provider, requested_at,
+		rows, err := host.DB.Query(r.Context(), `SELECT hash, command, status, element_id, source, u.username || '@' || u.provider, requested_at,
 			decided_by, decided_at, last_run_at, last_exit, last_ms
 			FROM plugin_shell_commands c LEFT JOIN users u ON u.id=c.requested_by ORDER BY (status='pending') DESC, requested_at DESC`)
 		if err != nil {
@@ -142,7 +117,7 @@ func (p *Plugin) Setup(host *coreplugin.Host) error {
 		}
 		cfg := host.Config.Get().Plugins.Macros
 		return map[string]any{"commands": list, "enabled": cfg.ShellEnabled,
-			"can_approve": CanApprove(identity.From(r.Context()), cfg.ShellApprovers)}, nil
+			"can_approve": shellcmd.CanApprove(identity.From(r.Context()), cfg.ShellApprovers)}, nil
 	})
 	// POST /commands registers a command ({"command": "...", "approve": true}).
 	// action: macro.shell.add
@@ -157,8 +132,8 @@ func (p *Plugin) Setup(host *coreplugin.Host) error {
 		if err := h.Decode(r, &in); err != nil {
 			return nil, err
 		}
-		cmd := normalize(in.Command)
-		if cmd == "" || len(cmd) > 4000 {
+		cmd := shellcmd.Normalize(in.Command)
+		if cmd == "" || len(cmd) > shellcmd.MaxCommand {
 			return nil, apperr.BadRequest("command must have 1 to 4000 characters")
 		}
 		if in.Approve {
@@ -166,8 +141,8 @@ func (p *Plugin) Setup(host *coreplugin.Host) error {
 				return nil, err
 			}
 		}
-		hash := Hash(cmd)
-		if err := p.request(r.Context(), hash, cmd, 0); err != nil {
+		hash := shellcmd.Hash(cmd)
+		if err := p.request(r.Context(), cmd, 0); err != nil {
 			return nil, err
 		}
 		if in.Approve {
@@ -212,6 +187,7 @@ type Command struct {
 	Command     string     `json:"command"`
 	Status      string     `json:"status"`
 	ElementID   *int64     `json:"element_id"`
+	Source      string     `json:"source"`
 	RequestedBy *string    `json:"requested_by"`
 	RequestedAt time.Time  `json:"requested_at"`
 	DecidedBy   *string    `json:"decided_by"`
@@ -221,17 +197,12 @@ type Command struct {
 	LastMS      *int       `json:"last_ms"`
 }
 
-func (p *Plugin) request(ctx context.Context, hash, cmd string, element int64) error {
-	var el *int64
+func (p *Plugin) request(ctx context.Context, cmd string, element int64) error {
+	source := ""
 	if element != 0 {
-		el = &element
+		source = "page"
 	}
-	var uid *int64
-	if id := identity.From(ctx).ID(); id != 0 {
-		uid = &id
-	}
-	_, err := p.host.DB.Exec(ctx, `INSERT INTO plugin_shell_commands(hash, command, element_id, requested_by) VALUES ($1,$2,$3,$4)
-		ON CONFLICT (hash) DO NOTHING`, hash, cmd, el, uid)
+	_, err := shellcmd.Request(ctx, p.host.DB, cmd, element, source)
 	return err
 }
 
@@ -300,18 +271,18 @@ func note(lang, en, de string) string {
 func (m *macro) Render(ctx context.Context, mc content.MacroContext) (string, error) {
 	p := m.p
 	cfg := p.host.Config.Get().Plugins.Macros
-	cmd := normalize(mc.Params["command"])
+	cmd := shellcmd.Normalize(mc.Params["command"])
 	if cmd == "" {
 		return note(mc.Lang, "Shell command: no command given.", "Shell-Befehl: Es ist kein Befehl angegeben."), nil
 	}
 	if !cfg.ShellEnabled {
 		return note(mc.Lang, "Shell commands are switched off on this server.", "Shell-Befehle sind auf diesem Server abgeschaltet."), nil
 	}
-	hash := Hash(cmd)
+	hash := shellcmd.Hash(cmd)
 	var status string
 	err := p.host.DB.QueryRow(ctx, `SELECT status FROM plugin_shell_commands WHERE hash=$1`, hash).Scan(&status)
 	if errors.Is(err, pgx.ErrNoRows) {
-		if err := p.request(ctx, hash, cmd, mc.ElementID); err != nil {
+		if err := p.request(ctx, cmd, mc.ElementID); err != nil {
 			return "", err
 		}
 		status = "pending"
@@ -364,9 +335,8 @@ func (p *Plugin) output(ctx context.Context, hash, cmd string, ttl time.Duration
 		d = 5 * time.Minute
 	}
 	start := time.Now()
-	out, exit, err := run(ctx, cmd, d, user)
-	ms := int(time.Since(start).Milliseconds())
-	_, _ = p.host.DB.Exec(context.WithoutCancel(ctx), `UPDATE plugin_shell_commands SET last_run_at=now(), last_exit=$2, last_ms=$3 WHERE hash=$1`, hash, exit, ms)
+	out, exit, err := shellcmd.Run(ctx, cmd, nil, d, user)
+	_ = shellcmd.Ran(context.WithoutCancel(ctx), p.host.DB, hash, exit, int(time.Since(start).Milliseconds()))
 	if err != nil {
 		return "", exit, err
 	}

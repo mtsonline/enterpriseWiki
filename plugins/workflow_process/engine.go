@@ -118,7 +118,7 @@ func (pl *Plugin) enter(ctx context.Context, tx pgx.Tx, x *Instance, id string, 
 			}
 			pl.emit(ctx, tx, "workflow.completed", x, a)
 			return pl.notifyStarter(ctx, tx, x, a, "done")
-		case StepTask, StepApproval:
+		case StepTask, StepApproval, StepUpload:
 			x.Status = "open"
 			x.Override = nil
 			if err := pl.setStep(ctx, tx, x, nil); err != nil {
@@ -129,7 +129,7 @@ func (pl *Plugin) enter(ctx context.Context, tx pgx.Tx, x *Instance, id string, 
 			x.Status = "open"
 			wake := pl.wakeTime(x, s)
 			return pl.setStep(ctx, tx, x, &wake)
-		case StepWebhook, StepHTTP, StepCreate, StepProps, StepSubflow, StepParallel, StepAccess, StepMember, StepMove, StepFile, StepCalendar:
+		case StepWebhook, StepHTTP, StepCreate, StepProps, StepSubflow, StepParallel, StepAccess, StepMember, StepMove, StepFile, StepCalendar, StepShell:
 			x.Status = "open"
 			now := time.Now()
 			return pl.setStep(ctx, tx, x, &now) // the worker carries the step out

@@ -20,6 +20,7 @@
  "macro.shell.status.revoked": "gesperrt",
  "macro.shell.requested": "Angefordert",
  "macro.shell.page": "Seite",
+ "macro.shell.workflow_step": "Workflow, Schritt {step}",
  "macro.shell.last_run": "Letzter Lauf",
  "macro.shell.empty": "Noch keine Befehle. Sie erscheinen hier, sobald eine Seite den Shell-Baustein verwendet.",
  "perm.macro.shell.manage": "Shell-Befehle verwalten",

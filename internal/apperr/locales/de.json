@@ -803,7 +803,18 @@
  "step %q: choose one or more formats (%s)": "Schritt %q: bitte ein oder mehrere Formate wählen (%s)",
  "step %q: enter a waiting time or a date field": "Schritt %q: bitte eine Wartezeit oder ein Datumsfeld eingeben",
  "step %q: field %q must consist of a-z, 0-9, _ and -": "Schritt %q: Das Feld %q muss aus a-z, 0-9, _ und - bestehen",
- "step %q: files are only added in the start form": "Schritt %q: Dateien kommen nur im Startformular dazu",
+ "step %q: %q is not a file field of the workflow": "Schritt %q: %q ist kein Dateifeld des Workflows",
+ "step %q: at most %d fields for the command": "Schritt %q: höchstens %d Felder für den Befehl",
+ "step %q: choose upload or confirm and the file field": "Schritt %q: Wählen Sie Hochladen oder Bestätigen und das Dateifeld",
+ "step %q: files are only added in the start form and in upload steps": "Schritt %q: Dateien kommen nur im Startformular und in Schritten zum Hochladen dazu",
+ "step %q: invalid category of the media library": "Schritt %q: ungültige Kategorie der Mediathek",
+ "step %q: the command is missing": "Schritt %q: Der Befehl fehlt",
+ "step %q: the command must have 1 to %d characters": "Schritt %q: Der Befehl muss 1 bis %d Zeichen haben",
+ "step %q: the label of the button is required": "Schritt %q: Die Beschriftung des Knopfs fehlt",
+ "step %q: the label of the button to reject is required": "Schritt %q: Die Beschriftung des Knopfs zum Ablehnen fehlt",
+ "step %q: the mode must be upload or confirm": "Schritt %q: Die Art muss Hochladen oder Bestätigen sein",
+ "step %q: the step after a rejection is required": "Schritt %q: Der Schritt nach einer Ablehnung fehlt",
+ "step %q: the time limit must be 1 to %d seconds": "Schritt %q: Das Zeitlimit muss 1 bis %d Sekunden betragen",
  "step %q: invalid address (placeholders only in path and query)": "Schritt %q: ungültige Adresse (Platzhalter nur in Pfad und Abfrage)",
  "step %q: invalid branch %q": "Schritt %q: ungültiger Zweig %q",
  "step %q: invalid deadline": "Schritt %q: ungültige Frist",
@@ -1246,5 +1257,6 @@
  "the network %s is too large (at least /%d)": "Das Netz %s ist zu groß (mindestens /%d)",
  "ui.readability.mode must be off, offered or on": "ui.readability.mode muss off, offered oder on sein",
  "ui.readability.sentence_words must be 0 (default %d) or %d to %d": "ui.readability.sentence_words muss 0 (Vorgabe %d) oder %d bis %d sein",
- "ui.readability.word_letters must be 0 (default %d) or %d to %d": "ui.readability.word_letters muss 0 (Vorgabe %d) oder %d bis %d sein"
+ "ui.readability.word_letters must be 0 (default %d) or %d to %d": "ui.readability.word_letters muss 0 (Vorgabe %d) oder %d bis %d sein",
+ "step %q: the fields %q and %q would have the same variable %s": "Schritt %q: Die Felder %q und %q hätten dieselbe Variable %s"
 }

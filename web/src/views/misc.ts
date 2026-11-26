@@ -302,7 +302,7 @@ interface SSHKey { id: number; name: string; fingerprint: string; created_at: st
 
 // E-mail notification preferences.
 async function notificationSection(): Promise<HTMLElement | null> {
-  let data: { email: string; prefs: Record<string, boolean>; kinds: string[]; enabled: boolean };
+  let data: { email: string; prefs: Record<string, boolean>; kinds: string[]; labels?: Record<string, string>; enabled: boolean };
   try {
     data = await api.get('me/notifications');
   } catch {
@@ -311,7 +311,12 @@ async function notificationSection(): Promise<HTMLElement | null> {
   if (!data.enabled) {
     return h('section', { class: 'ew-section', 'aria-labelledby': 'nt-h' }, h('h2', { id: 'nt-h' }, t('notify.title')), h('p', null, t('notify.disabled')));
   }
-  const boxes = data.kinds.map((k) => ({ k, c: checkbox(t(`notify.${k}`), data.prefs[k], { help: t(`notify.${k}_help`) }) }));
+  // kinds of the core have a name and a help text under notify.<kind>;
+  // kinds of plugins bring the key of their name (labels)
+  const boxes = data.kinds.map((k) => {
+    const own = data.labels?.[k] || undefined; // an empty key: a kind of the core
+    return { k, c: checkbox(t(own ?? `notify.${k}`), data.prefs[k], own ? {} : { help: t(`notify.${k}_help`) }) };
+  });
   const alert = h('div', { class: 'ew-form-alert', role: 'alert' });
   const f = h('form', { class: 'ew-form', novalidate: true }, alert,
     h('fieldset', null, h('legend', null, t('notify.legend')), ...boxes.map((b) => b.c.el)),

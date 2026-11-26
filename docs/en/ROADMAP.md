@@ -56,7 +56,7 @@ Open from this area: core update from the interface (the core updates with `scri
 
 Improvements after the first test (v7.3.1): *Edit category* and *Edit page* directly in the category view, menu dialog with positions of the active template, category selection and check of the entries, display of the template used on the plugin page, more positions in both templates, position preview, plugin `core.blocks` for text blocks at every position.
 
-Done since: notifications in the wiki (bell), summaries (milestone 6), deputies and the step *HTTP query*, which takes values of the answer into the case (milestone 16b).
+Done since: notifications in the wiki (bell), summaries (milestone 6), deputies and the step *HTTP query*, which takes values of the answer into the case (milestone 16b), the step *Shell command* with approval by superadmins and values only as environment variables, and the step *Upload or confirm a file* (26.11.2026).
 
 ## Milestone 5 – Reliable e-mail, watching, feeds, new element types, guest cache (done, v7.4)
 

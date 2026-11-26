@@ -1072,6 +1072,24 @@ test('sign-in page: provider buttons, direct link, automatic redirect, passkeys 
   errors.splice(logged, errors.length - logged, ...errors.slice(logged).filter((e) => !/status of (4\d\d|502)/.test(e)));
 });
 
+test('e-mail notifications in the profile: every kind with its name, also those of plugins', async () => {
+  const prevMail = await call('GET', '/api/v1/admin/settings');
+  await call('PUT', '/api/v1/admin/settings', { mail: { ...prevMail.config.mail, enabled: true, transport: 'smtp', from: prevMail.config.mail.from || 'wiki@example.invalid',
+    smtp: { ...prevMail.config.mail.smtp, host: '127.0.0.1', port: 9, security: 'none', username: '', password: '' } } });
+  try {
+    await page.goto(`${BASE}/profile`);
+    await idle();
+    const box = page.getByRole('group', { name: /^(notify me about|benachrichtigen bei)/i });
+    await box.waitFor();
+    const text = await box.innerText();
+    // no text key instead of a name (plugins register kinds with the key of their name)
+    assert.doesNotMatch(text, /notify\.|workflow\.(process|kind)\./, text);
+    assert.match(text, /messages of workflows|nachrichten von workflows/i);
+  } finally {
+    await call('PUT', '/api/v1/admin/settings', { mail: prevMail.config.mail });
+  }
+});
+
 test('create an account yourself: switched on by the administrators, link by e-mail, then sign in', async () => {
   const smtp = await smtpFake();
   const prevMail = await call('GET', '/api/v1/admin/settings');
@@ -1899,6 +1917,122 @@ test('workflow 3: a new account starts onboarding with permissions, group and ar
   await a11y('group members dialog');
   await page.keyboard.press('Escape');
   assert.ok((await call('GET', `/api/v1/admin/groups/${grp.id}/members`)).includes(u.id), 'member again');
+});
+
+test('workflow: the step "Upload or confirm a file" – upload in the case dialog, then confirm, light and dark', async () => {
+  const cat = (await call('POST', '/api/v1/categories', { titles: { en: `Contracts ${run}` } })).id;
+  const wf = await call('POST', '/api/v1/elements', { category_id: cat, type: 'workflow.process', title: `Contract ${run}`, body: {
+    description: 'E2E', fields: [{ id: 'title', label: 'Title', type: 'text', required: true }, { id: 'contract', label: 'Contract', type: 'file' }],
+    steps: [
+      { id: 'sign', name: 'Signed contract', type: 'upload', assignee: { type: 'starter' }, next: 'check', upload: { mode: 'upload', field: 'contract', label: 'Upload contract' } },
+      { id: 'check', name: 'Check', type: 'upload', assignee: { type: 'starter' }, next: 'done', next_else: 'sign',
+        upload: { mode: 'confirm', field: 'contract', label: 'Contract is fine', reject_label: 'Not signed' } },
+      { id: 'done', name: 'Done', type: 'end', outcome: 'success' }] } });
+  try {
+    // the editor shows both purposes
+    await page.goto(`${BASE}/e/${wf.id}/edit`);
+    await idle();
+    assert.equal(await page.locator('.ewf-step-row--upload').count(), 2);
+    await page.locator('.ewf-step-row--upload').first().getByLabel(/^(file field|dateifeld)/i).waitFor();
+    await a11y('workflow editor with upload and confirm steps');
+    for (const scheme of ['light', 'dark']) {
+      await call('PUT', '/api/v1/scheme', { scheme });
+      await page.goto(`${BASE}/e/${wf.id}`);
+      await idle();
+      await page.getByRole('button', { name: /start new case|neuen vorgang starten/i }).click();
+      const form = page.locator('dialog[open]');
+      await form.getByLabel(/^(title|titel)/i).fill(`Lease ${scheme} ${run}`);
+      await form.locator('button[type=submit]').click();
+      await page.waitForFunction((x) => document.querySelector('dialog[open] h2')?.textContent?.includes(x), `Lease ${scheme} ${run}`);
+      // upload: the action asks for the file
+      await page.locator('dialog[open]').getByRole('button', { name: /^upload contract$/i }).click();
+      const up = page.locator('dialog[open] form');
+      await up.locator('input[type=file]').setInputFiles({ name: 'lease.pdf', mimeType: 'application/pdf', buffer: Buffer.from('%PDF-1.4\n%%EOF\n') });
+      await a11y(`upload step dialog (${scheme})`);
+      await up.locator('button[type=submit]').click();
+      await page.locator('.ew-toast', { hasText: /^upload contract/i }).first().waitFor();
+      // confirm (the next task of the same person): open the case again;
+      // the file is shown with the two decisions
+      const open = (await call('GET', `/api/v1/x/workflow.process/elements/${wf.id}/instances`)).instances.find((c) => c.title === `Lease ${scheme} ${run}`);
+      await page.goto(`${BASE}/e/${wf.id}?case=${open.id}`);
+      await idle();
+      await page.locator('dialog[open]').getByRole('button', { name: /^contract is fine$/i }).waitFor();
+      await page.locator('dialog[open]').getByRole('link', { name: /lease\.pdf/i }).waitFor();
+      await a11y(`confirm step (${scheme})`);
+      await page.locator('dialog[open]').getByRole('button', { name: /^contract is fine$/i }).click();
+      await page.locator('dialog[open] form button[type=submit]').click();
+      const done = (await call('GET', `/api/v1/x/workflow.process/elements/${wf.id}/instances`)).instances.find((c) => c.title === `Lease ${scheme} ${run}`);
+      assert.ok(done, 'the case exists');
+      const status = () => call('GET', `/api/v1/x/workflow.process/instances/${done.id}`).then((x) => x.status);
+      for (let i = 0; i < 50 && await status() !== 'done'; i++) await page.waitForTimeout(100);
+      assert.equal(await status(), 'done');
+      await page.keyboard.press('Escape');
+    }
+  } finally {
+    await call('PUT', '/api/v1/scheme', { scheme: '' });
+  }
+});
+
+test('workflow: the step "Shell command" in the editor, its approval asked for on publishing', async () => {
+  const cat = (await call('POST', '/api/v1/categories', { titles: { en: `Shell flows ${run}` } })).id;
+  const wf = await call('POST', '/api/v1/elements', { category_id: cat, type: 'workflow.process', title: `Shell ${run}`, body: {
+    description: 'E2E', fields: [{ id: 'host', label: 'Host', type: 'text', required: true }],
+    steps: [{ id: 'done', name: 'Done', type: 'end', outcome: 'success' }] } });
+  await page.goto(`${BASE}/e/${wf.id}/edit`);
+  await idle();
+  await page.locator('.ewf-add-step select').selectOption('shell');
+  await page.getByRole('button', { name: /^(add step|schritt hinzufügen)$/i }).click();
+  const row = page.locator('.ewf-step-row--shell');
+  await row.waitFor();
+  // shell commands are off in this wiki: the editor says so
+  await row.getByRole('note').filter({ hasText: /shell_enabled/ }).waitFor();
+  await row.getByLabel(/^name/i).first().fill('Check the host');
+  await row.getByLabel(/^(next step|nächster schritt)/i).first().selectOption({ label: 'Done' });
+  const command = `echo checked-${run}`;
+  await row.getByLabel(/^(command|befehl)/i).fill(command);
+  // values only as environment variables, chosen per field
+  await row.getByRole('group', { name: /^(values for the command|werte für den befehl)$/i }).getByLabel(/EWIKI_FIELD_HOST/).check();
+  await a11y('workflow editor with a shell step');
+  await page.getByRole('button', { name: /^(publish|veröffentlichen)$/i }).click();
+  await page.waitForURL(/\/e\/\d+$/);
+  await idle();
+  const body = (await call('GET', `/api/v1/elements/${wf.id}?lang=en&edit=1`)).body;
+  const step = body.steps.find((x) => x.type === 'shell');
+  // the name typed first, then the next step and the command: none of them
+  // lost (a redraw on leaving the name once replaced the next field)
+  assert.equal(step.name, 'Check the host');
+  assert.equal(step.next, 'done');
+  assert.equal(step.shell.command, command);
+  assert.deepEqual(step.shell.fields, ['host']);
+  // publishing asked for the approval: the command is listed, with where it is used
+  await page.goto(`${BASE}/admin/shell`);
+  await idle();
+  const listed = page.locator('tr', { hasText: command });
+  await listed.waitFor();
+  await listed.getByRole('link', { name: new RegExp(`^(workflow, step|workflow, schritt) ${step.id}$`, 'i') }).waitFor();
+  await a11y('shell commands with a workflow step');
+});
+
+test('workflow editor: moving on from the key of a row never loses the value typed next', async () => {
+  const cat = (await call('POST', '/api/v1/categories', { titles: { en: `Typing ${run}` } })).id;
+  const wf = await call('POST', '/api/v1/elements', { category_id: cat, type: 'workflow.process', title: `Typing ${run}`, body: {
+    description: 'E2E', fields: [], steps: [{ id: 'done', name: 'Done', type: 'end', outcome: 'success' }] } });
+  await page.goto(`${BASE}/e/${wf.id}/edit`);
+  await idle();
+  await page.locator('.ewf-add-step select').selectOption('props');
+  await page.getByRole('button', { name: /^(add step|schritt hinzufügen)$/i }).click();
+  const row = page.locator('.ewf-step-row--props');
+  await row.waitFor();
+  await row.getByLabel(/^name/i).first().fill('Mark');
+  // a row of property values: the key, then the value
+  await row.getByRole('button', { name: /^(add a row|zeile hinzufügen)$/i }).click();
+  const key = row.getByRole('textbox', { name: /^(property \(key\)|eigenschaft \(schlüssel\))/i }).first();
+  await key.fill('status');
+  const value = row.getByRole('textbox', { name: /^(value|wert)$/i }).first();
+  await value.click();
+  await page.keyboard.type('approved');
+  assert.equal(await value.inputValue(), 'approved', 'the value typed after the key stays');
+  assert.equal(await key.inputValue(), 'status');
 });
 
 test('workflow 3b: a case writes Word, PDF and Excel files and a calendar entry', async () => {

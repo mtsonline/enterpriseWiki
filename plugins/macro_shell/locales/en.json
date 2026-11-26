@@ -20,6 +20,7 @@
  "macro.shell.status.revoked": "revoked",
  "macro.shell.requested": "Requested",
  "macro.shell.page": "Page",
+ "macro.shell.workflow_step": "Workflow, step {step}",
  "macro.shell.last_run": "Last run",
  "macro.shell.empty": "No commands yet. They appear here as soon as a page uses the shell block.",
  "perm.macro.shell.manage": "Manage shell commands",

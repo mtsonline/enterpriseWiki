@@ -43,7 +43,7 @@ func (d *Definition) validateSign() error {
 		if !validSign(s.Sign) {
 			return apperr.BadRequest("step %q: signature must be advanced, qualified or a signature plugin", s.ID)
 		}
-		if s.Sign != "" && s.Type != StepTask && s.Type != StepApproval {
+		if s.Sign != "" && !s.taskLike() && s.Type != StepApproval {
 			return apperr.BadRequest("step %q: only decisions (tasks and approvals) can be signed", s.ID)
 		}
 		for j := range s.Actions {
@@ -61,7 +61,7 @@ func signReq(s *Step, a Action) string {
 	if s == nil || isHandover(a.ID) || a.ID == ActRetry || a.ID == ActSkip {
 		return ""
 	}
-	if s.Type == StepTask {
+	if s.taskLike() {
 		for _, da := range s.Actions {
 			if da.ID == a.ID {
 				switch da.Sign {

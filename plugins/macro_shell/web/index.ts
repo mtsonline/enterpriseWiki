@@ -5,7 +5,7 @@ import './style.css';
 const BASE = 'x/macro.shell';
 
 interface Command {
-  hash: string; command: string; status: 'pending' | 'approved' | 'revoked'; element_id: number | null;
+  hash: string; command: string; status: 'pending' | 'approved' | 'revoked'; element_id: number | null; source: string;
   requested_by: string | null; requested_at: string; decided_by: string | null; decided_at: string | null;
   last_run_at: string | null; last_exit: number | null; last_ms: number | null;
 }
@@ -35,7 +35,7 @@ async function render(el: HTMLElement): Promise<void> {
     h('td', null, h('span', { class: ['ew-badge', badge[c.status]] }, t(`macro.shell.status.${c.status}`)),
       c.decided_by ? h('div', { class: 'ew-muted' }, `${c.decided_by}, ${fmtDate(c.decided_at, state.lang)}`) : null),
     h('td', null, c.requested_by ?? '–', h('div', { class: 'ew-muted' }, fmtDate(c.requested_at, state.lang)),
-      c.element_id ? h('a', { href: `/e/${c.element_id}` }, t('macro.shell.page')) : null),
+      c.element_id ? h('a', { href: `/e/${c.element_id}` }, c.source.startsWith('workflow:') ? t('macro.shell.workflow_step', { step: c.source.slice(9) }) : t('macro.shell.page')) : null),
     h('td', null, c.last_run_at ? `${fmtDate(c.last_run_at, state.lang)} · exit ${c.last_exit} · ${c.last_ms} ms` : '–'),
     h('td', { class: 'ew-actions' },
       data.can_approve && c.status !== 'approved' ? button(t('macro.shell.approve'), async () => {

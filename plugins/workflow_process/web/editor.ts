@@ -1,6 +1,6 @@
 // Structured editor for workflow definitions: start form, steps of all
 // types (task, approval, condition, e-mail, webhook, waiting time, end).
-import { api, button, checkbox, confirmDialog, field, h, select, t, textArea, textInput, type EditorContext, type EditorInstance } from '@ewiki/coreplugin';
+import { api, button, categorySelect, checkbox, confirmDialog, field, h, select, t, textArea, textInput, type EditorContext, type EditorInstance } from '@ewiki/coreplugin';
 import { TEMPLATES } from './templates';
 import { cleanTrigger, deadlineFields, optionsSection, signField, extraStepFields, noticeFields, stepFormFields, triggersSection, validateExtra, type Kit } from './editor2';
 import type { Action, Definition, Field, Meta, Rule, Step, StepType, Trigger } from './types';
@@ -13,7 +13,7 @@ export interface Model { description: string; fields: Field[]; steps: EStep[]; t
 
 let seq = 0;
 const BASE = 'x/workflow.process';
-const STEP_TYPES: StepType[] = ['task', 'approval', 'condition', 'email', 'notify', 'set', 'webhook', 'http', 'create', 'props', 'file', 'calendar', 'access', 'membership', 'move', 'subflow', 'parallel', 'delay', 'end'];
+const STEP_TYPES: StepType[] = ['task', 'approval', 'upload', 'condition', 'email', 'notify', 'set', 'webhook', 'http', 'create', 'props', 'file', 'calendar', 'shell', 'access', 'membership', 'move', 'subflow', 'parallel', 'delay', 'end'];
 const RULE_OPS = ['equals', 'not_equals', 'contains', 'not_contains', 'empty', 'not_empty', 'gt', 'gte', 'lt', 'lte'];
 const FIELD_TYPES = ['text', 'textarea', 'email', 'date', 'number', 'select', 'checkbox', 'file'];
 const PLACEHOLDERS = ['all', 'case.title', 'case.id', 'case.url', 'case.step', 'workflow.title', 'starter.name', 'starter.email', 'actor.name', 'actor.email',
@@ -85,6 +85,8 @@ function toDefinition(m: Model): Definition {
           sign: s.sign || undefined,
           actions: s.actions.map((a, j) => ({ id: uniqueId(a.id, a.label, aIds, `action${j + 1}`), label: a.label, next: ref(a.next), note: a.note || undefined, sign: a.sign || undefined })) };
       }
+      case 'upload': return { ...base, assignee: s.assignee, due_days: s.due_days || undefined, deadline, upload: s.upload, next: ref(s.next),
+        next_else: s.upload?.mode === 'confirm' ? ref(s.nextElse) : undefined, sign: s.upload?.mode === 'confirm' ? s.sign || undefined : undefined };
       case 'approval': return { ...base, assignee: s.assignee, due_days: s.due_days || undefined, deadline, form: s.form?.length ? s.form : undefined, required: s.required || 0,
         approve_label: s.approve_label || undefined, reject_label: s.reject_label || undefined, next: ref(s.next), next_else: ref(s.nextElse), sign: s.sign || undefined };
       case 'condition': return { ...base, match: s.match || 'all', rules: s.rules ?? [], next: ref(s.next), next_else: ref(s.nextElse) };
@@ -103,6 +105,7 @@ function toDefinition(m: Model): Definition {
       case 'move': return { ...base, move: s.move, run_as: s.run_as, next: ref(s.next) };
       case 'file': return { ...base, file: s.file, run_as: s.run_as, next: ref(s.next) };
       case 'calendar': return { ...base, calendar: s.calendar, run_as: s.run_as, next: ref(s.next) };
+      case 'shell': return { ...base, shell: s.shell, next: ref(s.next), next_else: ref(s.nextElse) || undefined };
       case 'subflow': return { ...base, subflow: s.subflow, run_as: s.run_as, next: ref(s.next), next_else: s.subflow?.wait ? ref(s.nextElse) || undefined : undefined };
     }
     return base;
@@ -129,6 +132,8 @@ function retype(s: EStep, type: StepType): void {
   if (type === 'access' && !s.access) s.access = { mode: 'grant', category: 0, subject: 'user', user: '{{starter.username}}', level: 'reader' };
   if (type === 'membership' && !s.membership) s.membership = { mode: 'add', group: 0, user: '{{starter.username}}' };
   if (type === 'file' && !s.file) s.file = { category: 0, name: '{{case.title}}', formats: ['pdf'], content: '# {{case.title}}\n', data: true, store_id: 'file' };
+  if (type === 'upload' && !s.upload) s.upload = { mode: 'upload', field: '', label: t('workflow.upload_default_label'), reject_label: t('workflow.reject') };
+  if (type === 'shell' && !s.shell) s.shell = { command: '', fields: [], timeout: 30, output: 'output', exit: 'exit_code' };
   if (type === 'calendar' && !s.calendar) s.calendar = { calendar: 0, title: '{{case.title}}', start: '+1d', minutes: 60, store_id: 'event' };
   if (type === 'move' && !s.move) s.move = { element: '{{field.page}}', category: 0 };
   if (type === 'subflow' && !s.subflow) s.subflow = { workflow: 0, wait: true, data: {}, return: {} };
@@ -182,7 +187,13 @@ export function createWorkflowEditor(container: HTMLElement, body: unknown, ctx:
     const sel = select([{ value: '0', label: allowNone ? t('workflow.none') : t('workflow.choose') },
       ...m.steps.filter((x) => x !== self).map((x) => ({ value: String(x.key), label: x.name || x.id || '?' }))], String(get()));
     sel.addEventListener('change', () => set(Number(sel.value)));
+    sel.classList.add('ewf-step-select');
     return sel;
+  };
+  // renameInLists shows a new step name in every "next step" list in place:
+  // redrawing the editor would replace the field the person just moved to
+  const renameInLists = (s: EStep) => {
+    for (const o of root.querySelectorAll<HTMLOptionElement>(`select.ewf-step-select option[value="${s.key}"]`)) o.textContent = s.name || s.id || '?';
   };
 
   const fieldRow = (f: Field, i: number): HTMLElement => {
@@ -275,6 +286,35 @@ export function createWorkflowEditor(container: HTMLElement, body: unknown, ctx:
             s.actions.push({ id: '', label: '', next: 0 }); draw();
             root.querySelectorAll<HTMLElement>('.ewf-step-row')[i]?.querySelectorAll<HTMLInputElement>('.ewf-action-row input')[s.actions.length - 1]?.focus();
           })];
+      case 'upload': {
+        // a task with one purpose: upload a file into a file field, or confirm one
+        const u = (s.upload ??= { mode: 'upload', field: '', label: t('workflow.upload_default_label') });
+        const mode = select(['upload', 'confirm'].map((x) => ({ value: x, label: t(`workflow.upload_mode.${x}`) })), u.mode);
+        mode.addEventListener('change', () => {
+          u.mode = mode.value as 'upload' | 'confirm';
+          u.label = t(u.mode === 'upload' ? 'workflow.upload_default_label' : 'workflow.confirm_default_label');
+          u.reject_label ??= t('workflow.reject');
+          draw();
+        });
+        const files = m.fields.filter((f) => f.type === 'file' && f.id);
+        const fileSel = select([{ value: '', label: t('workflow.choose') }, ...files.map((f) => ({ value: f.id, label: f.label || f.id }))], u.field);
+        fileSel.addEventListener('change', () => { u.field = fileSel.value; });
+        const mediaBox = h('div');
+        if (u.mode === 'upload') {
+          void categorySelect({ selected: u.media || 0, perm: 'view', noneLabel: t('workflow.upload_media_none'), onChange: (id) => { u.media = id || undefined; } })
+            .then((cs) => mediaBox.append(cs.field(t('workflow.upload_media'), { help: t('workflow.upload_media_help') })));
+        }
+        return [h('p', { class: 'ew-help' }, t(u.mode === 'upload' ? 'workflow.upload_help' : 'workflow.confirm_help')), assigneeFields(s),
+          h('div', { class: 'ewf-grid' }, field(t('workflow.upload_mode'), mode),
+            field(t('workflow.upload_field'), fileSel, { required: true, help: files.length ? undefined : t('workflow.upload_no_file_field') })),
+          u.mode === 'confirm' ? signField(s) : mediaBox,
+          h('div', { class: 'ewf-grid' },
+            field(t('workflow.upload_label'), text(() => u.label, (v) => { u.label = v; }, { max: 100 }), { required: true }),
+            u.mode === 'confirm' ? field(t('workflow.reject_label'), text(() => u.reject_label, (v) => { u.reject_label = v; }, { max: 100 }), { required: true }) : null),
+          h('div', { class: 'ewf-grid' },
+            field(t(u.mode === 'confirm' ? 'workflow.next_confirmed' : 'workflow.next'), stepSelect(() => s.next, (k) => { s.next = k; }, s), { required: true }),
+            u.mode === 'confirm' ? field(t('workflow.next_rejected'), stepSelect(() => s.nextElse, (k) => { s.nextElse = k; }, s), { required: true }) : null)];
+      }
       case 'approval':
         return [h('p', { class: 'ew-help' }, t('workflow.approval_help')), assigneeFields(s), signField(s),
           h('div', { class: 'ewf-grid' },
@@ -323,7 +363,7 @@ export function createWorkflowEditor(container: HTMLElement, body: unknown, ctx:
             field(t('workflow.next'), stepSelect(() => s.next, (k) => { s.next = k; }, s), { required: true }),
             field(t('workflow.next_error'), stepSelect(() => s.nextElse, (k) => { s.nextElse = k; }, s, true), { help: t('workflow.next_error_help') }))];
       }
-      case 'notify': case 'set': case 'http': case 'create': case 'props': case 'file': case 'calendar': case 'access': case 'membership': case 'move': case 'subflow': case 'parallel':
+      case 'notify': case 'set': case 'http': case 'create': case 'props': case 'file': case 'calendar': case 'shell': case 'access': case 'membership': case 'move': case 'subflow': case 'parallel':
         return extraStepFields(s, kit);
       case 'delay': {
         const d = (s.delay ??= { days: 1 });
@@ -341,14 +381,13 @@ export function createWorkflowEditor(container: HTMLElement, body: unknown, ctx:
 
   const stepRow = (s: EStep, i: number): HTMLElement => {
     const legend = h('legend', null, `${i + 1}. ${s.name} – ${t(`workflow.steptype.${s.type}`)}`);
-    const name = text(() => s.name, (v) => { s.name = v; legend.textContent = `${i + 1}. ${v} – ${t(`workflow.steptype.${s.type}`)}`; });
-    name.addEventListener('change', () => draw()); // refresh "next step" lists
+    const name = text(() => s.name, (v) => { s.name = v; legend.textContent = `${i + 1}. ${v} – ${t(`workflow.steptype.${s.type}`)}`; renameInLists(s); });
     const type = select(STEP_TYPES.map((x) => ({ value: x, label: t(`workflow.steptype.${x}`) })), s.type);
     type.addEventListener('change', () => { retype(s, type.value as StepType); draw(); root.querySelectorAll<HTMLSelectElement>('.ewf-step-type')[i]?.focus(); });
     type.classList.add('ewf-step-type');
     return h('fieldset', { class: ['ewf-row', 'ewf-step-row', `ewf-step-row--${s.type}`] }, legend,
       h('div', { class: 'ewf-grid' }, field(t('workflow.step_name'), name, { required: true }), field(t('workflow.step_type'), type),
-        field(t('workflow.id'), text(() => s.id, (v) => { s.id = v; }, { max: 40 }), { help: t('workflow.id_help') })),
+        field(t('workflow.id'), text(() => s.id, (v) => { s.id = v; renameInLists(s); }, { max: 40 }), { help: t('workflow.id_help') })),
       field(t('workflow.step_desc'), text(() => s.description, (v) => { s.description = v; }, { max: 2000 })),
       ...typeFields(s, i),
       noticeFields(s, kit),

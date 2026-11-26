@@ -90,7 +90,7 @@ func (pl *Plugin) wakeOne(ctx context.Context) (done bool, err error) {
 			}
 			_, err := tx.Exec(ctx, `UPDATE plugin_workflow_instances SET attempts=$2, last_error=$3, wake_at=NULL, updated_at=now() WHERE id=$1`, id, attempts, msg)
 			return err
-		case StepHTTP, StepCreate, StepProps, StepSubflow, StepParallel, StepAccess, StepMember, StepMove, StepFile, StepCalendar:
+		case StepHTTP, StepCreate, StepProps, StepSubflow, StepParallel, StepAccess, StepMember, StepMove, StepFile, StepCalendar, StepShell:
 			var attempts int
 			if err := tx.QueryRow(ctx, `SELECT attempts FROM plugin_workflow_instances WHERE id=$1`, id).Scan(&attempts); err != nil {
 				return err
@@ -103,6 +103,11 @@ func (pl *Plugin) wakeOne(ctx context.Context) (done bool, err error) {
 			res, runErr := pl.runStep(ctx, sp2, x, s)
 			if runErr == nil && res.wait {
 				if err := sp2.Commit(ctx); err != nil {
+					return err
+				}
+				if res.recheck > 0 { // looks again later (e.g. an approval)
+					_, err := tx.Exec(ctx, `UPDATE plugin_workflow_instances SET wake_at=now() + make_interval(secs => $2), attempts=0, last_error='' WHERE id=$1`,
+						id, res.recheck.Seconds())
 					return err
 				}
 				_, err := tx.Exec(ctx, `UPDATE plugin_workflow_instances SET wake_at=NULL, attempts=0, last_error='' WHERE id=$1`, id)

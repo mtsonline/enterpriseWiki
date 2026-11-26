@@ -283,12 +283,18 @@ func (pl *Plugin) runAs(ctx context.Context, tx pgx.Tx, x *Instance, s *Step) (c
 type result struct {
 	next, action, label, note string
 	wait                      bool
+	// recheck: while waiting, look again after this time (0: something
+	// else wakes the case, e.g. the end of a sub-workflow)
+	recheck time.Duration
 }
 
 // runStep carries out an http, create, props or subflow step.
 func (pl *Plugin) runStep(ctx context.Context, tx pgx.Tx, x *Instance, s *Step) (result, error) {
 	if s.Type == StepParallel { // no rights needed: branches of the same case
 		return pl.runParallel(ctx, tx, x, s)
+	}
+	if s.Type == StepShell { // no rights of a person: an approved command
+		return pl.runShell(ctx, tx, x, s)
 	}
 	pctx, err := pl.runAs(ctx, tx, x, s)
 	if err != nil {

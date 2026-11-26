@@ -81,6 +81,7 @@ Each package begins with a package comment that explains it in more detail.
 | [`readability`](../../../internal/readability/) | long sentences and words (plain language) |
 | [`secrets`](../../../internal/secrets/) | protection of secrets stored in the database |
 | [`server`](../../../internal/server/) | the REST API (`/api/v1`) and delivery of the frontend; routes by area, see below |
+| [`shellcmd`](../../../internal/shellcmd/) | shell commands of the macro and of workflow steps: approval by exact text, safe running |
 | [`signature`](../../../internal/signature/) | signing records with methods of plugins, verifiable evidence |
 | [`storage`](../../../internal/storage/) | files stored by their SHA-256, safe delivery |
 | [`tlsutil`](../../../internal/tlsutil/) | TLS for mail and directory servers, with an own certificate authority |
