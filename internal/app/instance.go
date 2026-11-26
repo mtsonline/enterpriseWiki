@@ -45,6 +45,10 @@ type Instance struct {
 
 	mu    sync.RWMutex
 	sites map[string]*App
+	// opMu serializes opening and closing sites: two openings of one site
+	// would run its jobs twice, and an opening must not bring back a site
+	// that is being deleted.
+	opMu sync.Mutex
 	// OnSite is called for every site opened after start (the server
 	// attaches its handler and starts the site's jobs).
 	OnSite func(*App)
@@ -369,7 +373,21 @@ func (in *Instance) createSiteAdmin(ctx context.Context, site string, adm SiteAd
 }
 
 func (in *Instance) open(ctx context.Context, name string) error {
+	in.opMu.Lock()
+	defer in.opMu.Unlock()
 	if in.Site(name) != nil {
+		return nil
+	}
+	// only a site that exists and is enabled (Sync may have read the list
+	// before the site was disabled for deletion)
+	var disabled bool
+	if err := in.Shared.QueryRow(ctx, `SELECT disabled FROM sites WHERE name=$1`, name).Scan(&disabled); err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return apperr.NotFound("site " + name)
+		}
+		return err
+	}
+	if disabled {
 		return nil
 	}
 	a, err := newSite(ctx, in, name, true)
@@ -389,6 +407,8 @@ func (in *Instance) open(ctx context.Context, name string) error {
 }
 
 func (in *Instance) closeSite(name string) {
+	in.opMu.Lock()
+	defer in.opMu.Unlock()
 	in.mu.Lock()
 	a := in.sites[name]
 	delete(in.sites, name)
@@ -448,6 +468,12 @@ func (in *Instance) DeleteSite(ctx context.Context, name string) error {
 	if _, err := in.GetSite(ctx, name); err != nil {
 		return err
 	}
+	// disabled first: no opening (Sync, other nodes) brings it back while
+	// its schema is dropped; if dropping fails, it stays disabled and can
+	// be deleted again
+	if _, err := in.Shared.Exec(ctx, `UPDATE sites SET disabled=true WHERE name=$1`, name); err != nil {
+		return err
+	}
 	in.closeSite(name)
 	if err := db.DropSite(ctx, in.Shared, name); err != nil {
 		return err
@@ -472,7 +498,7 @@ func (in *Instance) Sync(ctx context.Context) error {
 			if !s.Running {
 				if err := in.open(ctx, s.Name); err != nil {
 					in.Log.Error("open site", "site", s.Name, "err", err)
-				} else {
+				} else if in.Site(s.Name) != nil {
 					in.Log.Info("site opened", "site", s.Name)
 				}
 			}

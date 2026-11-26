@@ -1832,4 +1832,18 @@ var traps = []trap{
 		New:  "if false && r.Mode != \"\" && !slices.Contains(readability.Modes, r.Mode) {",
 		Pkg:  "./internal/server/", Tests: "^TestReadabilityHint$",
 	},
+	{
+		ID: "site.drop-waits-in-queue", About: "deleting a site waits in the lock queue of the shared tables and holds up every write to users",
+		File: "internal/db/db.go",
+		Old:  "`SET LOCAL lock_timeout = '`+dropLockTimeout+`'`",
+		New:  "`SET LOCAL lock_timeout = 0`",
+		Pkg:  "./internal/server/", Tests: "^TestDeleteSiteDoesNotStallTheWiki$",
+	},
+	{
+		ID: "site.reopened-while-deleted", About: "a site being deleted is opened again by the synchronisation of sites",
+		File: "internal/app/instance.go",
+		Old:  "`UPDATE sites SET disabled=true WHERE name=$1`, name",
+		New:  "`SELECT $1::text`, name",
+		Pkg:  "./internal/server/", Tests: "^TestDeleteSiteDoesNotStallTheWiki$",
+	},
 }
