@@ -77,6 +77,24 @@ type People struct {
 	// EmailHideAllowed: each person may hide their own address in their
 	// profile (default true).
 	EmailHideAllowed *bool `yaml:"email_hide_allowed,omitempty" json:"email_hide_allowed,omitempty"`
+	// MentionDisplay: what readers who may not find a mentioned person see
+	// in place of "@name" in pages and comments – "masked" (the first two
+	// characters and ****, default) or "name" (the display name, without
+	// the menu on names). Who may find the person sees the display name
+	// with the menu (decision of the project owner, 26.11.2026).
+	MentionDisplay string `yaml:"mention_display,omitempty" json:"mention_display"`
+}
+
+// MentionLevels are the values of people.mention_display.
+var MentionLevels = []string{"masked", "name"}
+
+// Mentions returns the configured display of mentions for readers who may
+// not find the person ("masked" when unset or unknown).
+func (p People) Mentions() string {
+	if p.MentionDisplay == "name" {
+		return "name"
+	}
+	return "masked"
 }
 
 // EmailLevels are the values of people.email_visibility.

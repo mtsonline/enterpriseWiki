@@ -428,7 +428,7 @@ The **bell** next to your name shows notifications in the wiki, the number of un
 **All notifications** (link at the bottom of the bell, page `/notifications`): all your notifications, newest first. *Show older ones* loads the next ones. *Unread* shows only the unread ones. Each entry shows who caused it; a click on the name opens the menu on names, if you may open that person. *Mark as read* and *Delete* act on one entry, *Mark all as read* on all.
 
 - **Share** (button on every page) points people, groups or roles to the page with an optional message. Sharing gives **no permissions**: whoever may not see the page is not notified – *Check recipients* shows this beforehand.
-- **@mentions:** type `@` and the name in a page or a comment; the mentioned person receives a notification if they may see the page.
+- **@mentions:** type `@` and the name in a page or a comment; the mentioned person receives a notification if they may see the page. Readers see the display name of the person, with the menu on names, if they may find the person. All others see only `@na****` (or, if the administration chose so, the display name without the menu).
 
 Some notifications are **pop-ups** (for example the result of a request, if the workflow says so): they appear once as a dialog when the next page loads. *OK* or Escape closes it, *Open* leads to the target. Afterwards the message stays, read, in the bell. Several pop-ups come one after the other, at most `core.notify.popups` per page load (expert setting).
 

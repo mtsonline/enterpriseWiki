@@ -7723,6 +7723,51 @@ test('people: the menu on names and the person page – mouse, keyboard, touch, 
   }
 });
 
+test('mentions: the name with the menu for who may find the person, @na**** for guests, the setting, light and dark', async () => {
+  const name = `mn${run}`.toLowerCase().slice(0, 30);
+  const display = `Mentioned Person ${run}`;
+  await call('POST', '/api/v1/admin/users', { username: name, password: 'Ment-Passw0rd-1!', display_name: display });
+  const cat = await call('POST', '/api/v1/categories', { titles: { en: `Mentions ${run}` } });
+  await call('POST', `/api/v1/categories/${cat.id}/acl`, { subject_type: 'guest', permissions: 1, inherit: true });
+  const el = await call('POST', '/api/v1/elements', { category_id: cat.id, type: 'core.html', title: `Mentions ${run}`,
+    body: { format: 'markdown', source: `Please ask @${name} about it.` } });
+  const guest = await browser.newPage({ viewport: { width: 1280, height: 900 }, bypassCSP: true });
+  try {
+    for (const scheme of ['light', 'dark']) {
+      await call('PUT', '/api/v1/scheme', { scheme });
+      // the administrator may find everybody: the display name with the menu, never the handle
+      await page.goto(`${BASE}/e/${el.id}`);
+      await idle();
+      const who = page.locator('.ew-content, main').first().getByRole('button', { name: new RegExp(`^${display}$`) });
+      assert.equal(await who.getAttribute('aria-haspopup'), 'menu');
+      assert.equal(await page.locator('main').getByText(`@${name}`).count(), 0, 'no handle');
+      await who.click();
+      await page.getByRole('menu', { name: new RegExp(display) }).waitFor();
+      await a11y(`mention with the menu on names (${scheme})`);
+      await page.keyboard.press('Escape');
+    }
+    // a guest may find nobody: two characters and stars, no name, no menu
+    await guest.goto(`${BASE}/e/${el.id}`);
+    await guest.getByText(`@${name.slice(0, 2)}****`).waitFor();
+    assert.equal(await guest.getByText(display).count(), 0);
+    // the setting: the display name for others too, still without the menu
+    await page.goto(`${BASE}/admin/settings`);
+    await idle();
+    const sel = page.getByLabel(/^(mentions for others|erwähnungen für andere)/i);
+    assert.equal(await sel.inputValue(), 'masked');
+    await sel.selectOption('name');
+    await page.getByRole('button', { name: /^(save|speichern)$/i }).first().click();
+    await page.locator('.ew-toasts', { hasText: /saved|gespeichert/i }).last().waitFor();
+    await guest.reload();
+    await guest.getByText(display).waitFor();
+    assert.equal(await guest.locator('.ew-person').count(), 0, 'no menu for guests');
+  } finally {
+    await guest.close();
+    await call('PUT', '/api/v1/admin/settings', { people: { mention_display: 'masked' } });
+    await call('PUT', '/api/v1/scheme', { scheme: '' });
+  }
+});
+
 test('CrowdSec: state, lift a block, allow an address (real Local API)', async (t) => {
   const url = process.env.EWIKI_TEST_CROWDSEC_URL;
   const cscli = process.env.EWIKI_TEST_CROWDSEC_CSCLI;

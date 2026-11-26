@@ -283,12 +283,14 @@ Person pages and the menu on names (*Administration → Settings → People*). W
 people:
   email_visibility: users    # users | permission | nobody
   email_hide_allowed: true   # people may hide their own address in their profile
+  mention_display: masked    # masked | name
 ```
 
 | Key | Meaning | Default |
 |---|---|---|
 | `email_visibility` | who sees the e-mail address on person pages, in the menu on names and in the people blocks: `users` (everybody signed in who may open the person), `permission` (only with *See e-mail addresses of people*, `core.people.email`), `nobody`. The person always sees their own address. Only the primary confirmed address is shown | `users` |
 | `email_hide_allowed` | each person may hide their own address in their profile (*Hide my e-mail address*). A hidden address stays hidden for everybody else, administrators too. Switched off, earlier choices no longer count | `true` |
+| `mention_display` | what readers see of `@name` in pages and comments if they may not find the person (guests, people outside the person's groups): `masked` (`@na****`, the first two characters) or `name` (the display name, without the menu on names). Who may find the person always sees the display name with the menu. A name that is no person is masked too | `masked` |
 
 Team pages are not affected: whoever builds a team page chooses the fields there (e.g. a public contact page). The participant lists of events show the addresses to the organisers as before.
 

@@ -151,6 +151,15 @@ func (s *Service) SearchIn(ctx context.Context, q string, tags []string, lang st
 
 // searchCategories adds categories matching by title or tag.
 func (s *Service) searchCategories(ctx context.Context, q string, tags []string, res *SearchResult, scope []int64) (*SearchResult, error) {
+	// the snippets come from the text of the pages, which holds "@name" as
+	// written: show the mentions as the reader may see them in the page
+	snippets := make([]string, len(res.Elements))
+	for i, h := range res.Elements {
+		snippets[i] = h.Snippet
+	}
+	for i, sn := range s.MentionsHTML(ctx, snippets) {
+		res.Elements[i].Snippet = sn
+	}
 	p := identity.From(ctx)
 	like := "%" + strings.ReplaceAll(strings.ReplaceAll(strings.TrimSpace(q), "%", ""), "_", "") + "%"
 	crow, err := s.pool.Query(ctx, `SELECT id, titles, tags FROM categories WHERE deleted_at IS NULL AND (

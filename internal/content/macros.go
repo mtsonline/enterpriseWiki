@@ -328,6 +328,8 @@ func (s *Service) RenderMacros(ctx context.Context, rc RenderContext, src string
 		}
 	}
 	walkH(root)
+	// people mentioned with @name, as this reader may see them
+	s.renderMentions(ctx, root)
 	if !strings.Contains(src, "data-macro") {
 		return renderChildren(root)
 	}
