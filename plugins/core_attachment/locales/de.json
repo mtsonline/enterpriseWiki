@@ -10,5 +10,6 @@
  "core.attachment.description": "Beschreibung",
  "core.attachment.description_help": "Wird bei Bildern auch als Alternativtext verwendet.",
  "core.attachment.missing": "Bitte eine Datei hochladen.",
- "core.attachment.download": "Herunterladen"
+ "core.attachment.download": "Herunterladen",
+ "plugin.name.core.attachment": "Datei / Anhang"
 }

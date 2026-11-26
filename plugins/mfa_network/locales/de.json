@@ -6,5 +6,6 @@
  "mnet.current": "Ihre aktuelle Adresse: {ip}",
  "mnet.saved": "Netze gespeichert.",
  "mnet.label": "Netze",
- "mnet.admin_help": "IP-Adressen oder Netze (CIDR), eine pro Zeile; leer: überall."
+ "mnet.admin_help": "IP-Adressen oder Netze (CIDR), eine pro Zeile; leer: überall.",
+ "plugin.name.mfa.network": "Erlaubte Netze"
 }

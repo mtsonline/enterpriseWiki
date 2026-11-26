@@ -17,5 +17,6 @@
  "mfa.mail_subject_login": "Ihr Anmeldecode für {site}: {code}",
  "mfa.mail_text_login": "Ihr Anmeldecode für {site} lautet: {code}\n\nEr gilt {minutes} Minuten. Falls Sie sich nicht anmelden wollten, ändern Sie bitte Ihr Passwort.",
  "mfa.mail_subject_setup": "Ihr Bestätigungscode für {site}: {code}",
- "mfa.mail_text_setup": "Ihr Code zum Ändern des zweiten Faktors bei {site} lautet: {code}\n\nEr gilt {minutes} Minuten."
+ "mfa.mail_text_setup": "Ihr Code zum Ändern des zweiten Faktors bei {site} lautet: {code}\n\nEr gilt {minutes} Minuten.",
+ "plugin.name.mfa.email": "Code per E-Mail"
 }

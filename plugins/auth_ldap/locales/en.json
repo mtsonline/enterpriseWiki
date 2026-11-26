@@ -95,5 +95,6 @@
  "auth.ldap.sync_adopt_confirm": "Is {user} in the directory the same person as in the wiki? Then the account keeps all pages, groups and rights. Only do this if you are sure.",
  "auth.ldap.sync_adopted": "The account {user} is kept for this person. The next sync updates it.",
  "auth.ldap.sync_adopted_short": "Kept",
- "auth.ldap.insecure_warning": "Warning: with this switched on, the wiki does not check that it really talks to your directory server. An attacker on the network can then pose as the server and read the passwords of everyone who signs in. Use it only when there is no other way, and only on a network you trust. Better: enter the certificate of your certificate authority, or the server's self-signed certificate, under “CA certificate” above. The wiki logs every connection without verification."
+ "auth.ldap.insecure_warning": "Warning: with this switched on, the wiki does not check that it really talks to your directory server. An attacker on the network can then pose as the server and read the passwords of everyone who signs in. Use it only when there is no other way, and only on a network you trust. Better: enter the certificate of your certificate authority, or the server's self-signed certificate, under “CA certificate” above. The wiki logs every connection without verification.",
+ "plugin.name.auth.ldap": "LDAP / Active Directory"
 }

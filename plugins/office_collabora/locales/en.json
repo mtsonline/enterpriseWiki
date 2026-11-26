@@ -10,5 +10,6 @@
  "office.collabora.test": "Test connection",
  "office.collabora.test_ok": "Connected: {view} file types to view, {edit} to edit",
  "office.collabora.proof_missing": "The server publishes no proof key: switch the check off or update the server.",
- "office.collabora.default_hint": "Choose the program as default viewer in the general settings (media)."
+ "office.collabora.default_hint": "Choose the program as default viewer in the general settings (media).",
+ "plugin.name.office.collabora": "Collabora Online"
 }

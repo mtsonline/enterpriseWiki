@@ -22,5 +22,6 @@
  "webauthn.as_passkey": "Als Passkey",
  "webauthn.as_passkey_help": "Wird am Schlüssel oder Gerät gespeichert; meldet ohne Passwort an, wo die Administration es erlaubt.",
  "webauthn.name_needed": "Bitte einen Namen eingeben.",
- "webauthn.help_first": "Mit einem Passkey melden Sie sich ohne Passwort an: Ihr Gerät oder Sicherheitsschlüssel bestätigt, dass Sie es sind (PIN, Fingerabdruck, Gesicht)."
+ "webauthn.help_first": "Mit einem Passkey melden Sie sich ohne Passwort an: Ihr Gerät oder Sicherheitsschlüssel bestätigt, dass Sie es sind (PIN, Fingerabdruck, Gesicht).",
+ "plugin.name.mfa.webauthn": "Sicherheitsschlüssel und Passkeys (WebAuthn)"
 }

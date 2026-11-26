@@ -13,5 +13,6 @@
  "totp.removed": "Authenticator app removed.",
  "totp.code": "Code from the app",
  "totp.code_help": "6 digits; a new code every 30 seconds.",
- "totp.enabled": "Authenticator app set up."
+ "totp.enabled": "Authenticator app set up.",
+ "plugin.name.mfa.totp": "Authenticator app (TOTP)"
 }

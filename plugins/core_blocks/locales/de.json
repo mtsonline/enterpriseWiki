@@ -21,5 +21,6 @@
  "perm.core.blocks.edit_help": "Bausteine ändern, die auf der ganzen Website erscheinen (für das Template, die Website oder einen Elementtyp platziert).",
  "limit.core.blocks.list": "Bausteine zum Platzieren",
  "limit.core.blocks.list.help": "Wie viele Bausteine die Platzierung höchstens auflistet (die, die die Person sehen darf).",
- "limits.group.blocks": "Bausteine"
+ "limits.group.blocks": "Bausteine",
+ "plugin.name.core.blocks": "Bausteine an Positionen"
 }

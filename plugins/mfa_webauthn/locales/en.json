@@ -22,5 +22,6 @@
  "webauthn.as_passkey": "As passkey",
  "webauthn.as_passkey_help": "Stored on the key or device; signs in without password where the administration allows it.",
  "webauthn.name_needed": "Please enter a name.",
- "webauthn.help_first": "With a passkey you sign in without password: your device or security key confirms it is you (PIN, fingerprint, face)."
+ "webauthn.help_first": "With a passkey you sign in without password: your device or security key confirms it is you (PIN, fingerprint, face).",
+ "plugin.name.mfa.webauthn": "Security keys and passkeys (WebAuthn)"
 }

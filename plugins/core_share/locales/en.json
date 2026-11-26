@@ -22,5 +22,6 @@
  "core.share.mail_body": "{by} shared “{title}” with you.",
  "core.share.mail_message": "Message: {message}",
  "perm.core.share.use": "Share pages",
- "perm.core.share.use_help": "Notify users, groups and roles about a page or category they may see."
+ "perm.core.share.use_help": "Notify users, groups and roles about a page or category they may see.",
+ "plugin.name.core.share": "Share"
 }

@@ -253,5 +253,6 @@
  "forms.dashboard_title": "Neue Einsendungen",
  "forms.dashboard_none": "In den letzten 90 Tagen gab es keine Einsendungen zu Formularen, die Sie sehen.",
  "forms.unseen_n": "{n} neu",
- "forms.untitled": "Formular ohne Titel"
+ "forms.untitled": "Formular ohne Titel",
+ "plugin.name.content.forms": "Formulare"
 }

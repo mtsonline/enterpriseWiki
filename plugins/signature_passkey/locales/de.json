@@ -4,5 +4,6 @@
  "signature.passkey.check.client_data": "Browserdaten und Herkunft",
  "signature.passkey.check.authenticator": "Schlüssel dieses Wikis, Person geprüft (PIN oder Biometrie)",
  "signature.passkey.check.signature": "Signatur des Schlüssels",
- "signature.passkey.check.proof": "Nachweis lesbar"
+ "signature.passkey.check.proof": "Nachweis lesbar",
+ "plugin.name.signature.passkey": "Signatur mit Passkey"
 }

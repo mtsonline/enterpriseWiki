@@ -14,5 +14,6 @@
  "content.catlist.max_elements": "At most pages per category",
  "content.catlist.intro": "Introduction",
  "content.catlist.format": "Format",
- "content.catlist.intro_text": "Text above the overview"
+ "content.catlist.intro_text": "Text above the overview",
+ "plugin.name.content.catlist": "Category overview"
 }

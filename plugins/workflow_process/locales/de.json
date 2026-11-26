@@ -595,5 +595,6 @@
  "workflow.link.sign": "Diese Entscheidung wird signiert: Bitte melden Sie sich an und entscheiden Sie im Fall.",
  "workflow.process.block_tasks": "Meine Aufgaben (Workflows)",
  "workflow.notify_popup": "Auch als Pop-up zeigen",
- "workflow.notify_popup_help": "Die Nachricht erscheint beim nächsten Laden einer Seite einmal als Dialog und steht danach gelesen in den Benachrichtigungen. Nur mit dem Kanal im Wiki."
+ "workflow.notify_popup_help": "Die Nachricht erscheint beim nächsten Laden einer Seite einmal als Dialog und steht danach gelesen in den Benachrichtigungen. Nur mit dem Kanal im Wiki.",
+ "plugin.name.workflow.process": "Workflow"
 }

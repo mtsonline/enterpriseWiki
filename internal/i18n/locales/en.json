@@ -3227,5 +3227,9 @@
  "readability.item_word_one": "Word with {count} letter: {text}",
  "readability.item_word_other": "Word with {count} letters: {text}",
  "limit.core.ui.readability_kb": "Text checked by the readability hint",
- "limit.core.ui.readability_kb.help": "The hint on long sentences and long words checks this much of a text while writing. The rest is not checked; the hint says so."
+ "limit.core.ui.readability_kb.help": "The hint on long sentences and long words checks this much of a text while writing. The rest is not checked; the hint says so.",
+ "plugin.name.auth.local": "Local authentication",
+ "plugin.name.core.layout": "Layout builder macros",
+ "plugin.name.core.macros": "Standard macros",
+ "plugin.name.macro.http": "HTTP macro"
 }

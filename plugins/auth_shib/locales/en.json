@@ -19,5 +19,6 @@
  "auth.shib.header_groups": "Header: groups",
  "auth.shib.header_separator": "Separator of multiple values",
  "auth.shib.single_logout": "Also sign out at the IdP (single logout)",
- "auth.shib.single_logout_help": "Sends a signed LogoutRequest to the IdP if it has a single logout endpoint."
+ "auth.shib.single_logout_help": "Sends a signed LogoutRequest to the IdP if it has a single logout endpoint.",
+ "plugin.name.auth.shib": "Shibboleth / SAML 2.0"
 }

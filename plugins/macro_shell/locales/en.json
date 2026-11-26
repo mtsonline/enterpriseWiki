@@ -23,5 +23,6 @@
  "macro.shell.last_run": "Last run",
  "macro.shell.empty": "No commands yet. They appear here as soon as a page uses the shell block.",
  "perm.macro.shell.manage": "Manage shell commands",
- "perm.macro.shell.manage_help": "Define and approve the commands of the shell block (approvers must also be listed in config.yaml)."
+ "perm.macro.shell.manage_help": "Define and approve the commands of the shell block (approvers must also be listed in config.yaml).",
+ "plugin.name.macro.shell": "Shell command macro"
 }

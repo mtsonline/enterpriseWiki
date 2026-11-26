@@ -3227,5 +3227,9 @@
  "readability.item_word_one": "Wort mit {count} Buchstaben: {text}",
  "readability.item_word_other": "Wort mit {count} Buchstaben: {text}",
  "limit.core.ui.readability_kb": "Text für den Hinweis auf lange Sätze",
- "limit.core.ui.readability_kb.help": "So viel von einem Text prüft der Hinweis auf lange Sätze und Wörter beim Schreiben. Der Rest wird nicht geprüft; der Hinweis sagt das."
+ "limit.core.ui.readability_kb.help": "So viel von einem Text prüft der Hinweis auf lange Sätze und Wörter beim Schreiben. Der Rest wird nicht geprüft; der Hinweis sagt das.",
+ "plugin.name.auth.local": "Lokale Anmeldung",
+ "plugin.name.core.layout": "Layout-Bausteine",
+ "plugin.name.core.macros": "Standard-Bausteine",
+ "plugin.name.macro.http": "HTTP-Baustein"
 }

@@ -36,5 +36,6 @@
  "core.html.editor_failed": "The editor could not be loaded: {error}",
  "core.html.use_simple": "Use the simple editor",
  "perm.core.html.task_done_own": "Tick own tasks in reports",
- "perm.core.html.task_done_own_help": "Tick the tasks of pages that name you (@name), in reports and “My tasks”, also without the permission to edit the page. Who may edit a page ticks all its tasks."
+ "perm.core.html.task_done_own_help": "Tick the tasks of pages that name you (@name), in reports and “My tasks”, also without the permission to edit the page. Who may edit a page ticks all its tasks.",
+ "plugin.name.core.html": "Rich text page (HTML / Markdown)"
 }

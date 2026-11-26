@@ -191,5 +191,6 @@
  "content.events.page_tasks": "Auch die offenen Aufgaben mit Fälligkeit dieser Seiten zeigen",
  "content.events.from_page": "Aus der Seite",
  "content.events.kind": "Art",
- "content.events.page_task": "Aufgabe in einer Seite"
+ "content.events.page_task": "Aufgabe in einer Seite",
+ "plugin.name.content.events": "Terminkalender"
 }

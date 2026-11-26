@@ -6,5 +6,6 @@
  "mnet.current": "Your current address: {ip}",
  "mnet.saved": "Networks saved.",
  "mnet.label": "Networks",
- "mnet.admin_help": "IP addresses or networks (CIDR), one per line; empty: everywhere."
+ "mnet.admin_help": "IP addresses or networks (CIDR), one per line; empty: everywhere.",
+ "plugin.name.mfa.network": "Allowed networks"
 }

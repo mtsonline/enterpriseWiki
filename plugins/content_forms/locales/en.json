@@ -253,5 +253,6 @@
  "forms.dashboard_title": "New submissions",
  "forms.dashboard_none": "There were no submissions in the last 90 days to forms you see.",
  "forms.unseen_n": "{n} new",
- "forms.untitled": "Untitled form"
+ "forms.untitled": "Untitled form",
+ "plugin.name.content.forms": "Forms"
 }
