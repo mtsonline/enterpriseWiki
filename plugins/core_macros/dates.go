@@ -55,7 +55,7 @@ func (d dates) Render(ctx context.Context, mc content.MacroContext) (string, err
 	loc := d.location()
 	now := time.Now().In(loc)
 	today := now.Format("2006-01-02")
-	q := content.DataQuery{Kind: DateKind, Category: idParam(mc.Params["category"]), States: []string{"planned"}, Sort: "when",
+	q := content.DataQuery{Kind: DateKind, Category: idParam(mc.Params["category"]), States: []string{"planned"}, Sort: "when", Prefer: mc.Lang,
 		Limit: countParam(mc.Params["max"], 50, content.DataQueryMax)}
 	days := 0
 	if v := strings.TrimSpace(mc.Params["days"]); v != "" {

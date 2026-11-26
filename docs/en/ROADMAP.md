@@ -141,7 +141,7 @@ Business Source License 1.1 with free private use by natural persons, license ke
 - **"Page not found"** shows deleted pages (with trash link) and "Did you mean?" suggestions.
 - **Favourites** (`core.favorites`): star, list at a position of the template and in the profile.
 - **Page properties** (`core.properties`) with macro "Page properties report".
-- **Carousel** (`core.carousel`): news through "As news" when publishing, own slides, external RSS/Atom feeds; accessible (pause, keyboard, reduced motion).
+- **Carousel** (`core.carousel`): news through "As news" when publishing, own slides, external RSS/Atom feeds; accessible (pause, keyboard, reduced motion); own slides in every language of the wiki.
 - **Mega menu** (`core.megamenu`, optional) as a display for menus; menu entries have descriptions.
 - SDK: category and profile extensions, areas above the page content, reaction bars, menu displays; notification kinds with e-mail off by default.
 

@@ -6935,7 +6935,7 @@ test('carousel: create, edit, slides added, ordered, edited and removed, a feed 
     await page.getByRole('button', { name: new RegExp(`^(slides|folien): ${name} 2$`, 'i') }).click();
     for (const title of [`Slide A ${run}`, `Slide B ${run}`]) {
       await page.getByRole('button', { name: /^(add slide|folie hinzufügen)$/i }).click();
-      await dialog().getByLabel(/^(title|titel)/i).fill(title);
+      await dialog().getByLabel(/^(title|titel)/i).first().fill(title);
       await dialog().getByRole('button', { name: /^(save|speichern)$/i }).click();
       await page.getByRole('rowheader', { name: title }).waitFor();
     }
@@ -6943,9 +6943,20 @@ test('carousel: create, edit, slides added, ordered, edited and removed, a feed 
     await page.getByRole('button', { name: new RegExp(`^(up|nach oben): Slide B ${run}$`, 'i') }).click();
     await page.waitForFunction((b) => document.querySelector('table tbody tr th')?.textContent === b, `Slide B ${run}`);
     await page.getByRole('button', { name: new RegExp(`^(edit|bearbeiten): Slide A ${run}$`, 'i') }).click();
-    await dialog().getByLabel(/^(title|titel)/i).fill(`Slide A2 ${run}`);
+    await dialog().getByLabel(/^(title|titel)/i).first().fill(`Slide A2 ${run}`);
+    // the same slide in the other language of the wiki (German or English)
+    const other = dialog().getByRole('group', { name: /^(in|auf) /i }).first();
+    await other.getByLabel(/^(title|titel)/i).fill(`Folie A2 ${run}`);
+    await other.getByLabel(/^(text)/i).fill('Zweite Sprache');
     await dialog().getByRole('button', { name: /^(save|speichern)$/i }).click();
     await page.getByRole('rowheader', { name: `Slide A2 ${run}` }).waitFor();
+    {
+      const car = (await call('GET', '/api/v1/x/core.carousel/carousels')).find((c) => c.name === `${name} 2`);
+      const site = await call('GET', '/api/v1/site');
+      const lang = site.languages.find((l) => l !== site.default_language);
+      const saved = (await call('GET', `/api/v1/x/core.carousel/carousels/${car.id}/slides`)).slides.find((x) => x.title === `Slide A2 ${run}`);
+      assert.deepEqual({ title: saved.translations?.[lang]?.title, text: saved.translations?.[lang]?.text }, { title: `Folie A2 ${run}`, text: 'Zweite Sprache' }, `translation saved: ${JSON.stringify(saved)}`);
+    }
     await page.getByRole('button', { name: new RegExp(`^(remove|entfernen): Slide A2 ${run}$`, 'i') }).click();
     await page.getByRole('dialog').last().getByRole('button', { name: /^(remove|entfernen)$/i }).click();
     await page.getByRole('rowheader', { name: `Slide A2 ${run}` }).waitFor({ state: 'detached' });

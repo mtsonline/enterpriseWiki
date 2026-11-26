@@ -811,7 +811,7 @@ func (Type) Render(ctx context.Context, rc content.RenderContext, raw json.RawMe
 	if strings.TrimSpace(c.Intro.Source) != "" {
 		b.WriteString(`<div class="ewe-intro">` + core_html.ToHTML(&c.Intro) + `</div>`)
 	}
-	list, err := plugins.Get(ctx).upcoming(ctx, []int64{rc.ElementID}, nil, nil, time.Now(), c.ListDays, 30)
+	list, err := plugins.Get(ctx).upcoming(ctx, []int64{rc.ElementID}, nil, nil, time.Now(), c.ListDays, 30, "")
 	if err != nil {
 		return "", err
 	}
@@ -829,7 +829,7 @@ type upcomingItem struct {
 	Date  string // original local date
 }
 
-func (p *Plugin) upcoming(ctx context.Context, calendars []int64, ical []string, pages []content.Source, from time.Time, days, limit int) ([]upcomingItem, error) {
+func (p *Plugin) upcoming(ctx context.Context, calendars []int64, ical []string, pages []content.Source, from time.Time, days, limit int, lang string) ([]upcomingItem, error) {
 	vis := map[int64]string{}
 	var err error
 	if len(calendars) > 0 || len(ical) == 0 && len(pages) == 0 {
@@ -849,7 +849,7 @@ func (p *Plugin) upcoming(ctx context.Context, calendars []int64, ical []string,
 		}
 	}
 	events = append(events, p.externalEvents(ctx, ical, from, to)...)
-	events = append(events, p.pageEvents(ctx, pages, false, from, to)...)
+	events = append(events, p.pageEvents(ctx, pages, false, from, to, lang)...)
 	var out []upcomingItem
 	for _, e := range events {
 		for _, in := range e.Instances(from, to) {
@@ -1016,7 +1016,7 @@ func (UpcomingMacro) Render(ctx context.Context, mc content.MacroContext) (strin
 	if days < 1 || days > 730 {
 		days = 60
 	}
-	list, err := plugins.Get(ctx).upcoming(ctx, cals, ical, pages, time.Now(), days, limit)
+	list, err := plugins.Get(ctx).upcoming(ctx, cals, ical, pages, time.Now(), days, limit, mc.Lang)
 	if err != nil {
 		return "", err
 	}

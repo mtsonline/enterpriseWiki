@@ -202,7 +202,7 @@ func demoOutside(d *demoRun, r *demoRefs) {
 		// company (the category and its subcategories): it goes with the demo
 		r.contactBlock = d.element(r.company, "core.block", d.tr("Reception", "Empfang"), d.perLang(func(tr trf) any {
 			return htmlBodyOf(`<p><strong>` + tr("Reception", "Empfang") + `</strong><br>` + tr("Monday to Friday, 7:30 to 17:00", "Montag bis Freitag, 7:30 bis 17:00 Uhr") +
-				`<br>+43 1 234 56 70<br><a href="mailto:empfang@example.com">empfang@example.com</a></p>`)
+				`<br>+43 00 234 56 70<br><a href="mailto:empfang@enterpriseit.local">empfang@enterpriseit.local</a></p>`)
 		}), map[string]any{"position": 99})
 		d.call(http.MethodPut, fmt.Sprintf("/api/v1/placements/category?target=%d", r.company), map[string]any{"placements": []map[string]any{
 			{"block": fmt.Sprintf("core.blocks/%d", r.contactBlock), "position": "sidebar", "sort": 90}}}, nil)
@@ -239,11 +239,18 @@ func demoOutside(d *demoRun, r *demoRefs) {
 			if d.err != nil {
 				break
 			}
-			// slides have one language: the default language of the wiki
-			t := d.tr(s.en, s.de)[d.lang()]
-			d.call(http.MethodPost, fmt.Sprintf("/api/v1/x/core.carousel/carousels/%d/slides", r.carousel), map[string]any{"kind": "manual", "title": t,
-				"text": d.tr(s.textEN, s.textDE)[d.lang()], "link": cURL(r.news),
-				"image": "/api/v1/media/" + r.pics[(i+2)%3] + "/view", "image_alt": d.tr([]string{"Evening light", "Noon over the valley", "Morning in the hills"}[i], []string{"Abendlicht", "Mittag über dem Tal", "Morgen in den Hügeln"}[i])[d.lang()]}, nil)
+			// a slide in the default language of the wiki, with its translations
+			title, text := d.tr(s.en, s.de), d.tr(s.textEN, s.textDE)
+			alt := d.tr([]string{"Evening light", "Noon over the valley", "Morning in the hills"}[i], []string{"Abendlicht", "Mittag über dem Tal", "Morgen in den Hügeln"}[i])
+			translations := map[string]any{}
+			for _, l := range d.langs[1:] {
+				if title[l] != title[d.lang()] { // only real translations (the demo has English and German)
+					translations[l] = map[string]string{"title": title[l], "text": text[l], "image_alt": alt[l]}
+				}
+			}
+			d.call(http.MethodPost, fmt.Sprintf("/api/v1/x/core.carousel/carousels/%d/slides", r.carousel), map[string]any{"kind": "manual", "title": title[d.lang()],
+				"text": text[d.lang()], "link": cURL(r.news), "image": "/api/v1/media/" + r.pics[(i+2)%3] + "/view", "image_alt": alt[d.lang()],
+				"translations": translations}, nil)
 		}
 		placed := []map[string]any{{"block": fmt.Sprintf("core.carousel/%d", r.carousel), "position": "content-top", "sort": 5, "no_subcategories": true}}
 		if r.contactBlock != 0 { // (the placements of a level are put as a whole)

@@ -209,7 +209,7 @@ func (decisions) Render(ctx context.Context, mc content.MacroContext) (string, e
 	if mc.Service == nil {
 		return "", nil
 	}
-	q := content.DataQuery{Kind: DecisionKind, Category: idParam(mc.Params["category"]), Sort: "-day", Limit: countParam(mc.Params["max"], 50, content.DataQueryMax)}
+	q := content.DataQuery{Kind: DecisionKind, Category: idParam(mc.Params["category"]), Sort: "-day", Limit: countParam(mc.Params["max"], 50, content.DataQueryMax), Prefer: mc.Lang}
 	if mc.Params["sorting"] == "oldest" {
 		q.Sort = "day"
 	}

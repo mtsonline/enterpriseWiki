@@ -22,10 +22,14 @@ const (
 )
 
 // pageEvents are the dates (and with tasks the open tasks with a due day)
-// of the page sources between from and to, as read-only events.
-func (p *Plugin) pageEvents(ctx context.Context, sources []content.Source, tasks bool, from, to time.Time) []*Event {
+// of the page sources between from and to, as read-only events; of every
+// page those of the language version in lang (content.DataQuery.Prefer).
+func (p *Plugin) pageEvents(ctx context.Context, sources []content.Source, tasks bool, from, to time.Time, lang string) []*Event {
 	if len(sources) == 0 || p.host.Content == nil {
 		return nil
+	}
+	if lang == "" {
+		lang = p.host.Config.Get().I18n.DefaultLanguage
 	}
 	kinds := []string{pageDateKind}
 	if tasks {
@@ -38,7 +42,7 @@ func (p *Plugin) pageEvents(ctx context.Context, sources []content.Source, tasks
 			if _, ok := p.host.Content.DataKindOf(kind); !ok {
 				continue // its plugin is switched off
 			}
-			q := content.DataQuery{Kind: kind, From: from.AddDate(0, 0, -1).Format("2006-01-02"), To: to.Format("2006-01-02"), Sort: "when", Limit: content.DataQueryMax}
+			q := content.DataQuery{Kind: kind, From: from.AddDate(0, 0, -1).Format("2006-01-02"), To: to.Format("2006-01-02"), Sort: "when", Limit: content.DataQueryMax, Prefer: lang}
 			switch src.Kind {
 			case "category":
 				q.Category, q.Direct = src.ID, !src.Sub

@@ -30,7 +30,9 @@ CREATE TABLE plugin_carousel_slides (
     ends_at     timestamptz,
     position    int NOT NULL DEFAULT 0,
     created_by  bigint REFERENCES users(id) ON DELETE SET NULL,
-    created_at  timestamptz NOT NULL DEFAULT now()
+    created_at  timestamptz NOT NULL DEFAULT now(),
+    -- own slides in the other languages: {"de": {"title", "text", "image_alt"}}
+    translations jsonb NOT NULL DEFAULT '{}'
 );
 CREATE INDEX plugin_carousel_slides_carousel ON plugin_carousel_slides(carousel_id, position);
 CREATE UNIQUE INDEX plugin_carousel_slides_news ON plugin_carousel_slides(carousel_id, element_id) WHERE kind = 'news';

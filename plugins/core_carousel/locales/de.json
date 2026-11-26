@@ -81,5 +81,6 @@
  "core.carousel.block": "Karussell",
  "core.carousel.position_none": "Keine feste Position – nur, wo es platziert ist",
  "core.carousel.position_help": "Die Position ist die Stelle im Template, an der das Karussell auf jeder Seite steht. Ohne feste Position erscheint es nur dort, wo Sie es unter Administration → Platzierung platzieren, zum Beispiel nur in einer Kategorie.",
- "plugin.name.core.carousel": "Karussell"
+ "plugin.name.core.carousel": "Karussell",
+ "core.carousel.in_language": "Auf {lang}"
 }
