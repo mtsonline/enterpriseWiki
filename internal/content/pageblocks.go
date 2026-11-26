@@ -1,6 +1,6 @@
 package content
 
-// Data for wiki blocks of priority B (plan of blocks, 3.2): the tags of an
+// Data for the wiki blocks about pages: the tags of an
 // area as a cloud, the latest changes of a page and the people who wrote
 // it. Everything with the permissions of the reader and with fixed limits;
 // people are named only by their display name (no login names).

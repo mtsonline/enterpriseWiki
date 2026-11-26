@@ -69,3 +69,39 @@ func (e *env) watchCmd(args []string) error {
 	}
 	return usage
 }
+
+// watchAssignCmd manages centrally assigned watches.
+//
+//	ewiki watch assign list
+//	ewiki watch assign add user|group|role SUBJECT_ID category|element TARGET_ID
+//	                   [--mode link|content] [--frequency instant|daily|weekly] [--no-recursive] [--mandatory] [--note TEXT]
+//	ewiki watch assign remove ID
+func (e *env) watchAssignCmd(args []string) error {
+	usage := errors.New("usage: ewiki watch assign list | add SUBJECT_TYPE SUBJECT_ID TARGET_TYPE TARGET_ID [--mode M] [--frequency F] [--no-recursive] [--mandatory] [--note TEXT] | remove ID")
+	flags, pos, err := flagArgs(args, "no-recursive", "mandatory")
+	if err != nil {
+		return err
+	}
+	if len(pos) == 0 {
+		return usage
+	}
+	switch {
+	case pos[0] == "list" && len(pos) == 1:
+		return e.api(append([]string{"GET", "/api/v1/admin/watch-assignments"}, asArgs(flags)...))
+	case pos[0] == "remove" && len(pos) == 2:
+		return e.api(append([]string{"DELETE", "/api/v1/admin/watch-assignments/" + pos[1]}, asArgs(flags)...))
+	case pos[0] == "add" && len(pos) == 5:
+		sid, err1 := strconv.ParseInt(pos[2], 10, 64)
+		tid, err2 := strconv.ParseInt(pos[4], 10, 64)
+		if err1 != nil || err2 != nil {
+			return usage
+		}
+		rec := flags["no-recursive"] != "true"
+		in := map[string]any{"subject_type": pos[1], "subject_id": sid, "target_type": pos[3], "target_id": tid,
+			"mode": def(flags["mode"], "link"), "frequency": def(flags["frequency"], "instant"), "recursive": rec,
+			"mandatory": flags["mandatory"] == "true", "note": flags["note"]}
+		body, _ := json.Marshal(in)
+		return e.api(append([]string{"POST", "/api/v1/admin/watch-assignments", string(body)}, asArgs(flags)...))
+	}
+	return usage
+}

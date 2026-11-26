@@ -1,5 +1,7 @@
 # Architecture
 
+For every area the file and what happens there: [code-guide.md](code-guide.md).
+
 ```
 cmd/ewiki/            entry point (server + CLI in one binary)
 internal/

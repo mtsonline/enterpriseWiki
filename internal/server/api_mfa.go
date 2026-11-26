@@ -17,19 +17,6 @@ import (
 // (single sign-on: the callback set it and sent the browser to /login?mfa=1).
 const mfaCookie = "ewiki_mfa"
 
-// finishSSO ends a single sign-on: with a session, or with the pending
-// sign-in for further factors.
-func (s *Server) finishSSO(w http.ResponseWriter, r *http.Request, res *auth.SSOResult) {
-	if res.MFAToken != "" {
-		s.setMFACookie(w, res.MFAToken)
-		http.Redirect(w, r, "/login?mfa=1", http.StatusSeeOther)
-		return
-	}
-	s.auditLogin(r, res.Principal, "sso:"+r.PathValue("provider"), "", nil)
-	s.setCookie(w, res.Token, res.ExpiresAt)
-	http.Redirect(w, r, auth.SafeNext(res.Next), http.StatusSeeOther) // #nosec G710 -- SafeNext allows local paths only
-}
-
 func (s *Server) setMFACookie(w http.ResponseWriter, token string) {
 	// #nosec G124 -- HttpOnly, SameSite=Lax, only sent to the MFA endpoints; Secure as configured
 	http.SetCookie(w, &http.Cookie{Name: mfaCookie, Value: token, Path: "/api/v1/auth/mfa", MaxAge: 600, HttpOnly: true,

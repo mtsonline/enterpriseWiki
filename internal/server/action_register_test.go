@@ -3,8 +3,6 @@ package server_test
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/mtsonline/enterprisewiki/internal/perm"
-	"github.com/mtsonline/enterprisewiki/internal/server"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -12,6 +10,9 @@ import (
 	"slices"
 	"strings"
 	"testing"
+
+	"github.com/mtsonline/enterprisewiki/internal/perm"
+	"github.com/mtsonline/enterprisewiki/internal/server"
 
 	"github.com/mtsonline/enterprisewiki/internal/actions"
 	"github.com/mtsonline/enterprisewiki/internal/httpx"

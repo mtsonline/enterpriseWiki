@@ -466,3 +466,12 @@ func pagingParams(r *http.Request) error {
 	}
 	return nil
 }
+
+// isTrustedProxy reports whether the direct peer is a configured trusted proxy.
+func (s *Server) isTrustedProxy(r *http.Request) bool {
+	trusted := s.app.Config.Get().Server.TrustedProxies
+	if len(trusted) == 0 {
+		return false
+	}
+	return isTrusted(trusted, s.peerIP(r))
+}

@@ -1,6 +1,6 @@
 package core_layout
 
-// Chart (blocks B, part 4): bars, lines or a pie from a table in the body of
+// Chart: bars, lines or a pie from a table in the body of
 // the macro. The server draws the chart as SVG from the numbers (no script,
 // no library, nothing loaded from elsewhere); the table stays readable
 // below it for screen readers and anyone who wants the numbers. Colors come
