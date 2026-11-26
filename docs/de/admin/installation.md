@@ -7,17 +7,19 @@ Es gibt drei Wege. Alle verwenden denselben, beliebig oft wiederholbaren Setup-B
 ## 1. Docker Compose (empfohlen für den Einstieg)
 
 ```bash
-./docker-setup.sh        # einmalig, als der Benutzer, unter dem das Wiki laufen soll (nicht root)
+./docker-setup.sh        # einmalig, als der Benutzer, unter dem das Wiki laufen soll
+                         # (oder als root: ./docker-setup.sh --user NAME)
 docker compose up -d     # starten – und für Updates
 ```
 
 - `./docker-setup.sh` legt `.env` mit zufälligen Passwörtern an, trägt die Benutzer- und Gruppen-ID des aufrufenden
   Benutzers ein (`EWIKI_UID`, `EWIKI_GID`) und legt `./data/postgres` und `./data/wiki` an. Es kann jederzeit erneut
   ausgeführt werden und erledigt nur, was fehlt (z. B. Besitzer korrigieren, falls nötig mit `sudo`).
+- **Als root ausgeführt:** Das Wiki läuft nicht als root. `./docker-setup.sh` fragt dann nach dem Benutzer, unter dem das Wiki läuft (Vorgabe `ewiki`; ohne Terminal `--user NAME`). Es legt den Benutzer an, falls es ihn nicht gibt, und nimmt ihn in die Gruppe `docker` auf. Alle Dateien im Ordner der Installation gehören danach diesem Benutzer, auch Dateien, die root später anlegt (`./docker-setup.sh` erneut ausführen). Der Ordner darf nicht unter `/root` liegen, zum Beispiel `/opt/enterprise-wiki`. Danach das Wiki als dieser Benutzer starten: `sudo -u NAME docker compose up -d`.
 - **Alle Daten liegen im Ordner der Installation:** `./data/postgres` (Datenbank, je Hauptversion ein Ordner),
   `./data/wiki` (`config.yaml`, hochgeladene Dateien). Andere Orte: Pfade in `docker-compose.yml` ändern.
 - **Zugriff auf Docker:** Der Benutzer, der installiert und das Wiki später startet, muss Docker nutzen können: als Mitglied der Gruppe `docker` oder mit rootless Docker. `./docker-setup.sh` prüft das mit `docker info` und bricht sonst mit einer Erklärung ab. Abhilfe: `sudo usermod -aG docker BENUTZER`, danach ab- und wieder anmelden (die neue Gruppe gilt erst in einer neuen Anmeldung) und `./docker-setup.sh` erneut ausführen.
-- **Kein Container läuft als root:** Wiki und PostgreSQL laufen immer als `EWIKI_UID:EWIKI_GID` aus `.env` (`user:` in `docker-compose.yml`), auch wenn jemand `docker compose up -d` als root startet. `./data` gehört diesem Benutzer. Bestehende Installationen: `./docker-setup.sh` erneut ausführen; es trägt fehlende IDs ein und korrigiert die Besitzer in `./data` (mit `sudo`, falls nötig). Danach `docker compose up -d`.
+- **Wiki, Datenbank und Proxy laufen nie als root:** Sie laufen immer als `EWIKI_UID:EWIKI_GID` aus `.env` (`user:` in `docker-compose.yml`), auch wenn jemand `docker compose up -d` als root startet (getestet in `scripts/test-docker-setup-root.sh`). Nur die optionalen CrowdSec, Collabora und OnlyOffice brauchen root in ihrem eigenen Container; sie sind nur über den Proxy erreichbar. `./data` gehört diesem Benutzer. Bestehende Installationen: `./docker-setup.sh` erneut ausführen; es trägt fehlende IDs ein und korrigiert die Besitzer in `./data` (mit `sudo`, falls nötig). Danach `docker compose up -d`.
 - **Automatische Updates:** `./docker-setup.sh` fragt, ob neue Releases automatisch eingespielt werden (Vorgabe ja, täglich um 03:30 Uhr, mit Datenbanksicherung vorher). Das erledigt `scripts/update-docker.sh` auf dem Server, nicht das Wiki selbst; Einzelheiten in [operations.md](operations.md#docker-automatische-updates-mit-dem-update-helfer).
 - Verwendet werden das fertige Image `ghcr.io/mtsonline/enterprisewiki:${EWIKI_IMAGE_TAG}` (amd64 und arm64, bei jedem
   `docker compose up -d` die neueste Version) und das offizielle Image

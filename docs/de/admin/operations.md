@@ -83,7 +83,7 @@ So funktioniert es:
 
 Läufe überschneiden sich nie, und ein Lauf spielt höchstens ein Update ein.
 
-**Warum systemd oder cron:** `./docker-setup.sh` läuft als normaler Benutzer, nicht als Root. Einen systemd-Timer (wie `update.sh --enable-timer`) kann nur Root einrichten; mit Root-Rechten oder `sudo` richtet der Helfer einen ein (`enterprisewiki-docker-update.timer`, zufällige Verzögerung bis zu einer Stunde, verpasste Läufe bei ausgeschaltetem Server werden nachgeholt). Der Dienst läuft als Benutzer des Wikis, nicht als Root. Ohne Root-Rechte nutzt der Helfer stattdessen die crontab des Benutzers: Sie braucht keine Rechte außer dem Zugriff auf Docker, den der Benutzer ohnehin hat. Cron kennt keine zufällige Verzögerung, daher wird einmalig eine zufällige Minute in der Stunde nach der gewählten Zeit festgelegt.
+**Warum systemd oder cron:** `./docker-setup.sh` läuft meist als normaler Benutzer. Einen systemd-Timer (wie `update.sh --enable-timer`) kann nur Root einrichten; mit Root-Rechten oder `sudo` richtet der Helfer einen ein (`enterprisewiki-docker-update.timer`, zufällige Verzögerung bis zu einer Stunde, verpasste Läufe bei ausgeschaltetem Server werden nachgeholt). Der Dienst läuft als Benutzer des Wikis, nicht als Root. Ohne Root-Rechte nutzt der Helfer stattdessen die crontab des Benutzers: Sie braucht keine Rechte außer dem Zugriff auf Docker, den der Benutzer ohnehin hat. Cron kennt keine zufällige Verzögerung, daher wird einmalig eine zufällige Minute in der Stunde nach der gewählten Zeit festgelegt.
 
 ## Automatische Updates der Komponenten
 

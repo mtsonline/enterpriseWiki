@@ -2,14 +2,23 @@
 # Prepares a Docker Compose installation of Enterprise Wiki in this directory.
 # Safe to run again at any time: it only does what is still missing.
 #
-#   ./docker-setup.sh            (as the user the containers should run as;
-#                                 with sudo, the calling user is used)
+#   ./docker-setup.sh                (as the user who runs the wiki)
+#   sudo ./docker-setup.sh           (the calling user runs the wiki)
+#   ./docker-setup.sh --user NAME    (as root: NAME runs the wiki)
 #
+# Who runs the wiki:
+# - started by a normal user (also with sudo): that user. Without access to
+#   Docker it stops with a hint (group docker or rootless Docker).
+# - started by root: asks for the user (--user NAME without a terminal;
+#   default "ewiki"), creates the user if missing and adds it to the group
+#   docker. All files of this directory then belong to that user (except
+#   ./data/crowdsec, which CrowdSec keeps as root in its container).
+# The containers of the wiki, the database and the proxy always run as this
+# user (EWIKI_UID / EWIKI_GID in .env), also when root starts them with
+# docker compose.
+#
+# Also:
 # - creates .env from .env.example (random passwords) if it does not exist
-# - checks that the calling user can use Docker (group docker or rootless
-#   Docker; aborts otherwise)
-# - writes EWIKI_UID / EWIKI_GID of the calling user into .env: the
-#   containers always run as this user, also when started by root
 # - sets POSTGRES_VERSION to the version of existing data (if not set yet)
 # - asks for the image variant (lite or full) on a new installation
 # - asks how the wiki is reached: HTTPS through the bundled proxy (domain,
@@ -17,26 +26,100 @@
 # - with HTTPS: asks for an office server (Collabora or OnlyOffice) on its
 #   own host name
 # - asks whether new releases are installed automatically (daily timer of
-#   scripts/update-docker.sh: systemd with sudo, else crontab)
-# - creates ./data/postgres and ./data/wiki and gives them to
-#   that user (asks for sudo only if files belong to someone else)
+#   scripts/update-docker.sh: systemd with root or sudo, else crontab)
+# - creates ./data/postgres and ./data/wiki and gives them to that user
 set -euo pipefail
 cd "$(dirname "$0")"
 
 say() { printf '%s\n' "$*"; }
 die() { printf 'docker-setup: %s\n' "$*" >&2; exit 1; }
+# ask PROMPT DEFAULT – prints the answer (the default if empty)
+ask() {
+	local a
+	printf '%s [%s] ' "$1" "$2" >&2
+	read -r a || die "no answer (end of input)"
+	printf '%s' "${a:-$2}"
+}
+getvar() { [ -f .env ] || return 0; sed -n "s/^$1=//p" .env | tail -n 1; }
 
-uid="${SUDO_UID:-$(id -u)}"
-gid="${SUDO_GID:-$(id -g)}"
-[ "$uid" != 0 ] || die "please run this as the normal user who operates the wiki (not as root); the containers will run as that user"
-owner="$(id -nu "$uid" 2>/dev/null || echo "$uid")"
+user_arg=
+while [ $# -gt 0 ]; do
+	case "$1" in
+		--user) [ $# -ge 2 ] || die "--user needs a name"; user_arg="$2"; shift 2 ;;
+		--user=*) user_arg="${1#--user=}"; shift ;;
+		-h|--help) sed -n '2,30p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
+		*) die "unknown option $1 (see --help)" ;;
+	esac
+done
+
+# ---------------------------------------------------------------- user
+# as_root: run by root itself (not through sudo by a normal user)
+as_root=
+if [ "$(id -u)" = 0 ] && [ "${SUDO_UID:-0}" = 0 ]; then as_root=1; fi
+if [ -n "$user_arg" ] && [ -z "$as_root" ]; then
+	die "--user is only for root; as a normal user, the wiki runs as you"
+fi
+
+if [ -n "$as_root" ]; then
+	# which user: the option, else the one of an earlier run, else ask
+	owner="$user_arg"
+	if [ -z "$owner" ]; then
+		prev="$(getvar EWIKI_UID || true)"
+		if [ -n "$prev" ] && [ "$prev" != 0 ]; then owner="$(getent passwd "$prev" | cut -d: -f1 || true)"; fi
+	fi
+	if [ -z "$owner" ]; then
+		[ -t 0 ] || die "run as root, the wiki needs a user of its own: ./docker-setup.sh --user NAME"
+		say "The wiki does not run as root. It runs as a normal user, who owns all its files."
+		owner="$(ask 'User who runs the wiki (created if missing):' ewiki)"
+	fi
+	[[ "$owner" =~ ^[a-z_][a-z0-9_-]{0,31}$ ]] || die "not a valid user name: $owner (lower case letters, digits, _ and -)"
+	[ "$owner" != root ] || die "the wiki must not run as root: choose another user"
+	if ! id -u "$owner" >/dev/null 2>&1; then
+		command -v useradd >/dev/null || die "useradd is missing: please create the user $owner yourself"
+		useradd --create-home --user-group --shell /bin/bash "$owner"
+		say "created the user $owner"
+	fi
+	uid="$(id -u "$owner")"
+	gid="$(id -g "$owner")"
+	[ "$uid" != 0 ] || die "$owner has the user id 0 (root): choose another user"
+	# Docker without root rights: the group docker
+	if getent group docker >/dev/null; then
+		if ! id -nG "$owner" | tr ' ' '\n' | grep -qx docker; then
+			usermod -aG docker "$owner"
+			say "added $owner to the group docker (in an open login of $owner, it applies after logging in again)"
+		fi
+	else
+		say "there is no group docker (rootless Docker?): $owner must be able to use Docker"
+	fi
+	# commands as that user (with its new groups)
+	if command -v runuser >/dev/null; then
+		as_owner() { runuser -u "$owner" -- "$@"; }
+	elif command -v sudo >/dev/null; then
+		as_owner() { sudo -u "$owner" -- "$@"; }
+	else
+		die "neither runuser nor sudo is available to check Docker as $owner"
+	fi
+	# the user must reach this directory (not below /root, for example)
+	case "$PWD" in /|/root|/root/*) die "the wiki must not live in $PWD: move this directory (e.g. to /opt/enterprise-wiki or /home/$owner/wiki) and run it there" ;; esac
+	chown "$uid:$gid" .
+	as_owner test -x "$PWD" -a -w "$PWD" || die "$owner cannot reach $PWD (a folder above it is closed): move this directory (e.g. to /opt/enterprise-wiki or /home/$owner/wiki)"
+else
+	uid="${SUDO_UID:-$(id -u)}"
+	gid="${SUDO_GID:-$(id -g)}"
+	owner="$(id -nu "$uid" 2>/dev/null || echo "$uid")"
+	if [ -n "${SUDO_UID:-}" ]; then
+		as_owner() { sudo -u "#$uid" -- "$@"; }
+	else
+		as_owner() { "$@"; }
+	fi
+fi
+
 # the user who runs the wiki must be able to use Docker (the group docker,
 # or rootless Docker): docker compose and the update helper
 # (scripts/update-docker.sh) run as this user
 docker_cmd="${EWIKI_SETUP_DOCKER:-docker}" # (tests: a fake command)
 command -v "$docker_cmd" >/dev/null || die "Docker is not installed (https://docs.docker.com/engine/install/)"
-if [ -n "${SUDO_UID:-}" ]; then can_docker() { sudo -u "#$uid" "$docker_cmd" info >/dev/null 2>&1; }; else can_docker() { "$docker_cmd" info >/dev/null 2>&1; }; fi
-if ! can_docker; then
+if ! as_owner "$docker_cmd" info >/dev/null 2>&1; then
 	die "$owner cannot use Docker. Either add the user to the group docker, then log out and in again
 (or start a new login shell) and run ./docker-setup.sh again:
   sudo usermod -aG docker $owner
@@ -52,7 +135,6 @@ setvar() { # NAME VALUE – set or replace a line in .env
 		printf '%s=%s\n' "$1" "$2" >> .env
 	fi
 }
-getvar() { sed -n "s/^$1=//p" .env | tail -n 1; }
 # (a fixed amount of random bytes, read to the end: no "broken pipe" with pipefail)
 random() { head -c 4096 /dev/urandom | LC_ALL=C tr -dc 'A-Za-z0-9' | cut -c "1-$1"; }
 
@@ -93,12 +175,6 @@ if [ -z "$(getvar EWIKI_IMAGE_TAG)" ] || [ -n "$fresh" ]; then
 fi
 
 # access (asked once; non-interactive: plain HTTP on 127.0.0.1)
-ask() { # PROMPT DEFAULT – prints the answer (the default if empty)
-	local a
-	printf '%s [%s] ' "$1" "$2" >&2
-	read -r a || die "no answer (end of input)"
-	printf '%s' "${a:-$2}"
-}
 valid_domain() { [[ "$1" =~ ^([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}$ ]] && [ "${#1}" -le 253 ]; }
 valid_email() { [[ "$1" =~ ^[A-Za-z0-9._%+-]{1,64}@([A-Za-z0-9]([A-Za-z0-9-]{0,61}[A-Za-z0-9])?\.)+[A-Za-z]{2,63}$ ]]; }
 valid_ipv4() {
@@ -258,7 +334,7 @@ if [ -t 0 ] && [ -z "$(getvar EWIKI_AUTO_UPDATE)" ] && [[ "${COMPOSE_FILE:-$(get
 	fi
 	setvar EWIKI_AUTO_UPDATE "$auto"
 fi
-if [ -n "${SUDO_UID:-}" ]; then chown "$uid:$gid" .env; fi
+if [ "$(id -u)" = 0 ]; then chown "$uid:$gid" .env; fi
 
 # ---------------------------------------------------------------- folders
 dirs=(data data/postgres data/wiki data/caddy data/caddy/data data/caddy/config data/caddy/logs)
@@ -268,15 +344,16 @@ done
 # everything below ./data must belong to the user (e.g. after a move, or files of older containers)
 # (data/postgres/data: empty mount point that Docker creates for the images up to PostgreSQL 17;
 # data/crowdsec: CrowdSec runs as root in its container and keeps its own files)
-foreign="$(find data \( -path data/postgres/data -o -path data/crowdsec \) -prune -o \( ! -uid "$uid" -o ! -gid "$gid" \) -print -quit 2>/dev/null || true)"
+own_data() { find data \( -path data/postgres/data -o -path data/crowdsec \) -prune -o \( ! -uid "$uid" -o ! -gid "$gid" \) "$@"; }
+foreign="$(own_data -print -quit 2>/dev/null || true)"
 if [ -n "$foreign" ]; then
 	say "files in ./data belong to another user (e.g. $foreign) – changing the owner to $owner"
 	if [ "$(id -u)" = 0 ]; then
-		chown -R "$uid:$gid" data
+		own_data -exec chown -h "$uid:$gid" {} +
 	elif command -v sudo >/dev/null; then
-		sudo chown -R "$uid:$gid" data
+		sudo find data \( -path data/postgres/data -o -path data/crowdsec \) -prune -o \( ! -uid "$uid" -o ! -gid "$gid" \) -exec chown -h "$uid:$gid" {} +
 	else
-		die "please run: chown -R $uid:$gid $(pwd)/data (as root)"
+		die "please run (as root): chown -R $uid:$gid $(pwd)/data"
 	fi
 fi
 chmod 700 data/postgres data/caddy
@@ -296,9 +373,21 @@ if [ "$(id -u)" = 0 ]; then
 	if [ -d data/wiki/crowdsec-exchange ]; then chown "$uid:$gid" data/wiki/crowdsec-exchange; fi
 fi
 
-# the timer needs .env and ./data: set up last (systemd with sudo, else crontab)
+# run by root: everything here belongs to the user who runs the wiki (files
+# root created now or earlier); not ./data/crowdsec (CrowdSec runs as root
+# in its container) and the empty mount point of older PostgreSQL images
+if [ -n "$as_root" ]; then
+	find . \( -path ./data/crowdsec -o -path ./data/postgres/data \) -prune -o \( ! -uid "$uid" -o ! -gid "$gid" \) -exec chown -h "$uid:$gid" {} +
+fi
+
+# the timer needs .env and ./data: set up last (systemd with root or sudo, else crontab)
 if [ -n "${at:-}" ] && [ "$(getvar EWIKI_AUTO_UPDATE)" = on ]; then
 	scripts/update-docker.sh --enable-timer "$at" || say "the update timer could not be set up; later: scripts/update-docker.sh --enable-timer $at"
 fi
 
-say "ready – start with: docker compose up -d"
+if [ -n "$as_root" ]; then
+	say "ready – start as $owner: sudo -u $owner docker compose up -d"
+	say "(started by root, the containers run as $owner too)"
+else
+	say "ready – start with: docker compose up -d"
+fi
