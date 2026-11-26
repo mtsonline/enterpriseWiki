@@ -172,7 +172,7 @@
       "customType": "regex",
       "description": "versions of test systems in scripts (annotated with '# renovate: datasource=… depName=…')",
       "managerFilePatterns": [
-        "/^tests/(auth|search)/start\\.sh$/"
+        "/^tests/(auth|search|crowdsec)/start\\.sh$/"
       ],
       "matchStrings": [
         "# renovate: datasource=(?<datasource>[a-z-]+) depName=(?<depName>\\S+)(?: extractVersion=(?<extractVersion>\\S+))?\\n[A-Z_]+=(?<currentValue>\\S+)"
