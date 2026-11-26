@@ -7680,6 +7680,47 @@ test('CrowdSec: state, lift a block, allow an address (real Local API)', async (
   }
 });
 
+// the last test: it resets the site (everything else is gone afterwards)
+test('demo: create, remove, create again, reset the site, create and remove again', async () => {
+  const site = await call('GET', '/api/v1/admin/demo');
+  const createDemo = async () => {
+    await page.goto(`${BASE}/admin/demo`);
+    await idle();
+    await page.getByRole('button', { name: /^(Create demo|Demo anlegen)$/ }).click();
+    await page.waitForURL(/\/demo$/, { timeout: 90000 });
+    await idle();
+    await page.locator('main .ewl-iconbox a[href^="/c/"]').first().waitFor();
+  };
+  const removeDemo = async () => {
+    await page.goto(`${BASE}/admin/demo`);
+    await idle();
+    await page.getByRole('button', { name: /^(Remove demo|Demo entfernen)$/ }).click();
+    await page.getByRole('dialog').getByRole('button', { name: /^(Remove demo|Demo entfernen)$/ }).click();
+    await page.getByRole('button', { name: /^(Create demo|Demo anlegen)$/ }).waitFor();
+    assert.equal(await page.evaluate(async () => (await __e2eFetch('/api/v1/resolve?path=/demo')).status), 404);
+  };
+  await createDemo();
+  await removeDemo();
+  await createDemo();
+  // reset the whole site (with the demo in it)
+  await page.goto(`${BASE}/admin/demo`);
+  await idle();
+  await page.getByLabel(/^(to confirm, type the name of the site|zur bestätigung den namen der site eingeben)/i).fill(site.site_name);
+  const pw = page.getByLabel(/^(your password|ihr passwort)$/i);
+  if (await pw.count()) await pw.fill(PASSWORD);
+  await page.getByRole('button', { name: /^(reset site|site zurücksetzen)$/i }).click();
+  await page.getByRole('dialog').getByRole('button', { name: /^(reset site|site zurücksetzen)$/i }).click();
+  await page.waitForURL(/\/login/, { timeout: 90000 });
+  // signed out: sign in again, like an administrator after the reset
+  await page.getByLabel(/user ?name|benutzername/i).fill(USER);
+  await page.getByLabel(/^(password|passwort)/i).fill(PASSWORD);
+  await page.keyboard.press('Enter');
+  await page.waitForURL((u) => !u.pathname.startsWith('/login'));
+  await createDemo();
+  await a11y('demo after a reset');
+  await removeDemo();
+});
+
 test('no JavaScript errors occurred', () => {
   assert.deepEqual(errors, []);
 });

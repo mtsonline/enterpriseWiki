@@ -4,6 +4,9 @@ package db
 
 import (
 	"context"
+	"crypto/rand"
+	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"io/fs"
@@ -11,6 +14,7 @@ import (
 	"regexp"
 	"sort"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -228,7 +232,22 @@ func Migrate(ctx context.Context, pool *pgxpool.Pool, sources []MigrationSource)
 		PRIMARY KEY (source, version))`); err != nil {
 		return nil, err
 	}
+	// the content of every applied file (see SchemaDriftError)
+	if _, err := conn.Exec(ctx, `CREATE TABLE IF NOT EXISTS schema_files (
+		source text NOT NULL,
+		version int NOT NULL,
+		sha256 text NOT NULL,
+		PRIMARY KEY (source, version))`); err != nil {
+		return nil, err
+	}
 	var applied []string
+	changed := false // an applied file differs from the one applied (or is unknown)
+	type fileSum struct {
+		src string
+		v   int
+		sum string
+	}
+	var sums []fileSum
 	for _, src := range sources {
 		if src.Files == nil {
 			continue
@@ -256,12 +275,23 @@ func Migrate(ctx context.Context, pool *pgxpool.Pool, sources []MigrationSource)
 			if err := conn.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM schema_migrations WHERE source=$1 AND version=$2)`, src.Name, m.v).Scan(&exists); err != nil {
 				return applied, err
 			}
-			if exists {
-				continue
-			}
 			sqlb, err := fs.ReadFile(src.Files, path.Clean(m.name))
 			if err != nil {
 				return applied, err
+			}
+			h := sha256.Sum256(sqlb)
+			sum := hex.EncodeToString(h[:])
+			sums = append(sums, fileSum{src.Name, m.v, sum})
+			if exists {
+				var was string
+				err := conn.QueryRow(ctx, `SELECT sha256 FROM schema_files WHERE source=$1 AND version=$2`, src.Name, m.v).Scan(&was)
+				if err != nil && !errors.Is(err, pgx.ErrNoRows) {
+					return applied, err
+				}
+				if was != sum {
+					changed = true
+				}
+				continue
 			}
 			tx, err := conn.Begin(ctx)
 			if err != nil {
@@ -275,13 +305,159 @@ func Migrate(ctx context.Context, pool *pgxpool.Pool, sources []MigrationSource)
 				_ = tx.Rollback(ctx)
 				return applied, err
 			}
+			if _, err := tx.Exec(ctx, `INSERT INTO schema_files(source, version, sha256) VALUES ($1,$2,$3)
+				ON CONFLICT (source, version) DO UPDATE SET sha256=EXCLUDED.sha256`, src.Name, m.v, sum); err != nil {
+				_ = tx.Rollback(ctx)
+				return applied, err
+			}
 			if err := tx.Commit(ctx); err != nil {
 				return applied, err
 			}
 			applied = append(applied, src.Name+"/"+m.name)
 		}
 	}
+	if changed {
+		// Before the first release new tables and columns go into the 0001
+		// files, without migrations for older states. A database of an older
+		// development state then lacks them and the wiki fails at random
+		// places (a 500 on reset, the demo cannot be created). Compare the
+		// schema with what the files create, and refuse to start on a
+		// difference instead of running on a broken schema.
+		diff, err := schemaDiff(ctx, conn, sources)
+		if err != nil {
+			return applied, fmt.Errorf("check the database schema: %w", err)
+		}
+		if len(diff) > 0 {
+			return applied, &SchemaDriftError{Missing: diff}
+		}
+	}
+	for _, f := range sums {
+		if _, err := conn.Exec(ctx, `INSERT INTO schema_files(source, version, sha256) VALUES ($1,$2,$3)
+			ON CONFLICT (source, version) DO UPDATE SET sha256=EXCLUDED.sha256`, f.src, f.v, f.sum); err != nil {
+			return applied, err
+		}
+	}
 	return applied, nil
+}
+
+// SchemaDriftError: the database lacks tables or columns that the
+// migration files of this version create (a database of an older
+// development state; before the first release there are no migrations).
+type SchemaDriftError struct {
+	Missing []string
+}
+
+func (e *SchemaDriftError) Error() string {
+	shown := e.Missing
+	if len(shown) > 20 {
+		shown = append(append([]string{}, shown[:20]...), fmt.Sprintf("… %d more", len(e.Missing)-20))
+	}
+	return "the database was created by an older development version of the wiki and lacks: " + strings.Join(shown, ", ") +
+		". Before the first release there are no migrations for older states: create a new database " +
+		"(see docs/en/admin/operations.md, \"Database of an older development version\"). Refusing to start."
+}
+
+// schemaDiff builds the schema of the migration files in a temporary
+// schema (inside a transaction that is rolled back) and lists the tables
+// and columns the live schema lacks.
+func schemaDiff(ctx context.Context, conn *pgxpool.Conn, sources []MigrationSource) ([]string, error) {
+	var live string
+	if err := conn.QueryRow(ctx, `SELECT current_schema()`).Scan(&live); err != nil {
+		return nil, err
+	}
+	var searchPath string
+	if err := conn.QueryRow(ctx, `SHOW search_path`).Scan(&searchPath); err != nil {
+		return nil, err
+	}
+	b := make([]byte, 8)
+	if _, err := rand.Read(b); err != nil {
+		return nil, err
+	}
+	tmp := "ewiki_check_" + hex.EncodeToString(b)
+	tx, err := conn.Begin(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = tx.Rollback(context.Background()) }() // nothing of the check stays
+	if _, err := tx.Exec(ctx, `CREATE SCHEMA `+pgx.Identifier{tmp}.Sanitize()); err != nil {
+		return nil, err
+	}
+	// the temporary schema first; the rest of the path for extensions and,
+	// on sites, the shared tables
+	if _, err := tx.Exec(ctx, `SELECT set_config('search_path', $1, true)`, pgx.Identifier{tmp}.Sanitize()+", "+searchPath); err != nil {
+		return nil, err
+	}
+	for _, src := range sources {
+		if src.Files == nil {
+			continue
+		}
+		entries, err := fs.ReadDir(src.Files, ".")
+		if err != nil {
+			return nil, err
+		}
+		var names []string
+		for _, e := range entries {
+			if !e.IsDir() && migName.MatchString(e.Name()) {
+				names = append(names, e.Name())
+			}
+		}
+		sort.Slice(names, func(i, j int) bool {
+			a, _ := strconv.Atoi(migName.FindStringSubmatch(names[i])[1])
+			b, _ := strconv.Atoi(migName.FindStringSubmatch(names[j])[1])
+			return a < b
+		})
+		for _, n := range names {
+			sqlb, err := fs.ReadFile(src.Files, path.Clean(n))
+			if err != nil {
+				return nil, err
+			}
+			if _, err := tx.Exec(ctx, string(sqlb)); err != nil {
+				return nil, fmt.Errorf("%s/%s in a temporary schema: %w", src.Name, n, err)
+			}
+		}
+	}
+	rows, err := tx.Query(ctx, `SELECT t.table_name, t.column_name
+		FROM information_schema.columns t
+		WHERE t.table_schema = $1
+		  AND NOT EXISTS (SELECT 1 FROM information_schema.columns l
+		                  WHERE l.table_schema = $2 AND l.table_name = t.table_name AND l.column_name = t.column_name)
+		ORDER BY 1, 2`, tmp, live)
+	if err != nil {
+		return nil, err
+	}
+	type col struct{ table, column string }
+	cols, err := pgx.CollectRows(rows, func(r pgx.CollectableRow) (col, error) {
+		var c col
+		return c, r.Scan(&c.table, &c.column)
+	})
+	if err != nil {
+		return nil, err
+	}
+	trows, err := tx.Query(ctx, `SELECT table_name FROM information_schema.tables WHERE table_schema=$1`, live)
+	if err != nil {
+		return nil, err
+	}
+	names, err := pgx.CollectRows(trows, pgx.RowTo[string])
+	if err != nil {
+		return nil, err
+	}
+	liveTables := map[string]bool{}
+	for _, n := range names {
+		liveTables[n] = true
+	}
+	var out []string
+	seen := map[string]bool{}
+	for _, c := range cols {
+		if !liveTables[c.table] {
+			if !seen[c.table] {
+				seen[c.table] = true
+				out = append(out, "table "+c.table)
+			}
+			continue
+		}
+		out = append(out, "column "+c.table+"."+c.column)
+	}
+	return out, nil
 }
 
 // CountActiveAccounts counts the enabled accounts of the whole instance: the

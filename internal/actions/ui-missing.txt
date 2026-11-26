@@ -23,7 +23,6 @@ core.categories.export
 core.categories.import
 core.comments.delete
 core.comments.update
-core.demo.reset
 core.drafts.delete
 core.drafts.unschedule
 core.elements.duplicate

@@ -380,3 +380,23 @@ func TestSiteResetSharedAccounts(t *testing.T) {
 		t.Fatalf("docs site after reset: %d top categories", len(cats))
 	}
 }
+
+// TestDemoCycle: the demo is created, removed, created again, the site is
+// reset, and the demo is created and removed once more – every step must
+// work (an owner saw a failure when creating it again and a 500 on reset).
+func TestDemoCycle(t *testing.T) {
+	e := setup(t)
+	admin := e.client()
+	admin.login("admin", adminPW)
+	var st demoState
+	admin.must("POST", "/api/v1/admin/demo", nil, &st, 200)
+	admin.must("DELETE", "/api/v1/admin/demo", nil, nil, 204)
+	admin.must("POST", "/api/v1/admin/demo", nil, &st, 200)
+	name := e.app.Config.Get().UI.SiteName
+	admin.must("POST", "/api/v1/admin/reset", map[string]string{"confirm": name, "password": adminPW}, nil, 200)
+	again := e.client()
+	again.login("admin", adminPW)
+	again.must("POST", "/api/v1/admin/demo", nil, &st, 200)
+	again.must("DELETE", "/api/v1/admin/demo", nil, nil, 204)
+	again.must("GET", "/api/v1/admin/demo", nil, &st, 200)
+}

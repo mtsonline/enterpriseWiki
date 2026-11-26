@@ -3,8 +3,7 @@
 # request that
 #   - has a failing CI for another reason than the 3-day rule for new npm
 #     versions (step "new npm package versions are at least 3 days old";
-#     that one goes green by itself, but only if the branch is not refreshed
-#     with newer versions every day: after 4 days it counts as stuck too), or
+#     that one goes green by itself), or
 #   - has been open for more than 2 days although its CI is green (Renovate
 #     merges only a branch that is green and up to date with main; on days
 #     with many merges it may never find that moment).
@@ -56,8 +55,6 @@ jobs:
               # a failed job without a failed step (cancelled, timed out) also counts
               if [ -n "$others" ] || [ -z "$(grep -v '^$' <<<"$steps" || true)" ]; then
                 report+="- #$n $title – CI fails (open for $days days): $(tr '\n' ',' <<<"$failed" | sed 's/,$//')"$'\n'
-              elif [ "$days" -ge 4 ]; then
-                report+="- #$n $title – only the 3-day rule for new npm versions fails, but for $days days (the branch keeps getting newer versions)"$'\n'
               fi
             elif [ "$pending" = 0 ] && [ "$days" -ge 2 ]; then
               report+="- #$n $title – CI green, but open for $days days (not merged: probably never up to date with main when Renovate ran)"$'\n'
