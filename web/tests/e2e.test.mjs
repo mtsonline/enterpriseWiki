@@ -7594,6 +7594,23 @@ test('people: the menu on names and the person page – mouse, keyboard, touch, 
     await guest.getByRole('heading', { level: 1, name: /^(please log in|bitte anmelden)$/i }).waitFor();
     assert.equal(await guest.getByText('Keeper of okapis').count(), 0);
 
+    // a block rendered by the server (blog posts): the author with the menu,
+    // for guests as text
+    const posts = await call('POST', '/api/v1/elements', { category_id: cat, type: 'core.html', title: `Posts ${run}`,
+      body: { format: 'markdown', source: `::blog{source="category:${cat}" author=yes}\n` } });
+    await page.goto(`${BASE}/e/${posts.id}`);
+    await idle();
+    const author = nameButton(page, '.ewb-meta');
+    await author.first().waitFor();
+    await author.first().click();
+    await menuOf(page).waitFor();
+    await page.keyboard.press('Escape');
+    await a11y('blog block with the menu on the author');
+    await guest.goto(`${BASE}/e/${posts.id}`);
+    await guest.waitForLoadState('networkidle');
+    await guest.locator('.ewb-meta').getByText(display).first().waitFor();
+    assert.equal(await guest.locator('.ewb-meta .ew-person').count(), 0);
+
     // the settings offer who sees addresses
     await page.goto(`${BASE}/admin/settings`);
     await idle();
