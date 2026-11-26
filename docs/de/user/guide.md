@@ -561,3 +561,5 @@ Sie öffnen die Personen, die Sie finden dürfen: sich selbst, die Mitglieder Ih
 ## Barrierefreiheit
 
 Die Oberfläche ist vollständig per Tastatur bedienbar (Tab, Umschalt+Tab, Enter, Leertaste, Esc schließt Dialoge und Menüs). Mit **Zum Inhalt springen** (erste Tab-Taste) überspringen Sie die Navigation. Alle Bedienelemente sind für Screenreader beschriftet, Statusmeldungen werden angesagt, und nach einem Seitenwechsel springt der Fokus auf die Überschrift.
+
+**Datum wählen:** Neben jedem Datumsfeld öffnet die Schaltfläche mit dem Kalender die Datumsauswahl. Screenreader lesen jeden Tag vollständig vor, zum Beispiel „Mittwoch, 25. November 2026“, und beim Wechsel den neuen Monat. Tasten: Pfeiltasten springen um einen Tag oder eine Woche, Bild auf und Bild ab um einen Monat, mit Umschalt um ein Jahr; Eingabe wählt, Esc schließt ohne Änderung. Tage, die nicht wählbar sind, werden so angesagt. Sie können das Datum auch in das Feld tippen.

@@ -3251,5 +3251,16 @@
  "plugin.name.auth.local": "Lokale Anmeldung",
  "plugin.name.core.layout": "Layout-Bausteine",
  "plugin.name.core.macros": "Standard-Bausteine",
- "plugin.name.macro.http": "HTTP-Baustein"
+ "plugin.name.macro.http": "HTTP-Baustein",
+ "datepicker.open": "Datum wählen",
+ "datepicker.open_for": "Datum wählen für {field}",
+ "datepicker.chosen": "gewählt: {date}",
+ "datepicker.title": "Datum wählen",
+ "datepicker.prev_month": "Vorheriger Monat",
+ "datepicker.next_month": "Nächster Monat",
+ "datepicker.prev_year": "Vorheriges Jahr",
+ "datepicker.next_year": "Nächstes Jahr",
+ "datepicker.today": "heute",
+ "datepicker.unavailable": "nicht wählbar",
+ "datepicker.keys": "Pfeiltasten: Tag und Woche. Bild auf und ab: Monat. Mit Umschalt: Jahr. Eingabe: wählen. Escape: schließen."
 }

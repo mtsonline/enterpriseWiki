@@ -2035,6 +2035,53 @@ test('workflow editor: moving on from the key of a row never loses the value typ
   assert.equal(await key.inputValue(), 'status');
 });
 
+test('date picker: every day read in full, keys for day, week, month and year, no day outside the range', async () => {
+  const cat = (await call('POST', '/api/v1/categories', { titles: { en: `Picker ${run}` } })).id;
+  const wf = await call('POST', '/api/v1/elements', { category_id: cat, type: 'workflow.process', title: `Picker ${run}`, body: {
+    description: 'E2E', fields: [{ id: 'from', label: 'First day', type: 'date' }], steps: [{ id: 'done', name: 'Done', type: 'end', outcome: 'success' }] } });
+  await page.goto(`${BASE}/e/${wf.id}`);
+  await idle();
+  await page.getByRole('button', { name: /start new case|neuen vorgang starten/i }).click();
+  const form = page.locator('dialog[open]').first();
+  const input = form.getByLabel(/^first day/i);
+  await input.fill('2026-11-25');
+  // the button says which field and which day
+  const open = form.getByRole('button', { name: /^(choose date for|datum wählen für) first day/i });
+  assert.match(await open.getAttribute('aria-label'), /(Wednesday, (25 November|November 25), 2026|Mittwoch, 25\. November 2026)$/);
+  await open.click();
+  const picker = page.getByRole('dialog', { name: /^(choose a date|datum wählen)$/i });
+  await picker.waitFor();
+  const focused = () => page.evaluate(() => document.activeElement?.getAttribute('aria-label') ?? '');
+  assert.match(await focused(), /Wednesday, (25 November|November 25), 2026|Mittwoch, 25\. November 2026/);
+  await page.keyboard.press('ArrowRight');
+  assert.match(await focused(), /Thursday, (26 November|November 26), 2026|Donnerstag, 26\. November 2026/);
+  await page.keyboard.press('ArrowDown');
+  assert.match(await focused(), /(3 December|December 3), 2026|3\. Dezember 2026/);
+  await page.keyboard.press('PageDown');
+  assert.match(await focused(), /(3 January|January 3), 2027|3\. Jänner 2027|3\. Januar 2027/);
+  // the month is announced in a live region
+  assert.match(await picker.locator('[aria-live="polite"]').innerText(), /January 2027|Jänner 2027|Januar 2027/);
+  await page.keyboard.press('Shift+PageUp');
+  assert.match(await focused(), /(3 January|January 3), 2026|3\. Jänner 2026|3\. Januar 2026/);
+  await a11y('date picker');
+  await page.keyboard.press('Enter');
+  await picker.waitFor({ state: 'detached' });
+  assert.equal(await input.inputValue(), '2026-01-03');
+  assert.match(await page.evaluate(() => document.activeElement?.getAttribute('aria-label') ?? ''), /^(choose date for|datum wählen für) first day/i, 'the focus is back on the button');
+  // a day before the minimum is announced and cannot be chosen
+  await input.evaluate((el) => { el.min = '2026-01-03'; });
+  await open.click();
+  await picker.waitFor();
+  await page.keyboard.press('ArrowLeft');
+  assert.match(await focused(), /not available|nicht wählbar/);
+  await page.keyboard.press('Enter');
+  assert.equal(await picker.count(), 1, 'still open');
+  await page.keyboard.press('Escape');
+  await picker.waitFor({ state: 'detached' });
+  assert.equal(await input.inputValue(), '2026-01-03');
+  await page.keyboard.press('Escape');
+});
+
 test('workflow: the start button carries the label of the workflow, set in the editor', async () => {
   const cat = (await call('POST', '/api/v1/categories', { titles: { en: `Leave ${run}` } })).id;
   const wf = await call('POST', '/api/v1/elements', { category_id: cat, type: 'workflow.process', title: `Leave ${run}`, body: {

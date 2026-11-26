@@ -561,3 +561,5 @@ You may open the people you may find: yourself, the members of your own groups a
 ## Accessibility
 
 The interface can be operated completely by keyboard (Tab, Shift+Tab, Enter, Space, Esc closes dialogs and menus). With **Skip to content** (first Tab key) you skip the navigation. All controls are labelled for screen readers, status messages are announced, and after a page change the focus jumps to the heading.
+
+**Choosing a date:** next to every date field, the button with the calendar opens the date picker. Screen readers hear every day in full, for example “Wednesday, 25 November 2026”, and the new month when it changes. Keys: arrow keys move by day and week, Page Up and Page Down by month, with Shift by year; Enter chooses, Esc closes without a change. Days that cannot be chosen are announced as not available. You can also type the date into the field.

@@ -945,3 +945,25 @@ th[aria-sort="descending"] .ew-sort-button::after { content: " ↓"; opacity: 1;
 .ew-consent-policy { max-height: 45vh; overflow: auto; border: 1px solid var(--ew-border); padding: .5rem 1rem; margin-block: .75rem; }
 .ew-consent-cats { border: 1px solid var(--ew-border); padding: .5rem 1rem; margin-block: .5rem; }
 @media print { .ew-consent-banner { display: none; } }
+
+/* Date picker (components/datepicker.ts): the button beside every date
+   field and the month grid in its dialog; days are at least 44 px (WCAG
+   2.5.8 asks 24), today is underlined, the chosen day filled – never by
+   colour alone. The own picker replaces the one of the browser, whose
+   days are read without weekday, month and year. */
+input.ew-dp-input { max-inline-size: calc(100% - 2.9rem); vertical-align: middle; }
+input.ew-dp-input::-webkit-calendar-picker-indicator { display: none; }
+.ew-dp-open { margin-inline-start: .4rem; min-inline-size: 2.5rem; min-block-size: 2.5rem; padding: .3rem; vertical-align: middle; }
+.ew-dp-nav { display: flex; align-items: center; gap: .25rem; margin-block-end: .5rem; }
+.ew-dp-nav .ew-btn { min-inline-size: 2.75rem; min-block-size: 2.75rem; font-size: 1.2rem; }
+.ew-dp-month { flex: 1; margin: 0; text-align: center; font-size: 1.1rem; }
+.ew-dp-grid { border-collapse: collapse; margin-inline: auto; }
+.ew-dp-grid th { padding: .25rem; font-weight: 600; color: var(--ew-text-muted); text-align: center; }
+.ew-dp-day { inline-size: 2.75rem; block-size: 2.75rem; text-align: center; cursor: pointer; border-radius: .4rem; }
+.ew-dp-day:hover { background: var(--ew-hover); }
+.ew-dp-day--other { color: var(--ew-text-muted); }
+.ew-dp-day--today { text-decoration: underline 2px; text-underline-offset: .2em; font-weight: 700; }
+.ew-dp-day[aria-selected="true"] { background: var(--ew-primary); color: var(--ew-on-primary); }
+.ew-dp-day--off { color: var(--ew-text-muted); text-decoration: line-through; cursor: not-allowed; }
+.ew-dp-day:focus-visible { outline: 3px solid var(--ew-focus); outline-offset: -2px; }
+@media (forced-colors: active) { .ew-dp-day[aria-selected="true"] { background: Highlight; color: HighlightText; } }
