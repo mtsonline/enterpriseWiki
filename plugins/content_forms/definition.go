@@ -65,8 +65,12 @@ type Field struct {
 	Fields       []Field  `json:"fields,omitempty"`   // repeated group: the fields of a row
 	MinRows      int      `json:"min_rows,omitempty"` // repeated group
 	MaxRows      int      `json:"max_rows,omitempty"` // repeated group
-	Formula      string   `json:"formula,omitempty"`  // computed fields
-	Decimals     int      `json:"decimals,omitempty"` // computed fields: digits after the point
+	// After: id of a field above of the same type (date, time or date and
+	// time); this value must not be before it, e.g. "last day" after "first
+	// day". Checked in the browser and when the form is sent.
+	After    string `json:"after,omitempty"`
+	Formula  string `json:"formula,omitempty"`  // computed fields
+	Decimals int    `json:"decimals,omitempty"` // computed fields: digits after the point
 	// grid layout: columns of 12; free layout: position and size in pixels
 	Width int `json:"width,omitempty"`
 	X     int `json:"x,omitempty"`
@@ -258,6 +262,9 @@ func (f *Form) Validate() error {
 			}
 		}
 	}
+	if err := checkAfter(f.Fields); err != nil {
+		return err
+	}
 	// conditions refer to earlier input fields
 	for i, x := range f.Fields {
 		if x.ShowIf == nil {
@@ -393,6 +400,9 @@ func (x *Field) validate() error {
 				return fmt.Errorf("field id %q is used twice in the group", y.ID)
 			}
 			ids[y.ID] = true
+		}
+		if err := checkAfter(x.Fields); err != nil {
+			return err
 		}
 		if x.MaxRows <= 0 {
 			x.MaxRows = 20
@@ -549,4 +559,31 @@ func (x *Field) Visible(values map[string]any) bool {
 		return strings.Contains(strings.ToLower(s), strings.ToLower(c.Value))
 	}
 	return true
+}
+
+// orderedTypes are the field types whose values can be compared as text:
+// YYYY-MM-DD, HH:MM and YYYY-MM-DDTHH:MM sort like the time they mean.
+var orderedTypes = []string{"date", "time", "datetime"}
+
+// checkAfter checks the rule "not before": After names a field above of
+// the same type.
+func checkAfter(fields []Field) error {
+	for i, x := range fields {
+		if x.After == "" {
+			continue
+		}
+		if !slices.Contains(orderedTypes, x.Type) {
+			return apperr.BadRequest("field %q: only dates and times can follow another field", x.ID)
+		}
+		ok := false
+		for _, y := range fields[:i] {
+			if y.ID == x.After && y.Type == x.Type {
+				ok = true
+			}
+		}
+		if !ok {
+			return apperr.BadRequest("field %q: %q is no field of the same type above it", x.ID, x.After)
+		}
+	}
+	return nil
 }

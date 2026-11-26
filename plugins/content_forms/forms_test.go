@@ -322,3 +322,53 @@ func TestRepeat(t *testing.T) {
 		}
 	}
 }
+
+// TestNotBefore: the rule "not before" ties a date, time or date-and-time
+// field to one above of the same type; a later value before the earlier
+// one is refused (equal is fine), also inside a repeated group.
+func TestNotBefore(t *testing.T) {
+	for name, js := range map[string]string{
+		"other type": `{"fields":[{"id":"a","type":"text","label":"A"},{"id":"b","type":"date","label":"B","after":"a"}]}`,
+		"below":      `{"fields":[{"id":"b","type":"date","label":"B","after":"a"},{"id":"a","type":"date","label":"A"}]}`,
+		"itself":     `{"fields":[{"id":"a","type":"date","label":"A","after":"a"}]}`,
+		"not a date": `{"fields":[{"id":"a","type":"text","label":"A"},{"id":"b","type":"text","label":"B","after":"a"}]}`,
+		"in a row":   `{"fields":[{"id":"r","type":"repeat","label":"R","fields":[{"id":"b","type":"date","label":"B","after":"a"},{"id":"a","type":"date","label":"A"}]}]}`,
+	} {
+		var f Form
+		if err := json.Unmarshal([]byte(js), &f); err != nil {
+			t.Fatal(err)
+		}
+		if f.Validate() == nil {
+			t.Errorf("%s: accepted", name)
+		}
+	}
+	f := form(t, `{"fields":[{"id":"from","type":"date","label":"First day"},{"id":"to","type":"date","label":"Last day","after":"from"},
+		{"id":"t1","type":"datetime","label":"Start"},{"id":"t2","type":"datetime","label":"End","after":"t1"},
+		{"id":"r","type":"repeat","label":"Trips","fields":[{"id":"a","type":"time","label":"Leave"},{"id":"b","type":"time","label":"Back","after":"a"}]}]}`)
+	in := func(js string) map[string]json.RawMessage {
+		m := map[string]json.RawMessage{}
+		_ = json.Unmarshal([]byte(js), &m)
+		return m
+	}
+	if _, errs := f.CheckValues(in(`{"from":"2026-12-01","to":"2026-12-01","t1":"2026-12-01T09:00","t2":"2026-12-01T17:30","r":[{"a":"08:00","b":"18:00"}]}`), nil); len(errs) != 0 {
+		t.Fatalf("in order: %+v", errs)
+	}
+	_, errs := f.CheckValues(in(`{"from":"2026-12-02","to":"2026-12-01","t1":"2026-12-01T09:00","t2":"2026-12-01T08:59","r":[{"a":"08:00","b":"07:00"}]}`), nil)
+	got := map[string]string{}
+	for _, e := range errs {
+		got[e.Field] = e.Code + ":" + e.Param
+	}
+	want := map[string]string{"to": "before:First day", "t2": "before:Start", "r.0.b": "before:Leave"}
+	if len(got) != len(want) {
+		t.Fatalf("errors: %+v", errs)
+	}
+	for k, v := range want {
+		if got[k] != v {
+			t.Fatalf("%s: %q, all: %+v", k, got[k], errs)
+		}
+	}
+	// only one side given: nothing to compare
+	if _, errs := f.CheckValues(in(`{"to":"2020-01-01"}`), nil); len(errs) != 0 {
+		t.Fatalf("one side: %+v", errs)
+	}
+}

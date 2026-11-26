@@ -631,6 +631,9 @@
  "workflow.next_confirmed": "Step after confirming",
  "plugin.name.workflow.process": "Workflow",
  "workflow.key_taken": "“{key}” is already used in another row.",
+ "workflow.field_after": "Not before",
+ "workflow.field_after_help": "The date must not be before this field, e.g. the last day not before the first day.",
+ "workflow.err_before": "{field} must not be before {other}.",
  "workflow.start_label": "Label of the start button",
  "workflow.start_label_help": "For example “New holiday request”. Empty: “Start new case”."
 }

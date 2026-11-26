@@ -71,6 +71,9 @@ func renderField(b *strings.Builder, x *Field, pre, layout string, tr func(strin
 		c, _ := json.Marshal(x.ShowIf)
 		cond = ` data-show-if="` + esc(string(c)) + `"`
 	}
+	if x.After != "" { // "not before" (the browser links and checks the pair)
+		cond += ` data-after="` + esc(x.After) + `"`
+	}
 	pos := fmt.Sprintf(` style="--ewfm-w:%d"`, x.Width)
 	if layout == "free" && x.W > 0 {
 		pos = fmt.Sprintf(` style="--ewfm-w:%d;--ewfm-x:%dpx;--ewfm-y:%dpx;--ewfm-fw:%dpx;--ewfm-fh:%dpx"`, x.Width, x.X, x.Y, x.W, x.H)

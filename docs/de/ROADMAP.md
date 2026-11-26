@@ -56,7 +56,7 @@ Offen aus diesem Bereich: Kern-Update aus der Oberfläche (der Kern aktualisiert
 
 Nachbesserungen nach dem ersten Test (v7.3.1): *Kategorie bearbeiten* und *Seite bearbeiten* direkt in der Kategorieansicht, Menü-Dialog mit Positionen der aktiven Vorlage, Kategorie-Auswahl und Prüfung der Einträge, Anzeige der verwendeten Vorlage auf der Plugin-Seite, mehr Positionen in beiden Vorlagen, Positionsvorschau, Plugin `core.blocks` für Textblöcke an jeder Position.
 
-Inzwischen fertig: Benachrichtigungen im Wiki (Glocke), Zusammenfassungen (Meilenstein 6), Vertretungen und der Schritt *HTTP-Abfrage*, der Werte der Antwort in den Vorgang übernimmt (Meilenstein 16b), der Schritt *Shell-Befehl* mit Freigabe durch Superadmins und Werten nur als Umgebungsvariablen der Schritt *Datei hochladen oder bestätigen* und eine eigene Beschriftung der Startschaltfläche, z. B. „Neuer Urlaubsantrag“ (26.11.2026).
+Inzwischen fertig: Benachrichtigungen im Wiki (Glocke), Zusammenfassungen (Meilenstein 6), Vertretungen und der Schritt *HTTP-Abfrage*, der Werte der Antwort in den Vorgang übernimmt (Meilenstein 16b), der Schritt *Shell-Befehl* mit Freigabe durch Superadmins und Werten nur als Umgebungsvariablen der Schritt *Datei hochladen oder bestätigen* und eine eigene Beschriftung der Startschaltfläche, z. B. „Neuer Urlaubsantrag“ (26.11.2026). Die Regel *Nicht vor* für Datumsfelder in Formularen und Workflows (Start vor Ende, 26.11.2026).
 
 ## Meilenstein 5 – Zuverlässige E-Mail, Beobachten, Feeds, neue Elementtypen, Gäste-Cache (fertig, v7.4)
 

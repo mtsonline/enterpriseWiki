@@ -538,7 +538,7 @@ func companyFlows(d *demoRun, r *demoRefs) {
 					"Drücken Sie Neuer Urlaubsantrag und füllen Sie das Formular aus. Die Teamleitung entscheidet unter Meine Aufgaben; genehmigter Urlaub wird in den Kalender der Teams eingetragen, und Sie bekommen eine Nachricht. In dieser Demo gehören Sie zur Teamleitung und können Ihren Antrag selbst entscheiden."),
 				"fields": []map[string]any{
 					{"id": "from", "label": tr("First day", "Erster Tag"), "type": "date", "required": true},
-					{"id": "to", "label": tr("Last day", "Letzter Tag"), "type": "date", "required": true},
+					{"id": "to", "label": tr("Last day", "Letzter Tag"), "type": "date", "required": true, "after": "from"},
 					{"id": "days", "label": tr("Working days", "Arbeitstage"), "type": "number", "required": true},
 					{"id": "deputy", "label": tr("Deputy", "Vertretung"), "type": "text"},
 					{"id": "note", "label": tr("Note", "Bemerkung"), "type": "textarea"}},

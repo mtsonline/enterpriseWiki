@@ -500,6 +500,9 @@ func (pl *Plugin) startTx(ctx context.Context, tx pgx.Tx, element int64, in star
 		in.Data = map[string]any{}
 	}
 	data, err := validateData(startFields(def.Fields), in.Data)
+	if err == nil {
+		err = dateOrder(def.Fields, data)
+	}
 	if err != nil {
 		return 0, err
 	}
@@ -1024,6 +1027,10 @@ func (pl *Plugin) transition(ctx context.Context, id int64, action, note string,
 		if len(stepValues) > 0 {
 			for k, v := range stepValues {
 				cur.Data[k] = v
+			}
+			// the new values together with those of the case
+			if err := dateOrder(cur.Definition.Fields, cur.Data); err != nil {
+				return err
 			}
 			if err := saveData(ctx, tx, cur); err != nil {
 				return err

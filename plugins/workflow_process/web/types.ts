@@ -1,4 +1,4 @@
-export interface Field { id: string; label: string; type: string; required?: boolean; options?: string[]; help?: string; later?: boolean }
+export interface Field { id: string; label: string; type: string; required?: boolean; options?: string[]; help?: string; later?: boolean; after?: string }
 export interface StepField { field: string; mode: 'edit' | 'required' | 'read' | 'hidden' }
 export interface ParallelSpec { branches: string[]; require?: number; for_each?: string }
 export interface Assignee { type: 'starter' | 'user' | 'group' | 'role' | ''; value: string }

@@ -254,5 +254,9 @@
  "forms.dashboard_none": "There were no submissions in the last 90 days to forms you see.",
  "forms.unseen_n": "{n} new",
  "forms.untitled": "Untitled form",
- "plugin.name.content.forms": "Forms"
+ "plugin.name.content.forms": "Forms",
+ "forms.ed.after": "Not before",
+ "forms.ed.after_none": "– no rule –",
+ "forms.ed.after_help": "The value must not be before this field above, e.g. the last day not before the first day.",
+ "forms.err.before": "Must not be before “{param}”."
 }

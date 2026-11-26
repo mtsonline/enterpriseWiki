@@ -97,6 +97,7 @@ export async function openCase(id: number, onChange?: () => void, autoAction?: s
       const f = x.definition.fields.find((ff) => ff.id === sf.field);
       return f ? [fieldControl({ ...f, required: sf.mode === 'required' }, x.lang, x.data[f.id])] : [];
     }) : [];
+    const checkDates = linkDates(inputs, x.definition.fields, x.data);
     const to = a?.id === '_delegate' ? textInput({ required: true, autocomplete: 'off', placeholder: t('workflow.handover.to_ph') }) : null;
     // decisions with a signature: choose the method (those the person can use)
     const needSign = a?.sign ?? '';
@@ -124,6 +125,7 @@ export async function openCase(id: number, onChange?: () => void, autoAction?: s
         const v = await c.get();
         if (v !== null && v !== '') data[c.f.id] = v;
       }
+      checkDates();
       if (to && !to.value.trim()) { to.focus(); throw new Error(t('workflow.handover.to_missing')); }
       let signature: { token: string; answer: unknown } | undefined;
       if (a && needSign) {
@@ -182,7 +184,37 @@ export async function openCase(id: number, onChange?: () => void, autoAction?: s
   if (wanted) act(wanted);
 }
 
-interface Control { f: Field; el: HTMLElement; get: () => Promise<unknown>; empty: () => boolean; focus: () => void }
+interface Control { f: Field; el: HTMLElement; get: () => Promise<unknown>; empty: () => boolean; focus: () => void; input?: HTMLInputElement }
+
+/**
+ * The rule "not before" of date fields: the later field gets the earlier
+ * date as its minimum (the date picker then offers no day before it), and
+ * the returned check refuses the pair before sending. The earlier date may
+ * also be a value of the case (known) that is not in this form.
+ */
+function linkDates(controls: Control[], fields: Field[], known: Record<string, unknown> = {}): () => void {
+  const byId = new Map(controls.map((c) => [c.f.id, c]));
+  const value = (id: string): string => byId.get(id)?.input?.value ?? (typeof known[id] === 'string' ? known[id] as string : '');
+  for (const c of controls) {
+    const earlier = c.f.after ? byId.get(c.f.after)?.input : undefined;
+    if (!c.f.after || !c.input) continue;
+    const input = c.input;
+    const sync = () => { input.min = value(c.f.after!); };
+    sync();
+    earlier?.addEventListener('input', sync);
+    earlier?.addEventListener('change', sync);
+  }
+  return () => {
+    for (const f of fields) {
+      if (!f.after) continue;
+      const later = value(f.id), earlier = value(f.after);
+      if (later && earlier && later < earlier) {
+        byId.get(f.id)?.focus();
+        throw new Error(t('workflow.err_before', { field: f.label, other: fields.find((o) => o.id === f.after)?.label ?? f.after }));
+      }
+    }
+  };
+}
 
 /** An input for a field of the case (start form and forms of steps). */
 function fieldControl(f: Field, lang: string, value?: unknown): Control {
@@ -207,7 +239,7 @@ function fieldControl(f: Field, lang: string, value?: unknown): Control {
     default: {
       const type = f.type === 'email' ? 'email' : f.type === 'date' ? 'date' : f.type === 'number' ? 'number' : 'text';
       const c = textInput({ type, required: f.required, autocomplete: f.type === 'email' ? 'email' : undefined, lang, value: str });
-      return { f, el: field(f.label, c, opts), get: async () => c.value, empty: () => !c.value.trim(), focus: () => c.focus() };
+      return { f, el: field(f.label, c, opts), get: async () => c.value, empty: () => !c.value.trim(), focus: () => c.focus(), input: c };
     }
   }
 }
@@ -218,11 +250,13 @@ const startLabel = (data: ListResponse): string => data.start_label?.trim() || t
 /** Builds the start form of a workflow (test: a test run). */
 function startDialog(element: number, data: ListResponse, done: (id: number) => void, test = false): void {
   const controls = data.fields.map((f) => fieldControl(f, data.lang));
+  const checkDates = linkDates(controls, data.fields);
   formDialog(test ? t('workflow.test_start') : startLabel(data), [h('p', { class: 'ew-help' }, test ? t('workflow.test_help') : t('workflow.start_help', { step: data.first_step })),
     ...controls.map((c) => c.el)], test ? t('workflow.test_start') : t('workflow.submit'), async () => {
     for (const c of controls) {
       if (c.f.required && c.empty()) { c.focus(); throw new Error(t('workflow.field_missing', { field: c.f.label })); }
     }
+    checkDates();
     const values: Record<string, unknown> = {};
     for (const c of controls) {
       const v = await c.get();

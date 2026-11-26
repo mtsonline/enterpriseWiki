@@ -6864,6 +6864,38 @@ test('property definitions: define, edit, only defined properties in a category,
   await page.getByRole('rowheader', { name: new RegExp(`^${name} total`) }).waitFor({ state: 'detached' });
 });
 
+test('start before end: forms and workflows offer no earlier day and refuse a wrong pair', async () => {
+  const cat = (await call('POST', '/api/v1/categories', { titles: { en: `Dates ${run}` } })).id;
+  const form = await call('POST', '/api/v1/elements', { category_id: cat, type: 'content.forms', title: `Trip ${run}`, body: {
+    intro: 'Your trip.', submit_label: 'Send',
+    fields: [{ id: 'from', type: 'date', label: 'First day' }, { id: 'to', type: 'date', label: 'Last day', after: 'from' }], targets: { store: true } } });
+  await page.goto(`${BASE}/e/${form.id}`);
+  await idle();
+  await page.getByLabel(/^first day/i).fill('2026-12-10');
+  // the picker of the later field starts at the earlier day
+  assert.equal(await page.getByLabel(/^last day/i).getAttribute('min'), '2026-12-10');
+  await page.getByLabel(/^last day/i).fill('2026-12-09');
+  await page.getByRole('button', { name: /^send$/i }).click();
+  await page.locator('.ewfm-field[data-field="to"] .ewfm-error', { hasText: /first day/i }).waitFor();
+  assert.equal(await page.getByLabel(/^last day/i).getAttribute('aria-invalid'), 'true');
+  await a11y('form with a date before its start');
+  // the same in the start form of a workflow
+  const wf = await call('POST', '/api/v1/elements', { category_id: cat, type: 'workflow.process', title: `Leave ${run}`, body: {
+    description: 'E2E', fields: [{ id: 'from', label: 'First day', type: 'date' }, { id: 'to', label: 'Last day', type: 'date', after: 'from' }],
+    steps: [{ id: 'done', name: 'Done', type: 'end', outcome: 'success' }] } });
+  await page.goto(`${BASE}/e/${wf.id}`);
+  await idle();
+  await page.getByRole('button', { name: /start new case|neuen vorgang starten/i }).click();
+  const dlg = page.locator('dialog[open]');
+  await dlg.getByLabel(/^first day/i).fill('2026-12-10');
+  assert.equal(await dlg.getByLabel(/^last day/i).getAttribute('min'), '2026-12-10');
+  await dlg.getByLabel(/^last day/i).fill('2026-12-01');
+  await dlg.locator('button[type=submit]').click();
+  await dlg.getByText(/last day (must not be before|darf nicht vor) first day/i).waitFor();
+  assert.equal((await call('GET', `/api/v1/x/workflow.process/elements/${wf.id}/instances`)).instances.length, 0, 'no case started');
+  await page.keyboard.press('Escape');
+});
+
 test('forms: a person sends a form with a file; submissions, file, CSV and Excel export, delete', async () => {
   const cat = (await call('POST', '/api/v1/categories', { titles: { en: `Forms ${run}` } })).id;
   const form = await call('POST', '/api/v1/elements', { category_id: cat, type: 'content.forms', title: `Contact ${run}`, body: {

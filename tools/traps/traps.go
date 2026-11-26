@@ -2016,6 +2016,27 @@ var traps = []trap{
 		Pkg:  "./internal/server/", Tests: "^TestMentionsAsTheReaderMaySee$",
 	},
 	{
+		ID: "workflow.dates-unordered-at-start", About: "a case starts with the last day before the first day",
+		File: "plugins/workflow_process/plugin.go",
+		Old:  "\tif err == nil {\n\t\terr = dateOrder(def.Fields, data)\n\t}\n",
+		New:  "",
+		Pkg:  "./internal/server/", Tests: "^TestWorkflowDateOrder$",
+	},
+	{
+		ID: "workflow.dates-unordered-in-step", About: "the form of a step moves a date before the date it must follow",
+		File: "plugins/workflow_process/plugin.go",
+		Old:  "if err := dateOrder(cur.Definition.Fields, cur.Data); err != nil {",
+		New:  "if err := dateOrder(nil, cur.Data); err != nil {",
+		Pkg:  "./internal/server/", Tests: "^TestWorkflowDateOrder$",
+	},
+	{
+		ID: "forms.dates-unordered", About: "a form accepts an end before its start",
+		File: "plugins/content_forms/values.go",
+		Old:  "later != \"\" && earlier != \"\" && later < earlier",
+		New:  "later != \"\" && earlier != \"\" && later < earlier && false",
+		Pkg:  "./plugins/content_forms/", Tests: "^TestNotBefore$",
+	},
+	{
 		ID: "workflow.start-label-dropped", About: "the start button of a workflow ignores the label the workflow gives it",
 		File: "plugins/workflow_process/plugin.go",
 		Old:  "\"manage\": m, \"start_label\": def.StartLabel}, nil",
