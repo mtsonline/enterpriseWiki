@@ -89,13 +89,49 @@ func OpenSchema(ctx context.Context, url string, maxConns int, schema string) (*
 }
 
 // DropSite removes the schema of a site with all its data.
-func DropSite(ctx context.Context, q Querier, site string) error {
+func DropSite(ctx context.Context, pool *pgxpool.Pool, site string) error {
 	if !ValidSiteName(site) {
 		return fmt.Errorf("invalid site name %q", site)
 	}
-	_, err := q.Exec(ctx, `DROP SCHEMA IF EXISTS `+pgx.Identifier{SiteSchema(site)}.Sanitize()+` CASCADE`)
-	return err
+	stmt := `DROP SCHEMA IF EXISTS ` + pgx.Identifier{SiteSchema(site)}.Sanitize() + ` CASCADE`
+	// With shared accounts the tables of the site have foreign keys to the
+	// shared tables (users, groups …). Dropping them needs a lock on those
+	// tables. Waiting for it in the lock queue would hold up every further
+	// write to them (sign-ins and sessions of all sites) for as long as any
+	// transaction keeps them busy. So each attempt waits only briefly, then
+	// gives way and tries again.
+	deadline := time.Now().Add(dropSiteTimeout)
+	wait := 100 * time.Millisecond
+	for {
+		err := Tx(ctx, pool, func(tx pgx.Tx) error {
+			if _, err := tx.Exec(ctx, `SET LOCAL lock_timeout = '`+dropLockTimeout+`'`); err != nil {
+				return err
+			}
+			_, err := tx.Exec(ctx, stmt)
+			return err
+		})
+		var pe *pgconn.PgError
+		if err == nil || !errors.As(err, &pe) || pe.Code != "55P03" { // lock_not_available
+			return err
+		}
+		if time.Now().After(deadline) {
+			return fmt.Errorf("the site %s is still in use; try again later: %w", site, err)
+		}
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-time.After(wait):
+		}
+		wait = min(2*wait, 2*time.Second)
+	}
 }
+
+// dropLockTimeout is how long one attempt of DropSite waits for its locks;
+// dropSiteTimeout is how long DropSite tries in all.
+const (
+	dropLockTimeout = "200ms"
+	dropSiteTimeout = 2 * time.Minute
+)
 
 // Schema returns the first schema of the connection's search path.
 func Schema(ctx context.Context, q Querier) (string, error) {

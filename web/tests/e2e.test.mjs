@@ -92,6 +92,17 @@ async function a11yVariants(name, path, pg = page) {
   assert.deepEqual(found, [], found.join('\n\n'));
 }
 
+/**
+ * Chooses the option of a picker list whose text contains name. The list
+ * can hold other matches first (more content, e.g. the demo), so picking
+ * the first option would choose a different element.
+ */
+async function pickOption(list, name) {
+  const idx = await list.evaluate((s, n) => [...s.options].findIndex((o) => o.textContent.includes(n)), name);
+  assert.ok(idx >= 0, `no option with ${name}`);
+  await list.selectOption({ index: idx });
+}
+
 async function idle() {
   await page.waitForLoadState('networkidle');
   await page.waitForFunction(() => !document.querySelector('main[aria-busy="true"]'));
@@ -5300,7 +5311,7 @@ test('theme blocks B: own text for "page not found", reading progress', async ()
   const sub = form.locator('fieldset.ew-subfield', { has: page.locator('legend', { hasText: /^(page with the text for “page not found”|seite mit dem text für „seite nicht gefunden“)$/i }) });
   await sub.locator('input.ew-input[type=search]:not(.ew-picker-filter)').fill(`Lost ${run}`);
   await page.waitForFunction((n) => [...document.querySelectorAll('.ew-picker-list option')].some((o) => o.textContent.includes(n)), `Lost ${run}`);
-  await sub.locator('.ew-picker-list').selectOption({ index: 0 });
+  await pickOption(sub.locator('.ew-picker-list'), `Lost ${run}`);
   await a11y('settings with an own text for errors');
   const saved = page.waitForResponse((r) => r.url().endsWith('/api/v1/admin/settings') && r.request().method() === 'PUT');
   await form.getByRole('button', { name: /^(save|speichern)$/i }).last().click();
@@ -5613,7 +5624,7 @@ test('menu item pointing to an existing element; new blog from the menu dialog',
   // existing elements are listed without choosing a category first
   await item.getByLabel(/^(search element|element suchen)/i).fill(`Pickable ${run}`);
   await page.waitForFunction((n) => [...document.querySelectorAll('dialog[open] .ew-picker-list option')].some((o) => o.textContent.includes(n)), `Pickable ${run}`);
-  await item.locator('.ew-picker-list').selectOption({ index: 0 });
+  await pickOption(item.locator('.ew-picker-list'), `Pickable ${run}`);
   await a11y('menu item dialog with element picker');
   // a blog can be created right here: without a source a category is created
   await item.getByRole('button', { name: /^(new element|neues element)$/i }).click();
