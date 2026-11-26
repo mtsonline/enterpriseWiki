@@ -72,11 +72,22 @@ function mapRows(kit: Kit, obj: Record<string, string>, keyLabel: string, valueL
         if (nk) obj[nk] = val ?? '';
         key = nk;
       };
-      keyCtl.addEventListener('change', () => { commit((keyCtl as HTMLInputElement).value.trim()); draw(); });
       const valCtl = kit.text(() => v, (nv) => { if (key) obj[key] = nv; }, { max: 5000, ph: opts.ph });
+      const del = button(t('common.delete'), () => { delete obj[key]; draw(); }, { variant: 'link', ariaLabel: `${t('common.delete')}: ${key || t('workflow.row_n', { n: j + 1 })}` });
+      // no redraw here: it would replace the value field the person just moved to
+      keyCtl.addEventListener('change', () => {
+        const nk = (keyCtl as HTMLInputElement).value.trim();
+        if (nk && nk !== key && nk in obj) {
+          // another row has this key: keep the old one (its value would be lost)
+          (keyCtl as HTMLInputElement).value = key;
+          toast(t('workflow.key_taken', { key: nk }), 'error');
+          return;
+        }
+        commit(nk);
+        del.setAttribute('aria-label', `${t('common.delete')}: ${key || t('workflow.row_n', { n: j + 1 })}`);
+      });
       return h('div', { class: 'ewf-action-row', role: 'group', 'aria-label': t('workflow.row_n', { n: j + 1 }) },
-        field(keyLabel, keyCtl), field(valueLabel, valCtl),
-        button(t('common.delete'), () => { delete obj[key]; draw(); }, { variant: 'link', ariaLabel: `${t('common.delete')}: ${key || t('workflow.row_n', { n: j + 1 })}` }));
+        field(keyLabel, keyCtl), field(valueLabel, valCtl), del);
     });
     box.replaceChildren(...rows, button(t('workflow.add_row'), () => {
       let n = 1;
@@ -153,6 +164,30 @@ export function extraStepFields(s: EStep, kit: Kit): (HTMLElement | null)[] {
         mapRows(kit, x.map, t('workflow.set_field'), t('workflow.http_path')),
         runAs(s), kit.placeholderHelp(),
         grid(next(), field(t('workflow.next_error'), kit.stepSelect(() => s.nextElse, (k) => { s.nextElse = k; }, s, true), { help: t('workflow.next_error_help') }))];
+    }
+    case 'shell': {
+      // the command text is fixed (approved by its exact text); values of
+      // the case come only as environment variables of the chosen fields
+      const x = (s.shell ??= { command: '', fields: [], timeout: 30 });
+      x.fields ??= [];
+      const meta = kit.meta();
+      const chosen = kit.fields().filter((f) => f.id).map((f) => {
+        const c = checkbox(`${f.label || f.id} ($EWIKI_FIELD_${f.id.toUpperCase().replace(/[^A-Z0-9]/g, '_')})`, x.fields!.includes(f.id));
+        c.input.addEventListener('change', () => {
+          x.fields = c.input.checked ? [...new Set([...(x.fields ?? []), f.id])] : (x.fields ?? []).filter((v) => v !== f.id);
+        });
+        return c.el;
+      });
+      const timeout = kit.num(() => x.timeout, (v) => { x.timeout = v || undefined; });
+      return [h('p', { class: 'ew-help' }, t('workflow.shell_help')),
+        meta && !meta.shell_enabled ? h('p', { class: 'ew-notice ew-notice--warning', role: 'note' }, t('workflow.shell_off')) : null,
+        field(t('workflow.shell_command'), kit.area(() => x.command, (v) => { x.command = v; }, 4, false), { required: true, help: t('workflow.shell_command_help') }),
+        h('fieldset', { class: 'ewf-checks' }, h('legend', null, t('workflow.shell_fields')), h('p', { class: 'ew-help' }, t('workflow.shell_fields_help')),
+          ...(chosen.length ? chosen : [h('p', { class: 'ew-muted' }, t('workflow.shell_no_fields'))])),
+        grid(field(t('workflow.shell_timeout'), timeout, { help: t('workflow.shell_timeout_help') }),
+          field(t('workflow.shell_output'), kit.text(() => x.output, (v) => { x.output = v.trim() || undefined; }, { max: 40 })),
+          field(t('workflow.shell_exit'), kit.text(() => x.exit, (v) => { x.exit = v.trim() || undefined; }, { max: 40 }))),
+        grid(next(), field(t('workflow.shell_next_error'), kit.stepSelect(() => s.nextElse, (k) => { s.nextElse = k; }, s, true), { help: t('workflow.shell_next_error_help') }))];
     }
     case 'create': {
       const c = (s.create ??= { category: 0, title: '{{case.title}}', body: '', store_id: 'page' });

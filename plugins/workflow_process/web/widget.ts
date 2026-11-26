@@ -52,7 +52,8 @@ function eventText(e: Event, stepName: (id: string | null) => string): string {
     case 'move': return t('workflow.ev.move', { step });
     case 'file': return t('workflow.ev.file', { step });
     case 'calendar': return t('workflow.ev.calendar', { step });
-    case 'http_failed': case 'create_failed': case 'props_failed': case 'subflow_failed': case 'access_failed': case 'membership_failed': case 'move_failed': case 'file_failed': case 'calendar_failed': return t('workflow.ev.step_failed');
+    case 'shell': return t('workflow.ev.shell', { label: e.action_label, step });
+    case 'http_failed': case 'create_failed': case 'props_failed': case 'subflow_failed': case 'access_failed': case 'membership_failed': case 'move_failed': case 'file_failed': case 'calendar_failed': case 'shell_failed': return t('workflow.ev.step_failed');
     case 'warning': return t('workflow.ev.warning');
     case 'test_skipped': return t('workflow.ev.test_skipped', { type: t(`workflow.steptype.${e.action_label}`), step });
     case 'escalate': return t(`workflow.ev.escalate_${['notify', 'reassign', 'cancel'].includes(e.action_label) ? e.action_label : 'action'}`, { step });

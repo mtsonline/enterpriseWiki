@@ -81,6 +81,7 @@ Jedes Paket beginnt mit einem Paketkommentar, der es genauer erklärt.
 | [`readability`](../../../internal/readability/) | lange Sätze und Wörter (einfache Sprache) |
 | [`secrets`](../../../internal/secrets/) | Schutz der in der Datenbank gespeicherten Geheimnisse |
 | [`server`](../../../internal/server/) | die REST-API (`/api/v1`) und die Auslieferung des Frontends; Routen nach Bereich, siehe unten |
+| [`shellcmd`](../../../internal/shellcmd/) | Shell-Befehle von Makro und Workflow-Schritten: Freigabe nach genauem Text, sicheres Ausführen |
 | [`signature`](../../../internal/signature/) | Nachweise mit Verfahren von Plugins signieren, prüfbare Belege |
 | [`storage`](../../../internal/storage/) | Dateien nach ihrem SHA-256 gespeichert, sichere Auslieferung |
 | [`tlsutil`](../../../internal/tlsutil/) | TLS für Mail- und Verzeichnisserver, mit eigener Zertifizierungsstelle |

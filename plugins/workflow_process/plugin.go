@@ -34,6 +34,7 @@ import (
 	"github.com/mtsonline/enterprisewiki/internal/db"
 	h "github.com/mtsonline/enterprisewiki/internal/httpx"
 	"github.com/mtsonline/enterprisewiki/internal/identity"
+	"github.com/mtsonline/enterprisewiki/internal/notify"
 
 	_ "embed"
 )
@@ -286,7 +287,7 @@ func (pl *Plugin) decorate(ctx context.Context, w *who, x *Instance, manage bool
 		return
 	}
 	switch s.Type {
-	case StepTask:
+	case StepTask, StepUpload:
 		if w.assigned(x, s) { // only the assignees of the step (also not administrators)
 			if x.Handover == "ask" {
 				x.Actions = handoverActions(w, x, s) // the starter answers first
@@ -317,7 +318,7 @@ func (pl *Plugin) decorate(ctx context.Context, w *who, x *Instance, manage bool
 			markSign(s, x.Actions)
 			x.Form = s.Form
 		}
-	case StepWebhook, StepHTTP, StepCreate, StepProps, StepSubflow, StepAccess, StepMember, StepMove, StepFile, StepCalendar:
+	case StepWebhook, StepHTTP, StepCreate, StepProps, StepSubflow, StepAccess, StepMember, StepMove, StepFile, StepCalendar, StepShell:
 		if x.WakeAt == nil && x.LastError != "" && (manage || w.p.Admin()) { // failed, waiting for a decision
 			x.Actions = []Action{{ID: ActRetry, Next: s.ID}, {ID: ActSkip, Next: s.Next, Note: "optional"}}
 		}
@@ -663,6 +664,21 @@ func (pl *Plugin) Setup(host *coreplugin.Host) error {
 		return n
 	}})
 	host.Files.AddReference("plugin_workflow_instances", "data")
+	// a saved version asks at once for the approval of its shell commands
+	// (durable: repeated after an error)
+	notify.RegisterKind("workflow.process.shell_approval", "workflow.process.shell_approval_kind")
+	host.Content.OnChangeDurable("workflow.process.shell", func(ctx context.Context, event, etype string, id int64) error {
+		if etype != "element" || (event != "create" && event != "update") || !host.Active() {
+			return nil
+		}
+		return pgx.BeginFunc(context.WithoutCancel(ctx), host.DB, func(tx pgx.Tx) error {
+			d, _, _, err := definitionByQ(ctx, tx, id, "")
+			if err != nil {
+				return nil // not a workflow (or gone)
+			}
+			return pl.requestShell(ctx, tx, id, d)
+		})
+	})
 	host.RegisterWorker("timers", 30*time.Second, pl.runTimers)
 	host.RegisterWorker("triggers", 30*time.Second, pl.runTriggers)
 	if host.Webhooks != nil {
@@ -684,6 +700,7 @@ func (pl *Plugin) Setup(host *coreplugin.Host) error {
 		mailOK := err == nil && st.Transport != ""
 		return map[string]any{"step_types": StepTypes, "rule_ops": RuleOps, "placeholders": Placeholders,
 			"field_types": FieldTypes, "mail_configured": mailOK, "http_allow": len(host.Config.Get().Plugins.Macros.HTTPAllow) > 0,
+			"shell_enabled": host.Config.Get().Plugins.Macros.ShellEnabled,
 			"trigger_types": TriggerTypes, "content_events": ContentEvents, "trigger_events": TriggerEvents,
 			"max_depth": MaxDepth, "per_hour": host.Limit(LimitPerHour)}, nil
 	})
@@ -966,7 +983,7 @@ func (pl *Plugin) transition(ctx context.Context, id int64, action, note string,
 			if s != nil && w.assigned(x, s) && s.Type == StepApproval {
 				return nil, apperr.Conflict("you have already voted")
 			}
-			if s != nil && (s.Type == StepTask && slices.ContainsFunc(s.Actions, func(sa Action) bool { return sa.ID == action }) ||
+			if s != nil && (s.taskLike() && slices.ContainsFunc(s.Actions, func(sa Action) bool { return sa.ID == action }) ||
 				s.Type == StepApproval && (action == "approve" || action == "reject")) {
 				return nil, apperr.ErrForbidden
 			}
@@ -1009,6 +1026,11 @@ func (pl *Plugin) transition(ctx context.Context, id int64, action, note string,
 				cur.Data[k] = v
 			}
 			if err := saveData(ctx, tx, cur); err != nil {
+				return err
+			}
+		}
+		if s != nil && s.Type == StepUpload && action == ActUpload {
+			if err := pl.storeUpload(ctx, tx, cur, s); err != nil {
 				return err
 			}
 		}

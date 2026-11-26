@@ -1,6 +1,6 @@
 //go:build unix
 
-package macro_shell
+package shellcmd
 
 import (
 	"bytes"
@@ -36,10 +36,13 @@ func (l *limitedBuffer) Write(p []byte) (int, error) {
 	return len(p), nil
 }
 
-// run executes cmd with /bin/sh in a fresh temporary directory, a minimal
-// environment and its own process group (killed on timeout). When the wiki
-// runs as root the command runs as the unprivileged user (default nobody).
-func run(ctx context.Context, cmd string, timeout time.Duration, runAs string) (string, int, error) {
+// Run executes cmd with /bin/sh in a fresh temporary directory, a minimal
+// environment plus env (names and values chosen by the caller, never
+// put into the command text) and its own process group (killed on
+// timeout). When the wiki runs as root the command runs as the
+// unprivileged user runAs (default nobody). It returns the output (at most
+// MaxOutput bytes) and the exit code.
+func Run(ctx context.Context, cmd string, env []string, timeout time.Duration, runAs string) (string, int, error) {
 	ctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), timeout)
 	defer cancel()
 	dir, err := os.MkdirTemp("", "ewiki-shell-*")
@@ -49,7 +52,7 @@ func run(ctx context.Context, cmd string, timeout time.Duration, runAs string) (
 	defer func() { _ = os.RemoveAll(dir) }()
 	c := exec.CommandContext(ctx, "/bin/sh", "-c", cmd) // #nosec G204 -- commands defined by administrators (plugin purpose); users only pick them
 	c.Dir = dir
-	c.Env = []string{"PATH=/usr/local/bin:/usr/bin:/bin", "LANG=C.UTF-8", "HOME=" + dir, "TMPDIR=" + dir}
+	c.Env = append([]string{"PATH=/usr/local/bin:/usr/bin:/bin", "LANG=C.UTF-8", "HOME=" + dir, "TMPDIR=" + dir}, env...)
 	attr := &syscall.SysProcAttr{Setpgid: true}
 	if os.Geteuid() == 0 {
 		if runAs == "" {

@@ -300,7 +300,7 @@ func linkNeedsSign(x *Instance, action string) bool {
 
 // sideEffect reports whether a step type leaves the case (skipped in test runs).
 func sideEffect(t string) bool {
-	return in(t, StepEmail, StepNotify, StepWebhook) || apiStep(t)
+	return in(t, StepEmail, StepNotify, StepWebhook, StepShell) || apiStep(t)
 }
 
 // ---------------------------------------------------------------- evaluation

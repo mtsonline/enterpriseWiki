@@ -116,13 +116,15 @@ const (
 	StepMove      = "move"       // automatic: move a page to another category (e.g. an archive)
 	StepFile      = "file"       // automatic: write a document (PDF, Word, Excel …) into the media library
 	StepCalendar  = "calendar"   // automatic: create an entry in a calendar
+	StepShell     = "shell"      // automatic: run a shell command approved by a superadmin
+	StepUpload    = "upload"     // a person uploads a file or confirms one (a task with a fixed purpose)
 	StepParallel  = "parallel"   // automatic: branches at the same time, continue when they ended
 	StepEnd       = "end"        // closes the case
 )
 
 // StepTypes lists all step types.
-var StepTypes = []string{StepTask, StepApproval, StepCondition, StepEmail, StepNotify, StepSet, StepWebhook, StepHTTP,
-	StepCreate, StepProps, StepFile, StepCalendar, StepAccess, StepMember, StepMove, StepSubflow, StepParallel, StepDelay, StepEnd}
+var StepTypes = []string{StepTask, StepApproval, StepUpload, StepCondition, StepEmail, StepNotify, StepSet, StepWebhook, StepHTTP,
+	StepCreate, StepProps, StepFile, StepCalendar, StepShell, StepAccess, StepMember, StepMove, StepSubflow, StepParallel, StepDelay, StepEnd}
 
 // apiStep reports whether a step type acts through the wiki's API with the
 // rights of the definer or starter (run by the worker, may be retried).
@@ -133,7 +135,7 @@ func apiStep(t string) bool {
 // deferred steps are run by the background worker (they call other
 // systems or the wiki's API and may take a while).
 func (s *Step) deferred() bool {
-	return s.Type == StepWebhook || s.Type == StepParallel || apiStep(s.Type)
+	return s.Type == StepWebhook || s.Type == StepParallel || s.Type == StepShell || apiStep(s.Type)
 }
 
 // Rule is a condition on the case data.
@@ -212,6 +214,8 @@ type Step struct {
 	Move     *MoveSpec     `json:"move,omitempty"`
 	File     *FileSpec     `json:"file,omitempty"`
 	Calendar *CalendarSpec `json:"calendar,omitempty"`
+	Shell    *ShellSpec    `json:"shell,omitempty"`
+	Upload   *UploadSpec   `json:"upload,omitempty"`
 	// RunAs of http, create, props and subflow steps: "definer" (default:
 	// the person who saved the version of the workflow) or "starter".
 	RunAs string `json:"run_as,omitempty"`
@@ -229,7 +233,13 @@ type Step struct {
 func (s *Step) Automatic() bool { return !s.Manual() && s.Type != StepEnd }
 
 // Manual reports whether people act on the step.
-func (s *Step) Manual() bool { return s.Type == StepTask || s.Type == StepApproval }
+func (s *Step) Manual() bool {
+	return s.Type == StepTask || s.Type == StepApproval || s.Type == StepUpload
+}
+
+// taskLike reports whether a step works like a task: assignees choose one of
+// its actions (tasks and the upload step).
+func (s *Step) taskLike() bool { return s.Type == StepTask || s.Type == StepUpload }
 
 // Step returns the step with id (nil if unknown).
 func (d *Definition) Step(id string) *Step {
@@ -445,6 +455,14 @@ func (s *Step) validate(fieldType map[string]string) error {
 			if !in(a.Note, "", "optional", "required") {
 				a.Note = ""
 			}
+		}
+	case StepUpload:
+		s.Outcome, s.Required, s.ApproveLabel, s.RejectLabel, s.Match, s.Rules = "", 0, "", "", "", nil
+		if err := assignee(); err != nil {
+			return err
+		}
+		if err := s.validateUploadStep(fieldType); err != nil {
+			return err
 		}
 	case StepApproval:
 		s.Actions, s.Outcome, s.Match, s.Rules = []Action{}, "", "", nil
@@ -787,7 +805,7 @@ func (t Type) Render(ctx context.Context, rc content.RenderContext, raw json.Raw
 		case StepEnd:
 			b.WriteString(`<br><span class="ewf-end ewf-end--` + esc(s.Outcome) + `">` + esc(msg(rc.Lang, "end")) + `</span></li>`)
 			continue
-		case StepTask:
+		case StepTask, StepUpload:
 			fmt.Fprintf(&b, `<br><span class="ewf-assignee">%s: %s</span><ul class="ewf-actions">`, esc(msg(rc.Lang, "assignee")), esc(who))
 			for _, a := range s.Actions {
 				li(fmt.Sprintf(msg(rc.Lang, "goto"), a.Label, name(a.Next)))

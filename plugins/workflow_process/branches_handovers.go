@@ -302,7 +302,7 @@ const (
 // handoverActions are the hand-over actions of task s of x for the caller
 // (who is assigned).
 func handoverActions(w *who, x *Instance, s *Step) []Action {
-	if s.Type != StepTask || w.p == nil {
+	if !s.taskLike() || w.p == nil {
 		return nil
 	}
 	if x.Handover == "ask" {

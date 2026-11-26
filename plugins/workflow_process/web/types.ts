@@ -7,7 +7,7 @@ export interface Rule { field: string; op: string; value?: string }
 export interface EmailSpec { to: string; cc?: string; from?: string; reply_to?: string; subject: string; body: string }
 export interface WebhookSpec { url: string; method?: string; secret?: string; secret_ref?: string }
 export interface DelaySpec { days?: number; hours?: number; until?: string }
-export type StepType = 'task' | 'approval' | 'condition' | 'email' | 'notify' | 'set' | 'webhook' | 'http' | 'create' | 'props' | 'file' | 'calendar' | 'access' | 'membership' | 'move' | 'subflow' | 'parallel' | 'delay' | 'end';
+export type StepType = 'task' | 'approval' | 'upload' | 'condition' | 'email' | 'notify' | 'set' | 'webhook' | 'http' | 'create' | 'props' | 'file' | 'calendar' | 'shell' | 'access' | 'membership' | 'move' | 'subflow' | 'parallel' | 'delay' | 'end';
 export type Channel = 'inbox' | 'email' | 'both';
 export interface NotifySpec { to: string; subject: string; body?: string; channel?: Channel; popup?: boolean }
 export interface Notice extends NotifySpec { on: 'enter' | 'leave' }
@@ -20,6 +20,8 @@ export interface MemberSpec { mode: 'add' | 'remove'; group: number; user: strin
 export interface MoveSpec { element: string; category: number }
 export type FileFormat = 'pdf' | 'docx' | 'xlsx' | 'csv' | 'json' | 'txt' | 'md';
 export interface FileSpec { category: number; name: string; formats: FileFormat[]; content?: string; data?: boolean; store_id?: string; store_url?: string }
+export interface UploadSpec { mode: 'upload' | 'confirm'; field: string; label: string; reject_label?: string; media?: number }
+export interface ShellSpec { command: string; fields?: string[]; timeout?: number; output?: string; exit?: string }
 export interface CalendarSpec { calendar: number; title: string; description?: string; location?: string; start: string; minutes?: number; all_day?: boolean; tz?: string; registration?: boolean; store_id?: string; store_url?: string }
 export interface SubflowSpec { workflow: number; title?: string; data?: Record<string, string>; wait?: boolean; return?: Record<string, string> }
 export interface Escalation { action: '' | 'notify' | 'reassign' | 'action' | 'cancel'; notify?: NotifySpec; assignee?: Assignee; action_id?: string }
@@ -34,7 +36,7 @@ export interface Step {
   id: string; name: string; type?: StepType; sign?: string; description?: string; assignee: Assignee; actions: Action[]; outcome?: string;
   due_days?: number; required?: number; approve_label?: string; reject_label?: string; next?: string; next_else?: string;
   match?: 'all' | 'any'; rules?: Rule[]; email?: EmailSpec; webhook?: WebhookSpec; delay?: DelaySpec;
-  notify?: NotifySpec; set?: Assign[]; http?: HTTPSpec; create?: CreateSpec; props?: PropsSpec; subflow?: SubflowSpec; access?: AccessSpec; membership?: MemberSpec; move?: MoveSpec; file?: FileSpec; calendar?: CalendarSpec;
+  notify?: NotifySpec; set?: Assign[]; http?: HTTPSpec; create?: CreateSpec; props?: PropsSpec; subflow?: SubflowSpec; access?: AccessSpec; membership?: MemberSpec; move?: MoveSpec; file?: FileSpec; calendar?: CalendarSpec; shell?: ShellSpec; upload?: UploadSpec;
   run_as?: 'definer' | 'starter'; deadline?: Deadline; notices?: Notice[]; form?: StepField[]; parallel?: ParallelSpec;
 }
 export interface Definition { description: string; fields: Field[]; steps: Step[]; triggers?: Trigger[]; no_manual?: boolean; links?: boolean; link_hours?: number; retention?: { days: number; mode: 'delete' | 'anonymize' } }
@@ -48,6 +50,6 @@ export interface Instance {
   handover?: '' | 'claim' | 'delegate' | 'ask'; rev?: number; test?: boolean; form?: StepField[]; branches?: { id: number; title: string; step: string; step_name: string; status: string; outcome?: string }[];
 }
 export interface Meta {
-  step_types: StepType[]; rule_ops: string[]; placeholders: string[]; field_types: string[]; mail_configured: boolean; http_allow: boolean;
+  step_types: StepType[]; rule_ops: string[]; placeholders: string[]; field_types: string[]; mail_configured: boolean; http_allow: boolean; shell_enabled?: boolean;
   trigger_types?: TriggerType[]; content_events?: string[]; trigger_events?: string[]; max_depth?: number; per_hour?: number;
 }
