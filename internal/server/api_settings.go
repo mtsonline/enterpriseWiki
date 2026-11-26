@@ -114,6 +114,9 @@ func (s *Server) updateSettings(w http.ResponseWriter, r *http.Request) (any, er
 			if v := in.People.EmailVisibility; v != "" && !slices.Contains(config.EmailLevels, v) {
 				return apperr.BadRequest("people.email_visibility must be users, permission or nobody")
 			}
+			if v := in.People.MentionDisplay; v != "" && !slices.Contains(config.MentionLevels, v) {
+				return apperr.BadRequest("people.mention_display must be masked or name")
+			}
 			c.People = *in.People
 		}
 		if in.Macros != nil && !reflect.DeepEqual(*in.Macros, c.Plugins.Macros) {

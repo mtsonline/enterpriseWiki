@@ -283,12 +283,14 @@ Personenseiten und das Menü an Namen (*Administration → Einstellungen → Per
 people:
   email_visibility: users    # users | permission | nobody
   email_hide_allowed: true   # Personen dürfen ihre eigene Adresse im Profil verbergen
+  mention_display: masked    # masked | name
 ```
 
 | Schlüssel | Bedeutung | Vorgabe |
 |---|---|---|
 | `email_visibility` | wer die E-Mail-Adresse auf Personenseiten, im Menü an Namen und in den Personen-Bausteinen sieht: `users` (alle Angemeldeten, die die Person öffnen dürfen), `permission` (nur mit *E-Mail-Adressen von Personen sehen*, `core.people.email`), `nobody`. Die Person sieht ihre eigene Adresse immer. Gezeigt wird nur die primäre bestätigte Adresse | `users` |
 | `email_hide_allowed` | jede Person darf ihre eigene Adresse im Profil verbergen (*Meine E-Mail-Adresse verbergen*). Eine verborgene Adresse bleibt für alle anderen verborgen, auch für die Administration. Ausgeschaltet zählen frühere Entscheidungen nicht mehr | `true` |
+| `mention_display` | was Lesende von `@name` in Seiten und Kommentaren sehen, wenn sie die Person nicht finden dürfen (Gäste, Personen außerhalb ihrer Gruppen): `masked` (`@na****`, die ersten zwei Zeichen) oder `name` (der Anzeigename, ohne Menü an Namen). Wer die Person finden darf, sieht immer den Anzeigenamen mit dem Menü. Ein Name, der keine Person ist, wird ebenso verdeckt | `masked` |
 
 Team-Seiten sind davon nicht betroffen: Wer eine Team-Seite gestaltet, wählt dort die Felder (z. B. eine öffentliche Kontaktseite). Die Teilnehmerlisten von Terminen zeigen den Veranstaltern die Adressen wie bisher.
 

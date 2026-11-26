@@ -1232,6 +1232,7 @@
  "email_hidden must be true or empty": "email_hidden muss true oder leer sein",
  "hiding the own e-mail address is not allowed on this site": "Die eigene E-Mail-Adresse zu verbergen ist auf dieser Website nicht erlaubt",
  "people.email_visibility must be users, permission or nobody": "people.email_visibility muss users, permission oder nobody sein",
+ "people.mention_display must be masked or name": "people.mention_display muss masked oder name sein",
  "person not found": "Person nicht gefunden",
  "%q is not an IP address or network": "%q ist keine IP-Adresse und kein Netz",
  "%s is listed twice": "%s steht zweimal in der Liste",

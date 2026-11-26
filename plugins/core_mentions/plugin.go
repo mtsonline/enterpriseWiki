@@ -195,5 +195,6 @@ func excerptAround(text string, handles []string) string {
 	if end < len(r) {
 		out += " …"
 	}
-	return out
+	// the recipient may not be allowed to find the others mentioned
+	return content.MaskMentions(out)
 }

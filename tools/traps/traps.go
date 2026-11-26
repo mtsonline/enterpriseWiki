@@ -1924,4 +1924,25 @@ var traps = []trap{
 		New:  "\t\t\t\tif was != sum && false {\n\t\t\t\t\tchanged = true\n",
 		Pkg:  "./internal/server/", Tests: "^TestSchemaDrift$",
 	},
+	{
+		ID: "mention.menu-for-everybody", About: "a mention shows the person with the menu to readers who may not find the person",
+		File: "internal/content/mentions.go",
+		Old:  "case known && ref.ID != nil && ref.Name != \"\":",
+		New:  "case known && ref.Name != \"\":\n\t\t\tif ref.ID == nil {\n\t\t\t\tv := ids[strings.ToLower(h.handle)]\n\t\t\t\tref.ID = &v\n\t\t\t}",
+		Pkg:  "./internal/server/", Tests: "^TestMentionsAsTheReaderMaySee$",
+	},
+	{
+		ID: "mention.handle-shown", About: "guests see the handle of a mentioned person",
+		File: "internal/content/mentions.go",
+		Old:  "\treturn \"@\" + string(r) + \"****\"\n",
+		New:  "\treturn \"@\" + handle\n",
+		Pkg:  "./internal/server/", Tests: "^TestMentionsAsTheReaderMaySee$",
+	},
+	{
+		ID: "comment.source-for-all", About: "every reader gets the source of a comment with the handles it mentions",
+		File: "plugins/core_comments/plugin.go",
+		Old:  "\tif !own {\n\t\t// the source holds",
+		New:  "\tif false && !own {\n\t\t// the source holds",
+		Pkg:  "./internal/server/", Tests: "^TestMentionsAsTheReaderMaySee$",
+	},
 }

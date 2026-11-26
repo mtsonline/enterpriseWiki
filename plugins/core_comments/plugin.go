@@ -132,6 +132,11 @@ func (p *Plugin) decorate(ctx context.Context, c *Comment, perms acl.Perm, cat i
 		return
 	}
 	c.HTML = Format(c.Body)
+	if !own {
+		// the source holds "@name" as written; others see the mentions only
+		// as names() renders them for the reader
+		c.Body = ""
+	}
 	c.CanEdit = own && perms&p.minPerm() != 0 && !p.host.ACL.Archived(ctx, cat)
 	c.CanDelete = own || p.host.CanElement(ctx, c.ElementID, cat, "core.comments.moderate")
 }
@@ -430,10 +435,25 @@ func displayName(p *identity.Principal) string {
 	return p.DisplayName
 }
 
-// names sets the authors of comments as the caller may see them: the
-// display name (never the handle) and the id only for who may open the person
-// (content.PeopleRefs). One query for all comments.
+// names sets the authors of comments and the people mentioned in their
+// texts as the caller may see them: authors by their display name (never
+// the handle), with the id only for who may open the person
+// (content.PeopleRefs); mentions as content.MentionsHTML shows them. Three
+// queries for all comments together.
 func (p *Plugin) names(ctx context.Context, list ...*Comment) error {
+	// mentions in the texts, as the reader may see them (one lookup for all)
+	pieces := make([]string, len(list))
+	for i, c := range list {
+		pieces[i] = c.HTML
+	}
+	shown := p.host.Content.MentionsHTML(ctx, pieces)
+	if len(shown) != len(list) {
+		// never fall back to the text with the raw handles
+		return fmt.Errorf("mentions: %d texts for %d comments", len(shown), len(list))
+	}
+	for i, c := range list {
+		c.HTML = shown[i]
+	}
 	var ids []int64
 	for _, c := range list {
 		if c.AuthorID != nil {

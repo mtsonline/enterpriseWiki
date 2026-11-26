@@ -552,7 +552,7 @@ interface Settings {
     retention: { revisions_keep_days: number; revisions_keep_min: number; trash_days: number; audit_days: number };
     media?: { viewer?: string; open_external?: boolean; token_ttl?: string; embed_allow?: string[] | null; form_allow?: string[] | null };
     lists?: { max_items?: number };
-    people?: { email_visibility?: string; email_hide_allowed?: boolean };
+    people?: { email_visibility?: string; email_hide_allowed?: boolean; mention_display?: string };
     mode: string;
     server: { listen: string; base_url: string };
   };
@@ -645,6 +645,8 @@ async function settings(panel: HTMLElement): Promise<void> {
   // people: who sees e-mail addresses, and whether a person may hide their own
   const mailVis = select(['users', 'permission', 'nobody'].map((v) => ({ value: v, label: t(`settings.email_vis_${v}`) })), c.people?.email_visibility || 'users');
   const mailHide = checkbox(t('settings.email_hide_allowed'), c.people?.email_hide_allowed !== false, { help: t('settings.email_hide_allowed_help') });
+  // what readers who may not find a mentioned person see of "@name"
+  const mentionShow = select(['masked', 'name'].map((v) => ({ value: v, label: t(`settings.mention_${v}`) })), c.people?.mention_display || 'masked');
   // the hint on long sentences and words while writing (off, offered, on for everybody)
   const rh = c.ui.readability ?? {};
   const rhMode = select(['off', 'offered', 'on'].map((v) => ({ value: v, label: t(`settings.readability_mode_${v}`) })), rh.mode || 'off');
@@ -673,7 +675,8 @@ async function settings(panel: HTMLElement): Promise<void> {
     fs(t('settings.readability'), h('p', { class: 'ew-help' }, t('settings.readability_help')), field(t('settings.readability_mode'), rhMode),
       field(t('settings.readability_sentence_words'), rhWords, { help: t('settings.readability_sentence_words_help') }),
       field(t('settings.readability_word_letters'), rhLetters, { help: t('settings.readability_word_letters_help') })),
-    fs(t('settings.people'), field(t('settings.email_visibility'), mailVis, { help: t('settings.email_visibility_help') }), mailHide.el),
+    fs(t('settings.people'), field(t('settings.email_visibility'), mailVis, { help: t('settings.email_visibility_help') }), mailHide.el,
+      field(t('settings.mention_display'), mentionShow, { help: t('settings.mention_display_help') })),
     fs(t('settings.lists'), field(t('settings.lists_max'), listsMax, { help: t('settings.lists_max_help') })),
     fs(t('settings.retention'), h('p', { class: 'ew-help' }, t('settings.retention_help')), field(t('settings.revisions_keep_days'), keepDays, { help: t('settings.zero_forever') }), field(t('settings.revisions_keep_min'), keepMin),
       field(t('settings.trash_days'), trashDays, { help: t('settings.zero_never') }), field(t('settings.audit_days'), auditDays, { help: t('settings.zero_forever') })),
@@ -695,7 +698,7 @@ async function settings(panel: HTMLElement): Promise<void> {
         retention: { ...c.retention, revisions_keep_days: Number(keepDays.value), revisions_keep_min: Number(keepMin.value), trash_days: Number(trashDays.value), audit_days: Number(auditDays.value) },
         media: { ...c.media, viewer: viewer.value === 'internal' ? '' : viewer.value, open_external: openExternal.input.checked, token_ttl: tokenTTL.value.trim(), embed_allow: embedAllow.value.split(/\s+/).map((x) => x.trim()).filter(Boolean), form_allow: formAllow.value.split(/\s+/).map((x) => x.trim()).filter(Boolean) },
         lists: { ...c.lists, max_items: Number(listsMax.value) || 0 },
-        people: { ...c.people, email_visibility: mailVis.value, email_hide_allowed: mailHide.input.checked },
+        people: { ...c.people, email_visibility: mailVis.value, email_hide_allowed: mailHide.input.checked, mention_display: mentionShow.value },
       });
       toast(t('settings.saved'));
       setTimeout(() => location.reload(), 800);

@@ -428,7 +428,7 @@ Die **Glocke** neben Ihrem Namen zeigt Benachrichtigungen im Wiki, die Zahl unge
 **Alle Benachrichtigungen** (Link unten in der Glocke, Seite `/notifications`): alle Ihre Benachrichtigungen, die neueste zuerst. *Ältere anzeigen* lädt die nächsten. *Ungelesen* zeigt nur die ungelesenen. Jeder Eintrag zeigt, wer sie ausgelöst hat; ein Klick auf den Namen öffnet das Menü an Namen, wenn Sie diese Person öffnen dürfen. *Als gelesen markieren* und *Löschen* wirken auf einen Eintrag, *Alle als gelesen markieren* auf alle.
 
 - **Teilen** (Knopf auf jeder Seite) weist Personen, Gruppen oder Rollen mit einer optionalen Nachricht auf die Seite hin. Teilen gibt **keine Rechte**: Wer die Seite nicht sehen darf, wird nicht benachrichtigt – *Empfänger prüfen* zeigt das vorher.
-- **@Erwähnungen:** Tippen Sie in einer Seite oder einem Kommentar `@` und den Namen; die erwähnte Person erhält eine Benachrichtigung, wenn sie die Seite sehen darf.
+- **@Erwähnungen:** Tippen Sie in einer Seite oder einem Kommentar `@` und den Namen; die erwähnte Person erhält eine Benachrichtigung, wenn sie die Seite sehen darf. Lesende sehen den Anzeigenamen der Person mit dem Menü an Namen, wenn sie die Person finden dürfen. Alle anderen sehen nur `@na****` (oder, wenn die Administration es so eingestellt hat, den Anzeigenamen ohne Menü).
 
 Manche Benachrichtigungen sind **Pop-ups** (zum Beispiel das Ergebnis eines Antrags, wenn der Workflow es so festlegt): Sie erscheinen beim nächsten Laden einer Seite einmal als Dialog. *OK* oder Escape schließt ihn, *Öffnen* führt zum Ziel. Danach steht die Nachricht gelesen in der Glocke. Mehrere Pop-ups kommen nacheinander, höchstens `core.notify.popups` beim Laden einer Seite (Experteneinstellung).
 
