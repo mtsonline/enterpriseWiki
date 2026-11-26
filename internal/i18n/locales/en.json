@@ -3251,5 +3251,16 @@
  "plugin.name.auth.local": "Local authentication",
  "plugin.name.core.layout": "Layout builder macros",
  "plugin.name.core.macros": "Standard macros",
- "plugin.name.macro.http": "HTTP macro"
+ "plugin.name.macro.http": "HTTP macro",
+ "datepicker.open": "Choose date",
+ "datepicker.open_for": "Choose date for {field}",
+ "datepicker.chosen": "chosen: {date}",
+ "datepicker.title": "Choose a date",
+ "datepicker.prev_month": "Previous month",
+ "datepicker.next_month": "Next month",
+ "datepicker.prev_year": "Previous year",
+ "datepicker.next_year": "Next year",
+ "datepicker.today": "today",
+ "datepicker.unavailable": "not available",
+ "datepicker.keys": "Arrow keys: day and week. Page up and down: month. With Shift: year. Enter: choose. Escape: close."
 }

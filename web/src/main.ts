@@ -22,6 +22,7 @@ import { isAdmin, rememberedLang, state, stored } from './core/state';
 import type { Principal, Site } from './core/types';
 import { categoryTree, ctx, currentSpace, setSpace, editToggle, helpToggle, languageSwitcher, searchBox, userMenu } from './components/widgets';
 import { watchHelp } from './core/helptexts';
+import { watchDateInputs } from './components/datepicker';
 import { readProgress } from './components/readprogress';
 import { pluginModules } from './generated/plugins';
 import { applyScheme } from './core/scheme';
@@ -180,6 +181,7 @@ async function boot(): Promise<void> {
   document.documentElement.dataset.site = state.site.name;
   // explanations are shown or hidden for the person, on every page
   watchHelp();
+  watchDateInputs();
   registerCore();
   const active = new Set(state.site.plugins ?? []);
   // a plugin may need data before the page is built (templates of data):
