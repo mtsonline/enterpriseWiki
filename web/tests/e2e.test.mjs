@@ -7472,6 +7472,93 @@ test('pop-up notification: shown once as a dialog, then in the bell', async () =
   }
 });
 
+test('all notifications: from the bell, older ones, only unread ones, who caused each, read and delete, light and dark', async () => {
+  const me = (await call('GET', '/api/v1/auth/me')).user;
+  // nobody is notified about their own actions: a second person shares with
+  // this one (both in one group, so they may find each other)
+  const pw = 'Notice-Passw0rd-1!';
+  const name = `nt${run}`.toLowerCase().slice(0, 30);
+  const g = await call('POST', '/api/v1/admin/groups', { name: `Notices ${run}` });
+  const sender = await call('POST', '/api/v1/admin/users', { username: name, password: pw, display_name: `Notice Sender ${run}`, groups: [g.id] });
+  await call('PUT', `/api/v1/admin/groups/${g.id}/members/${me.id}`);
+  const cat = await call('POST', '/api/v1/categories', { titles: { en: `Notices ${run}` } });
+  await call('POST', `/api/v1/categories/${cat.id}/acl`, { subject_type: 'authenticated', permissions: 1, inherit: true });
+  const ctx2 = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+  const p2 = await ctx2.newPage();
+  try {
+    await p2.goto(BASE + '/login');
+    await p2.getByLabel(/user ?name|benutzername/i).fill(name);
+    await p2.getByLabel(/^(password|passwort)/i).fill(pw);
+    await p2.keyboard.press('Enter');
+    await p2.waitForURL((u) => !u.pathname.startsWith('/login'));
+    // more than one page (30)
+    const sent = await p2.evaluate(async ([cat, to, run]) => {
+      let n = 0;
+      for (let i = 0; i < 32; i++) {
+        const res = await __e2eFetch('/api/v1/x/core.share/share', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'ewiki' },
+          body: JSON.stringify({ target_type: 'category', target_id: cat, users: [to], message: `Notice ${i} ${run}` }) });
+        if (res.ok) n++;
+      }
+      return n;
+    }, [cat.id, me.id, run]);
+    assert.equal(sent, 32, 'shared 32 times');
+  } finally {
+    await ctx2.close();
+  }
+  const newest = (await call('GET', '/api/v1/me/inbox?limit=1')).items[0];
+  assert.equal(newest.actor_id, sender.id, 'who caused it, with the id for the menu');
+  try {
+    for (const scheme of ['light', 'dark']) {
+      await call('PUT', '/api/v1/scheme', { scheme });
+      // the way in: the link at the bottom of the bell
+      await page.goto(BASE + '/');
+      await idle();
+      await page.getByRole('button', { name: /^(notifications|benachrichtigungen)/i }).click();
+      await page.locator('.ew-inbox').getByRole('link', { name: /^(show all notifications|alle benachrichtigungen anzeigen)$/i }).click();
+      await page.waitForURL(/\/notifications$/);
+      await page.getByRole('heading', { level: 1, name: /^(all notifications|alle benachrichtigungen)$/i }).waitFor();
+      const items = page.locator('.ew-notif-list > li.ew-notif');
+      await items.first().waitFor();
+      assert.equal(await items.count(), 30, 'one page');
+      assert.equal(await page.locator('.ew-inbox').isVisible(), false, 'the bell closed');
+      // who caused it: the name with the menu on names
+      await items.first().locator('.ew-person').waitFor();
+      await a11y(`all notifications (${scheme})`);
+      // older ones: the focus moves on to the first new one
+      await page.getByRole('button', { name: /^(show older ones|ältere anzeigen)$/i }).click();
+      await page.waitForFunction(() => document.querySelectorAll('.ew-notif-list > li.ew-notif').length > 30);
+      assert.equal(await page.evaluate(() => document.activeElement?.closest('li')?.matches('.ew-notif-list > li:nth-child(31)')), true, 'focus on the first older one');
+      const ids = await items.evaluateAll((els) => els.map((el) => el.dataset.id));
+      assert.equal(new Set(ids).size, ids.length, 'no notification twice');
+    }
+    // mark one read: it stays, without the unread mark; only unread ones: it is gone
+    const first = page.locator(`.ew-notif[data-id="${newest.id}"]`);
+    if (!newest.read_at) {
+      await first.getByRole('button', { name: new RegExp(`^(mark as read|als gelesen markieren): ${newest.title.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i') }).click();
+      await page.locator(`.ew-notif[data-id="${newest.id}"]:not(.is-unread)`).waitFor();
+    }
+    await page.getByRole('link', { name: /^(unread|ungelesen)$/i }).click();
+    await page.waitForURL(/unread=1/);
+    await page.locator('.ew-notif-list > li').first().waitFor();
+    assert.equal(await page.locator(`.ew-notif[data-id="${newest.id}"]`).count(), 0, 'read ones are not in the filter');
+    assert.equal(await page.locator('.ew-notif:not(.is-unread)').count(), 0, 'only unread ones');
+    await a11y('all notifications, unread');
+    // delete one: gone here and in the API
+    await page.getByRole('link', { name: /^(all|alle)$/i }).click();
+    await page.waitForURL(/\/notifications$/);
+    await page.locator(`.ew-notif[data-id="${newest.id}"]`).getByRole('button', { name: /^(delete|löschen):/i }).click();
+    await page.locator(`.ew-notif[data-id="${newest.id}"]`).waitFor({ state: 'detached' });
+    assert.equal((await call('GET', '/api/v1/me/inbox?limit=5')).items.some((n) => n.id === newest.id), false, 'deleted');
+    // mark all read
+    await page.getByRole('button', { name: /^(mark all as read|alle als gelesen markieren)$/i }).click();
+    await page.getByText(/^(everything is read\.|alles ist gelesen\.)$/i).waitFor();
+    assert.equal((await call('GET', '/api/v1/me/inbox?limit=1')).unread, 0);
+  } finally {
+    await call('PUT', '/api/v1/scheme', { scheme: '' });
+    await call('DELETE', `/api/v1/admin/groups/${g.id}/members/${me.id}`);
+  }
+});
+
 test('people: the menu on names and the person page – mouse, keyboard, touch, e-mail rules, guests, narrow and wide, light and dark', async () => {
   const name = `pm${run}`.toLowerCase().slice(0, 30);
   const pw = 'Pers-Passw0rd-1!';

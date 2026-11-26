@@ -116,7 +116,7 @@ Permissions, audit log, drafts, notifications
   audit forward-test @file|-    send a test entry to a forwarding target (JSON as in settings)
   draft list | show ID | delete ID --as USER
   draft publish ID [--at RFC3339] [--category ID] [--silent] --as USER
-  inbox [list] [--limit N] | inbox read [ID...] --as USER
+  inbox [list] [--limit N] [--before ID] [--unread] | inbox read [ID...] --as USER
 
 Personal settings
   pref list --as USER           settings of the user and their allowed values

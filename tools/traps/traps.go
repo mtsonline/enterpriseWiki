@@ -1883,6 +1883,20 @@ var traps = []trap{
 		Pkg:  "./internal/server/", Tests: "^TestPeopleInLists$",
 	},
 	{
+		ID: "inbox.foreign-cursor", About: "somebody else's notification serves as the page cursor of the bell page",
+		File: "internal/notify/notify.go",
+		Old:  "WHERE b.id = $4 AND b.user_id = $1))",
+		New:  "WHERE b.id = $4))",
+		Pkg:  "./internal/server/", Tests: "^TestInboxPages$",
+	},
+	{
+		ID: "inbox.actor-always-open", About: "the page of all notifications offers the menu for people the reader may not open",
+		File: "internal/server/api_drafts.go",
+		Old:  "\t\t\t\tif ref, ok := refs[*n.ActorUser]; ok {\n\t\t\t\t\tlist[i].ActorID = ref.ID\n",
+		New:  "\t\t\t\tif _, ok := refs[*n.ActorUser]; ok {\n\t\t\t\t\tlist[i].ActorID = n.ActorUser\n",
+		Pkg:  "./internal/server/", Tests: "^TestInboxPages$",
+	},
+	{
 		ID: "waf.detect-by-default", About: "the firewall, once switched on, only logs attacks instead of blocking them",
 		File: "plugins/core_waf/plugin.go",
 		Old:  "\tmode = \"block\"\n\tif v, _ := s[\"mode\"].(string); v == \"detect\" {\n",

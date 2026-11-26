@@ -425,6 +425,8 @@ The administration can also **assign** watches to you (e.g. for a department). T
 
 The **bell** next to your name shows notifications in the wiki, the number of unread ones is next to it. A click on a notification opens the target and marks it as read; *Mark all as read* empties the list of unread ones. The ✕ next to a notification deletes it.
 
+**All notifications** (link at the bottom of the bell, page `/notifications`): all your notifications, newest first. *Show older ones* loads the next ones. *Unread* shows only the unread ones. Each entry shows who caused it; a click on the name opens the menu on names, if you may open that person. *Mark as read* and *Delete* act on one entry, *Mark all as read* on all.
+
 - **Share** (button on every page) points people, groups or roles to the page with an optional message. Sharing gives **no permissions**: whoever may not see the page is not notified – *Check recipients* shows this beforehand.
 - **@mentions:** type `@` and the name in a page or a comment; the mentioned person receives a notification if they may see the page.
 

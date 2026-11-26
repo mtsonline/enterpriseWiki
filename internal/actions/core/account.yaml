@@ -756,11 +756,13 @@ actions:
     success_status: 200
     summary:
       text:
-        en: List your notifications
-        de: Eigene Benachrichtigungen auflisten
+        en: List your notifications, newest first, page by page
+        de: Eigene Benachrichtigungen auflisten, neueste zuerst, seitenweise
+    query:
+      json: '{"type": "object", "properties": {"limit": {"type": "integer", "minimum": 1, "maximum": 200}, "before": {"type": "integer", "minimum": 1}, "unread": {"type": "string", "enum": ["1"]}}}'
     signed_in: true
     cli: {command: [inbox, list], builtin: true}
-    ui: {entry: /}
+    ui: {entry: /notifications}
     examples:
       - name: default
         given: ['core.share.send#to_self']

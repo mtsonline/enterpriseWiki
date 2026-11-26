@@ -634,6 +634,19 @@ th .ew-help { font-weight: 400; }
 .ew-inbox-list li.is-unread > a { border-inline-start: 4px solid var(--ew-primary); }
 .ew-inbox-body { display: block; margin-top: .2rem; }
 .ew-inbox-list li:not(:has(a)) { padding: .75rem; }
+.ew-inbox-foot { padding: .5rem .75rem; }
+.ew-inbox-foot a { display: inline-block; min-height: 24px; }
+/* the page of all notifications */
+.ew-notif-tools { display: flex; flex-wrap: wrap; gap: .5rem 1rem; justify-content: space-between; align-items: center; }
+.ew-notif-filter { display: flex; flex-wrap: wrap; gap: .25rem 1rem; }
+.ew-notif-filter a { display: inline-block; min-height: 24px; padding: .1rem 0; }
+.ew-notif-filter a[aria-current="page"] { font-weight: 700; text-decoration-thickness: 3px; }
+.ew-notif-list { list-style: none; margin: 0; padding: 0; }
+.ew-notif { border-bottom: 1px solid var(--ew-border); padding: .75rem .75rem .5rem; overflow-wrap: anywhere; }
+.ew-notif.is-unread { border-inline-start: 4px solid var(--ew-primary); }
+.ew-notif-title { font-size: 1rem; margin: 0 0 .25rem; }
+.ew-notif-body { margin: 0 0 .25rem; white-space: pre-line; }
+.ew-notif .ew-actions { margin-top: .25rem; }
 .ew-chips { list-style: none; display: flex; flex-wrap: wrap; gap: .25rem; padding: 0; }
 .ew-chips li { display: inline-flex; align-items: center; gap: .25rem; padding: .1rem .5rem; border: 1px solid var(--ew-border); border-radius: 999px; }
 /* focused controls scrolled into view stay below a sticky header (WCAG 2.4.11) */

@@ -189,11 +189,13 @@ func (e *env) draftCmd(args []string) error {
 
 // inboxCmd shows the notifications of a user.
 //
-//	ewiki inbox [list] [--limit N] --as USER
+//	ewiki inbox [list] [--limit N] [--before ID] [--unread] --as USER
 //	ewiki inbox read [ID...] --as USER      (no ID: all)
+//
+// --before ID pages: it lists the ones older than the notification ID.
 func (e *env) inboxCmd(args []string) error {
-	usage := errors.New("usage: ewiki inbox [list] [--limit N] | read [ID...] --as USER")
-	flags, pos, err := flagArgs(args)
+	usage := errors.New("usage: ewiki inbox [list] [--limit N] [--before ID] [--unread] | read [ID...] --as USER")
+	flags, pos, err := flagArgs(args, "unread")
 	if err != nil {
 		return err
 	}
@@ -201,7 +203,12 @@ func (e *env) inboxCmd(args []string) error {
 		return usage
 	}
 	if len(pos) == 0 || pos[0] == "list" {
-		return e.api(append([]string{"GET", "/api/v1/me/inbox" + query(flags, "limit")}, asArgs(flags)...))
+		if flags["unread"] == "true" {
+			flags["unread"] = "1"
+		} else {
+			delete(flags, "unread")
+		}
+		return e.api(append([]string{"GET", "/api/v1/me/inbox" + query(flags, "limit", "before", "unread")}, asArgs(flags)...))
 	}
 	if pos[0] != "read" {
 		return usage
