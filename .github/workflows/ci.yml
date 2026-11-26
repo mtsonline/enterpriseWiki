@@ -210,6 +210,12 @@ jobs:
           EWIKI_E2E_REQUIRE_AXE: "1"
       - name: every action of the interface is used by the browser test
         run: go run ./tools/uicoverage -requests /tmp/wiki/ui-requests.json
+      - name: no warnings of net/http in the server log
+        run: |
+          if grep -n 'superfluous response.WriteHeader' /tmp/wiki/server.log; then
+            echo "a handler wrote a second status line (return httpx.Handled after writing the answer)" >&2
+            exit 1
+          fi
       - name: server log
         if: always()
         run: cat /tmp/wiki/server.log || true
