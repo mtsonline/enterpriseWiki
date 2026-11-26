@@ -29,6 +29,22 @@ docker compose up -d          # lädt das neueste Image und startet neu (Migrati
 
 Mit selbst gebautem Image (eigene Plugins): `git pull && docker compose -f docker-compose.build.yml up -d --build`.
 
+### Datenbank einer älteren Entwicklungsfassung
+
+Bis zum ersten Release kommen neue Tabellen und Spalten direkt in die ersten Schema-Dateien; Migrationen für ältere Entwicklungsstände gibt es nicht. Einer Datenbank aus so einem älteren Stand fehlen sie. Das Wiki startet dann nicht und schreibt ins Protokoll etwa „the database was created by an older development version of the wiki and lacks: table …, column …“. So läuft es nicht auf einem unvollständigen Schema, auf dem einzelne Aktionen mit einem Fehler 500 scheitern würden (zum Beispiel die Demo anlegen oder die Website zurücksetzen).
+
+Das Wiki vergleicht das Schema nur, wenn sich die Schema-Dateien seit dem letzten Start geändert haben. Der Vergleich läuft in einem vorübergehenden Schema und hinterlässt nichts.
+
+Was zu tun ist: eine neue, leere Datenbank anlegen. Sichern Sie vorher, was Sie noch brauchen (*Backup und Wiederherstellung*). Mit Docker:
+
+```bash
+docker compose down
+mv data/postgres data/postgres.old      # aufheben, bis der neue Start klappt
+docker compose up -d                    # legt Datenbank und Administrator (EWIKI_ADMIN_PASSWORD in .env) neu an
+```
+
+Mit systemd: die Datenbank neu anlegen (`dropdb`/`createdb` wie bei der Installation) und `ewiki setup` ausführen.
+
 ### Hinweis auf neue Versionen in der Übersicht
 
 Die Startseite der Administration (*Administration → Übersicht*, `/admin`) zeigt, ob eine neue Version des Kerns erschienen ist, mit ihren Änderungen. Sicherheitsupdates sind hervorgehoben: Ihre Abschnitte `## Security` bzw. `## Sicherheit` aus den Release-Notes aller Versionen seit der installierten stehen zuerst (Regel für Release-Notes: [CONTRIBUTING.de.md](../../../CONTRIBUTING.de.md)).
@@ -78,9 +94,8 @@ npm-Pakete, Docker-Basis-Images, GitHub Actions):
    große Versionssprünge einzeln. Neue Versionen werden erst nach **3 Tagen** übernommen (zurückgezogene oder
    kompromittierte Pakete erreichen das Produkt so nicht), **Sicherheitsupdates sofort**. Versionen und Docker-Images
    sind exakt festgeschrieben (bei Images und GitHub Actions mit Prüfwert); jedes Update ändert sie per Pull Request.
-   Bei der wöchentlichen Auffrischung der Lock-Datei ruft Renovate npm mit einem Stichtag 3 Tage zurück auf,
-   nimmt also keine jüngere Version, auch nicht bei indirekten Paketen. Ein CI-Schritt
-   (`go run ./tools/releaseage`) prüft das noch einmal und lehnt jede Paketversion ab, die jünger als 3 Tage ist.
+   Bei der wöchentlichen Auffrischung der Lock-Datei kann Renovate das Alter nicht prüfen; das übernimmt ein
+   CI-Schritt (`go run ./tools/releaseage`), der jede Paketversion ablehnt, die jünger als 3 Tage ist.
 2. Die **CI** prüft jeden Pull Request vollständig: Build, Go-Tests mit PostgreSQL, Browser-Tests mit
    Barrierefreiheitsprüfung, Docker-Build und Lizenzprüfung der Abhängigkeiten. Nur wenn alles grün ist, führt
    GitHub den Pull Request **automatisch** zusammen (Auto-Merge, von Renovate eingeschaltet; die Repository-Einstellung
