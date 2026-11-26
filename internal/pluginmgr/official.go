@@ -44,6 +44,7 @@ var officialPlugins = []string{
 	"office.m365",
 	"office.onlyoffice",
 	"search.external",
+	"security.crowdsec",
 	"signature.passkey",
 	"signature.smime",
 	"theme.cms",

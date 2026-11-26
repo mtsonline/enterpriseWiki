@@ -113,7 +113,7 @@ func (c *lapi) do(ctx context.Context, method, path, token string, body []byte, 
 	if body != nil {
 		rd = bytes.NewReader(body)
 	}
-	req, err := http.NewRequestWithContext(ctx, method, c.base+path, rd)
+	req, err := http.NewRequestWithContext(ctx, method, c.base+path, rd) // #nosec G704 -- address of the Local API from the administrator's settings, fixed paths
 	if err != nil {
 		return err
 	}
@@ -126,7 +126,7 @@ func (c *lapi) do(ctx context.Context, method, path, token string, body []byte, 
 	if token != "" {
 		req.Header.Set("Authorization", "Bearer "+token)
 	}
-	res, err := c.http.Do(req)
+	res, err := c.http.Do(req) // #nosec G704 -- address of the Local API from the administrator's settings; no redirects
 	if err != nil {
 		return fmt.Errorf("CrowdSec is not reachable: %w", err)
 	}

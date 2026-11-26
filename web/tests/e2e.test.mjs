@@ -7500,8 +7500,8 @@ test('CrowdSec: state, lift a block, allow an address (real Local API)', async (
   await page.goto(`${BASE}/`);
   await call('PUT', '/api/v1/admin/settings', { plugin_settings: { 'security.crowdsec': { url, password: process.env.EWIKI_TEST_CROWDSEC_PASSWORD } } });
   csc('decisions', 'add', '-i', '203.0.113.70', '-d', '1h', '-R', 'e2e test');
-  // changes need a fresh sign-in: an own session
-  const ctx2 = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+  // changes need a fresh sign-in: an own session (axe needs bypassCSP)
+  const ctx2 = await browser.newContext({ viewport: { width: 1280, height: 900 }, bypassCSP: true });
   const p2 = await ctx2.newPage();
   p2.on('pageerror', (e) => errors.push(`crowdsec page: ${e.message}`));
   try {
