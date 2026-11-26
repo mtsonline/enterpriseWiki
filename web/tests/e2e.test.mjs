@@ -4285,8 +4285,10 @@ test('web application firewall: shipped off, switched on it blocks at once, log 
   const attack = () => page.evaluate(async () => (await __e2eFetch('/api/v1/elements?x=%3Cscript%3Ealert(document.cookie)%3C%2Fscript%3E')).status);
   const save = async (mode) => {
     await page.getByLabel(/^(mode|betrieb)/i).selectOption(mode);
+    // wait for this save itself: the toast of the one before may still show
+    const saved = page.waitForResponse((r) => r.request().method() === 'PUT' && r.url().includes('/api/v1/admin/settings'));
     await page.getByRole('button', { name: /^(save|speichern)$/i }).click();
-    await page.locator('.ew-toasts', { hasText: /saved|gespeichert/i }).last().waitFor();
+    assert.equal((await saved).status(), 200);
     assert.equal((await call('GET', '/api/v1/x/core.waf/status')).mode, mode);
   };
   try {
