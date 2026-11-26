@@ -106,7 +106,7 @@ func (p *Plugin) Setup(hs *coreplugin.Host) error {
 		}
 		if q.Get("category") == "" {
 			term := strings.ToLower(strings.TrimSpace(q.Get("q")))
-			for _, e := range append(p.externalEvents(ctx, ical, from, to), p.pageEvents(ctx, pages, cal.Config.PageTasks, from, to)...) {
+			for _, e := range append(p.externalEvents(ctx, ical, from, to), p.pageEvents(ctx, pages, cal.Config.PageTasks, from, to, q.Get("lang"))...) {
 				if term == "" || strings.Contains(strings.ToLower(e.Title+" "+e.Description+" "+e.Location), term) {
 					events = append(events, e)
 				}
@@ -441,7 +441,7 @@ func (p *Plugin) Setup(hs *coreplugin.Host) error {
 		if c := h.QueryInt(r, "calendar", 0); c > 0 {
 			cals = []int64{int64(c)}
 		}
-		list, err := p.upcoming(r.Context(), cals, nil, nil, time.Now(), h.QueryInt(r, "days", 60), h.QueryInt(r, "limit", 10))
+		list, err := p.upcoming(r.Context(), cals, nil, nil, time.Now(), h.QueryInt(r, "days", 60), h.QueryInt(r, "limit", 10), "")
 		if err != nil {
 			return nil, err
 		}

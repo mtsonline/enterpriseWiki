@@ -340,10 +340,10 @@ func demoPeople(d *demoRun, r *demoRefs) {
 		group                 int64
 		lead                  bool
 	}{
-		{"anna", "Anna Berger", "Geschäftsführerin", "Geschäftsführung", r.editors, true},
-		{"ben", "Ben Huber", "Systemadministrator", "IT-Betrieb", r.staff, false},
-		{"clara", "Clara Novak", "Personalreferentin", "Personal", r.editors, false},
-		{"david", "David Steiner", "Leiter Service Desk", "Service Desk", r.staff, true},
+		{"anna", "Anna Gärtner", "Geschäftsführerin", "Geschäftsführung", r.editors, true},
+		{"ben", "Ben Klempner", "Systemadministrator", "IT-Betrieb", r.staff, false},
+		{"clara", "Clara Händler", "Personalreferentin", "Personal", r.editors, false},
+		{"david", "David Meister", "Leiter Service Desk", "Service Desk", r.staff, true},
 	}
 	for i, pp := range people {
 		if d.err != nil {
@@ -367,7 +367,7 @@ func demoPeople(d *demoRun, r *demoRefs) {
 			return
 		}
 		d.call(http.MethodPut, fmt.Sprintf("/api/v1/admin/users/%d/profile", uid), map[string]string{
-			"job_title": pp.job, "department": pp.dept, "phone": "+43 1 234 56 7" + strconv.Itoa(i), "office": "Raum " + strconv.Itoa(101+i),
+			"job_title": pp.job, "department": pp.dept, "phone": "+43 00 234 56 7" + strconv.Itoa(i), "office": "Raum " + strconv.Itoa(101+i),
 			"about": "Demo-Konto der " + companyDE + " (keine Anmeldung möglich).",
 		}, nil)
 		r.handles[pp.user] = uname

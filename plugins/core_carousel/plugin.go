@@ -17,6 +17,7 @@ import (
 	"net/http"
 	"net/url"
 	"regexp"
+	"slices"
 	"strings"
 	"time"
 	"unicode/utf8"
@@ -87,6 +88,16 @@ type Slide struct {
 	EndsAt    *time.Time `json:"ends_at,omitempty"`
 	Date      *time.Time `json:"date,omitempty"`   // news: published, feed: item date
 	Source    string     `json:"source,omitempty"` // feed: host of the feed
+	// Translations of an own slide: title, text and alternative text per
+	// language (the fields above are the default language of the wiki).
+	Translations map[string]SlideText `json:"translations,omitempty"`
+}
+
+// SlideText is an own slide in another language.
+type SlideText struct {
+	Title    string `json:"title"`
+	Text     string `json:"text,omitempty"`
+	ImageAlt string `json:"image_alt,omitempty"`
 }
 
 const carCols = `id, name, position, audience, autoplay, max_slides, feeds, feed_items, enabled, position_order, sources`
@@ -167,6 +178,43 @@ func (s *Slide) validate() error {
 		return apperr.BadRequest("the end is before the start")
 	}
 	return nil
+}
+
+// validateTranslations keeps the translations into the other languages of
+// the wiki: an empty title drops a language, the limits are those of the
+// slide.
+func (s *Slide) validateTranslations(languages []string, defaultLang string) error {
+	out := map[string]SlideText{}
+	for lang, tr := range s.Translations {
+		if lang == defaultLang || !slices.Contains(languages, lang) {
+			return apperr.BadRequest("translation into %q: not another language of this wiki", lang)
+		}
+		tr.Title, tr.Text, tr.ImageAlt = strings.TrimSpace(tr.Title), strings.TrimSpace(tr.Text), strings.TrimSpace(tr.ImageAlt)
+		if tr.Title == "" {
+			continue
+		}
+		if utf8.RuneCountInString(tr.Title) > 200 || utf8.RuneCountInString(tr.Text) > 600 || utf8.RuneCountInString(tr.ImageAlt) > 200 {
+			return apperr.BadRequest("translation into %q: title at most 200, text at most 600 characters", lang)
+		}
+		if s.Image != "" && tr.ImageAlt == "" {
+			return apperr.BadRequest("translation into %q: an image needs an alternative text", lang)
+		}
+		out[lang] = tr
+	}
+	s.Translations = out
+	return nil
+}
+
+// in returns the slide in lang (its translation, if there is one).
+func (s Slide) in(lang string) Slide {
+	if tr, ok := s.Translations[lang]; ok && tr.Title != "" {
+		s.Title, s.Text = tr.Title, tr.Text
+		if tr.ImageAlt != "" {
+			s.ImageAlt = tr.ImageAlt
+		}
+	}
+	s.Translations = nil
+	return s
 }
 
 func safeLink(s string) bool {
@@ -350,15 +398,19 @@ func (p *Plugin) Setup(host *coreplugin.Host) error {
 		if err := s.validate(); err != nil {
 			return nil, err
 		}
+		cfg := host.Config.Get().I18n
+		if err := s.validateTranslations(cfg.Languages, cfg.DefaultLanguage); err != nil {
+			return nil, err
+		}
 		var err error
 		if id == 0 {
-			err = host.DB.QueryRow(ctx, `INSERT INTO plugin_carousel_slides(carousel_id, kind, title, text, link, image, image_alt, starts_at, ends_at, position, created_by)
-				VALUES ($1,'manual',$2,$3,$4,$5,$6,$7,$8,(SELECT COALESCE(max(position)+1, 0) FROM plugin_carousel_slides WHERE carousel_id=$1),$9) RETURNING id`,
-				carousel, s.Title, s.Text, s.Link, s.Image, s.ImageAlt, s.StartsAt, s.EndsAt, identity.From(ctx).ID()).Scan(&s.ID)
+			err = host.DB.QueryRow(ctx, `INSERT INTO plugin_carousel_slides(carousel_id, kind, title, text, link, image, image_alt, starts_at, ends_at, position, created_by, translations)
+				VALUES ($1,'manual',$2,$3,$4,$5,$6,$7,$8,(SELECT COALESCE(max(position)+1, 0) FROM plugin_carousel_slides WHERE carousel_id=$1),$9,$10) RETURNING id`,
+				carousel, s.Title, s.Text, s.Link, s.Image, s.ImageAlt, s.StartsAt, s.EndsAt, identity.From(ctx).ID(), s.Translations).Scan(&s.ID)
 		} else {
 			s.ID = id
-			_, err = host.DB.Exec(ctx, `UPDATE plugin_carousel_slides SET title=$3, text=$4, link=$5, image=$6, image_alt=$7, starts_at=$8, ends_at=$9 WHERE id=$1 AND carousel_id=$2`,
-				id, carousel, s.Title, s.Text, s.Link, s.Image, s.ImageAlt, s.StartsAt, s.EndsAt)
+			_, err = host.DB.Exec(ctx, `UPDATE plugin_carousel_slides SET title=$3, text=$4, link=$5, image=$6, image_alt=$7, starts_at=$8, ends_at=$9, translations=$10 WHERE id=$1 AND carousel_id=$2`,
+				id, carousel, s.Title, s.Text, s.Link, s.Image, s.ImageAlt, s.StartsAt, s.EndsAt, s.Translations)
 		}
 		if err != nil {
 			return nil, err
@@ -465,7 +517,7 @@ func (p *Plugin) Setup(host *coreplugin.Host) error {
 
 // slides loads the own and news slides of a carousel (current ones only if active).
 func (p *Plugin) slides(ctx context.Context, carousel int64, active bool) ([]Slide, error) {
-	rows, err := p.host.DB.Query(ctx, `SELECT id, kind, element_id, title, text, link, image, image_alt, starts_at, ends_at, created_at
+	rows, err := p.host.DB.Query(ctx, `SELECT id, kind, element_id, title, text, link, image, image_alt, starts_at, ends_at, created_at, translations
 		FROM plugin_carousel_slides WHERE carousel_id=$1 AND (NOT $2 OR ((starts_at IS NULL OR starts_at <= now()) AND (ends_at IS NULL OR ends_at > now())))
 		ORDER BY position, id`, carousel, active)
 	if err != nil {
@@ -474,7 +526,7 @@ func (p *Plugin) slides(ctx context.Context, carousel int64, active bool) ([]Sli
 	return pgx.CollectRows(rows, func(r pgx.CollectableRow) (Slide, error) {
 		var s Slide
 		var created time.Time
-		err := r.Scan(&s.ID, &s.Kind, &s.ElementID, &s.Title, &s.Text, &s.Link, &s.Image, &s.ImageAlt, &s.StartsAt, &s.EndsAt, &created)
+		err := r.Scan(&s.ID, &s.Kind, &s.ElementID, &s.Title, &s.Text, &s.Link, &s.Image, &s.ImageAlt, &s.StartsAt, &s.EndsAt, &created, &s.Translations)
 		if s.Kind == "news" {
 			s.Date = &created
 		}
@@ -522,7 +574,7 @@ func (p *Plugin) shown(ctx context.Context, lang string) ([]map[string]any, erro
 					s.Link = v.URL
 				}
 			}
-			visible = append(visible, s)
+			visible = append(visible, s.in(lang))
 		}
 		items, err := p.feedSlides(ctx, c)
 		if err != nil {

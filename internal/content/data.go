@@ -864,7 +864,13 @@ type DataQuery struct {
 	// Elements: only entries of these elements (at most 1000)
 	Elements []int64
 	Lang     string
-	States   []string
+	// Prefer: of every element only the entries of one language version:
+	// this language if the element has entries in it, else its original
+	// language, else the first language that has entries. Reports use the
+	// reader's language, so a page written in two languages does not show
+	// its tasks or dates twice (and not in the other language).
+	Prefer string
+	States []string
 	// From and To limit the column day (inclusive)
 	From, To string
 	// NoDay: only entries without a day
@@ -959,7 +965,10 @@ func (s *Service) QueryData(ctx context.Context, q DataQuery) (*DataResult, erro
 	if lang == "" {
 		lang = s.DefaultLanguage()
 	}
-	args := []any{k.Kind, q.Category, q.Direct, q.Element, q.Lang, q.States, q.From, q.To, q.Person, q.Ref, q.Q, q.Hidden, q.NoDay, q.Elements}
+	if len(q.Prefer) > 35 {
+		return nil, apperr.BadRequest("language: at most 35 characters")
+	}
+	args := []any{k.Kind, q.Category, q.Direct, q.Element, q.Lang, q.States, q.From, q.To, q.Person, q.Ref, q.Q, q.Hidden, q.NoDay, q.Elements, q.Prefer}
 	where := `d.kind = $1::text AND e.deleted_at IS NULL
 		AND ($2::bigint = 0 OR ($3::bool AND e.category_id = $2::bigint) OR (NOT $3::bool AND e.category_id IN (SELECT c.id FROM categories c WHERE c.path <@ (SELECT path FROM categories WHERE id = $2::bigint))))
 		AND ($4::bigint = 0 OR e.id = $4::bigint) AND ($5::text = '' OR d.lang = $5::text)
@@ -969,6 +978,10 @@ func (s *Service) QueryData(ctx context.Context, q DataQuery) (*DataResult, erro
 		AND ($11::text = '' OR d.label ILIKE '%' || $11::text || '%' OR d.data::text ILIKE '%' || $11::text || '%')
 		AND ($12::bool OR NOT e.hidden) AND (NOT $13::bool OR d.day IS NULL)
 		AND (COALESCE(cardinality($14::bigint[]), 0) = 0 OR e.id = ANY($14::bigint[]))
+		AND ($15::text = '' OR d.lang = COALESCE(
+			(SELECT x.lang FROM element_data x WHERE x.element_id = d.element_id AND x.kind = d.kind AND x.lang IN ($15::text, e.original_lang)
+				ORDER BY x.lang = $15::text DESC LIMIT 1),
+			(SELECT min(x.lang) FROM element_data x WHERE x.element_id = d.element_id AND x.kind = d.kind)))
 		AND ` + f.SQL("e", &args)
 	var total int
 	// acl: filtered (ElementFilter)

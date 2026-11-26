@@ -141,7 +141,7 @@ Business Source License 1.1 mit kostenloser privater Nutzung durch natürliche P
 - **„Seite nicht gefunden“** zeigt gelöschte Seiten (mit Papierkorb-Link) und „Meinten Sie?“-Vorschläge.
 - **Favoriten** (`core.favorites`): Stern, Liste an einer Position der Vorlage und im Profil.
 - **Seiteneigenschaften** (`core.properties`) mit Makro „Seiteneigenschaften-Bericht“.
-- **Karussell** (`core.carousel`): Neuigkeiten über „Als Neuigkeit“ beim Veröffentlichen, eigene Folien, externe RSS/Atom-Feeds; barrierefrei (Pause, Tastatur, reduzierte Bewegung).
+- **Karussell** (`core.carousel`): Neuigkeiten über „Als Neuigkeit“ beim Veröffentlichen, eigene Folien, externe RSS/Atom-Feeds; barrierefrei (Pause, Tastatur, reduzierte Bewegung); eigene Folien in jeder Sprache des Wikis.
 - **Mega-Menü** (`core.megamenu`, optional) als Darstellung für Menüs; Menüeinträge haben Beschreibungen.
 - SDK: Kategorie- und Profil-Erweiterungen, Bereiche über dem Seiteninhalt, Reaktionsleisten, Menü-Darstellungen; Benachrichtigungsarten mit E-Mail standardmäßig aus.
 

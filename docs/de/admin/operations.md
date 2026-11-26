@@ -310,7 +310,7 @@ Unter *Administration → Demo* (nur Administratoren) legt **Demo anlegen** eine
 Was ein deaktiviertes Plugin braucht, wird ausgelassen (auch die Station dazu); die Meldung nach dem Anlegen nennt
 die ausgelassenen Teile (in der API das Feld `skipped` der Antwort auf `POST /api/v1/admin/demo`). Ein Test prüft
 die Mindestregeln der Demo: jede Seite auf Deutsch und Englisch, ohne Fehler in Bausteinen, ohne tote Links, nur
-Beispiel-Adressen (`example.com`), jede Station mit demselben Aufbau und ohne Lücke in der Reihenfolge; die
+Adressen der Demo-Firma (`enterpriseit.local`, im Internet nie gültig), kein englischer Text in der deutschen Fassung, jede Station mit demselben Aufbau und ohne Lücke in der Reihenfolge; die
 Browser-Tests prüfen jede Seite mit axe, hell und dunkel.
 
 - **Startseite:** Die Demo setzt ihre Seite *Enterprise Wiki auf einen Blick* als Startseite der Website (Kurz-URL

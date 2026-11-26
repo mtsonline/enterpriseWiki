@@ -141,8 +141,8 @@ func companyProjects(d *demoRun, r *demoRefs) {
 			areas                                       []string
 		}{
 			{"Cloud move for a law firm", "Cloud-Umzug für eine Kanzlei", "A law firm moves its servers into the cloud.", "Eine Kanzlei zieht ihre Server in die Cloud.", "Active", "High", "ben", -60, 90, 12, 120000, 45, 4, "Wien", 48.2082, 16.3738, []string{"Cloud"}},
-			{"Office move", "Büroumzug", "We move into the new office floor.", "Wir ziehen in die neue Büroetage.", "At risk", "High", "anna", -30, 45, -3, 80000, 70, 2, "Graz", 47.0707, 15.4395, []string{"Finance"}},
-			{"New intranet", "Neues Intranet", "This wiki replaces the old file server.", "Dieses Wiki ersetzt den alten Dateiserver.", "Active", "Medium", "ben", -20, 60, 5, 15000, 30, 3, "Graz", 47.0707, 15.4395, []string{"Support"}},
+			{"Office move", "Büroumzug", "We move into the new office floor.", "Wir ziehen in die neue Büroetage.", "At risk", "High", "anna", -30, 45, -3, 80000, 70, 2, "Klagenfurt", 46.6247, 14.3053, []string{"Finance"}},
+			{"New intranet", "Neues Intranet", "This wiki replaces the old file server.", "Dieses Wiki ersetzt den alten Dateiserver.", "Active", "Medium", "ben", -20, 60, 5, 15000, 30, 3, "Klagenfurt", 46.6247, 14.3053, []string{"Support"}},
 			{"Onboarding programme", "Einarbeitungsprogramm", "Mentors and a plan for the first weeks.", "Mentoren und ein Plan für die ersten Wochen.", "Planned", "Medium", "clara", 20, 120, 25, 8000, 0, 0, "Linz", 48.3069, 14.2858, []string{"HR"}},
 			{"Annual accounts", "Jahresabschluss", "The accounts of last year.", "Der Abschluss des letzten Jahres.", "Done", "Medium", "anna", -120, -10, -10, 25000, 100, 5, "Wien", 48.2082, 16.3738, []string{"Finance"}},
 			{"Service desk for a school", "Service Desk für eine Schule", "Support for 40 teachers and 600 pupils.", "Betreuung für 40 Lehrkräfte und 600 Schülerinnen und Schüler.", "Planned", "Low", "david", 40, 200, 60, 60000, 0, 0, "Salzburg", 47.8095, 13.0550, []string{"Support", "Cloud"}},
@@ -211,7 +211,7 @@ func companyIntranet(d *demoRun, r *demoRefs) {
 		}
 		return `<p>` + tr("Good to have you here! The intranet of "+companyEN+" – news, dates and everything for your working day in one place.",
 			"Schön, dass Sie da sind! Das Intranet der "+companyDE+" – Neuigkeiten, Termine und alles für Ihren Arbeitstag an einem Ort.") + `</p>` +
-			macro("hero", map[string]string{"title": tr("Welcome to Enterprise IT Services", "Willkommen bei Enterprise IT Services"), "subtitle": tr("IT services from Graz since 2008 – 48 people, one team.", "IT-Dienstleistungen aus Graz seit 2008 – 48 Menschen, ein Team."),
+			macro("hero", map[string]string{"title": tr("Welcome to Enterprise IT Services", "Willkommen bei Enterprise IT Services"), "subtitle": tr("IT services from Klagenfurt since 2001 – 48 people, one team.", "IT-Dienstleistungen aus Klagenfurt seit 2001 – 48 Menschen, ein Team."),
 				"button": tr("Request holiday", "Urlaub beantragen"), "link": request, "background": "light"}, "") +
 			`<h2>` + tr("Quick access", "Schnell erreichbar") + `</h2>` +
 			macro("grid", map[string]string{"desktop": "3", "tablet": "2", "mobile": "1"},
@@ -229,7 +229,7 @@ func companyIntranet(d *demoRun, r *demoRefs) {
 			macro("events", map[string]string{"limit": "3", "days": "60"}, "") +
 			macro("countdown", map[string]string{"date": party, "time": "17:00", "label": tr("Until the year-end party", "Bis zur Jahresfeier"), "reached": tr("The party has started!", "Die Feier hat begonnen!")}, "") +
 			`<h2>` + tr("New in the team", "Neu im Team") + `</h2>` +
-			macro("personcard", map[string]string{"name": "Clara Novak", "role": tr("HR officer", "Personalreferentin"), "email": "clara.novak@example.com", "phone": "+43 1 234 56 72"},
+			macro("personcard", map[string]string{"name": "Clara Händler", "role": tr("HR officer", "Personalreferentin"), "email": "clara.haendler@enterpriseit.local", "phone": "+43 00 234 56 72"},
 				`<p>`+tr("Clara looks after holidays, onboarding and everything about your contract.", "Clara kümmert sich um Urlaub, Einarbeitung und alles rund um Ihren Vertrag.")+`</p>`) +
 			macro("counter", map[string]string{"value": "214", "label": tr("tickets solved this month", "gelöste Tickets in diesem Monat")}, "")
 	}, map[string]any{"position": 0})
@@ -399,8 +399,8 @@ func companyTeams(d *demoRun, r *demoRefs) {
 		d.pageF(r.teams, "Who does what", "Wer macht was", func(tr trf) string {
 			return `<p>` + tr("The contacts for the most frequent questions.", "Die Ansprechpersonen für die häufigsten Fragen.") + `</p>` +
 				macro("grid", map[string]string{"desktop": "2", "tablet": "2", "mobile": "1"},
-					macro("personcard", map[string]string{"name": "Ben Huber", "role": tr("IT administrator", "IT-Administrator"), "email": "it@example.com", "phone": "+43 1 234 56 71"}, `<p>`+tr("Laptops, passwords, passkeys, VPN.", "Laptops, Passwörter, Passkeys, VPN.")+`</p>`)+`<hr>`+
-						macro("personcard", map[string]string{"name": "Clara Novak", "role": tr("HR officer", "Personalreferentin"), "email": "personal@example.com", "phone": "+43 1 234 56 72"}, `<p>`+tr("Holidays, onboarding, contracts.", "Urlaub, Einarbeitung, Verträge.")+`</p>`)) +
+					macro("personcard", map[string]string{"name": "Ben Klempner", "role": tr("IT administrator", "IT-Administrator"), "email": "it@enterpriseit.local", "phone": "+43 00 234 56 71"}, `<p>`+tr("Laptops, passwords, passkeys, VPN.", "Laptops, Passwörter, Passkeys, VPN.")+`</p>`)+`<hr>`+
+						macro("personcard", map[string]string{"name": "Clara Händler", "role": tr("HR officer", "Personalreferentin"), "email": "personal@enterpriseit.local", "phone": "+43 00 234 56 72"}, `<p>`+tr("Holidays, onboarding, contracts.", "Urlaub, Einarbeitung, Verträge.")+`</p>`)) +
 				`<h2>` + tr("The administration", "Die Verwaltung") + `</h2>` +
 				macro("people", map[string]string{"group": itoa(r.editors), "layout": "list", "details": "short"}, "") +
 				r.hint(tr, "The block People of a group shows the members to everybody who may list the group – guests see nobody.",
@@ -442,7 +442,7 @@ func companyHandbook(d *demoRun, r *demoRefs) {
 					tr("Ask the customer whether everything works.", "Nachfragen, ob alles funktioniert.")+`</p>`)
 	}, map[string]any{"position": 3})
 	contact := d.pageF(r.handbook, "Contact", "Kontakt", func(tr trf) string {
-		return `<p>` + tr("Questions about the handbook? Write to ", "Fragen zum Handbuch? Schreiben Sie an ") + `<a href="mailto:handbuch@example.com">handbuch@example.com</a>.</p>`
+		return `<p>` + tr("Questions about the handbook? Write to ", "Fragen zum Handbuch? Schreiben Sie an ") + `<a href="mailto:handbuch@enterpriseit.local">handbuch@enterpriseit.local</a>.</p>`
 	}, map[string]any{"position": 5})
 	d.call(http.MethodPut, fmt.Sprintf("/api/v1/categories/%d", r.handbook), map[string]any{"default_element_id": first}, nil)
 	d.display(r.handbook, map[string]any{"view": "handbook"})
@@ -799,7 +799,7 @@ func companyDisplays(d *demoRun, r *demoRefs) {
 	d.display(r.onboarding, map[string]any{"view": "cards", "excerpt": true})
 	for i, x := range [][4]string{
 		{"Opening hours", "Öffnungszeiten", "<p>Monday to Friday, 7:30 to 17:00.</p>", "<p>Montag bis Freitag, 7:30 bis 17:00 Uhr.</p>"},
-		{"Address", "Adresse", "<p>Enterprise IT Services, Example Street 1, 8010 Graz</p>", "<p>Enterprise IT Services, Beispielstraße 1, 8010 Graz</p>"},
+		{"Address", "Adresse", "<p>Enterprise IT Services, Example Street 1, 9073 Klagenfurt am Wörthersee</p>", "<p>Enterprise IT Services, Beispielstraße 1, 9073 Klagenfurt am Wörthersee</p>"},
 		{"Parking", "Parken", "<p>Parking in the yard, entrance from the side street. Bicycle stands are at the door.</p>", "<p>Parkplätze im Hof, Einfahrt über die Seitengasse. Fahrradständer stehen an der Tür.</p>"},
 	} {
 		d.page(r.travel, x[0], x[1], x[2], x[3], map[string]any{"position": i})

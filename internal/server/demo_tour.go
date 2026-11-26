@@ -303,7 +303,7 @@ func main() {
 					tr("Parts are separated by a horizontal line.", "Teile werden durch eine Trennlinie getrennt."),
 				},
 				result: macro("timeline", map[string]string{"label": tr("History", "Geschichte"), "direction": "horizontal"},
-					`<h3>2008</h3><p>`+tr("The first office opens.", "Das erste Büro öffnet.")+`</p><hr><h3>2015</h3><p>`+tr("The own data centre.", "Das eigene Rechenzentrum.")+`</p><hr><h3>2026</h3><p>`+tr("The wiki replaces the file server.", "Das Wiki ersetzt den Dateiserver.")+`</p>`) +
+					`<h3>2001</h3><p>`+tr("The first office opens.", "Das erste Büro öffnet.")+`</p><hr><h3>2015</h3><p>`+tr("The own data centre.", "Das eigene Rechenzentrum.")+`</p><hr><h3>2026</h3><p>`+tr("The wiki replaces the file server.", "Das Wiki ersetzt den Dateiserver.")+`</p>`) +
 					macro("slider", map[string]string{"label": tr("First steps", "Erste Schritte")},
 						`<p>`+tr("1. Sign in.", "1. Anmelden.")+`</p><hr><p>`+tr("2. Open your area.", "2. Den eigenen Bereich öffnen.")+`</p><hr><p>`+tr("3. Write your first page.", "3. Die erste Seite schreiben.")+`</p>`) +
 					macro("dialog", map[string]string{"button": tr("Opening hours", "Öffnungszeiten"), "title": tr("When the reception is open", "Wann der Empfang besetzt ist")},
@@ -329,8 +329,8 @@ func main() {
 					tr("<em>People of a group</em> lists the members of a group from their profiles.", "<em>Personen einer Gruppe</em> listet die Mitglieder einer Gruppe aus ihren Profilen."),
 					tr("Type @ and the first letters of a name to mention somebody.", "Tippen Sie @ und die ersten Buchstaben eines Namens, um jemanden zu erwähnen."),
 				},
-				result: macro("personcard", map[string]string{"name": "Ben Huber", "role": tr("IT administrator", "IT-Administrator"), "email": "it@example.com"}, `<p>`+tr("Answers questions about the wiki.", "Beantwortet Fragen zum Wiki.")+`</p>`) +
-					macro("testimonial", map[string]string{"name": "Anna Berger", "role": tr("Managing director", "Geschäftsführerin")},
+				result: macro("personcard", map[string]string{"name": "Ben Klempner", "role": tr("IT administrator", "IT-Administrator"), "email": "it@enterpriseit.local"}, `<p>`+tr("Answers questions about the wiki.", "Beantwortet Fragen zum Wiki.")+`</p>`) +
+					macro("testimonial", map[string]string{"name": "Anna Gärtner", "role": tr("Managing director", "Geschäftsführerin")},
 						`<p>`+tr("Since our answers are in the wiki, new colleagues find their way in a few days.", "Seit unsere Antworten im Wiki stehen, finden sich neue Kolleginnen und Kollegen in wenigen Tagen zurecht.")+`</p>`) +
 					macro("people", map[string]string{"group": itoa(r.editors), "layout": "list", "details": "short"}, "") +
 					`<p>` + tr("A mention: ", "Eine Erwähnung: ") + `@` + r.handles["anna"] + `</p>` +
@@ -517,7 +517,7 @@ func main() {
 		}, after: func(id int64) {
 			d.optional("properties", func() {
 				d.call(http.MethodPut, fmt.Sprintf("/api/v1/x/core.properties/elements/%d", id), map[string]any{
-					"values": map[string]any{"responsible": "Anna Berger", "state": "Aktiv", "review": time.Now().AddDate(0, 6, 0).Format("2006-01-02")},
+					"values": map[string]any{"responsible": "Anna Gärtner", "state": "Aktiv", "review": time.Now().AddDate(0, 6, 0).Format("2006-01-02")},
 					"free": map[string]any{
 						"responsible": map[string]string{"type": "text", "label": d.tr("Responsible", "Verantwortlich")[d.lang()]},
 						"state":       map[string]string{"type": "status", "label": "Status"},

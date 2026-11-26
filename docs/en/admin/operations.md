@@ -308,7 +308,7 @@ Under *Administration → Demo* (administrators only) **Create demo** creates a 
 
 What a disabled plugin needs is left out (also its station); the message after creating names the parts left out
 (in the API the field `skipped` of the answer to `POST /api/v1/admin/demo`). A test checks the minimum rules of the
-demo: every page in German and English, no block errors, no dead links, only example addresses (`example.com`),
+demo: every page in German and English, no block errors, no dead links, only addresses of the demo company (`enterpriseit.local`, never valid on the internet), no English text in the German version,
 every station with the same structure and no gap in the order; the browser tests check every page with axe, light
 and dark.
 

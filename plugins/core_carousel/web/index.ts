@@ -8,7 +8,7 @@ import './style.css';
 
 const BASE = 'x/core.carousel';
 
-interface Slide { id?: number; kind: 'manual' | 'news' | 'feed'; element_id?: number; title: string; text: string; link: string; image: string; image_alt: string; starts_at?: string | null; ends_at?: string | null; date?: string | null; source?: string }
+interface Slide { id?: number; kind: 'manual' | 'news' | 'feed'; element_id?: number; title: string; text: string; link: string; image: string; image_alt: string; starts_at?: string | null; ends_at?: string | null; date?: string | null; source?: string; translations?: Record<string, { title: string; text?: string; image_alt?: string }> }
 interface Shown { id: number; name: string; autoplay: number; position: string; order: number; slides: Slide[] }
 interface Carousel { id: number; name: string; position: string; audience: 'all' | 'guests' | 'users'; autoplay: number; max_slides: number; feeds: string[]; sources: string; feed_items: number; enabled: boolean; order: number }
 
@@ -138,14 +138,29 @@ function slideDialog(car: Carousel, s: Slide | null, done: () => void): void {
   const alt = textInput({ value: s?.image_alt ?? '', maxlength: 200 });
   const from = textInput({ type: 'date', value: isoDate(s?.starts_at) });
   const until = textInput({ type: 'date', value: isoDate(s?.ends_at) });
+  // the slide in the other languages of the wiki (the fields above are the
+  // default language); an empty title leaves the language out
+  const other = state.site.languages.filter((l) => l !== state.site.default_language);
+  const langs = other.map((l) => {
+    const tr = s?.translations?.[l];
+    const name = t(`lang.${l}`) === `lang.${l}` ? l.toUpperCase() : t(`lang.${l}`);
+    const tt = textInput({ value: tr?.title ?? '', maxlength: 200, lang: l });
+    const tx = textArea({ value: tr?.text ?? '', rows: 2 });
+    tx.lang = l;
+    const ta = textInput({ value: tr?.image_alt ?? '', maxlength: 200, lang: l });
+    const el = h('fieldset', { class: 'ewcar-lang' }, h('legend', null, t('core.carousel.in_language', { lang: name })),
+      field(t('core.carousel.slide_title'), tt), field(t('core.carousel.text'), tx), field(t('core.carousel.image_alt'), ta));
+    return { l, el, get: () => ({ title: tt.value, text: tx.value, image_alt: ta.value }) };
+  });
   const fields = news
     ? [h('p', null, t('core.carousel.news_help', { title: s?.title ?? '' })), field(t('core.carousel.from'), from), field(t('core.carousel.until'), until)]
     : [field(t('core.carousel.slide_title'), title, { required: true }), field(t('core.carousel.text'), text), field(t('core.carousel.link'), link),
       h('div', { class: 'ew-field' }, h('span', { class: 'ew-label' }, t('core.carousel.image')), preview), field(t('core.carousel.upload'), file),
       field(t('core.carousel.image_alt'), alt, { help: t('core.carousel.image_alt_help') }),
-      field(t('core.carousel.from'), from), field(t('core.carousel.until'), until)];
+      field(t('core.carousel.from'), from), field(t('core.carousel.until'), until), ...langs.map((x) => x.el)];
   formDialog(s ? t('core.carousel.edit_slide') : t('core.carousel.add_slide'), fields, t('common.save'), async () => {
-    const body = { title: title.value, text: text.value, link: link.value, image, image_alt: alt.value, starts_at: toISO(from.value), ends_at: toISO(until.value, true) };
+    const translations = Object.fromEntries(langs.map((x) => [x.l, x.get()]).filter(([, v]) => (v as { title: string }).title.trim()));
+    const body = { title: title.value, text: text.value, link: link.value, image, image_alt: alt.value, starts_at: toISO(from.value), ends_at: toISO(until.value, true), translations };
     if (s?.id) await api.put(`${BASE}/carousels/${car.id}/slides/${s.id}`, body); else await api.post(`${BASE}/carousels/${car.id}/slides`, body);
     cache.clear();
     toast(t('common.saved'));

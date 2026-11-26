@@ -17,12 +17,13 @@ import (
 //   - every page exists in German and English, with its own text in each,
 //     and shows without a block error;
 //   - every link inside the wiki leads to a page or category that exists;
-//   - e-mail addresses are examples (@example.com);
+//   - e-mail addresses belong to the demo company (@enterpriseit.local);
 //   - the tour is a handbook: every station follows the same structure
 //     (intro, how it is done, what it looks like, what it is good for), the
 //     stations are in a row without gaps (previous and next) and the first
 //     one lists them all;
-//   - the start page leads into both areas.
+//   - the start page leads into both areas;
+//   - the German version of a page has no English text.
 //
 // The accessibility of every page (axe, light and dark) is checked by the
 // browser tests (demo crawl in web/tests/e2e.test.mjs).
@@ -84,6 +85,31 @@ type demoView struct {
 func checkDemoRules(t *testing.T, e *env, admin *client) {
 	t.Helper()
 	ctx := context.Background()
+	// the own slides of the carousels (shown on every page) have a German
+	// version: title and text differ from the English ones
+	type shownSlides []struct {
+		Slides []struct {
+			Kind, Title, Text string
+		} `json:"slides"`
+	}
+	var de, en shownSlides
+	admin.must("GET", "/api/v1/x/core.carousel/shown?lang=de", nil, &de, 200)
+	admin.must("GET", "/api/v1/x/core.carousel/shown?lang=en", nil, &en, 200)
+	slides := 0
+	for i := range de {
+		for j, sl := range de[i].Slides {
+			if sl.Kind != "manual" {
+				continue // news and pages bring their own language versions
+			}
+			slides++
+			if i >= len(en) || j >= len(en[i].Slides) || en[i].Slides[j].Title == sl.Title || sl.Text != "" && en[i].Slides[j].Text == sl.Text {
+				t.Errorf("demo slide %q: no German version", sl.Title)
+			}
+		}
+	}
+	if slides == 0 {
+		t.Error("demo: no own slides in the carousels")
+	}
 	// everything in the demo area: the pages of its categories
 	rows, err := e.app.DB.Query(ctx, `WITH RECURSIVE t AS (SELECT id FROM categories WHERE id = (SELECT min(ref::bigint) FROM demo_objects WHERE kind='category')
 		UNION SELECT c.id FROM categories c JOIN t ON c.parent_id = t.id)
@@ -116,6 +142,12 @@ func checkDemoRules(t *testing.T, e *env, admin *client) {
 	for _, id := range ids {
 		en, de := views["en"][id], views["de"][id]
 		name := strconv.FormatInt(id, 10) + " " + en.Title
+		// the German version is German: no English sentences in its text
+		// (code samples and names aside); only a page that shows a missing
+		// translation on purpose may have them
+		if words := englishWords(de.HTML); len(words) > 0 && !strings.Contains(de.HTML, "data-demo-untranslated") {
+			t.Errorf("demo page %s: English in the German version: %v", name, words)
+		}
 		for _, v := range []demoView{en, de} {
 			if v.Fallback || strings.TrimSpace(v.Title) == "" {
 				t.Errorf("demo page %s: no %s version", name, v.ShownLang)
@@ -132,9 +164,11 @@ func checkDemoRules(t *testing.T, e *env, admin *client) {
 					}
 				}
 			}
+			// the demo company's domain, never valid on the internet
+			// (decision of the project owner of 26.11.2026)
 			for _, mail := range demoMailRe.FindAllString(v.HTML, -1) {
-				if !strings.HasSuffix(mail, "@example.com") {
-					t.Errorf("demo page %s: e-mail address %q is no example", name, mail)
+				if !strings.HasSuffix(mail, "@enterpriseit.local") {
+					t.Errorf("demo page %s: e-mail address %q is not of the demo company", name, mail)
 				}
 			}
 		}
@@ -226,4 +260,25 @@ func checkDemoRules(t *testing.T, e *env, admin *client) {
 	if !strings.Contains(views["en"][intranet].HTML, `class="ewe-upcoming"`) {
 		t.Errorf("intranet: the next events are missing: %s", views["en"][intranet].HTML)
 	}
+}
+
+var (
+	tagRe      = regexp.MustCompile(`(?s)<(code|pre|script|style)[^>]*>.*?</(code|pre|script|style)>|<[^>]+>`)
+	englishRe  = regexp.MustCompile(`(?i)\b(the|and|with|your|you|this|that|for|from|are|is|of|to|in|on|it|be|can|will|here|what|how)\b`)
+	germanWord = regexp.MustCompile(`(?i)\b(der|die|das|und|mit|ist|sie|für|ein|eine|auf|nicht|zu|im|den|von)\b`)
+)
+
+// englishWords returns English function words in the visible text of html
+// outside code, but only where a stretch of text has more of them than
+// German ones (so a single "in" or "Team" does not count).
+func englishWords(html string) []string {
+	text := tagRe.ReplaceAllString(html, "\n")
+	var out []string
+	for _, part := range strings.Split(text, "\n") {
+		en := englishRe.FindAllString(part, -1)
+		if len(en) >= 3 && len(en) > len(germanWord.FindAllString(part, -1)) {
+			out = append(out, strings.TrimSpace(part))
+		}
+	}
+	return out
 }

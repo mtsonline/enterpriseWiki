@@ -45,7 +45,7 @@ func (s *Server) routesData() {
 			}
 			return n, nil
 		}
-		dq := content.DataQuery{Kind: r.PathValue("kind"), Lang: q.Get("lang"), From: q.Get("from"), To: q.Get("to"), Q: q.Get("q"), Sort: q.Get("sort"),
+		dq := content.DataQuery{Kind: r.PathValue("kind"), Lang: q.Get("lang"), Prefer: q.Get("prefer"), From: q.Get("from"), To: q.Get("to"), Q: q.Get("q"), Sort: q.Get("sort"),
 			Direct: q.Get("direct") == "true", Hidden: q.Get("hidden") == "true", NoDay: q.Get("no_day") == "true", Limit: h.QueryInt(r, "limit", 50), Offset: h.QueryInt(r, "offset", 0)}
 		var err error
 		if dq.Category, err = id("category"); err != nil {

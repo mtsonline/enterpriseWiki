@@ -69,7 +69,7 @@ func (tasks) Render(ctx context.Context, mc content.MacroContext) (string, error
 		return "", nil
 	}
 	max := countParam(mc.Params["max"], 50, content.DataQueryMax)
-	q := content.DataQuery{Kind: TaskKind, Category: idParam(mc.Params["category"]), Sort: "day", Limit: content.DataQueryMax}
+	q := content.DataQuery{Kind: TaskKind, Category: idParam(mc.Params["category"]), Sort: "day", Limit: content.DataQueryMax, Prefer: mc.Lang}
 	if mc.Params["sorting"] == "page" {
 		q.Sort = "page"
 	} else if s := mc.Params["sorting"]; s != "" && s != "due" {
