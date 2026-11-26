@@ -533,8 +533,9 @@ func companyFlows(d *demoRun, r *demoRefs) {
 				steps = append(steps[:1], steps[2:]...)
 			}
 			return map[string]any{
-				"description": tr("Fill in the form and press Start. The team lead decides under My tasks; the approved holiday is entered in the calendar of the teams and you get a message. In this demo you belong to the team leads, so you can decide your own request.",
-					"Formular ausfüllen und Starten drücken. Die Teamleitung entscheidet unter Meine Aufgaben; genehmigter Urlaub wird in den Kalender der Teams eingetragen, und Sie bekommen eine Nachricht. In dieser Demo gehören Sie zur Teamleitung und können Ihren Antrag selbst entscheiden."),
+				"start_label": tr("New holiday request", "Neuer Urlaubsantrag"),
+				"description": tr("Press New holiday request and fill in the form. The team lead decides under My tasks; the approved holiday is entered in the calendar of the teams and you get a message. In this demo you belong to the team leads, so you can decide your own request.",
+					"Drücken Sie Neuer Urlaubsantrag und füllen Sie das Formular aus. Die Teamleitung entscheidet unter Meine Aufgaben; genehmigter Urlaub wird in den Kalender der Teams eingetragen, und Sie bekommen eine Nachricht. In dieser Demo gehören Sie zur Teamleitung und können Ihren Antrag selbst entscheiden."),
 				"fields": []map[string]any{
 					{"id": "from", "label": tr("First day", "Erster Tag"), "type": "date", "required": true},
 					{"id": "to", "label": tr("Last day", "Letzter Tag"), "type": "date", "required": true},

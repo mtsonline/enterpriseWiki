@@ -254,7 +254,7 @@ curl -X POST "$ADDRESS" -H 'Content-Type: application/json' -H "X-Ewiki-Timestam
 
 Templates: *HR: application* (with acknowledgement of receipt and rejection letter by e-mail), *Approval request* (approval) and *Onboarding* (waiting time until the first working day, welcome e-mail).
 
-On the page, *Start new case* starts a case. The table shows the cases you may see; "Your turn" marks where you can act. A click on the title opens data, history and actions. **My tasks** (sidebar or `/tasks`) collects everything waiting for you. Running cases keep the process they were started with, even if the page is changed later.
+On the page, *Start new case* starts a case; a workflow can name this button itself (*Label of the start button*, e.g. “New holiday request”). The table shows the cases you may see; "Your turn" marks where you can act. A click on the title opens data, history and actions. **My tasks** (sidebar or `/tasks`) collects everything waiting for you. Running cases keep the process they were started with, even if the page is changed later.
 
 ### Translating
 In edit mode, every page shows what percentage of it is translated and the status for every language:

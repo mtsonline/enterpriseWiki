@@ -445,6 +445,8 @@ export function triggersSection(m: Model, kit: Kit): HTMLElement {
     show();
     return out;
   };
+  const startLabel = field(t('workflow.start_label'), kit.text(() => m.start_label, (v) => { m.start_label = v; }, { max: 60 }),
+    { help: t('workflow.start_label_help') });
   const manual = checkbox(t('workflow.no_manual'), !!m.no_manual, { help: t('workflow.no_manual_help') });
   manual.input.addEventListener('change', () => { m.no_manual = manual.input.checked; });
   const rows = list.map((tr, i) => {
@@ -527,7 +529,7 @@ export function triggersSection(m: Model, kit: Kit): HTMLElement {
   });
   const newType = select(TRIGGER_TYPES.map((x) => ({ value: x, label: t(`workflow.trigger.${x}`) })), 'schedule');
   return h('section', { class: 'ewf-ed-section', 'aria-labelledby': 'ewf-triggers-h' }, h('h2', { id: 'ewf-triggers-h' }, t('workflow.triggers')),
-    h('p', { class: 'ew-help' }, t('workflow.triggers_help')), manual.el, ...rows, status,
+    h('p', { class: 'ew-help' }, t('workflow.triggers_help')), startLabel, manual.el, ...rows, status,
     h('div', { class: 'ewf-add-trigger' }, field(t('workflow.trigger_new_type'), newType, { inline: true }),
       button(t('workflow.add_trigger'), () => {
         const type = newType.value as TriggerType;

@@ -2035,6 +2035,23 @@ test('workflow editor: moving on from the key of a row never loses the value typ
   assert.equal(await key.inputValue(), 'status');
 });
 
+test('workflow: the start button carries the label of the workflow, set in the editor', async () => {
+  const cat = (await call('POST', '/api/v1/categories', { titles: { en: `Leave ${run}` } })).id;
+  const wf = await call('POST', '/api/v1/elements', { category_id: cat, type: 'workflow.process', title: `Leave ${run}`, body: {
+    description: 'E2E', fields: [{ id: 'from', label: 'First day', type: 'date' }], steps: [{ id: 'done', name: 'Done', type: 'end', outcome: 'success' }] } });
+  await page.goto(`${BASE}/e/${wf.id}/edit`);
+  await idle();
+  await page.getByLabel(/^(label of the start button|beschriftung der startschaltfläche)/i).fill(`New leave request ${run}`);
+  await page.getByRole('button', { name: /^(publish|veröffentlichen)$/i }).click();
+  await page.waitForURL(/\/e\/\d+$/);
+  await idle();
+  // the button and the title of the start form
+  await page.getByRole('button', { name: `New leave request ${run}` }).click();
+  await page.locator('dialog[open] h2', { hasText: `New leave request ${run}` }).waitFor();
+  await a11y('start form with an own label');
+  await page.keyboard.press('Escape');
+});
+
 test('workflow 3b: a case writes Word, PDF and Excel files and a calendar entry', async () => {
   const job = (name) => call('POST', `/api/v1/admin/jobs/${name}/run`, {});
   const cat = (await call('POST', '/api/v1/categories', { titles: { en: `Requests ${run}` } })).id;

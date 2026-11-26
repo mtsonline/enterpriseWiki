@@ -630,5 +630,7 @@
  "workflow.confirm_help": "The assignees see a file of the case and confirm or reject it. A rejection needs a reason.",
  "workflow.next_confirmed": "Step after confirming",
  "plugin.name.workflow.process": "Workflow",
- "workflow.key_taken": "“{key}” is already used in another row."
+ "workflow.key_taken": "“{key}” is already used in another row.",
+ "workflow.start_label": "Label of the start button",
+ "workflow.start_label_help": "For example “New holiday request”. Empty: “Start new case”."
 }

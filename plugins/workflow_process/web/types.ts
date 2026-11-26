@@ -39,7 +39,7 @@ export interface Step {
   notify?: NotifySpec; set?: Assign[]; http?: HTTPSpec; create?: CreateSpec; props?: PropsSpec; subflow?: SubflowSpec; access?: AccessSpec; membership?: MemberSpec; move?: MoveSpec; file?: FileSpec; calendar?: CalendarSpec; shell?: ShellSpec; upload?: UploadSpec;
   run_as?: 'definer' | 'starter'; deadline?: Deadline; notices?: Notice[]; form?: StepField[]; parallel?: ParallelSpec;
 }
-export interface Definition { description: string; fields: Field[]; steps: Step[]; triggers?: Trigger[]; no_manual?: boolean; links?: boolean; link_hours?: number; retention?: { days: number; mode: 'delete' | 'anonymize' } }
+export interface Definition { description: string; start_label?: string; fields: Field[]; steps: Step[]; triggers?: Trigger[]; no_manual?: boolean; links?: boolean; link_hours?: number; retention?: { days: number; mode: 'delete' | 'anonymize' } }
 
 export interface Event { id: number; from_step: string | null; to_step: string | null; action: string; action_label: string; note: string; actor: string; actor_id?: number; at: string; signature?: number }
 export interface Instance {
