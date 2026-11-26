@@ -2,17 +2,21 @@ package server
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"os"
 	"path/filepath"
+	"slices"
 	"time"
 
 	"github.com/jackc/pgx/v5"
-
+	"github.com/mtsonline/enterprisewiki/internal/apperr"
 	"github.com/mtsonline/enterprisewiki/internal/coreplugin"
 	"github.com/mtsonline/enterprisewiki/internal/db"
+	h "github.com/mtsonline/enterprisewiki/internal/httpx"
 	"github.com/mtsonline/enterprisewiki/internal/identity"
 	"github.com/mtsonline/enterprisewiki/internal/perm"
+	"github.com/mtsonline/enterprisewiki/internal/pgversion"
 	"github.com/mtsonline/enterprisewiki/internal/pluginmgr"
 	"github.com/mtsonline/enterprisewiki/internal/version"
 	"github.com/mtsonline/enterprisewiki/internal/worker"
@@ -243,4 +247,152 @@ func userCounts(ctx context.Context, q db.Querier) (map[string]any, error) {
 		runs = []directoryRun{}
 	}
 	return map[string]any{"active": active, "disabled": disabled, "invited": invited, "directory": runs}, nil
+}
+
+// routesOverview registers the overview of the administration and the
+// check for new releases of the wiki and its plugins.
+func (s *Server) routesOverview() {
+	// ---------------------------------------------------------------- updates
+	s.registerUpdateCheck()
+	// GET /api/v1/admin/updates?force=1 checks GitHub releases of the core
+	// and all plugins with a repository (cached for an hour).
+	// action: core.updates.list
+	s.handle("GET /api/v1/admin/updates", func(w http.ResponseWriter, r *http.Request) (any, error) {
+		if err := requireAdmin(r); err != nil {
+			return nil, err
+		}
+		force := r.URL.Query().Get("force") == "1"
+		if !force {
+			if rep := s.plugins.LastUpdateReport(); rep != nil {
+				return rep, nil
+			}
+			if c := s.app.Config.Get().Plugins.Updates.Check; c != nil && !*c {
+				return map[string]any{"checked_at": nil, "items": []any{}}, nil
+			}
+		}
+		return s.checkUpdates(r.Context(), force)
+	})
+	// GET /api/v1/admin/status: the state of the wiki at a glance (tile of
+	// the dashboard, overview of the administration, ewiki status): version,
+	// updates from the last check (no request to GitHub here), e-mails that
+	// failed or wait, the backlog of the change queue; the further parts of
+	// the overview (updates with the commands to install them, plugins,
+	// users, security, license) only for those who may open the matching
+	// administration page (see overview).
+	// action: core.admin.status
+	s.handle("GET /api/v1/admin/status", func(w http.ResponseWriter, r *http.Request) (any, error) {
+		if err := requireAdmin(r); err != nil {
+			return nil, err
+		}
+		out := map[string]any{"version": version.Version, "updates_checked_at": nil, "updates_available": 0}
+		if rep := s.plugins.LastUpdateReport(); rep != nil {
+			n := 0
+			for _, x := range rep.Items {
+				if x.Available {
+					n++
+				}
+			}
+			out["updates_checked_at"], out["updates_available"] = rep.CheckedAt, n
+		}
+		var failed, queued, pending int
+		var oldest *time.Time
+		if err := s.app.DB.QueryRow(r.Context(), `SELECT
+			(SELECT count(*) FROM mail_outbox WHERE status IN ('failed', 'partial')),
+			(SELECT count(*) FROM mail_outbox WHERE status = 'queued'),
+			(SELECT count(*) FROM change_events),
+			(SELECT min(created_at) FROM change_events)`).Scan(&failed, &queued, &pending, &oldest); err != nil {
+			return nil, err
+		}
+		out["mail_failed"], out["mail_queued"], out["queue_pending"], out["queue_oldest"] = failed, queued, pending, oldest
+		// security: failed sign-ins of the last 24 hours, audit forwarding
+		// that fails
+		var loginFailed, forwardErrors int
+		if err := s.app.DB.QueryRow(r.Context(), `SELECT
+			(SELECT count(*) FROM audit_log WHERE action = 'auth.login_failed' AND at > now() - interval '24 hours'),
+			(SELECT count(*) FROM audit_forward_state WHERE errors > 0)`).Scan(&loginFailed, &forwardErrors); err != nil {
+			return nil, err
+		}
+		out["login_failed_24h"], out["audit_forward_errors"] = loginFailed, forwardErrors
+		// plugins: switched on but not running (missing dependency), restart
+		// or failed build
+		inactive := []string{}
+		for _, p := range s.app.Kernel.List() {
+			if p.Enabled && !p.Active {
+				inactive = append(inactive, p.ID)
+			}
+		}
+		slices.Sort(inactive)
+		b := s.plugins.BuildStatus()
+		out["plugins_inactive"], out["restart_pending"] = inactive, s.plugins.RestartPending()
+		out["build_failed"] = !b.Running && b.FinishedAt != nil && !b.OK
+		out["license_level"] = s.LicenseStatus(r.Context()).Level
+		out["database_level"] = ""
+		if st, err := pgversion.Check(r.Context(), s.app.DB, time.Now()); err == nil {
+			out["database_level"] = st.Level
+		}
+		if err := s.overview(r, out); err != nil {
+			return nil, err
+		}
+		return out, nil
+	})
+	// POST /api/v1/admin/updates/{id} installs the latest release of a
+	// plugin and starts the rebuild (1-click update).
+	// action: core.updates.install
+	s.handle("POST /api/v1/admin/updates/{id}", func(w http.ResponseWriter, r *http.Request) (any, error) {
+		if err := requireInstance(r); err != nil { // replaces code shared by all sites
+			return nil, err
+		}
+		id := r.PathValue("id")
+		if id == "core" {
+			return nil, apperr.BadRequest("the core is updated with scripts/update.sh (or the update timer) on the server")
+		}
+		var in struct {
+			AcceptExternal bool `json:"accept_external"` // external plugins: confirm every update
+		}
+		if r.ContentLength != 0 {
+			if err := h.Decode(r, &in); err != nil {
+				return nil, err
+			}
+		}
+		res, err := s.plugins.UpdatePlugin(r.Context(), id, pluginmgr.InstallOptions{AcceptExternal: in.AcceptExternal, By: handleOf(r)})
+		if err != nil {
+			return nil, err
+		}
+		s.auditSettings(r, "plugin.update", fmt.Sprintf("%s level=%s source=%s commit=%s accepted=%v",
+			id, res.Origin.Level, res.Origin.Source, res.Origin.Commit, res.Origin.Accepted))
+		return res, nil
+	})
+}
+
+// routesCache registers the state of the cache for guests and emptying it.
+func (s *Server) routesCache() {
+	// ---------------------------------------------------------------- guest cache
+	// action: core.cache.status
+	s.handle("GET /api/v1/admin/cache", func(w http.ResponseWriter, r *http.Request) (any, error) {
+		if err := requireAdmin(r); err != nil {
+			return nil, err
+		}
+		return s.app.Cache.GetStatus(), nil
+	})
+	// action: core.cache.clear
+	s.handle("DELETE /api/v1/admin/cache", func(w http.ResponseWriter, r *http.Request) (any, error) {
+		if err := requireAdmin(r); err != nil {
+			return nil, err
+		}
+		s.app.Cache.Invalidate(r.Context(), "admin")
+		return h.NoContent{}, nil
+	})
+}
+
+// routesDatabaseState registers the state of the database (version of
+// PostgreSQL, recommended upgrade).
+func (s *Server) routesDatabaseState() {
+	// GET /api/v1/admin/database – PostgreSQL version, recommended version, end of support
+	// action: core.database.status
+	s.handle("GET /api/v1/admin/database", func(w http.ResponseWriter, r *http.Request) (any, error) {
+		if err := requireAdmin(r); err != nil {
+			return nil, err
+		}
+		return pgversion.Check(r.Context(), s.app.DB, time.Now())
+	})
 }

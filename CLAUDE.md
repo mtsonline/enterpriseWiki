@@ -2,7 +2,7 @@
 
 Diese Datei gilt für alle, die am Repository arbeiten: Menschen und KI-Agenten. `AGENTS.md` verweist hierher, es gibt nur diese eine Quelle. Änderungen an dieser Datei brauchen die Freigabe des Projektinhabers.
 
-Enterprise Wiki ist eine sichere und flexible Alternative für herkömmliche Enterprise-Wikis und CMS-Systeme: ein einzelnes Go-Programm (`ewiki`), PostgreSQL, Frontend in TypeScript. Überblick: `README.de.md`, Aufbau: `docs/de/developer/architecture.md`. Englische Fassung dieser Datei: `CLAUDE.en.md`; maßgeblich ist diese deutsche Fassung.
+Enterprise Wiki ist eine sichere und flexible Alternative für herkömmliche Enterprise-Wikis und CMS-Systeme: ein einzelnes Go-Programm (`ewiki`), PostgreSQL, Frontend in TypeScript. Überblick: `README.de.md`, Aufbau: `docs/de/developer/architecture.md`, wo was steht: `docs/de/developer/code-guide.md`. Englische Fassung dieser Datei: `CLAUDE.en.md`; maßgeblich ist diese deutsche Fassung.
 
 ## 1. Grundsätze
 
@@ -33,6 +33,7 @@ Bei jedem Konflikt gilt diese Reihenfolge: Sicherheit, kein Datenverlust, Stabil
 - `main` ist geschützt und immer lauffähig. Gearbeitet wird auf einem Branch; jede Änderung kommt per Pull Request.
 - **Gemerged wird nur mit grüner CI und nach Freigabe durch den Projektinhaber.** Einzige Ausnahme: Abhängigkeits-Updates von Renovate werden automatisch gemergt, wenn alle Pflicht-Checks grün sind.
 - Je Aufgabe genau ein Branch und eine Sitzung. Vor Beginn `main` holen. Nichts aus späteren, noch nicht freigegebenen Schritten vorziehen.
+- **Immer nur ein offener Pull Request** (Festlegung des Projektinhabers vom 26.11.2026): `main` verlangt einen aktuellen Stand. Jeder Merge zwingt sonst alle anderen offenen Pull Requests, neu auf `main` aufzusetzen und die ganze CI zu wiederholen. Weitere fertige Branches warten lokal. Ist der offene Pull Request gemergt, kommt `main` in den nächsten Branch, der Precheck läuft, und erst dann wird dessen Pull Request geöffnet. Ausnahme: Abhängigkeits-Updates von Renovate.
 - Widersprüche zwischen Code, Dokumentation und Plänen sofort melden statt still entscheiden. Verbesserungsideen ebenso.
 - Beiträge von KI-Agenten werden offen gekennzeichnet (Co-Author-Zeile im Commit, Hinweis im Pull Request).
 - Commit-Nachrichten auf Englisch, kurz, im Imperativ oder als Zusammenfassung der Funktion.
@@ -97,9 +98,15 @@ EWIKI_QA_PROXY=caddy EWIKI_QA_WORK=/tmp/ewiki-qa-caddy tests/qa/local.sh
 
 Die Browser-Tests bauen aufeinander auf und laufen nur vollständig. Vor einem Release laufen zusätzlich die Testroutine `tests/qa`, alle Sicherheitsprüfungen, die Fallen-Tests (`tools/traps`) und die unabhängige Prüfung durch einen Agenten ohne Entwicklungskontext.
 
-## 7. Sauber, ohne Warnungen
+## 7. Sauberer Code, ohne Warnungen
 
 Build, `go vet`, gosec, Typprüfung und Tests laufen ohne Warnungen. Eine Ausnahme steht nur mit Begründung direkt an der Stelle (`// #nosec G… -- Grund`). Eine Übersicht aller Ausnahmen wird automatisch erzeugt; die CI prüft, dass sie aktuell ist (wird mit Phase 1 eingeführt).
+
+Der Code ist aufgeräumt, auf dem Stand der Technik und für Menschen geschrieben (Festlegung des Projektinhabers vom 26.11.2026). Wer ihn zum ersten Mal liest, soll ihn verstehen und für vorbildlich halten:
+
+- **Klare Namen und Aufbau:** Dateien, Typen und Funktionen heißen nach dem, was sie tun, nie nach Meilensteinen oder Reihenfolge (nicht `api_m6.go`, `part2.go`). Eine Funktion hat eine Aufgabe. Keine toten Reste, keine Doppelungen, kein auskommentierter Code.
+- **Kommentare auf Englisch, einfach und nachvollziehbar:** Jedes Paket hat einen Paketkommentar, jede exportierte Funktion und jeder nicht offensichtliche Ablauf einen Kommentar. Kommentare erklären, warum etwas so ist und welche Regel gilt (Sicherheit, Grenzwert, Transaktion), nicht Zeile für Zeile, was der Code ohnehin sagt.
+- **Entwickler-Leitfaden** (`docs/de/developer/code-guide.md`, `docs/en/developer/code-guide.md`): Für jede Funktion, jeden Bereich und jeden Ablauf steht dort, in welcher Datei er liegt und was dort geschieht. Wer neu ist oder einen Fehler sucht, findet so schnell die richtige Stelle. Wer Code anlegt, verschiebt oder umbenennt, zieht den Leitfaden im selben Pull Request nach. `go run ./tools/docscheck` prüft, dass jede dort verlinkte Datei existiert und jedes Paket und jedes Plugin vorkommt.
 
 ## 8. Was nie ins Repository gehört
 

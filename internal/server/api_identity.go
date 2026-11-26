@@ -7,7 +7,7 @@ import (
 	h "github.com/mtsonline/enterprisewiki/internal/httpx"
 )
 
-// routesIdentity: e-mail addresses, linked sign-ins and invitations (M15b).
+// routesIdentity: e-mail addresses, linked sign-ins and invitations.
 func (s *Server) routesIdentity() {
 	// ---------------------------------------------------------------- own addresses
 	// action: core.me.emails.list

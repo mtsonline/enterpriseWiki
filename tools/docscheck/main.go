@@ -10,6 +10,7 @@
 //   - relative links point to existing files and, with #anchor, to an
 //     existing heading of that file
 //   - every identifier named in backticks exists (inventory.go)
+//   - the developer guide links every package and plugin (codeguide.go)
 //
 // Run from the root of the repository: go run ./tools/docscheck
 package main
@@ -84,6 +85,7 @@ func main() {
 		checkLinks(f, add)
 	}
 	ids := checkInventory(files, add)
+	checkCodeGuide(add)
 	if len(problems) > 0 {
 		sort.Strings(problems)
 		for _, p := range problems {

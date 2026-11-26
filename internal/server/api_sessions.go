@@ -19,7 +19,7 @@ func (s *Server) sessionToken(r *http.Request) string {
 }
 
 // routesSessions: own sessions, sessions of a user (administrators) and
-// logout messages of single sign-on providers (M15b).
+// logout messages of single sign-on providers.
 func (s *Server) routesSessions() {
 	// action: core.me.sessions.list
 	s.handle("GET /api/v1/me/sessions", func(w http.ResponseWriter, r *http.Request) (any, error) {

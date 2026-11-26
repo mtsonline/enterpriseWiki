@@ -1,6 +1,8 @@
 package auth
 
-import "testing"
+import (
+	"testing"
+)
 
 func TestSafeNextOpenRedirects(t *testing.T) {
 	for in, want := range map[string]string{
@@ -24,6 +26,14 @@ func TestSafeNextOpenRedirects(t *testing.T) {
 	} {
 		if got := SafeNext(in); got != want {
 			t.Errorf("SafeNext(%q) = %q, want %q", in, got, want)
+		}
+	}
+}
+
+func TestSafeNext(t *testing.T) {
+	for in, want := range map[string]string{"/c/1": "/c/1", "//evil": "/", "https://evil": "/", "/\\evil": "/", "": "/"} {
+		if got := SafeNext(in); got != want {
+			t.Errorf("%q -> %q", in, got)
 		}
 	}
 }

@@ -559,7 +559,7 @@ export async function designer(panel: HTMLElement, key: string, back: () => void
 
   // the positions of a block; removing a standard position names the
   // building blocks that stand there by default (allowed, but they lose
-  // their place, concept M19 3.3)
+  // their place)
   const positionsField = (ri: number, bi: number, b: Block): HTMLElement => {
     const i = textInput({ value: b.positions.join(', '), id: cid(`b${ri}-${bi}-pos`) });
     i.addEventListener('change', () => void (async () => {

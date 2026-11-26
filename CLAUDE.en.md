@@ -4,7 +4,7 @@
 
 This file applies to everyone working on the repository: humans and AI agents. `AGENTS.md` points here; there is only this one source. Changes to this file need the approval of the project owner.
 
-Enterprise Wiki is a secure and flexible alternative to traditional enterprise wikis and CMS systems: a single Go program (`ewiki`), PostgreSQL, frontend in TypeScript. Overview: `README.md`, structure: `docs/en/developer/architecture.md`.
+Enterprise Wiki is a secure and flexible alternative to traditional enterprise wikis and CMS systems: a single Go program (`ewiki`), PostgreSQL, frontend in TypeScript. Overview: `README.md`, structure: `docs/en/developer/architecture.md`, where is what: `docs/en/developer/code-guide.md`.
 
 ## 1. Principles
 
@@ -35,6 +35,7 @@ In every conflict this order applies: security, no data loss, stability, accessi
 - `main` is protected and always runs. Work happens on a branch; every change comes through a pull request.
 - **Merging only with a green CI and after approval by the project owner.** Only exception: dependency updates by Renovate are merged automatically when all required checks are green.
 - Exactly one branch and one session per task. Fetch `main` before starting. Do not bring forward anything from later steps that have not been approved yet.
+- **Only one open pull request at a time** (decision of the project owner of 26.11.2026): `main` requires an up-to-date branch. Otherwise every merge forces all other open pull requests to be brought up to date with `main` and to run the whole CI again. Further finished branches wait locally. Once the open pull request is merged, `main` goes into the next branch, the precheck runs, and only then its pull request is opened. Exception: dependency updates by Renovate.
 - Report contradictions between code, documentation and plans immediately instead of deciding silently. Ideas for improvement likewise.
 - Contributions by AI agents are marked openly (co-author line in the commit, note in the pull request).
 - Commit messages in English, short, in the imperative or as a summary of the feature.
@@ -99,9 +100,15 @@ EWIKI_QA_PROXY=caddy EWIKI_QA_WORK=/tmp/ewiki-qa-caddy tests/qa/local.sh
 
 The browser tests build on each other and only run completely. Before a release, the test routine `tests/qa`, all security checks, the trap tests (`tools/traps`) and the independent review by an agent without the development context run in addition.
 
-## 7. Clean, without warnings
+## 7. Clean code, without warnings
 
 Build, `go vet`, gosec, type check and tests run without warnings. An exception only stands with a reason directly at the place (`// #nosec G… -- reason`). An overview of all exceptions is generated automatically; the CI checks that it is up to date (introduced with phase 1).
+
+The code is tidy, state of the art and written for people (decision of the project owner of 26.11.2026). Whoever reads it for the first time should understand it and find it exemplary:
+
+- **Clear names and structure:** files, types and functions are named after what they do, never after milestones or order (not `api_m6.go`, `part2.go`). A function has one task. No dead leftovers, no duplicates, no commented-out code.
+- **Comments in English, simple and easy to follow:** every package has a package comment, every exported function and every flow that is not obvious has a comment. Comments explain why something is so and which rule applies (security, limit, transaction), not line by line what the code says anyway.
+- **Developer guide** (`docs/de/developer/code-guide.md`, `docs/en/developer/code-guide.md`): for every function, area and flow it says in which file it is and what happens there. Whoever is new or looks for a bug finds the right place quickly. Whoever adds, moves or renames code updates the guide in the same pull request. `go run ./tools/docscheck` checks that every file linked there exists and that every package and every plugin appears.
 
 ## 8. What never belongs in the repository
 

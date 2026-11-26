@@ -1,7 +1,9 @@
 package server_test
 
 import (
+	"bytes"
 	"fmt"
+	"io"
 	"strings"
 	"testing"
 )
@@ -140,4 +142,99 @@ func TestAttachmentsAndCode(t *testing.T) {
 	if !strings.Contains(el.Body.Source, "```python lines\nprint(1)\n```") {
 		t.Errorf("code block from HTML: %q", el.Body.Source)
 	}
+}
+
+func TestAttachments(t *testing.T) {
+	e := setup(t)
+	admin := e.client()
+	admin.login("admin", adminPW)
+	guest := e.client()
+	var root, hidden cat
+	admin.must("POST", "/api/v1/categories", map[string]any{"titles": map[string]string{"en": "Docs"}}, &root, 201)
+	admin.must("POST", "/api/v1/categories", map[string]any{"parent_id": root.ID, "titles": map[string]string{"en": "Internal"}}, &hidden, 201)
+	if code, _ := guest.upload(t, "x.pdf", MinimalPDF("x")); code != 401 {
+		t.Fatalf("guest upload: %d", code)
+	}
+	code, pdf := admin.upload(t, "../../etc/Report Q3.pdf", MinimalPDF("Quarterly zebra report"))
+	if code != 201 || pdf.Mime != "application/pdf" || pdf.Name != "Report Q3.pdf" || len(pdf.Hash) != 64 {
+		t.Fatalf("upload %d %+v", code, pdf)
+	}
+	var el elem
+	admin.must("POST", "/api/v1/elements", map[string]any{"category_id": hidden.ID, "type": "core.attachment", "title": "Q3 report",
+		"body": map[string]any{"file": map[string]string{"hash": pdf.Hash, "name": pdf.Name}, "description": "Numbers <b>&</b> facts"}}, &el, 201)
+	if !strings.Contains(el.HTML, "<iframe") || strings.Contains(el.HTML, "<b>") {
+		t.Fatalf("attachment render %s", el.HTML)
+	}
+	if got := admin.do("POST", "/api/v1/elements", map[string]any{"category_id": hidden.ID, "type": "core.attachment", "title": "x",
+		"body": map[string]any{"file": map[string]string{"hash": strings.Repeat("a", 64)}}}, nil); got != 400 {
+		t.Fatalf("unknown file accepted: %d", got)
+	}
+	var sr struct {
+		Elements []struct {
+			ElementID int64 `json:"element_id"`
+		} `json:"elements"`
+	}
+	admin.must("GET", "/api/v1/search?q=zebra", nil, &sr, 200)
+	if len(sr.Elements) != 1 || sr.Elements[0].ElementID != el.ID {
+		t.Fatalf("pdf text not searchable: %+v", sr)
+	}
+	dl := fmt.Sprintf("%s/api/v1/x/core.attachment/elements/%d/file", e.srv.URL, el.ID)
+	res, _ := admin.http.Get(dl)
+	body, _ := io.ReadAll(res.Body)
+	if res.StatusCode != 200 || !bytes.HasPrefix(body, []byte("%PDF")) || !strings.HasPrefix(res.Header.Get("Content-Disposition"), "attachment") ||
+		res.Header.Get("X-Content-Type-Options") != "nosniff" {
+		t.Fatalf("download %d %v", res.StatusCode, res.Header)
+	}
+	res, _ = admin.http.Get(dl + "?inline=1&hash=" + pdf.Hash)
+	if !strings.HasPrefix(res.Header.Get("Content-Disposition"), "inline") {
+		t.Fatal("pdf not inline")
+	}
+	res, _ = guest.http.Get(dl)
+	if res.StatusCode != 401 {
+		t.Fatalf("guest downloads hidden file: %d", res.StatusCode)
+	}
+	res, _ = admin.http.Get(e.srv.URL + "/api/v1/files/" + pdf.Hash)
+	if res.StatusCode != 404 {
+		t.Fatal("non-image served by hash")
+	}
+	// new version with another file; the old file stays reachable through the history
+	_, pdf2 := admin.upload(t, "v2.pdf", MinimalPDF("Second version"))
+	admin.must("PUT", fmt.Sprintf("/api/v1/elements/%d", el.ID), map[string]any{"lang": "en", "title": "Q3 report",
+		"body": map[string]any{"file": map[string]string{"hash": pdf2.Hash}, "description": ""}}, nil, 200)
+	res, _ = admin.http.Get(dl + "?hash=" + pdf.Hash)
+	if res.StatusCode != 200 {
+		t.Fatalf("old version not downloadable: %d", res.StatusCode)
+	}
+	res, _ = admin.http.Get(dl + "?hash=" + strings.Repeat("b", 64))
+	if res.StatusCode != 404 {
+		t.Fatal("foreign hash served")
+	}
+	// images by hash: not for everybody who knows the hash - only for the
+	// uploader until it is embedded somewhere the caller may see
+	_, img := admin.upload(t, "pic.png", pngData)
+	res, _ = guest.http.Get(e.srv.URL + "/api/v1/files/" + img.Hash)
+	if res.StatusCode != 404 {
+		t.Fatalf("unreferenced image served to a guest: %d", res.StatusCode)
+	}
+	res, _ = admin.http.Get(e.srv.URL + "/api/v1/files/" + img.Hash)
+	if res.StatusCode != 200 || res.Header.Get("Content-Type") != "image/png" {
+		t.Fatalf("own image %d %s", res.StatusCode, res.Header.Get("Content-Type"))
+	}
+	_, svg := admin.upload(t, "evil.svg", []byte(`<svg xmlns="http://www.w3.org/2000/svg"><script>alert(1)</script></svg>`))
+	if strings.Contains(svg.Mime, "svg") {
+		t.Fatalf("svg type trusted from extension: %s", svg.Mime)
+	}
+	res, _ = guest.http.Get(e.srv.URL + "/api/v1/files/" + svg.Hash)
+	if res.StatusCode != 404 {
+		t.Fatal("svg served as image")
+	}
+	// image in rich text survives sanitizing
+	var page elem
+	admin.must("POST", "/api/v1/elements", map[string]any{"category_id": root.ID, "type": "core.html", "title": "With image",
+		"body": map[string]string{"format": "html", "source": `<p><img src="/api/v1/files/` + img.Hash + `" alt="Logo"></p>`}}, &page, 201)
+	if !strings.Contains(page.HTML, `src="/api/v1/files/`+img.Hash+`"`) {
+		t.Fatalf("image removed: %s", page.HTML)
+	}
+	var gc map[string]int
+	admin.must("POST", "/api/v1/admin/retention/run", nil, &gc, 200)
 }

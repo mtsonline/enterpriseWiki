@@ -1,6 +1,6 @@
 package core_macros
 
-// Wiki blocks of priority A (plan of blocks and options, 3.2): include a
+// Wiki blocks: include a
 // page (or one excerpt of it), mark an excerpt, an anchor in the text, a
 // page tree with a filter, a search box for one category and a button for a
 // new page from a template. Everything is read with the permissions of the

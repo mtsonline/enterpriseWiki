@@ -1,6 +1,6 @@
 package core_template
 
-// Own CSS of a template (concept M19, 3.9): only when the administration
+// Own CSS of a template: only when the administration
 // allows it (ui.custom_css, default off). It is checked on saving, never
 // changed silently: what is refused is named with its line. The rules are in
 // limits.json (section css), the designer checks with the same file.

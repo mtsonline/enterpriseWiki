@@ -395,3 +395,11 @@ func (s *Server) prerenderAPI(w http.ResponseWriter, r *http.Request) (any, erro
 	}
 	return map[string]any{"path": path, "available": true, "page": p}, nil
 }
+
+// routesPrerender registers the content of a page for the prerendering of
+// the frontend (see prerender.go).
+func (s *Server) routesPrerender() {
+	// GET /api/v1/prerender?path=/e/1 – the page as guests and search engines receive it
+	// action: core.prerender
+	s.handle("GET /api/v1/prerender", s.prerenderAPI)
+}

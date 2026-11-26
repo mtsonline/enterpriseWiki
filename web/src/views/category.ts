@@ -1,4 +1,4 @@
-// The blocks of a category page (M19): title, management, watching, page
+// The blocks of a category page: title, management, watching, page
 // actions, description, featured pages, the overview of the pages in the
 // display of the category (list, cards, tiles, tree, handbook) and the
 // subcategories, at the positions of the category page (category-…). The
