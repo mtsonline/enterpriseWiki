@@ -1882,4 +1882,11 @@ var traps = []trap{
 		New:  "\t\t\tif false && p.AuthorID != nil {\n",
 		Pkg:  "./internal/server/", Tests: "^TestPeopleInLists$",
 	},
+	{
+		ID: "db.drift-unchecked", About: "a database of an older development state is used without comparing its schema (a 500 later)",
+		File: "internal/db/db.go",
+		Old:  "\t\t\t\tif was != sum {\n\t\t\t\t\tchanged = true\n",
+		New:  "\t\t\t\tif was != sum && false {\n\t\t\t\t\tchanged = true\n",
+		Pkg:  "./internal/server/", Tests: "^TestSchemaDrift$",
+	},
 }

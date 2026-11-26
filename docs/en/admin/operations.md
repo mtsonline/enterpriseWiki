@@ -29,6 +29,22 @@ docker compose up -d          # pulls the newest image and restarts (migrations 
 
 With a self-built image (own plugins): `git pull && docker compose -f docker-compose.build.yml up -d --build`.
 
+### Database of an older development version
+
+Until the first release, new tables and columns go straight into the first schema files; there are no migrations for older development states. A database from such an older state lacks them. The wiki then refuses to start, with a log line like "the database was created by an older development version of the wiki and lacks: table …, column …". This avoids running on an incomplete schema, where some actions would fail with an error 500 (for example creating the demo or resetting the site).
+
+The wiki compares the schema only when the schema files have changed since the last start. The comparison runs in a temporary schema and leaves nothing behind.
+
+What to do: create a new, empty database. Back up anything you still need first (*Backup and restore*). With Docker:
+
+```bash
+docker compose down
+mv data/postgres data/postgres.old      # keep it until the new start works
+docker compose up -d                    # creates the database and the administrator (EWIKI_ADMIN_PASSWORD in .env) again
+```
+
+With systemd: create the database anew (`dropdb`/`createdb` as in the installation) and run `ewiki setup`.
+
 ### Notice of new versions in the overview
 
 The start page of the administration (*Administration → Overview*, `/admin`) shows whether a new version of the core has been released, with its changes. Security updates are highlighted: their sections `## Security` or `## Sicherheit` from the release notes of all versions since the installed one come first (rule for release notes: [CONTRIBUTING.md](../../../CONTRIBUTING.md)).
@@ -78,9 +94,8 @@ npm packages, Docker base images, GitHub Actions) without manual intervention:
    big version jumps one by one. New versions are only taken after **3 days** (withdrawn or
    compromised packages do not reach the product this way), **security updates at once**. Versions and Docker images
    are pinned exactly (images and GitHub Actions with their digest); every update changes them by pull request.
-   For the weekly refresh of the lock file Renovate runs npm with a cut-off date 3 days back, so it takes
-   no younger version, also of indirect packages. A CI step (`go run ./tools/releaseage`) checks that
-   again and refuses every package version younger than 3 days.
+   For the weekly refresh of the lock file Renovate cannot check the age; a CI step
+   (`go run ./tools/releaseage`) does that and refuses every package version younger than 3 days.
 2. The **CI** checks every pull request completely: build, Go tests with PostgreSQL, browser tests with
    accessibility checks, Docker build and license check of the dependencies. Only if everything is green does
    GitHub merge the pull request **automatically** (auto-merge, turned on by Renovate; the repository setting
