@@ -6,6 +6,7 @@ import { hydrateCode } from './codeblocks';
 import { hydrateMath } from './math';
 import { hydrateDiagrams } from './diagrams';
 import { hydrateImages } from './images';
+import { enhancePeople } from '../components/person';
 
 export type WidgetFactory = (el: HTMLElement) => void | Promise<void>;
 
@@ -26,6 +27,9 @@ export function hydrate(root: ParentNode): void {
   hydrateDiagrams(root);
   hydrateCode(root);
   hydrateImages(root);
+  // names the server marked for readers who may open the person (blocks
+  // rendered by the server): the name with the menu
+  enhancePeople(root);
   root.querySelectorAll<HTMLElement>('[data-ew-widget]').forEach((el) => {
     if (el.dataset.ewHydrated) return;
     const f = widgets.get(el.dataset.ewWidget ?? '');

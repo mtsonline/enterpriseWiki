@@ -1875,4 +1875,11 @@ var traps = []trap{
 		New:  "\t\tif false && tw.wrote {\n",
 		Pkg:  "./internal/httpx/", Tests: "^TestJSONWrittenOnce$",
 	},
+	{
+		ID: "people.blog-author-plain", About: "the author in the server-rendered blog block never gets the menu on names",
+		File: "plugins/content_blog/plugin.go",
+		Old:  "\t\t\tif p.AuthorID != nil {\n",
+		New:  "\t\t\tif false && p.AuthorID != nil {\n",
+		Pkg:  "./internal/server/", Tests: "^TestPeopleInLists$",
+	},
 }

@@ -335,4 +335,32 @@ func TestPeopleInLists(t *testing.T) {
 			t.Fatalf("event for %s: %v", who, v["author_id"])
 		}
 	}
+
+	// the author of a post in the block "Blog posts" (rendered by the
+	// server): marked with the id only for who may open the person
+	var blogc, post, page idResp
+	admin.must("POST", "/api/v1/categories", map[string]any{"parent_id": c.ID, "titles": map[string]string{"en": "News"}}, &blogc, 201)
+	cl["carla"].must("POST", "/api/v1/elements", map[string]any{"category_id": blogc.ID, "type": "core.html", "title": "Hello",
+		"body": map[string]any{"format": "markdown", "source": "Text"}}, &post, 201)
+	admin.must("POST", "/api/v1/elements", map[string]any{"category_id": c.ID, "type": "core.html", "title": "Posts",
+		"body": map[string]any{"format": "markdown", "source": fmt.Sprintf("::blog{source=\"category:%d\" author=yes}\n", blogc.ID)}}, &page, 201)
+	view := func(c *client) string {
+		t.Helper()
+		var v struct {
+			HTML string `json:"html"`
+		}
+		c.must("GET", fmt.Sprintf("/api/v1/elements/%d?lang=en", page.ID), nil, &v, 200)
+		if !strings.Contains(v.HTML, "Hello") || !strings.Contains(v.HTML, "Carla") {
+			t.Fatalf("blog block without the post or its author: %s", v.HTML)
+		}
+		return v.HTML
+	}
+	if h := view(cl["mate"]); !strings.Contains(h, fmt.Sprintf(`data-person="%d"`, carla.ID)) {
+		t.Fatalf("blog block for mate without the person: %s", h)
+	}
+	for who, c := range map[string]*client{"out": cl["out"], "guest": guest} {
+		if h := view(c); strings.Contains(h, "data-person") {
+			t.Fatalf("blog block for %s with the id of the person: %s", who, h)
+		}
+	}
 }

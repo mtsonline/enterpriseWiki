@@ -197,7 +197,14 @@ func RenderPost(p *content.ListedElement, c *Config, lang string) string {
 			if c.ShowDate {
 				b.WriteString(" · ")
 			}
-			b.WriteString(esc(msg(lang, "by")) + " " + esc(p.Author))
+			b.WriteString(esc(msg(lang, "by")) + " ")
+			if p.AuthorID != nil {
+				// only for readers who may open the person: the interface
+				// turns it into the name with the menu (enhancePeople)
+				fmt.Fprintf(&b, `<span class="ewb-person" data-person="%d">%s</span>`, *p.AuthorID, esc(p.Author))
+			} else {
+				b.WriteString(esc(p.Author))
+			}
 		}
 		b.WriteString(`</p>`)
 	}
