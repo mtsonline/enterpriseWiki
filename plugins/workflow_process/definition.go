@@ -20,9 +20,12 @@ import (
 
 // Definition is the body of a workflow element (per language).
 type Definition struct {
-	Description string  `json:"description"`
-	Fields      []Field `json:"fields"`
-	Steps       []Step  `json:"steps"`
+	Description string `json:"description"`
+	// StartLabel names the button that starts a case, e.g. "New holiday
+	// request" (default: "Start new case"); one per language version.
+	StartLabel string  `json:"start_label,omitempty"`
+	Fields     []Field `json:"fields"`
+	Steps      []Step  `json:"steps"`
 	// Triggers start cases without a person (schedule, changes, events,
 	// incoming webhooks).
 	Triggers []Trigger `json:"triggers,omitempty"`
@@ -274,10 +277,17 @@ func clean(s string, max int) (string, error) {
 }
 
 // Validate normalizes and checks a definition.
+// startLabelMax: the longest label of the start button (it must fit a
+// button on a phone).
+const startLabelMax = 60
+
 func (d *Definition) Validate() error {
 	var err error
 	if d.Description, err = clean(d.Description, 20000); err != nil {
 		return err
+	}
+	if d.StartLabel, err = clean(d.StartLabel, startLabelMax); err != nil {
+		return apperr.BadRequest("start button: at most %d characters", startLabelMax)
 	}
 	if len(d.Fields) > 50 || len(d.Steps) > 50 {
 		return apperr.BadRequest("at most 50 fields and 50 steps")

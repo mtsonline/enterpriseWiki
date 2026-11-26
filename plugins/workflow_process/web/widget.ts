@@ -5,7 +5,7 @@ import type { Action, Event, Field, Instance } from './types';
 
 export const BASE = 'x/workflow.process';
 
-interface ListResponse { instances: Instance[]; can_start: boolean; fields: Field[]; lang: string; first_step: string; manage: boolean; can_test?: boolean; can_stats?: boolean; rev?: number }
+interface ListResponse { instances: Instance[]; can_start: boolean; fields: Field[]; lang: string; first_step: string; manage: boolean; start_label?: string; can_test?: boolean; can_stats?: boolean; rev?: number }
 
 /** Label of an action (approval and system actions have default labels). */
 export function actionLabel(a: Action): string {
@@ -212,10 +212,13 @@ function fieldControl(f: Field, lang: string, value?: unknown): Control {
   }
 }
 
+/** The label of the start button: the workflow's own or "Start new case". */
+const startLabel = (data: ListResponse): string => data.start_label?.trim() || t('workflow.start');
+
 /** Builds the start form of a workflow (test: a test run). */
 function startDialog(element: number, data: ListResponse, done: (id: number) => void, test = false): void {
   const controls = data.fields.map((f) => fieldControl(f, data.lang));
-  formDialog(test ? t('workflow.test_start') : t('workflow.start'), [h('p', { class: 'ew-help' }, test ? t('workflow.test_help') : t('workflow.start_help', { step: data.first_step })),
+  formDialog(test ? t('workflow.test_start') : startLabel(data), [h('p', { class: 'ew-help' }, test ? t('workflow.test_help') : t('workflow.start_help', { step: data.first_step })),
     ...controls.map((c) => c.el)], test ? t('workflow.test_start') : t('workflow.submit'), async () => {
     for (const c of controls) {
       if (c.f.required && c.empty()) { c.focus(); throw new Error(t('workflow.field_missing', { field: c.f.label })); }
@@ -254,7 +257,7 @@ export async function workflowWidget(el: HTMLElement): Promise<void> {
     mount(el, h('section', { class: 'ewf-cases', 'aria-labelledby': `ewf-h-${element}` },
       h('div', { class: 'ew-page-header' }, h('h2', { id: `ewf-h-${element}` }, t('workflow.cases')),
         h('div', { class: 'ew-actions' },
-          data.can_start ? button(t('workflow.start'), () => startDialog(element, data, (id) => void draw(id)), { variant: 'primary' })
+          data.can_start ? button(startLabel(data), () => startDialog(element, data, (id) => void draw(id)), { variant: 'primary' })
             : state.user ? null : h('a', { href: `/login?next=${encodeURIComponent(location.pathname + location.search)}` }, t('workflow.login')),
           data.can_test ? button(t('workflow.test_start'), () => startDialog(element, { ...data, fields: data.fields }, (id) => { filter = 'test'; void draw(id); }, true), { variant: 'secondary' }) : null)),
       state.user ? field(t('workflow.filter'), filterSel, { inline: true }) : null,

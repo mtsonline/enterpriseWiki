@@ -751,7 +751,7 @@ func (pl *Plugin) Setup(host *coreplugin.Host) error {
 		_, cerr := pl.mayChange(ctx, id)
 		return map[string]any{"instances": list, "can_start": me.p != nil && me.p.ID() != 0 && !def.NoManual, "fields": startFields(def.Fields),
 			"can_test": cerr == nil, "can_stats": cerr == nil || m, "rev": def.Rev,
-			"lang": shown, "first_step": def.Steps[0].Name, "manage": m}, nil
+			"lang": shown, "first_step": def.Steps[0].Name, "manage": m, "start_label": def.StartLabel}, nil
 	})
 
 	// POST /elements/{id}/instances starts a case: {"data": {...}, "title": "", "lang": ""}.

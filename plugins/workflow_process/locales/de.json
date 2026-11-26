@@ -630,5 +630,7 @@
  "workflow.confirm_help": "Die zuständigen Personen sehen eine Datei des Vorgangs und bestätigen oder lehnen sie ab. Eine Ablehnung braucht eine Begründung.",
  "workflow.next_confirmed": "Schritt nach dem Bestätigen",
  "plugin.name.workflow.process": "Workflow",
- "workflow.key_taken": "„{key}“ steht schon in einer anderen Zeile."
+ "workflow.key_taken": "„{key}“ steht schon in einer anderen Zeile.",
+ "workflow.start_label": "Beschriftung der Startschaltfläche",
+ "workflow.start_label_help": "Zum Beispiel „Neuer Urlaubsantrag“. Leer: „Neuen Vorgang starten“."
 }

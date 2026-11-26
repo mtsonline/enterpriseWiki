@@ -2015,4 +2015,18 @@ var traps = []trap{
 		New:  "\tif false && !own {\n\t\t// the source holds",
 		Pkg:  "./internal/server/", Tests: "^TestMentionsAsTheReaderMaySee$",
 	},
+	{
+		ID: "workflow.start-label-dropped", About: "the start button of a workflow ignores the label the workflow gives it",
+		File: "plugins/workflow_process/plugin.go",
+		Old:  "\"manage\": m, \"start_label\": def.StartLabel}, nil",
+		New:  "\"manage\": m, \"start_label\": \"\"}, nil",
+		Pkg:  "./internal/server/", Tests: "^TestWorkflowStartLabel$",
+	},
+	{
+		ID: "workflow.start-label-unlimited", About: "a start label of any length is accepted (does not fit a button)",
+		File: "plugins/workflow_process/definition.go",
+		Old:  "clean(d.StartLabel, startLabelMax)",
+		New:  "clean(d.StartLabel, 100000)",
+		Pkg:  "./internal/server/", Tests: "^TestWorkflowStartLabel$",
+	},
 }
