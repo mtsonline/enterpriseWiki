@@ -413,6 +413,10 @@ export async function profileView({ main }: RouteCtx): Promise<void> {
   const editorSel = select([{ value: '', label: t('profile.editor_default', { name: t(`editor.kind.${state.site.editor ?? 'visual'}`) }) },
     ...(prefs.options.editor ?? []).map((v) => ({ value: v, label: t(`editor.kind.${v}`) }))], prefs.prefs.editor ?? '');
   const helpBox = checkbox(t('profile.help_texts'), helpShown(), { help: t('profile.help_texts_help') });
+  // the hint on long sentences: only if the site offers it ("" follows the site)
+  const rhSite = state.site.readability?.mode ?? 'off';
+  const rhSel = rhSite === 'off' ? null : select([{ value: '', label: t(`profile.readability_site_${rhSite === 'on' ? 'on' : 'off'}`) },
+    ...(prefs.options.readability ?? []).map((v) => ({ value: v, label: t(`profile.readability_${v}`) }))], prefs.prefs.readability ?? '');
   const tplScheme = templateScheme(activeTemplate()?.id ?? '');
   const schemeSel = select([{ value: '', label: tplScheme ? t('scheme.default', { name: t(`scheme.${tplScheme}`) }) : t('scheme.default', { name: t('scheme.light') }) },
     ...SCHEMES.map((v) => ({ value: v, label: t(`scheme.${v}`) }))], schemeChoice());
@@ -423,6 +427,7 @@ export async function profileView({ main }: RouteCtx): Promise<void> {
   const pForm = h('form', { class: 'ew-form', novalidate: true }, pAlert, field(t('profile.display_name'), name),
     field(t('alias.label'), alias, { help: aliasManaged ? t('alias.managed_self') : t('alias.help_self') }), field(t('profile.language'), lang),
     field(t('profile.editor'), editorSel, { help: t('profile.editor_help') }),
+    rhSel ? field(t('profile.readability'), rhSel, { help: t('profile.readability_help') }) : null,
     field(t('scheme.label'), schemeSel, { help: tplScheme ? t('scheme.help') : `${t('scheme.light_only')} ${t('scheme.help')}` }), helpBox.el,
     h('div', { class: 'ew-form-actions' }, button(t('common.save'), () => undefined, { type: 'submit', variant: 'primary' })));
   pForm.addEventListener('submit', async (ev) => {
@@ -432,8 +437,12 @@ export async function profileView({ main }: RouteCtx): Promise<void> {
         await api.put('me/alias', { alias: alias.value.trim() });
         u.alias = alias.value.trim() || undefined;
       }
-      await api.put('me', { display_name: name.value, language: lang.value, prefs: { editor: editorSel.value, help: helpBox.input.checked ? 'show' : '' } });
+      await api.put('me', { display_name: name.value, language: lang.value, prefs: { editor: editorSel.value, help: helpBox.input.checked ? 'show' : '', ...(rhSel ? { readability: rhSel.value } : {}) } });
       const prefs = { ...(u.prefs ?? {}) };
+      if (rhSel) {
+        if (rhSel.value) prefs.readability = rhSel.value;
+        else delete prefs.readability;
+      }
       if (editorSel.value) prefs.editor = editorSel.value;
       else delete prefs.editor;
       if (helpBox.input.checked) prefs.help = 'show';

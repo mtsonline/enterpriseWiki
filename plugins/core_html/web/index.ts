@@ -5,7 +5,7 @@
 //   simple  a minimal contenteditable editor (HTML, converted on save)
 // The server sanitizes everything on save and render, so the editors are not
 // a security boundary; HTML for editing comes sanitized from the server.
-import { api, button, editorKind, state, errorText, formatAttrs, macroDialog, field, formDialog, h, holdView, isImage, loadMarkdownEditor, loading, mediaURL, pickMedium, registerEditor, registerSlot, registerTaskSection, select, t, textInput, tile, toast, toolShown, trustedHTML, type EditorContext, type EditorInstance, type MarkdownEditor } from '@ewiki/coreplugin';
+import { api, button, clearRanges, debounce, domItems, editorKind, markRanges, ReadabilityHint, readabilityMaxChars, readabilityRules, textareaItems, state, errorText, formatAttrs, macroDialog, field, formDialog, h, holdView, isImage, loadMarkdownEditor, loading, mediaURL, pickMedium, registerEditor, registerSlot, registerTaskSection, select, t, textInput, tile, toast, toolShown, trustedHTML, type EditorContext, type EditorInstance, type MarkdownEditor } from '@ewiki/coreplugin';
 import { macroAt, macroHTML, parseParams } from './macros';
 import './style.css';
 
@@ -118,7 +118,25 @@ export function createSimpleEditor(container: HTMLElement, body: unknown, ctx: C
   let ready = false;
   const formatSel = select([{ value: 'html', label: t('core.html.format.html') }, { value: 'markdown', label: t('core.html.format.markdown') }], 'html');
   const surface = h('div', { class: 'ewh-surface' });
-  container.append(h('div', { class: 'ewh-editor' }, field(t('core.html.format'), formatSel, { inline: true, help: t('core.html.convert_warning') }), surface));
+  // the hint on long sentences and words (if the site and the person want
+  // it): marks drawn by the browser, the text itself stays unchanged
+  const rhRules = readabilityRules();
+  const rhMax = readabilityMaxChars();
+  const hint = rhRules ? new ReadabilityHint() : null;
+  const rhCheck = () => {
+    if (!hint || !rhRules) return;
+    if (editable) {
+      const r = domItems(editable, rhRules, rhMax);
+      markRanges(r.sentences, r.words);
+      hint.update(r.items, r.truncated);
+    } else if (textarea) {
+      clearRanges();
+      const r = textareaItems(textarea, rhRules, rhMax);
+      hint.update(r.items, r.truncated);
+    }
+  };
+  const rhLater = debounce(rhCheck);
+  container.append(h('div', { class: 'ewh-editor' }, field(t('core.html.format'), formatSel, { inline: true, help: t('core.html.convert_warning') }), surface, hint?.el ?? null));
 
   let editable: HTMLElement | null = null;
   let textarea: HTMLTextAreaElement | null = null;
@@ -128,9 +146,10 @@ export function createSimpleEditor(container: HTMLElement, body: unknown, ctx: C
     const toolbar = h('div', { class: 'ewh-toolbar', role: 'toolbar', 'aria-label': t('core.html.toolbar') });
     editable = h('div', {
       class: 'ewh-editable ew-content', contenteditable: 'true', role: 'textbox', 'aria-multiline': 'true',
-      'aria-labelledby': ctx.labelId, lang: ctx.lang, spellcheck: 'true',
+      'aria-labelledby': ctx.labelId, 'aria-describedby': hint?.summaryId, lang: ctx.lang, spellcheck: 'true',
     });
     editable.innerHTML = html || '<p><br></p>';
+    editable.addEventListener('input', rhLater.run);
     const stateButtons: { tool: Tool; btn: HTMLButtonElement }[] = [];
     for (const tool of TOOLS) {
       if (tool === '|') {
@@ -154,6 +173,7 @@ export function createSimpleEditor(container: HTMLElement, body: unknown, ctx: C
       ctx.toolbarHost.replaceChildren(toolbar);
       surface.replaceChildren(editable);
     } else surface.replaceChildren(toolbar, editable);
+    rhCheck();
     onSel = () => {
       if (!editable || !editable.contains(document.getSelection()?.anchorNode ?? null)) return;
       for (const { tool, btn } of stateButtons) {
@@ -288,8 +308,9 @@ export function createSimpleEditor(container: HTMLElement, body: unknown, ctx: C
     if (onSel) document.removeEventListener('selectionchange', onSel);
     editable = null;
     ctx.toolbarHost?.replaceChildren(); // the toolbar is for the HTML surface
-    textarea = h('textarea', { class: 'ew-input ewh-markdown', rows: 18, 'aria-labelledby': ctx.labelId, lang: ctx.lang, spellcheck: 'true' });
+    textarea = h('textarea', { class: 'ew-input ewh-markdown', rows: 18, 'aria-labelledby': ctx.labelId, 'aria-describedby': hint?.summaryId, lang: ctx.lang, spellcheck: 'true' });
     textarea.value = src;
+    textarea.addEventListener('input', rhLater.run);
     const preview = h('div', { class: 'ewh-preview', 'aria-live': 'polite' });
     surface.replaceChildren(h('p', { class: 'ew-help' }, t('core.html.markdown_help')),
       h('div', { class: 'ewh-toolbar' }, button(t('core.html.macro_insert'), () => void insertMarkdownMacro())), textarea,
@@ -299,6 +320,7 @@ export function createSimpleEditor(container: HTMLElement, body: unknown, ctx: C
           preview.replaceChildren(h('h3', null, t('core.html.preview')), trustedHTML(res.html));
         } catch (e) { preview.textContent = String(e); }
       }), preview);
+    rhCheck();
   };
 
   const current = (): Body => (cur.format === 'markdown' ? { format: 'markdown', source: textarea?.value ?? '' } : { format: 'html', source: editable?.innerHTML ?? '' });
@@ -342,7 +364,7 @@ export function createSimpleEditor(container: HTMLElement, body: unknown, ctx: C
 
   return {
     getBody: () => (ready ? current() : stored),
-    destroy: () => { if (onSel) document.removeEventListener('selectionchange', onSel); },
+    destroy: () => { if (onSel) document.removeEventListener('selectionchange', onSel); rhLater.cancel(); if (hint) clearRanges(); },
   };
 }
 

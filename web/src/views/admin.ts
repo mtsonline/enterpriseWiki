@@ -546,7 +546,7 @@ async function updates(panel: HTMLElement, force: boolean): Promise<void> {
 
 interface Settings {
   config: {
-    ui: { site_name: string; template: string; home_category: number; home_element: number; prerender: boolean; preview_image: string; readable_urls: boolean; editor?: string; collaboration?: boolean; personal_placement?: boolean; custom_css?: boolean; editor_tools?: string[]; dashboard_home?: boolean; not_found_element?: number; forbidden_element?: number };
+    ui: { site_name: string; template: string; home_category: number; home_element: number; prerender: boolean; preview_image: string; readable_urls: boolean; editor?: string; collaboration?: boolean; personal_placement?: boolean; custom_css?: boolean; editor_tools?: string[]; dashboard_home?: boolean; not_found_element?: number; forbidden_element?: number; readability?: { mode?: string; sentence_words?: number; word_letters?: number } };
     i18n: { default_language: string; languages: string[] };
     auth: { order: string[]; session_ttl: string; session_idle?: string; photo_visibility?: string; photo_visibility_max?: string; photo_visibility_fixed?: boolean; api_key_max_ttl: string; ssh_token_ttl: string; max_login_failures: number; lockout_duration: string; min_password_length: number };
     retention: { revisions_keep_days: number; revisions_keep_min: number; trash_days: number; audit_days: number };
@@ -645,6 +645,15 @@ async function settings(panel: HTMLElement): Promise<void> {
   // people: who sees e-mail addresses, and whether a person may hide their own
   const mailVis = select(['users', 'permission', 'nobody'].map((v) => ({ value: v, label: t(`settings.email_vis_${v}`) })), c.people?.email_visibility || 'users');
   const mailHide = checkbox(t('settings.email_hide_allowed'), c.people?.email_hide_allowed !== false, { help: t('settings.email_hide_allowed_help') });
+  // the hint on long sentences and words while writing (off, offered, on for everybody)
+  const rh = c.ui.readability ?? {};
+  const rhMode = select(['off', 'offered', 'on'].map((v) => ({ value: v, label: t(`settings.readability_mode_${v}`) })), rh.mode || 'off');
+  const rhWords = textInput({ type: 'number', value: String(rh.sentence_words || 20) });
+  rhWords.min = '5';
+  rhWords.max = '100';
+  const rhLetters = textInput({ type: 'number', value: String(rh.word_letters || 22) });
+  rhLetters.min = '8';
+  rhLetters.max = '60';
   const listsMax = textInput({ type: 'number', value: String(c.lists?.max_items ?? 0) });
   listsMax.min = '0';
   listsMax.max = '10000';
@@ -661,6 +670,9 @@ async function settings(panel: HTMLElement): Promise<void> {
       field(t('settings.office_token_ttl'), tokenTTL, { help: t('settings.office_token_ttl_help') }),
       field(t('settings.embed_allow'), embedAllow, { help: t('settings.embed_allow_help') }),
       field(t('settings.form_allow'), formAllow, { help: t('settings.form_allow_help') })),
+    fs(t('settings.readability'), h('p', { class: 'ew-help' }, t('settings.readability_help')), field(t('settings.readability_mode'), rhMode),
+      field(t('settings.readability_sentence_words'), rhWords, { help: t('settings.readability_sentence_words_help') }),
+      field(t('settings.readability_word_letters'), rhLetters, { help: t('settings.readability_word_letters_help') })),
     fs(t('settings.people'), field(t('settings.email_visibility'), mailVis, { help: t('settings.email_visibility_help') }), mailHide.el),
     fs(t('settings.lists'), field(t('settings.lists_max'), listsMax, { help: t('settings.lists_max_help') })),
     fs(t('settings.retention'), h('p', { class: 'ew-help' }, t('settings.retention_help')), field(t('settings.revisions_keep_days'), keepDays, { help: t('settings.zero_forever') }), field(t('settings.revisions_keep_min'), keepMin),
@@ -675,7 +687,8 @@ async function settings(panel: HTMLElement): Promise<void> {
     try {
       await api.put('admin/settings', {
         // each section complete: fields this form does not show are kept
-        ui: { ...c.ui, dashboard_home: dashHome.input.checked, not_found_element: nfPage.value(), forbidden_element: fbPage.value(), personal_placement: personalBox.input.checked, custom_css: cssBox.input.checked, editor_tools: toolsField.get(), site_name: siteName.value, template: tpl.value, home_category: homeMode.value === 'category' ? homeCat.value() : 0, home_element: homeMode.value === 'element' ? homeEl.value() : 0, prerender: prerender.input.checked, readable_urls: readable.input.checked, preview_image: sitePreview.value(), editor: editorSel.value, collaboration: collabBox.input.checked },
+        ui: { ...c.ui, dashboard_home: dashHome.input.checked, not_found_element: nfPage.value(), forbidden_element: fbPage.value(), personal_placement: personalBox.input.checked, custom_css: cssBox.input.checked, editor_tools: toolsField.get(), site_name: siteName.value, template: tpl.value, home_category: homeMode.value === 'category' ? homeCat.value() : 0, home_element: homeMode.value === 'element' ? homeEl.value() : 0, prerender: prerender.input.checked, readable_urls: readable.input.checked, preview_image: sitePreview.value(), editor: editorSel.value, collaboration: collabBox.input.checked,
+          readability: { mode: rhMode.value, sentence_words: Number(rhWords.value) || 0, word_letters: Number(rhLetters.value) || 0 } },
         i18n: { default_language: defLang.value, languages: c.i18n.languages },
         auth: { ...c.auth, order: order.value.split(',').map((x) => x.trim()).filter(Boolean), session_ttl: sessionTTL.value, session_idle: sessionIdle.value.trim(),
           photo_visibility: photoDef.value, photo_visibility_max: photoMax.value, photo_visibility_fixed: photoFixed.input.checked, api_key_max_ttl: keyTTL.value, ssh_token_ttl: sshTTL.value, max_login_failures: Number(fails.value), lockout_duration: lockout.value, min_password_length: Number(minPw.value) },

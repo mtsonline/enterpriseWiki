@@ -69,6 +69,7 @@ export { subjectsEditor, userPicker, groupPicker } from './components/subjects';
 export { registerPersonAction, personName, enhancePeople, loadPerson, tParts, type Person, type PersonAction } from './components/person';
 export type { Subject } from './components/subjects';
 export type { MacroChoice } from './editor/macros';
+export { ReadabilityHint, readabilityRules, readabilityMaxChars, debounce, domItems, textareaItems, markRanges, clearRanges, type HintItem } from './components/readability';
 
 /** Loads the visual Markdown editor (a separate file, loaded on first use). */
 export function loadMarkdownEditor(): Promise<typeof import('./editor/editor')> {

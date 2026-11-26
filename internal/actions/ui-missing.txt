@@ -35,7 +35,6 @@ core.favorites.order
 core.feeds.category
 core.files.get
 core.groups.update
-core.html.to_html
 core.html.to_markdown
 core.i18n.export
 core.instance.admins.add

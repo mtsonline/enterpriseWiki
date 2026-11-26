@@ -1,0 +1,32 @@
+{
+  "_about": "Shared cases of the readability rules: internal/readability (Go) and web/src/core/readability.ts (browser) must give the same. words: the words of each sentence; long_words: the words with more than 22 letters.",
+  "texts": [
+    { "name": "sentence ends", "text": "Erster Satz. Zweiter Satz: mit Doppelpunkt; dritter Teil\nvierte Zeile", "words": [2, 2, 2, 2, 2], "long_words": [] },
+    { "name": "question and exclamation", "text": "Is it here? Yes! Good.", "words": [3, 1, 1], "long_words": [] },
+    { "name": "no space after the dot", "text": "Version 1.2.3 is out. See e.g.this", "words": [6, 4], "long_words": [] },
+    { "name": "addresses, paths and code are one word", "text": "Siehe https://news.example.com/a.b und scripts/update.sh --enable-timer sowie `x y z` und {count} Dinge.", "words": [11], "long_words": [] },
+    { "name": "an address at the end of a sentence", "text": "Open https://news.example.com/page. Then sign in.", "words": [2, 3], "long_words": [] },
+    { "name": "file names", "text": "Edit config.yaml and main.go now.", "words": [5], "long_words": [] },
+    { "name": "digits count as words", "text": "In 2026 we had 3 new sites.", "words": [7], "long_words": [] },
+    { "name": "empty lines and spaces", "text": "\n\n  One.  \n\nTwo words\n", "words": [1, 2], "long_words": [] },
+    { "name": "21 words", "text": "one two three four five six seven eight nine ten eleven twelve thirteen fourteen fifteen sixteen seventeen eighteen nineteen twenty twentyone.", "words": [21], "long_words": [] },
+    { "name": "a long German compound", "text": "Die Donaudampfschifffahrtsgesellschaft fährt.", "words": [3], "long_words": ["Donaudampfschifffahrtsgesellschaft"] },
+    { "name": "a hyphen splits a word", "text": "Die Donaudampfschifffahrtsgesellschafts-Kapitäne kommen. Ab-cdefghijklmnopqrstuvwxyz", "words": [4, 2], "long_words": ["Donaudampfschifffahrtsgesellschafts", "cdefghijklmnopqrstuvwxyz"] },
+    { "name": "22 letters are fine, 23 are not", "text": "Abcdefghijklmnopqrstuv Abcdefghijklmnopqrstuvw", "words": [2], "long_words": ["Abcdefghijklmnopqrstuvw"] },
+    { "name": "umlauts are letters", "text": "Übersetzungsfortschrittsanzeigenübersicht", "words": [1], "long_words": ["Übersetzungsfortschrittsanzeigenübersicht"] },
+    { "name": "a long word in code is not counted", "text": "Run `Donaudampfschifffahrtsgesellschaft` now.", "words": [3], "long_words": [] },
+    { "name": "a long word in an address is not counted", "text": "See https://example.com/Donaudampfschifffahrtsgesellschaft today.", "words": [3], "long_words": [] }
+  ],
+  "active": [
+    { "site": "", "pref": "", "active": false },
+    { "site": "", "pref": "on", "active": false },
+    { "site": "off", "pref": "on", "active": false },
+    { "site": "offered", "pref": "", "active": false },
+    { "site": "offered", "pref": "on", "active": true },
+    { "site": "offered", "pref": "off", "active": false },
+    { "site": "on", "pref": "", "active": true },
+    { "site": "on", "pref": "on", "active": true },
+    { "site": "on", "pref": "off", "active": false },
+    { "site": "nonsense", "pref": "on", "active": false }
+  ]
+}
