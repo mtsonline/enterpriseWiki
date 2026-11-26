@@ -7525,7 +7525,7 @@ test('CrowdSec: state, lift a block, allow an address (real Local API)', async (
     await p2.getByText(/^(connected as machine ewiki|verbunden als maschine ewiki)/i).waitFor();
     await a11y('CrowdSec page', p2);
     // lift the block (with a confirmation)
-    await p2.getByRole('button', { name: /^(lift the block of|sperre von) 203\.0\.113\.70( aufheben)?$/i }).click();
+    await p2.getByRole('button', { name: /^(lift block|sperre aufheben): 203\.0\.113\.70$/i }).click();
     await p2.getByRole('dialog').getByRole('button', { name: /^(lift block|sperre aufheben)$/i }).click();
     await p2.getByText(/^(the block of 203\.0\.113\.70 is lifted|die sperre von 203\.0\.113\.70 ist aufgehoben)\.$/i).first().waitFor();
     await p2.waitForFunction(() => !document.querySelector('section[aria-labelledby="cs-blocked"] code') || ![...document.querySelectorAll('section[aria-labelledby="cs-blocked"] code')].some((c) => c.textContent === '203.0.113.70'));
@@ -7547,7 +7547,7 @@ test('CrowdSec: state, lift a block, allow an address (real Local API)', async (
     assert.match(csc('allowlists', 'inspect', 'ewiki', '-o', 'raw').toString(), /192\.0\.2\.0\/24/);
     await a11y('CrowdSec page with an allowed address', p2);
     // and remove it again
-    await p2.getByRole('button', { name: /^(remove 192\.0\.2\.0\/24 from the allowed addresses|192\.0\.2\.0\/24 aus den erlaubten adressen entfernen)$/i }).click();
+    await p2.getByRole('button', { name: /^(remove|entfernen): 192\.0\.2\.0\/24$/i }).click();
     await p2.getByText(/^(no addresses are allowed|es sind keine adressen erlaubt)\.$/i).waitFor();
     await applied();
   } finally {

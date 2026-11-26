@@ -253,7 +253,7 @@ jobs:
           cp .env.example .env && sed -i 's/^EWIKI_UID=.*/EWIKI_UID=1000/; s/^EWIKI_GID=.*/EWIKI_GID=1000/' .env
           COMPOSE_PROFILES=proxy docker compose config -q
           docker compose config -q
-          CROWDSEC_BOUNCER_KEY=ci COMPOSE_PROFILES=proxy COMPOSE_FILE=docker-compose.yml:docker-compose.crowdsec.yml docker compose config -q
+          CROWDSEC_BOUNCER_KEY=ci EWIKI_CROWDSEC_PASSWORD=ci COMPOSE_PROFILES=proxy COMPOSE_FILE=docker-compose.yml:docker-compose.crowdsec.yml docker compose config -q
 
   office:
     name: Office servers (real Collabora Online and OnlyOffice Docs)
