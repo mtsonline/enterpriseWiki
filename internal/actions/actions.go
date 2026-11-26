@@ -117,6 +117,8 @@ var TestSystems = map[string][]string{
 	"onlyoffice": {"url", "secret"},
 	// the public WOPI discovery of Microsoft 365 for the web (CI only)
 	"microsoft365": {"url"},
+	// CrowdSec Local API with the machine "ewiki" (tests/crowdsec/start.sh)
+	"crowdsec": {"url", "password"},
 }
 
 // FormField is ewiki.plugin.v1.FormField.

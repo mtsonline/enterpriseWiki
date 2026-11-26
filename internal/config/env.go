@@ -50,14 +50,17 @@ func ExtraTLSHosts() []string {
 
 var hostRe = regexp.MustCompile(`^([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}$`)
 
-// officeEnv are defaults of office plugin settings from the environment
-// (docker-compose.yml profiles "collabora" and "onlyoffice"). They apply
-// only while the setting is empty, so the administration can change them.
-var officeEnv = []struct{ env, plugin, key string }{
+// presetEnv are defaults of plugin settings from the environment
+// (docker-compose.yml profiles "collabora" and "onlyoffice",
+// docker-compose.crowdsec.yml). They apply only while the setting is empty,
+// so the administration can change them.
+var presetEnv = []struct{ env, plugin, key string }{
 	{"EWIKI_COLLABORA_URL", "office.collabora", "url"},
 	{"EWIKI_ONLYOFFICE_URL", "office.onlyoffice", "url"},
 	{"EWIKI_ONLYOFFICE_INTERNAL_URL", "office.onlyoffice", "internal_url"},
 	{"EWIKI_ONLYOFFICE_JWT_SECRET", "office.onlyoffice", "jwt_secret"},
+	{"EWIKI_CROWDSEC_URL", "security.crowdsec", "url"},
+	{"EWIKI_CROWDSEC_PASSWORD", "security.crowdsec", "password"},
 }
 
 // applyEnv applies settings that the environment overrides or presets (not
@@ -66,7 +69,7 @@ func applyEnv(c *Config) {
 	if p, ok := TrustedProxiesFromEnv(); ok {
 		c.Server.TrustedProxies = p
 	}
-	for _, o := range officeEnv {
+	for _, o := range presetEnv {
 		v := strings.TrimSpace(os.Getenv(o.env))
 		if v == "" {
 			continue

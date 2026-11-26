@@ -2,7 +2,6 @@ package server
 
 import (
 	"net/http"
-	"time"
 
 	"github.com/jackc/pgx/v5"
 
@@ -31,22 +30,7 @@ func requireInstance(r *http.Request) error {
 // during the last 15 minutes or the command line on the server; API keys
 // and older sessions are refused (a stolen session or key cannot widen what
 // counts as trusted).
-func requireRecentSignIn(r *http.Request) error {
-	p := identity.From(r.Context())
-	if p == nil {
-		return apperr.ErrUnauthorized
-	}
-	if p.Via == "cli" {
-		return nil
-	}
-	if p.Via != "session" {
-		return apperr.Forbidden("this change is only possible in the browser or with the command line on the server")
-	}
-	if time.Since(p.SignedIn) > auth.RecentSignIn {
-		return &apperr.Error{Status: 403, Code: "reauth_required", Msg: "please sign in again to make this change"}
-	}
-	return nil
-}
+func requireRecentSignIn(r *http.Request) error { return auth.RequireFreshSession(r.Context()) }
 
 // handleOf names the caller for records (user@provider, or "cli").
 func handleOf(r *http.Request) string {

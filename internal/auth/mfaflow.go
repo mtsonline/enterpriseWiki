@@ -706,6 +706,28 @@ func RequireRecentSignIn(ctx context.Context) (int64, error) {
 	return p.UserID, nil
 }
 
+// RequireFreshSession guards critical changes: a browser session signed in
+// during the last 15 minutes or the command line on the server; API keys
+// and older sessions are refused (a stolen session or key cannot make such
+// a change).
+func RequireFreshSession(ctx context.Context) error {
+	p := identity.From(ctx)
+	if p == nil {
+		return apperr.ErrUnauthorized
+	}
+	// the command line on the server; --as is no sign-in and is refused
+	if p.IsCLI() {
+		return nil
+	}
+	if p.Via != "session" {
+		return apperr.Forbidden("this change is only possible in the browser or with the command line on the server")
+	}
+	if time.Since(p.SignedIn) > RecentSignIn {
+		return &apperr.Error{Status: 403, Code: "reauth_required", Msg: "please sign in again to make this change"}
+	}
+	return nil
+}
+
 func (s *Service) myEnroller(ctx context.Context, method string) (int64, MFAEnroller, error) {
 	uid, err := RequireRecentSignIn(ctx)
 	if err != nil {

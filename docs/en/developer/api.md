@@ -673,6 +673,12 @@ Called by directories such as Entra ID or Okta with the token of a SCIM client (
 | `GET` | `/api/v1/x/theme.cms/config` |
 | `GET` | `/api/v1/x/workflow.process/meta` |
 | `GET` | `/api/v1/x/core.waf/status` |
+| `GET` | `/api/v1/x/security.crowdsec/status` |
+| `GET` | `/api/v1/x/security.crowdsec/alerts` |
+| `GET` | `/api/v1/x/security.crowdsec/decisions` |
+| `DELETE` | `/api/v1/x/security.crowdsec/decisions/{id}` |
+| `GET` | `/api/v1/x/security.crowdsec/allowlist` |
+| `PUT` | `/api/v1/x/security.crowdsec/allowlist` |
 | `GET` | `/api/v1/x/workflow.process/elements/{id}/instances` |
 | `POST` | `/api/v1/x/workflow.process/elements/{id}/instances` |
 | `GET` | `/api/v1/x/workflow.process/instances/{id}` |

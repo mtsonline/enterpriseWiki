@@ -168,6 +168,18 @@ jobs:
       - name: unit tests (editor Markdown)
         working-directory: web
         run: npm run test:unit
+      # a real CrowdSec for its page in the administration
+      - name: download of CrowdSec (cache)
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: /tmp/ewiki-crowdsec/bin-*
+          key: crowdsec-${{ hashFiles('tests/crowdsec/start.sh') }}
+      - name: start CrowdSec and the exchange script
+        run: |
+          tests/crowdsec/start.sh > /tmp/crowdsec.env
+          sed -n 's/^export EWIKI_TEST_CROWDSEC_PASSWORD=\(.*\)$/::add-mask::\1/p' /tmp/crowdsec.env
+          sed -e 's/^export //' -e "s/^\(EWIKI_TEST_CROWDSEC_CSCLI=\)'\(.*\)'$/\1\2/" /tmp/crowdsec.env >> "$GITHUB_ENV"
+          rm /tmp/crowdsec.env
       - name: setup and start the wiki
         run: |
           mkdir -p /tmp/wiki
@@ -241,7 +253,7 @@ jobs:
           cp .env.example .env && sed -i 's/^EWIKI_UID=.*/EWIKI_UID=1000/; s/^EWIKI_GID=.*/EWIKI_GID=1000/' .env
           COMPOSE_PROFILES=proxy docker compose config -q
           docker compose config -q
-          CROWDSEC_BOUNCER_KEY=ci COMPOSE_PROFILES=proxy COMPOSE_FILE=docker-compose.yml:docker-compose.crowdsec.yml docker compose config -q
+          CROWDSEC_BOUNCER_KEY=ci EWIKI_CROWDSEC_PASSWORD=ci COMPOSE_PROFILES=proxy COMPOSE_FILE=docker-compose.yml:docker-compose.crowdsec.yml docker compose config -q
 
   office:
     name: Office servers (real Collabora Online and OnlyOffice Docs)
@@ -429,6 +441,52 @@ jobs:
         if: always()
         run: tests/search/start.sh stop
 
+  crowdsec:
+    name: CrowdSec (real Local API, exchange script)
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:${{ inputs.latest && 'latest' || '19' }} # renovate: postgres 19
+        env: { POSTGRES_USER: wiki, POSTGRES_PASSWORD: wiki, POSTGRES_DB: wiki }
+        ports: ["5432:5432"]
+        options: --health-cmd pg_isready --health-interval 5s --health-timeout 5s --health-retries 20
+    env:
+      EWIKI_TEST_REQUIRE_CROWDSEC: "1"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - name: Go version from go.mod
+        id: gover
+        run: echo "version=$(sed -n 's/^toolchain go//p' go.mod | grep . || sed -n 's/^go //p' go.mod)" >> "$GITHUB_OUTPUT"
+      - uses: actions/setup-go@d8cbb8045d7f43706b9177cceb36c1f91a6644d5 # v7
+        with: { go-version: "${{ steps.gover.outputs.version }}" }
+      - name: download of CrowdSec (cache)
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: /tmp/ewiki-crowdsec/bin-*
+          key: crowdsec-${{ hashFiles('tests/crowdsec/start.sh') }}
+      - name: start CrowdSec and the exchange script
+        run: |
+          tests/crowdsec/start.sh > /tmp/crowdsec.env
+          # the generated password never appears in the log
+          sed -n 's/^export EWIKI_TEST_CROWDSEC_PASSWORD=\(.*\)$/::add-mask::\1/p' /tmp/crowdsec.env
+          sed -e 's/^export //' -e "s/^\(EWIKI_TEST_CROWDSEC_CSCLI=\)'\(.*\)'$/\1\2/" /tmp/crowdsec.env >> "$GITHUB_ENV"
+          rm /tmp/crowdsec.env
+      - name: Go tests against CrowdSec (race detector)
+        run: go test -race -count=1 -timeout 20m -run 'TestCrowdSec' -v ./internal/server/
+        env:
+          EWIKI_TEST_DATABASE_URL: ${{ env.DB_URL }}
+      - name: examples of the action register that need CrowdSec
+        run: go test -race -count=1 -timeout 20m -run 'TestActionExamples' ./internal/server/
+        env:
+          EWIKI_TEST_EXAMPLE_SYSTEMS: crowdsec
+          EWIKI_TEST_DATABASE_URL: ${{ env.DB_URL }}
+      - name: logs of a failed test
+        if: failure()
+        run: tail -n 60 /tmp/ewiki-crowdsec/*.log || true
+      - name: stop CrowdSec
+        if: always()
+        run: tests/crowdsec/start.sh stop
+
   plugins:
     name: Plugin lifecycle (private source, build, restart, update)
     runs-on: ubuntu-latest
@@ -498,7 +556,7 @@ jobs:
   result:
     name: CI result
     if: always()
-    needs: [backend, security, e2e, docker, office, auth, search, plugins, pg-versions, compose]
+    needs: [backend, security, e2e, docker, office, auth, search, crowdsec, plugins, pg-versions, compose]
     runs-on: ubuntu-latest
     steps:
       - name: all jobs succeeded

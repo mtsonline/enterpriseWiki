@@ -122,19 +122,29 @@ Danach `docker compose up -d`. Die Ports 80 und 443 (TCP, für HTTP/3 auch UDP 4
 EWIKI_SECURITY=crowdsec
 COMPOSE_FILE=docker-compose.yml:docker-compose.crowdsec.yml
 CROWDSEC_BOUNCER_KEY=<zufällig>
+EWIKI_CROWDSEC_PASSWORD=<zufällig>
 ```
 
 Dann `docker compose up -d --build`. Beim ersten Start wird der Proxy gebaut: das offizielle Caddy-Image mit dem [CrowdSec-Bouncer für Caddy](https://github.com/hslatman/caddy-crowdsec-bouncer) (Apache-2.0), siehe `docker/caddy-crowdsec/Dockerfile`.
 
 **Datenschutz.** Das Zugriffsprotokoll liegt in `./data/caddy/logs` (höchstens 3 Dateien zu 20 MB) und enthält Adressen, Zeiten und Pfade. Es enthält keine Abfrageparameter (sie können Tokens tragen), keine Cookies und keine Anmelde-Kopfzeilen. CrowdSec speichert seine Entscheidungen in `./data/crowdsec`.
 
+**In der Administration.** Die Seite *CrowdSec* zeigt, ob CrowdSec läuft, seine letzten Alarme und die Adressen, die es sperrt. Mit dem Recht *CrowdSec verwalten* heben Sie eine Sperre auf und führen eine Liste erlaubter Adressen, die CrowdSec nie sperrt (zum Beispiel Ihr Büro oder einen Überwachungsdienst; Netze höchstens /8 bei IPv4 und /24 bei IPv6). Wird eine Adresse erlaubt, fallen auch ihre bestehenden Sperren weg. Die Seite arbeitet nur auf der Haupt-Site, weil CrowdSec die ganze Installation schützt. Befehlszeile: `ewiki crowdsec status`, `alerts`, `blocks`, `unblock ID`, `allowlist`, `allowlist-set --json '{"entries":[{"value":"192.0.2.10","note":"Büro"}]}'`.
+
+So spricht das Wiki mit CrowdSec:
+
+- **Kein Zugriff auf Docker.** Das Wiki meldet sich bei der Local API von CrowdSec (`http://crowdsec:8080`) als Maschine `ewiki` mit `EWIKI_CROWDSEC_PASSWORD` an. Eine Maschine darf Alarme und Erlaubnislisten lesen und Entscheidungen löschen; die Schlüssel der Bouncer sieht sie nie. Das Skript `docker/crowdsec/ewiki-sync.sh` läuft im CrowdSec-Container und meldet die Maschine bei jedem Start an.
+- **Erlaubte Adressen über einen Ordner.** Die Local API kann keine Erlaubnislisten schreiben. Das Wiki führt die Liste in seiner Datenbank und schreibt sie nach `./data/wiki/crowdsec-exchange/allowlist.txt`. Das Skript im CrowdSec-Container prüft jede Zeile (nur IP-Adressen und Netze kommen durch) und überträgt die Liste mit `cscli` in die Erlaubnisliste `ewiki`, meist innerhalb von 10 Sekunden. Die Seite zeigt, ob CrowdSec die Liste anwendet. Den Ordner legt `EWIKI_CROWDSEC_EXCHANGE` fest, nur in der Umgebung, nie in der Administration.
+- **Geschützte Änderungen.** Sperren aufheben und die Liste ändern geht nur in einer Browser-Sitzung, die in den letzten 15 Minuten angemeldet wurde, oder mit der Befehlszeile auf dem Server; API-Schlüssel können es nicht. Jede Änderung steht im Audit-Protokoll (`security.crowdsec.unblock`, `security.crowdsec.allowlist`).
+- **Ohne die mitgelieferte Einrichtung:** Melden Sie selbst eine Maschine an (`cscli machines add ewiki --password …`) und tragen Sie auf der Seite die Adresse der Local API und das Passwort ein. Ohne Austauschordner lässt sich die Liste der erlaubten Adressen nur lesen.
+
 **Betrieb:**
 
-- Gesperrte Adressen anzeigen: `docker compose exec crowdsec cscli decisions list`.
-- Eine Adresse freigeben: `docker compose exec crowdsec cscli decisions delete --ip 203.0.113.7`.
+- Gesperrte Adressen anzeigen: auf der Seite *CrowdSec* oder mit `docker compose exec crowdsec cscli decisions list`.
+- Eine Adresse freigeben: auf der Seite *CrowdSec* oder mit `docker compose exec crowdsec cscli decisions delete --ip 203.0.113.7`.
 - Läuft CrowdSec nicht, lässt der Proxy die Anfragen durch (`appsec_fail_open`) und protokolliert das, damit das Wiki erreichbar bleibt; das Wiki prüft jede Eingabe ohnehin selbst.
 
-**Getestet** in der CI (`scripts/test-docker-proxy.sh`): Eine gesperrte Adresse bekommt `403` und kommt nach dem Freigeben wieder herein; ein virtueller Patch sperrt `/.env`; eine Seite mit Code, SQL und HTML wird nicht gesperrt; im Protokoll steht kein Abfrageparameter; ohne CrowdSec bleibt das Wiki erreichbar.
+**Getestet** in der CI (`scripts/test-docker-proxy.sh`): Eine gesperrte Adresse bekommt `403` und kommt nach dem Freigeben wieder herein; ein virtueller Patch sperrt `/.env`; eine Seite mit Code, SQL und HTML wird nicht gesperrt; im Protokoll steht kein Abfrageparameter; ohne CrowdSec bleibt das Wiki erreichbar; das Wiki meldet sich als Maschine `ewiki` an, und eine erlaubte Adresse kommt bei CrowdSec an und verliert ihre Sperre. Die Seite selbst wird gegen ein echtes CrowdSec getestet (`tests/crowdsec/start.sh`), auch mit einer feindlichen Austauschdatei.
 
 **Ausschalten:** `EWIKI_SECURITY=none` und `COMPOSE_FILE=docker-compose.yml` setzen, dann `docker compose up -d --remove-orphans`.
 

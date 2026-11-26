@@ -50,6 +50,8 @@ expect EWIKI_SECURITY crowdsec
 expect COMPOSE_FILE docker-compose.yml:docker-compose.crowdsec.yml
 [ "$(val CROWDSEC_BOUNCER_KEY | wc -c)" -ge 40 ] || fail "no bouncer key generated"
 [[ "$(val CROWDSEC_BOUNCER_KEY)" =~ ^[A-Za-z0-9]+$ ]] || fail "bouncer key with unexpected characters"
+[ "$(val EWIKI_CROWDSEC_PASSWORD | wc -c)" -ge 40 ] || fail "no password for the machine ewiki generated"
+[ -d data/wiki/crowdsec-exchange ] || fail "no exchange folder for CrowdSec"
 expect EWIKI_BASE_URL https://wiki.example.com
 expect EWIKI_ACME zerossl
 expect EWIKI_ACME_EMAIL it@example.com
@@ -135,6 +137,7 @@ sed -i -E "s#^(\s+image:) ghcr.io/mtsonline/enterprisewiki:.*#\1 $image#; s#pull
 	echo COMPOSE_FILE=docker-compose.yml:docker-compose.crowdsec.yml
 	echo EWIKI_SECURITY=crowdsec
 	echo "CROWDSEC_BOUNCER_KEY=$(head -c 4096 /dev/urandom | LC_ALL=C tr -dc 'A-Za-z0-9' | cut -c 1-48)"
+	echo "EWIKI_CROWDSEC_PASSWORD=$(head -c 4096 /dev/urandom | LC_ALL=C tr -dc 'A-Za-z0-9' | cut -c 1-48)"
 	echo EWIKI_ACME=letsencrypt-staging
 	echo EWIKI_ACME_EMAIL=ci@example.com
 	echo EWIKI_HTTP_PORT=18091
@@ -145,7 +148,7 @@ sed -i -E "s#^(\s+image:) ghcr.io/mtsonline/enterprisewiki:.*#\1 $image#; s#pull
 	echo EWIKI_TRUSTED_PROXIES=172.30.91.250
 } >>.env
 sed -i 's#^EWIKI_BASE_URL=.*#EWIKI_BASE_URL=https://wiki.example.com#; s#^EWIKI_PORT=.*#EWIKI_PORT=127.0.0.1:18090#' .env
-mkdir -p data/caddy/logs data/crowdsec/data data/crowdsec/config
+mkdir -p data/caddy/logs data/crowdsec/data data/crowdsec/config data/wiki/crowdsec-exchange
 docker compose up -d --build >up.log 2>&1 || { cat up.log >&2; fail "compose up (CrowdSec)"; }
 trap 'docker compose down -v >/dev/null 2>&1 || true' EXIT
 cs() { docker compose exec -T crowdsec "$@"; }
@@ -158,6 +161,18 @@ grep -qx 'http.handlers.appsec' <<<"$(docker compose exec -T proxy caddy list-mo
 # local only: no online API (no console, no shared signals)
 if cs sh -c 'grep -q online_client /etc/crowdsec/config.yaml'; then fail "CrowdSec online API configured"; fi
 grep -q '"caddy"' <<<"$(cs cscli bouncers list -o json)" || fail "bouncer caddy not registered"
+# the wiki signs in to the Local API as the machine "ewiki" (registered by
+# docker/crowdsec/ewiki-sync.sh) and changes the allowed addresses through
+# the exchange folder; the script lifts the block of an allowed address
+csw() { docker compose exec -T wiki ewiki crowdsec "$@"; }
+for _ in $(seq 1 60); do grep -Eq '"?connected"?: *true' <<<"$(csw status 2>/dev/null)" && break; sleep 1; done
+grep -Eq '"?connected"?: *true' <<<"$(csw status 2>&1)" || fail "the wiki does not reach CrowdSec: $(csw status 2>&1)"
+cs cscli decisions add --ip 192.0.2.44 --duration 10m --reason ci >/dev/null || fail "decision for 192.0.2.44 not added"
+csw allowlist-set --json '{"entries":[{"value":"192.0.2.44","note":"ci"}]}' >/dev/null || fail "allowed addresses not saved"
+for _ in $(seq 1 60); do grep -q '192.0.2.44' <<<"$(cs cscli allowlists inspect ewiki -o raw 2>/dev/null)" && break; sleep 1; done
+grep -q '192.0.2.44' <<<"$(cs cscli allowlists inspect ewiki -o raw 2>&1)" || fail "CrowdSec did not apply the allowed address"
+if grep -q '192.0.2.44' <<<"$(cs cscli decisions list -o raw 2>/dev/null)"; then fail "the block of an allowed address stays"; fi
+csw allowlist-set --json '{"entries":[]}' >/dev/null || fail "allowed addresses not cleared"
 if grep -q 'crowdsecurity/http-crawl-non_statics' <<<"$(cs cscli scenarios list -o raw)"; then fail "crawl scenario active (would block busy readers)"; fi
 get() { curl -s -o /dev/null -w '%{http_code}' -H 'Host: wiki.example.com' "$@"; }
 for _ in $(seq 1 60); do [ "$(get http://127.0.0.1:18091/start)" = 301 ] && break; sleep 1; done

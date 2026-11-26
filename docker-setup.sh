@@ -235,6 +235,7 @@ if [ "$(getvar EWIKI_HTTPS)" = proxy ] && { [ -z "$(getvar EWIKI_SECURITY)" ] ||
 	if [ "$security" = crowdsec ]; then
 		setvar COMPOSE_FILE docker-compose.yml:docker-compose.crowdsec.yml
 		[ -n "$(getvar CROWDSEC_BOUNCER_KEY)" ] || setvar CROWDSEC_BOUNCER_KEY "$(random 48)"
+		[ -n "$(getvar EWIKI_CROWDSEC_PASSWORD)" ] || setvar EWIKI_CROWDSEC_PASSWORD "$(random 48)"
 		say "CrowdSec: on (docker-compose.crowdsec.yml; the proxy is built on the first start)"
 	else
 		setvar COMPOSE_FILE docker-compose.yml
@@ -283,8 +284,17 @@ if [ "$(getvar EWIKI_SECURITY)" = crowdsec ]; then
 	# CrowdSec runs as root in its container (its own files)
 	mkdir -p data/crowdsec/data data/crowdsec/config
 	chmod 700 data/crowdsec
+	# the password of the machine "ewiki" (installations set up before the
+	# CrowdSec page of the administration)
+	[ -n "$(getvar EWIKI_CROWDSEC_PASSWORD)" ] || setvar EWIKI_CROWDSEC_PASSWORD "$(random 48)"
+	# the wiki writes the allowed addresses here, CrowdSec reads them
+	mkdir -p data/wiki/crowdsec-exchange
+	chmod 755 data/wiki/crowdsec-exchange
 fi
-if [ "$(id -u)" = 0 ]; then chown "$uid:$gid" data data/postgres data/wiki; fi
+if [ "$(id -u)" = 0 ]; then
+	chown "$uid:$gid" data data/postgres data/wiki
+	if [ -d data/wiki/crowdsec-exchange ]; then chown "$uid:$gid" data/wiki/crowdsec-exchange; fi
+fi
 
 # the timer needs .env and ./data: set up last (systemd with sudo, else crontab)
 if [ -n "${at:-}" ] && [ "$(getvar EWIKI_AUTO_UPDATE)" = on ]; then

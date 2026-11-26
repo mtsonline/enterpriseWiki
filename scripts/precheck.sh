@@ -131,12 +131,20 @@ startwiki() {
 
 e2e() {
 	local db="ewiki_precheck_wiki_$$" dir="$WORK/wiki" srv
+	# a real CrowdSec for its page in the administration (as in the CI);
+	# the programs are downloaded once to /tmp/ewiki-crowdsec-cache
+	local cs="$WORK/crowdsec"
+	EWIKI_CROWDSEC_WORK="$cs" EWIKI_CROWDSEC_CACHE=/tmp/ewiki-crowdsec-cache EWIKI_CROWDSEC_PORT=$((PORT + 1000)) \
+		tests/crowdsec/start.sh > "$WORK/crowdsec.env" || return 1
+	# shellcheck disable=SC1091
+	. "$WORK/crowdsec.env"
 	startwiki wiki "$PORT"
 	local rc=0
 	(cd web && EWIKI_E2E_URL="http://localhost:$PORT" EWIKI_E2E_USER=admin EWIKI_E2E_PASSWORD="$ADMIN_PW" \
 		EWIKI_E2E_REQUIRE_AXE=1 EWIKI_E2E_UI_REQUESTS="$dir/ui-requests.json" npm run -s test:e2e) || rc=$?
 	[ "$rc" = 0 ] && { go run ./tools/uicoverage -requests "$dir/ui-requests.json" || rc=$?; }
 	kill "$srv" 2>/dev/null || true
+	EWIKI_CROWDSEC_WORK="$cs" tests/crowdsec/start.sh stop
 	[ "$rc" = 0 ] || { echo "--- server log"; tail -n 80 "$dir/server.log"; }
 	pgq "DROP DATABASE IF EXISTS $db" || true
 	return "$rc"
