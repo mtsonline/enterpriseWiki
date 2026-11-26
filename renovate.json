@@ -31,8 +31,8 @@
     "schedule": [
       "before 6am on monday"
     ],
-    "minimumReleaseAge": null,
-    "description": "Renovate cannot work out the age of the versions in a lock file refresh (its check would stay pending forever); the CI step tools/releaseage refuses versions younger than 3 days instead"
+    "minimumReleaseAge": "3 days",
+    "description": "With a minimum release age Renovate runs npm with --before=<now - 3 days>, so the refreshed lock file takes no version younger than 3 days (also transitive ones) and the branch is created without waiting for release timestamps. Without it every daily rebase took the newest versions and the CI step tools/releaseage refused them for ever (PR #177)."
   },
   "vulnerabilityAlerts": {
     "enabled": true,

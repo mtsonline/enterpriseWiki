@@ -78,8 +78,9 @@ npm-Pakete, Docker-Basis-Images, GitHub Actions):
    große Versionssprünge einzeln. Neue Versionen werden erst nach **3 Tagen** übernommen (zurückgezogene oder
    kompromittierte Pakete erreichen das Produkt so nicht), **Sicherheitsupdates sofort**. Versionen und Docker-Images
    sind exakt festgeschrieben (bei Images und GitHub Actions mit Prüfwert); jedes Update ändert sie per Pull Request.
-   Bei der wöchentlichen Auffrischung der Lock-Datei kann Renovate das Alter nicht prüfen; das übernimmt ein
-   CI-Schritt (`go run ./tools/releaseage`), der jede Paketversion ablehnt, die jünger als 3 Tage ist.
+   Bei der wöchentlichen Auffrischung der Lock-Datei ruft Renovate npm mit einem Stichtag 3 Tage zurück auf,
+   nimmt also keine jüngere Version, auch nicht bei indirekten Paketen. Ein CI-Schritt
+   (`go run ./tools/releaseage`) prüft das noch einmal und lehnt jede Paketversion ab, die jünger als 3 Tage ist.
 2. Die **CI** prüft jeden Pull Request vollständig: Build, Go-Tests mit PostgreSQL, Browser-Tests mit
    Barrierefreiheitsprüfung, Docker-Build und Lizenzprüfung der Abhängigkeiten. Nur wenn alles grün ist, führt
    GitHub den Pull Request **automatisch** zusammen (Auto-Merge, von Renovate eingeschaltet; die Repository-Einstellung
