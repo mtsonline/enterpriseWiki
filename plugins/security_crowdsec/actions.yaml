@@ -69,14 +69,14 @@ actions:
         en: Lift a block of CrowdSec
         de: Eine Sperre von CrowdSec aufheben
     permission: {key: security.crowdsec.manage, scope: SCOPE_GLOBAL}
-    safety: {changes: true}
+    safety: {changes: true, recent_sign_in: true, audit_event: security.crowdsec.unblock}
     cli: {command: [crowdsec, unblock], args: [id]}
     ui: {entry: /admin/crowdsec}
     examples:
       - name: unknown
         requires: [crowdsec]
         given: ['core.settings.update#crowdsec']
-        as: member
+        as: admin
         path_params_json: '{"id": "999999999"}'
         status: 404
   - id: security.crowdsec.allowlist
@@ -104,18 +104,18 @@ actions:
         en: Replace the addresses CrowdSec never blocks
         de: Die Adressen ersetzen, die CrowdSec nie sperrt
     permission: {key: security.crowdsec.manage, scope: SCOPE_GLOBAL}
-    safety: {changes: true}
+    safety: {changes: true, recent_sign_in: true, audit_event: security.crowdsec.allowlist}
     cli: {command: [crowdsec, allowlist-set]}
     ui: {entry: /admin/crowdsec}
     examples:
       - name: default
         requires: [crowdsec]
         given: ['core.settings.update#crowdsec']
-        as: member
+        as: admin
         body_json: '{"entries": [{"value": "192.0.2.10", "note": "office"}, {"value": "198.51.100.0/24", "note": ""}]}'
       - name: too_large
         requires: [crowdsec]
         given: ['core.settings.update#crowdsec']
-        as: member
+        as: admin
         body_json: '{"entries": [{"value": "0.0.0.0/0", "note": ""}]}'
         status: 400

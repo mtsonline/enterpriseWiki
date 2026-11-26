@@ -715,9 +715,8 @@ func RequireFreshSession(ctx context.Context) error {
 	if p == nil {
 		return apperr.ErrUnauthorized
 	}
-	// the command line on the server, also with --as (exactly the rights
-	// of that person; whoever runs it can run it without --as as well)
-	if p.IsCLI() || p.Via == "cli-as" {
+	// the command line on the server; --as is no sign-in and is refused
+	if p.IsCLI() {
 		return nil
 	}
 	if p.Via != "session" {

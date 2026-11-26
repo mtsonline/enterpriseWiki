@@ -172,6 +172,26 @@ func TestCrowdSec(t *testing.T) {
 		t.Fatalf("not connected: %+v", st2)
 	}
 
+	waitSync := func(want []string) {
+		t.Helper()
+		deadline := time.Now().Add(30 * time.Second)
+		for {
+			var a csAllowlist
+			viewer.must("GET", "/api/v1/x/security.crowdsec/allowlist", nil, &a, 200)
+			if a.InSync && fmt.Sprint(a.Applied) == fmt.Sprint(want) {
+				return
+			}
+			if time.Now().After(deadline) {
+				t.Fatalf("CrowdSec did not apply %v: %+v", want, a)
+			}
+			time.Sleep(200 * time.Millisecond)
+		}
+	}
+	// start from an empty allowlist (an earlier run or the examples may
+	// have left one in CrowdSec)
+	manager.must("PUT", "/api/v1/x/security.crowdsec/allowlist", map[string]any{"entries": []any{}}, nil, 200)
+	waitSync([]string{})
+
 	// a block appears and can be lifted
 	run("decisions", "add", "-i", "203.0.113.50", "-d", "1h", "-R", "ewiki test")
 	find := func(v string) *csDecision {
@@ -202,21 +222,6 @@ func TestCrowdSec(t *testing.T) {
 	// an allowed address: CrowdSec applies it and lifts its block
 	run("decisions", "add", "-i", "198.51.100.20", "-d", "1h", "-R", "ewiki test")
 	manager.must("PUT", "/api/v1/x/security.crowdsec/allowlist", map[string]any{"entries": []any{map[string]any{"value": "198.51.100.0/24", "note": "office"}}}, nil, 200)
-	waitSync := func(want []string) {
-		t.Helper()
-		deadline := time.Now().Add(30 * time.Second)
-		for {
-			var a csAllowlist
-			viewer.must("GET", "/api/v1/x/security.crowdsec/allowlist", nil, &a, 200)
-			if a.InSync && fmt.Sprint(a.Applied) == fmt.Sprint(want) {
-				return
-			}
-			if time.Now().After(deadline) {
-				t.Fatalf("CrowdSec did not apply %v: %+v", want, a)
-			}
-			time.Sleep(200 * time.Millisecond)
-		}
-	}
 	waitSync([]string{"198.51.100.0/24"})
 	if find("198.51.100.20") != nil {
 		t.Fatal("the block of an allowed address was not lifted")
