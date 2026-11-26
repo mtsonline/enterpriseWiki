@@ -22,12 +22,17 @@ import (
 
 // Notification is one message for a user.
 type Notification struct {
-	ID         int64      `json:"id"`
-	Kind       string     `json:"kind"` // e.g. mention, share (plugins: <plugin id>.<kind>)
-	Title      string     `json:"title"`
-	Body       string     `json:"body"`
-	Link       string     `json:"link"` // path in the wiki, e.g. /e/12
-	Actor      string     `json:"actor"`
+	ID    int64  `json:"id"`
+	Kind  string `json:"kind"` // e.g. mention, share (plugins: <plugin id>.<kind>)
+	Title string `json:"title"`
+	Body  string `json:"body"`
+	Link  string `json:"link"` // path in the wiki, e.g. /e/12
+	Actor string `json:"actor"`
+	// ActorID: the person who caused it, only for a recipient who may open
+	// that person (set by the API with content.PeopleRefs)
+	ActorID *int64 `json:"actor_id,omitempty"`
+	// ActorUser is the raw id of the actor (never sent)
+	ActorUser  *int64     `json:"-"`
 	EntityType string     `json:"entity_type"`
 	EntityID   *int64     `json:"entity_id"`
 	CreatedAt  time.Time  `json:"created_at"`
@@ -150,27 +155,47 @@ func (s *Service) SendQ(ctx context.Context, q db.Querier, userIDs []int64, m Me
 	return n, nil
 }
 
-// List returns the latest notifications of the caller and the number of unread ones.
-func (s *Service) List(ctx context.Context, limit int) ([]Notification, int, error) {
+// ListOptions select a page of the own notifications.
+type ListOptions struct {
+	Limit int
+	// Before: only notifications older than this one (next page)
+	Before int64
+	// Unread: only unread ones
+	Unread bool
+}
+
+// List returns the caller's notifications (newest first), the number of
+// unread ones and whether there are more after this page.
+func (s *Service) List(ctx context.Context, o ListOptions) ([]Notification, int, bool, error) {
 	uid := identity.From(ctx).ID()
 	if uid <= 0 {
-		return nil, 0, apperr.ErrUnauthorized
+		return nil, 0, false, apperr.ErrUnauthorized
 	}
-	if limit <= 0 || limit > 200 {
-		limit = 30
+	if o.Limit <= 0 || o.Limit > 200 {
+		o.Limit = 30
 	}
-	rows, err := s.pool.Query(ctx, `SELECT `+notifCols+` FROM notifications n LEFT JOIN users u ON u.id = n.actor_id
-		WHERE n.user_id=$1 ORDER BY n.created_at DESC, n.id DESC LIMIT $2`, uid, limit)
+	rows, err := s.pool.Query(ctx, `SELECT n.id, n.kind, n.title, n.body, n.link, COALESCE(u.display_name, ''), n.actor_id, n.entity_type, n.entity_id, n.created_at, n.read_at, n.popup
+		FROM notifications n LEFT JOIN users u ON u.id = n.actor_id
+		WHERE n.user_id=$1 AND (NOT $3 OR n.read_at IS NULL)
+		  AND ($4 = 0 OR (n.created_at, n.id) < (SELECT b.created_at, b.id FROM notifications b WHERE b.id = $4 AND b.user_id = $1))
+		ORDER BY n.created_at DESC, n.id DESC LIMIT $2`, uid, o.Limit+1, o.Unread, o.Before)
 	if err != nil {
-		return nil, 0, err
+		return nil, 0, false, err
 	}
-	list, err := pgx.CollectRows(rows, scanNotification)
+	list, err := pgx.CollectRows(rows, func(r pgx.CollectableRow) (Notification, error) {
+		var n Notification
+		return n, r.Scan(&n.ID, &n.Kind, &n.Title, &n.Body, &n.Link, &n.Actor, &n.ActorUser, &n.EntityType, &n.EntityID, &n.CreatedAt, &n.ReadAt, &n.Popup)
+	})
 	if err != nil {
-		return nil, 0, err
+		return nil, 0, false, err
+	}
+	more := len(list) > o.Limit
+	if more {
+		list = list[:o.Limit]
 	}
 	var unread int
 	err = s.pool.QueryRow(ctx, `SELECT count(*) FROM notifications WHERE user_id=$1 AND read_at IS NULL`, uid).Scan(&unread)
-	return list, unread, err
+	return list, unread, more, err
 }
 
 // Popups returns the unread pop-ups of the caller, oldest first, at most

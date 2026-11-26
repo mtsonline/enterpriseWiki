@@ -9,6 +9,7 @@ import './styles/math.css';
 import './editor/editor.css';
 import { mediaView } from './views/media';
 import { tasksView } from './views/tasks';
+import { notificationsView } from './views/notifications';
 import { signatureVerifyView } from './views/signatures';
 import { officeView } from './components/office';
 import { api, ApiError, setWaitNotice, setWaitPrompt } from './core/api';
@@ -78,6 +79,7 @@ function registerCore(): void {
   route('/people/:id', personView);
   route('/dashboard', dashboardView);
   route('/tasks', tasksView);
+  route('/notifications', notificationsView);
   route('/trash', trashView);
   route('/signatures/verify', signatureVerifyView);
   route('/media', mediaView);

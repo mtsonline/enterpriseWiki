@@ -9,6 +9,7 @@ import (
 	"github.com/mtsonline/enterprisewiki/internal/content"
 	h "github.com/mtsonline/enterprisewiki/internal/httpx"
 	"github.com/mtsonline/enterprisewiki/internal/limits"
+	"github.com/mtsonline/enterprisewiki/internal/notify"
 	"github.com/mtsonline/enterprisewiki/internal/watch"
 )
 
@@ -137,8 +138,31 @@ func (s *Server) routesDrafts() {
 func (s *Server) routesNotifications() {
 	// action: core.me.inbox.list
 	s.handle("GET /api/v1/me/inbox", func(w http.ResponseWriter, r *http.Request) (any, error) {
-		list, unread, err := s.app.Notify.List(r.Context(), h.QueryInt(r, "limit", 30))
-		return map[string]any{"items": list, "unread": unread}, err
+		ctx := r.Context()
+		list, unread, more, err := s.app.Notify.List(ctx, notify.ListOptions{Limit: h.QueryInt(r, "limit", 30),
+			Before: int64(h.QueryInt(r, "before", 0)), Unread: r.URL.Query().Get("unread") == "1"})
+		if err != nil {
+			return nil, err
+		}
+		// who caused it: the id only for a recipient who may open the person
+		var ids []int64
+		for _, n := range list {
+			if n.ActorUser != nil {
+				ids = append(ids, *n.ActorUser)
+			}
+		}
+		refs, err := s.app.Content.PeopleRefs(ctx, ids)
+		if err != nil {
+			return nil, err
+		}
+		for i, n := range list {
+			if n.ActorUser != nil {
+				if ref, ok := refs[*n.ActorUser]; ok {
+					list[i].ActorID = ref.ID
+				}
+			}
+		}
+		return map[string]any{"items": list, "unread": unread, "more": more}, nil
 	})
 	// action: core.me.inbox.popups
 	s.handle("GET /api/v1/me/inbox/popups", func(w http.ResponseWriter, r *http.Request) (any, error) {

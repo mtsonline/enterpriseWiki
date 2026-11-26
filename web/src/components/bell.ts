@@ -24,7 +24,17 @@ export function notificationBell(): HTMLElement | null {
   const markAll = button(t('inbox.mark_all'), async () => { await api.post('me/inbox/read', {}); await load(true); }, { variant: 'link' });
   const panel = h('div', { id: panelId, class: 'ew-inbox', hidden: true, role: 'region', 'aria-label': t('inbox.title') },
     h('div', { class: 'ew-inbox-head' }, h('h2', null, t('inbox.title')), markAll),
-    list);
+    list,
+    // older ones, filters and who caused each: the page of all notifications
+    h('div', { class: 'ew-inbox-foot' }, h('a', {
+      href: '/notifications',
+      onclick: (ev: MouseEvent) => {
+        if (ev.ctrlKey || ev.metaKey || ev.shiftKey || ev.button !== 0) return;
+        ev.preventDefault();
+        setOpen(false);
+        navigate('/notifications');
+      },
+    }, t('notifications.open_all'))));
   const remove = async (n: Item) => {
     markAll.focus(); // keeps the focus in the open list while the entry goes away
     try { await api.del(`me/inbox/${n.id}`); } catch (e) { announce(errorText(e)); return; }

@@ -425,6 +425,8 @@ Die Administration kann Ihnen Beobachtungen auch **zuweisen** (z. B. für eine A
 
 Die **Glocke** neben Ihrem Namen zeigt Benachrichtigungen im Wiki, die Zahl ungelesener steht daneben. Ein Klick auf eine Benachrichtigung öffnet das Ziel und markiert sie als gelesen; *Alle als gelesen markieren* leert die Liste der ungelesenen. Das ✕ neben einer Benachrichtigung löscht sie.
 
+**Alle Benachrichtigungen** (Link unten in der Glocke, Seite `/notifications`): alle Ihre Benachrichtigungen, die neueste zuerst. *Ältere anzeigen* lädt die nächsten. *Ungelesen* zeigt nur die ungelesenen. Jeder Eintrag zeigt, wer sie ausgelöst hat; ein Klick auf den Namen öffnet das Menü an Namen, wenn Sie diese Person öffnen dürfen. *Als gelesen markieren* und *Löschen* wirken auf einen Eintrag, *Alle als gelesen markieren* auf alle.
+
 - **Teilen** (Knopf auf jeder Seite) weist Personen, Gruppen oder Rollen mit einer optionalen Nachricht auf die Seite hin. Teilen gibt **keine Rechte**: Wer die Seite nicht sehen darf, wird nicht benachrichtigt – *Empfänger prüfen* zeigt das vorher.
 - **@Erwähnungen:** Tippen Sie in einer Seite oder einem Kommentar `@` und den Namen; die erwähnte Person erhält eine Benachrichtigung, wenn sie die Seite sehen darf.
 
