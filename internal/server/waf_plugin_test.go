@@ -47,10 +47,24 @@ func TestWAFPlugin(t *testing.T) {
 		Loaded bool   `json:"loaded"`
 	}
 	admin.must("GET", "/api/v1/x/core.waf/status", nil, &st, 200)
-	if st.Mode != "detect" || !st.Loaded {
+	// switched on, it protects at once: blocking is the default
+	if st.Mode != "block" || !st.Loaded {
 		t.Fatalf("status: %+v", st)
 	}
-	// log only: the attack passes
+	if code := admin.do("GET", attack, nil, nil); code != 403 {
+		t.Fatalf("default mode let the attack pass: %d", code)
+	}
+	// an unknown mode is no way around it
+	admin.must("PUT", "/api/v1/admin/settings", map[string]any{"plugin_settings": map[string]any{"core.waf": map[string]any{"mode": "Detect "}}}, nil, 200)
+	if code := admin.do("GET", attack, nil, nil); code != 403 {
+		t.Fatalf("unknown mode let the attack pass: %d", code)
+	}
+	// log only, when chosen: the attack passes
+	admin.must("PUT", "/api/v1/admin/settings", map[string]any{"plugin_settings": map[string]any{"core.waf": map[string]any{"mode": "detect"}}}, nil, 200)
+	admin.must("GET", "/api/v1/x/core.waf/status", nil, &st, 200)
+	if st.Mode != "detect" {
+		t.Fatalf("status after log only: %+v", st)
+	}
 	if code := admin.do("GET", attack, nil, nil); code == 403 {
 		t.Fatal("mode detect blocked")
 	}

@@ -952,7 +952,9 @@ func (r *exampleRunner) do(way string, a actions.Action, w who, path string, que
 		if body != "" {
 			rd = strings.NewReader(body)
 			if !json.Valid([]byte(body)) {
-				ctype = "text/plain; charset=utf-8"
+				// body_text: JSON Lines of an export, as the interface sends them
+				// (a firewall in front allows only the types the wiki uses)
+				ctype = "application/x-ndjson"
 			}
 		}
 		if up != nil {

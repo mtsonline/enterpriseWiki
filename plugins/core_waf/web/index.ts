@@ -8,7 +8,7 @@ interface Status { mode: 'detect' | 'block'; paranoia: number; rules: string; bo
 async function render(el: HTMLElement): Promise<void> {
   const [st, form] = await Promise.all([api.get<Status>(`${BASE}/status`), pluginSettingsForm('core.waf', [
     { key: 'mode', label: t('waf.mode'), type: 'select', help: t('waf.mode_help'), options: [
-      { value: 'detect', label: t('waf.mode.detect') }, { value: 'block', label: t('waf.mode.block') }] },
+      { value: 'block', label: t('waf.mode.block') }, { value: 'detect', label: t('waf.mode.detect') }] },
     { key: 'paranoia', label: t('waf.paranoia'), type: 'select', help: t('waf.paranoia_help'), options: [
       { value: '1', label: t('waf.paranoia.1') }, { value: '2', label: t('waf.paranoia.2') }] },
   ])]);

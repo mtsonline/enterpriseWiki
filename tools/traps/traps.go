@@ -1883,6 +1883,27 @@ var traps = []trap{
 		Pkg:  "./internal/server/", Tests: "^TestPeopleInLists$",
 	},
 	{
+		ID: "waf.detect-by-default", About: "the firewall, once switched on, only logs attacks instead of blocking them",
+		File: "plugins/core_waf/plugin.go",
+		Old:  "\tmode = \"block\"\n\tif v, _ := s[\"mode\"].(string); v == \"detect\" {\n",
+		New:  "\tmode = \"detect\"\n\tif v, _ := s[\"mode\"].(string); v == \"block\" {\n",
+		Pkg:  "./internal/server/", Tests: "^TestWAFPlugin$",
+	},
+	{
+		ID: "waf.import-json-refused", About: "the firewall refuses the file imports of the command line (sent as JSON)",
+		File: "docker/waf/ewiki-crs-exclusions.conf",
+		Old:  "|application/x-ndjson| |application/json|'",
+		New:  "|application/x-ndjson|'",
+		Pkg:  "./internal/server/", Tests: "^TestWAFExclusions$",
+	},
+	{
+		ID: "waf.local-address-in-page", About: "a page or search with http://localhost in it is refused as server-side request forgery",
+		File: "docker/waf/ewiki-crs-exclusions.conf",
+		Old:  "            ctl:ruleRemoveTargetByTag=attack-ssrf;ARGS,\\\n",
+		New:  "",
+		Pkg:  "./internal/server/", Tests: "^TestWAFExclusions$",
+	},
+	{
 		ID: "db.drift-unchecked", About: "a database of an older development state is used without comparing its schema (a 500 later)",
 		File: "internal/db/db.go",
 		Old:  "\t\t\t\tif was != sum {\n\t\t\t\t\tchanged = true\n",

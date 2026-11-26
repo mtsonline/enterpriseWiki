@@ -224,7 +224,8 @@ A web application firewall (WAF) with the OWASP Core Rule Set (CRS) in front of 
 - a line starting with "Sort the list …" or "set the value …" (looks like a shell command),
 - a code sample with `<script>` or `onclick=`,
 - SQL in a manual (`SELECT … WHERE … OR 1=1`),
-- a path like `../etc/hosts`.
+- a path like `../etc/hosts`,
+- an address like `http://localhost:8080` in a guide for developers (CRS 4 takes it for server-side request forgery).
 
 In addition the CRS allows only `GET`, `HEAD`, `POST` and `OPTIONS`. The wiki also uses `PUT`, `PATCH` and `DELETE`, for example to save an existing page.
 
@@ -232,11 +233,11 @@ The building blocks of the wiki themselves are written so that the CRS does not 
 
 **What to do.** Use the exclusions in [`docker/waf/ewiki-crs-exclusions.conf`](../../../docker/waf/ewiki-crs-exclusions.conf). Include the file *before* the CRS rules, for example on Debian or Ubuntu as `/etc/modsecurity/crs/REQUEST-900-EXCLUSION-RULES-BEFORE-CRS.conf`, then reload the web server. The file:
 
-- lets JSON request bodies of the API (`POST`, `PUT`, `PATCH`, `DELETE` under `/api/v1/`) through the attack rules (cross-site scripting, SQL, commands, files, PHP, Java, Node.js, templates);
+- lets JSON request bodies of the API (`POST`, `PUT`, `PATCH`, `DELETE` under `/api/v1/`) through the attack rules (cross-site scripting, SQL, commands, files, PHP, Java, Node.js, templates, server-side request forgery);
 - allows `PUT`, `PATCH` and `DELETE` for `/api/v1/` only;
-- lets the search term (`q`) of the search contain code;
+- lets the search term (`q`) of the search contain code and local addresses;
 - allows SCIM of an identity provider (`application/scim+json` with `POST`, `PUT`, `PATCH`, `DELETE`) for `/scim/v2/` only;
-- accepts files as they are for three addresses only, without reading their body: an office server storing a document (`POST /api/v1/wopi/files/ID/contents`, `application/octet-stream`), importing a category (`application/x-ndjson`) and importing a translation (`application/octet-stream`). The CRS allows neither type, and these bodies can be larger than the limit of the WAF; the wiki checks the office token or the permission of the administration and the whole file itself.
+- accepts files as they are for three addresses only, without reading their body: an office server storing a document (`POST /api/v1/wopi/files/ID/contents`, `application/octet-stream`), importing a category (`application/x-ndjson`) and importing a translation (`application/octet-stream`); the command line sends both imports as `application/json`. The CRS allows neither of the first two types, and these bodies can be larger than the limit of the WAF; the wiki checks the office token or the permission of the administration and the whole file itself.
 
 Everything else stays checked: the path and the query string of all other requests, headers, cookies, the names of JSON fields, uploads, protocol rules and scanners.
 
@@ -257,7 +258,8 @@ Raise both when you raise the limits of the wiki. For nginx also `client_max_bod
 - HTML is cleaned on the server, event attributes are never let through;
 - every response has a strict Content-Security-Policy;
 - the database only gets parameterised queries;
-- content never reaches a shell.
+- content never reaches a shell;
+- addresses that people enter and the wiki fetches (feeds, webhooks) go through its own guard against internal addresses; connections to internal servers (directory, office server, search) only the administration sets up.
 
 The XSS and SQL rules of the WAF therefore add little for these fields, and without the exclusions editors are blocked.
 
@@ -267,12 +269,12 @@ The XSS and SQL rules of the WAF therefore add little for these fields, and with
 
 **Web application firewall in the wiki (plugin `core.waf`).** For installations without a firewall in front, the wiki ships a firewall of its own: Coraza with the OWASP Core Rule Set 4 and the exclusions above. It is off by default; switch it on under *Administration → Plugins*, then set it under *Administration → Web application firewall*:
 
-- **Mode:** *Log only* (default) writes what would be blocked to the server log (`waf:` with the rules, path and address); *Block* refuses it with `403` (`waf_blocked`). Start with *Log only* and watch the log for a few days.
+- **Mode:** *Block* (default) refuses an attack with `403` (`waf_blocked`) as soon as the plugin is switched on; *Log only* lets it pass and only writes it to the server log (`waf:` with the rules, path and address), for example to try new rules or a stricter level first. Both modes log what they find.
 - **Strictness:** paranoia level 1 (default) or 2.
 - **Not checked:** static files (`/assets/`) and uploaded files; of other bodies at most `core.waf.body_kb` (expert settings, default 512 KB), the rest passes unchecked.
 - **Cost** (measured on 2 cores): about 1.5 ms per page request and 2–4 ms per saved page, about 20 MB of memory; the program is about 15 MB larger whether the plugin is on or not.
 - If the rules cannot be loaded, the wiki keeps working without the firewall and logs it.
-- Tested in `internal/server/waf_plugin_test.go`: off by default; log only lets attacks pass; blocking refuses attacks in addresses of pages and the API; pages with code, SQL and HTML can still be saved (also with `PUT`) and searched for; static files are not checked.
+- Tested in `internal/server/waf_plugin_test.go`: off by default; switched on, it blocks at once; log only lets attacks pass; blocking refuses attacks in addresses of pages and the API; pages with code, SQL and HTML can still be saved (also with `PUT`) and searched for; static files are not checked.
 
 **If the wiki still gets blocked.** The log of the WAF names the rule (`[id "…"]`), for example `/var/log/apache2/modsec_audit.log`. Please report it.
 
