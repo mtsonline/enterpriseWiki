@@ -2,7 +2,7 @@
   "id": "core.waf",
   "name": "Web application firewall",
   "version": "1.0.0",
-  "description": "Checks every request with the OWASP Core Rule Set (Coraza) before the wiki handles it, with the exclusions the wiki needs. Shipped but off: switch it on for installations without a firewall in front (the bundled proxy with CrowdSec, ModSecurity …). Mode: log only (default) or block.",
+  "description": "Checks every request with the OWASP Core Rule Set (Coraza) before the wiki handles it, with the exclusions the wiki needs. Shipped but off: switch it on for installations without a firewall in front (the bundled proxy with CrowdSec, ModSecurity …). Mode: block (default) or log only.",
   "author": "Enterprise Wiki",
   "kinds": ["general"],
   "default_off": true,

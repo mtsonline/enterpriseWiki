@@ -7,17 +7,19 @@ Es gibt drei Wege. Alle verwenden denselben, beliebig oft wiederholbaren Setup-B
 ## 1. Docker Compose (empfohlen für den Einstieg)
 
 ```bash
-./docker-setup.sh        # einmalig, als der Benutzer, unter dem das Wiki laufen soll (nicht root)
+./docker-setup.sh        # einmalig, als der Benutzer, unter dem das Wiki laufen soll
+                         # (oder als root: ./docker-setup.sh --user NAME)
 docker compose up -d     # starten – und für Updates
 ```
 
 - `./docker-setup.sh` legt `.env` mit zufälligen Passwörtern an, trägt die Benutzer- und Gruppen-ID des aufrufenden
   Benutzers ein (`EWIKI_UID`, `EWIKI_GID`) und legt `./data/postgres` und `./data/wiki` an. Es kann jederzeit erneut
   ausgeführt werden und erledigt nur, was fehlt (z. B. Besitzer korrigieren, falls nötig mit `sudo`).
+- **Als root ausgeführt:** Das Wiki läuft nicht als root. `./docker-setup.sh` fragt dann nach dem Benutzer, unter dem das Wiki läuft (Vorgabe `ewiki`; ohne Terminal `--user NAME`). Es legt den Benutzer an, falls es ihn nicht gibt, und nimmt ihn in die Gruppe `docker` auf. Alle Dateien im Ordner der Installation gehören danach diesem Benutzer, auch Dateien, die root später anlegt (`./docker-setup.sh` erneut ausführen). Der Ordner darf nicht unter `/root` liegen, zum Beispiel `/opt/enterprise-wiki`. Danach das Wiki als dieser Benutzer starten: `sudo -u NAME docker compose up -d`.
 - **Alle Daten liegen im Ordner der Installation:** `./data/postgres` (Datenbank, je Hauptversion ein Ordner),
   `./data/wiki` (`config.yaml`, hochgeladene Dateien). Andere Orte: Pfade in `docker-compose.yml` ändern.
 - **Zugriff auf Docker:** Der Benutzer, der installiert und das Wiki später startet, muss Docker nutzen können: als Mitglied der Gruppe `docker` oder mit rootless Docker. `./docker-setup.sh` prüft das mit `docker info` und bricht sonst mit einer Erklärung ab. Abhilfe: `sudo usermod -aG docker BENUTZER`, danach ab- und wieder anmelden (die neue Gruppe gilt erst in einer neuen Anmeldung) und `./docker-setup.sh` erneut ausführen.
-- **Kein Container läuft als root:** Wiki und PostgreSQL laufen immer als `EWIKI_UID:EWIKI_GID` aus `.env` (`user:` in `docker-compose.yml`), auch wenn jemand `docker compose up -d` als root startet. `./data` gehört diesem Benutzer. Bestehende Installationen: `./docker-setup.sh` erneut ausführen; es trägt fehlende IDs ein und korrigiert die Besitzer in `./data` (mit `sudo`, falls nötig). Danach `docker compose up -d`.
+- **Wiki, Datenbank und Proxy laufen nie als root:** Sie laufen immer als `EWIKI_UID:EWIKI_GID` aus `.env` (`user:` in `docker-compose.yml`), auch wenn jemand `docker compose up -d` als root startet (getestet in `scripts/test-docker-setup-root.sh`). Nur die optionalen CrowdSec, Collabora und OnlyOffice brauchen root in ihrem eigenen Container; sie sind nur über den Proxy erreichbar. `./data` gehört diesem Benutzer. Bestehende Installationen: `./docker-setup.sh` erneut ausführen; es trägt fehlende IDs ein und korrigiert die Besitzer in `./data` (mit `sudo`, falls nötig). Danach `docker compose up -d`.
 - **Automatische Updates:** `./docker-setup.sh` fragt, ob neue Releases automatisch eingespielt werden (Vorgabe ja, täglich um 03:30 Uhr, mit Datenbanksicherung vorher). Das erledigt `scripts/update-docker.sh` auf dem Server, nicht das Wiki selbst; Einzelheiten in [operations.md](operations.md#docker-automatische-updates-mit-dem-update-helfer).
 - Verwendet werden das fertige Image `ghcr.io/mtsonline/enterprisewiki:${EWIKI_IMAGE_TAG}` (amd64 und arm64, bei jedem
   `docker compose up -d` die neueste Version) und das offizielle Image
@@ -222,7 +224,8 @@ Eine Web Application Firewall (WAF) mit dem OWASP Core Rule Set (CRS) vor dem Wi
 - eine Zeile, die mit „Sort the list …“ oder „set the value …“ beginnt (sieht aus wie ein Shell-Befehl),
 - ein Code-Beispiel mit `<script>` oder `onclick=`,
 - SQL in einer Anleitung (`SELECT … WHERE … OR 1=1`),
-- einen Pfad wie `../etc/hosts`.
+- einen Pfad wie `../etc/hosts`,
+- eine Adresse wie `http://localhost:8080` in einer Anleitung für Entwickler (CRS 4 hält sie für Server-Side Request Forgery).
 
 Außerdem erlaubt das CRS nur `GET`, `HEAD`, `POST` und `OPTIONS`. Das Wiki nutzt auch `PUT`, `PATCH` und `DELETE`, zum Beispiel beim Speichern einer bestehenden Seite.
 
@@ -230,11 +233,11 @@ Die Bausteine des Wikis selbst sind so geschrieben, dass das CRS sie nicht für 
 
 **Was zu tun ist.** Nutzen Sie die Ausnahmen in [`docker/waf/ewiki-crs-exclusions.conf`](../../../docker/waf/ewiki-crs-exclusions.conf). Binden Sie die Datei *vor* den CRS-Regeln ein, zum Beispiel unter Debian oder Ubuntu als `/etc/modsecurity/crs/REQUEST-900-EXCLUSION-RULES-BEFORE-CRS.conf`, und laden Sie den Webserver neu. Die Datei:
 
-- lässt JSON-Inhalte der API (`POST`, `PUT`, `PATCH`, `DELETE` unter `/api/v1/`) an den Angriffsregeln vorbei (Cross-Site-Scripting, SQL, Befehle, Dateien, PHP, Java, Node.js, Vorlagen);
+- lässt JSON-Inhalte der API (`POST`, `PUT`, `PATCH`, `DELETE` unter `/api/v1/`) an den Angriffsregeln vorbei (Cross-Site-Scripting, SQL, Befehle, Dateien, PHP, Java, Node.js, Vorlagen, Server-Side Request Forgery);
 - erlaubt `PUT`, `PATCH` und `DELETE` nur für `/api/v1/`;
-- lässt im Suchbegriff (`q`) der Suche Code zu;
+- lässt im Suchbegriff (`q`) der Suche Code und lokale Adressen zu;
 - erlaubt SCIM eines Identity Providers (`application/scim+json` mit `POST`, `PUT`, `PATCH`, `DELETE`) nur für `/scim/v2/`;
-- nimmt Dateien unverändert an, nur für drei Adressen und ohne ihren Inhalt zu lesen: ein Office-Server speichert ein Dokument (`POST /api/v1/wopi/files/ID/contents`, `application/octet-stream`), der Import einer Kategorie (`application/x-ndjson`) und der Import einer Übersetzung (`application/octet-stream`). Das CRS erlaubt beide Typen nicht, und diese Inhalte können größer sein als die Grenze der WAF; das Wiki prüft den Office-Token oder das Recht der Verwaltung und die ganze Datei selbst.
+- nimmt Dateien unverändert an, nur für drei Adressen und ohne ihren Inhalt zu lesen: ein Office-Server speichert ein Dokument (`POST /api/v1/wopi/files/ID/contents`, `application/octet-stream`), der Import einer Kategorie (`application/x-ndjson`) und der Import einer Übersetzung (`application/octet-stream`); die Kommandozeile schickt beide Importe als `application/json`. Das CRS erlaubt die ersten beiden Typen nicht, und diese Inhalte können größer sein als die Grenze der WAF; das Wiki prüft den Office-Token oder das Recht der Verwaltung und die ganze Datei selbst.
 
 Alles andere bleibt geprüft: Pfad und Abfrage aller anderen Anfragen, Kopfzeilen, Cookies, die Namen der JSON-Felder, Uploads, Protokollregeln und Scanner.
 
@@ -255,7 +258,8 @@ Erhöhen Sie beide, wenn Sie die Grenzen des Wikis erhöhen. Bei nginx zusätzli
 - HTML wird im Server bereinigt, Ereignis-Attribute kommen nie durch;
 - jede Antwort hat eine strenge Content-Security-Policy;
 - die Datenbank bekommt nur parametrisierte Abfragen;
-- Inhalte erreichen nie eine Shell.
+- Inhalte erreichen nie eine Shell;
+- Adressen, die Personen eingeben und das Wiki abruft (Feeds, Webhooks), gehen durch seinen eigenen Schutz vor internen Adressen; Verbindungen zu internen Servern (Verzeichnis, Office-Server, Suche) richtet nur die Administration ein.
 
 Die XSS- und SQL-Regeln der WAF bringen für diese Felder deshalb wenig, und ohne die Ausnahmen werden Bearbeitende gesperrt.
 
@@ -265,12 +269,12 @@ Die XSS- und SQL-Regeln der WAF bringen für diese Felder deshalb wenig, und ohn
 
 **Web Application Firewall im Wiki (Plugin `core.waf`).** Für Installationen ohne Firewall davor bringt das Wiki eine eigene mit: Coraza mit dem OWASP Core Rule Set 4 und den Ausnahmen von oben. Sie ist anfangs aus; schalten Sie sie unter *Administration → Plugins* ein und stellen Sie sie unter *Administration → Web Application Firewall* ein:
 
-- **Betrieb:** *Nur protokollieren* (Vorgabe) schreibt, was gesperrt würde, ins Protokoll des Servers (`waf:` mit den Regeln, dem Pfad und der Adresse); *Sperren* lehnt es mit `403` ab (`waf_blocked`). Beginnen Sie mit *Nur protokollieren* und beobachten Sie das Protokoll einige Tage.
+- **Betrieb:** *Sperren* (Vorgabe) lehnt einen Angriff mit `403` ab (`waf_blocked`), sobald das Plugin eingeschaltet ist; *Nur protokollieren* lässt ihn durch und schreibt ihn nur ins Protokoll des Servers (`waf:` mit den Regeln, dem Pfad und der Adresse), zum Beispiel um neue Regeln oder eine strengere Stufe erst auszuprobieren. Beide Betriebsarten protokollieren, was sie finden.
 - **Strenge:** Paranoia-Stufe 1 (Vorgabe) oder 2.
 - **Nicht geprüft:** statische Dateien (`/assets/`) und hochgeladene Dateien; von anderen Inhalten höchstens `core.waf.body_kb` (Experteneinstellungen, Vorgabe 512 KB), der Rest geht ungeprüft weiter.
 - **Aufwand** (gemessen mit 2 Kernen): etwa 1,5 ms je Seitenaufruf und 2–4 ms je gespeicherter Seite, etwa 20 MB Speicher; das Programm ist etwa 15 MB größer, ob das Plugin an ist oder nicht.
 - Lassen sich die Regeln nicht laden, läuft das Wiki ohne Firewall weiter und protokolliert das.
-- Getestet in `internal/server/waf_plugin_test.go`: anfangs aus; *Nur protokollieren* lässt Angriffe durch; *Sperren* lehnt Angriffe in Adressen von Seiten und der API ab; Seiten mit Code, SQL und HTML lassen sich weiter speichern (auch mit `PUT`) und suchen; statische Dateien werden nicht geprüft.
+- Getestet in `internal/server/waf_plugin_test.go`: anfangs aus; eingeschaltet sperrt sie sofort; *Nur protokollieren* lässt Angriffe durch; *Sperren* lehnt Angriffe in Adressen von Seiten und der API ab; Seiten mit Code, SQL und HTML lassen sich weiter speichern (auch mit `PUT`) und suchen; statische Dateien werden nicht geprüft.
 
 **Wenn das Wiki trotzdem gesperrt wird.** Das Log der WAF nennt die Regel (`[id "…"]`), zum Beispiel `/var/log/apache2/modsec_audit.log`. Bitte melden Sie sie.
 

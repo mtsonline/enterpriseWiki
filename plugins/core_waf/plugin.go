@@ -4,8 +4,8 @@
 // docker/waf/ewiki-crs-exclusions.conf). Shipped but off (default_off): it
 // is meant for installations without a firewall in front.
 //
-// Modes: "detect" (default) only logs what would be blocked, "block"
-// refuses it with 403. Not checked: static files (/assets/) and the bodies
+// Modes: "block" (default: switched on, it protects at once) refuses an
+// attack with 403, "detect" only logs what would be blocked. Not checked: static files (/assets/) and the bodies
 // of file uploads; a body is checked up to core.waf.body_kb, the rest
 // passes unchecked (the wiki checks every input itself).
 package core_waf
@@ -80,12 +80,12 @@ func (p *Plugin) Setup(h *coreplugin.Host) error {
 }
 
 // settings reads mode and paranoia level; anything unknown falls back to
-// the safe defaults (detect, level 1).
+// the defaults (block, level 1): only an explicit "detect" logs instead.
 func (p *Plugin) settings() (mode string, level int) {
 	s := p.host.Settings()
-	mode = "detect"
-	if v, _ := s["mode"].(string); v == "block" {
-		mode = "block"
+	mode = "block"
+	if v, _ := s["mode"].(string); v == "detect" {
+		mode = "detect"
 	}
 	level = 1
 	switch v := s["paranoia"].(type) {

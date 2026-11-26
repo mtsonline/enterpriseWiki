@@ -174,6 +174,7 @@ dockertests() {
 	docker build --target lite -t enterprisewiki:ci .
 	scripts/test-docker-plugins.sh
 	scripts/test-docker-proxy.sh enterprisewiki:ci
+	if [ "$(id -u)" = 0 ]; then scripts/test-docker-setup-root.sh enterprisewiki:ci; else sudo scripts/test-docker-setup-root.sh enterprisewiki:ci; fi
 }
 
 # build once before the long parts: a build while Go tests compile (the

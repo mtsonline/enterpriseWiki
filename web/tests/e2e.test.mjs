@@ -4277,24 +4277,35 @@ test('blocks B, part 6: the sign-in box leads guests to the sign-in page and bac
   assert.ok((await call('GET', '/api/v1/auth/me')).user?.id, 'own session kept');
 });
 
-test('web application firewall: shipped off, switched on, log only, then blocking from the settings page', async () => {
+test('web application firewall: shipped off, switched on it blocks at once, log only and back from the settings page', async () => {
   const before = (await call('GET', '/api/v1/admin/plugins')).installed.find((p) => p.id === 'core.waf');
   assert.ok(before && !before.enabled && before.default_off, 'shipped but off');
   await call('PUT', '/api/v1/admin/settings', { plugin_settings: { 'core.waf': {} } });
   await call('POST', '/api/v1/admin/plugins/core.waf/enable');
+  const attack = () => page.evaluate(async () => (await __e2eFetch('/api/v1/elements?x=%3Cscript%3Ealert(document.cookie)%3C%2Fscript%3E')).status);
+  const save = async (mode) => {
+    await page.getByLabel(/^(mode|betrieb)/i).selectOption(mode);
+    // wait for this save itself: the toast of the one before may still show
+    const saved = page.waitForResponse((r) => r.request().method() === 'PUT' && r.url().includes('/api/v1/admin/settings'));
+    await page.getByRole('button', { name: /^(save|speichern)$/i }).click();
+    assert.equal((await saved).status(), 200);
+    assert.equal((await call('GET', '/api/v1/x/core.waf/status')).mode, mode);
+  };
   try {
     await page.goto(`${BASE}/admin/waf`);
     await idle();
     await page.getByRole('heading', { name: /^(web application firewall)$/i }).waitFor();
-    await page.getByRole('status').filter({ hasText: /(log only|nur protokollieren)/i }).first().waitFor();
+    // the default: blocking, shown as such
+    await page.getByRole('status').filter({ hasText: /(blocking|sperrt)/i }).first().waitFor();
+    assert.equal(await page.getByLabel(/^(mode|betrieb)/i).inputValue(), 'block');
     await a11y('web application firewall');
-    await page.getByLabel(/^(mode|betrieb)/i).selectOption('block');
-    await page.getByRole('button', { name: /^(save|speichern)$/i }).click();
-    await page.locator('.ew-toasts', { hasText: /saved|gespeichert/i }).waitFor();
-    assert.equal((await call('GET', '/api/v1/x/core.waf/status')).mode, 'block');
+    assert.equal(await attack(), 403);
+    // log only, when chosen: the attack passes
+    await save('detect');
+    assert.notEqual(await attack(), 403);
+    await save('block');
     // an attack in the address is refused, the wiki's own pages still load
-    const blocked = await page.evaluate(async () => (await __e2eFetch('/api/v1/elements?x=%3Cscript%3Ealert(document.cookie)%3C%2Fscript%3E')).status);
-    assert.equal(blocked, 403);
+    assert.equal(await attack(), 403);
     await page.goto(`${BASE}/`);
     await idle();
   } finally {
