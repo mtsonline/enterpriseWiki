@@ -631,6 +631,9 @@
  "workflow.next_confirmed": "Schritt nach dem Bestätigen",
  "plugin.name.workflow.process": "Workflow",
  "workflow.key_taken": "„{key}“ steht schon in einer anderen Zeile.",
+ "workflow.field_after": "Nicht vor",
+ "workflow.field_after_help": "Das Datum darf nicht vor diesem Feld liegen, z. B. der letzte Tag nicht vor dem ersten Tag.",
+ "workflow.err_before": "{field} darf nicht vor {other} liegen.",
  "workflow.start_label": "Beschriftung der Startschaltfläche",
  "workflow.start_label_help": "Zum Beispiel „Neuer Urlaubsantrag“. Leer: „Neuen Vorgang starten“."
 }

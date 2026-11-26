@@ -244,6 +244,17 @@ func (f *Form) CheckValues(in map[string]json.RawMessage, files map[string]int) 
 		}
 		out[x.ID] = s
 	}
+	// "not before": the later field of a pair is checked once both are valid
+	for _, x := range f.Fields {
+		if x.After == "" {
+			continue
+		}
+		later, ok1 := out[x.ID].(string)
+		earlier, ok2 := out[x.After].(string)
+		if ok1 && ok2 && later != "" && earlier != "" && later < earlier && !hasError(errs, x.ID) && !hasError(errs, x.After) {
+			bad(x.ID, "before", f.label(x.After))
+		}
+	}
 	return out, errs
 }
 
@@ -327,4 +338,23 @@ func (f *Form) Text(id string, v any) string {
 	}
 	b, _ := json.Marshal(v)
 	return string(b)
+}
+
+func hasError(errs []FieldError, id string) bool {
+	for _, e := range errs {
+		if e.Field == id {
+			return true
+		}
+	}
+	return false
+}
+
+// label is the label of field id (its id if it has none).
+func (f *Form) label(id string) string {
+	for _, x := range f.Fields {
+		if x.ID == id && x.Label != "" {
+			return x.Label
+		}
+	}
+	return id
 }

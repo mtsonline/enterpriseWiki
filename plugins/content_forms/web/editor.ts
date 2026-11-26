@@ -10,7 +10,7 @@ export interface FField {
   id: string; type: string; label: string; help?: string; required?: boolean; placeholder?: string; default?: string; prefill?: string;
   options?: Option[]; min?: number | null; max?: number | null; step?: number; min_length?: number; max_length?: number; pattern?: string; pattern_help?: string;
   rows?: number; autocomplete?: string; show_if?: Cond | null; width?: number; x?: number; y?: number; w?: number; h?: number;
-  formula?: string; decimals?: number; fields?: FField[]; min_rows?: number; max_rows?: number;
+  formula?: string; decimals?: number; fields?: FField[]; min_rows?: number; max_rows?: number; after?: string;
   accept?: string[]; max_files?: number; max_size_mb?: number; file_comment?: boolean; allow_macros?: boolean; allow_active?: boolean; media_category?: number;
 }
 interface EmailTarget { to: string; subject: string; body: string; files?: boolean }
@@ -126,12 +126,21 @@ export function createFormEditor(container: HTMLElement, raw: unknown, _ctx: Edi
   }
 
   function fieldRow(f: FField, i: number): HTMLElement {
-    const name = f.label || typeLabel(f.type);
-    const handle = h('span', { class: 'ewfm-ed-handle', 'aria-hidden': 'true', title: t('forms.ed.moved', { n: '…' }) }, '⠿');
     const li = h('li', { class: 'ewfm-ed-field', 'data-index': String(i), 'data-id': f.id });
-    handle.addEventListener('pointerdown', () => { li.draggable = true; });
     li.addEventListener('dragstart', (e) => e.dataTransfer?.setData(DRAG, JSON.stringify({ from: i })));
     li.addEventListener('dragend', () => { li.draggable = false; });
+    li.append(fieldHead(f, i, li));
+    if (open.has(f.id)) li.append(props(f, i));
+    return li;
+  }
+
+  // fieldHead: name, kind and tools of a field in the list; replaced on its
+  // own when the label or id changes, so the open properties (and the
+  // input the person just moved to) stay as they are
+  function fieldHead(f: FField, i: number, li: HTMLElement): HTMLElement {
+    const name = f.label || typeLabel(f.type);
+    const handle = h('span', { class: 'ewfm-ed-handle', 'aria-hidden': 'true', title: t('forms.ed.moved', { n: '…' }) }, '⠿');
+    handle.addEventListener('pointerdown', () => { li.draggable = true; });
     const isOpen = open.has(f.id);
     const toggle = h('button', { type: 'button', class: 'ewfm-ed-toggle', 'aria-expanded': String(isOpen), 'aria-label': t('forms.ed.edit', { label: name }) },
       h('strong', null, name), ' ', h('span', { class: 'ew-muted' }, `${typeLabel(f.type)} · ${f.id}${f.required ? ' · *' : ''}${f.show_if ? ' · ⤷' : ''}`));
@@ -141,9 +150,7 @@ export function createFormEditor(container: HTMLElement, raw: unknown, _ctx: Edi
       button('↓', () => move(i, i + 1), { variant: 'subtle', ariaLabel: t('forms.ed.move_down', { label: name }) }),
       button('⧉', () => { const c = structuredClone(f); c.id = newId(body.fields, f.type); body.fields.splice(i + 1, 0, c); drawFields(); }, { variant: 'subtle', ariaLabel: t('forms.ed.duplicate', { label: name }) }),
       button('×', () => { body.fields.splice(i, 1); drawFields(); announce(t('forms.ed.removed', { label: name })); }, { variant: 'subtle', ariaLabel: t('forms.ed.remove', { label: name }) }));
-    li.append(h('div', { class: 'ewfm-ed-head' }, handle, toggle, tools));
-    if (isOpen) li.append(props(f, i));
-    return li;
+    return h('div', { class: 'ewfm-ed-head' }, handle, toggle, tools);
   }
 
   function props(f: FField, i: number): HTMLElement {
@@ -153,8 +160,19 @@ export function createFormEditor(container: HTMLElement, raw: unknown, _ctx: Edi
       const el = opts.area ? textArea({ value: String(v ?? ''), rows: 2 }) : textInput({ type: opts.type, value: v === undefined || v === null ? '' : String(v) });
       el.addEventListener('change', () => {
         const s = el.value;
+        const before = f.id;
         (f as unknown as Record<string, unknown>)[key] = opts.type === 'number' ? num(s) : s;
-        if (key === 'label' || key === 'id') drawFields();
+        if (key === 'label' || key === 'id') {
+          // no redraw of the list: it would replace the input the person just
+          // moved to; the panel stays open under the new id
+          if (key === 'id' && open.delete(before)) open.add(f.id);
+          const li = el.closest<HTMLElement>('.ewfm-ed-field');
+          if (li) {
+            li.dataset.id = f.id;
+            li.querySelector('.ewfm-ed-head')?.replaceWith(fieldHead(f, i, li));
+          }
+          drawCanvas();
+        }
       });
       box.append(field(label, el, { help: opts.help }));
     };
@@ -181,6 +199,13 @@ export function createFormEditor(container: HTMLElement, raw: unknown, _ctx: Edi
       return box;
     }
     if (f.type !== 'hidden') flag(t('forms.ed.required'), 'required');
+    if (['date', 'time', 'datetime'].includes(f.type)) {
+      // "not before": a field above of the same type (last day after first day)
+      const above = body.fields.slice(0, i).filter((x) => x.type === f.type && x.id);
+      const after = select([{ value: '', label: t('forms.ed.after_none') }, ...above.map((x) => ({ value: x.id, label: x.label || x.id }))], f.after ?? '');
+      after.addEventListener('change', () => { f.after = after.value || undefined; });
+      box.append(field(t('forms.ed.after'), after, { help: t('forms.ed.after_help') }));
+    }
     if (['text', 'textarea', 'email', 'tel', 'url', 'number'].includes(f.type)) txt(t('forms.ed.placeholder'), 'placeholder');
     if (!['file', 'checkboxes', 'multiselect'].includes(f.type)) txt(t('forms.ed.default'), 'default');
     if (['text', 'email', 'hidden', 'textarea'].includes(f.type)) {

@@ -331,6 +331,17 @@ export async function formWidget(root: HTMLElement): Promise<void> {
         continue;
       }
       const c = control(w) as HTMLInputElement | null;
+      // "not before": the pair first (the minimum of the picker follows it)
+      const after = w.dataset.after;
+      if (!empty && after) {
+        const earlier = valueOf(after);
+        if (typeof earlier === 'string' && earlier !== '' && typeof v === 'string' && v < earlier) {
+          const ew = wrappers.find((x) => x.dataset.field === after);
+          const label = (ew?.querySelector('label, legend')?.textContent ?? after).replace(/\s*\*.*$/, '').replace(/[:?]\s*$/, '');
+          errs.push({ field: name, code: 'before', param: label });
+          continue;
+        }
+      }
       if (!empty && c && typeof c.checkValidity === 'function' && !['file', 'radio', 'checkbox'].includes(c.type) && !c.checkValidity()) {
         const vs = c.validity;
         const code = vs.typeMismatch ? (type === 'url' ? 'url' : 'email') : vs.patternMismatch ? 'pattern' : vs.tooLong ? 'too_long' : vs.tooShort ? 'too_short'
@@ -346,6 +357,20 @@ export async function formWidget(root: HTMLElement): Promise<void> {
     if (pages.length < 2 || !errs.length) return;
     const i = pages.findIndex((ws) => ws.some((w) => w.dataset.field === errs[0].field.split('.')[0]));
     if (i >= 0 && i !== page) showPage(i, false);
+  }
+
+  // "not before": the later input gets the earlier value as its minimum, so
+  // the date picker offers no day before it
+  for (const w of wrappers) {
+    const after = w.dataset.after;
+    const later = control(w) as HTMLInputElement | null;
+    const ew = after ? wrappers.find((x) => x.dataset.field === after) : undefined;
+    const earlier = ew ? control(ew) as HTMLInputElement | null : null;
+    if (!later || !earlier) continue;
+    const sync = () => { later.min = earlier.value; };
+    sync();
+    earlier.addEventListener('input', sync);
+    earlier.addEventListener('change', sync);
   }
 
   // ---------------------------------------------------------------- submit

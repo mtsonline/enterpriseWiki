@@ -175,6 +175,11 @@ func (pl *Plugin) signRoutes(host interface {
 			if form, err = stepData(&x.Definition, s, in.Data); err != nil {
 				return nil, err
 			}
+			merged := maps.Clone(x.Data)
+			maps.Copy(merged, form)
+			if err := dateOrder(x.Definition.Fields, merged); err != nil {
+				return nil, err // checked before anything is signed
+			}
 		}
 		token, ch, err := pl.host.Signatures.Begin(ctx, signature.Start{Purpose: SignPurpose, Ref: caseRef(x.ID), Method: in.Method, Require: req, Lang: in.Lang,
 			Record: decisionRecord(x, s, *a, note, in.To, form, p.ID())})

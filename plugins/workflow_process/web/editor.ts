@@ -207,11 +207,19 @@ export function createWorkflowEditor(container: HTMLElement, body: unknown, ctx:
     const later = checkbox(t('workflow.field_later'), !!f.later, { help: t('workflow.field_later_help') });
     later.input.addEventListener('change', () => { f.later = later.input.checked || undefined; });
     const opts = area(() => (f.options ?? []).join('\n'), (v) => { f.options = v.split('\n'); }, 3);
+    // "not before": another date field (e.g. last day after first day)
+    let after: HTMLElement | null = null;
+    if (f.type === 'date') {
+      const others = m.fields.filter((o) => o !== f && o.type === 'date' && o.id);
+      const sel = select([{ value: '', label: t('workflow.none') }, ...others.map((o) => ({ value: o.id, label: o.label || o.id }))], f.after ?? '');
+      sel.addEventListener('change', () => { f.after = sel.value || undefined; });
+      after = field(t('workflow.field_after'), sel, { help: t('workflow.field_after_help') });
+    }
     return h('fieldset', { class: 'ewf-row ewf-field-row' }, legend,
       h('div', { class: 'ewf-grid' }, field(t('workflow.label'), label, { required: true }), field(t('workflow.type'), type),
         field(t('workflow.id'), id, { help: t('workflow.id_help') }), field(t('workflow.help_text'), text(() => f.help, (v) => { f.help = v; }, { max: 500 }))),
       f.type === 'select' ? field(t('workflow.options'), opts, { help: t('workflow.options_help'), required: true }) : null,
-      req.el, later.el, h('div', { class: 'ew-actions' }, ...moveBtns(m.fields, i, f.label || t('workflow.field_n', { n: i + 1 }), focusIn('.ewf-field-row'))));
+      after, req.el, later.el, h('div', { class: 'ew-actions' }, ...moveBtns(m.fields, i, f.label || t('workflow.field_n', { n: i + 1 }), focusIn('.ewf-field-row'))));
   };
 
   const actionRow = (s: EStep, a: EAction, j: number): HTMLElement => {

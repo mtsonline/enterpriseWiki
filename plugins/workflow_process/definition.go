@@ -60,6 +60,10 @@ type Field struct {
 	// Later: not in the start form – filled in by the assignees of a step
 	// (Step.Form).
 	Later bool `json:"later,omitempty"`
+	// After: id of another date field; this date must not be before it
+	// ("last day" after "first day"). Checked in the browser, when a case
+	// starts and when a step form changes the case.
+	After string `json:"after,omitempty"`
 }
 
 // StepField is a field of the case in the form of a step: edit, required
@@ -324,6 +328,9 @@ func (d *Definition) Validate() error {
 		if f.Type != "select" {
 			f.Options = nil
 		}
+	}
+	if err := checkFieldOrder(d.Fields); err != nil {
+		return err
 	}
 	if len(d.Steps) == 0 {
 		return apperr.BadRequest("a workflow needs at least one step")
@@ -865,4 +872,42 @@ func (t Type) Render(ctx context.Context, rc content.RenderContext, raw json.Raw
 	}
 	b.WriteString(`</div>`)
 	return b.String(), nil
+}
+
+// checkFieldOrder checks the rule "not before" of the definition: After
+// names another date field.
+func checkFieldOrder(fields []Field) error {
+	types := map[string]string{}
+	for _, f := range fields {
+		types[f.ID] = f.Type
+	}
+	for _, f := range fields {
+		if f.After == "" {
+			continue
+		}
+		if f.Type != "date" || f.After == f.ID || types[f.After] != "date" {
+			return apperr.BadRequest("field %q: \"not before\" needs another date field", f.ID)
+		}
+	}
+	return nil
+}
+
+// dateOrder checks the values of a case: a date with After is not before
+// the date of that field (both given).
+func dateOrder(fields []Field, data map[string]any) error {
+	labels := map[string]string{}
+	for _, f := range fields {
+		labels[f.ID] = f.Label
+	}
+	for _, f := range fields {
+		if f.After == "" {
+			continue
+		}
+		later, _ := data[f.ID].(string)
+		earlier, _ := data[f.After].(string)
+		if later != "" && earlier != "" && later < earlier {
+			return apperr.BadRequest("%s must not be before %s", f.Label, labels[f.After])
+		}
+	}
+	return nil
 }
