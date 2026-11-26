@@ -22,6 +22,8 @@ set -euo pipefail
 src="$(cd "$(dirname "$0")/.." && pwd)"
 image="${1:-}"
 [ "$(id -u)" = 0 ] || { echo "run this as root (sudo $0)" >&2; exit 1; }
+# as in a shell of root itself (with sudo, the setup would use the calling user)
+unset SUDO_UID SUDO_GID SUDO_USER SUDO_COMMAND
 for c in useradd userdel usermod runuser script; do command -v "$c" >/dev/null || { echo "$c is missing" >&2; exit 1; }; done
 
 base="$(mktemp -d /tmp/ewiki-setup-root.XXXXXX)"
