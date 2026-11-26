@@ -446,8 +446,13 @@ func (p *Plugin) names(ctx context.Context, list ...*Comment) error {
 	for i, c := range list {
 		pieces[i] = c.HTML
 	}
-	for i, html := range p.host.Content.MentionsHTML(ctx, pieces) {
-		list[i].HTML = html
+	shown := p.host.Content.MentionsHTML(ctx, pieces)
+	if len(shown) != len(list) {
+		// never fall back to the text with the raw handles
+		return fmt.Errorf("mentions: %d texts for %d comments", len(shown), len(list))
+	}
+	for i, c := range list {
+		c.HTML = shown[i]
 	}
 	var ids []int64
 	for _, c := range list {
