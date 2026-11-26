@@ -246,6 +246,8 @@ jobs:
         run: scripts/test-docker-plugins.sh
       - name: access setup and bundled reverse proxy (docker-setup.sh questions, unprivileged Caddy)
         run: scripts/test-docker-proxy.sh enterprisewiki:ci
+      - name: docker-setup.sh run by root (own user, group docker, files and containers of that user)
+        run: sudo scripts/test-docker-setup-root.sh enterprisewiki:ci
       - name: bundled reverse proxy (Caddyfile for every CA, compose profile)
         run: |
           for ca in letsencrypt letsencrypt-staging zerossl; do

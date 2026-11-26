@@ -67,7 +67,7 @@ How it works:
 
 Runs never overlap, and a run installs at most one update.
 
-**Why systemd or cron:** `./docker-setup.sh` runs as the normal user, not as root. A systemd timer (like `update.sh --enable-timer`) needs root to install; with root rights or `sudo` the helper sets one up (`enterprisewiki-docker-update.timer`, a random delay of up to one hour, runs missed while the server was off are made up). The service runs as the user of the wiki, not as root. Without root rights the helper uses the crontab of the user instead: it needs no rights beyond the access to Docker, which the user has anyway. Cron has no random delay, so a random minute within the hour after the chosen time is fixed once.
+**Why systemd or cron:** `./docker-setup.sh` usually runs as the normal user. A systemd timer (like `update.sh --enable-timer`) needs root to install; with root rights or `sudo` the helper sets one up (`enterprisewiki-docker-update.timer`, a random delay of up to one hour, runs missed while the server was off are made up). The service runs as the user of the wiki, not as root. Without root rights the helper uses the crontab of the user instead: it needs no rights beyond the access to Docker, which the user has anyway. Cron has no random delay, so a random minute within the hour after the chosen time is fixed once.
 
 ## Automatic updates of the components
 
