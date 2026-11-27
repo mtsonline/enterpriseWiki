@@ -410,6 +410,7 @@ Die Grenzwerte gelten für die ganze Instanz; in weiteren Sites ändern sie nur 
 | `core.reactions.per_person` | Plugin *Reaktionen*: verschiedene Emojis einer Person je Ziel | 10 |
 | `content.forms.submit_mb` | Plugin *Formulare*: größte Einsendung mit allen Dateien, auch von Gästen. Jedes Formular nimmt höchstens die Dateien an, die seine Felder erlauben (Anzahl × Größe), diese Grenze deckelt alle Formulare | 200 MB |
 | `workflow.process.trigger_per_hour` | Plugin *Workflow*: Starts eines Auslösers pro Stunde (Zeitplan, Änderung, Ereignis, eingehender Webhook); weitere Starts entfallen und werden im Editor angezeigt | 60 |
+| `workflow.process.assignees` | Plugin *Workflow*: Einträge bei den Zuständigen eines Schritts (Personen, Gruppen, Rollen und die Person, die den Vorgang gestartet hat, zusammen; 1–200) | 20 |
 | `core.audit.value_guest_bytes` | längster Wert im Audit-Protokoll bei Ereignissen ohne angemeldeten Benutzer | 1024 Bytes |
 | `core.audit.value_bytes` | längster Vorher-/Nachher-Wert bei Ereignissen angemeldeter Benutzer | 65536 Bytes |
 | `core.ui.wait_notice_s` | nach dieser Zeit ohne Antwort auf eine Änderung fragt die Oberfläche „weiter warten oder abbrechen“; die Eingabe bleibt in beiden Fällen erhalten | 5 s |

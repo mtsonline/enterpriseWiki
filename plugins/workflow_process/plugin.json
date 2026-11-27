@@ -49,6 +49,16 @@
       "max": 10000,
       "label": "Starts of a trigger per hour",
       "help": "How many cases one trigger of a workflow (schedule, change, event, incoming webhook) may start in an hour; further starts are skipped and shown in the editor."
+    },
+    {
+      "key": "workflow.process.assignees",
+      "group": "workflows",
+      "unit": "count",
+      "default": 20,
+      "min": 1,
+      "max": 200,
+      "label": "Assignees per step",
+      "help": "How many entries (people, groups, roles and the person who started the case) a step of a workflow may have as assignees."
     }
   ]
 }

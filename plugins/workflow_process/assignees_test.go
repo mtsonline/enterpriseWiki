@@ -10,9 +10,9 @@ import (
 )
 
 // TestAssignees: a step has a list of assignees (people, groups, roles and
-// the starter together); the list is checked and cleaned, definitions with
-// the older single "assignee" are read as a list of one, and a step is
-// still read strictly (unknown fields are refused).
+// the starter together); the list is checked and cleaned, its length is an
+// expert setting, and a step is read strictly (unknown fields, also the
+// single "assignee" of earlier versions, are refused).
 func TestAssignees(t *testing.T) {
 	step := func(assignees string) string {
 		return `{"steps":[{"id":"a","name":"A",` + assignees + `,"actions":[{"id":"go","label":"Go","next":"e"}]},{"id":"e","name":"E","type":"end"}]}`
@@ -33,12 +33,7 @@ func TestAssignees(t *testing.T) {
 	if len(got) != 4 || got[0] != (Assignee{"user", "ann"}) || got[1] != (Assignee{"role", "Managers"}) || got[2] != (Assignee{"group", "hr"}) || got[3] != (Assignee{"starter", ""}) {
 		t.Fatalf("assignees: %+v", got)
 	}
-	// the older form: one assignee
-	d, err = norm(step(`"assignee":{"type":"group","value":"hr"}`))
-	if err != nil || len(d.Steps[0].Assignees) != 1 || d.Steps[0].Assignees[0] != (Assignee{"group", "hr"}) {
-		t.Fatalf("older form: %+v %v", d, err)
-	}
-	many := make([]string, MaxAssignees+1)
+	many := make([]string, DefaultAssignees+1)
 	for i := range many {
 		many[i] = fmt.Sprintf(`{"type":"user","value":"u%d"}`, i)
 	}
@@ -50,10 +45,19 @@ func TestAssignees(t *testing.T) {
 		"long value":    step(`"assignees":[{"type":"group","value":"` + strings.Repeat("g", 201) + `"}]`),
 		"too many":      step(`"assignees":[` + strings.Join(many, ",") + `]`),
 		"unknown field": step(`"assignees":[{"type":"starter"}],"assigne":{"type":"starter"}`),
+		"single field":  step(`"assignee":{"type":"group","value":"hr"}`),
 	} {
 		if _, err := norm(def); err == nil {
 			t.Errorf("%s: accepted", name)
 		}
+	}
+	// the expert setting: a smaller number applies
+	three := Type{maxAssignees: func() int64 { return 3 }}
+	if _, err := three.Normalize(json.RawMessage(step(`"assignees":[` + strings.Join(many[:3], ",") + `]`))); err != nil {
+		t.Errorf("3 of 3: %v", err)
+	}
+	if _, err := three.Normalize(json.RawMessage(step(`"assignees":[` + strings.Join(many[:4], ",") + `]`))); err == nil {
+		t.Error("4 of 3: accepted")
 	}
 	// the overview of the process names every assignee
 	d, err = norm(step(`"assignees":[{"type":"group","value":"hr"},{"type":"role","value":"Managers"}]`))

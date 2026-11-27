@@ -985,6 +985,19 @@ func TestWorkflowBranchesAndHandovers(t *testing.T) {
 	if x := get(admin, mc); x.Status != "done" {
 		t.Fatalf("after all three votes: %+v", x)
 	}
+
+	// ---- the most assignees per step is an expert setting
+	three := map[string]any{"category_id": w.ID, "type": "workflow.process", "title": "Three", "body": map[string]any{"description": "", "fields": []any{}, "steps": []map[string]any{
+		{"id": "check", "name": "Check", "assignees": []map[string]string{{"type": "user", "value": "fred"}, {"type": "user", "value": "gus"}, {"type": "group", "value": "team"}},
+			"actions": []map[string]any{{"id": "ok", "label": "OK", "next": "done"}}},
+		{"id": "done", "name": "Done", "type": "end", "outcome": "success"}}}}
+	admin.must("PUT", "/api/v1/admin/limits", map[string]any{"values": map[string]any{"workflow.process.assignees": 2}}, nil, 200)
+	if code := admin.do("POST", "/api/v1/elements", three, nil); code != 400 {
+		t.Fatalf("three assignees with a limit of 2: %d", code)
+	}
+	admin.must("PUT", "/api/v1/admin/limits", map[string]any{"values": map[string]any{"workflow.process.assignees": 3}}, nil, 200)
+	admin.must("POST", "/api/v1/elements", three, nil, 201)
+	admin.must("PUT", "/api/v1/admin/limits", map[string]any{"values": map[string]any{"workflow.process.assignees": 20}}, nil, 200)
 }
 
 // TestWorkflowLinksTestRunsRetention covers links in task e-mails (once, only for the

@@ -2099,4 +2099,11 @@ var traps = []trap{
 		New:  "State: NewToken(\"\")",
 		Pkg:  "./internal/server/", Tests: "^TestSAMLLogin$",
 	},
+	{
+		ID: "workflow.assignees-limit-ignored", About: "the expert setting for the assignees per step is not used (always the default)",
+		File: "plugins/workflow_process/definition.go",
+		Old:  "		most = t.maxAssignees()\n",
+		New:  "",
+		Pkg:  "./internal/server/", Tests: "^TestWorkflowBranchesAndHandovers$",
+	},
 }

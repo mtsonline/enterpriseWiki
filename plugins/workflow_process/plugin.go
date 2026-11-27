@@ -657,7 +657,7 @@ func titleFrom(fields []Field, data map[string]any) string {
 func (pl *Plugin) Setup(host *coreplugin.Host) error {
 	pl.host = host
 	guardHosts.Set(host, host)
-	host.RegisterElementType(Type{names: func(ctx context.Context, refs []Assignee) map[string]string {
+	host.RegisterElementType(Type{maxAssignees: func() int64 { return host.Limit(LimitAssignees) }, names: func(ctx context.Context, refs []Assignee) map[string]string {
 		ids := map[string][]int64{}
 		for _, r := range refs {
 			if id, err := strconv.ParseInt(strings.TrimPrefix(r.Value, "#"), 10, 64); err == nil {

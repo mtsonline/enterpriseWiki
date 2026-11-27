@@ -639,5 +639,7 @@
  "workflow.assignee.people": "People",
  "workflow.assignee.groups": "Groups",
  "workflow.assignee.roles": "Roles",
- "workflow.assignee_unknown": "Not found in this wiki: {kind} “{name}”. Choose it again or remove it."
+ "workflow.assignee_unknown": "Not found in this wiki: {kind} “{name}”. Choose it again or remove it.",
+ "limit.workflow.process.assignees": "Assignees per step",
+ "limit.workflow.process.assignees.help": "How many assignees a workflow step may have. Each person, group or role counts as one entry, as does the person who started the case."
 }
