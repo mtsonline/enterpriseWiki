@@ -94,9 +94,13 @@ type Assignee struct {
 	Value string `json:"value"` // user name (name or name@provider), group or role name or "#ID"
 }
 
-// MaxAssignees is the most entries of the assignees of a step (people,
-// groups and roles together).
-const MaxAssignees = 20
+// LimitAssignees is the expert setting for the most entries of the
+// assignees of a step (people, groups and roles together); DefaultAssignees
+// applies where no setting is known (plugin.json has the same default).
+const (
+	LimitAssignees   = "workflow.process.assignees"
+	DefaultAssignees = 20
+)
 
 // key identifies an assignee for comparing (names in any case).
 func (a Assignee) key() string { return a.Type + "\x00" + strings.ToLower(a.Value) }
@@ -249,28 +253,6 @@ type Step struct {
 // Automatic reports whether the step runs without a person.
 func (s *Step) Automatic() bool { return !s.Manual() && s.Type != StepEnd }
 
-// UnmarshalJSON reads a step as strictly as Decode (unknown fields are
-// refused). Definitions saved before 27.11.2026 have one "assignee"
-// instead of the list; it becomes the only entry (until the first release,
-// see the open points of the project).
-func (s *Step) UnmarshalJSON(b []byte) error {
-	type plain Step
-	var v struct {
-		plain
-		Assignee *Assignee `json:"assignee"`
-	}
-	dec := json.NewDecoder(bytes.NewReader(b))
-	dec.DisallowUnknownFields()
-	if err := dec.Decode(&v); err != nil {
-		return err
-	}
-	*s = Step(v.plain)
-	if len(s.Assignees) == 0 && v.Assignee != nil && v.Assignee.Type != "" {
-		s.Assignees = []Assignee{*v.Assignee}
-	}
-	return nil
-}
-
 // Manual reports whether people act on the step.
 func (s *Step) Manual() bool {
 	return s.Type == StepTask || s.Type == StepApproval || s.Type == StepUpload
@@ -317,7 +299,10 @@ func clean(s string, max int) (string, error) {
 // button on a phone).
 const startLabelMax = 60
 
-func (d *Definition) Validate() error {
+func (d *Definition) Validate() error { return d.validate(DefaultAssignees) }
+
+// validate is Validate with the most assignees a step may have.
+func (d *Definition) validate(maxAssignees int) error {
 	var err error
 	if d.Description, err = clean(d.Description, 20000); err != nil {
 		return err
@@ -400,7 +385,7 @@ func (d *Definition) Validate() error {
 		if !in(s.Type, StepTypes...) {
 			return apperr.BadRequest("step %q: unknown type %q", s.ID, s.Type)
 		}
-		if err := s.validate(fieldType); err != nil {
+		if err := s.validate(fieldType, maxAssignees); err != nil {
 			return err
 		}
 	}
@@ -441,7 +426,7 @@ func (d *Definition) Validate() error {
 // RuleOps are the operators of condition rules.
 var RuleOps = []string{"equals", "not_equals", "contains", "not_contains", "empty", "not_empty", "gt", "gte", "lt", "lte"}
 
-func (s *Step) validate(fieldType map[string]string) error {
+func (s *Step) validate(fieldType map[string]string, maxAssignees int) error {
 	var err error
 	need := func(v, what string) error {
 		if v == "" {
@@ -457,8 +442,8 @@ func (s *Step) validate(fieldType map[string]string) error {
 		if len(s.Assignees) == 0 {
 			return apperr.BadRequest("step %q: assignee is required", s.ID)
 		}
-		if len(s.Assignees) > MaxAssignees {
-			return apperr.BadRequest("step %q: at most %d assignees", s.ID, MaxAssignees)
+		if len(s.Assignees) > maxAssignees {
+			return apperr.BadRequest("step %q: at most %d assignees", s.ID, maxAssignees)
 		}
 		seen := map[string]bool{}
 		list := make([]Assignee, 0, len(s.Assignees))
@@ -683,6 +668,8 @@ type Type struct {
 	// names finds the current names of groups and roles given by "#ID"
 	// (keys of Assignee.key; one query per kind for a whole definition)
 	names func(ctx context.Context, refs []Assignee) map[string]string
+	// maxAssignees is the expert setting LimitAssignees (nil: DefaultAssignees)
+	maxAssignees func() int64
 }
 
 // TypeID implements content.ElementType.
@@ -693,7 +680,7 @@ func (Type) Labels() map[string]string { return map[string]string{"en": "Workflo
 
 // EmptyBody implements content.ElementType.
 func (Type) EmptyBody() json.RawMessage {
-	return json.RawMessage(`{"description":"","fields":[],"steps":[{"id":"start","name":"Start","assignee":{"type":"starter","value":""},"actions":[{"id":"done","label":"Done","next":"done"}]},{"id":"done","name":"Done","actions":[],"outcome":"success"}]}`)
+	return json.RawMessage(`{"description":"","fields":[],"steps":[{"id":"start","name":"Start","assignees":[{"type":"starter","value":""}],"actions":[{"id":"done","label":"Done","next":"done"}]},{"id":"done","name":"Done","actions":[],"outcome":"success"}]}`)
 }
 
 // Prepare implements content.Preparer: secrets of webhook steps are moved
@@ -750,12 +737,16 @@ func (Type) SecretRefs(body json.RawMessage) []string {
 }
 
 // Normalize implements content.ElementType.
-func (Type) Normalize(raw json.RawMessage) (json.RawMessage, error) {
+func (t Type) Normalize(raw json.RawMessage) (json.RawMessage, error) {
 	d, err := Decode(raw)
 	if err != nil {
 		return nil, err
 	}
-	if err := d.Validate(); err != nil {
+	most := int64(DefaultAssignees)
+	if t.maxAssignees != nil {
+		most = t.maxAssignees()
+	}
+	if err := d.validate(int(most)); err != nil {
 		return nil, err
 	}
 	return json.Marshal(d)

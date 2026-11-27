@@ -639,5 +639,7 @@
  "workflow.assignee.people": "Personen",
  "workflow.assignee.groups": "Gruppen",
  "workflow.assignee.roles": "Rollen",
- "workflow.assignee_unknown": "In diesem Wiki nicht gefunden: {kind} „{name}“. Wählen Sie neu aus oder entfernen Sie den Eintrag."
+ "workflow.assignee_unknown": "In diesem Wiki nicht gefunden: {kind} „{name}“. Wählen Sie neu aus oder entfernen Sie den Eintrag.",
+ "limit.workflow.process.assignees": "Zuständige je Schritt",
+ "limit.workflow.process.assignees.help": "Wie viele Zuständige ein Schritt eines Workflows haben darf. Jede Person, Gruppe und Rolle zählt als ein Eintrag, ebenso die Person, die den Vorgang gestartet hat."
 }

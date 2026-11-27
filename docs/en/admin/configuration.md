@@ -410,6 +410,7 @@ The limits apply to the whole instance; in further sites only administrators of 
 | `core.reactions.per_person` | plugin *Reactions*: different emojis of one person per target | 10 |
 | `content.forms.submit_mb` | plugin *Forms*: largest submission with all files, guests included. Each form only accepts the files its fields allow (number × size); this limit caps all forms | 200 MB |
 | `workflow.process.trigger_per_hour` | plugin *Workflow*: starts of a trigger per hour (schedule, change, event, incoming webhook); further starts are left out and shown in the editor | 60 |
+| `workflow.process.assignees` | plugin *Workflow*: entries among the assignees of a step (people, groups, roles and the person who started the case together; 1–200) | 20 |
 | `core.audit.value_guest_bytes` | longest value in the audit log for events without a signed-in user | 1024 bytes |
 | `core.audit.value_bytes` | longest before/after value for events of signed-in users | 65536 bytes |
 | `core.ui.wait_notice_s` | after this time without an answer to a change, the interface asks "keep waiting or cancel"; the input is kept in both cases | 5 s |

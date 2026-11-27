@@ -324,7 +324,7 @@ func seed(o Options) (*World, error) {
 	w.SharedEvent = ev.ID
 	w.Workflow, err = element(w.Pages, "workflow.process", "QA approval", map[string]any{"description": "QA", "fields": []map[string]any{{"id": "subject", "label": "Subject", "type": "text"}},
 		"steps": []map[string]any{
-			{"id": "check", "name": "Check", "assignee": map[string]string{"type": "group", "value": "qa-editors"}, "actions": []map[string]any{{"id": "ok", "label": "Approve", "next": "done"}}},
+			{"id": "check", "name": "Check", "assignees": []map[string]string{{"type": "group", "value": "qa-editors"}}, "actions": []map[string]any{{"id": "ok", "label": "Approve", "next": "done"}}},
 			{"id": "done", "name": "Done", "actions": []any{}, "outcome": "success"}}})
 	if err != nil {
 		return nil, err

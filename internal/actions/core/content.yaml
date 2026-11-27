@@ -904,7 +904,7 @@ actions:
         status: 201
       - name: workflow
         given: ['core.categories.create#default']
-        body_json: '{"category_id": ${given.core.categories.create#default.id}, "type": "workflow.process", "title": "Request ${unique}", "body": {"description": "Example request", "fields": [{"id": "subject", "label": "Subject", "type": "text"}, {"id": "doc", "label": "Document", "type": "file"}], "steps": [{"id": "check", "name": "Check", "assignee": {"type": "role", "value": "Administrators"}, "actions": [{"id": "ok", "label": "OK", "next": "done"}]}, {"id": "done", "name": "Done", "actions": [], "outcome": "success"}], "triggers": [{"id": "hook", "type": "webhook", "title": "From outside"}]}}'
+        body_json: '{"category_id": ${given.core.categories.create#default.id}, "type": "workflow.process", "title": "Request ${unique}", "body": {"description": "Example request", "fields": [{"id": "subject", "label": "Subject", "type": "text"}, {"id": "doc", "label": "Document", "type": "file"}], "steps": [{"id": "check", "name": "Check", "assignees": [{"type": "role", "value": "Administrators"}], "actions": [{"id": "ok", "label": "OK", "next": "done"}]}, {"id": "done", "name": "Done", "actions": [], "outcome": "success"}], "triggers": [{"id": "hook", "type": "webhook", "title": "From outside"}]}}'
         status: 201
       - name: attachment
         given: ['core.categories.create#default', 'core.files.upload#default']
@@ -924,11 +924,11 @@ actions:
         status: 201
       - name: signed_workflow
         given: ['core.categories.create#default']
-        body_json: '{"category_id": ${given.core.categories.create#default.id}, "type": "workflow.process", "title": "Contract ${unique}", "body": {"description": "Contract", "fields": [], "steps": [{"id": "check", "name": "Check", "type": "task", "sign": "advanced", "assignee": {"type": "user", "value": "${self.name}"}, "actions": [{"id": "ok", "label": "Agree", "next": "done"}]}, {"id": "done", "name": "Done", "type": "end", "outcome": "success"}]}}'
+        body_json: '{"category_id": ${given.core.categories.create#default.id}, "type": "workflow.process", "title": "Contract ${unique}", "body": {"description": "Contract", "fields": [], "steps": [{"id": "check", "name": "Check", "type": "task", "sign": "advanced", "assignees": [{"type": "user", "value": "${self.name}"}], "actions": [{"id": "ok", "label": "Agree", "next": "done"}]}, {"id": "done", "name": "Done", "type": "end", "outcome": "success"}]}}'
         status: 201
       - name: link_workflow
         given: ['core.categories.create#default']
-        body_json: '{"category_id": ${given.core.categories.create#default.id}, "type": "workflow.process", "title": "Leave ${unique}", "body": {"description": "Leave", "links": true, "fields": [], "steps": [{"id": "check", "name": "Check", "type": "task", "assignee": {"type": "user", "value": "${self.name}"}, "actions": [{"id": "ok", "label": "Approve", "next": "done"}]}, {"id": "done", "name": "Done", "type": "end", "outcome": "success"}]}}'
+        body_json: '{"category_id": ${given.core.categories.create#default.id}, "type": "workflow.process", "title": "Leave ${unique}", "body": {"description": "Leave", "links": true, "fields": [], "steps": [{"id": "check", "name": "Check", "type": "task", "assignees": [{"type": "user", "value": "${self.name}"}], "actions": [{"id": "ok", "label": "Approve", "next": "done"}]}, {"id": "done", "name": "Done", "type": "end", "outcome": "success"}]}}'
         status: 201
   - id: core.elements.update
     category: CATEGORY_ACTION
