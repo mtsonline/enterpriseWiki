@@ -121,7 +121,7 @@ func TestNamesWithoutHandles(t *testing.T) {
 	admin.must("POST", "/api/v1/categories", map[string]any{"titles": map[string]string{"en": "Flows"}}, &w, 201)
 	admin.must("POST", fmt.Sprintf("/api/v1/categories/%d/acl", w.ID), map[string]any{"subject_type": "authenticated", "permissions": 1, "inherit": true}, nil, 201)
 	def := map[string]any{"description": "", "steps": []map[string]any{
-		{"id": "check", "name": "Check", "assignee": map[string]string{"type": "user", "value": "out"},
+		{"id": "check", "name": "Check", "assignees": []map[string]string{{"type": "user", "value": "out"}},
 			"actions": []map[string]any{{"id": "ok", "label": "Agree", "next": "done"}}},
 		{"id": "done", "name": "Done", "type": "end", "outcome": "success"}}}
 	var wf elem

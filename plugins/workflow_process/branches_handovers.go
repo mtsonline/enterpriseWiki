@@ -309,11 +309,13 @@ func handoverActions(w *who, x *Instance, s *Step) []Action {
 		return []Action{{ID: ActAnswer, Next: s.ID, Note: "required"}}
 	}
 	out := []Action{{ID: ActDelegate, Next: s.ID, Note: "optional"}}
-	as := x.assignee(s)
-	if (as.Type == "group" || as.Type == "role") && x.Handover != "claim" {
+	// claiming: when more than one person may be responsible (a group, a
+	// role or several entries); releasing gives the task back to all of them
+	list := x.assignees(s)
+	if x.Handover != "claim" && (len(list) > 1 || (len(list) == 1 && (list[0].Type == "group" || list[0].Type == "role"))) {
 		out = append(out, Action{ID: ActClaim, Next: s.ID})
 	}
-	if x.Handover == "claim" && as.Type == "user" {
+	if x.Handover == "claim" && len(list) == 1 && list[0].Type == "user" {
 		out = append(out, Action{ID: ActRelease, Next: s.ID})
 	}
 	if x.StartedByID != nil && *x.StartedByID != w.p.ID() {
@@ -342,7 +344,7 @@ func (pl *Plugin) handover(ctx context.Context, tx pgx.Tx, x *Instance, s *Step,
 		if to == "" {
 			return apperr.BadRequest("choose the person who takes over")
 		}
-		ids, err := pl.members(ctx, tx, x, Assignee{Type: "user", Value: to})
+		ids, err := pl.membersOf(ctx, tx, x, []Assignee{{Type: "user", Value: to}})
 		if err != nil {
 			return err
 		}

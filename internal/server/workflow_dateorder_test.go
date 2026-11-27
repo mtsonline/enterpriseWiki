@@ -19,7 +19,7 @@ func TestWorkflowDateOrder(t *testing.T) {
 			{"id": "to", "label": "Last day", "type": "date", "after": after}, {"id": "note", "label": "Note", "type": "text"}}
 	}
 	steps := []map[string]any{
-		{"id": "fix", "name": "Fix the dates", "assignee": map[string]any{"type": "starter"}, "form": []map[string]any{{"field": "to", "mode": "edit"}},
+		{"id": "fix", "name": "Fix the dates", "assignees": []map[string]any{{"type": "starter"}}, "form": []map[string]any{{"field": "to", "mode": "edit"}},
 			"actions": []map[string]any{{"id": "ok", "label": "OK", "next": "done"}}},
 		{"id": "done", "name": "Done", "type": "end", "outcome": "success"}}
 	for _, bad := range []string{"note", "to", "nope"} {

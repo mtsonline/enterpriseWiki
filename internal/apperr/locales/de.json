@@ -1268,5 +1268,7 @@
  "translation into %q: an image needs an alternative text": "Übersetzung in %q: Ein Bild braucht einen Alternativtext",
  "translation into %q: not another language of this wiki": "Übersetzung in %q: keine weitere Sprache dieses Wikis",
  "translation into %q: title at most 200, text at most 600 characters": "Übersetzung in %q: Titel höchstens 200, Text höchstens 600 Zeichen",
- "ui.choice_checkboxes must be 0 (default %d) to %d": "ui.choice_checkboxes muss 0 (Vorgabe %d) bis %d sein"
+ "ui.choice_checkboxes must be 0 (default %d) to %d": "ui.choice_checkboxes muss 0 (Vorgabe %d) bis %d sein",
+ "step %q: an assignee has at most 200 characters": "Schritt %q: Ein Eintrag bei den Zuständigen hat höchstens 200 Zeichen",
+ "step %q: at most %d assignees": "Schritt %q: höchstens %d Zuständige"
 }

@@ -39,7 +39,7 @@ func TestManyWritesWithFewConnections(t *testing.T) {
 	admin.must("POST", "/api/v1/elements", map[string]any{"category_id": cat.ID, "type": "workflow.process", "lang": "en", "title": "Approval",
 		"body": map[string]any{"description": "x", "fields": []map[string]any{{"id": "subject", "label": "Subject", "type": "text"}},
 			"steps": []map[string]any{
-				{"id": "check", "name": "Check", "assignee": map[string]string{"type": "role", "value": "Administrators"}, "actions": []map[string]any{{"id": "ok", "label": "OK", "next": "done"}}},
+				{"id": "check", "name": "Check", "assignees": []map[string]string{{"type": "role", "value": "Administrators"}}, "actions": []map[string]any{{"id": "ok", "label": "OK", "next": "done"}}},
 				{"id": "done", "name": "Done", "actions": []any{}, "outcome": "success"}}}}, &wf, 201)
 
 	burst := func(name, path string, body any, want int) {

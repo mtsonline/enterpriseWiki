@@ -90,7 +90,7 @@ func TestHookSignature(t *testing.T) {
 func TestValidateDefinition(t *testing.T) {
 	base := func() *Definition {
 		return &Definition{Fields: []Field{{ID: "d", Label: "D", Type: "date"}, {ID: "n", Label: "N", Type: "number"}},
-			Steps: []Step{{ID: "t", Name: "T", Type: StepTask, Assignee: Assignee{Type: "starter"}, Actions: []Action{{ID: "ok", Label: "OK", Next: "e"}}},
+			Steps: []Step{{ID: "t", Name: "T", Type: StepTask, Assignees: []Assignee{{Type: "starter"}}, Actions: []Action{{ID: "ok", Label: "OK", Next: "e"}}},
 				{ID: "e", Name: "E", Type: StepEnd}}}
 	}
 	d := base()
@@ -121,14 +121,14 @@ func TestValidateDefinition(t *testing.T) {
 	httpDef := func(runAs string) *Definition {
 		d := base()
 		d.Steps = append([]Step{{ID: "h", Name: "H", Type: StepHTTP, Next: "t", HTTP: &HTTPSpec{URL: "https://x.example.com/a?b={{field.n}}"},
-			Assignee: Assignee{Type: "user", Value: "x"}, Deadline: &Deadline{Days: 1}, RunAs: runAs}}, d.Steps...)
+			Assignees: []Assignee{{Type: "user", Value: "x"}}, Deadline: &Deadline{Days: 1}, RunAs: runAs}}, d.Steps...)
 		return d
 	}
 	if httpDef("root").Validate() == nil {
 		t.Fatal("run as root accepted")
 	}
 	d = httpDef("")
-	if err := d.Validate(); err != nil || d.Steps[0].Assignee.Type != "" || d.Steps[0].Deadline != nil || d.Steps[0].RunAs != "definer" || d.Steps[0].HTTP.Method != "GET" {
+	if err := d.Validate(); err != nil || len(d.Steps[0].Assignees) != 0 || d.Steps[0].Deadline != nil || d.Steps[0].RunAs != "definer" || d.Steps[0].HTTP.Method != "GET" {
 		t.Fatalf("http step normalized: %+v %v", d.Steps[0], err)
 	}
 }

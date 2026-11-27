@@ -22,21 +22,21 @@ func TestWorkflowUploadStep(t *testing.T) {
 	admin.must("POST", "/api/v1/categories", map[string]any{"titles": map[string]string{"en": "Signed contracts"}}, &archive, 201)
 	fields := []map[string]any{{"id": "title", "label": "Title", "type": "text"}, {"id": "contract", "label": "Contract", "type": "file"}}
 	steps := []map[string]any{
-		{"id": "sign", "name": "Upload the signed contract", "type": "upload", "assignee": map[string]any{"type": "starter"}, "next": "check",
+		{"id": "sign", "name": "Upload the signed contract", "type": "upload", "assignees": []map[string]any{{"type": "starter"}}, "next": "check",
 			"upload": map[string]any{"mode": "upload", "field": "contract", "label": "Upload", "media": archive.ID}},
-		{"id": "check", "name": "Check it", "type": "upload", "assignee": map[string]any{"type": "starter"}, "next": "done", "next_else": "sign",
+		{"id": "check", "name": "Check it", "type": "upload", "assignees": []map[string]any{{"type": "starter"}}, "next": "done", "next_else": "sign",
 			"upload": map[string]any{"mode": "confirm", "field": "contract", "label": "Looks good", "reject_label": "Not signed"}},
 		{"id": "done", "name": "Done", "type": "end", "outcome": "success"}}
 	// a file field in the form of an ordinary task stays closed; the field of an upload step must be a file field
 	bad := []map[string]any{
-		{"id": "t", "name": "T", "type": "task", "assignee": map[string]any{"type": "starter"}, "form": []map[string]any{{"field": "contract", "mode": "required"}},
+		{"id": "t", "name": "T", "type": "task", "assignees": []map[string]any{{"type": "starter"}}, "form": []map[string]any{{"field": "contract", "mode": "required"}},
 			"actions": []map[string]any{{"id": "ok", "label": "OK", "next": "done"}}},
 		{"id": "done", "name": "Done", "type": "end"}}
 	if code := admin.do("POST", "/api/v1/elements", map[string]any{"category_id": w.ID, "type": "workflow.process", "title": "Bad",
 		"body": map[string]any{"fields": fields, "steps": bad}}, nil); code != 400 {
 		t.Fatalf("file field in a task form: %d", code)
 	}
-	wrongField := []map[string]any{{"id": "sign", "name": "S", "type": "upload", "assignee": map[string]any{"type": "starter"}, "next": "done",
+	wrongField := []map[string]any{{"id": "sign", "name": "S", "type": "upload", "assignees": []map[string]any{{"type": "starter"}}, "next": "done",
 		"upload": map[string]any{"mode": "upload", "field": "title", "label": "Upload"}}, {"id": "done", "name": "Done", "type": "end"}}
 	if code := admin.do("POST", "/api/v1/elements", map[string]any{"category_id": w.ID, "type": "workflow.process", "title": "Bad",
 		"body": map[string]any{"fields": fields, "steps": wrongField}}, nil); code != 400 {

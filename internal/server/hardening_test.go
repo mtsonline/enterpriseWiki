@@ -144,7 +144,7 @@ func TestHardening(t *testing.T) {
 	admin.must("POST", fmt.Sprintf("/api/v1/categories/%d/acl", c.ID), map[string]any{"subject_type": "authenticated", "permissions": 1, "inherit": true}, nil, 201)
 	def := map[string]any{"description": "", "fields": []any{},
 		"steps": []map[string]any{
-			{"id": "check", "name": "Check", "assignee": map[string]string{"type": "group", "value": fmt.Sprintf("#%d", g.ID)},
+			{"id": "check", "name": "Check", "assignees": []map[string]string{{"type": "group", "value": fmt.Sprintf("#%d", g.ID)}},
 				"actions": []map[string]any{{"id": "ok", "label": "OK", "next": "done"}}},
 			{"id": "done", "name": "Done", "actions": []any{}, "outcome": "success"},
 		}}

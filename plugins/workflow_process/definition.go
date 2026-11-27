@@ -87,11 +87,19 @@ type ParallelSpec struct {
 	ForEach string `json:"for_each,omitempty"`
 }
 
-// Assignee decides who handles a step.
+// Assignee is one of the people responsible for a step: the person who
+// started the case, a person, the members of a group or of a role.
 type Assignee struct {
 	Type  string `json:"type"`  // starter | user | group | role
-	Value string `json:"value"` // user name (name or name@provider), group or role name
+	Value string `json:"value"` // user name (name or name@provider), group or role name or "#ID"
 }
+
+// MaxAssignees is the most entries of the assignees of a step (people,
+// groups and roles together).
+const MaxAssignees = 20
+
+// key identifies an assignee for comparing (names in any case).
+func (a Assignee) key() string { return a.Type + "\x00" + strings.ToLower(a.Value) }
 
 // Action leads from a step to the next one.
 type Action struct {
@@ -182,12 +190,14 @@ type DelaySpec struct {
 
 // Step is a state of the process.
 type Step struct {
-	ID          string   `json:"id"`
-	Name        string   `json:"name"`
-	Type        string   `json:"type"`
-	Description string   `json:"description,omitempty"`
-	Assignee    Assignee `json:"assignee"`
-	Actions     []Action `json:"actions"`
+	ID          string `json:"id"`
+	Name        string `json:"name"`
+	Type        string `json:"type"`
+	Description string `json:"description,omitempty"`
+	// Assignees handle a task, an approval or an upload: any one of them may
+	// act (approvals: Required counts over all of them together).
+	Assignees []Assignee `json:"assignees"`
+	Actions   []Action   `json:"actions"`
 	// Sign: decisions of this step need a signature – "advanced" (any
 	// method), "qualified" or the id of a signature plugin ("" none).
 	Sign string `json:"sign,omitempty"`
@@ -238,6 +248,28 @@ type Step struct {
 
 // Automatic reports whether the step runs without a person.
 func (s *Step) Automatic() bool { return !s.Manual() && s.Type != StepEnd }
+
+// UnmarshalJSON reads a step as strictly as Decode (unknown fields are
+// refused). Definitions saved before 27.11.2026 have one "assignee"
+// instead of the list; it becomes the only entry (until the first release,
+// see the open points of the project).
+func (s *Step) UnmarshalJSON(b []byte) error {
+	type plain Step
+	var v struct {
+		plain
+		Assignee *Assignee `json:"assignee"`
+	}
+	dec := json.NewDecoder(bytes.NewReader(b))
+	dec.DisallowUnknownFields()
+	if err := dec.Decode(&v); err != nil {
+		return err
+	}
+	*s = Step(v.plain)
+	if len(s.Assignees) == 0 && v.Assignee != nil && v.Assignee.Type != "" {
+		s.Assignees = []Assignee{*v.Assignee}
+	}
+	return nil
+}
 
 // Manual reports whether people act on the step.
 func (s *Step) Manual() bool {
@@ -418,19 +450,36 @@ func (s *Step) validate(fieldType map[string]string) error {
 		return nil
 	}
 	reset := func() { // fields that do not apply to the type
-		s.Assignee, s.Actions, s.Outcome, s.DueDays, s.Required = Assignee{}, []Action{}, "", 0, 0
+		s.Assignees, s.Actions, s.Outcome, s.DueDays, s.Required = []Assignee{}, []Action{}, "", 0, 0
 		s.ApproveLabel, s.RejectLabel, s.Match, s.Rules = "", "", "", nil
 	}
 	assignee := func() error {
-		s.Assignee.Value = strings.TrimSpace(s.Assignee.Value)
-		if !in(s.Assignee.Type, "starter", "user", "group", "role") {
-			return apperr.BadRequest("step %q: assignee type must be starter, user, group or role", s.ID)
-		}
-		if s.Assignee.Type == "starter" {
-			s.Assignee.Value = ""
-		} else if s.Assignee.Value == "" {
+		if len(s.Assignees) == 0 {
 			return apperr.BadRequest("step %q: assignee is required", s.ID)
 		}
+		if len(s.Assignees) > MaxAssignees {
+			return apperr.BadRequest("step %q: at most %d assignees", s.ID, MaxAssignees)
+		}
+		seen := map[string]bool{}
+		list := make([]Assignee, 0, len(s.Assignees))
+		for _, a := range s.Assignees {
+			a.Value = strings.TrimSpace(a.Value)
+			if !in(a.Type, "starter", "user", "group", "role") {
+				return apperr.BadRequest("step %q: assignee type must be starter, user, group or role", s.ID)
+			}
+			if a.Type == "starter" {
+				a.Value = ""
+			} else if a.Value == "" {
+				return apperr.BadRequest("step %q: assignee is required", s.ID)
+			} else if utf8.RuneCountInString(a.Value) > 200 {
+				return apperr.BadRequest("step %q: an assignee has at most 200 characters", s.ID)
+			}
+			if !seen[a.key()] { // the same entry twice counts once
+				seen[a.key()] = true
+				list = append(list, a)
+			}
+		}
+		s.Assignees = list
 		if s.DueDays < 0 || s.DueDays > 365 {
 			return apperr.BadRequest("step %q: reminder after 0 to 365 days", s.ID)
 		}
@@ -631,8 +680,9 @@ func Decode(raw json.RawMessage) (*Definition, error) {
 
 // Type implements content.ElementType.
 type Type struct {
-	// name shows a group or role given by "#ID" with its current name
-	name func(ctx context.Context, kind, value string) string
+	// names finds the current names of groups and roles given by "#ID"
+	// (keys of Assignee.key; one query per kind for a whole definition)
+	names func(ctx context.Context, refs []Assignee) map[string]string
 }
 
 // TypeID implements content.ElementType.
@@ -805,19 +855,37 @@ func (t Type) Render(ctx context.Context, rc content.RenderContext, raw json.Raw
 		return id
 	}
 	li := func(text string) { b.WriteString(`<li>` + esc(text) + `</li>`) }
+	// the names of groups and roles given by "#ID", for all steps at once
+	var refs []Assignee
+	for _, s := range d.Steps {
+		for _, a := range s.Assignees {
+			if (a.Type == "group" || a.Type == "role") && strings.HasPrefix(a.Value, "#") {
+				refs = append(refs, a)
+			}
+		}
+	}
+	found := map[string]string{}
+	if t.names != nil && len(refs) > 0 {
+		found = t.names(ctx, refs)
+	}
 	for _, s := range d.Steps {
 		fmt.Fprintf(&b, `<li class="ewf-step ewf-step--%s"><strong>%s</strong>`, esc(s.Type), esc(s.Name))
 		if s.Description != "" {
 			b.WriteString(`<br><span class="ewf-step-desc">` + esc(s.Description) + `</span>`)
 		}
-		who := msg(rc.Lang, "starter")
-		if s.Assignee.Type != "starter" && s.Assignee.Type != "" {
-			v := s.Assignee.Value
-			if t.name != nil && strings.HasPrefix(v, "#") {
-				v = t.name(ctx, s.Assignee.Type, v)
+		var whos []string
+		for _, a := range s.Assignees {
+			if a.Type == "starter" {
+				whos = append(whos, msg(rc.Lang, "starter"))
+				continue
 			}
-			who = fmt.Sprintf(msg(rc.Lang, s.Assignee.Type), v)
+			v := a.Value
+			if n, ok := found[a.key()]; ok {
+				v = n
+			}
+			whos = append(whos, fmt.Sprintf(msg(rc.Lang, a.Type), v))
 		}
+		who := strings.Join(whos, ", ")
 		switch s.Type {
 		case StepEnd:
 			b.WriteString(`<br><span class="ewf-end ewf-end--` + esc(s.Outcome) + `">` + esc(msg(rc.Lang, "end")) + `</span></li>`)

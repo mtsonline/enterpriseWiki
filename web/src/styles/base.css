@@ -982,5 +982,3 @@ input.ew-dp-input::-webkit-calendar-picker-indicator { display: none; }
 .ew-choice-option[aria-selected="true"] .ew-choice-detail { color: inherit; }
 .ew-choice [hidden] { display: none !important; }
 .ew-choice-note:empty { display: none; }
-/* the hint on the keys is seen while the focus is in this choice; screen readers get it from aria-describedby */
-.ew-choice:not(:focus-within) .ew-choice-keys { position: absolute; inline-size: 1px; block-size: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }

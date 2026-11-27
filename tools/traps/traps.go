@@ -2058,6 +2058,20 @@ var traps = []trap{
 		Pkg:  "./internal/server/", Tests: "^TestChoiceCheckboxes$",
 	},
 	{
+		ID: "workflow.assignees-first-only", About: "only the first of several assignees of a step may act",
+		File: "plugins/workflow_process/plugin.go",
+		Old:  "for _, as := range x.assignees(s) {",
+		New:  "for _, as := range x.assignees(s)[:1] {",
+		Pkg:  "./internal/server/", Tests: "^TestWorkflowBranchesAndHandovers$",
+	},
+	{
+		ID: "workflow.votes-first-only", About: "an approval with all votes counts only the first of several assignees",
+		File: "plugins/workflow_process/engine.go",
+		Old:  "ids, err := pl.membersOf(ctx, q, x, x.assignees(s))",
+		New:  "ids, err := pl.membersOf(ctx, q, x, x.assignees(s)[:1])",
+		Pkg:  "./internal/server/", Tests: "^TestWorkflowBranchesAndHandovers$",
+	},
+	{
 		ID: "auth.tokens-short", About: "random tokens get shorter than 384 bits",
 		File: "internal/auth/password.go",
 		Old:  "const TokenBytes = 48",
