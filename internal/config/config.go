@@ -52,6 +52,12 @@ type Config struct {
 	License   License                   `yaml:"license" json:"license"`
 	Secrets   Secrets                   `yaml:"secrets,omitempty" json:"secrets"`
 	Settings  map[string]map[string]any `yaml:"plugin_settings,omitempty" json:"plugin_settings,omitempty"`
+	// TemplateSettings are the values each website template offers in its
+	// settings (colours, fonts, logos …), per template id: only the values
+	// changed from the defaults. Read and written only through
+	// /api/v1/admin/templates/{id}/settings, which checks them against the
+	// description of the template (never through the general settings).
+	TemplateSettings map[string]map[string]any `yaml:"template_settings,omitempty" json:"-"`
 	// Limits holds the changed technical limits (expert settings); what is
 	// missing has the default declared by the core or the plugin (package
 	// limits).

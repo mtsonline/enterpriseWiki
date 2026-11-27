@@ -1,7 +1,6 @@
 [
  "de auth.ldap.sync_conflicts_help",
  "de bo.group.motion.help",
- "de cms.admin_help",
  "de email.register_exists_text",
  "de group %d: showing the members of a group needs the permissions to list it and its members (core.groups.list_all and core.users.list_all, or the own groups)",
  "de invite.help",
@@ -23,7 +22,6 @@
  "de workflow.test_help",
  "en auth.ldap.sync_conflicts_help",
  "en cache.enabled_help",
- "en cms.admin_help",
  "en consent.guests_help",
  "en core.carousel.admin_help",
  "en editor.block_share_help",

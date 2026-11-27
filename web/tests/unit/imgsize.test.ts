@@ -33,6 +33,7 @@ const BOXED: { file: string; has: string; css: string }[] = [
 /** images that may load without a reserved box, and why */
 const EXCEPTIONS: { file: string; has: string; why: string }[] = [
   { file: 'web/src/components/media.ts', has: 'new Image()', why: 'not shown: the source of the canvas of the image editor' },
+  { file: 'web/src/views/templateSettings.ts', has: 'new Image()', why: 'not shown: only reads the size of an uploaded image for the live preview' },
   { file: 'plugins/core_html/web/index.ts', has: '"${size}>`', why: 'width and height of the medium come in ${size} (when the medium has a size)' },
 ];
 

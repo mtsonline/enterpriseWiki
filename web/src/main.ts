@@ -19,7 +19,7 @@ import { h, mount } from './core/dom';
 import { MAIN } from './core/templateSchema';
 import { loadMessages, t } from './core/i18n';
 import { onBeforeRender, onNavigate, rerender, route, setMain, setNotFound, start } from './core/router';
-import { isAdmin, rememberedLang, state, stored } from './core/state';
+import { hasPerm, isAdmin, rememberedLang, state, stored } from './core/state';
 import type { Principal, Site } from './core/types';
 import { categoryTree, ctx, currentSpace, setSpace, editToggle, helpToggle, languageSwitcher, searchBox, userMenu } from './components/widgets';
 import { watchHelp } from './core/helptexts';
@@ -29,7 +29,7 @@ import { pluginModules } from './generated/plugins';
 import { applyScheme } from './core/scheme';
 import { schemeBlock } from './components/scheme';
 import { brandHeader, printBrand } from './components/brand';
-import { positionContainer, refreshPositions, registerPageAction, registerProfileSection, registerSlot, registerTemplate, previewTemplate, resolveTemplate, setShownTemplate, siteTemplate, triedTemplate } from './coreplugin';
+import { hasTemplateSettings, loadTemplateSettings, positionContainer, refreshPositions, setPreviewTemplate, setTemplateSettingsDraft, templateSettingsOf, registerPageAction, registerProfileSection, registerSlot, registerTemplate, previewTemplate, resolveTemplate, setShownTemplate, siteTemplate, triedTemplate } from './coreplugin';
 import { tryBar } from './components/trytemplate';
 import { closedPage, maintenanceBar } from './components/maintenance';
 import { cookieBanner, cookieSettingsBlock, privacyGate } from './components/consent';
@@ -203,12 +203,15 @@ async function boot(): Promise<void> {
     }
   }
   if (waits.length) await Promise.race([Promise.allSettled(waits), new Promise((res) => { setTimeout(res, 4000); })]);
+  setupSettingsPreview();
   let tpl = resolveTemplate(previewTemplate() || siteTemplate()) ?? resolveTemplate('core.basic')!;
+  // the settings of the template (logos, colours …) before the page is built
+  await Promise.race([loadTemplateSettings(tpl.id), new Promise((res) => { setTimeout(res, 4000); })]);
   setShownTemplate(tpl.id);
   document.body.classList.add('ew', ...tpl.classNames);
   applyScheme(tpl.id);
   const build = () => {
-    const layout = tpl.layout({ position: (name, tag) => positionContainer(name, tag) });
+    const layout = tpl.layout({ position: (name, tag) => positionContainer(name, tag), settings: templateSettingsOf(tpl.id) });
     mount(app, layout.root, printBrand());
     trackStickyHeader(layout.root);
     return layout;
@@ -230,6 +233,11 @@ async function boot(): Promise<void> {
     setShownTemplate(tpl.id);
     document.body.classList.add('ew', ...tpl.classNames);
     applyScheme(tpl.id);
+    // the settings of another template come a moment later: built again then
+    if (!hasTemplateSettings(tpl.id)) {
+      const id = tpl.id;
+      void loadTemplateSettings(id).then(() => { if (tpl.id === id) window.dispatchEvent(new Event('ewiki:relayout')); });
+    }
     const old = layout.main;
     const focused = document.activeElement;
     const nodes = [...old.childNodes];
@@ -316,3 +324,30 @@ function showPositionsMode(): void {
 }
 
 void boot();
+
+/** The live preview of Administration → Templates → Settings: when this
+ * window is its frame (same origin, a person who may change the settings),
+ * the template of the preview is shown with the draft of its settings, and
+ * every change of the draft builds the page again. Only this window sees
+ * the draft. */
+function setupSettingsPreview(): void {
+  if (window.parent === window || !hasPerm('core.settings.manage')) return;
+  let parent: SettingsPreviewParent;
+  try {
+    parent = window.parent as unknown as SettingsPreviewParent;
+    if (parent.location.origin !== location.origin) return;
+  } catch {
+    return;
+  }
+  const draft = parent.__ewTplSettingsDraft;
+  if (!draft || typeof draft.id !== 'string' || !resolveTemplate(draft.id, draft.id)) return;
+  setPreviewTemplate(draft.id);
+  setTemplateSettingsDraft(draft.id, draft.values);
+  (window as unknown as SettingsPreviewWindow).__ewTplSettingsUpdate = (values) => {
+    setTemplateSettingsDraft(draft.id, values);
+    window.dispatchEvent(new Event('ewiki:relayout'));
+  };
+}
+
+interface SettingsPreviewParent { location: Location; __ewTplSettingsDraft?: { id: string; values: Record<string, unknown> } }
+interface SettingsPreviewWindow { __ewTplSettingsUpdate?: (values: Record<string, unknown>) => void }

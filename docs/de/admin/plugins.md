@@ -168,21 +168,21 @@ Jede Vorlage bietet Positionen, an denen Menüs (`core.menu`), Bausteine (`core.
 
 Bei der Wiki-Vorlage (`theme.wiki`, `theme.wiki.dark`) lässt sich die Seitenleiste auf allen Bildschirmgrößen über den Knopf im Kopfbereich ausblenden; der Zustand wird im Browser gemerkt.
 
-### Website-Vorlage einrichten
+### Website-Templates einrichten
 
-*Administration → Website-Vorlage* (gilt für beide Website-Vorlagen; oder `plugin_settings.theme.cms` in `config.yaml`, API `PUT /api/v1/admin/settings`):
+*Administration → Templates → Einstellungen*, für jedes der beiden Website-Templates einzeln (`theme.cms` und `theme.cms.modern`; gespeichert in `template_settings` der `config.yaml`, API `PUT /api/v1/admin/templates/{id}/settings`, CLI `ewiki templates settings set`). Der Server prüft jeden Wert gegen die Liste, die das Template anmeldet. Ohne Änderung hat jede Einstellung die Vorgabe, die das Template mitbringt; *Zurücksetzen* führt dorthin zurück.
 
 | Einstellung | Bedeutung |
 |---|---|
 | `logo`, `logo_light`, `logo_height` | Logo (hochgeladenes Bild) und helle Variante für den transparenten Kopfbereich über dem Startbild; Höhe in Pixel; im dunklen Schema zeigt der Kopf immer die helle Variante (ohne sie das normale Logo) |
-| `primary_color`, `accent_color` | Hauptfarbe (Links, Schaltflächen, aktive Navigation) und Akzentfarbe, `#rrggbb`; im dunklen Schema hellt das Wiki die Hauptfarbe so weit auf wie für 4,5 : 1 nötig |
+| `primary_color` | Hauptfarbe (Links, Schaltflächen, aktive Navigation), `#rrggbb`; im dunklen Schema hellt das Wiki sie so weit auf wie für 4,5 : 1 nötig |
 | `header` | `overlay`: Kopfbereich liegt transparent über dem Startbild und wird beim Scrollen weiß; `solid`: immer weiß |
 | `hero_image`, `hero_title`, `hero_subtitle`, `hero_button_label`, `hero_button_link`, `hero_size` | Startbild nur auf der Startseite; Größe `large` oder `medium` |
 | `banner`, `banner_image` | Seitentitel auf Unterseiten in einem Bild-Banner (ohne eigenes Bild wird ein Farbverlauf verwendet) |
 | `copyright` | Text in der untersten Zeile, `{year}` wird durch das aktuelle Jahr ersetzt |
 | `back_to_top` | „Nach oben“-Knopf beim Scrollen |
 
-Bilder werden wie Anhänge gespeichert und bei der Speicherbereinigung nicht gelöscht, solange eine Einstellung auf sie verweist. Die öffentlichen Werte liefert `GET /api/v1/x/theme.cms/config`. Menüs legen Sie unter *Administration → Menüs* an: Hauptnavigation an `header-nav` (ersetzt dann die automatische Navigation), Quicklinks an `top-bar`, Footer-Spalten mit Blöcken oder Menüs an `footer-1` … `footer-4`, rechtliche Links an `footer`.
+Logos und Bilder sind hochgeladene PNG-, WebP- oder JPEG-Dateien (kein SVG); die Speicherbereinigung löscht sie nicht, solange eine Einstellung auf sie verweist. `GET /api/v1/templates/{id}/settings` liefert die wirksamen Werte. Menüs legen Sie unter *Administration → Menüs* an: Hauptnavigation an `header-nav` (ersetzt dann die automatische Navigation), Quicklinks an `top-bar`, Footer-Spalten mit Blöcken oder Menüs an `footer-1` … `footer-4`, rechtliche Links an `footer`.
 
 Mit `?positions=1` an einer beliebigen Adresse (oder *Positionen auf der Seite anzeigen* unter *Menüs* bzw. *Blöcke*) sehen Administratoren alle Positionen mit Namen umrahmt. Menüs und Blöcke an einer Position, die die aktive Vorlage nicht hat, werden in der Verwaltung markiert und nicht angezeigt.
 

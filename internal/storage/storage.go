@@ -316,9 +316,13 @@ func (s *Store) configHashes() map[string]bool {
 			}
 		}
 	}
-	for _, m := range s.cfg.Get().Settings {
-		for _, v := range m {
-			walk(v)
+	c := s.cfg.Get()
+	// plugin settings and the settings of templates (logos …) keep their files
+	for _, all := range []map[string]map[string]any{c.Settings, c.TemplateSettings} {
+		for _, m := range all {
+			for _, v := range m {
+				walk(v)
+			}
 		}
 	}
 	return out

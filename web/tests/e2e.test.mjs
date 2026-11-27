@@ -2639,6 +2639,74 @@ test('templates on phones and tablets: content first, menu and tools closed, not
   }
 });
 
+test('templates: settings with defaults, contrast warning, live preview, reset; the website uses them', async () => {
+  const before = (await call('GET', '/api/v1/admin/settings')).config.ui;
+  const url = '/api/v1/admin/templates/theme.cms/settings';
+  try {
+    await call('DELETE', url);
+    // the card leads to the settings of its template
+    await page.goto(`${BASE}/admin/templates`);
+    await idle();
+    await page.getByRole('button', { name: /^(settings|einstellungen): (website|cms|.*cms.*)/i }).first().click();
+    assert.equal(await page.getByRole('tab', { name: /^(settings|einstellungen)$/i }).getAttribute('aria-selected'), 'true');
+    await page.goto(`${BASE}/admin/templates?tab=settings&t=theme.cms`);
+    await idle();
+    const form = page.locator('.ew-tplset-form');
+    await form.getByRole('group', { name: /^(colours|farben)$/i }).waitFor();
+    await form.getByRole('group', { name: /^(logos)$/i }).waitFor();
+    const colorField = form.locator('[data-setting="primary_color"]');
+    await colorField.getByText(/^(default|vorgabe): #0a3760/i).waitFor();
+    // the preview is the website with the draft
+    const frame = page.frameLocator('iframe.ew-tplset-frame');
+    await frame.locator('.ewcms-app').first().waitFor();
+    // too little contrast to white: a warning, gone again with a dark colour
+    await colorField.locator('input[type=color]').fill('#ffee00');
+    const warning = colorField.locator('.ew-warning');
+    await warning.getByText(/(contrast to|der kontrast zu) #ffffff/i).waitFor();
+    await colorField.locator('input[type=color]').fill('#7a1f1f');
+    await warning.waitFor({ state: 'hidden' });
+    await page.waitForFunction(() => document.querySelector('iframe.ew-tplset-frame')?.contentDocument?.querySelector('.ewcms-app')?.style.getPropertyValue('--ewcms-primary-l') === '#7a1f1f');
+    // a text and a logo (its size comes from the file)
+    await form.getByLabel(/^(copyright line|copyright-zeile)/i).fill(`© {year} Settings ${run}`);
+    await form.getByLabel(/^(copyright line|copyright-zeile)/i).press('Tab');
+    await frame.getByText(`© ${new Date().getFullYear()} Settings ${run}`).waitFor();
+    const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAgAAAAGCAIAAABxZ0isAAAAXUlEQVR4nAXBMQEAMAgEsVfCjIiKYK6SV3IzIiqCGUVNJBHiiCssEE+skJJITnITJyQv2UQqojjFLVxQvGILyYQ55hobzDNrpCaa09zGDc1rtpGGGM5wBw8Mb9jhA/3OQpEMoO8GAAAAAElFTkSuQmCC', 'base64');
+    await form.locator('[data-setting="logo"] input[type=file]').setInputFiles({ name: 'logo.png', mimeType: 'image/png', buffer: png });
+    await frame.locator('img.ewcms-logo-img[width="8"][height="6"]').first().waitFor();
+    await a11y('the settings of a template with its preview');
+    await form.getByRole('button', { name: /^(save|speichern)$/i }).click();
+    await page.locator('.ew-toast', { hasText: /settings saved|einstellungen gespeichert/i }).first().waitFor();
+    let cur = await call('GET', url);
+    assert.deepEqual([...cur.changed].sort(), ['copyright', 'logo', 'primary_color']);
+    assert.equal(cur.values.logo.width, 8, 'the size of the file');
+    // the website with the template uses them
+    await call('PUT', '/api/v1/admin/settings', { ui: { ...before, template: 'theme.cms' } });
+    await page.goto(`${BASE}/`);
+    await idle();
+    await page.getByText(`© ${new Date().getFullYear()} Settings ${run}`).waitFor();
+    assert.equal(await page.locator('.ewcms-app').first().evaluate((el) => el.style.getPropertyValue('--ewcms-primary-l')), '#7a1f1f');
+    // back to the default: one setting, then all
+    await page.goto(`${BASE}/admin/templates?tab=settings&t=theme.cms`);
+    await idle();
+    await form.getByRole('button', { name: /^(back to the default|auf die vorgabe zurücksetzen): (copyright line|copyright-zeile)$/i }).click();
+    assert.equal(await form.getByLabel(/^(copyright line|copyright-zeile)/i).inputValue(), '');
+    await form.getByRole('button', { name: /^(save|speichern)$/i }).click();
+    await page.locator('.ew-toast', { hasText: /settings saved|einstellungen gespeichert/i }).first().waitFor();
+    cur = await call('GET', url);
+    assert.deepEqual([...cur.changed].sort(), ['logo', 'primary_color']);
+    await page.locator('.ew-tplset-form').getByRole('button', { name: /^(reset all|alles zurücksetzen)$/i }).click();
+    // the toast of the save before may still be shown: wait for the answer itself
+    const deleted = page.waitForResponse((r) => r.url().endsWith(url) && r.request().method() === 'DELETE');
+    await page.locator('dialog[open]').getByRole('button', { name: /^(reset all|alles zurücksetzen)$/i }).click();
+    assert.equal((await deleted).status(), 204);
+    cur = await call('GET', url);
+    assert.equal(cur.changed.length, 0);
+  } finally {
+    await call('DELETE', url);
+    await call('PUT', '/api/v1/admin/settings', { ui: before });
+  }
+});
+
 test('templates: positions and placements in the schematic', async () => {
   const before = await call('GET', '/api/v1/placements/site');
   try {

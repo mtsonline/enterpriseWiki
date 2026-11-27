@@ -4,8 +4,230 @@
   "version": "1.0.0",
   "description": "Website layout (inspired by classic business themes): large header with main navigation of the top categories, full-width content for layout builder sections (hero, sections, cards), sidebar below the content and a footer with columns. Offers the positions header-nav, header-tools, sidebar and footer.",
   "author": "Enterprise Wiki",
-  "kinds": ["template"],
+  "kinds": [
+    "template"
+  ],
   "extends": [],
   "frontend": true,
-  "color_scheme": "system"
+  "color_scheme": "system",
+  "template_settings": [
+    {
+      "key": "primary_color",
+      "kind": "color",
+      "group": "colors",
+      "default": "#0a3760",
+      "label": {
+        "en": "Accent colour",
+        "de": "Akzentfarbe"
+      },
+      "help": {
+        "en": "For links, active menu items and buttons. Please choose a dark colour (contrast to white at least 4.5 : 1). In the dark scheme the wiki lightens it as far as needed for the same contrast.",
+        "de": "Für Links, aktive Menüpunkte und Schaltflächen. Bitte eine dunkle Farbe wählen (Kontrast zu Weiß mindestens 4,5 : 1). Im dunklen Schema hellt das Wiki sie so weit auf wie für denselben Kontrast nötig."
+      },
+      "contrast_on": [
+        "#ffffff"
+      ]
+    },
+    {
+      "key": "logo",
+      "kind": "image",
+      "group": "logos",
+      "role": "logo",
+      "label": {
+        "en": "Logo",
+        "de": "Logo"
+      },
+      "help": {
+        "en": "Raster image (PNG, JPEG, WebP), ideally with a transparent background.",
+        "de": "Rasterbild (PNG, JPEG, WebP), am besten mit transparentem Hintergrund."
+      }
+    },
+    {
+      "key": "logo_light",
+      "kind": "image",
+      "group": "logos",
+      "role": "logo_on_dark",
+      "label": {
+        "en": "Light logo (over the start image)",
+        "de": "Logo hell (über dem Startbild)"
+      },
+      "help": {
+        "en": "Optional: light variant shown over the start page image and in the dark colour scheme.",
+        "de": "Optional: helle Variante, die über dem Bild der Startseite und im dunklen Farbschema angezeigt wird."
+      }
+    },
+    {
+      "key": "logo_height",
+      "kind": "number",
+      "group": "logos",
+      "default": 56,
+      "min": 24,
+      "max": 120,
+      "step": 1,
+      "label": {
+        "en": "Logo height (pixels)",
+        "de": "Logo-Höhe (Pixel)"
+      },
+      "help": {
+        "en": "Default 56; the logo gets smaller when scrolling.",
+        "de": "Standard 56, beim Scrollen wird das Logo kleiner."
+      }
+    },
+    {
+      "key": "header",
+      "kind": "select",
+      "group": "header",
+      "default": "overlay",
+      "options": [
+        "overlay",
+        "solid"
+      ],
+      "label": {
+        "en": "Header",
+        "de": "Kopfbereich"
+      },
+      "option_labels": {
+        "overlay": {
+          "en": "Transparent over the start image, white when scrolling",
+          "de": "Transparent über dem Startbild, beim Scrollen weiß"
+        },
+        "solid": {
+          "en": "Always white",
+          "de": "Immer weiß"
+        }
+      }
+    },
+    {
+      "key": "hero_image",
+      "kind": "image",
+      "group": "content",
+      "label": {
+        "en": "Start image",
+        "de": "Startbild"
+      },
+      "help": {
+        "en": "Large image at the top of the start page, e.g. 2400 × 1200 pixels.",
+        "de": "Großes Bild oben auf der Startseite, z. B. 2400 × 1200 Pixel."
+      }
+    },
+    {
+      "key": "hero_title",
+      "kind": "text",
+      "group": "content",
+      "default": "",
+      "max_len": 120,
+      "label": {
+        "en": "Title in the start image",
+        "de": "Titel im Startbild"
+      }
+    },
+    {
+      "key": "hero_subtitle",
+      "kind": "text",
+      "group": "content",
+      "default": "",
+      "max_len": 240,
+      "label": {
+        "en": "Subtitle",
+        "de": "Untertitel"
+      }
+    },
+    {
+      "key": "hero_button_label",
+      "kind": "text",
+      "group": "content",
+      "default": "",
+      "max_len": 60,
+      "label": {
+        "en": "Button: text",
+        "de": "Schaltfläche: Text"
+      }
+    },
+    {
+      "key": "hero_button_link",
+      "kind": "link",
+      "group": "content",
+      "default": "",
+      "label": {
+        "en": "Button: link",
+        "de": "Schaltfläche: Link"
+      }
+    },
+    {
+      "key": "hero_size",
+      "kind": "select",
+      "group": "content",
+      "default": "large",
+      "options": [
+        "large",
+        "medium"
+      ],
+      "label": {
+        "en": "Height of the start image",
+        "de": "Höhe des Startbilds"
+      },
+      "option_labels": {
+        "large": {
+          "en": "Large",
+          "de": "Groß"
+        },
+        "medium": {
+          "en": "Medium",
+          "de": "Mittel"
+        }
+      }
+    },
+    {
+      "key": "banner",
+      "kind": "bool",
+      "group": "content",
+      "default": false,
+      "label": {
+        "en": "Title banner on sub pages",
+        "de": "Titelbanner auf Unterseiten"
+      },
+      "help": {
+        "en": "Shows the page title large over an image (as on university websites).",
+        "de": "Zeigt den Seitentitel groß über einem Bild (wie auf Hochschul-Websites)."
+      }
+    },
+    {
+      "key": "banner_image",
+      "kind": "image",
+      "group": "content",
+      "label": {
+        "en": "Image for title banners",
+        "de": "Bild für Titelbanner"
+      },
+      "help": {
+        "en": "Without its own image the start image is used.",
+        "de": "Ohne eigenes Bild wird das Startbild verwendet."
+      }
+    },
+    {
+      "key": "copyright",
+      "kind": "text",
+      "group": "footer",
+      "default": "",
+      "max_len": 200,
+      "label": {
+        "en": "Copyright line",
+        "de": "Copyright-Zeile"
+      },
+      "help": {
+        "en": "e.g. “© {year} Example University” – {year} is replaced by the current year.",
+        "de": "z. B. „© {year} Universität Musterstadt“ – {year} wird durch das aktuelle Jahr ersetzt."
+      }
+    },
+    {
+      "key": "back_to_top",
+      "kind": "bool",
+      "group": "layout",
+      "default": true,
+      "label": {
+        "en": "Back to top",
+        "de": "Nach oben"
+      }
+    }
+  ]
 }
